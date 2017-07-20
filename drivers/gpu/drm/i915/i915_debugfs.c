@@ -543,75 +543,6 @@ static int i915_gem_gtt_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int i915_gem_pageflip_info(struct seq_file *m, void *data)
-{
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct drm_device *dev = &dev_priv->drm;
-	struct intel_crtc *crtc;
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-
-	for_each_intel_crtc(dev, crtc) {
-		const char pipe = pipe_name(crtc->pipe);
-		const char plane = plane_name(crtc->plane);
-		struct intel_flip_work *work;
-
-		spin_lock_irq(&dev->event_lock);
-		work = crtc->flip_work;
-		if (work == NULL) {
-			seq_printf(m, "No flip due on pipe %c (plane %c)\n",
-				   pipe, plane);
-		} else {
-			u32 pending;
-			u32 addr;
-
-			pending = atomic_read(&work->pending);
-			if (pending) {
-				seq_printf(m, "Flip ioctl preparing on pipe %c (plane %c)\n",
-					   pipe, plane);
-			} else {
-				seq_printf(m, "Flip pending (waiting for vsync) on pipe %c (plane %c)\n",
-					   pipe, plane);
-			}
-			if (work->flip_queued_req) {
-				struct intel_engine_cs *engine = work->flip_queued_req->engine;
-
-				seq_printf(m, "Flip queued on %s at seqno %x, last submitted seqno %x [current breadcrumb %x], completed? %d\n",
-					   engine->name,
-					   work->flip_queued_req->global_seqno,
-					   intel_engine_last_submit(engine),
-					   intel_engine_get_seqno(engine),
-					   i915_gem_request_completed(work->flip_queued_req));
-			} else
-				seq_printf(m, "Flip not associated with any ring\n");
-			seq_printf(m, "Flip queued on frame %d, (was ready on frame %d), now %d\n",
-				   work->flip_queued_vblank,
-				   work->flip_ready_vblank,
-				   intel_crtc_get_vblank_counter(crtc));
-			seq_printf(m, "%d prepares\n", atomic_read(&work->pending));
-
-			if (INTEL_GEN(dev_priv) >= 4)
-				addr = I915_HI_DISPBASE(I915_READ(DSPSURF(crtc->plane)));
-			else
-				addr = I915_READ(DSPADDR(crtc->plane));
-			seq_printf(m, "Current scanout address 0x%08x\n", addr);
-
-			if (work->pending_flip_obj) {
-				seq_printf(m, "New framebuffer address 0x%08lx\n", (long)work->gtt_offset);
-				seq_printf(m, "MMIO update completed? %d\n",  addr == work->gtt_offset);
-			}
-		}
-		spin_unlock_irq(&dev->event_lock);
-	}
-
-	mutex_unlock(&dev->struct_mutex);
-
-	return 0;
-}
-
 static int i915_gem_batch_pool_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
@@ -4854,7 +4785,6 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_gem_gtt", i915_gem_gtt_info, 0},
 	{"i915_gem_pin_display", i915_gem_gtt_info, 0, (void *)1},
 	{"i915_gem_stolen", i915_gem_stolen_list_info },
-	{"i915_gem_pageflip", i915_gem_pageflip_info, 0},
 	{"i915_gem_request", i915_gem_request_info, 0},
 	{"i915_gem_seqno", i915_gem_seqno_info, 0},
 	{"i915_gem_fence_regs", i915_gem_fence_regs_info, 0},

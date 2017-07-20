@@ -49,11 +49,6 @@
 #include <linux/dma_remapping.h>
 #include <linux/reservation.h>
 
-static bool is_mmio_work(struct intel_flip_work *work)
-{
-	return work->mmio_work.func;
-}
-
 /* Primary plane formats for gen <= 3 */
 static const uint32_t i8xx_primary_formats[] = {
 	DRM_FORMAT_C8,
@@ -3551,35 +3546,6 @@ unlock:
 	mutex_unlock(&dev->mode_config.mutex);
 }
 
-static bool abort_flip_on_reset(struct intel_crtc *crtc)
-{
-	struct i915_gpu_error *error = &to_i915(crtc->base.dev)->gpu_error;
-
-	if (i915_reset_backoff(error))
-		return true;
-
-	if (crtc->reset_count != i915_reset_count(error))
-		return true;
-
-	return false;
-}
-
-static bool intel_crtc_has_pending_flip(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	bool pending;
-
-	if (abort_flip_on_reset(intel_crtc))
-		return false;
-
-	spin_lock_irq(&dev->event_lock);
-	pending = to_intel_crtc(crtc)->flip_work != NULL;
-	spin_unlock_irq(&dev->event_lock);
-
-	return pending;
-}
-
 static void intel_update_pipe_config(struct intel_crtc *crtc,
 				     struct intel_crtc_state *old_crtc_state)
 {
@@ -4155,57 +4121,6 @@ bool intel_has_pending_fb_unpin(struct drm_i915_private *dev_priv)
 	}
 
 	return false;
-}
-
-static void page_flip_completed(struct intel_crtc *intel_crtc)
-{
-	struct drm_i915_private *dev_priv = to_i915(intel_crtc->base.dev);
-	struct intel_flip_work *work = intel_crtc->flip_work;
-
-	intel_crtc->flip_work = NULL;
-
-	if (work->event)
-		drm_crtc_send_vblank_event(&intel_crtc->base, work->event);
-
-	drm_crtc_vblank_put(&intel_crtc->base);
-
-	wake_up_all(&dev_priv->pending_flip_queue);
-	trace_i915_flip_complete(intel_crtc->plane,
-				 work->pending_flip_obj);
-
-	queue_work(dev_priv->wq, &work->unpin_work);
-}
-
-static int intel_crtc_wait_for_pending_flips(struct drm_crtc *crtc)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	long ret;
-
-	WARN_ON(waitqueue_active(&dev_priv->pending_flip_queue));
-
-	ret = wait_event_interruptible_timeout(
-					dev_priv->pending_flip_queue,
-					!intel_crtc_has_pending_flip(crtc),
-					60*HZ);
-
-	if (ret < 0)
-		return ret;
-
-	if (ret == 0) {
-		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-		struct intel_flip_work *work;
-
-		spin_lock_irq(&dev->event_lock);
-		work = intel_crtc->flip_work;
-		if (work && !is_mmio_work(work)) {
-			WARN_ONCE(1, "Removing stuck page flip\n");
-			page_flip_completed(intel_crtc);
-		}
-		spin_unlock_irq(&dev->event_lock);
-	}
-
-	return 0;
 }
 
 void lpt_disable_iclkip(struct drm_i915_private *dev_priv)
@@ -5814,8 +5729,6 @@ static void intel_crtc_disable_noatomic(struct drm_crtc *crtc,
 		return;
 
 	if (crtc->primary->state->visible) {
-		WARN_ON(intel_crtc->flip_work);
-
 		intel_pre_disable_primary_noatomic(crtc);
 
 		intel_crtc_disable_planes(crtc, 1 << drm_plane_index(crtc->primary));
@@ -10088,33 +10001,9 @@ struct drm_display_mode *intel_crtc_mode_get(struct drm_device *dev,
 static void intel_crtc_destroy(struct drm_crtc *crtc)
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-	struct drm_device *dev = crtc->dev;
-	struct intel_flip_work *work;
-
-	spin_lock_irq(&dev->event_lock);
-	work = intel_crtc->flip_work;
-	intel_crtc->flip_work = NULL;
-	spin_unlock_irq(&dev->event_lock);
-
-	if (work) {
-		cancel_work_sync(&work->mmio_work);
-		cancel_work_sync(&work->unpin_work);
-		kfree(work);
-	}
 
 	drm_crtc_cleanup(crtc);
-
 	kfree(intel_crtc);
-}
-
-static inline void intel_mark_page_flip_active(struct intel_crtc *crtc,
-					       struct intel_flip_work *work)
-{
-	work->flip_queued_vblank = intel_crtc_get_vblank_counter(crtc);
-
-	/* Ensure that the work item is consistent when activating it ... */
-	smp_mb__before_atomic();
-	atomic_set(&work->pending, 1);
 }
 
 /**
@@ -11935,10 +11824,6 @@ static int intel_atomic_prepare_commit(struct drm_device *dev,
 		if (state->legacy_cursor_update)
 			continue;
 
-		ret = intel_crtc_wait_for_pending_flips(crtc);
-		if (ret)
-			return ret;
-
 		if (atomic_read(&to_intel_crtc(crtc)->unpin_work_count) >= 2)
 			flush_workqueue(dev_priv->wq);
 	}
@@ -12712,7 +12597,7 @@ static void intel_finish_crtc_commit(struct drm_crtc *crtc,
 {
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
-	intel_pipe_update_end(intel_crtc, NULL);
+	intel_pipe_update_end(intel_crtc);
 }
 
 /**

@@ -2143,9 +2143,6 @@ struct drm_i915_private {
 	/* protects the irq masks */
 	spinlock_t irq_lock;
 
-	/* protects the mmio flip data */
-	spinlock_t mmio_flip_lock;
-
 	bool display_irqs_enabled;
 
 	/* To control wakeup latency, e.g. for irq-driven dp aux transfers. */
@@ -2250,7 +2247,6 @@ struct drm_i915_private {
 
 	struct intel_crtc *plane_to_crtc_mapping[I915_MAX_PIPES];
 	struct intel_crtc *pipe_to_crtc_mapping[I915_MAX_PIPES];
-	wait_queue_head_t pending_flip_queue;
 
 #ifdef CONFIG_DEBUG_FS
 	struct intel_pipe_crc pipe_crc[I915_MAX_PIPES];
