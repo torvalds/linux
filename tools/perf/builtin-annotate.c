@@ -184,7 +184,7 @@ static int perf_evsel__add_sample(struct perf_evsel *evsel,
 	if (he == NULL)
 		return -ENOMEM;
 
-	ret = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
+	ret = hist_entry__inc_addr_samples(he, sample, evsel->idx, al->addr);
 	hists__inc_nr_samples(hists, true);
 	return ret;
 }

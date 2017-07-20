@@ -115,37 +115,38 @@ static int hist_iter__report_callback(struct hist_entry_iter *iter,
 	struct report *rep = arg;
 	struct hist_entry *he = iter->he;
 	struct perf_evsel *evsel = iter->evsel;
+	struct perf_sample *sample = iter->sample;
 	struct mem_info *mi;
 	struct branch_info *bi;
 
 	if (!ui__has_annotation())
 		return 0;
 
-	hist__account_cycles(iter->sample->branch_stack, al, iter->sample,
+	hist__account_cycles(sample->branch_stack, al, sample,
 			     rep->nonany_branch_mode);
 
 	if (sort__mode == SORT_MODE__BRANCH) {
 		bi = he->branch_info;
-		err = addr_map_symbol__inc_samples(&bi->from, evsel->idx);
+		err = addr_map_symbol__inc_samples(&bi->from, sample, evsel->idx);
 		if (err)
 			goto out;
 
-		err = addr_map_symbol__inc_samples(&bi->to, evsel->idx);
+		err = addr_map_symbol__inc_samples(&bi->to, sample, evsel->idx);
 
 	} else if (rep->mem_mode) {
 		mi = he->mem_info;
-		err = addr_map_symbol__inc_samples(&mi->daddr, evsel->idx);
+		err = addr_map_symbol__inc_samples(&mi->daddr, sample, evsel->idx);
 		if (err)
 			goto out;
 
-		err = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
+		err = hist_entry__inc_addr_samples(he, sample, evsel->idx, al->addr);
 
 	} else if (symbol_conf.cumulate_callchain) {
 		if (single)
-			err = hist_entry__inc_addr_samples(he, evsel->idx,
+			err = hist_entry__inc_addr_samples(he, sample, evsel->idx,
 							   al->addr);
 	} else {
-		err = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
+		err = hist_entry__inc_addr_samples(he, sample, evsel->idx, al->addr);
 	}
 
 out:
