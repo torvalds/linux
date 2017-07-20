@@ -470,8 +470,8 @@ static int medusa_l1_file_receive(struct file *file)
 
 static int medusa_l1_task_create(unsigned long clone_flags)
 {
-        if(medusa_fork(clone_flags) == MED_NO)
-                return -EPERM;   
+	if(medusa_fork(clone_flags) == MED_NO)
+		return -EPERM;
 	return 0;
 }
 
@@ -613,7 +613,7 @@ static int medusa_l1_task_wait(struct task_struct *p)
 static int medusa_l1_task_kill(struct task_struct *p, struct siginfo *info,
 			 int sig, u32 secid)
 {
-    if(medusa_sendsig(sig, info, p) == MED_NO)
+	if(medusa_sendsig(sig, info, p) == MED_NO)
 		return -EPERM;
 	return 0;
 }
@@ -1285,7 +1285,7 @@ static struct security_hook_list medusa_l1_hooks[] = {
 	LSM_HOOK_INIT(sb_umount, medusa_l1_sb_umount),
 	LSM_HOOK_INIT(sb_pivotroot, medusa_l1_sb_pivotroot),
 	LSM_HOOK_INIT(sb_set_mnt_opts, medusa_l1_sb_set_mnt_opts),
-	LSM_HOOK_INIT(sb_clone_mnt_opts, medusa_l1_sb_clone_mnt_opts),
+	//LSM_HOOK_INIT(sb_clone_mnt_opts, medusa_l1_sb_clone_mnt_opts),
 	LSM_HOOK_INIT(sb_parse_opts_str, medusa_l1_sb_parse_opts_str),
 	LSM_HOOK_INIT(dentry_init_security, medusa_l1_dentry_init_security),
 
@@ -1497,27 +1497,36 @@ struct security_hook_list medusa_l1_hooks_special[] = {
 void __init medusa_init(void);
 
 static void medusa_l1_init_sb(struct super_block *sb, void *unused) {
-        struct list_head *tmp;
-        struct inode *entry;
+	struct list_head *tmp;
+	struct inode *entry;
 
 	medusa_l1_sb_kern_mount(sb, 0, NULL);
 	printk("medusa: sb: %s\n", sb->s_root->d_name.name);
 
-        tmp = &sb->s_inodes;
-        list_for_each(tmp, &sb->s_inodes) {
-                entry = list_entry(tmp, struct inode, i_sb_list);
-                if (&inode_security(entry)==NULL) {
-                        medusa_l1_inode_alloc_security(entry);
-                }
-        }
+	tmp = &sb->s_inodes;
+
+	//BUILD_BUG_ON_MSG(!__same_type(tmp, tmp),"FUCK YOU");
+
+	/*void *__mptr = (void *)(ptr);					\
+	BUILD_BUG_ON_MSG(!__same_type(*(ptr), ((type *)0)->member) &&	\
+			 !__same_type(*(ptr), void),			\
+			 "pointer type mismatch in container_of()");	\
+	((type *)(__mptr - offsetof(type, member))); })*/
+
+	list_for_each(tmp, &sb->s_inodes) {
+		entry = list_entry(tmp, struct inode, i_sb_list);
+		if (&inode_security(entry)==NULL) {
+			medusa_l1_inode_alloc_security(entry);
+		}
+	}
 }
 
 // Number and order of hooks has to be the same
 void security_replace_hooks(struct security_hook_list *old_hooks, struct security_hook_list *new_hooks, int count)
 {
-    int i;
-    for (i = 0; i < count; i++)
-        list_replace_rcu(&old_hooks[i].list, &new_hooks[i].list);
+	int i;
+	for (i = 0; i < count; i++)
+		list_replace_rcu(&old_hooks[i].list, &new_hooks[i].list);
 }
 
 static int __init medusa_l1_init(void)
@@ -1531,42 +1540,43 @@ static int __init medusa_l1_init(void)
 	
 	security_add_hooks(medusa_l1_hooks, ARRAY_SIZE(medusa_l1_hooks), "medusa");
 	printk("medusa: l1 registered with the kernel\n");
-    
-    security_replace_hooks(medusa_l0_hooks, medusa_l1_hooks_special, ARRAY_SIZE(medusa_l1_hooks_special));
 
-    extern bool l1_initialized;
-    extern struct cred_list l0_cred_list;
-    extern struct inode_list l0_inode_list;
-    extern struct mutex l0_mutex;
+	security_replace_hooks(medusa_l0_hooks, medusa_l1_hooks_special, ARRAY_SIZE(medusa_l1_hooks_special));
 
-    mutex_lock(&l0_mutex);
-
-    struct list_head *pos, *q;
-    struct inode_list *tmp;
-    struct cred_list *tmp_cred;
-
-    list_for_each_safe(pos, q, &l0_inode_list.list) {
-        tmp = list_entry(pos, struct inode_list, list);
-        medusa_l1_inode_alloc_security(tmp->inode);
-        // printk("medusa: l1_alloc_security for an entry in the l0 list");
-        list_del(pos);
-        kfree(tmp); 
-    }
-
-    list_for_each_safe(pos, q, &l0_cred_list.list) {
-        tmp_cred = list_entry(pos, struct cred_list, list);
-        medusa_l1_cred_alloc_blank(tmp_cred->cred, tmp_cred->gfp);
-        // printk("medusa: l1_cred_allo_blank for an entry in the l0 list");
-        list_del(pos);
-        kfree(tmp); 
-    }
-
-    l1_initialized = true;
-
-    mutex_unlock(&l0_mutex);
+	extern bool l1_initialized;
+	extern struct cred_list l0_cred_list;
+	extern struct inode_list l0_inode_list;
+	extern struct mutex l0_mutex;
+	
+	mutex_lock(&l0_mutex);
+	
+	struct list_head *pos, *q;
+	struct inode_list *tmp;
+	struct cred_list *tmp_cred;
+	
+	list_for_each_safe(pos, q, &l0_inode_list.list) {
+		tmp = list_entry(pos, struct inode_list, list);
+		medusa_l1_inode_alloc_security(tmp->inode);
+		// printk("medusa: l1_alloc_security for an entry in the l0 list");
+		list_del(pos);
+		kfree(tmp); 
+	}
+	
+	list_for_each_safe(pos, q, &l0_cred_list.list) {
+		tmp_cred = list_entry(pos, struct cred_list, list);
+		medusa_l1_cred_alloc_blank(tmp_cred->cred, tmp_cred->gfp);
+		// printk("medusa: l1_cred_allo_blank for an entry in the l0 list");
+		list_del(pos);
+		kfree(tmp); 
+	}
+	
+	l1_initialized = true;
+	
+	mutex_unlock(&l0_mutex);
 
 	medusa_init();
-    
+
+	read_lock(&tasklist_lock);
 	for_each_process(process) {
 		struct medusa_l1_task_s* med;
 		struct cred* tmp;
@@ -1586,6 +1596,7 @@ static int __init medusa_l1_init(void)
 
 		medusa_init_process(process);
 	}
+	read_unlock(&tasklist_lock);
 
 	iterate_supers(medusa_l1_init_sb, NULL);
 
