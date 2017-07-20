@@ -428,7 +428,7 @@ static void rect_swap_helper(struct rect *rect)
 
 static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 {
-	const struct dc_surface *surface = &pipe_ctx->surface->public;
+	const struct dc_surface *surface = pipe_ctx->surface;
 	const struct dc_stream *stream = &pipe_ctx->stream->public;
 	struct scaler_data *data = &pipe_ctx->scl_data;
 	struct rect surf_src = surface->src_rect;
@@ -446,8 +446,8 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 		sec_split = false;
 	}
 
-	if (pipe_ctx->surface->public.rotation == ROTATION_ANGLE_90 ||
-			pipe_ctx->surface->public.rotation == ROTATION_ANGLE_270)
+	if (pipe_ctx->surface->rotation == ROTATION_ANGLE_90 ||
+			pipe_ctx->surface->rotation == ROTATION_ANGLE_270)
 		rect_swap_helper(&surf_src);
 
 	/* The actual clip is an intersection between stream
@@ -527,14 +527,14 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 
 static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip)
 {
-	const struct dc_surface *surface = &pipe_ctx->surface->public;
+	const struct dc_surface *surface = pipe_ctx->surface;
 	struct core_stream *stream = pipe_ctx->stream;
 	struct rect surf_src = surface->src_rect;
 	struct rect surf_clip = surface->clip_rect;
 	int recout_full_x, recout_full_y;
 
-	if (pipe_ctx->surface->public.rotation == ROTATION_ANGLE_90 ||
-			pipe_ctx->surface->public.rotation == ROTATION_ANGLE_270)
+	if (pipe_ctx->surface->rotation == ROTATION_ANGLE_90 ||
+			pipe_ctx->surface->rotation == ROTATION_ANGLE_270)
 		rect_swap_helper(&surf_src);
 
 	pipe_ctx->scl_data.recout.x = stream->public.dst.x;
@@ -605,7 +605,7 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip
 
 static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
 {
-	const struct dc_surface *surface = &pipe_ctx->surface->public;
+	const struct dc_surface *surface = pipe_ctx->surface;
 	struct core_stream *stream = pipe_ctx->stream;
 	struct rect surf_src = surface->src_rect;
 	const int in_w = stream->public.src.width;
@@ -613,8 +613,8 @@ static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
 	const int out_w = stream->public.dst.width;
 	const int out_h = stream->public.dst.height;
 
-	if (pipe_ctx->surface->public.rotation == ROTATION_ANGLE_90 ||
-			pipe_ctx->surface->public.rotation == ROTATION_ANGLE_270)
+	if (pipe_ctx->surface->rotation == ROTATION_ANGLE_90 ||
+			pipe_ctx->surface->rotation == ROTATION_ANGLE_270)
 		rect_swap_helper(&surf_src);
 
 	pipe_ctx->scl_data.ratios.horz = dal_fixed31_32_from_fraction(
@@ -647,13 +647,13 @@ static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
 static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *recout_skip)
 {
 	struct scaler_data *data = &pipe_ctx->scl_data;
-	struct rect src = pipe_ctx->surface->public.src_rect;
+	struct rect src = pipe_ctx->surface->src_rect;
 	int vpc_div = (data->format == PIXEL_FORMAT_420BPP8
 			|| data->format == PIXEL_FORMAT_420BPP10) ? 2 : 1;
 
 
-	if (pipe_ctx->surface->public.rotation == ROTATION_ANGLE_90 ||
-			pipe_ctx->surface->public.rotation == ROTATION_ANGLE_270) {
+	if (pipe_ctx->surface->rotation == ROTATION_ANGLE_90 ||
+			pipe_ctx->surface->rotation == ROTATION_ANGLE_270) {
 		rect_swap_helper(&src);
 		rect_swap_helper(&data->viewport_c);
 		rect_swap_helper(&data->viewport);
@@ -803,8 +803,8 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 	data->inits.v_bot = dal_fixed31_32_add(data->inits.v, data->ratios.vert);
 	data->inits.v_c_bot = dal_fixed31_32_add(data->inits.v_c, data->ratios.vert_c);
 
-	if (pipe_ctx->surface->public.rotation == ROTATION_ANGLE_90 ||
-			pipe_ctx->surface->public.rotation == ROTATION_ANGLE_270) {
+	if (pipe_ctx->surface->rotation == ROTATION_ANGLE_90 ||
+			pipe_ctx->surface->rotation == ROTATION_ANGLE_270) {
 		rect_swap_helper(&data->viewport_c);
 		rect_swap_helper(&data->viewport);
 	}
@@ -812,7 +812,7 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 
 bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 {
-	const struct dc_surface *surface = &pipe_ctx->surface->public;
+	const struct dc_surface *surface = pipe_ctx->surface;
 	struct dc_crtc_timing *timing = &pipe_ctx->stream->public.timing;
 	struct view recout_skip = { 0 };
 	bool res = false;
@@ -822,7 +822,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	 * Inits require viewport, taps, ratios and recout of split pipe
 	 */
 	pipe_ctx->scl_data.format = convert_pixel_format_to_dalsurface(
-			pipe_ctx->surface->public.format);
+			pipe_ctx->surface->format);
 
 	calculate_scaling_ratios(pipe_ctx);
 
@@ -1029,7 +1029,7 @@ static int acquire_first_split_pipe(
 #endif
 
 bool resource_attach_surfaces_to_context(
-		const struct dc_surface * const *surfaces,
+		struct dc_surface * const *surfaces,
 		int surface_count,
 		const struct dc_stream *dc_stream,
 		struct validate_context *context,
@@ -1077,7 +1077,7 @@ bool resource_attach_surfaces_to_context(
 
 	tail_pipe = NULL;
 	for (i = 0; i < surface_count; i++) {
-		struct core_surface *surface = DC_SURFACE_TO_CORE(surfaces[i]);
+		struct dc_surface *surface = surfaces[i];
 		struct pipe_ctx *free_pipe = acquire_free_pipe_for_stream(
 				context, pool, dc_stream);
 
@@ -1358,7 +1358,7 @@ bool resource_is_stream_unchanged(
 static void copy_pipe_ctx(
 	const struct pipe_ctx *from_pipe_ctx, struct pipe_ctx *to_pipe_ctx)
 {
-	struct core_surface *surface = to_pipe_ctx->surface;
+	struct dc_surface *surface = to_pipe_ctx->surface;
 	struct core_stream *stream = to_pipe_ctx->stream;
 
 	*to_pipe_ctx = *from_pipe_ctx;
@@ -2072,7 +2072,7 @@ static void set_spd_info_packet(
 
 static void set_hdr_static_info_packet(
 		struct encoder_info_packet *info_packet,
-		struct core_surface *surface,
+		struct dc_surface *surface,
 		struct core_stream *stream)
 {
 	uint16_t i = 0;
@@ -2083,7 +2083,7 @@ static void set_hdr_static_info_packet(
 	if (!surface)
 		return;
 
-	hdr_metadata = surface->public.hdr_static_ctx;
+	hdr_metadata = surface->hdr_static_ctx;
 
 	if (!hdr_metadata.hdr_supported)
 		return;

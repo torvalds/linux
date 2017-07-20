@@ -215,11 +215,11 @@ static bool dce110_enable_display_power_gating(
 }
 
 static void build_prescale_params(struct ipp_prescale_params *prescale_params,
-		const struct core_surface *surface)
+		const struct dc_surface *surface)
 {
 	prescale_params->mode = IPP_PRESCALE_MODE_FIXED_UNSIGNED;
 
-	switch (surface->public.format) {
+	switch (surface->format) {
 	case SURFACE_PIXEL_FORMAT_GRPH_ARGB8888:
 	case SURFACE_PIXEL_FORMAT_GRPH_ABGR8888:
 		prescale_params->scale = 0x2020;
@@ -240,7 +240,7 @@ static void build_prescale_params(struct ipp_prescale_params *prescale_params,
 
 static bool dce110_set_input_transfer_func(
 	struct pipe_ctx *pipe_ctx,
-	const struct core_surface *surface)
+	const struct dc_surface *surface)
 {
 	struct input_pixel_processor *ipp = pipe_ctx->ipp;
 	const struct dc_transfer_func *tf = NULL;
@@ -250,14 +250,14 @@ static bool dce110_set_input_transfer_func(
 	if (ipp == NULL)
 		return false;
 
-	if (surface->public.in_transfer_func)
-		tf = surface->public.in_transfer_func;
+	if (surface->in_transfer_func)
+		tf = surface->in_transfer_func;
 
 	build_prescale_params(&prescale_params, surface);
 	ipp->funcs->ipp_program_prescale(ipp, &prescale_params);
 
-	if (surface->public.gamma_correction && dce_use_lut(surface))
-		ipp->funcs->ipp_program_input_lut(ipp, surface->public.gamma_correction);
+	if (surface->gamma_correction && dce_use_lut(surface))
+		ipp->funcs->ipp_program_input_lut(ipp, surface->gamma_correction);
 
 	if (tf == NULL) {
 		/* Default case if no input transfer function specified */
@@ -1857,7 +1857,7 @@ static void set_default_colors(struct pipe_ctx *pipe_ctx)
 		default_adjust.in_color_space = COLOR_SPACE_SRGB;
 	else
 		default_adjust.in_color_space =
-				pipe_ctx->surface->public.color_space;
+				pipe_ctx->surface->color_space;
 	if (pipe_ctx->stream == NULL)
 		default_adjust.out_color_space = COLOR_SPACE_SRGB;
 	else
@@ -1908,16 +1908,16 @@ static void program_surface_visibility(const struct core_dc *dc,
 		/* For now we are supporting only two pipes */
 		ASSERT(pipe_ctx->bottom_pipe->bottom_pipe == NULL);
 
-		if (pipe_ctx->bottom_pipe->surface->public.visible) {
-			if (pipe_ctx->surface->public.visible)
+		if (pipe_ctx->bottom_pipe->surface->visible) {
+			if (pipe_ctx->surface->visible)
 				blender_mode = BLND_MODE_BLENDING;
 			else
 				blender_mode = BLND_MODE_OTHER_PIPE;
 
-		} else if (!pipe_ctx->surface->public.visible)
+		} else if (!pipe_ctx->surface->visible)
 			blank_target = true;
 
-	} else if (!pipe_ctx->surface->public.visible)
+	} else if (!pipe_ctx->surface->visible)
 		blank_target = true;
 
 	dce_set_blender_mode(dc->hwseq, pipe_ctx->pipe_idx, blender_mode);
@@ -1975,7 +1975,7 @@ static void set_plane_config(
 	struct resource_context *res_ctx)
 {
 	struct mem_input *mi = pipe_ctx->mi;
-	struct core_surface *surface = pipe_ctx->surface;
+	struct dc_surface *surface = pipe_ctx->surface;
 	struct xfm_grph_csc_adjustment adjust;
 	struct out_csc_color_matrix tbl_entry;
 	unsigned int i;
@@ -2040,42 +2040,42 @@ static void set_plane_config(
 
 	mi->funcs->mem_input_program_surface_config(
 			mi,
-			surface->public.format,
-			&surface->public.tiling_info,
-			&surface->public.plane_size,
-			surface->public.rotation,
+			surface->format,
+			&surface->tiling_info,
+			&surface->plane_size,
+			surface->rotation,
 			NULL,
 			false);
 	if (mi->funcs->set_blank)
-		mi->funcs->set_blank(mi, pipe_ctx->surface->public.visible);
+		mi->funcs->set_blank(mi, pipe_ctx->surface->visible);
 
 	if (dc->public.config.gpu_vm_support)
 		mi->funcs->mem_input_program_pte_vm(
 				pipe_ctx->mi,
-				surface->public.format,
-				&surface->public.tiling_info,
-				surface->public.rotation);
+				surface->format,
+				&surface->tiling_info,
+				surface->rotation);
 }
 
 static void update_plane_addr(const struct core_dc *dc,
 		struct pipe_ctx *pipe_ctx)
 {
-	struct core_surface *surface = pipe_ctx->surface;
+	struct dc_surface *surface = pipe_ctx->surface;
 
 	if (surface == NULL)
 		return;
 
 	pipe_ctx->mi->funcs->mem_input_program_surface_flip_and_addr(
 			pipe_ctx->mi,
-			&surface->public.address,
-			surface->public.flip_immediate);
+			&surface->address,
+			surface->flip_immediate);
 
-	surface->status.requested_address = surface->public.address;
+	surface->status.requested_address = surface->address;
 }
 
 void dce110_update_pending_status(struct pipe_ctx *pipe_ctx)
 {
-	struct core_surface *surface = pipe_ctx->surface;
+	struct dc_surface *surface = pipe_ctx->surface;
 
 	if (surface == NULL)
 		return;
@@ -2084,7 +2084,7 @@ void dce110_update_pending_status(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->mi->funcs->mem_input_is_flip_pending(
 					pipe_ctx->mi);
 
-	if (surface->status.is_flip_pending && !surface->public.visible)
+	if (surface->status.is_flip_pending && !surface->visible)
 		pipe_ctx->mi->current_address = pipe_ctx->mi->request_address;
 
 	surface->status.current_address = pipe_ctx->mi->current_address;
@@ -2425,7 +2425,7 @@ static void dce110_program_front_end_for_pipe(
 {
 	struct mem_input *mi = pipe_ctx->mi;
 	struct pipe_ctx *old_pipe = NULL;
-	struct core_surface *surface = pipe_ctx->surface;
+	struct dc_surface *surface = pipe_ctx->surface;
 	struct xfm_grph_csc_adjustment adjust;
 	struct out_csc_color_matrix tbl_entry;
 	unsigned int i;
@@ -2493,21 +2493,21 @@ static void dce110_program_front_end_for_pipe(
 
 	mi->funcs->mem_input_program_surface_config(
 			mi,
-			surface->public.format,
-			&surface->public.tiling_info,
-			&surface->public.plane_size,
-			surface->public.rotation,
+			surface->format,
+			&surface->tiling_info,
+			&surface->plane_size,
+			surface->rotation,
 			NULL,
 			false);
 	if (mi->funcs->set_blank)
-		mi->funcs->set_blank(mi, pipe_ctx->surface->public.visible);
+		mi->funcs->set_blank(mi, pipe_ctx->surface->visible);
 
 	if (dc->public.config.gpu_vm_support)
 		mi->funcs->mem_input_program_pte_vm(
 				pipe_ctx->mi,
-				surface->public.format,
-				&surface->public.tiling_info,
-				surface->public.rotation);
+				surface->format,
+				&surface->tiling_info,
+				surface->rotation);
 
 	dm_logger_write(dc->ctx->logger, LOG_SURFACE,
 			"Pipe:%d 0x%x: addr hi:0x%x, "
@@ -2517,20 +2517,20 @@ static void dce110_program_front_end_for_pipe(
 			"clip: %d, %d, %d, %d\n",
 			pipe_ctx->pipe_idx,
 			pipe_ctx->surface,
-			pipe_ctx->surface->public.address.grph.addr.high_part,
-			pipe_ctx->surface->public.address.grph.addr.low_part,
-			pipe_ctx->surface->public.src_rect.x,
-			pipe_ctx->surface->public.src_rect.y,
-			pipe_ctx->surface->public.src_rect.width,
-			pipe_ctx->surface->public.src_rect.height,
-			pipe_ctx->surface->public.dst_rect.x,
-			pipe_ctx->surface->public.dst_rect.y,
-			pipe_ctx->surface->public.dst_rect.width,
-			pipe_ctx->surface->public.dst_rect.height,
-			pipe_ctx->surface->public.clip_rect.x,
-			pipe_ctx->surface->public.clip_rect.y,
-			pipe_ctx->surface->public.clip_rect.width,
-			pipe_ctx->surface->public.clip_rect.height);
+			pipe_ctx->surface->address.grph.addr.high_part,
+			pipe_ctx->surface->address.grph.addr.low_part,
+			pipe_ctx->surface->src_rect.x,
+			pipe_ctx->surface->src_rect.y,
+			pipe_ctx->surface->src_rect.width,
+			pipe_ctx->surface->src_rect.height,
+			pipe_ctx->surface->dst_rect.x,
+			pipe_ctx->surface->dst_rect.y,
+			pipe_ctx->surface->dst_rect.width,
+			pipe_ctx->surface->dst_rect.height,
+			pipe_ctx->surface->clip_rect.x,
+			pipe_ctx->surface->clip_rect.y,
+			pipe_ctx->surface->clip_rect.width,
+			pipe_ctx->surface->clip_rect.height);
 
 	dm_logger_write(dc->ctx->logger, LOG_SURFACE,
 			"Pipe %d: width, height, x, y\n"
@@ -2549,7 +2549,7 @@ static void dce110_program_front_end_for_pipe(
 
 static void dce110_apply_ctx_for_surface(
 		struct core_dc *dc,
-		struct core_surface *surface,
+		const struct dc_surface *surface,
 		struct validate_context *context)
 {
 	int i;

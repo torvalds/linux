@@ -59,7 +59,7 @@ struct hw_sequencer_funcs {
 
 	void (*apply_ctx_for_surface)(
 			struct core_dc *dc,
-			struct core_surface *surface,
+			const struct dc_surface *surface,
 			struct validate_context *context);
 
 	void (*set_plane_config)(
@@ -88,7 +88,7 @@ struct hw_sequencer_funcs {
 
 	bool (*set_input_transfer_func)(
 				struct pipe_ctx *pipe_ctx,
-				const struct core_surface *surface);
+				const struct dc_surface *surface);
 
 	bool (*set_output_transfer_func)(
 				struct pipe_ctx *pipe_ctx,

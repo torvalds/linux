@@ -299,6 +299,18 @@ struct dc_transfer_func {
 	int ref_count;
 };
 
+/*
+ * This structure is filled in by dc_surface_get_status and contains
+ * the last requested address and the currently active address so the called
+ * can determine if there are any outstanding flips
+ */
+struct dc_surface_status {
+	struct dc_plane_address requested_address;
+	struct dc_plane_address current_address;
+	bool is_flip_pending;
+	bool is_right_eye;
+};
+
 struct dc_surface {
 	struct dc_plane_address address;
 
@@ -325,6 +337,14 @@ struct dc_surface {
 	bool visible;
 	bool flip_immediate;
 	bool horizontal_mirror;
+
+	/* private to DC core */
+	struct dc_surface_status status;
+	struct dc_context *ctx;
+
+	/* private to dc_surface.c */
+	enum dc_irq_source irq_source;
+	int ref_count;
 };
 
 struct dc_plane_info {
@@ -348,7 +368,7 @@ struct dc_scaling_info {
 };
 
 struct dc_surface_update {
-	const struct dc_surface *surface;
+	struct dc_surface *surface;
 
 	/* isr safe update parameters.  null means no updates */
 	struct dc_flip_addrs *flip_addr;
@@ -362,17 +382,6 @@ struct dc_surface_update {
 	struct dc_transfer_func *in_transfer_func;
 	struct dc_hdr_static_metadata *hdr_static_metadata;
 };
-/*
- * This structure is filled in by dc_surface_get_status and contains
- * the last requested address and the currently active address so the called
- * can determine if there are any outstanding flips
- */
-struct dc_surface_status {
-	struct dc_plane_address requested_address;
-	struct dc_plane_address current_address;
-	bool is_flip_pending;
-	bool is_right_eye;
-};
 
 /*
  * Create a new surface with default parameters;
@@ -381,8 +390,8 @@ struct dc_surface *dc_create_surface(const struct dc *dc);
 const struct dc_surface_status *dc_surface_get_status(
 		const struct dc_surface *dc_surface);
 
-void dc_surface_retain(const struct dc_surface *dc_surface);
-void dc_surface_release(const struct dc_surface *dc_surface);
+void dc_surface_retain(struct dc_surface *dc_surface);
+void dc_surface_release(struct dc_surface *dc_surface);
 
 void dc_gamma_retain(const struct dc_gamma *dc_gamma);
 void dc_gamma_release(const struct dc_gamma **dc_gamma);
@@ -416,7 +425,7 @@ struct dc_flip_addrs {
 
 bool dc_commit_surfaces_to_stream(
 		struct dc *dc,
-		const struct dc_surface **dc_surfaces,
+		struct dc_surface **dc_surfaces,
 		uint8_t surface_count,
 		const struct dc_stream *stream);
 
@@ -545,7 +554,7 @@ bool dc_stream_get_scanoutpos(const struct dc_stream *stream,
  */
 struct dc_validation_set {
 	const struct dc_stream *stream;
-	const struct dc_surface *surfaces[MAX_SURFACES];
+	struct dc_surface *surfaces[MAX_SURFACES];
 	uint8_t surface_count;
 };
 
@@ -627,7 +636,7 @@ void dc_stream_release(const struct dc_stream *dc_stream);
 struct dc_stream_status {
 	int primary_otg_inst;
 	int surface_count;
-	const struct dc_surface *surfaces[MAX_SURFACE_NUM];
+	struct dc_surface *surfaces[MAX_SURFACE_NUM];
 
 	/*
 	 * link this stream passes through
@@ -635,7 +644,7 @@ struct dc_stream_status {
 	const struct dc_link *link;
 };
 
-const struct dc_stream_status *dc_stream_get_status(
+struct dc_stream_status *dc_stream_get_status(
 	const struct dc_stream *dc_stream);
 
 enum surface_update_type dc_check_update_surfaces_for_stream(

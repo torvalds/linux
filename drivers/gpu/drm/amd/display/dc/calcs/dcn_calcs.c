@@ -238,11 +238,11 @@ static void pipe_ctx_to_e2e_pipe_params (
 	else if (pipe->bottom_pipe != NULL && pipe->bottom_pipe->surface == pipe->surface)
 		input->src.is_hsplit = true;
 
-	input->src.dcc                 = pipe->surface->public.dcc.enable;
+	input->src.dcc                 = pipe->surface->dcc.enable;
 	input->src.dcc_rate            = 1;
-	input->src.meta_pitch          = pipe->surface->public.dcc.grph.meta_pitch;
+	input->src.meta_pitch          = pipe->surface->dcc.grph.meta_pitch;
 	input->src.source_scan         = dm_horz;
-	input->src.sw_mode             = pipe->surface->public.tiling_info.gfx9.swizzle;
+	input->src.sw_mode             = pipe->surface->tiling_info.gfx9.swizzle;
 
 	input->src.viewport_width      = pipe->scl_data.viewport.width;
 	input->src.viewport_height     = pipe->scl_data.viewport.height;
@@ -251,7 +251,7 @@ static void pipe_ctx_to_e2e_pipe_params (
 	input->src.cur0_src_width      = 128; /* TODO: Cursor calcs, not curently stored */
 	input->src.cur0_bpp            = 32;
 
-	switch (pipe->surface->public.tiling_info.gfx9.swizzle) {
+	switch (pipe->surface->tiling_info.gfx9.swizzle) {
 	/* for 4/8/16 high tiles */
 	case DC_SW_LINEAR:
 		input->src.is_display_sw = 1;
@@ -299,7 +299,7 @@ static void pipe_ctx_to_e2e_pipe_params (
 		break;
 	}
 
-	switch (pipe->surface->public.rotation) {
+	switch (pipe->surface->rotation) {
 	case ROTATION_ANGLE_0:
 	case ROTATION_ANGLE_180:
 		input->src.source_scan = dm_horz;
@@ -314,7 +314,7 @@ static void pipe_ctx_to_e2e_pipe_params (
 	}
 
 	/* TODO: Fix pixel format mappings */
-	switch (pipe->surface->public.format) {
+	switch (pipe->surface->format) {
 	case SURFACE_PIXEL_FORMAT_VIDEO_420_YCbCr:
 	case SURFACE_PIXEL_FORMAT_VIDEO_420_YCrCb:
 		input->src.source_format = dm_420_8;
@@ -455,7 +455,7 @@ static void dcn_bw_calc_rq_dlg_ttu(
 			true,
 			true,
 			v->pte_enable == dcn_bw_yes,
-			pipe->surface->public.flip_immediate);
+			pipe->surface->flip_immediate);
 }
 
 static void dcn_dml_wm_override(
@@ -527,7 +527,7 @@ static void dcn_dml_wm_override(
 			true,
 			true,
 			v->pte_enable == dcn_bw_yes,
-			pipe->surface->public.flip_immediate);
+			pipe->surface->flip_immediate);
 		in_idx++;
 	}
 	dm_free(input);
@@ -883,7 +883,7 @@ bool dcn_validate_bandwidth(
 			v->scaler_rec_out_width[input_idx] = pipe->scl_data.recout.width;
 			v->scaler_recout_height[input_idx] = pipe->scl_data.recout.height;
 			if (pipe->bottom_pipe && pipe->bottom_pipe->surface == pipe->surface) {
-				if (pipe->surface->public.rotation % 2 == 0) {
+				if (pipe->surface->rotation % 2 == 0) {
 					int viewport_end = pipe->scl_data.viewport.width
 							+ pipe->scl_data.viewport.x;
 					int viewport_b_end = pipe->bottom_pipe->scl_data.viewport.width
@@ -912,17 +912,17 @@ bool dcn_validate_bandwidth(
 						+ pipe->bottom_pipe->scl_data.recout.width;
 			}
 
-			v->dcc_enable[input_idx] = pipe->surface->public.dcc.enable ? dcn_bw_yes : dcn_bw_no;
+			v->dcc_enable[input_idx] = pipe->surface->dcc.enable ? dcn_bw_yes : dcn_bw_no;
 			v->source_pixel_format[input_idx] = tl_pixel_format_to_bw_defs(
-					pipe->surface->public.format);
+					pipe->surface->format);
 			v->source_surface_mode[input_idx] = tl_sw_mode_to_bw_defs(
-					pipe->surface->public.tiling_info.gfx9.swizzle);
+					pipe->surface->tiling_info.gfx9.swizzle);
 			v->lb_bit_per_pixel[input_idx] = tl_lb_bpp_to_int(pipe->scl_data.lb_params.depth);
 			v->override_hta_ps[input_idx] = pipe->scl_data.taps.h_taps;
 			v->override_vta_ps[input_idx] = pipe->scl_data.taps.v_taps;
 			v->override_hta_pschroma[input_idx] = pipe->scl_data.taps.h_taps_c;
 			v->override_vta_pschroma[input_idx] = pipe->scl_data.taps.v_taps_c;
-			v->source_scan[input_idx] = (pipe->surface->public.rotation % 2) ? dcn_bw_vert : dcn_bw_hor;
+			v->source_scan[input_idx] = (pipe->surface->rotation % 2) ? dcn_bw_vert : dcn_bw_hor;
 		}
 		if (v->is_line_buffer_bpp_fixed == dcn_bw_yes)
 			v->lb_bit_per_pixel[input_idx] = v->line_buffer_fixed_bpp;

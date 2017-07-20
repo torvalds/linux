@@ -945,24 +945,24 @@ static void reset_hw_ctx_wrap(
 static bool patch_address_for_sbs_tb_stereo(
 		struct pipe_ctx *pipe_ctx, PHYSICAL_ADDRESS_LOC *addr)
 {
-	struct core_surface *surface = pipe_ctx->surface;
+	struct dc_surface *surface = pipe_ctx->surface;
 	bool sec_split = pipe_ctx->top_pipe &&
 			pipe_ctx->top_pipe->surface == pipe_ctx->surface;
-	if (sec_split && surface->public.address.type == PLN_ADDR_TYPE_GRPH_STEREO &&
+	if (sec_split && surface->address.type == PLN_ADDR_TYPE_GRPH_STEREO &&
 		(pipe_ctx->stream->public.timing.timing_3d_format ==
 		 TIMING_3D_FORMAT_SIDE_BY_SIDE ||
 		 pipe_ctx->stream->public.timing.timing_3d_format ==
 		 TIMING_3D_FORMAT_TOP_AND_BOTTOM)) {
-		*addr = surface->public.address.grph_stereo.left_addr;
-		surface->public.address.grph_stereo.left_addr =
-		surface->public.address.grph_stereo.right_addr;
+		*addr = surface->address.grph_stereo.left_addr;
+		surface->address.grph_stereo.left_addr =
+		surface->address.grph_stereo.right_addr;
 		return true;
 	} else {
 		if (pipe_ctx->stream->public.view_format != VIEW_3D_FORMAT_NONE &&
-			surface->public.address.type != PLN_ADDR_TYPE_GRPH_STEREO) {
-			surface->public.address.type = PLN_ADDR_TYPE_GRPH_STEREO;
-			surface->public.address.grph_stereo.right_addr =
-			surface->public.address.grph_stereo.left_addr;
+			surface->address.type != PLN_ADDR_TYPE_GRPH_STEREO) {
+			surface->address.type = PLN_ADDR_TYPE_GRPH_STEREO;
+			surface->address.grph_stereo.right_addr =
+			surface->address.grph_stereo.left_addr;
 		}
 	}
 	return false;
@@ -972,22 +972,22 @@ static void update_plane_addr(const struct core_dc *dc, struct pipe_ctx *pipe_ct
 {
 	bool addr_patched = false;
 	PHYSICAL_ADDRESS_LOC addr;
-	struct core_surface *surface = pipe_ctx->surface;
+	struct dc_surface *surface = pipe_ctx->surface;
 
 	if (surface == NULL)
 		return;
 	addr_patched = patch_address_for_sbs_tb_stereo(pipe_ctx, &addr);
 	pipe_ctx->mi->funcs->mem_input_program_surface_flip_and_addr(
 			pipe_ctx->mi,
-			&surface->public.address,
-			surface->public.flip_immediate);
-	surface->status.requested_address = surface->public.address;
+			&surface->address,
+			surface->flip_immediate);
+	surface->status.requested_address = surface->address;
 	if (addr_patched)
-		pipe_ctx->surface->public.address.grph_stereo.left_addr = addr;
+		pipe_ctx->surface->address.grph_stereo.left_addr = addr;
 }
 
 static bool dcn10_set_input_transfer_func(
-	struct pipe_ctx *pipe_ctx, const struct core_surface *surface)
+	struct pipe_ctx *pipe_ctx, const struct dc_surface *surface)
 {
 	struct input_pixel_processor *ipp = pipe_ctx->ipp;
 	const struct dc_transfer_func *tf = NULL;
@@ -996,12 +996,12 @@ static bool dcn10_set_input_transfer_func(
 	if (ipp == NULL)
 		return false;
 
-	if (surface->public.in_transfer_func)
-		tf = surface->public.in_transfer_func;
+	if (surface->in_transfer_func)
+		tf = surface->in_transfer_func;
 
-	if (surface->public.gamma_correction && dce_use_lut(surface))
+	if (surface->gamma_correction && dce_use_lut(surface))
 		ipp->funcs->ipp_program_input_lut(ipp,
-				surface->public.gamma_correction);
+				surface->gamma_correction);
 
 	if (tf == NULL)
 		ipp->funcs->ipp_set_degamma(ipp, IPP_DEGAMMA_MODE_BYPASS);
@@ -1594,7 +1594,7 @@ static void dcn10_power_on_fe(
 	struct pipe_ctx *pipe_ctx,
 	struct validate_context *context)
 {
-	struct dc_surface *dc_surface = &pipe_ctx->surface->public;
+	struct dc_surface *dc_surface = pipe_ctx->surface;
 	struct dce_hwseq *hws = dc->hwseq;
 
 	power_on_plane(dc->hwseq,
@@ -1710,7 +1710,7 @@ static void program_csc_matrix(struct pipe_ctx *pipe_ctx,
 }
 static bool is_lower_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
 {
-	if (pipe_ctx->surface->public.visible)
+	if (pipe_ctx->surface->visible)
 		return true;
 	if (pipe_ctx->bottom_pipe && is_lower_pipe_tree_visible(pipe_ctx->bottom_pipe))
 		return true;
@@ -1719,7 +1719,7 @@ static bool is_lower_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
 
 static bool is_upper_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
 {
-	if (pipe_ctx->surface->public.visible)
+	if (pipe_ctx->surface->visible)
 		return true;
 	if (pipe_ctx->top_pipe && is_upper_pipe_tree_visible(pipe_ctx->top_pipe))
 		return true;
@@ -1728,7 +1728,7 @@ static bool is_upper_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
 
 static bool is_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
 {
-	if (pipe_ctx->surface->public.visible)
+	if (pipe_ctx->surface->visible)
 		return true;
 	if (pipe_ctx->top_pipe && is_upper_pipe_tree_visible(pipe_ctx->top_pipe))
 		return true;
@@ -1803,12 +1803,12 @@ static void update_dchubp_dpp(
 	struct dce_hwseq *hws = dc->hwseq;
 	struct mem_input *mi = pipe_ctx->mi;
 	struct input_pixel_processor *ipp = pipe_ctx->ipp;
-	struct core_surface *surface = pipe_ctx->surface;
-	union plane_size size = surface->public.plane_size;
+	struct dc_surface *surface = pipe_ctx->surface;
+	union plane_size size = surface->plane_size;
 	struct default_adjustment ocsc = {0};
 	struct tg_color black_color = {0};
 	struct mpcc_cfg mpcc_cfg;
-	bool per_pixel_alpha = surface->public.per_pixel_alpha && pipe_ctx->bottom_pipe;
+	bool per_pixel_alpha = surface->per_pixel_alpha && pipe_ctx->bottom_pipe;
 
 	/* TODO: proper fix once fpga works */
 	/* depends on DML calculation, DPP clock value may change dynamically */
@@ -1841,12 +1841,12 @@ static void update_dchubp_dpp(
 	if (dc->public.config.gpu_vm_support)
 		mi->funcs->mem_input_program_pte_vm(
 				pipe_ctx->mi,
-				surface->public.format,
-				&surface->public.tiling_info,
-				surface->public.rotation);
+				surface->format,
+				&surface->tiling_info,
+				surface->rotation);
 
 	ipp->funcs->ipp_setup(ipp,
-			surface->public.format,
+			surface->format,
 			1,
 			IPP_OUTPUT_FORMAT_12_BIT_FIX);
 
@@ -1892,12 +1892,12 @@ static void update_dchubp_dpp(
 
 	mi->funcs->mem_input_program_surface_config(
 		mi,
-		surface->public.format,
-		&surface->public.tiling_info,
+		surface->format,
+		&surface->tiling_info,
 		&size,
-		surface->public.rotation,
-		&surface->public.dcc,
-		surface->public.horizontal_mirror);
+		surface->rotation,
+		&surface->dcc,
+		surface->horizontal_mirror);
 
 	mi->funcs->set_blank(mi, !is_pipe_tree_visible(pipe_ctx));
 }
@@ -1978,7 +1978,7 @@ static void dcn10_pplib_apply_display_requirements(
 
 static void dcn10_apply_ctx_for_surface(
 		struct core_dc *dc,
-		struct core_surface *surface,
+		const struct dc_surface *surface,
 		struct validate_context *context)
 {
 	int i, be_idx;
@@ -2337,7 +2337,7 @@ static bool dcn10_dummy_display_power_gating(
 
 void dcn10_update_pending_status(struct pipe_ctx *pipe_ctx)
 {
-	struct core_surface *surface = pipe_ctx->surface;
+	struct dc_surface *surface = pipe_ctx->surface;
 	struct timing_generator *tg = pipe_ctx->tg;
 
 	if (surface->ctx->dc->debug.sanity_checks) {
@@ -2355,7 +2355,7 @@ void dcn10_update_pending_status(struct pipe_ctx *pipe_ctx)
 
 	/* DCN we read INUSE address in MI, do we still need this wa? */
 	if (surface->status.is_flip_pending &&
-			!surface->public.visible) {
+			!surface->visible) {
 		pipe_ctx->mi->current_address =
 				pipe_ctx->mi->request_address;
 		BREAK_TO_DEBUGGER();

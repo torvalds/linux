@@ -47,33 +47,32 @@ struct gamma {
 /*******************************************************************************
  * Private functions
  ******************************************************************************/
-static bool construct(struct dc_context *ctx, struct core_surface *surface)
+static bool construct(struct dc_context *ctx, struct dc_surface *surface)
 {
 	surface->ctx = ctx;
-	memset(&surface->public.hdr_static_ctx,
+	memset(&surface->hdr_static_ctx,
 			0, sizeof(struct dc_hdr_static_metadata));
 	return true;
 }
 
-static void destruct(struct core_surface *surface)
+static void destruct(struct dc_surface *surface)
 {
-	if (surface->public.gamma_correction != NULL) {
-		dc_gamma_release(&surface->public.gamma_correction);
+	if (surface->gamma_correction != NULL) {
+		dc_gamma_release(&surface->gamma_correction);
 	}
-	if (surface->public.in_transfer_func != NULL) {
+	if (surface->in_transfer_func != NULL) {
 		dc_transfer_func_release(
-				surface->public.in_transfer_func);
-		surface->public.in_transfer_func = NULL;
+				surface->in_transfer_func);
+		surface->in_transfer_func = NULL;
 	}
 }
 
 /*******************************************************************************
  * Public functions
  ******************************************************************************/
-void enable_surface_flip_reporting(struct dc_surface *dc_surface,
+void enable_surface_flip_reporting(struct dc_surface *surface,
 		uint32_t controller_id)
 {
-	struct core_surface *surface = DC_SURFACE_TO_CORE(dc_surface);
 	surface->irq_source = controller_id + DC_IRQ_SOURCE_PFLIP1 - 1;
 	/*register_flip_interrupt(surface);*/
 }
@@ -82,7 +81,7 @@ struct dc_surface *dc_create_surface(const struct dc *dc)
 {
 	struct core_dc *core_dc = DC_TO_CORE(dc);
 
-	struct core_surface *surface = dm_alloc(sizeof(*surface));
+	struct dc_surface *surface = dm_alloc(sizeof(*surface));
 
 	if (NULL == surface)
 		goto alloc_fail;
@@ -92,7 +91,7 @@ struct dc_surface *dc_create_surface(const struct dc *dc)
 
 	++surface->ref_count;
 
-	return &surface->public;
+	return surface;
 
 construct_fail:
 	dm_free(surface);
@@ -104,20 +103,19 @@ alloc_fail:
 const struct dc_surface_status *dc_surface_get_status(
 		const struct dc_surface *dc_surface)
 {
-	struct dc_surface_status *surface_status;
-	struct core_surface *core_surface = DC_SURFACE_TO_CORE(dc_surface);
+	const struct dc_surface_status *surface_status;
 	struct core_dc *core_dc;
 	int i;
 
 	if (!dc_surface ||
-		!core_surface->ctx ||
-		!core_surface->ctx->dc) {
+		!dc_surface->ctx ||
+		!dc_surface->ctx->dc) {
 		ASSERT(0);
 		return NULL; /* remove this if above assert never hit */
 	}
 
-	surface_status = &core_surface->status;
-	core_dc = DC_TO_CORE(core_surface->ctx->dc);
+	surface_status = &dc_surface->status;
+	core_dc = DC_TO_CORE(dc_surface->ctx->dc);
 
 	if (core_dc->current_context == NULL)
 		return NULL;
@@ -126,7 +124,7 @@ const struct dc_surface_status *dc_surface_get_status(
 		struct pipe_ctx *pipe_ctx =
 				&core_dc->current_context->res_ctx.pipe_ctx[i];
 
-		if (pipe_ctx->surface != core_surface)
+		if (pipe_ctx->surface != dc_surface)
 			continue;
 
 		core_dc->hwss.update_pending_status(pipe_ctx);
@@ -135,18 +133,14 @@ const struct dc_surface_status *dc_surface_get_status(
 	return surface_status;
 }
 
-void dc_surface_retain(const struct dc_surface *dc_surface)
+void dc_surface_retain(struct dc_surface *surface)
 {
-	struct core_surface *surface = DC_SURFACE_TO_CORE(dc_surface);
-
 	ASSERT(surface->ref_count > 0);
 	++surface->ref_count;
 }
 
-void dc_surface_release(const struct dc_surface *dc_surface)
+void dc_surface_release(struct dc_surface *surface)
 {
-	struct core_surface *surface = DC_SURFACE_TO_CORE(dc_surface);
-
 	ASSERT(surface->ref_count > 0);
 	--surface->ref_count;
 

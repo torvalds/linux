@@ -40,22 +40,8 @@ struct core_stream;
 
 #define MAX_CLOCK_SOURCES 7
 
-/********* core_surface **********/
-#define DC_SURFACE_TO_CORE(dc_surface) \
-	container_of(dc_surface, struct core_surface, public)
-
 #define DC_GAMMA_TO_CORE(dc_gamma) \
 	container_of(dc_gamma, struct core_gamma, public)
-
-struct core_surface {
-	struct dc_surface public;
-	struct dc_surface_status status;
-	struct dc_context *ctx;
-
-	/* private to dc_surface.c */
-	enum dc_irq_source irq_source;
-	int ref_count;
-};
 
 struct core_gamma {
 	struct dc_gamma public;
@@ -263,7 +249,7 @@ struct resource_pool {
 };
 
 struct pipe_ctx {
-	struct core_surface *surface;
+	struct dc_surface *surface;
 	struct core_stream *stream;
 
 	struct mem_input *mi;

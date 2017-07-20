@@ -157,7 +157,7 @@ alloc_fail:
 	return NULL;
 }
 
-const struct dc_stream_status *dc_stream_get_status(
+struct dc_stream_status *dc_stream_get_status(
 	const struct dc_stream *dc_stream)
 {
 	uint8_t i;
@@ -252,7 +252,7 @@ bool dc_stream_set_cursor_position(
 				!pipe_ctx->ipp || !pipe_ctx->surface)
 			continue;
 
-		if (pipe_ctx->surface->public.address.type
+		if (pipe_ctx->surface->address.type
 				== PLN_ADDR_TYPE_VIDEO_PROGRESSIVE)
 			pos_cpy.enable = false;
 

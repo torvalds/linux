@@ -766,7 +766,7 @@ static bool is_surface_pixel_format_supported(struct pipe_ctx *pipe_ctx, unsigne
 		return true;
 	if (!pipe_ctx->surface)
 		return false;
-	if (pipe_ctx->surface->public.format < SURFACE_PIXEL_FORMAT_VIDEO_BEGIN)
+	if (pipe_ctx->surface->format < SURFACE_PIXEL_FORMAT_VIDEO_BEGIN)
 		return false;
 	return true;
 }

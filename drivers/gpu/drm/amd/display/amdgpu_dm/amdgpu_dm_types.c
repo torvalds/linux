@@ -2345,7 +2345,7 @@ static void amdgpu_dm_commit_surfaces(struct drm_atomic_state *state,
 	struct drm_plane *plane;
 	struct drm_plane_state *old_plane_state;
 	const struct dc_stream *dc_stream_attach;
-	const struct dc_surface *dc_surfaces_constructed[MAX_SURFACES];
+	struct dc_surface *dc_surfaces_constructed[MAX_SURFACES];
 	struct amdgpu_crtc *acrtc_attach = to_amdgpu_crtc(pcrtc);
 	struct dm_crtc_state *acrtc_state = to_dm_crtc_state(pcrtc->state);
 	int planes_count = 0;
@@ -2624,7 +2624,7 @@ void amdgpu_dm_atomic_commit_tail(
 		struct dm_connector_state *con_old_state =
 				to_dm_connector_state(old_conn_state);
 		struct amdgpu_crtc *acrtc = to_amdgpu_crtc(con_new_state->base.crtc);
-		const struct dc_stream_status *status = NULL;
+		struct dc_stream_status *status = NULL;
 
 		/* Skip any modesets/resets */
 		if (!acrtc || drm_atomic_crtc_needs_modeset(acrtc->base.state))
@@ -2649,7 +2649,7 @@ void amdgpu_dm_atomic_commit_tail(
 		/*TODO How it works with MPO ?*/
 		if (!dc_commit_surfaces_to_stream(
 				dm->dc,
-				(const struct dc_surface **)status->surfaces,
+				status->surfaces,
 				status->surface_count,
 				new_acrtc_state->stream))
 			dm_error("%s: Failed to update stream scaling!\n", __func__);
@@ -2793,7 +2793,7 @@ static uint32_t add_val_sets_surface(
 	struct dc_validation_set *val_sets,
 	uint32_t set_count,
 	const struct dc_stream *stream,
-	const struct dc_surface *surface)
+	struct dc_surface *surface)
 {
 	uint32_t i = 0, j = 0;
 

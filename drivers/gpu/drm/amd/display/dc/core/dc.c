@@ -946,8 +946,8 @@ static bool dc_commit_context_no_check(struct dc *dc, struct validate_context *c
 		const struct core_sink *sink = context->streams[i]->sink;
 
 		for (j = 0; j < context->stream_status[i].surface_count; j++) {
-			struct core_surface *surface =
-					DC_SURFACE_TO_CORE(context->stream_status[i].surfaces[j]);
+			const struct dc_surface *surface =
+					context->stream_status[i].surfaces[j];
 
 			core_dc->hwss.apply_ctx_for_surface(core_dc, surface, context);
 
@@ -1098,7 +1098,7 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 
 bool dc_commit_surfaces_to_stream(
 		struct dc *dc,
-		const struct dc_surface **new_surfaces,
+		struct dc_surface **new_surfaces,
 		uint8_t new_surface_count,
 		const struct dc_stream *dc_stream)
 {
@@ -1189,7 +1189,7 @@ static bool is_surface_in_context(
 	for (j = 0; j < MAX_PIPES; j++) {
 		const struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 
-		if (surface == &pipe_ctx->surface->public) {
+		if (surface == pipe_ctx->surface) {
 			return true;
 		}
 	}
@@ -1422,7 +1422,7 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 		update_surface_trace(dc, srf_updates, surface_count);
 
 	if (update_type >= UPDATE_TYPE_FULL) {
-		const struct dc_surface *new_surfaces[MAX_SURFACES] = {0};
+		struct dc_surface *new_surfaces[MAX_SURFACES] = {0};
 
 		for (i = 0; i < surface_count; i++)
 			new_surfaces[i] = srf_updates[i].surface;
@@ -1448,46 +1448,45 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 
 	/* save update parameters into surface */
 	for (i = 0; i < surface_count; i++) {
-		struct core_surface *surface =
-				DC_SURFACE_TO_CORE(srf_updates[i].surface);
+		struct dc_surface *surface = srf_updates[i].surface;
 
 		if (srf_updates[i].flip_addr) {
-			surface->public.address = srf_updates[i].flip_addr->address;
-			surface->public.flip_immediate =
+			surface->address = srf_updates[i].flip_addr->address;
+			surface->flip_immediate =
 					srf_updates[i].flip_addr->flip_immediate;
 		}
 
 		if (srf_updates[i].scaling_info) {
-			surface->public.scaling_quality =
+			surface->scaling_quality =
 					srf_updates[i].scaling_info->scaling_quality;
-			surface->public.dst_rect =
+			surface->dst_rect =
 					srf_updates[i].scaling_info->dst_rect;
-			surface->public.src_rect =
+			surface->src_rect =
 					srf_updates[i].scaling_info->src_rect;
-			surface->public.clip_rect =
+			surface->clip_rect =
 					srf_updates[i].scaling_info->clip_rect;
 		}
 
 		if (srf_updates[i].plane_info) {
-			surface->public.color_space =
+			surface->color_space =
 					srf_updates[i].plane_info->color_space;
-			surface->public.format =
+			surface->format =
 					srf_updates[i].plane_info->format;
-			surface->public.plane_size =
+			surface->plane_size =
 					srf_updates[i].plane_info->plane_size;
-			surface->public.rotation =
+			surface->rotation =
 					srf_updates[i].plane_info->rotation;
-			surface->public.horizontal_mirror =
+			surface->horizontal_mirror =
 					srf_updates[i].plane_info->horizontal_mirror;
-			surface->public.stereo_format =
+			surface->stereo_format =
 					srf_updates[i].plane_info->stereo_format;
-			surface->public.tiling_info =
+			surface->tiling_info =
 					srf_updates[i].plane_info->tiling_info;
-			surface->public.visible =
+			surface->visible =
 					srf_updates[i].plane_info->visible;
-			surface->public.per_pixel_alpha =
+			surface->per_pixel_alpha =
 					srf_updates[i].plane_info->per_pixel_alpha;
-			surface->public.dcc =
+			surface->dcc =
 					srf_updates[i].plane_info->dcc;
 		}
 
@@ -1503,31 +1502,31 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 		}
 
 		if (srf_updates[i].gamma &&
-			srf_updates[i].gamma != surface->public.gamma_correction) {
-			if (surface->public.gamma_correction != NULL)
-				dc_gamma_release(&surface->public.
+			srf_updates[i].gamma != surface->gamma_correction) {
+			if (surface->gamma_correction != NULL)
+				dc_gamma_release(&surface->
 						gamma_correction);
 
 			dc_gamma_retain(srf_updates[i].gamma);
-			surface->public.gamma_correction =
+			surface->gamma_correction =
 						srf_updates[i].gamma;
 		}
 
 		if (srf_updates[i].in_transfer_func &&
-			srf_updates[i].in_transfer_func != surface->public.in_transfer_func) {
-			if (surface->public.in_transfer_func != NULL)
+			srf_updates[i].in_transfer_func != surface->in_transfer_func) {
+			if (surface->in_transfer_func != NULL)
 				dc_transfer_func_release(
-						surface->public.
+						surface->
 						in_transfer_func);
 
 			dc_transfer_func_retain(
 					srf_updates[i].in_transfer_func);
-			surface->public.in_transfer_func =
+			surface->in_transfer_func =
 					srf_updates[i].in_transfer_func;
 		}
 
 		if (srf_updates[i].hdr_static_metadata)
-			surface->public.hdr_static_ctx =
+			surface->hdr_static_ctx =
 				*(srf_updates[i].hdr_static_metadata);
 	}
 
@@ -1543,12 +1542,10 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 
 	if (update_type > UPDATE_TYPE_FAST) {
 		for (i = 0; i < surface_count; i++) {
-			struct core_surface *surface = DC_SURFACE_TO_CORE(srf_updates[i].surface);
-
 			for (j = 0; j < core_dc->res_pool->pipe_count; j++) {
 				struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 
-				if (pipe_ctx->surface != surface)
+				if (pipe_ctx->surface != srf_updates[i].surface)
 					continue;
 
 				core_dc->hwss.wait_for_mpcc_disconnect(core_dc->res_pool, pipe_ctx);
@@ -1561,7 +1558,7 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 
 	/* Lock pipes for provided surfaces, or all active if full update*/
 	for (i = 0; i < surface_count; i++) {
-		struct core_surface *surface = DC_SURFACE_TO_CORE(srf_updates[i].surface);
+		struct dc_surface *surface = srf_updates[i].surface;
 
 		for (j = 0; j < core_dc->res_pool->pipe_count; j++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
@@ -1613,7 +1610,7 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 
 	/* Perform requested Updates */
 	for (i = 0; i < surface_count; i++) {
-		struct core_surface *surface = DC_SURFACE_TO_CORE(srf_updates[i].surface);
+		struct dc_surface *surface = srf_updates[i].surface;
 
 		if (update_type == UPDATE_TYPE_MED)
 			core_dc->hwss.apply_ctx_for_surface(
@@ -1654,7 +1651,7 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 
 		for (j = 0; j < surface_count; j++) {
 			if (update_type != UPDATE_TYPE_FULL &&
-					srf_updates[j].surface != &pipe_ctx->surface->public)
+			    srf_updates[j].surface != pipe_ctx->surface)
 				continue;
 			if (!pipe_ctx->surface || pipe_ctx->top_pipe)
 				continue;
