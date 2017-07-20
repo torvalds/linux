@@ -69,9 +69,9 @@ struct dvb_ca_en50221 {
 				 int slot, u8 address, u8 value);
 
 	int (*read_data)(struct dvb_ca_en50221 *ca,
-				int slot, u8 *ebuf, int ecount);
+			 int slot, u8 *ebuf, int ecount);
 	int (*write_data)(struct dvb_ca_en50221 *ca,
-				int slot, u8 *ebuf, int ecount);
+			  int slot, u8 *ebuf, int ecount);
 
 	int (*slot_reset)(struct dvb_ca_en50221 *ca, int slot);
 	int (*slot_shutdown)(struct dvb_ca_en50221 *ca, int slot);
@@ -128,8 +128,8 @@ void dvb_ca_en50221_frda_irq(struct dvb_ca_en50221 *ca, int slot);
  *
  * @return 0 on success, nonzero on failure
  */
-extern int dvb_ca_en50221_init(struct dvb_adapter *dvb_adapter,
-			       struct dvb_ca_en50221 *ca, int flags,
+int dvb_ca_en50221_init(struct dvb_adapter *dvb_adapter,
+			struct dvb_ca_en50221 *ca, int flags,
 			       int slot_count);
 
 /**
@@ -137,6 +137,6 @@ extern int dvb_ca_en50221_init(struct dvb_adapter *dvb_adapter,
  *
  * @ca: The associated dvb_ca instance.
  */
-extern void dvb_ca_en50221_release(struct dvb_ca_en50221 *ca);
+void dvb_ca_en50221_release(struct dvb_ca_en50221 *ca);
 
 #endif
