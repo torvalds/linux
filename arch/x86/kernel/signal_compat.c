@@ -64,7 +64,7 @@ static inline void signal_compat_build_tests(void)
 	CHECK_SI_SIZE   (_kill, 2*sizeof(int));
 
 	CHECK_CSI_OFFSET(_timer);
-	CHECK_CSI_SIZE  (_timer, 5*sizeof(int));
+	CHECK_CSI_SIZE  (_timer, 3*sizeof(int));
 	CHECK_SI_SIZE   (_timer, 6*sizeof(int));
 
 	CHECK_CSI_OFFSET(_rt);

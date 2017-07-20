@@ -155,7 +155,6 @@ typedef struct compat_siginfo {
 			int _overrun;           /* overrun count */
 			char _pad[sizeof(unsigned int) - sizeof(int)];
 			compat_sigval_t _sigval;        /* same as below */
-			int _sys_private;       /* not to be passed to user */
 		} _timer;
 
 		/* POSIX.1b signals */
