@@ -1523,8 +1523,8 @@ static const struct panel_desc olimex_lcd_olinuxino_43ts = {
 	.modes = &olimex_lcd_olinuxino_43ts_mode,
 	.num_modes = 1,
 	.size = {
-		.width = 105,
-		.height = 67,
+		.width = 95,
+		.height = 54,
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
 };
