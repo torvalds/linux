@@ -102,6 +102,15 @@ config DRM_PANEL_SAMSUNG_S6E8AA0
 	select DRM_MIPI_DSI
 	select VIDEOMODE_HELPERS
 
+config DRM_PANEL_SEIKO_43WVF1G
+	tristate "Seiko 43WVF1G panel"
+	depends on OF
+	depends on BACKLIGHT_CLASS_DEVICE
+	select VIDEOMODE_HELPERS
+	help
+	  Say Y here if you want to enable support for the Seiko
+	  43WVF1G controller for 800x480 LCD panels
+
 config DRM_PANEL_SHARP_LQ101R1SX01
 	tristate "Sharp LQ101R1SX01 panel"
 	depends on OF
