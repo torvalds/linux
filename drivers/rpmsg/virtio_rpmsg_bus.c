@@ -632,7 +632,6 @@ out:
 	mutex_unlock(&vrp->tx_lock);
 	return err;
 }
-EXPORT_SYMBOL(rpmsg_send_offchannel_raw);
 
 static int virtio_rpmsg_send(struct rpmsg_endpoint *ept, void *data, int len)
 {
