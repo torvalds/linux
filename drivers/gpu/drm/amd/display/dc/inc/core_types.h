@@ -53,6 +53,10 @@ struct core_surface {
 	struct dc_surface public;
 	struct dc_surface_status status;
 	struct dc_context *ctx;
+
+	/* private to dc_surface.c */
+	enum dc_irq_source irq_source;
+	int ref_count;
 };
 
 struct core_gamma {

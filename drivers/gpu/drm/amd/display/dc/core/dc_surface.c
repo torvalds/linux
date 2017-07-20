@@ -34,19 +34,10 @@
 /*******************************************************************************
  * Private structures
  ******************************************************************************/
-struct surface {
-	struct core_surface protected;
-	enum dc_irq_source irq_source;
-	int ref_count;
-};
-
 struct gamma {
 	struct core_gamma protected;
 	int ref_count;
 };
-
-#define DC_SURFACE_TO_SURFACE(dc_surface) container_of(dc_surface, struct surface, protected.public)
-#define CORE_SURFACE_TO_SURFACE(core_surface) container_of(core_surface, struct surface, protected)
 
 #define DC_GAMMA_TO_GAMMA(dc_gamma) \
 	container_of(dc_gamma, struct gamma, protected.public)
@@ -56,23 +47,23 @@ struct gamma {
 /*******************************************************************************
  * Private functions
  ******************************************************************************/
-static bool construct(struct dc_context *ctx, struct surface *surface)
+static bool construct(struct dc_context *ctx, struct core_surface *surface)
 {
-	surface->protected.ctx = ctx;
-	memset(&surface->protected.public.hdr_static_ctx,
+	surface->ctx = ctx;
+	memset(&surface->public.hdr_static_ctx,
 			0, sizeof(struct dc_hdr_static_metadata));
 	return true;
 }
 
-static void destruct(struct surface *surface)
+static void destruct(struct core_surface *surface)
 {
-	if (surface->protected.public.gamma_correction != NULL) {
-		dc_gamma_release(&surface->protected.public.gamma_correction);
+	if (surface->public.gamma_correction != NULL) {
+		dc_gamma_release(&surface->public.gamma_correction);
 	}
-	if (surface->protected.public.in_transfer_func != NULL) {
+	if (surface->public.in_transfer_func != NULL) {
 		dc_transfer_func_release(
-				surface->protected.public.in_transfer_func);
-		surface->protected.public.in_transfer_func = NULL;
+				surface->public.in_transfer_func);
+		surface->public.in_transfer_func = NULL;
 	}
 }
 
@@ -82,7 +73,7 @@ static void destruct(struct surface *surface)
 void enable_surface_flip_reporting(struct dc_surface *dc_surface,
 		uint32_t controller_id)
 {
-	struct surface *surface = DC_SURFACE_TO_SURFACE(dc_surface);
+	struct core_surface *surface = DC_SURFACE_TO_CORE(dc_surface);
 	surface->irq_source = controller_id + DC_IRQ_SOURCE_PFLIP1 - 1;
 	/*register_flip_interrupt(surface);*/
 }
@@ -91,7 +82,7 @@ struct dc_surface *dc_create_surface(const struct dc *dc)
 {
 	struct core_dc *core_dc = DC_TO_CORE(dc);
 
-	struct surface *surface = dm_alloc(sizeof(*surface));
+	struct core_surface *surface = dm_alloc(sizeof(*surface));
 
 	if (NULL == surface)
 		goto alloc_fail;
@@ -101,7 +92,7 @@ struct dc_surface *dc_create_surface(const struct dc *dc)
 
 	++surface->ref_count;
 
-	return &surface->protected.public;
+	return &surface->public;
 
 construct_fail:
 	dm_free(surface);
@@ -146,7 +137,7 @@ const struct dc_surface_status *dc_surface_get_status(
 
 void dc_surface_retain(const struct dc_surface *dc_surface)
 {
-	struct surface *surface = DC_SURFACE_TO_SURFACE(dc_surface);
+	struct core_surface *surface = DC_SURFACE_TO_CORE(dc_surface);
 
 	ASSERT(surface->ref_count > 0);
 	++surface->ref_count;
@@ -154,7 +145,7 @@ void dc_surface_retain(const struct dc_surface *dc_surface)
 
 void dc_surface_release(const struct dc_surface *dc_surface)
 {
-	struct surface *surface = DC_SURFACE_TO_SURFACE(dc_surface);
+	struct core_surface *surface = DC_SURFACE_TO_CORE(dc_surface);
 
 	ASSERT(surface->ref_count > 0);
 	--surface->ref_count;
