@@ -32,7 +32,7 @@ DECLARE_PER_CPU(unsigned long [IRQ_STACK_SIZE/sizeof(long)], irq_stack);
  * from kernel_entry can be found.
  *
  */
-#define IRQ_STACK_PTR(cpu) ((unsigned long)per_cpu(irq_stack, cpu) + IRQ_STACK_START_SP)
+#define IRQ_STACK_PTR() ((unsigned long)raw_cpu_ptr(irq_stack) + IRQ_STACK_START_SP)
 
 /*
  * The offset from irq_stack_ptr where entry.S will store the original
@@ -47,10 +47,10 @@ static inline int nr_legacy_irqs(void)
 	return 0;
 }
 
-static inline bool on_irq_stack(unsigned long sp, int cpu)
+static inline bool on_irq_stack(unsigned long sp)
 {
 	/* variable names the same as kernel/stacktrace.c */
-	unsigned long low = (unsigned long)per_cpu(irq_stack, cpu);
+	unsigned long low = (unsigned long)raw_cpu_ptr(irq_stack);
 	unsigned long high = low + IRQ_STACK_START_SP;
 
 	return (low <= sp && sp <= high);

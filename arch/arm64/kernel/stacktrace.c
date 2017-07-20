@@ -54,13 +54,13 @@ int notrace unwind_frame(struct task_struct *tsk, struct stackframe *frame)
 	 * non-preemptible context.
 	 */
 	if (tsk == current && !preemptible())
-		irq_stack_ptr = IRQ_STACK_PTR(smp_processor_id());
+		irq_stack_ptr = IRQ_STACK_PTR();
 	else
 		irq_stack_ptr = 0;
 
 	low  = frame->sp;
 	/* irq stacks are not THREAD_SIZE aligned */
-	if (on_irq_stack(frame->sp, raw_smp_processor_id()))
+	if (on_irq_stack(frame->sp))
 		high = irq_stack_ptr;
 	else
 		high = ALIGN(low, THREAD_SIZE) - 0x20;
