@@ -78,6 +78,7 @@ tools/include/uapi/linux/fcntl.h
 tools/include/uapi/linux/hw_breakpoint.h
 tools/include/uapi/linux/mman.h
 tools/include/uapi/linux/perf_event.h
+tools/include/uapi/linux/sched.h
 tools/include/uapi/linux/stat.h
 tools/include/linux/poison.h
 tools/include/linux/rbtree.h
