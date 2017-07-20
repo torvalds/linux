@@ -20,13 +20,6 @@
 
 #include "ltdc.h"
 
-#define DRIVER_NAME		"stm"
-#define DRIVER_DESC		"STMicroelectronics SoC DRM"
-#define DRIVER_DATE		"20170330"
-#define DRIVER_MAJOR		1
-#define DRIVER_MINOR		0
-#define DRIVER_PATCH_LEVEL	0
-
 #define STM_MAX_FB_WIDTH	2048
 #define STM_MAX_FB_HEIGHT	2048 /* same as width to handle orientation */
 
@@ -59,12 +52,12 @@ static struct drm_driver drv_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME |
 			   DRIVER_ATOMIC,
 	.lastclose = drv_lastclose,
-	.name = DRIVER_NAME,
-	.desc = DRIVER_DESC,
-	.date = DRIVER_DATE,
-	.major = DRIVER_MAJOR,
-	.minor = DRIVER_MINOR,
-	.patchlevel = DRIVER_PATCH_LEVEL,
+	.name = "stm",
+	.desc = "STMicroelectronics SoC DRM",
+	.date = "20170330",
+	.major = 1,
+	.minor = 0,
+	.patchlevel = 0,
 	.fops = &drv_driver_fops,
 	.dumb_create = drm_gem_cma_dumb_create,
 	.dumb_map_offset = drm_gem_cma_dumb_map_offset,
@@ -206,7 +199,7 @@ static struct platform_driver stm_drm_platform_driver = {
 	.probe = stm_drm_platform_probe,
 	.remove = stm_drm_platform_remove,
 	.driver = {
-		.name = DRIVER_NAME,
+		.name = "stm32-display",
 		.of_match_table = drv_dt_ids,
 	},
 };
