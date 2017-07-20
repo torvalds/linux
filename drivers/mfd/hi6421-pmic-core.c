@@ -52,8 +52,8 @@ static int hi6421_pmic_probe(struct platform_device *pdev)
 	pmic->regmap = devm_regmap_init_mmio_clk(&pdev->dev, NULL, base,
 						 &hi6421_regmap_config);
 	if (IS_ERR(pmic->regmap)) {
-		dev_err(&pdev->dev,
-			"regmap init failed: %ld\n", PTR_ERR(pmic->regmap));
+		dev_err(&pdev->dev, "Failed to initialise Regmap: %ld\n",
+						PTR_ERR(pmic->regmap));
 		return PTR_ERR(pmic->regmap);
 	}
 
@@ -70,7 +70,7 @@ static int hi6421_pmic_probe(struct platform_device *pdev)
 	ret = devm_mfd_add_devices(&pdev->dev, 0, hi6421_devs,
 				   ARRAY_SIZE(hi6421_devs), NULL, 0, NULL);
 	if (ret) {
-		dev_err(&pdev->dev, "add mfd devices failed: %d\n", ret);
+		dev_err(&pdev->dev, "Failed to add child devices: %d\n", ret);
 		return ret;
 	}
 
