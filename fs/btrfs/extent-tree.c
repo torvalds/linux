@@ -7589,6 +7589,10 @@ search:
 		u64 offset;
 		int cached;
 
+		/* If the block group is read-only, we can skip it entirely. */
+		if (unlikely(block_group->ro))
+			continue;
+
 		btrfs_grab_block_group(block_group, delalloc);
 		search_start = block_group->key.objectid;
 
@@ -7623,8 +7627,6 @@ have_block_group:
 		}
 
 		if (unlikely(block_group->cached == BTRFS_CACHE_ERROR))
-			goto loop;
-		if (unlikely(block_group->ro))
 			goto loop;
 
 		/*
@@ -7839,6 +7841,7 @@ loop:
 		failed_alloc = false;
 		BUG_ON(index != get_block_group_index(block_group));
 		btrfs_release_block_group(block_group, delalloc);
+		cond_resched();
 	}
 	up_read(&space_info->groups_sem);
 
