@@ -36,6 +36,8 @@ int ahci_platform_init_host(struct platform_device *pdev,
 			    const struct ata_port_info *pi_template,
 			    struct scsi_host_template *sht);
 
+void ahci_platform_shutdown(struct platform_device *pdev);
+
 int ahci_platform_suspend_host(struct device *dev);
 int ahci_platform_resume_host(struct device *dev);
 int ahci_platform_suspend(struct device *dev);

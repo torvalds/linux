@@ -602,6 +602,40 @@ static void ahci_host_stop(struct ata_host *host)
 	ahci_platform_disable_resources(hpriv);
 }
 
+/**
+ * ahci_platform_shutdown - Disable interrupts and stop DMA for host ports
+ * @dev: platform device pointer for the host
+ *
+ * This function is called during system shutdown and performs the minimal
+ * deconfiguration required to ensure that an ahci_platform host cannot
+ * corrupt or otherwise interfere with a new kernel being started with kexec.
+ */
+void ahci_platform_shutdown(struct platform_device *pdev)
+{
+	struct ata_host *host = platform_get_drvdata(pdev);
+	struct ahci_host_priv *hpriv = host->private_data;
+	void __iomem *mmio = hpriv->mmio;
+	int i;
+
+	for (i = 0; i < host->n_ports; i++) {
+		struct ata_port *ap = host->ports[i];
+
+		/* Disable port interrupts */
+		if (ap->ops->freeze)
+			ap->ops->freeze(ap);
+
+		/* Stop the port DMA engines */
+		if (ap->ops->port_stop)
+			ap->ops->port_stop(ap);
+	}
+
+	/* Disable and clear host interrupts */
+	writel(readl(mmio + HOST_CTL) & ~HOST_IRQ_EN, mmio + HOST_CTL);
+	readl(mmio + HOST_CTL); /* flush */
+	writel(GENMASK(host->n_ports, 0), mmio + HOST_IRQ_STAT);
+}
+EXPORT_SYMBOL_GPL(ahci_platform_shutdown);
+
 #ifdef CONFIG_PM_SLEEP
 /**
  * ahci_platform_suspend_host - Suspend an ahci-platform host
