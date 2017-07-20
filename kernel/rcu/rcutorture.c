@@ -1080,6 +1080,11 @@ rcu_torture_fakewriter(void *arg)
 	return 0;
 }
 
+static void rcu_torture_timer_cb(struct rcu_head *rhp)
+{
+	kfree(rhp);
+}
+
 /*
  * RCU torture reader from timer handler.  Dereferences rcu_torture_current,
  * incrementing the corresponding element of the pipeline array.  The
@@ -1142,6 +1147,14 @@ static void rcu_torture_timer(unsigned long unused)
 	__this_cpu_inc(rcu_torture_batch[completed]);
 	preempt_enable();
 	cur_ops->readunlock(idx);
+
+	/* Test call_rcu() invocation from interrupt handler. */
+	if (cur_ops->call) {
+		struct rcu_head *rhp = kmalloc(sizeof(*rhp), GFP_NOWAIT);
+
+		if (rhp)
+			cur_ops->call(rhp, rcu_torture_timer_cb);
+	}
 }
 
 /*
