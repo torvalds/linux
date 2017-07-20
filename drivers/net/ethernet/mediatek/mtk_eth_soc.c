@@ -22,6 +22,7 @@
 #include <linux/if_vlan.h>
 #include <linux/reset.h>
 #include <linux/tcp.h>
+#include <linux/interrupt.h>
 
 #include "mtk_eth_soc.h"
 
