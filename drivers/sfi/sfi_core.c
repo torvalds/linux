@@ -68,6 +68,7 @@
 #include <linux/init.h>
 #include <linux/sfi.h>
 #include <linux/slab.h>
+#include <linux/io.h>
 
 #include "sfi_core.h"
 
