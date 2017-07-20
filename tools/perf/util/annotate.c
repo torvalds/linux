@@ -698,7 +698,7 @@ static int __symbol__account_cycles(struct annotation *notes,
 
 static int __symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 				      struct annotation *notes, int evidx, u64 addr,
-				      struct perf_sample *sample __maybe_unused)
+				      struct perf_sample *sample)
 {
 	unsigned offset;
 	struct sym_hist *h;
@@ -716,10 +716,13 @@ static int __symbol__inc_addr_samples(struct symbol *sym, struct map *map,
 	h = annotation__histogram(notes, evidx);
 	h->nr_samples++;
 	h->addr[offset].nr_samples++;
+	h->period += sample->period;
+	h->addr[offset].period += sample->period;
 
 	pr_debug3("%#" PRIx64 " %s: period++ [addr: %#" PRIx64 ", %#" PRIx64
-		  ", evidx=%d] => %" PRIu64 "\n", sym->start, sym->name,
-		  addr, addr - sym->start, evidx, h->addr[offset].nr_samples);
+		  ", evidx=%d] => nr_samples: %" PRIu64 ", period: %" PRIu64 "\n",
+		  sym->start, sym->name, addr, addr - sym->start, evidx,
+		  h->addr[offset].nr_samples, h->addr[offset].period);
 	return 0;
 }
 
@@ -937,7 +940,7 @@ double disasm__calc_percent(struct annotation *notes, int evidx, s64 offset,
 	struct source_line *src_line = notes->src->lines;
 	double percent = 0.0;
 
-	sample->nr_samples = 0;
+	sample->nr_samples = sample->period = 0;
 
 	if (src_line) {
 		size_t sizeof_src_line = sizeof(*src_line) +
@@ -957,11 +960,15 @@ double disasm__calc_percent(struct annotation *notes, int evidx, s64 offset,
 	} else {
 		struct sym_hist *h = annotation__histogram(notes, evidx);
 		unsigned int hits = 0;
+		u64 period = 0;
 
-		while (offset < end)
+		while (offset < end) {
 			hits += h->addr[offset++].nr_samples;
+			period += h->addr[offset++].period;
+		}
 
 		if (h->nr_samples) {
+			sample->period	   = period;
 			sample->nr_samples = hits;
 			percent = 100.0 * hits / h->nr_samples;
 		}
