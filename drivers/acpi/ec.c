@@ -539,6 +539,14 @@ static void acpi_ec_disable_event(struct acpi_ec *ec)
 	spin_unlock_irqrestore(&ec->lock, flags);
 	__acpi_ec_flush_event(ec);
 }
+
+void acpi_ec_flush_work(void)
+{
+	if (first_ec)
+		__acpi_ec_flush_event(first_ec);
+
+	flush_scheduled_work();
+}
 #endif /* CONFIG_PM_SLEEP */
 
 static bool acpi_ec_guard_event(struct acpi_ec *ec)
