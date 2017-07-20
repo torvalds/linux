@@ -1509,11 +1509,12 @@ error_free:
 }
 
 int amdgpu_fill_buffer(struct amdgpu_bo *bo,
-		       uint32_t src_data,
+		       uint64_t src_data,
 		       struct reservation_object *resv,
 		       struct dma_fence **fence)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
+	/* max_bytes applies to SDMA_OP_PTEPDE as well as SDMA_OP_CONST_FILL*/
 	uint32_t max_bytes = adev->mman.buffer_funcs->fill_max_bytes;
 	struct amdgpu_ring *ring = adev->mman.buffer_funcs_ring;
 
@@ -1545,7 +1546,9 @@ int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 		num_pages -= mm_node->size;
 		++mm_node;
 	}
-	num_dw = num_loops * adev->mman.buffer_funcs->fill_num_dw;
+
+	/* 10 double words for each SDMA_OP_PTEPDE cmd */
+	num_dw = num_loops * 10;
 
 	/* for IB padding */
 	num_dw += 64;
@@ -1570,12 +1573,16 @@ int amdgpu_fill_buffer(struct amdgpu_bo *bo,
 		uint32_t byte_count = mm_node->size << PAGE_SHIFT;
 		uint64_t dst_addr;
 
+		WARN_ONCE(byte_count & 0x7, "size should be a multiple of 8");
+
 		dst_addr = amdgpu_mm_node_addr(&bo->tbo, mm_node, &bo->tbo.mem);
 		while (byte_count) {
 			uint32_t cur_size_in_bytes = min(byte_count, max_bytes);
 
-			amdgpu_emit_fill_buffer(adev, &job->ibs[0], src_data,
-						dst_addr, cur_size_in_bytes);
+			amdgpu_vm_set_pte_pde(adev, &job->ibs[0],
+					dst_addr, 0,
+					cur_size_in_bytes >> 3, 0,
+					src_data);
 
 			dst_addr += cur_size_in_bytes;
 			byte_count -= cur_size_in_bytes;
