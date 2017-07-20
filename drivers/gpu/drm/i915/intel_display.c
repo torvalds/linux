@@ -11815,18 +11815,7 @@ static int intel_atomic_check(struct drm_device *dev,
 static int intel_atomic_prepare_commit(struct drm_device *dev,
 				       struct drm_atomic_state *state)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct drm_crtc_state *crtc_state;
-	struct drm_crtc *crtc;
-	int i, ret;
-
-	for_each_new_crtc_in_state(state, crtc, crtc_state, i) {
-		if (state->legacy_cursor_update)
-			continue;
-
-		if (atomic_read(&to_intel_crtc(crtc)->unpin_work_count) >= 2)
-			flush_workqueue(dev_priv->wq);
-	}
+	int ret;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
