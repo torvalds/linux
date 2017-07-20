@@ -511,7 +511,7 @@ static void ltdc_crtc_atomic_flush(struct drm_crtc *crtc,
 	}
 }
 
-static struct drm_crtc_helper_funcs ltdc_crtc_helper_funcs = {
+static const struct drm_crtc_helper_funcs ltdc_crtc_helper_funcs = {
 	.load_lut = ltdc_crtc_load_lut,
 	.mode_set_nofb = ltdc_crtc_mode_set_nofb,
 	.atomic_flush = ltdc_crtc_atomic_flush,
@@ -537,7 +537,7 @@ void ltdc_crtc_disable_vblank(struct drm_device *ddev, unsigned int pipe)
 	reg_clear(ldev->regs, LTDC_IER, IER_LIE);
 }
 
-static struct drm_crtc_funcs ltdc_crtc_funcs = {
+static const struct drm_crtc_funcs ltdc_crtc_funcs = {
 	.destroy = drm_crtc_cleanup,
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = drm_atomic_helper_page_flip,
@@ -693,7 +693,7 @@ static void ltdc_plane_atomic_disable(struct drm_plane *plane,
 			 oldstate->crtc->base.id, plane->base.id);
 }
 
-static struct drm_plane_funcs ltdc_plane_funcs = {
+static const struct drm_plane_funcs ltdc_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
 	.destroy = drm_plane_cleanup,
