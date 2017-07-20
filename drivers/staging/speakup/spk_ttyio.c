@@ -144,7 +144,7 @@ static int spk_ttyio_initialise_ldisc(struct spk_synth *synth)
 	if (ret)
 		return ret;
 
-	tty = tty_open_by_driver(dev, NULL, NULL);
+	tty = tty_kopen(dev);
 	if (IS_ERR(tty))
 		return PTR_ERR(tty);
 
@@ -337,7 +337,7 @@ void spk_ttyio_release(void)
 
 	tty_ldisc_flush(speakup_tty);
 	tty_unlock(speakup_tty);
-	tty_release_struct(speakup_tty, speakup_tty->index);
+	tty_kclose(speakup_tty);
 }
 EXPORT_SYMBOL_GPL(spk_ttyio_release);
 
