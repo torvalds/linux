@@ -1696,8 +1696,14 @@ static void dcn10_apply_ctx_for_surface(
 		 */
 
 		if (pipe_ctx->surface && !old_pipe_ctx->surface) {
-			if (pipe_ctx->mpcc->opp_id != 0xf && pipe_ctx->tg->inst == be_idx)
+			if (pipe_ctx->mpcc->opp_id != 0xf && pipe_ctx->tg->inst == be_idx) {
 				dcn10_power_down_fe(dc, pipe_ctx->pipe_idx);
+				/*
+				 * power down fe will unlock when calling reset, need
+				 * to lock it back here. Messy, need rework.
+				 */
+				pipe_ctx->tg->funcs->lock(pipe_ctx->tg);
+			}
 		}
 
 
