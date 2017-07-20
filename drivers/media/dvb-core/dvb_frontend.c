@@ -631,7 +631,7 @@ static int dvb_frontend_thread(void *data)
 	struct dvb_frontend *fe = data;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
-	enum fe_status s;
+	enum fe_status s = FE_NONE;
 	enum dvbfe_algo algo;
 	bool re_tune = false;
 	bool semheld = false;
