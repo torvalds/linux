@@ -149,7 +149,7 @@ static s32 e1000_reset_hw_vf(struct e1000_hw *hw)
 		msgbuf[0] = E1000_VF_RESET;
 		mbx->ops.write_posted(hw, msgbuf, 1);
 
-		msleep(10);
+		mdelay(10);
 
 		/* set our "perm_addr" based on info provided by PF */
 		ret_val = mbx->ops.read_posted(hw, msgbuf, 3);
