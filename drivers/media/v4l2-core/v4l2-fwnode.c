@@ -150,9 +150,10 @@ static void v4l2_fwnode_endpoint_parse_parallel_bus(
 
 }
 
-void v4l2_fwnode_endpoint_parse_csi1_bus(struct fwnode_handle *fwnode,
-					 struct v4l2_fwnode_endpoint *vep,
-					 u32 bus_type)
+static void
+v4l2_fwnode_endpoint_parse_csi1_bus(struct fwnode_handle *fwnode,
+				    struct v4l2_fwnode_endpoint *vep,
+				    u32 bus_type)
 {
 	struct v4l2_fwnode_bus_mipi_csi1 *bus = &vep->bus.mipi_csi1;
 	u32 v;
