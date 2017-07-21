@@ -11210,5 +11210,6 @@ struct cgroup_subsys perf_event_cgrp_subsys = {
 	 * controller is not mounted on a legacy hierarchy.
 	 */
 	.implicit_on_dfl = true,
+	.threaded	= true,
 };
 #endif /* CONFIG_CGROUP_PERF */

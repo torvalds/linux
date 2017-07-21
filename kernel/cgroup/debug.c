@@ -352,6 +352,7 @@ static int __init enable_cgroup_debug(char *str)
 {
 	debug_cgrp_subsys.dfl_cftypes = debug_files;
 	debug_cgrp_subsys.implicit_on_dfl = true;
+	debug_cgrp_subsys.threaded = true;
 	return 1;
 }
 __setup("cgroup_debug", enable_cgroup_debug);
