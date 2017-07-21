@@ -268,7 +268,6 @@ static int hisi_pcie_probe(struct platform_device *pdev)
 	struct dw_pcie *pci;
 	struct hisi_pcie *hisi_pcie;
 	struct resource *reg;
-	struct device_driver *driver;
 	int ret;
 
 	hisi_pcie = devm_kzalloc(dev, sizeof(*hisi_pcie), GFP_KERNEL);
@@ -281,8 +280,6 @@ static int hisi_pcie_probe(struct platform_device *pdev)
 
 	pci->dev = dev;
 	pci->ops = &dw_pcie_ops;
-
-	driver = dev->driver;
 
 	hisi_pcie->pci = pci;
 
