@@ -560,9 +560,6 @@ static int eb_reserve_vma(const struct i915_execbuffer *eb,
 		eb->args->flags |= __EXEC_HAS_RELOC;
 	}
 
-	entry->flags |= __EXEC_OBJECT_HAS_PIN;
-	GEM_BUG_ON(eb_vma_misplaced(entry, vma));
-
 	if (unlikely(entry->flags & EXEC_OBJECT_NEEDS_FENCE)) {
 		err = i915_vma_get_fence(vma);
 		if (unlikely(err)) {
@@ -573,6 +570,9 @@ static int eb_reserve_vma(const struct i915_execbuffer *eb,
 		if (i915_vma_pin_fence(vma))
 			entry->flags |= __EXEC_OBJECT_HAS_FENCE;
 	}
+
+	entry->flags |= __EXEC_OBJECT_HAS_PIN;
+	GEM_BUG_ON(eb_vma_misplaced(entry, vma));
 
 	return 0;
 }
