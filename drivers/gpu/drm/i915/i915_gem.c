@@ -3094,9 +3094,11 @@ static int __i915_gem_set_wedged_BKL(void *data)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	set_bit(I915_WEDGED, &i915->gpu_error.flags);
 	for_each_engine(engine, i915, id)
 		engine_set_wedged(engine);
+
+	set_bit(I915_WEDGED, &i915->gpu_error.flags);
+	wake_up_all(&i915->gpu_error.reset_queue);
 
 	return 0;
 }
