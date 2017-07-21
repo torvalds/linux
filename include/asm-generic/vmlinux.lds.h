@@ -203,6 +203,7 @@
  * pull in .data..stuff which has its own requirements. Same for bss.
  */
 #define DATA_DATA							\
+	*(.xiptext)							\
 	*(.data .data.[0-9a-zA-Z_]*)					\
 	*(.ref.data)							\
 	*(.data..shared_aligned) /* percpu related */			\
