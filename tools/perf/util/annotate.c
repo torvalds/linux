@@ -1143,7 +1143,7 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 
 			if (symbol_conf.show_total_period)
 				color_fprintf(stdout, color, " %7" PRIu64,
-					      sample.nr_samples);
+					      sample.period);
 			else
 				color_fprintf(stdout, color, " %7.2f", percent);
 		}
