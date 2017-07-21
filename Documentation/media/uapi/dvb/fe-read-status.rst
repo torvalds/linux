@@ -71,13 +71,21 @@ state changes of the frontend hardware. It is produced using the enum
 
     -  .. row 2
 
+       -  .. _FE-NONE:
+
+	  ``FE_NONE``
+
+       -  The frontend doesn't have any kind of lock. That's the initial frontend status
+
+    -  .. row 3
+
        -  .. _FE-HAS-SIGNAL:
 
 	  ``FE_HAS_SIGNAL``
 
        -  The frontend has found something above the noise level
 
-    -  .. row 3
+    -  .. row 4
 
        -  .. _FE-HAS-CARRIER:
 
@@ -85,7 +93,7 @@ state changes of the frontend hardware. It is produced using the enum
 
        -  The frontend has found a DVB signal
 
-    -  .. row 4
+    -  .. row 5
 
        -  .. _FE-HAS-VITERBI:
 
@@ -94,7 +102,7 @@ state changes of the frontend hardware. It is produced using the enum
        -  The frontend FEC inner coding (Viterbi, LDPC or other inner code)
 	  is stable
 
-    -  .. row 5
+    -  .. row 6
 
        -  .. _FE-HAS-SYNC:
 
@@ -102,7 +110,7 @@ state changes of the frontend hardware. It is produced using the enum
 
        -  Synchronization bytes was found
 
-    -  .. row 6
+    -  .. row 7
 
        -  .. _FE-HAS-LOCK:
 
@@ -110,7 +118,7 @@ state changes of the frontend hardware. It is produced using the enum
 
        -  The DVB were locked and everything is working
 
-    -  .. row 7
+    -  .. row 8
 
        -  .. _FE-TIMEDOUT:
 
@@ -118,7 +126,7 @@ state changes of the frontend hardware. It is produced using the enum
 
        -  no lock within the last about 2 seconds
 
-    -  .. row 8
+    -  .. row 9
 
        -  .. _FE-REINIT:
 
