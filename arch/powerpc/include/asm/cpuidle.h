@@ -67,6 +67,17 @@
 #define ERR_DEEP_STATE_ESL_MISMATCH	-2
 
 #ifndef __ASSEMBLY__
+/* Additional SPRs that need to be saved/restored during stop */
+struct stop_sprs {
+	u64 pid;
+	u64 ldbar;
+	u64 fscr;
+	u64 hfscr;
+	u64 mmcr1;
+	u64 mmcr2;
+	u64 mmcra;
+};
+
 extern u32 pnv_fastsleep_workaround_at_entry[];
 extern u32 pnv_fastsleep_workaround_at_exit[];
 
