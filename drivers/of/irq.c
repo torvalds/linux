@@ -292,8 +292,8 @@ EXPORT_SYMBOL_GPL(of_irq_parse_raw);
 int of_irq_parse_one(struct device_node *device, int index, struct of_phandle_args *out_irq)
 {
 	struct device_node *p;
-	const __be32 *intspec, *addr;
-	u32 intsize, intlen;
+	const __be32 *addr;
+	u32 intsize;
 	int i, res;
 
 	pr_debug("of_irq_parse_one: dev=%pOF, index=%d\n", device, index);
@@ -311,15 +311,6 @@ int of_irq_parse_one(struct device_node *device, int index, struct of_phandle_ar
 	if (!res)
 		return of_irq_parse_raw(addr, out_irq);
 
-	/* Get the interrupts property */
-	intspec = of_get_property(device, "interrupts", &intlen);
-	if (intspec == NULL)
-		return -EINVAL;
-
-	intlen /= sizeof(*intspec);
-
-	pr_debug(" intspec=%d intlen=%d\n", be32_to_cpup(intspec), intlen);
-
 	/* Look for the interrupt parent. */
 	p = of_irq_find_parent(device);
 	if (p == NULL)
@@ -331,20 +322,21 @@ int of_irq_parse_one(struct device_node *device, int index, struct of_phandle_ar
 		goto out;
 	}
 
-	pr_debug(" intsize=%d intlen=%d\n", intsize, intlen);
-
-	/* Check index */
-	if ((index + 1) * intsize > intlen) {
-		res = -EINVAL;
-		goto out;
-	}
+	pr_debug(" parent=%pOF, intsize=%d\n", p, intsize);
 
 	/* Copy intspec into irq structure */
-	intspec += index * intsize;
 	out_irq->np = p;
 	out_irq->args_count = intsize;
-	for (i = 0; i < intsize; i++)
-		out_irq->args[i] = be32_to_cpup(intspec++);
+	for (i = 0; i < intsize; i++) {
+		res = of_property_read_u32_index(device, "interrupts",
+						 (index * intsize) + i,
+						 out_irq->args + i);
+		if (res)
+			goto out;
+	}
+
+	pr_debug(" intspec=%d\n", *out_irq->args);
+
 
 	/* Check if there are any interrupt-map translations to process */
 	res = of_irq_parse_raw(addr, out_irq);
