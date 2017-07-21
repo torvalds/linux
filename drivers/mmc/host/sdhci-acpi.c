@@ -294,12 +294,9 @@ static int sdhci_acpi_sdio_probe_slot(struct platform_device *pdev,
 				      const char *hid, const char *uid)
 {
 	struct sdhci_acpi_host *c = platform_get_drvdata(pdev);
-	struct sdhci_host *host;
 
 	if (!c || !c->host)
 		return 0;
-
-	host = c->host;
 
 	/* Platform specific code during sdio probe slot goes here */
 
