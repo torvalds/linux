@@ -111,7 +111,7 @@ struct blk_shadow {
 };
 
 struct blkif_req {
-	int	error;
+	blk_status_t	error;
 };
 
 static inline struct blkif_req *blkif_req(struct request *rq)
@@ -1616,7 +1616,7 @@ static irqreturn_t blkif_interrupt(int irq, void *dev_id)
 			if (unlikely(bret->status == BLKIF_RSP_EOPNOTSUPP)) {
 				printk(KERN_WARNING "blkfront: %s: %s op failed\n",
 				       info->gd->disk_name, op_name(bret->operation));
-				blkif_req(req)->error = -EOPNOTSUPP;
+				blkif_req(req)->error = BLK_STS_NOTSUPP;
 			}
 			if (unlikely(bret->status == BLKIF_RSP_ERROR &&
 				     rinfo->shadow[id].req.u.rw.nr_segments == 0)) {
