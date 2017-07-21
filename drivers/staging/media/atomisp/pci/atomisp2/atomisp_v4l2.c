@@ -1099,9 +1099,7 @@ atomisp_load_firmware(struct atomisp_device *isp)
 		fw_path = "shisp_2400b0_v21.bin";
 
 	if (!fw_path) {
-		dev_err(isp->dev,
-			"Unsupported driver_version 0x%x, hw_revision 0x%x\n",
-			isp->media_dev.driver_version,
+		dev_err(isp->dev, "Unsupported hw_revision 0x%x\n",
 			isp->media_dev.hw_revision);
 		return NULL;
 	}
@@ -1248,8 +1246,6 @@ static int atomisp_pci_probe(struct pci_dev *dev,
 
 	/* This is not a true PCI device on SoC, so the delay is not needed. */
 	isp->pdev->d3_delay = 0;
-
-	isp->media_dev.driver_version = LINUX_VERSION_CODE;
 
 	switch (id->device & ATOMISP_PCI_DEVICE_SOC_MASK) {
 	case ATOMISP_PCI_DEVICE_SOC_MRFLD:
