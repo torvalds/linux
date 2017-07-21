@@ -1775,7 +1775,7 @@ out:
 		}
 	}
 
-	return err ?: have_copy;
+	return err;
 }
 
 static int eb_relocate(struct i915_execbuffer *eb)
@@ -2209,7 +2209,7 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 		goto err_unlock;
 
 	err = eb_relocate(&eb);
-	if (err)
+	if (err) {
 		/*
 		 * If the user expects the execobject.offset and
 		 * reloc.presumed_offset to be an exact match,
@@ -2218,8 +2218,8 @@ i915_gem_do_execbuffer(struct drm_device *dev,
 		 * relocation.
 		 */
 		args->flags &= ~__EXEC_HAS_RELOC;
-	if (err < 0)
 		goto err_vma;
+	}
 
 	if (unlikely(eb.batch->exec_entry->flags & EXEC_OBJECT_WRITE)) {
 		DRM_DEBUG("Attempting to use self-modifying batch buffer\n");
