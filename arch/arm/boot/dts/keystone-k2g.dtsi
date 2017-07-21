@@ -139,5 +139,19 @@
 			interrupts = <GIC_SPI 324 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 327 IRQ_TYPE_LEVEL_HIGH>;
 		};
+
+		pmmc: pmmc@02921c00 {
+			compatible = "ti,k2g-sci";
+			/*
+			 * In case of rare platforms that does not use k2g as
+			 * system master, use /delete-property/
+			 */
+			ti,system-reboot-controller;
+			mbox-names = "rx", "tx";
+			mboxes= <&msgmgr 5 2>,
+				<&msgmgr 0 0>;
+			reg-names = "debug_messages";
+			reg = <0x02921c00 0x400>;
+		};
 	};
 };
