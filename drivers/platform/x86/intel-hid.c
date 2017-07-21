@@ -219,7 +219,7 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 	if (event != 0xc0) {
 		if (!priv->array ||
 		    !sparse_keymap_report_event(priv->array, event, 1, true))
-			dev_info(&device->dev, "unknown event 0x%x\n", event);
+			dev_dbg(&device->dev, "unknown event 0x%x\n", event);
 		return;
 	}
 
@@ -230,7 +230,7 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 	}
 
 	if (!sparse_keymap_report_event(priv->input_dev, ev_index, 1, true))
-		dev_info(&device->dev, "unknown event index 0x%llx\n",
+		dev_dbg(&device->dev, "unknown event index 0x%llx\n",
 			 ev_index);
 }
 
