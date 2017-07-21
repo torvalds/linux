@@ -98,18 +98,18 @@ struct scmi_perf_ops {
 	int (*limits_get)(const struct scmi_handle *handle, u32 domain,
 			  u32 *max_perf, u32 *min_perf);
 	int (*level_set)(const struct scmi_handle *handle, u32 domain,
-			 u32 level);
+			 u32 level, bool poll);
 	int (*level_get)(const struct scmi_handle *handle, u32 domain,
-			 u32 *level);
+			 u32 *level, bool poll);
 	int (*device_domain_id)(struct device *dev);
 	int (*get_transition_latency)(const struct scmi_handle *handle,
 				      struct device *dev);
 	int (*add_opps_to_device)(const struct scmi_handle *handle,
 				  struct device *dev);
 	int (*freq_set)(const struct scmi_handle *handle, u32 domain,
-			unsigned long rate);
+			unsigned long rate, bool poll);
 	int (*freq_get)(const struct scmi_handle *handle, u32 domain,
-			unsigned long *rate);
+			unsigned long *rate, bool poll);
 };
 
 /**
