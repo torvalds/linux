@@ -49,7 +49,7 @@ int rxe_av_chk_attr(struct rxe_dev *rxe, struct rdma_ah_attr *attr)
 		u8 sgid_index = rdma_ah_read_grh(attr)->sgid_index;
 
 		if (sgid_index > port->attr.gid_tbl_len) {
-			pr_info("invalid sgid index = %d\n", sgid_index);
+			pr_warn("invalid sgid index = %d\n", sgid_index);
 			return -EINVAL;
 		}
 	}
