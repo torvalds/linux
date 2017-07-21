@@ -776,9 +776,9 @@ static const struct rockchip_domain_info rk3366_pm_domains[] = {
 	[RK3366_PD_PERI]	= DOMAIN_RK3368(10, 10, 6, true),
 	[RK3366_PD_VIO]		= DOMAIN_RK3368(14, 14, 8, false),
 	[RK3366_PD_VIDEO]	= DOMAIN_RK3368(13, 13, 7, false),
-	[RK3366_PD_RKVDEC]	= DOMAIN_RK3368(11, 11, 7, false),
+	[RK3366_PD_RKVDEC]	= DOMAIN_RK3368(11, 11, -1, false),
 	[RK3366_PD_WIFIBT]	= DOMAIN_RK3368(8, 8, 9, false),
-	[RK3366_PD_VPU]		= DOMAIN_RK3368(12, 12, 7, false),
+	[RK3366_PD_VPU]		= DOMAIN_RK3368(12, 12, -1, false),
 	[RK3366_PD_GPU]		= DOMAIN_RK3368(15, 15, 2, false),
 };
 
