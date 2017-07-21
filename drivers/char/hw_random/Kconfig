@@ -13,10 +13,8 @@ menuconfig HW_RANDOM
 	  that's usually called /dev/hwrng, and which exposes one
 	  of possibly several hardware random number generators.
 
-	  These hardware random number generators do not feed directly
-	  into the kernel's random number generator.  That is usually
-	  handled by the "rngd" daemon.  Documentation/hw_random.txt
-	  has more information.
+	  These hardware random number generators do feed into the
+	  kernel's random number generator entropy pool.
 
 	  If unsure, say Y.
 
