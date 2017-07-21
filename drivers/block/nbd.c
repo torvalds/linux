@@ -908,7 +908,8 @@ static int nbd_reconnect_socket(struct nbd_device *nbd, unsigned long arg)
 			continue;
 		}
 		sk_set_memalloc(sock->sk);
-		sock->sk->sk_sndtimeo = nbd->tag_set.timeout;
+		if (nbd->tag_set.timeout)
+			sock->sk->sk_sndtimeo = nbd->tag_set.timeout;
 		atomic_inc(&config->recv_threads);
 		refcount_inc(&nbd->config_refs);
 		old = nsock->sock;
@@ -1077,7 +1078,9 @@ static int nbd_start_device(struct nbd_device *nbd)
 			return -ENOMEM;
 		}
 		sk_set_memalloc(config->socks[i]->sock->sk);
-		config->socks[i]->sock->sk->sk_sndtimeo = nbd->tag_set.timeout;
+		if (nbd->tag_set.timeout)
+			config->socks[i]->sock->sk->sk_sndtimeo =
+				nbd->tag_set.timeout;
 		atomic_inc(&config->recv_threads);
 		refcount_inc(&nbd->config_refs);
 		INIT_WORK(&args->work, recv_work);
