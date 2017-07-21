@@ -590,6 +590,8 @@ static const struct samsung_gate_clock exynos5800_gate_clks[] __initconst = {
 				GATE_BUS_TOP, 24, 0, 0),
 	GATE(CLK_ACLK432_SCALER, "aclk432_scaler", "mout_user_aclk432_scaler",
 				GATE_BUS_TOP, 27, CLK_IS_CRITICAL, 0),
+	GATE(CLK_MAU_EPLL, "mau_epll", "mout_user_mau_epll",
+			SRC_MASK_TOP7, 20, 0, 0),
 };
 
 static const struct samsung_mux_clock exynos5420_mux_clks[] __initconst = {
@@ -627,6 +629,11 @@ static const struct samsung_mux_clock exynos5420_mux_clks[] __initconst = {
 static const struct samsung_div_clock exynos5420_div_clks[] __initconst = {
 	DIV(CLK_DOUT_ACLK400_WCORE, "dout_aclk400_wcore",
 			"mout_aclk400_wcore_bpll", DIV_TOP0, 16, 3),
+};
+
+static const struct samsung_gate_clock exynos5420_gate_clks[] __initconst = {
+	GATE(CLK_MAU_EPLL, "mau_epll", "mout_mau_epll_clk",
+			SRC_MASK_TOP7, 20, 0, 0),
 };
 
 static const struct samsung_mux_clock exynos5x_mux_clks[] __initconst = {
@@ -1000,9 +1007,6 @@ static const struct samsung_gate_clock exynos5x_gate_clks[] __initconst = {
 
 	GATE(0, "aclk300_disp1", "mout_user_aclk300_disp1",
 			SRC_MASK_TOP2, 24, CLK_IS_CRITICAL, 0),
-
-	GATE(CLK_MAU_EPLL, "mau_epll", "mout_mau_epll_clk",
-			SRC_MASK_TOP7, 20, 0, 0),
 
 	/* sclk */
 	GATE(CLK_SCLK_UART0, "sclk_uart0", "dout_uart0",
@@ -1440,6 +1444,8 @@ static void __init exynos5x_clk_init(struct device_node *np,
 				ARRAY_SIZE(exynos5420_mux_clks));
 		samsung_clk_register_div(ctx, exynos5420_div_clks,
 				ARRAY_SIZE(exynos5420_div_clks));
+		samsung_clk_register_gate(ctx, exynos5420_gate_clks,
+				ARRAY_SIZE(exynos5420_gate_clks));
 	} else {
 		samsung_clk_register_fixed_factor(
 				ctx, exynos5800_fixed_factor_clks,
