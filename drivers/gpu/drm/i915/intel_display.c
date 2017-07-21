@@ -6140,6 +6140,16 @@ static int intel_crtc_compute_config(struct intel_crtc *crtc,
 		return -EINVAL;
 	}
 
+	if (pipe_config->ycbcr420 && pipe_config->base.ctm) {
+		/*
+		 * There is only one pipe CSC unit per pipe, and we need that
+		 * for output conversion from RGB->YCBCR. So if CTM is already
+		 * applied we can't support YCBCR420 output.
+		 */
+		DRM_DEBUG_KMS("YCBCR420 and CTM together are not possible\n");
+		return -EINVAL;
+	}
+
 	/*
 	 * Pipe horizontal size must be even in:
 	 * - DVO ganged mode
