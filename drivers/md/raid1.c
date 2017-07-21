@@ -790,8 +790,7 @@ static void flush_bio_list(struct r1conf *conf, struct bio *bio)
 		bio->bi_next = NULL;
 		bio->bi_bdev = rdev->bdev;
 		if (test_bit(Faulty, &rdev->flags)) {
-			bio->bi_status = BLK_STS_IOERR;
-			bio_endio(bio);
+			bio_io_error(bio);
 		} else if (unlikely((bio_op(bio) == REQ_OP_DISCARD) &&
 				    !blk_queue_discard(bdev_get_queue(bio->bi_bdev))))
 			/* Just ignore it */

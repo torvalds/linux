@@ -3381,9 +3381,8 @@ handle_failed_stripe(struct r5conf *conf, struct stripe_head *sh,
 			sh->dev[i].sector + STRIPE_SECTORS) {
 			struct bio *nextbi = r5_next_bio(bi, sh->dev[i].sector);
 
-			bi->bi_status = BLK_STS_IOERR;
 			md_write_end(conf->mddev);
-			bio_endio(bi);
+			bio_io_error(bi);
 			bi = nextbi;
 		}
 		if (bitmap_end)
@@ -3403,9 +3402,8 @@ handle_failed_stripe(struct r5conf *conf, struct stripe_head *sh,
 		       sh->dev[i].sector + STRIPE_SECTORS) {
 			struct bio *bi2 = r5_next_bio(bi, sh->dev[i].sector);
 
-			bi->bi_status = BLK_STS_IOERR;
 			md_write_end(conf->mddev);
-			bio_endio(bi);
+			bio_io_error(bi);
 			bi = bi2;
 		}
 
@@ -3429,8 +3427,7 @@ handle_failed_stripe(struct r5conf *conf, struct stripe_head *sh,
 				struct bio *nextbi =
 					r5_next_bio(bi, sh->dev[i].sector);
 
-				bi->bi_status = BLK_STS_IOERR;
-				bio_endio(bi);
+				bio_io_error(bi);
 				bi = nextbi;
 			}
 		}
