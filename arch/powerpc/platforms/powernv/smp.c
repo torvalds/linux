@@ -165,12 +165,6 @@ static void pnv_smp_cpu_kill_self(void)
 	if (cpu_has_feature(CPU_FTR_ARCH_207S))
 		wmask = SRR1_WAKEMASK_P8;
 
-	/* We don't want to take decrementer interrupts while we are offline,
-	 * so clear LPCR:PECE1. We keep PECE2 (and LPCR_PECE_HVEE on P9)
-	 * enabled as to let IPIs in.
-	 */
-	mtspr(SPRN_LPCR, mfspr(SPRN_LPCR) & ~(u64)LPCR_PECE1);
-
 	while (!generic_check_cpu_restart(cpu)) {
 		/*
 		 * Clear IPI flag, since we don't handle IPIs while
@@ -220,8 +214,6 @@ static void pnv_smp_cpu_kill_self(void)
 
 	}
 
-	/* Re-enable decrementer interrupts */
-	mtspr(SPRN_LPCR, mfspr(SPRN_LPCR) | LPCR_PECE1);
 	DBG("CPU%d coming online...\n", cpu);
 }
 
