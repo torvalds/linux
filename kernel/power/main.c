@@ -150,7 +150,7 @@ static ssize_t mem_sleep_store(struct kobject *kobj, struct kobj_attribute *attr
 power_attr(mem_sleep);
 #endif /* CONFIG_SUSPEND */
 
-#ifdef CONFIG_PM_DEBUG
+#ifdef CONFIG_PM_SLEEP_DEBUG
 int pm_test_level = TEST_NONE;
 
 static const char * const pm_tests[__TEST_AFTER_LAST] = {
@@ -211,7 +211,7 @@ static ssize_t pm_test_store(struct kobject *kobj, struct kobj_attribute *attr,
 }
 
 power_attr(pm_test);
-#endif /* CONFIG_PM_DEBUG */
+#endif /* CONFIG_PM_SLEEP_DEBUG */
 
 #ifdef CONFIG_DEBUG_FS
 static char *suspend_step_name(enum suspend_stat_step step)
@@ -746,10 +746,8 @@ static struct attribute * g[] = {
 	&wake_lock_attr.attr,
 	&wake_unlock_attr.attr,
 #endif
-#ifdef CONFIG_PM_DEBUG
-	&pm_test_attr.attr,
-#endif
 #ifdef CONFIG_PM_SLEEP_DEBUG
+	&pm_test_attr.attr,
 	&pm_print_times_attr.attr,
 	&pm_wakeup_irq_attr.attr,
 	&pm_debug_messages_attr.attr,
