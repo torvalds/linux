@@ -4487,6 +4487,9 @@ skl_update_scaler(struct intel_crtc_state *crtc_state, bool force_detach,
 	 */
 	need_scaling = src_w != dst_w || src_h != dst_h;
 
+	if (crtc_state->ycbcr420 && scaler_user == SKL_CRTC_INDEX)
+		need_scaling = true;
+
 	/*
 	 * Scaling/fitting not supported in IF-ID mode in GEN9+
 	 * TODO: Interlace fetch mode doesn't support YUV420 planar formats.
