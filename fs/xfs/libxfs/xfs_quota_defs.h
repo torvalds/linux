@@ -136,8 +136,6 @@ typedef uint16_t	xfs_qwarncnt_t;
  */
 #define XFS_QMOPT_INHERIT	0x1000000
 
-#define XFS_QMOPT_NOLOCK	0x2000000 /* don't ilock during dqget */
-
 /*
  * flags to xfs_trans_mod_dquot.
  */

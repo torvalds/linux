@@ -147,7 +147,7 @@ static unsigned int ec_storm_threshold  __read_mostly = 8;
 module_param(ec_storm_threshold, uint, 0644);
 MODULE_PARM_DESC(ec_storm_threshold, "Maxim false GPE numbers not considered as GPE storm");
 
-static bool ec_freeze_events __read_mostly = true;
+static bool ec_freeze_events __read_mostly = false;
 module_param(ec_freeze_events, bool, 0644);
 MODULE_PARM_DESC(ec_freeze_events, "Disabling event handling during suspend/resume");
 
@@ -1870,24 +1870,6 @@ error:
 }
 
 #ifdef CONFIG_PM_SLEEP
-static int acpi_ec_suspend_noirq(struct device *dev)
-{
-	struct acpi_ec *ec =
-		acpi_driver_data(to_acpi_device(dev));
-
-	acpi_ec_enter_noirq(ec);
-	return 0;
-}
-
-static int acpi_ec_resume_noirq(struct device *dev)
-{
-	struct acpi_ec *ec =
-		acpi_driver_data(to_acpi_device(dev));
-
-	acpi_ec_leave_noirq(ec);
-	return 0;
-}
-
 static int acpi_ec_suspend(struct device *dev)
 {
 	struct acpi_ec *ec =
@@ -1909,7 +1891,6 @@ static int acpi_ec_resume(struct device *dev)
 #endif
 
 static const struct dev_pm_ops acpi_ec_pm = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(acpi_ec_suspend_noirq, acpi_ec_resume_noirq)
 	SET_SYSTEM_SLEEP_PM_OPS(acpi_ec_suspend, acpi_ec_resume)
 };
 

@@ -336,7 +336,7 @@ lio_ethtool_get_channels(struct net_device *dev,
 
 static int lio_get_eeprom_len(struct net_device *netdev)
 {
-	u8 buf[128];
+	u8 buf[192];
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct_dev = lio->oct_dev;
 	struct octeon_board_info *board_info;

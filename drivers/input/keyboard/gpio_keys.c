@@ -48,6 +48,7 @@ struct gpio_button_data {
 	spinlock_t lock;
 	bool disabled;
 	bool key_pressed;
+	bool suspended;
 };
 
 struct gpio_keys_drvdata {
@@ -396,8 +397,20 @@ static irqreturn_t gpio_keys_gpio_isr(int irq, void *dev_id)
 
 	BUG_ON(irq != bdata->irq);
 
-	if (bdata->button->wakeup)
+	if (bdata->button->wakeup) {
+		const struct gpio_keys_button *button = bdata->button;
+
 		pm_stay_awake(bdata->input->dev.parent);
+		if (bdata->suspended  &&
+		    (button->type == 0 || button->type == EV_KEY)) {
+			/*
+			 * Simulate wakeup key press in case the key has
+			 * already released by the time we got interrupt
+			 * handler to run.
+			 */
+			input_report_key(bdata->input, button->code, 1);
+		}
+	}
 
 	mod_delayed_work(system_wq,
 			 &bdata->work,
@@ -855,6 +868,7 @@ static int __maybe_unused gpio_keys_suspend(struct device *dev)
 			struct gpio_button_data *bdata = &ddata->data[i];
 			if (bdata->button->wakeup)
 				enable_irq_wake(bdata->irq);
+			bdata->suspended = true;
 		}
 	} else {
 		mutex_lock(&input->mutex);
@@ -878,6 +892,7 @@ static int __maybe_unused gpio_keys_resume(struct device *dev)
 			struct gpio_button_data *bdata = &ddata->data[i];
 			if (bdata->button->wakeup)
 				disable_irq_wake(bdata->irq);
+			bdata->suspended = false;
 		}
 	} else {
 		mutex_lock(&input->mutex);

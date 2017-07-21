@@ -1238,65 +1238,6 @@ struct vfsmount *mnt_clone_internal(const struct path *path)
 	return &p->mnt;
 }
 
-static inline void mangle(struct seq_file *m, const char *s)
-{
-	seq_escape(m, s, " \t\n\\");
-}
-
-/*
- * Simple .show_options callback for filesystems which don't want to
- * implement more complex mount option showing.
- *
- * See also save_mount_options().
- */
-int generic_show_options(struct seq_file *m, struct dentry *root)
-{
-	const char *options;
-
-	rcu_read_lock();
-	options = rcu_dereference(root->d_sb->s_options);
-
-	if (options != NULL && options[0]) {
-		seq_putc(m, ',');
-		mangle(m, options);
-	}
-	rcu_read_unlock();
-
-	return 0;
-}
-EXPORT_SYMBOL(generic_show_options);
-
-/*
- * If filesystem uses generic_show_options(), this function should be
- * called from the fill_super() callback.
- *
- * The .remount_fs callback usually needs to be handled in a special
- * way, to make sure, that previous options are not overwritten if the
- * remount fails.
- *
- * Also note, that if the filesystem's .remount_fs function doesn't
- * reset all options to their default value, but changes only newly
- * given options, then the displayed options will not reflect reality
- * any more.
- */
-void save_mount_options(struct super_block *sb, char *options)
-{
-	BUG_ON(sb->s_options);
-	rcu_assign_pointer(sb->s_options, kstrdup(options, GFP_KERNEL));
-}
-EXPORT_SYMBOL(save_mount_options);
-
-void replace_mount_options(struct super_block *sb, char *options)
-{
-	char *old = sb->s_options;
-	rcu_assign_pointer(sb->s_options, options);
-	if (old) {
-		synchronize_rcu();
-		kfree(old);
-	}
-}
-EXPORT_SYMBOL(replace_mount_options);
-
 #ifdef CONFIG_PROC_FS
 /* iterator; we want it to have access to namespace_sem, thus here... */
 static void *m_start(struct seq_file *m, loff_t *pos)
@@ -1657,7 +1598,7 @@ out_unlock:
 	namespace_unlock();
 }
 
-/* 
+/*
  * Is the caller allowed to modify his namespace?
  */
 static inline bool may_mount(void)
@@ -2211,7 +2152,7 @@ static int do_loopback(struct path *path, const char *old_name,
 
 	err = -EINVAL;
 	if (mnt_ns_loop(old_path.dentry))
-		goto out; 
+		goto out;
 
 	mp = lock_mount(path);
 	err = PTR_ERR(mp);

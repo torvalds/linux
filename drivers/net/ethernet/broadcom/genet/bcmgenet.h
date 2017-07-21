@@ -544,6 +544,8 @@ struct bcmgenet_hw_params {
 };
 
 struct bcmgenet_skb_cb {
+	struct enet_cb *first_cb;	/* First control block of SKB */
+	struct enet_cb *last_cb;	/* Last control block of SKB */
 	unsigned int bytes_sent;	/* bytes on the wire (no TSB) */
 };
 

@@ -4596,7 +4596,7 @@ static int bond_check_params(struct bond_params *params)
 	}
 	ad_user_port_key = valptr->value;
 
-	if (bond_mode == BOND_MODE_TLB) {
+	if ((bond_mode == BOND_MODE_TLB) || (bond_mode == BOND_MODE_ALB)) {
 		bond_opt_initstr(&newval, "default");
 		valptr = bond_opt_parse(bond_opt_get(BOND_OPT_TLB_DYNAMIC_LB),
 					&newval);

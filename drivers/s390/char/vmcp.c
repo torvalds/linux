@@ -98,7 +98,7 @@ vmcp_write(struct file *file, const char __user *buff, size_t count,
 	}
 	if (!session->response)
 		session->response = (char *)__get_free_pages(GFP_KERNEL
-						| __GFP_REPEAT | GFP_DMA,
+						| __GFP_RETRY_MAYFAIL | GFP_DMA,
 						get_order(session->bufsize));
 	if (!session->response) {
 		mutex_unlock(&session->mutex);

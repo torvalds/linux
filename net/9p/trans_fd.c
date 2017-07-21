@@ -41,6 +41,7 @@
 #include <linux/file.h>
 #include <linux/parser.h>
 #include <linux/slab.h>
+#include <linux/seq_file.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 #include <net/9p/transport.h>
@@ -50,6 +51,9 @@
 #define P9_PORT 564
 #define MAX_SOCK_BUF (64*1024)
 #define MAXPOLLWADDR	2
+
+static struct p9_trans_module p9_tcp_trans;
+static struct p9_trans_module p9_fd_trans;
 
 /**
  * struct p9_fd_opts - per-transport options
@@ -63,7 +67,7 @@ struct p9_fd_opts {
 	int rfd;
 	int wfd;
 	u16 port;
-	int privport;
+	bool privport;
 };
 
 /*
@@ -720,6 +724,20 @@ static int p9_fd_cancelled(struct p9_client *client, struct p9_req_t *req)
 	return 0;
 }
 
+static int p9_fd_show_options(struct seq_file *m, struct p9_client *clnt)
+{
+	if (clnt->trans_mod == &p9_tcp_trans) {
+		if (clnt->trans_opts.tcp.port != P9_PORT)
+			seq_printf(m, "port=%u", clnt->trans_opts.tcp.port);
+	} else if (clnt->trans_mod == &p9_fd_trans) {
+		if (clnt->trans_opts.fd.rfd != ~0)
+			seq_printf(m, "rfd=%u", clnt->trans_opts.fd.rfd);
+		if (clnt->trans_opts.fd.wfd != ~0)
+			seq_printf(m, "wfd=%u", clnt->trans_opts.fd.wfd);
+	}
+	return 0;
+}
+
 /**
  * parse_opts - parse mount options into p9_fd_opts structure
  * @params: options string passed from mount
@@ -738,7 +756,7 @@ static int parse_opts(char *params, struct p9_fd_opts *opts)
 	opts->port = P9_PORT;
 	opts->rfd = ~0;
 	opts->wfd = ~0;
-	opts->privport = 0;
+	opts->privport = false;
 
 	if (!params)
 		return 0;
@@ -776,7 +794,7 @@ static int parse_opts(char *params, struct p9_fd_opts *opts)
 			opts->wfd = option;
 			break;
 		case Opt_privport:
-			opts->privport = 1;
+			opts->privport = true;
 			break;
 		default:
 			continue;
@@ -942,6 +960,8 @@ p9_fd_create_tcp(struct p9_client *client, const char *addr, char *args)
 
 	csocket = NULL;
 
+	client->trans_opts.tcp.port = opts.port;
+	client->trans_opts.tcp.privport = opts.privport;
 	sin_server.sin_family = AF_INET;
 	sin_server.sin_addr.s_addr = in_aton(addr);
 	sin_server.sin_port = htons(opts.port);
@@ -1020,6 +1040,8 @@ p9_fd_create(struct p9_client *client, const char *addr, char *args)
 	struct p9_fd_opts opts;
 
 	parse_opts(args, &opts);
+	client->trans_opts.fd.rfd = opts.rfd;
+	client->trans_opts.fd.wfd = opts.wfd;
 
 	if (opts.rfd == ~0 || opts.wfd == ~0) {
 		pr_err("Insufficient options for proto=fd\n");
@@ -1044,6 +1066,7 @@ static struct p9_trans_module p9_tcp_trans = {
 	.request = p9_fd_request,
 	.cancel = p9_fd_cancel,
 	.cancelled = p9_fd_cancelled,
+	.show_options = p9_fd_show_options,
 	.owner = THIS_MODULE,
 };
 
@@ -1056,6 +1079,7 @@ static struct p9_trans_module p9_unix_trans = {
 	.request = p9_fd_request,
 	.cancel = p9_fd_cancel,
 	.cancelled = p9_fd_cancelled,
+	.show_options = p9_fd_show_options,
 	.owner = THIS_MODULE,
 };
 
@@ -1068,6 +1092,7 @@ static struct p9_trans_module p9_fd_trans = {
 	.request = p9_fd_request,
 	.cancel = p9_fd_cancel,
 	.cancelled = p9_fd_cancelled,
+	.show_options = p9_fd_show_options,
 	.owner = THIS_MODULE,
 };
 

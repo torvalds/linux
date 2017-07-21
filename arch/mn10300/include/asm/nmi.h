@@ -11,4 +11,6 @@
 #ifndef _ASM_NMI_H
 #define _ASM_NMI_H
 
+extern void arch_touch_nmi_watchdog(void);
+
 #endif /* _ASM_NMI_H */

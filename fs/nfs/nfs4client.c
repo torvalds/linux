@@ -414,6 +414,7 @@ struct nfs_client *nfs4_init_client(struct nfs_client *clp,
 	if (clp != old)
 		clp->cl_preserve_clid = true;
 	nfs_put_client(clp);
+	clear_bit(NFS_CS_TSM_POSSIBLE, &clp->cl_flags);
 	return old;
 
 error:
@@ -852,6 +853,8 @@ static int nfs4_set_client(struct nfs_server *server,
 		set_bit(NFS_CS_NORESVPORT, &cl_init.init_flags);
 	if (server->options & NFS_OPTION_MIGRATION)
 		set_bit(NFS_CS_MIGRATION, &cl_init.init_flags);
+	if (test_bit(NFS_MIG_TSM_POSSIBLE, &server->mig_status))
+		set_bit(NFS_CS_TSM_POSSIBLE, &cl_init.init_flags);
 
 	/* Allocate or find a client reference we can use */
 	clp = nfs_get_client(&cl_init);
@@ -1212,9 +1215,11 @@ int nfs4_update_server(struct nfs_server *server, const char *hostname,
 		return -EAFNOSUPPORT;
 
 	nfs_server_remove_lists(server);
+	set_bit(NFS_MIG_TSM_POSSIBLE, &server->mig_status);
 	error = nfs4_set_client(server, hostname, sap, salen, buf,
 				clp->cl_proto, clnt->cl_timeout,
 				clp->cl_minorversion, net);
+	clear_bit(NFS_MIG_TSM_POSSIBLE, &server->mig_status);
 	nfs_put_client(clp);
 	if (error != 0) {
 		nfs_server_insert_lists(server);

@@ -148,7 +148,7 @@ struct net {
 #endif
 	struct sock		*diag_nlsk;
 	atomic_t		fnhe_genid;
-};
+} __randomize_layout;
 
 #include <linux/seq_file_net.h>
 

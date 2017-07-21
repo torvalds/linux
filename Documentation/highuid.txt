@@ -1,4 +1,9 @@
-Notes on the change from 16-bit UIDs to 32-bit UIDs:
+===================================================
+Notes on the change from 16-bit UIDs to 32-bit UIDs
+===================================================
+
+:Author: Chris Wing <wingc@umich.edu>
+:Last updated: January 11, 2000
 
 - kernel code MUST take into account __kernel_uid_t and __kernel_uid32_t
   when communicating between user and kernel space in an ioctl or data
@@ -28,30 +33,34 @@ What's left to be done for 32-bit UIDs on all Linux architectures:
   uses the 32-bit UID system calls properly otherwise.
 
   This affects at least:
-	iBCS on Intel
 
-	sparc32 emulation on sparc64
-	(need to support whatever new 32-bit UID system calls are added to
-	sparc32)
+	- iBCS on Intel
+
+	- sparc32 emulation on sparc64
+	  (need to support whatever new 32-bit UID system calls are added to
+	  sparc32)
 
 - Validate that all filesystems behave properly.
 
   At present, 32-bit UIDs _should_ work for:
-	ext2
-	ufs
-	isofs
-	nfs
-	coda
-	udf
+
+	- ext2
+	- ufs
+	- isofs
+	- nfs
+	- coda
+	- udf
 
   Ioctl() fixups have been made for:
-	ncpfs
-	smbfs
+
+	- ncpfs
+	- smbfs
 
   Filesystems with simple fixups to prevent 16-bit UID wraparound:
-	minix
-	sysv
-	qnx4
+
+	- minix
+	- sysv
+	- qnx4
 
   Other filesystems have not been checked yet.
 
@@ -69,9 +78,3 @@ What's left to be done for 32-bit UIDs on all Linux architectures:
 - make sure that the UID mapping feature of AX25 networking works properly
   (it should be safe because it's always used a 32-bit integer to
   communicate between user and kernel)
-
-
-Chris Wing
-wingc@umich.edu
-
-last updated: January 11, 2000

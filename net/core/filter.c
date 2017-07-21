@@ -2275,7 +2275,7 @@ static int bpf_skb_adjust_net(struct sk_buff *skb, s32 len_diff)
 		       bpf_skb_net_grow(skb, len_diff_abs);
 
 	bpf_compute_data_end(skb);
-	return 0;
+	return ret;
 }
 
 BPF_CALL_4(bpf_skb_adjust_room, struct sk_buff *, skb, s32, len_diff,

@@ -45,6 +45,7 @@
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
 #include <asm/iosf_mbi.h>
+#include <linux/pci.h>
 #endif
 
 #include "sdhci.h"
@@ -134,6 +135,16 @@ static bool sdhci_acpi_byt(void)
 	return x86_match_cpu(byt);
 }
 
+static bool sdhci_acpi_cht(void)
+{
+	static const struct x86_cpu_id cht[] = {
+		{ X86_VENDOR_INTEL, 6, INTEL_FAM6_ATOM_AIRMONT },
+		{}
+	};
+
+	return x86_match_cpu(cht);
+}
+
 #define BYT_IOSF_SCCEP			0x63
 #define BYT_IOSF_OCP_NETCTRL0		0x1078
 #define BYT_IOSF_OCP_TIMEOUT_BASE	GENMASK(10, 8)
@@ -178,6 +189,45 @@ static bool sdhci_acpi_byt_defer(struct device *dev)
 	return false;
 }
 
+static bool sdhci_acpi_cht_pci_wifi(unsigned int vendor, unsigned int device,
+				    unsigned int slot, unsigned int parent_slot)
+{
+	struct pci_dev *dev, *parent, *from = NULL;
+
+	while (1) {
+		dev = pci_get_device(vendor, device, from);
+		pci_dev_put(from);
+		if (!dev)
+			break;
+		parent = pci_upstream_bridge(dev);
+		if (ACPI_COMPANION(&dev->dev) && PCI_SLOT(dev->devfn) == slot &&
+		    parent && PCI_SLOT(parent->devfn) == parent_slot &&
+		    !pci_upstream_bridge(parent)) {
+			pci_dev_put(dev);
+			return true;
+		}
+		from = dev;
+	}
+
+	return false;
+}
+
+/*
+ * GPDwin uses PCI wifi which conflicts with SDIO's use of
+ * acpi_device_fix_up_power() on child device nodes. Identifying GPDwin is
+ * problematic, but since SDIO is only used for wifi, the presence of the PCI
+ * wifi card in the expected slot with an ACPI companion node, is used to
+ * indicate that acpi_device_fix_up_power() should be avoided.
+ */
+static inline bool sdhci_acpi_no_fixup_child_power(const char *hid,
+						   const char *uid)
+{
+	return sdhci_acpi_cht() &&
+	       !strcmp(hid, "80860F14") &&
+	       !strcmp(uid, "2") &&
+	       sdhci_acpi_cht_pci_wifi(0x14e4, 0x43ec, 0, 28);
+}
+
 #else
 
 static inline void sdhci_acpi_byt_setting(struct device *dev)
@@ -185,6 +235,12 @@ static inline void sdhci_acpi_byt_setting(struct device *dev)
 }
 
 static inline bool sdhci_acpi_byt_defer(struct device *dev)
+{
+	return false;
+}
+
+static inline bool sdhci_acpi_no_fixup_child_power(const char *hid,
+						   const char *uid)
 {
 	return false;
 }
@@ -389,17 +445,19 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 	if (acpi_bus_get_device(handle, &device))
 		return -ENODEV;
 
+	hid = acpi_device_hid(device);
+	uid = device->pnp.unique_id;
+
 	/* Power on the SDHCI controller and its children */
 	acpi_device_fix_up_power(device);
-	list_for_each_entry(child, &device->children, node)
-		if (child->status.present && child->status.enabled)
-			acpi_device_fix_up_power(child);
+	if (!sdhci_acpi_no_fixup_child_power(hid, uid)) {
+		list_for_each_entry(child, &device->children, node)
+			if (child->status.present && child->status.enabled)
+				acpi_device_fix_up_power(child);
+	}
 
 	if (sdhci_acpi_byt_defer(dev))
 		return -EPROBE_DEFER;
-
-	hid = acpi_device_hid(device);
-	uid = device->pnp.unique_id;
 
 	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!iomem)

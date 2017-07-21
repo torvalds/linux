@@ -1136,20 +1136,27 @@ static void validate_rbio_for_rmw(struct btrfs_raid_bio *rbio)
 static void index_rbio_pages(struct btrfs_raid_bio *rbio)
 {
 	struct bio *bio;
-	struct bio_vec *bvec;
 	u64 start;
 	unsigned long stripe_offset;
 	unsigned long page_index;
-	int i;
 
 	spin_lock_irq(&rbio->bio_list_lock);
 	bio_list_for_each(bio, &rbio->bio_list) {
+		struct bio_vec bvec;
+		struct bvec_iter iter;
+		int i = 0;
+
 		start = (u64)bio->bi_iter.bi_sector << 9;
 		stripe_offset = start - rbio->bbio->raid_map[0];
 		page_index = stripe_offset >> PAGE_SHIFT;
 
-		bio_for_each_segment_all(bvec, bio, i)
-			rbio->bio_pages[page_index + i] = bvec->bv_page;
+		if (bio_flagged(bio, BIO_CLONED))
+			bio->bi_iter = btrfs_io_bio(bio)->iter;
+
+		bio_for_each_segment(bvec, bio, iter) {
+			rbio->bio_pages[page_index + i] = bvec.bv_page;
+			i++;
+		}
 	}
 	spin_unlock_irq(&rbio->bio_list_lock);
 }
@@ -1423,11 +1430,14 @@ static int fail_bio_stripe(struct btrfs_raid_bio *rbio,
  */
 static void set_bio_pages_uptodate(struct bio *bio)
 {
-	struct bio_vec *bvec;
-	int i;
+	struct bio_vec bvec;
+	struct bvec_iter iter;
 
-	bio_for_each_segment_all(bvec, bio, i)
-		SetPageUptodate(bvec->bv_page);
+	if (bio_flagged(bio, BIO_CLONED))
+		bio->bi_iter = btrfs_io_bio(bio)->iter;
+
+	bio_for_each_segment(bvec, bio, iter)
+		SetPageUptodate(bvec.bv_page);
 }
 
 /*

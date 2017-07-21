@@ -254,8 +254,6 @@ do {									\
 	(void)0;							\
 })
 
-#define __get_user_unaligned __get_user
-
 #define get_user(x, ptr)						\
 ({									\
 	__typeof__(*(ptr)) __user *__p = (ptr);				\
@@ -319,8 +317,6 @@ do {									\
 	__put_user_err((x), (ptr), (err));				\
 	(void)0;							\
 })
-
-#define __put_user_unaligned __put_user
 
 #define put_user(x, ptr)						\
 ({									\

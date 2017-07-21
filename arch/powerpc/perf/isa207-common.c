@@ -90,13 +90,15 @@ static void mmcra_sdar_mode(u64 event, unsigned long *mmcra)
 	 *	MMCRA[SDAR_MODE] will be set to 0b01
 	 * For rest
 	 *	MMCRA[SDAR_MODE] will be set from event code.
+	 *      If sdar_mode from event is zero, default to 0b01. Hardware
+	 *      requires that we set a non-zero value.
 	 */
 	if (cpu_has_feature(CPU_FTR_ARCH_300)) {
 		if (is_event_marked(event) || (*mmcra & MMCRA_SAMPLE_ENABLE))
 			*mmcra &= MMCRA_SDAR_MODE_NO_UPDATES;
-		else if (!cpu_has_feature(CPU_FTR_POWER9_DD1))
+		else if (!cpu_has_feature(CPU_FTR_POWER9_DD1) && p9_SDAR_MODE(event))
 			*mmcra |=  p9_SDAR_MODE(event) << MMCRA_SDAR_MODE_SHIFT;
-		else if (cpu_has_feature(CPU_FTR_POWER9_DD1))
+		else
 			*mmcra |= MMCRA_SDAR_MODE_TLB;
 	} else
 		*mmcra |= MMCRA_SDAR_MODE_TLB;
