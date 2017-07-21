@@ -1283,6 +1283,10 @@ bool intel_engine_is_idle(struct intel_engine_cs *engine)
 	if (port_request(&engine->execlist_port[0]))
 		return false;
 
+	/* ELSP is empty, but there are ready requests? */
+	if (READ_ONCE(engine->execlist_first))
+		return false;
+
 	/* Ring stopped? */
 	if (!ring_is_idle(engine))
 		return false;
