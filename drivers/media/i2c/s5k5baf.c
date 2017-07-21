@@ -1863,8 +1863,7 @@ static int s5k5baf_parse_device_node(struct s5k5baf *state, struct device *dev)
 
 	node_ep = of_graph_get_next_endpoint(node, NULL);
 	if (!node_ep) {
-		dev_err(dev, "no endpoint defined at node %s\n",
-			node->full_name);
+		dev_err(dev, "no endpoint defined at node %pOF\n", node);
 		return -EINVAL;
 	}
 
@@ -1882,8 +1881,8 @@ static int s5k5baf_parse_device_node(struct s5k5baf *state, struct device *dev)
 	case V4L2_MBUS_PARALLEL:
 		break;
 	default:
-		dev_err(dev, "unsupported bus in endpoint defined at node %s\n",
-			node->full_name);
+		dev_err(dev, "unsupported bus in endpoint defined at node %pOF\n",
+			node);
 		return -EINVAL;
 	}
 

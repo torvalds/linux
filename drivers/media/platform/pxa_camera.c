@@ -2331,7 +2331,7 @@ static int pxa_camera_pdata_from_dt(struct device *dev,
 		asd->match.fwnode.fwnode = of_fwnode_handle(remote);
 		of_node_put(remote);
 	} else {
-		dev_notice(dev, "no remote for %s\n", of_node_full_name(np));
+		dev_notice(dev, "no remote for %pOF\n", np);
 	}
 
 out:

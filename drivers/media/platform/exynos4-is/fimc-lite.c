@@ -1493,8 +1493,7 @@ static int fimc_lite_probe(struct platform_device *pdev)
 
 	if (!drv_data || fimc->index >= drv_data->num_instances ||
 						fimc->index < 0) {
-		dev_err(dev, "Wrong %s node alias\n",
-					dev->of_node->full_name);
+		dev_err(dev, "Wrong %pOF node alias\n", dev->of_node);
 		return -EINVAL;
 	}
 

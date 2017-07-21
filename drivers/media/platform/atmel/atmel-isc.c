@@ -1700,8 +1700,8 @@ static int isc_parse_dt(struct device *dev, struct isc_device *isc)
 
 		rem = of_graph_get_remote_port_parent(epn);
 		if (!rem) {
-			dev_notice(dev, "Remote device at %s not found\n",
-				   of_node_full_name(epn));
+			dev_notice(dev, "Remote device at %pOF not found\n",
+				   epn);
 			continue;
 		}
 

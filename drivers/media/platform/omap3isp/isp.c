@@ -2024,8 +2024,8 @@ static int isp_fwnode_parse(struct device *dev, struct fwnode_handle *fwnode,
 	if (ret)
 		return ret;
 
-	dev_dbg(dev, "parsing endpoint %s, interface %u\n",
-		to_of_node(fwnode)->full_name, vep.base.port);
+	dev_dbg(dev, "parsing endpoint %pOF, interface %u\n",
+		to_of_node(fwnode), vep.base.port);
 
 	switch (vep.base.port) {
 	case ISP_OF_PHY_PARALLEL:
@@ -2136,8 +2136,8 @@ static int isp_fwnode_parse(struct device *dev, struct fwnode_handle *fwnode,
 		break;
 
 	default:
-		dev_warn(dev, "%s: invalid interface %u\n",
-			 to_of_node(fwnode)->full_name, vep.base.port);
+		dev_warn(dev, "%pOF: invalid interface %u\n",
+			 to_of_node(fwnode), vep.base.port);
 		return -EINVAL;
 	}
 
