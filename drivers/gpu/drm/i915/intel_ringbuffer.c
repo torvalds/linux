@@ -1712,6 +1712,9 @@ u32 *intel_ring_begin(struct drm_i915_gem_request *req,
 	unsigned int total_bytes;
 	u32 *cs;
 
+	/* Packets must be qword aligned. */
+	GEM_BUG_ON(num_dwords & 1);
+
 	total_bytes = bytes + req->reserved_space;
 	GEM_BUG_ON(total_bytes > ring->effective_size);
 
