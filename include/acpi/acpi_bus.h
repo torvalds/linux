@@ -399,43 +399,51 @@ extern const struct fwnode_operations acpi_device_fwnode_ops;
 extern const struct fwnode_operations acpi_data_fwnode_ops;
 extern const struct fwnode_operations acpi_static_fwnode_ops;
 
-static inline bool is_acpi_node(struct fwnode_handle *fwnode)
+static inline bool is_acpi_node(const struct fwnode_handle *fwnode)
 {
 	return !IS_ERR_OR_NULL(fwnode) &&
 		(fwnode->ops == &acpi_device_fwnode_ops
 		 || fwnode->ops == &acpi_data_fwnode_ops);
 }
 
-static inline bool is_acpi_device_node(struct fwnode_handle *fwnode)
+static inline bool is_acpi_device_node(const struct fwnode_handle *fwnode)
 {
 	return !IS_ERR_OR_NULL(fwnode) &&
 		fwnode->ops == &acpi_device_fwnode_ops;
 }
 
-static inline struct acpi_device *to_acpi_device_node(struct fwnode_handle *fwnode)
-{
-	return is_acpi_device_node(fwnode) ?
-		container_of(fwnode, struct acpi_device, fwnode) : NULL;
-}
+#define to_acpi_device_node(__fwnode)					\
+	({								\
+		typeof(__fwnode) __to_acpi_device_node_fwnode = __fwnode; \
+									\
+		is_acpi_device_node(__to_acpi_device_node_fwnode) ?	\
+			container_of(__to_acpi_device_node_fwnode,	\
+				     struct acpi_device, fwnode) :	\
+			NULL;						\
+	})
 
-static inline bool is_acpi_data_node(struct fwnode_handle *fwnode)
+static inline bool is_acpi_data_node(const struct fwnode_handle *fwnode)
 {
 	return !IS_ERR_OR_NULL(fwnode) && fwnode->ops == &acpi_data_fwnode_ops;
 }
 
-static inline struct acpi_data_node *to_acpi_data_node(struct fwnode_handle *fwnode)
-{
-	return is_acpi_data_node(fwnode) ?
-		container_of(fwnode, struct acpi_data_node, fwnode) : NULL;
-}
+#define to_acpi_data_node(__fwnode)					\
+	({								\
+		typeof(__fwnode) __to_acpi_data_node_fwnode = __fwnode;	\
+									\
+		is_acpi_data_node(__to_acpi_data_node_fwnode) ?		\
+			container_of(__to_acpi_data_node_fwnode,	\
+				     struct acpi_data_node, fwnode) :	\
+			NULL;						\
+	})
 
-static inline bool is_acpi_static_node(struct fwnode_handle *fwnode)
+static inline bool is_acpi_static_node(const struct fwnode_handle *fwnode)
 {
 	return !IS_ERR_OR_NULL(fwnode) &&
 		fwnode->ops == &acpi_static_fwnode_ops;
 }
 
-static inline bool acpi_data_node_match(struct fwnode_handle *fwnode,
+static inline bool acpi_data_node_match(const struct fwnode_handle *fwnode,
 					const char *name)
 {
 	return is_acpi_data_node(fwnode) ?
