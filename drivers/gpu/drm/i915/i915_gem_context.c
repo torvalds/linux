@@ -977,7 +977,7 @@ int i915_gem_switch_to_kernel_context(struct drm_i915_private *dev_priv)
 
 static bool client_is_banned(struct drm_i915_file_private *file_priv)
 {
-	return file_priv->context_bans > I915_MAX_CLIENT_CONTEXT_BANS;
+	return atomic_read(&file_priv->context_bans) > I915_MAX_CLIENT_CONTEXT_BANS;
 }
 
 int i915_gem_context_create_ioctl(struct drm_device *dev, void *data,
@@ -1179,8 +1179,8 @@ int i915_gem_context_reset_stats_ioctl(struct drm_device *dev,
 	else
 		args->reset_count = 0;
 
-	args->batch_active = READ_ONCE(ctx->guilty_count);
-	args->batch_pending = READ_ONCE(ctx->active_count);
+	args->batch_active = atomic_read(&ctx->guilty_count);
+	args->batch_pending = atomic_read(&ctx->active_count);
 
 	ret = 0;
 out:

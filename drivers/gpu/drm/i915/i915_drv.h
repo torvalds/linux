@@ -602,7 +602,7 @@ struct drm_i915_file_private {
  * to limit the badly behaving clients access to gpu.
  */
 #define I915_MAX_CLIENT_CONTEXT_BANS 3
-	int context_bans;
+	atomic_t context_bans;
 };
 
 /* Used by dp and fdi links */

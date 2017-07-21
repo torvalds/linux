@@ -374,8 +374,7 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 	i915_gem_request_remove_from_client(request);
 
 	/* Retirement decays the ban score as it is a sign of ctx progress */
-	if (request->ctx->ban_score > 0)
-		request->ctx->ban_score--;
+	atomic_dec_if_positive(&request->ctx->ban_score);
 
 	/* The backing object for the context is done after switching to the
 	 * *next* context. Therefore we cannot retire the previous context until

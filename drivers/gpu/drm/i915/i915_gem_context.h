@@ -191,17 +191,17 @@ struct i915_gem_context {
 	u32 desc_template;
 
 	/** guilty_count: How many times this context has caused a GPU hang. */
-	unsigned int guilty_count;
+	atomic_t guilty_count;
 	/**
 	 * @active_count: How many times this context was active during a GPU
 	 * hang, but did not cause it.
 	 */
-	unsigned int active_count;
+	atomic_t active_count;
 
 #define CONTEXT_SCORE_GUILTY		10
 #define CONTEXT_SCORE_BAN_THRESHOLD	40
 	/** ban_score: Accumulated score of all hangs caused by this context. */
-	int ban_score;
+	atomic_t ban_score;
 
 	/** remap_slice: Bitmask of cache lines that need remapping */
 	u8 remap_slice;
