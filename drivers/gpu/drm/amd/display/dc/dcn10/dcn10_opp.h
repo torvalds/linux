@@ -123,7 +123,6 @@
 	SRI(CM_MEM_PWR_CTRL, CM, id), \
 	SRI(CM_RGAM_LUT_DATA, CM, id)
 
-
 #define OPP_MASK_SH_LIST_DCN(mask_sh) \
 	OPP_SF(DSCL0_OBUF_CONTROL, OBUF_BYPASS, mask_sh), \
 	OPP_SF(FMT0_FMT_BIT_DEPTH_CONTROL, FMT_TRUNCATE_EN, mask_sh), \
@@ -357,6 +356,16 @@
 	OPP_SF(CM0_CM_RGAM_LUT_DATA, CM_RGAM_LUT_DATA, mask_sh)
 
 #define OPP_DCN10_REG_FIELD_LIST(type) \
+	type DPG_EN; \
+	type DPG_MODE; \
+	type DPG_VRES; \
+	type DPG_HRES; \
+	type DPG_COLOUR0_R_CR; \
+	type DPG_COLOUR1_R_CR; \
+	type DPG_COLOUR0_B_CB; \
+	type DPG_COLOUR1_B_CB; \
+	type DPG_COLOUR0_G_Y; \
+	type DPG_COLOUR1_G_Y; \
 	type CM_OCSC_C11; \
 	type CM_OCSC_C12; \
 	type CM_OCSC_C13; \
@@ -594,6 +603,10 @@ struct dcn10_opp_mask {
 };
 
 struct dcn10_opp_registers {
+	uint32_t DPG_CONTROL;
+	uint32_t DPG_COLOUR_B_CB;
+	uint32_t DPG_COLOUR_G_Y;
+	uint32_t DPG_COLOUR_R_CR;
 	uint32_t CM_OCSC_C11_C12;
 	uint32_t CM_OCSC_C13_C14;
 	uint32_t CM_OCSC_C21_C22;

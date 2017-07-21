@@ -345,17 +345,18 @@ static void tgn10_enable_optc_clock(struct timing_generator *tg, bool enable)
 	struct dcn10_timing_generator *tgn10 = DCN10TG_FROM_TG(tg);
 
 	if (enable) {
-		REG_UPDATE(OPTC_INPUT_CLOCK_CONTROL,
-				OPTC_INPUT_CLK_EN, 1);
+		REG_UPDATE_2(OPTC_INPUT_CLOCK_CONTROL,
+				OPTC_INPUT_CLK_EN, 1,
+				OPTC_INPUT_CLK_GATE_DIS, 1);
 
 		REG_WAIT(OPTC_INPUT_CLOCK_CONTROL,
 				OPTC_INPUT_CLK_ON, 1,
 				2000, 500);
 
 		/* Enable clock */
-		REG_UPDATE(OTG_CLOCK_CONTROL,
-				OTG_CLOCK_EN, 1);
-
+		REG_UPDATE_2(OTG_CLOCK_CONTROL,
+				OTG_CLOCK_EN, 1,
+				OTG_CLOCK_GATE_DIS, 1);
 		REG_WAIT(OTG_CLOCK_CONTROL,
 				OTG_CLOCK_ON, 1,
 				2000, 500);
@@ -364,17 +365,19 @@ static void tgn10_enable_optc_clock(struct timing_generator *tg, bool enable)
 				OTG_CLOCK_GATE_DIS, 0,
 				OTG_CLOCK_EN, 0);
 
-		REG_WAIT(OTG_CLOCK_CONTROL,
-				OTG_CLOCK_ON, 0,
-				2000, 500);
+		if (tg->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS)
+			REG_WAIT(OTG_CLOCK_CONTROL,
+					OTG_CLOCK_ON, 0,
+					2000, 500);
 
 		REG_UPDATE_2(OPTC_INPUT_CLOCK_CONTROL,
 				OPTC_INPUT_CLK_GATE_DIS, 0,
 				OPTC_INPUT_CLK_EN, 0);
 
-		REG_WAIT(OPTC_INPUT_CLOCK_CONTROL,
-				OPTC_INPUT_CLK_ON, 0,
-				2000, 500);
+		if (tg->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS)
+			REG_WAIT(OPTC_INPUT_CLOCK_CONTROL,
+					OPTC_INPUT_CLK_ON, 0,
+					2000, 500);
 	}
 }
 
@@ -574,9 +577,10 @@ static void tgn10_lock(struct timing_generator *tg)
 	REG_SET(OTG_MASTER_UPDATE_LOCK, 0,
 			OTG_MASTER_UPDATE_LOCK, 1);
 
-	REG_WAIT(OTG_MASTER_UPDATE_LOCK,
-			UPDATE_LOCK_STATUS, 1,
-			1, 100);
+	if (tg->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS)
+		REG_WAIT(OTG_MASTER_UPDATE_LOCK,
+				UPDATE_LOCK_STATUS, 1,
+				1, 100);
 }
 
 static void tgn10_unlock(struct timing_generator *tg)
@@ -587,9 +591,9 @@ static void tgn10_unlock(struct timing_generator *tg)
 			OTG_MASTER_UPDATE_LOCK, 0);
 
 	/* why are we waiting here? */
-	/*REG_WAIT(OTG_DOUBLE_BUFFER_CONTROL,
+	REG_WAIT(OTG_DOUBLE_BUFFER_CONTROL,
 			OTG_UPDATE_PENDING, 0,
-			20000, 200000);*/
+			20000, 200000);
 }
 
 static void tgn10_get_position(struct timing_generator *tg,

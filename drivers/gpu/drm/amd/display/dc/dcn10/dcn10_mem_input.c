@@ -460,9 +460,14 @@ static void min10_program_deadline(
 		REFCYC_X_AFTER_SCALER, dlg_attr->refcyc_x_after_scaler,
 		DST_Y_AFTER_SCALER, dlg_attr->dst_y_after_scaler);
 
-	REG_SET_2(PREFETCH_SETTINS, 0,
-		DST_Y_PREFETCH, dlg_attr->dst_y_prefetch,
-		VRATIO_PREFETCH, dlg_attr->vratio_prefetch);
+	if (REG(PREFETCH_SETTINS))
+		REG_SET_2(PREFETCH_SETTINS, 0,
+			DST_Y_PREFETCH, dlg_attr->dst_y_prefetch,
+			VRATIO_PREFETCH, dlg_attr->vratio_prefetch);
+	else
+		REG_SET_2(PREFETCH_SETTINGS, 0,
+			DST_Y_PREFETCH, dlg_attr->dst_y_prefetch,
+			VRATIO_PREFETCH, dlg_attr->vratio_prefetch);
 
 	REG_SET_2(VBLANK_PARAMETERS_0, 0,
 		DST_Y_PER_VM_VBLANK, dlg_attr->dst_y_per_vm_vblank,
@@ -498,8 +503,12 @@ static void min10_program_deadline(
 		REFCYC_PER_LINE_DELIVERY_L, dlg_attr->refcyc_per_line_delivery_l,
 		REFCYC_PER_LINE_DELIVERY_C, dlg_attr->refcyc_per_line_delivery_c);
 
-	REG_SET(PREFETCH_SETTINS_C, 0,
-		VRATIO_PREFETCH_C, dlg_attr->vratio_prefetch_c);
+	if (REG(PREFETCH_SETTINS_C))
+		REG_SET(PREFETCH_SETTINS_C, 0,
+			VRATIO_PREFETCH_C, dlg_attr->vratio_prefetch_c);
+	else
+		REG_SET(PREFETCH_SETTINGS_C, 0,
+			VRATIO_PREFETCH_C, dlg_attr->vratio_prefetch_c);
 
 	REG_SET(VBLANK_PARAMETERS_2, 0,
 		REFCYC_PER_PTE_GROUP_VBLANK_C, dlg_attr->refcyc_per_pte_group_vblank_c);

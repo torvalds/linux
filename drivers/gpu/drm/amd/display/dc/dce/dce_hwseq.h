@@ -227,6 +227,15 @@ struct dce_hwseq_registers {
 	uint32_t DISPCLK_FREQ_CHANGE_CNTL;
 	uint32_t RBBMIF_TIMEOUT_DIS;
 	uint32_t RBBMIF_TIMEOUT_DIS_2;
+	uint32_t DENTIST_DISPCLK_CNTL;
+	uint32_t DCHUBBUB_CRC_CTRL;
+	uint32_t DPP_TOP0_DPP_CRC_CTRL;
+	uint32_t DPP_TOP0_DPP_CRC_VAL_R_G;
+	uint32_t DPP_TOP0_DPP_CRC_VAL_B_A;
+	uint32_t MPC_CRC_CTRL;
+	uint32_t MPC_CRC_RESULT_GB;
+	uint32_t MPC_CRC_RESULT_C;
+	uint32_t MPC_CRC_RESULT_AR;
 #endif
 };
  /* set field name */
@@ -388,7 +397,8 @@ struct dce_hwseq_registers {
 	type DOMAIN6_PGFSM_PWR_STATUS; \
 	type DOMAIN7_PGFSM_PWR_STATUS; \
 	type DCFCLK_GATE_DIS; \
-	type DCHUBBUB_GLOBAL_TIMER_REFDIV;
+	type DCHUBBUB_GLOBAL_TIMER_REFDIV; \
+	type DENTIST_DPPCLK_WDIVIDER;
 #endif
 
 struct dce_hwseq_shift {

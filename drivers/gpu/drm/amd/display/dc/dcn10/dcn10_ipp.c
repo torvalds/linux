@@ -472,11 +472,18 @@ static bool ippn10_cursor_program_control(
 		bool pixel_data_invert,
 		enum dc_cursor_color_format color_format)
 {
-	REG_SET_2(CURSOR_SETTINS, 0,
-			/* no shift of the cursor HDL schedule */
-			CURSOR0_DST_Y_OFFSET, 0,
-			 /* used to shift the cursor chunk request deadline */
-			CURSOR0_CHUNK_HDL_ADJUST, 3);
+	if (REG(CURSOR_SETTINS))
+		REG_SET_2(CURSOR_SETTINS, 0,
+				/* no shift of the cursor HDL schedule */
+				CURSOR0_DST_Y_OFFSET, 0,
+				 /* used to shift the cursor chunk request deadline */
+				CURSOR0_CHUNK_HDL_ADJUST, 3);
+	else
+		REG_SET_2(CURSOR_SETTINGS, 0,
+				/* no shift of the cursor HDL schedule */
+				CURSOR0_DST_Y_OFFSET, 0,
+				 /* used to shift the cursor chunk request deadline */
+				CURSOR0_CHUNK_HDL_ADJUST, 3);
 
 	REG_UPDATE_2(CURSOR0_CONTROL,
 			CUR0_MODE, color_format,

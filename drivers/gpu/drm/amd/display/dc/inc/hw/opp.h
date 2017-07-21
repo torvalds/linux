@@ -324,6 +324,10 @@ struct opp_funcs {
 			struct output_pixel_processor *opp,
 			bool enable,
 			bool rightEyePolarity);
+
+	void (*opp_set_test_pattern)(
+			struct output_pixel_processor *opp,
+			bool enable);
 };
 
 #endif

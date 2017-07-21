@@ -256,7 +256,7 @@ static bool dce110_set_input_transfer_func(
 	ipp->funcs->ipp_program_prescale(ipp, &prescale_params);
 
 	if (surface->public.gamma_correction && dce_use_lut(surface))
-	    ipp->funcs->ipp_program_input_lut(ipp, surface->public.gamma_correction);
+		ipp->funcs->ipp_program_input_lut(ipp, surface->public.gamma_correction);
 
 	if (tf == NULL) {
 		/* Default case if no input transfer function specified */

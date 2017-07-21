@@ -550,7 +550,9 @@ static void reset_front_end(
 	if (dc->public.debug.sanity_checks)
 		verify_allow_pstate_change_high(dc->hwseq);
 
-	REG_WAIT(OTG_GLOBAL_SYNC_STATUS[tg->inst], VUPDATE_NO_LOCK_EVENT_OCCURRED, 1, 20000, 200000);
+	if (tg->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS)
+		REG_WAIT(OTG_GLOBAL_SYNC_STATUS[tg->inst],
+				VUPDATE_NO_LOCK_EVENT_OCCURRED, 1, 20000, 200000);
 
 	mpcc->funcs->wait_for_idle(mpcc);
 
@@ -1295,6 +1297,7 @@ static void dcn10_power_on_fe(
 	/* make sure OPP_PIPE_CLOCK_EN = 1 */
 	REG_UPDATE(OPP_PIPE_CONTROL[pipe_ctx->tg->inst],
 			OPP_PIPE_CLOCK_EN, 1);
+	/*TODO: REG_UPDATE(DENTIST_DISPCLK_CNTL, DENTIST_DPPCLK_WDIVIDER, 0x1f);*/
 
 	if (dc_surface) {
 		dm_logger_write(dc->ctx->logger, LOG_DC,
@@ -1984,9 +1987,16 @@ static void dcn10_setup_stereo(struct pipe_ctx *pipe_ctx, struct core_dc *dc)
 static void dcn10_log_hw_state(struct core_dc *dc)
 {
 	struct dc_context *dc_ctx = dc->ctx;
+	struct dce_hwseq *hws = dc->hwseq;
 
 	DTN_INFO("%s: Hello World", __func__);
 
+	if (REG(MPC_CRC_RESULT_GB))
+		DTN_INFO("MPC_CRC_RESULT_GB:%d MPC_CRC_RESULT_C:%d MPC_CRC_RESULT_AR:%d\n",
+		REG_READ(MPC_CRC_RESULT_GB), REG_READ(MPC_CRC_RESULT_C), REG_READ(MPC_CRC_RESULT_AR));
+	if (REG(DPP_TOP0_DPP_CRC_VAL_B_A))
+		DTN_INFO("DPP_TOP0_DPP_CRC_VAL_B_A:%d DPP_TOP0_DPP_CRC_VAL_R_G:%d\n",
+		REG_READ(DPP_TOP0_DPP_CRC_VAL_B_A), REG_READ(DPP_TOP0_DPP_CRC_VAL_R_G));
 	/* todo: add meaningful register reads and print out HW state
 	 *
 	 */
@@ -2065,7 +2075,7 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.set_static_screen_control = set_static_screen_control,
 	.setup_stereo = dcn10_setup_stereo,
 	.set_avmute = dce110_set_avmute,
-	.log_hw_state = dcn10_log_hw_state,
+	.log_hw_state = dcn10_log_hw_state
 };
 
 
