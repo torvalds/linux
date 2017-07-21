@@ -212,7 +212,10 @@ sub check_sphinx()
 	}
 
 	if ($virtualenv) {
-		check_program("virtualenv", 0) if (!findprog("virtualenv-3"));
+		my $prog = findprog("virtualenv-3");
+		$prog = findprog("virtualenv-3.5") if (!$prog);
+
+		check_program("virtualenv", 0) if (!$prog);
 		check_program("pip", 0) if (!findprog("pip3"));
 		$need_sphinx = 1;
 	} else {
@@ -351,6 +354,33 @@ sub give_opensuse_hints()
 	printf("You should run:\n\n\tsudo zypper install --no-recommends $install\n");
 }
 
+sub give_mageia_hints()
+{
+	my %map = (
+		"python-sphinx"		=> "python3-sphinx",
+		"sphinx_rtd_theme"	=> "python3-sphinx_rtd_theme",
+		"virtualenv"		=> "python3-virtualenv",
+		"pip"			=> "python3-pip",
+		"dot"			=> "graphviz",
+		"convert"		=> "ImageMagick",
+		"Pod::Usage"		=> "perl-Pod-Usage",
+		"xelatex"		=> "texlive",
+		"rsvg-convert"		=> "librsvg2-tools",
+	);
+
+	my @tex_pkgs = (
+		"texlive-fontsextra",
+	);
+
+	my $release;
+
+	check_rpm_missing(\@tex_pkgs, 1) if ($pdf);
+	check_missing(\%map);
+
+	return if (!$need && !$optional);
+	printf("You should run:\n\n\tsudo urpmi $install\n");
+}
+
 sub give_arch_linux_hints()
 {
 	my %map = (
@@ -424,6 +454,10 @@ sub check_distros()
 		give_opensuse_hints;
 		return;
 	}
+	if ($system_release =~ /Mageia/) {
+		give_mageia_hints;
+		return;
+	}
 	if ($system_release =~ /Arch Linux/) {
 		give_arch_linux_hints;
 		return;
@@ -483,6 +517,7 @@ sub check_needs()
 			printf "\t. $activate\n";
 		} else {
 			my $virtualenv = findprog("virtualenv-3");
+			$virtualenv = findprog("virtualenv-3.5") if (!$virtualenv);
 			$virtualenv = findprog("virtualenv") if (!$virtualenv);
 			$virtualenv = "virtualenv" if (!$virtualenv);
 
