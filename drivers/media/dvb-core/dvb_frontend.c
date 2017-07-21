@@ -460,7 +460,7 @@ static int dvb_frontend_swzigzag_autotune(struct dvb_frontend *fe, int check_wra
 
 static void dvb_frontend_swzigzag(struct dvb_frontend *fe)
 {
-	enum fe_status s = 0;
+	enum fe_status s = FE_NONE;
 	int retval = 0;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache, tmp;
