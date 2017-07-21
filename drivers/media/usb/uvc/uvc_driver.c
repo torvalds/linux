@@ -2096,7 +2096,6 @@ static int uvc_probe(struct usb_interface *intf,
 			sizeof(dev->mdev.serial));
 	strcpy(dev->mdev.bus_info, udev->devpath);
 	dev->mdev.hw_revision = le16_to_cpu(udev->descriptor.bcdDevice);
-	dev->mdev.driver_version = LINUX_VERSION_CODE;
 	media_device_init(&dev->mdev);
 
 	dev->vdev.mdev = &dev->mdev;
