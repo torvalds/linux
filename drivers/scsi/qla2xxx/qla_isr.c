@@ -2827,8 +2827,8 @@ qla24xx_abort_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 	sp->done(sp, 0);
 }
 
-void qla24xx_nvme_ls4_iocb(scsi_qla_host_t *vha, struct pt_ls4_request *pkt,
-    struct req_que *req)
+void qla24xx_nvme_ls4_iocb(struct scsi_qla_host *vha,
+    struct pt_ls4_request *pkt, struct req_que *req)
 {
 	srb_t *sp;
 	const char func[] = "LS4_IOCB";
