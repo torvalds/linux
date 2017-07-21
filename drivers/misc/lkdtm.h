@@ -61,6 +61,8 @@ void lkdtm_REFCOUNT_INC_NOT_ZERO_SATURATED(void);
 void lkdtm_REFCOUNT_ADD_NOT_ZERO_SATURATED(void);
 void lkdtm_REFCOUNT_DEC_AND_TEST_SATURATED(void);
 void lkdtm_REFCOUNT_SUB_AND_TEST_SATURATED(void);
+void lkdtm_REFCOUNT_TIMING(void);
+void lkdtm_ATOMIC_TIMING(void);
 
 /* lkdtm_rodata.c */
 void lkdtm_rodata_do_nothing(void);

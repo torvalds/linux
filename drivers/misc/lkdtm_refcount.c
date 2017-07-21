@@ -354,3 +354,47 @@ void lkdtm_REFCOUNT_SUB_AND_TEST_SATURATED(void)
 
 	check_saturated(&sat);
 }
+
+/* Used to time the existing atomic_t when used for reference counting */
+void lkdtm_ATOMIC_TIMING(void)
+{
+	unsigned int i;
+	atomic_t count = ATOMIC_INIT(1);
+
+	for (i = 0; i < INT_MAX - 1; i++)
+		atomic_inc(&count);
+
+	for (i = INT_MAX; i > 0; i--)
+		if (atomic_dec_and_test(&count))
+			break;
+
+	if (i != 1)
+		pr_err("atomic timing: out of sync up/down cycle: %u\n", i - 1);
+	else
+		pr_info("atomic timing: done\n");
+}
+
+/*
+ * This can be compared to ATOMIC_TIMING when implementing fast refcount
+ * protections. Looking at the number of CPU cycles tells the real story
+ * about performance. For example:
+ *    cd /sys/kernel/debug/provoke-crash
+ *    perf stat -B -- cat <(echo REFCOUNT_TIMING) > DIRECT
+ */
+void lkdtm_REFCOUNT_TIMING(void)
+{
+	unsigned int i;
+	refcount_t count = REFCOUNT_INIT(1);
+
+	for (i = 0; i < INT_MAX - 1; i++)
+		refcount_inc(&count);
+
+	for (i = INT_MAX; i > 0; i--)
+		if (refcount_dec_and_test(&count))
+			break;
+
+	if (i != 1)
+		pr_err("refcount: out of sync up/down cycle: %u\n", i - 1);
+	else
+		pr_info("refcount timing: done\n");
+}
