@@ -1003,13 +1003,14 @@ struct acpi_reference_args {
 };
 
 #ifdef CONFIG_ACPI
-int acpi_dev_get_property(struct acpi_device *adev, const char *name,
+int acpi_dev_get_property(const struct acpi_device *adev, const char *name,
 			  acpi_object_type type, const union acpi_object **obj);
-int __acpi_node_get_property_reference(struct fwnode_handle *fwnode,
+int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 				const char *name, size_t index, size_t num_args,
 				struct acpi_reference_args *args);
 
-static inline int acpi_node_get_property_reference(struct fwnode_handle *fwnode,
+static inline int acpi_node_get_property_reference(
+				const struct fwnode_handle *fwnode,
 				const char *name, size_t index,
 				struct acpi_reference_args *args)
 {
@@ -1017,13 +1018,15 @@ static inline int acpi_node_get_property_reference(struct fwnode_handle *fwnode,
 		MAX_ACPI_REFERENCE_ARGS, args);
 }
 
-int acpi_node_prop_get(struct fwnode_handle *fwnode, const char *propname,
+int acpi_node_prop_get(const struct fwnode_handle *fwnode, const char *propname,
 		       void **valptr);
-int acpi_dev_prop_read_single(struct acpi_device *adev, const char *propname,
-			      enum dev_prop_type proptype, void *val);
-int acpi_node_prop_read(struct fwnode_handle *fwnode, const char *propname,
-		        enum dev_prop_type proptype, void *val, size_t nval);
-int acpi_dev_prop_read(struct acpi_device *adev, const char *propname,
+int acpi_dev_prop_read_single(struct acpi_device *adev,
+			      const char *propname, enum dev_prop_type proptype,
+			      void *val);
+int acpi_node_prop_read(const struct fwnode_handle *fwnode,
+			const char *propname, enum dev_prop_type proptype,
+			void *val, size_t nval);
+int acpi_dev_prop_read(const struct acpi_device *adev, const char *propname,
 		       enum dev_prop_type proptype, void *val, size_t nval);
 
 struct fwnode_handle *acpi_get_next_subnode(struct fwnode_handle *fwnode,
@@ -1100,35 +1103,36 @@ static inline int acpi_dev_get_property(struct acpi_device *adev,
 }
 
 static inline int
-__acpi_node_get_property_reference(struct fwnode_handle *fwnode,
+__acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 				const char *name, size_t index, size_t num_args,
 				struct acpi_reference_args *args)
 {
 	return -ENXIO;
 }
 
-static inline int acpi_node_get_property_reference(struct fwnode_handle *fwnode,
-				const char *name, size_t index,
-				struct acpi_reference_args *args)
+static inline int
+acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
+				 const char *name, size_t index,
+				 struct acpi_reference_args *args)
 {
 	return -ENXIO;
 }
 
-static inline int acpi_node_prop_get(struct fwnode_handle *fwnode,
+static inline int acpi_node_prop_get(const struct fwnode_handle *fwnode,
 				     const char *propname,
 				     void **valptr)
 {
 	return -ENXIO;
 }
 
-static inline int acpi_dev_prop_get(struct acpi_device *adev,
+static inline int acpi_dev_prop_get(const struct acpi_device *adev,
 				    const char *propname,
 				    void **valptr)
 {
 	return -ENXIO;
 }
 
-static inline int acpi_dev_prop_read_single(struct acpi_device *adev,
+static inline int acpi_dev_prop_read_single(const struct acpi_device *adev,
 					    const char *propname,
 					    enum dev_prop_type proptype,
 					    void *val)
@@ -1136,7 +1140,7 @@ static inline int acpi_dev_prop_read_single(struct acpi_device *adev,
 	return -ENXIO;
 }
 
-static inline int acpi_node_prop_read(struct fwnode_handle *fwnode,
+static inline int acpi_node_prop_read(const struct fwnode_handle *fwnode,
 				      const char *propname,
 				      enum dev_prop_type proptype,
 				      void *val, size_t nval)
@@ -1144,7 +1148,7 @@ static inline int acpi_node_prop_read(struct fwnode_handle *fwnode,
 	return -ENXIO;
 }
 
-static inline int acpi_dev_prop_read(struct acpi_device *adev,
+static inline int acpi_dev_prop_read(const struct acpi_device *adev,
 				     const char *propname,
 				     enum dev_prop_type proptype,
 				     void *val, size_t nval)
