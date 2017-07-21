@@ -1861,9 +1861,10 @@ void i915_reset(struct drm_i915_private *dev_priv)
 	if (!i915_gem_unset_wedged(dev_priv))
 		goto wakeup;
 
+	dev_notice(dev_priv->drm.dev,
+		   "Resetting chip after gpu hang\n");
 	error->reset_count++;
 
-	pr_notice("drm/i915: Resetting chip after gpu hang\n");
 	disable_irq(dev_priv->drm.irq);
 	ret = i915_gem_reset_prepare(dev_priv);
 	if (ret) {
@@ -1941,7 +1942,9 @@ int i915_reset_engine(struct intel_engine_cs *engine)
 
 	GEM_BUG_ON(!test_bit(I915_RESET_ENGINE + engine->id, &error->flags));
 
-	DRM_DEBUG_DRIVER("resetting %s\n", engine->name);
+	dev_notice(engine->i915->drm.dev,
+		   "Resetting %s after gpu hang\n", engine->name);
+	error->reset_engine_count[engine->id]++;
 
 	active_request = i915_gem_reset_prepare_engine(engine);
 	if (IS_ERR(active_request)) {
@@ -1974,7 +1977,6 @@ int i915_reset_engine(struct intel_engine_cs *engine)
 	if (ret)
 		goto out;
 
-	error->reset_engine_count[engine->id]++;
 out:
 	i915_gem_reset_finish_engine(engine);
 	return ret;
