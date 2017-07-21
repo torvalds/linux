@@ -311,7 +311,8 @@ static int xenon_execute_tuning(struct mmc_host *mmc, u32 opcode)
 {
 	struct sdhci_host *host = mmc_priv(mmc);
 
-	if (host->timing == MMC_TIMING_UHS_DDR50)
+	if (host->timing == MMC_TIMING_UHS_DDR50 ||
+		host->timing == MMC_TIMING_MMC_DDR52)
 		return 0;
 
 	/*
