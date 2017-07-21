@@ -125,8 +125,11 @@ static int crypto_scomp_alloc_all_scratches(void)
 		if (!scomp_src_scratches)
 			return -ENOMEM;
 		scomp_dst_scratches = crypto_scomp_alloc_scratches();
-		if (!scomp_dst_scratches)
+		if (!scomp_dst_scratches) {
+			crypto_scomp_free_scratches(scomp_src_scratches);
+			scomp_src_scratches = NULL;
 			return -ENOMEM;
+		}
 	}
 	return 0;
 }
