@@ -14,20 +14,9 @@
 
 #include <linux/types.h>
 
-enum fwnode_type {
-	FWNODE_INVALID = 0,
-	FWNODE_OF,
-	FWNODE_ACPI,
-	FWNODE_ACPI_DATA,
-	FWNODE_ACPI_STATIC,
-	FWNODE_PDATA,
-	FWNODE_IRQCHIP
-};
-
 struct fwnode_operations;
 
 struct fwnode_handle {
-	enum fwnode_type type;
 	struct fwnode_handle *secondary;
 	const struct fwnode_operations *ops;
 };

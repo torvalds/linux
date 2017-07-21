@@ -25,9 +25,11 @@ struct property_set {
 	const struct property_entry *properties;
 };
 
+static const struct fwnode_operations pset_fwnode_ops;
+
 static inline bool is_pset_node(struct fwnode_handle *fwnode)
 {
-	return !IS_ERR_OR_NULL(fwnode) && fwnode->type == FWNODE_PDATA;
+	return !IS_ERR_OR_NULL(fwnode) && fwnode->ops == &pset_fwnode_ops;
 }
 
 static inline struct property_set *to_pset_node(struct fwnode_handle *fwnode)
@@ -900,7 +902,6 @@ int device_add_properties(struct device *dev,
 	if (IS_ERR(p))
 		return PTR_ERR(p);
 
-	p->fwnode.type = FWNODE_PDATA;
 	p->fwnode.ops = &pset_fwnode_ops;
 	set_secondary_fwnode(dev, &p->fwnode);
 	return 0;

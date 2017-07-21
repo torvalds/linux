@@ -56,8 +56,7 @@ static bool acpi_nondev_subnode_extract(const union acpi_object *desc,
 		return false;
 
 	dn->name = link->package.elements[0].string.pointer;
-	dn->fwnode.type = FWNODE_ACPI_DATA;
-	dn->fwnode.ops = &acpi_fwnode_ops;
+	dn->fwnode.ops = &acpi_data_fwnode_ops;
 	dn->parent = parent;
 	INIT_LIST_HEAD(&dn->data.subnodes);
 
@@ -469,10 +468,10 @@ EXPORT_SYMBOL_GPL(acpi_dev_get_property);
 
 static struct acpi_device_data *acpi_device_data_of_node(struct fwnode_handle *fwnode)
 {
-	if (fwnode->type == FWNODE_ACPI) {
+	if (is_acpi_device_node(fwnode)) {
 		struct acpi_device *adev = to_acpi_device_node(fwnode);
 		return &adev->data;
-	} else if (fwnode->type == FWNODE_ACPI_DATA) {
+	} else if (is_acpi_data_node(fwnode)) {
 		struct acpi_data_node *dn = to_acpi_data_node(fwnode);
 		return &dn->data;
 	}
@@ -903,7 +902,7 @@ struct fwnode_handle *acpi_get_next_subnode(struct fwnode_handle *fwnode,
 	struct acpi_device *adev = to_acpi_device_node(fwnode);
 	struct list_head *head, *next;
 
-	if (!child || child->type == FWNODE_ACPI) {
+	if (!child || is_acpi_device_node(child)) {
 		if (adev)
 			head = &adev->children;
 		else
@@ -927,7 +926,7 @@ struct fwnode_handle *acpi_get_next_subnode(struct fwnode_handle *fwnode,
 	}
 
  nondev:
-	if (!child || child->type == FWNODE_ACPI_DATA) {
+	if (!child || is_acpi_data_node(child)) {
 		struct acpi_data_node *data = to_acpi_data_node(fwnode);
 		struct acpi_data_node *dn;
 
@@ -1223,16 +1222,26 @@ static int acpi_fwnode_graph_parse_endpoint(struct fwnode_handle *fwnode,
 	return 0;
 }
 
-const struct fwnode_operations acpi_fwnode_ops = {
-	.device_is_available = acpi_fwnode_device_is_available,
-	.property_present = acpi_fwnode_property_present,
-	.property_read_int_array = acpi_fwnode_property_read_int_array,
-	.property_read_string_array = acpi_fwnode_property_read_string_array,
-	.get_parent = acpi_node_get_parent,
-	.get_next_child_node = acpi_get_next_subnode,
-	.get_named_child_node = acpi_fwnode_get_named_child_node,
-	.graph_get_next_endpoint = acpi_fwnode_graph_get_next_endpoint,
-	.graph_get_remote_endpoint = acpi_fwnode_graph_get_remote_endpoint,
-	.graph_get_port_parent = acpi_node_get_parent,
-	.graph_parse_endpoint = acpi_fwnode_graph_parse_endpoint,
-};
+#define DECLARE_ACPI_FWNODE_OPS(ops) \
+	const struct fwnode_operations ops = {				\
+		.device_is_available = acpi_fwnode_device_is_available, \
+		.property_present = acpi_fwnode_property_present,	\
+		.property_read_int_array =				\
+			acpi_fwnode_property_read_int_array,		\
+		.property_read_string_array =				\
+			acpi_fwnode_property_read_string_array,		\
+		.get_parent = acpi_node_get_parent,			\
+		.get_next_child_node = acpi_get_next_subnode,		\
+		.get_named_child_node = acpi_fwnode_get_named_child_node, \
+		.graph_get_next_endpoint =				\
+			acpi_fwnode_graph_get_next_endpoint,		\
+		.graph_get_remote_endpoint =				\
+			acpi_fwnode_graph_get_remote_endpoint,		\
+		.graph_get_port_parent = acpi_node_get_parent,		\
+		.graph_parse_endpoint = acpi_fwnode_graph_parse_endpoint, \
+	};								\
+	EXPORT_SYMBOL_GPL(ops)
+
+DECLARE_ACPI_FWNODE_OPS(acpi_device_fwnode_ops);
+DECLARE_ACPI_FWNODE_OPS(acpi_data_fwnode_ops);
+const struct fwnode_operations acpi_static_fwnode_ops;

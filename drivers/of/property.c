@@ -952,3 +952,4 @@ const struct fwnode_operations of_fwnode_ops = {
 	.graph_get_port_parent = of_fwnode_graph_get_port_parent,
 	.graph_parse_endpoint = of_fwnode_graph_parse_endpoint,
 };
+EXPORT_SYMBOL_GPL(of_fwnode_ops);
