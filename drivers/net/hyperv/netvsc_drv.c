@@ -734,7 +734,7 @@ static int netvsc_set_queues(struct net_device *net, struct hv_device *dev,
 		return ret;
 
 	net_device = rndis_filter_device_add(dev, &device_info);
-	return IS_ERR(net_device) ? PTR_ERR(net_device) : 0;
+	return PTR_ERR_OR_ZERO(net_device);
 }
 
 static int netvsc_set_channels(struct net_device *net,
