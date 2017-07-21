@@ -95,3 +95,11 @@ void mock_init_contexts(struct drm_i915_private *i915)
 	INIT_WORK(&i915->contexts.free_work, contexts_free_worker);
 	init_llist_head(&i915->contexts.free_list);
 }
+
+struct i915_gem_context *
+live_context(struct drm_i915_private *i915, struct drm_file *file)
+{
+	lockdep_assert_held(&i915->drm.struct_mutex);
+
+	return i915_gem_create_context(i915, file->driver_priv);
+}

@@ -22,7 +22,12 @@
  *
  */
 
+#include <linux/kthread.h>
+
 #include "../i915_selftest.h"
+
+#include "mock_context.h"
+#include "mock_drm.h"
 
 struct hang {
 	struct drm_i915_private *i915;
@@ -372,6 +377,164 @@ static int igt_reset_engine(void *arg)
 	return err;
 }
 
+static int active_engine(void *data)
+{
+	struct intel_engine_cs *engine = data;
+	struct drm_i915_gem_request *rq[2] = {};
+	struct i915_gem_context *ctx[2];
+	struct drm_file *file;
+	unsigned long count = 0;
+	int err = 0;
+
+	file = mock_file(engine->i915);
+	if (IS_ERR(file))
+		return PTR_ERR(file);
+
+	mutex_lock(&engine->i915->drm.struct_mutex);
+	ctx[0] = live_context(engine->i915, file);
+	mutex_unlock(&engine->i915->drm.struct_mutex);
+	if (IS_ERR(ctx[0])) {
+		err = PTR_ERR(ctx[0]);
+		goto err_file;
+	}
+
+	mutex_lock(&engine->i915->drm.struct_mutex);
+	ctx[1] = live_context(engine->i915, file);
+	mutex_unlock(&engine->i915->drm.struct_mutex);
+	if (IS_ERR(ctx[1])) {
+		err = PTR_ERR(ctx[1]);
+		i915_gem_context_put(ctx[0]);
+		goto err_file;
+	}
+
+	while (!kthread_should_stop()) {
+		unsigned int idx = count++ & 1;
+		struct drm_i915_gem_request *old = rq[idx];
+		struct drm_i915_gem_request *new;
+
+		mutex_lock(&engine->i915->drm.struct_mutex);
+		new = i915_gem_request_alloc(engine, ctx[idx]);
+		if (IS_ERR(new)) {
+			mutex_unlock(&engine->i915->drm.struct_mutex);
+			err = PTR_ERR(new);
+			break;
+		}
+
+		rq[idx] = i915_gem_request_get(new);
+		i915_add_request(new);
+		mutex_unlock(&engine->i915->drm.struct_mutex);
+
+		if (old) {
+			i915_wait_request(old, 0, MAX_SCHEDULE_TIMEOUT);
+			i915_gem_request_put(old);
+		}
+	}
+
+	for (count = 0; count < ARRAY_SIZE(rq); count++)
+		i915_gem_request_put(rq[count]);
+
+err_file:
+	mock_file_free(engine->i915, file);
+	return err;
+}
+
+static int igt_reset_active_engines(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct intel_engine_cs *engine, *active;
+	enum intel_engine_id id, tmp;
+	int err = 0;
+
+	/* Check that issuing a reset on one engine does not interfere
+	 * with any other engine.
+	 */
+
+	if (!intel_has_reset_engine(i915))
+		return 0;
+
+	for_each_engine(engine, i915, id) {
+		struct task_struct *threads[I915_NUM_ENGINES];
+		unsigned long resets[I915_NUM_ENGINES];
+		unsigned long global = i915_reset_count(&i915->gpu_error);
+		IGT_TIMEOUT(end_time);
+
+		memset(threads, 0, sizeof(threads));
+		for_each_engine(active, i915, tmp) {
+			struct task_struct *tsk;
+
+			if (active == engine)
+				continue;
+
+			resets[tmp] = i915_reset_engine_count(&i915->gpu_error,
+							      active);
+
+			tsk = kthread_run(active_engine, active,
+					  "igt/%s", active->name);
+			if (IS_ERR(tsk)) {
+				err = PTR_ERR(tsk);
+				goto unwind;
+			}
+
+			threads[tmp] = tsk;
+			get_task_struct(tsk);
+		}
+
+		set_bit(I915_RESET_ENGINE + engine->id, &i915->gpu_error.flags);
+		do {
+			err = i915_reset_engine(engine);
+			if (err) {
+				pr_err("i915_reset_engine(%s) failed, err=%d\n",
+				       engine->name, err);
+				break;
+			}
+		} while (time_before(jiffies, end_time));
+		clear_bit(I915_RESET_ENGINE + engine->id,
+			  &i915->gpu_error.flags);
+
+unwind:
+		for_each_engine(active, i915, tmp) {
+			int ret;
+
+			if (!threads[tmp])
+				continue;
+
+			ret = kthread_stop(threads[tmp]);
+			if (ret) {
+				pr_err("kthread for active engine %s failed, err=%d\n",
+				       active->name, ret);
+				if (!err)
+					err = ret;
+			}
+			put_task_struct(threads[tmp]);
+
+			if (resets[tmp] != i915_reset_engine_count(&i915->gpu_error,
+								   active)) {
+				pr_err("Innocent engine %s was reset (count=%ld)\n",
+				       active->name,
+				       i915_reset_engine_count(&i915->gpu_error,
+							       active) - resets[tmp]);
+				err = -EIO;
+			}
+		}
+
+		if (global != i915_reset_count(&i915->gpu_error)) {
+			pr_err("Global reset (count=%ld)!\n",
+			       i915_reset_count(&i915->gpu_error) - global);
+			err = -EIO;
+		}
+
+		if (err)
+			break;
+
+		cond_resched();
+	}
+
+	if (i915_terminally_wedged(&i915->gpu_error))
+		err = -EIO;
+
+	return err;
+}
+
 static u32 fake_hangcheck(struct drm_i915_gem_request *rq)
 {
 	u32 reset_count;
@@ -689,6 +852,7 @@ int intel_hangcheck_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_hang_sanitycheck),
 		SUBTEST(igt_global_reset),
 		SUBTEST(igt_reset_engine),
+		SUBTEST(igt_reset_active_engines),
 		SUBTEST(igt_wait_reset),
 		SUBTEST(igt_reset_queue),
 		SUBTEST(igt_render_engine_reset_fallback),
