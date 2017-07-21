@@ -277,6 +277,18 @@ static void iwl_mvm_rx_agg_session_expired(unsigned long data)
 
 	/* Timer expired */
 	sta = rcu_dereference(ba_data->mvm->fw_id_to_mac_id[ba_data->sta_id]);
+
+	/*
+	 * sta should be valid unless the following happens:
+	 * The firmware asserts which triggers a reconfig flow, but
+	 * the reconfig fails before we set the pointer to sta into
+	 * the fw_id_to_mac_id pointer table. Mac80211 can't stop
+	 * A-MDPU and hence the timer continues to run. Then, the
+	 * timer expires and sta is NULL.
+	 */
+	if (!sta)
+		goto unlock;
+
 	mvm_sta = iwl_mvm_sta_from_mac80211(sta);
 	ieee80211_stop_rx_ba_session_offl(mvm_sta->vif,
 					  sta->addr, ba_data->tid);
@@ -2015,7 +2027,8 @@ int iwl_mvm_send_add_bcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 						IWL_MAX_TID_COUNT,
 						wdg_timeout);
 
-		if (vif->type == NL80211_IFTYPE_AP)
+		if (vif->type == NL80211_IFTYPE_AP ||
+		    vif->type == NL80211_IFTYPE_ADHOC)
 			mvm->probe_queue = queue;
 		else if (vif->type == NL80211_IFTYPE_P2P_DEVICE)
 			mvm->p2p_dev_queue = queue;
