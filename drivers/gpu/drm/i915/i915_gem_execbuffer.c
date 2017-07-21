@@ -1826,7 +1826,7 @@ static int eb_move_to_gpu(struct i915_execbuffer *eb)
 	int err;
 
 	for (i = 0; i < count; i++) {
-		const struct drm_i915_gem_exec_object2 *entry = &eb->exec[i];
+		struct drm_i915_gem_exec_object2 *entry = &eb->exec[i];
 		struct i915_vma *vma = exec_to_vma(entry);
 		struct drm_i915_gem_object *obj = vma->obj;
 
@@ -1842,11 +1842,13 @@ static int eb_move_to_gpu(struct i915_execbuffer *eb)
 			eb->request->capture_list = capture;
 		}
 
+		if (unlikely(obj->cache_dirty && !obj->cache_coherent)) {
+			if (i915_gem_clflush_object(obj, 0))
+				entry->flags &= ~EXEC_OBJECT_ASYNC;
+		}
+
 		if (entry->flags & EXEC_OBJECT_ASYNC)
 			goto skip_flushes;
-
-		if (unlikely(obj->cache_dirty && !obj->cache_coherent))
-			i915_gem_clflush_object(obj, 0);
 
 		err = i915_gem_request_await_object
 			(eb->request, obj, entry->flags & EXEC_OBJECT_WRITE);
