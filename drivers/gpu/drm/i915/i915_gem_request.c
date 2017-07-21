@@ -213,6 +213,10 @@ static int reset_all_global_seqno(struct drm_i915_private *i915, u32 seqno)
 				cond_resched();
 		}
 
+		/* Check we are idle before we fiddle with hw state! */
+		GEM_BUG_ON(!intel_engine_is_idle(engine));
+		GEM_BUG_ON(i915_gem_active_isset(&engine->timeline->last_request));
+
 		/* Finally reset hw state */
 		intel_engine_init_global_seqno(engine, seqno);
 		tl->seqno = seqno;
