@@ -181,7 +181,7 @@ int lkl_debug, lkl_running;
 static int nd_id = -1;
 static struct lkl_netdev *nd;
 
-void __attribute__((constructor(102)))
+void __attribute__((constructor))
 hijack_init(void)
 {
 	int ret, i, dev_null, nd_ifindex = -1;
@@ -280,20 +280,18 @@ hijack_init(void)
 			nd = lkl_netdev_tap_create(ifparams, offload);
 		} else if ((strcmp(iftype, "macvtap") == 0)) {
 			nd = lkl_netdev_macvtap_create(ifparams, offload);
+		} else if ((strcmp(iftype, "dpdk") == 0)) {
+			nd = lkl_netdev_dpdk_create(ifparams, offload, mac);
 		} else {
 			if (offload) {
 				fprintf(stderr,
-					"WARN: LKL_HIJACK_OFFLOAD is only "
-					"supported on "
-					"tap and macvtap devices"
-					" (for now)!\n"
-					"No offload features will be "
-					"enabled.\n");
+					"WARN: %s isn't supported on %s\n",
+					"LKL_HIJACK_OFFLOAD", iftype);
+				fprintf(stderr,
+					"WARN: Disabling offload features.\n");
 			}
 			offload = 0;
-			if (strcmp(iftype, "dpdk") == 0)
-				nd = lkl_netdev_dpdk_create(ifparams);
-			else if (strcmp(iftype, "vde") == 0)
+			if (strcmp(iftype, "vde") == 0)
 				nd = lkl_netdev_vde_create(ifparams);
 			else if (strcmp(iftype, "raw") == 0)
 				nd = lkl_netdev_raw_create(ifparams);
@@ -301,15 +299,20 @@ hijack_init(void)
 	}
 
 	if (nd) {
-		ret = parse_mac_str(mac_str, mac);
-
-		if (ret < 0) {
-			fprintf(stderr, "failed to parse mac\n");
-			return;
-		} else if (ret > 0) {
+		if ((mac[0] != 0) || (mac[1] != 0) || (mac[2] != 0) ||
+			(mac[3] != 0) || (mac[4] != 0) || (mac[5] != 0)) {
 			nd_args.mac = mac;
 		} else {
-			nd_args.mac = NULL;
+			ret = parse_mac_str(mac_str, mac);
+
+			if (ret < 0) {
+				fprintf(stderr, "failed to parse mac\n");
+				return;
+			} else if (ret > 0) {
+				nd_args.mac = mac;
+			} else {
+				nd_args.mac = NULL;
+			}
 		}
 
 		nd_args.offload = offload;

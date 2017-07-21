@@ -137,7 +137,7 @@ static int test_net_init(int argc, char **argv)
 		nd = lkl_netdev_tap_create(ifname, 0);
 #ifdef CONFIG_AUTO_LKL_VIRTIO_NET_DPDK
 	else if (iftype && ifname && (strncmp(iftype, "dpdk", 4) == 0))
-		nd = lkl_netdev_dpdk_create(ifname);
+		nd = lkl_netdev_dpdk_create(ifname, 0, NULL);
 #endif /* CONFIG_AUTO_LKL_VIRTIO_NET_DPDK */
 	else if (iftype && ifname && (strncmp(iftype, "raw", 3) == 0))
 		nd = lkl_netdev_raw_create(ifname);

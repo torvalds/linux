@@ -54,12 +54,17 @@ ifneq (,$(filter $(OUTPUT_FORMAT),elf64-x86-64 elf32-i386 elf64-x86-64-freebsd e
   # Intel DPDK configuration
   ifeq ($(dpdk),yes)
     export CONFIG_AUTO_LKL_VIRTIO_NET_DPDK=y
-    RTE_SDK ?= $(shell pwd)/dpdk-2.2.0
+    RTE_SDK ?= $(shell pwd)/dpdk-17.02
     RTE_TARGET ?= build
+    DPDK_LIBS = -lrte_pmd_vmxnet3_uio -lrte_pmd_ixgbe -lrte_pmd_e1000
+    DPDK_LIBS += -lrte_pmd_virtio
+    DPDK_LIBS += -lrte_timer -lrte_hash -lrte_mbuf -lrte_ethdev -lrte_eal
+    DPDK_LIBS += -lrte_mempool -lrte_ring -lrte_pmd_ring
+    DPDK_LIBS += -lrte_kvargs -lrte_net
     CFLAGS += -I$(RTE_SDK)/$(RTE_TARGET)/include -msse4.2 -mpopcnt
     CFLAGS += -DCONFIG_AUTO_LKL_VIRTIO_NET_DPDK
     LDFLAGS +=-L$(RTE_SDK)/$(RTE_TARGET)/lib
-    LDFLAGS +=-Wl,--whole-archive -ldpdk -Wl,--no-whole-archive -lm -ldl
+    LDFLAGS +=-Wl,--whole-archive $(DPDK_LIBS) -Wl,--no-whole-archive -lm -ldl
   endif
   # Virtual Distributed Ethernet configuration
   ifeq ($(vde),yes)
