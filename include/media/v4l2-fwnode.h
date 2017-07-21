@@ -63,7 +63,7 @@ struct v4l2_fwnode_bus_parallel {
  *	       false - not inverted, true - inverted
  * @strobe: false - data/clock, true - data/strobe
  * @lane_polarity: the polarities of the clock (index 0) and data lanes
-		   index (1)
+ *		   index (1)
  * @data_lane: the number of the data lane
  * @clock_lane: the number of the clock lane
  */
