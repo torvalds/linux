@@ -265,6 +265,11 @@ bool perf_evlist__valid_read_format(struct perf_evlist *evlist);
 void perf_evlist__splice_list_tail(struct perf_evlist *evlist,
 				   struct list_head *list);
 
+static inline bool perf_evlist__empty(struct perf_evlist *evlist)
+{
+	return list_empty(&evlist->entries);
+}
+
 static inline struct perf_evsel *perf_evlist__first(struct perf_evlist *evlist)
 {
 	return list_entry(evlist->entries.next, struct perf_evsel, node);
