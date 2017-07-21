@@ -391,6 +391,56 @@ exit:
 	return pylist;
 }
 
+static PyObject *get_sample_value_as_tuple(struct sample_read_value *value)
+{
+	PyObject *t;
+
+	t = PyTuple_New(2);
+	if (!t)
+		Py_FatalError("couldn't create Python tuple");
+	PyTuple_SetItem(t, 0, PyLong_FromUnsignedLongLong(value->id));
+	PyTuple_SetItem(t, 1, PyLong_FromUnsignedLongLong(value->value));
+	return t;
+}
+
+static void set_sample_read_in_dict(PyObject *dict_sample,
+					 struct perf_sample *sample,
+					 struct perf_evsel *evsel)
+{
+	u64 read_format = evsel->attr.read_format;
+	PyObject *values;
+	unsigned int i;
+
+	if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED) {
+		pydict_set_item_string_decref(dict_sample, "time_enabled",
+			PyLong_FromUnsignedLongLong(sample->read.time_enabled));
+	}
+
+	if (read_format & PERF_FORMAT_TOTAL_TIME_RUNNING) {
+		pydict_set_item_string_decref(dict_sample, "time_running",
+			PyLong_FromUnsignedLongLong(sample->read.time_running));
+	}
+
+	if (read_format & PERF_FORMAT_GROUP)
+		values = PyList_New(sample->read.group.nr);
+	else
+		values = PyList_New(1);
+
+	if (!values)
+		Py_FatalError("couldn't create Python list");
+
+	if (read_format & PERF_FORMAT_GROUP) {
+		for (i = 0; i < sample->read.group.nr; i++) {
+			PyObject *t = get_sample_value_as_tuple(&sample->read.group.values[i]);
+			PyList_SET_ITEM(values, i, t);
+		}
+	} else {
+		PyObject *t = get_sample_value_as_tuple(&sample->read.one);
+		PyList_SET_ITEM(values, 0, t);
+	}
+	pydict_set_item_string_decref(dict_sample, "values", values);
+}
+
 static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 					 struct perf_evsel *evsel,
 					 struct addr_location *al,
@@ -422,6 +472,7 @@ static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 			PyLong_FromUnsignedLongLong(sample->time));
 	pydict_set_item_string_decref(dict_sample, "period",
 			PyLong_FromUnsignedLongLong(sample->period));
+	set_sample_read_in_dict(dict_sample, sample, evsel);
 	pydict_set_item_string_decref(dict, "sample", dict_sample);
 
 	pydict_set_item_string_decref(dict, "raw_buf", PyString_FromStringAndSize(
