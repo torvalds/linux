@@ -898,7 +898,7 @@ int acpi_node_prop_read(const struct fwnode_handle *fwnode,
  * @fwnode: Firmware node to find the next child node for.
  * @child: Handle to one of the device's child nodes or a null handle.
  */
-struct fwnode_handle *acpi_get_next_subnode(struct fwnode_handle *fwnode,
+struct fwnode_handle *acpi_get_next_subnode(const struct fwnode_handle *fwnode,
 					    struct fwnode_handle *child)
 {
 	const struct acpi_device *adev = to_acpi_device_node(fwnode);
@@ -967,7 +967,7 @@ struct fwnode_handle *acpi_get_next_subnode(struct fwnode_handle *fwnode,
  * Returns parent node of an ACPI device or data firmware node or %NULL if
  * not available.
  */
-struct fwnode_handle *acpi_node_get_parent(struct fwnode_handle *fwnode)
+struct fwnode_handle *acpi_node_get_parent(const struct fwnode_handle *fwnode)
 {
 	if (is_acpi_data_node(fwnode)) {
 		/* All data nodes have parent pointer so just return that */
@@ -996,8 +996,8 @@ struct fwnode_handle *acpi_node_get_parent(struct fwnode_handle *fwnode)
  * %NULL if there is no next endpoint, ERR_PTR() in case of error. In case
  * of success the next endpoint is returned.
  */
-struct fwnode_handle *acpi_graph_get_next_endpoint(struct fwnode_handle *fwnode,
-						   struct fwnode_handle *prev)
+struct fwnode_handle *acpi_graph_get_next_endpoint(
+	const struct fwnode_handle *fwnode, struct fwnode_handle *prev)
 {
 	struct fwnode_handle *port = NULL;
 	struct fwnode_handle *endpoint;
@@ -1044,7 +1044,8 @@ struct fwnode_handle *acpi_graph_get_next_endpoint(struct fwnode_handle *fwnode,
  * the child node on success, NULL otherwise.
  */
 static struct fwnode_handle *acpi_graph_get_child_prop_value(
-	struct fwnode_handle *fwnode, const char *prop_name, unsigned int val)
+	const struct fwnode_handle *fwnode, const char *prop_name,
+	unsigned int val)
 {
 	struct fwnode_handle *child;
 
@@ -1073,17 +1074,18 @@ static struct fwnode_handle *acpi_graph_get_child_prop_value(
  * fields requested by the caller. Returns %0 in case of success and
  * negative errno otherwise.
  */
-int acpi_graph_get_remote_endpoint(struct fwnode_handle *fwnode,
+int acpi_graph_get_remote_endpoint(const struct fwnode_handle *__fwnode,
 				   struct fwnode_handle **parent,
 				   struct fwnode_handle **port,
 				   struct fwnode_handle **endpoint)
 {
+	struct fwnode_handle *fwnode;
 	unsigned int port_nr, endpoint_nr;
 	struct acpi_reference_args args;
 	int ret;
 
 	memset(&args, 0, sizeof(args));
-	ret = acpi_node_get_property_reference(fwnode, "remote-endpoint", 0,
+	ret = acpi_node_get_property_reference(__fwnode, "remote-endpoint", 0,
 					       &args);
 	if (ret)
 		return ret;
@@ -1125,7 +1127,7 @@ int acpi_graph_get_remote_endpoint(struct fwnode_handle *fwnode,
 	return 0;
 }
 
-static bool acpi_fwnode_device_is_available(struct fwnode_handle *fwnode)
+static bool acpi_fwnode_device_is_available(const struct fwnode_handle *fwnode)
 {
 	if (!is_acpi_device_node(fwnode))
 		return false;
@@ -1133,16 +1135,17 @@ static bool acpi_fwnode_device_is_available(struct fwnode_handle *fwnode)
 	return acpi_device_is_present(to_acpi_device_node(fwnode));
 }
 
-static bool acpi_fwnode_property_present(struct fwnode_handle *fwnode,
+static bool acpi_fwnode_property_present(const struct fwnode_handle *fwnode,
 					 const char *propname)
 {
 	return !acpi_node_prop_get(fwnode, propname, NULL);
 }
 
-static int acpi_fwnode_property_read_int_array(struct fwnode_handle *fwnode,
-					       const char *propname,
-					       unsigned int elem_size,
-					       void *val, size_t nval)
+static int
+acpi_fwnode_property_read_int_array(const struct fwnode_handle *fwnode,
+				    const char *propname,
+				    unsigned int elem_size, void *val,
+				    size_t nval)
 {
 	enum dev_prop_type type;
 
@@ -1166,16 +1169,17 @@ static int acpi_fwnode_property_read_int_array(struct fwnode_handle *fwnode,
 	return acpi_node_prop_read(fwnode, propname, type, val, nval);
 }
 
-static int acpi_fwnode_property_read_string_array(struct fwnode_handle *fwnode,
-						  const char *propname,
-						  const char **val, size_t nval)
+static int
+acpi_fwnode_property_read_string_array(const struct fwnode_handle *fwnode,
+				       const char *propname, const char **val,
+				       size_t nval)
 {
 	return acpi_node_prop_read(fwnode, propname, DEV_PROP_STRING,
 				   val, nval);
 }
 
 static struct fwnode_handle *
-acpi_fwnode_get_named_child_node(struct fwnode_handle *fwnode,
+acpi_fwnode_get_named_child_node(const struct fwnode_handle *fwnode,
 				 const char *childname)
 {
 	struct fwnode_handle *child;
@@ -1192,7 +1196,7 @@ acpi_fwnode_get_named_child_node(struct fwnode_handle *fwnode,
 }
 
 static struct fwnode_handle *
-acpi_fwnode_graph_get_next_endpoint(struct fwnode_handle *fwnode,
+acpi_fwnode_graph_get_next_endpoint(const struct fwnode_handle *fwnode,
 				    struct fwnode_handle *prev)
 {
 	struct fwnode_handle *endpoint;
@@ -1205,7 +1209,7 @@ acpi_fwnode_graph_get_next_endpoint(struct fwnode_handle *fwnode,
 }
 
 static struct fwnode_handle *
-acpi_fwnode_graph_get_remote_endpoint(struct fwnode_handle *fwnode)
+acpi_fwnode_graph_get_remote_endpoint(const struct fwnode_handle *fwnode)
 {
 	struct fwnode_handle *endpoint = NULL;
 
@@ -1214,7 +1218,13 @@ acpi_fwnode_graph_get_remote_endpoint(struct fwnode_handle *fwnode)
 	return endpoint;
 }
 
-static int acpi_fwnode_graph_parse_endpoint(struct fwnode_handle *fwnode,
+static struct fwnode_handle *
+acpi_fwnode_get_parent(struct fwnode_handle *fwnode)
+{
+	return acpi_node_get_parent(fwnode);
+}
+
+static int acpi_fwnode_graph_parse_endpoint(const struct fwnode_handle *fwnode,
 					    struct fwnode_endpoint *endpoint)
 {
 	struct fwnode_handle *port_fwnode = fwnode_get_parent(fwnode);
@@ -1242,7 +1252,7 @@ static int acpi_fwnode_graph_parse_endpoint(struct fwnode_handle *fwnode,
 			acpi_fwnode_graph_get_next_endpoint,		\
 		.graph_get_remote_endpoint =				\
 			acpi_fwnode_graph_get_remote_endpoint,		\
-		.graph_get_port_parent = acpi_node_get_parent,		\
+		.graph_get_port_parent = acpi_fwnode_get_parent,	\
 		.graph_parse_endpoint = acpi_fwnode_graph_parse_endpoint, \
 	};								\
 	EXPORT_SYMBOL_GPL(ops)

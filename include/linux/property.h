@@ -51,46 +51,48 @@ int device_property_read_string(struct device *dev, const char *propname,
 int device_property_match_string(struct device *dev,
 				 const char *propname, const char *string);
 
-bool fwnode_device_is_available(struct fwnode_handle *fwnode);
-bool fwnode_property_present(struct fwnode_handle *fwnode, const char *propname);
-int fwnode_property_read_u8_array(struct fwnode_handle *fwnode,
+bool fwnode_device_is_available(const struct fwnode_handle *fwnode);
+bool fwnode_property_present(const struct fwnode_handle *fwnode,
+			     const char *propname);
+int fwnode_property_read_u8_array(const struct fwnode_handle *fwnode,
 				  const char *propname, u8 *val,
 				  size_t nval);
-int fwnode_property_read_u16_array(struct fwnode_handle *fwnode,
+int fwnode_property_read_u16_array(const struct fwnode_handle *fwnode,
 				   const char *propname, u16 *val,
 				   size_t nval);
-int fwnode_property_read_u32_array(struct fwnode_handle *fwnode,
+int fwnode_property_read_u32_array(const struct fwnode_handle *fwnode,
 				   const char *propname, u32 *val,
 				   size_t nval);
-int fwnode_property_read_u64_array(struct fwnode_handle *fwnode,
+int fwnode_property_read_u64_array(const struct fwnode_handle *fwnode,
 				   const char *propname, u64 *val,
 				   size_t nval);
-int fwnode_property_read_string_array(struct fwnode_handle *fwnode,
+int fwnode_property_read_string_array(const struct fwnode_handle *fwnode,
 				      const char *propname, const char **val,
 				      size_t nval);
-int fwnode_property_read_string(struct fwnode_handle *fwnode,
+int fwnode_property_read_string(const struct fwnode_handle *fwnode,
 				const char *propname, const char **val);
-int fwnode_property_match_string(struct fwnode_handle *fwnode,
+int fwnode_property_match_string(const struct fwnode_handle *fwnode,
 				 const char *propname, const char *string);
 
-struct fwnode_handle *fwnode_get_parent(struct fwnode_handle *fwnode);
-struct fwnode_handle *fwnode_get_next_parent(struct fwnode_handle *fwnode);
-struct fwnode_handle *fwnode_get_next_child_node(struct fwnode_handle *fwnode,
-						 struct fwnode_handle *child);
+struct fwnode_handle *fwnode_get_parent(const struct fwnode_handle *fwnode);
+struct fwnode_handle *fwnode_get_next_parent(
+	struct fwnode_handle *fwnode);
+struct fwnode_handle *fwnode_get_next_child_node(
+	const struct fwnode_handle *fwnode, struct fwnode_handle *child);
 
 #define fwnode_for_each_child_node(fwnode, child)			\
 	for (child = fwnode_get_next_child_node(fwnode, NULL); child;	\
 	     child = fwnode_get_next_child_node(fwnode, child))
 
-struct fwnode_handle *device_get_next_child_node(struct device *dev,
-						 struct fwnode_handle *child);
+struct fwnode_handle *device_get_next_child_node(
+	struct device *dev, struct fwnode_handle *child);
 
 #define device_for_each_child_node(dev, child)				\
 	for (child = device_get_next_child_node(dev, NULL); child;	\
 	     child = device_get_next_child_node(dev, child))
 
-struct fwnode_handle *fwnode_get_named_child_node(struct fwnode_handle *fwnode,
-						  const char *childname);
+struct fwnode_handle *fwnode_get_named_child_node(
+	const struct fwnode_handle *fwnode, const char *childname);
 struct fwnode_handle *device_get_named_child_node(struct device *dev,
 						  const char *childname);
 
@@ -129,31 +131,31 @@ static inline int device_property_read_u64(struct device *dev,
 	return device_property_read_u64_array(dev, propname, val, 1);
 }
 
-static inline bool fwnode_property_read_bool(struct fwnode_handle *fwnode,
+static inline bool fwnode_property_read_bool(const struct fwnode_handle *fwnode,
 					     const char *propname)
 {
 	return fwnode_property_present(fwnode, propname);
 }
 
-static inline int fwnode_property_read_u8(struct fwnode_handle *fwnode,
+static inline int fwnode_property_read_u8(const struct fwnode_handle *fwnode,
 					  const char *propname, u8 *val)
 {
 	return fwnode_property_read_u8_array(fwnode, propname, val, 1);
 }
 
-static inline int fwnode_property_read_u16(struct fwnode_handle *fwnode,
+static inline int fwnode_property_read_u16(const struct fwnode_handle *fwnode,
 					   const char *propname, u16 *val)
 {
 	return fwnode_property_read_u16_array(fwnode, propname, val, 1);
 }
 
-static inline int fwnode_property_read_u32(struct fwnode_handle *fwnode,
+static inline int fwnode_property_read_u32(const struct fwnode_handle *fwnode,
 					   const char *propname, u32 *val)
 {
 	return fwnode_property_read_u32_array(fwnode, propname, val, 1);
 }
 
-static inline int fwnode_property_read_u64(struct fwnode_handle *fwnode,
+static inline int fwnode_property_read_u64(const struct fwnode_handle *fwnode,
 					   const char *propname, u64 *val)
 {
 	return fwnode_property_read_u64_array(fwnode, propname, val, 1);
@@ -274,19 +276,20 @@ int device_get_phy_mode(struct device *dev);
 void *device_get_mac_address(struct device *dev, char *addr, int alen);
 
 struct fwnode_handle *fwnode_graph_get_next_endpoint(
-	struct fwnode_handle *fwnode, struct fwnode_handle *prev);
+	const struct fwnode_handle *fwnode, struct fwnode_handle *prev);
 struct fwnode_handle *
-fwnode_graph_get_port_parent(struct fwnode_handle *fwnode);
+fwnode_graph_get_port_parent(const struct fwnode_handle *fwnode);
 struct fwnode_handle *fwnode_graph_get_remote_port_parent(
-	struct fwnode_handle *fwnode);
+	const struct fwnode_handle *fwnode);
 struct fwnode_handle *fwnode_graph_get_remote_port(
-	struct fwnode_handle *fwnode);
+	const struct fwnode_handle *fwnode);
 struct fwnode_handle *fwnode_graph_get_remote_endpoint(
-	struct fwnode_handle *fwnode);
-struct fwnode_handle *fwnode_graph_get_remote_node(struct fwnode_handle *fwnode,
-						   u32 port, u32 endpoint);
+	const struct fwnode_handle *fwnode);
+struct fwnode_handle *
+fwnode_graph_get_remote_node(const struct fwnode_handle *fwnode, u32 port,
+			     u32 endpoint);
 
-int fwnode_graph_parse_endpoint(struct fwnode_handle *fwnode,
+int fwnode_graph_parse_endpoint(const struct fwnode_handle *fwnode,
 				struct fwnode_endpoint *endpoint);
 
 #endif /* _LINUX_PROPERTY_H_ */

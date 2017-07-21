@@ -55,30 +55,32 @@ struct fwnode_endpoint {
 struct fwnode_operations {
 	void (*get)(struct fwnode_handle *fwnode);
 	void (*put)(struct fwnode_handle *fwnode);
-	bool (*device_is_available)(struct fwnode_handle *fwnode);
-	bool (*property_present)(struct fwnode_handle *fwnode,
+	bool (*device_is_available)(const struct fwnode_handle *fwnode);
+	bool (*property_present)(const struct fwnode_handle *fwnode,
 				 const char *propname);
-	int (*property_read_int_array)(struct fwnode_handle *fwnode,
+	int (*property_read_int_array)(const struct fwnode_handle *fwnode,
 				       const char *propname,
 				       unsigned int elem_size, void *val,
 				       size_t nval);
-	int (*property_read_string_array)(struct fwnode_handle *fwnode_handle,
-					  const char *propname,
-					  const char **val, size_t nval);
-	struct fwnode_handle *(*get_parent)(struct fwnode_handle *fwnode);
+	int
+	(*property_read_string_array)(const struct fwnode_handle *fwnode_handle,
+				      const char *propname, const char **val,
+				      size_t nval);
+	struct fwnode_handle *(*get_parent)(const struct fwnode_handle *fwnode);
 	struct fwnode_handle *
-	(*get_next_child_node)(struct fwnode_handle *fwnode,
+	(*get_next_child_node)(const struct fwnode_handle *fwnode,
 			       struct fwnode_handle *child);
 	struct fwnode_handle *
-	(*get_named_child_node)(struct fwnode_handle *fwnode, const char *name);
+	(*get_named_child_node)(const struct fwnode_handle *fwnode,
+				const char *name);
 	struct fwnode_handle *
-	(*graph_get_next_endpoint)(struct fwnode_handle *fwnode,
+	(*graph_get_next_endpoint)(const struct fwnode_handle *fwnode,
 				   struct fwnode_handle *prev);
 	struct fwnode_handle *
-	(*graph_get_remote_endpoint)(struct fwnode_handle *fwnode);
+	(*graph_get_remote_endpoint)(const struct fwnode_handle *fwnode);
 	struct fwnode_handle *
 	(*graph_get_port_parent)(struct fwnode_handle *fwnode);
-	int (*graph_parse_endpoint)(struct fwnode_handle *fwnode,
+	int (*graph_parse_endpoint)(const struct fwnode_handle *fwnode,
 				    struct fwnode_endpoint *endpoint);
 };
 

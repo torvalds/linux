@@ -1029,13 +1029,14 @@ int acpi_node_prop_read(const struct fwnode_handle *fwnode,
 int acpi_dev_prop_read(const struct acpi_device *adev, const char *propname,
 		       enum dev_prop_type proptype, void *val, size_t nval);
 
-struct fwnode_handle *acpi_get_next_subnode(struct fwnode_handle *fwnode,
+struct fwnode_handle *acpi_get_next_subnode(const struct fwnode_handle *fwnode,
 					    struct fwnode_handle *child);
-struct fwnode_handle *acpi_node_get_parent(struct fwnode_handle *fwnode);
+struct fwnode_handle *acpi_node_get_parent(const struct fwnode_handle *fwnode);
 
-struct fwnode_handle *acpi_graph_get_next_endpoint(struct fwnode_handle *fwnode,
-						   struct fwnode_handle *prev);
-int acpi_graph_get_remote_endpoint(struct fwnode_handle *fwnode,
+struct fwnode_handle *
+acpi_graph_get_next_endpoint(const struct fwnode_handle *fwnode,
+			     struct fwnode_handle *prev);
+int acpi_graph_get_remote_endpoint(const struct fwnode_handle *fwnode,
 				   struct fwnode_handle **remote,
 				   struct fwnode_handle **port,
 				   struct fwnode_handle **endpoint);
@@ -1157,26 +1158,27 @@ static inline int acpi_dev_prop_read(const struct acpi_device *adev,
 }
 
 static inline struct fwnode_handle *
-acpi_get_next_subnode(struct fwnode_handle *fwnode, struct fwnode_handle *child)
+acpi_get_next_subnode(const struct fwnode_handle *fwnode,
+		      struct fwnode_handle *child)
 {
 	return NULL;
 }
 
 static inline struct fwnode_handle *
-acpi_node_get_parent(struct fwnode_handle *fwnode)
+acpi_node_get_parent(const struct fwnode_handle *fwnode)
 {
 	return NULL;
 }
 
 static inline struct fwnode_handle *
-acpi_graph_get_next_endpoint(struct fwnode_handle *fwnode,
+acpi_graph_get_next_endpoint(const struct fwnode_handle *fwnode,
 			     struct fwnode_handle *prev)
 {
 	return ERR_PTR(-ENXIO);
 }
 
 static inline int
-acpi_graph_get_remote_endpoint(struct fwnode_handle *fwnode,
+acpi_graph_get_remote_endpoint(const struct fwnode_handle *fwnode,
 			       struct fwnode_handle **remote,
 			       struct fwnode_handle **port,
 			       struct fwnode_handle **endpoint)
