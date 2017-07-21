@@ -828,6 +828,14 @@
 		status = "disabled";
 	};
 
+	rktimer: rktimer@ff810000 {
+		compatible = "rockchip,rk3288-timer";
+		reg = <0x0 0xff810000 0x0 0x1000>;
+		interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH 0>;
+		clocks = <&cru PCLK_TIMER0>, <&cru SCLK_TIMER0>;
+		clock-names = "pclk", "timer";
+	};
+
 	spdif: spdif@ff880000 {
 		compatible = "rockchip,rk3366-spdif";
 		reg = <0x0 0xff880000 0x0 0x1000>;
