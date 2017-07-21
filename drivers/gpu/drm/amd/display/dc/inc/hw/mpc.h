@@ -26,27 +26,29 @@
 #define __DC_MPCC_H__
 
 #include "dc_hw_types.h"
+#include "opp.h"
 
 struct mpcc_cfg {
-	int top_dpp_id;
-	int bot_mpcc_id;
-	int opp_id;
+	struct mem_input *mi;
+	struct output_pixel_processor *opp;
+	unsigned int z_index;
+
+	struct tg_color black_color;
 	bool per_pixel_alpha;
 	bool pre_multiplied_alpha;
-	bool top_of_tree;
 };
 
-struct mpcc {
-	const struct mpcc_funcs *funcs;
+struct mpc {
+	const struct mpc_funcs *funcs;
 	struct dc_context *ctx;
-	int inst;
-	int opp_id;
 };
 
-struct mpcc_funcs {
-	void (*set)(struct mpcc *mpcc, struct mpcc_cfg *cfg);
-	void (*wait_for_idle)(struct mpcc *mpcc);
-	void (*set_bg_color)( struct mpcc *mpcc, struct tg_color *bg_color);
+struct mpc_funcs {
+	void (*add)(struct mpc *mpc, struct mpcc_cfg *cfg);
+	void (*remove)(struct mpc *mpc,
+			struct output_pixel_processor *opp,
+			int mpcc_inst);
+	void (*wait_for_idle)(struct mpc *mpc, int id);
 };
 
 #endif

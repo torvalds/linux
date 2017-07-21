@@ -27,38 +27,37 @@
 
 #include "mpc.h"
 
-#define TO_DCN10_MPCC(mpcc_base) \
-	container_of(mpcc_base, struct dcn10_mpcc, base)
+#define TO_DCN10_MPC(mpc_base) \
+	container_of(mpc_base, struct dcn10_mpc, base)
 
+#define MAX_MPCC 6
 #define MAX_OPP 6
 
 #define MPC_COMMON_REG_LIST_DCN1_0(inst) \
-	SRII(MUX, MPC_OUT, inst)
+	SRII(MUX, MPC_OUT, inst),\
+	SRII(MPCC_TOP_SEL, MPCC, inst),\
+	SRII(MPCC_BOT_SEL, MPCC, inst),\
+	SRII(MPCC_CONTROL, MPCC, inst),\
+	SRII(MPCC_STATUS, MPCC, inst),\
+	SRII(MPCC_OPP_ID, MPCC, inst),\
+	SRII(MPCC_BG_G_Y, MPCC, inst),\
+	SRII(MPCC_BG_R_CR, MPCC, inst),\
+	SRII(MPCC_BG_B_CB, MPCC, inst),\
+	SRII(MPCC_BG_B_CB, MPCC, inst)
 
-#define MPCC_COMMON_REG_LIST_DCN1_0(inst) \
-	SRI(MPCC_TOP_SEL, MPCC, inst),\
-	SRI(MPCC_BOT_SEL, MPCC, inst),\
-	SRI(MPCC_CONTROL, MPCC, inst),\
-	SRI(MPCC_STATUS, MPCC, inst),\
-	SRI(MPCC_OPP_ID, MPCC, inst),\
-	SRI(MPCC_BG_G_Y, MPCC, inst),\
-	SRI(MPCC_BG_R_CR, MPCC, inst),\
-	SRI(MPCC_BG_B_CB, MPCC, inst),\
-	SRI(MPCC_BG_B_CB, MPCC, inst)
-
-struct dcn_mpcc_registers {
-	uint32_t MPCC_TOP_SEL;
-	uint32_t MPCC_BOT_SEL;
-	uint32_t MPCC_CONTROL;
-	uint32_t MPCC_STATUS;
-	uint32_t MPCC_OPP_ID;
-	uint32_t MPCC_BG_G_Y;
-	uint32_t MPCC_BG_R_CR;
-	uint32_t MPCC_BG_B_CB;
+struct dcn_mpc_registers {
+	uint32_t MPCC_TOP_SEL[MAX_MPCC];
+	uint32_t MPCC_BOT_SEL[MAX_MPCC];
+	uint32_t MPCC_CONTROL[MAX_MPCC];
+	uint32_t MPCC_STATUS[MAX_MPCC];
+	uint32_t MPCC_OPP_ID[MAX_MPCC];
+	uint32_t MPCC_BG_G_Y[MAX_MPCC];
+	uint32_t MPCC_BG_R_CR[MAX_MPCC];
+	uint32_t MPCC_BG_B_CB[MAX_MPCC];
 	uint32_t MUX[MAX_OPP];
 };
 
-#define MPCC_COMMON_MASK_SH_LIST_DCN1_0(mask_sh)\
+#define MPC_COMMON_MASK_SH_LIST_DCN1_0(mask_sh)\
 	SF(MPCC0_MPCC_TOP_SEL, MPCC_TOP_SEL, mask_sh),\
 	SF(MPCC0_MPCC_BOT_SEL, MPCC_BOT_SEL, mask_sh),\
 	SF(MPCC0_MPCC_CONTROL, MPCC_MODE, mask_sh),\
@@ -73,7 +72,7 @@ struct dcn_mpcc_registers {
 	SF(MPCC0_MPCC_BG_B_CB, MPCC_BG_B_CB, mask_sh),\
 	SF(MPC_OUT0_MUX, MPC_OUT_MUX, mask_sh)
 
-#define MPCC_REG_FIELD_LIST(type) \
+#define MPC_REG_FIELD_LIST(type) \
 	type MPCC_TOP_SEL;\
 	type MPCC_BOT_SEL;\
 	type MPCC_MODE;\
@@ -86,28 +85,31 @@ struct dcn_mpcc_registers {
 	type MPCC_BG_G_Y;\
 	type MPCC_BG_R_CR;\
 	type MPCC_BG_B_CB;\
-	type MPC_OUT_MUX;\
+	type MPC_OUT_MUX;
 
-struct dcn_mpcc_shift {
-	MPCC_REG_FIELD_LIST(uint8_t)
+struct dcn_mpc_shift {
+	MPC_REG_FIELD_LIST(uint8_t)
 };
 
-struct dcn_mpcc_mask {
-	MPCC_REG_FIELD_LIST(uint32_t)
+struct dcn_mpc_mask {
+	MPC_REG_FIELD_LIST(uint32_t)
 };
 
-struct dcn10_mpcc {
-	struct mpcc base;
-	const struct dcn_mpcc_registers *mpcc_regs;
-	const struct dcn_mpcc_shift *mpcc_shift;
-	const struct dcn_mpcc_mask *mpcc_mask;
+struct dcn10_mpc {
+	struct mpc base;
+
+	int mpcc_in_use_mask;
+	int num_mpcc;
+	const struct dcn_mpc_registers *mpc_regs;
+	const struct dcn_mpc_shift *mpc_shift;
+	const struct dcn_mpc_mask *mpc_mask;
 };
 
-void dcn10_mpcc_construct(struct dcn10_mpcc *mpcc10,
+void dcn10_mpc_construct(struct dcn10_mpc *mpcc10,
 	struct dc_context *ctx,
-	const struct dcn_mpcc_registers *mpcc_regs,
-	const struct dcn_mpcc_shift *mpcc_shift,
-	const struct dcn_mpcc_mask *mpcc_mask,
-	int inst);
+	const struct dcn_mpc_registers *mpc_regs,
+	const struct dcn_mpc_shift *mpc_shift,
+	const struct dcn_mpc_mask *mpc_mask,
+	int num_mpcc);
 
 #endif

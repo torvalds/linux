@@ -123,7 +123,7 @@ struct resource_pool {
 	struct timing_generator *timing_generators[MAX_PIPES];
 	struct stream_encoder *stream_enc[MAX_PIPES * 2];
 #ifdef CONFIG_DRM_AMD_DC_DCN1_0
-	struct mpcc *mpcc[MAX_PIPES];
+	struct mpc *mpc;
 #endif
 
 	unsigned int pipe_count;
@@ -183,7 +183,6 @@ struct pipe_ctx {
 	struct pipe_ctx *bottom_pipe;
 
 #ifdef CONFIG_DRM_AMD_DC_DCN1_0
-	struct mpcc *mpcc;
 	struct _vcs_dpi_display_dlg_regs_st dlg_regs;
 	struct _vcs_dpi_display_ttu_regs_st ttu_regs;
 	struct _vcs_dpi_display_rq_regs_st rq_regs;

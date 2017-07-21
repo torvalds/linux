@@ -1017,7 +1017,6 @@ static int acquire_first_split_pipe(
 			pipe_ctx->xfm = pool->transforms[i];
 			pipe_ctx->opp = pool->opps[i];
 			pipe_ctx->dis_clk = pool->display_clock;
-			pipe_ctx->mpcc = pool->mpcc[i];
 			pipe_ctx->pipe_idx = i;
 
 			pipe_ctx->stream = stream;
@@ -1096,6 +1095,7 @@ bool resource_attach_surfaces_to_context(
 
 		if (tail_pipe) {
 			free_pipe->tg = tail_pipe->tg;
+			free_pipe->opp = tail_pipe->opp;
 			free_pipe->stream_enc = tail_pipe->stream_enc;
 			free_pipe->audio = tail_pipe->audio;
 			free_pipe->clock_source = tail_pipe->clock_source;
@@ -1241,9 +1241,6 @@ static int acquire_first_free_pipe(
 		if (!res_ctx->pipe_ctx[i].stream) {
 			struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-			pipe_ctx->mpcc = pool->mpcc[i];
-#endif
 			pipe_ctx->tg = pool->timing_generators[i];
 			pipe_ctx->mi = pool->mis[i];
 			pipe_ctx->ipp = pool->ipps[i];

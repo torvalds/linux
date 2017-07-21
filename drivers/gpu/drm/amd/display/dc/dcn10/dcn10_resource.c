@@ -324,29 +324,19 @@ static const struct dcn_dpp_mask tf_mask = {
 	TF_REG_LIST_SH_MASK_DCN10(_MASK),
 };
 
-
-#define mpcc_regs(id)\
-[id] = {\
-	MPCC_COMMON_REG_LIST_DCN1_0(id),\
-	MPC_COMMON_REG_LIST_DCN1_0(0),\
-	MPC_COMMON_REG_LIST_DCN1_0(1),\
-	MPC_COMMON_REG_LIST_DCN1_0(2),\
-	MPC_COMMON_REG_LIST_DCN1_0(3),\
-}
-
-static const struct dcn_mpcc_registers mpcc_regs[] = {
-	mpcc_regs(0),
-	mpcc_regs(1),
-	mpcc_regs(2),
-	mpcc_regs(3),
+static const struct dcn_mpc_registers mpc_regs = {
+		MPC_COMMON_REG_LIST_DCN1_0(0),
+		MPC_COMMON_REG_LIST_DCN1_0(1),
+		MPC_COMMON_REG_LIST_DCN1_0(2),
+		MPC_COMMON_REG_LIST_DCN1_0(3)
 };
 
-static const struct dcn_mpcc_shift mpcc_shift = {
-	MPCC_COMMON_MASK_SH_LIST_DCN1_0(__SHIFT)
+static const struct dcn_mpc_shift mpc_shift = {
+	MPC_COMMON_MASK_SH_LIST_DCN1_0(__SHIFT)
 };
 
-static const struct dcn_mpcc_mask mpcc_mask = {
-	MPCC_COMMON_MASK_SH_LIST_DCN1_0(_MASK),
+static const struct dcn_mpc_mask mpc_mask = {
+	MPC_COMMON_MASK_SH_LIST_DCN1_0(_MASK),
 };
 
 #define tg_regs(id)\
@@ -508,22 +498,20 @@ static struct output_pixel_processor *dcn10_opp_create(
 	return &opp->base;
 }
 
-static struct mpcc *dcn10_mpcc_create(
-	struct dc_context *ctx,
-	int inst)
+static struct mpc *dcn10_mpc_create(struct dc_context *ctx)
 {
-	struct dcn10_mpcc *mpcc10 = dm_alloc(sizeof(struct dcn10_mpcc));
+	struct dcn10_mpc *mpc10 = dm_alloc(sizeof(struct dcn10_mpc));
 
-	if (!mpcc10)
+	if (!mpc10)
 		return NULL;
 
-	dcn10_mpcc_construct(mpcc10, ctx,
-			&mpcc_regs[inst],
-			&mpcc_shift,
-			&mpcc_mask,
-			inst);
+	dcn10_mpc_construct(mpc10, ctx,
+			&mpc_regs,
+			&mpc_shift,
+			&mpc_mask,
+			4);
 
-	return &mpcc10->base;
+	return &mpc10->base;
 }
 
 static struct timing_generator *dcn10_timing_generator_create(
@@ -702,6 +690,10 @@ static void destruct(struct dcn10_resource_pool *pool)
 		}
 	}
 
+	if (pool->base.mpc != NULL) {
+		dm_free(TO_DCN10_MPC(pool->base.mpc));
+		pool->base.mpc = NULL;
+	}
 	for (i = 0; i < pool->base.pipe_count; i++) {
 		if (pool->base.opps[i] != NULL)
 			pool->base.opps[i]->funcs->opp_destroy(&pool->base.opps[i]);
@@ -724,11 +716,6 @@ static void destruct(struct dcn10_resource_pool *pool)
 		if (pool->base.timing_generators[i] != NULL)	{
 			dm_free(DCN10TG_FROM_TG(pool->base.timing_generators[i]));
 			pool->base.timing_generators[i] = NULL;
-		}
-
-		if (pool->base.mpcc[i] != NULL)	{
-			dm_free(TO_DCN10_MPCC(pool->base.mpcc[i]));
-			pool->base.mpcc[i] = NULL;
 		}
 	}
 
@@ -974,12 +961,11 @@ static struct pipe_ctx *dcn10_acquire_idle_pipe_for_layer(
 
 	idle_pipe->stream = head_pipe->stream;
 	idle_pipe->tg = head_pipe->tg;
+	idle_pipe->opp = head_pipe->opp;
 
-	idle_pipe->mpcc = pool->mpcc[idle_pipe->pipe_idx];
 	idle_pipe->mi = pool->mis[idle_pipe->pipe_idx];
 	idle_pipe->ipp = pool->ipps[idle_pipe->pipe_idx];
 	idle_pipe->xfm = pool->transforms[idle_pipe->pipe_idx];
-	idle_pipe->opp = pool->opps[idle_pipe->pipe_idx];
 
 	return idle_pipe;
 }
@@ -1406,12 +1392,12 @@ static bool construct(
 			dm_error("DC: failed to create tg!\n");
 			goto otg_create_fail;
 		}
-		pool->base.mpcc[i] = dcn10_mpcc_create(ctx, i);
-		if (pool->base.mpcc[i] == NULL) {
-			BREAK_TO_DEBUGGER();
-			dm_error("DC: failed to create mpcc!\n");
-			goto mpcc_create_fail;
-		}
+	}
+	pool->base.mpc = dcn10_mpc_create(ctx);
+	if (pool->base.mpc == NULL) {
+		BREAK_TO_DEBUGGER();
+		dm_error("DC: failed to create mpc!\n");
+		goto mpc_create_fail;
 	}
 
 	if (!resource_construct(num_virtual_links, dc, &pool->base,
@@ -1427,7 +1413,7 @@ static bool construct(
 	return true;
 
 disp_clk_create_fail:
-mpcc_create_fail:
+mpc_create_fail:
 otg_create_fail:
 opp_create_fail:
 dpp_create_fail:

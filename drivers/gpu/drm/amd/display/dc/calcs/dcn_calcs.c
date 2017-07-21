@@ -547,11 +547,9 @@ static void split_stream_across_pipes(
 	*secondary_pipe = *primary_pipe;
 
 	secondary_pipe->pipe_idx = pipe_idx;
-	secondary_pipe->mpcc = pool->mpcc[secondary_pipe->pipe_idx];
 	secondary_pipe->mi = pool->mis[secondary_pipe->pipe_idx];
 	secondary_pipe->ipp = pool->ipps[secondary_pipe->pipe_idx];
 	secondary_pipe->xfm = pool->transforms[secondary_pipe->pipe_idx];
-	secondary_pipe->opp = pool->opps[secondary_pipe->pipe_idx];
 	if (primary_pipe->bottom_pipe) {
 		secondary_pipe->bottom_pipe = primary_pipe->bottom_pipe;
 		secondary_pipe->bottom_pipe->top_pipe = secondary_pipe;

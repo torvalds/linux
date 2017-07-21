@@ -47,10 +47,14 @@ static void min10_set_blank(struct mem_input *mem_input, bool blank)
 			HUBP_BLANK_EN, blank_en,
 			HUBP_TTU_DISABLE, blank_en);
 
-	if (blank)
+	if (blank) {
 		REG_WAIT(DCHUBP_CNTL,
 				HUBP_NO_OUTSTANDING_REQ, 1,
 				1, 200);
+		/*todo: unhack this
+		mem_input->mpcc_id = 0xf;
+		mem_input->opp_id = 0xf;*/
+	}
 }
 
 static void min10_vready_workaround(struct mem_input *mem_input,
@@ -871,6 +875,8 @@ bool dcn10_mem_input_construct(
 	mi->mi_shift = mi_shift;
 	mi->mi_mask = mi_mask;
 	mi->base.inst = inst;
+	mi->base.opp_id = 0xf;
+	mi->base.mpcc_id = 0xf;
 
 	return true;
 }

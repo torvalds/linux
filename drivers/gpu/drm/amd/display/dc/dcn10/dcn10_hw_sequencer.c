@@ -636,15 +636,10 @@ static void dcn10_init_hw(struct core_dc *dc)
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct transform *xfm = dc->res_pool->transforms[i];
 		struct timing_generator *tg = dc->res_pool->timing_generators[i];
-		struct mpcc *mpcc = dc->res_pool->mpcc[i];
-		struct mpcc_cfg mpcc_cfg;
 
 		xfm->funcs->transform_reset(xfm);
-		mpcc_cfg.opp_id = 0xf;
-		mpcc_cfg.top_dpp_id = 0xf;
-		mpcc_cfg.bot_mpcc_id = 0xf;
-		mpcc_cfg.top_of_tree = true;
-		mpcc->funcs->set(mpcc, &mpcc_cfg);
+		dc->res_pool->mpc->funcs->remove(
+				dc->res_pool->mpc, dc->res_pool->opps[i], i);
 
 		/* Blank controller using driver code instead of
 		 * command table.
@@ -819,45 +814,35 @@ static void reset_back_end_for_pipe(
 static void plane_atomic_disconnect(struct core_dc *dc,
 		int fe_idx)
 {
-	struct mpcc_cfg mpcc_cfg;
 	struct mem_input *mi = dc->res_pool->mis[fe_idx];
-	struct transform *xfm = dc->res_pool->transforms[fe_idx];
-	struct mpcc *mpcc = dc->res_pool->mpcc[fe_idx];
-	struct timing_generator *tg = dc->res_pool->timing_generators[mpcc->opp_id];
-	unsigned int opp_id = mpcc->opp_id;
-	int opp_id_cached = mpcc->opp_id;
+	struct mpc *mpc = dc->res_pool->mpc;
+	int opp_id, z_idx;
+	int mpcc_id = -1;
 
+	/* look at tree rather than mi here to know if we already reset */
+	for (opp_id = 0; opp_id < dc->res_pool->pipe_count; opp_id++) {
+		struct output_pixel_processor *opp = dc->res_pool->opps[opp_id];
+
+		for (z_idx = 0; z_idx < opp->mpc_tree.num_pipes; z_idx++) {
+			if (opp->mpc_tree.dpp[z_idx] == fe_idx) {
+				mpcc_id = opp->mpc_tree.mpcc[z_idx];
+				break;
+			}
+		}
+		if (mpcc_id != -1)
+			break;
+	}
 	/*Already reset*/
-	if (opp_id == 0xf)
+	if (opp_id == dc->res_pool->pipe_count)
 		return;
 
 	if (dc->public.debug.sanity_checks)
 		verify_allow_pstate_change_high(dc->hwseq);
-
 	mi->funcs->dcc_control(mi, false, false);
-
 	if (dc->public.debug.sanity_checks)
 		verify_allow_pstate_change_high(dc->hwseq);
 
-	mpcc_cfg.opp_id = 0xf;
-	mpcc_cfg.top_dpp_id = 0xf;
-	mpcc_cfg.bot_mpcc_id = 0xf;
-	mpcc_cfg.top_of_tree = tg->inst == mpcc->inst;
-	mpcc->funcs->set(mpcc, &mpcc_cfg);
-
-	/*
-	 * Hack to preserve old opp_id for plane_atomic_disable
-	 * to find the correct otg
-	 */
-	mpcc->opp_id = opp_id_cached;
-
-	/* todo:call remove pipe from tree */
-	/* flag mpcc idle pending */
-
-	/*dm_logger_write(dc->ctx->logger, LOG_ERROR,
-			"[debug_mpo: plane_atomic_disconnect pending on mpcc %d]\n",
-			fe_idx);*/
-	xfm->funcs->transform_reset(xfm);
+	mpc->funcs->remove(mpc, dc->res_pool->opps[opp_id], fe_idx);
 }
 
 /* disable HW used by plane.
@@ -867,20 +852,21 @@ static void plane_atomic_disable(struct core_dc *dc,
 {
 	struct dce_hwseq *hws = dc->hwseq;
 	struct mem_input *mi = dc->res_pool->mis[fe_idx];
-	struct mpcc *mpcc = dc->res_pool->mpcc[fe_idx];
-	struct timing_generator *tg = dc->res_pool->timing_generators[mpcc->opp_id];
-	unsigned int opp_id = mpcc->opp_id;
+	struct mpc *mpc = dc->res_pool->mpc;
 
-	if (opp_id == 0xf)
+	if (mi->opp_id == 0xf)
 		return;
 
-	mpcc->funcs->wait_for_idle(mpcc);
-	dc->res_pool->opps[opp_id]->mpcc_disconnect_pending[mpcc->inst] = false;
+	mpc->funcs->wait_for_idle(mpc, mi->mpcc_id);
+	dc->res_pool->opps[mi->opp_id]->mpcc_disconnect_pending[mi->mpcc_id] = false;
 	/*dm_logger_write(dc->ctx->logger, LOG_ERROR,
 			"[debug_mpo: atomic disable finished on mpcc %d]\n",
 			fe_idx);*/
 
 	mi->funcs->set_blank(mi, true);
+	/*todo: unhack this*/
+	mi->opp_id = 0xf;
+	mi->mpcc_id = 0xf;
 
 	if (dc->public.debug.sanity_checks)
 		verify_allow_pstate_change_high(dc->hwseq);
@@ -890,11 +876,9 @@ static void plane_atomic_disable(struct core_dc *dc,
 	REG_UPDATE(DPP_CONTROL[fe_idx],
 			DPP_CLOCK_ENABLE, 0);
 
-	if (tg->inst == mpcc->inst)
-		REG_UPDATE(OPP_PIPE_CONTROL[opp_id],
+	if (dc->res_pool->opps[mi->opp_id]->mpc_tree.num_pipes == 0)
+		REG_UPDATE(OPP_PIPE_CONTROL[mi->opp_id],
 				OPP_PIPE_CLOCK_EN, 0);
-
-	mpcc->opp_id = 0xf;
 
 	if (dc->public.debug.sanity_checks)
 		verify_allow_pstate_change_high(dc->hwseq);
@@ -907,11 +891,13 @@ static void plane_atomic_disable(struct core_dc *dc,
 static void plane_atomic_power_down(struct core_dc *dc, int fe_idx)
 {
 	struct dce_hwseq *hws = dc->hwseq;
+	struct transform *xfm = dc->res_pool->transforms[fe_idx];
 
 	REG_SET(DC_IP_REQUEST_CNTL, 0,
 			IP_REQUEST_EN, 1);
 	dpp_pg_control(hws, fe_idx, false);
 	hubp_pg_control(hws, fe_idx, false);
+	xfm->funcs->transform_reset(xfm);
 	REG_SET(DC_IP_REQUEST_CNTL, 0,
 			IP_REQUEST_EN, 0);
 	dm_logger_write(dc->ctx->logger, LOG_DC,
@@ -927,14 +913,14 @@ static void reset_front_end(
 		int fe_idx)
 {
 	struct dce_hwseq *hws = dc->hwseq;
-	struct mpcc *mpcc = dc->res_pool->mpcc[fe_idx];
-	struct timing_generator *tg = dc->res_pool->timing_generators[mpcc->opp_id];
-	unsigned int opp_id = mpcc->opp_id;
+	struct timing_generator *tg;
+	int opp_id = dc->res_pool->mis[fe_idx]->opp_id;
 
 	/*Already reset*/
 	if (opp_id == 0xf)
 		return;
 
+	tg = dc->res_pool->timing_generators[opp_id];
 	tg->funcs->lock(tg);
 
 	plane_atomic_disconnect(dc, fe_idx);
@@ -943,7 +929,7 @@ static void reset_front_end(
 	tg->funcs->unlock(tg);
 
 	if (dc->public.debug.sanity_checks)
-		verify_allow_pstate_change_high(dc->hwseq);
+		verify_allow_pstate_change_high(hws);
 
 	if (tg->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS)
 		REG_WAIT(OTG_GLOBAL_SYNC_STATUS[tg->inst],
@@ -959,6 +945,7 @@ static void reset_front_end(
 static void dcn10_power_down_fe(struct core_dc *dc, int fe_idx)
 {
 	struct dce_hwseq *hws = dc->hwseq;
+	struct transform *xfm = dc->res_pool->transforms[fe_idx];
 
 	reset_front_end(dc, fe_idx);
 
@@ -966,6 +953,7 @@ static void dcn10_power_down_fe(struct core_dc *dc, int fe_idx)
 			IP_REQUEST_EN, 1);
 	dpp_pg_control(hws, fe_idx, false);
 	hubp_pg_control(hws, fe_idx, false);
+	xfm->funcs->transform_reset(xfm);
 	REG_SET(DC_IP_REQUEST_CNTL, 0,
 			IP_REQUEST_EN, 0);
 	dm_logger_write(dc->ctx->logger, LOG_DC,
@@ -1910,8 +1898,8 @@ static void update_dchubp_dpp(
 	struct dc_surface *surface = pipe_ctx->surface;
 	union plane_size size = surface->plane_size;
 	struct default_adjustment ocsc = {0};
-	struct tg_color black_color = {0};
-	struct mpcc_cfg mpcc_cfg;
+	struct mpcc_cfg mpcc_cfg = {0};
+	struct pipe_ctx *top_pipe;
 	bool per_pixel_alpha = surface->per_pixel_alpha && pipe_ctx->bottom_pipe;
 
 	/* TODO: proper fix once fpga works */
@@ -1954,14 +1942,17 @@ static void update_dchubp_dpp(
 			1,
 			IPP_OUTPUT_FORMAT_12_BIT_FIX);
 
-	pipe_ctx->scl_data.lb_params.alpha_en = per_pixel_alpha;
-	mpcc_cfg.top_dpp_id = pipe_ctx->pipe_idx;
-	if (pipe_ctx->bottom_pipe)
-		mpcc_cfg.bot_mpcc_id = pipe_ctx->bottom_pipe->mpcc->inst;
+	mpcc_cfg.mi = mi;
+	mpcc_cfg.opp = pipe_ctx->opp;
+	for (top_pipe = pipe_ctx->top_pipe; top_pipe; top_pipe = top_pipe->top_pipe)
+		mpcc_cfg.z_index++;
+	if (dc->public.debug.surface_visual_confirm)
+		dcn10_get_surface_visual_confirm_color(
+				pipe_ctx, &mpcc_cfg.black_color);
 	else
-		mpcc_cfg.bot_mpcc_id = 0xf;
-	mpcc_cfg.opp_id = pipe_ctx->tg->inst;
-	mpcc_cfg.top_of_tree = pipe_ctx->pipe_idx == pipe_ctx->tg->inst;
+		color_space_to_black_color(
+			dc, pipe_ctx->stream->output_color_space,
+			&mpcc_cfg.black_color);
 	mpcc_cfg.per_pixel_alpha = per_pixel_alpha;
 	/* DCN1.0 has output CM before MPC which seems to screw with
 	 * pre-multiplied alpha.
@@ -1969,17 +1960,9 @@ static void update_dchubp_dpp(
 	mpcc_cfg.pre_multiplied_alpha = is_rgb_cspace(
 			pipe_ctx->stream->output_color_space)
 					&& per_pixel_alpha;
-	pipe_ctx->mpcc->funcs->set(pipe_ctx->mpcc, &mpcc_cfg);
+	dc->res_pool->mpc->funcs->add(dc->res_pool->mpc, &mpcc_cfg);
 
-	if (dc->public.debug.surface_visual_confirm) {
-		dcn10_get_surface_visual_confirm_color(pipe_ctx, &black_color);
-	} else {
-		color_space_to_black_color(
-			dc, pipe_ctx->stream->output_color_space,
-			&black_color);
-	}
-	pipe_ctx->mpcc->funcs->set_bg_color(pipe_ctx->mpcc, &black_color);
-
+	pipe_ctx->scl_data.lb_params.alpha_en = per_pixel_alpha;
 	pipe_ctx->scl_data.lb_params.depth = LB_PIXEL_DEPTH_30BPP;
 	/* scaler configuration */
 	pipe_ctx->xfm->funcs->transform_set_scaler(
@@ -2112,7 +2095,7 @@ static void dcn10_apply_ctx_for_surface(
 		 */
 
 		if (pipe_ctx->surface && !old_pipe_ctx->surface) {
-			if (pipe_ctx->mpcc->opp_id != 0xf && pipe_ctx->tg->inst == be_idx) {
+			if (pipe_ctx->mi->opp_id != 0xf && pipe_ctx->tg->inst == be_idx) {
 				dcn10_power_down_fe(dc, pipe_ctx->pipe_idx);
 				/*
 				 * power down fe will unlock when calling reset, need
@@ -2125,9 +2108,6 @@ static void dcn10_apply_ctx_for_surface(
 
 		if ((!pipe_ctx->surface && old_pipe_ctx->surface)
 				|| (!pipe_ctx->stream && old_pipe_ctx->stream)) {
-			struct mpcc_cfg mpcc_cfg;
-			int opp_id_cached = old_pipe_ctx->mpcc->opp_id;
-
 			if (old_pipe_ctx->tg->inst != be_idx)
 				continue;
 
@@ -2137,12 +2117,11 @@ static void dcn10_apply_ctx_for_surface(
 			}
 
 			/* reset mpc */
-			mpcc_cfg.opp_id = 0xf;
-			mpcc_cfg.top_dpp_id = 0xf;
-			mpcc_cfg.bot_mpcc_id = 0xf;
-			mpcc_cfg.top_of_tree = !old_pipe_ctx->top_pipe;
-			old_pipe_ctx->mpcc->funcs->set(old_pipe_ctx->mpcc, &mpcc_cfg);
-			old_pipe_ctx->top_pipe->opp->mpcc_disconnect_pending[old_pipe_ctx->mpcc->inst] = true;
+			dc->res_pool->mpc->funcs->remove(
+					dc->res_pool->mpc,
+					old_pipe_ctx->opp,
+					old_pipe_ctx->pipe_idx);
+			old_pipe_ctx->opp->mpcc_disconnect_pending[old_pipe_ctx->mi->mpcc_id] = true;
 
 			/*dm_logger_write(dc->ctx->logger, LOG_ERROR,
 					"[debug_mpo: apply_ctx disconnect pending on mpcc %d]\n",
@@ -2150,13 +2129,6 @@ static void dcn10_apply_ctx_for_surface(
 
 			if (dc->public.debug.sanity_checks)
 				verify_allow_pstate_change_high(dc->hwseq);
-
-			/*
-			 * the mpcc is the only thing that keeps track of the mpcc
-			 * mapping for reset front end right now. Might need some
-			 * rework.
-			 */
-			old_pipe_ctx->mpcc->opp_id = opp_id_cached;
 
 			old_pipe_ctx->top_pipe = NULL;
 			old_pipe_ctx->bottom_pipe = NULL;
@@ -2466,12 +2438,12 @@ static void dcn10_wait_for_mpcc_disconnect(
 {
 	int i;
 
-	if (!pipe_ctx->opp || !pipe_ctx->mpcc)
+	if (!pipe_ctx->opp)
 		return;
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		if (pipe_ctx->opp->mpcc_disconnect_pending[i]) {
-			pipe_ctx->mpcc->funcs->wait_for_idle(res_pool->mpcc[i]);
+			res_pool->mpc->funcs->wait_for_idle(res_pool->mpc, i);
 			pipe_ctx->opp->mpcc_disconnect_pending[i] = false;
 			res_pool->mis[i]->funcs->set_blank(res_pool->mis[i], true);
 			/*dm_logger_write(dc->ctx->logger, LOG_ERROR,

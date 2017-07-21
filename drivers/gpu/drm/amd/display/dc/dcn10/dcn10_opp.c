@@ -337,6 +337,9 @@ void dcn10_opp_construct(struct dcn10_opp *oppn10,
 	oppn10->base.inst = inst;
 	oppn10->base.funcs = &dcn10_opp_funcs;
 
+	oppn10->base.mpc_tree.dpp[0] = inst;
+	oppn10->base.mpc_tree.mpcc[0] = inst;
+	oppn10->base.mpc_tree.num_pipes = 1;
 	for (i = 0; i < MAX_PIPES; i++)
 		oppn10->base.mpcc_disconnect_pending[i] = false;
 

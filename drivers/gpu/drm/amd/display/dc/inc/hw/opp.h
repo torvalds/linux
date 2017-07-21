@@ -196,10 +196,17 @@ struct pwl_float_data {
 	struct fixed31_32 b;
 };
 
+struct mpc_tree_cfg {
+	int num_pipes;
+	int dpp[MAX_PIPES];
+	int mpcc[MAX_PIPES];
+};
+
 struct output_pixel_processor {
 	struct dc_context *ctx;
 	uint32_t inst;
 	struct pwl_params regamma_params;
+	struct mpc_tree_cfg mpc_tree;
 	bool mpcc_disconnect_pending[MAX_PIPES];
 	const struct opp_funcs *funcs;
 };
