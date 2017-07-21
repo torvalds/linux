@@ -1367,6 +1367,12 @@ static int python_generate_script(struct pevent *pevent, const char *outfile)
 
 			fprintf(ofp, "%s", f->name);
 		}
+		if (not_first++)
+			fprintf(ofp, ", ");
+		if (++count % 5 == 0)
+			fprintf(ofp, "\n\t\t");
+		fprintf(ofp, "perf_sample_dict");
+
 		fprintf(ofp, "):\n");
 
 		fprintf(ofp, "\t\tprint_header(event_name, common_cpu, "
@@ -1436,6 +1442,9 @@ static int python_generate_script(struct pevent *pevent, const char *outfile)
 
 		fprintf(ofp, ")\n\n");
 
+		fprintf(ofp, "\t\tprint 'Sample: {'+"
+			"get_dict_as_string(perf_sample_dict['sample'], ', ')+'}'\n\n");
+
 		fprintf(ofp, "\t\tfor node in common_callchain:");
 		fprintf(ofp, "\n\t\t\tif 'sym' in node:");
 		fprintf(ofp, "\n\t\t\t\tprint \"\\t[%%x] %%s\" %% (node['ip'], node['sym']['name'])");
@@ -1446,15 +1455,20 @@ static int python_generate_script(struct pevent *pevent, const char *outfile)
 	}
 
 	fprintf(ofp, "def trace_unhandled(event_name, context, "
-		"event_fields_dict):\n");
+		"event_fields_dict, perf_sample_dict):\n");
 
-	fprintf(ofp, "\t\tprint ' '.join(['%%s=%%s'%%(k,str(v))"
-		"for k,v in sorted(event_fields_dict.items())])\n\n");
+	fprintf(ofp, "\t\tprint get_dict_as_string(event_fields_dict)\n");
+	fprintf(ofp, "\t\tprint 'Sample: {'+"
+		"get_dict_as_string(perf_sample_dict['sample'], ', ')+'}'\n\n");
 
 	fprintf(ofp, "def print_header("
 		"event_name, cpu, secs, nsecs, pid, comm):\n"
 		"\tprint \"%%-20s %%5u %%05u.%%09u %%8u %%-20s \" %% \\\n\t"
-		"(event_name, cpu, secs, nsecs, pid, comm),\n");
+		"(event_name, cpu, secs, nsecs, pid, comm),\n\n");
+
+	fprintf(ofp, "def get_dict_as_string(a_dict, delimiter=' '):\n"
+		"\treturn delimiter.join"
+		"(['%%s=%%s'%%(k,str(v))for k,v in sorted(a_dict.items())])\n");
 
 	fclose(ofp);
 
