@@ -76,6 +76,8 @@
 
 #define IOMMU_REG_POLL_COUNT_FAST 1000
 
+static LIST_HEAD(iommu_dev_list);
+
 struct rk_iommu_domain {
 	struct list_head iommus;
 	struct platform_device *pdev;
@@ -98,6 +100,7 @@ struct rk_iommu {
 	struct iommu_domain *domain; /* domain to which iommu is attached */
 	struct clk *aclk; /* aclock belong to master */
 	struct clk *hclk; /* hclock belong to master */
+	struct list_head dev_node;
 };
 
 static inline void rk_table_flush(struct rk_iommu_domain *dom, dma_addr_t dma,
@@ -268,14 +271,12 @@ static void rk_iommu_power_on(struct rk_iommu *iommu)
 		clk_enable(iommu->hclk);
 	}
 
-	pm_runtime_enable(iommu->dev);
 	pm_runtime_get_sync(iommu->dev);
 }
 
 static void rk_iommu_power_off(struct rk_iommu *iommu)
 {
 	pm_runtime_put_sync(iommu->dev);
-	pm_runtime_disable(iommu->dev);
 
 	if (iommu->aclk && iommu->hclk) {
 		clk_disable(iommu->aclk);
@@ -1226,13 +1227,32 @@ static int rk_iommu_probe(struct platform_device *pdev)
 		clk_prepare(iommu->hclk);
 	}
 
+	pm_runtime_enable(iommu->dev);
+	pm_runtime_get_sync(iommu->dev);
+	list_add(&iommu->dev_node, &iommu_dev_list);
+
 	return 0;
 }
 
 static int rk_iommu_remove(struct platform_device *pdev)
 {
+	struct rk_iommu *iommu = platform_get_drvdata(pdev);
+
+	pm_runtime_disable(iommu->dev);
+
 	return 0;
 }
+
+static int __init rk_iommu_runtime_put(void)
+{
+	struct rk_iommu *iommu;
+
+	list_for_each_entry(iommu, &iommu_dev_list, dev_node)
+		pm_runtime_put_sync(iommu->dev);
+
+	return 0;
+}
+late_initcall_sync(rk_iommu_runtime_put);
 
 static const struct of_device_id rk_iommu_dt_ids[] = {
 	{ .compatible = "rockchip,iommu" },
