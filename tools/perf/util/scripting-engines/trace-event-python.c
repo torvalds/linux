@@ -116,6 +116,34 @@ static PyObject *get_handler(const char *handler_name)
 	return handler;
 }
 
+static int get_argument_count(PyObject *handler)
+{
+	int arg_count = 0;
+
+	/*
+	 * The attribute for the code object is func_code in Python 2,
+	 * whereas it is __code__ in Python 3.0+.
+	 */
+	PyObject *code_obj = PyObject_GetAttrString(handler,
+		"func_code");
+	if (PyErr_Occurred()) {
+		PyErr_Clear();
+		code_obj = PyObject_GetAttrString(handler,
+			"__code__");
+	}
+	PyErr_Clear();
+	if (code_obj) {
+		PyObject *arg_count_obj = PyObject_GetAttrString(code_obj,
+			"co_argcount");
+		if (arg_count_obj) {
+			arg_count = (int) PyInt_AsLong(arg_count_obj);
+			Py_DECREF(arg_count_obj);
+		}
+		Py_DECREF(code_obj);
+	}
+	return arg_count;
+}
+
 static void call_object(PyObject *handler, PyObject *args, const char *die_msg)
 {
 	PyObject *retval;
@@ -499,7 +527,7 @@ static void python_process_tracepoint(struct perf_sample *sample,
 {
 	struct event_format *event = evsel->tp_format;
 	PyObject *handler, *context, *t, *obj = NULL, *callchain;
-	PyObject *dict = NULL;
+	PyObject *dict = NULL, *all_entries_dict = NULL;
 	static char handler_name[256];
 	struct format_field *field;
 	unsigned long s, ns;
@@ -552,6 +580,8 @@ static void python_process_tracepoint(struct perf_sample *sample,
 
 	/* ip unwinding */
 	callchain = python_process_callchain(sample, evsel, al);
+	/* Need an additional reference for the perf_sample dict */
+	Py_INCREF(callchain);
 
 	if (!dict) {
 		PyTuple_SetItem(t, n++, PyInt_FromLong(cpu));
@@ -602,6 +632,14 @@ static void python_process_tracepoint(struct perf_sample *sample,
 	if (dict)
 		PyTuple_SetItem(t, n++, dict);
 
+	if (get_argument_count(handler) == (int) n + 1) {
+		all_entries_dict = get_perf_sample_dict(sample, evsel, al,
+			callchain);
+		PyTuple_SetItem(t, n++,	all_entries_dict);
+	} else {
+		Py_DECREF(callchain);
+	}
+
 	if (_PyTuple_Resize(&t, n) == -1)
 		Py_FatalError("error resizing Python tuple");
 
@@ -612,6 +650,7 @@ static void python_process_tracepoint(struct perf_sample *sample,
 		Py_DECREF(dict);
 	}
 
+	Py_XDECREF(all_entries_dict);
 	Py_DECREF(t);
 }
 
