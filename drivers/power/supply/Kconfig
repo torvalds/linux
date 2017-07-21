@@ -365,6 +365,7 @@ config BATTERY_RX51
 config CHARGER_CPCAP
 	tristate "CPCAP PMIC Charger Driver"
 	depends on MFD_CPCAP && IIO
+	depends on OMAP_USB2 || (!OMAP_USB2 && COMPILE_TEST)
 	default MFD_CPCAP
 	help
 	  Say Y to enable support for CPCAP PMIC charger driver for Motorola
