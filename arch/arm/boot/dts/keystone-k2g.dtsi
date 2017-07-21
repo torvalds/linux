@@ -162,6 +162,11 @@
 				compatible = "ti,k2g-sci-clk";
 				#clock-cells = <2>;
 			};
+
+			k2g_reset: reset-controller {
+				compatible = "ti,sci-reset";
+				#reset-cells = <2>;
+			};
 		};
 	};
 };
