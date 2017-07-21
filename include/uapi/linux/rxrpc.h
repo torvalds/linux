@@ -77,4 +77,48 @@ enum rxrpc_cmsg_type {
 #define RXRPC_SECURITY_RXGK	4	/* gssapi-based */
 #define RXRPC_SECURITY_RXK5	5	/* kerberos 5 */
 
+/*
+ * RxRPC-level abort codes
+ */
+#define RX_CALL_DEAD		-1	/* call/conn has been inactive and is shut down */
+#define RX_INVALID_OPERATION	-2	/* invalid operation requested / attempted */
+#define RX_CALL_TIMEOUT		-3	/* call timeout exceeded */
+#define RX_EOF			-4	/* unexpected end of data on read op */
+#define RX_PROTOCOL_ERROR	-5	/* low-level protocol error */
+#define RX_USER_ABORT		-6	/* generic user abort */
+#define RX_ADDRINUSE		-7	/* UDP port in use */
+#define RX_DEBUGI_BADTYPE	-8	/* bad debugging packet type */
+
+/*
+ * (un)marshalling abort codes (rxgen)
+ */
+#define RXGEN_CC_MARSHAL	-450
+#define RXGEN_CC_UNMARSHAL	-451
+#define RXGEN_SS_MARSHAL	-452
+#define RXGEN_SS_UNMARSHAL	-453
+#define RXGEN_DECODE		-454
+#define RXGEN_OPCODE		-455
+#define RXGEN_SS_XDRFREE	-456
+#define RXGEN_CC_XDRFREE	-457
+
+/*
+ * Rx kerberos security abort codes
+ * - unfortunately we have no generalised security abort codes to say things
+ *   like "unsupported security", so we have to use these instead and hope the
+ *   other side understands
+ */
+#define RXKADINCONSISTENCY	19270400	/* security module structure inconsistent */
+#define RXKADPACKETSHORT	19270401	/* packet too short for security challenge */
+#define RXKADLEVELFAIL		19270402	/* security level negotiation failed */
+#define RXKADTICKETLEN		19270403	/* ticket length too short or too long */
+#define RXKADOUTOFSEQUENCE	19270404	/* packet had bad sequence number */
+#define RXKADNOAUTH		19270405	/* caller not authorised */
+#define RXKADBADKEY		19270406	/* illegal key: bad parity or weak */
+#define RXKADBADTICKET		19270407	/* security object was passed a bad ticket */
+#define RXKADUNKNOWNKEY		19270408	/* ticket contained unknown key version number */
+#define RXKADEXPIRED		19270409	/* authentication expired */
+#define RXKADSEALEDINCON	19270410	/* sealed data inconsistent */
+#define RXKADDATALEN		19270411	/* user data too long */
+#define RXKADILLEGALLEVEL	19270412	/* caller not authorised to use encrypted conns */
+
 #endif /* _UAPI_LINUX_RXRPC_H */
