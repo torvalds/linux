@@ -211,9 +211,7 @@ static int scomp_acomp_comp_decomp(struct acomp_req *req, int dir)
 					      scratch_dst, &req->dlen, *ctx);
 	if (!ret) {
 		if (!req->dst) {
-			req->dst = crypto_scomp_sg_alloc(req->dlen,
-				   req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP ?
-				   GFP_KERNEL : GFP_ATOMIC);
+			req->dst = crypto_scomp_sg_alloc(req->dlen, GFP_ATOMIC);
 			if (!req->dst)
 				goto out;
 		}
