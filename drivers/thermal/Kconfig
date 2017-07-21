@@ -299,7 +299,7 @@ config X86_PKG_TEMP_THERMAL
 
 config INTEL_SOC_DTS_IOSF_CORE
 	tristate
-	depends on X86
+	depends on X86 && PCI
 	select IOSF_MBI
 	help
 	  This is becoming a common feature for Intel SoCs to expose the additional
@@ -309,7 +309,7 @@ config INTEL_SOC_DTS_IOSF_CORE
 
 config INTEL_SOC_DTS_THERMAL
 	tristate "Intel SoCs DTS thermal driver"
-	depends on X86
+	depends on X86 && PCI
 	select INTEL_SOC_DTS_IOSF_CORE
 	select THERMAL_WRITABLE_TRIPS
 	help
