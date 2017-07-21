@@ -1917,6 +1917,9 @@ void intel_hdmi_init_connector(struct intel_digital_port *intel_dig_port,
 	connector->doublescan_allowed = 0;
 	connector->stereo_allowed = 1;
 
+	if (IS_GEMINILAKE(dev_priv))
+		connector->ycbcr_420_allowed = true;
+
 	intel_hdmi->ddc_bus = intel_hdmi_ddc_pin(dev_priv, port);
 
 	switch (port) {
