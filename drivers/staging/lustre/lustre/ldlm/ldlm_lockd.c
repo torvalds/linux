@@ -926,7 +926,7 @@ static struct attribute *ldlm_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group ldlm_attr_group = {
+static const struct attribute_group ldlm_attr_group = {
 	.attrs = ldlm_attrs,
 };
 
