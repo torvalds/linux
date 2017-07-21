@@ -195,9 +195,10 @@ EXPORT_SYMBOL(of_device_get_match_data);
 
 static ssize_t of_device_get_modalias(struct device *dev, char *str, ssize_t len)
 {
-	const char *compat;
-	int cplen, i;
-	ssize_t tsize, csize, repend;
+	const char *compat, *start = str;
+	char *c;
+	struct property *p;
+	ssize_t csize;
 
 	if ((!dev) || (!dev->of_node))
 		return -ENODEV;
@@ -205,42 +206,24 @@ static ssize_t of_device_get_modalias(struct device *dev, char *str, ssize_t len
 	/* Name & Type */
 	csize = snprintf(str, len, "of:N%sT%s", dev->of_node->name,
 			 dev->of_node->type);
+	len -= csize;
+	str += csize;
 
-	/* Get compatible property if any */
-	compat = of_get_property(dev->of_node, "compatible", &cplen);
-	if (!compat)
-		return csize;
+	of_property_for_each_string(dev->of_node, "compatible", p, compat) {
+		if (strlen(compat) + 2 > len)
+			break;
 
-	/* Find true end (we tolerate multiple \0 at the end */
-	for (i = (cplen - 1); i >= 0 && !compat[i]; i--)
-		cplen--;
-	if (!cplen)
-		return csize;
-	cplen++;
-
-	/* Check space (need cplen+1 chars including final \0) */
-	tsize = csize + cplen;
-	repend = tsize;
-
-	if (csize >= len)		/* @ the limit, all is already filled */
-		return tsize;
-
-	if (tsize >= len) {		/* limit compat list */
-		cplen = len - csize - 1;
-		repend = len;
+		csize = snprintf(str, len, "C%s", compat);
+		for (c = str; c; ) {
+			c = strchr(c, ' ');
+			if (c)
+				*c++ = '_';
+		}
+		len -= csize;
+		str += csize;
 	}
 
-	/* Copy and do char replacement */
-	memcpy(&str[csize + 1], compat, cplen);
-	for (i = csize; i < repend; i++) {
-		char c = str[i];
-		if (c == '\0')
-			str[i] = 'C';
-		else if (c == ' ')
-			str[i] = '_';
-	}
-
-	return repend;
+	return str - start;
 }
 
 int of_device_request_module(struct device *dev)
@@ -288,7 +271,8 @@ void of_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
 	const char *compat;
 	struct alias_prop *app;
-	int seen = 0, cplen, sl;
+	struct property *p;
+	int seen = 0;
 
 	if ((!dev) || (!dev->of_node))
 		return;
@@ -301,12 +285,8 @@ void of_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 	/* Since the compatible field can contain pretty much anything
 	 * it's not really legal to split it out with commas. We split it
 	 * up using a number of environment variables instead. */
-	compat = of_get_property(dev->of_node, "compatible", &cplen);
-	while (compat && *compat && cplen > 0) {
+	of_property_for_each_string(dev->of_node, "compatible", p, compat) {
 		add_uevent_var(env, "OF_COMPATIBLE_%d=%s", seen, compat);
-		sl = strlen(compat) + 1;
-		compat += sl;
-		cplen -= sl;
 		seen++;
 	}
 	add_uevent_var(env, "OF_COMPATIBLE_N=%d", seen);
