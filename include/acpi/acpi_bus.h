@@ -316,7 +316,6 @@ struct acpi_device_perf {
 struct acpi_device_wakeup_flags {
 	u8 valid:1;		/* Can successfully enable wakeup? */
 	u8 notifier_present:1;  /* Wake-up notify handler has been installed */
-	u8 enabled:1;		/* Enabled for wakeup */
 };
 
 struct acpi_device_wakeup_context {
@@ -333,6 +332,7 @@ struct acpi_device_wakeup {
 	struct acpi_device_wakeup_context context;
 	struct wakeup_source *ws;
 	int prepare_count;
+	int enable_count;
 };
 
 struct acpi_device_physical_node {
