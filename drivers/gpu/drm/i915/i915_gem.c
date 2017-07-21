@@ -3051,13 +3051,6 @@ static void engine_set_wedged(struct intel_engine_cs *engine)
 			dma_fence_set_error(&request->fence, -EIO);
 	spin_unlock_irqrestore(&engine->timeline->lock, flags);
 
-	/* Mark all pending requests as complete so that any concurrent
-	 * (lockless) lookup doesn't try and wait upon the request as we
-	 * reset it.
-	 */
-	intel_engine_init_global_seqno(engine,
-				       intel_engine_last_submit(engine));
-
 	/*
 	 * Clear the execlists queue up before freeing the requests, as those
 	 * are the ones that keep the context and ringbuffer backing objects
@@ -3086,6 +3079,13 @@ static void engine_set_wedged(struct intel_engine_cs *engine)
 		 */
 		clear_bit(ENGINE_IRQ_EXECLIST, &engine->irq_posted);
 	}
+
+	/* Mark all pending requests as complete so that any concurrent
+	 * (lockless) lookup doesn't try and wait upon the request as we
+	 * reset it.
+	 */
+	intel_engine_init_global_seqno(engine,
+				       intel_engine_last_submit(engine));
 }
 
 static int __i915_gem_set_wedged_BKL(void *data)
