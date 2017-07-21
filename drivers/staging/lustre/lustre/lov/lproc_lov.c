@@ -279,7 +279,7 @@ static struct attribute *lov_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group lov_attr_group = {
+static const struct attribute_group lov_attr_group = {
 	.attrs = lov_attrs,
 };
 

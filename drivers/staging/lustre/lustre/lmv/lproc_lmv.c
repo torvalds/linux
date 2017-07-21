@@ -161,7 +161,7 @@ static struct attribute *lmv_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group lmv_attr_group = {
+static const struct attribute_group lmv_attr_group = {
 	.attrs = lmv_attrs,
 };
 

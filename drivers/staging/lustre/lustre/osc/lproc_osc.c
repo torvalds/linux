@@ -831,7 +831,7 @@ static struct attribute *osc_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group osc_attr_group = {
+static const struct attribute_group osc_attr_group = {
 	.attrs = osc_attrs,
 };
 

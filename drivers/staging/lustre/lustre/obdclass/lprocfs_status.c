@@ -1031,7 +1031,7 @@ static struct kobj_type obd_ktype = {
 };
 
 int lprocfs_obd_setup(struct obd_device *obd, struct lprocfs_vars *list,
-		      struct attribute_group *attrs)
+		      const struct attribute_group *attrs)
 {
 	int rc = 0;
 
