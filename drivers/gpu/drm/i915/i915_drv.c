@@ -1831,7 +1831,8 @@ static int i915_resume_switcheroo(struct drm_device *dev)
 
 /**
  * i915_reset - reset chip after a hang
- * @dev_priv: device private to reset
+ * @i915: #drm_i915_private to reset
+ * @flags: Instructions
  *
  * Reset the chip.  Useful if a hang is detected. Marks the device as wedged
  * on failure.
@@ -1846,34 +1847,34 @@ static int i915_resume_switcheroo(struct drm_device *dev)
  *   - re-init interrupt state
  *   - re-init display
  */
-void i915_reset(struct drm_i915_private *dev_priv)
+void i915_reset(struct drm_i915_private *i915, unsigned int flags)
 {
-	struct i915_gpu_error *error = &dev_priv->gpu_error;
+	struct i915_gpu_error *error = &i915->gpu_error;
 	int ret;
 
-	lockdep_assert_held(&dev_priv->drm.struct_mutex);
+	lockdep_assert_held(&i915->drm.struct_mutex);
 	GEM_BUG_ON(!test_bit(I915_RESET_BACKOFF, &error->flags));
 
 	if (!test_bit(I915_RESET_HANDOFF, &error->flags))
 		return;
 
 	/* Clear any previous failed attempts at recovery. Time to try again. */
-	if (!i915_gem_unset_wedged(dev_priv))
+	if (!i915_gem_unset_wedged(i915))
 		goto wakeup;
 
-	dev_notice(dev_priv->drm.dev,
-		   "Resetting chip after gpu hang\n");
+	if (!(flags & I915_RESET_QUIET))
+		dev_notice(i915->drm.dev, "Resetting chip after gpu hang\n");
 	error->reset_count++;
 
-	disable_irq(dev_priv->drm.irq);
-	ret = i915_gem_reset_prepare(dev_priv);
+	disable_irq(i915->drm.irq);
+	ret = i915_gem_reset_prepare(i915);
 	if (ret) {
 		DRM_ERROR("GPU recovery failed\n");
-		intel_gpu_reset(dev_priv, ALL_ENGINES);
+		intel_gpu_reset(i915, ALL_ENGINES);
 		goto error;
 	}
 
-	ret = intel_gpu_reset(dev_priv, ALL_ENGINES);
+	ret = intel_gpu_reset(i915, ALL_ENGINES);
 	if (ret) {
 		if (ret != -ENODEV)
 			DRM_ERROR("Failed to reset chip: %i\n", ret);
@@ -1882,8 +1883,8 @@ void i915_reset(struct drm_i915_private *dev_priv)
 		goto error;
 	}
 
-	i915_gem_reset(dev_priv);
-	intel_overlay_reset(dev_priv);
+	i915_gem_reset(i915);
+	intel_overlay_reset(i915);
 
 	/* Ok, now get things going again... */
 
@@ -1899,17 +1900,17 @@ void i915_reset(struct drm_i915_private *dev_priv)
 	 * was running at the time of the reset (i.e. we weren't VT
 	 * switched away).
 	 */
-	ret = i915_gem_init_hw(dev_priv);
+	ret = i915_gem_init_hw(i915);
 	if (ret) {
 		DRM_ERROR("Failed hw init on reset %d\n", ret);
 		goto error;
 	}
 
-	i915_queue_hangcheck(dev_priv);
+	i915_queue_hangcheck(i915);
 
 finish:
-	i915_gem_reset_finish(dev_priv);
-	enable_irq(dev_priv->drm.irq);
+	i915_gem_reset_finish(i915);
+	enable_irq(i915->drm.irq);
 
 wakeup:
 	clear_bit(I915_RESET_HANDOFF, &error->flags);
@@ -1917,14 +1918,15 @@ wakeup:
 	return;
 
 error:
-	i915_gem_set_wedged(dev_priv);
-	i915_gem_retire_requests(dev_priv);
+	i915_gem_set_wedged(i915);
+	i915_gem_retire_requests(i915);
 	goto finish;
 }
 
 /**
  * i915_reset_engine - reset GPU engine to recover from a hang
  * @engine: engine to reset
+ * @flags: options
  *
  * Reset a specific GPU engine. Useful if a hang is detected.
  * Returns zero on successful reset or otherwise an error code.
@@ -1934,7 +1936,7 @@ error:
  *  - reset engine (which will force the engine to idle)
  *  - re-init/configure engine
  */
-int i915_reset_engine(struct intel_engine_cs *engine)
+int i915_reset_engine(struct intel_engine_cs *engine, unsigned int flags)
 {
 	struct i915_gpu_error *error = &engine->i915->gpu_error;
 	struct drm_i915_gem_request *active_request;
@@ -1942,8 +1944,10 @@ int i915_reset_engine(struct intel_engine_cs *engine)
 
 	GEM_BUG_ON(!test_bit(I915_RESET_ENGINE + engine->id, &error->flags));
 
-	dev_notice(engine->i915->drm.dev,
-		   "Resetting %s after gpu hang\n", engine->name);
+	if (!(flags & I915_RESET_QUIET)) {
+		dev_notice(engine->i915->drm.dev,
+			   "Resetting %s after gpu hang\n", engine->name);
+	}
 	error->reset_engine_count[engine->id]++;
 
 	active_request = i915_gem_reset_prepare_engine(engine);

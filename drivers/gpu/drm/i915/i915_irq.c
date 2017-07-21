@@ -2624,7 +2624,7 @@ static void i915_reset_device(struct drm_i915_private *dev_priv)
 		 */
 		do {
 			if (mutex_trylock(&dev_priv->drm.struct_mutex)) {
-				i915_reset(dev_priv);
+				i915_reset(dev_priv, 0);
 				mutex_unlock(&dev_priv->drm.struct_mutex);
 			}
 		} while (wait_on_bit_timeout(&dev_priv->gpu_error.flags,
@@ -2739,7 +2739,7 @@ void i915_handle_error(struct drm_i915_private *dev_priv,
 					     &dev_priv->gpu_error.flags))
 				continue;
 
-			if (i915_reset_engine(engine) == 0)
+			if (i915_reset_engine(engine, 0) == 0)
 				engine_mask &= ~intel_engine_flag(engine);
 
 			clear_bit(I915_RESET_ENGINE + engine->id,

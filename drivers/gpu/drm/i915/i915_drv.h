@@ -3110,8 +3110,12 @@ extern int i915_driver_load(struct pci_dev *pdev,
 extern void i915_driver_unload(struct drm_device *dev);
 extern int intel_gpu_reset(struct drm_i915_private *dev_priv, u32 engine_mask);
 extern bool intel_has_gpu_reset(struct drm_i915_private *dev_priv);
-extern void i915_reset(struct drm_i915_private *dev_priv);
-extern int i915_reset_engine(struct intel_engine_cs *engine);
+
+#define I915_RESET_QUIET BIT(0)
+extern void i915_reset(struct drm_i915_private *i915, unsigned int flags);
+extern int i915_reset_engine(struct intel_engine_cs *engine,
+			     unsigned int flags);
+
 extern bool intel_has_reset_engine(struct drm_i915_private *dev_priv);
 extern int intel_guc_reset(struct drm_i915_private *dev_priv);
 extern void intel_engine_init_hangcheck(struct intel_engine_cs *engine);
