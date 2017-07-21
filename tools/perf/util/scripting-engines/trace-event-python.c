@@ -391,6 +391,57 @@ exit:
 	return pylist;
 }
 
+static PyObject *get_perf_sample_dict(struct perf_sample *sample,
+					 struct perf_evsel *evsel,
+					 struct addr_location *al,
+					 PyObject *callchain)
+{
+	PyObject *dict, *dict_sample;
+
+	dict = PyDict_New();
+	if (!dict)
+		Py_FatalError("couldn't create Python dictionary");
+
+	dict_sample = PyDict_New();
+	if (!dict_sample)
+		Py_FatalError("couldn't create Python dictionary");
+
+	pydict_set_item_string_decref(dict, "ev_name", PyString_FromString(perf_evsel__name(evsel)));
+	pydict_set_item_string_decref(dict, "attr", PyString_FromStringAndSize(
+			(const char *)&evsel->attr, sizeof(evsel->attr)));
+
+	pydict_set_item_string_decref(dict_sample, "pid",
+			PyInt_FromLong(sample->pid));
+	pydict_set_item_string_decref(dict_sample, "tid",
+			PyInt_FromLong(sample->tid));
+	pydict_set_item_string_decref(dict_sample, "cpu",
+			PyInt_FromLong(sample->cpu));
+	pydict_set_item_string_decref(dict_sample, "ip",
+			PyLong_FromUnsignedLongLong(sample->ip));
+	pydict_set_item_string_decref(dict_sample, "time",
+			PyLong_FromUnsignedLongLong(sample->time));
+	pydict_set_item_string_decref(dict_sample, "period",
+			PyLong_FromUnsignedLongLong(sample->period));
+	pydict_set_item_string_decref(dict, "sample", dict_sample);
+
+	pydict_set_item_string_decref(dict, "raw_buf", PyString_FromStringAndSize(
+			(const char *)sample->raw_data, sample->raw_size));
+	pydict_set_item_string_decref(dict, "comm",
+			PyString_FromString(thread__comm_str(al->thread)));
+	if (al->map) {
+		pydict_set_item_string_decref(dict, "dso",
+			PyString_FromString(al->map->dso->name));
+	}
+	if (al->sym) {
+		pydict_set_item_string_decref(dict, "symbol",
+			PyString_FromString(al->sym->name));
+	}
+
+	pydict_set_item_string_decref(dict, "callchain", callchain);
+
+	return dict;
+}
+
 static void python_process_tracepoint(struct perf_sample *sample,
 				      struct perf_evsel *evsel,
 				      struct addr_location *al)
@@ -801,7 +852,7 @@ static void python_process_general_event(struct perf_sample *sample,
 					 struct perf_evsel *evsel,
 					 struct addr_location *al)
 {
-	PyObject *handler, *t, *dict, *callchain, *dict_sample;
+	PyObject *handler, *t, *dict, *callchain;
 	static char handler_name[64];
 	unsigned n = 0;
 
@@ -819,48 +870,9 @@ static void python_process_general_event(struct perf_sample *sample,
 	if (!t)
 		Py_FatalError("couldn't create Python tuple");
 
-	dict = PyDict_New();
-	if (!dict)
-		Py_FatalError("couldn't create Python dictionary");
-
-	dict_sample = PyDict_New();
-	if (!dict_sample)
-		Py_FatalError("couldn't create Python dictionary");
-
-	pydict_set_item_string_decref(dict, "ev_name", PyString_FromString(perf_evsel__name(evsel)));
-	pydict_set_item_string_decref(dict, "attr", PyString_FromStringAndSize(
-			(const char *)&evsel->attr, sizeof(evsel->attr)));
-
-	pydict_set_item_string_decref(dict_sample, "pid",
-			PyInt_FromLong(sample->pid));
-	pydict_set_item_string_decref(dict_sample, "tid",
-			PyInt_FromLong(sample->tid));
-	pydict_set_item_string_decref(dict_sample, "cpu",
-			PyInt_FromLong(sample->cpu));
-	pydict_set_item_string_decref(dict_sample, "ip",
-			PyLong_FromUnsignedLongLong(sample->ip));
-	pydict_set_item_string_decref(dict_sample, "time",
-			PyLong_FromUnsignedLongLong(sample->time));
-	pydict_set_item_string_decref(dict_sample, "period",
-			PyLong_FromUnsignedLongLong(sample->period));
-	pydict_set_item_string_decref(dict, "sample", dict_sample);
-
-	pydict_set_item_string_decref(dict, "raw_buf", PyString_FromStringAndSize(
-			(const char *)sample->raw_data, sample->raw_size));
-	pydict_set_item_string_decref(dict, "comm",
-			PyString_FromString(thread__comm_str(al->thread)));
-	if (al->map) {
-		pydict_set_item_string_decref(dict, "dso",
-			PyString_FromString(al->map->dso->name));
-	}
-	if (al->sym) {
-		pydict_set_item_string_decref(dict, "symbol",
-			PyString_FromString(al->sym->name));
-	}
-
 	/* ip unwinding */
 	callchain = python_process_callchain(sample, evsel, al);
-	pydict_set_item_string_decref(dict, "callchain", callchain);
+	dict = get_perf_sample_dict(sample, evsel, al, callchain);
 
 	PyTuple_SetItem(t, n++, dict);
 	if (_PyTuple_Resize(&t, n) == -1)
