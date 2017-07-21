@@ -472,12 +472,18 @@ static void intel_hdmi_set_avi_infoframe(struct drm_encoder *encoder,
 		return;
 	}
 
+	if (crtc_state->ycbcr420)
+		frame.avi.colorspace = HDMI_COLORSPACE_YUV420;
+	else
+		frame.avi.colorspace = HDMI_COLORSPACE_RGB;
+
 	drm_hdmi_avi_infoframe_quant_range(&frame.avi, adjusted_mode,
 					   crtc_state->limited_color_range ?
 					   HDMI_QUANTIZATION_RANGE_LIMITED :
 					   HDMI_QUANTIZATION_RANGE_FULL,
 					   intel_hdmi->rgb_quant_range_selectable);
 
+	/* TODO: handle pixel repetition for YCBCR420 outputs */
 	intel_write_infoframe(encoder, crtc_state, &frame);
 }
 
