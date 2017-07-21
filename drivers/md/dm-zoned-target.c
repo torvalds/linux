@@ -588,7 +588,7 @@ static int dmz_map(struct dm_target *ti, struct bio *bio)
 
 	bio->bi_bdev = dev->bdev;
 
-	if (!nr_sectors && (bio_op(bio) != REQ_OP_FLUSH) && (bio_op(bio) != REQ_OP_WRITE))
+	if (!nr_sectors && bio_op(bio) != REQ_OP_WRITE)
 		return DM_MAPIO_REMAPPED;
 
 	/* The BIO should be block aligned */
@@ -603,7 +603,7 @@ static int dmz_map(struct dm_target *ti, struct bio *bio)
 	bioctx->status = BLK_STS_OK;
 
 	/* Set the BIO pending in the flush list */
-	if (bio_op(bio) == REQ_OP_FLUSH || (!nr_sectors && bio_op(bio) == REQ_OP_WRITE)) {
+	if (!nr_sectors && bio_op(bio) == REQ_OP_WRITE) {
 		spin_lock(&dmz->flush_lock);
 		bio_list_add(&dmz->flush_list, bio);
 		spin_unlock(&dmz->flush_lock);
