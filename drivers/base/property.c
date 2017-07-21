@@ -665,6 +665,34 @@ out:
 }
 EXPORT_SYMBOL_GPL(fwnode_property_match_string);
 
+/**
+ * fwnode_property_get_reference_args() - Find a reference with arguments
+ * @fwnode:	Firmware node where to look for the reference
+ * @prop:	The name of the property
+ * @nargs_prop:	The name of the property telling the number of
+ *		arguments in the referred node. NULL if @nargs is known,
+ *		otherwise @nargs is ignored. Only relevant on OF.
+ * @nargs:	Number of arguments. Ignored if @nargs_prop is non-NULL.
+ * @index:	Index of the reference, from zero onwards.
+ * @args:	Result structure with reference and integer arguments.
+ *
+ * Obtain a reference based on a named property in an fwnode, with
+ * integer arguments.
+ *
+ * Caller is responsible to call fwnode_handle_put() on the returned
+ * args->fwnode pointer.
+ *
+ */
+int fwnode_property_get_reference_args(const struct fwnode_handle *fwnode,
+				       const char *prop, const char *nargs_prop,
+				       unsigned int nargs, unsigned int index,
+				       struct fwnode_reference_args *args)
+{
+	return fwnode_call_int_op(fwnode, get_reference_args, prop, nargs_prop,
+				  nargs, index, args);
+}
+EXPORT_SYMBOL_GPL(fwnode_property_get_reference_args);
+
 static int property_copy_string_array(struct property_entry *dst,
 				      const struct property_entry *src)
 {

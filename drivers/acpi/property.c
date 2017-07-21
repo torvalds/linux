@@ -1195,6 +1195,32 @@ acpi_fwnode_get_named_child_node(const struct fwnode_handle *fwnode,
 	return NULL;
 }
 
+static int
+acpi_fwnode_get_reference_args(const struct fwnode_handle *fwnode,
+			       const char *prop, const char *nargs_prop,
+			       unsigned int args_count, unsigned int index,
+			       struct fwnode_reference_args *args)
+{
+	struct acpi_reference_args acpi_args;
+	unsigned int i;
+	int ret;
+
+	ret = __acpi_node_get_property_reference(fwnode, prop, index,
+						 args_count, &acpi_args);
+	if (ret < 0)
+		return ret;
+	if (!args)
+		return 0;
+
+	args->nargs = acpi_args.nargs;
+	args->fwnode = acpi_fwnode_handle(acpi_args.adev);
+
+	for (i = 0; i < NR_FWNODE_REFERENCE_ARGS; i++)
+		args->args[i] = i < acpi_args.nargs ? acpi_args.args[i] : 0;
+
+	return 0;
+}
+
 static struct fwnode_handle *
 acpi_fwnode_graph_get_next_endpoint(const struct fwnode_handle *fwnode,
 				    struct fwnode_handle *prev)
@@ -1248,6 +1274,7 @@ static int acpi_fwnode_graph_parse_endpoint(const struct fwnode_handle *fwnode,
 		.get_parent = acpi_node_get_parent,			\
 		.get_next_child_node = acpi_get_next_subnode,		\
 		.get_named_child_node = acpi_fwnode_get_named_child_node, \
+		.get_reference_args = acpi_fwnode_get_reference_args,	\
 		.graph_get_next_endpoint =				\
 			acpi_fwnode_graph_get_next_endpoint,		\
 		.graph_get_remote_endpoint =				\

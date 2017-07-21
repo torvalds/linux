@@ -891,6 +891,36 @@ of_fwnode_get_named_child_node(const struct fwnode_handle *fwnode,
 	return NULL;
 }
 
+static int
+of_fwnode_get_reference_args(const struct fwnode_handle *fwnode,
+			     const char *prop, const char *nargs_prop,
+			     unsigned int nargs, unsigned int index,
+			     struct fwnode_reference_args *args)
+{
+	struct of_phandle_args of_args;
+	unsigned int i;
+	int ret;
+
+	if (nargs_prop)
+		ret = of_parse_phandle_with_args(to_of_node(fwnode), prop,
+						 nargs_prop, index, &of_args);
+	else
+		ret = of_parse_phandle_with_fixed_args(to_of_node(fwnode), prop,
+						       nargs, index, &of_args);
+	if (ret < 0)
+		return ret;
+	if (!args)
+		return 0;
+
+	args->nargs = of_args.args_count;
+	args->fwnode = of_fwnode_handle(of_args.np);
+
+	for (i = 0; i < NR_FWNODE_REFERENCE_ARGS; i++)
+		args->args[i] = i < of_args.args_count ? of_args.args[i] : 0;
+
+	return 0;
+}
+
 static struct fwnode_handle *
 of_fwnode_graph_get_next_endpoint(const struct fwnode_handle *fwnode,
 				  struct fwnode_handle *prev)
@@ -949,6 +979,7 @@ const struct fwnode_operations of_fwnode_ops = {
 	.get_parent = of_fwnode_get_parent,
 	.get_next_child_node = of_fwnode_get_next_child_node,
 	.get_named_child_node = of_fwnode_get_named_child_node,
+	.get_reference_args = of_fwnode_get_reference_args,
 	.graph_get_next_endpoint = of_fwnode_graph_get_next_endpoint,
 	.graph_get_remote_endpoint = of_fwnode_graph_get_remote_endpoint,
 	.graph_get_port_parent = of_fwnode_graph_get_port_parent,
