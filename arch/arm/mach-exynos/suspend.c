@@ -187,21 +187,20 @@ static int __init exynos_pmu_irq_init(struct device_node *node,
 	struct irq_domain *parent_domain, *domain;
 
 	if (!parent) {
-		pr_err("%s: no parent, giving up\n", node->full_name);
+		pr_err("%pOF: no parent, giving up\n", node);
 		return -ENODEV;
 	}
 
 	parent_domain = irq_find_host(parent);
 	if (!parent_domain) {
-		pr_err("%s: unable to obtain parent domain\n", node->full_name);
+		pr_err("%pOF: unable to obtain parent domain\n", node);
 		return -ENXIO;
 	}
 
 	pmu_base_addr = of_iomap(node, 0);
 
 	if (!pmu_base_addr) {
-		pr_err("%s: failed to find exynos pmu register\n",
-		       node->full_name);
+		pr_err("%pOF: failed to find exynos pmu register\n", node);
 		return -ENOMEM;
 	}
 
