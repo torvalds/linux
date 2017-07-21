@@ -612,7 +612,6 @@
 		reg = <0x0 0xff730000 0x0 0x1000>;
 
 		power: power-controller {
-			status = "disabled";
 			compatible = "rockchip,rk3366-power-controller";
 			#power-domain-cells = <1>;
 			#address-cells = <1>;
@@ -624,11 +623,11 @@
 			 * synchronous reset.
 			 *
 			 * The clocks on the which NOC:
-			 * ACLK_IEP/ACLK_VOP0 are on ACLK_VIO0_NIU.
-			 * ACLK_RGA/ACLK_VOP1 are on ACLK_RGA_NIU.
-			 * ACLK_ISP is on ACLK_ISP_NIU.
-			 * ACLK_HDCP is on ACLK_HDCP_NIU.
-			 * The others (HCLK_*,PLCK_*) are on HCLK_VIO_NIU.
+			 * ACLK_IEP/ACLK_VOP_FULL are on ACLK_VIO0_NOC.
+			 * ACLK_RGA/ACLK_VOP_LITE are on ACLK_VIO1_NOC.
+			 * ACLK_ISP is on ACLK_ISP_NOC.
+			 * ACLK_HDCP is on ACLK_HDCP_NOC.
+			 * The others (HCLK_*,PLCK_*) are on HCLK_VIO_NOC.
 			 *
 			 * Which clock are device clocks:
 			 *	clocks		devices
@@ -638,9 +637,9 @@
 			 *	*_RGA		RGA
 			 *	*_DPHY*		LVDS
 			 *	*_HDMI		HDMI
-			 *	*_MIPI_*	MIPI
+			 *	*_MIPI_*	MIPI/LVDS
 			 */
-			pd_vio {
+			pd_vio@RK3366_PD_VIO {
 				reg = <RK3366_PD_VIO>;
 				clocks = <&cru ACLK_IEP>,
 					 <&cru ACLK_ISP>,
@@ -657,6 +656,7 @@
 					 <&cru HCLK_VOP_FULL>,
 					 <&cru HCLK_VOP_LITE>,
 					 <&cru HCLK_VIO_HDCPMMU>,
+					 <&cru PCLK_DPHYTX>,
 					 <&cru PCLK_HDMI_CTRL>,
 					 <&cru PCLK_HDCP>,
 					 <&cru PCLK_MIPI_DSI0>,
@@ -669,11 +669,11 @@
 			};
 
 			/*
-			 * Note: ACLK_VCODEC/HCLK_VCODEC are VCODEC
-			 * (video endecoder & decoder) clocks that on the
-			 * ACLK_VCODEC_NIU and HCLK_VCODEC_NIU (NOC).
+			 * Note: ACLK_VCODEC/HCLK_VCODEC are VPU clocks
+			 * that on the ACLK_VCODEC_NOC and
+			 * HCLK_VCODEC_NOC.
 			 */
-			pd_vpu {
+			pd_vpu@RK3366_PD_VPU {
 				reg = <RK3366_PD_VPU>;
 				clocks = <&cru ACLK_VIDEO>,
 					 <&cru HCLK_VIDEO>;
@@ -681,30 +681,22 @@
 
 			/*
 			 * Note: ACLK_RKVDEC/HCLK_RKVDEC are RKVDEC
-			 * (video decoder) clocks that on the
-			 * ACLK_RKVDEC_NIU and HCLK_RKVDEC_NIU (NOC).
+			 * clocks that on the ACLK_RKVDEC_NOC and
+			 * HCLK_RKVDEC_NOC.
 			 */
-			pd_rkvdec {
+			pd_rkvdec@RK3366_PD_RKVDEC {
 				reg = <RK3366_PD_RKVDEC>;
 				clocks = <&cru ACLK_RKVDEC>,
-					 <&cru HCLK_RKVDEC>;
-			};
-
-			pd_video {
-				reg = <RK3366_PD_VIDEO>;
-				clocks = <&cru ACLK_VIDEO>,
-					 <&cru ACLK_RKVDEC>,
-					 <&cru HCLK_VIDEO>,
 					 <&cru HCLK_RKVDEC>,
 					 <&cru SCLK_HEVC_CABAC>,
 					 <&cru SCLK_HEVC_CORE>;
 			};
 
 			/*
-			 * Note: ACLK_GPU is the GPU clock,
-			 * and on the ACLK_GPU_NIU (NOC).
+			 * Note: ACLK_GPU is the GPU clock
+			 * that on the ACLK_GPU_NOC.
 			 */
-			pd_gpu {
+			pd_gpu@RK3366_PD_GPU {
 				reg = <RK3366_PD_GPU>;
 				clocks = <&cru ACLK_GPU>;
 			};
@@ -886,6 +878,7 @@
 		interrupt-names = "vop_mmu";
 		clocks = <&cru ACLK_VOP_FULL>, <&cru DCLK_VOP_FULL>;
 		clock-names = "aclk", "hclk";
+		power-domains = <&power RK3366_PD_VIO>;
 		#iommu-cells = <0>;
 		status = "disabled";
 	};
@@ -898,6 +891,7 @@
 		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_IEP>, <&cru HCLK_IEP>;
 		clock-names = "aclk_iep", "hclk_iep";
+		power-domains = <&power RK3366_PD_VIO>;
 		allocator = <1>;
 		version = <2>;
 		status = "disabled";
@@ -908,6 +902,7 @@
 		reg = <0x0 0xff900800 0x0 0x100>;
 		interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "iep_mmu";
+		power-domains = <&power RK3366_PD_VIO>;
 		#iommu-cells = <0>;
 		status = "disabled";
 	};
@@ -919,6 +914,7 @@
 		interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru ACLK_RGA>, <&cru HCLK_RGA>, <&cru SCLK_RGA>;
 		clock-names = "aclk_rga", "hclk_rga", "clk_rga";
+		power-domains = <&power RK3366_PD_VIO>;
 		status = "disabled";
 	};
 
@@ -929,6 +925,7 @@
 		clocks = <&cru ACLK_VOP_FULL>, <&cru DCLK_VOP_FULL>,
 			 <&cru HCLK_VOP_FULL>;
 		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
+		power-domains = <&power RK3366_PD_VIO>;
 		resets = <&cru SRST_VOP0_AXI>, <&cru SRST_VOP0_DCLK>,
 			 <&cru SRST_VOP0_AHB>;
 		reset-names = "axi", "ahb", "dclk";
@@ -966,7 +963,7 @@
 		reset-names = "apb";
 		phys = <&mipi_dphy>;
 		phy-names = "mipi_dphy";
-		//power-domains = <&power RK3366_PD_VIO>;
+		power-domains = <&power RK3366_PD_VIO>;
 		rockchip,grf = <&grf>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -1002,7 +999,7 @@
 		reg-names = "mipi_lvds_phy", "mipi_lvds_ctl";
 		clocks = <&cru PCLK_DPHYTX>, <&cru PCLK_MIPI_DSI0>;
 		clock-names = "pclk_lvds", "pclk_lvds_ctl";
-		//power-domains = <&power RK3368_PD_VIO>;
+		power-domains = <&power RK3366_PD_VIO>;
 		pinctrl-names = "lcdc", "gpio";
 		pinctrl-0 = <&lcdc_lcdc>;
 		pinctrl-1 = <&lcdc_gpio>;
@@ -1068,6 +1065,7 @@
 		interrupt-names = "irq_dec", "irq_enc";
 		clocks = <&cru ACLK_VIDEO>, <&cru HCLK_VIDEO>;
 		clock-names = "aclk_vcodec", "hclk_vcodec";
+		power-domains = <&power RK3366_PD_VPU>;
 		resets = <&cru SRST_VIDEO_AHB>, <&cru SRST_VIDEO_AXI>;
 		reset-names = "video_h", "video_a";
 		name = "vpu_service";
@@ -1084,6 +1082,7 @@
 		interrupt-names = "vpu_mmu";
 		clocks = <&cru ACLK_VIDEO>, <&cru HCLK_VIDEO>;
 		clock-names = "aclk", "hclk";
+		power-domains = <&power RK3366_PD_VPU>;
 		#iommu-cells = <0>;
 		status = "disabled";
 	};
@@ -1098,6 +1097,7 @@
 		interrupt-names = "irq_dec";
 		clocks = <&cru ACLK_RKVDEC>, <&cru HCLK_RKVDEC>,<&cru SCLK_HEVC_CABAC>,<&cru SCLK_HEVC_CORE>;
 		clock-names = "aclk_vcodec", "hclk_vcodec", "clk_cabac", "clk_core";
+		power-domains = <&power RK3366_PD_RKVDEC>;
 		resets = <&cru SRST_RKVDEC_AHB>, <&cru SRST_VIDEO_AXI>;
 		reset-names = "video_h", "video_a";
 		dev_mode = <2>;
@@ -1115,6 +1115,7 @@
 		interrupt-names = "vdec_mmu";
 		clocks = <&cru ACLK_RKVDEC>, <&cru HCLK_RKVDEC>;
 		clock-names = "aclk", "hclk";
+		power-domains = <&power RK3366_PD_RKVDEC>;
 		#iommu-cells = <0>;
 		status = "disabled";
 	};
@@ -1762,6 +1763,7 @@
 		clocks = <&cru ACLK_GPU>;
 		clock-names = "clk_mali";
 		#cooling-cells = <2>; /* min followed by max */
+		power-domains = <&power RK3366_PD_GPU>;
 		operating-points-v2 = <&gpu_opp_table>;
 		status = "disabled";
 
