@@ -249,11 +249,6 @@ void media_device_cleanup(struct media_device *mdev);
  *    driver-specific format. When possible the revision should be formatted
  *    with the KERNEL_VERSION() macro.
  *
- *  - &media_entity.driver_version is formatted with the KERNEL_VERSION()
- *    macro. The version minor must be incremented when new features are added
- *    to the userspace API without breaking binary compatibility. The version
- *    major must be incremented when binary compatibility is broken.
- *
  * .. note::
  *
  *    #) Upon successful registration a character device named media[0-9]+ is created. The device major and minor numbers are dynamic. The model name is exported as a sysfs attribute.

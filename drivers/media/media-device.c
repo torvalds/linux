@@ -71,7 +71,7 @@ static int media_device_get_info(struct media_device *dev,
 
 	info->media_version = MEDIA_API_VERSION;
 	info->hw_revision = dev->hw_revision;
-	info->driver_version = dev->driver_version;
+	info->driver_version = LINUX_VERSION_CODE;
 
 	return 0;
 }
