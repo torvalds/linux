@@ -1,17 +1,18 @@
-/* AF_RXRPC parameters
+/* Types and definitions for AF_RXRPC.
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
  *
  * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
+ * modify it under the terms of the GNU General Public Licence
  * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
+ * 2 of the Licence, or (at your option) any later version.
  */
 
-#ifndef _LINUX_RXRPC_H
-#define _LINUX_RXRPC_H
+#ifndef _UAPI_LINUX_RXRPC_H
+#define _UAPI_LINUX_RXRPC_H
 
+#include <linux/types.h>
 #include <linux/in.h>
 #include <linux/in6.h>
 
@@ -76,4 +77,4 @@ enum rxrpc_cmsg_type {
 #define RXRPC_SECURITY_RXGK	4	/* gssapi-based */
 #define RXRPC_SECURITY_RXK5	5	/* kerberos 5 */
 
-#endif /* _LINUX_RXRPC_H */
+#endif /* _UAPI_LINUX_RXRPC_H */
