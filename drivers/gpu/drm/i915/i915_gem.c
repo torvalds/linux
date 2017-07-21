@@ -2964,6 +2964,8 @@ static bool i915_gem_reset_request(struct drm_i915_gem_request *request)
 void i915_gem_reset_engine(struct intel_engine_cs *engine,
 			   struct drm_i915_gem_request *request)
 {
+	engine->irq_posted = 0;
+
 	if (request && i915_gem_reset_request(request)) {
 		DRM_DEBUG_DRIVER("resetting %s to restart from tail of request 0x%x\n",
 				 engine->name, request->global_seqno);
