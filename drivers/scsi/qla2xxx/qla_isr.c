@@ -1856,17 +1856,42 @@ qla24xx_nvme_iocb_entry(scsi_qla_host_t *vha, struct req_que *req, void *tsk)
 	fd->transferred_length = fd->payload_length -
 	    le32_to_cpu(sts->residual_len);
 
+	/*
+	 * If transport error then Failure (HBA rejects request)
+	 * otherwise transport will handle.
+	 */
 	if (sts->entry_status) {
 		ql_log(ql_log_warn, fcport->vha, 0x5038,
 		    "NVME-%s error - hdl=%x entry-status(%x).\n",
 		    sp->name, sp->handle, sts->entry_status);
 		ret = QLA_FUNCTION_FAILED;
-	} else if (sts->comp_status != cpu_to_le16(CS_COMPLETE)) {
-		ql_log(ql_log_warn, fcport->vha, 0x5039,
-		    "NVME-%s error - hdl=%x completion status(%x) resid=%x  ox_id=%x\n",
-		    sp->name, sp->handle, sts->comp_status,
-		    le32_to_cpu(sts->residual_len), sts->ox_id);
-		ret = QLA_FUNCTION_FAILED;
+	} else  {
+		switch (le16_to_cpu(sts->comp_status)) {
+			case CS_COMPLETE:
+				ret = 0;
+			break;
+
+			case CS_ABORTED:
+			case CS_RESET:
+			case CS_PORT_UNAVAILABLE:
+			case CS_PORT_LOGGED_OUT:
+			case CS_PORT_BUSY:
+				ql_log(ql_log_warn, fcport->vha, 0x5060,
+				"NVME-%s ERR Handling - hdl=%x completion status(%x) resid=%x  ox_id=%x\n",
+				sp->name, sp->handle, sts->comp_status,
+				le32_to_cpu(sts->residual_len), sts->ox_id);
+				fd->transferred_length = fd->payload_length;
+				ret = QLA_ABORTED;
+			break;
+
+			default:
+				ql_log(ql_log_warn, fcport->vha, 0x5060,
+				"NVME-%s error - hdl=%x completion status(%x) resid=%x  ox_id=%x\n",
+				sp->name, sp->handle, sts->comp_status,
+				le32_to_cpu(sts->residual_len), sts->ox_id);
+				ret = QLA_FUNCTION_FAILED;
+				break;
+		}
 	}
 	sp->done(sp, ret);
 }

@@ -169,8 +169,8 @@ static void qla_nvme_sp_done(void *ptr, int res)
 	if (!(sp->fcport->nvme_flag & NVME_FLAG_REGISTERED))
 		goto rel;
 
-	if (unlikely(nvme->u.nvme.comp_status || res))
-		fd->status = -EINVAL;
+	if (unlikely(res == QLA_FUNCTION_FAILED))
+		fd->status = NVME_SC_FC_TRANSPORT_ERROR;
 	else
 		fd->status = 0;
 
@@ -635,13 +635,18 @@ static void qla_nvme_unregister_remote_port(struct work_struct *work)
 	if (!IS_ENABLED(CONFIG_NVME_FC))
 		return;
 
+	ql_log(ql_log_warn, NULL, 0x2112,
+	    "%s: unregister remoteport on %p\n",__func__, fcport);
+
 	list_for_each_entry_safe(rport, trport,
 	    &fcport->vha->nvme_rport_list, list) {
 		if (rport->fcport == fcport) {
 			ql_log(ql_log_info, fcport->vha, 0x2113,
 			    "%s: fcport=%p\n", __func__, fcport);
+			init_completion(&fcport->nvme_del_done);
 			nvme_fc_unregister_remoteport(
 			    fcport->nvme_remote_port);
+			qla_nvme_wait_on_rport_del(fcport);
 		}
 	}
 }
