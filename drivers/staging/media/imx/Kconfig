@@ -1,6 +1,7 @@
 config VIDEO_IMX_MEDIA
 	tristate "i.MX5/6 V4L2 media core driver"
 	depends on MEDIA_CONTROLLER && VIDEO_V4L2 && ARCH_MXC && IMX_IPUV3_CORE
+	depends on VIDEO_V4L2_SUBDEV_API
 	select V4L2_FWNODE
 	---help---
 	  Say yes here to enable support for video4linux media controller
