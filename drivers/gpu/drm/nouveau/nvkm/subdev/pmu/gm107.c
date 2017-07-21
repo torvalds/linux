@@ -32,6 +32,7 @@ gm107_pmu = {
 	.code.size = sizeof(gm107_pmu_code),
 	.data.data = gm107_pmu_data,
 	.data.size = sizeof(gm107_pmu_data),
+	.enabled = gf100_pmu_enabled,
 	.reset = gf100_pmu_reset,
 	.init = gt215_pmu_init,
 	.fini = gt215_pmu_fini,

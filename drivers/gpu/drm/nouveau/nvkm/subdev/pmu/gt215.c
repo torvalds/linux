@@ -189,6 +189,12 @@ gt215_pmu_reset(struct nvkm_pmu *pmu)
 	nvkm_rd32(device, 0x022210);
 }
 
+static bool
+gt215_pmu_enabled(struct nvkm_pmu *pmu)
+{
+	return nvkm_rd32(pmu->subdev.device, 0x022210) & 0x00000001;
+}
+
 int
 gt215_pmu_init(struct nvkm_pmu *pmu)
 {
@@ -241,6 +247,7 @@ gt215_pmu = {
 	.code.size = sizeof(gt215_pmu_code),
 	.data.data = gt215_pmu_data,
 	.data.size = sizeof(gt215_pmu_data),
+	.enabled = gt215_pmu_enabled,
 	.reset = gt215_pmu_reset,
 	.init = gt215_pmu_init,
 	.fini = gt215_pmu_fini,

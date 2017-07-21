@@ -34,12 +34,19 @@ gf100_pmu_reset(struct nvkm_pmu *pmu)
 	nvkm_mc_enable(device, NVKM_SUBDEV_PMU);
 }
 
+bool
+gf100_pmu_enabled(struct nvkm_pmu *pmu)
+{
+	return nvkm_mc_enabled(pmu->subdev.device, NVKM_SUBDEV_PMU);
+}
+
 static const struct nvkm_pmu_func
 gf100_pmu = {
 	.code.data = gf100_pmu_code,
 	.code.size = sizeof(gf100_pmu_code),
 	.data.data = gf100_pmu_data,
 	.data.size = sizeof(gf100_pmu_data),
+	.enabled = gf100_pmu_enabled,
 	.reset = gf100_pmu_reset,
 	.init = gt215_pmu_init,
 	.fini = gt215_pmu_fini,
