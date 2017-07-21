@@ -405,7 +405,7 @@ static const struct file_operations obd_device_list_fops = {
 struct kobject *lustre_kobj;
 EXPORT_SYMBOL_GPL(lustre_kobj);
 
-static struct attribute_group lustre_attr_group = {
+static const struct attribute_group lustre_attr_group = {
 	.attrs = lustre_attrs,
 };
 

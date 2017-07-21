@@ -151,7 +151,7 @@ static struct attribute *lustre_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group lustre_attr_group = {
+static const struct attribute_group lustre_attr_group = {
 	.attrs = lustre_attrs,
 };
 
