@@ -334,12 +334,31 @@ static bool gart_iommu_capable(enum iommu_cap cap)
 	return false;
 }
 
+static int gart_iommu_add_device(struct device *dev)
+{
+	struct iommu_group *group = iommu_group_get_for_dev(dev);
+
+	if (IS_ERR(group))
+		return PTR_ERR(group);
+
+	iommu_group_put(group);
+	return 0;
+}
+
+static void gart_iommu_remove_device(struct device *dev)
+{
+	iommu_group_remove_device(dev);
+}
+
 static const struct iommu_ops gart_iommu_ops = {
 	.capable	= gart_iommu_capable,
 	.domain_alloc	= gart_iommu_domain_alloc,
 	.domain_free	= gart_iommu_domain_free,
 	.attach_dev	= gart_iommu_attach_dev,
 	.detach_dev	= gart_iommu_detach_dev,
+	.add_device	= gart_iommu_add_device,
+	.remove_device	= gart_iommu_remove_device,
+	.device_group	= generic_device_group,
 	.map		= gart_iommu_map,
 	.map_sg		= default_iommu_map_sg,
 	.unmap		= gart_iommu_unmap,
