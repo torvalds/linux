@@ -1505,13 +1505,13 @@ static int ov965x_probe(struct i2c_client *client,
 
 	ret = ov965x_configure_gpios(ov965x, pdata);
 	if (ret < 0)
-		return ret;
+		goto err_mutex;
 
 	ov965x->pad.flags = MEDIA_PAD_FL_SOURCE;
 	sd->entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	ret = media_entity_pads_init(&sd->entity, 1, &ov965x->pad);
 	if (ret < 0)
-		return ret;
+		goto err_mutex;
 
 	ret = ov965x_initialize_controls(ov965x);
 	if (ret < 0)
@@ -1537,16 +1537,20 @@ err_ctrls:
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 err_me:
 	media_entity_cleanup(&sd->entity);
+err_mutex:
+	mutex_destroy(&ov965x->lock);
 	return ret;
 }
 
 static int ov965x_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
+	struct ov965x *ov965x = to_ov965x(sd);
 
 	v4l2_async_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 	media_entity_cleanup(&sd->entity);
+	mutex_destroy(&ov965x->lock);
 
 	return 0;
 }
