@@ -177,7 +177,6 @@ static int perf_evsel__add_sample(struct perf_evsel *evsel,
 	 */
 	process_branch_stack(sample->branch_stack, al, sample);
 
-	sample->period = 1;
 	sample->weight = 1;
 
 	he = hists__add_entry(hists, al, NULL, NULL, NULL, sample, true);
