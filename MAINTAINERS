@@ -10684,7 +10684,6 @@ F:	drivers/ptp/*
 F:	include/linux/ptp_cl*
 
 PTRACE SUPPORT
-M:	Roland McGrath <roland@hack.frob.com>
 M:	Oleg Nesterov <oleg@redhat.com>
 S:	Maintained
 F:	include/asm-generic/syscall.h
@@ -10692,7 +10691,12 @@ F:	include/linux/ptrace.h
 F:	include/linux/regset.h
 F:	include/linux/tracehook.h
 F:	include/uapi/linux/ptrace.h
+F:	include/uapi/linux/ptrace.h
+F:	include/asm-generic/ptrace.h
 F:	kernel/ptrace.c
+F:	arch/*/ptrace*.c
+F:	arch/*/*/ptrace*.c
+F:	arch/*/include/asm/ptrace*.h
 
 PULSE8-CEC DRIVER
 M:	Hans Verkuil <hverkuil@xs4all.nl>
