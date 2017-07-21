@@ -1950,15 +1950,14 @@ int i915_reset_engine(struct intel_engine_cs *engine)
 		goto out;
 	}
 
+	ret = intel_gpu_reset(engine->i915, intel_engine_flag(engine));
+
 	/*
 	 * The request that caused the hang is stuck on elsp, we know the
 	 * active request and can drop it, adjust head to skip the offending
 	 * request to resume executing remaining requests in the queue.
 	 */
 	i915_gem_reset_engine(engine, active_request);
-
-	/* Finally, reset just this engine. */
-	ret = intel_gpu_reset(engine->i915, intel_engine_flag(engine));
 
 	i915_gem_reset_finish_engine(engine);
 
