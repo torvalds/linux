@@ -152,6 +152,11 @@
 				<&msgmgr 0 0>;
 			reg-names = "debug_messages";
 			reg = <0x02921c00 0x400>;
+
+			k2g_pds: power-controller {
+				compatible = "ti,sci-pm-domain";
+				#power-domain-cells = <1>;
+			};
 		};
 	};
 };
