@@ -484,6 +484,9 @@ int qla24xx_gidlist_wait(struct scsi_qla_host *, void *, dma_addr_t,
 int __qla24xx_parse_gpdb(struct scsi_qla_host *, fc_port_t *,
 	struct port_database_24xx *);
 
+extern int qla27xx_get_zio_threshold(scsi_qla_host_t *, uint16_t *);
+extern int qla27xx_set_zio_threshold(scsi_qla_host_t *, uint16_t);
+
 /*
  * Global Function Prototypes in qla_isr.c source file.
  */

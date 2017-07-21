@@ -977,6 +977,7 @@ struct mbx_cmd_32 {
 #define MBC_ABORT_TARGET		0x17	/* Abort target (ID). */
 #define MBC_RESET			0x18	/* Reset. */
 #define MBC_GET_ADAPTER_LOOP_ID		0x20	/* Get loop id of ISP2200. */
+#define MBC_GET_SET_ZIO_THRESHOLD	0x21	/* Get/SET ZIO THRESHOLD. */
 #define MBC_GET_RETRY_COUNT		0x22	/* Get f/w retry cnt/delay. */
 #define MBC_DISABLE_VI			0x24	/* Disable VI operation. */
 #define MBC_ENABLE_VI			0x25	/* Enable VI operation. */
@@ -4017,6 +4018,9 @@ struct qla_hw_data {
 
 	struct qlt_hw_data tgt;
 	int	allow_cna_fw_dump;
+
+	atomic_t        nvme_active_aen_cnt;
+	uint16_t        nvme_last_rptd_aen;             /* Last recorded aen count */
 };
 
 /*
@@ -4089,6 +4093,7 @@ typedef struct scsi_qla_host {
 #define FX00_CRITEMP_RECOVERY	25
 #define FX00_HOST_INFO_RESEND	26
 #define QPAIR_ONLINE_CHECK_NEEDED	27
+#define SET_ZIO_THRESHOLD_NEEDED	28
 
 	unsigned long	pci_flags;
 #define PFLG_DISCONNECTED	0	/* PCI device removed */

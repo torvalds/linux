@@ -305,6 +305,7 @@ static int qla2x00_start_nvme_mq(srb_t *sp)
 	uint16_t	avail_dsds;
 	uint32_t	*cur_dsd;
 	struct req_que *req = NULL;
+	struct rsp_que *rsp = NULL;
 	struct scsi_qla_host *vha = sp->fcport->vha;
 	struct qla_hw_data *ha = vha->hw;
 	struct qla_qpair *qpair = sp->qpair;
@@ -313,12 +314,14 @@ static int qla2x00_start_nvme_mq(srb_t *sp)
 	struct nvmefc_fcp_req *fd = nvme->u.nvme.desc;
 	uint32_t        rval = QLA_SUCCESS;
 
-	/* Setup qpair pointers */
-	req = qpair->req;
 	tot_dsds = fd->sg_cnt;
 
 	/* Acquire qpair specific lock */
 	spin_lock_irqsave(&qpair->qp_lock, flags);
+
+	/* Setup qpair pointers */
+	req = qpair->req;
+	rsp = qpair->rsp;
 
 	/* Check for room in outstanding command list. */
 	handle = req->current_outstanding_cmd;
@@ -354,7 +357,7 @@ static int qla2x00_start_nvme_mq(srb_t *sp)
 		struct nvme_fc_cmd_iu *cmd = fd->cmdaddr;
 		if (cmd->sqe.common.opcode == nvme_admin_async_event) {
 			nvme->u.nvme.aen_op = 1;
-			atomic_inc(&vha->nvme_active_aen_cnt);
+			atomic_inc(&vha->hw->nvme_active_aen_cnt);
 		}
 	}
 
@@ -466,6 +469,11 @@ static int qla2x00_start_nvme_mq(srb_t *sp)
 
 	/* Set chip new ring index. */
 	WRT_REG_DWORD(req->req_q_in, req->ring_index);
+
+	/* Manage unprocessed RIO/ZIO commands in response queue. */
+	if (vha->flags.process_response_queue &&
+	    rsp->ring_ptr->signature != RESPONSE_PROCESSED)
+		qla24xx_process_response_queue(vha, rsp);
 
 queuing_error:
 	spin_unlock_irqrestore(&qpair->qp_lock, flags);

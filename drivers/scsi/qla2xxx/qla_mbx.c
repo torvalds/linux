@@ -947,20 +947,12 @@ qla2x00_get_fw_version(scsi_qla_host_t *vha)
 			    "%s: Firmware supports Exchange Offload 0x%x\n",
 			    __func__, ha->fw_attributes_h);
 
-		/* bit 26 of fw_attributes */
-		if ((ha->fw_attributes_h & 0x400) && ql2xnvmeenable) {
-			struct init_cb_24xx *icb;
-
-			icb = (struct init_cb_24xx *)ha->init_cb;
-			/*
-			 * fw supports nvme and driver load
-			 * parameter requested nvme
-			 */
+		/*
+		 * FW supports nvme and driver load parameter requested nvme.
+		 * BIT 26 of fw_attributes indicates NVMe support.
+		 */
+		if ((ha->fw_attributes_h & 0x400) && ql2xnvmeenable)
 			vha->flags.nvme_enabled = 1;
-			icb->firmware_options_2 &= cpu_to_le32(~0xf);
-			ha->zio_mode = 0;
-			ha->zio_timer = 0;
-		}
 
 	}
 
@@ -6083,5 +6075,58 @@ int qla24xx_gidlist_wait(struct scsi_qla_host *vha,
 		    "%s:  done\n", __func__);
 	}
 done:
+	return rval;
+}
+
+int qla27xx_set_zio_threshold(scsi_qla_host_t *vha, uint16_t value)
+{
+	int rval;
+	mbx_cmd_t	mc;
+	mbx_cmd_t	*mcp = &mc;
+
+	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1200,
+	    "Entered %s\n", __func__);
+
+	memset(mcp->mb, 0 , sizeof(mcp->mb));
+	mcp->mb[0] = MBC_GET_SET_ZIO_THRESHOLD;
+	mcp->mb[1] = cpu_to_le16(1);
+	mcp->mb[2] = cpu_to_le16(value);
+	mcp->out_mb = MBX_2 | MBX_1 | MBX_0;
+	mcp->in_mb = MBX_2 | MBX_0;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = 0;
+
+	rval = qla2x00_mailbox_command(vha, mcp);
+
+	ql_dbg(ql_dbg_mbx, vha, 0x1201, "%s %x\n",
+	    (rval != QLA_SUCCESS) ? "Failed"  : "Done", rval);
+
+	return rval;
+}
+
+int qla27xx_get_zio_threshold(scsi_qla_host_t *vha, uint16_t *value)
+{
+	int rval;
+	mbx_cmd_t	mc;
+	mbx_cmd_t	*mcp = &mc;
+
+	ql_dbg(ql_dbg_mbx + ql_dbg_verbose, vha, 0x1203,
+	    "Entered %s\n", __func__);
+
+	memset(mcp->mb, 0, sizeof(mcp->mb));
+	mcp->mb[0] = MBC_GET_SET_ZIO_THRESHOLD;
+	mcp->mb[1] = cpu_to_le16(0);
+	mcp->out_mb = MBX_1 | MBX_0;
+	mcp->in_mb = MBX_2 | MBX_0;
+	mcp->tov = MBX_TOV_SECONDS;
+	mcp->flags = 0;
+
+	rval = qla2x00_mailbox_command(vha, mcp);
+	if (rval == QLA_SUCCESS)
+		*value = mc.mb[2];
+
+	ql_dbg(ql_dbg_mbx, vha, 0x1205, "%s %x\n",
+	    (rval != QLA_SUCCESS) ? "Failed" : "Done", rval);
+
 	return rval;
 }

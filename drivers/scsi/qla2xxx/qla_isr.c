@@ -1823,7 +1823,7 @@ qla24xx_nvme_iocb_entry(scsi_qla_host_t *vha, struct req_que *req, void *tsk)
 	nvme = &sp->u.iocb_cmd;
 
 	if (unlikely(nvme->u.nvme.aen_op))
-		atomic_dec(&sp->vha->nvme_active_aen_cnt);
+		atomic_dec(&sp->vha->hw->nvme_active_aen_cnt);
 
 	/*
 	 * State flags: Bit 6 and 0.
