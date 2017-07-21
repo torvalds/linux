@@ -470,7 +470,7 @@ typedef struct srb {
 	uint8_t cmd_type;
 	uint8_t pad[3];
 	atomic_t ref_count;
-	wait_queue_head_t nvme_ls_waitQ;
+	wait_queue_head_t nvme_ls_waitq;
 	struct fc_port *fcport;
 	struct scsi_qla_host *vha;
 	uint32_t handle;
@@ -2302,7 +2302,7 @@ typedef struct fc_port {
 
 	struct work_struct nvme_del_work;
 	atomic_t nvme_ref_count;
-	wait_queue_head_t nvme_waitQ;
+	wait_queue_head_t nvme_waitq;
 	uint32_t nvme_prli_service_param;
 #define NVME_PRLI_SP_CONF       BIT_7
 #define NVME_PRLI_SP_INITIATOR  BIT_5
@@ -4130,7 +4130,7 @@ typedef struct scsi_qla_host {
 
 	struct		nvme_fc_local_port *nvme_local_port;
 	atomic_t	nvme_ref_count;
-	wait_queue_head_t nvme_waitQ;
+	wait_queue_head_t nvme_waitq;
 	struct list_head nvme_rport_list;
 	atomic_t 	nvme_active_aen_cnt;
 	uint16_t	nvme_last_rptd_aen;

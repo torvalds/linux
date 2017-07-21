@@ -710,7 +710,7 @@ qla2x00_sp_free_dma(void *ptr)
 	}
 
 end:
-	if ((sp->type != SRB_NVME_CMD) && (sp->type != SRB_NVME_LS)) {
+	if (sp->type != SRB_NVME_CMD && sp->type != SRB_NVME_LS) {
 		CMD_SP(cmd) = NULL;
 		qla2x00_rel_sp(sp);
 	}
@@ -1715,8 +1715,8 @@ qla2x00_abort_all_cmds(scsi_qla_host_t *vha, int res)
 			if (sp) {
 				req->outstanding_cmds[cnt] = NULL;
 				if (sp->cmd_type == TYPE_SRB) {
-					if ((sp->type == SRB_NVME_CMD) ||
-					    (sp->type == SRB_NVME_LS)) {
+					if (sp->type == SRB_NVME_CMD ||
+					    sp->type == SRB_NVME_LS) {
 						sp_get(sp);
 						spin_unlock_irqrestore(
 						    &ha->hardware_lock, flags);
