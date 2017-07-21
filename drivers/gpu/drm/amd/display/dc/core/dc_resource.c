@@ -1416,23 +1416,17 @@ static int get_norm_pix_clk(const struct dc_crtc_timing *timing)
 	return normalized_pix_clk;
 }
 
-static void calculate_phy_pix_clks(struct validate_context *context)
+static void calculate_phy_pix_clks(struct core_stream *stream)
 {
-	int i;
+	update_stream_signal(stream);
 
-	for (i = 0; i < context->stream_count; i++) {
-		struct core_stream *stream = context->streams[i];
-
-		update_stream_signal(stream);
-
-		/* update actual pixel clock on all streams */
-		if (dc_is_hdmi_signal(stream->signal))
-			stream->phy_pix_clk = get_norm_pix_clk(
-				&stream->public.timing);
-		else
-			stream->phy_pix_clk =
-				stream->public.timing.pix_clk_khz;
-	}
+	/* update actual pixel clock on all streams */
+	if (dc_is_hdmi_signal(stream->signal))
+		stream->phy_pix_clk = get_norm_pix_clk(
+			&stream->public.timing);
+	else
+		stream->phy_pix_clk =
+			stream->public.timing.pix_clk_khz;
 }
 
 enum dc_status resource_map_pool_resources(
@@ -1442,8 +1436,6 @@ enum dc_status resource_map_pool_resources(
 {
 	const struct resource_pool *pool = dc->res_pool;
 	int i, j;
-
-	calculate_phy_pix_clks(context);
 
 	for (i = 0; old_context && i < context->stream_count; i++) {
 		struct core_stream *stream = context->streams[i];
@@ -2515,4 +2507,37 @@ void resource_build_bit_depth_reduction_params(const struct core_stream *stream,
 	}
 
 	fmt_bit_depth->pixel_encoding = pixel_encoding;
+}
+
+bool dc_validate_stream(const struct dc *dc, const struct dc_stream *stream)
+{
+	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc_context *dc_ctx = core_dc->ctx;
+	struct core_stream *core_stream = DC_STREAM_TO_CORE(stream);
+	struct dc_link *link = core_stream->sink->link;
+	struct timing_generator *tg = core_dc->res_pool->timing_generators[0];
+	enum dc_status res = DC_OK;
+
+	calculate_phy_pix_clks(core_stream);
+
+	if (!tg->funcs->validate_timing(tg, &core_stream->public.timing))
+		res = DC_FAIL_CONTROLLER_VALIDATE;
+
+	if (res == DC_OK)
+		if (!link->link_enc->funcs->validate_output_with_stream(
+						link->link_enc, core_stream))
+			res = DC_FAIL_ENC_VALIDATE;
+
+	/* TODO: validate audio ASIC caps, encoder */
+
+	if (res == DC_OK)
+		res = dc_link_validate_mode_timing(core_stream,
+		      link,
+		      &core_stream->public.timing);
+
+	if (res != DC_OK)
+		DC_ERROR("Failed validation for stream %p, err:%d, !\n",
+				stream, res);
+
+	return res == DC_OK;
 }

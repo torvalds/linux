@@ -664,6 +664,20 @@ static bool is_validation_required(
 	return false;
 }
 
+static bool validate_streams (
+		const struct dc *dc,
+		const struct dc_validation_set set[],
+		int set_count)
+{
+	int i;
+
+	for (i = 0; i < set_count; i++)
+		if (!dc_validate_stream(dc, set[i].stream))
+			return false;
+
+	return true;
+}
+
 struct validate_context *dc_get_validate_context(
 		const struct dc *dc,
 		const struct dc_validation_set set[],
@@ -672,6 +686,7 @@ struct validate_context *dc_get_validate_context(
 	struct core_dc *core_dc = DC_TO_CORE(dc);
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	struct validate_context *context;
+
 
 	context = dm_alloc(sizeof(struct validate_context));
 	if (context == NULL)
@@ -711,6 +726,9 @@ bool dc_validate_resources(
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	struct validate_context *context;
 
+	if (!validate_streams(dc, set, set_count))
+		return false;
+
 	context = dm_alloc(sizeof(struct validate_context));
 	if (context == NULL)
 		goto context_alloc_fail;
@@ -741,6 +759,9 @@ bool dc_validate_guaranteed(
 	struct core_dc *core_dc = DC_TO_CORE(dc);
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	struct validate_context *context;
+
+	if (!dc_validate_stream(dc, stream))
+		return false;
 
 	context = dm_alloc(sizeof(struct validate_context));
 	if (context == NULL)
@@ -1043,6 +1064,9 @@ bool dc_commit_streams(
 		}
 
 	}
+
+	if (!validate_streams(dc, set, stream_count))
+		return false;
 
 	context = dm_alloc(sizeof(struct validate_context));
 	if (context == NULL)

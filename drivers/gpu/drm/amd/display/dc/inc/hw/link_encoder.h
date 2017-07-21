@@ -94,7 +94,7 @@ struct link_encoder {
 
 struct link_encoder_funcs {
 	bool (*validate_output_with_stream)(
-		struct link_encoder *enc, struct pipe_ctx *pipe_ctx);
+		struct link_encoder *enc, const struct core_stream *stream);
 	void (*hw_init)(struct link_encoder *enc);
 	void (*setup)(struct link_encoder *enc,
 		enum signal_type signal);

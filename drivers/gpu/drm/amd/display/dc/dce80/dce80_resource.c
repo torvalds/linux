@@ -667,7 +667,7 @@ static void destruct(struct dce110_resource_pool *pool)
 	}
 }
 
-static enum dc_status validate_mapped_resource(
+static enum dc_status build_mapped_resource(
 		const struct core_dc *dc,
 		struct validate_context *context,
 		struct validate_context *old_context)
@@ -677,7 +677,6 @@ static enum dc_status validate_mapped_resource(
 
 	for (i = 0; i < context->stream_count; i++) {
 		struct core_stream *stream = context->streams[i];
-		struct dc_link *link = stream->sink->link;
 
 		if (old_context && resource_is_stream_unchanged(old_context, stream))
 			continue;
@@ -689,25 +688,7 @@ static enum dc_status validate_mapped_resource(
 			if (context->res_ctx.pipe_ctx[j].stream != stream)
 				continue;
 
-			if (!pipe_ctx->tg->funcs->validate_timing(
-				pipe_ctx->tg, &stream->public.timing))
-				return DC_FAIL_CONTROLLER_VALIDATE;
-
 			status = dce110_resource_build_pipe_hw_param(pipe_ctx);
-
-			if (status != DC_OK)
-				return status;
-
-			if (!link->link_enc->funcs->validate_output_with_stream(
-				link->link_enc,
-				pipe_ctx))
-				return DC_FAIL_ENC_VALIDATE;
-
-			/* TODO: validate audio ASIC caps, encoder */
-
-			status = dc_link_validate_mode_timing(stream,
-							      link,
-							      &stream->public.timing);
 
 			if (status != DC_OK)
 				return status;
@@ -786,7 +767,7 @@ enum dc_status dce80_validate_with_context(
 	}
 
 	if (result == DC_OK)
-		result = validate_mapped_resource(dc, context, old_context);
+		result = build_mapped_resource(dc, context, old_context);
 
 	if (result == DC_OK)
 		result = resource_build_scaling_params_for_context(dc, context);
@@ -814,7 +795,7 @@ enum dc_status dce80_validate_guaranteed(
 		result = resource_map_clock_resources(dc, context, NULL);
 
 	if (result == DC_OK)
-		result = validate_mapped_resource(dc, context, NULL);
+		result = build_mapped_resource(dc, context, NULL);
 
 	if (result == DC_OK) {
 		validate_guaranteed_copy_streams(

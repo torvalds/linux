@@ -559,6 +559,8 @@ struct dc_validation_set {
 	uint8_t surface_count;
 };
 
+bool dc_validate_stream(const struct dc *dc, const struct dc_stream *stream);
+
 /*
  * This function takes a set of resources and checks that they are cofunctional.
  *

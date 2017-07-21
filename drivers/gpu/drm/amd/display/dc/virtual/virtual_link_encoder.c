@@ -30,7 +30,7 @@
 
 static bool virtual_link_encoder_validate_output_with_stream(
 	struct link_encoder *enc,
-	struct pipe_ctx *pipe_ctx) { return true; }
+	const struct core_stream *stream) { return true; }
 
 static void virtual_link_encoder_hw_init(struct link_encoder *enc) {}
 
