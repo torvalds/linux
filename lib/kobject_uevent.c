@@ -52,6 +52,8 @@ static const char *kobject_actions[] = {
 	[KOBJ_MOVE] =		"move",
 	[KOBJ_ONLINE] =		"online",
 	[KOBJ_OFFLINE] =	"offline",
+	[KOBJ_BIND] =		"bind",
+	[KOBJ_UNBIND] =		"unbind",
 };
 
 static int kobject_action_type(const char *buf, size_t count,
