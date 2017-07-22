@@ -622,7 +622,8 @@ static int download_firmware(struct ll_device *lldev)
 			cmd = (struct hci_command *)action_ptr;
 			if (cmd->opcode == 0xff36) {
 				/* ignore remote change
-				 * baud rate HCI VS command */
+				 * baud rate HCI VS command
+				 */
 				bt_dev_warn(lldev->hu.hdev, "change remote baud rate command in firmware");
 				break;
 			}

@@ -657,7 +657,8 @@ static void btusb_intr_complete(struct urb *urb)
 	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (err < 0) {
 		/* -EPERM: urb is being killed;
-		 * -ENODEV: device got disconnected */
+		 * -ENODEV: device got disconnected
+		 */
 		if (err != -EPERM && err != -ENODEV)
 			BT_ERR("%s urb %p failed to resubmit (%d)",
 			       hdev->name, urb, -err);
@@ -746,7 +747,8 @@ static void btusb_bulk_complete(struct urb *urb)
 	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (err < 0) {
 		/* -EPERM: urb is being killed;
-		 * -ENODEV: device got disconnected */
+		 * -ENODEV: device got disconnected
+		 */
 		if (err != -EPERM && err != -ENODEV)
 			BT_ERR("%s urb %p failed to resubmit (%d)",
 			       hdev->name, urb, -err);
@@ -841,7 +843,8 @@ static void btusb_isoc_complete(struct urb *urb)
 	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (err < 0) {
 		/* -EPERM: urb is being killed;
-		 * -ENODEV: device got disconnected */
+		 * -ENODEV: device got disconnected
+		 */
 		if (err != -EPERM && err != -ENODEV)
 			BT_ERR("%s urb %p failed to resubmit (%d)",
 			       hdev->name, urb, -err);
@@ -953,7 +956,8 @@ static void btusb_diag_complete(struct urb *urb)
 	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (err < 0) {
 		/* -EPERM: urb is being killed;
-		 * -ENODEV: device got disconnected */
+		 * -ENODEV: device got disconnected
+		 */
 		if (err != -EPERM && err != -ENODEV)
 			BT_ERR("%s urb %p failed to resubmit (%d)",
 			       hdev->name, urb, -err);
@@ -2897,7 +2901,8 @@ static int btusb_probe(struct usb_interface *intf,
 		struct usb_device *udev = interface_to_usbdev(intf);
 
 		/* Old firmware would otherwise let ath3k driver load
-		 * patch and sysconfig files */
+		 * patch and sysconfig files
+		 */
 		if (le16_to_cpu(udev->descriptor.bcdDevice) <= 0x0001)
 			return -ENODEV;
 	}
