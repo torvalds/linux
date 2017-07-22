@@ -80,7 +80,7 @@ EXPORT_SYMBOL(elf_set_personality);
  *  - the binary requires an executable stack
  *  - we're running on a CPU which doesn't support NX.
  */
-int arm_elf_read_implies_exec(const struct elf32_hdr *x, int executable_stack)
+int arm_elf_read_implies_exec(int executable_stack)
 {
 	if (executable_stack != EXSTACK_DISABLE_X)
 		return 1;

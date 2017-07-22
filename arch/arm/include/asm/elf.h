@@ -102,8 +102,8 @@ extern int elf_check_arch(const struct elf32_hdr *);
 
 #define vmcore_elf64_check_arch(x) (0)
 
-extern int arm_elf_read_implies_exec(const struct elf32_hdr *, int);
-#define elf_read_implies_exec(ex,stk) arm_elf_read_implies_exec(&(ex), stk)
+extern int arm_elf_read_implies_exec(int);
+#define elf_read_implies_exec(ex,stk) arm_elf_read_implies_exec(stk)
 
 struct task_struct;
 int dump_task_regs(struct task_struct *t, elf_gregset_t *elfregs);
