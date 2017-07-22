@@ -374,6 +374,17 @@ static int prp_setup_channel(struct prp_priv *priv,
 	image.phys0 = addr0;
 	image.phys1 = addr1;
 
+	if (channel == priv->out_ch || channel == priv->rot_out_ch) {
+		switch (image.pix.pixelformat) {
+		case V4L2_PIX_FMT_YUV420:
+		case V4L2_PIX_FMT_YVU420:
+		case V4L2_PIX_FMT_NV12:
+			/* Skip writing U and V components to odd rows */
+			ipu_cpmem_skip_odd_chroma_rows(channel);
+			break;
+		}
+	}
+
 	ret = ipu_cpmem_set_image(channel, &image);
 	if (ret)
 		return ret;
