@@ -143,44 +143,44 @@
 #define FDEVMASB_MASK				0x3f
 
 /*
-// RegOsc1
-#define  OSC1_RCCAL_START			0x80
-#define  OSC1_RCCAL_DONE			0x40
-
-// RegLowBat
-#define  LOWBAT_MONITOR				0x10
-#define  LOWBAT_ON				0x08
-#define  LOWBAT_OFF				0x00  // Default
-
-#define  LOWBAT_TRIM_1695			0x00
-#define  LOWBAT_TRIM_1764			0x01
-#define  LOWBAT_TRIM_1835			0x02  // Default
-#define  LOWBAT_TRIM_1905			0x03
-#define  LOWBAT_TRIM_1976			0x04
-#define  LOWBAT_TRIM_2045			0x05
-#define  LOWBAT_TRIM_2116			0x06
-#define  LOWBAT_TRIM_2185			0x07
-
-
-// RegListen1
-#define  LISTEN1_RESOL_64			0x50
-#define  LISTEN1_RESOL_4100			0xA0  // Default
-#define  LISTEN1_RESOL_262000			0xF0
-
-#define  LISTEN1_CRITERIA_RSSI			0x00  // Default
-#define  LISTEN1_CRITERIA_RSSIANDSYNC		0x08
-
-#define  LISTEN1_END_00				0x00
-#define  LISTEN1_END_01				0x02  // Default
-#define  LISTEN1_END_10				0x04
-
-
-// RegListen2
-#define  LISTEN2_COEFIDLE_VALUE			0xF5 // Default
-
-// RegListen3
-#define  LISTEN3_COEFRX_VALUE			0x20 // Default
-*/
+ * // RegOsc1
+ * #define  OSC1_RCCAL_START			0x80
+ * #define  OSC1_RCCAL_DONE			0x40
+ *
+ * // RegLowBat
+ * #define  LOWBAT_MONITOR				0x10
+ * #define  LOWBAT_ON				0x08
+ * #define  LOWBAT_OFF				0x00  // Default
+ *
+ * #define  LOWBAT_TRIM_1695			0x00
+ * #define  LOWBAT_TRIM_1764			0x01
+ * #define  LOWBAT_TRIM_1835			0x02  // Default
+ * #define  LOWBAT_TRIM_1905			0x03
+ * #define  LOWBAT_TRIM_1976			0x04
+ * #define  LOWBAT_TRIM_2045			0x05
+ * #define  LOWBAT_TRIM_2116			0x06
+ * #define  LOWBAT_TRIM_2185			0x07
+ *
+ *
+ * // RegListen1
+ * #define  LISTEN1_RESOL_64			0x50
+ * #define  LISTEN1_RESOL_4100			0xA0  // Default
+ * #define  LISTEN1_RESOL_262000			0xF0
+ *
+ * #define  LISTEN1_CRITERIA_RSSI			0x00  // Default
+ * #define  LISTEN1_CRITERIA_RSSIANDSYNC		0x08
+ *
+ * #define  LISTEN1_END_00				0x00
+ * #define  LISTEN1_END_01				0x02  // Default
+ * #define  LISTEN1_END_10				0x04
+ *
+ *
+ * // RegListen2
+ * #define  LISTEN2_COEFIDLE_VALUE			0xF5 // Default
+ *
+ * // RegListen3
+ * #define  LISTEN3_COEFRX_VALUE			0x20 // Default
+ */
 
 // RegPaLevel
 #define  MASK_PALEVEL_PA0			0x80
@@ -211,27 +211,27 @@
 #define  MASK_PARAMP				0x0F
 
 /*
-// RegOcp
-#define  OCP_OFF				0x0F
-#define  OCP_ON					0x1A  // Default
-
-#define  OCP_TRIM_45				0x00
-#define  OCP_TRIM_50				0x01
-#define  OCP_TRIM_55				0x02
-#define  OCP_TRIM_60				0x03
-#define  OCP_TRIM_65				0x04
-#define  OCP_TRIM_70				0x05
-#define  OCP_TRIM_75				0x06
-#define  OCP_TRIM_80				0x07
-#define  OCP_TRIM_85				0x08
-#define  OCP_TRIM_90				0x09
-#define  OCP_TRIM_95				0x0A
-#define  OCP_TRIM_100				0x0B  // Default
-#define  OCP_TRIM_105				0x0C
-#define  OCP_TRIM_110				0x0D
-#define  OCP_TRIM_115				0x0E
-#define  OCP_TRIM_120				0x0F
-*/
+ * // RegOcp
+ * #define  OCP_OFF				0x0F
+ * #define  OCP_ON					0x1A  // Default
+ *
+ * #define  OCP_TRIM_45				0x00
+ * #define  OCP_TRIM_50				0x01
+ * #define  OCP_TRIM_55				0x02
+ * #define  OCP_TRIM_60				0x03
+ * #define  OCP_TRIM_65				0x04
+ * #define  OCP_TRIM_70				0x05
+ * #define  OCP_TRIM_75				0x06
+ * #define  OCP_TRIM_80				0x07
+ * #define  OCP_TRIM_85				0x08
+ * #define  OCP_TRIM_90				0x09
+ * #define  OCP_TRIM_95				0x0A
+ * #define  OCP_TRIM_100				0x0B  // Default
+ * #define  OCP_TRIM_105				0x0C
+ * #define  OCP_TRIM_110				0x0D
+ * #define  OCP_TRIM_115				0x0E
+ * #define  OCP_TRIM_120				0x0F
+ */
 
 /* RegLna (0x18) */
 #define  MASK_LNA_ZIN				0x80
@@ -294,32 +294,32 @@
 #define  OOKPEAK_THRESHDEC_16_TIMES		0x07
 
 /*
-// RegOokAvg
-#define  OOKAVG_AVERAGETHRESHFILT_00		0x00
-#define  OOKAVG_AVERAGETHRESHFILT_01		0x40
-#define  OOKAVG_AVERAGETHRESHFILT_10		0x80  // Default
-#define  OOKAVG_AVERAGETHRESHFILT_11		0xC0
-
-
-// RegAfcFei
-#define  AFCFEI_FEI_DONE			0x40
-#define  AFCFEI_FEI_START			0x20
-#define  AFCFEI_AFC_DONE			0x10
-#define  AFCFEI_AFCAUTOCLEAR_ON			0x08
-#define  AFCFEI_AFCAUTOCLEAR_OFF		0x00  // Default
-
-#define  AFCFEI_AFCAUTO_ON			0x04
-#define  AFCFEI_AFCAUTO_OFF			0x00  // Default
-
-#define  AFCFEI_AFC_CLEAR			0x02
-#define  AFCFEI_AFC_START			0x01
-
-// RegRssiConfig
-#define  RSSI_FASTRX_ON				0x08
-#define  RSSI_FASTRX_OFF			0x00  // Default
-#define  RSSI_DONE				0x02
-#define  RSSI_START				0x01
-*/
+ * // RegOokAvg
+ * #define  OOKAVG_AVERAGETHRESHFILT_00		0x00
+ * #define  OOKAVG_AVERAGETHRESHFILT_01		0x40
+ * #define  OOKAVG_AVERAGETHRESHFILT_10		0x80  // Default
+ * #define  OOKAVG_AVERAGETHRESHFILT_11		0xC0
+ *
+ *
+ * // RegAfcFei
+ * #define  AFCFEI_FEI_DONE			0x40
+ * #define  AFCFEI_FEI_START			0x20
+ * #define  AFCFEI_AFC_DONE			0x10
+ * #define  AFCFEI_AFCAUTOCLEAR_ON			0x08
+ * #define  AFCFEI_AFCAUTOCLEAR_OFF		0x00  // Default
+ *
+ * #define  AFCFEI_AFCAUTO_ON			0x04
+ * #define  AFCFEI_AFCAUTO_OFF			0x00  // Default
+ *
+ * #define  AFCFEI_AFC_CLEAR			0x02
+ * #define  AFCFEI_AFC_START			0x01
+ *
+ * // RegRssiConfig
+ * #define  RSSI_FASTRX_ON				0x08
+ * #define  RSSI_FASTRX_OFF			0x00  // Default
+ * #define  RSSI_DONE				0x02
+ * #define  RSSI_START				0x01
+ */
 
 /* RegDioMapping1 */
 #define  MASK_DIO0				0xC0
@@ -422,66 +422,66 @@
 #define  PACKETCONFIG1_ADDRESSFILTERING_NODEBROADCAST	0x04
 
 /*
-// RegAutoModes
-#define  AUTOMODES_ENTER_OFF			0x00  // Default
-#define  AUTOMODES_ENTER_FIFONOTEMPTY		0x20
-#define  AUTOMODES_ENTER_FIFOLEVEL		0x40
-#define  AUTOMODES_ENTER_CRCOK			0x60
-#define  AUTOMODES_ENTER_PAYLOADREADY		0x80
-#define  AUTOMODES_ENTER_SYNCADRSMATCH		0xA0
-#define  AUTOMODES_ENTER_PACKETSENT		0xC0
-#define  AUTOMODES_ENTER_FIFOEMPTY		0xE0
-
-#define  AUTOMODES_EXIT_OFF			0x00  // Default
-#define  AUTOMODES_EXIT_FIFOEMPTY		0x04
-#define  AUTOMODES_EXIT_FIFOLEVEL		0x08
-#define  AUTOMODES_EXIT_CRCOK			0x0C
-#define  AUTOMODES_EXIT_PAYLOADREADY		0x10
-#define  AUTOMODES_EXIT_SYNCADRSMATCH		0x14
-#define  AUTOMODES_EXIT_PACKETSENT		0x18
-#define  AUTOMODES_EXIT_RXTIMEOUT		0x1C
-
-#define  AUTOMODES_INTERMEDIATE_SLEEP		0x00  // Default
-#define  AUTOMODES_INTERMEDIATE_STANDBY		0x01
-#define  AUTOMODES_INTERMEDIATE_RECEIVER	0x02
-#define  AUTOMODES_INTERMEDIATE_TRANSMITTER	0x03
-
-*/
+ * // RegAutoModes
+ * #define  AUTOMODES_ENTER_OFF			0x00  // Default
+ * #define  AUTOMODES_ENTER_FIFONOTEMPTY		0x20
+ * #define  AUTOMODES_ENTER_FIFOLEVEL		0x40
+ * #define  AUTOMODES_ENTER_CRCOK			0x60
+ * #define  AUTOMODES_ENTER_PAYLOADREADY		0x80
+ * #define  AUTOMODES_ENTER_SYNCADRSMATCH		0xA0
+ * #define  AUTOMODES_ENTER_PACKETSENT		0xC0
+ * #define  AUTOMODES_ENTER_FIFOEMPTY		0xE0
+ *
+ * #define  AUTOMODES_EXIT_OFF			0x00  // Default
+ * #define  AUTOMODES_EXIT_FIFOEMPTY		0x04
+ * #define  AUTOMODES_EXIT_FIFOLEVEL		0x08
+ * #define  AUTOMODES_EXIT_CRCOK			0x0C
+ * #define  AUTOMODES_EXIT_PAYLOADREADY		0x10
+ * #define  AUTOMODES_EXIT_SYNCADRSMATCH		0x14
+ * #define  AUTOMODES_EXIT_PACKETSENT		0x18
+ * #define  AUTOMODES_EXIT_RXTIMEOUT		0x1C
+ *
+ * #define  AUTOMODES_INTERMEDIATE_SLEEP		0x00  // Default
+ * #define  AUTOMODES_INTERMEDIATE_STANDBY		0x01
+ * #define  AUTOMODES_INTERMEDIATE_RECEIVER	0x02
+ * #define  AUTOMODES_INTERMEDIATE_TRANSMITTER	0x03
+ *
+ */
 /* RegFifoThresh (0x3c) */
 #define  MASK_FIFO_THRESH_TXSTART		0x80
 #define  MASK_FIFO_THRESH_VALUE			0x7F
 
 /*
-
-// RegPacketConfig2
-#define  PACKET2_RXRESTARTDELAY_1BIT		0x00  // Default
-#define  PACKET2_RXRESTARTDELAY_2BITS		0x10
-#define  PACKET2_RXRESTARTDELAY_4BITS		0x20
-#define  PACKET2_RXRESTARTDELAY_8BITS		0x30
-#define  PACKET2_RXRESTARTDELAY_16BITS		0x40
-#define  PACKET2_RXRESTARTDELAY_32BITS		0x50
-#define  PACKET2_RXRESTARTDELAY_64BITS		0x60
-#define  PACKET2_RXRESTARTDELAY_128BITS		0x70
-#define  PACKET2_RXRESTARTDELAY_256BITS		0x80
-#define  PACKET2_RXRESTARTDELAY_512BITS		0x90
-#define  PACKET2_RXRESTARTDELAY_1024BITS	0xA0
-#define  PACKET2_RXRESTARTDELAY_2048BITS	0xB0
-#define  PACKET2_RXRESTARTDELAY_NONE		0xC0
-#define  PACKET2_RXRESTART			0x04
-
-#define  PACKET2_AUTORXRESTART_ON		0x02  // Default
-#define  PACKET2_AUTORXRESTART_OFF		0x00
-
-#define  PACKET2_AES_ON				0x01
-#define  PACKET2_AES_OFF			0x00  // Default
-
-
-// RegTemp1
-#define  TEMP1_MEAS_START			0x08
-#define  TEMP1_MEAS_RUNNING			0x04
-#define  TEMP1_ADCLOWPOWER_ON			0x01  // Default
-#define  TEMP1_ADCLOWPOWER_OFF			0x00
-*/
+ *
+ * // RegPacketConfig2
+ * #define  PACKET2_RXRESTARTDELAY_1BIT		0x00  // Default
+ * #define  PACKET2_RXRESTARTDELAY_2BITS		0x10
+ * #define  PACKET2_RXRESTARTDELAY_4BITS		0x20
+ * #define  PACKET2_RXRESTARTDELAY_8BITS		0x30
+ * #define  PACKET2_RXRESTARTDELAY_16BITS		0x40
+ * #define  PACKET2_RXRESTARTDELAY_32BITS		0x50
+ * #define  PACKET2_RXRESTARTDELAY_64BITS		0x60
+ * #define  PACKET2_RXRESTARTDELAY_128BITS		0x70
+ * #define  PACKET2_RXRESTARTDELAY_256BITS		0x80
+ * #define  PACKET2_RXRESTARTDELAY_512BITS		0x90
+ * #define  PACKET2_RXRESTARTDELAY_1024BITS	0xA0
+ * #define  PACKET2_RXRESTARTDELAY_2048BITS	0xB0
+ * #define  PACKET2_RXRESTARTDELAY_NONE		0xC0
+ * #define  PACKET2_RXRESTART			0x04
+ *
+ * #define  PACKET2_AUTORXRESTART_ON		0x02  // Default
+ * #define  PACKET2_AUTORXRESTART_OFF		0x00
+ *
+ * #define  PACKET2_AES_ON				0x01
+ * #define  PACKET2_AES_OFF			0x00  // Default
+ *
+ *
+ * // RegTemp1
+ * #define  TEMP1_MEAS_START			0x08
+ * #define  TEMP1_MEAS_RUNNING			0x04
+ * #define  TEMP1_ADCLOWPOWER_ON			0x01  // Default
+ * #define  TEMP1_ADCLOWPOWER_OFF			0x00
+ */
 
 // RegTestDagc (0x6F)
 #define  DAGC_NORMAL				0x00 /* Reset value */

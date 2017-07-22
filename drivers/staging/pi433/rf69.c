@@ -940,8 +940,9 @@ u8 rf69_read_reg(struct spi_device *spi, u8 addr)
 	#ifdef DEBUG_VALUES
 		if (retval < 0)
 			/* should never happen, since we already checked,
-			   that module is connected. Therefore no error
-			   handling, just an optional error message... */
+			 * that module is connected. Therefore no error
+			 * handling, just an optional error message...
+			 */
 			dev_dbg(&spi->dev, "read 0x%x FAILED\n",
 				addr);
 		else
@@ -966,8 +967,9 @@ int rf69_write_reg(struct spi_device *spi, u8 addr, u8 value)
 	#ifdef DEBUG_VALUES
 		if (retval < 0)
 			/* should never happen, since we already checked,
-			   that module is connected. Therefore no error
-			   handling, just an optional error message... */
+			 * that module is connected. Therefore no error
+			 * handling, just an optional error message...
+			 */
 			dev_dbg(&spi->dev, "write 0x%x to 0x%x FAILED\n",
 				value,
 				addr);

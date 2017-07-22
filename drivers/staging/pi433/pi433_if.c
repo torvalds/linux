@@ -67,9 +67,11 @@ static DEFINE_MUTEX(minor_lock); /* Protect idr accesses */
 static struct class *pi433_class; /* mainly for udev to create /dev/pi433 */
 
 /* tx config is instance specific
-	so with each open a new tx config struct is needed */
+ * so with each open a new tx config struct is needed
+ */
 /* rx config is device specific
-	so we have just one rx config, ebedded in device struct */
+ * so we have just one rx config, ebedded in device struct
+ */
 struct pi433_device {
 	/* device handling related values */
 	dev_t			devt;
@@ -486,9 +488,10 @@ pi433_tx_thread(void *data)
 			return 0;
 
 		/* get data from fifo in the following order:
-		   - tx_cfg
-		   - size of message
-		   - message */
+		 * - tx_cfg
+		 * - size of message
+		 * - message
+		 */
 		mutex_lock(&device->tx_fifo_lock);
 
 		retval = kfifo_out(&device->tx_fifo, &tx_cfg, sizeof(tx_cfg));
@@ -537,23 +540,26 @@ pi433_tx_thread(void *data)
 		mutex_unlock(&device->tx_fifo_lock);
 
 		/* if rx is active, we need to interrupt the waiting for
-		   incoming telegrams, to be able to send something.
-		   We are only allowed, if currently no reception takes
-		   place otherwise we need to  wait for the incoming telegram
-		   to finish */
+		 * incoming telegrams, to be able to send something.
+		 * We are only allowed, if currently no reception takes
+		 * place otherwise we need to  wait for the incoming telegram
+		 * to finish
+		 */
 		wait_event_interruptible(device->tx_wait_queue,
 					 !device->rx_active ||
 					  device->interrupt_rx_allowed == true);
 
 		/* prevent race conditions
-		   irq will be reenabled after tx config is set */
+		 * irq will be reenabled after tx config is set
+		 */
 		disable_irq(device->irq_num[DIO0]);
 		device->tx_active = true;
 
 		if (device->rx_active && rx_interrupted == false)
 		{
 			/* rx is currently waiting for a telegram;
-			   we need to set the radio module to standby */
+			 * we need to set the radio module to standby
+			 */
 			SET_CHECKED(rf69_set_mode(device->spi, standby));
 			rx_interrupted = true;
 		}
@@ -712,9 +718,10 @@ pi433_write(struct file *filp, const char __user *buf,
 		return -EMSGSIZE;
 
 	/* write the following sequence into fifo:
-	   - tx_cfg
-	   - size of message
-	   - message */
+	 * - tx_cfg
+	 * - size of message
+	 * - message
+	 */
 	mutex_lock(&device->tx_fifo_lock);
 	retval = kfifo_in(&device->tx_fifo, &instance->tx_cfg, sizeof(instance->tx_cfg));
 	if ( retval != sizeof(instance->tx_cfg) )
@@ -1269,7 +1276,8 @@ static int __init pi433_init(void)
 	int status;
 
 	/* If MAX_MSG_SIZE is smaller then FIFO_SIZE, the driver won't
-           work stable - risk of buffer overflow */
+	 * work stable - risk of buffer overflow
+	 */
 	if (MAX_MSG_SIZE < FIFO_SIZE)
 		return -EINVAL;
 
