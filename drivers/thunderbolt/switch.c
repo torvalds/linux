@@ -281,9 +281,11 @@ static struct nvmem_device *register_nvmem(struct tb_switch *sw, int id,
 	if (active) {
 		config.name = "nvm_active";
 		config.reg_read = tb_switch_nvm_read;
+		config.read_only = true;
 	} else {
 		config.name = "nvm_non_active";
 		config.reg_write = tb_switch_nvm_write;
+		config.root_only = true;
 	}
 
 	config.id = id;
@@ -292,7 +294,6 @@ static struct nvmem_device *register_nvmem(struct tb_switch *sw, int id,
 	config.size = size;
 	config.dev = &sw->dev;
 	config.owner = THIS_MODULE;
-	config.root_only = true;
 	config.priv = sw;
 
 	return nvmem_register(&config);

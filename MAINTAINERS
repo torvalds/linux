@@ -12356,6 +12356,15 @@ S:	Supported
 F:	Documentation/networking/spider_net.txt
 F:	drivers/net/ethernet/toshiba/spider_net*
 
+SPMI SUBSYSTEM
+R:	Stephen Boyd <sboyd@codeaurora.org>
+L:	linux-arm-msm@vger.kernel.org
+F:	Documentation/devicetree/bindings/spmi/
+F:	drivers/spmi/
+F:	include/dt-bindings/spmi/spmi.h
+F:	include/linux/spmi.h
+F:	include/trace/events/spmi.h
+
 SPU FILE SYSTEM
 M:	Jeremy Kerr <jk@ozlabs.org>
 L:	linuxppc-dev@lists.ozlabs.org
