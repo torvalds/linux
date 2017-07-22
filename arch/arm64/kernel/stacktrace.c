@@ -42,9 +42,10 @@
  */
 int notrace unwind_frame(struct task_struct *tsk, struct stackframe *frame)
 {
-	unsigned long high, low;
 	unsigned long fp = frame->fp;
-	unsigned long irq_stack_ptr;
+
+	if (fp & 0xf)
+		return -EINVAL;
 
 	if (!tsk)
 		tsk = current;
@@ -53,19 +54,8 @@ int notrace unwind_frame(struct task_struct *tsk, struct stackframe *frame)
 	 * Switching between stacks is valid when tracing current and in
 	 * non-preemptible context.
 	 */
-	if (tsk == current && !preemptible())
-		irq_stack_ptr = IRQ_STACK_PTR();
-	else
-		irq_stack_ptr = 0;
-
-	low  = frame->sp;
-	/* irq stacks are not THREAD_SIZE aligned */
-	if (on_irq_stack(frame->sp))
-		high = irq_stack_ptr;
-	else
-		high = ALIGN(low, THREAD_SIZE) - 0x20;
-
-	if (fp < low || fp > high || fp & 0xf)
+	if (!(tsk == current && !preemptible() && on_irq_stack(fp)) &&
+	    !on_task_stack(tsk, fp))
 		return -EINVAL;
 
 	frame->sp = fp + 0x10;
@@ -94,9 +84,9 @@ int notrace unwind_frame(struct task_struct *tsk, struct stackframe *frame)
 	 * Check the frame->fp we read from the bottom of the irq_stack,
 	 * and the original task stack pointer are both in current->stack.
 	 */
-	if (frame->sp == irq_stack_ptr) {
+	if (frame->sp == IRQ_STACK_PTR()) {
 		struct pt_regs *irq_args;
-		unsigned long orig_sp = IRQ_STACK_TO_TASK_STACK(irq_stack_ptr);
+		unsigned long orig_sp = IRQ_STACK_TO_TASK_STACK(frame->sp);
 
 		if (object_is_on_stack((void *)orig_sp) &&
 		   object_is_on_stack((void *)frame->fp)) {

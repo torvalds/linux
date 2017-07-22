@@ -7,6 +7,7 @@
 #ifndef __ASSEMBLER__
 
 #include <linux/percpu.h>
+#include <linux/sched/task_stack.h>
 
 #include <asm-generic/irq.h>
 #include <asm/thread_info.h>
@@ -49,11 +50,18 @@ static inline int nr_legacy_irqs(void)
 
 static inline bool on_irq_stack(unsigned long sp)
 {
-	/* variable names the same as kernel/stacktrace.c */
 	unsigned long low = (unsigned long)raw_cpu_ptr(irq_stack);
 	unsigned long high = low + IRQ_STACK_START_SP;
 
 	return (low <= sp && sp <= high);
+}
+
+static inline bool on_task_stack(struct task_struct *tsk, unsigned long sp)
+{
+	unsigned long low = (unsigned long)task_stack_page(tsk);
+	unsigned long high = low + THREAD_SIZE;
+
+	return (low <= sp && sp < high);
 }
 
 #endif /* !__ASSEMBLER__ */
