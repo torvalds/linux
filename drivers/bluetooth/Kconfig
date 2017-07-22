@@ -98,6 +98,7 @@ config BT_HCIUART_NOKIA
 	depends on BT_HCIUART_SERDEV
 	depends on PM
 	select BT_HCIUART_H4
+	select BT_BCM
 	help
 	  Nokia H4+ is serial protocol for communication between Bluetooth
 	  device and host. This protocol is required for Bluetooth devices
