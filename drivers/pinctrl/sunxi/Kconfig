@@ -7,7 +7,7 @@ config PINCTRL_SUNXI
 	select GPIOLIB
 
 config PINCTRL_SUN4I_A10
-	def_bool MACH_SUN4I || MACH_SUN7I
+	def_bool MACH_SUN4I || MACH_SUN7I || MACH_SUN8I
 	select PINCTRL_SUNXI
 
 config PINCTRL_SUN5I
