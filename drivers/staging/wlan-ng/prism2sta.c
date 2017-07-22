@@ -991,9 +991,9 @@ static void prism2sta_inf_tallies(struct wlandevice *wlandev,
 				  struct hfa384x_inf_frame *inf)
 {
 	struct hfa384x *hw = wlandev->priv;
-	u16 *src16;
+	__le16 *src16;
 	u32 *dst;
-	u32 *src32;
+	__le32 *src32;
 	int i;
 	int cnt;
 
@@ -1005,12 +1005,12 @@ static void prism2sta_inf_tallies(struct wlandevice *wlandev,
 	cnt = sizeof(struct hfa384x_comm_tallies_32) / sizeof(u32);
 	if (inf->framelen > 22) {
 		dst = (u32 *)&hw->tallies;
-		src32 = (u32 *)&inf->info.commtallies32;
+		src32 = (__le32 *)&inf->info.commtallies32;
 		for (i = 0; i < cnt; i++, dst++, src32++)
 			*dst += le32_to_cpu(*src32);
 	} else {
 		dst = (u32 *)&hw->tallies;
-		src16 = (u16 *)&inf->info.commtallies16;
+		src16 = (__le16 *)&inf->info.commtallies16;
 		for (i = 0; i < cnt; i++, dst++, src16++)
 			*dst += le16_to_cpu(*src16);
 	}
