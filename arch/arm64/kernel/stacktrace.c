@@ -76,34 +76,13 @@ int notrace unwind_frame(struct task_struct *tsk, struct stackframe *frame)
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
 	/*
-	 * Check whether we are going to walk through from interrupt stack
-	 * to task stack.
-	 * If we reach the end of the stack - and its an interrupt stack,
-	 * unpack the dummy frame to find the original elr.
-	 *
-	 * Check the frame->fp we read from the bottom of the irq_stack,
-	 * and the original task stack pointer are both in current->stack.
+	 * Frames created upon entry from EL0 have NULL FP and PC values, so
+	 * don't bother reporting these. Frames created by __noreturn functions
+	 * might have a valid FP even if PC is bogus, so only terminate where
+	 * both are NULL.
 	 */
-	if (frame->sp == IRQ_STACK_PTR()) {
-		struct pt_regs *irq_args;
-		unsigned long orig_sp = IRQ_STACK_TO_TASK_STACK(frame->sp);
-
-		if (object_is_on_stack((void *)orig_sp) &&
-		   object_is_on_stack((void *)frame->fp)) {
-			frame->sp = orig_sp;
-
-			/* orig_sp is the saved pt_regs, find the elr */
-			irq_args = (struct pt_regs *)orig_sp;
-			frame->pc = irq_args->pc;
-		} else {
-			/*
-			 * This frame has a non-standard format, and we
-			 * didn't fix it, because the data looked wrong.
-			 * Refuse to output this frame.
-			 */
-			return -EINVAL;
-		}
-	}
+	if (!frame->fp && !frame->pc)
+		return -EINVAL;
 
 	return 0;
 }

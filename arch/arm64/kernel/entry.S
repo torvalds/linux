@@ -111,6 +111,18 @@
 	mrs	x23, spsr_el1
 	stp	lr, x21, [sp, #S_LR]
 
+	/*
+	 * In order to be able to dump the contents of struct pt_regs at the
+	 * time the exception was taken (in case we attempt to walk the call
+	 * stack later), chain it together with the stack frames.
+	 */
+	.if \el == 0
+	stp	xzr, xzr, [sp, #S_STACKFRAME]
+	.else
+	stp	x29, x22, [sp, #S_STACKFRAME]
+	.endif
+	add	x29, sp, #S_STACKFRAME
+
 #ifdef CONFIG_ARM64_SW_TTBR0_PAN
 	/*
 	 * Set the TTBR0 PAN bit in SPSR. When the exception is taken from
@@ -265,14 +277,6 @@ alternative_else_nop_endif
 
 	/* switch to the irq stack */
 	mov	sp, x26
-
-	/*
-	 * Add a dummy stack frame, this non-standard format is fixed up
-	 * by unwind_frame()
-	 */
-	stp     x29, x19, [sp, #-16]!
-	mov	x29, sp
-
 9998:
 	.endm
 

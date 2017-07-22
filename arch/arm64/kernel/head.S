@@ -362,6 +362,9 @@ __primary_switched:
 	ret					// to __primary_switch()
 0:
 #endif
+	add	sp, sp, #16
+	mov	x29, #0
+	mov	x30, #0
 	b	start_kernel
 ENDPROC(__primary_switched)
 
@@ -617,6 +620,7 @@ __secondary_switched:
 	ldr	x2, [x0, #CPU_BOOT_TASK]
 	msr	sp_el0, x2
 	mov	x29, #0
+	mov	x30, #0
 	b	secondary_start_kernel
 ENDPROC(__secondary_switched)
 

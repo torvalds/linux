@@ -119,6 +119,7 @@ struct pt_regs {
 	u64 syscallno;
 	u64 orig_addr_limit;
 	u64 unused;	// maintain 16 byte alignment
+	u64 stackframe[2];
 };
 
 #define MAX_REG_OFFSET offsetof(struct pt_regs, pstate)
