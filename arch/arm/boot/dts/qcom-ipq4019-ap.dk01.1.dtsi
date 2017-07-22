@@ -93,5 +93,13 @@
 		watchdog@b017000 {
 			status = "ok";
 		};
+
+		wifi@a000000 {
+			status = "ok";
+		};
+
+		wifi@a800000 {
+			status = "ok";
+		};
 	};
 };
