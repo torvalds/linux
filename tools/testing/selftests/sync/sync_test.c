@@ -31,6 +31,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
+#include <errno.h>
 
 #include "synctest.h"
 
@@ -56,18 +57,32 @@ static int run_test(int (*test)(void), char *name)
 static int sync_api_supported(void)
 {
 	struct stat sbuf;
+	int ret;
 
-	return 0 == stat("/sys/kernel/debug/sync/sw_sync", &sbuf);
+	ret = stat("/sys/kernel/debug/sync/sw_sync", &sbuf);
+	if (!ret)
+		return 0;
+
+	if (errno == ENOENT) {
+		printf("SKIP: Sync framework not supported by kernel\n");
+		exit(0);
+	}
+	if (errno == EACCES) {
+		printf("SKIP: Run Sync test as root.\n");
+		exit(0);
+	}
+
+	perror("stat");
+	exit(ret);
+
 }
 
 int main(void)
 {
 	int err = 0;
 
-	if (!sync_api_supported()) {
-		printf("SKIP: Sync framework not supported by kernel\n");
+	if (!sync_api_supported())
 		return 0;
-	}
 
 	printf("[RUN]\tTesting sync framework\n");
 
