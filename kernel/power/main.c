@@ -388,13 +388,14 @@ static ssize_t pm_debug_messages_store(struct kobject *kobj,
 power_attr(pm_debug_messages);
 
 /**
- * pm_pr_dbg - Print a suspend debug message to the kernel log.
+ * __pm_pr_dbg - Print a suspend debug message to the kernel log.
+ * @defer: Whether or not to use printk_deferred() to print the message.
  * @fmt: Message format.
  *
  * The message will be emitted if enabled through the pm_debug_messages
  * sysfs attribute.
  */
-void pm_pr_dbg(const char *fmt, ...)
+void __pm_pr_dbg(bool defer, const char *fmt, ...)
 {
 	struct va_format vaf;
 	va_list args;
@@ -407,7 +408,10 @@ void pm_pr_dbg(const char *fmt, ...)
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	printk(KERN_DEBUG "PM: %pV", &vaf);
+	if (defer)
+		printk_deferred(KERN_DEBUG "PM: %pV", &vaf);
+	else
+		printk(KERN_DEBUG "PM: %pV", &vaf);
 
 	va_end(args);
 }
