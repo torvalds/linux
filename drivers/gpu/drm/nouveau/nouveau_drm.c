@@ -998,7 +998,6 @@ driver_stub = {
 
 	.dumb_create = nouveau_display_dumb_create,
 	.dumb_map_offset = nouveau_display_dumb_map_offset,
-	.dumb_destroy = drm_gem_dumb_destroy,
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
