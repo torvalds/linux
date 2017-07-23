@@ -530,7 +530,6 @@ static const struct attribute_group st_lsm6dsx_acc_attribute_group = {
 };
 
 static const struct iio_info st_lsm6dsx_acc_info = {
-	.driver_module = THIS_MODULE,
 	.attrs = &st_lsm6dsx_acc_attribute_group,
 	.read_raw = st_lsm6dsx_read_raw,
 	.write_raw = st_lsm6dsx_write_raw,
@@ -548,7 +547,6 @@ static const struct attribute_group st_lsm6dsx_gyro_attribute_group = {
 };
 
 static const struct iio_info st_lsm6dsx_gyro_info = {
-	.driver_module = THIS_MODULE,
 	.attrs = &st_lsm6dsx_gyro_attribute_group,
 	.read_raw = st_lsm6dsx_read_raw,
 	.write_raw = st_lsm6dsx_write_raw,

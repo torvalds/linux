@@ -795,7 +795,6 @@ static const struct attribute_group inv_attribute_group = {
 };
 
 static const struct iio_info mpu_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = &inv_mpu6050_read_raw,
 	.write_raw = &inv_mpu6050_write_raw,
 	.write_raw_get_fmt = &inv_write_raw_get_fmt,
