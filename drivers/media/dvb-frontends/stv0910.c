@@ -1638,6 +1638,27 @@ static int send_master_cmd(struct dvb_frontend *fe,
 	return 0;
 }
 
+static int send_burst(struct dvb_frontend *fe, enum fe_sec_mini_cmd burst)
+{
+	struct stv *state = fe->demodulator_priv;
+	u16 offs = state->nr ? 0x40 : 0;
+	u8 value;
+
+	if (burst == SEC_MINI_A) {
+		write_reg(state, RSTV0910_P1_DISTXCFG + offs, 0x3F);
+		value = 0x00;
+	} else {
+		write_reg(state, RSTV0910_P1_DISTXCFG + offs, 0x3E);
+		value = 0xFF;
+	}
+	wait_dis(state, 0x40, 0x00);
+	write_reg(state, RSTV0910_P1_DISTXFIFO + offs, value);
+	write_reg(state, RSTV0910_P1_DISTXCFG + offs, 0x3A);
+	wait_dis(state, 0x20, 0x20);
+
+	return 0;
+}
+
 static int sleep(struct dvb_frontend *fe)
 {
 	struct stv *state = fe->demodulator_priv;
@@ -1673,6 +1694,7 @@ static struct dvb_frontend_ops stv0910_ops = {
 	.set_tone			= set_tone,
 
 	.diseqc_send_master_cmd		= send_master_cmd,
+	.diseqc_send_burst              = send_burst,
 };
 
 static struct stv_base *match_base(struct i2c_adapter  *i2c, u8 adr)
