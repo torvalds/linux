@@ -206,7 +206,6 @@ MODULE_DEVICE_TABLE(acpi, max5481_acpi_match);
 static struct spi_driver max5481_driver = {
 	.driver = {
 		.name  = "max5481",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(max5481_match),
 		.acpi_match_table = ACPI_PTR(max5481_acpi_match),
 	},
