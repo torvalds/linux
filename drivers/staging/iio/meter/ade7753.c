@@ -561,7 +561,6 @@ static const struct attribute_group ade7753_attribute_group = {
 
 static const struct iio_info ade7753_info = {
 	.attrs = &ade7753_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 static int ade7753_probe(struct spi_device *spi)
