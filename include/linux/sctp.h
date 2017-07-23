@@ -381,10 +381,10 @@ struct sctp_sackhdr {
 	union sctp_sack_variable variable[0];
 };
 
-typedef struct sctp_sack_chunk {
+struct sctp_sack_chunk {
 	struct sctp_chunkhdr chunk_hdr;
 	struct sctp_sackhdr sack_hdr;
-} sctp_sack_chunk_t;
+};
 
 
 /* RFC 2960.  Section 3.3.5 Heartbeat Request (HEARTBEAT) (4):

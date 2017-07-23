@@ -3194,7 +3194,7 @@ sctp_disposition_t sctp_sf_eat_sack_6_2(struct net *net,
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
 
 	/* Make sure that the SACK chunk has a valid length. */
-	if (!sctp_chunk_length_valid(chunk, sizeof(sctp_sack_chunk_t)))
+	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_sack_chunk)))
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
 
@@ -4515,7 +4515,7 @@ nomem:
  * Handle a protocol violation when the chunk length is invalid.
  * "Invalid" length is identified as smaller than the minimal length a
  * given chunk can be.  For example, a SACK chunk has invalid length
- * if its length is set to be smaller than the size of sctp_sack_chunk_t.
+ * if its length is set to be smaller than the size of struct sctp_sack_chunk.
  *
  * We inform the other end by sending an ABORT with a Protocol Violation
  * error code.
