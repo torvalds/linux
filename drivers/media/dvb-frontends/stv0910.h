@@ -14,8 +14,8 @@ struct stv0910_cfg {
 
 #if IS_REACHABLE(CONFIG_DVB_STV0910)
 
-extern struct dvb_frontend *stv0910_attach(struct i2c_adapter *i2c,
-					   struct stv0910_cfg *cfg, int nr);
+struct dvb_frontend *stv0910_attach(struct i2c_adapter *i2c,
+				    struct stv0910_cfg *cfg, int nr);
 
 #else
 
