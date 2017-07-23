@@ -69,7 +69,8 @@ static struct sctp_chunk *sctp_make_data(const struct sctp_association *asoc,
 static struct sctp_chunk *_sctp_make_chunk(const struct sctp_association *asoc,
 					   __u8 type, __u8 flags, int paylen,
 					   gfp_t gfp);
-static sctp_cookie_param_t *sctp_pack_cookie(const struct sctp_endpoint *ep,
+static struct sctp_cookie_param *sctp_pack_cookie(
+					const struct sctp_endpoint *ep,
 					const struct sctp_association *asoc,
 					const struct sctp_chunk *init_chunk,
 					int *cookie_len,
@@ -387,7 +388,7 @@ struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *asoc,
 	union sctp_params addrs;
 	struct sctp_sock *sp;
 	int addrs_len;
-	sctp_cookie_param_t *cookie;
+	struct sctp_cookie_param *cookie;
 	int cookie_len;
 	size_t chunksize;
 	struct sctp_adaptation_ind_param aiparam;
@@ -1595,14 +1596,15 @@ nodata:
 /* Build a cookie representing asoc.
  * This INCLUDES the param header needed to put the cookie in the INIT ACK.
  */
-static sctp_cookie_param_t *sctp_pack_cookie(const struct sctp_endpoint *ep,
-				      const struct sctp_association *asoc,
-				      const struct sctp_chunk *init_chunk,
-				      int *cookie_len,
-				      const __u8 *raw_addrs, int addrs_len)
+static struct sctp_cookie_param *sctp_pack_cookie(
+					const struct sctp_endpoint *ep,
+					const struct sctp_association *asoc,
+					const struct sctp_chunk *init_chunk,
+					int *cookie_len,
+					const __u8 *raw_addrs, int addrs_len)
 {
-	sctp_cookie_param_t *retval;
 	struct sctp_signed_cookie *cookie;
+	struct sctp_cookie_param *retval;
 	int headersize, bodysize;
 
 	/* Header size is static data prior to the actual cookie, including

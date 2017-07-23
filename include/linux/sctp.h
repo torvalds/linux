@@ -342,10 +342,10 @@ struct sctp_initack_chunk {
 };
 
 /* Section 3.3.3.1 State Cookie (7) */
-typedef struct sctp_cookie_param {
+struct sctp_cookie_param {
 	struct sctp_paramhdr p;
 	__u8 body[0];
-} sctp_cookie_param_t;
+};
 
 /* Section 3.3.3.1 Unrecognized Parameters (8) */
 typedef struct sctp_unrecognized_param {
