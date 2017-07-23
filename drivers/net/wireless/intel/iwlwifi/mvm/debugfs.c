@@ -569,9 +569,9 @@ static ssize_t iwl_dbgfs_bt_notif_read(struct file *file, char __user *user_buf,
 			 "antenna isolation = %d CORUN LUT index = %d\n",
 			 mvm->last_ant_isol, mvm->last_corun_lut);
 	pos += scnprintf(buf + pos, bufsz - pos, "bt_rrc = %d\n",
-			 (notif->ttc_rrc_status >> 4) & 0xF);
+			 notif->rrc_status & 0xF);
 	pos += scnprintf(buf + pos, bufsz - pos, "bt_ttc = %d\n",
-			 notif->ttc_rrc_status & 0xF);
+			 notif->ttc_status & 0xF);
 
 	pos += scnprintf(buf + pos, bufsz - pos, "sync_sco = %d\n",
 			 IWL_MVM_BT_COEX_SYNC2SCO);

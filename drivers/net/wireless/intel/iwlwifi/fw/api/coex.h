@@ -220,12 +220,6 @@ enum iwl_bt_ci_compliance {
 	BT_CI_COMPLIANCE_BOTH		= 3,
 }; /* BT_COEX_CI_COMPLIENCE_E_VER_1 */
 
-#define IWL_COEX_IS_TTC_ON(_ttc_rrc_status, _phy_id)	\
-		(_ttc_rrc_status & BIT(_phy_id))
-
-#define IWL_COEX_IS_RRC_ON(_ttc_rrc_status, _phy_id)	\
-		((_ttc_rrc_status >> 4) & BIT(_phy_id))
-
 /**
  * struct iwl_bt_coex_profile_notif - notification about BT coex
  * @mbox_msg: message from BT to WiFi
@@ -234,7 +228,8 @@ enum iwl_bt_ci_compliance {
  * @primary_ch_lut: LUT used for primary channel &enum iwl_bt_coex_lut_type
  * @secondary_ch_lut: LUT used for secondary channel &enum iwl_bt_coex_lut_type
  * @bt_activity_grading: the activity of BT &enum iwl_bt_activity_grading
- * @ttc_rrc_status: is TTC or RRC enabled - one bit per PHY
+ * @ttc_status: is TTC enabled - one bit per PHY
+ * @rrc_status: is RRC enabled - one bit per PHY
  * @reserved: reserved
  */
 struct iwl_bt_coex_profile_notif {
@@ -245,8 +240,9 @@ struct iwl_bt_coex_profile_notif {
 	__le32 primary_ch_lut;
 	__le32 secondary_ch_lut;
 	__le32 bt_activity_grading;
-	u8 ttc_rrc_status;
-	u8 reserved[3];
+	u8 ttc_status;
+	u8 rrc_status;
+	__le16 reserved;
 } __packed; /* BT_COEX_PROFILE_NTFY_API_S_VER_4 */
 
 #endif /* __iwl_fw_api_coex_h__ */
