@@ -22,6 +22,8 @@
 #ifndef _OCTEON_DEVICE_H_
 #define  _OCTEON_DEVICE_H_
 
+#include <linux/interrupt.h>
+
 /** PCI VendorId Device Id */
 #define  OCTEON_CN68XX_PCIID          0x91177d
 #define  OCTEON_CN66XX_PCIID          0x92177d
