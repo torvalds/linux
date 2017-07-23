@@ -394,13 +394,13 @@ struct sctp_sack_chunk {
  *  the present association.
  */
 
-typedef struct sctp_heartbeathdr {
+struct sctp_heartbeathdr {
 	struct sctp_paramhdr info;
-} sctp_heartbeathdr_t;
+};
 
 typedef struct sctp_heartbeat_chunk {
 	struct sctp_chunkhdr chunk_hdr;
-	sctp_heartbeathdr_t hb_hdr;
+	struct sctp_heartbeathdr hb_hdr;
 } sctp_heartbeat_chunk_t;
 
 

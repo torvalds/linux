@@ -1096,7 +1096,7 @@ sctp_disposition_t sctp_sf_beat_8_3(struct net *net,
 	 * respond with a HEARTBEAT ACK that contains the Heartbeat
 	 * Information field copied from the received HEARTBEAT chunk.
 	 */
-	chunk->subh.hb_hdr = (sctp_heartbeathdr_t *)chunk->skb->data;
+	chunk->subh.hb_hdr = (struct sctp_heartbeathdr *)chunk->skb->data;
 	param_hdr = (struct sctp_paramhdr *)chunk->subh.hb_hdr;
 	paylen = ntohs(chunk->chunk_hdr->length) - sizeof(struct sctp_chunkhdr);
 
