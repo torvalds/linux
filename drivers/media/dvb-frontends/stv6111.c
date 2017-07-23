@@ -298,7 +298,7 @@ static inline u32 muldiv32(u32 a, u32 b, u32 c)
 	tmp64 = (u64)a * (u64)b;
 	do_div(tmp64, c);
 
-	return (u32) tmp64;
+	return (u32)tmp64;
 }
 
 static int i2c_read(struct i2c_adapter *adap,
@@ -429,10 +429,10 @@ static int set_bandwidth(struct dvb_frontend *fe, u32 cutoff_frequency)
 		index = 6;
 	if (index > 50)
 		index = 50;
-	if ((state->reg[0x08] & ~0xFC) == ((index-6) << 2))
+	if ((state->reg[0x08] & ~0xFC) == ((index - 6) << 2))
 		return 0;
 
-	state->reg[0x08] = (state->reg[0x08] & ~0xFC) | ((index-6) << 2);
+	state->reg[0x08] = (state->reg[0x08] & ~0xFC) | ((index - 6) << 2);
 	state->reg[0x09] = (state->reg[0x09] & ~0x0C) | 0x08;
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
@@ -542,12 +542,12 @@ static s32 table_lookup(struct slookup *table, int table_size, u16 reg_value)
 	int i;
 
 	/* Assumes Table[0].RegValue < Table[imax].RegValue */
-	if (reg_value <= table[0].reg_value)
+	if (reg_value <= table[0].reg_value) {
 		gain = table[0].value;
-	else if (reg_value >= table[imax].reg_value)
+	} else if (reg_value >= table[imax].reg_value) {
 		gain = table[imax].value;
-	else {
-		while (imax-imin > 1) {
+	} else {
+		while ((imax - imin) > 1) {
 			i = (imax + imin) / 2;
 			if ((table[imin].reg_value <= reg_value) &&
 			    (reg_value <= table[i].reg_value))
@@ -558,9 +558,9 @@ static s32 table_lookup(struct slookup *table, int table_size, u16 reg_value)
 		reg_diff = table[imax].reg_value - table[imin].reg_value;
 		gain = table[imin].value;
 		if (reg_diff != 0)
-			gain += ((s32) (reg_value - table[imin].reg_value) *
+			gain += ((s32)(reg_value - table[imin].reg_value) *
 				(s32)(table[imax].value
-				- table[imin].value))/(reg_diff);
+				- table[imin].value)) / reg_diff;
 	}
 	return gain;
 }
@@ -587,27 +587,33 @@ static int get_rf_strength(struct dvb_frontend *fe, u16 *st)
 		if ((state->reg[0x02] & 0x80) == 0)
 			/* NF */
 			gain = table_lookup(lnagain_nf_lookup,
-				ARRAY_SIZE(lnagain_nf_lookup), reg & 0x1F);
+					    ARRAY_SIZE(lnagain_nf_lookup),
+					    reg & 0x1F);
 		else
 			/* IIP3 */
 			gain = table_lookup(lnagain_iip3_lookup,
-				ARRAY_SIZE(lnagain_iip3_lookup), reg & 0x1F);
+					    ARRAY_SIZE(lnagain_iip3_lookup),
+					    reg & 0x1F);
 
 		gain += table_lookup(gain_rfagc_lookup,
-				ARRAY_SIZE(gain_rfagc_lookup), rfagc);
+				     ARRAY_SIZE(gain_rfagc_lookup), rfagc);
+
 		gain -= 2400;
 	} else {
 		/* Channel Mode */
 		if ((state->reg[0x02] & 0x80) == 0) {
 			/* NF */
-			gain = table_lookup(gain_channel_agc_nf_lookup,
+			gain = table_lookup(
+				gain_channel_agc_nf_lookup,
 				ARRAY_SIZE(gain_channel_agc_nf_lookup), rfagc);
+
 			gain += 600;
 		} else {
 			/* IIP3 */
-			gain = table_lookup(gain_channel_agc_iip3_lookup,
+			gain = table_lookup(
+				gain_channel_agc_iip3_lookup,
 				ARRAY_SIZE(gain_channel_agc_iip3_lookup),
-					rfagc);
+				rfagc);
 		}
 	}
 
@@ -647,7 +653,7 @@ struct dvb_frontend *stv6111_attach(struct dvb_frontend *fe,
 	struct stv *state;
 	int stat;
 
-	state = kzalloc(sizeof(struct stv), GFP_KERNEL);
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
 		return NULL;
 	state->adr = adr;
