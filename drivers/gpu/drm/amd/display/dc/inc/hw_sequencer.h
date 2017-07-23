@@ -79,6 +79,10 @@ struct hw_sequencer_funcs {
 		const struct core_dc *dc,
 		struct pipe_ctx *pipe_ctx);
 
+	void (*update_dchub)(
+		struct dce_hwseq *hws,
+		struct dchub_init_data *dh_data);
+
 	void (*update_pending_status)(
 			struct pipe_ctx *pipe_ctx);
 

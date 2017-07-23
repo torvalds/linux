@@ -28,6 +28,7 @@
 #include "core_dc.h"
 #include "core_types.h"
 #include "dce120_hw_sequencer.h"
+#include "dce/dce_hwseq.h"
 
 #include "dce110/dce110_hw_sequencer.h"
 
@@ -36,6 +37,15 @@
 #include "vega10/DC/dce_12_0_sh_mask.h"
 #include "vega10/soc15ip.h"
 #include "reg_helper.h"
+
+#define CTX \
+	hws->ctx
+#define REG(reg)\
+	hws->regs->reg
+
+#undef FN
+#define FN(reg_name, field_name) \
+	hws->shifts->field_name, hws->masks->field_name
 
 struct dce120_hw_seq_reg_offsets {
 	uint32_t crtc;
@@ -184,6 +194,59 @@ static bool dce120_enable_display_power_gating(
 	return false;
 }
 
+static void dce120_update_dchub(
+	struct dce_hwseq *hws,
+	struct dchub_init_data *dh_data)
+{
+	/* TODO: port code from dal2 */
+	switch (dh_data->fb_mode) {
+	case FRAME_BUFFER_MODE_ZFB_ONLY:
+		/*For ZFB case need to put DCHUB FB BASE and TOP upside down to indicate ZFB mode*/
+		REG_UPDATE_2(DCHUB_FB_LOCATION,
+				FB_TOP, 0,
+				FB_BASE, 0x0FFFF);
+
+		REG_UPDATE(DCHUB_AGP_BASE,
+				AGP_BASE, dh_data->zfb_phys_addr_base >> 22);
+
+		REG_UPDATE(DCHUB_AGP_BOT,
+				AGP_BOT, dh_data->zfb_mc_base_addr >> 22);
+
+		REG_UPDATE(DCHUB_AGP_TOP,
+				AGP_TOP, (dh_data->zfb_mc_base_addr + dh_data->zfb_size_in_byte - 1) >> 22);
+		break;
+	case FRAME_BUFFER_MODE_MIXED_ZFB_AND_LOCAL:
+		/*Should not touch FB LOCATION (done by VBIOS on AsicInit table)*/
+		REG_UPDATE(DCHUB_AGP_BASE,
+				AGP_BASE, dh_data->zfb_phys_addr_base >> 22);
+
+		REG_UPDATE(DCHUB_AGP_BOT,
+				AGP_BOT, dh_data->zfb_mc_base_addr >> 22);
+
+		REG_UPDATE(DCHUB_AGP_TOP,
+				AGP_TOP, (dh_data->zfb_mc_base_addr + dh_data->zfb_size_in_byte - 1) >> 22);
+		break;
+	case FRAME_BUFFER_MODE_LOCAL_ONLY:
+		/*Should not touch FB LOCATION (done by VBIOS on AsicInit table)*/
+		REG_UPDATE(DCHUB_AGP_BASE,
+				AGP_BASE, 0);
+
+		REG_UPDATE(DCHUB_AGP_BOT,
+				AGP_BOT, 0x03FFFF);
+
+		REG_UPDATE(DCHUB_AGP_TOP,
+				AGP_TOP, 0);
+		break;
+	default:
+		break;
+	}
+
+	dh_data->dchub_initialzied = true;
+	dh_data->dchub_info_valid = false;
+}
+
+
+
 bool dce120_hw_sequencer_construct(struct core_dc *dc)
 {
 	/* All registers used by dce11.2 match those in dce11 in offset and
@@ -191,6 +254,7 @@ bool dce120_hw_sequencer_construct(struct core_dc *dc)
 	 */
 	dce110_hw_sequencer_construct(dc);
 	dc->hwss.enable_display_power_gating = dce120_enable_display_power_gating;
+	dc->hwss.update_dchub = dce120_update_dchub;
 
 	return true;
 }

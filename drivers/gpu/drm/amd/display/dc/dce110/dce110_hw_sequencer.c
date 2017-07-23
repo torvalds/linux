@@ -49,6 +49,7 @@
 #include "abm.h"
 #include "audio.h"
 #include "dce/dce_hwseq.h"
+#include "reg_helper.h"
 
 /* include DCE11 register header files */
 #include "dce/dce_11_0_d.h"

@@ -598,7 +598,7 @@ static struct stream_encoder *dce120_stream_encoder_create(
 					mm ## block ## id ## _ ## reg_name
 
 static const struct dce_hwseq_registers hwseq_reg = {
-		HWSEQ_DCE112_REG_LIST()
+		HWSEQ_DCE120_REG_LIST()
 };
 
 static const struct dce_hwseq_shift hwseq_shift = {

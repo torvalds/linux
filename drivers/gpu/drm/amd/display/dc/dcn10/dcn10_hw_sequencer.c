@@ -218,6 +218,306 @@ static void dpp_pg_control(
 	}
 }
 
+static uint32_t convert_and_clamp(
+	uint32_t wm_ns,
+	uint32_t refclk_mhz,
+	uint32_t clamp_value)
+{
+	uint32_t ret_val = 0;
+	ret_val = wm_ns * refclk_mhz;
+	ret_val /= 1000;
+
+	if (ret_val > clamp_value)
+		ret_val = clamp_value;
+
+	return ret_val;
+}
+
+static void program_watermarks(
+		struct dce_hwseq *hws,
+		struct dcn_watermark_set *watermarks,
+		unsigned int refclk_mhz)
+{
+	uint32_t force_en = hws->ctx->dc->debug.disable_stutter ? 1 : 0;
+	/*
+	 * Need to clamp to max of the register values (i.e. no wrap)
+	 * for dcn1, all wm registers are 21-bit wide
+	 */
+	uint32_t prog_wm_value;
+
+	/* Repeat for water mark set A, B, C and D. */
+	/* clock state A */
+	prog_wm_value = convert_and_clamp(watermarks->a.urgent_ns,
+			refclk_mhz, 0x1fffff);
+	REG_WRITE(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_A, prog_wm_value);
+
+	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+		"URGENCY_WATERMARK_A calculated =%d\n"
+		"HW register value = 0x%x\n",
+		watermarks->a.urgent_ns, prog_wm_value);
+
+	prog_wm_value = convert_and_clamp(watermarks->a.pte_meta_urgent_ns,
+			refclk_mhz, 0x1fffff);
+	REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_A, prog_wm_value);
+	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+		"PTE_META_URGENCY_WATERMARK_A calculated =%d\n"
+		"HW register value = 0x%x\n",
+		watermarks->a.pte_meta_urgent_ns, prog_wm_value);
+
+
+	prog_wm_value = convert_and_clamp(
+			watermarks->a.cstate_pstate.cstate_enter_plus_exit_ns,
+			refclk_mhz, 0x1fffff);
+
+	REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_A, prog_wm_value);
+	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+		"SR_ENTER_EXIT_WATERMARK_A calculated =%d\n"
+		"HW register value = 0x%x\n",
+		watermarks->a.cstate_pstate.cstate_enter_plus_exit_ns, prog_wm_value);
+
+
+	prog_wm_value = convert_and_clamp(
+			watermarks->a.cstate_pstate.cstate_exit_ns,
+			refclk_mhz, 0x1fffff);
+	REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_A, prog_wm_value);
+	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+		"SR_EXIT_WATERMARK_A calculated =%d\n"
+		"HW register value = 0x%x\n",
+		watermarks->a.cstate_pstate.cstate_exit_ns, prog_wm_value);
+
+
+	prog_wm_value = convert_and_clamp(
+			watermarks->a.cstate_pstate.pstate_change_ns,
+			refclk_mhz, 0x1fffff);
+	REG_WRITE(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_A, prog_wm_value);
+	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+		"DRAM_CLK_CHANGE_WATERMARK_A calculated =%d\n"
+		"HW register value = 0x%x\n\n",
+		watermarks->a.cstate_pstate.pstate_change_ns, prog_wm_value);
+
+
+	/* clock state B */
+	prog_wm_value = convert_and_clamp(
+			watermarks->b.urgent_ns, refclk_mhz, 0x1fffff);
+	REG_WRITE(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_B, prog_wm_value);
+	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+		"URGENCY_WATERMARK_B calculated =%d\n"
+		"HW register value = 0x%x\n",
+		watermarks->b.urgent_ns, prog_wm_value);
+
+
+	prog_wm_value = convert_and_clamp(
+			watermarks->b.pte_meta_urgent_ns,
+			refclk_mhz, 0x1fffff);
+	REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_B, prog_wm_value);
+	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+		"PTE_META_URGENCY_WATERMARK_B calculated =%d\n"
+		"HW register value = 0x%x\n",
+		watermarks->b.pte_meta_urgent_ns, prog_wm_value);
+
+
+	prog_wm_value = convert_and_clamp(
+			watermarks->b.cstate_pstate.cstate_enter_plus_exit_ns,
+			refclk_mhz, 0x1fffff);
+	REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_B, prog_wm_value);
+	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+		"SR_ENTER_WATERMARK_B calculated =%d\n"
+		"HW register value = 0x%x\n",
+		watermarks->b.cstate_pstate.cstate_enter_plus_exit_ns, prog_wm_value);
+
+
+	prog_wm_value = convert_and_clamp(
+			watermarks->b.cstate_pstate.cstate_exit_ns,
+			refclk_mhz, 0x1fffff);
+	REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_B, prog_wm_value);
+	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+		"SR_EXIT_WATERMARK_B calculated =%d\n"
+		"HW register value = 0x%x\n",
+		watermarks->b.cstate_pstate.cstate_exit_ns, prog_wm_value);
+
+	prog_wm_value = convert_and_clamp(
+			watermarks->b.cstate_pstate.pstate_change_ns,
+			refclk_mhz, 0x1fffff);
+	REG_WRITE(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_B, prog_wm_value);
+	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+		"DRAM_CLK_CHANGE_WATERMARK_B calculated =%d\n\n"
+		"HW register value = 0x%x\n",
+		watermarks->b.cstate_pstate.pstate_change_ns, prog_wm_value);
+
+	/* clock state C */
+	prog_wm_value = convert_and_clamp(
+			watermarks->c.urgent_ns, refclk_mhz, 0x1fffff);
+	REG_WRITE(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_C, prog_wm_value);
+	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+		"URGENCY_WATERMARK_C calculated =%d\n"
+		"HW register value = 0x%x\n",
+		watermarks->c.urgent_ns, prog_wm_value);
+
+
+	prog_wm_value = convert_and_clamp(
+			watermarks->c.pte_meta_urgent_ns,
+			refclk_mhz, 0x1fffff);
+	REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_C, prog_wm_value);
+	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+		"PTE_META_URGENCY_WATERMARK_C calculated =%d\n"
+		"HW register value = 0x%x\n",
+		watermarks->c.pte_meta_urgent_ns, prog_wm_value);
+
+
+	prog_wm_value = convert_and_clamp(
+			watermarks->c.cstate_pstate.cstate_enter_plus_exit_ns,
+			refclk_mhz, 0x1fffff);
+	REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_C, prog_wm_value);
+	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+		"SR_ENTER_WATERMARK_C calculated =%d\n"
+		"HW register value = 0x%x\n",
+		watermarks->c.cstate_pstate.cstate_enter_plus_exit_ns, prog_wm_value);
+
+
+	prog_wm_value = convert_and_clamp(
+			watermarks->c.cstate_pstate.cstate_exit_ns,
+			refclk_mhz, 0x1fffff);
+	REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_C, prog_wm_value);
+	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+		"SR_EXIT_WATERMARK_C calculated =%d\n"
+		"HW register value = 0x%x\n",
+		watermarks->c.cstate_pstate.cstate_exit_ns, prog_wm_value);
+
+
+	prog_wm_value = convert_and_clamp(
+			watermarks->c.cstate_pstate.pstate_change_ns,
+			refclk_mhz, 0x1fffff);
+	REG_WRITE(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_C, prog_wm_value);
+	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+		"DRAM_CLK_CHANGE_WATERMARK_C calculated =%d\n\n"
+		"HW register value = 0x%x\n",
+		watermarks->c.cstate_pstate.pstate_change_ns, prog_wm_value);
+
+	/* clock state D */
+	prog_wm_value = convert_and_clamp(
+			watermarks->d.urgent_ns, refclk_mhz, 0x1fffff);
+	REG_WRITE(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_D, prog_wm_value);
+	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+		"URGENCY_WATERMARK_D calculated =%d\n"
+		"HW register value = 0x%x\n",
+		watermarks->d.urgent_ns, prog_wm_value);
+
+	prog_wm_value = convert_and_clamp(
+			watermarks->d.pte_meta_urgent_ns,
+			refclk_mhz, 0x1fffff);
+	REG_WRITE(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_D, prog_wm_value);
+	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+		"PTE_META_URGENCY_WATERMARK_D calculated =%d\n"
+		"HW register value = 0x%x\n",
+		watermarks->d.pte_meta_urgent_ns, prog_wm_value);
+
+
+	prog_wm_value = convert_and_clamp(
+			watermarks->d.cstate_pstate.cstate_enter_plus_exit_ns,
+			refclk_mhz, 0x1fffff);
+	REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_D, prog_wm_value);
+	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+		"SR_ENTER_WATERMARK_D calculated =%d\n"
+		"HW register value = 0x%x\n",
+		watermarks->d.cstate_pstate.cstate_enter_plus_exit_ns, prog_wm_value);
+
+
+	prog_wm_value = convert_and_clamp(
+			watermarks->d.cstate_pstate.cstate_exit_ns,
+			refclk_mhz, 0x1fffff);
+	REG_WRITE(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_D, prog_wm_value);
+	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+		"SR_EXIT_WATERMARK_D calculated =%d\n"
+		"HW register value = 0x%x\n",
+		watermarks->d.cstate_pstate.cstate_exit_ns, prog_wm_value);
+
+
+	prog_wm_value = convert_and_clamp(
+			watermarks->d.cstate_pstate.pstate_change_ns,
+			refclk_mhz, 0x1fffff);
+	REG_WRITE(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_D, prog_wm_value);
+	dm_logger_write(hws->ctx->logger, LOG_HW_MARKS,
+		"DRAM_CLK_CHANGE_WATERMARK_D calculated =%d\n"
+		"HW register value = 0x%x\n\n",
+		watermarks->d.cstate_pstate.pstate_change_ns, prog_wm_value);
+
+	REG_UPDATE(DCHUBBUB_ARB_WATERMARK_CHANGE_CNTL,
+			DCHUBBUB_ARB_WATERMARK_CHANGE_REQUEST, 1);
+	REG_UPDATE(DCHUBBUB_ARB_WATERMARK_CHANGE_CNTL,
+			DCHUBBUB_ARB_WATERMARK_CHANGE_REQUEST, 0);
+	REG_UPDATE(DCHUBBUB_ARB_SAT_LEVEL,
+			DCHUBBUB_ARB_SAT_LEVEL, 60 * refclk_mhz);
+	REG_UPDATE(DCHUBBUB_ARB_DF_REQ_OUTSTAND,
+			DCHUBBUB_ARB_MIN_REQ_OUTSTAND, 68);
+
+	REG_UPDATE_2(DCHUBBUB_ARB_DRAM_STATE_CNTL,
+			DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_VALUE, 0,
+			DCHUBBUB_ARB_ALLOW_SELF_REFRESH_FORCE_ENABLE, force_en);
+
+#if 0
+	REG_UPDATE_2(DCHUBBUB_ARB_WATERMARK_CHANGE_CNTL,
+			DCHUBBUB_ARB_WATERMARK_CHANGE_DONE_INTERRUPT_DISABLE, 1,
+			DCHUBBUB_ARB_WATERMARK_CHANGE_REQUEST, 1);
+#endif
+}
+
+
+static void dcn10_update_dchub(
+	struct dce_hwseq *hws,
+	struct dchub_init_data *dh_data)
+{
+	/* TODO: port code from dal2 */
+	switch (dh_data->fb_mode) {
+	case FRAME_BUFFER_MODE_ZFB_ONLY:
+		/*For ZFB case need to put DCHUB FB BASE and TOP upside down to indicate ZFB mode*/
+		REG_UPDATE(DCHUBBUB_SDPIF_FB_TOP,
+				SDPIF_FB_TOP, 0);
+
+		REG_UPDATE(DCHUBBUB_SDPIF_FB_BASE,
+				SDPIF_FB_BASE, 0x0FFFF);
+
+		REG_UPDATE(DCHUBBUB_SDPIF_AGP_BASE,
+				SDPIF_AGP_BASE, dh_data->zfb_phys_addr_base >> 22);
+
+		REG_UPDATE(DCHUBBUB_SDPIF_AGP_BOT,
+				SDPIF_AGP_BOT, dh_data->zfb_mc_base_addr >> 22);
+
+		REG_UPDATE(DCHUBBUB_SDPIF_AGP_TOP,
+				SDPIF_AGP_TOP, (dh_data->zfb_mc_base_addr +
+						dh_data->zfb_size_in_byte - 1) >> 22);
+		break;
+	case FRAME_BUFFER_MODE_MIXED_ZFB_AND_LOCAL:
+		/*Should not touch FB LOCATION (done by VBIOS on AsicInit table)*/
+
+		REG_UPDATE(DCHUBBUB_SDPIF_AGP_BASE,
+				SDPIF_AGP_BASE, dh_data->zfb_phys_addr_base >> 22);
+
+		REG_UPDATE(DCHUBBUB_SDPIF_AGP_BOT,
+				SDPIF_AGP_BOT, dh_data->zfb_mc_base_addr >> 22);
+
+		REG_UPDATE(DCHUBBUB_SDPIF_AGP_TOP,
+				SDPIF_AGP_TOP, (dh_data->zfb_mc_base_addr +
+						dh_data->zfb_size_in_byte - 1) >> 22);
+		break;
+	case FRAME_BUFFER_MODE_LOCAL_ONLY:
+		/*Should not touch FB LOCATION (done by VBIOS on AsicInit table)*/
+		REG_UPDATE(DCHUBBUB_SDPIF_AGP_BASE,
+				SDPIF_AGP_BASE, 0);
+
+		REG_UPDATE(DCHUBBUB_SDPIF_AGP_BOT,
+				SDPIF_AGP_BOT, 0X03FFFF);
+
+		REG_UPDATE(DCHUBBUB_SDPIF_AGP_TOP,
+				SDPIF_AGP_TOP, 0);
+		break;
+	default:
+		break;
+	}
+
+	dh_data->dchub_initialzied = true;
+	dh_data->dchub_info_valid = false;
+}
+
 static void hubp_pg_control(
 		struct dce_hwseq *hws,
 		unsigned int hubp_inst,
@@ -1615,8 +1915,7 @@ static void program_all_pipe_in_tree(
 		 * this OTG. this is done only one time.
 		 */
 		/* watermark is for all pipes */
-		pipe_ctx->mi->funcs->program_watermarks(
-				pipe_ctx->mi, &context->bw.dcn.watermarks, ref_clk_mhz);
+		program_watermarks(dc->hwseq, &context->bw.dcn.watermarks, ref_clk_mhz);
 
 		if (dc->public.debug.sanity_checks) {
 			/* pstate stuck check after watermark update */
@@ -2078,6 +2377,7 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.apply_ctx_for_surface = dcn10_apply_ctx_for_surface,
 	.set_plane_config = set_plane_config,
 	.update_plane_addr = update_plane_addr,
+	.update_dchub = dcn10_update_dchub,
 	.update_pending_status = dcn10_update_pending_status,
 	.set_input_transfer_func = dcn10_set_input_transfer_func,
 	.set_output_transfer_func = dcn10_set_output_transfer_func,

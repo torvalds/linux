@@ -75,11 +75,6 @@ struct mem_input {
 
 struct mem_input_funcs {
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-	void (*program_watermarks)(
-			struct mem_input *mem_input,
-			struct dcn_watermark_set *watermarks,
-			unsigned int refclk_period_ns);
-
 	void (*mem_input_setup)(
 			struct mem_input *mem_input,
 			struct _vcs_dpi_display_dlg_regs_st *dlg_regs,
@@ -143,7 +138,7 @@ struct mem_input_funcs {
 	bool (*mem_input_is_flip_pending)(struct mem_input *mem_input);
 
 	void (*mem_input_update_dchub)(struct mem_input *mem_input,
-			struct dchub_init_data *dh_data);
+				struct dchub_init_data *dh_data);
 
 	void (*set_blank)(struct mem_input *mi, bool blank);
 };

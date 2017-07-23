@@ -656,57 +656,6 @@ static bool dce_mi_program_surface_flip_and_addr(
 	return true;
 }
 
-static void dce_mi_update_dchub(struct mem_input *mi,
-		struct dchub_init_data *dh_data)
-{
-	struct dce_mem_input *dce_mi = TO_DCE_MEM_INPUT(mi);
-	/* TODO: port code from dal2 */
-	switch (dh_data->fb_mode) {
-	case FRAME_BUFFER_MODE_ZFB_ONLY:
-		/*For ZFB case need to put DCHUB FB BASE and TOP upside down to indicate ZFB mode*/
-		REG_UPDATE_2(DCHUB_FB_LOCATION,
-				FB_TOP, 0,
-				FB_BASE, 0x0FFFF);
-
-		REG_UPDATE(DCHUB_AGP_BASE,
-				AGP_BASE, dh_data->zfb_phys_addr_base >> 22);
-
-		REG_UPDATE(DCHUB_AGP_BOT,
-				AGP_BOT, dh_data->zfb_mc_base_addr >> 22);
-
-		REG_UPDATE(DCHUB_AGP_TOP,
-				AGP_TOP, (dh_data->zfb_mc_base_addr + dh_data->zfb_size_in_byte - 1) >> 22);
-		break;
-	case FRAME_BUFFER_MODE_MIXED_ZFB_AND_LOCAL:
-		/*Should not touch FB LOCATION (done by VBIOS on AsicInit table)*/
-		REG_UPDATE(DCHUB_AGP_BASE,
-				AGP_BASE, dh_data->zfb_phys_addr_base >> 22);
-
-		REG_UPDATE(DCHUB_AGP_BOT,
-				AGP_BOT, dh_data->zfb_mc_base_addr >> 22);
-
-		REG_UPDATE(DCHUB_AGP_TOP,
-				AGP_TOP, (dh_data->zfb_mc_base_addr + dh_data->zfb_size_in_byte - 1) >> 22);
-		break;
-	case FRAME_BUFFER_MODE_LOCAL_ONLY:
-		/*Should not touch FB LOCATION (done by VBIOS on AsicInit table)*/
-		REG_UPDATE(DCHUB_AGP_BASE,
-				AGP_BASE, 0);
-
-		REG_UPDATE(DCHUB_AGP_BOT,
-				AGP_BOT, 0x03FFFF);
-
-		REG_UPDATE(DCHUB_AGP_TOP,
-				AGP_TOP, 0);
-		break;
-	default:
-		break;
-	}
-
-	dh_data->dchub_initialzied = true;
-	dh_data->dchub_info_valid = false;
-}
-
 static struct mem_input_funcs dce_mi_funcs = {
 	.mem_input_program_display_marks = dce_mi_program_display_marks,
 	.allocate_mem_input = dce_mi_allocate_dmif,
@@ -716,8 +665,7 @@ static struct mem_input_funcs dce_mi_funcs = {
 	.mem_input_program_pte_vm = dce_mi_program_pte_vm,
 	.mem_input_program_surface_config =
 			dce_mi_program_surface_config,
-	.mem_input_is_flip_pending = dce_mi_is_flip_pending,
-	.mem_input_update_dchub = dce_mi_update_dchub
+	.mem_input_is_flip_pending = dce_mi_is_flip_pending
 };
 
 

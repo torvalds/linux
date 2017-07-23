@@ -2042,10 +2042,10 @@ bool dc_init_dchub(struct dc *dc, struct dchub_init_data *dh_data)
 		return false;
 	}
 
-	if (mi->funcs->mem_input_update_dchub)
-		mi->funcs->mem_input_update_dchub(mi, dh_data);
+	if (core_dc->hwss.update_dchub)
+		core_dc->hwss.update_dchub(core_dc->hwseq, dh_data);
 	else
-		ASSERT(mi->funcs->mem_input_update_dchub);
+		ASSERT(core_dc->hwss.update_dchub);
 
 
 	return true;
