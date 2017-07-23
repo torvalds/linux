@@ -781,7 +781,7 @@ static enum dc_status validate_mapped_resource(
 
 	for (i = 0; i < context->stream_count; i++) {
 		struct core_stream *stream = context->streams[i];
-		struct core_link *link = stream->sink->link;
+		struct dc_link *link = stream->sink->link;
 
 		if (old_context && resource_is_stream_unchanged(old_context, stream))
 			continue;

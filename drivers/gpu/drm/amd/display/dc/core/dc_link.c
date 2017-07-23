@@ -62,24 +62,24 @@ enum {
 /*******************************************************************************
  * Private functions
  ******************************************************************************/
-static void destruct(struct core_link *link)
+static void destruct(struct dc_link *link)
 {
 	int i;
 
-	if (link->public.ddc)
-		dal_ddc_service_destroy(&link->public.ddc);
+	if (link->ddc)
+		dal_ddc_service_destroy(&link->ddc);
 
 	if(link->link_enc)
 		link->link_enc->funcs->destroy(&link->link_enc);
 
-	if (link->public.local_sink)
-		dc_sink_release(link->public.local_sink);
+	if (link->local_sink)
+		dc_sink_release(link->local_sink);
 
-	for (i = 0; i < link->public.sink_count; ++i)
-		dc_sink_release(link->public.remote_sinks[i]);
+	for (i = 0; i < link->sink_count; ++i)
+		dc_sink_release(link->remote_sinks[i]);
 }
 
-static struct gpio *get_hpd_gpio(const struct core_link *link)
+static struct gpio *get_hpd_gpio(const struct dc_link *link)
 {
 	enum bp_result bp_result;
 	struct dc_bios *dcb = link->ctx->dc_bios;
@@ -116,7 +116,7 @@ static struct gpio *get_hpd_gpio(const struct core_link *link)
  *     true on success, false otherwise
  */
 static bool program_hpd_filter(
-	const struct core_link *link)
+	const struct dc_link *link)
 {
 	bool result = false;
 
@@ -126,7 +126,7 @@ static bool program_hpd_filter(
 	int delay_on_disconnect_in_ms = 0;
 
 	/* Verify feature is supported */
-	switch (link->public.connector_signal) {
+	switch (link->connector_signal) {
 	case SIGNAL_TYPE_DVI_SINGLE_LINK:
 	case SIGNAL_TYPE_DVI_DUAL_LINK:
 	case SIGNAL_TYPE_HDMI_TYPE_A:
@@ -181,7 +181,7 @@ static bool program_hpd_filter(
 	return result;
 }
 
-static bool detect_sink(struct core_link *link, enum dc_connection_type *type)
+static bool detect_sink(struct dc_link *link, enum dc_connection_type *type)
 {
 	uint32_t is_hpd_high = 0;
 	struct gpio *hpd_pin;
@@ -306,7 +306,7 @@ static enum signal_type get_basic_signal_type(
  * @brief
  * Check whether there is a dongle on DP connector
  */
-static bool is_dp_sink_present(struct core_link *link)
+static bool is_dp_sink_present(struct dc_link *link)
 {
 	enum gpio_result gpio_result;
 	uint32_t clock_pin = 0;
@@ -320,7 +320,7 @@ static bool is_dp_sink_present(struct core_link *link)
 		((connector_id == CONNECTOR_ID_DISPLAY_PORT) ||
 		(connector_id == CONNECTOR_ID_EDP));
 
-	ddc = dal_ddc_service_get_ddc_pin(link->public.ddc);
+	ddc = dal_ddc_service_get_ddc_pin(link->ddc);
 
 	if (!ddc) {
 		BREAK_TO_DEBUGGER();
@@ -356,7 +356,7 @@ static bool is_dp_sink_present(struct core_link *link)
  * @brief
  * Detect output sink type
  */
-static enum signal_type link_detect_sink(struct core_link *link)
+static enum signal_type link_detect_sink(struct dc_link *link)
 {
 	enum signal_type result = get_basic_signal_type(
 		link->link_enc->id, link->link_id);
@@ -446,18 +446,18 @@ static enum signal_type dp_passive_dongle_detection(
 			audio_support);
 }
 
-static void link_disconnect_sink(struct core_link *link)
+static void link_disconnect_sink(struct dc_link *link)
 {
-	if (link->public.local_sink) {
-		dc_sink_release(link->public.local_sink);
-		link->public.local_sink = NULL;
+	if (link->local_sink) {
+		dc_sink_release(link->local_sink);
+		link->local_sink = NULL;
 	}
 
 	link->dpcd_sink_count = 0;
 }
 
 static void detect_dp(
-	struct core_link *link,
+	struct dc_link *link,
 	struct display_sink_capability *sink_caps,
 	bool *converter_disable_audio,
 	struct audio_support *audio_support,
@@ -473,7 +473,7 @@ static void detect_dp(
 
 		/* DP active dongles */
 		if (is_dp_active_dongle(link)) {
-			link->public.type = dc_connection_active_dongle;
+			link->type = dc_connection_active_dongle;
 			if (!link->dpcd_caps.sink_count.bits.SINK_COUNT) {
 				/*
 				 * active dongle unplug processing for short irq
@@ -517,8 +517,8 @@ static void detect_dp(
 
 			if (dm_helpers_dp_mst_start_top_mgr(
 				link->ctx,
-				&link->public, boot)) {
-				link->public.type = dc_connection_mst_branch;
+				link, boot)) {
+				link->type = dc_connection_mst_branch;
 			} else {
 				/* MST not supported */
 				sink_caps->signal = SIGNAL_TYPE_DISPLAY_PORT;
@@ -526,15 +526,14 @@ static void detect_dp(
 		}
 	} else {
 		/* DP passive dongles */
-		sink_caps->signal = dp_passive_dongle_detection(link->public.ddc,
+		sink_caps->signal = dp_passive_dongle_detection(link->ddc,
 				sink_caps,
 				audio_support);
 	}
 }
 
-bool dc_link_detect(const struct dc_link *dc_link, bool boot)
+bool dc_link_detect(struct dc_link *link, bool boot)
 {
-	struct core_link *link = DC_LINK_TO_LINK(dc_link);
 	struct dc_sink_init_data sink_init_data = { 0 };
 	struct display_sink_capability sink_caps = { 0 };
 	uint8_t i;
@@ -546,7 +545,7 @@ bool dc_link_detect(const struct dc_link *dc_link, bool boot)
 	struct core_sink *sink = NULL;
 	enum dc_connection_type new_connection_type = dc_connection_none;
 
-	if (link->public.connector_signal == SIGNAL_TYPE_VIRTUAL)
+	if (link->connector_signal == SIGNAL_TYPE_VIRTUAL)
 		return false;
 
 	if (false == detect_sink(link, &new_connection_type)) {
@@ -554,17 +553,17 @@ bool dc_link_detect(const struct dc_link *dc_link, bool boot)
 		return false;
 	}
 
-	if (link->public.connector_signal == SIGNAL_TYPE_EDP &&
-			link->public.local_sink)
+	if (link->connector_signal == SIGNAL_TYPE_EDP &&
+			link->local_sink)
 		return true;
 
 	link_disconnect_sink(link);
 
 	if (new_connection_type != dc_connection_none) {
-		link->public.type = new_connection_type;
+		link->type = new_connection_type;
 
 		/* From Disconnected-to-Connected. */
-		switch (link->public.connector_signal) {
+		switch (link->connector_signal) {
 		case SIGNAL_TYPE_HDMI_TYPE_A: {
 			sink_caps.transaction_type = DDC_TRANSACTION_TYPE_I2C;
 			if (aud_support->hdmi_audio_native)
@@ -602,14 +601,14 @@ bool dc_link_detect(const struct dc_link *dc_link, bool boot)
 				aud_support, boot);
 
 			/* Active dongle downstream unplug */
-			if (link->public.type == dc_connection_active_dongle
+			if (link->type == dc_connection_active_dongle
 					&& link->dpcd_caps.sink_count.
 					bits.SINK_COUNT == 0)
 				return true;
 
-			if (link->public.type == dc_connection_mst_branch) {
+			if (link->type == dc_connection_mst_branch) {
 				LINK_INFO("link=%d, mst branch is now Connected\n",
-					link->public.link_index);
+					link->link_index);
 				return false;
 			}
 
@@ -618,7 +617,7 @@ bool dc_link_detect(const struct dc_link *dc_link, bool boot)
 
 		default:
 			DC_ERROR("Invalid connector type! signal:%d\n",
-				link->public.connector_signal);
+				link->connector_signal);
 			return false;
 		} /* switch() */
 
@@ -629,13 +628,13 @@ bool dc_link_detect(const struct dc_link *dc_link, bool boot)
 				link->dpcd_sink_count = 1;
 
 		dal_ddc_service_set_transaction_type(
-						link->public.ddc,
+						link->ddc,
 						sink_caps.transaction_type);
 
-		link->public.aux_mode = dal_ddc_service_is_in_aux_transaction_mode(
-				link->public.ddc);
+		link->aux_mode = dal_ddc_service_is_in_aux_transaction_mode(
+				link->ddc);
 
-		sink_init_data.link = &link->public;
+		sink_init_data.link = link;
 		sink_init_data.sink_signal = sink_caps.signal;
 
 		dc_sink = dc_sink_create(&sink_init_data);
@@ -648,11 +647,11 @@ bool dc_link_detect(const struct dc_link *dc_link, bool boot)
 		dc_sink->converter_disable_audio = converter_disable_audio;
 
 		sink = DC_SINK_TO_CORE(dc_sink);
-		link->public.local_sink = &sink->public;
+		link->local_sink = &sink->public;
 
 		edid_status = dm_helpers_read_local_edid(
 				link->ctx,
-				&link->public,
+				link,
 				&sink->public);
 
 		switch (edid_status) {
@@ -719,21 +718,21 @@ bool dc_link_detect(const struct dc_link *dc_link, bool boot)
 
 	} else {
 		/* From Connected-to-Disconnected. */
-		if (link->public.type == dc_connection_mst_branch) {
+		if (link->type == dc_connection_mst_branch) {
 			LINK_INFO("link=%d, mst branch is now Disconnected\n",
-				link->public.link_index);
-			dm_helpers_dp_mst_stop_top_mgr(link->ctx, &link->public);
+				link->link_index);
+			dm_helpers_dp_mst_stop_top_mgr(link->ctx, link);
 
 			link->mst_stream_alloc_table.stream_count = 0;
 			memset(link->mst_stream_alloc_table.stream_allocations, 0, sizeof(link->mst_stream_alloc_table.stream_allocations));
 		}
 
-		link->public.type = dc_connection_none;
+		link->type = dc_connection_none;
 		sink_caps.signal = SIGNAL_TYPE_NONE;
 	}
 
 	LINK_INFO("link=%d, dc_sink_in=%p is now %s\n",
-		link->public.link_index, &sink->public,
+		link->link_index, &sink->public,
 		(sink_caps.signal == SIGNAL_TYPE_NONE ?
 			"Disconnected":"Connected"));
 
@@ -741,7 +740,7 @@ bool dc_link_detect(const struct dc_link *dc_link, bool boot)
 }
 
 static enum hpd_source_id get_hpd_line(
-		struct core_link *link)
+		struct dc_link *link)
 {
 	struct gpio *hpd;
 	enum hpd_source_id hpd_id = HPD_SOURCEID_UNKNOWN;
@@ -779,12 +778,12 @@ static enum hpd_source_id get_hpd_line(
 	return hpd_id;
 }
 
-static enum channel_id get_ddc_line(struct core_link *link)
+static enum channel_id get_ddc_line(struct dc_link *link)
 {
 	struct ddc *ddc;
 	enum channel_id channel = CHANNEL_ID_UNKNOWN;
 
-	ddc = dal_ddc_service_get_ddc_pin(link->public.ddc);
+	ddc = dal_ddc_service_get_ddc_pin(link->ddc);
 
 	if (ddc) {
 		switch (dal_ddc_get_line(ddc)) {
@@ -887,7 +886,7 @@ static enum transmitter translate_encoder_to_transmitter(
 }
 
 static bool construct(
-	struct core_link *link,
+	struct dc_link *link,
 	const struct link_init_data *init_params)
 {
 	uint8_t i;
@@ -899,14 +898,14 @@ static bool construct(
 	struct dc_bios *bios = init_params->dc->ctx->dc_bios;
 	const struct dc_vbios_funcs *bp_funcs = bios->funcs;
 
-	link->public.irq_source_hpd = DC_IRQ_SOURCE_INVALID;
-	link->public.irq_source_hpd_rx = DC_IRQ_SOURCE_INVALID;
+	link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
+	link->irq_source_hpd_rx = DC_IRQ_SOURCE_INVALID;
 
 	link->link_status.dpcd_caps = &link->dpcd_caps;
 
 	link->dc = init_params->dc;
 	link->ctx = dc_ctx;
-	link->public.link_index = init_params->link_index;
+	link->link_index = init_params->link_index;
 
 	link->link_id = bios->funcs->get_connector_id(bios, init_params->connector_index);
 
@@ -919,35 +918,35 @@ static bool construct(
 	hpd_gpio = get_hpd_gpio(link);
 
 	if (hpd_gpio != NULL)
-		link->public.irq_source_hpd = dal_irq_get_source(hpd_gpio);
+		link->irq_source_hpd = dal_irq_get_source(hpd_gpio);
 
 	switch (link->link_id.id) {
 	case CONNECTOR_ID_HDMI_TYPE_A:
-		link->public.connector_signal = SIGNAL_TYPE_HDMI_TYPE_A;
+		link->connector_signal = SIGNAL_TYPE_HDMI_TYPE_A;
 
 		break;
 	case CONNECTOR_ID_SINGLE_LINK_DVID:
 	case CONNECTOR_ID_SINGLE_LINK_DVII:
-		link->public.connector_signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
+		link->connector_signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
 		break;
 	case CONNECTOR_ID_DUAL_LINK_DVID:
 	case CONNECTOR_ID_DUAL_LINK_DVII:
-		link->public.connector_signal = SIGNAL_TYPE_DVI_DUAL_LINK;
+		link->connector_signal = SIGNAL_TYPE_DVI_DUAL_LINK;
 		break;
 	case CONNECTOR_ID_DISPLAY_PORT:
-		link->public.connector_signal =	SIGNAL_TYPE_DISPLAY_PORT;
+		link->connector_signal =	SIGNAL_TYPE_DISPLAY_PORT;
 
 		if (hpd_gpio != NULL)
-			link->public.irq_source_hpd_rx =
+			link->irq_source_hpd_rx =
 					dal_irq_get_rx_source(hpd_gpio);
 
 		break;
 	case CONNECTOR_ID_EDP:
-		link->public.connector_signal = SIGNAL_TYPE_EDP;
+		link->connector_signal = SIGNAL_TYPE_EDP;
 
 		if (hpd_gpio != NULL) {
-			link->public.irq_source_hpd = DC_IRQ_SOURCE_INVALID;
-			link->public.irq_source_hpd_rx =
+			link->irq_source_hpd = DC_IRQ_SOURCE_INVALID;
+			link->irq_source_hpd_rx =
 					dal_irq_get_rx_source(hpd_gpio);
 		}
 		break;
@@ -966,21 +965,21 @@ static bool construct(
 	LINK_INFO("Connector[%d] description:"
 			"signal %d\n",
 			init_params->connector_index,
-			link->public.connector_signal);
+			link->connector_signal);
 
 	ddc_service_init_data.ctx = link->ctx;
 	ddc_service_init_data.id = link->link_id;
 	ddc_service_init_data.link = link;
-	link->public.ddc = dal_ddc_service_create(&ddc_service_init_data);
+	link->ddc = dal_ddc_service_create(&ddc_service_init_data);
 
-	if (link->public.ddc == NULL) {
+	if (link->ddc == NULL) {
 		DC_ERROR("Failed to create ddc_service!\n");
 		goto ddc_create_fail;
 	}
 
-	link->public.ddc_hw_inst =
+	link->ddc_hw_inst =
 		dal_ddc_get_line(
-			dal_ddc_service_get_ddc_pin(link->public.ddc));
+			dal_ddc_service_get_ddc_pin(link->ddc));
 
 	enc_init_data.ctx = dc_ctx;
 	bp_funcs->get_src_obj(dc_ctx->dc_bios, link->link_id, 0, &enc_init_data.encoder);
@@ -988,7 +987,7 @@ static bool construct(
 	enc_init_data.channel = get_ddc_line(link);
 	enc_init_data.hpd_source = get_hpd_line(link);
 
-	link->public.hpd_src = enc_init_data.hpd_source;
+	link->hpd_src = enc_init_data.hpd_source;
 
 	enc_init_data.transmitter =
 			translate_encoder_to_transmitter(enc_init_data.encoder);
@@ -1000,7 +999,7 @@ static bool construct(
 		goto link_enc_create_fail;
 	}
 
-	link->public.link_enc_hw_inst = link->link_enc->transmitter;
+	link->link_enc_hw_inst = link->link_enc->transmitter;
 
 	for (i = 0; i < 4; i++) {
 		if (BP_RESULT_OK !=
@@ -1015,10 +1014,10 @@ static bool construct(
 		if (!bp_funcs->is_device_id_supported(dc_ctx->dc_bios, link->device_tag.dev_id))
 			continue;
 		if (link->device_tag.dev_id.device_type == DEVICE_TYPE_CRT
-			&& link->public.connector_signal != SIGNAL_TYPE_RGB)
+			&& link->connector_signal != SIGNAL_TYPE_RGB)
 			continue;
 		if (link->device_tag.dev_id.device_type == DEVICE_TYPE_LCD
-			&& link->public.connector_signal == SIGNAL_TYPE_RGB)
+			&& link->connector_signal == SIGNAL_TYPE_RGB)
 			continue;
 		break;
 	}
@@ -1052,7 +1051,7 @@ static bool construct(
 device_tag_fail:
 	link->link_enc->funcs->destroy(&link->link_enc);
 link_enc_create_fail:
-	dal_ddc_service_destroy(&link->public.ddc);
+	dal_ddc_service_destroy(&link->ddc);
 ddc_create_fail:
 create_fail:
 
@@ -1066,9 +1065,9 @@ create_fail:
 /*******************************************************************************
  * Public functions
  ******************************************************************************/
-struct core_link *link_create(const struct link_init_data *init_params)
+struct dc_link *link_create(const struct link_init_data *init_params)
 {
-	struct core_link *link =
+	struct dc_link *link =
 			dm_alloc(sizeof(*link));
 
 	if (NULL == link)
@@ -1086,7 +1085,7 @@ alloc_fail:
 	return NULL;
 }
 
-void link_destroy(struct core_link **link)
+void link_destroy(struct dc_link **link)
 {
 	destruct(*link);
 	dm_free(*link);
@@ -1094,7 +1093,7 @@ void link_destroy(struct core_link **link)
 }
 
 static void dpcd_configure_panel_mode(
-	struct core_link *link,
+	struct dc_link *link,
 	enum dp_panel_mode panel_mode)
 {
 	union dpcd_edp_config edp_config_set;
@@ -1139,7 +1138,7 @@ static void dpcd_configure_panel_mode(
 	dm_logger_write(link->ctx->logger, LOG_DETECTION_DP_CAPS,
 			"Link: %d eDP panel mode supported: %d "
 			"eDP panel mode enabled: %d \n",
-			link->public.link_index,
+			link->link_index,
 			link->dpcd_caps.panel_mode_edp,
 			panel_mode_edp);
 }
@@ -1147,7 +1146,7 @@ static void dpcd_configure_panel_mode(
 static void enable_stream_features(struct pipe_ctx *pipe_ctx)
 {
 	struct core_stream *stream = pipe_ctx->stream;
-	struct core_link *link = stream->sink->link;
+	struct dc_link *link = stream->sink->link;
 	union down_spread_ctrl downspread;
 
 	core_link_read_dpcd(link, DP_DOWNSPREAD_CTRL,
@@ -1165,7 +1164,7 @@ static enum dc_status enable_link_dp(struct pipe_ctx *pipe_ctx)
 	struct core_stream *stream = pipe_ctx->stream;
 	enum dc_status status;
 	bool skip_video_pattern;
-	struct core_link *link = stream->sink->link;
+	struct dc_link *link = stream->sink->link;
 	struct dc_link_settings link_settings = {0};
 	enum dp_panel_mode panel_mode;
 	enum dc_link_rate max_link_rate = LINK_RATE_HIGH2;
@@ -1224,7 +1223,7 @@ static enum dc_status enable_link_dp(struct pipe_ctx *pipe_ctx)
 			&link_settings,
 			skip_video_pattern,
 			LINK_TRAINING_ATTEMPTS)) {
-		link->public.cur_link_settings = link_settings;
+		link->cur_link_settings = link_settings;
 		status = DC_OK;
 	}
 	else
@@ -1237,12 +1236,12 @@ static enum dc_status enable_link_dp(struct pipe_ctx *pipe_ctx)
 
 static enum dc_status enable_link_dp_mst(struct pipe_ctx *pipe_ctx)
 {
-	struct core_link *link = pipe_ctx->stream->sink->link;
+	struct dc_link *link = pipe_ctx->stream->sink->link;
 
 	/* sink signal type after MST branch is MST. Multiple MST sinks
 	 * share one link. Link DP PHY is enable or training only once.
 	 */
-	if (link->public.cur_link_settings.lane_count != LANE_COUNT_UNKNOWN)
+	if (link->cur_link_settings.lane_count != LANE_COUNT_UNKNOWN)
 		return DC_OK;
 
 	/* set the sink to MST mode before enabling the link */
@@ -1254,16 +1253,16 @@ static enum dc_status enable_link_dp_mst(struct pipe_ctx *pipe_ctx)
 static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 {
 	struct core_stream *stream = pipe_ctx->stream;
-	struct core_link *link = stream->sink->link;
+	struct dc_link *link = stream->sink->link;
 	enum dc_color_depth display_color_depth;
 
 	if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
 		dal_ddc_service_write_scdc_data(
-			stream->sink->link->public.ddc,
+			stream->sink->link->ddc,
 			stream->phy_pix_clk,
 			stream->public.timing.flags.LTE_340MCSC_SCRAMBLE);
 
-	memset(&stream->sink->link->public.cur_link_settings, 0,
+	memset(&stream->sink->link->cur_link_settings, 0,
 			sizeof(struct dc_link_settings));
 
 	display_color_depth = stream->public.timing.display_color_depth;
@@ -1279,7 +1278,7 @@ static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 			stream->phy_pix_clk);
 
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_HDMI_TYPE_A)
-		dal_ddc_service_read_scdc_data(link->public.ddc);
+		dal_ddc_service_read_scdc_data(link->ddc);
 }
 
 /****************************enable_link***********************************/
@@ -1321,7 +1320,7 @@ static enum dc_status enable_link(struct pipe_ctx *pipe_ctx)
 	return status;
 }
 
-static void disable_link(struct core_link *link, enum signal_type signal)
+static void disable_link(struct dc_link *link, enum signal_type signal)
 {
 	/*
 	 * TODO: implement call for dp_set_hw_test_pattern
@@ -1345,7 +1344,7 @@ static void disable_link(struct core_link *link, enum signal_type signal)
 
 enum dc_status dc_link_validate_mode_timing(
 		const struct core_stream *stream,
-		struct core_link *link,
+		struct dc_link *link,
 		const struct dc_crtc_timing *timing)
 {
 	uint32_t max_pix_clk = stream->sink->public.dongle_max_pix_clk;
@@ -1353,7 +1352,7 @@ enum dc_status dc_link_validate_mode_timing(
 	/* A hack to avoid failing any modes for EDID override feature on
 	 * topology change such as lower quality cable for DP or different dongle
 	 */
-	if (link->public.remote_sinks[0])
+	if (link->remote_sinks[0])
 		return DC_OK;
 
 	if (0 != max_pix_clk && timing->pix_clk_khz > max_pix_clk)
@@ -1376,10 +1375,9 @@ enum dc_status dc_link_validate_mode_timing(
 }
 
 
-bool dc_link_set_backlight_level(const struct dc_link *dc_link, uint32_t level,
+bool dc_link_set_backlight_level(const struct dc_link *link, uint32_t level,
 		uint32_t frame_ramp, const struct dc_stream *stream)
 {
-	struct core_link *link = DC_LINK_TO_CORE(dc_link);
 	struct core_dc *core_dc = DC_TO_CORE(link->ctx->dc);
 	struct core_stream *core_stream = NULL;
 	struct abm *abm = core_dc->res_pool->abm;
@@ -1392,7 +1390,7 @@ bool dc_link_set_backlight_level(const struct dc_link *dc_link, uint32_t level,
 	dm_logger_write(link->ctx->logger, LOG_BACKLIGHT,
 			"New Backlight level: %d (0x%X)\n", level, level);
 
-	if (dc_is_embedded_signal(dc_link->connector_signal)) {
+	if (dc_is_embedded_signal(link->connector_signal)) {
 		if (stream != NULL) {
 			core_stream = DC_STREAM_TO_CORE(stream);
 			for (i = 0; i < MAX_PIPES; i++) {
@@ -1419,9 +1417,8 @@ bool dc_link_set_backlight_level(const struct dc_link *dc_link, uint32_t level,
 }
 
 
-bool dc_link_set_abm_disable(const struct dc_link *dc_link)
+bool dc_link_set_abm_disable(const struct dc_link *link)
 {
-	struct core_link *link = DC_LINK_TO_CORE(dc_link);
 	struct core_dc *core_dc = DC_TO_CORE(link->ctx->dc);
 	struct abm *abm = core_dc->res_pool->abm;
 
@@ -1434,11 +1431,9 @@ bool dc_link_set_abm_disable(const struct dc_link *dc_link)
 }
 
 
-bool dc_link_set_psr_enable(const struct dc_link *dc_link, bool enable)
+bool dc_link_set_psr_enable(const struct dc_link *link, bool enable)
 {
-	struct core_link *link = DC_LINK_TO_CORE(dc_link);
-	struct dc_context *ctx = link->ctx;
-	struct core_dc *core_dc = DC_TO_CORE(ctx->dc);
+	struct core_dc *core_dc = DC_TO_CORE(link->ctx->dc);
 	struct dmcu *dmcu = core_dc->res_pool->dmcu;
 
 	if (dmcu != NULL && link->psr_enabled)
@@ -1447,11 +1442,9 @@ bool dc_link_set_psr_enable(const struct dc_link *dc_link, bool enable)
 	return true;
 }
 
-bool dc_link_get_psr_state(const struct dc_link *dc_link, uint32_t *psr_state)
+bool dc_link_get_psr_state(const struct dc_link *link, uint32_t *psr_state)
 {
-	struct core_link *link = DC_LINK_TO_CORE(dc_link);
-	struct dc_context *ctx = link->ctx;
-	struct core_dc *core_dc = DC_TO_CORE(ctx->dc);
+	struct core_dc *core_dc = DC_TO_CORE(link->ctx->dc);
 	struct dmcu *dmcu = core_dc->res_pool->dmcu;
 
 	if (dmcu != NULL && link->psr_enabled)
@@ -1460,20 +1453,18 @@ bool dc_link_get_psr_state(const struct dc_link *dc_link, uint32_t *psr_state)
 	return true;
 }
 
-bool dc_link_setup_psr(const struct dc_link *dc_link,
+bool dc_link_setup_psr(struct dc_link *link,
 		const struct dc_stream *stream, struct psr_config *psr_config,
 		struct psr_context *psr_context)
 {
-	struct core_link *link = DC_LINK_TO_CORE(dc_link);
-	struct dc_context *ctx = link->ctx;
-	struct core_dc *core_dc = DC_TO_CORE(ctx->dc);
+	struct core_dc *core_dc = DC_TO_CORE(link->ctx->dc);
 	struct dmcu *dmcu = core_dc->res_pool->dmcu;
 	struct core_stream *core_stream = DC_STREAM_TO_CORE(stream);
 	int i;
 
 	psr_context->controllerId = CONTROLLER_ID_UNDEFINED;
 
-	if (dc_link != NULL &&
+	if (link != NULL &&
 		dmcu != NULL) {
 		/* updateSinkPsrDpcdConfig*/
 		union dpcd_psr_configuration psr_configuration;
@@ -1501,12 +1492,12 @@ bool dc_link_setup_psr(const struct dc_link *dc_link,
 
 		dm_helpers_dp_write_dpcd(
 			link->ctx,
-			dc_link,
+			link,
 			368,
 			&psr_configuration.raw,
 			sizeof(psr_configuration.raw));
 
-		psr_context->channel = link->public.ddc->ddc_pin->hw_info.ddc_channel;
+		psr_context->channel = link->ddc->ddc_pin->hw_info.ddc_channel;
 		psr_context->transmitterId = link->link_enc->transmitter;
 		psr_context->engineId = link->link_enc->preferred_engine;
 
@@ -1584,23 +1575,21 @@ bool dc_link_setup_psr(const struct dc_link *dc_link,
 
 }
 
-const struct dc_link_status *dc_link_get_status(const struct dc_link *dc_link)
+const struct dc_link_status *dc_link_get_status(const struct dc_link *link)
 {
-	struct core_link *link = DC_LINK_TO_CORE(dc_link);
-
 	return &link->link_status;
 }
 
-void core_link_resume(struct core_link *link)
+void core_link_resume(struct dc_link *link)
 {
-	if (link->public.connector_signal != SIGNAL_TYPE_VIRTUAL)
+	if (link->connector_signal != SIGNAL_TYPE_VIRTUAL)
 		program_hpd_filter(link);
 }
 
 static struct fixed31_32 get_pbn_per_slot(struct core_stream *stream)
 {
 	struct dc_link_settings *link_settings =
-			&stream->sink->link->public.cur_link_settings;
+			&stream->sink->link->cur_link_settings;
 	uint32_t link_rate_in_mbps =
 			link_settings->link_rate * LINK_RATE_REF_FREQ_IN_MHZ;
 	struct fixed31_32 mbps = dal_fixed31_32_from_int(
@@ -1653,7 +1642,7 @@ static struct fixed31_32 get_pbn_from_timing(struct pipe_ctx *pipe_ctx)
 }
 
 static void update_mst_stream_alloc_table(
-	struct core_link *link,
+	struct dc_link *link,
 	struct stream_encoder *stream_enc,
 	const struct dp_mst_stream_allocation_table *proposed_table)
 {
@@ -1668,7 +1657,7 @@ static void update_mst_stream_alloc_table(
 	ASSERT(proposed_table->stream_count -
 			link->mst_stream_alloc_table.stream_count < 2);
 
-	/* copy proposed_table to core_link, add stream encoder */
+	/* copy proposed_table to link, add stream encoder */
 	for (i = 0; i < proposed_table->stream_count; i++) {
 
 		for (j = 0; j < link->mst_stream_alloc_table.stream_count; j++) {
@@ -1707,7 +1696,7 @@ static void update_mst_stream_alloc_table(
 static enum dc_status allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 {
 	struct core_stream *stream = pipe_ctx->stream;
-	struct core_link *link = stream->sink->link;
+	struct dc_link *link = stream->sink->link;
 	struct link_encoder *link_encoder = link->link_enc;
 	struct stream_encoder *stream_encoder = pipe_ctx->stream_enc;
 	struct dp_mst_stream_allocation_table proposed_table = {0};
@@ -1789,13 +1778,13 @@ static enum dc_status allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 {
 	struct core_stream *stream = pipe_ctx->stream;
-	struct core_link *link = stream->sink->link;
+	struct dc_link *link = stream->sink->link;
 	struct link_encoder *link_encoder = link->link_enc;
 	struct stream_encoder *stream_encoder = pipe_ctx->stream_enc;
 	struct dp_mst_stream_allocation_table proposed_table = {0};
 	struct fixed31_32 avg_time_slots_per_mtp = dal_fixed31_32_from_int(0);
 	uint8_t i;
-	bool mst_mode = (link->public.type == dc_connection_mst_branch);
+	bool mst_mode = (link->type == dc_connection_mst_branch);
 
 	/* deallocate_mst_payload is called before disable link. When mode or
 	 * disable/enable monitor, new stream is created which is not in link
@@ -1875,7 +1864,7 @@ void core_link_enable_stream(struct pipe_ctx *pipe_ctx)
 	if (status != DC_OK) {
 			dm_logger_write(pipe_ctx->stream->ctx->logger,
 			LOG_WARNING, "enabling link %u failed: %d\n",
-			pipe_ctx->stream->sink->link->public.link_index,
+			pipe_ctx->stream->sink->link->link_index,
 			status);
 
 			/* Abort stream enable *unless* the failure was due to

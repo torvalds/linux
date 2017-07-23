@@ -94,7 +94,7 @@ static bool create_links(
 
 	for (i = 0; i < connectors_num; i++) {
 		struct link_init_data link_init_params = {0};
-		struct core_link *link;
+		struct dc_link *link;
 
 		link_init_params.ctx = dc->ctx;
 		/* next BIOS object table connector */
@@ -111,7 +111,7 @@ static bool create_links(
 	}
 
 	for (i = 0; i < num_virtual_links; i++) {
-		struct core_link *link = dm_alloc(sizeof(*link));
+		struct dc_link *link = dm_alloc(sizeof(*link));
 		struct encoder_init_data enc_init = {0};
 
 		if (link == NULL) {
@@ -121,7 +121,7 @@ static bool create_links(
 
 		link->ctx = dc->ctx;
 		link->dc = dc;
-		link->public.connector_signal = SIGNAL_TYPE_VIRTUAL;
+		link->connector_signal = SIGNAL_TYPE_VIRTUAL;
 		link->link_id.type = OBJECT_TYPE_CONNECTOR;
 		link->link_id.id = CONNECTOR_ID_VIRTUAL;
 		link->link_id.enum_id = ENUM_ID_1;
@@ -137,7 +137,7 @@ static bool create_links(
 		enc_init.encoder.enum_id = ENUM_ID_1;
 		virtual_link_encoder_construct(link->link_enc, &enc_init);
 
-		link->public.link_index = dc->link_count;
+		link->link_index = dc->link_count;
 		dc->links[dc->link_count] = link;
 		dc->link_count++;
 	}
@@ -278,14 +278,14 @@ static void set_drive_settings(struct dc *dc,
 	int i;
 
 	for (i = 0; i < core_dc->link_count; i++) {
-		if (&core_dc->links[i]->public == link)
+		if (core_dc->links[i] == link)
 			break;
 	}
 
 	if (i >= core_dc->link_count)
 		ASSERT_CRITICAL(false);
 
-	dc_link_dp_set_drive_settings(&core_dc->links[i]->public, lt_settings);
+	dc_link_dp_set_drive_settings(core_dc->links[i], lt_settings);
 }
 
 static void perform_link_training(struct dc *dc,
@@ -297,20 +297,17 @@ static void perform_link_training(struct dc *dc,
 
 	for (i = 0; i < core_dc->link_count; i++)
 		dc_link_dp_perform_link_training(
-			&core_dc->links[i]->public,
+			core_dc->links[i],
 			link_setting,
 			skip_video_pattern);
 }
 
 static void set_preferred_link_settings(struct dc *dc,
 		struct dc_link_settings *link_setting,
-		const struct dc_link *link)
+		struct dc_link *link)
 {
-	struct core_link *core_link = DC_LINK_TO_CORE(link);
-
-	core_link->public.preferred_link_setting =
-				*link_setting;
-	dp_retrain_link_dp_test(core_link, link_setting, false);
+	link->preferred_link_setting = *link_setting;
+	dp_retrain_link_dp_test(link, link_setting, false);
 }
 
 static void enable_hpd(const struct dc_link *link)
@@ -325,7 +322,7 @@ static void disable_hpd(const struct dc_link *link)
 
 
 static void set_test_pattern(
-		const struct dc_link *link,
+		struct dc_link *link,
 		enum dp_test_pattern test_pattern,
 		const struct link_training_settings *p_link_settings,
 		const unsigned char *p_custom_pattern,
@@ -345,9 +342,8 @@ void set_dither_option(const struct dc_stream *dc_stream,
 {
 	struct core_stream *stream = DC_STREAM_TO_CORE(dc_stream);
 	struct bit_depth_reduction_params params;
-	struct core_link *core_link = DC_LINK_TO_CORE(stream->status.link);
-	struct pipe_ctx *pipes =
-			core_link->dc->current_context->res_ctx.pipe_ctx;
+	struct dc_link *link = stream->status.link;
+	struct pipe_ctx *pipes = link->dc->current_context->res_ctx.pipe_ctx;
 
 	memset(&params, 0, sizeof(params));
 	if (!stream)
@@ -1693,10 +1689,10 @@ struct dc_stream *dc_get_stream_at_index(const struct dc *dc, uint8_t i)
 	return NULL;
 }
 
-const struct dc_link *dc_get_link_at_index(const struct dc *dc, uint32_t link_index)
+struct dc_link *dc_get_link_at_index(const struct dc *dc, uint32_t link_index)
 {
 	struct core_dc *core_dc = DC_TO_CORE(dc);
-	return &core_dc->links[link_index]->public;
+	return core_dc->links[link_index];
 }
 
 const struct graphics_object_id dc_get_link_id_at_index(
@@ -1710,7 +1706,7 @@ enum dc_irq_source dc_get_hpd_irq_source_at_index(
 	struct dc *dc, uint32_t link_index)
 {
 	struct core_dc *core_dc = DC_TO_CORE(dc);
-	return core_dc->links[link_index]->public.irq_source_hpd;
+	return core_dc->links[link_index]->irq_source_hpd;
 }
 
 const struct audio **dc_get_audios(struct dc *dc)
@@ -1796,9 +1792,9 @@ bool dc_read_aux_dpcd(
 {
 	struct core_dc *core_dc = DC_TO_CORE(dc);
 
-	struct core_link *link = core_dc->links[link_index];
+	struct dc_link *link = core_dc->links[link_index];
 	enum ddc_result r = dal_ddc_service_read_dpcd_data(
-			link->public.ddc,
+			link->ddc,
 			false,
 			I2C_MOT_UNDEF,
 			address,
@@ -1815,10 +1811,10 @@ bool dc_write_aux_dpcd(
 		uint32_t size)
 {
 	struct core_dc *core_dc = DC_TO_CORE(dc);
-	struct core_link *link = core_dc->links[link_index];
+	struct dc_link *link = core_dc->links[link_index];
 
 	enum ddc_result r = dal_ddc_service_write_dpcd_data(
-			link->public.ddc,
+			link->ddc,
 			false,
 			I2C_MOT_UNDEF,
 			address,
@@ -1837,9 +1833,9 @@ bool dc_read_aux_i2c(
 {
 	struct core_dc *core_dc = DC_TO_CORE(dc);
 
-		struct core_link *link = core_dc->links[link_index];
+		struct dc_link *link = core_dc->links[link_index];
 		enum ddc_result r = dal_ddc_service_read_dpcd_data(
-			link->public.ddc,
+			link->ddc,
 			true,
 			mot,
 			address,
@@ -1857,10 +1853,10 @@ bool dc_write_aux_i2c(
 		uint32_t size)
 {
 	struct core_dc *core_dc = DC_TO_CORE(dc);
-	struct core_link *link = core_dc->links[link_index];
+	struct dc_link *link = core_dc->links[link_index];
 
 	enum ddc_result r = dal_ddc_service_write_dpcd_data(
-			link->public.ddc,
+			link->ddc,
 			true,
 			mot,
 			address,
@@ -1880,10 +1876,10 @@ bool dc_query_ddc_data(
 
 	struct core_dc *core_dc = DC_TO_CORE(dc);
 
-	struct core_link *link = core_dc->links[link_index];
+	struct dc_link *link = core_dc->links[link_index];
 
 	bool result = dal_ddc_service_query_ddc_data(
-			link->public.ddc,
+			link->ddc,
 			address,
 			write_buf,
 			write_size,
@@ -1900,8 +1896,8 @@ bool dc_submit_i2c(
 {
 	struct core_dc *core_dc = DC_TO_CORE(dc);
 
-	struct core_link *link = core_dc->links[link_index];
-	struct ddc_service *ddc = link->public.ddc;
+	struct dc_link *link = core_dc->links[link_index];
+	struct ddc_service *ddc = link->ddc;
 
 	return dal_i2caux_submit_i2c_command(
 		ddc->ctx->i2caux,
@@ -1909,10 +1905,8 @@ bool dc_submit_i2c(
 		cmd);
 }
 
-static bool link_add_remote_sink_helper(struct core_link *core_link, struct dc_sink *sink)
+static bool link_add_remote_sink_helper(struct dc_link *dc_link, struct dc_sink *sink)
 {
-	struct dc_link *dc_link = &core_link->public;
-
 	if (dc_link->sink_count >= MAX_SINKS_PER_LINK) {
 		BREAK_TO_DEBUGGER();
 		return false;
@@ -1927,14 +1921,13 @@ static bool link_add_remote_sink_helper(struct core_link *core_link, struct dc_s
 }
 
 struct dc_sink *dc_link_add_remote_sink(
-		const struct dc_link *link,
+		struct dc_link *link,
 		const uint8_t *edid,
 		int len,
 		struct dc_sink_init_data *init_data)
 {
 	struct dc_sink *dc_sink;
 	enum dc_edid_status edid_status;
-	struct core_link *core_link = DC_LINK_TO_LINK(link);
 
 	if (len > MAX_EDID_BUFFER_SIZE) {
 		dm_error("Max EDID buffer size breached!\n");
@@ -1960,12 +1953,12 @@ struct dc_sink *dc_link_add_remote_sink(
 	dc_sink->dc_edid.length = len;
 
 	if (!link_add_remote_sink_helper(
-			core_link,
+			link,
 			dc_sink))
 		goto fail_add_sink;
 
 	edid_status = dm_helpers_parse_edid_caps(
-			core_link->ctx,
+			link->ctx,
 			&dc_sink->dc_edid,
 			&dc_sink->edid_caps);
 
@@ -1980,43 +1973,38 @@ fail_add_sink:
 	return NULL;
 }
 
-void dc_link_set_sink(const struct dc_link *link, struct dc_sink *sink)
+void dc_link_set_sink(struct dc_link *link, struct dc_sink *sink)
 {
-	struct core_link *core_link = DC_LINK_TO_LINK(link);
-	struct dc_link *dc_link = &core_link->public;
-
-	dc_link->local_sink = sink;
+	link->local_sink = sink;
 
 	if (sink == NULL) {
-		dc_link->type = dc_connection_none;
+		link->type = dc_connection_none;
 	} else {
-		dc_link->type = dc_connection_single;
+		link->type = dc_connection_single;
 	}
 }
 
-void dc_link_remove_remote_sink(const struct dc_link *link, const struct dc_sink *sink)
+void dc_link_remove_remote_sink(struct dc_link *link, const struct dc_sink *sink)
 {
 	int i;
-	struct core_link *core_link = DC_LINK_TO_LINK(link);
-	struct dc_link *dc_link = &core_link->public;
 
 	if (!link->sink_count) {
 		BREAK_TO_DEBUGGER();
 		return;
 	}
 
-	for (i = 0; i < dc_link->sink_count; i++) {
-		if (dc_link->remote_sinks[i] == sink) {
+	for (i = 0; i < link->sink_count; i++) {
+		if (link->remote_sinks[i] == sink) {
 			dc_sink_release(sink);
-			dc_link->remote_sinks[i] = NULL;
+			link->remote_sinks[i] = NULL;
 
 			/* shrink array to remove empty place */
-			while (i < dc_link->sink_count - 1) {
-				dc_link->remote_sinks[i] = dc_link->remote_sinks[i+1];
+			while (i < link->sink_count - 1) {
+				link->remote_sinks[i] = link->remote_sinks[i+1];
 				i++;
 			}
-			dc_link->remote_sinks[i] = NULL;
-			dc_link->sink_count--;
+			link->remote_sinks[i] = NULL;
+			link->sink_count--;
 			return;
 		}
 	}

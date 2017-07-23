@@ -1874,7 +1874,7 @@ void amdgpu_dm_connector_init_helper(
 	struct amdgpu_display_manager *dm,
 	struct amdgpu_connector *aconnector,
 	int connector_type,
-	const struct dc_link *link,
+	struct dc_link *link,
 	int link_index)
 {
 	struct amdgpu_device *adev = dm->ddev->dev_private;
@@ -1997,7 +1997,7 @@ int amdgpu_dm_connector_init(
 	int res = 0;
 	int connector_type;
 	struct dc *dc = dm->dc;
-	const struct dc_link *link = dc_get_link_at_index(dc, link_index);
+	struct dc_link *link = dc_get_link_at_index(dc, link_index);
 	struct amdgpu_i2c_adapter *i2c;
 	((struct dc_link *)link)->priv = aconnector;
 

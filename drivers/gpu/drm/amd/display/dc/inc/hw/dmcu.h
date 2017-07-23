@@ -39,7 +39,7 @@ struct dmcu_funcs {
 			unsigned int bytes);
 	void (*set_psr_enable)(struct dmcu *dmcu, bool enable);
 	void (*setup_psr)(struct dmcu *dmcu,
-			struct core_link *link,
+			struct dc_link *link,
 			struct psr_context *psr_context);
 	void (*get_psr_state)(struct dmcu *dmcu, uint32_t *psr_state);
 	void (*set_psr_wait_loop)(struct dmcu *dmcu,

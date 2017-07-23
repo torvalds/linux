@@ -354,7 +354,7 @@ static uint32_t defer_delay_converter_wa(
 	struct ddc_service *ddc,
 	uint32_t defer_delay)
 {
-	struct core_link *link = ddc->link;
+	struct dc_link *link = ddc->link;
 
 	if (link->dpcd_caps.branch_dev_id == DP_BRANCH_DEVICE_ID_4 &&
 		!memcmp(link->dpcd_caps.branch_dev_name,
@@ -423,7 +423,7 @@ static bool i2c_read(
 
 	return dm_helpers_submit_i2c(
 			ddc->ctx,
-			&ddc->link->public,
+			ddc->link,
 			&command);
 }
 
@@ -624,7 +624,7 @@ bool dal_ddc_service_query_ddc_data(
 
 		ret = dm_helpers_submit_i2c(
 				ddc->ctx,
-				&ddc->link->public,
+				ddc->link,
 				&command);
 
 		dal_ddc_i2c_payloads_destroy(&payloads);

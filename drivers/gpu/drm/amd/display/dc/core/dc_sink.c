@@ -54,15 +54,14 @@ static void destruct(struct sink *sink)
 static bool construct(struct sink *sink, const struct dc_sink_init_data *init_params)
 {
 
-	struct core_link *core_link = DC_LINK_TO_LINK(init_params->link);
+	struct dc_link *link = init_params->link;
 
-	if (!core_link) {
+	if (!link)
 		return false;
-	}
 
 	sink->protected.public.sink_signal = init_params->sink_signal;
-	sink->protected.link = core_link;
-	sink->protected.ctx = core_link->ctx;
+	sink->protected.link = link;
+	sink->protected.ctx = link->ctx;
 	sink->protected.public.dongle_max_pix_clk = init_params->dongle_max_pix_clk;
 	sink->protected.public.converter_disable_audio =
 			init_params->converter_disable_audio;

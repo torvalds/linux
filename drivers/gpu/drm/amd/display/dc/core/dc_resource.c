@@ -1269,7 +1269,7 @@ static struct stream_encoder *find_first_free_match_stream_enc_for_link(
 {
 	int i;
 	int j = -1;
-	struct core_link *link = stream->sink->link;
+	struct dc_link *link = stream->sink->link;
 
 	for (i = 0; i < pool->stream_enc_count; i++) {
 		if (!res_ctx->is_stream_enc_acquired[i] &&
@@ -1322,9 +1322,7 @@ static void update_stream_signal(struct core_stream *stream)
 		const struct dc_sink *dc_sink = stream->public.sink;
 
 		if (dc_sink->sink_signal == SIGNAL_TYPE_NONE)
-			stream->signal =
-					stream->sink->link->
-					public.connector_signal;
+			stream->signal = stream->sink->link->connector_signal;
 		else
 			stream->signal = dc_sink->sink_signal;
 	} else {
@@ -1380,7 +1378,7 @@ static struct core_stream *find_pll_sharable_stream(
 		if (resource_are_streams_timing_synchronizable(
 			stream_needs_pll, stream_has_pll)
 			&& !dc_is_dp_signal(stream_has_pll->signal)
-			&& stream_has_pll->sink->link->public.connector_signal
+			&& stream_has_pll->sink->link->connector_signal
 			!= SIGNAL_TYPE_VIRTUAL)
 			return stream_has_pll;
 

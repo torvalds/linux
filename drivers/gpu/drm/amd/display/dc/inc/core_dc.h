@@ -20,7 +20,7 @@ struct core_dc {
 	struct dc_context *ctx;
 
 	uint8_t link_count;
-	struct core_link *links[MAX_PIPES * 2];
+	struct dc_link *links[MAX_PIPES * 2];
 
 	struct validate_context *current_context;
 	struct resource_pool *res_pool;

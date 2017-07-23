@@ -700,10 +700,10 @@ void dce110_update_info_frame(struct pipe_ctx *pipe_ctx)
 void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 {
 	enum dc_lane_count lane_count =
-		pipe_ctx->stream->sink->link->public.cur_link_settings.lane_count;
+		pipe_ctx->stream->sink->link->cur_link_settings.lane_count;
 
 	struct dc_crtc_timing *timing = &pipe_ctx->stream->public.timing;
-	struct core_link *link = pipe_ctx->stream->sink->link;
+	struct dc_link *link = pipe_ctx->stream->sink->link;
 
 	/* 1. update AVI info frame (HDMI, DP)
 	 * we always need to update info frame
@@ -746,7 +746,7 @@ void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 {
 	struct core_stream *stream = pipe_ctx->stream;
-	struct core_link *link = stream->sink->link;
+	struct dc_link *link = stream->sink->link;
 
 	if (pipe_ctx->audio) {
 		pipe_ctx->audio->funcs->az_disable(pipe_ctx->audio);
@@ -1111,7 +1111,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	dce110_update_info_frame(pipe_ctx);
 		if (dc_is_dp_signal(pipe_ctx->stream->signal))
 			dce110_unblank_stream(pipe_ctx,
-				&stream->sink->link->public.cur_link_settings);
+				&stream->sink->link->cur_link_settings);
 	}
 
 	pipe_ctx->scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != 0;
@@ -2220,7 +2220,7 @@ static void init_hw(struct core_dc *dc)
 		/* Power up AND update implementation according to the
 		 * required signal (which may be different from the
 		 * default signal on connector). */
-		struct core_link *link = dc->links[i];
+		struct dc_link *link = dc->links[i];
 		link->link_enc->funcs->hw_init(link->link_enc);
 	}
 
@@ -2283,11 +2283,11 @@ void dce110_fill_display_configs(
 		cfg->transmitter =
 			stream->sink->link->link_enc->transmitter;
 		cfg->link_settings.lane_count =
-			stream->sink->link->public.cur_link_settings.lane_count;
+			stream->sink->link->cur_link_settings.lane_count;
 		cfg->link_settings.link_rate =
-			stream->sink->link->public.cur_link_settings.link_rate;
+			stream->sink->link->cur_link_settings.link_rate;
 		cfg->link_settings.link_spread =
-			stream->sink->link->public.cur_link_settings.link_spread;
+			stream->sink->link->cur_link_settings.link_spread;
 		cfg->sym_clock = stream->phy_pix_clk;
 		/* Round v_refresh*/
 		cfg->v_refresh = stream->public.timing.pix_clk_khz * 1000;

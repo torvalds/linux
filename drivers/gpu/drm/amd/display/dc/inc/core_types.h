@@ -92,13 +92,11 @@ struct core_sink {
 
 	/** The 'protected' area - read/write access, for use only inside DC **/
 	/* not used for now */
-	struct core_link *link;
+	struct dc_link *link;
 	struct dc_context *ctx;
 };
 
 /************ link *****************/
-#define DC_LINK_TO_CORE(dc_link) container_of(dc_link, struct core_link, public)
-
 struct link_init_data {
 	const struct core_dc *dc;
 	struct dc_context *ctx; /* TODO: remove 'dal' when DC is complete. */
@@ -107,61 +105,15 @@ struct link_init_data {
 				TODO: remove it when DC is complete. */
 };
 
-/* DP MST stream allocation (payload bandwidth number) */
-struct link_mst_stream_allocation {
-	/* DIG front */
-	const struct stream_encoder *stream_enc;
-	/* associate DRM payload table with DC stream encoder */
-	uint8_t vcp_id;
-	/* number of slots required for the DP stream in transport packet */
-	uint8_t slot_count;
-};
-
-/* DP MST stream allocation table */
-struct link_mst_stream_allocation_table {
-	/* number of DP video streams */
-	int stream_count;
-	/* array of stream allocations */
-	struct link_mst_stream_allocation
-	stream_allocations[MAX_CONTROLLER_NUM];
-};
-
-struct core_link {
-	struct dc_link public;
-	const struct core_dc *dc;
-
-	struct dc_context *ctx; /* TODO: AUTO remove 'dal' when DC is complete*/
-
-	struct link_encoder *link_enc;
-	struct graphics_object_id link_id;
-	union ddi_channel_mapping ddi_channel_mapping;
-	struct connector_device_tag_info device_tag;
-	struct dpcd_caps dpcd_caps;
-	unsigned int dpcd_sink_count;
-
-	enum edp_revision edp_revision;
-	bool psr_enabled;
-
-	/* MST record stream using this link */
-	struct link_flags {
-		bool dp_keep_receiver_powered;
-	} wa_flags;
-	struct link_mst_stream_allocation_table mst_stream_alloc_table;
-
-	struct dc_link_status link_status;
-};
-
-#define DC_LINK_TO_LINK(dc_link) container_of(dc_link, struct core_link, public)
-
-struct core_link *link_create(const struct link_init_data *init_params);
-void link_destroy(struct core_link **link);
+struct dc_link *link_create(const struct link_init_data *init_params);
+void link_destroy(struct dc_link **link);
 
 enum dc_status dc_link_validate_mode_timing(
 		const struct core_stream *stream,
-		struct core_link *link,
+		struct dc_link *link,
 		const struct dc_crtc_timing *timing);
 
-void core_link_resume(struct core_link *link);
+void core_link_resume(struct dc_link *link);
 
 void core_link_enable_stream(struct pipe_ctx *pipe_ctx);
 

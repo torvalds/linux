@@ -563,7 +563,7 @@ struct amdgpu_connector {
 	/* The 'old' sink - before an HPD.
 	 * The 'current' sink is in dc_link->sink. */
 	const struct dc_sink *dc_sink;
-	const struct dc_link *dc_link;
+	struct dc_link *dc_link;
 	const struct dc_sink *dc_em_sink;
 	const struct dc_stream *stream;
 	void *con_priv;

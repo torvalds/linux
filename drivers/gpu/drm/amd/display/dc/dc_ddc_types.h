@@ -105,7 +105,7 @@ struct ddc_service {
 	enum ddc_transaction_type transaction_type;
 	enum display_dongle_type dongle_type;
 	struct dc_context *ctx;
-	struct core_link *link;
+	struct dc_link *link;
 
 	uint32_t address;
 	uint32_t edid_buf_len;

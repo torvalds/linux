@@ -140,19 +140,19 @@ void context_clock_trace(
  */
 
 #define CONN_DATA_DETECT(link, hex_data, hex_len, ...) \
-		dc_conn_log(link->ctx, &link->public, hex_data, hex_len, \
+		dc_conn_log(link->ctx, link, hex_data, hex_len, \
 				LOG_EVENT_DETECTION, ##__VA_ARGS__)
 
 #define CONN_DATA_LINK_LOSS(link, hex_data, hex_len, ...) \
-		dc_conn_log(link->ctx, &link->public, hex_data, hex_len, \
+		dc_conn_log(link->ctx, link, hex_data, hex_len, \
 				LOG_EVENT_LINK_LOSS, ##__VA_ARGS__)
 
 #define CONN_MSG_LT(link, ...) \
-		dc_conn_log(link->ctx, &link->public, NULL, 0, \
+		dc_conn_log(link->ctx, link, NULL, 0, \
 				LOG_EVENT_LINK_TRAINING, ##__VA_ARGS__)
 
 #define CONN_MSG_MODE(link, ...) \
-		dc_conn_log(link->ctx, &link->public, NULL, 0, \
+		dc_conn_log(link->ctx, link, NULL, 0, \
 				LOG_EVENT_MODE_SET, ##__VA_ARGS__)
 
 #endif /* __DAL_LOGGER_INTERFACE_H__ */

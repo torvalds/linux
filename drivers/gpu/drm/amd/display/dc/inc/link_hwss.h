@@ -29,46 +29,46 @@
 #include "inc/core_status.h"
 
 enum dc_status core_link_read_dpcd(
-	struct core_link* link,
+	struct dc_link *link,
 	uint32_t address,
 	uint8_t *data,
 	uint32_t size);
 
 enum dc_status core_link_write_dpcd(
-	struct core_link* link,
+	struct dc_link *link,
 	uint32_t address,
 	const uint8_t *data,
 	uint32_t size);
 
 void dp_enable_link_phy(
-	struct core_link *link,
+	struct dc_link *link,
 	enum signal_type signal,
 	enum clock_source_id clock_source,
 	const struct dc_link_settings *link_settings);
 
-void dp_receiver_power_ctrl(struct core_link *link, bool on);
+void dp_receiver_power_ctrl(struct dc_link *link, bool on);
 
-void dp_disable_link_phy(struct core_link *link, enum signal_type signal);
+void dp_disable_link_phy(struct dc_link *link, enum signal_type signal);
 
-void dp_disable_link_phy_mst(struct core_link *link, enum signal_type signal);
+void dp_disable_link_phy_mst(struct dc_link *link, enum signal_type signal);
 
 bool dp_set_hw_training_pattern(
-	struct core_link *link,
+	struct dc_link *link,
 	enum hw_dp_training_pattern pattern);
 
 void dp_set_hw_lane_settings(
-	struct core_link *link,
+	struct dc_link *link,
 	const struct link_training_settings *link_settings);
 
 void dp_set_hw_test_pattern(
-	struct core_link *link,
+	struct dc_link *link,
 	enum dp_test_pattern test_pattern,
 	uint8_t *custom_pattern,
 	uint32_t custom_pattern_size);
 
-enum dp_panel_mode dp_get_panel_mode(struct core_link *link);
+enum dp_panel_mode dp_get_panel_mode(struct dc_link *link);
 
-void dp_retrain_link_dp_test(struct core_link *link,
+void dp_retrain_link_dp_test(struct dc_link *link,
 		struct dc_link_settings *link_setting,
 		bool skip_video_pattern);
 

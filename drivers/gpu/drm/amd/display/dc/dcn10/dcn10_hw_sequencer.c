@@ -628,7 +628,7 @@ static void dcn10_init_hw(struct core_dc *dc)
 		 * required signal (which may be different from the
 		 * default signal on connector).
 		 */
-		struct core_link *link = dc->links[i];
+		struct dc_link *link = dc->links[i];
 
 		link->link_enc->funcs->hw_init(link->link_enc);
 	}
@@ -2259,7 +2259,7 @@ static void dcn10_config_stereo_parameters(
 			timing_3d_format == TIMING_3D_FORMAT_DP_HDMI_INBAND_FA ||
 			timing_3d_format == TIMING_3D_FORMAT_SIDEBAND_FA) {
 			enum display_dongle_type dongle = \
-					stream->sink->link->public.ddc->dongle_type;
+					stream->sink->link->ddc->dongle_type;
 			if (dongle == DISPLAY_DONGLE_DP_VGA_CONVERTER ||
 				dongle == DISPLAY_DONGLE_DP_DVI_CONVERTER ||
 				dongle == DISPLAY_DONGLE_DP_HDMI_CONVERTER)

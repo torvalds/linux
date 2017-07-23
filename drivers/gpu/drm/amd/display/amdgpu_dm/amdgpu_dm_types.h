@@ -114,7 +114,7 @@ void amdgpu_dm_connector_init_helper(
 	struct amdgpu_display_manager *dm,
 	struct amdgpu_connector *aconnector,
 	int connector_type,
-	const struct dc_link *link,
+	struct dc_link *link,
 	int link_index);
 
 int amdgpu_dm_connector_mode_valid(

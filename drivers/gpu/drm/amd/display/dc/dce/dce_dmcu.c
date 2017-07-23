@@ -142,7 +142,7 @@ static void dce_dmcu_set_psr_enable(struct dmcu *dmcu, bool enable)
 }
 
 static void dce_dmcu_setup_psr(struct dmcu *dmcu,
-		struct core_link *link,
+		struct dc_link *link,
 		struct psr_context *psr_context)
 {
 	struct dce_dmcu *dmcu_dce = TO_DCE_DMCU(dmcu);
@@ -382,7 +382,7 @@ static void dcn10_dmcu_set_psr_enable(struct dmcu *dmcu, bool enable)
 }
 
 static void dcn10_dmcu_setup_psr(struct dmcu *dmcu,
-		struct core_link *link,
+		struct dc_link *link,
 		struct psr_context *psr_context)
 {
 	struct dce_dmcu *dmcu_dce = TO_DCE_DMCU(dmcu);

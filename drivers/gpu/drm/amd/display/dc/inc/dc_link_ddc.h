@@ -84,7 +84,7 @@ void dal_ddc_aux_payloads_add(
 struct ddc_service_init_data {
 	struct graphics_object_id id;
 	struct dc_context *ctx;
-	struct core_link *link;
+	struct dc_link *link;
 };
 
 struct ddc_service *dal_ddc_service_create(
