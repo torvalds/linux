@@ -270,7 +270,6 @@ static int ccs811_read_raw(struct iio_dev *indio_dev,
 
 static const struct iio_info ccs811_info = {
 	.read_raw = ccs811_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static irqreturn_t ccs811_trigger_handler(int irq, void *p)
