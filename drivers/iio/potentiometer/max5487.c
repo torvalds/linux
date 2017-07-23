@@ -83,7 +83,6 @@ static int max5487_write_raw(struct iio_dev *indio_dev,
 static const struct iio_info max5487_info = {
 	.read_raw = max5487_read_raw,
 	.write_raw = max5487_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int max5487_spi_probe(struct spi_device *spi)

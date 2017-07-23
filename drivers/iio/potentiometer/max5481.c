@@ -119,7 +119,6 @@ static int max5481_write_raw(struct iio_dev *indio_dev,
 static const struct iio_info max5481_info = {
 	.read_raw = max5481_read_raw,
 	.write_raw = max5481_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 #if defined(CONFIG_OF)
