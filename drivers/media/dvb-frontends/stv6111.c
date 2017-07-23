@@ -42,7 +42,7 @@ struct slookup {
 };
 
 static struct slookup lnagain_nf_lookup[] = {
-	/*Gain *100dB*/      /*Reg*/
+	/* Gain *100dB // Reg */
 	{ 2572,	0 },
 	{ 2575, 1 },
 	{ 2580, 2 },
@@ -78,7 +78,7 @@ static struct slookup lnagain_nf_lookup[] = {
 };
 
 static struct slookup lnagain_iip3_lookup[] = {
-	/*Gain *100dB*/   /*reg*/
+	/* Gain *100dB // reg */
 	{ 1548,	0 },
 	{ 1552,	1 },
 	{ 1569,	2 },
@@ -114,7 +114,7 @@ static struct slookup lnagain_iip3_lookup[] = {
 };
 
 static struct slookup gain_rfagc_lookup[] = {
-	/*Gain *100dB*/   /*reg*/
+	/* Gain *100dB // reg */
 	{ 4870,	0x3000 },
 	{ 4850,	0x3C00 },
 	{ 4800,	0x4500 },
@@ -174,7 +174,7 @@ static struct slookup gain_rfagc_lookup[] = {
  * a different BB_MAG setting)
  */
 static struct slookup gain_channel_agc_nf_lookup[] = {
-	/*Gain *100dB*/   /*reg*/
+	/* Gain *100dB // reg */
 	{ 7082,	0x3000 },
 	{ 7052,	0x4000 },
 	{ 7007,	0x4600 },
@@ -233,7 +233,7 @@ static struct slookup gain_channel_agc_nf_lookup[] = {
 };
 
 static struct slookup gain_channel_agc_iip3_lookup[] = {
-	/*Gain *100dB*/   /*reg*/
+	/* Gain *100dB // reg */
 	{ 7070,	0x3000 },
 	{ 7028,	0x4000 },
 	{ 7019,	0x4600 },
@@ -483,7 +483,7 @@ static int set_lof(struct stv *state, u32 local_frequency, u32 cutoff_frequency)
 	else
 		icp = 7;
 
-	state->reg[0x02] |= 0x80;   /* LNA IIP3 Mode */
+	state->reg[0x02] |= 0x80; /* LNA IIP3 Mode */
 
 	state->reg[0x03] = (state->reg[0x03] & ~0x80) | (psel << 7);
 	state->reg[0x04] = (div & 0xFF);
@@ -503,7 +503,7 @@ static int set_lof(struct stv *state, u32 local_frequency, u32 cutoff_frequency)
 
 	read_reg(state, 0x03, &tmp);
 	if (tmp & 0x10)	{
-		state->reg[0x02] &= ~0x80;   /* LNA NF Mode */
+		state->reg[0x02] &= ~0x80; /* LNA NF Mode */
 		write_regs(state, 2, 1);
 	}
 	read_reg(state, 0x08, &tmp);
@@ -636,15 +636,15 @@ static int get_rf_strength(struct dvb_frontend *fe, u16 *st)
 
 static struct dvb_tuner_ops tuner_ops = {
 	.info = {
-		.name = "STV6111",
-		.frequency_min  =  950000,
-		.frequency_max  = 2150000,
-		.frequency_step =       0
+		.name		= "STV6111",
+		.frequency_min	= 950000,
+		.frequency_max	= 2150000,
+		.frequency_step	= 0
 	},
-	.set_params        = set_params,
-	.release           = release,
-	.get_rf_strength   = get_rf_strength,
-	.set_bandwidth     = set_bandwidth,
+	.set_params		= set_params,
+	.release		= release,
+	.get_rf_strength	= get_rf_strength,
+	.set_bandwidth		= set_bandwidth,
 };
 
 struct dvb_frontend *stv6111_attach(struct dvb_frontend *fe,
