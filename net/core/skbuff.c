@@ -638,7 +638,8 @@ void skb_release_head_state(struct sk_buff *skb)
 static void skb_release_all(struct sk_buff *skb)
 {
 	skb_release_head_state(skb);
-	skb_release_data(skb);
+	if (likely(skb->head))
+		skb_release_data(skb);
 }
 
 /**
