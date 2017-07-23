@@ -381,7 +381,6 @@ static int max30102_read_raw(struct iio_dev *indio_dev,
 }
 
 static const struct iio_info max30102_info = {
-	.driver_module = THIS_MODULE,
 	.read_raw = max30102_read_raw,
 };
 
