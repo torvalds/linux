@@ -518,6 +518,7 @@ struct iio_buffer_setup_ops {
 /**
  * struct iio_dev - industrial I/O device
  * @id:			[INTERN] used to identify device internally
+ * @driver_module:	[INTERN] used to make it harder to undercut users
  * @modes:		[DRIVER] operating modes supported by device
  * @currentmode:	[DRIVER] current operating mode
  * @dev:		[DRIVER] device structure, should be assigned a parent
@@ -558,6 +559,7 @@ struct iio_buffer_setup_ops {
  */
 struct iio_dev {
 	int				id;
+	struct module			*driver_module;
 
 	int				modes;
 	int				currentmode;
@@ -604,9 +606,34 @@ struct iio_dev {
 
 const struct iio_chan_spec
 *iio_find_channel_from_si(struct iio_dev *indio_dev, int si);
-int iio_device_register(struct iio_dev *indio_dev);
+/**
+ * iio_device_register() - register a device with the IIO subsystem
+ * @indio_dev:		Device structure filled by the device driver
+ **/
+#define iio_device_register(iio_dev) \
+	__iio_device_register((iio_dev), THIS_MODULE)
+int __iio_device_register(struct iio_dev *indio_dev, struct module *this_mod);
 void iio_device_unregister(struct iio_dev *indio_dev);
-int devm_iio_device_register(struct device *dev, struct iio_dev *indio_dev);
+/**
+ * devm_iio_device_register - Resource-managed iio_device_register()
+ * @dev:	Device to allocate iio_dev for
+ * @indio_dev:	Device structure filled by the device driver
+ *
+ * Managed iio_device_register.  The IIO device registered with this
+ * function is automatically unregistered on driver detach. This function
+ * calls iio_device_register() internally. Refer to that function for more
+ * information.
+ *
+ * If an iio_dev registered with this function needs to be unregistered
+ * separately, devm_iio_device_unregister() must be used.
+ *
+ * RETURNS:
+ * 0 on success, negative error number on failure.
+ */
+#define devm_iio_device_register(dev, indio_dev) \
+	__devm_iio_device_register((dev), (indio_dev), THIS_MODULE);
+int __devm_iio_device_register(struct device *dev, struct iio_dev *indio_dev,
+			       struct module *this_mod);
 void devm_iio_device_unregister(struct device *dev, struct iio_dev *indio_dev);
 int iio_push_event(struct iio_dev *indio_dev, u64 ev_code, s64 timestamp);
 int iio_device_claim_direct_mode(struct iio_dev *indio_dev);
