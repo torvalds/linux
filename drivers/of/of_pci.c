@@ -57,15 +57,14 @@ EXPORT_SYMBOL_GPL(of_pci_find_child_device);
  */
 int of_pci_get_devfn(struct device_node *np)
 {
-	unsigned int size;
-	const __be32 *reg;
+	u32 reg[5];
+	int error;
 
-	reg = of_get_property(np, "reg", &size);
+	error = of_property_read_u32_array(np, "reg", reg, ARRAY_SIZE(reg));
+	if (error)
+		return error;
 
-	if (!reg || size < 5 * sizeof(__be32))
-		return -EINVAL;
-
-	return (be32_to_cpup(reg) >> 8) & 0xff;
+	return (reg[0] >> 8) & 0xff;
 }
 EXPORT_SYMBOL_GPL(of_pci_get_devfn);
 
@@ -78,16 +77,17 @@ EXPORT_SYMBOL_GPL(of_pci_get_devfn);
  */
 int of_pci_parse_bus_range(struct device_node *node, struct resource *res)
 {
-	const __be32 *values;
-	int len;
+	u32 bus_range[2];
+	int error;
 
-	values = of_get_property(node, "bus-range", &len);
-	if (!values || len < sizeof(*values) * 2)
-		return -EINVAL;
+	error = of_property_read_u32_array(node, "bus-range", bus_range,
+					   ARRAY_SIZE(bus_range));
+	if (error)
+		return error;
 
 	res->name = node->name;
-	res->start = be32_to_cpup(values++);
-	res->end = be32_to_cpup(values);
+	res->start = bus_range[0];
+	res->end = bus_range[1];
 	res->flags = IORESOURCE_BUS;
 
 	return 0;
