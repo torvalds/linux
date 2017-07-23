@@ -306,12 +306,10 @@ sctp_disposition_t sctp_sf_do_5_1B_init(struct net *net,
 					void *arg,
 					sctp_cmd_seq_t *commands)
 {
-	struct sctp_chunk *chunk = arg;
-	struct sctp_chunk *repl;
+	struct sctp_chunk *chunk = arg, *repl, *err_chunk;
+	struct sctp_unrecognized_param *unk_param;
 	struct sctp_association *new_asoc;
-	struct sctp_chunk *err_chunk;
 	struct sctp_packet *packet;
-	sctp_unrecognized_param_t *unk_param;
 	int len;
 
 	/* 6.10 Bundling
@@ -435,7 +433,7 @@ sctp_disposition_t sctp_sf_do_5_1B_init(struct net *net,
 		 * construct the parameters in INIT ACK by copying the
 		 * ERROR causes over.
 		 */
-		unk_param = (sctp_unrecognized_param_t *)
+		unk_param = (struct sctp_unrecognized_param *)
 			    ((__u8 *)(err_chunk->chunk_hdr) +
 			    sizeof(struct sctp_chunkhdr));
 		/* Replace the cause code with the "Unrecognized parameter"
@@ -1419,13 +1417,11 @@ static sctp_disposition_t sctp_sf_do_unexpected_init(
 	const sctp_subtype_t type,
 	void *arg, sctp_cmd_seq_t *commands)
 {
-	sctp_disposition_t retval;
-	struct sctp_chunk *chunk = arg;
-	struct sctp_chunk *repl;
+	struct sctp_chunk *chunk = arg, *repl, *err_chunk;
+	struct sctp_unrecognized_param *unk_param;
 	struct sctp_association *new_asoc;
-	struct sctp_chunk *err_chunk;
 	struct sctp_packet *packet;
-	sctp_unrecognized_param_t *unk_param;
+	sctp_disposition_t retval;
 	int len;
 
 	/* 6.10 Bundling
@@ -1555,7 +1551,7 @@ static sctp_disposition_t sctp_sf_do_unexpected_init(
 		 * construct the parameters in INIT ACK by copying the
 		 * ERROR causes over.
 		 */
-		unk_param = (sctp_unrecognized_param_t *)
+		unk_param = (struct sctp_unrecognized_param *)
 			    ((__u8 *)(err_chunk->chunk_hdr) +
 			    sizeof(struct sctp_chunkhdr));
 		/* Replace the cause code with the "Unrecognized parameter"

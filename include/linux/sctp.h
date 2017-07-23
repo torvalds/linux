@@ -348,10 +348,10 @@ struct sctp_cookie_param {
 };
 
 /* Section 3.3.3.1 Unrecognized Parameters (8) */
-typedef struct sctp_unrecognized_param {
+struct sctp_unrecognized_param {
 	struct sctp_paramhdr param_hdr;
 	struct sctp_paramhdr unrecognized;
-} sctp_unrecognized_param_t;
+};
 
 
 
