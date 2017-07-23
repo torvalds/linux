@@ -120,7 +120,6 @@ static int cros_ec_baro_write(struct iio_dev *indio_dev,
 static const struct iio_info cros_ec_baro_info = {
 	.read_raw = &cros_ec_baro_read,
 	.write_raw = &cros_ec_baro_write,
-	.driver_module = THIS_MODULE,
 };
 
 static int cros_ec_baro_probe(struct platform_device *pdev)
