@@ -1054,25 +1054,25 @@ static bool dcn10_set_output_transfer_func(
 	struct pipe_ctx *pipe_ctx,
 	const struct core_stream *stream)
 {
-	struct output_pixel_processor *opp = pipe_ctx->opp;
+	struct transform *xfm = pipe_ctx->xfm;
 
-	if (opp == NULL)
+	if (xfm == NULL)
 		return false;
 
-	opp->regamma_params.hw_points_num = GAMMA_HW_POINTS_NUM;
+	xfm->regamma_params.hw_points_num = GAMMA_HW_POINTS_NUM;
 
 	if (stream->public.out_transfer_func &&
 		stream->public.out_transfer_func->type ==
 			TF_TYPE_PREDEFINED &&
 		stream->public.out_transfer_func->tf ==
 			TRANSFER_FUNCTION_SRGB) {
-		opp->funcs->opp_set_regamma_mode(opp, OPP_REGAMMA_SRGB);
+		xfm->funcs->opp_set_regamma_mode(xfm, OPP_REGAMMA_SRGB);
 	} else if (dcn10_translate_regamma_to_hw_format(
-				stream->public.out_transfer_func, &opp->regamma_params)) {
-			opp->funcs->opp_program_regamma_pwl(opp, &opp->regamma_params);
-			opp->funcs->opp_set_regamma_mode(opp, OPP_REGAMMA_USER);
+				stream->public.out_transfer_func, &xfm->regamma_params)) {
+			xfm->funcs->opp_program_regamma_pwl(xfm, &xfm->regamma_params);
+			xfm->funcs->opp_set_regamma_mode(xfm, OPP_REGAMMA_USER);
 	} else {
-		opp->funcs->opp_set_regamma_mode(opp, OPP_REGAMMA_BYPASS);
+		xfm->funcs->opp_set_regamma_mode(xfm, OPP_REGAMMA_BYPASS);
 	}
 
 	return true;

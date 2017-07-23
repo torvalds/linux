@@ -196,13 +196,6 @@ struct pwl_float_data {
 	struct fixed31_32 b;
 };
 
-enum opp_regamma {
-	OPP_REGAMMA_BYPASS = 0,
-	OPP_REGAMMA_SRGB,
-	OPP_REGAMMA_3_6,
-	OPP_REGAMMA_USER,
-};
-
 struct output_pixel_processor {
 	struct dc_context *ctx;
 	uint32_t inst;

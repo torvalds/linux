@@ -38,6 +38,7 @@ struct transform {
 	const struct transform_funcs *funcs;
 	struct dc_context *ctx;
 	int inst;
+	struct pwl_params regamma_params;
 };
 
 /* Colorimetry */
@@ -190,6 +191,34 @@ struct transform_funcs {
 	void (*opp_set_csc_adjustment)(
 		struct transform *xfm,
 		const struct out_csc_color_matrix *tbl_entry);
+
+	void (*opp_power_on_regamma_lut)(
+		struct transform *xfm,
+		bool power_on);
+
+	void (*opp_program_regamma_lut)(
+			struct transform *xfm,
+			const struct pwl_result_data *rgb,
+			uint32_t num);
+
+	void (*opp_configure_regamma_lut)(
+			struct transform *xfm,
+			bool is_ram_a);
+
+	void (*opp_program_regamma_lutb_settings)(
+			struct transform *xfm,
+			const struct pwl_params *params);
+
+	void (*opp_program_regamma_luta_settings)(
+			struct transform *xfm,
+			const struct pwl_params *params);
+
+	bool (*opp_program_regamma_pwl)(
+		struct transform *xfm, const struct pwl_params *params);
+
+	void (*opp_set_regamma_mode)(
+			struct transform *xfm_base,
+			enum opp_regamma mode);
 };
 
 extern const uint16_t filter_2tap_16p[18];

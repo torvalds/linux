@@ -113,4 +113,11 @@ struct out_csc_color_matrix {
 	uint16_t regval[12];
 };
 
+enum opp_regamma {
+	OPP_REGAMMA_BYPASS = 0,
+	OPP_REGAMMA_SRGB,
+	OPP_REGAMMA_3_6,
+	OPP_REGAMMA_USER
+};
+
 #endif /* __DAL_HW_SHARED_H__ */
