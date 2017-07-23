@@ -58,7 +58,6 @@ int notrace unwind_frame(struct task_struct *tsk, struct stackframe *frame)
 	    !on_task_stack(tsk, fp))
 		return -EINVAL;
 
-	frame->sp = fp + 0x10;
 	frame->fp = READ_ONCE_NOCHECK(*(unsigned long *)(fp));
 	frame->pc = READ_ONCE_NOCHECK(*(unsigned long *)(fp + 8));
 
@@ -136,7 +135,6 @@ void save_stack_trace_regs(struct pt_regs *regs, struct stack_trace *trace)
 	data.no_sched_functions = 0;
 
 	frame.fp = regs->regs[29];
-	frame.sp = regs->sp;
 	frame.pc = regs->pc;
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	frame.graph = current->curr_ret_stack;
@@ -161,12 +159,10 @@ void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 	if (tsk != current) {
 		data.no_sched_functions = 1;
 		frame.fp = thread_saved_fp(tsk);
-		frame.sp = thread_saved_sp(tsk);
 		frame.pc = thread_saved_pc(tsk);
 	} else {
 		data.no_sched_functions = 0;
 		frame.fp = (unsigned long)__builtin_frame_address(0);
-		frame.sp = current_stack_pointer;
 		frame.pc = (unsigned long)save_stack_trace_tsk;
 	}
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
