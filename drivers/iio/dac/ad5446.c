@@ -212,7 +212,6 @@ static int ad5446_write_raw(struct iio_dev *indio_dev,
 static const struct iio_info ad5446_info = {
 	.read_raw = ad5446_read_raw,
 	.write_raw = ad5446_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int ad5446_probe(struct device *dev, const char *name,
