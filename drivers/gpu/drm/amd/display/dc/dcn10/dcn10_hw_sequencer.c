@@ -1588,7 +1588,7 @@ static void update_dchubp_dpp(
 
 	/*TODO add adjustments parameters*/
 	ocsc.out_color_space = pipe_ctx->stream->public.output_color_space;
-	pipe_ctx->opp->funcs->opp_set_csc_default(pipe_ctx->opp, &ocsc);
+	pipe_ctx->xfm->funcs->opp_set_csc_default(pipe_ctx->xfm, &ocsc);
 
 	mi->funcs->mem_input_program_surface_config(
 		mi,

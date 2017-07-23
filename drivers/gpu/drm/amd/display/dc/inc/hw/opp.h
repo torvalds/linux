@@ -217,22 +217,6 @@ enum fmt_stereo_action {
 	FMT_STEREO_ACTION_UPDATE_POLARITY
 };
 
-enum graphics_csc_adjust_type {
-	GRAPHICS_CSC_ADJUST_TYPE_BYPASS = 0,
-	GRAPHICS_CSC_ADJUST_TYPE_HW, /* without adjustments */
-	GRAPHICS_CSC_ADJUST_TYPE_SW  /*use adjustments */
-};
-
-struct default_adjustment {
-	enum lb_pixel_depth lb_color_depth;
-	enum dc_color_space out_color_space;
-	enum dc_color_space in_color_space;
-	enum dc_color_depth color_depth;
-	enum pixel_format surface_pixel_format;
-	enum graphics_csc_adjust_type csc_adjust_type;
-	bool force_hw_default;
-};
-
 enum grph_color_adjust_option {
 	GRPH_COLOR_MATRIX_HW_DEFAULT = 1,
 	GRPH_COLOR_MATRIX_SW
@@ -248,11 +232,6 @@ struct opp_grph_csc_adjustment {
 	int32_t grph_sat;
 	int32_t grph_bright;
 	int32_t grph_hue;
-};
-
-struct out_csc_color_matrix {
-	enum dc_color_space color_space;
-	uint16_t regval[12];
 };
 
 /* Underlay related types */

@@ -86,7 +86,14 @@
 	SRI(CM_COMB_C21_C22, CM, id),\
 	SRI(CM_COMB_C23_C24, CM, id),\
 	SRI(CM_COMB_C31_C32, CM, id),\
-	SRI(CM_COMB_C33_C34, CM, id)
+	SRI(CM_COMB_C33_C34, CM, id),\
+	SRI(CM_OCSC_CONTROL, CM, id), \
+	SRI(CM_OCSC_C11_C12, CM, id), \
+	SRI(CM_OCSC_C13_C14, CM, id), \
+	SRI(CM_OCSC_C21_C22, CM, id), \
+	SRI(CM_OCSC_C23_C24, CM, id), \
+	SRI(CM_OCSC_C31_C32, CM, id), \
+	SRI(CM_OCSC_C33_C34, CM, id)
 
 #define TF_REG_LIST_SH_MASK_DCN(mask_sh)\
 	TF_SF(CM0_CM_GAMUT_REMAP_CONTROL, CM_GAMUT_REMAP_MODE, mask_sh),\
@@ -194,7 +201,20 @@
 	TF_SF(CM0_CM_COMB_C31_C32, CM_COMB_C31, mask_sh),\
 	TF_SF(CM0_CM_COMB_C33_C34, CM_COMB_C33, mask_sh),\
 	TF_SF(CM0_CM_COMB_C31_C32, CM_COMB_C32, mask_sh),\
-	TF_SF(CM0_CM_COMB_C33_C34, CM_COMB_C34, mask_sh)
+	TF_SF(CM0_CM_COMB_C33_C34, CM_COMB_C34, mask_sh),\
+	TF_SF(CM0_CM_OCSC_CONTROL, CM_OCSC_MODE, mask_sh), \
+	TF_SF(CM0_CM_OCSC_C11_C12, CM_OCSC_C11, mask_sh), \
+	TF_SF(CM0_CM_OCSC_C11_C12, CM_OCSC_C12, mask_sh), \
+	TF_SF(CM0_CM_OCSC_C13_C14, CM_OCSC_C13, mask_sh), \
+	TF_SF(CM0_CM_OCSC_C13_C14, CM_OCSC_C14, mask_sh), \
+	TF_SF(CM0_CM_OCSC_C21_C22, CM_OCSC_C21, mask_sh), \
+	TF_SF(CM0_CM_OCSC_C21_C22, CM_OCSC_C22, mask_sh), \
+	TF_SF(CM0_CM_OCSC_C23_C24, CM_OCSC_C23, mask_sh), \
+	TF_SF(CM0_CM_OCSC_C23_C24, CM_OCSC_C24, mask_sh), \
+	TF_SF(CM0_CM_OCSC_C31_C32, CM_OCSC_C31, mask_sh), \
+	TF_SF(CM0_CM_OCSC_C31_C32, CM_OCSC_C32, mask_sh), \
+	TF_SF(CM0_CM_OCSC_C33_C34, CM_OCSC_C33, mask_sh), \
+	TF_SF(CM0_CM_OCSC_C33_C34, CM_OCSC_C34, mask_sh)
 
 
 #define TF_REG_FIELD_LIST(type) \
@@ -300,7 +320,20 @@
 	type CM_COMB_C31; \
 	type CM_COMB_C32; \
 	type CM_COMB_C33; \
-	type CM_COMB_C34
+	type CM_COMB_C34; \
+	type CM_OCSC_MODE; \
+	type CM_OCSC_C11; \
+	type CM_OCSC_C12; \
+	type CM_OCSC_C13; \
+	type CM_OCSC_C14; \
+	type CM_OCSC_C21; \
+	type CM_OCSC_C22; \
+	type CM_OCSC_C23; \
+	type CM_OCSC_C24; \
+	type CM_OCSC_C31; \
+	type CM_OCSC_C32; \
+	type CM_OCSC_C33; \
+	type CM_OCSC_C34
 
 struct dcn_dpp_shift {
 	TF_REG_FIELD_LIST(uint8_t);
@@ -357,6 +390,13 @@ struct dcn_dpp_registers {
 	uint32_t CM_COMB_C23_C24;
 	uint32_t CM_COMB_C31_C32;
 	uint32_t CM_COMB_C33_C34;
+	uint32_t CM_OCSC_CONTROL;
+	uint32_t CM_OCSC_C11_C12;
+	uint32_t CM_OCSC_C13_C14;
+	uint32_t CM_OCSC_C21_C22;
+	uint32_t CM_OCSC_C23_C24;
+	uint32_t CM_OCSC_C31_C32;
+	uint32_t CM_OCSC_C33_C34;
 };
 
 struct dcn10_dpp {
