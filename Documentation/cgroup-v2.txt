@@ -274,8 +274,9 @@ thread mode, the following conditions must be met.
 - As the cgroup will join the parent's resource domain.  The parent
   must either be a valid (threaded) domain or a threaded cgroup.
 
-- The cgroup must be empty.  No enabled controllers, child cgroups or
-  processes.
+- When the parent is an unthreaded domain, it must not have any domain
+  controllers enabled or populated domain children.  The root is
+  exempt from this requirement.
 
 Topology-wise, a cgroup can be in an invalid state.  Please consider
 the following toplogy::

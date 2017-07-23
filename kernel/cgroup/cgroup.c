@@ -3147,13 +3147,6 @@ static int cgroup_enable_threaded(struct cgroup *cgrp)
 		return -EOPNOTSUPP;
 
 	/*
-	 * Allow enabling thread mode only on empty cgroups to avoid
-	 * implicit migrations and recursive operations.
-	 */
-	if (cgroup_has_tasks(cgrp) || css_has_online_children(&cgrp->self))
-		return -EBUSY;
-
-	/*
 	 * The following shouldn't cause actual migrations and should
 	 * always succeed.
 	 */
