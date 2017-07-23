@@ -1662,11 +1662,13 @@ void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align))
 
 	if (of_chosen) {
 		/* linux,stdout-path and /aliases/stdout are for legacy compatibility */
-		const char *name = of_get_property(of_chosen, "stdout-path", NULL);
-		if (!name)
-			name = of_get_property(of_chosen, "linux,stdout-path", NULL);
+		const char *name = NULL;
+
+		if (of_property_read_string(of_chosen, "stdout-path", &name))
+			of_property_read_string(of_chosen, "linux,stdout-path",
+						&name);
 		if (IS_ENABLED(CONFIG_PPC) && !name)
-			name = of_get_property(of_aliases, "stdout", NULL);
+			of_property_read_string(of_aliases, "stdout", &name);
 		if (name)
 			of_stdout = of_find_node_opts_by_path(name, &of_stdout_options);
 	}
