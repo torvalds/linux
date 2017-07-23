@@ -473,7 +473,6 @@ MODULE_DEVICE_TABLE(of, ads8688_of_match);
 static struct spi_driver ads8688_driver = {
 	.driver = {
 		.name	= "ads8688",
-		.owner	= THIS_MODULE,
 	},
 	.probe		= ads8688_probe,
 	.remove		= ads8688_remove,
