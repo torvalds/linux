@@ -373,17 +373,17 @@ union sctp_sack_variable {
 	__be32 dup;
 };
 
-typedef struct sctp_sackhdr {
+struct sctp_sackhdr {
 	__be32 cum_tsn_ack;
 	__be32 a_rwnd;
 	__be16 num_gap_ack_blocks;
 	__be16 num_dup_tsns;
 	union sctp_sack_variable variable[0];
-} sctp_sackhdr_t;
+};
 
 typedef struct sctp_sack_chunk {
 	struct sctp_chunkhdr chunk_hdr;
-	sctp_sackhdr_t sack_hdr;
+	struct sctp_sackhdr sack_hdr;
 } sctp_sack_chunk_t;
 
 

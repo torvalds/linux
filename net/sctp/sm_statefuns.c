@@ -3187,7 +3187,7 @@ sctp_disposition_t sctp_sf_eat_sack_6_2(struct net *net,
 					sctp_cmd_seq_t *commands)
 {
 	struct sctp_chunk *chunk = arg;
-	sctp_sackhdr_t *sackh;
+	struct sctp_sackhdr *sackh;
 	__u32 ctsn;
 
 	if (!sctp_vtag_verify(chunk, asoc))

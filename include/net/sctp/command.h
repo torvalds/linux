@@ -135,7 +135,7 @@ typedef union {
 	struct sctp_init_chunk *init;
 	struct sctp_ulpevent *ulpevent;
 	struct sctp_packet *packet;
-	sctp_sackhdr_t *sackh;
+	struct sctp_sackhdr *sackh;
 	struct sctp_datamsg *msg;
 } sctp_arg_t;
 
@@ -176,7 +176,7 @@ SCTP_ARG_CONSTRUCTOR(BA,	struct sctp_bind_addr *, bp)
 SCTP_ARG_CONSTRUCTOR(PEER_INIT,	struct sctp_init_chunk *, init)
 SCTP_ARG_CONSTRUCTOR(ULPEVENT,  struct sctp_ulpevent *, ulpevent)
 SCTP_ARG_CONSTRUCTOR(PACKET,	struct sctp_packet *, packet)
-SCTP_ARG_CONSTRUCTOR(SACKH,	sctp_sackhdr_t *, sackh)
+SCTP_ARG_CONSTRUCTOR(SACKH,	struct sctp_sackhdr *, sackh)
 SCTP_ARG_CONSTRUCTOR(DATAMSG,	struct sctp_datamsg *, msg)
 
 static inline sctp_arg_t SCTP_FORCE(void)
