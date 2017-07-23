@@ -105,17 +105,14 @@ EXPORT_SYMBOL_GPL(of_pci_parse_bus_range);
  */
 int of_get_pci_domain_nr(struct device_node *node)
 {
-	const __be32 *value;
-	int len;
-	u16 domain;
+	u32 domain;
+	int error;
 
-	value = of_get_property(node, "linux,pci-domain", &len);
-	if (!value || len < sizeof(*value))
-		return -EINVAL;
+	error = of_property_read_u32(node, "linux,pci-domain", &domain);
+	if (error)
+		return error;
 
-	domain = (u16)be32_to_cpup(value);
-
-	return domain;
+	return (u16)domain;
 }
 EXPORT_SYMBOL_GPL(of_get_pci_domain_nr);
 
