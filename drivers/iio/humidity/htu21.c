@@ -175,7 +175,6 @@ static const struct iio_info htu21_info = {
 	.read_raw = htu21_read_raw,
 	.write_raw = htu21_write_raw,
 	.attrs = &htu21_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 static int htu21_probe(struct i2c_client *client,
