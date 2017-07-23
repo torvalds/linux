@@ -368,11 +368,9 @@ struct sctp_gap_ack_block {
 	__be16 end;
 };
 
-typedef __be32 sctp_dup_tsn_t;
-
 typedef union {
 	struct sctp_gap_ack_block gab;
-	sctp_dup_tsn_t dup;
+	__be32 dup;
 } sctp_sack_variable_t;
 
 typedef struct sctp_sackhdr {
