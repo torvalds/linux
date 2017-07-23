@@ -815,8 +815,8 @@ static void reset_back_end_for_pipe(
 					pipe_ctx->pipe_idx, pipe_ctx->tg->inst);
 }
 
-static void plane_atomic_stop(
-		struct core_dc *dc,
+/* trigger HW to start disconnect plane from stream on the next vsync */
+static void plane_atomic_disconnect(struct core_dc *dc,
 		int fe_idx)
 {
 	struct mpcc_cfg mpcc_cfg;
@@ -824,6 +824,12 @@ static void plane_atomic_stop(
 	struct transform *xfm = dc->res_pool->transforms[fe_idx];
 	struct mpcc *mpcc = dc->res_pool->mpcc[fe_idx];
 	struct timing_generator *tg = dc->res_pool->timing_generators[mpcc->opp_id];
+	unsigned int opp_id = mpcc->opp_id;
+	int opp_id_cached = mpcc->opp_id;
+
+	/*Already reset*/
+	if (opp_id == 0xf)
+		return;
 
 	mi->funcs->dcc_control(mi, false, false);
 
@@ -833,11 +839,19 @@ static void plane_atomic_stop(
 	mpcc_cfg.top_of_tree = tg->inst == mpcc->inst;
 	mpcc->funcs->set(mpcc, &mpcc_cfg);
 
+	/* Hack to preserve old opp_id for plane_atomic_disable
+	 * to find the correct otg */
+	mpcc->opp_id = opp_id_cached;
+
+	/* todo:call remove pipe from tree */
+	/* flag mpcc idle pending */
+
 	xfm->funcs->transform_reset(xfm);
 }
 
-static void reset_front_end(
-		struct core_dc *dc,
+/* disable HW used by plane.
+ * note:  cannot disable until disconnect is complete */
+static void plane_atomic_disable(struct core_dc *dc,
 		int fe_idx)
 {
 	struct dce_hwseq *hws = dc->hwseq;
@@ -846,23 +860,8 @@ static void reset_front_end(
 	struct timing_generator *tg = dc->res_pool->timing_generators[mpcc->opp_id];
 	unsigned int opp_id = mpcc->opp_id;
 
-	/*Already reset*/
 	if (opp_id == 0xf)
 		return;
-
-	tg->funcs->lock(tg);
-
-	plane_atomic_stop(dc, fe_idx);
-
-	REG_UPDATE(OTG_GLOBAL_SYNC_STATUS[tg->inst], VUPDATE_NO_LOCK_EVENT_CLEAR, 1);
-	tg->funcs->unlock(tg);
-
-	if (dc->public.debug.sanity_checks)
-		verify_allow_pstate_change_high(dc->hwseq);
-
-	if (tg->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS)
-		REG_WAIT(OTG_GLOBAL_SYNC_STATUS[tg->inst],
-				VUPDATE_NO_LOCK_EVENT_OCCURRED, 1, 20000, 200000);
 
 	mpcc->funcs->wait_for_idle(mpcc);
 
@@ -880,12 +879,52 @@ static void reset_front_end(
 		REG_UPDATE(OPP_PIPE_CONTROL[opp_id],
 				OPP_PIPE_CLOCK_EN, 0);
 
-	dm_logger_write(dc->ctx->logger, LOG_DC,
-					"Reset front end %d\n",
-					fe_idx);
+	mpcc->opp_id = 0xf;
 
 	if (dc->public.debug.sanity_checks)
 		verify_allow_pstate_change_high(dc->hwseq);
+}
+
+/* kill power to plane hw
+ * note: cannot power down until plane is disable
+static void plane_atomic_power_down()
+{
+
+}
+*/
+
+static void reset_front_end(
+		struct core_dc *dc,
+		int fe_idx)
+{
+	struct dce_hwseq *hws = dc->hwseq;
+	struct mpcc *mpcc = dc->res_pool->mpcc[fe_idx];
+	struct timing_generator *tg = dc->res_pool->timing_generators[mpcc->opp_id];
+	unsigned int opp_id = mpcc->opp_id;
+
+	/*Already reset*/
+	if (opp_id == 0xf)
+		return;
+
+	tg->funcs->lock(tg);
+
+	plane_atomic_disconnect(dc, fe_idx);
+
+	REG_UPDATE(OTG_GLOBAL_SYNC_STATUS[tg->inst], VUPDATE_NO_LOCK_EVENT_CLEAR, 1);
+	tg->funcs->unlock(tg);
+
+	if (dc->public.debug.sanity_checks)
+		verify_allow_pstate_change_high(dc->hwseq);
+
+	if (tg->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS)
+		REG_WAIT(OTG_GLOBAL_SYNC_STATUS[tg->inst],
+				VUPDATE_NO_LOCK_EVENT_OCCURRED, 1, 20000, 200000);
+
+	plane_atomic_disable(dc, fe_idx);
+
+	dm_logger_write(dc->ctx->logger, LOG_DC,
+					"Reset front end %d\n",
+					fe_idx);
 }
 
 static void dcn10_power_down_fe(struct core_dc *dc, int fe_idx)
