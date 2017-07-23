@@ -60,14 +60,13 @@ DEFINE_RAW_SPINLOCK(devtree_lock);
 
 int of_n_addr_cells(struct device_node *np)
 {
-	const __be32 *ip;
+	u32 cells;
 
 	do {
 		if (np->parent)
 			np = np->parent;
-		ip = of_get_property(np, "#address-cells", NULL);
-		if (ip)
-			return be32_to_cpup(ip);
+		if (!of_property_read_u32(np, "#address-cells", &cells))
+			return cells;
 	} while (np->parent);
 	/* No #address-cells property for the root node */
 	return OF_ROOT_NODE_ADDR_CELLS_DEFAULT;
@@ -76,14 +75,13 @@ EXPORT_SYMBOL(of_n_addr_cells);
 
 int of_n_size_cells(struct device_node *np)
 {
-	const __be32 *ip;
+	u32 cells;
 
 	do {
 		if (np->parent)
 			np = np->parent;
-		ip = of_get_property(np, "#size-cells", NULL);
-		if (ip)
-			return be32_to_cpup(ip);
+		if (!of_property_read_u32(np, "#size-cells", &cells))
+			return cells;
 	} while (np->parent);
 	/* No #size-cells property for the root node */
 	return OF_ROOT_NODE_SIZE_CELLS_DEFAULT;
