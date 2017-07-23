@@ -363,16 +363,16 @@ struct sctp_unrecognized_param {
  *  subsequences of DATA chunks as represented by their TSNs.
  */
 
-typedef struct sctp_gap_ack_block {
+struct sctp_gap_ack_block {
 	__be16 start;
 	__be16 end;
-} sctp_gap_ack_block_t;
+};
 
 typedef __be32 sctp_dup_tsn_t;
 
 typedef union {
-	sctp_gap_ack_block_t	gab;
-        sctp_dup_tsn_t		dup;
+	struct sctp_gap_ack_block gab;
+	sctp_dup_tsn_t dup;
 } sctp_sack_variable_t;
 
 typedef struct sctp_sackhdr {
