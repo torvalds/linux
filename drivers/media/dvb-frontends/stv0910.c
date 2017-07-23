@@ -1321,7 +1321,6 @@ static void read_signal_strength(struct dvb_frontend *fe)
 {
 	struct stv *state = fe->demodulator_priv;
 	struct dtv_frontend_properties *p = &state->fe.dtv_property_cache;
-	s64 strength;
 	u8 reg[2];
 	u16 agc;
 	s32 padc, power = 0;
@@ -1341,10 +1340,8 @@ static void read_signal_strength(struct dvb_frontend *fe)
 
 	padc = table_lookup(padc_lookup, ARRAY_SIZE(padc_lookup), power) + 352;
 
-	strength = (padc - agc);
-
 	p->strength.stat[0].scale = FE_SCALE_DECIBEL;
-	p->strength.stat[0].uvalue = strength;
+	p->strength.stat[0].svalue = (padc - agc);
 }
 
 static int read_status(struct dvb_frontend *fe, enum fe_status *status)
