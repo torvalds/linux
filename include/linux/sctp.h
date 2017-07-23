@@ -408,9 +408,9 @@ struct sctp_heartbeat_chunk {
  * common header. Just the common header is all that is needed with a
  * chunk descriptor.
  */
-typedef struct sctp_abort_chunk {
+struct sctp_abort_chunk {
 	struct sctp_chunkhdr uh;
-} sctp_abort_chunk_t;
+};
 
 
 /* For the graceful shutdown we must carry the tag (in common header)

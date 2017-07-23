@@ -2164,7 +2164,7 @@ sctp_disposition_t sctp_sf_shutdown_pending_abort(
 	 * as we do not know its true length.  So, to be safe, discard the
 	 * packet.
 	 */
-	if (!sctp_chunk_length_valid(chunk, sizeof(sctp_abort_chunk_t)))
+	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_abort_chunk)))
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
 
 	/* ADD-IP: Special case for ABORT chunks
@@ -2206,7 +2206,7 @@ sctp_disposition_t sctp_sf_shutdown_sent_abort(struct net *net,
 	 * as we do not know its true length.  So, to be safe, discard the
 	 * packet.
 	 */
-	if (!sctp_chunk_length_valid(chunk, sizeof(sctp_abort_chunk_t)))
+	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_abort_chunk)))
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
 
 	/* ADD-IP: Special case for ABORT chunks
@@ -2470,7 +2470,7 @@ sctp_disposition_t sctp_sf_do_9_1_abort(struct net *net,
 	 * as we do not know its true length.  So, to be safe, discard the
 	 * packet.
 	 */
-	if (!sctp_chunk_length_valid(chunk, sizeof(sctp_abort_chunk_t)))
+	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_abort_chunk)))
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
 
 	/* ADD-IP: Special case for ABORT chunks
@@ -2546,7 +2546,7 @@ sctp_disposition_t sctp_sf_cookie_wait_abort(struct net *net,
 	 * as we do not know its true length.  So, to be safe, discard the
 	 * packet.
 	 */
-	if (!sctp_chunk_length_valid(chunk, sizeof(sctp_abort_chunk_t)))
+	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_abort_chunk)))
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
 
 	/* See if we have an error cause code in the chunk.  */
