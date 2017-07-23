@@ -1134,7 +1134,7 @@ MODULE_DEVICE_TABLE(of, rt5514_of_match);
 #endif
 
 #ifdef CONFIG_ACPI
-static struct acpi_device_id rt5514_acpi_match[] = {
+static const struct acpi_device_id rt5514_acpi_match[] = {
 	{ "10EC5514", 0},
 	{},
 };
