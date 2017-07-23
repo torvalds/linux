@@ -336,7 +336,10 @@ struct sctp_hmac_algo_param {
  *   The INIT ACK chunk is used to acknowledge the initiation of an SCTP
  *   association.
  */
-typedef struct sctp_init_chunk sctp_initack_chunk_t;
+struct sctp_initack_chunk {
+	struct sctp_chunkhdr chunk_hdr;
+	struct sctp_inithdr init_hdr;
+};
 
 /* Section 3.3.3.1 State Cookie (7) */
 typedef struct sctp_cookie_param {

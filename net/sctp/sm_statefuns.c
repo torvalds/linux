@@ -518,7 +518,7 @@ sctp_disposition_t sctp_sf_do_5_1C_ack(struct net *net,
 		return sctp_sf_violation_chunk(net, ep, asoc, type, arg, commands);
 
 	/* Make sure that the INIT-ACK chunk has a valid length */
-	if (!sctp_chunk_length_valid(chunk, sizeof(sctp_initack_chunk_t)))
+	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_initack_chunk)))
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
 	/* Grab the INIT header.  */
@@ -4453,11 +4453,10 @@ static sctp_disposition_t sctp_sf_abort_violation(
 		/* Treat INIT-ACK as a special case during COOKIE-WAIT. */
 		if (chunk->chunk_hdr->type == SCTP_CID_INIT_ACK &&
 		    !asoc->peer.i.init_tag) {
-			sctp_initack_chunk_t *initack;
+			struct sctp_initack_chunk *initack;
 
-			initack = (sctp_initack_chunk_t *)chunk->chunk_hdr;
-			if (!sctp_chunk_length_valid(chunk,
-						     sizeof(sctp_initack_chunk_t)))
+			initack = (struct sctp_initack_chunk *)chunk->chunk_hdr;
+			if (!sctp_chunk_length_valid(chunk, sizeof(*initack)))
 				abort->chunk_hdr->flags |= SCTP_CHUNK_FLAG_T;
 			else {
 				unsigned int inittag;
@@ -6106,9 +6105,9 @@ static struct sctp_packet *sctp_ootb_pkt_new(struct net *net,
 		switch (chunk->chunk_hdr->type) {
 		case SCTP_CID_INIT_ACK:
 		{
-			sctp_initack_chunk_t *initack;
+			struct sctp_initack_chunk *initack;
 
-			initack = (sctp_initack_chunk_t *)chunk->chunk_hdr;
+			initack = (struct sctp_initack_chunk *)chunk->chunk_hdr;
 			vtag = ntohl(initack->init_hdr.init_tag);
 			break;
 		}
