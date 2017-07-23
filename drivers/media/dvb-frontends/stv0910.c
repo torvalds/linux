@@ -207,7 +207,7 @@ static int write_shared_reg(struct stv *state, u16 reg, u8 mask, u8 val)
 	return status;
 }
 
-static struct slookup s1_sn_lookup[] = {
+static const struct slookup s1_sn_lookup[] = {
 	{   0,    9242  }, /* C/N=   0dB */
 	{   5,    9105  }, /* C/N= 0.5dB */
 	{  10,    8950  }, /* C/N= 1.0dB */
@@ -264,7 +264,7 @@ static struct slookup s1_sn_lookup[] = {
 	{  510,    425  }  /* C/N=51.0dB */
 };
 
-static struct slookup s2_sn_lookup[] = {
+static const struct slookup s2_sn_lookup[] = {
 	{  -30,  13950  }, /* C/N=-2.5dB */
 	{  -25,  13580  }, /* C/N=-2.5dB */
 	{  -20,  13150  }, /* C/N=-2.0dB */
@@ -327,7 +327,7 @@ static struct slookup s2_sn_lookup[] = {
 	{  510,    463  }, /* C/N=51.0dB */
 };
 
-static struct slookup padc_lookup[] = {
+static const struct slookup padc_lookup[] = {
 	{    0,  118000 }, /* PADC= +0dBm */
 	{ -100,  93600  }, /* PADC= -1dBm */
 	{ -200,  74500  }, /* PADC= -2dBm */
@@ -349,7 +349,7 @@ static struct slookup padc_lookup[] = {
 /*********************************************************************
  * Tracking carrier loop carrier QPSK 1/4 to 8PSK 9/10 long Frame
  *********************************************************************/
-static u8 s2car_loop[] =	{
+static const u8 s2car_loop[] =	{
 	/*
 	 * Modcod  2MPon 2MPoff 5MPon 5MPoff 10MPon 10MPoff
 	 * 20MPon 20MPoff 30MPon 30MPoff
@@ -587,7 +587,7 @@ static int tracking_optimization(struct stv *state)
 	return 0;
 }
 
-static s32 table_lookup(struct slookup *table,
+static s32 table_lookup(const struct slookup *table,
 			int table_size, u32 reg_value)
 {
 	s32 value;
@@ -629,7 +629,7 @@ static int get_signal_to_noise(struct stv *state, s32 *signal_to_noise)
 	u8 data1;
 	u16 data;
 	int n_lookup;
-	struct slookup *lookup;
+	const struct slookup *lookup;
 
 	*signal_to_noise = 0;
 
@@ -693,7 +693,7 @@ static int get_bit_error_rate_s(struct stv *state, u32 *bernumerator,
 
 static u32 dvbs2_nbch(enum dvbs2_mod_cod mod_cod, enum dvbs2_fectype fectype)
 {
-	static u32 nbch[][2] = {
+	static const u32 nbch[][2] = {
 		{    0,     0}, /* DUMMY_PLF   */
 		{16200,  3240}, /* QPSK_1_4,   */
 		{21600,  5400}, /* QPSK_1_3,   */
@@ -953,7 +953,7 @@ static int set_vth_default(struct stv *state)
 
 static int set_vth(struct stv *state)
 {
-	static struct slookup vthlookup_table[] = {
+	static const struct slookup vthlookup_table[] = {
 		{250,	8780}, /* C/N= 1.5dB */
 		{100,	7405}, /* C/N= 4.5dB */
 		{40,	6330}, /* C/N= 6.5dB */
@@ -1515,7 +1515,7 @@ static int get_frontend(struct dvb_frontend *fe,
 
 	if (state->receive_mode == RCVMODE_DVBS2) {
 		u32 mc;
-		enum fe_modulation modcod2mod[0x20] = {
+		const enum fe_modulation modcod2mod[0x20] = {
 			QPSK, QPSK, QPSK, QPSK,
 			QPSK, QPSK, QPSK, QPSK,
 			QPSK, QPSK, QPSK, QPSK,
@@ -1525,7 +1525,7 @@ static int get_frontend(struct dvb_frontend *fe,
 			APSK_32, APSK_32, APSK_32, APSK_32,
 			APSK_32,
 		};
-		enum fe_code_rate modcod2fec[0x20] = {
+		const enum fe_code_rate modcod2fec[0x20] = {
 			FEC_NONE, FEC_NONE, FEC_NONE, FEC_2_5,
 			FEC_1_2, FEC_3_5, FEC_2_3, FEC_3_4,
 			FEC_4_5, FEC_5_6, FEC_8_9, FEC_9_10,
@@ -1673,10 +1673,10 @@ static int sleep(struct dvb_frontend *fe)
 	return 0;
 }
 
-static struct dvb_frontend_ops stv0910_ops = {
+static const struct dvb_frontend_ops stv0910_ops = {
 	.delsys = { SYS_DVBS, SYS_DVBS2, SYS_DSS },
 	.info = {
-		.name			= "STV0910",
+		.name			= "ST STV0910",
 		.frequency_min		= 950000,
 		.frequency_max		= 2150000,
 		.frequency_stepsize	= 0,

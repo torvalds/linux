@@ -41,7 +41,7 @@ struct slookup {
 	u16 reg_value;
 };
 
-static struct slookup lnagain_nf_lookup[] = {
+static const struct slookup lnagain_nf_lookup[] = {
 	/* Gain *100dB // Reg */
 	{ 2572,	0 },
 	{ 2575, 1 },
@@ -77,7 +77,7 @@ static struct slookup lnagain_nf_lookup[] = {
 	{ 5102,	31 }
 };
 
-static struct slookup lnagain_iip3_lookup[] = {
+static const struct slookup lnagain_iip3_lookup[] = {
 	/* Gain *100dB // reg */
 	{ 1548,	0 },
 	{ 1552,	1 },
@@ -113,7 +113,7 @@ static struct slookup lnagain_iip3_lookup[] = {
 	{ 4535,	31 }
 };
 
-static struct slookup gain_rfagc_lookup[] = {
+static const struct slookup gain_rfagc_lookup[] = {
 	/* Gain *100dB // reg */
 	{ 4870,	0x3000 },
 	{ 4850,	0x3C00 },
@@ -173,7 +173,7 @@ static struct slookup gain_rfagc_lookup[] = {
  * This table is 6 dB too low comapred to the others (probably created with
  * a different BB_MAG setting)
  */
-static struct slookup gain_channel_agc_nf_lookup[] = {
+static const struct slookup gain_channel_agc_nf_lookup[] = {
 	/* Gain *100dB // reg */
 	{ 7082,	0x3000 },
 	{ 7052,	0x4000 },
@@ -232,7 +232,7 @@ static struct slookup gain_channel_agc_nf_lookup[] = {
 	{ 1927,	0xFF00 }
 };
 
-static struct slookup gain_channel_agc_iip3_lookup[] = {
+static const struct slookup gain_channel_agc_iip3_lookup[] = {
 	/* Gain *100dB // reg */
 	{ 7070,	0x3000 },
 	{ 7028,	0x4000 },
@@ -533,7 +533,8 @@ static int set_params(struct dvb_frontend *fe)
 	return 0;
 }
 
-static s32 table_lookup(struct slookup *table, int table_size, u16 reg_value)
+static s32 table_lookup(const struct slookup *table,
+			int table_size, u16 reg_value)
 {
 	s32 gain;
 	s32 reg_diff;
@@ -634,9 +635,9 @@ static int get_rf_strength(struct dvb_frontend *fe, u16 *st)
 	return 0;
 }
 
-static struct dvb_tuner_ops tuner_ops = {
+static const struct dvb_tuner_ops tuner_ops = {
 	.info = {
-		.name		= "STV6111",
+		.name		= "ST STV6111",
 		.frequency_min	= 950000,
 		.frequency_max	= 2150000,
 		.frequency_step	= 0
@@ -675,6 +676,6 @@ struct dvb_frontend *stv6111_attach(struct dvb_frontend *fe,
 }
 EXPORT_SYMBOL_GPL(stv6111_attach);
 
-MODULE_DESCRIPTION("STV6111 driver");
+MODULE_DESCRIPTION("ST STV6111 satellite tuner driver");
 MODULE_AUTHOR("Ralph Metzler, Manfred Voelkel");
 MODULE_LICENSE("GPL");
