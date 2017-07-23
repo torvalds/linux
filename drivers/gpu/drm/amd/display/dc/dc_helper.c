@@ -143,11 +143,10 @@ uint32_t generic_reg_wait(const struct dc_context *ctx,
 
 	for (i = 0; i <= time_out_num_tries; i++) {
 		if (i) {
-			if (0 < delay_between_poll_us && delay_between_poll_us < 1000)
-				udelay(delay_between_poll_us);
-
-			if (delay_between_poll_us > 1000)
+			if (delay_between_poll_us >= 1000)
 				msleep(delay_between_poll_us/1000);
+			else if (delay_between_poll_us > 0)
+				udelay(delay_between_poll_us);
 		}
 
 		reg_val = dm_read_reg(ctx, addr);
