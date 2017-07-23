@@ -950,7 +950,6 @@ static const struct iio_info kxcjk1013_info = {
 	.write_event_value	= kxcjk1013_write_event,
 	.write_event_config	= kxcjk1013_write_event_config,
 	.read_event_config	= kxcjk1013_read_event_config,
-	.driver_module		= THIS_MODULE,
 };
 
 static const unsigned long kxcjk1013_scan_masks[] = {0x7, 0};
@@ -1036,7 +1035,6 @@ static int kxcjk1013_data_rdy_trigger_set_state(struct iio_trigger *trig,
 static const struct iio_trigger_ops kxcjk1013_trigger_ops = {
 	.set_trigger_state = kxcjk1013_data_rdy_trigger_set_state,
 	.try_reenable = kxcjk1013_trig_try_reen,
-	.owner = THIS_MODULE,
 };
 
 static irqreturn_t kxcjk1013_event_handler(int irq, void *private)

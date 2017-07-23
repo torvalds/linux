@@ -1337,7 +1337,6 @@ static const struct iio_info mma8452_info = {
 	.read_event_config = &mma8452_read_event_config,
 	.write_event_config = &mma8452_write_event_config,
 	.debugfs_reg_access = &mma8452_reg_access_dbg,
-	.driver_module = THIS_MODULE,
 };
 
 static const unsigned long mma8452_scan_masks[] = {0x7, 0};
@@ -1368,7 +1367,6 @@ static int mma8452_data_rdy_trigger_set_state(struct iio_trigger *trig,
 static const struct iio_trigger_ops mma8452_trigger_ops = {
 	.set_trigger_state = mma8452_data_rdy_trigger_set_state,
 	.validate_device = iio_trigger_validate_own_device,
-	.owner = THIS_MODULE,
 };
 
 static int mma8452_trigger_setup(struct iio_dev *indio_dev)
