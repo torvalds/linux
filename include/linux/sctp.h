@@ -398,10 +398,10 @@ struct sctp_heartbeathdr {
 	struct sctp_paramhdr info;
 };
 
-typedef struct sctp_heartbeat_chunk {
+struct sctp_heartbeat_chunk {
 	struct sctp_chunkhdr chunk_hdr;
 	struct sctp_heartbeathdr hb_hdr;
-} sctp_heartbeat_chunk_t;
+};
 
 
 /* For the abort and shutdown ACK we must carry the init tag in the
