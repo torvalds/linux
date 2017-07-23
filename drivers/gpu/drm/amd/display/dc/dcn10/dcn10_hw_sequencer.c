@@ -1739,6 +1739,7 @@ static void dcn10_apply_ctx_for_surface(
 			mpcc_cfg.bot_mpcc_id = 0xf;
 			mpcc_cfg.top_of_tree = !old_pipe_ctx->top_pipe;
 			old_pipe_ctx->mpcc->funcs->set(old_pipe_ctx->mpcc, &mpcc_cfg);
+			old_pipe_ctx->top_pipe->opp->mpcc_disconnect_pending[old_pipe_ctx->mpcc->inst] = true;
 
 			if (dc->public.debug.sanity_checks)
 				verify_allow_pstate_change_high(dc->hwseq);
@@ -2012,6 +2013,20 @@ static void dcn10_log_hw_state(struct core_dc *dc)
 	 */
 }
 
+static void dcn10_wait_for_mpcc_disconnect(struct resource_pool *res_pool, struct pipe_ctx *pipe_ctx)
+{
+	int i;
+	for (i = 0; i < MAX_PIPES; i++) {
+		if (!pipe_ctx->opp || !pipe_ctx->mpcc)
+			continue;
+
+		if (pipe_ctx->opp->mpcc_disconnect_pending[i]) {
+			pipe_ctx->mpcc->funcs->wait_for_idle(res_pool->mpcc[i]);
+			pipe_ctx->opp->mpcc_disconnect_pending[i] = false;
+		}
+	}
+}
+
 static bool dcn10_dummy_display_power_gating(
 	struct core_dc *dc,
 	uint8_t controller_id,
@@ -2085,7 +2100,8 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.set_static_screen_control = set_static_screen_control,
 	.setup_stereo = dcn10_setup_stereo,
 	.set_avmute = dce110_set_avmute,
-	.log_hw_state = dcn10_log_hw_state
+	.log_hw_state = dcn10_log_hw_state,
+	.wait_for_mpcc_disconnect = dcn10_wait_for_mpcc_disconnect
 };
 
 

@@ -32,6 +32,9 @@
 /******************************************************************************
  * Data types shared between different Virtual HW blocks
  ******************************************************************************/
+
+#define MAX_PIPES 6
+
 struct gamma_curve {
 	uint32_t offset;
 	uint32_t segments_num;

@@ -38,9 +38,7 @@
 
 struct core_stream;
 
-#define MAX_PIPES 6
 #define MAX_CLOCK_SOURCES 7
-
 
 /********* core_surface **********/
 #define DC_SURFACE_TO_CORE(dc_surface) \

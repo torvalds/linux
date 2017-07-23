@@ -207,6 +207,7 @@ struct output_pixel_processor {
 	struct dc_context *ctx;
 	uint32_t inst;
 	struct pwl_params regamma_params;
+	bool mpcc_disconnect_pending[MAX_PIPES];
 	const struct opp_funcs *funcs;
 };
 

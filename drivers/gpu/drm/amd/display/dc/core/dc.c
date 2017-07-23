@@ -934,6 +934,10 @@ static bool dc_commit_context_no_check(struct dc *dc, struct validate_context *c
 	if (!dcb->funcs->is_accelerated_mode(dcb))
 		core_dc->hwss.enable_accelerated_mode(core_dc);
 
+	for (i = 0; i < core_dc->res_pool->pipe_count; i++) {
+		pipe = &context->res_ctx.pipe_ctx[i];
+		core_dc->hwss.wait_for_mpcc_disconnect(core_dc->res_pool, pipe);
+	}
 	result = core_dc->hwss.apply_ctx_to_hw(core_dc, context);
 
 	program_timing_sync(core_dc, context);
@@ -1534,6 +1538,21 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 		} else {
 			core_dc->hwss.set_bandwidth(core_dc, context, false);
 			context_clock_trace(dc, context);
+		}
+	}
+
+	if (update_type > UPDATE_TYPE_FAST) {
+		for (i = 0; i < surface_count; i++) {
+			struct core_surface *surface = DC_SURFACE_TO_CORE(srf_updates[i].surface);
+
+			for (j = 0; j < core_dc->res_pool->pipe_count; j++) {
+				struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
+
+				if (pipe_ctx->surface != surface)
+					continue;
+
+				core_dc->hwss.wait_for_mpcc_disconnect(core_dc->res_pool, pipe_ctx);
+			}
 		}
 	}
 
