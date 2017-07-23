@@ -422,13 +422,11 @@ int of_phy_register_fixed_link(struct device_node *np)
 	struct fixed_phy_status status = {};
 	struct device_node *fixed_link_node;
 	const __be32 *fixed_link_prop;
-	int link_gpio;
-	int len, err;
 	struct phy_device *phy;
 	const char *managed;
+	int link_gpio, len;
 
-	err = of_property_read_string(np, "managed", &managed);
-	if (err == 0) {
+	if (of_property_read_string(np, "managed", &managed) == 0) {
 		if (strcmp(managed, "in-band-status") == 0) {
 			/* status is zeroed, namely its .link member */
 			phy = fixed_phy_register(PHY_POLL, &status, -1, np);
