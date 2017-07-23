@@ -242,7 +242,6 @@ static const struct iio_chan_spec mcp3208_channels[] = {
 
 static const struct iio_info mcp320x_info = {
 	.read_raw = mcp320x_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static const struct mcp320x_chip_info mcp320x_chip_infos[] = {

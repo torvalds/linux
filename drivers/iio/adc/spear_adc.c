@@ -254,7 +254,6 @@ static int spear_adc_configure(struct spear_adc_state *st)
 static const struct iio_info spear_adc_info = {
 	.read_raw = &spear_adc_read_raw,
 	.write_raw = &spear_adc_write_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int spear_adc_probe(struct platform_device *pdev)

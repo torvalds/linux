@@ -460,7 +460,6 @@ static const struct attribute_group max9611_attribute_group = {
 };
 
 static const struct iio_info indio_info = {
-	.driver_module	= THIS_MODULE,
 	.read_raw	= max9611_read_raw,
 	.attrs		= &max9611_attribute_group,
 };

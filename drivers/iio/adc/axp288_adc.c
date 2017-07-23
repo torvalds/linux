@@ -183,7 +183,6 @@ static int axp288_adc_set_state(struct regmap *regmap)
 
 static const struct iio_info axp288_adc_iio_info = {
 	.read_raw = &axp288_adc_read_raw,
-	.driver_module = THIS_MODULE,
 };
 
 static int axp288_adc_probe(struct platform_device *pdev)

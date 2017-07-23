@@ -369,7 +369,6 @@ static const struct iio_info ads8688_info = {
 	.write_raw = &ads8688_write_raw,
 	.write_raw_get_fmt = &ads8688_write_raw_get_fmt,
 	.attrs = &ads8688_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 static const struct ads8688_chip_info ads8688_chip_info_tbl[] = {
