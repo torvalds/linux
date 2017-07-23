@@ -246,7 +246,6 @@ static const struct iio_info tcs3472_info = {
 	.read_raw = tcs3472_read_raw,
 	.write_raw = tcs3472_write_raw,
 	.attrs = &tcs3472_attribute_group,
-	.driver_module = THIS_MODULE,
 };
 
 static int tcs3472_probe(struct i2c_client *client,
