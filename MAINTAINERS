@@ -4986,7 +4986,6 @@ L:	linux-edac@vger.kernel.org
 S:	Maintained
 F:	drivers/edac/skx_edac.c
 
-EDAC-XGENE
 APPLIED MICRO (APM) X-GENE SOC EDAC
 M:     Loc Ho <lho@apm.com>
 S:     Supported
@@ -5857,7 +5856,7 @@ F:	drivers/staging/greybus/audio_manager_sysfs.c
 F:	drivers/staging/greybus/audio_module.c
 F:	drivers/staging/greybus/audio_topology.c
 
-GREYBUS PROTOCOLS DRIVERS
+GREYBUS SDIO/GPIO/SPI PROTOCOLS DRIVERS
 M:	Rui Miguel Silva <rmfrfs@gmail.com>
 S:	Maintained
 F:	drivers/staging/greybus/sdio.c
@@ -5867,14 +5866,14 @@ F:	drivers/staging/greybus/power_supply.c
 F:	drivers/staging/greybus/spi.c
 F:	drivers/staging/greybus/spilib.c
 
-GREYBUS PROTOCOLS DRIVERS
+GREYBUS LOOBACK/TIME PROTOCOLS DRIVERS
 M:	Bryan O'Donoghue <pure.logic@nexus-software.ie>
 S:	Maintained
 F:	drivers/staging/greybus/loopback.c
 F:	drivers/staging/greybus/timesync.c
 F:	drivers/staging/greybus/timesync_platform.c
 
-GREYBUS PROTOCOLS DRIVERS
+GREYBUS FW/HID/SPI PROTOCOLS DRIVERS
 M:	Viresh Kumar <vireshk@kernel.org>
 S:	Maintained
 F:	drivers/staging/greybus/authentication.c
@@ -5891,7 +5890,7 @@ F:	drivers/staging/greybus/spi.c
 F:	drivers/staging/greybus/spilib.c
 F:	drivers/staging/greybus/spilib.h
 
-GREYBUS PROTOCOLS DRIVERS
+GREYBUS UART PROTOCOLS DRIVERS
 M:	David Lin <dtwlin@gmail.com>
 S:	Maintained
 F:	drivers/staging/greybus/uart.c
@@ -9365,14 +9364,6 @@ S:	Maintained
 F:	kernel/time/tick*.*
 F:	include/linux/tick.h
 F:	include/linux/sched/nohz.h
-
-NOKIA N900 CAMERA SUPPORT (ET8EK8 SENSOR, AD5820 FOCUS)
-M:	Pavel Machek <pavel@ucw.cz>
-M:	Sakari Ailus <sakari.ailus@iki.fi>
-L:	linux-media@vger.kernel.org
-S:	Maintained
-F:	drivers/media/i2c/et8ek8
-F:	drivers/media/i2c/ad5820.c
 
 NOKIA N900 CAMERA SUPPORT (ET8EK8 SENSOR, AD5820 FOCUS)
 M:	Pavel Machek <pavel@ucw.cz>
