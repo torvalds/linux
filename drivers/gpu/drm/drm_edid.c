@@ -3449,6 +3449,23 @@ cea_db_offsets(const u8 *cea, int *start, int *end)
 		*end = 127;
 	if (*end < 4 || *end > 127)
 		return -ERANGE;
+
+	/*
+	 * XXX: cea[2] is equal to the real value minus one in some sink edid.
+	 */
+	if (*end != 4) {
+		int i;
+
+		i = *start;
+		while (i < (*end) &&
+		       i + cea_db_payload_len(&(cea)[i]) < (*end))
+			i += cea_db_payload_len(&(cea)[i]) + 1;
+
+		if (cea_db_payload_len(&(cea)[i]) &&
+		    i + cea_db_payload_len(&(cea)[i]) == (*end))
+			(*end)++;
+	}
+
 	return 0;
 }
 
