@@ -394,6 +394,7 @@ static void broadwell_load_luts(struct drm_crtc_state *state)
 		}
 
 		/* Program the max register to clamp values > 1.0. */
+		i = lut_size - 1;
 		I915_WRITE(PREC_PAL_GC_MAX(pipe, 0),
 			   drm_color_lut_extract(lut[i].red, 16));
 		I915_WRITE(PREC_PAL_GC_MAX(pipe, 1),
