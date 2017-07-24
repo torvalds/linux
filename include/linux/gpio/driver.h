@@ -193,7 +193,7 @@ struct gpio_chip {
 	 *
 	 * Number of cells used to form the GPIO specifier.
 	 */
-	int of_gpio_n_cells;
+	unsigned int of_gpio_n_cells;
 
 	/**
 	 * @of_xlate:
