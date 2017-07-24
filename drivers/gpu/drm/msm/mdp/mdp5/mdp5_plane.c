@@ -1139,12 +1139,12 @@ struct drm_plane *mdp5_plane_init(struct drm_device *dev,
 		ret = drm_universal_plane_init(dev, plane, 0xff,
 				&mdp5_cursor_plane_funcs,
 				mdp5_plane->formats, mdp5_plane->nformats,
-				type, NULL);
+				NULL, type, NULL);
 	else
 		ret = drm_universal_plane_init(dev, plane, 0xff,
 				&mdp5_plane_funcs,
 				mdp5_plane->formats, mdp5_plane->nformats,
-				type, NULL);
+				NULL, type, NULL);
 	if (ret)
 		goto fail;
 

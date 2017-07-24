@@ -398,7 +398,7 @@ int malidp_de_planes_init(struct drm_device *drm)
 					DRM_PLANE_TYPE_OVERLAY;
 		ret = drm_universal_plane_init(drm, &plane->base, crtcs,
 					       &malidp_de_plane_funcs, formats,
-					       n, plane_type, NULL);
+					       n, NULL, plane_type, NULL);
 		if (ret < 0)
 			goto cleanup;
 

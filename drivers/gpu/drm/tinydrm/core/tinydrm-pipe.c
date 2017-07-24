@@ -225,7 +225,7 @@ tinydrm_display_pipe_init(struct tinydrm_device *tdev,
 		return PTR_ERR(connector);
 
 	ret = drm_simple_display_pipe_init(drm, &tdev->pipe, funcs, formats,
-					   format_count, connector);
+					   format_count, NULL, connector);
 	if (ret)
 		return ret;
 

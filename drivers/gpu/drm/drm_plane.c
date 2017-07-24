@@ -70,6 +70,8 @@ static unsigned int drm_num_planes(struct drm_device *dev)
  * @funcs: callbacks for the new plane
  * @formats: array of supported formats (DRM_FORMAT\_\*)
  * @format_count: number of elements in @formats
+ * @format_modifiers: array of struct drm_format modifiers terminated by
+ *                    DRM_FORMAT_MOD_INVALID
  * @type: type of plane (overlay, primary, cursor)
  * @name: printf style format string for the plane name, or NULL for default name
  *
@@ -82,10 +84,12 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 			     uint32_t possible_crtcs,
 			     const struct drm_plane_funcs *funcs,
 			     const uint32_t *formats, unsigned int format_count,
+			     const uint64_t *format_modifiers,
 			     enum drm_plane_type type,
 			     const char *name, ...)
 {
 	struct drm_mode_config *config = &dev->mode_config;
+	unsigned int format_modifier_count = 0;
 	int ret;
 
 	ret = drm_mode_object_add(dev, &plane->base, DRM_MODE_OBJECT_PLANE);
@@ -105,6 +109,31 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 		return -ENOMEM;
 	}
 
+	/*
+	 * First driver to need more than 64 formats needs to fix this. Each
+	 * format is encoded as a bit and the current code only supports a u64.
+	 */
+	if (WARN_ON(format_count > 64))
+		return -EINVAL;
+
+	if (format_modifiers) {
+		const uint64_t *temp_modifiers = format_modifiers;
+		while (*temp_modifiers++ != DRM_FORMAT_MOD_INVALID)
+			format_modifier_count++;
+	}
+
+	plane->modifier_count = format_modifier_count;
+	plane->modifiers = kmalloc_array(format_modifier_count,
+					 sizeof(format_modifiers[0]),
+					 GFP_KERNEL);
+
+	if (format_modifier_count && !plane->modifiers) {
+		DRM_DEBUG_KMS("out of memory when allocating plane\n");
+		kfree(plane->format_types);
+		drm_mode_object_unregister(dev, &plane->base);
+		return -ENOMEM;
+	}
+
 	if (name) {
 		va_list ap;
 
@@ -117,12 +146,15 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 	}
 	if (!plane->name) {
 		kfree(plane->format_types);
+		kfree(plane->modifiers);
 		drm_mode_object_unregister(dev, &plane->base);
 		return -ENOMEM;
 	}
 
 	memcpy(plane->format_types, formats, format_count * sizeof(uint32_t));
 	plane->format_count = format_count;
+	memcpy(plane->modifiers, format_modifiers,
+	       format_modifier_count * sizeof(format_modifiers[0]));
 	plane->possible_crtcs = possible_crtcs;
 	plane->type = type;
 
@@ -205,7 +237,8 @@ int drm_plane_init(struct drm_device *dev, struct drm_plane *plane,
 
 	type = is_primary ? DRM_PLANE_TYPE_PRIMARY : DRM_PLANE_TYPE_OVERLAY;
 	return drm_universal_plane_init(dev, plane, possible_crtcs, funcs,
-					formats, format_count, type, NULL);
+					formats, format_count,
+					NULL, type, NULL);
 }
 EXPORT_SYMBOL(drm_plane_init);
 
@@ -224,6 +257,7 @@ void drm_plane_cleanup(struct drm_plane *plane)
 	drm_modeset_lock_fini(&plane->mutex);
 
 	kfree(plane->format_types);
+	kfree(plane->modifiers);
 	drm_mode_object_unregister(dev, &plane->base);
 
 	BUG_ON(list_empty(&plane->head));

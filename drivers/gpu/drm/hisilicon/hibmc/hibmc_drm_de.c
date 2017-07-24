@@ -181,6 +181,7 @@ static struct drm_plane *hibmc_plane_init(struct hibmc_drm_private *priv)
 	ret = drm_universal_plane_init(dev, plane, 1, &hibmc_plane_funcs,
 				       channel_formats1,
 				       ARRAY_SIZE(channel_formats1),
+				       NULL,
 				       DRM_PLANE_TYPE_PRIMARY,
 				       NULL);
 	if (ret) {

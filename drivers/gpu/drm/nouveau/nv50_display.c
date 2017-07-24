@@ -1083,8 +1083,9 @@ nv50_wndw_ctor(const struct nv50_wndw_func *func, struct drm_device *dev,
 	wndw->func = func;
 	wndw->dmac = dmac;
 
-	ret = drm_universal_plane_init(dev, &wndw->plane, 0, &nv50_wndw, format,
-				       nformat, type, "%s-%d", name, index);
+	ret = drm_universal_plane_init(dev, &wndw->plane, 0, &nv50_wndw,
+				       format, nformat, NULL,
+				       type, "%s-%d", name, index);
 	if (ret)
 		return ret;
 

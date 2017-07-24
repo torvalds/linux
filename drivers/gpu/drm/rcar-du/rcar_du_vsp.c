@@ -439,8 +439,8 @@ int rcar_du_vsp_init(struct rcar_du_vsp *vsp)
 					       1 << vsp->index,
 					       &rcar_du_vsp_plane_funcs,
 					       formats_kms,
-					       ARRAY_SIZE(formats_kms), type,
-					       NULL);
+					       ARRAY_SIZE(formats_kms),
+					       NULL, type, NULL);
 		if (ret < 0)
 			return ret;
 
