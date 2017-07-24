@@ -316,6 +316,10 @@ PHONY += ppc64le_defconfig
 ppc64le_defconfig:
 	$(call merge_into_defconfig,ppc64_defconfig,le)
 
+PHONY += powernv_be_defconfig
+powernv_be_defconfig:
+	$(call merge_into_defconfig,powernv_defconfig,be)
+
 PHONY += mpc85xx_defconfig
 mpc85xx_defconfig:
 	$(call merge_into_defconfig,mpc85xx_basic_defconfig,\
