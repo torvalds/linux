@@ -1,7 +1,7 @@
 /*
  * Accelerated GHASH implementation with ARMv8 PMULL instructions.
  *
- * Copyright (C) 2014 Linaro Ltd. <ard.biesheuvel@linaro.org>
+ * Copyright (C) 2014 - 2017 Linaro Ltd. <ard.biesheuvel@linaro.org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -9,7 +9,9 @@
  */
 
 #include <asm/neon.h>
+#include <asm/simd.h>
 #include <asm/unaligned.h>
+#include <crypto/gf128mul.h>
 #include <crypto/internal/hash.h>
 #include <linux/cpufeature.h>
 #include <linux/crypto.h>
@@ -25,6 +27,7 @@ MODULE_LICENSE("GPL v2");
 struct ghash_key {
 	u64 a;
 	u64 b;
+	be128 k;
 };
 
 struct ghash_desc_ctx {
@@ -42,6 +45,36 @@ static int ghash_init(struct shash_desc *desc)
 
 	*ctx = (struct ghash_desc_ctx){};
 	return 0;
+}
+
+static void ghash_do_update(int blocks, u64 dg[], const char *src,
+			    struct ghash_key *key, const char *head)
+{
+	if (likely(may_use_simd())) {
+		kernel_neon_begin();
+		pmull_ghash_update(blocks, dg, src, key, head);
+		kernel_neon_end();
+	} else {
+		be128 dst = { cpu_to_be64(dg[1]), cpu_to_be64(dg[0]) };
+
+		do {
+			const u8 *in = src;
+
+			if (head) {
+				in = head;
+				blocks++;
+				head = NULL;
+			} else {
+				src += GHASH_BLOCK_SIZE;
+			}
+
+			crypto_xor((u8 *)&dst, in, GHASH_BLOCK_SIZE);
+			gf128mul_lle(&dst, &key->k);
+		} while (--blocks);
+
+		dg[0] = be64_to_cpu(dst.b);
+		dg[1] = be64_to_cpu(dst.a);
+	}
 }
 
 static int ghash_update(struct shash_desc *desc, const u8 *src,
@@ -67,10 +100,9 @@ static int ghash_update(struct shash_desc *desc, const u8 *src,
 		blocks = len / GHASH_BLOCK_SIZE;
 		len %= GHASH_BLOCK_SIZE;
 
-		kernel_neon_begin_partial(8);
-		pmull_ghash_update(blocks, ctx->digest, src, key,
-				   partial ? ctx->buf : NULL);
-		kernel_neon_end();
+		ghash_do_update(blocks, ctx->digest, src, key,
+				partial ? ctx->buf : NULL);
+
 		src += blocks * GHASH_BLOCK_SIZE;
 		partial = 0;
 	}
@@ -89,9 +121,7 @@ static int ghash_final(struct shash_desc *desc, u8 *dst)
 
 		memset(ctx->buf + partial, 0, GHASH_BLOCK_SIZE - partial);
 
-		kernel_neon_begin_partial(8);
-		pmull_ghash_update(1, ctx->digest, ctx->buf, key, NULL);
-		kernel_neon_end();
+		ghash_do_update(1, ctx->digest, ctx->buf, key, NULL);
 	}
 	put_unaligned_be64(ctx->digest[1], dst);
 	put_unaligned_be64(ctx->digest[0], dst + 8);
@@ -110,6 +140,9 @@ static int ghash_setkey(struct crypto_shash *tfm,
 		crypto_shash_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}
+
+	/* needed for the fallback */
+	memcpy(&key->k, inkey, GHASH_BLOCK_SIZE);
 
 	/* perform multiplication by 'x' in GF(2^128) */
 	b = get_unaligned_be64(inkey);
