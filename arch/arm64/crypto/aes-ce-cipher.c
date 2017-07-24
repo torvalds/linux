@@ -1,7 +1,7 @@
 /*
  * aes-ce-cipher.c - core AES cipher using ARMv8 Crypto Extensions
  *
- * Copyright (C) 2013 - 2014 Linaro Ltd <ard.biesheuvel@linaro.org>
+ * Copyright (C) 2013 - 2017 Linaro Ltd <ard.biesheuvel@linaro.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -9,6 +9,7 @@
  */
 
 #include <asm/neon.h>
+#include <asm/unaligned.h>
 #include <crypto/aes.h>
 #include <linux/cpufeature.h>
 #include <linux/crypto.h>
@@ -47,24 +48,24 @@ static void aes_cipher_encrypt(struct crypto_tfm *tfm, u8 dst[], u8 const src[])
 	kernel_neon_begin_partial(4);
 
 	__asm__("	ld1	{v0.16b}, %[in]			;"
-		"	ld1	{v1.16b}, [%[key]], #16		;"
+		"	ld1	{v1.4s}, [%[key]], #16		;"
 		"	cmp	%w[rounds], #10			;"
 		"	bmi	0f				;"
 		"	bne	3f				;"
 		"	mov	v3.16b, v1.16b			;"
 		"	b	2f				;"
 		"0:	mov	v2.16b, v1.16b			;"
-		"	ld1	{v3.16b}, [%[key]], #16		;"
+		"	ld1	{v3.4s}, [%[key]], #16		;"
 		"1:	aese	v0.16b, v2.16b			;"
 		"	aesmc	v0.16b, v0.16b			;"
-		"2:	ld1	{v1.16b}, [%[key]], #16		;"
+		"2:	ld1	{v1.4s}, [%[key]], #16		;"
 		"	aese	v0.16b, v3.16b			;"
 		"	aesmc	v0.16b, v0.16b			;"
-		"3:	ld1	{v2.16b}, [%[key]], #16		;"
+		"3:	ld1	{v2.4s}, [%[key]], #16		;"
 		"	subs	%w[rounds], %w[rounds], #3	;"
 		"	aese	v0.16b, v1.16b			;"
 		"	aesmc	v0.16b, v0.16b			;"
-		"	ld1	{v3.16b}, [%[key]], #16		;"
+		"	ld1	{v3.4s}, [%[key]], #16		;"
 		"	bpl	1b				;"
 		"	aese	v0.16b, v2.16b			;"
 		"	eor	v0.16b, v0.16b, v3.16b		;"
@@ -92,24 +93,24 @@ static void aes_cipher_decrypt(struct crypto_tfm *tfm, u8 dst[], u8 const src[])
 	kernel_neon_begin_partial(4);
 
 	__asm__("	ld1	{v0.16b}, %[in]			;"
-		"	ld1	{v1.16b}, [%[key]], #16		;"
+		"	ld1	{v1.4s}, [%[key]], #16		;"
 		"	cmp	%w[rounds], #10			;"
 		"	bmi	0f				;"
 		"	bne	3f				;"
 		"	mov	v3.16b, v1.16b			;"
 		"	b	2f				;"
 		"0:	mov	v2.16b, v1.16b			;"
-		"	ld1	{v3.16b}, [%[key]], #16		;"
+		"	ld1	{v3.4s}, [%[key]], #16		;"
 		"1:	aesd	v0.16b, v2.16b			;"
 		"	aesimc	v0.16b, v0.16b			;"
-		"2:	ld1	{v1.16b}, [%[key]], #16		;"
+		"2:	ld1	{v1.4s}, [%[key]], #16		;"
 		"	aesd	v0.16b, v3.16b			;"
 		"	aesimc	v0.16b, v0.16b			;"
-		"3:	ld1	{v2.16b}, [%[key]], #16		;"
+		"3:	ld1	{v2.4s}, [%[key]], #16		;"
 		"	subs	%w[rounds], %w[rounds], #3	;"
 		"	aesd	v0.16b, v1.16b			;"
 		"	aesimc	v0.16b, v0.16b			;"
-		"	ld1	{v3.16b}, [%[key]], #16		;"
+		"	ld1	{v3.4s}, [%[key]], #16		;"
 		"	bpl	1b				;"
 		"	aesd	v0.16b, v2.16b			;"
 		"	eor	v0.16b, v0.16b, v3.16b		;"
@@ -165,20 +166,16 @@ int ce_aes_expandkey(struct crypto_aes_ctx *ctx, const u8 *in_key,
 	    key_len != AES_KEYSIZE_256)
 		return -EINVAL;
 
-	memcpy(ctx->key_enc, in_key, key_len);
 	ctx->key_length = key_len;
+	for (i = 0; i < kwords; i++)
+		ctx->key_enc[i] = get_unaligned_le32(in_key + i * sizeof(u32));
 
 	kernel_neon_begin_partial(2);
 	for (i = 0; i < sizeof(rcon); i++) {
 		u32 *rki = ctx->key_enc + (i * kwords);
 		u32 *rko = rki + kwords;
 
-#ifndef CONFIG_CPU_BIG_ENDIAN
 		rko[0] = ror32(aes_sub(rki[kwords - 1]), 8) ^ rcon[i] ^ rki[0];
-#else
-		rko[0] = rol32(aes_sub(rki[kwords - 1]), 8) ^ (rcon[i] << 24) ^
-			 rki[0];
-#endif
 		rko[1] = rko[0] ^ rki[1];
 		rko[2] = rko[1] ^ rki[2];
 		rko[3] = rko[2] ^ rki[3];
@@ -210,9 +207,9 @@ int ce_aes_expandkey(struct crypto_aes_ctx *ctx, const u8 *in_key,
 
 	key_dec[0] = key_enc[j];
 	for (i = 1, j--; j > 0; i++, j--)
-		__asm__("ld1	{v0.16b}, %[in]		;"
+		__asm__("ld1	{v0.4s}, %[in]		;"
 			"aesimc	v1.16b, v0.16b		;"
-			"st1	{v1.16b}, %[out]	;"
+			"st1	{v1.4s}, %[out]	;"
 
 		:	[out]	"=Q"(key_dec[i])
 		:	[in]	"Q"(key_enc[j])
