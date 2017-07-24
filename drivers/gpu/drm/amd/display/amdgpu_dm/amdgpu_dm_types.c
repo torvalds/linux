@@ -64,6 +64,24 @@ struct dm_connector_state {
 #define to_dm_connector_state(x)\
 	container_of((x), struct dm_connector_state, base)
 
+static bool modeset_required(struct drm_crtc_state *crtc_state)
+{
+	if (!drm_atomic_crtc_needs_modeset(crtc_state))
+		return false;
+
+	if (!crtc_state->enable)
+		return false;
+
+	return crtc_state->active;
+}
+
+static bool modereset_required(struct drm_crtc_state *crtc_state)
+{
+	if (!drm_atomic_crtc_needs_modeset(crtc_state))
+		return false;
+
+	return !crtc_state->enable || !crtc_state->active;
+}
 
 void amdgpu_dm_encoder_destroy(struct drm_encoder *encoder)
 {
@@ -1268,11 +1286,9 @@ int amdgpu_dm_connector_mode_valid(
 	int result = MODE_ERROR;
 	struct dc_sink *dc_sink;
 	struct amdgpu_device *adev = connector->dev->dev_private;
-	struct dc_validation_set val_set = { 0 };
 	/* TODO: Unhardcode stream count */
 	struct dc_stream *stream;
 	struct amdgpu_connector *aconnector = to_amdgpu_connector(connector);
-	struct validate_context *context;
 
 	if ((mode->flags & DRM_MODE_FLAG_INTERLACE) ||
 			(mode->flags & DRM_MODE_FLAG_DBLSCAN))
@@ -1289,35 +1305,28 @@ int amdgpu_dm_connector_mode_valid(
 
 	if (NULL == dc_sink) {
 		DRM_ERROR("dc_sink is NULL!\n");
-		goto null_sink;
+		goto fail;
 	}
 
 	stream = dc_create_stream_for_sink(dc_sink);
 	if (NULL == stream) {
 		DRM_ERROR("Failed to create stream for sink!\n");
-		goto stream_create_fail;
+		goto fail;
 	}
 
 	drm_mode_set_crtcinfo(mode, 0);
 	fill_stream_properties_from_drm_display_mode(stream, mode, connector);
 
-	val_set.stream = stream;
-	val_set.surface_count = 0;
 	stream->src.width = mode->hdisplay;
 	stream->src.height = mode->vdisplay;
 	stream->dst = stream->src;
 
-	context = dc_get_validate_context(adev->dm.dc, &val_set, 1);
-
-	if (context) {
+	if (dc_validate_stream(adev->dm.dc, stream))
 		result = MODE_OK;
-		dc_release_validate_context(context);
-	}
 
 	dc_stream_release(stream);
 
-stream_create_fail:
-null_sink:
+fail:
 	/* TODO: error handling*/
 	return result;
 }
@@ -1343,7 +1352,24 @@ static int dm_crtc_helper_atomic_check(
 	struct drm_crtc *crtc,
 	struct drm_crtc_state *state)
 {
-	return 0;
+	struct amdgpu_device *adev = crtc->dev->dev_private;
+	struct dc *dc = adev->dm.dc;
+	struct dm_crtc_state *dm_crtc_state = to_dm_crtc_state(state);
+	int ret = -EINVAL;
+
+	if (unlikely(!dm_crtc_state->stream && modeset_required(state))) {
+		WARN_ON(1);
+		return ret;
+	}
+
+	/* In some use cases, like reset, no stream  is attached */
+	if (!dm_crtc_state->stream)
+		return 0;
+
+	if (dc_validate_stream(dc, dm_crtc_state->stream))
+		return 0;
+
+	return ret;
 }
 
 static bool dm_crtc_helper_mode_fixup(
@@ -2117,25 +2143,6 @@ int amdgpu_dm_encoder_init(
 	drm_encoder_helper_add(&aencoder->base, &amdgpu_dm_encoder_helper_funcs);
 
 	return res;
-}
-
-static bool modeset_required(struct drm_crtc_state *crtc_state)
-{
-	if (!drm_atomic_crtc_needs_modeset(crtc_state))
-		return false;
-
-	if (!crtc_state->enable)
-		return false;
-
-	return crtc_state->active;
-}
-
-static bool modereset_required(struct drm_crtc_state *crtc_state)
-{
-	if (!drm_atomic_crtc_needs_modeset(crtc_state))
-		return false;
-
-	return !crtc_state->enable || !crtc_state->active;
 }
 
 static void manage_dm_interrupts(
@@ -2935,7 +2942,7 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 	 */
 	bool lock_and_validation_needed = false;
 
-	ret = drm_atomic_helper_check(dev, state);
+	ret = drm_atomic_helper_check_modeset(dev, state);
 
 	if (ret) {
 		DRM_ERROR("Atomic state validation failed with error :%d !\n", ret);
@@ -2957,6 +2964,7 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 		}
 	}
 
+	/*TODO Move this code into dm_crtc_atomic_check once we get rid of dc_validation_set */
 	/* update changed items */
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		struct amdgpu_crtc *acrtc = NULL;
@@ -3089,10 +3097,7 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 			if (plane->type == DRM_PLANE_TYPE_CURSOR)
 				continue;
 
-			if (!fb || !plane_crtc || crtc != plane_crtc ||
-				(!crtc_state->planes_changed &&
-						!crtc_state->color_mgmt_changed) ||
-				!crtc_state->active)
+			if (!fb || !plane_crtc || crtc != plane_crtc || !crtc_state->active)
 				continue;
 
 			WARN_ON(!new_acrtc_state->stream);
@@ -3127,6 +3132,11 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 			}
 		}
 	}
+
+	/* Run this here since we want to validate the streams we created */
+	ret = drm_atomic_helper_check_planes(dev, state);
+	if (ret)
+		goto fail;
 
 	/*
 	 * For full updates case when
