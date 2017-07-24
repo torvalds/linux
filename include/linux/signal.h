@@ -16,6 +16,11 @@ static inline void copy_siginfo(struct siginfo *to, const struct siginfo *from)
 	memcpy(to, from, sizeof(*to));
 }
 
+static inline void clear_siginfo(struct siginfo *info)
+{
+	memset(info, 0, sizeof(*info));
+}
+
 int copy_siginfo_to_user(struct siginfo __user *to, const struct siginfo *from);
 
 enum siginfo_layout {
