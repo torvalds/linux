@@ -589,7 +589,7 @@ EXPORT_SYMBOL(filemap_write_and_wait_range);
 
 void __filemap_set_wb_err(struct address_space *mapping, int err)
 {
-	errseq_t eseq = __errseq_set(&mapping->wb_err, err);
+	errseq_t eseq = errseq_set(&mapping->wb_err, err);
 
 	trace_filemap_set_wb_err(mapping, eseq);
 }
