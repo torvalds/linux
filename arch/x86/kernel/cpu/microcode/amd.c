@@ -400,9 +400,12 @@ static void update_cache(struct ucode_patch *new_patch)
 
 	list_for_each_entry(p, &microcode_cache, plist) {
 		if (p->equiv_cpu == new_patch->equiv_cpu) {
-			if (p->patch_id >= new_patch->patch_id)
+			if (p->patch_id >= new_patch->patch_id) {
 				/* we already have the latest patch */
+				kfree(new_patch->data);
+				kfree(new_patch);
 				return;
+			}
 
 			list_replace(&p->plist, &new_patch->plist);
 			kfree(p->data);
