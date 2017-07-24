@@ -429,7 +429,6 @@ static const struct sdhci_acpi_slot *sdhci_acpi_get_slot(const char *hid,
 static int sdhci_acpi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	acpi_handle handle = ACPI_HANDLE(dev);
 	struct acpi_device *device, *child;
 	struct sdhci_acpi_host *c;
 	struct sdhci_host *host;
@@ -439,7 +438,8 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 	const char *uid;
 	int err;
 
-	if (acpi_bus_get_device(handle, &device))
+	device = ACPI_COMPANION(dev);
+	if (!device)
 		return -ENODEV;
 
 	hid = acpi_device_hid(device);
