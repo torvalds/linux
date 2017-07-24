@@ -187,27 +187,8 @@ static irqreturn_t rk_crypto_irq_handle(int irq, void *dev_id)
 static void rk_crypto_queue_task_cb(unsigned long data)
 {
 	struct rk_crypto_info *dev = (struct rk_crypto_info *)data;
-	struct crypto_async_request *async_req, *backlog;
-	unsigned long flags;
 	int err = 0;
 
-	spin_lock_irqsave(&dev->lock, flags);
-	backlog   = crypto_get_backlog(&dev->queue);
-	async_req = crypto_dequeue_request(&dev->queue);
-	spin_unlock_irqrestore(&dev->lock, flags);
-	if (!async_req) {
-		dev_err(dev->dev, "async_req is NULL !!\n");
-		return;
-	}
-	if (backlog) {
-		backlog->complete(backlog, -EINPROGRESS);
-		backlog = NULL;
-	}
-
-	if (crypto_tfm_alg_type(async_req->tfm) == CRYPTO_ALG_TYPE_ABLKCIPHER)
-		dev->ablk_req = ablkcipher_request_cast(async_req);
-	else
-		dev->ahash_req = ahash_request_cast(async_req);
 	dev->err = 0;
 	err = dev->start(dev);
 	if (err)
