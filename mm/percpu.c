@@ -4,6 +4,9 @@
  * Copyright (C) 2009		SUSE Linux Products GmbH
  * Copyright (C) 2009		Tejun Heo <tj@kernel.org>
  *
+ * Copyright (C) 2017		Facebook Inc.
+ * Copyright (C) 2017		Dennis Zhou <dennisszhou@gmail.com>
+ *
  * This file is released under the GPLv2 license.
  *
  * The percpu allocator handles both static and dynamic areas.  Percpu
@@ -25,7 +28,7 @@
  *
  * There is special consideration for the first chunk which must handle
  * the static percpu variables in the kernel image as allocation services
- * are not online yet.  In short, the first chunk is structure like so:
+ * are not online yet.  In short, the first chunk is structured like so:
  *
  *                  <Static | [Reserved] | Dynamic>
  *
@@ -34,19 +37,20 @@
  * percpu variables from kernel modules.  Finally, the dynamic section
  * takes care of normal allocations.
  *
- * Allocation state in each chunk is kept using an array of integers
- * on chunk->map.  A positive value in the map represents a free
- * region and negative allocated.  Allocation inside a chunk is done
- * by scanning this map sequentially and serving the first matching
- * entry.  This is mostly copied from the percpu_modalloc() allocator.
- * Chunks can be determined from the address using the index field
- * in the page struct. The index field contains a pointer to the chunk.
+ * The allocator organizes chunks into lists according to free size and
+ * tries to allocate from the fullest chunk first.  Each chunk is managed
+ * by a bitmap with metadata blocks.  The allocation map is updated on
+ * every allocation and free to reflect the current state while the boundary
+ * map is only updated on allocation.  Each metadata block contains
+ * information to help mitigate the need to iterate over large portions
+ * of the bitmap.  The reverse mapping from page to chunk is stored in
+ * the page's index.  Lastly, units are lazily backed and grow in unison.
  *
- * These chunks are organized into lists according to free_size and
- * tries to allocate from the fullest chunk first. Each chunk maintains
- * a maximum contiguous area size hint which is guaranteed to be equal
- * to or larger than the maximum contiguous area in the chunk. This
- * helps prevent the allocator from iterating over chunks unnecessarily.
+ * There is a unique conversion that goes on here between bytes and bits.
+ * Each bit represents a fragment of size PCPU_MIN_ALLOC_SIZE.  The chunk
+ * tracks the number of pages it is responsible for in nr_pages.  Helper
+ * functions are used to convert from between the bytes, bits, and blocks.
+ * All hints are managed in bits unless explicitly stated.
  *
  * To use this allocator, arch code should do the following:
  *
