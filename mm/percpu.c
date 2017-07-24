@@ -401,12 +401,18 @@ static inline int pcpu_cnt_pop_pages(struct pcpu_chunk *chunk, int bit_off,
  * @bits: size of free area
  *
  * This updates the chunk's contig hint and starting offset given a free area.
+ * Choose the best starting offset if the contig hint is equal.
  */
 static void pcpu_chunk_update(struct pcpu_chunk *chunk, int bit_off, int bits)
 {
 	if (bits > chunk->contig_bits) {
 		chunk->contig_bits_start = bit_off;
 		chunk->contig_bits = bits;
+	} else if (bits == chunk->contig_bits && chunk->contig_bits_start &&
+		   (!bit_off ||
+		    __ffs(bit_off) > __ffs(chunk->contig_bits_start))) {
+		/* use the start with the best alignment */
+		chunk->contig_bits_start = bit_off;
 	}
 }
 
@@ -461,7 +467,8 @@ static void pcpu_chunk_refresh_hint(struct pcpu_chunk *chunk)
  * @end: end offset in block
  *
  * Updates a block given a known free area.  The region [start, end) is
- * expected to be the entirety of the free area within a block.
+ * expected to be the entirety of the free area within a block.  Chooses
+ * the best starting offset if the contig hints are equal.
  */
 static void pcpu_block_update(struct pcpu_block_md *block, int start, int end)
 {
@@ -477,6 +484,10 @@ static void pcpu_block_update(struct pcpu_block_md *block, int start, int end)
 	if (contig > block->contig_hint) {
 		block->contig_hint_start = start;
 		block->contig_hint = contig;
+	} else if (block->contig_hint_start && contig == block->contig_hint &&
+		   (!start || __ffs(start) > __ffs(block->contig_hint_start))) {
+		/* use the start with the best alignment */
+		block->contig_hint_start = start;
 	}
 }
 
