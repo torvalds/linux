@@ -6843,7 +6843,8 @@ static void bnxt_timer(unsigned long data)
 	if (atomic_read(&bp->intr_sem) != 0)
 		goto bnxt_restart_timer;
 
-	if (bp->link_info.link_up && (bp->flags & BNXT_FLAG_PORT_STATS)) {
+	if (bp->link_info.link_up && (bp->flags & BNXT_FLAG_PORT_STATS) &&
+	    bp->stats_coal_ticks) {
 		set_bit(BNXT_PERIODIC_STATS_SP_EVENT, &bp->sp_event);
 		schedule_work(&bp->sp_task);
 	}

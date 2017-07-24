@@ -86,9 +86,11 @@ static int bnxt_set_coalesce(struct net_device *dev,
 	if (bp->stats_coal_ticks != coal->stats_block_coalesce_usecs) {
 		u32 stats_ticks = coal->stats_block_coalesce_usecs;
 
-		stats_ticks = clamp_t(u32, stats_ticks,
-				      BNXT_MIN_STATS_COAL_TICKS,
-				      BNXT_MAX_STATS_COAL_TICKS);
+		/* Allow 0, which means disable. */
+		if (stats_ticks)
+			stats_ticks = clamp_t(u32, stats_ticks,
+					      BNXT_MIN_STATS_COAL_TICKS,
+					      BNXT_MAX_STATS_COAL_TICKS);
 		stats_ticks = rounddown(stats_ticks, BNXT_MIN_STATS_COAL_TICKS);
 		bp->stats_coal_ticks = stats_ticks;
 		update_stats = true;
