@@ -1169,11 +1169,10 @@ static struct snd_pcm_ops rsnd_pcm_ops = {
 /*
  *		snd_kcontrol
  */
-#define kcontrol_to_cfg(kctrl) ((struct rsnd_kctrl_cfg *)kctrl->private_value)
 static int rsnd_kctrl_info(struct snd_kcontrol *kctrl,
 			   struct snd_ctl_elem_info *uinfo)
 {
-	struct rsnd_kctrl_cfg *cfg = kcontrol_to_cfg(kctrl);
+	struct rsnd_kctrl_cfg *cfg = snd_kcontrol_chip(kctrl);
 
 	if (cfg->texts) {
 		uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
@@ -1199,7 +1198,7 @@ static int rsnd_kctrl_info(struct snd_kcontrol *kctrl,
 static int rsnd_kctrl_get(struct snd_kcontrol *kctrl,
 			  struct snd_ctl_elem_value *uc)
 {
-	struct rsnd_kctrl_cfg *cfg = kcontrol_to_cfg(kctrl);
+	struct rsnd_kctrl_cfg *cfg = snd_kcontrol_chip(kctrl);
 	int i;
 
 	for (i = 0; i < cfg->size; i++)
@@ -1214,8 +1213,7 @@ static int rsnd_kctrl_get(struct snd_kcontrol *kctrl,
 static int rsnd_kctrl_put(struct snd_kcontrol *kctrl,
 			  struct snd_ctl_elem_value *uc)
 {
-	struct rsnd_mod *mod = snd_kcontrol_chip(kctrl);
-	struct rsnd_kctrl_cfg *cfg = kcontrol_to_cfg(kctrl);
+	struct rsnd_kctrl_cfg *cfg = snd_kcontrol_chip(kctrl);
 	int i, change = 0;
 
 	if (!cfg->accept(cfg->io))
@@ -1232,7 +1230,7 @@ static int rsnd_kctrl_put(struct snd_kcontrol *kctrl,
 	}
 
 	if (change && cfg->update)
-		cfg->update(cfg->io, mod);
+		cfg->update(cfg->io, cfg->mod);
 
 	return change;
 }
@@ -1284,14 +1282,13 @@ int rsnd_kctrl_new(struct rsnd_mod *mod,
 		.index		= rtd->num,
 		.get		= rsnd_kctrl_get,
 		.put		= rsnd_kctrl_put,
-		.private_value	= (unsigned long)cfg,
 	};
 	int ret;
 
 	if (size > RSND_MAX_CHANNELS)
 		return -EINVAL;
 
-	kctrl = snd_ctl_new1(&knew, mod);
+	kctrl = snd_ctl_new1(&knew, cfg);
 	if (!kctrl)
 		return -ENOMEM;
 
@@ -1307,6 +1304,7 @@ int rsnd_kctrl_new(struct rsnd_mod *mod,
 	cfg->card	= card;
 	cfg->kctrl	= kctrl;
 	cfg->io		= io;
+	cfg->mod	= mod;
 
 	return 0;
 }
