@@ -1924,7 +1924,7 @@
 
 		pwm3 {
 			pwm3_pin: pwm3-pin {
-				rockchip,pins = <3 29 RK_FUNC_3 &pcfg_pull_none>;
+				rockchip,pins = <3 30 RK_FUNC_3 &pcfg_pull_none>;
 			};
 		};
 
