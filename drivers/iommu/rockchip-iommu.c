@@ -92,6 +92,7 @@ struct rk_iommu {
 	int num_mmu;
 	int *irq;
 	int num_irq;
+	bool reset_disabled;
 	struct iommu_device iommu;
 	struct list_head node; /* entry in rk_iommu_domain.iommus */
 	struct iommu_domain *domain; /* domain to which iommu is attached */
@@ -414,6 +415,9 @@ static int rk_iommu_force_reset(struct rk_iommu *iommu)
 {
 	int ret, i;
 	u32 dte_addr;
+
+	if (iommu->reset_disabled)
+		return 0;
 
 	/*
 	 * Check if register DTE_ADDR is working by writing DTE_ADDR_DUMMY
@@ -1179,6 +1183,9 @@ static int rk_iommu_probe(struct platform_device *pdev)
 			return -ENXIO;
 		}
 	}
+
+	iommu->reset_disabled = device_property_read_bool(dev,
+					"rockchip,disable-mmu-reset");
 
 	err = iommu_device_sysfs_add(&iommu->iommu, dev, NULL, dev_name(dev));
 	if (err)
