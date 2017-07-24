@@ -7933,6 +7933,7 @@ static void haswell_set_pipemisc(struct drm_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	struct intel_crtc_state *config = intel_crtc->config;
 
 	if (IS_BROADWELL(dev_priv) || INTEL_INFO(dev_priv)->gen >= 9) {
 		u32 val = 0;
@@ -7957,6 +7958,12 @@ static void haswell_set_pipemisc(struct drm_crtc *crtc)
 
 		if (intel_crtc->config->dither)
 			val |= PIPEMISC_DITHER_ENABLE | PIPEMISC_DITHER_TYPE_SP;
+
+		if (config->ycbcr420) {
+			val |= PIPEMISC_OUTPUT_COLORSPACE_YUV |
+				PIPEMISC_YUV420_ENABLE |
+				PIPEMISC_YUV420_MODE_FULL_BLEND;
+		}
 
 		I915_WRITE(PIPEMISC(intel_crtc->pipe), val);
 	}
@@ -9021,6 +9028,23 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 
 	pipe_config->gamma_mode =
 		I915_READ(GAMMA_MODE(crtc->pipe)) & GAMMA_MODE_MODE_MASK;
+
+	if (IS_BROADWELL(dev_priv) || dev_priv->info.gen >= 9) {
+		u32 tmp = I915_READ(PIPEMISC(crtc->pipe));
+		bool clrspace_yuv = tmp & PIPEMISC_OUTPUT_COLORSPACE_YUV;
+
+		if (IS_GEMINILAKE(dev_priv) || dev_priv->info.gen >= 10) {
+			bool blend_mode_420 = tmp &
+					      PIPEMISC_YUV420_MODE_FULL_BLEND;
+
+			pipe_config->ycbcr420 = tmp & PIPEMISC_YUV420_ENABLE;
+			if (pipe_config->ycbcr420 != clrspace_yuv ||
+			    pipe_config->ycbcr420 != blend_mode_420)
+				DRM_DEBUG_KMS("Bad 4:2:0 mode (%08x)\n", tmp);
+		} else if (clrspace_yuv) {
+			DRM_DEBUG_KMS("YCbCr 4:2:0 Unsupported\n");
+		}
+	}
 
 	power_domain = POWER_DOMAIN_PIPE_PANEL_FITTER(crtc->pipe);
 	if (intel_display_power_get_if_enabled(dev_priv, power_domain)) {
@@ -10400,6 +10424,9 @@ static void intel_dump_pipe_config(struct intel_crtc *crtc,
 		intel_dump_m_n_config(pipe_config, "fdi",
 				      pipe_config->fdi_lanes,
 				      &pipe_config->fdi_m_n);
+
+	if (pipe_config->ycbcr420)
+		DRM_DEBUG_KMS("YCbCr 4:2:0 output enabled\n");
 
 	if (intel_crtc_has_dp_encoder(pipe_config)) {
 		intel_dump_m_n_config(pipe_config, "dp m_n",

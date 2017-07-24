@@ -1295,6 +1295,9 @@ intel_hdmi_mode_valid(struct drm_connector *connector,
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK)
 		clock *= 2;
 
+	if (drm_mode_is_420_only(&connector->display_info, mode))
+		clock /= 2;
+
 	/* check if we can do 8bpc */
 	status = hdmi_port_clock_valid(hdmi, clock, true, force_dvi);
 
