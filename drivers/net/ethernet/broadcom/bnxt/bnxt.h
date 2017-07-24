@@ -1164,6 +1164,7 @@ struct bnxt {
 	u8			nge_port_cnt;
 	__le16			nge_fw_dst_port_id;
 	u8			port_partition_type;
+	u16			br_mode;
 
 	u16			rx_coal_ticks;
 	u16			rx_coal_ticks_irq;

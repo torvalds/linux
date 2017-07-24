@@ -33,6 +33,7 @@
 #include <linux/mii.h>
 #include <linux/if.h>
 #include <linux/if_vlan.h>
+#include <linux/if_bridge.h>
 #include <linux/rtc.h>
 #include <linux/bpf.h>
 #include <net/ip.h>
@@ -4610,6 +4611,13 @@ static int bnxt_hwrm_func_qcfg(struct bnxt *bp)
 		bp->port_partition_type = resp->port_partition_type;
 		break;
 	}
+	if (bp->hwrm_spec_code < 0x10707 ||
+	    resp->evb_mode == FUNC_QCFG_RESP_EVB_MODE_VEB)
+		bp->br_mode = BRIDGE_MODE_VEB;
+	else if (resp->evb_mode == FUNC_QCFG_RESP_EVB_MODE_VEPA)
+		bp->br_mode = BRIDGE_MODE_VEPA;
+	else
+		bp->br_mode = BRIDGE_MODE_UNDEF;
 
 func_qcfg_exit:
 	mutex_unlock(&bp->hwrm_cmd_lock);
