@@ -173,6 +173,7 @@ struct hid_item {
 #define HID_UP_LOGIVENDOR3   0xff430000
 #define HID_UP_LNVENDOR		0xffa00000
 #define HID_UP_SENSOR		0x00200000
+#define HID_UP_ASUSVENDOR	0xff310000
 
 #define HID_USAGE		0x0000ffff
 
@@ -292,6 +293,7 @@ struct hid_item {
 #define HID_DG_BARRELSWITCH2	0x000d005a
 #define HID_DG_TOOLSERIALNUMBER	0x000d005b
 
+#define HID_VD_ASUS_CUSTOM_MEDIA_KEYS	0xff310076
 /*
  * HID report types --- Ouch! HID spec says 1 2 3!
  */
