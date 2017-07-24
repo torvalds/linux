@@ -26,6 +26,7 @@
 MODULE_DESCRIPTION("GHASH and AES-GCM using ARMv8 Crypto Extensions");
 MODULE_AUTHOR("Ard Biesheuvel <ard.biesheuvel@linaro.org>");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS_CRYPTO("ghash");
 
 #define GHASH_BLOCK_SIZE	16
 #define GHASH_DIGEST_SIZE	16
@@ -48,8 +49,17 @@ struct gcm_aes_ctx {
 	struct ghash_key	ghash_key;
 };
 
-asmlinkage void pmull_ghash_update(int blocks, u64 dg[], const char *src,
-				   struct ghash_key const *k, const char *head);
+asmlinkage void pmull_ghash_update_p64(int blocks, u64 dg[], const char *src,
+				       struct ghash_key const *k,
+				       const char *head);
+
+asmlinkage void pmull_ghash_update_p8(int blocks, u64 dg[], const char *src,
+				      struct ghash_key const *k,
+				      const char *head);
+
+static void (*pmull_ghash_update)(int blocks, u64 dg[], const char *src,
+				  struct ghash_key const *k,
+				  const char *head);
 
 asmlinkage void pmull_gcm_encrypt(int blocks, u64 dg[], u8 dst[],
 				  const u8 src[], struct ghash_key const *k,
@@ -557,13 +567,24 @@ static int __init ghash_ce_mod_init(void)
 {
 	int ret;
 
-	ret = crypto_register_aead(&gcm_aes_alg);
-	if (ret)
-		return ret;
+	if (!(elf_hwcap & HWCAP_ASIMD))
+		return -ENODEV;
+
+	if (elf_hwcap & HWCAP_PMULL)
+		pmull_ghash_update = pmull_ghash_update_p64;
+
+	else
+		pmull_ghash_update = pmull_ghash_update_p8;
 
 	ret = crypto_register_shash(&ghash_alg);
 	if (ret)
-		crypto_unregister_aead(&gcm_aes_alg);
+		return ret;
+
+	if (elf_hwcap & HWCAP_PMULL) {
+		ret = crypto_register_aead(&gcm_aes_alg);
+		if (ret)
+			crypto_unregister_shash(&ghash_alg);
+	}
 	return ret;
 }
 
@@ -573,5 +594,10 @@ static void __exit ghash_ce_mod_exit(void)
 	crypto_unregister_aead(&gcm_aes_alg);
 }
 
-module_cpu_feature_match(PMULL, ghash_ce_mod_init);
+static const struct cpu_feature ghash_cpu_feature[] = {
+	{ cpu_feature(PMULL) }, { }
+};
+MODULE_DEVICE_TABLE(cpu, ghash_cpu_feature);
+
+module_init(ghash_ce_mod_init);
 module_exit(ghash_ce_mod_exit);
