@@ -737,7 +737,9 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(unsigned long tmp_addr,
 	region_size = PFN_ALIGN(start_offset + map_size);
 
 	/* allocate chunk */
-	chunk = memblock_virt_alloc(pcpu_chunk_struct_size, 0);
+	chunk = memblock_virt_alloc(sizeof(struct pcpu_chunk) +
+				    BITS_TO_LONGS(region_size >> PAGE_SHIFT),
+				    0);
 
 	INIT_LIST_HEAD(&chunk->list);
 	INIT_LIST_HEAD(&chunk->map_extend_list);
@@ -746,15 +748,15 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(unsigned long tmp_addr,
 	chunk->start_offset = start_offset;
 	chunk->end_offset = region_size - chunk->start_offset - map_size;
 
-	chunk->nr_pages = pcpu_unit_pages;
+	chunk->nr_pages = region_size >> PAGE_SHIFT;
 
 	chunk->map = map;
 	chunk->map_alloc = init_map_size;
 
 	/* manage populated page bitmap */
 	chunk->immutable = true;
-	bitmap_fill(chunk->populated, pcpu_unit_pages);
-	chunk->nr_populated = pcpu_unit_pages;
+	bitmap_fill(chunk->populated, chunk->nr_pages);
+	chunk->nr_populated = chunk->nr_pages;
 
 	chunk->contig_hint = chunk->free_size = map_size;
 
@@ -1212,7 +1214,7 @@ static void pcpu_balance_workfn(struct work_struct *work)
 	list_for_each_entry_safe(chunk, next, &to_free, list) {
 		int rs, re;
 
-		pcpu_for_each_pop_region(chunk, rs, re, 0, pcpu_unit_pages) {
+		pcpu_for_each_pop_region(chunk, rs, re, 0, chunk->nr_pages) {
 			pcpu_depopulate_chunk(chunk, rs, re);
 			spin_lock_irq(&pcpu_lock);
 			pcpu_chunk_depopulated(chunk, rs, re);
@@ -1269,7 +1271,7 @@ retry_pop:
 
 		spin_lock_irq(&pcpu_lock);
 		list_for_each_entry(chunk, &pcpu_slot[slot], list) {
-			nr_unpop = pcpu_unit_pages - chunk->nr_populated;
+			nr_unpop = chunk->nr_pages - chunk->nr_populated;
 			if (nr_unpop)
 				break;
 		}
@@ -1279,7 +1281,7 @@ retry_pop:
 			continue;
 
 		/* @chunk can't go away while pcpu_alloc_mutex is held */
-		pcpu_for_each_unpop_region(chunk, rs, re, 0, pcpu_unit_pages) {
+		pcpu_for_each_unpop_region(chunk, rs, re, 0, chunk->nr_pages) {
 			int nr = min(re - rs, nr_to_pop);
 
 			ret = pcpu_populate_chunk(chunk, rs, rs + nr);
