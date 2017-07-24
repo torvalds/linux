@@ -617,6 +617,8 @@ ssize_t nfs_file_write(struct kiocb *iocb, struct iov_iter *from)
 		if (result)
 			goto out;
 	}
+	if (iocb->ki_pos > i_size_read(inode))
+		nfs_revalidate_mapping(inode, file->f_mapping);
 
 	nfs_start_io_write(inode);
 	result = generic_write_checks(iocb, from);
