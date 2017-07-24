@@ -204,15 +204,17 @@ void rockchip_drm_backlight_update(struct drm_device *drm)
 {
 	struct rockchip_drm_private *private = drm->dev_private;
 	struct rockchip_drm_backlight *bl = private->backlight;
-	struct drm_connector *connector = bl->connector;
-	struct sub_backlight *sub = bl->sub;
+	struct drm_connector *connector;
+	struct sub_backlight *sub;
 	struct rockchip_crtc_state *s;
 	struct drm_crtc *crtc;
 	bool backlight_changed = false;
 
-	if (!connector)
+	if (!bl || !bl->connector)
 		return;
 
+	sub = bl->sub;
+	connector = bl->connector;
 	crtc = connector->state->crtc;
 	if (!crtc) {
 		if (sub) {
