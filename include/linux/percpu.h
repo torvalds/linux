@@ -25,6 +25,9 @@
 #define PCPU_MIN_ALLOC_SHIFT		2
 #define PCPU_MIN_ALLOC_SIZE		(1 << PCPU_MIN_ALLOC_SHIFT)
 
+/* number of bits per page, used to trigger a scan if blocks are > PAGE_SIZE */
+#define PCPU_BITS_PER_PAGE		(PAGE_SIZE >> PCPU_MIN_ALLOC_SHIFT)
+
 /*
  * This determines the size of each metadata block.  There are several subtle
  * constraints around this constant.  The reserved region must be a multiple of
