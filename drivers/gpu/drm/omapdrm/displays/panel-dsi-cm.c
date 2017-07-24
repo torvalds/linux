@@ -66,6 +66,9 @@ struct panel_drv_data {
 
 	bool use_dsi_backlight;
 
+	int width_mm;
+	int height_mm;
+
 	struct omap_dsi_pin_config pin_config;
 
 	/* runtime variables */
@@ -1163,6 +1166,15 @@ static int dsicm_check_timings(struct omap_dss_device *dssdev,
 	return ret;
 }
 
+static void dsicm_get_size(struct omap_dss_device *dssdev,
+			  unsigned int *width, unsigned int *height)
+{
+	struct panel_drv_data *ddata = to_panel_data(dssdev);
+
+	*width = ddata->width_mm;
+	*height = ddata->height_mm;
+}
+
 static struct omap_dss_driver dsicm_ops = {
 	.connect	= dsicm_connect,
 	.disconnect	= dsicm_disconnect,
@@ -1175,6 +1187,7 @@ static struct omap_dss_driver dsicm_ops = {
 
 	.get_timings	= dsicm_get_timings,
 	.check_timings	= dsicm_check_timings,
+	.get_size	= dsicm_get_size,
 
 	.enable_te	= dsicm_enable_te,
 	.get_te		= dsicm_get_te,
@@ -1215,6 +1228,12 @@ static int dsicm_probe_of(struct platform_device *pdev)
 		dev_warn(&pdev->dev,
 			 "failed to get video timing, using defaults\n");
 	}
+
+	ddata->width_mm = 0;
+	of_property_read_u32(node, "width-mm", &ddata->width_mm);
+
+	ddata->height_mm = 0;
+	of_property_read_u32(node, "height-mm", &ddata->height_mm);
 
 	in = omapdss_of_find_source_for_first_ep(node);
 	if (IS_ERR(in)) {
