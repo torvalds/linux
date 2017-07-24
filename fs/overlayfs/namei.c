@@ -397,8 +397,19 @@ int ovl_verify_index(struct dentry *index, struct path *lowerstack,
 	if (!d_inode(index))
 		return 0;
 
-	err = -EISDIR;
-	if (d_is_dir(index))
+	/*
+	 * Directory index entries are going to be used for looking up
+	 * redirected upper dirs by lower dir fh when decoding an overlay
+	 * file handle of a merge dir. Whiteout index entries are going to be
+	 * used as an indication that an exported overlay file handle should
+	 * be treated as stale (i.e. after unlink of the overlay inode).
+	 * We don't know the verification rules for directory and whiteout
+	 * index entries, because they have not been implemented yet, so return
+	 * EROFS if those entries are found to avoid corrupting an index that
+	 * was created by a newer kernel.
+	 */
+	err = -EROFS;
+	if (d_is_dir(index) || ovl_is_whiteout(index))
 		goto fail;
 
 	err = -EINVAL;
@@ -436,8 +447,8 @@ out:
 	return err;
 
 fail:
-	pr_warn_ratelimited("overlayfs: failed to verify index (%pd2, err=%i)\n",
-			    index, err);
+	pr_warn_ratelimited("overlayfs: failed to verify index (%pd2, ftype=%x, err=%i)\n",
+			    index, d_inode(index)->i_mode & S_IFMT, err);
 	goto out;
 }
 
@@ -502,6 +513,7 @@ static struct dentry *ovl_lookup_index(struct dentry *dentry,
 		goto out;
 	}
 
+	inode = d_inode(index);
 	if (d_is_negative(index)) {
 		if (upper && d_inode(origin)->i_nlink > 1) {
 			pr_warn_ratelimited("overlayfs: hard link with origin but no index (ino=%lu).\n",
@@ -511,11 +523,22 @@ static struct dentry *ovl_lookup_index(struct dentry *dentry,
 
 		dput(index);
 		index = NULL;
-	} else if (upper && d_inode(index) != d_inode(upper)) {
-		inode = d_inode(index);
-		pr_warn_ratelimited("overlayfs: wrong index found (index ino: %lu, upper ino: %lu).\n",
-				    d_inode(index)->i_ino,
-				    d_inode(upper)->i_ino);
+	} else if (upper && d_inode(upper) != inode) {
+		pr_warn_ratelimited("overlayfs: wrong index found (index=%pd2, ino=%lu, upper ino=%lu).\n",
+				    index, inode->i_ino, d_inode(upper)->i_ino);
+		goto fail;
+	} else if (ovl_dentry_weird(index) || ovl_is_whiteout(index) ||
+		   ((inode->i_mode ^ d_inode(origin)->i_mode) & S_IFMT)) {
+		/*
+		 * Index should always be of the same file type as origin
+		 * except for the case of a whiteout index. A whiteout
+		 * index should only exist if all lower aliases have been
+		 * unlinked, which means that finding a lower origin on lookup
+		 * whose index is a whiteout should be treated as an error.
+		 */
+		pr_warn_ratelimited("overlayfs: bad index found (index=%pd2, ftype=%x, origin ftype=%x).\n",
+				    index, d_inode(index)->i_mode & S_IFMT,
+				    d_inode(origin)->i_mode & S_IFMT);
 		goto fail;
 	}
 

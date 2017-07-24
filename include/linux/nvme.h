@@ -963,14 +963,14 @@ struct nvme_dbbuf {
 };
 
 struct streams_directive_params {
-	__u16	msl;
-	__u16	nssa;
-	__u16	nsso;
+	__le16	msl;
+	__le16	nssa;
+	__le16	nsso;
 	__u8	rsvd[10];
-	__u32	sws;
-	__u16	sgs;
-	__u16	nsa;
-	__u16	nso;
+	__le32	sws;
+	__le16	sgs;
+	__le16	nsa;
+	__le16	nso;
 	__u8	rsvd2[6];
 };
 

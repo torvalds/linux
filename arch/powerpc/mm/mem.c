@@ -402,6 +402,7 @@ void __init mem_init(void)
 void free_initmem(void)
 {
 	ppc_md.progress = ppc_printk_progress;
+	mark_initmem_nx();
 	free_initmem_default(POISON_FREE_INITMEM);
 }
 

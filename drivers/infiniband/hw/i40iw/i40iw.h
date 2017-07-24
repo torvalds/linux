@@ -527,6 +527,7 @@ enum i40iw_status_code i40iw_add_mac_addr(struct i40iw_device *iwdev,
 int i40iw_modify_qp(struct ib_qp *, struct ib_qp_attr *, int, struct ib_udata *);
 void i40iw_cq_wq_destroy(struct i40iw_device *iwdev, struct i40iw_sc_cq *cq);
 
+void i40iw_cleanup_pending_cqp_op(struct i40iw_device *iwdev);
 void i40iw_rem_pdusecount(struct i40iw_pd *iwpd, struct i40iw_device *iwdev);
 void i40iw_add_pdusecount(struct i40iw_pd *iwpd);
 void i40iw_rem_devusecount(struct i40iw_device *iwdev);

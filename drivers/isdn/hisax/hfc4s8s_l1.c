@@ -86,7 +86,7 @@ typedef struct {
 	char *device_name;
 } hfc4s8s_param;
 
-static struct pci_device_id hfc4s8s_ids[] = {
+static const struct pci_device_id hfc4s8s_ids[] = {
 	{.vendor = PCI_VENDOR_ID_CCD,
 	 .device = PCI_DEVICE_ID_4S,
 	 .subvendor = 0x1397,

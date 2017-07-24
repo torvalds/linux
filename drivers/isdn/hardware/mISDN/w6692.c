@@ -1398,7 +1398,7 @@ w6692_remove_pci(struct pci_dev *pdev)
 			pr_notice("%s: drvdata already removed\n", __func__);
 }
 
-static struct pci_device_id w6692_ids[] = {
+static const struct pci_device_id w6692_ids[] = {
 	{ PCI_VENDOR_ID_DYNALINK, PCI_DEVICE_ID_DYNALINK_IS64PH,
 	  PCI_ANY_ID, PCI_ANY_ID, 0, 0, (ulong)&w6692_map[0]},
 	{ PCI_VENDOR_ID_WINBOND2, PCI_DEVICE_ID_WINBOND2_6692,

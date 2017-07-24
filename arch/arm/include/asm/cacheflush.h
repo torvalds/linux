@@ -116,7 +116,7 @@ struct cpu_cache_fns {
 	void (*dma_unmap_area)(const void *, size_t, int);
 
 	void (*dma_flush_range)(const void *, const void *);
-};
+} __no_randomize_layout;
 
 /*
  * Select the calling method

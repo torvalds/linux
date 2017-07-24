@@ -4299,6 +4299,9 @@ static void bfq_completed_request(struct bfq_queue *bfqq, struct bfq_data *bfqd)
 			bfq_bfqq_expire(bfqd, bfqq, false,
 					BFQQE_NO_MORE_REQUESTS);
 	}
+
+	if (!bfqd->rq_in_driver)
+		bfq_schedule_dispatch(bfqd);
 }
 
 static void bfq_put_rq_priv_body(struct bfq_queue *bfqq)

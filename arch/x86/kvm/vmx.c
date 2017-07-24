@@ -198,7 +198,8 @@ struct loaded_vmcs {
 	struct vmcs *vmcs;
 	struct vmcs *shadow_vmcs;
 	int cpu;
-	int launched;
+	bool launched;
+	bool nmi_known_unmasked;
 	struct list_head loaded_vmcss_on_cpu_link;
 };
 
@@ -2326,6 +2327,11 @@ static void vmx_vcpu_put(struct kvm_vcpu *vcpu)
 	__vmx_load_host_state(to_vmx(vcpu));
 }
 
+static bool emulation_required(struct kvm_vcpu *vcpu)
+{
+	return emulate_invalid_guest_state && !guest_state_valid(vcpu);
+}
+
 static void vmx_decache_cr0_guest_bits(struct kvm_vcpu *vcpu);
 
 /*
@@ -2363,6 +2369,8 @@ static unsigned long vmx_get_rflags(struct kvm_vcpu *vcpu)
 
 static void vmx_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
 {
+	unsigned long old_rflags = vmx_get_rflags(vcpu);
+
 	__set_bit(VCPU_EXREG_RFLAGS, (ulong *)&vcpu->arch.regs_avail);
 	to_vmx(vcpu)->rflags = rflags;
 	if (to_vmx(vcpu)->rmode.vm86_active) {
@@ -2370,6 +2378,9 @@ static void vmx_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
 		rflags |= X86_EFLAGS_IOPL | X86_EFLAGS_VM;
 	}
 	vmcs_writel(GUEST_RFLAGS, rflags);
+
+	if ((old_rflags ^ to_vmx(vcpu)->rflags) & X86_EFLAGS_VM)
+		to_vmx(vcpu)->emulation_required = emulation_required(vcpu);
 }
 
 static u32 vmx_get_pkru(struct kvm_vcpu *vcpu)
@@ -3855,11 +3866,6 @@ static __init int alloc_kvm_area(void)
 		per_cpu(vmxarea, cpu) = vmcs;
 	}
 	return 0;
-}
-
-static bool emulation_required(struct kvm_vcpu *vcpu)
-{
-	return emulate_invalid_guest_state && !guest_state_valid(vcpu);
 }
 
 static void fix_pmode_seg(struct kvm_vcpu *vcpu, int seg,
@@ -5510,10 +5516,8 @@ static void vmx_inject_nmi(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	if (!is_guest_mode(vcpu)) {
-		++vcpu->stat.nmi_injections;
-		vmx->nmi_known_unmasked = false;
-	}
+	++vcpu->stat.nmi_injections;
+	vmx->loaded_vmcs->nmi_known_unmasked = false;
 
 	if (vmx->rmode.vm86_active) {
 		if (kvm_inject_realmode_interrupt(vcpu, NMI_VECTOR, 0) != EMULATE_DONE)
@@ -5527,16 +5531,21 @@ static void vmx_inject_nmi(struct kvm_vcpu *vcpu)
 
 static bool vmx_get_nmi_mask(struct kvm_vcpu *vcpu)
 {
-	if (to_vmx(vcpu)->nmi_known_unmasked)
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	bool masked;
+
+	if (vmx->loaded_vmcs->nmi_known_unmasked)
 		return false;
-	return vmcs_read32(GUEST_INTERRUPTIBILITY_INFO)	& GUEST_INTR_STATE_NMI;
+	masked = vmcs_read32(GUEST_INTERRUPTIBILITY_INFO) & GUEST_INTR_STATE_NMI;
+	vmx->loaded_vmcs->nmi_known_unmasked = !masked;
+	return masked;
 }
 
 static void vmx_set_nmi_mask(struct kvm_vcpu *vcpu, bool masked)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
-	vmx->nmi_known_unmasked = !masked;
+	vmx->loaded_vmcs->nmi_known_unmasked = !masked;
 	if (masked)
 		vmcs_set_bits(GUEST_INTERRUPTIBILITY_INFO,
 			      GUEST_INTR_STATE_NMI);
@@ -8736,7 +8745,7 @@ static void vmx_recover_nmi_blocking(struct vcpu_vmx *vmx)
 
 	idtv_info_valid = vmx->idt_vectoring_info & VECTORING_INFO_VALID_MASK;
 
-	if (vmx->nmi_known_unmasked)
+	if (vmx->loaded_vmcs->nmi_known_unmasked)
 		return;
 	/*
 	 * Can't use vmx->exit_intr_info since we're not sure what
@@ -8760,7 +8769,7 @@ static void vmx_recover_nmi_blocking(struct vcpu_vmx *vmx)
 		vmcs_set_bits(GUEST_INTERRUPTIBILITY_INFO,
 			      GUEST_INTR_STATE_NMI);
 	else
-		vmx->nmi_known_unmasked =
+		vmx->loaded_vmcs->nmi_known_unmasked =
 			!(vmcs_read32(GUEST_INTERRUPTIBILITY_INFO)
 			  & GUEST_INTR_STATE_NMI);
 }
@@ -10488,6 +10497,7 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 {
 	struct vmcs12 *vmcs12;
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	u32 interrupt_shadow = vmx_get_interrupt_shadow(vcpu);
 	u32 exit_qual;
 	int ret;
 
@@ -10512,6 +10522,12 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	 * for misconfigurations which will anyway be caught by the processor
 	 * when using the merged vmcs02.
 	 */
+	if (interrupt_shadow & KVM_X86_SHADOW_INT_MOV_SS) {
+		nested_vmx_failValid(vcpu,
+				     VMXERR_ENTRY_EVENTS_BLOCKED_BY_MOV_SS);
+		goto out;
+	}
+
 	if (vmcs12->launch_state == launch) {
 		nested_vmx_failValid(vcpu,
 			launch ? VMXERR_VMLAUNCH_NONCLEAR_VMCS

@@ -63,9 +63,6 @@ struct kgd2kfd_shared_resources {
 	/* Bit n == 1 means VMID n is available for KFD. */
 	unsigned int compute_vmid_bitmap;
 
-	/* number of mec available from the hardware */
-	uint32_t num_mec;
-
 	/* number of pipes per mec */
 	uint32_t num_pipe_per_mec;
 
