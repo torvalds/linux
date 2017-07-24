@@ -220,8 +220,8 @@ static void ovl_put_super(struct super_block *sb)
 		ovl_inuse_unlock(ufs->upper_mnt->mnt_root);
 	mntput(ufs->upper_mnt);
 	for (i = 0; i < ufs->numlower; i++)
-		mntput(ufs->lower_mnt[i]);
-	kfree(ufs->lower_mnt);
+		mntput(ufs->lower_layers[i].mnt);
+	kfree(ufs->lower_layers);
 
 	kfree(ufs->config.lowerdir);
 	kfree(ufs->config.upperdir);
@@ -1026,24 +1026,26 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	err = -ENOMEM;
-	ufs->lower_mnt = kcalloc(numlower, sizeof(struct vfsmount *), GFP_KERNEL);
-	if (ufs->lower_mnt == NULL)
+	ufs->lower_layers = kcalloc(numlower, sizeof(struct ovl_layer),
+				    GFP_KERNEL);
+	if (ufs->lower_layers == NULL)
 		goto out_put_workdir;
 	for (i = 0; i < numlower; i++) {
-		struct vfsmount *mnt = clone_private_mount(&stack[i]);
+		struct vfsmount *mnt;
 
+		mnt = clone_private_mount(&stack[i]);
 		err = PTR_ERR(mnt);
 		if (IS_ERR(mnt)) {
 			pr_err("overlayfs: failed to clone lowerpath\n");
-			goto out_put_lower_mnt;
+			goto out_put_lower_layers;
 		}
 		/*
-		 * Make lower_mnt R/O.  That way fchmod/fchown on lower file
+		 * Make lower layers R/O.  That way fchmod/fchown on lower file
 		 * will fail instead of modifying lower fs.
 		 */
 		mnt->mnt_flags |= MNT_READONLY | MNT_NOATIME;
 
-		ufs->lower_mnt[ufs->numlower] = mnt;
+		ufs->lower_layers[ufs->numlower].mnt = mnt;
 		ufs->numlower++;
 
 		/* Check if all lower layers are on same sb */
@@ -1059,13 +1061,25 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	else if (ufs->upper_mnt->mnt_sb != ufs->same_sb)
 		ufs->same_sb = NULL;
 
+	err = -ENOMEM;
+	oe = ovl_alloc_entry(numlower);
+	if (!oe)
+		goto out_put_lower_layers;
+
+	for (i = 0; i < numlower; i++) {
+		oe->lowerstack[i].dentry = stack[i].dentry;
+		oe->lowerstack[i].layer = &(ufs->lower_layers[i]);
+	}
+
 	if (!(ovl_force_readonly(ufs)) && ufs->config.index) {
 		/* Verify lower root is upper root origin */
-		err = ovl_verify_origin(upperpath.dentry, ufs->lower_mnt[0],
-					stack[0].dentry, false, true);
+		err = ovl_verify_origin(upperpath.dentry,
+					oe->lowerstack[0].layer->mnt,
+					oe->lowerstack[0].dentry,
+					false, true);
 		if (err) {
 			pr_err("overlayfs: failed to verify upper root origin\n");
-			goto out_put_lower_mnt;
+			goto out_free_oe;
 		}
 
 		ufs->indexdir = ovl_workdir_create(sb, ufs, workpath.dentry,
@@ -1081,7 +1095,8 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 			if (!err)
 				err = ovl_indexdir_cleanup(ufs->indexdir,
 							   ufs->upper_mnt,
-							   stack, numlower);
+							   oe->lowerstack,
+							   numlower);
 		}
 		if (err || !ufs->indexdir)
 			pr_warn("overlayfs: try deleting index dir or mounting with '-o index=off' to disable inodes index.\n");
@@ -1106,11 +1121,6 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	/* Never override disk quota limits or use reserved space */
 	cap_lower(cred->cap_effective, CAP_SYS_RESOURCE);
 
-	err = -ENOMEM;
-	oe = ovl_alloc_entry(numlower);
-	if (!oe)
-		goto out_put_cred;
-
 	sb->s_magic = OVERLAYFS_SUPER_MAGIC;
 	sb->s_op = &ovl_super_operations;
 	sb->s_xattr = ovl_xattr_handlers;
@@ -1119,11 +1129,12 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 	root_dentry = d_make_root(ovl_new_inode(sb, S_IFDIR, 0));
 	if (!root_dentry)
-		goto out_free_oe;
+		goto out_put_cred;
 
 	mntput(upperpath.mnt);
 	for (i = 0; i < numlower; i++)
 		mntput(stack[i].mnt);
+	kfree(stack);
 	mntput(workpath.mnt);
 	kfree(lowertmp);
 
@@ -1132,11 +1143,6 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 		if (ovl_is_impuredir(upperpath.dentry))
 			ovl_set_flag(OVL_IMPURE, d_inode(root_dentry));
 	}
-	for (i = 0; i < numlower; i++) {
-		oe->lowerstack[i].dentry = stack[i].dentry;
-		oe->lowerstack[i].mnt = ufs->lower_mnt[i];
-	}
-	kfree(stack);
 
 	root_dentry->d_fsdata = oe;
 
@@ -1149,16 +1155,16 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 	return 0;
 
-out_free_oe:
-	kfree(oe);
 out_put_cred:
 	put_cred(ufs->creator_cred);
 out_put_indexdir:
 	dput(ufs->indexdir);
-out_put_lower_mnt:
+out_free_oe:
+	kfree(oe);
+out_put_lower_layers:
 	for (i = 0; i < ufs->numlower; i++)
-		mntput(ufs->lower_mnt[i]);
-	kfree(ufs->lower_mnt);
+		mntput(ufs->lower_layers[i].mnt);
+	kfree(ufs->lower_layers);
 out_put_workdir:
 	dput(ufs->workdir);
 	mntput(ufs->upper_mnt);

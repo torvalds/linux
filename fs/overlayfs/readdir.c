@@ -1014,7 +1014,7 @@ void ovl_workdir_cleanup(struct inode *dir, struct vfsmount *mnt,
 }
 
 int ovl_indexdir_cleanup(struct dentry *dentry, struct vfsmount *mnt,
-			 struct path *lowerstack, unsigned int numlower)
+			 struct ovl_path *lower, unsigned int numlower)
 {
 	int err;
 	struct dentry *index = NULL;
@@ -1049,7 +1049,7 @@ int ovl_indexdir_cleanup(struct dentry *dentry, struct vfsmount *mnt,
 			index = NULL;
 			break;
 		}
-		err = ovl_verify_index(index, lowerstack, numlower);
+		err = ovl_verify_index(index, lower, numlower);
 		/* Cleanup stale and orphan index entries */
 		if (err && (err == -ESTALE || err == -ENOENT))
 			err = ovl_cleanup(dir, index);
