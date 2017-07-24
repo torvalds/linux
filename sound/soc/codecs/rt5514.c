@@ -63,6 +63,7 @@ static const struct reg_sequence rt5514_patch[] = {
 	{RT5514_SRC_CTRL,		0x44000eee},
 	{RT5514_ANA_CTRL_LDO10,		0x00028604},
 	{RT5514_ANA_CTRL_ADCFED,	0x00000800},
+	{RT5514_ASRC_IN_CTRL1,		0x00000003},
 };
 
 static const struct reg_default rt5514_reg[] = {
@@ -471,6 +472,15 @@ static int rt5514_is_sys_clk_from_pll(struct snd_soc_dapm_widget *source,
 		return 0;
 }
 
+static int rt5514_i2s_use_asrc(struct snd_soc_dapm_widget *source,
+	struct snd_soc_dapm_widget *sink)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(source->dapm);
+	struct rt5514_priv *rt5514 = snd_soc_codec_get_drvdata(codec);
+
+	return (rt5514->sysclk > rt5514->lrck * 384);
+}
+
 static const struct snd_soc_dapm_widget rt5514_dapm_widgets[] = {
 	/* Input Lines */
 	SND_SOC_DAPM_INPUT("DMIC1L"),
@@ -541,6 +551,10 @@ static const struct snd_soc_dapm_widget rt5514_dapm_widgets[] = {
 		RT5514_POW_PLL1_LDO_BIT, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("PLL1", RT5514_PWR_ANA2, RT5514_POW_PLL1_BIT, 0,
 		NULL, 0),
+	SND_SOC_DAPM_SUPPLY_S("ASRC AD1", 1, RT5514_CLK_CTRL2,
+		RT5514_CLK_AD0_ASRC_EN_BIT, 0, NULL, 0),
+	SND_SOC_DAPM_SUPPLY_S("ASRC AD2", 1, RT5514_CLK_CTRL2,
+		RT5514_CLK_AD1_ASRC_EN_BIT, 0, NULL, 0),
 
 	/* ADC Mux */
 	SND_SOC_DAPM_MUX("Stereo1 DMIC Mux", SND_SOC_NOPM, 0, 0,
@@ -638,6 +652,7 @@ static const struct snd_soc_dapm_route rt5514_dapm_routes[] = {
 	{ "Stereo1 ADC MIX", NULL, "Stereo1 ADC MIXR" },
 	{ "Stereo1 ADC MIX", NULL, "adc stereo1 filter" },
 	{ "adc stereo1 filter", NULL, "PLL1", rt5514_is_sys_clk_from_pll },
+	{ "adc stereo1 filter", NULL, "ASRC AD1", rt5514_i2s_use_asrc },
 
 	{ "Stereo2 DMIC Mux", "DMIC1", "DMIC1" },
 	{ "Stereo2 DMIC Mux", "DMIC2", "DMIC2" },
@@ -654,6 +669,7 @@ static const struct snd_soc_dapm_route rt5514_dapm_routes[] = {
 	{ "Stereo2 ADC MIX", NULL, "Stereo2 ADC MIXR" },
 	{ "Stereo2 ADC MIX", NULL, "adc stereo2 filter" },
 	{ "adc stereo2 filter", NULL, "PLL1", rt5514_is_sys_clk_from_pll },
+	{ "adc stereo2 filter", NULL, "ASRC AD2", rt5514_i2s_use_asrc },
 
 	{ "AIF1TX", NULL, "Stereo1 ADC MIX"},
 	{ "AIF1TX", NULL, "Stereo2 ADC MIX"},
@@ -706,6 +722,9 @@ static int rt5514_hw_params(struct snd_pcm_substream *substream,
 
 	regmap_update_bits(rt5514->regmap, RT5514_I2S_CTRL1, RT5514_I2S_DL_MASK,
 		val_len);
+	regmap_update_bits(rt5514->regmap, RT5514_CLK_CTRL1,
+		RT5514_CLK_AD_ANA1_SEL_MASK,
+		(pre_div + 1) << RT5514_CLK_AD_ANA1_SEL_SFT);
 	regmap_update_bits(rt5514->regmap, RT5514_CLK_CTRL2,
 		RT5514_CLK_SYS_DIV_OUT_MASK | RT5514_SEL_ADC_OSR_MASK,
 		pre_div << RT5514_CLK_SYS_DIV_OUT_SFT |
