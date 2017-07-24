@@ -106,6 +106,7 @@ struct vop_ctrl {
 	struct vop_reg dclk_ddr;
 	struct vop_reg p2i_en;
 	struct vop_reg rgb_en;
+	struct vop_reg lvds_en;
 	struct vop_reg edp_en;
 	struct vop_reg hdmi_en;
 	struct vop_reg mipi_en;
@@ -114,6 +115,8 @@ struct vop_ctrl {
 	struct vop_reg pin_pol;
 	struct vop_reg rgb_dclk_pol;
 	struct vop_reg rgb_pin_pol;
+	struct vop_reg lvds_dclk_pol;
+	struct vop_reg lvds_pin_pol;
 	struct vop_reg hdmi_dclk_pol;
 	struct vop_reg hdmi_pin_pol;
 	struct vop_reg edp_dclk_pol;
