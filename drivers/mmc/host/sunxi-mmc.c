@@ -22,6 +22,7 @@
 #include <linux/err.h>
 
 #include <linux/clk.h>
+#include <linux/clk/sunxi-ng.h>
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
@@ -259,7 +260,11 @@ struct sunxi_mmc_cfg {
 	/* Does DATA0 needs to be masked while the clock is updated */
 	bool mask_data0;
 
+	/* hardware only supports new timing mode */
 	bool needs_new_timings;
+
+	/* hardware can switch between old and new timing modes */
+	bool has_timings_switch;
 };
 
 struct sunxi_mmc_host {
@@ -293,6 +298,9 @@ struct sunxi_mmc_host {
 
 	/* vqmmc */
 	bool		vqmmc_enabled;
+
+	/* timings */
+	bool		use_new_timings;
 };
 
 static int sunxi_mmc_reset_host(struct sunxi_mmc_host *host)
@@ -714,7 +722,7 @@ static int sunxi_mmc_clk_set_phase(struct sunxi_mmc_host *host,
 {
 	int index;
 
-	if (!host->cfg->clk_delays)
+	if (host->use_new_timings)
 		return 0;
 
 	/* determine delays */
@@ -765,6 +773,15 @@ static int sunxi_mmc_clk_set_rate(struct sunxi_mmc_host *host,
 	    ios->bus_width == MMC_BUS_WIDTH_8)
 		clock <<= 1;
 
+	if (host->use_new_timings) {
+		ret = sunxi_ccu_set_mmc_timing_mode(host->clk_mmc, true);
+		if (ret) {
+			dev_err(mmc_dev(mmc),
+				"error setting new timing mode\n");
+			return ret;
+		}
+	}
+
 	rate = clk_round_rate(host->clk_mmc, clock);
 	if (rate < 0) {
 		dev_err(mmc_dev(mmc), "error rounding clk to %d: %ld\n",
@@ -793,7 +810,7 @@ static int sunxi_mmc_clk_set_rate(struct sunxi_mmc_host *host,
 	}
 	mmc_writel(host, REG_CLKCR, rval);
 
-	if (host->cfg->needs_new_timings) {
+	if (host->use_new_timings) {
 		/* Don't touch the delay bits */
 		rval = mmc_readl(host, REG_SD_NTSR);
 		rval |= SDXC_2X_TIMING_MODE;
@@ -1261,6 +1278,30 @@ static int sunxi_mmc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to allocate DMA descriptor mem\n");
 		ret = -ENOMEM;
 		goto error_free_host;
+	}
+
+	if (host->cfg->has_timings_switch) {
+		/*
+		 * Supports both old and new timing modes.
+		 * Try setting the clk to new timing mode.
+		 */
+		sunxi_ccu_set_mmc_timing_mode(host->clk_mmc, true);
+
+		/* And check the result */
+		ret = sunxi_ccu_get_mmc_timing_mode(host->clk_mmc);
+		if (ret < 0) {
+			/*
+			 * For whatever reason we were not able to get
+			 * the current active mode. Default to old mode.
+			 */
+			dev_warn(&pdev->dev, "MMC clk timing mode unknown\n");
+			host->use_new_timings = false;
+		} else {
+			host->use_new_timings = !!ret;
+		}
+	} else if (host->cfg->needs_new_timings) {
+		/* Supports new timing mode only */
+		host->use_new_timings = true;
 	}
 
 	mmc->ops		= &sunxi_mmc_ops;
