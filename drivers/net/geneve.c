@@ -1016,16 +1016,22 @@ static struct device_type geneve_type = {
  * supply the listening GENEVE udp ports. Callers are expected
  * to implement the ndo_udp_tunnel_add.
  */
-static void geneve_push_rx_ports(struct net_device *dev)
+static void geneve_offload_rx_ports(struct net_device *dev, bool push)
 {
 	struct net *net = dev_net(dev);
 	struct geneve_net *gn = net_generic(net, geneve_net_id);
 	struct geneve_sock *gs;
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(gs, &gn->sock_list, list)
-		udp_tunnel_push_rx_port(dev, gs->sock,
-					UDP_TUNNEL_TYPE_GENEVE);
+	list_for_each_entry_rcu(gs, &gn->sock_list, list) {
+		if (push) {
+			udp_tunnel_push_rx_port(dev, gs->sock,
+						UDP_TUNNEL_TYPE_GENEVE);
+		} else {
+			udp_tunnel_drop_rx_port(dev, gs->sock,
+						UDP_TUNNEL_TYPE_GENEVE);
+		}
+	}
 	rcu_read_unlock();
 }
 
@@ -1560,8 +1566,14 @@ static int geneve_netdevice_event(struct notifier_block *unused,
 {
 	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 
-	if (event == NETDEV_UDP_TUNNEL_PUSH_INFO)
-		geneve_push_rx_ports(dev);
+	if (event == NETDEV_UDP_TUNNEL_PUSH_INFO ||
+	    event == NETDEV_UDP_TUNNEL_DROP_INFO) {
+		geneve_offload_rx_ports(dev, event == NETDEV_UDP_TUNNEL_PUSH_INFO);
+	} else if (event == NETDEV_UNREGISTER) {
+		geneve_offload_rx_ports(dev, false);
+	} else if (event == NETDEV_REGISTER) {
+		geneve_offload_rx_ports(dev, true);
+	}
 
 	return NOTIFY_DONE;
 }
