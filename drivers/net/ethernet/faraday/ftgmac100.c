@@ -1682,6 +1682,7 @@ static int ftgmac100_setup_mdio(struct net_device *netdev)
 	priv->mii_bus->name = "ftgmac100_mdio";
 	snprintf(priv->mii_bus->id, MII_BUS_ID_SIZE, "%s-%d",
 		 pdev->name, pdev->id);
+	priv->mii_bus->parent = priv->dev;
 	priv->mii_bus->priv = priv->netdev;
 	priv->mii_bus->read = ftgmac100_mdiobus_read;
 	priv->mii_bus->write = ftgmac100_mdiobus_write;
