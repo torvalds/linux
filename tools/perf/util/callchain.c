@@ -563,20 +563,33 @@ fill_node(struct callchain_node *node, struct callchain_cursor *cursor)
 		if (cursor_node->branch) {
 			call->branch_count = 1;
 
-			if (cursor_node->branch_flags.predicted)
-				call->predicted_count = 1;
+			if (cursor_node->branch_from) {
+				/*
+				 * branch_from is set with value somewhere else
+				 * to imply it's "to" of a branch.
+				 */
+				call->brtype_stat.branch_to = true;
 
-			if (cursor_node->branch_flags.abort)
-				call->abort_count = 1;
+				if (cursor_node->branch_flags.predicted)
+					call->predicted_count = 1;
 
-			call->cycles_count = cursor_node->branch_flags.cycles;
-			call->iter_count = cursor_node->nr_loop_iter;
-			call->samples_count = cursor_node->samples;
+				if (cursor_node->branch_flags.abort)
+					call->abort_count = 1;
 
-			branch_type_count(&call->brtype_stat,
-					  &cursor_node->branch_flags,
-					  cursor_node->branch_from,
-					  cursor_node->ip);
+				branch_type_count(&call->brtype_stat,
+						  &cursor_node->branch_flags,
+						  cursor_node->branch_from,
+						  cursor_node->ip);
+			} else {
+				/*
+				 * It's "from" of a branch
+				 */
+				call->brtype_stat.branch_to = false;
+				call->cycles_count =
+					cursor_node->branch_flags.cycles;
+				call->iter_count = cursor_node->nr_loop_iter;
+				call->samples_count = cursor_node->samples;
+			}
 		}
 
 		list_add_tail(&call->list, &node->val);
@@ -685,20 +698,32 @@ static enum match_result match_chain(struct callchain_cursor_node *node,
 		if (node->branch) {
 			cnode->branch_count++;
 
-			if (node->branch_flags.predicted)
-				cnode->predicted_count++;
+			if (node->branch_from) {
+				/*
+				 * It's "to" of a branch
+				 */
+				cnode->brtype_stat.branch_to = true;
 
-			if (node->branch_flags.abort)
-				cnode->abort_count++;
+				if (node->branch_flags.predicted)
+					cnode->predicted_count++;
 
-			cnode->cycles_count += node->branch_flags.cycles;
-			cnode->iter_count += node->nr_loop_iter;
-			cnode->samples_count += node->samples;
+				if (node->branch_flags.abort)
+					cnode->abort_count++;
 
-			branch_type_count(&cnode->brtype_stat,
-					  &node->branch_flags,
-					  node->branch_from,
-					  node->ip);
+				branch_type_count(&cnode->brtype_stat,
+						  &node->branch_flags,
+						  node->branch_from,
+						  node->ip);
+			} else {
+				/*
+				 * It's "from" of a branch
+				 */
+				cnode->brtype_stat.branch_to = false;
+				cnode->cycles_count +=
+					node->branch_flags.cycles;
+				cnode->iter_count += node->nr_loop_iter;
+				cnode->samples_count += node->samples;
+			}
 		}
 
 		return MATCH_EQ;
@@ -1236,26 +1261,25 @@ static int count_pri64_printf(int idx, const char *str, u64 value, char *bf, int
 	return printed;
 }
 
-static int count_float_printf(int idx, const char *str, float value, char *bf, int bfsize)
+static int count_float_printf(int idx, const char *str, float value,
+			      char *bf, int bfsize, float threshold)
 {
 	int printed;
+
+	if (threshold != 0.0 && value < threshold)
+		return 0;
 
 	printed = scnprintf(bf, bfsize, "%s%s:%.1f%%", (idx) ? " " : " (", str, value);
 
 	return printed;
 }
 
-static int counts_str_build(char *bf, int bfsize,
-			     u64 branch_count, u64 predicted_count,
-			     u64 abort_count, u64 cycles_count,
-			     u64 iter_count, u64 samples_count,
-			     struct branch_type_stat *brtype_stat)
+static int branch_to_str(char *bf, int bfsize,
+			 u64 branch_count, u64 predicted_count,
+			 u64 abort_count,
+			 struct branch_type_stat *brtype_stat)
 {
-	u64 cycles;
 	int printed, i = 0;
-
-	if (branch_count == 0)
-		return scnprintf(bf, bfsize, " (calltrace)");
 
 	printed = branch_type_str(brtype_stat, bf, bfsize);
 	if (printed)
@@ -1264,14 +1288,28 @@ static int counts_str_build(char *bf, int bfsize,
 	if (predicted_count < branch_count) {
 		printed += count_float_printf(i++, "predicted",
 				predicted_count * 100.0 / branch_count,
-				bf + printed, bfsize - printed);
+				bf + printed, bfsize - printed, 0.0);
 	}
 
 	if (abort_count) {
 		printed += count_float_printf(i++, "abort",
 				abort_count * 100.0 / branch_count,
-				bf + printed, bfsize - printed);
+				bf + printed, bfsize - printed, 0.1);
 	}
+
+	if (i)
+		printed += scnprintf(bf + printed, bfsize - printed, ")");
+
+	return printed;
+}
+
+static int branch_from_str(char *bf, int bfsize,
+			   u64 branch_count,
+			   u64 cycles_count, u64 iter_count,
+			   u64 samples_count)
+{
+	int printed = 0, i = 0;
+	u64 cycles;
 
 	cycles = cycles_count / branch_count;
 	if (cycles) {
@@ -1287,10 +1325,34 @@ static int counts_str_build(char *bf, int bfsize,
 	}
 
 	if (i)
-		return scnprintf(bf + printed, bfsize - printed, ")");
+		printed += scnprintf(bf + printed, bfsize - printed, ")");
 
-	bf[0] = 0;
-	return 0;
+	return printed;
+}
+
+static int counts_str_build(char *bf, int bfsize,
+			     u64 branch_count, u64 predicted_count,
+			     u64 abort_count, u64 cycles_count,
+			     u64 iter_count, u64 samples_count,
+			     struct branch_type_stat *brtype_stat)
+{
+	int printed;
+
+	if (branch_count == 0)
+		return scnprintf(bf, bfsize, " (calltrace)");
+
+	if (brtype_stat->branch_to) {
+		printed = branch_to_str(bf, bfsize, branch_count,
+				predicted_count, abort_count, brtype_stat);
+	} else {
+		printed = branch_from_str(bf, bfsize, branch_count,
+				cycles_count, iter_count, samples_count);
+	}
+
+	if (!printed)
+		bf[0] = 0;
+
+	return printed;
 }
 
 static int callchain_counts_printf(FILE *fp, char *bf, int bfsize,
