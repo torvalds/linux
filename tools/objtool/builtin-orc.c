@@ -37,7 +37,7 @@ static const char *orc_usage[] = {
 };
 
 extern const struct option check_options[];
-extern bool nofp;
+extern bool no_fp, no_unreachable;
 
 int cmd_orc(int argc, const char **argv)
 {
@@ -51,7 +51,7 @@ int cmd_orc(int argc, const char **argv)
 
 		objname = argv[0];
 
-		return check(objname, nofp, true);
+		return check(objname, no_fp, no_unreachable, true);
 
 	}
 

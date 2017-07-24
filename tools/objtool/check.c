@@ -33,7 +33,7 @@ struct alternative {
 };
 
 const char *objname;
-static bool nofp;
+static bool no_fp;
 struct cfi_state initial_func_cfi;
 
 struct instruction *find_insn(struct objtool_file *file,
@@ -57,19 +57,6 @@ static struct instruction *next_insn_same_sec(struct objtool_file *file,
 		return NULL;
 
 	return next;
-}
-
-static bool gcov_enabled(struct objtool_file *file)
-{
-	struct section *sec;
-	struct symbol *sym;
-
-	for_each_sec(file, sec)
-		list_for_each_entry(sym, &sec->symbol_list, list)
-			if (!strncmp(sym->name, "__gcov_.", 8))
-				return true;
-
-	return false;
 }
 
 #define func_for_each_insn(file, func, insn)				\
@@ -1174,7 +1161,7 @@ static int update_insn_state(struct instruction *insn, struct insn_state *state)
 				regs[CFI_BP].base = CFI_BP;
 				regs[CFI_BP].offset = -state->stack_size;
 				state->bp_scratch = false;
-			} else if (!nofp) {
+			} else if (!no_fp) {
 
 				WARN_FUNC("unknown stack-related register move",
 					  insn->sec, insn->offset);
@@ -1345,7 +1332,7 @@ static int update_insn_state(struct instruction *insn, struct insn_state *state)
 		}
 
 		/* detect when asm code uses rbp as a scratch register */
-		if (!nofp && insn->func && op->src.reg == CFI_BP &&
+		if (!no_fp && insn->func && op->src.reg == CFI_BP &&
 		    cfa->base != CFI_BP)
 			state->bp_scratch = true;
 		break;
@@ -1593,7 +1580,7 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 
 			/* fallthrough */
 		case INSN_CALL_DYNAMIC:
-			if (!nofp && func && !has_valid_stack_frame(&state)) {
+			if (!no_fp && func && !has_valid_stack_frame(&state)) {
 				WARN_FUNC("call without frame pointer save/setup",
 					  sec, insn->offset);
 				return 1;
@@ -1779,15 +1766,6 @@ static int validate_reachable_instructions(struct objtool_file *file)
 		if (insn->visited || ignore_unreachable_insn(insn))
 			continue;
 
-		/*
-		 * gcov produces a lot of unreachable instructions.  If we get
-		 * an unreachable warning and the file has gcov enabled, just
-		 * ignore it, and all other such warnings for the file.  Do
-		 * this here because this is an expensive function.
-		 */
-		if (gcov_enabled(file))
-			return 0;
-
 		WARN_FUNC("unreachable instruction", insn->sec, insn->offset);
 		return 1;
 	}
@@ -1812,13 +1790,13 @@ static void cleanup(struct objtool_file *file)
 	elf_close(file->elf);
 }
 
-int check(const char *_objname, bool _nofp, bool orc)
+int check(const char *_objname, bool _no_fp, bool no_unreachable, bool orc)
 {
 	struct objtool_file file;
 	int ret, warnings = 0;
 
 	objname = _objname;
-	nofp = _nofp;
+	no_fp = _no_fp;
 
 	file.elf = elf_open(objname, orc ? O_RDWR : O_RDONLY);
 	if (!file.elf)
@@ -1829,7 +1807,7 @@ int check(const char *_objname, bool _nofp, bool orc)
 	file.whitelist = find_section_by_name(file.elf, ".discard.func_stack_frame_non_standard");
 	file.rodata = find_section_by_name(file.elf, ".rodata");
 	file.c_file = find_section_by_name(file.elf, ".comment");
-	file.ignore_unreachables = false;
+	file.ignore_unreachables = no_unreachable;
 	file.hints = false;
 
 	arch_initial_func_cfi_state(&initial_func_cfi);
