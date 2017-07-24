@@ -57,6 +57,7 @@
 #include "bnxt_ethtool.h"
 #include "bnxt_dcb.h"
 #include "bnxt_xdp.h"
+#include "bnxt_vfr.h"
 
 #define BNXT_TX_TIMEOUT		(5 * HZ)
 
@@ -7539,8 +7540,10 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct bnxt *bp = netdev_priv(dev);
 
-	if (BNXT_PF(bp))
+	if (BNXT_PF(bp)) {
 		bnxt_sriov_disable(bp);
+		bnxt_dl_unregister(bp);
+	}
 
 	pci_disable_pcie_error_reporting(pdev);
 	unregister_netdev(dev);
@@ -7843,6 +7846,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 #ifdef CONFIG_BNXT_SRIOV
 	init_waitqueue_head(&bp->sriov_cfg_wait);
+	mutex_init(&bp->sriov_lock);
 #endif
 	bp->gro_func = bnxt_gro_func_5730x;
 	if (BNXT_CHIP_P4_PLUS(bp))
@@ -7933,6 +7937,9 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	rc = register_netdev(dev);
 	if (rc)
 		goto init_err_clr_int;
+
+	if (BNXT_PF(bp))
+		bnxt_dl_register(bp);
 
 	netdev_info(dev, "%s found at mem %lx, node addr %pM\n",
 		    board_info[ent->driver_data].name,

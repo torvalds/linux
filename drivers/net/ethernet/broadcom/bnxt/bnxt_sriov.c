@@ -18,6 +18,7 @@
 #include "bnxt.h"
 #include "bnxt_ulp.h"
 #include "bnxt_sriov.h"
+#include "bnxt_vfr.h"
 #include "bnxt_ethtool.h"
 
 #ifdef CONFIG_BNXT_SRIOV
@@ -587,6 +588,10 @@ void bnxt_sriov_disable(struct bnxt *bp)
 	if (!num_vfs)
 		return;
 
+	/* synchronize VF and VF-rep create and destroy */
+	mutex_lock(&bp->sriov_lock);
+	bnxt_vf_reps_destroy(bp);
+
 	if (pci_vfs_assigned(bp->pdev)) {
 		bnxt_hwrm_fwd_async_event_cmpl(
 			bp, NULL, ASYNC_EVENT_CMPL_EVENT_ID_PF_DRVR_UNLOAD);
@@ -597,6 +602,7 @@ void bnxt_sriov_disable(struct bnxt *bp)
 		/* Free the HW resources reserved for various VF's */
 		bnxt_hwrm_func_vf_resource_free(bp, num_vfs);
 	}
+	mutex_unlock(&bp->sriov_lock);
 
 	bnxt_free_vf_resources(bp);
 

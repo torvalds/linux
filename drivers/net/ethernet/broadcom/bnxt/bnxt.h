@@ -19,6 +19,7 @@
 #define DRV_VER_UPD	0
 
 #include <linux/interrupt.h>
+#include <net/devlink.h>
 
 struct tx_bd {
 	__le32 tx_bd_len_flags_type;
@@ -618,6 +619,8 @@ struct bnxt_tpa_info {
 
 #define BNXT_TPA_OUTER_L3_OFF(hdr_info)	\
 	((hdr_info) & 0x1ff)
+
+	u16			cfa_code; /* cfa_code in TPA start compl */
 };
 
 struct bnxt_rx_ring_info {
@@ -928,6 +931,23 @@ struct bnxt_test_info {
 #define BNXT_CAG_REG_LEGACY_INT_STATUS	0x4014
 #define BNXT_CAG_REG_BASE		0x300000
 
+struct bnxt_vf_rep_stats {
+	u64			packets;
+	u64			bytes;
+	u64			dropped;
+};
+
+struct bnxt_vf_rep {
+	struct bnxt			*bp;
+	struct net_device		*dev;
+	u16				vf_idx;
+	u16				tx_cfa_action;
+	u16				rx_cfa_code;
+
+	struct bnxt_vf_rep_stats	rx_stats;
+	struct bnxt_vf_rep_stats	tx_stats;
+};
+
 struct bnxt {
 	void __iomem		*bar0;
 	void __iomem		*bar1;
@@ -1208,6 +1228,12 @@ struct bnxt {
 	wait_queue_head_t	sriov_cfg_wait;
 	bool			sriov_cfg;
 #define BNXT_SRIOV_CFG_WAIT_TMO	msecs_to_jiffies(10000)
+
+	/* lock to protect VF-rep creation/cleanup via
+	 * multiple paths such as ->sriov_configure() and
+	 * devlink ->eswitch_mode_set()
+	 */
+	struct mutex		sriov_lock;
 #endif
 
 #define BNXT_NTP_FLTR_MAX_FLTR	4096
@@ -1234,6 +1260,12 @@ struct bnxt {
 	struct bnxt_led_info	leds[BNXT_MAX_LED];
 
 	struct bpf_prog		*xdp_prog;
+
+	/* devlink interface and vf-rep structs */
+	struct devlink		*dl;
+	enum devlink_eswitch_mode eswitch_mode;
+	struct bnxt_vf_rep	**vf_reps; /* array of vf-rep ptrs */
+	u16			*cfa_code_map; /* cfa_code -> vf_idx map */
 };
 
 #define BNXT_RX_STATS_OFFSET(counter)			\
