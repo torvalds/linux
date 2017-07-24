@@ -221,63 +221,11 @@ int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev)
 	}
 	dd_dev_info(dd, "WC RcvArray: %p for %x\n",
 		    dd->rcvarray_wc, dd->chip_rcv_array_count * 8);
-	/*
-	 * Save BARs and command to rewrite after device reset.
-	 */
-
-	ret = pci_read_config_dword(dd->pcidev, PCI_BASE_ADDRESS_0, &dd->pcibar0);
-	if (ret)
-		goto read_error;
-
-	ret = pci_read_config_dword(dd->pcidev, PCI_BASE_ADDRESS_1, &dd->pcibar1);
-	if (ret)
-		goto read_error;
-
-	ret = pci_read_config_dword(dd->pcidev, PCI_ROM_ADDRESS, &dd->pci_rom);
-	if (ret)
-		goto read_error;
-
-	ret = pci_read_config_word(dd->pcidev, PCI_COMMAND, &dd->pci_command);
-	if (ret)
-		goto read_error;
-
-	ret = pcie_capability_read_word(dd->pcidev, PCI_EXP_DEVCTL,
-					&dd->pcie_devctl);
-	if (ret)
-		goto read_error;
-
-	ret = pcie_capability_read_word(dd->pcidev, PCI_EXP_LNKCTL,
-					&dd->pcie_lnkctl);
-	if (ret)
-		goto read_error;
-
-	ret = pcie_capability_read_word(dd->pcidev, PCI_EXP_DEVCTL2,
-					&dd->pcie_devctl2);
-	if (ret)
-		goto read_error;
-
-	ret = pci_read_config_dword(dd->pcidev, PCI_CFG_MSIX0, &dd->pci_msix0);
-	if (ret)
-		goto read_error;
-
-	ret = pci_read_config_dword(dd->pcidev, PCIE_CFG_SPCIE1,
-				    &dd->pci_lnkctl3);
-	if (ret)
-		goto read_error;
-
-	ret = pci_read_config_dword(dd->pcidev, PCIE_CFG_TPH2, &dd->pci_tph2);
-	if (ret)
-		goto read_error;
 
 	dd->flags |= HFI1_PRESENT;	/* chip.c CSR routines now work */
 	return 0;
-
-read_error:
-	dd_dev_err(dd, "Unable to read from PCI config\n");
-	goto bail_error;
 nomem:
 	ret = -ENOMEM;
-bail_error:
 	hfi1_pcie_ddcleanup(dd);
 	return ret;
 }
@@ -481,6 +429,64 @@ int restore_pci_variables(struct hfi1_devdata *dd)
 
 error:
 	dd_dev_err(dd, "Unable to write to PCI config\n");
+	return ret;
+}
+
+/* Save BARs and command to rewrite after device reset */
+int save_pci_variables(struct hfi1_devdata *dd)
+{
+	int ret = 0;
+
+	ret = pci_read_config_dword(dd->pcidev, PCI_BASE_ADDRESS_0,
+				    &dd->pcibar0);
+	if (ret)
+		goto error;
+
+	ret = pci_read_config_dword(dd->pcidev, PCI_BASE_ADDRESS_1,
+				    &dd->pcibar1);
+	if (ret)
+		goto error;
+
+	ret = pci_read_config_dword(dd->pcidev, PCI_ROM_ADDRESS, &dd->pci_rom);
+	if (ret)
+		goto error;
+
+	ret = pci_read_config_word(dd->pcidev, PCI_COMMAND, &dd->pci_command);
+	if (ret)
+		goto error;
+
+	ret = pcie_capability_read_word(dd->pcidev, PCI_EXP_DEVCTL,
+					&dd->pcie_devctl);
+	if (ret)
+		goto error;
+
+	ret = pcie_capability_read_word(dd->pcidev, PCI_EXP_LNKCTL,
+					&dd->pcie_lnkctl);
+	if (ret)
+		goto error;
+
+	ret = pcie_capability_read_word(dd->pcidev, PCI_EXP_DEVCTL2,
+					&dd->pcie_devctl2);
+	if (ret)
+		goto error;
+
+	ret = pci_read_config_dword(dd->pcidev, PCI_CFG_MSIX0, &dd->pci_msix0);
+	if (ret)
+		goto error;
+
+	ret = pci_read_config_dword(dd->pcidev, PCIE_CFG_SPCIE1,
+				    &dd->pci_lnkctl3);
+	if (ret)
+		goto error;
+
+	ret = pci_read_config_dword(dd->pcidev, PCIE_CFG_TPH2, &dd->pci_tph2);
+	if (ret)
+		goto error;
+
+	return 0;
+
+error:
+	dd_dev_err(dd, "Unable to read from PCI config\n");
 	return ret;
 }
 
