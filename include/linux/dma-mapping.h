@@ -565,10 +565,11 @@ static inline void dma_free_noncoherent(struct device *dev, size_t size,
 
 static inline int dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
-	debug_dma_mapping_error(dev, dma_addr);
+	const struct dma_map_ops *ops = get_dma_ops(dev);
 
-	if (get_dma_ops(dev)->mapping_error)
-		return get_dma_ops(dev)->mapping_error(dev, dma_addr);
+	debug_dma_mapping_error(dev, dma_addr);
+	if (ops->mapping_error)
+		return ops->mapping_error(dev, dma_addr);
 	return 0;
 }
 
