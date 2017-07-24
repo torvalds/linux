@@ -140,13 +140,10 @@ void hpte_need_flush(struct mm_struct *mm, unsigned long addr,
  */
 void __flush_tlb_pending(struct ppc64_tlb_batch *batch)
 {
-	const struct cpumask *tmp;
-	int i, local = 0;
+	int i, local;
 
 	i = batch->index;
-	tmp = cpumask_of(smp_processor_id());
-	if (cpumask_equal(mm_cpumask(batch->mm), tmp))
-		local = 1;
+	local = mm_is_thread_local(batch->mm);
 	if (i == 1)
 		flush_hash_page(batch->vpn[0], batch->pte[0],
 				batch->psize, batch->ssize, local);

@@ -329,7 +329,6 @@ void hpte_do_hugepage_flush(struct mm_struct *mm, unsigned long addr,
 	unsigned int psize;
 	unsigned long vsid;
 	unsigned long flags = 0;
-	const struct cpumask *tmp;
 
 	/* get the base page size,vsid and segment size */
 #ifdef CONFIG_DEBUG_VM
@@ -350,8 +349,7 @@ void hpte_do_hugepage_flush(struct mm_struct *mm, unsigned long addr,
 		ssize = mmu_kernel_ssize;
 	}
 
-	tmp = cpumask_of(smp_processor_id());
-	if (cpumask_equal(mm_cpumask(mm), tmp))
+	if (mm_is_thread_local(mm))
 		flags |= HPTE_LOCAL_UPDATE;
 
 	return flush_hash_hugepage(vsid, addr, pmdp, psize, ssize, flags);
