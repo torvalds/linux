@@ -62,7 +62,7 @@ all_expr: expr			{ *final_val = $1; }
 
 expr:	  NUMBER
 	| ID			{ if (lookup_id(ctx, $1, &$$) < 0) {
-					pr_debug("%s not found", $1);
+					pr_debug("%s not found\n", $1);
 					YYABORT;
 				  }
 				}
