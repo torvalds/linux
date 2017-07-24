@@ -2301,10 +2301,17 @@ static u32 raw_pg_to_pps(struct ceph_pg_pool_info *pi,
 	}
 }
 
+/*
+ * Magic value used for a "default" fallback choose_args, used if the
+ * crush_choose_arg_map passed to do_crush() does not exist.  If this
+ * also doesn't exist, fall back to canonical weights.
+ */
+#define CEPH_DEFAULT_CHOOSE_ARGS	-1
+
 static int do_crush(struct ceph_osdmap *map, int ruleno, int x,
 		    int *result, int result_max,
 		    const __u32 *weight, int weight_max,
-		    u64 choose_args_index)
+		    s64 choose_args_index)
 {
 	struct crush_choose_arg_map *arg_map;
 	int r;
@@ -2313,6 +2320,9 @@ static int do_crush(struct ceph_osdmap *map, int ruleno, int x,
 
 	arg_map = lookup_choose_arg_map(&map->crush->choose_args,
 					choose_args_index);
+	if (!arg_map)
+		arg_map = lookup_choose_arg_map(&map->crush->choose_args,
+						CEPH_DEFAULT_CHOOSE_ARGS);
 
 	mutex_lock(&map->crush_workspace_mutex);
 	r = crush_do_rule(map->crush, ruleno, x, result, result_max,
