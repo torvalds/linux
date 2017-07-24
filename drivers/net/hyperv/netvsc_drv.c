@@ -33,6 +33,8 @@
 #include <linux/if_vlan.h>
 #include <linux/in.h>
 #include <linux/slab.h>
+#include <linux/rtnetlink.h>
+
 #include <net/arp.h>
 #include <net/route.h>
 #include <net/sock.h>

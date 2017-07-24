@@ -28,6 +28,7 @@
 #include <linux/if_vlan.h>
 #include <linux/nls.h>
 #include <linux/vmalloc.h>
+#include <linux/rtnetlink.h>
 
 #include "hyperv_net.h"
 
