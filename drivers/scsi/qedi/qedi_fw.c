@@ -870,7 +870,6 @@ static void qedi_process_cmd_cleanup_resp(struct qedi_ctx *qedi,
 		QEDI_ERR(&qedi->dbg_ctx,
 			 "Delayed or untracked cleanup response, itt=0x%x, tid=0x%x, cid=0x%x, task=%p\n",
 			 protoitt, cqe->itid, qedi_conn->iscsi_conn_id, task);
-		WARN_ON(1);
 	}
 }
 
@@ -1494,6 +1493,8 @@ static int qedi_send_iscsi_tmf(struct qedi_conn *qedi_conn,
 	tmf_hdr = (struct iscsi_tm *)mtask->hdr;
 	qedi_cmd = (struct qedi_cmd *)mtask->dd_data;
 	ep = qedi_conn->ep;
+	if (!ep)
+		return -ENODEV;
 
 	tid = qedi_get_task_idx(qedi);
 	if (tid == -1)

@@ -619,6 +619,9 @@ int __init save_microcode_in_initrd_intel(void)
 
 	show_saved_mc();
 
+	/* initrd is going away, clear patch ptr. */
+	intel_ucode_patch = NULL;
+
 	return 0;
 }
 

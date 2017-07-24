@@ -49,7 +49,7 @@ static int __intel_ring_space(int head, int tail, int size)
 
 void intel_ring_update_space(struct intel_ring *ring)
 {
-	ring->space = __intel_ring_space(ring->head, ring->tail, ring->size);
+	ring->space = __intel_ring_space(ring->head, ring->emit, ring->size);
 }
 
 static int
@@ -774,8 +774,8 @@ static void i9xx_submit_request(struct drm_i915_gem_request *request)
 
 	i915_gem_request_submit(request);
 
-	assert_ring_tail_valid(request->ring, request->tail);
-	I915_WRITE_TAIL(request->engine, request->tail);
+	I915_WRITE_TAIL(request->engine,
+			intel_ring_set_tail(request->ring, request->tail));
 }
 
 static void i9xx_emit_breadcrumb(struct drm_i915_gem_request *req, u32 *cs)
@@ -1316,10 +1316,22 @@ err:
 	return PTR_ERR(addr);
 }
 
+void intel_ring_reset(struct intel_ring *ring, u32 tail)
+{
+	GEM_BUG_ON(!list_empty(&ring->request_list));
+	ring->tail = tail;
+	ring->head = tail;
+	ring->emit = tail;
+	intel_ring_update_space(ring);
+}
+
 void intel_ring_unpin(struct intel_ring *ring)
 {
 	GEM_BUG_ON(!ring->vma);
 	GEM_BUG_ON(!ring->vaddr);
+
+	/* Discard any unused bytes beyond that submitted to hw. */
+	intel_ring_reset(ring, ring->tail);
 
 	if (i915_vma_is_map_and_fenceable(ring->vma))
 		i915_vma_unpin_iomap(ring->vma);
@@ -1562,8 +1574,9 @@ void intel_legacy_submission_resume(struct drm_i915_private *dev_priv)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
+	/* Restart from the beginning of the rings for convenience */
 	for_each_engine(engine, dev_priv, id)
-		engine->buffer->head = engine->buffer->tail;
+		intel_ring_reset(engine->buffer, 0);
 }
 
 static int ring_request_alloc(struct drm_i915_gem_request *request)
@@ -1616,7 +1629,7 @@ static int wait_for_space(struct drm_i915_gem_request *req, int bytes)
 		unsigned space;
 
 		/* Would completion of this request free enough space? */
-		space = __intel_ring_space(target->postfix, ring->tail,
+		space = __intel_ring_space(target->postfix, ring->emit,
 					   ring->size);
 		if (space >= bytes)
 			break;
@@ -1641,8 +1654,8 @@ static int wait_for_space(struct drm_i915_gem_request *req, int bytes)
 u32 *intel_ring_begin(struct drm_i915_gem_request *req, int num_dwords)
 {
 	struct intel_ring *ring = req->ring;
-	int remain_actual = ring->size - ring->tail;
-	int remain_usable = ring->effective_size - ring->tail;
+	int remain_actual = ring->size - ring->emit;
+	int remain_usable = ring->effective_size - ring->emit;
 	int bytes = num_dwords * sizeof(u32);
 	int total_bytes, wait_bytes;
 	bool need_wrap = false;
@@ -1678,17 +1691,17 @@ u32 *intel_ring_begin(struct drm_i915_gem_request *req, int num_dwords)
 
 	if (unlikely(need_wrap)) {
 		GEM_BUG_ON(remain_actual > ring->space);
-		GEM_BUG_ON(ring->tail + remain_actual > ring->size);
+		GEM_BUG_ON(ring->emit + remain_actual > ring->size);
 
 		/* Fill the tail with MI_NOOP */
-		memset(ring->vaddr + ring->tail, 0, remain_actual);
-		ring->tail = 0;
+		memset(ring->vaddr + ring->emit, 0, remain_actual);
+		ring->emit = 0;
 		ring->space -= remain_actual;
 	}
 
-	GEM_BUG_ON(ring->tail > ring->size - bytes);
-	cs = ring->vaddr + ring->tail;
-	ring->tail += bytes;
+	GEM_BUG_ON(ring->emit > ring->size - bytes);
+	cs = ring->vaddr + ring->emit;
+	ring->emit += bytes;
 	ring->space -= bytes;
 	GEM_BUG_ON(ring->space < 0);
 
@@ -1699,7 +1712,7 @@ u32 *intel_ring_begin(struct drm_i915_gem_request *req, int num_dwords)
 int intel_ring_cacheline_align(struct drm_i915_gem_request *req)
 {
 	int num_dwords =
-		(req->ring->tail & (CACHELINE_BYTES - 1)) / sizeof(uint32_t);
+		(req->ring->emit & (CACHELINE_BYTES - 1)) / sizeof(uint32_t);
 	u32 *cs;
 
 	if (num_dwords == 0)

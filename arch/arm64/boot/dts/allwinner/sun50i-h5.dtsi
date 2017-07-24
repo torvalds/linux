@@ -40,7 +40,7 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "sunxi-h3-h5.dtsi"
+#include <arm/sunxi-h3-h5.dtsi>
 
 / {
 	cpus {

@@ -236,7 +236,7 @@ static void gprs_setup(struct net_device *dev)
 	dev->tx_queue_len	= 10;
 
 	dev->netdev_ops		= &gprs_netdev_ops;
-	dev->destructor		= free_netdev;
+	dev->needs_free_netdev	= true;
 }
 
 /*

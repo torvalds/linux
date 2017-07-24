@@ -99,7 +99,7 @@ static int hash__init_new_context(struct mm_struct *mm)
 	 * mm->context.addr_limit. Default to max task size so that we copy the
 	 * default values to paca which will help us to handle slb miss early.
 	 */
-	mm->context.addr_limit = TASK_SIZE_128TB;
+	mm->context.addr_limit = DEFAULT_MAP_WINDOW_USER64;
 
 	/*
 	 * The old code would re-promote on fork, we don't do that when using

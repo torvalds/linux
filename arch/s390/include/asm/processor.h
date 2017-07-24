@@ -221,11 +221,6 @@ extern void release_thread(struct task_struct *);
 /* Free guarded storage control block for current */
 void exit_thread_gs(void);
 
-/*
- * Return saved PC of a blocked thread.
- */
-extern unsigned long thread_saved_pc(struct task_struct *t);
-
 unsigned long get_wchan(struct task_struct *p);
 #define task_pt_regs(tsk) ((struct pt_regs *) \
         (task_stack_page(tsk) + THREAD_SIZE) - 1)

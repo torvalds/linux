@@ -2191,6 +2191,101 @@ static void gen8_ggtt_clear_range(struct i915_address_space *vm,
 		gen8_set_pte(&gtt_base[i], scratch_pte);
 }
 
+static void bxt_vtd_ggtt_wa(struct i915_address_space *vm)
+{
+	struct drm_i915_private *dev_priv = vm->i915;
+
+	/*
+	 * Make sure the internal GAM fifo has been cleared of all GTT
+	 * writes before exiting stop_machine(). This guarantees that
+	 * any aperture accesses waiting to start in another process
+	 * cannot back up behind the GTT writes causing a hang.
+	 * The register can be any arbitrary GAM register.
+	 */
+	POSTING_READ(GFX_FLSH_CNTL_GEN6);
+}
+
+struct insert_page {
+	struct i915_address_space *vm;
+	dma_addr_t addr;
+	u64 offset;
+	enum i915_cache_level level;
+};
+
+static int bxt_vtd_ggtt_insert_page__cb(void *_arg)
+{
+	struct insert_page *arg = _arg;
+
+	gen8_ggtt_insert_page(arg->vm, arg->addr, arg->offset, arg->level, 0);
+	bxt_vtd_ggtt_wa(arg->vm);
+
+	return 0;
+}
+
+static void bxt_vtd_ggtt_insert_page__BKL(struct i915_address_space *vm,
+					  dma_addr_t addr,
+					  u64 offset,
+					  enum i915_cache_level level,
+					  u32 unused)
+{
+	struct insert_page arg = { vm, addr, offset, level };
+
+	stop_machine(bxt_vtd_ggtt_insert_page__cb, &arg, NULL);
+}
+
+struct insert_entries {
+	struct i915_address_space *vm;
+	struct sg_table *st;
+	u64 start;
+	enum i915_cache_level level;
+};
+
+static int bxt_vtd_ggtt_insert_entries__cb(void *_arg)
+{
+	struct insert_entries *arg = _arg;
+
+	gen8_ggtt_insert_entries(arg->vm, arg->st, arg->start, arg->level, 0);
+	bxt_vtd_ggtt_wa(arg->vm);
+
+	return 0;
+}
+
+static void bxt_vtd_ggtt_insert_entries__BKL(struct i915_address_space *vm,
+					     struct sg_table *st,
+					     u64 start,
+					     enum i915_cache_level level,
+					     u32 unused)
+{
+	struct insert_entries arg = { vm, st, start, level };
+
+	stop_machine(bxt_vtd_ggtt_insert_entries__cb, &arg, NULL);
+}
+
+struct clear_range {
+	struct i915_address_space *vm;
+	u64 start;
+	u64 length;
+};
+
+static int bxt_vtd_ggtt_clear_range__cb(void *_arg)
+{
+	struct clear_range *arg = _arg;
+
+	gen8_ggtt_clear_range(arg->vm, arg->start, arg->length);
+	bxt_vtd_ggtt_wa(arg->vm);
+
+	return 0;
+}
+
+static void bxt_vtd_ggtt_clear_range__BKL(struct i915_address_space *vm,
+					  u64 start,
+					  u64 length)
+{
+	struct clear_range arg = { vm, start, length };
+
+	stop_machine(bxt_vtd_ggtt_clear_range__cb, &arg, NULL);
+}
+
 static void gen6_ggtt_clear_range(struct i915_address_space *vm,
 				  u64 start, u64 length)
 {
@@ -2313,7 +2408,7 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 		    appgtt->base.allocate_va_range) {
 			ret = appgtt->base.allocate_va_range(&appgtt->base,
 							     vma->node.start,
-							     vma->node.size);
+							     vma->size);
 			if (ret)
 				goto err_pages;
 		}
@@ -2785,6 +2880,14 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 
 	ggtt->base.insert_entries = gen8_ggtt_insert_entries;
 
+	/* Serialize GTT updates with aperture access on BXT if VT-d is on. */
+	if (intel_ggtt_update_needs_vtd_wa(dev_priv)) {
+		ggtt->base.insert_entries = bxt_vtd_ggtt_insert_entries__BKL;
+		ggtt->base.insert_page    = bxt_vtd_ggtt_insert_page__BKL;
+		if (ggtt->base.clear_range != nop_clear_range)
+			ggtt->base.clear_range = bxt_vtd_ggtt_clear_range__BKL;
+	}
+
 	ggtt->invalidate = gen6_ggtt_invalidate;
 
 	return ggtt_probe_common(ggtt, size);
@@ -2997,7 +3100,8 @@ void i915_ggtt_enable_guc(struct drm_i915_private *i915)
 
 void i915_ggtt_disable_guc(struct drm_i915_private *i915)
 {
-	i915->ggtt.invalidate = gen6_ggtt_invalidate;
+	if (i915->ggtt.invalidate == guc_ggtt_invalidate)
+		i915->ggtt.invalidate = gen6_ggtt_invalidate;
 }
 
 void i915_gem_restore_gtt_mappings(struct drm_i915_private *dev_priv)

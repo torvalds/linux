@@ -278,51 +278,6 @@ char *dso__build_id_filename(const struct dso *dso, char *bf, size_t size)
 	return bf;
 }
 
-bool dso__build_id_is_kmod(const struct dso *dso, char *bf, size_t size)
-{
-	char *id_name = NULL, *ch;
-	struct stat sb;
-	char sbuild_id[SBUILD_ID_SIZE];
-
-	if (!dso->has_build_id)
-		goto err;
-
-	build_id__sprintf(dso->build_id, sizeof(dso->build_id), sbuild_id);
-	id_name = build_id_cache__linkname(sbuild_id, NULL, 0);
-	if (!id_name)
-		goto err;
-	if (access(id_name, F_OK))
-		goto err;
-	if (lstat(id_name, &sb) == -1)
-		goto err;
-	if ((size_t)sb.st_size > size - 1)
-		goto err;
-	if (readlink(id_name, bf, size - 1) < 0)
-		goto err;
-
-	bf[sb.st_size] = '\0';
-
-	/*
-	 * link should be:
-	 * ../../lib/modules/4.4.0-rc4/kernel/net/ipv4/netfilter/nf_nat_ipv4.ko/a09fe3eb3147dafa4e3b31dbd6257e4d696bdc92
-	 */
-	ch = strrchr(bf, '/');
-	if (!ch)
-		goto err;
-	if (ch - 3 < bf)
-		goto err;
-
-	free(id_name);
-	return strncmp(".ko", ch - 3, 3) == 0;
-err:
-	pr_err("Invalid build id: %s\n", id_name ? :
-					 dso->long_name ? :
-					 dso->short_name ? :
-					 "[unknown]");
-	free(id_name);
-	return false;
-}
-
 #define dsos__for_each_with_build_id(pos, head)	\
 	list_for_each_entry(pos, head, node)	\
 		if (!pos->has_build_id)		\

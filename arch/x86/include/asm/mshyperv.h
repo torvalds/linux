@@ -2,8 +2,7 @@
 #define _ASM_X86_MSHYPER_H
 
 #include <linux/types.h>
-#include <linux/interrupt.h>
-#include <linux/clocksource.h>
+#include <linux/atomic.h>
 #include <asm/hyperv.h>
 
 /*

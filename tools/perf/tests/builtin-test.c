@@ -97,10 +97,12 @@ static struct test generic_tests[] = {
 	{
 		.desc = "Breakpoint overflow signal handler",
 		.func = test__bp_signal,
+		.is_supported = test__bp_signal_is_supported,
 	},
 	{
 		.desc = "Breakpoint overflow sampling",
 		.func = test__bp_signal_overflow,
+		.is_supported = test__bp_signal_is_supported,
 	},
 	{
 		.desc = "Number of exit events of a simple workload",
@@ -400,6 +402,11 @@ static int __cmd_test(int argc, const char *argv[], struct intlist *skiplist)
 
 		if (!perf_test__matches(t, curr, argc, argv))
 			continue;
+
+		if (t->is_supported && !t->is_supported()) {
+			pr_debug("%2d: %-*s: Disabled\n", i, width, t->desc);
+			continue;
+		}
 
 		pr_info("%2d: %-*s:", i, width, t->desc);
 

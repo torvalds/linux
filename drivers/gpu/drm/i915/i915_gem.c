@@ -2285,8 +2285,8 @@ i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 	struct page *page;
 	unsigned long last_pfn = 0;	/* suppress gcc warning */
 	unsigned int max_segment;
+	gfp_t noreclaim;
 	int ret;
-	gfp_t gfp;
 
 	/* Assert that the object is not currently in any GPU domain. As it
 	 * wasn't in the GTT, there shouldn't be any way it could have been in
@@ -2315,22 +2315,31 @@ rebuild_st:
 	 * Fail silently without starting the shrinker
 	 */
 	mapping = obj->base.filp->f_mapping;
-	gfp = mapping_gfp_constraint(mapping, ~(__GFP_IO | __GFP_RECLAIM));
-	gfp |= __GFP_NORETRY | __GFP_NOWARN;
+	noreclaim = mapping_gfp_constraint(mapping,
+					   ~(__GFP_IO | __GFP_RECLAIM));
+	noreclaim |= __GFP_NORETRY | __GFP_NOWARN;
+
 	sg = st->sgl;
 	st->nents = 0;
 	for (i = 0; i < page_count; i++) {
-		page = shmem_read_mapping_page_gfp(mapping, i, gfp);
-		if (unlikely(IS_ERR(page))) {
-			i915_gem_shrink(dev_priv,
-					page_count,
-					I915_SHRINK_BOUND |
-					I915_SHRINK_UNBOUND |
-					I915_SHRINK_PURGEABLE);
+		const unsigned int shrink[] = {
+			I915_SHRINK_BOUND | I915_SHRINK_UNBOUND | I915_SHRINK_PURGEABLE,
+			0,
+		}, *s = shrink;
+		gfp_t gfp = noreclaim;
+
+		do {
 			page = shmem_read_mapping_page_gfp(mapping, i, gfp);
-		}
-		if (unlikely(IS_ERR(page))) {
-			gfp_t reclaim;
+			if (likely(!IS_ERR(page)))
+				break;
+
+			if (!*s) {
+				ret = PTR_ERR(page);
+				goto err_sg;
+			}
+
+			i915_gem_shrink(dev_priv, 2 * page_count, *s++);
+			cond_resched();
 
 			/* We've tried hard to allocate the memory by reaping
 			 * our own buffer, now let the real VM do its job and
@@ -2340,15 +2349,26 @@ rebuild_st:
 			 * defer the oom here by reporting the ENOMEM back
 			 * to userspace.
 			 */
-			reclaim = mapping_gfp_mask(mapping);
-			reclaim |= __GFP_NORETRY; /* reclaim, but no oom */
+			if (!*s) {
+				/* reclaim and warn, but no oom */
+				gfp = mapping_gfp_mask(mapping);
 
-			page = shmem_read_mapping_page_gfp(mapping, i, reclaim);
-			if (IS_ERR(page)) {
-				ret = PTR_ERR(page);
-				goto err_sg;
+				/* Our bo are always dirty and so we require
+				 * kswapd to reclaim our pages (direct reclaim
+				 * does not effectively begin pageout of our
+				 * buffers on its own). However, direct reclaim
+				 * only waits for kswapd when under allocation
+				 * congestion. So as a result __GFP_RECLAIM is
+				 * unreliable and fails to actually reclaim our
+				 * dirty pages -- unless you try over and over
+				 * again with !__GFP_NORETRY. However, we still
+				 * want to fail this allocation rather than
+				 * trigger the out-of-memory killer and for
+				 * this we want the future __GFP_MAYFAIL.
+				 */
 			}
-		}
+		} while (1);
+
 		if (!i ||
 		    sg->length >= max_segment ||
 		    page_to_pfn(page) != last_pfn + 1) {
@@ -3298,6 +3318,10 @@ int i915_gem_wait_for_idle(struct drm_i915_private *i915, unsigned int flags)
 {
 	int ret;
 
+	/* If the device is asleep, we have no requests outstanding */
+	if (!READ_ONCE(i915->gt.awake))
+		return 0;
+
 	if (flags & I915_WAIT_LOCKED) {
 		struct i915_gem_timeline *tl;
 
@@ -4218,6 +4242,7 @@ i915_gem_object_create(struct drm_i915_private *dev_priv, u64 size)
 
 	mapping = obj->base.filp->f_mapping;
 	mapping_set_gfp_mask(mapping, mask);
+	GEM_BUG_ON(!(mapping_gfp_mask(mapping) & __GFP_RECLAIM));
 
 	i915_gem_object_init(obj, &i915_gem_object_ops);
 

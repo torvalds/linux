@@ -706,7 +706,7 @@ descend_to_keyring:
 	 * Non-keyrings avoid the leftmost branch of the root entirely (root
 	 * slots 1-15).
 	 */
-	ptr = ACCESS_ONCE(keyring->keys.root);
+	ptr = READ_ONCE(keyring->keys.root);
 	if (!ptr)
 		goto not_this_keyring;
 
@@ -720,7 +720,7 @@ descend_to_keyring:
 		if ((shortcut->index_key[0] & ASSOC_ARRAY_FAN_MASK) != 0)
 			goto not_this_keyring;
 
-		ptr = ACCESS_ONCE(shortcut->next_node);
+		ptr = READ_ONCE(shortcut->next_node);
 		node = assoc_array_ptr_to_node(ptr);
 		goto begin_node;
 	}
@@ -740,7 +740,7 @@ descend_to_node:
 	if (assoc_array_ptr_is_shortcut(ptr)) {
 		shortcut = assoc_array_ptr_to_shortcut(ptr);
 		smp_read_barrier_depends();
-		ptr = ACCESS_ONCE(shortcut->next_node);
+		ptr = READ_ONCE(shortcut->next_node);
 		BUG_ON(!assoc_array_ptr_is_node(ptr));
 	}
 	node = assoc_array_ptr_to_node(ptr);
@@ -752,7 +752,7 @@ begin_node:
 ascend_to_node:
 	/* Go through the slots in a node */
 	for (; slot < ASSOC_ARRAY_FAN_OUT; slot++) {
-		ptr = ACCESS_ONCE(node->slots[slot]);
+		ptr = READ_ONCE(node->slots[slot]);
 
 		if (assoc_array_ptr_is_meta(ptr) && node->back_pointer)
 			goto descend_to_node;
@@ -790,13 +790,13 @@ ascend_to_node:
 	/* We've dealt with all the slots in the current node, so now we need
 	 * to ascend to the parent and continue processing there.
 	 */
-	ptr = ACCESS_ONCE(node->back_pointer);
+	ptr = READ_ONCE(node->back_pointer);
 	slot = node->parent_slot;
 
 	if (ptr && assoc_array_ptr_is_shortcut(ptr)) {
 		shortcut = assoc_array_ptr_to_shortcut(ptr);
 		smp_read_barrier_depends();
-		ptr = ACCESS_ONCE(shortcut->back_pointer);
+		ptr = READ_ONCE(shortcut->back_pointer);
 		slot = shortcut->parent_slot;
 	}
 	if (!ptr)

@@ -2804,6 +2804,7 @@ static int fib6_ifdown(struct rt6_info *rt, void *arg)
 	if ((rt->dst.dev == dev || !dev) &&
 	    rt != adn->net->ipv6.ip6_null_entry &&
 	    (rt->rt6i_nsiblings == 0 ||
+	     (dev && netdev_unregistering(dev)) ||
 	     !rt->rt6i_idev->cnf.ignore_routes_with_linkdown))
 		return -1;
 
@@ -3721,7 +3722,11 @@ static int ip6_route_dev_notify(struct notifier_block *this,
 		net->ipv6.ip6_blk_hole_entry->dst.dev = dev;
 		net->ipv6.ip6_blk_hole_entry->rt6i_idev = in6_dev_get(dev);
 #endif
-	 } else if (event == NETDEV_UNREGISTER) {
+	 } else if (event == NETDEV_UNREGISTER &&
+		    dev->reg_state != NETREG_UNREGISTERED) {
+		/* NETDEV_UNREGISTER could be fired for multiple times by
+		 * netdev_wait_allrefs(). Make sure we only call this once.
+		 */
 		in6_dev_put(net->ipv6.ip6_null_entry->rt6i_idev);
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 		in6_dev_put(net->ipv6.ip6_prohibit_entry->rt6i_idev);

@@ -566,7 +566,7 @@ static int nf_nat_proto_clean(struct nf_conn *ct, void *data)
 	 * Else, when the conntrack is destoyed, nf_nat_cleanup_conntrack()
 	 * will delete entry from already-freed table.
 	 */
-	ct->status &= ~IPS_NAT_DONE_MASK;
+	clear_bit(IPS_SRC_NAT_DONE_BIT, &ct->status);
 	rhltable_remove(&nf_nat_bysource_table, &ct->nat_bysource,
 			nf_nat_bysource_params);
 

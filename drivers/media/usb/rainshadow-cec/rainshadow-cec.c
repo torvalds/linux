@@ -119,7 +119,7 @@ static void rain_irq_work_handler(struct work_struct *work)
 
 	while (true) {
 		unsigned long flags;
-		bool exit_loop;
+		bool exit_loop = false;
 		char data;
 
 		spin_lock_irqsave(&rain->buf_lock, flags);
@@ -336,6 +336,7 @@ static int rain_connect(struct serio *serio, struct serio_driver *drv)
 	serio_set_drvdata(serio, rain);
 	INIT_WORK(&rain->work, rain_irq_work_handler);
 	mutex_init(&rain->write_lock);
+	spin_lock_init(&rain->buf_lock);
 
 	err = serio_open(serio, drv);
 	if (err)

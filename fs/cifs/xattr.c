@@ -188,8 +188,6 @@ static int cifs_creation_time_get(struct dentry *dentry, struct inode *inode,
 	pcreatetime = (__u64 *)value;
 	*pcreatetime = CIFS_I(inode)->createtime;
 	return sizeof(__u64);
-
-	return rc;
 }
 
 

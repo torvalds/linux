@@ -259,6 +259,8 @@ static void driver_bound(struct device *dev)
 	if (dev->bus)
 		blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
 					     BUS_NOTIFY_BOUND_DRIVER, dev);
+
+	kobject_uevent(&dev->kobj, KOBJ_BIND);
 }
 
 static int driver_sysfs_add(struct device *dev)
@@ -848,6 +850,8 @@ static void __device_release_driver(struct device *dev, struct device *parent)
 			blocking_notifier_call_chain(&dev->bus->p->bus_notifier,
 						     BUS_NOTIFY_UNBOUND_DRIVER,
 						     dev);
+
+		kobject_uevent(&dev->kobj, KOBJ_UNBIND);
 	}
 }
 

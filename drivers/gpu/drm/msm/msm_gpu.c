@@ -549,9 +549,9 @@ static int get_clocks(struct platform_device *pdev, struct msm_gpu *gpu)
 		gpu->grp_clks[i] = get_clock(dev, name);
 
 		/* Remember the key clocks that we need to control later */
-		if (!strcmp(name, "core"))
+		if (!strcmp(name, "core") || !strcmp(name, "core_clk"))
 			gpu->core_clk = gpu->grp_clks[i];
-		else if (!strcmp(name, "rbbmtimer"))
+		else if (!strcmp(name, "rbbmtimer") || !strcmp(name, "rbbmtimer_clk"))
 			gpu->rbbmtimer_clk = gpu->grp_clks[i];
 
 		++i;

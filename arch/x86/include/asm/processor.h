@@ -860,8 +860,6 @@ extern unsigned long KSTK_ESP(struct task_struct *task);
 
 #endif /* CONFIG_X86_64 */
 
-extern unsigned long thread_saved_pc(struct task_struct *tsk);
-
 extern void start_thread(struct pt_regs *regs, unsigned long new_ip,
 					       unsigned long new_sp);
 

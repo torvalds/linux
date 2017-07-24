@@ -343,6 +343,7 @@ config SENSORS_ASB100
 
 config SENSORS_ASPEED
 	tristate "ASPEED AST2400/AST2500 PWM and Fan tach driver"
+	select REGMAP
 	help
 	  This driver provides support for ASPEED AST2400/AST2500 PWM
 	  and Fan Tacho controllers.

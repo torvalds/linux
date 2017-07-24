@@ -319,7 +319,7 @@ static void rcar_i2c_dma_unmap(struct rcar_i2c_priv *priv)
 	rcar_i2c_write(priv, ICFBSCR, TCYC06);
 
 	dma_unmap_single(chan->device->dev, sg_dma_address(&priv->sg),
-			 priv->msg->len, priv->dma_direction);
+			 sg_dma_len(&priv->sg), priv->dma_direction);
 
 	priv->dma_direction = DMA_NONE;
 }

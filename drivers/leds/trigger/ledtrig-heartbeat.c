@@ -20,7 +20,6 @@
 #include <linux/sched/loadavg.h>
 #include <linux/leds.h>
 #include <linux/reboot.h>
-#include <linux/suspend.h>
 #include "../leds.h"
 
 static int panic_heartbeats;
@@ -163,30 +162,6 @@ static struct led_trigger heartbeat_led_trigger = {
 	.deactivate = heartbeat_trig_deactivate,
 };
 
-static int heartbeat_pm_notifier(struct notifier_block *nb,
-				 unsigned long pm_event, void *unused)
-{
-	int rc;
-
-	switch (pm_event) {
-	case PM_SUSPEND_PREPARE:
-	case PM_HIBERNATION_PREPARE:
-	case PM_RESTORE_PREPARE:
-		led_trigger_unregister(&heartbeat_led_trigger);
-		break;
-	case PM_POST_SUSPEND:
-	case PM_POST_HIBERNATION:
-	case PM_POST_RESTORE:
-		rc = led_trigger_register(&heartbeat_led_trigger);
-		if (rc)
-			pr_err("could not re-register heartbeat trigger\n");
-		break;
-	default:
-		break;
-	}
-	return NOTIFY_DONE;
-}
-
 static int heartbeat_reboot_notifier(struct notifier_block *nb,
 				     unsigned long code, void *unused)
 {
@@ -200,10 +175,6 @@ static int heartbeat_panic_notifier(struct notifier_block *nb,
 	panic_heartbeats = 1;
 	return NOTIFY_DONE;
 }
-
-static struct notifier_block heartbeat_pm_nb = {
-	.notifier_call = heartbeat_pm_notifier,
-};
 
 static struct notifier_block heartbeat_reboot_nb = {
 	.notifier_call = heartbeat_reboot_notifier,
@@ -221,14 +192,12 @@ static int __init heartbeat_trig_init(void)
 		atomic_notifier_chain_register(&panic_notifier_list,
 					       &heartbeat_panic_nb);
 		register_reboot_notifier(&heartbeat_reboot_nb);
-		register_pm_notifier(&heartbeat_pm_nb);
 	}
 	return rc;
 }
 
 static void __exit heartbeat_trig_exit(void)
 {
-	unregister_pm_notifier(&heartbeat_pm_nb);
 	unregister_reboot_notifier(&heartbeat_reboot_nb);
 	atomic_notifier_chain_unregister(&panic_notifier_list,
 					 &heartbeat_panic_nb);

@@ -159,15 +159,24 @@ void vgic_v3_clear_lr(struct kvm_vcpu *vcpu, int lr)
 void vgic_v3_set_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcrp)
 {
 	struct vgic_v3_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v3;
+	u32 model = vcpu->kvm->arch.vgic.vgic_model;
 	u32 vmcr;
 
-	/*
-	 * Ignore the FIQen bit, because GIC emulation always implies
-	 * SRE=1 which means the vFIQEn bit is also RES1.
-	 */
-	vmcr = ((vmcrp->ctlr >> ICC_CTLR_EL1_EOImode_SHIFT) <<
-		 ICH_VMCR_EOIM_SHIFT) & ICH_VMCR_EOIM_MASK;
-	vmcr |= (vmcrp->ctlr << ICH_VMCR_CBPR_SHIFT) & ICH_VMCR_CBPR_MASK;
+	if (model == KVM_DEV_TYPE_ARM_VGIC_V2) {
+		vmcr = (vmcrp->ackctl << ICH_VMCR_ACK_CTL_SHIFT) &
+			ICH_VMCR_ACK_CTL_MASK;
+		vmcr |= (vmcrp->fiqen << ICH_VMCR_FIQ_EN_SHIFT) &
+			ICH_VMCR_FIQ_EN_MASK;
+	} else {
+		/*
+		 * When emulating GICv3 on GICv3 with SRE=1 on the
+		 * VFIQEn bit is RES1 and the VAckCtl bit is RES0.
+		 */
+		vmcr = ICH_VMCR_FIQ_EN_MASK;
+	}
+
+	vmcr |= (vmcrp->cbpr << ICH_VMCR_CBPR_SHIFT) & ICH_VMCR_CBPR_MASK;
+	vmcr |= (vmcrp->eoim << ICH_VMCR_EOIM_SHIFT) & ICH_VMCR_EOIM_MASK;
 	vmcr |= (vmcrp->abpr << ICH_VMCR_BPR1_SHIFT) & ICH_VMCR_BPR1_MASK;
 	vmcr |= (vmcrp->bpr << ICH_VMCR_BPR0_SHIFT) & ICH_VMCR_BPR0_MASK;
 	vmcr |= (vmcrp->pmr << ICH_VMCR_PMR_SHIFT) & ICH_VMCR_PMR_MASK;
@@ -180,17 +189,27 @@ void vgic_v3_set_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcrp)
 void vgic_v3_get_vmcr(struct kvm_vcpu *vcpu, struct vgic_vmcr *vmcrp)
 {
 	struct vgic_v3_cpu_if *cpu_if = &vcpu->arch.vgic_cpu.vgic_v3;
+	u32 model = vcpu->kvm->arch.vgic.vgic_model;
 	u32 vmcr;
 
 	vmcr = cpu_if->vgic_vmcr;
 
-	/*
-	 * Ignore the FIQen bit, because GIC emulation always implies
-	 * SRE=1 which means the vFIQEn bit is also RES1.
-	 */
-	vmcrp->ctlr = ((vmcr >> ICH_VMCR_EOIM_SHIFT) <<
-			ICC_CTLR_EL1_EOImode_SHIFT) & ICC_CTLR_EL1_EOImode_MASK;
-	vmcrp->ctlr |= (vmcr & ICH_VMCR_CBPR_MASK) >> ICH_VMCR_CBPR_SHIFT;
+	if (model == KVM_DEV_TYPE_ARM_VGIC_V2) {
+		vmcrp->ackctl = (vmcr & ICH_VMCR_ACK_CTL_MASK) >>
+			ICH_VMCR_ACK_CTL_SHIFT;
+		vmcrp->fiqen = (vmcr & ICH_VMCR_FIQ_EN_MASK) >>
+			ICH_VMCR_FIQ_EN_SHIFT;
+	} else {
+		/*
+		 * When emulating GICv3 on GICv3 with SRE=1 on the
+		 * VFIQEn bit is RES1 and the VAckCtl bit is RES0.
+		 */
+		vmcrp->fiqen = 1;
+		vmcrp->ackctl = 0;
+	}
+
+	vmcrp->cbpr = (vmcr & ICH_VMCR_CBPR_MASK) >> ICH_VMCR_CBPR_SHIFT;
+	vmcrp->eoim = (vmcr & ICH_VMCR_EOIM_MASK) >> ICH_VMCR_EOIM_SHIFT;
 	vmcrp->abpr = (vmcr & ICH_VMCR_BPR1_MASK) >> ICH_VMCR_BPR1_SHIFT;
 	vmcrp->bpr  = (vmcr & ICH_VMCR_BPR0_MASK) >> ICH_VMCR_BPR0_SHIFT;
 	vmcrp->pmr  = (vmcr & ICH_VMCR_PMR_MASK) >> ICH_VMCR_PMR_SHIFT;

@@ -3334,6 +3334,9 @@ static int mlxsw_sp_inetaddr_vlan_event(struct net_device *vlan_dev,
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_lower_get(vlan_dev);
 	u16 vid = vlan_dev_vlan_id(vlan_dev);
 
+	if (netif_is_bridge_port(vlan_dev))
+		return 0;
+
 	if (mlxsw_sp_port_dev_check(real_dev))
 		return mlxsw_sp_inetaddr_vport_event(vlan_dev, real_dev, event,
 						     vid);
