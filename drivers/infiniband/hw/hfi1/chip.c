@@ -10490,6 +10490,14 @@ void set_link_down_reason(struct hfi1_pportdata *ppd, u8 lcl_reason,
 }
 
 /*
+ * Verify if BCT for data VLs is non-zero.
+ */
+static inline bool data_vls_operational(struct hfi1_pportdata *ppd)
+{
+	return !!ppd->actual_vls_operational;
+}
+
+/*
  * Change the physical and/or logical link state.
  *
  * Do not call this routine while inside an interrupt.  It contains
@@ -10586,6 +10594,13 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 	case HLS_UP_ARMED:
 		if (ppd->host_link_state != HLS_UP_INIT)
 			goto unexpected;
+
+		if (!data_vls_operational(ppd)) {
+			dd_dev_err(dd,
+				   "%s: data VLs not operational\n", __func__);
+			ret = -EINVAL;
+			break;
+		}
 
 		ppd->host_link_state = HLS_UP_ARMED;
 		set_logical_state(dd, LSTATE_ARMED);
@@ -14832,7 +14847,6 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 		}
 		ppd->vls_supported = num_vls;
 		ppd->vls_operational = ppd->vls_supported;
-		ppd->actual_vls_operational = ppd->vls_supported;
 		/* Set the default MTU. */
 		for (vl = 0; vl < num_vls; vl++)
 			dd->vld[vl].mtu = hfi1_max_mtu;
