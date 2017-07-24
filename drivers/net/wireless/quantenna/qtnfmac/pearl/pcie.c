@@ -274,32 +274,6 @@ static int qtnf_pcie_init_memory(struct qtnf_pcie_bus_priv *priv)
 	return 0;
 }
 
-static int
-qtnf_pcie_init_dma_mask(struct qtnf_pcie_bus_priv *priv, u64 dma_mask)
-{
-	int ret;
-
-	ret = dma_supported(&priv->pdev->dev, dma_mask);
-	if (!ret) {
-		pr_err("DMA mask %llu not supported\n", dma_mask);
-		return ret;
-	}
-
-	ret = pci_set_dma_mask(priv->pdev, dma_mask);
-	if (ret) {
-		pr_err("failed to set DMA mask %llu\n", dma_mask);
-		return ret;
-	}
-
-	ret = pci_set_consistent_dma_mask(priv->pdev, dma_mask);
-	if (ret) {
-		pr_err("failed to set consistent DMA mask %llu\n", dma_mask);
-		return ret;
-	}
-
-	return ret;
-}
-
 static void qtnf_tune_pcie_mps(struct qtnf_pcie_bus_priv *priv)
 {
 	struct pci_dev *pdev = priv->pdev;
@@ -1212,7 +1186,7 @@ static int qtnf_pcie_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_base;
 	}
 
-	ret = qtnf_pcie_init_dma_mask(pcie_priv, DMA_BIT_MASK(32));
+	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	if (ret) {
 		pr_err("PCIE DMA mask init failed\n");
 		goto err_base;
