@@ -521,6 +521,10 @@ static void pcpu_block_refresh_hint(struct pcpu_chunk *chunk, int index)
  * @chunk: chunk of interest
  * @bit_off: chunk offset
  * @bits: size of request
+ *
+ * Updates metadata for the allocation path.  The metadata only has to be
+ * refreshed by a full scan iff the chunk's contig hint is broken.  Block level
+ * scans are required if the block's contig hint is broken.
  */
 static void pcpu_block_update_hint_alloc(struct pcpu_chunk *chunk, int bit_off,
 					 int bits)
@@ -545,14 +549,56 @@ static void pcpu_block_update_hint_alloc(struct pcpu_chunk *chunk, int bit_off,
 
 	/*
 	 * Update s_block.
+	 * block->first_free must be updated if the allocation takes its place.
+	 * If the allocation breaks the contig_hint, a scan is required to
+	 * restore this hint.
 	 */
-	pcpu_block_refresh_hint(chunk, s_index);
+	if (s_off == s_block->first_free)
+		s_block->first_free = find_next_zero_bit(
+					pcpu_index_alloc_map(chunk, s_index),
+					PCPU_BITMAP_BLOCK_BITS,
+					s_off + bits);
+
+	if (s_off >= s_block->contig_hint_start &&
+	    s_off < s_block->contig_hint_start + s_block->contig_hint) {
+		/* block contig hint is broken - scan to fix it */
+		pcpu_block_refresh_hint(chunk, s_index);
+	} else {
+		/* update left and right contig manually */
+		s_block->left_free = min(s_block->left_free, s_off);
+		if (s_index == e_index)
+			s_block->right_free = min_t(int, s_block->right_free,
+					PCPU_BITMAP_BLOCK_BITS - e_off);
+		else
+			s_block->right_free = 0;
+	}
 
 	/*
 	 * Update e_block.
 	 */
 	if (s_index != e_index) {
-		pcpu_block_refresh_hint(chunk, e_index);
+		/*
+		 * When the allocation is across blocks, the end is along
+		 * the left part of the e_block.
+		 */
+		e_block->first_free = find_next_zero_bit(
+				pcpu_index_alloc_map(chunk, e_index),
+				PCPU_BITMAP_BLOCK_BITS, e_off);
+
+		if (e_off == PCPU_BITMAP_BLOCK_BITS) {
+			/* reset the block */
+			e_block++;
+		} else {
+			if (e_off > e_block->contig_hint_start) {
+				/* contig hint is broken - scan to fix it */
+				pcpu_block_refresh_hint(chunk, e_index);
+			} else {
+				e_block->left_free = 0;
+				e_block->right_free =
+					min_t(int, e_block->right_free,
+					      PCPU_BITMAP_BLOCK_BITS - e_off);
+			}
+		}
 
 		/* update in-between md_blocks */
 		for (block = s_block + 1; block < e_block; block++) {
@@ -562,7 +608,14 @@ static void pcpu_block_update_hint_alloc(struct pcpu_chunk *chunk, int bit_off,
 		}
 	}
 
-	pcpu_chunk_refresh_hint(chunk);
+	/*
+	 * The only time a full chunk scan is required is if the chunk
+	 * contig hint is broken.  Otherwise, it means a smaller space
+	 * was used and therefore the chunk contig hint is still correct.
+	 */
+	if (bit_off >= chunk->contig_bits_start  &&
+	    bit_off < chunk->contig_bits_start + chunk->contig_bits)
+		pcpu_chunk_refresh_hint(chunk);
 }
 
 /**
