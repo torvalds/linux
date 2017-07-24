@@ -268,12 +268,14 @@ static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
 			/*
 			 * Copy the number of tidlist entries we used
 			 * and the length of the buffer we registered.
-			 * These fields are adjacent in the structure so
-			 * we can copy them at the same time.
 			 */
 			addr = arg + offsetof(struct hfi1_tid_info, tidcnt);
 			if (copy_to_user((void __user *)addr, &tinfo.tidcnt,
-					 sizeof(tinfo.tidcnt) +
+					 sizeof(tinfo.tidcnt)))
+				return -EFAULT;
+
+			addr = arg + offsetof(struct hfi1_tid_info, length);
+			if (copy_to_user((void __user *)addr, &tinfo.length,
 					 sizeof(tinfo.length)))
 				ret = -EFAULT;
 		}
