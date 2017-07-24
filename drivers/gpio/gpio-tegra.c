@@ -622,10 +622,10 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 	if (tgi->soc->debounce_supported)
 		tgi->gc.set_config = tegra_gpio_set_config;
 
-	tgi->bank_info = devm_kzalloc(&pdev->dev, tgi->bank_count *
+	tgi->bank_info = devm_kcalloc(&pdev->dev, tgi->bank_count,
 				      sizeof(*tgi->bank_info), GFP_KERNEL);
 	if (!tgi->bank_info)
-		return -ENODEV;
+		return -ENOMEM;
 
 	tgi->irq_domain = irq_domain_add_linear(pdev->dev.of_node,
 						tgi->gc.ngpio,
