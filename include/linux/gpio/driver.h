@@ -327,11 +327,10 @@ int gpiochip_generic_config(struct gpio_chip *chip, unsigned offset,
 
 /**
  * struct gpio_pin_range - pin range controlled by a gpio chip
- * @head: list for maintaining set of pin ranges, used internally
+ * @node: list for maintaining set of pin ranges, used internally
  * @pctldev: pinctrl device which handles corresponding pins
  * @range: actual range of pins controlled by a gpio controller
  */
-
 struct gpio_pin_range {
 	struct list_head node;
 	struct pinctrl_dev *pctldev;
