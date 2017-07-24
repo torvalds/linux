@@ -1602,7 +1602,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	static int smap[PERCPU_DYNAMIC_EARLY_SLOTS] __initdata;
 	static int dmap[PERCPU_DYNAMIC_EARLY_SLOTS] __initdata;
 	size_t size_sum = ai->static_size + ai->reserved_size + ai->dyn_size;
-	struct pcpu_chunk *schunk, *dchunk = NULL;
+	struct pcpu_chunk *chunk;
 	unsigned long *group_offsets;
 	size_t *group_sizes;
 	unsigned long *unit_off;
@@ -1720,22 +1720,22 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	 */
 	start_offset = ai->static_size;
 	map_size = ai->reserved_size ?: ai->dyn_size;
-	schunk = pcpu_alloc_first_chunk(base_addr, start_offset, map_size,
-					smap, ARRAY_SIZE(smap));
+	chunk = pcpu_alloc_first_chunk(base_addr, start_offset, map_size, smap,
+				       ARRAY_SIZE(smap));
 
 	/* init dynamic chunk if necessary */
 	if (ai->reserved_size) {
-		pcpu_reserved_chunk = schunk;
+		pcpu_reserved_chunk = chunk;
 
 		start_offset = ai->static_size + ai->reserved_size;
 		map_size = ai->dyn_size;
-		dchunk = pcpu_alloc_first_chunk(base_addr, start_offset,
-						map_size, dmap,
-						ARRAY_SIZE(dmap));
+		chunk = pcpu_alloc_first_chunk(base_addr, start_offset,
+					       map_size, dmap,
+					       ARRAY_SIZE(dmap));
 	}
 
 	/* link the first chunk in */
-	pcpu_first_chunk = dchunk ?: schunk;
+	pcpu_first_chunk = chunk;
 	i = (pcpu_first_chunk->start_offset) ? 1 : 0;
 	pcpu_nr_empty_pop_pages +=
 		pcpu_count_occupied_pages(pcpu_first_chunk, i);
