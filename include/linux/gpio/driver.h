@@ -180,8 +180,27 @@ struct gpio_chip {
 	 * If CONFIG_OF is enabled, then all GPIO controllers described in the
 	 * device tree automatically may have an OF translation
 	 */
+
+	/**
+	 * @of_node:
+	 *
+	 * Pointer to a device tree node representing this GPIO controller.
+	 */
 	struct device_node *of_node;
+
+	/**
+	 * @of_gpio_n_cells:
+	 *
+	 * Number of cells used to form the GPIO specifier.
+	 */
 	int of_gpio_n_cells;
+
+	/**
+	 * @of_xlate:
+	 *
+	 * Callback to translate a device tree GPIO specifier into a chip-
+	 * relative GPIO number and flags.
+	 */
 	int (*of_xlate)(struct gpio_chip *gc,
 			const struct of_phandle_args *gpiospec, u32 *flags);
 #endif

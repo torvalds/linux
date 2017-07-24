@@ -273,14 +273,13 @@ static int of_gpiochip_scan_gpios(struct gpio_chip *chip)
 }
 
 /**
- * of_gpio_simple_xlate - translate gpio_spec to the GPIO number and flags
+ * of_gpio_simple_xlate - translate gpiospec to the GPIO number and flags
  * @gc:		pointer to the gpio_chip structure
- * @np:		device node of the GPIO chip
- * @gpio_spec:	gpio specifier as found in the device tree
+ * @gpiospec:	GPIO specifier as found in the device tree
  * @flags:	a flags pointer to fill in
  *
  * This is simple translation function, suitable for the most 1:1 mapped
- * gpio chips. This function performs only one sanity check: whether gpio
+ * GPIO chips. This function performs only one sanity check: whether GPIO
  * is less than ngpios (that is specified in the gpio_chip).
  */
 int of_gpio_simple_xlate(struct gpio_chip *gc,
