@@ -427,7 +427,7 @@ static void pcpu_chunk_refresh_hint(struct pcpu_chunk *chunk)
 	chunk->contig_bits = 0;
 
 	bits = nr_empty_pop_pages = 0;
-	pcpu_for_each_unpop_region(chunk->alloc_map, rs, re, 0,
+	pcpu_for_each_unpop_region(chunk->alloc_map, rs, re, chunk->first_bit,
 				   pcpu_chunk_map_bits(chunk)) {
 		bits = re - rs;
 
@@ -646,7 +646,8 @@ static int pcpu_find_block_fit(struct pcpu_chunk *chunk, int alloc_bits,
 	int bit_off, bits;
 	int re; /* region end */
 
-	pcpu_for_each_unpop_region(chunk->alloc_map, bit_off, re, 0,
+	pcpu_for_each_unpop_region(chunk->alloc_map, bit_off, re,
+				   chunk->first_bit,
 				   pcpu_chunk_map_bits(chunk)) {
 		bits = re - bit_off;
 
@@ -715,6 +716,13 @@ static int pcpu_alloc_area(struct pcpu_chunk *chunk, int alloc_bits,
 
 	chunk->free_bytes -= alloc_bits * PCPU_MIN_ALLOC_SIZE;
 
+	/* update first free bit */
+	if (bit_off == chunk->first_bit)
+		chunk->first_bit = find_next_zero_bit(
+					chunk->alloc_map,
+					pcpu_chunk_map_bits(chunk),
+					bit_off + alloc_bits);
+
 	pcpu_block_update_hint_alloc(chunk, bit_off, alloc_bits);
 
 	pcpu_chunk_relocate(chunk, oslot);
@@ -749,6 +757,9 @@ static void pcpu_free_area(struct pcpu_chunk *chunk, int off)
 
 	/* update metadata */
 	chunk->free_bytes += bits * PCPU_MIN_ALLOC_SIZE;
+
+	/* update first free bit */
+	chunk->first_bit = min(chunk->first_bit, bit_off);
 
 	pcpu_block_update_hint_free(chunk, bit_off, bits);
 
@@ -840,6 +851,8 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(unsigned long tmp_addr,
 		bitmap_set(chunk->alloc_map, 0, offset_bits);
 		set_bit(0, chunk->bound_map);
 		set_bit(offset_bits, chunk->bound_map);
+
+		chunk->first_bit = offset_bits;
 
 		pcpu_block_update_hint_alloc(chunk, 0, offset_bits);
 	}
