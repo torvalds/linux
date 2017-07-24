@@ -603,8 +603,8 @@ static int init_after_reset(struct hfi1_devdata *dd)
 	 */
 	for (i = 0; i < dd->num_rcv_contexts; i++)
 		hfi1_rcvctrl(dd, HFI1_RCVCTRL_CTXT_DIS |
-				  HFI1_RCVCTRL_INTRAVAIL_DIS |
-				  HFI1_RCVCTRL_TAILUPD_DIS, i);
+			     HFI1_RCVCTRL_INTRAVAIL_DIS |
+			     HFI1_RCVCTRL_TAILUPD_DIS, dd->rcd[i]);
 	pio_send_control(dd, PSC_GLOBAL_DISABLE);
 	for (i = 0; i < dd->num_send_contexts; i++)
 		sc_disable(dd->send_contexts[i].sc);
@@ -634,7 +634,7 @@ static void enable_chip(struct hfi1_devdata *dd)
 			rcvmask |= HFI1_RCVCTRL_NO_RHQ_DROP_ENB;
 		if (HFI1_CAP_KGET_MASK(dd->rcd[i]->flags, NODROP_EGR_FULL))
 			rcvmask |= HFI1_RCVCTRL_NO_EGR_DROP_ENB;
-		hfi1_rcvctrl(dd, rcvmask, i);
+		hfi1_rcvctrl(dd, rcvmask, dd->rcd[i]);
 		sc_enable(dd->rcd[i]->sc);
 	}
 }
@@ -915,10 +915,10 @@ static void shutdown_device(struct hfi1_devdata *dd)
 		ppd = dd->pport + pidx;
 		for (i = 0; i < dd->num_rcv_contexts; i++)
 			hfi1_rcvctrl(dd, HFI1_RCVCTRL_TAILUPD_DIS |
-					  HFI1_RCVCTRL_CTXT_DIS |
-					  HFI1_RCVCTRL_INTRAVAIL_DIS |
-					  HFI1_RCVCTRL_PKEY_DIS |
-					  HFI1_RCVCTRL_ONE_PKT_EGR_DIS, i);
+				     HFI1_RCVCTRL_CTXT_DIS |
+				     HFI1_RCVCTRL_INTRAVAIL_DIS |
+				     HFI1_RCVCTRL_PKEY_DIS |
+				     HFI1_RCVCTRL_ONE_PKT_EGR_DIS, dd->rcd[i]);
 		/*
 		 * Gracefully stop all sends allowing any in progress to
 		 * trickle out first.

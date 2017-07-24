@@ -1352,7 +1352,8 @@ void hfi1_init_ctxt(struct send_context *sc);
 void hfi1_put_tid(struct hfi1_devdata *dd, u32 index,
 		  u32 type, unsigned long pa, u16 order);
 void hfi1_quiet_serdes(struct hfi1_pportdata *ppd);
-void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, u16 ctxt);
+void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op,
+		  struct hfi1_ctxtdata *rcd);
 u32 hfi1_read_cntrs(struct hfi1_devdata *dd, char **namep, u64 **cntrp);
 u32 hfi1_read_portcntrs(struct hfi1_pportdata *ppd, char **namep, u64 **cntrp);
 int hfi1_get_ib_cfg(struct hfi1_pportdata *ppd, int which);

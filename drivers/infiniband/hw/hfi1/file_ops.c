@@ -389,8 +389,7 @@ static long hfi1_file_ioctl(struct file *fp, unsigned int cmd,
 
 			sc_disable(sc);
 			ret = sc_enable(sc);
-			hfi1_rcvctrl(dd, HFI1_RCVCTRL_CTXT_ENB,
-				     uctxt->ctxt);
+			hfi1_rcvctrl(dd, HFI1_RCVCTRL_CTXT_ENB, uctxt);
 		} else {
 			ret = sc_restart(sc);
 		}
@@ -793,7 +792,7 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 		     HFI1_RCVCTRL_TAILUPD_DIS |
 		     HFI1_RCVCTRL_ONE_PKT_EGR_DIS |
 		     HFI1_RCVCTRL_NO_RHQ_DROP_DIS |
-		     HFI1_RCVCTRL_NO_EGR_DROP_DIS, uctxt->ctxt);
+		     HFI1_RCVCTRL_NO_EGR_DROP_DIS, uctxt);
 	/* Clear the context's J_KEY */
 	hfi1_clear_ctxt_jkey(dd, uctxt);
 	/*
@@ -1198,7 +1197,7 @@ static void user_init(struct hfi1_ctxtdata *uctxt)
 		rcvctrl_ops |= HFI1_RCVCTRL_TAILUPD_ENB;
 	else
 		rcvctrl_ops |= HFI1_RCVCTRL_TAILUPD_DIS;
-	hfi1_rcvctrl(uctxt->dd, rcvctrl_ops, uctxt->ctxt);
+	hfi1_rcvctrl(uctxt->dd, rcvctrl_ops, uctxt);
 }
 
 static int get_ctxt_info(struct hfi1_filedata *fd, void __user *ubase,
@@ -1410,7 +1409,7 @@ static unsigned int poll_next(struct file *fp,
 	spin_lock_irq(&dd->uctxt_lock);
 	if (hdrqempty(uctxt)) {
 		set_bit(HFI1_CTXT_WAITING_RCV, &uctxt->event_flags);
-		hfi1_rcvctrl(dd, HFI1_RCVCTRL_INTRAVAIL_ENB, uctxt->ctxt);
+		hfi1_rcvctrl(dd, HFI1_RCVCTRL_INTRAVAIL_ENB, uctxt);
 		pollflag = 0;
 	} else {
 		pollflag = POLLIN | POLLRDNORM;
@@ -1495,7 +1494,7 @@ static int manage_rcvq(struct hfi1_ctxtdata *uctxt, u16 subctxt,
 	} else {
 		rcvctrl_op = HFI1_RCVCTRL_CTXT_DIS;
 	}
-	hfi1_rcvctrl(dd, rcvctrl_op, uctxt->ctxt);
+	hfi1_rcvctrl(dd, rcvctrl_op, uctxt);
 	/* always; new head should be equal to new tail; see above */
 bail:
 	return 0;

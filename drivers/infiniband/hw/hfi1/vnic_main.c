@@ -95,7 +95,7 @@ static int setup_vnic_ctxt(struct hfi1_devdata *dd, struct hfi1_ctxtdata *uctxt)
 	if (HFI1_CAP_KGET_MASK(uctxt->flags, DMA_RTAIL))
 		rcvctrl_ops |= HFI1_RCVCTRL_TAILUPD_ENB;
 
-	hfi1_rcvctrl(uctxt->dd, rcvctrl_ops, uctxt->ctxt);
+	hfi1_rcvctrl(uctxt->dd, rcvctrl_ops, uctxt);
 
 	uctxt->is_vnic = true;
 done:
@@ -186,7 +186,7 @@ static void deallocate_vnic_ctxt(struct hfi1_devdata *dd,
 		     HFI1_RCVCTRL_INTRAVAIL_DIS |
 		     HFI1_RCVCTRL_ONE_PKT_EGR_DIS |
 		     HFI1_RCVCTRL_NO_RHQ_DROP_DIS |
-		     HFI1_RCVCTRL_NO_EGR_DROP_DIS, uctxt->ctxt);
+		     HFI1_RCVCTRL_NO_EGR_DROP_DIS, uctxt);
 	/*
 	 * VNIC contexts are allocated from user context pool.
 	 * Release them back to user context pool.

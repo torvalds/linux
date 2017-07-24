@@ -6790,7 +6790,7 @@ static void rxe_freeze(struct hfi1_devdata *dd)
 
 	/* disable all receive contexts */
 	for (i = 0; i < dd->num_rcv_contexts; i++)
-		hfi1_rcvctrl(dd, HFI1_RCVCTRL_CTXT_DIS, i);
+		hfi1_rcvctrl(dd, HFI1_RCVCTRL_CTXT_DIS, dd->rcd[i]);
 }
 
 /*
@@ -6814,9 +6814,9 @@ static void rxe_kernel_unfreeze(struct hfi1_devdata *dd)
 
 		rcvmask = HFI1_RCVCTRL_CTXT_ENB;
 		/* HFI1_RCVCTRL_TAILUPD_[ENB|DIS] needs to be set explicitly */
-		rcvmask |= HFI1_CAP_KGET_MASK(dd->rcd[i]->flags, DMA_RTAIL) ?
+		rcvmask |= HFI1_CAP_KGET_MASK(rcd->flags, DMA_RTAIL) ?
 			HFI1_RCVCTRL_TAILUPD_ENB : HFI1_RCVCTRL_TAILUPD_DIS;
-		hfi1_rcvctrl(dd, rcvmask, i);
+		hfi1_rcvctrl(dd, rcvmask, rcd);
 	}
 
 	/* enable port */
@@ -11722,15 +11722,17 @@ static u32 encoded_size(u32 size)
 	return 0x1;	/* if invalid, go with the minimum size */
 }
 
-void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, u16 ctxt)
+void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op,
+		  struct hfi1_ctxtdata *rcd)
 {
-	struct hfi1_ctxtdata *rcd;
 	u64 rcvctrl, reg;
 	int did_enable = 0;
+	u16 ctxt;
 
-	rcd = dd->rcd[ctxt];
 	if (!rcd)
 		return;
+
+	ctxt = rcd->ctxt;
 
 	hfi1_cdbg(RCVCTRL, "ctxt %d op 0x%x", ctxt, op);
 
