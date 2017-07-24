@@ -715,12 +715,16 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(void *base_addr,
 							 int init_map_size)
 {
 	struct pcpu_chunk *chunk;
+	int region_size;
+
+	region_size = PFN_ALIGN(start_offset + map_size);
 
 	chunk = memblock_virt_alloc(pcpu_chunk_struct_size, 0);
 	INIT_LIST_HEAD(&chunk->list);
 	INIT_LIST_HEAD(&chunk->map_extend_list);
 	chunk->base_addr = base_addr;
 	chunk->start_offset = start_offset;
+	chunk->end_offset = region_size - chunk->start_offset - map_size;
 	chunk->map = map;
 	chunk->map_alloc = init_map_size;
 
@@ -734,6 +738,11 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(void *base_addr,
 	chunk->map[1] = chunk->start_offset;
 	chunk->map[2] = (chunk->start_offset + chunk->free_size) | 1;
 	chunk->map_used = 2;
+
+	if (chunk->end_offset) {
+		/* hide the end of the bitmap */
+		chunk->map[++chunk->map_used] = region_size | 1;
+	}
 
 	return chunk;
 }

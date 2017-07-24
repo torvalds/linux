@@ -26,6 +26,9 @@ struct pcpu_chunk {
 	int			start_offset;	/* the overlap with the previous
 						   region to have a page aligned
 						   base_addr */
+	int			end_offset;	/* additional area required to
+						   have the region end page
+						   aligned */
 	int			nr_populated;	/* # of populated pages */
 	unsigned long		populated[];	/* populated bitmap */
 };
