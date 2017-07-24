@@ -216,7 +216,6 @@ sub check_sphinx()
 		$prog = findprog("virtualenv-3.5") if (!$prog);
 
 		check_program("virtualenv", 0) if (!$prog);
-		check_program("pip", 0) if (!findprog("pip3"));
 		$need_sphinx = 1;
 	} else {
 		add_package("python-sphinx", 0);
@@ -256,7 +255,6 @@ sub give_debian_hints()
 		"python-sphinx"		=> "python3-sphinx",
 		"sphinx_rtd_theme"	=> "python3-sphinx-rtd-theme",
 		"virtualenv"		=> "virtualenv",
-		"pip"			=> "python3-pip",
 		"dot"			=> "graphviz",
 		"convert"		=> "imagemagick",
 		"Pod::Usage"		=> "perl-modules",
@@ -282,7 +280,6 @@ sub give_redhat_hints()
 		"python-sphinx"		=> "python3-sphinx",
 		"sphinx_rtd_theme"	=> "python3-sphinx_rtd_theme",
 		"virtualenv"		=> "python3-virtualenv",
-		"pip"			=> "python3-pip",
 		"dot"			=> "graphviz",
 		"convert"		=> "ImageMagick",
 		"Pod::Usage"		=> "perl-Pod-Usage",
@@ -302,6 +299,13 @@ sub give_redhat_hints()
 		"dejavu-sans-mono-fonts",
 	);
 
+	#
+	# Checks valid for RHEL/CentOS version 7.x.
+	#
+	if (! $system_release =~ /Fedora/) {
+		$map{"virtualenv"} = "python-virtualenv";
+	}
+
 	my $release;
 
 	$release = $1 if ($system_release =~ /Fedora\s+release\s+(\d+)/);
@@ -312,7 +316,14 @@ sub give_redhat_hints()
 	check_missing(\%map);
 
 	return if (!$need && !$optional);
-	printf("You should run:\n\n\tsudo dnf install -y $install\n");
+
+	if ($release >= 18) {
+		# dnf, for Fedora 18+
+		printf("You should run:\n\n\tsudo dnf install -y $install\n");
+	} else {
+		# yum, for RHEL (and clones) or Fedora version < 18
+		printf("You should run:\n\n\tsudo yum install -y $install\n");
+	}
 }
 
 sub give_opensuse_hints()
@@ -321,7 +332,6 @@ sub give_opensuse_hints()
 		"python-sphinx"		=> "python3-sphinx",
 		"sphinx_rtd_theme"	=> "python3-sphinx_rtd_theme",
 		"virtualenv"		=> "python3-virtualenv",
-		"pip"			=> "python3-pip",
 		"dot"			=> "graphviz",
 		"convert"		=> "ImageMagick",
 		"Pod::Usage"		=> "perl-Pod-Usage",
@@ -360,7 +370,6 @@ sub give_mageia_hints()
 		"python-sphinx"		=> "python3-sphinx",
 		"sphinx_rtd_theme"	=> "python3-sphinx_rtd_theme",
 		"virtualenv"		=> "python3-virtualenv",
-		"pip"			=> "python3-pip",
 		"dot"			=> "graphviz",
 		"convert"		=> "ImageMagick",
 		"Pod::Usage"		=> "perl-Pod-Usage",
@@ -371,8 +380,6 @@ sub give_mageia_hints()
 	my @tex_pkgs = (
 		"texlive-fontsextra",
 	);
-
-	my $release;
 
 	check_rpm_missing(\@tex_pkgs, 1) if ($pdf);
 	check_missing(\%map);
@@ -386,7 +393,6 @@ sub give_arch_linux_hints()
 	my %map = (
 		"sphinx_rtd_theme"	=> "python-sphinx_rtd_theme",
 		"virtualenv"		=> "python-virtualenv",
-		"pip"			=> "python-pip",
 		"dot"			=> "graphviz",
 		"convert"		=> "imagemagick",
 		"xelatex"		=> "texlive-bin",
@@ -410,7 +416,6 @@ sub give_gentoo_hints()
 	my %map = (
 		"sphinx_rtd_theme"	=> "dev-python/sphinx_rtd_theme",
 		"virtualenv"		=> "dev-python/virtualenv",
-		"pip"			=> "dev-python/pip",
 		"dot"			=> "media-gfx/graphviz",
 		"convert"		=> "media-gfx/imagemagick",
 		"xelatex"		=> "dev-texlive/texlive-xetex media-fonts/dejavu",
@@ -435,6 +440,18 @@ sub check_distros()
 {
 	# Distro-specific hints
 	if ($system_release =~ /Red Hat Enterprise Linux/) {
+		give_redhat_hints;
+		return;
+	}
+	if ($system_release =~ /CentOS/) {
+		give_redhat_hints;
+		return;
+	}
+	if ($system_release =~ /Scientific Linux/) {
+		give_redhat_hints;
+		return;
+	}
+	if ($system_release =~ /Oracle Linux Server/) {
 		give_redhat_hints;
 		return;
 	}
@@ -488,9 +505,22 @@ sub check_distros()
 sub check_needs()
 {
 	if ($system_release) {
-		print "Checking if the needed tools for $system_release are available\n";
+		print "Detected OS: $system_release.\n";
 	} else {
-		print "Checking if the needed tools are present\n";
+		print "Unknown OS\n";
+	}
+
+	# RHEL 7.x and clones have Sphinx version 1.1.x and incomplete texlive
+	if (($system_release =~ /Red Hat Enterprise Linux/) ||
+	    ($system_release =~ /CentOS/) ||
+	    ($system_release =~ /Scientific Linux/) ||
+	    ($system_release =~ /Oracle Linux Server/)) {
+		$virtualenv = 1;
+		$pdf = 0;
+
+		printf("NOTE: On this distro, Sphinx and TexLive shipped versions are incompatible\n");
+		printf("with doc build. So, use Sphinx via a Python virtual environment.\n\n");
+		printf("This script can't install a TexLive version that would provide PDF.\n");
 	}
 
 	# Check for needed programs/tools
