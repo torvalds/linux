@@ -1,6 +1,0 @@
-#
-# Atheros AR531X/AR231X WiSoC
-#
-platform-$(CONFIG_ATH25)	+= ath25/
-cflags-$(CONFIG_ATH25)		+= -I$(srctree)/arch/mips/include/asm/mach-ath25
-load-$(CONFIG_ATH25)		+= 0xffffffff80041000

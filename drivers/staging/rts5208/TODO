@@ -1,7 +1,0 @@
-TODO:
-- use kernel coding style
-- checkpatch.pl fixes
-- We will use the stack in drivers/mmc to implement
-  rts5208/5288 in the future
-
-Micky Ching <micky_ching@realsil.com.cn>

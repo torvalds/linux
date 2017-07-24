@@ -1,2 +1,0 @@
-source "drivers/scsi/cxgbi/cxgb3i/Kconfig"
-source "drivers/scsi/cxgbi/cxgb4i/Kconfig"

@@ -1,7 +1,0 @@
-[config]
-command = record
-args    = -R kill >/dev/null 2>&1
-
-[event:base-record]
-sample_period=4000
-sample_type=1415

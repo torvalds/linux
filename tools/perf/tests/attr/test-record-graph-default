@@ -1,6 +1,0 @@
-[config]
-command = record
-args    = -g kill >/dev/null 2>&1
-
-[event:base-record]
-sample_type=295

@@ -1,7 +1,0 @@
-libsubcmd-y += exec-cmd.o
-libsubcmd-y += help.o
-libsubcmd-y += pager.o
-libsubcmd-y += parse-options.o
-libsubcmd-y += run-command.o
-libsubcmd-y += sigchain.o
-libsubcmd-y += subcmd-config.o

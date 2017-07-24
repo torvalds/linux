@@ -1,4 +1,0 @@
-* add clock framework support (platform device with CCF needs special care)
-* break out board-specific VBUS GPIO to work with multiplatform
-* DT bindings
-* move driver into drivers/usb/gadget/

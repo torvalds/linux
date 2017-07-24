@@ -1,6 +1,0 @@
-libperf-$(CONFIG_DWARF)     += dwarf-regs.o
-libperf-$(CONFIG_LOCAL_LIBUNWIND) += unwind-libunwind.o
-
-libperf-$(CONFIG_AUXTRACE) += ../../arm/util/pmu.o \
-			      ../../arm/util/auxtrace.o \
-			      ../../arm/util/cs-etm.o

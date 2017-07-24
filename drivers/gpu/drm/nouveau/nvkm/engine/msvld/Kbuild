@@ -1,6 +1,0 @@
-nvkm-y += nvkm/engine/msvld/base.o
-nvkm-y += nvkm/engine/msvld/g98.o
-nvkm-y += nvkm/engine/msvld/gt215.o
-nvkm-y += nvkm/engine/msvld/mcp89.o
-nvkm-y += nvkm/engine/msvld/gf100.o
-nvkm-y += nvkm/engine/msvld/gk104.o

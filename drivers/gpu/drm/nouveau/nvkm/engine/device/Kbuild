@@ -1,6 +1,0 @@
-nvkm-y += nvkm/engine/device/acpi.o
-nvkm-y += nvkm/engine/device/base.o
-nvkm-y += nvkm/engine/device/ctrl.o
-nvkm-y += nvkm/engine/device/pci.o
-nvkm-y += nvkm/engine/device/tegra.o
-nvkm-y += nvkm/engine/device/user.o

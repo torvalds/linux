@@ -1,2 +1,0 @@
-Team devices are driven from userspace via libteam library which is here:
-	https://github.com/jpirko/libteam

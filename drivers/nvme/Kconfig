@@ -1,2 +1,0 @@
-source "drivers/nvme/host/Kconfig"
-source "drivers/nvme/target/Kconfig"

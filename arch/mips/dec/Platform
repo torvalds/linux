@@ -1,8 +1,0 @@
-#
-# DECstation family
-#
-platform-$(CONFIG_MACH_DECSTATION)	+= dec/
-cflags-$(CONFIG_MACH_DECSTATION)	+= \
-			-I$(srctree)/arch/mips/include/asm/mach-dec
-libs-$(CONFIG_MACH_DECSTATION)		+= arch/mips/dec/prom/
-load-$(CONFIG_MACH_DECSTATION)		+= 0xffffffff80040000

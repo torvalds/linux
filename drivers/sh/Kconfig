@@ -1,5 +1,0 @@
-menu "SuperH / SH-Mobile Driver Options"
-
-source "drivers/sh/intc/Kconfig"
-
-endmenu

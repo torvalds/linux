@@ -1,9 +1,0 @@
-CFLAGS_gtk += -fPIC $(GTK_CFLAGS)
-
-gtk-y += browser.o
-gtk-y += hists.o
-gtk-y += setup.o
-gtk-y += util.o
-gtk-y += helpline.o
-gtk-y += progress.o
-gtk-y += annotate.o
