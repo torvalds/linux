@@ -31,15 +31,15 @@
  * Private functions
  ******************************************************************************/
 
-static void destruct(struct core_sink *sink)
+static void destruct(struct dc_sink *sink)
 {
-	if (sink->public.dc_container_id) {
-		dm_free(sink->public.dc_container_id);
-		sink->public.dc_container_id = NULL;
+	if (sink->dc_container_id) {
+		dm_free(sink->dc_container_id);
+		sink->dc_container_id = NULL;
 	}
 }
 
-static bool construct(struct core_sink *sink, const struct dc_sink_init_data *init_params)
+static bool construct(struct dc_sink *sink, const struct dc_sink_init_data *init_params)
 {
 
 	struct dc_link *link = init_params->link;
@@ -47,12 +47,12 @@ static bool construct(struct core_sink *sink, const struct dc_sink_init_data *in
 	if (!link)
 		return false;
 
-	sink->public.sink_signal = init_params->sink_signal;
+	sink->sink_signal = init_params->sink_signal;
 	sink->link = link;
 	sink->ctx = link->ctx;
-	sink->public.dongle_max_pix_clk = init_params->dongle_max_pix_clk;
-	sink->public.converter_disable_audio = init_params->converter_disable_audio;
-	sink->public.dc_container_id = NULL;
+	sink->dongle_max_pix_clk = init_params->dongle_max_pix_clk;
+	sink->converter_disable_audio = init_params->converter_disable_audio;
+	sink->dc_container_id = NULL;
 
 	return true;
 }
@@ -61,18 +61,14 @@ static bool construct(struct core_sink *sink, const struct dc_sink_init_data *in
  * Public functions
  ******************************************************************************/
 
-void dc_sink_retain(const struct dc_sink *dc_sink)
+void dc_sink_retain(struct dc_sink *sink)
 {
-	struct core_sink *sink = DC_SINK_TO_CORE(dc_sink);
-
 	ASSERT(sink->ref_count > 0);
 	++sink->ref_count;
 }
 
-void dc_sink_release(const struct dc_sink *dc_sink)
+void dc_sink_release(struct dc_sink *sink)
 {
-	struct core_sink *sink = DC_SINK_TO_CORE(dc_sink);
-
 	ASSERT(sink->ref_count > 0);
 	--sink->ref_count;
 
@@ -84,7 +80,7 @@ void dc_sink_release(const struct dc_sink *dc_sink)
 
 struct dc_sink *dc_sink_create(const struct dc_sink_init_data *init_params)
 {
-	struct core_sink *sink = dm_alloc(sizeof(*sink));
+	struct dc_sink *sink = dm_alloc(sizeof(*sink));
 
 	if (NULL == sink)
 		goto alloc_fail;
@@ -94,7 +90,7 @@ struct dc_sink *dc_sink_create(const struct dc_sink_init_data *init_params)
 
 	++sink->ref_count;
 
-	return &sink->public;
+	return sink;
 
 construct_fail:
 	dm_free(sink);

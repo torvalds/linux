@@ -1266,7 +1266,7 @@ int amdgpu_dm_connector_mode_valid(
 		struct drm_display_mode *mode)
 {
 	int result = MODE_ERROR;
-	const struct dc_sink *dc_sink;
+	struct dc_sink *dc_sink;
 	struct amdgpu_device *adev = connector->dev->dev_private;
 	struct dc_validation_set val_set = { 0 };
 	/* TODO: Unhardcode stream count */
@@ -1535,7 +1535,7 @@ int dm_create_validation_set_for_connector(struct drm_connector *connector,
 		struct drm_display_mode *mode, struct dc_validation_set *val_set)
 {
 	int result = MODE_ERROR;
-	const struct dc_sink *dc_sink =
+	struct dc_sink *dc_sink =
 			to_amdgpu_connector(connector)->dc_sink;
 	/* TODO: Unhardcode stream count */
 	struct dc_stream *stream;

@@ -46,11 +46,11 @@ struct stream {
  ******************************************************************************/
 
 static bool construct(struct core_stream *stream,
-	const struct dc_sink *dc_sink_data)
+	struct dc_sink *dc_sink_data)
 {
 	uint32_t i = 0;
 
-	stream->sink = DC_SINK_TO_CORE(dc_sink_data);
+	stream->sink = dc_sink_data;
 	stream->ctx = stream->sink->ctx;
 	stream->public.sink = dc_sink_data;
 
@@ -97,7 +97,7 @@ static bool construct(struct core_stream *stream,
 
 static void destruct(struct core_stream *stream)
 {
-	dc_sink_release(&stream->sink->public);
+	dc_sink_release(stream->sink);
 	if (stream->public.out_transfer_func != NULL) {
 		dc_transfer_func_release(
 				stream->public.out_transfer_func);
@@ -130,9 +130,8 @@ void dc_stream_release(const struct dc_stream *public)
 }
 
 struct dc_stream *dc_create_stream_for_sink(
-		const struct dc_sink *dc_sink)
+		struct dc_sink *sink)
 {
-	struct core_sink *sink = DC_SINK_TO_CORE(dc_sink);
 	struct stream *stream;
 
 	if (sink == NULL)
@@ -143,7 +142,7 @@ struct dc_stream *dc_create_stream_for_sink(
 	if (NULL == stream)
 		goto alloc_fail;
 
-	if (false == construct(&stream->protected, dc_sink))
+	if (false == construct(&stream->protected, sink))
 			goto construct_fail;
 
 	stream->ref_count++;
@@ -350,8 +349,8 @@ void dc_stream_log(
 	dm_logger_write(dm_logger,
 			log_type,
 			"\tsink name: %s, serial: %d\n",
-			core_stream->sink->public.edid_caps.display_name,
-			core_stream->sink->public.edid_caps.serial_number);
+			core_stream->sink->edid_caps.display_name,
+			core_stream->sink->edid_caps.serial_number);
 	dm_logger_write(dm_logger,
 			log_type,
 			"\tlink: %d\n",

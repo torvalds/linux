@@ -541,8 +541,7 @@ bool dc_link_detect(struct dc_link *link, bool boot)
 	struct audio_support *aud_support = &link->dc->res_pool->audio_support;
 	enum dc_edid_status edid_status;
 	struct dc_context *dc_ctx = link->ctx;
-	struct dc_sink *dc_sink;
-	struct core_sink *sink = NULL;
+	struct dc_sink *sink;
 	enum dc_connection_type new_connection_type = dc_connection_none;
 
 	if (link->connector_signal == SIGNAL_TYPE_VIRTUAL)
@@ -637,22 +636,21 @@ bool dc_link_detect(struct dc_link *link, bool boot)
 		sink_init_data.link = link;
 		sink_init_data.sink_signal = sink_caps.signal;
 
-		dc_sink = dc_sink_create(&sink_init_data);
-		if (!dc_sink) {
+		sink = dc_sink_create(&sink_init_data);
+		if (!sink) {
 			DC_ERROR("Failed to create sink!\n");
 			return false;
 		}
 
-		dc_sink->dongle_max_pix_clk = sink_caps.max_hdmi_pixel_clock;
-		dc_sink->converter_disable_audio = converter_disable_audio;
+		sink->dongle_max_pix_clk = sink_caps.max_hdmi_pixel_clock;
+		sink->converter_disable_audio = converter_disable_audio;
 
-		sink = DC_SINK_TO_CORE(dc_sink);
-		link->local_sink = &sink->public;
+		link->local_sink = sink;
 
 		edid_status = dm_helpers_read_local_edid(
 				link->ctx,
 				link,
-				&sink->public);
+				sink);
 
 		switch (edid_status) {
 		case EDID_BAD_CHECKSUM:
@@ -669,16 +667,16 @@ bool dc_link_detect(struct dc_link *link, bool boot)
 		}
 
 		/* HDMI-DVI Dongle */
-		if (dc_sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A &&
-				!dc_sink->edid_caps.edid_hdmi)
-			dc_sink->sink_signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
+		if (sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A &&
+				!sink->edid_caps.edid_hdmi)
+			sink->sink_signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
 
 		/* Connectivity log: detection */
-		for (i = 0; i < sink->public.dc_edid.length / EDID_BLOCK_SIZE; i++) {
+		for (i = 0; i < sink->dc_edid.length / EDID_BLOCK_SIZE; i++) {
 			CONN_DATA_DETECT(link,
-					&sink->public.dc_edid.raw_edid[i * EDID_BLOCK_SIZE],
+					&sink->dc_edid.raw_edid[i * EDID_BLOCK_SIZE],
 					EDID_BLOCK_SIZE,
-					"%s: [Block %d] ", sink->public.edid_caps.display_name, i);
+					"%s: [Block %d] ", sink->edid_caps.display_name, i);
 		}
 
 		dm_logger_write(link->ctx->logger, LOG_DETECTION_EDID_PARSER,
@@ -692,16 +690,16 @@ bool dc_link_detect(struct dc_link *link, bool boot)
 			"speaker_flag = %d, "
 			"audio_mode_count = %d\n",
 			__func__,
-			sink->public.edid_caps.manufacturer_id,
-			sink->public.edid_caps.product_id,
-			sink->public.edid_caps.serial_number,
-			sink->public.edid_caps.manufacture_week,
-			sink->public.edid_caps.manufacture_year,
-			sink->public.edid_caps.display_name,
-			sink->public.edid_caps.speaker_flags,
-			sink->public.edid_caps.audio_mode_count);
+			sink->edid_caps.manufacturer_id,
+			sink->edid_caps.product_id,
+			sink->edid_caps.serial_number,
+			sink->edid_caps.manufacture_week,
+			sink->edid_caps.manufacture_year,
+			sink->edid_caps.display_name,
+			sink->edid_caps.speaker_flags,
+			sink->edid_caps.audio_mode_count);
 
-		for (i = 0; i < sink->public.edid_caps.audio_mode_count; i++) {
+		for (i = 0; i < sink->edid_caps.audio_mode_count; i++) {
 			dm_logger_write(link->ctx->logger, LOG_DETECTION_EDID_PARSER,
 				"%s: mode number = %d, "
 				"format_code = %d, "
@@ -710,10 +708,10 @@ bool dc_link_detect(struct dc_link *link, bool boot)
 				"sample_size = %d\n",
 				__func__,
 				i,
-				sink->public.edid_caps.audio_modes[i].format_code,
-				sink->public.edid_caps.audio_modes[i].channel_count,
-				sink->public.edid_caps.audio_modes[i].sample_rate,
-				sink->public.edid_caps.audio_modes[i].sample_size);
+				sink->edid_caps.audio_modes[i].format_code,
+				sink->edid_caps.audio_modes[i].channel_count,
+				sink->edid_caps.audio_modes[i].sample_rate,
+				sink->edid_caps.audio_modes[i].sample_size);
 		}
 
 	} else {
@@ -732,7 +730,7 @@ bool dc_link_detect(struct dc_link *link, bool boot)
 	}
 
 	LINK_INFO("link=%d, dc_sink_in=%p is now %s\n",
-		link->link_index, &sink->public,
+		link->link_index, sink,
 		(sink_caps.signal == SIGNAL_TYPE_NONE ?
 			"Disconnected":"Connected"));
 
@@ -1347,7 +1345,7 @@ enum dc_status dc_link_validate_mode_timing(
 		struct dc_link *link,
 		const struct dc_crtc_timing *timing)
 {
-	uint32_t max_pix_clk = stream->sink->public.dongle_max_pix_clk;
+	uint32_t max_pix_clk = stream->sink->dongle_max_pix_clk;
 
 	/* A hack to avoid failing any modes for EDID override feature on
 	 * topology change such as lower quality cable for DP or different dongle

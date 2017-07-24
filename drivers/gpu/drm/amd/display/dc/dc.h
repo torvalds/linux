@@ -629,7 +629,7 @@ bool dc_enable_stereo(
 /**
  * Create a new default stream for the requested sink
  */
-struct dc_stream *dc_create_stream_for_sink(const struct dc_sink *dc_sink);
+struct dc_stream *dc_create_stream_for_sink(struct dc_sink *dc_sink);
 
 void dc_stream_retain(const struct dc_stream *dc_stream);
 void dc_stream_release(const struct dc_stream *dc_stream);
@@ -712,9 +712,9 @@ struct link_mst_stream_allocation_table {
  * The currently active signal type (HDMI, DP-SST, DP-MST) is also reported.
  */
 struct dc_link {
-	const struct dc_sink *remote_sinks[MAX_SINKS_PER_LINK];
+	struct dc_sink *remote_sinks[MAX_SINKS_PER_LINK];
 	unsigned int sink_count;
-	const struct dc_sink *local_sink;
+	struct dc_sink *local_sink;
 	unsigned int link_index;
 	enum dc_connection_type type;
 	enum signal_type connector_signal;
@@ -825,7 +825,7 @@ struct dc_sink *dc_link_add_remote_sink(
 
 void dc_link_remove_remote_sink(
 	struct dc_link *link,
-	const struct dc_sink *sink);
+	struct dc_sink *sink);
 
 /* Used by diagnostics for virtual link at the moment */
 void dc_link_set_sink(struct dc_link *link, struct dc_sink *sink);
@@ -879,10 +879,17 @@ struct dc_sink {
 	void *priv;
 	struct stereo_3d_features features_3d[TIMING_3D_FORMAT_MAX];
 	bool converter_disable_audio;
+
+	/* private to DC core */
+	struct dc_link *link;
+	struct dc_context *ctx;
+
+	/* private to dc_sink.c */
+	int ref_count;
 };
 
-void dc_sink_retain(const struct dc_sink *sink);
-void dc_sink_release(const struct dc_sink *sink);
+void dc_sink_retain(struct dc_sink *sink);
+void dc_sink_release(struct dc_sink *sink);
 
 const struct audio **dc_get_audios(struct dc *dc);
 

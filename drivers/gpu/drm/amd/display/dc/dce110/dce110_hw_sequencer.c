@@ -657,7 +657,7 @@ static enum dc_status bios_parser_crtc_source_select(
 	 * encoder block
 	 * note: video bios clears all FMT setting here. */
 	struct bp_crtc_source_select crtc_source_select = {0};
-	const struct core_sink *sink = pipe_ctx->stream->sink;
+	const struct dc_sink *sink = pipe_ctx->stream->sink;
 
 	crtc_source_select.engine_id = pipe_ctx->stream_enc->id;
 	crtc_source_select.controller_id = pipe_ctx->pipe_idx + 1;

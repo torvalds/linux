@@ -939,7 +939,7 @@ static bool dc_commit_context_no_check(struct dc *dc, struct validate_context *c
 	program_timing_sync(core_dc, context);
 
 	for (i = 0; i < context->stream_count; i++) {
-		const struct core_sink *sink = context->streams[i]->sink;
+		const struct dc_sink *sink = context->streams[i]->sink;
 
 		for (j = 0; j < context->stream_status[i].surface_count; j++) {
 			const struct dc_surface *surface =
@@ -1984,7 +1984,7 @@ void dc_link_set_sink(struct dc_link *link, struct dc_sink *sink)
 	}
 }
 
-void dc_link_remove_remote_sink(struct dc_link *link, const struct dc_sink *sink)
+void dc_link_remove_remote_sink(struct dc_link *link, struct dc_sink *sink)
 {
 	int i;
 

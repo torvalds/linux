@@ -68,7 +68,7 @@ struct core_stream {
 
 	/* field internal to DC */
 	struct dc_context *ctx;
-	const struct core_sink *sink;
+	struct dc_sink *sink;
 
 	/* used by DCP and FMT */
 	struct bit_depth_reduction_params bit_depth_params;
@@ -78,25 +78,6 @@ struct core_stream {
 	enum signal_type signal;
 
 	struct dc_stream_status status;
-};
-
-/************ core_sink *****************/
-
-#define DC_SINK_TO_CORE(dc_sink) \
-	container_of(dc_sink, struct core_sink, public)
-
-struct core_sink {
-	/** The public, read-only (for DM) area of sink. **/
-	struct dc_sink public;
-	/** End-of-public area. **/
-
-	/** The 'protected' area - read/write access, for use only inside DC **/
-	/* not used for now */
-	struct dc_link *link;
-	struct dc_context *ctx;
-
-	/* private to dc_sink.c */
-	int ref_count;
 };
 
 /************ link *****************/
