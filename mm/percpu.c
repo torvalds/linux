@@ -1562,8 +1562,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 {
 	static int smap[PERCPU_DYNAMIC_EARLY_SLOTS] __initdata;
 	static int dmap[PERCPU_DYNAMIC_EARLY_SLOTS] __initdata;
-	size_t dyn_size = ai->dyn_size;
-	size_t size_sum = ai->static_size + ai->reserved_size + dyn_size;
+	size_t size_sum = ai->static_size + ai->reserved_size + ai->dyn_size;
 	struct pcpu_chunk *schunk, *dchunk = NULL;
 	unsigned long *group_offsets;
 	size_t *group_sizes;
@@ -1690,14 +1689,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	bitmap_fill(schunk->populated, pcpu_unit_pages);
 	schunk->nr_populated = pcpu_unit_pages;
 
-	if (ai->reserved_size) {
-		schunk->free_size = ai->reserved_size;
-		pcpu_reserved_chunk = schunk;
-	} else {
-		schunk->free_size = dyn_size;
-		dyn_size = 0;			/* dynamic area covered */
-	}
-
+	schunk->free_size = ai->reserved_size ?: ai->dyn_size;
 	schunk->contig_hint = schunk->free_size;
 	schunk->map[0] = 1;
 	schunk->map[1] = schunk->start_offset;
@@ -1705,7 +1697,9 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	schunk->map_used = 2;
 
 	/* init dynamic chunk if necessary */
-	if (dyn_size) {
+	if (ai->reserved_size) {
+		pcpu_reserved_chunk = schunk;
+
 		dchunk = memblock_virt_alloc(pcpu_chunk_struct_size, 0);
 		INIT_LIST_HEAD(&dchunk->list);
 		INIT_LIST_HEAD(&dchunk->map_extend_list);
@@ -1717,7 +1711,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 		bitmap_fill(dchunk->populated, pcpu_unit_pages);
 		dchunk->nr_populated = pcpu_unit_pages;
 
-		dchunk->contig_hint = dchunk->free_size = dyn_size;
+		dchunk->contig_hint = dchunk->free_size = ai->dyn_size;
 		dchunk->map[0] = 1;
 		dchunk->map[1] = dchunk->start_offset;
 		dchunk->map[2] = (dchunk->start_offset + dchunk->free_size) | 1;
