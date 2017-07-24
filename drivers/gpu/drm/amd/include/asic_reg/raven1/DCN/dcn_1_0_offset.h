@@ -10361,6 +10361,8 @@
 #define mmUNIPHYG_CHANNEL_XBAR_CNTL_BASE_IDX                                                           2
 #define mmDCIO_WRCMD_DELAY                                                                             0x287e
 #define mmDCIO_WRCMD_DELAY_BASE_IDX                                                                    2
+#define mmDC_PINSTRAPS                                                                                 0x2880
+#define mmDC_PINSTRAPS_BASE_IDX                                                                        2
 #define mmDC_DVODATA_CONFIG                                                                            0x2882
 #define mmDC_DVODATA_CONFIG_BASE_IDX                                                                   2
 #define mmLVTMA_PWRSEQ_CNTL                                                                            0x2883
