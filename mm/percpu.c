@@ -956,10 +956,10 @@ static void __percpu *pcpu_alloc(size_t size, size_t align, bool reserved,
 	 * We want the lowest bit of offset available for in-use/free
 	 * indicator, so force >= 16bit alignment and make size even.
 	 */
-	if (unlikely(align < 2))
-		align = 2;
+	if (unlikely(align < PCPU_MIN_ALLOC_SIZE))
+		align = PCPU_MIN_ALLOC_SIZE;
 
-	size = ALIGN(size, 2);
+	size = ALIGN(size, PCPU_MIN_ALLOC_SIZE);
 
 	if (unlikely(!size || size > PCPU_MIN_UNIT_SIZE || align > PAGE_SIZE ||
 		     !is_power_of_2(align))) {
@@ -1653,6 +1653,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	static int smap[PERCPU_DYNAMIC_EARLY_SLOTS] __initdata;
 	static int dmap[PERCPU_DYNAMIC_EARLY_SLOTS] __initdata;
 	size_t size_sum = ai->static_size + ai->reserved_size + ai->dyn_size;
+	size_t static_size, dyn_size;
 	struct pcpu_chunk *chunk;
 	unsigned long *group_offsets;
 	size_t *group_sizes;
@@ -1686,6 +1687,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	PCPU_SETUP_BUG_ON(ai->unit_size < PCPU_MIN_UNIT_SIZE);
 	PCPU_SETUP_BUG_ON(ai->dyn_size < PERCPU_DYNAMIC_EARLY_SIZE);
 	PCPU_SETUP_BUG_ON(!ai->dyn_size);
+	PCPU_SETUP_BUG_ON(!IS_ALIGNED(ai->reserved_size, PCPU_MIN_ALLOC_SIZE));
 	PCPU_SETUP_BUG_ON(pcpu_verify_alloc_info(ai) < 0);
 
 	/* process group information and build config tables accordingly */
@@ -1764,6 +1766,17 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 		INIT_LIST_HEAD(&pcpu_slot[i]);
 
 	/*
+	 * The end of the static region needs to be aligned with the
+	 * minimum allocation size as this offsets the reserved and
+	 * dynamic region.  The first chunk ends page aligned by
+	 * expanding the dynamic region, therefore the dynamic region
+	 * can be shrunk to compensate while still staying above the
+	 * configured sizes.
+	 */
+	static_size = ALIGN(ai->static_size, PCPU_MIN_ALLOC_SIZE);
+	dyn_size = ai->dyn_size - (static_size - ai->static_size);
+
+	/*
 	 * Initialize first chunk.
 	 * If the reserved_size is non-zero, this initializes the reserved
 	 * chunk.  If the reserved_size is zero, the reserved chunk is NULL
@@ -1771,8 +1784,8 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	 * pcpu_first_chunk, will always point to the chunk that serves
 	 * the dynamic region.
 	 */
-	tmp_addr = (unsigned long)base_addr + ai->static_size;
-	map_size = ai->reserved_size ?: ai->dyn_size;
+	tmp_addr = (unsigned long)base_addr + static_size;
+	map_size = ai->reserved_size ?: dyn_size;
 	chunk = pcpu_alloc_first_chunk(tmp_addr, map_size, smap,
 				       ARRAY_SIZE(smap));
 
@@ -1780,9 +1793,9 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	if (ai->reserved_size) {
 		pcpu_reserved_chunk = chunk;
 
-		tmp_addr = (unsigned long)base_addr + ai->static_size +
+		tmp_addr = (unsigned long)base_addr + static_size +
 			   ai->reserved_size;
-		map_size = ai->dyn_size;
+		map_size = dyn_size;
 		chunk = pcpu_alloc_first_chunk(tmp_addr, map_size, dmap,
 					       ARRAY_SIZE(dmap));
 	}
