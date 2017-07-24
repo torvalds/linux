@@ -63,6 +63,7 @@
 #include <linux/bitmap.h>
 #include <linux/bootmem.h>
 #include <linux/err.h>
+#include <linux/lcm.h>
 #include <linux/list.h>
 #include <linux/log2.h>
 #include <linux/mm.h>
@@ -279,6 +280,26 @@ static void pcpu_next_pop(unsigned long *bitmap, int *rs, int *re, int end)
 	     (rs) < (re);						     \
 	     (rs) = (re) + 1, pcpu_next_pop((bitmap), &(rs), &(re), (end)))
 
+/*
+ * The following are helper functions to help access bitmaps and convert
+ * between bitmap offsets to address offsets.
+ */
+static unsigned long *pcpu_index_alloc_map(struct pcpu_chunk *chunk, int index)
+{
+	return chunk->alloc_map +
+	       (index * PCPU_BITMAP_BLOCK_BITS / BITS_PER_LONG);
+}
+
+static unsigned long pcpu_off_to_block_index(int off)
+{
+	return off / PCPU_BITMAP_BLOCK_BITS;
+}
+
+static unsigned long pcpu_off_to_block_off(int off)
+{
+	return off & (PCPU_BITMAP_BLOCK_BITS - 1);
+}
+
 /**
  * pcpu_mem_zalloc - allocate memory
  * @size: bytes to allocate
@@ -431,6 +452,154 @@ static void pcpu_chunk_refresh_hint(struct pcpu_chunk *chunk)
 }
 
 /**
+ * pcpu_block_update - updates a block given a free area
+ * @block: block of interest
+ * @start: start offset in block
+ * @end: end offset in block
+ *
+ * Updates a block given a known free area.  The region [start, end) is
+ * expected to be the entirety of the free area within a block.
+ */
+static void pcpu_block_update(struct pcpu_block_md *block, int start, int end)
+{
+	int contig = end - start;
+
+	block->first_free = min(block->first_free, start);
+	if (start == 0)
+		block->left_free = contig;
+
+	if (end == PCPU_BITMAP_BLOCK_BITS)
+		block->right_free = contig;
+
+	if (contig > block->contig_hint) {
+		block->contig_hint_start = start;
+		block->contig_hint = contig;
+	}
+}
+
+/**
+ * pcpu_block_refresh_hint
+ * @chunk: chunk of interest
+ * @index: index of the metadata block
+ *
+ * Scans over the block beginning at first_free and updates the block
+ * metadata accordingly.
+ */
+static void pcpu_block_refresh_hint(struct pcpu_chunk *chunk, int index)
+{
+	struct pcpu_block_md *block = chunk->md_blocks + index;
+	unsigned long *alloc_map = pcpu_index_alloc_map(chunk, index);
+	int rs, re;	/* region start, region end */
+
+	/* clear hints */
+	block->contig_hint = 0;
+	block->left_free = block->right_free = 0;
+
+	/* iterate over free areas and update the contig hints */
+	pcpu_for_each_unpop_region(alloc_map, rs, re, block->first_free,
+				   PCPU_BITMAP_BLOCK_BITS) {
+		pcpu_block_update(block, rs, re);
+	}
+}
+
+/**
+ * pcpu_block_update_hint_alloc - update hint on allocation path
+ * @chunk: chunk of interest
+ * @bit_off: chunk offset
+ * @bits: size of request
+ */
+static void pcpu_block_update_hint_alloc(struct pcpu_chunk *chunk, int bit_off,
+					 int bits)
+{
+	struct pcpu_block_md *s_block, *e_block, *block;
+	int s_index, e_index;	/* block indexes of the freed allocation */
+	int s_off, e_off;	/* block offsets of the freed allocation */
+
+	/*
+	 * Calculate per block offsets.
+	 * The calculation uses an inclusive range, but the resulting offsets
+	 * are [start, end).  e_index always points to the last block in the
+	 * range.
+	 */
+	s_index = pcpu_off_to_block_index(bit_off);
+	e_index = pcpu_off_to_block_index(bit_off + bits - 1);
+	s_off = pcpu_off_to_block_off(bit_off);
+	e_off = pcpu_off_to_block_off(bit_off + bits - 1) + 1;
+
+	s_block = chunk->md_blocks + s_index;
+	e_block = chunk->md_blocks + e_index;
+
+	/*
+	 * Update s_block.
+	 */
+	pcpu_block_refresh_hint(chunk, s_index);
+
+	/*
+	 * Update e_block.
+	 */
+	if (s_index != e_index) {
+		pcpu_block_refresh_hint(chunk, e_index);
+
+		/* update in-between md_blocks */
+		for (block = s_block + 1; block < e_block; block++) {
+			block->contig_hint = 0;
+			block->left_free = 0;
+			block->right_free = 0;
+		}
+	}
+
+	pcpu_chunk_refresh_hint(chunk);
+}
+
+/**
+ * pcpu_block_update_hint_free - updates the block hints on the free path
+ * @chunk: chunk of interest
+ * @bit_off: chunk offset
+ * @bits: size of request
+ */
+static void pcpu_block_update_hint_free(struct pcpu_chunk *chunk, int bit_off,
+					int bits)
+{
+	struct pcpu_block_md *s_block, *e_block, *block;
+	int s_index, e_index;	/* block indexes of the freed allocation */
+	int s_off, e_off;	/* block offsets of the freed allocation */
+
+	/*
+	 * Calculate per block offsets.
+	 * The calculation uses an inclusive range, but the resulting offsets
+	 * are [start, end).  e_index always points to the last block in the
+	 * range.
+	 */
+	s_index = pcpu_off_to_block_index(bit_off);
+	e_index = pcpu_off_to_block_index(bit_off + bits - 1);
+	s_off = pcpu_off_to_block_off(bit_off);
+	e_off = pcpu_off_to_block_off(bit_off + bits - 1) + 1;
+
+	s_block = chunk->md_blocks + s_index;
+	e_block = chunk->md_blocks + e_index;
+
+	/* update s_block */
+	pcpu_block_refresh_hint(chunk, s_index);
+
+	/* freeing in the same block */
+	if (s_index != e_index) {
+		/* update e_block */
+		pcpu_block_refresh_hint(chunk, e_index);
+
+		/* reset md_blocks in the middle */
+		for (block = s_block + 1; block < e_block; block++) {
+			block->first_free = 0;
+			block->contig_hint_start = 0;
+			block->contig_hint = PCPU_BITMAP_BLOCK_BITS;
+			block->left_free = PCPU_BITMAP_BLOCK_BITS;
+			block->right_free = PCPU_BITMAP_BLOCK_BITS;
+		}
+	}
+
+	pcpu_chunk_refresh_hint(chunk);
+}
+
+/**
  * pcpu_is_populated - determines if the region is populated
  * @chunk: chunk of interest
  * @bit_off: chunk offset
@@ -546,7 +715,7 @@ static int pcpu_alloc_area(struct pcpu_chunk *chunk, int alloc_bits,
 
 	chunk->free_bytes -= alloc_bits * PCPU_MIN_ALLOC_SIZE;
 
-	pcpu_chunk_refresh_hint(chunk);
+	pcpu_block_update_hint_alloc(chunk, bit_off, alloc_bits);
 
 	pcpu_chunk_relocate(chunk, oslot);
 
@@ -581,9 +750,22 @@ static void pcpu_free_area(struct pcpu_chunk *chunk, int off)
 	/* update metadata */
 	chunk->free_bytes += bits * PCPU_MIN_ALLOC_SIZE;
 
-	pcpu_chunk_refresh_hint(chunk);
+	pcpu_block_update_hint_free(chunk, bit_off, bits);
 
 	pcpu_chunk_relocate(chunk, oslot);
+}
+
+static void pcpu_init_md_blocks(struct pcpu_chunk *chunk)
+{
+	struct pcpu_block_md *md_block;
+
+	for (md_block = chunk->md_blocks;
+	     md_block != chunk->md_blocks + pcpu_chunk_nr_blocks(chunk);
+	     md_block++) {
+		md_block->contig_hint = PCPU_BITMAP_BLOCK_BITS;
+		md_block->left_free = PCPU_BITMAP_BLOCK_BITS;
+		md_block->right_free = PCPU_BITMAP_BLOCK_BITS;
+	}
 }
 
 /**
@@ -603,7 +785,7 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(unsigned long tmp_addr,
 							 int map_size)
 {
 	struct pcpu_chunk *chunk;
-	unsigned long aligned_addr;
+	unsigned long aligned_addr, lcm_align;
 	int start_offset, offset_bits, region_size, region_bits;
 
 	/* region calculations */
@@ -611,7 +793,13 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(unsigned long tmp_addr,
 
 	start_offset = tmp_addr - aligned_addr;
 
-	region_size = PFN_ALIGN(start_offset + map_size);
+	/*
+	 * Align the end of the region with the LCM of PAGE_SIZE and
+	 * PCPU_BITMAP_BLOCK_SIZE.  One of these constants is a multiple of
+	 * the other.
+	 */
+	lcm_align = lcm(PAGE_SIZE, PCPU_BITMAP_BLOCK_SIZE);
+	region_size = ALIGN(start_offset + map_size, lcm_align);
 
 	/* allocate chunk */
 	chunk = memblock_virt_alloc(sizeof(struct pcpu_chunk) +
@@ -627,12 +815,13 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(unsigned long tmp_addr,
 	chunk->nr_pages = region_size >> PAGE_SHIFT;
 	region_bits = pcpu_chunk_map_bits(chunk);
 
-	chunk->alloc_map = memblock_virt_alloc(
-				BITS_TO_LONGS(region_bits) *
-				sizeof(chunk->alloc_map[0]), 0);
-	chunk->bound_map = memblock_virt_alloc(
-				BITS_TO_LONGS(region_bits + 1) *
-				sizeof(chunk->bound_map[0]), 0);
+	chunk->alloc_map = memblock_virt_alloc(BITS_TO_LONGS(region_bits) *
+					       sizeof(chunk->alloc_map[0]), 0);
+	chunk->bound_map = memblock_virt_alloc(BITS_TO_LONGS(region_bits + 1) *
+					       sizeof(chunk->bound_map[0]), 0);
+	chunk->md_blocks = memblock_virt_alloc(pcpu_chunk_nr_blocks(chunk) *
+					       sizeof(chunk->md_blocks[0]), 0);
+	pcpu_init_md_blocks(chunk);
 
 	/* manage populated page bitmap */
 	chunk->immutable = true;
@@ -651,6 +840,8 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(unsigned long tmp_addr,
 		bitmap_set(chunk->alloc_map, 0, offset_bits);
 		set_bit(0, chunk->bound_map);
 		set_bit(offset_bits, chunk->bound_map);
+
+		pcpu_block_update_hint_alloc(chunk, 0, offset_bits);
 	}
 
 	if (chunk->end_offset) {
@@ -662,9 +853,10 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(unsigned long tmp_addr,
 		set_bit((start_offset + map_size) / PCPU_MIN_ALLOC_SIZE,
 			chunk->bound_map);
 		set_bit(region_bits, chunk->bound_map);
-	}
 
-	pcpu_chunk_refresh_hint(chunk);
+		pcpu_block_update_hint_alloc(chunk, pcpu_chunk_map_bits(chunk)
+					     - offset_bits, offset_bits);
+	}
 
 	return chunk;
 }
@@ -692,12 +884,21 @@ static struct pcpu_chunk *pcpu_alloc_chunk(void)
 	if (!chunk->bound_map)
 		goto bound_map_fail;
 
+	chunk->md_blocks = pcpu_mem_zalloc(pcpu_chunk_nr_blocks(chunk) *
+					   sizeof(chunk->md_blocks[0]));
+	if (!chunk->md_blocks)
+		goto md_blocks_fail;
+
+	pcpu_init_md_blocks(chunk);
+
 	/* init metadata */
 	chunk->contig_bits = region_bits;
 	chunk->free_bytes = chunk->nr_pages * PAGE_SIZE;
 
 	return chunk;
 
+md_blocks_fail:
+	pcpu_mem_free(chunk->bound_map);
 bound_map_fail:
 	pcpu_mem_free(chunk->alloc_map);
 alloc_map_fail:
@@ -1535,9 +1736,12 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	PCPU_SETUP_BUG_ON(ai->unit_size < size_sum);
 	PCPU_SETUP_BUG_ON(offset_in_page(ai->unit_size));
 	PCPU_SETUP_BUG_ON(ai->unit_size < PCPU_MIN_UNIT_SIZE);
+	PCPU_SETUP_BUG_ON(!IS_ALIGNED(ai->unit_size, PCPU_BITMAP_BLOCK_SIZE));
 	PCPU_SETUP_BUG_ON(ai->dyn_size < PERCPU_DYNAMIC_EARLY_SIZE);
 	PCPU_SETUP_BUG_ON(!ai->dyn_size);
 	PCPU_SETUP_BUG_ON(!IS_ALIGNED(ai->reserved_size, PCPU_MIN_ALLOC_SIZE));
+	PCPU_SETUP_BUG_ON(!(IS_ALIGNED(PCPU_BITMAP_BLOCK_SIZE, PAGE_SIZE) ||
+			    IS_ALIGNED(PAGE_SIZE, PCPU_BITMAP_BLOCK_SIZE)));
 	PCPU_SETUP_BUG_ON(pcpu_verify_alloc_info(ai) < 0);
 
 	/* process group information and build config tables accordingly */

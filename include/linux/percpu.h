@@ -26,6 +26,18 @@
 #define PCPU_MIN_ALLOC_SIZE		(1 << PCPU_MIN_ALLOC_SHIFT)
 
 /*
+ * This determines the size of each metadata block.  There are several subtle
+ * constraints around this constant.  The reserved region must be a multiple of
+ * PCPU_BITMAP_BLOCK_SIZE.  Additionally, PCPU_BITMAP_BLOCK_SIZE must be a
+ * multiple of PAGE_SIZE or PAGE_SIZE must be a multiple of
+ * PCPU_BITMAP_BLOCK_SIZE to align with the populated page map. The unit_size
+ * also has to be a multiple of PCPU_BITMAP_BLOCK_SIZE to ensure full blocks.
+ */
+#define PCPU_BITMAP_BLOCK_SIZE		PAGE_SIZE
+#define PCPU_BITMAP_BLOCK_BITS		(PCPU_BITMAP_BLOCK_SIZE >>	\
+					 PCPU_MIN_ALLOC_SHIFT)
+
+/*
  * Percpu allocator can serve percpu allocations before slab is
  * initialized which allows slab to depend on the percpu allocator.
  * The following two parameters decide how much resource to

@@ -4,6 +4,22 @@
 #include <linux/types.h>
 #include <linux/percpu.h>
 
+/*
+ * pcpu_block_md is the metadata block struct.
+ * Each chunk's bitmap is split into a number of full blocks.
+ * All units are in terms of bits.
+ */
+struct pcpu_block_md {
+	int                     contig_hint;    /* contig hint for block */
+	int                     contig_hint_start; /* block relative starting
+						      position of the contig hint */
+	int                     left_free;      /* size of free space along
+						   the left side of the block */
+	int                     right_free;     /* size of free space along
+						   the right side of the block */
+	int                     first_free;     /* block position of first free */
+};
+
 struct pcpu_chunk {
 #ifdef CONFIG_PERCPU_STATS
 	int			nr_alloc;	/* # of allocations */
@@ -17,6 +33,7 @@ struct pcpu_chunk {
 
 	unsigned long		*alloc_map;	/* allocation map */
 	unsigned long		*bound_map;	/* boundary map */
+	struct pcpu_block_md	*md_blocks;	/* metadata blocks */
 
 	void			*data;		/* chunk data */
 	int			first_free;	/* no free below this */
@@ -42,6 +59,18 @@ extern int pcpu_nr_empty_pop_pages;
 
 extern struct pcpu_chunk *pcpu_first_chunk;
 extern struct pcpu_chunk *pcpu_reserved_chunk;
+
+/**
+ * pcpu_chunk_nr_blocks - converts nr_pages to # of md_blocks
+ * @chunk: chunk of interest
+ *
+ * This conversion is from the number of physical pages that the chunk
+ * serves to the number of bitmap blocks used.
+ */
+static inline int pcpu_chunk_nr_blocks(struct pcpu_chunk *chunk)
+{
+	return chunk->nr_pages * PAGE_SIZE / PCPU_BITMAP_BLOCK_SIZE;
+}
 
 /**
  * pcpu_nr_pages_to_map_bits - converts the pages to size of bitmap
