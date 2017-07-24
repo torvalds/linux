@@ -34,5 +34,9 @@ static inline void bnxt_link_bp_to_dl(struct devlink *dl, struct bnxt *bp)
 int bnxt_dl_register(struct bnxt *bp);
 void bnxt_dl_unregister(struct bnxt *bp);
 void bnxt_vf_reps_destroy(struct bnxt *bp);
+void bnxt_vf_reps_close(struct bnxt *bp);
+void bnxt_vf_reps_open(struct bnxt *bp);
+void bnxt_vf_rep_rx(struct bnxt *bp, struct sk_buff *skb);
+struct net_device *bnxt_get_vf_rep(struct bnxt *bp, u16 cfa_code);
 
 #endif /* BNXT_VFR_H */

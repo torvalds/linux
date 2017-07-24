@@ -245,6 +245,16 @@ const u16 bnxt_lhint_arr[] = {
 	TX_BD_FLAGS_LHINT_2048_AND_LARGER,
 };
 
+static u16 bnxt_xmit_get_cfa_action(struct sk_buff *skb)
+{
+	struct metadata_dst *md_dst = skb_metadata_dst(skb);
+
+	if (!md_dst || md_dst->type != METADATA_HW_PORT_MUX)
+		return 0;
+
+	return md_dst->u.port_info.port_id;
+}
+
 static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct bnxt *bp = netdev_priv(dev);
@@ -289,7 +299,7 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	tx_buf->nr_frags = last_frag;
 
 	vlan_tag_flags = 0;
-	cfa_action = 0;
+	cfa_action = bnxt_xmit_get_cfa_action(skb);
 	if (skb_vlan_tag_present(skb)) {
 		vlan_tag_flags = TX_BD_CFA_META_KEY_VLAN |
 				 skb_vlan_tag_get(skb);
@@ -324,7 +334,8 @@ static netdev_tx_t bnxt_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			tx_push1->tx_bd_hsize_lflags = 0;
 
 		tx_push1->tx_bd_cfa_meta = cpu_to_le32(vlan_tag_flags);
-		tx_push1->tx_bd_cfa_action = cpu_to_le32(cfa_action);
+		tx_push1->tx_bd_cfa_action =
+			cpu_to_le32(cfa_action << TX_BD_CFA_ACTION_SHIFT);
 
 		end = pdata + length;
 		end = PTR_ALIGN(end, 8) - 1;
@@ -429,7 +440,8 @@ normal_tx:
 	txbd->tx_bd_len_flags_type = cpu_to_le32(flags);
 
 	txbd1->tx_bd_cfa_meta = cpu_to_le32(vlan_tag_flags);
-	txbd1->tx_bd_cfa_action = cpu_to_le32(cfa_action);
+	txbd1->tx_bd_cfa_action =
+			cpu_to_le32(cfa_action << TX_BD_CFA_ACTION_SHIFT);
 	for (i = 0; i < last_frag; i++) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
@@ -1034,7 +1046,10 @@ static void bnxt_tpa_start(struct bnxt *bp, struct bnxt_rx_ring_info *rxr,
 		bnxt_sched_reset(bp, rxr);
 		return;
 	}
-
+	/* Store cfa_code in tpa_info to use in tpa_end
+	 * completion processing.
+	 */
+	tpa_info->cfa_code = TPA_START_CFA_CODE(tpa_start1);
 	prod_rx_buf->data = tpa_info->data;
 	prod_rx_buf->data_ptr = tpa_info->data_ptr;
 
@@ -1269,6 +1284,17 @@ static inline struct sk_buff *bnxt_gro_skb(struct bnxt *bp,
 	return skb;
 }
 
+/* Given the cfa_code of a received packet determine which
+ * netdev (vf-rep or PF) the packet is destined to.
+ */
+static struct net_device *bnxt_get_pkt_dev(struct bnxt *bp, u16 cfa_code)
+{
+	struct net_device *dev = bnxt_get_vf_rep(bp, cfa_code);
+
+	/* if vf-rep dev is NULL, the must belongs to the PF */
+	return dev ? dev : bp->dev;
+}
+
 static inline struct sk_buff *bnxt_tpa_end(struct bnxt *bp,
 					   struct bnxt_napi *bnapi,
 					   u32 *raw_cons,
@@ -1362,7 +1388,9 @@ static inline struct sk_buff *bnxt_tpa_end(struct bnxt *bp,
 			return NULL;
 		}
 	}
-	skb->protocol = eth_type_trans(skb, bp->dev);
+
+	skb->protocol =
+		eth_type_trans(skb, bnxt_get_pkt_dev(bp, tpa_info->cfa_code));
 
 	if (tpa_info->hash_type != PKT_HASH_TYPE_NONE)
 		skb_set_hash(skb, tpa_info->rss_hash, tpa_info->hash_type);
@@ -1389,6 +1417,18 @@ static inline struct sk_buff *bnxt_tpa_end(struct bnxt *bp,
 	return skb;
 }
 
+static void bnxt_deliver_skb(struct bnxt *bp, struct bnxt_napi *bnapi,
+			     struct sk_buff *skb)
+{
+	if (skb->dev != bp->dev) {
+		/* this packet belongs to a vf-rep */
+		bnxt_vf_rep_rx(bp, skb);
+		return;
+	}
+	skb_record_rx_queue(skb, bnapi->index);
+	napi_gro_receive(&bnapi->napi, skb);
+}
+
 /* returns the following:
  * 1       - 1 packet successfully received
  * 0       - successful TPA_START, packet not completed yet
@@ -1405,7 +1445,7 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_napi *bnapi, u32 *raw_cons,
 	struct rx_cmp *rxcmp;
 	struct rx_cmp_ext *rxcmp1;
 	u32 tmp_raw_cons = *raw_cons;
-	u16 cons, prod, cp_cons = RING_CMP(tmp_raw_cons);
+	u16 cfa_code, cons, prod, cp_cons = RING_CMP(tmp_raw_cons);
 	struct bnxt_sw_rx_bd *rx_buf;
 	unsigned int len;
 	u8 *data_ptr, agg_bufs, cmp_type;
@@ -1447,8 +1487,7 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_napi *bnapi, u32 *raw_cons,
 
 		rc = -ENOMEM;
 		if (likely(skb)) {
-			skb_record_rx_queue(skb, bnapi->index);
-			napi_gro_receive(&bnapi->napi, skb);
+			bnxt_deliver_skb(bp, bnapi, skb);
 			rc = 1;
 		}
 		*event |= BNXT_RX_EVENT;
@@ -1537,7 +1576,8 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_napi *bnapi, u32 *raw_cons,
 		skb_set_hash(skb, le32_to_cpu(rxcmp->rx_cmp_rss_hash), type);
 	}
 
-	skb->protocol = eth_type_trans(skb, dev);
+	cfa_code = RX_CMP_CFA_CODE(rxcmp1);
+	skb->protocol = eth_type_trans(skb, bnxt_get_pkt_dev(bp, cfa_code));
 
 	if ((rxcmp1->rx_cmp_flags2 &
 	     cpu_to_le32(RX_CMP_FLAGS2_META_FORMAT_VLAN)) &&
@@ -1562,8 +1602,7 @@ static int bnxt_rx_pkt(struct bnxt *bp, struct bnxt_napi *bnapi, u32 *raw_cons,
 		}
 	}
 
-	skb_record_rx_queue(skb, bnapi->index);
-	napi_gro_receive(&bnapi->napi, skb);
+	bnxt_deliver_skb(bp, bnapi, skb);
 	rc = 1;
 
 next_rx:
@@ -6246,6 +6285,9 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 	/* Poll link status and check for SFP+ module status */
 	bnxt_get_port_module_status(bp);
 
+	/* VF-reps may need to be re-opened after the PF is re-opened */
+	if (BNXT_PF(bp))
+		bnxt_vf_reps_open(bp);
 	return 0;
 
 open_err:
@@ -6334,6 +6376,10 @@ int bnxt_close_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 		if (rc)
 			netdev_warn(bp->dev, "timeout waiting for SRIOV config operation to complete!\n");
 	}
+
+	/* Close the VF-reps before closing PF */
+	if (BNXT_PF(bp))
+		bnxt_vf_reps_close(bp);
 #endif
 	/* Change device state to avoid TX queue wake up's */
 	bnxt_tx_disable(bp);

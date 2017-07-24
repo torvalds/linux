@@ -17,6 +17,178 @@
 #include "bnxt_vfr.h"
 
 #define CFA_HANDLE_INVALID		0xffff
+#define VF_IDX_INVALID			0xffff
+
+static int hwrm_cfa_vfr_alloc(struct bnxt *bp, u16 vf_idx,
+			      u16 *tx_cfa_action, u16 *rx_cfa_code)
+{
+	struct hwrm_cfa_vfr_alloc_output *resp = bp->hwrm_cmd_resp_addr;
+	struct hwrm_cfa_vfr_alloc_input req = { 0 };
+	int rc;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_CFA_VFR_ALLOC, -1, -1);
+	req.vf_id = cpu_to_le16(vf_idx);
+	sprintf(req.vfr_name, "vfr%d", vf_idx);
+
+	mutex_lock(&bp->hwrm_cmd_lock);
+	rc = _hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (!rc) {
+		*tx_cfa_action = le16_to_cpu(resp->tx_cfa_action);
+		*rx_cfa_code = le16_to_cpu(resp->rx_cfa_code);
+		netdev_dbg(bp->dev, "tx_cfa_action=0x%x, rx_cfa_code=0x%x",
+			   *tx_cfa_action, *rx_cfa_code);
+	} else {
+		netdev_info(bp->dev, "%s error rc=%d", __func__, rc);
+	}
+
+	mutex_unlock(&bp->hwrm_cmd_lock);
+	return rc;
+}
+
+static int hwrm_cfa_vfr_free(struct bnxt *bp, u16 vf_idx)
+{
+	struct hwrm_cfa_vfr_free_input req = { 0 };
+	int rc;
+
+	bnxt_hwrm_cmd_hdr_init(bp, &req, HWRM_CFA_VFR_FREE, -1, -1);
+	sprintf(req.vfr_name, "vfr%d", vf_idx);
+
+	rc = hwrm_send_message(bp, &req, sizeof(req), HWRM_CMD_TIMEOUT);
+	if (rc)
+		netdev_info(bp->dev, "%s error rc=%d", __func__, rc);
+	return rc;
+}
+
+static int bnxt_vf_rep_open(struct net_device *dev)
+{
+	struct bnxt_vf_rep *vf_rep = netdev_priv(dev);
+	struct bnxt *bp = vf_rep->bp;
+
+	/* Enable link and TX only if the parent PF is open. */
+	if (netif_running(bp->dev)) {
+		netif_carrier_on(dev);
+		netif_tx_start_all_queues(dev);
+	}
+	return 0;
+}
+
+static int bnxt_vf_rep_close(struct net_device *dev)
+{
+	netif_carrier_off(dev);
+	netif_tx_disable(dev);
+
+	return 0;
+}
+
+static netdev_tx_t bnxt_vf_rep_xmit(struct sk_buff *skb,
+				    struct net_device *dev)
+{
+	struct bnxt_vf_rep *vf_rep = netdev_priv(dev);
+	int rc, len = skb->len;
+
+	skb_dst_drop(skb);
+	dst_hold((struct dst_entry *)vf_rep->dst);
+	skb_dst_set(skb, (struct dst_entry *)vf_rep->dst);
+	skb->dev = vf_rep->dst->u.port_info.lower_dev;
+
+	rc = dev_queue_xmit(skb);
+	if (!rc) {
+		vf_rep->tx_stats.packets++;
+		vf_rep->tx_stats.bytes += len;
+	}
+	return rc;
+}
+
+static void
+bnxt_vf_rep_get_stats64(struct net_device *dev,
+			struct rtnl_link_stats64 *stats)
+{
+	struct bnxt_vf_rep *vf_rep = netdev_priv(dev);
+
+	stats->rx_packets = vf_rep->rx_stats.packets;
+	stats->rx_bytes = vf_rep->rx_stats.bytes;
+	stats->tx_packets = vf_rep->tx_stats.packets;
+	stats->tx_bytes = vf_rep->tx_stats.bytes;
+}
+
+struct net_device *bnxt_get_vf_rep(struct bnxt *bp, u16 cfa_code)
+{
+	u16 vf_idx;
+
+	if (cfa_code && bp->cfa_code_map && BNXT_PF(bp)) {
+		vf_idx = bp->cfa_code_map[cfa_code];
+		if (vf_idx != VF_IDX_INVALID)
+			return bp->vf_reps[vf_idx]->dev;
+	}
+	return NULL;
+}
+
+void bnxt_vf_rep_rx(struct bnxt *bp, struct sk_buff *skb)
+{
+	struct bnxt_vf_rep *vf_rep = netdev_priv(skb->dev);
+	struct bnxt_vf_rep_stats *rx_stats;
+
+	rx_stats = &vf_rep->rx_stats;
+	vf_rep->rx_stats.bytes += skb->len;
+	vf_rep->rx_stats.packets++;
+
+	netif_receive_skb(skb);
+}
+
+static void bnxt_vf_rep_get_drvinfo(struct net_device *dev,
+				    struct ethtool_drvinfo *info)
+{
+	strlcpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
+}
+
+static const struct ethtool_ops bnxt_vf_rep_ethtool_ops = {
+	.get_drvinfo		= bnxt_vf_rep_get_drvinfo
+};
+
+static const struct net_device_ops bnxt_vf_rep_netdev_ops = {
+	.ndo_open		= bnxt_vf_rep_open,
+	.ndo_stop		= bnxt_vf_rep_close,
+	.ndo_start_xmit		= bnxt_vf_rep_xmit,
+	.ndo_get_stats64	= bnxt_vf_rep_get_stats64
+};
+
+/* Called when the parent PF interface is closed:
+ * As the mode transition from SWITCHDEV to LEGACY
+ * happens under the rtnl_lock() this routine is safe
+ * under the rtnl_lock()
+ */
+void bnxt_vf_reps_close(struct bnxt *bp)
+{
+	struct bnxt_vf_rep *vf_rep;
+	u16 num_vfs, i;
+
+	if (bp->eswitch_mode != DEVLINK_ESWITCH_MODE_SWITCHDEV)
+		return;
+
+	num_vfs = pci_num_vf(bp->pdev);
+	for (i = 0; i < num_vfs; i++) {
+		vf_rep = bp->vf_reps[i];
+		if (netif_running(vf_rep->dev))
+			bnxt_vf_rep_close(vf_rep->dev);
+	}
+}
+
+/* Called when the parent PF interface is opened (re-opened):
+ * As the mode transition from SWITCHDEV to LEGACY
+ * happen under the rtnl_lock() this routine is safe
+ * under the rtnl_lock()
+ */
+void bnxt_vf_reps_open(struct bnxt *bp)
+{
+	int i;
+
+	if (bp->eswitch_mode != DEVLINK_ESWITCH_MODE_SWITCHDEV)
+		return;
+
+	for (i = 0; i < pci_num_vf(bp->pdev); i++)
+		bnxt_vf_rep_open(bp->vf_reps[i]->dev);
+}
 
 static void __bnxt_vf_reps_destroy(struct bnxt *bp)
 {
@@ -27,6 +199,11 @@ static void __bnxt_vf_reps_destroy(struct bnxt *bp)
 	for (i = 0; i < num_vfs; i++) {
 		vf_rep = bp->vf_reps[i];
 		if (vf_rep) {
+			dst_release((struct dst_entry *)vf_rep->dst);
+
+			if (vf_rep->tx_cfa_action != CFA_HANDLE_INVALID)
+				hwrm_cfa_vfr_free(bp, vf_rep->vf_idx);
+
 			if (vf_rep->dev) {
 				/* if register_netdev failed, then netdev_ops
 				 * would have been set to NULL
@@ -60,6 +237,9 @@ void bnxt_vf_reps_destroy(struct bnxt *bp)
 		bnxt_close_nic(bp, false, false);
 		closed = true;
 	}
+	/* un-publish cfa_code_map so that RX path can't see it anymore */
+	kfree(bp->cfa_code_map);
+	bp->cfa_code_map = NULL;
 	bp->eswitch_mode = DEVLINK_ESWITCH_MODE_LEGACY;
 
 	if (closed)
@@ -92,6 +272,8 @@ static void bnxt_vf_rep_netdev_init(struct bnxt *bp, struct bnxt_vf_rep *vf_rep,
 {
 	struct net_device *pf_dev = bp->dev;
 
+	dev->netdev_ops = &bnxt_vf_rep_netdev_ops;
+	dev->ethtool_ops = &bnxt_vf_rep_ethtool_ops;
 	/* Just inherit all the featues of the parent PF as the VF-R
 	 * uses the RX/TX rings of the parent PF
 	 */
@@ -107,7 +289,7 @@ static void bnxt_vf_rep_netdev_init(struct bnxt *bp, struct bnxt_vf_rep *vf_rep,
 
 static int bnxt_vf_reps_create(struct bnxt *bp)
 {
-	u16 num_vfs = pci_num_vf(bp->pdev);
+	u16 *cfa_code_map = NULL, num_vfs = pci_num_vf(bp->pdev);
 	struct bnxt_vf_rep *vf_rep;
 	struct net_device *dev;
 	int rc, i;
@@ -115,6 +297,16 @@ static int bnxt_vf_reps_create(struct bnxt *bp)
 	bp->vf_reps = kcalloc(num_vfs, sizeof(vf_rep), GFP_KERNEL);
 	if (!bp->vf_reps)
 		return -ENOMEM;
+
+	/* storage for cfa_code to vf-idx mapping */
+	cfa_code_map = kmalloc(sizeof(*bp->cfa_code_map) * MAX_CFA_CODE,
+			       GFP_KERNEL);
+	if (!cfa_code_map) {
+		rc = -ENOMEM;
+		goto err;
+	}
+	for (i = 0; i < MAX_CFA_CODE; i++)
+		cfa_code_map[i] = VF_IDX_INVALID;
 
 	for (i = 0; i < num_vfs; i++) {
 		dev = alloc_etherdev(sizeof(*vf_rep));
@@ -130,6 +322,26 @@ static int bnxt_vf_reps_create(struct bnxt *bp)
 		vf_rep->vf_idx = i;
 		vf_rep->tx_cfa_action = CFA_HANDLE_INVALID;
 
+		/* get cfa handles from FW */
+		rc = hwrm_cfa_vfr_alloc(bp, vf_rep->vf_idx,
+					&vf_rep->tx_cfa_action,
+					&vf_rep->rx_cfa_code);
+		if (rc) {
+			rc = -ENOLINK;
+			goto err;
+		}
+		cfa_code_map[vf_rep->rx_cfa_code] = vf_rep->vf_idx;
+
+		vf_rep->dst = metadata_dst_alloc(0, METADATA_HW_PORT_MUX,
+						 GFP_KERNEL);
+		if (!vf_rep->dst) {
+			rc = -ENOMEM;
+			goto err;
+		}
+		/* only cfa_action is needed to mux a packet while TXing */
+		vf_rep->dst->u.port_info.port_id = vf_rep->tx_cfa_action;
+		vf_rep->dst->u.port_info.lower_dev = bp->dev;
+
 		bnxt_vf_rep_netdev_init(bp, vf_rep, dev);
 		rc = register_netdev(dev);
 		if (rc) {
@@ -139,11 +351,15 @@ static int bnxt_vf_reps_create(struct bnxt *bp)
 		}
 	}
 
+	/* publish cfa_code_map only after all VF-reps have been initialized */
+	bp->cfa_code_map = cfa_code_map;
 	bp->eswitch_mode = DEVLINK_ESWITCH_MODE_SWITCHDEV;
+	netif_keep_dst(bp->dev);
 	return 0;
 
 err:
 	netdev_info(bp->dev, "%s error=%d", __func__, rc);
+	kfree(cfa_code_map);
 	__bnxt_vf_reps_destroy(bp);
 	return rc;
 }

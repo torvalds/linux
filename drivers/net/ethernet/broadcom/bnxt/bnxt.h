@@ -20,6 +20,7 @@
 
 #include <linux/interrupt.h>
 #include <net/devlink.h>
+#include <net/dst_metadata.h>
 
 struct tx_bd {
 	__le32 tx_bd_len_flags_type;
@@ -243,6 +244,10 @@ struct rx_cmp_ext {
 	    ((le32_to_cpu((rxcmp1)->rx_cmp_flags2) &			\
 	     RX_CMP_FLAGS2_T_L4_CS_CALC) >> 3)
 
+#define RX_CMP_CFA_CODE(rxcmpl1)					\
+	((le32_to_cpu((rxcmpl1)->rx_cmp_cfa_code_errors_v2) &		\
+	  RX_CMPL_CFA_CODE_MASK) >> RX_CMPL_CFA_CODE_SFT)
+
 struct rx_agg_cmp {
 	__le32 rx_agg_cmp_len_flags_type;
 	#define RX_AGG_CMP_TYPE					(0x3f << 0)
@@ -311,6 +316,10 @@ struct rx_tpa_start_cmp_ext {
 	 #define RX_TPA_START_CMPL_CFA_CODE_SHIFT		 16
 	__le32 rx_tpa_start_cmp_hdr_info;
 };
+
+#define TPA_START_CFA_CODE(rx_tpa_start)				\
+	((le32_to_cpu((rx_tpa_start)->rx_tpa_start_cmp_cfa_code_v2) &	\
+	 RX_TPA_START_CMP_CFA_CODE) >> RX_TPA_START_CMPL_CFA_CODE_SHIFT)
 
 struct rx_tpa_end_cmp {
 	__le32 rx_tpa_end_cmp_len_flags_type;
@@ -940,6 +949,7 @@ struct bnxt_vf_rep_stats {
 struct bnxt_vf_rep {
 	struct bnxt			*bp;
 	struct net_device		*dev;
+	struct metadata_dst		*dst;
 	u16				vf_idx;
 	u16				tx_cfa_action;
 	u16				rx_cfa_code;
