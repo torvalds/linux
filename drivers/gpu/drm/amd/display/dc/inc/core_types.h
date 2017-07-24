@@ -94,6 +94,9 @@ struct core_sink {
 	/* not used for now */
 	struct dc_link *link;
 	struct dc_context *ctx;
+
+	/* private to dc_sink.c */
+	int ref_count;
 };
 
 /************ link *****************/
