@@ -46,6 +46,9 @@ struct core_stream;
 struct core_gamma {
 	struct dc_gamma public;
 	struct dc_context *ctx;
+
+	/* private to dc_surface.c */
+	int ref_count;
 };
 
 void enable_surface_flip_reporting(struct dc_surface *dc_surface,

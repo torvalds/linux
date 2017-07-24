@@ -32,19 +32,6 @@
 #include "transform.h"
 
 /*******************************************************************************
- * Private structures
- ******************************************************************************/
-struct gamma {
-	struct core_gamma protected;
-	int ref_count;
-};
-
-#define DC_GAMMA_TO_GAMMA(dc_gamma) \
-	container_of(dc_gamma, struct gamma, protected.public)
-#define CORE_GAMMA_TO_GAMMA(core_gamma) \
-	container_of(core_gamma, struct gamma, protected)
-
-/*******************************************************************************
  * Private functions
  ******************************************************************************/
 static bool construct(struct dc_context *ctx, struct dc_surface *surface)
@@ -152,7 +139,7 @@ void dc_surface_release(struct dc_surface *surface)
 
 void dc_gamma_retain(const struct dc_gamma *dc_gamma)
 {
-	struct gamma *gamma = DC_GAMMA_TO_GAMMA(dc_gamma);
+	struct core_gamma *gamma = DC_GAMMA_TO_CORE(dc_gamma);
 
 	ASSERT(gamma->ref_count > 0);
 	++gamma->ref_count;
@@ -160,7 +147,7 @@ void dc_gamma_retain(const struct dc_gamma *dc_gamma)
 
 void dc_gamma_release(const struct dc_gamma **dc_gamma)
 {
-	struct gamma *gamma = DC_GAMMA_TO_GAMMA(*dc_gamma);
+	struct core_gamma *gamma = DC_GAMMA_TO_CORE(*dc_gamma);
 
 	ASSERT(gamma->ref_count > 0);
 	--gamma->ref_count;
@@ -173,14 +160,14 @@ void dc_gamma_release(const struct dc_gamma **dc_gamma)
 
 struct dc_gamma *dc_create_gamma()
 {
-	struct gamma *gamma = dm_alloc(sizeof(*gamma));
+	struct core_gamma *gamma = dm_alloc(sizeof(*gamma));
 
 	if (gamma == NULL)
 		goto alloc_fail;
 
 	++gamma->ref_count;
 
-	return &gamma->protected.public;
+	return &gamma->public;
 
 alloc_fail:
 	return NULL;
