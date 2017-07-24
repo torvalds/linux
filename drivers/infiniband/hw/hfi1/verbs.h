@@ -143,6 +143,7 @@ struct hfi1_pkt_state {
 	unsigned long timeout_int;
 	int cpu;
 	bool in_thread;
+	bool pkts_sent;
 };
 
 #define HFI1_PSN_CREDIT  16

@@ -272,7 +272,8 @@ static int defer_packet_queue(
 	struct sdma_engine *sde,
 	struct iowait *wait,
 	struct sdma_txreq *txreq,
-	unsigned int seq);
+	uint seq,
+	bool pkts_sent);
 static void activate_packet_queue(struct iowait *wait, int reason);
 static bool sdma_rb_filter(struct mmu_rb_node *node, unsigned long addr,
 			   unsigned long len);
@@ -294,7 +295,8 @@ static int defer_packet_queue(
 	struct sdma_engine *sde,
 	struct iowait *wait,
 	struct sdma_txreq *txreq,
-	unsigned seq)
+	uint seq,
+	bool pkts_sent)
 {
 	struct hfi1_user_sdma_pkt_q *pq =
 		container_of(wait, struct hfi1_user_sdma_pkt_q, busy);
@@ -314,7 +316,7 @@ static int defer_packet_queue(
 	xchg(&pq->state, SDMA_PKT_Q_DEFERRED);
 	write_seqlock(&dev->iowait_lock);
 	if (list_empty(&pq->busy.list))
-		list_add_tail(&pq->busy.list, &sde->dmawait);
+		iowait_queue(pkts_sent, &pq->busy, &sde->dmawait);
 	write_sequnlock(&dev->iowait_lock);
 	return -EBUSY;
 eagain:

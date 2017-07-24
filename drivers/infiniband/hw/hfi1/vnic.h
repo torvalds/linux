@@ -103,6 +103,7 @@ struct hfi1_vnic_sdma {
 	struct sdma_txreq stx;
 	unsigned int state;
 	u8 q_idx;
+	bool pkts_sent;
 };
 
 /**

@@ -864,7 +864,8 @@ int hfi1_verbs_send_dma(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 		if (unlikely(ret))
 			goto bail_build;
 	}
-	ret =  sdma_send_txreq(tx->sde, &priv->s_iowait, &tx->txreq);
+	ret =  sdma_send_txreq(tx->sde, &priv->s_iowait, &tx->txreq,
+			       ps->pkts_sent);
 	if (unlikely(ret < 0)) {
 		if (ret == -ECOMM)
 			goto bail_ecomm;
@@ -921,7 +922,8 @@ static int pio_wait(struct rvt_qp *qp,
 			dev->n_piodrain += !!(flag & RVT_S_WAIT_PIO_DRAIN);
 			qp->s_flags |= flag;
 			was_empty = list_empty(&sc->piowait);
-			list_add_tail(&priv->s_iowait.list, &sc->piowait);
+			iowait_queue(ps->pkts_sent, &priv->s_iowait,
+				     &sc->piowait);
 			priv->s_iowait.lock = &dev->iowait_lock;
 			trace_hfi1_qpsleep(qp, RVT_S_WAIT_PIO);
 			rvt_get_qp(qp);

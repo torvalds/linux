@@ -811,6 +811,8 @@ void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 static bool schedule_send_yield(struct rvt_qp *qp,
 				struct hfi1_pkt_state *ps)
 {
+	ps->pkts_sent = true;
+
 	if (unlikely(time_after(jiffies, ps->timeout))) {
 		if (!ps->in_thread ||
 		    workqueue_congested(ps->cpu, ps->ppd->hfi1_wq)) {
@@ -907,6 +909,7 @@ void hfi1_do_send(struct rvt_qp *qp, bool in_thread)
 	ps.timeout = jiffies + ps.timeout_int;
 	ps.cpu = priv->s_sde ? priv->s_sde->cpu :
 			cpumask_first(cpumask_of_node(ps.ppd->dd->node));
+	ps.pkts_sent = false;
 
 	/* insure a pre-built packet is handled  */
 	ps.s_txreq = get_waiting_verbs_txreq(qp);
@@ -929,7 +932,7 @@ void hfi1_do_send(struct rvt_qp *qp, bool in_thread)
 			spin_lock_irqsave(&qp->s_lock, ps.flags);
 		}
 	} while (make_req(qp, &ps));
-
+	iowait_starve_clear(ps.pkts_sent, &priv->s_iowait);
 	spin_unlock_irqrestore(&qp->s_lock, ps.flags);
 }
 
