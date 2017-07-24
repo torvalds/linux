@@ -273,9 +273,6 @@ static int iphc_decompress(struct sk_buff *skb, struct net_device *netdev,
 			   struct lowpan_peer *peer)
 {
 	const u8 *saddr;
-	struct lowpan_btle_dev *dev;
-
-	dev = lowpan_btle_dev(netdev);
 
 	saddr = peer->lladdr;
 
