@@ -166,6 +166,7 @@ static int rk_ahash_digest(struct ahash_request *req)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
 	struct rk_ahash_ctx *tctx = crypto_tfm_ctx(req->base.tfm);
+	struct crypto_async_request *async_req, *backlog;
 	struct rk_crypto_info *dev = NULL;
 	unsigned long flags;
 	int ret;
@@ -202,7 +203,20 @@ static int rk_ahash_digest(struct ahash_request *req)
 
 	spin_lock_irqsave(&dev->lock, flags);
 	ret = crypto_enqueue_request(&dev->queue, &req->base);
+	backlog   = crypto_get_backlog(&dev->queue);
+	async_req = crypto_dequeue_request(&dev->queue);
 	spin_unlock_irqrestore(&dev->lock, flags);
+
+	if (!async_req) {
+		dev_err(dev->dev, "async_req is NULL !!\n");
+		return ret;
+	}
+	if (backlog) {
+		backlog->complete(backlog, -EINPROGRESS);
+		backlog = NULL;
+	}
+
+	dev->ahash_req = ahash_request_cast(async_req);
 
 	tasklet_schedule(&dev->queue_task);
 

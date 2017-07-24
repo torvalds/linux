@@ -25,6 +25,7 @@ static int rk_handle_req(struct rk_crypto_info *dev,
 			 struct ablkcipher_request *req)
 {
 	unsigned long flags;
+	struct crypto_async_request *async_req, *backlog;
 	int err;
 
 	if (!IS_ALIGNED(req->nbytes, dev->align_size))
@@ -41,7 +42,21 @@ static int rk_handle_req(struct rk_crypto_info *dev,
 
 	spin_lock_irqsave(&dev->lock, flags);
 	err = ablkcipher_enqueue_request(&dev->queue, req);
+	backlog   = crypto_get_backlog(&dev->queue);
+	async_req = crypto_dequeue_request(&dev->queue);
 	spin_unlock_irqrestore(&dev->lock, flags);
+
+	if (!async_req) {
+		dev_err(dev->dev, "async_req is NULL !!\n");
+		return err;
+	}
+	if (backlog) {
+		backlog->complete(backlog, -EINPROGRESS);
+		backlog = NULL;
+	}
+
+	dev->ablk_req = ablkcipher_request_cast(async_req);
+
 	tasklet_schedule(&dev->queue_task);
 	return err;
 }
