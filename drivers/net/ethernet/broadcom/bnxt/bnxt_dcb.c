@@ -549,12 +549,17 @@ static u8 bnxt_dcbnl_setdcbx(struct net_device *dev, u8 mode)
 {
 	struct bnxt *bp = netdev_priv(dev);
 
-	/* only support IEEE */
-	if ((mode & DCB_CAP_DCBX_VER_CEE) || !(mode & DCB_CAP_DCBX_VER_IEEE))
+	/* All firmware DCBX settings are set in NVRAM */
+	if (bp->dcbx_cap & DCB_CAP_DCBX_LLD_MANAGED)
 		return 1;
 
 	if (mode & DCB_CAP_DCBX_HOST) {
 		if (BNXT_VF(bp) || (bp->flags & BNXT_FLAG_FW_LLDP_AGENT))
+			return 1;
+
+		/* only support IEEE */
+		if ((mode & DCB_CAP_DCBX_VER_CEE) ||
+		    !(mode & DCB_CAP_DCBX_VER_IEEE))
 			return 1;
 	}
 
@@ -584,7 +589,7 @@ void bnxt_dcb_init(struct bnxt *bp)
 	bp->dcbx_cap = DCB_CAP_DCBX_VER_IEEE;
 	if (BNXT_PF(bp) && !(bp->flags & BNXT_FLAG_FW_LLDP_AGENT))
 		bp->dcbx_cap |= DCB_CAP_DCBX_HOST;
-	else
+	else if (bp->flags & BNXT_FLAG_FW_DCBX_AGENT)
 		bp->dcbx_cap |= DCB_CAP_DCBX_LLD_MANAGED;
 	bp->dev->dcbnl_ops = &dcbnl_ops;
 }
