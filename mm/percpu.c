@@ -182,52 +182,23 @@ static void pcpu_schedule_balance_work(void)
 }
 
 /**
- * pcpu_addr_in_first_chunk - address check for first chunk's dynamic region
- * @addr: percpu address of interest
- *
- * The first chunk is considered to be the dynamic region of the first chunk.
- * While the true first chunk is composed of the static, dynamic, and
- * reserved regions, it is the chunk that serves the dynamic region that is
- * circulated in the chunk slots.
- *
- * The reserved chunk has a separate check and the static region addresses
- * should never be passed into the percpu allocator.
+ * pcpu_addr_in_chunk - check if the address is served from this chunk
+ * @chunk: chunk of interest
+ * @addr: percpu address
  *
  * RETURNS:
- * True if the address is in the dynamic region of the first chunk.
+ * True if the address is served from this chunk.
  */
-static bool pcpu_addr_in_first_chunk(void *addr)
-{
-	void *start_addr = pcpu_first_chunk->base_addr +
-			   pcpu_first_chunk->start_offset;
-	void *end_addr = pcpu_first_chunk->base_addr +
-			 pcpu_first_chunk->nr_pages * PAGE_SIZE -
-			 pcpu_first_chunk->end_offset;
-
-	return addr >= start_addr && addr < end_addr;
-}
-
-/**
- * pcpu_addr_in_reserved_chunk - address check for reserved region
- *
- * The reserved region is a part of the first chunk and primarily serves
- * static percpu variables from kernel modules.
- *
- * RETURNS:
- * True if the address is in the reserved region.
- */
-static bool pcpu_addr_in_reserved_chunk(void *addr)
+static bool pcpu_addr_in_chunk(struct pcpu_chunk *chunk, void *addr)
 {
 	void *start_addr, *end_addr;
 
-	if (!pcpu_reserved_chunk)
+	if (!chunk)
 		return false;
 
-	start_addr = pcpu_reserved_chunk->base_addr +
-		     pcpu_reserved_chunk->start_offset;
-	end_addr = pcpu_reserved_chunk->base_addr +
-		   pcpu_reserved_chunk->nr_pages * PAGE_SIZE -
-		   pcpu_reserved_chunk->end_offset;
+	start_addr = chunk->base_addr + chunk->start_offset;
+	end_addr = chunk->base_addr + chunk->nr_pages * PAGE_SIZE -
+		   chunk->end_offset;
 
 	return addr >= start_addr && addr < end_addr;
 }
@@ -929,11 +900,11 @@ static int __init pcpu_verify_alloc_info(const struct pcpu_alloc_info *ai);
 static struct pcpu_chunk *pcpu_chunk_addr_search(void *addr)
 {
 	/* is it in the dynamic region (first chunk)? */
-	if (pcpu_addr_in_first_chunk(addr))
+	if (pcpu_addr_in_chunk(pcpu_first_chunk, addr))
 		return pcpu_first_chunk;
 
 	/* is it in the reserved region? */
-	if (pcpu_addr_in_reserved_chunk(addr))
+	if (pcpu_addr_in_chunk(pcpu_reserved_chunk, addr))
 		return pcpu_reserved_chunk;
 
 	/*
