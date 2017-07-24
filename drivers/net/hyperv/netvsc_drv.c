@@ -339,7 +339,7 @@ static u32 net_checksum_info(struct sk_buff *skb)
 
 		if (ip6->nexthdr == IPPROTO_TCP)
 			return TRANSPORT_INFO_IPV6_TCP;
-		else if (ipv6_hdr(skb)->nexthdr == IPPROTO_UDP)
+		else if (ip6->nexthdr == IPPROTO_UDP)
 			return TRANSPORT_INFO_IPV6_UDP;
 	}
 
