@@ -106,7 +106,7 @@ static int allocate_vnic_ctxt(struct hfi1_devdata *dd,
 			      struct hfi1_ctxtdata **vnic_ctxt)
 {
 	struct hfi1_ctxtdata *uctxt;
-	unsigned int ctxt;
+	u16 ctxt;
 	int ret;
 
 	if (dd->flags & HFI1_FROZEN)

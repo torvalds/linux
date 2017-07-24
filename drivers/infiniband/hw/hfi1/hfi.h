@@ -217,7 +217,7 @@ struct hfi1_ctxtdata {
 	struct kref kref;
 
 	/* Device context index */
-	unsigned ctxt;
+	u16 ctxt;
 	/*
 	 * non-zero if ctxt can be shared, and defines the maximum number of
 	 * sub-contexts for this device context.
@@ -1264,7 +1264,7 @@ void handle_user_interrupt(struct hfi1_ctxtdata *rcd);
 int hfi1_create_rcvhdrq(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd);
 int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd);
 int hfi1_create_ctxts(struct hfi1_devdata *dd);
-struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u32 ctxt,
+struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u16 ctxt,
 					   int numa);
 void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
 			 struct hfi1_devdata *dd, u8 hw_pidx, u8 port);

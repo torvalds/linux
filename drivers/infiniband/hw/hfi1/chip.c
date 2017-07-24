@@ -6802,7 +6802,7 @@ static void rxe_freeze(struct hfi1_devdata *dd)
 static void rxe_kernel_unfreeze(struct hfi1_devdata *dd)
 {
 	u32 rcvmask;
-	int i;
+	u16 i;
 
 	/* enable all kernel contexts */
 	for (i = 0; i < dd->num_rcv_contexts; i++) {
@@ -11722,7 +11722,7 @@ static u32 encoded_size(u32 size)
 	return 0x1;	/* if invalid, go with the minimum size */
 }
 
-void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, int ctxt)
+void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, u16 ctxt)
 {
 	struct hfi1_ctxtdata *rcd;
 	u64 rcvctrl, reg;
@@ -14542,7 +14542,7 @@ static void init_txe(struct hfi1_devdata *dd)
 		write_csr(dd, SEND_CM_TIMER_CTRL, HFI1_CREDIT_RETURN_RATE);
 }
 
-int hfi1_set_ctxt_jkey(struct hfi1_devdata *dd, unsigned ctxt, u16 jkey)
+int hfi1_set_ctxt_jkey(struct hfi1_devdata *dd, u16 ctxt, u16 jkey)
 {
 	struct hfi1_ctxtdata *rcd = dd->rcd[ctxt];
 	unsigned sctxt;
@@ -14579,7 +14579,7 @@ done:
 	return ret;
 }
 
-int hfi1_clear_ctxt_jkey(struct hfi1_devdata *dd, unsigned ctxt)
+int hfi1_clear_ctxt_jkey(struct hfi1_devdata *dd, u16 ctxt)
 {
 	struct hfi1_ctxtdata *rcd = dd->rcd[ctxt];
 	unsigned sctxt;
@@ -14608,7 +14608,7 @@ done:
 	return ret;
 }
 
-int hfi1_set_ctxt_pkey(struct hfi1_devdata *dd, unsigned ctxt, u16 pkey)
+int hfi1_set_ctxt_pkey(struct hfi1_devdata *dd, u16 ctxt, u16 pkey)
 {
 	struct hfi1_ctxtdata *rcd;
 	unsigned sctxt;

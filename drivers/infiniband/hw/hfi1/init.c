@@ -131,7 +131,7 @@ unsigned long *hfi1_cpulist;
  */
 int hfi1_create_ctxts(struct hfi1_devdata *dd)
 {
-	unsigned i;
+	u16 i;
 	int ret;
 
 	/* Control context has to be always 0 */
@@ -233,7 +233,7 @@ void hfi1_rcd_get(struct hfi1_ctxtdata *rcd)
 /*
  * Common code for user and kernel context setup.
  */
-struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u32 ctxt,
+struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u16 ctxt,
 					   int numa)
 {
 	struct hfi1_devdata *dd = ppd->dd;
@@ -615,7 +615,7 @@ static int init_after_reset(struct hfi1_devdata *dd)
 static void enable_chip(struct hfi1_devdata *dd)
 {
 	u32 rcvmask;
-	u32 i;
+	u16 i;
 
 	/* enable PIO send */
 	pio_send_control(dd, PSC_GLOBAL_ENABLE);
@@ -692,7 +692,8 @@ wq_error:
 int hfi1_init(struct hfi1_devdata *dd, int reinit)
 {
 	int ret = 0, pidx, lastfail = 0;
-	unsigned i, len;
+	unsigned long len;
+	u16 i;
 	struct hfi1_ctxtdata *rcd;
 	struct hfi1_pportdata *ppd;
 

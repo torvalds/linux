@@ -1352,14 +1352,14 @@ void hfi1_init_ctxt(struct send_context *sc);
 void hfi1_put_tid(struct hfi1_devdata *dd, u32 index,
 		  u32 type, unsigned long pa, u16 order);
 void hfi1_quiet_serdes(struct hfi1_pportdata *ppd);
-void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, int ctxt);
+void hfi1_rcvctrl(struct hfi1_devdata *dd, unsigned int op, u16 ctxt);
 u32 hfi1_read_cntrs(struct hfi1_devdata *dd, char **namep, u64 **cntrp);
 u32 hfi1_read_portcntrs(struct hfi1_pportdata *ppd, char **namep, u64 **cntrp);
 int hfi1_get_ib_cfg(struct hfi1_pportdata *ppd, int which);
 int hfi1_set_ib_cfg(struct hfi1_pportdata *ppd, int which, u32 val);
-int hfi1_set_ctxt_jkey(struct hfi1_devdata *dd, unsigned ctxt, u16 jkey);
-int hfi1_clear_ctxt_jkey(struct hfi1_devdata *dd, unsigned ctxt);
-int hfi1_set_ctxt_pkey(struct hfi1_devdata *dd, unsigned ctxt, u16 pkey);
+int hfi1_set_ctxt_jkey(struct hfi1_devdata *dd, u16 ctxt, u16 jkey);
+int hfi1_clear_ctxt_jkey(struct hfi1_devdata *dd, u16 ctxt);
+int hfi1_set_ctxt_pkey(struct hfi1_devdata *dd, u16 ctxt, u16 pkey);
 int hfi1_clear_ctxt_pkey(struct hfi1_devdata *dd, struct hfi1_ctxtdata *ctxt);
 void hfi1_read_link_quality(struct hfi1_devdata *dd, u8 *link_quality);
 void hfi1_init_vnic_rsm(struct hfi1_devdata *dd);
