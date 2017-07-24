@@ -125,7 +125,7 @@ static int ftgmac100_reset_mac(struct ftgmac100 *priv, u32 maccr)
 	iowrite32(maccr, priv->base + FTGMAC100_OFFSET_MACCR);
 	iowrite32(maccr | FTGMAC100_MACCR_SW_RST,
 		  priv->base + FTGMAC100_OFFSET_MACCR);
-	for (i = 0; i < 50; i++) {
+	for (i = 0; i < 200; i++) {
 		unsigned int maccr;
 
 		maccr = ioread32(priv->base + FTGMAC100_OFFSET_MACCR);
