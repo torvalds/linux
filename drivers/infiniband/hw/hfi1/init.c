@@ -67,6 +67,7 @@
 #include "aspm.h"
 #include "affinity.h"
 #include "vnic.h"
+#include "exp_rcv.h"
 
 #undef pr_fmt
 #define pr_fmt(fmt) DRIVER_NAME ": " fmt
@@ -190,13 +191,43 @@ int hfi1_create_ctxts(struct hfi1_devdata *dd)
 nomem:
 	ret = -ENOMEM;
 
-	if (dd->rcd) {
-		for (i = 0; i < dd->num_rcv_contexts; ++i)
-			hfi1_free_ctxtdata(dd, dd->rcd[i]);
-	}
+	for (i = 0; dd->rcd && i < dd->first_dyn_alloc_ctxt; ++i)
+		hfi1_rcd_put(dd->rcd[i]);
+
+	/* All the contexts should be freed, free the array */
 	kfree(dd->rcd);
 	dd->rcd = NULL;
 	return ret;
+}
+
+/*
+ * Helper routines for the receive context reference count (rcd and uctxt)
+ */
+static void hfi1_rcd_init(struct hfi1_ctxtdata *rcd)
+{
+	kref_init(&rcd->kref);
+}
+
+static void hfi1_rcd_free(struct kref *kref)
+{
+	struct hfi1_ctxtdata *rcd =
+		container_of(kref, struct hfi1_ctxtdata, kref);
+
+	hfi1_free_ctxtdata(rcd->dd, rcd);
+	kfree(rcd);
+}
+
+int hfi1_rcd_put(struct hfi1_ctxtdata *rcd)
+{
+	if (rcd)
+		return kref_put(&rcd->kref, hfi1_rcd_free);
+
+	return 0;
+}
+
+void hfi1_rcd_get(struct hfi1_ctxtdata *rcd)
+{
+	kref_get(&rcd->kref);
 }
 
 /*
@@ -221,6 +252,9 @@ struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u32 ctxt,
 		hfi1_cdbg(PROC, "setting up context %u\n", ctxt);
 
 		INIT_LIST_HEAD(&rcd->qp_wait_list);
+		hfi1_exp_tid_group_init(&rcd->tid_group_list);
+		hfi1_exp_tid_group_init(&rcd->tid_used_list);
+		hfi1_exp_tid_group_init(&rcd->tid_full_list);
 		rcd->ppd = ppd;
 		rcd->dd = dd;
 		__set_bit(0, rcd->in_use_ctxts);
@@ -328,6 +362,8 @@ struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u32 ctxt,
 			if (!rcd->opstats)
 				goto bail;
 		}
+
+		hfi1_rcd_init(rcd);
 	}
 	return rcd;
 bail:
@@ -927,14 +963,11 @@ static void shutdown_device(struct hfi1_devdata *dd)
  * @rcd: the ctxtdata structure
  *
  * free up any allocated data for a context
- * This should not touch anything that would affect a simultaneous
- * re-allocation of context data, because it is called after hfi1_mutex
- * is released (and can be called from reinit as well).
  * It should never change any chip state, or global driver state.
  */
 void hfi1_free_ctxtdata(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 {
-	unsigned e;
+	u32 e;
 
 	if (!rcd)
 		return;
@@ -953,6 +986,7 @@ void hfi1_free_ctxtdata(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 
 	/* all the RcvArray entries should have been cleared by now */
 	kfree(rcd->egrbufs.rcvtids);
+	rcd->egrbufs.rcvtids = NULL;
 
 	for (e = 0; e < rcd->egrbufs.alloced; e++) {
 		if (rcd->egrbufs.buffers[e].dma)
@@ -962,13 +996,21 @@ void hfi1_free_ctxtdata(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 					  rcd->egrbufs.buffers[e].dma);
 	}
 	kfree(rcd->egrbufs.buffers);
+	rcd->egrbufs.alloced = 0;
+	rcd->egrbufs.buffers = NULL;
 
 	sc_free(rcd->sc);
+	rcd->sc = NULL;
+
 	vfree(rcd->subctxt_uregbase);
 	vfree(rcd->subctxt_rcvegrbuf);
 	vfree(rcd->subctxt_rcvhdr_base);
 	kfree(rcd->opstats);
-	kfree(rcd);
+
+	rcd->subctxt_uregbase = NULL;
+	rcd->subctxt_rcvegrbuf = NULL;
+	rcd->subctxt_rcvhdr_base = NULL;
+	rcd->opstats = NULL;
 }
 
 /*
@@ -1362,7 +1404,7 @@ static void cleanup_device_data(struct hfi1_devdata *dd)
 		tmp[ctxt] = NULL; /* debugging paranoia */
 		if (rcd) {
 			hfi1_clear_tids(rcd);
-			hfi1_free_ctxtdata(dd, rcd);
+			hfi1_rcd_put(rcd);
 		}
 	}
 	kfree(tmp);

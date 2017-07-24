@@ -75,7 +75,7 @@ static int init_sge(struct rvt_qp *qp, struct rvt_rwqe *wqe)
 			continue;
 		/* Check LKEY */
 		if (!rvt_lkey_ok(rkt, pd, j ? &ss->sg_list[j - 1] : &ss->sge,
-				 &wqe->sg_list[i], IB_ACCESS_LOCAL_WRITE))
+				 NULL, &wqe->sg_list[i], IB_ACCESS_LOCAL_WRITE))
 			goto bad_lkey;
 		qp->r_len += wqe->sg_list[i].length;
 		j++;
@@ -214,100 +214,95 @@ static int gid_ok(union ib_gid *gid, __be64 gid_prefix, __be64 id)
  *
  * The s_lock will be acquired around the hfi1_migrate_qp() call.
  */
-int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct ib_header *hdr,
-		       int has_grh, struct rvt_qp *qp, u32 bth0)
+int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct hfi1_packet *packet)
 {
 	__be64 guid;
 	unsigned long flags;
+	struct rvt_qp *qp = packet->qp;
 	u8 sc5 = ibp->sl_to_sc[rdma_ah_get_sl(&qp->remote_ah_attr)];
+	u32 dlid = packet->dlid;
+	u32 slid = packet->slid;
+	u32 sl = packet->sl;
+	int migrated;
+	u32 bth0, bth1;
 
-	if (qp->s_mig_state == IB_MIG_ARMED && (bth0 & IB_BTH_MIG_REQ)) {
-		if (!has_grh) {
+	bth0 = be32_to_cpu(packet->ohdr->bth[0]);
+	bth1 = be32_to_cpu(packet->ohdr->bth[1]);
+	migrated = bth0 & IB_BTH_MIG_REQ;
+
+	if (qp->s_mig_state == IB_MIG_ARMED && migrated) {
+		if (!packet->grh) {
 			if (rdma_ah_get_ah_flags(&qp->alt_ah_attr) &
 			    IB_AH_GRH)
-				goto err;
+				return 1;
 		} else {
 			const struct ib_global_route *grh;
 
 			if (!(rdma_ah_get_ah_flags(&qp->alt_ah_attr) &
 			      IB_AH_GRH))
-				goto err;
+				return 1;
 			grh = rdma_ah_read_grh(&qp->alt_ah_attr);
 			guid = get_sguid(ibp, grh->sgid_index);
-			if (!gid_ok(&hdr->u.l.grh.dgid, ibp->rvp.gid_prefix,
+			if (!gid_ok(&packet->grh->dgid, ibp->rvp.gid_prefix,
 				    guid))
-				goto err;
+				return 1;
 			if (!gid_ok(
-				&hdr->u.l.grh.sgid,
+				&packet->grh->sgid,
 				grh->dgid.global.subnet_prefix,
 				grh->dgid.global.interface_id))
-				goto err;
+				return 1;
 		}
-		if (unlikely(rcv_pkey_check(ppd_from_ibp(ibp), (u16)bth0, sc5,
-					    ib_get_slid(hdr)))) {
-			hfi1_bad_pqkey(ibp, OPA_TRAP_BAD_P_KEY,
-				       (u16)bth0,
-				       ib_get_sl(hdr),
-				       0, qp->ibqp.qp_num,
-				       ib_get_slid(hdr),
-				       ib_get_dlid(hdr));
-			goto err;
+		if (unlikely(rcv_pkey_check(ppd_from_ibp(ibp), (u16)bth0,
+					    sc5, slid))) {
+			hfi1_bad_pkey(ibp, (u16)bth0, sl,
+				      0, qp->ibqp.qp_num, slid, dlid);
+			return 1;
 		}
 		/* Validate the SLID. See Ch. 9.6.1.5 and 17.2.8 */
-		if (ib_get_slid(hdr) !=
-			rdma_ah_get_dlid(&qp->alt_ah_attr) ||
+		if (slid != rdma_ah_get_dlid(&qp->alt_ah_attr) ||
 		    ppd_from_ibp(ibp)->port !=
 			rdma_ah_get_port_num(&qp->alt_ah_attr))
-			goto err;
+			return 1;
 		spin_lock_irqsave(&qp->s_lock, flags);
 		hfi1_migrate_qp(qp);
 		spin_unlock_irqrestore(&qp->s_lock, flags);
 	} else {
-		if (!has_grh) {
+		if (!packet->grh) {
 			if (rdma_ah_get_ah_flags(&qp->remote_ah_attr) &
 						 IB_AH_GRH)
-				goto err;
+				return 1;
 		} else {
 			const struct ib_global_route *grh;
 
 			if (!(rdma_ah_get_ah_flags(&qp->remote_ah_attr) &
 						   IB_AH_GRH))
-				goto err;
+				return 1;
 			grh = rdma_ah_read_grh(&qp->remote_ah_attr);
 			guid = get_sguid(ibp, grh->sgid_index);
-			if (!gid_ok(&hdr->u.l.grh.dgid, ibp->rvp.gid_prefix,
+			if (!gid_ok(&packet->grh->dgid, ibp->rvp.gid_prefix,
 				    guid))
-				goto err;
+				return 1;
 			if (!gid_ok(
-			     &hdr->u.l.grh.sgid,
+			     &packet->grh->sgid,
 			     grh->dgid.global.subnet_prefix,
 			     grh->dgid.global.interface_id))
-				goto err;
+				return 1;
 		}
-		if (unlikely(rcv_pkey_check(ppd_from_ibp(ibp), (u16)bth0, sc5,
-					    ib_get_slid(hdr)))) {
-			hfi1_bad_pqkey(ibp, OPA_TRAP_BAD_P_KEY,
-				       (u16)bth0,
-				       ib_get_sl(hdr),
-				       0, qp->ibqp.qp_num,
-				       ib_get_slid(hdr),
-				       ib_get_dlid(hdr));
-			goto err;
+		if (unlikely(rcv_pkey_check(ppd_from_ibp(ibp), (u16)bth0,
+					    sc5, slid))) {
+			hfi1_bad_pkey(ibp, (u16)bth0, sl,
+				      0, qp->ibqp.qp_num, slid, dlid);
+			return 1;
 		}
 		/* Validate the SLID. See Ch. 9.6.1.5 */
-		if (ib_get_slid(hdr) !=
-			rdma_ah_get_dlid(&qp->remote_ah_attr) ||
+		if ((slid != rdma_ah_get_dlid(&qp->remote_ah_attr)) ||
 		    ppd_from_ibp(ibp)->port != qp->port_num)
-			goto err;
-		if (qp->s_mig_state == IB_MIG_REARM &&
-		    !(bth0 & IB_BTH_MIG_REQ))
+			return 1;
+		if (qp->s_mig_state == IB_MIG_REARM && !migrated)
 			qp->s_mig_state = IB_MIG_ARMED;
 	}
 
 	return 0;
-
-err:
-	return 1;
 }
 
 /**

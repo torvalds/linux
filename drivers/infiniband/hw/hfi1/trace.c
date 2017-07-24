@@ -47,7 +47,7 @@
 #define CREATE_TRACE_POINTS
 #include "trace.h"
 
-u8 ibhdr_exhdr_len(struct ib_header *hdr)
+u8 hfi1_trace_ib_hdr_len(struct ib_header *hdr)
 {
 	struct ib_other_headers *ohdr;
 	u8 opcode;
@@ -61,13 +61,18 @@ u8 ibhdr_exhdr_len(struct ib_header *hdr)
 	       0 : hdr_len_by_opcode[opcode] - (12 + 8);
 }
 
-#define IMM_PRN  "imm %d"
-#define RETH_PRN "reth vaddr 0x%.16llx rkey 0x%.8x dlen 0x%.8x"
-#define AETH_PRN "aeth syn 0x%.2x %s msn 0x%.8x"
-#define DETH_PRN "deth qkey 0x%.8x sqpn 0x%.6x"
-#define IETH_PRN "ieth rkey 0x%.8x"
-#define ATOMICACKETH_PRN "origdata %llx"
-#define ATOMICETH_PRN "vaddr 0x%llx rkey 0x%.8x sdata %llx cdata %llx"
+const char *hfi1_trace_get_packet_str(struct hfi1_packet *packet)
+{
+	return "IB";
+}
+
+#define IMM_PRN  "imm:%d"
+#define RETH_PRN "reth vaddr:0x%.16llx rkey:0x%.8x dlen:0x%.8x"
+#define AETH_PRN "aeth syn:0x%.2x %s msn:0x%.8x"
+#define DETH_PRN "deth qkey:0x%.8x sqpn:0x%.6x"
+#define IETH_PRN "ieth rkey:0x%.8x"
+#define ATOMICACKETH_PRN "origdata:%llx"
+#define ATOMICETH_PRN "vaddr:0x%llx rkey:0x%.8x sdata:%llx cdata:%llx"
 
 #define OP(transport, op) IB_OPCODE_## transport ## _ ## op
 
@@ -82,6 +87,43 @@ static const char *parse_syndrome(u8 syndrome)
 		return "NAK";
 	}
 	return "";
+}
+
+void hfi1_trace_parse_bth(struct ib_other_headers *ohdr,
+			  u8 *ack, u8 *becn, u8 *fecn, u8 *mig,
+			  u8 *se, u8 *pad, u8 *opcode, u8 *tver,
+			  u16 *pkey, u32 *psn, u32 *qpn)
+{
+	*ack = ib_bth_get_ackreq(ohdr);
+	*becn = ib_bth_get_becn(ohdr);
+	*fecn = ib_bth_get_fecn(ohdr);
+	*mig = ib_bth_get_migreq(ohdr);
+	*se = ib_bth_get_se(ohdr);
+	*pad = ib_bth_get_pad(ohdr);
+	*opcode = ib_bth_get_opcode(ohdr);
+	*tver = ib_bth_get_tver(ohdr);
+	*pkey = ib_bth_get_pkey(ohdr);
+	*psn = ib_bth_get_psn(ohdr);
+	*qpn = ib_bth_get_qpn(ohdr);
+}
+
+void hfi1_trace_parse_9b_hdr(struct ib_header *hdr, bool sc5,
+			     struct ib_other_headers **ohdr,
+			     u8 *lnh, u8 *lver, u8 *sl, u8 *sc,
+			     u16 *len, u32 *dlid, u32 *slid)
+{
+	*lnh = ib_get_lnh(hdr);
+	*lver = ib_get_lver(hdr);
+	*sl = ib_get_sl(hdr);
+	*sc = ib_get_sc(hdr) | (sc5 << 4);
+	*len = ib_get_len(hdr);
+	*dlid = ib_get_dlid(hdr);
+	*slid = ib_get_slid(hdr);
+
+	if (*lnh == HFI1_LRH_BTH)
+		*ohdr = &hdr->u.oth;
+	else
+		*ohdr = &hdr->u.l.oth;
 }
 
 const char *parse_everbs_hdrs(

@@ -213,11 +213,9 @@ struct hfi1_ctxtdata {
 
 	/* dynamic receive available interrupt timeout */
 	u32 rcvavail_timeout;
-	/*
-	 * number of opens (including slave sub-contexts) on this instance
-	 * (ignoring forks, dup, etc. for now)
-	 */
-	int cnt;
+	/* Reference count the base context usage */
+	struct kref kref;
+
 	/* Device context index */
 	unsigned ctxt;
 	/*
@@ -356,17 +354,26 @@ struct hfi1_packet {
 	__le32 *rhf_addr;
 	struct rvt_qp *qp;
 	struct ib_other_headers *ohdr;
+	struct ib_grh *grh;
 	u64 rhf;
 	u32 maxcnt;
 	u32 rhqoff;
+	u32 dlid;
+	u32 slid;
 	u16 tlen;
 	s16 etail;
 	u8 hlen;
 	u8 numpkt;
 	u8 rsize;
 	u8 updegr;
-	u8 rcv_flags;
 	u8 etype;
+	u8 extra_byte;
+	u8 pad;
+	u8 sc;
+	u8 sl;
+	u8 opcode;
+	bool becn;
+	bool fecn;
 };
 
 struct rvt_sge_state;
@@ -512,7 +519,7 @@ static inline void incr_cntr32(u32 *cntr)
 #define MAX_NAME_SIZE 64
 struct hfi1_msix_entry {
 	enum irq_type type;
-	struct msix_entry msix;
+	int irq;
 	void *arg;
 	char name[MAX_NAME_SIZE];
 	cpumask_t mask;
@@ -654,7 +661,7 @@ struct hfi1_pportdata {
 	u8 link_enabled;	/* link enabled? */
 	u8 linkinit_reason;
 	u8 local_tx_rate;	/* rate given to 8051 firmware */
-	u8 last_pstate;		/* info only */
+	u8 pstate;		/* info only */
 	u8 qsfp_retry_count;
 
 	/* placeholders for IB MAD packet settings */
@@ -1282,7 +1289,8 @@ struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u32 ctxt,
 void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
 			 struct hfi1_devdata *dd, u8 hw_pidx, u8 port);
 void hfi1_free_ctxtdata(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd);
-
+int hfi1_rcd_put(struct hfi1_ctxtdata *rcd);
+void hfi1_rcd_get(struct hfi1_ctxtdata *rcd);
 int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread);
 int handle_receive_interrupt_nodma_rtail(struct hfi1_ctxtdata *rcd, int thread);
 int handle_receive_interrupt_dma_rtail(struct hfi1_ctxtdata *rcd, int thread);
@@ -1319,6 +1327,22 @@ static inline u32 driver_lstate(struct hfi1_pportdata *ppd)
 		return IB_PORT_DOWN;
 	else
 		return ppd->lstate;
+}
+
+/* return the driver's idea of the physical OPA port state */
+static inline u32 driver_pstate(struct hfi1_pportdata *ppd)
+{
+	/*
+	 * The driver does some processing from the time the physical
+	 * link state is at LINKUP to the time the SM can be notified
+	 * as such. Return IB_PORTPHYSSTATE_TRAINING until the software
+	 * state is ready.
+	 */
+	if (ppd->pstate == PLS_LINKUP &&
+	    !(ppd->host_link_state & HLS_UP))
+		return IB_PORTPHYSSTATE_TRAINING;
+	else
+		return chip_to_opa_pstate(ppd->dd, ppd->pstate);
 }
 
 void receive_interrupt_work(struct work_struct *work);
@@ -1829,9 +1853,7 @@ void hfi1_pcie_cleanup(struct pci_dev *pdev);
 int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev);
 void hfi1_pcie_ddcleanup(struct hfi1_devdata *);
 int pcie_speeds(struct hfi1_devdata *dd);
-void request_msix(struct hfi1_devdata *dd, u32 *nent,
-		  struct hfi1_msix_entry *entry);
-void hfi1_enable_intx(struct pci_dev *pdev);
+int request_msix(struct hfi1_devdata *dd, u32 msireq);
 void restore_pci_variables(struct hfi1_devdata *dd);
 int do_pcie_gen3_transition(struct hfi1_devdata *dd);
 int parse_platform_config(struct hfi1_devdata *dd);
@@ -2087,52 +2109,13 @@ int hfi1_tempsense_rd(struct hfi1_devdata *dd, struct hfi1_temp *temp);
 #define DD_DEV_ENTRY(dd)       __string(dev, dev_name(&(dd)->pcidev->dev))
 #define DD_DEV_ASSIGN(dd)      __assign_str(dev, dev_name(&(dd)->pcidev->dev))
 
-#define packettype_name(etype) { RHF_RCV_TYPE_##etype, #etype }
-#define show_packettype(etype)                  \
-__print_symbolic(etype,                         \
-	packettype_name(EXPECTED),              \
-	packettype_name(EAGER),                 \
-	packettype_name(IB),                    \
-	packettype_name(ERROR),                 \
-	packettype_name(BYPASS))
-
-#define ib_opcode_name(opcode) { IB_OPCODE_##opcode, #opcode  }
-#define show_ib_opcode(opcode)                             \
-__print_symbolic(opcode,                                   \
-	ib_opcode_name(RC_SEND_FIRST),                     \
-	ib_opcode_name(RC_SEND_MIDDLE),                    \
-	ib_opcode_name(RC_SEND_LAST),                      \
-	ib_opcode_name(RC_SEND_LAST_WITH_IMMEDIATE),       \
-	ib_opcode_name(RC_SEND_ONLY),                      \
-	ib_opcode_name(RC_SEND_ONLY_WITH_IMMEDIATE),       \
-	ib_opcode_name(RC_RDMA_WRITE_FIRST),               \
-	ib_opcode_name(RC_RDMA_WRITE_MIDDLE),              \
-	ib_opcode_name(RC_RDMA_WRITE_LAST),                \
-	ib_opcode_name(RC_RDMA_WRITE_LAST_WITH_IMMEDIATE), \
-	ib_opcode_name(RC_RDMA_WRITE_ONLY),                \
-	ib_opcode_name(RC_RDMA_WRITE_ONLY_WITH_IMMEDIATE), \
-	ib_opcode_name(RC_RDMA_READ_REQUEST),              \
-	ib_opcode_name(RC_RDMA_READ_RESPONSE_FIRST),       \
-	ib_opcode_name(RC_RDMA_READ_RESPONSE_MIDDLE),      \
-	ib_opcode_name(RC_RDMA_READ_RESPONSE_LAST),        \
-	ib_opcode_name(RC_RDMA_READ_RESPONSE_ONLY),        \
-	ib_opcode_name(RC_ACKNOWLEDGE),                    \
-	ib_opcode_name(RC_ATOMIC_ACKNOWLEDGE),             \
-	ib_opcode_name(RC_COMPARE_SWAP),                   \
-	ib_opcode_name(RC_FETCH_ADD),                      \
-	ib_opcode_name(UC_SEND_FIRST),                     \
-	ib_opcode_name(UC_SEND_MIDDLE),                    \
-	ib_opcode_name(UC_SEND_LAST),                      \
-	ib_opcode_name(UC_SEND_LAST_WITH_IMMEDIATE),       \
-	ib_opcode_name(UC_SEND_ONLY),                      \
-	ib_opcode_name(UC_SEND_ONLY_WITH_IMMEDIATE),       \
-	ib_opcode_name(UC_RDMA_WRITE_FIRST),               \
-	ib_opcode_name(UC_RDMA_WRITE_MIDDLE),              \
-	ib_opcode_name(UC_RDMA_WRITE_LAST),                \
-	ib_opcode_name(UC_RDMA_WRITE_LAST_WITH_IMMEDIATE), \
-	ib_opcode_name(UC_RDMA_WRITE_ONLY),                \
-	ib_opcode_name(UC_RDMA_WRITE_ONLY_WITH_IMMEDIATE), \
-	ib_opcode_name(UD_SEND_ONLY),                      \
-	ib_opcode_name(UD_SEND_ONLY_WITH_IMMEDIATE),       \
-	ib_opcode_name(CNP))
+/*
+ * hfi1_check_mcast- Check if the given lid is
+ * in the IB multicast range.
+ */
+static inline bool hfi1_check_mcast(u16 lid)
+{
+	return ((lid >= be16_to_cpu(IB_MULTICAST_LID_BASE)) &&
+		(lid != be16_to_cpu(IB_LID_PERMISSIVE)));
+}
 #endif                          /* _HFI1_KERNEL_H */

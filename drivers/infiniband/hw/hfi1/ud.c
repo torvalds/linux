@@ -110,10 +110,10 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 				   ((1 << ppd->lmc) - 1));
 		if (unlikely(ingress_pkey_check(ppd, pkey, sc5,
 						qp->s_pkey_index, slid))) {
-			hfi1_bad_pqkey(ibp, OPA_TRAP_BAD_P_KEY, pkey,
-				       rdma_ah_get_sl(ah_attr),
-				       sqp->ibqp.qp_num, qp->ibqp.qp_num,
-				       slid, rdma_ah_get_dlid(ah_attr));
+			hfi1_bad_pkey(ibp, pkey,
+				      rdma_ah_get_sl(ah_attr),
+				      sqp->ibqp.qp_num, qp->ibqp.qp_num,
+				      slid, rdma_ah_get_dlid(ah_attr));
 			goto drop;
 		}
 	}
@@ -128,18 +128,8 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 
 		qkey = (int)swqe->ud_wr.remote_qkey < 0 ?
 			sqp->qkey : swqe->ud_wr.remote_qkey;
-		if (unlikely(qkey != qp->qkey)) {
-			u16 lid;
-
-			lid = ppd->lid | (rdma_ah_get_path_bits(ah_attr) &
-					  ((1 << ppd->lmc) - 1));
-			hfi1_bad_pqkey(ibp, OPA_TRAP_BAD_Q_KEY, qkey,
-				       rdma_ah_get_sl(ah_attr),
-				       sqp->ibqp.qp_num, qp->ibqp.qp_num,
-				       lid,
-				       rdma_ah_get_dlid(ah_attr));
-			goto drop;
-		}
+		if (unlikely(qkey != qp->qkey))
+			goto drop; /* silently drop per IBTA spec */
 	}
 
 	/*
@@ -549,7 +539,7 @@ void return_cnp(struct hfi1_ibport *ibp, struct rvt_qp *qp, u32 remote_qpn,
 	hdr.lrh[3] = cpu_to_be16(slid);
 
 	plen = 2 /* PBC */ + hwords;
-	pbc_flags |= (!!(sc5 & 0x10)) << PBC_DC_INFO_SHIFT;
+	pbc_flags |= (ib_is_sc5(sc5) << PBC_DC_INFO_SHIFT);
 	vl = sc_to_vlt(ppd->dd, sc5);
 	pbc = create_pbc(ppd, pbc_flags, qp->srate_mbps, vl, plen);
 	if (ctxt) {
@@ -668,36 +658,31 @@ static int opa_smp_check(struct hfi1_ibport *ibp, u16 pkey, u8 sc5,
 void hfi1_ud_rcv(struct hfi1_packet *packet)
 {
 	struct ib_other_headers *ohdr = packet->ohdr;
-	int opcode;
 	u32 hdrsize = packet->hlen;
 	struct ib_wc wc;
 	u32 qkey;
 	u32 src_qp;
-	u16 dlid, pkey;
+	u16 pkey;
 	int mgmt_pkey_idx = -1;
 	struct hfi1_ibport *ibp = rcd_to_iport(packet->rcd);
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 	struct ib_header *hdr = packet->hdr;
-	u32 rcv_flags = packet->rcv_flags;
 	void *data = packet->ebuf;
 	u32 tlen = packet->tlen;
 	struct rvt_qp *qp = packet->qp;
-	bool has_grh = rcv_flags & HFI1_HAS_GRH;
 	u8 sc5 = hfi1_9B_get_sc5(hdr, packet->rhf);
 	u32 bth1;
-	u8 sl_from_sc, sl;
-	u16 slid;
-	u8 extra_bytes;
+	u8 sl_from_sc;
+	u8 extra_bytes = packet->pad;
+	u8 opcode = packet->opcode;
+	u8 sl = packet->sl;
+	u32 dlid = packet->dlid;
+	u32 slid = packet->slid;
 
-	qkey = be32_to_cpu(ohdr->u.ud.deth[0]);
-	src_qp = be32_to_cpu(ohdr->u.ud.deth[1]) & RVT_QPN_MASK;
-	dlid = ib_get_dlid(hdr);
 	bth1 = be32_to_cpu(ohdr->bth[1]);
-	slid = ib_get_slid(hdr);
+	qkey = ib_get_qkey(ohdr);
+	src_qp = ib_get_sqpn(ohdr);
 	pkey = ib_bth_get_pkey(ohdr);
-	opcode = ib_bth_get_opcode(ohdr);
-	sl = ib_get_sl(hdr);
-	extra_bytes = ib_bth_get_pad(ohdr);
 	extra_bytes += (SIZE_OF_CRC << 2);
 	sl_from_sc = ibp->sc_to_sl[sc5];
 
@@ -727,10 +712,10 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 				 * for invalid pkeys is optional according to
 				 * IB spec (release 1.3, section 10.9.4)
 				 */
-				hfi1_bad_pqkey(ibp, OPA_TRAP_BAD_P_KEY,
-					       pkey, sl,
-					       src_qp, qp->ibqp.qp_num,
-					       slid, dlid);
+				hfi1_bad_pkey(ibp,
+					      pkey, sl,
+					      src_qp, qp->ibqp.qp_num,
+					      slid, dlid);
 				return;
 			}
 		} else {
@@ -739,12 +724,9 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 			if (mgmt_pkey_idx < 0)
 				goto drop;
 		}
-		if (unlikely(qkey != qp->qkey)) {
-			hfi1_bad_pqkey(ibp, OPA_TRAP_BAD_Q_KEY, qkey, sl,
-				       src_qp, qp->ibqp.qp_num,
-				       slid, dlid);
+		if (unlikely(qkey != qp->qkey)) /* Silent drop */
 			return;
-		}
+
 		/* Drop invalid MAD packets (see 13.5.3.1). */
 		if (unlikely(qp->ibqp.qp_num == 1 &&
 			     (tlen > 2048 || (sc5 == 0xF))))
@@ -811,7 +793,7 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 		qp->r_flags |= RVT_R_REUSE_SGE;
 		goto drop;
 	}
-	if (has_grh) {
+	if (packet->grh) {
 		hfi1_copy_sge(&qp->r_sge, &hdr->u.l.grh,
 			      sizeof(struct ib_grh), true, false);
 		wc.wc_flags |= IB_WC_GRH;

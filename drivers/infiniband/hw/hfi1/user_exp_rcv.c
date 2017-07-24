@@ -51,14 +51,6 @@
 #include "trace.h"
 #include "mmu_rb.h"
 
-struct tid_group {
-	struct list_head list;
-	u32 base;
-	u8 size;
-	u8 used;
-	u8 map;
-};
-
 struct tid_rb_node {
 	struct mmu_rb_node mmu;
 	unsigned long phys;
@@ -74,8 +66,6 @@ struct tid_pageset {
 	u16 idx;
 	u16 count;
 };
-
-#define EXP_TID_SET_EMPTY(set) (set.count == 0 && list_empty(&set.list))
 
 #define num_user_pages(vaddr, len)				       \
 	(1 + (((((unsigned long)(vaddr) +			       \
@@ -108,88 +98,6 @@ static struct mmu_rb_ops tid_rb_ops = {
 	.remove = tid_rb_remove,
 	.invalidate = tid_rb_invalidate
 };
-
-static inline u32 rcventry2tidinfo(u32 rcventry)
-{
-	u32 pair = rcventry & ~0x1;
-
-	return EXP_TID_SET(IDX, pair >> 1) |
-		EXP_TID_SET(CTRL, 1 << (rcventry - pair));
-}
-
-static inline void exp_tid_group_init(struct exp_tid_set *set)
-{
-	INIT_LIST_HEAD(&set->list);
-	set->count = 0;
-}
-
-static inline void tid_group_remove(struct tid_group *grp,
-				    struct exp_tid_set *set)
-{
-	list_del_init(&grp->list);
-	set->count--;
-}
-
-static inline void tid_group_add_tail(struct tid_group *grp,
-				      struct exp_tid_set *set)
-{
-	list_add_tail(&grp->list, &set->list);
-	set->count++;
-}
-
-static inline struct tid_group *tid_group_pop(struct exp_tid_set *set)
-{
-	struct tid_group *grp =
-		list_first_entry(&set->list, struct tid_group, list);
-	list_del_init(&grp->list);
-	set->count--;
-	return grp;
-}
-
-static inline void tid_group_move(struct tid_group *group,
-				  struct exp_tid_set *s1,
-				  struct exp_tid_set *s2)
-{
-	tid_group_remove(group, s1);
-	tid_group_add_tail(group, s2);
-}
-
-int hfi1_user_exp_rcv_grp_init(struct hfi1_filedata *fd)
-{
-	struct hfi1_ctxtdata *uctxt = fd->uctxt;
-	struct hfi1_devdata *dd = fd->dd;
-	u32 tidbase;
-	u32 i;
-	struct tid_group *grp, *gptr;
-
-	exp_tid_group_init(&uctxt->tid_group_list);
-	exp_tid_group_init(&uctxt->tid_used_list);
-	exp_tid_group_init(&uctxt->tid_full_list);
-
-	tidbase = uctxt->expected_base;
-	for (i = 0; i < uctxt->expected_count /
-		     dd->rcv_entries.group_size; i++) {
-		grp = kzalloc(sizeof(*grp), GFP_KERNEL);
-		if (!grp)
-			goto grp_failed;
-
-		grp->size = dd->rcv_entries.group_size;
-		grp->base = tidbase;
-		tid_group_add_tail(grp, &uctxt->tid_group_list);
-		tidbase += dd->rcv_entries.group_size;
-	}
-
-	return 0;
-
-grp_failed:
-	list_for_each_entry_safe(grp, gptr, &uctxt->tid_group_list.list,
-				 list) {
-		list_del_init(&grp->list);
-		kfree(grp);
-	}
-
-	return -ENOMEM;
-}
 
 /*
  * Initialize context and file private data needed for Expected
@@ -266,18 +174,6 @@ int hfi1_user_exp_rcv_init(struct hfi1_filedata *fd)
 	return ret;
 }
 
-void hfi1_user_exp_rcv_grp_free(struct hfi1_ctxtdata *uctxt)
-{
-	struct tid_group *grp, *gptr;
-
-	list_for_each_entry_safe(grp, gptr, &uctxt->tid_group_list.list,
-				 list) {
-		list_del_init(&grp->list);
-		kfree(grp);
-	}
-	hfi1_clear_tids(uctxt);
-}
-
 void hfi1_user_exp_rcv_free(struct hfi1_filedata *fd)
 {
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
@@ -300,23 +196,6 @@ void hfi1_user_exp_rcv_free(struct hfi1_filedata *fd)
 
 	kfree(fd->entry_to_rb);
 	fd->entry_to_rb = NULL;
-}
-
-/*
- * Write an "empty" RcvArray entry.
- * This function exists so the TID registaration code can use it
- * to write to unused/unneeded entries and still take advantage
- * of the WC performance improvements. The HFI will ignore this
- * write to the RcvArray entry.
- */
-static inline void rcv_array_wc_fill(struct hfi1_devdata *dd, u32 index)
-{
-	/*
-	 * Doing the WC fill writes only makes sense if the device is
-	 * present and the RcvArray has been mapped as WC memory.
-	 */
-	if ((dd->flags & HFI1_PRESENT) && dd->rcvarray_wc)
-		writeq(0, dd->rcvarray_wc + (index * 8));
 }
 
 /*

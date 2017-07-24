@@ -1,7 +1,5 @@
-#ifndef _HFI1_USER_EXP_RCV_H
-#define _HFI1_USER_EXP_RCV_H
 /*
- * Copyright(c) 2015 - 2017 Intel Corporation.
+ * Copyright(c) 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -47,17 +45,70 @@
  *
  */
 
-#include "hfi.h"
-
 #include "exp_rcv.h"
+#include "trace.h"
 
-int hfi1_user_exp_rcv_init(struct hfi1_filedata *fd);
-void hfi1_user_exp_rcv_free(struct hfi1_filedata *fd);
-int hfi1_user_exp_rcv_setup(struct hfi1_filedata *fd,
-			    struct hfi1_tid_info *tinfo);
-int hfi1_user_exp_rcv_clear(struct hfi1_filedata *fd,
-			    struct hfi1_tid_info *tinfo);
-int hfi1_user_exp_rcv_invalid(struct hfi1_filedata *fd,
-			      struct hfi1_tid_info *tinfo);
+/**
+ * exp_tid_group_init - initialize exp_tid_set
+ * @set - the set
+ */
+void hfi1_exp_tid_group_init(struct exp_tid_set *set)
+{
+	INIT_LIST_HEAD(&set->list);
+	set->count = 0;
+}
 
-#endif /* _HFI1_USER_EXP_RCV_H */
+/**
+ * alloc_ctxt_rcv_groups - initialize expected receive groups
+ * @rcd - the context to add the groupings to
+ */
+int hfi1_alloc_ctxt_rcv_groups(struct hfi1_ctxtdata *rcd)
+{
+	struct hfi1_devdata *dd = rcd->dd;
+	u32 tidbase;
+	struct tid_group *grp;
+	int i;
+
+	tidbase = rcd->expected_base;
+	for (i = 0; i < rcd->expected_count /
+		     dd->rcv_entries.group_size; i++) {
+		grp = kzalloc(sizeof(*grp), GFP_KERNEL);
+		if (!grp)
+			goto bail;
+		grp->size = dd->rcv_entries.group_size;
+		grp->base = tidbase;
+		tid_group_add_tail(grp, &rcd->tid_group_list);
+		tidbase += dd->rcv_entries.group_size;
+	}
+
+	return 0;
+bail:
+	hfi1_free_ctxt_rcv_groups(rcd);
+	return -ENOMEM;
+}
+
+/**
+ * free_ctxt_rcv_groups - free  expected receive groups
+ * @rcd - the context to free
+ *
+ * The routine dismantles the expect receive linked
+ * list and clears any tids associated with the receive
+ * context.
+ *
+ * This should only be called for kernel contexts and the
+ * a base user context.
+ */
+void hfi1_free_ctxt_rcv_groups(struct hfi1_ctxtdata *rcd)
+{
+	struct tid_group *grp, *gptr;
+
+	WARN_ON(!EXP_TID_SET_EMPTY(rcd->tid_full_list));
+	WARN_ON(!EXP_TID_SET_EMPTY(rcd->tid_used_list));
+
+	list_for_each_entry_safe(grp, gptr, &rcd->tid_group_list.list, list) {
+		tid_group_remove(grp, &rcd->tid_group_list);
+		kfree(grp);
+	}
+
+	hfi1_clear_tids(rcd);
+}

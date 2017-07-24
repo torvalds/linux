@@ -1012,14 +1012,15 @@ static struct flag_table dc8051_info_err_flags[] = {
  */
 static struct flag_table dc8051_info_host_msg_flags[] = {
 	FLAG_ENTRY0("Host request done", 0x0001),
-	FLAG_ENTRY0("BC SMA message", 0x0002),
-	FLAG_ENTRY0("BC PWR_MGM message", 0x0004),
+	FLAG_ENTRY0("BC PWR_MGM message", 0x0002),
+	FLAG_ENTRY0("BC SMA message", 0x0004),
 	FLAG_ENTRY0("BC Unknown message (BCC)", 0x0008),
 	FLAG_ENTRY0("BC Unknown message (LCB)", 0x0010),
 	FLAG_ENTRY0("External device config request", 0x0020),
 	FLAG_ENTRY0("VerifyCap all frames received", 0x0040),
 	FLAG_ENTRY0("LinkUp achieved", 0x0080),
 	FLAG_ENTRY0("Link going down", 0x0100),
+	FLAG_ENTRY0("Link width downgraded", 0x0200),
 };
 
 static u32 encoded_size(u32 size);
@@ -1066,6 +1067,8 @@ static int thermal_init(struct hfi1_devdata *dd);
 
 static int wait_logical_linkstate(struct hfi1_pportdata *ppd, u32 state,
 				  int msecs);
+static int wait_physical_linkstate(struct hfi1_pportdata *ppd, u32 state,
+				   int msecs);
 static void read_planned_down_reason_code(struct hfi1_devdata *dd, u8 *pdrrc);
 static void read_link_down_reason(struct hfi1_devdata *dd, u8 *ldr);
 static void handle_temp_err(struct hfi1_devdata *dd);
@@ -6906,7 +6909,7 @@ static void reset_neighbor_info(struct hfi1_pportdata *ppd)
 
 static const char * const link_down_reason_strs[] = {
 	[OPA_LINKDOWN_REASON_NONE] = "None",
-	[OPA_LINKDOWN_REASON_RCV_ERROR_0] = "Recive error 0",
+	[OPA_LINKDOWN_REASON_RCV_ERROR_0] = "Receive error 0",
 	[OPA_LINKDOWN_REASON_BAD_PKT_LEN] = "Bad packet length",
 	[OPA_LINKDOWN_REASON_PKT_TOO_LONG] = "Packet too long",
 	[OPA_LINKDOWN_REASON_PKT_TOO_SHORT] = "Packet too short",
@@ -9373,13 +9376,13 @@ static int handle_qsfp_error_conditions(struct hfi1_pportdata *ppd,
 
 	if ((qsfp_interrupt_status[0] & QSFP_HIGH_TEMP_ALARM) ||
 	    (qsfp_interrupt_status[0] & QSFP_HIGH_TEMP_WARNING))
-		dd_dev_info(dd, "%s: QSFP cable temperature too high\n",
-			    __func__);
+		dd_dev_err(dd, "%s: QSFP cable temperature too high\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[0] & QSFP_LOW_TEMP_ALARM) ||
 	    (qsfp_interrupt_status[0] & QSFP_LOW_TEMP_WARNING))
-		dd_dev_info(dd, "%s: QSFP cable temperature too low\n",
-			    __func__);
+		dd_dev_err(dd, "%s: QSFP cable temperature too low\n",
+			   __func__);
 
 	/*
 	 * The remaining alarms/warnings don't matter if the link is down.
@@ -9389,75 +9392,75 @@ static int handle_qsfp_error_conditions(struct hfi1_pportdata *ppd,
 
 	if ((qsfp_interrupt_status[1] & QSFP_HIGH_VCC_ALARM) ||
 	    (qsfp_interrupt_status[1] & QSFP_HIGH_VCC_WARNING))
-		dd_dev_info(dd, "%s: QSFP supply voltage too high\n",
-			    __func__);
+		dd_dev_err(dd, "%s: QSFP supply voltage too high\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[1] & QSFP_LOW_VCC_ALARM) ||
 	    (qsfp_interrupt_status[1] & QSFP_LOW_VCC_WARNING))
-		dd_dev_info(dd, "%s: QSFP supply voltage too low\n",
-			    __func__);
+		dd_dev_err(dd, "%s: QSFP supply voltage too low\n",
+			   __func__);
 
 	/* Byte 2 is vendor specific */
 
 	if ((qsfp_interrupt_status[3] & QSFP_HIGH_POWER_ALARM) ||
 	    (qsfp_interrupt_status[3] & QSFP_HIGH_POWER_WARNING))
-		dd_dev_info(dd, "%s: Cable RX channel 1/2 power too high\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable RX channel 1/2 power too high\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[3] & QSFP_LOW_POWER_ALARM) ||
 	    (qsfp_interrupt_status[3] & QSFP_LOW_POWER_WARNING))
-		dd_dev_info(dd, "%s: Cable RX channel 1/2 power too low\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable RX channel 1/2 power too low\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[4] & QSFP_HIGH_POWER_ALARM) ||
 	    (qsfp_interrupt_status[4] & QSFP_HIGH_POWER_WARNING))
-		dd_dev_info(dd, "%s: Cable RX channel 3/4 power too high\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable RX channel 3/4 power too high\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[4] & QSFP_LOW_POWER_ALARM) ||
 	    (qsfp_interrupt_status[4] & QSFP_LOW_POWER_WARNING))
-		dd_dev_info(dd, "%s: Cable RX channel 3/4 power too low\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable RX channel 3/4 power too low\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[5] & QSFP_HIGH_BIAS_ALARM) ||
 	    (qsfp_interrupt_status[5] & QSFP_HIGH_BIAS_WARNING))
-		dd_dev_info(dd, "%s: Cable TX channel 1/2 bias too high\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable TX channel 1/2 bias too high\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[5] & QSFP_LOW_BIAS_ALARM) ||
 	    (qsfp_interrupt_status[5] & QSFP_LOW_BIAS_WARNING))
-		dd_dev_info(dd, "%s: Cable TX channel 1/2 bias too low\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable TX channel 1/2 bias too low\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[6] & QSFP_HIGH_BIAS_ALARM) ||
 	    (qsfp_interrupt_status[6] & QSFP_HIGH_BIAS_WARNING))
-		dd_dev_info(dd, "%s: Cable TX channel 3/4 bias too high\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable TX channel 3/4 bias too high\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[6] & QSFP_LOW_BIAS_ALARM) ||
 	    (qsfp_interrupt_status[6] & QSFP_LOW_BIAS_WARNING))
-		dd_dev_info(dd, "%s: Cable TX channel 3/4 bias too low\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable TX channel 3/4 bias too low\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[7] & QSFP_HIGH_POWER_ALARM) ||
 	    (qsfp_interrupt_status[7] & QSFP_HIGH_POWER_WARNING))
-		dd_dev_info(dd, "%s: Cable TX channel 1/2 power too high\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable TX channel 1/2 power too high\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[7] & QSFP_LOW_POWER_ALARM) ||
 	    (qsfp_interrupt_status[7] & QSFP_LOW_POWER_WARNING))
-		dd_dev_info(dd, "%s: Cable TX channel 1/2 power too low\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable TX channel 1/2 power too low\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[8] & QSFP_HIGH_POWER_ALARM) ||
 	    (qsfp_interrupt_status[8] & QSFP_HIGH_POWER_WARNING))
-		dd_dev_info(dd, "%s: Cable TX channel 3/4 power too high\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable TX channel 3/4 power too high\n",
+			   __func__);
 
 	if ((qsfp_interrupt_status[8] & QSFP_LOW_POWER_ALARM) ||
 	    (qsfp_interrupt_status[8] & QSFP_LOW_POWER_WARNING))
-		dd_dev_info(dd, "%s: Cable TX channel 3/4 power too low\n",
-			    __func__);
+		dd_dev_err(dd, "%s: Cable TX channel 3/4 power too low\n",
+			   __func__);
 
 	/* Bytes 9-10 and 11-12 are reserved */
 	/* Bytes 13-15 are vendor specific */
@@ -9742,17 +9745,6 @@ static inline int init_cpu_counters(struct hfi1_devdata *dd)
 	return 0;
 }
 
-static const char * const pt_names[] = {
-	"expected",
-	"eager",
-	"invalid"
-};
-
-static const char *pt_name(u32 type)
-{
-	return type >= ARRAY_SIZE(pt_names) ? "unknown" : pt_names[type];
-}
-
 /*
  * index is the index into the receive array
  */
@@ -9774,15 +9766,14 @@ void hfi1_put_tid(struct hfi1_devdata *dd, u32 index,
 			   type, index);
 		goto done;
 	}
-
-	hfi1_cdbg(TID, "type %s, index 0x%x, pa 0x%lx, bsize 0x%lx",
-		  pt_name(type), index, pa, (unsigned long)order);
+	trace_hfi1_put_tid(dd, index, type, pa, order);
 
 #define RT_ADDR_SHIFT 12	/* 4KB kernel address boundary */
 	reg = RCV_ARRAY_RT_WRITE_ENABLE_SMASK
 		| (u64)order << RCV_ARRAY_RT_BUF_SIZE_SHIFT
 		| ((pa >> RT_ADDR_SHIFT) & RCV_ARRAY_RT_ADDR_MASK)
 					<< RCV_ARRAY_RT_ADDR_SHIFT;
+	trace_hfi1_write_rcvarray(base + (index * 8), reg);
 	writeq(reg, base + (index * 8));
 
 	if (type == PT_EAGER)
@@ -9808,15 +9799,6 @@ void hfi1_clear_tids(struct hfi1_ctxtdata *rcd)
 	for (i = rcd->expected_base;
 			i < rcd->expected_base + rcd->expected_count; i++)
 		hfi1_put_tid(dd, i, PT_INVALID, 0, 0);
-}
-
-struct ib_header *hfi1_get_msgheader(
-	struct hfi1_devdata *dd, __le32 *rhf_addr)
-{
-	u32 offset = rhf_hdrq_offset(rhf_to_cpu(rhf_addr));
-
-	return (struct ib_header *)
-		(rhf_addr - dd->rhf_offset + offset);
 }
 
 static const char * const ib_cfg_name_strings[] = {
@@ -10035,28 +10017,6 @@ static void set_lidlmc(struct hfi1_pportdata *ppd)
 
 	/* Now we have to do the same thing for the sdma engines */
 	sdma_update_lmc(dd, mask, ppd->lid);
-}
-
-static int wait_phy_linkstate(struct hfi1_devdata *dd, u32 state, u32 msecs)
-{
-	unsigned long timeout;
-	u32 curr_state;
-
-	timeout = jiffies + msecs_to_jiffies(msecs);
-	while (1) {
-		curr_state = read_physical_state(dd);
-		if (curr_state == state)
-			break;
-		if (time_after(jiffies, timeout)) {
-			dd_dev_err(dd,
-				   "timeout waiting for phy link state 0x%x, current state is 0x%x\n",
-				   state, curr_state);
-			return -ETIMEDOUT;
-		}
-		usleep_range(1950, 2050); /* sleep 2ms-ish */
-	}
-
-	return 0;
 }
 
 static const char *state_completed_string(u32 completed)
@@ -10292,7 +10252,7 @@ static int goto_offline(struct hfi1_pportdata *ppd, u8 rem_reason)
 
 	if (do_wait) {
 		/* it can take a while for the link to go down */
-		ret = wait_phy_linkstate(dd, PLS_OFFLINE, 10000);
+		ret = wait_physical_linkstate(ppd, PLS_OFFLINE, 10000);
 		if (ret < 0)
 			return ret;
 	}
@@ -10545,6 +10505,19 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 			goto unexpected;
 		}
 
+		/*
+		 * Wait for Link_Up physical state.
+		 * Physical and Logical states should already be
+		 * be transitioned to LinkUp and LinkInit respectively.
+		 */
+		ret = wait_physical_linkstate(ppd, PLS_LINKUP, 1000);
+		if (ret) {
+			dd_dev_err(dd,
+				   "%s: physical state did not change to LINK-UP\n",
+				   __func__);
+			break;
+		}
+
 		ret = wait_logical_linkstate(ppd, IB_PORT_INIT, 1000);
 		if (ret) {
 			dd_dev_err(dd,
@@ -10658,6 +10631,8 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 		 */
 		if (ret)
 			goto_offline(ppd, 0);
+		else
+			cache_physical_state(ppd);
 		break;
 	case HLS_DN_DISABLE:
 		/* link is disabled */
@@ -10682,6 +10657,13 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 				ret = -EINVAL;
 				break;
 			}
+			ret = wait_physical_linkstate(ppd, PLS_DISABLED, 10000);
+			if (ret) {
+				dd_dev_err(dd,
+					   "%s: physical state did not change to DISABLED\n",
+					   __func__);
+				break;
+			}
 			dc_shutdown(dd);
 		}
 		ppd->host_link_state = HLS_DN_DISABLE;
@@ -10699,6 +10681,7 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 		if (ppd->host_link_state != HLS_DN_POLL)
 			goto unexpected;
 		ppd->host_link_state = HLS_VERIFY_CAP;
+		cache_physical_state(ppd);
 		break;
 	case HLS_GOING_UP:
 		if (ppd->host_link_state != HLS_VERIFY_CAP)
@@ -12672,21 +12655,56 @@ static int wait_logical_linkstate(struct hfi1_pportdata *ppd, u32 state,
 	return -ETIMEDOUT;
 }
 
-u8 hfi1_ibphys_portstate(struct hfi1_pportdata *ppd)
+/*
+ * Read the physical hardware link state and set the driver's cached value
+ * of it.
+ */
+void cache_physical_state(struct hfi1_pportdata *ppd)
 {
-	u32 pstate;
+	u32 read_pstate;
 	u32 ib_pstate;
 
-	pstate = read_physical_state(ppd->dd);
-	ib_pstate = chip_to_opa_pstate(ppd->dd, pstate);
-	if (ppd->last_pstate != ib_pstate) {
+	read_pstate = read_physical_state(ppd->dd);
+	ib_pstate = chip_to_opa_pstate(ppd->dd, read_pstate);
+	/* check if OPA pstate changed */
+	if (chip_to_opa_pstate(ppd->dd, ppd->pstate) != ib_pstate) {
 		dd_dev_info(ppd->dd,
 			    "%s: physical state changed to %s (0x%x), phy 0x%x\n",
 			    __func__, opa_pstate_name(ib_pstate), ib_pstate,
-			    pstate);
-		ppd->last_pstate = ib_pstate;
+			    read_pstate);
 	}
-	return ib_pstate;
+	ppd->pstate = read_pstate;
+}
+
+/*
+ * wait_physical_linkstate - wait for an physical link state change to occur
+ * @ppd: port device
+ * @state: the state to wait for
+ * @msecs: the number of milliseconds to wait
+ *
+ * Wait up to msecs milliseconds for physical link state change to occur.
+ * Returns 0 if state reached, otherwise -ETIMEDOUT.
+ */
+static int wait_physical_linkstate(struct hfi1_pportdata *ppd, u32 state,
+				   int msecs)
+{
+	unsigned long timeout;
+
+	timeout = jiffies + msecs_to_jiffies(msecs);
+	while (1) {
+		cache_physical_state(ppd);
+		if (ppd->pstate == state)
+			break;
+		if (time_after(jiffies, timeout)) {
+			dd_dev_err(ppd->dd,
+				   "timeout waiting for phy link state 0x%x, current state is 0x%x\n",
+				   state, ppd->pstate);
+			return -ETIMEDOUT;
+		}
+		usleep_range(1950, 2050); /* sleep 2ms-ish */
+	}
+
+	return 0;
 }
 
 #define CLEAR_STATIC_RATE_CONTROL_SMASK(r) \
@@ -12809,30 +12827,24 @@ static void clean_up_interrupts(struct hfi1_devdata *dd)
 		for (i = 0; i < dd->num_msix_entries; i++, me++) {
 			if (!me->arg) /* => no irq, no affinity */
 				continue;
-			hfi1_put_irq_affinity(dd, &dd->msix_entries[i]);
-			free_irq(me->msix.vector, me->arg);
+			hfi1_put_irq_affinity(dd, me);
+			free_irq(me->irq, me->arg);
 		}
+
+		/* clean structures */
+		kfree(dd->msix_entries);
+		dd->msix_entries = NULL;
+		dd->num_msix_entries = 0;
 	} else {
 		/* INTx */
 		if (dd->requested_intx_irq) {
 			free_irq(dd->pcidev->irq, dd);
 			dd->requested_intx_irq = 0;
 		}
-	}
-
-	/* turn off interrupts */
-	if (dd->num_msix_entries) {
-		/* MSI-X */
-		pci_disable_msix(dd->pcidev);
-	} else {
-		/* INTx */
 		disable_intx(dd->pcidev);
 	}
 
-	/* clean structures */
-	kfree(dd->msix_entries);
-	dd->msix_entries = NULL;
-	dd->num_msix_entries = 0;
+	pci_free_irq_vectors(dd->pcidev);
 }
 
 /*
@@ -12986,13 +12998,21 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 			continue;
 		/* make sure the name is terminated */
 		me->name[sizeof(me->name) - 1] = 0;
+		me->irq = pci_irq_vector(dd->pcidev, i);
+		/*
+		 * On err return me->irq.  Don't need to clear this
+		 * because 'arg' has not been set, and cleanup will
+		 * do the right thing.
+		 */
+		if (me->irq < 0)
+			return me->irq;
 
-		ret = request_threaded_irq(me->msix.vector, handler, thread, 0,
+		ret = request_threaded_irq(me->irq, handler, thread, 0,
 					   me->name, arg);
 		if (ret) {
 			dd_dev_err(dd,
-				   "unable to allocate %s interrupt, vector %d, index %d, err %d\n",
-				   err_info, me->msix.vector, idx, ret);
+				   "unable to allocate %s interrupt, irq %d, index %d, err %d\n",
+				   err_info, me->irq, idx, ret);
 			return ret;
 		}
 		/*
@@ -13003,8 +13023,7 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 
 		ret = hfi1_get_irq_affinity(dd, me);
 		if (ret)
-			dd_dev_err(dd,
-				   "unable to pin IRQ %d\n", ret);
+			dd_dev_err(dd, "unable to pin IRQ %d\n", ret);
 	}
 
 	return ret;
@@ -13023,7 +13042,7 @@ void hfi1_vnic_synchronize_irq(struct hfi1_devdata *dd)
 		struct hfi1_ctxtdata *rcd = dd->vnic.ctxt[i];
 		struct hfi1_msix_entry *me = &dd->msix_entries[rcd->msix_intr];
 
-		synchronize_irq(me->msix.vector);
+		synchronize_irq(me->irq);
 	}
 }
 
@@ -13036,7 +13055,7 @@ void hfi1_reset_vnic_msix_info(struct hfi1_ctxtdata *rcd)
 		return;
 
 	hfi1_put_irq_affinity(dd, me);
-	free_irq(me->msix.vector, me->arg);
+	free_irq(me->irq, me->arg);
 
 	me->arg = NULL;
 }
@@ -13064,14 +13083,19 @@ void hfi1_set_vnic_msix_info(struct hfi1_ctxtdata *rcd)
 		 DRIVER_NAME "_%d kctxt%d", dd->unit, idx);
 	me->name[sizeof(me->name) - 1] = 0;
 	me->type = IRQ_RCVCTXT;
-
+	me->irq = pci_irq_vector(dd->pcidev, rcd->msix_intr);
+	if (me->irq < 0) {
+		dd_dev_err(dd, "vnic irq vector request (idx %d) fail %d\n",
+			   idx, me->irq);
+		return;
+	}
 	remap_intr(dd, IS_RCVAVAIL_START + idx, rcd->msix_intr);
 
-	ret = request_threaded_irq(me->msix.vector, receive_context_interrupt,
+	ret = request_threaded_irq(me->irq, receive_context_interrupt,
 				   receive_context_thread, 0, me->name, arg);
 	if (ret) {
-		dd_dev_err(dd, "vnic irq request (vector %d, idx %d) fail %d\n",
-			   me->msix.vector, idx, ret);
+		dd_dev_err(dd, "vnic irq request (irq %d, idx %d) fail %d\n",
+			   me->irq, idx, ret);
 		return;
 	}
 	/*
@@ -13084,7 +13108,7 @@ void hfi1_set_vnic_msix_info(struct hfi1_ctxtdata *rcd)
 	if (ret) {
 		dd_dev_err(dd,
 			   "unable to pin IRQ %d\n", ret);
-		free_irq(me->msix.vector, me->arg);
+		free_irq(me->irq, me->arg);
 	}
 }
 
@@ -13107,9 +13131,8 @@ static void reset_interrupts(struct hfi1_devdata *dd)
 
 static int set_up_interrupts(struct hfi1_devdata *dd)
 {
-	struct hfi1_msix_entry *entries;
-	u32 total, request;
-	int i, ret;
+	u32 total;
+	int ret, request;
 	int single_interrupt = 0; /* we expect to have all the interrupts */
 
 	/*
@@ -13121,39 +13144,31 @@ static int set_up_interrupts(struct hfi1_devdata *dd)
 	 */
 	total = 1 + dd->num_sdma + dd->n_krcv_queues + HFI1_NUM_VNIC_CTXT;
 
-	entries = kcalloc(total, sizeof(*entries), GFP_KERNEL);
-	if (!entries) {
-		ret = -ENOMEM;
-		goto fail;
-	}
-	/* 1-1 MSI-X entry assignment */
-	for (i = 0; i < total; i++)
-		entries[i].msix.entry = i;
-
 	/* ask for MSI-X interrupts */
-	request = total;
-	request_msix(dd, &request, entries);
-
-	if (request == 0) {
+	request = request_msix(dd, total);
+	if (request < 0) {
+		ret = request;
+		goto fail;
+	} else if (request == 0) {
 		/* using INTx */
 		/* dd->num_msix_entries already zero */
-		kfree(entries);
 		single_interrupt = 1;
 		dd_dev_err(dd, "MSI-X failed, using INTx interrupts\n");
+	} else if (request < total) {
+		/* using MSI-X, with reduced interrupts */
+		dd_dev_err(dd, "reduced interrupt found, wanted %u, got %u\n",
+			   total, request);
+		ret = -EINVAL;
+		goto fail;
 	} else {
-		/* using MSI-X */
-		dd->num_msix_entries = request;
-		dd->msix_entries = entries;
-
-		if (request != total) {
-			/* using MSI-X, with reduced interrupts */
-			dd_dev_err(
-				dd,
-				"cannot handle reduced interrupt case, want %u, got %u\n",
-				total, request);
-			ret = -EINVAL;
+		dd->msix_entries = kcalloc(total, sizeof(*dd->msix_entries),
+					   GFP_KERNEL);
+		if (!dd->msix_entries) {
+			ret = -ENOMEM;
 			goto fail;
 		}
+		/* using MSI-X */
+		dd->num_msix_entries = total;
 		dd_dev_info(dd, "%u MSI-X interrupts allocated\n", total);
 	}
 
@@ -14793,7 +14808,7 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 		/* start in offline */
 		ppd->host_link_state = HLS_DN_OFFLINE;
 		init_vl_arb_caches(ppd);
-		ppd->last_pstate = 0xff; /* invalid value */
+		ppd->pstate = PLS_OFFLINE;
 	}
 
 	dd->link_default = HLS_DN_POLL;

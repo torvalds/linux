@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012 Intel Corporation.  All rights reserved.
+ * Copyright (c) 2012 - 2017 Intel Corporation.  All rights reserved.
  * Copyright (c) 2008 - 2012 QLogic Corporation. All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -2841,10 +2841,10 @@ static void qib_7322_nomsix(struct qib_devdata *dd)
 			reset_dca_notifier(dd, &dd->cspec->msix_entries[i]);
 #endif
 			irq_set_affinity_hint(
-			  dd->cspec->msix_entries[i].msix.vector, NULL);
+				dd->cspec->msix_entries[i].irq, NULL);
 			free_cpumask_var(dd->cspec->msix_entries[i].mask);
-			free_irq(dd->cspec->msix_entries[i].msix.vector,
-			   dd->cspec->msix_entries[i].arg);
+			free_irq(dd->cspec->msix_entries[i].irq,
+				 dd->cspec->msix_entries[i].arg);
 		}
 		qib_nomsix(dd);
 	}
@@ -3336,9 +3336,9 @@ static void reset_dca_notifier(struct qib_devdata *dd, struct qib_msix_entry *m)
 	qib_devinfo(dd->pcidev,
 		"Disabling notifier on HCA %d irq %d\n",
 		dd->unit,
-		m->msix.vector);
+		m->irq);
 	irq_set_affinity_notifier(
-		m->msix.vector,
+		m->irq,
 		NULL);
 	m->notifier = NULL;
 }
@@ -3354,7 +3354,7 @@ static void setup_dca_notifier(struct qib_devdata *dd, struct qib_msix_entry *m)
 		int ret;
 
 		m->notifier = n;
-		n->notify.irq = m->msix.vector;
+		n->notify.irq = m->irq;
 		n->notify.notify = qib_irq_notifier_notify;
 		n->notify.release = qib_irq_notifier_release;
 		n->arg = m->arg;
@@ -3500,10 +3500,21 @@ try_intx:
 				 - 1,
 				QIB_DRV_NAME "%d (kctx)", dd->unit);
 		}
-		ret = request_irq(
-			dd->cspec->msix_entries[msixnum].msix.vector,
-			handler, 0, dd->cspec->msix_entries[msixnum].name,
-			arg);
+
+		dd->cspec->msix_entries[msixnum].irq = pci_irq_vector(
+			dd->pcidev, msixnum);
+		if (dd->cspec->msix_entries[msixnum].irq < 0) {
+			qib_dev_err(dd,
+				    "Couldn't get MSIx irq (vec=%d): %d\n",
+				    msixnum,
+				    dd->cspec->msix_entries[msixnum].irq);
+			qib_7322_nomsix(dd);
+			goto try_intx;
+		}
+		ret = request_irq(dd->cspec->msix_entries[msixnum].irq,
+				  handler, 0,
+				  dd->cspec->msix_entries[msixnum].name,
+				  arg);
 		if (ret) {
 			/*
 			 * Shouldn't happen since the enable said we could
@@ -3512,7 +3523,7 @@ try_intx:
 			qib_dev_err(dd,
 				"Couldn't setup MSIx interrupt (vec=%d, irq=%d): %d\n",
 				msixnum,
-				dd->cspec->msix_entries[msixnum].msix.vector,
+				dd->cspec->msix_entries[msixnum].irq,
 				ret);
 			qib_7322_nomsix(dd);
 			goto try_intx;
@@ -3548,7 +3559,7 @@ try_intx:
 					dd->cspec->msix_entries[msixnum].mask);
 			}
 			irq_set_affinity_hint(
-				dd->cspec->msix_entries[msixnum].msix.vector,
+				dd->cspec->msix_entries[msixnum].irq,
 				dd->cspec->msix_entries[msixnum].mask);
 		}
 		msixnum++;
@@ -3744,7 +3755,6 @@ static int qib_do_7322_reset(struct qib_devdata *dd)
 	if (msix_entries) {
 		/* restore the MSIx vector address and data if saved above */
 		for (i = 0; i < msix_entries; i++) {
-			dd->cspec->msix_entries[i].msix.entry = i;
 			if (!msix_vecsave || !msix_vecsave[2 * i])
 				continue;
 			qib_write_kreg(dd, 2 * i +
@@ -3762,8 +3772,7 @@ static int qib_do_7322_reset(struct qib_devdata *dd)
 	write_7322_initregs(dd);
 
 	if (qib_pcie_params(dd, dd->lbus_width,
-			    &dd->cspec->num_msix_entries,
-			    dd->cspec->msix_entries))
+			    &dd->cspec->num_msix_entries))
 		qib_dev_err(dd,
 			"Reset failed to setup PCIe or interrupts; continuing anyway\n");
 
@@ -5195,7 +5204,7 @@ static int qib_7322_intr_fallback(struct qib_devdata *dd)
 	qib_devinfo(dd->pcidev,
 		"MSIx interrupt not detected, trying INTx interrupts\n");
 	qib_7322_nomsix(dd);
-	qib_enable_intx(dd->pcidev);
+	qib_enable_intx(dd);
 	qib_setup_7322_interrupt(dd, 0);
 	return 1;
 }
@@ -7327,10 +7336,7 @@ struct qib_devdata *qib_init_iba7322_funcs(struct pci_dev *pdev,
 	if (!dd->cspec->msix_entries)
 		tabsize = 0;
 
-	for (i = 0; i < tabsize; i++)
-		dd->cspec->msix_entries[i].msix.entry = i;
-
-	if (qib_pcie_params(dd, 8, &tabsize, dd->cspec->msix_entries))
+	if (qib_pcie_params(dd, 8, &tabsize))
 		qib_dev_err(dd,
 			"Failed to setup PCIe or interrupts; continuing anyway\n");
 	/* may be less than we wanted, if not enough available */

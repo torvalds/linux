@@ -778,23 +778,54 @@ out:
 }
 
 /**
+ * rvt_sge_adjacent - is isge compressible
+ * @isge: outgoing internal SGE
+ * @last_sge: last outgoing SGE written
+ * @sge: SGE to check
+ *
+ * If adjacent will update last_sge to add length.
+ *
+ * Return: true if isge is adjacent to last sge
+ */
+static inline bool rvt_sge_adjacent(struct rvt_sge *isge,
+				    struct rvt_sge *last_sge,
+				    struct ib_sge *sge)
+{
+	if (last_sge && sge->lkey == last_sge->mr->lkey &&
+	    ((uint64_t)(last_sge->vaddr + last_sge->length) == sge->addr)) {
+		if (sge->lkey) {
+			if (unlikely((sge->addr - last_sge->mr->user_base +
+			      sge->length > last_sge->mr->length)))
+				return false; /* overrun, caller will catch */
+		} else {
+			last_sge->length += sge->length;
+		}
+		last_sge->sge_length += sge->length;
+		trace_rvt_sge_adjacent(last_sge, sge);
+		return true;
+	}
+	return false;
+}
+
+/**
  * rvt_lkey_ok - check IB SGE for validity and initialize
  * @rkt: table containing lkey to check SGE against
  * @pd: protection domain
  * @isge: outgoing internal SGE
+ * @last_sge: last outgoing SGE written
  * @sge: SGE to check
  * @acc: access flags
  *
  * Check the IB SGE for validity and initialize our internal version
  * of it.
  *
- * Return: 1 if valid and successful, otherwise returns 0.
+ * Increments the reference count when a new sge is stored.
  *
- * increments the reference count upon success
- *
+ * Return: 0 if compressed, 1 if added , otherwise returns -errno.
  */
 int rvt_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,
-		struct rvt_sge *isge, struct ib_sge *sge, int acc)
+		struct rvt_sge *isge, struct rvt_sge *last_sge,
+		struct ib_sge *sge, int acc)
 {
 	struct rvt_mregion *mr;
 	unsigned n, m;
@@ -804,12 +835,14 @@ int rvt_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,
 	 * We use LKEY == zero for kernel virtual addresses
 	 * (see rvt_get_dma_mr() and dma_virt_ops).
 	 */
-	rcu_read_lock();
 	if (sge->lkey == 0) {
 		struct rvt_dev_info *dev = ib_to_rvt(pd->ibpd.device);
 
 		if (pd->user)
-			goto bail;
+			return -EINVAL;
+		if (rvt_sge_adjacent(isge, last_sge, sge))
+			return 0;
+		rcu_read_lock();
 		mr = rcu_dereference(dev->dma_mr);
 		if (!mr)
 			goto bail;
@@ -824,6 +857,9 @@ int rvt_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,
 		isge->n = 0;
 		goto ok;
 	}
+	if (rvt_sge_adjacent(isge, last_sge, sge))
+		return 0;
+	rcu_read_lock();
 	mr = rcu_dereference(rkt->table[sge->lkey >> rkt->shift]);
 	if (!mr)
 		goto bail;
@@ -874,12 +910,13 @@ int rvt_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,
 	isge->m = m;
 	isge->n = n;
 ok:
+	trace_rvt_sge_new(isge, sge);
 	return 1;
 bail_unref:
 	rvt_put_mr(mr);
 bail:
 	rcu_read_unlock();
-	return 0;
+	return -EINVAL;
 }
 EXPORT_SYMBOL(rvt_lkey_ok);
 

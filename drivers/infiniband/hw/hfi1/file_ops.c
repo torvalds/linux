@@ -774,6 +774,8 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 	*ev = 0;
 
 	__clear_bit(fdata->subctxt, uctxt->in_use_ctxts);
+	fdata->uctxt = NULL;
+	hfi1_rcd_put(uctxt); /* fdata reference */
 	if (!bitmap_empty(uctxt->in_use_ctxts, HFI1_MAX_SHARED_CTXTS)) {
 		mutex_unlock(&hfi1_mutex);
 		goto done;
@@ -794,17 +796,16 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 	/* Clear the context's J_KEY */
 	hfi1_clear_ctxt_jkey(dd, uctxt->ctxt);
 	/*
-	 * Reset context integrity checks to default.
-	 * (writes to CSRs probably belong in chip.c)
+	 * If a send context is allocated, reset context integrity
+	 * checks to default and disable the send context.
 	 */
-	write_kctxt_csr(dd, uctxt->sc->hw_context, SEND_CTXT_CHECK_ENABLE,
-			hfi1_pkt_default_send_ctxt_mask(dd, uctxt->sc->type));
-	sc_disable(uctxt->sc);
+	if (uctxt->sc) {
+		set_pio_integrity(uctxt->sc);
+		sc_disable(uctxt->sc);
+	}
 	spin_unlock_irqrestore(&dd->uctxt_lock, flags);
 
-	dd->rcd[uctxt->ctxt] = NULL;
-
-	hfi1_user_exp_rcv_grp_free(uctxt);
+	hfi1_free_ctxt_rcv_groups(uctxt);
 	hfi1_clear_ctxt_pkey(dd, uctxt);
 
 	uctxt->rcvwait_to = 0;
@@ -816,8 +817,11 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 	hfi1_stats.sps_ctxts--;
 	if (++dd->freectxts == dd->num_user_contexts)
 		aspm_enable_all(dd);
+
+	/* _rcd_put() should be done after releasing mutex */
+	dd->rcd[uctxt->ctxt] = NULL;
 	mutex_unlock(&hfi1_mutex);
-	hfi1_free_ctxtdata(dd, uctxt);
+	hfi1_rcd_put(uctxt);  /* dd reference */
 done:
 	mmdrop(fdata->mm);
 	kobject_put(&dd->kobj);
@@ -887,16 +891,17 @@ static int assign_ctxt(struct hfi1_filedata *fd, struct hfi1_user_info *uinfo)
 		ret = wait_event_interruptible(fd->uctxt->wait, !test_bit(
 					       HFI1_CTXT_BASE_UNINIT,
 					       &fd->uctxt->event_flags));
-		if (test_bit(HFI1_CTXT_BASE_FAILED, &fd->uctxt->event_flags)) {
-			clear_bit(fd->subctxt, fd->uctxt->in_use_ctxts);
-			return -ENOMEM;
-		}
+		if (test_bit(HFI1_CTXT_BASE_FAILED, &fd->uctxt->event_flags))
+			ret = -ENOMEM;
+
 		/* The only thing a sub context needs is the user_xxx stuff */
 		if (!ret)
 			ret = init_user_ctxt(fd);
 
-		if (ret)
+		if (ret) {
 			clear_bit(fd->subctxt, fd->uctxt->in_use_ctxts);
+			hfi1_rcd_put(fd->uctxt);
+		}
 	} else if (!ret) {
 		ret = setup_base_ctxt(fd);
 		if (fd->uctxt->subctxt_cnt) {
@@ -961,6 +966,8 @@ static int find_sub_ctxt(struct hfi1_filedata *fd,
 
 		fd->uctxt = uctxt;
 		fd->subctxt = subctxt;
+
+		hfi1_rcd_get(uctxt);
 		__set_bit(fd->subctxt, uctxt->in_use_ctxts);
 
 		return 1;
@@ -1069,11 +1076,14 @@ static int allocate_ctxt(struct hfi1_filedata *fd, struct hfi1_devdata *dd,
 		aspm_disable_all(dd);
 	fd->uctxt = uctxt;
 
+	/* Count the reference for the fd */
+	hfi1_rcd_get(uctxt);
+
 	return 0;
 
 ctxdata_free:
 	dd->rcd[ctxt] = NULL;
-	hfi1_free_ctxtdata(dd, uctxt);
+	hfi1_rcd_put(uctxt);
 	return ret;
 }
 
@@ -1260,7 +1270,7 @@ static int setup_base_ctxt(struct hfi1_filedata *fd)
 	if (ret)
 		goto setup_failed;
 
-	ret = hfi1_user_exp_rcv_grp_init(fd);
+	ret = hfi1_alloc_ctxt_rcv_groups(uctxt);
 	if (ret)
 		goto setup_failed;
 
@@ -1273,6 +1283,7 @@ static int setup_base_ctxt(struct hfi1_filedata *fd)
 	return 0;
 
 setup_failed:
+	/* Call _free_ctxtdata, not _rcd_put().  We still need the context. */
 	hfi1_free_ctxtdata(dd, uctxt);
 	return ret;
 }

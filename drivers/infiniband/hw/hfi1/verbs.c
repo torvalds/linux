@@ -508,13 +508,14 @@ again:
 /*
  * Make sure the QP is ready and able to accept the given opcode.
  */
-static inline opcode_handler qp_ok(int opcode, struct hfi1_packet *packet)
+static inline opcode_handler qp_ok(struct hfi1_packet *packet)
 {
 	if (!(ib_rvt_state_ops[packet->qp->state] & RVT_PROCESS_RECV_OK))
 		return NULL;
-	if (((opcode & RVT_OPCODE_QP_MASK) == packet->qp->allowed_ops) ||
-	    (opcode == IB_OPCODE_CNP))
-		return opcode_handler_tbl[opcode];
+	if (((packet->opcode & RVT_OPCODE_QP_MASK) ==
+	     packet->qp->allowed_ops) ||
+	    (packet->opcode == IB_OPCODE_CNP))
+		return opcode_handler_tbl[packet->opcode];
 
 	return NULL;
 }
@@ -548,69 +549,34 @@ static u64 hfi1_fault_tx(struct rvt_qp *qp, u8 opcode, u64 pbc)
 	return pbc;
 }
 
-/**
- * hfi1_ib_rcv - process an incoming packet
- * @packet: data packet information
- *
- * This is called to process an incoming packet at interrupt level.
- *
- * Tlen is the length of the header + data + CRC in bytes.
- */
-void hfi1_ib_rcv(struct hfi1_packet *packet)
+static inline void hfi1_handle_packet(struct hfi1_packet *packet,
+				      bool is_mcast)
 {
+	u32 qp_num;
 	struct hfi1_ctxtdata *rcd = packet->rcd;
-	struct ib_header *hdr = packet->hdr;
-	u32 tlen = packet->tlen;
 	struct hfi1_pportdata *ppd = rcd->ppd;
 	struct hfi1_ibport *ibp = rcd_to_iport(rcd);
 	struct rvt_dev_info *rdi = &ppd->dd->verbs_dev.rdi;
 	opcode_handler packet_handler;
 	unsigned long flags;
-	u32 qp_num;
-	int lnh;
-	u8 opcode;
-	u16 lid;
 
-	/* Check for GRH */
-	lnh = ib_get_lnh(hdr);
-	if (lnh == HFI1_LRH_BTH) {
-		packet->ohdr = &hdr->u.oth;
-	} else if (lnh == HFI1_LRH_GRH) {
-		u32 vtf;
+	inc_opstats(packet->tlen, &rcd->opstats->stats[packet->opcode]);
 
-		packet->ohdr = &hdr->u.l.oth;
-		if (hdr->u.l.grh.next_hdr != IB_GRH_NEXT_HDR)
-			goto drop;
-		vtf = be32_to_cpu(hdr->u.l.grh.version_tclass_flow);
-		if ((vtf >> IB_GRH_VERSION_SHIFT) != IB_GRH_VERSION)
-			goto drop;
-		packet->rcv_flags |= HFI1_HAS_GRH;
-	} else {
-		goto drop;
-	}
-
-	trace_input_ibhdr(rcd->dd, hdr);
-
-	opcode = ib_bth_get_opcode(packet->ohdr);
-	inc_opstats(tlen, &rcd->opstats->stats[opcode]);
-
-	/* Get the destination QP number. */
-	qp_num = be32_to_cpu(packet->ohdr->bth[1]) & RVT_QPN_MASK;
-	lid = ib_get_dlid(hdr);
-	if (unlikely((lid >= be16_to_cpu(IB_MULTICAST_LID_BASE)) &&
-		     (lid != be16_to_cpu(IB_LID_PERMISSIVE)))) {
+	if (unlikely(is_mcast)) {
 		struct rvt_mcast *mcast;
 		struct rvt_mcast_qp *p;
 
-		if (lnh != HFI1_LRH_GRH)
+		if (!packet->grh)
 			goto drop;
-		mcast = rvt_mcast_find(&ibp->rvp, &hdr->u.l.grh.dgid, lid);
+		mcast = rvt_mcast_find(&ibp->rvp,
+				       &packet->grh->dgid,
+				       packet->dlid);
 		if (!mcast)
 			goto drop;
 		list_for_each_entry_rcu(p, &mcast->qp_list, list) {
 			packet->qp = p->qp;
 			spin_lock_irqsave(&packet->qp->r_lock, flags);
-			packet_handler = qp_ok(opcode, packet);
+			packet_handler = qp_ok(packet);
 			if (likely(packet_handler))
 				packet_handler(packet);
 			else
@@ -624,19 +590,21 @@ void hfi1_ib_rcv(struct hfi1_packet *packet)
 		if (atomic_dec_return(&mcast->refcount) <= 1)
 			wake_up(&mcast->wait);
 	} else {
+		/* Get the destination QP number. */
+		qp_num = ib_bth_get_qpn(packet->ohdr);
 		rcu_read_lock();
 		packet->qp = rvt_lookup_qpn(rdi, &ibp->rvp, qp_num);
 		if (!packet->qp) {
 			rcu_read_unlock();
 			goto drop;
 		}
-		if (unlikely(hfi1_dbg_fault_opcode(packet->qp, opcode,
+		if (unlikely(hfi1_dbg_fault_opcode(packet->qp, packet->opcode,
 						   true))) {
 			rcu_read_unlock();
 			goto drop;
 		}
 		spin_lock_irqsave(&packet->qp->r_lock, flags);
-		packet_handler = qp_ok(opcode, packet);
+		packet_handler = qp_ok(packet);
 		if (likely(packet_handler))
 			packet_handler(packet);
 		else
@@ -645,9 +613,27 @@ void hfi1_ib_rcv(struct hfi1_packet *packet)
 		rcu_read_unlock();
 	}
 	return;
-
 drop:
 	ibp->rvp.n_pkt_drops++;
+}
+
+/**
+ * hfi1_ib_rcv - process an incoming packet
+ * @packet: data packet information
+ *
+ * This is called to process an incoming packet at interrupt level.
+ */
+void hfi1_ib_rcv(struct hfi1_packet *packet)
+{
+	struct hfi1_ctxtdata *rcd = packet->rcd;
+	bool is_mcast = false;
+
+	if (unlikely(hfi1_check_mcast(packet->dlid)))
+		is_mcast = true;
+
+	trace_input_ibhdr(rcd->dd, packet,
+			  !!(packet->rhf & RHF_DC_INFO_SMASK));
+	hfi1_handle_packet(packet, is_mcast);
 }
 
 /*
@@ -863,7 +849,7 @@ int hfi1_verbs_send_dma(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 
 			/* No vl15 here */
 			/* set PBC_DC_INFO bit (aka SC[4]) in pbc_flags */
-			pbc |= (!!(sc5 & 0x10)) << PBC_DC_INFO_SHIFT;
+			pbc |= (ib_is_sc5(sc5) << PBC_DC_INFO_SHIFT);
 
 			if (unlikely(hfi1_dbg_fault_opcode(qp, opcode, false)))
 				pbc = hfi1_fault_tx(qp, opcode, pbc);
@@ -885,7 +871,7 @@ int hfi1_verbs_send_dma(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 		return ret;
 	}
 	trace_sdma_output_ibhdr(dd_from_ibdev(qp->ibqp.device),
-				&ps->s_txreq->phdr.hdr);
+				&ps->s_txreq->phdr.hdr, ib_is_sc5(sc5));
 	return ret;
 
 bail_ecomm:
@@ -999,7 +985,7 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 		u8 opcode = get_opcode(&tx->phdr.hdr);
 
 		/* set PBC_DC_INFO bit (aka SC[4]) in pbc_flags */
-		pbc |= (!!(sc5 & 0x10)) << PBC_DC_INFO_SHIFT;
+		pbc |= (ib_is_sc5(sc5) << PBC_DC_INFO_SHIFT);
 		if (unlikely(hfi1_dbg_fault_opcode(qp, opcode, false)))
 			pbc = hfi1_fault_tx(qp, opcode, pbc);
 		pbc = create_pbc(ppd, pbc, qp->srate_mbps, vl, plen);
@@ -1058,7 +1044,7 @@ int hfi1_verbs_send_pio(struct rvt_qp *qp, struct hfi1_pkt_state *ps,
 	}
 
 	trace_pio_output_ibhdr(dd_from_ibdev(qp->ibqp.device),
-			       &ps->s_txreq->phdr.hdr);
+			       &ps->s_txreq->phdr.hdr, ib_is_sc5(sc5));
 
 pio_bail:
 	if (qp->s_wqe) {
@@ -1368,7 +1354,7 @@ static int query_port(struct rvt_dev_info *rdi, u8 port_num,
 	props->lmc = ppd->lmc;
 	/* OPA logical states match IB logical states */
 	props->state = driver_lstate(ppd);
-	props->phys_state = hfi1_ibphys_portstate(ppd);
+	props->phys_state = driver_pstate(ppd);
 	props->gid_tbl_len = HFI1_GUIDS_PER_PORT;
 	props->active_width = (u8)opa_width_to_ib(ppd->link_width_active);
 	/* see rate_show() in ib core/sysfs.c */
@@ -1551,9 +1537,13 @@ static void init_ibport(struct hfi1_pportdata *ppd)
 	/* Set the prefix to the default value (see ch. 4.1.1) */
 	ibp->rvp.gid_prefix = IB_DEFAULT_GID_PREFIX;
 	ibp->rvp.sm_lid = 0;
-	/* Below should only set bits defined in OPA PortInfo.CapabilityMask */
+	/*
+	 * Below should only set bits defined in OPA PortInfo.CapabilityMask
+	 * and PortInfo.CapabilityMask3
+	 */
 	ibp->rvp.port_cap_flags = IB_PORT_AUTO_MIGR_SUP |
 		IB_PORT_CAP_MASK_NOTICE_SUP;
+	ibp->rvp.port_cap3_flags = OPA_CAP_MASK3_IsSharedSpaceSupported;
 	ibp->rvp.pma_counter_select[0] = IB_PMA_PORT_XMIT_DATA;
 	ibp->rvp.pma_counter_select[1] = IB_PMA_PORT_RCV_DATA;
 	ibp->rvp.pma_counter_select[2] = IB_PMA_PORT_XMIT_PKTS;

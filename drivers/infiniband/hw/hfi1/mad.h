@@ -115,7 +115,7 @@ struct opa_mad_notice_attr {
 			__be32	lid;		/* LID where change occurred */
 			__be32	new_cap_mask;	/* new capability mask */
 			__be16	reserved2;
-			__be16	cap_mask;
+			__be16	cap_mask3;
 			__be16	change_flags;	/* low 4 bits only */
 		} __packed ntc_144;
 

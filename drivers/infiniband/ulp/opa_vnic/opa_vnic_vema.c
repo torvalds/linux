@@ -52,7 +52,9 @@
 
 #include <linux/module.h>
 #include <rdma/ib_addr.h>
-#include <rdma/ib_smi.h>
+#include <rdma/ib_verbs.h>
+#include <rdma/opa_smi.h>
+#include <rdma/opa_port_info.h>
 
 #include "opa_vnic_internal.h"
 
@@ -980,6 +982,27 @@ static int vema_register(struct opa_vnic_ctrl_port *cport)
 }
 
 /**
+ * opa_vnic_ctrl_config_dev -- This function sends a trap to the EM
+ * by way of ib_modify_port to indicate support for ethernet on the
+ * fabric.
+ * @cport: pointer to control port
+ * @en: enable or disable ethernet on fabric support
+ */
+static void opa_vnic_ctrl_config_dev(struct opa_vnic_ctrl_port *cport, bool en)
+{
+	struct ib_port_modify pm = { 0 };
+	int i;
+
+	if (en)
+		pm.set_port_cap_mask = OPA_CAP_MASK3_IsEthOnFabricSupported;
+	else
+		pm.clr_port_cap_mask = OPA_CAP_MASK3_IsEthOnFabricSupported;
+
+	for (i = 1; i <= cport->num_ports; i++)
+		ib_modify_port(cport->ibdev, i, IB_PORT_OPA_MASK_CHG, &pm);
+}
+
+/**
  * opa_vnic_vema_add_one -- Handle new ib device
  * @device: ib device pointer
  *
@@ -1007,6 +1030,7 @@ static void opa_vnic_vema_add_one(struct ib_device *device)
 		c_info("VNIC client initialized\n");
 
 	ib_set_client_data(device, &opa_vnic_client, cport);
+	opa_vnic_ctrl_config_dev(cport, true);
 }
 
 /**
@@ -1025,6 +1049,7 @@ static void opa_vnic_vema_rem_one(struct ib_device *device,
 		return;
 
 	c_info("removing VNIC client\n");
+	opa_vnic_ctrl_config_dev(cport, false);
 	vema_unregister(cport);
 	kfree(cport);
 }

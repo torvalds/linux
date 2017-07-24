@@ -421,15 +421,6 @@ bail:
 	return ret;
 }
 
-static void free_qpn(struct rvt_qpn_table *qpt, u32 qpn)
-{
-	struct rvt_qpn_map *map;
-
-	map = qpt->map + qpn / RVT_BITS_PER_PAGE;
-	if (map->page)
-		clear_bit(qpn & RVT_BITS_PER_PAGE_MASK, map->page);
-}
-
 /**
  * rvt_clear_mr_refs - Drop help mr refs
  * @qp: rvt qp data structure
@@ -643,6 +634,19 @@ static void rvt_reset_qp(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 	lockdep_assert_held(&qp->r_lock);
 	lockdep_assert_held(&qp->s_hlock);
 	lockdep_assert_held(&qp->s_lock);
+}
+
+/** rvt_free_qpn - Free a qpn from the bit map
+ * @qpt: QP table
+ * @qpn: queue pair number to free
+ */
+static void rvt_free_qpn(struct rvt_qpn_table *qpt, u32 qpn)
+{
+	struct rvt_qpn_map *map;
+
+	map = qpt->map + (qpn & RVT_QPN_MASK) / RVT_BITS_PER_PAGE;
+	if (map->page)
+		clear_bit(qpn & RVT_BITS_PER_PAGE_MASK, map->page);
 }
 
 /**
@@ -914,7 +918,7 @@ bail_ip:
 		kref_put(&qp->ip->ref, rvt_release_mmap_info);
 
 bail_qpn:
-	free_qpn(&rdi->qp_dev->qpn_table, qp->ibqp.qp_num);
+	rvt_free_qpn(&rdi->qp_dev->qpn_table, qp->ibqp.qp_num);
 
 bail_rq_wq:
 	if (!qp->ip)
@@ -1301,19 +1305,6 @@ inval:
 	return -EINVAL;
 }
 
-/** rvt_free_qpn - Free a qpn from the bit map
- * @qpt: QP table
- * @qpn: queue pair number to free
- */
-static void rvt_free_qpn(struct rvt_qpn_table *qpt, u32 qpn)
-{
-	struct rvt_qpn_map *map;
-
-	map = qpt->map + qpn / RVT_BITS_PER_PAGE;
-	if (map->page)
-		clear_bit(qpn & RVT_BITS_PER_PAGE_MASK, map->page);
-}
-
 /**
  * rvt_destroy_qp - destroy a queue pair
  * @ibqp: the queue pair to destroy
@@ -1622,7 +1613,7 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 	struct rvt_pd *pd;
 	struct rvt_dev_info *rdi = ib_to_rvt(qp->ibqp.device);
 	u8 log_pmtu;
-	int ret;
+	int ret, incr;
 	size_t cplen;
 	bool reserved_op;
 	int local_ops_delayed = 0;
@@ -1695,22 +1686,23 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 	wqe->length = 0;
 	j = 0;
 	if (wr->num_sge) {
+		struct rvt_sge *last_sge = NULL;
+
 		acc = wr->opcode >= IB_WR_RDMA_READ ?
 			IB_ACCESS_LOCAL_WRITE : 0;
 		for (i = 0; i < wr->num_sge; i++) {
 			u32 length = wr->sg_list[i].length;
-			int ok;
 
 			if (length == 0)
 				continue;
-			ok = rvt_lkey_ok(rkt, pd, &wqe->sg_list[j],
-					 &wr->sg_list[i], acc);
-			if (!ok) {
-				ret = -EINVAL;
-				goto bail_inval_free;
-			}
+			incr = rvt_lkey_ok(rkt, pd, &wqe->sg_list[j], last_sge,
+					   &wr->sg_list[i], acc);
+			if (unlikely(incr < 0))
+				goto bail_lkey_error;
 			wqe->length += length;
-			j++;
+			if (incr)
+				last_sge = &wqe->sg_list[j];
+			j += incr;
 		}
 		wqe->wr.num_sge = j;
 	}
@@ -1757,12 +1749,14 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 		wqe->wr.send_flags &= ~RVT_SEND_RESERVE_USED;
 		qp->s_avail--;
 	}
-	trace_rvt_post_one_wr(qp, wqe);
+	trace_rvt_post_one_wr(qp, wqe, wr->num_sge);
 	smp_wmb(); /* see request builders */
 	qp->s_head = next;
 
 	return 0;
 
+bail_lkey_error:
+	ret = incr;
 bail_inval_free:
 	/* release mr holds */
 	while (j) {

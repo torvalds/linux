@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015 - 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -240,50 +240,6 @@ void hfi1_pcie_ddcleanup(struct hfi1_devdata *dd)
 		iounmap(dd->piobase);
 }
 
-static void msix_setup(struct hfi1_devdata *dd, int pos, u32 *msixcnt,
-		       struct hfi1_msix_entry *hfi1_msix_entry)
-{
-	int ret;
-	int nvec = *msixcnt;
-	struct msix_entry *msix_entry;
-	int i;
-
-	/*
-	 * We can't pass hfi1_msix_entry array to msix_setup
-	 * so use a dummy msix_entry array and copy the allocated
-	 * irq back to the hfi1_msix_entry array.
-	 */
-	msix_entry = kmalloc_array(nvec, sizeof(*msix_entry), GFP_KERNEL);
-	if (!msix_entry) {
-		ret = -ENOMEM;
-		goto do_intx;
-	}
-
-	for (i = 0; i < nvec; i++)
-		msix_entry[i] = hfi1_msix_entry[i].msix;
-
-	ret = pci_enable_msix_range(dd->pcidev, msix_entry, 1, nvec);
-	if (ret < 0)
-		goto free_msix_entry;
-	nvec = ret;
-
-	for (i = 0; i < nvec; i++)
-		hfi1_msix_entry[i].msix = msix_entry[i];
-
-	kfree(msix_entry);
-	*msixcnt = nvec;
-	return;
-
-free_msix_entry:
-	kfree(msix_entry);
-
-do_intx:
-	dd_dev_err(dd, "pci_enable_msix_range %d vectors failed: %d, falling back to INTx\n",
-		   nvec, ret);
-	*msixcnt = 0;
-	hfi1_enable_intx(dd->pcidev);
-}
-
 /* return the PCIe link speed from the given link status */
 static u32 extract_speed(u16 linkstat)
 {
@@ -364,33 +320,29 @@ int pcie_speeds(struct hfi1_devdata *dd)
 }
 
 /*
- * Returns in *nent:
- *	- actual number of interrupts allocated
+ * Returns:
+ *	- actual number of interrupts allocated or
  *	- 0 if fell back to INTx.
+ *      - error
  */
-void request_msix(struct hfi1_devdata *dd, u32 *nent,
-		  struct hfi1_msix_entry *entry)
+int request_msix(struct hfi1_devdata *dd, u32 msireq)
 {
-	int pos;
+	int nvec;
 
-	pos = dd->pcidev->msix_cap;
-	if (*nent && pos) {
-		msix_setup(dd, pos, nent, entry);
-		/* did it, either MSI-X or INTx */
-	} else {
-		*nent = 0;
-		hfi1_enable_intx(dd->pcidev);
+	nvec = pci_alloc_irq_vectors(dd->pcidev, 1, msireq,
+				     PCI_IRQ_MSIX | PCI_IRQ_LEGACY);
+	if (nvec < 0) {
+		dd_dev_err(dd, "pci_alloc_irq_vectors() failed: %d\n", nvec);
+		return nvec;
 	}
 
 	tune_pcie_caps(dd);
-}
 
-void hfi1_enable_intx(struct pci_dev *pdev)
-{
-	/* first, turn on INTx */
-	pci_intx(pdev, 1);
-	/* then turn off MSI-X */
-	pci_disable_msix(pdev);
+	/* check for legacy IRQ */
+	if (nvec == 1 && !dd->pcidev->msix_enabled)
+		return 0;
+
+	return nvec;
 }
 
 /* restore command and BARs after a reset has wiped them out */
