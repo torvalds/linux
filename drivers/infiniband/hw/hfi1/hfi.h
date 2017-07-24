@@ -867,12 +867,15 @@ struct hfi1_devdata {
 	struct device *diag_device;
 	struct device *ui_device;
 
-	/* mem-mapped pointer to base of chip regs */
-	u8 __iomem *kregbase;
-	/* end of mem-mapped chip space excluding sendbuf and user regs */
-	u8 __iomem *kregend;
-	/* physical address of chip for io_remap, etc. */
+	/* first mapping up to RcvArray */
+	u8 __iomem *kregbase1;
 	resource_size_t physaddr;
+
+	/* second uncached mapping from RcvArray to pio send buffers */
+	u8 __iomem *kregbase2;
+	/* for detecting offset above kregbase2 address */
+	u32 base2_start;
+
 	/* Per VL data. Enough for all VLs but not all elements are set/used. */
 	struct per_vl_data vld[PER_VL_SEND_CONTEXTS];
 	/* send context data */
@@ -1236,9 +1239,10 @@ static inline bool hfi1_vnic_is_rsm_full(struct hfi1_devdata *dd, int spare)
 #define dc8051_ver_patch(a) ((a) & 0x0000ff)
 
 /* f_put_tid types */
-#define PT_EXPECTED 0
-#define PT_EAGER    1
-#define PT_INVALID  2
+#define PT_EXPECTED       0
+#define PT_EAGER          1
+#define PT_INVALID_FLUSH  2
+#define PT_INVALID        3
 
 struct tid_rb_node;
 struct mmu_rb_node;

@@ -814,12 +814,11 @@ static void clear_tid_node(struct hfi1_filedata *fd, struct tid_rb_node *node)
 				 node->npages, node->mmu.addr, node->phys,
 				 node->dma_addr);
 
-	hfi1_put_tid(dd, node->rcventry, PT_INVALID, 0, 0);
 	/*
 	 * Make sure device has seen the write before we unpin the
 	 * pages.
 	 */
-	flush_wc();
+	hfi1_put_tid(dd, node->rcventry, PT_INVALID_FLUSH, 0, 0);
 
 	pci_unmap_single(dd->pcidev, node->dma_addr, node->mmu.len,
 			 PCI_DMA_FROMDEVICE);

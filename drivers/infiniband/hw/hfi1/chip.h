@@ -605,11 +605,11 @@ int read_lcb_csr(struct hfi1_devdata *dd, u32 offset, u64 *data);
 int write_lcb_csr(struct hfi1_devdata *dd, u32 offset, u64 data);
 
 void __iomem *get_csr_addr(
-	struct hfi1_devdata *dd,
+	const struct hfi1_devdata *dd,
 	u32 offset);
 
 static inline void __iomem *get_kctxt_csr_addr(
-	struct hfi1_devdata *dd,
+	const struct hfi1_devdata *dd,
 	int ctxt,
 	u32 offset0)
 {

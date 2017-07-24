@@ -1297,25 +1297,71 @@ CNTR_ELEM(#name, \
 	  CNTR_SYNTH, \
 	  access_ibp_##cntr)
 
+/**
+ * hfi_addr_from_offset - return addr for readq/writeq
+ * @dd - the dd device
+ * @offset - the offset of the CSR within bar0
+ *
+ * This routine selects the appropriate base address
+ * based on the indicated offset.
+ */
+static inline void __iomem *hfi1_addr_from_offset(
+	const struct hfi1_devdata *dd,
+	u32 offset)
+{
+	if (offset >= dd->base2_start)
+		return dd->kregbase2 + (offset - dd->base2_start);
+	return dd->kregbase1 + offset;
+}
+
+/**
+ * read_csr - read CSR at the indicated offset
+ * @dd - the dd device
+ * @offset - the offset of the CSR within bar0
+ *
+ * Return: the value read or all FF's if there
+ * is no mapping
+ */
 u64 read_csr(const struct hfi1_devdata *dd, u32 offset)
 {
-	if (dd->flags & HFI1_PRESENT) {
-		return readq((void __iomem *)dd->kregbase + offset);
-	}
+	if (dd->flags & HFI1_PRESENT)
+		return readq(hfi1_addr_from_offset(dd, offset));
 	return -1;
 }
 
+/**
+ * write_csr - write CSR at the indicated offset
+ * @dd - the dd device
+ * @offset - the offset of the CSR within bar0
+ * @value - value to write
+ */
 void write_csr(const struct hfi1_devdata *dd, u32 offset, u64 value)
 {
-	if (dd->flags & HFI1_PRESENT)
-		writeq(value, (void __iomem *)dd->kregbase + offset);
+	if (dd->flags & HFI1_PRESENT) {
+		void __iomem *base = hfi1_addr_from_offset(dd, offset);
+
+		/* avoid write to RcvArray */
+		if (WARN_ON(offset >= RCV_ARRAY && offset < dd->base2_start))
+			return;
+		writeq(value, base);
+	}
 }
 
+/**
+ * get_csr_addr - return te iomem address for offset
+ * @dd - the dd device
+ * @offset - the offset of the CSR within bar0
+ *
+ * Return: The iomem address to use in subsequent
+ * writeq/readq operations.
+ */
 void __iomem *get_csr_addr(
-	struct hfi1_devdata *dd,
+	const struct hfi1_devdata *dd,
 	u32 offset)
 {
-	return (void __iomem *)dd->kregbase + offset;
+	if (dd->flags & HFI1_PRESENT)
+		return hfi1_addr_from_offset(dd, offset);
+	return NULL;
 }
 
 static inline u64 read_write_csr(const struct hfi1_devdata *dd, u32 csr,
@@ -9752,14 +9798,13 @@ void hfi1_put_tid(struct hfi1_devdata *dd, u32 index,
 		  u32 type, unsigned long pa, u16 order)
 {
 	u64 reg;
-	void __iomem *base = (dd->rcvarray_wc ? dd->rcvarray_wc :
-			      (dd->kregbase + RCV_ARRAY));
 
 	if (!(dd->flags & HFI1_PRESENT))
 		goto done;
 
-	if (type == PT_INVALID) {
+	if (type == PT_INVALID || type == PT_INVALID_FLUSH) {
 		pa = 0;
+		order = 0;
 	} else if (type > PT_INVALID) {
 		dd_dev_err(dd,
 			   "unexpected receive array type %u for index %u, not handled\n",
@@ -9773,13 +9818,14 @@ void hfi1_put_tid(struct hfi1_devdata *dd, u32 index,
 		| (u64)order << RCV_ARRAY_RT_BUF_SIZE_SHIFT
 		| ((pa >> RT_ADDR_SHIFT) & RCV_ARRAY_RT_ADDR_MASK)
 					<< RCV_ARRAY_RT_ADDR_SHIFT;
-	trace_hfi1_write_rcvarray(base + (index * 8), reg);
-	writeq(reg, base + (index * 8));
+	trace_hfi1_write_rcvarray(dd->rcvarray_wc + (index * 8), reg);
+	writeq(reg, dd->rcvarray_wc + (index * 8));
 
-	if (type == PT_EAGER)
+	if (type == PT_EAGER || type == PT_INVALID_FLUSH || (index & 3) == 3)
 		/*
-		 * Eager entries are written one-by-one so we have to push them
-		 * after we write the entry.
+		 * Eager entries are written and flushed
+		 *
+		 * Expected entries are flushed every 4 writes
 		 */
 		flush_wc();
 done:
@@ -13411,8 +13457,7 @@ static void write_uninitialized_csrs_and_memories(struct hfi1_devdata *dd)
 
 	/* RcvArray */
 	for (i = 0; i < dd->chip_rcv_array_count; i++)
-		write_csr(dd, RCV_ARRAY + (8 * i),
-			  RCV_ARRAY_RT_WRITE_ENABLE_SMASK);
+		hfi1_put_tid(dd, i, PT_INVALID_FLUSH, 0, 0);
 
 	/* RcvQPMapTable */
 	for (i = 0; i < 32; i++)

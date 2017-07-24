@@ -180,31 +180,47 @@ int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev)
 		return -EINVAL;
 	}
 
-	dd->kregbase = ioremap_nocache(addr, TXE_PIO_SEND);
-	if (!dd->kregbase)
+	dd->kregbase1 = ioremap_nocache(addr, RCV_ARRAY);
+	if (!dd->kregbase1) {
+		dd_dev_err(dd, "UC mapping of kregbase1 failed\n");
 		return -ENOMEM;
+	}
+	dd_dev_info(dd, "UC base1: %p for %x\n", dd->kregbase1, RCV_ARRAY);
+	dd->chip_rcv_array_count = readq(dd->kregbase1 + RCV_ARRAY_CNT);
+	dd_dev_info(dd, "RcvArray count: %u\n", dd->chip_rcv_array_count);
+	dd->base2_start  = RCV_ARRAY + dd->chip_rcv_array_count * 8;
+
+	dd->kregbase2 = ioremap_nocache(
+		addr + dd->base2_start,
+		TXE_PIO_SEND - dd->base2_start);
+	if (!dd->kregbase2) {
+		dd_dev_err(dd, "UC mapping of kregbase2 failed\n");
+		goto nomem;
+	}
+	dd_dev_info(dd, "UC base2: %p for %x\n", dd->kregbase2,
+		    TXE_PIO_SEND - dd->base2_start);
 
 	dd->piobase = ioremap_wc(addr + TXE_PIO_SEND, TXE_PIO_SIZE);
 	if (!dd->piobase) {
-		iounmap(dd->kregbase);
-		return -ENOMEM;
+		dd_dev_err(dd, "WC mapping of send buffers failed\n");
+		goto nomem;
 	}
+	dd_dev_info(dd, "WC piobase: %p\n for %x", dd->piobase, TXE_PIO_SIZE);
 
-	dd->flags |= HFI1_PRESENT;	/* now register routines work */
-
-	dd->kregend = dd->kregbase + TXE_PIO_SEND;
 	dd->physaddr = addr;        /* used for io_remap, etc. */
 
 	/*
-	 * Re-map the chip's RcvArray as write-combining to allow us
+	 * Map the chip's RcvArray as write-combining to allow us
 	 * to write an entire cacheline worth of entries in one shot.
-	 * If this re-map fails, just continue - the RcvArray programming
-	 * function will handle both cases.
 	 */
-	dd->chip_rcv_array_count = read_csr(dd, RCV_ARRAY_CNT);
 	dd->rcvarray_wc = ioremap_wc(addr + RCV_ARRAY,
 				     dd->chip_rcv_array_count * 8);
-	dd_dev_info(dd, "WC Remapped RcvArray: %p\n", dd->rcvarray_wc);
+	if (!dd->rcvarray_wc) {
+		dd_dev_err(dd, "WC mapping of receive array failed\n");
+		goto nomem;
+	}
+	dd_dev_info(dd, "WC RcvArray: %p for %x\n",
+		    dd->rcvarray_wc, dd->chip_rcv_array_count * 8);
 	/*
 	 * Save BARs and command to rewrite after device reset.
 	 */
@@ -253,10 +269,16 @@ int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev)
 	if (ret)
 		goto read_error;
 
+	dd->flags |= HFI1_PRESENT;	/* chip.c CSR routines now work */
 	return 0;
 
 read_error:
 	dd_dev_err(dd, "Unable to read from PCI config\n");
+	goto bail_error;
+nomem:
+	ret = -ENOMEM;
+bail_error:
+	hfi1_pcie_ddcleanup(dd);
 	return ret;
 }
 
@@ -267,15 +289,19 @@ read_error:
  */
 void hfi1_pcie_ddcleanup(struct hfi1_devdata *dd)
 {
-	u64 __iomem *base = (void __iomem *)dd->kregbase;
-
 	dd->flags &= ~HFI1_PRESENT;
-	dd->kregbase = NULL;
-	iounmap(base);
+	if (dd->kregbase1)
+		iounmap(dd->kregbase1);
+	dd->kregbase1 = NULL;
+	if (dd->kregbase2)
+		iounmap(dd->kregbase2);
+	dd->kregbase2 = NULL;
 	if (dd->rcvarray_wc)
 		iounmap(dd->rcvarray_wc);
+	dd->rcvarray_wc = NULL;
 	if (dd->piobase)
 		iounmap(dd->piobase);
+	dd->piobase = NULL;
 }
 
 /* return the PCIe link speed from the given link status */

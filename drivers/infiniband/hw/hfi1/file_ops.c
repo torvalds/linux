@@ -181,7 +181,7 @@ static int hfi1_file_open(struct inode *inode, struct file *fp)
 					       struct hfi1_devdata,
 					       user_cdev);
 
-	if (!((dd->flags & HFI1_PRESENT) && dd->kregbase))
+	if (!((dd->flags & HFI1_PRESENT) && dd->kregbase1))
 		return -EINVAL;
 
 	if (!atomic_inc_not_zero(&dd->user_refcount))

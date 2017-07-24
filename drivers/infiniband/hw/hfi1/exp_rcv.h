@@ -137,8 +137,11 @@ static inline void rcv_array_wc_fill(struct hfi1_devdata *dd, u32 index)
 	 * Doing the WC fill writes only makes sense if the device is
 	 * present and the RcvArray has been mapped as WC memory.
 	 */
-	if ((dd->flags & HFI1_PRESENT) && dd->rcvarray_wc)
+	if ((dd->flags & HFI1_PRESENT) && dd->rcvarray_wc) {
 		writeq(0, dd->rcvarray_wc + (index * 8));
+		if ((index & 3) == 3)
+			flush_wc();
+	}
 }
 
 static inline void tid_group_add_tail(struct tid_group *grp,

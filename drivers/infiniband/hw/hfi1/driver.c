@@ -195,7 +195,7 @@ int hfi1_count_active_units(void)
 
 	spin_lock_irqsave(&hfi1_devs_lock, flags);
 	list_for_each_entry(dd, &hfi1_dev_list, list) {
-		if (!(dd->flags & HFI1_PRESENT) || !dd->kregbase)
+		if (!(dd->flags & HFI1_PRESENT) || !dd->kregbase1)
 			continue;
 		for (pidx = 0; pidx < dd->num_pports; ++pidx) {
 			ppd = dd->pport + pidx;
@@ -1282,7 +1282,7 @@ int hfi1_reset_device(int unit)
 
 	dd_dev_info(dd, "Reset on unit %u requested\n", unit);
 
-	if (!dd->kregbase || !(dd->flags & HFI1_PRESENT)) {
+	if (!dd->kregbase1 || !(dd->flags & HFI1_PRESENT)) {
 		dd_dev_info(dd,
 			    "Invalid unit number %u or not initialized or not present\n",
 			    unit);
