@@ -1402,6 +1402,9 @@ static const struct snd_kcontrol_new rt5665_snd_controls[] = {
 		RT5665_L_VOL_SFT, 15, 1, snd_soc_get_volsw,
 		rt5665_mono_vol_put, mono_vol_tlv),
 
+	SOC_SINGLE_TLV("MONOVOL Playback Volume", RT5665_MONO_OUT,
+		RT5665_L_VOL_SFT, 39, 1, out_vol_tlv),
+
 	/* Output Volume */
 	SOC_DOUBLE_TLV("OUT Playback Volume", RT5665_LOUT, RT5665_L_VOL_SFT,
 		RT5665_R_VOL_SFT, 39, 1, out_vol_tlv),
