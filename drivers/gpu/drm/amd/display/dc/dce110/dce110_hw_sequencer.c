@@ -2582,6 +2582,11 @@ static void dce110_power_down_fe(struct core_dc *dc, int fe_idx)
 				dc->res_pool->transforms[fe_idx]);
 }
 
+static void dce110_wait_for_mpcc_disconnect(struct resource_pool *res_pool, struct pipe_ctx *pipe_ctx)
+{
+	/* do nothing*/
+}
+
 static const struct hw_sequencer_funcs dce110_funcs = {
 	.program_gamut_remap = program_gamut_remap,
 	.init_hw = init_hw,
@@ -2611,6 +2616,7 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.prog_pixclk_crtc_otg = dce110_prog_pixclk_crtc_otg,
 	.setup_stereo = NULL,
 	.set_avmute = dce110_set_avmute,
+	.wait_for_mpcc_disconnect = dce110_wait_for_mpcc_disconnect
 };
 
 bool dce110_hw_sequencer_construct(struct core_dc *dc)
