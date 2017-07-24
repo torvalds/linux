@@ -29,6 +29,8 @@ struct pcpu_chunk {
 	struct list_head	list;		/* linked to pcpu_slot lists */
 	int			free_bytes;	/* free bytes in the chunk */
 	int			contig_bits;	/* max contiguous size hint */
+	int			contig_bits_start; /* contig_bits starting
+						      offset */
 	void			*base_addr;	/* base address of this chunk */
 
 	unsigned long		*alloc_map;	/* allocation map */

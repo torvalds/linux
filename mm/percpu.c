@@ -400,12 +400,14 @@ static inline int pcpu_cnt_pop_pages(struct pcpu_chunk *chunk, int bit_off,
  * @bit_off: chunk offset
  * @bits: size of free area
  *
- * This updates the chunk's contig hint given a free area.
+ * This updates the chunk's contig hint and starting offset given a free area.
  */
 static void pcpu_chunk_update(struct pcpu_chunk *chunk, int bit_off, int bits)
 {
-	if (bits > chunk->contig_bits)
+	if (bits > chunk->contig_bits) {
+		chunk->contig_bits_start = bit_off;
 		chunk->contig_bits = bits;
+	}
 }
 
 /**
@@ -416,6 +418,7 @@ static void pcpu_chunk_update(struct pcpu_chunk *chunk, int bit_off, int bits)
  *
  * Updates:
  *      chunk->contig_bits
+ *      chunk->contig_bits_start
  *      nr_empty_pop_pages
  */
 static void pcpu_chunk_refresh_hint(struct pcpu_chunk *chunk)
@@ -645,6 +648,17 @@ static int pcpu_find_block_fit(struct pcpu_chunk *chunk, int alloc_bits,
 {
 	int bit_off, bits;
 	int re; /* region end */
+
+	/*
+	 * Check to see if the allocation can fit in the chunk's contig hint.
+	 * This is an optimization to prevent scanning by assuming if it
+	 * cannot fit in the global hint, there is memory pressure and creating
+	 * a new chunk would happen soon.
+	 */
+	bit_off = ALIGN(chunk->contig_bits_start, align) -
+		  chunk->contig_bits_start;
+	if (bit_off + alloc_bits > chunk->contig_bits)
+		return -1;
 
 	pcpu_for_each_unpop_region(chunk->alloc_map, bit_off, re,
 				   chunk->first_bit,
