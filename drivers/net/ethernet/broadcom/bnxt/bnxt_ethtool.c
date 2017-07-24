@@ -523,7 +523,7 @@ static int bnxt_grxclsrule(struct bnxt *bp, struct ethtool_rxnfc *cmd)
 	struct flow_keys *fkeys;
 	int i, rc = -EINVAL;
 
-	if (fs->location < 0 || fs->location >= BNXT_NTP_FLTR_MAX_FLTR)
+	if (fs->location >= BNXT_NTP_FLTR_MAX_FLTR)
 		return rc;
 
 	for (i = 0; i < BNXT_NTP_FLTR_HASH_SIZE; i++) {
