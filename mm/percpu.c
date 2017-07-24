@@ -1598,6 +1598,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	PCPU_SETUP_BUG_ON(offset_in_page(ai->unit_size));
 	PCPU_SETUP_BUG_ON(ai->unit_size < PCPU_MIN_UNIT_SIZE);
 	PCPU_SETUP_BUG_ON(ai->dyn_size < PERCPU_DYNAMIC_EARLY_SIZE);
+	PCPU_SETUP_BUG_ON(!ai->dyn_size);
 	PCPU_SETUP_BUG_ON(pcpu_verify_alloc_info(ai) < 0);
 
 	/* process group information and build config tables accordingly */
@@ -1700,14 +1701,12 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 		schunk->free_size = dyn_size;
 		dyn_size = 0;			/* dynamic area covered */
 	}
-	schunk->contig_hint = schunk->free_size;
 
+	schunk->contig_hint = schunk->free_size;
 	schunk->map[0] = 1;
 	schunk->map[1] = ai->static_size;
-	schunk->map_used = 1;
-	if (schunk->free_size)
-		schunk->map[++schunk->map_used] = ai->static_size + schunk->free_size;
-	schunk->map[schunk->map_used] |= 1;
+	schunk->map[2] = (ai->static_size + schunk->free_size) | 1;
+	schunk->map_used = 2;
 	schunk->has_reserved = true;
 
 	/* init dynamic chunk if necessary */
