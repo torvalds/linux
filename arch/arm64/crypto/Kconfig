@@ -29,10 +29,12 @@ config CRYPTO_SHA2_ARM64_CE
 	select CRYPTO_SHA256_ARM64
 
 config CRYPTO_GHASH_ARM64_CE
-	tristate "GHASH (for GCM chaining mode) using ARMv8 Crypto Extensions"
+	tristate "GHASH/AES-GCM using ARMv8 Crypto Extensions"
 	depends on KERNEL_MODE_NEON
 	select CRYPTO_HASH
 	select CRYPTO_GF128MUL
+	select CRYPTO_AES
+	select CRYPTO_AES_ARM64
 
 config CRYPTO_CRCT10DIF_ARM64_CE
 	tristate "CRCT10DIF digest algorithm using PMULL instructions"
