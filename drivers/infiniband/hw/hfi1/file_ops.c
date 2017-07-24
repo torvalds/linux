@@ -795,7 +795,7 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 		     HFI1_RCVCTRL_NO_RHQ_DROP_DIS |
 		     HFI1_RCVCTRL_NO_EGR_DROP_DIS, uctxt->ctxt);
 	/* Clear the context's J_KEY */
-	hfi1_clear_ctxt_jkey(dd, uctxt->ctxt);
+	hfi1_clear_ctxt_jkey(dd, uctxt);
 	/*
 	 * If a send context is allocated, reset context integrity
 	 * checks to default and disable the send context.
@@ -1172,7 +1172,7 @@ static void user_init(struct hfi1_ctxtdata *uctxt)
 		clear_rcvhdrtail(uctxt);
 
 	/* Setup J_KEY before enabling the context */
-	hfi1_set_ctxt_jkey(uctxt->dd, uctxt->ctxt, uctxt->jkey);
+	hfi1_set_ctxt_jkey(uctxt->dd, uctxt, uctxt->jkey);
 
 	rcvctrl_ops = HFI1_RCVCTRL_CTXT_ENB;
 	if (HFI1_CAP_UGET_MASK(uctxt->flags, HDRSUPP))
@@ -1545,7 +1545,7 @@ static int set_ctxt_pkey(struct hfi1_ctxtdata *uctxt, u16 subctxt, u16 pkey)
 		}
 
 	if (intable)
-		ret = hfi1_set_ctxt_pkey(dd, uctxt->ctxt, pkey);
+		ret = hfi1_set_ctxt_pkey(dd, uctxt, pkey);
 done:
 	return ret;
 }
