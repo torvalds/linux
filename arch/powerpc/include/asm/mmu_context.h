@@ -77,6 +77,26 @@ extern void switch_cop(struct mm_struct *next);
 extern int use_cop(unsigned long acop, struct mm_struct *mm);
 extern void drop_cop(unsigned long acop, struct mm_struct *mm);
 
+#if defined(CONFIG_PPC32)
+static inline void switch_mm_pgdir(struct task_struct *tsk,
+				   struct mm_struct *mm)
+{
+	/* 32-bit keeps track of the current PGDIR in the thread struct */
+	tsk->thread.pgdir = mm->pgd;
+}
+#elif defined(CONFIG_PPC_BOOK3E_64)
+static inline void switch_mm_pgdir(struct task_struct *tsk,
+				   struct mm_struct *mm)
+{
+	/* 64-bit Book3E keeps track of current PGD in the PACA */
+	get_paca()->pgd = mm->pgd;
+}
+#else
+static inline void switch_mm_pgdir(struct task_struct *tsk,
+				   struct mm_struct *mm) { }
+#endif
+
+
 /*
  * switch_mm is the entry point called from the architecture independent
  * code in kernel/sched/core.c
@@ -111,15 +131,9 @@ static inline void switch_mm_irqs_off(struct mm_struct *prev,
 		new_on_cpu = true;
 	}
 
-	/* 32-bit keeps track of the current PGDIR in the thread struct */
-#ifdef CONFIG_PPC32
-	tsk->thread.pgdir = next->pgd;
-#endif /* CONFIG_PPC32 */
+	/* Some subarchs need to track the PGD elsewhere */
+	switch_mm_pgdir(tsk, next);
 
-	/* 64-bit Book3E keeps track of current PGD in the PACA */
-#ifdef CONFIG_PPC_BOOK3E_64
-	get_paca()->pgd = next->pgd;
-#endif
 	/* Nothing else to do if we aren't actually switching */
 	if (prev == next)
 		return;
