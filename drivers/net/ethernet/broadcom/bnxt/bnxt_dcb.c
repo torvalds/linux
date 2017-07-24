@@ -93,6 +93,12 @@ static int bnxt_hwrm_queue_cos2bw_cfg(struct bnxt *bp, struct ieee_ets *ets,
 			cos2bw.tsa =
 				QUEUE_COS2BW_QCFG_RESP_QUEUE_ID0_TSA_ASSIGN_ETS;
 			cos2bw.bw_weight = ets->tc_tx_bw[i];
+			/* older firmware requires min_bw to be set to the
+			 * same weight value in percent.
+			 */
+			cos2bw.min_bw =
+				cpu_to_le32((ets->tc_tx_bw[i] * 100) |
+					    BW_VALUE_UNIT_PERCENT1_100);
 		}
 		memcpy(data, &cos2bw.queue_id, sizeof(cos2bw) - 4);
 		if (i == 0) {
