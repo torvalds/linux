@@ -33,6 +33,7 @@ config OPENRISC
 	select ARCH_USE_QUEUED_SPINLOCKS
 	select ARCH_USE_QUEUED_RWLOCKS
 	select OMPIC if SMP
+	select ARCH_WANT_FRAME_POINTERS
 
 config CPU_BIG_ENDIAN
 	def_bool y
@@ -59,6 +60,9 @@ config TRACE_IRQFLAGS_SUPPORT
 #These can be reimplemented in assembly later if so inclined
 config GENERIC_CSUM
         def_bool y
+
+config STACKTRACE_SUPPORT
+	def_bool y
 
 source "init/Kconfig"
 
