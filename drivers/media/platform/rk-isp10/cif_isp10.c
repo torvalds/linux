@@ -3459,34 +3459,45 @@ static void cif_isp10_init_stream(
 	struct cif_isp10_device *dev,
 	enum cif_isp10_stream_id stream_id)
 {
+	int ret = 0;
 	struct cif_isp10_stream *stream = NULL;
 	struct cif_isp10_frm_fmt frm_fmt;
-
-	frm_fmt.pix_fmt = CIF_YUV422I;
-	frm_fmt.width = dev->config.img_src_output.frm_fmt.width;
-	frm_fmt.height = dev->config.img_src_output.frm_fmt.height;
-	frm_fmt.stride = dev->config.img_src_output.frm_fmt.stride;
-	frm_fmt.quantization = 0;
 
 	switch (stream_id) {
 	case CIF_ISP10_STREAM_SP:
 		stream = &dev->sp_stream;
+		stream->state = CIF_ISP10_STATE_READY;
+
 		dev->config.sp_config.rsz_config.ycflt_adjust = false;
 		dev->config.sp_config.rsz_config.ism_adjust = false;
 		dev->config.mi_config.sp.busy = false;
-
-		// init default formats
-		dev->config.mi_config.sp.output = frm_fmt;
-		dev->config.mi_config.sp.llength =
-			cif_isp10_calc_llength(
-			frm_fmt.width,
-			frm_fmt.stride,
-			frm_fmt.pix_fmt);
-
 		dev->sp_stream.updt_cfg = true;
+
+		ret = cif_isp10_img_src_select_strm_fmt(dev);
+		if (IS_ERR_VALUE(ret)) {
+			dev->mp_stream.updt_cfg = false;
+		} else {
+			frm_fmt.pix_fmt = CIF_YUV420SP;
+			frm_fmt.width =
+				dev->config.img_src_output.frm_fmt.width;
+			frm_fmt.height =
+				dev->config.img_src_output.frm_fmt.height;
+			frm_fmt.stride = 0;
+			frm_fmt.quantization = 0;
+
+			// init default formats
+			dev->config.mi_config.sp.output = frm_fmt;
+			dev->config.mi_config.sp.llength =
+				cif_isp10_calc_llength(
+				frm_fmt.width,
+				frm_fmt.stride,
+				frm_fmt.pix_fmt);
+		}
 		break;
 	case CIF_ISP10_STREAM_MP:
 		stream = &dev->mp_stream;
+		stream->state = CIF_ISP10_STATE_READY;
+
 		dev->config.jpeg_config.ratio = 50;
 		dev->config.jpeg_config.header =
 			CIF_ISP10_JPEG_HEADER_JFIF;
@@ -3495,18 +3506,30 @@ static void cif_isp10_init_stream(
 		dev->config.mp_config.rsz_config.ycflt_adjust = false;
 		dev->config.mp_config.rsz_config.ism_adjust = false;
 		dev->config.mi_config.mp.busy = false;
-
-		// init default formats
-		dev->config.mi_config.mp.output = frm_fmt;
-		dev->config.mi_config.mp.output.stride = frm_fmt.stride;
-
-		dev->config.mi_config.mp.llength =
-			cif_isp10_calc_llength(
-				frm_fmt.width,
-				frm_fmt.stride,
-				frm_fmt.pix_fmt);
-
 		dev->mp_stream.updt_cfg = true;
+
+		ret = cif_isp10_img_src_select_strm_fmt(dev);
+		if (IS_ERR_VALUE(ret)) {
+			dev->mp_stream.updt_cfg = false;
+		} else {
+			frm_fmt.pix_fmt = CIF_YUV420SP;
+			frm_fmt.width =
+				dev->config.img_src_output.frm_fmt.width;
+			frm_fmt.height =
+				dev->config.img_src_output.frm_fmt.height;
+			frm_fmt.stride = 0;
+			frm_fmt.quantization = 0;
+
+			// init default formats
+			dev->config.mi_config.mp.output = frm_fmt;
+			dev->config.mi_config.mp.output.stride = frm_fmt.stride;
+
+			dev->config.mi_config.mp.llength =
+				cif_isp10_calc_llength(
+					frm_fmt.width,
+					frm_fmt.stride,
+					frm_fmt.pix_fmt);
+		}
 		break;
 	case CIF_ISP10_STREAM_DMA:
 		stream = &dev->dma_stream;
@@ -3528,12 +3551,10 @@ static void cif_isp10_init_stream(
 
 	cif_isp10_pltfrm_event_clear(dev->dev, &stream->done);
 
-	if (stream->updt_cfg) {
-		stream->state = CIF_ISP10_STATE_READY;
-		cif_isp10_img_src_select_strm_fmt(dev);
-	} else {
+	if (!stream->updt_cfg)
 		stream->state = CIF_ISP10_STATE_INACTIVE;
-	}
+
+	return;
 }
 
 static int cif_isp10_jpeg_gen_header(
@@ -5598,7 +5619,10 @@ int cif_isp10_init(
 	/* set default input, failure is not fatal here */
 	if ((dev->sp_stream.state == CIF_ISP10_STATE_DISABLED) &&
 		(dev->mp_stream.state == CIF_ISP10_STATE_DISABLED)) {
-		(void)cif_isp10_s_input(dev, 0);
+		ret = cif_isp10_s_input(dev, 0);
+		if (IS_ERR_VALUE(ret))
+			goto err;
+
 		dev->config.isp_config.si_enable = false;
 		dev->config.isp_config.ie_config.effect =
 			CIF_ISP10_IE_NONE;

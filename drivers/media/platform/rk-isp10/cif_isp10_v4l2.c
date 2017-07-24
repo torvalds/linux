@@ -676,7 +676,31 @@ static int cif_isp10_v4l2_g_fmt(
 	void *priv,
 	struct v4l2_format *f)
 {
-	return -EFAULT;
+	struct vb2_queue *queue = to_vb2_queue(file);
+	struct cif_isp10_device *dev = to_cif_isp10_device(queue);
+	enum cif_isp10_stream_id stream_id = to_cif_isp10_stream_id(queue);
+
+	switch (stream_id) {
+	case CIF_ISP10_STREAM_SP:
+		f->fmt.pix.width =
+			dev->config.mi_config.sp.output.width;
+		f->fmt.pix.height =
+			dev->config.mi_config.sp.output.height;
+		f->fmt.pix.pixelformat =
+			dev->config.mi_config.sp.output.pix_fmt;
+		break;
+	case CIF_ISP10_STREAM_MP:
+		f->fmt.pix.width =
+			dev->config.mi_config.mp.output.width;
+		f->fmt.pix.height =
+			dev->config.mi_config.mp.output.height;
+		f->fmt.pix.pixelformat =
+			dev->config.mi_config.mp.output.pix_fmt;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
 }
 
 static int cif_isp10_v4l2_s_input(
@@ -775,7 +799,7 @@ static void cif_isp10_v4l2_vb2_queue(struct vb2_buffer *vb)
 
 	list_add_tail(&ispbuf->queue, &stream->buf_queue);
 
-	cif_isp10_calc_min_out_buff_size(dev, strm, &size, true);
+	cif_isp10_calc_min_out_buff_size(dev, strm, &size, false);
 	//size = PAGE_ALIGN(size);
 	vb2_set_plane_payload(vb, 0, size);
 }
@@ -838,7 +862,7 @@ static int cif_isp10_init_vb2_queue(struct vb2_queue *q,
 	mutex_init(&node->qlock);
 
 	q->type = buf_type;
-	q->io_modes = VB2_MMAP | VB2_USERPTR;
+	q->io_modes = VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
 	q->drv_priv = dev;
 	q->ops = &cif_isp10_v4l2_vb2_ops;
 	q->buf_struct_size = sizeof(struct cif_isp10_buffer);
@@ -1597,6 +1621,7 @@ const struct v4l2_ioctl_ops cif_isp10_v4l2_dma_ioctlops = {
 	.vidioc_cropcap = cif_isp10_v4l2_cropcap,
 	.vidioc_s_crop = cif_isp10_v4l2_s_crop,
 	.vidioc_g_crop = cif_isp10_v4l2_g_crop,
+	.vidioc_querycap = v4l2_querycap,
 };
 
 static struct pltfrm_soc_cfg rk3288_cfg = {

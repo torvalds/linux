@@ -78,6 +78,12 @@
  *3. Add the check for cam_itf.type(PLTFRM_CAM_ITF_BT656_8I) on
  * cif_isp10_s_fmt_mp.
  *4. get field_flag value from cif_isp10_isp_isr.
+ *
+ *v0.1.0xb
+ *1. Initialize default format for current stream.
+ *2. Implement command VIDIOC_G_FMT.
+ *3. Set bytesused of each plane to its real size.
+ *4. Support io mode 'VB2_DMABUF'.
  */
 
 #define CONFIG_CIFISP10_DRIVER_VERSION KERNEL_VERSION(0, 1, 0xa)

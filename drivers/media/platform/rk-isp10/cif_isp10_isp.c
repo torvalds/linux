@@ -3065,8 +3065,8 @@ static int cifisp_querycap(struct file *file,
 		"platform:" DRIVER_NAME "-%03i",
 		*isp_dev->dev_id);
 
-	cap->capabilities = V4L2_CAP_DEVICE_CAPS;
-	cap->device_caps = V4L2_CAP_DEVICE_CAPS;
+	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_DEVICE_CAPS;
+	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -3278,6 +3278,10 @@ int register_cifisp_device(struct cif_isp10_isp_dev *isp_dev,
 		dev_err(&vdev_cifisp->dev,
 			"could not register Video for Linux device\n");
 		return -ENODEV;
+	} else {
+		dev_info(&vdev_cifisp->dev,
+			"successfully registered video device for cifisp(video%d)\n",
+			vdev_cifisp->minor);
 	}
 
 	CIFISP_DPRINT(CIFISP_DEBUG,
