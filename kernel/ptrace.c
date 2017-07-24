@@ -659,7 +659,7 @@ static int ptrace_getsiginfo(struct task_struct *child, siginfo_t *info)
 	if (lock_task_sighand(child, &flags)) {
 		error = -EINVAL;
 		if (likely(child->last_siginfo != NULL)) {
-			*info = *child->last_siginfo;
+			copy_siginfo(info, child->last_siginfo);
 			error = 0;
 		}
 		unlock_task_sighand(child, &flags);
@@ -675,7 +675,7 @@ static int ptrace_setsiginfo(struct task_struct *child, const siginfo_t *info)
 	if (lock_task_sighand(child, &flags)) {
 		error = -EINVAL;
 		if (likely(child->last_siginfo != NULL)) {
-			*child->last_siginfo = *info;
+			copy_siginfo(child->last_siginfo, info);
 			error = 0;
 		}
 		unlock_task_sighand(child, &flags);
