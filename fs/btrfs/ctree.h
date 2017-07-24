@@ -1264,6 +1264,11 @@ struct btrfs_root {
 	atomic64_t qgroup_meta_rsv;
 };
 
+struct btrfs_file_private {
+	struct btrfs_trans_handle *trans;
+	void *filldir_buf;
+};
+
 static inline u32 btrfs_inode_sectorsize(const struct inode *inode)
 {
 	return btrfs_sb(inode->i_sb)->sectorsize;

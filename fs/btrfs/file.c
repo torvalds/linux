@@ -1990,8 +1990,15 @@ out:
 
 int btrfs_release_file(struct inode *inode, struct file *filp)
 {
-	if (filp->private_data)
+	struct btrfs_file_private *private = filp->private_data;
+
+	if (private && private->trans)
 		btrfs_ioctl_trans_end(filp);
+	if (private && private->filldir_buf)
+		kfree(private->filldir_buf);
+	kfree(private);
+	filp->private_data = NULL;
+
 	/*
 	 * ordered_data_close is set by settattr when we are about to truncate
 	 * a file from a non-zero size to a zero size.  This tries to
