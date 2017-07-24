@@ -326,7 +326,7 @@ struct dc_surface {
 	struct dc_plane_dcc_param dcc;
 	struct dc_hdr_static_metadata hdr_static_ctx;
 
-	const struct dc_gamma *gamma_correction;
+	struct dc_gamma *gamma_correction;
 	struct dc_transfer_func *in_transfer_func;
 
 	enum dc_color_space color_space;
@@ -394,8 +394,8 @@ const struct dc_surface_status *dc_surface_get_status(
 void dc_surface_retain(struct dc_surface *dc_surface);
 void dc_surface_release(struct dc_surface *dc_surface);
 
-void dc_gamma_retain(const struct dc_gamma *dc_gamma);
-void dc_gamma_release(const struct dc_gamma **dc_gamma);
+void dc_gamma_retain(struct dc_gamma *dc_gamma);
+void dc_gamma_release(struct dc_gamma **dc_gamma);
 struct dc_gamma *dc_create_gamma(void);
 
 void dc_transfer_func_retain(struct dc_transfer_func *dc_tf);

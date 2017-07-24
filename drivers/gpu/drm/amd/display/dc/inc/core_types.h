@@ -40,17 +40,6 @@ struct core_stream;
 
 #define MAX_CLOCK_SOURCES 7
 
-#define DC_GAMMA_TO_CORE(dc_gamma) \
-	container_of(dc_gamma, struct core_gamma, public)
-
-struct core_gamma {
-	struct dc_gamma public;
-	struct dc_context *ctx;
-
-	/* private to dc_surface.c */
-	int ref_count;
-};
-
 void enable_surface_flip_reporting(struct dc_surface *dc_surface,
 		uint32_t controller_id);
 

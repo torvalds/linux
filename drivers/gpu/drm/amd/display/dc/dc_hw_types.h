@@ -415,6 +415,13 @@ struct dc_gamma {
 	uint16_t red[INPUT_LUT_ENTRIES];
 	uint16_t green[INPUT_LUT_ENTRIES];
 	uint16_t blue[INPUT_LUT_ENTRIES];
+
+	/* private to DC core */
+	struct dc_context *ctx;
+
+	/* private to dc_surface.c */
+	int ref_count;
+
 };
 
 /* Used by both ipp amd opp functions*/

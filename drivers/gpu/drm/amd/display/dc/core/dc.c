@@ -1500,12 +1500,10 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 		if (srf_updates[i].gamma &&
 			srf_updates[i].gamma != surface->gamma_correction) {
 			if (surface->gamma_correction != NULL)
-				dc_gamma_release(&surface->
-						gamma_correction);
+				dc_gamma_release(&surface->gamma_correction);
 
 			dc_gamma_retain(srf_updates[i].gamma);
-			surface->gamma_correction =
-						srf_updates[i].gamma;
+			surface->gamma_correction = srf_updates[i].gamma;
 		}
 
 		if (srf_updates[i].in_transfer_func &&

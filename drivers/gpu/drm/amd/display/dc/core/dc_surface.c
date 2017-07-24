@@ -137,37 +137,33 @@ void dc_surface_release(struct dc_surface *surface)
 	}
 }
 
-void dc_gamma_retain(const struct dc_gamma *dc_gamma)
+void dc_gamma_retain(struct dc_gamma *gamma)
 {
-	struct core_gamma *gamma = DC_GAMMA_TO_CORE(dc_gamma);
-
 	ASSERT(gamma->ref_count > 0);
 	++gamma->ref_count;
 }
 
-void dc_gamma_release(const struct dc_gamma **dc_gamma)
+void dc_gamma_release(struct dc_gamma **gamma)
 {
-	struct core_gamma *gamma = DC_GAMMA_TO_CORE(*dc_gamma);
+	ASSERT((*gamma)->ref_count > 0);
+	--(*gamma)->ref_count;
 
-	ASSERT(gamma->ref_count > 0);
-	--gamma->ref_count;
+	if ((*gamma)->ref_count == 0)
+		dm_free((*gamma));
 
-	if (gamma->ref_count == 0)
-		dm_free(gamma);
-
-	*dc_gamma = NULL;
+	*gamma = NULL;
 }
 
 struct dc_gamma *dc_create_gamma()
 {
-	struct core_gamma *gamma = dm_alloc(sizeof(*gamma));
+	struct dc_gamma *gamma = dm_alloc(sizeof(*gamma));
 
 	if (gamma == NULL)
 		goto alloc_fail;
 
 	++gamma->ref_count;
 
-	return &gamma->public;
+	return gamma;
 
 alloc_fail:
 	return NULL;
