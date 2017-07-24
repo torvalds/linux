@@ -2053,12 +2053,13 @@ static int brcmf_sdio_txpkt_hdalign(struct brcmf_sdio *bus, struct sk_buff *pkt)
 				atomic_inc(&stats->pktcow_failed);
 				return -ENOMEM;
 			}
+			head_pad = 0;
 		}
 		skb_push(pkt, head_pad);
 		dat_buf = (u8 *)(pkt->data);
 	}
 	memset(dat_buf, 0, head_pad + bus->tx_hdrlen);
-	return 0;
+	return head_pad;
 }
 
 /**
