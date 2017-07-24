@@ -713,39 +713,16 @@ static void netvsc_get_channels(struct net_device *net,
 	}
 }
 
-static int netvsc_set_queues(struct net_device *net, struct hv_device *dev,
-			     u32 num_chn)
-{
-	struct netvsc_device_info device_info;
-	struct netvsc_device *net_device;
-	int ret;
-
-	memset(&device_info, 0, sizeof(device_info));
-	device_info.num_chn = num_chn;
-	device_info.ring_size = ring_size;
-	device_info.max_num_vrss_chns = num_chn;
-
-	ret = netif_set_real_num_tx_queues(net, num_chn);
-	if (ret)
-		return ret;
-
-	ret = netif_set_real_num_rx_queues(net, num_chn);
-	if (ret)
-		return ret;
-
-	net_device = rndis_filter_device_add(dev, &device_info);
-	return PTR_ERR_OR_ZERO(net_device);
-}
-
 static int netvsc_set_channels(struct net_device *net,
 			       struct ethtool_channels *channels)
 {
 	struct net_device_context *net_device_ctx = netdev_priv(net);
 	struct hv_device *dev = net_device_ctx->device_ctx;
 	struct netvsc_device *nvdev = rtnl_dereference(net_device_ctx->nvdev);
-	unsigned int count = channels->combined_count;
+	unsigned int orig, count = channels->combined_count;
+	struct netvsc_device_info device_info;
 	bool was_opened;
-	int ret;
+	int ret = 0;
 
 	/* We do not support separate count for rx, tx, or other */
 	if (count == 0 ||
@@ -764,19 +741,29 @@ static int netvsc_set_channels(struct net_device *net,
 	if (count > nvdev->max_chn)
 		return -EINVAL;
 
+	orig = nvdev->num_chn;
 	was_opened = rndis_filter_opened(nvdev);
 	if (was_opened)
 		rndis_filter_close(nvdev);
 
 	rndis_filter_device_remove(dev, nvdev);
 
-	ret = netvsc_set_queues(net, dev, count);
-	if (ret == 0)
-		nvdev->num_chn = count;
-	else
-		netvsc_set_queues(net, dev, nvdev->num_chn);
+	memset(&device_info, 0, sizeof(device_info));
+	device_info.num_chn = count;
+	device_info.ring_size = ring_size;
+	device_info.max_num_vrss_chns = count;
 
-	nvdev = rtnl_dereference(net_device_ctx->nvdev);
+	nvdev = rndis_filter_device_add(dev, &device_info);
+	if (!IS_ERR(nvdev)) {
+		netif_set_real_num_tx_queues(net, nvdev->num_chn);
+		netif_set_real_num_rx_queues(net, nvdev->num_chn);
+		ret = PTR_ERR(nvdev);
+	} else {
+		device_info.num_chn = orig;
+		device_info.max_num_vrss_chns = count;
+		rndis_filter_device_add(dev, &device_info);
+	}
+
 	if (was_opened)
 		rndis_filter_open(nvdev);
 
@@ -863,7 +850,6 @@ static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 	memset(&device_info, 0, sizeof(device_info));
 	device_info.ring_size = ring_size;
 	device_info.num_chn = nvdev->num_chn;
-	device_info.max_num_vrss_chns = nvdev->num_chn;
 
 	rndis_filter_device_remove(hdev, nvdev);
 
