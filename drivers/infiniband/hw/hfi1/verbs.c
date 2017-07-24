@@ -1535,6 +1535,11 @@ static void init_ibport(struct hfi1_pportdata *ppd)
 		ibp->sc_to_sl[i] = i;
 	}
 
+	for (i = 0; i < RVT_MAX_TRAP_LISTS ; i++)
+		INIT_LIST_HEAD(&ibp->rvp.trap_lists[i].list);
+	setup_timer(&ibp->rvp.trap_timer, hfi1_handle_trap_timer,
+		    (unsigned long)ibp);
+
 	spin_lock_init(&ibp->rvp.lock);
 	/* Set the prefix to the default value (see ch. 4.1.1) */
 	ibp->rvp.gid_prefix = IB_DEFAULT_GID_PREFIX;

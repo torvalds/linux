@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015, 2016 Intel Corporation.
+ * Copyright(c) 2015 - 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -428,5 +428,6 @@ struct sc2vlnt {
 		    COUNTER_MASK(1, 4))
 
 void hfi1_event_pkey_change(struct hfi1_devdata *dd, u8 port);
+void hfi1_handle_trap_timer(unsigned long data);
 
 #endif				/* _HFI1_MAD_H */

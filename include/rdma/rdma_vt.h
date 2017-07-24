@@ -57,10 +57,20 @@
 #include <linux/list.h>
 #include <linux/hash.h>
 #include <rdma/ib_verbs.h>
+#include <rdma/ib_mad.h>
 #include <rdma/rdmavt_mr.h>
 #include <rdma/rdmavt_qp.h>
 
 #define RVT_MAX_PKEY_VALUES 16
+
+#define RVT_MAX_TRAP_LEN 100 /* Limit pending trap list */
+#define RVT_MAX_TRAP_LISTS ((IB_NOTICE_TYPE_INFO & 0x0F) + 1)
+#define RVT_TRAP_TIMEOUT 4096 /* 4.096 usec */
+
+struct trap_list {
+	u32 list_len;
+	struct list_head list;
+};
 
 struct rvt_ibport {
 	struct rvt_qp __rcu *qp[2];
@@ -128,6 +138,13 @@ struct rvt_ibport {
 	u16 *pkey_table;
 
 	struct rvt_ah *sm_ah;
+
+	/*
+	 * Keep a list of traps that have not been repressed.  They will be
+	 * resent based on trap_timer.
+	 */
+	struct trap_list trap_lists[RVT_MAX_TRAP_LISTS];
+	struct timer_list trap_timer;
 };
 
 #define RVT_CQN_MAX 16 /* maximum length of cq name */
