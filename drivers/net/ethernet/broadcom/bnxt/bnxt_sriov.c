@@ -794,8 +794,10 @@ static int bnxt_vf_set_link(struct bnxt *bp, struct bnxt_vf_info *vf)
 					PORT_PHY_QCFG_RESP_LINK_LINK;
 				phy_qcfg_resp.link_speed = cpu_to_le16(
 					PORT_PHY_QCFG_RESP_LINK_SPEED_10GB);
-				phy_qcfg_resp.duplex =
-					PORT_PHY_QCFG_RESP_DUPLEX_FULL;
+				phy_qcfg_resp.duplex_cfg =
+					PORT_PHY_QCFG_RESP_DUPLEX_CFG_FULL;
+				phy_qcfg_resp.duplex_state =
+					PORT_PHY_QCFG_RESP_DUPLEX_STATE_FULL;
 				phy_qcfg_resp.pause =
 					(PORT_PHY_QCFG_RESP_PAUSE_TX |
 					 PORT_PHY_QCFG_RESP_PAUSE_RX);
@@ -804,7 +806,8 @@ static int bnxt_vf_set_link(struct bnxt *bp, struct bnxt_vf_info *vf)
 			/* force link down */
 			phy_qcfg_resp.link = PORT_PHY_QCFG_RESP_LINK_NO_LINK;
 			phy_qcfg_resp.link_speed = 0;
-			phy_qcfg_resp.duplex = PORT_PHY_QCFG_RESP_DUPLEX_HALF;
+			phy_qcfg_resp.duplex_state =
+				PORT_PHY_QCFG_RESP_DUPLEX_STATE_HALF;
 			phy_qcfg_resp.pause = 0;
 		}
 		rc = bnxt_hwrm_fwd_resp(bp, vf, &phy_qcfg_resp,

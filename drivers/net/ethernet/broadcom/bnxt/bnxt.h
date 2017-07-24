@@ -12,10 +12,10 @@
 #define BNXT_H
 
 #define DRV_MODULE_NAME		"bnxt_en"
-#define DRV_MODULE_VERSION	"1.7.0"
+#define DRV_MODULE_VERSION	"1.8.0"
 
 #define DRV_VER_MAJ	1
-#define DRV_VER_MIN	7
+#define DRV_VER_MIN	8
 #define DRV_VER_UPD	0
 
 #include <linux/interrupt.h>
@@ -825,8 +825,8 @@ struct bnxt_link_info {
 	u8			loop_back;
 	u8			link_up;
 	u8			duplex;
-#define BNXT_LINK_DUPLEX_HALF	PORT_PHY_QCFG_RESP_DUPLEX_HALF
-#define BNXT_LINK_DUPLEX_FULL	PORT_PHY_QCFG_RESP_DUPLEX_FULL
+#define BNXT_LINK_DUPLEX_HALF	PORT_PHY_QCFG_RESP_DUPLEX_STATE_HALF
+#define BNXT_LINK_DUPLEX_FULL	PORT_PHY_QCFG_RESP_DUPLEX_STATE_FULL
 	u8			pause;
 #define BNXT_LINK_PAUSE_TX	PORT_PHY_QCFG_RESP_PAUSE_TX
 #define BNXT_LINK_PAUSE_RX	PORT_PHY_QCFG_RESP_PAUSE_RX
