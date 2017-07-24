@@ -1248,7 +1248,10 @@ static int __send_cap(struct ceph_mds_client *mdsc, struct ceph_cap *cap,
 	arg.mode = inode->i_mode;
 
 	arg.inline_data = ci->i_inline_version != CEPH_INLINE_NONE;
-	arg.flags = 0;
+	if (list_empty(&ci->i_cap_snaps))
+		arg.flags = CEPH_CLIENT_CAPS_NO_CAPSNAP;
+	else
+		arg.flags = CEPH_CLIENT_CAPS_PENDING_CAPSNAP;
 	if (sync)
 		arg.flags |= CEPH_CLIENT_CAPS_SYNC;
 
