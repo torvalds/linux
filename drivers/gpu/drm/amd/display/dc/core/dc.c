@@ -932,7 +932,7 @@ static bool dc_commit_context_no_check(struct dc *dc, struct validate_context *c
 
 	for (i = 0; i < core_dc->res_pool->pipe_count; i++) {
 		pipe = &context->res_ctx.pipe_ctx[i];
-		core_dc->hwss.wait_for_mpcc_disconnect(core_dc->res_pool, pipe);
+		core_dc->hwss.wait_for_mpcc_disconnect(core_dc, core_dc->res_pool, pipe);
 	}
 	result = core_dc->hwss.apply_ctx_to_hw(core_dc, context);
 
@@ -1364,6 +1364,16 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 	struct core_stream *stream = DC_STREAM_TO_CORE(dc_stream);
 	struct dc_context *dc_ctx = core_dc->ctx;
 
+	/* Currently this function do not result in any HW programming
+	 * when called with 0 surface. But proceeding will cause
+	 * SW state to be updated in validate_context. So we might as
+	 * well make it not do anything at all until the hw programming
+	 * is implemented properly to handle 0 surface case.
+	 * TODO: fix hw programming then remove this early return
+	 */
+	if (surface_count == 0)
+		return;
+
 	stream_status = dc_stream_get_status(dc_stream);
 	ASSERT(stream_status);
 	if (!stream_status)
@@ -1535,15 +1545,10 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 	}
 
 	if (update_type > UPDATE_TYPE_FAST) {
-		for (i = 0; i < surface_count; i++) {
-			for (j = 0; j < core_dc->res_pool->pipe_count; j++) {
-				struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
+		for (j = 0; j < core_dc->res_pool->pipe_count; j++) {
+			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 
-				if (pipe_ctx->surface != srf_updates[i].surface)
-					continue;
-
-				core_dc->hwss.wait_for_mpcc_disconnect(core_dc->res_pool, pipe_ctx);
-			}
+			core_dc->hwss.wait_for_mpcc_disconnect(core_dc, core_dc->res_pool, pipe_ctx);
 		}
 	}
 

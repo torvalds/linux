@@ -831,7 +831,13 @@ static void plane_atomic_disconnect(struct core_dc *dc,
 	if (opp_id == 0xf)
 		return;
 
+	if (dc->public.debug.sanity_checks)
+		verify_allow_pstate_change_high(dc->hwseq);
+
 	mi->funcs->dcc_control(mi, false, false);
+
+	if (dc->public.debug.sanity_checks)
+		verify_allow_pstate_change_high(dc->hwseq);
 
 	mpcc_cfg.opp_id = 0xf;
 	mpcc_cfg.top_dpp_id = 0xf;
@@ -839,13 +845,18 @@ static void plane_atomic_disconnect(struct core_dc *dc,
 	mpcc_cfg.top_of_tree = tg->inst == mpcc->inst;
 	mpcc->funcs->set(mpcc, &mpcc_cfg);
 
-	/* Hack to preserve old opp_id for plane_atomic_disable
-	 * to find the correct otg */
+	/*
+	 * Hack to preserve old opp_id for plane_atomic_disable
+	 * to find the correct otg
+	 */
 	mpcc->opp_id = opp_id_cached;
 
 	/* todo:call remove pipe from tree */
 	/* flag mpcc idle pending */
 
+	/*dm_logger_write(dc->ctx->logger, LOG_ERROR,
+			"[debug_mpo: plane_atomic_disconnect pending on mpcc %d]\n",
+			fe_idx);*/
 	xfm->funcs->transform_reset(xfm);
 }
 
@@ -864,6 +875,10 @@ static void plane_atomic_disable(struct core_dc *dc,
 		return;
 
 	mpcc->funcs->wait_for_idle(mpcc);
+	dc->res_pool->opps[opp_id]->mpcc_disconnect_pending[mpcc->inst] = false;
+	/*dm_logger_write(dc->ctx->logger, LOG_ERROR,
+			"[debug_mpo: atomic disable finished on mpcc %d]\n",
+			fe_idx);*/
 
 	mi->funcs->set_blank(mi, true);
 
@@ -885,13 +900,27 @@ static void plane_atomic_disable(struct core_dc *dc,
 		verify_allow_pstate_change_high(dc->hwseq);
 }
 
-/* kill power to plane hw
+/*
+ * kill power to plane hw
  * note: cannot power down until plane is disable
-static void plane_atomic_power_down()
+ */
+static void plane_atomic_power_down(struct core_dc *dc, int fe_idx)
 {
+	struct dce_hwseq *hws = dc->hwseq;
 
+	REG_SET(DC_IP_REQUEST_CNTL, 0,
+			IP_REQUEST_EN, 1);
+	dpp_pg_control(hws, fe_idx, false);
+	hubp_pg_control(hws, fe_idx, false);
+	REG_SET(DC_IP_REQUEST_CNTL, 0,
+			IP_REQUEST_EN, 0);
+	dm_logger_write(dc->ctx->logger, LOG_DC,
+			"Power gated front end %d\n", fe_idx);
+
+	if (dc->public.debug.sanity_checks)
+		verify_allow_pstate_change_high(dc->hwseq);
 }
-*/
+
 
 static void reset_front_end(
 		struct core_dc *dc,
@@ -953,6 +982,37 @@ static void reset_hw_ctx_wrap(
 	int i;
 
 	/* Reset Front End*/
+	/* Lock*/
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *cur_pipe_ctx = &dc->current_context->res_ctx.pipe_ctx[i];
+		struct timing_generator *tg = cur_pipe_ctx->tg;
+
+		if (cur_pipe_ctx->stream)
+			tg->funcs->lock(tg);
+	}
+	/* Disconnect*/
+	for (i = dc->res_pool->pipe_count - 1; i >= 0 ; i--) {
+		struct pipe_ctx *pipe_ctx_old =
+			&dc->current_context->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
+
+		if (!pipe_ctx->stream ||
+				!pipe_ctx->surface ||
+				pipe_need_reprogram(pipe_ctx_old, pipe_ctx)) {
+
+			plane_atomic_disconnect(dc, i);
+		}
+	}
+	/* Unlock*/
+	for (i = dc->res_pool->pipe_count - 1; i >= 0; i--) {
+		struct pipe_ctx *cur_pipe_ctx = &dc->current_context->res_ctx.pipe_ctx[i];
+		struct timing_generator *tg = cur_pipe_ctx->tg;
+
+		if (cur_pipe_ctx->stream)
+			tg->funcs->unlock(tg);
+	}
+
+	/* Disable and Powerdown*/
 	for (i = dc->res_pool->pipe_count - 1; i >= 0 ; i--) {
 		struct pipe_ctx *pipe_ctx_old =
 			&dc->current_context->res_ctx.pipe_ctx[i];
@@ -961,11 +1021,16 @@ static void reset_hw_ctx_wrap(
 		/*if (!pipe_ctx_old->stream)
 			continue;*/
 
+		if (pipe_ctx->stream && pipe_ctx->surface
+				&& !pipe_need_reprogram(pipe_ctx_old, pipe_ctx))
+			continue;
+
+		plane_atomic_disable(dc, i);
+
 		if (!pipe_ctx->stream || !pipe_ctx->surface)
-			dcn10_power_down_fe(dc, i);
-		else if (pipe_need_reprogram(pipe_ctx_old, pipe_ctx))
-			reset_front_end(dc, i);
+			plane_atomic_power_down(dc, i);
 	}
+
 	/* Reset Back End*/
 	for (i = dc->res_pool->pipe_count - 1; i >= 0 ; i--) {
 		struct pipe_ctx *pipe_ctx_old =
@@ -2079,6 +2144,10 @@ static void dcn10_apply_ctx_for_surface(
 			old_pipe_ctx->mpcc->funcs->set(old_pipe_ctx->mpcc, &mpcc_cfg);
 			old_pipe_ctx->top_pipe->opp->mpcc_disconnect_pending[old_pipe_ctx->mpcc->inst] = true;
 
+			/*dm_logger_write(dc->ctx->logger, LOG_ERROR,
+					"[debug_mpo: apply_ctx disconnect pending on mpcc %d]\n",
+					old_pipe_ctx->mpcc->inst);*/
+
 			if (dc->public.debug.sanity_checks)
 				verify_allow_pstate_change_high(dc->hwseq);
 
@@ -2351,18 +2420,27 @@ static void dcn10_log_hw_state(struct core_dc *dc)
 	 */
 }
 
-static void dcn10_wait_for_mpcc_disconnect(struct resource_pool *res_pool, struct pipe_ctx *pipe_ctx)
+static void dcn10_wait_for_mpcc_disconnect(
+		struct core_dc *dc,
+		struct resource_pool *res_pool,
+		struct pipe_ctx *pipe_ctx)
 {
 	int i;
-	for (i = 0; i < MAX_PIPES; i++) {
-		if (!pipe_ctx->opp || !pipe_ctx->mpcc)
-			continue;
 
+	if (!pipe_ctx->opp || !pipe_ctx->mpcc)
+		return;
+
+	for (i = 0; i < MAX_PIPES; i++) {
 		if (pipe_ctx->opp->mpcc_disconnect_pending[i]) {
 			pipe_ctx->mpcc->funcs->wait_for_idle(res_pool->mpcc[i]);
 			pipe_ctx->opp->mpcc_disconnect_pending[i] = false;
+			res_pool->mis[i]->funcs->set_blank(res_pool->mis[i], true);
+			/*dm_logger_write(dc->ctx->logger, LOG_ERROR,
+					"[debug_mpo: wait_for_mpcc finished waiting on mpcc %d]\n",
+					i);*/
 		}
 	}
+
 }
 
 static bool dcn10_dummy_display_power_gating(
