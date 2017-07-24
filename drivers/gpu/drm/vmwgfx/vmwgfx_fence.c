@@ -284,7 +284,7 @@ struct vmw_fence_manager *vmw_fence_manager_init(struct vmw_private *dev_priv)
 {
 	struct vmw_fence_manager *fman = kzalloc(sizeof(*fman), GFP_KERNEL);
 
-	if (unlikely(fman == NULL))
+	if (unlikely(!fman))
 		return NULL;
 
 	fman->dev_priv = dev_priv;
@@ -541,7 +541,7 @@ int vmw_fence_create(struct vmw_fence_manager *fman,
  	int ret;
 
 	fence = kzalloc(sizeof(*fence), GFP_KERNEL);
-	if (unlikely(fence == NULL))
+	if (unlikely(!fence))
 		return -ENOMEM;
 
 	ret = vmw_fence_obj_init(fman, fence, seqno,
@@ -606,7 +606,7 @@ int vmw_user_fence_create(struct drm_file *file_priv,
 		return ret;
 
 	ufence = kzalloc(sizeof(*ufence), GFP_KERNEL);
-	if (unlikely(ufence == NULL)) {
+	if (unlikely(!ufence)) {
 		ret = -ENOMEM;
 		goto out_no_object;
 	}
@@ -966,7 +966,7 @@ int vmw_event_fence_action_queue(struct drm_file *file_priv,
 	struct vmw_fence_manager *fman = fman_from_fence(fence);
 
 	eaction = kzalloc(sizeof(*eaction), GFP_KERNEL);
-	if (unlikely(eaction == NULL))
+	if (unlikely(!eaction))
 		return -ENOMEM;
 
 	eaction->event = event;
@@ -1002,7 +1002,7 @@ static int vmw_event_fence_action_create(struct drm_file *file_priv,
 	int ret;
 
 	event = kzalloc(sizeof(*event), GFP_KERNEL);
-	if (unlikely(event == NULL)) {
+	if (unlikely(!event)) {
 		DRM_ERROR("Failed to allocate an event.\n");
 		ret = -ENOMEM;
 		goto out_no_space;
