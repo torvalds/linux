@@ -4,6 +4,7 @@
 #include <dt-bindings/mailbox/tegra186-hsp.h>
 #include <dt-bindings/power/tegra186-powergate.h>
 #include <dt-bindings/reset/tegra186-reset.h>
+#include <dt-bindings/thermal/tegra186-bpmp-thermal.h>
 
 / {
 	compatible = "nvidia,tegra186";
@@ -561,6 +562,108 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			status = "disabled";
+		};
+
+		bpmp_thermal: thermal {
+			compatible = "nvidia,tegra186-bpmp-thermal";
+			#thermal-sensor-cells = <1>;
+		};
+	};
+
+	thermal-zones {
+		a57 {
+			polling-delay = <0>;
+			polling-delay-passive = <1000>;
+
+			thermal-sensors =
+				<&bpmp_thermal TEGRA186_BPMP_THERMAL_ZONE_CPU>;
+
+			trips {
+				critical {
+					temperature = <101000>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+			};
+		};
+
+		denver {
+			polling-delay = <0>;
+			polling-delay-passive = <1000>;
+
+			thermal-sensors =
+				<&bpmp_thermal TEGRA186_BPMP_THERMAL_ZONE_AUX>;
+
+			trips {
+				critical {
+					temperature = <101000>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+			};
+		};
+
+		gpu {
+			polling-delay = <0>;
+			polling-delay-passive = <1000>;
+
+			thermal-sensors =
+				<&bpmp_thermal TEGRA186_BPMP_THERMAL_ZONE_GPU>;
+
+			trips {
+				critical {
+					temperature = <101000>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+			};
+		};
+
+		pll {
+			polling-delay = <0>;
+			polling-delay-passive = <1000>;
+
+			thermal-sensors =
+				<&bpmp_thermal TEGRA186_BPMP_THERMAL_ZONE_PLLX>;
+
+			trips {
+				critical {
+					temperature = <101000>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+			};
+		};
+
+		always_on {
+			polling-delay = <0>;
+			polling-delay-passive = <1000>;
+
+			thermal-sensors =
+				<&bpmp_thermal TEGRA186_BPMP_THERMAL_ZONE_AO>;
+
+			trips {
+				critical {
+					temperature = <101000>;
+					hysteresis = <0>;
+					type = "critical";
+				};
+			};
+
+			cooling-maps {
+			};
 		};
 	};
 
