@@ -2766,15 +2766,16 @@ static int __init bnx2fc_mod_init(void)
 	for_each_online_cpu(cpu)
 		bnx2fc_percpu_thread_create(cpu);
 
-	rc = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
-				       "scsi/bnx2fc:online",
-				       bnx2fc_cpu_online, NULL);
+	rc = cpuhp_setup_state_nocalls_cpuslocked(CPUHP_AP_ONLINE_DYN,
+						  "scsi/bnx2fc:online",
+						  bnx2fc_cpu_online, NULL);
 	if (rc < 0)
 		goto stop_threads;
 	bnx2fc_online_state = rc;
 
-	cpuhp_setup_state_nocalls(CPUHP_SCSI_BNX2FC_DEAD, "scsi/bnx2fc:dead",
-				  NULL, bnx2fc_cpu_dead);
+	cpuhp_setup_state_nocalls_cpuslocked(CPUHP_SCSI_BNX2FC_DEAD,
+					     "scsi/bnx2fc:dead",
+					     NULL, bnx2fc_cpu_dead);
 	put_online_cpus();
 
 	cnic_register_driver(CNIC_ULP_FCOE, &bnx2fc_cnic_cb);
@@ -2850,8 +2851,8 @@ static void __exit bnx2fc_mod_exit(void)
 		bnx2fc_percpu_thread_destroy(cpu);
 	}
 
-	cpuhp_remove_state_nocalls(bnx2fc_online_state);
-	cpuhp_remove_state_nocalls(CPUHP_SCSI_BNX2FC_DEAD);
+	cpuhp_remove_state_nocalls_cpuslocked(bnx2fc_online_state);
+	cpuhp_remove_state_nocalls_cpuslocked(CPUHP_SCSI_BNX2FC_DEAD);
 
 	put_online_cpus();
 
