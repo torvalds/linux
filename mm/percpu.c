@@ -757,11 +757,14 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(unsigned long tmp_addr,
 	chunk->immutable = true;
 	bitmap_fill(chunk->populated, chunk->nr_pages);
 	chunk->nr_populated = chunk->nr_pages;
+	chunk->nr_empty_pop_pages = chunk->nr_pages;
 
 	chunk->contig_hint = chunk->free_size = map_size;
 
 	if (chunk->start_offset) {
 		/* hide the beginning of the bitmap */
+		chunk->nr_empty_pop_pages--;
+
 		chunk->map[0] = 1;
 		chunk->map[1] = chunk->start_offset;
 		chunk->map_used = 1;
@@ -773,6 +776,8 @@ static struct pcpu_chunk * __init pcpu_alloc_first_chunk(unsigned long tmp_addr,
 
 	if (chunk->end_offset) {
 		/* hide the end of the bitmap */
+		chunk->nr_empty_pop_pages--;
+
 		chunk->map[++chunk->map_used] = region_size | 1;
 	}
 
@@ -836,6 +841,7 @@ static void pcpu_chunk_populated(struct pcpu_chunk *chunk,
 
 	bitmap_set(chunk->populated, page_start, nr);
 	chunk->nr_populated += nr;
+	chunk->nr_empty_pop_pages += nr;
 	pcpu_nr_empty_pop_pages += nr;
 }
 
@@ -858,6 +864,7 @@ static void pcpu_chunk_depopulated(struct pcpu_chunk *chunk,
 
 	bitmap_clear(chunk->populated, page_start, nr);
 	chunk->nr_populated -= nr;
+	chunk->nr_empty_pop_pages -= nr;
 	pcpu_nr_empty_pop_pages -= nr;
 }
 
@@ -1782,9 +1789,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 
 	/* link the first chunk in */
 	pcpu_first_chunk = chunk;
-	i = (pcpu_first_chunk->start_offset) ? 1 : 0;
-	pcpu_nr_empty_pop_pages +=
-		pcpu_count_occupied_pages(pcpu_first_chunk, i);
+	pcpu_nr_empty_pop_pages = pcpu_first_chunk->nr_empty_pop_pages;
 	pcpu_chunk_relocate(pcpu_first_chunk, -1);
 
 	pcpu_stats_chunk_alloc();
