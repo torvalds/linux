@@ -118,6 +118,7 @@
 
 #ifdef CONFIG_STRICT_KERNEL_RWX
 extern void radix__mark_rodata_ro(void);
+extern void radix__mark_initmem_nx(void);
 #endif
 
 static inline unsigned long __radix_pte_update(pte_t *ptep, unsigned long clr,

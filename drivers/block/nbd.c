@@ -626,7 +626,6 @@ static void recv_work(struct work_struct *work)
 	struct nbd_device *nbd = args->nbd;
 	struct nbd_config *config = nbd->config;
 	struct nbd_cmd *cmd;
-	int ret = 0;
 
 	while (1) {
 		cmd = nbd_read_stat(nbd, args->index);
@@ -636,7 +635,6 @@ static void recv_work(struct work_struct *work)
 			mutex_lock(&nsock->tx_lock);
 			nbd_mark_nsock_dead(nbd, nsock, 1);
 			mutex_unlock(&nsock->tx_lock);
-			ret = PTR_ERR(cmd);
 			break;
 		}
 

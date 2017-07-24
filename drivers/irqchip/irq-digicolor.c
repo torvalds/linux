@@ -71,7 +71,7 @@ static void __init digicolor_set_gc(void __iomem *reg_base, unsigned irq_base,
 static int __init digicolor_of_init(struct device_node *node,
 				struct device_node *parent)
 {
-	static void __iomem *reg_base;
+	void __iomem *reg_base;
 	unsigned int clr = IRQ_NOREQUEST | IRQ_NOPROBE | IRQ_NOAUTOEN;
 	struct regmap *ucregs;
 	int ret;

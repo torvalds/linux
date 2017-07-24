@@ -43,6 +43,7 @@ struct bpf_reg_state {
 	u32 min_align;
 	u32 aux_off;
 	u32 aux_off_align;
+	bool value_from_signed;
 };
 
 enum bpf_stack_slot_type {

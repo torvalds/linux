@@ -1155,7 +1155,7 @@ static void mlx4_ib_disassociate_ucontext(struct ib_ucontext *ibcontext)
 			 * call to mlx4_ib_vma_close.
 			 */
 			put_task_struct(owning_process);
-			msleep(1);
+			usleep_range(1000, 2000);
 			owning_process = get_pid_task(ibcontext->tgid,
 						      PIDTYPE_PID);
 			if (!owning_process ||

@@ -2732,6 +2732,9 @@ static int hidpp_initialize_battery(struct hidpp_device *hidpp)
 				     hidpp_battery_props,
 				     sizeof(hidpp_battery_props),
 				     GFP_KERNEL);
+	if (!battery_props)
+		return -ENOMEM;
+
 	num_battery_props = ARRAY_SIZE(hidpp_battery_props) - 2;
 
 	if (hidpp->capabilities & HIDPP_CAPABILITY_BATTERY_MILEAGE)

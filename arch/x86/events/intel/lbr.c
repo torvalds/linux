@@ -380,7 +380,11 @@ static void __intel_pmu_lbr_save(struct x86_perf_task_context *task_ctx)
 
 void intel_pmu_lbr_sched_task(struct perf_event_context *ctx, bool sched_in)
 {
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct x86_perf_task_context *task_ctx;
+
+	if (!cpuc->lbr_users)
+		return;
 
 	/*
 	 * If LBR callstack feature is enabled and the stack was saved when

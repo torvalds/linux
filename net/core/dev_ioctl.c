@@ -28,6 +28,7 @@ static int dev_ifname(struct net *net, struct ifreq __user *arg)
 
 	if (copy_from_user(&ifr, arg, sizeof(struct ifreq)))
 		return -EFAULT;
+	ifr.ifr_name[IFNAMSIZ-1] = 0;
 
 	error = netdev_get_name(net, ifr.ifr_name, ifr.ifr_ifindex);
 	if (error)
@@ -423,6 +424,8 @@ int dev_ioctl(struct net *net, unsigned int cmd, void __user *arg)
 
 		if (copy_from_user(&iwr, arg, sizeof(iwr)))
 			return -EFAULT;
+
+		iwr.ifr_name[sizeof(iwr.ifr_name) - 1] = 0;
 
 		return wext_handle_ioctl(net, &iwr, cmd, arg);
 	}
