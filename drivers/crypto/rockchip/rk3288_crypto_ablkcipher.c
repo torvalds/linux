@@ -42,7 +42,7 @@ static int rk_handle_req(struct rk_crypto_info *dev,
 	spin_lock_irqsave(&dev->lock, flags);
 	err = ablkcipher_enqueue_request(&dev->queue, req);
 	spin_unlock_irqrestore(&dev->lock, flags);
-	tasklet_schedule(&dev->crypto_tasklet);
+	tasklet_schedule(&dev->queue_task);
 	return err;
 }
 

@@ -169,24 +169,22 @@ static irqreturn_t rk_crypto_irq_handle(int irq, void *dev_id)
 {
 	struct rk_crypto_info *dev  = platform_get_drvdata(dev_id);
 	u32 interrupt_status;
-	int err = 0;
 
 	spin_lock(&dev->lock);
 	interrupt_status = CRYPTO_READ(dev, RK_CRYPTO_INTSTS);
 	CRYPTO_WRITE(dev, RK_CRYPTO_INTSTS, interrupt_status);
+
 	if (interrupt_status & 0x0a) {
 		dev_warn(dev->dev, "DMA Error\n");
-		err = -EFAULT;
-	} else if (interrupt_status & 0x05) {
-		err = dev->update(dev);
+		dev->err = -EFAULT;
 	}
-	if (err)
-		dev->complete(dev, err);
+	tasklet_schedule(&dev->done_task);
+
 	spin_unlock(&dev->lock);
 	return IRQ_HANDLED;
 }
 
-static void rk_crypto_tasklet_cb(unsigned long data)
+static void rk_crypto_queue_task_cb(unsigned long data)
 {
 	struct rk_crypto_info *dev = (struct rk_crypto_info *)data;
 	struct crypto_async_request *async_req, *backlog;
@@ -210,9 +208,24 @@ static void rk_crypto_tasklet_cb(unsigned long data)
 		dev->ablk_req = ablkcipher_request_cast(async_req);
 	else
 		dev->ahash_req = ahash_request_cast(async_req);
+	dev->err = 0;
 	err = dev->start(dev);
 	if (err)
 		dev->complete(dev, err);
+}
+
+static void rk_crypto_done_task_cb(unsigned long data)
+{
+	struct rk_crypto_info *dev = (struct rk_crypto_info *)data;
+
+	if (dev->err) {
+		dev->complete(dev, dev->err);
+		return;
+	}
+
+	dev->err = dev->update(dev);
+	if (dev->err)
+		dev->complete(dev, dev->err);
 }
 
 static struct rk_crypto_tmp *rk_cipher_algs[] = {
@@ -361,8 +374,10 @@ static int rk_crypto_probe(struct platform_device *pdev)
 	crypto_info->dev = &pdev->dev;
 	platform_set_drvdata(pdev, crypto_info);
 
-	tasklet_init(&crypto_info->crypto_tasklet,
-		     rk_crypto_tasklet_cb, (unsigned long)crypto_info);
+	tasklet_init(&crypto_info->queue_task,
+		     rk_crypto_queue_task_cb, (unsigned long)crypto_info);
+	tasklet_init(&crypto_info->done_task,
+		     rk_crypto_done_task_cb, (unsigned long)crypto_info);
 	crypto_init_queue(&crypto_info->queue, 50);
 
 	crypto_info->enable_clk = rk_crypto_enable_clk;
@@ -380,7 +395,8 @@ static int rk_crypto_probe(struct platform_device *pdev)
 	return 0;
 
 err_register_alg:
-	tasklet_kill(&crypto_info->crypto_tasklet);
+	tasklet_kill(&crypto_info->queue_task);
+	tasklet_kill(&crypto_info->done_task);
 err_crypto:
 	return err;
 }
@@ -390,7 +406,8 @@ static int rk_crypto_remove(struct platform_device *pdev)
 	struct rk_crypto_info *crypto_tmp = platform_get_drvdata(pdev);
 
 	rk_crypto_unregister();
-	tasklet_kill(&crypto_tmp->crypto_tasklet);
+	tasklet_kill(&crypto_tmp->done_task);
+	tasklet_kill(&crypto_tmp->queue_task);
 	return 0;
 }
 
