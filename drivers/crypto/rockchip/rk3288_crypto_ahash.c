@@ -204,7 +204,7 @@ static int rk_ahash_digest(struct ahash_request *req)
 	ret = crypto_enqueue_request(&dev->queue, &req->base);
 	spin_unlock_irqrestore(&dev->lock, flags);
 
-	tasklet_schedule(&dev->crypto_tasklet);
+	tasklet_schedule(&dev->queue_task);
 
 	/*
 	 * it will take some time to process date after last dma transmission.

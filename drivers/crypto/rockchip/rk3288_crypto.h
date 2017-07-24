@@ -190,9 +190,11 @@ struct rk_crypto_info {
 	void __iomem			*reg;
 	int				irq;
 	struct crypto_queue		queue;
-	struct tasklet_struct		crypto_tasklet;
+	struct tasklet_struct		queue_task;
+	struct tasklet_struct		done_task;
 	struct ablkcipher_request	*ablk_req;
 	struct ahash_request		*ahash_req;
+	int 				err;
 	/* device lock */
 	spinlock_t			lock;
 
