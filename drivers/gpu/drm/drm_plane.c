@@ -62,6 +62,87 @@ static unsigned int drm_num_planes(struct drm_device *dev)
 	return num;
 }
 
+static inline u32 *
+formats_ptr(struct drm_format_modifier_blob *blob)
+{
+	return (u32 *)(((char *)blob) + blob->formats_offset);
+}
+
+static inline struct drm_format_modifier *
+modifiers_ptr(struct drm_format_modifier_blob *blob)
+{
+	return (struct drm_format_modifier *)(((char *)blob) + blob->modifiers_offset);
+}
+
+static int create_in_format_blob(struct drm_device *dev, struct drm_plane *plane)
+{
+	const struct drm_mode_config *config = &dev->mode_config;
+	struct drm_property_blob *blob;
+	struct drm_format_modifier *mod;
+	size_t blob_size, formats_size, modifiers_size;
+	struct drm_format_modifier_blob *blob_data;
+	unsigned int i, j;
+
+	formats_size = sizeof(__u32) * plane->format_count;
+	if (WARN_ON(!formats_size)) {
+		/* 0 formats are never expected */
+		return 0;
+	}
+
+	modifiers_size =
+		sizeof(struct drm_format_modifier) * plane->modifier_count;
+
+	blob_size = sizeof(struct drm_format_modifier_blob);
+	/* Modifiers offset is a pointer to a struct with a 64 bit field so it
+	 * should be naturally aligned to 8B.
+	 */
+	BUILD_BUG_ON(sizeof(struct drm_format_modifier_blob) % 8);
+	blob_size += ALIGN(formats_size, 8);
+	blob_size += modifiers_size;
+
+	blob = drm_property_create_blob(dev, blob_size, NULL);
+	if (IS_ERR(blob))
+		return -1;
+
+	blob_data = (struct drm_format_modifier_blob *)blob->data;
+	blob_data->version = FORMAT_BLOB_CURRENT;
+	blob_data->count_formats = plane->format_count;
+	blob_data->formats_offset = sizeof(struct drm_format_modifier_blob);
+	blob_data->count_modifiers = plane->modifier_count;
+
+	blob_data->modifiers_offset =
+		ALIGN(blob_data->formats_offset + formats_size, 8);
+
+	memcpy(formats_ptr(blob_data), plane->format_types, formats_size);
+
+	/* If we can't determine support, just bail */
+	if (!plane->funcs->format_mod_supported)
+		goto done;
+
+	mod = modifiers_ptr(blob_data);
+	for (i = 0; i < plane->modifier_count; i++) {
+		for (j = 0; j < plane->format_count; j++) {
+			if (plane->funcs->format_mod_supported(plane,
+							       plane->format_types[j],
+							       plane->modifiers[i])) {
+
+				mod->formats |= 1 << j;
+			}
+		}
+
+		mod->modifier = plane->modifiers[i];
+		mod->offset = 0;
+		mod->pad = 0;
+		mod++;
+	}
+
+done:
+	drm_object_attach_property(&plane->base, config->modifiers_property,
+				   blob->base.id);
+
+	return 0;
+}
+
 /**
  * drm_universal_plane_init - Initialize a new universal plane object
  * @dev: DRM device
@@ -180,6 +261,9 @@ int drm_universal_plane_init(struct drm_device *dev, struct drm_plane *plane,
 		drm_object_attach_property(&plane->base, config->prop_src_w, 0);
 		drm_object_attach_property(&plane->base, config->prop_src_h, 0);
 	}
+
+	if (config->allow_fb_modifiers)
+		create_in_format_blob(dev, plane);
 
 	return 0;
 }
