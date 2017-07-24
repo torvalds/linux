@@ -643,6 +643,9 @@ int dequeue_signal(struct task_struct *tsk, sigset_t *mask, siginfo_t *info)
 		spin_unlock(&tsk->sighand->siglock);
 		posixtimer_rearm(info);
 		spin_lock(&tsk->sighand->siglock);
+
+		/* Don't expose the si_sys_private value to userspace */
+		info->si_sys_private = 0;
 	}
 #endif
 	return signr;
