@@ -118,6 +118,8 @@ int tegra_bpmp_transfer_atomic(struct tegra_bpmp *bpmp,
 			       struct tegra_bpmp_message *msg);
 int tegra_bpmp_transfer(struct tegra_bpmp *bpmp,
 			struct tegra_bpmp_message *msg);
+void tegra_bpmp_mrq_return(struct tegra_bpmp_channel *channel, int code,
+			   const void *data, size_t size);
 
 int tegra_bpmp_request_mrq(struct tegra_bpmp *bpmp, unsigned int mrq,
 			   tegra_bpmp_mrq_handler_t handler, void *data);

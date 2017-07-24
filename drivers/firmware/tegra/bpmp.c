@@ -397,8 +397,8 @@ static struct tegra_bpmp_mrq *tegra_bpmp_find_mrq(struct tegra_bpmp *bpmp,
 	return NULL;
 }
 
-static void tegra_bpmp_mrq_return(struct tegra_bpmp_channel *channel,
-				  int code, const void *data, size_t size)
+void tegra_bpmp_mrq_return(struct tegra_bpmp_channel *channel, int code,
+			   const void *data, size_t size)
 {
 	unsigned long flags = channel->ib->flags;
 	struct tegra_bpmp *bpmp = channel->bpmp;
@@ -436,6 +436,7 @@ static void tegra_bpmp_mrq_return(struct tegra_bpmp_channel *channel,
 		mbox_client_txdone(bpmp->mbox.channel, 0);
 	}
 }
+EXPORT_SYMBOL_GPL(tegra_bpmp_mrq_return);
 
 static void tegra_bpmp_handle_mrq(struct tegra_bpmp *bpmp,
 				  unsigned int mrq,
