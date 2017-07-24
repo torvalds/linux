@@ -295,6 +295,10 @@ static int decode_choose_args(void **p, void *end, struct crush_map *c)
 			ret = decode_choose_arg(p, end, arg);
 			if (ret)
 				goto fail;
+
+			if (arg->ids_size &&
+			    arg->ids_size != c->buckets[bucket_index]->size)
+				goto e_inval;
 		}
 
 		insert_choose_arg_map(&c->choose_args, arg_map);
