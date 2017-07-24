@@ -47,6 +47,7 @@
 #define SUN4V_CHIP_NIAGARA5	0x05
 #define SUN4V_CHIP_SPARC_M6	0x06
 #define SUN4V_CHIP_SPARC_M7	0x07
+#define SUN4V_CHIP_SPARC_M8	0x08
 #define SUN4V_CHIP_SPARC64X	0x8a
 #define SUN4V_CHIP_SPARC_SN	0x8b
 #define SUN4V_CHIP_UNKNOWN	0xff
@@ -63,6 +64,7 @@
 #define CPU_ID_NIAGARA5		('5')
 #define CPU_ID_M6		('6')
 #define CPU_ID_M7		('7')
+#define CPU_ID_M8		('8')
 #define CPU_ID_SONOMA1		('N')
 
 #ifndef __ASSEMBLY__
