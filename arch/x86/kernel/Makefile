@@ -126,11 +126,9 @@ obj-$(CONFIG_PERF_EVENTS)		+= perf_regs.o
 obj-$(CONFIG_TRACING)			+= tracepoint.o
 obj-$(CONFIG_SCHED_MC_PRIO)		+= itmt.o
 
-ifdef CONFIG_FRAME_POINTER
-obj-y					+= unwind_frame.o
-else
-obj-y					+= unwind_guess.o
-endif
+obj-$(CONFIG_ORC_UNWINDER)		+= unwind_orc.o
+obj-$(CONFIG_FRAME_POINTER_UNWINDER)	+= unwind_frame.o
+obj-$(CONFIG_GUESS_UNWINDER)		+= unwind_guess.o
 
 ###
 # 64 bit specific files

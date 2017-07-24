@@ -374,6 +374,9 @@ config STACK_VALIDATION
 	  pointers (if CONFIG_FRAME_POINTER is enabled).  This helps ensure
 	  that runtime stack traces are more reliable.
 
+	  This is also a prerequisite for generation of ORC unwind data, which
+	  is needed for CONFIG_ORC_UNWINDER.
+
 	  For more information, see
 	  tools/objtool/Documentation/stack-validation.txt.
 
