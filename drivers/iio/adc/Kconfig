@@ -258,6 +258,17 @@ config ENVELOPE_DETECTOR
 	  To compile this driver as a module, choose M here: the module will be
 	  called envelope-detector.
 
+config EP93XX_ADC
+	tristate "Cirrus Logic EP93XX ADC driver"
+	depends on ARCH_EP93XX
+	help
+	  Driver for the ADC module on the EP93XX series of SoC from Cirrus Logic.
+	  It's recommended to switch on CONFIG_HIGH_RES_TIMERS option, in this
+	  case driver will reduce its CPU usage by 90% in some use cases.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ep93xx_adc.
+
 config EXYNOS_ADC
 	tristate "Exynos ADC driver support"
 	depends on ARCH_EXYNOS || ARCH_S3C24XX || ARCH_S3C64XX || (OF && COMPILE_TEST)
