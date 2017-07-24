@@ -58,7 +58,7 @@ static void chunk_map_stats(struct seq_file *m, struct pcpu_chunk *chunk,
 	int cur_min_alloc = 0, cur_med_alloc = 0, cur_max_alloc = 0;
 
 	alloc_sizes = buffer;
-	s_index = chunk->has_reserved ? 1 : 0;
+	s_index = (chunk->start_offset) ? 1 : 0;
 
 	/* find last allocation */
 	last_alloc = -1;

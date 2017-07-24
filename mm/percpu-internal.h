@@ -23,11 +23,6 @@ struct pcpu_chunk {
 	void			*data;		/* chunk data */
 	int			first_free;	/* no free below this */
 	bool			immutable;	/* no [de]population allowed */
-	bool			has_reserved;	/* Indicates if chunk has reserved space
-						   at the beginning. Reserved chunk will
-						   contain reservation for static chunk.
-						   Dynamic chunk will contain reservation
-						   for static and reserved chunks. */
 	int			start_offset;	/* the overlap with the previous
 						   region to have a page aligned
 						   base_addr */

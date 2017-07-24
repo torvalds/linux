@@ -727,7 +727,6 @@ static struct pcpu_chunk *pcpu_alloc_chunk(void)
 	chunk->map[0] = 0;
 	chunk->map[1] = pcpu_unit_size | 1;
 	chunk->map_used = 1;
-	chunk->has_reserved = false;
 
 	INIT_LIST_HEAD(&chunk->list);
 	INIT_LIST_HEAD(&chunk->map_extend_list);
@@ -1704,7 +1703,6 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	schunk->map[1] = schunk->start_offset;
 	schunk->map[2] = (ai->static_size + schunk->free_size) | 1;
 	schunk->map_used = 2;
-	schunk->has_reserved = true;
 
 	/* init dynamic chunk if necessary */
 	if (dyn_size) {
@@ -1724,7 +1722,6 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 		dchunk->map[1] = dchunk->start_offset;
 		dchunk->map[2] = (dchunk->start_offset + dchunk->free_size) | 1;
 		dchunk->map_used = 2;
-		dchunk->has_reserved = true;
 	}
 
 	/* link the first chunk in */
