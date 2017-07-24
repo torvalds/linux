@@ -147,7 +147,6 @@ struct hv_netvsc_packet {
 struct netvsc_device_info {
 	unsigned char mac_adr[ETH_ALEN];
 	int  ring_size;
-	u32  max_num_vrss_chns;
 	u32  num_chn;
 };
 

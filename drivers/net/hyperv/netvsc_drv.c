@@ -753,7 +753,6 @@ static int netvsc_set_channels(struct net_device *net,
 	memset(&device_info, 0, sizeof(device_info));
 	device_info.num_chn = count;
 	device_info.ring_size = ring_size;
-	device_info.max_num_vrss_chns = count;
 
 	nvdev = rndis_filter_device_add(dev, &device_info);
 	if (!IS_ERR(nvdev)) {
@@ -762,7 +761,6 @@ static int netvsc_set_channels(struct net_device *net,
 		ret = PTR_ERR(nvdev);
 	} else {
 		device_info.num_chn = orig;
-		device_info.max_num_vrss_chns = count;
 		rndis_filter_device_add(dev, &device_info);
 	}
 
