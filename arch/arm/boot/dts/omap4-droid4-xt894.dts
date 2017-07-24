@@ -177,6 +177,10 @@
 		vddi-supply = <&lcd_regulator>;
 		reset-gpios = <&gpio4 5 GPIO_ACTIVE_HIGH>;	/* gpio101 */
 
+		width-mm = <50>;
+		height-mm = <89>;
+		backlight = <&lcd_backlight>;
+
 		panel-timing {
 			clock-frequency = <0>;		/* Calculated by dsi */
 
@@ -346,7 +350,7 @@
 
 		enable-gpios = <&gpio6 12 GPIO_ACTIVE_HIGH>;
 
-		backlight {
+		lcd_backlight: backlight {
 			compatible = "ti,lm3532-backlight";
 
 			lcd {
