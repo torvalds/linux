@@ -51,6 +51,8 @@
 #define BNXT_RE_PAGE_SIZE_8M		BIT(23)
 #define BNXT_RE_PAGE_SIZE_1G		BIT(30)
 
+#define BNXT_RE_MAX_MR_SIZE		BIT(30)
+
 #define BNXT_RE_MAX_QPC_COUNT		(64 * 1024)
 #define BNXT_RE_MAX_MRW_COUNT		(64 * 1024)
 #define BNXT_RE_MAX_SRQC_COUNT		(64 * 1024)
@@ -59,6 +61,13 @@
 #define BNXT_RE_UD_QP_HW_STALL		0x400000
 
 #define BNXT_RE_RQ_WQE_THRESHOLD	32
+
+/*
+ * Setting the default ack delay value to 16, which means
+ * the default timeout is approx. 260ms(4 usec * 2 ^(timeout))
+ */
+
+#define BNXT_RE_DEFAULT_ACK_DELAY	16
 
 struct bnxt_re_work {
 	struct work_struct	work;

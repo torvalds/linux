@@ -692,7 +692,7 @@ ovl_posix_acl_xattr_get(const struct xattr_handler *handler,
 			struct dentry *dentry, struct inode *inode,
 			const char *name, void *buffer, size_t size)
 {
-	return ovl_xattr_get(dentry, handler->name, buffer, size);
+	return ovl_xattr_get(dentry, inode, handler->name, buffer, size);
 }
 
 static int __maybe_unused
@@ -742,7 +742,7 @@ ovl_posix_acl_xattr_set(const struct xattr_handler *handler,
 			return err;
 	}
 
-	err = ovl_xattr_set(dentry, handler->name, value, size, flags);
+	err = ovl_xattr_set(dentry, inode, handler->name, value, size, flags);
 	if (!err)
 		ovl_copyattr(ovl_inode_real(inode), inode);
 
@@ -772,7 +772,7 @@ static int ovl_other_xattr_get(const struct xattr_handler *handler,
 			       struct dentry *dentry, struct inode *inode,
 			       const char *name, void *buffer, size_t size)
 {
-	return ovl_xattr_get(dentry, name, buffer, size);
+	return ovl_xattr_get(dentry, inode, name, buffer, size);
 }
 
 static int ovl_other_xattr_set(const struct xattr_handler *handler,
@@ -780,7 +780,7 @@ static int ovl_other_xattr_set(const struct xattr_handler *handler,
 			       const char *name, const void *value,
 			       size_t size, int flags)
 {
-	return ovl_xattr_set(dentry, name, value, size, flags);
+	return ovl_xattr_set(dentry, inode, name, value, size, flags);
 }
 
 static const struct xattr_handler __maybe_unused
@@ -1058,10 +1058,6 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 
 		ufs->indexdir = ovl_workdir_create(sb, ufs, workpath.dentry,
 						   OVL_INDEXDIR_NAME, true);
-		err = PTR_ERR(ufs->indexdir);
-		if (IS_ERR(ufs->indexdir))
-			goto out_put_lower_mnt;
-
 		if (ufs->indexdir) {
 			/* Verify upper root is index dir origin */
 			err = ovl_verify_origin(ufs->indexdir, ufs->upper_mnt,
@@ -1090,6 +1086,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	else
 		sb->s_d_op = &ovl_dentry_operations;
 
+	err = -ENOMEM;
 	ufs->creator_cred = cred = prepare_creds();
 	if (!cred)
 		goto out_put_indexdir;

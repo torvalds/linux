@@ -3203,8 +3203,10 @@ static struct ceph_msg_data *ceph_msg_data_create(enum ceph_msg_data_type type)
 		return NULL;
 
 	data = kmem_cache_zalloc(ceph_msg_data_cache, GFP_NOFS);
-	if (data)
-		data->type = type;
+	if (!data)
+		return NULL;
+
+	data->type = type;
 	INIT_LIST_HEAD(&data->links);
 
 	return data;

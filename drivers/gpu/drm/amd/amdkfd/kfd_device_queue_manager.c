@@ -77,13 +77,6 @@ static bool is_pipe_enabled(struct device_queue_manager *dqm, int mec, int pipe)
 	return false;
 }
 
-unsigned int get_mec_num(struct device_queue_manager *dqm)
-{
-	BUG_ON(!dqm || !dqm->dev);
-
-	return dqm->dev->shared_resources.num_mec;
-}
-
 unsigned int get_queues_num(struct device_queue_manager *dqm)
 {
 	BUG_ON(!dqm || !dqm->dev);

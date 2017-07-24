@@ -1008,7 +1008,7 @@ static void bgx_print_qlm_mode(struct bgx *bgx, u8 lmacid)
 {
 	struct device *dev = &bgx->pdev->dev;
 	struct lmac *lmac;
-	char str[20];
+	char str[27];
 
 	if (!bgx->is_dlm && lmacid)
 		return;

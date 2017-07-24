@@ -192,7 +192,7 @@ config USB_RENESAS_USBHS_UDC
 config USB_RENESAS_USB3
 	tristate 'Renesas USB3.0 Peripheral controller'
 	depends on ARCH_RENESAS || COMPILE_TEST
-	depends on EXTCON
+	depends on EXTCON && HAS_DMA
 	help
 	   Renesas USB3.0 Peripheral controller is a USB peripheral controller
 	   that supports super, high, and full speed USB 3.0 data transfers.
@@ -257,6 +257,7 @@ config USB_MV_U3D
 
 config USB_SNP_CORE
 	depends on (USB_AMD5536UDC || USB_SNP_UDC_PLAT)
+	depends on HAS_DMA
 	tristate
 	help
 	  This enables core driver support for Synopsys USB 2.0 Device
@@ -271,7 +272,7 @@ config USB_SNP_CORE
 
 config USB_SNP_UDC_PLAT
 	tristate "Synopsys USB 2.0 Device controller"
-	depends on (USB_GADGET && OF)
+	depends on USB_GADGET && OF && HAS_DMA
 	select USB_GADGET_DUALSPEED
 	select USB_SNP_CORE
 	default ARCH_BCM_IPROC

@@ -391,7 +391,13 @@ static void sync_fill_fence_info(struct dma_fence *fence,
 		sizeof(info->driver_name));
 
 	info->status = dma_fence_get_status(fence);
-	info->timestamp_ns = ktime_to_ns(fence->timestamp);
+	while (test_bit(DMA_FENCE_FLAG_SIGNALED_BIT, &fence->flags) &&
+	       !test_bit(DMA_FENCE_FLAG_TIMESTAMP_BIT, &fence->flags))
+		cpu_relax();
+	info->timestamp_ns =
+		test_bit(DMA_FENCE_FLAG_TIMESTAMP_BIT, &fence->flags) ?
+		ktime_to_ns(fence->timestamp) :
+		ktime_set(0, 0);
 }
 
 static long sync_file_ioctl_fence_info(struct sync_file *sync_file,

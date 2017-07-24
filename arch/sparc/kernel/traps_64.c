@@ -2733,6 +2733,7 @@ void do_getpsr(struct pt_regs *regs)
 	}
 }
 
+u64 cpu_mondo_counter[NR_CPUS] = {0};
 struct trap_per_cpu trap_block[NR_CPUS];
 EXPORT_SYMBOL(trap_block);
 
