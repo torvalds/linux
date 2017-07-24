@@ -567,7 +567,6 @@ static struct lock_class_key gpio_lock_class;
 
 static int tegra_gpio_probe(struct platform_device *pdev)
 {
-	const struct tegra_gpio_soc_config *config;
 	struct tegra_gpio_info *tgi;
 	struct resource *res;
 	struct tegra_gpio_bank *bank;
@@ -576,17 +575,11 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 	int i;
 	int j;
 
-	config = of_device_get_match_data(&pdev->dev);
-	if (!config) {
-		dev_err(&pdev->dev, "Error: No device match found\n");
-		return -ENODEV;
-	}
-
 	tgi = devm_kzalloc(&pdev->dev, sizeof(*tgi), GFP_KERNEL);
 	if (!tgi)
 		return -ENODEV;
 
-	tgi->soc = config;
+	tgi->soc = of_device_get_match_data(&pdev->dev);
 	tgi->dev = &pdev->dev;
 
 	ret = platform_irq_count(pdev);
@@ -626,7 +619,7 @@ static int tegra_gpio_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, tgi);
 
-	if (config->debounce_supported)
+	if (tgi->soc->debounce_supported)
 		tgi->gc.set_config = tegra_gpio_set_config;
 
 	tgi->bank_info = devm_kzalloc(&pdev->dev, tgi->bank_count *
