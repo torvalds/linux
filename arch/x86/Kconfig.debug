@@ -357,7 +357,7 @@ config PUNIT_ATOM_DEBUG
 
 config ORC_UNWINDER
 	bool "ORC unwinder"
-	depends on X86_64
+	depends on X86_64 && !FRAME_POINTER
 	select STACK_VALIDATION
 	---help---
 	  This option enables the ORC (Oops Rewind Capability) unwinder for
@@ -365,9 +365,8 @@ config ORC_UNWINDER
 	  a simplified version of the DWARF Call Frame Information standard.
 
 	  This unwinder is more accurate across interrupt entry frames than the
-	  frame pointer unwinder.  It can also enable a 5-10% performance
-	  improvement across the entire kernel if CONFIG_FRAME_POINTER is
-	  disabled.
+	  frame pointer unwinder.  It also enables a 5-10% performance
+	  improvement across the entire kernel compared to frame pointers.
 
 	  Enabling this option will increase the kernel's runtime memory usage
 	  by roughly 2-4MB, depending on your kernel config.
