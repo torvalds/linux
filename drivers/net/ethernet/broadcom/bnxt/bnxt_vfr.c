@@ -135,12 +135,39 @@ void bnxt_vf_rep_rx(struct bnxt *bp, struct sk_buff *skb)
 	netif_receive_skb(skb);
 }
 
+static int bnxt_vf_rep_get_phys_port_name(struct net_device *dev, char *buf,
+					  size_t len)
+{
+	struct bnxt_vf_rep *vf_rep = netdev_priv(dev);
+	int rc;
+
+	rc = snprintf(buf, len, "vfr%d", vf_rep->vf_idx);
+	if (rc >= len)
+		return -EOPNOTSUPP;
+	return 0;
+}
+
 static void bnxt_vf_rep_get_drvinfo(struct net_device *dev,
 				    struct ethtool_drvinfo *info)
 {
 	strlcpy(info->driver, DRV_MODULE_NAME, sizeof(info->driver));
 	strlcpy(info->version, DRV_MODULE_VERSION, sizeof(info->version));
 }
+
+static int bnxt_vf_rep_port_attr_get(struct net_device *dev,
+				     struct switchdev_attr *attr)
+{
+	struct bnxt_vf_rep *vf_rep = netdev_priv(dev);
+
+	/* as only PORT_PARENT_ID is supported currently use common code
+	 * between PF and VF-rep for now.
+	 */
+	return bnxt_port_attr_get(vf_rep->bp, attr);
+}
+
+static const struct switchdev_ops bnxt_vf_rep_switchdev_ops = {
+	.switchdev_port_attr_get	= bnxt_vf_rep_port_attr_get
+};
 
 static const struct ethtool_ops bnxt_vf_rep_ethtool_ops = {
 	.get_drvinfo		= bnxt_vf_rep_get_drvinfo
@@ -150,7 +177,8 @@ static const struct net_device_ops bnxt_vf_rep_netdev_ops = {
 	.ndo_open		= bnxt_vf_rep_open,
 	.ndo_stop		= bnxt_vf_rep_close,
 	.ndo_start_xmit		= bnxt_vf_rep_xmit,
-	.ndo_get_stats64	= bnxt_vf_rep_get_stats64
+	.ndo_get_stats64	= bnxt_vf_rep_get_stats64,
+	.ndo_get_phys_port_name = bnxt_vf_rep_get_phys_port_name
 };
 
 /* Called when the parent PF interface is closed:
@@ -274,6 +302,7 @@ static void bnxt_vf_rep_netdev_init(struct bnxt *bp, struct bnxt_vf_rep *vf_rep,
 
 	dev->netdev_ops = &bnxt_vf_rep_netdev_ops;
 	dev->ethtool_ops = &bnxt_vf_rep_ethtool_ops;
+	dev->switchdev_ops = &bnxt_vf_rep_switchdev_ops;
 	/* Just inherit all the featues of the parent PF as the VF-R
 	 * uses the RX/TX rings of the parent PF
 	 */

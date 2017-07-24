@@ -7546,6 +7546,61 @@ static int bnxt_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
 	return rc;
 }
 
+static int bnxt_get_phys_port_name(struct net_device *dev, char *buf,
+				   size_t len)
+{
+	struct bnxt *bp = netdev_priv(dev);
+	int rc;
+
+	/* The PF and it's VF-reps only support the switchdev framework */
+	if (!BNXT_PF(bp))
+		return -EOPNOTSUPP;
+
+	/* The switch-id that the pf belongs to is exported by
+	 * the switchdev ndo. This name is just to distinguish from the
+	 * vf-rep ports.
+	 */
+	rc = snprintf(buf, len, "pf%d", bp->pf.port_id);
+
+	if (rc >= len)
+		return -EOPNOTSUPP;
+	return 0;
+}
+
+int bnxt_port_attr_get(struct bnxt *bp, struct switchdev_attr *attr)
+{
+	if (bp->eswitch_mode != DEVLINK_ESWITCH_MODE_SWITCHDEV)
+		return -EOPNOTSUPP;
+
+	/* The PF and it's VF-reps only support the switchdev framework */
+	if (!BNXT_PF(bp))
+		return -EOPNOTSUPP;
+
+	switch (attr->id) {
+	case SWITCHDEV_ATTR_ID_PORT_PARENT_ID:
+		/* In SRIOV each PF-pool (PF + child VFs) serves as a
+		 * switching domain, the PF's perm mac-addr can be used
+		 * as the unique parent-id
+		 */
+		attr->u.ppid.id_len = ETH_ALEN;
+		ether_addr_copy(attr->u.ppid.id, bp->pf.mac_addr);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+	return 0;
+}
+
+static int bnxt_swdev_port_attr_get(struct net_device *dev,
+				    struct switchdev_attr *attr)
+{
+	return bnxt_port_attr_get(netdev_priv(dev), attr);
+}
+
+static const struct switchdev_ops bnxt_switchdev_ops = {
+	.switchdev_port_attr_get	= bnxt_swdev_port_attr_get
+};
+
 static const struct net_device_ops bnxt_netdev_ops = {
 	.ndo_open		= bnxt_open,
 	.ndo_start_xmit		= bnxt_start_xmit,
@@ -7579,6 +7634,7 @@ static const struct net_device_ops bnxt_netdev_ops = {
 	.ndo_xdp		= bnxt_xdp,
 	.ndo_bridge_getlink	= bnxt_bridge_getlink,
 	.ndo_bridge_setlink	= bnxt_bridge_setlink,
+	.ndo_get_phys_port_name = bnxt_get_phys_port_name
 };
 
 static void bnxt_remove_one(struct pci_dev *pdev)
@@ -7838,6 +7894,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->netdev_ops = &bnxt_netdev_ops;
 	dev->watchdog_timeo = BNXT_TX_TIMEOUT;
 	dev->ethtool_ops = &bnxt_ethtool_ops;
+	dev->switchdev_ops = &bnxt_switchdev_ops;
 	pci_set_drvdata(pdev, dev);
 
 	rc = bnxt_alloc_hwrm_resources(bp);

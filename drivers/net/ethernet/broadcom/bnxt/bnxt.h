@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <net/devlink.h>
 #include <net/dst_metadata.h>
+#include <net/switchdev.h>
 
 struct tx_bd {
 	__le32 tx_bd_len_flags_type;
@@ -1350,4 +1351,5 @@ int bnxt_reserve_rings(struct bnxt *bp, int tx, int rx, bool sh, int tcs,
 int bnxt_setup_mq_tc(struct net_device *dev, u8 tc);
 int bnxt_get_max_rings(struct bnxt *, int *, int *, bool);
 void bnxt_restore_pf_fw_resources(struct bnxt *bp);
+int bnxt_port_attr_get(struct bnxt *bp, struct switchdev_attr *attr);
 #endif
