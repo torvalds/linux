@@ -64,6 +64,9 @@ config GENERIC_CSUM
 config STACKTRACE_SUPPORT
 	def_bool y
 
+config LOCKDEP_SUPPORT
+	def_bool  y
+
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
