@@ -83,6 +83,7 @@ static struct scsi_host_template iscsi_iser_sht;
 static struct iscsi_transport iscsi_iser_transport;
 static struct scsi_transport_template *iscsi_iser_scsi_transport;
 static struct workqueue_struct *release_wq;
+static DEFINE_MUTEX(unbind_iser_conn_mutex);
 struct iser_global ig;
 
 int iser_debug_level = 0;
@@ -550,12 +551,14 @@ iscsi_iser_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 	 */
 	if (iser_conn) {
 		mutex_lock(&iser_conn->state_mutex);
+		mutex_lock(&unbind_iser_conn_mutex);
 		iser_conn_terminate(iser_conn);
 		iscsi_conn_stop(cls_conn, flag);
 
 		/* unbind */
 		iser_conn->iscsi_conn = NULL;
 		conn->dd_data = NULL;
+		mutex_unlock(&unbind_iser_conn_mutex);
 
 		complete(&iser_conn->stop_completion);
 		mutex_unlock(&iser_conn->state_mutex);
@@ -977,12 +980,20 @@ static int iscsi_iser_slave_alloc(struct scsi_device *sdev)
 	struct iser_conn *iser_conn;
 	struct ib_device *ib_dev;
 
+	mutex_lock(&unbind_iser_conn_mutex);
+
 	session = starget_to_session(scsi_target(sdev))->dd_data;
 	iser_conn = session->leadconn->dd_data;
+	if (!iser_conn) {
+		mutex_unlock(&unbind_iser_conn_mutex);
+		return -ENOTCONN;
+	}
 	ib_dev = iser_conn->ib_conn.device->ib_device;
 
 	if (!(ib_dev->attrs.device_cap_flags & IB_DEVICE_SG_GAPS_REG))
 		blk_queue_virt_boundary(sdev->request_queue, ~MASK_4K);
+
+	mutex_unlock(&unbind_iser_conn_mutex);
 
 	return 0;
 }

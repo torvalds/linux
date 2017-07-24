@@ -400,6 +400,7 @@ int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 		err = -ENOMEM;
 		goto errout;
 	}
+	refcount_set(&rule->refcnt, 1);
 	rule->fr_net = net;
 
 	rule->pref = tb[FRA_PRIORITY] ? nla_get_u32(tb[FRA_PRIORITY])
@@ -516,8 +517,6 @@ int fib_nl_newrule(struct sk_buff *skb, struct nlmsghdr *nlh,
 			break;
 		last = r;
 	}
-
-	refcount_set(&rule->refcnt, 1);
 
 	if (last)
 		list_add_rcu(&rule->list, &last->list);

@@ -1842,6 +1842,10 @@ static int ff_layout_initiate_commit(struct nfs_commit_data *data, int how)
 	int vers, ret;
 	struct nfs_fh *fh;
 
+	if (!lseg || !(pnfs_is_valid_lseg(lseg) ||
+	    test_bit(NFS_LSEG_LAYOUTRETURN, &lseg->pls_flags)))
+		goto out_err;
+
 	idx = calc_ds_index_from_commit(lseg, data->ds_commit_index);
 	ds = nfs4_ff_layout_prepare_ds(lseg, idx, true);
 	if (!ds)

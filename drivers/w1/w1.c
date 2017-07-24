@@ -728,6 +728,7 @@ int w1_attach_slave_device(struct w1_master *dev, struct w1_reg_num *rn)
 	memcpy(&sl->reg_num, rn, sizeof(sl->reg_num));
 	atomic_set(&sl->refcnt, 1);
 	atomic_inc(&sl->master->refcnt);
+	dev->slave_count++;
 
 	/* slave modules need to be loaded in a context with unlocked mutex */
 	mutex_unlock(&dev->mutex);
@@ -747,11 +748,11 @@ int w1_attach_slave_device(struct w1_master *dev, struct w1_reg_num *rn)
 
 	sl->family = f;
 
-
 	err = __w1_attach_slave_device(sl);
 	if (err < 0) {
 		dev_err(&dev->dev, "%s: Attaching %s failed.\n", __func__,
 			 sl->name);
+		dev->slave_count--;
 		w1_family_put(sl->family);
 		atomic_dec(&sl->master->refcnt);
 		kfree(sl);
@@ -759,7 +760,6 @@ int w1_attach_slave_device(struct w1_master *dev, struct w1_reg_num *rn)
 	}
 
 	sl->ttl = dev->slave_ttl;
-	dev->slave_count++;
 
 	memcpy(msg.id.id, rn, sizeof(msg.id));
 	msg.type = W1_SLAVE_ADD;
