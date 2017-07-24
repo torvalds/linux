@@ -149,6 +149,12 @@ static int omap_connector_get_modes(struct drm_connector *connector)
 		drm_mode_set_name(mode);
 		drm_mode_probed_add(connector, mode);
 
+		if (dssdrv->get_size) {
+			dssdrv->get_size(dssdev,
+					 &connector->display_info.width_mm,
+					 &connector->display_info.height_mm);
+		}
+
 		n = 1;
 	}
 
