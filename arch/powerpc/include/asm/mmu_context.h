@@ -96,6 +96,14 @@ static inline void switch_mm_pgdir(struct task_struct *tsk,
 				   struct mm_struct *mm) { }
 #endif
 
+#ifdef CONFIG_PPC_BOOK3S_64
+static inline void inc_mm_active_cpus(struct mm_struct *mm)
+{
+	atomic_inc(&mm->context.active_cpus);
+}
+#else
+static inline void inc_mm_active_cpus(struct mm_struct *mm) { }
+#endif
 
 /*
  * switch_mm is the entry point called from the architecture independent
@@ -110,6 +118,7 @@ static inline void switch_mm_irqs_off(struct mm_struct *prev,
 	/* Mark this context has been used on the new CPU */
 	if (!cpumask_test_cpu(smp_processor_id(), mm_cpumask(next))) {
 		cpumask_set_cpu(smp_processor_id(), mm_cpumask(next));
+		inc_mm_active_cpus(next);
 
 		/*
 		 * This full barrier orders the store to the cpumask above vs

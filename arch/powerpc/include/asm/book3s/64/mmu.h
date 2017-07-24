@@ -83,6 +83,9 @@ typedef struct {
 	mm_context_id_t id;
 	u16 user_psize;		/* page size index */
 
+	/* Number of bits in the mm_cpumask */
+	atomic_t active_cpus;
+
 	/* NPU NMMU context */
 	struct npu_context *npu_context;
 
