@@ -14,7 +14,6 @@
 
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
-#include <rxrpc/packet.h>
 #include "internal.h"
 #include "afs_cm.h"
 

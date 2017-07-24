@@ -15,7 +15,7 @@
 #include <net/netns/generic.h>
 #include <net/sock.h>
 #include <net/af_rxrpc.h>
-#include <rxrpc/packet.h>
+#include "protocol.h"
 
 #if 0
 #define CHECK_SLAB_OKAY(X)				     \
