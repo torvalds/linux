@@ -520,6 +520,51 @@
 		status = "disabled";
 	};
 
+	h265e_mmu: iommu@ff330200 {
+		compatible = "rockchip,iommu";
+		reg = <0x0 0xff330200 0 0x100>;
+		interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "h265e_mmu";
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
+	vepu_mmu: iommu@ff340800 {
+		compatible = "rockchip,iommu";
+		reg = <0x0 0xff340800 0x0 0x40>;
+		interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vepu_mmu";
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
+	vpu_mmu: iommu@ff350800 {
+		compatible = "rockchip,iommu";
+		reg = <0x0 0xff350800 0x0 0x40>;
+		interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "vpu_mmu";
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
+	rkvdec_mmu: iommu@ff360480 {
+		compatible = "rockchip,iommu";
+		reg = <0x0 0xff360480 0x0 0x40>, <0x0 0xff3604c0 0x0 0x40>;
+		interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "rkvdec_mmu";
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
+	vop_mmu: iommu@ff373f00 {
+		compatible = "rockchip,iommu";
+		reg = <0x0 0xff373f00 0x0 0x100>;
+		interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupt-names = "vop_mmu";
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
 	cru: clock-controller@ff440000 {
 		compatible = "rockchip,rk3328-cru", "rockchip,cru", "syscon";
 		reg = <0x0 0xff440000 0x0 0x1000>;
