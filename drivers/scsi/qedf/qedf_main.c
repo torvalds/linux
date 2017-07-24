@@ -1227,7 +1227,7 @@ static void qedf_rport_event_handler(struct fc_lport *lport,
 
 		if (rdata->spp_type != FC_TYPE_FCP) {
 			QEDF_INFO(&(qedf->dbg_ctx), QEDF_LOG_DISC,
-			    "Not offlading since since spp type isn't FCP\n");
+			    "Not offloading since spp type isn't FCP\n");
 			break;
 		}
 		if (!(rdata->ids.roles & FC_RPORT_ROLE_FCP_TARGET)) {

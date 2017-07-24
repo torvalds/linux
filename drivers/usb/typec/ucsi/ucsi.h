@@ -3,6 +3,7 @@
 #define __DRIVER_USB_TYPEC_UCSI_H
 
 #include <linux/bitops.h>
+#include <linux/device.h>
 #include <linux/types.h>
 
 /* -------------------------------------------------------------------------- */

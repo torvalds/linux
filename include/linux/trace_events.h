@@ -338,7 +338,7 @@ enum {
 struct trace_event_file {
 	struct list_head		list;
 	struct trace_event_call		*event_call;
-	struct event_filter		*filter;
+	struct event_filter __rcu	*filter;
 	struct dentry			*dir;
 	struct trace_array		*tr;
 	struct trace_subsystem_dir	*system;

@@ -46,7 +46,7 @@ static int __init mux_init(void)
 
 static void __exit mux_exit(void)
 {
-	class_register(&mux_class);
+	class_unregister(&mux_class);
 	ida_destroy(&mux_ida);
 }
 

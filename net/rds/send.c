@@ -170,8 +170,8 @@ restart:
 	 * The acquire_in_xmit() check above ensures that only one
 	 * caller can increment c_send_gen at any time.
 	 */
-	cp->cp_send_gen++;
-	send_gen = cp->cp_send_gen;
+	send_gen = READ_ONCE(cp->cp_send_gen) + 1;
+	WRITE_ONCE(cp->cp_send_gen, send_gen);
 
 	/*
 	 * rds_conn_shutdown() sets the conn state and then tests RDS_IN_XMIT,
@@ -431,7 +431,7 @@ over_batch:
 		smp_mb();
 		if ((test_bit(0, &conn->c_map_queued) ||
 		     !list_empty(&cp->cp_send_queue)) &&
-		    send_gen == cp->cp_send_gen) {
+			send_gen == READ_ONCE(cp->cp_send_gen)) {
 			rds_stats_inc(s_send_lock_queue_raced);
 			if (batch_count < send_batch_count)
 				goto restart;
