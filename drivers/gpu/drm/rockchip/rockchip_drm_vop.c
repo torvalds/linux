@@ -1681,8 +1681,8 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	mutex_lock(&vop->vop_lock);
 	vop_initial(crtc);
 
-	val = BIT(DCLK_INVERT);
-	val |= (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ?
+	VOP_CTRL_SET(vop, dclk_pol, 1);
+	val = (adjusted_mode->flags & DRM_MODE_FLAG_NHSYNC) ?
 		   0 : BIT(HSYNC_POSITIVE);
 	val |= (adjusted_mode->flags & DRM_MODE_FLAG_NVSYNC) ?
 		   0 : BIT(VSYNC_POSITIVE);
@@ -1698,21 +1698,25 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 	case DRM_MODE_CONNECTOR_LVDS:
 		VOP_CTRL_SET(vop, rgb_en, 1);
 		VOP_CTRL_SET(vop, rgb_pin_pol, val);
+		VOP_CTRL_SET(vop, rgb_dclk_pol, 1);
 		break;
 	case DRM_MODE_CONNECTOR_eDP:
 		VOP_CTRL_SET(vop, edp_en, 1);
 		VOP_CTRL_SET(vop, edp_pin_pol, val);
+		VOP_CTRL_SET(vop, edp_dclk_pol, 1);
 		break;
 	case DRM_MODE_CONNECTOR_HDMIA:
 		VOP_CTRL_SET(vop, hdmi_en, 1);
 		VOP_CTRL_SET(vop, hdmi_pin_pol, val);
+		VOP_CTRL_SET(vop, hdmi_dclk_pol, 1);
 		break;
 	case DRM_MODE_CONNECTOR_DSI:
 		VOP_CTRL_SET(vop, mipi_en, 1);
 		VOP_CTRL_SET(vop, mipi_pin_pol, val);
+		VOP_CTRL_SET(vop, mipi_dclk_pol, 1);
 		break;
 	case DRM_MODE_CONNECTOR_DisplayPort:
-		val &= ~BIT(DCLK_INVERT);
+		VOP_CTRL_SET(vop, dp_dclk_pol, 0);
 		VOP_CTRL_SET(vop, dp_pin_pol, val);
 		VOP_CTRL_SET(vop, dp_en, 1);
 		break;
