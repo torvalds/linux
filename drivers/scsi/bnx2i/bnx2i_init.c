@@ -516,15 +516,16 @@ static int __init bnx2i_mod_init(void)
 	for_each_online_cpu(cpu)
 		bnx2i_percpu_thread_create(cpu);
 
-	err = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
-				       "scsi/bnx2i:online",
-				       bnx2i_cpu_online, NULL);
+	err = cpuhp_setup_state_nocalls_cpuslocked(CPUHP_AP_ONLINE_DYN,
+						   "scsi/bnx2i:online",
+						   bnx2i_cpu_online, NULL);
 	if (err < 0)
 		goto remove_threads;
 	bnx2i_online_state = err;
 
-	cpuhp_setup_state_nocalls(CPUHP_SCSI_BNX2I_DEAD, "scsi/bnx2i:dead",
-				  NULL, bnx2i_cpu_dead);
+	cpuhp_setup_state_nocalls_cpuslocked(CPUHP_SCSI_BNX2I_DEAD,
+					     "scsi/bnx2i:dead",
+					     NULL, bnx2i_cpu_dead);
 	put_online_cpus();
 	return 0;
 
@@ -574,8 +575,8 @@ static void __exit bnx2i_mod_exit(void)
 	for_each_online_cpu(cpu)
 		bnx2i_percpu_thread_destroy(cpu);
 
-	cpuhp_remove_state_nocalls(bnx2i_online_state);
-	cpuhp_remove_state_nocalls(CPUHP_SCSI_BNX2I_DEAD);
+	cpuhp_remove_state_nocalls_cpuslocked(bnx2i_online_state);
+	cpuhp_remove_state_nocalls_cpuslocked(CPUHP_SCSI_BNX2I_DEAD);
 	put_online_cpus();
 
 	iscsi_unregister_transport(&bnx2i_iscsi_transport);
