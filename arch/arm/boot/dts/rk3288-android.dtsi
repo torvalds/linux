@@ -409,6 +409,16 @@
 	};
 };
 
+&edp {
+	ports {
+		edp_in: port@0 {
+			edp_in_vopl: endpoint@1 {
+				status = "disabled";
+			};
+		};
+	};
+};
+
 &rga {
 	compatible = "rockchip,rga2";
 	clocks = <&cru ACLK_RGA>, <&cru HCLK_RGA>, <&cru SCLK_RGA>;
