@@ -363,7 +363,7 @@ static int do_update_property(char *buf, size_t bufsize)
 static ssize_t ofdt_write(struct file *file, const char __user *buf, size_t count,
 			  loff_t *off)
 {
-	int rv = 0;
+	int rv;
 	char *kbuf;
 	char *tmp;
 
