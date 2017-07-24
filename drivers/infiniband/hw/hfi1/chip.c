@@ -10569,18 +10569,19 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 			dd_dev_err(dd,
 				   "%s: logical state did not change to INIT\n",
 				   __func__);
-		} else {
-			/* clear old transient LINKINIT_REASON code */
-			if (ppd->linkinit_reason >= OPA_LINKINIT_REASON_CLEAR)
-				ppd->linkinit_reason =
-					OPA_LINKINIT_REASON_LINKUP;
-
-			/* enable the port */
-			add_rcvctrl(dd, RCV_CTRL_RCV_PORT_ENABLE_SMASK);
-
-			handle_linkup_change(dd, 1);
-			ppd->host_link_state = HLS_UP_INIT;
+			break;
 		}
+
+		/* clear old transient LINKINIT_REASON code */
+		if (ppd->linkinit_reason >= OPA_LINKINIT_REASON_CLEAR)
+			ppd->linkinit_reason =
+				OPA_LINKINIT_REASON_LINKUP;
+
+		/* enable the port */
+		add_rcvctrl(dd, RCV_CTRL_RCV_PORT_ENABLE_SMASK);
+
+		handle_linkup_change(dd, 1);
+		ppd->host_link_state = HLS_UP_INIT;
 		break;
 	case HLS_UP_ARMED:
 		if (ppd->host_link_state != HLS_UP_INIT)
