@@ -15,6 +15,14 @@
 #include <linux/ratelimit.h>
 #include "overlayfs.h"
 
+
+static dev_t ovl_get_pseudo_dev(struct dentry *dentry)
+{
+	struct ovl_entry *oe = dentry->d_fsdata;
+
+	return oe->lowerstack[0].layer->pseudo_dev;
+}
+
 int ovl_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	int err;
@@ -121,6 +129,13 @@ int ovl_getattr(const struct path *path, struct kstat *stat,
 		 */
 		stat->dev = dentry->d_sb->s_dev;
 		stat->ino = dentry->d_inode->i_ino;
+	} else if (!OVL_TYPE_UPPER(type)) {
+		/*
+		 * For non-samefs setup, to make sure that st_dev/st_ino pair
+		 * is unique across the system, we use a unique anonymous
+		 * st_dev for lower layer inode.
+		 */
+		stat->dev = ovl_get_pseudo_dev(dentry);
 	}
 
 	/*
