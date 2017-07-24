@@ -2571,8 +2571,6 @@ extern int __must_check file_write_and_wait_range(struct file *file,
  * When a writeback error occurs, most filesystems will want to call
  * filemap_set_wb_err to record the error in the mapping so that it will be
  * automatically reported whenever fsync is called on the file.
- *
- * FIXME: mention FS_* flag here?
  */
 static inline void filemap_set_wb_err(struct address_space *mapping, int err)
 {
