@@ -23,6 +23,7 @@
 #include <linux/workqueue.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
+#include <linux/regulator/consumer.h>
 
 #include <video/mipi_display.h>
 #include <video/of_display_timing.h>
@@ -59,6 +60,9 @@ struct panel_drv_data {
 	/* panel HW configuration from DT or platform data */
 	int reset_gpio;
 	int ext_te_gpio;
+
+	struct regulator *vpnl;
+	struct regulator *vddi;
 
 	bool use_dsi_backlight;
 
@@ -590,25 +594,43 @@ static int dsicm_power_on(struct panel_drv_data *ddata)
 		.lp_clk_max = 10000000,
 	};
 
+	if (ddata->vpnl) {
+		r = regulator_enable(ddata->vpnl);
+		if (r) {
+			dev_err(&ddata->pdev->dev,
+				"failed to enable VPNL: %d\n", r);
+			return r;
+		}
+	}
+
+	if (ddata->vddi) {
+		r = regulator_enable(ddata->vddi);
+		if (r) {
+			dev_err(&ddata->pdev->dev,
+				"failed to enable VDDI: %d\n", r);
+			goto err_vpnl;
+		}
+	}
+
 	if (ddata->pin_config.num_pins > 0) {
 		r = in->ops.dsi->configure_pins(in, &ddata->pin_config);
 		if (r) {
 			dev_err(&ddata->pdev->dev,
 				"failed to configure DSI pins\n");
-			goto err0;
+			goto err_vddi;
 		}
 	}
 
 	r = in->ops.dsi->set_config(in, &dsi_config);
 	if (r) {
 		dev_err(&ddata->pdev->dev, "failed to configure DSI\n");
-		goto err0;
+		goto err_vddi;
 	}
 
 	r = in->ops.dsi->enable(in);
 	if (r) {
 		dev_err(&ddata->pdev->dev, "failed to enable DSI\n");
-		goto err0;
+		goto err_vddi;
 	}
 
 	dsicm_hw_reset(ddata);
@@ -666,7 +688,13 @@ err:
 	dsicm_hw_reset(ddata);
 
 	in->ops.dsi->disable(in, true, false);
-err0:
+err_vddi:
+	if (ddata->vddi)
+		regulator_disable(ddata->vddi);
+err_vpnl:
+	if (ddata->vpnl)
+		regulator_disable(ddata->vpnl);
+
 	return r;
 }
 
@@ -688,6 +716,11 @@ static void dsicm_power_off(struct panel_drv_data *ddata)
 	}
 
 	in->ops.dsi->disable(in, true, false);
+
+	if (ddata->vddi)
+		regulator_disable(ddata->vddi);
+	if (ddata->vpnl)
+		regulator_disable(ddata->vpnl);
 
 	ddata->enabled = 0;
 }
@@ -1187,6 +1220,22 @@ static int dsicm_probe_of(struct platform_device *pdev)
 	if (IS_ERR(in)) {
 		dev_err(&pdev->dev, "failed to find video source\n");
 		return PTR_ERR(in);
+	}
+
+	ddata->vpnl = devm_regulator_get_optional(&pdev->dev, "vpnl");
+	if (IS_ERR(ddata->vpnl)) {
+		err = PTR_ERR(ddata->vpnl);
+		if (err == -EPROBE_DEFER)
+			return err;
+		ddata->vpnl = NULL;
+	}
+
+	ddata->vddi = devm_regulator_get_optional(&pdev->dev, "vddi");
+	if (IS_ERR(ddata->vddi)) {
+		err = PTR_ERR(ddata->vddi);
+		if (err == -EPROBE_DEFER)
+			return err;
+		ddata->vddi = NULL;
 	}
 
 	ddata->in = in;
