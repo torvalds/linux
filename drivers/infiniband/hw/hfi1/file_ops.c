@@ -809,10 +809,6 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 	hfi1_free_ctxt_rcv_groups(uctxt);
 	hfi1_clear_ctxt_pkey(dd, uctxt);
 
-	uctxt->rcvwait_to = 0;
-	uctxt->piowait_to = 0;
-	uctxt->rcvnowait = 0;
-	uctxt->pionowait = 0;
 	uctxt->event_flags = 0;
 	mutex_unlock(&hfi1_mutex);
 
@@ -1067,8 +1063,6 @@ static int allocate_ctxt(struct hfi1_filedata *fd, struct hfi1_devdata *dd,
 	strlcpy(uctxt->comm, current->comm, sizeof(uctxt->comm));
 	memcpy(uctxt->uuid, uinfo->uuid, sizeof(uctxt->uuid));
 	uctxt->jkey = generate_jkey(current_uid());
-	INIT_LIST_HEAD(&uctxt->sdma_queues);
-	spin_lock_init(&uctxt->sdma_qlock);
 	hfi1_stats.sps_ctxts++;
 	/*
 	 * Disable ASPM when there are open user/PSM contexts to avoid

@@ -56,7 +56,6 @@
 extern uint extended_psn;
 
 struct hfi1_user_sdma_pkt_q {
-	struct list_head list;
 	unsigned ctxt;
 	u16 subctxt;
 	u16 n_max_reqs;

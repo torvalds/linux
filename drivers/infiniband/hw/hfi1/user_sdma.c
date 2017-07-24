@@ -346,7 +346,6 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt,
 	struct hfi1_devdata *dd;
 	struct hfi1_user_sdma_comp_q *cq;
 	struct hfi1_user_sdma_pkt_q *pq;
-	unsigned long flags;
 
 	if (!uctxt || !fd)
 		return -EBADF;
@@ -360,7 +359,6 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt,
 	if (!pq)
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&pq->list);
 	pq->dd = dd;
 	pq->ctxt = uctxt->ctxt;
 	pq->subctxt = fd->subctxt;
@@ -421,10 +419,6 @@ int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt,
 	fd->pq = pq;
 	fd->cq = cq;
 
-	spin_lock_irqsave(&uctxt->sdma_qlock, flags);
-	list_add(&pq->list, &uctxt->sdma_queues);
-	spin_unlock_irqrestore(&uctxt->sdma_qlock, flags);
-
 	return 0;
 
 pq_mmu_fail:
@@ -447,7 +441,6 @@ int hfi1_user_sdma_free_queues(struct hfi1_filedata *fd)
 {
 	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct hfi1_user_sdma_pkt_q *pq;
-	unsigned long flags;
 
 	hfi1_cdbg(SDMA, "[%u:%u:%u] Freeing user SDMA queues", uctxt->dd->unit,
 		  uctxt->ctxt, fd->subctxt);
@@ -455,10 +448,6 @@ int hfi1_user_sdma_free_queues(struct hfi1_filedata *fd)
 	if (pq) {
 		if (pq->handler)
 			hfi1_mmu_rb_unregister(pq->handler);
-		spin_lock_irqsave(&uctxt->sdma_qlock, flags);
-		if (!list_empty(&pq->list))
-			list_del_init(&pq->list);
-		spin_unlock_irqrestore(&uctxt->sdma_qlock, flags);
 		iowait_sdma_drain(&pq->busy);
 		/* Wait until all requests have been freed. */
 		wait_event_interruptible(

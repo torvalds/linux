@@ -243,24 +243,10 @@ struct hfi1_ctxtdata {
 
 	/* lock protecting all Expected TID data */
 	struct mutex exp_lock;
-	/* number of pio bufs for this ctxt (all procs, if shared) */
-	u32 piocnt;
-	/* first pio buffer for this ctxt */
-	u32 pio_base;
-	/* chip offset of PIO buffers for this ctxt */
-	u32 piobufs;
 	/* per-context configuration flags */
 	unsigned long flags;
 	/* per-context event flags for fileops/intr communication */
 	unsigned long event_flags;
-	/* WAIT_RCV that timed out, no interrupt */
-	u32 rcvwait_to;
-	/* WAIT_PIO that timed out, no interrupt */
-	u32 piowait_to;
-	/* WAIT_RCV already happened, no wait */
-	u32 rcvnowait;
-	/* WAIT_PIO already happened, no wait */
-	u32 pionowait;
 	/* total number of polled urgent packets */
 	u32 urgent;
 	/* saved total number of polled urgent packets for poll edge trigger */
@@ -290,7 +276,6 @@ struct hfi1_ctxtdata {
 	u8 redirect_seq_cnt;
 	/* ctxt rcvhdrq head offset */
 	u32 head;
-	u32 pkt_count;
 	/* QPs waiting for context processing */
 	struct list_head qp_wait_list;
 	/* interrupt handling */
@@ -299,15 +284,6 @@ struct hfi1_ctxtdata {
 	unsigned numa_id; /* numa node of this context */
 	/* verbs stats per CTX */
 	struct hfi1_opcode_stats_perctx *opstats;
-	/*
-	 * This is the kernel thread that will keep making
-	 * progress on the user sdma requests behind the scenes.
-	 * There is one per context (shared contexts use the master's).
-	 */
-	struct task_struct *progress;
-	struct list_head sdma_queues;
-	/* protect sdma queues */
-	spinlock_t sdma_qlock;
 
 	/* Is ASPM interrupt supported for this context */
 	bool aspm_intr_supported;
