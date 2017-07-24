@@ -112,10 +112,9 @@ set_the_pte:
 }
 
 #ifdef CONFIG_STRICT_KERNEL_RWX
-void radix__mark_rodata_ro(void)
+void radix__change_memory_range(unsigned long start, unsigned long end,
+				unsigned long clear)
 {
-	unsigned long start = (unsigned long)_stext;
-	unsigned long end = (unsigned long)__init_begin;
 	unsigned long idx;
 	pgd_t *pgdp;
 	pud_t *pudp;
@@ -125,7 +124,8 @@ void radix__mark_rodata_ro(void)
 	start = ALIGN_DOWN(start, PAGE_SIZE);
 	end = PAGE_ALIGN(end); // aligns up
 
-	pr_devel("marking ro start %lx, end %lx\n", start, end);
+	pr_debug("Changing flags on range %lx-%lx removing 0x%lx\n",
+		 start, end, clear);
 
 	for (idx = start; idx < end; idx += PAGE_SIZE) {
 		pgdp = pgd_offset_k(idx);
@@ -147,10 +147,28 @@ void radix__mark_rodata_ro(void)
 		if (!ptep)
 			continue;
 update_the_pte:
-		radix__pte_update(&init_mm, idx, ptep, _PAGE_WRITE, 0, 0);
+		radix__pte_update(&init_mm, idx, ptep, clear, 0, 0);
 	}
 
 	radix__flush_tlb_kernel_range(start, end);
+}
+
+void radix__mark_rodata_ro(void)
+{
+	unsigned long start, end;
+
+	start = (unsigned long)_stext;
+	end = (unsigned long)__init_begin;
+
+	radix__change_memory_range(start, end, _PAGE_WRITE);
+}
+
+void radix__mark_initmem_nx(void)
+{
+	unsigned long start = (unsigned long)__init_begin;
+	unsigned long end = (unsigned long)__init_end;
+
+	radix__change_memory_range(start, end, _PAGE_EXEC);
 }
 #endif /* CONFIG_STRICT_KERNEL_RWX */
 

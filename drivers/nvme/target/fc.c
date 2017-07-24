@@ -1174,14 +1174,14 @@ nvmet_fc_ls_create_association(struct nvmet_fc_tgtport *tgtport,
 	 */
 	if (iod->rqstdatalen < FCNVME_LSDESC_CRA_RQST_MINLEN)
 		ret = VERR_CR_ASSOC_LEN;
-	else if (rqst->desc_list_len <
-			cpu_to_be32(FCNVME_LSDESC_CRA_RQST_MIN_LISTLEN))
+	else if (be32_to_cpu(rqst->desc_list_len) <
+			FCNVME_LSDESC_CRA_RQST_MIN_LISTLEN)
 		ret = VERR_CR_ASSOC_RQST_LEN;
 	else if (rqst->assoc_cmd.desc_tag !=
 			cpu_to_be32(FCNVME_LSDESC_CREATE_ASSOC_CMD))
 		ret = VERR_CR_ASSOC_CMD;
-	else if (rqst->assoc_cmd.desc_len <
-			cpu_to_be32(FCNVME_LSDESC_CRA_CMD_DESC_MIN_DESCLEN))
+	else if (be32_to_cpu(rqst->assoc_cmd.desc_len) <
+			FCNVME_LSDESC_CRA_CMD_DESC_MIN_DESCLEN)
 		ret = VERR_CR_ASSOC_CMD_LEN;
 	else if (!rqst->assoc_cmd.ersp_ratio ||
 		 (be16_to_cpu(rqst->assoc_cmd.ersp_ratio) >=

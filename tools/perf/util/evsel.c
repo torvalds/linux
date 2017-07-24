@@ -273,7 +273,7 @@ struct perf_evsel *perf_evsel__new_cycles(void)
 	struct perf_event_attr attr = {
 		.type	= PERF_TYPE_HARDWARE,
 		.config	= PERF_COUNT_HW_CPU_CYCLES,
-		.exclude_kernel	= 1,
+		.exclude_kernel	= geteuid() != 0,
 	};
 	struct perf_evsel *evsel;
 
@@ -298,8 +298,10 @@ struct perf_evsel *perf_evsel__new_cycles(void)
 		goto out;
 
 	/* use asprintf() because free(evsel) assumes name is allocated */
-	if (asprintf(&evsel->name, "cycles%.*s",
-		     attr.precise_ip ? attr.precise_ip + 1 : 0, ":ppp") < 0)
+	if (asprintf(&evsel->name, "cycles%s%s%.*s",
+		     (attr.precise_ip || attr.exclude_kernel) ? ":" : "",
+		     attr.exclude_kernel ? "u" : "",
+		     attr.precise_ip ? attr.precise_ip + 1 : 0, "ppp") < 0)
 		goto error_free;
 out:
 	return evsel;

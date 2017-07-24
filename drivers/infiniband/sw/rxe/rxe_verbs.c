@@ -914,6 +914,9 @@ static int rxe_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 
 	spin_unlock_irqrestore(&rq->producer_lock, flags);
 
+	if (qp->resp.state == QP_STATE_ERROR)
+		rxe_run_task(&qp->resp.task, 1);
+
 err1:
 	return err;
 }

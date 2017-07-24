@@ -421,14 +421,15 @@ static void set_badblock(struct badblocks *bb, sector_t s, int num)
 static void __add_badblock_range(struct badblocks *bb, u64 ns_offset, u64 len)
 {
 	const unsigned int sector_size = 512;
-	sector_t start_sector;
+	sector_t start_sector, end_sector;
 	u64 num_sectors;
 	u32 rem;
 
 	start_sector = div_u64(ns_offset, sector_size);
-	num_sectors = div_u64_rem(len, sector_size, &rem);
+	end_sector = div_u64_rem(ns_offset + len, sector_size, &rem);
 	if (rem)
-		num_sectors++;
+		end_sector++;
+	num_sectors = end_sector - start_sector;
 
 	if (unlikely(num_sectors > (u64)INT_MAX)) {
 		u64 remaining = num_sectors;

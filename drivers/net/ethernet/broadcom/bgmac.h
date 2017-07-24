@@ -425,6 +425,7 @@
 #define BGMAC_FEAT_CC4_IF_SW_TYPE	BIT(17)
 #define BGMAC_FEAT_CC4_IF_SW_TYPE_RGMII	BIT(18)
 #define BGMAC_FEAT_CC7_IF_TYPE_RGMII	BIT(19)
+#define BGMAC_FEAT_IDM_MASK		BIT(20)
 
 struct bgmac_slot_info {
 	union {

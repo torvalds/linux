@@ -52,7 +52,7 @@ struct bfq_entity;
 struct bfq_service_tree {
 	/* tree for active entities (i.e., those backlogged) */
 	struct rb_root active;
-	/* tree for idle entities (i.e., not backlogged, with V <= F_i)*/
+	/* tree for idle entities (i.e., not backlogged, with V < F_i)*/
 	struct rb_root idle;
 
 	/* idle entity with minimum F_i */

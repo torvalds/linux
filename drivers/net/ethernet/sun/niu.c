@@ -9532,7 +9532,7 @@ static struct niu_parent *niu_get_parent(struct niu *np,
 		p = niu_new_parent(np, id, ptype);
 
 	if (p) {
-		char port_name[6];
+		char port_name[8];
 		int err;
 
 		sprintf(port_name, "port%d", port);
@@ -9553,7 +9553,7 @@ static void niu_put_parent(struct niu *np)
 {
 	struct niu_parent *p = np->parent;
 	u8 port = np->port;
-	char port_name[6];
+	char port_name[8];
 
 	BUG_ON(!p || p->ports[port] != np);
 

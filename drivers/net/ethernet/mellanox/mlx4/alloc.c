@@ -283,7 +283,7 @@ int mlx4_zone_add_one(struct mlx4_zone_allocator *zone_alloc,
 }
 
 /* Should be called under a lock */
-static int __mlx4_zone_remove_one_entry(struct mlx4_zone_entry *entry)
+static void __mlx4_zone_remove_one_entry(struct mlx4_zone_entry *entry)
 {
 	struct mlx4_zone_allocator *zone_alloc = entry->allocator;
 
@@ -315,8 +315,6 @@ static int __mlx4_zone_remove_one_entry(struct mlx4_zone_entry *entry)
 		}
 		zone_alloc->mask = mask;
 	}
-
-	return 0;
 }
 
 void mlx4_zone_allocator_destroy(struct mlx4_zone_allocator *zone_alloc)
@@ -457,7 +455,7 @@ struct mlx4_bitmap *mlx4_zone_get_bitmap(struct mlx4_zone_allocator *zones, u32 
 int mlx4_zone_remove_one(struct mlx4_zone_allocator *zones, u32 uid)
 {
 	struct mlx4_zone_entry *zone;
-	int res;
+	int res = 0;
 
 	spin_lock(&zones->lock);
 
@@ -468,7 +466,7 @@ int mlx4_zone_remove_one(struct mlx4_zone_allocator *zones, u32 uid)
 		goto out;
 	}
 
-	res = __mlx4_zone_remove_one_entry(zone);
+	__mlx4_zone_remove_one_entry(zone);
 
 out:
 	spin_unlock(&zones->lock);
