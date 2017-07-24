@@ -585,9 +585,6 @@ struct omap_dss_driver {
 
 bool omapdss_is_initialized(void);
 
-int omap_dss_register_driver(struct omap_dss_driver *);
-void omap_dss_unregister_driver(struct omap_dss_driver *);
-
 int omapdss_register_display(struct omap_dss_device *dssdev);
 void omapdss_unregister_display(struct omap_dss_device *dssdev);
 
