@@ -615,6 +615,14 @@ retry:
 		fw_fabric_serdes_name = ALT_FW_FABRIC_NAME;
 		fw_sbus_name = ALT_FW_SBUS_NAME;
 		fw_pcie_serdes_name = ALT_FW_PCIE_NAME;
+
+		/*
+		 * Add a delay before obtaining and loading debug firmware.
+		 * Authorization will fail if the delay between firmware
+		 * authorization events is shorter than 50us. Add 100us to
+		 * make a delay time safe.
+		 */
+		usleep_range(100, 120);
 	}
 
 	if (fw_sbus_load) {
