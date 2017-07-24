@@ -28,6 +28,9 @@ struct pcpu_chunk {
 						   contain reservation for static chunk.
 						   Dynamic chunk will contain reservation
 						   for static and reserved chunks. */
+	int			start_offset;	/* the overlap with the previous
+						   region to have a page aligned
+						   base_addr */
 	int			nr_populated;	/* # of populated pages */
 	unsigned long		populated[];	/* populated bitmap */
 };

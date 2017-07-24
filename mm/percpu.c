@@ -145,13 +145,10 @@ struct pcpu_chunk *pcpu_first_chunk __ro_after_init;
 
 /*
  * Optional reserved chunk.  This chunk reserves part of the first
- * chunk and serves it for reserved allocations.  The amount of
- * reserved offset is in pcpu_reserved_chunk_limit.  When reserved
- * area doesn't exist, the following variables contain NULL and 0
- * respectively.
+ * chunk and serves it for reserved allocations.  When the reserved
+ * region doesn't exist, the following variable is NULL.
  */
 struct pcpu_chunk *pcpu_reserved_chunk __ro_after_init;
-static int pcpu_reserved_chunk_limit __ro_after_init;
 
 DEFINE_SPINLOCK(pcpu_lock);	/* all internal data structures */
 static DEFINE_MUTEX(pcpu_alloc_mutex);	/* chunk create/destroy, [de]pop, map ext */
@@ -196,7 +193,7 @@ static bool pcpu_addr_in_reserved_chunk(void *addr)
 	void *first_start = pcpu_first_chunk->base_addr;
 
 	return addr >= first_start &&
-		addr < first_start + pcpu_reserved_chunk_limit;
+		addr < first_start + pcpu_first_chunk->start_offset;
 }
 
 static int __pcpu_size_to_slot(int size)
@@ -1687,6 +1684,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	INIT_LIST_HEAD(&schunk->list);
 	INIT_LIST_HEAD(&schunk->map_extend_list);
 	schunk->base_addr = base_addr;
+	schunk->start_offset = ai->static_size;
 	schunk->map = smap;
 	schunk->map_alloc = ARRAY_SIZE(smap);
 	schunk->immutable = true;
@@ -1696,7 +1694,6 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	if (ai->reserved_size) {
 		schunk->free_size = ai->reserved_size;
 		pcpu_reserved_chunk = schunk;
-		pcpu_reserved_chunk_limit = ai->static_size + ai->reserved_size;
 	} else {
 		schunk->free_size = dyn_size;
 		dyn_size = 0;			/* dynamic area covered */
@@ -1704,7 +1701,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 
 	schunk->contig_hint = schunk->free_size;
 	schunk->map[0] = 1;
-	schunk->map[1] = ai->static_size;
+	schunk->map[1] = schunk->start_offset;
 	schunk->map[2] = (ai->static_size + schunk->free_size) | 1;
 	schunk->map_used = 2;
 	schunk->has_reserved = true;
@@ -1715,6 +1712,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 		INIT_LIST_HEAD(&dchunk->list);
 		INIT_LIST_HEAD(&dchunk->map_extend_list);
 		dchunk->base_addr = base_addr;
+		dchunk->start_offset = ai->static_size + ai->reserved_size;
 		dchunk->map = dmap;
 		dchunk->map_alloc = ARRAY_SIZE(dmap);
 		dchunk->immutable = true;
@@ -1723,16 +1721,17 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 
 		dchunk->contig_hint = dchunk->free_size = dyn_size;
 		dchunk->map[0] = 1;
-		dchunk->map[1] = pcpu_reserved_chunk_limit;
-		dchunk->map[2] = (pcpu_reserved_chunk_limit + dchunk->free_size) | 1;
+		dchunk->map[1] = dchunk->start_offset;
+		dchunk->map[2] = (dchunk->start_offset + dchunk->free_size) | 1;
 		dchunk->map_used = 2;
 		dchunk->has_reserved = true;
 	}
 
 	/* link the first chunk in */
 	pcpu_first_chunk = dchunk ?: schunk;
+	i = (pcpu_first_chunk->start_offset) ? 1 : 0;
 	pcpu_nr_empty_pop_pages +=
-		pcpu_count_occupied_pages(pcpu_first_chunk, 1);
+		pcpu_count_occupied_pages(pcpu_first_chunk, i);
 	pcpu_chunk_relocate(pcpu_first_chunk, -1);
 
 	pcpu_stats_chunk_alloc();
