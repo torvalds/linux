@@ -469,7 +469,7 @@ enum surface_update_type {
  * Stream Interfaces
  ******************************************************************************/
 struct dc_stream {
-	const struct dc_sink *sink;
+	struct dc_sink *sink;
 	struct dc_crtc_timing timing;
 
 	struct rect src; /* composition area */

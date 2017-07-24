@@ -1321,7 +1321,7 @@ static struct audio *find_first_free_audio(
 static void update_stream_signal(struct core_stream *stream)
 {
 	if (stream->public.output_signal == SIGNAL_TYPE_NONE) {
-		const struct dc_sink *dc_sink = stream->public.sink;
+		struct dc_sink *dc_sink = stream->public.sink;
 
 		if (dc_sink->sink_signal == SIGNAL_TYPE_NONE)
 			stream->signal = stream->sink->link->connector_signal;
