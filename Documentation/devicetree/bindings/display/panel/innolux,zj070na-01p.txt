@@ -1,7 +1,0 @@
-Innolux Corporation 7.0" WSVGA (1024x600) TFT LCD panel
-
-Required properties:
-- compatible: should be "innolux,zj070na-01p"
-
-This binding is compatible with the simple-panel binding, which is specified
-in simple-panel.txt in this directory.

@@ -1,8 +1,0 @@
-#
-# "xilinx FPGA firmware download, fpgaboot"
-#
-config GS_FPGABOOT
-	tristate "Xilinx FPGA firmware download module"
-	default n
-	help
-	  Xilinx FPGA firmware download module

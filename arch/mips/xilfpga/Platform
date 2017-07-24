@@ -1,3 +1,0 @@
-platform-$(CONFIG_MACH_XILFPGA) += xilfpga/
-cflags-$(CONFIG_MACH_XILFPGA) += -I$(srctree)/arch/mips/include/asm/mach-xilfpga
-load-$(CONFIG_MACH_XILFPGA) += 0xffffffff80100000

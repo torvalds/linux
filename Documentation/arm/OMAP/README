@@ -1,7 +1,0 @@
-This file contains documentation for running mainline
-kernel on omaps.
-
-KERNEL		NEW DEPENDENCIES
-v4.3+		Update is needed for custom .config files to make sure
-		CONFIG_REGULATOR_PBIAS is enabled for MMC1 to work
-		properly.

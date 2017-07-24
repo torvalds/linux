@@ -1,1 +1,0 @@
-obj-$(CONFIG_SAMPLE_VFIO_MDEV_MTTY) += mtty.o

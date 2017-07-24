@@ -1,7 +1,0 @@
-obj-$(CONFIG_PINCTRL_TEGRA)		+= pinctrl-tegra.o
-obj-$(CONFIG_PINCTRL_TEGRA20)		+= pinctrl-tegra20.o
-obj-$(CONFIG_PINCTRL_TEGRA30)		+= pinctrl-tegra30.o
-obj-$(CONFIG_PINCTRL_TEGRA114)		+= pinctrl-tegra114.o
-obj-$(CONFIG_PINCTRL_TEGRA124)		+= pinctrl-tegra124.o
-obj-$(CONFIG_PINCTRL_TEGRA210)		+= pinctrl-tegra210.o
-obj-$(CONFIG_PINCTRL_TEGRA_XUSB)	+= pinctrl-tegra-xusb.o

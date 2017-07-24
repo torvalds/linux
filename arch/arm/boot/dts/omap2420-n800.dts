@@ -1,8 +1,0 @@
-/dts-v1/;
-
-#include "omap2420-n8x0-common.dtsi"
-
-/ {
-	model = "Nokia N800";
-	compatible = "nokia,n800", "nokia,n8x0", "ti,omap2420", "ti,omap2";
-};

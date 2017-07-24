@@ -1,2 +1,0 @@
-libapi-y += fs.o
-libapi-y += tracing_path.o

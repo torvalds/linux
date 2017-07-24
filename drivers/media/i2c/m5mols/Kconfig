@@ -1,6 +1,0 @@
-config VIDEO_M5MOLS
-	tristate "Fujitsu M-5MOLS 8MP sensor support"
-	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
-	depends on MEDIA_CAMERA_SUPPORT
-	---help---
-	  This driver supports Fujitsu M-5MOLS camera sensor with ISP

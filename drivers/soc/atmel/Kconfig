@@ -1,6 +1,0 @@
-config AT91_SOC_ID
-	bool "SoC bus for Atmel ARM SoCs"
-	depends on ARCH_AT91 || COMPILE_TEST
-	default ARCH_AT91
-	help
-	  Include support for the SoC bus on the Atmel ARM SoCs.

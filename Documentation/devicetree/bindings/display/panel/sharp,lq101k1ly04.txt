@@ -1,7 +1,0 @@
-Sharp Display Corp. LQ101K1LY04 10.07" WXGA TFT LCD panel
-
-Required properties:
-- compatible: should be "sharp,lq101k1ly04"
-
-This binding is compatible with the simple-panel binding, which is specified
-in simple-panel.txt in this directory.

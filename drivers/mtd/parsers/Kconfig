@@ -1,8 +1,0 @@
-config MTD_PARSER_TRX
-	tristate "Parser for TRX format partitions"
-	depends on MTD && (BCM47XX || ARCH_BCM_5301X || COMPILE_TEST)
-	help
-	  TRX is a firmware format used by Broadcom on their devices. It
-	  may contain up to 3/4 partitions (depending on the version).
-	  This driver will parse TRX header and report at least two partitions:
-	  kernel and rootfs.

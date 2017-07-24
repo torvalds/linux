@@ -1,3 +1,0 @@
-lsgpio-y += lsgpio.o gpio-utils.o
-gpio-hammer-y += gpio-hammer.o gpio-utils.o
-gpio-event-mon-y += gpio-event-mon.o gpio-utils.o

@@ -1,9 +1,0 @@
-#!/bin/sh
-# description: %HERE DESCRIBE WHAT THIS DOES%
-# you have to add ".tc" extention for your testcase file
-# Note that all tests are run with "errexit" option.
-
-exit 0 # Return 0 if the test is passed, otherwise return !0
-# If the test could not run because of lack of feature, call exit_unsupported
-# If the test returned unclear results, call exit_unresolved
-# If the test is a dummy, or a placeholder, call exit_untested

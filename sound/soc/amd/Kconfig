@@ -1,4 +1,0 @@
-config SND_SOC_AMD_ACP
-	tristate "AMD Audio Coprocessor support"
-	help
-	 This option enables ACP DMA support on AMD platform.

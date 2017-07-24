@@ -1,7 +1,0 @@
-config UX500_SOC_ID
-	bool "SoC bus for ST-Ericsson ux500"
-	depends on ARCH_U8500 || COMPILE_TEST
-	default ARCH_U8500
-	help
-	  Include support for the SoC bus on the ARM RealView platforms
-	  providing some sysfs information about the ASIC variant.
