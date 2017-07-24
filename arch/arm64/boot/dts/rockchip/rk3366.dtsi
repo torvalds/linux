@@ -867,16 +867,46 @@
 
 	display_subsystem: display-subsystem {
 		compatible = "rockchip,display-subsystem";
-		ports = <&vopb_out>;
+		ports = <&vopb_out>, <&vopl_out>;
 		status = "disabled";
 	};
 
-	vopb_mmu: iommu@ff8f3f00 {
+	vopl: vop@ff8f0000 {
+		compatible = "rockchip,rk3366-vop-lit";
+		reg = <0x0 0xff8f0000 0x0 0x900>;
+		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru ACLK_VOP_LITE>, <&cru DCLK_VOP_LITE>,
+			 <&cru HCLK_VOP_LITE>;
+		clock-names = "aclk_vop", "dclk_vop", "hclk_vop";
+		resets = <&cru SRST_VOP1_AXI>, <&cru SRST_VOP1_DCLK>,
+			 <&cru SRST_VOP1_AHB>;
+		reset-names = "axi", "ahb", "dclk";
+		power-domains = <&power RK3366_PD_VIO>;
+		iommus = <&vopl_mmu>;
+		status = "disabled";
+
+		vopl_out: port {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			vopl_out_dsi: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&dsi_in_vopl>;
+			};
+
+			vopl_out_lvds: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&lvds_in_vopl>;
+			};
+		};
+	};
+
+	vopl_mmu: iommu@ff8f0f00 {
 		compatible = "rockchip,iommu";
-		reg = <0x0 0xff932400 0x0 0x100>;
-		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH 0>;
-		interrupt-names = "vop_mmu";
-		clocks = <&cru ACLK_VOP_FULL>, <&cru DCLK_VOP_FULL>;
+		reg = <0x0 0xff8f0f00 0x0 0x100>;
+		interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupt-names = "vopl_mmu";
+		clocks = <&cru ACLK_VOP_LITE>, <&cru HCLK_VOP_LITE>;
 		clock-names = "aclk", "hclk";
 		power-domains = <&power RK3366_PD_VIO>;
 		#iommu-cells = <0>;
@@ -953,6 +983,18 @@
 		};
 	};
 
+	vopb_mmu: iommu@ff932400 {
+		compatible = "rockchip,iommu";
+		reg = <0x0 0xff932400 0x0 0x100>;
+		interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupt-names = "vop_mmu";
+		clocks = <&cru ACLK_VOP_FULL>, <&cru HCLK_VOP_FULL>;
+		clock-names = "aclk", "hclk";
+		power-domains = <&power RK3366_PD_VIO>;
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
+
 	dsi: dsi@ff960000 {
 		compatible = "rockchip,rk3366-mipi-dsi";
 		reg = <0x0 0xff960000 0x0 0x4000>;
@@ -977,6 +1019,10 @@
 				dsi_in_vopb: endpoint@0 {
 					reg = <0>;
 					remote-endpoint = <&vopb_out_dsi>;
+				};
+				dsi_in_vopl: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&vopl_out_dsi>;
 				};
 			};
 		};
@@ -1018,6 +1064,10 @@
 				lvds_in_vopb: endpoint@0 {
 					reg = <0>;
 					remote-endpoint = <&vopb_out_lvds>;
+				};
+				lvds_in_vopl: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&vopl_out_lvds>;
 				};
 			};
 		};
