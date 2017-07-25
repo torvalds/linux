@@ -133,11 +133,20 @@ void __init pdc_pdt_init(void)
 	}
 
 	for (i = 0; i < pdt_status.pdt_entries; i++) {
-		if (i < 20)
-			pr_warn("PDT: BAD PAGE #%d at 0x%08lx (error_type = %lu)\n",
-				i,
-				pdt_entry[i] & PAGE_MASK,
-				pdt_entry[i] & 1);
+		struct pdc_pat_mem_phys_mem_location loc;
+
+		/* get DIMM slot number */
+		loc.dimm_slot = 0xff;
+#ifdef CONFIG_64BIT
+		pdc_pat_mem_get_dimm_phys_location(&loc, pdt_entry[i]);
+#endif
+
+		pr_warn("PDT: BAD PAGE #%d at 0x%08lx, "
+			"DIMM slot %02x (error_type = %lu)\n",
+			i,
+			pdt_entry[i] & PAGE_MASK,
+			loc.dimm_slot,
+			pdt_entry[i] & 1);
 
 		/* mark memory page bad */
 		memblock_reserve(pdt_entry[i] & PAGE_MASK, PAGE_SIZE);
