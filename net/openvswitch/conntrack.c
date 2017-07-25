@@ -629,6 +629,34 @@ ovs_ct_find_existing(struct net *net, const struct nf_conntrack_zone *zone,
 	return ct;
 }
 
+static
+struct nf_conn *ovs_ct_executed(struct net *net,
+				const struct sw_flow_key *key,
+				const struct ovs_conntrack_info *info,
+				struct sk_buff *skb,
+				bool *ct_executed)
+{
+	struct nf_conn *ct = NULL;
+
+	/* If no ct, check if we have evidence that an existing conntrack entry
+	 * might be found for this skb.  This happens when we lose a skb->_nfct
+	 * due to an upcall, or if the direction is being forced.  If the
+	 * connection was not confirmed, it is not cached and needs to be run
+	 * through conntrack again.
+	 */
+	*ct_executed = (key->ct_state & OVS_CS_F_TRACKED) &&
+		       !(key->ct_state & OVS_CS_F_INVALID) &&
+		       (key->ct_zone == info->zone.id);
+
+	if (*ct_executed || (!key->ct_state && info->force)) {
+		ct = ovs_ct_find_existing(net, &info->zone, info->family, skb,
+					  !!(key->ct_state &
+					  OVS_CS_F_NAT_MASK));
+	}
+
+	return ct;
+}
+
 /* Determine whether skb->_nfct is equal to the result of conntrack lookup. */
 static bool skb_nfct_cached(struct net *net,
 			    const struct sw_flow_key *key,
@@ -637,24 +665,17 @@ static bool skb_nfct_cached(struct net *net,
 {
 	enum ip_conntrack_info ctinfo;
 	struct nf_conn *ct;
+	bool ct_executed = true;
 
 	ct = nf_ct_get(skb, &ctinfo);
-	/* If no ct, check if we have evidence that an existing conntrack entry
-	 * might be found for this skb.  This happens when we lose a skb->_nfct
-	 * due to an upcall.  If the connection was not confirmed, it is not
-	 * cached and needs to be run through conntrack again.
-	 */
-	if (!ct && key->ct_state & OVS_CS_F_TRACKED &&
-	    !(key->ct_state & OVS_CS_F_INVALID) &&
-	    key->ct_zone == info->zone.id) {
-		ct = ovs_ct_find_existing(net, &info->zone, info->family, skb,
-					  !!(key->ct_state
-					     & OVS_CS_F_NAT_MASK));
-		if (ct)
-			nf_ct_get(skb, &ctinfo);
-	}
 	if (!ct)
+		ct = ovs_ct_executed(net, key, info, skb, &ct_executed);
+
+	if (ct)
+		nf_ct_get(skb, &ctinfo);
+	else
 		return false;
+
 	if (!net_eq(net, read_pnet(&ct->ct_net)))
 		return false;
 	if (!nf_ct_zone_equal_any(info->ct, nf_ct_zone(ct)))
@@ -679,7 +700,7 @@ static bool skb_nfct_cached(struct net *net,
 		return false;
 	}
 
-	return true;
+	return ct_executed;
 }
 
 #ifdef CONFIG_NF_NAT_NEEDED

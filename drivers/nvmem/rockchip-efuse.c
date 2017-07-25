@@ -170,7 +170,7 @@ static const struct of_device_id rockchip_efuse_match[] = {
 		.data = (void *)&rockchip_rk3288_efuse_read,
 	},
 	{
-		.compatible = "rockchip,rk322x-efuse",
+		.compatible = "rockchip,rk3228-efuse",
 		.data = (void *)&rockchip_rk3288_efuse_read,
 	},
 	{

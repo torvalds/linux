@@ -1388,6 +1388,11 @@ void skb_consume_udp(struct sock *sk, struct sk_buff *skb, int len)
 		unlock_sock_fast(sk, slow);
 	}
 
+	/* we cleared the head states previously only if the skb lacks any IP
+	 * options, see __udp_queue_rcv_skb().
+	 */
+	if (unlikely(IPCB(skb)->opt.optlen > 0))
+		skb_release_head_state(skb);
 	consume_stateless_skb(skb);
 }
 EXPORT_SYMBOL_GPL(skb_consume_udp);
@@ -1779,8 +1784,12 @@ static int __udp_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		sk_mark_napi_id_once(sk, skb);
 	}
 
-	/* clear all pending head states while they are hot in the cache */
-	skb_release_head_state(skb);
+	/* At recvmsg() time we need skb->dst to process IP options-related
+	 * cmsg, elsewhere can we clear all pending head states while they are
+	 * hot in the cache
+	 */
+	if (likely(IPCB(skb)->opt.optlen == 0))
+		skb_release_head_state(skb);
 
 	rc = __udp_enqueue_schedule_skb(sk, skb);
 	if (rc < 0) {

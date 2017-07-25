@@ -136,12 +136,13 @@ use the boot option:
 
 o proc entries
 
-- /proc/self/task/<current-tid>/fail-nth:
+- /proc/<pid>/fail-nth:
+- /proc/self/task/<tid>/fail-nth:
 
-	Write to this file of integer N makes N-th call in the current task fail
-	(N is 0-based). Read from this file returns a single char 'Y' or 'N'
-	that says if the fault setup with a previous write to this file was
-	injected or not, and disables the fault if it wasn't yet injected.
+	Write to this file of integer N makes N-th call in the task fail.
+	Read from this file returns a integer value. A value of '0' indicates
+	that the fault setup with a previous write to this file was injected.
+	A positive integer N indicates that the fault wasn't yet injected.
 	Note that this file enables all types of faults (slab, futex, etc).
 	This setting takes precedence over all other generic debugfs settings
 	like probability, interval, times, etc. But per-capability settings
@@ -320,18 +321,19 @@ int main()
 	system("echo N > /sys/kernel/debug/failslab/ignore-gfp-wait");
 	sprintf(buf, "/proc/self/task/%ld/fail-nth", syscall(SYS_gettid));
 	fail_nth = open(buf, O_RDWR);
-	for (i = 0;; i++) {
+	for (i = 1;; i++) {
 		sprintf(buf, "%d", i);
 		write(fail_nth, buf, strlen(buf));
 		res = socketpair(AF_LOCAL, SOCK_STREAM, 0, fds);
 		err = errno;
-		read(fail_nth, buf, 1);
+		pread(fail_nth, buf, sizeof(buf), 0);
 		if (res == 0) {
 			close(fds[0]);
 			close(fds[1]);
 		}
-		printf("%d-th fault %c: res=%d/%d\n", i, buf[0], res, err);
-		if (buf[0] != 'Y')
+		printf("%d-th fault %c: res=%d/%d\n", i, atoi(buf) ? 'N' : 'Y',
+			res, err);
+		if (atoi(buf))
 			break;
 	}
 	return 0;
@@ -339,7 +341,6 @@ int main()
 
 An example output:
 
-0-th fault Y: res=-1/23
 1-th fault Y: res=-1/23
 2-th fault Y: res=-1/23
 3-th fault Y: res=-1/12

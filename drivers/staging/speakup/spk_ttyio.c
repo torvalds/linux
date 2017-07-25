@@ -154,12 +154,6 @@ static int spk_ttyio_initialise_ldisc(struct spk_synth *synth)
 	struct ktermios tmp_termios;
 	dev_t dev;
 
-	ret = tty_register_ldisc(N_SPEAKUP, &spk_ttyio_ldisc_ops);
-	if (ret) {
-		pr_err("Error registering line discipline.\n");
-		return ret;
-	}
-
 	ret = get_dev_to_use(synth, &dev);
 	if (ret)
 		return ret;
@@ -196,8 +190,22 @@ static int spk_ttyio_initialise_ldisc(struct spk_synth *synth)
 	tty_unlock(tty);
 
 	ret = tty_set_ldisc(tty, N_SPEAKUP);
+	if (ret)
+		pr_err("speakup: Failed to set N_SPEAKUP on tty\n");
 
 	return ret;
+}
+
+void spk_ttyio_register_ldisc(void)
+{
+	if (tty_register_ldisc(N_SPEAKUP, &spk_ttyio_ldisc_ops))
+		pr_warn("speakup: Error registering line discipline. Most synths won't work.\n");
+}
+
+void spk_ttyio_unregister_ldisc(void)
+{
+	if (tty_unregister_ldisc(N_SPEAKUP))
+		pr_warn("speakup: Couldn't unregister ldisc\n");
 }
 
 static int spk_ttyio_out(struct spk_synth *in_synth, const char ch)
@@ -300,7 +308,7 @@ void spk_ttyio_release(void)
 
 	tty_ldisc_flush(speakup_tty);
 	tty_unlock(speakup_tty);
-	tty_ldisc_release(speakup_tty);
+	tty_release_struct(speakup_tty, speakup_tty->index);
 }
 EXPORT_SYMBOL_GPL(spk_ttyio_release);
 

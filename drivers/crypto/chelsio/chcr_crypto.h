@@ -155,6 +155,7 @@
 
 struct ablk_ctx {
 	struct crypto_skcipher *sw_cipher;
+	struct crypto_cipher *aes_generic;
 	__be32 key_ctx_hdr;
 	unsigned int enckey_len;
 	unsigned char ciph_mode;

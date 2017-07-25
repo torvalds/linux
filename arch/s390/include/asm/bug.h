@@ -14,7 +14,7 @@
 		".section .rodata.str,\"aMS\",@progbits,1\n"	\
 		"2:	.asciz	\""__FILE__"\"\n"		\
 		".previous\n"					\
-		".section __bug_table,\"a\"\n"			\
+		".section __bug_table,\"aw\"\n"			\
 		"3:	.long	1b-3b,2b-3b\n"			\
 		"	.short	%0,%1\n"			\
 		"	.org	3b+%2\n"			\
@@ -30,7 +30,7 @@
 	asm volatile(					\
 		"0:	j	0b+2\n"			\
 		"1:\n"					\
-		".section __bug_table,\"a\"\n"		\
+		".section __bug_table,\"aw\"\n"		\
 		"2:	.long	1b-2b\n"		\
 		"	.short	%0\n"			\
 		"	.org	2b+%1\n"		\

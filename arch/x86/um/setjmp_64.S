@@ -18,9 +18,9 @@
 
 	.text
 	.align 4
-	.globl setjmp
-	.type setjmp, @function
-setjmp:
+	.globl kernel_setjmp
+	.type kernel_setjmp, @function
+kernel_setjmp:
 	pop  %rsi			# Return address, and adjust the stack
 	xorl %eax,%eax			# Return value
 	movq %rbx,(%rdi)
@@ -34,13 +34,13 @@ setjmp:
 	movq %rsi,56(%rdi)		# Return address
 	ret
 
-	.size setjmp,.-setjmp
+	.size kernel_setjmp,.-kernel_setjmp
 
 	.text
 	.align 4
-	.globl longjmp
-	.type longjmp, @function
-longjmp:
+	.globl kernel_longjmp
+	.type kernel_longjmp, @function
+kernel_longjmp:
 	movl %esi,%eax			# Return value (int)
 	movq (%rdi),%rbx
 	movq 8(%rdi),%rsp
@@ -51,4 +51,4 @@ longjmp:
 	movq 48(%rdi),%r15
 	jmp *56(%rdi)
 
-	.size longjmp,.-longjmp
+	.size kernel_longjmp,.-kernel_longjmp

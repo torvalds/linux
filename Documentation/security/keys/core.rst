@@ -894,6 +894,12 @@ The keyctl syscall functions are:
      To apply a keyring restriction the process must have Set Attribute
      permission and the keyring must not be previously restricted.
 
+     One application of restricted keyrings is to verify X.509 certificate
+     chains or individual certificate signatures using the asymmetric key type.
+     See Documentation/crypto/asymmetric-keys.txt for specific restrictions
+     applicable to the asymmetric key type.
+
+
 Kernel Services
 ===============
 

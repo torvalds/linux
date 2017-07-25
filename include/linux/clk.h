@@ -657,6 +657,28 @@ static inline void clk_disable_unprepare(struct clk *clk)
 	clk_unprepare(clk);
 }
 
+static inline int clk_bulk_prepare_enable(int num_clks,
+					  struct clk_bulk_data *clks)
+{
+	int ret;
+
+	ret = clk_bulk_prepare(num_clks, clks);
+	if (ret)
+		return ret;
+	ret = clk_bulk_enable(num_clks, clks);
+	if (ret)
+		clk_bulk_unprepare(num_clks, clks);
+
+	return ret;
+}
+
+static inline void clk_bulk_disable_unprepare(int num_clks,
+					      struct clk_bulk_data *clks)
+{
+	clk_bulk_disable(num_clks, clks);
+	clk_bulk_unprepare(num_clks, clks);
+}
+
 #if defined(CONFIG_OF) && defined(CONFIG_COMMON_CLK)
 struct clk *of_clk_get(struct device_node *np, int index);
 struct clk *of_clk_get_by_name(struct device_node *np, const char *name);

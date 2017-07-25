@@ -126,7 +126,7 @@ static int dccp_rcv_closereq(struct sock *sk, struct sk_buff *skb)
 
 static u16 dccp_reset_code_convert(const u8 code)
 {
-	const u16 error_code[] = {
+	static const u16 error_code[] = {
 	[DCCP_RESET_CODE_CLOSED]	     = 0,	/* normal termination */
 	[DCCP_RESET_CODE_UNSPECIFIED]	     = 0,	/* nothing known */
 	[DCCP_RESET_CODE_ABORTED]	     = ECONNRESET,

@@ -17,13 +17,6 @@
 #include <asm/unified.h>
 #include <asm/compiler.h>
 
-#ifndef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
-#include <asm-generic/uaccess-unaligned.h>
-#else
-#define __get_user_unaligned __get_user
-#define __put_user_unaligned __put_user
-#endif
-
 #include <asm/extable.h>
 
 /*

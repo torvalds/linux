@@ -55,6 +55,11 @@ struct qstr {
 
 #define QSTR_INIT(n,l) { { { .len = l } }, .name = n }
 
+extern const char empty_string[];
+extern const struct qstr empty_name;
+extern const char slash_string[];
+extern const struct qstr slash_name;
+
 struct dentry_stat_t {
 	long nr_dentry;
 	long nr_unused;
@@ -113,7 +118,7 @@ struct dentry {
 		struct hlist_bl_node d_in_lookup_hash;	/* only for in-lookup ones */
 	 	struct rcu_head d_rcu;
 	} d_u;
-};
+} __randomize_layout;
 
 /*
  * dentry->d_lock spinlock nesting subclasses:

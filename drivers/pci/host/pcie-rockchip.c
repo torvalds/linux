@@ -1483,7 +1483,7 @@ static int rockchip_pcie_probe(struct platform_device *pdev)
 	bridge->swizzle_irq = pci_common_swizzle;
 
 	err = pci_scan_root_bus_bridge(bridge);
-	if (!err)
+	if (err < 0)
 		goto err_free_res;
 
 	bus = bridge->bus;
