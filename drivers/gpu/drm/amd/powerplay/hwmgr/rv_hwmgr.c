@@ -308,8 +308,8 @@ static int rv_tf_set_num_active_display(struct pp_hwmgr *hwmgr, void *input,
 }
 
 static const struct phm_master_table_item rv_set_power_state_list[] = {
-	{ NULL, rv_tf_set_clock_limit },
-	{ NULL, rv_tf_set_num_active_display },
+	{ .tableFunction = rv_tf_set_clock_limit },
+	{ .tableFunction = rv_tf_set_num_active_display },
 	{ }
 };
 
@@ -382,7 +382,7 @@ static int rv_tf_disable_gfx_off(struct pp_hwmgr *hwmgr,
 }
 
 static const struct phm_master_table_item rv_disable_dpm_list[] = {
-	{NULL, rv_tf_disable_gfx_off},
+	{ .tableFunction = rv_tf_disable_gfx_off },
 	{ },
 };
 
@@ -407,7 +407,7 @@ static int rv_tf_enable_gfx_off(struct pp_hwmgr *hwmgr,
 }
 
 static const struct phm_master_table_item rv_enable_dpm_list[] = {
-	{NULL, rv_tf_enable_gfx_off},
+	{ .tableFunction = rv_tf_enable_gfx_off },
 	{ },
 };
 
