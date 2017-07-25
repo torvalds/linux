@@ -2407,7 +2407,7 @@ static void dcn10_log_hw_state(struct core_dc *dc)
 	struct dc_context *dc_ctx = dc->ctx;
 	struct dce_hwseq *hws = dc->hwseq;
 
-	DTN_INFO("%s: Hello World", __func__);
+	DTN_INFO("Hello World");
 
 	if (REG(MPC_CRC_RESULT_GB))
 		DTN_INFO("MPC_CRC_RESULT_GB:%d MPC_CRC_RESULT_C:%d MPC_CRC_RESULT_AR:%d\n",
