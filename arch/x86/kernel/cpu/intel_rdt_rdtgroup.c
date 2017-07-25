@@ -1130,6 +1130,18 @@ static int reset_all_ctrls(struct rdt_resource *r)
 	return 0;
 }
 
+static bool is_closid_match(struct task_struct *t, struct rdtgroup *r)
+{
+	return (rdt_alloc_capable &&
+		(r->type == RDTCTRL_GROUP) && (t->closid == r->closid));
+}
+
+static bool is_rmid_match(struct task_struct *t, struct rdtgroup *r)
+{
+	return (rdt_mon_capable &&
+		(r->type == RDTMON_GROUP) && (t->rmid == r->mon.rmid));
+}
+
 /*
  * Move tasks from one to the other group. If @from is NULL, then all tasks
  * in the systems are moved unconditionally (used for teardown).
@@ -1145,8 +1157,11 @@ static void rdt_move_group_tasks(struct rdtgroup *from, struct rdtgroup *to,
 
 	read_lock(&tasklist_lock);
 	for_each_process_thread(p, t) {
-		if (!from || t->closid == from->closid) {
+		if (!from || is_closid_match(t, from) ||
+		    is_rmid_match(t, from)) {
 			t->closid = to->closid;
+			t->rmid = to->mon.rmid;
+
 #ifdef CONFIG_SMP
 			/*
 			 * This is safe on x86 w/o barriers as the ordering
@@ -1163,6 +1178,19 @@ static void rdt_move_group_tasks(struct rdtgroup *from, struct rdtgroup *to,
 		}
 	}
 	read_unlock(&tasklist_lock);
+}
+
+static void free_all_child_rdtgrp(struct rdtgroup *rdtgrp)
+{
+	struct rdtgroup *sentry, *stmp;
+	struct list_head *head;
+
+	head = &rdtgrp->mon.crdtgrp_list;
+	list_for_each_entry_safe(sentry, stmp, head, mon.crdtgrp_list) {
+		free_rmid(sentry->mon.rmid);
+		list_del(&sentry->mon.crdtgrp_list);
+		kfree(sentry);
+	}
 }
 
 /*
@@ -1565,6 +1593,44 @@ static int rdtgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
 	return -EPERM;
 }
 
+static int rdtgroup_rmdir_mon(struct kernfs_node *kn, struct rdtgroup *rdtgrp,
+			      cpumask_var_t tmpmask)
+{
+	struct rdtgroup *prdtgrp = rdtgrp->mon.parent;
+	int cpu;
+
+	/* Give any tasks back to the parent group */
+	rdt_move_group_tasks(rdtgrp, prdtgrp, tmpmask);
+
+	/* Update per cpu rmid of the moved CPUs first */
+	for_each_cpu(cpu, &rdtgrp->cpu_mask)
+		per_cpu(rdt_cpu_default.rmid, cpu) = prdtgrp->mon.rmid;
+	/*
+	 * Update the MSR on moved CPUs and CPUs which have moved
+	 * task running on them.
+	 */
+	cpumask_or(tmpmask, tmpmask, &rdtgrp->cpu_mask);
+	update_closid_rmid(tmpmask, NULL);
+
+	rdtgrp->flags = RDT_DELETED;
+	free_rmid(rdtgrp->mon.rmid);
+
+	/*
+	 * Remove the rdtgrp from the parent ctrl_mon group's list
+	 */
+	WARN_ON(list_empty(&prdtgrp->mon.crdtgrp_list));
+	list_del(&rdtgrp->mon.crdtgrp_list);
+
+	/*
+	 * one extra hold on this, will drop when we kfree(rdtgrp)
+	 * in rdtgroup_kn_unlock()
+	 */
+	kernfs_get(kn);
+	kernfs_remove(rdtgrp->kn);
+
+	return 0;
+}
+
 static int rdtgroup_rmdir_ctrl(struct kernfs_node *kn, struct rdtgroup *rdtgrp,
 			       cpumask_var_t tmpmask)
 {
@@ -1577,9 +1643,12 @@ static int rdtgroup_rmdir_ctrl(struct kernfs_node *kn, struct rdtgroup *rdtgrp,
 	cpumask_or(&rdtgroup_default.cpu_mask,
 		   &rdtgroup_default.cpu_mask, &rdtgrp->cpu_mask);
 
-	/* Update per cpu closid of the moved CPUs first */
-	for_each_cpu(cpu, &rdtgrp->cpu_mask)
+	/* Update per cpu closid and rmid of the moved CPUs first */
+	for_each_cpu(cpu, &rdtgrp->cpu_mask) {
 		per_cpu(rdt_cpu_default.closid, cpu) = rdtgroup_default.closid;
+		per_cpu(rdt_cpu_default.rmid, cpu) = rdtgroup_default.mon.rmid;
+	}
+
 	/*
 	 * Update the MSR on moved CPUs and CPUs which have moved
 	 * task running on them.
@@ -1589,6 +1658,13 @@ static int rdtgroup_rmdir_ctrl(struct kernfs_node *kn, struct rdtgroup *rdtgrp,
 
 	rdtgrp->flags = RDT_DELETED;
 	closid_free(rdtgrp->closid);
+	free_rmid(rdtgrp->mon.rmid);
+
+	/*
+	 * Free all the child monitor group rmids.
+	 */
+	free_all_child_rdtgrp(rdtgrp);
+
 	list_del(&rdtgrp->rdtgroup_list);
 
 	/*
@@ -1619,10 +1695,16 @@ static int rdtgroup_rmdir(struct kernfs_node *kn)
 
 	/*
 	 * If the rdtgroup is a ctrl_mon group and parent directory
-	 * is the root directory, remove the ctrl group.
+	 * is the root directory, remove the ctrl_mon group.
+	 *
+	 * If the rdtgroup is a mon group and parent directory
+	 * is a valid "mon_groups" directory, remove the mon group.
 	 */
 	if (rdtgrp->type == RDTCTRL_GROUP && parent_kn == rdtgroup_default.kn)
 		ret = rdtgroup_rmdir_ctrl(kn, rdtgrp, tmpmask);
+	else if (rdtgrp->type == RDTMON_GROUP &&
+		 is_mon_groups(parent_kn, kn->name))
+		ret = rdtgroup_rmdir_mon(kn, rdtgrp, tmpmask);
 	else
 		ret = -EPERM;
 
