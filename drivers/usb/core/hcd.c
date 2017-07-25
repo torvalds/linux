@@ -1851,7 +1851,7 @@ void usb_hcd_flush_endpoint(struct usb_device *udev,
 	/* No more submits can occur */
 	spin_lock_irq(&hcd_urb_list_lock);
 rescan:
-	list_for_each_entry (urb, &ep->urb_list, urb_list) {
+	list_for_each_entry_reverse(urb, &ep->urb_list, urb_list) {
 		int	is_in;
 
 		if (urb->unlinked)
