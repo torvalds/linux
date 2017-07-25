@@ -71,7 +71,9 @@ static int s3c2412_i2s_probe(struct snd_soc_dai *dai)
 	/* Set MPLL as the source for IIS CLK */
 
 	clk_set_parent(s3c2412_i2s.iis_cclk, clk_get(NULL, "mpll"));
-	clk_prepare_enable(s3c2412_i2s.iis_cclk);
+	ret = clk_prepare_enable(s3c2412_i2s.iis_cclk);
+	if (ret)
+		return ret;
 
 	s3c2412_i2s.iis_cclk = s3c2412_i2s.iis_pclk;
 
