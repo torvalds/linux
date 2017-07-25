@@ -900,6 +900,7 @@ struct task_struct {
 #endif
 #ifdef CONFIG_INTEL_RDT
 	u32				closid;
+	u32				rmid;
 #endif
 #ifdef CONFIG_FUTEX
 	struct robust_list_head __user	*robust_list;

@@ -314,6 +314,7 @@ static void move_myself(struct callback_head *head)
 	if (atomic_dec_and_test(&rdtgrp->waitcount) &&
 	    (rdtgrp->flags & RDT_DELETED)) {
 		current->closid = 0;
+		current->rmid = 0;
 		kfree(rdtgrp);
 	}
 
@@ -352,7 +353,20 @@ static int __rdtgroup_move_task(struct task_struct *tsk,
 		atomic_dec(&rdtgrp->waitcount);
 		kfree(callback);
 	} else {
-		tsk->closid = rdtgrp->closid;
+		/*
+		 * For ctrl_mon groups move both closid and rmid.
+		 * For monitor groups, can move the tasks only from
+		 * their parent CTRL group.
+		 */
+		if (rdtgrp->type == RDTCTRL_GROUP) {
+			tsk->closid = rdtgrp->closid;
+			tsk->rmid = rdtgrp->mon.rmid;
+		} else if (rdtgrp->type == RDTMON_GROUP) {
+			if (rdtgrp->mon.parent->closid == tsk->closid)
+				tsk->rmid = rdtgrp->mon.rmid;
+			else
+				ret = -EINVAL;
+		}
 	}
 	return ret;
 }
@@ -432,7 +446,8 @@ static void show_rdt_tasks(struct rdtgroup *r, struct seq_file *s)
 
 	rcu_read_lock();
 	for_each_process_thread(p, t) {
-		if (t->closid == r->closid)
+		if ((r->type == RDTCTRL_GROUP && t->closid == r->closid) ||
+		    (r->type == RDTMON_GROUP && t->rmid == r->mon.rmid))
 			seq_printf(s, "%d\n", t->pid);
 	}
 	rcu_read_unlock();
