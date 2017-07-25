@@ -159,7 +159,7 @@
 			#cooling-cells = <2>; /* min followed by max */
 			clocks = <&cru ARMCLKB>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
-			dynamic-power-coefficient = <100>;
+			dynamic-power-coefficient = <436>;
 		};
 
 		cpu_b1: cpu@101 {
@@ -169,7 +169,7 @@
 			enable-method = "psci";
 			clocks = <&cru ARMCLKB>;
 			cpu-idle-states = <&CPU_SLEEP &CLUSTER_SLEEP>;
-			dynamic-power-coefficient = <100>;
+			dynamic-power-coefficient = <436>;
 		};
 
 		idle-states {
