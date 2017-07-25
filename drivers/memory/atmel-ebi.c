@@ -120,11 +120,13 @@ static int atmel_ebi_xslate_smc_timings(struct atmel_ebi_dev *ebid,
 	if (!ret) {
 		required = true;
 		ncycles = DIV_ROUND_UP(val, clk_period_ns);
-		if (ncycles > ATMEL_SMC_MODE_TDF_MAX ||
-		    ncycles < ATMEL_SMC_MODE_TDF_MIN) {
+		if (ncycles > ATMEL_SMC_MODE_TDF_MAX) {
 			ret = -EINVAL;
 			goto out;
 		}
+
+		if (ncycles < ATMEL_SMC_MODE_TDF_MIN)
+			ncycles = ATMEL_SMC_MODE_TDF_MIN;
 
 		smcconf->mode |= ATMEL_SMC_MODE_TDF(ncycles);
 	}
