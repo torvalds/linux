@@ -36,7 +36,7 @@
 #include "intel_rdt.h"
 
 DEFINE_STATIC_KEY_FALSE(rdt_enable_key);
-struct kernfs_root *rdt_root;
+static struct kernfs_root *rdt_root;
 struct rdtgroup rdtgroup_default;
 LIST_HEAD(rdt_all_groups);
 
@@ -75,7 +75,7 @@ static void closid_init(void)
 	closid_free_map &= ~1;
 }
 
-int closid_alloc(void)
+static int closid_alloc(void)
 {
 	int closid = ffs(closid_free_map);
 
