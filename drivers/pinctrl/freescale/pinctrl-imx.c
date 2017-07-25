@@ -35,18 +35,6 @@
 #define IMX_NO_PAD_CTL	0x80000000	/* no pin config need */
 #define IMX_PAD_SION 0x40000000		/* set SION */
 
-/**
- * @dev: a pointer back to containing device
- * @base: the offset to the controller in virtual memory
- */
-struct imx_pinctrl {
-	struct device *dev;
-	struct pinctrl_dev *pctl;
-	void __iomem *base;
-	void __iomem *input_sel_base;
-	struct imx_pinctrl_soc_info *info;
-};
-
 static inline const struct group_desc *imx_pinctrl_find_group_by_name(
 				struct pinctrl_dev *pctldev,
 				const char *name)
@@ -255,42 +243,11 @@ static int imx_pmx_set(struct pinctrl_dev *pctldev, unsigned selector,
 	return 0;
 }
 
-static int imx_pmx_gpio_set_direction(struct pinctrl_dev *pctldev,
-	   struct pinctrl_gpio_range *range, unsigned offset, bool input)
-{
-	struct imx_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
-	struct imx_pinctrl_soc_info *info = ipctl->info;
-	const struct imx_pin_reg *pin_reg;
-	u32 reg;
-
-	/*
-	 * Only Vybrid has the input/output buffer enable flags (IBE/OBE)
-	 * They are part of the shared mux/conf register.
-	 */
-	if (!(info->flags & SHARE_MUX_CONF_REG))
-		return 0;
-
-	pin_reg = &info->pin_regs[offset];
-	if (pin_reg->mux_reg == -1)
-		return -EINVAL;
-
-	/* IBE always enabled allows us to read the value "on the wire" */
-	reg = readl(ipctl->base + pin_reg->mux_reg);
-	if (input)
-		reg &= ~0x2;
-	else
-		reg |= 0x2;
-	writel(reg, ipctl->base + pin_reg->mux_reg);
-
-	return 0;
-}
-
-static const struct pinmux_ops imx_pmx_ops = {
+struct pinmux_ops imx_pmx_ops = {
 	.get_functions_count = pinmux_generic_get_function_count,
 	.get_function_name = pinmux_generic_get_function_name,
 	.get_function_groups = pinmux_generic_get_function_groups,
 	.set_mux = imx_pmx_set,
-	.gpio_set_direction = imx_pmx_gpio_set_direction,
 };
 
 /* decode generic config into raw register values */
@@ -792,6 +749,9 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 	/* for generic pinconf */
 	imx_pinctrl_desc->custom_params = info->custom_params;
 	imx_pinctrl_desc->num_custom_params = info->num_custom_params;
+
+	/* platform specific callback */
+	imx_pmx_ops.gpio_set_direction = info->gpio_set_direction;
 
 	mutex_init(&info->mutex);
 
