@@ -12,13 +12,16 @@
 #define BNXT_H
 
 #define DRV_MODULE_NAME		"bnxt_en"
-#define DRV_MODULE_VERSION	"1.7.0"
+#define DRV_MODULE_VERSION	"1.8.0"
 
 #define DRV_VER_MAJ	1
-#define DRV_VER_MIN	7
+#define DRV_VER_MIN	8
 #define DRV_VER_UPD	0
 
 #include <linux/interrupt.h>
+#include <net/devlink.h>
+#include <net/dst_metadata.h>
+#include <net/switchdev.h>
 
 struct tx_bd {
 	__le32 tx_bd_len_flags_type;
@@ -242,6 +245,10 @@ struct rx_cmp_ext {
 	    ((le32_to_cpu((rxcmp1)->rx_cmp_flags2) &			\
 	     RX_CMP_FLAGS2_T_L4_CS_CALC) >> 3)
 
+#define RX_CMP_CFA_CODE(rxcmpl1)					\
+	((le32_to_cpu((rxcmpl1)->rx_cmp_cfa_code_errors_v2) &		\
+	  RX_CMPL_CFA_CODE_MASK) >> RX_CMPL_CFA_CODE_SFT)
+
 struct rx_agg_cmp {
 	__le32 rx_agg_cmp_len_flags_type;
 	#define RX_AGG_CMP_TYPE					(0x3f << 0)
@@ -310,6 +317,10 @@ struct rx_tpa_start_cmp_ext {
 	 #define RX_TPA_START_CMPL_CFA_CODE_SHIFT		 16
 	__le32 rx_tpa_start_cmp_hdr_info;
 };
+
+#define TPA_START_CFA_CODE(rx_tpa_start)				\
+	((le32_to_cpu((rx_tpa_start)->rx_tpa_start_cmp_cfa_code_v2) &	\
+	 RX_TPA_START_CMP_CFA_CODE) >> RX_TPA_START_CMPL_CFA_CODE_SHIFT)
 
 struct rx_tpa_end_cmp {
 	__le32 rx_tpa_end_cmp_len_flags_type;
@@ -618,6 +629,8 @@ struct bnxt_tpa_info {
 
 #define BNXT_TPA_OUTER_L3_OFF(hdr_info)	\
 	((hdr_info) & 0x1ff)
+
+	u16			cfa_code; /* cfa_code in TPA start compl */
 };
 
 struct bnxt_rx_ring_info {
@@ -825,8 +838,8 @@ struct bnxt_link_info {
 	u8			loop_back;
 	u8			link_up;
 	u8			duplex;
-#define BNXT_LINK_DUPLEX_HALF	PORT_PHY_QCFG_RESP_DUPLEX_HALF
-#define BNXT_LINK_DUPLEX_FULL	PORT_PHY_QCFG_RESP_DUPLEX_FULL
+#define BNXT_LINK_DUPLEX_HALF	PORT_PHY_QCFG_RESP_DUPLEX_STATE_HALF
+#define BNXT_LINK_DUPLEX_FULL	PORT_PHY_QCFG_RESP_DUPLEX_STATE_FULL
 	u8			pause;
 #define BNXT_LINK_PAUSE_TX	PORT_PHY_QCFG_RESP_PAUSE_TX
 #define BNXT_LINK_PAUSE_RX	PORT_PHY_QCFG_RESP_PAUSE_RX
@@ -928,6 +941,24 @@ struct bnxt_test_info {
 #define BNXT_CAG_REG_LEGACY_INT_STATUS	0x4014
 #define BNXT_CAG_REG_BASE		0x300000
 
+struct bnxt_vf_rep_stats {
+	u64			packets;
+	u64			bytes;
+	u64			dropped;
+};
+
+struct bnxt_vf_rep {
+	struct bnxt			*bp;
+	struct net_device		*dev;
+	struct metadata_dst		*dst;
+	u16				vf_idx;
+	u16				tx_cfa_action;
+	u16				rx_cfa_code;
+
+	struct bnxt_vf_rep_stats	rx_stats;
+	struct bnxt_vf_rep_stats	tx_stats;
+};
+
 struct bnxt {
 	void __iomem		*bar0;
 	void __iomem		*bar1;
@@ -1027,6 +1058,7 @@ struct bnxt {
 	#define BNXT_FLAG_MULTI_HOST	0x100000
 	#define BNXT_FLAG_SHORT_CMD	0x200000
 	#define BNXT_FLAG_DOUBLE_DB	0x400000
+	#define BNXT_FLAG_FW_DCBX_AGENT	0x800000
 	#define BNXT_FLAG_CHIP_NITRO_A0	0x1000000
 
 	#define BNXT_FLAG_ALL_CONFIG_FEATS (BNXT_FLAG_TPA |		\
@@ -1164,6 +1196,7 @@ struct bnxt {
 	u8			nge_port_cnt;
 	__le16			nge_fw_dst_port_id;
 	u8			port_partition_type;
+	u16			br_mode;
 
 	u16			rx_coal_ticks;
 	u16			rx_coal_ticks_irq;
@@ -1206,6 +1239,12 @@ struct bnxt {
 	wait_queue_head_t	sriov_cfg_wait;
 	bool			sriov_cfg;
 #define BNXT_SRIOV_CFG_WAIT_TMO	msecs_to_jiffies(10000)
+
+	/* lock to protect VF-rep creation/cleanup via
+	 * multiple paths such as ->sriov_configure() and
+	 * devlink ->eswitch_mode_set()
+	 */
+	struct mutex		sriov_lock;
 #endif
 
 #define BNXT_NTP_FLTR_MAX_FLTR	4096
@@ -1232,6 +1271,12 @@ struct bnxt {
 	struct bnxt_led_info	leds[BNXT_MAX_LED];
 
 	struct bpf_prog		*xdp_prog;
+
+	/* devlink interface and vf-rep structs */
+	struct devlink		*dl;
+	enum devlink_eswitch_mode eswitch_mode;
+	struct bnxt_vf_rep	**vf_reps; /* array of vf-rep ptrs */
+	u16			*cfa_code_map; /* cfa_code -> vf_idx map */
 };
 
 #define BNXT_RX_STATS_OFFSET(counter)			\
@@ -1306,4 +1351,5 @@ int bnxt_reserve_rings(struct bnxt *bp, int tx, int rx, bool sh, int tcs,
 int bnxt_setup_mq_tc(struct net_device *dev, u8 tc);
 int bnxt_get_max_rings(struct bnxt *, int *, int *, bool);
 void bnxt_restore_pf_fw_resources(struct bnxt *bp);
+int bnxt_port_attr_get(struct bnxt *bp, struct switchdev_attr *attr);
 #endif
