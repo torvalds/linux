@@ -328,7 +328,7 @@ static void ipte_range(pte_t *pte, unsigned long address, int nr)
 		return;
 	}
 	for (i = 0; i < nr; i++) {
-		__ptep_ipte(address, pte, IPTE_GLOBAL);
+		__ptep_ipte(address, pte, 0, 0, IPTE_GLOBAL);
 		address += PAGE_SIZE;
 		pte++;
 	}
