@@ -744,7 +744,7 @@ static int uart_get_info(struct tty_port *port, struct serial_struct *retinfo)
 	if (HIGH_BITS_OFFSET)
 		retinfo->port_high = (long) uport->iobase >> HIGH_BITS_OFFSET;
 	retinfo->irq		    = uport->irq;
-	retinfo->flags	    = uport->flags;
+	retinfo->flags	    = (__force int)uport->flags;
 	retinfo->xmit_fifo_size  = uport->fifosize;
 	retinfo->baud_base	    = uport->uartclk / 16;
 	retinfo->close_delay	    = jiffies_to_msecs(port->close_delay) / 10;
@@ -818,7 +818,7 @@ static int uart_set_info(struct tty_struct *tty, struct tty_port *port,
 		    new_info->type != uport->type);
 
 	old_flags = uport->flags;
-	new_flags = new_info->flags;
+	new_flags = (__force upf_t)new_info->flags;
 	old_custom_divisor = uport->custom_divisor;
 
 	if (!capable(CAP_SYS_ADMIN)) {
