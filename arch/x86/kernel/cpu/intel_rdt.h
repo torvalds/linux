@@ -37,6 +37,25 @@ extern unsigned int intel_cqm_threshold;
 extern bool rdt_alloc_capable;
 extern bool rdt_mon_capable;
 extern unsigned int rdt_mon_features;
+
+enum rdt_group_type {
+	RDTCTRL_GROUP = 0,
+	RDTMON_GROUP,
+	RDT_NUM_GROUP,
+};
+
+/**
+ * struct mongroup - store mon group's data in resctrl fs.
+ * @parent:			parent rdtgrp
+ * @crdtgrp_list:		child rdtgroup node list
+ * @rmid:			rmid for this rdtgroup
+ */
+struct mongroup {
+	struct rdtgroup		*parent;
+	struct list_head	crdtgrp_list;
+	u32			rmid;
+};
+
 /**
  * struct rdtgroup - store rdtgroup's data in resctrl file system.
  * @kn:				kernfs node
@@ -46,6 +65,9 @@ extern unsigned int rdt_mon_features;
  * @flags:			status bits
  * @waitcount:			how many cpus expect to find this
  *				group when they acquire rdtgroup_mutex
+ * @type:			indicates type of this rdtgroup - either
+ *				monitor only or ctrl_mon group
+ * @mon:			mongroup related data
  */
 struct rdtgroup {
 	struct kernfs_node	*kn;
@@ -54,6 +76,8 @@ struct rdtgroup {
 	struct cpumask		cpu_mask;
 	int			flags;
 	atomic_t		waitcount;
+	enum rdt_group_type	type;
+	struct mongroup		mon;
 };
 
 /* rdtgroup.flags */
@@ -306,6 +330,8 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 int rdtgroup_schemata_show(struct kernfs_open_file *of,
 			   struct seq_file *s, void *v);
 struct rdt_domain *get_domain_from_cpu(int cpu, struct rdt_resource *r);
+int alloc_rmid(void);
+void free_rmid(u32 rmid);
 int rdt_get_mon_l3_config(struct rdt_resource *r);
 
 #endif /* _ASM_X86_INTEL_RDT_H */

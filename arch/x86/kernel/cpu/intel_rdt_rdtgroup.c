@@ -758,6 +758,39 @@ out_destroy:
 	return ret;
 }
 
+static int
+mongroup_create_dir(struct kernfs_node *parent_kn, struct rdtgroup *prgrp,
+		    char *name, struct kernfs_node **dest_kn)
+{
+	struct kernfs_node *kn;
+	int ret;
+
+	/* create the directory */
+	kn = kernfs_create_dir(parent_kn, name, parent_kn->mode, prgrp);
+	if (IS_ERR(kn))
+		return PTR_ERR(kn);
+
+	if (dest_kn)
+		*dest_kn = kn;
+
+	/*
+	 * This extra ref will be put in kernfs_remove() and guarantees
+	 * that @rdtgrp->kn is always accessible.
+	 */
+	kernfs_get(kn);
+
+	ret = rdtgroup_kn_set_ugid(kn);
+	if (ret)
+		goto out_destroy;
+
+	kernfs_activate(kn);
+
+	return 0;
+
+out_destroy:
+	kernfs_remove(kn);
+	return ret;
+}
 static void l3_qos_cfg_update(void *arg)
 {
 	bool *enable = arg;
@@ -1085,7 +1118,7 @@ static struct file_system_type rdt_fs_type = {
 static int mkdir_rdt_prepare(struct kernfs_node *parent_kn,
 			     struct kernfs_node *prgrp_kn,
 			     const char *name, umode_t mode,
-			     struct rdtgroup **r)
+			     enum rdt_group_type rtype, struct rdtgroup **r)
 {
 	struct rdtgroup *prdtgrp, *rdtgrp;
 	struct kernfs_node *kn;
@@ -1105,6 +1138,9 @@ static int mkdir_rdt_prepare(struct kernfs_node *parent_kn,
 		goto out_unlock;
 	}
 	*r = rdtgrp;
+	rdtgrp->mon.parent = prdtgrp;
+	rdtgrp->type = rtype;
+	INIT_LIST_HEAD(&rdtgrp->mon.crdtgrp_list);
 
 	/* kernfs creates the directory for rdtgrp */
 	kn = kernfs_create_dir(parent_kn, name, mode, rdtgrp);
@@ -1127,10 +1163,17 @@ static int mkdir_rdt_prepare(struct kernfs_node *parent_kn,
 		goto out_destroy;
 
 	files = RFTYPE_BASE | RFTYPE_CTRL;
+	files = RFTYPE_BASE | BIT(RF_CTRLSHIFT + rtype);
 	ret = rdtgroup_add_files(kn, files);
 	if (ret)
 		goto out_destroy;
 
+	if (rdt_mon_capable) {
+		ret = alloc_rmid();
+		if (ret < 0)
+			goto out_destroy;
+		rdtgrp->mon.rmid = ret;
+	}
 	kernfs_activate(kn);
 
 	/*
@@ -1150,23 +1193,56 @@ out_unlock:
 static void mkdir_rdt_prepare_clean(struct rdtgroup *rgrp)
 {
 	kernfs_remove(rgrp->kn);
+	free_rmid(rgrp->mon.rmid);
 	kfree(rgrp);
 }
 
 /*
- * These are rdtgroups created under the root directory. Can be used
- * to allocate resources.
+ * Create a monitor group under "mon_groups" directory of a control
+ * and monitor group(ctrl_mon). This is a resource group
+ * to monitor a subset of tasks and cpus in its parent ctrl_mon group.
  */
-static int rdtgroup_mkdir_ctrl(struct kernfs_node *parent_kn,
-			       struct kernfs_node *prgrp_kn,
-			       const char *name, umode_t mode)
+static int rdtgroup_mkdir_mon(struct kernfs_node *parent_kn,
+			      struct kernfs_node *prgrp_kn,
+			      const char *name,
+			      umode_t mode)
+{
+	struct rdtgroup *rdtgrp, *prgrp;
+	int ret;
+
+	ret = mkdir_rdt_prepare(parent_kn, prgrp_kn, name, mode, RDTMON_GROUP,
+				&rdtgrp);
+	if (ret)
+		return ret;
+
+	prgrp = rdtgrp->mon.parent;
+	rdtgrp->closid = prgrp->closid;
+
+	/*
+	 * Add the rdtgrp to the list of rdtgrps the parent
+	 * ctrl_mon group has to track.
+	 */
+	list_add_tail(&rdtgrp->mon.crdtgrp_list, &prgrp->mon.crdtgrp_list);
+
+	rdtgroup_kn_unlock(prgrp_kn);
+	return ret;
+}
+
+/*
+ * These are rdtgroups created under the root directory. Can be used
+ * to allocate and monitor resources.
+ */
+static int rdtgroup_mkdir_ctrl_mon(struct kernfs_node *parent_kn,
+				   struct kernfs_node *prgrp_kn,
+				   const char *name, umode_t mode)
 {
 	struct rdtgroup *rdtgrp;
 	struct kernfs_node *kn;
 	u32 closid;
 	int ret;
 
-	ret = mkdir_rdt_prepare(parent_kn, prgrp_kn, name, mode, &rdtgrp);
+	ret = mkdir_rdt_prepare(parent_kn, prgrp_kn, name, mode, RDTCTRL_GROUP,
+				&rdtgrp);
 	if (ret)
 		return ret;
 
@@ -1179,13 +1255,42 @@ static int rdtgroup_mkdir_ctrl(struct kernfs_node *parent_kn,
 	rdtgrp->closid = closid;
 	list_add(&rdtgrp->rdtgroup_list, &rdt_all_groups);
 
+	if (rdt_mon_capable) {
+		/*
+		 * Create an empty mon_groups directory to hold the subset
+		 * of tasks and cpus to monitor.
+		 */
+		ret = mongroup_create_dir(kn, NULL, "mon_groups", NULL);
+		if (ret)
+			goto out_id_free;
+	}
+
 	goto out_unlock;
 
+out_id_free:
+	closid_free(closid);
+	list_del(&rdtgrp->rdtgroup_list);
 out_common_fail:
 	mkdir_rdt_prepare_clean(rdtgrp);
 out_unlock:
 	rdtgroup_kn_unlock(prgrp_kn);
 	return ret;
+}
+
+/*
+ * We allow creating mon groups only with in a directory called "mon_groups"
+ * which is present in every ctrl_mon group. Check if this is a valid
+ * "mon_groups" directory.
+ *
+ * 1. The directory should be named "mon_groups".
+ * 2. The mon group itself should "not" be named "mon_groups".
+ *   This makes sure "mon_groups" directory always has a ctrl_mon group
+ *   as parent.
+ */
+static bool is_mon_groups(struct kernfs_node *kn, const char *name)
+{
+	return (!strcmp(kn->name, "mon_groups") &&
+		strcmp(name, "mon_groups"));
 }
 
 static int rdtgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
@@ -1197,10 +1302,18 @@ static int rdtgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
 
 	/*
 	 * If the parent directory is the root directory and RDT
-	 * allocation is supported, add a control rdtgroup.
+	 * allocation is supported, add a control and monitoring
+	 * subdirectory
 	 */
 	if (rdt_alloc_capable && parent_kn == rdtgroup_default.kn)
-		return rdtgroup_mkdir_ctrl(parent_kn, parent_kn, name, mode);
+		return rdtgroup_mkdir_ctrl_mon(parent_kn, parent_kn, name, mode);
+
+	/*
+	 * If RDT monitoring is supported and the parent directory is a valid
+	 * "mon_groups" directory, add a monitoring subdirectory.
+	 */
+	if (rdt_mon_capable && is_mon_groups(parent_kn, name))
+		return rdtgroup_mkdir_mon(parent_kn, parent_kn->parent, name, mode);
 
 	return -EPERM;
 }
@@ -1280,6 +1393,10 @@ static int __init rdtgroup_setup_root(void)
 	mutex_lock(&rdtgroup_mutex);
 
 	rdtgroup_default.closid = 0;
+	rdtgroup_default.mon.rmid = 0;
+	rdtgroup_default.type = RDTCTRL_GROUP;
+	INIT_LIST_HEAD(&rdtgroup_default.mon.crdtgrp_list);
+
 	list_add(&rdtgroup_default.rdtgroup_list, &rdt_all_groups);
 
 	ret = rdtgroup_add_files(rdt_root->kn, RF_CTRL_BASE);
