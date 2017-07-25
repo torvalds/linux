@@ -2430,7 +2430,7 @@ exit:
  * In case of Rx packets received, the packets are uploaded from card to
  * host and processed accordingly.
  */
-static int mwifiex_process_pcie_int(struct mwifiex_adapter *adapter)
+static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
 {
 	int ret;
 	u32 pcie_ireg = 0;
@@ -2505,73 +2505,11 @@ static int mwifiex_process_pcie_int(struct mwifiex_adapter *adapter)
 	mwifiex_dbg(adapter, INTR,
 		    "info: cmd_sent=%d data_sent=%d\n",
 		    adapter->cmd_sent, adapter->data_sent);
-	if (!card->msi_enable && adapter->ps_state != PS_STATE_SLEEP)
+	if (!card->msi_enable && !card->msix_enable &&
+				 adapter->ps_state != PS_STATE_SLEEP)
 		mwifiex_pcie_enable_host_int(adapter);
 
 	return 0;
-}
-
-static int mwifiex_process_msix_int(struct mwifiex_adapter *adapter)
-{
-	int ret;
-	u32 pcie_ireg;
-	unsigned long flags;
-
-	spin_lock_irqsave(&adapter->int_lock, flags);
-	/* Clear out unused interrupts */
-	pcie_ireg = adapter->int_status;
-	adapter->int_status = 0;
-	spin_unlock_irqrestore(&adapter->int_lock, flags);
-
-	if (pcie_ireg & HOST_INTR_DNLD_DONE) {
-		mwifiex_dbg(adapter, INTR,
-			    "info: TX DNLD Done\n");
-		ret = mwifiex_pcie_send_data_complete(adapter);
-		if (ret)
-			return ret;
-	}
-	if (pcie_ireg & HOST_INTR_UPLD_RDY) {
-		mwifiex_dbg(adapter, INTR,
-			    "info: Rx DATA\n");
-		ret = mwifiex_pcie_process_recv_data(adapter);
-		if (ret)
-			return ret;
-	}
-	if (pcie_ireg & HOST_INTR_EVENT_RDY) {
-		mwifiex_dbg(adapter, INTR,
-			    "info: Rx EVENT\n");
-		ret = mwifiex_pcie_process_event_ready(adapter);
-		if (ret)
-			return ret;
-	}
-
-	if (pcie_ireg & HOST_INTR_CMD_DONE) {
-		if (adapter->cmd_sent) {
-			mwifiex_dbg(adapter, INTR,
-				    "info: CMD sent Interrupt\n");
-			adapter->cmd_sent = false;
-		}
-		/* Handle command response */
-		ret = mwifiex_pcie_process_cmd_complete(adapter);
-		if (ret)
-			return ret;
-	}
-
-	mwifiex_dbg(adapter, INTR,
-		    "info: cmd_sent=%d data_sent=%d\n",
-		    adapter->cmd_sent, adapter->data_sent);
-
-	return 0;
-}
-
-static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
-{
-	struct pcie_service_card *card = adapter->card;
-
-	if (card->msix_enable)
-		return mwifiex_process_msix_int(adapter);
-	else
-		return mwifiex_process_pcie_int(adapter);
 }
 
 /*
