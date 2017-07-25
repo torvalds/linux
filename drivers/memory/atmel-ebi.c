@@ -72,7 +72,7 @@ struct atmel_smc_timing_xlate {
 	{ .name = nm, .converter = atmel_smc_cs_conf_set_pulse, .shift = pos}
 
 #define ATMEL_SMC_CYCLE_XLATE(nm, pos)	\
-	{ .name = nm, .converter = atmel_smc_cs_conf_set_setup, .shift = pos}
+	{ .name = nm, .converter = atmel_smc_cs_conf_set_cycle, .shift = pos}
 
 static void at91sam9_ebi_get_config(struct atmel_ebi_dev *ebid,
 				    struct atmel_ebi_dev_config *conf)

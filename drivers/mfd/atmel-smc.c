@@ -206,7 +206,7 @@ EXPORT_SYMBOL_GPL(atmel_smc_cs_conf_set_pulse);
  *	     parameter
  *
  * This function encodes the @ncycles value as described in the datasheet
- * (section "SMC Pulse Register"), and then stores the result in the
+ * (section "SMC Cycle Register"), and then stores the result in the
  * @conf->setup field at @shift position.
  *
  * Returns -EINVAL if @shift is invalid, -ERANGE if @ncycles does not fit in
