@@ -690,12 +690,23 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		iwl_trans->cfg = cfg_7265d;
 	}
 
-	if (iwl_trans->cfg->rf_id && cfg == &iwla000_2ac_cfg_hr_cdb) {
-		if (iwl_trans->hw_rf_id == CSR_HW_RF_ID_TYPE_JF)
-			cfg = &iwla000_2ac_cfg_jf;
-		else if (iwl_trans->hw_rf_id == CSR_HW_RF_ID_TYPE_HR)
-			cfg = &iwla000_2ac_cfg_hr;
+	if (iwl_trans->cfg->rf_id && cfg == &iwla000_2ac_cfg_hr_cdb &&
+	    iwl_trans->hw_rev != CSR_HW_REV_TYPE_HR_CDB) {
+		u32 rf_id_chp = CSR_HW_RF_ID_TYPE_CHIP_ID(iwl_trans->hw_rf_id);
+		u32 jf_chp_id = CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_JF);
+		u32 hr_chp_id = CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_HR);
 
+		if (rf_id_chp == jf_chp_id) {
+			if (iwl_trans->hw_rev == CSR_HW_REV_TYPE_QNJ)
+				cfg = &iwla000_2ax_cfg_qnj_jf_b0;
+			else
+				cfg = &iwla000_2ac_cfg_jf;
+		} else if (rf_id_chp == hr_chp_id) {
+			if (iwl_trans->hw_rev == CSR_HW_REV_TYPE_QNJ)
+				cfg = &iwla000_2ax_cfg_qnj_hr_a0;
+			else
+				cfg = &iwla000_2ac_cfg_hr;
+		}
 		iwl_trans->cfg = cfg;
 	}
 #endif
