@@ -1413,8 +1413,8 @@ performance.
 
 Requirements:
 - Access to:
-    /sys/kernel/debug/kvm
-    /sys/kernel/debug/trace/events/*
+    %s
+    %s/events/*
     /proc/pid/task
 - /proc/sys/kernel/perf_event_paranoid < 1 if user has no
   CAP_SYS_ADMIN and perf events are used.
@@ -1434,7 +1434,7 @@ Interactive Commands:
    s     set update interval
    x     toggle reporting of stats for individual child trace events
 Press any other key to refresh statistics immediately.
-"""
+""" % (PATH_DEBUGFS_KVM, PATH_DEBUGFS_TRACING)
 
     class PlainHelpFormatter(optparse.IndentedHelpFormatter):
         def format_description(self, description):
