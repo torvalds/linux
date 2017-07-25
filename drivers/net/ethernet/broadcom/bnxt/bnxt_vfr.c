@@ -16,6 +16,8 @@
 #include "bnxt.h"
 #include "bnxt_vfr.h"
 
+#ifdef CONFIG_BNXT_SRIOV
+
 #define CFA_HANDLE_INVALID		0xffff
 #define VF_IDX_INVALID			0xffff
 
@@ -139,9 +141,11 @@ static int bnxt_vf_rep_get_phys_port_name(struct net_device *dev, char *buf,
 					  size_t len)
 {
 	struct bnxt_vf_rep *vf_rep = netdev_priv(dev);
+	struct pci_dev *pf_pdev = vf_rep->bp->pdev;
 	int rc;
 
-	rc = snprintf(buf, len, "vfr%d", vf_rep->vf_idx);
+	rc = snprintf(buf, len, "pf%dvf%d", PCI_FUNC(pf_pdev->devfn),
+		      vf_rep->vf_idx);
 	if (rc >= len)
 		return -EOPNOTSUPP;
 	return 0;
@@ -302,7 +306,7 @@ static void bnxt_vf_rep_netdev_init(struct bnxt *bp, struct bnxt_vf_rep *vf_rep,
 
 	dev->netdev_ops = &bnxt_vf_rep_netdev_ops;
 	dev->ethtool_ops = &bnxt_vf_rep_ethtool_ops;
-	dev->switchdev_ops = &bnxt_vf_rep_switchdev_ops;
+	SWITCHDEV_SET_OPS(dev, &bnxt_vf_rep_switchdev_ops);
 	/* Just inherit all the featues of the parent PF as the VF-R
 	 * uses the RX/TX rings of the parent PF
 	 */
@@ -487,3 +491,5 @@ void bnxt_dl_unregister(struct bnxt *bp)
 	devlink_unregister(dl);
 	devlink_free(dl);
 }
+
+#endif
