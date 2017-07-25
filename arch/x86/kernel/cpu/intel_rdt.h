@@ -62,6 +62,18 @@ struct rdtgroup {
 /* rftype.flags */
 #define RFTYPE_FLAGS_CPUS_LIST	1
 
+/*
+ * Define the file type flags for base and info directories.
+ */
+#define RFTYPE_INFO			BIT(0)
+#define RFTYPE_BASE			BIT(1)
+#define RF_CTRLSHIFT			4
+#define RFTYPE_CTRL			BIT(RF_CTRLSHIFT)
+#define RFTYPE_RES_CACHE		BIT(8)
+#define RFTYPE_RES_MB			BIT(9)
+#define RF_CTRL_INFO			(RFTYPE_INFO | RFTYPE_CTRL)
+#define RF_CTRL_BASE			(RFTYPE_BASE | RFTYPE_CTRL)
+
 /* List of all resource groups */
 extern struct list_head rdt_all_groups;
 
@@ -75,6 +87,7 @@ int __init rdtgroup_init(void);
  * @mode:	Access mode
  * @kf_ops:	File operations
  * @flags:	File specific RFTYPE_FLAGS_* flags
+ * @fflags:	File specific RF_* or RFTYPE_* flags
  * @seq_show:	Show content of the file
  * @write:	Write to the file
  */
@@ -83,6 +96,7 @@ struct rftype {
 	umode_t			mode;
 	struct kernfs_ops	*kf_ops;
 	unsigned long		flags;
+	unsigned long		fflags;
 
 	int (*seq_show)(struct kernfs_open_file *of,
 			struct seq_file *sf, void *v);
@@ -181,13 +195,12 @@ static inline bool is_llc_occupancy_enabled(void)
  * @data_width:		Character width of data when displaying
  * @domains:		All domains for this resource
  * @cache:		Cache allocation related data
- * @info_files:		resctrl info files for the resource
- * @nr_info_files:	Number of info files
  * @format_str:		Per resource format string to show domain value
  * @parse_ctrlval:	Per resource function pointer to parse control values
  * @evt_list:			List of monitoring events
  * @num_rmid:			Number of RMIDs available
  * @mon_scale:			cqm counter * mon_scale = occupancy in bytes
+ * @fflags:			flags to choose base and info files
  */
 struct rdt_resource {
 	bool			alloc_enabled;
@@ -205,18 +218,15 @@ struct rdt_resource {
 	struct list_head	domains;
 	struct rdt_cache	cache;
 	struct rdt_membw	membw;
-	struct rftype		*info_files;
-	int			nr_info_files;
 	const char		*format_str;
 	int (*parse_ctrlval)	(char *buf, struct rdt_resource *r,
 				 struct rdt_domain *d);
 	struct list_head	evt_list;
 	int			num_rmid;
 	unsigned int		mon_scale;
+	unsigned long		fflags;
 };
 
-void rdt_get_cache_infofile(struct rdt_resource *r);
-void rdt_get_mba_infofile(struct rdt_resource *r);
 int parse_cbm(char *buf, struct rdt_resource *r, struct rdt_domain *d);
 int parse_bw(char *buf, struct rdt_resource *r,  struct rdt_domain *d);
 

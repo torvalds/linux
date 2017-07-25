@@ -125,28 +125,6 @@ static int rdtgroup_add_file(struct kernfs_node *parent_kn, struct rftype *rft)
 	return 0;
 }
 
-static int rdtgroup_add_files(struct kernfs_node *kn, struct rftype *rfts,
-			      int len)
-{
-	struct rftype *rft;
-	int ret;
-
-	lockdep_assert_held(&rdtgroup_mutex);
-
-	for (rft = rfts; rft < rfts + len; rft++) {
-		ret = rdtgroup_add_file(kn, rft);
-		if (ret)
-			goto error;
-	}
-
-	return 0;
-error:
-	pr_warn("Failed to add %s, err=%d\n", rft->name, ret);
-	while (--rft >= rfts)
-		kernfs_remove_by_name(kn, rft->name);
-	return ret;
-}
-
 static int rdtgroup_seqfile_show(struct seq_file *m, void *arg)
 {
 	struct kernfs_open_file *of = m->private;
@@ -476,39 +454,6 @@ static int rdtgroup_tasks_show(struct kernfs_open_file *of,
 	return ret;
 }
 
-/* Files in each rdtgroup */
-static struct rftype rdtgroup_base_files[] = {
-	{
-		.name		= "cpus",
-		.mode		= 0644,
-		.kf_ops		= &rdtgroup_kf_single_ops,
-		.write		= rdtgroup_cpus_write,
-		.seq_show	= rdtgroup_cpus_show,
-	},
-	{
-		.name		= "cpus_list",
-		.mode		= 0644,
-		.kf_ops		= &rdtgroup_kf_single_ops,
-		.write		= rdtgroup_cpus_write,
-		.seq_show	= rdtgroup_cpus_show,
-		.flags		= RFTYPE_FLAGS_CPUS_LIST,
-	},
-	{
-		.name		= "tasks",
-		.mode		= 0644,
-		.kf_ops		= &rdtgroup_kf_single_ops,
-		.write		= rdtgroup_tasks_write,
-		.seq_show	= rdtgroup_tasks_show,
-	},
-	{
-		.name		= "schemata",
-		.mode		= 0644,
-		.kf_ops		= &rdtgroup_kf_single_ops,
-		.write		= rdtgroup_schemata_write,
-		.seq_show	= rdtgroup_schemata_show,
-	},
-};
-
 static int rdt_num_closids_show(struct kernfs_open_file *of,
 				struct seq_file *seq, void *v)
 {
@@ -564,73 +509,140 @@ static int rdt_delay_linear_show(struct kernfs_open_file *of,
 }
 
 /* rdtgroup information files for one cache resource. */
-static struct rftype res_cache_info_files[] = {
+static struct rftype res_common_files[] = {
 	{
 		.name		= "num_closids",
 		.mode		= 0444,
 		.kf_ops		= &rdtgroup_kf_single_ops,
 		.seq_show	= rdt_num_closids_show,
+		.fflags		= RF_CTRL_INFO,
 	},
 	{
 		.name		= "cbm_mask",
 		.mode		= 0444,
 		.kf_ops		= &rdtgroup_kf_single_ops,
 		.seq_show	= rdt_default_ctrl_show,
+		.fflags		= RF_CTRL_INFO | RFTYPE_RES_CACHE,
 	},
 	{
 		.name		= "min_cbm_bits",
 		.mode		= 0444,
 		.kf_ops		= &rdtgroup_kf_single_ops,
 		.seq_show	= rdt_min_cbm_bits_show,
-	},
-};
-
-/* rdtgroup information files for memory bandwidth. */
-static struct rftype res_mba_info_files[] = {
-	{
-		.name		= "num_closids",
-		.mode		= 0444,
-		.kf_ops		= &rdtgroup_kf_single_ops,
-		.seq_show	= rdt_num_closids_show,
+		.fflags		= RF_CTRL_INFO | RFTYPE_RES_CACHE,
 	},
 	{
 		.name		= "min_bandwidth",
 		.mode		= 0444,
 		.kf_ops		= &rdtgroup_kf_single_ops,
 		.seq_show	= rdt_min_bw_show,
+		.fflags		= RF_CTRL_INFO | RFTYPE_RES_MB,
 	},
 	{
 		.name		= "bandwidth_gran",
 		.mode		= 0444,
 		.kf_ops		= &rdtgroup_kf_single_ops,
 		.seq_show	= rdt_bw_gran_show,
+		.fflags		= RF_CTRL_INFO | RFTYPE_RES_MB,
 	},
 	{
 		.name		= "delay_linear",
 		.mode		= 0444,
 		.kf_ops		= &rdtgroup_kf_single_ops,
 		.seq_show	= rdt_delay_linear_show,
+		.fflags		= RF_CTRL_INFO | RFTYPE_RES_MB,
+	},
+	{
+		.name		= "cpus",
+		.mode		= 0644,
+		.kf_ops		= &rdtgroup_kf_single_ops,
+		.write		= rdtgroup_cpus_write,
+		.seq_show	= rdtgroup_cpus_show,
+		.fflags		= RFTYPE_BASE,
+	},
+	{
+		.name		= "cpus_list",
+		.mode		= 0644,
+		.kf_ops		= &rdtgroup_kf_single_ops,
+		.write		= rdtgroup_cpus_write,
+		.seq_show	= rdtgroup_cpus_show,
+		.flags		= RFTYPE_FLAGS_CPUS_LIST,
+		.fflags		= RFTYPE_BASE,
+	},
+	{
+		.name		= "tasks",
+		.mode		= 0644,
+		.kf_ops		= &rdtgroup_kf_single_ops,
+		.write		= rdtgroup_tasks_write,
+		.seq_show	= rdtgroup_tasks_show,
+		.fflags		= RFTYPE_BASE,
+	},
+	{
+		.name		= "schemata",
+		.mode		= 0644,
+		.kf_ops		= &rdtgroup_kf_single_ops,
+		.write		= rdtgroup_schemata_write,
+		.seq_show	= rdtgroup_schemata_show,
+		.fflags		= RF_CTRL_BASE,
 	},
 };
 
-void rdt_get_mba_infofile(struct rdt_resource *r)
+static int rdtgroup_add_files(struct kernfs_node *kn, unsigned long fflags)
 {
-	r->info_files = res_mba_info_files;
-	r->nr_info_files = ARRAY_SIZE(res_mba_info_files);
+	struct rftype *rfts, *rft;
+	int ret, len;
+
+	rfts = res_common_files;
+	len = ARRAY_SIZE(res_common_files);
+
+	lockdep_assert_held(&rdtgroup_mutex);
+
+	for (rft = rfts; rft < rfts + len; rft++) {
+		if ((fflags & rft->fflags) == rft->fflags) {
+			ret = rdtgroup_add_file(kn, rft);
+			if (ret)
+				goto error;
+		}
+	}
+
+	return 0;
+error:
+	pr_warn("Failed to add %s, err=%d\n", rft->name, ret);
+	while (--rft >= rfts) {
+		if ((fflags & rft->fflags) == rft->fflags)
+			kernfs_remove_by_name(kn, rft->name);
+	}
+	return ret;
 }
 
-void rdt_get_cache_infofile(struct rdt_resource *r)
+static int rdtgroup_mkdir_info_resdir(struct rdt_resource *r, char *name,
+				      unsigned long fflags)
 {
-	r->info_files = res_cache_info_files;
-	r->nr_info_files = ARRAY_SIZE(res_cache_info_files);
+	struct kernfs_node *kn_subdir;
+	int ret;
+
+	kn_subdir = kernfs_create_dir(kn_info, name,
+				      kn_info->mode, r);
+	if (IS_ERR(kn_subdir))
+		return PTR_ERR(kn_subdir);
+
+	kernfs_get(kn_subdir);
+	ret = rdtgroup_kn_set_ugid(kn_subdir);
+	if (ret)
+		return ret;
+
+	ret = rdtgroup_add_files(kn_subdir, fflags);
+	if (!ret)
+		kernfs_activate(kn_subdir);
+
+	return ret;
 }
 
 static int rdtgroup_create_info_dir(struct kernfs_node *parent_kn)
 {
-	struct kernfs_node *kn_subdir;
-	struct rftype *res_info_files;
 	struct rdt_resource *r;
-	int ret, len;
+	unsigned long fflags;
+	int ret;
 
 	/* create the directory */
 	kn_info = kernfs_create_dir(parent_kn, "info", parent_kn->mode, NULL);
@@ -639,26 +651,11 @@ static int rdtgroup_create_info_dir(struct kernfs_node *parent_kn)
 	kernfs_get(kn_info);
 
 	for_each_alloc_enabled_rdt_resource(r) {
-		kn_subdir = kernfs_create_dir(kn_info, r->name,
-					      kn_info->mode, r);
-		if (IS_ERR(kn_subdir)) {
-			ret = PTR_ERR(kn_subdir);
-			goto out_destroy;
-		}
-		kernfs_get(kn_subdir);
-		ret = rdtgroup_kn_set_ugid(kn_subdir);
+		fflags =  r->fflags | RF_CTRL_INFO;
+		ret = rdtgroup_mkdir_info_resdir(r, r->name, fflags);
 		if (ret)
 			goto out_destroy;
-
-		res_info_files = r->info_files;
-		len = r->nr_info_files;
-
-		ret = rdtgroup_add_files(kn_subdir, res_info_files, len);
-		if (ret)
-			goto out_destroy;
-		kernfs_activate(kn_subdir);
 	}
-
 	/*
 	 * This extra ref will be put in kernfs_remove() and guarantees
 	 * that @rdtgrp->kn is always accessible.
@@ -1057,8 +1054,7 @@ static int rdtgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
 	if (ret)
 		goto out_destroy;
 
-	ret = rdtgroup_add_files(kn, rdtgroup_base_files,
-				 ARRAY_SIZE(rdtgroup_base_files));
+	ret = rdtgroup_add_files(kn, RF_CTRL_BASE);
 	if (ret)
 		goto out_destroy;
 
@@ -1156,8 +1152,7 @@ static int __init rdtgroup_setup_root(void)
 	rdtgroup_default.closid = 0;
 	list_add(&rdtgroup_default.rdtgroup_list, &rdt_all_groups);
 
-	ret = rdtgroup_add_files(rdt_root->kn, rdtgroup_base_files,
-				 ARRAY_SIZE(rdtgroup_base_files));
+	ret = rdtgroup_add_files(rdt_root->kn, RF_CTRL_BASE);
 	if (ret) {
 		kernfs_destroy_root(rdt_root);
 		goto out;
