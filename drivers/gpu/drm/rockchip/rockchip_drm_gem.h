@@ -11,12 +11,20 @@
 
 #define to_rockchip_obj(x) container_of(x, struct rockchip_gem_object, base)
 
+enum rockchip_gem_buf_type {
+	ROCKCHIP_GEM_BUF_TYPE_CMA,
+	ROCKCHIP_GEM_BUF_TYPE_SHMEM,
+	ROCKCHIP_GEM_BUF_TYPE_SECURE,
+};
+
 struct rockchip_gem_object {
 	struct drm_gem_object base;
 	unsigned int flags;
+	enum rockchip_gem_buf_type buf_type;
 
 	void *kvaddr;
-	dma_addr_t dma_addr;
+	dma_addr_t dma_addr;	/* iova if iommu enable, otherwise physical address */
+	dma_addr_t dma_handle;	/* physical address */
 	/* Used when IOMMU is disabled */
 	unsigned long dma_attrs;
 

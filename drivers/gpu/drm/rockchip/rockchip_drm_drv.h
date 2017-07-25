@@ -165,6 +165,7 @@ struct rockchip_drm_private {
 	struct drm_fb_helper *fbdev_helper;
 	struct drm_gem_object *fbdev_bo;
 	struct iommu_domain *domain;
+	struct gen_pool *secure_buffer_pool;
 	struct mutex mm_lock;
 	struct drm_mm mm;
 	struct list_head psr_list;
