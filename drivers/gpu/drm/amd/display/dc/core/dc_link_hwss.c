@@ -114,7 +114,9 @@ void dp_disable_link_phy(struct dc_link *link, enum signal_type signal)
 
 	if (signal == SIGNAL_TYPE_EDP) {
 		link->link_enc->funcs->backlight_control(link->link_enc, false);
-		link->link_enc->funcs->power_control(link->link_enc, false);
+		if (link->dpcd_sink_count)
+			link->link_enc->funcs->power_control(link->link_enc,
+									false);
 	}
 
 	link->link_enc->funcs->disable_output(link->link_enc, signal);
