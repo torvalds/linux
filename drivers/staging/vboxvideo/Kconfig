@@ -2,6 +2,7 @@ config DRM_VBOXVIDEO
 	tristate "Virtual Box Graphics Card"
 	depends on DRM && X86 && PCI
 	select DRM_KMS_HELPER
+	select GENERIC_ALLOCATOR
 	help
 	  This is a KMS driver for the virtual Graphics Card used in
 	  Virtual Box virtual machines.
