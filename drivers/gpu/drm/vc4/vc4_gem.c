@@ -119,7 +119,7 @@ vc4_get_hang_state_ioctl(struct drm_device *dev, void *data,
 		bo_state[i].size = vc4_bo->base.base.size;
 	}
 
-	if (copy_to_user((void __user *)(uintptr_t)get_state->bo,
+	if (copy_to_user(u64_to_user_ptr(get_state->bo),
 			 bo_state,
 			 state->bo_count * sizeof(*bo_state)))
 		ret = -EFAULT;
@@ -678,8 +678,7 @@ vc4_cl_lookup_bos(struct drm_device *dev,
 		goto fail;
 	}
 
-	if (copy_from_user(handles,
-			   (void __user *)(uintptr_t)args->bo_handles,
+	if (copy_from_user(handles, u64_to_user_ptr(args->bo_handles),
 			   exec->bo_count * sizeof(uint32_t))) {
 		ret = -EFAULT;
 		DRM_ERROR("Failed to copy in GEM handles\n");
@@ -755,21 +754,21 @@ vc4_get_bcl(struct drm_device *dev, struct vc4_exec_info *exec)
 	exec->shader_state_size = args->shader_rec_count;
 
 	if (copy_from_user(bin,
-			   (void __user *)(uintptr_t)args->bin_cl,
+			   u64_to_user_ptr(args->bin_cl),
 			   args->bin_cl_size)) {
 		ret = -EFAULT;
 		goto fail;
 	}
 
 	if (copy_from_user(exec->shader_rec_u,
-			   (void __user *)(uintptr_t)args->shader_rec,
+			   u64_to_user_ptr(args->shader_rec),
 			   args->shader_rec_size)) {
 		ret = -EFAULT;
 		goto fail;
 	}
 
 	if (copy_from_user(exec->uniforms_u,
-			   (void __user *)(uintptr_t)args->uniforms,
+			   u64_to_user_ptr(args->uniforms),
 			   args->uniforms_size)) {
 		ret = -EFAULT;
 		goto fail;
