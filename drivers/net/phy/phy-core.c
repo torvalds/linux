@@ -90,6 +90,11 @@ static const struct phy_setting settings[] = {
 	{
 		.speed = SPEED_1000,
 		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_1000baseX_Full_BIT,
+	},
+	{
+		.speed = SPEED_1000,
+		.duplex = DUPLEX_FULL,
 		.bit = ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
 	},
 	{
