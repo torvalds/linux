@@ -37,6 +37,9 @@
 #include "oss/oss_2_0_d.h"
 #include "oss/oss_2_0_sh_mask.h"
 
+#include "dce/dce_8_0_d.h"
+#include "dce/dce_8_0_sh_mask.h"
+
 #include "amdgpu_atombios.h"
 
 static void gmc_v7_0_set_gart_funcs(struct amdgpu_device *adev);
@@ -272,6 +275,17 @@ static void gmc_v7_0_mc_program(struct amdgpu_device *adev)
 
 	if (gmc_v7_0_wait_for_idle((void *)adev)) {
 		dev_warn(adev->dev, "Wait for MC idle timedout !\n");
+	}
+	if (adev->mode_info.num_crtc) {
+		/* Lockout access through VGA aperture*/
+		tmp = RREG32(mmVGA_HDP_CONTROL);
+		tmp = REG_SET_FIELD(tmp, VGA_HDP_CONTROL, VGA_MEMORY_DISABLE, 1);
+		WREG32(mmVGA_HDP_CONTROL, tmp);
+
+		/* disable VGA render */
+		tmp = RREG32(mmVGA_RENDER_CONTROL);
+		tmp = REG_SET_FIELD(tmp, VGA_RENDER_CONTROL, VGA_VSTATUS_CNTL, 0);
+		WREG32(mmVGA_RENDER_CONTROL, tmp);
 	}
 	/* Update configuration */
 	WREG32(mmMC_VM_SYSTEM_APERTURE_LOW_ADDR,
