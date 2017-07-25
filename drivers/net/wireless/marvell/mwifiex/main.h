@@ -1077,7 +1077,7 @@ int mwifiex_get_debug_info(struct mwifiex_private *,
 			   struct mwifiex_debug_info *);
 
 int mwifiex_alloc_cmd_buffer(struct mwifiex_adapter *adapter);
-int mwifiex_free_cmd_buffer(struct mwifiex_adapter *adapter);
+void mwifiex_free_cmd_buffer(struct mwifiex_adapter *adapter);
 void mwifiex_free_cmd_buffers(struct mwifiex_adapter *adapter);
 void mwifiex_cancel_all_pending_cmd(struct mwifiex_adapter *adapter);
 void mwifiex_cancel_pending_ioctl(struct mwifiex_adapter *adapter);

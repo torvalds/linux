@@ -427,7 +427,7 @@ int mwifiex_alloc_cmd_buffer(struct mwifiex_adapter *adapter)
  * The function calls the completion callback for all the command
  * buffers that still have response buffers associated with them.
  */
-int mwifiex_free_cmd_buffer(struct mwifiex_adapter *adapter)
+void mwifiex_free_cmd_buffer(struct mwifiex_adapter *adapter)
 {
 	struct cmd_ctrl_node *cmd_array;
 	u32 i;
@@ -436,7 +436,7 @@ int mwifiex_free_cmd_buffer(struct mwifiex_adapter *adapter)
 	if (!adapter->cmd_pool) {
 		mwifiex_dbg(adapter, FATAL,
 			    "info: FREE_CMD_BUF: cmd_pool is null\n");
-		return 0;
+		return;
 	}
 
 	cmd_array = adapter->cmd_pool;
@@ -464,8 +464,6 @@ int mwifiex_free_cmd_buffer(struct mwifiex_adapter *adapter)
 		kfree(adapter->cmd_pool);
 		adapter->cmd_pool = NULL;
 	}
-
-	return 0;
 }
 
 /*
