@@ -261,8 +261,17 @@ static int vc4_create_rcl_bo(struct drm_device *dev, struct vc4_exec_info *exec,
 	uint8_t max_y_tile = args->max_y_tile;
 	uint8_t xtiles = max_x_tile - min_x_tile + 1;
 	uint8_t ytiles = max_y_tile - min_y_tile + 1;
-	uint8_t x, y;
+	uint8_t xi, yi;
 	uint32_t size, loop_body_size;
+	bool positive_x = true;
+	bool positive_y = true;
+
+	if (args->flags & VC4_SUBMIT_CL_FIXED_RCL_ORDER) {
+		if (!(args->flags & VC4_SUBMIT_CL_RCL_ORDER_INCREASING_X))
+			positive_x = false;
+		if (!(args->flags & VC4_SUBMIT_CL_RCL_ORDER_INCREASING_Y))
+			positive_y = false;
+	}
 
 	size = VC4_PACKET_TILE_RENDERING_MODE_CONFIG_SIZE;
 	loop_body_size = VC4_PACKET_TILE_COORDINATES_SIZE;
@@ -354,10 +363,12 @@ static int vc4_create_rcl_bo(struct drm_device *dev, struct vc4_exec_info *exec,
 	rcl_u16(setup, args->height);
 	rcl_u16(setup, args->color_write.bits);
 
-	for (y = min_y_tile; y <= max_y_tile; y++) {
-		for (x = min_x_tile; x <= max_x_tile; x++) {
-			bool first = (x == min_x_tile && y == min_y_tile);
-			bool last = (x == max_x_tile && y == max_y_tile);
+	for (yi = 0; yi < ytiles; yi++) {
+		int y = positive_y ? min_y_tile + yi : max_y_tile - yi;
+		for (xi = 0; xi < xtiles; xi++) {
+			int x = positive_x ? min_x_tile + xi : max_x_tile - xi;
+			bool first = (xi == 0 && yi == 0);
+			bool last = (xi == xtiles - 1 && yi == ytiles - 1);
 
 			emit_tile(exec, setup, x, y, first, last);
 		}

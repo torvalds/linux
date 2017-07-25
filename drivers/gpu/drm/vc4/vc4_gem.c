@@ -1007,7 +1007,10 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 	struct ww_acquire_ctx acquire_ctx;
 	int ret = 0;
 
-	if ((args->flags & ~VC4_SUBMIT_CL_USE_CLEAR_COLOR) != 0) {
+	if ((args->flags & ~(VC4_SUBMIT_CL_USE_CLEAR_COLOR |
+			     VC4_SUBMIT_CL_FIXED_RCL_ORDER |
+			     VC4_SUBMIT_CL_RCL_ORDER_INCREASING_X |
+			     VC4_SUBMIT_CL_RCL_ORDER_INCREASING_Y)) != 0) {
 		DRM_DEBUG("Unknown flags: 0x%02x\n", args->flags);
 		return -EINVAL;
 	}

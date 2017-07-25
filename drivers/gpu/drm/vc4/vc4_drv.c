@@ -99,6 +99,7 @@ static int vc4_get_param_ioctl(struct drm_device *dev, void *data,
 	case DRM_VC4_PARAM_SUPPORTS_BRANCHES:
 	case DRM_VC4_PARAM_SUPPORTS_ETC1:
 	case DRM_VC4_PARAM_SUPPORTS_THREADED_FS:
+	case DRM_VC4_PARAM_SUPPORTS_FIXED_RCL_ORDER:
 		args->value = true;
 		break;
 	default:
