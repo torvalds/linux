@@ -1,3 +1,20 @@
+# Linux kernel patched for Up Board
+
+Based on stable kernel 4.12.1
+
+Patched files
+- drivers/platform/x86/Kconfig
+- drivers/platform/x86/Makefile
+- drivers/spi/spi-pxa2xx.c
+- include/linux/spi/pxa2xx_spi.h
+
+Added files
+- drivers/platform/x86/up_board_pinctrl.c
+- drivers/platform/x86/up_board.c
+
+Original patches and other support files are in _patch directory
+
+# Original Readme--
 Linux kernel
 ============
 

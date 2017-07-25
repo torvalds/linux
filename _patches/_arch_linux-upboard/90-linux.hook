@@ -1,0 +1,11 @@
+[Trigger]
+Type = File
+Operation = Install
+Operation = Upgrade
+Target = boot/vmlinuz-%PKGBASE%
+Target = usr/lib/initcpio/*
+
+[Action]
+Description = Updating %PKGBASE% initcpios
+When = PostTransaction
+Exec = /usr/bin/mkinitcpio -p %PKGBASE%
