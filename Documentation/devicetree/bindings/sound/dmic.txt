@@ -1,0 +1,12 @@
+Device-Tree bindings for Digital microphone (DMIC) codec
+
+This device support generic PDM digital microphone.
+
+Required properties:
+	- compatible: should be "dmic-codec".
+
+Example node:
+
+	dmic_codec: dmic@0 {
+		compatible = "dmic-codec";
+	};
