@@ -55,6 +55,12 @@ DEFINE_PER_CPU(struct intel_pqr_state, pqr_state);
  */
 int max_name_width, max_data_width;
 
+/*
+ * Global boolean for rdt_alloc which is true if any
+ * resource allocation is enabled.
+ */
+bool rdt_alloc_capable;
+
 static void
 mba_wrmsr(struct rdt_domain *d, struct msr_param *m, struct rdt_resource *r);
 static void
@@ -235,7 +241,7 @@ static bool rdt_get_mem_config(struct rdt_resource *r)
 	return true;
 }
 
-static void rdt_get_cache_config(int idx, struct rdt_resource *r)
+static void rdt_get_cache_alloc_cfg(int idx, struct rdt_resource *r)
 {
 	union cpuid_0x10_1_eax eax;
 	union cpuid_0x10_x_edx edx;
@@ -516,7 +522,7 @@ static __init void rdt_init_padding(void)
 	}
 }
 
-static __init bool get_rdt_resources(void)
+static __init bool get_rdt_alloc_resources(void)
 {
 	bool ret = false;
 
@@ -527,7 +533,7 @@ static __init bool get_rdt_resources(void)
 		return false;
 
 	if (boot_cpu_has(X86_FEATURE_CAT_L3)) {
-		rdt_get_cache_config(1, &rdt_resources_all[RDT_RESOURCE_L3]);
+		rdt_get_cache_alloc_cfg(1, &rdt_resources_all[RDT_RESOURCE_L3]);
 		if (boot_cpu_has(X86_FEATURE_CDP_L3)) {
 			rdt_get_cdp_l3_config(RDT_RESOURCE_L3DATA);
 			rdt_get_cdp_l3_config(RDT_RESOURCE_L3CODE);
@@ -536,7 +542,7 @@ static __init bool get_rdt_resources(void)
 	}
 	if (boot_cpu_has(X86_FEATURE_CAT_L2)) {
 		/* CPUID 0x10.2 fields are same format at 0x10.1 */
-		rdt_get_cache_config(2, &rdt_resources_all[RDT_RESOURCE_L2]);
+		rdt_get_cache_alloc_cfg(2, &rdt_resources_all[RDT_RESOURCE_L2]);
 		ret = true;
 	}
 
@@ -544,8 +550,30 @@ static __init bool get_rdt_resources(void)
 		if (rdt_get_mem_config(&rdt_resources_all[RDT_RESOURCE_MBA]))
 			ret = true;
 	}
-
 	return ret;
+}
+
+static __init bool get_rdt_mon_resources(void)
+{
+	if (boot_cpu_has(X86_FEATURE_CQM_OCCUP_LLC))
+		rdt_mon_features |= (1 << QOS_L3_OCCUP_EVENT_ID);
+	if (boot_cpu_has(X86_FEATURE_CQM_MBM_TOTAL))
+		rdt_mon_features |= (1 << QOS_L3_MBM_TOTAL_EVENT_ID);
+	if (boot_cpu_has(X86_FEATURE_CQM_MBM_LOCAL))
+		rdt_mon_features |= (1 << QOS_L3_MBM_LOCAL_EVENT_ID);
+
+	if (!rdt_mon_features)
+		return false;
+
+	return !rdt_get_mon_l3_config(&rdt_resources_all[RDT_RESOURCE_L3]);
+}
+
+static __init bool get_rdt_resources(void)
+{
+	rdt_alloc_capable = get_rdt_alloc_resources();
+	rdt_mon_capable = get_rdt_mon_resources();
+
+	return (rdt_mon_capable || rdt_alloc_capable);
 }
 
 static int __init intel_rdt_late_init(void)
@@ -572,6 +600,9 @@ static int __init intel_rdt_late_init(void)
 
 	for_each_alloc_capable_rdt_resource(r)
 		pr_info("Intel RDT %s allocation detected\n", r->name);
+
+	for_each_mon_capable_rdt_resource(r)
+		pr_info("Intel RDT %s monitoring detected\n", r->name);
 
 	return 0;
 }

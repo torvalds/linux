@@ -12,6 +12,29 @@
 
 #define L3_QOS_CDP_ENABLE	0x01ULL
 
+/*
+ * Event IDs are used to program IA32_QM_EVTSEL before reading event
+ * counter from IA32_QM_CTR
+ */
+#define QOS_L3_OCCUP_EVENT_ID		0x01
+#define QOS_L3_MBM_TOTAL_EVENT_ID	0x02
+#define QOS_L3_MBM_LOCAL_EVENT_ID	0x03
+
+/**
+ * struct mon_evt - Entry in the event list of a resource
+ * @evtid:		event id
+ * @name:		name of the event
+ */
+struct mon_evt {
+	u32			evtid;
+	char			*name;
+	struct list_head	list;
+};
+
+extern unsigned int intel_cqm_threshold;
+extern bool rdt_alloc_capable;
+extern bool rdt_mon_capable;
+extern unsigned int rdt_mon_features;
 /**
  * struct rdtgroup - store rdtgroup's data in resctrl file system.
  * @kn:				kernfs node
@@ -133,10 +156,17 @@ struct rdt_membw {
 	u32		*mb_map;
 };
 
+static inline bool is_llc_occupancy_enabled(void)
+{
+	return (rdt_mon_features & (1 << QOS_L3_OCCUP_EVENT_ID));
+}
+
 /**
  * struct rdt_resource - attributes of an RDT resource
  * @alloc_enabled:	Is allocation enabled on this machine
+ * @mon_enabled:		Is monitoring enabled for this feature
  * @alloc_capable:	Is allocation available on this machine
+ * @mon_capable:		Is monitor feature available on this machine
  * @name:		Name to use in "schemata" file
  * @num_closid:		Number of CLOSIDs available
  * @cache_level:	Which cache level defines scope of this resource
@@ -150,10 +180,15 @@ struct rdt_membw {
  * @nr_info_files:	Number of info files
  * @format_str:		Per resource format string to show domain value
  * @parse_ctrlval:	Per resource function pointer to parse control values
+ * @evt_list:			List of monitoring events
+ * @num_rmid:			Number of RMIDs available
+ * @mon_scale:			cqm counter * mon_scale = occupancy in bytes
  */
 struct rdt_resource {
 	bool			alloc_enabled;
+	bool			mon_enabled;
 	bool			alloc_capable;
+	bool			mon_capable;
 	char			*name;
 	int			num_closid;
 	int			cache_level;
@@ -170,6 +205,9 @@ struct rdt_resource {
 	const char		*format_str;
 	int (*parse_ctrlval)	(char *buf, struct rdt_resource *r,
 				 struct rdt_domain *d);
+	struct list_head	evt_list;
+	int			num_rmid;
+	unsigned int		mon_scale;
 };
 
 void rdt_get_cache_infofile(struct rdt_resource *r);
@@ -200,6 +238,11 @@ enum {
 	for (r = rdt_resources_all; r < rdt_resources_all + RDT_NUM_RESOURCES;\
 	     r++)							      \
 		if (r->alloc_capable)
+
+#define for_each_mon_capable_rdt_resource(r)				      \
+	for (r = rdt_resources_all; r < rdt_resources_all + RDT_NUM_RESOURCES;\
+	     r++)							      \
+		if (r->mon_capable)
 
 #define for_each_alloc_enabled_rdt_resource(r)				      \
 	for (r = rdt_resources_all; r < rdt_resources_all + RDT_NUM_RESOURCES;\
@@ -239,5 +282,6 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 				char *buf, size_t nbytes, loff_t off);
 int rdtgroup_schemata_show(struct kernfs_open_file *of,
 			   struct seq_file *s, void *v);
+int rdt_get_mon_l3_config(struct rdt_resource *r);
 
 #endif /* _ASM_X86_INTEL_RDT_H */
