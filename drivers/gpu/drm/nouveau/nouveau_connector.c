@@ -770,9 +770,6 @@ nouveau_connector_set_property(struct drm_connector *connector,
 	struct drm_encoder *encoder = to_drm_encoder(nv_encoder);
 	int ret;
 
-	if (drm_drv_uses_atomic_modeset(connector->dev))
-		return drm_atomic_helper_connector_set_property(connector, property, value);
-
 	ret = connector->funcs->atomic_set_property(&nv_connector->base,
 						    &asyc->state,
 						    property, value);

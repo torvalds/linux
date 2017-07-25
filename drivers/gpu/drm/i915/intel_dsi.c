@@ -1658,7 +1658,6 @@ static const struct drm_connector_funcs intel_dsi_connector_funcs = {
 	.early_unregister = intel_connector_unregister,
 	.destroy = intel_dsi_connector_destroy,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.set_property = drm_atomic_helper_connector_set_property,
 	.atomic_get_property = intel_digital_connector_atomic_get_property,
 	.atomic_set_property = intel_digital_connector_atomic_set_property,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,

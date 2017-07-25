@@ -318,9 +318,6 @@ drm_atomic_get_plane_state(struct drm_atomic_state *state,
 struct drm_connector_state * __must_check
 drm_atomic_get_connector_state(struct drm_atomic_state *state,
 			       struct drm_connector *connector);
-int drm_atomic_connector_set_property(struct drm_connector *connector,
-		struct drm_connector_state *state, struct drm_property *property,
-		uint64_t val);
 
 void drm_atomic_private_obj_init(struct drm_private_obj *obj,
 				 struct drm_private_state *state,
