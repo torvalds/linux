@@ -2473,28 +2473,24 @@ static int mwifiex_process_pcie_int(struct mwifiex_adapter *adapter)
 	}
 
 	if (pcie_ireg & HOST_INTR_DNLD_DONE) {
-		pcie_ireg &= ~HOST_INTR_DNLD_DONE;
 		mwifiex_dbg(adapter, INTR, "info: TX DNLD Done\n");
 		ret = mwifiex_pcie_send_data_complete(adapter);
 		if (ret)
 			return ret;
 	}
 	if (pcie_ireg & HOST_INTR_UPLD_RDY) {
-		pcie_ireg &= ~HOST_INTR_UPLD_RDY;
 		mwifiex_dbg(adapter, INTR, "info: Rx DATA\n");
 		ret = mwifiex_pcie_process_recv_data(adapter);
 		if (ret)
 			return ret;
 	}
 	if (pcie_ireg & HOST_INTR_EVENT_RDY) {
-		pcie_ireg &= ~HOST_INTR_EVENT_RDY;
 		mwifiex_dbg(adapter, INTR, "info: Rx EVENT\n");
 		ret = mwifiex_pcie_process_event_ready(adapter);
 		if (ret)
 			return ret;
 	}
 	if (pcie_ireg & HOST_INTR_CMD_DONE) {
-		pcie_ireg &= ~HOST_INTR_CMD_DONE;
 		if (adapter->cmd_sent) {
 			mwifiex_dbg(adapter, INTR,
 				    "info: CMD sent Interrupt\n");
