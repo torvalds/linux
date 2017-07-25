@@ -1043,12 +1043,14 @@ static int mwifiex_pcie_delete_cmdrsp_buf(struct mwifiex_adapter *adapter)
 		mwifiex_unmap_pci_memory(adapter, card->cmdrsp_buf,
 					 PCI_DMA_FROMDEVICE);
 		dev_kfree_skb_any(card->cmdrsp_buf);
+		card->cmdrsp_buf = NULL;
 	}
 
 	if (card && card->cmd_buf) {
 		mwifiex_unmap_pci_memory(adapter, card->cmd_buf,
 					 PCI_DMA_TODEVICE);
 		dev_kfree_skb_any(card->cmd_buf);
+		card->cmd_buf = NULL;
 	}
 	return 0;
 }
@@ -2934,7 +2936,6 @@ static void mwifiex_pcie_free_buffers(struct mwifiex_adapter *adapter)
 	mwifiex_pcie_delete_evtbd_ring(adapter);
 	mwifiex_pcie_delete_rxbd_ring(adapter);
 	mwifiex_pcie_delete_txbd_ring(adapter);
-	card->cmdrsp_buf = NULL;
 }
 
 /*
