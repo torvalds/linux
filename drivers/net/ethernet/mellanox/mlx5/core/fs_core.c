@@ -1441,6 +1441,67 @@ static bool dest_is_valid(struct mlx5_flow_destination *dest,
 	return true;
 }
 
+struct match_list {
+	struct list_head	list;
+	struct mlx5_flow_group *g;
+};
+
+struct match_list_head {
+	struct list_head  list;
+	struct match_list first;
+};
+
+static void free_match_list(struct match_list_head *head)
+{
+	if (!list_empty(&head->list)) {
+		struct match_list *iter, *match_tmp;
+
+		list_del(&head->first.list);
+		list_for_each_entry_safe(iter, match_tmp, &head->list,
+					 list) {
+			list_del(&iter->list);
+			kfree(iter);
+		}
+	}
+}
+
+static int build_match_list(struct match_list_head *match_head,
+			    struct mlx5_flow_table *ft,
+			    struct mlx5_flow_spec *spec)
+{
+	struct rhlist_head *tmp, *list;
+	struct mlx5_flow_group *g;
+	int err = 0;
+
+	rcu_read_lock();
+	INIT_LIST_HEAD(&match_head->list);
+	/* Collect all fgs which has a matching match_criteria */
+	list = rhltable_lookup(&ft->fgs_hash, spec, rhash_fg);
+	/* RCU is atomic, we can't execute FW commands here */
+	rhl_for_each_entry_rcu(g, tmp, list, hash) {
+		struct match_list *curr_match;
+
+		if (likely(list_empty(&match_head->list))) {
+			match_head->first.g = g;
+			list_add_tail(&match_head->first.list,
+				      &match_head->list);
+			continue;
+		}
+
+		curr_match = kmalloc(sizeof(*curr_match), GFP_ATOMIC);
+		if (!curr_match) {
+			free_match_list(match_head);
+			err = -ENOMEM;
+			goto out;
+		}
+		curr_match->g = g;
+		list_add_tail(&curr_match->list, &match_head->list);
+	}
+out:
+	rcu_read_unlock();
+	return err;
+}
+
 static struct mlx5_flow_handle *
 try_add_to_existing_fg(struct mlx5_flow_table *ft,
 		       struct mlx5_flow_spec *spec,
@@ -1450,38 +1511,17 @@ try_add_to_existing_fg(struct mlx5_flow_table *ft,
 {
 	struct mlx5_flow_group *g;
 	struct mlx5_flow_handle *rule;
-	struct rhlist_head *tmp, *list;
-	struct match_list {
-		struct list_head	list;
-		struct mlx5_flow_group *g;
-	} match_list, *iter;
-	LIST_HEAD(match_head);
+	struct match_list_head match_head;
+	struct match_list *iter;
+	int err;
 
-	rcu_read_lock();
 	/* Collect all fgs which has a matching match_criteria */
-	list = rhltable_lookup(&ft->fgs_hash, spec, rhash_fg);
-	rhl_for_each_entry_rcu(g, tmp, list, hash) {
-		struct match_list *curr_match;
-
-		if (likely(list_empty(&match_head))) {
-			match_list.g = g;
-			list_add_tail(&match_list.list, &match_head);
-			continue;
-		}
-		curr_match = kmalloc(sizeof(*curr_match), GFP_ATOMIC);
-
-		if (!curr_match) {
-			rcu_read_unlock();
-			rule = ERR_PTR(-ENOMEM);
-			goto free_list;
-		}
-		curr_match->g = g;
-		list_add_tail(&curr_match->list, &match_head);
-	}
-	rcu_read_unlock();
+	err = build_match_list(&match_head, ft, spec);
+	if (err)
+		return ERR_PTR(err);
 
 	/* Try to find a fg that already contains a matching fte */
-	list_for_each_entry(iter, &match_head, list) {
+	list_for_each_entry(iter, &match_head.list, list) {
 		struct fs_fte *fte;
 
 		g = iter->g;
@@ -1500,7 +1540,7 @@ try_add_to_existing_fg(struct mlx5_flow_table *ft,
 	/* No group with matching fte found. Try to add a new fte to any
 	 * matching fg.
 	 */
-	list_for_each_entry(iter, &match_head, list) {
+	list_for_each_entry(iter, &match_head.list, list) {
 		g = iter->g;
 
 		nested_lock_ref_node(&g->node, FS_MUTEX_PARENT);
@@ -1516,19 +1556,7 @@ try_add_to_existing_fg(struct mlx5_flow_table *ft,
 	rule = ERR_PTR(-ENOENT);
 
 free_list:
-	if (!list_empty(&match_head)) {
-		struct match_list *match_tmp;
-
-		/* The most common case is having one FG. Since we want to
-		 * optimize this case, we save the first on the stack.
-		 * Therefore, no need to free it.
-		 */
-		list_del(&list_first_entry(&match_head, typeof(*iter), list)->list);
-		list_for_each_entry_safe(iter, match_tmp, &match_head, list) {
-			list_del(&iter->list);
-			kfree(iter);
-		}
-	}
+	free_match_list(&match_head);
 
 	return rule;
 }
