@@ -199,7 +199,7 @@ EXPORT_SYMBOL(phy_aneg_done);
 struct phy_setting {
 	int speed;
 	int duplex;
-	u32 setting;
+	int bit;
 };
 
 /* A mapping of all SUPPORTED settings to speed/duplex.  This table
@@ -209,57 +209,57 @@ static const struct phy_setting settings[] = {
 	{
 		.speed = SPEED_10000,
 		.duplex = DUPLEX_FULL,
-		.setting = SUPPORTED_10000baseKR_Full,
+		.bit = ETHTOOL_LINK_MODE_10000baseKR_Full_BIT,
 	},
 	{
 		.speed = SPEED_10000,
 		.duplex = DUPLEX_FULL,
-		.setting = SUPPORTED_10000baseKX4_Full,
+		.bit = ETHTOOL_LINK_MODE_10000baseKX4_Full_BIT,
 	},
 	{
 		.speed = SPEED_10000,
 		.duplex = DUPLEX_FULL,
-		.setting = SUPPORTED_10000baseT_Full,
+		.bit = ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
 	},
 	{
 		.speed = SPEED_2500,
 		.duplex = DUPLEX_FULL,
-		.setting = SUPPORTED_2500baseX_Full,
+		.bit = ETHTOOL_LINK_MODE_2500baseX_Full_BIT,
 	},
 	{
 		.speed = SPEED_1000,
 		.duplex = DUPLEX_FULL,
-		.setting = SUPPORTED_1000baseKX_Full,
+		.bit = ETHTOOL_LINK_MODE_1000baseKX_Full_BIT,
 	},
 	{
 		.speed = SPEED_1000,
 		.duplex = DUPLEX_FULL,
-		.setting = SUPPORTED_1000baseT_Full,
+		.bit = ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
 	},
 	{
 		.speed = SPEED_1000,
 		.duplex = DUPLEX_HALF,
-		.setting = SUPPORTED_1000baseT_Half,
+		.bit = ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
 	},
 	{
 		.speed = SPEED_100,
 		.duplex = DUPLEX_FULL,
-		.setting = SUPPORTED_100baseT_Full,
+		.bit = ETHTOOL_LINK_MODE_100baseT_Full_BIT,
 	},
 	{
 		.speed = SPEED_100,
 		.duplex = DUPLEX_HALF,
-		.setting = SUPPORTED_100baseT_Half,
+		.bit = ETHTOOL_LINK_MODE_100baseT_Half_BIT,
 	},
 	{
 		.speed = SPEED_10,
 		.duplex = DUPLEX_FULL,
-		.setting = SUPPORTED_10baseT_Full,
+		.bit = ETHTOOL_LINK_MODE_10baseT_Full_BIT,
 	},
 	{
 		.speed = SPEED_10,
 		.duplex = DUPLEX_HALF,
-		.setting = SUPPORTED_10baseT_Half,
+		.bit = ETHTOOL_LINK_MODE_10baseT_Half_BIT,
 	},
 };
 
@@ -267,7 +267,8 @@ static const struct phy_setting settings[] = {
  * phy_lookup_setting - lookup a PHY setting
  * @speed: speed to match
  * @duplex: duplex to match
- * @features: allowed link modes
+ * @mask: allowed link modes
+ * @maxbit: bit size of link modes
  * @exact: an exact match is required
  *
  * Search the settings array for a setting that matches the speed and
@@ -281,13 +282,14 @@ static const struct phy_setting settings[] = {
  * they all fail, %NULL will be returned.
  */
 static const struct phy_setting *
-phy_lookup_setting(int speed, int duplex, u32 features, bool exact)
+phy_lookup_setting(int speed, int duplex, const unsigned long *mask,
+		   size_t maxbit, bool exact)
 {
 	const struct phy_setting *p, *match = NULL, *last = NULL;
 	int i;
 
 	for (i = 0, p = settings; i < ARRAY_SIZE(settings); i++, p++) {
-		if (p->setting & features) {
+		if (p->bit < maxbit && test_bit(p->bit, mask)) {
 			last = p;
 			if (p->speed == speed && p->duplex == duplex) {
 				/* Exact match for speed and duplex */
@@ -326,7 +328,9 @@ phy_lookup_setting(int speed, int duplex, u32 features, bool exact)
 static const struct phy_setting *
 phy_find_valid(int speed, int duplex, u32 supported)
 {
-	return phy_lookup_setting(speed, duplex, supported, false);
+	unsigned long mask = supported;
+
+	return phy_lookup_setting(speed, duplex, &mask, BITS_PER_LONG, false);
 }
 
 /**
@@ -343,12 +347,14 @@ unsigned int phy_supported_speeds(struct phy_device *phy,
 				  unsigned int *speeds,
 				  unsigned int size)
 {
+	unsigned long supported = phy->supported;
 	unsigned int count = 0;
 	unsigned int idx = 0;
 
 	for (idx = 0; idx < ARRAY_SIZE(settings) && count < size; idx++)
 		/* Assumes settings are grouped by speed */
-		if ((settings[idx].setting & phy->supported) &&
+		if (settings[idx].bit < BITS_PER_LONG &&
+		    !test_bit(settings[idx].bit, &supported) &&
 		    (count == 0 || speeds[count - 1] != settings[idx].speed))
 			speeds[count++] = settings[idx].speed;
 
@@ -366,7 +372,9 @@ unsigned int phy_supported_speeds(struct phy_device *phy,
  */
 static inline bool phy_check_valid(int speed, int duplex, u32 features)
 {
-	return !!phy_lookup_setting(speed, duplex, features, true);
+	unsigned long mask = features;
+
+	return !!phy_lookup_setting(speed, duplex, &mask, BITS_PER_LONG, true);
 }
 
 /**
