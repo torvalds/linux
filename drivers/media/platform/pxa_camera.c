@@ -639,7 +639,7 @@ static unsigned int pxa_mbus_config_compatible(const struct v4l2_mbus_config *cf
 					     V4L2_MBUS_CSI2_CONTINUOUS_CLOCK);
 		return (!mipi_lanes || !mipi_clock) ? 0 : common_flags;
 	default:
-		__WARN();
+		WARN_ON(1);
 		return -EINVAL;
 	}
 	return 0;
