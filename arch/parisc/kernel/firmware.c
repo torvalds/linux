@@ -1481,12 +1481,19 @@ int pdc_pat_mem_read_pd_pdt(struct pdc_pat_mem_read_pd_retinfo *pret,
 		unsigned long offset)
 {
 	int retval;
-	unsigned long flags;
+	unsigned long flags, entries;
 
 	spin_lock_irqsave(&pdc_lock, flags);
 	retval = mem_pdc_call(PDC_PAT_MEM, PDC_PAT_MEM_PD_READ,
-		__pa(&pret), __pa(pdt_entries_ptr),
+		__pa(&pdc_result), __pa(pdt_entries_ptr),
 		count, offset);
+
+	if (retval == PDC_OK) {
+		entries = min(pdc_result[0], count);
+		pret->actual_count_bytes = entries;
+		pret->pdt_entries = entries / sizeof(unsigned long);
+	}
+
 	spin_unlock_irqrestore(&pdc_lock, flags);
 
 	return retval;

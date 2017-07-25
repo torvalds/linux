@@ -112,10 +112,12 @@ void __init pdc_pdt_init(void)
 #ifdef CONFIG_64BIT
 		struct pdc_pat_mem_read_pd_retinfo pat_pret;
 
+		/* try old obsolete PAT firmware function first */
+		pdt_type = PDT_PAT_OLD;
 		ret = pdc_pat_mem_read_cell_pdt(&pat_pret, pdt_entry,
 			MAX_PDT_ENTRIES);
 		if (ret != PDC_OK) {
-			pdt_type = PDT_PAT_OLD;
+			pdt_type = PDT_PAT_NEW;
 			ret = pdc_pat_mem_read_pd_pdt(&pat_pret, pdt_entry,
 				MAX_PDT_TABLE_SIZE, 0);
 		}
