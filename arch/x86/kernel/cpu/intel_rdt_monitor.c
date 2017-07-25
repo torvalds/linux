@@ -296,7 +296,8 @@ void free_rmid(u32 rmid)
 
 static int __mon_event_count(u32 rmid, struct rmid_read *rr)
 {
-	u64 tval;
+	u64 chunks, shift, tval;
+	struct mbm_state *m;
 
 	tval = __rmid_read(rmid, rr->evtid);
 	if (tval & (RMID_VAL_ERROR | RMID_VAL_UNAVAIL)) {
@@ -307,6 +308,12 @@ static int __mon_event_count(u32 rmid, struct rmid_read *rr)
 	case QOS_L3_OCCUP_EVENT_ID:
 		rr->val += tval;
 		return 0;
+	case QOS_L3_MBM_TOTAL_EVENT_ID:
+		m = &rr->d->mbm_total[rmid];
+		break;
+	case QOS_L3_MBM_LOCAL_EVENT_ID:
+		m = &rr->d->mbm_local[rmid];
+		break;
 	default:
 		/*
 		 * Code would never reach here because
@@ -314,6 +321,14 @@ static int __mon_event_count(u32 rmid, struct rmid_read *rr)
 		 */
 		return -EINVAL;
 	}
+	shift = 64 - MBM_CNTR_WIDTH;
+	chunks = (tval << shift) - (m->prev_msr << shift);
+	chunks >>= shift;
+	m->chunks += chunks;
+	m->prev_msr = tval;
+
+	rr->val += m->chunks;
+	return 0;
 }
 
 /*
@@ -377,6 +392,16 @@ static struct mon_evt llc_occupancy_event = {
 	.evtid		= QOS_L3_OCCUP_EVENT_ID,
 };
 
+static struct mon_evt mbm_total_event = {
+	.name		= "mbm_total_bytes",
+	.evtid		= QOS_L3_MBM_TOTAL_EVENT_ID,
+};
+
+static struct mon_evt mbm_local_event = {
+	.name		= "mbm_local_bytes",
+	.evtid		= QOS_L3_MBM_LOCAL_EVENT_ID,
+};
+
 /*
  * Initialize the event list for the resource.
  *
@@ -390,6 +415,10 @@ static void l3_mon_evt_init(struct rdt_resource *r)
 
 	if (is_llc_occupancy_enabled())
 		list_add_tail(&llc_occupancy_event.list, &r->evt_list);
+	if (is_mbm_total_enabled())
+		list_add_tail(&mbm_total_event.list, &r->evt_list);
+	if (is_mbm_local_enabled())
+		list_add_tail(&mbm_local_event.list, &r->evt_list);
 }
 
 int rdt_get_mon_l3_config(struct rdt_resource *r)

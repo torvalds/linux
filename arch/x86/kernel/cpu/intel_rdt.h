@@ -19,6 +19,9 @@
 #define QOS_L3_OCCUP_EVENT_ID		0x01
 #define QOS_L3_MBM_TOTAL_EVENT_ID	0x02
 #define QOS_L3_MBM_LOCAL_EVENT_ID	0x03
+
+#define MBM_CNTR_WIDTH			24
+
 #define RMID_VAL_ERROR			BIT_ULL(63)
 #define RMID_VAL_UNAVAIL		BIT_ULL(62)
 
@@ -50,6 +53,7 @@ union mon_data_bits {
 
 struct rmid_read {
 	struct rdtgroup		*rgrp;
+	struct rdt_domain	*d;
 	int			evtid;
 	u64			val;
 };
@@ -160,12 +164,24 @@ struct rftype {
 };
 
 /**
+ * struct mbm_state - status for each MBM counter in each domain
+ * @chunks:	Total data moved (multiply by rdt_group.mon_scale to get bytes)
+ * @prev_msr	Value of IA32_QM_CTR for this RMID last time we read it
+ */
+struct mbm_state {
+	u64	chunks;
+	u64	prev_msr;
+};
+
+/**
  * struct rdt_domain - group of cpus sharing an RDT resource
  * @list:	all instances of this resource
  * @id:		unique id for this instance
  * @cpu_mask:	which cpus share this resource
  * @rmid_busy_llc:
  *		bitmap of which limbo RMIDs are above threshold
+ * @mbm_total:	saved state for MBM total bandwidth
+ * @mbm_local:	saved state for MBM local bandwidth
  * @ctrl_val:	array of cache or mem ctrl values (indexed by CLOSID)
  * @new_ctrl:	new ctrl value to be loaded
  * @have_new_ctrl: did user provide new_ctrl for this domain
@@ -175,6 +191,8 @@ struct rdt_domain {
 	int			id;
 	struct cpumask		cpu_mask;
 	unsigned long		*rmid_busy_llc;
+	struct mbm_state	*mbm_total;
+	struct mbm_state	*mbm_local;
 	u32			*ctrl_val;
 	u32			new_ctrl;
 	bool			have_new_ctrl;
@@ -228,6 +246,21 @@ struct rdt_membw {
 static inline bool is_llc_occupancy_enabled(void)
 {
 	return (rdt_mon_features & (1 << QOS_L3_OCCUP_EVENT_ID));
+}
+
+static inline bool is_mbm_total_enabled(void)
+{
+	return (rdt_mon_features & (1 << QOS_L3_MBM_TOTAL_EVENT_ID));
+}
+
+static inline bool is_mbm_local_enabled(void)
+{
+	return (rdt_mon_features & (1 << QOS_L3_MBM_LOCAL_EVENT_ID));
+}
+
+static inline bool is_mbm_enabled(void)
+{
+	return (is_mbm_total_enabled() || is_mbm_local_enabled());
 }
 
 /**

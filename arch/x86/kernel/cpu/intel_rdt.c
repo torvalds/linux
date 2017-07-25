@@ -420,12 +420,31 @@ static int domain_setup_ctrlval(struct rdt_resource *r, struct rdt_domain *d)
 
 static int domain_setup_mon_state(struct rdt_resource *r, struct rdt_domain *d)
 {
+	size_t tsize;
+
 	if (is_llc_occupancy_enabled()) {
 		d->rmid_busy_llc = kcalloc(BITS_TO_LONGS(r->num_rmid),
 					   sizeof(unsigned long),
 					   GFP_KERNEL);
 		if (!d->rmid_busy_llc)
 			return -ENOMEM;
+	}
+	if (is_mbm_total_enabled()) {
+		tsize = sizeof(*d->mbm_total);
+		d->mbm_total = kcalloc(r->num_rmid, tsize, GFP_KERNEL);
+		if (!d->mbm_total) {
+			kfree(d->rmid_busy_llc);
+			return -ENOMEM;
+		}
+	}
+	if (is_mbm_local_enabled()) {
+		tsize = sizeof(*d->mbm_local);
+		d->mbm_local = kcalloc(r->num_rmid, tsize, GFP_KERNEL);
+		if (!d->mbm_local) {
+			kfree(d->rmid_busy_llc);
+			kfree(d->mbm_total);
+			return -ENOMEM;
+		}
 	}
 
 	return 0;
@@ -466,6 +485,7 @@ static void domain_add_cpu(int cpu, struct rdt_resource *r)
 		return;
 
 	d->id = id;
+	cpumask_set_cpu(cpu, &d->cpu_mask);
 
 	if (r->alloc_capable && domain_setup_ctrlval(r, d)) {
 		kfree(d);
@@ -477,7 +497,6 @@ static void domain_add_cpu(int cpu, struct rdt_resource *r)
 		return;
 	}
 
-	cpumask_set_cpu(cpu, &d->cpu_mask);
 	list_add_tail(&d->list, add_pos);
 
 	/*
@@ -509,6 +528,8 @@ static void domain_remove_cpu(int cpu, struct rdt_resource *r)
 			rmdir_mondata_subdir_allrdtgrp(r, d->id);
 		kfree(d->ctrl_val);
 		kfree(d->rmid_busy_llc);
+		kfree(d->mbm_total);
+		kfree(d->mbm_local);
 		list_del(&d->list);
 		kfree(d);
 	}

@@ -294,6 +294,7 @@ void mon_event_read(struct rmid_read *rr, struct rdt_domain *d,
 	 */
 	rr->rgrp = rdtgrp;
 	rr->evtid = evtid;
+	rr->d = d;
 	rr->val = 0;
 
 	smp_call_function_any(&d->cpu_mask, mon_event_count, rr, 1);
