@@ -32,8 +32,8 @@
 
 #include <uapi/linux/magic.h>
 
-#include <asm/intel_rdt.h>
-#include <asm/intel_rdt_common.h>
+#include <asm/intel_rdt_sched.h>
+#include "intel_rdt.h"
 
 DEFINE_STATIC_KEY_FALSE(rdt_enable_key);
 struct kernfs_root *rdt_root;

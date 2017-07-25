@@ -30,7 +30,8 @@
 #include <linux/cpuhotplug.h>
 
 #include <asm/intel-family.h>
-#include <asm/intel_rdt.h>
+#include <asm/intel_rdt_sched.h>
+#include "intel_rdt.h"
 
 #define MAX_MBA_BW	100u
 #define MBA_IS_LINEAR	0x4
@@ -455,7 +456,7 @@ static void clear_closid(int cpu)
 
 	per_cpu(cpu_closid, cpu) = 0;
 	state->closid = 0;
-	wrmsr(MSR_IA32_PQR_ASSOC, state->rmid, 0);
+	wrmsr(IA32_PQR_ASSOC, state->rmid, 0);
 }
 
 static int intel_rdt_online_cpu(unsigned int cpu)

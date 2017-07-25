@@ -56,7 +56,7 @@
 #include <asm/debugreg.h>
 #include <asm/switch_to.h>
 #include <asm/vm86.h>
-#include <asm/intel_rdt.h>
+#include <asm/intel_rdt_sched.h>
 #include <asm/proto.h>
 
 void __show_regs(struct pt_regs *regs, int all)
