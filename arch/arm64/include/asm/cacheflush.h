@@ -150,6 +150,6 @@ static inline void flush_cache_vunmap(unsigned long start, unsigned long end)
 {
 }
 
-int set_memory_valid(unsigned long addr, unsigned long size, int enable);
+int set_memory_valid(unsigned long addr, int numpages, int enable);
 
 #endif
