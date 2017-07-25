@@ -200,6 +200,11 @@ config LED_TRIGGER_PHY
 
 comment "MII PHY device drivers"
 
+config SFP
+	tristate "SFP cage support"
+	depends on I2C && PHYLINK
+	select MDIO_I2C
+
 config AMD_PHY
 	tristate "AMD PHYs"
 	---help---
