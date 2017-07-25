@@ -16,6 +16,8 @@
 #include "bnxt.h"
 #include "bnxt_vfr.h"
 
+#ifdef CONFIG_BNXT_SRIOV
+
 #define CFA_HANDLE_INVALID		0xffff
 #define VF_IDX_INVALID			0xffff
 
@@ -487,3 +489,5 @@ void bnxt_dl_unregister(struct bnxt *bp)
 	devlink_unregister(dl);
 	devlink_free(dl);
 }
+
+#endif
