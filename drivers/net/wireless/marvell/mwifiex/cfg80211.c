@@ -3123,11 +3123,7 @@ int mwifiex_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 		priv->dfs_chan_sw_workqueue = NULL;
 	}
 	/* Clear the priv in adapter */
-	priv->netdev->ieee80211_ptr = NULL;
 	priv->netdev = NULL;
-	priv->wdev.iftype = NL80211_IFTYPE_UNSPECIFIED;
-
-	priv->media_connected = false;
 
 	switch (priv->bss_mode) {
 	case NL80211_IFTYPE_UNSPECIFIED:
