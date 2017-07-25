@@ -223,7 +223,9 @@ static s64 __init test_rhashtable(struct rhashtable *ht)
 
 	pr_info("  Deleting %d keys\n", entries);
 	for (i = 0; i < entries; i++) {
-		u32 key = i * 2;
+		struct test_obj_val key = {
+			.id = i * 2,
+		};
 
 		if (array[i].value.id != TEST_INSERT_FAIL) {
 			obj = rhashtable_lookup_fast(ht, &key, test_rht_params);
