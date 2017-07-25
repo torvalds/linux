@@ -120,6 +120,7 @@ struct nfp_eth_table_port *nfp_port_get_eth_port(struct nfp_port *port);
 
 int
 nfp_port_get_phys_port_name(struct net_device *netdev, char *name, size_t len);
+int nfp_port_configure(struct net_device *netdev, bool configed);
 
 struct nfp_port *
 nfp_port_alloc(struct nfp_app *app, enum nfp_port_type type,

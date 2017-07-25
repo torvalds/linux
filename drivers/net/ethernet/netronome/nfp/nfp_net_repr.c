@@ -239,15 +239,34 @@ static netdev_tx_t nfp_repr_xmit(struct sk_buff *skb, struct net_device *netdev)
 static int nfp_repr_stop(struct net_device *netdev)
 {
 	struct nfp_repr *repr = netdev_priv(netdev);
+	int err;
 
-	return nfp_app_repr_stop(repr->app, repr);
+	err = nfp_app_repr_stop(repr->app, repr);
+	if (err)
+		return err;
+
+	nfp_port_configure(netdev, false);
+	return 0;
 }
 
 static int nfp_repr_open(struct net_device *netdev)
 {
 	struct nfp_repr *repr = netdev_priv(netdev);
+	int err;
 
-	return nfp_app_repr_open(repr->app, repr);
+	err = nfp_port_configure(netdev, true);
+	if (err)
+		return err;
+
+	err = nfp_app_repr_open(repr->app, repr);
+	if (err)
+		goto err_port_disable;
+
+	return 0;
+
+err_port_disable:
+	nfp_port_configure(netdev, false);
+	return err;
 }
 
 const struct net_device_ops nfp_repr_netdev_ops = {

@@ -181,6 +181,33 @@ nfp_port_get_phys_port_name(struct net_device *netdev, char *name, size_t len)
 	return 0;
 }
 
+/**
+ * nfp_port_configure() - helper to set the interface configured bit
+ * @netdev:	net_device instance
+ * @configed:	Desired state
+ *
+ * Helper to set the ifup/ifdown state on the PHY only if there is a physical
+ * interface associated with the netdev.
+ *
+ * Return:
+ * 0 - configuration successful (or no change);
+ * -ERRNO - configuration failed.
+ */
+int nfp_port_configure(struct net_device *netdev, bool configed)
+{
+	struct nfp_eth_table_port *eth_port;
+	struct nfp_port *port;
+	int err;
+
+	port = nfp_port_from_netdev(netdev);
+	eth_port = __nfp_port_get_eth_port(port);
+	if (!eth_port)
+		return 0;
+
+	err = nfp_eth_set_configured(port->app->cpp, eth_port->index, configed);
+	return err < 0 && err != -EOPNOTSUPP ? err : 0;
+}
+
 int nfp_port_init_phy_port(struct nfp_pf *pf, struct nfp_app *app,
 			   struct nfp_port *port, unsigned int id)
 {
