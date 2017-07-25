@@ -579,8 +579,14 @@ static int ds1wm_probe(struct platform_device *pdev)
 
 	ret = devm_request_irq(&pdev->dev, ds1wm_data->irq, ds1wm_isr,
 			IRQF_SHARED, "ds1wm", ds1wm_data);
-	if (ret)
+	if (ret) {
+		dev_err(&ds1wm_data->pdev->dev,
+			"devm_request_irq %d failed with errno %d\n",
+			ds1wm_data->irq,
+			ret);
+
 		return ret;
+	}
 
 	ds1wm_up(ds1wm_data);
 
@@ -590,6 +596,13 @@ static int ds1wm_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
+	dev_dbg(&ds1wm_data->pdev->dev,
+		"ds1wm: probe successful, IAS: %d, rec.delay: %d, clockrate: %d, bus-shift: %d, is Hw Big Endian: %d\n",
+		plat->active_high,
+		plat->reset_recover_delay,
+		plat->clock_rate,
+		ds1wm_data->bus_shift,
+		ds1wm_data->is_hw_big_endian);
 	return 0;
 
 err:
