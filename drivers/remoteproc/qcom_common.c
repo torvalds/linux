@@ -18,6 +18,7 @@
 #include <linux/firmware.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/notifier.h>
 #include <linux/remoteproc.h>
 #include <linux/rpmsg/qcom_smd.h>
 
@@ -25,6 +26,9 @@
 #include "qcom_common.h"
 
 #define to_smd_subdev(d) container_of(d, struct qcom_rproc_subdev, subdev)
+#define to_ssr_subdev(d) container_of(d, struct qcom_rproc_ssr, subdev)
+
+BLOCKING_NOTIFIER_HEAD(ssr_notifiers);
 
 /**
  * qcom_mdt_find_rsc_table() - provide dummy resource table for remoteproc
@@ -91,6 +95,73 @@ void qcom_remove_smd_subdev(struct rproc *rproc, struct qcom_rproc_subdev *smd)
 	of_node_put(smd->node);
 }
 EXPORT_SYMBOL_GPL(qcom_remove_smd_subdev);
+
+/**
+ * qcom_register_ssr_notifier() - register SSR notification handler
+ * @nb:		notifier_block to notify for restart notifications
+ *
+ * Returns 0 on success, negative errno on failure.
+ *
+ * This register the @notify function as handler for restart notifications. As
+ * remote processors are stopped this function will be called, with the SSR
+ * name passed as a parameter.
+ */
+int qcom_register_ssr_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&ssr_notifiers, nb);
+}
+EXPORT_SYMBOL_GPL(qcom_register_ssr_notifier);
+
+/**
+ * qcom_unregister_ssr_notifier() - unregister SSR notification handler
+ * @nb:		notifier_block to unregister
+ */
+void qcom_unregister_ssr_notifier(struct notifier_block *nb)
+{
+	blocking_notifier_chain_unregister(&ssr_notifiers, nb);
+}
+EXPORT_SYMBOL_GPL(qcom_unregister_ssr_notifier);
+
+static int ssr_notify_start(struct rproc_subdev *subdev)
+{
+	return  0;
+}
+
+static void ssr_notify_stop(struct rproc_subdev *subdev)
+{
+	struct qcom_rproc_ssr *ssr = to_ssr_subdev(subdev);
+
+	blocking_notifier_call_chain(&ssr_notifiers, 0, (void *)ssr->name);
+}
+
+/**
+ * qcom_add_ssr_subdev() - register subdevice as restart notification source
+ * @rproc:	rproc handle
+ * @ssr:	SSR subdevice handle
+ * @ssr_name:	identifier to use for notifications originating from @rproc
+ *
+ * As the @ssr is registered with the @rproc SSR events will be sent to all
+ * registered listeners in the system as the remoteproc is shut down.
+ */
+void qcom_add_ssr_subdev(struct rproc *rproc, struct qcom_rproc_ssr *ssr,
+			 const char *ssr_name)
+{
+	ssr->name = ssr_name;
+
+	rproc_add_subdev(rproc, &ssr->subdev, ssr_notify_start, ssr_notify_stop);
+}
+EXPORT_SYMBOL_GPL(qcom_add_ssr_subdev);
+
+/**
+ * qcom_remove_ssr_subdev() - remove subdevice as restart notification source
+ * @rproc:	rproc handle
+ * @ssr:	SSR subdevice handle
+ */
+void qcom_remove_ssr_subdev(struct rproc *rproc, struct qcom_rproc_ssr *ssr)
+{
+	rproc_remove_subdev(rproc, &ssr->subdev);
+}
+EXPORT_SYMBOL_GPL(qcom_remove_ssr_subdev);
 
 MODULE_DESCRIPTION("Qualcomm Remoteproc helper driver");
 MODULE_LICENSE("GPL v2");
