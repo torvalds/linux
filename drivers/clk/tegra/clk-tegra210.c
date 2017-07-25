@@ -2701,7 +2701,7 @@ static void __init tegra210_pll_init(void __iomem *clk_base,
 	struct clk *clk;
 
 	/* PLLC */
-	clk = tegra_clk_register_pllxc_tegra210("pll_c", "pll_ref", clk_base,
+	clk = tegra_clk_register_pllc_tegra210("pll_c", "pll_ref", clk_base,
 			pmc, 0, &pll_c_params, NULL);
 	if (!WARN_ON(IS_ERR(clk)))
 		clk_register_clkdev(clk, "pll_c", NULL);

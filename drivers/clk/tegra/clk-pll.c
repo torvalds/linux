@@ -2610,46 +2610,6 @@ struct clk *tegra_clk_register_pllc_tegra210(const char *name,
 	return clk;
 }
 
-struct clk *tegra_clk_register_pllxc_tegra210(const char *name,
-			const char *parent_name, void __iomem *clk_base,
-			void __iomem *pmc, unsigned long flags,
-			struct tegra_clk_pll_params *pll_params,
-			spinlock_t *lock)
-{
-	struct tegra_clk_pll *pll;
-	struct clk *clk, *parent;
-	unsigned long parent_rate;
-
-	parent = __clk_lookup(parent_name);
-	if (!parent) {
-		WARN(1, "parent clk %s of %s must be registered first\n",
-			name, parent_name);
-		return ERR_PTR(-EINVAL);
-	}
-
-	if (!pll_params->pdiv_tohw)
-		return ERR_PTR(-EINVAL);
-
-	parent_rate = clk_get_rate(parent);
-
-	pll_params->vco_min = _clip_vco_min(pll_params->vco_min, parent_rate);
-
-	if (pll_params->adjust_vco)
-		pll_params->vco_min = pll_params->adjust_vco(pll_params,
-							     parent_rate);
-
-	pll = _tegra_init_pll(clk_base, pmc, pll_params, lock);
-	if (IS_ERR(pll))
-		return ERR_CAST(pll);
-
-	clk = _tegra_clk_register_pll(pll, name, parent_name, flags,
-				      &tegra_clk_pll_ops);
-	if (IS_ERR(clk))
-		kfree(pll);
-
-	return clk;
-}
-
 struct clk *tegra_clk_register_pllss_tegra210(const char *name,
 				const char *parent_name, void __iomem *clk_base,
 				unsigned long flags,
