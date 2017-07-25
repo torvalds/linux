@@ -261,6 +261,7 @@ static u64 pnv_deepest_stop_psscr_val;
 static u64 pnv_deepest_stop_psscr_mask;
 static bool deepest_stop_found;
 
+#ifdef CONFIG_HOTPLUG_CPU
 /*
  * pnv_cpu_offline: A function that puts the CPU into the deepest
  * available platform idle state on a CPU-Offline.
@@ -293,6 +294,7 @@ unsigned long pnv_cpu_offline(unsigned int cpu)
 
 	return srr1;
 }
+#endif
 
 /*
  * Power ISA 3.0 idle initialization.
