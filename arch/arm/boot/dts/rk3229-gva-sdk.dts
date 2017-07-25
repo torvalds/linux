@@ -128,11 +128,11 @@
 };
 
 &nandc {
-	status = "okay";
+	status = "disabled";
 };
 
 &emmc {
-	status = "disabled";
+	status = "okay";
 };
 
 &i2c0 {
@@ -269,6 +269,17 @@
 				};
 			};
 		};
+	};
+};
+
+&i2c1 {
+	status = "okay";
+	ts@8 {
+		compatible = "cypress,cy8c4024";
+		reg = <0x8>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <RK_PA1 IRQ_TYPE_LEVEL_LOW>;
+		status = "okay";
 	};
 };
 
