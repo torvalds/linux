@@ -1686,6 +1686,17 @@ __nf_ct_unconfirmed_destroy(struct net *net)
 	}
 }
 
+void nf_ct_unconfirmed_destroy(struct net *net)
+{
+	might_sleep();
+
+	if (atomic_read(&net->ct.count) > 0) {
+		__nf_ct_unconfirmed_destroy(net);
+		synchronize_net();
+	}
+}
+EXPORT_SYMBOL_GPL(nf_ct_unconfirmed_destroy);
+
 void nf_ct_iterate_cleanup_net(struct net *net,
 			       int (*iter)(struct nf_conn *i, void *data),
 			       void *data, u32 portid, int report)
@@ -1697,13 +1708,9 @@ void nf_ct_iterate_cleanup_net(struct net *net,
 	if (atomic_read(&net->ct.count) == 0)
 		return;
 
-	__nf_ct_unconfirmed_destroy(net);
-
 	d.iter = iter;
 	d.data = data;
 	d.net = net;
-
-	synchronize_net();
 
 	nf_ct_iterate_cleanup(iter_net_only, &d, portid, report);
 }

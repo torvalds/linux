@@ -570,6 +570,7 @@ static void __net_exit cttimeout_net_exit(struct net *net)
 {
 	struct ctnl_timeout *cur, *tmp;
 
+	nf_ct_unconfirmed_destroy(net);
 	ctnl_untimeout(net, NULL);
 
 	list_for_each_entry_safe(cur, tmp, &net->nfct_timeout_list, head) {
