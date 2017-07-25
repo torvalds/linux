@@ -146,6 +146,7 @@ struct rockchip_drm_private {
 
 	struct rockchip_atomic_commit commit;
 	struct iommu_domain *domain;
+	struct gen_pool *secure_buffer_pool;
 #ifdef CONFIG_DRM_DMA_SYNC
 	unsigned int cpu_fence_context;
 	atomic_t cpu_fence_seqno;
