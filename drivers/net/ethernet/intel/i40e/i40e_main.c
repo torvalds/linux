@@ -11093,6 +11093,7 @@ static int i40e_setup_pf_switch(struct i40e_pf *pf, bool reinit)
 static void i40e_determine_queue_usage(struct i40e_pf *pf)
 {
 	int queues_left;
+	int q_max;
 
 	pf->num_lan_qps = 0;
 
@@ -11139,10 +11140,12 @@ static void i40e_determine_queue_usage(struct i40e_pf *pf)
 					I40E_FLAG_DCB_ENABLED);
 			dev_info(&pf->pdev->dev, "not enough queues for DCB. DCB is disabled.\n");
 		}
-		pf->num_lan_qps = max_t(int, pf->rss_size_max,
-					num_online_cpus());
-		pf->num_lan_qps = min_t(int, pf->num_lan_qps,
-					pf->hw.func_caps.num_tx_qp);
+
+		/* limit lan qps to the smaller of qps, cpus or msix */
+		q_max = max_t(int, pf->rss_size_max, num_online_cpus());
+		q_max = min_t(int, q_max, pf->hw.func_caps.num_tx_qp);
+		q_max = min_t(int, q_max, pf->hw.func_caps.num_msix_vectors);
+		pf->num_lan_qps = q_max;
 
 		queues_left -= pf->num_lan_qps;
 	}
