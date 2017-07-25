@@ -849,7 +849,7 @@ static void decode_mc6_mce(struct mce *m)
 }
 
 /* Decode errors according to Scalable MCA specification */
-static void decode_smca_errors(struct mce *m)
+static void decode_smca_error(struct mce *m)
 {
 	struct smca_hwid *hwid;
 	unsigned int bank_type;
@@ -998,7 +998,7 @@ amd_decode_mce(struct notifier_block *nb, unsigned long val, void *data)
 
 		pr_cont("\n");
 
-		decode_smca_errors(m);
+		decode_smca_error(m);
 		goto err_code;
 	}
 
