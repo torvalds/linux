@@ -147,7 +147,7 @@
 			enable-method = "psci";
 			#cooling-cells = <2>; /* min followed by max */
 			clocks = <&cru ARMCLKB>;
-			dynamic-power-coefficient = <100>;
+			dynamic-power-coefficient = <436>;
 		};
 
 		cpu_b1: cpu@101 {
@@ -156,7 +156,7 @@
 			reg = <0x0 0x101>;
 			enable-method = "psci";
 			clocks = <&cru ARMCLKB>;
-			dynamic-power-coefficient = <100>;
+			dynamic-power-coefficient = <436>;
 		};
 	};
 
