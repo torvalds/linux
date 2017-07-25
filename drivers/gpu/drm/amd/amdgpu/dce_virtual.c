@@ -789,7 +789,7 @@ static const struct amdgpu_irq_src_funcs dce_virtual_crtc_irq_funcs = {
 
 static void dce_virtual_set_irq_funcs(struct amdgpu_device *adev)
 {
-	adev->crtc_irq.num_types = AMDGPU_CRTC_IRQ_LAST;
+	adev->crtc_irq.num_types = AMDGPU_CRTC_IRQ_VBLANK6 + 1;
 	adev->crtc_irq.funcs = &dce_virtual_crtc_irq_funcs;
 }
 
