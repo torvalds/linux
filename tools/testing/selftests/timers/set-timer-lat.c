@@ -63,6 +63,7 @@ int alarmcount;
 int clock_id;
 struct timespec start_time;
 long long max_latency_ns;
+int timer_fired_early;
 
 char *clockstring(int clockid)
 {
@@ -115,10 +116,17 @@ void sigalarm(int signo)
 	delta_ns -= NSEC_PER_SEC * TIMER_SECS * alarmcount;
 
 	if (delta_ns < 0)
-		printf("%s timer fired early: FAIL\n", clockstring(clock_id));
+		timer_fired_early = 1;
 
 	if (delta_ns > max_latency_ns)
 		max_latency_ns = delta_ns;
+}
+
+void describe_timer(int flags)
+{
+	printf("%-22s %s ",
+			clockstring(clock_id),
+			flags ? "ABSTIME":"RELTIME");
 }
 
 int do_timer(int clock_id, int flags)
@@ -136,6 +144,7 @@ int do_timer(int clock_id, int flags)
 
 	max_latency_ns = 0;
 	alarmcount = 0;
+	timer_fired_early = 0;
 
 	err = timer_create(clock_id, &se, &tm1);
 	if (err) {
@@ -170,18 +179,26 @@ int do_timer(int clock_id, int flags)
 	while (alarmcount < 5)
 		sleep(1);
 
-	printf("%-22s %s max latency: %10lld ns : ",
-			clockstring(clock_id),
-			flags ? "ABSTIME":"RELTIME",
-			max_latency_ns);
+	describe_timer(flags);
+	printf("timer fired early: %7d : ", timer_fired_early);
+	if (!timer_fired_early) {
+		printf("[OK]\n");
+	} else {
+		printf("[FAILED]\n");
+		err = -1;
+	}
+
+	describe_timer(flags);
+	printf("max latency: %10lld ns : ", max_latency_ns);
 
 	timer_delete(tm1);
 	if (max_latency_ns < UNRESONABLE_LATENCY) {
 		printf("[OK]\n");
-		return 0;
+	} else {
+		printf("[FAILED]\n");
+		err = -1;
 	}
-	printf("[FAILED]\n");
-	return -1;
+	return err;
 }
 
 int main(void)
