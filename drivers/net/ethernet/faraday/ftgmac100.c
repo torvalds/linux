@@ -392,7 +392,7 @@ static int ftgmac100_alloc_rx_buf(struct ftgmac100 *priv, unsigned int entry,
 	struct net_device *netdev = priv->netdev;
 	struct sk_buff *skb;
 	dma_addr_t map;
-	int err;
+	int err = 0;
 
 	skb = netdev_alloc_skb_ip_align(netdev, RX_BUF_SIZE);
 	if (unlikely(!skb)) {
@@ -428,7 +428,7 @@ static int ftgmac100_alloc_rx_buf(struct ftgmac100 *priv, unsigned int entry,
 	else
 		rxdes->rxdes0 = 0;
 
-	return 0;
+	return err;
 }
 
 static unsigned int ftgmac100_next_rx_pointer(struct ftgmac100 *priv,
