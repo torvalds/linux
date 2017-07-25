@@ -1918,10 +1918,12 @@ static void encode_request_partial(struct ceph_osd_request *req,
 	}
 
 	ceph_encode_32(&p, req->r_attempts); /* retry_attempt */
-	BUG_ON(p != end - 8); /* space for features */
+	BUG_ON(p > end - 8); /* space for features */
 
 	msg->hdr.version = cpu_to_le16(8); /* MOSDOp v8 */
 	/* front_len is finalized in encode_request_finish() */
+	msg->front.iov_len = p - msg->front.iov_base;
+	msg->hdr.front_len = cpu_to_le32(msg->front.iov_len);
 	msg->hdr.data_len = cpu_to_le32(data_len);
 	/*
 	 * The header "data_off" is a hint to the receiver allowing it
@@ -1937,11 +1939,12 @@ static void encode_request_partial(struct ceph_osd_request *req,
 static void encode_request_finish(struct ceph_msg *msg)
 {
 	void *p = msg->front.iov_base;
+	void *const partial_end = p + msg->front.iov_len;
 	void *const end = p + msg->front_alloc_len;
 
 	if (CEPH_HAVE_FEATURE(msg->con->peer_features, RESEND_ON_SPLIT)) {
 		/* luminous OSD -- encode features and be done */
-		p = end - 8;
+		p = partial_end;
 		ceph_encode_64(&p, msg->con->peer_features);
 	} else {
 		struct {
@@ -1984,7 +1987,7 @@ static void encode_request_finish(struct ceph_msg *msg)
 		oid_len = p - oid;
 
 		tail = p;
-		tail_len = (end - p) - 8;
+		tail_len = partial_end - p;
 
 		p = msg->front.iov_base;
 		ceph_encode_copy(&p, &head.client_inc, sizeof(head.client_inc));
