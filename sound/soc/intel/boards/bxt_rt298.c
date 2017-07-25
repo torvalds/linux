@@ -595,6 +595,7 @@ static const struct platform_device_id bxt_board_ids[] = {
 				(unsigned long)&broxton_rt298 },
 	{ .name = "glk_alc298s_i2s", .driver_data =
 				(unsigned long)&geminilake_rt298 },
+	{}
 };
 
 static struct platform_driver broxton_audio = {
