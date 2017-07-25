@@ -300,6 +300,9 @@ static inline unsigned long __get_current_cr3_fast(void)
 {
 	unsigned long cr3 = __pa(this_cpu_read(cpu_tlbstate.loaded_mm)->pgd);
 
+	if (static_cpu_has(X86_FEATURE_PCID))
+		cr3 |= this_cpu_read(cpu_tlbstate.loaded_mm_asid);
+
 	/* For now, be very restrictive about when this can be called. */
 	VM_WARN_ON(in_nmi() || !in_atomic());
 

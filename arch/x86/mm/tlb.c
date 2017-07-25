@@ -30,6 +30,40 @@
 
 atomic64_t last_mm_ctx_id = ATOMIC64_INIT(1);
 
+static void choose_new_asid(struct mm_struct *next, u64 next_tlb_gen,
+			    u16 *new_asid, bool *need_flush)
+{
+	u16 asid;
+
+	if (!static_cpu_has(X86_FEATURE_PCID)) {
+		*new_asid = 0;
+		*need_flush = true;
+		return;
+	}
+
+	for (asid = 0; asid < TLB_NR_DYN_ASIDS; asid++) {
+		if (this_cpu_read(cpu_tlbstate.ctxs[asid].ctx_id) !=
+		    next->context.ctx_id)
+			continue;
+
+		*new_asid = asid;
+		*need_flush = (this_cpu_read(cpu_tlbstate.ctxs[asid].tlb_gen) <
+			       next_tlb_gen);
+		return;
+	}
+
+	/*
+	 * We don't currently own an ASID slot on this CPU.
+	 * Allocate a slot.
+	 */
+	*new_asid = this_cpu_add_return(cpu_tlbstate.next_asid, 1) - 1;
+	if (*new_asid >= TLB_NR_DYN_ASIDS) {
+		*new_asid = 0;
+		this_cpu_write(cpu_tlbstate.next_asid, 1);
+	}
+	*need_flush = true;
+}
+
 void leave_mm(int cpu)
 {
 	struct mm_struct *loaded_mm = this_cpu_read(cpu_tlbstate.loaded_mm);
@@ -65,6 +99,7 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 			struct task_struct *tsk)
 {
 	struct mm_struct *real_prev = this_cpu_read(cpu_tlbstate.loaded_mm);
+	u16 prev_asid = this_cpu_read(cpu_tlbstate.loaded_mm_asid);
 	unsigned cpu = smp_processor_id();
 	u64 next_tlb_gen;
 
@@ -84,12 +119,13 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 	/*
 	 * Verify that CR3 is what we think it is.  This will catch
 	 * hypothetical buggy code that directly switches to swapper_pg_dir
-	 * without going through leave_mm() / switch_mm_irqs_off().
+	 * without going through leave_mm() / switch_mm_irqs_off() or that
+	 * does something like write_cr3(read_cr3_pa()).
 	 */
-	VM_BUG_ON(read_cr3_pa() != __pa(real_prev->pgd));
+	VM_BUG_ON(__read_cr3() != (__sme_pa(real_prev->pgd) | prev_asid));
 
 	if (real_prev == next) {
-		VM_BUG_ON(this_cpu_read(cpu_tlbstate.ctxs[0].ctx_id) !=
+		VM_BUG_ON(this_cpu_read(cpu_tlbstate.ctxs[prev_asid].ctx_id) !=
 			  next->context.ctx_id);
 
 		if (cpumask_test_cpu(cpu, mm_cpumask(next))) {
@@ -106,16 +142,17 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 		cpumask_set_cpu(cpu, mm_cpumask(next));
 		next_tlb_gen = atomic64_read(&next->context.tlb_gen);
 
-		if (this_cpu_read(cpu_tlbstate.ctxs[0].tlb_gen) < next_tlb_gen) {
+		if (this_cpu_read(cpu_tlbstate.ctxs[prev_asid].tlb_gen) <
+		    next_tlb_gen) {
 			/*
 			 * Ideally, we'd have a flush_tlb() variant that
 			 * takes the known CR3 value as input.  This would
 			 * be faster on Xen PV and on hypothetical CPUs
 			 * on which INVPCID is fast.
 			 */
-			this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen,
+			this_cpu_write(cpu_tlbstate.ctxs[prev_asid].tlb_gen,
 				       next_tlb_gen);
-			write_cr3(__sme_pa(next->pgd));
+			write_cr3(__sme_pa(next->pgd) | prev_asid);
 			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH,
 					TLB_FLUSH_ALL);
 		}
@@ -126,8 +163,8 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 		 * are not reflected in tlb_gen.)
 		 */
 	} else {
-		VM_BUG_ON(this_cpu_read(cpu_tlbstate.ctxs[0].ctx_id) ==
-			  next->context.ctx_id);
+		u16 new_asid;
+		bool need_flush;
 
 		if (IS_ENABLED(CONFIG_VMAP_STACK)) {
 			/*
@@ -154,12 +191,22 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 		cpumask_set_cpu(cpu, mm_cpumask(next));
 		next_tlb_gen = atomic64_read(&next->context.tlb_gen);
 
-		this_cpu_write(cpu_tlbstate.ctxs[0].ctx_id, next->context.ctx_id);
-		this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen, next_tlb_gen);
-		this_cpu_write(cpu_tlbstate.loaded_mm, next);
-		write_cr3(__sme_pa(next->pgd));
+		choose_new_asid(next, next_tlb_gen, &new_asid, &need_flush);
 
-		trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, TLB_FLUSH_ALL);
+		if (need_flush) {
+			this_cpu_write(cpu_tlbstate.ctxs[new_asid].ctx_id, next->context.ctx_id);
+			this_cpu_write(cpu_tlbstate.ctxs[new_asid].tlb_gen, next_tlb_gen);
+			write_cr3(__sme_pa(next->pgd) | new_asid);
+			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH,
+					TLB_FLUSH_ALL);
+		} else {
+			/* The new ASID is already up to date. */
+			write_cr3(__sme_pa(next->pgd) | new_asid | CR3_NOFLUSH);
+			trace_tlb_flush(TLB_FLUSH_ON_TASK_SWITCH, 0);
+		}
+
+		this_cpu_write(cpu_tlbstate.loaded_mm, next);
+		this_cpu_write(cpu_tlbstate.loaded_mm_asid, new_asid);
 	}
 
 	load_mm_cr4(next);
@@ -186,13 +233,14 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
 	 *                   wants us to catch up to.
 	 */
 	struct mm_struct *loaded_mm = this_cpu_read(cpu_tlbstate.loaded_mm);
+	u32 loaded_mm_asid = this_cpu_read(cpu_tlbstate.loaded_mm_asid);
 	u64 mm_tlb_gen = atomic64_read(&loaded_mm->context.tlb_gen);
-	u64 local_tlb_gen = this_cpu_read(cpu_tlbstate.ctxs[0].tlb_gen);
+	u64 local_tlb_gen = this_cpu_read(cpu_tlbstate.ctxs[loaded_mm_asid].tlb_gen);
 
 	/* This code cannot presently handle being reentered. */
 	VM_WARN_ON(!irqs_disabled());
 
-	VM_WARN_ON(this_cpu_read(cpu_tlbstate.ctxs[0].ctx_id) !=
+	VM_WARN_ON(this_cpu_read(cpu_tlbstate.ctxs[loaded_mm_asid].ctx_id) !=
 		   loaded_mm->context.ctx_id);
 
 	if (!cpumask_test_cpu(smp_processor_id(), mm_cpumask(loaded_mm))) {
@@ -280,7 +328,7 @@ static void flush_tlb_func_common(const struct flush_tlb_info *f,
 	}
 
 	/* Both paths above update our state to mm_tlb_gen. */
-	this_cpu_write(cpu_tlbstate.ctxs[0].tlb_gen, mm_tlb_gen);
+	this_cpu_write(cpu_tlbstate.ctxs[loaded_mm_asid].tlb_gen, mm_tlb_gen);
 }
 
 static void flush_tlb_func_local(void *info, enum tlb_flush_reason reason)

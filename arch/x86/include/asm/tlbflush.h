@@ -82,6 +82,12 @@ static inline u64 inc_mm_tlb_gen(struct mm_struct *mm)
 #define __flush_tlb_single(addr) __native_flush_tlb_single(addr)
 #endif
 
+/*
+ * 6 because 6 should be plenty and struct tlb_state will fit in
+ * two cache lines.
+ */
+#define TLB_NR_DYN_ASIDS 6
+
 struct tlb_context {
 	u64 ctx_id;
 	u64 tlb_gen;
@@ -95,6 +101,8 @@ struct tlb_state {
 	 * mode even if we've already switched back to swapper_pg_dir.
 	 */
 	struct mm_struct *loaded_mm;
+	u16 loaded_mm_asid;
+	u16 next_asid;
 
 	/*
 	 * Access to this CR4 shadow and to H/W CR4 is protected by
@@ -104,7 +112,8 @@ struct tlb_state {
 
 	/*
 	 * This is a list of all contexts that might exist in the TLB.
-	 * Since we don't yet use PCID, there is only one context.
+	 * There is one per ASID that we use, and the ASID (what the
+	 * CPU calls PCID) is the index into ctxts.
 	 *
 	 * For each context, ctx_id indicates which mm the TLB's user
 	 * entries came from.  As an invariant, the TLB will never
@@ -114,8 +123,13 @@ struct tlb_state {
 	 * To be clear, this means that it's legal for the TLB code to
 	 * flush the TLB without updating tlb_gen.  This can happen
 	 * (for now, at least) due to paravirt remote flushes.
+	 *
+	 * NB: context 0 is a bit special, since it's also used by
+	 * various bits of init code.  This is fine -- code that
+	 * isn't aware of PCID will end up harmlessly flushing
+	 * context 0.
 	 */
-	struct tlb_context ctxs[1];
+	struct tlb_context ctxs[TLB_NR_DYN_ASIDS];
 };
 DECLARE_PER_CPU_SHARED_ALIGNED(struct tlb_state, cpu_tlbstate);
 
