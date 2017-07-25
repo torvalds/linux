@@ -227,12 +227,15 @@ struct msr_param {
  * @cbm_idx_offset:	Offset of CBM index. CBM index is computed by:
  *			closid * cbm_idx_multi + cbm_idx_offset
  *			in a cache bit mask
+ * @shareable_bits:	Bitmask of shareable resource with other
+ *			executing entities
  */
 struct rdt_cache {
 	unsigned int	cbm_len;
 	unsigned int	min_cbm_bits;
 	unsigned int	cbm_idx_mult;
 	unsigned int	cbm_idx_offset;
+	unsigned int	shareable_bits;
 };
 
 /**

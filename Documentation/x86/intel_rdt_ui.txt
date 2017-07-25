@@ -48,6 +48,13 @@ related to allocation:
 "min_cbm_bits": 	The minimum number of consecutive bits which
 			must be set when writing a mask.
 
+"shareable_bits":	Bitmask of shareable resource with other executing
+			entities (e.g. I/O). User can use this when
+			setting up exclusive cache partitions. Note that
+			some platforms support devices that have their
+			own settings for cache use which can over-ride
+			these bits.
+
 Memory bandwitdh(MB) subdirectory contains the following files
 with respect to allocation:
 

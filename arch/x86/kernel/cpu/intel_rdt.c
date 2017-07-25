@@ -193,6 +193,7 @@ static inline bool cache_alloc_hsw_probe(void)
 		r->num_closid = 4;
 		r->default_ctrl = max_cbm;
 		r->cache.cbm_len = 20;
+		r->cache.shareable_bits = 0xc0000;
 		r->cache.min_cbm_bits = 2;
 		r->alloc_capable = true;
 		r->alloc_enabled = true;
@@ -260,6 +261,7 @@ static void rdt_get_cache_alloc_cfg(int idx, struct rdt_resource *r)
 	r->num_closid = edx.split.cos_max + 1;
 	r->cache.cbm_len = eax.split.cbm_len + 1;
 	r->default_ctrl = BIT_MASK(eax.split.cbm_len + 1) - 1;
+	r->cache.shareable_bits = ebx & r->default_ctrl;
 	r->data_width = (r->cache.cbm_len + 3) / 4;
 	r->alloc_capable = true;
 	r->alloc_enabled = true;

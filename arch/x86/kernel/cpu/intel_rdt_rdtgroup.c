@@ -596,6 +596,15 @@ static int rdt_min_cbm_bits_show(struct kernfs_open_file *of,
 	return 0;
 }
 
+static int rdt_shareable_bits_show(struct kernfs_open_file *of,
+				   struct seq_file *seq, void *v)
+{
+	struct rdt_resource *r = of->kn->parent->priv;
+
+	seq_printf(seq, "%x\n", r->cache.shareable_bits);
+	return 0;
+}
+
 static int rdt_min_bw_show(struct kernfs_open_file *of,
 			     struct seq_file *seq, void *v)
 {
@@ -709,6 +718,13 @@ static struct rftype res_common_files[] = {
 		.mode		= 0444,
 		.kf_ops		= &rdtgroup_kf_single_ops,
 		.seq_show	= rdt_min_cbm_bits_show,
+		.fflags		= RF_CTRL_INFO | RFTYPE_RES_CACHE,
+	},
+	{
+		.name		= "shareable_bits",
+		.mode		= 0444,
+		.kf_ops		= &rdtgroup_kf_single_ops,
+		.seq_show	= rdt_shareable_bits_show,
 		.fflags		= RF_CTRL_INFO | RFTYPE_RES_CACHE,
 	},
 	{
