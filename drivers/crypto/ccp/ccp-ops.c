@@ -1065,6 +1065,8 @@ static int ccp_run_xts_aes_cmd(struct ccp_cmd_queue *cmd_q,
 
 	if (xts->key_len == AES_KEYSIZE_128)
 		aestype = CCP_AES_TYPE_128;
+	else if (xts->key_len == AES_KEYSIZE_256)
+		aestype = CCP_AES_TYPE_256;
 	else
 		return -EINVAL;
 

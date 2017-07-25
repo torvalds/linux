@@ -80,18 +80,23 @@ static int ccp_aes_xts_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 {
 	struct crypto_tfm *xfm = crypto_ablkcipher_tfm(tfm);
 	struct ccp_ctx *ctx = crypto_tfm_ctx(xfm);
+	unsigned int ccpversion = ccp_version();
 	int ret;
 
 	ret = xts_check_key(xfm, key, key_len);
 	if (ret)
 		return ret;
 
-	/* Only support 128-bit AES key with a 128-bit Tweak key,
-	 * otherwise use the fallback
+	/* Version 3 devices support 128-bit keys; version 5 devices can
+	 * accommodate 128- and 256-bit keys.
 	 */
 	switch (key_len) {
 	case AES_KEYSIZE_128 * 2:
 		memcpy(ctx->u.aes.key, key, key_len);
+		break;
+	case AES_KEYSIZE_256 * 2:
+		if (ccpversion > CCP_VERSION(3, 0))
+			memcpy(ctx->u.aes.key, key, key_len);
 		break;
 	}
 	ctx->u.aes.key_len = key_len / 2;
@@ -105,6 +110,8 @@ static int ccp_aes_xts_crypt(struct ablkcipher_request *req,
 {
 	struct ccp_ctx *ctx = crypto_tfm_ctx(req->base.tfm);
 	struct ccp_aes_req_ctx *rctx = ablkcipher_request_ctx(req);
+	unsigned int ccpversion = ccp_version();
+	unsigned int fallback = 0;
 	unsigned int unit;
 	u32 unit_size;
 	int ret;
@@ -131,8 +138,19 @@ static int ccp_aes_xts_crypt(struct ablkcipher_request *req,
 			break;
 		}
 	}
-	if ((unit_size == CCP_XTS_AES_UNIT_SIZE__LAST) ||
-	    (ctx->u.aes.key_len != AES_KEYSIZE_128)) {
+	/* The CCP has restrictions on block sizes. Also, a version 3 device
+	 * only supports AES-128 operations; version 5 CCPs support both
+	 * AES-128 and -256 operations.
+	 */
+	if (unit_size == CCP_XTS_AES_UNIT_SIZE__LAST)
+		fallback = 1;
+	if ((ccpversion < CCP_VERSION(5, 0)) &&
+	    (ctx->u.aes.key_len != AES_KEYSIZE_128))
+		fallback = 1;
+	if ((ctx->u.aes.key_len != AES_KEYSIZE_128) &&
+	    (ctx->u.aes.key_len != AES_KEYSIZE_256))
+		fallback = 1;
+	if (fallback) {
 		SKCIPHER_REQUEST_ON_STACK(subreq, ctx->u.aes.tfm_skcipher);
 
 		/* Use the fallback to process the request for any

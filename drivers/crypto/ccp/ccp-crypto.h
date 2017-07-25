@@ -99,7 +99,7 @@ struct ccp_aes_ctx {
 
 	struct scatterlist key_sg;
 	unsigned int key_len;
-	u8 key[AES_MAX_KEY_SIZE];
+	u8 key[AES_MAX_KEY_SIZE * 2];
 
 	u8 nonce[CTR_RFC3686_NONCE_SIZE];
 
