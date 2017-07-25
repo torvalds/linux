@@ -22,6 +22,7 @@
 #include <drm/drm_of.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma-iommu.h>
+#include <linux/genalloc.h>
 #include <linux/pm_runtime.h>
 #include <linux/memblock.h>
 #include <linux/module.h>
@@ -864,6 +865,46 @@ static void rockchip_iommu_cleanup(struct drm_device *drm_dev)
 	iommu_domain_free(private->domain);
 }
 
+static int rockchip_gem_pool_init(struct drm_device *drm)
+{
+	struct rockchip_drm_private *private = drm->dev_private;
+	struct device_node *np = drm->dev->of_node;
+	struct device_node *node;
+	phys_addr_t start, size;
+	struct resource res;
+	int ret;
+
+	node = of_parse_phandle(np, "secure-memory-region", 0);
+	if (!node)
+		return -ENXIO;
+
+	ret = of_address_to_resource(node, 0, &res);
+	if (ret)
+		return ret;
+	start = res.start;
+	size = resource_size(&res);
+	if (!size)
+		return -ENOMEM;
+
+	private->secure_buffer_pool = gen_pool_create(PAGE_SHIFT, -1);
+	if (!private->secure_buffer_pool)
+		return -ENOMEM;
+
+	gen_pool_add(private->secure_buffer_pool, start, size, -1);
+
+	return 0;
+}
+
+static void rockchip_gem_pool_destroy(struct drm_device *drm)
+{
+	struct rockchip_drm_private *private = drm->dev_private;
+
+	if (!private->secure_buffer_pool)
+		return;
+
+	gen_pool_destroy(private->secure_buffer_pool);
+}
+
 static int rockchip_drm_bind(struct device *dev)
 {
 	struct drm_device *drm_dev;
@@ -919,6 +960,7 @@ static int rockchip_drm_bind(struct device *dev)
 	/* init kms poll for handling hpd */
 	drm_kms_helper_poll_init(drm_dev);
 
+	rockchip_gem_pool_init(drm_dev);
 #ifndef MODULE
 	show_loader_logo(drm_dev);
 #endif
@@ -929,6 +971,7 @@ static int rockchip_drm_bind(struct device *dev)
 
 	return 0;
 err_kms_helper_poll_fini:
+	rockchip_gem_pool_destroy(drm_dev);
 	drm_kms_helper_poll_fini(drm_dev);
 	rockchip_drm_fbdev_fini(drm_dev);
 err_unbind_all:
@@ -950,6 +993,7 @@ static void rockchip_drm_unbind(struct device *dev)
 	drm_dev_unregister(drm_dev);
 
 	rockchip_drm_fbdev_fini(drm_dev);
+	rockchip_gem_pool_destroy(drm_dev);
 	drm_kms_helper_poll_fini(drm_dev);
 
 	drm_atomic_helper_shutdown(drm_dev);

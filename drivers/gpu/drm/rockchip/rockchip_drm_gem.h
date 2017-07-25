@@ -20,6 +20,7 @@
 enum rockchip_gem_buf_type {
 	ROCKCHIP_GEM_BUF_TYPE_CMA,
 	ROCKCHIP_GEM_BUF_TYPE_SHMEM,
+	ROCKCHIP_GEM_BUF_TYPE_SECURE,
 };
 
 struct rockchip_gem_object {
