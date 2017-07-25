@@ -588,7 +588,7 @@ static int _mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 	if (mwifiex_init_channel_scan_gap(adapter)) {
 		mwifiex_dbg(adapter, ERROR,
 			    "could not init channel stats table\n");
-		goto err_init_fw;
+		goto err_init_chan_scan;
 	}
 
 	if (driver_mode) {
@@ -636,6 +636,7 @@ static int _mwifiex_fw_dpc(const struct firmware *firmware, void *context)
 
 err_add_intf:
 	vfree(adapter->chan_stats);
+err_init_chan_scan:
 	wiphy_unregister(adapter->wiphy);
 	wiphy_free(adapter->wiphy);
 err_init_fw:
