@@ -484,6 +484,9 @@ static void user_cache_maint_handler(unsigned int esr, struct pt_regs *regs)
 	case ESR_ELx_SYS64_ISS_CRM_DC_CVAC:	/* DC CVAC, gets promoted */
 		__user_cache_maint("dc civac", address, ret);
 		break;
+	case ESR_ELx_SYS64_ISS_CRM_DC_CVAP:	/* DC CVAP */
+		__user_cache_maint("sys 3, c7, c12, 1", address, ret);
+		break;
 	case ESR_ELx_SYS64_ISS_CRM_DC_CIVAC:	/* DC CIVAC */
 		__user_cache_maint("dc civac", address, ret);
 		break;
