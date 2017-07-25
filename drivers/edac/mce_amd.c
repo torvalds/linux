@@ -913,12 +913,10 @@ static inline void amd_decode_err_code(u16 ec)
  */
 static bool amd_filter_mce(struct mce *m)
 {
-	u8 xec = (m->status >> 16) & 0x1f;
-
 	/*
 	 * NB GART TLB error reporting is disabled by default.
 	 */
-	if (m->bank == 4 && xec == 0x5 && !report_gart_errors)
+	if (m->bank == 4 && XEC(m->status, 0x1f) == 0x5 && !report_gart_errors)
 		return true;
 
 	return false;
