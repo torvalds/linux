@@ -474,7 +474,7 @@ class Provider(object):
     @staticmethod
     def is_field_wanted(fields_filter, field):
         """Indicate whether field is valid according to fields_filter."""
-        if not fields_filter:
+        if not fields_filter or fields_filter == "help":
             return True
         return re.match(fields_filter, field) is not None
 
@@ -1496,7 +1496,8 @@ Press any other key to refresh statistics immediately.
                          action='store',
                          default=DEFAULT_REGEX,
                          dest='fields',
-                         help='fields to display (regex)',
+                         help='''fields to display (regex)
+                                 "-f help" for a list of available events''',
                          )
     optparser.add_option('-p', '--pid',
                          action='store',
@@ -1558,6 +1559,17 @@ def main():
         sys.exit('Specified pid does not exist.')
 
     stats = Stats(options)
+
+    if options.fields == "help":
+        event_list = "\n"
+        s = stats.get()
+        for key in s.keys():
+            if key.find('(') != -1:
+                key = key[0:key.find('(')]
+            if event_list.find('\n' + key + '\n') == -1:
+                event_list += key + '\n'
+        sys.stdout.write(event_list)
+        return ""
 
     if options.log:
         log(stats)
