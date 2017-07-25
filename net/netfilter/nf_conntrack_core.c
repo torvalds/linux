@@ -56,6 +56,8 @@
 #include <net/netfilter/nf_nat_helper.h>
 #include <net/netns/hash.h>
 
+#include "nf_internals.h"
+
 #define NF_CONNTRACK_VERSION	"0.5.0"
 
 int (*nfnetlink_parse_nat_setup_hook)(struct nf_conn *ct,
@@ -1692,6 +1694,7 @@ void nf_ct_unconfirmed_destroy(struct net *net)
 
 	if (atomic_read(&net->ct.count) > 0) {
 		__nf_ct_unconfirmed_destroy(net);
+		nf_queue_nf_hook_drop(net);
 		synchronize_net();
 	}
 }
@@ -1737,6 +1740,7 @@ nf_ct_iterate_destroy(int (*iter)(struct nf_conn *i, void *data), void *data)
 		if (atomic_read(&net->ct.count) == 0)
 			continue;
 		__nf_ct_unconfirmed_destroy(net);
+		nf_queue_nf_hook_drop(net);
 	}
 	rtnl_unlock();
 
