@@ -236,7 +236,8 @@ vc4_allocate_bin_bo(struct drm_device *drm)
 	INIT_LIST_HEAD(&list);
 
 	while (true) {
-		struct vc4_bo *bo = vc4_bo_create(drm, size, true);
+		struct vc4_bo *bo = vc4_bo_create(drm, size, true,
+						  VC4_BO_TYPE_BIN);
 
 		if (IS_ERR(bo)) {
 			ret = PTR_ERR(bo);
