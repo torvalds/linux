@@ -55,31 +55,9 @@ enum {
 	OUTPUT_CSC_MATRIX_SIZE = 12
 };
 
-static const struct out_csc_color_matrix global_color_matrix[] = {
-{ COLOR_SPACE_SRGB,
-	{ 0x2000, 0, 0, 0, 0, 0x2000, 0, 0, 0, 0, 0x2000, 0} },
-{ COLOR_SPACE_SRGB_LIMITED,
-	{ 0x1B60, 0, 0, 0x200, 0, 0x1B60, 0, 0x200, 0, 0, 0x1B60, 0x200} },
-{ COLOR_SPACE_YCBCR601,
-	{ 0xE00, 0xF447, 0xFDB9, 0x1000, 0x82F, 0x1012, 0x31F, 0x200, 0xFB47,
-		0xF6B9, 0xE00, 0x1000} },
-{ COLOR_SPACE_YCBCR709, { 0xE00, 0xF349, 0xFEB7, 0x1000, 0x5D2, 0x1394, 0x1FA,
-	0x200, 0xFCCB, 0xF535, 0xE00, 0x1000} },
-/* TODO: correct values below */
-{ COLOR_SPACE_YCBCR601_LIMITED, { 0xE00, 0xF447, 0xFDB9, 0x1000, 0x991,
-	0x12C9, 0x3A6, 0x200, 0xFB47, 0xF6B9, 0xE00, 0x1000} },
-{ COLOR_SPACE_YCBCR709_LIMITED, { 0xE00, 0xF349, 0xFEB7, 0x1000, 0x6CE, 0x16E3,
-	0x24F, 0x200, 0xFCCB, 0xF535, 0xE00, 0x1000} }
-};
 
-enum csc_color_mode {
-	/* 00 - BITS2:0 Bypass */
-	CSC_COLOR_MODE_GRAPHICS_BYPASS,
-	/* 01 - hard coded coefficient TV RGB */
-	CSC_COLOR_MODE_GRAPHICS_PREDEFINED,
-	/* 04 - programmable OUTPUT CSC coefficient */
-	CSC_COLOR_MODE_GRAPHICS_OUTPUT_CSC,
-};
+
+
 
 
 
@@ -781,181 +759,8 @@ void dce110_opp_program_fmt(
 	return;
 }
 
-static void program_color_matrix(
-	struct dce110_opp *opp110,
-	const struct out_csc_color_matrix *tbl_entry,
-	enum grph_color_adjust_option options)
-{
-	{
-		REG_SET_2(OUTPUT_CSC_C11_C12, 0,
-			OUTPUT_CSC_C11, tbl_entry->regval[0],
-			OUTPUT_CSC_C12, tbl_entry->regval[1]);
-	}
-	{
-		REG_SET_2(OUTPUT_CSC_C13_C14, 0,
-			OUTPUT_CSC_C11, tbl_entry->regval[2],
-			OUTPUT_CSC_C12, tbl_entry->regval[3]);
-	}
-	{
-		REG_SET_2(OUTPUT_CSC_C21_C22, 0,
-			OUTPUT_CSC_C11, tbl_entry->regval[4],
-			OUTPUT_CSC_C12, tbl_entry->regval[5]);
-	}
-	{
-		REG_SET_2(OUTPUT_CSC_C23_C24, 0,
-			OUTPUT_CSC_C11, tbl_entry->regval[6],
-			OUTPUT_CSC_C12, tbl_entry->regval[7]);
-	}
-	{
-		REG_SET_2(OUTPUT_CSC_C31_C32, 0,
-			OUTPUT_CSC_C11, tbl_entry->regval[8],
-			OUTPUT_CSC_C12, tbl_entry->regval[9]);
-	}
-	{
-		REG_SET_2(OUTPUT_CSC_C33_C34, 0,
-			OUTPUT_CSC_C11, tbl_entry->regval[10],
-			OUTPUT_CSC_C12, tbl_entry->regval[11]);
-	}
-}
 
-static bool configure_graphics_mode(
-	struct dce110_opp *opp110,
-	enum csc_color_mode config,
-	enum graphics_csc_adjust_type csc_adjust_type,
-	enum dc_color_space color_space)
-{
-	REG_SET(OUTPUT_CSC_CONTROL, 0,
-		OUTPUT_CSC_GRPH_MODE, 0);
 
-	if (csc_adjust_type == GRAPHICS_CSC_ADJUST_TYPE_SW) {
-		if (config == CSC_COLOR_MODE_GRAPHICS_OUTPUT_CSC) {
-			REG_SET(OUTPUT_CSC_CONTROL, 0,
-				OUTPUT_CSC_GRPH_MODE, 4);
-		} else {
-
-			switch (color_space) {
-			case COLOR_SPACE_SRGB:
-				/* by pass */
-				REG_SET(OUTPUT_CSC_CONTROL, 0,
-					OUTPUT_CSC_GRPH_MODE, 0);
-				break;
-			case COLOR_SPACE_SRGB_LIMITED:
-				/* TV RGB */
-				REG_SET(OUTPUT_CSC_CONTROL, 0,
-					OUTPUT_CSC_GRPH_MODE, 1);
-				break;
-			case COLOR_SPACE_YCBCR601:
-			case COLOR_SPACE_YCBCR601_LIMITED:
-				/* YCbCr601 */
-				REG_SET(OUTPUT_CSC_CONTROL, 0,
-					OUTPUT_CSC_GRPH_MODE, 2);
-				break;
-			case COLOR_SPACE_YCBCR709:
-			case COLOR_SPACE_YCBCR709_LIMITED:
-				/* YCbCr709 */
-				REG_SET(OUTPUT_CSC_CONTROL, 0,
-					OUTPUT_CSC_GRPH_MODE, 3);
-				break;
-			default:
-				return false;
-			}
-		}
-	} else if (csc_adjust_type == GRAPHICS_CSC_ADJUST_TYPE_HW) {
-		switch (color_space) {
-		case COLOR_SPACE_SRGB:
-			/* by pass */
-			REG_SET(OUTPUT_CSC_CONTROL, 0,
-				OUTPUT_CSC_GRPH_MODE, 0);
-			break;
-			break;
-		case COLOR_SPACE_SRGB_LIMITED:
-			/* TV RGB */
-			REG_SET(OUTPUT_CSC_CONTROL, 0,
-				OUTPUT_CSC_GRPH_MODE, 1);
-			break;
-		case COLOR_SPACE_YCBCR601:
-		case COLOR_SPACE_YCBCR601_LIMITED:
-			/* YCbCr601 */
-			REG_SET(OUTPUT_CSC_CONTROL, 0,
-				OUTPUT_CSC_GRPH_MODE, 2);
-			break;
-		case COLOR_SPACE_YCBCR709:
-		case COLOR_SPACE_YCBCR709_LIMITED:
-			 /* YCbCr709 */
-			REG_SET(OUTPUT_CSC_CONTROL, 0,
-				OUTPUT_CSC_GRPH_MODE, 3);
-			break;
-		default:
-			return false;
-		}
-
-	} else
-		/* by pass */
-		REG_SET(OUTPUT_CSC_CONTROL, 0,
-			OUTPUT_CSC_GRPH_MODE, 0);
-
-	return true;
-}
-
-void dce110_opp_set_csc_adjustment(
-	struct output_pixel_processor *opp,
-	const struct out_csc_color_matrix *tbl_entry)
-{
-	struct dce110_opp *opp110 = TO_DCE110_OPP(opp);
-	enum csc_color_mode config =
-			CSC_COLOR_MODE_GRAPHICS_OUTPUT_CSC;
-
-	program_color_matrix(
-			opp110, tbl_entry, GRAPHICS_CSC_ADJUST_TYPE_SW);
-
-	/*  We did everything ,now program DxOUTPUT_CSC_CONTROL */
-	configure_graphics_mode(opp110, config, GRAPHICS_CSC_ADJUST_TYPE_SW,
-			tbl_entry->color_space);
-}
-
-void dce110_opp_set_csc_default(
-	struct output_pixel_processor *opp,
-	const struct default_adjustment *default_adjust)
-{
-	struct dce110_opp *opp110 = TO_DCE110_OPP(opp);
-	enum csc_color_mode config =
-			CSC_COLOR_MODE_GRAPHICS_PREDEFINED;
-
-	if (default_adjust->force_hw_default == false) {
-		const struct out_csc_color_matrix *elm;
-		/* currently parameter not in use */
-		enum grph_color_adjust_option option =
-			GRPH_COLOR_MATRIX_HW_DEFAULT;
-		uint32_t i;
-		/*
-		 * HW default false we program locally defined matrix
-		 * HW default true  we use predefined hw matrix and we
-		 * do not need to program matrix
-		 * OEM wants the HW default via runtime parameter.
-		 */
-		option = GRPH_COLOR_MATRIX_SW;
-
-		for (i = 0; i < ARRAY_SIZE(global_color_matrix); ++i) {
-			elm = &global_color_matrix[i];
-			if (elm->color_space != default_adjust->out_color_space)
-				continue;
-			/* program the matrix with default values from this
-			 * file */
-			program_color_matrix(opp110, elm, option);
-			config = CSC_COLOR_MODE_GRAPHICS_OUTPUT_CSC;
-			break;
-		}
-	}
-
-	/* configure the what we programmed :
-	 * 1. Default values from this file
-	 * 2. Use hardware default from ROM_A and we do not need to program
-	 * matrix */
-
-	configure_graphics_mode(opp110, config,
-		default_adjust->csc_adjust_type,
-		default_adjust->out_color_space);
-}
 
 
 /*****************************************/
@@ -964,8 +769,6 @@ void dce110_opp_set_csc_default(
 
 static const struct opp_funcs funcs = {
 	.opp_power_on_regamma_lut = dce110_opp_power_on_regamma_lut,
-	.opp_set_csc_adjustment = dce110_opp_set_csc_adjustment,
-	.opp_set_csc_default = dce110_opp_set_csc_default,
 	.opp_set_dyn_expansion = dce110_opp_set_dyn_expansion,
 	.opp_program_regamma_pwl = dce110_opp_program_regamma_pwl,
 	.opp_set_regamma_mode = dce110_opp_set_regamma_mode,

@@ -681,6 +681,8 @@ static const struct transform_funcs dce110_xfmv_funcs = {
 	.transform_set_scaler = dce110_xfmv_set_scaler,
 	.transform_set_gamut_remap =
 		dce110_xfmv_set_gamut_remap,
+	.opp_set_csc_default = dce110_opp_v_set_csc_default,
+	.opp_set_csc_adjustment = dce110_opp_v_set_csc_adjustment,
 	.transform_set_pixel_storage_depth =
 			dce110_xfmv_set_pixel_storage_depth,
 	.transform_get_optimal_number_of_taps =

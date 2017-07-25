@@ -217,13 +217,8 @@ enum fmt_stereo_action {
 	FMT_STEREO_ACTION_UPDATE_POLARITY
 };
 
-enum grph_color_adjust_option {
-	GRPH_COLOR_MATRIX_HW_DEFAULT = 1,
-	GRPH_COLOR_MATRIX_SW
-};
-
 struct opp_grph_csc_adjustment {
-	enum grph_color_adjust_option color_adjust_option;
+	//enum grph_color_adjust_option color_adjust_option;
 	enum dc_color_space c_space;
 	enum dc_color_depth color_depth; /* clean up to uint32_t */
 	enum graphics_csc_adjust_type   csc_adjust_type;

@@ -34,4 +34,11 @@ bool dce110_transform_v_construct(
 	struct dce_transform *xfm110,
 	struct dc_context *ctx);
 
+void dce110_opp_v_set_csc_default(
+	struct transform *xfm,
+	const struct default_adjustment *default_adjust);
+
+void dce110_opp_v_set_csc_adjustment(
+		struct transform *xfm,
+	const struct out_csc_color_matrix *tbl_entry);
 #endif

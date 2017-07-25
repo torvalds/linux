@@ -1868,8 +1868,8 @@ static void set_default_colors(struct pipe_ctx *pipe_ctx)
 	/* Lb color depth */
 	default_adjust.lb_color_depth = pipe_ctx->scl_data.lb_params.depth;
 
-	pipe_ctx->opp->funcs->opp_set_csc_default(
-					pipe_ctx->opp, &default_adjust);
+	pipe_ctx->xfm->funcs->opp_set_csc_default(
+					pipe_ctx->xfm, &default_adjust);
 }
 
 
@@ -1991,8 +1991,8 @@ static void set_plane_config(
 			tbl_entry.regval[i] =
 			pipe_ctx->stream->csc_color_matrix.matrix[i];
 
-		pipe_ctx->opp->funcs->opp_set_csc_adjustment
-				(pipe_ctx->opp, &tbl_entry);
+		pipe_ctx->xfm->funcs->opp_set_csc_adjustment
+				(pipe_ctx->xfm, &tbl_entry);
 	}
 
 	if (pipe_ctx->stream->gamut_remap_matrix.enable_remap == true) {
@@ -2446,8 +2446,8 @@ static void dce110_program_front_end_for_pipe(
 			tbl_entry.regval[i] =
 			pipe_ctx->stream->csc_color_matrix.matrix[i];
 
-		pipe_ctx->opp->funcs->opp_set_csc_adjustment
-				(pipe_ctx->opp, &tbl_entry);
+		pipe_ctx->xfm->funcs->opp_set_csc_adjustment
+				(pipe_ctx->xfm, &tbl_entry);
 	}
 
 	if (pipe_ctx->stream->gamut_remap_matrix.enable_remap == true) {
@@ -2587,8 +2587,31 @@ static void dce110_wait_for_mpcc_disconnect(
 	/* do nothing*/
 }
 
+static void program_csc_matrix(struct pipe_ctx *pipe_ctx,
+		enum dc_color_space colorspace,
+		uint16_t *matrix)
+{
+	int i;
+	struct out_csc_color_matrix tbl_entry;
+
+	if (pipe_ctx->stream->csc_color_matrix.enable_adjustment
+				== true) {
+			enum dc_color_space color_space =
+				pipe_ctx->stream->output_color_space;
+
+			//uint16_t matrix[12];
+			for (i = 0; i < 12; i++)
+				tbl_entry.regval[i] = pipe_ctx->stream->csc_color_matrix.matrix[i];
+
+			tbl_entry.color_space = color_space;
+			//tbl_entry.regval = matrix;
+			pipe_ctx->xfm->funcs->opp_set_csc_adjustment(pipe_ctx->xfm, &tbl_entry);
+	}
+}
+
 static const struct hw_sequencer_funcs dce110_funcs = {
 	.program_gamut_remap = program_gamut_remap,
+	.program_csc_matrix = program_csc_matrix,
 	.init_hw = init_hw,
 	.apply_ctx_to_hw = dce110_apply_ctx_to_hw,
 	.apply_ctx_for_surface = dce110_apply_ctx_for_surface,

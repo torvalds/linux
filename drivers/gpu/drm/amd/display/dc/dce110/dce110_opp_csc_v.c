@@ -24,7 +24,7 @@
  */
 
 #include "dm_services.h"
-#include "dce/dce_opp.h"
+#include "dce110_transform_v.h"
 #include "basics/conversion.h"
 
 /* include DCE11 register header files */
@@ -100,12 +100,17 @@ enum csc_color_mode {
 	CSC_COLOR_MODE_GRAPHICS_OUTPUT_CSC,
 };
 
+enum grph_color_adjust_option {
+	GRPH_COLOR_MATRIX_HW_DEFAULT = 1,
+	GRPH_COLOR_MATRIX_SW
+};
+
 static void program_color_matrix_v(
-	struct dce110_opp *opp110,
+	struct dce_transform *xfm_dce,
 	const struct out_csc_color_matrix *tbl_entry,
 	enum grph_color_adjust_option options)
 {
-	struct dc_context *ctx = opp110->base.ctx;
+	struct dc_context *ctx = xfm_dce->base.ctx;
 	uint32_t cntl_value = dm_read_reg(ctx, mmCOL_MAN_OUTPUT_CSC_CONTROL);
 	bool use_set_a = (get_reg_field_value(cntl_value,
 			COL_MAN_OUTPUT_CSC_CONTROL,
@@ -351,12 +356,12 @@ static void program_color_matrix_v(
 }
 
 static bool configure_graphics_mode_v(
-	struct dce110_opp *opp110,
+	struct dce_transform *xfm_dce,
 	enum csc_color_mode config,
 	enum graphics_csc_adjust_type csc_adjust_type,
 	enum dc_color_space color_space)
 {
-	struct dc_context *ctx = opp110->base.ctx;
+	struct dc_context *ctx = xfm_dce->base.ctx;
 	uint32_t addr = mmCOL_MAN_OUTPUT_CSC_CONTROL;
 	uint32_t value = dm_read_reg(ctx, addr);
 
@@ -454,10 +459,10 @@ static bool configure_graphics_mode_v(
 }
 
 /*TODO: color depth is not correct when this is called*/
-static void set_Denormalization(struct output_pixel_processor *opp,
+static void set_Denormalization(struct transform *xfm,
 		enum dc_color_depth color_depth)
 {
-	uint32_t value = dm_read_reg(opp->ctx, mmDENORM_CLAMP_CONTROL);
+	uint32_t value = dm_read_reg(xfm->ctx, mmDENORM_CLAMP_CONTROL);
 
 	switch (color_depth) {
 	case COLOR_DEPTH_888:
@@ -495,7 +500,7 @@ static void set_Denormalization(struct output_pixel_processor *opp,
 		DENORM_CLAMP_CONTROL,
 		DENORM_10BIT_OUT);
 
-	dm_write_reg(opp->ctx, mmDENORM_CLAMP_CONTROL, value);
+	dm_write_reg(xfm->ctx, mmDENORM_CLAMP_CONTROL, value);
 }
 
 struct input_csc_matrix {
@@ -524,10 +529,10 @@ static const struct input_csc_matrix input_csc_matrix[] = {
 };
 
 static void program_input_csc(
-	struct output_pixel_processor *opp, enum dc_color_space color_space)
+		struct transform *xfm, enum dc_color_space color_space)
 {
 	int arr_size = sizeof(input_csc_matrix)/sizeof(struct input_csc_matrix);
-	struct dc_context *ctx = opp->ctx;
+	struct dc_context *ctx = xfm->ctx;
 	const uint32_t *regval = NULL;
 	bool use_set_a;
 	uint32_t value;
@@ -664,10 +669,10 @@ static void program_input_csc(
 }
 
 void dce110_opp_v_set_csc_default(
-	struct output_pixel_processor *opp,
+	struct transform *xfm,
 	const struct default_adjustment *default_adjust)
 {
-	struct dce110_opp *opp110 = TO_DCE110_OPP(opp);
+	struct dce_transform *xfm_dce = TO_DCE_TRANSFORM(xfm);
 	enum csc_color_mode config =
 			CSC_COLOR_MODE_GRAPHICS_PREDEFINED;
 
@@ -692,13 +697,13 @@ void dce110_opp_v_set_csc_default(
 			/* program the matrix with default values from this
 			 * file
 			 */
-			program_color_matrix_v(opp110, elm, option);
+			program_color_matrix_v(xfm_dce, elm, option);
 			config = CSC_COLOR_MODE_GRAPHICS_OUTPUT_CSC;
 			break;
 		}
 	}
 
-	program_input_csc(opp, default_adjust->in_color_space);
+	program_input_csc(xfm, default_adjust->in_color_space);
 
 	/* configure the what we programmed :
 	 * 1. Default values from this file
@@ -706,26 +711,26 @@ void dce110_opp_v_set_csc_default(
 	 * matrix
 	 */
 
-	configure_graphics_mode_v(opp110, config,
+	configure_graphics_mode_v(xfm_dce, config,
 		default_adjust->csc_adjust_type,
 		default_adjust->out_color_space);
 
-	set_Denormalization(opp, default_adjust->color_depth);
+	set_Denormalization(xfm, default_adjust->color_depth);
 }
 
 void dce110_opp_v_set_csc_adjustment(
-	struct output_pixel_processor *opp,
+	struct transform *xfm,
 	const struct out_csc_color_matrix *tbl_entry)
 {
-	struct dce110_opp *opp110 = TO_DCE110_OPP(opp);
+	struct dce_transform *xfm_dce = TO_DCE_TRANSFORM(xfm);
 	enum csc_color_mode config =
 			CSC_COLOR_MODE_GRAPHICS_OUTPUT_CSC;
 
 	program_color_matrix_v(
-			opp110, tbl_entry, GRAPHICS_CSC_ADJUST_TYPE_SW);
+			xfm_dce, tbl_entry, GRAPHICS_CSC_ADJUST_TYPE_SW);
 
 	/*  We did everything ,now program DxOUTPUT_CSC_CONTROL */
-	configure_graphics_mode_v(opp110, config, GRAPHICS_CSC_ADJUST_TYPE_SW,
+	configure_graphics_mode_v(xfm_dce, config, GRAPHICS_CSC_ADJUST_TYPE_SW,
 			tbl_entry->color_space);
 
 	/*TODO: Check if denormalization is needed*/

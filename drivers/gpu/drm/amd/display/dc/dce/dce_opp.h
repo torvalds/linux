@@ -57,13 +57,6 @@ enum dce110_opp_reg_type {
 	SRI(REGAMMA_LUT_INDEX, DCP, id), \
 	SRI(REGAMMA_LUT_DATA, DCP, id), \
 	SRI(REGAMMA_CONTROL, DCP, id), \
-	SRI(OUTPUT_CSC_C11_C12, DCP, id), \
-	SRI(OUTPUT_CSC_C13_C14, DCP, id), \
-	SRI(OUTPUT_CSC_C21_C22, DCP, id), \
-	SRI(OUTPUT_CSC_C23_C24, DCP, id), \
-	SRI(OUTPUT_CSC_C31_C32, DCP, id), \
-	SRI(OUTPUT_CSC_C33_C34, DCP, id), \
-	SRI(OUTPUT_CSC_CONTROL, DCP, id), \
 	SRI(FMT_DYNAMIC_EXP_CNTL, FMT, id), \
 	SRI(FMT_BIT_DEPTH_CONTROL, FMT, id), \
 	SRI(FMT_CONTROL, FMT, id), \
@@ -129,9 +122,6 @@ enum dce110_opp_reg_type {
 	OPP_SF(REGAMMA_CNTLA_REGION_0_1, REGAMMA_CNTLA_EXP_REGION1_NUM_SEGMENTS, mask_sh),\
 	OPP_SF(REGAMMA_LUT_WRITE_EN_MASK, REGAMMA_LUT_WRITE_EN_MASK, mask_sh),\
 	OPP_SF(REGAMMA_CONTROL, GRPH_REGAMMA_MODE, mask_sh),\
-	OPP_SF(OUTPUT_CSC_C11_C12, OUTPUT_CSC_C11, mask_sh),\
-	OPP_SF(OUTPUT_CSC_C11_C12, OUTPUT_CSC_C12, mask_sh),\
-	OPP_SF(OUTPUT_CSC_CONTROL, OUTPUT_CSC_GRPH_MODE, mask_sh),\
 	OPP_SF(FMT_DYNAMIC_EXP_CNTL, FMT_DYNAMIC_EXP_EN, mask_sh),\
 	OPP_SF(FMT_DYNAMIC_EXP_CNTL, FMT_DYNAMIC_EXP_MODE, mask_sh),\
 	OPP_SF(FMT_BIT_DEPTH_CONTROL, FMT_TRUNCATE_EN, mask_sh),\
@@ -222,9 +212,6 @@ enum dce110_opp_reg_type {
 	OPP_SF(DCFE0_DCFE_MEM_PWR_STATUS, DCP_REGAMMA_MEM_PWR_STATE, mask_sh),\
 	OPP_SF(DCP0_REGAMMA_LUT_WRITE_EN_MASK, REGAMMA_LUT_WRITE_EN_MASK, mask_sh),\
 	OPP_SF(DCP0_REGAMMA_CONTROL, GRPH_REGAMMA_MODE, mask_sh),\
-	OPP_SF(DCP0_OUTPUT_CSC_C11_C12, OUTPUT_CSC_C11, mask_sh),\
-	OPP_SF(DCP0_OUTPUT_CSC_C11_C12, OUTPUT_CSC_C12, mask_sh),\
-	OPP_SF(DCP0_OUTPUT_CSC_CONTROL, OUTPUT_CSC_GRPH_MODE, mask_sh),\
 	OPP_SF(FMT0_FMT_DYNAMIC_EXP_CNTL, FMT_DYNAMIC_EXP_EN, mask_sh),\
 	OPP_SF(FMT0_FMT_DYNAMIC_EXP_CNTL, FMT_DYNAMIC_EXP_MODE, mask_sh),\
 	OPP_SF(FMT0_FMT_BIT_DEPTH_CONTROL, FMT_TRUNCATE_EN, mask_sh),\
@@ -288,9 +275,6 @@ enum dce110_opp_reg_type {
 	type REGAMMA_LUT_MEM_PWR_STATE; \
 	type REGAMMA_LUT_WRITE_EN_MASK; \
 	type GRPH_REGAMMA_MODE; \
-	type OUTPUT_CSC_C11; \
-	type OUTPUT_CSC_C12; \
-	type OUTPUT_CSC_GRPH_MODE; \
 	type FMT_DYNAMIC_EXP_EN; \
 	type FMT_DYNAMIC_EXP_MODE; \
 	type FMT_TRUNCATE_EN; \
@@ -362,13 +346,6 @@ struct dce_opp_registers {
 	uint32_t DCFE_MEM_PWR_STATUS;
 	uint32_t REGAMMA_LUT_DATA;
 	uint32_t REGAMMA_CONTROL;
-	uint32_t OUTPUT_CSC_C11_C12;
-	uint32_t OUTPUT_CSC_C13_C14;
-	uint32_t OUTPUT_CSC_C21_C22;
-	uint32_t OUTPUT_CSC_C23_C24;
-	uint32_t OUTPUT_CSC_C31_C32;
-	uint32_t OUTPUT_CSC_C33_C34;
-	uint32_t OUTPUT_CSC_CONTROL;
 	uint32_t FMT_DYNAMIC_EXP_CNTL;
 	uint32_t FMT_BIT_DEPTH_CONTROL;
 	uint32_t FMT_CONTROL;
@@ -416,14 +393,6 @@ bool dce110_opp_program_regamma_pwl(
 
 void dce110_opp_set_regamma_mode(struct output_pixel_processor *opp,
 		enum opp_regamma mode);
-
-void dce110_opp_set_csc_adjustment(
-	struct output_pixel_processor *opp,
-	const struct out_csc_color_matrix *tbl_entry);
-
-void dce110_opp_set_csc_default(
-	struct output_pixel_processor *opp,
-	const struct default_adjustment *default_adjust);
 
 /* FORMATTER RELATED */
 void dce110_opp_program_bit_depth_reduction(

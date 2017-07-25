@@ -44,6 +44,13 @@
 	SRI(GAMUT_REMAP_C23_C24, DCP, id), \
 	SRI(GAMUT_REMAP_C31_C32, DCP, id), \
 	SRI(GAMUT_REMAP_C33_C34, DCP, id), \
+	SRI(OUTPUT_CSC_C11_C12, DCP, id), \
+	SRI(OUTPUT_CSC_C13_C14, DCP, id), \
+	SRI(OUTPUT_CSC_C21_C22, DCP, id), \
+	SRI(OUTPUT_CSC_C23_C24, DCP, id), \
+	SRI(OUTPUT_CSC_C31_C32, DCP, id), \
+	SRI(OUTPUT_CSC_C33_C34, DCP, id), \
+	SRI(OUTPUT_CSC_CONTROL, DCP, id), \
 	SRI(DENORM_CONTROL, DCP, id), \
 	SRI(DCP_SPATIAL_DITHER_CNTL, DCP, id), \
 	SRI(OUT_ROUND_CONTROL, DCP, id), \
@@ -114,6 +121,9 @@
 	XFM_SF(GAMUT_REMAP_C33_C34, GAMUT_REMAP_C33, mask_sh), \
 	XFM_SF(GAMUT_REMAP_C33_C34, GAMUT_REMAP_C34, mask_sh), \
 	XFM_SF(GAMUT_REMAP_CONTROL, GRPH_GAMUT_REMAP_MODE, mask_sh), \
+	XFM_SF(OUTPUT_CSC_C11_C12, OUTPUT_CSC_C11, mask_sh),\
+	XFM_SF(OUTPUT_CSC_C11_C12, OUTPUT_CSC_C12, mask_sh),\
+	XFM_SF(OUTPUT_CSC_CONTROL, OUTPUT_CSC_GRPH_MODE, mask_sh),\
 	XFM_SF(SCL_MODE, SCL_MODE, mask_sh), \
 	XFM_SF(SCL_TAP_CONTROL, SCL_H_NUM_OF_TAPS, mask_sh), \
 	XFM_SF(SCL_TAP_CONTROL, SCL_V_NUM_OF_TAPS, mask_sh), \
@@ -183,6 +193,9 @@
 	XFM_SF(DCP0_GAMUT_REMAP_C33_C34, GAMUT_REMAP_C33, mask_sh), \
 	XFM_SF(DCP0_GAMUT_REMAP_C33_C34, GAMUT_REMAP_C34, mask_sh), \
 	XFM_SF(DCP0_GAMUT_REMAP_CONTROL, GRPH_GAMUT_REMAP_MODE, mask_sh), \
+	XFM_SF(DCP0_OUTPUT_CSC_C11_C12, OUTPUT_CSC_C11, mask_sh),\
+	XFM_SF(DCP0_OUTPUT_CSC_C11_C12, OUTPUT_CSC_C12, mask_sh),\
+	XFM_SF(DCP0_OUTPUT_CSC_CONTROL, OUTPUT_CSC_GRPH_MODE, mask_sh),\
 	XFM_SF(SCL0_SCL_MODE, SCL_MODE, mask_sh), \
 	XFM_SF(SCL0_SCL_TAP_CONTROL, SCL_H_NUM_OF_TAPS, mask_sh), \
 	XFM_SF(SCL0_SCL_TAP_CONTROL, SCL_V_NUM_OF_TAPS, mask_sh), \
@@ -249,6 +262,9 @@
 	type GAMUT_REMAP_C33; \
 	type GAMUT_REMAP_C34; \
 	type GRPH_GAMUT_REMAP_MODE; \
+	type OUTPUT_CSC_C11; \
+	type OUTPUT_CSC_C12; \
+	type OUTPUT_CSC_GRPH_MODE; \
 	type SCL_MODE; \
 	type SCL_BYPASS_MODE; \
 	type SCL_PSCL_EN; \
@@ -302,6 +318,13 @@ struct dce_transform_registers {
 	uint32_t GAMUT_REMAP_C23_C24;
 	uint32_t GAMUT_REMAP_C31_C32;
 	uint32_t GAMUT_REMAP_C33_C34;
+	uint32_t OUTPUT_CSC_C11_C12;
+	uint32_t OUTPUT_CSC_C13_C14;
+	uint32_t OUTPUT_CSC_C21_C22;
+	uint32_t OUTPUT_CSC_C23_C24;
+	uint32_t OUTPUT_CSC_C31_C32;
+	uint32_t OUTPUT_CSC_C33_C34;
+	uint32_t OUTPUT_CSC_CONTROL;
 	uint32_t DENORM_CONTROL;
 	uint32_t DCP_SPATIAL_DITHER_CNTL;
 	uint32_t OUT_ROUND_CONTROL;
@@ -381,5 +404,12 @@ bool dce_transform_get_optimal_number_of_taps(
 	struct scaler_data *scl_data,
 	const struct scaling_taps *in_taps);
 
+void dce110_opp_set_csc_adjustment(
+	struct transform *xfm,
+	const struct out_csc_color_matrix *tbl_entry);
+
+void dce110_opp_set_csc_default(
+	struct transform *xfm,
+	const struct default_adjustment *default_adjust);
 
 #endif /* _DCE_DCE_TRANSFORM_H_ */
