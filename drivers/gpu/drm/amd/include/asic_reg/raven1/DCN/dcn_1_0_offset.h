@@ -2283,6 +2283,10 @@
 #define mmDCHUBBUB_VLINE_SNAPSHOT_BASE_IDX                                                             2
 #define mmDCHUBBUB_SPARE                                                                               0x0534
 #define mmDCHUBBUB_SPARE_BASE_IDX                                                                      2
+#define mmDCHUBBUB_TEST_DEBUG_INDEX                                                                    0x053a
+#define mmDCHUBBUB_TEST_DEBUG_INDEX_BASE_IDX                                                           2
+#define mmDCHUBBUB_TEST_DEBUG_DATA                                                                     0x053b
+#define mmDCHUBBUB_TEST_DEBUG_DATA_BASE_IDX                                                            2
 
 
 // addressBlock: dce_dc_dchubbub_dchubbub_dcperfmon_dc_perfmon_dispdec
