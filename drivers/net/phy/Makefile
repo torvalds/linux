@@ -18,6 +18,7 @@ endif
 libphy-$(CONFIG_SWPHY)		+= swphy.o
 libphy-$(CONFIG_LED_TRIGGER_PHY)	+= phy_led_triggers.o
 
+obj-$(CONFIG_PHYLINK)		+= phylink.o
 obj-$(CONFIG_PHYLIB)		+= libphy.o
 
 obj-$(CONFIG_MDIO_BCM_IPROC)	+= mdio-bcm-iproc.o

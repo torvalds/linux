@@ -182,6 +182,7 @@ static inline const char *phy_modes(phy_interface_t interface)
 #define MII_ADDR_C45 (1<<30)
 
 struct device;
+struct phylink;
 struct sk_buff;
 
 /*
@@ -469,6 +470,7 @@ struct phy_device {
 
 	struct mutex lock;
 
+	struct phylink *phylink;
 	struct net_device *attached_dev;
 
 	u8 mdix;

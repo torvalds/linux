@@ -169,6 +169,16 @@ menuconfig PHYLIB
 	  devices.  This option provides infrastructure for
 	  managing PHY devices.
 
+config PHYLINK
+	tristate
+	depends on NETDEVICES
+	select PHYLIB
+	select SWPHY
+	help
+	  PHYlink models the link between the PHY and MAC, allowing fixed
+	  configuration links, PHYs, and Serdes links with MAC level
+	  autonegotiation modes.
+
 if PHYLIB
 
 config SWPHY
