@@ -1352,25 +1352,11 @@ static void mwifiex_main_work_queue(struct work_struct *work)
 	mwifiex_main_process(adapter);
 }
 
-/*
- * This function gets called during PCIe function level reset. Required
- * code is extracted from mwifiex_remove_card()
- */
-int
-mwifiex_shutdown_sw(struct mwifiex_adapter *adapter)
+/* Common teardown code used for both device removal and reset */
+static void mwifiex_uninit_sw(struct mwifiex_adapter *adapter)
 {
 	struct mwifiex_private *priv;
 	int i;
-
-	if (!adapter)
-		goto exit_return;
-
-	wait_for_completion(adapter->fw_done);
-	/* Caller should ensure we aren't suspending while this happens */
-	reinit_completion(adapter->fw_done);
-
-	priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
-	mwifiex_deauthenticate(priv, NULL);
 
 	/* We can no longer handle interrupts once we start doing the teardown
 	 * below.
@@ -1393,12 +1379,9 @@ mwifiex_shutdown_sw(struct mwifiex_adapter *adapter)
 	}
 
 	mwifiex_dbg(adapter, CMD, "cmd: calling mwifiex_shutdown_drv...\n");
-
 	mwifiex_shutdown_drv(adapter);
-	if (adapter->if_ops.down_dev)
-		adapter->if_ops.down_dev(adapter);
-
 	mwifiex_dbg(adapter, CMD, "cmd: mwifiex_shutdown_drv done\n");
+
 	if (atomic_read(&adapter->rx_pending) ||
 	    atomic_read(&adapter->tx_pending) ||
 	    atomic_read(&adapter->cmd_pending)) {
@@ -1421,9 +1404,30 @@ mwifiex_shutdown_sw(struct mwifiex_adapter *adapter)
 		rtnl_unlock();
 	}
 	vfree(adapter->chan_stats);
+}
 
-	mwifiex_dbg(adapter, INFO, "%s, successful\n", __func__);
-exit_return:
+/*
+ * This function gets called during PCIe function level reset.
+ */
+int mwifiex_shutdown_sw(struct mwifiex_adapter *adapter)
+{
+	struct mwifiex_private *priv;
+
+	if (!adapter)
+		return 0;
+
+	wait_for_completion(adapter->fw_done);
+	/* Caller should ensure we aren't suspending while this happens */
+	reinit_completion(adapter->fw_done);
+
+	priv = mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_ANY);
+	mwifiex_deauthenticate(priv, NULL);
+
+	mwifiex_uninit_sw(adapter);
+
+	if (adapter->if_ops.down_dev)
+		adapter->if_ops.down_dev(adapter);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mwifiex_shutdown_sw);
@@ -1676,61 +1680,10 @@ EXPORT_SYMBOL_GPL(mwifiex_add_card);
  */
 int mwifiex_remove_card(struct mwifiex_adapter *adapter)
 {
-	struct mwifiex_private *priv = NULL;
-	int i;
-
 	if (!adapter)
-		goto exit_remove;
+		return 0;
 
-	/* We can no longer handle interrupts once we start doing the teardown
-	 * below. */
-	if (adapter->if_ops.disable_int)
-		adapter->if_ops.disable_int(adapter);
-
-	adapter->surprise_removed = true;
-
-	mwifiex_terminate_workqueue(adapter);
-
-	/* Stop data */
-	for (i = 0; i < adapter->priv_num; i++) {
-		priv = adapter->priv[i];
-		if (priv && priv->netdev) {
-			mwifiex_stop_net_dev_queue(priv->netdev, adapter);
-			if (netif_carrier_ok(priv->netdev))
-				netif_carrier_off(priv->netdev);
-		}
-	}
-
-	mwifiex_dbg(adapter, CMD,
-		    "cmd: calling mwifiex_shutdown_drv...\n");
-
-	mwifiex_shutdown_drv(adapter);
-	mwifiex_dbg(adapter, CMD,
-		    "cmd: mwifiex_shutdown_drv done\n");
-	if (atomic_read(&adapter->rx_pending) ||
-	    atomic_read(&adapter->tx_pending) ||
-	    atomic_read(&adapter->cmd_pending)) {
-		mwifiex_dbg(adapter, ERROR,
-			    "rx_pending=%d, tx_pending=%d,\t"
-			    "cmd_pending=%d\n",
-			    atomic_read(&adapter->rx_pending),
-			    atomic_read(&adapter->tx_pending),
-			    atomic_read(&adapter->cmd_pending));
-	}
-
-	for (i = 0; i < adapter->priv_num; i++) {
-		priv = adapter->priv[i];
-
-		if (!priv)
-			continue;
-
-		rtnl_lock();
-		if (priv->netdev &&
-		    priv->wdev.iftype != NL80211_IFTYPE_UNSPECIFIED)
-			mwifiex_del_virtual_intf(adapter->wiphy, &priv->wdev);
-		rtnl_unlock();
-	}
-	vfree(adapter->chan_stats);
+	mwifiex_uninit_sw(adapter);
 
 	wiphy_unregister(adapter->wiphy);
 	wiphy_free(adapter->wiphy);
@@ -1748,7 +1701,6 @@ int mwifiex_remove_card(struct mwifiex_adapter *adapter)
 		    "info: free adapter\n");
 	mwifiex_free_adapter(adapter);
 
-exit_remove:
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mwifiex_remove_card);
