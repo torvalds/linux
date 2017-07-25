@@ -63,6 +63,7 @@ cat_wrmsr(struct rdt_domain *d, struct msr_param *m, struct rdt_resource *r);
 #define domain_init(id) LIST_HEAD_INIT(rdt_resources_all[id].domains)
 
 struct rdt_resource rdt_resources_all[] = {
+	[RDT_RESOURCE_L3] =
 	{
 		.name			= "L3",
 		.domains		= domain_init(RDT_RESOURCE_L3),
@@ -77,6 +78,7 @@ struct rdt_resource rdt_resources_all[] = {
 		.parse_ctrlval		= parse_cbm,
 		.format_str		= "%d=%0*x",
 	},
+	[RDT_RESOURCE_L3DATA] =
 	{
 		.name			= "L3DATA",
 		.domains		= domain_init(RDT_RESOURCE_L3DATA),
@@ -91,6 +93,7 @@ struct rdt_resource rdt_resources_all[] = {
 		.parse_ctrlval		= parse_cbm,
 		.format_str		= "%d=%0*x",
 	},
+	[RDT_RESOURCE_L3CODE] =
 	{
 		.name			= "L3CODE",
 		.domains		= domain_init(RDT_RESOURCE_L3CODE),
@@ -105,6 +108,7 @@ struct rdt_resource rdt_resources_all[] = {
 		.parse_ctrlval		= parse_cbm,
 		.format_str		= "%d=%0*x",
 	},
+	[RDT_RESOURCE_L2] =
 	{
 		.name			= "L2",
 		.domains		= domain_init(RDT_RESOURCE_L2),
@@ -119,6 +123,7 @@ struct rdt_resource rdt_resources_all[] = {
 		.parse_ctrlval		= parse_cbm,
 		.format_str		= "%d=%0*x",
 	},
+	[RDT_RESOURCE_MBA] =
 	{
 		.name			= "MB",
 		.domains		= domain_init(RDT_RESOURCE_MBA),
