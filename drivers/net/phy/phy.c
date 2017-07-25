@@ -38,42 +38,6 @@
 
 #include <asm/irq.h>
 
-static const char *phy_speed_to_str(int speed)
-{
-	switch (speed) {
-	case SPEED_10:
-		return "10Mbps";
-	case SPEED_100:
-		return "100Mbps";
-	case SPEED_1000:
-		return "1Gbps";
-	case SPEED_2500:
-		return "2.5Gbps";
-	case SPEED_5000:
-		return "5Gbps";
-	case SPEED_10000:
-		return "10Gbps";
-	case SPEED_14000:
-		return "14Gbps";
-	case SPEED_20000:
-		return "20Gbps";
-	case SPEED_25000:
-		return "25Gbps";
-	case SPEED_40000:
-		return "40Gbps";
-	case SPEED_50000:
-		return "50Gbps";
-	case SPEED_56000:
-		return "56Gbps";
-	case SPEED_100000:
-		return "100Gbps";
-	case SPEED_UNKNOWN:
-		return "Unknown";
-	default:
-		return "Unsupported (update phy.c)";
-	}
-}
-
 #define PHY_STATE_STR(_state)			\
 	case PHY_##_state:			\
 		return __stringify(_state);	\
@@ -109,7 +73,7 @@ void phy_print_status(struct phy_device *phydev)
 		netdev_info(phydev->attached_dev,
 			"Link is Up - %s/%s - flow control %s\n",
 			phy_speed_to_str(phydev->speed),
-			DUPLEX_FULL == phydev->duplex ? "Full" : "Half",
+			phy_duplex_to_str(phydev->duplex),
 			phydev->pause ? "rx/tx" : "off");
 	} else	{
 		netdev_info(phydev->attached_dev, "Link is Down\n");

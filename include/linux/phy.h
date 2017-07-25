@@ -667,6 +667,9 @@ struct phy_fixup {
 	int (*run)(struct phy_device *phydev);
 };
 
+const char *phy_speed_to_str(int speed);
+const char *phy_duplex_to_str(unsigned int duplex);
+
 /**
  * phy_read_mmd - Convenience function for reading a register
  * from an MMD on a given PHY.
