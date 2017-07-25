@@ -194,6 +194,7 @@
 #define CCP_AES_CTX_SB_COUNT		1
 
 #define CCP_XTS_AES_KEY_SB_COUNT	1
+#define CCP5_XTS_AES_KEY_SB_COUNT	2
 #define CCP_XTS_AES_CTX_SB_COUNT	1
 
 #define CCP_DES3_KEY_SB_COUNT		1
@@ -498,6 +499,7 @@ struct ccp_aes_op {
 };
 
 struct ccp_xts_aes_op {
+	enum ccp_aes_type type;
 	enum ccp_aes_action action;
 	enum ccp_xts_aes_unit_size unit_size;
 };

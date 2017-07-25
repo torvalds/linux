@@ -1,8 +1,9 @@
 /*
  * AMD Cryptographic Coprocessor (CCP) AES XTS crypto API support
  *
- * Copyright (C) 2013 Advanced Micro Devices, Inc.
+ * Copyright (C) 2013,2017 Advanced Micro Devices, Inc.
  *
+ * Author: Gary R Hook <gary.hook@amd.com>
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -164,6 +165,7 @@ static int ccp_aes_xts_crypt(struct ablkcipher_request *req,
 	memset(&rctx->cmd, 0, sizeof(rctx->cmd));
 	INIT_LIST_HEAD(&rctx->cmd.entry);
 	rctx->cmd.engine = CCP_ENGINE_XTS_AES_128;
+	rctx->cmd.u.xts.type = CCP_AES_TYPE_128;
 	rctx->cmd.u.xts.action = (encrypt) ? CCP_AES_ACTION_ENCRYPT
 					   : CCP_AES_ACTION_DECRYPT;
 	rctx->cmd.u.xts.unit_size = unit_size;
