@@ -163,10 +163,12 @@ static uint32_t bo_page_index(size_t size)
 	return (size / PAGE_SIZE) - 1;
 }
 
-/* Must be called with bo_lock held. */
 static void vc4_bo_destroy(struct vc4_bo *bo)
 {
 	struct drm_gem_object *obj = &bo->base.base;
+	struct vc4_dev *vc4 = to_vc4_dev(obj->dev);
+
+	lockdep_assert_held(&vc4->bo_lock);
 
 	vc4_bo_set_label(obj, -1);
 
@@ -181,9 +183,11 @@ static void vc4_bo_destroy(struct vc4_bo *bo)
 	drm_gem_cma_free_object(obj);
 }
 
-/* Must be called with bo_lock held. */
 static void vc4_bo_remove_from_cache(struct vc4_bo *bo)
 {
+	struct vc4_dev *vc4 = to_vc4_dev(bo->base.base.dev);
+
+	lockdep_assert_held(&vc4->bo_lock);
 	list_del(&bo->unref_head);
 	list_del(&bo->size_head);
 }
@@ -367,11 +371,12 @@ int vc4_dumb_create(struct drm_file *file_priv,
 	return ret;
 }
 
-/* Must be called with bo_lock held. */
 static void vc4_bo_cache_free_old(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	unsigned long expire_time = jiffies - msecs_to_jiffies(1000);
+
+	lockdep_assert_held(&vc4->bo_lock);
 
 	while (!list_empty(&vc4->bo_cache.time_list)) {
 		struct vc4_bo *bo = list_last_entry(&vc4->bo_cache.time_list,
