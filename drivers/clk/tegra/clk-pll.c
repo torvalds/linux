@@ -690,6 +690,8 @@ static void _get_pll_mnp(struct tegra_clk_pll *pll,
 	struct tegra_clk_pll_params *params = pll->params;
 	struct div_nmp *div_nmp = params->div_nmp;
 
+	*cfg = (struct tegra_clk_pll_freq_table) { };
+
 	if ((params->flags & (TEGRA_PLLM | TEGRA_PLLMB)) &&
 		(pll_override_readl(PMC_PLLP_WB0_OVERRIDE, pll) &
 			PMC_PLLP_WB0_OVERRIDE_PLLM_OVERRIDE)) {
