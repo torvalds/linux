@@ -10042,6 +10042,8 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 			     vmcs12->vm_entry_instruction_len);
 		vmcs_write32(GUEST_INTERRUPTIBILITY_INFO,
 			     vmcs12->guest_interruptibility_info);
+		vmx->loaded_vmcs->nmi_known_unmasked =
+			!(vmcs12->guest_interruptibility_info & GUEST_INTR_STATE_NMI);
 	} else {
 		vmcs_write32(VM_ENTRY_INTR_INFO_FIELD, 0);
 	}
