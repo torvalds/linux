@@ -1619,10 +1619,8 @@ mwifiex_add_card(void *card, struct completion *fw_done,
 	adapter->cmd_wait_q.status = 0;
 	adapter->scan_wait_q_woken = false;
 
-	if ((num_possible_cpus() > 1) || adapter->iface_type == MWIFIEX_USB) {
+	if ((num_possible_cpus() > 1) || adapter->iface_type == MWIFIEX_USB)
 		adapter->rx_work_enabled = true;
-		pr_notice("rx work enabled, cpus %d\n", num_possible_cpus());
-	}
 
 	adapter->workqueue =
 		alloc_workqueue("MWIFIEX_WORK_QUEUE",
