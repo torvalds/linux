@@ -99,7 +99,7 @@ static void mmcra_sdar_mode(u64 event, unsigned long *mmcra)
 		else if (!cpu_has_feature(CPU_FTR_POWER9_DD1) && p9_SDAR_MODE(event))
 			*mmcra |=  p9_SDAR_MODE(event) << MMCRA_SDAR_MODE_SHIFT;
 		else
-			*mmcra |= MMCRA_SDAR_MODE_TLB;
+			*mmcra |= MMCRA_SDAR_MODE_DCACHE;
 	} else
 		*mmcra |= MMCRA_SDAR_MODE_TLB;
 }
