@@ -141,9 +141,11 @@ static int bnxt_vf_rep_get_phys_port_name(struct net_device *dev, char *buf,
 					  size_t len)
 {
 	struct bnxt_vf_rep *vf_rep = netdev_priv(dev);
+	struct pci_dev *pf_pdev = vf_rep->bp->pdev;
 	int rc;
 
-	rc = snprintf(buf, len, "vfr%d", vf_rep->vf_idx);
+	rc = snprintf(buf, len, "pf%dvf%d", PCI_FUNC(pf_pdev->devfn),
+		      vf_rep->vf_idx);
 	if (rc >= len)
 		return -EOPNOTSUPP;
 	return 0;

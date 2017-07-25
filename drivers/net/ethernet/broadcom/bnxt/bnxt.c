@@ -7552,11 +7552,7 @@ static int bnxt_get_phys_port_name(struct net_device *dev, char *buf,
 	if (!BNXT_PF(bp))
 		return -EOPNOTSUPP;
 
-	/* The switch-id that the pf belongs to is exported by
-	 * the switchdev ndo. This name is just to distinguish from the
-	 * vf-rep ports.
-	 */
-	rc = snprintf(buf, len, "pf%d", bp->pf.port_id);
+	rc = snprintf(buf, len, "p%d", bp->pf.port_id);
 
 	if (rc >= len)
 		return -EOPNOTSUPP;
