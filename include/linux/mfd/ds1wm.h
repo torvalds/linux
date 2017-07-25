@@ -16,6 +16,11 @@ struct ds1wm_driver_data {
 	 */
 	unsigned int reset_recover_delay;
 
+	/* Say 1 here for big endian Hardware
+	 * (only relevant with bus-shift > 0
+	 */
+	bool is_hw_big_endian;
+
 	/* left shift of register number to get register address offsett.
 	 * Only 0,1,2 allowed for 8,16 or 32 bit bus width respectively
 	 */
