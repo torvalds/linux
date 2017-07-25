@@ -84,6 +84,7 @@ bool dal_hw_factory_init(
 		dal_hw_factory_dcn10_init(factory);
 		return true;
 #endif
+
 	default:
 		ASSERT_CRITICAL(false);
 		return false;

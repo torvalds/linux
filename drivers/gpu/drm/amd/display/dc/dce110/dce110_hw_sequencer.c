@@ -1104,11 +1104,11 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 			true : false);
 
 	resource_build_info_frame(pipe_ctx);
-
+	dce110_update_info_frame(pipe_ctx);
 	if (!pipe_ctx_old->stream) {
 		core_link_enable_stream(pipe_ctx);
 
-	dce110_update_info_frame(pipe_ctx);
+
 		if (dc_is_dp_signal(pipe_ctx->stream->signal))
 			dce110_unblank_stream(pipe_ctx,
 				&stream->sink->link->cur_link_settings);
@@ -1664,7 +1664,7 @@ enum dc_status dce110_apply_ctx_to_hw(
 	apply_min_clocks(dc, context, &clocks_state, true);
 
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-	if (dc->ctx->dce_version == DCN_VERSION_1_0) {
+	if (dc->ctx->dce_version >= DCN_VERSION_1_0) {
 		if (context->bw.dcn.calc_clk.fclk_khz
 				> dc->current_context->bw.dcn.cur_clk.fclk_khz) {
 			struct dm_pp_clock_for_voltage_req clock;

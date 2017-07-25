@@ -120,6 +120,8 @@ struct resource_pool *dc_create_resource_pool(
 			num_virtual_links, dc);
 		break;
 #endif
+
+
 	default:
 		break;
 	}

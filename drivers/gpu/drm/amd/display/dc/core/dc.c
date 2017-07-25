@@ -1109,7 +1109,7 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 
 	/* 3rd param should be true, temp w/a for RV*/
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-	core_dc->hwss.set_bandwidth(core_dc, context, core_dc->ctx->dce_version != DCN_VERSION_1_0);
+	core_dc->hwss.set_bandwidth(core_dc, context, core_dc->ctx->dce_version < DCN_VERSION_1_0);
 #else
 	core_dc->hwss.set_bandwidth(core_dc, context, true);
 #endif

@@ -80,6 +80,7 @@ bool dal_hw_translate_init(
 		dal_hw_translate_dcn10_init(translate);
 		return true;
 #endif
+
 	default:
 		BREAK_TO_DEBUGGER();
 		return false;
