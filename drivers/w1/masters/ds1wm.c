@@ -95,7 +95,7 @@ static struct {
 
 struct ds1wm_data {
 	void     __iomem *map;
-	int      bus_shift; /* # of shifts to calc register offsets */
+	unsigned int      bus_shift; /* # of shifts to calc register offsets */
 	struct platform_device *pdev;
 	const struct mfd_cell   *cell;
 	int      irq;
@@ -473,9 +473,6 @@ static int ds1wm_probe(struct platform_device *pdev)
 	if (!ds1wm_data->map)
 		return -ENOMEM;
 
-	/* calculate bus shift from mem resource */
-	ds1wm_data->bus_shift = resource_size(res) >> 3;
-
 	ds1wm_data->pdev = pdev;
 	ds1wm_data->cell = mfd_get_cell(pdev);
 	if (!ds1wm_data->cell)
@@ -483,6 +480,24 @@ static int ds1wm_probe(struct platform_device *pdev)
 	plat = dev_get_platdata(&pdev->dev);
 	if (!plat)
 		return -ENODEV;
+
+	/* how many bits to shift register number to get register offset */
+	if (plat->bus_shift > 2) {
+		dev_err(&ds1wm_data->pdev->dev,
+			"illegal bus shift %d, not written",
+			ds1wm_data->bus_shift);
+		return -EINVAL;
+	}
+
+	ds1wm_data->bus_shift = plat->bus_shift;
+	/* make sure resource has space for 8 registers */
+	if ((8 << ds1wm_data->bus_shift) > resource_size(res)) {
+		dev_err(&ds1wm_data->pdev->dev,
+			"memory resource size %d to small, should be %d\n",
+			(int)resource_size(res),
+			8 << ds1wm_data->bus_shift);
+		return -EINVAL;
+	}
 
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!res)
