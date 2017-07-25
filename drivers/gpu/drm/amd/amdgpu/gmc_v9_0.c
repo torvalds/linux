@@ -29,6 +29,8 @@
 #include "vega10/HDP/hdp_4_0_offset.h"
 #include "vega10/HDP/hdp_4_0_sh_mask.h"
 #include "vega10/GC/gc_9_0_sh_mask.h"
+#include "vega10/DC/dce_12_0_offset.h"
+#include "vega10/DC/dce_12_0_sh_mask.h"
 #include "vega10/vega10_enum.h"
 
 #include "soc15_common.h"
@@ -749,6 +751,20 @@ static int gmc_v9_0_hw_init(void *handle)
 
 	/* The sequence of these two function calls matters.*/
 	gmc_v9_0_init_golden_registers(adev);
+
+	if (adev->mode_info.num_crtc) {
+		u32 tmp;
+
+		/* Lockout access through VGA aperture*/
+		tmp = RREG32_SOC15(DCE, 0, mmVGA_HDP_CONTROL);
+		tmp = REG_SET_FIELD(tmp, VGA_HDP_CONTROL, VGA_MEMORY_DISABLE, 1);
+		WREG32_SOC15(DCE, 0, mmVGA_HDP_CONTROL, tmp);
+
+		/* disable VGA render */
+		tmp = RREG32_SOC15(DCE, 0, mmVGA_RENDER_CONTROL);
+		tmp = REG_SET_FIELD(tmp, VGA_RENDER_CONTROL, VGA_VSTATUS_CNTL, 0);
+		WREG32_SOC15(DCE, 0, mmVGA_RENDER_CONTROL, tmp);
+	}
 
 	r = gmc_v9_0_gart_enable(adev);
 
