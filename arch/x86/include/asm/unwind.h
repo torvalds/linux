@@ -16,7 +16,7 @@ struct unwind_state {
 	bool signal, full_regs;
 	unsigned long sp, bp, ip;
 	struct pt_regs *regs;
-#elif defined(CONFIG_FRAME_POINTER)
+#elif defined(CONFIG_FRAME_POINTER_UNWINDER)
 	bool got_irq;
 	unsigned long *bp, *orig_sp, ip;
 	struct pt_regs *regs;
@@ -50,7 +50,7 @@ void unwind_start(struct unwind_state *state, struct task_struct *task,
 	__unwind_start(state, task, regs, first_frame);
 }
 
-#if defined(CONFIG_ORC_UNWINDER) || defined(CONFIG_FRAME_POINTER)
+#if defined(CONFIG_ORC_UNWINDER) || defined(CONFIG_FRAME_POINTER_UNWINDER)
 static inline struct pt_regs *unwind_get_entry_regs(struct unwind_state *state)
 {
 	if (unwind_done(state))
