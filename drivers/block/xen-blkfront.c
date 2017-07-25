@@ -708,6 +708,7 @@ static int blkif_queue_rw_req(struct request *req, struct blkfront_ring_info *ri
 	 * existing persistent grants, or if we have to get new grants,
 	 * as there are not sufficiently many free.
 	 */
+	bool new_persistent_gnts = false;
 	struct scatterlist *sg;
 	int num_sg, max_grefs, num_grant;
 
@@ -719,19 +720,21 @@ static int blkif_queue_rw_req(struct request *req, struct blkfront_ring_info *ri
 		 */
 		max_grefs += INDIRECT_GREFS(max_grefs);
 
-	/*
-	 * We have to reserve 'max_grefs' grants because persistent
-	 * grants are shared by all rings.
-	 */
-	if (max_grefs > 0)
-		if (gnttab_alloc_grant_references(max_grefs, &setup.gref_head) < 0) {
+	/* Check if we have enough persistent grants to allocate a requests */
+	if (rinfo->persistent_gnts_c < max_grefs) {
+		new_persistent_gnts = true;
+
+		if (gnttab_alloc_grant_references(
+		    max_grefs - rinfo->persistent_gnts_c,
+		    &setup.gref_head) < 0) {
 			gnttab_request_free_callback(
 				&rinfo->callback,
 				blkif_restart_queue_callback,
 				rinfo,
-				max_grefs);
+				max_grefs - rinfo->persistent_gnts_c);
 			return 1;
 		}
+	}
 
 	/* Fill out a communications ring structure. */
 	id = blkif_ring_get_request(rinfo, req, &ring_req);
@@ -832,7 +835,7 @@ static int blkif_queue_rw_req(struct request *req, struct blkfront_ring_info *ri
 	if (unlikely(require_extra_req))
 		rinfo->shadow[extra_id].req = *extra_ring_req;
 
-	if (max_grefs > 0)
+	if (new_persistent_gnts)
 		gnttab_free_grant_references(setup.gref_head);
 
 	return 0;
@@ -906,8 +909,8 @@ out_err:
 	return BLK_STS_IOERR;
 
 out_busy:
-	spin_unlock_irqrestore(&rinfo->ring_lock, flags);
 	blk_mq_stop_hw_queue(hctx);
+	spin_unlock_irqrestore(&rinfo->ring_lock, flags);
 	return BLK_STS_RESOURCE;
 }
 
