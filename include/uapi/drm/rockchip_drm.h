@@ -43,6 +43,11 @@ struct drm_rockchip_gem_create {
 	uint32_t handle;
 };
 
+struct drm_rockchip_gem_phys {
+	uint32_t handle;
+	uint32_t phy_addr;
+};
+
 /**
  * A structure for getting buffer offset.
  *
@@ -132,6 +137,7 @@ enum rockchip_cabc_mode {
 #define DRM_ROCKCHIP_GEM_MAP_OFFSET	0x01
 #define DRM_ROCKCHIP_GEM_CPU_ACQUIRE	0x02
 #define DRM_ROCKCHIP_GEM_CPU_RELEASE	0x03
+#define DRM_ROCKCHIP_GEM_GET_PHYS	0x04
 
 #define DRM_ROCKCHIP_RGA_GET_VER	0x20
 #define DRM_ROCKCHIP_RGA_SET_CMDLIST	0x21
@@ -148,6 +154,9 @@ enum rockchip_cabc_mode {
 
 #define DRM_IOCTL_ROCKCHIP_GEM_CPU_RELEASE	DRM_IOWR(DRM_COMMAND_BASE + \
 		DRM_ROCKCHIP_GEM_CPU_RELEASE, struct drm_rockchip_gem_cpu_release)
+
+#define DRM_IOCTL_ROCKCHIP_GEM_GET_PHYS		DRM_IOWR(DRM_COMMAND_BASE + \
+		DRM_ROCKCHIP_GEM_GET_PHYS, struct drm_rockchip_gem_phys)
 
 #define DRM_IOCTL_ROCKCHIP_RGA_GET_VER		DRM_IOWR(DRM_COMMAND_BASE + \
 		DRM_ROCKCHIP_RGA_GET_VER, struct drm_rockchip_rga_get_ver)

@@ -672,6 +672,30 @@ int rockchip_gem_map_offset_ioctl(struct drm_device *drm, void *data,
 					    &args->offset);
 }
 
+int rockchip_gem_get_phys_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *file_priv)
+{
+	struct drm_rockchip_gem_phys *args = data;
+	struct rockchip_gem_object *rk_obj;
+	struct drm_gem_object *obj;
+
+	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
+	if (!obj) {
+		DRM_ERROR("failed to lookup gem object.\n");
+		return -EINVAL;
+	}
+	rk_obj = to_rockchip_obj(obj);
+
+	if (!(rk_obj->flags & ROCKCHIP_BO_CONTIG)) {
+		DRM_ERROR("Can't get phys address from non-continus buf.\n");
+		return -EINVAL;
+	}
+
+	args->phy_addr = page_to_phys(rk_obj->pages[0]);
+
+	return 0;
+}
+
 int rockchip_gem_create_ioctl(struct drm_device *dev, void *data,
 			      struct drm_file *file_priv)
 {

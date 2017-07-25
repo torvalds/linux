@@ -98,6 +98,9 @@ int rockchip_gem_create_ioctl(struct drm_device *dev, void *data,
 int rockchip_gem_map_offset_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file_priv);
 
+int rockchip_gem_get_phys_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *file_priv);
+
 /*
  * acquire gem object for CPU access.
  */
