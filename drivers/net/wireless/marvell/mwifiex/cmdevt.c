@@ -664,7 +664,7 @@ int mwifiex_send_cmd(struct mwifiex_private *priv, u16 cmd_no,
 	    cmd_no == HostCmd_CMD_802_11_SCAN_EXT) {
 		mwifiex_queue_scan_cmd(priv, cmd_node);
 	} else {
-		mwifiex_insert_cmd_to_pending_q(adapter, cmd_node, true);
+		mwifiex_insert_cmd_to_pending_q(adapter, cmd_node);
 		queue_work(adapter->workqueue, &adapter->main_work);
 		if (cmd_node->wait_q_enabled)
 			ret = mwifiex_wait_queue_complete(adapter, cmd_node);
@@ -682,11 +682,12 @@ int mwifiex_send_cmd(struct mwifiex_private *priv, u16 cmd_no,
  */
 void
 mwifiex_insert_cmd_to_pending_q(struct mwifiex_adapter *adapter,
-				struct cmd_ctrl_node *cmd_node, u32 add_tail)
+				struct cmd_ctrl_node *cmd_node)
 {
 	struct host_cmd_ds_command *host_cmd = NULL;
 	u16 command;
 	unsigned long flags;
+	bool add_tail = true;
 
 	host_cmd = (struct host_cmd_ds_command *) (cmd_node->cmd_skb->data);
 	if (!host_cmd) {
