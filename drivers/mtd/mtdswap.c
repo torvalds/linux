@@ -1313,9 +1313,6 @@ static const struct file_operations mtdswap_fops = {
 
 static int mtdswap_add_debugfs(struct mtdswap_dev *d)
 {
-	struct gendisk *gd = d->mbd_dev->disk;
-	struct device *dev = disk_to_dev(gd);
-
 	struct dentry *root = d->mtd->dbg.dfs_dir;
 	struct dentry *dent;
 
