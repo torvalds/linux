@@ -1565,20 +1565,10 @@ static int rdtgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
 	return -EPERM;
 }
 
-static int rdtgroup_rmdir(struct kernfs_node *kn)
+static int rdtgroup_rmdir_ctrl(struct kernfs_node *kn, struct rdtgroup *rdtgrp,
+			       cpumask_var_t tmpmask)
 {
-	int ret, cpu, closid = rdtgroup_default.closid;
-	struct rdtgroup *rdtgrp;
-	cpumask_var_t tmpmask;
-
-	if (!zalloc_cpumask_var(&tmpmask, GFP_KERNEL))
-		return -ENOMEM;
-
-	rdtgrp = rdtgroup_kn_lock_live(kn);
-	if (!rdtgrp) {
-		ret = -EPERM;
-		goto out;
-	}
+	int cpu;
 
 	/* Give any tasks back to the default group */
 	rdt_move_group_tasks(rdtgrp, &rdtgroup_default, tmpmask);
@@ -1589,7 +1579,7 @@ static int rdtgroup_rmdir(struct kernfs_node *kn)
 
 	/* Update per cpu closid of the moved CPUs first */
 	for_each_cpu(cpu, &rdtgrp->cpu_mask)
-		per_cpu(rdt_cpu_default.closid, cpu) = closid;
+		per_cpu(rdt_cpu_default.closid, cpu) = rdtgroup_default.closid;
 	/*
 	 * Update the MSR on moved CPUs and CPUs which have moved
 	 * task running on them.
@@ -1607,7 +1597,35 @@ static int rdtgroup_rmdir(struct kernfs_node *kn)
 	 */
 	kernfs_get(kn);
 	kernfs_remove(rdtgrp->kn);
-	ret = 0;
+
+	return 0;
+}
+
+static int rdtgroup_rmdir(struct kernfs_node *kn)
+{
+	struct kernfs_node *parent_kn = kn->parent;
+	struct rdtgroup *rdtgrp;
+	cpumask_var_t tmpmask;
+	int ret = 0;
+
+	if (!zalloc_cpumask_var(&tmpmask, GFP_KERNEL))
+		return -ENOMEM;
+
+	rdtgrp = rdtgroup_kn_lock_live(kn);
+	if (!rdtgrp) {
+		ret = -EPERM;
+		goto out;
+	}
+
+	/*
+	 * If the rdtgroup is a ctrl_mon group and parent directory
+	 * is the root directory, remove the ctrl group.
+	 */
+	if (rdtgrp->type == RDTCTRL_GROUP && parent_kn == rdtgroup_default.kn)
+		ret = rdtgroup_rmdir_ctrl(kn, rdtgrp, tmpmask);
+	else
+		ret = -EPERM;
+
 out:
 	rdtgroup_kn_unlock(kn);
 	free_cpumask_var(tmpmask);
