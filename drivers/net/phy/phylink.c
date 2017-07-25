@@ -266,6 +266,23 @@ static int phylink_parse_mode(struct phylink *pl, struct device_node *np)
 			pl->link_an_mode = MLO_AN_8023Z;
 			break;
 
+		case PHY_INTERFACE_MODE_10GKR:
+			phylink_set(pl->supported, 10baseT_Half);
+			phylink_set(pl->supported, 10baseT_Full);
+			phylink_set(pl->supported, 100baseT_Half);
+			phylink_set(pl->supported, 100baseT_Full);
+			phylink_set(pl->supported, 1000baseT_Half);
+			phylink_set(pl->supported, 1000baseT_Full);
+			phylink_set(pl->supported, 1000baseX_Full);
+			phylink_set(pl->supported, 10000baseKR_Full);
+			phylink_set(pl->supported, 10000baseCR_Full);
+			phylink_set(pl->supported, 10000baseSR_Full);
+			phylink_set(pl->supported, 10000baseLR_Full);
+			phylink_set(pl->supported, 10000baseLRM_Full);
+			phylink_set(pl->supported, 10000baseER_Full);
+			pl->link_an_mode = MLO_AN_SGMII;
+			break;
+
 		default:
 			netdev_err(pl->netdev,
 				   "incorrect link mode %s for in-band status\n",
