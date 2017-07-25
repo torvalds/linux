@@ -1020,6 +1020,34 @@ int phylink_ethtool_set_pauseparam(struct phylink *pl,
 }
 EXPORT_SYMBOL_GPL(phylink_ethtool_set_pauseparam);
 
+int phylink_ethtool_get_module_info(struct phylink *pl,
+				    struct ethtool_modinfo *modinfo)
+{
+	int ret = -EOPNOTSUPP;
+
+	WARN_ON(!lockdep_rtnl_is_held());
+
+	if (pl->sfp_bus)
+		ret = sfp_get_module_info(pl->sfp_bus, modinfo);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(phylink_ethtool_get_module_info);
+
+int phylink_ethtool_get_module_eeprom(struct phylink *pl,
+				      struct ethtool_eeprom *ee, u8 *buf)
+{
+	int ret = -EOPNOTSUPP;
+
+	WARN_ON(!lockdep_rtnl_is_held());
+
+	if (pl->sfp_bus)
+		ret = sfp_get_module_eeprom(pl->sfp_bus, ee, buf);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(phylink_ethtool_get_module_eeprom);
+
 int phylink_init_eee(struct phylink *pl, bool clk_stop_enable)
 {
 	int ret = -EPROTONOSUPPORT;
