@@ -72,7 +72,7 @@ struct mongroup {
 struct rdtgroup {
 	struct kernfs_node	*kn;
 	struct list_head	rdtgroup_list;
-	int			closid;
+	u32			closid;
 	struct cpumask		cpu_mask;
 	int			flags;
 	atomic_t		waitcount;

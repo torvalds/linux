@@ -46,7 +46,7 @@ static inline void intel_rdt_sched_in(void)
 {
 	if (static_branch_likely(&rdt_alloc_enable_key)) {
 		struct intel_pqr_state *state = this_cpu_ptr(&pqr_state);
-		int closid;
+		u32 closid;
 
 		/*
 		 * If this task has a closid assigned, use it.

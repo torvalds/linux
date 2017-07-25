@@ -77,7 +77,7 @@ static void closid_init(void)
 
 static int closid_alloc(void)
 {
-	int closid = ffs(closid_free_map);
+	u32 closid = ffs(closid_free_map);
 
 	if (closid == 0)
 		return -ENOSPC;

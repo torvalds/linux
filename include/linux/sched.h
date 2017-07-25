@@ -899,7 +899,7 @@ struct task_struct {
 	struct list_head		cg_list;
 #endif
 #ifdef CONFIG_INTEL_RDT
-	int				closid;
+	u32				closid;
 #endif
 #ifdef CONFIG_FUTEX
 	struct robust_list_head __user	*robust_list;
