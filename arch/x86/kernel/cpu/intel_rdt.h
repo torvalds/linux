@@ -55,6 +55,7 @@ struct rmid_read {
 	struct rdtgroup		*rgrp;
 	struct rdt_domain	*d;
 	int			evtid;
+	bool			first;
 	u64			val;
 };
 
@@ -263,6 +264,12 @@ static inline bool is_mbm_enabled(void)
 	return (is_mbm_total_enabled() || is_mbm_local_enabled());
 }
 
+static inline bool is_mbm_event(int e)
+{
+	return (e >= QOS_L3_MBM_TOTAL_EVENT_ID &&
+		e <= QOS_L3_MBM_LOCAL_EVENT_ID);
+}
+
 /**
  * struct rdt_resource - attributes of an RDT resource
  * @rid:		The index of the resource
@@ -402,5 +409,7 @@ void rmdir_mondata_subdir_allrdtgrp(struct rdt_resource *r,
 				    unsigned int dom_id);
 void mkdir_mondata_subdir_allrdtgrp(struct rdt_resource *r,
 				    struct rdt_domain *d);
+void mon_event_read(struct rmid_read *rr, struct rdt_domain *d,
+		    struct rdtgroup *rdtgrp, int evtid, int first);
 
 #endif /* _ASM_X86_INTEL_RDT_H */

@@ -321,6 +321,13 @@ static int __mon_event_count(u32 rmid, struct rmid_read *rr)
 		 */
 		return -EINVAL;
 	}
+
+	if (rr->first) {
+		m->prev_msr = tval;
+		m->chunks = 0;
+		return 0;
+	}
+
 	shift = 64 - MBM_CNTR_WIDTH;
 	chunks = (tval << shift) - (m->prev_msr << shift);
 	chunks >>= shift;

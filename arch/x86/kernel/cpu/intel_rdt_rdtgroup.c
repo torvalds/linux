@@ -1351,6 +1351,7 @@ static int mkdir_mondata_subdir(struct kernfs_node *parent_kn,
 	union mon_data_bits priv;
 	struct kernfs_node *kn;
 	struct mon_evt *mevt;
+	struct rmid_read rr;
 	char name[32];
 	int ret;
 
@@ -1381,6 +1382,9 @@ static int mkdir_mondata_subdir(struct kernfs_node *parent_kn,
 		ret = mon_addfile(kn, mevt->name, priv.priv);
 		if (ret)
 			goto out_destroy;
+
+		if (is_mbm_event(mevt->evtid))
+			mon_event_read(&rr, d, prgrp, mevt->evtid, true);
 	}
 	kernfs_activate(kn);
 	return 0;
