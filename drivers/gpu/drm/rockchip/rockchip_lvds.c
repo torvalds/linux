@@ -73,6 +73,7 @@ struct rockchip_lvds {
 
 	struct drm_device *drm_dev;
 	struct drm_panel *panel;
+	struct drm_bridge *bridge;
 	struct drm_connector connector;
 	struct drm_encoder encoder;
 
@@ -716,7 +717,8 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 	struct drm_device *drm_dev = data;
 	struct drm_encoder *encoder;
 	struct drm_connector *connector;
-	struct device_node *panel_node, *port, *endpoint;
+	struct device_node *remote = NULL;
+	struct device_node  *port, *endpoint;
 	int ret, i;
 	const char *name;
 	lvds->drm_dev = drm_dev;
@@ -727,26 +729,37 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 		return -EINVAL;
 	}
 
-	endpoint = of_get_child_by_name(port, "endpoint");
-	of_node_put(port);
-	if (!endpoint) {
-		dev_err(dev, "no output endpoint found\n");
-		return -EINVAL;
+	for_each_child_of_node(port, endpoint) {
+		remote = of_graph_get_remote_port_parent(endpoint);
+		if (!remote) {
+			dev_err(dev, "can't found panel node, please init!\n");
+			ret = -EINVAL;
+			goto err_put_port;
+		}
+		if (!of_device_is_available(remote)) {
+			of_node_put(remote);
+			remote = NULL;
+			continue;
+		}
+		break;
 	}
-	panel_node = of_graph_get_remote_port_parent(endpoint);
-	of_node_put(endpoint);
-	if (!panel_node) {
-		dev_err(dev, "no output node found\n");
-		return -EINVAL;
-	}
-	lvds->panel = of_drm_find_panel(panel_node);
-	if (!lvds->panel) {
-		DRM_ERROR("failed to find panel\n");
-		of_node_put(panel_node);
-		return -EPROBE_DEFER;
+	if (!remote) {
+		dev_err(dev, "can't found remote node, please init!\n");
+		ret = -EINVAL;
+		goto err_put_port;
 	}
 
-	if (of_property_read_string(panel_node, "rockchip,output", &name))
+	lvds->panel = of_drm_find_panel(remote);
+	if (!lvds->panel)
+		lvds->bridge = of_drm_find_bridge(remote);
+
+	if (!lvds->panel && !lvds->bridge) {
+		DRM_ERROR("failed to find panel and bridge node\n");
+		ret  = -EPROBE_DEFER;
+		goto err_put_remote;
+	}
+
+	if (of_property_read_string(remote, "rockchip,output", &name))
 		/* default set it as output rgb */
 		lvds->output = DISPLAY_OUTPUT_RGB;
 	else
@@ -754,10 +767,11 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 
 	if (lvds->output < 0) {
 		dev_err(dev, "invalid output type [%s]\n", name);
-		return lvds->output;
+		ret = lvds->output;
+		goto err_put_remote;
 	}
 
-	if (of_property_read_string(panel_node, "rockchip,data-mapping",
+	if (of_property_read_string(remote, "rockchip,data-mapping",
 				    &name))
 		/* default set it as format jeida */
 		lvds->format = LVDS_FORMAT_JEIDA;
@@ -766,10 +780,11 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 
 	if (lvds->format < 0) {
 		dev_err(dev, "invalid data-mapping format [%s]\n", name);
-		return lvds->format;
+		ret = lvds->format;
+		goto err_put_remote;
 	}
 
-	if (of_property_read_u32(panel_node, "rockchip,data-width", &i)) {
+	if (of_property_read_u32(remote, "rockchip,data-width", &i)) {
 		lvds->format |= LVDS_24BIT;
 	} else {
 		if (i == 24) {
@@ -779,10 +794,10 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 		} else {
 			dev_err(dev,
 				"rockchip-lvds unsupport data-width[%d]\n", i);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto err_put_remote;
 		}
 	}
-	of_node_put(panel_node);
 
 	encoder = &lvds->encoder;
 	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm_dev,
@@ -792,38 +807,50 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 			       DRM_MODE_ENCODER_LVDS, NULL);
 	if (ret < 0) {
 		DRM_ERROR("failed to initialize encoder with drm\n");
-		return ret;
+		goto err_put_remote;
 	}
 
 	drm_encoder_helper_add(encoder, &rockchip_lvds_encoder_helper_funcs);
 
-	connector = &lvds->connector;
-	connector->dpms = DRM_MODE_DPMS_OFF;
+	if (lvds->panel) {
+		connector = &lvds->connector;
+		connector->dpms = DRM_MODE_DPMS_OFF;
+		ret = drm_connector_init(drm_dev, connector,
+					 &rockchip_lvds_connector_funcs,
+					 DRM_MODE_CONNECTOR_LVDS);
+		if (ret < 0) {
+			DRM_ERROR("failed to initialize connector with drm\n");
+			goto err_free_encoder;
+		}
 
-	ret = drm_connector_init(drm_dev, connector,
-				 &rockchip_lvds_connector_funcs,
-				 DRM_MODE_CONNECTOR_LVDS);
-	if (ret < 0) {
-		DRM_ERROR("failed to initialize connector with drm\n");
-		goto err_free_encoder;
+		drm_connector_helper_add(connector,
+					 &rockchip_lvds_connector_helper_funcs);
+
+		ret = drm_mode_connector_attach_encoder(connector, encoder);
+		if (ret < 0) {
+			DRM_ERROR("failed to attach connector and encoder\n");
+			goto err_free_connector;
+		}
+
+		ret = drm_panel_attach(lvds->panel, connector);
+		if (ret < 0) {
+			DRM_ERROR("failed to attach connector and encoder\n");
+			goto err_free_connector;
+		}
+		lvds->connector.port = dev->of_node;
+	} else {
+		lvds->bridge->encoder = encoder;
+		ret = drm_bridge_attach(drm_dev, lvds->bridge);
+		if (ret) {
+			DRM_ERROR("Failed to attach bridge to drm\n");
+			goto err_free_encoder;
+		}
+		encoder->bridge = lvds->bridge;
 	}
 
-	drm_connector_helper_add(connector,
-				 &rockchip_lvds_connector_helper_funcs);
-
-	ret = drm_mode_connector_attach_encoder(connector, encoder);
-	if (ret < 0) {
-		DRM_ERROR("failed to attach connector and encoder\n");
-		goto err_free_connector;
-	}
-
-	ret = drm_panel_attach(lvds->panel, connector);
-	if (ret < 0) {
-		DRM_ERROR("failed to attach connector and encoder\n");
-		goto err_free_connector;
-	}
-	lvds->connector.port = dev->of_node;
 	pm_runtime_enable(dev);
+	of_node_put(remote);
+	of_node_put(port);
 
 	return 0;
 
@@ -831,6 +858,11 @@ err_free_connector:
 	drm_connector_cleanup(connector);
 err_free_encoder:
 	drm_encoder_cleanup(encoder);
+err_put_remote:
+	of_node_put(remote);
+err_put_port:
+	of_node_put(port);
+
 	return ret;
 }
 
