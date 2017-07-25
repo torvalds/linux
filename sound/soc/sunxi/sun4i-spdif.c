@@ -458,11 +458,16 @@ static int sun4i_spdif_runtime_suspend(struct device *dev)
 static int sun4i_spdif_runtime_resume(struct device *dev)
 {
 	struct sun4i_spdif_dev *host  = dev_get_drvdata(dev);
+	int ret;
 
-	clk_prepare_enable(host->spdif_clk);
-	clk_prepare_enable(host->apb_clk);
+	ret = clk_prepare_enable(host->spdif_clk);
+	if (ret)
+		return ret;
+	ret = clk_prepare_enable(host->apb_clk);
+	if (ret)
+		clk_disable_unprepare(host->spdif_clk);
 
-	return 0;
+	return ret;
 }
 
 static int sun4i_spdif_probe(struct platform_device *pdev)
