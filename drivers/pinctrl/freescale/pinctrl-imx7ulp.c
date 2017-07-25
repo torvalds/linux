@@ -259,6 +259,8 @@ static const struct pinctrl_pin_desc imx7ulp_pinctrl_pads[] = {
 	IMX_PINCTRL_PIN(IMX7ULP_PAD_PTF19),
 };
 
+#define BM_OBE_ENABLED		BIT(17)
+#define BM_IBE_ENABLED		BIT(16)
 #define BM_LK_ENABLED		BIT(15)
 #define BM_MUX_MODE		0xf00
 #define BP_MUX_MODE		8
@@ -300,10 +302,34 @@ static void imx7ulp_cfg_params_fixup(unsigned long *configs,
 	}
 }
 
+static int imx7ulp_pmx_gpio_set_direction(struct pinctrl_dev *pctldev,
+					  struct pinctrl_gpio_range *range,
+					  unsigned offset, bool input)
+{
+	struct imx_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
+	struct imx_pinctrl_soc_info *info = ipctl->info;
+	const struct imx_pin_reg *pin_reg;
+	u32 reg;
+
+	pin_reg = &info->pin_regs[offset];
+	if (pin_reg->mux_reg == -1)
+		return -EINVAL;
+
+	reg = readl(ipctl->base + pin_reg->mux_reg);
+	if (input)
+		reg = (reg & ~BM_OBE_ENABLED) | BM_IBE_ENABLED;
+	else
+		reg = (reg & ~BM_IBE_ENABLED) | BM_OBE_ENABLED;
+	writel(reg, ipctl->base + pin_reg->mux_reg);
+
+	return 0;
+}
+
 static struct imx_pinctrl_soc_info imx7ulp_pinctrl_info = {
 	.pins = imx7ulp_pinctrl_pads,
 	.npins = ARRAY_SIZE(imx7ulp_pinctrl_pads),
 	.flags = ZERO_OFFSET_VALID | SHARE_MUX_CONF_REG,
+	.gpio_set_direction = imx7ulp_pmx_gpio_set_direction,
 	.mux_mask = BM_MUX_MODE,
 	.mux_shift = BP_MUX_MODE,
 	.generic_pinconf = true,
