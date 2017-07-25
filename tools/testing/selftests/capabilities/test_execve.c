@@ -380,7 +380,8 @@ static int do_tests(int uid, const char *our_path)
 						true, true, true, false);
 	} else {
 		printf("[RUN]\tNon-root +ia, sgidnonroot => i\n");
-		exec_other_validate_cap("./validate_cap_sgidnonroot",
+		if (fork_wait())
+			exec_other_validate_cap("./validate_cap_sgidnonroot",
 					false, false, true, false);
 
 		if (fork_wait()) {
