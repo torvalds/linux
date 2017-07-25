@@ -233,11 +233,9 @@ struct drm_plane_funcs {
 	 * This is the legacy entry point to update a property attached to the
 	 * plane.
 	 *
-	 * Drivers implementing atomic modeset should use
-	 * drm_atomic_helper_plane_set_property() to implement this hook.
-	 *
 	 * This callback is optional if the driver does not support any legacy
-	 * driver-private properties.
+	 * driver-private properties. For atomic drivers it is not used because
+	 * property handling is done entirely in the DRM core.
 	 *
 	 * RETURNS:
 	 *

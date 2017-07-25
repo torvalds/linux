@@ -448,7 +448,7 @@ int drm_mode_plane_set_obj_prop(struct drm_plane *plane,
 
 	if (plane->funcs->set_property)
 		ret = plane->funcs->set_property(plane, property, value);
-	if (!ret && !drm_drv_uses_atomic_modeset(property->dev))
+	if (!ret)
 		drm_object_property_set_value(obj, property, value);
 
 	return ret;

@@ -382,8 +382,8 @@ struct drm_connector_funcs {
 	 * implement the 4 level DPMS support on the connector any more, but
 	 * instead only have an on/off "ACTIVE" property on the CRTC object.
 	 *
-	 * Drivers implementing atomic modeset should use
-	 * drm_atomic_helper_connector_dpms() to implement this hook.
+	 * This hook is not used by atomic drivers, remapping of the legacy DPMS
+	 * property is entirely handled in the DRM core.
 	 *
 	 * RETURNS:
 	 *
@@ -480,11 +480,9 @@ struct drm_connector_funcs {
 	 * This is the legacy entry point to update a property attached to the
 	 * connector.
 	 *
-	 * Drivers implementing atomic modeset should use
-	 * drm_atomic_helper_connector_set_property() to implement this hook.
-	 *
 	 * This callback is optional if the driver does not support any legacy
-	 * driver-private properties.
+	 * driver-private properties. For atomic drivers it is not used because
+	 * property handling is done entirely in the DRM core.
 	 *
 	 * RETURNS:
 	 *

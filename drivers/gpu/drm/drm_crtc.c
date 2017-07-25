@@ -736,7 +736,7 @@ int drm_mode_crtc_set_obj_prop(struct drm_mode_object *obj,
 
 	if (crtc->funcs->set_property)
 		ret = crtc->funcs->set_property(crtc, property, value);
-	if (!ret && !drm_drv_uses_atomic_modeset(property->dev))
+	if (!ret)
 		drm_object_property_set_value(obj, property, value);
 
 	return ret;

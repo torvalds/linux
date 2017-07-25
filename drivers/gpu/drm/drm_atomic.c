@@ -1864,9 +1864,60 @@ static struct drm_pending_vblank_event *create_vblank_event(
 	return e;
 }
 
-static int atomic_set_prop(struct drm_atomic_state *state,
-		struct drm_mode_object *obj, struct drm_property *prop,
-		uint64_t prop_value)
+int drm_atomic_connector_commit_dpms(struct drm_atomic_state *state,
+				     struct drm_connector *connector,
+				     int mode)
+{
+	struct drm_connector *tmp_connector;
+	struct drm_connector_state *new_conn_state;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	int i, ret, old_mode = connector->dpms;
+	bool active = false;
+
+	ret = drm_modeset_lock(&state->dev->mode_config.connection_mutex,
+			       state->acquire_ctx);
+	if (ret)
+		return ret;
+
+	if (mode != DRM_MODE_DPMS_ON)
+		mode = DRM_MODE_DPMS_OFF;
+	connector->dpms = mode;
+
+	crtc = connector->state->crtc;
+	if (!crtc)
+		goto out;
+	ret = drm_atomic_add_affected_connectors(state, crtc);
+	if (ret)
+		goto out;
+
+	crtc_state = drm_atomic_get_crtc_state(state, crtc);
+	if (IS_ERR(crtc_state)) {
+		ret = PTR_ERR(crtc_state);
+		goto out;
+	}
+
+	for_each_new_connector_in_state(state, tmp_connector, new_conn_state, i) {
+		if (new_conn_state->crtc != crtc)
+			continue;
+		if (tmp_connector->dpms == DRM_MODE_DPMS_ON) {
+			active = true;
+			break;
+		}
+	}
+
+	crtc_state->active = active;
+	ret = drm_atomic_commit(state);
+out:
+	if (ret != 0)
+		connector->dpms = old_mode;
+	return ret;
+}
+
+int drm_atomic_set_property(struct drm_atomic_state *state,
+			    struct drm_mode_object *obj,
+			    struct drm_property *prop,
+			    uint64_t prop_value)
 {
 	struct drm_mode_object *ref;
 	int ret;
@@ -2286,7 +2337,8 @@ retry:
 				goto out;
 			}
 
-			ret = atomic_set_prop(state, obj, prop, prop_value);
+			ret = drm_atomic_set_property(state, obj, prop,
+						      prop_value);
 			if (ret) {
 				drm_mode_object_put(obj);
 				goto out;
