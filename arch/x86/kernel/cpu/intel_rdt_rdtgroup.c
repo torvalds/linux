@@ -490,6 +490,28 @@ static int rdt_min_bw_show(struct kernfs_open_file *of,
 	return 0;
 }
 
+static int rdt_num_rmids_show(struct kernfs_open_file *of,
+			      struct seq_file *seq, void *v)
+{
+	struct rdt_resource *r = of->kn->parent->priv;
+
+	seq_printf(seq, "%d\n", r->num_rmid);
+
+	return 0;
+}
+
+static int rdt_mon_features_show(struct kernfs_open_file *of,
+				 struct seq_file *seq, void *v)
+{
+	struct rdt_resource *r = of->kn->parent->priv;
+	struct mon_evt *mevt;
+
+	list_for_each_entry(mevt, &r->evt_list, list)
+		seq_printf(seq, "%s\n", mevt->name);
+
+	return 0;
+}
+
 static int rdt_bw_gran_show(struct kernfs_open_file *of,
 			     struct seq_file *seq, void *v)
 {
@@ -508,6 +530,35 @@ static int rdt_delay_linear_show(struct kernfs_open_file *of,
 	return 0;
 }
 
+static int max_threshold_occ_show(struct kernfs_open_file *of,
+				  struct seq_file *seq, void *v)
+{
+	struct rdt_resource *r = of->kn->parent->priv;
+
+	seq_printf(seq, "%u\n", intel_cqm_threshold * r->mon_scale);
+
+	return 0;
+}
+
+static ssize_t max_threshold_occ_write(struct kernfs_open_file *of,
+				       char *buf, size_t nbytes, loff_t off)
+{
+	struct rdt_resource *r = of->kn->parent->priv;
+	unsigned int bytes;
+	int ret;
+
+	ret = kstrtouint(buf, 0, &bytes);
+	if (ret)
+		return ret;
+
+	if (bytes > (boot_cpu_data.x86_cache_size * 1024))
+		return -EINVAL;
+
+	intel_cqm_threshold = bytes / r->mon_scale;
+
+	return ret ?: nbytes;
+}
+
 /* rdtgroup information files for one cache resource. */
 static struct rftype res_common_files[] = {
 	{
@@ -516,6 +567,20 @@ static struct rftype res_common_files[] = {
 		.kf_ops		= &rdtgroup_kf_single_ops,
 		.seq_show	= rdt_num_closids_show,
 		.fflags		= RF_CTRL_INFO,
+	},
+	{
+		.name		= "mon_features",
+		.mode		= 0444,
+		.kf_ops		= &rdtgroup_kf_single_ops,
+		.seq_show	= rdt_mon_features_show,
+		.fflags		= RF_MON_INFO,
+	},
+	{
+		.name		= "num_rmids",
+		.mode		= 0444,
+		.kf_ops		= &rdtgroup_kf_single_ops,
+		.seq_show	= rdt_num_rmids_show,
+		.fflags		= RF_MON_INFO,
 	},
 	{
 		.name		= "cbm_mask",
@@ -551,6 +616,14 @@ static struct rftype res_common_files[] = {
 		.kf_ops		= &rdtgroup_kf_single_ops,
 		.seq_show	= rdt_delay_linear_show,
 		.fflags		= RF_CTRL_INFO | RFTYPE_RES_MB,
+	},
+	{
+		.name		= "max_threshold_occupancy",
+		.mode		= 0644,
+		.kf_ops		= &rdtgroup_kf_single_ops,
+		.write		= max_threshold_occ_write,
+		.seq_show	= max_threshold_occ_show,
+		.fflags		= RF_MON_INFO | RFTYPE_RES_CACHE,
 	},
 	{
 		.name		= "cpus",
@@ -642,6 +715,7 @@ static int rdtgroup_create_info_dir(struct kernfs_node *parent_kn)
 {
 	struct rdt_resource *r;
 	unsigned long fflags;
+	char name[32];
 	int ret;
 
 	/* create the directory */
@@ -656,6 +730,15 @@ static int rdtgroup_create_info_dir(struct kernfs_node *parent_kn)
 		if (ret)
 			goto out_destroy;
 	}
+
+	for_each_mon_enabled_rdt_resource(r) {
+		fflags =  r->fflags | RF_MON_INFO;
+		sprintf(name, "%s_MON", r->name);
+		ret = rdtgroup_mkdir_info_resdir(r, name, fflags);
+		if (ret)
+			goto out_destroy;
+	}
+
 	/*
 	 * This extra ref will be put in kernfs_remove() and guarantees
 	 * that @rdtgrp->kn is always accessible.

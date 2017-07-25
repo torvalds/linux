@@ -68,10 +68,13 @@ struct rdtgroup {
 #define RFTYPE_INFO			BIT(0)
 #define RFTYPE_BASE			BIT(1)
 #define RF_CTRLSHIFT			4
+#define RF_MONSHIFT			5
 #define RFTYPE_CTRL			BIT(RF_CTRLSHIFT)
+#define RFTYPE_MON			BIT(RF_MONSHIFT)
 #define RFTYPE_RES_CACHE		BIT(8)
 #define RFTYPE_RES_MB			BIT(9)
 #define RF_CTRL_INFO			(RFTYPE_INFO | RFTYPE_CTRL)
+#define RF_MON_INFO			(RFTYPE_INFO | RFTYPE_MON)
 #define RF_CTRL_BASE			(RFTYPE_BASE | RFTYPE_CTRL)
 
 /* List of all resource groups */
@@ -263,6 +266,11 @@ enum {
 	for (r = rdt_resources_all; r < rdt_resources_all + RDT_NUM_RESOURCES;\
 	     r++)							      \
 		if (r->alloc_enabled)
+
+#define for_each_mon_enabled_rdt_resource(r)				      \
+	for (r = rdt_resources_all; r < rdt_resources_all + RDT_NUM_RESOURCES;\
+	     r++)							      \
+		if (r->mon_enabled)
 
 /* CPUID.(EAX=10H, ECX=ResID=1).EAX */
 union cpuid_0x10_1_eax {
