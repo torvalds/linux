@@ -263,7 +263,7 @@ static int atmel_ebi_xslate_smc_config(struct atmel_ebi_dev *ebid,
 	}
 
 	ret = atmel_ebi_xslate_smc_timings(ebid, np, &conf->smcconf);
-	if (ret)
+	if (ret < 0)
 		return -EINVAL;
 
 	if ((ret > 0 && !required) || (!ret && required)) {
