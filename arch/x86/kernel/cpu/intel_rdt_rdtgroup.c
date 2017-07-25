@@ -1323,6 +1323,27 @@ static int mon_addfile(struct kernfs_node *parent_kn, const char *name,
 	return ret;
 }
 
+/*
+ * Remove all subdirectories of mon_data of ctrl_mon groups
+ * and monitor groups with given domain id.
+ */
+void rmdir_mondata_subdir_allrdtgrp(struct rdt_resource *r, unsigned int dom_id)
+{
+	struct rdtgroup *prgrp, *crgrp;
+	char name[32];
+
+	if (!r->mon_enabled)
+		return;
+
+	list_for_each_entry(prgrp, &rdt_all_groups, rdtgroup_list) {
+		sprintf(name, "mon_%s_%02d", r->name, dom_id);
+		kernfs_remove_by_name(prgrp->mon.mon_data_kn, name);
+
+		list_for_each_entry(crgrp, &prgrp->mon.crdtgrp_list, mon.crdtgrp_list)
+			kernfs_remove_by_name(crgrp->mon.mon_data_kn, name);
+	}
+}
+
 static int mkdir_mondata_subdir(struct kernfs_node *parent_kn,
 				struct rdt_domain *d,
 				struct rdt_resource *r, struct rdtgroup *prgrp)
@@ -1367,6 +1388,32 @@ static int mkdir_mondata_subdir(struct kernfs_node *parent_kn,
 out_destroy:
 	kernfs_remove(kn);
 	return ret;
+}
+
+/*
+ * Add all subdirectories of mon_data for "ctrl_mon" groups
+ * and "monitor" groups with given domain id.
+ */
+void mkdir_mondata_subdir_allrdtgrp(struct rdt_resource *r,
+				    struct rdt_domain *d)
+{
+	struct kernfs_node *parent_kn;
+	struct rdtgroup *prgrp, *crgrp;
+	struct list_head *head;
+
+	if (!r->mon_enabled)
+		return;
+
+	list_for_each_entry(prgrp, &rdt_all_groups, rdtgroup_list) {
+		parent_kn = prgrp->mon.mon_data_kn;
+		mkdir_mondata_subdir(parent_kn, d, r, prgrp);
+
+		head = &prgrp->mon.crdtgrp_list;
+		list_for_each_entry(crgrp, head, mon.crdtgrp_list) {
+			parent_kn = crgrp->mon.mon_data_kn;
+			mkdir_mondata_subdir(parent_kn, d, r, crgrp);
+		}
+	}
 }
 
 static int mkdir_mondata_subdir_alldom(struct kernfs_node *parent_kn,

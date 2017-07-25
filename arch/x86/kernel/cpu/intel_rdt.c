@@ -479,6 +479,13 @@ static void domain_add_cpu(int cpu, struct rdt_resource *r)
 
 	cpumask_set_cpu(cpu, &d->cpu_mask);
 	list_add_tail(&d->list, add_pos);
+
+	/*
+	 * If resctrl is mounted, add
+	 * per domain monitor data directories.
+	 */
+	if (static_branch_unlikely(&rdt_mon_enable_key))
+		mkdir_mondata_subdir_allrdtgrp(r, d);
 }
 
 static void domain_remove_cpu(int cpu, struct rdt_resource *r)
@@ -494,6 +501,12 @@ static void domain_remove_cpu(int cpu, struct rdt_resource *r)
 
 	cpumask_clear_cpu(cpu, &d->cpu_mask);
 	if (cpumask_empty(&d->cpu_mask)) {
+		/*
+		 * If resctrl is mounted, remove all the
+		 * per domain monitor data directories.
+		 */
+		if (static_branch_unlikely(&rdt_mon_enable_key))
+			rmdir_mondata_subdir_allrdtgrp(r, d->id);
 		kfree(d->ctrl_val);
 		kfree(d->rmid_busy_llc);
 		list_del(&d->list);
@@ -501,13 +514,14 @@ static void domain_remove_cpu(int cpu, struct rdt_resource *r)
 	}
 }
 
-static void clear_closid(int cpu)
+static void clear_closid_rmid(int cpu)
 {
 	struct intel_pqr_state *state = this_cpu_ptr(&pqr_state);
 
 	per_cpu(rdt_cpu_default.closid, cpu) = 0;
 	state->closid = 0;
-	wrmsr(IA32_PQR_ASSOC, state->rmid, 0);
+	state->rmid = 0;
+	wrmsr(IA32_PQR_ASSOC, 0, 0);
 }
 
 static int intel_rdt_online_cpu(unsigned int cpu)
@@ -515,14 +529,25 @@ static int intel_rdt_online_cpu(unsigned int cpu)
 	struct rdt_resource *r;
 
 	mutex_lock(&rdtgroup_mutex);
-	for_each_alloc_capable_rdt_resource(r)
+	for_each_capable_rdt_resource(r)
 		domain_add_cpu(cpu, r);
 	/* The cpu is set in default rdtgroup after online. */
 	cpumask_set_cpu(cpu, &rdtgroup_default.cpu_mask);
-	clear_closid(cpu);
+	clear_closid_rmid(cpu);
 	mutex_unlock(&rdtgroup_mutex);
 
 	return 0;
+}
+
+static void clear_childcpus(struct rdtgroup *r, unsigned int cpu)
+{
+	struct rdtgroup *cr;
+
+	list_for_each_entry(cr, &r->mon.crdtgrp_list, mon.crdtgrp_list) {
+		if (cpumask_test_and_clear_cpu(cpu, &cr->cpu_mask)) {
+			break;
+		}
+	}
 }
 
 static int intel_rdt_offline_cpu(unsigned int cpu)
@@ -531,13 +556,15 @@ static int intel_rdt_offline_cpu(unsigned int cpu)
 	struct rdt_resource *r;
 
 	mutex_lock(&rdtgroup_mutex);
-	for_each_alloc_capable_rdt_resource(r)
+	for_each_capable_rdt_resource(r)
 		domain_remove_cpu(cpu, r);
 	list_for_each_entry(rdtgrp, &rdt_all_groups, rdtgroup_list) {
-		if (cpumask_test_and_clear_cpu(cpu, &rdtgrp->cpu_mask))
+		if (cpumask_test_and_clear_cpu(cpu, &rdtgrp->cpu_mask)) {
+			clear_childcpus(rdtgrp, cpu);
 			break;
+		}
 	}
-	clear_closid(cpu);
+	clear_closid_rmid(cpu);
 	mutex_unlock(&rdtgroup_mutex);
 
 	return 0;

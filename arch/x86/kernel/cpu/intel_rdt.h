@@ -301,6 +301,11 @@ enum {
 	RDT_NUM_RESOURCES,
 };
 
+#define for_each_capable_rdt_resource(r)				      \
+	for (r = rdt_resources_all; r < rdt_resources_all + RDT_NUM_RESOURCES;\
+	     r++)							      \
+		if (r->alloc_capable || r->mon_capable)
+
 #define for_each_alloc_capable_rdt_resource(r)				      \
 	for (r = rdt_resources_all; r < rdt_resources_all + RDT_NUM_RESOURCES;\
 	     r++)							      \
@@ -360,5 +365,9 @@ void free_rmid(u32 rmid);
 int rdt_get_mon_l3_config(struct rdt_resource *r);
 void mon_event_count(void *info);
 int rdtgroup_mondata_show(struct seq_file *m, void *arg);
+void rmdir_mondata_subdir_allrdtgrp(struct rdt_resource *r,
+				    unsigned int dom_id);
+void mkdir_mondata_subdir_allrdtgrp(struct rdt_resource *r,
+				    struct rdt_domain *d);
 
 #endif /* _ASM_X86_INTEL_RDT_H */
