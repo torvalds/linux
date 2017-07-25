@@ -2712,7 +2712,8 @@ void nvme_kill_queues(struct nvme_ctrl *ctrl)
 	mutex_lock(&ctrl->namespaces_mutex);
 
 	/* Forcibly unquiesce queues to avoid blocking dispatch */
-	blk_mq_unquiesce_queue(ctrl->admin_q);
+	if (ctrl->admin_q)
+		blk_mq_unquiesce_queue(ctrl->admin_q);
 
 	list_for_each_entry(ns, &ctrl->namespaces, list) {
 		/*
