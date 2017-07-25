@@ -343,6 +343,7 @@ void mon_event_count(void *info)
 		}
 	}
 }
+
 static int dom_data_init(struct rdt_resource *r)
 {
 	struct rmid_entry *entry = NULL;

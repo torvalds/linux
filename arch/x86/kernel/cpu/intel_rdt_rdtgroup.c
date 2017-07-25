@@ -35,6 +35,8 @@
 #include <asm/intel_rdt_sched.h>
 #include "intel_rdt.h"
 
+DEFINE_STATIC_KEY_FALSE(rdt_enable_key);
+DEFINE_STATIC_KEY_FALSE(rdt_mon_enable_key);
 DEFINE_STATIC_KEY_FALSE(rdt_alloc_enable_key);
 static struct kernfs_root *rdt_root;
 struct rdtgroup rdtgroup_default;
@@ -42,6 +44,12 @@ LIST_HEAD(rdt_all_groups);
 
 /* Kernel fs node for "info" directory under root */
 static struct kernfs_node *kn_info;
+
+/* Kernel fs node for "mon_groups" directory under root */
+static struct kernfs_node *kn_mongrp;
+
+/* Kernel fs node for "mon_data" directory under root */
+static struct kernfs_node *kn_mondata;
 
 /*
  * Trivial allocator for CLOSIDs. Since h/w only supports a small number,
@@ -1044,6 +1052,10 @@ void rdtgroup_kn_unlock(struct kernfs_node *kn)
 	}
 }
 
+static int mkdir_mondata_all(struct kernfs_node *parent_kn,
+			     struct rdtgroup *prgrp,
+			     struct kernfs_node **mon_data_kn);
+
 static struct dentry *rdt_mount(struct file_system_type *fs_type,
 				int flags, const char *unused_dev_name,
 				void *data)
@@ -1055,7 +1067,7 @@ static struct dentry *rdt_mount(struct file_system_type *fs_type,
 	/*
 	 * resctrl file system can only be mounted once.
 	 */
-	if (static_branch_unlikely(&rdt_alloc_enable_key)) {
+	if (static_branch_unlikely(&rdt_enable_key)) {
 		dentry = ERR_PTR(-EBUSY);
 		goto out;
 	}
@@ -1074,15 +1086,47 @@ static struct dentry *rdt_mount(struct file_system_type *fs_type,
 		goto out_cdp;
 	}
 
+	if (rdt_mon_capable) {
+		ret = mongroup_create_dir(rdtgroup_default.kn,
+					  NULL, "mon_groups",
+					  &kn_mongrp);
+		if (ret) {
+			dentry = ERR_PTR(ret);
+			goto out_info;
+		}
+		kernfs_get(kn_mongrp);
+
+		ret = mkdir_mondata_all(rdtgroup_default.kn,
+					&rdtgroup_default, &kn_mondata);
+		if (ret) {
+			dentry = ERR_PTR(ret);
+			goto out_mongrp;
+		}
+		kernfs_get(kn_mondata);
+		rdtgroup_default.mon.mon_data_kn = kn_mondata;
+	}
+
 	dentry = kernfs_mount(fs_type, flags, rdt_root,
 			      RDTGROUP_SUPER_MAGIC, NULL);
 	if (IS_ERR(dentry))
-		goto out_destroy;
+		goto out_mondata;
 
-	static_branch_enable(&rdt_alloc_enable_key);
+	if (rdt_alloc_capable)
+		static_branch_enable(&rdt_alloc_enable_key);
+	if (rdt_mon_capable)
+		static_branch_enable(&rdt_mon_enable_key);
+
+	if (rdt_alloc_capable || rdt_mon_capable)
+		static_branch_enable(&rdt_enable_key);
 	goto out;
 
-out_destroy:
+out_mondata:
+	if (rdt_mon_capable)
+		kernfs_remove(kn_mondata);
+out_mongrp:
+	if (rdt_mon_capable)
+		kernfs_remove(kn_mongrp);
+out_info:
 	kernfs_remove(kn_info);
 out_cdp:
 	cdp_disable();
@@ -1204,6 +1248,9 @@ static void rmdir_all_sub(void)
 	rdt_move_group_tasks(NULL, &rdtgroup_default, NULL);
 
 	list_for_each_entry_safe(rdtgrp, tmp, &rdt_all_groups, rdtgroup_list) {
+		/* Free any child rmids */
+		free_all_child_rdtgrp(rdtgrp);
+
 		/* Remove each rdtgroup other than root */
 		if (rdtgrp == &rdtgroup_default)
 			continue;
@@ -1216,6 +1263,8 @@ static void rmdir_all_sub(void)
 		cpumask_or(&rdtgroup_default.cpu_mask,
 			   &rdtgroup_default.cpu_mask, &rdtgrp->cpu_mask);
 
+		free_rmid(rdtgrp->mon.rmid);
+
 		kernfs_remove(rdtgrp->kn);
 		list_del(&rdtgrp->rdtgroup_list);
 		kfree(rdtgrp);
@@ -1226,6 +1275,8 @@ static void rmdir_all_sub(void)
 	put_online_cpus();
 
 	kernfs_remove(kn_info);
+	kernfs_remove(kn_mongrp);
+	kernfs_remove(kn_mondata);
 }
 
 static void rdt_kill_sb(struct super_block *sb)
@@ -1240,6 +1291,8 @@ static void rdt_kill_sb(struct super_block *sb)
 	cdp_disable();
 	rmdir_all_sub();
 	static_branch_disable(&rdt_alloc_enable_key);
+	static_branch_disable(&rdt_mon_enable_key);
+	static_branch_disable(&rdt_enable_key);
 	kernfs_kill_sb(sb);
 	mutex_unlock(&rdtgroup_mutex);
 }
