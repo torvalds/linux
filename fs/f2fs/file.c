@@ -1495,6 +1495,22 @@ static int f2fs_release_file(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+static int f2fs_file_flush(struct file *file, fl_owner_t id)
+{
+	struct inode *inode = file_inode(file);
+
+	/*
+	 * If the process doing a transaction is crashed, we should do
+	 * roll-back. Otherwise, other reader/write can see corrupted database
+	 * until all the writers close its file. Since this should be done
+	 * before dropping file lock, it needs to do in ->flush.
+	 */
+	if (f2fs_is_atomic_file(inode) &&
+			F2FS_I(inode)->inmem_task == current)
+		drop_inmem_pages(inode);
+	return 0;
+}
+
 #define F2FS_REG_FLMASK		(~(FS_DIRSYNC_FL | FS_TOPDIR_FL))
 #define F2FS_OTHER_FLMASK	(FS_NODUMP_FL | FS_NOATIME_FL)
 
@@ -1614,6 +1630,7 @@ static int f2fs_ioc_start_atomic_write(struct file *filp)
 	}
 
 inc_stat:
+	F2FS_I(inode)->inmem_task = current;
 	stat_inc_atomic_write(inode);
 	stat_update_max_atomic_write(inode);
 out:
@@ -2506,6 +2523,7 @@ const struct file_operations f2fs_file_operations = {
 	.open		= f2fs_file_open,
 	.release	= f2fs_release_file,
 	.mmap		= f2fs_file_mmap,
+	.flush		= f2fs_file_flush,
 	.fsync		= f2fs_sync_file,
 	.fallocate	= f2fs_fallocate,
 	.unlocked_ioctl	= f2fs_ioctl,
