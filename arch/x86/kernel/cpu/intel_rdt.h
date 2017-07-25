@@ -22,8 +22,6 @@
 #define RMID_VAL_ERROR			BIT_ULL(63)
 #define RMID_VAL_UNAVAIL		BIT_ULL(62)
 
-DECLARE_STATIC_KEY_FALSE(rdt_enable_key);
-
 /**
  * struct mon_evt - Entry in the event list of a resource
  * @evtid:		event id
@@ -60,8 +58,6 @@ extern unsigned int intel_cqm_threshold;
 extern bool rdt_alloc_capable;
 extern bool rdt_mon_capable;
 extern unsigned int rdt_mon_features;
-
-DECLARE_STATIC_KEY_FALSE(rdt_mon_enable_key);
 
 enum rdt_group_type {
 	RDTCTRL_GROUP = 0,
