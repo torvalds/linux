@@ -2898,6 +2898,21 @@ out:
 	return err == -EAGAIN ? -ENOBUFS : err;
 }
 
+static bool expect_iter_name(struct nf_conntrack_expect *exp, void *data)
+{
+	const struct nf_conn_help *m_help;
+	const char *name = data;
+
+	m_help = nfct_help(exp->master);
+
+	return strcmp(m_help->helper->name, name) == 0;
+}
+
+static bool expect_iter_all(struct nf_conntrack_expect *exp, void *data)
+{
+	return true;
+}
+
 static int ctnetlink_del_expect(struct net *net, struct sock *ctnl,
 				struct sk_buff *skb, const struct nlmsghdr *nlh,
 				const struct nlattr * const cda[],
@@ -2906,10 +2921,8 @@ static int ctnetlink_del_expect(struct net *net, struct sock *ctnl,
 	struct nf_conntrack_expect *exp;
 	struct nf_conntrack_tuple tuple;
 	struct nfgenmsg *nfmsg = nlmsg_data(nlh);
-	struct hlist_node *next;
 	u_int8_t u3 = nfmsg->nfgen_family;
 	struct nf_conntrack_zone zone;
-	unsigned int i;
 	int err;
 
 	if (cda[CTA_EXPECT_TUPLE]) {
@@ -2949,49 +2962,15 @@ static int ctnetlink_del_expect(struct net *net, struct sock *ctnl,
 		nf_ct_expect_put(exp);
 	} else if (cda[CTA_EXPECT_HELP_NAME]) {
 		char *name = nla_data(cda[CTA_EXPECT_HELP_NAME]);
-		struct nf_conn_help *m_help;
 
-		/* delete all expectations for this helper */
-		spin_lock_bh(&nf_conntrack_expect_lock);
-		for (i = 0; i < nf_ct_expect_hsize; i++) {
-			hlist_for_each_entry_safe(exp, next,
-						  &nf_ct_expect_hash[i],
-						  hnode) {
-
-				if (!net_eq(nf_ct_exp_net(exp), net))
-					continue;
-
-				m_help = nfct_help(exp->master);
-				if (!strcmp(m_help->helper->name, name) &&
-				    del_timer(&exp->timeout)) {
-					nf_ct_unlink_expect_report(exp,
-							NETLINK_CB(skb).portid,
-							nlmsg_report(nlh));
-					nf_ct_expect_put(exp);
-				}
-			}
-		}
-		spin_unlock_bh(&nf_conntrack_expect_lock);
+		nf_ct_expect_iterate_net(net, expect_iter_name, name,
+					 NETLINK_CB(skb).portid,
+					 nlmsg_report(nlh));
 	} else {
 		/* This basically means we have to flush everything*/
-		spin_lock_bh(&nf_conntrack_expect_lock);
-		for (i = 0; i < nf_ct_expect_hsize; i++) {
-			hlist_for_each_entry_safe(exp, next,
-						  &nf_ct_expect_hash[i],
-						  hnode) {
-
-				if (!net_eq(nf_ct_exp_net(exp), net))
-					continue;
-
-				if (del_timer(&exp->timeout)) {
-					nf_ct_unlink_expect_report(exp,
-							NETLINK_CB(skb).portid,
-							nlmsg_report(nlh));
-					nf_ct_expect_put(exp);
-				}
-			}
-		}
-		spin_unlock_bh(&nf_conntrack_expect_lock);
+		nf_ct_expect_iterate_net(net, expect_iter_all, NULL,
+					 NETLINK_CB(skb).portid,
+					 nlmsg_report(nlh));
 	}
 
 	return 0;

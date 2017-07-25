@@ -474,6 +474,60 @@ out:
 }
 EXPORT_SYMBOL_GPL(nf_ct_expect_related_report);
 
+void nf_ct_expect_iterate_destroy(bool (*iter)(struct nf_conntrack_expect *e, void *data),
+				  void *data)
+{
+	struct nf_conntrack_expect *exp;
+	const struct hlist_node *next;
+	unsigned int i;
+
+	spin_lock_bh(&nf_conntrack_expect_lock);
+
+	for (i = 0; i < nf_ct_expect_hsize; i++) {
+		hlist_for_each_entry_safe(exp, next,
+					  &nf_ct_expect_hash[i],
+					  hnode) {
+			if (iter(exp, data) && del_timer(&exp->timeout)) {
+				nf_ct_unlink_expect(exp);
+				nf_ct_expect_put(exp);
+			}
+		}
+	}
+
+	spin_unlock_bh(&nf_conntrack_expect_lock);
+}
+EXPORT_SYMBOL_GPL(nf_ct_expect_iterate_destroy);
+
+void nf_ct_expect_iterate_net(struct net *net,
+			      bool (*iter)(struct nf_conntrack_expect *e, void *data),
+			      void *data,
+			      u32 portid, int report)
+{
+	struct nf_conntrack_expect *exp;
+	const struct hlist_node *next;
+	unsigned int i;
+
+	spin_lock_bh(&nf_conntrack_expect_lock);
+
+	for (i = 0; i < nf_ct_expect_hsize; i++) {
+		hlist_for_each_entry_safe(exp, next,
+					  &nf_ct_expect_hash[i],
+					  hnode) {
+
+			if (!net_eq(nf_ct_exp_net(exp), net))
+				continue;
+
+			if (iter(exp, data) && del_timer(&exp->timeout)) {
+				nf_ct_unlink_expect_report(exp, portid, report);
+				nf_ct_expect_put(exp);
+			}
+		}
+	}
+
+	spin_unlock_bh(&nf_conntrack_expect_lock);
+}
+EXPORT_SYMBOL_GPL(nf_ct_expect_iterate_net);
+
 #ifdef CONFIG_NF_CONNTRACK_PROCFS
 struct ct_expect_iter_state {
 	struct seq_net_private p;
