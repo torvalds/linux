@@ -109,6 +109,7 @@ enum {
 	Opt_nolazytime,
 	Opt_usrquota,
 	Opt_grpquota,
+	Opt_prjquota,
 	Opt_err,
 };
 
@@ -146,6 +147,7 @@ static match_table_t f2fs_tokens = {
 	{Opt_nolazytime, "nolazytime"},
 	{Opt_usrquota, "usrquota"},
 	{Opt_grpquota, "grpquota"},
+	{Opt_prjquota, "prjquota"},
 	{Opt_err, NULL},
 };
 
@@ -392,9 +394,13 @@ static int parse_options(struct super_block *sb, char *options)
 		case Opt_grpquota:
 			set_opt(sbi, GRPQUOTA);
 			break;
+		case Opt_prjquota:
+			set_opt(sbi, PRJQUOTA);
+			break;
 #else
 		case Opt_usrquota:
 		case Opt_grpquota:
+		case Opt_prjquota:
 			f2fs_msg(sb, KERN_INFO,
 					"quota operations not supported");
 			break;
@@ -814,6 +820,8 @@ static int f2fs_show_options(struct seq_file *seq, struct dentry *root)
 		seq_puts(seq, ",usrquota");
 	if (test_opt(sbi, GRPQUOTA))
 		seq_puts(seq, ",grpquota");
+	if (test_opt(sbi, PRJQUOTA))
+		seq_puts(seq, ",prjquota");
 #endif
 
 	return 0;
@@ -1172,6 +1180,12 @@ static void f2fs_quota_off_umount(struct super_block *sb)
 		f2fs_quota_off(sb, type);
 }
 
+int f2fs_get_projid(struct inode *inode, kprojid_t *projid)
+{
+	*projid = F2FS_I(inode)->i_projid;
+	return 0;
+}
+
 static const struct dquot_operations f2fs_quota_operations = {
 	.get_reserved_space = f2fs_get_reserved_space,
 	.write_dquot	= dquot_commit,
@@ -1181,6 +1195,7 @@ static const struct dquot_operations f2fs_quota_operations = {
 	.write_info	= dquot_commit_info,
 	.alloc_dquot	= dquot_alloc,
 	.destroy_dquot	= dquot_destroy,
+	.get_projid	= f2fs_get_projid,
 	.get_next_id	= dquot_get_next_id,
 };
 
@@ -1964,7 +1979,7 @@ try_onemore:
 #ifdef CONFIG_QUOTA
 	sb->dq_op = &f2fs_quota_operations;
 	sb->s_qcop = &f2fs_quotactl_ops;
-	sb->s_quota_types = QTYPE_MASK_USR | QTYPE_MASK_GRP;
+	sb->s_quota_types = QTYPE_MASK_USR | QTYPE_MASK_GRP | QTYPE_MASK_PRJ;
 #endif
 
 	sb->s_op = &f2fs_sops;

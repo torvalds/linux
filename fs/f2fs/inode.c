@@ -114,6 +114,7 @@ static int do_read_inode(struct inode *inode)
 	struct f2fs_inode_info *fi = F2FS_I(inode);
 	struct page *node_page;
 	struct f2fs_inode *ri;
+	projid_t i_projid;
 
 	/* Check if ino is within scope */
 	if (check_nid_range(sbi, inode->i_ino)) {
@@ -172,6 +173,16 @@ static int do_read_inode(struct inode *inode)
 
 	if (!need_inode_block_update(sbi, inode->i_ino))
 		fi->last_disk_size = inode->i_size;
+
+	if (fi->i_flags & FS_PROJINHERIT_FL)
+		set_inode_flag(inode, FI_PROJ_INHERIT);
+
+	if (f2fs_has_extra_attr(inode) && f2fs_sb_has_project_quota(sbi->sb) &&
+			F2FS_FITS_IN_INODE(ri, fi->i_extra_isize, i_projid))
+		i_projid = (projid_t)le32_to_cpu(ri->i_projid);
+	else
+		i_projid = F2FS_DEF_PROJID;
+	fi->i_projid = make_kprojid(&init_user_ns, i_projid);
 
 	f2fs_put_page(node_page, 1);
 
@@ -299,8 +310,19 @@ int update_inode(struct inode *inode, struct page *node_page)
 	ri->i_generation = cpu_to_le32(inode->i_generation);
 	ri->i_dir_level = F2FS_I(inode)->i_dir_level;
 
-	if (f2fs_has_extra_attr(inode))
+	if (f2fs_has_extra_attr(inode)) {
 		ri->i_extra_isize = cpu_to_le16(F2FS_I(inode)->i_extra_isize);
+
+		if (f2fs_sb_has_project_quota(F2FS_I_SB(inode)->sb) &&
+			F2FS_FITS_IN_INODE(ri, F2FS_I(inode)->i_extra_isize,
+								i_projid)) {
+			projid_t i_projid;
+
+			i_projid = from_kprojid(&init_user_ns,
+						F2FS_I(inode)->i_projid);
+			ri->i_projid = cpu_to_le32(i_projid);
+		}
+	}
 
 	__set_inode_rdev(inode, ri);
 	set_cold_node(inode, node_page);

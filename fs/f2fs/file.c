@@ -1518,19 +1518,6 @@ static int f2fs_file_flush(struct file *file, fl_owner_t id)
 	return 0;
 }
 
-#define F2FS_REG_FLMASK		(~(FS_DIRSYNC_FL | FS_TOPDIR_FL))
-#define F2FS_OTHER_FLMASK	(FS_NODUMP_FL | FS_NOATIME_FL)
-
-static inline __u32 f2fs_mask_flags(umode_t mode, __u32 flags)
-{
-	if (S_ISDIR(mode))
-		return flags;
-	else if (S_ISREG(mode))
-		return flags & F2FS_REG_FLMASK;
-	else
-		return flags & F2FS_OTHER_FLMASK;
-}
-
 static int f2fs_ioc_getflags(struct file *filp, unsigned long arg)
 {
 	struct inode *inode = file_inode(filp);

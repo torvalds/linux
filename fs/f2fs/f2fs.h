@@ -91,6 +91,7 @@ extern char *fault_name[FAULT_MAX];
 #define F2FS_MOUNT_LFS			0x00040000
 #define F2FS_MOUNT_USRQUOTA		0x00080000
 #define F2FS_MOUNT_GRPQUOTA		0x00100000
+#define F2FS_MOUNT_PRJQUOTA		0x00200000
 
 #define clear_opt(sbi, option)	((sbi)->mount_opt.opt &= ~F2FS_MOUNT_##option)
 #define set_opt(sbi, option)	((sbi)->mount_opt.opt |= F2FS_MOUNT_##option)
@@ -114,6 +115,7 @@ struct f2fs_mount_info {
 #define F2FS_FEATURE_BLKZONED		0x0002
 #define F2FS_FEATURE_ATOMIC_WRITE	0x0004
 #define F2FS_FEATURE_EXTRA_ATTR		0x0008
+#define F2FS_FEATURE_PRJQUOTA		0x0010
 
 #define F2FS_HAS_FEATURE(sb, mask)					\
 	((F2FS_SB(sb)->raw_super->feature & cpu_to_le32(mask)) != 0)
@@ -570,6 +572,7 @@ struct f2fs_inode_info {
 	struct rw_semaphore i_mmap_sem;
 
 	int i_extra_isize;		/* size of extra space located in i_addr */
+	kprojid_t i_projid;		/* id for project quota */
 };
 
 static inline void get_extent_info(struct extent_info *ext,
@@ -1887,6 +1890,20 @@ static inline void f2fs_change_bit(unsigned int nr, char *addr)
 	*addr ^= mask;
 }
 
+#define F2FS_REG_FLMASK		(~(FS_DIRSYNC_FL | FS_TOPDIR_FL))
+#define F2FS_OTHER_FLMASK	(FS_NODUMP_FL | FS_NOATIME_FL)
+#define F2FS_FL_INHERITED	(FS_PROJINHERIT_FL)
+
+static inline __u32 f2fs_mask_flags(umode_t mode, __u32 flags)
+{
+	if (S_ISDIR(mode))
+		return flags;
+	else if (S_ISREG(mode))
+		return flags & F2FS_REG_FLMASK;
+	else
+		return flags & F2FS_OTHER_FLMASK;
+}
+
 /* used for f2fs_inode_info->flags */
 enum {
 	FI_NEW_INODE,		/* indicate newly allocated inode */
@@ -1916,6 +1933,7 @@ enum {
 	FI_NO_PREALLOC,		/* indicate skipped preallocated blocks */
 	FI_HOT_DATA,		/* indicate file is hot */
 	FI_EXTRA_ATTR,		/* indicate file has extra attribute */
+	FI_PROJ_INHERIT,	/* indicate file inherits projectid */
 };
 
 static inline void __mark_inode_dirty_flag(struct inode *inode,
@@ -2238,6 +2256,12 @@ static inline int get_extra_isize(struct inode *inode)
 #define F2FS_TOTAL_EXTRA_ATTR_SIZE			\
 	(offsetof(struct f2fs_inode, i_extra_end) -	\
 	offsetof(struct f2fs_inode, i_extra_isize))	\
+
+#define F2FS_OLD_ATTRIBUTE_SIZE	(offsetof(struct f2fs_inode, i_addr))
+#define F2FS_FITS_IN_INODE(f2fs_inode, extra_isize, field)		\
+		((offsetof(typeof(*f2fs_inode), field) +	\
+		sizeof((f2fs_inode)->field))			\
+		<= (F2FS_OLD_ATTRIBUTE_SIZE + extra_isize))	\
 
 /*
  * file.c
@@ -2834,6 +2858,11 @@ static inline int f2fs_sb_mounted_blkzoned(struct super_block *sb)
 static inline int f2fs_sb_has_extra_attr(struct super_block *sb)
 {
 	return F2FS_HAS_FEATURE(sb, F2FS_FEATURE_EXTRA_ATTR);
+}
+
+static inline int f2fs_sb_has_project_quota(struct super_block *sb)
+{
+	return F2FS_HAS_FEATURE(sb, F2FS_FEATURE_PRJQUOTA);
 }
 
 #ifdef CONFIG_BLK_DEV_ZONED

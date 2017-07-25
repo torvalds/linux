@@ -2265,8 +2265,13 @@ retry:
 	dst->i_links = cpu_to_le32(1);
 	dst->i_xattr_nid = 0;
 	dst->i_inline = src->i_inline & (F2FS_INLINE_XATTR | F2FS_EXTRA_ATTR);
-	if (dst->i_inline & F2FS_EXTRA_ATTR)
+	if (dst->i_inline & F2FS_EXTRA_ATTR) {
 		dst->i_extra_isize = src->i_extra_isize;
+		if (f2fs_sb_has_project_quota(sbi->sb) &&
+			F2FS_FITS_IN_INODE(src, le16_to_cpu(src->i_extra_isize),
+								i_projid))
+			dst->i_projid = src->i_projid;
+	}
 
 	new_ni = old_ni;
 	new_ni.ino = ino;
