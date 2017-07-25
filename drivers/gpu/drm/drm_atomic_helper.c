@@ -2954,61 +2954,6 @@ out:
 EXPORT_SYMBOL(drm_atomic_helper_resume);
 
 /**
- * drm_atomic_helper_plane_set_property - helper for plane properties
- * @plane: DRM plane
- * @property: DRM property
- * @val: value of property
- *
- * Provides a default plane set_property handler using the atomic driver
- * interface.
- *
- * RETURNS:
- * Zero on success, error code on failure
- */
-int
-drm_atomic_helper_plane_set_property(struct drm_plane *plane,
-				    struct drm_property *property,
-				    uint64_t val)
-{
-	struct drm_atomic_state *state;
-	struct drm_plane_state *plane_state;
-	int ret = 0;
-
-	state = drm_atomic_state_alloc(plane->dev);
-	if (!state)
-		return -ENOMEM;
-
-	/* ->set_property is always called with all locks held. */
-	state->acquire_ctx = plane->dev->mode_config.acquire_ctx;
-retry:
-	plane_state = drm_atomic_get_plane_state(state, plane);
-	if (IS_ERR(plane_state)) {
-		ret = PTR_ERR(plane_state);
-		goto fail;
-	}
-
-	ret = drm_atomic_plane_set_property(plane, plane_state,
-			property, val);
-	if (ret)
-		goto fail;
-
-	ret = drm_atomic_commit(state);
-fail:
-	if (ret == -EDEADLK)
-		goto backoff;
-
-	drm_atomic_state_put(state);
-	return ret;
-
-backoff:
-	drm_atomic_state_clear(state);
-	drm_atomic_legacy_backoff(state);
-
-	goto retry;
-}
-EXPORT_SYMBOL(drm_atomic_helper_plane_set_property);
-
-/**
  * drm_atomic_helper_connector_set_property - helper for connector properties
  * @connector: DRM connector
  * @property: DRM property

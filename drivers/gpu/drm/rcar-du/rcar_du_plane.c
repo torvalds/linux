@@ -698,7 +698,6 @@ static const struct drm_plane_funcs rcar_du_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
 	.reset = rcar_du_plane_reset,
-	.set_property = drm_atomic_helper_plane_set_property,
 	.destroy = drm_plane_cleanup,
 	.atomic_duplicate_state = rcar_du_plane_atomic_duplicate_state,
 	.atomic_destroy_state = rcar_du_plane_atomic_destroy_state,

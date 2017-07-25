@@ -889,7 +889,6 @@ static const struct drm_plane_helper_funcs ade_plane_helper_funcs = {
 static struct drm_plane_funcs ade_plane_funcs = {
 	.update_plane	= drm_atomic_helper_update_plane,
 	.disable_plane	= drm_atomic_helper_disable_plane,
-	.set_property = drm_atomic_helper_plane_set_property,
 	.destroy = drm_plane_cleanup,
 	.reset = drm_atomic_helper_plane_reset,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,

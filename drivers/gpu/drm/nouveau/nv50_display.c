@@ -1055,7 +1055,6 @@ nv50_wndw = {
 	.disable_plane = drm_atomic_helper_disable_plane,
 	.destroy = nv50_wndw_destroy,
 	.reset = nv50_wndw_reset,
-	.set_property = drm_atomic_helper_plane_set_property,
 	.atomic_duplicate_state = nv50_wndw_atomic_duplicate_state,
 	.atomic_destroy_state = nv50_wndw_atomic_destroy_state,
 };
