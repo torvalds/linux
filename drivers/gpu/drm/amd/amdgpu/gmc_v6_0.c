@@ -249,7 +249,19 @@ static void gmc_v6_0_mc_program(struct amdgpu_device *adev)
 		dev_warn(adev->dev, "Wait for MC idle timedout !\n");
 	}
 
-	WREG32(mmVGA_HDP_CONTROL, VGA_HDP_CONTROL__VGA_MEMORY_DISABLE_MASK);
+	if (adev->mode_info.num_crtc) {
+		u32 tmp;
+
+		/* Lockout access through VGA aperture*/
+		tmp = RREG32(mmVGA_HDP_CONTROL);
+		tmp |= VGA_HDP_CONTROL__VGA_MEMORY_DISABLE_MASK;
+		WREG32(mmVGA_HDP_CONTROL, tmp);
+
+		/* disable VGA render */
+		tmp = RREG32(mmVGA_RENDER_CONTROL);
+		tmp &= ~VGA_VSTATUS_CNTL;
+		WREG32(mmVGA_RENDER_CONTROL, tmp);
+	}
 	/* Update configuration */
 	WREG32(mmMC_VM_SYSTEM_APERTURE_LOW_ADDR,
 	       adev->mc.vram_start >> 12);
