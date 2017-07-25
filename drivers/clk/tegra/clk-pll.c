@@ -2355,7 +2355,6 @@ struct clk *tegra_clk_register_pllre_tegra210(const char *name,
 			  struct tegra_clk_pll_params *pll_params,
 			  spinlock_t *lock, unsigned long parent_rate)
 {
-	u32 val;
 	struct tegra_clk_pll *pll;
 	struct clk *clk;
 
@@ -2369,26 +2368,8 @@ struct clk *tegra_clk_register_pllre_tegra210(const char *name,
 	if (IS_ERR(pll))
 		return ERR_CAST(pll);
 
-	/* program minimum rate by default */
-
-	val = pll_readl_base(pll);
-	if (val & PLL_BASE_ENABLE)
-		WARN_ON(readl_relaxed(clk_base + pll_params->iddq_reg) &
-				BIT(pll_params->iddq_bit_idx));
-	else {
-		val = 0x4 << divm_shift(pll);
-		val |= 0x41 << divn_shift(pll);
-		pll_writel_base(val, pll);
-	}
-
-	/* disable lock override */
-
-	val = pll_readl_misc(pll);
-	val &= ~BIT(29);
-	pll_writel_misc(val, pll);
-
 	clk = _tegra_clk_register_pll(pll, name, parent_name, flags,
-				      &tegra_clk_pllre_ops);
+				      &tegra_clk_pll_ops);
 	if (IS_ERR(clk))
 		kfree(pll);
 
