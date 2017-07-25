@@ -842,7 +842,7 @@ static int igt_render_engine_reset_fallback(void *arg)
 
 		mutex_lock(&i915->drm.struct_mutex);
 		set_bit(I915_RESET_HANDOFF, &i915->gpu_error.flags);
-		i915_reset(i915);
+		i915_reset(i915, I915_RESET_QUIET);
 		GEM_BUG_ON(test_bit(I915_RESET_HANDOFF,
 				    &i915->gpu_error.flags));
 		mutex_unlock(&i915->drm.struct_mutex);
