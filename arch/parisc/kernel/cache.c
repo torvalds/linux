@@ -452,8 +452,8 @@ void copy_user_page(void *vto, void *vfrom, unsigned long vaddr,
 	  before it can be accessed through the kernel mapping. */
 	preempt_disable();
 	flush_dcache_page_asm(__pa(vfrom), vaddr);
-	preempt_enable();
 	copy_page_asm(vto, vfrom);
+	preempt_enable();
 }
 EXPORT_SYMBOL(copy_user_page);
 
