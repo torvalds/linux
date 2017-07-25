@@ -16,6 +16,7 @@
 #include <linux/delay.h>
 #include <linux/scatterlist.h>
 #include <crypto/aes.h>
+#include <crypto/xts.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/scatterwalk.h>
 
@@ -97,7 +98,13 @@ static int ccp_aes_xts_complete(struct crypto_async_request *async_req, int ret)
 static int ccp_aes_xts_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
 			      unsigned int key_len)
 {
-	struct ccp_ctx *ctx = crypto_tfm_ctx(crypto_ablkcipher_tfm(tfm));
+	struct crypto_tfm *xfm = crypto_ablkcipher_tfm(tfm);
+	struct ccp_ctx *ctx = crypto_tfm_ctx(xfm);
+	int ret;
+
+	ret = xts_check_key(xfm, key, key_len);
+	if (ret)
+		return ret;
 
 	/* Only support 128-bit AES key with a 128-bit Tweak key,
 	 * otherwise use the fallback
