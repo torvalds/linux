@@ -135,8 +135,8 @@ struct rdt_membw {
 
 /**
  * struct rdt_resource - attributes of an RDT resource
- * @enabled:		Is this feature enabled on this machine
- * @capable:		Is this feature available on this machine
+ * @alloc_enabled:	Is allocation enabled on this machine
+ * @alloc_capable:	Is allocation available on this machine
  * @name:		Name to use in "schemata" file
  * @num_closid:		Number of CLOSIDs available
  * @cache_level:	Which cache level defines scope of this resource
@@ -152,8 +152,8 @@ struct rdt_membw {
  * @parse_ctrlval:	Per resource function pointer to parse control values
  */
 struct rdt_resource {
-	bool			enabled;
-	bool			capable;
+	bool			alloc_enabled;
+	bool			alloc_capable;
 	char			*name;
 	int			num_closid;
 	int			cache_level;
@@ -181,7 +181,7 @@ extern struct mutex rdtgroup_mutex;
 
 extern struct rdt_resource rdt_resources_all[];
 extern struct rdtgroup rdtgroup_default;
-DECLARE_STATIC_KEY_FALSE(rdt_enable_key);
+DECLARE_STATIC_KEY_FALSE(rdt_alloc_enable_key);
 
 int __init rdtgroup_init(void);
 
@@ -196,15 +196,15 @@ enum {
 	RDT_NUM_RESOURCES,
 };
 
-#define for_each_capable_rdt_resource(r)				      \
+#define for_each_alloc_capable_rdt_resource(r)				      \
 	for (r = rdt_resources_all; r < rdt_resources_all + RDT_NUM_RESOURCES;\
 	     r++)							      \
-		if (r->capable)
+		if (r->alloc_capable)
 
-#define for_each_enabled_rdt_resource(r)				      \
+#define for_each_alloc_enabled_rdt_resource(r)				      \
 	for (r = rdt_resources_all; r < rdt_resources_all + RDT_NUM_RESOURCES;\
 	     r++)							      \
-		if (r->enabled)
+		if (r->alloc_enabled)
 
 /* CPUID.(EAX=10H, ECX=ResID=1).EAX */
 union cpuid_0x10_1_eax {

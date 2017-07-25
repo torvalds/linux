@@ -173,8 +173,8 @@ static inline bool cache_alloc_hsw_probe(void)
 		r->default_ctrl = max_cbm;
 		r->cache.cbm_len = 20;
 		r->cache.min_cbm_bits = 2;
-		r->capable = true;
-		r->enabled = true;
+		r->alloc_capable = true;
+		r->alloc_enabled = true;
 
 		return true;
 	}
@@ -224,8 +224,8 @@ static bool rdt_get_mem_config(struct rdt_resource *r)
 	r->data_width = 3;
 	rdt_get_mba_infofile(r);
 
-	r->capable = true;
-	r->enabled = true;
+	r->alloc_capable = true;
+	r->alloc_enabled = true;
 
 	return true;
 }
@@ -242,8 +242,8 @@ static void rdt_get_cache_config(int idx, struct rdt_resource *r)
 	r->default_ctrl = BIT_MASK(eax.split.cbm_len + 1) - 1;
 	r->data_width = (r->cache.cbm_len + 3) / 4;
 	rdt_get_cache_infofile(r);
-	r->capable = true;
-	r->enabled = true;
+	r->alloc_capable = true;
+	r->alloc_enabled = true;
 }
 
 static void rdt_get_cdp_l3_config(int type)
@@ -255,12 +255,12 @@ static void rdt_get_cdp_l3_config(int type)
 	r->cache.cbm_len = r_l3->cache.cbm_len;
 	r->default_ctrl = r_l3->default_ctrl;
 	r->data_width = (r->cache.cbm_len + 3) / 4;
-	r->capable = true;
+	r->alloc_capable = true;
 	/*
 	 * By default, CDP is disabled. CDP can be enabled by mount parameter
 	 * "cdp" during resctrl file system mount time.
 	 */
-	r->enabled = false;
+	r->alloc_enabled = false;
 }
 
 static int get_cache_id(int cpu, int level)
@@ -422,7 +422,7 @@ static void domain_add_cpu(int cpu, struct rdt_resource *r)
 
 	d->id = id;
 
-	if (domain_setup_ctrlval(r, d)) {
+	if (r->alloc_capable && domain_setup_ctrlval(r, d)) {
 		kfree(d);
 		return;
 	}
@@ -464,7 +464,7 @@ static int intel_rdt_online_cpu(unsigned int cpu)
 	struct rdt_resource *r;
 
 	mutex_lock(&rdtgroup_mutex);
-	for_each_capable_rdt_resource(r)
+	for_each_alloc_capable_rdt_resource(r)
 		domain_add_cpu(cpu, r);
 	/* The cpu is set in default rdtgroup after online. */
 	cpumask_set_cpu(cpu, &rdtgroup_default.cpu_mask);
@@ -480,7 +480,7 @@ static int intel_rdt_offline_cpu(unsigned int cpu)
 	struct rdt_resource *r;
 
 	mutex_lock(&rdtgroup_mutex);
-	for_each_capable_rdt_resource(r)
+	for_each_alloc_capable_rdt_resource(r)
 		domain_remove_cpu(cpu, r);
 	list_for_each_entry(rdtgrp, &rdt_all_groups, rdtgroup_list) {
 		if (cpumask_test_and_clear_cpu(cpu, &rdtgrp->cpu_mask))
@@ -501,7 +501,7 @@ static __init void rdt_init_padding(void)
 	struct rdt_resource *r;
 	int cl;
 
-	for_each_capable_rdt_resource(r) {
+	for_each_alloc_capable_rdt_resource(r) {
 		cl = strlen(r->name);
 		if (cl > max_name_width)
 			max_name_width = cl;
@@ -565,7 +565,7 @@ static int __init intel_rdt_late_init(void)
 		return ret;
 	}
 
-	for_each_capable_rdt_resource(r)
+	for_each_alloc_capable_rdt_resource(r)
 		pr_info("Intel RDT %s allocation detected\n", r->name);
 
 	return 0;

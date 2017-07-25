@@ -35,7 +35,7 @@
 #include <asm/intel_rdt_sched.h>
 #include "intel_rdt.h"
 
-DEFINE_STATIC_KEY_FALSE(rdt_enable_key);
+DEFINE_STATIC_KEY_FALSE(rdt_alloc_enable_key);
 static struct kernfs_root *rdt_root;
 struct rdtgroup rdtgroup_default;
 LIST_HEAD(rdt_all_groups);
@@ -66,7 +66,7 @@ static void closid_init(void)
 	int rdt_min_closid = 32;
 
 	/* Compute rdt_min_closid across all resources */
-	for_each_enabled_rdt_resource(r)
+	for_each_alloc_enabled_rdt_resource(r)
 		rdt_min_closid = min(rdt_min_closid, r->num_closid);
 
 	closid_free_map = BIT_MASK(rdt_min_closid) - 1;
@@ -638,7 +638,7 @@ static int rdtgroup_create_info_dir(struct kernfs_node *parent_kn)
 		return PTR_ERR(kn_info);
 	kernfs_get(kn_info);
 
-	for_each_enabled_rdt_resource(r) {
+	for_each_alloc_enabled_rdt_resource(r) {
 		kn_subdir = kernfs_create_dir(kn_info, r->name,
 					      kn_info->mode, r);
 		if (IS_ERR(kn_subdir)) {
@@ -718,14 +718,15 @@ static int cdp_enable(void)
 	struct rdt_resource *r_l3 = &rdt_resources_all[RDT_RESOURCE_L3];
 	int ret;
 
-	if (!r_l3->capable || !r_l3data->capable || !r_l3code->capable)
+	if (!r_l3->alloc_capable || !r_l3data->alloc_capable ||
+	    !r_l3code->alloc_capable)
 		return -EINVAL;
 
 	ret = set_l3_qos_cfg(r_l3, true);
 	if (!ret) {
-		r_l3->enabled = false;
-		r_l3data->enabled = true;
-		r_l3code->enabled = true;
+		r_l3->alloc_enabled = false;
+		r_l3data->alloc_enabled = true;
+		r_l3code->alloc_enabled = true;
 	}
 	return ret;
 }
@@ -734,11 +735,11 @@ static void cdp_disable(void)
 {
 	struct rdt_resource *r = &rdt_resources_all[RDT_RESOURCE_L3];
 
-	r->enabled = r->capable;
+	r->alloc_enabled = r->alloc_capable;
 
-	if (rdt_resources_all[RDT_RESOURCE_L3DATA].enabled) {
-		rdt_resources_all[RDT_RESOURCE_L3DATA].enabled = false;
-		rdt_resources_all[RDT_RESOURCE_L3CODE].enabled = false;
+	if (rdt_resources_all[RDT_RESOURCE_L3DATA].alloc_enabled) {
+		rdt_resources_all[RDT_RESOURCE_L3DATA].alloc_enabled = false;
+		rdt_resources_all[RDT_RESOURCE_L3CODE].alloc_enabled = false;
 		set_l3_qos_cfg(r, false);
 	}
 }
@@ -834,7 +835,7 @@ static struct dentry *rdt_mount(struct file_system_type *fs_type,
 	/*
 	 * resctrl file system can only be mounted once.
 	 */
-	if (static_branch_unlikely(&rdt_enable_key)) {
+	if (static_branch_unlikely(&rdt_alloc_enable_key)) {
 		dentry = ERR_PTR(-EBUSY);
 		goto out;
 	}
@@ -858,7 +859,7 @@ static struct dentry *rdt_mount(struct file_system_type *fs_type,
 	if (IS_ERR(dentry))
 		goto out_destroy;
 
-	static_branch_enable(&rdt_enable_key);
+	static_branch_enable(&rdt_alloc_enable_key);
 	goto out;
 
 out_destroy:
@@ -986,11 +987,11 @@ static void rdt_kill_sb(struct super_block *sb)
 	mutex_lock(&rdtgroup_mutex);
 
 	/*Put everything back to default values. */
-	for_each_enabled_rdt_resource(r)
+	for_each_alloc_enabled_rdt_resource(r)
 		reset_all_ctrls(r);
 	cdp_disable();
 	rmdir_all_sub();
-	static_branch_disable(&rdt_enable_key);
+	static_branch_disable(&rdt_alloc_enable_key);
 	kernfs_kill_sb(sb);
 	mutex_unlock(&rdtgroup_mutex);
 }
@@ -1129,7 +1130,7 @@ out:
 
 static int rdtgroup_show_options(struct seq_file *seq, struct kernfs_root *kf)
 {
-	if (rdt_resources_all[RDT_RESOURCE_L3DATA].enabled)
+	if (rdt_resources_all[RDT_RESOURCE_L3DATA].alloc_enabled)
 		seq_puts(seq, ",cdp");
 	return 0;
 }

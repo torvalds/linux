@@ -27,7 +27,7 @@ struct intel_pqr_state {
 
 DECLARE_PER_CPU(struct intel_pqr_state, pqr_state);
 DECLARE_PER_CPU_READ_MOSTLY(int, cpu_closid);
-DECLARE_STATIC_KEY_FALSE(rdt_enable_key);
+DECLARE_STATIC_KEY_FALSE(rdt_alloc_enable_key);
 
 /*
  * intel_rdt_sched_in() - Writes the task's CLOSid to IA32_PQR_MSR
@@ -44,7 +44,7 @@ DECLARE_STATIC_KEY_FALSE(rdt_enable_key);
  */
 static inline void intel_rdt_sched_in(void)
 {
-	if (static_branch_likely(&rdt_enable_key)) {
+	if (static_branch_likely(&rdt_alloc_enable_key)) {
 		struct intel_pqr_state *state = this_cpu_ptr(&pqr_state);
 		int closid;
 

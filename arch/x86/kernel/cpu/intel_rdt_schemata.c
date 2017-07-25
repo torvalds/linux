@@ -192,7 +192,7 @@ static int rdtgroup_parse_resource(char *resname, char *tok, int closid)
 {
 	struct rdt_resource *r;
 
-	for_each_enabled_rdt_resource(r) {
+	for_each_alloc_enabled_rdt_resource(r) {
 		if (!strcmp(resname, r->name) && closid < r->num_closid)
 			return parse_line(tok, r);
 	}
@@ -221,7 +221,7 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 
 	closid = rdtgrp->closid;
 
-	for_each_enabled_rdt_resource(r) {
+	for_each_alloc_enabled_rdt_resource(r) {
 		list_for_each_entry(dom, &r->domains, list)
 			dom->have_new_ctrl = false;
 	}
@@ -237,7 +237,7 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 			goto out;
 	}
 
-	for_each_enabled_rdt_resource(r) {
+	for_each_alloc_enabled_rdt_resource(r) {
 		ret = update_domains(r, closid);
 		if (ret)
 			goto out;
@@ -274,7 +274,7 @@ int rdtgroup_schemata_show(struct kernfs_open_file *of,
 	rdtgrp = rdtgroup_kn_lock_live(of->kn);
 	if (rdtgrp) {
 		closid = rdtgrp->closid;
-		for_each_enabled_rdt_resource(r) {
+		for_each_alloc_enabled_rdt_resource(r) {
 			if (closid < r->num_closid)
 				show_doms(s, r, closid);
 		}
