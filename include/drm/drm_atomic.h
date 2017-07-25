@@ -545,8 +545,6 @@ int __must_check
 drm_atomic_add_affected_planes(struct drm_atomic_state *state,
 			       struct drm_crtc *crtc);
 
-void drm_atomic_legacy_backoff(struct drm_atomic_state *state);
-
 void
 drm_atomic_clean_old_fb(struct drm_device *dev, unsigned plane_mask, int ret);
 

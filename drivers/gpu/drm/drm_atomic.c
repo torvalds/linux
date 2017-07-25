@@ -1588,38 +1588,6 @@ drm_atomic_add_affected_planes(struct drm_atomic_state *state,
 EXPORT_SYMBOL(drm_atomic_add_affected_planes);
 
 /**
- * drm_atomic_legacy_backoff - locking backoff for legacy ioctls
- * @state: atomic state
- *
- * This function should be used by legacy entry points which don't understand
- * -EDEADLK semantics. For simplicity this one will grab all modeset locks after
- * the slowpath completed.
- */
-void drm_atomic_legacy_backoff(struct drm_atomic_state *state)
-{
-	struct drm_device *dev = state->dev;
-	int ret;
-	bool global = false;
-
-	if (WARN_ON(dev->mode_config.acquire_ctx == state->acquire_ctx)) {
-		global = true;
-
-		dev->mode_config.acquire_ctx = NULL;
-	}
-
-retry:
-	drm_modeset_backoff(state->acquire_ctx);
-
-	ret = drm_modeset_lock_all_ctx(dev, state->acquire_ctx);
-	if (ret)
-		goto retry;
-
-	if (global)
-		dev->mode_config.acquire_ctx = state->acquire_ctx;
-}
-EXPORT_SYMBOL(drm_atomic_legacy_backoff);
-
-/**
  * drm_atomic_check_only - check whether a given config would work
  * @state: atomic configuration to check
  *
