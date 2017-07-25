@@ -1498,6 +1498,31 @@ int pdc_pat_mem_read_pd_pdt(struct pdc_pat_mem_read_pd_retinfo *pret,
 
 	return retval;
 }
+
+/**
+ * pdc_pat_mem_get_dimm_phys_location - Get physical DIMM slot via PAT firmware
+ * @pret: ptr to hold returned information
+ * @phys_addr: physical address to examine
+ *
+ */
+int pdc_pat_mem_get_dimm_phys_location(
+		struct pdc_pat_mem_phys_mem_location *pret,
+		unsigned long phys_addr)
+{
+	int retval;
+	unsigned long flags;
+
+	spin_lock_irqsave(&pdc_lock, flags);
+	retval = mem_pdc_call(PDC_PAT_MEM, PDC_PAT_MEM_ADDRESS,
+		__pa(&pdc_result), phys_addr);
+
+	if (retval == PDC_OK)
+		memcpy(pret, &pdc_result, sizeof(*pret));
+
+	spin_unlock_irqrestore(&pdc_lock, flags);
+
+	return retval;
+}
 #endif /* CONFIG_64BIT */
 
 
