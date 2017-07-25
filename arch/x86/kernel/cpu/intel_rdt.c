@@ -71,6 +71,7 @@ cat_wrmsr(struct rdt_domain *d, struct msr_param *m, struct rdt_resource *r);
 struct rdt_resource rdt_resources_all[] = {
 	[RDT_RESOURCE_L3] =
 	{
+		.rid			= RDT_RESOURCE_L3,
 		.name			= "L3",
 		.domains		= domain_init(RDT_RESOURCE_L3),
 		.msr_base		= IA32_L3_CBM_BASE,
@@ -87,6 +88,7 @@ struct rdt_resource rdt_resources_all[] = {
 	},
 	[RDT_RESOURCE_L3DATA] =
 	{
+		.rid			= RDT_RESOURCE_L3DATA,
 		.name			= "L3DATA",
 		.domains		= domain_init(RDT_RESOURCE_L3DATA),
 		.msr_base		= IA32_L3_CBM_BASE,
@@ -103,6 +105,7 @@ struct rdt_resource rdt_resources_all[] = {
 	},
 	[RDT_RESOURCE_L3CODE] =
 	{
+		.rid			= RDT_RESOURCE_L3CODE,
 		.name			= "L3CODE",
 		.domains		= domain_init(RDT_RESOURCE_L3CODE),
 		.msr_base		= IA32_L3_CBM_BASE,
@@ -119,6 +122,7 @@ struct rdt_resource rdt_resources_all[] = {
 	},
 	[RDT_RESOURCE_L2] =
 	{
+		.rid			= RDT_RESOURCE_L2,
 		.name			= "L2",
 		.domains		= domain_init(RDT_RESOURCE_L2),
 		.msr_base		= IA32_L2_CBM_BASE,
@@ -135,6 +139,7 @@ struct rdt_resource rdt_resources_all[] = {
 	},
 	[RDT_RESOURCE_MBA] =
 	{
+		.rid			= RDT_RESOURCE_MBA,
 		.name			= "MB",
 		.domains		= domain_init(RDT_RESOURCE_MBA),
 		.msr_base		= IA32_MBA_THRTL_BASE,
@@ -362,8 +367,8 @@ void rdt_ctrl_update(void *arg)
  * caller, return the first domain whose id is bigger than the input id.
  * The domain list is sorted by id in ascending order.
  */
-static struct rdt_domain *rdt_find_domain(struct rdt_resource *r, int id,
-					  struct list_head **pos)
+struct rdt_domain *rdt_find_domain(struct rdt_resource *r, int id,
+				   struct list_head **pos)
 {
 	struct rdt_domain *d;
 	struct list_head *l;

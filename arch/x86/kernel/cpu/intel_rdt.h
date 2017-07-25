@@ -33,6 +33,27 @@ struct mon_evt {
 	struct list_head	list;
 };
 
+/**
+ * struct mon_data_bits - Monitoring details for each event file
+ * @rid:               Resource id associated with the event file.
+ * @evtid:             Event id associated with the event file
+ * @domid:             The domain to which the event file belongs
+ */
+union mon_data_bits {
+	void *priv;
+	struct {
+		unsigned int rid	: 10;
+		unsigned int evtid	: 8;
+		unsigned int domid	: 14;
+	} u;
+};
+
+struct rmid_read {
+	struct rdtgroup		*rgrp;
+	int			evtid;
+	u64			val;
+};
+
 extern unsigned int intel_cqm_threshold;
 extern bool rdt_alloc_capable;
 extern bool rdt_mon_capable;
@@ -46,11 +67,13 @@ enum rdt_group_type {
 
 /**
  * struct mongroup - store mon group's data in resctrl fs.
+ * @mon_data_kn		kernlfs node for the mon_data directory
  * @parent:			parent rdtgrp
  * @crdtgrp_list:		child rdtgroup node list
  * @rmid:			rmid for this rdtgroup
  */
 struct mongroup {
+	struct kernfs_node	*mon_data_kn;
 	struct rdtgroup		*parent;
 	struct list_head	crdtgrp_list;
 	u32			rmid;
@@ -209,6 +232,7 @@ static inline bool is_llc_occupancy_enabled(void)
 
 /**
  * struct rdt_resource - attributes of an RDT resource
+ * @rid:		The index of the resource
  * @alloc_enabled:	Is allocation enabled on this machine
  * @mon_enabled:		Is monitoring enabled for this feature
  * @alloc_capable:	Is allocation available on this machine
@@ -230,6 +254,7 @@ static inline bool is_llc_occupancy_enabled(void)
  * @fflags:			flags to choose base and info files
  */
 struct rdt_resource {
+	int			rid;
 	bool			alloc_enabled;
 	bool			mon_enabled;
 	bool			alloc_capable;
@@ -323,6 +348,8 @@ union cpuid_0x10_x_edx {
 void rdt_ctrl_update(void *arg);
 struct rdtgroup *rdtgroup_kn_lock_live(struct kernfs_node *kn);
 void rdtgroup_kn_unlock(struct kernfs_node *kn);
+struct rdt_domain *rdt_find_domain(struct rdt_resource *r, int id,
+				   struct list_head **pos);
 ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 				char *buf, size_t nbytes, loff_t off);
 int rdtgroup_schemata_show(struct kernfs_open_file *of,
@@ -331,5 +358,7 @@ struct rdt_domain *get_domain_from_cpu(int cpu, struct rdt_resource *r);
 int alloc_rmid(void);
 void free_rmid(u32 rmid);
 int rdt_get_mon_l3_config(struct rdt_resource *r);
+void mon_event_count(void *info);
+int rdtgroup_mondata_show(struct seq_file *m, void *arg);
 
 #endif /* _ASM_X86_INTEL_RDT_H */

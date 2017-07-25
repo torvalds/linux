@@ -152,6 +152,11 @@ static struct kernfs_ops rdtgroup_kf_single_ops = {
 	.seq_show		= rdtgroup_seqfile_show,
 };
 
+static struct kernfs_ops kf_mondata_ops = {
+	.atomic_write_len	= PAGE_SIZE,
+	.seq_show		= rdtgroup_mondata_show,
+};
+
 static bool is_cpu_list(struct kernfs_open_file *of)
 {
 	struct rftype *rft = of->kn->priv;
@@ -1217,6 +1222,140 @@ static struct file_system_type rdt_fs_type = {
 	.kill_sb = rdt_kill_sb,
 };
 
+static int mon_addfile(struct kernfs_node *parent_kn, const char *name,
+		       void *priv)
+{
+	struct kernfs_node *kn;
+	int ret = 0;
+
+	kn = __kernfs_create_file(parent_kn, name, 0444, 0,
+				  &kf_mondata_ops, priv, NULL, NULL);
+	if (IS_ERR(kn))
+		return PTR_ERR(kn);
+
+	ret = rdtgroup_kn_set_ugid(kn);
+	if (ret) {
+		kernfs_remove(kn);
+		return ret;
+	}
+
+	return ret;
+}
+
+static int mkdir_mondata_subdir(struct kernfs_node *parent_kn,
+				struct rdt_domain *d,
+				struct rdt_resource *r, struct rdtgroup *prgrp)
+{
+	union mon_data_bits priv;
+	struct kernfs_node *kn;
+	struct mon_evt *mevt;
+	char name[32];
+	int ret;
+
+	sprintf(name, "mon_%s_%02d", r->name, d->id);
+	/* create the directory */
+	kn = kernfs_create_dir(parent_kn, name, parent_kn->mode, prgrp);
+	if (IS_ERR(kn))
+		return PTR_ERR(kn);
+
+	/*
+	 * This extra ref will be put in kernfs_remove() and guarantees
+	 * that kn is always accessible.
+	 */
+	kernfs_get(kn);
+	ret = rdtgroup_kn_set_ugid(kn);
+	if (ret)
+		goto out_destroy;
+
+	if (WARN_ON(list_empty(&r->evt_list))) {
+		ret = -EPERM;
+		goto out_destroy;
+	}
+
+	priv.u.rid = r->rid;
+	priv.u.domid = d->id;
+	list_for_each_entry(mevt, &r->evt_list, list) {
+		priv.u.evtid = mevt->evtid;
+		ret = mon_addfile(kn, mevt->name, priv.priv);
+		if (ret)
+			goto out_destroy;
+	}
+	kernfs_activate(kn);
+	return 0;
+
+out_destroy:
+	kernfs_remove(kn);
+	return ret;
+}
+
+static int mkdir_mondata_subdir_alldom(struct kernfs_node *parent_kn,
+				       struct rdt_resource *r,
+				       struct rdtgroup *prgrp)
+{
+	struct rdt_domain *dom;
+	int ret;
+
+	list_for_each_entry(dom, &r->domains, list) {
+		ret = mkdir_mondata_subdir(parent_kn, dom, r, prgrp);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+/*
+ * This creates a directory mon_data which contains the monitored data.
+ *
+ * mon_data has one directory for each domain whic are named
+ * in the format mon_<domain_name>_<domain_id>. For ex: A mon_data
+ * with L3 domain looks as below:
+ * ./mon_data:
+ * mon_L3_00
+ * mon_L3_01
+ * mon_L3_02
+ * ...
+ *
+ * Each domain directory has one file per event:
+ * ./mon_L3_00/:
+ * llc_occupancy
+ *
+ */
+static int mkdir_mondata_all(struct kernfs_node *parent_kn,
+			     struct rdtgroup *prgrp,
+			     struct kernfs_node **dest_kn)
+{
+	struct rdt_resource *r;
+	struct kernfs_node *kn;
+	int ret;
+
+	/*
+	 * Create the mon_data directory first.
+	 */
+	ret = mongroup_create_dir(parent_kn, NULL, "mon_data", &kn);
+	if (ret)
+		return ret;
+
+	if (dest_kn)
+		*dest_kn = kn;
+
+	/*
+	 * Create the subdirectories for each domain. Note that all events
+	 * in a domain like L3 are grouped into a resource whose domain is L3
+	 */
+	for_each_mon_enabled_rdt_resource(r) {
+		ret = mkdir_mondata_subdir_alldom(kn, r, prgrp);
+		if (ret)
+			goto out_destroy;
+	}
+
+	return 0;
+
+out_destroy:
+	kernfs_remove(kn);
+	return ret;
+}
+
 static int mkdir_rdt_prepare(struct kernfs_node *parent_kn,
 			     struct kernfs_node *prgrp_kn,
 			     const char *name, umode_t mode,
@@ -1275,6 +1414,10 @@ static int mkdir_rdt_prepare(struct kernfs_node *parent_kn,
 		if (ret < 0)
 			goto out_destroy;
 		rdtgrp->mon.rmid = ret;
+
+		ret = mkdir_mondata_all(kn, rdtgrp, &rdtgrp->mon.mon_data_kn);
+		if (ret)
+			goto out_idfree;
 	}
 	kernfs_activate(kn);
 
@@ -1283,6 +1426,8 @@ static int mkdir_rdt_prepare(struct kernfs_node *parent_kn,
 	 */
 	return 0;
 
+out_idfree:
+	free_rmid(rdtgrp->mon.rmid);
 out_destroy:
 	kernfs_remove(rdtgrp->kn);
 out_free_rgrp:
