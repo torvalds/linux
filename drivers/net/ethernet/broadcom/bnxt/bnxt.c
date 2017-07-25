@@ -5628,12 +5628,10 @@ void bnxt_tx_disable(struct bnxt *bp)
 {
 	int i;
 	struct bnxt_tx_ring_info *txr;
-	struct netdev_queue *txq;
 
 	if (bp->tx_ring) {
 		for (i = 0; i < bp->tx_nr_rings; i++) {
 			txr = &bp->tx_ring[i];
-			txq = netdev_get_tx_queue(bp->dev, i);
 			txr->dev_state = BNXT_DEV_STATE_CLOSING;
 		}
 	}
@@ -5646,11 +5644,9 @@ void bnxt_tx_enable(struct bnxt *bp)
 {
 	int i;
 	struct bnxt_tx_ring_info *txr;
-	struct netdev_queue *txq;
 
 	for (i = 0; i < bp->tx_nr_rings; i++) {
 		txr = &bp->tx_ring[i];
-		txq = netdev_get_tx_queue(bp->dev, i);
 		txr->dev_state = 0;
 	}
 	netif_tx_wake_all_queues(bp->dev);
