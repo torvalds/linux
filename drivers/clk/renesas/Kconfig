@@ -119,6 +119,11 @@ config CLK_RCAR_GEN3_CPG
 	bool "R-Car Gen3 CPG clock support" if COMPILE_TEST
 	select CLK_RENESAS_CPG_MSSR
 
+config CLK_RCAR_USB2_CLOCK_SEL
+	bool "Renesas R-Car USB2 clock selector support"
+	depends on ARCH_RENESAS || COMPILE_TEST
+	help
+	  This is a driver for R-Car USB2 clock selector
 
 # Generic
 config CLK_RENESAS_CPG_MSSR
