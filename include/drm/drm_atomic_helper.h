@@ -124,9 +124,6 @@ int drm_atomic_helper_commit_duplicated_state(struct drm_atomic_state *state,
 int drm_atomic_helper_resume(struct drm_device *dev,
 			     struct drm_atomic_state *state);
 
-int drm_atomic_helper_crtc_set_property(struct drm_crtc *crtc,
-					struct drm_property *property,
-					uint64_t val);
 int drm_atomic_helper_plane_set_property(struct drm_plane *plane,
 					struct drm_property *property,
 					uint64_t val);

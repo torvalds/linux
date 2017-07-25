@@ -2954,61 +2954,6 @@ out:
 EXPORT_SYMBOL(drm_atomic_helper_resume);
 
 /**
- * drm_atomic_helper_crtc_set_property - helper for crtc properties
- * @crtc: DRM crtc
- * @property: DRM property
- * @val: value of property
- *
- * Provides a default crtc set_property handler using the atomic driver
- * interface.
- *
- * RETURNS:
- * Zero on success, error code on failure
- */
-int
-drm_atomic_helper_crtc_set_property(struct drm_crtc *crtc,
-				    struct drm_property *property,
-				    uint64_t val)
-{
-	struct drm_atomic_state *state;
-	struct drm_crtc_state *crtc_state;
-	int ret = 0;
-
-	state = drm_atomic_state_alloc(crtc->dev);
-	if (!state)
-		return -ENOMEM;
-
-	/* ->set_property is always called with all locks held. */
-	state->acquire_ctx = crtc->dev->mode_config.acquire_ctx;
-retry:
-	crtc_state = drm_atomic_get_crtc_state(state, crtc);
-	if (IS_ERR(crtc_state)) {
-		ret = PTR_ERR(crtc_state);
-		goto fail;
-	}
-
-	ret = drm_atomic_crtc_set_property(crtc, crtc_state,
-			property, val);
-	if (ret)
-		goto fail;
-
-	ret = drm_atomic_commit(state);
-fail:
-	if (ret == -EDEADLK)
-		goto backoff;
-
-	drm_atomic_state_put(state);
-	return ret;
-
-backoff:
-	drm_atomic_state_clear(state);
-	drm_atomic_legacy_backoff(state);
-
-	goto retry;
-}
-EXPORT_SYMBOL(drm_atomic_helper_crtc_set_property);
-
-/**
  * drm_atomic_helper_plane_set_property - helper for plane properties
  * @plane: DRM plane
  * @property: DRM property
