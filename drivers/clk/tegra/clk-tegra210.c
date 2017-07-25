@@ -2204,7 +2204,6 @@ static struct tegra_clk tegra210_clks[tegra_clk_max] __initdata = {
 	[tegra_clk_gpu] = { .dt_id = TEGRA210_CLK_GPU, .present = true },
 	[tegra_clk_pll_g_ref] = { .dt_id = TEGRA210_CLK_PLL_G_REF, .present = true, },
 	[tegra_clk_uartb_8] = { .dt_id = TEGRA210_CLK_UARTB, .present = true },
-	[tegra_clk_vfir] = { .dt_id = TEGRA210_CLK_VFIR, .present = true },
 	[tegra_clk_spdif_in_8] = { .dt_id = TEGRA210_CLK_SPDIF_IN, .present = true },
 	[tegra_clk_spdif_out] = { .dt_id = TEGRA210_CLK_SPDIF_OUT, .present = true },
 	[tegra_clk_vi_10] = { .dt_id = TEGRA210_CLK_VI, .present = true },
