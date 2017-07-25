@@ -58,6 +58,132 @@ const char *phy_duplex_to_str(unsigned int duplex)
 }
 EXPORT_SYMBOL_GPL(phy_duplex_to_str);
 
+/* A mapping of all SUPPORTED settings to speed/duplex.  This table
+ * must be grouped by speed and sorted in descending match priority
+ * - iow, descending speed. */
+static const struct phy_setting settings[] = {
+	{
+		.speed = SPEED_10000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_10000baseKR_Full_BIT,
+	},
+	{
+		.speed = SPEED_10000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_10000baseKX4_Full_BIT,
+	},
+	{
+		.speed = SPEED_10000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
+	},
+	{
+		.speed = SPEED_2500,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_2500baseX_Full_BIT,
+	},
+	{
+		.speed = SPEED_1000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_1000baseKX_Full_BIT,
+	},
+	{
+		.speed = SPEED_1000,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+	},
+	{
+		.speed = SPEED_1000,
+		.duplex = DUPLEX_HALF,
+		.bit = ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
+	},
+	{
+		.speed = SPEED_100,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_100baseT_Full_BIT,
+	},
+	{
+		.speed = SPEED_100,
+		.duplex = DUPLEX_HALF,
+		.bit = ETHTOOL_LINK_MODE_100baseT_Half_BIT,
+	},
+	{
+		.speed = SPEED_10,
+		.duplex = DUPLEX_FULL,
+		.bit = ETHTOOL_LINK_MODE_10baseT_Full_BIT,
+	},
+	{
+		.speed = SPEED_10,
+		.duplex = DUPLEX_HALF,
+		.bit = ETHTOOL_LINK_MODE_10baseT_Half_BIT,
+	},
+};
+
+/**
+ * phy_lookup_setting - lookup a PHY setting
+ * @speed: speed to match
+ * @duplex: duplex to match
+ * @mask: allowed link modes
+ * @maxbit: bit size of link modes
+ * @exact: an exact match is required
+ *
+ * Search the settings array for a setting that matches the speed and
+ * duplex, and which is supported.
+ *
+ * If @exact is unset, either an exact match or %NULL for no match will
+ * be returned.
+ *
+ * If @exact is set, an exact match, the fastest supported setting at
+ * or below the specified speed, the slowest supported setting, or if
+ * they all fail, %NULL will be returned.
+ */
+const struct phy_setting *
+phy_lookup_setting(int speed, int duplex, const unsigned long *mask,
+		   size_t maxbit, bool exact)
+{
+	const struct phy_setting *p, *match = NULL, *last = NULL;
+	int i;
+
+	for (i = 0, p = settings; i < ARRAY_SIZE(settings); i++, p++) {
+		if (p->bit < maxbit && test_bit(p->bit, mask)) {
+			last = p;
+			if (p->speed == speed && p->duplex == duplex) {
+				/* Exact match for speed and duplex */
+				match = p;
+				break;
+			} else if (!exact) {
+				if (!match && p->speed <= speed)
+					/* Candidate */
+					match = p;
+
+				if (p->speed < speed)
+					break;
+			}
+		}
+	}
+
+	if (!match && !exact)
+		match = last;
+
+	return match;
+}
+EXPORT_SYMBOL_GPL(phy_lookup_setting);
+
+size_t phy_speeds(unsigned int *speeds, size_t size,
+		  unsigned long *mask, size_t maxbit)
+{
+	size_t count;
+	int i;
+
+	for (i = 0, count = 0; i < ARRAY_SIZE(settings) && count < size; i++)
+		if (settings[i].bit < maxbit &&
+		    test_bit(settings[i].bit, mask) &&
+		    (count == 0 || speeds[count - 1] != settings[i].speed))
+			speeds[count++] = settings[i].speed;
+
+	return count;
+}
+
 static void mmd_phy_indirect(struct mii_bus *bus, int phy_addr, int devad,
 			     u16 regnum)
 {

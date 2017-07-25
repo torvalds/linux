@@ -157,125 +157,6 @@ int phy_aneg_done(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(phy_aneg_done);
 
-/* A structure for mapping a particular speed and duplex
- * combination to a particular SUPPORTED and ADVERTISED value
- */
-struct phy_setting {
-	int speed;
-	int duplex;
-	int bit;
-};
-
-/* A mapping of all SUPPORTED settings to speed/duplex.  This table
- * must be grouped by speed and sorted in descending match priority
- * - iow, descending speed. */
-static const struct phy_setting settings[] = {
-	{
-		.speed = SPEED_10000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_10000baseKR_Full_BIT,
-	},
-	{
-		.speed = SPEED_10000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_10000baseKX4_Full_BIT,
-	},
-	{
-		.speed = SPEED_10000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
-	},
-	{
-		.speed = SPEED_2500,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_2500baseX_Full_BIT,
-	},
-	{
-		.speed = SPEED_1000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_1000baseKX_Full_BIT,
-	},
-	{
-		.speed = SPEED_1000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
-	},
-	{
-		.speed = SPEED_1000,
-		.duplex = DUPLEX_HALF,
-		.bit = ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
-	},
-	{
-		.speed = SPEED_100,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_100baseT_Full_BIT,
-	},
-	{
-		.speed = SPEED_100,
-		.duplex = DUPLEX_HALF,
-		.bit = ETHTOOL_LINK_MODE_100baseT_Half_BIT,
-	},
-	{
-		.speed = SPEED_10,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_10baseT_Full_BIT,
-	},
-	{
-		.speed = SPEED_10,
-		.duplex = DUPLEX_HALF,
-		.bit = ETHTOOL_LINK_MODE_10baseT_Half_BIT,
-	},
-};
-
-/**
- * phy_lookup_setting - lookup a PHY setting
- * @speed: speed to match
- * @duplex: duplex to match
- * @mask: allowed link modes
- * @maxbit: bit size of link modes
- * @exact: an exact match is required
- *
- * Search the settings array for a setting that matches the speed and
- * duplex, and which is supported.
- *
- * If @exact is unset, either an exact match or %NULL for no match will
- * be returned.
- *
- * If @exact is set, an exact match, the fastest supported setting at
- * or below the specified speed, the slowest supported setting, or if
- * they all fail, %NULL will be returned.
- */
-static const struct phy_setting *
-phy_lookup_setting(int speed, int duplex, const unsigned long *mask,
-		   size_t maxbit, bool exact)
-{
-	const struct phy_setting *p, *match = NULL, *last = NULL;
-	int i;
-
-	for (i = 0, p = settings; i < ARRAY_SIZE(settings); i++, p++) {
-		if (p->bit < maxbit && test_bit(p->bit, mask)) {
-			last = p;
-			if (p->speed == speed && p->duplex == duplex) {
-				/* Exact match for speed and duplex */
-				match = p;
-				break;
-			} else if (!exact) {
-				if (!match && p->speed <= speed)
-					/* Candidate */
-					match = p;
-
-				if (p->speed < speed)
-					break;
-			}
-		}
-	}
-
-	if (!match && !exact)
-		match = last;
-
-	return match;
-}
-
 /**
  * phy_find_valid - find a PHY setting that matches the requested parameters
  * @speed: desired speed
@@ -312,17 +193,8 @@ unsigned int phy_supported_speeds(struct phy_device *phy,
 				  unsigned int size)
 {
 	unsigned long supported = phy->supported;
-	unsigned int count = 0;
-	unsigned int idx = 0;
 
-	for (idx = 0; idx < ARRAY_SIZE(settings) && count < size; idx++)
-		/* Assumes settings are grouped by speed */
-		if (settings[idx].bit < BITS_PER_LONG &&
-		    !test_bit(settings[idx].bit, &supported) &&
-		    (count == 0 || speeds[count - 1] != settings[idx].speed))
-			speeds[count++] = settings[idx].speed;
-
-	return count;
+	return phy_speeds(speeds, size, &supported, BITS_PER_LONG);
 }
 
 /**
