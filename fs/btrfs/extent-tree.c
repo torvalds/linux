@@ -4897,7 +4897,12 @@ struct reserve_ticket {
 	wait_queue_head_t wait;
 };
 
-static int flush_space(struct btrfs_fs_info *fs_info,
+/*
+ * Try to flush some data based on policy set by @state. This is only advisory
+ * and may fail for various reasons. The caller is supposed to examine the
+ * state of @space_info to detect the outcome.
+ */
+static void flush_space(struct btrfs_fs_info *fs_info,
 		       struct btrfs_space_info *space_info, u64 num_bytes,
 		       int state)
 {
@@ -4951,7 +4956,7 @@ static int flush_space(struct btrfs_fs_info *fs_info,
 
 	trace_btrfs_flush_space(fs_info, space_info->flags, num_bytes, state,
 				ret);
-	return ret;
+	return;
 }
 
 static inline u64
@@ -5053,10 +5058,7 @@ static void btrfs_async_reclaim_metadata_space(struct work_struct *work)
 
 	flush_state = FLUSH_DELAYED_ITEMS_NR;
 	do {
-		struct reserve_ticket *ticket;
-		int ret;
-
-		ret = flush_space(fs_info, space_info, to_reclaim, flush_state);
+		flush_space(fs_info, space_info, to_reclaim, flush_state);
 		spin_lock(&space_info->lock);
 		if (list_empty(&space_info->tickets)) {
 			space_info->flush = 0;
@@ -5066,8 +5068,6 @@ static void btrfs_async_reclaim_metadata_space(struct work_struct *work)
 		to_reclaim = btrfs_calc_reclaim_metadata_size(fs_info,
 							      space_info,
 							      false);
-		ticket = list_first_entry(&space_info->tickets,
-					  struct reserve_ticket, list);
 		if (last_tickets_id == space_info->tickets_id) {
 			flush_state++;
 		} else {
