@@ -1,0 +1,12 @@
+--- a/include/linux/spi/pxa2xx_spi.h	Thu Jul 20 02:26:18 2017
++++ b/include/linux/spi/pxa2xx_spi.h	Thu Jul 20 02:49:23 2017
+@@ -33,6 +33,9 @@
+ 
+ 	/* For non-PXA arches */
+ 	struct ssp_device ssp;
++
++	/* Optional array of GPIOs to use as chip select lines */
++	int *cs_gpios;
+ };
+ 
+ /* spi_board_info.controller_data for SPI slave devices,

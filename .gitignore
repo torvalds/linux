@@ -31,7 +31,6 @@
 *.xz
 *.lz4
 *.lzo
-*.patch
 *.gcno
 *.ll
 modules.builtin

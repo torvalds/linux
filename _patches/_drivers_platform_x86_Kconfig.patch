@@ -1,0 +1,21 @@
+--- a/drivers/platform/x86/Kconfig	Thu Jul 20 02:25:38 2017
++++ b/drivers/platform/x86/Kconfig	Thu Jul 20 02:38:53 2017
+@@ -1110,6 +1110,18 @@
+ 	  with the OS-image for the device. This option supplies the missing
+ 	  information. Enable this for x86 tablets with Silead touchscreens.
+ 
++config UP_BOARD
++	bool "UP Board platform extras"
++	depends on ACPI && PINCTRL_CHERRYVIEW
++	select GPIOLIB_IRQCHIP
++	---help---
++	  This driver initialises the platform devices on the UP board.
++	  It includes a Pin Control driver, which creates a "virtual" GPIO chip,
++	  to transparently manage the buffers and mux switches between the SoC
++	  GPIO pins and the external pin header.  The GPIOs presented by the
++	  platform driver are numbered to emulate the Raspberry Pi 2 pin header
++	  layout to aid application portability.
++
+ endif # X86_PLATFORM_DEVICES
+ 
+ config PMC_ATOM
