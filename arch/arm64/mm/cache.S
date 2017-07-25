@@ -172,6 +172,20 @@ ENDPIPROC(__clean_dcache_area_poc)
 ENDPROC(__dma_clean_area)
 
 /*
+ *	__clean_dcache_area_pop(kaddr, size)
+ *
+ * 	Ensure that any D-cache lines for the interval [kaddr, kaddr+size)
+ * 	are cleaned to the PoP.
+ *
+ *	- kaddr   - kernel address
+ *	- size    - size in question
+ */
+ENTRY(__clean_dcache_area_pop)
+	dcache_by_line_op cvap, sy, x0, x1, x2, x3
+	ret
+ENDPIPROC(__clean_dcache_area_pop)
+
+/*
  *	__dma_flush_area(start, size)
  *
  *	clean & invalidate D / U line

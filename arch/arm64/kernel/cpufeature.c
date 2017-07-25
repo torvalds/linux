@@ -889,6 +889,17 @@ static const struct arm64_cpu_capabilities arm64_features[] = {
 		.min_field_value = 0,
 		.matches = has_no_fpsimd,
 	},
+#ifdef CONFIG_ARM64_PMEM
+	{
+		.desc = "Data cache clean to Point of Persistence",
+		.capability = ARM64_HAS_DCPOP,
+		.def_scope = SCOPE_SYSTEM,
+		.matches = has_cpuid_feature,
+		.sys_reg = SYS_ID_AA64ISAR1_EL1,
+		.field_pos = ID_AA64ISAR1_DPB_SHIFT,
+		.min_field_value = 1,
+	},
+#endif
 	{},
 };
 

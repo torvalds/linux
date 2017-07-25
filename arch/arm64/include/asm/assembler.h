@@ -353,6 +353,12 @@ alternative_if_not ARM64_WORKAROUND_CLEAN_CACHE
 alternative_else
 	dc	civac, \kaddr
 alternative_endif
+	.elseif	(\op == cvap)
+alternative_if ARM64_HAS_DCPOP
+	sys 3, c7, c12, 1, \kaddr	// dc cvap
+alternative_else
+	dc	cvac, \kaddr
+alternative_endif
 	.else
 	dc	\op, \kaddr
 	.endif
