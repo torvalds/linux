@@ -1082,46 +1082,35 @@ static struct file_system_type rdt_fs_type = {
 	.kill_sb = rdt_kill_sb,
 };
 
-static int rdtgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
-			  umode_t mode)
+static int mkdir_rdt_prepare(struct kernfs_node *parent_kn,
+			     struct kernfs_node *prgrp_kn,
+			     const char *name, umode_t mode,
+			     struct rdtgroup **r)
 {
-	struct rdtgroup *parent, *rdtgrp;
+	struct rdtgroup *prdtgrp, *rdtgrp;
 	struct kernfs_node *kn;
-	int ret, closid;
+	uint files = 0;
+	int ret;
 
-	/* Only allow mkdir in the root directory */
-	if (parent_kn != rdtgroup_default.kn)
-		return -EPERM;
-
-	/* Do not accept '\n' to avoid unparsable situation. */
-	if (strchr(name, '\n'))
-		return -EINVAL;
-
-	parent = rdtgroup_kn_lock_live(parent_kn);
-	if (!parent) {
+	prdtgrp = rdtgroup_kn_lock_live(prgrp_kn);
+	if (!prdtgrp) {
 		ret = -ENODEV;
 		goto out_unlock;
 	}
-
-	ret = closid_alloc();
-	if (ret < 0)
-		goto out_unlock;
-	closid = ret;
 
 	/* allocate the rdtgroup. */
 	rdtgrp = kzalloc(sizeof(*rdtgrp), GFP_KERNEL);
 	if (!rdtgrp) {
 		ret = -ENOSPC;
-		goto out_closid_free;
+		goto out_unlock;
 	}
-	rdtgrp->closid = closid;
-	list_add(&rdtgrp->rdtgroup_list, &rdt_all_groups);
+	*r = rdtgrp;
 
 	/* kernfs creates the directory for rdtgrp */
-	kn = kernfs_create_dir(parent->kn, name, mode, rdtgrp);
+	kn = kernfs_create_dir(parent_kn, name, mode, rdtgrp);
 	if (IS_ERR(kn)) {
 		ret = PTR_ERR(kn);
-		goto out_cancel_ref;
+		goto out_free_rgrp;
 	}
 	rdtgrp->kn = kn;
 
@@ -1137,25 +1126,83 @@ static int rdtgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
 	if (ret)
 		goto out_destroy;
 
-	ret = rdtgroup_add_files(kn, RF_CTRL_BASE);
+	files = RFTYPE_BASE | RFTYPE_CTRL;
+	ret = rdtgroup_add_files(kn, files);
 	if (ret)
 		goto out_destroy;
 
 	kernfs_activate(kn);
 
-	ret = 0;
-	goto out_unlock;
+	/*
+	 * The caller unlocks the prgrp_kn upon success.
+	 */
+	return 0;
 
 out_destroy:
 	kernfs_remove(rdtgrp->kn);
-out_cancel_ref:
-	list_del(&rdtgrp->rdtgroup_list);
+out_free_rgrp:
 	kfree(rdtgrp);
-out_closid_free:
-	closid_free(closid);
 out_unlock:
-	rdtgroup_kn_unlock(parent_kn);
+	rdtgroup_kn_unlock(prgrp_kn);
 	return ret;
+}
+
+static void mkdir_rdt_prepare_clean(struct rdtgroup *rgrp)
+{
+	kernfs_remove(rgrp->kn);
+	kfree(rgrp);
+}
+
+/*
+ * These are rdtgroups created under the root directory. Can be used
+ * to allocate resources.
+ */
+static int rdtgroup_mkdir_ctrl(struct kernfs_node *parent_kn,
+			       struct kernfs_node *prgrp_kn,
+			       const char *name, umode_t mode)
+{
+	struct rdtgroup *rdtgrp;
+	struct kernfs_node *kn;
+	u32 closid;
+	int ret;
+
+	ret = mkdir_rdt_prepare(parent_kn, prgrp_kn, name, mode, &rdtgrp);
+	if (ret)
+		return ret;
+
+	kn = rdtgrp->kn;
+	ret = closid_alloc();
+	if (ret < 0)
+		goto out_common_fail;
+	closid = ret;
+
+	rdtgrp->closid = closid;
+	list_add(&rdtgrp->rdtgroup_list, &rdt_all_groups);
+
+	goto out_unlock;
+
+out_common_fail:
+	mkdir_rdt_prepare_clean(rdtgrp);
+out_unlock:
+	rdtgroup_kn_unlock(prgrp_kn);
+	return ret;
+}
+
+static int rdtgroup_mkdir(struct kernfs_node *parent_kn, const char *name,
+			  umode_t mode)
+{
+	/* Do not accept '\n' to avoid unparsable situation. */
+	if (strchr(name, '\n'))
+		return -EINVAL;
+
+	/*
+	 * If the parent directory is the root directory and RDT
+	 * allocation is supported, add a control rdtgroup.
+	 */
+	if (rdt_alloc_capable && parent_kn == rdtgroup_default.kn)
+		return rdtgroup_mkdir_ctrl(parent_kn, parent_kn, name, mode);
+
+	return -EPERM;
 }
 
 static int rdtgroup_rmdir(struct kernfs_node *kn)
