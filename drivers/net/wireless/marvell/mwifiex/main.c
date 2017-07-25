@@ -1366,6 +1366,7 @@ static void mwifiex_uninit_sw(struct mwifiex_adapter *adapter)
 
 	adapter->surprise_removed = true;
 	mwifiex_terminate_workqueue(adapter);
+	adapter->int_status = 0;
 
 	/* Stop data */
 	for (i = 0; i < adapter->priv_num; i++) {
