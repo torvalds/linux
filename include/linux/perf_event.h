@@ -139,14 +139,6 @@ struct hw_perf_event {
 			/* for tp_event->class */
 			struct list_head	tp_list;
 		};
-		struct { /* intel_cqm */
-			int			cqm_state;
-			u32			cqm_rmid;
-			int			is_group_event;
-			struct list_head	cqm_events_entry;
-			struct list_head	cqm_groups_entry;
-			struct list_head	cqm_group_entry;
-		};
 		struct { /* itrace */
 			int			itrace_started;
 		};
@@ -415,11 +407,6 @@ struct pmu {
 	 */
 	size_t				task_ctx_size;
 
-
-	/*
-	 * Return the count value for a counter.
-	 */
-	u64 (*count)			(struct perf_event *event); /*optional*/
 
 	/*
 	 * Set up pmu-private data structures for an AUX area
@@ -1109,11 +1096,6 @@ static inline void perf_event_task_sched_out(struct task_struct *prev,
 
 	if (static_branch_unlikely(&perf_sched_events))
 		__perf_event_task_sched_out(prev, next);
-}
-
-static inline u64 __perf_event_count(struct perf_event *event)
-{
-	return local64_read(&event->count) + atomic64_read(&event->child_count);
 }
 
 extern void perf_event_mmap(struct vm_area_struct *vma);

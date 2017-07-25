@@ -41,6 +41,14 @@ DEFINE_MUTEX(rdtgroup_mutex);
 DEFINE_PER_CPU_READ_MOSTLY(int, cpu_closid);
 
 /*
+ * The cached intel_pqr_state is strictly per CPU and can never be
+ * updated from a remote CPU. Functions which modify the state
+ * are called with interrupts disabled and no preemption, which
+ * is sufficient for the protection.
+ */
+DEFINE_PER_CPU(struct intel_pqr_state, pqr_state);
+
+/*
  * Used to store the max resource name width and max resource data width
  * to display the schemata in a tabular format
  */

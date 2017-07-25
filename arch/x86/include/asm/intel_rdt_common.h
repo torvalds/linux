@@ -7,7 +7,6 @@
  * struct intel_pqr_state - State cache for the PQR MSR
  * @rmid:		The cached Resource Monitoring ID
  * @closid:		The cached Class Of Service ID
- * @rmid_usecnt:	The usage counter for rmid
  *
  * The upper 32 bits of MSR_IA32_PQR_ASSOC contain closid and the
  * lower 10 bits rmid. The update to MSR_IA32_PQR_ASSOC always
@@ -19,7 +18,6 @@
 struct intel_pqr_state {
 	u32			rmid;
 	u32			closid;
-	int			rmid_usecnt;
 };
 
 DECLARE_PER_CPU(struct intel_pqr_state, pqr_state);

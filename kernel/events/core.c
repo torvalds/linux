@@ -3625,10 +3625,7 @@ unlock:
 
 static inline u64 perf_event_count(struct perf_event *event)
 {
-	if (event->pmu->count)
-		return event->pmu->count(event);
-
-	return __perf_event_count(event);
+	return local64_read(&event->count) + atomic64_read(&event->child_count);
 }
 
 /*
@@ -3655,15 +3652,6 @@ int perf_event_read_local(struct perf_event *event, u64 *value)
 	 * all child counters from atomic context.
 	 */
 	if (event->attr.inherit) {
-		ret = -EOPNOTSUPP;
-		goto out;
-	}
-
-	/*
-	 * It must not have a pmu::count method, those are not
-	 * NMI safe.
-	 */
-	if (event->pmu->count) {
 		ret = -EOPNOTSUPP;
 		goto out;
 	}
