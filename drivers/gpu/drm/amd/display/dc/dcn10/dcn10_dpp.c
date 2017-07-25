@@ -1572,7 +1572,7 @@ static struct transform_funcs dcn10_dpp_funcs = {
 		.opp_program_regamma_lutb_settings = opp_program_regamma_lutb_settings,
 		.opp_program_regamma_luta_settings = opp_program_regamma_luta_settings,
 		.opp_program_regamma_pwl = oppn10_set_regamma_pwl,
-		.opp_set_regamma_mode = oppn10_set_regamma_mode
+		.opp_set_regamma_mode = oppn10_set_regamma_mode,
 };
 
 /*****************************************/
