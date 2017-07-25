@@ -945,6 +945,10 @@ static void rockchip_dsi_grf_config(struct dw_mipi_dsi *dsi, int vop_id)
 	const struct dw_mipi_dsi_plat_data *pdata = dsi->pdata;
 	int val = 0;
 
+	if (pdata->grf_dsi0_mode_reg)
+		regmap_write(dsi->grf_regmap, pdata->grf_dsi0_mode_reg,
+			     pdata->grf_dsi0_mode);
+
 	if (vop_id)
 		val = pdata->dsi0_en_bit | (pdata->dsi0_en_bit << 16);
 	else
