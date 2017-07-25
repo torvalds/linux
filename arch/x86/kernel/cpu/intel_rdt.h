@@ -320,8 +320,6 @@ union cpuid_0x10_x_edx {
 	unsigned int full;
 };
 
-DECLARE_PER_CPU_READ_MOSTLY(int, cpu_closid);
-
 void rdt_ctrl_update(void *arg);
 struct rdtgroup *rdtgroup_kn_lock_live(struct kernfs_node *kn);
 void rdtgroup_kn_unlock(struct kernfs_node *kn);

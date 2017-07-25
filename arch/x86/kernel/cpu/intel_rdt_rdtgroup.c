@@ -181,13 +181,16 @@ static int rdtgroup_cpus_show(struct kernfs_open_file *of,
 /*
  * This is safe against intel_rdt_sched_in() called from __switch_to()
  * because __switch_to() is executed with interrupts disabled. A local call
- * from rdt_update_closid() is proteced against __switch_to() because
+ * from update_closid() is proteced against __switch_to() because
  * preemption is disabled.
  */
-static void rdt_update_cpu_closid(void *closid)
+static void update_cpu_closid(void *info)
 {
-	if (closid)
-		this_cpu_write(cpu_closid, *(int *)closid);
+	struct rdtgroup *r = info;
+
+	if (r)
+		this_cpu_write(rdt_cpu_default.closid, r->closid);
+
 	/*
 	 * We cannot unconditionally write the MSR because the current
 	 * executing task might have its own closid selected. Just reuse
@@ -199,28 +202,62 @@ static void rdt_update_cpu_closid(void *closid)
 /*
  * Update the PGR_ASSOC MSR on all cpus in @cpu_mask,
  *
- * Per task closids must have been set up before calling this function.
- *
- * The per cpu closids are updated with the smp function call, when @closid
- * is not NULL. If @closid is NULL then all affected percpu closids must
- * have been set up before calling this function.
+ * Per task closids/rmids must have been set up before calling this function.
  */
 static void
-rdt_update_closid(const struct cpumask *cpu_mask, int *closid)
+update_closid(const struct cpumask *cpu_mask, struct rdtgroup *r)
 {
 	int cpu = get_cpu();
 
 	if (cpumask_test_cpu(cpu, cpu_mask))
-		rdt_update_cpu_closid(closid);
-	smp_call_function_many(cpu_mask, rdt_update_cpu_closid, closid, 1);
+		update_cpu_closid(r);
+	smp_call_function_many(cpu_mask, update_cpu_closid, r, 1);
 	put_cpu();
+}
+
+static int cpus_ctrl_write(struct rdtgroup *rdtgrp, cpumask_var_t newmask,
+			   cpumask_var_t tmpmask)
+{
+	struct rdtgroup *r;
+
+	/* Check whether cpus are dropped from this group */
+	cpumask_andnot(tmpmask, &rdtgrp->cpu_mask, newmask);
+	if (cpumask_weight(tmpmask)) {
+		/* Can't drop from default group */
+		if (rdtgrp == &rdtgroup_default)
+			return -EINVAL;
+
+		/* Give any dropped cpus to rdtgroup_default */
+		cpumask_or(&rdtgroup_default.cpu_mask,
+			   &rdtgroup_default.cpu_mask, tmpmask);
+		update_closid(tmpmask, &rdtgroup_default);
+	}
+
+	/*
+	 * If we added cpus, remove them from previous group that owned them
+	 * and update per-cpu closid
+	 */
+	cpumask_andnot(tmpmask, newmask, &rdtgrp->cpu_mask);
+	if (cpumask_weight(tmpmask)) {
+		list_for_each_entry(r, &rdt_all_groups, rdtgroup_list) {
+			if (r == rdtgrp)
+				continue;
+			cpumask_andnot(&r->cpu_mask, &r->cpu_mask, tmpmask);
+		}
+		update_closid(tmpmask, rdtgrp);
+	}
+
+	/* Done pushing/pulling - update this group with new mask */
+	cpumask_copy(&rdtgrp->cpu_mask, newmask);
+
+	return 0;
 }
 
 static ssize_t rdtgroup_cpus_write(struct kernfs_open_file *of,
 				   char *buf, size_t nbytes, loff_t off)
 {
 	cpumask_var_t tmpmask, newmask;
-	struct rdtgroup *rdtgrp, *r;
+	struct rdtgroup *rdtgrp;
 	int ret;
 
 	if (!buf)
@@ -254,36 +291,10 @@ static ssize_t rdtgroup_cpus_write(struct kernfs_open_file *of,
 		goto unlock;
 	}
 
-	/* Check whether cpus are dropped from this group */
-	cpumask_andnot(tmpmask, &rdtgrp->cpu_mask, newmask);
-	if (cpumask_weight(tmpmask)) {
-		/* Can't drop from default group */
-		if (rdtgrp == &rdtgroup_default) {
-			ret = -EINVAL;
-			goto unlock;
-		}
-		/* Give any dropped cpus to rdtgroup_default */
-		cpumask_or(&rdtgroup_default.cpu_mask,
-			   &rdtgroup_default.cpu_mask, tmpmask);
-		rdt_update_closid(tmpmask, &rdtgroup_default.closid);
-	}
-
-	/*
-	 * If we added cpus, remove them from previous group that owned them
-	 * and update per-cpu closid
-	 */
-	cpumask_andnot(tmpmask, newmask, &rdtgrp->cpu_mask);
-	if (cpumask_weight(tmpmask)) {
-		list_for_each_entry(r, &rdt_all_groups, rdtgroup_list) {
-			if (r == rdtgrp)
-				continue;
-			cpumask_andnot(&r->cpu_mask, &r->cpu_mask, tmpmask);
-		}
-		rdt_update_closid(tmpmask, &rdtgrp->closid);
-	}
-
-	/* Done pushing/pulling - update this group with new mask */
-	cpumask_copy(&rdtgrp->cpu_mask, newmask);
+	if (rdtgrp->type == RDTCTRL_GROUP)
+		ret = cpus_ctrl_write(rdtgrp, newmask, tmpmask);
+	else
+		ret = -EINVAL;
 
 unlock:
 	rdtgroup_kn_unlock(of->kn);
@@ -1102,7 +1113,7 @@ static void rmdir_all_sub(void)
 	}
 	/* Notify online CPUs to update per cpu storage and PQR_ASSOC MSR */
 	get_online_cpus();
-	rdt_update_closid(cpu_online_mask, &rdtgroup_default.closid);
+	update_closid(cpu_online_mask, &rdtgroup_default);
 	put_online_cpus();
 
 	kernfs_remove(kn_info);
@@ -1357,13 +1368,13 @@ static int rdtgroup_rmdir(struct kernfs_node *kn)
 
 	/* Update per cpu closid of the moved CPUs first */
 	for_each_cpu(cpu, &rdtgrp->cpu_mask)
-		per_cpu(cpu_closid, cpu) = closid;
+		per_cpu(rdt_cpu_default.closid, cpu) = closid;
 	/*
 	 * Update the MSR on moved CPUs and CPUs which have moved
 	 * task running on them.
 	 */
 	cpumask_or(tmpmask, tmpmask, &rdtgrp->cpu_mask);
-	rdt_update_closid(tmpmask, NULL);
+	update_closid(tmpmask, NULL);
 
 	rdtgrp->flags = RDT_DELETED;
 	closid_free(rdtgrp->closid);

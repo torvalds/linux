@@ -26,7 +26,7 @@ struct intel_pqr_state {
 };
 
 DECLARE_PER_CPU(struct intel_pqr_state, pqr_state);
-DECLARE_PER_CPU_READ_MOSTLY(int, cpu_closid);
+DECLARE_PER_CPU_READ_MOSTLY(struct intel_pqr_state, rdt_cpu_default);
 DECLARE_STATIC_KEY_FALSE(rdt_alloc_enable_key);
 
 /*
@@ -54,7 +54,7 @@ static inline void intel_rdt_sched_in(void)
 		 */
 		closid = current->closid;
 		if (closid == 0)
-			closid = this_cpu_read(cpu_closid);
+			closid = this_cpu_read(rdt_cpu_default.closid);
 
 		if (closid != state->closid) {
 			state->closid = closid;
