@@ -1225,8 +1225,7 @@ int drm_mode_connector_set_obj_prop(struct drm_mode_object *obj,
 	} else if (connector->funcs->set_property)
 		ret = connector->funcs->set_property(connector, property, value);
 
-	/* store the property value if successful */
-	if (!ret)
+	if (!ret && !drm_drv_uses_atomic_modeset(property->dev))
 		drm_object_property_set_value(&connector->base, property, value);
 	return ret;
 }

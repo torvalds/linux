@@ -233,6 +233,9 @@ int drm_object_property_set_value(struct drm_mode_object *obj,
 {
 	int i;
 
+	WARN_ON(drm_drv_uses_atomic_modeset(property->dev) &&
+		!(property->flags & DRM_MODE_PROP_IMMUTABLE));
+
 	for (i = 0; i < obj->properties->count; i++) {
 		if (obj->properties->properties[i] == property) {
 			obj->properties->values[i] = val;
@@ -244,24 +247,7 @@ int drm_object_property_set_value(struct drm_mode_object *obj,
 }
 EXPORT_SYMBOL(drm_object_property_set_value);
 
-/**
- * drm_object_property_get_value - retrieve the value of a property
- * @obj: drm mode object to get property value from
- * @property: property to retrieve
- * @val: storage for the property value
- *
- * This function retrieves the softare state of the given property for the given
- * property. Since there is no driver callback to retrieve the current property
- * value this might be out of sync with the hardware, depending upon the driver
- * and property.
- *
- * Atomic drivers should never call this function directly, the core will read
- * out property values through the various ->atomic_get_property callbacks.
- *
- * Returns:
- * Zero on success, error code on failure.
- */
-int drm_object_property_get_value(struct drm_mode_object *obj,
+int __drm_object_property_get_value(struct drm_mode_object *obj,
 				  struct drm_property *property, uint64_t *val)
 {
 	int i;
@@ -284,6 +270,31 @@ int drm_object_property_get_value(struct drm_mode_object *obj,
 
 	return -EINVAL;
 }
+
+/**
+ * drm_object_property_get_value - retrieve the value of a property
+ * @obj: drm mode object to get property value from
+ * @property: property to retrieve
+ * @val: storage for the property value
+ *
+ * This function retrieves the softare state of the given property for the given
+ * property. Since there is no driver callback to retrieve the current property
+ * value this might be out of sync with the hardware, depending upon the driver
+ * and property.
+ *
+ * Atomic drivers should never call this function directly, the core will read
+ * out property values through the various ->atomic_get_property callbacks.
+ *
+ * Returns:
+ * Zero on success, error code on failure.
+ */
+int drm_object_property_get_value(struct drm_mode_object *obj,
+				  struct drm_property *property, uint64_t *val)
+{
+	WARN_ON(drm_drv_uses_atomic_modeset(property->dev));
+
+	return __drm_object_property_get_value(obj, property, val);
+}
 EXPORT_SYMBOL(drm_object_property_get_value);
 
 /* helper for getconnector and getproperties ioctls */
@@ -302,7 +313,7 @@ int drm_mode_object_get_properties(struct drm_mode_object *obj, bool atomic,
 			continue;
 
 		if (*arg_count_props > count) {
-			ret = drm_object_property_get_value(obj, prop, &val);
+			ret = __drm_object_property_get_value(obj, prop, &val);
 			if (ret)
 				return ret;
 
