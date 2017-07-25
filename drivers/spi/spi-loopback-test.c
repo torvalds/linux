@@ -57,6 +57,11 @@ MODULE_PARM_DESC(loop_req,
 		 "if set controller will be asked to enable test loop mode. " \
 		 "If controller supported it, MISO and MOSI will be connected");
 
+static int no_cs;
+module_param(no_cs, int, 0);
+MODULE_PARM_DESC(no_cs,
+		 "if set Chip Select (CS) will not be used");
+
 /* run only a specific test */
 static int run_only_test = -1;
 module_param(run_only_test, int, 0);
@@ -319,11 +324,12 @@ static int spi_loopback_test_probe(struct spi_device *spi)
 {
 	int ret;
 
-	if (loop_req) {
-		spi->mode = SPI_LOOP | spi->mode;
+	if (loop_req || no_cs) {
+		spi->mode |= loop_req ? SPI_LOOP : 0;
+		spi->mode |= no_cs ? SPI_NO_CS : 0;
 		ret = spi_setup(spi);
 		if (ret) {
-			dev_err(&spi->dev, "SPI setup with SPI_LOOP failed (%d)\n",
+			dev_err(&spi->dev, "SPI setup with SPI_LOOP or SPI_NO_CS failed (%d)\n",
 				ret);
 			return ret;
 		}
