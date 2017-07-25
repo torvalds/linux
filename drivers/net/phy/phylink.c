@@ -21,6 +21,7 @@
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 
+#include "sfp.h"
 #include "swphy.h"
 
 #define SUPPORTED_INTERFACES \
@@ -32,6 +33,7 @@
 
 enum {
 	PHYLINK_DISABLE_STOPPED,
+	PHYLINK_DISABLE_LINK,
 };
 
 struct phylink {
@@ -54,6 +56,8 @@ struct phylink {
 	struct work_struct resolve;
 
 	bool mac_link_dropped;
+
+	struct sfp_bus *sfp_bus;
 };
 
 static inline void linkmode_zero(unsigned long *dst)
@@ -466,6 +470,24 @@ static void phylink_run_resolve(struct phylink *pl)
 		queue_work(system_power_efficient_wq, &pl->resolve);
 }
 
+static const struct sfp_upstream_ops sfp_phylink_ops;
+
+static int phylink_register_sfp(struct phylink *pl, struct device_node *np)
+{
+	struct device_node *sfp_np;
+
+	sfp_np = of_parse_phandle(np, "sfp", 0);
+	if (!sfp_np)
+		return 0;
+
+	pl->sfp_bus = sfp_register_upstream(sfp_np, pl->netdev, pl,
+					    &sfp_phylink_ops);
+	if (!pl->sfp_bus)
+		return -ENOMEM;
+
+	return 0;
+}
+
 struct phylink *phylink_create(struct net_device *ndev, struct device_node *np,
 	phy_interface_t iface, const struct phylink_mac_ops *ops)
 {
@@ -507,12 +529,21 @@ struct phylink *phylink_create(struct net_device *ndev, struct device_node *np,
 		}
 	}
 
+	ret = phylink_register_sfp(pl, np);
+	if (ret < 0) {
+		kfree(pl);
+		return ERR_PTR(ret);
+	}
+
 	return pl;
 }
 EXPORT_SYMBOL_GPL(phylink_create);
 
 void phylink_destroy(struct phylink *pl)
 {
+	if (pl->sfp_bus)
+		sfp_unregister_upstream(pl->sfp_bus);
+
 	cancel_work_sync(&pl->resolve);
 	kfree(pl);
 }
@@ -706,6 +737,8 @@ void phylink_start(struct phylink *pl)
 	clear_bit(PHYLINK_DISABLE_STOPPED, &pl->phylink_disable_state);
 	phylink_run_resolve(pl);
 
+	if (pl->sfp_bus)
+		sfp_upstream_start(pl->sfp_bus);
 	if (pl->phydev)
 		phy_start(pl->phydev);
 }
@@ -717,6 +750,8 @@ void phylink_stop(struct phylink *pl)
 
 	if (pl->phydev)
 		phy_stop(pl->phydev);
+	if (pl->sfp_bus)
+		sfp_upstream_stop(pl->sfp_bus);
 
 	set_bit(PHYLINK_DISABLE_STOPPED, &pl->phylink_disable_state);
 	flush_work(&pl->resolve);
@@ -1165,5 +1200,127 @@ int phylink_mii_ioctl(struct phylink *pl, struct ifreq *ifr, int cmd)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(phylink_mii_ioctl);
+
+
+
+static int phylink_sfp_module_insert(void *upstream,
+				     const struct sfp_eeprom_id *id)
+{
+	struct phylink *pl = upstream;
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(support) = { 0, };
+	struct phylink_link_state config;
+	phy_interface_t iface;
+	int mode, ret = 0;
+	bool changed;
+	u8 port;
+
+	sfp_parse_support(pl->sfp_bus, id, support);
+	port = sfp_parse_port(pl->sfp_bus, id, support);
+	iface = sfp_parse_interface(pl->sfp_bus, id);
+
+	WARN_ON(!lockdep_rtnl_is_held());
+
+	switch (iface) {
+	case PHY_INTERFACE_MODE_SGMII:
+		mode = MLO_AN_SGMII;
+		break;
+	case PHY_INTERFACE_MODE_1000BASEX:
+		mode = MLO_AN_8023Z;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	memset(&config, 0, sizeof(config));
+	linkmode_copy(config.advertising, support);
+	config.interface = iface;
+	config.speed = SPEED_UNKNOWN;
+	config.duplex = DUPLEX_UNKNOWN;
+	config.pause = MLO_PAUSE_AN;
+	config.an_enabled = pl->link_config.an_enabled;
+
+	/* Ignore errors if we're expecting a PHY to attach later */
+	ret = phylink_validate(pl, support, &config);
+	if (ret) {
+		netdev_err(pl->netdev, "validation of %s/%s with support %*pb failed: %d\n",
+			   phylink_an_mode_str(mode), phy_modes(config.interface),
+			   __ETHTOOL_LINK_MODE_MASK_NBITS, support, ret);
+		return ret;
+	}
+
+	netdev_dbg(pl->netdev, "requesting link mode %s/%s with support %*pb\n",
+		   phylink_an_mode_str(mode), phy_modes(config.interface),
+		   __ETHTOOL_LINK_MODE_MASK_NBITS, support);
+
+	if (mode == MLO_AN_8023Z && pl->phydev)
+		return -EINVAL;
+
+	changed = !bitmap_equal(pl->supported, support,
+				__ETHTOOL_LINK_MODE_MASK_NBITS);
+	if (changed) {
+		linkmode_copy(pl->supported, support);
+		linkmode_copy(pl->link_config.advertising, config.advertising);
+	}
+
+	if (pl->link_an_mode != mode ||
+	    pl->link_config.interface != config.interface) {
+		pl->link_config.interface = config.interface;
+		pl->link_an_mode = mode;
+
+		changed = true;
+
+		netdev_info(pl->netdev, "switched to %s/%s link mode\n",
+			    phylink_an_mode_str(mode),
+			    phy_modes(config.interface));
+	}
+
+	pl->link_port = port;
+
+	if (changed && !test_bit(PHYLINK_DISABLE_STOPPED,
+				 &pl->phylink_disable_state))
+		phylink_mac_config(pl, &pl->link_config);
+
+	return ret;
+}
+
+static void phylink_sfp_link_down(void *upstream)
+{
+	struct phylink *pl = upstream;
+
+	WARN_ON(!lockdep_rtnl_is_held());
+
+	set_bit(PHYLINK_DISABLE_LINK, &pl->phylink_disable_state);
+	flush_work(&pl->resolve);
+
+	netif_carrier_off(pl->netdev);
+}
+
+static void phylink_sfp_link_up(void *upstream)
+{
+	struct phylink *pl = upstream;
+
+	WARN_ON(!lockdep_rtnl_is_held());
+
+	clear_bit(PHYLINK_DISABLE_LINK, &pl->phylink_disable_state);
+	phylink_run_resolve(pl);
+}
+
+static int phylink_sfp_connect_phy(void *upstream, struct phy_device *phy)
+{
+	return phylink_connect_phy(upstream, phy);
+}
+
+static void phylink_sfp_disconnect_phy(void *upstream)
+{
+	phylink_disconnect_phy(upstream);
+}
+
+static const struct sfp_upstream_ops sfp_phylink_ops = {
+	.module_insert = phylink_sfp_module_insert,
+	.link_up = phylink_sfp_link_up,
+	.link_down = phylink_sfp_link_down,
+	.connect_phy = phylink_sfp_connect_phy,
+	.disconnect_phy = phylink_sfp_disconnect_phy,
+};
 
 MODULE_LICENSE("GPL");
