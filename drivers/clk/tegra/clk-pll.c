@@ -2618,10 +2618,8 @@ struct clk *tegra_clk_register_pllss_tegra210(const char *name,
 {
 	struct tegra_clk_pll *pll;
 	struct clk *clk, *parent;
-	struct tegra_clk_pll_freq_table cfg;
 	unsigned long parent_rate;
 	u32 val;
-	int i;
 
 	if (!pll_params->div_nmp)
 		return ERR_PTR(-EINVAL);
@@ -2633,13 +2631,11 @@ struct clk *tegra_clk_register_pllss_tegra210(const char *name,
 		return ERR_PTR(-EINVAL);
 	}
 
-	pll = _tegra_init_pll(clk_base, NULL, pll_params, lock);
-	if (IS_ERR(pll))
-		return ERR_CAST(pll);
-
-	val = pll_readl_base(pll);
-	val &= ~PLLSS_REF_SRC_SEL_MASK;
-	pll_writel_base(val, pll);
+	val = readl_relaxed(clk_base + pll_params->base_reg);
+	if (val & PLLSS_REF_SRC_SEL_MASK) {
+		WARN(1, "not supported reference clock for %s\n", name);
+		return ERR_PTR(-EINVAL);
+	}
 
 	parent_rate = clk_get_rate(parent);
 
@@ -2649,36 +2645,10 @@ struct clk *tegra_clk_register_pllss_tegra210(const char *name,
 		pll_params->vco_min = pll_params->adjust_vco(pll_params,
 							     parent_rate);
 
-	/* initialize PLL to minimum rate */
-
-	cfg.m = _pll_fixed_mdiv(pll_params, parent_rate);
-	cfg.n = cfg.m * pll_params->vco_min / parent_rate;
-
-	for (i = 0; pll_params->pdiv_tohw[i].pdiv; i++)
-		;
-	if (!i) {
-		kfree(pll);
-		return ERR_PTR(-EINVAL);
-	}
-
-	cfg.p = pll_params->pdiv_tohw[i-1].hw_val;
-
-	_update_pll_mnp(pll, &cfg);
-
-	pll_writel_misc(PLLSS_MISC_DEFAULT, pll);
-
-	val = pll_readl_base(pll);
-	if (val & PLL_BASE_ENABLE) {
-		if (val & BIT(pll_params->iddq_bit_idx)) {
-			WARN(1, "%s is on but IDDQ set\n", name);
-			kfree(pll);
-			return ERR_PTR(-EINVAL);
-		}
-	} else
-		val |= BIT(pll_params->iddq_bit_idx);
-
-	val &= ~PLLSS_LOCK_OVERRIDE;
-	pll_writel_base(val, pll);
+	pll_params->flags |= TEGRA_PLL_BYPASS;
+	pll = _tegra_init_pll(clk_base, NULL, pll_params, lock);
+	if (IS_ERR(pll))
+		return ERR_CAST(pll);
 
 	clk = _tegra_clk_register_pll(pll, name, parent_name, flags,
 					&tegra_clk_pll_ops);
