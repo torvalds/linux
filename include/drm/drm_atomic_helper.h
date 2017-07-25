@@ -136,8 +136,6 @@ int drm_atomic_helper_page_flip_target(
 				uint32_t flags,
 				uint32_t target,
 				struct drm_modeset_acquire_ctx *ctx);
-int drm_atomic_helper_connector_dpms(struct drm_connector *connector,
-				     int mode);
 struct drm_encoder *
 drm_atomic_helper_best_encoder(struct drm_connector *connector);
 

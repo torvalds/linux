@@ -969,14 +969,6 @@ static int tda998x_audio_codec_init(struct tda998x_priv *priv,
 
 /* DRM connector functions */
 
-static int tda998x_connector_dpms(struct drm_connector *connector, int mode)
-{
-	if (drm_core_check_feature(connector->dev, DRIVER_ATOMIC))
-		return drm_atomic_helper_connector_dpms(connector, mode);
-	else
-		return drm_helper_connector_dpms(connector, mode);
-}
-
 static int tda998x_connector_fill_modes(struct drm_connector *connector,
 					uint32_t maxX, uint32_t maxY)
 {
@@ -1014,7 +1006,7 @@ static void tda998x_connector_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs tda998x_connector_funcs = {
-	.dpms = tda998x_connector_dpms,
+	.dpms = drm_helper_connector_dpms,
 	.reset = drm_atomic_helper_connector_reset,
 	.fill_modes = tda998x_connector_fill_modes,
 	.detect = tda998x_connector_detect,

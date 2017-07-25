@@ -1407,7 +1407,6 @@ intel_tv_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs intel_tv_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.late_register = intel_connector_register,
 	.early_unregister = intel_connector_unregister,
 	.destroy = intel_tv_destroy,
