@@ -7,6 +7,8 @@
 #include <sys/prctl.h>
 #include <sys/auxv.h>
 
+#include "../kselftest.h"
+
 #ifndef PR_CAP_AMBIENT
 #define PR_CAP_AMBIENT			47
 # define PR_CAP_AMBIENT_IS_SET		1
@@ -51,23 +53,26 @@ int main(int argc, char **argv)
 	capng_get_caps_process();
 
 	if (capng_have_capability(CAPNG_EFFECTIVE, CAP_NET_BIND_SERVICE) != bool_arg(argv, 1)) {
-		printf("[FAIL]\tWrong effective state%s\n", atsec);
+		ksft_print_msg("Wrong effective state%s\n", atsec);
 		return 1;
 	}
+
 	if (capng_have_capability(CAPNG_PERMITTED, CAP_NET_BIND_SERVICE) != bool_arg(argv, 2)) {
-		printf("[FAIL]\tWrong permitted state%s\n", atsec);
+		ksft_print_msg("Wrong permitted state%s\n", atsec);
 		return 1;
 	}
+
 	if (capng_have_capability(CAPNG_INHERITABLE, CAP_NET_BIND_SERVICE) != bool_arg(argv, 3)) {
-		printf("[FAIL]\tWrong inheritable state%s\n", atsec);
+		ksft_print_msg("Wrong inheritable state%s\n", atsec);
 		return 1;
 	}
 
 	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_IS_SET, CAP_NET_BIND_SERVICE, 0, 0, 0) != bool_arg(argv, 4)) {
-		printf("[FAIL]\tWrong ambient state%s\n", atsec);
+		ksft_print_msg("Wrong ambient state%s\n", atsec);
 		return 1;
 	}
 
-	printf("[OK]\tCapabilities after execve were correct\n");
+	ksft_print_msg("%s: Capabilities after execve were correct\n",
+			"validate_cap:");
 	return 0;
 }

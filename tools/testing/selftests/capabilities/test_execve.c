@@ -18,6 +18,8 @@
 #include <sys/prctl.h>
 #include <sys/stat.h>
 
+#include "../kselftest.h"
+
 #ifndef PR_CAP_AMBIENT
 #define PR_CAP_AMBIENT			47
 # define PR_CAP_AMBIENT_IS_SET		1
@@ -27,6 +29,7 @@
 #endif
 
 static int nerrs;
+static pid_t mpid;	/*  main() pid is used to avoid duplicate test counts */
 
 static void vmaybe_write_file(bool enoent_ok, char *filename, char *fmt, va_list ap)
 {
@@ -95,7 +98,7 @@ static bool create_and_enter_ns(uid_t inner_uid)
 	 */
 
 	if (unshare(CLONE_NEWNS) == 0) {
-		printf("[NOTE]\tUsing global UIDs for tests\n");
+		ksft_print_msg("[NOTE]\tUsing global UIDs for tests\n");
 		if (prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0) != 0)
 			err(1, "PR_SET_KEEPCAPS");
 		if (setresuid(inner_uid, inner_uid, -1) != 0)
@@ -111,7 +114,7 @@ static bool create_and_enter_ns(uid_t inner_uid)
 
 		have_outer_privilege = true;
 	} else if (unshare(CLONE_NEWUSER | CLONE_NEWNS) == 0) {
-		printf("[NOTE]\tUsing a user namespace for tests\n");
+		ksft_print_msg("[NOTE]\tUsing a user namespace for tests\n");
 		maybe_write_file("/proc/self/setgroups", "deny");
 		write_file("/proc/self/uid_map", "%d %d 1", inner_uid, outer_uid);
 		write_file("/proc/self/gid_map", "0 %d 1", outer_gid);
@@ -174,15 +177,16 @@ static bool fork_wait(void)
 		int status;
 		if (waitpid(child, &status, 0) != child ||
 		    !WIFEXITED(status)) {
-			printf("[FAIL]\tChild died\n");
+			ksft_print_msg("Child died\n");
 			nerrs++;
 		} else if (WEXITSTATUS(status) != 0) {
-			printf("[FAIL]\tChild failed\n");
+			ksft_print_msg("Child failed\n");
 			nerrs++;
 		} else {
-			printf("[OK]\tChild succeeded\n");
+			/* don't print this message for mpid */
+			if (getpid() != mpid)
+				ksft_test_result_pass("Passed\n");
 		}
-
 		return false;
 	} else {
 		err(1, "fork");
@@ -255,26 +259,29 @@ static int do_tests(int uid, const char *our_path)
 		err(1, "capng_apply");
 
 	if (uid == 0) {
-		printf("[RUN]\tRoot => ep\n");
+		ksft_print_msg("[RUN]\tRoot => ep\n");
 		if (fork_wait())
 			exec_validate_cap(true, true, false, false);
 	} else {
-		printf("[RUN]\tNon-root => no caps\n");
+		ksft_print_msg("[RUN]\tNon-root => no caps\n");
 		if (fork_wait())
 			exec_validate_cap(false, false, false, false);
 	}
 
-	printf("[OK]\tCheck cap_ambient manipulation rules\n");
+	ksft_print_msg("Check cap_ambient manipulation rules\n");
 
 	/* We should not be able to add ambient caps yet. */
 	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, CAP_NET_BIND_SERVICE, 0, 0, 0) != -1 || errno != EPERM) {
 		if (errno == EINVAL)
-			printf("[FAIL]\tPR_CAP_AMBIENT_RAISE isn't supported\n");
+			ksft_test_result_fail(
+				"PR_CAP_AMBIENT_RAISE isn't supported\n");
 		else
-			printf("[FAIL]\tPR_CAP_AMBIENT_RAISE should have failed eith EPERM on a non-inheritable cap\n");
+			ksft_test_result_fail(
+				"PR_CAP_AMBIENT_RAISE should have failed eith EPERM on a non-inheritable cap\n");
 		return 1;
 	}
-	printf("[OK]\tPR_CAP_AMBIENT_RAISE failed on non-inheritable cap\n");
+	ksft_test_result_pass(
+		"PR_CAP_AMBIENT_RAISE failed on non-inheritable cap\n");
 
 	capng_update(CAPNG_ADD, CAPNG_INHERITABLE, CAP_NET_RAW);
 	capng_update(CAPNG_DROP, CAPNG_PERMITTED, CAP_NET_RAW);
@@ -282,22 +289,25 @@ static int do_tests(int uid, const char *our_path)
 	if (capng_apply(CAPNG_SELECT_CAPS) != 0)
 		err(1, "capng_apply");
 	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, CAP_NET_RAW, 0, 0, 0) != -1 || errno != EPERM) {
-		printf("[FAIL]\tPR_CAP_AMBIENT_RAISE should have failed on a non-permitted cap\n");
+		ksft_test_result_fail(
+			"PR_CAP_AMBIENT_RAISE should have failed on a non-permitted cap\n");
 		return 1;
 	}
-	printf("[OK]\tPR_CAP_AMBIENT_RAISE failed on non-permitted cap\n");
+	ksft_test_result_pass(
+		"PR_CAP_AMBIENT_RAISE failed on non-permitted cap\n");
 
 	capng_update(CAPNG_ADD, CAPNG_INHERITABLE, CAP_NET_BIND_SERVICE);
 	if (capng_apply(CAPNG_SELECT_CAPS) != 0)
 		err(1, "capng_apply");
 	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, CAP_NET_BIND_SERVICE, 0, 0, 0) != 0) {
-		printf("[FAIL]\tPR_CAP_AMBIENT_RAISE should have succeeded\n");
+		ksft_test_result_fail(
+			"PR_CAP_AMBIENT_RAISE should have succeeded\n");
 		return 1;
 	}
-	printf("[OK]\tPR_CAP_AMBIENT_RAISE worked\n");
+	ksft_test_result_pass("PR_CAP_AMBIENT_RAISE worked\n");
 
 	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_IS_SET, CAP_NET_BIND_SERVICE, 0, 0, 0) != 1) {
-		printf("[FAIL]\tPR_CAP_AMBIENT_IS_SET is broken\n");
+		ksft_test_result_fail("PR_CAP_AMBIENT_IS_SET is broken\n");
 		return 1;
 	}
 
@@ -305,7 +315,8 @@ static int do_tests(int uid, const char *our_path)
 		err(1, "PR_CAP_AMBIENT_CLEAR_ALL");
 
 	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_IS_SET, CAP_NET_BIND_SERVICE, 0, 0, 0) != 0) {
-		printf("[FAIL]\tPR_CAP_AMBIENT_CLEAR_ALL didn't work\n");
+		ksft_test_result_fail(
+			"PR_CAP_AMBIENT_CLEAR_ALL didn't work\n");
 		return 1;
 	}
 
@@ -317,21 +328,21 @@ static int do_tests(int uid, const char *our_path)
 		err(1, "capng_apply");
 
 	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_IS_SET, CAP_NET_BIND_SERVICE, 0, 0, 0) != 0) {
-		printf("[FAIL]\tDropping I should have dropped A\n");
+		ksft_test_result_fail("Dropping I should have dropped A\n");
 		return 1;
 	}
 
-	printf("[OK]\tBasic manipulation appears to work\n");
+	ksft_test_result_pass("Basic manipulation appears to work\n");
 
 	capng_update(CAPNG_ADD, CAPNG_INHERITABLE, CAP_NET_BIND_SERVICE);
 	if (capng_apply(CAPNG_SELECT_CAPS) != 0)
 		err(1, "capng_apply");
 	if (uid == 0) {
-		printf("[RUN]\tRoot +i => eip\n");
+		ksft_print_msg("[RUN]\tRoot +i => eip\n");
 		if (fork_wait())
 			exec_validate_cap(true, true, true, false);
 	} else {
-		printf("[RUN]\tNon-root +i => i\n");
+		ksft_print_msg("[RUN]\tNon-root +i => i\n");
 		if (fork_wait())
 			exec_validate_cap(false, false, true, false);
 	}
@@ -339,53 +350,54 @@ static int do_tests(int uid, const char *our_path)
 	if (prctl(PR_CAP_AMBIENT, PR_CAP_AMBIENT_RAISE, CAP_NET_BIND_SERVICE, 0, 0, 0) != 0)
 		err(1, "PR_CAP_AMBIENT_RAISE");
 
-	printf("[RUN]\tUID %d +ia => eipa\n", uid);
+	ksft_print_msg("[RUN]\tUID %d +ia => eipa\n", uid);
 	if (fork_wait())
 		exec_validate_cap(true, true, true, true);
 
 	/* The remaining tests need real privilege */
 
 	if (!have_outer_privilege) {
-		printf("[SKIP]\tSUID/SGID tests (needs privilege)\n");
+		ksft_test_result_skip("SUID/SGID tests (needs privilege)\n");
 		goto done;
 	}
 
 	if (uid == 0) {
-		printf("[RUN]\tRoot +ia, suidroot => eipa\n");
+		ksft_print_msg("[RUN]\tRoot +ia, suidroot => eipa\n");
 		if (fork_wait())
 			exec_other_validate_cap("./validate_cap_suidroot",
 						true, true, true, true);
 
-		printf("[RUN]\tRoot +ia, suidnonroot => ip\n");
+		ksft_print_msg("[RUN]\tRoot +ia, suidnonroot => ip\n");
 		if (fork_wait())
 			exec_other_validate_cap("./validate_cap_suidnonroot",
 						false, true, true, false);
 
-		printf("[RUN]\tRoot +ia, sgidroot => eipa\n");
+		ksft_print_msg("[RUN]\tRoot +ia, sgidroot => eipa\n");
 		if (fork_wait())
 			exec_other_validate_cap("./validate_cap_sgidroot",
 						true, true, true, true);
 
 		if (fork_wait()) {
-			printf("[RUN]\tRoot, gid != 0, +ia, sgidroot => eip\n");
+			ksft_print_msg(
+				"[RUN]\tRoot, gid != 0, +ia, sgidroot => eip\n");
 			if (setresgid(1, 1, 1) != 0)
 				err(1, "setresgid");
 			exec_other_validate_cap("./validate_cap_sgidroot",
 						true, true, true, false);
 		}
 
-		printf("[RUN]\tRoot +ia, sgidnonroot => eip\n");
+		ksft_print_msg("[RUN]\tRoot +ia, sgidnonroot => eip\n");
 		if (fork_wait())
 			exec_other_validate_cap("./validate_cap_sgidnonroot",
 						true, true, true, false);
 	} else {
-		printf("[RUN]\tNon-root +ia, sgidnonroot => i\n");
+		ksft_print_msg("[RUN]\tNon-root +ia, sgidnonroot => i\n");
 		if (fork_wait())
 			exec_other_validate_cap("./validate_cap_sgidnonroot",
 					false, false, true, false);
 
 		if (fork_wait()) {
-			printf("[RUN]\tNon-root +ia, sgidroot => i\n");
+			ksft_print_msg("[RUN]\tNon-root +ia, sgidroot => i\n");
 			if (setresgid(1, 1, 1) != 0)
 				err(1, "setresgid");
 			exec_other_validate_cap("./validate_cap_sgidroot",
@@ -394,12 +406,15 @@ static int do_tests(int uid, const char *our_path)
 	}
 
 done:
+	ksft_print_cnts();
 	return nerrs ? 1 : 0;
 }
 
 int main(int argc, char **argv)
 {
 	char *tmp1, *tmp2, *our_path;
+
+	ksft_print_header();
 
 	/* Find our path */
 	tmp1 = strdup(argv[0]);
@@ -411,13 +426,17 @@ int main(int argc, char **argv)
 		err(1, "strdup");
 	free(tmp1);
 
+	mpid = getpid();
+
 	if (fork_wait()) {
-		printf("[RUN]\t+++ Tests with uid == 0 +++\n");
+		ksft_print_msg("[RUN]\t+++ Tests with uid == 0 +++\n");
 		return do_tests(0, our_path);
 	}
 
+	ksft_print_msg("==================================================\n");
+
 	if (fork_wait()) {
-		printf("[RUN]\t+++ Tests with uid != 0 +++\n");
+		ksft_print_msg("[RUN]\t+++ Tests with uid != 0 +++\n");
 		return do_tests(1, our_path);
 	}
 
