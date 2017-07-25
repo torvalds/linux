@@ -33,6 +33,9 @@ struct pxa2xx_spi_master {
 
 	/* For non-PXA arches */
 	struct ssp_device ssp;
+
+	/* Optional array of GPIOs to use as chip select lines */
+	int *cs_gpios;
 };
 
 /* spi_board_info.controller_data for SPI slave devices,

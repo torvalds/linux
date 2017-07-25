@@ -33,6 +33,7 @@
 #include <linux/clk.h>
 #include <linux/pm_runtime.h>
 #include <linux/acpi.h>
+#include <linux/dmi.h>
 
 #include "spi-pxa2xx.h"
 
@@ -1228,25 +1229,29 @@ static int setup_cs(struct spi_device *spi, struct chip_data *chip,
 		gpio_free(chip->gpio_cs);
 
 	/* If (*cs_control) is provided, ignore GPIO chip select */
-	if (chip_info->cs_control) {
+	if (chip_info && chip_info->cs_control) {
 		chip->cs_control = chip_info->cs_control;
 		return 0;
 	}
 
-	if (gpio_is_valid(chip_info->gpio_cs)) {
-		err = gpio_request(chip_info->gpio_cs, "SPI_CS");
-		if (err) {
-			dev_err(&spi->dev, "failed to request chip select GPIO%d\n",
-				chip_info->gpio_cs);
-			return err;
-		}
-
+	if (chip_info && gpio_is_valid(chip_info->gpio_cs))
 		chip->gpio_cs = chip_info->gpio_cs;
-		chip->gpio_cs_inverted = spi->mode & SPI_CS_HIGH;
+	else if (gpio_is_valid(spi->cs_gpio))
+		chip->gpio_cs = spi->cs_gpio;
+	else
+		return 0;
 
-		err = gpio_direction_output(chip->gpio_cs,
-					!chip->gpio_cs_inverted);
+	err = gpio_request(chip->gpio_cs, "SPI_CS");
+	if (err) {
+		dev_err(&spi->dev, "failed to request chip select GPIO%d\n",
+			chip_info->gpio_cs);
+		return err;
 	}
+
+	chip->gpio_cs_inverted = spi->mode & SPI_CS_HIGH;
+
+	err = gpio_direction_output(chip->gpio_cs,
+				    !chip->gpio_cs_inverted);
 
 	return err;
 }
@@ -1483,6 +1488,32 @@ static bool pxa2xx_spi_idma_filter(struct dma_chan *chan, void *param)
 	return true;
 }
 
+struct pxa2xx_cs_info {
+	u16 num_chipselect;
+	int *cs_gpios;
+};
+
+static int up_cs_gpios[] = {
+	-ENOENT, /* Use hardware CS */
+	7,
+};
+
+static const struct pxa2xx_cs_info up_cs_info = {
+	.num_chipselect = ARRAY_SIZE(up_cs_gpios),
+	.cs_gpios = up_cs_gpios,
+};
+
+static const struct dmi_system_id pxa2xx_dmi_system_ids[] = {
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "AAEON"),
+			DMI_MATCH(DMI_BOARD_NAME, "UP-CHT01"),
+		},
+		.driver_data = (void *)&up_cs_info,
+	},
+	{ }
+};
+
 static struct pxa2xx_spi_master *
 pxa2xx_spi_init_pdata(struct platform_device *pdev)
 {
@@ -1492,6 +1523,7 @@ pxa2xx_spi_init_pdata(struct platform_device *pdev)
 	struct resource *res;
 	const struct acpi_device_id *adev_id = NULL;
 	const struct pci_device_id *pcidev_id = NULL;
+	const struct dmi_system_id *system_id;
 	int type;
 
 	adev = ACPI_COMPANION(&pdev->dev);
@@ -1541,6 +1573,17 @@ pxa2xx_spi_init_pdata(struct platform_device *pdev)
 
 	pdata->num_chipselect = 1;
 	pdata->enable_dma = true;
+
+	/* On some platforms, it may be necessary to use some GPIO CS lines */
+	system_id = dmi_first_match(pxa2xx_dmi_system_ids);
+	if (system_id) {
+		struct pxa2xx_cs_info *cs_info = system_id->driver_data;
+
+		if (cs_info) {
+			pdata->num_chipselect = cs_info->num_chipselect;
+			pdata->cs_gpios = cs_info->cs_gpios;
+		}
+	}
 
 	return pdata;
 }
@@ -1622,6 +1665,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LOOP;
 
 	master->bus_num = ssp->port_id;
+	master->cs_gpios = platform_info->cs_gpios;
 	master->dma_alignment = DMA_ALIGNMENT;
 	master->cleanup = cleanup;
 	master->setup = setup;
