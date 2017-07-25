@@ -963,6 +963,7 @@ config ARM64_UAO
 config ARM64_PMEM
 	bool "Enable support for persistent memory"
 	select ARCH_HAS_PMEM_API
+	select ARCH_HAS_UACCESS_FLUSHCACHE
 	help
 	  Say Y to enable support for the persistent memory API based on the
 	  ARMv8.2 DCPoP feature.
