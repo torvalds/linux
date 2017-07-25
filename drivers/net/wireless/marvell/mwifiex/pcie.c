@@ -2971,15 +2971,12 @@ static void mwifiex_cleanup_pcie(struct mwifiex_adapter *adapter)
 				    "Failed to write driver not-ready signature\n");
 	}
 
-	if (pdev) {
-		pci_disable_device(pdev);
+	pci_disable_device(pdev);
 
-		pci_iounmap(pdev, card->pci_mmap);
-		pci_iounmap(pdev, card->pci_mmap1);
-		pci_disable_device(pdev);
-		pci_release_region(pdev, 2);
-		pci_release_region(pdev, 0);
-	}
+	pci_iounmap(pdev, card->pci_mmap);
+	pci_iounmap(pdev, card->pci_mmap1);
+	pci_release_region(pdev, 2);
+	pci_release_region(pdev, 0);
 
 	mwifiex_pcie_free_buffers(adapter);
 }
