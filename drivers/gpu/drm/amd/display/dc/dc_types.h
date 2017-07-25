@@ -539,7 +539,8 @@ union dmcu_psr_level {
 		unsigned int SKIP_SMU_NOTIFICATION:1;
 		unsigned int SKIP_AUTO_STATE_ADVANCE:1;
 		unsigned int DISABLE_PSR_ENTRY_ABORT:1;
-		unsigned int RESERVED:23;
+		unsigned int SKIP_SINGLE_OTG_DISABLE:1;
+		unsigned int RESERVED:22;
 	} bits;
 	unsigned int u32all;
 };
