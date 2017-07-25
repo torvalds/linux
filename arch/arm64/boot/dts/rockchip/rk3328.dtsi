@@ -162,6 +162,11 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
+		io_domains: io-domains {
+			compatible = "rockchip,rk3328-io-voltage-domain";
+			status = "disabled";
+		};
+
 		power: power-controller {
 			compatible = "rockchip,rk3328-power-controller";
 			#power-domain-cells = <1>;
