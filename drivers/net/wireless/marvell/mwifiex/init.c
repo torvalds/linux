@@ -373,15 +373,13 @@ void mwifiex_stop_net_dev_queue(struct net_device *netdev,
 }
 
 /*
- *  This function releases the lock variables and frees the locks and
- *  associated locks.
+ * This function invalidates the list heads.
  */
-static void mwifiex_free_lock_list(struct mwifiex_adapter *adapter)
+static void mwifiex_invalidate_lists(struct mwifiex_adapter *adapter)
 {
 	struct mwifiex_private *priv;
 	s32 i, j;
 
-	/* Free lists */
 	list_del(&adapter->cmd_free_q);
 	list_del(&adapter->cmd_pending_q);
 	list_del(&adapter->scan_pending_q);
@@ -422,8 +420,7 @@ mwifiex_adapter_cleanup(struct mwifiex_adapter *adapter)
 
 void mwifiex_free_cmd_buffers(struct mwifiex_adapter *adapter)
 {
-	/* Free lock variables */
-	mwifiex_free_lock_list(adapter);
+	mwifiex_invalidate_lists(adapter);
 
 	/* Free command buffer */
 	mwifiex_dbg(adapter, INFO, "info: free cmd buffer\n");
