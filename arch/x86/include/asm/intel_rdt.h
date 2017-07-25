@@ -1,7 +1,7 @@
 #ifndef _ASM_X86_INTEL_RDT_H
 #define _ASM_X86_INTEL_RDT_H
 
-#ifdef CONFIG_INTEL_RDT_A
+#ifdef CONFIG_INTEL_RDT
 
 #include <linux/sched.h>
 #include <linux/kernfs.h>
@@ -282,5 +282,5 @@ static inline void intel_rdt_sched_in(void)
 
 static inline void intel_rdt_sched_in(void) {}
 
-#endif /* CONFIG_INTEL_RDT_A */
+#endif /* CONFIG_INTEL_RDT */
 #endif /* _ASM_X86_INTEL_RDT_H */

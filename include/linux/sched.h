@@ -898,7 +898,7 @@ struct task_struct {
 	/* cg_list protected by css_set_lock and tsk->alloc_lock: */
 	struct list_head		cg_list;
 #endif
-#ifdef CONFIG_INTEL_RDT_A
+#ifdef CONFIG_INTEL_RDT
 	int				closid;
 #endif
 #ifdef CONFIG_FUTEX
