@@ -659,7 +659,7 @@ vc4_cl_lookup_bos(struct drm_device *dev,
 		/* See comment on bo_index for why we have to check
 		 * this.
 		 */
-		DRM_ERROR("Rendering requires BOs to validate\n");
+		DRM_DEBUG("Rendering requires BOs to validate\n");
 		return -EINVAL;
 	}
 
@@ -690,7 +690,7 @@ vc4_cl_lookup_bos(struct drm_device *dev,
 		struct drm_gem_object *bo = idr_find(&file_priv->object_idr,
 						     handles[i]);
 		if (!bo) {
-			DRM_ERROR("Failed to look up GEM BO %d: %d\n",
+			DRM_DEBUG("Failed to look up GEM BO %d: %d\n",
 				  i, handles[i]);
 			ret = -EINVAL;
 			spin_unlock(&file_priv->table_lock);
@@ -728,7 +728,7 @@ vc4_get_bcl(struct drm_device *dev, struct vc4_exec_info *exec)
 	    args->shader_rec_count >= (UINT_MAX /
 					  sizeof(struct vc4_shader_state)) ||
 	    temp_size < exec_size) {
-		DRM_ERROR("overflow in exec arguments\n");
+		DRM_DEBUG("overflow in exec arguments\n");
 		ret = -EINVAL;
 		goto fail;
 	}
@@ -973,7 +973,7 @@ vc4_wait_bo_ioctl(struct drm_device *dev, void *data,
 
 	gem_obj = drm_gem_object_lookup(file_priv, args->handle);
 	if (!gem_obj) {
-		DRM_ERROR("Failed to look up GEM BO %d\n", args->handle);
+		DRM_DEBUG("Failed to look up GEM BO %d\n", args->handle);
 		return -EINVAL;
 	}
 	bo = to_vc4_bo(gem_obj);
@@ -1008,7 +1008,7 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 	int ret = 0;
 
 	if ((args->flags & ~VC4_SUBMIT_CL_USE_CLEAR_COLOR) != 0) {
-		DRM_ERROR("Unknown flags: 0x%02x\n", args->flags);
+		DRM_DEBUG("Unknown flags: 0x%02x\n", args->flags);
 		return -EINVAL;
 	}
 

@@ -169,7 +169,7 @@ static struct drm_framebuffer *vc4_fb_create(struct drm_device *dev,
 		gem_obj = drm_gem_object_lookup(file_priv,
 						mode_cmd->handles[0]);
 		if (!gem_obj) {
-			DRM_ERROR("Failed to look up GEM BO %d\n",
+			DRM_DEBUG("Failed to look up GEM BO %d\n",
 				  mode_cmd->handles[0]);
 			return ERR_PTR(-ENOENT);
 		}

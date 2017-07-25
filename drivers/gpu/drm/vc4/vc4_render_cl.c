@@ -378,14 +378,14 @@ static int vc4_full_res_bounds_check(struct vc4_exec_info *exec,
 	u32 render_tiles_stride = DIV_ROUND_UP(exec->args->width, 32);
 
 	if (surf->offset > obj->base.size) {
-		DRM_ERROR("surface offset %d > BO size %zd\n",
+		DRM_DEBUG("surface offset %d > BO size %zd\n",
 			  surf->offset, obj->base.size);
 		return -EINVAL;
 	}
 
 	if ((obj->base.size - surf->offset) / VC4_TILE_BUFFER_SIZE <
 	    render_tiles_stride * args->max_y_tile + args->max_x_tile) {
-		DRM_ERROR("MSAA tile %d, %d out of bounds "
+		DRM_DEBUG("MSAA tile %d, %d out of bounds "
 			  "(bo size %zd, offset %d).\n",
 			  args->max_x_tile, args->max_y_tile,
 			  obj->base.size,
@@ -401,7 +401,7 @@ static int vc4_rcl_msaa_surface_setup(struct vc4_exec_info *exec,
 				      struct drm_vc4_submit_rcl_surface *surf)
 {
 	if (surf->flags != 0 || surf->bits != 0) {
-		DRM_ERROR("MSAA surface had nonzero flags/bits\n");
+		DRM_DEBUG("MSAA surface had nonzero flags/bits\n");
 		return -EINVAL;
 	}
 
@@ -415,7 +415,7 @@ static int vc4_rcl_msaa_surface_setup(struct vc4_exec_info *exec,
 	exec->rcl_write_bo[exec->rcl_write_bo_count++] = *obj;
 
 	if (surf->offset & 0xf) {
-		DRM_ERROR("MSAA write must be 16b aligned.\n");
+		DRM_DEBUG("MSAA write must be 16b aligned.\n");
 		return -EINVAL;
 	}
 
@@ -437,7 +437,7 @@ static int vc4_rcl_surface_setup(struct vc4_exec_info *exec,
 	int ret;
 
 	if (surf->flags & ~VC4_SUBMIT_RCL_SURFACE_READ_IS_FULL_RES) {
-		DRM_ERROR("Extra flags set\n");
+		DRM_DEBUG("Extra flags set\n");
 		return -EINVAL;
 	}
 
@@ -453,12 +453,12 @@ static int vc4_rcl_surface_setup(struct vc4_exec_info *exec,
 
 	if (surf->flags & VC4_SUBMIT_RCL_SURFACE_READ_IS_FULL_RES) {
 		if (surf == &exec->args->zs_write) {
-			DRM_ERROR("general zs write may not be a full-res.\n");
+			DRM_DEBUG("general zs write may not be a full-res.\n");
 			return -EINVAL;
 		}
 
 		if (surf->bits != 0) {
-			DRM_ERROR("load/store general bits set with "
+			DRM_DEBUG("load/store general bits set with "
 				  "full res load/store.\n");
 			return -EINVAL;
 		}
@@ -473,19 +473,19 @@ static int vc4_rcl_surface_setup(struct vc4_exec_info *exec,
 	if (surf->bits & ~(VC4_LOADSTORE_TILE_BUFFER_TILING_MASK |
 			   VC4_LOADSTORE_TILE_BUFFER_BUFFER_MASK |
 			   VC4_LOADSTORE_TILE_BUFFER_FORMAT_MASK)) {
-		DRM_ERROR("Unknown bits in load/store: 0x%04x\n",
+		DRM_DEBUG("Unknown bits in load/store: 0x%04x\n",
 			  surf->bits);
 		return -EINVAL;
 	}
 
 	if (tiling > VC4_TILING_FORMAT_LT) {
-		DRM_ERROR("Bad tiling format\n");
+		DRM_DEBUG("Bad tiling format\n");
 		return -EINVAL;
 	}
 
 	if (buffer == VC4_LOADSTORE_TILE_BUFFER_ZS) {
 		if (format != 0) {
-			DRM_ERROR("No color format should be set for ZS\n");
+			DRM_DEBUG("No color format should be set for ZS\n");
 			return -EINVAL;
 		}
 		cpp = 4;
@@ -499,16 +499,16 @@ static int vc4_rcl_surface_setup(struct vc4_exec_info *exec,
 			cpp = 4;
 			break;
 		default:
-			DRM_ERROR("Bad tile buffer format\n");
+			DRM_DEBUG("Bad tile buffer format\n");
 			return -EINVAL;
 		}
 	} else {
-		DRM_ERROR("Bad load/store buffer %d.\n", buffer);
+		DRM_DEBUG("Bad load/store buffer %d.\n", buffer);
 		return -EINVAL;
 	}
 
 	if (surf->offset & 0xf) {
-		DRM_ERROR("load/store buffer must be 16b aligned.\n");
+		DRM_DEBUG("load/store buffer must be 16b aligned.\n");
 		return -EINVAL;
 	}
 
@@ -533,7 +533,7 @@ vc4_rcl_render_config_surface_setup(struct vc4_exec_info *exec,
 	int cpp;
 
 	if (surf->flags != 0) {
-		DRM_ERROR("No flags supported on render config.\n");
+		DRM_DEBUG("No flags supported on render config.\n");
 		return -EINVAL;
 	}
 
@@ -541,7 +541,7 @@ vc4_rcl_render_config_surface_setup(struct vc4_exec_info *exec,
 			   VC4_RENDER_CONFIG_FORMAT_MASK |
 			   VC4_RENDER_CONFIG_MS_MODE_4X |
 			   VC4_RENDER_CONFIG_DECIMATE_MODE_4X)) {
-		DRM_ERROR("Unknown bits in render config: 0x%04x\n",
+		DRM_DEBUG("Unknown bits in render config: 0x%04x\n",
 			  surf->bits);
 		return -EINVAL;
 	}
@@ -556,7 +556,7 @@ vc4_rcl_render_config_surface_setup(struct vc4_exec_info *exec,
 	exec->rcl_write_bo[exec->rcl_write_bo_count++] = *obj;
 
 	if (tiling > VC4_TILING_FORMAT_LT) {
-		DRM_ERROR("Bad tiling format\n");
+		DRM_DEBUG("Bad tiling format\n");
 		return -EINVAL;
 	}
 
@@ -569,7 +569,7 @@ vc4_rcl_render_config_surface_setup(struct vc4_exec_info *exec,
 		cpp = 4;
 		break;
 	default:
-		DRM_ERROR("Bad tile buffer format\n");
+		DRM_DEBUG("Bad tile buffer format\n");
 		return -EINVAL;
 	}
 
@@ -590,7 +590,7 @@ int vc4_get_rcl(struct drm_device *dev, struct vc4_exec_info *exec)
 
 	if (args->min_x_tile > args->max_x_tile ||
 	    args->min_y_tile > args->max_y_tile) {
-		DRM_ERROR("Bad render tile set (%d,%d)-(%d,%d)\n",
+		DRM_DEBUG("Bad render tile set (%d,%d)-(%d,%d)\n",
 			  args->min_x_tile, args->min_y_tile,
 			  args->max_x_tile, args->max_y_tile);
 		return -EINVAL;
@@ -599,7 +599,7 @@ int vc4_get_rcl(struct drm_device *dev, struct vc4_exec_info *exec)
 	if (has_bin &&
 	    (args->max_x_tile > exec->bin_tiles_x ||
 	     args->max_y_tile > exec->bin_tiles_y)) {
-		DRM_ERROR("Render tiles (%d,%d) outside of bin config "
+		DRM_DEBUG("Render tiles (%d,%d) outside of bin config "
 			  "(%d,%d)\n",
 			  args->max_x_tile, args->max_y_tile,
 			  exec->bin_tiles_x, exec->bin_tiles_y);
@@ -642,7 +642,7 @@ int vc4_get_rcl(struct drm_device *dev, struct vc4_exec_info *exec)
 	 */
 	if (!setup.color_write && !setup.zs_write &&
 	    !setup.msaa_color_write && !setup.msaa_zs_write) {
-		DRM_ERROR("RCL requires color or Z/S write\n");
+		DRM_DEBUG("RCL requires color or Z/S write\n");
 		return -EINVAL;
 	}
 
