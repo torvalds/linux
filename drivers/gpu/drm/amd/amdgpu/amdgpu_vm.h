@@ -70,6 +70,9 @@ struct amdgpu_bo_list_entry;
 /* TILED for VEGA10, reserved for older ASICs  */
 #define AMDGPU_PTE_PRT		(1ULL << 51)
 
+/* PDE is handled as PTE for VEGA10 */
+#define AMDGPU_PDE_PTE		(1ULL << 54)
+
 /* VEGA10 only */
 #define AMDGPU_PTE_MTYPE(a)    ((uint64_t)a << 57)
 #define AMDGPU_PTE_MTYPE_MASK	AMDGPU_PTE_MTYPE(3ULL)
@@ -100,6 +103,7 @@ struct amdgpu_bo_list_entry;
 struct amdgpu_vm_pt {
 	struct amdgpu_bo	*bo;
 	uint64_t		addr;
+	bool			huge_page;
 
 	/* array of page tables, one for each directory entry */
 	struct amdgpu_vm_pt	*entries;
