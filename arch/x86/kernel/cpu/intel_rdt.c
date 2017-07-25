@@ -320,6 +320,19 @@ cat_wrmsr(struct rdt_domain *d, struct msr_param *m, struct rdt_resource *r)
 		wrmsrl(r->msr_base + cbm_idx(r, i), d->ctrl_val[i]);
 }
 
+struct rdt_domain *get_domain_from_cpu(int cpu, struct rdt_resource *r)
+{
+	struct rdt_domain *d;
+
+	list_for_each_entry(d, &r->domains, list) {
+		/* Find the domain that contains this CPU */
+		if (cpumask_test_cpu(cpu, &d->cpu_mask))
+			return d;
+	}
+
+	return NULL;
+}
+
 void rdt_ctrl_update(void *arg)
 {
 	struct msr_param *m = arg;
@@ -397,6 +410,19 @@ static int domain_setup_ctrlval(struct rdt_resource *r, struct rdt_domain *d)
 	return 0;
 }
 
+static int domain_setup_mon_state(struct rdt_resource *r, struct rdt_domain *d)
+{
+	if (is_llc_occupancy_enabled()) {
+		d->rmid_busy_llc = kcalloc(BITS_TO_LONGS(r->num_rmid),
+					   sizeof(unsigned long),
+					   GFP_KERNEL);
+		if (!d->rmid_busy_llc)
+			return -ENOMEM;
+	}
+
+	return 0;
+}
+
 /*
  * domain_add_cpu - Add a cpu to a resource's domain list.
  *
@@ -438,6 +464,11 @@ static void domain_add_cpu(int cpu, struct rdt_resource *r)
 		return;
 	}
 
+	if (r->mon_capable && domain_setup_mon_state(r, d)) {
+		kfree(d);
+		return;
+	}
+
 	cpumask_set_cpu(cpu, &d->cpu_mask);
 	list_add_tail(&d->list, add_pos);
 }
@@ -456,6 +487,7 @@ static void domain_remove_cpu(int cpu, struct rdt_resource *r)
 	cpumask_clear_cpu(cpu, &d->cpu_mask);
 	if (cpumask_empty(&d->cpu_mask)) {
 		kfree(d->ctrl_val);
+		kfree(d->rmid_busy_llc);
 		list_del(&d->list);
 		kfree(d);
 	}

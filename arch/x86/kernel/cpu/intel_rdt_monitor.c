@@ -28,8 +28,12 @@
 #include <asm/cpu_device_id.h>
 #include "intel_rdt.h"
 
+#define MSR_IA32_QM_CTR		0x0c8e
+#define MSR_IA32_QM_EVTSEL		0x0c8d
+
 struct rmid_entry {
 	u32				rmid;
+	atomic_t			busy;
 	struct list_head		list;
 };
 
@@ -79,6 +83,215 @@ static inline struct rmid_entry *__rmid_entry(u32 rmid)
 	WARN_ON(entry->rmid != rmid);
 
 	return entry;
+}
+
+static u64 __rmid_read(u32 rmid, u32 eventid)
+{
+	u64 val;
+
+	/*
+	 * As per the SDM, when IA32_QM_EVTSEL.EvtID (bits 7:0) is configured
+	 * with a valid event code for supported resource type and the bits
+	 * IA32_QM_EVTSEL.RMID (bits 41:32) are configured with valid RMID,
+	 * IA32_QM_CTR.data (bits 61:0) reports the monitored data.
+	 * IA32_QM_CTR.Error (bit 63) and IA32_QM_CTR.Unavailable (bit 62)
+	 * are error bits.
+	 */
+	wrmsr(MSR_IA32_QM_EVTSEL, eventid, rmid);
+	rdmsrl(MSR_IA32_QM_CTR, val);
+
+	return val;
+}
+
+/*
+ * Walk the limbo list looking at any RMIDs that are flagged in the
+ * domain rmid_busy_llc bitmap as busy. If the reported LLC occupancy
+ * is below the threshold clear the busy bit and decrement the count.
+ * If the busy count gets to zero on an RMID we stop looking.
+ * This can be called from an IPI.
+ * We need an atomic for the busy count because multiple CPUs may check
+ * the same RMID at the same time.
+ */
+static bool __check_limbo(struct rdt_domain *d)
+{
+	struct rmid_entry *entry;
+	u64 val;
+
+	list_for_each_entry(entry, &rmid_limbo_lru, list) {
+		if (!test_bit(entry->rmid, d->rmid_busy_llc))
+			continue;
+		val = __rmid_read(entry->rmid, QOS_L3_OCCUP_EVENT_ID);
+		if (val <= intel_cqm_threshold) {
+			clear_bit(entry->rmid, d->rmid_busy_llc);
+			if (atomic_dec_and_test(&entry->busy))
+				return true;
+		}
+	}
+	return false;
+}
+
+static void check_limbo(void *arg)
+{
+	struct rdt_domain *d;
+
+	d = get_domain_from_cpu(smp_processor_id(),
+				&rdt_resources_all[RDT_RESOURCE_L3]);
+
+	if (d)
+		__check_limbo(d);
+}
+
+static bool has_busy_rmid(struct rdt_resource *r, struct rdt_domain *d)
+{
+	return find_first_bit(d->rmid_busy_llc, r->num_rmid) != r->num_rmid;
+}
+
+/*
+ * Scan the limbo list and move all entries that are below the
+ * intel_cqm_threshold to the free list.
+ * Return "true" if the limbo list is empty, "false" if there are
+ * still some RMIDs there.
+ */
+static bool try_freeing_limbo_rmid(void)
+{
+	struct rmid_entry *entry, *tmp;
+	struct rdt_resource *r;
+	cpumask_var_t cpu_mask;
+	struct rdt_domain *d;
+	bool ret = true;
+	int cpu;
+
+	if (list_empty(&rmid_limbo_lru))
+		return ret;
+
+	r = &rdt_resources_all[RDT_RESOURCE_L3];
+
+	cpu = get_cpu();
+
+	/*
+	 * First see if we can free up an RMID by checking busy values
+	 * on the local package.
+	 */
+	d = get_domain_from_cpu(cpu, r);
+	if (d && has_busy_rmid(r, d) && __check_limbo(d)) {
+		list_for_each_entry_safe(entry, tmp, &rmid_limbo_lru, list) {
+			if (atomic_read(&entry->busy) == 0) {
+				list_del(&entry->list);
+				list_add_tail(&entry->list, &rmid_free_lru);
+				goto done;
+			}
+		}
+	}
+
+	if (!zalloc_cpumask_var(&cpu_mask, GFP_KERNEL)) {
+		ret = false;
+		goto done;
+	}
+
+	/*
+	 * Build a mask of other domains that have busy RMIDs
+	 */
+	list_for_each_entry(d, &r->domains, list) {
+		if (!cpumask_test_cpu(cpu, &d->cpu_mask) &&
+		    has_busy_rmid(r, d))
+			cpumask_set_cpu(cpumask_any(&d->cpu_mask), cpu_mask);
+	}
+	if (cpumask_empty(cpu_mask)) {
+		ret = false;
+		goto free_mask;
+	}
+
+	/*
+	 * Scan domains with busy RMIDs to check if they still are busy
+	 */
+	on_each_cpu_mask(cpu_mask, check_limbo, NULL, true);
+
+	/* Walk limbo list moving all free RMIDs to the &rmid_free_lru list */
+	list_for_each_entry_safe(entry, tmp, &rmid_limbo_lru, list) {
+		if (atomic_read(&entry->busy) != 0) {
+			ret = false;
+			continue;
+		}
+		list_del(&entry->list);
+		list_add_tail(&entry->list, &rmid_free_lru);
+	}
+
+free_mask:
+	free_cpumask_var(cpu_mask);
+done:
+	put_cpu();
+	return ret;
+}
+
+/*
+ * As of now the RMIDs allocation is global.
+ * However we keep track of which packages the RMIDs
+ * are used to optimize the limbo list management.
+ */
+int alloc_rmid(void)
+{
+	struct rmid_entry *entry;
+	bool ret;
+
+	lockdep_assert_held(&rdtgroup_mutex);
+
+	if (list_empty(&rmid_free_lru)) {
+		ret = try_freeing_limbo_rmid();
+		if (list_empty(&rmid_free_lru))
+			return ret ? -ENOSPC : -EBUSY;
+	}
+
+	entry = list_first_entry(&rmid_free_lru,
+				 struct rmid_entry, list);
+	list_del(&entry->list);
+
+	return entry->rmid;
+}
+
+static void add_rmid_to_limbo(struct rmid_entry *entry)
+{
+	struct rdt_resource *r;
+	struct rdt_domain *d;
+	int cpu, nbusy = 0;
+	u64 val;
+
+	r = &rdt_resources_all[RDT_RESOURCE_L3];
+
+	cpu = get_cpu();
+	list_for_each_entry(d, &r->domains, list) {
+		if (cpumask_test_cpu(cpu, &d->cpu_mask)) {
+			val = __rmid_read(entry->rmid, QOS_L3_OCCUP_EVENT_ID);
+			if (val <= intel_cqm_threshold)
+				continue;
+		}
+		set_bit(entry->rmid, d->rmid_busy_llc);
+		nbusy++;
+	}
+	put_cpu();
+
+	if (nbusy) {
+		atomic_set(&entry->busy, nbusy);
+		list_add_tail(&entry->list, &rmid_limbo_lru);
+	} else {
+		list_add_tail(&entry->list, &rmid_free_lru);
+	}
+}
+
+void free_rmid(u32 rmid)
+{
+	struct rmid_entry *entry;
+
+	if (!rmid)
+		return;
+
+	lockdep_assert_held(&rdtgroup_mutex);
+
+	entry = __rmid_entry(rmid);
+
+	if (is_llc_occupancy_enabled())
+		add_rmid_to_limbo(entry);
+	else
+		list_add_tail(&entry->list, &rmid_free_lru);
 }
 
 static int dom_data_init(struct rdt_resource *r)

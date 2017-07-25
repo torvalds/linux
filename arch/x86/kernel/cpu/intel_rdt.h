@@ -19,6 +19,8 @@
 #define QOS_L3_OCCUP_EVENT_ID		0x01
 #define QOS_L3_MBM_TOTAL_EVENT_ID	0x02
 #define QOS_L3_MBM_LOCAL_EVENT_ID	0x03
+#define RMID_VAL_ERROR			BIT_ULL(63)
+#define RMID_VAL_UNAVAIL		BIT_ULL(62)
 
 /**
  * struct mon_evt - Entry in the event list of a resource
@@ -98,6 +100,8 @@ struct rftype {
  * @list:	all instances of this resource
  * @id:		unique id for this instance
  * @cpu_mask:	which cpus share this resource
+ * @rmid_busy_llc:
+ *		bitmap of which limbo RMIDs are above threshold
  * @ctrl_val:	array of cache or mem ctrl values (indexed by CLOSID)
  * @new_ctrl:	new ctrl value to be loaded
  * @have_new_ctrl: did user provide new_ctrl for this domain
@@ -106,6 +110,7 @@ struct rdt_domain {
 	struct list_head	list;
 	int			id;
 	struct cpumask		cpu_mask;
+	unsigned long		*rmid_busy_llc;
 	u32			*ctrl_val;
 	u32			new_ctrl;
 	bool			have_new_ctrl;
@@ -282,6 +287,7 @@ ssize_t rdtgroup_schemata_write(struct kernfs_open_file *of,
 				char *buf, size_t nbytes, loff_t off);
 int rdtgroup_schemata_show(struct kernfs_open_file *of,
 			   struct seq_file *s, void *v);
+struct rdt_domain *get_domain_from_cpu(int cpu, struct rdt_resource *r);
 int rdt_get_mon_l3_config(struct rdt_resource *r);
 
 #endif /* _ASM_X86_INTEL_RDT_H */
