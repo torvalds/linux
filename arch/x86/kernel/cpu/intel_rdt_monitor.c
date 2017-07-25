@@ -366,6 +366,69 @@ void mon_event_count(void *info)
 	}
 }
 
+static void mbm_update(struct rdt_domain *d, int rmid)
+{
+	struct rmid_read rr;
+
+	rr.first = false;
+	rr.d = d;
+
+	/*
+	 * This is protected from concurrent reads from user
+	 * as both the user and we hold the global mutex.
+	 */
+	if (is_mbm_total_enabled()) {
+		rr.evtid = QOS_L3_MBM_TOTAL_EVENT_ID;
+		__mon_event_count(rmid, &rr);
+	}
+	if (is_mbm_local_enabled()) {
+		rr.evtid = QOS_L3_MBM_LOCAL_EVENT_ID;
+		__mon_event_count(rmid, &rr);
+	}
+}
+
+void mbm_handle_overflow(struct work_struct *work)
+{
+	unsigned long delay = msecs_to_jiffies(MBM_OVERFLOW_INTERVAL);
+	struct rdtgroup *prgrp, *crgrp;
+	int cpu = smp_processor_id();
+	struct list_head *head;
+	struct rdt_domain *d;
+
+	mutex_lock(&rdtgroup_mutex);
+
+	if (!static_branch_likely(&rdt_enable_key))
+		goto out_unlock;
+
+	d = get_domain_from_cpu(cpu, &rdt_resources_all[RDT_RESOURCE_L3]);
+	if (!d)
+		goto out_unlock;
+
+	list_for_each_entry(prgrp, &rdt_all_groups, rdtgroup_list) {
+		mbm_update(d, prgrp->mon.rmid);
+
+		head = &prgrp->mon.crdtgrp_list;
+		list_for_each_entry(crgrp, head, mon.crdtgrp_list)
+			mbm_update(d, crgrp->mon.rmid);
+	}
+
+	schedule_delayed_work_on(cpu, &d->mbm_over, delay);
+out_unlock:
+	mutex_unlock(&rdtgroup_mutex);
+}
+
+void mbm_setup_overflow_handler(struct rdt_domain *dom)
+{
+	unsigned long delay = msecs_to_jiffies(MBM_OVERFLOW_INTERVAL);
+	int cpu;
+
+	if (!static_branch_likely(&rdt_enable_key))
+		return;
+	cpu = cpumask_any(&dom->cpu_mask);
+	dom->mbm_work_cpu = cpu;
+	schedule_delayed_work_on(cpu, &dom->mbm_over, delay);
+}
+
 static int dom_data_init(struct rdt_resource *r)
 {
 	struct rmid_entry *entry = NULL;

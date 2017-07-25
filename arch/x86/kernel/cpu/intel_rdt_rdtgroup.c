@@ -1060,6 +1060,8 @@ static struct dentry *rdt_mount(struct file_system_type *fs_type,
 				int flags, const char *unused_dev_name,
 				void *data)
 {
+	struct rdt_domain *dom;
+	struct rdt_resource *r;
 	struct dentry *dentry;
 	int ret;
 
@@ -1118,6 +1120,13 @@ static struct dentry *rdt_mount(struct file_system_type *fs_type,
 
 	if (rdt_alloc_capable || rdt_mon_capable)
 		static_branch_enable(&rdt_enable_key);
+
+	if (is_mbm_enabled()) {
+		r = &rdt_resources_all[RDT_RESOURCE_L3];
+		list_for_each_entry(dom, &r->domains, list)
+			mbm_setup_overflow_handler(dom);
+	}
+
 	goto out;
 
 out_mondata:

@@ -21,9 +21,12 @@
 #define QOS_L3_MBM_LOCAL_EVENT_ID	0x03
 
 #define MBM_CNTR_WIDTH			24
+#define MBM_OVERFLOW_INTERVAL		1000
 
 #define RMID_VAL_ERROR			BIT_ULL(63)
 #define RMID_VAL_UNAVAIL		BIT_ULL(62)
+
+DECLARE_STATIC_KEY_FALSE(rdt_enable_key);
 
 /**
  * struct mon_evt - Entry in the event list of a resource
@@ -183,6 +186,9 @@ struct mbm_state {
  *		bitmap of which limbo RMIDs are above threshold
  * @mbm_total:	saved state for MBM total bandwidth
  * @mbm_local:	saved state for MBM local bandwidth
+ * @mbm_over:	worker to periodically read MBM h/w counters
+ * @mbm_work_cpu:
+ *		worker cpu for MBM h/w counters
  * @ctrl_val:	array of cache or mem ctrl values (indexed by CLOSID)
  * @new_ctrl:	new ctrl value to be loaded
  * @have_new_ctrl: did user provide new_ctrl for this domain
@@ -194,6 +200,8 @@ struct rdt_domain {
 	unsigned long		*rmid_busy_llc;
 	struct mbm_state	*mbm_total;
 	struct mbm_state	*mbm_local;
+	struct delayed_work	mbm_over;
+	int			mbm_work_cpu;
 	u32			*ctrl_val;
 	u32			new_ctrl;
 	bool			have_new_ctrl;
@@ -411,5 +419,7 @@ void mkdir_mondata_subdir_allrdtgrp(struct rdt_resource *r,
 				    struct rdt_domain *d);
 void mon_event_read(struct rmid_read *rr, struct rdt_domain *d,
 		    struct rdtgroup *rdtgrp, int evtid, int first);
+void mbm_setup_overflow_handler(struct rdt_domain *dom);
+void mbm_handle_overflow(struct work_struct *work);
 
 #endif /* _ASM_X86_INTEL_RDT_H */

@@ -348,12 +348,10 @@ void rdt_ctrl_update(void *arg)
 	int cpu = smp_processor_id();
 	struct rdt_domain *d;
 
-	list_for_each_entry(d, &r->domains, list) {
-		/* Find the domain that contains this CPU */
-		if (cpumask_test_cpu(cpu, &d->cpu_mask)) {
-			r->msr_update(d, m, r);
-			return;
-		}
+	d = get_domain_from_cpu(cpu, r);
+	if (d) {
+		r->msr_update(d, m, r);
+		return;
 	}
 	pr_warn_once("cpu %d not found in any domain for resource %s\n",
 		     cpu, r->name);
@@ -447,6 +445,11 @@ static int domain_setup_mon_state(struct rdt_resource *r, struct rdt_domain *d)
 		}
 	}
 
+	if (is_mbm_enabled()) {
+		INIT_DELAYED_WORK(&d->mbm_over, mbm_handle_overflow);
+		mbm_setup_overflow_handler(d);
+	}
+
 	return 0;
 }
 
@@ -531,7 +534,13 @@ static void domain_remove_cpu(int cpu, struct rdt_resource *r)
 		kfree(d->mbm_total);
 		kfree(d->mbm_local);
 		list_del(&d->list);
+		if (is_mbm_enabled())
+			cancel_delayed_work(&d->mbm_over);
 		kfree(d);
+	} else if (r == &rdt_resources_all[RDT_RESOURCE_L3] &&
+		   cpu == d->mbm_work_cpu && is_mbm_enabled()) {
+		cancel_delayed_work(&d->mbm_over);
+		mbm_setup_overflow_handler(d);
 	}
 }
 
