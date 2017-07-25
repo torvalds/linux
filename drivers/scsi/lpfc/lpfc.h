@@ -141,6 +141,13 @@ struct lpfc_dmabuf {
 	uint32_t   buffer_tag;	/* used for tagged queue ring */
 };
 
+struct lpfc_nvmet_ctxbuf {
+	struct list_head list;
+	struct lpfc_nvmet_rcv_ctx *context;
+	struct lpfc_iocbq *iocbq;
+	struct lpfc_sglq *sglq;
+};
+
 struct lpfc_dma_pool {
 	struct lpfc_dmabuf   *elements;
 	uint32_t    max_count;
@@ -163,9 +170,7 @@ struct rqb_dmabuf {
 	struct lpfc_dmabuf dbuf;
 	uint16_t total_size;
 	uint16_t bytes_recv;
-	void *context;
-	struct lpfc_iocbq *iocbq;
-	struct lpfc_sglq *sglq;
+	uint16_t idx;
 	struct lpfc_queue *hrq;	  /* ptr to associated Header RQ */
 	struct lpfc_queue *drq;	  /* ptr to associated Data RQ */
 };
@@ -670,6 +675,8 @@ struct lpfc_hba {
 					/* INIT_LINK mailbox command */
 #define LS_NPIV_FAB_SUPPORTED 0x2	/* Fabric supports NPIV */
 #define LS_IGNORE_ERATT       0x4	/* intr handler should ignore ERATT */
+#define LS_MDS_LINK_DOWN      0x8	/* MDS Diagnostics Link Down */
+#define LS_MDS_LOOPBACK      0x16	/* MDS Diagnostics Link Up (Loopback) */
 
 	uint32_t hba_flag;	/* hba generic flags */
 #define HBA_ERATT_HANDLED	0x1 /* This flag is set when eratt handled */
@@ -749,6 +756,7 @@ struct lpfc_hba {
 	uint8_t  nvmet_support;	/* driver supports NVMET */
 #define LPFC_NVMET_MAX_PORTS	32
 	uint8_t  mds_diags_support;
+	uint32_t initial_imax;
 
 	/* HBA Config Parameters */
 	uint32_t cfg_ack0;
@@ -770,6 +778,7 @@ struct lpfc_hba {
 	uint32_t cfg_poll_tmo;
 	uint32_t cfg_task_mgmt_tmo;
 	uint32_t cfg_use_msi;
+	uint32_t cfg_auto_imax;
 	uint32_t cfg_fcp_imax;
 	uint32_t cfg_fcp_cpu_map;
 	uint32_t cfg_fcp_io_channel;
@@ -777,7 +786,6 @@ struct lpfc_hba {
 	uint32_t cfg_nvme_oas;
 	uint32_t cfg_nvme_io_channel;
 	uint32_t cfg_nvmet_mrq;
-	uint32_t cfg_nvmet_mrq_post;
 	uint32_t cfg_enable_nvmet;
 	uint32_t cfg_nvme_enable_fb;
 	uint32_t cfg_nvmet_fb_size;
@@ -907,16 +915,16 @@ struct lpfc_hba {
 	/*
 	 * stat  counters
 	 */
-	uint64_t fc4ScsiInputRequests;
-	uint64_t fc4ScsiOutputRequests;
-	uint64_t fc4ScsiControlRequests;
-	uint64_t fc4ScsiIoCmpls;
-	uint64_t fc4NvmeInputRequests;
-	uint64_t fc4NvmeOutputRequests;
-	uint64_t fc4NvmeControlRequests;
-	uint64_t fc4NvmeIoCmpls;
-	uint64_t fc4NvmeLsRequests;
-	uint64_t fc4NvmeLsCmpls;
+	atomic_t fc4ScsiInputRequests;
+	atomic_t fc4ScsiOutputRequests;
+	atomic_t fc4ScsiControlRequests;
+	atomic_t fc4ScsiIoCmpls;
+	atomic_t fc4NvmeInputRequests;
+	atomic_t fc4NvmeOutputRequests;
+	atomic_t fc4NvmeControlRequests;
+	atomic_t fc4NvmeIoCmpls;
+	atomic_t fc4NvmeLsRequests;
+	atomic_t fc4NvmeLsCmpls;
 
 	uint64_t bg_guard_err_cnt;
 	uint64_t bg_apptag_err_cnt;
@@ -943,6 +951,7 @@ struct lpfc_hba {
 	struct pci_pool *lpfc_mbuf_pool;
 	struct pci_pool *lpfc_hrb_pool;	/* header receive buffer pool */
 	struct pci_pool *lpfc_drb_pool; /* data receive buffer pool */
+	struct pci_pool *lpfc_nvmet_drb_pool; /* data receive buffer pool */
 	struct pci_pool *lpfc_hbq_pool;	/* SLI3 hbq buffer pool */
 	struct pci_pool *txrdy_payload_pool;
 	struct lpfc_dma_pool lpfc_mbuf_safety_pool;
@@ -1043,6 +1052,7 @@ struct lpfc_hba {
 
 	uint8_t temp_sensor_support;
 	/* Fields used for heart beat. */
+	unsigned long last_eqdelay_time;
 	unsigned long last_completion_time;
 	unsigned long skipped_hb;
 	struct timer_list hb_tmofunc;
@@ -1228,7 +1238,11 @@ lpfc_sli_read_hs(struct lpfc_hba *phba)
 static inline struct lpfc_sli_ring *
 lpfc_phba_elsring(struct lpfc_hba *phba)
 {
-	if (phba->sli_rev == LPFC_SLI_REV4)
-		return phba->sli4_hba.els_wq->pring;
+	if (phba->sli_rev == LPFC_SLI_REV4) {
+		if (phba->sli4_hba.els_wq)
+			return phba->sli4_hba.els_wq->pring;
+		else
+			return NULL;
+	}
 	return &phba->sli.sli3_ring[LPFC_ELS_RING];
 }

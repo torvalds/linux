@@ -41,6 +41,7 @@ static const int accel_scale[] = {598, 1196, 2392, 4785};
 static const struct inv_mpu6050_reg_map reg_set_6500 = {
 	.sample_rate_div	= INV_MPU6050_REG_SAMPLE_RATE_DIV,
 	.lpf                    = INV_MPU6050_REG_CONFIG,
+	.accel_lpf              = INV_MPU6500_REG_ACCEL_CONFIG_2,
 	.user_ctrl              = INV_MPU6050_REG_USER_CTRL,
 	.fifo_en                = INV_MPU6050_REG_FIFO_EN,
 	.gyro_config            = INV_MPU6050_REG_GYRO_CONFIG,
@@ -187,7 +188,6 @@ int inv_mpu6050_set_power_itg(struct inv_mpu6050_state *st, bool power_on)
 	int result = 0;
 
 	if (power_on) {
-		/* Already under indio-dev->mlock mutex */
 		if (!st->powerup_count)
 			result = regmap_write(st->map, st->reg->pwr_mgmt_1, 0);
 		if (!result)
@@ -209,6 +209,37 @@ int inv_mpu6050_set_power_itg(struct inv_mpu6050_state *st, bool power_on)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(inv_mpu6050_set_power_itg);
+
+/**
+ *  inv_mpu6050_set_lpf_regs() - set low pass filter registers, chip dependent
+ *
+ *  MPU60xx/MPU9150 use only 1 register for accelerometer + gyroscope
+ *  MPU6500 and above have a dedicated register for accelerometer
+ */
+static int inv_mpu6050_set_lpf_regs(struct inv_mpu6050_state *st,
+				    enum inv_mpu6050_filter_e val)
+{
+	int result;
+
+	result = regmap_write(st->map, st->reg->lpf, val);
+	if (result)
+		return result;
+
+	switch (st->chip_type) {
+	case INV_MPU6050:
+	case INV_MPU6000:
+	case INV_MPU9150:
+		/* old chips, nothing to do */
+		result = 0;
+		break;
+	default:
+		/* set accel lpf */
+		result = regmap_write(st->map, st->reg->accel_lpf, val);
+		break;
+	}
+
+	return result;
+}
 
 /**
  *  inv_mpu6050_init_config() - Initialize hardware, disable FIFO.
@@ -233,8 +264,7 @@ static int inv_mpu6050_init_config(struct iio_dev *indio_dev)
 	if (result)
 		return result;
 
-	d = INV_MPU6050_FILTER_20HZ;
-	result = regmap_write(st->map, st->reg->lpf, d);
+	result = inv_mpu6050_set_lpf_regs(st, INV_MPU6050_FILTER_20HZ);
 	if (result)
 		return result;
 
@@ -298,50 +328,37 @@ inv_mpu6050_read_raw(struct iio_dev *indio_dev,
 		int result;
 
 		ret = IIO_VAL_INT;
-		result = 0;
-		mutex_lock(&indio_dev->mlock);
-		if (!st->chip_config.enable) {
-			result = inv_mpu6050_set_power_itg(st, true);
-			if (result)
-				goto error_read_raw;
-		}
-		/* when enable is on, power is already on */
+		mutex_lock(&st->lock);
+		result = iio_device_claim_direct_mode(indio_dev);
+		if (result)
+			goto error_read_raw_unlock;
+		result = inv_mpu6050_set_power_itg(st, true);
+		if (result)
+			goto error_read_raw_release;
 		switch (chan->type) {
 		case IIO_ANGL_VEL:
-			if (!st->chip_config.gyro_fifo_enable ||
-			    !st->chip_config.enable) {
-				result = inv_mpu6050_switch_engine(st, true,
-						INV_MPU6050_BIT_PWR_GYRO_STBY);
-				if (result)
-					goto error_read_raw;
-			}
+			result = inv_mpu6050_switch_engine(st, true,
+					INV_MPU6050_BIT_PWR_GYRO_STBY);
+			if (result)
+				goto error_read_raw_power_off;
 			ret = inv_mpu6050_sensor_show(st, st->reg->raw_gyro,
 						      chan->channel2, val);
-			if (!st->chip_config.gyro_fifo_enable ||
-			    !st->chip_config.enable) {
-				result = inv_mpu6050_switch_engine(st, false,
-						INV_MPU6050_BIT_PWR_GYRO_STBY);
-				if (result)
-					goto error_read_raw;
-			}
+			result = inv_mpu6050_switch_engine(st, false,
+					INV_MPU6050_BIT_PWR_GYRO_STBY);
+			if (result)
+				goto error_read_raw_power_off;
 			break;
 		case IIO_ACCEL:
-			if (!st->chip_config.accl_fifo_enable ||
-			    !st->chip_config.enable) {
-				result = inv_mpu6050_switch_engine(st, true,
-						INV_MPU6050_BIT_PWR_ACCL_STBY);
-				if (result)
-					goto error_read_raw;
-			}
+			result = inv_mpu6050_switch_engine(st, true,
+					INV_MPU6050_BIT_PWR_ACCL_STBY);
+			if (result)
+				goto error_read_raw_power_off;
 			ret = inv_mpu6050_sensor_show(st, st->reg->raw_accl,
 						      chan->channel2, val);
-			if (!st->chip_config.accl_fifo_enable ||
-			    !st->chip_config.enable) {
-				result = inv_mpu6050_switch_engine(st, false,
-						INV_MPU6050_BIT_PWR_ACCL_STBY);
-				if (result)
-					goto error_read_raw;
-			}
+			result = inv_mpu6050_switch_engine(st, false,
+					INV_MPU6050_BIT_PWR_ACCL_STBY);
+			if (result)
+				goto error_read_raw_power_off;
 			break;
 		case IIO_TEMP:
 			/* wait for stablization */
@@ -353,10 +370,12 @@ inv_mpu6050_read_raw(struct iio_dev *indio_dev,
 			ret = -EINVAL;
 			break;
 		}
-error_read_raw:
-		if (!st->chip_config.enable)
-			result |= inv_mpu6050_set_power_itg(st, false);
-		mutex_unlock(&indio_dev->mlock);
+error_read_raw_power_off:
+		result |= inv_mpu6050_set_power_itg(st, false);
+error_read_raw_release:
+		iio_device_release_direct_mode(indio_dev);
+error_read_raw_unlock:
+		mutex_unlock(&st->lock);
 		if (result)
 			return result;
 
@@ -365,13 +384,17 @@ error_read_raw:
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
 		case IIO_ANGL_VEL:
+			mutex_lock(&st->lock);
 			*val  = 0;
 			*val2 = gyro_scale_6050[st->chip_config.fsr];
+			mutex_unlock(&st->lock);
 
 			return IIO_VAL_INT_PLUS_NANO;
 		case IIO_ACCEL:
+			mutex_lock(&st->lock);
 			*val = 0;
 			*val2 = accel_scale[st->chip_config.accl_fs];
+			mutex_unlock(&st->lock);
 
 			return IIO_VAL_INT_PLUS_MICRO;
 		case IIO_TEMP:
@@ -394,12 +417,16 @@ error_read_raw:
 	case IIO_CHAN_INFO_CALIBBIAS:
 		switch (chan->type) {
 		case IIO_ANGL_VEL:
+			mutex_lock(&st->lock);
 			ret = inv_mpu6050_sensor_show(st, st->reg->gyro_offset,
 						chan->channel2, val);
+			mutex_unlock(&st->lock);
 			return IIO_VAL_INT;
 		case IIO_ACCEL:
+			mutex_lock(&st->lock);
 			ret = inv_mpu6050_sensor_show(st, st->reg->accl_offset,
 						chan->channel2, val);
+			mutex_unlock(&st->lock);
 			return IIO_VAL_INT;
 
 		default:
@@ -475,18 +502,17 @@ static int inv_mpu6050_write_raw(struct iio_dev *indio_dev,
 	struct inv_mpu6050_state  *st = iio_priv(indio_dev);
 	int result;
 
-	mutex_lock(&indio_dev->mlock);
+	mutex_lock(&st->lock);
 	/*
 	 * we should only update scale when the chip is disabled, i.e.
 	 * not running
 	 */
-	if (st->chip_config.enable) {
-		result = -EBUSY;
-		goto error_write_raw;
-	}
+	result = iio_device_claim_direct_mode(indio_dev);
+	if (result)
+		goto error_write_raw_unlock;
 	result = inv_mpu6050_set_power_itg(st, true);
 	if (result)
-		goto error_write_raw;
+		goto error_write_raw_release;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
@@ -522,9 +548,11 @@ static int inv_mpu6050_write_raw(struct iio_dev *indio_dev,
 		break;
 	}
 
-error_write_raw:
 	result |= inv_mpu6050_set_power_itg(st, false);
-	mutex_unlock(&indio_dev->mlock);
+error_write_raw_release:
+	iio_device_release_direct_mode(indio_dev);
+error_write_raw_unlock:
+	mutex_unlock(&st->lock);
 
 	return result;
 }
@@ -537,6 +565,8 @@ error_write_raw:
  *                  would be alising. This function basically search for the
  *                  correct low pass parameters based on the fifo rate, e.g,
  *                  sampling frequency.
+ *
+ *  lpf is set automatically when setting sampling rate to avoid any aliases.
  */
 static int inv_mpu6050_set_lpf(struct inv_mpu6050_state *st, int rate)
 {
@@ -552,7 +582,7 @@ static int inv_mpu6050_set_lpf(struct inv_mpu6050_state *st, int rate)
 	while ((h < hz[i]) && (i < ARRAY_SIZE(d) - 1))
 		i++;
 	data = d[i];
-	result = regmap_write(st->map, st->reg->lpf, data);
+	result = inv_mpu6050_set_lpf_regs(st, data);
 	if (result)
 		return result;
 	st->chip_config.lpf = data;
@@ -578,31 +608,35 @@ inv_mpu6050_fifo_rate_store(struct device *dev, struct device_attribute *attr,
 	if (fifo_rate < INV_MPU6050_MIN_FIFO_RATE ||
 	    fifo_rate > INV_MPU6050_MAX_FIFO_RATE)
 		return -EINVAL;
-	if (fifo_rate == st->chip_config.fifo_rate)
-		return count;
 
-	mutex_lock(&indio_dev->mlock);
-	if (st->chip_config.enable) {
-		result = -EBUSY;
-		goto fifo_rate_fail;
+	mutex_lock(&st->lock);
+	if (fifo_rate == st->chip_config.fifo_rate) {
+		result = 0;
+		goto fifo_rate_fail_unlock;
 	}
+	result = iio_device_claim_direct_mode(indio_dev);
+	if (result)
+		goto fifo_rate_fail_unlock;
 	result = inv_mpu6050_set_power_itg(st, true);
 	if (result)
-		goto fifo_rate_fail;
+		goto fifo_rate_fail_release;
 
 	d = INV_MPU6050_ONE_K_HZ / fifo_rate - 1;
 	result = regmap_write(st->map, st->reg->sample_rate_div, d);
 	if (result)
-		goto fifo_rate_fail;
+		goto fifo_rate_fail_power_off;
 	st->chip_config.fifo_rate = fifo_rate;
 
 	result = inv_mpu6050_set_lpf(st, fifo_rate);
 	if (result)
-		goto fifo_rate_fail;
+		goto fifo_rate_fail_power_off;
 
-fifo_rate_fail:
+fifo_rate_fail_power_off:
 	result |= inv_mpu6050_set_power_itg(st, false);
-	mutex_unlock(&indio_dev->mlock);
+fifo_rate_fail_release:
+	iio_device_release_direct_mode(indio_dev);
+fifo_rate_fail_unlock:
+	mutex_unlock(&st->lock);
 	if (result)
 		return result;
 
@@ -617,8 +651,13 @@ inv_fifo_rate_show(struct device *dev, struct device_attribute *attr,
 		   char *buf)
 {
 	struct inv_mpu6050_state *st = iio_priv(dev_to_iio_dev(dev));
+	unsigned fifo_rate;
 
-	return sprintf(buf, "%d\n", st->chip_config.fifo_rate);
+	mutex_lock(&st->lock);
+	fifo_rate = st->chip_config.fifo_rate;
+	mutex_unlock(&st->lock);
+
+	return scnprintf(buf, PAGE_SIZE, "%u\n", fifo_rate);
 }
 
 /**
@@ -645,7 +684,8 @@ static ssize_t inv_attr_show(struct device *dev, struct device_attribute *attr,
 	case ATTR_ACCL_MATRIX:
 		m = st->plat_data.orientation;
 
-		return sprintf(buf, "%d, %d, %d; %d, %d, %d; %d, %d, %d\n",
+		return scnprintf(buf, PAGE_SIZE,
+			"%d, %d, %d; %d, %d, %d; %d, %d, %d\n",
 			m[0], m[1], m[2], m[3], m[4], m[5], m[6], m[7], m[8]);
 	default:
 		return -EINVAL;
@@ -770,9 +810,34 @@ static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
 {
 	int result;
 	unsigned int regval;
+	int i;
 
 	st->hw  = &hw_info[st->chip_type];
 	st->reg = hw_info[st->chip_type].reg;
+
+	/* check chip self-identification */
+	result = regmap_read(st->map, INV_MPU6050_REG_WHOAMI, &regval);
+	if (result)
+		return result;
+	if (regval != st->hw->whoami) {
+		/* check whoami against all possible values */
+		for (i = 0; i < INV_NUM_PARTS; ++i) {
+			if (regval == hw_info[i].whoami) {
+				dev_warn(regmap_get_device(st->map),
+					"whoami mismatch got %#02x (%s)"
+					"expected %#02hhx (%s)\n",
+					regval, hw_info[i].name,
+					st->hw->whoami, st->hw->name);
+				break;
+			}
+		}
+		if (i >= INV_NUM_PARTS) {
+			dev_err(regmap_get_device(st->map),
+				"invalid whoami %#02x expected %#02hhx (%s)\n",
+				regval, st->hw->whoami, st->hw->name);
+			return -ENODEV;
+		}
+	}
 
 	/* reset to make sure previous state are not there */
 	result = regmap_write(st->map, st->reg->pwr_mgmt_1,
@@ -780,16 +845,6 @@ static int inv_check_and_setup_chip(struct inv_mpu6050_state *st)
 	if (result)
 		return result;
 	msleep(INV_MPU6050_POWER_UP_TIME);
-
-	/* check chip self-identification */
-	result = regmap_read(st->map, INV_MPU6050_REG_WHOAMI, &regval);
-	if (result)
-		return result;
-	if (regval != st->hw->whoami) {
-		dev_warn(regmap_get_device(st->map),
-				"whoami mismatch got %#02x expected %#02hhx for %s\n",
-				regval, st->hw->whoami, st->hw->name);
-	}
 
 	/*
 	 * toggle power state. After reset, the sleep bit could be on
@@ -836,6 +891,7 @@ int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 		return -ENODEV;
 	}
 	st = iio_priv(indio_dev);
+	mutex_init(&st->lock);
 	st->chip_type = chip_type;
 	st->powerup_count = 0;
 	st->irq = irq;
@@ -929,12 +985,26 @@ EXPORT_SYMBOL_GPL(inv_mpu_core_remove);
 
 static int inv_mpu_resume(struct device *dev)
 {
-	return inv_mpu6050_set_power_itg(iio_priv(dev_get_drvdata(dev)), true);
+	struct inv_mpu6050_state *st = iio_priv(dev_get_drvdata(dev));
+	int result;
+
+	mutex_lock(&st->lock);
+	result = inv_mpu6050_set_power_itg(st, true);
+	mutex_unlock(&st->lock);
+
+	return result;
 }
 
 static int inv_mpu_suspend(struct device *dev)
 {
-	return inv_mpu6050_set_power_itg(iio_priv(dev_get_drvdata(dev)), false);
+	struct inv_mpu6050_state *st = iio_priv(dev_get_drvdata(dev));
+	int result;
+
+	mutex_lock(&st->lock);
+	result = inv_mpu6050_set_power_itg(st, false);
+	mutex_unlock(&st->lock);
+
+	return result;
 }
 #endif /* CONFIG_PM_SLEEP */
 

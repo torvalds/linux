@@ -332,6 +332,19 @@
 			status = "disabled";
 		};
 
+		dma0: dma@f7370000 {
+			compatible = "hisilicon,k3-dma-1.0";
+			reg = <0x0 0xf7370000 0x0 0x1000>;
+			#dma-cells = <1>;
+			dma-channels = <15>;
+			dma-requests = <32>;
+			interrupts = <0 84 4>;
+			clocks = <&sys_ctrl HI6220_EDMAC_ACLK>;
+			dma-no-cci;
+			dma-type = "hi6220_dma";
+			status = "ok";
+		};
+
 		dual_timer0: timer@f8008000 {
 			compatible = "arm,sp804", "arm,primecell";
 			reg = <0x0 0xf8008000 0x0 0x1000>;
@@ -725,20 +738,10 @@
 			status = "disabled";
 		};
 
-		fixed_5v_hub: regulator@0 {
-			compatible = "regulator-fixed";
-			regulator-name = "fixed_5v_hub";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			regulator-boot-on;
-			gpio = <&gpio0 7 0>;
-			regulator-always-on;
-		};
-
 		usb_phy: usbphy {
 			compatible = "hisilicon,hi6220-usb-phy";
 			#phy-cells = <0>;
-			phy-supply = <&fixed_5v_hub>;
+			phy-supply = <&reg_5v_hub>;
 			hisilicon,peripheral-syscon = <&sys_ctrl>;
 		};
 
@@ -766,17 +769,12 @@
 
 		dwmmc_0: dwmmc0@f723d000 {
 			compatible = "hisilicon,hi6220-dw-mshc";
-			num-slots = <0x1>;
-			cap-mmc-highspeed;
-			non-removable;
 			reg = <0x0 0xf723d000 0x0 0x1000>;
 			interrupts = <0x0 0x48 0x4>;
 			clocks = <&sys_ctrl 2>, <&sys_ctrl 1>;
 			clock-names = "ciu", "biu";
 			resets = <&sys_ctrl PERIPH_RSTDIS0_MMC0>;
 			reset-names = "reset";
-			bus-width = <0x8>;
-			vmmc-supply = <&ldo19>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&emmc_pmx_func &emmc_clk_cfg_func
 				     &emmc_cfg_func &emmc_rst_cfg_func>;
@@ -784,13 +782,7 @@
 
 		dwmmc_1: dwmmc1@f723e000 {
 			compatible = "hisilicon,hi6220-dw-mshc";
-			num-slots = <0x1>;
-			card-detect-delay = <200>;
 			hisilicon,peripheral-syscon = <&ao_ctrl>;
-			cap-sd-highspeed;
-			sd-uhs-sdr12;
-			sd-uhs-sdr25;
-			sd-uhs-sdr50;
 			reg = <0x0 0xf723e000 0x0 0x1000>;
 			interrupts = <0x0 0x49 0x4>;
 			#address-cells = <0x1>;
@@ -799,11 +791,6 @@
 			clock-names = "ciu", "biu";
 			resets = <&sys_ctrl PERIPH_RSTDIS0_MMC1>;
 			reset-names = "reset";
-			vqmmc-supply = <&ldo7>;
-			vmmc-supply = <&ldo10>;
-			bus-width = <0x4>;
-			disable-wp;
-			cd-gpios = <&gpio1 0 1>;
 			pinctrl-names = "default", "idle";
 			pinctrl-0 = <&sd_pmx_func &sd_clk_cfg_func &sd_cfg_func>;
 			pinctrl-1 = <&sd_pmx_idle &sd_clk_cfg_idle &sd_cfg_idle>;
@@ -811,15 +798,12 @@
 
 		dwmmc_2: dwmmc2@f723f000 {
 			compatible = "hisilicon,hi6220-dw-mshc";
-			num-slots = <0x1>;
 			reg = <0x0 0xf723f000 0x0 0x1000>;
 			interrupts = <0x0 0x4a 0x4>;
 			clocks = <&sys_ctrl HI6220_MMC2_CIUCLK>, <&sys_ctrl HI6220_MMC2_CLK>;
 			clock-names = "ciu", "biu";
 			resets = <&sys_ctrl PERIPH_RSTDIS0_MMC2>;
 			reset-names = "reset";
-			bus-width = <0x4>;
-			broken-cd;
 			pinctrl-names = "default", "idle";
 			pinctrl-0 = <&sdio_pmx_func &sdio_clk_cfg_func &sdio_cfg_func>;
 			pinctrl-1 = <&sdio_pmx_idle &sdio_clk_cfg_idle &sdio_cfg_idle>;
@@ -832,6 +816,19 @@
 			clocks = <&sys_ctrl 22>;
 			clock-names = "thermal_clk";
 			#thermal-sensor-cells = <1>;
+		};
+
+		i2s0: i2s@f7118000{
+			compatible = "hisilicon,hi6210-i2s";
+			reg = <0x0 0xf7118000 0x0 0x8000>; /* i2s unit */
+			interrupts = <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>; /* 155 "DigACodec_intr"-32 */
+			clocks = <&sys_ctrl HI6220_DACODEC_PCLK>,
+				 <&sys_ctrl HI6220_BBPPLL0_DIV>;
+			clock-names = "dacodec", "i2s-base";
+			dmas = <&dma0 15 &dma0 14>;
+			dma-names = "rx", "tx";
+			hisilicon,sysctrl-syscon = <&sys_ctrl>;
+			#sound-dai-cells = <1>;
 		};
 
 		thermal-zones {
@@ -915,6 +912,70 @@
 					};
 				};
 			};
+		};
+
+		debug@f6590000 {
+			compatible = "arm,coresight-cpu-debug","arm,primecell";
+			reg = <0 0xf6590000 0 0x1000>;
+			clocks = <&sys_ctrl HI6220_DAPB_CLK>;
+			clock-names = "apb_pclk";
+			cpu = <&cpu0>;
+		};
+
+		debug@f6592000 {
+			compatible = "arm,coresight-cpu-debug","arm,primecell";
+			reg = <0 0xf6592000 0 0x1000>;
+			clocks = <&sys_ctrl HI6220_DAPB_CLK>;
+			clock-names = "apb_pclk";
+			cpu = <&cpu1>;
+		};
+
+		debug@f6594000 {
+			compatible = "arm,coresight-cpu-debug","arm,primecell";
+			reg = <0 0xf6594000 0 0x1000>;
+			clocks = <&sys_ctrl HI6220_DAPB_CLK>;
+			clock-names = "apb_pclk";
+			cpu = <&cpu2>;
+		};
+
+		debug@f6596000 {
+			compatible = "arm,coresight-cpu-debug","arm,primecell";
+			reg = <0 0xf6596000 0 0x1000>;
+			clocks = <&sys_ctrl HI6220_DAPB_CLK>;
+			clock-names = "apb_pclk";
+			cpu = <&cpu3>;
+		};
+
+		debug@f65d0000 {
+			compatible = "arm,coresight-cpu-debug","arm,primecell";
+			reg = <0 0xf65d0000 0 0x1000>;
+			clocks = <&sys_ctrl HI6220_DAPB_CLK>;
+			clock-names = "apb_pclk";
+			cpu = <&cpu4>;
+		};
+
+		debug@f65d2000 {
+			compatible = "arm,coresight-cpu-debug","arm,primecell";
+			reg = <0 0xf65d2000 0 0x1000>;
+			clocks = <&sys_ctrl HI6220_DAPB_CLK>;
+			clock-names = "apb_pclk";
+			cpu = <&cpu5>;
+		};
+
+		debug@f65d4000 {
+			compatible = "arm,coresight-cpu-debug","arm,primecell";
+			reg = <0 0xf65d4000 0 0x1000>;
+			clocks = <&sys_ctrl HI6220_DAPB_CLK>;
+			clock-names = "apb_pclk";
+			cpu = <&cpu6>;
+		};
+
+		debug@f65d6000 {
+			compatible = "arm,coresight-cpu-debug","arm,primecell";
+			reg = <0 0xf65d6000 0 0x1000>;
+			clocks = <&sys_ctrl HI6220_DAPB_CLK>;
+			clock-names = "apb_pclk";
+			cpu = <&cpu7>;
 		};
 	};
 };

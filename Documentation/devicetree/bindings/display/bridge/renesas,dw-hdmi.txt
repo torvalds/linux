@@ -25,7 +25,8 @@ Required properties:
 - clock-names: Shall contain "iahb" and "isfr" as defined in dw_hdmi.txt.
 - ports: See dw_hdmi.txt. The DWC HDMI shall have one port numbered 0
   corresponding to the video input of the controller and one port numbered 1
-  corresponding to its HDMI output. Each port shall have a single endpoint.
+  corresponding to its HDMI output, and one port numbered 2 corresponding to
+  sound input of the controller. Each port shall have a single endpoint.
 
 Optional properties:
 
@@ -57,6 +58,12 @@ Example:
 				reg = <1>;
 				rcar_dw_hdmi0_out: endpoint {
 					remote-endpoint = <&hdmi0_con>;
+				};
+			};
+			port@2 {
+				reg = <2>;
+				rcar_dw_hdmi0_sound_in: endpoint {
+					remote-endpoint = <&hdmi_sound_out>;
 				};
 			};
 		};

@@ -1001,7 +1001,6 @@ static int __init hp_sdc_register(void)
 	uint8_t tq_init_seq[5];
 	struct semaphore tq_init_sem;
 #if defined(__mc68000__)
-	mm_segment_t fs;
 	unsigned char i;
 #endif
 
@@ -1026,11 +1025,8 @@ static int __init hp_sdc_register(void)
 	hp_sdc.base_io	 = (unsigned long) 0xf0428000;
 	hp_sdc.data_io	 = (unsigned long) hp_sdc.base_io + 1;
 	hp_sdc.status_io = (unsigned long) hp_sdc.base_io + 3;
-	fs = get_fs();
-	set_fs(KERNEL_DS);
-	if (!get_user(i, (unsigned char *)hp_sdc.data_io))
+	if (!probe_kernel_read(&i, (unsigned char *)hp_sdc.data_io, 1))
 		hp_sdc.dev = (void *)1;
-	set_fs(fs);
 	hp_sdc.dev_err   = hp_sdc_init();
 #endif
 	if (hp_sdc.dev == NULL) {

@@ -44,6 +44,10 @@ bool mfg_mode;
 module_param(mfg_mode, bool, 0);
 MODULE_PARM_DESC(mfg_mode, "manufacturing mode enable:1, disable:0");
 
+bool aggr_ctrl;
+module_param(aggr_ctrl, bool, 0000);
+MODULE_PARM_DESC(aggr_ctrl, "usb tx aggreataon enable:1, disable:0");
+
 /*
  * This function registers the device and performs all the necessary
  * initializations.
@@ -1280,7 +1284,7 @@ void mwifiex_init_priv_params(struct mwifiex_private *priv,
 			      struct net_device *dev)
 {
 	dev->netdev_ops = &mwifiex_netdev_ops;
-	dev->destructor = free_netdev;
+	dev->needs_free_netdev = true;
 	/* Initialize private structure */
 	priv->current_key_index = 0;
 	priv->media_connected = false;

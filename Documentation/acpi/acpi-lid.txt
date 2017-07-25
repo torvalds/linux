@@ -59,20 +59,28 @@ button driver uses the following 3 modes in order not to trigger issues.
 If the userspace hasn't been prepared to ignore the unreliable "opened"
 events and the unreliable initial state notification, Linux users can use
 the following kernel parameters to handle the possible issues:
-A. button.lid_init_state=open:
+A. button.lid_init_state=method:
+   When this option is specified, the ACPI button driver reports the
+   initial lid state using the returning value of the _LID control method
+   and whether the "opened"/"closed" events are paired fully relies on the
+   firmware implementation.
+   This option can be used to fix some platforms where the returning value
+   of the _LID control method is reliable but the initial lid state
+   notification is missing.
+   This option is the default behavior during the period the userspace
+   isn't ready to handle the buggy AML tables.
+B. button.lid_init_state=open:
    When this option is specified, the ACPI button driver always reports the
    initial lid state as "opened" and whether the "opened"/"closed" events
    are paired fully relies on the firmware implementation.
    This may fix some platforms where the returning value of the _LID
    control method is not reliable and the initial lid state notification is
    missing.
-   This option is the default behavior during the period the userspace
-   isn't ready to handle the buggy AML tables.
 
 If the userspace has been prepared to ignore the unreliable "opened" events
 and the unreliable initial state notification, Linux users should always
 use the following kernel parameter:
-B. button.lid_init_state=ignore:
+C. button.lid_init_state=ignore:
    When this option is specified, the ACPI button driver never reports the
    initial lid state and there is a compensation mechanism implemented to
    ensure that the reliable "closed" notifications can always be delievered

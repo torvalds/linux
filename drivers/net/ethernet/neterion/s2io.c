@@ -2459,7 +2459,6 @@ static int fill_rx_buffers(struct s2io_nic *nic, struct ring_info *ring,
 	struct buffAdd *ba;
 	struct RxD_t *first_rxdp = NULL;
 	u64 Buffer0_ptr = 0, Buffer1_ptr = 0;
-	int rxd_index = 0;
 	struct RxD1 *rxdp1;
 	struct RxD3 *rxdp3;
 	struct swStat *swstats = &ring->nic->mac_control.stats_info->sw_stat;
@@ -2473,10 +2472,6 @@ static int fill_rx_buffers(struct s2io_nic *nic, struct ring_info *ring,
 		off = ring->rx_curr_put_info.offset;
 
 		rxdp = ring->rx_blocks[block_no].rxds[off].virt_addr;
-
-		rxd_index = off + 1;
-		if (block_no)
-			rxd_index += (block_no * ring->rxd_count);
 
 		if ((block_no == block_no1) &&
 		    (off == ring->rx_curr_get_info.offset) &&

@@ -1571,7 +1571,7 @@ static sector_t __rdev_sectors(struct raid_set *rs)
 			return rdev->sectors;
 	}
 
-	BUG(); /* Constructor ensures we got some. */
+	return 0;
 }
 
 /* Calculate the sectors per device and per array used for @rs */
@@ -1927,7 +1927,7 @@ struct dm_raid_superblock {
 	/********************************************************************
 	 * BELOW FOLLOW V1.9.0 EXTENSIONS TO THE PRISTINE SUPERBLOCK FORMAT!!!
 	 *
-	 * FEATURE_FLAG_SUPPORTS_V190 in the features member indicates that those exist
+	 * FEATURE_FLAG_SUPPORTS_V190 in the compat_features member indicates that those exist
 	 */
 
 	__le32 flags; /* Flags defining array states for reshaping */
@@ -2092,6 +2092,11 @@ static void super_sync(struct mddev *mddev, struct md_rdev *rdev)
 	sb->layout = cpu_to_le32(mddev->layout);
 	sb->stripe_sectors = cpu_to_le32(mddev->chunk_sectors);
 
+	/********************************************************************
+	 * BELOW FOLLOW V1.9.0 EXTENSIONS TO THE PRISTINE SUPERBLOCK FORMAT!!!
+	 *
+	 * FEATURE_FLAG_SUPPORTS_V190 in the compat_features member indicates that those exist
+	 */
 	sb->new_level = cpu_to_le32(mddev->new_level);
 	sb->new_layout = cpu_to_le32(mddev->new_layout);
 	sb->new_stripe_sectors = cpu_to_le32(mddev->new_chunk_sectors);
@@ -2438,8 +2443,14 @@ static int super_validate(struct raid_set *rs, struct md_rdev *rdev)
 	mddev->bitmap_info.default_offset = mddev->bitmap_info.offset;
 
 	if (!test_and_clear_bit(FirstUse, &rdev->flags)) {
-		/* Retrieve device size stored in superblock to be prepared for shrink */
-		rdev->sectors = le64_to_cpu(sb->sectors);
+		/*
+		 * Retrieve rdev size stored in superblock to be prepared for shrink.
+		 * Check extended superblock members are present otherwise the size
+		 * will not be set!
+		 */
+		if (le32_to_cpu(sb->compat_features) & FEATURE_FLAG_SUPPORTS_V190)
+			rdev->sectors = le64_to_cpu(sb->sectors);
+
 		rdev->recovery_offset = le64_to_cpu(sb->disk_recovery_offset);
 		if (rdev->recovery_offset == MaxSector)
 			set_bit(In_sync, &rdev->flags);
@@ -2930,7 +2941,7 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	bool resize;
 	struct raid_type *rt;
 	unsigned int num_raid_params, num_raid_devs;
-	sector_t calculated_dev_sectors;
+	sector_t calculated_dev_sectors, rdev_sectors;
 	struct raid_set *rs = NULL;
 	const char *arg;
 	struct rs_layout rs_layout;
@@ -3006,7 +3017,14 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	if (r)
 		goto bad;
 
-	resize = calculated_dev_sectors != __rdev_sectors(rs);
+	rdev_sectors = __rdev_sectors(rs);
+	if (!rdev_sectors) {
+		ti->error = "Invalid rdev size";
+		r = -EINVAL;
+		goto bad;
+	}
+
+	resize = calculated_dev_sectors != rdev_sectors;
 
 	INIT_WORK(&rs->md.event_work, do_table_event);
 	ti->private = rs;

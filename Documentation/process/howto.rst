@@ -180,14 +180,6 @@ They can also be generated on LaTeX and ePub formats with::
 	make latexdocs
 	make epubdocs
 
-Currently, there are some documents written on DocBook that are in
-the process of conversion to ReST. Such documents will be created in the
-Documentation/DocBook/ directory and can be generated also as
-Postscript or man pages by running::
-
-	make psdocs
-	make mandocs
-
 Becoming A Kernel Developer
 ---------------------------
 

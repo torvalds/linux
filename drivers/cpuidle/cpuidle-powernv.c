@@ -32,18 +32,18 @@ static struct cpuidle_driver powernv_idle_driver = {
 	.owner            = THIS_MODULE,
 };
 
-static int max_idle_state;
-static struct cpuidle_state *cpuidle_state_table;
+static int max_idle_state __read_mostly;
+static struct cpuidle_state *cpuidle_state_table __read_mostly;
 
 struct stop_psscr_table {
 	u64 val;
 	u64 mask;
 };
 
-static struct stop_psscr_table stop_psscr_table[CPUIDLE_STATE_MAX];
+static struct stop_psscr_table stop_psscr_table[CPUIDLE_STATE_MAX] __read_mostly;
 
-static u64 snooze_timeout;
-static bool snooze_timeout_en;
+static u64 snooze_timeout __read_mostly;
+static bool snooze_timeout_en __read_mostly;
 
 static int snooze_loop(struct cpuidle_device *dev,
 			struct cpuidle_driver *drv,
@@ -51,21 +51,30 @@ static int snooze_loop(struct cpuidle_device *dev,
 {
 	u64 snooze_exit_time;
 
-	local_irq_enable();
 	set_thread_flag(TIF_POLLING_NRFLAG);
+
+	local_irq_enable();
 
 	snooze_exit_time = get_tb() + snooze_timeout;
 	ppc64_runlatch_off();
 	HMT_very_low();
 	while (!need_resched()) {
-		if (likely(snooze_timeout_en) && get_tb() > snooze_exit_time)
+		if (likely(snooze_timeout_en) && get_tb() > snooze_exit_time) {
+			/*
+			 * Task has not woken up but we are exiting the polling
+			 * loop anyway. Require a barrier after polling is
+			 * cleared to order subsequent test of need_resched().
+			 */
+			clear_thread_flag(TIF_POLLING_NRFLAG);
+			smp_mb();
 			break;
+		}
 	}
 
 	HMT_medium();
 	ppc64_runlatch_on();
 	clear_thread_flag(TIF_POLLING_NRFLAG);
-	smp_mb();
+
 	return index;
 }
 
@@ -73,9 +82,8 @@ static int nap_loop(struct cpuidle_device *dev,
 			struct cpuidle_driver *drv,
 			int index)
 {
-	ppc64_runlatch_off();
-	power7_idle();
-	ppc64_runlatch_on();
+	power7_idle_type(PNV_THREAD_NAP);
+
 	return index;
 }
 
@@ -98,7 +106,8 @@ static int fastsleep_loop(struct cpuidle_device *dev,
 	new_lpcr &= ~LPCR_PECE1;
 
 	mtspr(SPRN_LPCR, new_lpcr);
-	power7_sleep();
+
+	power7_idle_type(PNV_THREAD_SLEEP);
 
 	mtspr(SPRN_LPCR, old_lpcr);
 
@@ -110,10 +119,8 @@ static int stop_loop(struct cpuidle_device *dev,
 		     struct cpuidle_driver *drv,
 		     int index)
 {
-	ppc64_runlatch_off();
-	power9_idle_stop(stop_psscr_table[index].val,
+	power9_idle_type(stop_psscr_table[index].val,
 			 stop_psscr_table[index].mask);
-	ppc64_runlatch_on();
 	return index;
 }
 
@@ -354,6 +361,7 @@ static int powernv_add_idle_states(void)
 
 	for (i = 0; i < dt_idle_states; i++) {
 		unsigned int exit_latency, target_residency;
+		bool stops_timebase = false;
 		/*
 		 * If an idle state has exit latency beyond
 		 * POWERNV_THRESHOLD_LATENCY_NS then don't use it
@@ -381,6 +389,9 @@ static int powernv_add_idle_states(void)
 			}
 		}
 
+		if (flags[i] & OPAL_PM_TIMEBASE_STOP)
+			stops_timebase = true;
+
 		/*
 		 * For nap and fastsleep, use default target_residency
 		 * values if f/w does not expose it.
@@ -392,8 +403,7 @@ static int powernv_add_idle_states(void)
 			add_powernv_state(nr_idle_states, "Nap",
 					  CPUIDLE_FLAG_NONE, nap_loop,
 					  target_residency, exit_latency, 0, 0);
-		} else if ((flags[i] & OPAL_PM_STOP_INST_FAST) &&
-				!(flags[i] & OPAL_PM_TIMEBASE_STOP)) {
+		} else if (has_stop_states && !stops_timebase) {
 			add_powernv_state(nr_idle_states, names[i],
 					  CPUIDLE_FLAG_NONE, stop_loop,
 					  target_residency, exit_latency,
@@ -405,8 +415,8 @@ static int powernv_add_idle_states(void)
 		 * within this config dependency check.
 		 */
 #ifdef CONFIG_TICK_ONESHOT
-		if (flags[i] & OPAL_PM_SLEEP_ENABLED ||
-			flags[i] & OPAL_PM_SLEEP_ENABLED_ER1) {
+		else if (flags[i] & OPAL_PM_SLEEP_ENABLED ||
+			 flags[i] & OPAL_PM_SLEEP_ENABLED_ER1) {
 			if (!rc)
 				target_residency = 300000;
 			/* Add FASTSLEEP state */
@@ -414,14 +424,15 @@ static int powernv_add_idle_states(void)
 					  CPUIDLE_FLAG_TIMER_STOP,
 					  fastsleep_loop,
 					  target_residency, exit_latency, 0, 0);
-		} else if ((flags[i] & OPAL_PM_STOP_INST_DEEP) &&
-				(flags[i] & OPAL_PM_TIMEBASE_STOP)) {
+		} else if (has_stop_states && stops_timebase) {
 			add_powernv_state(nr_idle_states, names[i],
 					  CPUIDLE_FLAG_TIMER_STOP, stop_loop,
 					  target_residency, exit_latency,
 					  psscr_val[i], psscr_mask[i]);
 		}
 #endif
+		else
+			continue;
 		nr_idle_states++;
 	}
 out:

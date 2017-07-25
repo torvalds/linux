@@ -45,6 +45,7 @@
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 #include <linux/pfn_t.h>
+#include <linux/uio.h>
 
 #include <asm/page.h>
 #include <asm/prom.h>
@@ -163,8 +164,15 @@ axon_ram_dax_direct_access(struct dax_device *dax_dev, pgoff_t pgoff, long nr_pa
 	return __axon_ram_direct_access(bank, pgoff, nr_pages, kaddr, pfn);
 }
 
+static size_t axon_ram_copy_from_iter(struct dax_device *dax_dev, pgoff_t pgoff,
+		void *addr, size_t bytes, struct iov_iter *i)
+{
+	return copy_from_iter(addr, bytes, i);
+}
+
 static const struct dax_operations axon_ram_dax_ops = {
 	.direct_access = axon_ram_dax_direct_access,
+	.copy_from_iter = axon_ram_copy_from_iter,
 };
 
 /**

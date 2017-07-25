@@ -76,6 +76,11 @@
 #include <asm/tlbflush.h>
 #include <asm/io.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/percpu.h>
+
+#include "percpu-internal.h"
+
 #define PCPU_SLOT_BASE_SHIFT		5	/* 1-31 shares the same slot */
 #define PCPU_DFL_MAP_ALLOC		16	/* start a map with 16 ents */
 #define PCPU_ATOMIC_MAP_MARGIN_LOW	32
@@ -103,53 +108,35 @@
 #define __pcpu_ptr_to_addr(ptr)		(void __force *)(ptr)
 #endif	/* CONFIG_SMP */
 
-struct pcpu_chunk {
-	struct list_head	list;		/* linked to pcpu_slot lists */
-	int			free_size;	/* free bytes in the chunk */
-	int			contig_hint;	/* max contiguous size hint */
-	void			*base_addr;	/* base address of this chunk */
-
-	int			map_used;	/* # of map entries used before the sentry */
-	int			map_alloc;	/* # of map entries allocated */
-	int			*map;		/* allocation map */
-	struct list_head	map_extend_list;/* on pcpu_map_extend_chunks */
-
-	void			*data;		/* chunk data */
-	int			first_free;	/* no free below this */
-	bool			immutable;	/* no [de]population allowed */
-	int			nr_populated;	/* # of populated pages */
-	unsigned long		populated[];	/* populated bitmap */
-};
-
-static int pcpu_unit_pages __read_mostly;
-static int pcpu_unit_size __read_mostly;
-static int pcpu_nr_units __read_mostly;
-static int pcpu_atom_size __read_mostly;
-static int pcpu_nr_slots __read_mostly;
-static size_t pcpu_chunk_struct_size __read_mostly;
+static int pcpu_unit_pages __ro_after_init;
+static int pcpu_unit_size __ro_after_init;
+static int pcpu_nr_units __ro_after_init;
+static int pcpu_atom_size __ro_after_init;
+int pcpu_nr_slots __ro_after_init;
+static size_t pcpu_chunk_struct_size __ro_after_init;
 
 /* cpus with the lowest and highest unit addresses */
-static unsigned int pcpu_low_unit_cpu __read_mostly;
-static unsigned int pcpu_high_unit_cpu __read_mostly;
+static unsigned int pcpu_low_unit_cpu __ro_after_init;
+static unsigned int pcpu_high_unit_cpu __ro_after_init;
 
 /* the address of the first chunk which starts with the kernel static area */
-void *pcpu_base_addr __read_mostly;
+void *pcpu_base_addr __ro_after_init;
 EXPORT_SYMBOL_GPL(pcpu_base_addr);
 
-static const int *pcpu_unit_map __read_mostly;		/* cpu -> unit */
-const unsigned long *pcpu_unit_offsets __read_mostly;	/* cpu -> unit offset */
+static const int *pcpu_unit_map __ro_after_init;		/* cpu -> unit */
+const unsigned long *pcpu_unit_offsets __ro_after_init;	/* cpu -> unit offset */
 
 /* group information, used for vm allocation */
-static int pcpu_nr_groups __read_mostly;
-static const unsigned long *pcpu_group_offsets __read_mostly;
-static const size_t *pcpu_group_sizes __read_mostly;
+static int pcpu_nr_groups __ro_after_init;
+static const unsigned long *pcpu_group_offsets __ro_after_init;
+static const size_t *pcpu_group_sizes __ro_after_init;
 
 /*
  * The first chunk which always exists.  Note that unlike other
  * chunks, this one can be allocated and mapped in several different
  * ways and thus often doesn't live in the vmalloc area.
  */
-static struct pcpu_chunk *pcpu_first_chunk;
+struct pcpu_chunk *pcpu_first_chunk __ro_after_init;
 
 /*
  * Optional reserved chunk.  This chunk reserves part of the first
@@ -158,13 +145,13 @@ static struct pcpu_chunk *pcpu_first_chunk;
  * area doesn't exist, the following variables contain NULL and 0
  * respectively.
  */
-static struct pcpu_chunk *pcpu_reserved_chunk;
-static int pcpu_reserved_chunk_limit;
+struct pcpu_chunk *pcpu_reserved_chunk __ro_after_init;
+static int pcpu_reserved_chunk_limit __ro_after_init;
 
-static DEFINE_SPINLOCK(pcpu_lock);	/* all internal data structures */
+DEFINE_SPINLOCK(pcpu_lock);	/* all internal data structures */
 static DEFINE_MUTEX(pcpu_alloc_mutex);	/* chunk create/destroy, [de]pop, map ext */
 
-static struct list_head *pcpu_slot __read_mostly; /* chunk list slots */
+struct list_head *pcpu_slot __ro_after_init; /* chunk list slots */
 
 /* chunks which need their map areas extended, protected by pcpu_lock */
 static LIST_HEAD(pcpu_map_extend_chunks);
@@ -672,6 +659,9 @@ static void pcpu_free_area(struct pcpu_chunk *chunk, int freeme,
 	int to_free = 0;
 	int *p;
 
+	lockdep_assert_held(&pcpu_lock);
+	pcpu_stats_area_dealloc(chunk);
+
 	freeme |= 1;	/* we are searching for <given offset, in use> pair */
 
 	i = 0;
@@ -735,6 +725,7 @@ static struct pcpu_chunk *pcpu_alloc_chunk(void)
 	chunk->map[0] = 0;
 	chunk->map[1] = pcpu_unit_size | 1;
 	chunk->map_used = 1;
+	chunk->has_reserved = false;
 
 	INIT_LIST_HEAD(&chunk->list);
 	INIT_LIST_HEAD(&chunk->map_extend_list);
@@ -965,8 +956,10 @@ restart:
 	 * tasks to create chunks simultaneously.  Serialize and create iff
 	 * there's still no empty chunk after grabbing the mutex.
 	 */
-	if (is_atomic)
+	if (is_atomic) {
+		err = "atomic alloc failed, no space left";
 		goto fail;
+	}
 
 	if (list_empty(&pcpu_slot[pcpu_nr_slots - 1])) {
 		chunk = pcpu_create_chunk();
@@ -984,6 +977,7 @@ restart:
 	goto restart;
 
 area_found:
+	pcpu_stats_area_alloc(chunk, size);
 	spin_unlock_irqrestore(&pcpu_lock, flags);
 
 	/* populate if not all pages are already there */
@@ -1026,11 +1020,17 @@ area_found:
 
 	ptr = __addr_to_pcpu_ptr(chunk->base_addr + off);
 	kmemleak_alloc_percpu(ptr, size, gfp);
+
+	trace_percpu_alloc_percpu(reserved, is_atomic, size, align,
+			chunk->base_addr, off, ptr);
+
 	return ptr;
 
 fail_unlock:
 	spin_unlock_irqrestore(&pcpu_lock, flags);
 fail:
+	trace_percpu_alloc_percpu_fail(reserved, is_atomic, size, align);
+
 	if (!is_atomic && warn_limit) {
 		pr_warn("allocation failed, size=%zu align=%zu atomic=%d, %s\n",
 			size, align, is_atomic, err);
@@ -1279,6 +1279,8 @@ void free_percpu(void __percpu *ptr)
 				break;
 			}
 	}
+
+	trace_percpu_free_percpu(chunk->base_addr, off, ptr);
 
 	spin_unlock_irqrestore(&pcpu_lock, flags);
 }
@@ -1656,6 +1658,8 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	pcpu_chunk_struct_size = sizeof(struct pcpu_chunk) +
 		BITS_TO_LONGS(pcpu_unit_pages) * sizeof(unsigned long);
 
+	pcpu_stats_save_ai(ai);
+
 	/*
 	 * Allocate chunk slots.  The additional last slot is for
 	 * empty chunks.
@@ -1699,6 +1703,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	if (schunk->free_size)
 		schunk->map[++schunk->map_used] = ai->static_size + schunk->free_size;
 	schunk->map[schunk->map_used] |= 1;
+	schunk->has_reserved = true;
 
 	/* init dynamic chunk if necessary */
 	if (dyn_size) {
@@ -1717,6 +1722,7 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 		dchunk->map[1] = pcpu_reserved_chunk_limit;
 		dchunk->map[2] = (pcpu_reserved_chunk_limit + dchunk->free_size) | 1;
 		dchunk->map_used = 2;
+		dchunk->has_reserved = true;
 	}
 
 	/* link the first chunk in */
@@ -1724,6 +1730,9 @@ int __init pcpu_setup_first_chunk(const struct pcpu_alloc_info *ai,
 	pcpu_nr_empty_pop_pages +=
 		pcpu_count_occupied_pages(pcpu_first_chunk, 1);
 	pcpu_chunk_relocate(pcpu_first_chunk, -1);
+
+	pcpu_stats_chunk_alloc();
+	trace_percpu_create_chunk(base_addr);
 
 	/* we're done */
 	pcpu_base_addr = base_addr;

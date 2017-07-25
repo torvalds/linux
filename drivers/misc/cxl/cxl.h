@@ -357,6 +357,7 @@ static const cxl_p2n_reg_t CXL_PSL_WED_An     = {0x0A0};
 #define CXL_PSL9_DSISR_An_PF_RGP  0x0000000000000090ULL  /* PTE not found (Radix Guest (parent)) 0b10010000 */
 #define CXL_PSL9_DSISR_An_PF_HRH  0x0000000000000094ULL  /* PTE not found (HPT/Radix Host)       0b10010100 */
 #define CXL_PSL9_DSISR_An_PF_STEG 0x000000000000009CULL  /* PTE not found (STEG VA)              0b10011100 */
+#define CXL_PSL9_DSISR_An_URTCH   0x00000000000000B4ULL  /* Unsupported Radix Tree Configuration 0b10110100 */
 
 /****** CXL_PSL_TFC_An ******************************************************/
 #define CXL_PSL_TFC_An_A  (1ull << (63-28)) /* Acknowledge non-translation fault */
@@ -844,24 +845,15 @@ static inline bool cxl_is_power8(void)
 
 static inline bool cxl_is_power9(void)
 {
-	/* intermediate solution */
-	if (!cxl_is_power8() &&
-	   (cpu_has_feature(CPU_FTRS_POWER9) ||
-	    cpu_has_feature(CPU_FTR_POWER9_DD1)))
+	if (pvr_version_is(PVR_POWER9))
 		return true;
 	return false;
 }
 
-static inline bool cxl_is_psl8(struct cxl_afu *afu)
+static inline bool cxl_is_power9_dd1(void)
 {
-	if (afu->adapter->caia_major == 1)
-		return true;
-	return false;
-}
-
-static inline bool cxl_is_psl9(struct cxl_afu *afu)
-{
-	if (afu->adapter->caia_major == 2)
+	if ((pvr_version_is(PVR_POWER9)) &&
+	    cpu_has_feature(CPU_FTR_POWER9_DD1))
 		return true;
 	return false;
 }
@@ -1018,6 +1010,7 @@ static inline void cxl_debugfs_add_afu_regs_psl8(struct cxl_afu *afu, struct den
 
 void cxl_handle_fault(struct work_struct *work);
 void cxl_prefault(struct cxl_context *ctx, u64 wed);
+int cxl_handle_mm_fault(struct mm_struct *mm, u64 dsisr, u64 dar);
 
 struct cxl *get_cxl_adapter(int num);
 int cxl_alloc_sst(struct cxl_context *ctx);
@@ -1069,6 +1062,11 @@ int cxl_afu_slbia(struct cxl_afu *afu);
 int cxl_data_cache_flush(struct cxl *adapter);
 int cxl_afu_disable(struct cxl_afu *afu);
 int cxl_psl_purge(struct cxl_afu *afu);
+int cxl_calc_capp_routing(struct pci_dev *dev, u64 *chipid,
+			  u32 *phb_index, u64 *capp_unit_id);
+int cxl_slot_is_switched(struct pci_dev *dev);
+int cxl_get_xsl9_dsnctl(u64 capp_unit_id, u64 *reg);
+u64 cxl_calculate_sr(bool master, bool kernel, bool real_mode, bool p9);
 
 void cxl_native_irq_dump_regs_psl9(struct cxl_context *ctx);
 void cxl_native_irq_dump_regs_psl8(struct cxl_context *ctx);

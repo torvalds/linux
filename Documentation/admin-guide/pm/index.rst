@@ -6,6 +6,7 @@ Power Management
    :maxdepth: 2
 
    cpufreq
+   intel_pstate
 
 .. only::  subproject and html
 

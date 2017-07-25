@@ -28,7 +28,6 @@
 #include <linux/reset.h>
 #include <linux/gpio/consumer.h>
 #include <net/dsa.h>
-#include <net/switchdev.h>
 
 #include "mt7530.h"
 
@@ -854,7 +853,7 @@ mt7530_port_fdb_del(struct dsa_switch *ds, int port,
 static int
 mt7530_port_fdb_dump(struct dsa_switch *ds, int port,
 		     struct switchdev_obj_port_fdb *fdb,
-		     int (*cb)(struct switchdev_obj *obj))
+		     switchdev_obj_dump_cb_t *cb)
 {
 	struct mt7530_priv *priv = ds->priv;
 	struct mt7530_fdb _fdb = { 0 };
@@ -913,11 +912,11 @@ mt7530_setup(struct dsa_switch *ds)
 	struct device_node *dn;
 	struct mt7530_dummy_poll p;
 
-	/* The parent node of master_netdev which holds the common system
+	/* The parent node of cpu_dp->netdev which holds the common system
 	 * controller also is the container for two GMACs nodes representing
 	 * as two netdev instances.
 	 */
-	dn = ds->master_netdev->dev.of_node->parent;
+	dn = ds->dst->cpu_dp->netdev->dev.of_node->parent;
 	priv->ethernet = syscon_node_to_regmap(dn);
 	if (IS_ERR(priv->ethernet))
 		return PTR_ERR(priv->ethernet);
@@ -1081,7 +1080,7 @@ mt7530_probe(struct mdio_device *mdiodev)
 	mutex_init(&priv->reg_mutex);
 	dev_set_drvdata(&mdiodev->dev, priv);
 
-	return dsa_register_switch(priv->ds, &mdiodev->dev);
+	return dsa_register_switch(priv->ds);
 }
 
 static void

@@ -176,6 +176,7 @@ EXPORT_SYMBOL(__ip_dev_find);
 static void rtmsg_ifa(int event, struct in_ifaddr *, struct nlmsghdr *, u32);
 
 static BLOCKING_NOTIFIER_HEAD(inetaddr_chain);
+static BLOCKING_NOTIFIER_HEAD(inetaddr_validator_chain);
 static void inet_del_ifa(struct in_device *in_dev, struct in_ifaddr **ifap,
 			 int destroy);
 #ifdef CONFIG_SYSCTL
@@ -251,7 +252,7 @@ static struct in_device *inetdev_init(struct net_device *dev)
 	/* Reference in_dev->dev */
 	dev_hold(dev);
 	/* Account for reference dev->ip_ptr (below) */
-	in_dev_hold(in_dev);
+	refcount_set(&in_dev->refcnt, 1);
 
 	err = devinet_sysctl_register(in_dev);
 	if (err) {
@@ -441,6 +442,8 @@ static int __inet_insert_ifa(struct in_ifaddr *ifa, struct nlmsghdr *nlh,
 {
 	struct in_device *in_dev = ifa->ifa_dev;
 	struct in_ifaddr *ifa1, **ifap, **last_primary;
+	struct in_validator_info ivi;
+	int ret;
 
 	ASSERT_RTNL();
 
@@ -469,6 +472,23 @@ static int __inet_insert_ifa(struct in_ifaddr *ifa, struct nlmsghdr *nlh,
 			}
 			ifa->ifa_flags |= IFA_F_SECONDARY;
 		}
+	}
+
+	/* Allow any devices that wish to register ifaddr validtors to weigh
+	 * in now, before changes are committed.  The rntl lock is serializing
+	 * access here, so the state should not change between a validator call
+	 * and a final notify on commit.  This isn't invoked on promotion under
+	 * the assumption that validators are checking the address itself, and
+	 * not the flags.
+	 */
+	ivi.ivi_addr = ifa->ifa_address;
+	ivi.ivi_dev = ifa->ifa_dev;
+	ret = blocking_notifier_call_chain(&inetaddr_validator_chain,
+					   NETDEV_UP, &ivi);
+	ret = notifier_to_errno(ret);
+	if (ret) {
+		inet_free_ifa(ifa);
+		return ret;
 	}
 
 	if (!(ifa->ifa_flags & IFA_F_SECONDARY)) {
@@ -1355,6 +1375,19 @@ int unregister_inetaddr_notifier(struct notifier_block *nb)
 	return blocking_notifier_chain_unregister(&inetaddr_chain, nb);
 }
 EXPORT_SYMBOL(unregister_inetaddr_notifier);
+
+int register_inetaddr_validator_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_register(&inetaddr_validator_chain, nb);
+}
+EXPORT_SYMBOL(register_inetaddr_validator_notifier);
+
+int unregister_inetaddr_validator_notifier(struct notifier_block *nb)
+{
+	return blocking_notifier_chain_unregister(&inetaddr_validator_chain,
+	    nb);
+}
+EXPORT_SYMBOL(unregister_inetaddr_validator_notifier);
 
 /* Rename ifa_labels for a device name change. Make some effort to preserve
  * existing alias numbering and to create unique labels if possible.

@@ -194,7 +194,7 @@ static u32 tid;
 	.field_name          = "sa_path_rec:" #field
 
 static const struct ib_field path_rec_table[] = {
-	{ PATH_REC_FIELD(ib.service_id),
+	{ PATH_REC_FIELD(service_id),
 	  .offset_words = 0,
 	  .offset_bits  = 0,
 	  .size_bits    = 64 },
@@ -296,7 +296,7 @@ static const struct ib_field path_rec_table[] = {
 	.field_name          = "sa_path_rec:" #field
 
 static const struct ib_field opa_path_rec_table[] = {
-	{ OPA_PATH_REC_FIELD(opa.service_id),
+	{ OPA_PATH_REC_FIELD(service_id),
 	  .offset_words = 0,
 	  .offset_bits  = 0,
 	  .size_bits    = 64 },
@@ -759,8 +759,7 @@ static void ib_nl_set_path_rec_attrs(struct sk_buff *skb,
 	query->mad_buf->context[1] = NULL;
 
 	/* Construct the family header first */
-	header = (struct rdma_ls_resolve_header *)
-		skb_put(skb, NLMSG_ALIGN(sizeof(*header)));
+	header = skb_put(skb, NLMSG_ALIGN(sizeof(*header)));
 	memcpy(header->device_name, query->port->agent->device->name,
 	       LS_DEVICE_NAME_MAX);
 	header->port_num = query->port->port_num;
@@ -774,7 +773,7 @@ static void ib_nl_set_path_rec_attrs(struct sk_buff *skb,
 
 	/* Now build the attributes */
 	if (comp_mask & IB_SA_PATH_REC_SERVICE_ID) {
-		val64 = be64_to_cpu(sa_path_get_service_id(sa_rec));
+		val64 = be64_to_cpu(sa_rec->service_id);
 		nla_put(skb, RDMA_NLA_F_MANDATORY | LS_NLA_TYPE_SERVICE_ID,
 			sizeof(val64), &val64);
 	}

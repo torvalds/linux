@@ -766,11 +766,16 @@ static irqreturn_t malidp_de_irq(int irq, void *arg)
 	u32 status, mask, dc_status;
 	irqreturn_t ret = IRQ_NONE;
 
-	if (!drm->dev_private)
-		return IRQ_HANDLED;
-
 	hwdev = malidp->dev;
 	de = &hwdev->map.de_irq_map;
+
+	/*
+	 * if we are suspended it is likely that we were invoked because
+	 * we share an interrupt line with some other driver, don't try
+	 * to read the hardware registers
+	 */
+	if (hwdev->pm_suspended)
+		return IRQ_NONE;
 
 	/* first handle the config valid IRQ */
 	dc_status = malidp_hw_read(hwdev, hwdev->map.dc_base + MALIDP_REG_STATUS);
@@ -853,6 +858,14 @@ static irqreturn_t malidp_se_irq(int irq, void *arg)
 	struct malidp_drm *malidp = drm->dev_private;
 	struct malidp_hw_device *hwdev = malidp->dev;
 	u32 status, mask;
+
+	/*
+	 * if we are suspended it is likely that we were invoked because
+	 * we share an interrupt line with some other driver, don't try
+	 * to read the hardware registers
+	 */
+	if (hwdev->pm_suspended)
+		return IRQ_NONE;
 
 	status = malidp_hw_read(hwdev, hwdev->map.se_base + MALIDP_REG_STATUS);
 	if (!(status & hwdev->map.se_irq_map.irq_mask))

@@ -196,42 +196,19 @@ static void acpi_print_osc_error(acpi_handle handle,
 	pr_debug("\n");
 }
 
-acpi_status acpi_str_to_uuid(char *str, u8 *uuid)
-{
-	int i;
-	static int opc_map_to_uuid[16] = {6, 4, 2, 0, 11, 9, 16, 14, 19, 21,
-		24, 26, 28, 30, 32, 34};
-
-	if (strlen(str) != 36)
-		return AE_BAD_PARAMETER;
-	for (i = 0; i < 36; i++) {
-		if (i == 8 || i == 13 || i == 18 || i == 23) {
-			if (str[i] != '-')
-				return AE_BAD_PARAMETER;
-		} else if (!isxdigit(str[i]))
-			return AE_BAD_PARAMETER;
-	}
-	for (i = 0; i < 16; i++) {
-		uuid[i] = hex_to_bin(str[opc_map_to_uuid[i]]) << 4;
-		uuid[i] |= hex_to_bin(str[opc_map_to_uuid[i] + 1]);
-	}
-	return AE_OK;
-}
-EXPORT_SYMBOL_GPL(acpi_str_to_uuid);
-
 acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context)
 {
 	acpi_status status;
 	struct acpi_object_list input;
 	union acpi_object in_params[4];
 	union acpi_object *out_obj;
-	u8 uuid[16];
+	guid_t guid;
 	u32 errors;
 	struct acpi_buffer output = {ACPI_ALLOCATE_BUFFER, NULL};
 
 	if (!context)
 		return AE_ERROR;
-	if (ACPI_FAILURE(acpi_str_to_uuid(context->uuid_str, uuid)))
+	if (guid_parse(context->uuid_str, &guid))
 		return AE_ERROR;
 	context->ret.length = ACPI_ALLOCATE_BUFFER;
 	context->ret.pointer = NULL;
@@ -241,7 +218,7 @@ acpi_status acpi_run_osc(acpi_handle handle, struct acpi_osc_context *context)
 	input.pointer = in_params;
 	in_params[0].type 		= ACPI_TYPE_BUFFER;
 	in_params[0].buffer.length 	= 16;
-	in_params[0].buffer.pointer	= uuid;
+	in_params[0].buffer.pointer	= (u8 *)&guid;
 	in_params[1].type 		= ACPI_TYPE_INTEGER;
 	in_params[1].integer.value 	= context->rev;
 	in_params[2].type 		= ACPI_TYPE_INTEGER;
@@ -432,11 +409,15 @@ static void acpi_bus_notify(acpi_handle handle, u32 type, void *data)
 	    (driver->flags & ACPI_DRIVER_ALL_NOTIFY_EVENTS))
 		driver->ops.notify(adev, type);
 
-	if (hotplug_event && ACPI_SUCCESS(acpi_hotplug_schedule(adev, type)))
+	if (!hotplug_event) {
+		acpi_bus_put_acpi_device(adev);
+		return;
+	}
+
+	if (ACPI_SUCCESS(acpi_hotplug_schedule(adev, type)))
 		return;
 
 	acpi_bus_put_acpi_device(adev);
-	return;
 
  err:
 	acpi_evaluate_ost(handle, type, ost_code, NULL);

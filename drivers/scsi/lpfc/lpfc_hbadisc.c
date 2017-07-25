@@ -693,15 +693,16 @@ lpfc_work_done(struct lpfc_hba *phba)
 	pring = lpfc_phba_elsring(phba);
 	status = (ha_copy & (HA_RXMASK  << (4*LPFC_ELS_RING)));
 	status >>= (4*LPFC_ELS_RING);
-	if ((status & HA_RXMASK) ||
-	    (pring->flag & LPFC_DEFERRED_RING_EVENT) ||
-	    (phba->hba_flag & HBA_SP_QUEUE_EVT)) {
+	if (pring && (status & HA_RXMASK ||
+		      pring->flag & LPFC_DEFERRED_RING_EVENT ||
+		      phba->hba_flag & HBA_SP_QUEUE_EVT)) {
 		if (pring->flag & LPFC_STOP_IOCB_EVENT) {
 			pring->flag |= LPFC_DEFERRED_RING_EVENT;
 			/* Set the lpfc data pending flag */
 			set_bit(LPFC_DATA_READY, &phba->data_flags);
 		} else {
-			if (phba->link_state >= LPFC_LINK_UP) {
+			if (phba->link_state >= LPFC_LINK_UP ||
+			    phba->link_flag & LS_MDS_LOOPBACK) {
 				pring->flag &= ~LPFC_DEFERRED_RING_EVENT;
 				lpfc_sli_handle_slow_ring_event(phba, pring,
 								(status &
@@ -4166,14 +4167,14 @@ lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			lpfc_unregister_remote_port(ndlp);
 		}
 
-		/* Notify the NVME transport of this rport's loss on the
-		 * Initiator.  For NVME Target, should upcall transport
-		 * in the else clause when API available.
-		 */
 		if (ndlp->nlp_fc4_type & NLP_FC4_NVME) {
 			vport->phba->nport_event_cnt++;
 			if (vport->phba->nvmet_support == 0)
+				/* Start devloss */
 				lpfc_nvme_unregister_port(vport, ndlp);
+			else
+				/* NVMET has no upcall. */
+				lpfc_nlp_put(ndlp);
 		}
 	}
 
@@ -4181,8 +4182,10 @@ lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 	if (new_state ==  NLP_STE_MAPPED_NODE ||
 	    new_state == NLP_STE_UNMAPPED_NODE) {
-		if ((ndlp->nlp_fc4_type & NLP_FC4_FCP) ||
-		    (ndlp->nlp_DID == Fabric_DID)) {
+		if (ndlp->nlp_fc4_type & NLP_FC4_FCP ||
+		    ndlp->nlp_DID == Fabric_DID ||
+		    ndlp->nlp_DID == NameServer_DID ||
+		    ndlp->nlp_DID == FDMI_DID) {
 			vport->phba->nport_event_cnt++;
 			/*
 			 * Tell the fc transport about the port, if we haven't
@@ -4191,7 +4194,8 @@ lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			lpfc_register_remote_port(vport, ndlp);
 		}
 		/* Notify the NVME transport of this new rport. */
-		if (ndlp->nlp_fc4_type & NLP_FC4_NVME) {
+		if (vport->phba->sli_rev >= LPFC_SLI_REV4 &&
+		    ndlp->nlp_fc4_type & NLP_FC4_NVME) {
 			if (vport->phba->nvmet_support == 0) {
 				/* Register this rport with the transport.
 				 * Initiators take the NDLP ref count in

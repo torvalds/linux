@@ -116,7 +116,7 @@ static struct snd_vx_hardware vx222_mic_hw = {
  */
 static int snd_vx222_free(struct vx_core *chip)
 {
-	struct snd_vx222 *vx = (struct snd_vx222 *)chip;
+	struct snd_vx222 *vx = to_vx222(chip);
 
 	if (chip->irq >= 0)
 		free_irq(chip->irq, (void*)chip);
@@ -158,7 +158,7 @@ static int snd_vx222_create(struct snd_card *card, struct pci_dev *pci,
 		pci_disable_device(pci);
 		return -ENOMEM;
 	}
-	vx = (struct snd_vx222 *)chip;
+	vx = to_vx222(chip);
 	vx->pci = pci;
 
 	if ((err = pci_request_regions(pci, CARD_NAME)) < 0) {

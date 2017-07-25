@@ -156,7 +156,8 @@ static int read_sb_page(struct mddev *mddev, loff_t offset,
 
 	rdev_for_each(rdev, mddev) {
 		if (! test_bit(In_sync, &rdev->flags)
-		    || test_bit(Faulty, &rdev->flags))
+		    || test_bit(Faulty, &rdev->flags)
+		    || test_bit(Bitmap_sync, &rdev->flags))
 			continue;
 
 		target = offset + index * (PAGE_SIZE/512);
@@ -485,10 +486,10 @@ void bitmap_print_sb(struct bitmap *bitmap)
 	pr_debug("         magic: %08x\n", le32_to_cpu(sb->magic));
 	pr_debug("       version: %d\n", le32_to_cpu(sb->version));
 	pr_debug("          uuid: %08x.%08x.%08x.%08x\n",
-		 *(__u32 *)(sb->uuid+0),
-		 *(__u32 *)(sb->uuid+4),
-		 *(__u32 *)(sb->uuid+8),
-		 *(__u32 *)(sb->uuid+12));
+		 le32_to_cpu(*(__u32 *)(sb->uuid+0)),
+		 le32_to_cpu(*(__u32 *)(sb->uuid+4)),
+		 le32_to_cpu(*(__u32 *)(sb->uuid+8)),
+		 le32_to_cpu(*(__u32 *)(sb->uuid+12)));
 	pr_debug("        events: %llu\n",
 		 (unsigned long long) le64_to_cpu(sb->events));
 	pr_debug("events cleared: %llu\n",

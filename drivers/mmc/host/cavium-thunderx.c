@@ -146,6 +146,12 @@ static int thunder_mmc_probe(struct pci_dev *pdev,
 	return 0;
 
 error:
+	for (i = 0; i < CAVIUM_MAX_MMC; i++) {
+		if (host->slot[i])
+			cvm_mmc_of_slot_remove(host->slot[i]);
+		if (host->slot_pdev[i])
+			of_platform_device_destroy(&host->slot_pdev[i]->dev, NULL);
+	}
 	clk_disable_unprepare(host->clk);
 	return ret;
 }

@@ -312,6 +312,14 @@ enum arm_smmu_implementation {
 	CAVIUM_SMMUV2,
 };
 
+/* Until ACPICA headers cover IORT rev. C */
+#ifndef ACPI_IORT_SMMU_CORELINK_MMU401
+#define ACPI_IORT_SMMU_CORELINK_MMU401	0x4
+#endif
+#ifndef ACPI_IORT_SMMU_CAVIUM_THUNDERX
+#define ACPI_IORT_SMMU_CAVIUM_THUNDERX	0x5
+#endif
+
 struct arm_smmu_s2cr {
 	struct iommu_group		*group;
 	int				count;
@@ -425,10 +433,10 @@ enum arm_smmu_domain_stage {
 struct arm_smmu_domain {
 	struct arm_smmu_device		*smmu;
 	struct io_pgtable_ops		*pgtbl_ops;
-	spinlock_t			pgtbl_lock;
 	struct arm_smmu_cfg		cfg;
 	enum arm_smmu_domain_stage	stage;
 	struct mutex			init_mutex; /* Protects smmu pointer */
+	spinlock_t			cb_lock; /* Serialises ATS1* ops */
 	struct iommu_domain		domain;
 };
 
@@ -1010,6 +1018,9 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 		.iommu_dev	= smmu->dev,
 	};
 
+	if (smmu->features & ARM_SMMU_FEAT_COHERENT_WALK)
+		pgtbl_cfg.quirks = IO_PGTABLE_QUIRK_NO_DMA;
+
 	smmu_domain->smmu = smmu;
 	pgtbl_ops = alloc_io_pgtable_ops(fmt, &pgtbl_cfg, smmu_domain);
 	if (!pgtbl_ops) {
@@ -1102,7 +1113,7 @@ static struct iommu_domain *arm_smmu_domain_alloc(unsigned type)
 	}
 
 	mutex_init(&smmu_domain->init_mutex);
-	spin_lock_init(&smmu_domain->pgtbl_lock);
+	spin_lock_init(&smmu_domain->cb_lock);
 
 	return &smmu_domain->domain;
 }
@@ -1380,35 +1391,23 @@ static int arm_smmu_attach_dev(struct iommu_domain *domain, struct device *dev)
 static int arm_smmu_map(struct iommu_domain *domain, unsigned long iova,
 			phys_addr_t paddr, size_t size, int prot)
 {
-	int ret;
-	unsigned long flags;
-	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
-	struct io_pgtable_ops *ops= smmu_domain->pgtbl_ops;
+	struct io_pgtable_ops *ops = to_smmu_domain(domain)->pgtbl_ops;
 
 	if (!ops)
 		return -ENODEV;
 
-	spin_lock_irqsave(&smmu_domain->pgtbl_lock, flags);
-	ret = ops->map(ops, iova, paddr, size, prot);
-	spin_unlock_irqrestore(&smmu_domain->pgtbl_lock, flags);
-	return ret;
+	return ops->map(ops, iova, paddr, size, prot);
 }
 
 static size_t arm_smmu_unmap(struct iommu_domain *domain, unsigned long iova,
 			     size_t size)
 {
-	size_t ret;
-	unsigned long flags;
-	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
-	struct io_pgtable_ops *ops= smmu_domain->pgtbl_ops;
+	struct io_pgtable_ops *ops = to_smmu_domain(domain)->pgtbl_ops;
 
 	if (!ops)
 		return 0;
 
-	spin_lock_irqsave(&smmu_domain->pgtbl_lock, flags);
-	ret = ops->unmap(ops, iova, size);
-	spin_unlock_irqrestore(&smmu_domain->pgtbl_lock, flags);
-	return ret;
+	return ops->unmap(ops, iova, size);
 }
 
 static phys_addr_t arm_smmu_iova_to_phys_hard(struct iommu_domain *domain,
@@ -1422,10 +1421,11 @@ static phys_addr_t arm_smmu_iova_to_phys_hard(struct iommu_domain *domain,
 	void __iomem *cb_base;
 	u32 tmp;
 	u64 phys;
-	unsigned long va;
+	unsigned long va, flags;
 
 	cb_base = ARM_SMMU_CB(smmu, cfg->cbndx);
 
+	spin_lock_irqsave(&smmu_domain->cb_lock, flags);
 	/* ATS1 registers can only be written atomically */
 	va = iova & ~0xfffUL;
 	if (smmu->version == ARM_SMMU_V2)
@@ -1435,6 +1435,7 @@ static phys_addr_t arm_smmu_iova_to_phys_hard(struct iommu_domain *domain,
 
 	if (readl_poll_timeout_atomic(cb_base + ARM_SMMU_CB_ATSR, tmp,
 				      !(tmp & ATSR_ACTIVE), 5, 50)) {
+		spin_unlock_irqrestore(&smmu_domain->cb_lock, flags);
 		dev_err(dev,
 			"iova to phys timed out on %pad. Falling back to software table walk.\n",
 			&iova);
@@ -1442,6 +1443,7 @@ static phys_addr_t arm_smmu_iova_to_phys_hard(struct iommu_domain *domain,
 	}
 
 	phys = readq_relaxed(cb_base + ARM_SMMU_CB_PAR);
+	spin_unlock_irqrestore(&smmu_domain->cb_lock, flags);
 	if (phys & CB_PAR_F) {
 		dev_err(dev, "translation fault!\n");
 		dev_err(dev, "PAR = 0x%llx\n", phys);
@@ -1454,10 +1456,8 @@ static phys_addr_t arm_smmu_iova_to_phys_hard(struct iommu_domain *domain,
 static phys_addr_t arm_smmu_iova_to_phys(struct iommu_domain *domain,
 					dma_addr_t iova)
 {
-	phys_addr_t ret;
-	unsigned long flags;
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
-	struct io_pgtable_ops *ops= smmu_domain->pgtbl_ops;
+	struct io_pgtable_ops *ops = smmu_domain->pgtbl_ops;
 
 	if (domain->type == IOMMU_DOMAIN_IDENTITY)
 		return iova;
@@ -1465,17 +1465,11 @@ static phys_addr_t arm_smmu_iova_to_phys(struct iommu_domain *domain,
 	if (!ops)
 		return 0;
 
-	spin_lock_irqsave(&smmu_domain->pgtbl_lock, flags);
 	if (smmu_domain->smmu->features & ARM_SMMU_FEAT_TRANS_OPS &&
-			smmu_domain->stage == ARM_SMMU_DOMAIN_S1) {
-		ret = arm_smmu_iova_to_phys_hard(domain, iova);
-	} else {
-		ret = ops->iova_to_phys(ops, iova);
-	}
+			smmu_domain->stage == ARM_SMMU_DOMAIN_S1)
+		return arm_smmu_iova_to_phys_hard(domain, iova);
 
-	spin_unlock_irqrestore(&smmu_domain->pgtbl_lock, flags);
-
-	return ret;
+	return ops->iova_to_phys(ops, iova);
 }
 
 static bool arm_smmu_capable(enum iommu_cap cap)
@@ -2073,6 +2067,10 @@ static int acpi_smmu_get_data(u32 model, struct arm_smmu_device *smmu)
 		smmu->version = ARM_SMMU_V1;
 		smmu->model = GENERIC_SMMU;
 		break;
+	case ACPI_IORT_SMMU_CORELINK_MMU401:
+		smmu->version = ARM_SMMU_V1_64K;
+		smmu->model = GENERIC_SMMU;
+		break;
 	case ACPI_IORT_SMMU_V2:
 		smmu->version = ARM_SMMU_V2;
 		smmu->model = GENERIC_SMMU;
@@ -2080,6 +2078,10 @@ static int acpi_smmu_get_data(u32 model, struct arm_smmu_device *smmu)
 	case ACPI_IORT_SMMU_CORELINK_MMU500:
 		smmu->version = ARM_SMMU_V2;
 		smmu->model = ARM_MMU500;
+		break;
+	case ACPI_IORT_SMMU_CAVIUM_THUNDERX:
+		smmu->version = ARM_SMMU_V2;
+		smmu->model = CAVIUM_SMMUV2;
 		break;
 	default:
 		ret = -ENODEV;

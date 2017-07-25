@@ -378,7 +378,6 @@ raw_copy_to_user(void __user *to, const void *from, unsigned long n)
 	(uaccess_kernel() ? ~0UL : TASK_SIZE)
 
 extern long strncpy_from_user(char *dst, const char __user *src, long count);
-extern __must_check long strlen_user(const char __user *str);
 extern __must_check long strnlen_user(const char __user *str, long n);
 
 unsigned long __clear_user(void __user *to, unsigned long n);

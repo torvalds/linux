@@ -36,10 +36,8 @@ config INITRAMFS_ROOT_UID
 	depends on INITRAMFS_SOURCE!=""
 	default "0"
 	help
-	  This setting is only meaningful if the INITRAMFS_SOURCE is
-	  contains a directory.  Setting this user ID (UID) to something
-	  other than "0" will cause all files owned by that UID to be
-	  owned by user root in the initial ramdisk image.
+	  If INITRAMFS_SOURCE points to a directory, files owned by this UID
+	  (-1 = current user) will be owned by root in the resulting image.
 
 	  If you are not sure, leave it set to "0".
 
@@ -48,15 +46,13 @@ config INITRAMFS_ROOT_GID
 	depends on INITRAMFS_SOURCE!=""
 	default "0"
 	help
-	  This setting is only meaningful if the INITRAMFS_SOURCE is
-	  contains a directory.  Setting this group ID (GID) to something
-	  other than "0" will cause all files owned by that GID to be
-	  owned by group root in the initial ramdisk image.
+	  If INITRAMFS_SOURCE points to a directory, files owned by this GID
+	  (-1 = current group) will be owned by root in the resulting image.
 
 	  If you are not sure, leave it set to "0".
 
 config RD_GZIP
-	bool "Support initial ramdisks compressed using gzip"
+	bool "Support initial ramdisk/ramfs compressed using gzip"
 	depends on BLK_DEV_INITRD
 	default y
 	select DECOMPRESS_GZIP
@@ -65,7 +61,7 @@ config RD_GZIP
 	  If unsure, say Y.
 
 config RD_BZIP2
-	bool "Support initial ramdisks compressed using bzip2"
+	bool "Support initial ramdisk/ramfs compressed using bzip2"
 	default y
 	depends on BLK_DEV_INITRD
 	select DECOMPRESS_BZIP2
@@ -74,7 +70,7 @@ config RD_BZIP2
 	  If unsure, say N.
 
 config RD_LZMA
-	bool "Support initial ramdisks compressed using LZMA"
+	bool "Support initial ramdisk/ramfs compressed using LZMA"
 	default y
 	depends on BLK_DEV_INITRD
 	select DECOMPRESS_LZMA
@@ -83,7 +79,7 @@ config RD_LZMA
 	  If unsure, say N.
 
 config RD_XZ
-	bool "Support initial ramdisks compressed using XZ"
+	bool "Support initial ramdisk/ramfs compressed using XZ"
 	depends on BLK_DEV_INITRD
 	default y
 	select DECOMPRESS_XZ
@@ -92,7 +88,7 @@ config RD_XZ
 	  If unsure, say N.
 
 config RD_LZO
-	bool "Support initial ramdisks compressed using LZO"
+	bool "Support initial ramdisk/ramfs compressed using LZO"
 	default y
 	depends on BLK_DEV_INITRD
 	select DECOMPRESS_LZO
@@ -101,7 +97,7 @@ config RD_LZO
 	  If unsure, say N.
 
 config RD_LZ4
-	bool "Support initial ramdisks compressed using LZ4"
+	bool "Support initial ramdisk/ramfs compressed using LZ4"
 	default y
 	depends on BLK_DEV_INITRD
 	select DECOMPRESS_LZ4
@@ -220,6 +216,7 @@ config INITRAMFS_COMPRESSION_LZ4
 endchoice
 
 config INITRAMFS_COMPRESSION
+	depends on INITRAMFS_SOURCE!=""
 	string
 	default ""      if INITRAMFS_COMPRESSION_NONE
 	default ".gz"   if INITRAMFS_COMPRESSION_GZIP

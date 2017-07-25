@@ -150,33 +150,17 @@ struct dss_pll *dss_video_pll_init(struct platform_device *pdev, int id,
 	/* PLL CONTROL */
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, reg_name[id]);
-	if (!res) {
-		dev_err(&pdev->dev,
-			"missing platform resource data for pll%d\n", id);
-		return ERR_PTR(-ENODEV);
-	}
-
 	pll_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(pll_base)) {
-		dev_err(&pdev->dev, "failed to ioremap pll%d reg_name\n", id);
+	if (IS_ERR(pll_base))
 		return ERR_CAST(pll_base);
-	}
 
 	/* CLOCK CONTROL */
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 		clkctrl_name[id]);
-	if (!res) {
-		dev_err(&pdev->dev,
-			"missing platform resource data for pll%d\n", id);
-		return ERR_PTR(-ENODEV);
-	}
-
 	clkctrl_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(clkctrl_base)) {
-		dev_err(&pdev->dev, "failed to ioremap pll%d clkctrl\n", id);
+	if (IS_ERR(clkctrl_base))
 		return ERR_CAST(clkctrl_base);
-	}
 
 	/* CLKIN */
 

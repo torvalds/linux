@@ -610,7 +610,6 @@ static void build_mpa_v2(struct nes_cm_node *cm_node,
 		ctrl_ord = cm_node->ord_size & IETF_NO_IRD_ORD;
 	}
 	ctrl_ird |= IETF_PEER_TO_PEER;
-	ctrl_ird |= IETF_FLPDU_ZERO_LEN;
 
 	switch (mpa_key) {
 	case MPA_KEY_REQUEST:
@@ -743,7 +742,7 @@ int schedule_nes_timer(struct nes_cm_node *cm_node, struct sk_buff *skb,
 
 	if (type == NES_TIMER_TYPE_SEND) {
 		new_send->seq_num = ntohl(tcp_hdr(skb)->seq);
-		atomic_inc(&new_send->skb->users);
+		refcount_inc(&new_send->skb->users);
 		spin_lock_irqsave(&cm_node->retrans_list_lock, flags);
 		cm_node->send_entry = new_send;
 		add_ref_cm_node(cm_node);
@@ -925,7 +924,7 @@ static void nes_cm_timer_tick(unsigned long pass)
 						  flags);
 				break;
 			}
-			atomic_inc(&send_entry->skb->users);
+			refcount_inc(&send_entry->skb->users);
 			cm_packets_retrans++;
 			nes_debug(NES_DBG_CM, "Retransmitting send_entry %p "
 				  "for node %p, jiffies = %lu, time to send = "
@@ -1826,7 +1825,7 @@ static void handle_rcv_mpa(struct nes_cm_node *cm_node, struct sk_buff *skb)
 			type = NES_CM_EVENT_CONNECTED;
 			cm_node->state = NES_CM_STATE_TSA;
 		}
-
+		send_ack(cm_node, NULL);
 		break;
 	default:
 		WARN_ON(1);

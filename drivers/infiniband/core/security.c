@@ -120,21 +120,25 @@ static int check_qp_port_pkey_settings(struct ib_ports_pkeys *pps,
 		return 0;
 
 	if (pps->main.state != IB_PORT_PKEY_NOT_VALID) {
-		get_pkey_and_subnet_prefix(&pps->main,
-					   &pkey,
-					   &subnet_prefix);
+		ret = get_pkey_and_subnet_prefix(&pps->main,
+						 &pkey,
+						 &subnet_prefix);
+		if (ret)
+			return ret;
 
 		ret = enforce_qp_pkey_security(pkey,
 					       subnet_prefix,
 					       sec);
+		if (ret)
+			return ret;
 	}
-	if (ret)
-		return ret;
 
 	if (pps->alt.state != IB_PORT_PKEY_NOT_VALID) {
-		get_pkey_and_subnet_prefix(&pps->alt,
-					   &pkey,
-					   &subnet_prefix);
+		ret = get_pkey_and_subnet_prefix(&pps->alt,
+						 &pkey,
+						 &subnet_prefix);
+		if (ret)
+			return ret;
 
 		ret = enforce_qp_pkey_security(pkey,
 					       subnet_prefix,

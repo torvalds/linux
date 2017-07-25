@@ -56,7 +56,10 @@ static int inline_list__append(char *filename, char *funcname, int line_nr,
 		}
 	}
 
-	list_add_tail(&ilist->list, &node->val);
+	if (callchain_param.order == ORDER_CALLEE)
+		list_add_tail(&ilist->list, &node->val);
+	else
+		list_add(&ilist->list, &node->val);
 
 	return 0;
 }
@@ -200,12 +203,14 @@ static void addr2line_cleanup(struct a2l_data *a2l)
 
 #define MAX_INLINE_NEST 1024
 
-static void inline_list__reverse(struct inline_node *node)
+static int inline_list__append_dso_a2l(struct dso *dso,
+				       struct inline_node *node)
 {
-	struct inline_list *ilist, *n;
+	struct a2l_data *a2l = dso->a2l;
+	char *funcname = a2l->funcname ? strdup(a2l->funcname) : NULL;
+	char *filename = a2l->filename ? strdup(a2l->filename) : NULL;
 
-	list_for_each_entry_safe_reverse(ilist, n, &node->val, list)
-		list_move_tail(&ilist->list, &node->val);
+	return inline_list__append(filename, funcname, a2l->line, node, dso);
 }
 
 static int addr2line(const char *dso_name, u64 addr,
@@ -230,35 +235,35 @@ static int addr2line(const char *dso_name, u64 addr,
 
 	bfd_map_over_sections(a2l->abfd, find_address_in_section, a2l);
 
-	if (a2l->found && unwind_inlines) {
+	if (!a2l->found)
+		return 0;
+
+	if (unwind_inlines) {
 		int cnt = 0;
+
+		if (node && inline_list__append_dso_a2l(dso, node))
+			return 0;
 
 		while (bfd_find_inliner_info(a2l->abfd, &a2l->filename,
 					     &a2l->funcname, &a2l->line) &&
 		       cnt++ < MAX_INLINE_NEST) {
 
 			if (node != NULL) {
-				if (inline_list__append(strdup(a2l->filename),
-							strdup(a2l->funcname),
-							a2l->line, node,
-							dso) != 0)
+				if (inline_list__append_dso_a2l(dso, node))
 					return 0;
+				// found at least one inline frame
+				ret = 1;
 			}
 		}
-
-		if ((node != NULL) &&
-		    (callchain_param.order != ORDER_CALLEE)) {
-			inline_list__reverse(node);
-		}
 	}
 
-	if (a2l->found && a2l->filename) {
-		*file = strdup(a2l->filename);
+	if (file) {
+		*file = a2l->filename ? strdup(a2l->filename) : NULL;
+		ret = *file ? 1 : 0;
+	}
+
+	if (line)
 		*line = a2l->line;
-
-		if (*file)
-			ret = 1;
-	}
 
 	return ret;
 }
@@ -278,8 +283,6 @@ void dso__free_a2l(struct dso *dso)
 static struct inline_node *addr2inlines(const char *dso_name, u64 addr,
 	struct dso *dso)
 {
-	char *file = NULL;
-	unsigned int line = 0;
 	struct inline_node *node;
 
 	node = zalloc(sizeof(*node));
@@ -291,7 +294,7 @@ static struct inline_node *addr2inlines(const char *dso_name, u64 addr,
 	INIT_LIST_HEAD(&node->val);
 	node->addr = addr;
 
-	if (!addr2line(dso_name, addr, &file, &line, dso, TRUE, node))
+	if (!addr2line(dso_name, addr, NULL, NULL, dso, TRUE, node))
 		goto out_free_inline_node;
 
 	if (list_empty(&node->val))

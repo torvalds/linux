@@ -82,20 +82,10 @@ static unsigned int get_crtc_fence_y_offset(struct intel_crtc *crtc)
 static void intel_fbc_get_plane_source_size(struct intel_fbc_state_cache *cache,
 					    int *width, int *height)
 {
-	int w, h;
-
-	if (drm_rotation_90_or_270(cache->plane.rotation)) {
-		w = cache->plane.src_h;
-		h = cache->plane.src_w;
-	} else {
-		w = cache->plane.src_w;
-		h = cache->plane.src_h;
-	}
-
 	if (width)
-		*width = w;
+		*width = cache->plane.src_w;
 	if (height)
-		*height = h;
+		*height = cache->plane.src_h;
 }
 
 static int intel_fbc_calculate_cfb_size(struct drm_i915_private *dev_priv,
@@ -746,6 +736,11 @@ static void intel_fbc_update_state_cache(struct intel_crtc *crtc,
 		cache->crtc.hsw_bdw_pixel_rate = crtc_state->pixel_rate;
 
 	cache->plane.rotation = plane_state->base.rotation;
+	/*
+	 * Src coordinates are already rotated by 270 degrees for
+	 * the 90/270 degree plane rotation cases (to match the
+	 * GTT mapping), hence no need to account for rotation here.
+	 */
 	cache->plane.src_w = drm_rect_width(&plane_state->base.src) >> 16;
 	cache->plane.src_h = drm_rect_height(&plane_state->base.src) >> 16;
 	cache->plane.visible = plane_state->base.visible;
@@ -801,7 +796,7 @@ static bool intel_fbc_can_activate(struct intel_crtc *crtc)
 		return false;
 	}
 	if (INTEL_GEN(dev_priv) <= 4 && !IS_G4X(dev_priv) &&
-	    cache->plane.rotation != DRM_ROTATE_0) {
+	    cache->plane.rotation != DRM_MODE_ROTATE_0) {
 		fbc->no_fbc_reason = "rotation unsupported";
 		return false;
 	}
@@ -1312,14 +1307,12 @@ static int intel_sanitize_fbc_option(struct drm_i915_private *dev_priv)
 
 static bool need_fbc_vtd_wa(struct drm_i915_private *dev_priv)
 {
-#ifdef CONFIG_INTEL_IOMMU
 	/* WaFbcTurnOffFbcWhenHyperVisorIsUsed:skl,bxt */
-	if (intel_iommu_gfx_mapped &&
+	if (intel_vtd_active() &&
 	    (IS_SKYLAKE(dev_priv) || IS_BROXTON(dev_priv))) {
 		DRM_INFO("Disabling framebuffer compression (FBC) to prevent screen flicker with VT-d enabled\n");
 		return true;
 	}
-#endif
 
 	return false;
 }

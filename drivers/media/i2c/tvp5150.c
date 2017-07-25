@@ -12,10 +12,11 @@
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
+#include <linux/of_graph.h>
 #include <media/v4l2-async.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
-#include <media/v4l2-of.h>
+#include <media/v4l2-fwnode.h>
 #include <media/v4l2-mc.h>
 
 #include "tvp5150_reg.h"
@@ -1358,7 +1359,7 @@ static int tvp5150_init(struct i2c_client *c)
 
 static int tvp5150_parse_dt(struct tvp5150 *decoder, struct device_node *np)
 {
-	struct v4l2_of_endpoint bus_cfg;
+	struct v4l2_fwnode_endpoint bus_cfg;
 	struct device_node *ep;
 #ifdef CONFIG_MEDIA_CONTROLLER
 	struct device_node *connectors, *child;
@@ -1373,7 +1374,7 @@ static int tvp5150_parse_dt(struct tvp5150 *decoder, struct device_node *np)
 	if (!ep)
 		return -EINVAL;
 
-	ret = v4l2_of_parse_endpoint(ep, &bus_cfg);
+	ret = v4l2_fwnode_endpoint_parse(of_fwnode_handle(ep), &bus_cfg);
 	if (ret)
 		goto err;
 

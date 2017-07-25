@@ -6667,7 +6667,7 @@ static netdev_tx_t niu_start_xmit(struct sk_buff *skb,
 	headroom = align + sizeof(struct tx_pkt_hdr);
 
 	ehdr = (struct ethhdr *) skb->data;
-	tp = (struct tx_pkt_hdr *) skb_push(skb, headroom);
+	tp = skb_push(skb, headroom);
 
 	len = skb->len - sizeof(struct tx_pkt_hdr);
 	tp->flags = cpu_to_le64(niu_compute_tx_flags(skb, ehdr, align, len));
@@ -9532,7 +9532,7 @@ static struct niu_parent *niu_get_parent(struct niu *np,
 		p = niu_new_parent(np, id, ptype);
 
 	if (p) {
-		char port_name[6];
+		char port_name[8];
 		int err;
 
 		sprintf(port_name, "port%d", port);
@@ -9553,7 +9553,7 @@ static void niu_put_parent(struct niu *np)
 {
 	struct niu_parent *p = np->parent;
 	u8 port = np->port;
-	char port_name[6];
+	char port_name[8];
 
 	BUG_ON(!p || p->ports[port] != np);
 

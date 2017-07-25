@@ -226,7 +226,7 @@ void aa_dfa_free_kref(struct kref *kref)
  * @flags: flags controlling what type of accept tables are acceptable
  *
  * Unpack a dfa that has been serialized.  To find information on the dfa
- * format look in Documentation/security/apparmor.txt
+ * format look in Documentation/admin-guide/LSM/apparmor.rst
  * Assumes the dfa @blob stream has been aligned on a 8 byte boundary
  *
  * Returns: an unpacked dfa ready for matching or ERR_PTR on failure

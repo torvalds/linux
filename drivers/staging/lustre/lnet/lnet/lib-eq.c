@@ -312,7 +312,7 @@ __must_hold(&the_lnet.ln_eq_wait_lock)
 {
 	int tms = *timeout_ms;
 	int wait;
-	wait_queue_t wl;
+	wait_queue_entry_t wl;
 	unsigned long now;
 
 	if (!tms)

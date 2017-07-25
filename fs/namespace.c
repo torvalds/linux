@@ -236,6 +236,7 @@ static struct mount *alloc_vfsmnt(const char *name)
 		INIT_LIST_HEAD(&mnt->mnt_slave_list);
 		INIT_LIST_HEAD(&mnt->mnt_slave);
 		INIT_HLIST_NODE(&mnt->mnt_mp_list);
+		INIT_LIST_HEAD(&mnt->mnt_umounting);
 		init_fs_pin(&mnt->mnt_umount, drop_mountpoint);
 	}
 	return mnt;
@@ -1237,65 +1238,6 @@ struct vfsmount *mnt_clone_internal(const struct path *path)
 	return &p->mnt;
 }
 
-static inline void mangle(struct seq_file *m, const char *s)
-{
-	seq_escape(m, s, " \t\n\\");
-}
-
-/*
- * Simple .show_options callback for filesystems which don't want to
- * implement more complex mount option showing.
- *
- * See also save_mount_options().
- */
-int generic_show_options(struct seq_file *m, struct dentry *root)
-{
-	const char *options;
-
-	rcu_read_lock();
-	options = rcu_dereference(root->d_sb->s_options);
-
-	if (options != NULL && options[0]) {
-		seq_putc(m, ',');
-		mangle(m, options);
-	}
-	rcu_read_unlock();
-
-	return 0;
-}
-EXPORT_SYMBOL(generic_show_options);
-
-/*
- * If filesystem uses generic_show_options(), this function should be
- * called from the fill_super() callback.
- *
- * The .remount_fs callback usually needs to be handled in a special
- * way, to make sure, that previous options are not overwritten if the
- * remount fails.
- *
- * Also note, that if the filesystem's .remount_fs function doesn't
- * reset all options to their default value, but changes only newly
- * given options, then the displayed options will not reflect reality
- * any more.
- */
-void save_mount_options(struct super_block *sb, char *options)
-{
-	BUG_ON(sb->s_options);
-	rcu_assign_pointer(sb->s_options, kstrdup(options, GFP_KERNEL));
-}
-EXPORT_SYMBOL(save_mount_options);
-
-void replace_mount_options(struct super_block *sb, char *options)
-{
-	char *old = sb->s_options;
-	rcu_assign_pointer(sb->s_options, options);
-	if (old) {
-		synchronize_rcu();
-		kfree(old);
-	}
-}
-EXPORT_SYMBOL(replace_mount_options);
-
 #ifdef CONFIG_PROC_FS
 /* iterator; we want it to have access to namespace_sem, thus here... */
 static void *m_start(struct seq_file *m, loff_t *pos)
@@ -1656,7 +1598,7 @@ out_unlock:
 	namespace_unlock();
 }
 
-/* 
+/*
  * Is the caller allowed to modify his namespace?
  */
 static inline bool may_mount(void)
@@ -2210,7 +2152,7 @@ static int do_loopback(struct path *path, const char *old_name,
 
 	err = -EINVAL;
 	if (mnt_ns_loop(old_path.dentry))
-		goto out; 
+		goto out;
 
 	mp = lock_mount(path);
 	err = PTR_ERR(mp);
@@ -3238,7 +3180,6 @@ static void __init init_mount_tree(void)
 
 void __init mnt_init(void)
 {
-	unsigned u;
 	int err;
 
 	mnt_cache = kmem_cache_create("mnt_cache", sizeof(struct mount),
@@ -3247,21 +3188,16 @@ void __init mnt_init(void)
 	mount_hashtable = alloc_large_system_hash("Mount-cache",
 				sizeof(struct hlist_head),
 				mhash_entries, 19,
-				0,
+				HASH_ZERO,
 				&m_hash_shift, &m_hash_mask, 0, 0);
 	mountpoint_hashtable = alloc_large_system_hash("Mountpoint-cache",
 				sizeof(struct hlist_head),
 				mphash_entries, 19,
-				0,
+				HASH_ZERO,
 				&mp_hash_shift, &mp_hash_mask, 0, 0);
 
 	if (!mount_hashtable || !mountpoint_hashtable)
 		panic("Failed to allocate mount hash table\n");
-
-	for (u = 0; u <= m_hash_mask; u++)
-		INIT_HLIST_HEAD(&mount_hashtable[u]);
-	for (u = 0; u <= mp_hash_mask; u++)
-		INIT_HLIST_HEAD(&mountpoint_hashtable[u]);
 
 	kernfs_init();
 
@@ -3487,6 +3423,8 @@ static int mntns_install(struct nsproxy *nsproxy, struct ns_common *ns)
 		put_mnt_ns(mnt_ns);
 		return err;
 	}
+
+	put_mnt_ns(old_mnt_ns);
 
 	/* Update the pwd and root */
 	set_fs_pwd(fs, &root);

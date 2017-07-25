@@ -228,7 +228,7 @@ static int mbigen_irq_domain_alloc(struct irq_domain *domain,
 	return 0;
 }
 
-static struct irq_domain_ops mbigen_domain_ops = {
+static const struct irq_domain_ops mbigen_domain_ops = {
 	.translate	= mbigen_domain_translate,
 	.alloc		= mbigen_irq_domain_alloc,
 	.free		= irq_domain_free_irqs_common,

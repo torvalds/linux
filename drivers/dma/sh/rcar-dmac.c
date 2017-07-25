@@ -144,6 +144,7 @@ struct rcar_dmac_chan_map {
  * @chan: base DMA channel object
  * @iomem: channel I/O memory base
  * @index: index of this channel in the controller
+ * @irq: channel IRQ
  * @src: slave memory address and size on the source side
  * @dst: slave memory address and size on the destination side
  * @mid_rid: hardware MID/RID for the DMA client using this channel
@@ -161,6 +162,7 @@ struct rcar_dmac_chan {
 	struct dma_chan chan;
 	void __iomem *iomem;
 	unsigned int index;
+	int irq;
 
 	struct rcar_dmac_chan_slave src;
 	struct rcar_dmac_chan_slave dst;
@@ -1008,7 +1010,11 @@ static void rcar_dmac_free_chan_resources(struct dma_chan *chan)
 	rcar_dmac_chan_halt(rchan);
 	spin_unlock_irq(&rchan->lock);
 
-	/* Now no new interrupts will occur */
+	/*
+	 * Now no new interrupts will occur, but one might already be
+	 * running. Wait for it to finish before freeing resources.
+	 */
+	synchronize_irq(rchan->irq);
 
 	if (rchan->mid_rid >= 0) {
 		/* The caller is holding dma_list_mutex */
@@ -1287,6 +1293,9 @@ static unsigned int rcar_dmac_chan_get_residue(struct rcar_dmac_chan *chan,
 	if (desc->hwdescs.use) {
 		dptr = (rcar_dmac_chan_read(chan, RCAR_DMACHCRB) &
 			RCAR_DMACHCRB_DPTR_MASK) >> RCAR_DMACHCRB_DPTR_SHIFT;
+		if (dptr == 0)
+			dptr = desc->nchunks;
+		dptr--;
 		WARN_ON(dptr >= desc->nchunks);
 	} else {
 		running = desc->running;
@@ -1361,6 +1370,13 @@ static void rcar_dmac_issue_pending(struct dma_chan *chan)
 
 done:
 	spin_unlock_irqrestore(&rchan->lock, flags);
+}
+
+static void rcar_dmac_device_synchronize(struct dma_chan *chan)
+{
+	struct rcar_dmac_chan *rchan = to_rcar_dmac_chan(chan);
+
+	synchronize_irq(rchan->irq);
 }
 
 /* -----------------------------------------------------------------------------
@@ -1647,7 +1663,6 @@ static int rcar_dmac_chan_probe(struct rcar_dmac *dmac,
 	struct dma_chan *chan = &rchan->chan;
 	char pdev_irqname[5];
 	char *irqname;
-	int irq;
 	int ret;
 
 	rchan->index = index;
@@ -1664,8 +1679,8 @@ static int rcar_dmac_chan_probe(struct rcar_dmac *dmac,
 
 	/* Request the channel interrupt. */
 	sprintf(pdev_irqname, "ch%u", index);
-	irq = platform_get_irq_byname(pdev, pdev_irqname);
-	if (irq < 0) {
+	rchan->irq = platform_get_irq_byname(pdev, pdev_irqname);
+	if (rchan->irq < 0) {
 		dev_err(dmac->dev, "no IRQ specified for channel %u\n", index);
 		return -ENODEV;
 	}
@@ -1675,11 +1690,13 @@ static int rcar_dmac_chan_probe(struct rcar_dmac *dmac,
 	if (!irqname)
 		return -ENOMEM;
 
-	ret = devm_request_threaded_irq(dmac->dev, irq, rcar_dmac_isr_channel,
+	ret = devm_request_threaded_irq(dmac->dev, rchan->irq,
+					rcar_dmac_isr_channel,
 					rcar_dmac_isr_channel_thread, 0,
 					irqname, rchan);
 	if (ret) {
-		dev_err(dmac->dev, "failed to request IRQ %u (%d)\n", irq, ret);
+		dev_err(dmac->dev, "failed to request IRQ %u (%d)\n",
+			rchan->irq, ret);
 		return ret;
 	}
 
@@ -1843,6 +1860,7 @@ static int rcar_dmac_probe(struct platform_device *pdev)
 	engine->device_terminate_all = rcar_dmac_chan_terminate_all;
 	engine->device_tx_status = rcar_dmac_tx_status;
 	engine->device_issue_pending = rcar_dmac_issue_pending;
+	engine->device_synchronize = rcar_dmac_device_synchronize;
 
 	ret = dma_async_device_register(engine);
 	if (ret < 0)

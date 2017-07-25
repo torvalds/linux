@@ -839,14 +839,14 @@ static void cvm_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		cvm_mmc_reset_bus(slot);
 		if (host->global_pwr_gpiod)
 			host->set_shared_power(host, 0);
-		else
+		else if (!IS_ERR(mmc->supply.vmmc))
 			mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, 0);
 		break;
 
 	case MMC_POWER_UP:
 		if (host->global_pwr_gpiod)
 			host->set_shared_power(host, 1);
-		else
+		else if (!IS_ERR(mmc->supply.vmmc))
 			mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, ios->vdd);
 		break;
 	}
@@ -968,20 +968,15 @@ static int cvm_mmc_of_parse(struct device *dev, struct cvm_mmc_slot *slot)
 		return -EINVAL;
 	}
 
-	mmc->supply.vmmc = devm_regulator_get_optional(dev, "vmmc");
-	if (IS_ERR(mmc->supply.vmmc)) {
-		if (PTR_ERR(mmc->supply.vmmc) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-		/*
-		 * Legacy Octeon firmware has no regulator entry, fall-back to
-		 * a hard-coded voltage to get a sane OCR.
-		 */
+	ret = mmc_regulator_get_supply(mmc);
+	if (ret == -EPROBE_DEFER)
+		return ret;
+	/*
+	 * Legacy Octeon firmware has no regulator entry, fall-back to
+	 * a hard-coded voltage to get a sane OCR.
+	 */
+	if (IS_ERR(mmc->supply.vmmc))
 		mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
-	} else {
-		ret = mmc_regulator_get_ocrmask(mmc->supply.vmmc);
-		if (ret > 0)
-			mmc->ocr_avail = ret;
-	}
 
 	/* Common MMC bindings */
 	ret = mmc_of_parse(mmc);
@@ -1040,10 +1035,12 @@ int cvm_mmc_of_slot_probe(struct device *dev, struct cvm_mmc_host *host)
 	 * We only have a 3.3v supply, we cannot support any
 	 * of the UHS modes. We do support the high speed DDR
 	 * modes up to 52MHz.
+	 *
+	 * Disable bounce buffers for max_segs = 1
 	 */
 	mmc->caps |= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED |
 		     MMC_CAP_ERASE | MMC_CAP_CMD23 | MMC_CAP_POWER_OFF_CARD |
-		     MMC_CAP_3_3V_DDR;
+		     MMC_CAP_3_3V_DDR | MMC_CAP_NO_BOUNCE_BUFF;
 
 	if (host->use_sg)
 		mmc->max_segs = 16;

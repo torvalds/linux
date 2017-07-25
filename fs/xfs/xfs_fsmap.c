@@ -828,6 +828,7 @@ xfs_getfsmap(
 	struct xfs_fsmap		dkeys[2];	/* per-dev keys */
 	struct xfs_getfsmap_dev		handlers[XFS_GETFSMAP_DEVS];
 	struct xfs_getfsmap_info	info = { NULL };
+	bool				use_rmap;
 	int				i;
 	int				error = 0;
 
@@ -837,12 +838,14 @@ xfs_getfsmap(
 	    !xfs_getfsmap_is_valid_device(mp, &head->fmh_keys[1]))
 		return -EINVAL;
 
+	use_rmap = capable(CAP_SYS_ADMIN) &&
+		   xfs_sb_version_hasrmapbt(&mp->m_sb);
 	head->fmh_entries = 0;
 
 	/* Set up our device handlers. */
 	memset(handlers, 0, sizeof(handlers));
 	handlers[0].dev = new_encode_dev(mp->m_ddev_targp->bt_dev);
-	if (xfs_sb_version_hasrmapbt(&mp->m_sb))
+	if (use_rmap)
 		handlers[0].fn = xfs_getfsmap_datadev_rmapbt;
 	else
 		handlers[0].fn = xfs_getfsmap_datadev_bnobt;

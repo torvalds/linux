@@ -318,7 +318,7 @@ static inline int __vlan_insert_tag(struct sk_buff *skb,
 	if (skb_cow_head(skb, VLAN_HLEN) < 0)
 		return -ENOMEM;
 
-	veth = (struct vlan_ethhdr *)skb_push(skb, VLAN_HLEN);
+	veth = skb_push(skb, VLAN_HLEN);
 
 	/* Move the mac addresses to the beginning of the new header. */
 	memmove(skb->data, skb->data + VLAN_HLEN, 2 * ETH_ALEN);
@@ -614,14 +614,16 @@ static inline bool skb_vlan_tagged_multi(const struct sk_buff *skb)
 static inline netdev_features_t vlan_features_check(const struct sk_buff *skb,
 						    netdev_features_t features)
 {
-	if (skb_vlan_tagged_multi(skb))
-		features = netdev_intersect_features(features,
-						     NETIF_F_SG |
-						     NETIF_F_HIGHDMA |
-						     NETIF_F_FRAGLIST |
-						     NETIF_F_HW_CSUM |
-						     NETIF_F_HW_VLAN_CTAG_TX |
-						     NETIF_F_HW_VLAN_STAG_TX);
+	if (skb_vlan_tagged_multi(skb)) {
+		/* In the case of multi-tagged packets, use a direct mask
+		 * instead of using netdev_interesect_features(), to make
+		 * sure that only devices supporting NETIF_F_HW_CSUM will
+		 * have checksum offloading support.
+		 */
+		features &= NETIF_F_SG | NETIF_F_HIGHDMA | NETIF_F_HW_CSUM |
+			    NETIF_F_FRAGLIST | NETIF_F_HW_VLAN_CTAG_TX |
+			    NETIF_F_HW_VLAN_STAG_TX;
+	}
 
 	return features;
 }

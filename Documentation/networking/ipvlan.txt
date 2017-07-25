@@ -22,9 +22,9 @@ The driver can be built into the kernel (CONFIG_IPVLAN=y) or as a module
 	There are no module parameters for this driver and it can be configured
 using IProute2/ip utility.
 
-	ip link add link <master-dev> <slave-dev> type ipvlan mode { l2 | l3 | l3s }
+	ip link add link <master-dev> name <slave-dev> type ipvlan mode { l2 | l3 | l3s }
 
-	e.g. ip link add link ipvl0 eth0 type ipvlan mode l2
+	e.g. ip link add link eth0 name ipvl0 type ipvlan mode l2
 
 
 4. Operating modes:

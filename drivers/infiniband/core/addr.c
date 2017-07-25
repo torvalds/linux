@@ -179,8 +179,7 @@ static int ib_nl_ip_send_msg(struct rdma_dev_addr *dev_addr,
 	}
 
 	/* Construct the family header first */
-	header = (struct rdma_ls_ip_resolve_header *)
-		skb_put(skb, NLMSG_ALIGN(sizeof(*header)));
+	header = skb_put(skb, NLMSG_ALIGN(sizeof(*header)));
 	header->ifindex = dev_addr->bound_dev_if;
 	nla_put(skb, attrtype, size, daddr);
 
@@ -269,6 +268,7 @@ int rdma_translate_ip(const struct sockaddr *addr,
 			return ret;
 
 		ret = rdma_copy_addr(dev_addr, dev, NULL);
+		dev_addr->bound_dev_if = dev->ifindex;
 		if (vlan_id)
 			*vlan_id = rdma_vlan_dev_vlan_id(dev);
 		dev_put(dev);
@@ -281,6 +281,7 @@ int rdma_translate_ip(const struct sockaddr *addr,
 					  &((const struct sockaddr_in6 *)addr)->sin6_addr,
 					  dev, 1)) {
 				ret = rdma_copy_addr(dev_addr, dev, NULL);
+				dev_addr->bound_dev_if = dev->ifindex;
 				if (vlan_id)
 					*vlan_id = rdma_vlan_dev_vlan_id(dev);
 				break;
@@ -406,10 +407,10 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 	fl4.saddr = src_ip;
 	fl4.flowi4_oif = addr->bound_dev_if;
 	rt = ip_route_output_key(addr->net, &fl4);
-	if (IS_ERR(rt)) {
-		ret = PTR_ERR(rt);
-		goto out;
-	}
+	ret = PTR_ERR_OR_ZERO(rt);
+	if (ret)
+		return ret;
+
 	src_in->sin_family = AF_INET;
 	src_in->sin_addr.s_addr = fl4.saddr;
 
@@ -424,8 +425,6 @@ static int addr4_resolve(struct sockaddr_in *src_in,
 
 	*prt = rt;
 	return 0;
-out:
-	return ret;
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -449,12 +448,7 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 		return ret;
 
 	rt = (struct rt6_info *)dst;
-	if (ipv6_addr_any(&fl6.saddr)) {
-		ret = ipv6_dev_get_saddr(addr->net, ip6_dst_idev(dst)->dev,
-					 &fl6.daddr, 0, &fl6.saddr);
-		if (ret)
-			goto put;
-
+	if (ipv6_addr_any(&src_in->sin6_addr)) {
 		src_in->sin6_family = AF_INET6;
 		src_in->sin6_addr = fl6.saddr;
 	}
@@ -471,9 +465,6 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 
 	*pdst = dst;
 	return 0;
-put:
-	dst_release(dst);
-	return ret;
 }
 #else
 static int addr6_resolve(struct sockaddr_in6 *src_in,
@@ -518,6 +509,11 @@ static int addr_resolve(struct sockaddr *src_in,
 	struct dst_entry *dst;
 	int ret;
 
+	if (!addr->net) {
+		pr_warn_ratelimited("%s: missing namespace\n", __func__);
+		return -EINVAL;
+	}
+
 	if (src_in->sa_family == AF_INET) {
 		struct rtable *rt = NULL;
 		const struct sockaddr_in *dst_in4 =
@@ -531,8 +527,12 @@ static int addr_resolve(struct sockaddr *src_in,
 		if (resolve_neigh)
 			ret = addr_resolve_neigh(&rt->dst, dst_in, addr, seq);
 
-		ndev = rt->dst.dev;
-		dev_hold(ndev);
+		if (addr->bound_dev_if) {
+			ndev = dev_get_by_index(addr->net, addr->bound_dev_if);
+		} else {
+			ndev = rt->dst.dev;
+			dev_hold(ndev);
+		}
 
 		ip_rt_put(rt);
 	} else {
@@ -548,14 +548,27 @@ static int addr_resolve(struct sockaddr *src_in,
 		if (resolve_neigh)
 			ret = addr_resolve_neigh(dst, dst_in, addr, seq);
 
-		ndev = dst->dev;
-		dev_hold(ndev);
+		if (addr->bound_dev_if) {
+			ndev = dev_get_by_index(addr->net, addr->bound_dev_if);
+		} else {
+			ndev = dst->dev;
+			dev_hold(ndev);
+		}
 
 		dst_release(dst);
 	}
 
-	addr->bound_dev_if = ndev->ifindex;
-	addr->net = dev_net(ndev);
+	if (ndev->flags & IFF_LOOPBACK) {
+		ret = rdma_translate_ip(dst_in, addr, NULL);
+		/*
+		 * Put the loopback device and get the translated
+		 * device instead.
+		 */
+		dev_put(ndev);
+		ndev = dev_get_by_index(addr->net, addr->bound_dev_if);
+	} else {
+		addr->bound_dev_if = ndev->ifindex;
+	}
 	dev_put(ndev);
 
 	return ret;

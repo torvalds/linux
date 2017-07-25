@@ -26,7 +26,7 @@ static int nfit_handle_mce(struct notifier_block *nb, unsigned long val,
 	struct nfit_spa *nfit_spa;
 
 	/* We only care about memory errors */
-	if (!(mce->status & MCACOD))
+	if (!mce_is_memory_error(mce))
 		return NOTIFY_DONE;
 
 	/*
@@ -79,7 +79,7 @@ static int nfit_handle_mce(struct notifier_block *nb, unsigned long val,
 			 * already in progress, just let that be the last
 			 * authoritative one
 			 */
-			acpi_nfit_ars_rescan(acpi_desc);
+			acpi_nfit_ars_rescan(acpi_desc, 0);
 		}
 		break;
 	}

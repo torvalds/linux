@@ -138,6 +138,9 @@
 #ifndef cpu_has_mips16
 #define cpu_has_mips16		(cpu_data[0].ases & MIPS_ASE_MIPS16)
 #endif
+#ifndef cpu_has_mips16e2
+#define cpu_has_mips16e2	(cpu_data[0].ases & MIPS_ASE_MIPS16E2)
+#endif
 #ifndef cpu_has_mdmx
 #define cpu_has_mdmx		(cpu_data[0].ases & MIPS_ASE_MDMX)
 #endif
@@ -485,6 +488,47 @@
 
 #ifndef cpu_has_perf
 # define cpu_has_perf		(cpu_data[0].options & MIPS_CPU_PERF)
+#endif
+
+#if defined(CONFIG_SMP) && defined(__mips_isa_rev) && (__mips_isa_rev >= 6)
+/*
+ * Some systems share FTLB RAMs between threads within a core (siblings in
+ * kernel parlance). This means that FTLB entries may become invalid at almost
+ * any point when an entry is evicted due to a sibling thread writing an entry
+ * to the shared FTLB RAM.
+ *
+ * This is only relevant to SMP systems, and the only systems that exhibit this
+ * property implement MIPSr6 or higher so we constrain support for this to
+ * kernels that will run on such systems.
+ */
+# ifndef cpu_has_shared_ftlb_ram
+#  define cpu_has_shared_ftlb_ram \
+	(current_cpu_data.options & MIPS_CPU_SHARED_FTLB_RAM)
+# endif
+
+/*
+ * Some systems take this a step further & share FTLB entries between siblings.
+ * This is implemented as TLB writes happening as usual, but if an entry
+ * written by a sibling exists in the shared FTLB for a translation which would
+ * otherwise cause a TLB refill exception then the CPU will use the entry
+ * written by its sibling rather than triggering a refill & writing a matching
+ * TLB entry for itself.
+ *
+ * This is naturally only valid if a TLB entry is known to be suitable for use
+ * on all siblings in a CPU, and so it only takes effect when MMIDs are in use
+ * rather than ASIDs or when a TLB entry is marked global.
+ */
+# ifndef cpu_has_shared_ftlb_entries
+#  define cpu_has_shared_ftlb_entries \
+	(current_cpu_data.options & MIPS_CPU_SHARED_FTLB_ENTRIES)
+# endif
+#endif /* SMP && __mips_isa_rev >= 6 */
+
+#ifndef cpu_has_shared_ftlb_ram
+# define cpu_has_shared_ftlb_ram 0
+#endif
+#ifndef cpu_has_shared_ftlb_entries
+# define cpu_has_shared_ftlb_entries 0
 #endif
 
 /*

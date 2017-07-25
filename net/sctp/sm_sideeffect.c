@@ -647,7 +647,7 @@ static void sctp_cmd_assoc_failed(sctp_cmd_seq_t *commands,
 static int sctp_cmd_process_init(sctp_cmd_seq_t *commands,
 				 struct sctp_association *asoc,
 				 struct sctp_chunk *chunk,
-				 sctp_init_chunk_t *peer_init,
+				 struct sctp_init_chunk *peer_init,
 				 gfp_t gfp)
 {
 	int error;
@@ -818,6 +818,28 @@ static void sctp_cmd_setup_t2(sctp_cmd_seq_t *cmds,
 	asoc->timeouts[SCTP_EVENT_TIMEOUT_T2_SHUTDOWN] = t->rto;
 }
 
+static void sctp_cmd_assoc_update(sctp_cmd_seq_t *cmds,
+				  struct sctp_association *asoc,
+				  struct sctp_association *new)
+{
+	struct net *net = sock_net(asoc->base.sk);
+	struct sctp_chunk *abort;
+
+	if (!sctp_assoc_update(asoc, new))
+		return;
+
+	abort = sctp_make_abort(asoc, NULL, sizeof(sctp_errhdr_t));
+	if (abort) {
+		sctp_init_cause(abort, SCTP_ERROR_RSRC_LOW, 0);
+		sctp_add_cmd_sf(cmds, SCTP_CMD_REPLY, SCTP_CHUNK(abort));
+	}
+	sctp_add_cmd_sf(cmds, SCTP_CMD_SET_SK_ERR, SCTP_ERROR(ECONNABORTED));
+	sctp_add_cmd_sf(cmds, SCTP_CMD_ASSOC_FAILED,
+			SCTP_PERR(SCTP_ERROR_RSRC_LOW));
+	SCTP_INC_STATS(net, SCTP_MIB_ABORTEDS);
+	SCTP_DEC_STATS(net, SCTP_MIB_CURRESTAB);
+}
+
 /* Helper function to change the state of an association. */
 static void sctp_cmd_new_state(sctp_cmd_seq_t *cmds,
 			       struct sctp_association *asoc,
@@ -933,9 +955,10 @@ static void sctp_cmd_process_operr(sctp_cmd_seq_t *cmds,
 		switch (err_hdr->cause) {
 		case SCTP_ERROR_UNKNOWN_CHUNK:
 		{
-			sctp_chunkhdr_t *unk_chunk_hdr;
+			struct sctp_chunkhdr *unk_chunk_hdr;
 
-			unk_chunk_hdr = (sctp_chunkhdr_t *)err_hdr->variable;
+			unk_chunk_hdr = (struct sctp_chunkhdr *)
+							err_hdr->variable;
 			switch (unk_chunk_hdr->type) {
 			/* ADDIP 4.1 A9) If the peer responds to an ASCONF with
 			 * an ERROR chunk reporting that it did not recognized
@@ -1294,7 +1317,7 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 			break;
 
 		case SCTP_CMD_UPDATE_ASSOC:
-		       sctp_assoc_update(asoc, cmd->obj.asoc);
+		       sctp_cmd_assoc_update(commands, asoc, cmd->obj.asoc);
 		       break;
 
 		case SCTP_CMD_PURGE_OUTQUEUE:
@@ -1748,6 +1771,10 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 			break;
 
 		case SCTP_CMD_SET_ASOC:
+			if (asoc && local_cork) {
+				sctp_outq_uncork(&asoc->outqueue, gfp);
+				local_cork = 0;
+			}
 			asoc = cmd->obj.asoc;
 			break;
 

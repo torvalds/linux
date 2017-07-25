@@ -9,7 +9,7 @@ the GPMC controller with an "ethernet" name.
 
 All timing relevant properties as well as generic GPMC child properties are
 explained in a separate documents. Please refer to
-Documentation/devicetree/bindings/bus/ti-gpmc.txt
+Documentation/devicetree/bindings/memory-controllers/omap-gpmc.txt
 
 For the properties relevant to the ethernet controller connected to the GPMC
 refer to the binding documentation of the device. For example, the documentation
@@ -43,7 +43,7 @@ Required properties:
 
 Optional properties:
 - gpmc,XXX		Additional GPMC timings and settings parameters. See
-			Documentation/devicetree/bindings/bus/ti-gpmc.txt
+			Documentation/devicetree/bindings/memory-controllers/omap-gpmc.txt
 
 Example:
 

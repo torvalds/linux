@@ -28,11 +28,11 @@
 
 #define MYDRVNAME "visorchannel"
 
-#define SPAR_CONSOLEVIDEO_CHANNEL_PROTOCOL_GUID \
+#define VISOR_CONSOLEVIDEO_CHANNEL_GUID \
 	UUID_LE(0x3cd6e705, 0xd6a2, 0x4aa5, \
 		0xad, 0x5c, 0x7b, 0x8, 0x88, 0x9d, 0xff, 0xe2)
 
-static const uuid_le spar_video_guid = SPAR_CONSOLEVIDEO_CHANNEL_PROTOCOL_GUID;
+static const uuid_le visor_video_guid = VISOR_CONSOLEVIDEO_CHANNEL_GUID;
 
 struct visorchannel {
 	u64 physaddr;
@@ -415,7 +415,7 @@ visorchannel_create_guts(u64 physaddr, unsigned long channel_bytes,
 	 * release later on.
 	 */
 	channel->requested = request_mem_region(physaddr, size, MYDRVNAME);
-	if (!channel->requested && uuid_le_cmp(guid, spar_video_guid))
+	if (!channel->requested && uuid_le_cmp(guid, visor_video_guid))
 		/* we only care about errors if this is not the video channel */
 		goto err_destroy_channel;
 
@@ -445,7 +445,7 @@ visorchannel_create_guts(u64 physaddr, unsigned long channel_bytes,
 	channel->mapped = NULL;
 	channel->requested = request_mem_region(channel->physaddr,
 						channel_bytes, MYDRVNAME);
-	if (!channel->requested && uuid_le_cmp(guid, spar_video_guid))
+	if (!channel->requested && uuid_le_cmp(guid, visor_video_guid))
 		/* we only care about errors if this is not the video channel */
 		goto err_destroy_channel;
 

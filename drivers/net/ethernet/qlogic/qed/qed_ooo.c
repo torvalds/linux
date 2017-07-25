@@ -99,7 +99,7 @@ void qed_ooo_save_history_entry(struct qed_hwfn *p_hwfn,
 	p_history->head_idx++;
 }
 
-struct qed_ooo_info *qed_ooo_alloc(struct qed_hwfn *p_hwfn)
+int qed_ooo_alloc(struct qed_hwfn *p_hwfn)
 {
 	u16 max_num_archipelagos = 0, cid_base;
 	struct qed_ooo_info *p_ooo_info;
@@ -109,7 +109,7 @@ struct qed_ooo_info *qed_ooo_alloc(struct qed_hwfn *p_hwfn)
 	if (p_hwfn->hw_info.personality != QED_PCI_ISCSI) {
 		DP_NOTICE(p_hwfn,
 			  "Failed to allocate qed_ooo_info: unknown personality\n");
-		return NULL;
+		return -EINVAL;
 	}
 
 	max_num_archipelagos = p_hwfn->pf_params.iscsi_pf_params.num_cons;
@@ -119,12 +119,12 @@ struct qed_ooo_info *qed_ooo_alloc(struct qed_hwfn *p_hwfn)
 	if (!max_num_archipelagos) {
 		DP_NOTICE(p_hwfn,
 			  "Failed to allocate qed_ooo_info: unknown amount of connections\n");
-		return NULL;
+		return -EINVAL;
 	}
 
 	p_ooo_info = kzalloc(sizeof(*p_ooo_info), GFP_KERNEL);
 	if (!p_ooo_info)
-		return NULL;
+		return -ENOMEM;
 
 	p_ooo_info->cid_base = cid_base;
 	p_ooo_info->max_num_archipelagos = max_num_archipelagos;
@@ -164,7 +164,8 @@ struct qed_ooo_info *qed_ooo_alloc(struct qed_hwfn *p_hwfn)
 
 	p_ooo_info->ooo_history.num_of_cqes = QED_MAX_NUM_OOO_HISTORY_ENTRIES;
 
-	return p_ooo_info;
+	p_hwfn->p_ooo_info = p_ooo_info;
+	return 0;
 
 no_history_mem:
 	kfree(p_ooo_info->p_archipelagos_mem);
@@ -172,7 +173,7 @@ no_archipelagos_mem:
 	kfree(p_ooo_info->p_isles_mem);
 no_isles_mem:
 	kfree(p_ooo_info);
-	return NULL;
+	return -ENOMEM;
 }
 
 void qed_ooo_release_connection_isles(struct qed_hwfn *p_hwfn,
@@ -249,18 +250,22 @@ void qed_ooo_release_all_isles(struct qed_hwfn *p_hwfn,
 				      &p_ooo_info->free_buffers_list);
 }
 
-void qed_ooo_setup(struct qed_hwfn *p_hwfn, struct qed_ooo_info *p_ooo_info)
+void qed_ooo_setup(struct qed_hwfn *p_hwfn)
 {
-	qed_ooo_release_all_isles(p_hwfn, p_ooo_info);
-	memset(p_ooo_info->ooo_history.p_cqes, 0,
-	       p_ooo_info->ooo_history.num_of_cqes *
+	qed_ooo_release_all_isles(p_hwfn, p_hwfn->p_ooo_info);
+	memset(p_hwfn->p_ooo_info->ooo_history.p_cqes, 0,
+	       p_hwfn->p_ooo_info->ooo_history.num_of_cqes *
 	       sizeof(struct ooo_opaque));
-	p_ooo_info->ooo_history.head_idx = 0;
+	p_hwfn->p_ooo_info->ooo_history.head_idx = 0;
 }
 
-void qed_ooo_free(struct qed_hwfn *p_hwfn, struct qed_ooo_info *p_ooo_info)
+void qed_ooo_free(struct qed_hwfn *p_hwfn)
 {
+	struct qed_ooo_info *p_ooo_info  = p_hwfn->p_ooo_info;
 	struct qed_ooo_buffer *p_buffer;
+
+	if (!p_ooo_info)
+		return;
 
 	qed_ooo_release_all_isles(p_hwfn, p_ooo_info);
 	while (!list_empty(&p_ooo_info->free_buffers_list)) {
@@ -282,6 +287,7 @@ void qed_ooo_free(struct qed_hwfn *p_hwfn, struct qed_ooo_info *p_ooo_info)
 	kfree(p_ooo_info->p_archipelagos_mem);
 	kfree(p_ooo_info->ooo_history.p_cqes);
 	kfree(p_ooo_info);
+	p_hwfn->p_ooo_info = NULL;
 }
 
 void qed_ooo_put_free_buffer(struct qed_hwfn *p_hwfn,

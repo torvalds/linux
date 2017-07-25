@@ -5,6 +5,7 @@ config DRM_MSM
 	depends on ARCH_QCOM || (ARM && COMPILE_TEST)
 	depends on OF && COMMON_CLK
 	depends on MMU
+	select QCOM_MDT_LOADER
 	select REGULATOR
 	select DRM_KMS_HELPER
 	select DRM_PANEL
@@ -13,6 +14,7 @@ config DRM_MSM
 	select QCOM_SCM
 	select SND_SOC_HDMI_CODEC if SND_SOC
 	select SYNC_FILE
+	select PM_OPP
 	default y
 	help
 	  DRM/KMS driver for MSM/snapdragon.

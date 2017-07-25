@@ -19,6 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of_graph.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
@@ -30,14 +31,14 @@
 #include <media/v4l2-dev.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-event.h>
-#include <media/v4l2-of.h>
+#include <media/v4l2-fwnode.h>
 #include <media/videobuf2-dma-contig.h>
 #include <media/v4l2-image-sizes.h>
 
 #include "atmel-isi.h"
 
-#define MAX_SUPPORT_WIDTH		2048
-#define MAX_SUPPORT_HEIGHT		2048
+#define MAX_SUPPORT_WIDTH		2048U
+#define MAX_SUPPORT_HEIGHT		2048U
 #define MIN_FRAME_RATE			15
 #define FRAME_INTERVAL_MILLI_SEC	(1000 / MIN_FRAME_RATE)
 
@@ -424,14 +425,14 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 	struct frame_buffer *buf, *node;
 	int ret;
 
+	pm_runtime_get_sync(isi->dev);
+
 	/* Enable stream on the sub device */
 	ret = v4l2_subdev_call(isi->entity.subdev, video, s_stream, 1);
 	if (ret && ret != -ENOIOCTLCMD) {
 		dev_err(isi->dev, "stream on failed in subdev\n");
 		goto err_start_stream;
 	}
-
-	pm_runtime_get_sync(isi->dev);
 
 	/* Reset ISI */
 	ret = atmel_isi_wait_status(isi, WAIT_ISI_RESET);
@@ -455,10 +456,11 @@ static int start_streaming(struct vb2_queue *vq, unsigned int count)
 	return 0;
 
 err_reset:
-	pm_runtime_put(isi->dev);
 	v4l2_subdev_call(isi->entity.subdev, video, s_stream, 0);
 
 err_start_stream:
+	pm_runtime_put(isi->dev);
+
 	spin_lock_irq(&isi->irqlock);
 	isi->active = NULL;
 	/* Release all active buffers */
@@ -566,20 +568,15 @@ static int isi_try_fmt(struct atmel_isi *isi, struct v4l2_format *f,
 	};
 	int ret;
 
-	if (f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
 	isi_fmt = find_format_by_fourcc(isi, pixfmt->pixelformat);
 	if (!isi_fmt) {
 		isi_fmt = isi->user_formats[isi->num_user_formats - 1];
 		pixfmt->pixelformat = isi_fmt->fourcc;
 	}
 
-	/* Limit to Atmel ISC hardware capabilities */
-	if (pixfmt->width > MAX_SUPPORT_WIDTH)
-		pixfmt->width = MAX_SUPPORT_WIDTH;
-	if (pixfmt->height > MAX_SUPPORT_HEIGHT)
-		pixfmt->height = MAX_SUPPORT_HEIGHT;
+	/* Limit to Atmel ISI hardware capabilities */
+	pixfmt->width = clamp(pixfmt->width, 0U, MAX_SUPPORT_WIDTH);
+	pixfmt->height = clamp(pixfmt->height, 0U, MAX_SUPPORT_HEIGHT);
 
 	v4l2_fill_mbus_format(&format.format, pixfmt, isi_fmt->mbus_code);
 	ret = v4l2_subdev_call(isi->entity.subdev, pad, set_fmt,
@@ -801,7 +798,7 @@ static int atmel_isi_parse_dt(struct atmel_isi *isi,
 			struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	struct v4l2_of_endpoint ep;
+	struct v4l2_fwnode_endpoint ep;
 	int err;
 
 	/* Default settings for ISI */
@@ -814,7 +811,7 @@ static int atmel_isi_parse_dt(struct atmel_isi *isi,
 		return -EINVAL;
 	}
 
-	err = v4l2_of_parse_endpoint(np, &ep);
+	err = v4l2_fwnode_endpoint_parse(of_fwnode_handle(np), &ep);
 	of_node_put(np);
 	if (err) {
 		dev_err(&pdev->dev, "Could not parse the endpoint\n");
@@ -1058,7 +1055,7 @@ static int isi_graph_notify_complete(struct v4l2_async_notifier *notifier)
 	struct atmel_isi *isi = notifier_to_isi(notifier);
 	int ret;
 
-	isi->vdev->ctrl_handler	= isi->entity.subdev->ctrl_handler;
+	isi->vdev->ctrl_handler = isi->entity.subdev->ctrl_handler;
 	ret = isi_formats_init(isi);
 	if (ret) {
 		dev_err(isi->dev, "No supported mediabus format found\n");
@@ -1126,8 +1123,8 @@ static int isi_graph_parse(struct atmel_isi *isi, struct device_node *node)
 
 		/* Remote node to connect */
 		isi->entity.node = remote;
-		isi->entity.asd.match_type = V4L2_ASYNC_MATCH_OF;
-		isi->entity.asd.match.of.node = remote;
+		isi->entity.asd.match_type = V4L2_ASYNC_MATCH_FWNODE;
+		isi->entity.asd.match.fwnode.fwnode = of_fwnode_handle(remote);
 		return 0;
 	}
 }

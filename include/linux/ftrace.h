@@ -119,6 +119,8 @@ ftrace_func_t ftrace_ops_get_func(struct ftrace_ops *ops);
  *            for any of the functions that this ops will be registered for, then
  *            this ops will fail to register or set_filter_ip.
  * PID     - Is affected by set_ftrace_pid (allows filtering on those pids)
+ * RCU     - Set when the ops can only be called when RCU is watching.
+ * TRACE_ARRAY - The ops->private points to a trace_array descriptor.
  */
 enum {
 	FTRACE_OPS_FL_ENABLED			= 1 << 0,
@@ -137,13 +139,14 @@ enum {
 	FTRACE_OPS_FL_IPMODIFY			= 1 << 13,
 	FTRACE_OPS_FL_PID			= 1 << 14,
 	FTRACE_OPS_FL_RCU			= 1 << 15,
+	FTRACE_OPS_FL_TRACE_ARRAY		= 1 << 16,
 };
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 /* The hash used to know what functions callbacks trace */
 struct ftrace_ops_hash {
-	struct ftrace_hash		*notrace_hash;
-	struct ftrace_hash		*filter_hash;
+	struct ftrace_hash __rcu	*notrace_hash;
+	struct ftrace_hash __rcu	*filter_hash;
 	struct mutex			regex_lock;
 };
 
@@ -165,7 +168,7 @@ static inline void ftrace_free_init_mem(void) { }
  */
 struct ftrace_ops {
 	ftrace_func_t			func;
-	struct ftrace_ops		*next;
+	struct ftrace_ops __rcu		*next;
 	unsigned long			flags;
 	void				*private;
 	ftrace_func_t			saved_func;
@@ -445,7 +448,8 @@ enum {
 	FTRACE_ITER_PRINTALL	= (1 << 2),
 	FTRACE_ITER_DO_PROBES	= (1 << 3),
 	FTRACE_ITER_PROBE	= (1 << 4),
-	FTRACE_ITER_ENABLED	= (1 << 5),
+	FTRACE_ITER_MOD		= (1 << 5),
+	FTRACE_ITER_ENABLED	= (1 << 6),
 };
 
 void arch_ftrace_update_code(int command);

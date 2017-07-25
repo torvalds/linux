@@ -111,14 +111,18 @@ static inline bool irq_is_pending(struct vgic_irq *irq)
  * registers regardless of the hardware backed GIC used.
  */
 struct vgic_vmcr {
-	u32	ctlr;
+	u32	grpen0;
+	u32	grpen1;
+
+	u32	ackctl;
+	u32	fiqen;
+	u32	cbpr;
+	u32	eoim;
+
 	u32	abpr;
 	u32	bpr;
 	u32	pmr;  /* Priority mask field in the GICC_PMR and
 		       * ICC_PMR_EL1 priority field format */
-	/* Below member variable are valid only for GICv3 */
-	u32	grpen0;
-	u32	grpen1;
 };
 
 struct vgic_reg_attr {

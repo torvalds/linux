@@ -50,7 +50,9 @@ msm_gem_unmap_vma(struct msm_gem_address_space *aspace,
 		aspace->mmu->funcs->unmap(aspace->mmu, vma->iova, sgt, size);
 	}
 
+	spin_lock(&aspace->lock);
 	drm_mm_remove_node(&vma->node);
+	spin_unlock(&aspace->lock);
 
 	vma->iova = 0;
 
@@ -63,10 +65,15 @@ msm_gem_map_vma(struct msm_gem_address_space *aspace,
 {
 	int ret;
 
-	if (WARN_ON(drm_mm_node_allocated(&vma->node)))
+	spin_lock(&aspace->lock);
+	if (WARN_ON(drm_mm_node_allocated(&vma->node))) {
+		spin_unlock(&aspace->lock);
 		return 0;
+	}
 
 	ret = drm_mm_insert_node(&aspace->mm, &vma->node, npages);
+	spin_unlock(&aspace->lock);
+
 	if (ret)
 		return ret;
 
@@ -94,6 +101,7 @@ msm_gem_address_space_create(struct device *dev, struct iommu_domain *domain,
 	if (!aspace)
 		return ERR_PTR(-ENOMEM);
 
+	spin_lock_init(&aspace->lock);
 	aspace->name = name;
 	aspace->mmu = msm_iommu_new(dev, domain);
 

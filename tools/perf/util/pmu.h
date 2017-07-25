@@ -2,6 +2,7 @@
 #define __PMU_H
 
 #include <linux/bitmap.h>
+#include <linux/compiler.h>
 #include <linux/perf_event.h>
 #include <stdbool.h>
 #include "evsel.h"
@@ -83,8 +84,7 @@ void print_pmu_events(const char *event_glob, bool name_only, bool quiet,
 		      bool long_desc, bool details_flag);
 bool pmu_have_event(const char *pname, const char *name);
 
-int perf_pmu__scan_file(struct perf_pmu *pmu, const char *name, const char *fmt,
-			...) __attribute__((format(scanf, 3, 4)));
+int perf_pmu__scan_file(struct perf_pmu *pmu, const char *name, const char *fmt, ...) __scanf(3, 4);
 
 int perf_pmu__test(void);
 

@@ -25,7 +25,7 @@
  *
  *
  *  libata documentation is available via 'make {ps|pdf}docs',
- *  as Documentation/DocBook/libata.*
+ *  as Documentation/driver-api/libata.rst
  *
  *  Hardware documentation available from http://www.t13.org/ and
  *  http://www.sata-io.org/
@@ -1485,70 +1485,6 @@ static const char *ata_err_string(unsigned int err_mask)
 	if (err_mask & AC_ERR_DEV)
 		return "device error";
 	return "unknown error";
-}
-
-/**
- *	ata_read_log_page - read a specific log page
- *	@dev: target device
- *	@log: log to read
- *	@page: page to read
- *	@buf: buffer to store read page
- *	@sectors: number of sectors to read
- *
- *	Read log page using READ_LOG_EXT command.
- *
- *	LOCKING:
- *	Kernel thread context (may sleep).
- *
- *	RETURNS:
- *	0 on success, AC_ERR_* mask otherwise.
- */
-unsigned int ata_read_log_page(struct ata_device *dev, u8 log,
-			       u8 page, void *buf, unsigned int sectors)
-{
-	unsigned long ap_flags = dev->link->ap->flags;
-	struct ata_taskfile tf;
-	unsigned int err_mask;
-	bool dma = false;
-
-	DPRINTK("read log page - log 0x%x, page 0x%x\n", log, page);
-
-	/*
-	 * Return error without actually issuing the command on controllers
-	 * which e.g. lockup on a read log page.
-	 */
-	if (ap_flags & ATA_FLAG_NO_LOG_PAGE)
-		return AC_ERR_DEV;
-
-retry:
-	ata_tf_init(dev, &tf);
-	if (dev->dma_mode && ata_id_has_read_log_dma_ext(dev->id) &&
-	    !(dev->horkage & ATA_HORKAGE_NO_NCQ_LOG)) {
-		tf.command = ATA_CMD_READ_LOG_DMA_EXT;
-		tf.protocol = ATA_PROT_DMA;
-		dma = true;
-	} else {
-		tf.command = ATA_CMD_READ_LOG_EXT;
-		tf.protocol = ATA_PROT_PIO;
-		dma = false;
-	}
-	tf.lbal = log;
-	tf.lbam = page;
-	tf.nsect = sectors;
-	tf.hob_nsect = sectors >> 8;
-	tf.flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_LBA48 | ATA_TFLAG_DEVICE;
-
-	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_FROM_DEVICE,
-				     buf, sectors * ATA_SECT_SIZE, 0);
-
-	if (err_mask && dma) {
-		dev->horkage |= ATA_HORKAGE_NO_NCQ_LOG;
-		ata_dev_warn(dev, "READ LOG DMA EXT failed, trying unqueued\n");
-		goto retry;
-	}
-
-	DPRINTK("EXIT, err_mask=%x\n", err_mask);
-	return err_mask;
 }
 
 /**

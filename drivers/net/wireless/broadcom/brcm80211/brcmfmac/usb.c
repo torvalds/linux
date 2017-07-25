@@ -1159,17 +1159,18 @@ fail:
 	return ret;
 }
 
-static void brcmf_usb_probe_phase2(struct device *dev,
+static void brcmf_usb_probe_phase2(struct device *dev, int ret,
 				   const struct firmware *fw,
 				   void *nvram, u32 nvlen)
 {
 	struct brcmf_bus *bus = dev_get_drvdata(dev);
-	struct brcmf_usbdev_info *devinfo;
-	int ret;
+	struct brcmf_usbdev_info *devinfo = bus->bus_priv.usb->devinfo;
+
+	if (ret)
+		goto error;
 
 	brcmf_dbg(USB, "Start fw downloading\n");
 
-	devinfo = bus->bus_priv.usb->devinfo;
 	ret = check_file(fw->data);
 	if (ret < 0) {
 		brcmf_err("invalid firmware\n");

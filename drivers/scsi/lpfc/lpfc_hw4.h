@@ -197,6 +197,7 @@ struct lpfc_sli_intf {
 
 /* Delay Multiplier constant */
 #define LPFC_DMULT_CONST       651042
+#define LPFC_DMULT_MAX         1023
 
 /* Configuration of Interrupts / sec for entire HBA port */
 #define LPFC_MIN_IMAX          5000
@@ -656,6 +657,15 @@ struct lpfc_register {
 
 #define LPFC_CTL_PORT_ER1_OFFSET	0x40C
 #define LPFC_CTL_PORT_ER2_OFFSET	0x410
+
+#define LPFC_CTL_PORT_EQ_DELAY_OFFSET	0x418
+#define lpfc_sliport_eqdelay_delay_SHIFT 16
+#define lpfc_sliport_eqdelay_delay_MASK	0xffff
+#define lpfc_sliport_eqdelay_delay_WORD	word0
+#define lpfc_sliport_eqdelay_id_SHIFT	0
+#define lpfc_sliport_eqdelay_id_MASK	0xfff
+#define lpfc_sliport_eqdelay_id_WORD	word0
+#define LPFC_SEC_TO_USEC		1000000
 
 /* The following Registers apply to SLI4 if_type 0 UCNAs. They typically
  * reside in BAR 2.
@@ -1356,6 +1366,7 @@ struct lpfc_mbx_wq_destroy {
 
 #define LPFC_HDR_BUF_SIZE 128
 #define LPFC_DATA_BUF_SIZE 2048
+#define LPFC_NVMET_DATA_BUF_SIZE 128
 struct rq_context {
 	uint32_t word0;
 #define lpfc_rq_context_rqe_count_SHIFT	16	/* Version 0 Only */
@@ -3257,6 +3268,10 @@ struct lpfc_sli4_parameters {
 #define cfg_xib_SHIFT				4
 #define cfg_xib_MASK				0x00000001
 #define cfg_xib_WORD				word19
+#define cfg_eqdr_SHIFT				8
+#define cfg_eqdr_MASK				0x00000001
+#define cfg_eqdr_WORD				word19
+#define LPFC_NODELAY_MAX_IO		32
 };
 
 #define LPFC_SET_UE_RECOVERY		0x10
@@ -4420,6 +4435,19 @@ struct fcp_treceive64_wqe {
 };
 #define TXRDY_PAYLOAD_LEN      12
 
+#define CMD_SEND_FRAME	0xE1
+
+struct send_frame_wqe {
+	struct ulp_bde64 bde;          /* words 0-2 */
+	uint32_t frame_len;            /* word 3 */
+	uint32_t fc_hdr_wd0;           /* word 4 */
+	uint32_t fc_hdr_wd1;           /* word 5 */
+	struct wqe_common wqe_com;     /* words 6-11 */
+	uint32_t fc_hdr_wd2;           /* word 12 */
+	uint32_t fc_hdr_wd3;           /* word 13 */
+	uint32_t fc_hdr_wd4;           /* word 14 */
+	uint32_t fc_hdr_wd5;           /* word 15 */
+};
 
 union lpfc_wqe {
 	uint32_t words[16];
@@ -4438,7 +4466,7 @@ union lpfc_wqe {
 	struct fcp_trsp64_wqe fcp_trsp;
 	struct fcp_tsend64_wqe fcp_tsend;
 	struct fcp_treceive64_wqe fcp_treceive;
-
+	struct send_frame_wqe send_frame;
 };
 
 union lpfc_wqe128 {

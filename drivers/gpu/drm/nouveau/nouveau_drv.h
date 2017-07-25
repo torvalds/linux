@@ -43,7 +43,7 @@
 #include <nvif/device.h>
 #include <nvif/ioctl.h>
 
-#include <drmP.h>
+#include <drm/drmP.h>
 
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
@@ -107,8 +107,6 @@ nouveau_cli(struct drm_file *fpriv)
 
 #include <nvif/object.h>
 #include <nvif/device.h>
-
-extern int nouveau_runtime_pm;
 
 struct nouveau_drm {
 	struct nouveau_cli client;
@@ -195,6 +193,7 @@ nouveau_drm(struct drm_device *dev)
 
 int nouveau_pmops_suspend(struct device *);
 int nouveau_pmops_resume(struct device *);
+bool nouveau_pmops_runtime(void);
 
 #include <nvkm/core/tegra.h>
 

@@ -432,6 +432,7 @@ static struct bpf_map *trie_alloc(union bpf_attr *attr)
 	trie->map.key_size = attr->key_size;
 	trie->map.value_size = attr->value_size;
 	trie->map.max_entries = attr->max_entries;
+	trie->map.map_flags = attr->map_flags;
 	trie->data_size = attr->key_size -
 			  offsetof(struct bpf_lpm_trie_key, data);
 	trie->max_prefixlen = trie->data_size * 8;

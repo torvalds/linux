@@ -2070,7 +2070,7 @@ dump_phys_mem(void *virt_addr, u32 num_bytes)
 	struct page  **pages;
 	u8            *kmapped_virt_ptr;
 
-	/* Align virtAddr and endVirtAddr to 16 byte boundaries. */
+	/* Align virt_addr and end_virt_addr to 16 byte boundaries. */
 
 	virt_addr = (void *)((unsigned long)virt_addr & ~0x0fuL);
 	end_virt_addr = (void *)(((unsigned long)end_virt_addr + 15uL) &
@@ -3276,12 +3276,12 @@ vchiq_dump_service_use_state(VCHIQ_STATE_T *state)
 		if (only_nonzero && !service_ptr->service_use_count)
 			continue;
 
-		if (service_ptr->srvstate != VCHIQ_SRVSTATE_FREE) {
-			service_data[j].fourcc = service_ptr->base.fourcc;
-			service_data[j].clientid = service_ptr->client_id;
-			service_data[j++].use_count = service_ptr->
-							service_use_count;
-		}
+		if (service_ptr->srvstate == VCHIQ_SRVSTATE_FREE)
+			continue;
+
+		service_data[j].fourcc = service_ptr->base.fourcc;
+		service_data[j].clientid = service_ptr->client_id;
+		service_data[j++].use_count = service_ptr->service_use_count;
 	}
 
 	read_unlock_bh(&arm_state->susp_res_lock);
@@ -3391,7 +3391,6 @@ static int vchiq_probe(struct platform_device *pdev)
 	struct device_node *fw_node;
 	struct rpi_firmware *fw;
 	int err;
-	void *ptr_err;
 
 	fw_node = of_parse_phandle(pdev->dev.of_node, "firmware", 0);
 	if (!fw_node) {
@@ -3427,14 +3426,14 @@ static int vchiq_probe(struct platform_device *pdev)
 
 	/* create sysfs entries */
 	vchiq_class = class_create(THIS_MODULE, DEVICE_NAME);
-	ptr_err = vchiq_class;
-	if (IS_ERR(ptr_err))
+	err = PTR_ERR(vchiq_class);
+	if (IS_ERR(vchiq_class))
 		goto failed_class_create;
 
 	vchiq_dev = device_create(vchiq_class, NULL,
 		vchiq_devid, NULL, "vchiq");
-	ptr_err = vchiq_dev;
-	if (IS_ERR(ptr_err))
+	err = PTR_ERR(vchiq_dev);
+	if (IS_ERR(vchiq_dev))
 		goto failed_device_create;
 
 	/* create debugfs entries */
@@ -3455,7 +3454,6 @@ failed_device_create:
 	class_destroy(vchiq_class);
 failed_class_create:
 	cdev_del(&vchiq_cdev);
-	err = PTR_ERR(ptr_err);
 failed_cdev_add:
 	unregister_chrdev_region(vchiq_devid, 1);
 failed_platform_init:

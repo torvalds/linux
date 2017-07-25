@@ -23,15 +23,14 @@
  *          Alon Levy
  */
 
-
 #include <linux/crc32.h>
-
-#include "qxl_drv.h"
-#include "qxl_object.h"
-#include "drm_crtc_helper.h"
+#include <drm/drm_crtc_helper.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic.h>
+
+#include "qxl_drv.h"
+#include "qxl_object.h"
 
 static bool qxl_head_enabled(struct qxl_head *head)
 {
@@ -575,8 +574,6 @@ static void qxl_cursor_atomic_update(struct drm_plane *plane,
 	if (ret)
 		return;
 
-	cmd = (struct qxl_cursor_cmd *) qxl_release_map(qdev, release);
-
 	if (fb != old_state->fb) {
 		obj = to_qxl_framebuffer(fb)->obj;
 		user_bo = gem_to_qxl_bo(obj);
@@ -614,6 +611,7 @@ static void qxl_cursor_atomic_update(struct drm_plane *plane,
 		qxl_bo_kunmap(cursor_bo);
 		qxl_bo_kunmap(user_bo);
 
+		cmd = (struct qxl_cursor_cmd *) qxl_release_map(qdev, release);
 		cmd->u.set.visible = 1;
 		cmd->u.set.shape = qxl_bo_physical_address(qdev,
 							   cursor_bo, 0);
@@ -624,6 +622,7 @@ static void qxl_cursor_atomic_update(struct drm_plane *plane,
 		if (ret)
 			goto out_free_release;
 
+		cmd = (struct qxl_cursor_cmd *) qxl_release_map(qdev, release);
 		cmd->type = QXL_CURSOR_MOVE;
 	}
 

@@ -261,8 +261,11 @@ void btrfs_print_leaf(struct btrfs_fs_info *fs_info, struct extent_buffer *l)
 		case BTRFS_BLOCK_GROUP_ITEM_KEY:
 			bi = btrfs_item_ptr(l, i,
 					    struct btrfs_block_group_item);
-			pr_info("\t\tblock group used %llu\n",
-			       btrfs_disk_block_group_used(l, bi));
+			pr_info(
+		   "\t\tblock group used %llu chunk_objectid %llu flags %llu\n",
+				btrfs_disk_block_group_used(l, bi),
+				btrfs_disk_block_group_chunk_objectid(l, bi),
+				btrfs_disk_block_group_flags(l, bi));
 			break;
 		case BTRFS_CHUNK_ITEM_KEY:
 			print_chunk(l, btrfs_item_ptr(l, i,

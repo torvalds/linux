@@ -143,6 +143,12 @@ Bridge Helper Reference
 .. kernel-doc:: drivers/gpu/drm/drm_bridge.c
    :export:
 
+Panel-Bridge Helper Reference
+-----------------------------
+
+.. kernel-doc:: drivers/gpu/drm/bridge/panel.c
+   :export:
+
 .. _drm_panel_helper:
 
 Panel Helper Reference

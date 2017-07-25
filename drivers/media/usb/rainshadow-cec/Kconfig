@@ -1,6 +1,7 @@
 config USB_RAINSHADOW_CEC
 	tristate "RainShadow Tech HDMI CEC"
-	depends on USB_ACM && CEC_CORE
+	depends on USB_ACM
+	select CEC_CORE
 	select SERIO
 	select SERIO_SERPORT
 	---help---

@@ -65,7 +65,7 @@ static int nft_immediate_init(const struct nft_ctx *ctx,
 	return 0;
 
 err1:
-	nft_data_uninit(&priv->data, desc.type);
+	nft_data_release(&priv->data, desc.type);
 	return err;
 }
 
@@ -73,7 +73,8 @@ static void nft_immediate_destroy(const struct nft_ctx *ctx,
 				  const struct nft_expr *expr)
 {
 	const struct nft_immediate_expr *priv = nft_expr_priv(expr);
-	return nft_data_uninit(&priv->data, nft_dreg_to_type(priv->dreg));
+
+	return nft_data_release(&priv->data, nft_dreg_to_type(priv->dreg));
 }
 
 static int nft_immediate_dump(struct sk_buff *skb, const struct nft_expr *expr)

@@ -182,22 +182,16 @@ static ssize_t manager_trans_key_type_show(struct omap_overlay_manager *mgr,
 static ssize_t manager_trans_key_type_store(struct omap_overlay_manager *mgr,
 					    const char *buf, size_t size)
 {
-	enum omap_dss_trans_key_type key_type;
 	struct omap_overlay_manager_info info;
 	int r;
 
-	for (key_type = OMAP_DSS_COLOR_KEY_GFX_DST;
-			key_type < ARRAY_SIZE(trans_key_type_str); key_type++) {
-		if (sysfs_streq(buf, trans_key_type_str[key_type]))
-			break;
-	}
-
-	if (key_type == ARRAY_SIZE(trans_key_type_str))
-		return -EINVAL;
+	r = sysfs_match_string(trans_key_type_str, buf);
+	if (r < 0)
+		return r;
 
 	mgr->get_manager_info(mgr, &info);
 
-	info.trans_key_type = key_type;
+	info.trans_key_type = r;
 
 	r = mgr->set_manager_info(mgr, &info);
 	if (r)

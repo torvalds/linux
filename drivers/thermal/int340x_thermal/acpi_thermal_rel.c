@@ -62,8 +62,8 @@ static int acpi_thermal_rel_release(struct inode *inode, struct file *file)
  * acpi_parse_trt - Thermal Relationship Table _TRT for passive cooling
  *
  * @handle: ACPI handle of the device contains _TRT
- * @art_count: the number of valid entries resulted from parsing _TRT
- * @artp: pointer to pointer of array of art entries in parsing result
+ * @trt_count: the number of valid entries resulted from parsing _TRT
+ * @trtp: pointer to pointer of array of _TRT entries in parsing result
  * @create_dev: whether to create platform devices for target and source
  *
  */
@@ -208,7 +208,7 @@ int acpi_parse_art(acpi_handle handle, int *art_count, struct art **artp,
 		if (art->target) {
 			result = acpi_bus_get_device(art->target, &adev);
 			if (result)
-				pr_warn("Failed to get source ACPI device\n");
+				pr_warn("Failed to get target ACPI device\n");
 		}
 	}
 

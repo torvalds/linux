@@ -333,6 +333,7 @@ static int bnxt_re_net_stats_ctx_alloc(struct bnxt_re_dev *rdev,
 	bnxt_re_init_hwrm_hdr(rdev, (void *)&req, HWRM_STAT_CTX_ALLOC, -1, -1);
 	req.update_period_ms = cpu_to_le32(1000);
 	req.stats_dma_addr = cpu_to_le64(dma_map);
+	req.stat_ctx_flags = STAT_CTX_ALLOC_REQ_STAT_CTX_FLAGS_ROCE;
 	bnxt_re_fill_fw_msg(&fw_msg, (void *)&req, sizeof(req), (void *)&resp,
 			    sizeof(resp), DFLT_HWRM_CMD_TIMEOUT);
 	rc = en_dev->en_ops->bnxt_send_fw_msg(en_dev, BNXT_ROCE_ULP, &fw_msg);
@@ -507,10 +508,6 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 	ibdev->dereg_mr			= bnxt_re_dereg_mr;
 	ibdev->alloc_mr			= bnxt_re_alloc_mr;
 	ibdev->map_mr_sg		= bnxt_re_map_mr_sg;
-	ibdev->alloc_fmr		= bnxt_re_alloc_fmr;
-	ibdev->map_phys_fmr		= bnxt_re_map_phys_fmr;
-	ibdev->unmap_fmr		= bnxt_re_unmap_fmr;
-	ibdev->dealloc_fmr		= bnxt_re_dealloc_fmr;
 
 	ibdev->reg_user_mr		= bnxt_re_reg_user_mr;
 	ibdev->alloc_ucontext		= bnxt_re_alloc_ucontext;

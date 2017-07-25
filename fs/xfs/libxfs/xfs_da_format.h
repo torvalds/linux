@@ -111,11 +111,11 @@ struct xfs_da3_intnode {
  * appropriate.
  */
 struct xfs_da3_icnode_hdr {
-	__uint32_t	forw;
-	__uint32_t	back;
-	__uint16_t	magic;
-	__uint16_t	count;
-	__uint16_t	level;
+	uint32_t	forw;
+	uint32_t	back;
+	uint16_t	magic;
+	uint16_t	count;
+	uint16_t	level;
 };
 
 /*
@@ -187,14 +187,14 @@ struct xfs_da3_icnode_hdr {
 /*
  * Byte offset in data block and shortform entry.
  */
-typedef	__uint16_t	xfs_dir2_data_off_t;
+typedef uint16_t	xfs_dir2_data_off_t;
 #define	NULLDATAOFF	0xffffU
 typedef uint		xfs_dir2_data_aoff_t;	/* argument form */
 
 /*
  * Offset in data space of a data entry.
  */
-typedef	__uint32_t	xfs_dir2_dataptr_t;
+typedef uint32_t	xfs_dir2_dataptr_t;
 #define	XFS_DIR2_MAX_DATAPTR	((xfs_dir2_dataptr_t)0xffffffff)
 #define	XFS_DIR2_NULL_DATAPTR	((xfs_dir2_dataptr_t)0)
 
@@ -206,7 +206,7 @@ typedef	xfs_off_t	xfs_dir2_off_t;
 /*
  * Directory block number (logical dirblk in file)
  */
-typedef	__uint32_t	xfs_dir2_db_t;
+typedef uint32_t	xfs_dir2_db_t;
 
 #define XFS_INO32_SIZE	4
 #define XFS_INO64_SIZE	8
@@ -226,9 +226,9 @@ typedef	__uint32_t	xfs_dir2_db_t;
  * over them.
  */
 typedef struct xfs_dir2_sf_hdr {
-	__uint8_t		count;		/* count of entries */
-	__uint8_t		i8count;	/* count of 8-byte inode #s */
-	__uint8_t		parent[8];	/* parent dir inode number */
+	uint8_t			count;		/* count of entries */
+	uint8_t			i8count;	/* count of 8-byte inode #s */
+	uint8_t			parent[8];	/* parent dir inode number */
 } __packed xfs_dir2_sf_hdr_t;
 
 typedef struct xfs_dir2_sf_entry {
@@ -447,11 +447,11 @@ struct xfs_dir3_leaf_hdr {
 };
 
 struct xfs_dir3_icleaf_hdr {
-	__uint32_t		forw;
-	__uint32_t		back;
-	__uint16_t		magic;
-	__uint16_t		count;
-	__uint16_t		stale;
+	uint32_t		forw;
+	uint32_t		back;
+	uint16_t		magic;
+	uint16_t		count;
+	uint16_t		stale;
 };
 
 /*
@@ -538,10 +538,10 @@ struct xfs_dir3_free {
  * xfs_dir3_free_hdr_from_disk/xfs_dir3_free_hdr_to_disk.
  */
 struct xfs_dir3_icfree_hdr {
-	__uint32_t	magic;
-	__uint32_t	firstdb;
-	__uint32_t	nvalid;
-	__uint32_t	nused;
+	uint32_t	magic;
+	uint32_t	firstdb;
+	uint32_t	nvalid;
+	uint32_t	nused;
 
 };
 
@@ -632,10 +632,10 @@ typedef struct xfs_attr_shortform {
 		__u8	padding;
 	} hdr;
 	struct xfs_attr_sf_entry {
-		__uint8_t namelen;	/* actual length of name (no NULL) */
-		__uint8_t valuelen;	/* actual length of value (no NULL) */
-		__uint8_t flags;	/* flags bits (see xfs_attr_leaf.h) */
-		__uint8_t nameval[1];	/* name & value bytes concatenated */
+		uint8_t namelen;	/* actual length of name (no NULL) */
+		uint8_t valuelen;	/* actual length of value (no NULL) */
+		uint8_t flags;	/* flags bits (see xfs_attr_leaf.h) */
+		uint8_t nameval[1];	/* name & value bytes concatenated */
 	} list[1];			/* variable sized array */
 } xfs_attr_shortform_t;
 
@@ -725,22 +725,22 @@ struct xfs_attr3_leafblock {
  * incore, neutral version of the attribute leaf header
  */
 struct xfs_attr3_icleaf_hdr {
-	__uint32_t	forw;
-	__uint32_t	back;
-	__uint16_t	magic;
-	__uint16_t	count;
-	__uint16_t	usedbytes;
+	uint32_t	forw;
+	uint32_t	back;
+	uint16_t	magic;
+	uint16_t	count;
+	uint16_t	usedbytes;
 	/*
 	 * firstused is 32-bit here instead of 16-bit like the on-disk variant
 	 * to support maximum fsb size of 64k without overflow issues throughout
 	 * the attr code. Instead, the overflow condition is handled on
 	 * conversion to/from disk.
 	 */
-	__uint32_t	firstused;
+	uint32_t	firstused;
 	__u8		holes;
 	struct {
-		__uint16_t	base;
-		__uint16_t	size;
+		uint16_t	base;
+		uint16_t	size;
 	} freemap[XFS_ATTR_LEAF_MAPSIZE];
 };
 

@@ -178,7 +178,7 @@
 			led@5 {
 				label = "apq8016-sbc:yellow:wlan";
 				gpios = <&pm8916_mpps 2 GPIO_ACTIVE_HIGH>;
-				linux,default-trigger = "wlan";
+				linux,default-trigger = "phy0tx";
 				default-state = "off";
 			};
 
@@ -215,22 +215,16 @@
 		usb@78d9000 {
 			extcon = <&usb_id>, <&usb_id>;
 			status = "okay";
-		};
-
-		ehci@78d9000 {
-			status = "okay";
-		};
-
-		phy@78d9000 {
-			v1p8-supply = <&pm8916_l7>;
-			v3p3-supply = <&pm8916_l13>;
-			vddcx-supply = <&pm8916_s1>;
-			extcon = <&usb_id>, <&usb_id>;
-			dr_mode = "otg";
-			status = "okay";
-			switch-gpio = <&pm8916_gpios 4 GPIO_ACTIVE_HIGH>;
-			pinctrl-names = "default";
-			pinctrl-0 = <&usb_sw_sel_pm>;
+			adp-disable;
+			hnp-disable;
+			srp-disable;
+			ulpi {
+				phy {
+					v1p8-supply = <&pm8916_l7>;
+					v3p3-supply = <&pm8916_l13>;
+					extcon = <&usb_id>;
+				};
+			};
 		};
 
 		lpass@07708000 {
@@ -346,6 +340,14 @@
 		id-gpio = <&msmgpio 121 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb_id_default>;
+	};
+
+	usb-switch {
+		compatible = "toshiba,tc7usb40mu";
+		switch-gpios = <&pm8916_gpios 4 GPIO_ACTIVE_HIGH>;
+		extcon = <&usb_id>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&usb_sw_sel_pm>;
 	};
 
 	hdmi-out {

@@ -30,7 +30,7 @@
 #include <linux/kernel.h>
 #include <linux/frame.h>
 #include <asm/hypervisor.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "vmwgfx_msg.h"
 
 

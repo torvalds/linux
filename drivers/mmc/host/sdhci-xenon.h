@@ -93,7 +93,6 @@ struct xenon_priv {
 };
 
 int xenon_phy_adj(struct sdhci_host *host, struct mmc_ios *ios);
-void xenon_clean_phy(struct sdhci_host *host);
 int xenon_phy_parse_dt(struct device_node *np,
 		       struct sdhci_host *host);
 void xenon_soc_pad_ctrl(struct sdhci_host *host,

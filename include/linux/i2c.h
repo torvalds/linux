@@ -295,6 +295,8 @@ static inline int i2c_slave_event(struct i2c_client *client,
 {
 	return client->slave_cb(client, event, val);
 }
+#else
+static inline bool i2c_detect_slave_mode(struct device *dev) { return false; }
 #endif
 
 /**

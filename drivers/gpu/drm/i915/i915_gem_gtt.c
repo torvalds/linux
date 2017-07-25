@@ -168,13 +168,11 @@ int intel_sanitize_enable_ppgtt(struct drm_i915_private *dev_priv,
 	if (enable_ppgtt == 3 && has_full_48bit_ppgtt)
 		return 3;
 
-#ifdef CONFIG_INTEL_IOMMU
 	/* Disable ppgtt on SNB if VT-d is on. */
-	if (IS_GEN6(dev_priv) && intel_iommu_gfx_mapped) {
+	if (IS_GEN6(dev_priv) && intel_vtd_active()) {
 		DRM_INFO("Disabling PPGTT because VT-d is on\n");
 		return 0;
 	}
-#endif
 
 	/* Early VLV doesn't have this */
 	if (IS_VALLEYVIEW(dev_priv) && dev_priv->drm.pdev->revision < 0xb) {
@@ -1886,7 +1884,7 @@ static void gtt_write_workarounds(struct drm_i915_private *dev_priv)
 	 * called on driver load and after a GPU reset, so you can place
 	 * workarounds here even if they get overwritten by GPU reset.
 	 */
-	/* WaIncreaseDefaultTLBEntries:chv,bdw,skl,bxt,kbl,glk */
+	/* WaIncreaseDefaultTLBEntries:chv,bdw,skl,bxt,kbl,glk,cfl */
 	if (IS_BROADWELL(dev_priv))
 		I915_WRITE(GEN8_L3_LRA_1_GPGPU, GEN8_L3_LRA_1_GPGPU_DEFAULT_VALUE_BDW);
 	else if (IS_CHERRYVIEW(dev_priv))
@@ -1992,14 +1990,10 @@ void i915_ppgtt_release(struct kref *kref)
  */
 static bool needs_idle_maps(struct drm_i915_private *dev_priv)
 {
-#ifdef CONFIG_INTEL_IOMMU
 	/* Query intel_iommu to see if we need the workaround. Presumably that
 	 * was loaded first.
 	 */
-	if (IS_GEN5(dev_priv) && IS_MOBILE(dev_priv) && intel_iommu_gfx_mapped)
-		return true;
-#endif
-	return false;
+	return IS_GEN5(dev_priv) && IS_MOBILE(dev_priv) && intel_vtd_active();
 }
 
 void i915_check_and_clear_faults(struct drm_i915_private *dev_priv)
@@ -2191,6 +2185,101 @@ static void gen8_ggtt_clear_range(struct i915_address_space *vm,
 		gen8_set_pte(&gtt_base[i], scratch_pte);
 }
 
+static void bxt_vtd_ggtt_wa(struct i915_address_space *vm)
+{
+	struct drm_i915_private *dev_priv = vm->i915;
+
+	/*
+	 * Make sure the internal GAM fifo has been cleared of all GTT
+	 * writes before exiting stop_machine(). This guarantees that
+	 * any aperture accesses waiting to start in another process
+	 * cannot back up behind the GTT writes causing a hang.
+	 * The register can be any arbitrary GAM register.
+	 */
+	POSTING_READ(GFX_FLSH_CNTL_GEN6);
+}
+
+struct insert_page {
+	struct i915_address_space *vm;
+	dma_addr_t addr;
+	u64 offset;
+	enum i915_cache_level level;
+};
+
+static int bxt_vtd_ggtt_insert_page__cb(void *_arg)
+{
+	struct insert_page *arg = _arg;
+
+	gen8_ggtt_insert_page(arg->vm, arg->addr, arg->offset, arg->level, 0);
+	bxt_vtd_ggtt_wa(arg->vm);
+
+	return 0;
+}
+
+static void bxt_vtd_ggtt_insert_page__BKL(struct i915_address_space *vm,
+					  dma_addr_t addr,
+					  u64 offset,
+					  enum i915_cache_level level,
+					  u32 unused)
+{
+	struct insert_page arg = { vm, addr, offset, level };
+
+	stop_machine(bxt_vtd_ggtt_insert_page__cb, &arg, NULL);
+}
+
+struct insert_entries {
+	struct i915_address_space *vm;
+	struct sg_table *st;
+	u64 start;
+	enum i915_cache_level level;
+};
+
+static int bxt_vtd_ggtt_insert_entries__cb(void *_arg)
+{
+	struct insert_entries *arg = _arg;
+
+	gen8_ggtt_insert_entries(arg->vm, arg->st, arg->start, arg->level, 0);
+	bxt_vtd_ggtt_wa(arg->vm);
+
+	return 0;
+}
+
+static void bxt_vtd_ggtt_insert_entries__BKL(struct i915_address_space *vm,
+					     struct sg_table *st,
+					     u64 start,
+					     enum i915_cache_level level,
+					     u32 unused)
+{
+	struct insert_entries arg = { vm, st, start, level };
+
+	stop_machine(bxt_vtd_ggtt_insert_entries__cb, &arg, NULL);
+}
+
+struct clear_range {
+	struct i915_address_space *vm;
+	u64 start;
+	u64 length;
+};
+
+static int bxt_vtd_ggtt_clear_range__cb(void *_arg)
+{
+	struct clear_range *arg = _arg;
+
+	gen8_ggtt_clear_range(arg->vm, arg->start, arg->length);
+	bxt_vtd_ggtt_wa(arg->vm);
+
+	return 0;
+}
+
+static void bxt_vtd_ggtt_clear_range__BKL(struct i915_address_space *vm,
+					  u64 start,
+					  u64 length)
+{
+	struct clear_range arg = { vm, start, length };
+
+	stop_machine(bxt_vtd_ggtt_clear_range__cb, &arg, NULL);
+}
+
 static void gen6_ggtt_clear_range(struct i915_address_space *vm,
 				  u64 start, u64 length)
 {
@@ -2313,7 +2402,7 @@ static int aliasing_gtt_bind_vma(struct i915_vma *vma,
 		    appgtt->base.allocate_va_range) {
 			ret = appgtt->base.allocate_va_range(&appgtt->base,
 							     vma->node.start,
-							     vma->node.size);
+							     vma->size);
 			if (ret)
 				goto err_pages;
 		}
@@ -2583,14 +2672,14 @@ static size_t gen6_get_stolen_size(u16 snb_gmch_ctl)
 {
 	snb_gmch_ctl >>= SNB_GMCH_GMS_SHIFT;
 	snb_gmch_ctl &= SNB_GMCH_GMS_MASK;
-	return snb_gmch_ctl << 25; /* 32 MB units */
+	return (size_t)snb_gmch_ctl << 25; /* 32 MB units */
 }
 
 static size_t gen8_get_stolen_size(u16 bdw_gmch_ctl)
 {
 	bdw_gmch_ctl >>= BDW_GMCH_GMS_SHIFT;
 	bdw_gmch_ctl &= BDW_GMCH_GMS_MASK;
-	return bdw_gmch_ctl << 25; /* 32 MB units */
+	return (size_t)bdw_gmch_ctl << 25; /* 32 MB units */
 }
 
 static size_t chv_get_stolen_size(u16 gmch_ctrl)
@@ -2604,11 +2693,11 @@ static size_t chv_get_stolen_size(u16 gmch_ctrl)
 	 * 0x17 to 0x1d: 4MB increments start at 36MB
 	 */
 	if (gmch_ctrl < 0x11)
-		return gmch_ctrl << 25;
+		return (size_t)gmch_ctrl << 25;
 	else if (gmch_ctrl < 0x17)
-		return (gmch_ctrl - 0x11 + 2) << 22;
+		return (size_t)(gmch_ctrl - 0x11 + 2) << 22;
 	else
-		return (gmch_ctrl - 0x17 + 9) << 22;
+		return (size_t)(gmch_ctrl - 0x17 + 9) << 22;
 }
 
 static size_t gen9_get_stolen_size(u16 gen9_gmch_ctl)
@@ -2617,10 +2706,10 @@ static size_t gen9_get_stolen_size(u16 gen9_gmch_ctl)
 	gen9_gmch_ctl &= BDW_GMCH_GMS_MASK;
 
 	if (gen9_gmch_ctl < 0xf0)
-		return gen9_gmch_ctl << 25; /* 32 MB units */
+		return (size_t)gen9_gmch_ctl << 25; /* 32 MB units */
 	else
 		/* 4MB increments starting at 0xf0 for 4MB */
-		return (gen9_gmch_ctl - 0xf0 + 1) << 22;
+		return (size_t)(gen9_gmch_ctl - 0xf0 + 1) << 22;
 }
 
 static int ggtt_probe_common(struct i915_ggtt *ggtt, u64 size)
@@ -2747,13 +2836,17 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	unsigned int size;
 	u16 snb_gmch_ctl;
+	int err;
 
 	/* TODO: We're not aware of mappable constraints on gen8 yet */
 	ggtt->mappable_base = pci_resource_start(pdev, 2);
 	ggtt->mappable_end = pci_resource_len(pdev, 2);
 
-	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(39)))
-		pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(39));
+	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(39));
+	if (!err)
+		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(39));
+	if (err)
+		DRM_ERROR("Can't set DMA mask/consistent mask (%d)\n", err);
 
 	pci_read_config_word(pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
 
@@ -2785,6 +2878,14 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 
 	ggtt->base.insert_entries = gen8_ggtt_insert_entries;
 
+	/* Serialize GTT updates with aperture access on BXT if VT-d is on. */
+	if (intel_ggtt_update_needs_vtd_wa(dev_priv)) {
+		ggtt->base.insert_entries = bxt_vtd_ggtt_insert_entries__BKL;
+		ggtt->base.insert_page    = bxt_vtd_ggtt_insert_page__BKL;
+		if (ggtt->base.clear_range != nop_clear_range)
+			ggtt->base.clear_range = bxt_vtd_ggtt_clear_range__BKL;
+	}
+
 	ggtt->invalidate = gen6_ggtt_invalidate;
 
 	return ggtt_probe_common(ggtt, size);
@@ -2796,6 +2897,7 @@ static int gen6_gmch_probe(struct i915_ggtt *ggtt)
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 	unsigned int size;
 	u16 snb_gmch_ctl;
+	int err;
 
 	ggtt->mappable_base = pci_resource_start(pdev, 2);
 	ggtt->mappable_end = pci_resource_len(pdev, 2);
@@ -2808,8 +2910,11 @@ static int gen6_gmch_probe(struct i915_ggtt *ggtt)
 		return -ENXIO;
 	}
 
-	if (!pci_set_dma_mask(pdev, DMA_BIT_MASK(40)))
-		pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(40));
+	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(40));
+	if (!err)
+		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(40));
+	if (err)
+		DRM_ERROR("Can't set DMA mask/consistent mask (%d)\n", err);
 	pci_read_config_word(pdev, SNB_GMCH_CTRL, &snb_gmch_ctl);
 
 	ggtt->stolen_size = gen6_get_stolen_size(snb_gmch_ctl);
@@ -2928,10 +3033,8 @@ int i915_ggtt_probe_hw(struct drm_i915_private *dev_priv)
 		 ggtt->base.total >> 20);
 	DRM_DEBUG_DRIVER("GMADR size = %lldM\n", ggtt->mappable_end >> 20);
 	DRM_DEBUG_DRIVER("GTT stolen size = %uM\n", ggtt->stolen_size >> 20);
-#ifdef CONFIG_INTEL_IOMMU
-	if (intel_iommu_gfx_mapped)
+	if (intel_vtd_active())
 		DRM_INFO("VT-d active for gfx access\n");
-#endif
 
 	return 0;
 }
@@ -2992,11 +3095,16 @@ int i915_ggtt_enable_hw(struct drm_i915_private *dev_priv)
 
 void i915_ggtt_enable_guc(struct drm_i915_private *i915)
 {
+	GEM_BUG_ON(i915->ggtt.invalidate != gen6_ggtt_invalidate);
+
 	i915->ggtt.invalidate = guc_ggtt_invalidate;
 }
 
 void i915_ggtt_disable_guc(struct drm_i915_private *i915)
 {
+	/* We should only be called after i915_ggtt_enable_guc() */
+	GEM_BUG_ON(i915->ggtt.invalidate != guc_ggtt_invalidate);
+
 	i915->ggtt.invalidate = gen6_ggtt_invalidate;
 }
 
@@ -3106,7 +3214,7 @@ intel_rotate_pages(struct intel_rotation_info *rot_info,
 	int ret = -ENOMEM;
 
 	/* Allocate a temporary list of source pages for random access. */
-	page_addr_list = drm_malloc_gfp(n_pages,
+	page_addr_list = kvmalloc_array(n_pages,
 					sizeof(dma_addr_t),
 					GFP_TEMPORARY);
 	if (!page_addr_list)
@@ -3139,14 +3247,14 @@ intel_rotate_pages(struct intel_rotation_info *rot_info,
 	DRM_DEBUG_KMS("Created rotated page mapping for object size %zu (%ux%u tiles, %u pages)\n",
 		      obj->base.size, rot_info->plane[0].width, rot_info->plane[0].height, size);
 
-	drm_free_large(page_addr_list);
+	kvfree(page_addr_list);
 
 	return st;
 
 err_sg_alloc:
 	kfree(st);
 err_st_alloc:
-	drm_free_large(page_addr_list);
+	kvfree(page_addr_list);
 
 	DRM_DEBUG_KMS("Failed to create rotated mapping for object size %zu! (%ux%u tiles, %u pages)\n",
 		      obj->base.size, rot_info->plane[0].width, rot_info->plane[0].height, size);
@@ -3294,6 +3402,9 @@ int i915_gem_gtt_reserve(struct i915_address_space *vm,
 	if (err != -ENOSPC)
 		return err;
 
+	if (flags & PIN_NOEVICT)
+		return -ENOSPC;
+
 	err = i915_gem_evict_for_node(vm, node, flags);
 	if (err == 0)
 		err = drm_mm_reserve_node(&vm->mm, node);
@@ -3407,6 +3518,9 @@ int i915_gem_gtt_insert(struct i915_address_space *vm,
 					  start, end, mode);
 	if (err != -ENOSPC)
 		return err;
+
+	if (flags & PIN_NOEVICT)
+		return -ENOSPC;
 
 	/* No free space, pick a slot at random.
 	 *

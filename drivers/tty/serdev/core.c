@@ -122,6 +122,18 @@ void serdev_device_write_wakeup(struct serdev_device *serdev)
 }
 EXPORT_SYMBOL_GPL(serdev_device_write_wakeup);
 
+int serdev_device_write_buf(struct serdev_device *serdev,
+			    const unsigned char *buf, size_t count)
+{
+	struct serdev_controller *ctrl = serdev->ctrl;
+
+	if (!ctrl || !ctrl->ops->write_buf)
+		return -EINVAL;
+
+	return ctrl->ops->write_buf(ctrl, buf, count);
+}
+EXPORT_SYMBOL_GPL(serdev_device_write_buf);
+
 int serdev_device_write(struct serdev_device *serdev,
 			const unsigned char *buf, size_t count,
 			unsigned long timeout)
@@ -250,11 +262,13 @@ static ssize_t modalias_show(struct device *dev,
 {
 	return of_device_modalias(dev, buf, PAGE_SIZE);
 }
+DEVICE_ATTR_RO(modalias);
 
-static struct device_attribute serdev_device_attrs[] = {
-	__ATTR_RO(modalias),
-	__ATTR_NULL
+static struct attribute *serdev_device_attrs[] = {
+	&dev_attr_modalias.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(serdev_device);
 
 static struct bus_type serdev_bus_type = {
 	.name		= "serial",
@@ -262,7 +276,7 @@ static struct bus_type serdev_bus_type = {
 	.probe		= serdev_drv_probe,
 	.remove		= serdev_drv_remove,
 	.uevent		= serdev_uevent,
-	.dev_attrs	= serdev_device_attrs,
+	.dev_groups	= serdev_device_groups,
 };
 
 /**

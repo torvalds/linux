@@ -89,8 +89,6 @@
 
 void *xen_initial_gdt;
 
-RESERVE_BRK(shared_info_page_brk, PAGE_SIZE);
-
 static int xen_cpu_up_prepare_pv(unsigned int cpu);
 static int xen_cpu_dead_pv(unsigned int cpu);
 
@@ -106,35 +104,6 @@ struct tls_descs {
  * compare against.
  */
 static DEFINE_PER_CPU(struct tls_descs, shadow_tls_desc);
-
-/*
- * On restore, set the vcpu placement up again.
- * If it fails, then we're in a bad state, since
- * we can't back out from using it...
- */
-void xen_vcpu_restore(void)
-{
-	int cpu;
-
-	for_each_possible_cpu(cpu) {
-		bool other_cpu = (cpu != smp_processor_id());
-		bool is_up = HYPERVISOR_vcpu_op(VCPUOP_is_up, xen_vcpu_nr(cpu),
-						NULL);
-
-		if (other_cpu && is_up &&
-		    HYPERVISOR_vcpu_op(VCPUOP_down, xen_vcpu_nr(cpu), NULL))
-			BUG();
-
-		xen_setup_runstate_info(cpu);
-
-		if (xen_have_vcpu_info_placement)
-			xen_vcpu_setup(cpu);
-
-		if (other_cpu && is_up &&
-		    HYPERVISOR_vcpu_op(VCPUOP_up, xen_vcpu_nr(cpu), NULL))
-			BUG();
-	}
-}
 
 static void __init xen_banner(void)
 {
@@ -960,30 +929,43 @@ void xen_setup_shared_info(void)
 	HYPERVISOR_shared_info =
 		(struct shared_info *)fix_to_virt(FIX_PARAVIRT_BOOTMAP);
 
-#ifndef CONFIG_SMP
-	/* In UP this is as good a place as any to set up shared info */
-	xen_setup_vcpu_info_placement();
-#endif
-
 	xen_setup_mfn_list_list();
 
-	/*
-	 * Now that shared info is set up we can start using routines that
-	 * point to pvclock area.
-	 */
-	if (system_state == SYSTEM_BOOTING)
+	if (system_state == SYSTEM_BOOTING) {
+#ifndef CONFIG_SMP
+		/*
+		 * In UP this is as good a place as any to set up shared info.
+		 * Limit this to boot only, at restore vcpu setup is done via
+		 * xen_vcpu_restore().
+		 */
+		xen_setup_vcpu_info_placement();
+#endif
+		/*
+		 * Now that shared info is set up we can start using routines
+		 * that point to pvclock area.
+		 */
 		xen_init_time_ops();
+	}
 }
 
 /* This is called once we have the cpu_possible_mask */
-void xen_setup_vcpu_info_placement(void)
+void __ref xen_setup_vcpu_info_placement(void)
 {
 	int cpu;
 
 	for_each_possible_cpu(cpu) {
 		/* Set up direct vCPU id mapping for PV guests. */
 		per_cpu(xen_vcpu_id, cpu) = cpu;
-		xen_vcpu_setup(cpu);
+
+		/*
+		 * xen_vcpu_setup(cpu) can fail  -- in which case it
+		 * falls back to the shared_info version for cpus
+		 * where xen_vcpu_nr(cpu) < MAX_VIRT_CPUS.
+		 *
+		 * xen_cpu_up_prepare_pv() handles the rest by failing
+		 * them in hotplug.
+		 */
+		(void) xen_vcpu_setup(cpu);
 	}
 
 	/*
@@ -1332,9 +1314,17 @@ asmlinkage __visible void __init xen_start_kernel(void)
 	 */
 	acpi_numa = -1;
 #endif
-	/* Don't do the full vcpu_info placement stuff until we have a
-	   possible map and a non-dummy shared_info. */
-	per_cpu(xen_vcpu, 0) = &HYPERVISOR_shared_info->vcpu_info[0];
+	/* Let's presume PV guests always boot on vCPU with id 0. */
+	per_cpu(xen_vcpu_id, 0) = 0;
+
+	/*
+	 * Setup xen_vcpu early because start_kernel needs it for
+	 * local_irq_disable(), irqs_disabled().
+	 *
+	 * Don't do the full vcpu_info placement stuff until we have
+	 * the cpu_possible_mask and a non-dummy shared_info.
+	 */
+	xen_vcpu_info_reset(0);
 
 	WARN_ON(xen_cpuhp_setup(xen_cpu_up_prepare_pv, xen_cpu_dead_pv));
 
@@ -1431,9 +1421,7 @@ asmlinkage __visible void __init xen_start_kernel(void)
 #endif
 	xen_raw_console_write("about to get started...\n");
 
-	/* Let's presume PV guests always boot on vCPU with id 0. */
-	per_cpu(xen_vcpu_id, 0) = 0;
-
+	/* We need this for printk timestamps */
 	xen_setup_runstate_info(0);
 
 	xen_efi_init();
@@ -1450,6 +1438,9 @@ asmlinkage __visible void __init xen_start_kernel(void)
 static int xen_cpu_up_prepare_pv(unsigned int cpu)
 {
 	int rc;
+
+	if (per_cpu(xen_vcpu, cpu) == NULL)
+		return -ENODEV;
 
 	xen_setup_timer(cpu);
 

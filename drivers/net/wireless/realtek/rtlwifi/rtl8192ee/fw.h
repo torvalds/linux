@@ -37,7 +37,7 @@
 #define USE_OLD_WOWLAN_DEBUG_FW 0
 
 #define H2C_92E_RSVDPAGE_LOC_LEN		5
-#define H2C_92E_PWEMODE_LENGTH			5
+#define H2C_92E_PWEMODE_LENGTH			7
 #define H2C_92E_JOINBSSRPT_LENGTH		1
 #define H2C_92E_AP_OFFLOAD_LENGTH		3
 #define H2C_92E_WOWLAN_LENGTH			3
@@ -154,6 +154,8 @@ enum rtl8192e_c2h_evt {
 	SET_BITS_TO_LE_1BYTE((__cmd)+3, 0, 8, __val)
 #define SET_H2CCMD_PWRMODE_PARM_PWR_STATE(__cmd, __val)		\
 	SET_BITS_TO_LE_1BYTE((__cmd)+4, 0, 8, __val)
+#define SET_H2CCMD_PWRMODE_PARM_BYTE5(__cmd, __val)		\
+	SET_BITS_TO_LE_1BYTE((__cmd) + 5, 0, 8, __val)
 #define GET_92E_H2CCMD_PWRMODE_PARM_MODE(__cmd)			\
 	LE_BITS_TO_1BYTE(__cmd, 0, 8)
 

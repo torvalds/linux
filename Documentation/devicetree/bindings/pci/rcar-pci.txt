@@ -1,4 +1,4 @@
-* Renesas RCar PCIe interface
+* Renesas R-Car PCIe interface
 
 Required properties:
 compatible: "renesas,pcie-r8a7779" for the R8A7779 SoC;

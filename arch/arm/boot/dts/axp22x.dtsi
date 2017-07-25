@@ -57,6 +57,11 @@
 		status = "disabled";
 	};
 
+	battery_power_supply: battery-power-supply {
+		compatible = "x-powers,axp221-battery-power-supply";
+		status = "disabled";
+	};
+
 	regulators {
 		/* Default work frequency for buck regulators */
 		x-powers,dcdc-freq = <3000>;

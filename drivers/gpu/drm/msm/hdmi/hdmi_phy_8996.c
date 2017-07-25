@@ -670,6 +670,11 @@ static unsigned long hdmi_8996_pll_recalc_rate(struct clk_hw *hw,
 
 static void hdmi_8996_pll_unprepare(struct clk_hw *hw)
 {
+	struct hdmi_pll_8996 *pll = hw_clk_to_pll(hw);
+	struct hdmi_phy *phy = pll_get_phy(pll);
+
+	hdmi_phy_write(phy, REG_HDMI_8996_PHY_CFG, 0x6);
+	usleep_range(100, 150);
 }
 
 static int hdmi_8996_pll_is_enabled(struct clk_hw *hw)

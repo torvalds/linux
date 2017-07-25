@@ -637,6 +637,7 @@ static long dst_ca_ioctl(struct file *file, unsigned int cmd, unsigned long ioct
 			goto free_mem_and_exit;
 		}
 		dprintk(verbose, DST_CA_INFO, 1, " -->CA_SET_PID Success !");
+		break;
 	default:
 		result = -EOPNOTSUPP;
 	}

@@ -21,7 +21,7 @@ do {								\
 	asm volatile(						\
 		"	syscall 15			\n"	\
 		"0:					\n"	\
-		"	.section __bug_table,\"a\"	\n"	\
+		"	.section __bug_table,\"aw\"	\n"	\
 		"	.long 0b,%0,%1			\n"	\
 		"	.previous			\n"	\
 		:						\

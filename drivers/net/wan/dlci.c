@@ -475,7 +475,7 @@ static void dlci_setup(struct net_device *dev)
 	dev->flags		= 0;
 	dev->header_ops		= &dlci_header_ops;
 	dev->netdev_ops		= &dlci_netdev_ops;
-	dev->destructor		= free_netdev;
+	dev->needs_free_netdev	= true;
 
 	dlp->receive		= dlci_receive;
 

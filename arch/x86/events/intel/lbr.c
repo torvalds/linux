@@ -18,7 +18,7 @@ enum {
 	LBR_FORMAT_MAX_KNOWN    = LBR_FORMAT_TIME,
 };
 
-static enum {
+static const enum {
 	LBR_EIP_FLAGS		= 1,
 	LBR_TSX			= 2,
 } lbr_desc[LBR_FORMAT_MAX_KNOWN + 1] = {
@@ -287,7 +287,7 @@ inline u64 lbr_from_signext_quirk_wr(u64 val)
 /*
  * If quirk is needed, ensure sign extension is 61 bits:
  */
-u64 lbr_from_signext_quirk_rd(u64 val)
+static u64 lbr_from_signext_quirk_rd(u64 val)
 {
 	if (static_branch_unlikely(&lbr_from_quirk_key)) {
 		/*
@@ -380,7 +380,11 @@ static void __intel_pmu_lbr_save(struct x86_perf_task_context *task_ctx)
 
 void intel_pmu_lbr_sched_task(struct perf_event_context *ctx, bool sched_in)
 {
+	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 	struct x86_perf_task_context *task_ctx;
+
+	if (!cpuc->lbr_users)
+		return;
 
 	/*
 	 * If LBR callstack feature is enabled and the stack was saved when

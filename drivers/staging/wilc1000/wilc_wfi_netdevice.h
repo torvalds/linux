@@ -158,6 +158,7 @@ struct wilc_vif {
 	struct host_if_drv *hif_drv;
 	struct net_device *ndev;
 	u8 mode;
+	u8 ifc_id;
 };
 
 struct wilc {

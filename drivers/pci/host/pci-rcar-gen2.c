@@ -429,7 +429,7 @@ static int rcar_pci_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id rcar_pci_of_match[] = {
+static const struct of_device_id rcar_pci_of_match[] = {
 	{ .compatible = "renesas,pci-r8a7790", },
 	{ .compatible = "renesas,pci-r8a7791", },
 	{ .compatible = "renesas,pci-r8a7794", },
