@@ -3129,6 +3129,15 @@ out_unlock:
 	return ret ?: nbytes;
 }
 
+/**
+ * cgroup_enable_threaded - make @cgrp threaded
+ * @cgrp: the target cgroup
+ *
+ * Called when "threaded" is written to the cgroup.type interface file and
+ * tries to make @cgrp threaded and join the parent's resource domain.
+ * This function is never called on the root cgroup as cgroup.type doesn't
+ * exist on it.
+ */
 static int cgroup_enable_threaded(struct cgroup *cgrp)
 {
 	struct cgroup *parent = cgroup_parent(cgrp);
