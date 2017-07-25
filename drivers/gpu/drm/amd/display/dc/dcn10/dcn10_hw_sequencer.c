@@ -1809,7 +1809,7 @@ static void program_csc_matrix(struct pipe_ctx *pipe_ctx,
 
 			tbl_entry.color_space = color_space;
 			//tbl_entry.regval = matrix;
-			pipe_ctx->opp->funcs->opp_set_csc_adjustment(pipe_ctx->opp, &tbl_entry);
+			pipe_ctx->xfm->funcs->opp_set_csc_adjustment(pipe_ctx->xfm, &tbl_entry);
 	}
 }
 static bool is_lower_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
