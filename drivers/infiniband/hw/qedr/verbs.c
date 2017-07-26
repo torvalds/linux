@@ -2845,6 +2845,7 @@ static enum ib_wc_opcode qedr_ib_to_wc_opcode(enum ib_wr_opcode opcode)
 	case IB_WR_SEND_WITH_INV:
 		return IB_WC_SEND;
 	case IB_WR_RDMA_READ:
+	case IB_WR_RDMA_READ_WITH_INV:
 		return IB_WC_RDMA_READ;
 	case IB_WR_ATOMIC_CMP_AND_SWP:
 		return IB_WC_COMP_SWAP;
@@ -3005,11 +3006,8 @@ static int __qedr_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		qp->wqe_wr_id[qp->sq.prod].bytes_len = rwqe->length;
 		break;
 	case IB_WR_RDMA_READ_WITH_INV:
-		DP_ERR(dev,
-		       "RDMA READ WITH INVALIDATE not supported\n");
-		*bad_wr = wr;
-		rc = -EINVAL;
-		break;
+		SET_FIELD2(wqe->flags, RDMA_SQ_RDMA_WQE_1ST_READ_INV_FLG, 1);
+		/* fallthrough... same is identical to RDMA READ */
 
 	case IB_WR_RDMA_READ:
 		wqe->req_type = RDMA_SQ_REQ_TYPE_RDMA_RD;
