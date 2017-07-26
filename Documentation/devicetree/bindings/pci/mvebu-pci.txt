@@ -286,7 +286,7 @@ pcie-controller {
 		status = "disabled";
 	};
 
-	pcie@10,0 {
+	pcie@a,0 {
 		device_type = "pci";
 		assigned-addresses = <0x82005000 0 0x82000 0 0x2000>;
 		reg = <0x5000 0 0 0 0>;
