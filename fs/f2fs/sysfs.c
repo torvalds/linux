@@ -304,7 +304,7 @@ static const struct file_operations f2fs_seq_##_name##_fops = {		\
 F2FS_PROC_FILE_DEF(segment_info);
 F2FS_PROC_FILE_DEF(segment_bits);
 
-int __init f2fs_register_sysfs(void)
+int __init f2fs_init_sysfs(void)
 {
 	f2fs_proc_root = proc_mkdir("fs/f2fs", NULL);
 
@@ -314,13 +314,13 @@ int __init f2fs_register_sysfs(void)
 	return 0;
 }
 
-void f2fs_unregister_sysfs(void)
+void f2fs_exit_sysfs(void)
 {
 	kset_unregister(f2fs_kset);
 	remove_proc_entry("fs/f2fs", NULL);
 }
 
-int f2fs_init_sysfs(struct f2fs_sb_info *sbi)
+int f2fs_register_sysfs(struct f2fs_sb_info *sbi)
 {
 	struct super_block *sb = sbi->sb;
 	int err;
@@ -351,7 +351,7 @@ err_out:
 	return err;
 }
 
-void f2fs_exit_sysfs(struct f2fs_sb_info *sbi)
+void f2fs_unregister_sysfs(struct f2fs_sb_info *sbi)
 {
 	kobject_del(&sbi->s_kobj);
 	kobject_put(&sbi->s_kobj);
