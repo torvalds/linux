@@ -223,7 +223,7 @@ static ssize_t lru_size_show(struct kobject *kobj, struct attribute *attr,
 
 	if (ns_connect_lru_resize(ns))
 		nr = &ns->ns_nr_unused;
-	return sprintf(buf, "%u", *nr);
+	return sprintf(buf, "%u\n", *nr);
 }
 
 static ssize_t lru_size_store(struct kobject *kobj, struct attribute *attr,
@@ -318,7 +318,7 @@ static ssize_t lru_max_age_show(struct kobject *kobj, struct attribute *attr,
 	struct ldlm_namespace *ns = container_of(kobj, struct ldlm_namespace,
 						 ns_kobj);
 
-	return sprintf(buf, "%u", ns->ns_max_age);
+	return sprintf(buf, "%u\n", ns->ns_max_age);
 }
 
 static ssize_t lru_max_age_store(struct kobject *kobj, struct attribute *attr,
