@@ -1345,28 +1345,6 @@ static void switch_dp_clock_sources(
  * Public functions
  ******************************************************************************/
 
-static void reset_single_pipe_hw_ctx(
-		const struct core_dc *dc,
-		struct pipe_ctx *pipe_ctx,
-		struct validate_context *context)
-{
-	core_link_disable_stream(pipe_ctx);
-	pipe_ctx->tg->funcs->set_blank(pipe_ctx->tg, true);
-	if (!hwss_wait_for_blank_complete(pipe_ctx->tg)) {
-		dm_error("DC: failed to blank crtc!\n");
-		BREAK_TO_DEBUGGER();
-	}
-	pipe_ctx->tg->funcs->disable_crtc(pipe_ctx->tg);
-	pipe_ctx->mi->funcs->free_mem_input(
-				pipe_ctx->mi, context->stream_count);
-	resource_unreference_clock_source(&context->res_ctx, dc->res_pool,
-			 &pipe_ctx->clock_source);
-
-	dc->hwss.power_down_front_end((struct core_dc *)dc, pipe_ctx->pipe_idx);
-
-	pipe_ctx->stream = NULL;
-}
-
 static void set_drr(struct pipe_ctx **pipe_ctx,
 		int num_pipes, int vmin, int vmax)
 {
@@ -1580,7 +1558,7 @@ static enum dc_status apply_ctx_to_hw_fpga(
 	return DC_OK;
 }
 
-static void reset_hw_ctx_wrap(
+static void dce110_reset_hw_ctx_wrap(
 		struct core_dc *dc,
 		struct validate_context *context)
 {
@@ -1603,9 +1581,24 @@ static void reset_hw_ctx_wrap(
 			continue;
 
 		if (!pipe_ctx->stream ||
-				pipe_need_reprogram(pipe_ctx_old, pipe_ctx))
-			reset_single_pipe_hw_ctx(
-				dc, pipe_ctx_old, dc->current_context);
+				pipe_need_reprogram(pipe_ctx_old, pipe_ctx)) {
+			core_link_disable_stream(pipe_ctx_old);
+			pipe_ctx_old->tg->funcs->set_blank(pipe_ctx_old->tg, true);
+			if (!hwss_wait_for_blank_complete(pipe_ctx_old->tg)) {
+				dm_error("DC: failed to blank crtc!\n");
+				BREAK_TO_DEBUGGER();
+			}
+			pipe_ctx_old->tg->funcs->disable_crtc(pipe_ctx_old->tg);
+			pipe_ctx_old->mi->funcs->free_mem_input(
+					pipe_ctx_old->mi, dc->current_context->stream_count);
+			resource_unreference_clock_source(
+					&dc->current_context->res_ctx, dc->res_pool,
+					&pipe_ctx_old->clock_source);
+
+			dc->hwss.power_down_front_end(dc, pipe_ctx_old->pipe_idx);
+
+			pipe_ctx_old->stream = NULL;
+		}
 	}
 }
 
@@ -2619,7 +2612,7 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.set_drr = set_drr,
 	.get_position = get_position,
 	.set_static_screen_control = set_static_screen_control,
-	.reset_hw_ctx_wrap = reset_hw_ctx_wrap,
+	.reset_hw_ctx_wrap = dce110_reset_hw_ctx_wrap,
 	.prog_pixclk_crtc_otg = dce110_prog_pixclk_crtc_otg,
 	.setup_stereo = NULL,
 	.set_avmute = dce110_set_avmute,
