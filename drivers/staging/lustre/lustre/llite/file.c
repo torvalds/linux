@@ -3035,9 +3035,6 @@ struct posix_acl *ll_get_acl(struct inode *inode, int type)
 	spin_lock(&lli->lli_lock);
 	/* VFS' acl_permission_check->check_acl will release the refcount */
 	acl = posix_acl_dup(lli->lli_posix_acl);
-#ifdef CONFIG_FS_POSIX_ACL
-	forget_cached_acl(inode, type);
-#endif
 	spin_unlock(&lli->lli_lock);
 
 	return acl;
