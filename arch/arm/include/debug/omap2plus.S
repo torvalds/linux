@@ -59,6 +59,7 @@
 #define UART_OFFSET(addr)	((addr) & 0x00ffffff)
 
 		.pushsection .data
+		.align	2
 omap_uart_phys:	.word	0
 omap_uart_virt:	.word	0
 omap_uart_lsr:	.word	0
