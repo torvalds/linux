@@ -188,9 +188,27 @@ nfp_net_fw_find(struct pci_dev *pdev, struct nfp_pf *pf)
 	struct nfp_eth_table_port *port;
 	const char *fw_model;
 	char fw_name[256];
+	const u8 *serial;
 	int spc, err = 0;
+	u16 interface;
 	int i, j;
 
+	/* First try to find a firmware image specific for this device */
+	interface = nfp_cpp_interface(pf->cpp);
+	nfp_cpp_serial(pf->cpp, &serial);
+	sprintf(fw_name, "netronome/serial-%pMF-%02hhx-%02hhx.nffw",
+		serial, interface >> 8, interface & 0xff);
+	err = request_firmware_direct(&fw, fw_name, &pdev->dev);
+	if (!err)
+		goto done;
+
+	/* Then try the PCI name */
+	sprintf(fw_name, "netronome/pci-%s.nffw", pci_name(pdev));
+	err = request_firmware_direct(&fw, fw_name, &pdev->dev);
+	if (!err)
+		goto done;
+
+	/* Finally try the card type and media */
 	if (!pf->eth_tbl) {
 		dev_err(&pdev->dev, "Error: can't identify media config\n");
 		return NULL;
@@ -226,7 +244,7 @@ nfp_net_fw_find(struct pci_dev *pdev, struct nfp_pf *pf)
 	err = request_firmware(&fw, fw_name, &pdev->dev);
 	if (err)
 		return NULL;
-
+done:
 	dev_info(&pdev->dev, "Loading FW image: %s\n", fw_name);
 
 	return fw;
