@@ -49,6 +49,7 @@ static struct {
 	bool clockid_wrong;
 	bool lbr_flags;
 	bool write_backward;
+	bool group_read;
 } perf_missing_features;
 
 static clockid_t clockid;
@@ -1321,6 +1322,7 @@ perf_evsel__set_count(struct perf_evsel *counter, int cpu, int thread,
 	count->val    = val;
 	count->ena    = ena;
 	count->run    = run;
+	count->loaded = true;
 }
 
 static int
@@ -1677,6 +1679,8 @@ fallback_missing_features:
 	if (perf_missing_features.lbr_flags)
 		evsel->attr.branch_sample_type &= ~(PERF_SAMPLE_BRANCH_NO_FLAGS |
 				     PERF_SAMPLE_BRANCH_NO_CYCLES);
+	if (perf_missing_features.group_read && evsel->attr.inherit)
+		evsel->attr.read_format &= ~(PERF_FORMAT_GROUP|PERF_FORMAT_ID);
 retry_sample_id:
 	if (perf_missing_features.sample_id_all)
 		evsel->attr.sample_id_all = 0;
@@ -1831,6 +1835,12 @@ try_fallback:
 			  PERF_SAMPLE_BRANCH_NO_FLAGS))) {
 		perf_missing_features.lbr_flags = true;
 		pr_debug2("switching off branch sample type no (cycles/flags)\n");
+		goto fallback_missing_features;
+	} else if (!perf_missing_features.group_read &&
+		    evsel->attr.inherit &&
+		   (evsel->attr.read_format & PERF_FORMAT_GROUP)) {
+		perf_missing_features.group_read = true;
+		pr_debug2("switching off group read\n");
 		goto fallback_missing_features;
 	}
 out_close:
