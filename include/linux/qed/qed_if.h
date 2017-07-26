@@ -161,6 +161,18 @@ enum qed_nvm_images {
 	QED_NVM_IMAGE_FCOE_CFG,
 };
 
+struct qed_link_eee_params {
+	u32 tx_lpi_timer;
+#define QED_EEE_1G_ADV		BIT(0)
+#define QED_EEE_10G_ADV		BIT(1)
+
+	/* Capabilities are represented using QED_EEE_*_ADV values */
+	u8 adv_caps;
+	u8 lp_adv_caps;
+	bool enable;
+	bool tx_lpi_enable;
+};
+
 enum qed_led_mode {
 	QED_LED_MODE_OFF,
 	QED_LED_MODE_ON,
@@ -408,6 +420,7 @@ struct qed_link_params {
 #define QED_LINK_OVERRIDE_SPEED_FORCED_SPEED    BIT(2)
 #define QED_LINK_OVERRIDE_PAUSE_CONFIG          BIT(3)
 #define QED_LINK_OVERRIDE_LOOPBACK_MODE         BIT(4)
+#define QED_LINK_OVERRIDE_EEE_CONFIG            BIT(5)
 	u32	override_flags;
 	bool	autoneg;
 	u32	adv_speeds;
@@ -422,6 +435,7 @@ struct qed_link_params {
 #define QED_LINK_LOOPBACK_EXT                   BIT(3)
 #define QED_LINK_LOOPBACK_MAC                   BIT(4)
 	u32	loopback_mode;
+	struct qed_link_eee_params eee;
 };
 
 struct qed_link_output {
@@ -437,6 +451,12 @@ struct qed_link_output {
 	u8	port;                   /* In PORT defs */
 	bool	autoneg;
 	u32	pause_config;
+
+	/* EEE - capability & param */
+	bool eee_supported;
+	bool eee_active;
+	u8 sup_caps;
+	struct qed_link_eee_params eee;
 };
 
 struct qed_probe_params {
