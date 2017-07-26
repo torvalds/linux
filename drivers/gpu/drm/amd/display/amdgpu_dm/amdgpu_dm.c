@@ -3141,9 +3141,26 @@ int dm_create_validation_set_for_connector(struct drm_connector *connector,
 	return MODE_OK;
 }
 
+int dm_plane_atomic_check(struct drm_plane *plane,
+			    struct drm_plane_state *state)
+{
+	struct amdgpu_device *adev = plane->dev->dev_private;
+	struct dc *dc = adev->dm.dc;
+	struct dm_plane_state *dm_plane_state = to_dm_plane_state(state);
+
+	if (!dm_plane_state->surface)
+		return true;
+
+	if (dc_validate_surface(dc, dm_plane_state->surface))
+		return 0;
+
+	return -EINVAL;
+}
+
 static const struct drm_plane_helper_funcs dm_plane_helper_funcs = {
 	.prepare_fb = dm_plane_helper_prepare_fb,
 	.cleanup_fb = dm_plane_helper_cleanup_fb,
+	.atomic_check = dm_plane_atomic_check,
 };
 
 /*
