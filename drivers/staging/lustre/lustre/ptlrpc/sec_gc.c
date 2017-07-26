@@ -66,7 +66,7 @@ void sptlrpc_gc_add_sec(struct ptlrpc_sec *sec)
 	sec->ps_gc_next = ktime_get_real_seconds() + sec->ps_gc_interval;
 
 	spin_lock(&sec_gc_list_lock);
-	list_add_tail(&sec_gc_list, &sec->ps_gc_list);
+	list_add_tail(&sec->ps_gc_list, &sec_gc_list);
 	spin_unlock(&sec_gc_list_lock);
 
 	CDEBUG(D_SEC, "added sec %p(%s)\n", sec, sec->ps_policy->sp_name);
