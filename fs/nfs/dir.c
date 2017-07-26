@@ -2369,15 +2369,15 @@ void nfs_access_add_cache(struct inode *inode, struct nfs_access_entry *set)
 }
 EXPORT_SYMBOL_GPL(nfs_access_add_cache);
 
-#define NFS_MAY_READ (NFS4_ACCESS_READ)
-#define NFS_MAY_WRITE (NFS4_ACCESS_MODIFY | \
-		NFS4_ACCESS_EXTEND | \
-		NFS4_ACCESS_DELETE)
-#define NFS_FILE_MAY_WRITE (NFS4_ACCESS_MODIFY | \
-		NFS4_ACCESS_EXTEND)
+#define NFS_MAY_READ (NFS_ACCESS_READ)
+#define NFS_MAY_WRITE (NFS_ACCESS_MODIFY | \
+		NFS_ACCESS_EXTEND | \
+		NFS_ACCESS_DELETE)
+#define NFS_FILE_MAY_WRITE (NFS_ACCESS_MODIFY | \
+		NFS_ACCESS_EXTEND)
 #define NFS_DIR_MAY_WRITE NFS_MAY_WRITE
-#define NFS_MAY_LOOKUP (NFS4_ACCESS_LOOKUP)
-#define NFS_MAY_EXECUTE (NFS4_ACCESS_EXECUTE)
+#define NFS_MAY_LOOKUP (NFS_ACCESS_LOOKUP)
+#define NFS_MAY_EXECUTE (NFS_ACCESS_EXECUTE)
 static int
 nfs_access_calc_mask(u32 access_result, umode_t umode)
 {

@@ -184,6 +184,16 @@ struct nfs_inode {
 };
 
 /*
+ * Access bit flags
+ */
+#define NFS_ACCESS_READ        0x0001
+#define NFS_ACCESS_LOOKUP      0x0002
+#define NFS_ACCESS_MODIFY      0x0004
+#define NFS_ACCESS_EXTEND      0x0008
+#define NFS_ACCESS_DELETE      0x0010
+#define NFS_ACCESS_EXECUTE     0x0020
+
+/*
  * Cache validity bit flags
  */
 #define NFS_INO_INVALID_ATTR	0x0001		/* cached attrs are invalid */
