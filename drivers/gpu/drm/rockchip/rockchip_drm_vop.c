@@ -61,8 +61,12 @@
 #define VOP_INTR_GET(vop, name) \
 		vop_read_reg(vop, 0, &vop->data->ctrl->name)
 
-#define VOP_INTR_SET(vop, name, mask, v) \
+#define VOP_INTR_SET(vop, name, v) \
+		REG_SET(vop, 0, vop->data->intr->name, v)
+
+#define VOP_INTR_SET_MASK(vop, name, mask, v) \
 		REG_SET_MASK(vop, 0, vop->data->intr->name, mask, v)
+
 #define VOP_INTR_SET_TYPE(vop, name, type, v) \
 	do { \
 		int i, reg = 0, mask = 0; \
@@ -72,7 +76,7 @@
 				mask |= 1 << i; \
 			} \
 		} \
-		VOP_INTR_SET(vop, name, mask, reg); \
+		VOP_INTR_SET_MASK(vop, name, mask, reg); \
 	} while (0)
 #define VOP_INTR_GET_TYPE(vop, name, type) \
 		vop_get_intr_type(vop, &vop->data->intr->name, type)
@@ -984,7 +988,7 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 	VOP_CTRL_SET(vop, vact_st_end, val);
 	VOP_CTRL_SET(vop, vpost_st_end, val);
 
-	VOP_CTRL_SET(vop, line_flag_num[0], vact_end);
+	VOP_INTR_SET(vop, line_flag_num[0], vact_end);
 
 	clk_set_rate(vop->dclk, adjusted_mode->clock * 1000);
 

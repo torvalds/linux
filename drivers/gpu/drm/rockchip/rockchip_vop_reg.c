@@ -116,6 +116,7 @@ static const int rk3036_vop_intrs[] = {
 static const struct vop_intr rk3036_intr = {
 	.intrs = rk3036_vop_intrs,
 	.nintrs = ARRAY_SIZE(rk3036_vop_intrs),
+	.line_flag_num[0] = VOP_REG(RK3036_INT_STATUS, 0xfff, 12),
 	.status = VOP_REG(RK3036_INT_STATUS, 0xf, 0),
 	.enable = VOP_REG(RK3036_INT_STATUS, 0xf, 4),
 	.clear = VOP_REG(RK3036_INT_STATUS, 0xf, 8),
@@ -130,7 +131,6 @@ static const struct vop_ctrl rk3036_ctrl_data = {
 	.hact_st_end = VOP_REG(RK3036_DSP_HACT_ST_END, 0x1fff1fff, 0),
 	.vtotal_pw = VOP_REG(RK3036_DSP_VTOTAL_VS_END, 0x1fff1fff, 0),
 	.vact_st_end = VOP_REG(RK3036_DSP_VACT_ST_END, 0x1fff1fff, 0),
-	.line_flag_num[0] = VOP_REG(RK3036_INT_STATUS, 0xfff, 12),
 	.cfg_done = VOP_REG_SYNC(RK3036_REG_CFG_DONE, 0x1, 0),
 };
 
@@ -226,7 +226,6 @@ static const struct vop_ctrl rk3288_ctrl_data = {
 	.vact_st_end = VOP_REG(RK3288_DSP_VACT_ST_END, 0x1fff1fff, 0),
 	.hpost_st_end = VOP_REG(RK3288_POST_DSP_HACT_INFO, 0x1fff1fff, 0),
 	.vpost_st_end = VOP_REG(RK3288_POST_DSP_VACT_INFO, 0x1fff1fff, 0),
-	.line_flag_num[0] = VOP_REG(RK3288_INTR_CTRL0, 0x1fff, 12),
 	.global_regdone_en = VOP_REG(RK3288_SYS_CTRL, 0x1, 11),
 	.cfg_done = VOP_REG_SYNC(RK3288_REG_CFG_DONE, 0x1, 0),
 };
@@ -258,6 +257,7 @@ static const int rk3288_vop_intrs[] = {
 static const struct vop_intr rk3288_vop_intr = {
 	.intrs = rk3288_vop_intrs,
 	.nintrs = ARRAY_SIZE(rk3288_vop_intrs),
+	.line_flag_num[0] = VOP_REG(RK3288_INTR_CTRL0, 0x1fff, 12),
 	.status = VOP_REG(RK3288_INTR_CTRL0, 0xf, 0),
 	.enable = VOP_REG(RK3288_INTR_CTRL0, 0xf, 4),
 	.clear = VOP_REG(RK3288_INTR_CTRL0, 0xf, 8),
@@ -294,8 +294,6 @@ static const struct vop_ctrl rk3399_ctrl_data = {
 	.vact_st_end = VOP_REG(RK3399_DSP_VACT_ST_END, 0x1fff1fff, 0),
 	.hpost_st_end = VOP_REG(RK3399_POST_DSP_HACT_INFO, 0x1fff1fff, 0),
 	.vpost_st_end = VOP_REG(RK3399_POST_DSP_VACT_INFO, 0x1fff1fff, 0),
-	.line_flag_num[0] = VOP_REG(RK3399_LINE_FLAG, 0xffff, 0),
-	.line_flag_num[1] = VOP_REG(RK3399_LINE_FLAG, 0xffff, 16),
 	.cfg_done = VOP_REG_MASK_SYNC(RK3399_REG_CFG_DONE, 0x1, 0),
 };
 
@@ -312,6 +310,8 @@ static const int rk3399_vop_intrs[] = {
 static const struct vop_intr rk3399_vop_intr = {
 	.intrs = rk3399_vop_intrs,
 	.nintrs = ARRAY_SIZE(rk3399_vop_intrs),
+	.line_flag_num[0] = VOP_REG(RK3399_LINE_FLAG, 0xffff, 0),
+	.line_flag_num[1] = VOP_REG(RK3399_LINE_FLAG, 0xffff, 16),
 	.status = VOP_REG_MASK_SYNC(RK3399_INTR_STATUS0, 0xffff, 0),
 	.enable = VOP_REG_MASK_SYNC(RK3399_INTR_EN0, 0xffff, 0),
 	.clear = VOP_REG_MASK_SYNC(RK3399_INTR_CLEAR0, 0xffff, 0),
