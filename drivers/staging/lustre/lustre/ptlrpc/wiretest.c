@@ -3820,14 +3820,14 @@ void lustre_assert_wire_constants(void)
 		 (long long)(int)offsetof(struct link_ea_header, leh_len));
 	LASSERTF((int)sizeof(((struct link_ea_header *)0)->leh_len) == 8, "found %lld\n",
 		 (long long)(int)sizeof(((struct link_ea_header *)0)->leh_len));
-	LASSERTF((int)offsetof(struct link_ea_header, padding1) == 16, "found %lld\n",
-		 (long long)(int)offsetof(struct link_ea_header, padding1));
-	LASSERTF((int)sizeof(((struct link_ea_header *)0)->padding1) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct link_ea_header *)0)->padding1));
-	LASSERTF((int)offsetof(struct link_ea_header, padding2) == 20, "found %lld\n",
-		 (long long)(int)offsetof(struct link_ea_header, padding2));
-	LASSERTF((int)sizeof(((struct link_ea_header *)0)->padding2) == 4, "found %lld\n",
-		 (long long)(int)sizeof(((struct link_ea_header *)0)->padding2));
+	LASSERTF((int)offsetof(struct link_ea_header, leh_overflow_time) == 16, "found %lld\n",
+		 (long long)(int)offsetof(struct link_ea_header, leh_overflow_time));
+	LASSERTF((int)sizeof(((struct link_ea_header *)0)->leh_overflow_time) == 4, "found %lld\n",
+		 (long long)(int)sizeof(((struct link_ea_header *)0)->leh_overflow_time));
+	LASSERTF((int)offsetof(struct link_ea_header, leh_padding) == 20, "found %lld\n",
+		 (long long)(int)offsetof(struct link_ea_header, leh_padding));
+	LASSERTF((int)sizeof(((struct link_ea_header *)0)->leh_padding) == 4, "found %lld\n",
+		 (long long)(int)sizeof(((struct link_ea_header *)0)->leh_padding));
 	BUILD_BUG_ON(LINK_EA_MAGIC != 0x11EAF1DFUL);
 
 	/* Checks for struct link_ea_entry */

@@ -3217,9 +3217,8 @@ struct link_ea_header {
 	__u32 leh_magic;
 	__u32 leh_reccount;
 	__u64 leh_len;      /* total size */
-	/* future use */
-	__u32 padding1;
-	__u32 padding2;
+	__u32 leh_overflow_time;
+	__u32 leh_padding;
 };
 
 /** Hardlink data is name and parent fid.
