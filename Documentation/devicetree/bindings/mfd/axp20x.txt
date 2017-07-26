@@ -7,6 +7,7 @@ axp209 (X-Powers)
 axp221 (X-Powers)
 axp223 (X-Powers)
 axp803 (X-Powers)
+axp806 (X-Powers)
 axp809 (X-Powers)
 
 Required properties:
