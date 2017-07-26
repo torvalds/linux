@@ -731,9 +731,16 @@ static int __choose_mds(struct ceph_mds_client *mdsc,
 
 	inode = NULL;
 	if (req->r_inode) {
-		inode = req->r_inode;
-		ihold(inode);
-	} else if (req->r_dentry) {
+		if (ceph_snap(req->r_inode) != CEPH_SNAPDIR) {
+			inode = req->r_inode;
+			ihold(inode);
+		} else {
+			/* req->r_dentry is non-null for LSSNAP request.
+			 * fall-thru */
+			WARN_ON_ONCE(!req->r_dentry);
+		}
+	}
+	if (!inode && req->r_dentry) {
 		/* ignore race with rename; old or new d_parent is okay */
 		struct dentry *parent;
 		struct inode *dir;
