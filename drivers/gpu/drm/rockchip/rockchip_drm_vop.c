@@ -1398,7 +1398,6 @@ static void vop_destroy_crtc(struct vop *vop)
 static int vop_initial(struct vop *vop)
 {
 	const struct vop_data *vop_data = vop->data;
-	const struct vop_reg_data *init_table = vop_data->init_table;
 	struct reset_control *ahb_rst;
 	int i, ret;
 
@@ -1458,13 +1457,14 @@ static int vop_initial(struct vop *vop)
 
 	memcpy(vop->regsbak, vop->regs, vop->len);
 
-	for (i = 0; i < vop_data->table_size; i++)
-		vop_writel(vop, init_table[i].offset, init_table[i].value);
+	VOP_CTRL_SET(vop, global_regdone_en, 1);
+	VOP_CTRL_SET(vop, dsp_blank, 0);
 
 	for (i = 0; i < vop_data->win_size; i++) {
 		const struct vop_win_data *win = &vop_data->win[i];
 
 		VOP_WIN_SET(vop, win, enable, 0);
+		VOP_WIN_SET(vop, win, gate, 1);
 	}
 
 	vop_cfg_done(vop);
