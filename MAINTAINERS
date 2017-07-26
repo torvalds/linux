@@ -9466,6 +9466,7 @@ M:	Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
 S:	Maintained
 F:	drivers/nvmem/
 F:	Documentation/devicetree/bindings/nvmem/
+F:	Documentation/ABI/stable/sysfs-bus-nvmem
 F:	include/linux/nvmem-consumer.h
 F:	include/linux/nvmem-provider.h
 
