@@ -3116,13 +3116,20 @@ void ptlrpc_set_bulk_mbits(struct ptlrpc_request *req)
 
 	LASSERT(bd);
 
-	if (!req->rq_resend) {
-		/* this request has a new xid, just use it as bulk matchbits */
-		req->rq_mbits = req->rq_xid;
-
-	} else { /* needs to generate a new matchbits for resend */
+	/*
+	 * Generate new matchbits for all resend requests, including
+	 * resend replay.
+	 */
+	if (req->rq_resend) {
 		u64 old_mbits = req->rq_mbits;
 
+		/*
+		 * First time resend on -EINPROGRESS will generate new xid,
+		 * so we can actually use the rq_xid as rq_mbits in such case,
+		 * however, it's bit hard to distinguish such resend with a
+		 * 'resend for the -EINPROGRESS resend'. To make it simple,
+		 * we opt to generate mbits for all resend cases.
+		 */
 		if ((bd->bd_import->imp_connect_data.ocd_connect_flags &
 		     OBD_CONNECT_BULK_MBITS)) {
 			req->rq_mbits = ptlrpc_next_xid();
@@ -3131,12 +3138,21 @@ void ptlrpc_set_bulk_mbits(struct ptlrpc_request *req)
 			spin_lock(&req->rq_import->imp_lock);
 			list_del_init(&req->rq_unreplied_list);
 			ptlrpc_assign_next_xid_nolock(req);
-			req->rq_mbits = req->rq_xid;
 			spin_unlock(&req->rq_import->imp_lock);
+			req->rq_mbits = req->rq_xid;
 		}
 
 		CDEBUG(D_HA, "resend bulk old x%llu new x%llu\n",
 		       old_mbits, req->rq_mbits);
+	} else if (!(lustre_msg_get_flags(req->rq_reqmsg) & MSG_REPLAY)) {
+		/* Request being sent first time, use xid as matchbits. */
+		req->rq_mbits = req->rq_xid;
+	} else {
+		/*
+		 * Replay request, xid and matchbits have already been
+		 * correctly assigned.
+		 */
+		return;
 	}
 
 	/*
