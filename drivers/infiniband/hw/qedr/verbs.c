@@ -49,7 +49,7 @@
 #include "qedr.h"
 #include "verbs.h"
 #include <rdma/qedr-abi.h>
-#include "qedr_cm.h"
+#include "qedr_roce_cm.h"
 
 #define DB_ADDR_SHIFT(addr)		((addr) << DB_PWM_ADDR_OFFSET_SHIFT)
 
