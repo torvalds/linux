@@ -24,6 +24,7 @@
 	/delete-node/ usb-phy@ee0e0200;
 	/delete-node/ usb@ee0e0100;
 	/delete-node/ usb@ee0e0000;
+	/delete-node/ usb@e659c000;
 
 	/delete-node/ dma-controller@e6460000;
 	/delete-node/ dma-controller@e6470000;
