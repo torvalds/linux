@@ -677,7 +677,7 @@ static struct mfd_cell axp20x_cells[] = {
 
 static struct mfd_cell axp221_cells[] = {
 	{
-		.name		= "axp20x-pek",
+		.name		= "axp221-pek",
 		.num_resources	= ARRAY_SIZE(axp22x_pek_resources),
 		.resources	= axp22x_pek_resources,
 	}, {
@@ -702,7 +702,7 @@ static struct mfd_cell axp221_cells[] = {
 
 static struct mfd_cell axp223_cells[] = {
 	{
-		.name			= "axp20x-pek",
+		.name			= "axp221-pek",
 		.num_resources		= ARRAY_SIZE(axp22x_pek_resources),
 		.resources		= axp22x_pek_resources,
 	}, {
@@ -835,7 +835,7 @@ static struct mfd_cell axp288_cells[] = {
 		.resources = axp288_fuel_gauge_resources,
 	},
 	{
-		.name = "axp20x-pek",
+		.name = "axp221-pek",
 		.num_resources = ARRAY_SIZE(axp288_power_button_resources),
 		.resources = axp288_power_button_resources,
 	},
@@ -846,7 +846,7 @@ static struct mfd_cell axp288_cells[] = {
 
 static struct mfd_cell axp803_cells[] = {
 	{
-		.name			= "axp20x-pek",
+		.name			= "axp221-pek",
 		.num_resources		= ARRAY_SIZE(axp803_pek_resources),
 		.resources		= axp803_pek_resources,
 	},
@@ -862,7 +862,7 @@ static struct mfd_cell axp806_cells[] = {
 
 static struct mfd_cell axp809_cells[] = {
 	{
-		.name			= "axp20x-pek",
+		.name			= "axp221-pek",
 		.num_resources		= ARRAY_SIZE(axp809_pek_resources),
 		.resources		= axp809_pek_resources,
 	}, {
@@ -873,7 +873,7 @@ static struct mfd_cell axp809_cells[] = {
 
 static struct mfd_cell axp813_cells[] = {
 	{
-		.name			= "axp20x-pek",
+		.name			= "axp221-pek",
 		.num_resources		= ARRAY_SIZE(axp803_pek_resources),
 		.resources		= axp803_pek_resources,
 	}
