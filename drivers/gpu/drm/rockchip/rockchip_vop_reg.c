@@ -20,17 +20,23 @@
 #include "rockchip_drm_vop.h"
 #include "rockchip_vop_reg.h"
 
-#define VOP_REG(off, _mask, s) \
-		{.offset = off, \
+#define _VOP_REG(off, _mask, _shift, _write_mask, _relaxed) \
+		{ \
+		 .offset = off, \
 		 .mask = _mask, \
-		 .shift = s, \
-		 .write_mask = false,}
+		 .shift = _shift, \
+		 .write_mask = _write_mask, \
+		 .relaxed = _relaxed, \
+		}
 
-#define VOP_REG_MASK(off, _mask, s) \
-		{.offset = off, \
-		 .mask = _mask, \
-		 .shift = s, \
-		 .write_mask = true,}
+#define VOP_REG(off, _mask, _shift) \
+		_VOP_REG(off, _mask, _shift, false, true)
+
+#define VOP_REG_SYNC(off, _mask, _shift) \
+		_VOP_REG(off, _mask, _shift, false, false)
+
+#define VOP_REG_MASK_SYNC(off, _mask, _shift) \
+		_VOP_REG(off, _mask, _shift, true, false)
 
 static const uint32_t formats_win_full[] = {
 	DRM_FORMAT_XRGB8888,
@@ -116,7 +122,7 @@ static const struct vop_intr rk3036_intr = {
 };
 
 static const struct vop_ctrl rk3036_ctrl_data = {
-	.standby = VOP_REG(RK3036_SYS_CTRL, 0x1, 30),
+	.standby = VOP_REG_SYNC(RK3036_SYS_CTRL, 0x1, 30),
 	.out_mode = VOP_REG(RK3036_DSP_CTRL0, 0xf, 0),
 	.pin_pol = VOP_REG(RK3036_DSP_CTRL0, 0xf, 4),
 	.dsp_blank = VOP_REG(RK3036_DSP_CTRL1, 0x1, 24),
@@ -125,7 +131,7 @@ static const struct vop_ctrl rk3036_ctrl_data = {
 	.vtotal_pw = VOP_REG(RK3036_DSP_VTOTAL_VS_END, 0x1fff1fff, 0),
 	.vact_st_end = VOP_REG(RK3036_DSP_VACT_ST_END, 0x1fff1fff, 0),
 	.line_flag_num[0] = VOP_REG(RK3036_INT_STATUS, 0xfff, 12),
-	.cfg_done = VOP_REG(RK3036_REG_CFG_DONE, 0x1, 0),
+	.cfg_done = VOP_REG_SYNC(RK3036_REG_CFG_DONE, 0x1, 0),
 };
 
 static const struct vop_data rk3036_vop = {
@@ -201,7 +207,7 @@ static const struct vop_win_phy rk3288_win23_data = {
 };
 
 static const struct vop_ctrl rk3288_ctrl_data = {
-	.standby = VOP_REG(RK3288_SYS_CTRL, 0x1, 22),
+	.standby = VOP_REG_SYNC(RK3288_SYS_CTRL, 0x1, 22),
 	.gate_en = VOP_REG(RK3288_SYS_CTRL, 0x1, 23),
 	.mmu_en = VOP_REG(RK3288_SYS_CTRL, 0x1, 20),
 	.rgb_en = VOP_REG(RK3288_SYS_CTRL, 0x1, 12),
@@ -222,7 +228,7 @@ static const struct vop_ctrl rk3288_ctrl_data = {
 	.vpost_st_end = VOP_REG(RK3288_POST_DSP_VACT_INFO, 0x1fff1fff, 0),
 	.line_flag_num[0] = VOP_REG(RK3288_INTR_CTRL0, 0x1fff, 12),
 	.global_regdone_en = VOP_REG(RK3288_SYS_CTRL, 0x1, 11),
-	.cfg_done = VOP_REG(RK3288_REG_CFG_DONE, 0x1, 0),
+	.cfg_done = VOP_REG_SYNC(RK3288_REG_CFG_DONE, 0x1, 0),
 };
 
 /*
@@ -266,7 +272,7 @@ static const struct vop_data rk3288_vop = {
 };
 
 static const struct vop_ctrl rk3399_ctrl_data = {
-	.standby = VOP_REG(RK3399_SYS_CTRL, 0x1, 22),
+	.standby = VOP_REG_SYNC(RK3399_SYS_CTRL, 0x1, 22),
 	.gate_en = VOP_REG(RK3399_SYS_CTRL, 0x1, 23),
 	.dp_en = VOP_REG(RK3399_SYS_CTRL, 0x1, 11),
 	.rgb_en = VOP_REG(RK3399_SYS_CTRL, 0x1, 12),
@@ -290,7 +296,7 @@ static const struct vop_ctrl rk3399_ctrl_data = {
 	.vpost_st_end = VOP_REG(RK3399_POST_DSP_VACT_INFO, 0x1fff1fff, 0),
 	.line_flag_num[0] = VOP_REG(RK3399_LINE_FLAG, 0xffff, 0),
 	.line_flag_num[1] = VOP_REG(RK3399_LINE_FLAG, 0xffff, 16),
-	.cfg_done = VOP_REG_MASK(RK3399_REG_CFG_DONE, 0x1, 0),
+	.cfg_done = VOP_REG_MASK_SYNC(RK3399_REG_CFG_DONE, 0x1, 0),
 };
 
 static const int rk3399_vop_intrs[] = {
@@ -306,9 +312,9 @@ static const int rk3399_vop_intrs[] = {
 static const struct vop_intr rk3399_vop_intr = {
 	.intrs = rk3399_vop_intrs,
 	.nintrs = ARRAY_SIZE(rk3399_vop_intrs),
-	.status = VOP_REG_MASK(RK3399_INTR_STATUS0, 0xffff, 0),
-	.enable = VOP_REG_MASK(RK3399_INTR_EN0, 0xffff, 0),
-	.clear = VOP_REG_MASK(RK3399_INTR_CLEAR0, 0xffff, 0),
+	.status = VOP_REG_MASK_SYNC(RK3399_INTR_STATUS0, 0xffff, 0),
+	.enable = VOP_REG_MASK_SYNC(RK3399_INTR_EN0, 0xffff, 0),
+	.clear = VOP_REG_MASK_SYNC(RK3399_INTR_CLEAR0, 0xffff, 0),
 };
 
 static const struct vop_data rk3399_vop_big = {

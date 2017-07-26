@@ -29,6 +29,7 @@ struct vop_reg {
 	uint32_t shift;
 	uint32_t mask;
 	bool write_mask;
+	bool relaxed;
 };
 
 struct vop_ctrl {
