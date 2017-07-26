@@ -565,7 +565,8 @@ int
 i915_gem_object_attach_phys(struct drm_i915_gem_object *obj,
 			    int align)
 {
-	int ret;
+	struct sg_table *pages;
+	int err;
 
 	if (align > obj->base.size)
 		return -EINVAL;
@@ -573,32 +574,51 @@ i915_gem_object_attach_phys(struct drm_i915_gem_object *obj,
 	if (obj->ops == &i915_gem_phys_ops)
 		return 0;
 
-	if (obj->mm.madv != I915_MADV_WILLNEED)
-		return -EFAULT;
-
-	if (obj->base.filp == NULL)
+	if (obj->ops != &i915_gem_object_ops)
 		return -EINVAL;
 
-	ret = i915_gem_object_unbind(obj);
-	if (ret)
-		return ret;
+	err = i915_gem_object_unbind(obj);
+	if (err)
+		return err;
 
-	__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
-	if (obj->mm.pages)
-		return -EBUSY;
+	mutex_lock(&obj->mm.lock);
 
-	GEM_BUG_ON(obj->ops != &i915_gem_object_ops);
+	if (obj->mm.madv != I915_MADV_WILLNEED) {
+		err = -EFAULT;
+		goto err_unlock;
+	}
+
+	if (obj->mm.quirked) {
+		err = -EFAULT;
+		goto err_unlock;
+	}
+
+	if (obj->mm.mapping) {
+		err = -EBUSY;
+		goto err_unlock;
+	}
+
+	pages = obj->mm.pages;
 	obj->ops = &i915_gem_phys_ops;
 
-	ret = i915_gem_object_pin_pages(obj);
-	if (ret)
+	err = __i915_gem_object_get_pages(obj);
+	if (err)
 		goto err_xfer;
 
+	/* Perma-pin (until release) the physical set of pages */
+	__i915_gem_object_pin_pages(obj);
+
+	if (!IS_ERR_OR_NULL(pages))
+		i915_gem_object_ops.put_pages(obj, pages);
+	mutex_unlock(&obj->mm.lock);
 	return 0;
 
 err_xfer:
 	obj->ops = &i915_gem_object_ops;
-	return ret;
+	obj->mm.pages = pages;
+err_unlock:
+	mutex_unlock(&obj->mm.lock);
+	return err;
 }
 
 static int
