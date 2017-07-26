@@ -12432,9 +12432,15 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 	if (!obj)
 		return 0;
 
-	ret = mutex_lock_interruptible(&dev_priv->drm.struct_mutex);
+	ret = i915_gem_object_pin_pages(obj);
 	if (ret)
 		return ret;
+
+	ret = mutex_lock_interruptible(&dev_priv->drm.struct_mutex);
+	if (ret) {
+		i915_gem_object_unpin_pages(obj);
+		return ret;
+	}
 
 	if (plane->type == DRM_PLANE_TYPE_CURSOR &&
 	    INTEL_INFO(dev_priv)->cursor_needs_physical) {
@@ -12454,6 +12460,7 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 	i915_gem_object_wait_priority(obj, 0, I915_PRIORITY_DISPLAY);
 
 	mutex_unlock(&dev_priv->drm.struct_mutex);
+	i915_gem_object_unpin_pages(obj);
 	if (ret)
 		return ret;
 
