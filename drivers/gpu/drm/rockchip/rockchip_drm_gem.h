@@ -17,12 +17,21 @@
 
 #define to_rockchip_obj(x) container_of(x, struct rockchip_gem_object, base)
 
+enum rockchip_gem_buf_type {
+	ROCKCHIP_GEM_BUF_TYPE_CMA,
+	ROCKCHIP_GEM_BUF_TYPE_SHMEM,
+};
+
 struct rockchip_gem_object {
 	struct drm_gem_object base;
 	unsigned int flags;
+	enum rockchip_gem_buf_type buf_type;
 
 	void *kvaddr;
+	void *cookie;
 	dma_addr_t dma_addr;
+	dma_addr_t dma_handle;
+
 	/* Used when IOMMU is disabled */
 	unsigned long dma_attrs;
 
@@ -50,8 +59,8 @@ int rockchip_gem_mmap_buf(struct drm_gem_object *obj,
 			  struct vm_area_struct *vma);
 
 struct rockchip_gem_object *
-	rockchip_gem_create_object(struct drm_device *drm, unsigned int size,
-				   bool alloc_kmap);
+rockchip_gem_create_object(struct drm_device *drm, unsigned int size,
+			   bool alloc_kmap, unsigned int flags);
 
 void rockchip_gem_free_object(struct drm_gem_object *obj);
 

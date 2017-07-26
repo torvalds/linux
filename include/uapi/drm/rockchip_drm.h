@@ -25,7 +25,6 @@ enum drm_rockchip_gem_mem_type {
 	ROCKCHIP_BO_CACHABLE	= 1 << 1,
 	/* write-combine mapping. */
 	ROCKCHIP_BO_WC		= 1 << 2,
-	ROCKCHIP_BO_SECURE	= 1 << 3,
 	ROCKCHIP_BO_MASK	= ROCKCHIP_BO_CONTIG | ROCKCHIP_BO_CACHABLE |
 				ROCKCHIP_BO_WC
 };

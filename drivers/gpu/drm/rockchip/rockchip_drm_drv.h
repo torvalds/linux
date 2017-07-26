@@ -20,6 +20,7 @@
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_gem.h>
+#include <drm/rockchip_drm.h>
 
 #include <linux/module.h>
 #include <linux/component.h>

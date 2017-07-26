@@ -299,10 +299,17 @@ static int rockchip_gem_alloc_buf(struct rockchip_gem_object *rk_obj,
 	struct drm_device *drm = obj->dev;
 	struct rockchip_drm_private *private = drm->dev_private;
 
-	if (private->domain)
-		return rockchip_gem_alloc_iommu(rk_obj, alloc_kmap);
-	else
+	if (!private->domain)
+		rk_obj->flags |= ROCKCHIP_BO_CONTIG;
+
+	if (rk_obj->flags & ROCKCHIP_BO_CONTIG) {
+		rk_obj->buf_type = ROCKCHIP_GEM_BUF_TYPE_CMA;
 		return rockchip_gem_alloc_dma(rk_obj, alloc_kmap);
+
+	} else {
+		rk_obj->buf_type = ROCKCHIP_GEM_BUF_TYPE_SHMEM;
+		return rockchip_gem_alloc_iommu(rk_obj, alloc_kmap);
+	}
 }
 
 static void rockchip_gem_free_iommu(struct rockchip_gem_object *rk_obj)
@@ -329,30 +336,53 @@ static void rockchip_gem_free_buf(struct rockchip_gem_object *rk_obj)
 		rockchip_gem_free_dma(rk_obj);
 }
 
-static int rockchip_drm_gem_object_mmap_iommu(struct drm_gem_object *obj,
-					      struct vm_area_struct *vma)
+/*
+ * __vm_map_pages - maps range of kernel pages into user vma
+ * @vma: user vma to map to
+ * @pages: pointer to array of source kernel pages
+ * @num: number of pages in page array
+ * @offset: user's requested vm_pgoff
+ *
+ * This allows drivers to map range of kernel pages into a user vma.
+ *
+ * Return: 0 on success and error code otherwise.
+ */
+static int __vm_map_pages(struct vm_area_struct *vma, struct page **pages,
+			  unsigned long num, unsigned long offset)
 {
-	struct rockchip_gem_object *rk_obj = to_rockchip_obj(obj);
-	unsigned int i, count = obj->size >> PAGE_SHIFT;
-	unsigned long user_count = vma_pages(vma);
+	unsigned long count = vma_pages(vma);
 	unsigned long uaddr = vma->vm_start;
-	unsigned long offset = vma->vm_pgoff;
-	unsigned long end = user_count + offset;
-	int ret;
+	int ret, i;
 
-	if (user_count == 0)
-		return -ENXIO;
-	if (end > count)
+	/* Fail if the user requested offset is beyond the end of the object */
+	if (offset > num)
 		return -ENXIO;
 
-	for (i = offset; i < end; i++) {
-		ret = vm_insert_page(vma, uaddr, rk_obj->pages[i]);
-		if (ret)
+	/* Fail if the user requested size exceeds available object size */
+	if (count > num - offset)
+		return -ENXIO;
+
+	for (i = 0; i < count; i++) {
+		ret = vm_insert_page(vma, uaddr, pages[offset + i]);
+		if (ret < 0)
 			return ret;
 		uaddr += PAGE_SIZE;
 	}
 
 	return 0;
+}
+
+static int rockchip_drm_gem_object_mmap_iommu(struct drm_gem_object *obj,
+					      struct vm_area_struct *vma)
+{
+	struct rockchip_gem_object *rk_obj = to_rockchip_obj(obj);
+	unsigned int count = obj->size >> PAGE_SHIFT;
+	unsigned long user_count = vma_pages(vma);
+
+	if (user_count == 0)
+		return -ENXIO;
+
+	return __vm_map_pages(vma, rk_obj->pages, count, vma->vm_pgoff);
 }
 
 static int rockchip_drm_gem_object_mmap_dma(struct drm_gem_object *obj,
@@ -448,7 +478,7 @@ static struct rockchip_gem_object *
 
 struct rockchip_gem_object *
 rockchip_gem_create_object(struct drm_device *drm, unsigned int size,
-			   bool alloc_kmap)
+			   bool alloc_kmap, unsigned int flags)
 {
 	struct rockchip_gem_object *rk_obj;
 	int ret;
@@ -456,6 +486,7 @@ rockchip_gem_create_object(struct drm_device *drm, unsigned int size,
 	rk_obj = rockchip_gem_alloc_object(drm, size);
 	if (IS_ERR(rk_obj))
 		return rk_obj;
+	rk_obj->flags = flags;
 
 	ret = rockchip_gem_alloc_buf(rk_obj, alloc_kmap);
 	if (ret)
@@ -503,13 +534,13 @@ void rockchip_gem_free_object(struct drm_gem_object *obj)
 static struct rockchip_gem_object *
 rockchip_gem_create_with_handle(struct drm_file *file_priv,
 				struct drm_device *drm, unsigned int size,
-				unsigned int *handle)
+				unsigned int *handle, unsigned int flags)
 {
 	struct rockchip_gem_object *rk_obj;
 	struct drm_gem_object *obj;
 	int ret;
 
-	rk_obj = rockchip_gem_create_object(drm, size, false);
+	rk_obj = rockchip_gem_create_object(drm, size, false, flags);
 	if (IS_ERR(rk_obj))
 		return ERR_CAST(rk_obj);
 
@@ -555,7 +586,7 @@ int rockchip_gem_dumb_create(struct drm_file *file_priv,
 	args->size = args->pitch * args->height;
 
 	rk_obj = rockchip_gem_create_with_handle(file_priv, dev, args->size,
-						 &args->handle);
+						 &args->handle, args->flags);
 
 	return PTR_ERR_OR_ZERO(rk_obj);
 }
