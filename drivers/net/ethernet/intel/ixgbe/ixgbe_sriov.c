@@ -679,8 +679,9 @@ update_vlvfb:
 static int ixgbe_set_vf_macvlan(struct ixgbe_adapter *adapter,
 				int vf, int index, unsigned char *mac_addr)
 {
-	struct list_head *pos;
 	struct vf_macvlans *entry;
+	struct list_head *pos;
+	int retval = 0;
 
 	if (index <= 1) {
 		list_for_each(pos, &adapter->vf_mvs.l) {
@@ -721,12 +722,14 @@ static int ixgbe_set_vf_macvlan(struct ixgbe_adapter *adapter,
 	if (!entry || !entry->free)
 		return -ENOSPC;
 
+	retval = ixgbe_add_mac_filter(adapter, mac_addr, vf);
+	if (retval < 0)
+		return retval;
+
 	entry->free = false;
 	entry->is_macvlan = true;
 	entry->vf = vf;
 	memcpy(entry->vf_macvlan, mac_addr, ETH_ALEN);
-
-	ixgbe_add_mac_filter(adapter, mac_addr, vf);
 
 	return 0;
 }
