@@ -579,4 +579,22 @@ bool dcn10_mem_input_construct(
 	const struct dcn_mi_shift *mi_shift,
 	const struct dcn_mi_mask *mi_mask);
 
+struct dcn_hubp_state {
+	uint32_t pixel_format;
+	uint32_t inuse_addr_hi;
+	uint32_t viewport_width;
+	uint32_t viewport_height;
+	uint32_t rotation_angle;
+	uint32_t h_mirror_en;
+	uint32_t sw_mode;
+	uint32_t dcc_en;
+	uint32_t blank_en;
+	uint32_t ttu_disable;
+	uint32_t min_ttu_vblank;
+	uint32_t qos_level_low_wm;
+	uint32_t qos_level_high_wm;
+};
+void dcn10_mem_input_read_state(struct dcn10_mem_input *mi,
+		struct dcn_hubp_state *s);
+
 #endif

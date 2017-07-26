@@ -804,6 +804,40 @@ static void min_set_viewport(
                        PRI_VIEWPORT_Y_START_C, viewport_c->y);
 }
 
+void dcn10_mem_input_read_state(struct dcn10_mem_input *mi,
+		struct dcn_hubp_state *s)
+{
+	REG_GET(DCSURF_SURFACE_CONFIG,
+			SURFACE_PIXEL_FORMAT, &s->pixel_format);
+
+	REG_GET(DCSURF_SURFACE_EARLIEST_INUSE_HIGH,
+			SURFACE_EARLIEST_INUSE_ADDRESS_HIGH, &s->inuse_addr_hi);
+
+	REG_GET_2(DCSURF_PRI_VIEWPORT_DIMENSION,
+			PRI_VIEWPORT_WIDTH, &s->viewport_width,
+			PRI_VIEWPORT_HEIGHT, &s->viewport_height);
+
+	REG_GET_2(DCSURF_SURFACE_CONFIG,
+			ROTATION_ANGLE, &s->rotation_angle,
+			H_MIRROR_EN, &s->h_mirror_en);
+
+	REG_GET(DCSURF_TILING_CONFIG,
+			SW_MODE, &s->sw_mode);
+
+	REG_GET(DCSURF_SURFACE_CONTROL,
+			PRIMARY_SURFACE_DCC_EN, &s->dcc_en);
+
+	REG_GET_2(DCHUBP_CNTL,
+			HUBP_BLANK_EN, &s->blank_en,
+			HUBP_TTU_DISABLE, &s->ttu_disable);
+
+	REG_GET(DCN_GLOBAL_TTU_CNTL,
+			MIN_TTU_VBLANK, &s->min_ttu_vblank);
+
+	REG_GET_2(DCN_TTU_QOS_WM,
+			QoS_LEVEL_LOW_WM, &s->qos_level_low_wm,
+			QoS_LEVEL_HIGH_WM, &s->qos_level_high_wm);
+}
 
 static struct mem_input_funcs dcn10_mem_input_funcs = {
 	.mem_input_program_display_marks = min10_program_display_marks,

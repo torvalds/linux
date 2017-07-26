@@ -31,9 +31,9 @@
 #include "dce110/dce110_hw_sequencer.h"
 #include "dce/dce_hwseq.h"
 #include "abm.h"
+#include "dcn10/dcn10_mem_input.h"
 #include "dcn10/dcn10_dpp.h"
 #include "dcn10/dcn10_mpc.h"
-#include "mem_input.h"
 #include "timing_generator.h"
 #include "opp.h"
 #include "ipp.h"
@@ -2402,12 +2402,11 @@ static void dcn10_setup_stereo(struct pipe_ctx *pipe_ctx, struct core_dc *dc)
 	return;
 }
 
-static void dcn10_log_hw_state(struct core_dc *dc)
+
+static void log_mpc_crc(struct core_dc *dc)
 {
 	struct dc_context *dc_ctx = dc->ctx;
 	struct dce_hwseq *hws = dc->hwseq;
-
-	DTN_INFO("Hello World");
 
 	if (REG(MPC_CRC_RESULT_GB))
 		DTN_INFO("MPC_CRC_RESULT_GB:%d MPC_CRC_RESULT_C:%d MPC_CRC_RESULT_AR:%d\n",
@@ -2415,9 +2414,49 @@ static void dcn10_log_hw_state(struct core_dc *dc)
 	if (REG(DPP_TOP0_DPP_CRC_VAL_B_A))
 		DTN_INFO("DPP_TOP0_DPP_CRC_VAL_B_A:%d DPP_TOP0_DPP_CRC_VAL_R_G:%d\n",
 		REG_READ(DPP_TOP0_DPP_CRC_VAL_B_A), REG_READ(DPP_TOP0_DPP_CRC_VAL_R_G));
-	/* todo: add meaningful register reads and print out HW state
-	 *
-	 */
+}
+
+static void dcn10_log_hw_state(struct core_dc *dc)
+{
+	struct dc_context *dc_ctx = dc->ctx;
+	struct resource_pool *pool = dc->res_pool;
+	int i;
+
+	DTN_INFO_BEGIN();
+
+	DTN_INFO("HUBP:\t format \t addr_hi \t width \t height \t rotation \t"
+			"mirror \t  sw_mode \t dcc_en \t blank_en \t ttu_dis \t"
+			"min_ttu_vblank \t qos_low_wm \t qos_high_wm \n");
+
+	for (i = 0; i < pool->pipe_count; i++) {
+		struct mem_input *mi = pool->mis[i];
+		struct dcn_hubp_state s;
+
+		dcn10_mem_input_read_state(TO_DCN10_MEM_INPUT(mi), &s);
+
+		DTN_INFO("[%d]:\t %xh \t %xh \t %d \t %d \t %xh \t %xh \t "
+				"%d \t %d \t %d \t %d \t"
+				"%d \t %d \t %d \n",
+				i,
+				s.pixel_format,
+				s.inuse_addr_hi,
+				s.viewport_width,
+				s.viewport_height,
+				s.rotation_angle,
+				s.h_mirror_en,
+				s.sw_mode,
+				s.dcc_en,
+				s.blank_en,
+				s.ttu_disable,
+				s.min_ttu_vblank,
+				s.qos_level_low_wm,
+				s.qos_level_high_wm);
+	}
+	DTN_INFO("\n");
+
+	log_mpc_crc(dc);
+
+	DTN_INFO_END();
 }
 
 static void dcn10_wait_for_mpcc_disconnect(

@@ -327,6 +327,15 @@ bool dm_helpers_dc_conn_log(struct dc_context *ctx, struct log_entry *entry, enu
 	return true;
 }
 
+void dm_dtn_log_begin(struct dc_context *ctx)
+{}
+
+void dm_dtn_log_append_v(struct dc_context *ctx,
+		const char *pMsg, ...)
+{}
+
+void dm_dtn_log_end(struct dc_context *ctx)
+{}
 
 bool dm_helpers_dp_mst_start_top_mgr(
 		struct dc_context *ctx,

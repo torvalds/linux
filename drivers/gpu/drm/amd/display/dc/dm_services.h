@@ -463,4 +463,16 @@ bool dm_dmcu_set_pipe(struct dc_context *ctx, unsigned int controller_id);
 #define dm_log_to_buffer(buffer, size, fmt, args)\
 	vsnprintf(buffer, size, fmt, args)
 
+/*
+ * Debug and verification hooks
+ */
+bool dm_helpers_dc_conn_log(
+		struct dc_context *ctx,
+		struct log_entry *entry,
+		enum dc_log_type event);
+
+void dm_dtn_log_begin(struct dc_context *ctx);
+void dm_dtn_log_append_v(struct dc_context *ctx, const char *msg, ...);
+void dm_dtn_log_end(struct dc_context *ctx);
+
 #endif /* __DM_SERVICES_H__ */

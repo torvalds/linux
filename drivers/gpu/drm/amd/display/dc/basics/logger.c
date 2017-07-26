@@ -428,8 +428,7 @@ void dm_logger_open(
 
 	logger->open_count++;
 
-	if (log_type != LOG_DTN)
-		log_heading(entry);
+	log_heading(entry);
 }
 
 void dm_logger_close(struct log_entry *entry)

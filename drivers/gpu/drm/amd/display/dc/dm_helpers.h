@@ -68,15 +68,9 @@ bool dm_helpers_dp_mst_start_top_mgr(
 		const struct dc_link *link,
 		bool boot);
 
-bool dm_helpers_dc_conn_log(
-		struct dc_context*ctx,
-		struct log_entry *entry,
-		enum dc_log_type event);
-
 void dm_helpers_dp_mst_stop_top_mgr(
 		struct dc_context *ctx,
 		const struct dc_link *link);
-
 /**
  * OS specific aux read callback.
  */

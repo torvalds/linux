@@ -100,31 +100,3 @@ void dc_conn_log(struct dc_context *ctx,
 
 	va_end(args);
 }
-
-void dc_raw_log(struct dc_context *ctx,
-		enum dc_log_type event,
-		const char *msg,
-		...)
-{
-	va_list args;
-	struct log_entry entry = { 0 };
-
-	dm_logger_open(ctx->logger, &entry, event);
-
-	va_start(args, msg);
-	entry.buf_offset += dm_log_to_buffer(
-		&entry.buf[entry.buf_offset],
-		LOG_MAX_LINE_SIZE - entry.buf_offset,
-		msg, args);
-
-	if (entry.buf[strlen(entry.buf) - 1] == '\n') {
-		entry.buf[strlen(entry.buf) - 1] = '\0';
-		entry.buf_offset--;
-	}
-
-	dm_logger_append(&entry, "^\n");
-	dm_helpers_dc_conn_log(ctx, &entry, event);
-	dm_logger_close(&entry);
-
-	va_end(args);
-}
