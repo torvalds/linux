@@ -856,8 +856,6 @@ bool dcn_validate_bandwidth(
 				- pipe->stream->timing.v_front_porch;
 		v->vactive[input_idx] = pipe->stream->timing.v_addressable;
 		v->pixel_clock[input_idx] = pipe->stream->timing.pix_clk_khz / 1000.0f;
-		if (pipe->stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420)
-			v->pixel_clock[input_idx] /= 2;
 
 
 		if (!pipe->surface){
