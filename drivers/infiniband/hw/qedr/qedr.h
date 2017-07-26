@@ -44,6 +44,8 @@
 #define QEDR_MODULE_VERSION	"8.10.10.0"
 #define QEDR_NODE_DESC "QLogic 579xx RoCE HCA"
 #define DP_NAME(dev) ((dev)->ibdev.name)
+#define IS_IWARP(_dev) ((_dev)->rdma_type == QED_RDMA_TYPE_IWARP)
+#define IS_ROCE(_dev) ((_dev)->rdma_type == QED_RDMA_TYPE_ROCE)
 
 #define DP_DEBUG(dev, module, fmt, ...)					\
 	pr_debug("(%s) " module ": " fmt,				\
@@ -161,6 +163,7 @@ struct qedr_dev {
 	struct qedr_cq		*gsi_sqcq;
 	struct qedr_cq		*gsi_rqcq;
 	struct qedr_qp		*gsi_qp;
+	enum qed_rdma_type	rdma_type;
 
 	unsigned long enet_state;
 };

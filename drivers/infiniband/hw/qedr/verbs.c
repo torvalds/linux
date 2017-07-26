@@ -70,6 +70,20 @@ int qedr_query_pkey(struct ib_device *ibdev, u8 port, u16 index, u16 *pkey)
 	return 0;
 }
 
+int qedr_iw_query_gid(struct ib_device *ibdev, u8 port,
+		      int index, union ib_gid *sgid)
+{
+	struct qedr_dev *dev = get_qedr_dev(ibdev);
+
+	memset(sgid->raw, 0, sizeof(sgid->raw));
+	ether_addr_copy(sgid->raw, dev->ndev->dev_addr);
+
+	DP_DEBUG(dev, QEDR_MSG_INIT, "QUERY sgid[%d]=%llx:%llx\n", index,
+		 sgid->global.interface_id, sgid->global.subnet_prefix);
+
+	return 0;
+}
+
 int qedr_query_gid(struct ib_device *ibdev, u8 port, int index,
 		   union ib_gid *sgid)
 {
@@ -3599,24 +3613,4 @@ int qedr_process_mad(struct ib_device *ibdev, int process_mad_flags,
 		 mad_hdr->class_specific, mad_hdr->class_version,
 		 mad_hdr->method, mad_hdr->mgmt_class, mad_hdr->status);
 	return IB_MAD_RESULT_SUCCESS;
-}
-
-int qedr_port_immutable(struct ib_device *ibdev, u8 port_num,
-			struct ib_port_immutable *immutable)
-{
-	struct ib_port_attr attr;
-	int err;
-
-	immutable->core_cap_flags = RDMA_CORE_PORT_IBA_ROCE |
-				    RDMA_CORE_PORT_IBA_ROCE_UDP_ENCAP;
-
-	err = ib_query_port(ibdev, port_num, &attr);
-	if (err)
-		return err;
-
-	immutable->pkey_tbl_len = attr.pkey_tbl_len;
-	immutable->gid_tbl_len = attr.gid_tbl_len;
-	immutable->max_mad_size = IB_MGMT_MAD_SIZE;
-
-	return 0;
 }

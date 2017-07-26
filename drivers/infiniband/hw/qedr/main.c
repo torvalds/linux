@@ -33,6 +33,8 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_addr.h>
 #include <rdma/ib_user_verbs.h>
+#include <rdma/iw_cm.h>
+#include <rdma/ib_mad.h>
 #include <linux/netdevice.h>
 #include <linux/iommu.h>
 #include <linux/pci.h>
@@ -94,8 +96,75 @@ static struct net_device *qedr_get_netdev(struct ib_device *dev, u8 port_num)
 	return qdev->ndev;
 }
 
+int qedr_roce_port_immutable(struct ib_device *ibdev, u8 port_num,
+			     struct ib_port_immutable *immutable)
+{
+	struct ib_port_attr attr;
+	int err;
+
+	err = qedr_query_port(ibdev, port_num, &attr);
+	if (err)
+		return err;
+
+	immutable->pkey_tbl_len = attr.pkey_tbl_len;
+	immutable->gid_tbl_len = attr.gid_tbl_len;
+	immutable->core_cap_flags = RDMA_CORE_PORT_IBA_ROCE |
+	    RDMA_CORE_PORT_IBA_ROCE_UDP_ENCAP;
+	immutable->max_mad_size = IB_MGMT_MAD_SIZE;
+
+	return 0;
+}
+
+int qedr_iw_port_immutable(struct ib_device *ibdev, u8 port_num,
+			   struct ib_port_immutable *immutable)
+{
+	struct ib_port_attr attr;
+	int err;
+
+	err = qedr_query_port(ibdev, port_num, &attr);
+	if (err)
+		return err;
+
+	immutable->pkey_tbl_len = 1;
+	immutable->gid_tbl_len = 1;
+	immutable->core_cap_flags = RDMA_CORE_PORT_IWARP;
+	immutable->max_mad_size = 0;
+
+	return 0;
+}
+
+int qedr_iw_register_device(struct qedr_dev *dev)
+{
+	dev->ibdev.node_type = RDMA_NODE_RNIC;
+	dev->ibdev.query_gid = qedr_iw_query_gid;
+
+	dev->ibdev.get_port_immutable = qedr_iw_port_immutable;
+
+	dev->ibdev.iwcm = kzalloc(sizeof(*dev->ibdev.iwcm), GFP_KERNEL);
+	if (!dev->ibdev.iwcm)
+		return -ENOMEM;
+
+	memcpy(dev->ibdev.iwcm->ifname,
+	       dev->ndev->name, sizeof(dev->ibdev.iwcm->ifname));
+
+	return 0;
+}
+
+void qedr_roce_register_device(struct qedr_dev *dev)
+{
+	dev->ibdev.node_type = RDMA_NODE_IB_CA;
+	dev->ibdev.query_gid = qedr_query_gid;
+
+	dev->ibdev.add_gid = qedr_add_gid;
+	dev->ibdev.del_gid = qedr_del_gid;
+
+	dev->ibdev.get_port_immutable = qedr_roce_port_immutable;
+}
+
 static int qedr_register_device(struct qedr_dev *dev)
 {
+	int rc;
+
 	strlcpy(dev->ibdev.name, "qedr%d", IB_DEVICE_NAME_MAX);
 
 	dev->ibdev.node_guid = dev->attr.node_guid;
@@ -123,17 +192,20 @@ static int qedr_register_device(struct qedr_dev *dev)
 				     QEDR_UVERBS(POST_SEND) |
 				     QEDR_UVERBS(POST_RECV);
 
+	if (IS_IWARP(dev)) {
+		rc = qedr_iw_register_device(dev);
+		if (rc)
+			return rc;
+	} else {
+		qedr_roce_register_device(dev);
+	}
+
 	dev->ibdev.phys_port_cnt = 1;
 	dev->ibdev.num_comp_vectors = dev->num_cnq;
-	dev->ibdev.node_type = RDMA_NODE_IB_CA;
 
 	dev->ibdev.query_device = qedr_query_device;
 	dev->ibdev.query_port = qedr_query_port;
 	dev->ibdev.modify_port = qedr_modify_port;
-
-	dev->ibdev.query_gid = qedr_query_gid;
-	dev->ibdev.add_gid = qedr_add_gid;
-	dev->ibdev.del_gid = qedr_del_gid;
 
 	dev->ibdev.alloc_ucontext = qedr_alloc_ucontext;
 	dev->ibdev.dealloc_ucontext = qedr_dealloc_ucontext;
@@ -168,7 +240,7 @@ static int qedr_register_device(struct qedr_dev *dev)
 	dev->ibdev.post_recv = qedr_post_recv;
 
 	dev->ibdev.process_mad = qedr_process_mad;
-	dev->ibdev.get_port_immutable = qedr_port_immutable;
+
 	dev->ibdev.get_netdev = qedr_get_netdev;
 
 	dev->ibdev.dev.parent = &dev->pdev->dev;
