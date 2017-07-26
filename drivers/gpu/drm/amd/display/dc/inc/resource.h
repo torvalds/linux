@@ -103,8 +103,8 @@ void resource_reference_clock_source(
 		struct clock_source *clock_source);
 
 bool resource_are_streams_timing_synchronizable(
-		const struct core_stream *stream1,
-		const struct core_stream *stream2);
+		struct dc_stream *stream1,
+		struct dc_stream *stream2);
 
 struct clock_source *resource_find_used_clk_src_for_sharing(
 		struct resource_context *res_ctx,
@@ -116,12 +116,12 @@ struct clock_source *dc_resource_find_first_free_pll(
 
 struct pipe_ctx *resource_get_head_pipe_for_stream(
 		struct resource_context *res_ctx,
-		const struct core_stream *stream);
+		struct dc_stream *stream);
 
 bool resource_attach_surfaces_to_context(
 		struct dc_surface *const *surfaces,
 		int surface_count,
-		const struct dc_stream *dc_stream,
+		struct dc_stream *dc_stream,
 		struct validate_context *context,
 		const struct resource_pool *pool);
 
@@ -130,10 +130,10 @@ struct pipe_ctx *find_idle_secondary_pipe(
 		const struct resource_pool *pool);
 
 bool resource_is_stream_unchanged(
-	const struct validate_context *old_context, const struct core_stream *stream);
+	struct validate_context *old_context, struct dc_stream *stream);
 
 bool is_stream_unchanged(
-	const struct core_stream *old_stream, const struct core_stream *stream);
+	struct dc_stream *old_stream, struct dc_stream *stream);
 
 bool resource_validate_attach_surfaces(
 		const struct dc_validation_set set[],
@@ -164,7 +164,7 @@ bool pipe_need_reprogram(
 		struct pipe_ctx *pipe_ctx_old,
 		struct pipe_ctx *pipe_ctx);
 
-void resource_build_bit_depth_reduction_params(const struct core_stream *stream,
+void resource_build_bit_depth_reduction_params(struct dc_stream *stream,
 		struct bit_depth_reduction_params *fmt_bit_depth);
 
 #endif /* DRIVERS_GPU_DRM_AMD_DC_DEV_DC_INC_RESOURCE_H_ */

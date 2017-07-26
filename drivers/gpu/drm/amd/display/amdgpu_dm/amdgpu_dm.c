@@ -1401,7 +1401,7 @@ static int amdgpu_notify_freesync(struct drm_device *dev, void *data,
 	num_streams = dc_get_current_stream_count(adev->dm.dc);
 
 	for (i = 0; i < num_streams; i++) {
-		const struct dc_stream *stream;
+		struct dc_stream *stream;
 		stream = dc_get_stream_at_index(adev->dm.dc, i);
 
 		mod_freesync_update_state(adev->dm.freesync_module,

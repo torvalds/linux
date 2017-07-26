@@ -1434,7 +1434,7 @@ bool dp_validate_mode_timing(
 		return false;
 }
 
-void decide_link_settings(struct core_stream *stream,
+void decide_link_settings(struct dc_stream *stream,
 	struct dc_link_settings *link_setting)
 {
 
@@ -1446,8 +1446,7 @@ void decide_link_settings(struct core_stream *stream,
 	uint32_t req_bw;
 	uint32_t link_bw;
 
-	req_bw = bandwidth_in_kbps_from_timing(
-			&stream->public.timing);
+	req_bw = bandwidth_in_kbps_from_timing(&stream->timing);
 
 	link = stream->sink->link;
 
@@ -2327,7 +2326,7 @@ static void set_crtc_test_pattern(struct dc_link *link,
 {
 	enum controller_dp_test_pattern controller_test_pattern;
 	enum dc_color_depth color_depth = pipe_ctx->
-		stream->public.timing.display_color_depth;
+		stream->timing.display_color_depth;
 	struct bit_depth_reduction_params params;
 
 	memset(&params, 0, sizeof(params));

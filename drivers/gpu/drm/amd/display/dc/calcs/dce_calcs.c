@@ -2610,9 +2610,9 @@ static void populate_initial_data(
 
 		data->fbc_en[num_displays + 4] = false;
 		data->lpt_en[num_displays + 4] = false;
-		data->h_total[num_displays + 4] = bw_int_to_fixed(pipe[i].stream->public.timing.h_total);
-		data->v_total[num_displays + 4] = bw_int_to_fixed(pipe[i].stream->public.timing.v_total);
-		data->pixel_rate[num_displays + 4] = bw_frc_to_fixed(pipe[i].stream->public.timing.pix_clk_khz, 1000);
+		data->h_total[num_displays + 4] = bw_int_to_fixed(pipe[i].stream->timing.h_total);
+		data->v_total[num_displays + 4] = bw_int_to_fixed(pipe[i].stream->timing.v_total);
+		data->pixel_rate[num_displays + 4] = bw_frc_to_fixed(pipe[i].stream->timing.pix_clk_khz, 1000);
 		data->src_width[num_displays + 4] = bw_int_to_fixed(pipe[i].scl_data.viewport.width);
 		data->pitch_in_pixels[num_displays + 4] = data->src_width[num_displays + 4];
 		data->src_height[num_displays + 4] = bw_int_to_fixed(pipe[i].scl_data.viewport.height);
@@ -2707,9 +2707,9 @@ static void populate_initial_data(
 
 		data->fbc_en[num_displays + 4] = false;
 		data->lpt_en[num_displays + 4] = false;
-		data->h_total[num_displays + 4] = bw_int_to_fixed(pipe[i].stream->public.timing.h_total);
-		data->v_total[num_displays + 4] = bw_int_to_fixed(pipe[i].stream->public.timing.v_total);
-		data->pixel_rate[num_displays + 4] = bw_frc_to_fixed(pipe[i].stream->public.timing.pix_clk_khz, 1000);
+		data->h_total[num_displays + 4] = bw_int_to_fixed(pipe[i].stream->timing.h_total);
+		data->v_total[num_displays + 4] = bw_int_to_fixed(pipe[i].stream->timing.v_total);
+		data->pixel_rate[num_displays + 4] = bw_frc_to_fixed(pipe[i].stream->timing.pix_clk_khz, 1000);
 		if (pipe[i].surface) {
 			data->src_width[num_displays + 4] = bw_int_to_fixed(pipe[i].scl_data.viewport.width);
 			data->pitch_in_pixels[num_displays + 4] = data->src_width[num_displays + 4];
@@ -2759,9 +2759,9 @@ static void populate_initial_data(
 				break;
 			}
 		} else {
-			data->src_width[num_displays + 4] = bw_int_to_fixed(pipe[i].stream->public.timing.h_addressable);
+			data->src_width[num_displays + 4] = bw_int_to_fixed(pipe[i].stream->timing.h_addressable);
 			data->pitch_in_pixels[num_displays + 4] = data->src_width[num_displays + 4];
-			data->src_height[num_displays + 4] = bw_int_to_fixed(pipe[i].stream->public.timing.v_addressable);
+			data->src_height[num_displays + 4] = bw_int_to_fixed(pipe[i].stream->timing.v_addressable);
 			data->h_taps[num_displays + 4] = bw_int_to_fixed(1);
 			data->v_taps[num_displays + 4] = bw_int_to_fixed(1);
 			data->h_scale_ratio[num_displays + 4] = bw_int_to_fixed(1);

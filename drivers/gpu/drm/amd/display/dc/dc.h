@@ -32,6 +32,7 @@
 #include "gpio_types.h"
 #include "link_service_types.h"
 #include "grph_object_ctrl_defs.h"
+#include <inc/hw/opp.h>
 
 #define MAX_SURFACES 3
 #define MAX_STREAMS 6
@@ -106,12 +107,12 @@ struct dc_cap_funcs {
 
 struct dc_stream_funcs {
 	bool (*adjust_vmin_vmax)(struct dc *dc,
-			const struct dc_stream **stream,
+			struct dc_stream **stream,
 			int num_streams,
 			int vmin,
 			int vmax);
 	bool (*get_crtc_position)(struct dc *dc,
-			const struct dc_stream **stream,
+			struct dc_stream **stream,
 			int num_streams,
 			unsigned int *v_pos,
 			unsigned int *nom_v_pos);
@@ -120,14 +121,14 @@ struct dc_stream_funcs {
 			const struct dc_stream *stream);
 
 	bool (*program_csc_matrix)(struct dc *dc,
-			const struct dc_stream *stream);
+			struct dc_stream *stream);
 
 	void (*set_static_screen_events)(struct dc *dc,
-			const struct dc_stream **stream,
+			struct dc_stream **stream,
 			int num_streams,
 			const struct dc_static_screen_events *events);
 
-	void (*set_dither_option)(const struct dc_stream *stream,
+	void (*set_dither_option)(struct dc_stream *stream,
 			enum dc_dither_option option);
 };
 
@@ -428,7 +429,7 @@ bool dc_commit_surfaces_to_stream(
 		struct dc *dc,
 		struct dc_surface **dc_surfaces,
 		uint8_t surface_count,
-		const struct dc_stream *stream);
+		struct dc_stream *stream);
 
 bool dc_post_update_surfaces_to_stream(
 		struct dc *dc);
@@ -468,6 +469,18 @@ enum surface_update_type {
 /*******************************************************************************
  * Stream Interfaces
  ******************************************************************************/
+
+struct dc_stream_status {
+	int primary_otg_inst;
+	int surface_count;
+	struct dc_surface *surfaces[MAX_SURFACE_NUM];
+
+	/*
+	 * link this stream passes through
+	 */
+	struct dc_link *link;
+};
+
 struct dc_stream {
 	struct dc_sink *sink;
 	struct dc_crtc_timing timing;
@@ -495,6 +508,21 @@ struct dc_stream {
 	/* TODO: ABM info (DMCU) */
 	/* TODO: PSR info */
 	/* TODO: CEA VIC */
+
+	/* from core_stream struct */
+	struct dc_context *ctx;
+
+	/* used by DCP and FMT */
+	struct bit_depth_reduction_params bit_depth_params;
+	struct clamping_and_pixel_encoding_params clamping;
+
+	int phy_pix_clk;
+	enum signal_type signal;
+
+	struct dc_stream_status status;
+
+	/* from stream struct */
+	int ref_count;
 };
 
 struct dc_stream_update {
@@ -521,7 +549,7 @@ struct dc_stream_update {
 
 void dc_update_surfaces_and_stream(struct dc *dc,
 		struct dc_surface_update *surface_updates, int surface_count,
-		const struct dc_stream *dc_stream,
+		struct dc_stream *dc_stream,
 		struct dc_stream_update *stream_update);
 
 /*
@@ -554,12 +582,12 @@ bool dc_stream_get_scanoutpos(const struct dc_stream *stream,
  * Structure to store surface/stream associations for validation
  */
 struct dc_validation_set {
-	const struct dc_stream *stream;
+	struct dc_stream *stream;
 	struct dc_surface *surfaces[MAX_SURFACES];
 	uint8_t surface_count;
 };
 
-bool dc_validate_stream(const struct dc *dc, const struct dc_stream *stream);
+bool dc_validate_stream(const struct dc *dc, struct dc_stream *stream);
 
 /*
  * This function takes a set of resources and checks that they are cofunctional.
@@ -587,7 +615,7 @@ bool dc_validate_resources(
 
 bool dc_validate_guaranteed(
 		const struct dc *dc,
-		const struct dc_stream *stream);
+		struct dc_stream *stream);
 
 void dc_resource_validate_ctx_copy_construct(
 		const struct validate_context *src_ctx,
@@ -616,7 +644,7 @@ bool dc_commit_context(struct dc *dc, struct validate_context *context);
  */
 bool dc_commit_streams(
 		struct dc *dc,
-		const struct dc_stream *streams[],
+		struct dc_stream *streams[],
 		uint8_t stream_count);
 /*
  * Enable stereo when commit_streams is not required,
@@ -625,7 +653,7 @@ bool dc_commit_streams(
 bool dc_enable_stereo(
 	struct dc *dc,
 	struct validate_context *context,
-	const struct dc_stream *streams[],
+	struct dc_stream *streams[],
 	uint8_t stream_count);
 
 /**
@@ -633,22 +661,11 @@ bool dc_enable_stereo(
  */
 struct dc_stream *dc_create_stream_for_sink(struct dc_sink *dc_sink);
 
-void dc_stream_retain(const struct dc_stream *dc_stream);
-void dc_stream_release(const struct dc_stream *dc_stream);
-
-struct dc_stream_status {
-	int primary_otg_inst;
-	int surface_count;
-	struct dc_surface *surfaces[MAX_SURFACE_NUM];
-
-	/*
-	 * link this stream passes through
-	 */
-	struct dc_link *link;
-};
+void dc_stream_retain(struct dc_stream *dc_stream);
+void dc_stream_release(struct dc_stream *dc_stream);
 
 struct dc_stream_status *dc_stream_get_status(
-	const struct dc_stream *dc_stream);
+	struct dc_stream *dc_stream);
 
 enum surface_update_type dc_check_update_surfaces_for_stream(
 		struct dc *dc,
@@ -915,7 +932,7 @@ bool dc_stream_set_cursor_attributes(
 	const struct dc_cursor_attributes *attributes);
 
 bool dc_stream_set_cursor_position(
-	const struct dc_stream *stream,
+	struct dc_stream *stream,
 	const struct dc_cursor_position *position);
 
 /* Newer interfaces  */

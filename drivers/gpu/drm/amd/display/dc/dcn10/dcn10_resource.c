@@ -787,8 +787,8 @@ static void get_pixel_clock_parameters(
 	const struct pipe_ctx *pipe_ctx,
 	struct pixel_clk_params *pixel_clk_params)
 {
-	const struct core_stream *stream = pipe_ctx->stream;
-	pixel_clk_params->requested_pix_clk = stream->public.timing.pix_clk_khz;
+	const struct dc_stream *stream = pipe_ctx->stream;
+	pixel_clk_params->requested_pix_clk = stream->timing.pix_clk_khz;
 	pixel_clk_params->encoder_object_id = stream->sink->link->link_enc->id;
 	pixel_clk_params->signal_type = pipe_ctx->stream->signal;
 	pixel_clk_params->controller_id = pipe_ctx->pipe_idx + 1;
@@ -797,23 +797,23 @@ static void get_pixel_clock_parameters(
 		LINK_RATE_REF_FREQ_IN_KHZ;
 	pixel_clk_params->flags.ENABLE_SS = 0;
 	pixel_clk_params->color_depth =
-		stream->public.timing.display_color_depth;
+		stream->timing.display_color_depth;
 	pixel_clk_params->flags.DISPLAY_BLANKED = 1;
-	pixel_clk_params->pixel_encoding = stream->public.timing.pixel_encoding;
+	pixel_clk_params->pixel_encoding = stream->timing.pixel_encoding;
 
-	if (stream->public.timing.pixel_encoding == PIXEL_ENCODING_YCBCR422)
+	if (stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR422)
 		pixel_clk_params->color_depth = COLOR_DEPTH_888;
 
-	if (stream->public.timing.pixel_encoding == PIXEL_ENCODING_YCBCR420)
+	if (stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420)
 		pixel_clk_params->requested_pix_clk  /= 2;
 
 }
 
-static void build_clamping_params(struct core_stream *stream)
+static void build_clamping_params(struct dc_stream *stream)
 {
 	stream->clamping.clamping_level = CLAMPING_FULL_RANGE;
-	stream->clamping.c_depth = stream->public.timing.display_color_depth;
-	stream->clamping.pixel_encoding = stream->public.timing.pixel_encoding;
+	stream->clamping.c_depth = stream->timing.display_color_depth;
+	stream->clamping.pixel_encoding = stream->timing.pixel_encoding;
 }
 
 static enum dc_status build_pipe_hw_param(struct pipe_ctx *pipe_ctx)
@@ -826,7 +826,7 @@ static enum dc_status build_pipe_hw_param(struct pipe_ctx *pipe_ctx)
 		&pipe_ctx->pix_clk_params,
 		&pipe_ctx->pll_settings);
 
-	pipe_ctx->stream->clamping.pixel_encoding = pipe_ctx->stream->public.timing.pixel_encoding;
+	pipe_ctx->stream->clamping.pixel_encoding = pipe_ctx->stream->timing.pixel_encoding;
 
 	resource_build_bit_depth_reduction_params(pipe_ctx->stream,
 					&pipe_ctx->stream->bit_depth_params);
@@ -844,7 +844,7 @@ static enum dc_status build_mapped_resource(
 	uint8_t i, j;
 
 	for (i = 0; i < context->stream_count; i++) {
-		struct core_stream *stream = context->streams[i];
+		struct dc_stream *stream = context->streams[i];
 
 		if (old_context && resource_is_stream_unchanged(old_context, stream)) {
 			if (stream != NULL && old_context->streams[i] != NULL) {
@@ -852,7 +852,7 @@ static enum dc_status build_mapped_resource(
 				resource_build_bit_depth_reduction_params(stream,
 						&stream->bit_depth_params);
 				stream->clamping.pixel_encoding =
-						stream->public.timing.pixel_encoding;
+						stream->timing.pixel_encoding;
 
 				resource_build_bit_depth_reduction_params(stream,
 								&stream->bit_depth_params);
@@ -896,8 +896,8 @@ enum dc_status dcn10_validate_with_context(
 		return result;
 
 	for (i = 0; i < set_count; i++) {
-		context->streams[i] = DC_STREAM_TO_CORE(set[i].stream);
-		dc_stream_retain(&context->streams[i]->public);
+		context->streams[i] = set[i].stream;
+		dc_stream_retain(context->streams[i]);
 		context->stream_count++;
 	}
 
@@ -929,13 +929,13 @@ enum dc_status dcn10_validate_with_context(
 
 enum dc_status dcn10_validate_guaranteed(
 		const struct core_dc *dc,
-		const struct dc_stream *dc_stream,
+		struct dc_stream *dc_stream,
 		struct validate_context *context)
 {
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 
-	context->streams[0] = DC_STREAM_TO_CORE(dc_stream);
-	dc_stream_retain(&context->streams[0]->public);
+	context->streams[0] = dc_stream;
+	dc_stream_retain(context->streams[0]);
 	context->stream_count++;
 
 	result = resource_map_pool_resources(dc, context, NULL);
@@ -960,7 +960,7 @@ enum dc_status dcn10_validate_guaranteed(
 static struct pipe_ctx *dcn10_acquire_idle_pipe_for_layer(
 		struct validate_context *context,
 		const struct resource_pool *pool,
-		struct core_stream *stream)
+		struct dc_stream *stream)
 {
 	struct resource_context *res_ctx = &context->res_ctx;
 	struct pipe_ctx *head_pipe = resource_get_head_pipe_for_stream(res_ctx, stream);

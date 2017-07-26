@@ -365,7 +365,7 @@ static void pipe_ctx_to_e2e_pipe_params (
 	}
 
 
-	input->dest.vactive        = pipe->stream->public.timing.v_addressable;
+	input->dest.vactive        = pipe->stream->timing.v_addressable;
 
 	input->dest.recout_width   = pipe->scl_data.recout.width;
 	input->dest.recout_height  = pipe->scl_data.recout.height;
@@ -373,24 +373,24 @@ static void pipe_ctx_to_e2e_pipe_params (
 	input->dest.full_recout_width   = pipe->scl_data.recout.width;
 	input->dest.full_recout_height  = pipe->scl_data.recout.height;
 
-	input->dest.htotal         = pipe->stream->public.timing.h_total;
-	input->dest.hblank_start   = input->dest.htotal - pipe->stream->public.timing.h_front_porch;
+	input->dest.htotal         = pipe->stream->timing.h_total;
+	input->dest.hblank_start   = input->dest.htotal - pipe->stream->timing.h_front_porch;
 	input->dest.hblank_end     = input->dest.hblank_start
-			- pipe->stream->public.timing.h_addressable
-			- pipe->stream->public.timing.h_border_left
-			- pipe->stream->public.timing.h_border_right;
+			- pipe->stream->timing.h_addressable
+			- pipe->stream->timing.h_border_left
+			- pipe->stream->timing.h_border_right;
 
-	input->dest.vtotal         = pipe->stream->public.timing.v_total;
-	input->dest.vblank_start   = input->dest.vtotal - pipe->stream->public.timing.v_front_porch;
+	input->dest.vtotal         = pipe->stream->timing.v_total;
+	input->dest.vblank_start   = input->dest.vtotal - pipe->stream->timing.v_front_porch;
 	input->dest.vblank_end     = input->dest.vblank_start
-			- pipe->stream->public.timing.v_addressable
-			- pipe->stream->public.timing.v_border_bottom
-			- pipe->stream->public.timing.v_border_top;
+			- pipe->stream->timing.v_addressable
+			- pipe->stream->timing.v_border_bottom
+			- pipe->stream->timing.v_border_top;
 
-	input->dest.vsync_plus_back_porch = pipe->stream->public.timing.v_total
-			- pipe->stream->public.timing.v_addressable
-			- pipe->stream->public.timing.v_front_porch;
-	input->dest.pixel_rate_mhz = pipe->stream->public.timing.pix_clk_khz/1000.0;
+	input->dest.vsync_plus_back_porch = pipe->stream->timing.v_total
+			- pipe->stream->timing.v_addressable
+			- pipe->stream->timing.v_front_porch;
+	input->dest.pixel_rate_mhz = pipe->stream->timing.pix_clk_khz/1000.0;
 	input->dest.vstartup_start = pipe->pipe_dlg_param.vstartup_start;
 	input->dest.vupdate_offset = pipe->pipe_dlg_param.vupdate_offset;
 	input->dest.vupdate_offset = pipe->pipe_dlg_param.vupdate_offset;
@@ -851,14 +851,14 @@ bool dcn_validate_bandwidth(
 		v->underscan_output[input_idx] = false; /* taken care of in recout already*/
 		v->interlace_output[input_idx] = false;
 
-		v->htotal[input_idx] = pipe->stream->public.timing.h_total;
-		v->vtotal[input_idx] = pipe->stream->public.timing.v_total;
-		v->v_sync_plus_back_porch[input_idx] = pipe->stream->public.timing.v_total
-				- pipe->stream->public.timing.v_addressable
-				- pipe->stream->public.timing.v_front_porch;
-		v->vactive[input_idx] = pipe->stream->public.timing.v_addressable;
-		v->pixel_clock[input_idx] = pipe->stream->public.timing.pix_clk_khz / 1000.0f;
-		if (pipe->stream->public.timing.pixel_encoding == PIXEL_ENCODING_YCBCR420)
+		v->htotal[input_idx] = pipe->stream->timing.h_total;
+		v->vtotal[input_idx] = pipe->stream->timing.v_total;
+		v->v_sync_plus_back_porch[input_idx] = pipe->stream->timing.v_total
+				- pipe->stream->timing.v_addressable
+				- pipe->stream->timing.v_front_porch;
+		v->vactive[input_idx] = pipe->stream->timing.v_addressable;
+		v->pixel_clock[input_idx] = pipe->stream->timing.pix_clk_khz / 1000.0f;
+		if (pipe->stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420)
 			v->pixel_clock[input_idx] /= 2;
 
 
@@ -867,10 +867,10 @@ bool dcn_validate_bandwidth(
 			v->source_pixel_format[input_idx] = dcn_bw_rgb_sub_32;
 			v->source_surface_mode[input_idx] = dcn_bw_sw_4_kb_s;
 			v->lb_bit_per_pixel[input_idx] = 30;
-			v->viewport_width[input_idx] = pipe->stream->public.timing.h_addressable;
-			v->viewport_height[input_idx] = pipe->stream->public.timing.v_addressable;
-			v->scaler_rec_out_width[input_idx] = pipe->stream->public.timing.h_addressable;
-			v->scaler_recout_height[input_idx] = pipe->stream->public.timing.v_addressable;
+			v->viewport_width[input_idx] = pipe->stream->timing.h_addressable;
+			v->viewport_height[input_idx] = pipe->stream->timing.v_addressable;
+			v->scaler_rec_out_width[input_idx] = pipe->stream->timing.h_addressable;
+			v->scaler_recout_height[input_idx] = pipe->stream->timing.v_addressable;
 			v->override_hta_ps[input_idx] = 1;
 			v->override_vta_ps[input_idx] = 1;
 			v->override_hta_pschroma[input_idx] = 1;
@@ -995,22 +995,22 @@ bool dcn_validate_bandwidth(
 			pipe->pipe_dlg_param.vready_offset = v->v_ready_offset[input_idx];
 			pipe->pipe_dlg_param.vstartup_start = v->v_startup[input_idx];
 
-			pipe->pipe_dlg_param.htotal = pipe->stream->public.timing.h_total;
-			pipe->pipe_dlg_param.vtotal = pipe->stream->public.timing.v_total;
-			vesa_sync_start = pipe->stream->public.timing.v_addressable +
-						pipe->stream->public.timing.v_border_bottom +
-						pipe->stream->public.timing.v_front_porch;
+			pipe->pipe_dlg_param.htotal = pipe->stream->timing.h_total;
+			pipe->pipe_dlg_param.vtotal = pipe->stream->timing.v_total;
+			vesa_sync_start = pipe->stream->timing.v_addressable +
+						pipe->stream->timing.v_border_bottom +
+						pipe->stream->timing.v_front_porch;
 
-			asic_blank_end = (pipe->stream->public.timing.v_total -
+			asic_blank_end = (pipe->stream->timing.v_total -
 						vesa_sync_start -
-						pipe->stream->public.timing.v_border_top)
-			* (pipe->stream->public.timing.flags.INTERLACE ? 1 : 0);
+						pipe->stream->timing.v_border_top)
+			* (pipe->stream->timing.flags.INTERLACE ? 1 : 0);
 
 			asic_blank_start = asic_blank_end +
-						(pipe->stream->public.timing.v_border_top +
-						pipe->stream->public.timing.v_addressable +
-						pipe->stream->public.timing.v_border_bottom)
-			* (pipe->stream->public.timing.flags.INTERLACE ? 1 : 0);
+						(pipe->stream->timing.v_border_top +
+						pipe->stream->timing.v_addressable +
+						pipe->stream->timing.v_border_bottom)
+			* (pipe->stream->timing.flags.INTERLACE ? 1 : 0);
 
 			pipe->pipe_dlg_param.vblank_start = asic_blank_start;
 			pipe->pipe_dlg_param.vblank_end = asic_blank_end;
@@ -1019,13 +1019,13 @@ bool dcn_validate_bandwidth(
 				struct pipe_ctx *hsplit_pipe = pipe->bottom_pipe;
 
 				if (v->dpp_per_plane[input_idx] == 2 ||
-					((pipe->stream->public.view_format ==
+					((pipe->stream->view_format ==
 					  VIEW_3D_FORMAT_SIDE_BY_SIDE ||
-					  pipe->stream->public.view_format ==
+					  pipe->stream->view_format ==
 					  VIEW_3D_FORMAT_TOP_AND_BOTTOM) &&
-					(pipe->stream->public.timing.timing_3d_format ==
+					(pipe->stream->timing.timing_3d_format ==
 					 TIMING_3D_FORMAT_TOP_AND_BOTTOM ||
-					 pipe->stream->public.timing.timing_3d_format ==
+					 pipe->stream->timing.timing_3d_format ==
 					 TIMING_3D_FORMAT_SIDE_BY_SIDE))) {
 					if (hsplit_pipe && hsplit_pipe->surface == pipe->surface) {
 						/* update previously split pipe */
@@ -1034,8 +1034,8 @@ bool dcn_validate_bandwidth(
 						hsplit_pipe->pipe_dlg_param.vready_offset = v->v_ready_offset[input_idx];
 						hsplit_pipe->pipe_dlg_param.vstartup_start = v->v_startup[input_idx];
 
-						hsplit_pipe->pipe_dlg_param.htotal = pipe->stream->public.timing.h_total;
-						hsplit_pipe->pipe_dlg_param.vtotal = pipe->stream->public.timing.v_total;
+						hsplit_pipe->pipe_dlg_param.htotal = pipe->stream->timing.h_total;
+						hsplit_pipe->pipe_dlg_param.vtotal = pipe->stream->timing.v_total;
 						hsplit_pipe->pipe_dlg_param.vblank_start = pipe->pipe_dlg_param.vblank_start;
 						hsplit_pipe->pipe_dlg_param.vblank_end = pipe->pipe_dlg_param.vblank_end;
 					} else {

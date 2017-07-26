@@ -698,7 +698,7 @@ static void destruct(struct dce110_resource_pool *pool)
 static struct clock_source *find_matching_pll(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
-		const struct core_stream *const stream)
+		const struct dc_stream *const stream)
 {
 	switch (stream->sink->link->link_enc->transmitter) {
 	case TRANSMITTER_UNIPHY_A:
@@ -729,7 +729,7 @@ static enum dc_status build_mapped_resource(
 	uint8_t i, j;
 
 	for (i = 0; i < context->stream_count; i++) {
-		struct core_stream *stream = context->streams[i];
+		struct dc_stream *stream = context->streams[i];
 
 		if (old_context && resource_is_stream_unchanged(old_context, stream))
 			continue;
@@ -843,7 +843,7 @@ enum dc_status resource_map_phy_clock_resources(
 
 	/* acquire new resources */
 	for (i = 0; i < context->stream_count; i++) {
-		struct core_stream *stream = context->streams[i];
+		struct dc_stream *stream = context->streams[i];
 
 		if (old_context && resource_is_stream_unchanged(old_context, stream))
 			continue;
@@ -916,8 +916,8 @@ enum dc_status dce112_validate_with_context(
 		return DC_FAIL_SURFACE_VALIDATE;
 
 	for (i = 0; i < set_count; i++) {
-		context->streams[i] = DC_STREAM_TO_CORE(set[i].stream);
-		dc_stream_retain(&context->streams[i]->public);
+		context->streams[i] = set[i].stream;
+		dc_stream_retain(context->streams[i]);
 		context->stream_count++;
 	}
 
@@ -947,13 +947,13 @@ enum dc_status dce112_validate_with_context(
 
 enum dc_status dce112_validate_guaranteed(
 		const struct core_dc *dc,
-		const struct dc_stream *dc_stream,
+		struct dc_stream *stream,
 		struct validate_context *context)
 {
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 
-	context->streams[0] = DC_STREAM_TO_CORE(dc_stream);
-	dc_stream_retain(&context->streams[0]->public);
+	context->streams[0] = stream;
+	dc_stream_retain(context->streams[0]);
 	context->stream_count++;
 
 	result = resource_map_pool_resources(dc, context, NULL);

@@ -684,12 +684,12 @@ static enum dc_status dcn10_prog_pixclk_crtc_otg(
 		struct validate_context *context,
 		struct core_dc *dc)
 {
-	struct core_stream *stream = pipe_ctx->stream;
+	struct dc_stream *stream = pipe_ctx->stream;
 	enum dc_color_space color_space;
 	struct tg_color black_color = {0};
-	bool enableStereo    = stream->public.timing.timing_3d_format == TIMING_3D_FORMAT_NONE ?
+	bool enableStereo    = stream->timing.timing_3d_format == TIMING_3D_FORMAT_NONE ?
 			false:true;
-	bool rightEyePolarity = stream->public.timing.flags.RIGHT_EYE_3D_POLARITY;
+	bool rightEyePolarity = stream->timing.flags.RIGHT_EYE_3D_POLARITY;
 
 
 	/* by upper caller loop, pipe0 is parent pipe and be called first.
@@ -722,7 +722,7 @@ static enum dc_status dcn10_prog_pixclk_crtc_otg(
 
 	pipe_ctx->tg->funcs->program_timing(
 			pipe_ctx->tg,
-			&stream->public.timing,
+			&stream->timing,
 			true);
 
 	pipe_ctx->opp->funcs->opp_set_stereo_polarity(
@@ -742,7 +742,7 @@ static enum dc_status dcn10_prog_pixclk_crtc_otg(
 				&stream->clamping);
 #endif
 	/* program otg blank color */
-	color_space = stream->public.output_color_space;
+	color_space = stream->output_color_space;
 	color_space_to_black_color(dc, color_space, &black_color);
 	pipe_ctx->tg->funcs->set_blank_color(
 			pipe_ctx->tg,
@@ -1053,16 +1053,16 @@ static bool patch_address_for_sbs_tb_stereo(
 	bool sec_split = pipe_ctx->top_pipe &&
 			pipe_ctx->top_pipe->surface == pipe_ctx->surface;
 	if (sec_split && surface->address.type == PLN_ADDR_TYPE_GRPH_STEREO &&
-		(pipe_ctx->stream->public.timing.timing_3d_format ==
+		(pipe_ctx->stream->timing.timing_3d_format ==
 		 TIMING_3D_FORMAT_SIDE_BY_SIDE ||
-		 pipe_ctx->stream->public.timing.timing_3d_format ==
+		 pipe_ctx->stream->timing.timing_3d_format ==
 		 TIMING_3D_FORMAT_TOP_AND_BOTTOM)) {
 		*addr = surface->address.grph_stereo.left_addr;
 		surface->address.grph_stereo.left_addr =
 		surface->address.grph_stereo.right_addr;
 		return true;
 	} else {
-		if (pipe_ctx->stream->public.view_format != VIEW_3D_FORMAT_NONE &&
+		if (pipe_ctx->stream->view_format != VIEW_3D_FORMAT_NONE &&
 			surface->address.type != PLN_ADDR_TYPE_GRPH_STEREO) {
 			surface->address.type = PLN_ADDR_TYPE_GRPH_STEREO;
 			surface->address.grph_stereo.right_addr =
@@ -1456,7 +1456,7 @@ static bool dcn10_translate_regamma_to_hw_format(const struct dc_transfer_func
 
 static bool dcn10_set_output_transfer_func(
 	struct pipe_ctx *pipe_ctx,
-	const struct core_stream *stream)
+	const struct dc_stream *stream)
 {
 	struct transform *xfm = pipe_ctx->xfm;
 
@@ -1465,14 +1465,14 @@ static bool dcn10_set_output_transfer_func(
 
 	xfm->regamma_params.hw_points_num = GAMMA_HW_POINTS_NUM;
 
-	if (stream->public.out_transfer_func &&
-		stream->public.out_transfer_func->type ==
+	if (stream->out_transfer_func &&
+		stream->out_transfer_func->type ==
 			TF_TYPE_PREDEFINED &&
-		stream->public.out_transfer_func->tf ==
+		stream->out_transfer_func->tf ==
 			TRANSFER_FUNCTION_SRGB) {
 		xfm->funcs->opp_set_regamma_mode(xfm, OPP_REGAMMA_SRGB);
 	} else if (dcn10_translate_regamma_to_hw_format(
-				stream->public.out_transfer_func, &xfm->regamma_params)) {
+				stream->out_transfer_func, &xfm->regamma_params)) {
 			xfm->funcs->opp_program_regamma_pwl(xfm, &xfm->regamma_params);
 			xfm->funcs->opp_set_regamma_mode(xfm, OPP_REGAMMA_USER);
 	} else {
@@ -1756,35 +1756,35 @@ static void program_gamut_remap(struct pipe_ctx *pipe_ctx)
 	adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_BYPASS;
 
 
-	if (pipe_ctx->stream->public.gamut_remap_matrix.enable_remap == true) {
+	if (pipe_ctx->stream->gamut_remap_matrix.enable_remap == true) {
 		adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_SW;
 		adjust.temperature_matrix[0] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[0];
+				gamut_remap_matrix.matrix[0];
 		adjust.temperature_matrix[1] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[1];
+				gamut_remap_matrix.matrix[1];
 		adjust.temperature_matrix[2] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[2];
+				gamut_remap_matrix.matrix[2];
 		adjust.temperature_matrix[3] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[4];
+				gamut_remap_matrix.matrix[4];
 		adjust.temperature_matrix[4] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[5];
+				gamut_remap_matrix.matrix[5];
 		adjust.temperature_matrix[5] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[6];
+				gamut_remap_matrix.matrix[6];
 		adjust.temperature_matrix[6] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[8];
+				gamut_remap_matrix.matrix[8];
 		adjust.temperature_matrix[7] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[9];
+				gamut_remap_matrix.matrix[9];
 		adjust.temperature_matrix[8] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[10];
+				gamut_remap_matrix.matrix[10];
 	}
 
 	pipe_ctx->xfm->funcs->transform_set_gamut_remap(pipe_ctx->xfm, &adjust);
@@ -1798,14 +1798,14 @@ static void program_csc_matrix(struct pipe_ctx *pipe_ctx,
 	int i;
 	struct out_csc_color_matrix tbl_entry;
 
-	if (pipe_ctx->stream->public.csc_color_matrix.enable_adjustment
+	if (pipe_ctx->stream->csc_color_matrix.enable_adjustment
 				== true) {
 			enum dc_color_space color_space =
-				pipe_ctx->stream->public.output_color_space;
+				pipe_ctx->stream->output_color_space;
 
 			//uint16_t matrix[12];
 			for (i = 0; i < 12; i++)
-				tbl_entry.regval[i] = pipe_ctx->stream->public.csc_color_matrix.matrix[i];
+				tbl_entry.regval[i] = pipe_ctx->stream->csc_color_matrix.matrix[i];
 
 			tbl_entry.color_space = color_space;
 			//tbl_entry.regval = matrix;
@@ -1967,7 +1967,7 @@ static void update_dchubp_dpp(
 	 * pre-multiplied alpha.
 	 */
 	mpcc_cfg.pre_multiplied_alpha = is_rgb_cspace(
-			pipe_ctx->stream->public.output_color_space)
+			pipe_ctx->stream->output_color_space)
 					&& per_pixel_alpha;
 	pipe_ctx->mpcc->funcs->set(pipe_ctx->mpcc, &mpcc_cfg);
 
@@ -1975,7 +1975,7 @@ static void update_dchubp_dpp(
 		dcn10_get_surface_visual_confirm_color(pipe_ctx, &black_color);
 	} else {
 		color_space_to_black_color(
-			dc, pipe_ctx->stream->public.output_color_space,
+			dc, pipe_ctx->stream->output_color_space,
 			&black_color);
 	}
 	pipe_ctx->mpcc->funcs->set_bg_color(pipe_ctx->mpcc, &black_color);
@@ -1991,7 +1991,7 @@ static void update_dchubp_dpp(
 	program_gamut_remap(pipe_ctx);
 
 	/*TODO add adjustments parameters*/
-	ocsc.out_color_space = pipe_ctx->stream->public.output_color_space;
+	ocsc.out_color_space = pipe_ctx->stream->output_color_space;
 	pipe_ctx->xfm->funcs->opp_set_csc_default(pipe_ctx->xfm, &ocsc);
 
 	mi->funcs->mem_input_program_surface_config(
@@ -2346,11 +2346,11 @@ static void set_plane_config(
 }
 
 static void dcn10_config_stereo_parameters(
-		struct core_stream *stream, struct crtc_stereo_flags *flags)
+		struct dc_stream *stream, struct crtc_stereo_flags *flags)
 {
-	enum view_3d_format view_format = stream->public.view_format;
+	enum view_3d_format view_format = stream->view_format;
 	enum dc_timing_3d_format timing_3d_format =\
-			stream->public.timing.timing_3d_format;
+			stream->timing.timing_3d_format;
 	bool non_stereo_timing = false;
 
 	if (timing_3d_format == TIMING_3D_FORMAT_NONE ||
@@ -2374,7 +2374,7 @@ static void dcn10_config_stereo_parameters(
 				flags->DISABLE_STEREO_DP_SYNC = 1;
 		}
 		flags->RIGHT_EYE_POLARITY =\
-				stream->public.timing.flags.RIGHT_EYE_3D_POLARITY;
+				stream->timing.flags.RIGHT_EYE_3D_POLARITY;
 		if (timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)
 			flags->FRAME_PACKED = 1;
 	}
@@ -2385,18 +2385,18 @@ static void dcn10_config_stereo_parameters(
 static void dcn10_setup_stereo(struct pipe_ctx *pipe_ctx, struct core_dc *dc)
 {
 	struct crtc_stereo_flags flags = { 0 };
-	struct core_stream *stream = pipe_ctx->stream;
+	struct dc_stream *stream = pipe_ctx->stream;
 
 	dcn10_config_stereo_parameters(stream, &flags);
 
 	pipe_ctx->opp->funcs->opp_set_stereo_polarity(
 		pipe_ctx->opp,
 		flags.PROGRAM_STEREO == 1 ? true:false,
-		stream->public.timing.flags.RIGHT_EYE_3D_POLARITY == 1 ? true:false);
+		stream->timing.flags.RIGHT_EYE_3D_POLARITY == 1 ? true:false);
 
 	pipe_ctx->tg->funcs->program_stereo(
 		pipe_ctx->tg,
-		&stream->public.timing,
+		&stream->timing,
 		&flags);
 
 	return;

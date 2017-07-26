@@ -111,7 +111,7 @@ struct freesync_state {
 };
 
 struct freesync_entity {
-	const struct dc_stream *stream;
+	struct dc_stream *stream;
 	struct mod_freesync_caps *caps;
 	struct freesync_state state;
 	struct mod_freesync_user_enable user_enable;
@@ -229,7 +229,7 @@ void mod_freesync_destroy(struct mod_freesync *mod_freesync)
  * on the core_freesync->map and returns the corresponding index
  */
 static unsigned int map_index_from_stream(struct core_freesync *core_freesync,
-		const struct dc_stream *stream)
+		struct dc_stream *stream)
 {
 	unsigned int index = 0;
 
@@ -244,9 +244,8 @@ static unsigned int map_index_from_stream(struct core_freesync *core_freesync,
 }
 
 bool mod_freesync_add_stream(struct mod_freesync *mod_freesync,
-		const struct dc_stream *stream, struct mod_freesync_caps *caps)
+		struct dc_stream *stream, struct mod_freesync_caps *caps)
 {
-	struct core_stream *core_stream = NULL;
 	struct core_dc *core_dc = NULL;
 	struct core_freesync *core_freesync = NULL;
 	int persistent_freesync_enable = 0;
@@ -258,7 +257,6 @@ bool mod_freesync_add_stream(struct mod_freesync *mod_freesync,
 		return false;
 
 	core_freesync = MOD_FREESYNC_TO_CORE(mod_freesync);
-	core_stream = DC_STREAM_TO_CORE(stream);
 	core_dc = DC_TO_CORE(core_freesync->dc);
 
 	flag.save_per_edid = true;
@@ -315,7 +313,7 @@ bool mod_freesync_add_stream(struct mod_freesync *mod_freesync,
 		if (caps->supported &&
 			nom_refresh_rate_uhz >= caps->min_refresh_in_micro_hz &&
 			nom_refresh_rate_uhz <= caps->max_refresh_in_micro_hz)
-			core_stream->public.ignore_msa_timing_param = 1;
+			stream->ignore_msa_timing_param = 1;
 
 		core_freesync->num_entities++;
 		return true;
@@ -324,7 +322,7 @@ bool mod_freesync_add_stream(struct mod_freesync *mod_freesync,
 }
 
 bool mod_freesync_remove_stream(struct mod_freesync *mod_freesync,
-		const struct dc_stream *stream)
+		struct dc_stream *stream)
 {
 	int i = 0;
 	struct core_freesync *core_freesync = NULL;
@@ -346,14 +344,12 @@ bool mod_freesync_remove_stream(struct mod_freesync *mod_freesync,
 }
 
 static void update_stream_freesync_context(struct core_freesync *core_freesync,
-		const struct dc_stream *stream)
+		struct dc_stream *stream)
 {
 	unsigned int index;
 	struct freesync_context *ctx;
-	struct core_stream *core_stream;
 
-	core_stream = DC_STREAM_TO_CORE(stream);
-	ctx = &core_stream->public.freesync_ctx;
+	ctx = &stream->freesync_ctx;
 
 	index = map_index_from_stream(core_freesync, stream);
 
@@ -372,19 +368,17 @@ static void update_stream_freesync_context(struct core_freesync *core_freesync,
 }
 
 static void update_stream(struct core_freesync *core_freesync,
-		const struct dc_stream *stream)
+		struct dc_stream *stream)
 {
-	struct core_stream *core_stream = DC_STREAM_TO_CORE(stream);
-
 	unsigned int index = map_index_from_stream(core_freesync, stream);
 	if (core_freesync->map[index].caps->supported) {
-		core_stream->public.ignore_msa_timing_param = 1;
+		stream->ignore_msa_timing_param = 1;
 		update_stream_freesync_context(core_freesync, stream);
 	}
 }
 
 static void calc_freesync_range(struct core_freesync *core_freesync,
-		const struct dc_stream *stream,
+		struct dc_stream *stream,
 		struct freesync_state *state,
 		unsigned int min_refresh_in_uhz,
 		unsigned int max_refresh_in_uhz)
@@ -458,7 +452,7 @@ static void calc_freesync_range(struct core_freesync *core_freesync,
 		min_frame_duration_in_ns) / 2000;
 }
 
-static void calc_v_total_from_duration(const struct dc_stream *stream,
+static void calc_v_total_from_duration(struct dc_stream *stream,
 		unsigned int duration_in_ns, int *v_total_nominal)
 {
 	*v_total_nominal = div64_u64(div64_u64(((unsigned long long)(
@@ -467,7 +461,7 @@ static void calc_v_total_from_duration(const struct dc_stream *stream,
 }
 
 static void calc_v_total_for_static_ramp(struct core_freesync *core_freesync,
-		const struct dc_stream *stream,
+		struct dc_stream *stream,
 		unsigned int index, int *v_total)
 {
 	unsigned int frame_duration = 0;
@@ -563,7 +557,7 @@ static void reset_freesync_state_variables(struct freesync_state* state)
  * Sets freesync mode on a stream depending on current freesync state.
  */
 static bool set_freesync_on_streams(struct core_freesync *core_freesync,
-		const struct dc_stream **streams, int num_streams)
+		struct dc_stream **streams, int num_streams)
 {
 	int v_total_nominal = 0, v_total_min = 0, v_total_max = 0;
 	unsigned int stream_idx, map_index = 0;
@@ -735,7 +729,7 @@ static void set_static_ramp_variables(struct core_freesync *core_freesync,
 }
 
 void mod_freesync_handle_v_update(struct mod_freesync *mod_freesync,
-		const struct dc_stream **streams, int num_streams)
+		struct dc_stream **streams, int num_streams)
 {
 	unsigned int index, v_total, inserted_frame_v_total = 0;
 	unsigned int min_frame_duration_in_ns, vmax, vmin = 0;
@@ -845,7 +839,7 @@ void mod_freesync_handle_v_update(struct mod_freesync *mod_freesync,
 }
 
 void mod_freesync_update_state(struct mod_freesync *mod_freesync,
-		const struct dc_stream **streams, int num_streams,
+		struct dc_stream **streams, int num_streams,
 		struct mod_freesync_params *freesync_params)
 {
 	bool freesync_program_required = false;
@@ -935,7 +929,7 @@ void mod_freesync_update_state(struct mod_freesync *mod_freesync,
 
 
 bool mod_freesync_get_state(struct mod_freesync *mod_freesync,
-		const struct dc_stream *stream,
+		struct dc_stream *stream,
 		struct mod_freesync_params *freesync_params)
 {
 	unsigned int index = 0;
@@ -971,7 +965,7 @@ bool mod_freesync_get_state(struct mod_freesync *mod_freesync,
 }
 
 bool mod_freesync_set_user_enable(struct mod_freesync *mod_freesync,
-		const struct dc_stream **streams, int num_streams,
+		struct dc_stream **streams, int num_streams,
 		struct mod_freesync_user_enable *user_enable)
 {
 	unsigned int stream_index, map_index;
@@ -1023,7 +1017,7 @@ bool mod_freesync_set_user_enable(struct mod_freesync *mod_freesync,
 }
 
 bool mod_freesync_get_user_enable(struct mod_freesync *mod_freesync,
-		const struct dc_stream *stream,
+		struct dc_stream *stream,
 		struct mod_freesync_user_enable *user_enable)
 {
 	unsigned int index = 0;
@@ -1041,7 +1035,7 @@ bool mod_freesync_get_user_enable(struct mod_freesync *mod_freesync,
 }
 
 bool mod_freesync_get_static_ramp_active(struct mod_freesync *mod_freesync,
-		const struct dc_stream *stream,
+		struct dc_stream *stream,
 		bool *is_ramp_active)
 {
 	unsigned int index = 0;
@@ -1060,7 +1054,7 @@ bool mod_freesync_get_static_ramp_active(struct mod_freesync *mod_freesync,
 }
 
 bool mod_freesync_override_min_max(struct mod_freesync *mod_freesync,
-		const struct dc_stream *streams,
+		struct dc_stream *streams,
 		unsigned int min_refresh,
 		unsigned int max_refresh,
 		struct mod_freesync_caps *caps)
@@ -1113,7 +1107,7 @@ bool mod_freesync_override_min_max(struct mod_freesync *mod_freesync,
 }
 
 bool mod_freesync_get_min_max(struct mod_freesync *mod_freesync,
-		const struct dc_stream *stream,
+		struct dc_stream *stream,
 		unsigned int *min_refresh,
 		unsigned int *max_refresh)
 {
@@ -1135,7 +1129,7 @@ bool mod_freesync_get_min_max(struct mod_freesync *mod_freesync,
 }
 
 bool mod_freesync_get_vmin_vmax(struct mod_freesync *mod_freesync,
-		const struct dc_stream *stream,
+		struct dc_stream *stream,
 		unsigned int *vmin,
 		unsigned int *vmax)
 {
@@ -1157,7 +1151,7 @@ bool mod_freesync_get_vmin_vmax(struct mod_freesync *mod_freesync,
 }
 
 bool mod_freesync_get_v_position(struct mod_freesync *mod_freesync,
-		const struct dc_stream *stream,
+		struct dc_stream *stream,
 		unsigned int *nom_v_pos,
 		unsigned int *v_pos)
 {
@@ -1185,7 +1179,7 @@ bool mod_freesync_get_v_position(struct mod_freesync *mod_freesync,
 }
 
 void mod_freesync_notify_mode_change(struct mod_freesync *mod_freesync,
-		const struct dc_stream **streams, int num_streams)
+		struct dc_stream **streams, int num_streams)
 {
 	unsigned int stream_index, map_index;
 	struct freesync_state *state;
@@ -1310,7 +1304,7 @@ static void update_timestamps(struct core_freesync *core_freesync,
 }
 
 static void apply_below_the_range(struct core_freesync *core_freesync,
-		const struct dc_stream *stream, unsigned int map_index,
+		struct dc_stream *stream, unsigned int map_index,
 		unsigned int last_render_time_in_us)
 {
 	unsigned int inserted_frame_duration_in_us = 0;
@@ -1409,7 +1403,7 @@ static void apply_below_the_range(struct core_freesync *core_freesync,
 }
 
 static void apply_fixed_refresh(struct core_freesync *core_freesync,
-		const struct dc_stream *stream, unsigned int map_index)
+		struct dc_stream *stream, unsigned int map_index)
 {
 	unsigned int vmin = 0, vmax = 0;
 	struct freesync_state *state = &core_freesync->map[map_index].state;
@@ -1440,7 +1434,7 @@ static void apply_fixed_refresh(struct core_freesync *core_freesync,
 }
 
 void mod_freesync_pre_update_plane_addresses(struct mod_freesync *mod_freesync,
-		const struct dc_stream **streams, int num_streams,
+		struct dc_stream **streams, int num_streams,
 		unsigned int curr_time_stamp_in_us)
 {
 	unsigned int stream_index, map_index, last_render_time_in_us = 0;

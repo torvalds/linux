@@ -78,7 +78,7 @@ void dp_enable_link_phy(
 					pipes[i].clock_source->id != CLOCK_SOURCE_ID_DP_DTO) {
 				pipes[i].clock_source = dp_cs;
 				pipes[i].pix_clk_params.requested_pix_clk =
-						pipes[i].stream->public.timing.pix_clk_khz;
+						pipes[i].stream->timing.pix_clk_khz;
 				pipes[i].clock_source->funcs->program_pix_clk(
 							pipes[i].clock_source,
 							&pipes[i].pix_clk_params,

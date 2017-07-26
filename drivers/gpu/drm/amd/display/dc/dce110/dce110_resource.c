@@ -718,13 +718,13 @@ static void get_pixel_clock_parameters(
 	const struct pipe_ctx *pipe_ctx,
 	struct pixel_clk_params *pixel_clk_params)
 {
-	const struct core_stream *stream = pipe_ctx->stream;
+	const struct dc_stream *stream = pipe_ctx->stream;
 
 	/*TODO: is this halved for YCbCr 420? in that case we might want to move
 	 * the pixel clock normalization for hdmi up to here instead of doing it
 	 * in pll_adjust_pix_clk
 	 */
-	pixel_clk_params->requested_pix_clk = stream->public.timing.pix_clk_khz;
+	pixel_clk_params->requested_pix_clk = stream->timing.pix_clk_khz;
 	pixel_clk_params->encoder_object_id = stream->sink->link->link_enc->id;
 	pixel_clk_params->signal_type = pipe_ctx->stream->signal;
 	pixel_clk_params->controller_id = pipe_ctx->pipe_idx + 1;
@@ -733,15 +733,15 @@ static void get_pixel_clock_parameters(
 						LINK_RATE_REF_FREQ_IN_KHZ;
 	pixel_clk_params->flags.ENABLE_SS = 0;
 	pixel_clk_params->color_depth =
-		stream->public.timing.display_color_depth;
+		stream->timing.display_color_depth;
 	pixel_clk_params->flags.DISPLAY_BLANKED = 1;
-	pixel_clk_params->flags.SUPPORT_YCBCR420 = (stream->public.timing.pixel_encoding ==
+	pixel_clk_params->flags.SUPPORT_YCBCR420 = (stream->timing.pixel_encoding ==
 			PIXEL_ENCODING_YCBCR420);
-	pixel_clk_params->pixel_encoding = stream->public.timing.pixel_encoding;
-	if (stream->public.timing.pixel_encoding == PIXEL_ENCODING_YCBCR422) {
+	pixel_clk_params->pixel_encoding = stream->timing.pixel_encoding;
+	if (stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR422) {
 		pixel_clk_params->color_depth = COLOR_DEPTH_888;
 	}
-	if (stream->public.timing.pixel_encoding == PIXEL_ENCODING_YCBCR420) {
+	if (stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420) {
 		pixel_clk_params->requested_pix_clk  = pixel_clk_params->requested_pix_clk / 2;
 	}
 }
@@ -755,7 +755,7 @@ enum dc_status dce110_resource_build_pipe_hw_param(struct pipe_ctx *pipe_ctx)
 		&pipe_ctx->pll_settings);
 	resource_build_bit_depth_reduction_params(pipe_ctx->stream,
 			&pipe_ctx->stream->bit_depth_params);
-	pipe_ctx->stream->clamping.pixel_encoding = pipe_ctx->stream->public.timing.pixel_encoding;
+	pipe_ctx->stream->clamping.pixel_encoding = pipe_ctx->stream->timing.pixel_encoding;
 
 	return DC_OK;
 }
@@ -780,7 +780,7 @@ static enum dc_status build_mapped_resource(
 	uint8_t i, j;
 
 	for (i = 0; i < context->stream_count; i++) {
-		struct core_stream *stream = context->streams[i];
+		struct dc_stream *stream = context->streams[i];
 
 		if (old_context && resource_is_stream_unchanged(old_context, stream))
 			continue;
@@ -837,9 +837,9 @@ bool dce110_validate_bandwidth(
 		dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_VALIDATION,
 			"%s: %dx%d@%d Bandwidth validation failed!\n",
 			__func__,
-			context->streams[0]->public.timing.h_addressable,
-			context->streams[0]->public.timing.v_addressable,
-			context->streams[0]->public.timing.pix_clk_khz);
+			context->streams[0]->timing.h_addressable,
+			context->streams[0]->timing.v_addressable,
+			context->streams[0]->timing.pix_clk_khz);
 
 	if (memcmp(&dc->current_context->bw.dce,
 			&context->bw.dce, sizeof(context->bw.dce))) {
@@ -942,8 +942,8 @@ enum dc_status dce110_validate_with_context(
 		return DC_FAIL_SURFACE_VALIDATE;
 
 	for (i = 0; i < set_count; i++) {
-		context->streams[i] = DC_STREAM_TO_CORE(set[i].stream);
-		dc_stream_retain(&context->streams[i]->public);
+		context->streams[i] = set[i].stream;
+		dc_stream_retain(context->streams[i]);
 		context->stream_count++;
 	}
 
@@ -973,13 +973,13 @@ enum dc_status dce110_validate_with_context(
 
 enum dc_status dce110_validate_guaranteed(
 		const struct core_dc *dc,
-		const struct dc_stream *dc_stream,
+		struct dc_stream *dc_stream,
 		struct validate_context *context)
 {
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 
-	context->streams[0] = DC_STREAM_TO_CORE(dc_stream);
-	dc_stream_retain(&context->streams[0]->public);
+	context->streams[0] = dc_stream;
+	dc_stream_retain(context->streams[0]);
 	context->stream_count++;
 
 	result = resource_map_pool_resources(dc, context, NULL);
@@ -1006,7 +1006,7 @@ enum dc_status dce110_validate_guaranteed(
 static struct pipe_ctx *dce110_acquire_underlay(
 		struct validate_context *context,
 		const struct resource_pool *pool,
-		struct core_stream *stream)
+		struct dc_stream *stream)
 {
 	struct core_dc *dc = DC_TO_CORE(stream->ctx->dc);
 	struct resource_context *res_ctx = &context->res_ctx;
@@ -1041,18 +1041,18 @@ static struct pipe_ctx *dce110_acquire_underlay(
 		 */
 
 		pipe_ctx->tg->funcs->program_timing(pipe_ctx->tg,
-				&stream->public.timing,
+				&stream->timing,
 				false);
 
 		pipe_ctx->tg->funcs->enable_advanced_request(
 				pipe_ctx->tg,
 				true,
-				&stream->public.timing);
+				&stream->timing);
 
 		pipe_ctx->mi->funcs->allocate_mem_input(pipe_ctx->mi,
-				stream->public.timing.h_total,
-				stream->public.timing.v_total,
-				stream->public.timing.pix_clk_khz,
+				stream->timing.h_total,
+				stream->timing.v_total,
+				stream->timing.pix_clk_khz,
 				context->stream_count);
 
 		color_space_to_black_color(dc,

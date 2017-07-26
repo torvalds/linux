@@ -623,21 +623,21 @@ static bool dce110_translate_regamma_to_hw_format(const struct dc_transfer_func
 
 static bool dce110_set_output_transfer_func(
 	struct pipe_ctx *pipe_ctx,
-	const struct core_stream *stream)
+	const struct dc_stream *stream)
 {
 	struct output_pixel_processor *opp = pipe_ctx->opp;
 
 	opp->funcs->opp_power_on_regamma_lut(opp, true);
 	opp->regamma_params.hw_points_num = GAMMA_HW_POINTS_NUM;
 
-	if (stream->public.out_transfer_func &&
-		stream->public.out_transfer_func->type ==
+	if (stream->out_transfer_func &&
+		stream->out_transfer_func->type ==
 			TF_TYPE_PREDEFINED &&
-		stream->public.out_transfer_func->tf ==
+		stream->out_transfer_func->tf ==
 			TRANSFER_FUNCTION_SRGB) {
 		opp->funcs->opp_set_regamma_mode(opp, OPP_REGAMMA_SRGB);
 	} else if (dce110_translate_regamma_to_hw_format(
-				stream->public.out_transfer_func, &opp->regamma_params)) {
+				stream->out_transfer_func, &opp->regamma_params)) {
 			opp->funcs->opp_program_regamma_pwl(opp, &opp->regamma_params);
 			opp->funcs->opp_set_regamma_mode(opp, OPP_REGAMMA_USER);
 	} else {
@@ -702,7 +702,7 @@ void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 	enum dc_lane_count lane_count =
 		pipe_ctx->stream->sink->link->cur_link_settings.lane_count;
 
-	struct dc_crtc_timing *timing = &pipe_ctx->stream->public.timing;
+	struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
 	struct dc_link *link = pipe_ctx->stream->sink->link;
 
 	/* 1. update AVI info frame (HDMI, DP)
@@ -745,7 +745,7 @@ void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 
 void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 {
-	struct core_stream *stream = pipe_ctx->stream;
+	struct dc_stream *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->sink->link;
 
 	if (pipe_ctx->audio) {
@@ -797,7 +797,7 @@ void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
 
 	/* only 3 items below are used by unblank */
 	params.pixel_clk_khz =
-		pipe_ctx->stream->public.timing.pix_clk_khz;
+		pipe_ctx->stream->timing.pix_clk_khz;
 	params.link_settings.link_rate = link_settings->link_rate;
 	pipe_ctx->stream_enc->funcs->dp_unblank(pipe_ctx->stream_enc, &params);
 }
@@ -833,7 +833,7 @@ static void build_audio_output(
 	const struct pipe_ctx *pipe_ctx,
 	struct audio_output *audio_output)
 {
-	const struct core_stream *stream = pipe_ctx->stream;
+	const struct dc_stream *stream = pipe_ctx->stream;
 	audio_output->engine_id = pipe_ctx->stream_enc->id;
 
 	audio_output->signal = pipe_ctx->stream->signal;
@@ -841,33 +841,33 @@ static void build_audio_output(
 	/* audio_crtc_info  */
 
 	audio_output->crtc_info.h_total =
-		stream->public.timing.h_total;
+		stream->timing.h_total;
 
 	/*
 	 * Audio packets are sent during actual CRTC blank physical signal, we
 	 * need to specify actual active signal portion
 	 */
 	audio_output->crtc_info.h_active =
-			stream->public.timing.h_addressable
-			+ stream->public.timing.h_border_left
-			+ stream->public.timing.h_border_right;
+			stream->timing.h_addressable
+			+ stream->timing.h_border_left
+			+ stream->timing.h_border_right;
 
 	audio_output->crtc_info.v_active =
-			stream->public.timing.v_addressable
-			+ stream->public.timing.v_border_top
-			+ stream->public.timing.v_border_bottom;
+			stream->timing.v_addressable
+			+ stream->timing.v_border_top
+			+ stream->timing.v_border_bottom;
 
 	audio_output->crtc_info.pixel_repetition = 1;
 
 	audio_output->crtc_info.interlaced =
-			stream->public.timing.flags.INTERLACE;
+			stream->timing.flags.INTERLACE;
 
 	audio_output->crtc_info.refresh_rate =
-		(stream->public.timing.pix_clk_khz*1000)/
-		(stream->public.timing.h_total*stream->public.timing.v_total);
+		(stream->timing.pix_clk_khz*1000)/
+		(stream->timing.h_total*stream->timing.v_total);
 
 	audio_output->crtc_info.color_depth =
-		stream->public.timing.display_color_depth;
+		stream->timing.display_color_depth;
 
 	audio_output->crtc_info.requested_pixel_clock =
 			pipe_ctx->pix_clk_params.requested_pix_clk;
@@ -878,7 +878,7 @@ static void build_audio_output(
 /*for HDMI, audio ACR is with deep color ratio factor*/
 	if (dc_is_hdmi_signal(pipe_ctx->stream->signal) &&
 		audio_output->crtc_info.requested_pixel_clock ==
-				stream->public.timing.pix_clk_khz) {
+				stream->timing.pix_clk_khz) {
 		if (pipe_ctx->pix_clk_params.pixel_encoding == PIXEL_ENCODING_YCBCR420) {
 			audio_output->crtc_info.requested_pixel_clock =
 					audio_output->crtc_info.requested_pixel_clock/2;
@@ -959,7 +959,7 @@ static void program_scaler(const struct core_dc *dc,
 		get_surface_visual_confirm_color(pipe_ctx, &color);
 	else
 		color_space_to_black_color(dc,
-				pipe_ctx->stream->public.output_color_space,
+				pipe_ctx->stream->output_color_space,
 				&color);
 
 	pipe_ctx->xfm->funcs->transform_set_pixel_storage_depth(
@@ -981,7 +981,7 @@ static enum dc_status dce110_prog_pixclk_crtc_otg(
 		struct validate_context *context,
 		struct core_dc *dc)
 {
-	struct core_stream *stream = pipe_ctx->stream;
+	struct dc_stream *stream = pipe_ctx->stream;
 	struct pipe_ctx *pipe_ctx_old = &dc->current_context->res_ctx.
 			pipe_ctx[pipe_ctx->pipe_idx];
 	struct tg_color black_color = {0};
@@ -990,7 +990,7 @@ static enum dc_status dce110_prog_pixclk_crtc_otg(
 
 		/* program blank color */
 		color_space_to_black_color(dc,
-				stream->public.output_color_space, &black_color);
+				stream->output_color_space, &black_color);
 		pipe_ctx->tg->funcs->set_blank_color(
 				pipe_ctx->tg,
 				&black_color);
@@ -1011,7 +1011,7 @@ static enum dc_status dce110_prog_pixclk_crtc_otg(
 
 		pipe_ctx->tg->funcs->program_timing(
 				pipe_ctx->tg,
-				&stream->public.timing,
+				&stream->timing,
 				true);
 
 		pipe_ctx->tg->funcs->set_static_screen_control(
@@ -1037,7 +1037,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 		struct validate_context *context,
 		struct core_dc *dc)
 {
-	struct core_stream *stream = pipe_ctx->stream;
+	struct dc_stream *stream = pipe_ctx->stream;
 	struct pipe_ctx *pipe_ctx_old = &dc->current_context->res_ctx.
 			pipe_ctx[pipe_ctx->pipe_idx];
 
@@ -1047,7 +1047,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	pipe_ctx->opp->funcs->opp_set_dyn_expansion(
 			pipe_ctx->opp,
 			COLOR_SPACE_YCBCR601,
-			stream->public.timing.display_color_depth,
+			stream->timing.display_color_depth,
 			pipe_ctx->stream->signal);
 
 	/* FPGA does not program backend */
@@ -1074,7 +1074,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 		pipe_ctx->stream_enc->funcs->setup_stereo_sync(
 		pipe_ctx->stream_enc,
 		pipe_ctx->tg->inst,
-		stream->public.timing.timing_3d_format != TIMING_3D_FORMAT_NONE);
+		stream->timing.timing_3d_format != TIMING_3D_FORMAT_NONE);
 
 
 /*vbios crtc_source_selection and encoder_setup will override fmt_C*/
@@ -1086,20 +1086,20 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
 		pipe_ctx->stream_enc->funcs->dp_set_stream_attribute(
 			pipe_ctx->stream_enc,
-			&stream->public.timing,
-			stream->public.output_color_space);
+			&stream->timing,
+			stream->output_color_space);
 
 	if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
 		pipe_ctx->stream_enc->funcs->hdmi_set_stream_attribute(
 			pipe_ctx->stream_enc,
-			&stream->public.timing,
+			&stream->timing,
 			stream->phy_pix_clk,
 			pipe_ctx->audio != NULL);
 
 	if (dc_is_dvi_signal(pipe_ctx->stream->signal))
 		pipe_ctx->stream_enc->funcs->dvi_set_stream_attribute(
 			pipe_ctx->stream_enc,
-			&stream->public.timing,
+			&stream->timing,
 			(pipe_ctx->stream->signal == SIGNAL_TYPE_DVI_DUAL_LINK) ?
 			true : false);
 
@@ -1129,9 +1129,9 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 #endif
 		pipe_ctx->mi->funcs->allocate_mem_input(
 					pipe_ctx->mi,
-					stream->public.timing.h_total,
-					stream->public.timing.v_total,
-					stream->public.timing.pix_clk_khz,
+					stream->timing.h_total,
+					stream->timing.v_total,
+					stream->timing.pix_clk_khz,
 					context->stream_count);
 
 	pipe_ctx->stream->sink->link->psr_enabled = false;
@@ -1228,7 +1228,7 @@ void dce110_enable_accelerated_mode(struct core_dc *dc)
 
 static uint32_t compute_pstate_blackout_duration(
 	struct bw_fixed blackout_duration,
-	const struct core_stream *stream)
+	const struct dc_stream *stream)
 {
 	uint32_t total_dest_line_time_ns;
 	uint32_t pstate_blackout_duration_ns;
@@ -1236,8 +1236,8 @@ static uint32_t compute_pstate_blackout_duration(
 	pstate_blackout_duration_ns = 1000 * blackout_duration.value >> 24;
 
 	total_dest_line_time_ns = 1000000UL *
-		stream->public.timing.h_total /
-		stream->public.timing.pix_clk_khz +
+		stream->timing.h_total /
+		stream->timing.pix_clk_khz +
 		pstate_blackout_duration_ns;
 
 	return total_dest_line_time_ns;
@@ -1805,19 +1805,19 @@ enum dc_status dce110_apply_ctx_to_hw(
 				pipe_ctx->stream_enc->funcs->dp_audio_setup(
 						pipe_ctx->stream_enc,
 						pipe_ctx->audio->inst,
-						&pipe_ctx->stream->public.audio_info);
+						&pipe_ctx->stream->audio_info);
 			else
 				pipe_ctx->stream_enc->funcs->hdmi_audio_setup(
 						pipe_ctx->stream_enc,
 						pipe_ctx->audio->inst,
-						&pipe_ctx->stream->public.audio_info,
+						&pipe_ctx->stream->audio_info,
 						&audio_output.crtc_info);
 
 			pipe_ctx->audio->funcs->az_configure(
 					pipe_ctx->audio,
 					pipe_ctx->stream->signal,
 					&audio_output.crtc_info,
-					&pipe_ctx->stream->public.audio_info);
+					&pipe_ctx->stream->audio_info);
 		}
 
 		status = apply_single_controller_ctx_to_hw(
@@ -1862,13 +1862,13 @@ static void set_default_colors(struct pipe_ctx *pipe_ctx)
 		default_adjust.out_color_space = COLOR_SPACE_SRGB;
 	else
 		default_adjust.out_color_space =
-				pipe_ctx->stream->public.output_color_space;
+				pipe_ctx->stream->output_color_space;
 	default_adjust.csc_adjust_type = GRAPHICS_CSC_ADJUST_TYPE_SW;
 	default_adjust.surface_pixel_format = pipe_ctx->scl_data.format;
 
 	/* display color depth */
 	default_adjust.color_depth =
-		pipe_ctx->stream->public.timing.display_color_depth;
+		pipe_ctx->stream->timing.display_color_depth;
 
 	/* Lb color depth */
 	default_adjust.lb_color_depth = pipe_ctx->scl_data.lb_params.depth;
@@ -1932,35 +1932,35 @@ static void program_gamut_remap(struct pipe_ctx *pipe_ctx)
 	adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_BYPASS;
 
 
-	if (pipe_ctx->stream->public.gamut_remap_matrix.enable_remap == true) {
+	if (pipe_ctx->stream->gamut_remap_matrix.enable_remap == true) {
 		adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_SW;
 		adjust.temperature_matrix[0] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[0];
+				gamut_remap_matrix.matrix[0];
 		adjust.temperature_matrix[1] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[1];
+				gamut_remap_matrix.matrix[1];
 		adjust.temperature_matrix[2] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[2];
+				gamut_remap_matrix.matrix[2];
 		adjust.temperature_matrix[3] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[4];
+				gamut_remap_matrix.matrix[4];
 		adjust.temperature_matrix[4] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[5];
+				gamut_remap_matrix.matrix[5];
 		adjust.temperature_matrix[5] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[6];
+				gamut_remap_matrix.matrix[6];
 		adjust.temperature_matrix[6] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[8];
+				gamut_remap_matrix.matrix[8];
 		adjust.temperature_matrix[7] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[9];
+				gamut_remap_matrix.matrix[9];
 		adjust.temperature_matrix[8] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[10];
+				gamut_remap_matrix.matrix[10];
 	}
 
 	pipe_ctx->xfm->funcs->transform_set_gamut_remap(pipe_ctx->xfm, &adjust);
@@ -1987,48 +1987,48 @@ static void set_plane_config(
 	dce_enable_fe_clock(dc->hwseq, pipe_ctx->pipe_idx, true);
 
 	set_default_colors(pipe_ctx);
-	if (pipe_ctx->stream->public.csc_color_matrix.enable_adjustment
+	if (pipe_ctx->stream->csc_color_matrix.enable_adjustment
 			== true) {
 		tbl_entry.color_space =
-			pipe_ctx->stream->public.output_color_space;
+			pipe_ctx->stream->output_color_space;
 
 		for (i = 0; i < 12; i++)
 			tbl_entry.regval[i] =
-			pipe_ctx->stream->public.csc_color_matrix.matrix[i];
+			pipe_ctx->stream->csc_color_matrix.matrix[i];
 
 		pipe_ctx->opp->funcs->opp_set_csc_adjustment
 				(pipe_ctx->opp, &tbl_entry);
 	}
 
-	if (pipe_ctx->stream->public.gamut_remap_matrix.enable_remap == true) {
+	if (pipe_ctx->stream->gamut_remap_matrix.enable_remap == true) {
 		adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_SW;
 		adjust.temperature_matrix[0] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[0];
+				gamut_remap_matrix.matrix[0];
 		adjust.temperature_matrix[1] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[1];
+				gamut_remap_matrix.matrix[1];
 		adjust.temperature_matrix[2] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[2];
+				gamut_remap_matrix.matrix[2];
 		adjust.temperature_matrix[3] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[4];
+				gamut_remap_matrix.matrix[4];
 		adjust.temperature_matrix[4] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[5];
+				gamut_remap_matrix.matrix[5];
 		adjust.temperature_matrix[5] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[6];
+				gamut_remap_matrix.matrix[6];
 		adjust.temperature_matrix[6] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[8];
+				gamut_remap_matrix.matrix[8];
 		adjust.temperature_matrix[7] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[9];
+				gamut_remap_matrix.matrix[9];
 		adjust.temperature_matrix[8] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[10];
+				gamut_remap_matrix.matrix[10];
 	}
 
 	pipe_ctx->xfm->funcs->transform_set_gamut_remap(pipe_ctx->xfm, &adjust);
@@ -2260,7 +2260,7 @@ void dce110_fill_display_configs(
 	for (j = 0; j < context->stream_count; j++) {
 		int k;
 
-		const struct core_stream *stream = context->streams[j];
+		const struct dc_stream *stream = context->streams[j];
 		struct dm_pp_single_disp_config *cfg =
 			&pp_display_cfg->disp_configs[num_cfgs];
 		const struct pipe_ctx *pipe_ctx = NULL;
@@ -2276,8 +2276,8 @@ void dce110_fill_display_configs(
 		num_cfgs++;
 		cfg->signal = pipe_ctx->stream->signal;
 		cfg->pipe_idx = pipe_ctx->pipe_idx;
-		cfg->src_height = stream->public.src.height;
-		cfg->src_width = stream->public.src.width;
+		cfg->src_height = stream->src.height;
+		cfg->src_width = stream->src.width;
 		cfg->ddi_channel_mapping =
 			stream->sink->link->ddi_channel_mapping.raw;
 		cfg->transmitter =
@@ -2290,10 +2290,10 @@ void dce110_fill_display_configs(
 			stream->sink->link->cur_link_settings.link_spread;
 		cfg->sym_clock = stream->phy_pix_clk;
 		/* Round v_refresh*/
-		cfg->v_refresh = stream->public.timing.pix_clk_khz * 1000;
-		cfg->v_refresh /= stream->public.timing.h_total;
-		cfg->v_refresh = (cfg->v_refresh + stream->public.timing.v_total / 2)
-							/ stream->public.timing.v_total;
+		cfg->v_refresh = stream->timing.pix_clk_khz * 1000;
+		cfg->v_refresh /= stream->timing.h_total;
+		cfg->v_refresh = (cfg->v_refresh + stream->timing.v_total / 2)
+							/ stream->timing.v_total;
 	}
 
 	pp_display_cfg->display_count = num_cfgs;
@@ -2305,7 +2305,7 @@ uint32_t dce110_get_min_vblank_time_us(const struct validate_context *context)
 	uint32_t min_vertical_blank_time = -1;
 
 		for (j = 0; j < context->stream_count; j++) {
-			const struct dc_stream *stream = &context->streams[j]->public;
+			struct dc_stream *stream = context->streams[j];
 			uint32_t vertical_blank_in_pixels = 0;
 			uint32_t vertical_blank_time = 0;
 
@@ -2388,7 +2388,7 @@ static void pplib_apply_display_requirements(
 	/* TODO: is this still applicable?*/
 	if (pp_display_cfg->display_count == 1) {
 		const struct dc_crtc_timing *timing =
-			&context->streams[0]->public.timing;
+			&context->streams[0]->timing;
 
 		pp_display_cfg->crtc_index =
 			pp_display_cfg->disp_configs[0].pipe_idx;
@@ -2441,48 +2441,48 @@ static void dce110_program_front_end_for_pipe(
 	dce_enable_fe_clock(dc->hwseq, pipe_ctx->pipe_idx, true);
 
 	set_default_colors(pipe_ctx);
-	if (pipe_ctx->stream->public.csc_color_matrix.enable_adjustment
+	if (pipe_ctx->stream->csc_color_matrix.enable_adjustment
 			== true) {
 		tbl_entry.color_space =
-			pipe_ctx->stream->public.output_color_space;
+			pipe_ctx->stream->output_color_space;
 
 		for (i = 0; i < 12; i++)
 			tbl_entry.regval[i] =
-			pipe_ctx->stream->public.csc_color_matrix.matrix[i];
+			pipe_ctx->stream->csc_color_matrix.matrix[i];
 
 		pipe_ctx->opp->funcs->opp_set_csc_adjustment
 				(pipe_ctx->opp, &tbl_entry);
 	}
 
-	if (pipe_ctx->stream->public.gamut_remap_matrix.enable_remap == true) {
+	if (pipe_ctx->stream->gamut_remap_matrix.enable_remap == true) {
 		adjust.gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_SW;
 		adjust.temperature_matrix[0] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[0];
+				gamut_remap_matrix.matrix[0];
 		adjust.temperature_matrix[1] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[1];
+				gamut_remap_matrix.matrix[1];
 		adjust.temperature_matrix[2] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[2];
+				gamut_remap_matrix.matrix[2];
 		adjust.temperature_matrix[3] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[4];
+				gamut_remap_matrix.matrix[4];
 		adjust.temperature_matrix[4] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[5];
+				gamut_remap_matrix.matrix[5];
 		adjust.temperature_matrix[5] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[6];
+				gamut_remap_matrix.matrix[6];
 		adjust.temperature_matrix[6] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[8];
+				gamut_remap_matrix.matrix[8];
 		adjust.temperature_matrix[7] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[9];
+				gamut_remap_matrix.matrix[9];
 		adjust.temperature_matrix[8] =
 				pipe_ctx->stream->
-				public.gamut_remap_matrix.matrix[10];
+				gamut_remap_matrix.matrix[10];
 	}
 
 	pipe_ctx->xfm->funcs->transform_set_gamut_remap(pipe_ctx->xfm, &adjust);

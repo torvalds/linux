@@ -101,67 +101,67 @@ struct mod_freesync_params {
  * Add stream to be tracked by module
  */
 bool mod_freesync_add_stream(struct mod_freesync *mod_freesync,
-		const struct dc_stream *stream, struct mod_freesync_caps *caps);
+		struct dc_stream *stream, struct mod_freesync_caps *caps);
 
 /*
  * Remove stream to be tracked by module
  */
 bool mod_freesync_remove_stream(struct mod_freesync *mod_freesync,
-		const struct dc_stream *stream);
+		struct dc_stream *stream);
 
 /*
  * Update the freesync state flags for each display and program
  * freesync accordingly
  */
 void mod_freesync_update_state(struct mod_freesync *mod_freesync,
-		const struct dc_stream **streams, int num_streams,
+		struct dc_stream **streams, int num_streams,
 		struct mod_freesync_params *freesync_params);
 
 bool mod_freesync_get_state(struct mod_freesync *mod_freesync,
-		const struct dc_stream *stream,
+		struct dc_stream *stream,
 		struct mod_freesync_params *freesync_params);
 
 bool mod_freesync_set_user_enable(struct mod_freesync *mod_freesync,
-		const struct dc_stream **streams, int num_streams,
+		struct dc_stream **streams, int num_streams,
 		struct mod_freesync_user_enable *user_enable);
 
 bool mod_freesync_get_user_enable(struct mod_freesync *mod_freesync,
-		const struct dc_stream *stream,
+		struct dc_stream *stream,
 		struct mod_freesync_user_enable *user_enable);
 
 bool mod_freesync_get_static_ramp_active(struct mod_freesync *mod_freesync,
-		const struct dc_stream *stream,
+		struct dc_stream *stream,
 		bool *is_ramp_active);
 
 bool mod_freesync_override_min_max(struct mod_freesync *mod_freesync,
-		const struct dc_stream *streams,
+		struct dc_stream *streams,
 		unsigned int min_refresh,
 		unsigned int max_refresh,
 		struct mod_freesync_caps *caps);
 
 bool mod_freesync_get_min_max(struct mod_freesync *mod_freesync,
-		const struct dc_stream *stream,
+		struct dc_stream *stream,
 		unsigned int *min_refresh,
 		unsigned int *max_refresh);
 
 bool mod_freesync_get_vmin_vmax(struct mod_freesync *mod_freesync,
-		const struct dc_stream *stream,
+		struct dc_stream *stream,
 		unsigned int *vmin,
 		unsigned int *vmax);
 
 bool mod_freesync_get_v_position(struct mod_freesync *mod_freesync,
-		const struct dc_stream *stream,
+		struct dc_stream *stream,
 		unsigned int *nom_v_pos,
 		unsigned int *v_pos);
 
 void mod_freesync_handle_v_update(struct mod_freesync *mod_freesync,
-		const struct dc_stream **streams, int num_streams);
+		struct dc_stream **streams, int num_streams);
 
 void mod_freesync_notify_mode_change(struct mod_freesync *mod_freesync,
-		const struct dc_stream **streams, int num_streams);
+		struct dc_stream **streams, int num_streams);
 
 void mod_freesync_pre_update_plane_addresses(struct mod_freesync *mod_freesync,
-		const struct dc_stream **streams, int num_streams,
+		struct dc_stream **streams, int num_streams,
 		unsigned int curr_time_stamp);
 
 #endif

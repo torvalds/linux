@@ -294,25 +294,25 @@ void resource_reference_clock_source(
 }
 
 bool resource_are_streams_timing_synchronizable(
-	const struct core_stream *stream1,
-	const struct core_stream *stream2)
+	struct dc_stream *stream1,
+	struct dc_stream *stream2)
 {
-	if (stream1->public.timing.h_total != stream2->public.timing.h_total)
+	if (stream1->timing.h_total != stream2->timing.h_total)
 		return false;
 
-	if (stream1->public.timing.v_total != stream2->public.timing.v_total)
+	if (stream1->timing.v_total != stream2->timing.v_total)
 		return false;
 
-	if (stream1->public.timing.h_addressable
-				!= stream2->public.timing.h_addressable)
+	if (stream1->timing.h_addressable
+				!= stream2->timing.h_addressable)
 		return false;
 
-	if (stream1->public.timing.v_addressable
-				!= stream2->public.timing.v_addressable)
+	if (stream1->timing.v_addressable
+				!= stream2->timing.v_addressable)
 		return false;
 
-	if (stream1->public.timing.pix_clk_khz
-				!= stream2->public.timing.pix_clk_khz)
+	if (stream1->timing.pix_clk_khz
+				!= stream2->timing.pix_clk_khz)
 		return false;
 
 	if (stream1->phy_pix_clk != stream2->phy_pix_clk
@@ -431,7 +431,7 @@ static void rect_swap_helper(struct rect *rect)
 static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 {
 	const struct dc_surface *surface = pipe_ctx->surface;
-	const struct dc_stream *stream = &pipe_ctx->stream->public;
+	const struct dc_stream *stream = pipe_ctx->stream;
 	struct scaler_data *data = &pipe_ctx->scl_data;
 	struct rect surf_src = surface->src_rect;
 	struct rect clip = { 0 };
@@ -530,7 +530,7 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip)
 {
 	const struct dc_surface *surface = pipe_ctx->surface;
-	struct core_stream *stream = pipe_ctx->stream;
+	const struct dc_stream *stream = pipe_ctx->stream;
 	struct rect surf_src = surface->src_rect;
 	struct rect surf_clip = surface->clip_rect;
 	int recout_full_x, recout_full_y;
@@ -539,38 +539,38 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip
 			pipe_ctx->surface->rotation == ROTATION_ANGLE_270)
 		rect_swap_helper(&surf_src);
 
-	pipe_ctx->scl_data.recout.x = stream->public.dst.x;
-	if (stream->public.src.x < surf_clip.x)
+	pipe_ctx->scl_data.recout.x = stream->dst.x;
+	if (stream->src.x < surf_clip.x)
 		pipe_ctx->scl_data.recout.x += (surf_clip.x
-			- stream->public.src.x) * stream->public.dst.width
-						/ stream->public.src.width;
+			- stream->src.x) * stream->dst.width
+						/ stream->src.width;
 
 	pipe_ctx->scl_data.recout.width = surf_clip.width *
-			stream->public.dst.width / stream->public.src.width;
+			stream->dst.width / stream->src.width;
 	if (pipe_ctx->scl_data.recout.width + pipe_ctx->scl_data.recout.x >
-			stream->public.dst.x + stream->public.dst.width)
+			stream->dst.x + stream->dst.width)
 		pipe_ctx->scl_data.recout.width =
-			stream->public.dst.x + stream->public.dst.width
+			stream->dst.x + stream->dst.width
 						- pipe_ctx->scl_data.recout.x;
 
-	pipe_ctx->scl_data.recout.y = stream->public.dst.y;
-	if (stream->public.src.y < surf_clip.y)
+	pipe_ctx->scl_data.recout.y = stream->dst.y;
+	if (stream->src.y < surf_clip.y)
 		pipe_ctx->scl_data.recout.y += (surf_clip.y
-			- stream->public.src.y) * stream->public.dst.height
-						/ stream->public.src.height;
+			- stream->src.y) * stream->dst.height
+						/ stream->src.height;
 
 	pipe_ctx->scl_data.recout.height = surf_clip.height *
-			stream->public.dst.height / stream->public.src.height;
+			stream->dst.height / stream->src.height;
 	if (pipe_ctx->scl_data.recout.height + pipe_ctx->scl_data.recout.y >
-			stream->public.dst.y + stream->public.dst.height)
+			stream->dst.y + stream->dst.height)
 		pipe_ctx->scl_data.recout.height =
-			stream->public.dst.y + stream->public.dst.height
+			stream->dst.y + stream->dst.height
 						- pipe_ctx->scl_data.recout.y;
 
 	/* Handle h & vsplit */
 	if (pipe_ctx->top_pipe && pipe_ctx->top_pipe->surface ==
 		pipe_ctx->surface) {
-		if (stream->public.view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM) {
+		if (stream->view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM) {
 			pipe_ctx->scl_data.recout.height /= 2;
 			pipe_ctx->scl_data.recout.y += pipe_ctx->scl_data.recout.height;
 			/* Floor primary pipe, ceil 2ndary pipe */
@@ -582,7 +582,7 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip
 		}
 	} else if (pipe_ctx->bottom_pipe &&
 			pipe_ctx->bottom_pipe->surface == pipe_ctx->surface) {
-		if (stream->public.view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM)
+		if (stream->view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM)
 			pipe_ctx->scl_data.recout.height /= 2;
 		else
 			pipe_ctx->scl_data.recout.width /= 2;
@@ -592,14 +592,14 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip
 	 * 				* 1/ stream scaling ratio) - (surf surf_src offset * 1/ full scl
 	 * 				ratio)
 	 */
-	recout_full_x = stream->public.dst.x + (surface->dst_rect.x -  stream->public.src.x)
-					* stream->public.dst.width / stream->public.src.width -
+	recout_full_x = stream->dst.x + (surface->dst_rect.x -  stream->src.x)
+					* stream->dst.width / stream->src.width -
 			surf_src.x * surface->dst_rect.width / surf_src.width
-					* stream->public.dst.width / stream->public.src.width;
-	recout_full_y = stream->public.dst.y + (surface->dst_rect.y -  stream->public.src.y)
-					* stream->public.dst.height / stream->public.src.height -
+					* stream->dst.width / stream->src.width;
+	recout_full_y = stream->dst.y + (surface->dst_rect.y -  stream->src.y)
+					* stream->dst.height / stream->src.height -
 			surf_src.y * surface->dst_rect.height / surf_src.height
-					* stream->public.dst.height / stream->public.src.height;
+					* stream->dst.height / stream->src.height;
 
 	recout_skip->width = pipe_ctx->scl_data.recout.x - recout_full_x;
 	recout_skip->height = pipe_ctx->scl_data.recout.y - recout_full_y;
@@ -608,12 +608,12 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip
 static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
 {
 	const struct dc_surface *surface = pipe_ctx->surface;
-	struct core_stream *stream = pipe_ctx->stream;
+	const struct dc_stream *stream = pipe_ctx->stream;
 	struct rect surf_src = surface->src_rect;
-	const int in_w = stream->public.src.width;
-	const int in_h = stream->public.src.height;
-	const int out_w = stream->public.dst.width;
-	const int out_h = stream->public.dst.height;
+	const int in_w = stream->src.width;
+	const int in_h = stream->src.height;
+	const int out_w = stream->dst.width;
+	const int out_h = stream->dst.height;
 
 	if (pipe_ctx->surface->rotation == ROTATION_ANGLE_90 ||
 			pipe_ctx->surface->rotation == ROTATION_ANGLE_270)
@@ -626,9 +626,9 @@ static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
 					surf_src.height,
 					surface->dst_rect.height);
 
-	if (stream->public.view_format == VIEW_3D_FORMAT_SIDE_BY_SIDE)
+	if (stream->view_format == VIEW_3D_FORMAT_SIDE_BY_SIDE)
 		pipe_ctx->scl_data.ratios.horz.value *= 2;
-	else if (stream->public.view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM)
+	else if (stream->view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM)
 		pipe_ctx->scl_data.ratios.vert.value *= 2;
 
 	pipe_ctx->scl_data.ratios.vert.value = div64_s64(
@@ -815,7 +815,7 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 {
 	const struct dc_surface *surface = pipe_ctx->surface;
-	struct dc_crtc_timing *timing = &pipe_ctx->stream->public.timing;
+	struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
 	struct view recout_skip = { 0 };
 	bool res = false;
 
@@ -920,7 +920,7 @@ struct pipe_ctx *find_idle_secondary_pipe(
 
 struct pipe_ctx *resource_get_head_pipe_for_stream(
 		struct resource_context *res_ctx,
-		const struct core_stream *stream)
+		struct dc_stream *stream)
 {
 	int i;
 	for (i = 0; i < MAX_PIPES; i++) {
@@ -940,11 +940,10 @@ struct pipe_ctx *resource_get_head_pipe_for_stream(
 static struct pipe_ctx *acquire_free_pipe_for_stream(
 		struct validate_context *context,
 		const struct resource_pool *pool,
-		const struct dc_stream *dc_stream)
+		struct dc_stream *stream)
 {
 	int i;
 	struct resource_context *res_ctx = &context->res_ctx;
-	struct core_stream *stream = DC_STREAM_TO_CORE(dc_stream);
 
 	struct pipe_ctx *head_pipe = NULL;
 
@@ -980,10 +979,9 @@ static struct pipe_ctx *acquire_free_pipe_for_stream(
 
 static void release_free_pipes_for_stream(
 		struct resource_context *res_ctx,
-		const struct dc_stream *dc_stream)
+		struct dc_stream *stream)
 {
 	int i;
-	struct core_stream *stream = DC_STREAM_TO_CORE(dc_stream);
 
 	for (i = MAX_PIPES - 1; i >= 0; i--) {
 		/* never release the topmost pipe*/
@@ -999,7 +997,7 @@ static void release_free_pipes_for_stream(
 static int acquire_first_split_pipe(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
-		struct core_stream *stream)
+		struct dc_stream *stream)
 {
 	int i;
 
@@ -1033,14 +1031,13 @@ static int acquire_first_split_pipe(
 bool resource_attach_surfaces_to_context(
 		struct dc_surface * const *surfaces,
 		int surface_count,
-		const struct dc_stream *dc_stream,
+		struct dc_stream *stream,
 		struct validate_context *context,
 		const struct resource_pool *pool)
 {
 	int i;
 	struct pipe_ctx *tail_pipe;
 	struct dc_stream_status *stream_status = NULL;
-	struct core_stream *stream = DC_STREAM_TO_CORE(dc_stream);
 
 
 	if (surface_count > MAX_SURFACE_NUM) {
@@ -1050,7 +1047,7 @@ bool resource_attach_surfaces_to_context(
 	}
 
 	for (i = 0; i < context->stream_count; i++)
-		if (&context->streams[i]->public == dc_stream) {
+		if (context->streams[i] == stream) {
 			stream_status = &context->stream_status[i];
 			break;
 		}
@@ -1081,7 +1078,7 @@ bool resource_attach_surfaces_to_context(
 	for (i = 0; i < surface_count; i++) {
 		struct dc_surface *surface = surfaces[i];
 		struct pipe_ctx *free_pipe = acquire_free_pipe_for_stream(
-				context, pool, dc_stream);
+				context, pool, stream);
 
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 		if (!free_pipe) {
@@ -1109,7 +1106,7 @@ bool resource_attach_surfaces_to_context(
 		tail_pipe = free_pipe;
 	}
 
-	release_free_pipes_for_stream(&context->res_ctx, dc_stream);
+	release_free_pipes_for_stream(&context->res_ctx, stream);
 
 	/* assign new surfaces*/
 	for (i = 0; i < surface_count; i++)
@@ -1121,8 +1118,8 @@ bool resource_attach_surfaces_to_context(
 }
 
 
-static bool is_timing_changed(const struct core_stream *cur_stream,
-		const struct core_stream *new_stream)
+static bool is_timing_changed(struct dc_stream *cur_stream,
+		struct dc_stream *new_stream)
 {
 	if (cur_stream == NULL)
 		return true;
@@ -1134,18 +1131,17 @@ static bool is_timing_changed(const struct core_stream *cur_stream,
 		return true;
 
 	/* If output color space is changed, need to reprogram info frames */
-	if (cur_stream->public.output_color_space !=
-			new_stream->public.output_color_space)
+	if (cur_stream->output_color_space != new_stream->output_color_space)
 		return true;
 
 	return memcmp(
-		&cur_stream->public.timing,
-		&new_stream->public.timing,
+		&cur_stream->timing,
+		&new_stream->timing,
 		sizeof(struct dc_crtc_timing)) != 0;
 }
 
 static bool are_stream_backends_same(
-	const struct core_stream *stream_a, const struct core_stream *stream_b)
+	struct dc_stream *stream_a, struct dc_stream *stream_b)
 {
 	if (stream_a == stream_b)
 		return true;
@@ -1160,7 +1156,7 @@ static bool are_stream_backends_same(
 }
 
 bool is_stream_unchanged(
-	const struct core_stream *old_stream, const struct core_stream *stream)
+	struct dc_stream *old_stream, struct dc_stream *stream)
 {
 
 	if (!are_stream_backends_same(old_stream, stream))
@@ -1186,7 +1182,7 @@ bool resource_validate_attach_surfaces(
 				if (!resource_attach_surfaces_to_context(
 						old_context->stream_status[j].surfaces,
 						old_context->stream_status[j].surface_count,
-						&context->streams[i]->public,
+						context->streams[i],
 						context, pool))
 					return false;
 				context->stream_status[i] = old_context->stream_status[j];
@@ -1195,7 +1191,7 @@ bool resource_validate_attach_surfaces(
 			if (!resource_attach_surfaces_to_context(
 					set[i].surfaces,
 					set[i].surface_count,
-					&context->streams[i]->public,
+					context->streams[i],
 					context, pool))
 				return false;
 
@@ -1237,7 +1233,7 @@ static void set_audio_in_use(
 static int acquire_first_free_pipe(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
-		struct core_stream *stream)
+		struct dc_stream *stream)
 {
 	int i;
 
@@ -1267,7 +1263,7 @@ static int acquire_first_free_pipe(
 static struct stream_encoder *find_first_free_match_stream_enc_for_link(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
-		struct core_stream *stream)
+		struct dc_stream *stream)
 {
 	int i;
 	int j = -1;
@@ -1318,22 +1314,22 @@ static struct audio *find_first_free_audio(
 	return 0;
 }
 
-static void update_stream_signal(struct core_stream *stream)
+static void update_stream_signal(struct dc_stream *stream)
 {
-	if (stream->public.output_signal == SIGNAL_TYPE_NONE) {
-		struct dc_sink *dc_sink = stream->public.sink;
+	if (stream->output_signal == SIGNAL_TYPE_NONE) {
+		struct dc_sink *dc_sink = stream->sink;
 
 		if (dc_sink->sink_signal == SIGNAL_TYPE_NONE)
 			stream->signal = stream->sink->link->connector_signal;
 		else
 			stream->signal = dc_sink->sink_signal;
 	} else {
-		stream->signal = stream->public.output_signal;
+		stream->signal = stream->output_signal;
 	}
 
 	if (dc_is_dvi_signal(stream->signal)) {
-		if (stream->public.timing.pix_clk_khz > TMDS_MAX_PIXEL_CLOCK_IN_KHZ_UPMOST &&
-			stream->public.sink->sink_signal != SIGNAL_TYPE_DVI_SINGLE_LINK)
+		if (stream->timing.pix_clk_khz > TMDS_MAX_PIXEL_CLOCK_IN_KHZ_UPMOST &&
+			stream->sink->sink_signal != SIGNAL_TYPE_DVI_SINGLE_LINK)
 			stream->signal = SIGNAL_TYPE_DVI_DUAL_LINK;
 		else
 			stream->signal = SIGNAL_TYPE_DVI_SINGLE_LINK;
@@ -1341,12 +1337,12 @@ static void update_stream_signal(struct core_stream *stream)
 }
 
 bool resource_is_stream_unchanged(
-	const struct validate_context *old_context, const struct core_stream *stream)
+	struct validate_context *old_context, struct dc_stream *stream)
 {
 	int i;
 
 	for (i = 0; i < old_context->stream_count; i++) {
-		const struct core_stream *old_stream = old_context->streams[i];
+		struct dc_stream *old_stream = old_context->streams[i];
 
 		if (are_stream_backends_same(old_stream, stream))
 				return true;
@@ -1359,7 +1355,7 @@ static void copy_pipe_ctx(
 	const struct pipe_ctx *from_pipe_ctx, struct pipe_ctx *to_pipe_ctx)
 {
 	struct dc_surface *surface = to_pipe_ctx->surface;
-	struct core_stream *stream = to_pipe_ctx->stream;
+	struct dc_stream *stream = to_pipe_ctx->stream;
 
 	*to_pipe_ctx = *from_pipe_ctx;
 	to_pipe_ctx->stream = stream;
@@ -1367,14 +1363,14 @@ static void copy_pipe_ctx(
 		to_pipe_ctx->surface = surface;
 }
 
-static struct core_stream *find_pll_sharable_stream(
-		const struct core_stream *stream_needs_pll,
+static struct dc_stream *find_pll_sharable_stream(
+		struct dc_stream *stream_needs_pll,
 		struct validate_context *context)
 {
 	int i;
 
 	for (i = 0; i < context->stream_count; i++) {
-		struct core_stream *stream_has_pll = context->streams[i];
+		struct dc_stream *stream_has_pll = context->streams[i];
 
 		/* We are looking for non dp, non virtual stream */
 		if (resource_are_streams_timing_synchronizable(
@@ -1418,17 +1414,17 @@ static int get_norm_pix_clk(const struct dc_crtc_timing *timing)
 	return normalized_pix_clk;
 }
 
-static void calculate_phy_pix_clks(struct core_stream *stream)
+static void calculate_phy_pix_clks(struct dc_stream *stream)
 {
 	update_stream_signal(stream);
 
 	/* update actual pixel clock on all streams */
 	if (dc_is_hdmi_signal(stream->signal))
 		stream->phy_pix_clk = get_norm_pix_clk(
-			&stream->public.timing);
+			&stream->timing);
 	else
 		stream->phy_pix_clk =
-			stream->public.timing.pix_clk_khz;
+			stream->timing.pix_clk_khz;
 }
 
 enum dc_status resource_map_pool_resources(
@@ -1440,7 +1436,7 @@ enum dc_status resource_map_pool_resources(
 	int i, j;
 
 	for (i = 0; old_context && i < context->stream_count; i++) {
-		struct core_stream *stream = context->streams[i];
+		struct dc_stream *stream = context->streams[i];
 
 		if (!resource_is_stream_unchanged(old_context, stream)) {
 			if (stream != NULL && old_context->streams[i] != NULL) {
@@ -1493,7 +1489,7 @@ enum dc_status resource_map_pool_resources(
 	}
 
 	for (i = 0; i < context->stream_count; i++) {
-		struct core_stream *stream = context->streams[i];
+		struct dc_stream *stream = context->streams[i];
 		struct pipe_ctx *pipe_ctx = NULL;
 		int pipe_idx = -1;
 
@@ -1524,7 +1520,7 @@ enum dc_status resource_map_pool_resources(
 		/* TODO: Add check if ASIC support and EDID audio */
 		if (!stream->sink->converter_disable_audio &&
 			dc_is_audio_capable_signal(pipe_ctx->stream->signal) &&
-			stream->public.audio_info.mode_count) {
+			stream->audio_info.mode_count) {
 			pipe_ctx->audio = find_first_free_audio(
 				&context->res_ctx, pool);
 
@@ -1560,7 +1556,7 @@ void validate_guaranteed_copy_streams(
 		context->res_ctx.pipe_ctx[i].stream =
 				context->res_ctx.pipe_ctx[0].stream;
 
-		dc_stream_retain(&context->streams[i]->public);
+		dc_stream_retain(context->streams[i]);
 		context->stream_count++;
 	}
 }
@@ -1588,7 +1584,7 @@ static void set_avi_info_frame(
 		struct encoder_info_packet *info_packet,
 		struct pipe_ctx *pipe_ctx)
 {
-	struct core_stream *stream = pipe_ctx->stream;
+	struct dc_stream *stream = pipe_ctx->stream;
 	enum dc_color_space color_space = COLOR_SPACE_UNKNOWN;
 	struct info_frame info_frame = { {0} };
 	uint32_t pixel_encoding = 0;
@@ -1602,12 +1598,12 @@ static void set_avi_info_frame(
 	uint8_t byte_index = 0;
 	union hdmi_info_packet *hdmi_info = &info_frame.avi_info_packet.info_packet_hdmi;
 	union display_content_support support = {0};
-	unsigned int vic = pipe_ctx->stream->public.timing.vic;
+	unsigned int vic = pipe_ctx->stream->timing.vic;
 	enum dc_timing_3d_format format;
 
-	color_space = pipe_ctx->stream->public.output_color_space;
+	color_space = pipe_ctx->stream->output_color_space;
 	if (color_space == COLOR_SPACE_UNKNOWN)
-		color_space = (stream->public.timing.pixel_encoding == PIXEL_ENCODING_RGB)?
+		color_space = (stream->timing.pixel_encoding == PIXEL_ENCODING_RGB) ?
 			COLOR_SPACE_SRGB:COLOR_SPACE_YCBCR709;
 
 	/* Initialize header */
@@ -1622,7 +1618,7 @@ static void set_avi_info_frame(
 	 * according to HDMI 2.0 spec (Section 10.1)
 	 */
 
-	switch (stream->public.timing.pixel_encoding) {
+	switch (stream->timing.pixel_encoding) {
 	case PIXEL_ENCODING_YCBCR422:
 		pixel_encoding = 1;
 		break;
@@ -1664,7 +1660,7 @@ static void set_avi_info_frame(
 			color_space == COLOR_SPACE_YCBCR601_LIMITED)
 		hdmi_info->bits.C0_C1 = COLORIMETRY_ITU601;
 	else {
-		if (stream->public.timing.pixel_encoding != PIXEL_ENCODING_RGB)
+		if (stream->timing.pixel_encoding != PIXEL_ENCODING_RGB)
 			BREAK_TO_DEBUGGER();
 		hdmi_info->bits.C0_C1 = COLORIMETRY_NO_DATA;
 	}
@@ -1679,7 +1675,7 @@ static void set_avi_info_frame(
 	}
 
 	/* TODO: un-hardcode aspect ratio */
-	aspect = stream->public.timing.aspect_ratio;
+	aspect = stream->timing.aspect_ratio;
 
 	switch (aspect) {
 	case ASPECT_RATIO_4_3:
@@ -1705,7 +1701,7 @@ static void set_avi_info_frame(
 	itc = true;
 	itc_value = 1;
 
-	support = stream->public.sink->edid_caps.content_support;
+	support = stream->sink->edid_caps.content_support;
 
 	if (itc) {
 		if (!support.bits.valid_content_type) {
@@ -1744,8 +1740,8 @@ static void set_avi_info_frame(
 
 	/* TODO : We should handle YCC quantization */
 	/* but we do not have matrix calculation */
-	if (stream->public.sink->edid_caps.qs_bit == 1 &&
-			stream->public.sink->edid_caps.qy_bit == 1) {
+	if (stream->sink->edid_caps.qs_bit == 1 &&
+			stream->sink->edid_caps.qy_bit == 1) {
 		if (color_space == COLOR_SPACE_SRGB ||
 			color_space == COLOR_SPACE_2020_RGB_FULLRANGE) {
 			hdmi_info->bits.Q0_Q1   = RGB_QUANTIZATION_FULL_RANGE;
@@ -1764,11 +1760,11 @@ static void set_avi_info_frame(
 	}
 
 	///VIC
-	format = stream->public.timing.timing_3d_format;
+	format = stream->timing.timing_3d_format;
 	/*todo, add 3DStereo support*/
 	if (format != TIMING_3D_FORMAT_NONE) {
 		// Based on HDMI specs hdmi vic needs to be converted to cea vic when 3D is enabled
-		switch (pipe_ctx->stream->public.timing.hdmi_vic) {
+		switch (pipe_ctx->stream->timing.hdmi_vic) {
 		case 1:
 			vic = 95;
 			break;
@@ -1797,12 +1793,12 @@ static void set_avi_info_frame(
 	 * barBottom: Line Number of Start of Bottom Bar.
 	 * barLeft:   Pixel Number of End of Left Bar.
 	 * barRight:  Pixel Number of Start of Right Bar. */
-	hdmi_info->bits.bar_top = stream->public.timing.v_border_top;
-	hdmi_info->bits.bar_bottom = (stream->public.timing.v_total
-			- stream->public.timing.v_border_bottom + 1);
-	hdmi_info->bits.bar_left  = stream->public.timing.h_border_left;
-	hdmi_info->bits.bar_right = (stream->public.timing.h_total
-			- stream->public.timing.h_border_right + 1);
+	hdmi_info->bits.bar_top = stream->timing.v_border_top;
+	hdmi_info->bits.bar_bottom = (stream->timing.v_total
+			- stream->timing.v_border_bottom + 1);
+	hdmi_info->bits.bar_left  = stream->timing.h_border_left;
+	hdmi_info->bits.bar_right = (stream->timing.h_total
+			- stream->timing.h_border_right + 1);
 
 	/* check_sum - Calculate AFMT_AVI_INFO0 ~ AFMT_AVI_INFO3 */
 	check_sum = &info_frame.avi_info_packet.info_packet_hdmi.packet_raw_data.sb[0];
@@ -1830,7 +1826,7 @@ static void set_avi_info_frame(
 
 static void set_vendor_info_packet(
 		struct encoder_info_packet *info_packet,
-		struct core_stream *stream)
+		struct dc_stream *stream)
 {
 	uint32_t length = 0;
 	bool hdmi_vic_mode = false;
@@ -1842,16 +1838,16 @@ static void set_vendor_info_packet(
 
 	info_packet->valid = false;
 
-	format = stream->public.timing.timing_3d_format;
-	if (stream->public.view_format == VIEW_3D_FORMAT_NONE)
+	format = stream->timing.timing_3d_format;
+	if (stream->view_format == VIEW_3D_FORMAT_NONE)
 		format = TIMING_3D_FORMAT_NONE;
 
 	/* Can be different depending on packet content */
 	length = 5;
 
-	if (stream->public.timing.hdmi_vic != 0
-			&& stream->public.timing.h_total >= 3840
-			&& stream->public.timing.v_total >= 2160)
+	if (stream->timing.hdmi_vic != 0
+			&& stream->timing.h_total >= 3840
+			&& stream->timing.v_total >= 2160)
 		hdmi_vic_mode = true;
 
 	/* According to HDMI 1.4a CTS, VSIF should be sent
@@ -1918,7 +1914,7 @@ static void set_vendor_info_packet(
 	/*PB5: If PB4 is set to 0x1 (extended resolution format)
 	 * fill PB5 with the correct HDMI VIC code */
 	if (hdmi_vic_mode)
-		info_packet->sb[5] = stream->public.timing.hdmi_vic;
+		info_packet->sb[5] = stream->timing.hdmi_vic;
 
 	/* Header */
 	info_packet->hb0 = HDMI_INFOFRAME_TYPE_VENDOR; /* VSIF packet type. */
@@ -1943,7 +1939,7 @@ static void set_vendor_info_packet(
 
 static void set_spd_info_packet(
 		struct encoder_info_packet *info_packet,
-		struct core_stream *stream)
+		struct dc_stream *stream)
 {
 	/* SPD info packet for FreeSync */
 
@@ -1953,7 +1949,7 @@ static void set_spd_info_packet(
 	/* Check if Freesync is supported. Return if false. If true,
 	 * set the corresponding bit in the info packet
 	 */
-	if (stream->public.freesync_ctx.supported == false)
+	if (stream->freesync_ctx.supported == false)
 		return;
 
 	if (dc_is_hdmi_signal(stream->signal)) {
@@ -2018,20 +2014,20 @@ static void set_spd_info_packet(
 	/* PB6 = [Bits 7:3 = Reserved] */
 	info_packet->sb[6] = 0x00;
 
-	if (stream->public.freesync_ctx.supported == true)
+	if (stream->freesync_ctx.supported == true)
 		/* PB6 = [Bit 0 = FreeSync Supported] */
 		info_packet->sb[6] |= 0x01;
 
-	if (stream->public.freesync_ctx.enabled == true)
+	if (stream->freesync_ctx.enabled == true)
 		/* PB6 = [Bit 1 = FreeSync Enabled] */
 		info_packet->sb[6] |= 0x02;
 
-	if (stream->public.freesync_ctx.active == true)
+	if (stream->freesync_ctx.active == true)
 		/* PB6 = [Bit 2 = FreeSync Active] */
 		info_packet->sb[6] |= 0x04;
 
 	/* PB7 = FreeSync Minimum refresh rate (Hz) */
-	info_packet->sb[7] = (unsigned char) (stream->public.freesync_ctx.
+	info_packet->sb[7] = (unsigned char) (stream->freesync_ctx.
 			min_refresh_in_micro_hz / 1000000);
 
 	/* PB8 = FreeSync Maximum refresh rate (Hz)
@@ -2040,7 +2036,7 @@ static void set_spd_info_packet(
 	 * of the panel, because we should never go above the field
 	 * rate of the mode timing set.
 	 */
-	info_packet->sb[8] = (unsigned char) (stream->public.freesync_ctx.
+	info_packet->sb[8] = (unsigned char) (stream->freesync_ctx.
 			nominal_refresh_in_micro_hz / 1000000);
 
 	/* PB9 - PB27  = Reserved */
@@ -2065,7 +2061,7 @@ static void set_spd_info_packet(
 static void set_hdr_static_info_packet(
 		struct encoder_info_packet *info_packet,
 		struct dc_surface *surface,
-		struct core_stream *stream)
+		struct dc_stream *stream)
 {
 	uint16_t i = 0;
 	enum signal_type signal = stream->signal;
@@ -2168,7 +2164,7 @@ static void set_hdr_static_info_packet(
 
 static void set_vsc_info_packet(
 		struct encoder_info_packet *info_packet,
-		struct core_stream *stream)
+		struct dc_stream *stream)
 {
 	unsigned int vscPacketRevision = 0;
 	unsigned int i;
@@ -2218,7 +2214,7 @@ void dc_resource_validate_ctx_destruct(struct validate_context *context)
 				context->stream_status[i].surfaces[j]);
 
 		context->stream_status[i].surface_count = 0;
-		dc_stream_release(&context->streams[i]->public);
+		dc_stream_release(context->streams[i]);
 		context->streams[i] = NULL;
 	}
 }
@@ -2248,7 +2244,7 @@ void dc_resource_validate_ctx_copy_construct(
 	}
 
 	for (i = 0; i < dst_ctx->stream_count; i++) {
-		dc_stream_retain(&dst_ctx->streams[i]->public);
+		dc_stream_retain(dst_ctx->streams[i]);
 		for (j = 0; j < dst_ctx->stream_status[i].surface_count; j++)
 			dc_surface_retain(
 				dst_ctx->stream_status[i].surfaces[j]);
@@ -2321,7 +2317,7 @@ enum dc_status resource_map_clock_resources(
 
 	/* acquire new resources */
 	for (i = 0; i < context->stream_count; i++) {
-		const struct core_stream *stream = context->streams[i];
+		struct dc_stream *stream = context->streams[i];
 
 		if (old_context && resource_is_stream_unchanged(old_context, stream))
 			continue;
@@ -2401,12 +2397,12 @@ bool pipe_need_reprogram(
 	return false;
 }
 
-void resource_build_bit_depth_reduction_params(const struct core_stream *stream,
+void resource_build_bit_depth_reduction_params(struct dc_stream *stream,
 		struct bit_depth_reduction_params *fmt_bit_depth)
 {
-	enum dc_dither_option option = stream->public.dither_option;
+	enum dc_dither_option option = stream->dither_option;
 	enum dc_pixel_encoding pixel_encoding =
-			stream->public.timing.pixel_encoding;
+			stream->timing.pixel_encoding;
 
 	memset(fmt_bit_depth, 0, sizeof(*fmt_bit_depth));
 
@@ -2511,31 +2507,30 @@ void resource_build_bit_depth_reduction_params(const struct core_stream *stream,
 	fmt_bit_depth->pixel_encoding = pixel_encoding;
 }
 
-bool dc_validate_stream(const struct dc *dc, const struct dc_stream *stream)
+bool dc_validate_stream(const struct dc *dc, struct dc_stream *stream)
 {
 	struct core_dc *core_dc = DC_TO_CORE(dc);
 	struct dc_context *dc_ctx = core_dc->ctx;
-	struct core_stream *core_stream = DC_STREAM_TO_CORE(stream);
-	struct dc_link *link = core_stream->sink->link;
+	struct dc_link *link = stream->sink->link;
 	struct timing_generator *tg = core_dc->res_pool->timing_generators[0];
 	enum dc_status res = DC_OK;
 
-	calculate_phy_pix_clks(core_stream);
+	calculate_phy_pix_clks(stream);
 
-	if (!tg->funcs->validate_timing(tg, &core_stream->public.timing))
+	if (!tg->funcs->validate_timing(tg, &stream->timing))
 		res = DC_FAIL_CONTROLLER_VALIDATE;
 
 	if (res == DC_OK)
 		if (!link->link_enc->funcs->validate_output_with_stream(
-						link->link_enc, core_stream))
+						link->link_enc, stream))
 			res = DC_FAIL_ENC_VALIDATE;
 
 	/* TODO: validate audio ASIC caps, encoder */
 
 	if (res == DC_OK)
-		res = dc_link_validate_mode_timing(core_stream,
+		res = dc_link_validate_mode_timing(stream,
 		      link,
-		      &core_stream->public.timing);
+		      &stream->timing);
 
 	if (res != DC_OK)
 		DC_ERROR("Failed validation for stream %p, err:%d, !\n",

@@ -36,41 +36,18 @@
 #include "mpc.h"
 #endif
 
-struct core_stream;
-
 #define MAX_CLOCK_SOURCES 7
 
 void enable_surface_flip_reporting(struct dc_surface *dc_surface,
 		uint32_t controller_id);
 
-/********* core_stream ************/
 #include "grph_object_id.h"
 #include "link_encoder.h"
 #include "stream_encoder.h"
 #include "clock_source.h"
 #include "audio.h"
 #include "hw_sequencer_types.h"
-#include "opp.h"
 
-#define DC_STREAM_TO_CORE(dc_stream) container_of( \
-	dc_stream, struct core_stream, public)
-
-struct core_stream {
-	struct dc_stream public;
-
-	/* field internal to DC */
-	struct dc_context *ctx;
-	struct dc_sink *sink;
-
-	/* used by DCP and FMT */
-	struct bit_depth_reduction_params bit_depth_params;
-	struct clamping_and_pixel_encoding_params clamping;
-
-	int phy_pix_clk;
-	enum signal_type signal;
-
-	struct dc_stream_status status;
-};
 
 /************ link *****************/
 struct link_init_data {
@@ -85,7 +62,7 @@ struct dc_link *link_create(const struct link_init_data *init_params);
 void link_destroy(struct dc_link **link);
 
 enum dc_status dc_link_validate_mode_timing(
-		const struct core_stream *stream,
+		const struct dc_stream *stream,
 		struct dc_link *link,
 		const struct dc_crtc_timing *timing);
 
@@ -117,7 +94,7 @@ struct resource_funcs {
 
 	enum dc_status (*validate_guaranteed)(
 					const struct core_dc *dc,
-					const struct dc_stream *stream,
+					struct dc_stream *stream,
 					struct validate_context *context);
 
 	bool (*validate_bandwidth)(
@@ -127,7 +104,7 @@ struct resource_funcs {
 	struct pipe_ctx *(*acquire_idle_pipe_for_layer)(
 			struct validate_context *context,
 			const struct resource_pool *pool,
-			struct core_stream *stream);
+			struct dc_stream *stream);
 };
 
 struct audio_support{
@@ -178,7 +155,7 @@ struct resource_pool {
 
 struct pipe_ctx {
 	struct dc_surface *surface;
-	struct core_stream *stream;
+	struct dc_stream *stream;
 
 	struct mem_input *mi;
 	struct input_pixel_processor *ipp;
@@ -264,7 +241,7 @@ union bw_context {
 };
 
 struct validate_context {
-	struct core_stream *streams[MAX_PIPES];
+	struct dc_stream *streams[MAX_PIPES];
 	struct dc_stream_status stream_status[MAX_PIPES];
 	uint8_t stream_count;
 

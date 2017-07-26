@@ -2196,7 +2196,7 @@ static bool is_scaling_state_different(
 static void remove_stream(
 		struct amdgpu_device *adev,
 		struct amdgpu_crtc *acrtc,
-		const struct dc_stream *stream)
+		struct dc_stream *stream)
 {
 	/* this is the update mode case */
 	if (adev->dm.freesync_module)
@@ -2351,7 +2351,7 @@ static void amdgpu_dm_commit_surfaces(struct drm_atomic_state *state,
 	uint32_t i;
 	struct drm_plane *plane;
 	struct drm_plane_state *old_plane_state;
-	const struct dc_stream *dc_stream_attach;
+	struct dc_stream *dc_stream_attach;
 	struct dc_surface *dc_surfaces_constructed[MAX_SURFACES];
 	struct amdgpu_crtc *acrtc_attach = to_amdgpu_crtc(pcrtc);
 	struct dm_crtc_state *acrtc_state = to_dm_crtc_state(pcrtc->state);
@@ -2487,7 +2487,7 @@ void amdgpu_dm_atomic_commit_tail(
 	struct drm_crtc *crtc, *pcrtc;
 	struct drm_crtc_state *old_crtc_state;
 	struct amdgpu_crtc *new_crtcs[MAX_STREAMS];
-	const struct dc_stream *new_stream;
+	struct dc_stream *new_stream = NULL;
 	unsigned long flags;
 	bool wait_for_vblank = true;
 	struct drm_connector *connector;
@@ -2822,8 +2822,8 @@ static uint32_t add_val_sets_surface(
 static uint32_t update_in_val_sets_stream(
 	struct dc_validation_set *val_sets,
 	uint32_t set_count,
-	const struct dc_stream *old_stream,
-	const struct dc_stream *new_stream,
+	struct dc_stream *old_stream,
+	struct dc_stream *new_stream,
 	struct drm_crtc *crtc)
 {
 	uint32_t i = 0;

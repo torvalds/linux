@@ -1009,7 +1009,7 @@ bool dce110_link_encoder_construct(
 
 bool dce110_link_encoder_validate_output_with_stream(
 	struct link_encoder *enc,
-	const struct core_stream *stream)
+	const struct dc_stream *stream)
 {
 	struct dce110_link_encoder *enc110 = TO_DCE110_LINK_ENC(enc);
 	bool is_valid;
@@ -1021,22 +1021,22 @@ bool dce110_link_encoder_validate_output_with_stream(
 			enc110,
 			stream->sink->link->connector_signal,
 			stream->signal,
-			&stream->public.timing);
+			&stream->timing);
 	break;
 	case SIGNAL_TYPE_HDMI_TYPE_A:
 		is_valid = dce110_link_encoder_validate_hdmi_output(
 				enc110,
-				&stream->public.timing,
+				&stream->timing,
 				stream->phy_pix_clk);
 	break;
 	case SIGNAL_TYPE_DISPLAY_PORT:
 	case SIGNAL_TYPE_DISPLAY_PORT_MST:
 		is_valid = dce110_link_encoder_validate_dp_output(
-					enc110, &stream->public.timing);
+					enc110, &stream->timing);
 	break;
 	case SIGNAL_TYPE_EDP:
 		is_valid =
-			(stream->public.timing.
+			(stream->timing.
 				pixel_encoding == PIXEL_ENCODING_RGB) ? true : false;
 	break;
 	case SIGNAL_TYPE_VIRTUAL:

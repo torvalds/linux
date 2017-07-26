@@ -321,8 +321,8 @@ void context_timing_trace(
 
 		TIMING_TRACE("OTG_%d   H_tot:%d  V_tot:%d   H_pos:%d  V_pos:%d\n",
 				pipe_ctx->tg->inst,
-				pipe_ctx->stream->public.timing.h_total,
-				pipe_ctx->stream->public.timing.v_total,
+				pipe_ctx->stream->timing.h_total,
+				pipe_ctx->stream->timing.v_total,
 				h_pos[i], v_pos[i]);
 	}
 }

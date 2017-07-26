@@ -17,7 +17,6 @@ struct encoder_set_dp_phy_pattern_param;
 struct link_mst_stream_allocation_table;
 struct dc_link_settings;
 struct link_training_settings;
-struct core_stream;
 struct pipe_ctx;
 
 struct encoder_init_data {
@@ -94,7 +93,7 @@ struct link_encoder {
 
 struct link_encoder_funcs {
 	bool (*validate_output_with_stream)(
-		struct link_encoder *enc, const struct core_stream *stream);
+		struct link_encoder *enc, const struct dc_stream *stream);
 	void (*hw_init)(struct link_encoder *enc);
 	void (*setup)(struct link_encoder *enc,
 		enum signal_type signal);

@@ -1143,7 +1143,7 @@ static void dpcd_configure_panel_mode(
 
 static void enable_stream_features(struct pipe_ctx *pipe_ctx)
 {
-	struct core_stream *stream = pipe_ctx->stream;
+	struct dc_stream *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->sink->link;
 	union down_spread_ctrl downspread;
 
@@ -1151,7 +1151,7 @@ static void enable_stream_features(struct pipe_ctx *pipe_ctx)
 			&downspread.raw, sizeof(downspread));
 
 	downspread.bits.IGNORE_MSA_TIMING_PARAM =
-			(stream->public.ignore_msa_timing_param) ? 1 : 0;
+			(stream->ignore_msa_timing_param) ? 1 : 0;
 
 	core_link_write_dpcd(link, DP_DOWNSPREAD_CTRL,
 			&downspread.raw, sizeof(downspread));
@@ -1159,7 +1159,7 @@ static void enable_stream_features(struct pipe_ctx *pipe_ctx)
 
 static enum dc_status enable_link_dp(struct pipe_ctx *pipe_ctx)
 {
-	struct core_stream *stream = pipe_ctx->stream;
+	struct dc_stream *stream = pipe_ctx->stream;
 	enum dc_status status;
 	bool skip_video_pattern;
 	struct dc_link *link = stream->sink->link;
@@ -1250,7 +1250,7 @@ static enum dc_status enable_link_dp_mst(struct pipe_ctx *pipe_ctx)
 
 static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 {
-	struct core_stream *stream = pipe_ctx->stream;
+	struct dc_stream *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->sink->link;
 	enum dc_color_depth display_color_depth;
 
@@ -1258,13 +1258,13 @@ static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 		dal_ddc_service_write_scdc_data(
 			stream->sink->link->ddc,
 			stream->phy_pix_clk,
-			stream->public.timing.flags.LTE_340MCSC_SCRAMBLE);
+			stream->timing.flags.LTE_340MCSC_SCRAMBLE);
 
 	memset(&stream->sink->link->cur_link_settings, 0,
 			sizeof(struct dc_link_settings));
 
-	display_color_depth = stream->public.timing.display_color_depth;
-	if (stream->public.timing.pixel_encoding == PIXEL_ENCODING_YCBCR422)
+	display_color_depth = stream->timing.display_color_depth;
+	if (stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR422)
 		display_color_depth = COLOR_DEPTH_888;
 
 	link->link_enc->funcs->enable_tmds_output(
@@ -1341,7 +1341,7 @@ static void disable_link(struct dc_link *link, enum signal_type signal)
 }
 
 enum dc_status dc_link_validate_mode_timing(
-		const struct core_stream *stream,
+		const struct dc_stream *stream,
 		struct dc_link *link,
 		const struct dc_crtc_timing *timing)
 {
@@ -1377,7 +1377,6 @@ bool dc_link_set_backlight_level(const struct dc_link *link, uint32_t level,
 		uint32_t frame_ramp, const struct dc_stream *stream)
 {
 	struct core_dc *core_dc = DC_TO_CORE(link->ctx->dc);
-	struct core_stream *core_stream = NULL;
 	struct abm *abm = core_dc->res_pool->abm;
 	unsigned int controller_id = 0;
 	int i;
@@ -1390,11 +1389,10 @@ bool dc_link_set_backlight_level(const struct dc_link *link, uint32_t level,
 
 	if (dc_is_embedded_signal(link->connector_signal)) {
 		if (stream != NULL) {
-			core_stream = DC_STREAM_TO_CORE(stream);
 			for (i = 0; i < MAX_PIPES; i++) {
 				if (core_dc->current_context->res_ctx.
 						pipe_ctx[i].stream
-						== core_stream)
+						== stream)
 					/* DMCU -1 for all controller id values,
 					 * therefore +1 here
 					 */
@@ -1457,7 +1455,6 @@ bool dc_link_setup_psr(struct dc_link *link,
 {
 	struct core_dc *core_dc = DC_TO_CORE(link->ctx->dc);
 	struct dmcu *dmcu = core_dc->res_pool->dmcu;
-	struct core_stream *core_stream = DC_STREAM_TO_CORE(stream);
 	int i;
 
 	psr_context->controllerId = CONTROLLER_ID_UNDEFINED;
@@ -1501,7 +1498,7 @@ bool dc_link_setup_psr(struct dc_link *link,
 
 		for (i = 0; i < MAX_PIPES; i++) {
 			if (core_dc->current_context->res_ctx.pipe_ctx[i].stream
-					== core_stream) {
+					== stream) {
 				/* dmcu -1 for all controller id values,
 				 * therefore +1 here
 				 */
@@ -1590,7 +1587,7 @@ void core_link_resume(struct dc_link *link)
 		program_hpd_filter(link);
 }
 
-static struct fixed31_32 get_pbn_per_slot(struct core_stream *stream)
+static struct fixed31_32 get_pbn_per_slot(struct dc_stream *stream)
 {
 	struct dc_link_settings *link_settings =
 			&stream->sink->link->cur_link_settings;
@@ -1699,7 +1696,7 @@ static void update_mst_stream_alloc_table(
  */
 static enum dc_status allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 {
-	struct core_stream *stream = pipe_ctx->stream;
+	struct dc_stream *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->sink->link;
 	struct link_encoder *link_encoder = link->link_enc;
 	struct stream_encoder *stream_encoder = pipe_ctx->stream_enc;
@@ -1717,7 +1714,7 @@ static enum dc_status allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	/* get calculate VC payload for stream: stream_alloc */
 	if (dm_helpers_dp_mst_write_payload_allocation_table(
 		stream->ctx,
-		&stream->public,
+		stream,
 		&proposed_table,
 		true)) {
 		update_mst_stream_alloc_table(
@@ -1759,11 +1756,11 @@ static enum dc_status allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	/* send down message */
 	dm_helpers_dp_mst_poll_for_allocation_change_trigger(
 			stream->ctx,
-			&stream->public);
+			stream);
 
 	dm_helpers_dp_mst_send_payload_allocation(
 			stream->ctx,
-			&stream->public,
+			stream,
 			true);
 
 	/* slot X.Y for only current stream */
@@ -1781,7 +1778,7 @@ static enum dc_status allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 
 static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 {
-	struct core_stream *stream = pipe_ctx->stream;
+	struct dc_stream *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->sink->link;
 	struct link_encoder *link_encoder = link->link_enc;
 	struct stream_encoder *stream_encoder = pipe_ctx->stream_enc;
@@ -1806,7 +1803,7 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	if (mst_mode) {
 		if (dm_helpers_dp_mst_write_payload_allocation_table(
 				stream->ctx,
-				&stream->public,
+				stream,
 				&proposed_table,
 				false)) {
 
@@ -1848,11 +1845,11 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	if (mst_mode) {
 		dm_helpers_dp_mst_poll_for_allocation_change_trigger(
 			stream->ctx,
-			&stream->public);
+			stream);
 
 		dm_helpers_dp_mst_send_payload_allocation(
 			stream->ctx,
-			&stream->public,
+			stream,
 			false);
 	}
 
