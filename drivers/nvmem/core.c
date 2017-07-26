@@ -794,8 +794,8 @@ struct nvmem_cell *of_nvmem_cell_get(struct device_node *np,
 
 	addr = of_get_property(cell_np, "reg", &len);
 	if (!addr || (len < 2 * sizeof(u32))) {
-		dev_err(&nvmem->dev, "nvmem: invalid reg on %s\n",
-			cell_np->full_name);
+		dev_err(&nvmem->dev, "nvmem: invalid reg on %pOF\n",
+			cell_np);
 		rval  = -EINVAL;
 		goto err_mem;
 	}
