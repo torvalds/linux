@@ -26,8 +26,6 @@ static void a5xx_dump(struct msm_gpu *gpu);
 
 #define GPU_PAS_ID 13
 
-#if IS_ENABLED(CONFIG_QCOM_MDT_LOADER)
-
 static int zap_shader_load_mdt(struct device *dev, const char *fwname)
 {
 	const struct firmware *fw;
@@ -35,6 +33,9 @@ static int zap_shader_load_mdt(struct device *dev, const char *fwname)
 	ssize_t mem_size;
 	void *mem_region = NULL;
 	int ret;
+
+	if (!IS_ENABLED(CONFIG_ARCH_QCOM))
+		return -EINVAL;
 
 	/* Request the MDT file for the firmware */
 	ret = request_firmware(&fw, fwname, dev);
@@ -73,12 +74,6 @@ out:
 
 	return ret;
 }
-#else
-static int zap_shader_load_mdt(struct device *dev, const char *fwname)
-{
-	return -ENODEV;
-}
-#endif
 
 static void a5xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 	struct msm_file_private *ctx)
