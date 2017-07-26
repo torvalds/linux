@@ -42,7 +42,6 @@ module_param(console_bitmask, int, 0644);
 MODULE_PARM_DESC(console_bitmask,
 		 "Bitmask indicating which consoles have debug output redirected to syslog.");
 
-#define MIN(a, b) min((a), (b))
 #define CAST_ULL(v) ((u64)(v))
 
 #define BOOTLOADER_PCI_READ_BUFFER_DATA_ADDR    0x0006c008
@@ -704,7 +703,7 @@ static int octeon_console_read(struct octeon_device *oct, u32 console_num,
 	if (bytes_to_read <= 0)
 		return bytes_to_read;
 
-	bytes_to_read = MIN(bytes_to_read, (s32)buf_size);
+	bytes_to_read = min_t(s32, bytes_to_read, buf_size);
 
 	/* Check to see if what we want to read is not contiguous, and limit
 	 * ourselves to the contiguous block
