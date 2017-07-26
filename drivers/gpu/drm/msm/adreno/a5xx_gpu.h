@@ -36,8 +36,6 @@ struct a5xx_gpu {
 	uint32_t gpmu_dwords;
 
 	uint32_t lm_leakage;
-
-	struct device zap_dev;
 };
 
 #define to_a5xx_gpu(x) container_of(x, struct a5xx_gpu, base)

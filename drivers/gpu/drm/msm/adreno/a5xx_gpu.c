@@ -15,7 +15,7 @@
 #include <linux/cpumask.h>
 #include <linux/qcom_scm.h>
 #include <linux/dma-mapping.h>
-#include <linux/of_reserved_mem.h>
+#include <linux/of_address.h>
 #include <linux/soc/qcom/mdt_loader.h>
 #include "msm_gem.h"
 #include "msm_mmu.h"
@@ -29,6 +29,8 @@ static void a5xx_dump(struct msm_gpu *gpu);
 static int zap_shader_load_mdt(struct device *dev, const char *fwname)
 {
 	const struct firmware *fw;
+	struct device_node *np;
+	struct resource r;
 	phys_addr_t mem_phys;
 	ssize_t mem_size;
 	void *mem_region = NULL;
@@ -36,6 +38,21 @@ static int zap_shader_load_mdt(struct device *dev, const char *fwname)
 
 	if (!IS_ENABLED(CONFIG_ARCH_QCOM))
 		return -EINVAL;
+
+	np = of_get_child_by_name(dev->of_node, "zap-shader");
+	if (!np)
+		return -ENODEV;
+
+	np = of_parse_phandle(np, "memory-region", 0);
+	if (!np)
+		return -EINVAL;
+
+	ret = of_address_to_resource(np, 0, &r);
+	if (ret)
+		return ret;
+
+	mem_phys = r.start;
+	mem_size = resource_size(&r);
 
 	/* Request the MDT file for the firmware */
 	ret = request_firmware(&fw, fwname, dev);
@@ -52,7 +69,7 @@ static int zap_shader_load_mdt(struct device *dev, const char *fwname)
 	}
 
 	/* Allocate memory for the firmware image */
-	mem_region = dmam_alloc_coherent(dev, mem_size, &mem_phys, GFP_KERNEL);
+	mem_region = memremap(mem_phys, mem_size,  MEMREMAP_WC);
 	if (!mem_region) {
 		ret = -ENOMEM;
 		goto out;
@@ -70,6 +87,9 @@ static int zap_shader_load_mdt(struct device *dev, const char *fwname)
 		DRM_DEV_ERROR(dev, "Unable to authorize the image\n");
 
 out:
+	if (mem_region)
+		memunmap(mem_region);
+
 	release_firmware(fw);
 
 	return ret;
@@ -348,45 +368,6 @@ static int a5xx_zap_shader_resume(struct msm_gpu *gpu)
 	return ret;
 }
 
-/* Set up a child device to "own" the zap shader */
-static int a5xx_zap_shader_dev_init(struct device *parent, struct device *dev)
-{
-	struct device_node *node;
-	int ret;
-
-	if (dev->parent)
-		return 0;
-
-	/* Find the sub-node for the zap shader */
-	node = of_get_child_by_name(parent->of_node, "zap-shader");
-	if (!node) {
-		DRM_DEV_ERROR(parent, "zap-shader not found in device tree\n");
-		return -ENODEV;
-	}
-
-	dev->parent = parent;
-	dev->of_node = node;
-	dev_set_name(dev, "adreno_zap_shader");
-
-	ret = device_register(dev);
-	if (ret) {
-		DRM_DEV_ERROR(parent, "Couldn't register zap shader device\n");
-		goto out;
-	}
-
-	ret = of_reserved_mem_device_init(dev);
-	if (ret) {
-		DRM_DEV_ERROR(parent, "Unable to set up the reserved memory\n");
-		device_unregister(dev);
-	}
-
-out:
-	if (ret)
-		dev->parent = NULL;
-
-	return ret;
-}
-
 static int a5xx_zap_shader_init(struct msm_gpu *gpu)
 {
 	static bool loaded;
@@ -415,11 +396,7 @@ static int a5xx_zap_shader_init(struct msm_gpu *gpu)
 		return -ENODEV;
 	}
 
-	ret = a5xx_zap_shader_dev_init(&pdev->dev, &a5xx_gpu->zap_dev);
-
-	if (!ret)
-		ret = zap_shader_load_mdt(&a5xx_gpu->zap_dev,
-			adreno_gpu->info->zapfw);
+	ret = zap_shader_load_mdt(&pdev->dev, adreno_gpu->info->zapfw);
 
 	loaded = !ret;
 
@@ -661,9 +638,6 @@ static void a5xx_destroy(struct msm_gpu *gpu)
 	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
 
 	DBG("%s", gpu->name);
-
-	if (a5xx_gpu->zap_dev.parent)
-		device_unregister(&a5xx_gpu->zap_dev);
 
 	if (a5xx_gpu->pm4_bo) {
 		if (a5xx_gpu->pm4_iova)
