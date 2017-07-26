@@ -39,12 +39,14 @@
 #include <linux/iommu.h>
 #include <linux/pci.h>
 #include <net/addrconf.h>
+#include <linux/idr.h>
 
 #include <linux/qed/qed_chain.h>
 #include <linux/qed/qed_if.h>
 #include "qedr.h"
 #include "verbs.h"
 #include <rdma/qedr-abi.h>
+#include "qedr_iw_cm.h"
 
 MODULE_DESCRIPTION("QLogic 40G/100G ROCE Driver");
 MODULE_AUTHOR("QLogic Corporation");
@@ -143,6 +145,9 @@ int qedr_iw_register_device(struct qedr_dev *dev)
 	dev->ibdev.iwcm = kzalloc(sizeof(*dev->ibdev.iwcm), GFP_KERNEL);
 	if (!dev->ibdev.iwcm)
 		return -ENOMEM;
+	dev->ibdev.iwcm->add_ref = qedr_iw_qp_add_ref;
+	dev->ibdev.iwcm->rem_ref = qedr_iw_qp_rem_ref;
+	dev->ibdev.iwcm->get_qp = qedr_iw_get_qp;
 
 	memcpy(dev->ibdev.iwcm->ifname,
 	       dev->ndev->name, sizeof(dev->ibdev.iwcm->ifname));
@@ -314,6 +319,11 @@ static int qedr_alloc_resources(struct qedr_dev *dev)
 		return -ENOMEM;
 
 	spin_lock_init(&dev->sgid_lock);
+
+	if (IS_IWARP(dev)) {
+		spin_lock_init(&dev->idr_lock);
+		idr_init(&dev->qpidr);
+	}
 
 	/* Allocate Status blocks for CNQ */
 	dev->sb_array = kcalloc(dev->num_cnq, sizeof(*dev->sb_array),

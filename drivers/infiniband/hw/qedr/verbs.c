@@ -1280,6 +1280,7 @@ static void qedr_set_common_qp_params(struct qedr_dev *dev,
 				      struct ib_qp_init_attr *attrs)
 {
 	spin_lock_init(&qp->q_lock);
+	atomic_set(&qp->refcnt, 1);
 	qp->pd = pd;
 	qp->qp_type = attrs->qp_type;
 	qp->max_inline_data = attrs->cap.max_inline_data;
@@ -1350,6 +1351,33 @@ static inline void qedr_qp_user_print(struct qedr_dev *dev, struct qedr_qp *qp)
 		 qp->usq.buf_len, qp->urq.buf_addr, qp->urq.buf_len);
 }
 
+static int qedr_idr_add(struct qedr_dev *dev, void *ptr, u32 id)
+{
+	int rc;
+
+	if (!rdma_protocol_iwarp(&dev->ibdev, 1))
+		return 0;
+
+	idr_preload(GFP_KERNEL);
+	spin_lock_irq(&dev->idr_lock);
+
+	rc = idr_alloc(&dev->qpidr, ptr, id, id + 1, GFP_ATOMIC);
+
+	spin_unlock_irq(&dev->idr_lock);
+	idr_preload_end();
+
+	return rc < 0 ? rc : 0;
+}
+
+static void qedr_idr_remove(struct qedr_dev *dev, u32 id)
+{
+	if (!rdma_protocol_iwarp(&dev->ibdev, 1))
+		return;
+
+	spin_lock_irq(&dev->idr_lock);
+	idr_remove(&dev->qpidr, id);
+	spin_unlock_irq(&dev->idr_lock);
+}
 static void qedr_cleanup_user(struct qedr_dev *dev, struct qedr_qp *qp)
 {
 	if (qp->usq.umem)
@@ -1699,6 +1727,10 @@ struct ib_qp *qedr_create_qp(struct ib_pd *ibpd,
 		goto err;
 
 	qp->ibqp.qp_num = qp->qp_id;
+
+	rc = qedr_idr_add(dev, qp, qp->qp_id);
+	if (rc)
+		goto err;
 
 	return &qp->ibqp;
 
@@ -2232,8 +2264,10 @@ int qedr_destroy_qp(struct ib_qp *ibqp)
 
 	qedr_free_qp_resources(dev, qp);
 
-	kfree(qp);
-
+	if (atomic_dec_and_test(&qp->refcnt)) {
+		qedr_idr_remove(dev, qp->qp_id);
+		kfree(qp);
+	}
 	return rc;
 }
 

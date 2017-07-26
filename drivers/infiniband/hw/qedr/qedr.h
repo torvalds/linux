@@ -33,6 +33,7 @@
 #define __QEDR_H__
 
 #include <linux/pci.h>
+#include <linux/idr.h>
 #include <rdma/ib_addr.h>
 #include <linux/qed/qed_if.h>
 #include <linux/qed/qed_chain.h>
@@ -164,7 +165,8 @@ struct qedr_dev {
 	struct qedr_cq		*gsi_rqcq;
 	struct qedr_qp		*gsi_qp;
 	enum qed_rdma_type	rdma_type;
-
+	spinlock_t		idr_lock; /* Protect qpidr data-structure */
+	struct idr		qpidr;
 	unsigned long enet_state;
 };
 
@@ -399,6 +401,7 @@ struct qedr_qp {
 	/* Relevant to qps created from user space only (applications) */
 	struct qedr_userq usq;
 	struct qedr_userq urq;
+	atomic_t refcnt;
 };
 
 struct qedr_ah {
