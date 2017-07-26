@@ -2535,3 +2535,14 @@ bool dc_validate_stream(const struct dc *dc, struct dc_stream *stream)
 
 	return res == DC_OK;
 }
+
+bool dc_validate_surface(const struct dc *dc, const struct dc_surface *surface)
+{
+	struct core_dc *core_dc = DC_TO_CORE(dc);
+
+	/* TODO For now validates pixel format only */
+	if (core_dc->res_pool->funcs->validate_surface)
+		return core_dc->res_pool->funcs->validate_surface(surface) == DC_OK;
+
+	return true;
+}

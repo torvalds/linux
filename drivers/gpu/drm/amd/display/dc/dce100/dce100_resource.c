@@ -804,12 +804,22 @@ static void dce100_destroy_resource_pool(struct resource_pool **pool)
 	*pool = NULL;
 }
 
+enum dc_status dce100_validate_surface(const struct dc_surface *surface)
+{
+
+	if (surface->format < SURFACE_PIXEL_FORMAT_VIDEO_BEGIN)
+		return DC_OK;
+
+	return DC_FAIL_SURFACE_VALIDATE;
+}
+
 static const struct resource_funcs dce100_res_pool_funcs = {
 	.destroy = dce100_destroy_resource_pool,
 	.link_enc_create = dce100_link_encoder_create,
 	.validate_with_context = dce100_validate_with_context,
 	.validate_guaranteed = dce100_validate_guaranteed,
-	.validate_bandwidth = dce100_validate_bandwidth
+	.validate_bandwidth = dce100_validate_bandwidth,
+	.validate_surface = dce100_validate_surface,
 };
 
 static bool construct(

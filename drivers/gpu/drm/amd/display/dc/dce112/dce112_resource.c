@@ -55,6 +55,8 @@
 #include "dce/dce_11_2_d.h"
 #include "dce/dce_11_2_sh_mask.h"
 
+#include "dce100/dce100_resource.h"
+
 #ifndef mmDP_DPHY_INTERNAL_CTRL
 	#define mmDP_DPHY_INTERNAL_CTRL 0x4aa7
 	#define mmDP0_DP_DPHY_INTERNAL_CTRL 0x4aa7
@@ -992,6 +994,7 @@ static const struct resource_funcs dce112_res_pool_funcs = {
 	.validate_with_context = dce112_validate_with_context,
 	.validate_guaranteed = dce112_validate_guaranteed,
 	.validate_bandwidth = dce112_validate_bandwidth,
+	.validate_surface = dce100_validate_surface
 };
 
 static void bw_calcs_data_update_from_pplib(struct core_dc *dc)

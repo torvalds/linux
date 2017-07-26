@@ -49,6 +49,7 @@
 #include "dce/dce_audio.h"
 #include "dce/dce_hwseq.h"
 #include "dce80/dce80_hw_sequencer.h"
+#include "dce100/dce100_resource.h"
 
 #include "reg_helper.h"
 
@@ -823,7 +824,8 @@ static const struct resource_funcs dce80_res_pool_funcs = {
 	.link_enc_create = dce80_link_encoder_create,
 	.validate_with_context = dce80_validate_with_context,
 	.validate_guaranteed = dce80_validate_guaranteed,
-	.validate_bandwidth = dce80_validate_bandwidth
+	.validate_bandwidth = dce80_validate_bandwidth,
+	.validate_surface = dce100_validate_surface
 };
 
 static bool construct(

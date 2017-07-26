@@ -16,4 +16,6 @@ struct resource_pool *dce100_create_resource_pool(
 	uint8_t num_virtual_links,
 	struct core_dc *dc);
 
+enum dc_status dce100_validate_surface(const struct dc_surface *surface);
+
 #endif /* DCE100_RESOURCE_H_ */

@@ -105,6 +105,8 @@ struct resource_funcs {
 			struct validate_context *context,
 			const struct resource_pool *pool,
 			struct dc_stream *stream);
+
+	enum dc_status (*validate_surface)(const struct dc_surface *surface);
 };
 
 struct audio_support{

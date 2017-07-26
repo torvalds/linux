@@ -589,6 +589,7 @@ struct dc_validation_set {
 
 bool dc_validate_stream(const struct dc *dc, struct dc_stream *stream);
 
+bool dc_validate_surface(const struct dc *dc, const struct dc_surface *surface);
 /*
  * This function takes a set of resources and checks that they are cofunctional.
  *

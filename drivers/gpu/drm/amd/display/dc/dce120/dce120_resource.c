@@ -60,6 +60,8 @@
 #include "vega10/NBIO/nbio_6_1_offset.h"
 #include "reg_helper.h"
 
+#include "dce100/dce100_resource.h"
+
 #ifndef mmDP0_DP_DPHY_INTERNAL_CTRL
 	#define mmDP0_DP_DPHY_INTERNAL_CTRL		0x210f
 	#define mmDP0_DP_DPHY_INTERNAL_CTRL_BASE_IDX	2
@@ -698,7 +700,8 @@ static const struct resource_funcs dce120_res_pool_funcs = {
 	.link_enc_create = dce120_link_encoder_create,
 	.validate_with_context = dce112_validate_with_context,
 	.validate_guaranteed = dce112_validate_guaranteed,
-	.validate_bandwidth = dce112_validate_bandwidth
+	.validate_bandwidth = dce112_validate_bandwidth,
+	.validate_surface = dce100_validate_surface
 };
 
 static void bw_calcs_data_update_from_pplib(struct core_dc *dc)
