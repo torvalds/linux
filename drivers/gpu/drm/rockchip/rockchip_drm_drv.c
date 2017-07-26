@@ -896,6 +896,9 @@ static int rockchip_drm_mm_dump(struct seq_file *s, void *data)
 	struct rockchip_drm_private *priv = drm_dev->dev_private;
 	int ret;
 
+	if (!priv->domain)
+		return 0;
+
 	mutex_lock(&priv->mm_lock);
 
 	ret = drm_mm_dump_table(s, &priv->mm);
