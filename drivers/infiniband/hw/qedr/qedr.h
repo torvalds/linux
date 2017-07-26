@@ -60,6 +60,7 @@
 #define QEDR_MSG_SQ   "  SQ"
 #define QEDR_MSG_QP   "  QP"
 #define QEDR_MSG_GSI  " GSI"
+#define QEDR_MSG_IWARP  " IW"
 
 #define QEDR_CQ_MAGIC_NUMBER	(0x11223344)
 
@@ -167,6 +168,9 @@ struct qedr_dev {
 	enum qed_rdma_type	rdma_type;
 	spinlock_t		idr_lock; /* Protect qpidr data-structure */
 	struct idr		qpidr;
+	struct workqueue_struct *iwarp_wq;
+	u16			iwarp_max_mtu;
+
 	unsigned long enet_state;
 };
 
@@ -344,7 +348,7 @@ enum qedr_qp_err_bitmap {
 struct qedr_qp {
 	struct ib_qp ibqp;	/* must be first */
 	struct qedr_dev *dev;
-
+	struct qedr_iw_ep *ep;
 	struct qedr_qp_hwq_info sq;
 	struct qedr_qp_hwq_info rq;
 
@@ -402,6 +406,7 @@ struct qedr_qp {
 	struct qedr_userq usq;
 	struct qedr_userq urq;
 	atomic_t refcnt;
+	bool destroyed;
 };
 
 struct qedr_ah {
@@ -481,6 +486,21 @@ static inline int qedr_get_dmac(struct qedr_dev *dev,
 
 	return 0;
 }
+
+struct qedr_iw_listener {
+	struct qedr_dev *dev;
+	struct iw_cm_id *cm_id;
+	int		backlog;
+	void		*qed_handle;
+};
+
+struct qedr_iw_ep {
+	struct qedr_dev	*dev;
+	struct iw_cm_id	*cm_id;
+	struct qedr_qp	*qp;
+	void		*qed_context;
+	u8		during_connect;
+};
 
 static inline
 struct qedr_ucontext *get_qedr_ucontext(struct ib_ucontext *ibucontext)

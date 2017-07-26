@@ -145,6 +145,12 @@ int qedr_iw_register_device(struct qedr_dev *dev)
 	dev->ibdev.iwcm = kzalloc(sizeof(*dev->ibdev.iwcm), GFP_KERNEL);
 	if (!dev->ibdev.iwcm)
 		return -ENOMEM;
+
+	dev->ibdev.iwcm->connect = qedr_iw_connect;
+	dev->ibdev.iwcm->accept = qedr_iw_accept;
+	dev->ibdev.iwcm->reject = qedr_iw_reject;
+	dev->ibdev.iwcm->create_listen = qedr_iw_create_listen;
+	dev->ibdev.iwcm->destroy_listen = qedr_iw_destroy_listen;
 	dev->ibdev.iwcm->add_ref = qedr_iw_qp_add_ref;
 	dev->ibdev.iwcm->rem_ref = qedr_iw_qp_rem_ref;
 	dev->ibdev.iwcm->get_qp = qedr_iw_get_qp;
@@ -296,6 +302,9 @@ static void qedr_free_resources(struct qedr_dev *dev)
 {
 	int i;
 
+	if (IS_IWARP(dev))
+		destroy_workqueue(dev->iwarp_wq);
+
 	for (i = 0; i < dev->num_cnq; i++) {
 		qedr_free_mem_sb(dev, &dev->sb_array[i], dev->sb_start + i);
 		dev->ops->common->chain_free(dev->cdev, &dev->cnq_array[i].pbl);
@@ -323,6 +332,7 @@ static int qedr_alloc_resources(struct qedr_dev *dev)
 	if (IS_IWARP(dev)) {
 		spin_lock_init(&dev->idr_lock);
 		idr_init(&dev->qpidr);
+		dev->iwarp_wq = create_singlethread_workqueue("qedr_iwarpq");
 	}
 
 	/* Allocate Status blocks for CNQ */
@@ -800,6 +810,7 @@ static int qedr_init_hw(struct qedr_dev *dev)
 	in_params->events = &events;
 	in_params->cq_mode = QED_RDMA_CQ_MODE_32_BITS;
 	in_params->max_mtu = dev->ndev->mtu;
+	dev->iwarp_max_mtu = dev->ndev->mtu;
 	ether_addr_copy(&in_params->mac_addr[0], dev->ndev->dev_addr);
 
 	rc = dev->ops->rdma_init(dev->cdev, in_params);

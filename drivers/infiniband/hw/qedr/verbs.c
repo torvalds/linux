@@ -2257,6 +2257,23 @@ int qedr_destroy_qp(struct ib_qp *ibqp)
 			/* Change the QP state to ERROR */
 			qedr_modify_qp(ibqp, &attr, attr_mask, NULL);
 		}
+	} else {
+		/* Wait for the connect/accept to complete */
+		if (qp->ep) {
+			int wait_count = 1;
+
+			while (qp->ep->during_connect) {
+				DP_DEBUG(dev, QEDR_MSG_QP,
+					 "Still in during connect/accept\n");
+
+				msleep(100);
+				if (wait_count++ > 200) {
+					DP_NOTICE(dev,
+						  "during connect timeout\n");
+					break;
+				}
+			}
+		}
 	}
 
 	if (qp->qp_type == IB_QPT_GSI)
