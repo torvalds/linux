@@ -290,7 +290,7 @@ static struct nvmem_cell *nvmem_find_cell(const char *cell_id)
 	mutex_lock(&nvmem_cells_mutex);
 
 	list_for_each_entry(p, &nvmem_cells, node)
-		if (p && !strcmp(p->name, cell_id)) {
+		if (!strcmp(p->name, cell_id)) {
 			mutex_unlock(&nvmem_cells_mutex);
 			return p;
 		}
