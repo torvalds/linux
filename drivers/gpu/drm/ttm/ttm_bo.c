@@ -505,13 +505,6 @@ static int ttm_bo_cleanup_refs_and_unlock(struct ttm_buffer_object *bo,
 			spin_unlock(&glob->lru_lock);
 			return 0;
 		}
-
-		/*
-		 * remove sync_obj with ttm_bo_wait, the wait should be
-		 * finished, and no new wait object should have been added.
-		 */
-		ret = ttm_bo_wait(bo, false, true);
-		WARN_ON(ret);
 	}
 
 	if (ret || unlikely(list_empty(&bo->ddestroy))) {
