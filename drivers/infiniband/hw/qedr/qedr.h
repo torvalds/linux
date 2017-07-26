@@ -319,6 +319,9 @@ struct qedr_qp_hwq_info {
 	/* DB */
 	void __iomem *db;
 	union db_prod32 db_data;
+
+	void __iomem *iwarp_db2;
+	union db_prod32 iwarp_db2_data;
 };
 
 #define QEDR_INC_SW_IDX(p_info, index)					\
