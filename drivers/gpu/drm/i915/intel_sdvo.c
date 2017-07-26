@@ -451,23 +451,24 @@ static const char * const cmd_status_names[] = {
 	"Scaling not supported"
 };
 
-static bool intel_sdvo_write_cmd(struct intel_sdvo *intel_sdvo, u8 cmd,
-				 const void *args, int args_len)
+static bool __intel_sdvo_write_cmd(struct intel_sdvo *intel_sdvo, u8 cmd,
+				   const void *args, int args_len,
+				   bool unlocked)
 {
 	u8 *buf, status;
 	struct i2c_msg *msgs;
 	int i, ret = true;
 
-        /* Would be simpler to allocate both in one go ? */        
+	/* Would be simpler to allocate both in one go ? */
 	buf = kzalloc(args_len * 2 + 2, GFP_KERNEL);
 	if (!buf)
 		return false;
 
 	msgs = kcalloc(args_len + 3, sizeof(*msgs), GFP_KERNEL);
 	if (!msgs) {
-	        kfree(buf);
+		kfree(buf);
 		return false;
-        }
+	}
 
 	intel_sdvo_debug_write(intel_sdvo, cmd, args, args_len);
 
@@ -498,7 +499,10 @@ static bool intel_sdvo_write_cmd(struct intel_sdvo *intel_sdvo, u8 cmd,
 	msgs[i+2].len = 1;
 	msgs[i+2].buf = &status;
 
-	ret = i2c_transfer(intel_sdvo->i2c, msgs, i+3);
+	if (unlocked)
+		ret = i2c_transfer(intel_sdvo->i2c, msgs, i+3);
+	else
+		ret = __i2c_transfer(intel_sdvo->i2c, msgs, i+3);
 	if (ret < 0) {
 		DRM_DEBUG_KMS("I2c transfer returned %d\n", ret);
 		ret = false;
@@ -514,6 +518,12 @@ out:
 	kfree(msgs);
 	kfree(buf);
 	return ret;
+}
+
+static bool intel_sdvo_write_cmd(struct intel_sdvo *intel_sdvo, u8 cmd,
+				 const void *args, int args_len)
+{
+	return __intel_sdvo_write_cmd(intel_sdvo, cmd, args, args_len, true);
 }
 
 static bool intel_sdvo_read_response(struct intel_sdvo *intel_sdvo,
@@ -602,13 +612,13 @@ static int intel_sdvo_get_pixel_multiplier(const struct drm_display_mode *adjust
 		return 4;
 }
 
-static bool intel_sdvo_set_control_bus_switch(struct intel_sdvo *intel_sdvo,
-					      u8 ddc_bus)
+static bool __intel_sdvo_set_control_bus_switch(struct intel_sdvo *intel_sdvo,
+						u8 ddc_bus)
 {
 	/* This must be the immediately preceding write before the i2c xfer */
-	return intel_sdvo_write_cmd(intel_sdvo,
-				    SDVO_CMD_SET_CONTROL_BUS_SWITCH,
-				    &ddc_bus, 1);
+	return __intel_sdvo_write_cmd(intel_sdvo,
+				      SDVO_CMD_SET_CONTROL_BUS_SWITCH,
+				      &ddc_bus, 1, false);
 }
 
 static bool intel_sdvo_set_value(struct intel_sdvo *intel_sdvo, u8 cmd, const void *data, int len)
@@ -2926,7 +2936,7 @@ static int intel_sdvo_ddc_proxy_xfer(struct i2c_adapter *adapter,
 {
 	struct intel_sdvo *sdvo = adapter->algo_data;
 
-	if (!intel_sdvo_set_control_bus_switch(sdvo, sdvo->ddc_bus))
+	if (!__intel_sdvo_set_control_bus_switch(sdvo, sdvo->ddc_bus))
 		return -EIO;
 
 	return sdvo->i2c->algo->master_xfer(sdvo->i2c, msgs, num);
@@ -2943,6 +2953,33 @@ static const struct i2c_algorithm intel_sdvo_ddc_proxy = {
 	.functionality	= intel_sdvo_ddc_proxy_func
 };
 
+static void proxy_lock_bus(struct i2c_adapter *adapter,
+			   unsigned int flags)
+{
+	struct intel_sdvo *sdvo = adapter->algo_data;
+	sdvo->i2c->lock_ops->lock_bus(sdvo->i2c, flags);
+}
+
+static int proxy_trylock_bus(struct i2c_adapter *adapter,
+			     unsigned int flags)
+{
+	struct intel_sdvo *sdvo = adapter->algo_data;
+	return sdvo->i2c->lock_ops->trylock_bus(sdvo->i2c, flags);
+}
+
+static void proxy_unlock_bus(struct i2c_adapter *adapter,
+			     unsigned int flags)
+{
+	struct intel_sdvo *sdvo = adapter->algo_data;
+	sdvo->i2c->lock_ops->unlock_bus(sdvo->i2c, flags);
+}
+
+const struct i2c_lock_operations proxy_lock_ops = {
+	.lock_bus =    proxy_lock_bus,
+	.trylock_bus = proxy_trylock_bus,
+	.unlock_bus =  proxy_unlock_bus,
+};
+
 static bool
 intel_sdvo_init_ddc_proxy(struct intel_sdvo *sdvo,
 			  struct drm_i915_private *dev_priv)
@@ -2955,6 +2992,7 @@ intel_sdvo_init_ddc_proxy(struct intel_sdvo *sdvo,
 	sdvo->ddc.dev.parent = &pdev->dev;
 	sdvo->ddc.algo_data = sdvo;
 	sdvo->ddc.algo = &intel_sdvo_ddc_proxy;
+	sdvo->ddc.lock_ops = &proxy_lock_ops;
 
 	return i2c_add_adapter(&sdvo->ddc) == 0;
 }
