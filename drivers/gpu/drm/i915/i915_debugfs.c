@@ -2783,7 +2783,7 @@ out:
 static int i915_energy_uJ(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	u64 power;
+	unsigned long long power;
 	u32 units;
 
 	if (INTEL_GEN(dev_priv) < 6)
@@ -2791,15 +2791,18 @@ static int i915_energy_uJ(struct seq_file *m, void *data)
 
 	intel_runtime_pm_get(dev_priv);
 
-	rdmsrl(MSR_RAPL_POWER_UNIT, power);
-	power = (power & 0x1f00) >> 8;
-	units = 1000000 / (1 << power); /* convert to uJ */
+	if (rdmsrl_safe(MSR_RAPL_POWER_UNIT, &power)) {
+		intel_runtime_pm_put(dev_priv);
+		return -ENODEV;
+	}
+
+	units = (power & 0x1f00) >> 8;
 	power = I915_READ(MCH_SECP_NRG_STTS);
-	power *= units;
+	power = (1000000 * power) >> units; /* convert to uJ */
 
 	intel_runtime_pm_put(dev_priv);
 
-	seq_printf(m, "%llu", (long long unsigned)power);
+	seq_printf(m, "%llu", power);
 
 	return 0;
 }
