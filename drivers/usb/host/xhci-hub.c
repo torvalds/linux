@@ -398,14 +398,21 @@ static int xhci_stop_device(struct xhci_hcd *xhci, int slot_id, int suspend)
 	spin_lock_irqsave(&xhci->lock, flags);
 	for (i = LAST_EP_INDEX; i > 0; i--) {
 		if (virt_dev->eps[i].ring && virt_dev->eps[i].ring->dequeue) {
+			struct xhci_ep_ctx *ep_ctx;
 			struct xhci_command *command;
+
+			ep_ctx = xhci_get_ep_ctx(xhci, virt_dev->out_ctx, i);
+
+			/* Check ep is running, required by AMD SNPS 3.1 xHC */
+			if (GET_EP_CTX_STATE(ep_ctx) != EP_STATE_RUNNING)
+				continue;
+
 			command = xhci_alloc_command(xhci, false, false,
 						     GFP_NOWAIT);
 			if (!command) {
 				spin_unlock_irqrestore(&xhci->lock, flags);
 				xhci_free_command(xhci, cmd);
 				return -ENOMEM;
-
 			}
 			xhci_queue_stop_endpoint(xhci, command, slot_id, i,
 						 suspend);
@@ -603,12 +610,14 @@ static int xhci_enter_test_mode(struct xhci_hcd *xhci,
 
 	/* Disable all Device Slots */
 	xhci_dbg(xhci, "Disable all slots\n");
+	spin_unlock_irqrestore(&xhci->lock, *flags);
 	for (i = 1; i <= HCS_MAX_SLOTS(xhci->hcs_params1); i++) {
 		retval = xhci_disable_slot(xhci, NULL, i);
 		if (retval)
 			xhci_err(xhci, "Failed to disable slot %d, %d. Enter test mode anyway\n",
 				 i, retval);
 	}
+	spin_lock_irqsave(&xhci->lock, *flags);
 	/* Put all ports to the Disable state by clear PP */
 	xhci_dbg(xhci, "Disable all port (PP = 0)\n");
 	/* Power off USB3 ports*/
@@ -897,6 +906,9 @@ static u32 xhci_get_port_status(struct usb_hcd *hcd,
 			clear_bit(wIndex, &bus_state->resuming_ports);
 
 			set_bit(wIndex, &bus_state->rexit_ports);
+
+			xhci_test_and_clear_bit(xhci, port_array, wIndex,
+						PORT_PLC);
 			xhci_set_link_state(xhci, port_array, wIndex,
 					XDEV_U0);
 

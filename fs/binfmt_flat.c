@@ -574,7 +574,7 @@ static int load_flat_file(struct linux_binprm *bprm,
 				MAX_SHARED_LIBS * sizeof(unsigned long),
 				FLAT_DATA_ALIGN);
 
-		pr_debug("Allocated data+bss+stack (%ld bytes): %lx\n",
+		pr_debug("Allocated data+bss+stack (%u bytes): %lx\n",
 			 data_len + bss_len + stack_len, datapos);
 
 		fpos = ntohl(hdr->data_start);
