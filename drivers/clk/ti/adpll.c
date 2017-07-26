@@ -222,7 +222,7 @@ static int ti_adpll_setup_clock(struct ti_adpll_data *d, struct clk *clock,
 
 	/* Separate con_id in format "pll040dcoclkldo" to fit MAX_CON_ID */
 	postfix = strrchr(name, '.');
-	if (strlen(postfix) > 1) {
+	if (postfix && strlen(postfix) > 1) {
 		if (strlen(postfix) > ADPLL_MAX_CON_ID)
 			dev_warn(d->dev, "clock %s con_id lookup may fail\n",
 				 name);
