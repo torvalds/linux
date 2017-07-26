@@ -42,8 +42,6 @@ module_param(console_bitmask, int, 0644);
 MODULE_PARM_DESC(console_bitmask,
 		 "Bitmask indicating which consoles have debug output redirected to syslog.");
 
-#define CAST_ULL(v) ((u64)(v))
-
 #define BOOTLOADER_PCI_READ_BUFFER_DATA_ADDR    0x0006c008
 #define BOOTLOADER_PCI_READ_BUFFER_LEN_ADDR     0x0006c004
 #define BOOTLOADER_PCI_READ_BUFFER_OWNER_ADDR   0x0006c000
@@ -233,7 +231,7 @@ static int __cvmx_bootmem_check_version(struct octeon_device *oct,
 	    (exact_match && major_version != exact_match)) {
 		dev_err(&oct->pci_dev->dev, "bootmem ver mismatch %d.%d addr:0x%llx\n",
 			major_version, minor_version,
-			CAST_ULL(oct->bootmem_desc_addr));
+			(long long)oct->bootmem_desc_addr);
 		return -1;
 	} else {
 		return 0;
