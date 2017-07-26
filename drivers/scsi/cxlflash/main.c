@@ -3401,9 +3401,10 @@ static int cxlflash_afu_debug(struct cxlflash_cfg *cfg,
 		if (is_write) {
 			req_flags |= SISL_REQ_FLAGS_HOST_WRITE;
 
-			rc = copy_from_user(kbuf, ubuf, ulen);
-			if (unlikely(rc))
+			if (copy_from_user(kbuf, ubuf, ulen)) {
+				rc = -EFAULT;
 				goto out;
+			}
 		}
 	}
 
@@ -3431,8 +3432,10 @@ static int cxlflash_afu_debug(struct cxlflash_cfg *cfg,
 		goto out;
 	}
 
-	if (ulen && !is_write)
-		rc = copy_to_user(ubuf, kbuf, ulen);
+	if (ulen && !is_write) {
+		if (copy_to_user(ubuf, kbuf, ulen))
+			rc = -EFAULT;
+	}
 out:
 	kfree(buf);
 	dev_dbg(dev, "%s: returning rc=%d\n", __func__, rc);

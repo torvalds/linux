@@ -51,7 +51,7 @@ struct nfs_access_entry {
 	struct list_head	lru;
 	unsigned long		jiffies;
 	struct rpc_cred *	cred;
-	int			mask;
+	__u32			mask;
 	struct rcu_head		rcu_head;
 };
 

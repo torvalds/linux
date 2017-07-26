@@ -84,7 +84,7 @@ static void sync_print_fence(struct seq_file *s,
 		   show ? "_" : "",
 		   sync_status_str(status));
 
-	if (status) {
+	if (test_bit(DMA_FENCE_FLAG_TIMESTAMP_BIT, &fence->flags)) {
 		struct timespec64 ts64 =
 			ktime_to_timespec64(fence->timestamp);
 

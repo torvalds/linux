@@ -1219,6 +1219,9 @@ void rxe_drain_req_pkts(struct rxe_qp *qp, bool notify)
 		kfree_skb(skb);
 	}
 
+	if (notify)
+		return;
+
 	while (!qp->srq && qp->rq.queue && queue_head(qp->rq.queue))
 		advance_consumer(qp->rq.queue);
 }

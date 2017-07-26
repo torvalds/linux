@@ -622,9 +622,11 @@ static int bgmac_dma_alloc(struct bgmac *bgmac)
 	BUILD_BUG_ON(BGMAC_MAX_TX_RINGS > ARRAY_SIZE(ring_base));
 	BUILD_BUG_ON(BGMAC_MAX_RX_RINGS > ARRAY_SIZE(ring_base));
 
-	if (!(bgmac_idm_read(bgmac, BCMA_IOST) & BCMA_IOST_DMA64)) {
-		dev_err(bgmac->dev, "Core does not report 64-bit DMA\n");
-		return -ENOTSUPP;
+	if (!(bgmac->feature_flags & BGMAC_FEAT_IDM_MASK)) {
+		if (!(bgmac_idm_read(bgmac, BCMA_IOST) & BCMA_IOST_DMA64)) {
+			dev_err(bgmac->dev, "Core does not report 64-bit DMA\n");
+			return -ENOTSUPP;
+		}
 	}
 
 	for (i = 0; i < BGMAC_MAX_TX_RINGS; i++) {
@@ -855,9 +857,11 @@ static void bgmac_mac_speed(struct bgmac *bgmac)
 static void bgmac_miiconfig(struct bgmac *bgmac)
 {
 	if (bgmac->feature_flags & BGMAC_FEAT_FORCE_SPEED_2500) {
-		bgmac_idm_write(bgmac, BCMA_IOCTL,
-				bgmac_idm_read(bgmac, BCMA_IOCTL) | 0x40 |
-				BGMAC_BCMA_IOCTL_SW_CLKEN);
+		if (!(bgmac->feature_flags & BGMAC_FEAT_IDM_MASK)) {
+			bgmac_idm_write(bgmac, BCMA_IOCTL,
+					bgmac_idm_read(bgmac, BCMA_IOCTL) |
+					0x40 | BGMAC_BCMA_IOCTL_SW_CLKEN);
+		}
 		bgmac->mac_speed = SPEED_2500;
 		bgmac->mac_duplex = DUPLEX_FULL;
 		bgmac_mac_speed(bgmac);
@@ -874,11 +878,36 @@ static void bgmac_miiconfig(struct bgmac *bgmac)
 	}
 }
 
+static void bgmac_chip_reset_idm_config(struct bgmac *bgmac)
+{
+	u32 iost;
+
+	iost = bgmac_idm_read(bgmac, BCMA_IOST);
+	if (bgmac->feature_flags & BGMAC_FEAT_IOST_ATTACHED)
+		iost &= ~BGMAC_BCMA_IOST_ATTACHED;
+
+	/* 3GMAC: for BCM4707 & BCM47094, only do core reset at bgmac_probe() */
+	if (!(bgmac->feature_flags & BGMAC_FEAT_NO_RESET)) {
+		u32 flags = 0;
+
+		if (iost & BGMAC_BCMA_IOST_ATTACHED) {
+			flags = BGMAC_BCMA_IOCTL_SW_CLKEN;
+			if (!bgmac->has_robosw)
+				flags |= BGMAC_BCMA_IOCTL_SW_RESET;
+		}
+		bgmac_clk_enable(bgmac, flags);
+	}
+
+	if (iost & BGMAC_BCMA_IOST_ATTACHED && !bgmac->has_robosw)
+		bgmac_idm_write(bgmac, BCMA_IOCTL,
+				bgmac_idm_read(bgmac, BCMA_IOCTL) &
+				~BGMAC_BCMA_IOCTL_SW_RESET);
+}
+
 /* http://bcm-v4.sipsolutions.net/mac-gbit/gmac/chipreset */
 static void bgmac_chip_reset(struct bgmac *bgmac)
 {
 	u32 cmdcfg_sr;
-	u32 iost;
 	int i;
 
 	if (bgmac_clk_enabled(bgmac)) {
@@ -899,20 +928,8 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 		/* TODO: Clear software multicast filter list */
 	}
 
-	iost = bgmac_idm_read(bgmac, BCMA_IOST);
-	if (bgmac->feature_flags & BGMAC_FEAT_IOST_ATTACHED)
-		iost &= ~BGMAC_BCMA_IOST_ATTACHED;
-
-	/* 3GMAC: for BCM4707 & BCM47094, only do core reset at bgmac_probe() */
-	if (!(bgmac->feature_flags & BGMAC_FEAT_NO_RESET)) {
-		u32 flags = 0;
-		if (iost & BGMAC_BCMA_IOST_ATTACHED) {
-			flags = BGMAC_BCMA_IOCTL_SW_CLKEN;
-			if (!bgmac->has_robosw)
-				flags |= BGMAC_BCMA_IOCTL_SW_RESET;
-		}
-		bgmac_clk_enable(bgmac, flags);
-	}
+	if (!(bgmac->feature_flags & BGMAC_FEAT_IDM_MASK))
+		bgmac_chip_reset_idm_config(bgmac);
 
 	/* Request Misc PLL for corerev > 2 */
 	if (bgmac->feature_flags & BGMAC_FEAT_MISC_PLL_REQ) {
@@ -969,11 +986,6 @@ static void bgmac_chip_reset(struct bgmac *bgmac)
 		bgmac_cco_ctl_maskset(bgmac, 7, ~BGMAC_CHIPCTL_7_IF_TYPE_MASK,
 				      BGMAC_CHIPCTL_7_IF_TYPE_RGMII);
 	}
-
-	if (iost & BGMAC_BCMA_IOST_ATTACHED && !bgmac->has_robosw)
-		bgmac_idm_write(bgmac, BCMA_IOCTL,
-				bgmac_idm_read(bgmac, BCMA_IOCTL) &
-				~BGMAC_BCMA_IOCTL_SW_RESET);
 
 	/* http://bcm-v4.sipsolutions.net/mac-gbit/gmac/gmac_reset
 	 * Specs don't say about using BGMAC_CMDCFG_SR, but in this routine
@@ -1497,8 +1509,10 @@ int bgmac_enet_probe(struct bgmac *bgmac)
 	bgmac_clk_enable(bgmac, 0);
 
 	/* This seems to be fixing IRQ by assigning OOB #6 to the core */
-	if (bgmac->feature_flags & BGMAC_FEAT_IRQ_ID_OOB_6)
-		bgmac_idm_write(bgmac, BCMA_OOB_SEL_OUT_A30, 0x86);
+	if (!(bgmac->feature_flags & BGMAC_FEAT_IDM_MASK)) {
+		if (bgmac->feature_flags & BGMAC_FEAT_IRQ_ID_OOB_6)
+			bgmac_idm_write(bgmac, BCMA_OOB_SEL_OUT_A30, 0x86);
+	}
 
 	bgmac_chip_reset(bgmac);
 
