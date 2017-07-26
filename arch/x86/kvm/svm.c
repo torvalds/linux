@@ -5599,14 +5599,14 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 	vcpu->arch.regs[VCPU_REGS_RIP] = svm->vmcb->save.rip;
 
 	if (unlikely(svm->vmcb->control.exit_code == SVM_EXIT_NMI))
-		kvm_before_handle_nmi(&svm->vcpu);
+		kvm_before_interrupt(&svm->vcpu);
 
 	stgi();
 
 	/* Any pending NMI will happen here */
 
 	if (unlikely(svm->vmcb->control.exit_code == SVM_EXIT_NMI))
-		kvm_after_handle_nmi(&svm->vcpu);
+		kvm_after_interrupt(&svm->vcpu);
 
 	sync_cr8_to_lapic(vcpu);
 

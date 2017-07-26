@@ -6370,7 +6370,8 @@ static void kvm_timer_init(void)
 			  kvmclock_cpu_online, kvmclock_cpu_down_prep);
 }
 
-static DEFINE_PER_CPU(struct kvm_vcpu *, current_vcpu);
+DEFINE_PER_CPU(struct kvm_vcpu *, current_vcpu);
+EXPORT_PER_CPU_SYMBOL_GPL(current_vcpu);
 
 int kvm_is_in_guest(void)
 {
@@ -6402,18 +6403,6 @@ static struct perf_guest_info_callbacks kvm_guest_cbs = {
 	.is_user_mode		= kvm_is_user_mode,
 	.get_guest_ip		= kvm_get_guest_ip,
 };
-
-void kvm_before_handle_nmi(struct kvm_vcpu *vcpu)
-{
-	__this_cpu_write(current_vcpu, vcpu);
-}
-EXPORT_SYMBOL_GPL(kvm_before_handle_nmi);
-
-void kvm_after_handle_nmi(struct kvm_vcpu *vcpu)
-{
-	__this_cpu_write(current_vcpu, NULL);
-}
-EXPORT_SYMBOL_GPL(kvm_after_handle_nmi);
 
 static void kvm_set_mmio_spte_mask(void)
 {
@@ -7429,7 +7418,9 @@ static int vcpu_enter_guest(struct kvm_vcpu *vcpu)
 
 	kvm_put_guest_xcr0(vcpu);
 
+	kvm_before_interrupt(vcpu);
 	kvm_x86_ops->handle_external_intr(vcpu);
+	kvm_after_interrupt(vcpu);
 
 	++vcpu->stat.exits;
 
