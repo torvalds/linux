@@ -191,7 +191,7 @@ static unsigned int ipv6_conntrack_local(void *priv,
 	return nf_conntrack_in(state->net, PF_INET6, state->hook, skb);
 }
 
-static struct nf_hook_ops ipv6_conntrack_ops[] __read_mostly = {
+static const struct nf_hook_ops ipv6_conntrack_ops[] = {
 	{
 		.hook		= ipv6_conntrack_in,
 		.pf		= NFPROTO_IPV6,

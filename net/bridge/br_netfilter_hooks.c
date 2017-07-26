@@ -887,7 +887,7 @@ EXPORT_SYMBOL_GPL(br_netfilter_enable);
 
 /* For br_nf_post_routing, we need (prio = NF_BR_PRI_LAST), because
  * br_dev_queue_push_xmit is called afterwards */
-static struct nf_hook_ops br_nf_ops[] __read_mostly = {
+static const struct nf_hook_ops br_nf_ops[] = {
 	{
 		.hook = br_nf_pre_routing,
 		.pf = NFPROTO_BRIDGE,

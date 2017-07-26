@@ -70,7 +70,7 @@ ebt_nat_out(void *priv, struct sk_buff *skb,
 	return ebt_do_table(skb, state, state->net->xt.frame_nat);
 }
 
-static struct nf_hook_ops ebt_ops_nat[] __read_mostly = {
+static const struct nf_hook_ops ebt_ops_nat[] = {
 	{
 		.hook		= ebt_nat_out,
 		.pf		= NFPROTO_BRIDGE,
