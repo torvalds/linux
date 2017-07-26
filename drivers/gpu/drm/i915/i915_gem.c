@@ -561,66 +561,6 @@ static struct intel_rps_client *to_rps_client(struct drm_file *file)
 	return &fpriv->rps;
 }
 
-int
-i915_gem_object_attach_phys(struct drm_i915_gem_object *obj,
-			    int align)
-{
-	struct sg_table *pages;
-	int err;
-
-	if (align > obj->base.size)
-		return -EINVAL;
-
-	if (obj->ops == &i915_gem_phys_ops)
-		return 0;
-
-	if (obj->ops != &i915_gem_object_ops)
-		return -EINVAL;
-
-	err = i915_gem_object_unbind(obj);
-	if (err)
-		return err;
-
-	mutex_lock(&obj->mm.lock);
-
-	if (obj->mm.madv != I915_MADV_WILLNEED) {
-		err = -EFAULT;
-		goto err_unlock;
-	}
-
-	if (obj->mm.quirked) {
-		err = -EFAULT;
-		goto err_unlock;
-	}
-
-	if (obj->mm.mapping) {
-		err = -EBUSY;
-		goto err_unlock;
-	}
-
-	pages = obj->mm.pages;
-	obj->ops = &i915_gem_phys_ops;
-
-	err = __i915_gem_object_get_pages(obj);
-	if (err)
-		goto err_xfer;
-
-	/* Perma-pin (until release) the physical set of pages */
-	__i915_gem_object_pin_pages(obj);
-
-	if (!IS_ERR_OR_NULL(pages))
-		i915_gem_object_ops.put_pages(obj, pages);
-	mutex_unlock(&obj->mm.lock);
-	return 0;
-
-err_xfer:
-	obj->ops = &i915_gem_object_ops;
-	obj->mm.pages = pages;
-err_unlock:
-	mutex_unlock(&obj->mm.lock);
-	return err;
-}
-
 static int
 i915_gem_phys_pwrite(struct drm_i915_gem_object *obj,
 		     struct drm_i915_gem_pwrite *args,
@@ -5344,6 +5284,64 @@ i915_gem_object_get_dma_address(struct drm_i915_gem_object *obj,
 
 	sg = i915_gem_object_get_sg(obj, n, &offset);
 	return sg_dma_address(sg) + (offset << PAGE_SHIFT);
+}
+
+int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align)
+{
+	struct sg_table *pages;
+	int err;
+
+	if (align > obj->base.size)
+		return -EINVAL;
+
+	if (obj->ops == &i915_gem_phys_ops)
+		return 0;
+
+	if (obj->ops != &i915_gem_object_ops)
+		return -EINVAL;
+
+	err = i915_gem_object_unbind(obj);
+	if (err)
+		return err;
+
+	mutex_lock(&obj->mm.lock);
+
+	if (obj->mm.madv != I915_MADV_WILLNEED) {
+		err = -EFAULT;
+		goto err_unlock;
+	}
+
+	if (obj->mm.quirked) {
+		err = -EFAULT;
+		goto err_unlock;
+	}
+
+	if (obj->mm.mapping) {
+		err = -EBUSY;
+		goto err_unlock;
+	}
+
+	pages = obj->mm.pages;
+	obj->ops = &i915_gem_phys_ops;
+
+	err = __i915_gem_object_get_pages(obj);
+	if (err)
+		goto err_xfer;
+
+	/* Perma-pin (until release) the physical set of pages */
+	__i915_gem_object_pin_pages(obj);
+
+	if (!IS_ERR_OR_NULL(pages))
+		i915_gem_object_ops.put_pages(obj, pages);
+	mutex_unlock(&obj->mm.lock);
+	return 0;
+
+err_xfer:
+	obj->ops = &i915_gem_object_ops;
+	obj->mm.pages = pages;
+err_unlock:
+	mutex_unlock(&obj->mm.lock);
+	return err;
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
