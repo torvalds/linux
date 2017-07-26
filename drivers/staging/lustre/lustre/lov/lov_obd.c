@@ -947,7 +947,8 @@ out:
 	return rc;
 }
 
-int lov_statfs_interpret(struct ptlrpc_request_set *rqset, void *data, int rc)
+static int
+lov_statfs_interpret(struct ptlrpc_request_set *rqset, void *data, int rc)
 {
 	struct lov_request_set *lovset = (struct lov_request_set *)data;
 	int err;

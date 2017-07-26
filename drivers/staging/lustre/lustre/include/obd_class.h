@@ -46,14 +46,7 @@
 #define OBD_STATFS_FROM_CACHE   0x0002  /* the statfs callback should not update
 					 * obd_osfs_age
 					 */
-#define OBD_STATFS_PTLRPCD      0x0004  /* requests will be sent via ptlrpcd
-					 * instead of a specific set. This
-					 * means that we cannot rely on the set
-					 * interpret routine to be called.
-					 * lov_statfs_fini() must thus be called
-					 * by the request interpret routine
-					 */
-#define OBD_STATFS_FOR_MDT0	0x0008	/* The statfs is only for retrieving
+#define OBD_STATFS_FOR_MDT0	0x0004	/* The statfs is only for retrieving
 					 * information from MDT0.
 					 */
 
