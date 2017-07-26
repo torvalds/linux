@@ -11851,16 +11851,7 @@ static int intel_atomic_check(struct drm_device *dev,
 static int intel_atomic_prepare_commit(struct drm_device *dev,
 				       struct drm_atomic_state *state)
 {
-	int ret;
-
-	ret = mutex_lock_interruptible(&dev->struct_mutex);
-	if (ret)
-		return ret;
-
-	ret = drm_atomic_helper_prepare_planes(dev, state);
-	mutex_unlock(&dev->struct_mutex);
-
-	return ret;
+	return drm_atomic_helper_prepare_planes(dev, state);
 }
 
 u32 intel_crtc_get_vblank_counter(struct intel_crtc *crtc)
@@ -12223,9 +12214,7 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 		intel_display_power_put(dev_priv, POWER_DOMAIN_MODESET);
 	}
 
-	mutex_lock(&dev->struct_mutex);
 	drm_atomic_helper_cleanup_planes(dev, state);
-	mutex_unlock(&dev->struct_mutex);
 
 	drm_atomic_helper_commit_cleanup_done(state);
 
@@ -12340,9 +12329,7 @@ static int intel_atomic_commit(struct drm_device *dev,
 	if (ret) {
 		i915_sw_fence_commit(&intel_state->commit_ready);
 
-		mutex_lock(&dev->struct_mutex);
 		drm_atomic_helper_cleanup_planes(dev, state);
-		mutex_unlock(&dev->struct_mutex);
 		return ret;
 	}
 	dev_priv->wm.distrust_bios_wm = false;
@@ -12407,32 +12394,6 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 	struct drm_i915_gem_object *old_obj = intel_fb_obj(plane->state->fb);
 	int ret;
 
-	if (obj) {
-		if (plane->type == DRM_PLANE_TYPE_CURSOR &&
-		    INTEL_INFO(dev_priv)->cursor_needs_physical) {
-			const int align = intel_cursor_alignment(dev_priv);
-
-			ret = i915_gem_object_attach_phys(obj, align);
-			if (ret) {
-				DRM_DEBUG_KMS("failed to attach phys object\n");
-				return ret;
-			}
-		} else {
-			struct i915_vma *vma;
-
-			vma = intel_pin_and_fence_fb_obj(fb, new_state->rotation);
-			if (IS_ERR(vma)) {
-				DRM_DEBUG_KMS("failed to pin object\n");
-				return PTR_ERR(vma);
-			}
-
-			to_intel_plane_state(new_state)->vma = vma;
-		}
-	}
-
-	if (!obj && !old_obj)
-		return 0;
-
 	if (old_obj) {
 		struct drm_crtc_state *crtc_state =
 			drm_atomic_get_existing_crtc_state(new_state->state,
@@ -12471,6 +12432,31 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 	if (!obj)
 		return 0;
 
+	ret = mutex_lock_interruptible(&dev_priv->drm.struct_mutex);
+	if (ret)
+		return ret;
+
+	if (plane->type == DRM_PLANE_TYPE_CURSOR &&
+	    INTEL_INFO(dev_priv)->cursor_needs_physical) {
+		const int align = intel_cursor_alignment(dev_priv);
+
+		ret = i915_gem_object_attach_phys(obj, align);
+	} else {
+		struct i915_vma *vma;
+
+		vma = intel_pin_and_fence_fb_obj(fb, new_state->rotation);
+		if (!IS_ERR(vma))
+			to_intel_plane_state(new_state)->vma = vma;
+		else
+			ret =  PTR_ERR(vma);
+	}
+
+	i915_gem_object_wait_priority(obj, 0, I915_PRIORITY_DISPLAY);
+
+	mutex_unlock(&dev_priv->drm.struct_mutex);
+	if (ret)
+		return ret;
+
 	if (!new_state->fence) { /* implicit fencing */
 		ret = i915_sw_fence_await_reservation(&intel_state->commit_ready,
 						      obj->resv, NULL,
@@ -12478,8 +12464,6 @@ intel_prepare_plane_fb(struct drm_plane *plane,
 						      GFP_KERNEL);
 		if (ret < 0)
 			return ret;
-
-		i915_gem_object_wait_priority(obj, 0, I915_PRIORITY_DISPLAY);
 	}
 
 	return 0;
@@ -12502,8 +12486,11 @@ intel_cleanup_plane_fb(struct drm_plane *plane,
 
 	/* Should only be called after a successful intel_prepare_plane_fb()! */
 	vma = fetch_and_zero(&to_intel_plane_state(old_state)->vma);
-	if (vma)
+	if (vma) {
+		mutex_lock(&plane->dev->struct_mutex);
 		intel_unpin_fb_vma(vma);
+		mutex_unlock(&plane->dev->struct_mutex);
+	}
 }
 
 int
@@ -12673,7 +12660,7 @@ intel_legacy_cursor_update(struct drm_plane *plane,
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct drm_framebuffer *old_fb;
 	struct drm_crtc_state *crtc_state = crtc->state;
-	struct i915_vma *old_vma;
+	struct i915_vma *old_vma, *vma;
 
 	/*
 	 * When crtc is inactive or there is a modeset pending,
@@ -12731,8 +12718,6 @@ intel_legacy_cursor_update(struct drm_plane *plane,
 			goto out_unlock;
 		}
 	} else {
-		struct i915_vma *vma;
-
 		vma = intel_pin_and_fence_fb_obj(fb, new_plane_state->rotation);
 		if (IS_ERR(vma)) {
 			DRM_DEBUG_KMS("failed to pin object\n");
@@ -12755,7 +12740,7 @@ intel_legacy_cursor_update(struct drm_plane *plane,
 	*to_intel_plane_state(old_plane_state) = *to_intel_plane_state(new_plane_state);
 	new_plane_state->fence = NULL;
 	new_plane_state->fb = old_fb;
-	to_intel_plane_state(new_plane_state)->vma = old_vma;
+	to_intel_plane_state(new_plane_state)->vma = NULL;
 
 	if (plane->state->visible) {
 		trace_intel_update_plane(plane, to_intel_crtc(crtc));
@@ -12767,7 +12752,8 @@ intel_legacy_cursor_update(struct drm_plane *plane,
 		intel_plane->disable_plane(intel_plane, to_intel_crtc(crtc));
 	}
 
-	intel_cleanup_plane_fb(plane, new_plane_state);
+	if (old_vma)
+		intel_unpin_fb_vma(old_vma);
 
 out_unlock:
 	mutex_unlock(&dev_priv->drm.struct_mutex);
