@@ -739,7 +739,7 @@ struct hfa384x_auth_request {
 /*--  Unsolicited Frame, MAC Mgmt: PSUserCount (AP Only) --*/
 
 struct hfa384x_ps_user_count {
-	u16 usercnt;
+	__le16 usercnt;
 } __packed;
 
 struct hfa384x_key_id_changed {
