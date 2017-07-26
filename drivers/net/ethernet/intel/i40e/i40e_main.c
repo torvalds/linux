@@ -4773,7 +4773,7 @@ static void i40e_detect_recover_hung(struct i40e_pf *pf)
 {
 	struct net_device *netdev;
 	struct i40e_vsi *vsi;
-	int i;
+	unsigned int i;
 
 	/* Only for LAN VSI */
 	vsi = pf->vsi[pf->lan_vsi];
@@ -7520,6 +7520,18 @@ static void i40e_handle_mdd_event(struct i40e_pf *pf)
 	i40e_flush(hw);
 }
 
+static const char *i40e_tunnel_name(struct i40e_udp_port_config *port)
+{
+	switch (port->type) {
+	case UDP_TUNNEL_TYPE_VXLAN:
+		return "vxlan";
+	case UDP_TUNNEL_TYPE_GENEVE:
+		return "geneve";
+	default:
+		return "unknown";
+	}
+}
+
 /**
  * i40e_sync_udp_filters - Trigger a sync event for existing UDP filters
  * @pf: board private structure
@@ -7565,14 +7577,14 @@ static void i40e_sync_udp_filters_subtask(struct i40e_pf *pf)
 				ret = i40e_aq_del_udp_tunnel(hw, i, NULL);
 
 			if (ret) {
-				dev_dbg(&pf->pdev->dev,
-					"%s %s port %d, index %d failed, err %s aq_err %s\n",
-					pf->udp_ports[i].type ? "vxlan" : "geneve",
-					port ? "add" : "delete",
-					port, i,
-					i40e_stat_str(&pf->hw, ret),
-					i40e_aq_str(&pf->hw,
-						    pf->hw.aq.asq_last_status));
+				dev_info(&pf->pdev->dev,
+					 "%s %s port %d, index %d failed, err %s aq_err %s\n",
+					 i40e_tunnel_name(&pf->udp_ports[i]),
+					 port ? "add" : "delete",
+					 port, i,
+					 i40e_stat_str(&pf->hw, ret),
+					 i40e_aq_str(&pf->hw,
+						     pf->hw.aq.asq_last_status));
 				pf->udp_ports[i].port = 0;
 			}
 		}
@@ -9589,6 +9601,7 @@ static int i40e_xdp(struct net_device *dev,
 		return i40e_xdp_setup(vsi, xdp->prog);
 	case XDP_QUERY_PROG:
 		xdp->prog_attached = i40e_enabled_xdp_vsi(vsi);
+		xdp->prog_id = vsi->xdp_prog ? vsi->xdp_prog->aux->id : 0;
 		return 0;
 	default:
 		return -EINVAL;
@@ -12089,7 +12102,10 @@ static int i40e_suspend(struct pci_dev *pdev, pm_message_t state)
 	wr32(hw, I40E_PFPM_WUFC, (pf->wol_en ? I40E_PFPM_WUFC_MAG_MASK : 0));
 
 	i40e_stop_misc_vector(pf);
-
+	if (pf->msix_entries) {
+		synchronize_irq(pf->msix_entries[0].vector);
+		free_irq(pf->msix_entries[0].vector, pf);
+	}
 	retval = pci_save_state(pdev);
 	if (retval)
 		return retval;
@@ -12129,6 +12145,15 @@ static int i40e_resume(struct pci_dev *pdev)
 	/* handling the reset will rebuild the device state */
 	if (test_and_clear_bit(__I40E_SUSPENDED, pf->state)) {
 		clear_bit(__I40E_DOWN, pf->state);
+		if (pf->msix_entries) {
+			err = request_irq(pf->msix_entries[0].vector,
+					  i40e_intr, 0, pf->int_name, pf);
+			if (err) {
+				dev_err(&pf->pdev->dev,
+					"request_irq for %s failed: %d\n",
+					pf->int_name, err);
+			}
+		}
 		i40e_reset_and_rebuild(pf, false, false);
 	}
 
@@ -12168,12 +12193,14 @@ static int __init i40e_init_module(void)
 		i40e_driver_string, i40e_driver_version_str);
 	pr_info("%s: %s\n", i40e_driver_name, i40e_copyright);
 
-	/* we will see if single thread per module is enough for now,
-	 * it can't be any worse than using the system workqueue which
-	 * was already single threaded
+	/* There is no need to throttle the number of active tasks because
+	 * each device limits its own task using a state bit for scheduling
+	 * the service task, and the device tasks do not interfere with each
+	 * other, so we don't set a max task limit. We must set WQ_MEM_RECLAIM
+	 * since we need to be able to guarantee forward progress even under
+	 * memory pressure.
 	 */
-	i40e_wq = alloc_workqueue("%s", WQ_UNBOUND | WQ_MEM_RECLAIM, 1,
-				  i40e_driver_name);
+	i40e_wq = alloc_workqueue("%s", WQ_MEM_RECLAIM, 0, i40e_driver_name);
 	if (!i40e_wq) {
 		pr_err("%s: Failed to create workqueue\n", i40e_driver_name);
 		return -ENOMEM;

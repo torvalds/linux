@@ -134,8 +134,25 @@ i40e_i40e_acquire_nvm_exit:
  **/
 void i40e_release_nvm(struct i40e_hw *hw)
 {
-	if (!hw->nvm.blank_nvm_mode)
-		i40e_aq_release_resource(hw, I40E_NVM_RESOURCE_ID, 0, NULL);
+	i40e_status ret_code = I40E_SUCCESS;
+	u32 total_delay = 0;
+
+	if (hw->nvm.blank_nvm_mode)
+		return;
+
+	ret_code = i40e_aq_release_resource(hw, I40E_NVM_RESOURCE_ID, 0, NULL);
+
+	/* there are some rare cases when trying to release the resource
+	 * results in an admin Q timeout, so handle them correctly
+	 */
+	while ((ret_code == I40E_ERR_ADMIN_QUEUE_TIMEOUT) &&
+	       (total_delay < hw->aq.asq_cmd_timeout)) {
+		usleep_range(1000, 2000);
+		ret_code = i40e_aq_release_resource(hw,
+						    I40E_NVM_RESOURCE_ID,
+						    0, NULL);
+		total_delay++;
+	}
 }
 
 /**
