@@ -276,11 +276,12 @@ static int hibmc_unload(struct drm_device *dev)
 
 	hibmc_fbdev_fini(priv);
 
+	drm_atomic_helper_shutdown(dev);
+
 	if (dev->irq_enabled)
 		drm_irq_uninstall(dev);
 	if (priv->msi_enabled)
 		pci_disable_msi(dev->pdev);
-	drm_vblank_cleanup(dev);
 
 	hibmc_kms_fini(priv);
 	hibmc_mm_fini(priv);

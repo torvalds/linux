@@ -245,7 +245,6 @@ static int amdgpufb_create(struct drm_fb_helper *helper,
 
 	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
 
-	info->flags = FBINFO_DEFAULT | FBINFO_CAN_FORCE_OUTPUT;
 	info->fbops = &amdgpufb_ops;
 
 	tmp = amdgpu_bo_gpu_offset(abo) - adev->mc.vram_start;

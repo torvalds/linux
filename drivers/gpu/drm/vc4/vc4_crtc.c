@@ -479,7 +479,8 @@ static void require_hvs_enabled(struct drm_device *dev)
 		     SCALER_DISPCTRL_ENABLE);
 }
 
-static void vc4_crtc_disable(struct drm_crtc *crtc)
+static void vc4_crtc_atomic_disable(struct drm_crtc *crtc,
+				    struct drm_crtc_state *old_state)
 {
 	struct drm_device *dev = crtc->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
@@ -518,9 +519,23 @@ static void vc4_crtc_disable(struct drm_crtc *crtc)
 	WARN_ON_ONCE((HVS_READ(SCALER_DISPSTATX(chan)) &
 		      (SCALER_DISPSTATX_FULL | SCALER_DISPSTATX_EMPTY)) !=
 		     SCALER_DISPSTATX_EMPTY);
+
+	/*
+	 * Make sure we issue a vblank event after disabling the CRTC if
+	 * someone was waiting it.
+	 */
+	if (crtc->state->event) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&dev->event_lock, flags);
+		drm_crtc_send_vblank_event(crtc, crtc->state->event);
+		crtc->state->event = NULL;
+		spin_unlock_irqrestore(&dev->event_lock, flags);
+	}
 }
 
-static void vc4_crtc_enable(struct drm_crtc *crtc)
+static void vc4_crtc_atomic_enable(struct drm_crtc *crtc,
+				   struct drm_crtc_state *old_state)
 {
 	struct drm_device *dev = crtc->dev;
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
@@ -546,18 +561,17 @@ static void vc4_crtc_enable(struct drm_crtc *crtc)
 	drm_crtc_vblank_on(crtc);
 }
 
-static bool vc4_crtc_mode_fixup(struct drm_crtc *crtc,
-				const struct drm_display_mode *mode,
-				struct drm_display_mode *adjusted_mode)
+static enum drm_mode_status vc4_crtc_mode_valid(struct drm_crtc *crtc,
+						const struct drm_display_mode *mode)
 {
 	/* Do not allow doublescan modes from user space */
-	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLSCAN) {
+	if (mode->flags & DRM_MODE_FLAG_DBLSCAN) {
 		DRM_DEBUG_KMS("[CRTC:%d] Doublescan mode rejected.\n",
 			      crtc->base.id);
-		return false;
+		return MODE_NO_DBLESCAN;
 	}
 
-	return true;
+	return MODE_OK;
 }
 
 static int vc4_crtc_atomic_check(struct drm_crtc *crtc,
@@ -660,14 +674,6 @@ static void vc4_disable_vblank(struct drm_crtc *crtc)
 	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
 
 	CRTC_WRITE(PV_INTEN, 0);
-}
-
-/* Must be called with the event lock held */
-bool vc4_event_pending(struct drm_crtc *crtc)
-{
-	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
-
-	return !!vc4_crtc->event;
 }
 
 static void vc4_crtc_handle_page_flip(struct vc4_crtc *vc4_crtc)
@@ -865,11 +871,11 @@ static const struct drm_crtc_funcs vc4_crtc_funcs = {
 
 static const struct drm_crtc_helper_funcs vc4_crtc_helper_funcs = {
 	.mode_set_nofb = vc4_crtc_mode_set_nofb,
-	.disable = vc4_crtc_disable,
-	.enable = vc4_crtc_enable,
-	.mode_fixup = vc4_crtc_mode_fixup,
+	.mode_valid = vc4_crtc_mode_valid,
 	.atomic_check = vc4_crtc_atomic_check,
 	.atomic_flush = vc4_crtc_atomic_flush,
+	.atomic_enable = vc4_crtc_atomic_enable,
+	.atomic_disable = vc4_crtc_atomic_disable,
 };
 
 static const struct vc4_crtc_data pv0_data = {

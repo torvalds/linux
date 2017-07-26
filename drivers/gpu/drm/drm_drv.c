@@ -63,6 +63,15 @@ module_param_named(debug, drm_debug, int, 0600);
 static DEFINE_SPINLOCK(drm_minor_lock);
 static struct idr drm_minors_idr;
 
+/*
+ * If the drm core fails to init for whatever reason,
+ * we should prevent any drivers from registering with it.
+ * It's best to check this at drm_dev_init(), as some drivers
+ * prefer to embed struct drm_device into their own device
+ * structure and call drm_dev_init() themselves.
+ */
+static bool drm_core_init_complete = false;
+
 static struct dentry *drm_debugfs_root;
 
 #define DRM_PRINTK_FMT "[" DRM_NAME ":%s]%s %pV"
@@ -483,6 +492,11 @@ int drm_dev_init(struct drm_device *dev,
 		 struct device *parent)
 {
 	int ret;
+
+	if (!drm_core_init_complete) {
+		DRM_ERROR("DRM core is not initialized\n");
+		return -ENODEV;
+	}
 
 	kref_init(&dev->ref);
 	dev->dev = parent;
@@ -965,6 +979,8 @@ static int __init drm_core_init(void)
 	ret = register_chrdev(DRM_MAJOR, "drm", &drm_stub_fops);
 	if (ret < 0)
 		goto error;
+
+	drm_core_init_complete = true;
 
 	DRM_DEBUG("Initialized\n");
 	return 0;

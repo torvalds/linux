@@ -37,10 +37,18 @@ static const struct drm_encoder_funcs drm_simple_kms_encoder_funcs = {
 static int drm_simple_kms_crtc_check(struct drm_crtc *crtc,
 				     struct drm_crtc_state *state)
 {
+	bool has_primary = state->plane_mask &
+			   BIT(drm_plane_index(crtc->primary));
+
+	/* We always want to have an active plane with an active CRTC */
+	if (has_primary != state->enable)
+		return -EINVAL;
+
 	return drm_atomic_add_affected_planes(state->state, crtc);
 }
 
-static void drm_simple_kms_crtc_enable(struct drm_crtc *crtc)
+static void drm_simple_kms_crtc_enable(struct drm_crtc *crtc,
+				       struct drm_crtc_state *old_state)
 {
 	struct drm_simple_display_pipe *pipe;
 
@@ -51,7 +59,8 @@ static void drm_simple_kms_crtc_enable(struct drm_crtc *crtc)
 	pipe->funcs->enable(pipe, crtc->state);
 }
 
-static void drm_simple_kms_crtc_disable(struct drm_crtc *crtc)
+static void drm_simple_kms_crtc_disable(struct drm_crtc *crtc,
+					struct drm_crtc_state *old_state)
 {
 	struct drm_simple_display_pipe *pipe;
 
@@ -64,8 +73,8 @@ static void drm_simple_kms_crtc_disable(struct drm_crtc *crtc)
 
 static const struct drm_crtc_helper_funcs drm_simple_kms_crtc_helper_funcs = {
 	.atomic_check = drm_simple_kms_crtc_check,
-	.disable = drm_simple_kms_crtc_disable,
-	.enable = drm_simple_kms_crtc_enable,
+	.atomic_enable = drm_simple_kms_crtc_enable,
+	.atomic_disable = drm_simple_kms_crtc_disable,
 };
 
 static const struct drm_crtc_funcs drm_simple_kms_crtc_funcs = {
@@ -88,9 +97,6 @@ static int drm_simple_kms_plane_atomic_check(struct drm_plane *plane,
 	pipe = container_of(plane, struct drm_simple_display_pipe, plane);
 	crtc_state = drm_atomic_get_new_crtc_state(plane_state->state,
 						   &pipe->crtc);
-	if (crtc_state->enable != !!plane_state->crtc)
-		return -EINVAL; /* plane must match crtc enable state */
-
 	if (!crtc_state->enable)
 		return 0; /* nothing to check when disabling or disabled */
 

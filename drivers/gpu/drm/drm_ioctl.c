@@ -143,8 +143,8 @@ static int drm_set_busid(struct drm_device *dev, struct drm_file *file_priv)
 	if (master->unique != NULL)
 		drm_unset_busid(dev, master);
 
-	if (dev->driver->set_busid) {
-		ret = dev->driver->set_busid(dev, master);
+	if (dev->dev && dev_is_pci(dev->dev)) {
+		ret = drm_pci_set_busid(dev, master);
 		if (ret) {
 			drm_unset_busid(dev, master);
 			return ret;
@@ -603,9 +603,9 @@ static const struct drm_ioctl_desc drm_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_IOCTL_SG_ALLOC, drm_legacy_sg_alloc, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF(DRM_IOCTL_SG_FREE, drm_legacy_sg_free, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 
-	DRM_IOCTL_DEF(DRM_IOCTL_WAIT_VBLANK, drm_wait_vblank, DRM_UNLOCKED),
+	DRM_IOCTL_DEF(DRM_IOCTL_WAIT_VBLANK, drm_wait_vblank_ioctl, DRM_UNLOCKED),
 
-	DRM_IOCTL_DEF(DRM_IOCTL_MODESET_CTL, drm_legacy_modeset_ctl, 0),
+	DRM_IOCTL_DEF(DRM_IOCTL_MODESET_CTL, drm_legacy_modeset_ctl_ioctl, 0),
 
 	DRM_IOCTL_DEF(DRM_IOCTL_UPDATE_DRAW, drm_noop, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 
@@ -695,7 +695,7 @@ static const struct drm_ioctl_desc drm_ioctls[] = {
  * 
  * DRM driver private IOCTL must be in the range from DRM_COMMAND_BASE to
  * DRM_COMMAND_END. Finally you need an array of &struct drm_ioctl_desc to wire
- * up the handlers and set the access rights:
+ * up the handlers and set the access rights::
  *
  *     static const struct drm_ioctl_desc my_driver_ioctls[] = {
  *         DRM_IOCTL_DEF_DRV(MY_DRIVER_OPERATION, my_driver_operation,
@@ -704,6 +704,9 @@ static const struct drm_ioctl_desc drm_ioctls[] = {
  *
  * And then assign this to the &drm_driver.ioctls field in your driver
  * structure.
+ *
+ * See the separate chapter on :ref:`file operations<drm_driver_fops>` for how
+ * the driver-specific IOCTLs are wired up.
  */
 
 long drm_ioctl_kernel(struct file *file, drm_ioctl_t *func, void *kdata,

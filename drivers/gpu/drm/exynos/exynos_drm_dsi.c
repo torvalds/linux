@@ -1618,8 +1618,7 @@ static int exynos_dsi_of_read_u32(const struct device_node *np,
 	int ret = of_property_read_u32(np, propname, out_value);
 
 	if (ret < 0)
-		pr_err("%s: failed to get '%s' property\n", np->full_name,
-		       propname);
+		pr_err("%pOF: failed to get '%s' property\n", np, propname);
 
 	return ret;
 }

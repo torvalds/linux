@@ -958,6 +958,7 @@ static void sti_hqvdp_start_xp70(struct sti_hqvdp *hqvdp)
 	}
 	if (i == POLL_MAX_ATTEMPT) {
 		DRM_ERROR("Could not reset\n");
+		clk_disable_unprepare(hqvdp->clk);
 		goto out;
 	}
 
@@ -994,6 +995,7 @@ static void sti_hqvdp_start_xp70(struct sti_hqvdp *hqvdp)
 	}
 	if (i == POLL_MAX_ATTEMPT) {
 		DRM_ERROR("Could not boot\n");
+		clk_disable_unprepare(hqvdp->clk);
 		goto out;
 	}
 
@@ -1081,6 +1083,7 @@ static int sti_hqvdp_atomic_check(struct drm_plane *drm_plane,
 					    &hqvdp->vtg_nb,
 					    crtc)) {
 			DRM_ERROR("Cannot register VTG notifier\n");
+			clk_disable_unprepare(hqvdp->clk_pix_main);
 			return -EINVAL;
 		}
 		hqvdp->vtg_registered = true;
@@ -1395,7 +1398,7 @@ static int sti_hqvdp_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct of_device_id hqvdp_of_match[] = {
+static const struct of_device_id hqvdp_of_match[] = {
 	{ .compatible = "st,stih407-hqvdp", },
 	{ /* end node */ }
 };

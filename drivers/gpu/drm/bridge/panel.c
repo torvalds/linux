@@ -158,7 +158,6 @@ struct drm_bridge *drm_panel_bridge_add(struct drm_panel *panel,
 					u32 connector_type)
 {
 	struct panel_bridge *panel_bridge;
-	int ret;
 
 	if (!panel)
 		return ERR_PTR(-EINVAL);
@@ -176,9 +175,7 @@ struct drm_bridge *drm_panel_bridge_add(struct drm_panel *panel,
 	panel_bridge->bridge.of_node = panel->dev->of_node;
 #endif
 
-	ret = drm_bridge_add(&panel_bridge->bridge);
-	if (ret)
-		return ERR_PTR(ret);
+	drm_bridge_add(&panel_bridge->bridge);
 
 	return &panel_bridge->bridge;
 }

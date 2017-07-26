@@ -177,7 +177,6 @@ err_fbdev_fini:
 	rockchip_drm_fbdev_fini(drm_dev);
 err_kms_helper_poll_fini:
 	drm_kms_helper_poll_fini(drm_dev);
-	drm_vblank_cleanup(drm_dev);
 err_unbind_all:
 	component_unbind_all(dev, drm_dev);
 err_mode_config_cleanup:
@@ -200,7 +199,6 @@ static void rockchip_drm_unbind(struct device *dev)
 	drm_kms_helper_poll_fini(drm_dev);
 
 	drm_atomic_helper_shutdown(drm_dev);
-	drm_vblank_cleanup(drm_dev);
 	component_unbind_all(dev, drm_dev);
 	drm_mode_config_cleanup(drm_dev);
 	rockchip_iommu_cleanup(drm_dev);
@@ -370,8 +368,8 @@ static int rockchip_drm_platform_of_probe(struct device *dev)
 
 		iommu = of_parse_phandle(port->parent, "iommus", 0);
 		if (!iommu || !of_device_is_available(iommu->parent)) {
-			dev_dbg(dev, "no iommu attached for %s, using non-iommu buffers\n",
-				port->parent->full_name);
+			dev_dbg(dev, "no iommu attached for %pOF, using non-iommu buffers\n",
+				port->parent);
 			/*
 			 * if there is a crtc not support iommu, force set all
 			 * crtc use non-iommu buffer.

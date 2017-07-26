@@ -75,7 +75,7 @@ DEFINE_MUTEX(drm_global_mutex);
  * for drivers which use the CMA GEM helpers it's drm_gem_cma_mmap().
  *
  * No other file operations are supported by the DRM userspace API. Overall the
- * following is an example #file_operations structure::
+ * following is an example &file_operations structure::
  *
  *     static const example_drm_fops = {
  *             .owner = THIS_MODULE,
@@ -92,6 +92,11 @@ DEFINE_MUTEX(drm_global_mutex);
  * For plain GEM based drivers there is the DEFINE_DRM_GEM_FOPS() macro, and for
  * CMA based drivers there is the DEFINE_DRM_GEM_CMA_FOPS() macro to make this
  * simpler.
+ *
+ * The driver's &file_operations must be stored in &drm_driver.fops.
+ *
+ * For driver-private IOCTL handling see the more detailed discussion in
+ * :ref:`IOCTL support in the userland interfaces chapter<drm_driver_ioctl>`.
  */
 
 static int drm_open_helper(struct file *filp, struct drm_minor *minor);

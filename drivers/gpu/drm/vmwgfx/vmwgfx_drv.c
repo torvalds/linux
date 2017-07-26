@@ -1531,7 +1531,6 @@ static struct drm_driver driver = {
 	.master_drop = vmw_master_drop,
 	.open = vmw_driver_open,
 	.postclose = vmw_postclose,
-	.set_busid = drm_pci_set_busid,
 
 	.dumb_create = vmw_dumb_create,
 	.dumb_map_offset = vmw_dumb_map_offset,
@@ -1571,7 +1570,7 @@ static int __init vmwgfx_init(void)
 	if (vgacon_text_force())
 		return -EINVAL;
 
-	ret = drm_pci_init(&driver, &vmw_pci_driver);
+	ret = pci_register_driver(&vmw_pci_driver);
 	if (ret)
 		DRM_ERROR("Failed initializing DRM.\n");
 	return ret;
@@ -1579,7 +1578,7 @@ static int __init vmwgfx_init(void)
 
 static void __exit vmwgfx_exit(void)
 {
-	drm_pci_exit(&driver, &vmw_pci_driver);
+	pci_unregister_driver(&vmw_pci_driver);
 }
 
 module_init(vmwgfx_init);

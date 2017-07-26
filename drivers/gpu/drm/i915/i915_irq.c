@@ -1591,7 +1591,7 @@ static void display_pipe_crc_irq_handler(struct drm_i915_private *dev_priv,
 		crcs[3] = crc3;
 		crcs[4] = crc4;
 		drm_crtc_add_crc_entry(&crtc->base, true,
-				       drm_accurate_vblank_count(&crtc->base),
+				       drm_crtc_accurate_vblank_count(&crtc->base),
 				       crcs);
 	}
 }

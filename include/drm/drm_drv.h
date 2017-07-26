@@ -173,8 +173,6 @@ struct drm_driver {
 	 */
 	void (*release) (struct drm_device *);
 
-	int (*set_busid)(struct drm_device *dev, struct drm_master *master);
-
 	/**
 	 * @get_vblank_counter:
 	 *
@@ -518,8 +516,26 @@ struct drm_driver {
 	char *date;
 
 	u32 driver_features;
+
+	/**
+	 * @ioctls:
+	 *
+	 * Array of driver-private IOCTL description entries. See the chapter on
+	 * :ref:`IOCTL support in the userland interfaces
+	 * chapter<drm_driver_ioctl>` for the full details.
+	 */
+
 	const struct drm_ioctl_desc *ioctls;
+	/** @num_ioctls: Number of entries in @ioctls. */
 	int num_ioctls;
+
+	/**
+	 * @fops:
+	 *
+	 * File operations for the DRM device node. See the discussion in
+	 * :ref:`file operations<drm_driver_fops>` for in-depth coverage and
+	 * some examples.
+	 */
 	const struct file_operations *fops;
 
 	/* Everything below here is for legacy driver, never use! */

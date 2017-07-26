@@ -131,7 +131,6 @@ static int hibmc_drm_fb_create(struct drm_fb_helper *helper,
 
 	strcpy(info->fix.id, "hibmcdrmfb");
 
-	info->flags = FBINFO_DEFAULT;
 	info->fbops = &hibmc_drm_fb_ops;
 
 	drm_fb_helper_fill_fix(info, hi_fbdev->fb->fb.pitches[0],

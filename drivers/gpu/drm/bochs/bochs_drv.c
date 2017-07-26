@@ -84,7 +84,6 @@ static struct drm_driver bochs_driver = {
 	.driver_features	= DRIVER_GEM | DRIVER_MODESET,
 	.load			= bochs_load,
 	.unload			= bochs_unload,
-	.set_busid		= drm_pci_set_busid,
 	.fops			= &bochs_fops,
 	.name			= "bochs-drm",
 	.desc			= "bochs dispi vga interface (qemu stdvga)",
@@ -224,12 +223,12 @@ static int __init bochs_init(void)
 	if (bochs_modeset == 0)
 		return -EINVAL;
 
-	return drm_pci_init(&bochs_driver, &bochs_pci_driver);
+	return pci_register_driver(&bochs_pci_driver);
 }
 
 static void __exit bochs_exit(void)
 {
-	drm_pci_exit(&bochs_driver, &bochs_pci_driver);
+	pci_unregister_driver(&bochs_pci_driver);
 }
 
 module_init(bochs_init);
