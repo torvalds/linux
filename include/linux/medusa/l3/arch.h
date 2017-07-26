@@ -3,7 +3,7 @@
 #include <linux/spinlock.h>
 #include <linux/medusa/l3/config.h>
 
-#pragma GCC optimize ("O0")
+#pragma GCC optimize ("Og")
 
 /* data locks */
 #define MED_DECLARE_LOCK_DATA(name)	extern rwlock_t name

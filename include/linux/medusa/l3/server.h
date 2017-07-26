@@ -11,7 +11,7 @@
 #include <linux/medusa/l3/constants.h>
 #include <linux/medusa/l3/kobject.h>
 
-#pragma GCC optimize ("O0")
+#pragma GCC optimize ("Og")
 
 struct medusa_authserver_s {
 	char name[MEDUSA_SERVERNAME_MAX];

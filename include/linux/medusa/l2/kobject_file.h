@@ -18,7 +18,7 @@
 #include <linux/fs.h>		/* contains all includes we need ;) */
 #include <linux/medusa/l3/kobject.h>
 
-#pragma GCC optimize ("O0")
+#pragma GCC optimize ("Og")
 
 struct file_kobject { /* was: m_inode_inf */
 	MEDUSA_KOBJECT_HEADER;

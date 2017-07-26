@@ -1,3 +1,5 @@
+#ifdef CONFIG_SECURITY_MEDUSA
+
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/tracehook.h>
@@ -63,11 +65,8 @@
 #include "../l2/kobject_fuck.h"
 #include "../l0/init_medusa.h"
 
-#ifdef CONFIG_SECURITY_MEDUSA
-
 int medusa_l1_cred_alloc_blank(struct cred *cred, gfp_t gfp);
 int medusa_l1_inode_alloc_security(struct inode *inode);
-
 
 static int medusa_l1_quotactl(int cmds, int type, int id, struct super_block *sb)
 {
@@ -160,11 +159,13 @@ static int medusa_l1_sb_set_mnt_opts(struct super_block *sb,
 	return 0;
 }
 
+/* TODO - not used yet
 static int medusa_l1_sb_clone_mnt_opts(const struct super_block *oldsb,
 				struct super_block *newsb)
 {
 	return 0;
 }
+*/
 
 static int medusa_l1_sb_parse_opts_str(char *options, struct security_mnt_opts *opts)
 {
@@ -351,6 +352,7 @@ static void medusa_l1_inode_getsecid(struct inode *inode, u32 *secid)
 }
 
 #ifdef CONFIG_SECURITY_PATH
+
 static int medusa_l1_path_mknod(const struct path *dir, struct dentry *dentry, umode_t mode,
 				unsigned int dev)
 {
@@ -415,7 +417,8 @@ static int medusa_l1_path_chroot(const struct path *root)
 {
 	return 0;
 }
-#endif
+
+#endif  /* CONFIG_SECURITY_PATH */
 
 static int medusa_l1_file_permission(struct file *file, int mask)
 {
@@ -567,10 +570,12 @@ static int medusa_l1_kernel_module_request(char *kmod_name)
 	return 0;
 }
 
+/* TODO - not used yet
 static int medusa_l1_kernel_module_from_file(struct file *file)
 {
 	return 0;
 }
+*/
 
 static int medusa_l1_task_fix_setuid(struct cred *new, const struct cred *old,
 								int flags)
@@ -619,10 +624,12 @@ static int medusa_l1_task_movememory(struct task_struct *p)
 	return 0;
 }
 
+/* TODO - not used yet
 static int medusa_l1_task_wait(struct task_struct *p)
 {
 	return 0;
 }
+*/
 
 static int medusa_l1_task_kill(struct task_struct *p, struct siginfo *info,
 			 int sig, u32 secid)
@@ -737,6 +744,7 @@ static int medusa_l1_sem_semop(struct sem_array *sma, struct sembuf *sops,
 }
 
 #ifdef CONFIG_SECURITY_NETWORK
+
 static int medusa_l1_unix_stream_connect(struct sock *sock, struct sock *other,
 				struct sock *newsk)
 {
@@ -928,13 +936,16 @@ static int medusa_l1_tun_dev_open(void *security)
 	return 0;
 }
 
+/* TODO - not used yet
 static void medusa_l1_skb_owned_by(struct sk_buff *skb, struct sock *sk)
 {
 }
+*/
 
 #endif	/* CONFIG_SECURITY_NETWORK */
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
+
 static int medusa_l1_xfrm_policy_alloc(struct xfrm_sec_ctx **ctxp,
 										struct xfrm_user_sec_ctx *sec_ctx,
 										gfp_t gfp)
@@ -998,6 +1009,7 @@ static int medusa_l1_xfrm_decode_session(struct sk_buff *skb, u32 *fl, int ckall
 }
 
 #endif /* CONFIG_SECURITY_NETWORK_XFRM */
+
 static void medusa_l1_d_instantiate(struct dentry *dentry, struct inode *inode)
 {
 }
@@ -1046,7 +1058,9 @@ static int medusa_l1_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxle
 {
 	return -EOPNOTSUPP;
 }
+
 #ifdef CONFIG_KEYS
+
 static int medusa_l1_key_alloc(struct key *key, const struct cred *cred,
 			 unsigned long flags)
 {
@@ -1072,6 +1086,7 @@ static int medusa_l1_key_getsecurity(struct key *key, char **_buffer)
 #endif /* CONFIG_KEYS */
 
 #ifdef CONFIG_AUDIT
+
 static int medusa_l1_audit_rule_init(u32 field, u32 op, char *rulestr, void **lsmrule)
 {
 	return 0;
@@ -1091,8 +1106,8 @@ static int medusa_l1_audit_rule_match(u32 secid, u32 field, u32 op, void *lsmrul
 static void medusa_l1_audit_rule_free(void *lsmrule)
 {
 }
-#endif /* CONFIG_AUDIT */
 
+#endif /* CONFIG_AUDIT */
 
 static int medusa_l1_ptrace_access_check(struct task_struct *child,
 					 unsigned int mode)
@@ -1146,10 +1161,12 @@ static int medusa_l1_netlink_send(struct sock *sk, struct sk_buff *skb)
 	return 0;
 }
 
+/* TODO - not used yet
 static int medusa_l1_netlink_recv(struct sk_buff *skb, int capability)
 {
 	return 0;	
 }
+*/
 
 static int medusa_l1_bprm_set_creds(struct linux_binprm *bprm)
 {
@@ -1304,18 +1321,18 @@ static struct security_hook_list medusa_l1_hooks[] = {
 	LSM_HOOK_INIT(dentry_init_security, medusa_l1_dentry_init_security),
 
 #ifdef CONFIG_SECURITY_PATH
-		LSM_HOOK_INIT(path_unlink, medusa_l1_path_unlink),
-		LSM_HOOK_INIT(path_mkdir, medusa_l1_path_mkdir),
-		LSM_HOOK_INIT(path_rmdir, medusa_l1_path_rmdir),
-		LSM_HOOK_INIT(path_mknod, medusa_l1_path_mknod),
-		LSM_HOOK_INIT(path_truncate, medusa_l1_path_truncate),
-		LSM_HOOK_INIT(path_symlink, medusa_l1_path_symlink),
-		LSM_HOOK_INIT(path_link, medusa_l1_path_link),
-		LSM_HOOK_INIT(path_rename, medusa_l1_path_rename),
-		LSM_HOOK_INIT(path_chmod, medusa_l1_path_chmod),
-		LSM_HOOK_INIT(path_chown, medusa_l1_path_chown),
-		LSM_HOOK_INIT(path_chroot, medusa_l1_path_chroot),
-#endif
+	LSM_HOOK_INIT(path_unlink, medusa_l1_path_unlink),
+	LSM_HOOK_INIT(path_mkdir, medusa_l1_path_mkdir),
+	LSM_HOOK_INIT(path_rmdir, medusa_l1_path_rmdir),
+	LSM_HOOK_INIT(path_mknod, medusa_l1_path_mknod),
+	LSM_HOOK_INIT(path_truncate, medusa_l1_path_truncate),
+	LSM_HOOK_INIT(path_symlink, medusa_l1_path_symlink),
+	LSM_HOOK_INIT(path_link, medusa_l1_path_link),
+	LSM_HOOK_INIT(path_rename, medusa_l1_path_rename),
+	LSM_HOOK_INIT(path_chmod, medusa_l1_path_chmod),
+	LSM_HOOK_INIT(path_chown, medusa_l1_path_chown),
+	LSM_HOOK_INIT(path_chroot, medusa_l1_path_chroot),
+#endif /* CONFIG_SECURITY_PATH */
 
 	// LSM_HOOK_INIT(inode_alloc_security, medusa_l1_inode_alloc_security),
 	// LSM_HOOK_INIT(inode_free_security, medusa_l1_inode_free_security),
@@ -1460,8 +1477,8 @@ static struct security_hook_list medusa_l1_hooks[] = {
 	LSM_HOOK_INIT(inet_csk_clone, medusa_l1_inet_csk_clone),
 	LSM_HOOK_INIT(inet_conn_established, medusa_l1_inet_conn_established),
 	LSM_HOOK_INIT(secmark_relabel_packet, medusa_l1_secmark_relabel_packet),
-		LSM_HOOK_INIT(secmark_refcount_inc, medusa_l1_secmark_refcount_inc),
-		LSM_HOOK_INIT(secmark_refcount_dec, medusa_l1_secmark_refcount_dec),
+	LSM_HOOK_INIT(secmark_refcount_inc, medusa_l1_secmark_refcount_inc),
+	LSM_HOOK_INIT(secmark_refcount_dec, medusa_l1_secmark_refcount_dec),
 	LSM_HOOK_INIT(req_classify_flow, medusa_l1_req_classify_flow),
 	LSM_HOOK_INIT(tun_dev_alloc_security, medusa_l1_tun_dev_alloc_security),
 	LSM_HOOK_INIT(tun_dev_free_security, medusa_l1_tun_dev_free_security),
@@ -1485,21 +1502,21 @@ static struct security_hook_list medusa_l1_hooks[] = {
 	LSM_HOOK_INIT(xfrm_policy_lookup, medusa_l1_xfrm_policy_lookup),
 	LSM_HOOK_INIT(xfrm_state_pol_flow_match, medusa_l1_xfrm_state_pol_flow_match),
 	LSM_HOOK_INIT(xfrm_decode_session, medusa_l1_xfrm_decode_session),
-#endif
+#endif /* CONFIG_SECURITY_NETWORK_XFRM */
 
 #ifdef CONFIG_KEYS
 	LSM_HOOK_INIT(key_alloc, medusa_l1_key_alloc),
 	LSM_HOOK_INIT(key_free, medusa_l1_key_free),
 	LSM_HOOK_INIT(key_permission, medusa_l1_key_permission),
 	LSM_HOOK_INIT(key_getsecurity, medusa_l1_key_getsecurity),
-#endif
+#endif /* CONFIG_KEYS */
 
 #ifdef CONFIG_AUDIT
 	LSM_HOOK_INIT(audit_rule_init, medusa_l1_audit_rule_init),
 	LSM_HOOK_INIT(audit_rule_known, medusa_l1_audit_rule_known),
 	LSM_HOOK_INIT(audit_rule_match, medusa_l1_audit_rule_match),
 	LSM_HOOK_INIT(audit_rule_free, medusa_l1_audit_rule_free),
-#endif
+#endif /* CONFIG_AUDIT */
 };
 
 struct security_hook_list medusa_l1_hooks_special[] = {
@@ -1512,21 +1529,11 @@ struct security_hook_list medusa_l1_hooks_special[] = {
 void __init medusa_init(void);
 
 static void medusa_l1_init_sb(struct super_block *sb, void *unused) {
-	struct list_head *tmp;
 	struct inode *entry;
+        struct list_head *tmp;
 
 	medusa_l1_sb_kern_mount(sb, 0, NULL);
 	printk("medusa: sb: %s\n", sb->s_root->d_name.name);
-
-	tmp = &sb->s_inodes;
-
-	//BUILD_BUG_ON_MSG(!__same_type(tmp, tmp),"FUCK YOU");
-
-	/*void *__mptr = (void *)(ptr);					\
-	BUILD_BUG_ON_MSG(!__same_type(*(ptr), ((type *)0)->member) &&	\
-			 !__same_type(*(ptr), void),			\
-			 "pointer type mismatch in container_of()");	\
-	((type *)(__mptr - offsetof(type, member))); })*/
 
 	list_for_each(tmp, &sb->s_inodes) {
 		entry = list_entry(tmp, struct inode, i_sb_list);
@@ -1549,6 +1556,15 @@ static int __init medusa_l1_init(void)
 	struct task_struct* process;
 	//struct inode* inode; unused JK march 2015
 
+	extern bool l1_initialized;
+	extern struct cred_list l0_cred_list;
+	extern struct inode_list l0_inode_list;
+	extern struct mutex l0_mutex;
+	
+	struct list_head *pos, *q;
+	struct inode_list *tmp;
+	struct cred_list *tmp_cred;
+
 	/* register the hooks */	
 	if (!security_module_enable("medusa"))
 		return 0;
@@ -1558,16 +1574,7 @@ static int __init medusa_l1_init(void)
 
 	security_replace_hooks(medusa_l0_hooks, medusa_l1_hooks_special, ARRAY_SIZE(medusa_l1_hooks_special));
 
-	extern bool l1_initialized;
-	extern struct cred_list l0_cred_list;
-	extern struct inode_list l0_inode_list;
-	extern struct mutex l0_mutex;
-	
 	mutex_lock(&l0_mutex);
-	
-	struct list_head *pos, *q;
-	struct inode_list *tmp;
-	struct cred_list *tmp_cred;
 	
 	list_for_each_safe(pos, q, &l0_inode_list.list) {
 		tmp = list_entry(pos, struct inode_list, list);
@@ -1627,4 +1634,5 @@ static void __exit medusa_l1_exit (void)
 
 module_init(medusa_l1_init);
 MODULE_LICENSE("GPL");
+
 #endif /* CONFIG_SECURITY_MEDUSA */

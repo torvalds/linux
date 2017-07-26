@@ -53,7 +53,7 @@ struct vfsmount * medusa_evocate_mnt(struct dentry *dentry)
 	//spin_lock(&dcache_lock);
 	//spin_lock(&dentry->d_lock);
 	while (!IS_ROOT(dentry)) {
-		struct dentry *old = dentry;
+		//struct dentry *old = dentry;
 		dentry = dentry->d_parent;
 		//spin_lock(&dentry->d_lock);
 		//spin_unlock(&old->d_lock);

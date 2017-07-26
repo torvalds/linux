@@ -3,7 +3,7 @@
 
 #include <linux/medusa/l4/comm.h>
 
-#pragma GCC optimize ("O0")
+#pragma GCC optimize ("Og")
 
 /* these constants may be used by both internal kernel data structures,
  * and a communication protocol. if you alter them, you'll break the

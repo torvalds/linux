@@ -14,7 +14,7 @@
 #include <linux/medusa/l3/kobject.h>
 #include <linux/medusa/l3/server.h>
 
-#pragma GCC optimize ("O0")
+#pragma GCC optimize ("Og")
 
 extern int authserver_magic; /* to be checked against magic in objects */
 

@@ -4,6 +4,6 @@
 /* u_intX_t */
 #include <linux/types.h>
 
-#pragma GCC optimize ("O0")
+#pragma GCC optimize ("Og")
 
 #endif

@@ -3,7 +3,7 @@
 
 #include <linux/medusa/l3/config.h>
 
-#pragma GCC optimize ("O0")
+#pragma GCC optimize ("Og")
 
 /* this header file defines the VS model */
 

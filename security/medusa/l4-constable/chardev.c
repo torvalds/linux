@@ -584,10 +584,10 @@ out:
  */
 static int user_release(struct inode *inode, struct file *file)
 {
+	DECLARE_WAITQUEUE(wait,current);
+
 	if (!atomic_read(&constable_present))
 		return 0;
-    
-	DECLARE_WAITQUEUE(wait,current);
 
     /* this function is invoked also from context of process which requires decision 
        after 5s of inactivity of our brave user space authorization server constable;
