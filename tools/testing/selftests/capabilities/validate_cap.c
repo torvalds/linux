@@ -1,5 +1,4 @@
 #include <cap-ng.h>
-#include <err.h>
 #include <linux/capability.h>
 #include <stdbool.h>
 #include <string.h>
@@ -27,8 +26,10 @@ static bool bool_arg(char **argv, int i)
 		return false;
 	else if (!strcmp(argv[i], "1"))
 		return true;
-	else
-		errx(1, "wrong argv[%d]", i);
+	else {
+		ksft_exit_fail_msg("wrong argv[%d]\n", i);
+		return false;
+	}
 }
 
 int main(int argc, char **argv)
@@ -41,7 +42,7 @@ int main(int argc, char **argv)
 	 */
 
 	if (argc != 5)
-		errx(1, "wrong argc");
+		ksft_exit_fail_msg("wrong argc\n");
 
 #ifdef HAVE_GETAUXVAL
 	if (getauxval(AT_SECURE))
