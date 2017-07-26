@@ -1477,7 +1477,6 @@ int ceph_readdir_prepopulate(struct ceph_mds_request *req,
 	struct dentry *dn;
 	struct inode *in;
 	int err = 0, skipped = 0, ret, i;
-	struct inode *snapdir = NULL;
 	struct ceph_mds_request_head *rhead = req->r_request->front.iov_base;
 	u32 frag = le32_to_cpu(rhead->args.readdir.frag);
 	u32 last_hash = 0;
@@ -1510,8 +1509,6 @@ int ceph_readdir_prepopulate(struct ceph_mds_request *req,
 	}
 
 	if (le32_to_cpu(rinfo->head->op) == CEPH_MDS_OP_LSSNAP) {
-		snapdir = ceph_get_snapdir(d_inode(parent));
-		parent = d_find_alias(snapdir);
 		dout("readdir_prepopulate %d items under SNAPDIR dn %p\n",
 		     rinfo->dir_nr, parent);
 	} else {
@@ -1650,10 +1647,6 @@ out:
 		req->r_readdir_cache_idx = cache_ctl.index;
 	}
 	ceph_readdir_cache_release(&cache_ctl);
-	if (snapdir) {
-		iput(snapdir);
-		dput(parent);
-	}
 	dout("readdir_prepopulate done\n");
 	return err;
 }
