@@ -1003,12 +1003,12 @@ int lov_lock_init(const struct lu_env *env, struct cl_object *obj,
  * \retval last_stripe		return the last stripe of the mapping
  */
 static int fiemap_calc_last_stripe(struct lov_stripe_md *lsm,
-				   loff_t fm_start, loff_t fm_end,
+				   u64 fm_start, u64 fm_end,
 				   int start_stripe, int *stripe_count)
 {
 	int last_stripe;
-	loff_t obd_start;
-	loff_t obd_end;
+	u64 obd_start;
+	u64 obd_end;
 	int i, j;
 
 	if (fm_end - fm_start > lsm->lsm_stripe_size * lsm->lsm_stripe_count) {
@@ -1076,14 +1076,14 @@ static void fiemap_prepare_and_copy_exts(struct fiemap *fiemap,
  * \param fm_end [in]		logical end of mapping
  * \param start_stripe [out]	starting stripe will be returned in this
  */
-static loff_t fiemap_calc_fm_end_offset(struct fiemap *fiemap,
-					struct lov_stripe_md *lsm,
-					loff_t fm_start, loff_t fm_end,
-					int *start_stripe)
+static u64 fiemap_calc_fm_end_offset(struct fiemap *fiemap,
+				     struct lov_stripe_md *lsm,
+				     u64 fm_start, u64 fm_end,
+				     int *start_stripe)
 {
-	loff_t local_end = fiemap->fm_extents[0].fe_logical;
-	loff_t lun_start, lun_end;
-	loff_t fm_end_offset;
+	u64 local_end = fiemap->fm_extents[0].fe_logical;
+	u64 lun_start, lun_end;
+	u64 fm_end_offset;
 	int stripe_no = -1;
 	int i;
 
@@ -1150,10 +1150,10 @@ static int lov_object_fiemap(const struct lu_env *env, struct cl_object *obj,
 	struct cl_object *subobj = NULL;
 	struct fiemap *fm_local = NULL;
 	struct lov_stripe_md *lsm;
-	loff_t fm_start;
-	loff_t fm_end;
-	loff_t fm_length;
-	loff_t fm_end_offset;
+	u64 fm_start;
+	u64 fm_end;
+	u64 fm_length;
+	u64 fm_end_offset;
 	int count_local;
 	int ost_index = 0;
 	int start_stripe;
@@ -1250,11 +1250,11 @@ static int lov_object_fiemap(const struct lu_env *env, struct cl_object *obj,
 	for (cur_stripe = start_stripe; stripe_count > 0;
 	     --stripe_count,
 	     cur_stripe = (cur_stripe + 1) % lsm->lsm_stripe_count) {
-		loff_t req_fm_len; /* Stores length of required mapping */
-		loff_t len_mapped_single_call;
-		loff_t lun_start;
-		loff_t lun_end;
-		loff_t obd_object_end;
+		u64 req_fm_len; /* Stores length of required mapping */
+		u64 len_mapped_single_call;
+		u64 lun_start;
+		u64 lun_end;
+		u64 obd_object_end;
 		unsigned int ext_count;
 
 		cur_stripe_wrap = cur_stripe;
