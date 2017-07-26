@@ -222,9 +222,6 @@ static int client_common_fill_super(struct super_block *sb, char *md, char *dt,
 	else
 		sbi->ll_fop = &ll_file_operations_noflock;
 
-	/* real client */
-	data->ocd_connect_flags |= OBD_CONNECT_REAL;
-
 	/* always ping even if server suppress_pings */
 	if (sbi->ll_flags & LL_SBI_ALWAYS_PING)
 		data->ocd_connect_flags &= ~OBD_CONNECT_PINGLESS;

@@ -1122,7 +1122,7 @@ struct ptlrpc_body_v2 {
 #define OBD_CONNECT_AT		    0x1000000ULL /*client uses AT */
 #define OBD_CONNECT_LRU_RESIZE      0x2000000ULL /*LRU resize feature. */
 #define OBD_CONNECT_MDS_MDS	    0x4000000ULL /*MDS-MDS connection */
-#define OBD_CONNECT_REAL	    0x8000000ULL /*real connection */
+#define OBD_CONNECT_REAL	    0x8000000ULL /* obsolete since 2.8 */
 #define OBD_CONNECT_CHANGE_QS      0x10000000ULL /*Not used since 2.4 */
 #define OBD_CONNECT_CKSUM	   0x20000000ULL /*support several cksum algos*/
 #define OBD_CONNECT_FID		   0x40000000ULL /*FID is supported by server */

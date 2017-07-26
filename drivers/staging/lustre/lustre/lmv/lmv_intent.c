@@ -474,7 +474,6 @@ int lmv_intent_lock(struct obd_export *exp, struct md_op_data *op_data,
 		    ldlm_blocking_callback cb_blocking,
 		    __u64 extra_lock_flags)
 {
-	struct obd_device *obd = exp->exp_obd;
 	int		rc;
 
 	LASSERT(fid_is_sane(&op_data->op_fid1));
@@ -483,10 +482,6 @@ int lmv_intent_lock(struct obd_export *exp, struct md_op_data *op_data,
 	       LL_IT2STR(it), PFID(&op_data->op_fid2),
 	       (int)op_data->op_namelen, op_data->op_name,
 	       PFID(&op_data->op_fid1));
-
-	rc = lmv_check_connect(obd);
-	if (rc)
-		return rc;
 
 	if (it->it_op & (IT_LOOKUP | IT_GETATTR | IT_LAYOUT))
 		rc = lmv_intent_lookup(exp, op_data, it, reqp, cb_blocking,
