@@ -11,9 +11,21 @@ Required properties:
   of vop devices. vop definitions as defined in
   Documentation/devicetree/bindings/display/rockchip/rockchip-vop.txt
 
+Optional properties
+- secure-memory-region: phandle to a node describing secure memory
+- clocks: include clock specifiers corresponding to entries in the
+          clock-names property.
+- clock-names: optional include
+               hdmi-tmds-pll: special pll required by some hdmi-vop design,
+                              if there is no hdmi plug, also can reuse for
+                              common display pll.
+               default-vop-pll: common display pll.
+
 example:
 
 display-subsystem {
 	compatible = "rockchip,display-subsystem";
 	ports = <&vopl_out>, <&vopb_out>;
+	clocks = <&cru PLL_VPLL>, <&cru PLL_CPLL>;
+	clock-names = "hdmi-tmds-pll", "default-vop-pll";
 };
