@@ -92,6 +92,11 @@
 			reg = <0x0 0x0 0x0 0x0>;
 		};
 
+		secure_memory: secure-memory@00000000 {
+			compatible = "rockchip,secure-memory";
+			reg = <0x0 0x0 0x0 0x0>;
+		};
+
 		stb_devinfo: stb-devinfo@00000000 {
 			compatible = "rockchip,stb-devinfo";
 			reg = <0x0 0x0 0x0 0x0>;
@@ -284,6 +289,7 @@
 
 	ports = <&vopb_out>, <&vopl_out>;
 	memory-region = <&drm_logo>;
+	secure-memory-region = <&secure_memory>;
 	route {
 		route_hdmi: route-hdmi {
 			status = "disabled";
