@@ -577,7 +577,6 @@ static int max98927_probe(struct snd_soc_codec *codec)
 
 	max98927->codec = codec;
 	codec->control_data = max98927->regmap;
-	codec->cache_bypass = 1;
 
 	/* Software Reset */
 	regmap_write(max98927->regmap,
