@@ -429,7 +429,7 @@ static bool tgn10_disable_crtc(struct timing_generator *tg)
 	/* CRTC disabled, so disable  clock. */
 	REG_WAIT(OTG_CLOCK_CONTROL,
 			OTG_BUSY, 0,
-			2000, 20000);
+			2000, 500);
 
 	return true;
 }
