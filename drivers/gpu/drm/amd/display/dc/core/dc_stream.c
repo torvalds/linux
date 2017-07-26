@@ -31,17 +31,6 @@
 #include "timing_generator.h"
 
 /*******************************************************************************
- * Private definitions
- ******************************************************************************/
-
-struct stream {
-	struct dc_stream protected;
-	int ref_count;
-};
-
-#define DC_STREAM_TO_STREAM(dc_stream) container_of(dc_stream, struct stream, protected)
-
-/*******************************************************************************
  * Private functions
  ******************************************************************************/
 
@@ -105,24 +94,22 @@ static void destruct(struct dc_stream *stream)
 	}
 }
 
-void dc_stream_retain(struct dc_stream *dc_stream)
+void dc_stream_retain(struct dc_stream *stream)
 {
-	struct stream *stream = DC_STREAM_TO_STREAM(dc_stream);
 
 	ASSERT(stream->ref_count > 0);
 	stream->ref_count++;
 }
 
-void dc_stream_release(struct dc_stream *public)
+void dc_stream_release(struct dc_stream *stream)
 {
-	struct stream *stream = DC_STREAM_TO_STREAM(public);
 
-	if (public != NULL) {
+	if (stream != NULL) {
 		ASSERT(stream->ref_count > 0);
 		stream->ref_count--;
 
 		if (stream->ref_count == 0) {
-			destruct(public);
+			destruct(stream);
 			dm_free(stream);
 		}
 	}
@@ -131,22 +118,22 @@ void dc_stream_release(struct dc_stream *public)
 struct dc_stream *dc_create_stream_for_sink(
 		struct dc_sink *sink)
 {
-	struct stream *stream;
+	struct dc_stream *stream;
 
 	if (sink == NULL)
 		goto alloc_fail;
 
-	stream = dm_alloc(sizeof(struct stream));
+	stream = dm_alloc(sizeof(struct dc_stream));
 
 	if (NULL == stream)
 		goto alloc_fail;
 
-	if (false == construct(&stream->protected, sink))
+	if (false == construct(stream, sink))
 			goto construct_fail;
 
 	stream->ref_count++;
 
-	return &stream->protected;
+	return stream;
 
 construct_fail:
 	dm_free(stream);
