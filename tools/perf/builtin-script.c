@@ -2199,16 +2199,11 @@ static struct script_desc *script_desc__findnew(const char *name)
 
 	s = script_desc__new(name);
 	if (!s)
-		goto out_delete_desc;
+		return NULL;
 
 	script_desc__add(s);
 
 	return s;
-
-out_delete_desc:
-	script_desc__delete(s);
-
-	return NULL;
 }
 
 static const char *ends_with(const char *str, const char *suffix)

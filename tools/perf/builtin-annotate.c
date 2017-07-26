@@ -177,14 +177,13 @@ static int perf_evsel__add_sample(struct perf_evsel *evsel,
 	 */
 	process_branch_stack(sample->branch_stack, al, sample);
 
-	sample->period = 1;
 	sample->weight = 1;
 
 	he = hists__add_entry(hists, al, NULL, NULL, NULL, sample, true);
 	if (he == NULL)
 		return -ENOMEM;
 
-	ret = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
+	ret = hist_entry__inc_addr_samples(he, sample, evsel->idx, al->addr);
 	hists__inc_nr_samples(hists, true);
 	return ret;
 }
@@ -397,6 +396,7 @@ int cmd_annotate(int argc, const char **argv)
 			.namespaces = perf_event__process_namespaces,
 			.attr	= perf_event__process_attr,
 			.build_id = perf_event__process_build_id,
+			.tracing_data   = perf_event__process_tracing_data,
 			.feature	= perf_event__process_feature,
 			.ordered_events = true,
 			.ordering_requires_timestamps = true,

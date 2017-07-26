@@ -70,6 +70,7 @@ tools/include/linux/hash.h
 tools/include/linux/kernel.h
 tools/include/linux/list.h
 tools/include/linux/log2.h
+tools/include/uapi/asm-generic/fcntl.h
 tools/include/uapi/asm-generic/mman-common.h
 tools/include/uapi/asm-generic/mman.h
 tools/include/uapi/linux/bpf.h
@@ -78,6 +79,7 @@ tools/include/uapi/linux/fcntl.h
 tools/include/uapi/linux/hw_breakpoint.h
 tools/include/uapi/linux/mman.h
 tools/include/uapi/linux/perf_event.h
+tools/include/uapi/linux/sched.h
 tools/include/uapi/linux/stat.h
 tools/include/linux/poison.h
 tools/include/linux/rbtree.h

@@ -604,6 +604,7 @@ static size_t syscall_arg__scnprintf_getrandom_flags(char *bf, size_t size,
 struct syscall_arg_fmt {
 	size_t	   (*scnprintf)(char *bf, size_t size, struct syscall_arg *arg);
 	void	   *parm;
+	const char *name;
 	bool	   show_zero;
 };
 
@@ -611,6 +612,7 @@ static struct syscall_fmt {
 	const char *name;
 	const char *alias;
 	struct syscall_arg_fmt arg[6];
+	u8	   nr_args;
 	bool	   errpid;
 	bool	   timeout;
 	bool	   hexret;
@@ -624,7 +626,12 @@ static struct syscall_fmt {
 	  .arg = { [0] = { .scnprintf = SCA_HEX, /* brk */ }, }, },
 	{ .name     = "clock_gettime",
 	  .arg = { [0] = STRARRAY(clk_id, clockid), }, },
-	{ .name	    = "clone",	    .errpid = true, },
+	{ .name	    = "clone",	    .errpid = true, .nr_args = 5,
+	  .arg = { [0] = { .name = "flags",	    .scnprintf = SCA_CLONE_FLAGS, },
+		   [1] = { .name = "child_stack",   .scnprintf = SCA_HEX, },
+		   [2] = { .name = "parent_tidptr", .scnprintf = SCA_HEX, },
+		   [3] = { .name = "child_tidptr",  .scnprintf = SCA_HEX, },
+		   [4] = { .name = "tls",	    .scnprintf = SCA_HEX, }, }, },
 	{ .name	    = "close",
 	  .arg = { [0] = { .scnprintf = SCA_CLOSE_FD, /* fd */ }, }, },
 	{ .name	    = "epoll_ctl",
@@ -1165,22 +1172,34 @@ static int trace__symbols_init(struct trace *trace, struct perf_evlist *evlist)
 	return err;
 }
 
+static int syscall__alloc_arg_fmts(struct syscall *sc, int nr_args)
+{
+	int idx;
+
+	if (nr_args == 6 && sc->fmt && sc->fmt->nr_args != 0)
+		nr_args = sc->fmt->nr_args;
+
+	sc->arg_fmt = calloc(nr_args, sizeof(*sc->arg_fmt));
+	if (sc->arg_fmt == NULL)
+		return -1;
+
+	for (idx = 0; idx < nr_args; ++idx) {
+		if (sc->fmt)
+			sc->arg_fmt[idx] = sc->fmt->arg[idx];
+	}
+
+	sc->nr_args = nr_args;
+	return 0;
+}
+
 static int syscall__set_arg_fmts(struct syscall *sc)
 {
 	struct format_field *field;
 	int idx = 0, len;
 
-	sc->arg_fmt = calloc(sc->nr_args, sizeof(*sc->arg_fmt));
-	if (sc->arg_fmt == NULL)
-		return -1;
-
 	for (field = sc->args; field; field = field->next, ++idx) {
-		if (sc->fmt) {
-			sc->arg_fmt[idx] = sc->fmt->arg[idx];
-
-			if (sc->fmt->arg[idx].scnprintf)
-				continue;
-		}
+		if (sc->fmt && sc->fmt->arg[idx].scnprintf)
+			continue;
 
 		if (strcmp(field->type, "const char *") == 0 &&
 			 (strcmp(field->name, "filename") == 0 ||
@@ -1251,11 +1270,13 @@ static int trace__read_syscall_info(struct trace *trace, int id)
 		sc->tp_format = trace_event__tp_format("syscalls", tp_name);
 	}
 
+	if (syscall__alloc_arg_fmts(sc, IS_ERR(sc->tp_format) ? 6 : sc->tp_format->format.nr_fields))
+		return -1;
+
 	if (IS_ERR(sc->tp_format))
 		return -1;
 
 	sc->args = sc->tp_format->format.fields;
-	sc->nr_args = sc->tp_format->format.nr_fields;
 	/*
 	 * We need to check and discard the first variable '__syscall_nr'
 	 * or 'nr' that mean the syscall number. It is needless here.
@@ -1325,18 +1346,34 @@ out:
  * variable to read it. Most notably this avoids extended load instructions
  * on unaligned addresses
  */
-static unsigned long __syscall_arg__val(unsigned char *args, u8 idx)
+unsigned long syscall_arg__val(struct syscall_arg *arg, u8 idx)
 {
 	unsigned long val;
-	unsigned char *p = args + sizeof(unsigned long) * idx;
+	unsigned char *p = arg->args + sizeof(unsigned long) * idx;
 
 	memcpy(&val, p, sizeof(val));
 	return val;
 }
 
-unsigned long syscall_arg__val(struct syscall_arg *arg, u8 idx)
+static size_t syscall__scnprintf_name(struct syscall *sc, char *bf, size_t size,
+				      struct syscall_arg *arg)
 {
-	return __syscall_arg__val(arg->args, idx);
+	if (sc->arg_fmt && sc->arg_fmt[arg->idx].name)
+		return scnprintf(bf, size, "%s: ", sc->arg_fmt[arg->idx].name);
+
+	return scnprintf(bf, size, "arg%d: ", arg->idx);
+}
+
+static size_t syscall__scnprintf_val(struct syscall *sc, char *bf, size_t size,
+				     struct syscall_arg *arg, unsigned long val)
+{
+	if (sc->arg_fmt && sc->arg_fmt[arg->idx].scnprintf) {
+		arg->val = val;
+		if (sc->arg_fmt[arg->idx].parm)
+			arg->parm = sc->arg_fmt[arg->idx].parm;
+		return sc->arg_fmt[arg->idx].scnprintf(bf, size, arg);
+	}
+	return scnprintf(bf, size, "%ld", val);
 }
 
 static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
@@ -1345,6 +1382,14 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 {
 	size_t printed = 0;
 	unsigned long val;
+	u8 bit = 1;
+	struct syscall_arg arg = {
+		.args	= args,
+		.idx	= 0,
+		.mask	= 0,
+		.trace  = trace,
+		.thread = thread,
+	};
 	struct thread_trace *ttrace = thread__priv(thread);
 
 	/*
@@ -1356,14 +1401,6 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 
 	if (sc->args != NULL) {
 		struct format_field *field;
-		u8 bit = 1;
-		struct syscall_arg arg = {
-			.args	= args,
-			.idx	= 0,
-			.mask	= 0,
-			.trace  = trace,
-			.thread = thread,
-		};
 
 		for (field = sc->args; field;
 		     field = field->next, ++arg.idx, bit <<= 1) {
@@ -1387,15 +1424,7 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 
 			printed += scnprintf(bf + printed, size - printed,
 					     "%s%s: ", printed ? ", " : "", field->name);
-			if (sc->arg_fmt && sc->arg_fmt[arg.idx].scnprintf) {
-				arg.val = val;
-				if (sc->arg_fmt[arg.idx].parm)
-					arg.parm = sc->arg_fmt[arg.idx].parm;
-				printed += sc->arg_fmt[arg.idx].scnprintf(bf + printed, size - printed, &arg);
-			} else {
-				printed += scnprintf(bf + printed, size - printed,
-						     "%ld", val);
-			}
+			printed += syscall__scnprintf_val(sc, bf + printed, size - printed, &arg, val);
 		}
 	} else if (IS_ERR(sc->tp_format)) {
 		/*
@@ -1403,14 +1432,17 @@ static size_t syscall__scnprintf_args(struct syscall *sc, char *bf, size_t size,
 		 * may end up not having any args, like with gettid(), so only
 		 * print the raw args when we didn't manage to read it.
 		 */
-		int i = 0;
-
-		while (i < 6) {
-			val = __syscall_arg__val(args, i);
-			printed += scnprintf(bf + printed, size - printed,
-					     "%sarg%d: %ld",
-					     printed ? ", " : "", i, val);
-			++i;
+		while (arg.idx < sc->nr_args) {
+			if (arg.mask & bit)
+				goto next_arg;
+			val = syscall_arg__val(&arg, arg.idx);
+			if (printed)
+				printed += scnprintf(bf + printed, size - printed, ", ");
+			printed += syscall__scnprintf_name(sc, bf + printed, size - printed, &arg);
+			printed += syscall__scnprintf_val(sc, bf + printed, size - printed, &arg, val);
+next_arg:
+			++arg.idx;
+			bit <<= 1;
 		}
 	}
 
@@ -1660,7 +1692,7 @@ static int trace__sys_exit(struct trace *trace, struct perf_evsel *evsel,
 		if (ret < 0)
 			goto errno_print;
 signed_print:
-		fprintf(trace->output, ") %ld", ret);
+		fprintf(trace->output, ") = %ld", ret);
 	} else if (ret < 0) {
 errno_print: {
 		char bf[STRERR_BUFSIZE];
@@ -2207,6 +2239,30 @@ out_enomem:
 	goto out;
 }
 
+static int trace__set_filter_loop_pids(struct trace *trace)
+{
+	unsigned int nr = 1;
+	pid_t pids[32] = {
+		getpid(),
+	};
+	struct thread *thread = machine__find_thread(trace->host, pids[0], pids[0]);
+
+	while (thread && nr < ARRAY_SIZE(pids)) {
+		struct thread *parent = machine__find_thread(trace->host, thread->ppid, thread->ppid);
+
+		if (parent == NULL)
+			break;
+
+		if (!strcmp(thread__comm_str(parent), "sshd")) {
+			pids[nr++] = parent->tid;
+			break;
+		}
+		thread = parent;
+	}
+
+	return perf_evlist__set_filter_pids(trace->evlist, nr, pids);
+}
+
 static int trace__run(struct trace *trace, int argc, const char **argv)
 {
 	struct perf_evlist *evlist = trace->evlist;
@@ -2330,7 +2386,7 @@ static int trace__run(struct trace *trace, int argc, const char **argv)
 	if (trace->filter_pids.nr > 0)
 		err = perf_evlist__set_filter_pids(evlist, trace->filter_pids.nr, trace->filter_pids.entries);
 	else if (thread_map__pid(evlist->threads, 0) == -1)
-		err = perf_evlist__set_filter_pid(evlist, getpid());
+		err = trace__set_filter_loop_pids(trace);
 
 	if (err < 0)
 		goto out_error_mem;

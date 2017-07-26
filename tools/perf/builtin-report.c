@@ -115,37 +115,38 @@ static int hist_iter__report_callback(struct hist_entry_iter *iter,
 	struct report *rep = arg;
 	struct hist_entry *he = iter->he;
 	struct perf_evsel *evsel = iter->evsel;
+	struct perf_sample *sample = iter->sample;
 	struct mem_info *mi;
 	struct branch_info *bi;
 
 	if (!ui__has_annotation())
 		return 0;
 
-	hist__account_cycles(iter->sample->branch_stack, al, iter->sample,
+	hist__account_cycles(sample->branch_stack, al, sample,
 			     rep->nonany_branch_mode);
 
 	if (sort__mode == SORT_MODE__BRANCH) {
 		bi = he->branch_info;
-		err = addr_map_symbol__inc_samples(&bi->from, evsel->idx);
+		err = addr_map_symbol__inc_samples(&bi->from, sample, evsel->idx);
 		if (err)
 			goto out;
 
-		err = addr_map_symbol__inc_samples(&bi->to, evsel->idx);
+		err = addr_map_symbol__inc_samples(&bi->to, sample, evsel->idx);
 
 	} else if (rep->mem_mode) {
 		mi = he->mem_info;
-		err = addr_map_symbol__inc_samples(&mi->daddr, evsel->idx);
+		err = addr_map_symbol__inc_samples(&mi->daddr, sample, evsel->idx);
 		if (err)
 			goto out;
 
-		err = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
+		err = hist_entry__inc_addr_samples(he, sample, evsel->idx, al->addr);
 
 	} else if (symbol_conf.cumulate_callchain) {
 		if (single)
-			err = hist_entry__inc_addr_samples(he, evsel->idx,
+			err = hist_entry__inc_addr_samples(he, sample, evsel->idx,
 							   al->addr);
 	} else {
-		err = hist_entry__inc_addr_samples(he, evsel->idx, al->addr);
+		err = hist_entry__inc_addr_samples(he, sample, evsel->idx, al->addr);
 	}
 
 out:
@@ -278,10 +279,11 @@ static int report__setup_sample_type(struct report *rep)
 				    "'perf record' without -g?\n");
 			return -EINVAL;
 		}
-		if (symbol_conf.use_callchain) {
-			ui__error("Selected -g or --branch-history but no "
-				  "callchain data. Did\n"
-				  "you call 'perf record' without -g?\n");
+		if (symbol_conf.use_callchain &&
+			!symbol_conf.show_branchflag_count) {
+			ui__error("Selected -g or --branch-history.\n"
+				  "But no callchain or branch data.\n"
+				  "Did you call 'perf record' without -g or -b?\n");
 			return -1;
 		}
 	} else if (!callchain_param.enabled &&
@@ -416,7 +418,8 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 
 		hists__fprintf_nr_sample_events(hists, rep, evname, stdout);
 		hists__fprintf(hists, !quiet, 0, 0, rep->min_percent, stdout,
-			       symbol_conf.use_callchain);
+			       symbol_conf.use_callchain ||
+			       symbol_conf.show_branchflag_count);
 		fprintf(stdout, "\n\n");
 	}
 

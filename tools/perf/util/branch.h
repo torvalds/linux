@@ -5,11 +5,12 @@
 #include "../perf.h"
 
 struct branch_type_stat {
-	u64 counts[PERF_BR_MAX];
-	u64 cond_fwd;
-	u64 cond_bwd;
-	u64 cross_4k;
-	u64 cross_2m;
+	bool	branch_to;
+	u64	counts[PERF_BR_MAX];
+	u64	cond_fwd;
+	u64	cond_bwd;
+	u64	cross_4k;
+	u64	cross_2m;
 };
 
 struct branch_flags;

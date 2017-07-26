@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <linux/string.h>
 
 #include "../../util/util.h"
 #include "../../util/hist.h"
@@ -292,7 +293,7 @@ static size_t callchain__fprintf_graph(FILE *fp, struct rb_root *root,
 			 * displayed twice.
 			 */
 			if (!i++ && field_order == NULL &&
-			    sort_order && !prefixcmp(sort_order, "sym"))
+			    sort_order && strstarts(sort_order, "sym"))
 				continue;
 
 			if (!printed) {

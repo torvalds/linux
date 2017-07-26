@@ -13,6 +13,7 @@
 #include <inttypes.h>
 #include <pthread.h>
 #include <linux/kernel.h>
+#include <linux/string.h>
 #include <sys/ttydefaults.h>
 
 struct disasm_line_samples {
@@ -449,14 +450,14 @@ static void annotate_browser__calc_percent(struct annotate_browser *browser,
 		next = disasm__get_next_ip_line(&notes->src->source, pos);
 
 		for (i = 0; i < browser->nr_events; i++) {
-			u64 nr_samples;
+			struct sym_hist_entry sample;
 
 			bpos->samples[i].percent = disasm__calc_percent(notes,
 						evsel->idx + i,
 						pos->offset,
 						next ? next->offset : len,
-						&path, &nr_samples);
-			bpos->samples[i].nr = nr_samples;
+						&path, &sample);
+			bpos->samples[i].nr = sample.nr_samples;
 
 			if (max_percent < bpos->samples[i].percent)
 				max_percent = bpos->samples[i].percent;
@@ -1198,7 +1199,7 @@ static int annotate__config(const char *var, const char *value,
 	struct annotate_config *cfg;
 	const char *name;
 
-	if (prefixcmp(var, "annotate.") != 0)
+	if (!strstarts(var, "annotate."))
 		return 0;
 
 	name = var + 9;
