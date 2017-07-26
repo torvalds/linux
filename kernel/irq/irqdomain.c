@@ -42,6 +42,7 @@ static inline void debugfs_remove_domain_dir(struct irq_domain *d) { }
 #endif
 
 const struct fwnode_operations irqchip_fwnode_ops;
+EXPORT_SYMBOL_GPL(irqchip_fwnode_ops);
 
 /**
  * irq_domain_alloc_fwnode - Allocate a fwnode_handle suitable for
