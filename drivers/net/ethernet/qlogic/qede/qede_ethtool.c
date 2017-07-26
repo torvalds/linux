@@ -1182,14 +1182,24 @@ static int qede_set_rss_flags(struct qede_dev *edev, struct ethtool_rxnfc *info)
 static int qede_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info)
 {
 	struct qede_dev *edev = netdev_priv(dev);
+	int rc;
 
 	switch (info->cmd) {
 	case ETHTOOL_SRXFH:
-		return qede_set_rss_flags(edev, info);
+		rc = qede_set_rss_flags(edev, info);
+		break;
+	case ETHTOOL_SRXCLSRLINS:
+		rc = qede_add_cls_rule(edev, info);
+		break;
+	case ETHTOOL_SRXCLSRLDEL:
+		rc = qede_del_cls_rule(edev, info);
+		break;
 	default:
 		DP_INFO(edev, "Command parameters not supported\n");
-		return -EOPNOTSUPP;
+		rc = -EOPNOTSUPP;
 	}
+
+	return rc;
 }
 
 static u32 qede_get_rxfh_indir_size(struct net_device *dev)

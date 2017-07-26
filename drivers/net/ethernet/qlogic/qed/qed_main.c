@@ -954,9 +954,7 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 	struct qed_tunnel_info tunn_info;
 	const u8 *data = NULL;
 	struct qed_hwfn *hwfn;
-#ifdef CONFIG_RFS_ACCEL
 	struct qed_ptt *p_ptt;
-#endif
 	int rc = -EINVAL;
 
 	if (qed_iov_wq_start(cdev))
@@ -972,7 +970,6 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 			goto err;
 		}
 
-#ifdef CONFIG_RFS_ACCEL
 		if (cdev->num_hwfns == 1) {
 			p_ptt = qed_ptt_acquire(QED_LEADING_HWFN(cdev));
 			if (p_ptt) {
@@ -983,7 +980,6 @@ static int qed_slowpath_start(struct qed_dev *cdev,
 				goto err;
 			}
 		}
-#endif
 	}
 
 	cdev->rx_coalesce_usecs = QED_DEFAULT_RX_USECS;
@@ -1091,12 +1087,10 @@ err:
 	if (IS_PF(cdev))
 		release_firmware(cdev->firmware);
 
-#ifdef CONFIG_RFS_ACCEL
 	if (IS_PF(cdev) && (cdev->num_hwfns == 1) &&
 	    QED_LEADING_HWFN(cdev)->p_arfs_ptt)
 		qed_ptt_release(QED_LEADING_HWFN(cdev),
 				QED_LEADING_HWFN(cdev)->p_arfs_ptt);
-#endif
 
 	qed_iov_wq_stop(cdev, false);
 
@@ -1111,11 +1105,9 @@ static int qed_slowpath_stop(struct qed_dev *cdev)
 	qed_ll2_dealloc_if(cdev);
 
 	if (IS_PF(cdev)) {
-#ifdef CONFIG_RFS_ACCEL
 		if (cdev->num_hwfns == 1)
 			qed_ptt_release(QED_LEADING_HWFN(cdev),
 					QED_LEADING_HWFN(cdev)->p_arfs_ptt);
-#endif
 		qed_free_stream_mem(cdev);
 		if (IS_QED_ETH_IF(cdev))
 			qed_sriov_disable(cdev, true);
