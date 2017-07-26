@@ -558,13 +558,13 @@ struct ptlrpc_cli_req {
 	/** request sent timeval */
 	struct timespec64		 cr_sent_tv;
 	/** time for request really sent out */
-	time_t				 cr_sent_out;
+	time64_t			 cr_sent_out;
 	/** when req reply unlink must finish. */
-	time_t				 cr_reply_deadline;
+	time64_t			 cr_reply_deadline;
 	/** when req bulk unlink must finish. */
-	time_t				 cr_bulk_deadline;
+	time64_t			 cr_bulk_deadline;
 	/** when req unlink must finish. */
-	time_t				 cr_req_deadline;
+	time64_t			 cr_req_deadline;
 	/** Portal to which this request would be sent */
 	short				 cr_req_ptl;
 	/** Portal where to wait for reply and where reply would be sent */
@@ -663,7 +663,7 @@ struct ptlrpc_srv_req {
 	/** history sequence # */
 	__u64				sr_hist_seq;
 	/** the index of service's srv_at_array into which request is linked */
-	time_t				sr_at_index;
+	time64_t			sr_at_index;
 	/** authed uid */
 	uid_t				sr_auth_uid;
 	/** authed uid mapped to */

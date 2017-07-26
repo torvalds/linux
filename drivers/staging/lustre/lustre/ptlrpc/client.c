@@ -742,7 +742,7 @@ int ptlrpc_request_bufs_pack(struct ptlrpc_request *request,
 
 	/* Let's setup deadline for req/reply/bulk unlink for opcode. */
 	if (cfs_fail_val == opcode) {
-		time_t *fail_t = NULL, *fail2_t = NULL;
+		time64_t *fail_t = NULL, *fail2_t = NULL;
 
 		if (CFS_FAIL_CHECK(OBD_FAIL_PTLRPC_LONG_BULK_UNLINK)) {
 			fail_t = &request->rq_bulk_deadline;
