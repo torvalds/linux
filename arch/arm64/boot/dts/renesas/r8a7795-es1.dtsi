@@ -22,6 +22,8 @@
 	};
 
 	/delete-node/ usb-phy@ee0e0200;
+	/delete-node/ usb@ee0e0100;
+	/delete-node/ usb@ee0e0000;
 
 	fcpf2: fcp@fe952000 {
 		compatible = "renesas,fcpf";
