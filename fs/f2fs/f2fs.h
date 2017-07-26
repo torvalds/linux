@@ -2820,10 +2820,10 @@ void destroy_extent_cache(void);
 /*
  * sysfs.c
  */
-int __init f2fs_register_sysfs(void);
-void f2fs_unregister_sysfs(void);
-int f2fs_init_sysfs(struct f2fs_sb_info *sbi);
-void f2fs_exit_sysfs(struct f2fs_sb_info *sbi);
+int __init f2fs_init_sysfs(void);
+void f2fs_exit_sysfs(void);
+int f2fs_register_sysfs(struct f2fs_sb_info *sbi);
+void f2fs_unregister_sysfs(struct f2fs_sb_info *sbi);
 
 /*
  * crypto support
