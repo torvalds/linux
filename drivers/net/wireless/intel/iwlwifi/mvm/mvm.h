@@ -1825,21 +1825,7 @@ int iwl_mvm_send_lqm_cmd(struct ieee80211_vif *vif,
 			 u32 duration, u32 timeout);
 bool iwl_mvm_lqm_active(struct iwl_mvm *mvm);
 
-#ifdef CONFIG_ACPI
 int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b);
 int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm);
-#else
-static inline
-int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
-{
-	return -ENOENT;
-}
-
-static inline
-int iwl_mvm_get_sar_geo_profile(struct iwl_mvm *mvm)
-{
-	return -ENOENT;
-}
-#endif /* CONFIG_ACPI */
 
 #endif /* __IWL_MVM_H__ */
