@@ -31,7 +31,7 @@
 
 #include "rl6231.h"
 #include "rt5514.h"
-#if defined(CONFIG_SND_SOC_RT5514_SPI)
+#if IS_ENABLED(CONFIG_SND_SOC_RT5514_SPI)
 #include "rt5514-spi.h"
 #endif
 
@@ -312,7 +312,7 @@ static int rt5514_dsp_voice_wake_up_put(struct snd_kcontrol *kcontrol,
 
 			request_firmware(&fw, RT5514_FIRMWARE1, codec->dev);
 			if (fw) {
-#if defined(CONFIG_SND_SOC_RT5514_SPI)
+#if IS_ENABLED(CONFIG_SND_SOC_RT5514_SPI)
 				rt5514_spi_burst_write(0x4ff60000, fw->data,
 					((fw->size/8)+1)*8);
 #else
@@ -325,7 +325,7 @@ static int rt5514_dsp_voice_wake_up_put(struct snd_kcontrol *kcontrol,
 
 			request_firmware(&fw, RT5514_FIRMWARE2, codec->dev);
 			if (fw) {
-#if defined(CONFIG_SND_SOC_RT5514_SPI)
+#if IS_ENABLED(CONFIG_SND_SOC_RT5514_SPI)
 				rt5514_spi_burst_write(0x4ffc0000, fw->data,
 					((fw->size/8)+1)*8);
 #else
