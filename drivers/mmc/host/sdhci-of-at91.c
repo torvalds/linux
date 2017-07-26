@@ -31,6 +31,7 @@
 
 #define SDMMC_MC1R	0x204
 #define		SDMMC_MC1R_DDR		BIT(3)
+#define		SDMMC_MC1R_FCD		BIT(7)
 #define SDMMC_CACR	0x230
 #define		SDMMC_CACR_CAPWREN	BIT(0)
 #define		SDMMC_CACR_KEY		(0x46 << 8)
@@ -42,6 +43,15 @@ struct sdhci_at91_priv {
 	struct clk *gck;
 	struct clk *mainck;
 };
+
+static void sdhci_at91_set_force_card_detect(struct sdhci_host *host)
+{
+	u8 mc1r;
+
+	mc1r = readb(host->ioaddr + SDMMC_MC1R);
+	mc1r |= SDMMC_MC1R_FCD;
+	writeb(mc1r, host->ioaddr + SDMMC_MC1R);
+}
 
 static void sdhci_at91_set_clock(struct sdhci_host *host, unsigned int clock)
 {
@@ -112,10 +122,18 @@ void sdhci_at91_set_uhs_signaling(struct sdhci_host *host, unsigned int timing)
 	sdhci_set_uhs_signaling(host, timing);
 }
 
+static void sdhci_at91_reset(struct sdhci_host *host, u8 mask)
+{
+	sdhci_reset(host, mask);
+
+	if (host->mmc->caps & MMC_CAP_NONREMOVABLE)
+		sdhci_at91_set_force_card_detect(host);
+}
+
 static const struct sdhci_ops sdhci_at91_sama5d2_ops = {
 	.set_clock		= sdhci_at91_set_clock,
 	.set_bus_width		= sdhci_set_bus_width,
-	.reset			= sdhci_reset,
+	.reset			= sdhci_at91_reset,
 	.set_uhs_signaling	= sdhci_at91_set_uhs_signaling,
 	.set_power		= sdhci_at91_set_power,
 };
@@ -321,6 +339,21 @@ static int sdhci_at91_probe(struct platform_device *pdev)
 		host->mmc->caps |= MMC_CAP_NEEDS_POLL;
 		host->quirks &= ~SDHCI_QUIRK_BROKEN_CARD_DETECTION;
 	}
+
+	/*
+	 * If the device attached to the MMC bus is not removable, it is safer
+	 * to set the Force Card Detect bit. People often don't connect the
+	 * card detect signal and use this pin for another purpose. If the card
+	 * detect pin is not muxed to SDHCI controller, a default value is
+	 * used. This value can be different from a SoC revision to another
+	 * one. Problems come when this default value is not card present. To
+	 * avoid this case, if the device is non removable then the card
+	 * detection procedure using the SDMCC_CD signal is bypassed.
+	 * This bit is reset when a software reset for all command is performed
+	 * so we need to implement our own reset function to set back this bit.
+	 */
+	if (host->mmc->caps & MMC_CAP_NONREMOVABLE)
+		sdhci_at91_set_force_card_detect(host);
 
 	pm_runtime_put_autosuspend(&pdev->dev);
 
