@@ -706,7 +706,6 @@ void gfs2_clear_rgrpd(struct gfs2_sbd *sdp)
 
 		if (gl) {
 			glock_set_object(gl, NULL);
-			gfs2_glock_add_to_lru(gl);
 			gfs2_glock_put(gl);
 		}
 
