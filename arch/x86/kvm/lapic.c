@@ -54,8 +54,6 @@
 #define PRIu64 "u"
 #define PRIo64 "o"
 
-#define APIC_BUS_CYCLE_NS 1
-
 /* #define apic_debug(fmt,arg...) printk(KERN_WARNING fmt,##arg) */
 #define apic_debug(fmt, arg...)
 
