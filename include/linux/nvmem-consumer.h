@@ -12,6 +12,9 @@
 #ifndef _LINUX_NVMEM_CONSUMER_H
 #define _LINUX_NVMEM_CONSUMER_H
 
+#include <linux/err.h>
+#include <linux/errno.h>
+
 struct device;
 struct device_node;
 /* consumer cookie */
