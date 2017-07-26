@@ -71,7 +71,7 @@ static void mpc10_assert_idle_mpcc(struct mpc *mpc, int id)
 
 	ASSERT(!(mpc10->mpcc_in_use_mask & 1 << id));
 	REG_WAIT(MPCC_STATUS[id],
-			MPCC_BUSY, 0,
+			MPCC_IDLE, 1,
 			1000, 1000);
 }
 
