@@ -2425,9 +2425,14 @@ static int nfs_do_access(struct inode *inode, struct rpc_cred *cred, int mask)
 	if (!may_block)
 		goto out;
 
-	/* Be clever: ask server to check for all possible rights */
-	cache.mask = NFS_MAY_LOOKUP | NFS_MAY_EXECUTE
-		     | NFS_MAY_WRITE | NFS_MAY_READ;
+	/*
+	 * Determine which access bits we want to ask for...
+	 */
+	cache.mask = NFS_ACCESS_READ | NFS_ACCESS_MODIFY | NFS_ACCESS_EXTEND;
+	if (S_ISDIR(inode->i_mode))
+		cache.mask |= NFS_ACCESS_DELETE | NFS_ACCESS_LOOKUP;
+	else
+		cache.mask |= NFS_ACCESS_EXECUTE;
 	cache.cred = cred;
 	status = NFS_PROTO(inode)->access(inode, &cache);
 	if (status != 0) {
