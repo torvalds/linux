@@ -1568,12 +1568,6 @@ static int qed_nvm_get_image(struct qed_dev *cdev, enum qed_nvm_images type,
 	return rc;
 }
 
-static void qed_get_coalesce(struct qed_dev *cdev, u16 *rx_coal, u16 *tx_coal)
-{
-	*rx_coal = cdev->rx_coalesce_usecs;
-	*tx_coal = cdev->tx_coalesce_usecs;
-}
-
 static int qed_set_coalesce(struct qed_dev *cdev, u16 rx_coal, u16 tx_coal,
 			    void *handle)
 {
@@ -1726,7 +1720,6 @@ const struct qed_common_ops qed_common_ops_pass = {
 	.chain_alloc = &qed_chain_alloc,
 	.chain_free = &qed_chain_free,
 	.nvm_get_image = &qed_nvm_get_image,
-	.get_coalesce = &qed_get_coalesce,
 	.set_coalesce = &qed_set_coalesce,
 	.set_led = &qed_set_led,
 	.update_drv_state = &qed_update_drv_state,

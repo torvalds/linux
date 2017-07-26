@@ -407,4 +407,13 @@ int qed_set_rxq_coalesce(struct qed_hwfn *p_hwfn,
 int qed_set_txq_coalesce(struct qed_hwfn *p_hwfn,
 			 struct qed_ptt *p_ptt,
 			 u16 coalesce, struct qed_queue_cid *p_cid);
-#endif /* _QED_L2_H */
+
+int qed_get_rxq_coalesce(struct qed_hwfn *p_hwfn,
+			 struct qed_ptt *p_ptt,
+			 struct qed_queue_cid *p_cid, u16 *p_hw_coal);
+
+int qed_get_txq_coalesce(struct qed_hwfn *p_hwfn,
+			 struct qed_ptt *p_ptt,
+			 struct qed_queue_cid *p_cid, u16 *p_hw_coal);
+
+#endif

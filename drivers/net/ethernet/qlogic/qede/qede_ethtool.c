@@ -702,16 +702,53 @@ static u32 qede_get_link(struct net_device *dev)
 static int qede_get_coalesce(struct net_device *dev,
 			     struct ethtool_coalesce *coal)
 {
+	void *rx_handle = NULL, *tx_handle = NULL;
 	struct qede_dev *edev = netdev_priv(dev);
-	u16 rxc, txc;
+	u16 rx_coal, tx_coal, i, rc = 0;
+	struct qede_fastpath *fp;
+
+	rx_coal = QED_DEFAULT_RX_USECS;
+	tx_coal = QED_DEFAULT_TX_USECS;
 
 	memset(coal, 0, sizeof(struct ethtool_coalesce));
-	edev->ops->common->get_coalesce(edev->cdev, &rxc, &txc);
 
-	coal->rx_coalesce_usecs = rxc;
-	coal->tx_coalesce_usecs = txc;
+	__qede_lock(edev);
+	if (edev->state == QEDE_STATE_OPEN) {
+		for_each_queue(i) {
+			fp = &edev->fp_array[i];
 
-	return 0;
+			if (fp->type & QEDE_FASTPATH_RX) {
+				rx_handle = fp->rxq->handle;
+				break;
+			}
+		}
+
+		rc = edev->ops->get_coalesce(edev->cdev, &rx_coal, rx_handle);
+		if (rc) {
+			DP_INFO(edev, "Read Rx coalesce error\n");
+			goto out;
+		}
+
+		for_each_queue(i) {
+			fp = &edev->fp_array[i];
+			if (fp->type & QEDE_FASTPATH_TX) {
+				tx_handle = fp->txq->handle;
+				break;
+			}
+		}
+
+		rc = edev->ops->get_coalesce(edev->cdev, &tx_coal, tx_handle);
+		if (rc)
+			DP_INFO(edev, "Read Tx coalesce error\n");
+	}
+
+out:
+	__qede_unlock(edev);
+
+	coal->rx_coalesce_usecs = rx_coal;
+	coal->tx_coalesce_usecs = tx_coal;
+
+	return rc;
 }
 
 static int qede_set_coalesce(struct net_device *dev,

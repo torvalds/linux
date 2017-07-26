@@ -186,6 +186,7 @@ enum qed_led_mode {
 
 #define QED_COALESCE_MAX 0xFF
 #define QED_DEFAULT_RX_USECS 12
+#define QED_DEFAULT_TX_USECS 48
 
 /* forward */
 struct qed_dev;
@@ -672,16 +673,6 @@ struct qed_common_ops {
  */
 	int (*nvm_get_image)(struct qed_dev *cdev,
 			     enum qed_nvm_images type, u8 *buf, u16 len);
-
-/**
- * @brief get_coalesce - Get coalesce parameters in usec
- *
- * @param cdev
- * @param rx_coal - Rx coalesce value in usec
- * @param tx_coal - Tx coalesce value in usec
- *
- */
-	void (*get_coalesce)(struct qed_dev *cdev, u16 *rx_coal, u16 *tx_coal);
 
 /**
  * @brief set_coalesce - Configure Rx coalesce value in usec

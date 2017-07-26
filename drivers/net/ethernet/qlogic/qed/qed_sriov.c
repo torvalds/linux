@@ -3400,6 +3400,75 @@ static void qed_iov_vf_mbx_release(struct qed_hwfn *p_hwfn,
 			     length, status);
 }
 
+static void qed_iov_vf_pf_get_coalesce(struct qed_hwfn *p_hwfn,
+				       struct qed_ptt *p_ptt,
+				       struct qed_vf_info *p_vf)
+{
+	struct qed_iov_vf_mbx *mbx = &p_vf->vf_mbx;
+	struct pfvf_read_coal_resp_tlv *p_resp;
+	struct vfpf_read_coal_req_tlv *req;
+	u8 status = PFVF_STATUS_FAILURE;
+	struct qed_vf_queue *p_queue;
+	struct qed_queue_cid *p_cid;
+	u16 coal = 0, qid, i;
+	bool b_is_rx;
+	int rc = 0;
+
+	mbx->offset = (u8 *)mbx->reply_virt;
+	req = &mbx->req_virt->read_coal_req;
+
+	qid = req->qid;
+	b_is_rx = req->is_rx ? true : false;
+
+	if (b_is_rx) {
+		if (!qed_iov_validate_rxq(p_hwfn, p_vf, qid,
+					  QED_IOV_VALIDATE_Q_ENABLE)) {
+			DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+				   "VF[%d]: Invalid Rx queue_id = %d\n",
+				   p_vf->abs_vf_id, qid);
+			goto send_resp;
+		}
+
+		p_cid = qed_iov_get_vf_rx_queue_cid(&p_vf->vf_queues[qid]);
+		rc = qed_get_rxq_coalesce(p_hwfn, p_ptt, p_cid, &coal);
+		if (rc)
+			goto send_resp;
+	} else {
+		if (!qed_iov_validate_txq(p_hwfn, p_vf, qid,
+					  QED_IOV_VALIDATE_Q_ENABLE)) {
+			DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+				   "VF[%d]: Invalid Tx queue_id = %d\n",
+				   p_vf->abs_vf_id, qid);
+			goto send_resp;
+		}
+		for (i = 0; i < MAX_QUEUES_PER_QZONE; i++) {
+			p_queue = &p_vf->vf_queues[qid];
+			if ((!p_queue->cids[i].p_cid) ||
+			    (!p_queue->cids[i].b_is_tx))
+				continue;
+
+			p_cid = p_queue->cids[i].p_cid;
+
+			rc = qed_get_txq_coalesce(p_hwfn, p_ptt, p_cid, &coal);
+			if (rc)
+				goto send_resp;
+			break;
+		}
+	}
+
+	status = PFVF_STATUS_SUCCESS;
+
+send_resp:
+	p_resp = qed_add_tlv(p_hwfn, &mbx->offset, CHANNEL_TLV_COALESCE_READ,
+			     sizeof(*p_resp));
+	p_resp->coal = coal;
+
+	qed_add_tlv(p_hwfn, &mbx->offset, CHANNEL_TLV_LIST_END,
+		    sizeof(struct channel_list_end_tlv));
+
+	qed_iov_send_response(p_hwfn, p_ptt, p_vf, sizeof(*p_resp), status);
+}
+
 static void qed_iov_vf_pf_set_coalesce(struct qed_hwfn *p_hwfn,
 				       struct qed_ptt *p_ptt,
 				       struct qed_vf_info *vf)
@@ -3450,6 +3519,7 @@ static void qed_iov_vf_pf_set_coalesce(struct qed_hwfn *p_hwfn,
 				   vf->abs_vf_id, vf->vf_queues[qid].fw_rx_qid);
 			goto out;
 		}
+		vf->rx_coal = rx_coal;
 	}
 
 	if (tx_coal) {
@@ -3473,6 +3543,7 @@ static void qed_iov_vf_pf_set_coalesce(struct qed_hwfn *p_hwfn,
 				goto out;
 			}
 		}
+		vf->tx_coal = tx_coal;
 	}
 
 	status = PFVF_STATUS_SUCCESS;
@@ -3807,6 +3878,9 @@ static void qed_iov_process_mbx_req(struct qed_hwfn *p_hwfn,
 			break;
 		case CHANNEL_TLV_COALESCE_UPDATE:
 			qed_iov_vf_pf_set_coalesce(p_hwfn, p_ptt, p_vf);
+			break;
+		case CHANNEL_TLV_COALESCE_READ:
+			qed_iov_vf_pf_get_coalesce(p_hwfn, p_ptt, p_vf);
 			break;
 		}
 	} else if (qed_iov_tlv_supported(mbx->first_tlv.tl.type)) {
