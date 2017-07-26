@@ -76,7 +76,7 @@ static int rwdt_start(struct watchdog_device *wdev)
 {
 	struct rwdt_priv *priv = watchdog_get_drvdata(wdev);
 
-	clk_prepare_enable(priv->clk);
+	pm_runtime_get_sync(wdev->parent);
 
 	rwdt_write(priv, 0, RWTCSRB);
 	rwdt_write(priv, priv->cks, RWTCSRA);
@@ -95,7 +95,7 @@ static int rwdt_stop(struct watchdog_device *wdev)
 	struct rwdt_priv *priv = watchdog_get_drvdata(wdev);
 
 	rwdt_write(priv, priv->cks, RWTCSRA);
-	clk_disable_unprepare(priv->clk);
+	pm_runtime_put(wdev->parent);
 
 	return 0;
 }
@@ -141,9 +141,16 @@ static int rwdt_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->clk))
 		return PTR_ERR(priv->clk);
 
+	pm_runtime_enable(&pdev->dev);
+
+	pm_runtime_get_sync(&pdev->dev);
 	priv->clk_rate = clk_get_rate(priv->clk);
-	if (!priv->clk_rate)
-		return -ENOENT;
+	pm_runtime_put(&pdev->dev);
+
+	if (!priv->clk_rate) {
+		ret = -ENOENT;
+		goto out_pm_disable;
+	}
 
 	for (i = ARRAY_SIZE(clk_divs) - 1; i >= 0; i--) {
 		clks_per_sec = priv->clk_rate / clk_divs[i];
@@ -155,11 +162,9 @@ static int rwdt_probe(struct platform_device *pdev)
 
 	if (i < 0) {
 		dev_err(&pdev->dev, "Can't find suitable clock divider\n");
-		return -ERANGE;
+		ret = -ERANGE;
+		goto out_pm_disable;
 	}
-
-	pm_runtime_enable(&pdev->dev);
-	pm_runtime_get_sync(&pdev->dev);
 
 	priv->wdev.info = &rwdt_ident,
 	priv->wdev.ops = &rwdt_ops,
@@ -178,13 +183,14 @@ static int rwdt_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "Specified timeout value invalid, using default\n");
 
 	ret = watchdog_register_device(&priv->wdev);
-	if (ret < 0) {
-		pm_runtime_put(&pdev->dev);
-		pm_runtime_disable(&pdev->dev);
-		return ret;
-	}
+	if (ret < 0)
+		goto out_pm_disable;
 
 	return 0;
+
+ out_pm_disable:
+	pm_runtime_disable(&pdev->dev);
+	return ret;
 }
 
 static int rwdt_remove(struct platform_device *pdev)
@@ -192,7 +198,6 @@ static int rwdt_remove(struct platform_device *pdev)
 	struct rwdt_priv *priv = platform_get_drvdata(pdev);
 
 	watchdog_unregister_device(&priv->wdev);
-	pm_runtime_put(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 
 	return 0;
