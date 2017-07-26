@@ -1302,6 +1302,106 @@ int perf_evsel__read(struct perf_evsel *evsel, int cpu, int thread,
 	return 0;
 }
 
+static int
+perf_evsel__read_one(struct perf_evsel *evsel, int cpu, int thread)
+{
+	struct perf_counts_values *count = perf_counts(evsel->counts, cpu, thread);
+
+	return perf_evsel__read(evsel, cpu, thread, count);
+}
+
+static void
+perf_evsel__set_count(struct perf_evsel *counter, int cpu, int thread,
+		      u64 val, u64 ena, u64 run)
+{
+	struct perf_counts_values *count;
+
+	count = perf_counts(counter->counts, cpu, thread);
+
+	count->val    = val;
+	count->ena    = ena;
+	count->run    = run;
+}
+
+static int
+perf_evsel__process_group_data(struct perf_evsel *leader,
+			       int cpu, int thread, u64 *data)
+{
+	u64 read_format = leader->attr.read_format;
+	struct sample_read_value *v;
+	u64 nr, ena = 0, run = 0, i;
+
+	nr = *data++;
+
+	if (nr != (u64) leader->nr_members)
+		return -EINVAL;
+
+	if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED)
+		ena = *data++;
+
+	if (read_format & PERF_FORMAT_TOTAL_TIME_RUNNING)
+		run = *data++;
+
+	v = (struct sample_read_value *) data;
+
+	perf_evsel__set_count(leader, cpu, thread,
+			      v[0].value, ena, run);
+
+	for (i = 1; i < nr; i++) {
+		struct perf_evsel *counter;
+
+		counter = perf_evlist__id2evsel(leader->evlist, v[i].id);
+		if (!counter)
+			return -EINVAL;
+
+		perf_evsel__set_count(counter, cpu, thread,
+				      v[i].value, ena, run);
+	}
+
+	return 0;
+}
+
+static int
+perf_evsel__read_group(struct perf_evsel *leader, int cpu, int thread)
+{
+	struct perf_stat_evsel *ps = leader->priv;
+	u64 read_format = leader->attr.read_format;
+	int size = perf_evsel__read_size(leader);
+	u64 *data = ps->group_data;
+
+	if (!(read_format & PERF_FORMAT_ID))
+		return -EINVAL;
+
+	if (!perf_evsel__is_group_leader(leader))
+		return -EINVAL;
+
+	if (!data) {
+		data = zalloc(size);
+		if (!data)
+			return -ENOMEM;
+
+		ps->group_data = data;
+	}
+
+	if (FD(leader, cpu, thread) < 0)
+		return -EINVAL;
+
+	if (readn(FD(leader, cpu, thread), data, size) <= 0)
+		return -errno;
+
+	return perf_evsel__process_group_data(leader, cpu, thread, data);
+}
+
+int perf_evsel__read_counter(struct perf_evsel *evsel, int cpu, int thread)
+{
+	u64 read_format = evsel->attr.read_format;
+
+	if (read_format & PERF_FORMAT_GROUP)
+		return perf_evsel__read_group(evsel, cpu, thread);
+	else
+		return perf_evsel__read_one(evsel, cpu, thread);
+}
+
 int __perf_evsel__read_on_cpu(struct perf_evsel *evsel,
 			      int cpu, int thread, bool scale)
 {
