@@ -819,7 +819,7 @@ static bool construct(
 {
 	unsigned int i;
 	struct dc_context *ctx = dc->ctx;
-	struct firmware_info info;
+	struct dc_firmware_info info;
 	struct dc_bios *bp;
 	struct dm_pp_static_clock_info static_clk_info = {0};
 

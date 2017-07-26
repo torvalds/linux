@@ -424,7 +424,7 @@ static void dce_clock_read_integrated_info(struct dce_disp_clk *clk_dce)
 	struct dc_debug *debug = &clk_dce->base.ctx->dc->debug;
 	struct dc_bios *bp = clk_dce->base.ctx->dc_bios;
 	struct integrated_info info = { { { 0 } } };
-	struct firmware_info fw_info = { { 0 } };
+	struct dc_firmware_info fw_info = { { 0 } };
 	int i;
 
 	if (bp->integrated_info)

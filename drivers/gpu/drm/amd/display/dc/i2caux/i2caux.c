@@ -320,7 +320,7 @@ void dal_i2caux_destroy(
 uint32_t dal_i2caux_get_reference_clock(
 		struct dc_bios *bios)
 {
-	struct firmware_info info = { { 0 } };
+	struct dc_firmware_info info = { { 0 } };
 
 	if (bios->funcs->get_firmware_info(bios, &info) != BP_RESULT_OK)
 		return 0;

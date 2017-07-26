@@ -622,17 +622,17 @@ static enum bp_result bios_parser_get_device_tag(
 
 static enum bp_result get_firmware_info_v1_4(
 	struct bios_parser *bp,
-	struct firmware_info *info);
+	struct dc_firmware_info *info);
 static enum bp_result get_firmware_info_v2_1(
 	struct bios_parser *bp,
-	struct firmware_info *info);
+	struct dc_firmware_info *info);
 static enum bp_result get_firmware_info_v2_2(
 	struct bios_parser *bp,
-	struct firmware_info *info);
+	struct dc_firmware_info *info);
 
 static enum bp_result bios_parser_get_firmware_info(
 	struct dc_bios *dcb,
-	struct firmware_info *info)
+	struct dc_firmware_info *info)
 {
 	struct bios_parser *bp = BP_FROM_DCB(dcb);
 	enum bp_result result = BP_RESULT_BADBIOSTABLE;
@@ -676,7 +676,7 @@ static enum bp_result bios_parser_get_firmware_info(
 
 static enum bp_result get_firmware_info_v1_4(
 	struct bios_parser *bp,
-	struct firmware_info *info)
+	struct dc_firmware_info *info)
 {
 	ATOM_FIRMWARE_INFO_V1_4 *firmware_info =
 		GET_IMAGE(ATOM_FIRMWARE_INFO_V1_4,
@@ -726,7 +726,7 @@ static enum bp_result get_ss_info_v3_1(
 
 static enum bp_result get_firmware_info_v2_1(
 	struct bios_parser *bp,
-	struct firmware_info *info)
+	struct dc_firmware_info *info)
 {
 	ATOM_FIRMWARE_INFO_V2_1 *firmwareInfo =
 		GET_IMAGE(ATOM_FIRMWARE_INFO_V2_1, DATA_TABLES(FirmwareInfo));
@@ -810,7 +810,7 @@ static enum bp_result get_firmware_info_v2_1(
 
 static enum bp_result get_firmware_info_v2_2(
 	struct bios_parser *bp,
-	struct firmware_info *info)
+	struct dc_firmware_info *info)
 {
 	ATOM_FIRMWARE_INFO_V2_2 *firmware_info;
 	struct spread_spectrum_info internal_ss;

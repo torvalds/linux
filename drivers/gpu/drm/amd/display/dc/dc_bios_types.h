@@ -84,7 +84,7 @@ struct dc_vbios_funcs {
 		struct connector_device_tag_info *info);
 	enum bp_result (*get_firmware_info)(
 		struct dc_bios *bios,
-		struct firmware_info *info);
+		struct dc_firmware_info *info);
 	enum bp_result (*get_spread_spectrum_info)(
 		struct dc_bios *bios,
 		enum as_signal_type signal,

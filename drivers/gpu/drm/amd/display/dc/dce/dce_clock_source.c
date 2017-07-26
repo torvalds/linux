@@ -1103,7 +1103,7 @@ static bool calc_pll_max_vco_construct(
 			struct calc_pll_clock_source_init_data *init_data)
 {
 	uint32_t i;
-	struct firmware_info fw_info = { { 0 } };
+	struct dc_firmware_info fw_info = { { 0 } };
 	if (calc_pll_cs == NULL ||
 			init_data == NULL ||
 			init_data->bp == NULL)
@@ -1185,7 +1185,7 @@ bool dce110_clk_src_construct(
 	const struct dce110_clk_src_shift *cs_shift,
 	const struct dce110_clk_src_mask *cs_mask)
 {
-	struct firmware_info fw_info = { { 0 } };
+	struct dc_firmware_info fw_info = { { 0 } };
 	struct calc_pll_clock_source_init_data calc_pll_cs_init_data_hdmi;
 	struct calc_pll_clock_source_init_data calc_pll_cs_init_data;
 

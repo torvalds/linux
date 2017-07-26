@@ -126,7 +126,7 @@ struct resource_pool *dc_create_resource_pool(
 		break;
 	}
 	if (res_pool != NULL) {
-		struct firmware_info fw_info = { { 0 } };
+		struct dc_firmware_info fw_info = { { 0 } };
 
 		if (dc->ctx->dc_bios->funcs->get_firmware_info(
 				dc->ctx->dc_bios, &fw_info) == BP_RESULT_OK) {

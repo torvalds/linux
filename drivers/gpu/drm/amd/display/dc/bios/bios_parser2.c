@@ -81,7 +81,7 @@ static enum bp_result get_gpio_i2c_info(struct bios_parser *bp,
 
 static enum bp_result bios_parser_get_firmware_info(
 	struct dc_bios *dcb,
-	struct firmware_info *info);
+	struct dc_firmware_info *info);
 
 static enum bp_result bios_parser_get_encoder_cap_info(
 	struct dc_bios *dcb,
@@ -90,7 +90,7 @@ static enum bp_result bios_parser_get_encoder_cap_info(
 
 static enum bp_result get_firmware_info_v3_1(
 	struct bios_parser *bp,
-	struct firmware_info *info);
+	struct dc_firmware_info *info);
 
 static struct atom_hpd_int_record *get_hpd_record(struct bios_parser *bp,
 		struct atom_display_object_path_v2 *object);
@@ -1583,7 +1583,7 @@ static void bios_parser_set_scratch_critical_state(
 
 static enum bp_result bios_parser_get_firmware_info(
 	struct dc_bios *dcb,
-	struct firmware_info *info)
+	struct dc_firmware_info *info)
 {
 	struct bios_parser *bp = BP_FROM_DCB(dcb);
 	enum bp_result result = BP_RESULT_BADBIOSTABLE;
@@ -1615,7 +1615,7 @@ static enum bp_result bios_parser_get_firmware_info(
 
 static enum bp_result get_firmware_info_v3_1(
 	struct bios_parser *bp,
-	struct firmware_info *info)
+	struct dc_firmware_info *info)
 {
 	struct atom_firmware_info_v3_1 *firmware_info;
 	struct atom_display_controller_info_v4_1 *dce_info = NULL;

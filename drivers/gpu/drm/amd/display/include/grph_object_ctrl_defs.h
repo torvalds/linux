@@ -154,7 +154,7 @@ struct embedded_panel_info {
 	bool realtek_eDPToLVDS;
 };
 
-struct firmware_info {
+struct dc_firmware_info {
 	struct pll_info {
 		uint32_t crystal_frequency; /* in KHz */
 		uint32_t min_input_pxl_clk_pll_frequency; /* in KHz */
