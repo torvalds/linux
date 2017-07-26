@@ -5324,7 +5324,7 @@ int i915_gem_object_attach_phys(struct drm_i915_gem_object *obj, int align)
 	pages = obj->mm.pages;
 	obj->ops = &i915_gem_phys_ops;
 
-	err = __i915_gem_object_get_pages(obj);
+	err = ____i915_gem_object_get_pages(obj);
 	if (err)
 		goto err_xfer;
 
