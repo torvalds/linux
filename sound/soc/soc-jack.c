@@ -36,7 +36,7 @@ int snd_soc_codec_set_jack(struct snd_soc_codec *codec,
 	if (codec->driver->set_jack)
 		return codec->driver->set_jack(codec, jack, data);
 	else
-		return -EINVAL;
+		return -ENOTSUPP;
 }
 EXPORT_SYMBOL_GPL(snd_soc_codec_set_jack);
 
