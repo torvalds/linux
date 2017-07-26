@@ -48,7 +48,6 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 struct rwdt_priv {
 	void __iomem *base;
 	struct watchdog_device wdev;
-	struct clk *clk;
 	unsigned long clk_rate;
 	u8 cks;
 };
@@ -125,6 +124,7 @@ static int rwdt_probe(struct platform_device *pdev)
 {
 	struct rwdt_priv *priv;
 	struct resource *res;
+	struct clk *clk;
 	unsigned long clks_per_sec;
 	int ret, i;
 
@@ -137,14 +137,14 @@ static int rwdt_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 
-	priv->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(priv->clk))
-		return PTR_ERR(priv->clk);
+	clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
 
 	pm_runtime_enable(&pdev->dev);
 
 	pm_runtime_get_sync(&pdev->dev);
-	priv->clk_rate = clk_get_rate(priv->clk);
+	priv->clk_rate = clk_get_rate(clk);
 	pm_runtime_put(&pdev->dev);
 
 	if (!priv->clk_rate) {
