@@ -1575,29 +1575,9 @@ static void qed_get_coalesce(struct qed_dev *cdev, u16 *rx_coal, u16 *tx_coal)
 }
 
 static int qed_set_coalesce(struct qed_dev *cdev, u16 rx_coal, u16 tx_coal,
-			    u16 qid, u16 sb_id)
+			    void *handle)
 {
-	struct qed_hwfn *hwfn;
-	struct qed_ptt *ptt;
-	int hwfn_index;
-	int status = 0;
-
-	hwfn_index = qid % cdev->num_hwfns;
-	hwfn = &cdev->hwfns[hwfn_index];
-	ptt = qed_ptt_acquire(hwfn);
-	if (!ptt)
-		return -EAGAIN;
-
-	status = qed_set_rxq_coalesce(hwfn, ptt, rx_coal,
-				      qid / cdev->num_hwfns, sb_id);
-	if (status)
-		goto out;
-	status = qed_set_txq_coalesce(hwfn, ptt, tx_coal,
-				      qid / cdev->num_hwfns, sb_id);
-out:
-	qed_ptt_release(hwfn, ptt);
-
-	return status;
+		return qed_set_queue_coalesce(rx_coal, tx_coal, handle);
 }
 
 static int qed_set_led(struct qed_dev *cdev, enum qed_led_mode mode)

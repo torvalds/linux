@@ -3400,6 +3400,86 @@ static void qed_iov_vf_mbx_release(struct qed_hwfn *p_hwfn,
 			     length, status);
 }
 
+static void qed_iov_vf_pf_set_coalesce(struct qed_hwfn *p_hwfn,
+				       struct qed_ptt *p_ptt,
+				       struct qed_vf_info *vf)
+{
+	struct qed_iov_vf_mbx *mbx = &vf->vf_mbx;
+	struct vfpf_update_coalesce *req;
+	u8 status = PFVF_STATUS_FAILURE;
+	struct qed_queue_cid *p_cid;
+	u16 rx_coal, tx_coal;
+	int rc = 0, i;
+	u16 qid;
+
+	req = &mbx->req_virt->update_coalesce;
+
+	rx_coal = req->rx_coal;
+	tx_coal = req->tx_coal;
+	qid = req->qid;
+
+	if (!qed_iov_validate_rxq(p_hwfn, vf, qid,
+				  QED_IOV_VALIDATE_Q_ENABLE) && rx_coal) {
+		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+			   "VF[%d]: Invalid Rx queue_id = %d\n",
+			   vf->abs_vf_id, qid);
+		goto out;
+	}
+
+	if (!qed_iov_validate_txq(p_hwfn, vf, qid,
+				  QED_IOV_VALIDATE_Q_ENABLE) && tx_coal) {
+		DP_VERBOSE(p_hwfn, QED_MSG_IOV,
+			   "VF[%d]: Invalid Tx queue_id = %d\n",
+			   vf->abs_vf_id, qid);
+		goto out;
+	}
+
+	DP_VERBOSE(p_hwfn,
+		   QED_MSG_IOV,
+		   "VF[%d]: Setting coalesce for VF rx_coal = %d, tx_coal = %d at queue = %d\n",
+		   vf->abs_vf_id, rx_coal, tx_coal, qid);
+
+	if (rx_coal) {
+		p_cid = qed_iov_get_vf_rx_queue_cid(&vf->vf_queues[qid]);
+
+		rc = qed_set_rxq_coalesce(p_hwfn, p_ptt, rx_coal, p_cid);
+		if (rc) {
+			DP_VERBOSE(p_hwfn,
+				   QED_MSG_IOV,
+				   "VF[%d]: Unable to set rx queue = %d coalesce\n",
+				   vf->abs_vf_id, vf->vf_queues[qid].fw_rx_qid);
+			goto out;
+		}
+	}
+
+	if (tx_coal) {
+		struct qed_vf_queue *p_queue = &vf->vf_queues[qid];
+
+		for (i = 0; i < MAX_QUEUES_PER_QZONE; i++) {
+			if (!p_queue->cids[i].p_cid)
+				continue;
+
+			if (!p_queue->cids[i].b_is_tx)
+				continue;
+
+			rc = qed_set_txq_coalesce(p_hwfn, p_ptt, tx_coal,
+						  p_queue->cids[i].p_cid);
+
+			if (rc) {
+				DP_VERBOSE(p_hwfn,
+					   QED_MSG_IOV,
+					   "VF[%d]: Unable to set tx queue coalesce\n",
+					   vf->abs_vf_id);
+				goto out;
+			}
+		}
+	}
+
+	status = PFVF_STATUS_SUCCESS;
+out:
+	qed_iov_prepare_resp(p_hwfn, p_ptt, vf, CHANNEL_TLV_COALESCE_UPDATE,
+			     sizeof(struct pfvf_def_resp_tlv), status);
+}
 static int
 qed_iov_vf_flr_poll_dorq(struct qed_hwfn *p_hwfn,
 			 struct qed_vf_info *p_vf, struct qed_ptt *p_ptt)
@@ -3724,6 +3804,9 @@ static void qed_iov_process_mbx_req(struct qed_hwfn *p_hwfn,
 			break;
 		case CHANNEL_TLV_UPDATE_TUNN_PARAM:
 			qed_iov_vf_mbx_update_tunn_param(p_hwfn, p_ptt, p_vf);
+			break;
+		case CHANNEL_TLV_COALESCE_UPDATE:
+			qed_iov_vf_pf_set_coalesce(p_hwfn, p_ptt, p_vf);
 			break;
 		}
 	} else if (qed_iov_tlv_supported(mbx->first_tlv.tl.type)) {

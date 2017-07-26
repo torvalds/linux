@@ -3694,7 +3694,7 @@ static int qed_set_coalesce(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 	}
 
 	p_coal_timeset = p_eth_qzone;
-	memset(p_coal_timeset, 0, eth_qzone_size);
+	memset(p_eth_qzone, 0, eth_qzone_size);
 	SET_FIELD(p_coal_timeset->value, COALESCING_TIMESET_TIMESET, timeset);
 	SET_FIELD(p_coal_timeset->value, COALESCING_TIMESET_VALID, 1);
 	qed_memcpy_to(p_hwfn, p_ptt, hw_addr, p_eth_qzone, eth_qzone_size);
@@ -3702,12 +3702,46 @@ static int qed_set_coalesce(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 	return 0;
 }
 
-int qed_set_rxq_coalesce(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
-			 u16 coalesce, u16 qid, u16 sb_id)
+int qed_set_queue_coalesce(u16 rx_coal, u16 tx_coal, void *p_handle)
+{
+	struct qed_queue_cid *p_cid = p_handle;
+	struct qed_hwfn *p_hwfn;
+	struct qed_ptt *p_ptt;
+	int rc = 0;
+
+	p_hwfn = p_cid->p_owner;
+
+	if (IS_VF(p_hwfn->cdev))
+		return qed_vf_pf_set_coalesce(p_hwfn, rx_coal, tx_coal, p_cid);
+
+	p_ptt = qed_ptt_acquire(p_hwfn);
+	if (!p_ptt)
+		return -EAGAIN;
+
+	if (rx_coal) {
+		rc = qed_set_rxq_coalesce(p_hwfn, p_ptt, rx_coal, p_cid);
+		if (rc)
+			goto out;
+		p_hwfn->cdev->rx_coalesce_usecs = rx_coal;
+	}
+
+	if (tx_coal) {
+		rc = qed_set_txq_coalesce(p_hwfn, p_ptt, tx_coal, p_cid);
+		if (rc)
+			goto out;
+		p_hwfn->cdev->tx_coalesce_usecs = tx_coal;
+	}
+out:
+	qed_ptt_release(p_hwfn, p_ptt);
+	return rc;
+}
+
+int qed_set_rxq_coalesce(struct qed_hwfn *p_hwfn,
+			 struct qed_ptt *p_ptt,
+			 u16 coalesce, struct qed_queue_cid *p_cid)
 {
 	struct ustorm_eth_queue_zone eth_qzone;
 	u8 timeset, timer_res;
-	u16 fw_qid = 0;
 	u32 address;
 	int rc;
 
@@ -3724,32 +3758,29 @@ int qed_set_rxq_coalesce(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 	}
 	timeset = (u8)(coalesce >> timer_res);
 
-	rc = qed_fw_l2_queue(p_hwfn, qid, &fw_qid);
-	if (rc)
-		return rc;
-
-	rc = qed_int_set_timer_res(p_hwfn, p_ptt, timer_res, sb_id, false);
+	rc = qed_int_set_timer_res(p_hwfn, p_ptt, timer_res,
+				   p_cid->sb_igu_id, false);
 	if (rc)
 		goto out;
 
-	address = BAR0_MAP_REG_USDM_RAM + USTORM_ETH_QUEUE_ZONE_OFFSET(fw_qid);
+	address = BAR0_MAP_REG_USDM_RAM +
+		  USTORM_ETH_QUEUE_ZONE_OFFSET(p_cid->abs.queue_id);
 
 	rc = qed_set_coalesce(p_hwfn, p_ptt, address, &eth_qzone,
 			      sizeof(struct ustorm_eth_queue_zone), timeset);
 	if (rc)
 		goto out;
 
-	p_hwfn->cdev->rx_coalesce_usecs = coalesce;
 out:
 	return rc;
 }
 
-int qed_set_txq_coalesce(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
-			 u16 coalesce, u16 qid, u16 sb_id)
+int qed_set_txq_coalesce(struct qed_hwfn *p_hwfn,
+			 struct qed_ptt *p_ptt,
+			 u16 coalesce, struct qed_queue_cid *p_cid)
 {
 	struct xstorm_eth_queue_zone eth_qzone;
 	u8 timeset, timer_res;
-	u16 fw_qid = 0;
 	u32 address;
 	int rc;
 
@@ -3766,22 +3797,16 @@ int qed_set_txq_coalesce(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 	}
 	timeset = (u8)(coalesce >> timer_res);
 
-	rc = qed_fw_l2_queue(p_hwfn, qid, &fw_qid);
-	if (rc)
-		return rc;
-
-	rc = qed_int_set_timer_res(p_hwfn, p_ptt, timer_res, sb_id, true);
+	rc = qed_int_set_timer_res(p_hwfn, p_ptt, timer_res,
+				   p_cid->sb_igu_id, true);
 	if (rc)
 		goto out;
 
-	address = BAR0_MAP_REG_XSDM_RAM + XSTORM_ETH_QUEUE_ZONE_OFFSET(fw_qid);
+	address = BAR0_MAP_REG_XSDM_RAM +
+		  XSTORM_ETH_QUEUE_ZONE_OFFSET(p_cid->abs.queue_id);
 
 	rc = qed_set_coalesce(p_hwfn, p_ptt, address, &eth_qzone,
 			      sizeof(struct xstorm_eth_queue_zone), timeset);
-	if (rc)
-		goto out;
-
-	p_hwfn->cdev->tx_coalesce_usecs = coalesce;
 out:
 	return rc;
 }

@@ -718,8 +718,9 @@ static int qede_set_coalesce(struct net_device *dev,
 			     struct ethtool_coalesce *coal)
 {
 	struct qede_dev *edev = netdev_priv(dev);
+	struct qede_fastpath *fp;
 	int i, rc = 0;
-	u16 rxc, txc, sb_id;
+	u16 rxc, txc;
 
 	if (!netif_running(dev)) {
 		DP_INFO(edev, "Interface is down\n");
@@ -730,21 +731,36 @@ static int qede_set_coalesce(struct net_device *dev,
 	    coal->tx_coalesce_usecs > QED_COALESCE_MAX) {
 		DP_INFO(edev,
 			"Can't support requested %s coalesce value [max supported value %d]\n",
-			coal->rx_coalesce_usecs > QED_COALESCE_MAX ? "rx"
-								   : "tx",
-			QED_COALESCE_MAX);
+			coal->rx_coalesce_usecs > QED_COALESCE_MAX ? "rx" :
+			"tx", QED_COALESCE_MAX);
 		return -EINVAL;
 	}
 
 	rxc = (u16)coal->rx_coalesce_usecs;
 	txc = (u16)coal->tx_coalesce_usecs;
 	for_each_queue(i) {
-		sb_id = edev->fp_array[i].sb_info->igu_sb_id;
-		rc = edev->ops->common->set_coalesce(edev->cdev, rxc, txc,
-						     (u16)i, sb_id);
-		if (rc) {
-			DP_INFO(edev, "Set coalesce error, rc = %d\n", rc);
-			return rc;
+		fp = &edev->fp_array[i];
+
+		if (edev->fp_array[i].type & QEDE_FASTPATH_RX) {
+			rc = edev->ops->common->set_coalesce(edev->cdev,
+							     rxc, 0,
+							     fp->rxq->handle);
+			if (rc) {
+				DP_INFO(edev,
+					"Set RX coalesce error, rc = %d\n", rc);
+				return rc;
+			}
+		}
+
+		if (edev->fp_array[i].type & QEDE_FASTPATH_TX) {
+			rc = edev->ops->common->set_coalesce(edev->cdev,
+							     0, txc,
+							     fp->txq->handle);
+			if (rc) {
+				DP_INFO(edev,
+					"Set TX coalesce error, rc = %d\n", rc);
+				return rc;
+			}
 		}
 	}
 
@@ -1758,6 +1774,8 @@ static const struct ethtool_ops qede_vf_ethtool_ops = {
 	.get_msglevel = qede_get_msglevel,
 	.set_msglevel = qede_set_msglevel,
 	.get_link = qede_get_link,
+	.get_coalesce = qede_get_coalesce,
+	.set_coalesce = qede_set_coalesce,
 	.get_ringparam = qede_get_ringparam,
 	.set_ringparam = qede_set_ringparam,
 	.get_strings = qede_get_strings,
