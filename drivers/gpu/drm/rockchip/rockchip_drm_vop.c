@@ -1457,7 +1457,9 @@ static int vop_initial(struct vop *vop)
 
 	for (i = 0; i < vop_data->win_size; i++) {
 		const struct vop_win_data *win = &vop_data->win[i];
+		int channel = i * 2 + 1;
 
+		VOP_WIN_SET(vop, win, channel, (channel + 1) << 4 | channel);
 		VOP_WIN_SET(vop, win, enable, 0);
 		VOP_WIN_SET(vop, win, gate, 1);
 	}

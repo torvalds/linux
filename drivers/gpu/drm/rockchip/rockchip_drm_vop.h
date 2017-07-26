@@ -141,6 +141,7 @@ struct vop_win_phy {
 
 	struct vop_reg dst_alpha_ctl;
 	struct vop_reg src_alpha_ctl;
+	struct vop_reg channel;
 };
 
 struct vop_win_data {
