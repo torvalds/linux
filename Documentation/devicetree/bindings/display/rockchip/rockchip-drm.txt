@@ -13,6 +13,7 @@ Required properties:
 
 Optional properties
 - backlight: spacial backlight required by cabc function.
+- secure-memory-region: phandle to a node describing secure memory
 - clocks: include clock specifiers corresponding to entries in the
           clock-names property.
 - clock-names: optional include
