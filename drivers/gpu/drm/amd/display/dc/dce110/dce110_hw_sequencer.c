@@ -1185,7 +1185,8 @@ static void power_down_all_hw_blocks(struct core_dc *dc)
 	power_down_clock_sources(dc);
 
 #ifdef ENABLE_FBC
-	dc->fbc_compressor->funcs->disable_fbc(dc->fbc_compressor);
+	if (dc->fbc_compressor)
+		dc->fbc_compressor->funcs->disable_fbc(dc->fbc_compressor);
 #endif
 }
 
@@ -1658,7 +1659,8 @@ enum dc_status dce110_apply_ctx_to_hw(
 	set_safe_displaymarks(&context->res_ctx, dc->res_pool);
 
 #ifdef ENABLE_FBC
-	dc->fbc_compressor->funcs->disable_fbc(dc->fbc_compressor);
+	if (dc->fbc_compressor)
+		dc->fbc_compressor->funcs->disable_fbc(dc->fbc_compressor);
 #endif
 	/*TODO: when pplib works*/
 	apply_min_clocks(dc, context, &clocks_state, true);
@@ -2246,7 +2248,8 @@ static void init_hw(struct core_dc *dc)
 		abm->funcs->abm_init(abm);
 	}
 #ifdef ENABLE_FBC
-	dc->fbc_compressor->funcs->power_up_fbc(dc->fbc_compressor);
+	if (dc->fbc_compressor)
+		dc->fbc_compressor->funcs->power_up_fbc(dc->fbc_compressor);
 #endif
 }
 
