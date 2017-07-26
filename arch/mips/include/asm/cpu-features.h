@@ -428,6 +428,9 @@
 #ifndef cpu_scache_line_size
 #define cpu_scache_line_size()	cpu_data[0].scache.linesz
 #endif
+#ifndef cpu_tcache_line_size
+#define cpu_tcache_line_size()	cpu_data[0].tcache.linesz
+#endif
 
 #ifndef cpu_hwrena_impl_bits
 #define cpu_hwrena_impl_bits		0
