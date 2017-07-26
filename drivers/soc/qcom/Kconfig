@@ -1,6 +1,8 @@
 #
 # QCOM Soc drivers
 #
+menu "Qualcomm SoC drivers"
+
 config QCOM_GSBI
         tristate "QCOM General Serial Bus Interface"
         depends on ARCH_QCOM
@@ -74,3 +76,5 @@ config QCOM_WCNSS_CTRL
 	help
 	  Client driver for the WCNSS_CTRL SMD channel, used to download nv
 	  firmware to a newly booted WCNSS chip.
+
+endmenu
