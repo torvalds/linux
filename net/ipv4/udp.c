@@ -1786,7 +1786,7 @@ static int __udp_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	 * the IP options and the cmsg flags, elsewhere can we clear all
 	 * pending head states while they are hot in the cache
 	 */
-	if (likely(IPCB(skb)->opt.optlen == 0 && !skb->sp))
+	if (likely(IPCB(skb)->opt.optlen == 0 && !skb_sec_path(skb)))
 		skb_release_head_state(skb);
 
 	rc = __udp_enqueue_schedule_skb(sk, skb);
