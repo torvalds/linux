@@ -1147,7 +1147,6 @@ bool dp_hbr_verify_link_cap(
 		LINK_SPREAD_DISABLED;
 	}
 
-	link->max_link_setting = link->verified_link_cap;
 
 	return success;
 }
@@ -1466,7 +1465,7 @@ void decide_link_settings(struct dc_stream *stream,
      * 2. could support the b/w requested by the timing
      */
 	while (current_link_setting.link_rate <=
-			link->max_link_setting.link_rate) {
+			link->verified_link_cap.link_rate) {
 		link_bw = bandwidth_in_kbps_from_link_settings(
 				&current_link_setting);
 		if (req_bw <= link_bw) {
@@ -1475,7 +1474,7 @@ void decide_link_settings(struct dc_stream *stream,
 		}
 
 		if (current_link_setting.lane_count <
-				link->max_link_setting.lane_count) {
+				link->verified_link_cap.lane_count) {
 			current_link_setting.lane_count =
 					increase_lane_count(
 							current_link_setting.lane_count);
@@ -2292,6 +2291,12 @@ void detect_dp_sink_caps(struct dc_link *link)
 			&link->reported_link_cap);
 	}
 	/* TODO save sink caps in link->sink */
+}
+
+void detect_edp_sink_caps(struct dc_link *link)
+{
+	retrieve_link_cap(link);
+	link->verified_link_cap = link->reported_link_cap;
 }
 
 void dc_link_dp_enable_hpd(const struct dc_link *link)
