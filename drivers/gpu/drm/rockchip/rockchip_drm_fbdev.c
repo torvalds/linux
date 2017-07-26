@@ -88,7 +88,7 @@ static int rockchip_drm_fbdev_create(struct drm_fb_helper *helper,
 
 	size = mode_cmd.pitches[0] * mode_cmd.height;
 
-	rk_obj = rockchip_gem_create_object(dev, size, true);
+	rk_obj = rockchip_gem_create_object(dev, size, true, 0);
 	if (IS_ERR(rk_obj))
 		return -ENOMEM;
 
