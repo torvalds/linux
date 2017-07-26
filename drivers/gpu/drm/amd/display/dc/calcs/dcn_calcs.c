@@ -1267,13 +1267,14 @@ void dcn_bw_notify_pplib_of_wm_ranges(struct core_dc *dc)
 {
 	struct dm_pp_wm_sets_with_clock_ranges_soc15 clk_ranges = {0};
 	int max_fclk_khz, nom_fclk_khz, min_fclk_khz, max_dcfclk_khz,
-		nom_dcfclk_khz, min_dcfclk_khz, socclk_khz;
+		nom_dcfclk_khz, mid_fclk_khz, min_dcfclk_khz, socclk_khz;
 	const int overdrive = 5000000; /* 5 GHz to cover Overdrive */
 	unsigned factor = (ddr4_dram_factor_single_Channel * dc->dcn_soc.number_of_channels);
 
 	kernel_fpu_begin();
 	max_fclk_khz = dc->dcn_soc.fabric_and_dram_bandwidth_vmax0p9 * 1000000 / factor;
 	nom_fclk_khz = dc->dcn_soc.fabric_and_dram_bandwidth_vnom0p8 * 1000000 / factor;
+	mid_fclk_khz = dc->dcn_soc.fabric_and_dram_bandwidth_vmid0p72 * 1000000 / factor;
 	min_fclk_khz = dc->dcn_soc.fabric_and_dram_bandwidth_vmin0p65 * 1000000 / 32;
 	max_dcfclk_khz = dc->dcn_soc.dcfclkv_max0p9 * 1000;
 	nom_dcfclk_khz = dc->dcn_soc.dcfclkv_nom0p8 * 1000;
@@ -1293,48 +1294,48 @@ void dcn_bw_notify_pplib_of_wm_ranges(struct core_dc *dc)
 	clk_ranges.num_wm_mcif_sets = 4;
 	clk_ranges.wm_dmif_clocks_ranges[0].wm_set_id = WM_SET_A;
 	clk_ranges.wm_dmif_clocks_ranges[0].wm_min_dcfclk_clk_in_khz = min_dcfclk_khz;
-	clk_ranges.wm_dmif_clocks_ranges[0].wm_max_dcfclk_clk_in_khz = nom_dcfclk_khz - 1;
+	clk_ranges.wm_dmif_clocks_ranges[0].wm_max_dcfclk_clk_in_khz = max_dcfclk_khz;
 	clk_ranges.wm_dmif_clocks_ranges[0].wm_min_memg_clk_in_khz = min_fclk_khz;
-	clk_ranges.wm_dmif_clocks_ranges[0].wm_max_mem_clk_in_khz = nom_fclk_khz - 1;
+	clk_ranges.wm_dmif_clocks_ranges[0].wm_max_mem_clk_in_khz = min_fclk_khz;
 	clk_ranges.wm_mcif_clocks_ranges[0].wm_set_id = WM_SET_A;
 	clk_ranges.wm_mcif_clocks_ranges[0].wm_min_socclk_clk_in_khz = socclk_khz;
 	clk_ranges.wm_mcif_clocks_ranges[0].wm_max_socclk_clk_in_khz = overdrive;
 	clk_ranges.wm_mcif_clocks_ranges[0].wm_min_memg_clk_in_khz = min_fclk_khz;
-	clk_ranges.wm_mcif_clocks_ranges[0].wm_max_mem_clk_in_khz = nom_fclk_khz - 1;
+	clk_ranges.wm_mcif_clocks_ranges[0].wm_max_mem_clk_in_khz = min_fclk_khz;
 
 	clk_ranges.wm_dmif_clocks_ranges[1].wm_set_id = WM_SET_B;
-	clk_ranges.wm_dmif_clocks_ranges[1].wm_min_dcfclk_clk_in_khz = min_dcfclk_khz;
-	clk_ranges.wm_dmif_clocks_ranges[1].wm_max_dcfclk_clk_in_khz = nom_dcfclk_khz - 1;
-	clk_ranges.wm_dmif_clocks_ranges[1].wm_min_memg_clk_in_khz = nom_fclk_khz;
-	clk_ranges.wm_dmif_clocks_ranges[1].wm_max_mem_clk_in_khz = max_fclk_khz;
+	clk_ranges.wm_dmif_clocks_ranges[1].wm_min_dcfclk_clk_in_khz = min_fclk_khz;
+	clk_ranges.wm_dmif_clocks_ranges[1].wm_max_dcfclk_clk_in_khz = max_dcfclk_khz;
+	clk_ranges.wm_dmif_clocks_ranges[1].wm_min_memg_clk_in_khz = mid_fclk_khz;
+	clk_ranges.wm_dmif_clocks_ranges[1].wm_max_mem_clk_in_khz = mid_fclk_khz;
 	clk_ranges.wm_mcif_clocks_ranges[1].wm_set_id = WM_SET_B;
 	clk_ranges.wm_mcif_clocks_ranges[1].wm_min_socclk_clk_in_khz = socclk_khz;
 	clk_ranges.wm_mcif_clocks_ranges[1].wm_max_socclk_clk_in_khz = overdrive;
-	clk_ranges.wm_mcif_clocks_ranges[1].wm_min_memg_clk_in_khz = nom_fclk_khz;
-	clk_ranges.wm_mcif_clocks_ranges[1].wm_max_mem_clk_in_khz = max_fclk_khz;
+	clk_ranges.wm_mcif_clocks_ranges[1].wm_min_memg_clk_in_khz = mid_fclk_khz;
+	clk_ranges.wm_mcif_clocks_ranges[1].wm_max_mem_clk_in_khz = mid_fclk_khz;
 
 
 	clk_ranges.wm_dmif_clocks_ranges[2].wm_set_id = WM_SET_C;
-	clk_ranges.wm_dmif_clocks_ranges[2].wm_min_dcfclk_clk_in_khz = nom_dcfclk_khz;
+	clk_ranges.wm_dmif_clocks_ranges[2].wm_min_dcfclk_clk_in_khz = min_fclk_khz;
 	clk_ranges.wm_dmif_clocks_ranges[2].wm_max_dcfclk_clk_in_khz = max_dcfclk_khz;
 	clk_ranges.wm_dmif_clocks_ranges[2].wm_min_memg_clk_in_khz = nom_fclk_khz;
-	clk_ranges.wm_dmif_clocks_ranges[2].wm_max_mem_clk_in_khz = max_fclk_khz;
+	clk_ranges.wm_dmif_clocks_ranges[2].wm_max_mem_clk_in_khz = nom_fclk_khz;
 	clk_ranges.wm_mcif_clocks_ranges[2].wm_set_id = WM_SET_C;
 	clk_ranges.wm_mcif_clocks_ranges[2].wm_min_socclk_clk_in_khz = socclk_khz;
 	clk_ranges.wm_mcif_clocks_ranges[2].wm_max_socclk_clk_in_khz = overdrive;
 	clk_ranges.wm_mcif_clocks_ranges[2].wm_min_memg_clk_in_khz = nom_fclk_khz;
-	clk_ranges.wm_mcif_clocks_ranges[2].wm_max_mem_clk_in_khz = max_fclk_khz;
+	clk_ranges.wm_mcif_clocks_ranges[2].wm_max_mem_clk_in_khz = nom_fclk_khz;
 
 	clk_ranges.wm_dmif_clocks_ranges[3].wm_set_id = WM_SET_D;
-	clk_ranges.wm_dmif_clocks_ranges[3].wm_min_dcfclk_clk_in_khz = max_dcfclk_khz + 1;
-	clk_ranges.wm_dmif_clocks_ranges[3].wm_max_dcfclk_clk_in_khz = overdrive;
-	clk_ranges.wm_dmif_clocks_ranges[3].wm_min_memg_clk_in_khz = max_fclk_khz + 1;
-	clk_ranges.wm_dmif_clocks_ranges[3].wm_max_mem_clk_in_khz = overdrive;
+	clk_ranges.wm_dmif_clocks_ranges[3].wm_min_dcfclk_clk_in_khz = min_fclk_khz;
+	clk_ranges.wm_dmif_clocks_ranges[3].wm_max_dcfclk_clk_in_khz = max_dcfclk_khz;
+	clk_ranges.wm_dmif_clocks_ranges[3].wm_min_memg_clk_in_khz = max_fclk_khz;
+	clk_ranges.wm_dmif_clocks_ranges[3].wm_max_mem_clk_in_khz = max_fclk_khz;
 	clk_ranges.wm_mcif_clocks_ranges[3].wm_set_id = WM_SET_D;
 	clk_ranges.wm_mcif_clocks_ranges[3].wm_min_socclk_clk_in_khz = socclk_khz;
 	clk_ranges.wm_mcif_clocks_ranges[3].wm_max_socclk_clk_in_khz = overdrive;
-	clk_ranges.wm_mcif_clocks_ranges[3].wm_min_memg_clk_in_khz = max_fclk_khz + 1;
-	clk_ranges.wm_mcif_clocks_ranges[3].wm_max_mem_clk_in_khz = overdrive;
+	clk_ranges.wm_mcif_clocks_ranges[3].wm_min_memg_clk_in_khz = max_fclk_khz;
+	clk_ranges.wm_mcif_clocks_ranges[3].wm_max_mem_clk_in_khz = max_fclk_khz;
 
 	/* Notify PP Lib/SMU which Watermarks to use for which clock ranges */
 	dm_pp_notify_wm_clock_changes_soc15(dc->ctx, &clk_ranges);
