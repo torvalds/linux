@@ -1142,7 +1142,7 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 			color = get_percent_color(percent);
 
 			if (symbol_conf.show_total_period)
-				color_fprintf(stdout, color, " %7" PRIu64,
+				color_fprintf(stdout, color, " %11" PRIu64,
 					      sample.period);
 			else
 				color_fprintf(stdout, color, " %7.2f", percent);
@@ -1165,7 +1165,7 @@ static int disasm_line__print(struct disasm_line *dl, struct symbol *sym, u64 st
 	} else if (max_lines && printed >= max_lines)
 		return 1;
 	else {
-		int width = 8;
+		int width = symbol_conf.show_total_period ? 12 : 8;
 
 		if (queue)
 			return -1;
@@ -1806,7 +1806,7 @@ int symbol__annotate_printf(struct symbol *sym, struct map *map,
 	int printed = 2, queue_len = 0;
 	int more = 0;
 	u64 len;
-	int width = 8;
+	int width = symbol_conf.show_total_period ? 12 : 8;
 	int graph_dotted_len;
 
 	filename = strdup(dso->long_name);
