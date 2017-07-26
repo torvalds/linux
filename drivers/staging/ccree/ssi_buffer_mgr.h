@@ -1,21 +1,21 @@
 /*
  * Copyright (C) 2012-2017 ARM Limited or its affiliates.
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /* \file buffer_mgr.h
-   Buffer Manager
+ * Buffer Manager
  */
 
 #ifndef __SSI_BUFFER_MGR_H__
@@ -25,7 +25,6 @@
 
 #include "ssi_config.h"
 #include "ssi_driver.h"
-
 
 enum ssi_req_dma_buf_type {
 	SSI_DMA_BUF_NULL = 0,
@@ -46,9 +45,9 @@ struct ssi_mlli {
 
 struct mlli_params {
 	struct dma_pool *curr_pool;
-	uint8_t *mlli_virt_addr;
+	u8 *mlli_virt_addr;
 	dma_addr_t mlli_dma_addr;
-	uint32_t mlli_len;  
+	u32 mlli_len;
 };
 
 int ssi_buffer_mgr_init(struct ssi_drvdata *drvdata);
@@ -65,7 +64,7 @@ int ssi_buffer_mgr_map_blkcipher_request(
 	struct scatterlist *dst);
 
 void ssi_buffer_mgr_unmap_blkcipher_request(
-	struct device *dev, 
+	struct device *dev,
 	void *ctx,
 	unsigned int ivsize,
 	struct scatterlist *src,
@@ -81,25 +80,9 @@ int ssi_buffer_mgr_map_hash_request_update(struct ssi_drvdata *drvdata, void *ct
 
 void ssi_buffer_mgr_unmap_hash_request(struct device *dev, void *ctx, struct scatterlist *src, bool do_revert);
 
-void ssi_buffer_mgr_copy_scatterlist_portion(u8 *dest, struct scatterlist *sg, uint32_t to_skip, uint32_t end, enum ssi_sg_cpy_direct direct);
+void ssi_buffer_mgr_copy_scatterlist_portion(u8 *dest, struct scatterlist *sg, u32 to_skip, u32 end, enum ssi_sg_cpy_direct direct);
 
-void ssi_buffer_mgr_zero_sgl(struct scatterlist *sgl, uint32_t data_len);
-
-
-#ifdef CC_DMA_48BIT_SIM
-dma_addr_t ssi_buff_mgr_update_dma_addr(dma_addr_t orig_addr, uint32_t data_len);
-dma_addr_t ssi_buff_mgr_restore_dma_addr(dma_addr_t orig_addr);
-
-#define SSI_UPDATE_DMA_ADDR_TO_48BIT(addr,size) addr = \
-					ssi_buff_mgr_update_dma_addr(addr,size)
-#define SSI_RESTORE_DMA_ADDR_TO_48BIT(addr) addr = \
-					ssi_buff_mgr_restore_dma_addr(addr)
-#else
-
-#define SSI_UPDATE_DMA_ADDR_TO_48BIT(addr,size) addr = addr
-#define SSI_RESTORE_DMA_ADDR_TO_48BIT(addr) addr = addr
-
-#endif
+void ssi_buffer_mgr_zero_sgl(struct scatterlist *sgl, u32 data_len);
 
 #endif /*__BUFFER_MGR_H__*/
 

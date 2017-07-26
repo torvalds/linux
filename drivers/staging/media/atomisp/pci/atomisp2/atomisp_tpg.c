@@ -56,6 +56,7 @@ static int tpg_set_fmt(struct v4l2_subdev *sd,
 		       struct v4l2_subdev_format *format)
 {
 	struct v4l2_mbus_framefmt *fmt = &format->format;
+
 	if (format->pad)
 		return -EINVAL;
 	/* only raw8 grbg is supported by TPG */

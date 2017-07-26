@@ -457,7 +457,7 @@ static int prepare_elf64_headers(struct crash_elf_data *ced,
 	bufp += sizeof(Elf64_Phdr);
 	phdr->p_type = PT_NOTE;
 	phdr->p_offset = phdr->p_paddr = paddr_vmcoreinfo_note();
-	phdr->p_filesz = phdr->p_memsz = sizeof(vmcoreinfo_note);
+	phdr->p_filesz = phdr->p_memsz = VMCOREINFO_NOTE_SIZE;
 	(ehdr->e_phnum)++;
 
 #ifdef CONFIG_X86_64

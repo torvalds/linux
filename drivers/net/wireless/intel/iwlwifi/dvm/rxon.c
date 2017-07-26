@@ -1120,7 +1120,7 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 		return 0;
 	}
 
-	iwl_set_rxon_hwcrypto(priv, ctx, !iwlwifi_mod_params.sw_crypto);
+	iwl_set_rxon_hwcrypto(priv, ctx, !iwlwifi_mod_params.swcrypto);
 
 	IWL_DEBUG_INFO(priv,
 		       "Going to commit RXON\n"

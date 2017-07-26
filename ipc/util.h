@@ -47,13 +47,6 @@ static inline void msg_exit_ns(struct ipc_namespace *ns) { }
 static inline void shm_exit_ns(struct ipc_namespace *ns) { }
 #endif
 
-struct ipc_rcu {
-	struct rcu_head rcu;
-	atomic_t refcount;
-} ____cacheline_aligned_in_smp;
-
-#define ipc_rcu_to_struct(p)  ((void *)(p+1))
-
 /*
  * Structure that holds the parameters needed by the ipc operations
  * (see after)
@@ -114,22 +107,18 @@ void ipc_rmid(struct ipc_ids *, struct kern_ipc_perm *);
 /* must be called with ipcp locked */
 int ipcperms(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp, short flg);
 
-/* for rare, potentially huge allocations.
- * both function can sleep
- */
-void *ipc_alloc(int size);
-void ipc_free(void *ptr);
-
 /*
  * For allocation that need to be freed by RCU.
  * Objects are reference counted, they start with reference count 1.
  * getref increases the refcount, the putref call that reduces the recount
  * to 0 schedules the rcu destruction. Caller must guarantee locking.
+ *
+ * refcount is initialized by ipc_addid(), before that point call_rcu()
+ * must be used.
  */
-void *ipc_rcu_alloc(int size);
-int ipc_rcu_getref(void *ptr);
-void ipc_rcu_putref(void *ptr, void (*func)(struct rcu_head *head));
-void ipc_rcu_free(struct rcu_head *head);
+int ipc_rcu_getref(struct kern_ipc_perm *ptr);
+void ipc_rcu_putref(struct kern_ipc_perm *ptr,
+			void (*func)(struct rcu_head *head));
 
 struct kern_ipc_perm *ipc_lock(struct ipc_ids *, int);
 struct kern_ipc_perm *ipc_obtain_object_idr(struct ipc_ids *ids, int id);

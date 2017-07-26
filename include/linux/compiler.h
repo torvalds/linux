@@ -17,11 +17,7 @@
 # define __release(x)	__context__(x,-1)
 # define __cond_lock(x,c)	((c) ? ({ __acquire(x); 1; }) : 0)
 # define __percpu	__attribute__((noderef, address_space(3)))
-#ifdef CONFIG_SPARSE_RCU_POINTER
 # define __rcu		__attribute__((noderef, address_space(4)))
-#else /* CONFIG_SPARSE_RCU_POINTER */
-# define __rcu
-#endif /* CONFIG_SPARSE_RCU_POINTER */
 # define __private	__attribute__((noderef))
 extern void __chk_user_ptr(const volatile void __user *);
 extern void __chk_io_ptr(const volatile void __iomem *);
@@ -440,8 +436,20 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 # define __attribute_const__	/* unimplemented */
 #endif
 
+#ifndef __designated_init
+# define __designated_init
+#endif
+
 #ifndef __latent_entropy
 # define __latent_entropy
+#endif
+
+#ifndef __randomize_layout
+# define __randomize_layout __designated_init
+#endif
+
+#ifndef __no_randomize_layout
+# define __no_randomize_layout
 #endif
 
 /*

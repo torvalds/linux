@@ -1028,12 +1028,15 @@ struct amdgpu_gfx_config {
 };
 
 struct amdgpu_cu_info {
-	uint32_t number; /* total active CU number */
-	uint32_t ao_cu_mask;
 	uint32_t max_waves_per_simd;
 	uint32_t wave_front_size;
 	uint32_t max_scratch_slots_per_cu;
 	uint32_t lds_size;
+
+	/* total active CU number */
+	uint32_t number;
+	uint32_t ao_cu_mask;
+	uint32_t ao_cu_bitmap[4][4];
 	uint32_t bitmap[4][4];
 };
 
@@ -1924,7 +1927,6 @@ void amdgpu_pci_config_reset(struct amdgpu_device *adev);
 bool amdgpu_need_post(struct amdgpu_device *adev);
 void amdgpu_update_display_priority(struct amdgpu_device *adev);
 
-int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, void *data);
 void amdgpu_cs_report_moved_bytes(struct amdgpu_device *adev, u64 num_bytes);
 void amdgpu_ttm_placement_from_domain(struct amdgpu_bo *abo, u32 domain);
 bool amdgpu_ttm_bo_is_amdgpu_bo(struct ttm_buffer_object *bo);

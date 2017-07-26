@@ -152,7 +152,7 @@ void synproxy_init_timestamp_cookie(const struct xt_synproxy_info *info,
 				    struct synproxy_options *opts)
 {
 	opts->tsecr = opts->tsval;
-	opts->tsval = tcp_time_stamp & ~0x3f;
+	opts->tsval = tcp_time_stamp_raw() & ~0x3f;
 
 	if (opts->options & XT_SYNPROXY_OPT_WSCALE) {
 		opts->tsval |= opts->wscale;

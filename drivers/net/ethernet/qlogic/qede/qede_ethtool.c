@@ -506,6 +506,14 @@ static int qede_set_link_ksettings(struct net_device *dev,
 		params.autoneg = false;
 		params.forced_speed = base->speed;
 		switch (base->speed) {
+		case SPEED_1000:
+			if (!(current_link.supported_caps &
+			      QED_LM_1000baseT_Full_BIT)) {
+				DP_INFO(edev, "1G speed not supported\n");
+				return -EINVAL;
+			}
+			params.adv_speeds = QED_LM_1000baseT_Full_BIT;
+			break;
 		case SPEED_10000:
 			if (!(current_link.supported_caps &
 			      QED_LM_10000baseKR_Full_BIT)) {
@@ -1282,7 +1290,8 @@ static int qede_selftest_transmit_traffic(struct qede_dev *edev,
 	struct qede_tx_queue *txq = NULL;
 	struct eth_tx_1st_bd *first_bd;
 	dma_addr_t mapping;
-	int i, idx, val;
+	int i, idx;
+	u16 val;
 
 	for_each_queue(i) {
 		if (edev->fp_array[i].type & QEDE_FASTPATH_TX) {
@@ -1297,14 +1306,15 @@ static int qede_selftest_transmit_traffic(struct qede_dev *edev,
 	}
 
 	/* Fill the entry in the SW ring and the BDs in the FW ring */
-	idx = txq->sw_tx_prod & NUM_TX_BDS_MAX;
+	idx = txq->sw_tx_prod;
 	txq->sw_tx_ring.skbs[idx].skb = skb;
 	first_bd = qed_chain_produce(&txq->tx_pbl);
 	memset(first_bd, 0, sizeof(*first_bd));
 	val = 1 << ETH_TX_1ST_BD_FLAGS_START_BD_SHIFT;
 	first_bd->data.bd_flags.bitfields = val;
 	val = skb->len & ETH_TX_DATA_1ST_BD_PKT_LEN_MASK;
-	first_bd->data.bitfields |= (val << ETH_TX_DATA_1ST_BD_PKT_LEN_SHIFT);
+	val = val << ETH_TX_DATA_1ST_BD_PKT_LEN_SHIFT;
+	first_bd->data.bitfields |= cpu_to_le16(val);
 
 	/* Map skb linear data for DMA and set in the first BD */
 	mapping = dma_map_single(&edev->pdev->dev, skb->data,
@@ -1317,10 +1327,10 @@ static int qede_selftest_transmit_traffic(struct qede_dev *edev,
 
 	/* update the first BD with the actual num BDs */
 	first_bd->data.nbds = 1;
-	txq->sw_tx_prod++;
+	txq->sw_tx_prod = (txq->sw_tx_prod + 1) % txq->num_tx_buffers;
 	/* 'next page' entries are counted in the producer value */
-	val = cpu_to_le16(qed_chain_get_prod_idx(&txq->tx_pbl));
-	txq->tx_db.data.bd_prod = val;
+	val = qed_chain_get_prod_idx(&txq->tx_pbl);
+	txq->tx_db.data.bd_prod = cpu_to_le16(val);
 
 	/* wmb makes sure that the BDs data is updated before updating the
 	 * producer, otherwise FW may read old data from the BDs.
@@ -1351,7 +1361,7 @@ static int qede_selftest_transmit_traffic(struct qede_dev *edev,
 	first_bd = (struct eth_tx_1st_bd *)qed_chain_consume(&txq->tx_pbl);
 	dma_unmap_single(&edev->pdev->dev, BD_UNMAP_ADDR(first_bd),
 			 BD_UNMAP_LEN(first_bd), DMA_TO_DEVICE);
-	txq->sw_tx_cons++;
+	txq->sw_tx_cons = (txq->sw_tx_cons + 1) % txq->num_tx_buffers;
 	txq->sw_tx_ring.skbs[idx].skb = NULL;
 
 	return 0;

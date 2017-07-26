@@ -364,8 +364,8 @@ afterMONR1:
 			WriteISAC(isac, ISAC_MOCR, isac->mocr);
 			if (isac->mon_txc && (isac->mon_txp >= isac->mon_txc)) {
 				if (isac->monitor)
-					ret = isac->monitor(isac->dch.hw,
-							    MONITOR_TX_0, NULL, 0);
+					isac->monitor(isac->dch.hw,
+						      MONITOR_TX_0, NULL, 0);
 			}
 			kfree(isac->mon_tx);
 			isac->mon_tx = NULL;
@@ -375,8 +375,8 @@ afterMONR1:
 		}
 		if (isac->mon_txc && (isac->mon_txp >= isac->mon_txc)) {
 			if (isac->monitor)
-				ret = isac->monitor(isac->dch.hw,
-						    MONITOR_TX_0, NULL, 0);
+				isac->monitor(isac->dch.hw,
+					      MONITOR_TX_0, NULL, 0);
 			kfree(isac->mon_tx);
 			isac->mon_tx = NULL;
 			isac->mon_txc = 0;
@@ -397,8 +397,8 @@ AfterMOX0:
 			WriteISAC(isac, ISAC_MOCR, isac->mocr);
 			if (isac->mon_txc && (isac->mon_txp >= isac->mon_txc)) {
 				if (isac->monitor)
-					ret = isac->monitor(isac->dch.hw,
-							    MONITOR_TX_1, NULL, 0);
+					isac->monitor(isac->dch.hw,
+						      MONITOR_TX_1, NULL, 0);
 			}
 			kfree(isac->mon_tx);
 			isac->mon_tx = NULL;
@@ -408,8 +408,8 @@ AfterMOX0:
 		}
 		if (isac->mon_txc && (isac->mon_txp >= isac->mon_txc)) {
 			if (isac->monitor)
-				ret = isac->monitor(isac->dch.hw,
-						    MONITOR_TX_1, NULL, 0);
+				isac->monitor(isac->dch.hw,
+					      MONITOR_TX_1, NULL, 0);
 			kfree(isac->mon_tx);
 			isac->mon_tx = NULL;
 			isac->mon_txc = 0;

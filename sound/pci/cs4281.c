@@ -1296,7 +1296,7 @@ static void snd_cs4281_free_gameport(struct cs4281 *chip)
 #else
 static inline int snd_cs4281_create_gameport(struct cs4281 *chip) { return -ENOSYS; }
 static inline void snd_cs4281_free_gameport(struct cs4281 *chip) { }
-#endif /* CONFIG_GAMEPORT || (MODULE && CONFIG_GAMEPORT_MODULE) */
+#endif /* IS_REACHABLE(CONFIG_GAMEPORT) */
 
 static int snd_cs4281_free(struct cs4281 *chip)
 {

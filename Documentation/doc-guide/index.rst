@@ -10,7 +10,6 @@ How to write kernel documentation
    sphinx.rst
    kernel-doc.rst
    parse-headers.rst
-   docbook.rst
 
 .. only::  subproject and html
 

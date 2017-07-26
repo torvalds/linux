@@ -153,10 +153,10 @@
 
 		timer {
 			compatible = "arm,armv7-timer";
-			interrupts = <1 13 0xf08>,
-				     <1 14 0xf08>,
-				     <1 11 0xf08>,
-				     <1 10 0xf08>;
+			interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+				     <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+				     <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+				     <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
 			/*
 			 * Unfortunately we need this since some versions
 			 * of U-Boot on Exynos don't set the CNTFRQ register,
@@ -687,6 +687,19 @@
 			clock-names = "hdmi", "sclk_hdmi", "sclk_pixel",
 					"sclk_hdmiphy", "mout_hdmi";
 			samsung,syscon-phandle = <&pmu_system_controller>;
+		};
+
+		hdmicec: cec@101B0000 {
+			compatible = "samsung,s5p-cec";
+			reg = <0x101B0000 0x200>;
+			interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clock CLK_HDMI_CEC>;
+			clock-names = "hdmicec";
+			samsung,syscon-phandle = <&pmu_system_controller>;
+			hdmi-phandle = <&hdmi>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&hdmi_cec>;
+			status = "disabled";
 		};
 
 		mixer@14450000 {

@@ -68,12 +68,25 @@ static inline struct page *dma_addr_to_page(struct device *dev,
  * systems and only the R10000 and R12000 are used in such systems, the
  * SGI IP28 Indigo² rsp. SGI IP32 aka O2.
  */
-static inline int cpu_needs_post_dma_flush(struct device *dev)
+static inline bool cpu_needs_post_dma_flush(struct device *dev)
 {
-	return !plat_device_is_coherent(dev) &&
-	       (boot_cpu_type() == CPU_R10000 ||
-		boot_cpu_type() == CPU_R12000 ||
-		boot_cpu_type() == CPU_BMIPS5000);
+	if (plat_device_is_coherent(dev))
+		return false;
+
+	switch (boot_cpu_type()) {
+	case CPU_R10000:
+	case CPU_R12000:
+	case CPU_BMIPS5000:
+		return true;
+
+	default:
+		/*
+		 * Presence of MAARs suggests that the CPU supports
+		 * speculatively prefetching data, and therefore requires
+		 * the post-DMA flush/invalidate.
+		 */
+		return cpu_has_maar;
+	}
 }
 
 static gfp_t massage_gfp_flags(const struct device *dev, gfp_t gfp)

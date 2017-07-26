@@ -1693,22 +1693,6 @@ static void _rtl92e_dm_check_edca_turbo(struct net_device *dev)
 	if (priv->rtllib->pHTInfo->IOTAction & HT_IOT_ACT_DISABLE_EDCA_TURBO)
 		goto dm_CheckEdcaTurbo_EXIT;
 
-	{
-		u8 *peername[11] = {
-			"unknown", "realtek_90", "realtek_92se", "broadcom",
-			"ralink", "atheros", "cisco", "marvell", "92u_softap",
-			"self_softap"
-		};
-		static int wb_tmp;
-
-		if (wb_tmp == 0) {
-			netdev_info(dev,
-				    "%s():iot peer is %s, bssid: %pM\n",
-				    __func__, peername[pHTInfo->IOTPeer],
-				    priv->rtllib->current_network.bssid);
-			wb_tmp = 1;
-		}
-	}
 	if (!priv->rtllib->bis_any_nonbepkts) {
 		curTxOkCnt = priv->stats.txbytesunicast - lastTxOkCnt;
 		curRxOkCnt = priv->stats.rxbytesunicast - lastRxOkCnt;

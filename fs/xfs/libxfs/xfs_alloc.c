@@ -606,7 +606,7 @@ const struct xfs_buf_ops xfs_agfl_buf_ops = {
 /*
  * Read in the allocation group free block array.
  */
-STATIC int				/* error */
+int					/* error */
 xfs_alloc_read_agfl(
 	xfs_mount_t	*mp,		/* mount point structure */
 	xfs_trans_t	*tp,		/* transaction pointer */
@@ -2454,8 +2454,7 @@ xfs_agf_read_verify(
 	    !xfs_buf_verify_cksum(bp, XFS_AGF_CRC_OFF))
 		xfs_buf_ioerror(bp, -EFSBADCRC);
 	else if (XFS_TEST_ERROR(!xfs_agf_verify(mp, bp), mp,
-				XFS_ERRTAG_ALLOC_READ_AGF,
-				XFS_RANDOM_ALLOC_READ_AGF))
+				XFS_ERRTAG_ALLOC_READ_AGF))
 		xfs_buf_ioerror(bp, -EFSCORRUPTED);
 
 	if (bp->b_error)
@@ -2842,8 +2841,7 @@ xfs_free_extent(
 	ASSERT(type != XFS_AG_RESV_AGFL);
 
 	if (XFS_TEST_ERROR(false, mp,
-			XFS_ERRTAG_FREE_EXTENT,
-			XFS_RANDOM_FREE_EXTENT))
+			XFS_ERRTAG_FREE_EXTENT))
 		return -EIO;
 
 	error = xfs_free_extent_fix_freelist(tp, agno, &agbp);

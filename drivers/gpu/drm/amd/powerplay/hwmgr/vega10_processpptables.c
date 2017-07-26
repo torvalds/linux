@@ -585,6 +585,7 @@ static int get_gfxclk_voltage_dependency_table(
 	uint32_t table_size, i;
 	struct phm_ppt_v1_clock_voltage_dependency_table
 				*clk_table;
+	ATOM_Vega10_GFXCLK_Dependency_Record_V2 *patom_record_v2;
 
 	PP_ASSERT_WITH_CODE((clk_dep_table->ucNumEntries != 0),
 			"Invalid PowerPlay Table!", return -1);
@@ -601,18 +602,41 @@ static int get_gfxclk_voltage_dependency_table(
 
 	clk_table->count = clk_dep_table->ucNumEntries;
 
-	for (i = 0; i < clk_table->count; i++) {
-		clk_table->entries[i].vddInd =
+	if (clk_dep_table->ucRevId == 0) {
+		for (i = 0; i < clk_table->count; i++) {
+			clk_table->entries[i].vddInd =
 				clk_dep_table->entries[i].ucVddInd;
-		clk_table->entries[i].clk =
+			clk_table->entries[i].clk =
 				le32_to_cpu(clk_dep_table->entries[i].ulClk);
-		clk_table->entries[i].cks_enable =
-				(((clk_dep_table->entries[i].usCKSVOffsetandDisable & 0x8000)
+			clk_table->entries[i].cks_enable =
+				(((le16_to_cpu(clk_dep_table->entries[i].usCKSVOffsetandDisable) & 0x8000)
 						>> 15) == 0) ? 1 : 0;
-		clk_table->entries[i].cks_voffset =
-				(clk_dep_table->entries[i].usCKSVOffsetandDisable & 0x7F);
-		clk_table->entries[i].sclk_offset =
-				clk_dep_table->entries[i].usAVFSOffset;
+			clk_table->entries[i].cks_voffset =
+				le16_to_cpu(clk_dep_table->entries[i].usCKSVOffsetandDisable) & 0x7F;
+			clk_table->entries[i].sclk_offset =
+				le16_to_cpu(clk_dep_table->entries[i].usAVFSOffset);
+		}
+	} else if (clk_dep_table->ucRevId == 1) {
+		patom_record_v2 = (ATOM_Vega10_GFXCLK_Dependency_Record_V2 *)clk_dep_table->entries;
+		for (i = 0; i < clk_table->count; i++) {
+			clk_table->entries[i].vddInd =
+					patom_record_v2->ucVddInd;
+			clk_table->entries[i].clk =
+					le32_to_cpu(patom_record_v2->ulClk);
+			clk_table->entries[i].cks_enable =
+					(((le16_to_cpu(patom_record_v2->usCKSVOffsetandDisable) & 0x8000)
+							>> 15) == 0) ? 1 : 0;
+			clk_table->entries[i].cks_voffset =
+					le16_to_cpu(patom_record_v2->usCKSVOffsetandDisable) & 0x7F;
+			clk_table->entries[i].sclk_offset =
+					le16_to_cpu(patom_record_v2->usAVFSOffset);
+			patom_record_v2++;
+		}
+	} else {
+		kfree(clk_table);
+		PP_ASSERT_WITH_CODE(false,
+			"Unsupported GFXClockDependencyTable Revision!",
+			return -EINVAL);
 	}
 
 	*pp_vega10_clk_dep_table = clk_table;

@@ -67,9 +67,6 @@ struct thread_struct {
 	.current_ds = KERNEL_DS, \
 }
 
-/* Return saved PC of a blocked thread. */
-unsigned long thread_saved_pc(struct task_struct *t);
-
 /* Do necessary setup to start up a newly executed thread. */
 static inline void start_thread(struct pt_regs * regs, unsigned long pc,
 				    unsigned long sp)

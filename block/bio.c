@@ -240,20 +240,18 @@ fallback:
 	return bvl;
 }
 
-static void __bio_free(struct bio *bio)
+void bio_uninit(struct bio *bio)
 {
 	bio_disassociate_task(bio);
-
-	if (bio_integrity(bio))
-		bio_integrity_free(bio);
 }
+EXPORT_SYMBOL(bio_uninit);
 
 static void bio_free(struct bio *bio)
 {
 	struct bio_set *bs = bio->bi_pool;
 	void *p;
 
-	__bio_free(bio);
+	bio_uninit(bio);
 
 	if (bs) {
 		bvec_free(bs->bvec_pool, bio->bi_io_vec, BVEC_POOL_IDX(bio));
@@ -271,6 +269,11 @@ static void bio_free(struct bio *bio)
 	}
 }
 
+/*
+ * Users of this function have their own bio allocation. Subsequently,
+ * they must remember to pair any call to bio_init() with bio_uninit()
+ * when IO has completed, or when the bio is released.
+ */
 void bio_init(struct bio *bio, struct bio_vec *table,
 	      unsigned short max_vecs)
 {
@@ -297,7 +300,7 @@ void bio_reset(struct bio *bio)
 {
 	unsigned long flags = bio->bi_flags & (~0UL << BIO_RESET_BITS);
 
-	__bio_free(bio);
+	bio_uninit(bio);
 
 	memset(bio, 0, BIO_RESET_BYTES);
 	bio->bi_flags = flags;
@@ -309,8 +312,8 @@ static struct bio *__bio_chain_endio(struct bio *bio)
 {
 	struct bio *parent = bio->bi_private;
 
-	if (!parent->bi_error)
-		parent->bi_error = bio->bi_error;
+	if (!parent->bi_status)
+		parent->bi_status = bio->bi_status;
 	bio_put(bio);
 	return parent;
 }
@@ -363,6 +366,8 @@ static void punt_bios_to_rescuer(struct bio_set *bs)
 	struct bio_list punt, nopunt;
 	struct bio *bio;
 
+	if (WARN_ON_ONCE(!bs->rescue_workqueue))
+		return;
 	/*
 	 * In order to guarantee forward progress we must punt only bios that
 	 * were allocated from this bio_set; otherwise, if there was a bio on
@@ -474,7 +479,8 @@ struct bio *bio_alloc_bioset(gfp_t gfp_mask, unsigned int nr_iovecs,
 
 		if (current->bio_list &&
 		    (!bio_list_empty(&current->bio_list[0]) ||
-		     !bio_list_empty(&current->bio_list[1])))
+		     !bio_list_empty(&current->bio_list[1])) &&
+		    bs->rescue_workqueue)
 			gfp_mask &= ~__GFP_DIRECT_RECLAIM;
 
 		p = mempool_alloc(bs->bio_pool, gfp_mask);
@@ -544,7 +550,7 @@ EXPORT_SYMBOL(zero_fill_bio);
  *
  * Description:
  *   Put a reference to a &struct bio, either one you have gotten with
- *   bio_alloc, bio_get or bio_clone. The last put of a bio will free it.
+ *   bio_alloc, bio_get or bio_clone_*. The last put of a bio will free it.
  **/
 void bio_put(struct bio *bio)
 {
@@ -593,6 +599,7 @@ void __bio_clone_fast(struct bio *bio, struct bio *bio_src)
 	bio->bi_bdev = bio_src->bi_bdev;
 	bio_set_flag(bio, BIO_CLONED);
 	bio->bi_opf = bio_src->bi_opf;
+	bio->bi_write_hint = bio_src->bi_write_hint;
 	bio->bi_iter = bio_src->bi_iter;
 	bio->bi_io_vec = bio_src->bi_io_vec;
 
@@ -676,6 +683,7 @@ struct bio *bio_clone_bioset(struct bio *bio_src, gfp_t gfp_mask,
 		return NULL;
 	bio->bi_bdev		= bio_src->bi_bdev;
 	bio->bi_opf		= bio_src->bi_opf;
+	bio->bi_write_hint	= bio_src->bi_write_hint;
 	bio->bi_iter.bi_sector	= bio_src->bi_iter.bi_sector;
 	bio->bi_iter.bi_size	= bio_src->bi_iter.bi_size;
 
@@ -918,7 +926,7 @@ static void submit_bio_wait_endio(struct bio *bio)
 {
 	struct submit_bio_ret *ret = bio->bi_private;
 
-	ret->error = bio->bi_error;
+	ret->error = blk_status_to_errno(bio->bi_status);
 	complete(&ret->event);
 }
 
@@ -1802,6 +1810,8 @@ void bio_endio(struct bio *bio)
 again:
 	if (!bio_remaining_done(bio))
 		return;
+	if (!bio_integrity_endio(bio))
+		return;
 
 	/*
 	 * Need to have a real endio function for chained bios, otherwise
@@ -1817,12 +1827,14 @@ again:
 	}
 
 	if (bio->bi_bdev && bio_flagged(bio, BIO_TRACE_COMPLETION)) {
-		trace_block_bio_complete(bdev_get_queue(bio->bi_bdev),
-					 bio, bio->bi_error);
+		trace_block_bio_complete(bdev_get_queue(bio->bi_bdev), bio,
+					 blk_status_to_errno(bio->bi_status));
 		bio_clear_flag(bio, BIO_TRACE_COMPLETION);
 	}
 
 	blk_throtl_bio_endio(bio);
+	/* release cgroup info */
+	bio_uninit(bio);
 	if (bio->bi_end_io)
 		bio->bi_end_io(bio);
 }
@@ -1857,7 +1869,7 @@ struct bio *bio_split(struct bio *bio, int sectors,
 	split->bi_iter.bi_size = sectors << 9;
 
 	if (bio_integrity(split))
-		bio_integrity_trim(split, 0, sectors);
+		bio_integrity_trim(split);
 
 	bio_advance(bio, split->bi_iter.bi_size);
 
@@ -1889,6 +1901,10 @@ void bio_trim(struct bio *bio, int offset, int size)
 	bio_advance(bio, offset << 9);
 
 	bio->bi_iter.bi_size = size;
+
+	if (bio_integrity(bio))
+		bio_integrity_trim(bio);
+
 }
 EXPORT_SYMBOL_GPL(bio_trim);
 
@@ -1921,9 +1937,29 @@ void bioset_free(struct bio_set *bs)
 }
 EXPORT_SYMBOL(bioset_free);
 
-static struct bio_set *__bioset_create(unsigned int pool_size,
-				       unsigned int front_pad,
-				       bool create_bvec_pool)
+/**
+ * bioset_create  - Create a bio_set
+ * @pool_size:	Number of bio and bio_vecs to cache in the mempool
+ * @front_pad:	Number of bytes to allocate in front of the returned bio
+ * @flags:	Flags to modify behavior, currently %BIOSET_NEED_BVECS
+ *              and %BIOSET_NEED_RESCUER
+ *
+ * Description:
+ *    Set up a bio_set to be used with @bio_alloc_bioset. Allows the caller
+ *    to ask for a number of bytes to be allocated in front of the bio.
+ *    Front pad allocation is useful for embedding the bio inside
+ *    another structure, to avoid allocating extra data to go with the bio.
+ *    Note that the bio must be embedded at the END of that structure always,
+ *    or things will break badly.
+ *    If %BIOSET_NEED_BVECS is set in @flags, a separate pool will be allocated
+ *    for allocating iovecs.  This pool is not needed e.g. for bio_clone_fast().
+ *    If %BIOSET_NEED_RESCUER is set, a workqueue is created which can be used to
+ *    dispatch queued requests when the mempool runs out of space.
+ *
+ */
+struct bio_set *bioset_create(unsigned int pool_size,
+			      unsigned int front_pad,
+			      int flags)
 {
 	unsigned int back_pad = BIO_INLINE_VECS * sizeof(struct bio_vec);
 	struct bio_set *bs;
@@ -1948,11 +1984,14 @@ static struct bio_set *__bioset_create(unsigned int pool_size,
 	if (!bs->bio_pool)
 		goto bad;
 
-	if (create_bvec_pool) {
+	if (flags & BIOSET_NEED_BVECS) {
 		bs->bvec_pool = biovec_create_pool(pool_size);
 		if (!bs->bvec_pool)
 			goto bad;
 	}
+
+	if (!(flags & BIOSET_NEED_RESCUER))
+		return bs;
 
 	bs->rescue_workqueue = alloc_workqueue("bioset", WQ_MEM_RECLAIM, 0);
 	if (!bs->rescue_workqueue)
@@ -1963,40 +2002,7 @@ bad:
 	bioset_free(bs);
 	return NULL;
 }
-
-/**
- * bioset_create  - Create a bio_set
- * @pool_size:	Number of bio and bio_vecs to cache in the mempool
- * @front_pad:	Number of bytes to allocate in front of the returned bio
- *
- * Description:
- *    Set up a bio_set to be used with @bio_alloc_bioset. Allows the caller
- *    to ask for a number of bytes to be allocated in front of the bio.
- *    Front pad allocation is useful for embedding the bio inside
- *    another structure, to avoid allocating extra data to go with the bio.
- *    Note that the bio must be embedded at the END of that structure always,
- *    or things will break badly.
- */
-struct bio_set *bioset_create(unsigned int pool_size, unsigned int front_pad)
-{
-	return __bioset_create(pool_size, front_pad, true);
-}
 EXPORT_SYMBOL(bioset_create);
-
-/**
- * bioset_create_nobvec  - Create a bio_set without bio_vec mempool
- * @pool_size:	Number of bio to cache in the mempool
- * @front_pad:	Number of bytes to allocate in front of the returned bio
- *
- * Description:
- *    Same functionality as bioset_create() except that mempool is not
- *    created for bio_vecs. Saving some memory for bio_clone_fast() users.
- */
-struct bio_set *bioset_create_nobvec(unsigned int pool_size, unsigned int front_pad)
-{
-	return __bioset_create(pool_size, front_pad, false);
-}
-EXPORT_SYMBOL(bioset_create_nobvec);
 
 #ifdef CONFIG_BLK_CGROUP
 
@@ -2112,7 +2118,7 @@ static int __init init_bio(void)
 	bio_integrity_init();
 	biovec_init_slabs();
 
-	fs_bio_set = bioset_create(BIO_POOL_SIZE, 0);
+	fs_bio_set = bioset_create(BIO_POOL_SIZE, 0, BIOSET_NEED_BVECS);
 	if (!fs_bio_set)
 		panic("bio: can't allocate bios\n");
 

@@ -930,7 +930,7 @@ static u32 mtk_dsi_recv_cnt(u8 type, u8 *read_data)
 		DRM_INFO("type is 0x02, try again\n");
 		break;
 	default:
-		DRM_INFO("type(0x%x) cannot be non-recognite\n", type);
+		DRM_INFO("type(0x%x) not recognized\n", type);
 		break;
 	}
 

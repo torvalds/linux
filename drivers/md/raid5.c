@@ -2476,7 +2476,7 @@ static void raid5_end_read_request(struct bio * bi)
 
 	pr_debug("end_read_request %llu/%d, count: %d, error %d.\n",
 		(unsigned long long)sh->sector, i, atomic_read(&sh->count),
-		bi->bi_error);
+		bi->bi_status);
 	if (i == disks) {
 		bio_reset(bi);
 		BUG();
@@ -2496,7 +2496,7 @@ static void raid5_end_read_request(struct bio * bi)
 		s = sh->sector + rdev->new_data_offset;
 	else
 		s = sh->sector + rdev->data_offset;
-	if (!bi->bi_error) {
+	if (!bi->bi_status) {
 		set_bit(R5_UPTODATE, &sh->dev[i].flags);
 		if (test_bit(R5_ReadError, &sh->dev[i].flags)) {
 			/* Note that this cannot happen on a
@@ -2613,7 +2613,7 @@ static void raid5_end_write_request(struct bio *bi)
 	}
 	pr_debug("end_write_request %llu/%d, count %d, error: %d.\n",
 		(unsigned long long)sh->sector, i, atomic_read(&sh->count),
-		bi->bi_error);
+		bi->bi_status);
 	if (i == disks) {
 		bio_reset(bi);
 		BUG();
@@ -2621,14 +2621,14 @@ static void raid5_end_write_request(struct bio *bi)
 	}
 
 	if (replacement) {
-		if (bi->bi_error)
+		if (bi->bi_status)
 			md_error(conf->mddev, rdev);
 		else if (is_badblock(rdev, sh->sector,
 				     STRIPE_SECTORS,
 				     &first_bad, &bad_sectors))
 			set_bit(R5_MadeGoodRepl, &sh->dev[i].flags);
 	} else {
-		if (bi->bi_error) {
+		if (bi->bi_status) {
 			set_bit(STRIPE_DEGRADED, &sh->state);
 			set_bit(WriteErrorSeen, &rdev->flags);
 			set_bit(R5_WriteError, &sh->dev[i].flags);
@@ -2649,7 +2649,7 @@ static void raid5_end_write_request(struct bio *bi)
 	}
 	rdev_dec_pending(rdev, conf->mddev);
 
-	if (sh->batch_head && bi->bi_error && !replacement)
+	if (sh->batch_head && bi->bi_status && !replacement)
 		set_bit(STRIPE_BATCH_ERR, &sh->batch_head->state);
 
 	bio_reset(bi);
@@ -3381,7 +3381,7 @@ handle_failed_stripe(struct r5conf *conf, struct stripe_head *sh,
 			sh->dev[i].sector + STRIPE_SECTORS) {
 			struct bio *nextbi = r5_next_bio(bi, sh->dev[i].sector);
 
-			bi->bi_error = -EIO;
+			bi->bi_status = BLK_STS_IOERR;
 			md_write_end(conf->mddev);
 			bio_endio(bi);
 			bi = nextbi;
@@ -3403,7 +3403,7 @@ handle_failed_stripe(struct r5conf *conf, struct stripe_head *sh,
 		       sh->dev[i].sector + STRIPE_SECTORS) {
 			struct bio *bi2 = r5_next_bio(bi, sh->dev[i].sector);
 
-			bi->bi_error = -EIO;
+			bi->bi_status = BLK_STS_IOERR;
 			md_write_end(conf->mddev);
 			bio_endio(bi);
 			bi = bi2;
@@ -3429,7 +3429,7 @@ handle_failed_stripe(struct r5conf *conf, struct stripe_head *sh,
 				struct bio *nextbi =
 					r5_next_bio(bi, sh->dev[i].sector);
 
-				bi->bi_error = -EIO;
+				bi->bi_status = BLK_STS_IOERR;
 				bio_endio(bi);
 				bi = nextbi;
 			}
@@ -5154,7 +5154,7 @@ static void raid5_align_endio(struct bio *bi)
 	struct mddev *mddev;
 	struct r5conf *conf;
 	struct md_rdev *rdev;
-	int error = bi->bi_error;
+	blk_status_t error = bi->bi_status;
 
 	bio_put(bi);
 
@@ -5479,7 +5479,6 @@ static void make_discard_request(struct mddev *mddev, struct bio *bi)
 	last_sector = bi->bi_iter.bi_sector + (bi->bi_iter.bi_size>>9);
 
 	bi->bi_next = NULL;
-	md_write_start(mddev, bi);
 
 	stripe_sectors = conf->chunk_sectors *
 		(conf->raid_disks - conf->max_degraded);
@@ -5549,11 +5548,10 @@ static void make_discard_request(struct mddev *mddev, struct bio *bi)
 		release_stripe_plug(mddev, sh);
 	}
 
-	md_write_end(mddev);
 	bio_endio(bi);
 }
 
-static void raid5_make_request(struct mddev *mddev, struct bio * bi)
+static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 {
 	struct r5conf *conf = mddev->private;
 	int dd_idx;
@@ -5569,10 +5567,10 @@ static void raid5_make_request(struct mddev *mddev, struct bio * bi)
 		int ret = r5l_handle_flush_request(conf->log, bi);
 
 		if (ret == 0)
-			return;
+			return true;
 		if (ret == -ENODEV) {
 			md_flush_request(mddev, bi);
-			return;
+			return true;
 		}
 		/* ret == -EAGAIN, fallback */
 		/*
@@ -5582,6 +5580,8 @@ static void raid5_make_request(struct mddev *mddev, struct bio * bi)
 		do_flush = bi->bi_opf & REQ_PREFLUSH;
 	}
 
+	if (!md_write_start(mddev, bi))
+		return false;
 	/*
 	 * If array is degraded, better not do chunk aligned read because
 	 * later we might have to read it again in order to reconstruct
@@ -5591,18 +5591,18 @@ static void raid5_make_request(struct mddev *mddev, struct bio * bi)
 	    mddev->reshape_position == MaxSector) {
 		bi = chunk_aligned_read(mddev, bi);
 		if (!bi)
-			return;
+			return true;
 	}
 
 	if (unlikely(bio_op(bi) == REQ_OP_DISCARD)) {
 		make_discard_request(mddev, bi);
-		return;
+		md_write_end(mddev);
+		return true;
 	}
 
 	logical_sector = bi->bi_iter.bi_sector & ~((sector_t)STRIPE_SECTORS-1);
 	last_sector = bio_end_sector(bi);
 	bi->bi_next = NULL;
-	md_write_start(mddev, bi);
 
 	prepare_to_wait(&conf->wait_for_overlap, &w, TASK_UNINTERRUPTIBLE);
 	for (;logical_sector < last_sector; logical_sector += STRIPE_SECTORS) {
@@ -5693,12 +5693,15 @@ static void raid5_make_request(struct mddev *mddev, struct bio * bi)
 				 * userspace, we want an interruptible
 				 * wait.
 				 */
-				flush_signals(current);
 				prepare_to_wait(&conf->wait_for_overlap,
 						&w, TASK_INTERRUPTIBLE);
 				if (logical_sector >= mddev->suspend_lo &&
 				    logical_sector < mddev->suspend_hi) {
+					sigset_t full, old;
+					sigfillset(&full);
+					sigprocmask(SIG_BLOCK, &full, &old);
 					schedule();
+					sigprocmask(SIG_SETMASK, &old, NULL);
 					do_prepare = true;
 				}
 				goto retry;
@@ -5731,7 +5734,7 @@ static void raid5_make_request(struct mddev *mddev, struct bio * bi)
 			release_stripe_plug(mddev, sh);
 		} else {
 			/* cannot get stripe for read-ahead, just give-up */
-			bi->bi_error = -EIO;
+			bi->bi_status = BLK_STS_IOERR;
 			break;
 		}
 	}
@@ -5740,6 +5743,7 @@ static void raid5_make_request(struct mddev *mddev, struct bio * bi)
 	if (rw == WRITE)
 		md_write_end(mddev);
 	bio_endio(bi);
+	return true;
 }
 
 static sector_t raid5_size(struct mddev *mddev, sector_t sectors, int raid_disks);
@@ -6943,7 +6947,7 @@ static struct r5conf *setup_conf(struct mddev *mddev)
 			goto abort;
 	}
 
-	conf->bio_split = bioset_create(BIO_POOL_SIZE, 0);
+	conf->bio_split = bioset_create(BIO_POOL_SIZE, 0, 0);
 	if (!conf->bio_split)
 		goto abort;
 	conf->mddev = mddev;

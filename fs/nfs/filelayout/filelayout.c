@@ -126,32 +126,13 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 {
 	struct pnfs_layout_hdr *lo = lseg->pls_layout;
 	struct inode *inode = lo->plh_inode;
-	struct nfs_server *mds_server = NFS_SERVER(inode);
 	struct nfs4_deviceid_node *devid = FILELAYOUT_DEVID_NODE(lseg);
-	struct nfs_client *mds_client = mds_server->nfs_client;
 	struct nfs4_slot_table *tbl = &clp->cl_session->fc_slot_table;
 
 	if (task->tk_status >= 0)
 		return 0;
 
 	switch (task->tk_status) {
-	/* MDS state errors */
-	case -NFS4ERR_DELEG_REVOKED:
-	case -NFS4ERR_ADMIN_REVOKED:
-	case -NFS4ERR_BAD_STATEID:
-	case -NFS4ERR_OPENMODE:
-		if (state == NULL)
-			break;
-		if (nfs4_schedule_stateid_recovery(mds_server, state) < 0)
-			goto out_bad_stateid;
-		goto wait_on_recovery;
-	case -NFS4ERR_EXPIRED:
-		if (state != NULL) {
-			if (nfs4_schedule_stateid_recovery(mds_server, state) < 0)
-				goto out_bad_stateid;
-		}
-		nfs4_schedule_lease_recovery(mds_client);
-		goto wait_on_recovery;
 	/* DS session errors */
 	case -NFS4ERR_BADSESSION:
 	case -NFS4ERR_BADSLOT:
@@ -172,6 +153,7 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 	case -NFS4ERR_RETRY_UNCACHED_REP:
 		break;
 	/* Invalidate Layout errors */
+	case -NFS4ERR_ACCESS:
 	case -NFS4ERR_PNFS_NO_LAYOUT:
 	case -ESTALE:           /* mapped NFS4ERR_STALE */
 	case -EBADHANDLE:       /* mapped NFS4ERR_BADHANDLE */
@@ -202,26 +184,17 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 			task->tk_status);
 		nfs4_mark_deviceid_unavailable(devid);
 		pnfs_error_mark_layout_for_return(inode, lseg);
+		pnfs_set_lo_fail(lseg);
 		rpc_wake_up(&tbl->slot_tbl_waitq);
 		/* fall through */
 	default:
-		pnfs_set_lo_fail(lseg);
 reset:
 		dprintk("%s Retry through MDS. Error %d\n", __func__,
 			task->tk_status);
 		return -NFS4ERR_RESET_TO_MDS;
 	}
-out:
 	task->tk_status = 0;
 	return -EAGAIN;
-out_bad_stateid:
-	task->tk_status = -EIO;
-	return 0;
-wait_on_recovery:
-	rpc_sleep_on(&mds_client->cl_rpcwaitq, task, NULL);
-	if (test_bit(NFS4CLNT_MANAGER_RUNNING, &mds_client->cl_state) == 0)
-		rpc_wake_up_queued_task(&mds_client->cl_rpcwaitq, task);
-	goto out;
 }
 
 /* NFS_PROTO call done callback routines */

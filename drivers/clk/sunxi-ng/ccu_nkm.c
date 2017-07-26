@@ -102,7 +102,8 @@ static unsigned long ccu_nkm_recalc_rate(struct clk_hw *hw,
 }
 
 static unsigned long ccu_nkm_round_rate(struct ccu_mux_internal *mux,
-					unsigned long parent_rate,
+					struct clk_hw *hw,
+					unsigned long *parent_rate,
 					unsigned long rate,
 					void *data)
 {
@@ -116,9 +117,9 @@ static unsigned long ccu_nkm_round_rate(struct ccu_mux_internal *mux,
 	_nkm.min_m = 1;
 	_nkm.max_m = nkm->m.max ?: 1 << nkm->m.width;
 
-	ccu_nkm_find_best(parent_rate, rate, &_nkm);
+	ccu_nkm_find_best(*parent_rate, rate, &_nkm);
 
-	return parent_rate * _nkm.n * _nkm.k / _nkm.m;
+	return *parent_rate * _nkm.n * _nkm.k / _nkm.m;
 }
 
 static int ccu_nkm_determine_rate(struct clk_hw *hw,

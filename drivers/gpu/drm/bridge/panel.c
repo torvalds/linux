@@ -160,7 +160,7 @@ struct drm_bridge *drm_panel_bridge_add(struct drm_panel *panel,
 	struct panel_bridge *panel_bridge;
 
 	if (!panel)
-		return ERR_PTR(EINVAL);
+		return ERR_PTR(-EINVAL);
 
 	panel_bridge = devm_kzalloc(panel->dev, sizeof(*panel_bridge),
 				    GFP_KERNEL);

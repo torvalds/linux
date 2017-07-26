@@ -27,7 +27,8 @@
 static ssize_t
 name_show(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%s\n", to_rtc_device(dev)->name);
+	return sprintf(buf, "%s %s\n", dev_driver_string(dev->parent),
+		       dev_name(dev->parent));
 }
 static DEVICE_ATTR_RO(name);
 

@@ -684,6 +684,54 @@ errout:
 	return err;
 }
 
+static int nla_get_via(const struct nlattr *nla, u8 *via_alen, u8 *via_table,
+		       u8 via_addr[], struct netlink_ext_ack *extack)
+{
+	struct rtvia *via = nla_data(nla);
+	int err = -EINVAL;
+	int alen;
+
+	if (nla_len(nla) < offsetof(struct rtvia, rtvia_addr)) {
+		NL_SET_ERR_MSG_ATTR(extack, nla,
+				    "Invalid attribute length for RTA_VIA");
+		goto errout;
+	}
+	alen = nla_len(nla) -
+			offsetof(struct rtvia, rtvia_addr);
+	if (alen > MAX_VIA_ALEN) {
+		NL_SET_ERR_MSG_ATTR(extack, nla,
+				    "Invalid address length for RTA_VIA");
+		goto errout;
+	}
+
+	/* Validate the address family */
+	switch (via->rtvia_family) {
+	case AF_PACKET:
+		*via_table = NEIGH_LINK_TABLE;
+		break;
+	case AF_INET:
+		*via_table = NEIGH_ARP_TABLE;
+		if (alen != 4)
+			goto errout;
+		break;
+	case AF_INET6:
+		*via_table = NEIGH_ND_TABLE;
+		if (alen != 16)
+			goto errout;
+		break;
+	default:
+		/* Unsupported address family */
+		goto errout;
+	}
+
+	memcpy(via_addr, via->rtvia_addr, alen);
+	*via_alen = alen;
+	err = 0;
+
+errout:
+	return err;
+}
+
 static int mpls_nh_build_from_cfg(struct mpls_route_config *cfg,
 				  struct mpls_route *rt)
 {
@@ -694,8 +742,6 @@ static int mpls_nh_build_from_cfg(struct mpls_route_config *cfg,
 
 	if (!nh)
 		return -ENOMEM;
-
-	err = -EINVAL;
 
 	nh->nh_labels = cfg->rc_output_labels;
 	for (i = 0; i < nh->nh_labels; i++)
@@ -720,7 +766,8 @@ errout:
 
 static int mpls_nh_build(struct net *net, struct mpls_route *rt,
 			 struct mpls_nh *nh, int oif, struct nlattr *via,
-			 struct nlattr *newdst, u8 max_labels)
+			 struct nlattr *newdst, u8 max_labels,
+			 struct netlink_ext_ack *extack)
 {
 	int err = -ENOMEM;
 
@@ -728,15 +775,15 @@ static int mpls_nh_build(struct net *net, struct mpls_route *rt,
 		goto errout;
 
 	if (newdst) {
-		err = nla_get_labels(newdst, max_labels,
-				     &nh->nh_labels, nh->nh_label);
+		err = nla_get_labels(newdst, max_labels, &nh->nh_labels,
+				     nh->nh_label, extack);
 		if (err)
 			goto errout;
 	}
 
 	if (via) {
 		err = nla_get_via(via, &nh->nh_via_alen, &nh->nh_via_table,
-				  __mpls_nh_via(rt, nh));
+				  __mpls_nh_via(rt, nh), extack);
 		if (err)
 			goto errout;
 	} else {
@@ -782,7 +829,8 @@ static u8 mpls_count_nexthops(struct rtnexthop *rtnh, int len,
 
 		nla = nla_find(attrs, attrlen, RTA_NEWDST);
 		if (nla &&
-		    nla_get_labels(nla, MAX_NEW_LABELS, &n_labels, NULL) != 0)
+		    nla_get_labels(nla, MAX_NEW_LABELS, &n_labels,
+				   NULL, NULL) != 0)
 			return 0;
 
 		*max_labels = max_t(u8, *max_labels, n_labels);
@@ -802,7 +850,8 @@ static u8 mpls_count_nexthops(struct rtnexthop *rtnh, int len,
 }
 
 static int mpls_nh_build_multi(struct mpls_route_config *cfg,
-			       struct mpls_route *rt, u8 max_labels)
+			       struct mpls_route *rt, u8 max_labels,
+			       struct netlink_ext_ack *extack)
 {
 	struct rtnexthop *rtnh = cfg->rc_mp;
 	struct nlattr *nla_via, *nla_newdst;
@@ -836,7 +885,7 @@ static int mpls_nh_build_multi(struct mpls_route_config *cfg,
 
 		err = mpls_nh_build(cfg->rc_nlinfo.nl_net, rt, nh,
 				    rtnh->rtnh_ifindex, nla_via, nla_newdst,
-				    max_labels);
+				    max_labels, extack);
 		if (err)
 			goto errout;
 
@@ -855,7 +904,28 @@ errout:
 	return err;
 }
 
-static int mpls_route_add(struct mpls_route_config *cfg)
+static bool mpls_label_ok(struct net *net, unsigned int index,
+			  struct netlink_ext_ack *extack)
+{
+	/* Reserved labels may not be set */
+	if (index < MPLS_LABEL_FIRST_UNRESERVED) {
+		NL_SET_ERR_MSG(extack,
+			       "Invalid label - must be MPLS_LABEL_FIRST_UNRESERVED or higher");
+		return false;
+	}
+
+	/* The full 20 bit range may not be supported. */
+	if (index >= net->mpls.platform_labels) {
+		NL_SET_ERR_MSG(extack,
+			       "Label >= configured maximum in platform_labels");
+		return false;
+	}
+
+	return true;
+}
+
+static int mpls_route_add(struct mpls_route_config *cfg,
+			  struct netlink_ext_ack *extack)
 {
 	struct mpls_route __rcu **platform_label;
 	struct net *net = cfg->rc_nlinfo.nl_net;
@@ -874,18 +944,15 @@ static int mpls_route_add(struct mpls_route_config *cfg)
 		index = find_free_label(net);
 	}
 
-	/* Reserved labels may not be set */
-	if (index < MPLS_LABEL_FIRST_UNRESERVED)
-		goto errout;
-
-	/* The full 20 bit range may not be supported. */
-	if (index >= net->mpls.platform_labels)
+	if (!mpls_label_ok(net, index, extack))
 		goto errout;
 
 	/* Append makes no sense with mpls */
 	err = -EOPNOTSUPP;
-	if (cfg->rc_nlflags & NLM_F_APPEND)
+	if (cfg->rc_nlflags & NLM_F_APPEND) {
+		NL_SET_ERR_MSG(extack, "MPLS does not support route append");
 		goto errout;
+	}
 
 	err = -EEXIST;
 	platform_label = rtnl_dereference(net->mpls.platform_label);
@@ -912,8 +979,10 @@ static int mpls_route_add(struct mpls_route_config *cfg)
 		nhs = 1;
 	}
 
-	if (nhs == 0)
+	if (nhs == 0) {
+		NL_SET_ERR_MSG(extack, "Route does not contain a nexthop");
 		goto errout;
+	}
 
 	err = -ENOMEM;
 	rt = mpls_rt_alloc(nhs, max_via_alen, max_labels);
@@ -927,7 +996,7 @@ static int mpls_route_add(struct mpls_route_config *cfg)
 	rt->rt_ttl_propagate = cfg->rc_ttl_propagate;
 
 	if (cfg->rc_mp)
-		err = mpls_nh_build_multi(cfg, rt, max_labels);
+		err = mpls_nh_build_multi(cfg, rt, max_labels, extack);
 	else
 		err = mpls_nh_build_from_cfg(cfg, rt);
 	if (err)
@@ -943,7 +1012,8 @@ errout:
 	return err;
 }
 
-static int mpls_route_del(struct mpls_route_config *cfg)
+static int mpls_route_del(struct mpls_route_config *cfg,
+			  struct netlink_ext_ack *extack)
 {
 	struct net *net = cfg->rc_nlinfo.nl_net;
 	unsigned index;
@@ -951,12 +1021,7 @@ static int mpls_route_del(struct mpls_route_config *cfg)
 
 	index = cfg->rc_label;
 
-	/* Reserved labels may not be removed */
-	if (index < MPLS_LABEL_FIRST_UNRESERVED)
-		goto errout;
-
-	/* The full 20 bit range may not be supported */
-	if (index >= net->mpls.platform_labels)
+	if (!mpls_label_ok(net, index, extack))
 		goto errout;
 
 	mpls_route_update(net, index, NULL, &cfg->rc_nlinfo);
@@ -1541,8 +1606,8 @@ int nla_put_labels(struct sk_buff *skb, int attrtype,
 }
 EXPORT_SYMBOL_GPL(nla_put_labels);
 
-int nla_get_labels(const struct nlattr *nla,
-		   u8 max_labels, u8 *labels, u32 label[])
+int nla_get_labels(const struct nlattr *nla, u8 max_labels, u8 *labels,
+		   u32 label[], struct netlink_ext_ack *extack)
 {
 	unsigned len = nla_len(nla);
 	struct mpls_shim_hdr *nla_label;
@@ -1553,13 +1618,18 @@ int nla_get_labels(const struct nlattr *nla,
 	/* len needs to be an even multiple of 4 (the label size). Number
 	 * of labels is a u8 so check for overflow.
 	 */
-	if (len & 3 || len / 4 > 255)
+	if (len & 3 || len / 4 > 255) {
+		NL_SET_ERR_MSG_ATTR(extack, nla,
+				    "Invalid length for labels attribute");
 		return -EINVAL;
+	}
 
 	/* Limit the number of new labels allowed */
 	nla_labels = len/4;
-	if (nla_labels > max_labels)
+	if (nla_labels > max_labels) {
+		NL_SET_ERR_MSG(extack, "Too many labels");
 		return -EINVAL;
+	}
 
 	/* when label == NULL, caller wants number of labels */
 	if (!label)
@@ -1574,8 +1644,29 @@ int nla_get_labels(const struct nlattr *nla,
 		/* Ensure the bottom of stack flag is properly set
 		 * and ttl and tc are both clear.
 		 */
-		if ((dec.bos != bos) || dec.ttl || dec.tc)
+		if (dec.ttl) {
+			NL_SET_ERR_MSG_ATTR(extack, nla,
+					    "TTL in label must be 0");
 			return -EINVAL;
+		}
+
+		if (dec.tc) {
+			NL_SET_ERR_MSG_ATTR(extack, nla,
+					    "Traffic class in label must be 0");
+			return -EINVAL;
+		}
+
+		if (dec.bos != bos) {
+			NL_SET_BAD_ATTR(extack, nla);
+			if (bos) {
+				NL_SET_ERR_MSG(extack,
+					       "BOS bit must be set in first label");
+			} else {
+				NL_SET_ERR_MSG(extack,
+					       "BOS bit can only be set in first label");
+			}
+			return -EINVAL;
+		}
 
 		switch (dec.label) {
 		case MPLS_LABEL_IMPLNULL:
@@ -1583,6 +1674,8 @@ int nla_get_labels(const struct nlattr *nla,
 			 * assign and distribute, but which never
 			 * actually appears in the encapsulation.
 			 */
+			NL_SET_ERR_MSG_ATTR(extack, nla,
+					    "Implicit NULL Label (3) can not be used in encapsulation");
 			return -EINVAL;
 		}
 
@@ -1594,50 +1687,10 @@ out:
 }
 EXPORT_SYMBOL_GPL(nla_get_labels);
 
-int nla_get_via(const struct nlattr *nla, u8 *via_alen,
-		u8 *via_table, u8 via_addr[])
-{
-	struct rtvia *via = nla_data(nla);
-	int err = -EINVAL;
-	int alen;
-
-	if (nla_len(nla) < offsetof(struct rtvia, rtvia_addr))
-		goto errout;
-	alen = nla_len(nla) -
-			offsetof(struct rtvia, rtvia_addr);
-	if (alen > MAX_VIA_ALEN)
-		goto errout;
-
-	/* Validate the address family */
-	switch (via->rtvia_family) {
-	case AF_PACKET:
-		*via_table = NEIGH_LINK_TABLE;
-		break;
-	case AF_INET:
-		*via_table = NEIGH_ARP_TABLE;
-		if (alen != 4)
-			goto errout;
-		break;
-	case AF_INET6:
-		*via_table = NEIGH_ND_TABLE;
-		if (alen != 16)
-			goto errout;
-		break;
-	default:
-		/* Unsupported address family */
-		goto errout;
-	}
-
-	memcpy(via_addr, via->rtvia_addr, alen);
-	*via_alen = alen;
-	err = 0;
-
-errout:
-	return err;
-}
-
-static int rtm_to_route_config(struct sk_buff *skb,  struct nlmsghdr *nlh,
-			       struct mpls_route_config *cfg)
+static int rtm_to_route_config(struct sk_buff *skb,
+			       struct nlmsghdr *nlh,
+			       struct mpls_route_config *cfg,
+			       struct netlink_ext_ack *extack)
 {
 	struct rtmsg *rtm;
 	struct nlattr *tb[RTA_MAX+1];
@@ -1645,35 +1698,54 @@ static int rtm_to_route_config(struct sk_buff *skb,  struct nlmsghdr *nlh,
 	int err;
 
 	err = nlmsg_parse(nlh, sizeof(*rtm), tb, RTA_MAX, rtm_mpls_policy,
-			  NULL);
+			  extack);
 	if (err < 0)
 		goto errout;
 
 	err = -EINVAL;
 	rtm = nlmsg_data(nlh);
 
-	if (rtm->rtm_family != AF_MPLS)
+	if (rtm->rtm_family != AF_MPLS) {
+		NL_SET_ERR_MSG(extack, "Invalid address family in rtmsg");
 		goto errout;
-	if (rtm->rtm_dst_len != 20)
+	}
+	if (rtm->rtm_dst_len != 20) {
+		NL_SET_ERR_MSG(extack, "rtm_dst_len must be 20 for MPLS");
 		goto errout;
-	if (rtm->rtm_src_len != 0)
+	}
+	if (rtm->rtm_src_len != 0) {
+		NL_SET_ERR_MSG(extack, "rtm_src_len must be 0 for MPLS");
 		goto errout;
-	if (rtm->rtm_tos != 0)
+	}
+	if (rtm->rtm_tos != 0) {
+		NL_SET_ERR_MSG(extack, "rtm_tos must be 0 for MPLS");
 		goto errout;
-	if (rtm->rtm_table != RT_TABLE_MAIN)
+	}
+	if (rtm->rtm_table != RT_TABLE_MAIN) {
+		NL_SET_ERR_MSG(extack,
+			       "MPLS only supports the main route table");
 		goto errout;
+	}
 	/* Any value is acceptable for rtm_protocol */
 
 	/* As mpls uses destination specific addresses
 	 * (or source specific address in the case of multicast)
 	 * all addresses have universal scope.
 	 */
-	if (rtm->rtm_scope != RT_SCOPE_UNIVERSE)
+	if (rtm->rtm_scope != RT_SCOPE_UNIVERSE) {
+		NL_SET_ERR_MSG(extack,
+			       "Invalid route scope  - MPLS only supports UNIVERSE");
 		goto errout;
-	if (rtm->rtm_type != RTN_UNICAST)
+	}
+	if (rtm->rtm_type != RTN_UNICAST) {
+		NL_SET_ERR_MSG(extack,
+			       "Invalid route type - MPLS only supports UNICAST");
 		goto errout;
-	if (rtm->rtm_flags != 0)
+	}
+	if (rtm->rtm_flags != 0) {
+		NL_SET_ERR_MSG(extack, "rtm_flags must be 0 for MPLS");
 		goto errout;
+	}
 
 	cfg->rc_label		= LABEL_NOT_SPECIFIED;
 	cfg->rc_protocol	= rtm->rtm_protocol;
@@ -1696,26 +1768,26 @@ static int rtm_to_route_config(struct sk_buff *skb,  struct nlmsghdr *nlh,
 		case RTA_NEWDST:
 			if (nla_get_labels(nla, MAX_NEW_LABELS,
 					   &cfg->rc_output_labels,
-					   cfg->rc_output_label))
+					   cfg->rc_output_label, extack))
 				goto errout;
 			break;
 		case RTA_DST:
 		{
 			u8 label_count;
 			if (nla_get_labels(nla, 1, &label_count,
-					   &cfg->rc_label))
+					   &cfg->rc_label, extack))
 				goto errout;
 
-			/* Reserved labels may not be set */
-			if (cfg->rc_label < MPLS_LABEL_FIRST_UNRESERVED)
+			if (!mpls_label_ok(cfg->rc_nlinfo.nl_net,
+					   cfg->rc_label, extack))
 				goto errout;
-
 			break;
 		}
 		case RTA_VIA:
 		{
 			if (nla_get_via(nla, &cfg->rc_via_alen,
-					&cfg->rc_via_table, cfg->rc_via))
+					&cfg->rc_via_table, cfg->rc_via,
+					extack))
 				goto errout;
 			break;
 		}
@@ -1729,14 +1801,18 @@ static int rtm_to_route_config(struct sk_buff *skb,  struct nlmsghdr *nlh,
 		{
 			u8 ttl_propagate = nla_get_u8(nla);
 
-			if (ttl_propagate > 1)
+			if (ttl_propagate > 1) {
+				NL_SET_ERR_MSG_ATTR(extack, nla,
+						    "RTA_TTL_PROPAGATE can only be 0 or 1");
 				goto errout;
+			}
 			cfg->rc_ttl_propagate = ttl_propagate ?
 				MPLS_TTL_PROP_ENABLED :
 				MPLS_TTL_PROP_DISABLED;
 			break;
 		}
 		default:
+			NL_SET_ERR_MSG_ATTR(extack, nla, "Unknown attribute");
 			/* Unsupported attribute */
 			goto errout;
 		}
@@ -1757,11 +1833,11 @@ static int mpls_rtm_delroute(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (!cfg)
 		return -ENOMEM;
 
-	err = rtm_to_route_config(skb, nlh, cfg);
+	err = rtm_to_route_config(skb, nlh, cfg, extack);
 	if (err < 0)
 		goto out;
 
-	err = mpls_route_del(cfg);
+	err = mpls_route_del(cfg, extack);
 out:
 	kfree(cfg);
 
@@ -1779,11 +1855,11 @@ static int mpls_rtm_newroute(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (!cfg)
 		return -ENOMEM;
 
-	err = rtm_to_route_config(skb, nlh, cfg);
+	err = rtm_to_route_config(skb, nlh, cfg, extack);
 	if (err < 0)
 		goto out;
 
-	err = mpls_route_add(cfg);
+	err = mpls_route_add(cfg, extack);
 out:
 	kfree(cfg);
 
@@ -1993,6 +2069,170 @@ static void rtmsg_lfib(int event, u32 label, struct mpls_route *rt,
 errout:
 	if (err < 0)
 		rtnl_set_sk_err(net, RTNLGRP_MPLS_ROUTE, err);
+}
+
+static int mpls_getroute(struct sk_buff *in_skb, struct nlmsghdr *in_nlh,
+			 struct netlink_ext_ack *extack)
+{
+	struct net *net = sock_net(in_skb->sk);
+	u32 portid = NETLINK_CB(in_skb).portid;
+	u32 in_label = LABEL_NOT_SPECIFIED;
+	struct nlattr *tb[RTA_MAX + 1];
+	u32 labels[MAX_NEW_LABELS];
+	struct mpls_shim_hdr *hdr;
+	unsigned int hdr_size = 0;
+	struct net_device *dev;
+	struct mpls_route *rt;
+	struct rtmsg *rtm, *r;
+	struct nlmsghdr *nlh;
+	struct sk_buff *skb;
+	struct mpls_nh *nh;
+	u8 n_labels;
+	int err;
+
+	err = nlmsg_parse(in_nlh, sizeof(*rtm), tb, RTA_MAX,
+			  rtm_mpls_policy, extack);
+	if (err < 0)
+		goto errout;
+
+	rtm = nlmsg_data(in_nlh);
+
+	if (tb[RTA_DST]) {
+		u8 label_count;
+
+		if (nla_get_labels(tb[RTA_DST], 1, &label_count,
+				   &in_label, extack)) {
+			err = -EINVAL;
+			goto errout;
+		}
+
+		if (!mpls_label_ok(net, in_label, extack)) {
+			err = -EINVAL;
+			goto errout;
+		}
+	}
+
+	rt = mpls_route_input_rcu(net, in_label);
+	if (!rt) {
+		err = -ENETUNREACH;
+		goto errout;
+	}
+
+	if (rtm->rtm_flags & RTM_F_FIB_MATCH) {
+		skb = nlmsg_new(lfib_nlmsg_size(rt), GFP_KERNEL);
+		if (!skb) {
+			err = -ENOBUFS;
+			goto errout;
+		}
+
+		err = mpls_dump_route(skb, portid, in_nlh->nlmsg_seq,
+				      RTM_NEWROUTE, in_label, rt, 0);
+		if (err < 0) {
+			/* -EMSGSIZE implies BUG in lfib_nlmsg_size */
+			WARN_ON(err == -EMSGSIZE);
+			goto errout_free;
+		}
+
+		return rtnl_unicast(skb, net, portid);
+	}
+
+	if (tb[RTA_NEWDST]) {
+		if (nla_get_labels(tb[RTA_NEWDST], MAX_NEW_LABELS, &n_labels,
+				   labels, extack) != 0) {
+			err = -EINVAL;
+			goto errout;
+		}
+
+		hdr_size = n_labels * sizeof(struct mpls_shim_hdr);
+	}
+
+	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!skb) {
+		err = -ENOBUFS;
+		goto errout;
+	}
+
+	skb->protocol = htons(ETH_P_MPLS_UC);
+
+	if (hdr_size) {
+		bool bos;
+		int i;
+
+		if (skb_cow(skb, hdr_size)) {
+			err = -ENOBUFS;
+			goto errout_free;
+		}
+
+		skb_reserve(skb, hdr_size);
+		skb_push(skb, hdr_size);
+		skb_reset_network_header(skb);
+
+		/* Push new labels */
+		hdr = mpls_hdr(skb);
+		bos = true;
+		for (i = n_labels - 1; i >= 0; i--) {
+			hdr[i] = mpls_entry_encode(labels[i],
+						   1, 0, bos);
+			bos = false;
+		}
+	}
+
+	nh = mpls_select_multipath(rt, skb);
+	if (!nh) {
+		err = -ENETUNREACH;
+		goto errout_free;
+	}
+
+	if (hdr_size) {
+		skb_pull(skb, hdr_size);
+		skb_reset_network_header(skb);
+	}
+
+	nlh = nlmsg_put(skb, portid, in_nlh->nlmsg_seq,
+			RTM_NEWROUTE, sizeof(*r), 0);
+	if (!nlh) {
+		err = -EMSGSIZE;
+		goto errout_free;
+	}
+
+	r = nlmsg_data(nlh);
+	r->rtm_family	 = AF_MPLS;
+	r->rtm_dst_len	= 20;
+	r->rtm_src_len	= 0;
+	r->rtm_table	= RT_TABLE_MAIN;
+	r->rtm_type	= RTN_UNICAST;
+	r->rtm_scope	= RT_SCOPE_UNIVERSE;
+	r->rtm_protocol = rt->rt_protocol;
+	r->rtm_flags	= 0;
+
+	if (nla_put_labels(skb, RTA_DST, 1, &in_label))
+		goto nla_put_failure;
+
+	if (nh->nh_labels &&
+	    nla_put_labels(skb, RTA_NEWDST, nh->nh_labels,
+			   nh->nh_label))
+		goto nla_put_failure;
+
+	if (nh->nh_via_table != MPLS_NEIGH_TABLE_UNSPEC &&
+	    nla_put_via(skb, nh->nh_via_table, mpls_nh_via(rt, nh),
+			nh->nh_via_alen))
+		goto nla_put_failure;
+	dev = rtnl_dereference(nh->nh_dev);
+	if (dev && nla_put_u32(skb, RTA_OIF, dev->ifindex))
+		goto nla_put_failure;
+
+	nlmsg_end(skb, nlh);
+
+	err = rtnl_unicast(skb, net, portid);
+errout:
+	return err;
+
+nla_put_failure:
+	nlmsg_cancel(skb, nlh);
+	err = -EMSGSIZE;
+errout_free:
+	kfree_skb(skb);
+	return err;
 }
 
 static int resize_platform_label_table(struct net *net, size_t limit)
@@ -2241,7 +2481,8 @@ static int __init mpls_init(void)
 
 	rtnl_register(PF_MPLS, RTM_NEWROUTE, mpls_rtm_newroute, NULL, NULL);
 	rtnl_register(PF_MPLS, RTM_DELROUTE, mpls_rtm_delroute, NULL, NULL);
-	rtnl_register(PF_MPLS, RTM_GETROUTE, NULL, mpls_dump_routes, NULL);
+	rtnl_register(PF_MPLS, RTM_GETROUTE, mpls_getroute, mpls_dump_routes,
+		      NULL);
 	rtnl_register(PF_MPLS, RTM_GETNETCONF, mpls_netconf_get_devconf,
 		      mpls_netconf_dump_devconf, NULL);
 	err = 0;

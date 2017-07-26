@@ -26,7 +26,7 @@
 #include <linux/sched/task.h>
 #include <linux/sched/task_stack.h>
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/mm.h>
 #include <linux/stddef.h>
 #include <linux/unistd.h>
@@ -108,11 +108,6 @@ void show_regs(struct pt_regs *regs)
 	show_regs_print_info(KERN_DEFAULT);
 	/* __PHX__ cleanup this mess */
 	show_registers(regs);
-}
-
-unsigned long thread_saved_pc(struct task_struct *t)
-{
-	return (unsigned long)user_regs(t->stack)->pc;
 }
 
 void release_thread(struct task_struct *dead_task)

@@ -448,13 +448,11 @@ static int xgbe_platform_probe(struct platform_device *pdev)
 	}
 	pdata->coherent = (attr == DEV_DMA_COHERENT);
 	if (pdata->coherent) {
-		pdata->axdomain = XGBE_DMA_OS_AXDOMAIN;
-		pdata->arcache = XGBE_DMA_OS_ARCACHE;
-		pdata->awcache = XGBE_DMA_OS_AWCACHE;
+		pdata->arcr = XGBE_DMA_OS_ARCR;
+		pdata->awcr = XGBE_DMA_OS_AWCR;
 	} else {
-		pdata->axdomain = XGBE_DMA_SYS_AXDOMAIN;
-		pdata->arcache = XGBE_DMA_SYS_ARCACHE;
-		pdata->awcache = XGBE_DMA_SYS_AWCACHE;
+		pdata->arcr = XGBE_DMA_SYS_ARCR;
+		pdata->awcr = XGBE_DMA_SYS_AWCR;
 	}
 
 	/* Set the maximum fifo amounts */

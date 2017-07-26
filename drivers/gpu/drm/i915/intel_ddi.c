@@ -1103,6 +1103,62 @@ static int skl_calc_wrpll_link(struct drm_i915_private *dev_priv,
 	return dco_freq / (p0 * p1 * p2 * 5);
 }
 
+static int cnl_calc_wrpll_link(struct drm_i915_private *dev_priv,
+			       uint32_t pll_id)
+{
+	uint32_t cfgcr0, cfgcr1;
+	uint32_t p0, p1, p2, dco_freq, ref_clock;
+
+	cfgcr0 = I915_READ(CNL_DPLL_CFGCR0(pll_id));
+	cfgcr1 = I915_READ(CNL_DPLL_CFGCR1(pll_id));
+
+	p0 = cfgcr1 & DPLL_CFGCR1_PDIV_MASK;
+	p2 = cfgcr1 & DPLL_CFGCR1_KDIV_MASK;
+
+	if (cfgcr1 & DPLL_CFGCR1_QDIV_MODE(1))
+		p1 = (cfgcr1 & DPLL_CFGCR1_QDIV_RATIO_MASK) >>
+			DPLL_CFGCR1_QDIV_RATIO_SHIFT;
+	else
+		p1 = 1;
+
+
+	switch (p0) {
+	case DPLL_CFGCR1_PDIV_2:
+		p0 = 2;
+		break;
+	case DPLL_CFGCR1_PDIV_3:
+		p0 = 3;
+		break;
+	case DPLL_CFGCR1_PDIV_5:
+		p0 = 5;
+		break;
+	case DPLL_CFGCR1_PDIV_7:
+		p0 = 7;
+		break;
+	}
+
+	switch (p2) {
+	case DPLL_CFGCR1_KDIV_1:
+		p2 = 1;
+		break;
+	case DPLL_CFGCR1_KDIV_2:
+		p2 = 2;
+		break;
+	case DPLL_CFGCR1_KDIV_4:
+		p2 = 4;
+		break;
+	}
+
+	ref_clock = dev_priv->cdclk.hw.ref;
+
+	dco_freq = (cfgcr0 & DPLL_CFGCR0_DCO_INTEGER_MASK) * ref_clock;
+
+	dco_freq += (((cfgcr0 & DPLL_CFGCR0_DCO_FRACTION_MASK) >>
+		      DPLL_CFGCR0_DCO_FRAC_SHIFT) * ref_clock) / 0x8000;
+
+	return dco_freq / (p0 * p1 * p2 * 5);
+}
+
 static void ddi_dotclock_get(struct intel_crtc_state *pipe_config)
 {
 	int dotclock;
@@ -1122,6 +1178,59 @@ static void ddi_dotclock_get(struct intel_crtc_state *pipe_config)
 		dotclock /= pipe_config->pixel_multiplier;
 
 	pipe_config->base.adjusted_mode.crtc_clock = dotclock;
+}
+
+static void cnl_ddi_clock_get(struct intel_encoder *encoder,
+			      struct intel_crtc_state *pipe_config)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	int link_clock = 0;
+	uint32_t cfgcr0, pll_id;
+
+	pll_id = intel_get_shared_dpll_id(dev_priv, pipe_config->shared_dpll);
+
+	cfgcr0 = I915_READ(CNL_DPLL_CFGCR0(pll_id));
+
+	if (cfgcr0 & DPLL_CFGCR0_HDMI_MODE) {
+		link_clock = cnl_calc_wrpll_link(dev_priv, pll_id);
+	} else {
+		link_clock = cfgcr0 & DPLL_CFGCR0_LINK_RATE_MASK;
+
+		switch (link_clock) {
+		case DPLL_CFGCR0_LINK_RATE_810:
+			link_clock = 81000;
+			break;
+		case DPLL_CFGCR0_LINK_RATE_1080:
+			link_clock = 108000;
+			break;
+		case DPLL_CFGCR0_LINK_RATE_1350:
+			link_clock = 135000;
+			break;
+		case DPLL_CFGCR0_LINK_RATE_1620:
+			link_clock = 162000;
+			break;
+		case DPLL_CFGCR0_LINK_RATE_2160:
+			link_clock = 216000;
+			break;
+		case DPLL_CFGCR0_LINK_RATE_2700:
+			link_clock = 270000;
+			break;
+		case DPLL_CFGCR0_LINK_RATE_3240:
+			link_clock = 324000;
+			break;
+		case DPLL_CFGCR0_LINK_RATE_4050:
+			link_clock = 405000;
+			break;
+		default:
+			WARN(1, "Unsupported link rate\n");
+			break;
+		}
+		link_clock *= 2;
+	}
+
+	pipe_config->port_clock = link_clock;
+
+	ddi_dotclock_get(pipe_config);
 }
 
 static void skl_ddi_clock_get(struct intel_encoder *encoder,
@@ -1267,6 +1376,8 @@ void intel_ddi_clock_get(struct intel_encoder *encoder,
 		skl_ddi_clock_get(encoder, pipe_config);
 	else if (IS_GEN9_LP(dev_priv))
 		bxt_ddi_clock_get(encoder, pipe_config);
+	else if (IS_CANNONLAKE(dev_priv))
+		cnl_ddi_clock_get(encoder, pipe_config);
 }
 
 void intel_ddi_set_pipe_settings(const struct intel_crtc_state *crtc_state)
@@ -1813,11 +1924,14 @@ static void cnl_ddi_vswing_program(struct drm_i915_private *dev_priv,
 
 	/* Set PORT_TX_DW5 Scaling Mode Sel to 010b. */
 	val = I915_READ(CNL_PORT_TX_DW5_LN0(port));
+	val &= ~SCALING_MODE_SEL_MASK;
 	val |= SCALING_MODE_SEL(2);
 	I915_WRITE(CNL_PORT_TX_DW5_GRP(port), val);
 
 	/* Program PORT_TX_DW2 */
 	val = I915_READ(CNL_PORT_TX_DW2_LN0(port));
+	val &= ~(SWING_SEL_LOWER_MASK | SWING_SEL_UPPER_MASK |
+		 RCOMP_SCALAR_MASK);
 	val |= SWING_SEL_UPPER(ddi_translations[level].dw2_swing_sel);
 	val |= SWING_SEL_LOWER(ddi_translations[level].dw2_swing_sel);
 	/* Rcomp scalar is fixed as 0x98 for every table entry */
@@ -1828,6 +1942,8 @@ static void cnl_ddi_vswing_program(struct drm_i915_private *dev_priv,
 	/* We cannot write to GRP. It would overrite individual loadgen */
 	for (ln = 0; ln < 4; ln++) {
 		val = I915_READ(CNL_PORT_TX_DW4_LN(port, ln));
+		val &= ~(POST_CURSOR_1_MASK | POST_CURSOR_2_MASK |
+			 CURSOR_COEFF_MASK);
 		val |= POST_CURSOR_1(ddi_translations[level].dw4_post_cursor_1);
 		val |= POST_CURSOR_2(ddi_translations[level].dw4_post_cursor_2);
 		val |= CURSOR_COEFF(ddi_translations[level].dw4_cursor_coeff);
@@ -1837,12 +1953,14 @@ static void cnl_ddi_vswing_program(struct drm_i915_private *dev_priv,
         /* Program PORT_TX_DW5 */
 	/* All DW5 values are fixed for every table entry */
 	val = I915_READ(CNL_PORT_TX_DW5_LN0(port));
+	val &= ~RTERM_SELECT_MASK;
 	val |= RTERM_SELECT(6);
 	val |= TAP3_DISABLE;
 	I915_WRITE(CNL_PORT_TX_DW5_GRP(port), val);
 
         /* Program PORT_TX_DW7 */
 	val = I915_READ(CNL_PORT_TX_DW7_LN0(port));
+	val &= ~N_SCALAR_MASK;
 	val |= N_SCALAR(ddi_translations[level].dw7_n_scalar);
 	I915_WRITE(CNL_PORT_TX_DW7_GRP(port), val);
 }
@@ -1861,9 +1979,12 @@ static void cnl_ddi_vswing_sequence(struct intel_encoder *encoder, u32 level)
 	if ((intel_dp) && (type == INTEL_OUTPUT_EDP || type == INTEL_OUTPUT_DP)) {
 		width = intel_dp->lane_count;
 		rate = intel_dp->link_rate;
-	} else {
+	} else if (type == INTEL_OUTPUT_HDMI) {
 		width = 4;
 		/* Rate is always < than 6GHz for HDMI */
+	} else {
+		MISSING_CASE(type);
+		return;
 	}
 
 	/*

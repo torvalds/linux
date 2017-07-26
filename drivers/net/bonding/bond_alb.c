@@ -925,7 +925,6 @@ static void alb_send_lp_vid(struct slave *slave, u8 mac_addr[],
 	struct learning_pkt pkt;
 	struct sk_buff *skb;
 	int size = sizeof(struct learning_pkt);
-	char *data;
 
 	memset(&pkt, 0, size);
 	ether_addr_copy(pkt.mac_dst, mac_addr);
@@ -936,8 +935,7 @@ static void alb_send_lp_vid(struct slave *slave, u8 mac_addr[],
 	if (!skb)
 		return;
 
-	data = skb_put(skb, size);
-	memcpy(data, &pkt, size);
+	skb_put_data(skb, &pkt, size);
 
 	skb_reset_mac_header(skb);
 	skb->network_header = skb->mac_header + ETH_HLEN;

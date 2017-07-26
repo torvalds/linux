@@ -20,6 +20,7 @@
 #include <linux/sched.h>
 #include <linux/cred.h>
 #include <linux/exportfs.h>
+#include <linux/seq_file.h>
 
 #include "befs.h"
 #include "btree.h"
@@ -53,6 +54,7 @@ static int befs_nls2utf(struct super_block *sb, const char *in, int in_len,
 static void befs_put_super(struct super_block *);
 static int befs_remount(struct super_block *, int *, char *);
 static int befs_statfs(struct dentry *, struct kstatfs *);
+static int befs_show_options(struct seq_file *, struct dentry *);
 static int parse_options(char *, struct befs_mount_options *);
 static struct dentry *befs_fh_to_dentry(struct super_block *sb,
 				struct fid *fid, int fh_len, int fh_type);
@@ -66,7 +68,7 @@ static const struct super_operations befs_sops = {
 	.put_super	= befs_put_super,	/* uninit super */
 	.statfs		= befs_statfs,	/* statfs */
 	.remount_fs	= befs_remount,
-	.show_options	= generic_show_options,
+	.show_options	= befs_show_options,
 };
 
 /* slab cache for befs_inode_info objects */
@@ -771,6 +773,24 @@ parse_options(char *options, struct befs_mount_options *opts)
 	return 1;
 }
 
+static int befs_show_options(struct seq_file *m, struct dentry *root)
+{
+	struct befs_sb_info *befs_sb = BEFS_SB(root->d_sb);
+	struct befs_mount_options *opts = &befs_sb->mount_opts;
+
+	if (!uid_eq(opts->uid, GLOBAL_ROOT_UID))
+		seq_printf(m, ",uid=%u",
+			   from_kuid_munged(&init_user_ns, opts->uid));
+	if (!gid_eq(opts->gid, GLOBAL_ROOT_GID))
+		seq_printf(m, ",gid=%u",
+			   from_kgid_munged(&init_user_ns, opts->gid));
+	if (opts->iocharset)
+		seq_printf(m, ",charset=%s", opts->iocharset);
+	if (opts->debug)
+		seq_puts(m, ",debug");
+	return 0;
+}
+
 /* This function has the responsibiltiy of getting the
  * filesystem ready for unmounting.
  * Basically, we free everything that we allocated in
@@ -803,8 +823,6 @@ befs_fill_super(struct super_block *sb, void *data, int silent)
 	const unsigned long sb_block = 0;
 	const off_t x86_sb_off = 512;
 	int blocksize;
-
-	save_mount_options(sb, data);
 
 	sb->s_fs_info = kzalloc(sizeof(*befs_sb), GFP_KERNEL);
 	if (sb->s_fs_info == NULL)

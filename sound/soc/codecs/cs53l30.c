@@ -747,7 +747,7 @@ static unsigned int const cs53l30_src_rates[] = {
 	8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000
 };
 
-static struct snd_pcm_hw_constraint_list src_constraints = {
+static const struct snd_pcm_hw_constraint_list src_constraints = {
 	.count = ARRAY_SIZE(cs53l30_src_rates),
 	.list = cs53l30_src_rates,
 };

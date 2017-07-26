@@ -192,6 +192,8 @@ int cgroup_rmdir(struct kernfs_node *kn);
 int cgroup_show_path(struct seq_file *sf, struct kernfs_node *kf_node,
 		     struct kernfs_root *kf_root);
 
+int cgroup_task_count(const struct cgroup *cgrp);
+
 /*
  * namespace.c
  */

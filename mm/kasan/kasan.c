@@ -134,97 +134,33 @@ static __always_inline bool memory_is_poisoned_1(unsigned long addr)
 	return false;
 }
 
-static __always_inline bool memory_is_poisoned_2(unsigned long addr)
+static __always_inline bool memory_is_poisoned_2_4_8(unsigned long addr,
+						unsigned long size)
 {
-	u16 *shadow_addr = (u16 *)kasan_mem_to_shadow((void *)addr);
+	u8 *shadow_addr = (u8 *)kasan_mem_to_shadow((void *)addr);
 
-	if (unlikely(*shadow_addr)) {
-		if (memory_is_poisoned_1(addr + 1))
-			return true;
+	/*
+	 * Access crosses 8(shadow size)-byte boundary. Such access maps
+	 * into 2 shadow bytes, so we need to check them both.
+	 */
+	if (unlikely(((addr + size - 1) & KASAN_SHADOW_MASK) < size - 1))
+		return *shadow_addr || memory_is_poisoned_1(addr + size - 1);
 
-		/*
-		 * If single shadow byte covers 2-byte access, we don't
-		 * need to do anything more. Otherwise, test the first
-		 * shadow byte.
-		 */
-		if (likely(((addr + 1) & KASAN_SHADOW_MASK) != 0))
-			return false;
-
-		return unlikely(*(u8 *)shadow_addr);
-	}
-
-	return false;
-}
-
-static __always_inline bool memory_is_poisoned_4(unsigned long addr)
-{
-	u16 *shadow_addr = (u16 *)kasan_mem_to_shadow((void *)addr);
-
-	if (unlikely(*shadow_addr)) {
-		if (memory_is_poisoned_1(addr + 3))
-			return true;
-
-		/*
-		 * If single shadow byte covers 4-byte access, we don't
-		 * need to do anything more. Otherwise, test the first
-		 * shadow byte.
-		 */
-		if (likely(((addr + 3) & KASAN_SHADOW_MASK) >= 3))
-			return false;
-
-		return unlikely(*(u8 *)shadow_addr);
-	}
-
-	return false;
-}
-
-static __always_inline bool memory_is_poisoned_8(unsigned long addr)
-{
-	u16 *shadow_addr = (u16 *)kasan_mem_to_shadow((void *)addr);
-
-	if (unlikely(*shadow_addr)) {
-		if (memory_is_poisoned_1(addr + 7))
-			return true;
-
-		/*
-		 * If single shadow byte covers 8-byte access, we don't
-		 * need to do anything more. Otherwise, test the first
-		 * shadow byte.
-		 */
-		if (likely(IS_ALIGNED(addr, KASAN_SHADOW_SCALE_SIZE)))
-			return false;
-
-		return unlikely(*(u8 *)shadow_addr);
-	}
-
-	return false;
+	return memory_is_poisoned_1(addr + size - 1);
 }
 
 static __always_inline bool memory_is_poisoned_16(unsigned long addr)
 {
-	u32 *shadow_addr = (u32 *)kasan_mem_to_shadow((void *)addr);
+	u16 *shadow_addr = (u16 *)kasan_mem_to_shadow((void *)addr);
 
-	if (unlikely(*shadow_addr)) {
-		u16 shadow_first_bytes = *(u16 *)shadow_addr;
+	/* Unaligned 16-bytes access maps into 3 shadow bytes. */
+	if (unlikely(!IS_ALIGNED(addr, KASAN_SHADOW_SCALE_SIZE)))
+		return *shadow_addr || memory_is_poisoned_1(addr + 15);
 
-		if (unlikely(shadow_first_bytes))
-			return true;
-
-		/*
-		 * If two shadow bytes covers 16-byte access, we don't
-		 * need to do anything more. Otherwise, test the last
-		 * shadow byte.
-		 */
-		if (likely(IS_ALIGNED(addr, KASAN_SHADOW_SCALE_SIZE)))
-			return false;
-
-		return memory_is_poisoned_1(addr + 15);
-	}
-
-	return false;
+	return *shadow_addr;
 }
 
-static __always_inline unsigned long bytes_is_zero(const u8 *start,
+static __always_inline unsigned long bytes_is_nonzero(const u8 *start,
 					size_t size)
 {
 	while (size) {
@@ -237,7 +173,7 @@ static __always_inline unsigned long bytes_is_zero(const u8 *start,
 	return 0;
 }
 
-static __always_inline unsigned long memory_is_zero(const void *start,
+static __always_inline unsigned long memory_is_nonzero(const void *start,
 						const void *end)
 {
 	unsigned int words;
@@ -245,11 +181,11 @@ static __always_inline unsigned long memory_is_zero(const void *start,
 	unsigned int prefix = (unsigned long)start % 8;
 
 	if (end - start <= 16)
-		return bytes_is_zero(start, end - start);
+		return bytes_is_nonzero(start, end - start);
 
 	if (prefix) {
 		prefix = 8 - prefix;
-		ret = bytes_is_zero(start, prefix);
+		ret = bytes_is_nonzero(start, prefix);
 		if (unlikely(ret))
 			return ret;
 		start += prefix;
@@ -258,12 +194,12 @@ static __always_inline unsigned long memory_is_zero(const void *start,
 	words = (end - start) / 8;
 	while (words) {
 		if (unlikely(*(u64 *)start))
-			return bytes_is_zero(start, 8);
+			return bytes_is_nonzero(start, 8);
 		start += 8;
 		words--;
 	}
 
-	return bytes_is_zero(start, (end - start) % 8);
+	return bytes_is_nonzero(start, (end - start) % 8);
 }
 
 static __always_inline bool memory_is_poisoned_n(unsigned long addr,
@@ -271,7 +207,7 @@ static __always_inline bool memory_is_poisoned_n(unsigned long addr,
 {
 	unsigned long ret;
 
-	ret = memory_is_zero(kasan_mem_to_shadow((void *)addr),
+	ret = memory_is_nonzero(kasan_mem_to_shadow((void *)addr),
 			kasan_mem_to_shadow((void *)addr + size - 1) + 1);
 
 	if (unlikely(ret)) {
@@ -292,11 +228,9 @@ static __always_inline bool memory_is_poisoned(unsigned long addr, size_t size)
 		case 1:
 			return memory_is_poisoned_1(addr);
 		case 2:
-			return memory_is_poisoned_2(addr);
 		case 4:
-			return memory_is_poisoned_4(addr);
 		case 8:
-			return memory_is_poisoned_8(addr);
+			return memory_is_poisoned_2_4_8(addr, size);
 		case 16:
 			return memory_is_poisoned_16(addr);
 		default:
@@ -803,17 +737,47 @@ void __asan_unpoison_stack_memory(const void *addr, size_t size)
 EXPORT_SYMBOL(__asan_unpoison_stack_memory);
 
 #ifdef CONFIG_MEMORY_HOTPLUG
-static int kasan_mem_notifier(struct notifier_block *nb,
+static int __meminit kasan_mem_notifier(struct notifier_block *nb,
 			unsigned long action, void *data)
 {
-	return (action == MEM_GOING_ONLINE) ? NOTIFY_BAD : NOTIFY_OK;
+	struct memory_notify *mem_data = data;
+	unsigned long nr_shadow_pages, start_kaddr, shadow_start;
+	unsigned long shadow_end, shadow_size;
+
+	nr_shadow_pages = mem_data->nr_pages >> KASAN_SHADOW_SCALE_SHIFT;
+	start_kaddr = (unsigned long)pfn_to_kaddr(mem_data->start_pfn);
+	shadow_start = (unsigned long)kasan_mem_to_shadow((void *)start_kaddr);
+	shadow_size = nr_shadow_pages << PAGE_SHIFT;
+	shadow_end = shadow_start + shadow_size;
+
+	if (WARN_ON(mem_data->nr_pages % KASAN_SHADOW_SCALE_SIZE) ||
+		WARN_ON(start_kaddr % (KASAN_SHADOW_SCALE_SIZE << PAGE_SHIFT)))
+		return NOTIFY_BAD;
+
+	switch (action) {
+	case MEM_GOING_ONLINE: {
+		void *ret;
+
+		ret = __vmalloc_node_range(shadow_size, PAGE_SIZE, shadow_start,
+					shadow_end, GFP_KERNEL,
+					PAGE_KERNEL, VM_NO_GUARD,
+					pfn_to_nid(mem_data->start_pfn),
+					__builtin_return_address(0));
+		if (!ret)
+			return NOTIFY_BAD;
+
+		kmemleak_ignore(ret);
+		return NOTIFY_OK;
+	}
+	case MEM_OFFLINE:
+		vfree((void *)shadow_start);
+	}
+
+	return NOTIFY_OK;
 }
 
 static int __init kasan_memhotplug_init(void)
 {
-	pr_info("WARNING: KASAN doesn't support memory hot-add\n");
-	pr_info("Memory hot-add will be disabled\n");
-
 	hotplug_memory_notifier(kasan_mem_notifier, 0);
 
 	return 0;

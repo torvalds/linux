@@ -98,8 +98,8 @@ struct datapath {
  * @input_vport: The original vport packet came in on. This value is cached
  * when a packet is received by OVS.
  * @mru: The maximum received fragement size; 0 if the packet is not
- * @cutlen: The number of bytes from the packet end to be removed.
  * fragmented.
+ * @cutlen: The number of bytes from the packet end to be removed.
  */
 struct ovs_skb_cb {
 	struct vport		*input_vport;

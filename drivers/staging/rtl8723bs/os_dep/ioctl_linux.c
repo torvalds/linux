@@ -766,7 +766,7 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param, 
 
 exit:
 
-	kfree((u8 *)pwep);
+	kfree(pwep);
 	return ret;
 }
 
@@ -2500,7 +2500,7 @@ static int rtw_wx_set_enc_ext(struct net_device *dev,
 	ret =  wpa_set_encryption(dev, param, param_len);
 
 exit:
-	kfree((u8 *)param);
+	kfree(param);
 
 	return ret;
 }
@@ -3767,7 +3767,7 @@ static int wpa_supplicant_ioctl(struct net_device *dev, struct iw_point *p)
 
 	if (copy_from_user(param, p->pointer, p->length))
 	{
-		kfree((u8 *)param);
+		kfree(param);
 		ret = -EFAULT;
 		goto out;
 	}
@@ -3801,7 +3801,7 @@ static int wpa_supplicant_ioctl(struct net_device *dev, struct iw_point *p)
 	if (ret == 0 && copy_to_user(p->pointer, param, p->length))
 		ret = -EFAULT;
 
-	kfree((u8 *)param);
+	kfree(param);
 
 out:
 
@@ -4130,7 +4130,7 @@ static int rtw_set_encryption(struct net_device *dev, struct ieee_param *param, 
 	}
 
 exit:
-	kfree((u8 *)pwep);
+	kfree(pwep);
 
 	return ret;
 
@@ -4713,7 +4713,7 @@ static int rtw_hostapd_ioctl(struct net_device *dev, struct iw_point *p)
 
 	if (copy_from_user(param, p->pointer, p->length))
 	{
-		kfree((u8 *)param);
+		kfree(param);
 		ret = -EFAULT;
 		goto out;
 	}
@@ -4817,7 +4817,7 @@ static int rtw_hostapd_ioctl(struct net_device *dev, struct iw_point *p)
 		ret = -EFAULT;
 
 
-	kfree((u8 *)param);
+	kfree(param);
 
 out:
 

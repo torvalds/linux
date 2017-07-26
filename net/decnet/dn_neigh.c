@@ -559,7 +559,7 @@ static inline void dn_neigh_format_entry(struct seq_file *seq,
 		   (dn->flags&DN_NDFLAG_R2) ? "2" : "-",
 		   (dn->flags&DN_NDFLAG_P3) ? "3" : "-",
 		   dn->n.nud_state,
-		   atomic_read(&dn->n.refcnt),
+		   refcount_read(&dn->n.refcnt),
 		   dn->blksize,
 		   (dn->n.dev) ? dn->n.dev->name : "?");
 	read_unlock(&n->lock);

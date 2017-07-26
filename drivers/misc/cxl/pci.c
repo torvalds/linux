@@ -375,7 +375,7 @@ static u64 get_capp_unit_id(struct device_node *np, u32 phb_index)
 	return 0;
 }
 
-static int calc_capp_routing(struct pci_dev *dev, u64 *chipid,
+int cxl_calc_capp_routing(struct pci_dev *dev, u64 *chipid,
 			     u32 *phb_index, u64 *capp_unit_id)
 {
 	int rc;
@@ -408,17 +408,9 @@ static int calc_capp_routing(struct pci_dev *dev, u64 *chipid,
 	return 0;
 }
 
-static int init_implementation_adapter_regs_psl9(struct cxl *adapter, struct pci_dev *dev)
+int cxl_get_xsl9_dsnctl(u64 capp_unit_id, u64 *reg)
 {
-	u64 xsl_dsnctl, psl_fircntl;
-	u64 chipid;
-	u32 phb_index;
-	u64 capp_unit_id;
-	int rc;
-
-	rc = calc_capp_routing(dev, &chipid, &phb_index, &capp_unit_id);
-	if (rc)
-		return rc;
+	u64 xsl_dsnctl;
 
 	/*
 	 * CAPI Identifier bits [0:7]
@@ -436,7 +428,7 @@ static int init_implementation_adapter_regs_psl9(struct cxl *adapter, struct pci
 	/* nMMU_ID Defaults to: b’000001001’*/
 	xsl_dsnctl |= ((u64)0x09 << (63-28));
 
-	if (cxl_is_power9() && !cpu_has_feature(CPU_FTR_POWER9_DD1)) {
+	if (!(cxl_is_power9_dd1())) {
 		/*
 		 * Used to identify CAPI packets which should be sorted into
 		 * the Non-Blocking queues by the PHB. This field should match
@@ -453,6 +445,27 @@ static int init_implementation_adapter_regs_psl9(struct cxl *adapter, struct pci
 		 */
 		xsl_dsnctl |= ((u64)0x04 << (63-55));
 	}
+
+	*reg = xsl_dsnctl;
+	return 0;
+}
+
+static int init_implementation_adapter_regs_psl9(struct cxl *adapter,
+						 struct pci_dev *dev)
+{
+	u64 xsl_dsnctl, psl_fircntl;
+	u64 chipid;
+	u32 phb_index;
+	u64 capp_unit_id;
+	int rc;
+
+	rc = cxl_calc_capp_routing(dev, &chipid, &phb_index, &capp_unit_id);
+	if (rc)
+		return rc;
+
+	rc = cxl_get_xsl9_dsnctl(capp_unit_id, &xsl_dsnctl);
+	if (rc)
+		return rc;
 
 	cxl_p1_write(adapter, CXL_XSL9_DSNCTL, xsl_dsnctl);
 
@@ -491,7 +504,7 @@ static int init_implementation_adapter_regs_psl9(struct cxl *adapter, struct pci
 	cxl_p1_write(adapter, CXL_PSL9_APCDEDTYPE, 0x40000003FFFF0000ULL);
 
 	/* Disable vc dd1 fix */
-	if ((cxl_is_power9() && cpu_has_feature(CPU_FTR_POWER9_DD1)))
+	if (cxl_is_power9_dd1())
 		cxl_p1_write(adapter, CXL_PSL9_GP_CT, 0x0400000000000001ULL);
 
 	return 0;
@@ -505,7 +518,7 @@ static int init_implementation_adapter_regs_psl8(struct cxl *adapter, struct pci
 	u64 capp_unit_id;
 	int rc;
 
-	rc = calc_capp_routing(dev, &chipid, &phb_index, &capp_unit_id);
+	rc = cxl_calc_capp_routing(dev, &chipid, &phb_index, &capp_unit_id);
 	if (rc)
 		return rc;
 
@@ -538,7 +551,7 @@ static int init_implementation_adapter_regs_xsl(struct cxl *adapter, struct pci_
 	u64 capp_unit_id;
 	int rc;
 
-	rc = calc_capp_routing(dev, &chipid, &phb_index, &capp_unit_id);
+	rc = cxl_calc_capp_routing(dev, &chipid, &phb_index, &capp_unit_id);
 	if (rc)
 		return rc;
 
@@ -1439,8 +1452,7 @@ int cxl_pci_reset(struct cxl *adapter)
 	 * The adapter is about to be reset, so ignore errors.
 	 * Not supported on P9 DD1
 	 */
-	if ((cxl_is_power8()) ||
-	    ((cxl_is_power9() && !cpu_has_feature(CPU_FTR_POWER9_DD1))))
+	if ((cxl_is_power8()) || (!(cxl_is_power9_dd1())))
 		cxl_data_cache_flush(adapter);
 
 	/* pcie_warm_reset requests a fundamental pci reset which includes a
@@ -1750,7 +1762,6 @@ static const struct cxl_service_layer_ops psl9_ops = {
 	.debugfs_add_adapter_regs = cxl_debugfs_add_adapter_regs_psl9,
 	.debugfs_add_afu_regs = cxl_debugfs_add_afu_regs_psl9,
 	.psl_irq_dump_registers = cxl_native_irq_dump_regs_psl9,
-	.err_irq_dump_registers = cxl_native_err_irq_dump_regs,
 	.debugfs_stop_trace = cxl_stop_trace_psl9,
 	.write_timebase_ctrl = write_timebase_ctrl_psl9,
 	.timebase_read = timebase_read_psl9,
@@ -1889,8 +1900,7 @@ static void cxl_pci_remove_adapter(struct cxl *adapter)
 	 * Flush adapter datacache as its about to be removed.
 	 * Not supported on P9 DD1.
 	 */
-	if ((cxl_is_power8()) ||
-	    ((cxl_is_power9() && !cpu_has_feature(CPU_FTR_POWER9_DD1))))
+	if ((cxl_is_power8()) || (!(cxl_is_power9_dd1())))
 		cxl_data_cache_flush(adapter);
 
 	cxl_deconfigure_adapter(adapter);
@@ -1900,7 +1910,7 @@ static void cxl_pci_remove_adapter(struct cxl *adapter)
 
 #define CXL_MAX_PCIEX_PARENT 2
 
-static int cxl_slot_is_switched(struct pci_dev *dev)
+int cxl_slot_is_switched(struct pci_dev *dev)
 {
 	struct device_node *np;
 	int depth = 0;

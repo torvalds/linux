@@ -55,7 +55,7 @@ config USB_LPC32XX
 
 config USB_ATMEL_USBA
 	tristate "Atmel USBA"
-	depends on ((AVR32 && !OF) || ARCH_AT91)
+	depends on ARCH_AT91
 	help
 	  USBA is the integrated high-speed USB Device controller on
 	  the AT32AP700x, some AT91SAM9 and AT91CAP9 processors from Atmel.
@@ -256,7 +256,7 @@ config USB_MV_U3D
 	  controller, which support super speed USB peripheral.
 
 config USB_SNP_CORE
-	depends on USB_AMD5536UDC
+	depends on (USB_AMD5536UDC || USB_SNP_UDC_PLAT)
 	tristate
 	help
 	  This enables core driver support for Synopsys USB 2.0 Device
@@ -269,6 +269,20 @@ config USB_SNP_CORE
 	  This IP is different to the High Speed OTG IP that can be enabled
 	  by selecting USB_DWC2 or USB_DWC3 options.
 
+config USB_SNP_UDC_PLAT
+	tristate "Synopsys USB 2.0 Device controller"
+	depends on (USB_GADGET && OF)
+	select USB_GADGET_DUALSPEED
+	select USB_SNP_CORE
+	default ARCH_BCM_IPROC
+	help
+	  This adds Platform Device support for Synopsys Designware core
+	  AHB subsystem USB2.0 Device Controller (UDC).
+
+	  This driver works with UDCs integrated into Broadcom's Northstar2
+	  and Cygnus SoCs.
+
+	  If unsure, say N.
 #
 # Controllers available in both integrated and discrete versions
 #

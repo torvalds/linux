@@ -129,6 +129,10 @@ static inline bool arch_irq_disabled_regs(struct pt_regs *regs)
 }
 
 extern bool prep_irq_for_idle(void);
+extern bool prep_irq_for_idle_irqsoff(void);
+extern void irq_set_pending_from_srr1(unsigned long srr1);
+
+#define fini_irq_for_idle_irqsoff() trace_hardirqs_off();
 
 extern void force_external_irq_replay(void);
 

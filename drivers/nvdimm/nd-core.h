@@ -64,7 +64,16 @@ struct blk_alloc_info {
 
 bool is_nvdimm(struct device *dev);
 bool is_nd_pmem(struct device *dev);
+bool is_nd_volatile(struct device *dev);
 bool is_nd_blk(struct device *dev);
+static inline bool is_nd_region(struct device *dev)
+{
+	return is_nd_pmem(dev) || is_nd_blk(dev) || is_nd_volatile(dev);
+}
+static inline bool is_memory(struct device *dev)
+{
+	return is_nd_pmem(dev) || is_nd_volatile(dev);
+}
 struct nvdimm_bus *walk_to_nvdimm_bus(struct device *nd_dev);
 int __init nvdimm_bus_init(void);
 void nvdimm_bus_exit(void);

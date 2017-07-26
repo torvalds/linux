@@ -18,13 +18,14 @@
 #ifndef __FIRMWARE_GOOGLE_MEMCONSOLE_H
 #define __FIRMWARE_GOOGLE_MEMCONSOLE_H
 
+#include <linux/types.h>
+
 /*
  * memconsole_setup
  *
- * Initialize the memory console from raw (virtual) base
- * address and length.
+ * Initialize the memory console, passing the function to handle read accesses.
  */
-void memconsole_setup(void *baseaddr, size_t length);
+void memconsole_setup(ssize_t (*read_func)(char *, loff_t, size_t));
 
 /*
  * memconsole_sysfs_init

@@ -16,12 +16,9 @@
 #include <linux/sched.h>
 #include <linux/capability.h>
 #include <linux/cryptohash.h>
+#include <linux/set_memory.h>
 
 #include <net/sch_generic.h>
-
-#ifdef CONFIG_ARCH_HAS_SET_MEMORY
-#include <asm/set_memory.h>
-#endif
 
 #include <uapi/linux/filter.h>
 #include <uapi/linux/bpf.h>
@@ -57,6 +54,9 @@ struct bpf_prog_aux;
 #define BPF_REG_AX		MAX_BPF_REG
 #define MAX_BPF_JIT_REG		(MAX_BPF_REG + 1)
 
+/* unused opcode to mark special call to bpf_tail_call() helper */
+#define BPF_TAIL_CALL	0xf0
+
 /* As per nm, we expose JITed images as text (code) section for
  * kallsyms. That way, tools like perf can find it to match
  * addresses.
@@ -65,8 +65,6 @@ struct bpf_prog_aux;
 
 /* BPF program can access up to 512 bytes of stack space. */
 #define MAX_BPF_STACK	512
-
-#define BPF_TAG_SIZE	8
 
 /* Helper macros for filter block array initializers. */
 
@@ -336,6 +334,22 @@ struct bpf_prog_aux;
 	bpf_size;						\
 })
 
+#define bpf_size_to_bytes(bpf_size)				\
+({								\
+	int bytes = -EINVAL;					\
+								\
+	if (bpf_size == BPF_B)					\
+		bytes = sizeof(u8);				\
+	else if (bpf_size == BPF_H)				\
+		bytes = sizeof(u16);				\
+	else if (bpf_size == BPF_W)				\
+		bytes = sizeof(u32);				\
+	else if (bpf_size == BPF_DW)				\
+		bytes = sizeof(u64);				\
+								\
+	bytes;							\
+})
+
 #define BPF_SIZEOF(type)					\
 	({							\
 		const int __size = bytes_to_bpf_size(sizeof(type)); \
@@ -347,6 +361,13 @@ struct bpf_prog_aux;
 	({							\
 		const int __size = bytes_to_bpf_size(FIELD_SIZEOF(type, field)); \
 		BUILD_BUG_ON(__size < 0);			\
+		__size;						\
+	})
+
+#define BPF_LDST_BYTES(insn)					\
+	({							\
+		const int __size = bpf_size_to_bytes(BPF_SIZE(insn->code)); \
+		WARN_ON(__size < 0);				\
 		__size;						\
 	})
 
@@ -400,6 +421,18 @@ struct bpf_prog_aux;
 #define BPF_CALL_4(name, ...)	BPF_CALL_x(4, name, __VA_ARGS__)
 #define BPF_CALL_5(name, ...)	BPF_CALL_x(5, name, __VA_ARGS__)
 
+#define bpf_ctx_range(TYPE, MEMBER)						\
+	offsetof(TYPE, MEMBER) ... offsetofend(TYPE, MEMBER) - 1
+#define bpf_ctx_range_till(TYPE, MEMBER1, MEMBER2)				\
+	offsetof(TYPE, MEMBER1) ... offsetofend(TYPE, MEMBER2) - 1
+
+#define bpf_target_off(TYPE, MEMBER, SIZE, PTR_SIZE)				\
+	({									\
+		BUILD_BUG_ON(FIELD_SIZEOF(TYPE, MEMBER) != (SIZE));		\
+		*(PTR_SIZE) = (SIZE);						\
+		offsetof(TYPE, MEMBER);						\
+	})
+
 #ifdef CONFIG_COMPAT
 /* A struct sock_filter is architecture independent. */
 struct compat_sock_fprog {
@@ -429,6 +462,7 @@ struct bpf_prog {
 	kmemcheck_bitfield_end(meta);
 	enum bpf_prog_type	type;		/* Type of BPF program */
 	u32			len;		/* Number of filter blocks */
+	u32			jited_len;	/* Size of jited insns in bytes */
 	u8			tag[BPF_TAG_SIZE];
 	struct bpf_prog_aux	*aux;		/* Auxiliary fields */
 	struct sock_fprog_kern	*orig_prog;	/* Original BPF program */
@@ -560,6 +594,18 @@ static inline bool bpf_prog_was_classic(const struct bpf_prog *prog)
 	 * have an unspec program type.
 	 */
 	return prog->type == BPF_PROG_TYPE_UNSPEC;
+}
+
+static inline bool
+bpf_ctx_narrow_access_ok(u32 off, u32 size, const u32 size_default)
+{
+	bool off_ok;
+#ifdef __LITTLE_ENDIAN
+	off_ok = (off & (size_default - 1)) == 0;
+#else
+	off_ok = (off & (size_default - 1)) + size == size_default;
+#endif
+	return off_ok && size <= size_default && (size & (size - 1)) == 0;
 }
 
 #define bpf_classic_proglen(fprog) (fprog->len * sizeof(fprog->filter[0]))
@@ -895,5 +941,14 @@ static inline int bpf_tell_extensions(void)
 {
 	return SKF_AD_MAX;
 }
+
+struct bpf_sock_ops_kern {
+	struct	sock *sk;
+	u32	op;
+	union {
+		u32 reply;
+		u32 replylong[4];
+	};
+};
 
 #endif /* __LINUX_FILTER_H__ */

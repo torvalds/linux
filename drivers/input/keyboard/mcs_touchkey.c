@@ -13,11 +13,11 @@
 
 #include <linux/module.h>
 #include <linux/i2c.h>
-#include <linux/i2c/mcs.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/irq.h>
 #include <linux/slab.h>
+#include <linux/platform_data/mcs.h>
 #include <linux/pm.h>
 
 /* MCS5000 Touchkey */

@@ -23,7 +23,7 @@ config BMP280
 	select BMP280_SPI if (SPI_MASTER)
 	help
 	  Say yes here to build support for Bosch Sensortec BMP180 and BMP280
-	  pressure and temperature sensors. Also supports the BE280 with
+	  pressure and temperature sensors. Also supports the BME280 with
 	  an additional humidity sensor channel.
 
 	  To compile this driver as a module, choose M here: the core module

@@ -335,6 +335,7 @@ int ixgbevf_get_reta_locked(struct ixgbe_hw *hw, u32 *reta, int num_rx_queues)
 	case ixgbe_mbox_api_12:
 		if (hw->mac.type < ixgbe_mac_X550_vf)
 			break;
+		/* fall through */
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -401,6 +402,7 @@ int ixgbevf_get_rss_key_locked(struct ixgbe_hw *hw, u8 *rss_key)
 	case ixgbe_mbox_api_12:
 		if (hw->mac.type < ixgbe_mac_X550_vf)
 			break;
+		/* fall through */
 	default:
 		return -EOPNOTSUPP;
 	}

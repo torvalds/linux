@@ -76,7 +76,7 @@ static struct bin_attribute *bgrt_bin_attributes[] = {
 	NULL,
 };
 
-static struct attribute_group bgrt_attribute_group = {
+static const struct attribute_group bgrt_attribute_group = {
 	.attrs = bgrt_attributes,
 	.bin_attrs = bgrt_bin_attributes,
 };

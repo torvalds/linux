@@ -242,7 +242,7 @@ static struct sk_buff *cfv_alloc_and_copy_skb(int *err,
 
 	skb_reserve(skb, cfv->rx_hr + pad_len);
 
-	memcpy(skb_put(skb, cfpkt_len), frm + cfv->rx_hr, cfpkt_len);
+	skb_put_data(skb, frm + cfv->rx_hr, cfpkt_len);
 	return skb;
 }
 

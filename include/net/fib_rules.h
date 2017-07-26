@@ -5,6 +5,7 @@
 #include <linux/slab.h>
 #include <linux/netdevice.h>
 #include <linux/fib_rules.h>
+#include <linux/refcount.h>
 #include <net/flow.h>
 #include <net/rtnetlink.h>
 
@@ -29,7 +30,7 @@ struct fib_rule {
 	struct fib_rule __rcu	*ctarget;
 	struct net		*fr_net;
 
-	atomic_t		refcnt;
+	refcount_t		refcnt;
 	u32			pref;
 	int			suppress_ifgroup;
 	int			suppress_prefixlen;
@@ -103,12 +104,12 @@ struct fib_rules_ops {
 
 static inline void fib_rule_get(struct fib_rule *rule)
 {
-	atomic_inc(&rule->refcnt);
+	refcount_inc(&rule->refcnt);
 }
 
 static inline void fib_rule_put(struct fib_rule *rule)
 {
-	if (atomic_dec_and_test(&rule->refcnt))
+	if (refcount_dec_and_test(&rule->refcnt))
 		kfree_rcu(rule, rcu);
 }
 

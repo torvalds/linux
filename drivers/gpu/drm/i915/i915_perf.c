@@ -1746,7 +1746,7 @@ static int gen8_configure_all_contexts(struct drm_i915_private *dev_priv,
 		goto out;
 
 	/* Update all contexts now that we've stalled the submission. */
-	list_for_each_entry(ctx, &dev_priv->context_list, link) {
+	list_for_each_entry(ctx, &dev_priv->contexts.list, link) {
 		struct intel_context *ce = &ctx->engine[RCS];
 		u32 *regs;
 
@@ -2067,10 +2067,6 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 			return ret;
 	}
 
-	ret = alloc_oa_buffer(dev_priv);
-	if (ret)
-		goto err_oa_buf_alloc;
-
 	/* PRM - observability performance counters:
 	 *
 	 *   OACONTROL, performance counter enable, note:
@@ -2086,6 +2082,10 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 	intel_runtime_pm_get(dev_priv);
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
 
+	ret = alloc_oa_buffer(dev_priv);
+	if (ret)
+		goto err_oa_buf_alloc;
+
 	ret = dev_priv->perf.oa.ops.enable_metric_set(dev_priv);
 	if (ret)
 		goto err_enable;
@@ -2097,11 +2097,11 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 	return 0;
 
 err_enable:
-	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
-	intel_runtime_pm_put(dev_priv);
 	free_oa_buffer(dev_priv);
 
 err_oa_buf_alloc:
+	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
+	intel_runtime_pm_put(dev_priv);
 	if (stream->ctx)
 		oa_put_render_ctx_id(stream);
 
@@ -2444,7 +2444,7 @@ static void i915_perf_destroy_locked(struct i915_perf_stream *stream)
 	list_del(&stream->link);
 
 	if (stream->ctx)
-		i915_gem_context_put_unlocked(stream->ctx);
+		i915_gem_context_put(stream->ctx);
 
 	kfree(stream);
 }
@@ -2633,7 +2633,7 @@ err_alloc:
 	kfree(stream);
 err_ctx:
 	if (specific_ctx)
-		i915_gem_context_put_unlocked(specific_ctx);
+		i915_gem_context_put(specific_ctx);
 err:
 	return ret;
 }

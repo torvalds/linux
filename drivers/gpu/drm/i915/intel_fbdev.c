@@ -542,13 +542,14 @@ static void intel_fbdev_destroy(struct intel_fbdev *ifbdev)
 
 	drm_fb_helper_fini(&ifbdev->helper);
 
-	if (ifbdev->fb) {
+	if (ifbdev->vma) {
 		mutex_lock(&ifbdev->helper.dev->struct_mutex);
 		intel_unpin_fb_vma(ifbdev->vma);
 		mutex_unlock(&ifbdev->helper.dev->struct_mutex);
-
-		drm_framebuffer_remove(&ifbdev->fb->base);
 	}
+
+	if (ifbdev->fb)
+		drm_framebuffer_remove(&ifbdev->fb->base);
 
 	kfree(ifbdev);
 }
@@ -772,7 +773,7 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous
 	struct intel_fbdev *ifbdev = dev_priv->fbdev;
 	struct fb_info *info;
 
-	if (!ifbdev || !ifbdev->fb)
+	if (!ifbdev || !ifbdev->vma)
 		return;
 
 	info = ifbdev->helper.fbdev;
@@ -819,7 +820,7 @@ void intel_fbdev_output_poll_changed(struct drm_device *dev)
 {
 	struct intel_fbdev *ifbdev = to_i915(dev)->fbdev;
 
-	if (ifbdev && ifbdev->fb)
+	if (ifbdev)
 		drm_fb_helper_hotplug_event(&ifbdev->helper);
 }
 
@@ -831,7 +832,7 @@ void intel_fbdev_restore_mode(struct drm_device *dev)
 		return;
 
 	intel_fbdev_sync(ifbdev);
-	if (!ifbdev->fb)
+	if (!ifbdev->vma)
 		return;
 
 	if (drm_fb_helper_restore_fbdev_mode_unlocked(&ifbdev->helper) == 0)

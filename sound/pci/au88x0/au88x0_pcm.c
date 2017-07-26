@@ -112,11 +112,11 @@ static struct snd_pcm_hardware snd_vortex_playback_hw_wt = {
 };
 #endif
 #ifdef CHIP_AU8830
-static unsigned int au8830_channels[3] = {
+static const unsigned int au8830_channels[3] = {
 	1, 2, 4,
 };
 
-static struct snd_pcm_hw_constraint_list hw_constraints_au8830_channels = {
+static const struct snd_pcm_hw_constraint_list hw_constraints_au8830_channels = {
 	.count = ARRAY_SIZE(au8830_channels),
 	.list = au8830_channels,
 	.mask = 0,

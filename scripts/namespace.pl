@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
 #
 #	namespace.pl.  Mon Aug 30 2004
 #
@@ -62,7 +62,7 @@
 #	  result.
 #
 
-require 5;	# at least perl 5
+use warnings;
 use strict;
 use File::Find;
 

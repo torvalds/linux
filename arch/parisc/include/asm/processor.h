@@ -103,6 +103,8 @@ struct cpuinfo_parisc {
 	unsigned long bh_count;     /* number of times bh was invoked */
 	unsigned long fp_rev;
 	unsigned long fp_model;
+	unsigned long cpu_num;      /* CPU number from PAT firmware */
+	unsigned long cpu_loc;      /* CPU location from PAT firmware */
 	unsigned int state;
 	struct parisc_device *dev;
 	unsigned long loops_per_jiffy;
@@ -163,12 +165,7 @@ struct thread_struct {
 	.flags		= 0 \
 	}
 
-/*
- * Return saved PC of a blocked thread.  This is used by ps mostly.
- */
-
 struct task_struct;
-unsigned long thread_saved_pc(struct task_struct *t);
 void show_trace(struct task_struct *task, unsigned long *stack);
 
 /*

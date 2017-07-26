@@ -18,7 +18,6 @@
 #define __ARCH_WANT_SYS_FADVISE64
 #define __ARCH_WANT_SYS_GETPGRP
 #define __ARCH_WANT_SYS_LLSEEK
-#define __ARCH_WANT_SYS_OLD_GETRLIMIT /*will be unused*/
 #define __ARCH_WANT_SYS_OLDUMOUNT
 #define __ARCH_WANT_SYS_CLONE
 #define __ARCH_WANT_SYS_FORK

@@ -29,7 +29,7 @@
 #include "stmmac.h"
 #include "dwmac_dma.h"
 
-#define REG_SPACE_SIZE	0x1054
+#define REG_SPACE_SIZE	0x1060
 #define MAC100_ETHTOOL_NAME	"st_mac100"
 #define GMAC_ETHTOOL_NAME	"st_gmac"
 
@@ -273,7 +273,6 @@ static int stmmac_ethtool_get_link_ksettings(struct net_device *dev,
 {
 	struct stmmac_priv *priv = netdev_priv(dev);
 	struct phy_device *phy = dev->phydev;
-	int rc;
 
 	if (priv->hw->pcs & STMMAC_PCS_RGMII ||
 	    priv->hw->pcs & STMMAC_PCS_SGMII) {
@@ -364,8 +363,8 @@ static int stmmac_ethtool_get_link_ksettings(struct net_device *dev,
 		"link speed / duplex setting\n", dev->name);
 		return -EBUSY;
 	}
-	rc = phy_ethtool_ksettings_get(phy, cmd);
-	return rc;
+	phy_ethtool_ksettings_get(phy, cmd);
+	return 0;
 }
 
 static int

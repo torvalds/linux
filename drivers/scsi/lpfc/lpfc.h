@@ -756,6 +756,7 @@ struct lpfc_hba {
 	uint8_t  nvmet_support;	/* driver supports NVMET */
 #define LPFC_NVMET_MAX_PORTS	32
 	uint8_t  mds_diags_support;
+	uint32_t initial_imax;
 
 	/* HBA Config Parameters */
 	uint32_t cfg_ack0;
@@ -777,6 +778,7 @@ struct lpfc_hba {
 	uint32_t cfg_poll_tmo;
 	uint32_t cfg_task_mgmt_tmo;
 	uint32_t cfg_use_msi;
+	uint32_t cfg_auto_imax;
 	uint32_t cfg_fcp_imax;
 	uint32_t cfg_fcp_cpu_map;
 	uint32_t cfg_fcp_io_channel;
@@ -913,16 +915,16 @@ struct lpfc_hba {
 	/*
 	 * stat  counters
 	 */
-	uint64_t fc4ScsiInputRequests;
-	uint64_t fc4ScsiOutputRequests;
-	uint64_t fc4ScsiControlRequests;
-	uint64_t fc4ScsiIoCmpls;
-	uint64_t fc4NvmeInputRequests;
-	uint64_t fc4NvmeOutputRequests;
-	uint64_t fc4NvmeControlRequests;
-	uint64_t fc4NvmeIoCmpls;
-	uint64_t fc4NvmeLsRequests;
-	uint64_t fc4NvmeLsCmpls;
+	atomic_t fc4ScsiInputRequests;
+	atomic_t fc4ScsiOutputRequests;
+	atomic_t fc4ScsiControlRequests;
+	atomic_t fc4ScsiIoCmpls;
+	atomic_t fc4NvmeInputRequests;
+	atomic_t fc4NvmeOutputRequests;
+	atomic_t fc4NvmeControlRequests;
+	atomic_t fc4NvmeIoCmpls;
+	atomic_t fc4NvmeLsRequests;
+	atomic_t fc4NvmeLsCmpls;
 
 	uint64_t bg_guard_err_cnt;
 	uint64_t bg_apptag_err_cnt;
@@ -1050,6 +1052,7 @@ struct lpfc_hba {
 
 	uint8_t temp_sensor_support;
 	/* Fields used for heart beat. */
+	unsigned long last_eqdelay_time;
 	unsigned long last_completion_time;
 	unsigned long skipped_hb;
 	struct timer_list hb_tmofunc;

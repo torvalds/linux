@@ -1187,6 +1187,15 @@ static void parse_ddi_port(struct drm_i915_private *dev_priv, enum port port,
 	if (is_dvi) {
 		info->alternate_ddc_pin = ddc_pin;
 
+		/*
+		 * All VBTs that we got so far for B Stepping has this
+		 * information wrong for Port D. So, let's just ignore for now.
+		 */
+		if (IS_CNL_REVID(dev_priv, CNL_REVID_B0, CNL_REVID_B0) &&
+		    port == PORT_D) {
+			info->alternate_ddc_pin = 0;
+		}
+
 		sanitize_ddc_pin(dev_priv, port);
 	}
 
