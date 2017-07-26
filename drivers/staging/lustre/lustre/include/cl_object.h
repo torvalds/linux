@@ -1358,7 +1358,7 @@ struct cl_2queue {
 /** IO types */
 enum cl_io_type {
 	/** read system call */
-	CIT_READ,
+	CIT_READ = 1,
 	/** write system call */
 	CIT_WRITE,
 	/** truncate, utime system calls */

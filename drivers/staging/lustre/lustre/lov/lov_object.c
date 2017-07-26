@@ -638,7 +638,7 @@ static const struct lov_layout_operations lov_dispatch[] = {
 	enum lov_layout_type		    __llt;		  \
 									\
 	__llt = __obj->lo_type;					 \
-	LASSERT(0 <= __llt && __llt < ARRAY_SIZE(lov_dispatch));	\
+	LASSERT(__llt < ARRAY_SIZE(lov_dispatch));		\
 	lov_dispatch[__llt].op(__VA_ARGS__);			    \
 })
 
@@ -697,7 +697,7 @@ do {								    \
 									\
 	lov_conf_freeze(__obj);						\
 	__llt = __obj->lo_type;					 \
-	LASSERT(0 <= __llt && __llt < ARRAY_SIZE(lov_dispatch));	\
+	LASSERT(__llt < ARRAY_SIZE(lov_dispatch));	\
 	lov_dispatch[__llt].op(__VA_ARGS__);			    \
 	lov_conf_thaw(__obj);						\
 } while (0)
@@ -748,13 +748,13 @@ static int lov_layout_change(const struct lu_env *unused,
 	u16 refcheck;
 	int rc;
 
-	LASSERT(0 <= lov->lo_type && lov->lo_type < ARRAY_SIZE(lov_dispatch));
+	LASSERT(lov->lo_type < ARRAY_SIZE(lov_dispatch));
 
 	env = cl_env_get(&refcheck);
 	if (IS_ERR(env))
 		return PTR_ERR(env);
 
-	LASSERT(0 <= llt && llt < ARRAY_SIZE(lov_dispatch));
+	LASSERT(llt < ARRAY_SIZE(lov_dispatch));
 
 	CDEBUG(D_INODE, DFID " from %s to %s\n",
 	       PFID(lu_object_fid(lov2lu(lov))),
