@@ -619,7 +619,7 @@ static struct rockchip_gem_object *
 
 struct rockchip_gem_object *
 rockchip_gem_create_object(struct drm_device *drm, unsigned int size,
-			   bool alloc_kmap)
+			   bool alloc_kmap, unsigned int flags)
 {
 	struct rockchip_gem_object *rk_obj;
 	int ret;
@@ -627,6 +627,7 @@ rockchip_gem_create_object(struct drm_device *drm, unsigned int size,
 	rk_obj = rockchip_gem_alloc_object(drm, size);
 	if (IS_ERR(rk_obj))
 		return rk_obj;
+	rk_obj->flags = flags;
 
 	ret = rockchip_gem_alloc_buf(rk_obj, alloc_kmap);
 	if (ret)
@@ -675,13 +676,13 @@ void rockchip_gem_free_object(struct drm_gem_object *obj)
 static struct rockchip_gem_object *
 rockchip_gem_create_with_handle(struct drm_file *file_priv,
 				struct drm_device *drm, unsigned int size,
-				unsigned int *handle)
+				unsigned int *handle, unsigned int flags)
 {
 	struct rockchip_gem_object *rk_obj;
 	struct drm_gem_object *obj;
 	int ret;
 
-	rk_obj = rockchip_gem_create_object(drm, size, false);
+	rk_obj = rockchip_gem_create_object(drm, size, false, flags);
 	if (IS_ERR(rk_obj))
 		return ERR_CAST(rk_obj);
 
@@ -727,7 +728,7 @@ int rockchip_gem_dumb_create(struct drm_file *file_priv,
 	args->size = args->pitch * args->height;
 
 	rk_obj = rockchip_gem_create_with_handle(file_priv, dev, args->size,
-						 &args->handle);
+						 &args->handle, args->flags);
 
 	return PTR_ERR_OR_ZERO(rk_obj);
 }
@@ -873,7 +874,7 @@ int rockchip_gem_create_ioctl(struct drm_device *dev, void *data,
 	struct rockchip_gem_object *rk_obj;
 
 	rk_obj = rockchip_gem_create_with_handle(file_priv, dev, args->size,
-						 &args->handle);
+						 &args->handle, args->flags);
 	return PTR_ERR_OR_ZERO(rk_obj);
 }
 
