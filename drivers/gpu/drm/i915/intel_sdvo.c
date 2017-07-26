@@ -1359,8 +1359,10 @@ static void intel_sdvo_pre_enable(struct intel_encoder *intel_encoder,
 	else
 		sdvox |= SDVO_PIPE_SEL(crtc->pipe);
 
-	if (crtc_state->has_audio)
+	if (crtc_state->has_audio) {
+		WARN_ON_ONCE(INTEL_GEN(dev_priv) < 4);
 		sdvox |= SDVO_AUDIO_ENABLE;
+	}
 
 	if (INTEL_GEN(dev_priv) >= 4) {
 		/* done in crtc_mode_set as the dpll_md reg must be written early */
@@ -1489,6 +1491,9 @@ static void intel_sdvo_get_config(struct intel_encoder *encoder,
 
 	if (sdvox & HDMI_COLOR_RANGE_16_235)
 		pipe_config->limited_color_range = true;
+
+	if (sdvox & SDVO_AUDIO_ENABLE)
+		pipe_config->has_audio = true;
 
 	if (intel_sdvo_get_value(intel_sdvo, SDVO_CMD_GET_ENCODE,
 				 &val, 1)) {
@@ -2465,6 +2470,7 @@ static bool
 intel_sdvo_dvi_init(struct intel_sdvo *intel_sdvo, int device)
 {
 	struct drm_encoder *encoder = &intel_sdvo->base.base;
+	struct drm_i915_private *dev_priv = to_i915(encoder->dev);
 	struct drm_connector *connector;
 	struct intel_encoder *intel_encoder = to_intel_encoder(encoder);
 	struct intel_connector *intel_connector;
@@ -2500,7 +2506,9 @@ intel_sdvo_dvi_init(struct intel_sdvo *intel_sdvo, int device)
 	encoder->encoder_type = DRM_MODE_ENCODER_TMDS;
 	connector->connector_type = DRM_MODE_CONNECTOR_DVID;
 
-	if (intel_sdvo_is_hdmi_connector(intel_sdvo, device)) {
+	/* gen3 doesn't do the hdmi bits in the SDVO register */
+	if (INTEL_GEN(dev_priv) >= 4 &&
+	    intel_sdvo_is_hdmi_connector(intel_sdvo, device)) {
 		connector->connector_type = DRM_MODE_CONNECTOR_HDMIA;
 		intel_sdvo->is_hdmi = true;
 	}
