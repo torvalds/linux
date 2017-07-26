@@ -82,6 +82,7 @@ struct fs_node {
 	/* lock the node for writing and traversing */
 	struct mutex		lock;
 	atomic_t		refcount;
+	bool			active;
 	void			(*remove_func)(struct fs_node *);
 };
 
