@@ -275,6 +275,20 @@ int ti_clk_get_reg_addr(struct device_node *node, int index,
 	return 0;
 }
 
+void ti_clk_latch(struct clk_omap_reg *reg, s8 shift)
+{
+	u32 latch;
+
+	if (shift < 0)
+		return;
+
+	latch = 1 << shift;
+
+	ti_clk_ll_ops->clk_rmw(latch, latch, reg);
+	ti_clk_ll_ops->clk_rmw(0, latch, reg);
+	ti_clk_ll_ops->clk_readl(reg); /* OCP barrier */
+}
+
 /**
  * omap2_clk_provider_init - init master clock provider
  * @parent: master node
