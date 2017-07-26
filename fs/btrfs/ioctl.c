@@ -3967,10 +3967,21 @@ static long btrfs_ioctl_trans_start(struct file *file)
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
 	int ret;
+	static bool warned = false;
 
 	ret = -EPERM;
 	if (!capable(CAP_SYS_ADMIN))
 		goto out;
+
+	if (!warned) {
+		btrfs_warn(fs_info,
+			"Userspace transaction mechanism is considered "
+			"deprecated and slated to be removed in 4.17. "
+			"If you have a valid use case please "
+			"speak up on the mailing list");
+		WARN_ON(1);
+		warned = true;
+	}
 
 	ret = -EINPROGRESS;
 	if (file->private_data)
