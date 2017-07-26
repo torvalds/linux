@@ -38,7 +38,6 @@
 #include <linux/qed/qed_if.h>
 #include "qede.h"
 
-#ifdef CONFIG_RFS_ACCEL
 struct qede_arfs_tuple {
 	union {
 		__be32 src_ipv4;
@@ -80,6 +79,7 @@ struct qede_arfs_fltr_node {
 };
 
 struct qede_arfs {
+#define QEDE_ARFS_BUCKET_HEAD(edev, idx) (&(edev)->arfs->arfs_hl_head[idx])
 #define QEDE_ARFS_POLL_COUNT	100
 #define QEDE_RFS_FLW_BITSHIFT	(4)
 #define QEDE_RFS_FLW_MASK	((1 << QEDE_RFS_FLW_BITSHIFT) - 1)
@@ -92,6 +92,7 @@ struct qede_arfs {
 	bool			enable;
 };
 
+#ifdef CONFIG_RFS_ACCEL
 static void qede_configure_arfs_fltr(struct qede_dev *edev,
 				     struct qede_arfs_fltr_node *n,
 				     u16 rxq_id, bool add_fltr)
@@ -1262,4 +1263,121 @@ void qede_config_rx_mode(struct net_device *ndev)
 	edev->ops->filter_config(edev->cdev, &rx_mode);
 out:
 	kfree(uc_macs);
+}
+
+static struct qede_arfs_fltr_node *
+qede_get_arfs_fltr_by_loc(struct hlist_head *head, u32 location)
+{
+	struct qede_arfs_fltr_node *fltr;
+
+	hlist_for_each_entry(fltr, head, node)
+		if (location == fltr->sw_id)
+			return fltr;
+
+	return NULL;
+}
+
+int qede_get_cls_rule_all(struct qede_dev *edev, struct ethtool_rxnfc *info,
+			  u32 *rule_locs)
+{
+	struct qede_arfs_fltr_node *fltr;
+	struct hlist_head *head;
+	int cnt = 0, rc = 0;
+
+	info->data = QEDE_RFS_MAX_FLTR;
+
+	__qede_lock(edev);
+
+	if (!edev->arfs) {
+		rc = -EPERM;
+		goto unlock;
+	}
+
+	head = QEDE_ARFS_BUCKET_HEAD(edev, 0);
+
+	hlist_for_each_entry(fltr, head, node) {
+		if (cnt == info->rule_cnt) {
+			rc = -EMSGSIZE;
+			goto unlock;
+		}
+
+		rule_locs[cnt] = fltr->sw_id;
+		cnt++;
+	}
+
+	info->rule_cnt = cnt;
+
+unlock:
+	__qede_unlock(edev);
+	return rc;
+}
+
+int qede_get_cls_rule_entry(struct qede_dev *edev, struct ethtool_rxnfc *cmd)
+{
+	struct ethtool_rx_flow_spec *fsp = &cmd->fs;
+	struct qede_arfs_fltr_node *fltr = NULL;
+	int rc = 0;
+
+	cmd->data = QEDE_RFS_MAX_FLTR;
+
+	__qede_lock(edev);
+
+	if (!edev->arfs) {
+		rc = -EPERM;
+		goto unlock;
+	}
+
+	fltr = qede_get_arfs_fltr_by_loc(QEDE_ARFS_BUCKET_HEAD(edev, 0),
+					 fsp->location);
+	if (!fltr) {
+		DP_NOTICE(edev, "Rule not found - location=0x%x\n",
+			  fsp->location);
+		rc = -EINVAL;
+		goto unlock;
+	}
+
+	if (fltr->tuple.eth_proto == htons(ETH_P_IP)) {
+		if (fltr->tuple.ip_proto == IPPROTO_TCP)
+			fsp->flow_type = TCP_V4_FLOW;
+		else
+			fsp->flow_type = UDP_V4_FLOW;
+
+		fsp->h_u.tcp_ip4_spec.psrc = fltr->tuple.src_port;
+		fsp->h_u.tcp_ip4_spec.pdst = fltr->tuple.dst_port;
+		fsp->h_u.tcp_ip4_spec.ip4src = fltr->tuple.src_ipv4;
+		fsp->h_u.tcp_ip4_spec.ip4dst = fltr->tuple.dst_ipv4;
+	} else {
+		if (fltr->tuple.ip_proto == IPPROTO_TCP)
+			fsp->flow_type = TCP_V6_FLOW;
+		else
+			fsp->flow_type = UDP_V6_FLOW;
+		fsp->h_u.tcp_ip6_spec.psrc = fltr->tuple.src_port;
+		fsp->h_u.tcp_ip6_spec.pdst = fltr->tuple.dst_port;
+		memcpy(&fsp->h_u.tcp_ip6_spec.ip6src,
+		       &fltr->tuple.src_ipv6, sizeof(struct in6_addr));
+		memcpy(&fsp->h_u.tcp_ip6_spec.ip6dst,
+		       &fltr->tuple.dst_ipv6, sizeof(struct in6_addr));
+	}
+
+	fsp->ring_cookie = fltr->rxq_id;
+
+unlock:
+	__qede_unlock(edev);
+	return rc;
+}
+
+int qede_get_arfs_filter_count(struct qede_dev *edev)
+{
+	int count = 0;
+
+	__qede_lock(edev);
+
+	if (!edev->arfs)
+		goto unlock;
+
+	count = edev->arfs->filter_count;
+
+unlock:
+	__qede_unlock(edev);
+	return count;
 }

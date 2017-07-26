@@ -1045,20 +1045,34 @@ static int qede_get_rss_flags(struct qede_dev *edev, struct ethtool_rxnfc *info)
 }
 
 static int qede_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
-			  u32 *rules __always_unused)
+			  u32 *rule_locs)
 {
 	struct qede_dev *edev = netdev_priv(dev);
+	int rc = 0;
 
 	switch (info->cmd) {
 	case ETHTOOL_GRXRINGS:
 		info->data = QEDE_RSS_COUNT(edev);
-		return 0;
+		break;
 	case ETHTOOL_GRXFH:
-		return qede_get_rss_flags(edev, info);
+		rc = qede_get_rss_flags(edev, info);
+		break;
+	case ETHTOOL_GRXCLSRLCNT:
+		info->rule_cnt = qede_get_arfs_filter_count(edev);
+		info->data = QEDE_RFS_MAX_FLTR;
+		break;
+	case ETHTOOL_GRXCLSRULE:
+		rc = qede_get_cls_rule_entry(edev, info);
+		break;
+	case ETHTOOL_GRXCLSRLALL:
+		rc = qede_get_cls_rule_all(edev, info, rule_locs);
+		break;
 	default:
 		DP_ERR(edev, "Command parameters not supported\n");
-		return -EOPNOTSUPP;
+		rc = -EOPNOTSUPP;
 	}
+
+	return rc;
 }
 
 static int qede_set_rss_flags(struct qede_dev *edev, struct ethtool_rxnfc *info)
