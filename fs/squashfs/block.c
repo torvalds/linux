@@ -121,11 +121,12 @@ static void squashfs_process_blocks(struct squashfs_read_request *req)
 
 	if (req->data_processing == SQUASHFS_METADATA) {
 		/* Extract the length of the metadata block */
-		if (req->offset != msblk->devblksize - 1)
-			length = *((u16 *)(bh[0]->b_data + req->offset));
-		else {
-			length = bh[0]->b_data[req->offset];
-			length |= bh[1]->b_data[0] << 8;
+		if (req->offset != msblk->devblksize - 1) {
+			length = le16_to_cpup((__le16 *)
+					(bh[0]->b_data + req->offset));
+		} else {
+			length = (unsigned char)bh[0]->b_data[req->offset];
+			length |= (unsigned char)bh[1]->b_data[0] << 8;
 		}
 		req->compressed = SQUASHFS_COMPRESSED(length);
 		req->data_processing = req->compressed ? SQUASHFS_DECOMPRESS
@@ -211,8 +212,8 @@ static int bh_is_optional(struct squashfs_read_request *req, int idx)
 	int start_idx, end_idx;
 	struct squashfs_sb_info *msblk = req->sb->s_fs_info;
 
-	start_idx = (idx * msblk->devblksize - req->offset) / PAGE_CACHE_SIZE;
-	end_idx = ((idx + 1) * msblk->devblksize - req->offset + 1) / PAGE_CACHE_SIZE;
+	start_idx = (idx * msblk->devblksize - req->offset) >> PAGE_SHIFT;
+	end_idx = ((idx + 1) * msblk->devblksize - req->offset + 1) >> PAGE_SHIFT;
 	if (start_idx >= req->output->pages)
 		return 1;
 	if (start_idx < 0)

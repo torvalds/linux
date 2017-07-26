@@ -22,9 +22,9 @@
 #define ACPI_MADT_GICC_LENGTH	\
 	(acpi_gbl_FADT.header.revision < 6 ? 76 : 80)
 
-#define BAD_MADT_GICC_ENTRY(entry, end)						\
-	(!(entry) || (unsigned long)(entry) + sizeof(*(entry)) > (end) ||	\
-	 (entry)->header.length != ACPI_MADT_GICC_LENGTH)
+#define BAD_MADT_GICC_ENTRY(entry, end)					\
+	(!(entry) || (entry)->header.length != ACPI_MADT_GICC_LENGTH ||	\
+	(unsigned long)(entry) + ACPI_MADT_GICC_LENGTH > (end))
 
 /* Basic configuration for ACPI */
 #ifdef	CONFIG_ACPI

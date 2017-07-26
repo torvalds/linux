@@ -2714,10 +2714,14 @@ static int cxgb_up(struct adapter *adap)
 		if (err)
 			goto irq_err;
 	}
+
+	mutex_lock(&uld_mutex);
 	enable_rx(adap);
 	t4_sge_start(adap);
 	t4_intr_enable(adap);
 	adap->flags |= FULL_INIT_DONE;
+	mutex_unlock(&uld_mutex);
+
 	notify_ulds(adap, CXGB4_STATE_UP);
 #if IS_ENABLED(CONFIG_IPV6)
 	update_clip(adap);

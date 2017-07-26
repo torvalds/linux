@@ -153,7 +153,7 @@ static int perf_pmu__parse_unit(struct perf_pmu_alias *alias, char *dir, char *n
 	if (fd == -1)
 		return -1;
 
-		sret = read(fd, alias->unit, UNIT_MAX_LEN);
+	sret = read(fd, alias->unit, UNIT_MAX_LEN);
 	if (sret < 0)
 		goto error;
 

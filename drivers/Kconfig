@@ -200,6 +200,8 @@ source "drivers/hwtracing/intel_th/Kconfig"
 
 source "drivers/fpga/Kconfig"
 
+source "drivers/tee/Kconfig"
+
 source "drivers/rk_nand/Kconfig"
 
 source "drivers/headset_observe/Kconfig"

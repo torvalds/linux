@@ -17,7 +17,7 @@ static pid_t spawn(void)
 	if (pid)
 		return pid;
 
-	while(1);
+	while(1)
 		sleep(5);
 	return 0;
 }
