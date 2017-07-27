@@ -873,6 +873,15 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 	}
 
 	ret = wiphy_register(wiphy);
+	if (ret < 0)
+		goto out;
+
+	if (wiphy->regulatory_flags & REGULATORY_WIPHY_SELF_MANAGED)
+		ret = regulatory_set_wiphy_regd(wiphy, hw_info->rd);
+	else if (isalpha(hw_info->rd->alpha2[0]) &&
+		 isalpha(hw_info->rd->alpha2[1]))
+		ret = regulatory_hint(wiphy, hw_info->rd->alpha2);
+
 out:
 	if (ret) {
 		kfree(iface_comb);
