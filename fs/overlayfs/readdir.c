@@ -131,8 +131,10 @@ static int ovl_cache_entry_add_rb(struct ovl_readdir_data *rdd,
 	}
 
 	p = ovl_cache_entry_new(rdd, name, len, ino, d_type);
-	if (p == NULL)
+	if (p == NULL) {
+		rdd->err = -ENOMEM;
 		return -ENOMEM;
+	}
 
 	list_add_tail(&p->l_node, rdd->list);
 	rb_link_node(&p->node, parent, newp);
