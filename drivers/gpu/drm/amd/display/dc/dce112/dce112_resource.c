@@ -994,7 +994,7 @@ static const struct resource_funcs dce112_res_pool_funcs = {
 	.validate_with_context = dce112_validate_with_context,
 	.validate_guaranteed = dce112_validate_guaranteed,
 	.validate_bandwidth = dce112_validate_bandwidth,
-	.validate_surface = dce100_validate_surface
+	.validate_plane = dce100_validate_plane
 };
 
 static void bw_calcs_data_update_from_pplib(struct core_dc *dc)

@@ -1819,7 +1819,7 @@ static int dm_crtc_cursor_move(struct drm_crtc *crtc,
 
 static bool fill_rects_from_plane_state(
 	const struct drm_plane_state *state,
-	struct dc_surface *surface)
+	struct dc_plane_state *surface)
 {
 	surface->src_rect.x = state->src_x >> 16;
 	surface->src_rect.y = state->src_y >> 16;
@@ -1894,7 +1894,7 @@ static int get_fb_info(
 
 static int fill_plane_attributes_from_fb(
 	struct amdgpu_device *adev,
-	struct dc_surface *surface,
+	struct dc_plane_state *surface,
 	const struct amdgpu_framebuffer *amdgpu_fb, bool addReq)
 {
 	uint64_t tiling_flags;
@@ -2048,7 +2048,7 @@ static int fill_plane_attributes_from_fb(
 
 static void fill_gamma_from_crtc_state(
 	const struct drm_crtc_state *crtc_state,
-	struct dc_surface *dc_surface)
+	struct dc_plane_state *dc_surface)
 {
 	int i;
 	struct dc_gamma *gamma;
@@ -2072,7 +2072,7 @@ static void fill_gamma_from_crtc_state(
 
 static int fill_plane_attributes(
 			struct amdgpu_device *adev,
-			struct dc_surface *surface,
+			struct dc_plane_state *surface,
 			struct drm_plane_state *plane_state,
 			struct drm_crtc_state *crtc_state,
 			bool addrReq)
@@ -3059,7 +3059,7 @@ static int dm_plane_helper_prepare_fb(
 
 	if (dm_plane_state_new->surface &&
 			dm_plane_state_old->surface != dm_plane_state_new->surface) {
-		struct dc_surface *surface = dm_plane_state_new->surface;
+		struct dc_plane_state *surface = dm_plane_state_new->surface;
 
 		if (surface->format < SURFACE_PIXEL_FORMAT_VIDEO_BEGIN) {
 			surface->address.grph.addr.low_part = lower_32_bits(afb->address);
@@ -3160,7 +3160,7 @@ int dm_plane_atomic_check(struct drm_plane *plane,
 	if (!dm_plane_state->surface)
 		return true;
 
-	if (dc_validate_surface(dc, dm_plane_state->surface))
+	if (dc_validate_plane(dc, dm_plane_state->surface))
 		return 0;
 
 	return -EINVAL;
@@ -3926,7 +3926,7 @@ static void amdgpu_dm_commit_surfaces(struct drm_atomic_state *state,
 	struct drm_plane *plane;
 	struct drm_plane_state *old_plane_state;
 	struct dc_stream *dc_stream_attach;
-	struct dc_surface *dc_surfaces_constructed[MAX_SURFACES];
+	struct dc_plane_state *dc_surfaces_constructed[MAX_SURFACES];
 	struct amdgpu_crtc *acrtc_attach = to_amdgpu_crtc(pcrtc);
 	struct dm_crtc_state *acrtc_state = to_dm_crtc_state(pcrtc->state);
 	int planes_count = 0;
@@ -4377,7 +4377,7 @@ static uint32_t add_val_sets_surface(
 	struct dc_validation_set *val_sets,
 	uint32_t set_count,
 	const struct dc_stream *stream,
-	struct dc_surface *surface)
+	struct dc_plane_state *surface)
 {
 	uint32_t i = 0, j = 0;
 
@@ -4699,7 +4699,7 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 
 			pflip_needed = !state->allow_modeset;
 			if (!pflip_needed) {
-				struct dc_surface *surface;
+				struct dc_plane_state *surface;
 
 				surface = dc_create_surface(dc);
 

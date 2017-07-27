@@ -528,7 +528,7 @@ enum dc_quantization_range {
 
 /* XFM */
 
-/* used in  struct dc_surface */
+/* used in  struct dc_plane_state */
 struct scaling_taps {
 	uint32_t v_taps;
 	uint32_t h_taps;

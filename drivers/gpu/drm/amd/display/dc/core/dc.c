@@ -645,7 +645,7 @@ static bool is_validation_required(
 			return true;
 
 		for (j = 0; j < set[i].surface_count; j++) {
-			struct dc_surface temp_surf;
+			struct dc_plane_state temp_surf;
 			memset(&temp_surf, 0, sizeof(temp_surf));
 
 			temp_surf = *context->stream_status[i].surfaces[j];
@@ -684,7 +684,7 @@ static bool validate_surfaces(
 
 	for (i = 0; i < set_count; i++)
 		for (j = 0; j < set[i].surface_count; j++)
-			if (!dc_validate_surface(dc, set[i].surfaces[j]))
+			if (!dc_validate_plane(dc, set[i].surfaces[j]))
 				return false;
 
 	return true;
@@ -978,7 +978,7 @@ static bool dc_commit_context_no_check(struct dc *dc, struct validate_context *c
 		const struct dc_sink *sink = context->streams[i]->sink;
 
 		for (j = 0; j < context->stream_status[i].surface_count; j++) {
-			const struct dc_surface *surface =
+			const struct dc_plane_state *surface =
 					context->stream_status[i].surfaces[j];
 
 			core_dc->hwss.apply_ctx_for_surface(core_dc, surface, context);
@@ -1136,7 +1136,7 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 
 bool dc_commit_surfaces_to_stream(
 		struct dc *dc,
-		struct dc_surface **new_surfaces,
+		struct dc_plane_state **new_surfaces,
 		uint8_t new_surface_count,
 		struct dc_stream *dc_stream)
 {
@@ -1220,7 +1220,7 @@ void dc_release_validate_context(struct validate_context *context)
 
 static bool is_surface_in_context(
 		const struct validate_context *context,
-		const struct dc_surface *surface)
+		const struct dc_plane_state *surface)
 {
 	int j;
 
@@ -1470,7 +1470,7 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 		update_surface_trace(dc, srf_updates, surface_count);
 
 	if (update_type >= UPDATE_TYPE_FULL) {
-		struct dc_surface *new_surfaces[MAX_SURFACES] = {0};
+		struct dc_plane_state *new_surfaces[MAX_SURFACES] = {0};
 
 		for (i = 0; i < surface_count; i++)
 			new_surfaces[i] = srf_updates[i].surface;
@@ -1496,7 +1496,7 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 
 	/* save update parameters into surface */
 	for (i = 0; i < surface_count; i++) {
-		struct dc_surface *surface = srf_updates[i].surface;
+		struct dc_plane_state *surface = srf_updates[i].surface;
 
 		if (srf_updates[i].flip_addr) {
 			surface->address = srf_updates[i].flip_addr->address;
@@ -1599,7 +1599,7 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 
 	/* Lock pipes for provided surfaces, or all active if full update*/
 	for (i = 0; i < surface_count; i++) {
-		struct dc_surface *surface = srf_updates[i].surface;
+		struct dc_plane_state *surface = srf_updates[i].surface;
 
 		for (j = 0; j < core_dc->res_pool->pipe_count; j++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
@@ -1649,7 +1649,7 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 
 	/* Perform requested Updates */
 	for (i = 0; i < surface_count; i++) {
-		struct dc_surface *surface = srf_updates[i].surface;
+		struct dc_plane_state *surface = srf_updates[i].surface;
 
 		if (update_type == UPDATE_TYPE_MED)
 			core_dc->hwss.apply_ctx_for_surface(

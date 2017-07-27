@@ -34,7 +34,7 @@
 /*******************************************************************************
  * Private functions
  ******************************************************************************/
-static bool construct(struct dc_context *ctx, struct dc_surface *surface)
+static bool construct(struct dc_context *ctx, struct dc_plane_state *surface)
 {
 	surface->ctx = ctx;
 	memset(&surface->hdr_static_ctx,
@@ -42,7 +42,7 @@ static bool construct(struct dc_context *ctx, struct dc_surface *surface)
 	return true;
 }
 
-static void destruct(struct dc_surface *surface)
+static void destruct(struct dc_plane_state *surface)
 {
 	if (surface->gamma_correction != NULL) {
 		dc_gamma_release(&surface->gamma_correction);
@@ -57,18 +57,18 @@ static void destruct(struct dc_surface *surface)
 /*******************************************************************************
  * Public functions
  ******************************************************************************/
-void enable_surface_flip_reporting(struct dc_surface *surface,
+void enable_surface_flip_reporting(struct dc_plane_state *surface,
 		uint32_t controller_id)
 {
 	surface->irq_source = controller_id + DC_IRQ_SOURCE_PFLIP1 - 1;
 	/*register_flip_interrupt(surface);*/
 }
 
-struct dc_surface *dc_create_surface(const struct dc *dc)
+struct dc_plane_state *dc_create_surface(const struct dc *dc)
 {
 	struct core_dc *core_dc = DC_TO_CORE(dc);
 
-	struct dc_surface *surface = dm_alloc(sizeof(*surface));
+	struct dc_plane_state *surface = dm_alloc(sizeof(*surface));
 
 	if (NULL == surface)
 		goto alloc_fail;
@@ -88,7 +88,7 @@ alloc_fail:
 }
 
 const struct dc_surface_status *dc_surface_get_status(
-		const struct dc_surface *dc_surface)
+		const struct dc_plane_state *dc_surface)
 {
 	const struct dc_surface_status *surface_status;
 	struct core_dc *core_dc;
@@ -120,13 +120,13 @@ const struct dc_surface_status *dc_surface_get_status(
 	return surface_status;
 }
 
-void dc_surface_retain(struct dc_surface *surface)
+void dc_surface_retain(struct dc_plane_state *surface)
 {
 	ASSERT(surface->ref_count > 0);
 	++surface->ref_count;
 }
 
-void dc_surface_release(struct dc_surface *surface)
+void dc_surface_release(struct dc_plane_state *surface)
 {
 	ASSERT(surface->ref_count > 0);
 	--surface->ref_count;

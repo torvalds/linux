@@ -825,7 +825,7 @@ static const struct resource_funcs dce80_res_pool_funcs = {
 	.validate_with_context = dce80_validate_with_context,
 	.validate_guaranteed = dce80_validate_guaranteed,
 	.validate_bandwidth = dce80_validate_bandwidth,
-	.validate_surface = dce100_validate_surface
+	.validate_plane = dce100_validate_plane
 };
 
 static bool construct(

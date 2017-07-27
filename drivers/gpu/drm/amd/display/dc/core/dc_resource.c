@@ -430,7 +430,7 @@ static void rect_swap_helper(struct rect *rect)
 
 static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 {
-	const struct dc_surface *surface = pipe_ctx->surface;
+	const struct dc_plane_state *surface = pipe_ctx->surface;
 	const struct dc_stream *stream = pipe_ctx->stream;
 	struct scaler_data *data = &pipe_ctx->scl_data;
 	struct rect surf_src = surface->src_rect;
@@ -529,7 +529,7 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 
 static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip)
 {
-	const struct dc_surface *surface = pipe_ctx->surface;
+	const struct dc_plane_state *surface = pipe_ctx->surface;
 	const struct dc_stream *stream = pipe_ctx->stream;
 	struct rect surf_src = surface->src_rect;
 	struct rect surf_clip = surface->clip_rect;
@@ -607,7 +607,7 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip
 
 static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
 {
-	const struct dc_surface *surface = pipe_ctx->surface;
+	const struct dc_plane_state *surface = pipe_ctx->surface;
 	const struct dc_stream *stream = pipe_ctx->stream;
 	struct rect surf_src = surface->src_rect;
 	const int in_w = stream->src.width;
@@ -814,7 +814,7 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *r
 
 bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 {
-	const struct dc_surface *surface = pipe_ctx->surface;
+	const struct dc_plane_state *surface = pipe_ctx->surface;
 	struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
 	struct view recout_skip = { 0 };
 	bool res = false;
@@ -1028,7 +1028,7 @@ static int acquire_first_split_pipe(
 #endif
 
 bool resource_attach_surfaces_to_context(
-		struct dc_surface * const *surfaces,
+		struct dc_plane_state * const *surfaces,
 		int surface_count,
 		struct dc_stream *stream,
 		struct validate_context *context,
@@ -1075,7 +1075,7 @@ bool resource_attach_surfaces_to_context(
 
 	tail_pipe = NULL;
 	for (i = 0; i < surface_count; i++) {
-		struct dc_surface *surface = surfaces[i];
+		struct dc_plane_state *surface = surfaces[i];
 		struct pipe_ctx *free_pipe = acquire_free_pipe_for_stream(
 				context, pool, stream);
 
@@ -1351,7 +1351,7 @@ bool resource_is_stream_unchanged(
 static void copy_pipe_ctx(
 	const struct pipe_ctx *from_pipe_ctx, struct pipe_ctx *to_pipe_ctx)
 {
-	struct dc_surface *surface = to_pipe_ctx->surface;
+	struct dc_plane_state *surface = to_pipe_ctx->surface;
 	struct dc_stream *stream = to_pipe_ctx->stream;
 
 	*to_pipe_ctx = *from_pipe_ctx;
@@ -2055,7 +2055,7 @@ static void set_spd_info_packet(
 
 static void set_hdr_static_info_packet(
 		struct encoder_info_packet *info_packet,
-		struct dc_surface *surface,
+		struct dc_plane_state *surface,
 		struct dc_stream *stream)
 {
 	uint16_t i = 0;
@@ -2534,13 +2534,13 @@ bool dc_validate_stream(const struct dc *dc, struct dc_stream *stream)
 	return res == DC_OK;
 }
 
-bool dc_validate_surface(const struct dc *dc, const struct dc_surface *surface)
+bool dc_validate_plane(const struct dc *dc, const struct dc_plane_state *plane_state)
 {
 	struct core_dc *core_dc = DC_TO_CORE(dc);
 
 	/* TODO For now validates pixel format only */
-	if (core_dc->res_pool->funcs->validate_surface)
-		return core_dc->res_pool->funcs->validate_surface(surface) == DC_OK;
+	if (core_dc->res_pool->funcs->validate_plane)
+		return core_dc->res_pool->funcs->validate_plane(plane_state) == DC_OK;
 
 	return true;
 }

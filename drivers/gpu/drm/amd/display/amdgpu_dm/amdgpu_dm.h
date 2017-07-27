@@ -189,14 +189,14 @@ struct amdgpu_connector *amdgpu_dm_find_first_crct_matching_connector(
 struct amdgpu_framebuffer;
 struct amdgpu_display_manager;
 struct dc_validation_set;
-struct dc_surface;
+struct dc_plane_state;
 /* TODO rename to dc_stream_state */
 struct  dc_stream;
 
 
 struct dm_plane_state {
 	struct drm_plane_state base;
-	struct dc_surface *surface;
+	struct dc_plane_state *surface;
 };
 
 struct dm_crtc_state {

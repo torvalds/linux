@@ -92,7 +92,7 @@ struct dc_static_screen_events {
 
 /* Forward declaration*/
 struct dc;
-struct dc_surface;
+struct dc_plane_state;
 struct validate_context;
 
 struct dc_cap_funcs {
@@ -310,7 +310,7 @@ struct dc_surface_status {
 	bool is_right_eye;
 };
 
-struct dc_surface {
+struct dc_plane_state {
 	struct dc_plane_address address;
 
 	struct scaling_taps scaling_quality;
@@ -367,7 +367,7 @@ struct dc_scaling_info {
 };
 
 struct dc_surface_update {
-	struct dc_surface *surface;
+	struct dc_plane_state *surface;
 
 	/* isr safe update parameters.  null means no updates */
 	struct dc_flip_addrs *flip_addr;
@@ -385,12 +385,12 @@ struct dc_surface_update {
 /*
  * Create a new surface with default parameters;
  */
-struct dc_surface *dc_create_surface(const struct dc *dc);
+struct dc_plane_state *dc_create_surface(const struct dc *dc);
 const struct dc_surface_status *dc_surface_get_status(
-		const struct dc_surface *dc_surface);
+		const struct dc_plane_state *dc_surface);
 
-void dc_surface_retain(struct dc_surface *dc_surface);
-void dc_surface_release(struct dc_surface *dc_surface);
+void dc_surface_retain(struct dc_plane_state *dc_surface);
+void dc_surface_release(struct dc_plane_state *dc_surface);
 
 void dc_gamma_retain(struct dc_gamma *dc_gamma);
 void dc_gamma_release(struct dc_gamma **dc_gamma);
@@ -424,7 +424,7 @@ struct dc_flip_addrs {
 
 bool dc_commit_surfaces_to_stream(
 		struct dc *dc,
-		struct dc_surface **dc_surfaces,
+		struct dc_plane_state **dc_surfaces,
 		uint8_t surface_count,
 		struct dc_stream *stream);
 
@@ -470,7 +470,7 @@ enum surface_update_type {
 struct dc_stream_status {
 	int primary_otg_inst;
 	int surface_count;
-	struct dc_surface *surfaces[MAX_SURFACE_NUM];
+	struct dc_plane_state *surfaces[MAX_SURFACE_NUM];
 
 	/*
 	 * link this stream passes through
@@ -582,13 +582,13 @@ bool dc_stream_get_scanoutpos(const struct dc_stream *stream,
  */
 struct dc_validation_set {
 	struct dc_stream *stream;
-	struct dc_surface *surfaces[MAX_SURFACES];
+	struct dc_plane_state *surfaces[MAX_SURFACES];
 	uint8_t surface_count;
 };
 
 bool dc_validate_stream(const struct dc *dc, struct dc_stream *stream);
 
-bool dc_validate_surface(const struct dc *dc, const struct dc_surface *surface);
+bool dc_validate_plane(const struct dc *dc, const struct dc_plane_state *plane_state);
 /*
  * This function takes a set of resources and checks that they are cofunctional.
  *

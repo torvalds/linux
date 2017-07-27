@@ -215,7 +215,7 @@ static bool dce110_enable_display_power_gating(
 }
 
 static void build_prescale_params(struct ipp_prescale_params *prescale_params,
-		const struct dc_surface *surface)
+		const struct dc_plane_state *surface)
 {
 	prescale_params->mode = IPP_PRESCALE_MODE_FIXED_UNSIGNED;
 
@@ -240,7 +240,7 @@ static void build_prescale_params(struct ipp_prescale_params *prescale_params,
 
 static bool dce110_set_input_transfer_func(
 	struct pipe_ctx *pipe_ctx,
-	const struct dc_surface *surface)
+	const struct dc_plane_state *surface)
 {
 	struct input_pixel_processor *ipp = pipe_ctx->ipp;
 	const struct dc_transfer_func *tf = NULL;
@@ -2038,7 +2038,7 @@ static void set_plane_config(
 	struct resource_context *res_ctx)
 {
 	struct mem_input *mi = pipe_ctx->mi;
-	struct dc_surface *surface = pipe_ctx->surface;
+	struct dc_plane_state *surface = pipe_ctx->surface;
 	struct xfm_grph_csc_adjustment adjust;
 	struct out_csc_color_matrix tbl_entry;
 	unsigned int i;
@@ -2123,7 +2123,7 @@ static void set_plane_config(
 static void update_plane_addr(const struct core_dc *dc,
 		struct pipe_ctx *pipe_ctx)
 {
-	struct dc_surface *surface = pipe_ctx->surface;
+	struct dc_plane_state *surface = pipe_ctx->surface;
 
 	if (surface == NULL)
 		return;
@@ -2138,7 +2138,7 @@ static void update_plane_addr(const struct core_dc *dc,
 
 void dce110_update_pending_status(struct pipe_ctx *pipe_ctx)
 {
-	struct dc_surface *surface = pipe_ctx->surface;
+	struct dc_plane_state *surface = pipe_ctx->surface;
 
 	if (surface == NULL)
 		return;
@@ -2490,7 +2490,7 @@ static void dce110_program_front_end_for_pipe(
 {
 	struct mem_input *mi = pipe_ctx->mi;
 	struct pipe_ctx *old_pipe = NULL;
-	struct dc_surface *surface = pipe_ctx->surface;
+	struct dc_plane_state *surface = pipe_ctx->surface;
 	struct xfm_grph_csc_adjustment adjust;
 	struct out_csc_color_matrix tbl_entry;
 	unsigned int i;
@@ -2614,7 +2614,7 @@ static void dce110_program_front_end_for_pipe(
 
 static void dce110_apply_ctx_for_surface(
 		struct core_dc *dc,
-		const struct dc_surface *surface,
+		const struct dc_plane_state *surface,
 		struct validate_context *context)
 {
 	int i;

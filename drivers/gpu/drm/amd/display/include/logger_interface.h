@@ -77,7 +77,7 @@ void logger_write(struct dal_logger *logger,
 
 void pre_surface_trace(
 		const struct dc *dc,
-		const struct dc_surface *const *surfaces,
+		const struct dc_plane_state *const *surfaces,
 		int surface_count);
 
 void update_surface_trace(

@@ -1038,7 +1038,7 @@ static void reset_hw_ctx_wrap(
 static bool patch_address_for_sbs_tb_stereo(
 		struct pipe_ctx *pipe_ctx, PHYSICAL_ADDRESS_LOC *addr)
 {
-	struct dc_surface *surface = pipe_ctx->surface;
+	struct dc_plane_state *surface = pipe_ctx->surface;
 	bool sec_split = pipe_ctx->top_pipe &&
 			pipe_ctx->top_pipe->surface == pipe_ctx->surface;
 	if (sec_split && surface->address.type == PLN_ADDR_TYPE_GRPH_STEREO &&
@@ -1065,7 +1065,7 @@ static void update_plane_addr(const struct core_dc *dc, struct pipe_ctx *pipe_ct
 {
 	bool addr_patched = false;
 	PHYSICAL_ADDRESS_LOC addr;
-	struct dc_surface *surface = pipe_ctx->surface;
+	struct dc_plane_state *surface = pipe_ctx->surface;
 
 	if (surface == NULL)
 		return;
@@ -1080,7 +1080,7 @@ static void update_plane_addr(const struct core_dc *dc, struct pipe_ctx *pipe_ct
 }
 
 static bool dcn10_set_input_transfer_func(
-	struct pipe_ctx *pipe_ctx, const struct dc_surface *surface)
+	struct pipe_ctx *pipe_ctx, const struct dc_plane_state *surface)
 {
 	struct input_pixel_processor *ipp = pipe_ctx->ipp;
 	const struct dc_transfer_func *tf = NULL;
@@ -1689,7 +1689,7 @@ static void dcn10_power_on_fe(
 	struct pipe_ctx *pipe_ctx,
 	struct validate_context *context)
 {
-	struct dc_surface *dc_surface = pipe_ctx->surface;
+	struct dc_plane_state *dc_surface = pipe_ctx->surface;
 	struct dce_hwseq *hws = dc->hwseq;
 
 	power_on_plane(dc->hwseq,
@@ -1898,7 +1898,7 @@ static void update_dchubp_dpp(
 	struct dce_hwseq *hws = dc->hwseq;
 	struct mem_input *mi = pipe_ctx->mi;
 	struct input_pixel_processor *ipp = pipe_ctx->ipp;
-	struct dc_surface *surface = pipe_ctx->surface;
+	struct dc_plane_state *surface = pipe_ctx->surface;
 	union plane_size size = surface->plane_size;
 	struct default_adjustment ocsc = {0};
 	struct mpcc_cfg mpcc_cfg = {0};
@@ -2068,7 +2068,7 @@ static void dcn10_pplib_apply_display_requirements(
 
 static void dcn10_apply_ctx_for_surface(
 		struct core_dc *dc,
-		const struct dc_surface *surface,
+		const struct dc_plane_state *surface,
 		struct validate_context *context)
 {
 	int i, be_idx;
@@ -2468,7 +2468,7 @@ static bool dcn10_dummy_display_power_gating(
 
 void dcn10_update_pending_status(struct pipe_ctx *pipe_ctx)
 {
-	struct dc_surface *surface = pipe_ctx->surface;
+	struct dc_plane_state *surface = pipe_ctx->surface;
 	struct timing_generator *tg = pipe_ctx->tg;
 
 	if (surface->ctx->dc->debug.sanity_checks) {

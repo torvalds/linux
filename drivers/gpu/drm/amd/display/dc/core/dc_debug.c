@@ -38,7 +38,7 @@
 
 void pre_surface_trace(
 		const struct dc *dc,
-		const struct dc_surface *const *surfaces,
+		const struct dc_plane_state *const *surfaces,
 		int surface_count)
 {
 	int i;
@@ -46,7 +46,7 @@ void pre_surface_trace(
 	struct dal_logger *logger =  core_dc->ctx->logger;
 
 	for (i = 0; i < surface_count; i++) {
-		const struct dc_surface *surface = surfaces[i];
+		const struct dc_plane_state *surface = surfaces[i];
 
 		SURFACE_TRACE("Surface %d:\n", i);
 
