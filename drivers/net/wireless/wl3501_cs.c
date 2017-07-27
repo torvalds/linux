@@ -965,7 +965,7 @@ static inline void wl3501_md_ind_interrupt(struct net_device *dev,
 			    &addr4, sizeof(addr4));
 	if (!(addr4[0] == 0xAA && addr4[1] == 0xAA &&
 	      addr4[2] == 0x03 && addr4[4] == 0x00)) {
-		printk(KERN_INFO "Insupported packet type!\n");
+		printk(KERN_INFO "Unsupported packet type!\n");
 		return;
 	}
 	pkt_len = sig.size + 12 - 24 - 4 - 6;
