@@ -8219,6 +8219,10 @@ static bool nested_vmx_exit_reflected(struct kvm_vcpu *vcpu, u32 exit_reason)
 		 * table is L0's fault.
 		 */
 		return false;
+	case EXIT_REASON_INVPCID:
+		return
+			nested_cpu_has2(vmcs12, SECONDARY_EXEC_ENABLE_INVPCID) &&
+			nested_cpu_has(vmcs12, CPU_BASED_INVLPG_EXITING);
 	case EXIT_REASON_WBINVD:
 		return nested_cpu_has2(vmcs12, SECONDARY_EXEC_WBINVD_EXITING);
 	case EXIT_REASON_XSETBV:
@@ -9469,7 +9473,6 @@ static void nested_vmx_cr_fixed1_bits_update(struct kvm_vcpu *vcpu)
 
 static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 {
-	struct kvm_cpuid_entry2 *best;
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 secondary_exec_ctl = vmx_secondary_exec_control(vmx);
 
@@ -9488,15 +9491,27 @@ static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 		}
 	}
 
-	/* Exposing INVPCID only when PCID is exposed */
-	best = kvm_find_cpuid_entry(vcpu, 0x7, 0);
-	if (vmx_invpcid_supported() &&
-	    (!best || !(best->ebx & bit(X86_FEATURE_INVPCID)) ||
-	    !guest_cpuid_has_pcid(vcpu))) {
-		secondary_exec_ctl &= ~SECONDARY_EXEC_ENABLE_INVPCID;
+	if (vmx_invpcid_supported()) {
+		/* Exposing INVPCID only when PCID is exposed */
+		struct kvm_cpuid_entry2 *best = kvm_find_cpuid_entry(vcpu, 0x7, 0);
+		bool invpcid_enabled =
+			best && best->ebx & bit(X86_FEATURE_INVPCID) &&
+			guest_cpuid_has_pcid(vcpu);
 
-		if (best)
-			best->ebx &= ~bit(X86_FEATURE_INVPCID);
+		if (!invpcid_enabled) {
+			secondary_exec_ctl &= ~SECONDARY_EXEC_ENABLE_INVPCID;
+			if (best)
+				best->ebx &= ~bit(X86_FEATURE_INVPCID);
+		}
+
+		if (nested) {
+			if (invpcid_enabled)
+				vmx->nested.nested_vmx_secondary_ctls_high |=
+					SECONDARY_EXEC_ENABLE_INVPCID;
+			else
+				vmx->nested.nested_vmx_secondary_ctls_high &=
+					~SECONDARY_EXEC_ENABLE_INVPCID;
+		}
 	}
 
 	if (cpu_has_secondary_exec_ctrls())
@@ -10198,6 +10213,7 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 
 		/* Take the following fields only from vmcs12 */
 		exec_control &= ~(SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES |
+				  SECONDARY_EXEC_ENABLE_INVPCID |
 				  SECONDARY_EXEC_RDTSCP |
 				  SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY |
 				  SECONDARY_EXEC_APIC_REGISTER_VIRT);
