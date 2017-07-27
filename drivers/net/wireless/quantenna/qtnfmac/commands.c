@@ -2283,3 +2283,58 @@ out:
 	consume_skb(resp_skb);
 	return ret;
 }
+
+int qtnf_cmd_send_chan_switch(struct qtnf_wmac *mac,
+			      struct cfg80211_csa_settings *params)
+{
+	struct qlink_cmd_chan_switch *cmd;
+	struct sk_buff *cmd_skb;
+	u16 res_code = QLINK_CMD_RESULT_OK;
+	int ret;
+
+	cmd_skb = qtnf_cmd_alloc_new_cmdskb(mac->macid, 0x0,
+					    QLINK_CMD_CHAN_SWITCH,
+					    sizeof(*cmd));
+
+	if (unlikely(!cmd_skb))
+		return -ENOMEM;
+
+	qtnf_bus_lock(mac->bus);
+
+	cmd = (struct qlink_cmd_chan_switch *)cmd_skb->data;
+	cmd->channel = cpu_to_le16(params->chandef.chan->hw_value);
+	cmd->radar_required = params->radar_required;
+	cmd->block_tx = params->block_tx;
+	cmd->beacon_count = params->count;
+
+	ret = qtnf_cmd_send(mac->bus, cmd_skb, &res_code);
+
+	if (unlikely(ret))
+		goto out;
+
+	switch (res_code) {
+	case QLINK_CMD_RESULT_OK:
+		memcpy(&mac->csa_chandef, &params->chandef,
+		       sizeof(mac->csa_chandef));
+		mac->status |= QTNF_MAC_CSA_ACTIVE;
+		ret = 0;
+		break;
+	case QLINK_CMD_RESULT_ENOTFOUND:
+		ret = -ENOENT;
+		break;
+	case QLINK_CMD_RESULT_ENOTSUPP:
+		ret = -EOPNOTSUPP;
+		break;
+	case QLINK_CMD_RESULT_EALREADY:
+		ret = -EALREADY;
+		break;
+	case QLINK_CMD_RESULT_INVALID:
+	default:
+		ret = -EFAULT;
+		break;
+	}
+
+out:
+	qtnf_bus_unlock(mac->bus);
+	return ret;
+}

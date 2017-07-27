@@ -812,6 +812,59 @@ qtnf_get_channel(struct wiphy *wiphy, struct wireless_dev *wdev,
 	return 0;
 }
 
+static int qtnf_channel_switch(struct wiphy *wiphy, struct net_device *dev,
+			       struct cfg80211_csa_settings *params)
+{
+	struct qtnf_wmac *mac = wiphy_priv(wiphy);
+	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
+	int ret;
+
+	pr_debug("%s: chan(%u) count(%u) radar(%u) block_tx(%u)\n", dev->name,
+		 params->chandef.chan->hw_value, params->count,
+		 params->radar_required, params->block_tx);
+
+	switch (vif->wdev.iftype) {
+	case NL80211_IFTYPE_AP:
+		if (!(vif->bss_status & QTNF_STATE_AP_START)) {
+			pr_warn("AP not started on %s\n", dev->name);
+			return -ENOTCONN;
+		}
+		break;
+	default:
+		pr_err("unsupported vif type (%d) on %s\n",
+		       vif->wdev.iftype, dev->name);
+		return -EOPNOTSUPP;
+	}
+
+	if (vif->vifid != 0) {
+		if (!(mac->status & QTNF_MAC_CSA_ACTIVE))
+			return -EOPNOTSUPP;
+
+		if (!cfg80211_chandef_identical(&params->chandef,
+						&mac->csa_chandef))
+			return -EINVAL;
+
+		return 0;
+	}
+
+	if (!cfg80211_chandef_valid(&params->chandef)) {
+		pr_err("%s: invalid channel\n", dev->name);
+		return -EINVAL;
+	}
+
+	if (cfg80211_chandef_identical(&params->chandef, &mac->chandef)) {
+		pr_err("%s: switch request to the same channel\n", dev->name);
+		return -EALREADY;
+	}
+
+	ret = qtnf_cmd_send_chan_switch(mac, params);
+	if (ret)
+		pr_warn("%s: failed to switch to channel (%u)\n",
+			dev->name, params->chandef.chan->hw_value);
+
+	return ret;
+}
+
 static struct cfg80211_ops qtn_cfg80211_ops = {
 	.add_virtual_intf	= qtnf_add_virtual_intf,
 	.change_virtual_intf	= qtnf_change_virtual_intf,
@@ -834,7 +887,8 @@ static struct cfg80211_ops qtn_cfg80211_ops = {
 	.connect		= qtnf_connect,
 	.disconnect		= qtnf_disconnect,
 	.dump_survey		= qtnf_dump_survey,
-	.get_channel		= qtnf_get_channel
+	.get_channel		= qtnf_get_channel,
+	.channel_switch		= qtnf_channel_switch
 };
 
 static void qtnf_cfg80211_reg_notifier(struct wiphy *wiphy_in,
@@ -981,6 +1035,7 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 
 	wiphy->iface_combinations = iface_comb;
 	wiphy->n_iface_combinations = 1;
+	wiphy->max_num_csa_counters = 2;
 
 	/* Initialize cipher suits */
 	wiphy->cipher_suites = qtnf_cipher_suites;
@@ -988,7 +1043,8 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 	wiphy->signal_type = CFG80211_SIGNAL_TYPE_MBM;
 	wiphy->flags |= WIPHY_FLAG_HAVE_AP_SME |
 			WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD |
-			WIPHY_FLAG_AP_UAPSD;
+			WIPHY_FLAG_AP_UAPSD |
+			WIPHY_FLAG_HAS_CHANNEL_SWITCH;
 
 	wiphy->probe_resp_offload = NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS |
 				    NL80211_PROBE_RESP_OFFLOAD_SUPPORT_WPS2;

@@ -88,6 +88,10 @@ enum qtnf_sta_state {
 	QTNF_STA_CONNECTED
 };
 
+enum qtnf_mac_status {
+	QTNF_MAC_CSA_ACTIVE	= BIT(0)
+};
+
 struct qtnf_vif {
 	struct wireless_dev wdev;
 	u8 vifid;
@@ -136,11 +140,13 @@ struct qtnf_wmac {
 	u8 macid;
 	u8 wiphy_registered;
 	u8 macaddr[ETH_ALEN];
+	u32 status;
 	struct qtnf_bus *bus;
 	struct qtnf_mac_info macinfo;
 	struct qtnf_vif iflist[QTNF_MAX_INTF];
 	struct cfg80211_scan_request *scan_req;
 	struct cfg80211_chan_def chandef;
+	struct cfg80211_chan_def csa_chandef;
 };
 
 struct qtnf_hw_info {

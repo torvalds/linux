@@ -153,6 +153,7 @@ enum qlink_cmd_type {
 	QLINK_CMD_UPDOWN_INTF		= 0x0018,
 	QLINK_CMD_REG_NOTIFY		= 0x0019,
 	QLINK_CMD_CHANS_INFO_GET	= 0x001A,
+	QLINK_CMD_CHAN_SWITCH		= 0x001B,
 	QLINK_CMD_CONFIG_AP		= 0x0020,
 	QLINK_CMD_START_AP		= 0x0021,
 	QLINK_CMD_STOP_AP		= 0x0022,
@@ -482,6 +483,22 @@ struct qlink_cmd_reg_notify {
 	u8 user_reg_hint_type;
 } __packed;
 
+/**
+ * struct qlink_cmd_chan_switch - data for QLINK_CMD_CHAN_SWITCH command
+ *
+ * @channel: channel number according to 802.11 17.3.8.3.2 and Annex J
+ * @radar_required: whether radar detection is required on the new channel
+ * @block_tx: whether transmissions should be blocked while changing
+ * @beacon_count: number of beacons until switch
+ */
+struct qlink_cmd_chan_switch {
+	struct qlink_cmd chdr;
+	__le16 channel;
+	u8 radar_required;
+	u8 block_tx;
+	u8 beacon_count;
+} __packed;
+
 /* QLINK Command Responses messages related definitions
  */
 
@@ -667,6 +684,7 @@ enum qlink_event_type {
 	QLINK_EVENT_SCAN_COMPLETE	= 0x0025,
 	QLINK_EVENT_BSS_JOIN		= 0x0026,
 	QLINK_EVENT_BSS_LEAVE		= 0x0027,
+	QLINK_EVENT_FREQ_CHANGE		= 0x0028,
 };
 
 /**
@@ -734,6 +752,16 @@ struct qlink_event_bss_join {
 struct qlink_event_bss_leave {
 	struct qlink_event ehdr;
 	__le16 reason;
+} __packed;
+
+/**
+ * struct qlink_event_freq_change - data for QLINK_EVENT_FREQ_CHANGE event
+ *
+ * @freq: new operating frequency in MHz
+ */
+struct qlink_event_freq_change {
+	struct qlink_event ehdr;
+	__le32 freq;
 } __packed;
 
 enum qlink_rxmgmt_flags {
