@@ -271,7 +271,7 @@ static ssize_t keychord_write(struct file *file, const char __user *buffer,
 	while (resid > 0) {
 		/* Is the entire keychord entry header present ? */
 		if (resid < sizeof(struct input_keychord)) {
-			pr_err("keychord: Insufficient bytes present for header %lu\n",
+			pr_err("keychord: Insufficient bytes present for header %zu\n",
 			       resid);
 			goto err_unlock_return;
 		}
@@ -284,7 +284,7 @@ static ssize_t keychord_write(struct file *file, const char __user *buffer,
 		key_bytes = keychord->count * sizeof(keychord->keycodes[0]);
 		/* Do we have all the expected keycodes ? */
 		if (resid < key_bytes) {
-			pr_err("keychord: Insufficient bytes present for keycount %lu\n",
+			pr_err("keychord: Insufficient bytes present for keycount %zu\n",
 			       resid);
 			goto err_unlock_return;
 		}
