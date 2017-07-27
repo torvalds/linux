@@ -927,6 +927,10 @@ static u32 vmx_segment_access_rights(struct kvm_segment *var);
 static void copy_vmcs12_to_shadow(struct vcpu_vmx *vmx);
 static void copy_shadow_to_vmcs12(struct vcpu_vmx *vmx);
 static int alloc_identity_pagetable(struct kvm *kvm);
+static bool vmx_get_nmi_mask(struct kvm_vcpu *vcpu);
+static void vmx_set_nmi_mask(struct kvm_vcpu *vcpu, bool masked);
+static bool nested_vmx_is_page_fault_vmexit(struct vmcs12 *vmcs12,
+					    u16 error_code);
 
 static DEFINE_PER_CPU(struct vmcs *, vmxarea);
 static DEFINE_PER_CPU(struct vmcs *, current_vmcs);
@@ -2428,6 +2432,30 @@ static void skip_emulated_instruction(struct kvm_vcpu *vcpu)
 	vmx_set_interrupt_shadow(vcpu, 0);
 }
 
+static void nested_vmx_inject_exception_vmexit(struct kvm_vcpu *vcpu,
+					       unsigned long exit_qual)
+{
+	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
+	unsigned int nr = vcpu->arch.exception.nr;
+	u32 intr_info = nr | INTR_INFO_VALID_MASK;
+
+	if (vcpu->arch.exception.has_error_code) {
+		vmcs12->vm_exit_intr_error_code = vcpu->arch.exception.error_code;
+		intr_info |= INTR_INFO_DELIVER_CODE_MASK;
+	}
+
+	if (kvm_exception_is_soft(nr))
+		intr_info |= INTR_TYPE_SOFT_EXCEPTION;
+	else
+		intr_info |= INTR_TYPE_HARD_EXCEPTION;
+
+	if (!(vmcs12->idt_vectoring_info_field & VECTORING_INFO_VALID_MASK) &&
+	    vmx_get_nmi_mask(vcpu))
+		intr_info |= INTR_INFO_UNBLOCK_NMI;
+
+	nested_vmx_vmexit(vcpu, EXIT_REASON_EXCEPTION_NMI, intr_info, exit_qual);
+}
+
 /*
  * KVM wants to inject page-faults which it got to the guest. This function
  * checks whether in a nested guest, we need to inject them to L1 or L2.
@@ -2437,24 +2465,38 @@ static int nested_vmx_check_exception(struct kvm_vcpu *vcpu)
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
 	unsigned int nr = vcpu->arch.exception.nr;
 
-	if (!((vmcs12->exception_bitmap & (1u << nr)) ||
-		(nr == PF_VECTOR && vcpu->arch.exception.nested_apf)))
-		return 0;
+	if (nr == PF_VECTOR) {
+		if (vcpu->arch.exception.nested_apf) {
+			nested_vmx_inject_exception_vmexit(vcpu,
+							   vcpu->arch.apf.nested_apf_token);
+			return 1;
+		}
+		/*
+		 * FIXME: we must not write CR2 when L1 intercepts an L2 #PF exception.
+		 * The fix is to add the ancillary datum (CR2 or DR6) to structs
+		 * kvm_queued_exception and kvm_vcpu_events, so that CR2 and DR6
+		 * can be written only when inject_pending_event runs.  This should be
+		 * conditional on a new capability---if the capability is disabled,
+		 * kvm_multiple_exception would write the ancillary information to
+		 * CR2 or DR6, for backwards ABI-compatibility.
+		 */
+		if (nested_vmx_is_page_fault_vmexit(vmcs12,
+						    vcpu->arch.exception.error_code)) {
+			nested_vmx_inject_exception_vmexit(vcpu, vcpu->arch.cr2);
+			return 1;
+		}
+	} else {
+		unsigned long exit_qual = 0;
+		if (nr == DB_VECTOR)
+			exit_qual = vcpu->arch.dr6;
 
-	if (vcpu->arch.exception.nested_apf) {
-		vmcs12->vm_exit_intr_error_code = vcpu->arch.exception.error_code;
-		nested_vmx_vmexit(vcpu, EXIT_REASON_EXCEPTION_NMI,
-			PF_VECTOR | INTR_TYPE_HARD_EXCEPTION |
-			INTR_INFO_DELIVER_CODE_MASK | INTR_INFO_VALID_MASK,
-			vcpu->arch.apf.nested_apf_token);
-		return 1;
+		if (vmcs12->exception_bitmap & (1u << nr)) {
+			nested_vmx_inject_exception_vmexit(vcpu, exit_qual);
+			return 1;
+		}
 	}
 
-	vmcs12->vm_exit_intr_error_code = vmcs_read32(VM_EXIT_INTR_ERROR_CODE);
-	nested_vmx_vmexit(vcpu, EXIT_REASON_EXCEPTION_NMI,
-			  vmcs_read32(VM_EXIT_INTR_INFO),
-			  vmcs_readl(EXIT_QUALIFICATION));
-	return 1;
+	return 0;
 }
 
 static void vmx_queue_exception(struct kvm_vcpu *vcpu)
@@ -9529,10 +9571,11 @@ static void vmx_inject_page_fault_nested(struct kvm_vcpu *vcpu,
 	WARN_ON(!is_guest_mode(vcpu));
 
 	if (nested_vmx_is_page_fault_vmexit(vmcs12, fault->error_code)) {
-		vmcs12->vm_exit_intr_error_code = vmcs_read32(VM_EXIT_INTR_ERROR_CODE);
-		nested_vmx_vmexit(vcpu, to_vmx(vcpu)->exit_reason,
-				  vmcs_read32(VM_EXIT_INTR_INFO),
-				  vmcs_readl(EXIT_QUALIFICATION));
+		vmcs12->vm_exit_intr_error_code = fault->error_code;
+		nested_vmx_vmexit(vcpu, EXIT_REASON_EXCEPTION_NMI,
+				  PF_VECTOR | INTR_TYPE_HARD_EXCEPTION |
+				  INTR_INFO_DELIVER_CODE_MASK | INTR_INFO_VALID_MASK,
+				  fault->address);
 	} else {
 		kvm_inject_page_fault(vcpu, fault);
 	}
@@ -10115,12 +10158,6 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 	 * "or"ing of the EB of vmcs01 and vmcs12, because when enable_ept,
 	 * vmcs01's EB.PF is 0 so the "or" will take vmcs12's value, and when
 	 * !enable_ept, EB.PF is 1, so the "or" will always be 1.
-	 *
-	 * A problem with this approach (when !enable_ept) is that L1 may be
-	 * injected with more page faults than it asked for. This could have
-	 * caused problems, but in practice existing hypervisors don't care.
-	 * To fix this, we will need to emulate the PFEC checking (on the L1
-	 * page tables), using walk_addr(), when injecting PFs to L1.
 	 */
 	vmcs_write32(PAGE_FAULT_ERROR_CODE_MASK,
 		enable_ept ? vmcs12->page_fault_error_code_mask : 0);
