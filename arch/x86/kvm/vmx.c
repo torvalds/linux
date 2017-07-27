@@ -2442,7 +2442,7 @@ static int nested_vmx_check_exception(struct kvm_vcpu *vcpu)
 		return 0;
 
 	if (vcpu->arch.exception.nested_apf) {
-		vmcs_write32(VM_EXIT_INTR_ERROR_CODE, vcpu->arch.exception.error_code);
+		vmcs12->vm_exit_intr_error_code = vcpu->arch.exception.error_code;
 		nested_vmx_vmexit(vcpu, EXIT_REASON_EXCEPTION_NMI,
 			PF_VECTOR | INTR_TYPE_HARD_EXCEPTION |
 			INTR_INFO_DELIVER_CODE_MASK | INTR_INFO_VALID_MASK,
@@ -2450,6 +2450,7 @@ static int nested_vmx_check_exception(struct kvm_vcpu *vcpu)
 		return 1;
 	}
 
+	vmcs12->vm_exit_intr_error_code = vmcs_read32(VM_EXIT_INTR_ERROR_CODE);
 	nested_vmx_vmexit(vcpu, EXIT_REASON_EXCEPTION_NMI,
 			  vmcs_read32(VM_EXIT_INTR_INFO),
 			  vmcs_readl(EXIT_QUALIFICATION));
@@ -2667,7 +2668,7 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 	 * reason is that if one of these bits is necessary, it will appear
 	 * in vmcs01 and prepare_vmcs02, when it bitwise-or's the control
 	 * fields of vmcs01 and vmcs02, will turn these bits off - and
-	 * nested_vmx_exit_handled() will not pass related exits to L1.
+	 * nested_vmx_exit_reflected() will not pass related exits to L1.
 	 * These rules have exceptions below.
 	 */
 
@@ -8019,12 +8020,11 @@ static bool nested_vmx_exit_handled_cr(struct kvm_vcpu *vcpu,
  * should handle it ourselves in L0 (and then continue L2). Only call this
  * when in is_guest_mode (L2).
  */
-static bool nested_vmx_exit_handled(struct kvm_vcpu *vcpu)
+static bool nested_vmx_exit_reflected(struct kvm_vcpu *vcpu, u32 exit_reason)
 {
 	u32 intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
-	u32 exit_reason = vmx->exit_reason;
 
 	trace_kvm_nested_vmexit(kvm_rip_read(vcpu), exit_reason,
 				vmcs_readl(EXIT_QUALIFICATION),
@@ -8167,6 +8167,29 @@ static bool nested_vmx_exit_handled(struct kvm_vcpu *vcpu)
 	default:
 		return true;
 	}
+}
+
+static int nested_vmx_reflect_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason)
+{
+	u32 exit_intr_info = vmcs_read32(VM_EXIT_INTR_INFO);
+
+	/*
+	 * At this point, the exit interruption info in exit_intr_info
+	 * is only valid for EXCEPTION_NMI exits.  For EXTERNAL_INTERRUPT
+	 * we need to query the in-kernel LAPIC.
+	 */
+	WARN_ON(exit_reason == EXIT_REASON_EXTERNAL_INTERRUPT);
+	if ((exit_intr_info &
+	     (INTR_INFO_VALID_MASK | INTR_INFO_DELIVER_CODE_MASK)) ==
+	    (INTR_INFO_VALID_MASK | INTR_INFO_DELIVER_CODE_MASK)) {
+		struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
+		vmcs12->vm_exit_intr_error_code =
+			vmcs_read32(VM_EXIT_INTR_ERROR_CODE);
+	}
+
+	nested_vmx_vmexit(vcpu, exit_reason, exit_intr_info,
+			  vmcs_readl(EXIT_QUALIFICATION));
+	return 1;
 }
 
 static void vmx_get_exit_info(struct kvm_vcpu *vcpu, u64 *info1, u64 *info2)
@@ -8415,12 +8438,8 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 	if (vmx->emulation_required)
 		return handle_invalid_guest_state(vcpu);
 
-	if (is_guest_mode(vcpu) && nested_vmx_exit_handled(vcpu)) {
-		nested_vmx_vmexit(vcpu, exit_reason,
-				  vmcs_read32(VM_EXIT_INTR_INFO),
-				  vmcs_readl(EXIT_QUALIFICATION));
-		return 1;
-	}
+	if (is_guest_mode(vcpu) && nested_vmx_exit_reflected(vcpu, exit_reason))
+		return nested_vmx_reflect_vmexit(vcpu, exit_reason);
 
 	if (exit_reason & VMX_EXIT_REASONS_FAILED_VMENTRY) {
 		dump_vmcs();
@@ -9509,12 +9528,14 @@ static void vmx_inject_page_fault_nested(struct kvm_vcpu *vcpu,
 
 	WARN_ON(!is_guest_mode(vcpu));
 
-	if (nested_vmx_is_page_fault_vmexit(vmcs12, fault->error_code))
+	if (nested_vmx_is_page_fault_vmexit(vmcs12, fault->error_code)) {
+		vmcs12->vm_exit_intr_error_code = vmcs_read32(VM_EXIT_INTR_ERROR_CODE);
 		nested_vmx_vmexit(vcpu, to_vmx(vcpu)->exit_reason,
 				  vmcs_read32(VM_EXIT_INTR_INFO),
 				  vmcs_readl(EXIT_QUALIFICATION));
-	else
+	} else {
 		kvm_inject_page_fault(vcpu, fault);
+	}
 }
 
 static inline bool nested_vmx_merge_msr_bitmap(struct kvm_vcpu *vcpu,
@@ -10847,13 +10868,8 @@ static void prepare_vmcs12(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 
 	vmcs12->vm_exit_reason = exit_reason;
 	vmcs12->exit_qualification = exit_qualification;
-
 	vmcs12->vm_exit_intr_info = exit_intr_info;
-	if ((vmcs12->vm_exit_intr_info &
-	     (INTR_INFO_VALID_MASK | INTR_INFO_DELIVER_CODE_MASK)) ==
-	    (INTR_INFO_VALID_MASK | INTR_INFO_DELIVER_CODE_MASK))
-		vmcs12->vm_exit_intr_error_code =
-			vmcs_read32(VM_EXIT_INTR_ERROR_CODE);
+
 	vmcs12->idt_vectoring_info_field = 0;
 	vmcs12->vm_exit_instruction_len = vmcs_read32(VM_EXIT_INSTRUCTION_LEN);
 	vmcs12->vmx_instruction_info = vmcs_read32(VMX_INSTRUCTION_INFO);
