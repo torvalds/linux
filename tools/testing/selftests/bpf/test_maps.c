@@ -440,7 +440,7 @@ static void test_arraymap_percpu_many_keys(void)
 
 static void test_devmap(int task, void *data)
 {
-	int next_key, fd;
+	int fd;
 	__u32 key, value;
 
 	fd = bpf_create_map(BPF_MAP_TYPE_DEVMAP, sizeof(key), sizeof(value),
@@ -619,6 +619,8 @@ static void run_all_tests(void)
 	test_arraymap_percpu(0, NULL);
 
 	test_arraymap_percpu_many_keys();
+
+	test_devmap(0, NULL);
 
 	test_map_large();
 	test_map_parallel();
