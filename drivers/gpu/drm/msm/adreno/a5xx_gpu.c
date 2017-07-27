@@ -284,28 +284,14 @@ static int a5xx_me_init(struct msm_gpu *gpu)
 static struct drm_gem_object *a5xx_ucode_load_bo(struct msm_gpu *gpu,
 		const struct firmware *fw, u64 *iova)
 {
-	struct drm_device *drm = gpu->dev;
 	struct drm_gem_object *bo;
 	void *ptr;
 
-	bo = msm_gem_new_locked(drm, fw->size - 4, MSM_BO_UNCACHED);
-	if (IS_ERR(bo))
-		return bo;
+	ptr = msm_gem_kernel_new_locked(gpu->dev, fw->size - 4,
+		MSM_BO_UNCACHED | MSM_BO_GPU_READONLY, gpu->aspace, &bo, iova);
 
-	ptr = msm_gem_get_vaddr(bo);
-	if (!ptr) {
-		drm_gem_object_unreference(bo);
-		return ERR_PTR(-ENOMEM);
-	}
-
-	if (iova) {
-		int ret = msm_gem_get_iova(bo, gpu->aspace, iova);
-
-		if (ret) {
-			drm_gem_object_unreference(bo);
-			return ERR_PTR(ret);
-		}
-	}
+	if (IS_ERR(ptr))
+		return ERR_CAST(ptr);
 
 	memcpy(ptr, &fw->data[4], fw->size - 4);
 

@@ -391,29 +391,17 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		return ret;
 	}
 
-	adreno_gpu->memptrs_bo = msm_gem_new(drm, sizeof(*adreno_gpu->memptrs),
-			MSM_BO_UNCACHED);
-	if (IS_ERR(adreno_gpu->memptrs_bo)) {
-		ret = PTR_ERR(adreno_gpu->memptrs_bo);
-		adreno_gpu->memptrs_bo = NULL;
-		dev_err(drm->dev, "could not allocate memptrs: %d\n", ret);
-		return ret;
-	}
+	adreno_gpu->memptrs = msm_gem_kernel_new(drm,
+		sizeof(*adreno_gpu->memptrs), MSM_BO_UNCACHED, gpu->aspace,
+		&adreno_gpu->memptrs_bo, &adreno_gpu->memptrs_iova);
 
-	adreno_gpu->memptrs = msm_gem_get_vaddr(adreno_gpu->memptrs_bo);
 	if (IS_ERR(adreno_gpu->memptrs)) {
-		dev_err(drm->dev, "could not vmap memptrs\n");
-		return -ENOMEM;
+		ret = PTR_ERR(adreno_gpu->memptrs);
+		adreno_gpu->memptrs = NULL;
+		dev_err(drm->dev, "could not allocate memptrs: %d\n", ret);
 	}
 
-	ret = msm_gem_get_iova(adreno_gpu->memptrs_bo, gpu->aspace,
-			&adreno_gpu->memptrs_iova);
-	if (ret) {
-		dev_err(drm->dev, "could not map memptrs: %d\n", ret);
-		return ret;
-	}
-
-	return 0;
+	return ret;
 }
 
 void adreno_gpu_cleanup(struct adreno_gpu *adreno_gpu)
