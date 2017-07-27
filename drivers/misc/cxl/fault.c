@@ -138,6 +138,12 @@ int cxl_handle_mm_fault(struct mm_struct *mm, u64 dsisr, u64 dar)
 	int result;
 	unsigned long access, flags, inv_flags = 0;
 
+	/*
+	 * Add the fault handling cpu to task mm cpumask so that we
+	 * can do a safe lockless page table walk when inserting the
+	 * hash page table entry.
+	 */
+	cpumask_set_cpu(smp_processor_id(), mm_cpumask(mm));
 	if ((result = copro_handle_mm_fault(mm, dar, dsisr, &flt))) {
 		pr_devel("copro_handle_mm_fault failed: %#x\n", result);
 		return result;

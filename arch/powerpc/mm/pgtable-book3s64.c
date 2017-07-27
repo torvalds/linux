@@ -83,15 +83,7 @@ static void do_nothing(void *unused)
 void serialize_against_pte_lookup(struct mm_struct *mm)
 {
 	smp_mb();
-	/*
-	 * Cxl fault handling requires us to do a lockless page table
-	 * walk while inserting hash page table entry with mm tracked
-	 * in cxl context. Hence we need to do a global flush.
-	 */
-	if (cxl_ctx_in_use())
-		smp_call_function(do_nothing, NULL, 1);
-	else
-		smp_call_function_many(mm_cpumask(mm), do_nothing, NULL, 1);
+	smp_call_function_many(mm_cpumask(mm), do_nothing, NULL, 1);
 }
 
 /*
