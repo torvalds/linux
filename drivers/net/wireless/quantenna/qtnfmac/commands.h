@@ -70,5 +70,6 @@ int qtnf_cmd_send_disconnect(struct qtnf_vif *vif,
 			     u16 reason_code);
 int qtnf_cmd_send_updown_intf(struct qtnf_vif *vif,
 			      bool up);
+int qtnf_cmd_reg_notify(struct qtnf_bus *bus, struct regulatory_request *req);
 
 #endif /* QLINK_COMMANDS_H_ */

@@ -42,7 +42,6 @@
 
 #define QTNF_MAX_SSID_LIST_LENGTH	2
 #define QTNF_MAX_VSIE_LEN		255
-#define QTNF_MAX_ALPHA_LEN		2
 #define QTNF_MAX_INTF			8
 #define QTNF_MAX_EVENT_QUEUE_LEN	255
 #define QTNF_DEFAULT_BG_SCAN_PERIOD	300
@@ -136,14 +135,14 @@ struct qtnf_wmac {
 };
 
 struct qtnf_hw_info {
+	u16 ql_proto_ver;
 	u8 num_mac;
 	u8 mac_bitmap;
-	u8 alpha2_code[QTNF_MAX_ALPHA_LEN];
 	u32 fw_ver;
-	u16 ql_proto_ver;
+	u32 hw_capab;
+	struct ieee80211_regdomain *rd;
 	u8 total_tx_chain;
 	u8 total_rx_chain;
-	u32 hw_capab;
 };
 
 struct qtnf_vif *qtnf_mac_get_free_vif(struct qtnf_wmac *mac);

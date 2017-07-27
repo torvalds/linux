@@ -19,7 +19,7 @@
 
 #include <linux/ieee80211.h>
 
-#define QLINK_PROTO_VER		3
+#define QLINK_PROTO_VER		4
 
 #define QLINK_MACID_RSVD		0xFF
 #define QLINK_VIFID_RSVD		0xFF
@@ -133,6 +133,9 @@ enum qlink_channel_width {
  *	number of operational channels and information on each of the channel.
  *	This command is generic to a specified MAC, interface index must be set
  *	to QLINK_VIFID_RSVD in command header.
+ * @QLINK_CMD_REG_NOTIFY: notify device about regulatory domain change. This
+ *	command is supported only if device reports QLINK_HW_SUPPORTS_REG_UPDATE
+ *	capability.
  */
 enum qlink_cmd_type {
 	QLINK_CMD_FW_INIT		= 0x0001,
@@ -148,7 +151,7 @@ enum qlink_cmd_type {
 	QLINK_CMD_DEL_INTF		= 0x0016,
 	QLINK_CMD_CHANGE_INTF		= 0x0017,
 	QLINK_CMD_UPDOWN_INTF		= 0x0018,
-	QLINK_CMD_REG_REGION		= 0x0019,
+	QLINK_CMD_REG_NOTIFY		= 0x0019,
 	QLINK_CMD_CHANS_INFO_GET	= 0x001A,
 	QLINK_CMD_CONFIG_AP		= 0x0020,
 	QLINK_CMD_START_AP		= 0x0021,
@@ -430,6 +433,44 @@ struct qlink_cmd_chans_info_get {
 	u8 band;
 } __packed;
 
+/**
+ * enum qlink_reg_initiator - Indicates the initiator of a reg domain request
+ *
+ * See &enum nl80211_reg_initiator for more info.
+ */
+enum qlink_reg_initiator {
+	QLINK_REGDOM_SET_BY_CORE,
+	QLINK_REGDOM_SET_BY_USER,
+	QLINK_REGDOM_SET_BY_DRIVER,
+	QLINK_REGDOM_SET_BY_COUNTRY_IE,
+};
+
+/**
+ * enum qlink_user_reg_hint_type - type of user regulatory hint
+ *
+ * See &enum nl80211_user_reg_hint_type for more info.
+ */
+enum qlink_user_reg_hint_type {
+	QLINK_USER_REG_HINT_USER	= 0,
+	QLINK_USER_REG_HINT_CELL_BASE	= 1,
+	QLINK_USER_REG_HINT_INDOOR	= 2,
+};
+
+/**
+ * struct qlink_cmd_reg_notify - data for QLINK_CMD_REG_NOTIFY command
+ *
+ * @alpha2: the ISO / IEC 3166 alpha2 country code.
+ * @initiator: which entity sent the request, one of &enum qlink_reg_initiator.
+ * @user_reg_hint_type: type of hint for QLINK_REGDOM_SET_BY_USER request, one
+ *	of &enum qlink_user_reg_hint_type.
+ */
+struct qlink_cmd_reg_notify {
+	struct qlink_cmd chdr;
+	u8 alpha2[2];
+	u8 initiator;
+	u8 user_reg_hint_type;
+} __packed;
+
 /* QLINK Command Responses messages related definitions
  */
 
@@ -438,6 +479,7 @@ enum qlink_cmd_result {
 	QLINK_CMD_RESULT_INVALID,
 	QLINK_CMD_RESULT_ENOTSUPP,
 	QLINK_CMD_RESULT_ENOTFOUND,
+	QLINK_CMD_RESULT_EALREADY,
 };
 
 /**
@@ -497,6 +539,18 @@ struct qlink_resp_get_mac_info {
 } __packed;
 
 /**
+ * enum qlink_dfs_regions - regulatory DFS regions
+ *
+ * Corresponds to &enum nl80211_dfs_regions.
+ */
+enum qlink_dfs_regions {
+	QLINK_DFS_UNSET	= 0,
+	QLINK_DFS_FCC	= 1,
+	QLINK_DFS_ETSI	= 2,
+	QLINK_DFS_JP	= 3,
+};
+
+/**
  * struct qlink_resp_get_hw_info - response for QLINK_CMD_GET_HW_INFO command
  *
  * Description of wireless hardware capabilities and features.
@@ -504,22 +558,29 @@ struct qlink_resp_get_mac_info {
  * @fw_ver: wireless hardware firmware version.
  * @hw_capab: Bitmap of capabilities supported by firmware.
  * @ql_proto_ver: Version of QLINK protocol used by firmware.
- * @country_code: country code ID firmware is configured to.
  * @num_mac: Number of separate physical radio devices provided by hardware.
  * @mac_bitmap: Bitmap of MAC IDs that are active and can be used in firmware.
  * @total_tx_chains: total number of transmit chains used by device.
  * @total_rx_chains: total number of receive chains.
+ * @alpha2: country code ID firmware is configured to.
+ * @n_reg_rules: number of regulatory rules TLVs in variable portion of the
+ *	message.
+ * @dfs_region: regulatory DFS region, one of @enum qlink_dfs_region.
+ * @info: variable-length HW info, can contain QTN_TLV_ID_REG_RULE.
  */
 struct qlink_resp_get_hw_info {
 	struct qlink_resp rhdr;
 	__le32 fw_ver;
 	__le32 hw_capab;
 	__le16 ql_proto_ver;
-	u8 alpha2_code[2];
 	u8 num_mac;
 	u8 mac_bitmap;
 	u8 total_tx_chain;
 	u8 total_rx_chain;
+	u8 alpha2[2];
+	u8 n_reg_rules;
+	u8 dfs_region;
+	u8 info[0];
 } __packed;
 
 /**
@@ -741,6 +802,7 @@ enum qlink_tlv_id {
 	QTN_TLV_ID_LRETRY_LIMIT		= 0x0204,
 	QTN_TLV_ID_BCN_PERIOD		= 0x0205,
 	QTN_TLV_ID_DTIM			= 0x0206,
+	QTN_TLV_ID_REG_RULE		= 0x0207,
 	QTN_TLV_ID_CHANNEL		= 0x020F,
 	QTN_TLV_ID_COVERAGE_CLASS	= 0x0213,
 	QTN_TLV_ID_IFACE_LIMIT		= 0x0214,
@@ -844,11 +906,53 @@ struct qlink_tlv_cclass {
 	u8 cclass;
 } __packed;
 
-enum qlink_dfs_state {
-	QLINK_DFS_USABLE,
-	QLINK_DFS_UNAVAILABLE,
-	QLINK_DFS_AVAILABLE,
+/**
+ * enum qlink_reg_rule_flags - regulatory rule flags
+ *
+ * See description of &enum nl80211_reg_rule_flags
+ */
+enum qlink_reg_rule_flags {
+	QLINK_RRF_NO_OFDM	= BIT(0),
+	QLINK_RRF_NO_CCK	= BIT(1),
+	QLINK_RRF_NO_INDOOR	= BIT(2),
+	QLINK_RRF_NO_OUTDOOR	= BIT(3),
+	QLINK_RRF_DFS		= BIT(4),
+	QLINK_RRF_PTP_ONLY	= BIT(5),
+	QLINK_RRF_PTMP_ONLY	= BIT(6),
+	QLINK_RRF_NO_IR		= BIT(7),
+	QLINK_RRF_AUTO_BW	= BIT(8),
+	QLINK_RRF_IR_CONCURRENT	= BIT(9),
+	QLINK_RRF_NO_HT40MINUS	= BIT(10),
+	QLINK_RRF_NO_HT40PLUS	= BIT(11),
+	QLINK_RRF_NO_80MHZ	= BIT(12),
+	QLINK_RRF_NO_160MHZ	= BIT(13),
 };
+
+/**
+ * struct qlink_tlv_reg_rule - data for QTN_TLV_ID_REG_RULE TLV
+ *
+ * Regulatory rule description.
+ *
+ * @start_freq_khz: start frequency of the range the rule is attributed to.
+ * @end_freq_khz: end frequency of the range the rule is attributed to.
+ * @max_bandwidth_khz: max bandwidth that channels in specified range can be
+ *	configured to.
+ * @max_antenna_gain: max antenna gain that can be used in the specified
+ *	frequency range, dBi.
+ * @max_eirp: maximum EIRP.
+ * @flags: regulatory rule flags in &enum qlink_reg_rule_flags.
+ * @dfs_cac_ms: DFS CAC period.
+ */
+struct qlink_tlv_reg_rule {
+	struct qlink_tlv_hdr hdr;
+	__le32 start_freq_khz;
+	__le32 end_freq_khz;
+	__le32 max_bandwidth_khz;
+	__le32 max_antenna_gain;
+	__le32 max_eirp;
+	__le32 flags;
+	__le32 dfs_cac_ms;
+} __packed;
 
 enum qlink_channel_flags {
 	QLINK_CHAN_DISABLED		= BIT(0),
@@ -863,6 +967,12 @@ enum qlink_channel_flags {
 	QLINK_CHAN_IR_CONCURRENT	= BIT(10),
 	QLINK_CHAN_NO_20MHZ		= BIT(11),
 	QLINK_CHAN_NO_10MHZ		= BIT(12),
+};
+
+enum qlink_dfs_state {
+	QLINK_DFS_USABLE,
+	QLINK_DFS_UNAVAILABLE,
+	QLINK_DFS_AVAILABLE,
 };
 
 struct qlink_tlv_channel {

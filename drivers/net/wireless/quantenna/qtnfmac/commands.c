@@ -181,38 +181,6 @@ out:
 	return ret;
 }
 
-int qtnf_cmd_send_regulatory_config(struct qtnf_wmac *mac, const char *alpha2)
-{
-	struct sk_buff *cmd_skb;
-	u16 res_code = QLINK_CMD_RESULT_OK;
-	int ret;
-
-	cmd_skb = qtnf_cmd_alloc_new_cmdskb(mac->macid, QLINK_VIFID_RSVD,
-					    QLINK_CMD_REG_REGION,
-					    sizeof(struct qlink_cmd));
-	if (unlikely(!cmd_skb))
-		return -ENOMEM;
-
-	qtnf_cmd_skb_put_tlv_arr(cmd_skb, WLAN_EID_COUNTRY, alpha2,
-				 QTNF_MAX_ALPHA_LEN);
-
-	ret = qtnf_cmd_send(mac->bus, cmd_skb, &res_code);
-
-	if (unlikely(ret))
-		goto out;
-
-	if (unlikely(res_code != QLINK_CMD_RESULT_OK)) {
-		pr_err("MAC%u: CMD failed: %u\n", mac->macid, res_code);
-		ret = -EFAULT;
-		goto out;
-	}
-
-	memcpy(mac->bus->hw_info.alpha2_code, alpha2,
-	       sizeof(mac->bus->hw_info.alpha2_code));
-out:
-	return ret;
-}
-
 int qtnf_cmd_send_config_ap(struct qtnf_vif *vif)
 {
 	struct sk_buff *cmd_skb;
@@ -848,25 +816,168 @@ out:
 	return ret;
 }
 
+static u32 qtnf_cmd_resp_reg_rule_flags_parse(u32 qflags)
+{
+	u32 flags = 0;
+
+	if (qflags & QLINK_RRF_NO_OFDM)
+		flags |= NL80211_RRF_NO_OFDM;
+
+	if (qflags & QLINK_RRF_NO_CCK)
+		flags |= NL80211_RRF_NO_CCK;
+
+	if (qflags & QLINK_RRF_NO_INDOOR)
+		flags |= NL80211_RRF_NO_INDOOR;
+
+	if (qflags & QLINK_RRF_NO_OUTDOOR)
+		flags |= NL80211_RRF_NO_OUTDOOR;
+
+	if (qflags & QLINK_RRF_DFS)
+		flags |= NL80211_RRF_DFS;
+
+	if (qflags & QLINK_RRF_PTP_ONLY)
+		flags |= NL80211_RRF_PTP_ONLY;
+
+	if (qflags & QLINK_RRF_PTMP_ONLY)
+		flags |= NL80211_RRF_PTMP_ONLY;
+
+	if (qflags & QLINK_RRF_NO_IR)
+		flags |= NL80211_RRF_NO_IR;
+
+	if (qflags & QLINK_RRF_AUTO_BW)
+		flags |= NL80211_RRF_AUTO_BW;
+
+	if (qflags & QLINK_RRF_IR_CONCURRENT)
+		flags |= NL80211_RRF_IR_CONCURRENT;
+
+	if (qflags & QLINK_RRF_NO_HT40MINUS)
+		flags |= NL80211_RRF_NO_HT40MINUS;
+
+	if (qflags & QLINK_RRF_NO_HT40PLUS)
+		flags |= NL80211_RRF_NO_HT40PLUS;
+
+	if (qflags & QLINK_RRF_NO_80MHZ)
+		flags |= NL80211_RRF_NO_80MHZ;
+
+	if (qflags & QLINK_RRF_NO_160MHZ)
+		flags |= NL80211_RRF_NO_160MHZ;
+
+	return flags;
+}
+
 static int
 qtnf_cmd_resp_proc_hw_info(struct qtnf_bus *bus,
-			   const struct qlink_resp_get_hw_info *resp)
+			   const struct qlink_resp_get_hw_info *resp,
+			   size_t info_len)
 {
 	struct qtnf_hw_info *hwinfo = &bus->hw_info;
+	const struct qlink_tlv_hdr *tlv;
+	const struct qlink_tlv_reg_rule *tlv_rule;
+	struct ieee80211_reg_rule *rule;
+	u16 tlv_type;
+	u16 tlv_value_len;
+	unsigned int rule_idx = 0;
+
+	if (WARN_ON(resp->n_reg_rules > NL80211_MAX_SUPP_REG_RULES))
+		return -E2BIG;
+
+	hwinfo->rd = kzalloc(sizeof(*hwinfo->rd)
+			     + sizeof(struct ieee80211_reg_rule)
+			     * resp->n_reg_rules, GFP_KERNEL);
+
+	if (!hwinfo->rd)
+		return -ENOMEM;
 
 	hwinfo->num_mac = resp->num_mac;
 	hwinfo->mac_bitmap = resp->mac_bitmap;
 	hwinfo->fw_ver = le32_to_cpu(resp->fw_ver);
 	hwinfo->ql_proto_ver = le16_to_cpu(resp->ql_proto_ver);
-	memcpy(hwinfo->alpha2_code, resp->alpha2_code,
-	       sizeof(hwinfo->alpha2_code));
 	hwinfo->total_tx_chain = resp->total_tx_chain;
 	hwinfo->total_rx_chain = resp->total_rx_chain;
 	hwinfo->hw_capab = le32_to_cpu(resp->hw_capab);
+	hwinfo->rd->n_reg_rules = resp->n_reg_rules;
+	hwinfo->rd->alpha2[0] = resp->alpha2[0];
+	hwinfo->rd->alpha2[1] = resp->alpha2[1];
+
+	switch (resp->dfs_region) {
+	case QLINK_DFS_FCC:
+		hwinfo->rd->dfs_region = NL80211_DFS_FCC;
+		break;
+	case QLINK_DFS_ETSI:
+		hwinfo->rd->dfs_region = NL80211_DFS_ETSI;
+		break;
+	case QLINK_DFS_JP:
+		hwinfo->rd->dfs_region = NL80211_DFS_JP;
+		break;
+	case QLINK_DFS_UNSET:
+	default:
+		hwinfo->rd->dfs_region = NL80211_DFS_UNSET;
+		break;
+	}
+
+	tlv = (const struct qlink_tlv_hdr *)resp->info;
+
+	while (info_len >= sizeof(*tlv)) {
+		tlv_type = le16_to_cpu(tlv->type);
+		tlv_value_len = le16_to_cpu(tlv->len);
+
+		if (tlv_value_len + sizeof(*tlv) > info_len) {
+			pr_warn("malformed TLV 0x%.2X; LEN: %u\n",
+				tlv_type, tlv_value_len);
+			return -EINVAL;
+		}
+
+		switch (tlv_type) {
+		case QTN_TLV_ID_REG_RULE:
+			if (rule_idx >= resp->n_reg_rules) {
+				pr_warn("unexpected number of rules: %u\n",
+					resp->n_reg_rules);
+				return -EINVAL;
+			}
+
+			if (tlv_value_len != sizeof(*tlv_rule) - sizeof(*tlv)) {
+				pr_warn("malformed TLV 0x%.2X; LEN: %u\n",
+					tlv_type, tlv_value_len);
+				return -EINVAL;
+			}
+
+			tlv_rule = (const struct qlink_tlv_reg_rule *)tlv;
+			rule = &hwinfo->rd->reg_rules[rule_idx++];
+
+			rule->freq_range.start_freq_khz =
+				le32_to_cpu(tlv_rule->start_freq_khz);
+			rule->freq_range.end_freq_khz =
+				le32_to_cpu(tlv_rule->end_freq_khz);
+			rule->freq_range.max_bandwidth_khz =
+				le32_to_cpu(tlv_rule->max_bandwidth_khz);
+			rule->power_rule.max_antenna_gain =
+				le32_to_cpu(tlv_rule->max_antenna_gain);
+			rule->power_rule.max_eirp =
+				le32_to_cpu(tlv_rule->max_eirp);
+			rule->dfs_cac_ms =
+				le32_to_cpu(tlv_rule->dfs_cac_ms);
+			rule->flags = qtnf_cmd_resp_reg_rule_flags_parse(
+					le32_to_cpu(tlv_rule->flags));
+			break;
+		default:
+			break;
+		}
+
+		info_len -= tlv_value_len + sizeof(*tlv);
+		tlv = (struct qlink_tlv_hdr *)(tlv->val + tlv_value_len);
+	}
+
+	if (rule_idx != resp->n_reg_rules) {
+		pr_warn("unexpected number of rules: expected %u got %u\n",
+			resp->n_reg_rules, rule_idx);
+		kfree(hwinfo->rd);
+		hwinfo->rd = NULL;
+		return -EINVAL;
+	}
 
 	pr_info("fw_version=%d, MACs map %#x, alpha2=\"%c%c\", chains Tx=%u Rx=%u\n",
 		hwinfo->fw_ver, hwinfo->mac_bitmap,
-		hwinfo->alpha2_code[0], hwinfo->alpha2_code[1],
+		hwinfo->rd->alpha2[0], hwinfo->rd->alpha2[1],
 		hwinfo->total_tx_chain, hwinfo->total_rx_chain);
 
 	return 0;
@@ -1013,14 +1124,24 @@ qtnf_cmd_resp_fill_channels_info(struct ieee80211_supported_band *band,
 	unsigned int chidx = 0;
 	u32 qflags;
 
-	kfree(band->channels);
-	band->channels = NULL;
+	if (band->channels) {
+		if (band->n_channels == resp->num_chans) {
+			memset(band->channels, 0,
+			       sizeof(*band->channels) * band->n_channels);
+		} else {
+			kfree(band->channels);
+			band->n_channels = 0;
+			band->channels = NULL;
+		}
+	}
 
 	band->n_channels = resp->num_chans;
 	if (band->n_channels == 0)
 		return 0;
 
-	band->channels = kcalloc(band->n_channels, sizeof(*chan), GFP_KERNEL);
+	if (!band->channels)
+		band->channels = kcalloc(band->n_channels, sizeof(*chan),
+					 GFP_KERNEL);
 	if (!band->channels) {
 		band->n_channels = 0;
 		return -ENOMEM;
@@ -1256,6 +1377,7 @@ int qtnf_cmd_get_hw_info(struct qtnf_bus *bus)
 	const struct qlink_resp_get_hw_info *resp;
 	u16 res_code = QLINK_CMD_RESULT_OK;
 	int ret = 0;
+	size_t info_len;
 
 	cmd_skb = qtnf_cmd_alloc_new_cmdskb(QLINK_MACID_RSVD, QLINK_VIFID_RSVD,
 					    QLINK_CMD_GET_HW_INFO,
@@ -1266,7 +1388,7 @@ int qtnf_cmd_get_hw_info(struct qtnf_bus *bus)
 	qtnf_bus_lock(bus);
 
 	ret = qtnf_cmd_send_with_reply(bus, cmd_skb, &resp_skb, &res_code,
-				       sizeof(*resp), NULL);
+				       sizeof(*resp), &info_len);
 
 	if (unlikely(ret))
 		goto out;
@@ -1278,7 +1400,7 @@ int qtnf_cmd_get_hw_info(struct qtnf_bus *bus)
 	}
 
 	resp = (const struct qlink_resp_get_hw_info *)resp_skb->data;
-	ret = qtnf_cmd_resp_proc_hw_info(bus, resp);
+	ret = qtnf_cmd_resp_proc_hw_info(bus, resp, info_len);
 
 out:
 	qtnf_bus_unlock(bus);
@@ -1974,5 +2096,79 @@ int qtnf_cmd_send_updown_intf(struct qtnf_vif *vif, bool up)
 	}
 out:
 	qtnf_bus_unlock(vif->mac->bus);
+	return ret;
+}
+
+int qtnf_cmd_reg_notify(struct qtnf_bus *bus, struct regulatory_request *req)
+{
+	struct sk_buff *cmd_skb;
+	int ret;
+	u16 res_code;
+	struct qlink_cmd_reg_notify *cmd;
+
+	cmd_skb = qtnf_cmd_alloc_new_cmdskb(QLINK_MACID_RSVD, QLINK_VIFID_RSVD,
+					    QLINK_CMD_REG_NOTIFY,
+					    sizeof(*cmd));
+	if (!cmd_skb)
+		return -ENOMEM;
+
+	cmd = (struct qlink_cmd_reg_notify *)cmd_skb->data;
+	cmd->alpha2[0] = req->alpha2[0];
+	cmd->alpha2[1] = req->alpha2[1];
+
+	switch (req->initiator) {
+	case NL80211_REGDOM_SET_BY_CORE:
+		cmd->initiator = QLINK_REGDOM_SET_BY_CORE;
+		break;
+	case NL80211_REGDOM_SET_BY_USER:
+		cmd->initiator = QLINK_REGDOM_SET_BY_USER;
+		break;
+	case NL80211_REGDOM_SET_BY_DRIVER:
+		cmd->initiator = QLINK_REGDOM_SET_BY_DRIVER;
+		break;
+	case NL80211_REGDOM_SET_BY_COUNTRY_IE:
+		cmd->initiator = QLINK_REGDOM_SET_BY_COUNTRY_IE;
+		break;
+	}
+
+	switch (req->user_reg_hint_type) {
+	case NL80211_USER_REG_HINT_USER:
+		cmd->user_reg_hint_type = QLINK_USER_REG_HINT_USER;
+		break;
+	case NL80211_USER_REG_HINT_CELL_BASE:
+		cmd->user_reg_hint_type = QLINK_USER_REG_HINT_CELL_BASE;
+		break;
+	case NL80211_USER_REG_HINT_INDOOR:
+		cmd->user_reg_hint_type = QLINK_USER_REG_HINT_INDOOR;
+		break;
+	}
+
+	qtnf_bus_lock(bus);
+
+	ret = qtnf_cmd_send(bus, cmd_skb, &res_code);
+	if (ret)
+		goto out;
+
+	switch (res_code) {
+	case QLINK_CMD_RESULT_ENOTSUPP:
+		pr_warn("reg update not supported\n");
+		ret = -EOPNOTSUPP;
+		break;
+	case QLINK_CMD_RESULT_EALREADY:
+		pr_info("regulatory domain is already set to %c%c",
+			req->alpha2[0], req->alpha2[1]);
+		ret = -EALREADY;
+		break;
+	case QLINK_CMD_RESULT_OK:
+		ret = 0;
+		break;
+	default:
+		ret = -EFAULT;
+		break;
+	}
+
+out:
+	qtnf_bus_unlock(bus);
+
 	return ret;
 }

@@ -700,66 +700,43 @@ static struct cfg80211_ops qtn_cfg80211_ops = {
 	.disconnect		= qtnf_disconnect
 };
 
-static void qtnf_cfg80211_reg_notifier(struct wiphy *wiphy,
+static void qtnf_cfg80211_reg_notifier(struct wiphy *wiphy_in,
 				       struct regulatory_request *req)
 {
-	struct qtnf_wmac *mac = wiphy_priv(wiphy);
-	struct qtnf_bus *bus;
-	struct qtnf_vif *vif;
-	struct qtnf_wmac *chan_mac;
-	int i;
+	struct qtnf_wmac *mac = wiphy_priv(wiphy_in);
+	struct qtnf_bus *bus = mac->bus;
+	struct wiphy *wiphy;
+	unsigned int mac_idx;
 	enum nl80211_band band;
-
-	bus = mac->bus;
+	int ret;
 
 	pr_debug("MAC%u: initiator=%d alpha=%c%c\n", mac->macid, req->initiator,
 		 req->alpha2[0], req->alpha2[1]);
 
-	vif = qtnf_mac_get_base_vif(mac);
-	if (!vif) {
-		pr_err("MAC%u: primary VIF is not configured\n", mac->macid);
+	ret = qtnf_cmd_reg_notify(bus, req);
+	if (ret) {
+		if (ret != -EOPNOTSUPP && ret != -EALREADY)
+			pr_err("failed to update reg domain to %c%c\n",
+			       req->alpha2[0], req->alpha2[1]);
 		return;
 	}
 
-	/* ignore non-ISO3166 country codes */
-	for (i = 0; i < sizeof(req->alpha2); i++) {
-		if (req->alpha2[i] < 'A' || req->alpha2[i] > 'Z') {
-			pr_err("MAC%u: not an ISO3166 code\n", mac->macid);
-			return;
-		}
-	}
-	if (!strncasecmp(req->alpha2, bus->hw_info.alpha2_code,
-			 sizeof(req->alpha2))) {
-		pr_warn("MAC%u: unchanged country code\n", mac->macid);
-		return;
-	}
-
-	if (qtnf_cmd_send_regulatory_config(mac, req->alpha2)) {
-		pr_err("MAC%u: failed to configure regulatory\n", mac->macid);
-		return;
-	}
-
-	for (i = 0; i < bus->hw_info.num_mac; i++) {
-		chan_mac = bus->mac[i];
-
-		if (!chan_mac)
+	for (mac_idx = 0; mac_idx < QTNF_MAX_MAC; ++mac_idx) {
+		if (!(bus->hw_info.mac_bitmap & (1 << mac_idx)))
 			continue;
 
-		if (!(bus->hw_info.mac_bitmap & BIT(i)))
-			continue;
+		mac = bus->mac[mac_idx];
+		wiphy = priv_to_wiphy(mac);
 
 		for (band = 0; band < NUM_NL80211_BANDS; ++band) {
 			if (!wiphy->bands[band])
 				continue;
 
-			if (qtnf_cmd_get_mac_chan_info(chan_mac,
-						       wiphy->bands[band])) {
-				pr_err("MAC%u: can't get channel info\n",
-				       chan_mac->macid);
-				qtnf_core_detach(bus);
-
-				return;
-			}
+			ret = qtnf_cmd_get_mac_chan_info(mac,
+							 wiphy->bands[band]);
+			if (ret)
+				pr_err("failed to get chan info for mac %u band %u\n",
+				       mac_idx, band);
 		}
 	}
 }
@@ -844,10 +821,8 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 	}
 
 	iface_comb = kzalloc(sizeof(*iface_comb), GFP_KERNEL);
-	if (!iface_comb) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!iface_comb)
+		return -ENOMEM;
 
 	ret = qtnf_wiphy_setup_if_comb(wiphy, iface_comb, &mac->macinfo);
 	if (ret)
@@ -889,21 +864,17 @@ int qtnf_wiphy_register(struct qtnf_hw_info *hw_info, struct qtnf_wmac *mac)
 	ether_addr_copy(wiphy->perm_addr, mac->macaddr);
 
 	if (hw_info->hw_capab & QLINK_HW_SUPPORTS_REG_UPDATE) {
-		pr_debug("device supports REG_UPDATE\n");
+		wiphy->regulatory_flags |= REGULATORY_STRICT_REG |
+			REGULATORY_CUSTOM_REG;
 		wiphy->reg_notifier = qtnf_cfg80211_reg_notifier;
-		pr_debug("hint regulatory about EP region: %c%c\n",
-			 hw_info->alpha2_code[0],
-			 hw_info->alpha2_code[1]);
-		regulatory_hint(wiphy, hw_info->alpha2_code);
+		wiphy_apply_custom_regulatory(wiphy, hw_info->rd);
 	} else {
-		pr_debug("device doesn't support REG_UPDATE\n");
 		wiphy->regulatory_flags |= REGULATORY_WIPHY_SELF_MANAGED;
 	}
 
 	ret = wiphy_register(wiphy);
-
 out:
-	if (ret < 0) {
+	if (ret) {
 		kfree(iface_comb);
 		return ret;
 	}

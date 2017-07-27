@@ -549,6 +549,9 @@ void qtnf_core_detach(struct qtnf_bus *bus)
 		destroy_workqueue(bus->workqueue);
 	}
 
+	kfree(bus->hw_info.rd);
+	bus->hw_info.rd = NULL;
+
 	qtnf_trans_free(bus);
 }
 EXPORT_SYMBOL_GPL(qtnf_core_detach);
