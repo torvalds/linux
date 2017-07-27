@@ -4707,6 +4707,11 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 
 				dc_plane_state = dc_create_plane_state(dc);
 
+				if (dm_plane_state->dc_state)
+					dc_plane_state_release(dm_plane_state->dc_state);
+
+				dm_plane_state->dc_state = dc_plane_state;
+
 				ret = fill_plane_attributes(
 					plane_crtc->dev->dev_private,
 					dc_plane_state,
@@ -4715,12 +4720,6 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 					false);
 				if (ret)
 					goto fail;
-
-
-				if (dm_plane_state->dc_state)
-					dc_plane_state_release(dm_plane_state->dc_state);
-
-				dm_plane_state->dc_state = dc_plane_state;
 
 				add_val_sets_plane(set,
 						     set_count,
