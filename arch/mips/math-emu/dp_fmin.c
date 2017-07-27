@@ -243,7 +243,11 @@ union ieee754dp ieee754dp_fmina(union ieee754dp x, union ieee754dp y)
 		return x;
 
 	/* Compare mantissa */
-	if (xm <= ym)
+	if (xm < ym)
+		return x;
+	else if (xm > ym)
+		return y;
+	else if (xs == 1)
 		return x;
 	return y;
 }

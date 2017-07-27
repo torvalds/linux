@@ -243,7 +243,11 @@ union ieee754sp ieee754sp_fmaxa(union ieee754sp x, union ieee754sp y)
 		return y;
 
 	/* Compare mantissa */
-	if (xm <= ym)
+	if (xm < ym)
 		return y;
-	return x;
+	else if (xm > ym)
+		return x;
+	else if (xs == 0)
+		return x;
+	return y;
 }
