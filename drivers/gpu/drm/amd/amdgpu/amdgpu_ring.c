@@ -213,7 +213,7 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 	}
 
 	if (amdgpu_sriov_vf(adev) && ring->funcs->type == AMDGPU_RING_TYPE_GFX) {
-		r = amdgpu_wb_get_256Bit(adev, &ring->fence_offs);
+		r = amdgpu_wb_get_256bit(adev, &ring->fence_offs);
 		if (r) {
 			dev_err(adev->dev, "(%d) ring fence_offs wb alloc failed\n", r);
 			return r;

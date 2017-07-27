@@ -567,7 +567,7 @@ int amdgpu_wb_get_64bit(struct amdgpu_device *adev, u32 *wb)
 	}
 }
 
-int amdgpu_wb_get_256Bit(struct amdgpu_device *adev, u32 *wb)
+int amdgpu_wb_get_256bit(struct amdgpu_device *adev, u32 *wb)
 {
 	int i = 0;
 	unsigned long offset = bitmap_find_next_zero_area_off(adev->wb.used,
