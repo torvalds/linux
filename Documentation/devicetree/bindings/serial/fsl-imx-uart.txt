@@ -9,7 +9,6 @@ Optional properties:
 - fsl,irda-mode : Indicate the uart supports irda mode
 - fsl,dte-mode : Indicate the uart works in DTE mode. The uart works
                   in DCE mode by default.
-- fsl,dma-size : Indicate the size of the DMA buffer and its periods
 
 Please check Documentation/devicetree/bindings/serial/serial.txt
 for the complete list of generic properties.
@@ -29,5 +28,4 @@ uart1: serial@73fbc000 {
 	interrupts = <31>;
 	uart-has-rtscts;
 	fsl,dte-mode;
-	fsl,dma-size = <1024 4>;
 };

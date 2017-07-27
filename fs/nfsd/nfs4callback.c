@@ -720,8 +720,8 @@ static const struct rpc_version nfs_cb_version4 = {
 	.counts			= nfs4_cb_counts,
 };
 
-static const struct rpc_version *nfs_cb_version[] = {
-	&nfs_cb_version4,
+static const struct rpc_version *nfs_cb_version[2] = {
+	[1] = &nfs_cb_version4,
 };
 
 static const struct rpc_program cb_program;
@@ -795,7 +795,7 @@ static int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *c
 		.saddress	= (struct sockaddr *) &conn->cb_saddr,
 		.timeout	= &timeparms,
 		.program	= &cb_program,
-		.version	= 0,
+		.version	= 1,
 		.flags		= (RPC_CLNT_CREATE_NOPING | RPC_CLNT_CREATE_QUIET),
 	};
 	struct rpc_clnt *client;

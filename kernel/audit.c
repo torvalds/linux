@@ -641,6 +641,7 @@ static int auditd_send_unicast_skb(struct sk_buff *skb)
 	ac = rcu_dereference(auditd_conn);
 	if (!ac) {
 		rcu_read_unlock();
+		kfree_skb(skb);
 		rc = -ECONNREFUSED;
 		goto err;
 	}

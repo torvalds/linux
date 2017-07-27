@@ -1640,8 +1640,13 @@ kiblnd_send(struct lnet_ni *ni, void *private, struct lnet_msg *lntmsg)
 	ibmsg = tx->tx_msg;
 	ibmsg->ibm_u.immediate.ibim_hdr = *hdr;
 
-	copy_from_iter(&ibmsg->ibm_u.immediate.ibim_payload, IBLND_MSG_SIZE,
-		       &from);
+	rc = copy_from_iter(&ibmsg->ibm_u.immediate.ibim_payload, payload_nob,
+			    &from);
+	if (rc != payload_nob) {
+		kiblnd_pool_free_node(&tx->tx_pool->tpo_pool, &tx->tx_list);
+		return -EFAULT;
+	}
+
 	nob = offsetof(struct kib_immediate_msg, ibim_payload[payload_nob]);
 	kiblnd_init_tx_msg(ni, tx, IBLND_MSG_IMMEDIATE, nob);
 
@@ -1741,8 +1746,14 @@ kiblnd_recv(struct lnet_ni *ni, void *private, struct lnet_msg *lntmsg,
 			break;
 		}
 
-		copy_to_iter(&rxmsg->ibm_u.immediate.ibim_payload,
-			     IBLND_MSG_SIZE, to);
+		rc = copy_to_iter(&rxmsg->ibm_u.immediate.ibim_payload, rlen,
+				  to);
+		if (rc != rlen) {
+			rc = -EFAULT;
+			break;
+		}
+
+		rc = 0;
 		lnet_finalize(ni, lntmsg, 0);
 		break;
 

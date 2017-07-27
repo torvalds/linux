@@ -172,7 +172,7 @@ struct kset {
 	spinlock_t list_lock;
 	struct kobject kobj;
 	const struct kset_uevent_ops *uevent_ops;
-};
+} __randomize_layout;
 
 extern void kset_init(struct kset *kset);
 extern int __must_check kset_register(struct kset *kset);

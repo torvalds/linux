@@ -23,6 +23,6 @@ struct kern_ipc_perm {
 
 	struct rcu_head rcu;
 	atomic_t refcount;
-} ____cacheline_aligned_in_smp;
+} ____cacheline_aligned_in_smp __randomize_layout;
 
 #endif /* _LINUX_IPC_H */

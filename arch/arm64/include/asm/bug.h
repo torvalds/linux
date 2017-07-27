@@ -36,7 +36,7 @@
 #ifdef CONFIG_GENERIC_BUG
 
 #define __BUG_ENTRY(flags) 				\
-		".pushsection __bug_table,\"a\"\n\t"	\
+		".pushsection __bug_table,\"aw\"\n\t"	\
 		".align 2\n\t"				\
 	"0:	.long 1f - 0b\n\t"			\
 _BUGVERBOSE_LOCATION(__FILE__, __LINE__)		\
