@@ -1377,6 +1377,7 @@ ov13858_set_pad_format(struct v4l2_subdev *sd,
 	struct ov13858 *ov13858 = to_ov13858(sd);
 	const struct ov13858_mode *mode;
 	struct v4l2_mbus_framefmt *framefmt;
+	s32 vblank_def;
 	s64 h_blank;
 
 	mutex_lock(&ov13858->mutex);
@@ -1397,10 +1398,12 @@ ov13858_set_pad_format(struct v4l2_subdev *sd,
 			ov13858->pixel_rate,
 			link_freq_configs[mode->link_freq_index].pixel_rate);
 		/* Update limits and set FPS to default */
+		vblank_def = ov13858->cur_mode->vts - ov13858->cur_mode->height;
 		__v4l2_ctrl_modify_range(
 			ov13858->vblank, OV13858_VBLANK_MIN,
 			OV13858_VTS_MAX - ov13858->cur_mode->height, 1,
-			ov13858->cur_mode->vts - ov13858->cur_mode->height);
+			vblank_def);
+		__v4l2_ctrl_s_ctrl(ov13858->vblank, vblank_def);
 		h_blank =
 			link_freq_configs[mode->link_freq_index].pixels_per_line
 			 - ov13858->cur_mode->width;
