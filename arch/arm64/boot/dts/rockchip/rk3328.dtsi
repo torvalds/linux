@@ -156,6 +156,19 @@
 		clock-output-names = "xin24m";
 	};
 
+	spdif: spdif@ff030000 {
+		compatible = "rockchip,rk3328-spdif";
+		reg = <0x0 0xff030000 0x0 0x1000>;
+		interrupts = <GIC_SPI 29 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_SPDIF>, <&cru HCLK_SPDIF_8CH>;
+		clock-names = "mclk", "hclk";
+		dmas = <&dmac 10>;
+		dma-names = "tx";
+		pinctrl-names = "default";
+		pinctrl-0 = <&spdifm2_tx>;
+		status = "disabled";
+	};
+
 	grf: syscon@ff100000 {
 		compatible = "rockchip,rk3328-grf", "syscon", "simple-mfd";
 		reg = <0x0 0xff100000 0x0 0x1000>;
