@@ -110,11 +110,12 @@ static int annotate_browser__set_jumps_percent_color(struct annotate_browser *br
 
 static int annotate_browser__pcnt_width(struct annotate_browser *ab)
 {
-	int w = 7 * ab->nr_events;
+	return 7 * ab->nr_events;
+}
 
-	if (ab->have_cycles)
-		w += IPC_WIDTH + CYCLES_WIDTH;
-	return w;
+static int annotate_browser__cycles_width(struct annotate_browser *ab)
+{
+	return ab->have_cycles ? IPC_WIDTH + CYCLES_WIDTH : 0;
 }
 
 static void annotate_browser__write(struct ui_browser *browser, void *entry, int row)
@@ -127,7 +128,8 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 			     (!current_entry || (browser->use_navkeypressed &&
 					         !browser->navkeypressed)));
 	int width = browser->width, printed;
-	int i, pcnt_width = annotate_browser__pcnt_width(ab);
+	int i, pcnt_width = annotate_browser__pcnt_width(ab),
+	       cycles_width = annotate_browser__cycles_width(ab);
 	double percent_max = 0.0;
 	char bf[256];
 	bool show_title = false;
@@ -162,7 +164,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 		ui_browser__set_percent_color(browser, 0, current_entry);
 
 		if (!show_title)
-			ui_browser__write_nstring(browser, " ", 7 * ab->nr_events);
+			ui_browser__write_nstring(browser, " ", pcnt_width);
 		else
 			ui_browser__printf(browser, "%*s", 7, "Percent");
 	}
@@ -190,7 +192,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 		width += 1;
 
 	if (!*dl->line)
-		ui_browser__write_nstring(browser, " ", width - pcnt_width);
+		ui_browser__write_nstring(browser, " ", width - pcnt_width - cycles_width);
 	else if (dl->offset == -1) {
 		if (dl->line_nr && annotate_browser__opts.show_linenr)
 			printed = scnprintf(bf, sizeof(bf), "%-*d ",
@@ -199,7 +201,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 			printed = scnprintf(bf, sizeof(bf), "%*s  ",
 				    ab->addr_width, " ");
 		ui_browser__write_nstring(browser, bf, printed);
-		ui_browser__write_nstring(browser, dl->line, width - printed - pcnt_width + 1);
+		ui_browser__write_nstring(browser, dl->line, width - printed - pcnt_width - cycles_width + 1);
 	} else {
 		u64 addr = dl->offset;
 		int color = -1;
@@ -256,7 +258,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 		}
 
 		disasm_line__scnprintf(dl, bf, sizeof(bf), !annotate_browser__opts.use_offset);
-		ui_browser__write_nstring(browser, bf, width - pcnt_width - 3 - printed);
+		ui_browser__write_nstring(browser, bf, width - pcnt_width - cycles_width - 3 - printed);
 	}
 
 	if (current_entry)
