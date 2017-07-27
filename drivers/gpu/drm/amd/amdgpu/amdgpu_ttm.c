@@ -1232,23 +1232,12 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 	/* Change the size here instead of the init above so only lpfn is affected */
 	amdgpu_ttm_set_active_vram_size(adev, adev->mc.visible_vram_size);
 
-	r = amdgpu_bo_create(adev, adev->mc.stolen_size, PAGE_SIZE, true,
-			     AMDGPU_GEM_DOMAIN_VRAM,
-			     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
-			     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
-			     NULL, NULL, &adev->stollen_vga_memory);
-	if (r) {
-		return r;
-	}
-	r = amdgpu_bo_reserve(adev->stollen_vga_memory, false);
+	r = amdgpu_bo_create_kernel(adev, adev->mc.stolen_size, PAGE_SIZE,
+				    AMDGPU_GEM_DOMAIN_VRAM,
+				    &adev->stollen_vga_memory,
+				    NULL, NULL);
 	if (r)
 		return r;
-	r = amdgpu_bo_pin(adev->stollen_vga_memory, AMDGPU_GEM_DOMAIN_VRAM, NULL);
-	amdgpu_bo_unreserve(adev->stollen_vga_memory);
-	if (r) {
-		amdgpu_bo_unref(&adev->stollen_vga_memory);
-		return r;
-	}
 	DRM_INFO("amdgpu: %uM of VRAM memory ready\n",
 		 (unsigned) (adev->mc.real_vram_size / (1024 * 1024)));
 

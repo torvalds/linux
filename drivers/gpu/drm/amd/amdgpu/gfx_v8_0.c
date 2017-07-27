@@ -1278,39 +1278,17 @@ static int gfx_v8_0_rlc_init(struct amdgpu_device *adev)
 		/* clear state block */
 		adev->gfx.rlc.clear_state_size = dws = gfx_v8_0_get_csb_size(adev);
 
-		if (adev->gfx.rlc.clear_state_obj == NULL) {
-			r = amdgpu_bo_create(adev, dws * 4, PAGE_SIZE, true,
-					     AMDGPU_GEM_DOMAIN_VRAM,
-					     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
-					     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
-					     NULL, NULL,
-					     &adev->gfx.rlc.clear_state_obj);
-			if (r) {
-				dev_warn(adev->dev, "(%d) create RLC c bo failed\n", r);
-				gfx_v8_0_rlc_fini(adev);
-				return r;
-			}
-		}
-		r = amdgpu_bo_reserve(adev->gfx.rlc.clear_state_obj, false);
-		if (unlikely(r != 0)) {
-			gfx_v8_0_rlc_fini(adev);
-			return r;
-		}
-		r = amdgpu_bo_pin(adev->gfx.rlc.clear_state_obj, AMDGPU_GEM_DOMAIN_VRAM,
-				  &adev->gfx.rlc.clear_state_gpu_addr);
+		r = amdgpu_bo_create_reserved(adev, dws * 4, PAGE_SIZE,
+					      AMDGPU_GEM_DOMAIN_VRAM,
+					      &adev->gfx.rlc.clear_state_obj,
+					      &adev->gfx.rlc.clear_state_gpu_addr,
+					      (void **)&adev->gfx.rlc.cs_ptr);
 		if (r) {
-			amdgpu_bo_unreserve(adev->gfx.rlc.clear_state_obj);
-			dev_warn(adev->dev, "(%d) pin RLC cbs bo failed\n", r);
+			dev_warn(adev->dev, "(%d) create RLC c bo failed\n", r);
 			gfx_v8_0_rlc_fini(adev);
 			return r;
 		}
 
-		r = amdgpu_bo_kmap(adev->gfx.rlc.clear_state_obj, (void **)&adev->gfx.rlc.cs_ptr);
-		if (r) {
-			dev_warn(adev->dev, "(%d) map RLC cbs bo failed\n", r);
-			gfx_v8_0_rlc_fini(adev);
-			return r;
-		}
 		/* set up the cs buffer */
 		dst_ptr = adev->gfx.rlc.cs_ptr;
 		gfx_v8_0_get_csb_buffer(adev, dst_ptr);
@@ -1321,34 +1299,13 @@ static int gfx_v8_0_rlc_init(struct amdgpu_device *adev)
 	if ((adev->asic_type == CHIP_CARRIZO) ||
 	    (adev->asic_type == CHIP_STONEY)) {
 		adev->gfx.rlc.cp_table_size = ALIGN(96 * 5 * 4, 2048) + (64 * 1024); /* JT + GDS */
-		if (adev->gfx.rlc.cp_table_obj == NULL) {
-			r = amdgpu_bo_create(adev, adev->gfx.rlc.cp_table_size, PAGE_SIZE, true,
-					     AMDGPU_GEM_DOMAIN_VRAM,
-					     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
-					     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
-					     NULL, NULL,
-					     &adev->gfx.rlc.cp_table_obj);
-			if (r) {
-				dev_warn(adev->dev, "(%d) create RLC cp table bo failed\n", r);
-				return r;
-			}
-		}
-
-		r = amdgpu_bo_reserve(adev->gfx.rlc.cp_table_obj, false);
-		if (unlikely(r != 0)) {
-			dev_warn(adev->dev, "(%d) reserve RLC cp table bo failed\n", r);
-			return r;
-		}
-		r = amdgpu_bo_pin(adev->gfx.rlc.cp_table_obj, AMDGPU_GEM_DOMAIN_VRAM,
-				  &adev->gfx.rlc.cp_table_gpu_addr);
+		r = amdgpu_bo_create_reserved(adev, adev->gfx.rlc.cp_table_size,
+					      PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM,
+					      &adev->gfx.rlc.cp_table_obj,
+					      &adev->gfx.rlc.cp_table_gpu_addr,
+					      (void **)&adev->gfx.rlc.cp_table_ptr);
 		if (r) {
-			amdgpu_bo_unreserve(adev->gfx.rlc.cp_table_obj);
-			dev_warn(adev->dev, "(%d) pin RLC cp table bo failed\n", r);
-			return r;
-		}
-		r = amdgpu_bo_kmap(adev->gfx.rlc.cp_table_obj, (void **)&adev->gfx.rlc.cp_table_ptr);
-		if (r) {
-			dev_warn(adev->dev, "(%d) map RLC cp table bo failed\n", r);
+			dev_warn(adev->dev, "(%d) create RLC cp table bo failed\n", r);
 			return r;
 		}
 
@@ -1389,34 +1346,13 @@ static int gfx_v8_0_mec_init(struct amdgpu_device *adev)
 
 	mec_hpd_size = adev->gfx.num_compute_rings * GFX8_MEC_HPD_SIZE;
 
-	if (adev->gfx.mec.hpd_eop_obj == NULL) {
-		r = amdgpu_bo_create(adev,
-				     mec_hpd_size,
-				     PAGE_SIZE, true,
-				     AMDGPU_GEM_DOMAIN_GTT, 0, NULL, NULL,
-				     &adev->gfx.mec.hpd_eop_obj);
-		if (r) {
-			dev_warn(adev->dev, "(%d) create HDP EOP bo failed\n", r);
-			return r;
-		}
-	}
-
-	r = amdgpu_bo_reserve(adev->gfx.mec.hpd_eop_obj, false);
-	if (unlikely(r != 0)) {
-		gfx_v8_0_mec_fini(adev);
-		return r;
-	}
-	r = amdgpu_bo_pin(adev->gfx.mec.hpd_eop_obj, AMDGPU_GEM_DOMAIN_GTT,
-			  &adev->gfx.mec.hpd_eop_gpu_addr);
+	r = amdgpu_bo_create_reserved(adev, mec_hpd_size, PAGE_SIZE,
+				      AMDGPU_GEM_DOMAIN_GTT,
+				      &adev->gfx.mec.hpd_eop_obj,
+				      &adev->gfx.mec.hpd_eop_gpu_addr,
+				      (void **)&hpd);
 	if (r) {
-		dev_warn(adev->dev, "(%d) pin HDP EOP bo failed\n", r);
-		gfx_v8_0_mec_fini(adev);
-		return r;
-	}
-	r = amdgpu_bo_kmap(adev->gfx.mec.hpd_eop_obj, (void **)&hpd);
-	if (r) {
-		dev_warn(adev->dev, "(%d) map HDP EOP bo failed\n", r);
-		gfx_v8_0_mec_fini(adev);
+		dev_warn(adev->dev, "(%d) create HDP EOP bo failed\n", r);
 		return r;
 	}
 

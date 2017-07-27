@@ -336,35 +336,11 @@ static void amdgpu_block_invalid_wreg(struct amdgpu_device *adev,
 
 static int amdgpu_vram_scratch_init(struct amdgpu_device *adev)
 {
-	int r;
-
-	if (adev->vram_scratch.robj == NULL) {
-		r = amdgpu_bo_create(adev, AMDGPU_GPU_PAGE_SIZE,
-				     PAGE_SIZE, true, AMDGPU_GEM_DOMAIN_VRAM,
-				     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
-				     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
-				     NULL, NULL, &adev->vram_scratch.robj);
-		if (r) {
-			return r;
-		}
-	}
-
-	r = amdgpu_bo_reserve(adev->vram_scratch.robj, false);
-	if (unlikely(r != 0))
-		return r;
-	r = amdgpu_bo_pin(adev->vram_scratch.robj,
-			  AMDGPU_GEM_DOMAIN_VRAM, &adev->vram_scratch.gpu_addr);
-	if (r) {
-		amdgpu_bo_unreserve(adev->vram_scratch.robj);
-		return r;
-	}
-	r = amdgpu_bo_kmap(adev->vram_scratch.robj,
-				(void **)&adev->vram_scratch.ptr);
-	if (r)
-		amdgpu_bo_unpin(adev->vram_scratch.robj);
-	amdgpu_bo_unreserve(adev->vram_scratch.robj);
-
-	return r;
+	return amdgpu_bo_create_kernel(adev, AMDGPU_GPU_PAGE_SIZE,
+				       PAGE_SIZE, AMDGPU_GEM_DOMAIN_VRAM,
+				       &adev->vram_scratch.robj,
+				       &adev->vram_scratch.gpu_addr,
+				       (void **)&adev->vram_scratch.ptr);
 }
 
 static void amdgpu_vram_scratch_fini(struct amdgpu_device *adev)
