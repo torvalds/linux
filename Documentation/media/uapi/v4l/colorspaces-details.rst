@@ -793,3 +793,15 @@ Transfer function:
 Inverse Transfer function:
     L = (max(L':sup:`1/m2` - c1, 0) / (c2 - c3 *
     L'\ :sup:`1/m2`))\ :sup:`1/m1`
+
+Take care when converting between this transfer function and non-HDR transfer
+functions: the linear RGB values [0…1] of HDR content map to a luminance range
+of 0 to 10000 cd/m\ :sup:`2` whereas the linear RGB values of non-HDR (aka
+Standard Dynamic Range or SDR) map to a luminance range of 0 to 100 cd/m\ :sup:`2`.
+
+To go from SDR to HDR you will have to divide L by 100 first. To go in the other
+direction you will have to multiply L by 100. Of course, this clamps all
+luminance values over 100 cd/m\ :sup:`2` to 100 cd/m\ :sup:`2`.
+
+There are better methods, see e.g. :ref:`colimg` for more in-depth information
+about this.
