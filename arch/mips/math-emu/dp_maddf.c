@@ -113,7 +113,23 @@ static union ieee754dp _dp_maddf(union ieee754dp z, union ieee754dp x,
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_ZERO):
 		if (zc == IEEE754_CLASS_INF)
 			return ieee754dp_inf(zs);
-		/* Multiplication is 0 so just return z */
+		if (zc == IEEE754_CLASS_ZERO) {
+			/* Handle cases +0 + (-0) and similar ones. */
+			if ((!(flags & maddf_negate_product)
+					&& (zs == (xs ^ ys))) ||
+			    ((flags & maddf_negate_product)
+					&& (zs != (xs ^ ys))))
+				/*
+				 * Cases of addition of zeros of equal signs
+				 * or subtraction of zeroes of opposite signs.
+				 * The sign of the resulting zero is in any
+				 * such case determined only by the sign of z.
+				 */
+				return z;
+
+			return ieee754dp_zero(ieee754_csr.rm == FPU_CSR_RD);
+		}
+		/* x*y is here 0, and z is not 0, so just return z */
 		return z;
 
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_DNORM):
