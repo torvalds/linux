@@ -47,14 +47,26 @@ union ieee754dp ieee754dp_fmin(union ieee754dp x, union ieee754dp y)
 	case CLPAIR(IEEE754_CLASS_SNAN, IEEE754_CLASS_INF):
 		return ieee754dp_nanxcpt(x);
 
-	/* numbers are preferred to NaNs */
+	/*
+	 * Quiet NaN handling
+	 */
+
+	/*
+	 *    The case of both inputs quiet NaNs
+	 */
+	case CLPAIR(IEEE754_CLASS_QNAN, IEEE754_CLASS_QNAN):
+		return x;
+
+	/*
+	 *    The cases of exactly one input quiet NaN (numbers
+	 *    are here preferred as returned values to NaNs)
+	 */
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_QNAN):
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_QNAN):
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_QNAN):
 	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_QNAN):
 		return x;
 
-	case CLPAIR(IEEE754_CLASS_QNAN, IEEE754_CLASS_QNAN):
 	case CLPAIR(IEEE754_CLASS_QNAN, IEEE754_CLASS_ZERO):
 	case CLPAIR(IEEE754_CLASS_QNAN, IEEE754_CLASS_NORM):
 	case CLPAIR(IEEE754_CLASS_QNAN, IEEE754_CLASS_DNORM):
@@ -147,14 +159,26 @@ union ieee754dp ieee754dp_fmina(union ieee754dp x, union ieee754dp y)
 	case CLPAIR(IEEE754_CLASS_SNAN, IEEE754_CLASS_INF):
 		return ieee754dp_nanxcpt(x);
 
-	/* numbers are preferred to NaNs */
+	/*
+	 * Quiet NaN handling
+	 */
+
+	/*
+	 *    The case of both inputs quiet NaNs
+	 */
+	case CLPAIR(IEEE754_CLASS_QNAN, IEEE754_CLASS_QNAN):
+		return x;
+
+	/*
+	 *    The cases of exactly one input quiet NaN (numbers
+	 *    are here preferred as returned values to NaNs)
+	 */
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_QNAN):
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_QNAN):
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_QNAN):
 	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_QNAN):
 		return x;
 
-	case CLPAIR(IEEE754_CLASS_QNAN, IEEE754_CLASS_QNAN):
 	case CLPAIR(IEEE754_CLASS_QNAN, IEEE754_CLASS_ZERO):
 	case CLPAIR(IEEE754_CLASS_QNAN, IEEE754_CLASS_NORM):
 	case CLPAIR(IEEE754_CLASS_QNAN, IEEE754_CLASS_DNORM):
