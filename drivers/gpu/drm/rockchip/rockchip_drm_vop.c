@@ -234,6 +234,8 @@ struct vop {
 	struct devfreq *devfreq;
 	struct notifier_block dmc_nb;
 
+	struct rockchip_dclk_pll *pll;
+
 	struct vop_win win[];
 };
 
@@ -1683,8 +1685,8 @@ static void vop_crtc_enable(struct drm_crtc *crtc)
 		   0 : BIT(VSYNC_POSITIVE);
 	VOP_CTRL_SET(vop, pin_pol, val);
 
-	if (vop->dclk_source && s->pll && s->pll->pll) {
-		if (clk_set_parent(vop->dclk_source, s->pll->pll))
+	if (vop->dclk_source && vop->pll && vop->pll->pll) {
+		if (clk_set_parent(vop->dclk_source, vop->pll->pll))
 			DRM_DEV_ERROR(vop->dev,
 				      "failed to set dclk's parents\n");
 	}
@@ -1928,30 +1930,31 @@ static void vop_dclk_source_generate(struct drm_crtc *crtc,
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
 	struct rockchip_crtc_state *old_s = to_rockchip_crtc_state(crtc->state);
 	struct vop *vop = to_vop(crtc);
+	struct rockchip_dclk_pll *old_pll = vop->pll;
 
 	if (!vop->dclk_source)
 		return;
 
 	if (crtc_state->active) {
-		WARN_ON(s->pll && !s->pll->use_count);
-		if (!s->pll || s->pll->use_count > 1 ||
+		WARN_ON(vop->pll && !vop->pll->use_count);
+		if (!vop->pll || vop->pll->use_count > 1 ||
 		    s->output_type != old_s->output_type) {
-			if (s->pll)
-				s->pll->use_count--;
+			if (vop->pll)
+				vop->pll->use_count--;
 
 			if (s->output_type != DRM_MODE_CONNECTOR_HDMIA &&
 			    !private->default_pll.use_count)
-				s->pll = &private->default_pll;
+				vop->pll = &private->default_pll;
 			else
-				s->pll = &private->hdmi_pll;
+				vop->pll = &private->hdmi_pll;
 
-			s->pll->use_count++;
+			vop->pll->use_count++;
 		}
-	} else if (s->pll) {
-		s->pll->use_count--;
-		s->pll = NULL;
+	} else if (vop->pll) {
+		vop->pll->use_count--;
+		vop->pll = NULL;
 	}
-	if (s->pll && s->pll != old_s->pll)
+	if (vop->pll != old_pll)
 		crtc_state->mode_changed = true;
 }
 
@@ -2343,11 +2346,11 @@ static void vop_crtc_reset(struct drm_crtc *crtc)
 		parent = clk_get_parent(vop->dclk_source);
 		if (parent) {
 			if (clk_is_match(private->default_pll.pll, parent))
-				s->pll = &private->default_pll;
+				vop->pll = &private->default_pll;
 			else if (clk_is_match(private->hdmi_pll.pll, parent))
-				s->pll = &private->hdmi_pll;
-			if (s->pll)
-				s->pll->use_count++;
+				vop->pll = &private->hdmi_pll;
+			if (vop->pll)
+				vop->pll->use_count++;
 		}
 	}
 	s->left_margin = 100;

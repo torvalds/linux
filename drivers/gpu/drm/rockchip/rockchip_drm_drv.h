@@ -76,7 +76,6 @@ struct rockchip_dclk_pll {
 struct rockchip_crtc_state {
 	struct drm_crtc_state base;
 	struct drm_property_blob *cabc_lut;
-	struct rockchip_dclk_pll *pll;
 	int left_margin;
 	int right_margin;
 	int top_margin;
