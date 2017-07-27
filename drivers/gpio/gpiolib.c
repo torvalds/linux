@@ -1201,6 +1201,14 @@ int gpiochip_add_data(struct gpio_chip *chip, void *data)
 		struct gpio_desc *desc = &gdev->descs[i];
 
 		desc->gdev = gdev;
+
+		if (chip->request) {
+			status = chip->request(chip, i);
+			if (status < 0)
+				/* The GPIO is unavailable, so skip it */
+				continue;
+		}
+
 		/*
 		 * REVISIT: most hardware initializes GPIOs as inputs
 		 * (often with pullups enabled) so power usage is
@@ -1226,6 +1234,9 @@ int gpiochip_add_data(struct gpio_chip *chip, void *data)
 			 */
 			set_bit(FLAG_IS_OUT, &desc->flags);
 		}
+
+		if (chip->free)
+			chip->free(chip, i);
 	}
 
 #ifdef CONFIG_PINCTRL
