@@ -876,7 +876,7 @@ static struct clk_mux gxbb_cts_mclk_i958_sel = {
 	/* Default parent unknown (register reset value: 0) */
 	.table = (u32[]){ 1, 2, 3 },
 	.lock = &clk_lock,
-		.hw.init = &(struct clk_init_data){
+	.hw.init = &(struct clk_init_data) {
 		.name = "cts_mclk_i958_sel",
 		.ops = &clk_mux_ops,
 		.parent_names = (const char *[]){ "mpll0", "mpll1", "mpll2" },
@@ -890,12 +890,13 @@ static struct clk_divider gxbb_cts_mclk_i958_div = {
 	.shift = 16,
 	.width = 8,
 	.lock = &clk_lock,
-	.hw.init = &(struct clk_init_data){
+	.flags = CLK_DIVIDER_ROUND_CLOSEST,
+	.hw.init = &(struct clk_init_data) {
 		.name = "cts_mclk_i958_div",
 		.ops = &clk_divider_ops,
 		.parent_names = (const char *[]){ "cts_mclk_i958_sel" },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_DIVIDER_ROUND_CLOSEST,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
