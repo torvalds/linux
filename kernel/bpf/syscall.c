@@ -1289,7 +1289,7 @@ static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
 	info_len = min_t(u32, sizeof(info), info_len);
 
 	if (copy_from_user(&info, uinfo, info_len))
-		return err;
+		return -EFAULT;
 
 	info.type = prog->type;
 	info.id = prog->aux->id;
