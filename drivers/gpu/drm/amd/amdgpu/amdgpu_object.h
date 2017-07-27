@@ -201,6 +201,10 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 				struct ttm_placement *placement,
 			        struct reservation_object *resv,
 				struct amdgpu_bo **bo_ptr);
+int amdgpu_bo_create_reserved(struct amdgpu_device *adev,
+			      unsigned long size, int align,
+			      u32 domain, struct amdgpu_bo **bo_ptr,
+			      u64 *gpu_addr, void **cpu_addr);
 int amdgpu_bo_create_kernel(struct amdgpu_device *adev,
 			    unsigned long size, int align,
 			    u32 domain, struct amdgpu_bo **bo_ptr,

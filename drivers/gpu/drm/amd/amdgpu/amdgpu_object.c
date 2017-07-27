@@ -220,7 +220,7 @@ static void amdgpu_fill_placement_to_bo(struct amdgpu_bo *bo,
 }
 
 /**
- * amdgpu_bo_create_kernel - create BO for kernel use
+ * amdgpu_bo_create_reserved - create reserved BO for kernel use
  *
  * @adev: amdgpu device object
  * @size: size for the new BO
@@ -230,14 +230,15 @@ static void amdgpu_fill_placement_to_bo(struct amdgpu_bo *bo,
  * @gpu_addr: GPU addr of the pinned BO
  * @cpu_addr: optional CPU address mapping
  *
- * Allocates and pins a BO for kernel internal use.
+ * Allocates and pins a BO for kernel internal use, and returns it still
+ * reserved.
  *
  * Returns 0 on success, negative error code otherwise.
  */
-int amdgpu_bo_create_kernel(struct amdgpu_device *adev,
-			    unsigned long size, int align,
-			    u32 domain, struct amdgpu_bo **bo_ptr,
-			    u64 *gpu_addr, void **cpu_addr)
+int amdgpu_bo_create_reserved(struct amdgpu_device *adev,
+			      unsigned long size, int align,
+			      u32 domain, struct amdgpu_bo **bo_ptr,
+			      u64 *gpu_addr, void **cpu_addr)
 {
 	bool free = false;
 	int r;
@@ -275,8 +276,6 @@ int amdgpu_bo_create_kernel(struct amdgpu_device *adev,
 		}
 	}
 
-	amdgpu_bo_unreserve(*bo_ptr);
-
 	return 0;
 
 error_unreserve:
@@ -287,6 +286,39 @@ error_free:
 		amdgpu_bo_unref(bo_ptr);
 
 	return r;
+}
+
+/**
+ * amdgpu_bo_create_kernel - create BO for kernel use
+ *
+ * @adev: amdgpu device object
+ * @size: size for the new BO
+ * @align: alignment for the new BO
+ * @domain: where to place it
+ * @bo_ptr: resulting BO
+ * @gpu_addr: GPU addr of the pinned BO
+ * @cpu_addr: optional CPU address mapping
+ *
+ * Allocates and pins a BO for kernel internal use.
+ *
+ * Returns 0 on success, negative error code otherwise.
+ */
+int amdgpu_bo_create_kernel(struct amdgpu_device *adev,
+			    unsigned long size, int align,
+			    u32 domain, struct amdgpu_bo **bo_ptr,
+			    u64 *gpu_addr, void **cpu_addr)
+{
+	int r;
+
+	r = amdgpu_bo_create_reserved(adev, size, align, domain, bo_ptr,
+				      gpu_addr, cpu_addr);
+
+	if (r)
+		return r;
+
+	amdgpu_bo_unreserve(*bo_ptr);
+
+	return 0;
 }
 
 /**
