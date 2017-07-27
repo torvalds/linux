@@ -845,13 +845,14 @@ static struct meson_clk_audio_divider gxbb_cts_amclk_div = {
 		.shift   = 0,
 		.width   = 8,
 	},
+	.flags = CLK_DIVIDER_ROUND_CLOSEST,
 	.lock = &clk_lock,
 	.hw.init = &(struct clk_init_data){
 		.name = "cts_amclk_div",
 		.ops = &meson_clk_audio_divider_ops,
 		.parent_names = (const char *[]){ "cts_amclk_sel" },
 		.num_parents = 1,
-		.flags = CLK_SET_RATE_PARENT | CLK_DIVIDER_ROUND_CLOSEST,
+		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
