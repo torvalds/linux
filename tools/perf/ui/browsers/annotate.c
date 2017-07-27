@@ -17,8 +17,8 @@
 #include <sys/ttydefaults.h>
 
 struct disasm_line_samples {
-	double		percent;
-	u64		nr;
+	double		      percent;
+	struct sym_hist_entry he;
 };
 
 #define IPC_WIDTH 6
@@ -152,7 +152,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 						current_entry);
 			if (annotate_browser__opts.show_total_period) {
 				ui_browser__printf(browser, "%6" PRIu64 " ",
-						   bdl->samples[i].nr);
+						   bdl->samples[i].he.nr_samples);
 			} else {
 				ui_browser__printf(browser, "%6.2f ",
 						   bdl->samples[i].percent);
@@ -457,7 +457,7 @@ static void annotate_browser__calc_percent(struct annotate_browser *browser,
 						pos->offset,
 						next ? next->offset : len,
 						&path, &sample);
-			bpos->samples[i].nr = sample.nr_samples;
+			bpos->samples[i].he = sample;
 
 			if (max_percent < bpos->samples[i].percent)
 				max_percent = bpos->samples[i].percent;
