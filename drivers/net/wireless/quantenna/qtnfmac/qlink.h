@@ -384,7 +384,7 @@ enum qlink_sta_connect_flags {
 struct qlink_cmd_connect {
 	struct qlink_cmd chdr;
 	__le32 flags;
-	__le16 freq;
+	__le16 channel;
 	__le16 bg_scan_period;
 	u8 bssid[ETH_ALEN];
 	u8 payload[0];

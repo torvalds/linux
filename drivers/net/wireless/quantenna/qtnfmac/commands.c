@@ -2036,7 +2036,7 @@ int qtnf_cmd_send_connect(struct qtnf_vif *vif,
 	ether_addr_copy(cmd->bssid, bss_cfg->bssid);
 
 	if (bss_cfg->chandef.chan)
-		cmd->freq = cpu_to_le16(bss_cfg->chandef.chan->center_freq);
+		cmd->channel = cpu_to_le16(bss_cfg->chandef.chan->hw_value);
 
 	cmd->bg_scan_period = cpu_to_le16(bss_cfg->bg_scan_period);
 
