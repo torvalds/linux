@@ -373,7 +373,7 @@ static int a5xx_zap_shader_init(struct msm_gpu *gpu)
 	static bool loaded;
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
-	struct platform_device *pdev = a5xx_gpu->pdev;
+	struct platform_device *pdev = gpu->pdev;
 	int ret;
 
 	/*
@@ -1015,7 +1015,6 @@ struct msm_gpu *a5xx_gpu_init(struct drm_device *dev)
 	adreno_gpu = &a5xx_gpu->base;
 	gpu = &adreno_gpu->base;
 
-	a5xx_gpu->pdev = pdev;
 	adreno_gpu->registers = a5xx_registers;
 	adreno_gpu->reg_offsets = a5xx_register_offsets;
 
