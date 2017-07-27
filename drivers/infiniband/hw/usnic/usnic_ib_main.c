@@ -409,6 +409,7 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 	us_ibdev->ib_dev.query_port = usnic_ib_query_port;
 	us_ibdev->ib_dev.query_pkey = usnic_ib_query_pkey;
 	us_ibdev->ib_dev.query_gid = usnic_ib_query_gid;
+	us_ibdev->ib_dev.get_netdev = usnic_get_netdev;
 	us_ibdev->ib_dev.get_link_layer = usnic_ib_port_link_layer;
 	us_ibdev->ib_dev.alloc_pd = usnic_ib_alloc_pd;
 	us_ibdev->ib_dev.dealloc_pd = usnic_ib_dealloc_pd;
@@ -720,7 +721,6 @@ static void __exit usnic_ib_destroy(void)
 MODULE_DESCRIPTION("Cisco VIC (usNIC) Verbs Driver");
 MODULE_AUTHOR("Upinder Malhi <umalhi@cisco.com>");
 MODULE_LICENSE("Dual BSD/GPL");
-MODULE_VERSION(DRV_VERSION);
 module_param(usnic_log_lvl, uint, S_IRUGO | S_IWUSR);
 module_param(usnic_ib_share_vf, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(usnic_log_lvl, " Off=0, Err=1, Info=2, Debug=3");
