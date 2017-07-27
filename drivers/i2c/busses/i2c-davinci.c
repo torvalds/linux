@@ -876,8 +876,7 @@ static int davinci_i2c_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int davinci_i2c_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct davinci_i2c_dev *i2c_dev = platform_get_drvdata(pdev);
+	struct davinci_i2c_dev *i2c_dev = dev_get_drvdata(dev);
 
 	/* put I2C into reset */
 	davinci_i2c_reset_ctrl(i2c_dev, 0);
@@ -888,8 +887,7 @@ static int davinci_i2c_suspend(struct device *dev)
 
 static int davinci_i2c_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct davinci_i2c_dev *i2c_dev = platform_get_drvdata(pdev);
+	struct davinci_i2c_dev *i2c_dev = dev_get_drvdata(dev);
 
 	clk_prepare_enable(i2c_dev->clk);
 	/* take I2C out of reset */
