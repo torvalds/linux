@@ -296,7 +296,7 @@ static int decode_instructions(struct objtool_file *file)
 }
 
 /*
- * Find all uses of the unreachable() macro, which are code path dead ends.
+ * Mark "ud2" instructions and manually annotated dead ends.
  */
 static int add_dead_ends(struct objtool_file *file)
 {
@@ -305,9 +305,20 @@ static int add_dead_ends(struct objtool_file *file)
 	struct instruction *insn;
 	bool found;
 
+	/*
+	 * By default, "ud2" is a dead end unless otherwise annotated, because
+	 * GCC 7 inserts it for certain divide-by-zero cases.
+	 */
+	for_each_insn(file, insn)
+		if (insn->type == INSN_BUG)
+			insn->dead_end = true;
+
+	/*
+	 * Check for manually annotated dead ends.
+	 */
 	sec = find_section_by_name(file->elf, ".rela.discard.unreachable");
 	if (!sec)
-		return 0;
+		goto reachable;
 
 	list_for_each_entry(rela, &sec->rela_list, list) {
 		if (rela->sym->type != STT_SECTION) {
@@ -338,6 +349,48 @@ static int add_dead_ends(struct objtool_file *file)
 		}
 
 		insn->dead_end = true;
+	}
+
+reachable:
+	/*
+	 * These manually annotated reachable checks are needed for GCC 4.4,
+	 * where the Linux unreachable() macro isn't supported.  In that case
+	 * GCC doesn't know the "ud2" is fatal, so it generates code as if it's
+	 * not a dead end.
+	 */
+	sec = find_section_by_name(file->elf, ".rela.discard.reachable");
+	if (!sec)
+		return 0;
+
+	list_for_each_entry(rela, &sec->rela_list, list) {
+		if (rela->sym->type != STT_SECTION) {
+			WARN("unexpected relocation symbol type in %s", sec->name);
+			return -1;
+		}
+		insn = find_insn(file, rela->sym->sec, rela->addend);
+		if (insn)
+			insn = list_prev_entry(insn, list);
+		else if (rela->addend == rela->sym->sec->len) {
+			found = false;
+			list_for_each_entry_reverse(insn, &file->insn_list, list) {
+				if (insn->sec == rela->sym->sec) {
+					found = true;
+					break;
+				}
+			}
+
+			if (!found) {
+				WARN("can't find reachable insn at %s+0x%x",
+				     rela->sym->sec->name, rela->addend);
+				return -1;
+			}
+		} else {
+			WARN("can't find reachable insn at %s+0x%x",
+			     rela->sym->sec->name, rela->addend);
+			return -1;
+		}
+
+		insn->dead_end = false;
 	}
 
 	return 0;

@@ -128,22 +128,6 @@
 #define __always_unused		__attribute__((unused))
 #define __mode(x)               __attribute__((mode(x)))
 
-#ifdef CONFIG_STACK_VALIDATION
-#define annotate_unreachable() ({					\
-	asm("%c0:\n\t"							\
-	    ".pushsection .discard.unreachable\n\t"			\
-	    ".long %c0b - .\n\t"					\
-	    ".popsection\n\t" : : "i" (__LINE__));			\
-})
-#define ASM_UNREACHABLE							\
-	"999:\n\t"							\
-	".pushsection .discard.unreachable\n\t"				\
-	".long 999b - .\n\t"						\
-	".popsection\n\t"
-#else
-#define annotate_unreachable()
-#endif
-
 /* gcc version specific checks */
 
 #if GCC_VERSION < 30200

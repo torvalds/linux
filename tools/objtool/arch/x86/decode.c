@@ -382,20 +382,27 @@ int arch_decode_instruction(struct elf *elf, struct section *sec,
 
 	case 0x0f:
 
-		if (op2 >= 0x80 && op2 <= 0x8f)
+		if (op2 >= 0x80 && op2 <= 0x8f) {
+
 			*type = INSN_JUMP_CONDITIONAL;
-		else if (op2 == 0x05 || op2 == 0x07 || op2 == 0x34 ||
-			 op2 == 0x35)
+
+		} else if (op2 == 0x05 || op2 == 0x07 || op2 == 0x34 ||
+			   op2 == 0x35) {
 
 			/* sysenter, sysret */
 			*type = INSN_CONTEXT_SWITCH;
 
-		else if (op2 == 0x0d || op2 == 0x1f)
+		} else if (op2 == 0x0b || op2 == 0xb9) {
+
+			/* ud2 */
+			*type = INSN_BUG;
+
+		} else if (op2 == 0x0d || op2 == 0x1f) {
 
 			/* nopl/nopw */
 			*type = INSN_NOP;
 
-		else if (op2 == 0xa0 || op2 == 0xa8) {
+		} else if (op2 == 0xa0 || op2 == 0xa8) {
 
 			/* push fs/gs */
 			*type = INSN_STACK;
