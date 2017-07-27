@@ -1183,6 +1183,7 @@ static struct clk_hw_onecell_data gxbb_hw_onecell_data = {
 		[CLKID_32K_CLK]		    = &gxbb_32k_clk.hw,
 		[CLKID_32K_CLK_SEL]	    = &gxbb_32k_clk_sel.hw,
 		[CLKID_32K_CLK_DIV]	    = &gxbb_32k_clk_div.hw,
+		[NR_CLKS]		    = NULL,
 	},
 	.num = NR_CLKS,
 };
@@ -1305,6 +1306,7 @@ static struct clk_hw_onecell_data gxl_hw_onecell_data = {
 		[CLKID_32K_CLK]		    = &gxbb_32k_clk.hw,
 		[CLKID_32K_CLK_SEL]	    = &gxbb_32k_clk_sel.hw,
 		[CLKID_32K_CLK_DIV]	    = &gxbb_32k_clk_div.hw,
+		[NR_CLKS]		    = NULL,
 	},
 	.num = NR_CLKS,
 };
