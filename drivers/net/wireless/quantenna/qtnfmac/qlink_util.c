@@ -37,6 +37,9 @@ u16 qlink_iface_type_to_nl_mask(u16 qlink_type)
 	case QLINK_IFTYPE_WDS:
 		result |= BIT(NL80211_IFTYPE_WDS);
 		break;
+	case QLINK_IFTYPE_AP_VLAN:
+		result |= BIT(NL80211_IFTYPE_AP_VLAN);
+		break;
 	}
 
 	return result;

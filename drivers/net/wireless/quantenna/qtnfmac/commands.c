@@ -1047,6 +1047,7 @@ static int qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 
 			/* supported modes: STA, AP */
 			limits[rec].types &= BIT(NL80211_IFTYPE_AP) |
+					     BIT(NL80211_IFTYPE_AP_VLAN) |
 					     BIT(NL80211_IFTYPE_STATION);
 
 			pr_debug("MAC%u: MAX: %u; TYPES: %.4X\n", mac->macid,
@@ -1058,6 +1059,7 @@ static int qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 		default:
 			break;
 		}
+
 		tlv_buf_size -= tlv_full_len;
 		tlv = (struct qlink_tlv_hdr *)(tlv->val + tlv_value_len);
 	}
@@ -1859,10 +1861,27 @@ int qtnf_cmd_send_change_sta(struct qtnf_vif *vif, const u8 *mac,
 
 	cmd = (struct qlink_cmd_change_sta *)cmd_skb->data;
 	ether_addr_copy(cmd->sta_addr, mac);
-	cmd->sta_flags_mask = cpu_to_le32(qtnf_encode_sta_flags(
-					  params->sta_flags_mask));
-	cmd->sta_flags_set = cpu_to_le32(qtnf_encode_sta_flags(
-					 params->sta_flags_set));
+
+	switch (vif->wdev.iftype) {
+	case NL80211_IFTYPE_AP:
+		cmd->if_type = cpu_to_le16(QLINK_IFTYPE_AP);
+		cmd->sta_flags_mask = cpu_to_le32(qtnf_encode_sta_flags(
+						  params->sta_flags_mask));
+		cmd->sta_flags_set = cpu_to_le32(qtnf_encode_sta_flags(
+						 params->sta_flags_set));
+		break;
+	case NL80211_IFTYPE_STATION:
+		cmd->if_type = cpu_to_le16(QLINK_IFTYPE_STATION);
+		cmd->sta_flags_mask = cpu_to_le32(qtnf_encode_sta_flags(
+						  params->sta_flags_mask));
+		cmd->sta_flags_set = cpu_to_le32(qtnf_encode_sta_flags(
+						 params->sta_flags_set));
+		break;
+	default:
+		pr_err("unsupported iftype %d\n", vif->wdev.iftype);
+		ret = -EINVAL;
+		goto out;
+	}
 
 	ret = qtnf_cmd_send(vif->mac->bus, cmd_skb, &res_code);
 	if (unlikely(ret))
