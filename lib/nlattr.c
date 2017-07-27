@@ -272,6 +272,30 @@ size_t nla_strlcpy(char *dst, const struct nlattr *nla, size_t dstsize)
 EXPORT_SYMBOL(nla_strlcpy);
 
 /**
+ * nla_strdup - Copy string attribute payload into a newly allocated buffer
+ * @nla: attribute to copy the string from
+ * @flags: the type of memory to allocate (see kmalloc).
+ *
+ * Returns a pointer to the allocated buffer or NULL on error.
+ */
+char *nla_strdup(const struct nlattr *nla, gfp_t flags)
+{
+	size_t srclen = nla_len(nla);
+	char *src = nla_data(nla), *dst;
+
+	if (srclen > 0 && src[srclen - 1] == '\0')
+		srclen--;
+
+	dst = kmalloc(srclen + 1, flags);
+	if (dst != NULL) {
+		memcpy(dst, src, srclen);
+		dst[srclen] = '\0';
+	}
+	return dst;
+}
+EXPORT_SYMBOL(nla_strdup);
+
+/**
  * nla_memcpy - Copy a netlink attribute into another memory area
  * @dest: where to copy to memcpy
  * @src: netlink attribute to copy from
