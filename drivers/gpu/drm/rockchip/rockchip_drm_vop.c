@@ -1474,12 +1474,27 @@ static void vop_crtc_cancel_pending_vblank(struct drm_crtc *crtc,
 
 static int vop_crtc_loader_protect(struct drm_crtc *crtc, bool on)
 {
+	struct rockchip_drm_private *private = crtc->dev->dev_private;
 	struct vop *vop = to_vop(crtc);
 
 	if (on == vop->loader_protect)
 		return 0;
 
 	if (on) {
+		if (vop->dclk_source) {
+			struct clk *parent;
+
+			parent = clk_get_parent(vop->dclk_source);
+			if (parent) {
+				if (clk_is_match(private->default_pll.pll, parent))
+					vop->pll = &private->default_pll;
+				else if (clk_is_match(private->hdmi_pll.pll, parent))
+					vop->pll = &private->hdmi_pll;
+				if (vop->pll)
+					vop->pll->use_count++;
+			}
+		}
+
 		vop_power_enable(crtc);
 		enable_irq(vop->irq);
 		drm_crtc_vblank_on(crtc);
@@ -1487,6 +1502,10 @@ static int vop_crtc_loader_protect(struct drm_crtc *crtc, bool on)
 	} else {
 		vop_crtc_disable(crtc);
 
+		if (vop->dclk_source && vop->pll) {
+			vop->pll->use_count--;
+			vop->pll = NULL;
+		}
 		vop->loader_protect = false;
 	}
 
@@ -2326,8 +2345,6 @@ static void vop_crtc_destroy(struct drm_crtc *crtc)
 static void vop_crtc_reset(struct drm_crtc *crtc)
 {
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc->state);
-	struct rockchip_drm_private *private = crtc->dev->dev_private;
-	struct vop *vop = to_vop(crtc);
 
 	if (crtc->state) {
 		__drm_atomic_helper_crtc_destroy_state(crtc, crtc->state);
@@ -2340,19 +2357,6 @@ static void vop_crtc_reset(struct drm_crtc *crtc)
 	crtc->state = &s->base;
 	crtc->state->crtc = crtc;
 
-	if (vop->dclk_source) {
-		struct clk *parent;
-
-		parent = clk_get_parent(vop->dclk_source);
-		if (parent) {
-			if (clk_is_match(private->default_pll.pll, parent))
-				vop->pll = &private->default_pll;
-			else if (clk_is_match(private->hdmi_pll.pll, parent))
-				vop->pll = &private->hdmi_pll;
-			if (vop->pll)
-				vop->pll->use_count++;
-		}
-	}
 	s->left_margin = 100;
 	s->right_margin = 100;
 	s->top_margin = 100;
