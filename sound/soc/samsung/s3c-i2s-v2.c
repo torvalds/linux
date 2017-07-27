@@ -637,7 +637,7 @@ int s3c_i2sv2_probe(struct snd_soc_dai *dai,
 		return -ENOENT;
 	}
 
-	clk_enable(i2s->iis_pclk);
+	clk_prepare_enable(i2s->iis_pclk);
 
 	/* Mark ourselves as in TXRX mode so we can run through our cleanup
 	 * process without warnings. */
