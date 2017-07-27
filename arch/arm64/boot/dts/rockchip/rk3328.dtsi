@@ -197,6 +197,39 @@
 		clock-output-names = "xin24m";
 	};
 
+	i2s0: i2s@ff000000 {
+		compatible = "rockchip,rk3328-i2s", "rockchip,rk3066-i2s";
+		reg = <0x0 0xff000000 0x0 0x1000>;
+		interrupts = <GIC_SPI 26 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_I2S0>, <&cru HCLK_I2S0_8CH>;
+		clock-names = "i2s_clk", "i2s_hclk";
+		dmas = <&dmac 11>, <&dmac 12>;
+		dma-names = "tx", "rx";
+		status = "disabled";
+	};
+
+	i2s1: i2s@ff010000 {
+		compatible = "rockchip,rk3328-i2s", "rockchip,rk3066-i2s";
+		reg = <0x0 0xff010000 0x0 0x1000>;
+		interrupts = <GIC_SPI 27 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_I2S1>, <&cru HCLK_I2S1_8CH>;
+		clock-names = "i2s_clk", "i2s_hclk";
+		dmas = <&dmac 14>, <&dmac 15>;
+		dma-names = "tx", "rx";
+		status = "disabled";
+	};
+
+	i2s2: i2s@ff020000 {
+		compatible = "rockchip,rk3328-i2s", "rockchip,rk3066-i2s";
+		reg = <0x0 0xff020000 0x0 0x1000>;
+		interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cru SCLK_I2S2>, <&cru HCLK_I2S2_2CH>;
+		clock-names = "i2s_clk", "i2s_hclk";
+		dmas = <&dmac 0>, <&dmac 1>;
+		dma-names = "tx", "rx";
+		status = "disabled";
+	};
+
 	spdif: spdif@ff030000 {
 		compatible = "rockchip,rk3328-spdif";
 		reg = <0x0 0xff030000 0x0 0x1000>;
