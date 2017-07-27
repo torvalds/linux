@@ -784,6 +784,12 @@ void regcache_mark_dirty(struct regmap *map);
 bool regmap_check_range_table(struct regmap *map, unsigned int reg,
 			      const struct regmap_access_table *table);
 
+bool regmap_cached(struct regmap *map, unsigned int reg);
+bool regmap_writeable(struct regmap *map, unsigned int reg);
+bool regmap_readable(struct regmap *map, unsigned int reg);
+bool regmap_volatile(struct regmap *map, unsigned int reg);
+bool regmap_precious(struct regmap *map, unsigned int reg);
+
 int regmap_register_patch(struct regmap *map, const struct reg_sequence *regs,
 			  int num_regs);
 int regmap_parse_val(struct regmap *map, const void *buf,
