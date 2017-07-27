@@ -266,11 +266,19 @@ static int qtnf_start_ap(struct wiphy *wiphy, struct net_device *dev,
 			 struct cfg80211_ap_settings *settings)
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
+	struct qtnf_wmac *mac = wiphy_priv(wiphy);
 	struct qtnf_bss_config *bss_cfg;
 	int ret;
 
-	bss_cfg = &vif->bss_cfg;
+	if (!cfg80211_chandef_identical(&mac->chandef, &settings->chandef)) {
+		memcpy(&mac->chandef, &settings->chandef, sizeof(mac->chandef));
+		if (vif->vifid != 0)
+			pr_warn("%s: unexpected chan %u (%u MHz)\n", dev->name,
+				settings->chandef.chan->hw_value,
+				settings->chandef.chan->center_freq);
+	}
 
+	bss_cfg = &vif->bss_cfg;
 	memset(bss_cfg, 0, sizeof(*bss_cfg));
 
 	bss_cfg->bcn_period = settings->beacon_interval;
@@ -281,8 +289,6 @@ static int qtnf_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	bss_cfg->ssid_len = settings->ssid_len;
 	memcpy(&bss_cfg->ssid, settings->ssid, bss_cfg->ssid_len);
 
-	memcpy(&bss_cfg->chandef, &settings->chandef,
-	       sizeof(struct cfg80211_chan_def));
 	memcpy(&bss_cfg->crypto, &settings->crypto,
 	       sizeof(struct cfg80211_crypto_settings));
 
@@ -593,6 +599,7 @@ qtnf_connect(struct wiphy *wiphy, struct net_device *dev,
 	     struct cfg80211_connect_params *sme)
 {
 	struct qtnf_vif *vif = qtnf_netdev_get_priv(dev);
+	struct qtnf_wmac *mac = wiphy_priv(wiphy);
 	struct cfg80211_chan_def chandef;
 	struct qtnf_bss_config *bss_cfg;
 	int ret;
@@ -615,7 +622,7 @@ qtnf_connect(struct wiphy *wiphy, struct net_device *dev,
 			cfg80211_chandef_create(&chandef, sme->channel,
 						NL80211_CHAN_HT20);
 
-		memcpy(&bss_cfg->chandef, &chandef, sizeof(bss_cfg->chandef));
+		memcpy(&mac->chandef, &chandef, sizeof(mac->chandef));
 	}
 
 	bss_cfg->ssid_len = sme->ssid_len;
@@ -695,14 +702,14 @@ qtnf_dump_survey(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct qtnf_wmac *mac = wiphy_priv(wiphy);
 	struct ieee80211_supported_band *sband;
-	struct cfg80211_chan_def *bss_chandef;
+	struct cfg80211_chan_def *chandef;
 	struct ieee80211_channel *chan;
 	struct qtnf_chan_stats stats;
 	struct qtnf_vif *vif;
 	int ret;
 
 	vif = qtnf_netdev_get_priv(dev);
-	bss_chandef = &vif->bss_cfg.chandef;
+	chandef = &mac->chandef;
 
 	sband = wiphy->bands[NL80211_BAND_2GHZ];
 	if (sband && idx >= sband->n_channels) {
@@ -722,9 +729,10 @@ qtnf_dump_survey(struct wiphy *wiphy, struct net_device *dev,
 	survey->channel = chan;
 	survey->filled = 0x0;
 
-	if (bss_chandef->chan)
-		if (chan->hw_value == bss_chandef->chan->hw_value)
-			survey->filled |= SURVEY_INFO_IN_USE;
+	if (chandef->chan) {
+		if (chan->hw_value == chandef->chan->hw_value)
+			survey->filled = SURVEY_INFO_IN_USE;
+	}
 
 	ret = qtnf_cmd_get_chan_stats(mac, chan->hw_value, &stats);
 	switch (ret) {
@@ -736,7 +744,7 @@ qtnf_dump_survey(struct wiphy *wiphy, struct net_device *dev,
 			break;
 		}
 
-		survey->filled = SURVEY_INFO_TIME |
+		survey->filled |= SURVEY_INFO_TIME |
 				 SURVEY_INFO_TIME_SCAN |
 				 SURVEY_INFO_TIME_BUSY |
 				 SURVEY_INFO_TIME_RX |
@@ -768,15 +776,14 @@ static int
 qtnf_get_channel(struct wiphy *wiphy, struct wireless_dev *wdev,
 		 struct cfg80211_chan_def *chandef)
 {
+	struct qtnf_wmac *mac = wiphy_priv(wiphy);
 	struct net_device *ndev = wdev->netdev;
-	struct qtnf_bss_config *bss_cfg;
 	struct qtnf_vif *vif;
 
 	if (!ndev)
 		return -ENODEV;
 
 	vif = qtnf_netdev_get_priv(wdev->netdev);
-	bss_cfg = &vif->bss_cfg;
 
 	switch (vif->wdev.iftype) {
 	case NL80211_IFTYPE_STATION:
@@ -796,7 +803,12 @@ qtnf_get_channel(struct wiphy *wiphy, struct wireless_dev *wdev,
 		return -ENODATA;
 	}
 
-	memcpy(chandef, &bss_cfg->chandef, sizeof(*chandef));
+	if (!cfg80211_chandef_valid(&mac->chandef)) {
+		pr_err("invalid channel settings on %s\n", ndev->name);
+		return -ENODATA;
+	}
+
+	memcpy(chandef, &mac->chandef, sizeof(*chandef));
 	return 0;
 }
 

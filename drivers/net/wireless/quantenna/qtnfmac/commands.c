@@ -185,7 +185,7 @@ int qtnf_cmd_send_config_ap(struct qtnf_vif *vif)
 {
 	struct sk_buff *cmd_skb;
 	struct qtnf_bss_config *bss_cfg = &vif->bss_cfg;
-	struct cfg80211_chan_def *chandef = &bss_cfg->chandef;
+	struct cfg80211_chan_def *chandef = &vif->mac->chandef;
 	struct qlink_tlv_channel *qchan;
 	struct qlink_auth_encr aen;
 	u16 res_code = QLINK_CMD_RESULT_OK;
@@ -2035,8 +2035,8 @@ int qtnf_cmd_send_connect(struct qtnf_vif *vif,
 
 	ether_addr_copy(cmd->bssid, bss_cfg->bssid);
 
-	if (bss_cfg->chandef.chan)
-		cmd->channel = cpu_to_le16(bss_cfg->chandef.chan->hw_value);
+	if (vif->mac->chandef.chan)
+		cmd->channel = cpu_to_le16(vif->mac->chandef.chan->hw_value);
 
 	cmd->bg_scan_period = cpu_to_le16(bss_cfg->bg_scan_period);
 

@@ -67,7 +67,6 @@ struct qtnf_bss_config {
 	u16 auth_type;
 	bool privacy;
 	enum nl80211_mfp mfp;
-	struct cfg80211_chan_def chandef;
 	struct cfg80211_crypto_settings crypto;
 	u16 bg_scan_period;
 	u32 connect_flags;
@@ -141,6 +140,7 @@ struct qtnf_wmac {
 	struct qtnf_mac_info macinfo;
 	struct qtnf_vif iflist[QTNF_MAX_INTF];
 	struct cfg80211_scan_request *scan_req;
+	struct cfg80211_chan_def chandef;
 };
 
 struct qtnf_hw_info {
