@@ -124,6 +124,15 @@ struct qtnf_mac_info {
 	size_t n_limits;
 };
 
+struct qtnf_chan_stats {
+	u32 chan_num;
+	u32 cca_tx;
+	u32 cca_rx;
+	u32 cca_busy;
+	u32 cca_try;
+	s8 chan_noise;
+};
+
 struct qtnf_wmac {
 	u8 macid;
 	u8 wiphy_registered;

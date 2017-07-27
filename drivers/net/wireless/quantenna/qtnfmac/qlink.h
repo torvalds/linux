@@ -164,6 +164,7 @@ enum qlink_cmd_type {
 	QLINK_CMD_CHANGE_STA		= 0x0051,
 	QLINK_CMD_DEL_STA		= 0x0052,
 	QLINK_CMD_SCAN			= 0x0053,
+	QLINK_CMD_CHAN_STATS		= 0x0054,
 	QLINK_CMD_CONNECT		= 0x0060,
 	QLINK_CMD_DISCONNECT		= 0x0061,
 };
@@ -434,6 +435,16 @@ struct qlink_cmd_chans_info_get {
 } __packed;
 
 /**
+ * struct qlink_cmd_get_chan_stats - data for QLINK_CMD_CHAN_STATS command
+ *
+ * @channel: channel number according to 802.11 17.3.8.3.2 and Annex J
+ */
+struct qlink_cmd_get_chan_stats {
+	struct qlink_cmd chdr;
+	__le16 channel;
+} __packed;
+
+/**
  * enum qlink_reg_initiator - Indicates the initiator of a reg domain request
  *
  * See &enum nl80211_reg_initiator for more info.
@@ -635,6 +646,16 @@ struct qlink_resp_phy_params {
 	u8 info[0];
 } __packed;
 
+/**
+ * struct qlink_resp_get_chan_stats - response for QLINK_CMD_CHAN_STATS cmd
+ *
+ * @info: variable-length channel info.
+ */
+struct qlink_resp_get_chan_stats {
+	struct qlink_cmd rhdr;
+	u8 info[0];
+} __packed;
+
 /* QLINK Events messages related definitions
  */
 
@@ -807,6 +828,7 @@ enum qlink_tlv_id {
 	QTN_TLV_ID_COVERAGE_CLASS	= 0x0213,
 	QTN_TLV_ID_IFACE_LIMIT		= 0x0214,
 	QTN_TLV_ID_NUM_IFACE_COMB	= 0x0215,
+	QTN_TLV_ID_CHANNEL_STATS	= 0x0216,
 	QTN_TLV_ID_STA_BASIC_COUNTERS	= 0x0300,
 	QTN_TLV_ID_STA_GENERIC_INFO	= 0x0301,
 	QTN_TLV_ID_KEY			= 0x0302,
@@ -1006,6 +1028,15 @@ struct qlink_auth_encr {
 	u8 mfp;
 	u8 control_port;
 	u8 control_port_no_encrypt;
+} __packed;
+
+struct qlink_chan_stats {
+	__le32 chan_num;
+	__le32 cca_tx;
+	__le32 cca_rx;
+	__le32 cca_busy;
+	__le32 cca_try;
+	s8 chan_noise;
 } __packed;
 
 #endif /* _QTN_QLINK_H_ */

@@ -677,6 +677,72 @@ qtnf_disconnect(struct wiphy *wiphy, struct net_device *dev,
 	return 0;
 }
 
+static int
+qtnf_dump_survey(struct wiphy *wiphy, struct net_device *dev,
+		 int idx, struct survey_info *survey)
+{
+	struct qtnf_wmac *mac = wiphy_priv(wiphy);
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_channel *chan;
+	struct qtnf_chan_stats stats;
+	int ret;
+
+	sband = wiphy->bands[NL80211_BAND_2GHZ];
+	if (sband && idx >= sband->n_channels) {
+		idx -= sband->n_channels;
+		sband = NULL;
+	}
+
+	if (!sband)
+		sband = wiphy->bands[NL80211_BAND_5GHZ];
+
+	if (!sband || idx >= sband->n_channels)
+		return -ENOENT;
+
+	chan = &sband->channels[idx];
+	memset(&stats, 0, sizeof(stats));
+
+	survey->channel = chan;
+	survey->filled = 0x0;
+
+	ret = qtnf_cmd_get_chan_stats(mac, chan->hw_value, &stats);
+	switch (ret) {
+	case 0:
+		if (unlikely(stats.chan_num != chan->hw_value)) {
+			pr_err("received stats for channel %d instead of %d\n",
+			       stats.chan_num, chan->hw_value);
+			ret = -EINVAL;
+			break;
+		}
+
+		survey->filled = SURVEY_INFO_TIME |
+				 SURVEY_INFO_TIME_SCAN |
+				 SURVEY_INFO_TIME_BUSY |
+				 SURVEY_INFO_TIME_RX |
+				 SURVEY_INFO_TIME_TX |
+				 SURVEY_INFO_NOISE_DBM;
+
+		survey->time_scan = stats.cca_try;
+		survey->time = stats.cca_try;
+		survey->time_tx = stats.cca_tx;
+		survey->time_rx = stats.cca_rx;
+		survey->time_busy = stats.cca_busy;
+		survey->noise = stats.chan_noise;
+		break;
+	case -ENOENT:
+		pr_debug("no stats for channel %u\n", chan->hw_value);
+		ret = 0;
+		break;
+	default:
+		pr_debug("failed to get chan(%d) stats from card\n",
+			 chan->hw_value);
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
 static struct cfg80211_ops qtn_cfg80211_ops = {
 	.add_virtual_intf	= qtnf_add_virtual_intf,
 	.change_virtual_intf	= qtnf_change_virtual_intf,
@@ -697,7 +763,8 @@ static struct cfg80211_ops qtn_cfg80211_ops = {
 	.set_default_mgmt_key	= qtnf_set_default_mgmt_key,
 	.scan			= qtnf_scan,
 	.connect		= qtnf_connect,
-	.disconnect		= qtnf_disconnect
+	.disconnect		= qtnf_disconnect,
+	.dump_survey		= qtnf_dump_survey
 };
 
 static void qtnf_cfg80211_reg_notifier(struct wiphy *wiphy_in,
