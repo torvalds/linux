@@ -745,6 +745,7 @@ struct drm_encoder {
 	int encoder_type;
 	uint32_t possible_crtcs;
 	uint32_t possible_clones;
+	bool loader_protect;
 
 	struct drm_crtc *crtc;
 	struct drm_bridge *bridge;

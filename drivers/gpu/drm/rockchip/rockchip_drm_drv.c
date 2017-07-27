@@ -344,6 +344,7 @@ int setup_initial_state(struct drm_device *drm_dev,
 	struct drm_plane_state *primary_state;
 	struct drm_display_mode *mode = NULL;
 	const struct drm_connector_helper_funcs *funcs;
+	const struct drm_encoder_helper_funcs *encoder_funcs;
 	bool is_crtc_enabled = true;
 	int hdisplay, vdisplay;
 	int fb_width, fb_height;
@@ -363,6 +364,10 @@ int setup_initial_state(struct drm_device *drm_dev,
 	if (funcs->loader_protect)
 		funcs->loader_protect(connector, true);
 	connector->loader_protect = true;
+	encoder_funcs = conn_state->best_encoder->helper_private;
+	if (encoder_funcs->loader_protect)
+		encoder_funcs->loader_protect(conn_state->best_encoder, true);
+	conn_state->best_encoder->loader_protect = true;
 	num_modes = connector->funcs->fill_modes(connector, 4096, 4096);
 	if (!num_modes) {
 		dev_err(drm_dev->dev, "connector[%s] can't found any modes\n",
@@ -472,6 +477,9 @@ error:
 	if (funcs->loader_protect)
 		funcs->loader_protect(connector, false);
 	connector->loader_protect = false;
+	if (encoder_funcs->loader_protect)
+		encoder_funcs->loader_protect(conn_state->best_encoder, false);
+	conn_state->best_encoder->loader_protect = false;
 	return ret;
 }
 

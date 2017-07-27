@@ -429,18 +429,14 @@ static enum drm_mode_status rockchip_lvds_connector_mode_valid(
 	return MODE_OK;
 }
 
-static int rockchip_lvds_loader_protect(struct drm_connector *connector,
-					bool on)
+static
+int rockchip_lvds_connector_loader_protect(struct drm_connector *connector,
+					   bool on)
 {
 	struct rockchip_lvds *lvds = connector_to_lvds(connector);
 
 	if (lvds->panel)
 		drm_panel_loader_protect(lvds->panel, on);
-
-	if (on)
-		pm_runtime_get_sync(lvds->dev);
-	else
-		pm_runtime_put(lvds->dev);
 
 	return 0;
 }
@@ -450,7 +446,7 @@ struct drm_connector_helper_funcs rockchip_lvds_connector_helper_funcs = {
 	.get_modes = rockchip_lvds_connector_get_modes,
 	.mode_valid = rockchip_lvds_connector_mode_valid,
 	.best_encoder = rockchip_lvds_connector_best_encoder,
-	.loader_protect = rockchip_lvds_loader_protect,
+	.loader_protect = rockchip_lvds_connector_loader_protect,
 };
 
 static void rockchip_lvds_encoder_dpms(struct drm_encoder *encoder, int mode)
@@ -655,12 +651,26 @@ static void rockchip_lvds_encoder_disable(struct drm_encoder *encoder)
 	rockchip_lvds_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
 }
 
+static int rockchip_lvds_encoder_loader_protect(struct drm_encoder *encoder,
+						bool on)
+{
+	struct rockchip_lvds *lvds = encoder_to_lvds(encoder);
+
+	if (on)
+		pm_runtime_get_sync(lvds->dev);
+	else
+		pm_runtime_put(lvds->dev);
+
+	return 0;
+}
+
 static struct drm_encoder_helper_funcs rockchip_lvds_encoder_helper_funcs = {
 	.mode_fixup = rockchip_lvds_encoder_mode_fixup,
 	.mode_set = rockchip_lvds_encoder_mode_set,
 	.enable = rockchip_lvds_encoder_enable,
 	.disable = rockchip_lvds_encoder_disable,
 	.atomic_check = rockchip_lvds_encoder_atomic_check,
+	.loader_protect = rockchip_lvds_encoder_loader_protect,
 };
 
 static void rockchip_lvds_encoder_destroy(struct drm_encoder *encoder)

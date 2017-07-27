@@ -628,6 +628,11 @@ disable_outputs(struct drm_device *dev, struct drm_atomic_state *old_state)
 		 */
 		drm_bridge_disable(encoder->bridge);
 
+		if (encoder->loader_protect) {
+			if (funcs->loader_protect)
+				funcs->loader_protect(encoder, false);
+			encoder->loader_protect = false;
+		}
 		/* Right function depends upon target state. */
 		if (connector->state->crtc && funcs->prepare)
 			funcs->prepare(encoder);
