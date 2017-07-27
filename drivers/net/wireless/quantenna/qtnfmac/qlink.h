@@ -873,7 +873,7 @@ struct qlink_tlv_hdr {
 
 struct qlink_iface_limit {
 	__le16 max_num;
-	__le16 type_mask;
+	__le16 type;
 } __packed;
 
 struct qlink_iface_comb_num {

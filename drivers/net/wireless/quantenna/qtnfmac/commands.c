@@ -989,7 +989,7 @@ static int qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 	struct ieee80211_iface_limit *limits = NULL;
 	const struct qlink_iface_limit *limit_record;
 	size_t record_count = 0, rec = 0;
-	u16 tlv_type, tlv_value_len, mask;
+	u16 tlv_type, tlv_value_len;
 	struct qlink_iface_comb_num *comb;
 	size_t tlv_full_len;
 	const struct qlink_tlv_hdr *tlv;
@@ -1042,9 +1042,10 @@ static int qtnf_parse_variable_mac_info(struct qtnf_wmac *mac,
 
 			limit_record = (void *)tlv->val;
 			limits[rec].max = le16_to_cpu(limit_record->max_num);
-			mask = le16_to_cpu(limit_record->type_mask);
-			limits[rec].types = qlink_iface_type_mask_to_nl(mask);
-			/* only AP and STA modes are supported */
+			limits[rec].types = qlink_iface_type_to_nl_mask(
+				le16_to_cpu(limit_record->type));
+
+			/* supported modes: STA, AP */
 			limits[rec].types &= BIT(NL80211_IFTYPE_AP) |
 					     BIT(NL80211_IFTYPE_STATION);
 

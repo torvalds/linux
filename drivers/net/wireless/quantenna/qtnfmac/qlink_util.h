@@ -68,7 +68,7 @@ static inline void qtnf_cmd_skb_put_tlv_u16(struct sk_buff *skb,
 	memcpy(hdr->val, &tmp, sizeof(tmp));
 }
 
-u16 qlink_iface_type_mask_to_nl(u16 qlink_mask);
+u16 qlink_iface_type_to_nl_mask(u16 qlink_type);
 u8 qlink_chan_width_mask_to_nl(u16 qlink_mask);
 
 #endif /* _QTN_FMAC_QLINK_UTIL_H_ */
