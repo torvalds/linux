@@ -733,7 +733,7 @@ struct qlink_event_bss_join {
  */
 struct qlink_event_bss_leave {
 	struct qlink_event ehdr;
-	u16 reason;
+	__le16 reason;
 } __packed;
 
 enum qlink_rxmgmt_flags {
