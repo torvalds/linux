@@ -675,6 +675,21 @@ static bool validate_streams (
 	return true;
 }
 
+static bool validate_surfaces(
+		const struct dc *dc,
+		const struct dc_validation_set set[],
+		int set_count)
+{
+	int i, j;
+
+	for (i = 0; i < set_count; i++)
+		for (j = 0; j < set[i].surface_count; j++)
+			if (!dc_validate_surface(dc, set[i].surfaces[j]))
+				return false;
+
+	return true;
+}
+
 struct validate_context *dc_get_validate_context(
 		const struct dc *dc,
 		const struct dc_validation_set set[],
@@ -724,6 +739,9 @@ bool dc_validate_resources(
 	struct validate_context *context;
 
 	if (!validate_streams(dc, set, set_count))
+		return false;
+
+	if (!validate_surfaces(dc, set, set_count))
 		return false;
 
 	context = dm_alloc(sizeof(struct validate_context));
@@ -1063,6 +1081,9 @@ bool dc_commit_streams(
 	}
 
 	if (!validate_streams(dc, set, stream_count))
+		return false;
+
+	if (!validate_surfaces(dc, set, stream_count))
 		return false;
 
 	context = dm_alloc(sizeof(struct validate_context));
