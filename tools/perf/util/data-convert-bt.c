@@ -506,6 +506,81 @@ put_len_type:
 	return ret;
 }
 
+static int
+add_callchain_output_values(struct bt_ctf_event_class *event_class,
+		      struct bt_ctf_event *event,
+		      struct ip_callchain *callchain)
+{
+	struct bt_ctf_field_type *len_type, *seq_type;
+	struct bt_ctf_field *len_field, *seq_field;
+	unsigned int nr_elements = callchain->nr;
+	unsigned int i;
+	int ret;
+
+	len_type = bt_ctf_event_class_get_field_by_name(
+			event_class, "perf_callchain_size");
+	len_field = bt_ctf_field_create(len_type);
+	if (!len_field) {
+		pr_err("failed to create 'perf_callchain_size' for callchain output event\n");
+		ret = -1;
+		goto put_len_type;
+	}
+
+	ret = bt_ctf_field_unsigned_integer_set_value(len_field, nr_elements);
+	if (ret) {
+		pr_err("failed to set field value for perf_callchain_size\n");
+		goto put_len_field;
+	}
+	ret = bt_ctf_event_set_payload(event, "perf_callchain_size", len_field);
+	if (ret) {
+		pr_err("failed to set payload to perf_callchain_size\n");
+		goto put_len_field;
+	}
+
+	seq_type = bt_ctf_event_class_get_field_by_name(
+			event_class, "perf_callchain");
+	seq_field = bt_ctf_field_create(seq_type);
+	if (!seq_field) {
+		pr_err("failed to create 'perf_callchain' for callchain output event\n");
+		ret = -1;
+		goto put_seq_type;
+	}
+
+	ret = bt_ctf_field_sequence_set_length(seq_field, len_field);
+	if (ret) {
+		pr_err("failed to set length of 'perf_callchain'\n");
+		goto put_seq_field;
+	}
+
+	for (i = 0; i < nr_elements; i++) {
+		struct bt_ctf_field *elem_field =
+			bt_ctf_field_sequence_get_field(seq_field, i);
+
+		ret = bt_ctf_field_unsigned_integer_set_value(elem_field,
+				((u64 *)(callchain->ips))[i]);
+
+		bt_ctf_field_put(elem_field);
+		if (ret) {
+			pr_err("failed to set callchain[%d]\n", i);
+			goto put_seq_field;
+		}
+	}
+
+	ret = bt_ctf_event_set_payload(event, "perf_callchain", seq_field);
+	if (ret)
+		pr_err("failed to set payload for raw_data\n");
+
+put_seq_field:
+	bt_ctf_field_put(seq_field);
+put_seq_type:
+	bt_ctf_field_type_put(seq_type);
+put_len_field:
+	bt_ctf_field_put(len_field);
+put_len_type:
+	bt_ctf_field_type_put(len_type);
+	return ret;
+}
+
 static int add_generic_values(struct ctf_writer *cw,
 			      struct bt_ctf_event *event,
 			      struct perf_evsel *evsel,
@@ -519,7 +594,6 @@ static int add_generic_values(struct ctf_writer *cw,
 	 *   PERF_SAMPLE_TIME         - not needed as we have it in
 	 *                              ctf event header
 	 *   PERF_SAMPLE_READ         - TODO
-	 *   PERF_SAMPLE_CALLCHAIN    - TODO
 	 *   PERF_SAMPLE_RAW          - tracepoint fields are handled separately
 	 *   PERF_SAMPLE_BRANCH_STACK - TODO
 	 *   PERF_SAMPLE_REGS_USER    - TODO
@@ -720,6 +794,7 @@ static int process_sample_event(struct perf_tool *tool,
 	struct bt_ctf_event_class *event_class;
 	struct bt_ctf_event *event;
 	int ret;
+	unsigned long type = evsel->attr.sample_type;
 
 	if (WARN_ONCE(!priv, "Failed to setup all events.\n"))
 		return 0;
@@ -747,6 +822,13 @@ static int process_sample_event(struct perf_tool *tool,
 	if (evsel->attr.type == PERF_TYPE_TRACEPOINT) {
 		ret = add_tracepoint_values(cw, event_class, event,
 					    evsel, sample);
+		if (ret)
+			return -1;
+	}
+
+	if (type & PERF_SAMPLE_CALLCHAIN) {
+		ret = add_callchain_output_values(event_class,
+				event, sample->callchain);
 		if (ret)
 			return -1;
 	}
@@ -1042,6 +1124,14 @@ static int add_generic_types(struct ctf_writer *cw, struct perf_evsel *evsel,
 
 	if (type & PERF_SAMPLE_TRANSACTION)
 		ADD_FIELD(event_class, cw->data.u64, "perf_transaction");
+
+	if (type & PERF_SAMPLE_CALLCHAIN) {
+		ADD_FIELD(event_class, cw->data.u32, "perf_callchain_size");
+		ADD_FIELD(event_class,
+			bt_ctf_field_type_sequence_create(
+				cw->data.u64_hex, "perf_callchain_size"),
+			"perf_callchain");
+	}
 
 #undef ADD_FIELD
 	return 0;
