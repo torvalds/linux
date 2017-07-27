@@ -1250,8 +1250,10 @@ static void nf_tables_chain_destroy(struct nft_chain *chain)
 			static_branch_dec(&nft_counters_enabled);
 		if (basechain->ops[0].dev != NULL)
 			dev_put(basechain->ops[0].dev);
+		kfree(chain->name);
 		kfree(basechain);
 	} else {
+		kfree(chain->name);
 		kfree(chain);
 	}
 }
@@ -1476,8 +1478,13 @@ static int nf_tables_newchain(struct net *net, struct sock *nlsk,
 			nft_trans_chain_policy(trans) = -1;
 
 		if (nla[NFTA_CHAIN_HANDLE] && name) {
-			nla_strlcpy(nft_trans_chain_name(trans), name,
-				    NFT_CHAIN_MAXNAMELEN);
+			nft_trans_chain_name(trans) =
+				nla_strdup(name, GFP_KERNEL);
+			if (!nft_trans_chain_name(trans)) {
+				kfree(trans);
+				free_percpu(stats);
+				return -ENOMEM;
+			}
 		}
 		list_add_tail(&trans->list, &net->nft.commit_list);
 		return 0;
@@ -1544,7 +1551,11 @@ static int nf_tables_newchain(struct net *net, struct sock *nlsk,
 	INIT_LIST_HEAD(&chain->rules);
 	chain->handle = nf_tables_alloc_handle(table);
 	chain->table = table;
-	nla_strlcpy(chain->name, name, NFT_CHAIN_MAXNAMELEN);
+	chain->name = nla_strdup(name, GFP_KERNEL);
+	if (!chain->name) {
+		err = -ENOMEM;
+		goto err1;
+	}
 
 	err = nf_tables_register_hooks(net, table, chain, afi->nops);
 	if (err < 0)
@@ -1979,7 +1990,7 @@ err:
 
 struct nft_rule_dump_ctx {
 	char *table;
-	char chain[NFT_CHAIN_MAXNAMELEN];
+	char *chain;
 };
 
 static int nf_tables_dump_rules(struct sk_buff *skb,
@@ -2047,6 +2058,7 @@ static int nf_tables_dump_rules_done(struct netlink_callback *cb)
 
 	if (ctx) {
 		kfree(ctx->table);
+		kfree(ctx->chain);
 		kfree(ctx);
 	}
 	return 0;
@@ -2088,9 +2100,15 @@ static int nf_tables_getrule(struct net *net, struct sock *nlsk,
 					return -ENOMEM;
 				}
 			}
-			if (nla[NFTA_RULE_CHAIN])
-				nla_strlcpy(ctx->chain, nla[NFTA_RULE_CHAIN],
-					    sizeof(ctx->chain));
+			if (nla[NFTA_RULE_CHAIN]) {
+				ctx->chain = nla_strdup(nla[NFTA_RULE_CHAIN],
+							GFP_KERNEL);
+				if (!ctx->chain) {
+					kfree(ctx->table);
+					kfree(ctx);
+					return -ENOMEM;
+				}
+			}
 			c.data = ctx;
 		}
 
@@ -4863,7 +4881,7 @@ static void nft_chain_commit_update(struct nft_trans *trans)
 {
 	struct nft_base_chain *basechain;
 
-	if (nft_trans_chain_name(trans)[0])
+	if (nft_trans_chain_name(trans))
 		strcpy(trans->ctx.chain->name, nft_trans_chain_name(trans));
 
 	if (!nft_is_base_chain(trans->ctx.chain))
