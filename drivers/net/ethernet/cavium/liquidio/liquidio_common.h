@@ -27,8 +27,8 @@
 
 #define LIQUIDIO_PACKAGE ""
 #define LIQUIDIO_BASE_MAJOR_VERSION 1
-#define LIQUIDIO_BASE_MINOR_VERSION 5
-#define LIQUIDIO_BASE_MICRO_VERSION 1
+#define LIQUIDIO_BASE_MINOR_VERSION 6
+#define LIQUIDIO_BASE_MICRO_VERSION 0
 #define LIQUIDIO_BASE_VERSION   __stringify(LIQUIDIO_BASE_MAJOR_VERSION) "." \
 				__stringify(LIQUIDIO_BASE_MINOR_VERSION)
 #define LIQUIDIO_MICRO_VERSION  "." __stringify(LIQUIDIO_BASE_MICRO_VERSION)
@@ -768,6 +768,7 @@ struct nic_rx_stats {
 	/* firmware stats */
 	u64 fw_total_rcvd;
 	u64 fw_total_fwd;
+	u64 fw_total_fwd_bytes;
 	u64 fw_err_pko;
 	u64 fw_err_link;
 	u64 fw_err_drop;
