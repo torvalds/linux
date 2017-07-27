@@ -293,6 +293,8 @@ static void sdma_v4_0_ring_set_wptr(struct amdgpu_ring *ring)
 
 	DRM_DEBUG("Setting write pointer\n");
 	if (ring->use_doorbell) {
+		u64 *wb = (u64 *)&adev->wb.wb[ring->wptr_offs];
+
 		DRM_DEBUG("Using doorbell -- "
 				"wptr_offs == 0x%08x "
 				"lower_32_bits(ring->wptr) << 2 == 0x%08x "
@@ -301,8 +303,7 @@ static void sdma_v4_0_ring_set_wptr(struct amdgpu_ring *ring)
 				lower_32_bits(ring->wptr << 2),
 				upper_32_bits(ring->wptr << 2));
 		/* XXX check if swapping is necessary on BE */
-		adev->wb.wb[ring->wptr_offs] = lower_32_bits(ring->wptr << 2);
-		adev->wb.wb[ring->wptr_offs + 1] = upper_32_bits(ring->wptr << 2);
+		WRITE_ONCE(*wb, (ring->wptr << 2));
 		DRM_DEBUG("calling WDOORBELL64(0x%08x, 0x%016llx)\n",
 				ring->doorbell_index, ring->wptr << 2);
 
