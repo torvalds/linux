@@ -977,7 +977,7 @@ static int ssi_hash_setkey(void *hash,
 	struct cc_hw_desc desc[SSI_MAX_AHASH_SEQ_LEN];
 	ssi_sram_addr_t larval_addr;
 
-	 SSI_LOG_DEBUG("ssi_hash_setkey: start keylen: %d", keylen);
+	 SSI_LOG_DEBUG("start keylen: %d", keylen);
 
 	ctx = crypto_ahash_ctx(((struct crypto_ahash *)hash));
 	blocksize = crypto_tfm_alg_blocksize(&((struct crypto_ahash *)hash)->base);

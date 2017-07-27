@@ -2269,7 +2269,7 @@ static int ssi_gcm_setauthsize(struct crypto_aead *authenc,
 static int ssi_rfc4106_gcm_setauthsize(struct crypto_aead *authenc,
 				       unsigned int authsize)
 {
-	SSI_LOG_DEBUG("ssi_rfc4106_gcm_setauthsize()  authsize %d\n", authsize);
+	SSI_LOG_DEBUG("authsize %d\n", authsize);
 
 	switch (authsize) {
 	case 8:
@@ -2286,7 +2286,7 @@ static int ssi_rfc4106_gcm_setauthsize(struct crypto_aead *authenc,
 static int ssi_rfc4543_gcm_setauthsize(struct crypto_aead *authenc,
 				       unsigned int authsize)
 {
-	SSI_LOG_DEBUG("ssi_rfc4543_gcm_setauthsize()  authsize %d\n", authsize);
+	SSI_LOG_DEBUG("authsize %d\n", authsize);
 
 	if (authsize != 16)
 		return -EINVAL;

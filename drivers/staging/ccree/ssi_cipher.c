@@ -305,7 +305,7 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 		      ctx_p, crypto_tfm_alg_name(tfm), keylen);
 	dump_byte_array("key", (u8 *)key, keylen);
 
-	SSI_LOG_DEBUG("ssi_blkcipher_setkey: after FIPS check");
+	SSI_LOG_DEBUG("after FIPS check");
 
 	/* STAT_PHASE_0: Init and sanity checks */
 
@@ -351,7 +351,7 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 		}
 
 		ctx_p->keylen = keylen;
-		SSI_LOG_DEBUG("ssi_blkcipher_setkey: ssi_is_hw_key ret 0");
+		SSI_LOG_DEBUG("ssi_is_hw_key ret 0");
 
 		return 0;
 	}
@@ -361,19 +361,19 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 		if (unlikely(!des_ekey(tmp, key)) &&
 		    (crypto_tfm_get_flags(tfm) & CRYPTO_TFM_REQ_WEAK_KEY)) {
 			tfm->crt_flags |= CRYPTO_TFM_RES_WEAK_KEY;
-			SSI_LOG_DEBUG("ssi_blkcipher_setkey:  weak DES key");
+			SSI_LOG_DEBUG("weak DES key");
 			return -EINVAL;
 		}
 	}
 	if ((ctx_p->cipher_mode == DRV_CIPHER_XTS) &&
 	    xts_check_key(tfm, key, keylen) != 0) {
-		SSI_LOG_DEBUG("ssi_blkcipher_setkey: weak XTS key");
+		SSI_LOG_DEBUG("weak XTS key");
 		return -EINVAL;
 	}
 	if ((ctx_p->flow_mode == S_DIN_to_DES) &&
 	    (keylen == DES3_EDE_KEY_SIZE) &&
 	    ssi_verify_3des_keys(key, keylen) != 0) {
-		SSI_LOG_DEBUG("ssi_blkcipher_setkey: weak 3DES key");
+		SSI_LOG_DEBUG("weak 3DES key");
 		return -EINVAL;
 	}
 
@@ -388,7 +388,7 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 		if (ctx_p->key_round_number < CC_MULTI2_MIN_NUM_ROUNDS ||
 		    ctx_p->key_round_number > CC_MULTI2_MAX_NUM_ROUNDS) {
 			crypto_tfm_set_flags(tfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
-			SSI_LOG_DEBUG("ssi_blkcipher_setkey: SSI_CC_HAS_MULTI2 einval");
+			SSI_LOG_DEBUG("SSI_CC_HAS_MULTI2 einval");
 			return -EINVAL;
 #endif /*SSI_CC_HAS_MULTI2*/
 	} else {
@@ -415,7 +415,7 @@ static int ssi_blkcipher_setkey(struct crypto_tfm *tfm,
 				   max_key_buf_size, DMA_TO_DEVICE);
 	ctx_p->keylen = keylen;
 
-	 SSI_LOG_DEBUG("ssi_blkcipher_setkey: return safely");
+	 SSI_LOG_DEBUG("return safely");
 	return 0;
 }
 
