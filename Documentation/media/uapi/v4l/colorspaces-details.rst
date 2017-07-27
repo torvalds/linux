@@ -418,6 +418,11 @@ Inverse Transfer function:
 
     L = \left( \frac{L' + 0.099}{1.099}\right) ^{\frac{1}{0.45} }\text{, for } L' \ge 0.081
 
+Please note that while Rec. 709 is defined as the default transfer function
+by the :ref:`itu2020` standard, in practice this colorspace is often used
+with the :ref:`xf-smpte-2084`. In particular Ultra HD Blu-ray discs use
+this combination.
+
 The luminance (Y') and color difference (Cb and Cr) are obtained with
 the following ``V4L2_YCBCR_ENC_BT2020`` encoding:
 
