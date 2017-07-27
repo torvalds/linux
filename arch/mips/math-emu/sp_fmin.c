@@ -92,9 +92,7 @@ union ieee754sp ieee754sp_fmin(union ieee754sp x, union ieee754sp y)
 		return ys ? y : x;
 
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_ZERO):
-		if (xs == ys)
-			return x;
-		return ieee754sp_zero(1);
+		return ieee754sp_zero(xs | ys);
 
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_DNORM):
 		SPDNORMX;
@@ -204,9 +202,7 @@ union ieee754sp ieee754sp_fmina(union ieee754sp x, union ieee754sp y)
 		return y;
 
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_ZERO):
-		if (xs == ys)
-			return x;
-		return ieee754sp_zero(1);
+		return ieee754sp_zero(xs | ys);
 
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_DNORM):
 		SPDNORMX;
