@@ -1433,7 +1433,7 @@ bool dp_validate_mode_timing(
 		return false;
 }
 
-void decide_link_settings(struct dc_stream *stream,
+void decide_link_settings(struct dc_stream_state *stream,
 	struct dc_link_settings *link_setting)
 {
 

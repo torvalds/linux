@@ -294,8 +294,8 @@ void resource_reference_clock_source(
 }
 
 bool resource_are_streams_timing_synchronizable(
-	struct dc_stream *stream1,
-	struct dc_stream *stream2)
+	struct dc_stream_state *stream1,
+	struct dc_stream_state *stream2)
 {
 	if (stream1->timing.h_total != stream2->timing.h_total)
 		return false;
@@ -431,7 +431,7 @@ static void rect_swap_helper(struct rect *rect)
 static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 {
 	const struct dc_plane_state *surface = pipe_ctx->surface;
-	const struct dc_stream *stream = pipe_ctx->stream;
+	const struct dc_stream_state *stream = pipe_ctx->stream;
 	struct scaler_data *data = &pipe_ctx->scl_data;
 	struct rect surf_src = surface->src_rect;
 	struct rect clip = { 0 };
@@ -530,7 +530,7 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip)
 {
 	const struct dc_plane_state *surface = pipe_ctx->surface;
-	const struct dc_stream *stream = pipe_ctx->stream;
+	const struct dc_stream_state *stream = pipe_ctx->stream;
 	struct rect surf_src = surface->src_rect;
 	struct rect surf_clip = surface->clip_rect;
 	int recout_full_x, recout_full_y;
@@ -608,7 +608,7 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip
 static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
 {
 	const struct dc_plane_state *surface = pipe_ctx->surface;
-	const struct dc_stream *stream = pipe_ctx->stream;
+	const struct dc_stream_state *stream = pipe_ctx->stream;
 	struct rect surf_src = surface->src_rect;
 	const int in_w = stream->src.width;
 	const int in_h = stream->src.height;
@@ -920,7 +920,7 @@ struct pipe_ctx *find_idle_secondary_pipe(
 
 struct pipe_ctx *resource_get_head_pipe_for_stream(
 		struct resource_context *res_ctx,
-		struct dc_stream *stream)
+		struct dc_stream_state *stream)
 {
 	int i;
 	for (i = 0; i < MAX_PIPES; i++) {
@@ -940,7 +940,7 @@ struct pipe_ctx *resource_get_head_pipe_for_stream(
 static struct pipe_ctx *acquire_free_pipe_for_stream(
 		struct validate_context *context,
 		const struct resource_pool *pool,
-		struct dc_stream *stream)
+		struct dc_stream_state *stream)
 {
 	int i;
 	struct resource_context *res_ctx = &context->res_ctx;
@@ -979,7 +979,7 @@ static struct pipe_ctx *acquire_free_pipe_for_stream(
 
 static void release_free_pipes_for_stream(
 		struct resource_context *res_ctx,
-		struct dc_stream *stream)
+		struct dc_stream_state *stream)
 {
 	int i;
 
@@ -997,7 +997,7 @@ static void release_free_pipes_for_stream(
 static int acquire_first_split_pipe(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
-		struct dc_stream *stream)
+		struct dc_stream_state *stream)
 {
 	int i;
 
@@ -1030,7 +1030,7 @@ static int acquire_first_split_pipe(
 bool resource_attach_surfaces_to_context(
 		struct dc_plane_state * const *surfaces,
 		int surface_count,
-		struct dc_stream *stream,
+		struct dc_stream_state *stream,
 		struct validate_context *context,
 		const struct resource_pool *pool)
 {
@@ -1118,8 +1118,8 @@ bool resource_attach_surfaces_to_context(
 }
 
 
-static bool is_timing_changed(struct dc_stream *cur_stream,
-		struct dc_stream *new_stream)
+static bool is_timing_changed(struct dc_stream_state *cur_stream,
+		struct dc_stream_state *new_stream)
 {
 	if (cur_stream == NULL)
 		return true;
@@ -1141,7 +1141,7 @@ static bool is_timing_changed(struct dc_stream *cur_stream,
 }
 
 static bool are_stream_backends_same(
-	struct dc_stream *stream_a, struct dc_stream *stream_b)
+	struct dc_stream_state *stream_a, struct dc_stream_state *stream_b)
 {
 	if (stream_a == stream_b)
 		return true;
@@ -1156,7 +1156,7 @@ static bool are_stream_backends_same(
 }
 
 bool dc_is_stream_unchanged(
-	struct dc_stream *old_stream, struct dc_stream *stream)
+	struct dc_stream_state *old_stream, struct dc_stream_state *stream)
 {
 
 	if (!are_stream_backends_same(old_stream, stream))
@@ -1233,7 +1233,7 @@ static void set_audio_in_use(
 static int acquire_first_free_pipe(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
-		struct dc_stream *stream)
+		struct dc_stream_state *stream)
 {
 	int i;
 
@@ -1260,7 +1260,7 @@ static int acquire_first_free_pipe(
 static struct stream_encoder *find_first_free_match_stream_enc_for_link(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
-		struct dc_stream *stream)
+		struct dc_stream_state *stream)
 {
 	int i;
 	int j = -1;
@@ -1311,7 +1311,7 @@ static struct audio *find_first_free_audio(
 	return 0;
 }
 
-static void update_stream_signal(struct dc_stream *stream)
+static void update_stream_signal(struct dc_stream_state *stream)
 {
 	if (stream->output_signal == SIGNAL_TYPE_NONE) {
 		struct dc_sink *dc_sink = stream->sink;
@@ -1334,12 +1334,12 @@ static void update_stream_signal(struct dc_stream *stream)
 }
 
 bool resource_is_stream_unchanged(
-	struct validate_context *old_context, struct dc_stream *stream)
+	struct validate_context *old_context, struct dc_stream_state *stream)
 {
 	int i;
 
 	for (i = 0; i < old_context->stream_count; i++) {
-		struct dc_stream *old_stream = old_context->streams[i];
+		struct dc_stream_state *old_stream = old_context->streams[i];
 
 		if (are_stream_backends_same(old_stream, stream))
 				return true;
@@ -1352,7 +1352,7 @@ static void copy_pipe_ctx(
 	const struct pipe_ctx *from_pipe_ctx, struct pipe_ctx *to_pipe_ctx)
 {
 	struct dc_plane_state *surface = to_pipe_ctx->surface;
-	struct dc_stream *stream = to_pipe_ctx->stream;
+	struct dc_stream_state *stream = to_pipe_ctx->stream;
 
 	*to_pipe_ctx = *from_pipe_ctx;
 	to_pipe_ctx->stream = stream;
@@ -1360,14 +1360,14 @@ static void copy_pipe_ctx(
 		to_pipe_ctx->surface = surface;
 }
 
-static struct dc_stream *find_pll_sharable_stream(
-		struct dc_stream *stream_needs_pll,
+static struct dc_stream_state *find_pll_sharable_stream(
+		struct dc_stream_state *stream_needs_pll,
 		struct validate_context *context)
 {
 	int i;
 
 	for (i = 0; i < context->stream_count; i++) {
-		struct dc_stream *stream_has_pll = context->streams[i];
+		struct dc_stream_state *stream_has_pll = context->streams[i];
 
 		/* We are looking for non dp, non virtual stream */
 		if (resource_are_streams_timing_synchronizable(
@@ -1411,7 +1411,7 @@ static int get_norm_pix_clk(const struct dc_crtc_timing *timing)
 	return normalized_pix_clk;
 }
 
-static void calculate_phy_pix_clks(struct dc_stream *stream)
+static void calculate_phy_pix_clks(struct dc_stream_state *stream)
 {
 	update_stream_signal(stream);
 
@@ -1433,7 +1433,7 @@ enum dc_status resource_map_pool_resources(
 	int i, j;
 
 	for (i = 0; old_context && i < context->stream_count; i++) {
-		struct dc_stream *stream = context->streams[i];
+		struct dc_stream_state *stream = context->streams[i];
 
 		if (!resource_is_stream_unchanged(old_context, stream)) {
 			if (stream != NULL && old_context->streams[i] != NULL) {
@@ -1486,7 +1486,7 @@ enum dc_status resource_map_pool_resources(
 	}
 
 	for (i = 0; i < context->stream_count; i++) {
-		struct dc_stream *stream = context->streams[i];
+		struct dc_stream_state *stream = context->streams[i];
 		struct pipe_ctx *pipe_ctx = NULL;
 		int pipe_idx = -1;
 
@@ -1581,7 +1581,7 @@ static void set_avi_info_frame(
 		struct encoder_info_packet *info_packet,
 		struct pipe_ctx *pipe_ctx)
 {
-	struct dc_stream *stream = pipe_ctx->stream;
+	struct dc_stream_state *stream = pipe_ctx->stream;
 	enum dc_color_space color_space = COLOR_SPACE_UNKNOWN;
 	struct info_frame info_frame = { {0} };
 	uint32_t pixel_encoding = 0;
@@ -1821,7 +1821,7 @@ static void set_avi_info_frame(
 
 static void set_vendor_info_packet(
 		struct encoder_info_packet *info_packet,
-		struct dc_stream *stream)
+		struct dc_stream_state *stream)
 {
 	uint32_t length = 0;
 	bool hdmi_vic_mode = false;
@@ -1934,7 +1934,7 @@ static void set_vendor_info_packet(
 
 static void set_spd_info_packet(
 		struct encoder_info_packet *info_packet,
-		struct dc_stream *stream)
+		struct dc_stream_state *stream)
 {
 	/* SPD info packet for FreeSync */
 
@@ -2056,7 +2056,7 @@ static void set_spd_info_packet(
 static void set_hdr_static_info_packet(
 		struct encoder_info_packet *info_packet,
 		struct dc_plane_state *surface,
-		struct dc_stream *stream)
+		struct dc_stream_state *stream)
 {
 	uint16_t i = 0;
 	enum signal_type signal = stream->signal;
@@ -2159,7 +2159,7 @@ static void set_hdr_static_info_packet(
 
 static void set_vsc_info_packet(
 		struct encoder_info_packet *info_packet,
-		struct dc_stream *stream)
+		struct dc_stream_state *stream)
 {
 	unsigned int vscPacketRevision = 0;
 	unsigned int i;
@@ -2312,7 +2312,7 @@ enum dc_status resource_map_clock_resources(
 
 	/* acquire new resources */
 	for (i = 0; i < context->stream_count; i++) {
-		struct dc_stream *stream = context->streams[i];
+		struct dc_stream_state *stream = context->streams[i];
 
 		if (old_context && resource_is_stream_unchanged(old_context, stream))
 			continue;
@@ -2392,7 +2392,7 @@ bool pipe_need_reprogram(
 	return false;
 }
 
-void resource_build_bit_depth_reduction_params(struct dc_stream *stream,
+void resource_build_bit_depth_reduction_params(struct dc_stream_state *stream,
 		struct bit_depth_reduction_params *fmt_bit_depth)
 {
 	enum dc_dither_option option = stream->dither_option;
@@ -2502,7 +2502,7 @@ void resource_build_bit_depth_reduction_params(struct dc_stream *stream,
 	fmt_bit_depth->pixel_encoding = pixel_encoding;
 }
 
-bool dc_validate_stream(const struct dc *dc, struct dc_stream *stream)
+bool dc_validate_stream(const struct dc *dc, struct dc_stream_state *stream)
 {
 	struct core_dc *core_dc = DC_TO_CORE(dc);
 	struct dc_context *dc_ctx = core_dc->ctx;

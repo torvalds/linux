@@ -60,7 +60,7 @@ struct dc_link *link_create(const struct link_init_data *init_params);
 void link_destroy(struct dc_link **link);
 
 enum dc_status dc_link_validate_mode_timing(
-		const struct dc_stream *stream,
+		const struct dc_stream_state *stream,
 		struct dc_link *link,
 		const struct dc_crtc_timing *timing);
 
@@ -92,7 +92,7 @@ struct resource_funcs {
 
 	enum dc_status (*validate_guaranteed)(
 					const struct core_dc *dc,
-					struct dc_stream *stream,
+					struct dc_stream_state *stream,
 					struct validate_context *context);
 
 	bool (*validate_bandwidth)(
@@ -102,8 +102,7 @@ struct resource_funcs {
 	struct pipe_ctx *(*acquire_idle_pipe_for_layer)(
 			struct validate_context *context,
 			const struct resource_pool *pool,
-			struct dc_stream *stream);
-
+			struct dc_stream_state *stream);
 	enum dc_status (*validate_plane)(const struct dc_plane_state *plane_state);
 };
 
@@ -155,7 +154,7 @@ struct resource_pool {
 
 struct pipe_ctx {
 	struct dc_plane_state *surface;
-	struct dc_stream *stream;
+	struct dc_stream_state *stream;
 
 	struct mem_input *mi;
 	struct input_pixel_processor *ipp;
@@ -240,7 +239,7 @@ union bw_context {
 };
 
 struct validate_context {
-	struct dc_stream *streams[MAX_PIPES];
+	struct dc_stream_state *streams[MAX_PIPES];
 	struct dc_stream_status stream_status[MAX_PIPES];
 	uint8_t stream_count;
 

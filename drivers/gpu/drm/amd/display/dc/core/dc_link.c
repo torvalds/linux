@@ -1143,7 +1143,7 @@ static void dpcd_configure_panel_mode(
 
 static void enable_stream_features(struct pipe_ctx *pipe_ctx)
 {
-	struct dc_stream *stream = pipe_ctx->stream;
+	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->sink->link;
 	union down_spread_ctrl downspread;
 
@@ -1159,7 +1159,7 @@ static void enable_stream_features(struct pipe_ctx *pipe_ctx)
 
 static enum dc_status enable_link_dp(struct pipe_ctx *pipe_ctx)
 {
-	struct dc_stream *stream = pipe_ctx->stream;
+	struct dc_stream_state *stream = pipe_ctx->stream;
 	enum dc_status status;
 	bool skip_video_pattern;
 	struct dc_link *link = stream->sink->link;
@@ -1250,7 +1250,7 @@ static enum dc_status enable_link_dp_mst(struct pipe_ctx *pipe_ctx)
 
 static void enable_link_hdmi(struct pipe_ctx *pipe_ctx)
 {
-	struct dc_stream *stream = pipe_ctx->stream;
+	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->sink->link;
 	enum dc_color_depth display_color_depth;
 
@@ -1341,7 +1341,7 @@ static void disable_link(struct dc_link *link, enum signal_type signal)
 }
 
 enum dc_status dc_link_validate_mode_timing(
-		const struct dc_stream *stream,
+		const struct dc_stream_state *stream,
 		struct dc_link *link,
 		const struct dc_crtc_timing *timing)
 {
@@ -1374,7 +1374,7 @@ enum dc_status dc_link_validate_mode_timing(
 
 
 bool dc_link_set_backlight_level(const struct dc_link *link, uint32_t level,
-		uint32_t frame_ramp, const struct dc_stream *stream)
+		uint32_t frame_ramp, const struct dc_stream_state *stream)
 {
 	struct core_dc *core_dc = DC_TO_CORE(link->ctx->dc);
 	struct abm *abm = core_dc->res_pool->abm;
@@ -1450,7 +1450,7 @@ bool dc_link_get_psr_state(const struct dc_link *link, uint32_t *psr_state)
 }
 
 bool dc_link_setup_psr(struct dc_link *link,
-		const struct dc_stream *stream, struct psr_config *psr_config,
+		const struct dc_stream_state *stream, struct psr_config *psr_config,
 		struct psr_context *psr_context)
 {
 	struct core_dc *core_dc = DC_TO_CORE(link->ctx->dc);
@@ -1587,7 +1587,7 @@ void core_link_resume(struct dc_link *link)
 		program_hpd_filter(link);
 }
 
-static struct fixed31_32 get_pbn_per_slot(struct dc_stream *stream)
+static struct fixed31_32 get_pbn_per_slot(struct dc_stream_state *stream)
 {
 	struct dc_link_settings *link_settings =
 			&stream->sink->link->cur_link_settings;
@@ -1696,7 +1696,7 @@ static void update_mst_stream_alloc_table(
  */
 static enum dc_status allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 {
-	struct dc_stream *stream = pipe_ctx->stream;
+	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->sink->link;
 	struct link_encoder *link_encoder = link->link_enc;
 	struct stream_encoder *stream_encoder = pipe_ctx->stream_enc;
@@ -1778,7 +1778,7 @@ static enum dc_status allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 
 static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 {
-	struct dc_stream *stream = pipe_ctx->stream;
+	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->sink->link;
 	struct link_encoder *link_encoder = link->link_enc;
 	struct stream_encoder *stream_encoder = pipe_ctx->stream_enc;

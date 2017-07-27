@@ -1009,7 +1009,7 @@ bool dce110_link_encoder_construct(
 
 bool dce110_link_encoder_validate_output_with_stream(
 	struct link_encoder *enc,
-	const struct dc_stream *stream)
+	const struct dc_stream_state *stream)
 {
 	struct dce110_link_encoder *enc110 = TO_DCE110_LINK_ENC(enc);
 	bool is_valid;

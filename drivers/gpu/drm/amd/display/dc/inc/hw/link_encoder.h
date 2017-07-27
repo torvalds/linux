@@ -93,7 +93,7 @@ struct link_encoder {
 
 struct link_encoder_funcs {
 	bool (*validate_output_with_stream)(
-		struct link_encoder *enc, const struct dc_stream *stream);
+		struct link_encoder *enc, const struct dc_stream_state *stream);
 	void (*hw_init)(struct link_encoder *enc);
 	void (*setup)(struct link_encoder *enc,
 		enum signal_type signal);

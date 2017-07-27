@@ -679,7 +679,7 @@ static enum dc_status dcn10_prog_pixclk_crtc_otg(
 		struct validate_context *context,
 		struct core_dc *dc)
 {
-	struct dc_stream *stream = pipe_ctx->stream;
+	struct dc_stream_state *stream = pipe_ctx->stream;
 	enum dc_color_space color_space;
 	struct tg_color black_color = {0};
 	bool enableStereo    = stream->timing.timing_3d_format == TIMING_3D_FORMAT_NONE ?
@@ -1445,7 +1445,7 @@ static bool dcn10_translate_regamma_to_hw_format(const struct dc_transfer_func
 
 static bool dcn10_set_output_transfer_func(
 	struct pipe_ctx *pipe_ctx,
-	const struct dc_stream *stream)
+	const struct dc_stream_state *stream)
 {
 	struct transform *xfm = pipe_ctx->xfm;
 
@@ -2321,7 +2321,7 @@ static void set_plane_config(
 }
 
 static void dcn10_config_stereo_parameters(
-		struct dc_stream *stream, struct crtc_stereo_flags *flags)
+		struct dc_stream_state *stream, struct crtc_stereo_flags *flags)
 {
 	enum view_3d_format view_format = stream->view_format;
 	enum dc_timing_3d_format timing_3d_format =\
@@ -2360,7 +2360,7 @@ static void dcn10_config_stereo_parameters(
 static void dcn10_setup_stereo(struct pipe_ctx *pipe_ctx, struct core_dc *dc)
 {
 	struct crtc_stereo_flags flags = { 0 };
-	struct dc_stream *stream = pipe_ctx->stream;
+	struct dc_stream_state *stream = pipe_ctx->stream;
 
 	dcn10_config_stereo_parameters(stream, &flags);
 

@@ -149,12 +149,12 @@ failed_alloc:
 }
 
 static bool stream_adjust_vmin_vmax(struct dc *dc,
-		struct dc_stream **streams, int num_streams,
+		struct dc_stream_state **streams, int num_streams,
 		int vmin, int vmax)
 {
 	/* TODO: Support multiple streams */
 	struct core_dc *core_dc = DC_TO_CORE(dc);
-	struct dc_stream *stream = streams[0];
+	struct dc_stream_state *stream = streams[0];
 	int i = 0;
 	bool ret = false;
 
@@ -175,12 +175,12 @@ static bool stream_adjust_vmin_vmax(struct dc *dc,
 }
 
 static bool stream_get_crtc_position(struct dc *dc,
-		struct dc_stream **streams, int num_streams,
+		struct dc_stream_state **streams, int num_streams,
 		unsigned int *v_pos, unsigned int *nom_v_pos)
 {
 	/* TODO: Support multiple streams */
 	struct core_dc *core_dc = DC_TO_CORE(dc);
-	struct dc_stream *stream = streams[0];
+	struct dc_stream_state *stream = streams[0];
 	int i = 0;
 	bool ret = false;
 	struct crtc_position position;
@@ -200,7 +200,7 @@ static bool stream_get_crtc_position(struct dc *dc,
 	return ret;
 }
 
-static bool set_gamut_remap(struct dc *dc, const struct dc_stream *stream)
+static bool set_gamut_remap(struct dc *dc, const struct dc_stream_state *stream)
 {
 	struct core_dc *core_dc = DC_TO_CORE(dc);
 	int i = 0;
@@ -218,7 +218,7 @@ static bool set_gamut_remap(struct dc *dc, const struct dc_stream *stream)
 	return ret;
 }
 
-static bool program_csc_matrix(struct dc *dc, struct dc_stream *stream)
+static bool program_csc_matrix(struct dc *dc, struct dc_stream_state *stream)
 {
 	struct core_dc *core_dc = DC_TO_CORE(dc);
 	int i = 0;
@@ -241,7 +241,7 @@ static bool program_csc_matrix(struct dc *dc, struct dc_stream *stream)
 }
 
 static void set_static_screen_events(struct dc *dc,
-		struct dc_stream **streams,
+		struct dc_stream_state **streams,
 		int num_streams,
 		const struct dc_static_screen_events *events)
 {
@@ -252,7 +252,7 @@ static void set_static_screen_events(struct dc *dc,
 	int num_pipes_affected = 0;
 
 	for (i = 0; i < num_streams; i++) {
-		struct dc_stream *stream = streams[i];
+		struct dc_stream_state *stream = streams[i];
 
 		for (j = 0; j < MAX_PIPES; j++) {
 			if (core_dc->current_context->res_ctx.pipe_ctx[j].stream
@@ -333,7 +333,7 @@ static void set_test_pattern(
 			cust_pattern_size);
 }
 
-void set_dither_option(struct dc_stream *stream,
+void set_dither_option(struct dc_stream_state *stream,
 		enum dc_dither_option option)
 {
 	struct bit_depth_reduction_params params;
@@ -769,7 +769,7 @@ context_alloc_fail:
 
 bool dc_validate_guaranteed(
 		const struct dc *dc,
-		struct dc_stream *stream)
+		struct dc_stream_state *stream)
 {
 	struct core_dc *core_dc = DC_TO_CORE(dc);
 	enum dc_status result = DC_ERROR_UNEXPECTED;
@@ -893,7 +893,7 @@ static bool context_changed(
 
 static bool streams_changed(
 		struct core_dc *dc,
-		struct dc_stream *streams[],
+		struct dc_stream_state *streams[],
 		uint8_t stream_count)
 {
 	uint8_t i;
@@ -912,7 +912,7 @@ static bool streams_changed(
 bool dc_enable_stereo(
 	struct dc *dc,
 	struct validate_context *context,
-	struct dc_stream *streams[],
+	struct dc_stream_state *streams[],
 	uint8_t stream_count)
 {
 	bool ret = true;
@@ -958,7 +958,7 @@ static bool dc_commit_context_no_check(struct dc *dc, struct validate_context *c
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	struct pipe_ctx *pipe;
 	int i, j, k, l;
-	struct dc_stream *dc_streams[MAX_STREAMS] = {0};
+	struct dc_stream_state *dc_streams[MAX_STREAMS] = {0};
 
 	for (i = 0; i < context->stream_count; i++)
 		dc_streams[i] =  context->streams[i];
@@ -1031,7 +1031,7 @@ bool dc_commit_context(struct dc *dc, struct validate_context *context)
 				__func__, context->stream_count);
 
 	for (i = 0; i < context->stream_count; i++) {
-		struct dc_stream *stream = context->streams[i];
+		struct dc_stream_state *stream = context->streams[i];
 
 		dc_stream_log(stream,
 				core_dc->ctx->logger,
@@ -1046,7 +1046,7 @@ bool dc_commit_context(struct dc *dc, struct validate_context *context)
 
 bool dc_commit_streams(
 	struct dc *dc,
-	struct dc_stream *streams[],
+	struct dc_stream_state *streams[],
 	uint8_t stream_count)
 {
 	struct core_dc *core_dc = DC_TO_CORE(dc);
@@ -1062,7 +1062,7 @@ bool dc_commit_streams(
 				__func__, stream_count);
 
 	for (i = 0; i < stream_count; i++) {
-		struct dc_stream *stream = streams[i];
+		struct dc_stream_state *stream = streams[i];
 		struct dc_stream_status *status = dc_stream_get_status(stream);
 		int j;
 
@@ -1138,7 +1138,7 @@ bool dc_commit_surfaces_to_stream(
 		struct dc *dc,
 		struct dc_plane_state **new_surfaces,
 		uint8_t new_surface_count,
-		struct dc_stream *dc_stream)
+		struct dc_stream_state *dc_stream)
 {
 	struct dc_surface_update updates[MAX_SURFACES];
 	struct dc_flip_addrs flip_addr[MAX_SURFACES];
@@ -1395,7 +1395,7 @@ enum surface_update_type update_surface_trace_level = UPDATE_TYPE_FULL;
 
 void dc_update_surfaces_and_stream(struct dc *dc,
 		struct dc_surface_update *srf_updates, int surface_count,
-		struct dc_stream *stream,
+		struct dc_stream_state *stream,
 		struct dc_stream_update *stream_update)
 {
 	struct core_dc *core_dc = DC_TO_CORE(dc);
@@ -1723,7 +1723,7 @@ uint8_t dc_get_current_stream_count(const struct dc *dc)
 	return core_dc->current_context->stream_count;
 }
 
-struct dc_stream *dc_get_stream_at_index(const struct dc *dc, uint8_t i)
+struct dc_stream_state *dc_get_stream_at_index(const struct dc *dc, uint8_t i)
 {
 	struct core_dc *core_dc = DC_TO_CORE(dc);
 	if (i < core_dc->current_context->stream_count)

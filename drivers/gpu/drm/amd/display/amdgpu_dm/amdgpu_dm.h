@@ -201,7 +201,7 @@ struct dm_plane_state {
 
 struct dm_crtc_state {
 	struct drm_crtc_state base;
-	struct dc_stream *stream;
+	struct dc_stream_state *stream;
 };
 
 #define to_dm_crtc_state(x)    container_of(x, struct dm_crtc_state, base)

@@ -623,7 +623,7 @@ static bool dce110_translate_regamma_to_hw_format(const struct dc_transfer_func
 
 static bool dce110_set_output_transfer_func(
 	struct pipe_ctx *pipe_ctx,
-	const struct dc_stream *stream)
+	const struct dc_stream_state *stream)
 {
 	struct transform *xfm = pipe_ctx->xfm;
 
@@ -745,7 +745,7 @@ void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 
 void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 {
-	struct dc_stream *stream = pipe_ctx->stream;
+	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->sink->link;
 
 	if (pipe_ctx->audio) {
@@ -833,7 +833,7 @@ static void build_audio_output(
 	const struct pipe_ctx *pipe_ctx,
 	struct audio_output *audio_output)
 {
-	const struct dc_stream *stream = pipe_ctx->stream;
+	const struct dc_stream_state *stream = pipe_ctx->stream;
 	audio_output->engine_id = pipe_ctx->stream_enc->id;
 
 	audio_output->signal = pipe_ctx->stream->signal;
@@ -981,7 +981,7 @@ static enum dc_status dce110_prog_pixclk_crtc_otg(
 		struct validate_context *context,
 		struct core_dc *dc)
 {
-	struct dc_stream *stream = pipe_ctx->stream;
+	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct pipe_ctx *pipe_ctx_old = &dc->current_context->res_ctx.
 			pipe_ctx[pipe_ctx->pipe_idx];
 	struct tg_color black_color = {0};
@@ -1037,7 +1037,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 		struct validate_context *context,
 		struct core_dc *dc)
 {
-	struct dc_stream *stream = pipe_ctx->stream;
+	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct pipe_ctx *pipe_ctx_old = &dc->current_context->res_ctx.
 			pipe_ctx[pipe_ctx->pipe_idx];
 
@@ -1229,7 +1229,7 @@ void dce110_enable_accelerated_mode(struct core_dc *dc)
 
 static uint32_t compute_pstate_blackout_duration(
 	struct bw_fixed blackout_duration,
-	const struct dc_stream *stream)
+	const struct dc_stream_state *stream)
 {
 	uint32_t total_dest_line_time_ns;
 	uint32_t pstate_blackout_duration_ns;
@@ -2325,7 +2325,7 @@ void dce110_fill_display_configs(
 	for (j = 0; j < context->stream_count; j++) {
 		int k;
 
-		const struct dc_stream *stream = context->streams[j];
+		const struct dc_stream_state *stream = context->streams[j];
 		struct dm_pp_single_disp_config *cfg =
 			&pp_display_cfg->disp_configs[num_cfgs];
 		const struct pipe_ctx *pipe_ctx = NULL;
@@ -2370,7 +2370,7 @@ uint32_t dce110_get_min_vblank_time_us(const struct validate_context *context)
 	uint32_t min_vertical_blank_time = -1;
 
 		for (j = 0; j < context->stream_count; j++) {
-			struct dc_stream *stream = context->streams[j];
+			struct dc_stream_state *stream = context->streams[j];
 			uint32_t vertical_blank_in_pixels = 0;
 			uint32_t vertical_blank_time = 0;
 

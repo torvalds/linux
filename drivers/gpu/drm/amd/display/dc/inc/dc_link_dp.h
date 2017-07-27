@@ -30,7 +30,7 @@
 #define LINK_TRAINING_RETRY_DELAY 50 /* ms */
 
 struct dc_link;
-struct dc_stream;
+struct dc_stream_state;
 struct dc_link_settings;
 
 bool dp_hbr_verify_link_cap(
@@ -50,7 +50,7 @@ bool dp_validate_mode_timing(
 	const struct dc_crtc_timing *timing);
 
 void decide_link_settings(
-	struct dc_stream *stream,
+	struct dc_stream_state *stream,
 	struct dc_link_settings *link_setting);
 
 bool perform_link_training_with_retries(

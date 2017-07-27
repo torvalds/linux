@@ -34,7 +34,7 @@
  * Private functions
  ******************************************************************************/
 
-static bool construct(struct dc_stream *stream,
+static bool construct(struct dc_stream_state *stream,
 	struct dc_sink *dc_sink_data)
 {
 	uint32_t i = 0;
@@ -84,7 +84,7 @@ static bool construct(struct dc_stream *stream,
 	return true;
 }
 
-static void destruct(struct dc_stream *stream)
+static void destruct(struct dc_stream_state *stream)
 {
 	dc_sink_release(stream->sink);
 	if (stream->out_transfer_func != NULL) {
@@ -94,14 +94,14 @@ static void destruct(struct dc_stream *stream)
 	}
 }
 
-void dc_stream_retain(struct dc_stream *stream)
+void dc_stream_retain(struct dc_stream_state *stream)
 {
 
 	ASSERT(stream->ref_count > 0);
 	stream->ref_count++;
 }
 
-void dc_stream_release(struct dc_stream *stream)
+void dc_stream_release(struct dc_stream_state *stream)
 {
 
 	if (stream != NULL) {
@@ -115,15 +115,15 @@ void dc_stream_release(struct dc_stream *stream)
 	}
 }
 
-struct dc_stream *dc_create_stream_for_sink(
+struct dc_stream_state *dc_create_stream_for_sink(
 		struct dc_sink *sink)
 {
-	struct dc_stream *stream;
+	struct dc_stream_state *stream;
 
 	if (sink == NULL)
 		goto alloc_fail;
 
-	stream = dm_alloc(sizeof(struct dc_stream));
+	stream = dm_alloc(sizeof(struct dc_stream_state));
 
 	if (NULL == stream)
 		goto alloc_fail;
@@ -143,7 +143,7 @@ alloc_fail:
 }
 
 struct dc_stream_status *dc_stream_get_status(
-	struct dc_stream *stream)
+	struct dc_stream_state *stream)
 {
 	uint8_t i;
 	struct core_dc *dc = DC_TO_CORE(stream->ctx->dc);
@@ -161,7 +161,7 @@ struct dc_stream_status *dc_stream_get_status(
  * Update the cursor attributes and set cursor surface address
  */
 bool dc_stream_set_cursor_attributes(
-	const struct dc_stream *stream,
+	const struct dc_stream_state *stream,
 	const struct dc_cursor_attributes *attributes)
 {
 	int i;
@@ -196,7 +196,7 @@ bool dc_stream_set_cursor_attributes(
 }
 
 bool dc_stream_set_cursor_position(
-	struct dc_stream *stream,
+	struct dc_stream_state *stream,
 	const struct dc_cursor_position *position)
 {
 	int i;
@@ -245,7 +245,7 @@ bool dc_stream_set_cursor_position(
 	return true;
 }
 
-uint32_t dc_stream_get_vblank_counter(const struct dc_stream *stream)
+uint32_t dc_stream_get_vblank_counter(const struct dc_stream_state *stream)
 {
 	uint8_t i;
 	struct core_dc *core_dc = DC_TO_CORE(stream->ctx->dc);
@@ -264,7 +264,7 @@ uint32_t dc_stream_get_vblank_counter(const struct dc_stream *stream)
 	return 0;
 }
 
-bool dc_stream_get_scanoutpos(const struct dc_stream *stream,
+bool dc_stream_get_scanoutpos(const struct dc_stream_state *stream,
 				  uint32_t *v_blank_start,
 				  uint32_t *v_blank_end,
 				  uint32_t *h_position,
@@ -297,7 +297,7 @@ bool dc_stream_get_scanoutpos(const struct dc_stream *stream,
 
 
 void dc_stream_log(
-	const struct dc_stream *stream,
+	const struct dc_stream_state *stream,
 	struct dal_logger *dm_logger,
 	enum dc_log_type log_type)
 {

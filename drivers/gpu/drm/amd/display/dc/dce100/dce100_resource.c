@@ -660,7 +660,7 @@ static enum dc_status build_mapped_resource(
 	uint8_t i, j;
 
 	for (i = 0; i < context->stream_count; i++) {
-		struct dc_stream *stream = context->streams[i];
+		struct dc_stream_state *stream = context->streams[i];
 
 		if (old_context && resource_is_stream_unchanged(old_context, stream))
 			continue;
@@ -765,7 +765,7 @@ enum dc_status dce100_validate_with_context(
 
 enum dc_status dce100_validate_guaranteed(
 		const struct core_dc *dc,
-		struct dc_stream *dc_stream,
+		struct dc_stream_state *dc_stream,
 		struct validate_context *context)
 {
 	enum dc_status result = DC_ERROR_UNEXPECTED;

@@ -196,7 +196,7 @@ bool dce110_link_encoder_validate_wireless_output(
 
 bool dce110_link_encoder_validate_output_with_stream(
 	struct link_encoder *enc,
-	const struct dc_stream *stream);
+	const struct dc_stream_state *stream);
 
 /****************** HW programming ************************/
 

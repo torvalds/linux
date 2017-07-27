@@ -35,7 +35,7 @@
 
 /* forward declarations */
 struct dc_plane_state;
-struct dc_stream;
+struct dc_stream_state;
 struct dc_link;
 struct dc_sink;
 struct dal;

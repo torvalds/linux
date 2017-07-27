@@ -774,7 +774,7 @@ static void get_pixel_clock_parameters(
 	const struct pipe_ctx *pipe_ctx,
 	struct pixel_clk_params *pixel_clk_params)
 {
-	const struct dc_stream *stream = pipe_ctx->stream;
+	const struct dc_stream_state *stream = pipe_ctx->stream;
 	pixel_clk_params->requested_pix_clk = stream->timing.pix_clk_khz;
 	pixel_clk_params->encoder_object_id = stream->sink->link->link_enc->id;
 	pixel_clk_params->signal_type = pipe_ctx->stream->signal;
@@ -796,7 +796,7 @@ static void get_pixel_clock_parameters(
 
 }
 
-static void build_clamping_params(struct dc_stream *stream)
+static void build_clamping_params(struct dc_stream_state *stream)
 {
 	stream->clamping.clamping_level = CLAMPING_FULL_RANGE;
 	stream->clamping.c_depth = stream->timing.display_color_depth;
@@ -831,7 +831,7 @@ static enum dc_status build_mapped_resource(
 	uint8_t i, j;
 
 	for (i = 0; i < context->stream_count; i++) {
-		struct dc_stream *stream = context->streams[i];
+		struct dc_stream_state *stream = context->streams[i];
 
 		if (old_context && resource_is_stream_unchanged(old_context, stream)) {
 			if (stream != NULL && old_context->streams[i] != NULL) {
@@ -916,7 +916,7 @@ enum dc_status dcn10_validate_with_context(
 
 enum dc_status dcn10_validate_guaranteed(
 		const struct core_dc *dc,
-		struct dc_stream *dc_stream,
+		struct dc_stream_state *dc_stream,
 		struct validate_context *context)
 {
 	enum dc_status result = DC_ERROR_UNEXPECTED;
@@ -947,7 +947,7 @@ enum dc_status dcn10_validate_guaranteed(
 static struct pipe_ctx *dcn10_acquire_idle_pipe_for_layer(
 		struct validate_context *context,
 		const struct resource_pool *pool,
-		struct dc_stream *stream)
+		struct dc_stream_state *stream)
 {
 	struct resource_context *res_ctx = &context->res_ctx;
 	struct pipe_ctx *head_pipe = resource_get_head_pipe_for_stream(res_ctx, stream);
