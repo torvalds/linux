@@ -152,7 +152,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 						current_entry);
 			if (annotate_browser__opts.show_total_period) {
 				ui_browser__printf(browser, "%6" PRIu64 " ",
-						   bdl->samples[i].he.nr_samples);
+						   bdl->samples[i].he.period);
 			} else {
 				ui_browser__printf(browser, "%6.2f ",
 						   bdl->samples[i].percent);
