@@ -48,52 +48,34 @@ static union ieee754dp _dp_maddf(union ieee754dp z, union ieee754dp x,
 
 	ieee754_clearcx();
 
-	switch (zc) {
-	case IEEE754_CLASS_SNAN:
-		ieee754_setcx(IEEE754_INVALID_OPERATION);
+	/*
+	 * Handle the cases when at least one of x, y or z is a NaN.
+	 * Order of precedence is sNaN, qNaN and z, x, y.
+	 */
+	if (zc == IEEE754_CLASS_SNAN)
 		return ieee754dp_nanxcpt(z);
-	case IEEE754_CLASS_DNORM:
-		DPDNORMZ;
-	/* QNAN and ZERO cases are handled separately below */
-	}
-
-	switch (CLPAIR(xc, yc)) {
-	case CLPAIR(IEEE754_CLASS_QNAN, IEEE754_CLASS_SNAN):
-	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_SNAN):
-	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_SNAN):
-	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_SNAN):
-	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_SNAN):
-		return ieee754dp_nanxcpt(y);
-
-	case CLPAIR(IEEE754_CLASS_SNAN, IEEE754_CLASS_SNAN):
-	case CLPAIR(IEEE754_CLASS_SNAN, IEEE754_CLASS_QNAN):
-	case CLPAIR(IEEE754_CLASS_SNAN, IEEE754_CLASS_ZERO):
-	case CLPAIR(IEEE754_CLASS_SNAN, IEEE754_CLASS_NORM):
-	case CLPAIR(IEEE754_CLASS_SNAN, IEEE754_CLASS_DNORM):
-	case CLPAIR(IEEE754_CLASS_SNAN, IEEE754_CLASS_INF):
+	if (xc == IEEE754_CLASS_SNAN)
 		return ieee754dp_nanxcpt(x);
-
-	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_QNAN):
-	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_QNAN):
-	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_QNAN):
-	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_QNAN):
+	if (yc == IEEE754_CLASS_SNAN)
+		return ieee754dp_nanxcpt(y);
+	if (zc == IEEE754_CLASS_QNAN)
+		return z;
+	if (xc == IEEE754_CLASS_QNAN)
+		return x;
+	if (yc == IEEE754_CLASS_QNAN)
 		return y;
 
-	case CLPAIR(IEEE754_CLASS_QNAN, IEEE754_CLASS_QNAN):
-	case CLPAIR(IEEE754_CLASS_QNAN, IEEE754_CLASS_ZERO):
-	case CLPAIR(IEEE754_CLASS_QNAN, IEEE754_CLASS_NORM):
-	case CLPAIR(IEEE754_CLASS_QNAN, IEEE754_CLASS_DNORM):
-	case CLPAIR(IEEE754_CLASS_QNAN, IEEE754_CLASS_INF):
-		return x;
+	if (zc == IEEE754_CLASS_DNORM)
+		DPDNORMZ;
+	/* ZERO z cases are handled separately below */
 
+	switch (CLPAIR(xc, yc)) {
 
 	/*
 	 * Infinity handling
 	 */
 	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_ZERO):
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_INF):
-		if (zc == IEEE754_CLASS_QNAN)
-			return z;
 		ieee754_setcx(IEEE754_INVALID_OPERATION);
 		return ieee754dp_indef();
 
@@ -102,8 +84,6 @@ static union ieee754dp _dp_maddf(union ieee754dp z, union ieee754dp x,
 	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_NORM):
 	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_DNORM):
 	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_INF):
-		if (zc == IEEE754_CLASS_QNAN)
-			return z;
 		return ieee754dp_inf(xs ^ ys);
 
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_ZERO):
@@ -120,25 +100,19 @@ static union ieee754dp _dp_maddf(union ieee754dp z, union ieee754dp x,
 		DPDNORMX;
 
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_DNORM):
-		if (zc == IEEE754_CLASS_QNAN)
-			return z;
-		else if (zc == IEEE754_CLASS_INF)
+		if (zc == IEEE754_CLASS_INF)
 			return ieee754dp_inf(zs);
 		DPDNORMY;
 		break;
 
 	case CLPAIR(IEEE754_CLASS_DNORM, IEEE754_CLASS_NORM):
-		if (zc == IEEE754_CLASS_QNAN)
-			return z;
-		else if (zc == IEEE754_CLASS_INF)
+		if (zc == IEEE754_CLASS_INF)
 			return ieee754dp_inf(zs);
 		DPDNORMX;
 		break;
 
 	case CLPAIR(IEEE754_CLASS_NORM, IEEE754_CLASS_NORM):
-		if (zc == IEEE754_CLASS_QNAN)
-			return z;
-		else if (zc == IEEE754_CLASS_INF)
+		if (zc == IEEE754_CLASS_INF)
 			return ieee754dp_inf(zs);
 		/* fall through to real computations */
 	}
