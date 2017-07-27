@@ -116,16 +116,32 @@ union ieee754dp ieee754dp_fmax(union ieee754dp x, union ieee754dp y)
 	else if (xs < ys)
 		return x;
 
-	/* Compare exponent */
-	if (xe > ye)
-		return x;
-	else if (xe < ye)
-		return y;
+	/* Signs of inputs are equal, let's compare exponents */
+	if (xs == 0) {
+		/* Inputs are both positive */
+		if (xe > ye)
+			return x;
+		else if (xe < ye)
+			return y;
+	} else {
+		/* Inputs are both negative */
+		if (xe > ye)
+			return y;
+		else if (xe < ye)
+			return x;
+	}
 
-	/* Compare mantissa */
+	/* Signs and exponents of inputs are equal, let's compare mantissas */
+	if (xs == 0) {
+		/* Inputs are both positive, with equal signs and exponents */
+		if (xm <= ym)
+			return y;
+		return x;
+	}
+	/* Inputs are both negative, with equal signs and exponents */
 	if (xm <= ym)
-		return y;
-	return x;
+		return x;
+	return y;
 }
 
 union ieee754dp ieee754dp_fmaxa(union ieee754dp x, union ieee754dp y)

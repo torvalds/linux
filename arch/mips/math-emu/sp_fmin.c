@@ -116,16 +116,32 @@ union ieee754sp ieee754sp_fmin(union ieee754sp x, union ieee754sp y)
 	else if (xs < ys)
 		return y;
 
-	/* Compare exponent */
-	if (xe > ye)
-		return y;
-	else if (xe < ye)
-		return x;
+	/* Signs of inputs are the same, let's compare exponents */
+	if (xs == 0) {
+		/* Inputs are both positive */
+		if (xe > ye)
+			return y;
+		else if (xe < ye)
+			return x;
+	} else {
+		/* Inputs are both negative */
+		if (xe > ye)
+			return x;
+		else if (xe < ye)
+			return y;
+	}
 
-	/* Compare mantissa */
+	/* Signs and exponents of inputs are equal, let's compare mantissas */
+	if (xs == 0) {
+		/* Inputs are both positive, with equal signs and exponents */
+		if (xm <= ym)
+			return x;
+		return y;
+	}
+	/* Inputs are both negative, with equal signs and exponents */
 	if (xm <= ym)
-		return x;
-	return y;
+		return y;
+	return x;
 }
 
 union ieee754sp ieee754sp_fmina(union ieee754sp x, union ieee754sp y)
