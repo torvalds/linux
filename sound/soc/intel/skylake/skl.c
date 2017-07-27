@@ -981,6 +981,11 @@ static struct sst_acpi_mach sst_kbl_devdata[] = {
 		.quirk_data = &kbl_poppy_codecs,
 		.pdata = &skl_dmic_data
 	},
+	{
+		.id = "10EC5663",
+		.drv_name = "kbl_rt5663",
+		.fw_filename = "intel/dsp_fw_kbl.bin",
+	},
 
 	{}
 };
