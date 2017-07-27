@@ -85,7 +85,27 @@ static union ieee754sp _sp_maddf(union ieee754sp z, union ieee754sp x,
 	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_NORM):
 	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_DNORM):
 	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_INF):
-		return ieee754sp_inf(xs ^ ys);
+		if ((zc == IEEE754_CLASS_INF) &&
+		    ((!(flags & maddf_negate_product) && (zs != (xs ^ ys))) ||
+		     ((flags & maddf_negate_product) && (zs == (xs ^ ys))))) {
+			/*
+			 * Cases of addition of infinities with opposite signs
+			 * or subtraction of infinities with same signs.
+			 */
+			ieee754_setcx(IEEE754_INVALID_OPERATION);
+			return ieee754sp_indef();
+		}
+		/*
+		 * z is here either not an infinity, or an infinity having the
+		 * same sign as product (x*y) (in case of MADDF.D instruction)
+		 * or product -(x*y) (in MSUBF.D case). The result must be an
+		 * infinity, and its sign is determined only by the value of
+		 * (flags & maddf_negate_product) and the signs of x and y.
+		 */
+		if (flags & maddf_negate_product)
+			return ieee754sp_inf(1 ^ (xs ^ ys));
+		else
+			return ieee754sp_inf(xs ^ ys);
 
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_ZERO):
 	case CLPAIR(IEEE754_CLASS_ZERO, IEEE754_CLASS_NORM):
