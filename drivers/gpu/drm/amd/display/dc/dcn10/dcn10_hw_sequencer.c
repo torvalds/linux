@@ -1475,6 +1475,8 @@ static void dcn10_pipe_control_lock(
 	struct pipe_ctx *pipe,
 	bool lock)
 {
+	struct mem_input *mi = NULL;
+	mi = dc->res_pool->mis[pipe->pipe_idx];
 	/* use TG master update lock to lock everything on the TG
 	 * therefore only top pipe need to lock
 	 */
