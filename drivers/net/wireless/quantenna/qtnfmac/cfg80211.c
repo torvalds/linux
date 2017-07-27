@@ -579,19 +579,33 @@ qtnf_del_station(struct wiphy *wiphy, struct net_device *dev,
 	return ret;
 }
 
+static void qtnf_scan_timeout(unsigned long data)
+{
+	struct qtnf_wmac *mac = (struct qtnf_wmac *)data;
+
+	pr_warn("mac%d scan timed out\n", mac->macid);
+	qtnf_scan_done(mac, true);
+}
+
 static int
 qtnf_scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 {
 	struct qtnf_wmac *mac = wiphy_priv(wiphy);
-	int ret;
 
 	mac->scan_req = request;
 
-	ret = qtnf_cmd_send_scan(mac);
-	if (ret)
+	if (qtnf_cmd_send_scan(mac)) {
 		pr_err("MAC%u: failed to start scan\n", mac->macid);
+		mac->scan_req = NULL;
+		return -EFAULT;
+	}
 
-	return ret;
+	mac->scan_timeout.data = (unsigned long)mac;
+	mac->scan_timeout.function = qtnf_scan_timeout;
+	mod_timer(&mac->scan_timeout,
+		  jiffies + QTNF_SCAN_TIMEOUT_SEC * HZ);
+
+	return 0;
 }
 
 static int

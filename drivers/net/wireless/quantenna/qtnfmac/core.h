@@ -46,6 +46,7 @@
 #define QTNF_MAX_EVENT_QUEUE_LEN	255
 #define QTNF_DEFAULT_BG_SCAN_PERIOD	300
 #define QTNF_MAX_BG_SCAN_PERIOD		0xffff
+#define QTNF_SCAN_TIMEOUT_SEC		15
 
 #define QTNF_DEF_BSS_PRIORITY		0
 #define QTNF_DEF_WDOG_TIMEOUT		5
@@ -147,6 +148,8 @@ struct qtnf_wmac {
 	struct cfg80211_scan_request *scan_req;
 	struct cfg80211_chan_def chandef;
 	struct cfg80211_chan_def csa_chandef;
+	struct mutex mac_lock;	/* lock during wmac speicific ops */
+	struct timer_list scan_timeout;
 };
 
 struct qtnf_hw_info {
