@@ -185,7 +185,7 @@ bool dc_stream_set_cursor_attributes(
 
 		if (pipe_ctx->stream != stream || !pipe_ctx->ipp)
 			continue;
-		if (pipe_ctx->top_pipe && pipe_ctx->surface != pipe_ctx->top_pipe->surface)
+		if (pipe_ctx->top_pipe && pipe_ctx->plane_state != pipe_ctx->top_pipe->plane_state)
 			continue;
 
 		pipe_ctx->ipp->funcs->ipp_cursor_set_attributes(
@@ -229,14 +229,14 @@ bool dc_stream_set_cursor_position(
 		};
 
 		if (pipe_ctx->stream != stream ||
-				!pipe_ctx->ipp || !pipe_ctx->surface)
+				!pipe_ctx->ipp || !pipe_ctx->plane_state)
 			continue;
 
-		if (pipe_ctx->surface->address.type
+		if (pipe_ctx->plane_state->address.type
 				== PLN_ADDR_TYPE_VIDEO_PROGRESSIVE)
 			pos_cpy.enable = false;
 
-		if (pipe_ctx->top_pipe && pipe_ctx->surface != pipe_ctx->top_pipe->surface)
+		if (pipe_ctx->top_pipe && pipe_ctx->plane_state != pipe_ctx->top_pipe->plane_state)
 			pos_cpy.enable = false;
 
 		ipp->funcs->ipp_cursor_set_position(ipp, &pos_cpy, &param);

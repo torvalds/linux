@@ -639,21 +639,21 @@ static bool is_validation_required(
 
 	for (i = 0; i < set_count; i++) {
 
-		if (set[i].surface_count != context->stream_status[i].surface_count)
+		if (set[i].plane_count != context->stream_status[i].plane_count)
 			return true;
 		if (!dc_is_stream_unchanged(set[i].stream, context->streams[i]))
 			return true;
 
-		for (j = 0; j < set[i].surface_count; j++) {
-			struct dc_plane_state temp_surf;
-			memset(&temp_surf, 0, sizeof(temp_surf));
+		for (j = 0; j < set[i].plane_count; j++) {
+			struct dc_plane_state temp_plane;
+			memset(&temp_plane, 0, sizeof(temp_plane));
 
-			temp_surf = *context->stream_status[i].surfaces[j];
-			temp_surf.clip_rect = set[i].surfaces[j]->clip_rect;
-			temp_surf.dst_rect.x = set[i].surfaces[j]->dst_rect.x;
-			temp_surf.dst_rect.y = set[i].surfaces[j]->dst_rect.y;
+			temp_plane = *context->stream_status[i].plane_states[j];
+			temp_plane.clip_rect = set[i].plane_states[j]->clip_rect;
+			temp_plane.dst_rect.x = set[i].plane_states[j]->dst_rect.x;
+			temp_plane.dst_rect.y = set[i].plane_states[j]->dst_rect.y;
 
-			if (memcmp(&temp_surf, set[i].surfaces[j], sizeof(temp_surf)) != 0)
+			if (memcmp(&temp_plane, set[i].plane_states[j], sizeof(temp_plane)) != 0)
 				return true;
 		}
 	}
@@ -683,8 +683,8 @@ static bool validate_surfaces(
 	int i, j;
 
 	for (i = 0; i < set_count; i++)
-		for (j = 0; j < set[i].surface_count; j++)
-			if (!dc_validate_plane(dc, set[i].surfaces[j]))
+		for (j = 0; j < set[i].plane_count; j++)
+			if (!dc_validate_plane(dc, set[i].plane_states[j]))
 				return false;
 
 	return true;
@@ -977,11 +977,11 @@ static bool dc_commit_context_no_check(struct dc *dc, struct validate_context *c
 	for (i = 0; i < context->stream_count; i++) {
 		const struct dc_sink *sink = context->streams[i]->sink;
 
-		for (j = 0; j < context->stream_status[i].surface_count; j++) {
-			const struct dc_plane_state *surface =
-					context->stream_status[i].surfaces[j];
+		for (j = 0; j < context->stream_status[i].plane_count; j++) {
+			const struct dc_plane_state *plane_state =
+					context->stream_status[i].plane_states[j];
 
-			core_dc->hwss.apply_ctx_for_surface(core_dc, surface, context);
+			core_dc->hwss.apply_ctx_for_surface(core_dc, plane_state, context);
 
 			/*
 			 * enable stereo
@@ -1073,9 +1073,9 @@ bool dc_commit_streams(
 		set[i].stream = stream;
 
 		if (status) {
-			set[i].surface_count = status->surface_count;
-			for (j = 0; j < status->surface_count; j++)
-				set[i].surfaces[j] = status->surfaces[j];
+			set[i].plane_count = status->plane_count;
+			for (j = 0; j < status->plane_count; j++)
+				set[i].plane_states[j] = status->plane_states[j];
 		}
 
 	}
@@ -1122,7 +1122,7 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 
 	for (i = 0; i < core_dc->res_pool->pipe_count; i++)
 		if (context->res_ctx.pipe_ctx[i].stream == NULL
-				|| context->res_ctx.pipe_ctx[i].surface == NULL)
+				|| context->res_ctx.pipe_ctx[i].plane_state == NULL)
 			core_dc->hwss.power_down_front_end(core_dc, i);
 
 	/* 3rd param should be true, temp w/a for RV*/
@@ -1134,10 +1134,10 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
 	return true;
 }
 
-bool dc_commit_surfaces_to_stream(
+bool dc_commit_planes_to_stream(
 		struct dc *dc,
-		struct dc_plane_state **new_surfaces,
-		uint8_t new_surface_count,
+		struct dc_plane_state **plane_states,
+		uint8_t new_plane_count,
 		struct dc_stream_state *dc_stream)
 {
 	struct dc_surface_update updates[MAX_SURFACES];
@@ -1162,37 +1162,37 @@ bool dc_commit_surfaces_to_stream(
 	stream_update->dst = dc_stream->dst;
 	stream_update->out_transfer_func = dc_stream->out_transfer_func;
 
-	for (i = 0; i < new_surface_count; i++) {
-		updates[i].surface = new_surfaces[i];
+	for (i = 0; i < new_plane_count; i++) {
+		updates[i].surface = plane_states[i];
 		updates[i].gamma =
-			(struct dc_gamma *)new_surfaces[i]->gamma_correction;
-		updates[i].in_transfer_func = new_surfaces[i]->in_transfer_func;
-		flip_addr[i].address = new_surfaces[i]->address;
-		flip_addr[i].flip_immediate = new_surfaces[i]->flip_immediate;
-		plane_info[i].color_space = new_surfaces[i]->color_space;
-		plane_info[i].format = new_surfaces[i]->format;
-		plane_info[i].plane_size = new_surfaces[i]->plane_size;
-		plane_info[i].rotation = new_surfaces[i]->rotation;
-		plane_info[i].horizontal_mirror = new_surfaces[i]->horizontal_mirror;
-		plane_info[i].stereo_format = new_surfaces[i]->stereo_format;
-		plane_info[i].tiling_info = new_surfaces[i]->tiling_info;
-		plane_info[i].visible = new_surfaces[i]->visible;
-		plane_info[i].per_pixel_alpha = new_surfaces[i]->per_pixel_alpha;
-		plane_info[i].dcc = new_surfaces[i]->dcc;
-		scaling_info[i].scaling_quality = new_surfaces[i]->scaling_quality;
-		scaling_info[i].src_rect = new_surfaces[i]->src_rect;
-		scaling_info[i].dst_rect = new_surfaces[i]->dst_rect;
-		scaling_info[i].clip_rect = new_surfaces[i]->clip_rect;
+			(struct dc_gamma *)plane_states[i]->gamma_correction;
+		updates[i].in_transfer_func = plane_states[i]->in_transfer_func;
+		flip_addr[i].address = plane_states[i]->address;
+		flip_addr[i].flip_immediate = plane_states[i]->flip_immediate;
+		plane_info[i].color_space = plane_states[i]->color_space;
+		plane_info[i].format = plane_states[i]->format;
+		plane_info[i].plane_size = plane_states[i]->plane_size;
+		plane_info[i].rotation = plane_states[i]->rotation;
+		plane_info[i].horizontal_mirror = plane_states[i]->horizontal_mirror;
+		plane_info[i].stereo_format = plane_states[i]->stereo_format;
+		plane_info[i].tiling_info = plane_states[i]->tiling_info;
+		plane_info[i].visible = plane_states[i]->visible;
+		plane_info[i].per_pixel_alpha = plane_states[i]->per_pixel_alpha;
+		plane_info[i].dcc = plane_states[i]->dcc;
+		scaling_info[i].scaling_quality = plane_states[i]->scaling_quality;
+		scaling_info[i].src_rect = plane_states[i]->src_rect;
+		scaling_info[i].dst_rect = plane_states[i]->dst_rect;
+		scaling_info[i].clip_rect = plane_states[i]->clip_rect;
 
 		updates[i].flip_addr = &flip_addr[i];
 		updates[i].plane_info = &plane_info[i];
 		updates[i].scaling_info = &scaling_info[i];
 	}
 
-	dc_update_surfaces_and_stream(
+	dc_update_planes_and_stream(
 			dc,
 			updates,
-			new_surface_count,
+			new_plane_count,
 			dc_stream, stream_update);
 
 	dc_post_update_surfaces_to_stream(dc);
@@ -1220,14 +1220,14 @@ void dc_release_validate_context(struct validate_context *context)
 
 static bool is_surface_in_context(
 		const struct validate_context *context,
-		const struct dc_plane_state *surface)
+		const struct dc_plane_state *plane_state)
 {
 	int j;
 
 	for (j = 0; j < MAX_PIPES; j++) {
 		const struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 
-		if (surface == pipe_ctx->surface) {
+		if (plane_state == pipe_ctx->plane_state) {
 			return true;
 		}
 	}
@@ -1371,7 +1371,7 @@ enum surface_update_type dc_check_update_surfaces_for_stream(
 	int i;
 	enum surface_update_type overall_type = UPDATE_TYPE_FAST;
 
-	if (stream_status == NULL || stream_status->surface_count != surface_count)
+	if (stream_status == NULL || stream_status->plane_count != surface_count)
 		return UPDATE_TYPE_FULL;
 
 	if (stream_update)
@@ -1393,7 +1393,7 @@ enum surface_update_type dc_check_update_surfaces_for_stream(
 
 enum surface_update_type update_surface_trace_level = UPDATE_TYPE_FULL;
 
-void dc_update_surfaces_and_stream(struct dc *dc,
+void dc_update_planes_and_stream(struct dc *dc,
 		struct dc_surface_update *srf_updates, int surface_count,
 		struct dc_stream_state *stream,
 		struct dc_stream_update *stream_update)
@@ -1470,10 +1470,10 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 		update_surface_trace(dc, srf_updates, surface_count);
 
 	if (update_type >= UPDATE_TYPE_FULL) {
-		struct dc_plane_state *new_surfaces[MAX_SURFACES] = {0};
+		struct dc_plane_state *new_planes[MAX_SURFACES] = {0};
 
 		for (i = 0; i < surface_count; i++)
-			new_surfaces[i] = srf_updates[i].surface;
+			new_planes[i] = srf_updates[i].surface;
 
 		/* initialize scratch memory for building context */
 		context = dm_alloc(sizeof(*context));
@@ -1487,7 +1487,7 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 
 		/* add surface to context */
 		if (!resource_attach_surfaces_to_context(
-				new_surfaces, surface_count, stream,
+				new_planes, surface_count, stream,
 				context, core_dc->res_pool)) {
 			BREAK_TO_DEBUGGER();
 			goto fail;
@@ -1542,7 +1542,7 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 			for (j = 0; j < core_dc->res_pool->pipe_count; j++) {
 				struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 
-				if (pipe_ctx->surface != surface)
+				if (pipe_ctx->plane_state != surface)
 					continue;
 
 				resource_build_scaling_params(pipe_ctx);
@@ -1599,14 +1599,14 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 
 	/* Lock pipes for provided surfaces, or all active if full update*/
 	for (i = 0; i < surface_count; i++) {
-		struct dc_plane_state *surface = srf_updates[i].surface;
+		struct dc_plane_state *plane_state = srf_updates[i].surface;
 
 		for (j = 0; j < core_dc->res_pool->pipe_count; j++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 
-			if (update_type != UPDATE_TYPE_FULL && pipe_ctx->surface != surface)
+			if (update_type != UPDATE_TYPE_FULL && pipe_ctx->plane_state != plane_state)
 				continue;
-			if (!pipe_ctx->surface || pipe_ctx->top_pipe)
+			if (!pipe_ctx->plane_state || pipe_ctx->top_pipe)
 				continue;
 
 			core_dc->hwss.pipe_control_lock(
@@ -1622,15 +1622,15 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 	for (j = 0; j < core_dc->res_pool->pipe_count; j++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 		struct pipe_ctx *cur_pipe_ctx = &core_dc->current_context->res_ctx.pipe_ctx[j];
-		bool is_new_pipe_surface = cur_pipe_ctx->surface != pipe_ctx->surface;
+		bool is_new_pipe_surface = cur_pipe_ctx->plane_state != pipe_ctx->plane_state;
 		struct dc_cursor_position position = { 0 };
 
-		if (update_type != UPDATE_TYPE_FULL || !pipe_ctx->surface)
+		if (update_type != UPDATE_TYPE_FULL || !pipe_ctx->plane_state)
 			continue;
 
 		if (!pipe_ctx->top_pipe)
 			core_dc->hwss.apply_ctx_for_surface(
-					core_dc, pipe_ctx->surface, context);
+					core_dc, pipe_ctx->plane_state, context);
 
 		/* TODO: this is a hack w/a for switching from mpo to pipe split */
 		dc_stream_set_cursor_position(pipe_ctx->stream, &position);
@@ -1638,7 +1638,7 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 		if (is_new_pipe_surface) {
 			core_dc->hwss.update_plane_addr(core_dc, pipe_ctx);
 			core_dc->hwss.set_input_transfer_func(
-					pipe_ctx, pipe_ctx->surface);
+					pipe_ctx, pipe_ctx->plane_state);
 			core_dc->hwss.set_output_transfer_func(
 					pipe_ctx, pipe_ctx->stream);
 		}
@@ -1649,16 +1649,16 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 
 	/* Perform requested Updates */
 	for (i = 0; i < surface_count; i++) {
-		struct dc_plane_state *surface = srf_updates[i].surface;
+		struct dc_plane_state *plane_state = srf_updates[i].surface;
 
 		if (update_type == UPDATE_TYPE_MED)
 			core_dc->hwss.apply_ctx_for_surface(
-					core_dc, surface, context);
+					core_dc, plane_state, context);
 
 		for (j = 0; j < core_dc->res_pool->pipe_count; j++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
 
-			if (pipe_ctx->surface != surface)
+			if (pipe_ctx->plane_state != plane_state)
 				continue;
 
 			if (srf_updates[i].flip_addr)
@@ -1669,7 +1669,7 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 
 			if (srf_updates[i].in_transfer_func)
 				core_dc->hwss.set_input_transfer_func(
-						pipe_ctx, pipe_ctx->surface);
+						pipe_ctx, pipe_ctx->plane_state);
 
 			if (stream_update != NULL &&
 					stream_update->out_transfer_func != NULL) {
@@ -1690,9 +1690,9 @@ void dc_update_surfaces_and_stream(struct dc *dc,
 
 		for (j = 0; j < surface_count; j++) {
 			if (update_type != UPDATE_TYPE_FULL &&
-			    srf_updates[j].surface != pipe_ctx->surface)
+			    srf_updates[j].surface != pipe_ctx->plane_state)
 				continue;
-			if (!pipe_ctx->surface || pipe_ctx->top_pipe)
+			if (!pipe_ctx->plane_state || pipe_ctx->top_pipe)
 				continue;
 
 			core_dc->hwss.pipe_control_lock(

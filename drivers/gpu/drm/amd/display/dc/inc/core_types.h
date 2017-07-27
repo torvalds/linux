@@ -36,7 +36,7 @@
 
 #define MAX_CLOCK_SOURCES 7
 
-void enable_surface_flip_reporting(struct dc_plane_state *dc_surface,
+void enable_surface_flip_reporting(struct dc_plane_state *plane_state,
 		uint32_t controller_id);
 
 #include "grph_object_id.h"
@@ -153,7 +153,7 @@ struct resource_pool {
 };
 
 struct pipe_ctx {
-	struct dc_plane_state *surface;
+	struct dc_plane_state *plane_state;
 	struct dc_stream_state *stream;
 
 	struct mem_input *mi;

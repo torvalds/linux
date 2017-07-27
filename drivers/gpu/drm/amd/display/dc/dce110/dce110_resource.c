@@ -764,9 +764,9 @@ static bool is_surface_pixel_format_supported(struct pipe_ctx *pipe_ctx, unsigne
 {
 	if (pipe_ctx->pipe_idx != underlay_idx)
 		return true;
-	if (!pipe_ctx->surface)
+	if (!pipe_ctx->plane_state)
 		return false;
-	if (pipe_ctx->surface->format < SURFACE_PIXEL_FORMAT_VIDEO_BEGIN)
+	if (pipe_ctx->plane_state->format < SURFACE_PIXEL_FORMAT_VIDEO_BEGIN)
 		return false;
 	return true;
 }
@@ -901,22 +901,22 @@ static bool dce110_validate_surface_sets(
 	int i;
 
 	for (i = 0; i < set_count; i++) {
-		if (set[i].surface_count == 0)
+		if (set[i].plane_count == 0)
 			continue;
 
-		if (set[i].surface_count > 2)
+		if (set[i].plane_count > 2)
 			return false;
 
-		if (set[i].surfaces[0]->format
+		if (set[i].plane_states[0]->format
 				>= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN)
 			return false;
 
-		if (set[i].surface_count == 2) {
-			if (set[i].surfaces[1]->format
+		if (set[i].plane_count == 2) {
+			if (set[i].plane_states[1]->format
 					< SURFACE_PIXEL_FORMAT_VIDEO_BEGIN)
 				return false;
-			if (set[i].surfaces[1]->src_rect.width > 1920
-					|| set[i].surfaces[1]->src_rect.height > 1080)
+			if (set[i].plane_states[1]->src_rect.width > 1920
+					|| set[i].plane_states[1]->src_rect.height > 1080)
 				return false;
 
 			if (set[i].stream->timing.pixel_encoding != PIXEL_ENCODING_RGB)
@@ -1351,7 +1351,7 @@ static bool construct(
 	if (!dce110_hw_sequencer_construct(dc))
 		goto res_create_fail;
 
-	dc->public.caps.max_surfaces =  pool->base.pipe_count;
+	dc->public.caps.max_planes =  pool->base.pipe_count;
 
 	bw_calcs_init(&dc->bw_dceip, &dc->bw_vbios, dc->ctx->asic_id);
 

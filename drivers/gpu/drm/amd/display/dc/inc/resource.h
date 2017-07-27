@@ -119,7 +119,7 @@ struct pipe_ctx *resource_get_head_pipe_for_stream(
 		struct dc_stream_state *stream);
 
 bool resource_attach_surfaces_to_context(
-		struct dc_plane_state *const *surfaces,
+		struct dc_plane_state *const *plane_state,
 		int surface_count,
 		struct dc_stream_state *dc_stream,
 		struct validate_context *context,

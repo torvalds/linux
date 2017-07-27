@@ -722,13 +722,13 @@ static bool dce80_validate_surface_sets(
 	int i;
 
 	for (i = 0; i < set_count; i++) {
-		if (set[i].surface_count == 0)
+		if (set[i].plane_count == 0)
 			continue;
 
-		if (set[i].surface_count > 1)
+		if (set[i].plane_count > 1)
 			return false;
 
-		if (set[i].surfaces[0]->format
+		if (set[i].plane_states[0]->format
 				>= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN)
 			return false;
 	}
@@ -959,7 +959,7 @@ static bool construct(
 		}
 	}
 
-	dc->public.caps.max_surfaces =  pool->base.pipe_count;
+	dc->public.caps.max_planes =  pool->base.pipe_count;
 
 	if (!resource_construct(num_virtual_links, dc, &pool->base,
 			&res_create_funcs))

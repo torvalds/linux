@@ -982,7 +982,7 @@ static bool construct(
 	if (!dce120_hw_sequencer_create(dc))
 		goto controller_create_fail;
 
-	dc->public.caps.max_surfaces =  pool->base.pipe_count;
+	dc->public.caps.max_planes =  pool->base.pipe_count;
 
 	bw_calcs_init(&dc->bw_dceip, &dc->bw_vbios, dc->ctx->asic_id);
 

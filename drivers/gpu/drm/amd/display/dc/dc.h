@@ -47,7 +47,7 @@ struct dc_caps {
 	uint32_t max_links;
 	uint32_t max_audios;
 	uint32_t max_slave_planes;
-	uint32_t max_surfaces;
+	uint32_t max_planes;
 	uint32_t max_downscale_ratio;
 	uint32_t i2c_speed_in_khz;
 
@@ -303,7 +303,7 @@ struct dc_transfer_func {
  * the last requested address and the currently active address so the called
  * can determine if there are any outstanding flips
  */
-struct dc_surface_status {
+struct dc_plane_status {
 	struct dc_plane_address requested_address;
 	struct dc_plane_address current_address;
 	bool is_flip_pending;
@@ -338,7 +338,7 @@ struct dc_plane_state {
 	bool horizontal_mirror;
 
 	/* private to DC core */
-	struct dc_surface_status status;
+	struct dc_plane_status status;
 	struct dc_context *ctx;
 
 	/* private to dc_surface.c */
@@ -385,12 +385,12 @@ struct dc_surface_update {
 /*
  * Create a new surface with default parameters;
  */
-struct dc_plane_state *dc_create_surface(const struct dc *dc);
-const struct dc_surface_status *dc_surface_get_status(
-		const struct dc_plane_state *dc_surface);
+struct dc_plane_state *dc_create_plane_state(const struct dc *dc);
+const struct dc_plane_status *dc_plane_get_status(
+		const struct dc_plane_state *plane_state);
 
-void dc_surface_retain(struct dc_plane_state *dc_surface);
-void dc_surface_release(struct dc_plane_state *dc_surface);
+void dc_plane_state_retain(struct dc_plane_state *plane_state);
+void dc_plane_state_release(struct dc_plane_state *plane_state);
 
 void dc_gamma_retain(struct dc_gamma *dc_gamma);
 void dc_gamma_release(struct dc_gamma **dc_gamma);
@@ -422,10 +422,10 @@ struct dc_flip_addrs {
  *   This does not trigger a flip.  No surface address is programmed.
  */
 
-bool dc_commit_surfaces_to_stream(
+bool dc_commit_planes_to_stream(
 		struct dc *dc,
-		struct dc_plane_state **dc_surfaces,
-		uint8_t surface_count,
+		struct dc_plane_state **plane_states,
+		uint8_t new_plane_count,
 		struct dc_stream_state *stream);
 
 bool dc_post_update_surfaces_to_stream(
@@ -469,8 +469,8 @@ enum surface_update_type {
 
 struct dc_stream_status {
 	int primary_otg_inst;
-	int surface_count;
-	struct dc_plane_state *surfaces[MAX_SURFACE_NUM];
+	int plane_count;
+	struct dc_plane_state *plane_states[MAX_SURFACE_NUM];
 
 	/*
 	 * link this stream passes through
@@ -546,7 +546,7 @@ bool dc_is_stream_unchanged(
  *
  */
 
-void dc_update_surfaces_and_stream(struct dc *dc,
+void dc_update_planes_and_stream(struct dc *dc,
 		struct dc_surface_update *surface_updates, int surface_count,
 		struct dc_stream_state *dc_stream,
 		struct dc_stream_update *stream_update);
@@ -582,8 +582,8 @@ bool dc_stream_get_scanoutpos(const struct dc_stream_state *stream,
  */
 struct dc_validation_set {
 	struct dc_stream_state *stream;
-	struct dc_plane_state *surfaces[MAX_SURFACES];
-	uint8_t surface_count;
+	struct dc_plane_state *plane_states[MAX_SURFACES];
+	uint8_t plane_count;
 };
 
 bool dc_validate_stream(const struct dc *dc, struct dc_stream_state *stream);

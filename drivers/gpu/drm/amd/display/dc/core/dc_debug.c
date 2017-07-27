@@ -38,7 +38,7 @@
 
 void pre_surface_trace(
 		const struct dc *dc,
-		const struct dc_plane_state *const *surfaces,
+		const struct dc_plane_state *const *plane_states,
 		int surface_count)
 {
 	int i;
@@ -46,111 +46,111 @@ void pre_surface_trace(
 	struct dal_logger *logger =  core_dc->ctx->logger;
 
 	for (i = 0; i < surface_count; i++) {
-		const struct dc_plane_state *surface = surfaces[i];
+		const struct dc_plane_state *plane_state = plane_states[i];
 
-		SURFACE_TRACE("Surface %d:\n", i);
-
-		SURFACE_TRACE(
-				"surface->visible = %d;\n"
-				"surface->flip_immediate = %d;\n"
-				"surface->address.type = %d;\n"
-				"surface->address.grph.addr.quad_part = 0x%X;\n"
-				"surface->address.grph.meta_addr.quad_part = 0x%X;\n"
-				"surface->scaling_quality.h_taps = %d;\n"
-				"surface->scaling_quality.v_taps = %d;\n"
-				"surface->scaling_quality.h_taps_c = %d;\n"
-				"surface->scaling_quality.v_taps_c = %d;\n",
-				surface->visible,
-				surface->flip_immediate,
-				surface->address.type,
-				surface->address.grph.addr.quad_part,
-				surface->address.grph.meta_addr.quad_part,
-				surface->scaling_quality.h_taps,
-				surface->scaling_quality.v_taps,
-				surface->scaling_quality.h_taps_c,
-				surface->scaling_quality.v_taps_c);
+		SURFACE_TRACE("Planes %d:\n", i);
 
 		SURFACE_TRACE(
-				"surface->src_rect.x = %d;\n"
-				"surface->src_rect.y = %d;\n"
-				"surface->src_rect.width = %d;\n"
-				"surface->src_rect.height = %d;\n"
-				"surface->dst_rect.x = %d;\n"
-				"surface->dst_rect.y = %d;\n"
-				"surface->dst_rect.width = %d;\n"
-				"surface->dst_rect.height = %d;\n"
-				"surface->clip_rect.x = %d;\n"
-				"surface->clip_rect.y = %d;\n"
-				"surface->clip_rect.width = %d;\n"
-				"surface->clip_rect.height = %d;\n",
-				surface->src_rect.x,
-				surface->src_rect.y,
-				surface->src_rect.width,
-				surface->src_rect.height,
-				surface->dst_rect.x,
-				surface->dst_rect.y,
-				surface->dst_rect.width,
-				surface->dst_rect.height,
-				surface->clip_rect.x,
-				surface->clip_rect.y,
-				surface->clip_rect.width,
-				surface->clip_rect.height);
+				"plane_state->visible = %d;\n"
+				"plane_state->flip_immediate = %d;\n"
+				"plane_state->address.type = %d;\n"
+				"plane_state->address.grph.addr.quad_part = 0x%X;\n"
+				"plane_state->address.grph.meta_addr.quad_part = 0x%X;\n"
+				"plane_state->scaling_quality.h_taps = %d;\n"
+				"plane_state->scaling_quality.v_taps = %d;\n"
+				"plane_state->scaling_quality.h_taps_c = %d;\n"
+				"plane_state->scaling_quality.v_taps_c = %d;\n",
+				plane_state->visible,
+				plane_state->flip_immediate,
+				plane_state->address.type,
+				plane_state->address.grph.addr.quad_part,
+				plane_state->address.grph.meta_addr.quad_part,
+				plane_state->scaling_quality.h_taps,
+				plane_state->scaling_quality.v_taps,
+				plane_state->scaling_quality.h_taps_c,
+				plane_state->scaling_quality.v_taps_c);
 
 		SURFACE_TRACE(
-				"surface->plane_size.grph.surface_size.x = %d;\n"
-				"surface->plane_size.grph.surface_size.y = %d;\n"
-				"surface->plane_size.grph.surface_size.width = %d;\n"
-				"surface->plane_size.grph.surface_size.height = %d;\n"
-				"surface->plane_size.grph.surface_pitch = %d;\n",
-				surface->plane_size.grph.surface_size.x,
-				surface->plane_size.grph.surface_size.y,
-				surface->plane_size.grph.surface_size.width,
-				surface->plane_size.grph.surface_size.height,
-				surface->plane_size.grph.surface_pitch);
+				"plane_state->src_rect.x = %d;\n"
+				"plane_state->src_rect.y = %d;\n"
+				"plane_state->src_rect.width = %d;\n"
+				"plane_state->src_rect.height = %d;\n"
+				"plane_state->dst_rect.x = %d;\n"
+				"plane_state->dst_rect.y = %d;\n"
+				"plane_state->dst_rect.width = %d;\n"
+				"plane_state->dst_rect.height = %d;\n"
+				"plane_state->clip_rect.x = %d;\n"
+				"plane_state->clip_rect.y = %d;\n"
+				"plane_state->clip_rect.width = %d;\n"
+				"plane_state->clip_rect.height = %d;\n",
+				plane_state->src_rect.x,
+				plane_state->src_rect.y,
+				plane_state->src_rect.width,
+				plane_state->src_rect.height,
+				plane_state->dst_rect.x,
+				plane_state->dst_rect.y,
+				plane_state->dst_rect.width,
+				plane_state->dst_rect.height,
+				plane_state->clip_rect.x,
+				plane_state->clip_rect.y,
+				plane_state->clip_rect.width,
+				plane_state->clip_rect.height);
+
+		SURFACE_TRACE(
+				"plane_state->plane_size.grph.surface_size.x = %d;\n"
+				"plane_state->plane_size.grph.surface_size.y = %d;\n"
+				"plane_state->plane_size.grph.surface_size.width = %d;\n"
+				"plane_state->plane_size.grph.surface_size.height = %d;\n"
+				"plane_state->plane_size.grph.surface_pitch = %d;\n",
+				plane_state->plane_size.grph.surface_size.x,
+				plane_state->plane_size.grph.surface_size.y,
+				plane_state->plane_size.grph.surface_size.width,
+				plane_state->plane_size.grph.surface_size.height,
+				plane_state->plane_size.grph.surface_pitch);
 
 
 		SURFACE_TRACE(
-				"surface->tiling_info.gfx8.num_banks = %d;\n"
-				"surface->tiling_info.gfx8.bank_width = %d;\n"
-				"surface->tiling_info.gfx8.bank_width_c = %d;\n"
-				"surface->tiling_info.gfx8.bank_height = %d;\n"
-				"surface->tiling_info.gfx8.bank_height_c = %d;\n"
-				"surface->tiling_info.gfx8.tile_aspect = %d;\n"
-				"surface->tiling_info.gfx8.tile_aspect_c = %d;\n"
-				"surface->tiling_info.gfx8.tile_split = %d;\n"
-				"surface->tiling_info.gfx8.tile_split_c = %d;\n"
-				"surface->tiling_info.gfx8.tile_mode = %d;\n"
-				"surface->tiling_info.gfx8.tile_mode_c = %d;\n",
-				surface->tiling_info.gfx8.num_banks,
-				surface->tiling_info.gfx8.bank_width,
-				surface->tiling_info.gfx8.bank_width_c,
-				surface->tiling_info.gfx8.bank_height,
-				surface->tiling_info.gfx8.bank_height_c,
-				surface->tiling_info.gfx8.tile_aspect,
-				surface->tiling_info.gfx8.tile_aspect_c,
-				surface->tiling_info.gfx8.tile_split,
-				surface->tiling_info.gfx8.tile_split_c,
-				surface->tiling_info.gfx8.tile_mode,
-				surface->tiling_info.gfx8.tile_mode_c);
+				"plane_state->tiling_info.gfx8.num_banks = %d;\n"
+				"plane_state->tiling_info.gfx8.bank_width = %d;\n"
+				"plane_state->tiling_info.gfx8.bank_width_c = %d;\n"
+				"plane_state->tiling_info.gfx8.bank_height = %d;\n"
+				"plane_state->tiling_info.gfx8.bank_height_c = %d;\n"
+				"plane_state->tiling_info.gfx8.tile_aspect = %d;\n"
+				"plane_state->tiling_info.gfx8.tile_aspect_c = %d;\n"
+				"plane_state->tiling_info.gfx8.tile_split = %d;\n"
+				"plane_state->tiling_info.gfx8.tile_split_c = %d;\n"
+				"plane_state->tiling_info.gfx8.tile_mode = %d;\n"
+				"plane_state->tiling_info.gfx8.tile_mode_c = %d;\n",
+				plane_state->tiling_info.gfx8.num_banks,
+				plane_state->tiling_info.gfx8.bank_width,
+				plane_state->tiling_info.gfx8.bank_width_c,
+				plane_state->tiling_info.gfx8.bank_height,
+				plane_state->tiling_info.gfx8.bank_height_c,
+				plane_state->tiling_info.gfx8.tile_aspect,
+				plane_state->tiling_info.gfx8.tile_aspect_c,
+				plane_state->tiling_info.gfx8.tile_split,
+				plane_state->tiling_info.gfx8.tile_split_c,
+				plane_state->tiling_info.gfx8.tile_mode,
+				plane_state->tiling_info.gfx8.tile_mode_c);
 
 		SURFACE_TRACE(
-				"surface->tiling_info.gfx8.pipe_config = %d;\n"
-				"surface->tiling_info.gfx8.array_mode = %d;\n"
-				"surface->color_space = %d;\n"
-				"surface->dcc.enable = %d;\n"
-				"surface->format = %d;\n"
-				"surface->rotation = %d;\n"
-				"surface->stereo_format = %d;\n",
-				surface->tiling_info.gfx8.pipe_config,
-				surface->tiling_info.gfx8.array_mode,
-				surface->color_space,
-				surface->dcc.enable,
-				surface->format,
-				surface->rotation,
-				surface->stereo_format);
+				"plane_state->tiling_info.gfx8.pipe_config = %d;\n"
+				"plane_state->tiling_info.gfx8.array_mode = %d;\n"
+				"plane_state->color_space = %d;\n"
+				"plane_state->dcc.enable = %d;\n"
+				"plane_state->format = %d;\n"
+				"plane_state->rotation = %d;\n"
+				"plane_state->stereo_format = %d;\n",
+				plane_state->tiling_info.gfx8.pipe_config,
+				plane_state->tiling_info.gfx8.array_mode,
+				plane_state->color_space,
+				plane_state->dcc.enable,
+				plane_state->format,
+				plane_state->rotation,
+				plane_state->stereo_format);
 
-		SURFACE_TRACE("surface->tiling_info.gfx9.swizzle = %d;\n",
-				surface->tiling_info.gfx9.swizzle);
+		SURFACE_TRACE("plane_state->tiling_info.gfx9.swizzle = %d;\n",
+				plane_state->tiling_info.gfx9.swizzle);
 
 		SURFACE_TRACE("\n");
 	}

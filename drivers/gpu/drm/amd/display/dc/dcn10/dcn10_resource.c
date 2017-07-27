@@ -1406,7 +1406,7 @@ static bool construct(
 			goto res_create_fail;
 
 	dcn10_hw_sequencer_construct(dc);
-	dc->public.caps.max_surfaces =  pool->base.pipe_count;
+	dc->public.caps.max_planes =  pool->base.pipe_count;
 
 	dc->public.cap_funcs = cap_funcs;
 

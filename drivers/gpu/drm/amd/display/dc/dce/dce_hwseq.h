@@ -552,5 +552,5 @@ void dce_crtc_switch_to_clk_src(struct dce_hwseq *hws,
 		struct clock_source *clk_src,
 		unsigned int tg_inst);
 
-bool dce_use_lut(const struct dc_plane_state *surface);
+bool dce_use_lut(const struct dc_plane_state *plane_state);
 #endif   /*__DCE_HWSEQ_H__*/

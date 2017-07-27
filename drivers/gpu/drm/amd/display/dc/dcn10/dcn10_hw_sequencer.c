@@ -986,7 +986,7 @@ static void reset_hw_ctx_wrap(
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
 		if (!pipe_ctx->stream ||
-				!pipe_ctx->surface ||
+				!pipe_ctx->plane_state ||
 				pipe_need_reprogram(pipe_ctx_old, pipe_ctx)) {
 
 			plane_atomic_disconnect(dc, i);
@@ -1010,13 +1010,13 @@ static void reset_hw_ctx_wrap(
 		/*if (!pipe_ctx_old->stream)
 			continue;*/
 
-		if (pipe_ctx->stream && pipe_ctx->surface
+		if (pipe_ctx->stream && pipe_ctx->plane_state
 				&& !pipe_need_reprogram(pipe_ctx_old, pipe_ctx))
 			continue;
 
 		plane_atomic_disable(dc, i);
 
-		if (!pipe_ctx->stream || !pipe_ctx->surface)
+		if (!pipe_ctx->stream || !pipe_ctx->plane_state)
 			plane_atomic_power_down(dc, i);
 	}
 
@@ -1038,24 +1038,24 @@ static void reset_hw_ctx_wrap(
 static bool patch_address_for_sbs_tb_stereo(
 		struct pipe_ctx *pipe_ctx, PHYSICAL_ADDRESS_LOC *addr)
 {
-	struct dc_plane_state *surface = pipe_ctx->surface;
+	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	bool sec_split = pipe_ctx->top_pipe &&
-			pipe_ctx->top_pipe->surface == pipe_ctx->surface;
-	if (sec_split && surface->address.type == PLN_ADDR_TYPE_GRPH_STEREO &&
+			pipe_ctx->top_pipe->plane_state == pipe_ctx->plane_state;
+	if (sec_split && plane_state->address.type == PLN_ADDR_TYPE_GRPH_STEREO &&
 		(pipe_ctx->stream->timing.timing_3d_format ==
 		 TIMING_3D_FORMAT_SIDE_BY_SIDE ||
 		 pipe_ctx->stream->timing.timing_3d_format ==
 		 TIMING_3D_FORMAT_TOP_AND_BOTTOM)) {
-		*addr = surface->address.grph_stereo.left_addr;
-		surface->address.grph_stereo.left_addr =
-		surface->address.grph_stereo.right_addr;
+		*addr = plane_state->address.grph_stereo.left_addr;
+		plane_state->address.grph_stereo.left_addr =
+		plane_state->address.grph_stereo.right_addr;
 		return true;
 	} else {
 		if (pipe_ctx->stream->view_format != VIEW_3D_FORMAT_NONE &&
-			surface->address.type != PLN_ADDR_TYPE_GRPH_STEREO) {
-			surface->address.type = PLN_ADDR_TYPE_GRPH_STEREO;
-			surface->address.grph_stereo.right_addr =
-			surface->address.grph_stereo.left_addr;
+			plane_state->address.type != PLN_ADDR_TYPE_GRPH_STEREO) {
+			plane_state->address.type = PLN_ADDR_TYPE_GRPH_STEREO;
+			plane_state->address.grph_stereo.right_addr =
+			plane_state->address.grph_stereo.left_addr;
 		}
 	}
 	return false;
@@ -1065,22 +1065,22 @@ static void update_plane_addr(const struct core_dc *dc, struct pipe_ctx *pipe_ct
 {
 	bool addr_patched = false;
 	PHYSICAL_ADDRESS_LOC addr;
-	struct dc_plane_state *surface = pipe_ctx->surface;
+	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 
-	if (surface == NULL)
+	if (plane_state == NULL)
 		return;
 	addr_patched = patch_address_for_sbs_tb_stereo(pipe_ctx, &addr);
 	pipe_ctx->mi->funcs->mem_input_program_surface_flip_and_addr(
 			pipe_ctx->mi,
-			&surface->address,
-			surface->flip_immediate);
-	surface->status.requested_address = surface->address;
+			&plane_state->address,
+			plane_state->flip_immediate);
+	plane_state->status.requested_address = plane_state->address;
 	if (addr_patched)
-		pipe_ctx->surface->address.grph_stereo.left_addr = addr;
+		pipe_ctx->plane_state->address.grph_stereo.left_addr = addr;
 }
 
 static bool dcn10_set_input_transfer_func(
-	struct pipe_ctx *pipe_ctx, const struct dc_plane_state *surface)
+	struct pipe_ctx *pipe_ctx, const struct dc_plane_state *plane_state)
 {
 	struct input_pixel_processor *ipp = pipe_ctx->ipp;
 	const struct dc_transfer_func *tf = NULL;
@@ -1089,12 +1089,12 @@ static bool dcn10_set_input_transfer_func(
 	if (ipp == NULL)
 		return false;
 
-	if (surface->in_transfer_func)
-		tf = surface->in_transfer_func;
+	if (plane_state->in_transfer_func)
+		tf = plane_state->in_transfer_func;
 
-	if (surface->gamma_correction && dce_use_lut(surface))
+	if (plane_state->gamma_correction && dce_use_lut(plane_state))
 		ipp->funcs->ipp_program_input_lut(ipp,
-				surface->gamma_correction);
+				plane_state->gamma_correction);
 
 	if (tf == NULL)
 		ipp->funcs->ipp_set_degamma(ipp, IPP_DEGAMMA_MODE_BYPASS);
@@ -1689,7 +1689,7 @@ static void dcn10_power_on_fe(
 	struct pipe_ctx *pipe_ctx,
 	struct validate_context *context)
 {
-	struct dc_plane_state *dc_surface = pipe_ctx->surface;
+	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	struct dce_hwseq *hws = dc->hwseq;
 
 	power_on_plane(dc->hwseq,
@@ -1704,24 +1704,24 @@ static void dcn10_power_on_fe(
 			OPP_PIPE_CLOCK_EN, 1);
 	/*TODO: REG_UPDATE(DENTIST_DISPCLK_CNTL, DENTIST_DPPCLK_WDIVIDER, 0x1f);*/
 
-	if (dc_surface) {
+	if (plane_state) {
 		dm_logger_write(dc->ctx->logger, LOG_DC,
 				"Pipe:%d 0x%x: addr hi:0x%x, "
 				"addr low:0x%x, "
 				"src: %d, %d, %d,"
 				" %d; dst: %d, %d, %d, %d;\n",
 				pipe_ctx->pipe_idx,
-				dc_surface,
-				dc_surface->address.grph.addr.high_part,
-				dc_surface->address.grph.addr.low_part,
-				dc_surface->src_rect.x,
-				dc_surface->src_rect.y,
-				dc_surface->src_rect.width,
-				dc_surface->src_rect.height,
-				dc_surface->dst_rect.x,
-				dc_surface->dst_rect.y,
-				dc_surface->dst_rect.width,
-				dc_surface->dst_rect.height);
+				plane_state,
+				plane_state->address.grph.addr.high_part,
+				plane_state->address.grph.addr.low_part,
+				plane_state->src_rect.x,
+				plane_state->src_rect.y,
+				plane_state->src_rect.width,
+				plane_state->src_rect.height,
+				plane_state->dst_rect.x,
+				plane_state->dst_rect.y,
+				plane_state->dst_rect.width,
+				plane_state->dst_rect.height);
 
 		dm_logger_write(dc->ctx->logger, LOG_HW_SET_MODE,
 				"Pipe %d: width, height, x, y\n"
@@ -1805,7 +1805,7 @@ static void program_csc_matrix(struct pipe_ctx *pipe_ctx,
 }
 static bool is_lower_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
 {
-	if (pipe_ctx->surface->visible)
+	if (pipe_ctx->plane_state->visible)
 		return true;
 	if (pipe_ctx->bottom_pipe && is_lower_pipe_tree_visible(pipe_ctx->bottom_pipe))
 		return true;
@@ -1814,7 +1814,7 @@ static bool is_lower_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
 
 static bool is_upper_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
 {
-	if (pipe_ctx->surface->visible)
+	if (pipe_ctx->plane_state->visible)
 		return true;
 	if (pipe_ctx->top_pipe && is_upper_pipe_tree_visible(pipe_ctx->top_pipe))
 		return true;
@@ -1823,7 +1823,7 @@ static bool is_upper_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
 
 static bool is_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
 {
-	if (pipe_ctx->surface->visible)
+	if (pipe_ctx->plane_state->visible)
 		return true;
 	if (pipe_ctx->top_pipe && is_upper_pipe_tree_visible(pipe_ctx->top_pipe))
 		return true;
@@ -1898,12 +1898,12 @@ static void update_dchubp_dpp(
 	struct dce_hwseq *hws = dc->hwseq;
 	struct mem_input *mi = pipe_ctx->mi;
 	struct input_pixel_processor *ipp = pipe_ctx->ipp;
-	struct dc_plane_state *surface = pipe_ctx->surface;
-	union plane_size size = surface->plane_size;
+	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
+	union plane_size size = plane_state->plane_size;
 	struct default_adjustment ocsc = {0};
 	struct mpcc_cfg mpcc_cfg = {0};
 	struct pipe_ctx *top_pipe;
-	bool per_pixel_alpha = surface->per_pixel_alpha && pipe_ctx->bottom_pipe;
+	bool per_pixel_alpha = plane_state->per_pixel_alpha && pipe_ctx->bottom_pipe;
 
 	/* TODO: proper fix once fpga works */
 	/* depends on DML calculation, DPP clock value may change dynamically */
@@ -1936,12 +1936,12 @@ static void update_dchubp_dpp(
 	if (dc->public.config.gpu_vm_support)
 		mi->funcs->mem_input_program_pte_vm(
 				pipe_ctx->mi,
-				surface->format,
-				&surface->tiling_info,
-				surface->rotation);
+				plane_state->format,
+				&plane_state->tiling_info,
+				plane_state->rotation);
 
 	ipp->funcs->ipp_setup(ipp,
-			surface->format,
+			plane_state->format,
 			1,
 			IPP_OUTPUT_FORMAT_12_BIT_FIX);
 
@@ -1982,12 +1982,12 @@ static void update_dchubp_dpp(
 
 	mi->funcs->mem_input_program_surface_config(
 		mi,
-		surface->format,
-		&surface->tiling_info,
+		plane_state->format,
+		&plane_state->tiling_info,
 		&size,
-		surface->rotation,
-		&surface->dcc,
-		surface->horizontal_mirror);
+		plane_state->rotation,
+		&plane_state->dcc,
+		plane_state->horizontal_mirror);
 
 	mi->funcs->set_blank(mi, !is_pipe_tree_visible(pipe_ctx));
 }
@@ -2025,7 +2025,7 @@ static void program_all_pipe_in_tree(
 		pipe_ctx->tg->funcs->set_blank(pipe_ctx->tg, !is_pipe_tree_visible(pipe_ctx));
 	}
 
-	if (pipe_ctx->surface != NULL) {
+	if (pipe_ctx->plane_state != NULL) {
 		dcn10_power_on_fe(dc, pipe_ctx, context);
 		update_dchubp_dpp(dc, pipe_ctx, context);
 	}
@@ -2068,7 +2068,7 @@ static void dcn10_pplib_apply_display_requirements(
 
 static void dcn10_apply_ctx_for_surface(
 		struct core_dc *dc,
-		const struct dc_plane_state *surface,
+		const struct dc_plane_state *plane_state,
 		struct validate_context *context)
 {
 	int i, be_idx;
@@ -2076,11 +2076,11 @@ static void dcn10_apply_ctx_for_surface(
 	if (dc->public.debug.sanity_checks)
 		verify_allow_pstate_change_high(dc->hwseq);
 
-	if (!surface)
+	if (!plane_state)
 		return;
 
 	for (be_idx = 0; be_idx < dc->res_pool->pipe_count; be_idx++)
-		if (surface == context->res_ctx.pipe_ctx[be_idx].surface)
+		if (plane_state == context->res_ctx.pipe_ctx[be_idx].plane_state)
 			break;
 
 	/* reset unused mpcc */
@@ -2089,7 +2089,7 @@ static void dcn10_apply_ctx_for_surface(
 		struct pipe_ctx *old_pipe_ctx =
 				&dc->current_context->res_ctx.pipe_ctx[i];
 
-		if (!pipe_ctx->surface && !old_pipe_ctx->surface)
+		if (!pipe_ctx->plane_state && !old_pipe_ctx->plane_state)
 			continue;
 
 		/*
@@ -2097,7 +2097,7 @@ static void dcn10_apply_ctx_for_surface(
 		 * fairly hacky right now, using opp_id as indicator
 		 */
 
-		if (pipe_ctx->surface && !old_pipe_ctx->surface) {
+		if (pipe_ctx->plane_state && !old_pipe_ctx->plane_state) {
 			if (pipe_ctx->mi->opp_id != 0xf && pipe_ctx->tg->inst == be_idx) {
 				dcn10_power_down_fe(dc, pipe_ctx->pipe_idx);
 				/*
@@ -2109,7 +2109,7 @@ static void dcn10_apply_ctx_for_surface(
 		}
 
 
-		if ((!pipe_ctx->surface && old_pipe_ctx->surface)
+		if ((!pipe_ctx->plane_state && old_pipe_ctx->plane_state)
 				|| (!pipe_ctx->stream && old_pipe_ctx->stream)) {
 			if (old_pipe_ctx->tg->inst != be_idx)
 				continue;
@@ -2135,7 +2135,7 @@ static void dcn10_apply_ctx_for_surface(
 
 			old_pipe_ctx->top_pipe = NULL;
 			old_pipe_ctx->bottom_pipe = NULL;
-			old_pipe_ctx->surface = NULL;
+			old_pipe_ctx->plane_state = NULL;
 
 			dm_logger_write(dc->ctx->logger, LOG_DC,
 					"Reset mpcc for pipe %d\n",
@@ -2146,7 +2146,7 @@ static void dcn10_apply_ctx_for_surface(
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
-		if (pipe_ctx->surface != surface)
+		if (pipe_ctx->plane_state != plane_state)
 			continue;
 
 		/* looking for top pipe to program */
@@ -2468,34 +2468,34 @@ static bool dcn10_dummy_display_power_gating(
 
 void dcn10_update_pending_status(struct pipe_ctx *pipe_ctx)
 {
-	struct dc_plane_state *surface = pipe_ctx->surface;
+	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	struct timing_generator *tg = pipe_ctx->tg;
 
-	if (surface->ctx->dc->debug.sanity_checks) {
-		struct core_dc *dc = DC_TO_CORE(surface->ctx->dc);
+	if (plane_state->ctx->dc->debug.sanity_checks) {
+		struct core_dc *dc = DC_TO_CORE(plane_state->ctx->dc);
 
 		verify_allow_pstate_change_high(dc->hwseq);
 	}
 
-	if (surface == NULL)
+	if (plane_state == NULL)
 		return;
 
-	surface->status.is_flip_pending =
+	plane_state->status.is_flip_pending =
 			pipe_ctx->mi->funcs->mem_input_is_flip_pending(
 					pipe_ctx->mi);
 
 	/* DCN we read INUSE address in MI, do we still need this wa? */
-	if (surface->status.is_flip_pending &&
-			!surface->visible) {
+	if (plane_state->status.is_flip_pending &&
+			!plane_state->visible) {
 		pipe_ctx->mi->current_address =
 				pipe_ctx->mi->request_address;
 		BREAK_TO_DEBUGGER();
 	}
 
-	surface->status.current_address = pipe_ctx->mi->current_address;
+	plane_state->status.current_address = pipe_ctx->mi->current_address;
 	if (pipe_ctx->mi->current_address.type == PLN_ADDR_TYPE_GRPH_STEREO &&
 			tg->funcs->is_stereo_left_eye) {
-		surface->status.is_right_eye =
+		plane_state->status.is_right_eye =
 				!tg->funcs->is_stereo_left_eye(pipe_ctx->tg);
 	}
 }
