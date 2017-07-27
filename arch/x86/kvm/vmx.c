@@ -416,9 +416,6 @@ struct nested_vmx {
 
 	/* The guest-physical address of the current VMCS L1 keeps for L2 */
 	gpa_t current_vmptr;
-	/* The host-usable pointer to the above */
-	struct page *current_vmcs12_page;
-	struct vmcs12 *current_vmcs12;
 	/*
 	 * Cache of the guest's VMCS, existing outside of guest memory.
 	 * Loaded from guest memory during VMPTRLD. Flushed to guest
@@ -7182,10 +7179,6 @@ static inline void nested_release_vmcs12(struct vcpu_vmx *vmx)
 	if (vmx->nested.current_vmptr == -1ull)
 		return;
 
-	/* current_vmptr and current_vmcs12 are always set/reset together */
-	if (WARN_ON(vmx->nested.current_vmcs12 == NULL))
-		return;
-
 	if (enable_shadow_vmcs) {
 		/* copy to memory all shadowed fields in case
 		   they were modified */
@@ -7198,13 +7191,11 @@ static inline void nested_release_vmcs12(struct vcpu_vmx *vmx)
 	vmx->nested.posted_intr_nv = -1;
 
 	/* Flush VMCS12 to guest memory */
-	memcpy(vmx->nested.current_vmcs12, vmx->nested.cached_vmcs12,
-	       VMCS12_SIZE);
+	kvm_vcpu_write_guest_page(&vmx->vcpu,
+				  vmx->nested.current_vmptr >> PAGE_SHIFT,
+				  vmx->nested.cached_vmcs12, 0, VMCS12_SIZE);
 
-	kunmap(vmx->nested.current_vmcs12_page);
-	nested_release_page(vmx->nested.current_vmcs12_page);
 	vmx->nested.current_vmptr = -1ull;
-	vmx->nested.current_vmcs12 = NULL;
 }
 
 /*
@@ -7622,14 +7613,14 @@ static int handle_vmptrld(struct kvm_vcpu *vcpu)
 		}
 
 		nested_release_vmcs12(vmx);
-		vmx->nested.current_vmcs12 = new_vmcs12;
-		vmx->nested.current_vmcs12_page = page;
 		/*
 		 * Load VMCS12 from guest memory since it is not already
 		 * cached.
 		 */
-		memcpy(vmx->nested.cached_vmcs12,
-		       vmx->nested.current_vmcs12, VMCS12_SIZE);
+		memcpy(vmx->nested.cached_vmcs12, new_vmcs12, VMCS12_SIZE);
+		kunmap(page);
+		nested_release_page_clean(page);
+
 		set_current_vmptr(vmx, vmptr);
 	}
 
@@ -9284,7 +9275,6 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 
 	vmx->nested.posted_intr_nv = -1;
 	vmx->nested.current_vmptr = -1ull;
-	vmx->nested.current_vmcs12 = NULL;
 
 	vmx->msr_ia32_feature_control_valid_bits = FEATURE_CONTROL_LOCKED;
 
