@@ -1801,10 +1801,11 @@ static void btrfs_clear_bit_hook(void *private_data,
 	u64 len = state->end + 1 - state->start;
 	u32 num_extents = count_max_extents(len);
 
-	spin_lock(&inode->lock);
-	if ((state->state & EXTENT_DEFRAG) && (*bits & EXTENT_DEFRAG))
+	if ((state->state & EXTENT_DEFRAG) && (*bits & EXTENT_DEFRAG)) {
+		spin_lock(&inode->lock);
 		inode->defrag_bytes -= len;
-	spin_unlock(&inode->lock);
+		spin_unlock(&inode->lock);
+	}
 
 	/*
 	 * set_bit and clear bit hooks normally require _irqsave/restore
