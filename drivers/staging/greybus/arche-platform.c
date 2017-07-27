@@ -610,7 +610,6 @@ static int arche_platform_remove(struct platform_device *pdev)
 	device_remove_file(&pdev->dev, &dev_attr_state);
 	device_for_each_child(&pdev->dev, NULL, arche_remove_child);
 	arche_platform_poweroff_seq(arche_pdata);
-	platform_set_drvdata(pdev, NULL);
 
 	if (usb3613_hub_mode_ctrl(false))
 		dev_warn(arche_pdata->dev, "failed to control hub device\n");
