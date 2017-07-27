@@ -209,9 +209,9 @@ static void amdgpu_vcn_idle_work_handler(struct work_struct *work)
 
 	if (fences == 0) {
 		if (adev->pm.dpm_enabled) {
+			/* might be used when with pg/cg
 			amdgpu_dpm_enable_uvd(adev, false);
-		} else {
-			amdgpu_asic_set_uvd_clocks(adev, 0, 0);
+			*/
 		}
 	} else {
 		schedule_delayed_work(&adev->vcn.idle_work, VCN_IDLE_TIMEOUT);
@@ -223,12 +223,10 @@ void amdgpu_vcn_ring_begin_use(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 	bool set_clocks = !cancel_delayed_work_sync(&adev->vcn.idle_work);
 
-	if (set_clocks) {
-		if (adev->pm.dpm_enabled) {
-			amdgpu_dpm_enable_uvd(adev, true);
-		} else {
-			amdgpu_asic_set_uvd_clocks(adev, 53300, 40000);
-		}
+	if (set_clocks && adev->pm.dpm_enabled) {
+		/* might be used when with pg/cg
+		amdgpu_dpm_enable_uvd(adev, true);
+		*/
 	}
 }
 
