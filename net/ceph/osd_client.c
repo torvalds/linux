@@ -1337,6 +1337,8 @@ static enum calc_target_result calc_target(struct ceph_osd_client *osdc,
 	bool legacy_change;
 	bool split = false;
 	bool sort_bitwise = ceph_osdmap_flag(osdc, CEPH_OSDMAP_SORTBITWISE);
+	bool recovery_deletes = ceph_osdmap_flag(osdc,
+						 CEPH_OSDMAP_RECOVERY_DELETES);
 	enum calc_target_result ct_res;
 	int ret;
 
@@ -1399,6 +1401,8 @@ static enum calc_target_result calc_target(struct ceph_osd_client *osdc,
 				 pi->pg_num,
 				 t->sort_bitwise,
 				 sort_bitwise,
+				 t->recovery_deletes,
+				 recovery_deletes,
 				 &last_pgid))
 		force_resend = true;
 
@@ -1421,6 +1425,7 @@ static enum calc_target_result calc_target(struct ceph_osd_client *osdc,
 		t->pg_num = pi->pg_num;
 		t->pg_num_mask = pi->pg_num_mask;
 		t->sort_bitwise = sort_bitwise;
+		t->recovery_deletes = recovery_deletes;
 
 		t->osd = acting.primary;
 	}
