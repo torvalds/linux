@@ -76,6 +76,8 @@ struct ctf_writer {
 	struct bt_ctf_event_class	*comm_class;
 	struct bt_ctf_event_class	*exit_class;
 	struct bt_ctf_event_class	*fork_class;
+	struct bt_ctf_event_class	*mmap_class;
+	struct bt_ctf_event_class	*mmap2_class;
 };
 
 struct convert {
@@ -915,6 +917,18 @@ __FUNC_PROCESS_NON_SAMPLE(exit,
 	__NON_SAMPLE_SET_FIELD(fork, u32, ptid);
 	__NON_SAMPLE_SET_FIELD(fork, u64, time);
 )
+__FUNC_PROCESS_NON_SAMPLE(mmap,
+	__NON_SAMPLE_SET_FIELD(mmap, u32, pid);
+	__NON_SAMPLE_SET_FIELD(mmap, u32, tid);
+	__NON_SAMPLE_SET_FIELD(mmap, u64_hex, start);
+	__NON_SAMPLE_SET_FIELD(mmap, string, filename);
+)
+__FUNC_PROCESS_NON_SAMPLE(mmap2,
+	__NON_SAMPLE_SET_FIELD(mmap2, u32, pid);
+	__NON_SAMPLE_SET_FIELD(mmap2, u32, tid);
+	__NON_SAMPLE_SET_FIELD(mmap2, u64_hex, start);
+	__NON_SAMPLE_SET_FIELD(mmap2, string, filename);
+)
 #undef __NON_SAMPLE_SET_FIELD
 #undef __FUNC_PROCESS_NON_SAMPLE
 
@@ -1254,6 +1268,19 @@ __FUNC_ADD_NON_SAMPLE_EVENT_CLASS(exit,
 	__NON_SAMPLE_ADD_FIELD(u64, time);
 )
 
+__FUNC_ADD_NON_SAMPLE_EVENT_CLASS(mmap,
+	__NON_SAMPLE_ADD_FIELD(u32, pid);
+	__NON_SAMPLE_ADD_FIELD(u32, tid);
+	__NON_SAMPLE_ADD_FIELD(u64_hex, start);
+	__NON_SAMPLE_ADD_FIELD(string, filename);
+)
+
+__FUNC_ADD_NON_SAMPLE_EVENT_CLASS(mmap2,
+	__NON_SAMPLE_ADD_FIELD(u32, pid);
+	__NON_SAMPLE_ADD_FIELD(u32, tid);
+	__NON_SAMPLE_ADD_FIELD(u64_hex, start);
+	__NON_SAMPLE_ADD_FIELD(string, filename);
+)
 #undef __NON_SAMPLE_ADD_FIELD
 #undef __FUNC_ADD_NON_SAMPLE_EVENT_CLASS
 
@@ -1269,6 +1296,12 @@ static int setup_non_sample_events(struct ctf_writer *cw,
 	if (ret)
 		return ret;
 	ret = add_fork_event(cw);
+	if (ret)
+		return ret;
+	ret = add_mmap_event(cw);
+	if (ret)
+		return ret;
+	ret = add_mmap2_event(cw);
 	if (ret)
 		return ret;
 	return 0;
@@ -1572,6 +1605,8 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 		c.tool.comm = process_comm_event;
 		c.tool.exit = process_exit_event;
 		c.tool.fork = process_fork_event;
+		c.tool.mmap = process_mmap_event;
+		c.tool.mmap2 = process_mmap2_event;
 	}
 
 	err = perf_config(convert__config, &c);
