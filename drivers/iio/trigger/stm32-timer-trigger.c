@@ -571,11 +571,14 @@ static int stm32_get_quadrature_mode(struct iio_dev *indio_dev,
 {
 	struct stm32_timer_trigger *priv = iio_priv(indio_dev);
 	u32 smcr;
+	int mode;
 
 	regmap_read(priv->regmap, TIM_SMCR, &smcr);
-	smcr &= TIM_SMCR_SMS;
+	mode = (smcr & TIM_SMCR_SMS) - 1;
+	if ((mode < 0) || (mode > ARRAY_SIZE(stm32_quadrature_modes)))
+		return -EINVAL;
 
-	return smcr - 1;
+	return mode;
 }
 
 static const struct iio_enum stm32_quadrature_mode_enum = {
