@@ -297,6 +297,30 @@ static void hotplug_notify_work_func(struct work_struct *work)
 	drm_kms_helper_hotplug_event(dev);
 }
 
+#ifdef ENABLE_FBC
+#include "dal_asic_id.h"
+/* Allocate memory for FBC compressed data  */
+/* TODO: Dynamic allocation */
+#define AMDGPU_FBC_SIZE    (3840 * 2160 * 4)
+
+void amdgpu_dm_initialize_fbc(struct amdgpu_device *adev)
+{
+	int r;
+	struct dm_comressor_info *compressor = &adev->dm.compressor;
+
+	if (!compressor->bo_ptr) {
+		r = amdgpu_bo_create_kernel(adev, AMDGPU_FBC_SIZE, PAGE_SIZE,
+				AMDGPU_GEM_DOMAIN_VRAM, &compressor->bo_ptr,
+				&compressor->gpu_addr, &compressor->cpu_addr);
+
+		if (r)
+			DRM_ERROR("DM: Failed to initialize fbc\n");
+	}
+
+}
+#endif
+
+
 /* Init display KMS
  *
  * Returns 0 on success
@@ -347,6 +371,11 @@ int amdgpu_dm_init(struct amdgpu_device *adev)
 
 	init_data.dce_environment = DCE_ENV_PRODUCTION_DRV;
 
+#ifdef ENABLE_FBC
+	if (adev->family == FAMILY_CZ)
+		amdgpu_dm_initialize_fbc(adev);
+	init_data.fbc_gpu_addr = adev->dm.compressor.gpu_addr;
+#endif
 	/* Display Core create. */
 	adev->dm.dc = dc_create(&init_data);
 
