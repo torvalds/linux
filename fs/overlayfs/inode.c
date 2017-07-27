@@ -498,6 +498,9 @@ static int ovl_set_nlink_common(struct dentry *dentry,
 	len = snprintf(buf, sizeof(buf), format,
 		       (int) (inode->i_nlink - realinode->i_nlink));
 
+	if (WARN_ON(len >= sizeof(buf)))
+		return -EIO;
+
 	return ovl_do_setxattr(ovl_dentry_upper(dentry),
 			       OVL_XATTR_NLINK, buf, len, 0);
 }
