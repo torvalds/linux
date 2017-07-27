@@ -662,6 +662,19 @@ static int sdma_v4_0_gfx_resume(struct amdgpu_device *adev)
 			WREG32(sdma_v4_0_get_reg_offset(i, mmSDMA0_F32_CNTL), temp);
 		}
 
+		/* setup the wptr shadow polling */
+		wptr_gpu_addr = adev->wb.gpu_addr + (ring->wptr_offs * 4);
+		WREG32(sdma_v4_0_get_reg_offset(i, mmSDMA0_GFX_RB_WPTR_POLL_ADDR_LO),
+		       lower_32_bits(wptr_gpu_addr));
+		WREG32(sdma_v4_0_get_reg_offset(i, mmSDMA0_GFX_RB_WPTR_POLL_ADDR_HI),
+		       upper_32_bits(wptr_gpu_addr));
+		wptr_poll_cntl = RREG32(sdma_v4_0_get_reg_offset(i, mmSDMA0_GFX_RB_WPTR_POLL_CNTL));
+		if (amdgpu_sriov_vf(adev))
+			wptr_poll_cntl = REG_SET_FIELD(wptr_poll_cntl, SDMA0_GFX_RB_WPTR_POLL_CNTL, F32_POLL_ENABLE, 1);
+		else
+			wptr_poll_cntl = REG_SET_FIELD(wptr_poll_cntl, SDMA0_GFX_RB_WPTR_POLL_CNTL, F32_POLL_ENABLE, 0);
+		WREG32(sdma_v4_0_get_reg_offset(i, mmSDMA0_GFX_RB_WPTR_POLL_CNTL), wptr_poll_cntl);
+
 		/* enable DMA RB */
 		rb_cntl = REG_SET_FIELD(rb_cntl, SDMA0_GFX_RB_CNTL, RB_ENABLE, 1);
 		WREG32(sdma_v4_0_get_reg_offset(i, mmSDMA0_GFX_RB_CNTL), rb_cntl);
@@ -690,17 +703,6 @@ static int sdma_v4_0_gfx_resume(struct amdgpu_device *adev)
 		if (adev->mman.buffer_funcs_ring == ring)
 			amdgpu_ttm_set_active_vram_size(adev, adev->mc.real_vram_size);
 
-		if (amdgpu_sriov_vf(adev)) {
-			wptr_gpu_addr = adev->wb.gpu_addr + (ring->wptr_offs * 4);
-			wptr_poll_cntl = RREG32(sdma_v4_0_get_reg_offset(i, mmSDMA0_GFX_RB_WPTR_POLL_CNTL));
-			wptr_poll_cntl = REG_SET_FIELD(wptr_poll_cntl, SDMA0_GFX_RB_WPTR_POLL_CNTL, F32_POLL_ENABLE, 1);
-
-			WREG32(sdma_v4_0_get_reg_offset(i, mmSDMA0_GFX_RB_WPTR_POLL_ADDR_LO),
-			       lower_32_bits(wptr_gpu_addr));
-			WREG32(sdma_v4_0_get_reg_offset(i, mmSDMA0_GFX_RB_WPTR_POLL_ADDR_HI),
-			       upper_32_bits(wptr_gpu_addr));
-			WREG32(sdma_v4_0_get_reg_offset(i, mmSDMA0_GFX_RB_WPTR_POLL_CNTL), wptr_poll_cntl);
-		}
 	}
 
 	return 0;
