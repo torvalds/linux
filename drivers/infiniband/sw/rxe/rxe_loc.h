@@ -250,7 +250,7 @@ void rxe_resp_queue_pkt(struct rxe_dev *rxe,
 void rxe_comp_queue_pkt(struct rxe_dev *rxe,
 			struct rxe_qp *qp, struct sk_buff *skb);
 
-static inline unsigned wr_opcode_mask(int opcode, struct rxe_qp *qp)
+static inline unsigned int wr_opcode_mask(int opcode, struct rxe_qp *qp)
 {
 	return rxe_wr_opcode_info[opcode].mask[qp->ibqp.qp_type];
 }
