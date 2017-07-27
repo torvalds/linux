@@ -106,6 +106,59 @@
 			clocks = <&timer_clk>;
 
 		};
+
+		adc_12: adc@40022000 {
+			compatible = "st,stm32h7-adc-core";
+			reg = <0x40022000 0x400>;
+			interrupts = <18>;
+			clocks = <&timer_clk>;
+			clock-names = "bus";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+
+			adc1: adc@0 {
+				compatible = "st,stm32h7-adc";
+				#io-channel-cells = <1>;
+				reg = <0x0>;
+				interrupt-parent = <&adc_12>;
+				interrupts = <0>;
+				status = "disabled";
+			};
+
+			adc2: adc@100 {
+				compatible = "st,stm32h7-adc";
+				#io-channel-cells = <1>;
+				reg = <0x100>;
+				interrupt-parent = <&adc_12>;
+				interrupts = <1>;
+				status = "disabled";
+			};
+		};
+
+		adc_3: adc@58026000 {
+			compatible = "st,stm32h7-adc-core";
+			reg = <0x58026000 0x400>;
+			interrupts = <127>;
+			clocks = <&timer_clk>;
+			clock-names = "bus";
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+
+			adc3: adc@0 {
+				compatible = "st,stm32h7-adc";
+				#io-channel-cells = <1>;
+				reg = <0x0>;
+				interrupt-parent = <&adc_3>;
+				interrupts = <0>;
+				status = "disabled";
+			};
+		};
 	};
 };
 
