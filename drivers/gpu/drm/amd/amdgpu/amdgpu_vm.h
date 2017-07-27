@@ -146,6 +146,9 @@ struct amdgpu_vm {
 
 	/* Flag to indicate if VM tables are updated by CPU or GPU (SDMA) */
 	bool                    use_cpu_for_update;
+
+	/* Flag to indicate ATS support from PTE for GFX9 */
+	bool			pte_support_ats;
 };
 
 struct amdgpu_vm_id {
