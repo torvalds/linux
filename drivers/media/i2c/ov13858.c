@@ -66,7 +66,6 @@
 /* Exposure control */
 #define OV13858_REG_EXPOSURE		0x3500
 #define OV13858_EXPOSURE_MIN		4
-#define OV13858_EXPOSURE_MAX		(OV13858_VTS_MAX - 8)
 #define OV13858_EXPOSURE_STEP		1
 #define OV13858_EXPOSURE_DEFAULT	0x640
 
@@ -1605,6 +1604,7 @@ static int ov13858_init_controls(struct ov13858 *ov13858)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&ov13858->sd);
 	struct v4l2_ctrl_handler *ctrl_hdlr;
+	s64 exposure_max;
 	int ret;
 
 	ctrl_hdlr = &ov13858->ctrl_handler;
@@ -1643,10 +1643,11 @@ static int ov13858_init_controls(struct ov13858 *ov13858)
 				OV13858_PPL_1080MHZ - ov13858->cur_mode->width);
 	ov13858->hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
+	exposure_max = ov13858->cur_mode->vts - 8;
 	ov13858->exposure = v4l2_ctrl_new_std(
 				ctrl_hdlr, &ov13858_ctrl_ops,
 				V4L2_CID_EXPOSURE, OV13858_EXPOSURE_MIN,
-				OV13858_EXPOSURE_MAX, OV13858_EXPOSURE_STEP,
+				exposure_max, OV13858_EXPOSURE_STEP,
 				OV13858_EXPOSURE_DEFAULT);
 
 	v4l2_ctrl_new_std(ctrl_hdlr, &ov13858_ctrl_ops, V4L2_CID_ANALOGUE_GAIN,
