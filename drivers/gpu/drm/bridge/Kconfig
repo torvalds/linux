@@ -48,6 +48,14 @@ config DRM_PARADE_PS8622
 	---help---
 	  Parade eDP-LVDS bridge chip driver.
 
+config DRM_RK1000
+	tristate "ROCKCHIP TVE bridge"
+	depends on OF
+	select DRM_KMS_HELPER
+	select MFD_RK1000
+	---help---
+	  ROCKCHIP TVE bridge chip RK1000 driver.
+
 source "drivers/gpu/drm/bridge/analogix/Kconfig"
 
 endmenu

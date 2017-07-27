@@ -1,0 +1,44 @@
+Rockchip RK1000 TVEncoder
+-------------------------------
+
+The RK1000-TVE are RK1000 TV Encoder register block.
+The chip is connected to an i2c bus.
+
+Required properties:
+
+- compatible: should be "rockchip,rk1000-tve"
+- reg: I2C slave address
+- rockchip,data-width: should be <18> or <24>
+- rockchip,output: This describes the output face
+- rockchip,ctl: phandle to the rk1000 core controller
+
+
+Required node:
+
+The rk1000 tve has one video port. its connection is modeled using the OF
+graph binding specified in Documentation/devicetree/bindings/graph.txt.
+
+- Video port 0 for LVDS input
+
+
+Example
+-------
+
+	rk1000-tve@42 {
+		status = "okay";
+		compatible = "rockchip,rk1000-tve";
+		reg = <0x42>;
+		rockchip,data-width = <24>;
+		rockchip,output = "rgb";
+		rockchip,ctl = <&rk1000_ctl>;
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			tve_in: port@0 {
+				reg = <0>;
+				tve_in_lvds: endpoint {
+					remote-endpoint = <&lvds_out_tve>;
+				};
+			};
+		};
+	};
