@@ -813,7 +813,7 @@ _fail_wilc_wlan_:
 		wilc_wlan_cleanup(dev);
 _fail_locks_:
 		wlan_deinit_locks(dev);
-		netdev_err(dev, "WLAN Iinitialization FAILED\n");
+		netdev_err(dev, "WLAN initialization FAILED\n");
 	} else {
 		netdev_dbg(dev, "wilc1000 already initialized\n");
 	}
