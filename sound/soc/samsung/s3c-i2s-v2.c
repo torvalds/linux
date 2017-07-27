@@ -651,6 +651,15 @@ int s3c_i2sv2_probe(struct snd_soc_dai *dai,
 }
 EXPORT_SYMBOL_GPL(s3c_i2sv2_probe);
 
+void s3c_i2sv2_cleanup(struct snd_soc_dai *dai,
+		      struct s3c_i2sv2_info *i2s)
+{
+	clk_disable_unprepare(i2s->iis_pclk);
+	clk_put(i2s->iis_pclk);
+	i2s->iis_pclk = NULL;
+}
+EXPORT_SYMBOL_GPL(s3c_i2sv2_cleanup);
+
 #ifdef CONFIG_PM
 static int s3c2412_i2s_suspend(struct snd_soc_dai *dai)
 {

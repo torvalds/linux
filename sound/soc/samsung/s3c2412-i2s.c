@@ -65,7 +65,8 @@ static int s3c2412_i2s_probe(struct snd_soc_dai *dai)
 	s3c2412_i2s.iis_cclk = devm_clk_get(dai->dev, "i2sclk");
 	if (IS_ERR(s3c2412_i2s.iis_cclk)) {
 		pr_err("failed to get i2sclk clock\n");
-		return PTR_ERR(s3c2412_i2s.iis_cclk);
+		ret = PTR_ERR(s3c2412_i2s.iis_cclk);
+		goto err;
 	}
 
 	/* Set MPLL as the source for IIS CLK */
@@ -73,20 +74,24 @@ static int s3c2412_i2s_probe(struct snd_soc_dai *dai)
 	clk_set_parent(s3c2412_i2s.iis_cclk, clk_get(NULL, "mpll"));
 	ret = clk_prepare_enable(s3c2412_i2s.iis_cclk);
 	if (ret)
-		return ret;
-
-	s3c2412_i2s.iis_cclk = s3c2412_i2s.iis_pclk;
+		goto err;
 
 	/* Configure the I2S pins (GPE0...GPE4) in correct mode */
 	s3c_gpio_cfgall_range(S3C2410_GPE(0), 5, S3C_GPIO_SFN(2),
 			      S3C_GPIO_PULL_NONE);
 
 	return 0;
+
+err:
+	s3c_i2sv2_cleanup(dai, &s3c2412_i2s);
+
+	return ret;
 }
 
 static int s3c2412_i2s_remove(struct snd_soc_dai *dai)
 {
 	clk_disable_unprepare(s3c2412_i2s.iis_cclk);
+	s3c_i2sv2_cleanup(dai, &s3c2412_i2s);
 
 	return 0;
 }
