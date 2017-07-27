@@ -1213,32 +1213,20 @@ static int setup_cs(struct spi_device *spi, struct chip_data *chip,
 		    struct pxa2xx_spi_chip *chip_info)
 {
 	struct driver_data *drv_data = spi_master_get_devdata(spi->master);
-	struct device *pdev = &drv_data->pdev->dev;
-	struct gpio_desc *gpiod;
 	int err = 0;
-	int count;
 
 	if (chip == NULL)
 		return 0;
 
-	count = gpiod_count(pdev, "cs");
-	if (count > 0) {
-		if (spi->chip_select >= count)
-			return -EINVAL;
+	if (drv_data->cs_gpiods) {
+		struct gpio_desc *gpiod;
 
-		gpiod = gpiod_get_index(pdev, "cs", spi->chip_select,
-					GPIOD_OUT_HIGH);
-		if (IS_ERR(gpiod)) {
-			/* Means use native chip select */
-			if (PTR_ERR(gpiod) == -ENOENT)
-				return 0;
-
-			return PTR_ERR(gpiod);
+		gpiod = drv_data->cs_gpiods[spi->chip_select];
+		if (gpiod) {
+			chip->gpio_cs = desc_to_gpio(gpiod);
+			chip->gpio_cs_inverted = spi->mode & SPI_CS_HIGH;
+			gpiod_set_value(gpiod, chip->gpio_cs_inverted);
 		}
-
-		chip->gpio_cs = desc_to_gpio(gpiod);
-		chip->gpio_cs_inverted = spi->mode & SPI_CS_HIGH;
-		gpiod_set_value(gpiod, chip->gpio_cs_inverted);
 
 		return 0;
 	}
@@ -1427,7 +1415,8 @@ static void cleanup(struct spi_device *spi)
 	if (!chip)
 		return;
 
-	if (drv_data->ssp_type != CE4100_SSP && gpio_is_valid(chip->gpio_cs))
+	if (drv_data->ssp_type != CE4100_SSP && !drv_data->cs_gpiods &&
+	    gpio_is_valid(chip->gpio_cs))
 		gpio_free(chip->gpio_cs);
 
 	kfree(chip);
@@ -1763,9 +1752,37 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	master->num_chipselect = platform_info->num_chipselect;
 
 	count = gpiod_count(&pdev->dev, "cs");
-	if (count > 0)
+	if (count > 0) {
+		int i;
+
 		master->num_chipselect = max_t(int, count,
 			master->num_chipselect);
+
+		drv_data->cs_gpiods = devm_kcalloc(&pdev->dev,
+			master->num_chipselect, sizeof(struct gpio_desc *),
+			GFP_KERNEL);
+		if (!drv_data->cs_gpiods) {
+			status = -ENOMEM;
+			goto out_error_clock_enabled;
+		}
+
+		for (i = 0; i < master->num_chipselect; i++) {
+			struct gpio_desc *gpiod;
+
+			gpiod = devm_gpiod_get_index(dev, "cs", i,
+						     GPIOD_OUT_HIGH);
+			if (IS_ERR(gpiod)) {
+				/* Means use native chip select */
+				if (PTR_ERR(gpiod) == -ENOENT)
+					continue;
+
+				status = (int)PTR_ERR(gpiod);
+				goto out_error_clock_enabled;
+			} else {
+				drv_data->cs_gpiods[i] = gpiod;
+			}
+		}
+	}
 
 	tasklet_init(&drv_data->pump_transfers, pump_transfers,
 		     (unsigned long)drv_data);
