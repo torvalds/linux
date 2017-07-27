@@ -410,6 +410,7 @@ static int a5xx_zap_shader_init(struct msm_gpu *gpu)
 	  A5XX_RBBM_INT_0_MASK_RBBM_ETS_MS_TIMEOUT | \
 	  A5XX_RBBM_INT_0_MASK_RBBM_ATB_ASYNC_OVERFLOW | \
 	  A5XX_RBBM_INT_0_MASK_CP_HW_ERROR | \
+	  A5XX_RBBM_INT_0_MASK_MISC_HANG_DETECT | \
 	  A5XX_RBBM_INT_0_MASK_CP_CACHE_FLUSH_TS | \
 	  A5XX_RBBM_INT_0_MASK_UCHE_OOB_ACCESS | \
 	  A5XX_RBBM_INT_0_MASK_GPMU_VOLTAGE_DROOP)
@@ -812,6 +813,28 @@ static void a5xx_gpmu_err_irq(struct msm_gpu *gpu)
 	dev_err_ratelimited(gpu->dev->dev, "GPMU | voltage droop\n");
 }
 
+static void a5xx_fault_detect_irq(struct msm_gpu *gpu)
+{
+	struct drm_device *dev = gpu->dev;
+	struct msm_drm_private *priv = dev->dev_private;
+	struct msm_ringbuffer *ring = gpu->funcs->active_ring(gpu);
+
+	dev_err(dev->dev, "gpu fault ring %d fence %x status %8.8X rb %4.4x/%4.4x ib1 %16.16llX/%4.4x ib2 %16.16llX/%4.4x\n",
+		ring ? ring->id : -1, ring ? ring->seqno : 0,
+		gpu_read(gpu, REG_A5XX_RBBM_STATUS),
+		gpu_read(gpu, REG_A5XX_CP_RB_RPTR),
+		gpu_read(gpu, REG_A5XX_CP_RB_WPTR),
+		gpu_read64(gpu, REG_A5XX_CP_IB1_BASE, REG_A5XX_CP_IB1_BASE_HI),
+		gpu_read(gpu, REG_A5XX_CP_IB1_BUFSZ),
+		gpu_read64(gpu, REG_A5XX_CP_IB2_BASE, REG_A5XX_CP_IB2_BASE_HI),
+		gpu_read(gpu, REG_A5XX_CP_IB2_BUFSZ));
+
+	/* Turn off the hangcheck timer to keep it from bothering us */
+	del_timer(&gpu->hangcheck_timer);
+
+	queue_work(priv->wq, &gpu->recover_work);
+}
+
 #define RBBM_ERROR_MASK \
 	(A5XX_RBBM_INT_0_MASK_RBBM_AHB_ERROR | \
 	A5XX_RBBM_INT_0_MASK_RBBM_TRANSFER_TIMEOUT | \
@@ -837,6 +860,9 @@ static irqreturn_t a5xx_irq(struct msm_gpu *gpu)
 
 	if (status & A5XX_RBBM_INT_0_MASK_CP_HW_ERROR)
 		a5xx_cp_err_irq(gpu);
+
+	if (status & A5XX_RBBM_INT_0_MASK_MISC_HANG_DETECT)
+		a5xx_fault_detect_irq(gpu);
 
 	if (status & A5XX_RBBM_INT_0_MASK_UCHE_OOB_ACCESS)
 		a5xx_uche_err_irq(gpu);
