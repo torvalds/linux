@@ -811,7 +811,7 @@ pmd_t radix__pmdp_collapse_flush(struct vm_area_struct *vma, unsigned long addre
 	pmd_clear(pmdp);
 
 	/*FIXME!!  Verify whether we need this kick below */
-	kick_all_cpus_sync();
+	serialize_against_pte_lookup(vma->vm_mm);
 
 	radix__flush_tlb_collapsed_pmd(vma->vm_mm, address);
 
@@ -873,16 +873,16 @@ pmd_t radix__pmdp_huge_get_and_clear(struct mm_struct *mm,
 	old = radix__pmd_hugepage_update(mm, addr, pmdp, ~0UL, 0);
 	old_pmd = __pmd(old);
 	/*
-	 * Serialize against find_linux_pte_or_hugepte which does lock-less
+	 * Serialize against find_current_mm_pte which does lock-less
 	 * lookup in page tables with local interrupts disabled. For huge pages
 	 * it casts pmd_t to pte_t. Since format of pte_t is different from
 	 * pmd_t we want to prevent transit from pmd pointing to page table
 	 * to pmd pointing to huge page (and back) while interrupts are disabled.
 	 * We clear pmd to possibly replace it with page table pointer in
 	 * different code paths. So make sure we wait for the parallel
-	 * find_linux_pte_or_hugepage to finish.
+	 * find_current_mm_pte to finish.
 	 */
-	kick_all_cpus_sync();
+	serialize_against_pte_lookup(mm);
 	return old_pmd;
 }
 
