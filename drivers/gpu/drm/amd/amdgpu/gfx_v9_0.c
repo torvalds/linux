@@ -819,28 +819,8 @@ static int gfx_v9_0_rlc_init(struct amdgpu_device *adev)
 
 static void gfx_v9_0_mec_fini(struct amdgpu_device *adev)
 {
-	int r;
-
-	if (adev->gfx.mec.hpd_eop_obj) {
-		r = amdgpu_bo_reserve(adev->gfx.mec.hpd_eop_obj, true);
-		if (unlikely(r != 0))
-			dev_warn(adev->dev, "(%d) reserve HPD EOP bo failed\n", r);
-		amdgpu_bo_unpin(adev->gfx.mec.hpd_eop_obj);
-		amdgpu_bo_unreserve(adev->gfx.mec.hpd_eop_obj);
-
-		amdgpu_bo_unref(&adev->gfx.mec.hpd_eop_obj);
-		adev->gfx.mec.hpd_eop_obj = NULL;
-	}
-	if (adev->gfx.mec.mec_fw_obj) {
-		r = amdgpu_bo_reserve(adev->gfx.mec.mec_fw_obj, true);
-		if (unlikely(r != 0))
-			dev_warn(adev->dev, "(%d) reserve mec firmware bo failed\n", r);
-		amdgpu_bo_unpin(adev->gfx.mec.mec_fw_obj);
-		amdgpu_bo_unreserve(adev->gfx.mec.mec_fw_obj);
-
-		amdgpu_bo_unref(&adev->gfx.mec.mec_fw_obj);
-		adev->gfx.mec.mec_fw_obj = NULL;
-	}
+	amdgpu_bo_free_kernel(&adev->gfx.mec.hpd_eop_obj, NULL, NULL);
+	amdgpu_bo_free_kernel(&adev->gfx.mec.mec_fw_obj, NULL, NULL);
 }
 
 static int gfx_v9_0_mec_init(struct amdgpu_device *adev)

@@ -345,18 +345,7 @@ static int amdgpu_vram_scratch_init(struct amdgpu_device *adev)
 
 static void amdgpu_vram_scratch_fini(struct amdgpu_device *adev)
 {
-	int r;
-
-	if (adev->vram_scratch.robj == NULL) {
-		return;
-	}
-	r = amdgpu_bo_reserve(adev->vram_scratch.robj, true);
-	if (likely(r == 0)) {
-		amdgpu_bo_kunmap(adev->vram_scratch.robj);
-		amdgpu_bo_unpin(adev->vram_scratch.robj);
-		amdgpu_bo_unreserve(adev->vram_scratch.robj);
-	}
-	amdgpu_bo_unref(&adev->vram_scratch.robj);
+	amdgpu_bo_free_kernel(&adev->vram_scratch.robj, NULL, NULL);
 }
 
 /**

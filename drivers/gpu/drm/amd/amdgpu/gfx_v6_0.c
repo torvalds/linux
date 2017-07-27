@@ -2217,40 +2217,9 @@ static void gfx_v6_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 
 static void gfx_v6_0_rlc_fini(struct amdgpu_device *adev)
 {
-	int r;
-
-	if (adev->gfx.rlc.save_restore_obj) {
-		r = amdgpu_bo_reserve(adev->gfx.rlc.save_restore_obj, true);
-		if (unlikely(r != 0))
-			dev_warn(adev->dev, "(%d) reserve RLC sr bo failed\n", r);
-		amdgpu_bo_unpin(adev->gfx.rlc.save_restore_obj);
-		amdgpu_bo_unreserve(adev->gfx.rlc.save_restore_obj);
-
-		amdgpu_bo_unref(&adev->gfx.rlc.save_restore_obj);
-		adev->gfx.rlc.save_restore_obj = NULL;
-	}
-
-	if (adev->gfx.rlc.clear_state_obj) {
-		r = amdgpu_bo_reserve(adev->gfx.rlc.clear_state_obj, true);
-		if (unlikely(r != 0))
-			dev_warn(adev->dev, "(%d) reserve RLC c bo failed\n", r);
-		amdgpu_bo_unpin(adev->gfx.rlc.clear_state_obj);
-		amdgpu_bo_unreserve(adev->gfx.rlc.clear_state_obj);
-
-		amdgpu_bo_unref(&adev->gfx.rlc.clear_state_obj);
-		adev->gfx.rlc.clear_state_obj = NULL;
-	}
-
-	if (adev->gfx.rlc.cp_table_obj) {
-		r = amdgpu_bo_reserve(adev->gfx.rlc.cp_table_obj, true);
-		if (unlikely(r != 0))
-			dev_warn(adev->dev, "(%d) reserve RLC cp table bo failed\n", r);
-		amdgpu_bo_unpin(adev->gfx.rlc.cp_table_obj);
-		amdgpu_bo_unreserve(adev->gfx.rlc.cp_table_obj);
-
-		amdgpu_bo_unref(&adev->gfx.rlc.cp_table_obj);
-		adev->gfx.rlc.cp_table_obj = NULL;
-	}
+	amdgpu_bo_free_kernel(&adev->gfx.rlc.save_restore_obj, NULL, NULL);
+	amdgpu_bo_free_kernel(&adev->gfx.rlc.clear_state_obj, NULL, NULL);
+	amdgpu_bo_free_kernel(&adev->gfx.rlc.cp_table_obj, NULL, NULL);
 }
 
 static int gfx_v6_0_rlc_init(struct amdgpu_device *adev)
