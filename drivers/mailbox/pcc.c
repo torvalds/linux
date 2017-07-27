@@ -203,7 +203,7 @@ static irqreturn_t pcc_mbox_irq(int irq, void *p)
 		struct acpi_pcct_hw_reduced_type2 *pcct2_ss = chan->con_priv;
 		u32 id = chan - pcc_mbox_channels;
 
-		doorbell_ack = &pcct2_ss->doorbell_ack_register;
+		doorbell_ack = &pcct2_ss->platform_ack_register;
 		doorbell_ack_preserve = pcct2_ss->ack_preserve_mask;
 		doorbell_ack_write = pcct2_ss->ack_write_mask;
 
@@ -416,11 +416,11 @@ static int parse_pcc_subspace(struct acpi_subtable_header *header,
 static int pcc_parse_subspace_irq(int id,
 				  struct acpi_pcct_hw_reduced *pcct_ss)
 {
-	pcc_doorbell_irq[id] = pcc_map_interrupt(pcct_ss->doorbell_interrupt,
+	pcc_doorbell_irq[id] = pcc_map_interrupt(pcct_ss->platform_interrupt,
 						 (u32)pcct_ss->flags);
 	if (pcc_doorbell_irq[id] <= 0) {
 		pr_err("PCC GSI %d not registered\n",
-		       pcct_ss->doorbell_interrupt);
+		       pcct_ss->platform_interrupt);
 		return -EINVAL;
 	}
 
@@ -429,8 +429,8 @@ static int pcc_parse_subspace_irq(int id,
 		struct acpi_pcct_hw_reduced_type2 *pcct2_ss = (void *)pcct_ss;
 
 		pcc_doorbell_ack_vaddr[id] = acpi_os_ioremap(
-				pcct2_ss->doorbell_ack_register.address,
-				pcct2_ss->doorbell_ack_register.bit_width / 8);
+				pcct2_ss->platform_ack_register.address,
+				pcct2_ss->platform_ack_register.bit_width / 8);
 		if (!pcc_doorbell_ack_vaddr[id]) {
 			pr_err("Failed to ioremap PCC ACK register\n");
 			return -ENOMEM;

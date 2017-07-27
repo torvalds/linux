@@ -2259,6 +2259,8 @@ int intel_gvt_init_gtt(struct intel_gvt *gvt)
 		ret = setup_spt_oos(gvt);
 		if (ret) {
 			gvt_err("fail to initialize SPT oos\n");
+			dma_unmap_page(dev, daddr, 4096, PCI_DMA_BIDIRECTIONAL);
+			__free_page(gvt->gtt.scratch_ggtt_page);
 			return ret;
 		}
 	}

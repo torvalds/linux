@@ -269,16 +269,16 @@ are the following:
 ``scaling_cur_freq``
 	Current frequency of all of the CPUs belonging to this policy (in kHz).
 
-	For the majority of scaling drivers, this is the frequency of the last
-	P-state requested by the driver from the hardware using the scaling
+	In the majority of cases, this is the frequency of the last P-state
+	requested by the scaling driver from the hardware using the scaling
 	interface provided by it, which may or may not reflect the frequency
 	the CPU is actually running at (due to hardware design and other
 	limitations).
 
-	Some scaling drivers (e.g. |intel_pstate|) attempt to provide
-	information more precisely reflecting the current CPU frequency through
-	this attribute, but that still may not be the exact current CPU
-	frequency as seen by the hardware at the moment.
+	Some architectures (e.g. ``x86``) may attempt to provide information
+	more precisely reflecting the current CPU frequency through this
+	attribute, but that still may not be the exact current CPU frequency as
+	seen by the hardware at the moment.
 
 ``scaling_driver``
 	The scaling driver currently in use.

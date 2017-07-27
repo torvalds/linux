@@ -303,9 +303,8 @@ static const struct component_master_ops meson_drv_master_ops = {
 
 static int compare_of(struct device *dev, void *data)
 {
-	DRM_DEBUG_DRIVER("Comparing of node %s with %s\n",
-			 of_node_full_name(dev->of_node),
-			 of_node_full_name(data));
+	DRM_DEBUG_DRIVER("Comparing of node %pOF with %pOF\n",
+			 dev->of_node, data);
 
 	return dev->of_node == data;
 }

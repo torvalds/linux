@@ -131,7 +131,7 @@ static struct mem_ctl_info *pnd2_mci;
 
 #ifdef CONFIG_X86_INTEL_SBI_APL
 #include "linux/platform_data/sbi_apl.h"
-int sbi_send(int port, int off, int op, u32 *data)
+static int sbi_send(int port, int off, int op, u32 *data)
 {
 	struct sbi_apl_message sbi_arg;
 	int ret, read = 0;
@@ -160,7 +160,7 @@ int sbi_send(int port, int off, int op, u32 *data)
 	return ret;
 }
 #else
-int sbi_send(int port, int off, int op, u32 *data)
+static int sbi_send(int port, int off, int op, u32 *data)
 {
 	return -EUNATCH;
 }
@@ -168,14 +168,15 @@ int sbi_send(int port, int off, int op, u32 *data)
 
 static int apl_rd_reg(int port, int off, int op, void *data, size_t sz, char *name)
 {
-	int	ret = 0;
+	int ret = 0;
 
 	edac_dbg(2, "Read %s port=%x off=%x op=%x\n", name, port, off, op);
 	switch (sz) {
 	case 8:
 		ret = sbi_send(port, off + 4, op, (u32 *)(data + 4));
+		/* fall through */
 	case 4:
-		ret = sbi_send(port, off, op, (u32 *)data);
+		ret |= sbi_send(port, off, op, (u32 *)data);
 		pnd2_printk(KERN_DEBUG, "%s=%x%08x ret=%d\n", name,
 					sz == 8 ? *((u32 *)(data + 4)) : 0, *((u32 *)data), ret);
 		break;
@@ -423,16 +424,21 @@ static void dnv_mk_region(char *name, struct region *rp, void *asym)
 
 static int apl_get_registers(void)
 {
+	int ret = -ENODEV;
 	int i;
 
 	if (RD_REG(&asym_2way, b_cr_asym_2way_mem_region_mchbar))
 		return -ENODEV;
 
+	/*
+	 * RD_REGP() will fail for unpopulated or non-existent
+	 * DIMM slots. Return success if we find at least one DIMM.
+	 */
 	for (i = 0; i < APL_NUM_CHANNELS; i++)
-		if (RD_REGP(&drp0[i], d_cr_drp0, apl_dports[i]))
-			return -ENODEV;
+		if (!RD_REGP(&drp0[i], d_cr_drp0, apl_dports[i]))
+			ret = 0;
 
-	return 0;
+	return ret;
 }
 
 static int dnv_get_registers(void)

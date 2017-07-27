@@ -960,9 +960,9 @@ static const struct usb_ep_ops mv_ep_ops = {
 	.fifo_flush	= mv_ep_fifo_flush,	/* flush fifo */
 };
 
-static void udc_clock_enable(struct mv_udc *udc)
+static int udc_clock_enable(struct mv_udc *udc)
 {
-	clk_prepare_enable(udc->clk);
+	return clk_prepare_enable(udc->clk);
 }
 
 static void udc_clock_disable(struct mv_udc *udc)
@@ -1070,7 +1070,10 @@ static int mv_udc_enable_internal(struct mv_udc *udc)
 		return 0;
 
 	dev_dbg(&udc->dev->dev, "enable udc\n");
-	udc_clock_enable(udc);
+	retval = udc_clock_enable(udc);
+	if (retval)
+		return retval;
+
 	if (udc->pdata->phy_init) {
 		retval = udc->pdata->phy_init(udc->phy_regs);
 		if (retval) {

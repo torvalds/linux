@@ -268,36 +268,21 @@ static bool access_gic_sre(struct kvm_vcpu *vcpu, struct sys_reg_params *p,
 	return true;
 }
 static const struct sys_reg_desc gic_v3_icc_reg_descs[] = {
-	/* ICC_PMR_EL1 */
-	{ Op0(3), Op1(0), CRn(4), CRm(6), Op2(0), access_gic_pmr },
-	/* ICC_BPR0_EL1 */
-	{ Op0(3), Op1(0), CRn(12), CRm(8), Op2(3), access_gic_bpr0 },
-	/* ICC_AP0R0_EL1 */
-	{ Op0(3), Op1(0), CRn(12), CRm(8), Op2(4), access_gic_ap0r },
-	/* ICC_AP0R1_EL1 */
-	{ Op0(3), Op1(0), CRn(12), CRm(8), Op2(5), access_gic_ap0r },
-	/* ICC_AP0R2_EL1 */
-	{ Op0(3), Op1(0), CRn(12), CRm(8), Op2(6), access_gic_ap0r },
-	/* ICC_AP0R3_EL1 */
-	{ Op0(3), Op1(0), CRn(12), CRm(8), Op2(7), access_gic_ap0r },
-	/* ICC_AP1R0_EL1 */
-	{ Op0(3), Op1(0), CRn(12), CRm(9), Op2(0), access_gic_ap1r },
-	/* ICC_AP1R1_EL1 */
-	{ Op0(3), Op1(0), CRn(12), CRm(9), Op2(1), access_gic_ap1r },
-	/* ICC_AP1R2_EL1 */
-	{ Op0(3), Op1(0), CRn(12), CRm(9), Op2(2), access_gic_ap1r },
-	/* ICC_AP1R3_EL1 */
-	{ Op0(3), Op1(0), CRn(12), CRm(9), Op2(3), access_gic_ap1r },
-	/* ICC_BPR1_EL1 */
-	{ Op0(3), Op1(0), CRn(12), CRm(12), Op2(3), access_gic_bpr1 },
-	/* ICC_CTLR_EL1 */
-	{ Op0(3), Op1(0), CRn(12), CRm(12), Op2(4), access_gic_ctlr },
-	/* ICC_SRE_EL1 */
-	{ Op0(3), Op1(0), CRn(12), CRm(12), Op2(5), access_gic_sre },
-	/* ICC_IGRPEN0_EL1 */
-	{ Op0(3), Op1(0), CRn(12), CRm(12), Op2(6), access_gic_grpen0 },
-	/* ICC_GRPEN1_EL1 */
-	{ Op0(3), Op1(0), CRn(12), CRm(12), Op2(7), access_gic_grpen1 },
+	{ SYS_DESC(SYS_ICC_PMR_EL1), access_gic_pmr },
+	{ SYS_DESC(SYS_ICC_BPR0_EL1), access_gic_bpr0 },
+	{ SYS_DESC(SYS_ICC_AP0R0_EL1), access_gic_ap0r },
+	{ SYS_DESC(SYS_ICC_AP0R1_EL1), access_gic_ap0r },
+	{ SYS_DESC(SYS_ICC_AP0R2_EL1), access_gic_ap0r },
+	{ SYS_DESC(SYS_ICC_AP0R3_EL1), access_gic_ap0r },
+	{ SYS_DESC(SYS_ICC_AP1R0_EL1), access_gic_ap1r },
+	{ SYS_DESC(SYS_ICC_AP1R1_EL1), access_gic_ap1r },
+	{ SYS_DESC(SYS_ICC_AP1R2_EL1), access_gic_ap1r },
+	{ SYS_DESC(SYS_ICC_AP1R3_EL1), access_gic_ap1r },
+	{ SYS_DESC(SYS_ICC_BPR1_EL1), access_gic_bpr1 },
+	{ SYS_DESC(SYS_ICC_CTLR_EL1), access_gic_ctlr },
+	{ SYS_DESC(SYS_ICC_SRE_EL1), access_gic_sre },
+	{ SYS_DESC(SYS_ICC_IGRPEN0_EL1), access_gic_grpen0 },
+	{ SYS_DESC(SYS_ICC_IGRPEN1_EL1), access_gic_grpen1 },
 };
 
 int vgic_v3_has_cpu_sysregs_attr(struct kvm_vcpu *vcpu, bool is_write, u64 id,

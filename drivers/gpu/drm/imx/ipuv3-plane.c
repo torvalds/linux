@@ -54,7 +54,7 @@ static const uint32_t ipu_plane_formats[] = {
 	DRM_FORMAT_RGBA8888,
 	DRM_FORMAT_RGBX8888,
 	DRM_FORMAT_BGRA8888,
-	DRM_FORMAT_BGRA8888,
+	DRM_FORMAT_BGRX8888,
 	DRM_FORMAT_UYVY,
 	DRM_FORMAT_VYUY,
 	DRM_FORMAT_YUYV,
@@ -675,7 +675,7 @@ int ipu_planes_assign_pre(struct drm_device *dev,
 	int available_pres = ipu_prg_max_active_channels();
 	int i;
 
-	for_each_plane_in_state(state, plane, plane_state, i) {
+	for_each_new_plane_in_state(state, plane, plane_state, i) {
 		struct ipu_plane_state *ipu_state =
 				to_ipu_plane_state(plane_state);
 		struct ipu_plane *ipu_plane = to_ipu_plane(plane);

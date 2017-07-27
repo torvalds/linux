@@ -77,7 +77,6 @@ static struct drm_driver driver = {
 	.open = via_driver_open,
 	.preclose = via_reclaim_buffers_locked,
 	.postclose = via_driver_postclose,
-	.set_busid = drm_pci_set_busid,
 	.context_dtor = via_final_context,
 	.get_vblank_counter = via_get_vblank_counter,
 	.enable_vblank = via_enable_vblank,
@@ -107,12 +106,12 @@ static int __init via_init(void)
 {
 	driver.num_ioctls = via_max_ioctl;
 	via_init_command_verifier();
-	return drm_pci_init(&driver, &via_pci_driver);
+	return drm_legacy_pci_init(&driver, &via_pci_driver);
 }
 
 static void __exit via_exit(void)
 {
-	drm_pci_exit(&driver, &via_pci_driver);
+	drm_legacy_pci_exit(&driver, &via_pci_driver);
 }
 
 module_init(via_init);

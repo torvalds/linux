@@ -1659,6 +1659,7 @@ static int dib8096_set_param_override(struct dvb_frontend *fe)
 	switch (band) {
 	default:
 			deb_info("Warning : Rf frequency  (%iHz) is not in the supported range, using VHF switch ", fe->dtv_property_cache.frequency);
+			/* fall through */
 	case BAND_VHF:
 			state->dib8000_ops.set_gpio(fe, 3, 0, 1);
 			break;

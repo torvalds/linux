@@ -450,11 +450,10 @@ skip_this_frame:
 
 	if (bp + length > lp->end_dma_buff) {
 		int semi_cnt = lp->end_dma_buff - bp;
-		memcpy(skb_put(skb, semi_cnt), bp, semi_cnt);
-		memcpy(skb_put(skb, length - semi_cnt), lp->dma_buff,
-		       length - semi_cnt);
+		skb_put_data(skb, bp, semi_cnt);
+		skb_put_data(skb, lp->dma_buff, length - semi_cnt);
 	} else {
-		memcpy(skb_put(skb, length), bp, length);
+		skb_put_data(skb, bp, length);
 	}
 	bp += (length + 3) & ~3;
 	if (bp >= lp->end_dma_buff)

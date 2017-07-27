@@ -158,7 +158,7 @@ static struct net_bridge_vlan *br_vlan_get_master(struct net_bridge *br, u16 vid
 		if (WARN_ON(!masterv))
 			return NULL;
 	}
-	atomic_inc(&masterv->refcnt);
+	refcount_inc(&masterv->refcnt);
 
 	return masterv;
 }
@@ -182,7 +182,7 @@ static void br_vlan_put_master(struct net_bridge_vlan *masterv)
 		return;
 
 	vg = br_vlan_group(masterv->br);
-	if (atomic_dec_and_test(&masterv->refcnt)) {
+	if (refcount_dec_and_test(&masterv->refcnt)) {
 		rhashtable_remove_fast(&vg->vlan_hash,
 				       &masterv->vnode, br_vlan_rht_params);
 		__vlan_del_list(masterv);
@@ -573,7 +573,7 @@ int br_vlan_add(struct net_bridge *br, u16 vid, u16 flags)
 				br_err(br, "failed insert local address into bridge forwarding table\n");
 				return ret;
 			}
-			atomic_inc(&vlan->refcnt);
+			refcount_inc(&vlan->refcnt);
 			vlan->flags |= BRIDGE_VLAN_INFO_BRENTRY;
 			vg->num_vlans++;
 		}
@@ -595,7 +595,7 @@ int br_vlan_add(struct net_bridge *br, u16 vid, u16 flags)
 	vlan->flags &= ~BRIDGE_VLAN_INFO_PVID;
 	vlan->br = br;
 	if (flags & BRIDGE_VLAN_INFO_BRENTRY)
-		atomic_set(&vlan->refcnt, 1);
+		refcount_set(&vlan->refcnt, 1);
 	ret = __vlan_add(vlan, flags);
 	if (ret) {
 		free_percpu(vlan->stats);
@@ -705,6 +705,14 @@ int br_vlan_filter_toggle(struct net_bridge *br, unsigned long val)
 {
 	return __br_vlan_filter_toggle(br, val);
 }
+
+bool br_vlan_enabled(const struct net_device *dev)
+{
+	struct net_bridge *br = netdev_priv(dev);
+
+	return !!br->vlan_enabled;
+}
+EXPORT_SYMBOL_GPL(br_vlan_enabled);
 
 int __br_vlan_set_proto(struct net_bridge *br, __be16 proto)
 {

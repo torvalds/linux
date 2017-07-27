@@ -52,7 +52,7 @@ mt7601u_rx_skb_from_seg(struct mt7601u_dev *dev, struct mt7601u_rxwi *rxwi,
 		goto bad_frame;
 
 	if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_L2PAD)) {
-		memcpy(skb_put(skb, hdr_len), data, hdr_len);
+		skb_put_data(skb, data, hdr_len);
 
 		data += hdr_len + 2;
 		true_len -= hdr_len;
@@ -63,7 +63,7 @@ mt7601u_rx_skb_from_seg(struct mt7601u_dev *dev, struct mt7601u_rxwi *rxwi,
 	copy = (true_len <= skb_tailroom(skb)) ? true_len : hdr_len + 8;
 	frag = true_len - copy;
 
-	memcpy(skb_put(skb, copy), data, copy);
+	skb_put_data(skb, data, copy);
 	data += copy;
 
 	if (frag) {

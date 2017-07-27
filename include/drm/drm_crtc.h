@@ -685,6 +685,9 @@ struct drm_crtc_funcs {
 	 * drm_crtc_vblank_off() and drm_crtc_vblank_on() when disabling or
 	 * enabling a CRTC.
 	 *
+	 * See also &drm_device.vblank_disable_immediate and
+	 * &drm_device.max_vblank_count.
+	 *
 	 * Returns:
 	 *
 	 * Raw vblank counter value.

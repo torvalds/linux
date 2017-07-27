@@ -410,6 +410,7 @@ xlog_cil_insert_items(
 	int			len = 0;
 	int			diff_iovecs = 0;
 	int			iclog_space;
+	int			iovhdr_res = 0, split_res = 0, ctx_res = 0;
 
 	ASSERT(tp);
 
@@ -419,12 +420,65 @@ xlog_cil_insert_items(
 	 */
 	xlog_cil_insert_format_items(log, tp, &len, &diff_iovecs);
 
+	spin_lock(&cil->xc_cil_lock);
+
+	/* account for space used by new iovec headers  */
+	iovhdr_res = diff_iovecs * sizeof(xlog_op_header_t);
+	len += iovhdr_res;
+	ctx->nvecs += diff_iovecs;
+
+	/* attach the transaction to the CIL if it has any busy extents */
+	if (!list_empty(&tp->t_busy))
+		list_splice_init(&tp->t_busy, &ctx->busy_extents);
+
+	/*
+	 * Now transfer enough transaction reservation to the context ticket
+	 * for the checkpoint. The context ticket is special - the unit
+	 * reservation has to grow as well as the current reservation as we
+	 * steal from tickets so we can correctly determine the space used
+	 * during the transaction commit.
+	 */
+	if (ctx->ticket->t_curr_res == 0) {
+		ctx_res = ctx->ticket->t_unit_res;
+		ctx->ticket->t_curr_res = ctx_res;
+		tp->t_ticket->t_curr_res -= ctx_res;
+	}
+
+	/* do we need space for more log record headers? */
+	iclog_space = log->l_iclog_size - log->l_iclog_hsize;
+	if (len > 0 && (ctx->space_used / iclog_space !=
+				(ctx->space_used + len) / iclog_space)) {
+		split_res = (len + iclog_space - 1) / iclog_space;
+		/* need to take into account split region headers, too */
+		split_res *= log->l_iclog_hsize + sizeof(struct xlog_op_header);
+		ctx->ticket->t_unit_res += split_res;
+		ctx->ticket->t_curr_res += split_res;
+		tp->t_ticket->t_curr_res -= split_res;
+		ASSERT(tp->t_ticket->t_curr_res >= len);
+	}
+	tp->t_ticket->t_curr_res -= len;
+	ctx->space_used += len;
+
+	/*
+	 * If we've overrun the reservation, dump the tx details before we move
+	 * the log items. Shutdown is imminent...
+	 */
+	if (WARN_ON(tp->t_ticket->t_curr_res < 0)) {
+		xfs_warn(log->l_mp, "Transaction log reservation overrun:");
+		xfs_warn(log->l_mp,
+			 "  log items: %d bytes (iov hdrs: %d bytes)",
+			 len, iovhdr_res);
+		xfs_warn(log->l_mp, "  split region headers: %d bytes",
+			 split_res);
+		xfs_warn(log->l_mp, "  ctx ticket: %d bytes", ctx_res);
+		xlog_print_trans(tp);
+	}
+
 	/*
 	 * Now (re-)position everything modified at the tail of the CIL.
 	 * We do this here so we only need to take the CIL lock once during
 	 * the transaction commit.
 	 */
-	spin_lock(&cil->xc_cil_lock);
 	list_for_each_entry(lidp, &tp->t_items, lid_trans) {
 		struct xfs_log_item	*lip = lidp->lid_item;
 
@@ -441,44 +495,10 @@ xlog_cil_insert_items(
 			list_move_tail(&lip->li_cil, &cil->xc_cil);
 	}
 
-	/* account for space used by new iovec headers  */
-	len += diff_iovecs * sizeof(xlog_op_header_t);
-	ctx->nvecs += diff_iovecs;
-
-	/* attach the transaction to the CIL if it has any busy extents */
-	if (!list_empty(&tp->t_busy))
-		list_splice_init(&tp->t_busy, &ctx->busy_extents);
-
-	/*
-	 * Now transfer enough transaction reservation to the context ticket
-	 * for the checkpoint. The context ticket is special - the unit
-	 * reservation has to grow as well as the current reservation as we
-	 * steal from tickets so we can correctly determine the space used
-	 * during the transaction commit.
-	 */
-	if (ctx->ticket->t_curr_res == 0) {
-		ctx->ticket->t_curr_res = ctx->ticket->t_unit_res;
-		tp->t_ticket->t_curr_res -= ctx->ticket->t_unit_res;
-	}
-
-	/* do we need space for more log record headers? */
-	iclog_space = log->l_iclog_size - log->l_iclog_hsize;
-	if (len > 0 && (ctx->space_used / iclog_space !=
-				(ctx->space_used + len) / iclog_space)) {
-		int hdrs;
-
-		hdrs = (len + iclog_space - 1) / iclog_space;
-		/* need to take into account split region headers, too */
-		hdrs *= log->l_iclog_hsize + sizeof(struct xlog_op_header);
-		ctx->ticket->t_unit_res += hdrs;
-		ctx->ticket->t_curr_res += hdrs;
-		tp->t_ticket->t_curr_res -= hdrs;
-		ASSERT(tp->t_ticket->t_curr_res >= len);
-	}
-	tp->t_ticket->t_curr_res -= len;
-	ctx->space_used += len;
-
 	spin_unlock(&cil->xc_cil_lock);
+
+	if (tp->t_ticket->t_curr_res < 0)
+		xfs_force_shutdown(log->l_mp, SHUTDOWN_LOG_IO_ERROR);
 }
 
 static void
@@ -973,6 +993,7 @@ xfs_log_commit_cil(
 {
 	struct xlog		*log = mp->m_log;
 	struct xfs_cil		*cil = log->l_cilp;
+	xfs_lsn_t		xc_commit_lsn;
 
 	/*
 	 * Do all necessary memory allocation before we lock the CIL.
@@ -986,13 +1007,9 @@ xfs_log_commit_cil(
 
 	xlog_cil_insert_items(log, tp);
 
-	/* check we didn't blow the reservation */
-	if (tp->t_ticket->t_curr_res < 0)
-		xlog_print_tic_res(mp, tp->t_ticket);
-
-	tp->t_commit_lsn = cil->xc_ctx->sequence;
+	xc_commit_lsn = cil->xc_ctx->sequence;
 	if (commit_lsn)
-		*commit_lsn = tp->t_commit_lsn;
+		*commit_lsn = xc_commit_lsn;
 
 	xfs_log_done(mp, tp->t_ticket, NULL, regrant);
 	xfs_trans_unreserve_and_mod_sb(tp);
@@ -1008,7 +1025,7 @@ xfs_log_commit_cil(
 	 * the log items. This affects (at least) processing of stale buffers,
 	 * inodes and EFIs.
 	 */
-	xfs_trans_free_items(tp, tp->t_commit_lsn, false);
+	xfs_trans_free_items(tp, xc_commit_lsn, false);
 
 	xlog_cil_push_background(log);
 

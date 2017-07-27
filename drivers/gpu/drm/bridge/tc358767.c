@@ -1325,11 +1325,7 @@ static int tc_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	tc->bridge.funcs = &tc_bridge_funcs;
 	tc->bridge.of_node = dev->of_node;
-	ret = drm_bridge_add(&tc->bridge);
-	if (ret) {
-		dev_err(dev, "Failed to add drm_bridge: %d\n", ret);
-		goto err_unregister_aux;
-	}
+	drm_bridge_add(&tc->bridge);
 
 	i2c_set_clientdata(client, tc);
 

@@ -1,7 +1,8 @@
 /*
  * Device Tree Include file for Freescale Layerscape-2088A family SoC.
  *
- * Copyright (C) 2016-17, Freescale Semiconductor
+ * Copyright 2016 Freescale Semiconductor, Inc.
+ * Copyright 2017 NXP
  *
  * Abhimanyu Saini <abhimanyu.saini@nxp.com>
  *

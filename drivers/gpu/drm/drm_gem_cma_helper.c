@@ -177,7 +177,7 @@ drm_gem_cma_create_with_handle(struct drm_file *file_priv,
  * This function frees the backing memory of the CMA GEM object, cleans up the
  * GEM object state and frees the memory used to store the object itself.
  * Drivers using the CMA helpers should set this as their
- * &drm_driver.gem_free_object callback.
+ * &drm_driver.gem_free_object_unlocked callback.
  */
 void drm_gem_cma_free_object(struct drm_gem_object *gem_obj)
 {

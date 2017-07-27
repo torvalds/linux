@@ -53,7 +53,6 @@
 		#global-interrupts = <1>;
 		dma-coherent;
 		power-domains = <&scpi_devpd 0>;
-		status = "disabled";
 	};
 
 	gic: interrupt-controller@2c010000 {
@@ -202,6 +201,15 @@
 		};
 	};
 
+	cpu_debug0: cpu_debug@22010000 {
+		compatible = "arm,coresight-cpu-debug", "arm,primecell";
+		reg = <0x0 0x22010000 0x0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+	};
+
 	etm0: etm@22040000 {
 		compatible = "arm,coresight-etm4x", "arm,primecell";
 		reg = <0 0x22040000 0 0x1000>;
@@ -252,6 +260,15 @@
 		};
 	};
 
+	cpu_debug1: cpu_debug@22110000 {
+		compatible = "arm,coresight-cpu-debug", "arm,primecell";
+		reg = <0x0 0x22110000 0x0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+	};
+
 	etm1: etm@22140000 {
 		compatible = "arm,coresight-etm4x", "arm,primecell";
 		reg = <0 0x22140000 0 0x1000>;
@@ -264,6 +281,15 @@
 				remote-endpoint = <&cluster0_funnel_in_port1>;
 			};
 		};
+	};
+
+	cpu_debug2: cpu_debug@23010000 {
+		compatible = "arm,coresight-cpu-debug", "arm,primecell";
+		reg = <0x0 0x23010000 0x0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
 	};
 
 	etm2: etm@23040000 {
@@ -330,6 +356,15 @@
 		};
 	};
 
+	cpu_debug3: cpu_debug@23110000 {
+		compatible = "arm,coresight-cpu-debug", "arm,primecell";
+		reg = <0x0 0x23110000 0x0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+	};
+
 	etm3: etm@23140000 {
 		compatible = "arm,coresight-etm4x", "arm,primecell";
 		reg = <0 0x23140000 0 0x1000>;
@@ -344,6 +379,15 @@
 		};
 	};
 
+	cpu_debug4: cpu_debug@23210000 {
+		compatible = "arm,coresight-cpu-debug", "arm,primecell";
+		reg = <0x0 0x23210000 0x0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
+	};
+
 	etm4: etm@23240000 {
 		compatible = "arm,coresight-etm4x", "arm,primecell";
 		reg = <0 0x23240000 0 0x1000>;
@@ -356,6 +400,15 @@
 				remote-endpoint = <&cluster1_funnel_in_port2>;
 			};
 		};
+	};
+
+	cpu_debug5: cpu_debug@23310000 {
+		compatible = "arm,coresight-cpu-debug", "arm,primecell";
+		reg = <0x0 0x23310000 0x0 0x1000>;
+
+		clocks = <&soc_smc50mhz>;
+		clock-names = "apb_pclk";
+		power-domains = <&scpi_devpd 0>;
 	};
 
 	etm5: etm@23340000 {
@@ -546,7 +599,6 @@
 			     <GIC_SPI 99 IRQ_TYPE_LEVEL_HIGH>;
 		#iommu-cells = <1>;
 		#global-interrupts = <1>;
-		status = "disabled";
 	};
 
 	smmu_hdlcd0: iommu@7fb20000 {
@@ -556,7 +608,6 @@
 			     <GIC_SPI 97 IRQ_TYPE_LEVEL_HIGH>;
 		#iommu-cells = <1>;
 		#global-interrupts = <1>;
-		status = "disabled";
 	};
 
 	smmu_usb: iommu@7fb30000 {
@@ -567,7 +618,6 @@
 		#iommu-cells = <1>;
 		#global-interrupts = <1>;
 		dma-coherent;
-		status = "disabled";
 	};
 
 	dma@7ff00000 {

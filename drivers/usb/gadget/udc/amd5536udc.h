@@ -16,6 +16,7 @@
 /* debug control */
 /* #define UDC_VERBOSE */
 
+#include <linux/extcon.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 
@@ -27,6 +28,9 @@
 /* Hs AMD5536 chip rev. */
 #define UDC_HSA0_REV 1
 #define UDC_HSB1_REV 2
+
+/* Broadcom chip rev. */
+#define UDC_BCM_REV 10
 
 /*
  * SETUP usb commands
@@ -112,6 +116,7 @@
 #define UDC_DEVCTL_BRLEN_MASK			0x00ff0000
 #define UDC_DEVCTL_BRLEN_OFS			16
 
+#define UDC_DEVCTL_SRX_FLUSH			14
 #define UDC_DEVCTL_CSR_DONE			13
 #define UDC_DEVCTL_DEVNAK			12
 #define UDC_DEVCTL_SD				10
@@ -563,6 +568,16 @@ struct udc {
 	u16				cur_config;
 	u16				cur_intf;
 	u16				cur_alt;
+
+	/* for platform device and extcon support */
+	struct device			*dev;
+	struct phy			*udc_phy;
+	struct extcon_dev		*edev;
+	struct extcon_specific_cable_nb	extcon_nb;
+	struct notifier_block		nb;
+	struct delayed_work		drd_work;
+	struct workqueue_struct		*drd_wq;
+	u32				conn_type;
 };
 
 #define to_amd5536_udc(g)	(container_of((g), struct udc, gadget))
@@ -578,6 +593,7 @@ int udc_enable_dev_setup_interrupts(struct udc *dev);
 int udc_mask_unused_interrupts(struct udc *dev);
 irqreturn_t udc_irq(int irq, void *pdev);
 void gadget_release(struct device *pdev);
+void empty_req_queue(struct udc_ep *ep);
 void udc_basic_init(struct udc *dev);
 void free_dma_pools(struct udc *dev);
 int init_dma_pools(struct udc *dev);
@@ -639,7 +655,7 @@ MODULE_PARM_DESC(use_fullspeed, "true for fullspeed only");
 
 /* debug macros ------------------------------------------------------------*/
 
-#define DBG(udc , args...)	dev_dbg(&(udc)->pdev->dev, args)
+#define DBG(udc , args...)	dev_dbg(udc->dev, args)
 
 #ifdef UDC_VERBOSE
 #define VDBG			DBG

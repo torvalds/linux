@@ -31,6 +31,8 @@
 #include <drm/drmP.h>
 
 #include <drm/drm_fixed.h>
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
 
 /**
  * DOC: dp mst helper
@@ -329,6 +331,13 @@ static bool drm_dp_sideband_msg_build(struct drm_dp_sideband_msg_rx *msg,
 			print_hex_dump(KERN_DEBUG, "failed hdr", DUMP_PREFIX_NONE, 16, 1, replybuf, replybuflen, false);
 			return false;
 		}
+
+		/*
+		 * ignore out-of-order messages or messages that are part of a
+		 * failed transaction
+		 */
+		if (!recv_hdr.somt && !msg->have_somt)
+			return false;
 
 		/* get length contained in this portion */
 		msg->curchunk_len = recv_hdr.msg_len;
@@ -1335,15 +1344,17 @@ static void drm_dp_mst_link_probe_work(struct work_struct *work)
 static bool drm_dp_validate_guid(struct drm_dp_mst_topology_mgr *mgr,
 				 u8 *guid)
 {
-	static u8 zero_guid[16];
+	u64 salt;
 
-	if (!memcmp(guid, zero_guid, 16)) {
-		u64 salt = get_jiffies_64();
-		memcpy(&guid[0], &salt, sizeof(u64));
-		memcpy(&guid[8], &salt, sizeof(u64));
-		return false;
-	}
-	return true;
+	if (memchr_inv(guid, 0, 16))
+		return true;
+
+	salt = get_jiffies_64();
+
+	memcpy(&guid[0], &salt, sizeof(u64));
+	memcpy(&guid[8], &salt, sizeof(u64));
+
+	return false;
 }
 
 #if 0
@@ -2164,7 +2175,7 @@ out_unlock:
 }
 EXPORT_SYMBOL(drm_dp_mst_topology_mgr_resume);
 
-static void drm_dp_get_one_sb_msg(struct drm_dp_mst_topology_mgr *mgr, bool up)
+static bool drm_dp_get_one_sb_msg(struct drm_dp_mst_topology_mgr *mgr, bool up)
 {
 	int len;
 	u8 replyblock[32];
@@ -2179,12 +2190,12 @@ static void drm_dp_get_one_sb_msg(struct drm_dp_mst_topology_mgr *mgr, bool up)
 			       replyblock, len);
 	if (ret != len) {
 		DRM_DEBUG_KMS("failed to read DPCD down rep %d %d\n", len, ret);
-		return;
+		return false;
 	}
 	ret = drm_dp_sideband_msg_build(msg, replyblock, len, true);
 	if (!ret) {
 		DRM_DEBUG_KMS("sideband msg build failed %d\n", replyblock[0]);
-		return;
+		return false;
 	}
 	replylen = msg->curchunk_len + msg->curchunk_hdrlen;
 
@@ -2196,21 +2207,32 @@ static void drm_dp_get_one_sb_msg(struct drm_dp_mst_topology_mgr *mgr, bool up)
 		ret = drm_dp_dpcd_read(mgr->aux, basereg + curreply,
 				    replyblock, len);
 		if (ret != len) {
-			DRM_DEBUG_KMS("failed to read a chunk\n");
+			DRM_DEBUG_KMS("failed to read a chunk (len %d, ret %d)\n",
+				      len, ret);
+			return false;
 		}
+
 		ret = drm_dp_sideband_msg_build(msg, replyblock, len, false);
-		if (ret == false)
+		if (!ret) {
 			DRM_DEBUG_KMS("failed to build sideband msg\n");
+			return false;
+		}
+
 		curreply += len;
 		replylen -= len;
 	}
+	return true;
 }
 
 static int drm_dp_mst_handle_down_rep(struct drm_dp_mst_topology_mgr *mgr)
 {
 	int ret = 0;
 
-	drm_dp_get_one_sb_msg(mgr, false);
+	if (!drm_dp_get_one_sb_msg(mgr, false)) {
+		memset(&mgr->down_rep_recv, 0,
+		       sizeof(struct drm_dp_sideband_msg_rx));
+		return 0;
+	}
 
 	if (mgr->down_rep_recv.have_eomt) {
 		struct drm_dp_sideband_msg_tx *txmsg;
@@ -2266,7 +2288,12 @@ static int drm_dp_mst_handle_down_rep(struct drm_dp_mst_topology_mgr *mgr)
 static int drm_dp_mst_handle_up_req(struct drm_dp_mst_topology_mgr *mgr)
 {
 	int ret = 0;
-	drm_dp_get_one_sb_msg(mgr, true);
+
+	if (!drm_dp_get_one_sb_msg(mgr, true)) {
+		memset(&mgr->up_req_recv, 0,
+		       sizeof(struct drm_dp_sideband_msg_rx));
+		return 0;
+	}
 
 	if (mgr->up_req_recv.have_eomt) {
 		struct drm_dp_sideband_msg_req_body msg;
@@ -2318,7 +2345,9 @@ static int drm_dp_mst_handle_up_req(struct drm_dp_mst_topology_mgr *mgr)
 			DRM_DEBUG_KMS("Got RSN: pn: %d avail_pbn %d\n", msg.u.resource_stat.port_number, msg.u.resource_stat.available_pbn);
 		}
 
-		drm_dp_put_mst_branch_device(mstb);
+		if (mstb)
+			drm_dp_put_mst_branch_device(mstb);
+
 		memset(&mgr->up_req_recv, 0, sizeof(struct drm_dp_sideband_msg_rx));
 	}
 	return ret;
@@ -2515,8 +2544,8 @@ int drm_dp_atomic_find_vcpi_slots(struct drm_atomic_state *state,
 	int req_slots;
 
 	topology_state = drm_atomic_get_mst_topology_state(state, mgr);
-	if (topology_state == NULL)
-		return -ENOMEM;
+	if (IS_ERR(topology_state))
+		return PTR_ERR(topology_state);
 
 	port = drm_dp_get_validated_port_ref(mgr, port);
 	if (port == NULL)
@@ -2555,8 +2584,8 @@ int drm_dp_atomic_release_vcpi_slots(struct drm_atomic_state *state,
 	struct drm_dp_mst_topology_state *topology_state;
 
 	topology_state = drm_atomic_get_mst_topology_state(state, mgr);
-	if (topology_state == NULL)
-		return -ENOMEM;
+	if (IS_ERR(topology_state))
+		return PTR_ERR(topology_state);
 
 	/* We cannot rely on port->vcpi.num_slots to update
 	 * topology_state->avail_slots as the port may not exist if the parent
@@ -2992,41 +3021,32 @@ static void drm_dp_destroy_connector_work(struct work_struct *work)
 		(*mgr->cbs->hotplug)(mgr);
 }
 
-void *drm_dp_mst_duplicate_state(struct drm_atomic_state *state, void *obj)
+static struct drm_private_state *
+drm_dp_mst_duplicate_state(struct drm_private_obj *obj)
 {
-	struct drm_dp_mst_topology_mgr *mgr = obj;
-	struct drm_dp_mst_topology_state *new_mst_state;
+	struct drm_dp_mst_topology_state *state;
 
-	if (WARN_ON(!mgr->state))
+	state = kmemdup(obj->state, sizeof(*state), GFP_KERNEL);
+	if (!state)
 		return NULL;
 
-	new_mst_state = kmemdup(mgr->state, sizeof(*new_mst_state), GFP_KERNEL);
-	if (new_mst_state)
-		new_mst_state->state = state;
-	return new_mst_state;
+	__drm_atomic_helper_private_obj_duplicate_state(obj, &state->base);
+
+	return &state->base;
 }
 
-void drm_dp_mst_swap_state(void *obj, void **obj_state_ptr)
+static void drm_dp_mst_destroy_state(struct drm_private_obj *obj,
+				     struct drm_private_state *state)
 {
-	struct drm_dp_mst_topology_mgr *mgr = obj;
-	struct drm_dp_mst_topology_state **topology_state_ptr;
+	struct drm_dp_mst_topology_state *mst_state =
+		to_dp_mst_topology_state(state);
 
-	topology_state_ptr = (struct drm_dp_mst_topology_state **)obj_state_ptr;
-
-	mgr->state->state = (*topology_state_ptr)->state;
-	swap(*topology_state_ptr, mgr->state);
-	mgr->state->state = NULL;
-}
-
-void drm_dp_mst_destroy_state(void *obj_state)
-{
-	kfree(obj_state);
+	kfree(mst_state);
 }
 
 static const struct drm_private_state_funcs mst_state_funcs = {
-	.duplicate_state = drm_dp_mst_duplicate_state,
-	.swap_state = drm_dp_mst_swap_state,
-	.destroy_state = drm_dp_mst_destroy_state,
+	.atomic_duplicate_state = drm_dp_mst_duplicate_state,
+	.atomic_destroy_state = drm_dp_mst_destroy_state,
 };
 
 /**
@@ -3050,8 +3070,7 @@ struct drm_dp_mst_topology_state *drm_atomic_get_mst_topology_state(struct drm_a
 	struct drm_device *dev = mgr->dev;
 
 	WARN_ON(!drm_modeset_is_locked(&dev->mode_config.connection_mutex));
-	return drm_atomic_get_private_obj_state(state, mgr,
-						&mst_state_funcs);
+	return to_dp_mst_topology_state(drm_atomic_get_private_obj_state(state, &mgr->base));
 }
 EXPORT_SYMBOL(drm_atomic_get_mst_topology_state);
 
@@ -3071,6 +3090,8 @@ int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
 				 int max_dpcd_transaction_bytes,
 				 int max_payloads, int conn_base_id)
 {
+	struct drm_dp_mst_topology_state *mst_state;
+
 	mutex_init(&mgr->lock);
 	mutex_init(&mgr->qlock);
 	mutex_init(&mgr->payload_lock);
@@ -3099,14 +3120,18 @@ int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
 	if (test_calc_pbn_mode() < 0)
 		DRM_ERROR("MST PBN self-test failed\n");
 
-	mgr->state = kzalloc(sizeof(*mgr->state), GFP_KERNEL);
-	if (mgr->state == NULL)
+	mst_state = kzalloc(sizeof(*mst_state), GFP_KERNEL);
+	if (mst_state == NULL)
 		return -ENOMEM;
-	mgr->state->mgr = mgr;
+
+	mst_state->mgr = mgr;
 
 	/* max. time slots - one slot for MTP header */
-	mgr->state->avail_slots = 63;
-	mgr->funcs = &mst_state_funcs;
+	mst_state->avail_slots = 63;
+
+	drm_atomic_private_obj_init(&mgr->base,
+				    &mst_state->base,
+				    &mst_state_funcs);
 
 	return 0;
 }
@@ -3128,8 +3153,7 @@ void drm_dp_mst_topology_mgr_destroy(struct drm_dp_mst_topology_mgr *mgr)
 	mutex_unlock(&mgr->payload_lock);
 	mgr->dev = NULL;
 	mgr->aux = NULL;
-	kfree(mgr->state);
-	mgr->state = NULL;
+	drm_atomic_private_obj_fini(&mgr->base);
 	mgr->funcs = NULL;
 }
 EXPORT_SYMBOL(drm_dp_mst_topology_mgr_destroy);

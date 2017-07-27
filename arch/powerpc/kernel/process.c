@@ -511,6 +511,10 @@ void restore_math(struct pt_regs *regs)
 {
 	unsigned long msr;
 
+	/*
+	 * Syscall exit makes a similar initial check before branching
+	 * to restore_math. Keep them in synch.
+	 */
 	if (!msr_tm_active(regs->msr) &&
 		!current->thread.load_fp && !loadvec(current->thread))
 		return;
@@ -1133,6 +1137,11 @@ static inline void restore_sprs(struct thread_struct *old_thread,
 #endif
 }
 
+#ifdef CONFIG_PPC_BOOK3S_64
+#define CP_SIZE 128
+static const u8 dummy_copy_buffer[CP_SIZE] __attribute__((aligned(CP_SIZE)));
+#endif
+
 struct task_struct *__switch_to(struct task_struct *prev,
 	struct task_struct *new)
 {
@@ -1195,12 +1204,14 @@ struct task_struct *__switch_to(struct task_struct *prev,
 
 	__switch_to_tm(prev, new);
 
-	/*
-	 * We can't take a PMU exception inside _switch() since there is a
-	 * window where the kernel stack SLB and the kernel stack are out
-	 * of sync. Hard disable here.
-	 */
-	hard_irq_disable();
+	if (!radix_enabled()) {
+		/*
+		 * We can't take a PMU exception inside _switch() since there
+		 * is a window where the kernel stack SLB and the kernel stack
+		 * are out of sync. Hard disable here.
+		 */
+		hard_irq_disable();
+	}
 
 	/*
 	 * Call restore_sprs() before calling _switch(). If we move it after
@@ -1220,8 +1231,28 @@ struct task_struct *__switch_to(struct task_struct *prev,
 		batch->active = 1;
 	}
 
-	if (current_thread_info()->task->thread.regs)
+	if (current_thread_info()->task->thread.regs) {
 		restore_math(current_thread_info()->task->thread.regs);
+
+		/*
+		 * The copy-paste buffer can only store into foreign real
+		 * addresses, so unprivileged processes can not see the
+		 * data or use it in any way unless they have foreign real
+		 * mappings. We don't have a VAS driver that allocates those
+		 * yet, so no cpabort is required.
+		 */
+		if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
+			/*
+			 * DD1 allows paste into normal system memory, so we
+			 * do an unpaired copy here to clear the buffer and
+			 * prevent a covert channel being set up.
+			 *
+			 * cpabort is not used because it is quite expensive.
+			 */
+			asm volatile(PPC_COPY(%0, %1)
+					: : "r"(dummy_copy_buffer), "r"(0));
+		}
+	}
 #endif /* CONFIG_PPC_STD_MMU_64 */
 
 	return last;

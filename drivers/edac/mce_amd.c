@@ -161,7 +161,7 @@ static const char * const smca_ls_mce_desc[] = {
 	"Sys Read data error thread 0",
 	"Sys read data error thread 1",
 	"DC tag error type 2",
-	"DC data error type 1 (poison comsumption)",
+	"DC data error type 1 (poison consumption)",
 	"DC data error type 2",
 	"DC data error type 3",
 	"DC tag error type 4",

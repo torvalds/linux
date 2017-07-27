@@ -33,6 +33,9 @@ enum pnv_phb_model {
 #define PNV_IODA_PE_SLAVE	(1 << 4)	/* Slave PE in compound case	*/
 #define PNV_IODA_PE_VF		(1 << 5)	/* PE for one VF 		*/
 
+/* Indicates operations are frozen for a PE: MMIO in PESTA & DMA in PESTB. */
+#define PNV_IODA_STOPPED_STATE	0x8000000000000000
+
 /* Data associated with a PE, including IOMMU tracking etc.. */
 struct pnv_phb;
 struct pnv_ioda_pe {
@@ -169,13 +172,9 @@ struct pnv_phb {
 		unsigned int		pe_rmap[0x10000];
 	} ioda;
 
-	/* PHB and hub status structure */
-	union {
-		unsigned char			blob[PNV_PCI_DIAG_BUF_SIZE];
-		struct OpalIoP7IOCPhbErrorData	p7ioc;
-		struct OpalIoPhb3ErrorData	phb3;
-		struct OpalIoP7IOCErrorData 	hub_diag;
-	} diag;
+	/* PHB and hub diagnostics */
+	unsigned int		diag_data_size;
+	u8			*diag_data;
 
 	/* Nvlink2 data */
 	struct npu {

@@ -27,7 +27,6 @@
 #include <linux/kthread.h>
 #include "speakup.h"
 #include "spk_priv.h"
-#include "serialio.h"
 
 #define DRV_VERSION "2.20"
 #define SYNTH_CLEAR 0x03
@@ -42,7 +41,7 @@ static inline int synth_full(void)
 static void do_catch_up(struct spk_synth *synth);
 static void synth_flush(struct spk_synth *synth);
 static void read_buff_add(u_char c);
-static unsigned char get_index(void);
+static unsigned char get_index(struct spk_synth *synth);
 
 static int in_escape;
 static int is_flushing;
@@ -125,15 +124,16 @@ static struct spk_synth synth_dectlk = {
 	.trigger = 50,
 	.jiffies = 50,
 	.full = 40000,
+	.dev_name = SYNTH_DEFAULT_DEV,
 	.startup = SYNTH_START,
 	.checkval = SYNTH_CHECK,
 	.vars = vars,
 	.default_pitch = ap_defaults,
 	.default_vol = g5_defaults,
-	.io_ops = &spk_serial_io_ops,
-	.probe = spk_serial_synth_probe,
-	.release = spk_serial_release,
-	.synth_immediate = spk_serial_synth_immediate,
+	.io_ops = &spk_ttyio_ops,
+	.probe = spk_ttyio_synth_probe,
+	.release = spk_ttyio_release,
+	.synth_immediate = spk_ttyio_synth_immediate,
 	.catch_up = do_catch_up,
 	.flush = synth_flush,
 	.is_alive = spk_synth_is_alive_restart,
@@ -163,7 +163,7 @@ static int is_indnum(u_char *ch)
 
 static u_char lastind;
 
-static unsigned char get_index(void)
+static unsigned char get_index(struct spk_synth *synth)
 {
 	u_char rv;
 
@@ -294,13 +294,16 @@ static void synth_flush(struct spk_synth *synth)
 		synth->io_ops->synth_out(synth, ']');
 	in_escape = 0;
 	is_flushing = 1;
+	synth->io_ops->flush_buffer();
 	synth->io_ops->synth_out(synth, SYNTH_CLEAR);
 }
 
 module_param_named(ser, synth_dectlk.ser, int, 0444);
+module_param_named(dev, synth_dectlk.dev_name, charp, S_IRUGO);
 module_param_named(start, synth_dectlk.startup, short, 0444);
 
 MODULE_PARM_DESC(ser, "Set the serial port for the synthesizer (0-based).");
+MODULE_PARM_DESC(dev, "Set the device e.g. ttyUSB0, for the synthesizer.");
 MODULE_PARM_DESC(start, "Start the synthesizer once it is loaded.");
 
 module_spk_synth(synth_dectlk);

@@ -231,7 +231,6 @@ static int astfb_create(struct drm_fb_helper *helper,
 
 	strcpy(info->fix.id, "astdrmfb");
 
-	info->flags = FBINFO_DEFAULT | FBINFO_CAN_FORCE_OUTPUT;
 	info->fbops = &astfb_ops;
 
 	info->apertures->ranges[0].base = pci_resource_start(dev->pdev, 0);

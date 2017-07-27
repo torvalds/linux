@@ -409,7 +409,8 @@ static void mdp5_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	spin_unlock_irqrestore(&mdp5_crtc->lm_lock, flags);
 }
 
-static void mdp5_crtc_disable(struct drm_crtc *crtc)
+static void mdp5_crtc_atomic_disable(struct drm_crtc *crtc,
+				     struct drm_crtc_state *old_state)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(crtc->state);
@@ -429,7 +430,8 @@ static void mdp5_crtc_disable(struct drm_crtc *crtc)
 	mdp5_crtc->enabled = false;
 }
 
-static void mdp5_crtc_enable(struct drm_crtc *crtc)
+static void mdp5_crtc_atomic_enable(struct drm_crtc *crtc,
+				    struct drm_crtc_state *old_state)
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(crtc->state);
@@ -939,11 +941,11 @@ static const struct drm_crtc_funcs mdp5_crtc_no_lm_cursor_funcs = {
 
 static const struct drm_crtc_helper_funcs mdp5_crtc_helper_funcs = {
 	.mode_set_nofb = mdp5_crtc_mode_set_nofb,
-	.disable = mdp5_crtc_disable,
-	.enable = mdp5_crtc_enable,
 	.atomic_check = mdp5_crtc_atomic_check,
 	.atomic_begin = mdp5_crtc_atomic_begin,
 	.atomic_flush = mdp5_crtc_atomic_flush,
+	.atomic_enable = mdp5_crtc_atomic_enable,
+	.atomic_disable = mdp5_crtc_atomic_disable,
 };
 
 static void mdp5_crtc_vblank_irq(struct mdp_irq *irq, uint32_t irqstatus)

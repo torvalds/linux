@@ -217,7 +217,7 @@ void ctcm_purge_skb_queue(struct sk_buff_head *q)
 	CTCM_DBF_TEXT(TRACE, CTC_DBF_DEBUG, __func__);
 
 	while ((skb = skb_dequeue(q))) {
-		atomic_dec(&skb->users);
+		refcount_dec(&skb->users);
 		dev_kfree_skb_any(skb);
 	}
 }
@@ -271,7 +271,7 @@ static void chx_txdone(fsm_instance *fi, int event, void *arg)
 			priv->stats.tx_bytes += 2;
 			first = 0;
 		}
-		atomic_dec(&skb->users);
+		refcount_dec(&skb->users);
 		dev_kfree_skb_irq(skb);
 	}
 	spin_lock(&ch->collect_lock);
@@ -297,7 +297,7 @@ static void chx_txdone(fsm_instance *fi, int event, void *arg)
 				skb_put(ch->trans_skb, skb->len), skb->len);
 			priv->stats.tx_packets++;
 			priv->stats.tx_bytes += skb->len - LL_HEADER_LENGTH;
-			atomic_dec(&skb->users);
+			refcount_dec(&skb->users);
 			dev_kfree_skb_irq(skb);
 			i++;
 		}
@@ -1248,7 +1248,7 @@ static void ctcmpc_chx_txdone(fsm_instance *fi, int event, void *arg)
 			priv->stats.tx_bytes += 2;
 			first = 0;
 		}
-		atomic_dec(&skb->users);
+		refcount_dec(&skb->users);
 		dev_kfree_skb_irq(skb);
 	}
 	spin_lock(&ch->collect_lock);
@@ -1279,7 +1279,7 @@ static void ctcmpc_chx_txdone(fsm_instance *fi, int event, void *arg)
 		       __func__, data_space);
 
 	while ((skb = skb_dequeue(&ch->collect_queue))) {
-		memcpy(skb_put(ch->trans_skb, skb->len), skb->data, skb->len);
+		skb_put_data(ch->trans_skb, skb->data, skb->len);
 		p_header = (struct pdu *)
 			(skb_tail_pointer(ch->trans_skb) - skb->len);
 		p_header->pdu_flag = 0x00;
@@ -1298,7 +1298,7 @@ static void ctcmpc_chx_txdone(fsm_instance *fi, int event, void *arg)
 		data_space -= skb->len;
 		priv->stats.tx_packets++;
 		priv->stats.tx_bytes += skb->len;
-		atomic_dec(&skb->users);
+		refcount_dec(&skb->users);
 		dev_kfree_skb_any(skb);
 		peekskb = skb_peek(&ch->collect_queue);
 		if (peekskb->len > data_space)
@@ -1431,13 +1431,12 @@ static void ctcmpc_chx_rx(fsm_instance *fi, int event, void *arg)
 			break;
 		case MPCG_STATE_FLOWC:
 		case MPCG_STATE_READY:
-			memcpy(skb_put(new_skb, block_len),
-					       skb->data, block_len);
+			skb_put_data(new_skb, skb->data, block_len);
 			skb_queue_tail(&ch->io_queue, new_skb);
 			tasklet_schedule(&ch->ch_tasklet);
 			break;
 		default:
-			memcpy(skb_put(new_skb, len), skb->data, len);
+			skb_put_data(new_skb, skb->data, len);
 			skb_queue_tail(&ch->io_queue, new_skb);
 			tasklet_hi_schedule(&ch->ch_tasklet);
 			break;
@@ -1796,7 +1795,7 @@ static void ctcmpc_chx_send_sweep(fsm_instance *fsm, int event, void *arg)
 		fsm_event(grp->fsm, MPCG_EVENT_INOP, dev);
 				goto done;
 	} else {
-		atomic_inc(&skb->users);
+		refcount_inc(&skb->users);
 		skb_queue_tail(&wch->io_queue, skb);
 	}
 

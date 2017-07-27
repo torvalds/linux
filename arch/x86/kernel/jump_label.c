@@ -105,11 +105,9 @@ static void __jump_label_transform(struct jump_entry *entry,
 void arch_jump_label_transform(struct jump_entry *entry,
 			       enum jump_label_type type)
 {
-	get_online_cpus();
 	mutex_lock(&text_mutex);
 	__jump_label_transform(entry, type, NULL, 0);
 	mutex_unlock(&text_mutex);
-	put_online_cpus();
 }
 
 static enum {

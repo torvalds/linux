@@ -395,8 +395,9 @@ static int exynos_drm_bind(struct device *dev)
 	/* init kms poll for handling hpd */
 	drm_kms_helper_poll_init(drm);
 
-	/* force connectors detection */
-	drm_helper_hpd_irq_event(drm);
+	ret = exynos_drm_fbdev_init(drm);
+	if (ret)
+		goto err_cleanup_poll;
 
 	/* register the DRM device */
 	ret = drm_dev_register(drm, 0);
@@ -407,6 +408,7 @@ static int exynos_drm_bind(struct device *dev)
 
 err_cleanup_fbdev:
 	exynos_drm_fbdev_fini(drm);
+err_cleanup_poll:
 	drm_kms_helper_poll_fini(drm);
 	exynos_drm_device_subdrv_remove(drm);
 err_unbind_all:

@@ -252,8 +252,7 @@ int lio_wait_for_instr_fetch(struct octeon_device *oct)
 			if (!(oct->io_qmask.iq & BIT_ULL(i)))
 				continue;
 			pending =
-			    atomic_read(&oct->
-					       instr_queue[i]->instr_pending);
+			    atomic_read(&oct->instr_queue[i]->instr_pending);
 			if (pending)
 				__check_db_timeout(oct, i);
 			instr_cnt += pending;

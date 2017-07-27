@@ -1333,7 +1333,7 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	ret = i915_load_modeset_init(&dev_priv->drm);
 	if (ret < 0)
-		goto out_cleanup_vblank;
+		goto out_cleanup_hw;
 
 	i915_driver_register(dev_priv);
 
@@ -1350,8 +1350,6 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	return 0;
 
-out_cleanup_vblank:
-	drm_vblank_cleanup(&dev_priv->drm);
 out_cleanup_hw:
 	i915_driver_cleanup_hw(dev_priv);
 out_cleanup_mmio:
@@ -1384,8 +1382,6 @@ void i915_driver_unload(struct drm_device *dev)
 	drm_atomic_helper_shutdown(dev);
 
 	intel_gvt_cleanup(dev_priv);
-
-	drm_vblank_cleanup(dev);
 
 	intel_modeset_cleanup(dev);
 
@@ -2743,7 +2739,6 @@ static struct drm_driver driver = {
 	.open = i915_driver_open,
 	.lastclose = i915_driver_lastclose,
 	.postclose = i915_driver_postclose,
-	.set_busid = drm_pci_set_busid,
 
 	.gem_close_object = i915_gem_close_object,
 	.gem_free_object_unlocked = i915_gem_free_object,

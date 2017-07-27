@@ -114,10 +114,12 @@ static ssize_t queue_state_write(void *data, const char __user *buf,
 		blk_mq_run_hw_queues(q, true);
 	} else if (strcmp(op, "start") == 0) {
 		blk_mq_start_stopped_hw_queues(q, true);
+	} else if (strcmp(op, "kick") == 0) {
+		blk_mq_kick_requeue_list(q);
 	} else {
 		pr_err("%s: unsupported operation '%s'\n", __func__, op);
 inval:
-		pr_err("%s: use either 'run' or 'start'\n", __func__);
+		pr_err("%s: use 'run', 'start' or 'kick'\n", __func__);
 		return -EINVAL;
 	}
 	return count;
@@ -131,6 +133,29 @@ static void print_stat(struct seq_file *m, struct blk_rq_stat *stat)
 	} else {
 		seq_puts(m, "samples=0");
 	}
+}
+
+static int queue_write_hint_show(void *data, struct seq_file *m)
+{
+	struct request_queue *q = data;
+	int i;
+
+	for (i = 0; i < BLK_MAX_WRITE_HINTS; i++)
+		seq_printf(m, "hint%d: %llu\n", i, q->write_hints[i]);
+
+	return 0;
+}
+
+static ssize_t queue_write_hint_store(void *data, const char __user *buf,
+				      size_t count, loff_t *ppos)
+{
+	struct request_queue *q = data;
+	int i;
+
+	for (i = 0; i < BLK_MAX_WRITE_HINTS; i++)
+		q->write_hints[i] = 0;
+
+	return count;
 }
 
 static int queue_poll_stat_show(void *data, struct seq_file *m)
@@ -267,6 +292,14 @@ static const char *const rqf_name[] = {
 };
 #undef RQF_NAME
 
+#define RQAF_NAME(name) [REQ_ATOM_##name] = #name
+static const char *const rqaf_name[] = {
+	RQAF_NAME(COMPLETE),
+	RQAF_NAME(STARTED),
+	RQAF_NAME(POLL_SLEPT),
+};
+#undef RQAF_NAME
+
 int __blk_mq_debugfs_rq_show(struct seq_file *m, struct request *rq)
 {
 	const struct blk_mq_ops *const mq_ops = rq->q->mq_ops;
@@ -283,6 +316,8 @@ int __blk_mq_debugfs_rq_show(struct seq_file *m, struct request *rq)
 	seq_puts(m, ", .rq_flags=");
 	blk_flags_show(m, (__force unsigned int)rq->rq_flags, rqf_name,
 		       ARRAY_SIZE(rqf_name));
+	seq_puts(m, ", .atomic_flags=");
+	blk_flags_show(m, rq->atomic_flags, rqaf_name, ARRAY_SIZE(rqaf_name));
 	seq_printf(m, ", .tag=%d, .internal_tag=%d", rq->tag,
 		   rq->internal_tag);
 	if (mq_ops->show_rq)
@@ -297,6 +332,37 @@ int blk_mq_debugfs_rq_show(struct seq_file *m, void *v)
 	return __blk_mq_debugfs_rq_show(m, list_entry_rq(v));
 }
 EXPORT_SYMBOL_GPL(blk_mq_debugfs_rq_show);
+
+static void *queue_requeue_list_start(struct seq_file *m, loff_t *pos)
+	__acquires(&q->requeue_lock)
+{
+	struct request_queue *q = m->private;
+
+	spin_lock_irq(&q->requeue_lock);
+	return seq_list_start(&q->requeue_list, *pos);
+}
+
+static void *queue_requeue_list_next(struct seq_file *m, void *v, loff_t *pos)
+{
+	struct request_queue *q = m->private;
+
+	return seq_list_next(v, &q->requeue_list, pos);
+}
+
+static void queue_requeue_list_stop(struct seq_file *m, void *v)
+	__releases(&q->requeue_lock)
+{
+	struct request_queue *q = m->private;
+
+	spin_unlock_irq(&q->requeue_lock);
+}
+
+static const struct seq_operations queue_requeue_list_seq_ops = {
+	.start	= queue_requeue_list_start,
+	.next	= queue_requeue_list_next,
+	.stop	= queue_requeue_list_stop,
+	.show	= blk_mq_debugfs_rq_show,
+};
 
 static void *hctx_dispatch_start(struct seq_file *m, loff_t *pos)
 	__acquires(&hctx->lock)
@@ -328,6 +394,36 @@ static const struct seq_operations hctx_dispatch_seq_ops = {
 	.stop	= hctx_dispatch_stop,
 	.show	= blk_mq_debugfs_rq_show,
 };
+
+struct show_busy_params {
+	struct seq_file		*m;
+	struct blk_mq_hw_ctx	*hctx;
+};
+
+/*
+ * Note: the state of a request may change while this function is in progress,
+ * e.g. due to a concurrent blk_mq_finish_request() call.
+ */
+static void hctx_show_busy_rq(struct request *rq, void *data, bool reserved)
+{
+	const struct show_busy_params *params = data;
+
+	if (blk_mq_map_queue(rq->q, rq->mq_ctx->cpu) == params->hctx &&
+	    test_bit(REQ_ATOM_STARTED, &rq->atomic_flags))
+		__blk_mq_debugfs_rq_show(params->m,
+					 list_entry_rq(&rq->queuelist));
+}
+
+static int hctx_busy_show(void *data, struct seq_file *m)
+{
+	struct blk_mq_hw_ctx *hctx = data;
+	struct show_busy_params params = { .m = m, .hctx = hctx };
+
+	blk_mq_tagset_busy_iter(hctx->queue->tag_set, hctx_show_busy_rq,
+				&params);
+
+	return 0;
+}
 
 static int hctx_ctx_map_show(void *data, struct seq_file *m)
 {
@@ -655,7 +751,9 @@ const struct file_operations blk_mq_debugfs_fops = {
 
 static const struct blk_mq_debugfs_attr blk_mq_debugfs_queue_attrs[] = {
 	{"poll_stat", 0400, queue_poll_stat_show},
+	{"requeue_list", 0400, .seq_ops = &queue_requeue_list_seq_ops},
 	{"state", 0600, queue_state_show, queue_state_write},
+	{"write_hints", 0600, queue_write_hint_show, queue_write_hint_store},
 	{},
 };
 
@@ -663,6 +761,7 @@ static const struct blk_mq_debugfs_attr blk_mq_debugfs_hctx_attrs[] = {
 	{"state", 0400, hctx_state_show},
 	{"flags", 0400, hctx_flags_show},
 	{"dispatch", 0400, .seq_ops = &hctx_dispatch_seq_ops},
+	{"busy", 0400, hctx_busy_show},
 	{"ctx_map", 0400, hctx_ctx_map_show},
 	{"tags", 0400, hctx_tags_show},
 	{"tags_bitmap", 0400, hctx_tags_bitmap_show},

@@ -106,9 +106,6 @@ Kernel utility functions
 .. kernel-doc:: kernel/sys.c
    :export:
 
-.. kernel-doc:: kernel/rcu/srcu.c
-   :export:
-
 .. kernel-doc:: kernel/rcu/tree.c
    :export:
 

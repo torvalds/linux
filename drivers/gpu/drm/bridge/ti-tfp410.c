@@ -237,11 +237,7 @@ static int tfp410_init(struct device *dev)
 		}
 	}
 
-	ret = drm_bridge_add(&dvi->bridge);
-	if (ret) {
-		dev_err(dev, "drm_bridge_add() failed: %d\n", ret);
-		goto fail;
-	}
+	drm_bridge_add(&dvi->bridge);
 
 	return 0;
 fail:

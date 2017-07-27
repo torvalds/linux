@@ -1175,15 +1175,19 @@ next:
 	return 0;
 }
 
-static int extref_get_fields(struct extent_buffer *eb, unsigned long ref_ptr,
-			     u32 *namelen, char **name, u64 *index,
-			     u64 *parent_objectid)
+static int extref_get_fields(struct extent_buffer *eb, int slot,
+			     unsigned long ref_ptr, u32 *namelen, char **name,
+			     u64 *index, u64 *parent_objectid)
 {
 	struct btrfs_inode_extref *extref;
 
 	extref = (struct btrfs_inode_extref *)ref_ptr;
 
 	*namelen = btrfs_inode_extref_name_len(eb, extref);
+	if (!btrfs_is_name_len_valid(eb, slot, (unsigned long)&extref->name,
+				     *namelen))
+		return -EIO;
+
 	*name = kmalloc(*namelen, GFP_NOFS);
 	if (*name == NULL)
 		return -ENOMEM;
@@ -1198,14 +1202,19 @@ static int extref_get_fields(struct extent_buffer *eb, unsigned long ref_ptr,
 	return 0;
 }
 
-static int ref_get_fields(struct extent_buffer *eb, unsigned long ref_ptr,
-			  u32 *namelen, char **name, u64 *index)
+static int ref_get_fields(struct extent_buffer *eb, int slot,
+			  unsigned long ref_ptr, u32 *namelen, char **name,
+			  u64 *index)
 {
 	struct btrfs_inode_ref *ref;
 
 	ref = (struct btrfs_inode_ref *)ref_ptr;
 
 	*namelen = btrfs_inode_ref_name_len(eb, ref);
+	if (!btrfs_is_name_len_valid(eb, slot, (unsigned long)(ref + 1),
+				     *namelen))
+		return -EIO;
+
 	*name = kmalloc(*namelen, GFP_NOFS);
 	if (*name == NULL)
 		return -ENOMEM;
@@ -1280,8 +1289,8 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 
 	while (ref_ptr < ref_end) {
 		if (log_ref_ver) {
-			ret = extref_get_fields(eb, ref_ptr, &namelen, &name,
-						&ref_index, &parent_objectid);
+			ret = extref_get_fields(eb, slot, ref_ptr, &namelen,
+					  &name, &ref_index, &parent_objectid);
 			/*
 			 * parent object can change from one array
 			 * item to another.
@@ -1293,8 +1302,8 @@ static noinline int add_inode_ref(struct btrfs_trans_handle *trans,
 				goto out;
 			}
 		} else {
-			ret = ref_get_fields(eb, ref_ptr, &namelen, &name,
-					     &ref_index);
+			ret = ref_get_fields(eb, slot, ref_ptr, &namelen,
+					     &name, &ref_index);
 		}
 		if (ret)
 			goto out;
@@ -1841,7 +1850,7 @@ static noinline int replay_one_dir_item(struct btrfs_trans_handle *trans,
 	ptr_end = ptr + item_size;
 	while (ptr < ptr_end) {
 		di = (struct btrfs_dir_item *)ptr;
-		if (verify_dir_item(fs_info, eb, di))
+		if (verify_dir_item(fs_info, eb, slot, di))
 			return -EIO;
 		name_len = btrfs_dir_name_len(eb, di);
 		ret = replay_one_name(trans, root, path, eb, di, key);
@@ -2017,7 +2026,7 @@ again:
 	ptr_end = ptr + item_size;
 	while (ptr < ptr_end) {
 		di = (struct btrfs_dir_item *)ptr;
-		if (verify_dir_item(fs_info, eb, di)) {
+		if (verify_dir_item(fs_info, eb, slot, di)) {
 			ret = -EIO;
 			goto out;
 		}
@@ -2102,6 +2111,7 @@ static int replay_xattr_deletes(struct btrfs_trans_handle *trans,
 			      struct btrfs_path *path,
 			      const u64 ino)
 {
+	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_key search_key;
 	struct btrfs_path *log_path;
 	int i;
@@ -2143,6 +2153,12 @@ process_leaf:
 			u32 this_len = sizeof(*di) + name_len + data_len;
 			char *name;
 
+			ret = verify_dir_item(fs_info, path->nodes[0],
+					      path->slots[0], di);
+			if (ret) {
+				ret = -EIO;
+				goto out;
+			}
 			name = kmalloc(name_len, GFP_NOFS);
 			if (!name) {
 				ret = -ENOMEM;
@@ -4546,6 +4562,12 @@ static int btrfs_check_ref_name_override(struct extent_buffer *eb,
 			this_len = sizeof(*extref) + this_name_len;
 		}
 
+		ret = btrfs_is_name_len_valid(eb, slot, name_ptr,
+					      this_name_len);
+		if (!ret) {
+			ret = -EIO;
+			goto out;
+		}
 		if (this_name_len > name_len) {
 			char *new_name;
 

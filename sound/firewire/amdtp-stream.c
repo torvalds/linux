@@ -148,7 +148,26 @@ EXPORT_SYMBOL(amdtp_rate_table);
 int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
 					struct snd_pcm_runtime *runtime)
 {
+	struct snd_pcm_hardware *hw = &runtime->hw;
 	int err;
+
+	hw->info = SNDRV_PCM_INFO_BATCH |
+		   SNDRV_PCM_INFO_BLOCK_TRANSFER |
+		   SNDRV_PCM_INFO_INTERLEAVED |
+		   SNDRV_PCM_INFO_JOINT_DUPLEX |
+		   SNDRV_PCM_INFO_MMAP |
+		   SNDRV_PCM_INFO_MMAP_VALID;
+
+	/* SNDRV_PCM_INFO_BATCH */
+	hw->periods_min = 2;
+	hw->periods_max = UINT_MAX;
+
+	/* bytes for a frame */
+	hw->period_bytes_min = 4 * hw->channels_max;
+
+	/* Just to prevent from allocating much pages. */
+	hw->period_bytes_max = hw->period_bytes_min * 2048;
+	hw->buffer_bytes_max = hw->period_bytes_max * hw->periods_min;
 
 	/*
 	 * Currently firewire-lib processes 16 packets in one software
@@ -931,6 +950,25 @@ unsigned long amdtp_stream_pcm_pointer(struct amdtp_stream *s)
 	return ACCESS_ONCE(s->pcm_buffer_pointer);
 }
 EXPORT_SYMBOL(amdtp_stream_pcm_pointer);
+
+/**
+ * amdtp_stream_pcm_ack - acknowledge queued PCM frames
+ * @s: the AMDTP stream that transfers the PCM frames
+ *
+ * Returns zero always.
+ */
+int amdtp_stream_pcm_ack(struct amdtp_stream *s)
+{
+	/*
+	 * Process isochronous packets for recent isochronous cycle to handle
+	 * queued PCM frames.
+	 */
+	if (amdtp_stream_running(s))
+		fw_iso_context_flush_completions(s->context);
+
+	return 0;
+}
+EXPORT_SYMBOL(amdtp_stream_pcm_ack);
 
 /**
  * amdtp_stream_update - update the stream after a bus reset

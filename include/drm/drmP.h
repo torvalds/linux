@@ -387,22 +387,49 @@ struct drm_device {
 	bool irq_enabled;
 	int irq;
 
-	/*
+	/**
+	 * @vblank_disable_immediate:
+	 *
 	 * If true, vblank interrupt will be disabled immediately when the
 	 * refcount drops to zero, as opposed to via the vblank disable
 	 * timer.
-	 * This can be set to true it the hardware has a working vblank
-	 * counter and the driver uses drm_vblank_on() and drm_vblank_off()
-	 * appropriately.
+	 *
+	 * This can be set to true it the hardware has a working vblank counter
+	 * with high-precision timestamping (otherwise there are races) and the
+	 * driver uses drm_crtc_vblank_on() and drm_crtc_vblank_off()
+	 * appropriately. See also @max_vblank_count and
+	 * &drm_crtc_funcs.get_vblank_counter.
 	 */
 	bool vblank_disable_immediate;
 
-	/* array of size num_crtcs */
+	/**
+	 * @vblank:
+	 *
+	 * Array of vblank tracking structures, one per &struct drm_crtc. For
+	 * historical reasons (vblank support predates kernel modesetting) this
+	 * is free-standing and not part of &struct drm_crtc itself. It must be
+	 * initialized explicitly by calling drm_vblank_init().
+	 */
 	struct drm_vblank_crtc *vblank;
 
 	spinlock_t vblank_time_lock;    /**< Protects vblank count and time updates during vblank enable/disable */
 	spinlock_t vbl_lock;
 
+	/**
+	 * @max_vblank_count:
+	 *
+	 * Maximum value of the vblank registers. This value +1 will result in a
+	 * wrap-around of the vblank register. It is used by the vblank core to
+	 * handle wrap-arounds.
+	 *
+	 * If set to zero the vblank core will try to guess the elapsed vblanks
+	 * between times when the vblank interrupt is disabled through
+	 * high-precision timestamps. That approach is suffering from small
+	 * races and imprecision over longer time periods, hence exposing a
+	 * hardware vblank counter is always recommended.
+	 *
+	 * If non-zeor, &drm_crtc_funcs.get_vblank_counter must be set.
+	 */
 	u32 max_vblank_count;           /**< size of vblank counter register */
 
 	/**

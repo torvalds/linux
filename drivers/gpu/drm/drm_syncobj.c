@@ -330,7 +330,6 @@ err_put_fd:
 }
 /**
  * drm_syncobj_open - initalizes syncobj file-private structures at devnode open time
- * @dev: drm_device which is being opened by userspace
  * @file_private: drm file-private structure to set up
  *
  * Called at device open time, sets up the structure for handling refcounting
@@ -354,7 +353,6 @@ drm_syncobj_release_handle(int id, void *ptr, void *data)
 
 /**
  * drm_syncobj_release - release file-private sync object resources
- * @dev: drm_device which is being closed by userspace
  * @file_private: drm file-private structure to clean up
  *
  * Called at close time when the filp is going away.

@@ -356,7 +356,8 @@ static void omap_crtc_arm_event(struct drm_crtc *crtc)
 	}
 }
 
-static void omap_crtc_enable(struct drm_crtc *crtc)
+static void omap_crtc_atomic_enable(struct drm_crtc *crtc,
+				    struct drm_crtc_state *old_state)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 	int ret;
@@ -372,7 +373,8 @@ static void omap_crtc_enable(struct drm_crtc *crtc)
 	spin_unlock_irq(&crtc->dev->event_lock);
 }
 
-static void omap_crtc_disable(struct drm_crtc *crtc)
+static void omap_crtc_atomic_disable(struct drm_crtc *crtc,
+				     struct drm_crtc_state *old_state)
 {
 	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
 
@@ -567,11 +569,11 @@ static const struct drm_crtc_funcs omap_crtc_funcs = {
 
 static const struct drm_crtc_helper_funcs omap_crtc_helper_funcs = {
 	.mode_set_nofb = omap_crtc_mode_set_nofb,
-	.disable = omap_crtc_disable,
-	.enable = omap_crtc_enable,
 	.atomic_check = omap_crtc_atomic_check,
 	.atomic_begin = omap_crtc_atomic_begin,
 	.atomic_flush = omap_crtc_atomic_flush,
+	.atomic_enable = omap_crtc_atomic_enable,
+	.atomic_disable = omap_crtc_atomic_disable,
 };
 
 /* -----------------------------------------------------------------------------

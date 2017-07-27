@@ -256,7 +256,6 @@ static void mxsfb_unload(struct drm_device *drm)
 
 	drm_kms_helper_poll_fini(drm);
 	drm_mode_config_cleanup(drm);
-	drm_vblank_cleanup(drm);
 
 	pm_runtime_get_sync(drm->dev);
 	drm_irq_uninstall(drm);
@@ -335,7 +334,7 @@ static struct drm_driver mxsfb_driver = {
 	.irq_uninstall		= mxsfb_irq_preinstall,
 	.enable_vblank		= mxsfb_enable_vblank,
 	.disable_vblank		= mxsfb_disable_vblank,
-	.gem_free_object	= drm_gem_cma_free_object,
+	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 	.dumb_create		= drm_gem_cma_dumb_create,
 	.dumb_map_offset	= drm_gem_cma_dumb_map_offset,

@@ -101,7 +101,6 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 	if (adev->kfd) {
 		struct kgd2kfd_shared_resources gpu_resources = {
 			.compute_vmid_bitmap = 0xFF00,
-			.num_mec = adev->gfx.mec.num_mec,
 			.num_pipe_per_mec = adev->gfx.mec.num_pipe_per_mec,
 			.num_queue_per_pipe = adev->gfx.mec.num_queue_per_pipe
 		};
@@ -122,7 +121,7 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 
 		/* According to linux/bitmap.h we shouldn't use bitmap_clear if
 		 * nbits is not compile time constant */
-		last_valid_bit = adev->gfx.mec.num_mec
+		last_valid_bit = 1 /* only first MEC can have compute queues */
 				* adev->gfx.mec.num_pipe_per_mec
 				* adev->gfx.mec.num_queue_per_pipe;
 		for (i = last_valid_bit; i < KGD_MAX_QUEUES; ++i)

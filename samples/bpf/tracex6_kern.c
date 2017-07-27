@@ -3,22 +3,36 @@
 #include <uapi/linux/bpf.h>
 #include "bpf_helpers.h"
 
-struct bpf_map_def SEC("maps") my_map = {
+struct bpf_map_def SEC("maps") counters = {
 	.type = BPF_MAP_TYPE_PERF_EVENT_ARRAY,
 	.key_size = sizeof(int),
 	.value_size = sizeof(u32),
-	.max_entries = 32,
+	.max_entries = 64,
+};
+struct bpf_map_def SEC("maps") values = {
+	.type = BPF_MAP_TYPE_HASH,
+	.key_size = sizeof(int),
+	.value_size = sizeof(u64),
+	.max_entries = 64,
 };
 
-SEC("kprobe/sys_write")
+SEC("kprobe/htab_map_get_next_key")
 int bpf_prog1(struct pt_regs *ctx)
 {
-	u64 count;
 	u32 key = bpf_get_smp_processor_id();
-	char fmt[] = "CPU-%d   %llu\n";
+	u64 count, *val;
+	s64 error;
 
-	count = bpf_perf_event_read(&my_map, key);
-	bpf_trace_printk(fmt, sizeof(fmt), key, count);
+	count = bpf_perf_event_read(&counters, key);
+	error = (s64)count;
+	if (error <= -2 && error >= -22)
+		return 0;
+
+	val = bpf_map_lookup_elem(&values, &key);
+	if (val)
+		*val = count;
+	else
+		bpf_map_update_elem(&values, &key, &count, BPF_NOEXIST);
 
 	return 0;
 }

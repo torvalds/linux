@@ -269,7 +269,7 @@ static void sii902x_bridge_mode_set(struct drm_bridge *bridge,
 	if (ret)
 		return;
 
-	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame, adj);
+	ret = drm_hdmi_avi_infoframe_from_display_mode(&frame, adj, false);
 	if (ret < 0) {
 		DRM_ERROR("couldn't fill AVI infoframe\n");
 		return;
@@ -418,11 +418,7 @@ static int sii902x_probe(struct i2c_client *client,
 
 	sii902x->bridge.funcs = &sii902x_bridge_funcs;
 	sii902x->bridge.of_node = dev->of_node;
-	ret = drm_bridge_add(&sii902x->bridge);
-	if (ret) {
-		dev_err(dev, "Failed to add drm_bridge\n");
-		return ret;
-	}
+	drm_bridge_add(&sii902x->bridge);
 
 	i2c_set_clientdata(client, sii902x);
 

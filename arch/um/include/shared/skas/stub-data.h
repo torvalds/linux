@@ -8,8 +8,6 @@
 #ifndef __STUB_DATA_H
 #define __STUB_DATA_H
 
-#include <time.h>
-
 struct stub_data {
 	unsigned long offset;
 	int fd;

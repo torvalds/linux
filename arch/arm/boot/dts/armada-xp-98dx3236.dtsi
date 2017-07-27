@@ -311,6 +311,10 @@
 	reg = <0x20a00 0x2d0>, <0x21070 0x58>;
 };
 
+&rtc {
+	status = "disabled";
+};
+
 &timer {
 	compatible = "marvell,armada-xp-timer";
 	clocks = <&coreclk 2>, <&refclk>;

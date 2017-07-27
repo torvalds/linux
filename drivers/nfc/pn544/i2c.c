@@ -283,12 +283,12 @@ static void pn544_hci_i2c_add_len_crc(struct sk_buff *skb)
 	int len;
 
 	len = skb->len + 2;
-	*skb_push(skb, 1) = len;
+	*(u8 *)skb_push(skb, 1) = len;
 
 	crc = crc_ccitt(0xffff, skb->data, skb->len);
 	crc = ~crc;
-	*skb_put(skb, 1) = crc & 0xff;
-	*skb_put(skb, 1) = crc >> 8;
+	skb_put_u8(skb, crc & 0xff);
+	skb_put_u8(skb, crc >> 8);
 }
 
 static void pn544_hci_i2c_remove_len_crc(struct sk_buff *skb)
@@ -391,7 +391,7 @@ static int pn544_hci_i2c_read(struct pn544_i2c_phy *phy, struct sk_buff **skb)
 		goto flush;
 	}
 
-	*skb_put(*skb, 1) = len;
+	skb_put_u8(*skb, len);
 
 	r = i2c_master_recv(client, skb_put(*skb, len), len);
 	if (r != len) {
@@ -904,7 +904,7 @@ static int pn544_hci_i2c_probe(struct i2c_client *client,
 	phy->i2c_dev = client;
 	i2c_set_clientdata(client, phy);
 
-	r = acpi_dev_add_driver_gpios(ACPI_COMPANION(dev), acpi_pn544_gpios);
+	r = devm_acpi_dev_add_driver_gpios(dev, acpi_pn544_gpios);
 	if (r)
 		dev_dbg(dev, "Unable to add GPIO mapping table\n");
 
@@ -958,7 +958,6 @@ static int pn544_hci_i2c_remove(struct i2c_client *client)
 	if (phy->powered)
 		pn544_hci_i2c_disable(phy);
 
-	acpi_dev_remove_driver_gpios(ACPI_COMPANION(&client->dev));
 	return 0;
 }
 

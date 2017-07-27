@@ -169,8 +169,8 @@ static int si3054_pcm_open(struct hda_pcm_stream *hinfo,
 			   struct hda_codec *codec,
 			    struct snd_pcm_substream *substream)
 {
-	static unsigned int rates[] = { 8000, 9600, 16000 };
-	static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
+	static const unsigned int rates[] = { 8000, 9600, 16000 };
+	static const struct snd_pcm_hw_constraint_list hw_constraints_rates = {
 		.count = ARRAY_SIZE(rates),
 		.list = rates,
 		.mask = 0,

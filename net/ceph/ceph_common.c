@@ -85,6 +85,7 @@ const char *ceph_msg_type_name(int type)
 	case CEPH_MSG_OSD_OP: return "osd_op";
 	case CEPH_MSG_OSD_OPREPLY: return "osd_opreply";
 	case CEPH_MSG_WATCH_NOTIFY: return "watch_notify";
+	case CEPH_MSG_OSD_BACKOFF: return "osd_backoff";
 	default: return "unknown";
 	}
 }
@@ -598,7 +599,11 @@ struct ceph_client *ceph_create_client(struct ceph_options *opt, void *private)
 {
 	struct ceph_client *client;
 	struct ceph_entity_addr *myaddr = NULL;
-	int err = -ENOMEM;
+	int err;
+
+	err = wait_for_random_bytes();
+	if (err < 0)
+		return ERR_PTR(err);
 
 	client = kzalloc(sizeof(*client), GFP_KERNEL);
 	if (client == NULL)

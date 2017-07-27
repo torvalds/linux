@@ -132,12 +132,12 @@ static inline struct l2tp_net *l2tp_pernet(const struct net *net)
  */
 static inline void l2tp_tunnel_inc_refcount_1(struct l2tp_tunnel *tunnel)
 {
-	atomic_inc(&tunnel->ref_count);
+	refcount_inc(&tunnel->ref_count);
 }
 
 static inline void l2tp_tunnel_dec_refcount_1(struct l2tp_tunnel *tunnel)
 {
-	if (atomic_dec_and_test(&tunnel->ref_count))
+	if (refcount_dec_and_test(&tunnel->ref_count))
 		l2tp_tunnel_free(tunnel);
 }
 #ifdef L2TP_REFCNT_DEBUG
@@ -145,14 +145,14 @@ static inline void l2tp_tunnel_dec_refcount_1(struct l2tp_tunnel *tunnel)
 do {									\
 	pr_debug("l2tp_tunnel_inc_refcount: %s:%d %s: cnt=%d\n",	\
 		 __func__, __LINE__, (_t)->name,			\
-		 atomic_read(&_t->ref_count));				\
+		 refcount_read(&_t->ref_count));			\
 	l2tp_tunnel_inc_refcount_1(_t);					\
 } while (0)
 #define l2tp_tunnel_dec_refcount(_t)					\
 do {									\
 	pr_debug("l2tp_tunnel_dec_refcount: %s:%d %s: cnt=%d\n",	\
 		 __func__, __LINE__, (_t)->name,			\
-		 atomic_read(&_t->ref_count));				\
+		 refcount_read(&_t->ref_count));			\
 	l2tp_tunnel_dec_refcount_1(_t);					\
 } while (0)
 #else
@@ -1353,7 +1353,7 @@ static void l2tp_udp_encap_destroy(struct sock *sk)
  */
 static void l2tp_tunnel_free(struct l2tp_tunnel *tunnel)
 {
-	BUG_ON(atomic_read(&tunnel->ref_count) != 0);
+	BUG_ON(refcount_read(&tunnel->ref_count) != 0);
 	BUG_ON(tunnel->sock != NULL);
 	l2tp_info(tunnel, L2TP_MSG_CONTROL, "%s: free...\n", tunnel->name);
 	kfree_rcu(tunnel, rcu);
@@ -1667,7 +1667,7 @@ int l2tp_tunnel_create(struct net *net, int fd, int version, u32 tunnel_id, u32 
 	/* Bump the reference count. The tunnel context is deleted
 	 * only when this drops to zero. Must be done before list insertion
 	 */
-	l2tp_tunnel_inc_refcount(tunnel);
+	refcount_set(&tunnel->ref_count, 1);
 	spin_lock_bh(&pn->l2tp_tunnel_list_lock);
 	list_add_rcu(&tunnel->list, &pn->l2tp_tunnel_list);
 	spin_unlock_bh(&pn->l2tp_tunnel_list_lock);
@@ -1706,7 +1706,7 @@ void l2tp_session_free(struct l2tp_session *session)
 {
 	struct l2tp_tunnel *tunnel = session->tunnel;
 
-	BUG_ON(atomic_read(&session->ref_count) != 0);
+	BUG_ON(refcount_read(&session->ref_count) != 0);
 
 	if (tunnel) {
 		BUG_ON(tunnel->magic != L2TP_TUNNEL_MAGIC);
@@ -1854,7 +1854,7 @@ struct l2tp_session *l2tp_session_create(int priv_size, struct l2tp_tunnel *tunn
 		/* Bump the reference count. The session context is deleted
 		 * only when this drops to zero.
 		 */
-		l2tp_session_inc_refcount(session);
+		refcount_set(&session->ref_count, 1);
 		l2tp_tunnel_inc_refcount(tunnel);
 
 		/* Ensure tunnel socket isn't deleted */

@@ -68,7 +68,7 @@ static inline int connection_based(struct sock *sk)
 	return sk->sk_type == SOCK_SEQPACKET || sk->sk_type == SOCK_STREAM;
 }
 
-static int receiver_wake_function(wait_queue_t *wait, unsigned int mode, int sync,
+static int receiver_wake_function(wait_queue_entry_t *wait, unsigned int mode, int sync,
 				  void *key)
 {
 	unsigned long bits = (unsigned long)key;
@@ -161,10 +161,49 @@ done:
 	return skb;
 }
 
+struct sk_buff *__skb_try_recv_from_queue(struct sock *sk,
+					  struct sk_buff_head *queue,
+					  unsigned int flags,
+					  void (*destructor)(struct sock *sk,
+							   struct sk_buff *skb),
+					  int *peeked, int *off, int *err,
+					  struct sk_buff **last)
+{
+	struct sk_buff *skb;
+	int _off = *off;
+
+	*last = queue->prev;
+	skb_queue_walk(queue, skb) {
+		if (flags & MSG_PEEK) {
+			if (_off >= skb->len && (skb->len || _off ||
+						 skb->peeked)) {
+				_off -= skb->len;
+				continue;
+			}
+			if (!skb->len) {
+				skb = skb_set_peeked(skb);
+				if (unlikely(IS_ERR(skb))) {
+					*err = PTR_ERR(skb);
+					return NULL;
+				}
+			}
+			*peeked = 1;
+			refcount_inc(&skb->users);
+		} else {
+			__skb_unlink(skb, queue);
+			if (destructor)
+				destructor(sk, skb);
+		}
+		*off = _off;
+		return skb;
+	}
+	return NULL;
+}
+
 /**
  *	__skb_try_recv_datagram - Receive a datagram skbuff
  *	@sk: socket
- *	@flags: MSG_ flags
+ *	@flags: MSG\_ flags
  *	@destructor: invoked under the receive lock on successful dequeue
  *	@peeked: returns non-zero if this packet has been seen before
  *	@off: an offset in bytes to peek skb from. Returns an offset
@@ -181,7 +220,7 @@ done:
  *
  *	This function will lock the socket if a skb is returned, so
  *	the caller needs to unlock the socket in that case (usually by
- *	calling skb_free_datagram). Returns NULL with *err set to
+ *	calling skb_free_datagram). Returns NULL with @err set to
  *	-EAGAIN if no data was available or to some other value if an
  *	error was detected.
  *
@@ -222,40 +261,14 @@ struct sk_buff *__skb_try_recv_datagram(struct sock *sk, unsigned int flags,
 		 * Look at current nfs client by the way...
 		 * However, this function was correct in any case. 8)
 		 */
-		int _off = *off;
-
-		*last = (struct sk_buff *)queue;
 		spin_lock_irqsave(&queue->lock, cpu_flags);
-		skb_queue_walk(queue, skb) {
-			*last = skb;
-			if (flags & MSG_PEEK) {
-				if (_off >= skb->len && (skb->len || _off ||
-							 skb->peeked)) {
-					_off -= skb->len;
-					continue;
-				}
-				if (!skb->len) {
-					skb = skb_set_peeked(skb);
-					if (IS_ERR(skb)) {
-						error = PTR_ERR(skb);
-						spin_unlock_irqrestore(&queue->lock,
-								       cpu_flags);
-						goto no_packet;
-					}
-				}
-				*peeked = 1;
-				atomic_inc(&skb->users);
-			} else {
-				__skb_unlink(skb, queue);
-				if (destructor)
-					destructor(sk, skb);
-			}
-			spin_unlock_irqrestore(&queue->lock, cpu_flags);
-			*off = _off;
-			return skb;
-		}
-
+		skb = __skb_try_recv_from_queue(sk, queue, flags, destructor,
+						peeked, off, &error, last);
 		spin_unlock_irqrestore(&queue->lock, cpu_flags);
+		if (error)
+			goto no_packet;
+		if (skb)
+			return skb;
 
 		if (!sk_can_busy_loop(sk))
 			break;
@@ -317,9 +330,7 @@ void __skb_free_datagram_locked(struct sock *sk, struct sk_buff *skb, int len)
 {
 	bool slow;
 
-	if (likely(atomic_read(&skb->users) == 1))
-		smp_rmb();
-	else if (likely(!atomic_dec_and_test(&skb->users))) {
+	if (!skb_unref(skb)) {
 		sk_peek_offset_bwd(sk, len);
 		return;
 	}
@@ -335,8 +346,8 @@ void __skb_free_datagram_locked(struct sock *sk, struct sk_buff *skb, int len)
 }
 EXPORT_SYMBOL(__skb_free_datagram_locked);
 
-int __sk_queue_drop_skb(struct sock *sk, struct sk_buff *skb,
-			unsigned int flags,
+int __sk_queue_drop_skb(struct sock *sk, struct sk_buff_head *sk_queue,
+			struct sk_buff *skb, unsigned int flags,
 			void (*destructor)(struct sock *sk,
 					   struct sk_buff *skb))
 {
@@ -344,15 +355,15 @@ int __sk_queue_drop_skb(struct sock *sk, struct sk_buff *skb,
 
 	if (flags & MSG_PEEK) {
 		err = -ENOENT;
-		spin_lock_bh(&sk->sk_receive_queue.lock);
-		if (skb == skb_peek(&sk->sk_receive_queue)) {
-			__skb_unlink(skb, &sk->sk_receive_queue);
-			atomic_dec(&skb->users);
+		spin_lock_bh(&sk_queue->lock);
+		if (skb == skb_peek(sk_queue)) {
+			__skb_unlink(skb, sk_queue);
+			refcount_dec(&skb->users);
 			if (destructor)
 				destructor(sk, skb);
 			err = 0;
 		}
-		spin_unlock_bh(&sk->sk_receive_queue.lock);
+		spin_unlock_bh(&sk_queue->lock);
 	}
 
 	atomic_inc(&sk->sk_drops);
@@ -364,7 +375,7 @@ EXPORT_SYMBOL(__sk_queue_drop_skb);
  *	skb_kill_datagram - Free a datagram skbuff forcibly
  *	@sk: socket
  *	@skb: datagram skbuff
- *	@flags: MSG_ flags
+ *	@flags: MSG\_ flags
  *
  *	This function frees a datagram skbuff that was received by
  *	skb_recv_datagram.  The flags argument must match the one
@@ -383,7 +394,8 @@ EXPORT_SYMBOL(__sk_queue_drop_skb);
 
 int skb_kill_datagram(struct sock *sk, struct sk_buff *skb, unsigned int flags)
 {
-	int err = __sk_queue_drop_skb(sk, skb, flags, NULL);
+	int err = __sk_queue_drop_skb(sk, &sk->sk_receive_queue, skb, flags,
+				      NULL);
 
 	kfree_skb(skb);
 	sk_mem_reclaim_partial(sk);
@@ -602,7 +614,7 @@ int zerocopy_sg_from_iter(struct sk_buff *skb, struct iov_iter *from)
 		skb->data_len += copied;
 		skb->len += copied;
 		skb->truesize += truesize;
-		atomic_add(truesize, &skb->sk->sk_wmem_alloc);
+		refcount_add(truesize, &skb->sk->sk_wmem_alloc);
 		while (copied) {
 			int size = min_t(int, copied, PAGE_SIZE - start);
 			skb_fill_page_desc(skb, frag++, pages[n], start, size);
@@ -797,7 +809,7 @@ EXPORT_SYMBOL(skb_copy_and_csum_datagram_msg);
  *	sequenced packet sockets providing the socket receive queue
  *	is only ever holding data ready to receive.
  *
- *	Note: when you _don't_ use this routine for this protocol,
+ *	Note: when you *don't* use this routine for this protocol,
  *	and you use a different write policy from sock_writeable()
  *	then please supply your own write_space callback.
  */

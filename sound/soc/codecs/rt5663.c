@@ -2847,6 +2847,8 @@ static int rt5663_resume(struct snd_soc_codec *codec)
 	regcache_cache_only(rt5663->regmap, false);
 	regcache_sync(rt5663->regmap);
 
+	rt5663_irq(0, rt5663);
+
 	return 0;
 }
 #else
@@ -3141,7 +3143,7 @@ static int rt5663_i2c_probe(struct i2c_client *i2c,
 		regmap_update_bits(rt5663->regmap, RT5663_DIG_MISC,
 			RT5663_DIG_GATE_CTRL_MASK, RT5663_DIG_GATE_CTRL_EN);
 		regmap_update_bits(rt5663->regmap, RT5663_AUTO_1MRC_CLK,
-			RT5663_IRQ_POW_SAV_MASK, RT5663_IRQ_POW_SAV_EN);
+			RT5663_IRQ_MANUAL_MASK, RT5663_IRQ_MANUAL_EN);
 		regmap_update_bits(rt5663->regmap, RT5663_IRQ_1,
 			RT5663_EN_IRQ_JD1_MASK, RT5663_EN_IRQ_JD1_EN);
 		regmap_update_bits(rt5663->regmap, RT5663_GPIO_1,

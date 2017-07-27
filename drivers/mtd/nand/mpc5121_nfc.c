@@ -708,6 +708,8 @@ static int mpc5121_nfc_probe(struct platform_device *op)
 	chip->read_buf = mpc5121_nfc_read_buf;
 	chip->write_buf = mpc5121_nfc_write_buf;
 	chip->select_chip = mpc5121_nfc_select_chip;
+	chip->onfi_set_features	= nand_onfi_get_set_features_notsupp;
+	chip->onfi_get_features	= nand_onfi_get_set_features_notsupp;
 	chip->bbt_options = NAND_BBT_USE_FLASH;
 	chip->ecc.mode = NAND_ECC_SOFT;
 	chip->ecc.algo = NAND_ECC_HAMMING;

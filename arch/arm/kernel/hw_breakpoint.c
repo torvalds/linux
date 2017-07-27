@@ -1090,7 +1090,7 @@ static int __init arch_hw_breakpoint_init(void)
 	 * driven low on this core and there isn't an architected way to
 	 * determine that.
 	 */
-	get_online_cpus();
+	cpus_read_lock();
 	register_undef_hook(&debug_reg_hook);
 
 	/*
@@ -1098,15 +1098,16 @@ static int __init arch_hw_breakpoint_init(void)
 	 * assume that a halting debugger will leave the world in a nice state
 	 * for us.
 	 */
-	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "arm/hw_breakpoint:online",
-				dbg_reset_online, NULL);
+	ret = cpuhp_setup_state_cpuslocked(CPUHP_AP_ONLINE_DYN,
+					   "arm/hw_breakpoint:online",
+					   dbg_reset_online, NULL);
 	unregister_undef_hook(&debug_reg_hook);
 	if (WARN_ON(ret < 0) || !cpumask_empty(&debug_err_mask)) {
 		core_num_brps = 0;
 		core_num_wrps = 0;
 		if (ret > 0)
-			cpuhp_remove_state_nocalls(ret);
-		put_online_cpus();
+			cpuhp_remove_state_nocalls_cpuslocked(ret);
+		cpus_read_unlock();
 		return 0;
 	}
 
@@ -1124,7 +1125,7 @@ static int __init arch_hw_breakpoint_init(void)
 			TRAP_HWBKPT, "watchpoint debug exception");
 	hook_ifault_code(FAULT_CODE_DEBUG, hw_breakpoint_pending, SIGTRAP,
 			TRAP_HWBKPT, "breakpoint debug exception");
-	put_online_cpus();
+	cpus_read_unlock();
 
 	/* Register PM notifiers. */
 	pm_init();

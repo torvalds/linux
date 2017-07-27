@@ -610,6 +610,7 @@ bool test_and_clear_guest_dirty(struct mm_struct *mm, unsigned long addr)
 {
 	spinlock_t *ptl;
 	pgd_t *pgd;
+	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd;
 	pgste_t pgste;
@@ -618,7 +619,10 @@ bool test_and_clear_guest_dirty(struct mm_struct *mm, unsigned long addr)
 	bool dirty;
 
 	pgd = pgd_offset(mm, addr);
-	pud = pud_alloc(mm, pgd, addr);
+	p4d = p4d_alloc(mm, pgd, addr);
+	if (!p4d)
+		return false;
+	pud = pud_alloc(mm, p4d, addr);
 	if (!pud)
 		return false;
 	pmd = pmd_alloc(mm, pud, addr);

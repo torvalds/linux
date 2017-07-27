@@ -496,11 +496,6 @@ static void __init setup_memory_end(void)
 	pr_notice("The maximum memory size is %luMB\n", memory_end >> 20);
 }
 
-static void __init setup_vmcoreinfo(void)
-{
-	mem_assign_absolute(S390_lowcore.vmcore_info, paddr_vmcoreinfo_note());
-}
-
 #ifdef CONFIG_CRASH_DUMP
 
 /*
@@ -939,7 +934,6 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	setup_resources();
-	setup_vmcoreinfo();
 	setup_lowcore();
 	smp_fill_possible_mask();
 	cpu_detect_mhz_feature();

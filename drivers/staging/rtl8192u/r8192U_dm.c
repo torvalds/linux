@@ -2300,43 +2300,52 @@ static void dm_check_edca_turbo(
 		 * Restore original EDCA according to the declaration of AP.
 		 */
 		if (priv->bcurrent_turbo_EDCA) {
+			u8	u1bAIFS;
+			u32	u4bAcParam, op_limit, cw_max, cw_min;
+
+			struct ieee80211_qos_parameters *qos_parameters = &priv->ieee80211->current_network.qos_data.parameters;
+			u8 mode = priv->ieee80211->mode;
+
+			/*  For Each time updating EDCA parameter, reset EDCA turbo mode status. */
+			dm_init_edca_turbo(dev);
+
+			u1bAIFS = qos_parameters->aifs[0] * ((mode & (IEEE_G | IEEE_N_24G)) ? 9 : 20) + aSifsTime;
+
+			op_limit = (u32)le16_to_cpu(qos_parameters->tx_op_limit[0]);
+			cw_max   = (u32)le16_to_cpu(qos_parameters->cw_max[0]);
+			cw_min   = (u32)le16_to_cpu(qos_parameters->cw_min[0]);
+
+			op_limit <<= AC_PARAM_TXOP_LIMIT_OFFSET;
+			cw_max   <<= AC_PARAM_ECW_MAX_OFFSET;
+			cw_min   <<= AC_PARAM_ECW_MIN_OFFSET;
+			u1bAIFS  <<= AC_PARAM_AIFS_OFFSET;
+
+			u4bAcParam = op_limit | cw_max | cw_min | u1bAIFS;
+			cpu_to_le32s(&u4bAcParam);
+
+			write_nic_dword(dev, EDCAPARA_BE, u4bAcParam);
+
+
+			/*
+			 * Check ACM bit.
+			 * If it is set, immediately set ACM control bit to downgrading AC for passing WMM testplan. Annie, 2005-12-13.
+			 */
 			{
-				u8		u1bAIFS;
-				u32		u4bAcParam;
-				struct ieee80211_qos_parameters *qos_parameters = &priv->ieee80211->current_network.qos_data.parameters;
-				u8 mode = priv->ieee80211->mode;
+				/*  TODO:  Modified this part and try to set acm control in only 1 IO processing!! */
 
-				/*  For Each time updating EDCA parameter, reset EDCA turbo mode status. */
-				dm_init_edca_turbo(dev);
-				u1bAIFS = qos_parameters->aifs[0] * ((mode&(IEEE_G|IEEE_N_24G)) ? 9 : 20) + aSifsTime;
-				u4bAcParam = (((le16_to_cpu(qos_parameters->tx_op_limit[0])) << AC_PARAM_TXOP_LIMIT_OFFSET)|
-					((le16_to_cpu(qos_parameters->cw_max[0])) << AC_PARAM_ECW_MAX_OFFSET)|
-					((le16_to_cpu(qos_parameters->cw_min[0])) << AC_PARAM_ECW_MIN_OFFSET)|
-					((u32)u1bAIFS << AC_PARAM_AIFS_OFFSET));
-				/*write_nic_dword(dev, WDCAPARA_ADD[i], u4bAcParam);*/
-				write_nic_dword(dev, EDCAPARA_BE,  u4bAcParam);
+				PACI_AIFSN	pAciAifsn = (PACI_AIFSN)&(qos_parameters->aifs[0]);
+				u8		AcmCtrl;
 
-				/*
-				 * Check ACM bit.
-				 * If it is set, immediately set ACM control bit to downgrading AC for passing WMM testplan. Annie, 2005-12-13.
-				 */
-				{
-					/*  TODO:  Modified this part and try to set acm control in only 1 IO processing!! */
+				read_nic_byte(dev, AcmHwCtrl, &AcmCtrl);
 
-					PACI_AIFSN	pAciAifsn = (PACI_AIFSN)&(qos_parameters->aifs[0]);
-					u8		AcmCtrl;
-
-					read_nic_byte(dev, AcmHwCtrl, &AcmCtrl);
-
-					if (pAciAifsn->f.ACM) { /*  ACM bit is 1. */
-						AcmCtrl |= AcmHw_BeqEn;
-					} else {	/* ACM bit is 0. */
-						AcmCtrl &= (~AcmHw_BeqEn);
-					}
-
-					RT_TRACE(COMP_QOS, "SetHwReg8190pci(): [HW_VAR_ACM_CTRL] Write 0x%X\n", AcmCtrl);
-					write_nic_byte(dev, AcmHwCtrl, AcmCtrl);
+				if (pAciAifsn->f.ACM) { /*  ACM bit is 1. */
+					AcmCtrl |= AcmHw_BeqEn;
+				} else {	/* ACM bit is 0. */
+					AcmCtrl &= (~AcmHw_BeqEn);
 				}
+
+				RT_TRACE(COMP_QOS, "SetHwReg8190pci(): [HW_VAR_ACM_CTRL] Write 0x%X\n", AcmCtrl);
+				write_nic_byte(dev, AcmHwCtrl, AcmCtrl);
 			}
 			priv->bcurrent_turbo_EDCA = false;
 		}
