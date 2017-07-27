@@ -14,9 +14,6 @@
 
 #include "ieee754dp.h"
 
-enum maddf_flags {
-	maddf_negate_product	= 1 << 0,
-};
 
 static union ieee754dp _dp_maddf(union ieee754dp z, union ieee754dp x,
 				 union ieee754dp y, enum maddf_flags flags)
@@ -85,8 +82,8 @@ static union ieee754dp _dp_maddf(union ieee754dp z, union ieee754dp x,
 	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_DNORM):
 	case CLPAIR(IEEE754_CLASS_INF, IEEE754_CLASS_INF):
 		if ((zc == IEEE754_CLASS_INF) &&
-		    ((!(flags & maddf_negate_product) && (zs != (xs ^ ys))) ||
-		     ((flags & maddf_negate_product) && (zs == (xs ^ ys))))) {
+		    ((!(flags & MADDF_NEGATE_PRODUCT) && (zs != (xs ^ ys))) ||
+		     ((flags & MADDF_NEGATE_PRODUCT) && (zs == (xs ^ ys))))) {
 			/*
 			 * Cases of addition of infinities with opposite signs
 			 * or subtraction of infinities with same signs.
@@ -99,9 +96,9 @@ static union ieee754dp _dp_maddf(union ieee754dp z, union ieee754dp x,
 		 * same sign as product (x*y) (in case of MADDF.D instruction)
 		 * or product -(x*y) (in MSUBF.D case). The result must be an
 		 * infinity, and its sign is determined only by the value of
-		 * (flags & maddf_negate_product) and the signs of x and y.
+		 * (flags & MADDF_NEGATE_PRODUCT) and the signs of x and y.
 		 */
-		if (flags & maddf_negate_product)
+		if (flags & MADDF_NEGATE_PRODUCT)
 			return ieee754dp_inf(1 ^ (xs ^ ys));
 		else
 			return ieee754dp_inf(xs ^ ys);
@@ -115,9 +112,9 @@ static union ieee754dp _dp_maddf(union ieee754dp z, union ieee754dp x,
 			return ieee754dp_inf(zs);
 		if (zc == IEEE754_CLASS_ZERO) {
 			/* Handle cases +0 + (-0) and similar ones. */
-			if ((!(flags & maddf_negate_product)
+			if ((!(flags & MADDF_NEGATE_PRODUCT)
 					&& (zs == (xs ^ ys))) ||
-			    ((flags & maddf_negate_product)
+			    ((flags & MADDF_NEGATE_PRODUCT)
 					&& (zs != (xs ^ ys))))
 				/*
 				 * Cases of addition of zeros of equal signs
@@ -167,7 +164,7 @@ static union ieee754dp _dp_maddf(union ieee754dp z, union ieee754dp x,
 
 	re = xe + ye;
 	rs = xs ^ ys;
-	if (flags & maddf_negate_product)
+	if (flags & MADDF_NEGATE_PRODUCT)
 		rs ^= 1;
 
 	/* shunt to top of word */
@@ -291,5 +288,5 @@ union ieee754dp ieee754dp_maddf(union ieee754dp z, union ieee754dp x,
 union ieee754dp ieee754dp_msubf(union ieee754dp z, union ieee754dp x,
 				union ieee754dp y)
 {
-	return _dp_maddf(z, x, y, maddf_negate_product);
+	return _dp_maddf(z, x, y, MADDF_NEGATE_PRODUCT);
 }
