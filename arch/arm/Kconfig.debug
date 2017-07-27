@@ -1192,6 +1192,28 @@ choice
 
 		  If unsure, say N.
 
+	config STM32F4_DEBUG_UART
+		bool "Use STM32F4 UART for low-level debug"
+		depends on ARCH_STM32
+		select DEBUG_STM32_UART
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on STM32F4 based platforms, which default UART is wired on
+		  USART1.
+
+		  If unsure, say N.
+
+	config STM32F7_DEBUG_UART
+		bool "Use STM32F7 UART for low-level debug"
+		depends on ARCH_STM32
+		select DEBUG_STM32_UART
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on STM32F7 based platforms, which default UART is wired on
+		  USART1.
+
+		  If unsure, say N.
+
 	config TEGRA_DEBUG_UART_AUTO_ODMDATA
 		bool "Kernel low-level debugging messages via Tegra UART via ODMDATA"
 		depends on ARCH_TEGRA
@@ -1476,6 +1498,10 @@ config DEBUG_STI_UART
 	bool
 	depends on ARCH_STI
 
+config DEBUG_STM32_UART
+	bool
+	depends on ARCH_STM32
+
 config DEBUG_SIRFSOC_UART
 	bool
 	depends on ARCH_SIRF
@@ -1525,6 +1551,7 @@ config DEBUG_LL_INCLUDE
 	default "debug/s5pv210.S" if DEBUG_S5PV210_UART
 	default "debug/sirf.S" if DEBUG_SIRFSOC_UART
 	default "debug/sti.S" if DEBUG_STI_UART
+	default "debug/stm32.S" if DEBUG_STM32_UART
 	default "debug/tegra.S" if DEBUG_TEGRA_UART
 	default "debug/ux500.S" if DEBUG_UX500_UART
 	default "debug/vexpress.S" if DEBUG_VEXPRESS_UART0_DETECT
