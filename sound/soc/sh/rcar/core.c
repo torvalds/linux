@@ -844,12 +844,28 @@ static int rsnd_soc_hw_rule_channels(struct snd_pcm_hw_params *params,
 				ir, &ic);
 }
 
-static void rsnd_soc_hw_constraint(struct snd_pcm_runtime *runtime,
-				   struct snd_soc_dai *dai)
+static struct snd_pcm_hardware rsnd_pcm_hardware = {
+	.info =		SNDRV_PCM_INFO_INTERLEAVED	|
+			SNDRV_PCM_INFO_MMAP		|
+			SNDRV_PCM_INFO_MMAP_VALID,
+	.buffer_bytes_max	= 64 * 1024,
+	.period_bytes_min	= 32,
+	.period_bytes_max	= 8192,
+	.periods_min		= 1,
+	.periods_max		= 32,
+	.fifo_size		= 256,
+};
+
+static int rsnd_soc_dai_startup(struct snd_pcm_substream *substream,
+				struct snd_soc_dai *dai)
 {
 	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
+	struct rsnd_priv *priv = rsnd_rdai_to_priv(rdai);
+	struct rsnd_dai_stream *io = rsnd_rdai_to_io(rdai, substream);
 	struct snd_pcm_hw_constraint_list *constraint = &rdai->constraint;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	unsigned int max_channels = rsnd_rdai_channels_get(rdai);
+	int ret;
 	int i;
 
 	/*
@@ -866,34 +882,26 @@ static void rsnd_soc_hw_constraint(struct snd_pcm_runtime *runtime,
 		constraint->count = i + 1;
 	}
 
+	snd_soc_set_runtime_hwparams(substream, &rsnd_pcm_hardware);
+
 	snd_pcm_hw_constraint_list(runtime, 0,
 				   SNDRV_PCM_HW_PARAM_CHANNELS, constraint);
+
+	snd_pcm_hw_constraint_integer(runtime,
+				      SNDRV_PCM_HW_PARAM_PERIODS);
 
 	/*
 	 * Sampling Rate / Channel Limitation
 	 * It depends on Clock Master Mode
 	 */
-	if (!rsnd_rdai_is_clk_master(rdai))
-		return;
-
-	snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
-			    rsnd_soc_hw_rule_rate, dai,
-			    SNDRV_PCM_HW_PARAM_CHANNELS, -1);
-	snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
-			    rsnd_soc_hw_rule_channels, dai,
-			    SNDRV_PCM_HW_PARAM_RATE, -1);
-}
-
-static int rsnd_soc_dai_startup(struct snd_pcm_substream *substream,
-				struct snd_soc_dai *dai)
-{
-	struct rsnd_dai *rdai = rsnd_dai_to_rdai(dai);
-	struct rsnd_priv *priv = rsnd_rdai_to_priv(rdai);
-	struct rsnd_dai_stream *io = rsnd_rdai_to_io(rdai, substream);
-	int ret;
-
-	/* rsnd_io_to_runtime() is not yet enabled here */
-	rsnd_soc_hw_constraint(substream->runtime, dai);
+	if (rsnd_rdai_is_clk_master(rdai)) {
+		snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_RATE,
+				    rsnd_soc_hw_rule_rate, dai,
+				    SNDRV_PCM_HW_PARAM_CHANNELS, -1);
+		snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
+				    rsnd_soc_hw_rule_channels, dai,
+				    SNDRV_PCM_HW_PARAM_RATE, -1);
+	}
 
 	/*
 	 * call rsnd_dai_call without spinlock
@@ -1105,31 +1113,6 @@ static int rsnd_dai_probe(struct rsnd_priv *priv)
 /*
  *		pcm ops
  */
-static struct snd_pcm_hardware rsnd_pcm_hardware = {
-	.info =		SNDRV_PCM_INFO_INTERLEAVED	|
-			SNDRV_PCM_INFO_MMAP		|
-			SNDRV_PCM_INFO_MMAP_VALID,
-	.buffer_bytes_max	= 64 * 1024,
-	.period_bytes_min	= 32,
-	.period_bytes_max	= 8192,
-	.periods_min		= 1,
-	.periods_max		= 32,
-	.fifo_size		= 256,
-};
-
-static int rsnd_pcm_open(struct snd_pcm_substream *substream)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	int ret = 0;
-
-	snd_soc_set_runtime_hwparams(substream, &rsnd_pcm_hardware);
-
-	ret = snd_pcm_hw_constraint_integer(runtime,
-					    SNDRV_PCM_HW_PARAM_PERIODS);
-
-	return ret;
-}
-
 static int rsnd_hw_params(struct snd_pcm_substream *substream,
 			 struct snd_pcm_hw_params *hw_params)
 {
@@ -1159,7 +1142,6 @@ static snd_pcm_uframes_t rsnd_pointer(struct snd_pcm_substream *substream)
 }
 
 static struct snd_pcm_ops rsnd_pcm_ops = {
-	.open		= rsnd_pcm_open,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= rsnd_hw_params,
 	.hw_free	= snd_pcm_lib_free_pages,
