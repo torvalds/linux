@@ -313,7 +313,6 @@ static void sdma_v4_0_ring_set_wptr(struct amdgpu_ring *ring)
 					offset = adev->sdma.instance[i].poll_mem_offs;
 					atomic64_set((atomic64_t *)&adev->wb.wb[offset],
 						     (ring->wptr << 2));
-					nbio_v6_1_hdp_flush(adev);
 				}
 			}
 		}
