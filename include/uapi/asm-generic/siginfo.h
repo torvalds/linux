@@ -44,8 +44,6 @@ typedef union sigval {
 #define __ARCH_SI_ATTRIBUTES
 #endif
 
-#ifndef HAVE_ARCH_SIGINFO_T
-
 typedef struct siginfo {
 	int si_signo;
 #ifndef __ARCH_HAS_SWAPPED_SIGINFO
@@ -128,10 +126,6 @@ typedef struct siginfo {
 	} _sifields;
 } __ARCH_SI_ATTRIBUTES siginfo_t;
 
-/* If the arch shares siginfo, then it has SIGSYS. */
-#define __ARCH_SIGSYS
-#endif
-
 /*
  * How these fields are to be accessed.
  */
@@ -156,11 +150,9 @@ typedef struct siginfo {
 #define si_pkey		_sifields._sigfault._pkey
 #define si_band		_sifields._sigpoll._band
 #define si_fd		_sifields._sigpoll._fd
-#ifdef __ARCH_SIGSYS
 #define si_call_addr	_sifields._sigsys._call_addr
 #define si_syscall	_sifields._sigsys._syscall
 #define si_arch		_sifields._sigsys._arch
-#endif
 
 /*
  * si_code values

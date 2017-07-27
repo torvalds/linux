@@ -2697,9 +2697,7 @@ enum siginfo_layout siginfo_layout(int sig, int si_code)
 #endif
 			[SIGCHLD] = { NSIGCHLD, SIL_CHLD },
 			[SIGPOLL] = { NSIGPOLL, SIL_POLL },
-#ifdef __ARCH_SIGSYS
 			[SIGSYS]  = { NSIGSYS,  SIL_SYS },
-#endif
 		};
 		if ((sig < ARRAY_SIZE(filter)) && (si_code <= filter[sig].limit))
 			layout = filter[sig].layout;
@@ -2804,13 +2802,11 @@ int copy_siginfo_to_user(siginfo_t __user *to, const siginfo_t *from)
 		err |= __put_user(from->si_uid, &to->si_uid);
 		err |= __put_user(from->si_ptr, &to->si_ptr);
 		break;
-#ifdef __ARCH_SIGSYS
 	case SIL_SYS:
 		err |= __put_user(from->si_call_addr, &to->si_call_addr);
 		err |= __put_user(from->si_syscall, &to->si_syscall);
 		err |= __put_user(from->si_arch, &to->si_arch);
 		break;
-#endif
 	}
 	return err;
 }
