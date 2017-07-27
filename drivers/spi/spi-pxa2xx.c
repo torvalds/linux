@@ -1769,8 +1769,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 		for (i = 0; i < master->num_chipselect; i++) {
 			struct gpio_desc *gpiod;
 
-			gpiod = devm_gpiod_get_index(dev, "cs", i,
-						     GPIOD_OUT_HIGH);
+			gpiod = devm_gpiod_get_index(dev, "cs", i, GPIOD_ASIS);
 			if (IS_ERR(gpiod)) {
 				/* Means use native chip select */
 				if (PTR_ERR(gpiod) == -ENOENT)
