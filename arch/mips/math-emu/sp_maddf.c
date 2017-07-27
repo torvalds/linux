@@ -21,14 +21,8 @@ static union ieee754sp _sp_maddf(union ieee754sp z, union ieee754sp x,
 	int re;
 	int rs;
 	unsigned rm;
-	unsigned short lxm;
-	unsigned short hxm;
-	unsigned short lym;
-	unsigned short hym;
-	unsigned lrm;
-	unsigned hrm;
-	unsigned t;
-	unsigned at;
+	uint64_t rm64;
+	uint64_t zm64;
 	int s;
 
 	COMPXSP;
@@ -170,108 +164,90 @@ static union ieee754sp _sp_maddf(union ieee754sp z, union ieee754sp x,
 	if (flags & MADDF_NEGATE_PRODUCT)
 		rs ^= 1;
 
-	/* shunt to top of word */
-	xm <<= 32 - (SP_FBITS + 1);
-	ym <<= 32 - (SP_FBITS + 1);
+	/* Multiple 24 bit xm and ym to give 48 bit results */
+	rm64 = (uint64_t)xm * ym;
 
-	/*
-	 * Multiply 32 bits xm, ym to give high 32 bits rm with stickness.
-	 */
-	lxm = xm & 0xffff;
-	hxm = xm >> 16;
-	lym = ym & 0xffff;
-	hym = ym >> 16;
+	/* Shunt to top of word */
+	rm64 = rm64 << 16;
 
-	lrm = lxm * lym;	/* 16 * 16 => 32 */
-	hrm = hxm * hym;	/* 16 * 16 => 32 */
-
-	t = lxm * hym; /* 16 * 16 => 32 */
-	at = lrm + (t << 16);
-	hrm += at < lrm;
-	lrm = at;
-	hrm = hrm + (t >> 16);
-
-	t = hxm * lym; /* 16 * 16 => 32 */
-	at = lrm + (t << 16);
-	hrm += at < lrm;
-	lrm = at;
-	hrm = hrm + (t >> 16);
-
-	rm = hrm | (lrm != 0);
-
-	/*
-	 * Sticky shift down to normal rounding precision.
-	 */
-	if ((int) rm < 0) {
-		rm = (rm >> (32 - (SP_FBITS + 1 + 3))) |
-		    ((rm << (SP_FBITS + 1 + 3)) != 0);
+	/* Put explicit bit at bit 62 if necessary */
+	if ((int64_t) rm64 < 0) {
+		rm64 = rm64 >> 1;
 		re++;
-	} else {
-		rm = (rm >> (32 - (SP_FBITS + 1 + 3 + 1))) |
-		     ((rm << (SP_FBITS + 1 + 3 + 1)) != 0);
 	}
-	assert(rm & (SP_HIDDEN_BIT << 3));
 
-	if (zc == IEEE754_CLASS_ZERO)
+	assert(rm64 & (1 << 62));
+
+	if (zc == IEEE754_CLASS_ZERO) {
+		/*
+		 * Move explicit bit from bit 62 to bit 26 since the
+		 * ieee754sp_format code expects the mantissa to be
+		 * 27 bits wide (24 + 3 rounding bits).
+		 */
+		rm = XSPSRS64(rm64, (62 - 26));
 		return ieee754sp_format(rs, re, rm);
+	}
 
-	/* And now the addition */
+	/* Move explicit bit from bit 23 to bit 62 */
+	zm64 = (uint64_t)zm << (62 - 23);
+	assert(zm64 & (1 << 62));
 
-	assert(zm & SP_HIDDEN_BIT);
-
-	/*
-	 * Provide guard,round and stick bit space.
-	 */
-	zm <<= 3;
-
+	/* Make the exponents the same */
 	if (ze > re) {
 		/*
 		 * Have to shift r fraction right to align.
 		 */
 		s = ze - re;
-		rm = XSPSRS(rm, s);
+		rm64 = XSPSRS64(rm64, s);
 		re += s;
 	} else if (re > ze) {
 		/*
 		 * Have to shift z fraction right to align.
 		 */
 		s = re - ze;
-		zm = XSPSRS(zm, s);
+		zm64 = XSPSRS64(zm64, s);
 		ze += s;
 	}
 	assert(ze == re);
 	assert(ze <= SP_EMAX);
 
+	/* Do the addition */
 	if (zs == rs) {
 		/*
-		 * Generate 28 bit result of adding two 27 bit numbers
-		 * leaving result in zm, zs and ze.
+		 * Generate 64 bit result by adding two 63 bit numbers
+		 * leaving result in zm64, zs and ze.
 		 */
-		zm = zm + rm;
-
-		if (zm >> (SP_FBITS + 1 + 3)) { /* carry out */
-			zm = XSPSRS1(zm);
+		zm64 = zm64 + rm64;
+		if ((int64_t)zm64 < 0) {	/* carry out */
+			zm64 = XSPSRS1(zm64);
 			ze++;
 		}
 	} else {
-		if (zm >= rm) {
-			zm = zm - rm;
+		if (zm64 >= rm64) {
+			zm64 = zm64 - rm64;
 		} else {
-			zm = rm - zm;
+			zm64 = rm64 - zm64;
 			zs = rs;
 		}
-		if (zm == 0)
+		if (zm64 == 0)
 			return ieee754sp_zero(ieee754_csr.rm == FPU_CSR_RD);
 
 		/*
-		 * Normalize in extended single precision
+		 * Put explicit bit at bit 62 if necessary.
 		 */
-		while ((zm >> (SP_MBITS + 3)) == 0) {
-			zm <<= 1;
+		while ((zm64 >> 62) == 0) {
+			zm64 <<= 1;
 			ze--;
 		}
-
 	}
+
+	/*
+	 * Move explicit bit from bit 62 to bit 26 since the
+	 * ieee754sp_format code expects the mantissa to be
+	 * 27 bits wide (24 + 3 rounding bits).
+	 */
+	zm = XSPSRS64(zm64, (62 - 26));
+
 	return ieee754sp_format(zs, ze, zm);
 }
 
