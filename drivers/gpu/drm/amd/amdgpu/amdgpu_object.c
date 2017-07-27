@@ -239,15 +239,20 @@ int amdgpu_bo_create_kernel(struct amdgpu_device *adev,
 			    u32 domain, struct amdgpu_bo **bo_ptr,
 			    u64 *gpu_addr, void **cpu_addr)
 {
+	bool free = false;
 	int r;
 
-	r = amdgpu_bo_create(adev, size, align, true, domain,
-			     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
-			     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
-			     NULL, NULL, bo_ptr);
-	if (r) {
-		dev_err(adev->dev, "(%d) failed to allocate kernel bo\n", r);
-		return r;
+	if (!*bo_ptr) {
+		r = amdgpu_bo_create(adev, size, align, true, domain,
+				     AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED |
+				     AMDGPU_GEM_CREATE_VRAM_CONTIGUOUS,
+				     NULL, NULL, bo_ptr);
+		if (r) {
+			dev_err(adev->dev, "(%d) failed to allocate kernel bo\n",
+				r);
+			return r;
+		}
+		free = true;
 	}
 
 	r = amdgpu_bo_reserve(*bo_ptr, false);
@@ -278,7 +283,8 @@ error_unreserve:
 	amdgpu_bo_unreserve(*bo_ptr);
 
 error_free:
-	amdgpu_bo_unref(bo_ptr);
+	if (free)
+		amdgpu_bo_unref(bo_ptr);
 
 	return r;
 }
