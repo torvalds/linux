@@ -431,6 +431,57 @@
 	};
 };
 
+&i2c1 {
+	status = "okay";
+
+	rk1000_ctl: rk1000-ctl@40 {
+		compatible = "rockchip,rk1000-ctl";
+		status = "okay";
+		reg = <0x40>;
+		reset-gpios = <&gpio0 1 GPIO_ACTIVE_LOW>;
+		clocks = <&cru SCLK_I2S_8CH_OUT>;
+		clock-names = "mclk";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s_8ch_bus>;
+	};
+
+	rk1000-tve@42 {
+		status = "okay";
+		compatible = "rockchip,rk1000-tve";
+		reg = <0x42>;
+		rockchip,data-width = <24>;
+		rockchip,output = "rgb";
+		rockchip,ctl = <&rk1000_ctl>;
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			tve_in: port@0 {
+				reg = <0>;
+				tve_in_lvds: endpoint {
+					remote-endpoint = <&lvds_out_tve>;
+				};
+			};
+		};
+	};
+};
+
+&lvds {
+	status = "okay";
+
+	ports {
+		lvds_out: port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			lvds_out_tve: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&tve_in_lvds>;
+			};
+		};
+	};
+};
+
 &io_domains {
 	status = "ok";
 
