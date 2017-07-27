@@ -995,7 +995,14 @@ static void a5xx_show(struct msm_gpu *gpu, struct seq_file *m)
 {
 	seq_printf(m, "status:   %08x\n",
 			gpu_read(gpu, REG_A5XX_RBBM_STATUS));
+
+	/*
+	 * Temporarily disable hardware clock gating before going into
+	 * adreno_show to avoid issues while reading the registers
+	 */
+	a5xx_set_hwcg(gpu, false);
 	adreno_show(gpu, m);
+	a5xx_set_hwcg(gpu, true);
 }
 #endif
 
