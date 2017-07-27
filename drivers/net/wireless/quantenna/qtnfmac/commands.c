@@ -1442,6 +1442,9 @@ int qtnf_cmd_get_mac_chan_info(struct qtnf_wmac *mac,
 
 	cmd = (struct qlink_cmd_chans_info_get *)cmd_skb->data;
 	cmd->band = qband;
+
+	qtnf_bus_lock(mac->bus);
+
 	ret = qtnf_cmd_send_with_reply(mac->bus, cmd_skb, &resp_skb, &res_code,
 				       sizeof(*resp), &info_len);
 
@@ -1465,6 +1468,7 @@ int qtnf_cmd_get_mac_chan_info(struct qtnf_wmac *mac,
 	ret = qtnf_cmd_resp_fill_channels_info(band, resp, info_len);
 
 out:
+	qtnf_bus_unlock(mac->bus);
 	consume_skb(resp_skb);
 
 	return ret;
