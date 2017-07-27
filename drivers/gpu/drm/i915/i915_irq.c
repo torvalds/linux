@@ -2640,32 +2640,6 @@ static void i915_reset_device(struct drm_i915_private *dev_priv)
 				   KOBJ_CHANGE, reset_done_event);
 }
 
-static inline void
-i915_err_print_instdone(struct drm_i915_private *dev_priv,
-			struct intel_instdone *instdone)
-{
-	int slice;
-	int subslice;
-
-	pr_err("  INSTDONE: 0x%08x\n", instdone->instdone);
-
-	if (INTEL_GEN(dev_priv) <= 3)
-		return;
-
-	pr_err("  SC_INSTDONE: 0x%08x\n", instdone->slice_common);
-
-	if (INTEL_GEN(dev_priv) <= 6)
-		return;
-
-	for_each_instdone_slice_subslice(dev_priv, slice, subslice)
-		pr_err("  SAMPLER_INSTDONE[%d][%d]: 0x%08x\n",
-		       slice, subslice, instdone->sampler[slice][subslice]);
-
-	for_each_instdone_slice_subslice(dev_priv, slice, subslice)
-		pr_err("  ROW_INSTDONE[%d][%d]: 0x%08x\n",
-		       slice, subslice, instdone->row[slice][subslice]);
-}
-
 static void i915_clear_error_registers(struct drm_i915_private *dev_priv)
 {
 	u32 eir;
