@@ -217,14 +217,11 @@ void nft_trace_notify(struct nft_traceinfo *info)
 	if (trace_fill_id(skb, pkt->skb))
 		goto nla_put_failure;
 
-	if (info->chain) {
-		if (nla_put_string(skb, NFTA_TRACE_CHAIN,
-				   info->chain->name))
-			goto nla_put_failure;
-		if (nla_put_string(skb, NFTA_TRACE_TABLE,
-				   info->chain->table->name))
-			goto nla_put_failure;
-	}
+	if (nla_put_string(skb, NFTA_TRACE_CHAIN, info->chain->name))
+		goto nla_put_failure;
+
+	if (nla_put_string(skb, NFTA_TRACE_TABLE, info->chain->table->name))
+		goto nla_put_failure;
 
 	if (nf_trace_fill_rule_info(skb, info))
 		goto nla_put_failure;
