@@ -1131,10 +1131,6 @@ struct amdgpu_wb {
 
 int amdgpu_wb_get(struct amdgpu_device *adev, u32 *wb);
 void amdgpu_wb_free(struct amdgpu_device *adev, u32 wb);
-int amdgpu_wb_get_64bit(struct amdgpu_device *adev, u32 *wb);
-int amdgpu_wb_get_256bit(struct amdgpu_device *adev, u32 *wb);
-void amdgpu_wb_free_64bit(struct amdgpu_device *adev, u32 wb);
-void amdgpu_wb_free_256bit(struct amdgpu_device *adev, u32 wb);
 
 void amdgpu_get_pcie_info(struct amdgpu_device *adev);
 
