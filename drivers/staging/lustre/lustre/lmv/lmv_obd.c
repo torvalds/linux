@@ -635,8 +635,8 @@ repeat_fid2path:
 		char *ptr;
 
 		ori_gf = karg;
-		if (strlen(ori_gf->gf_path) +
-		    strlen(gf->gf_path) > ori_gf->gf_pathlen) {
+		if (strlen(ori_gf->gf_path) + 1 +
+		    strlen(gf->gf_path) + 1 > ori_gf->gf_pathlen) {
 			rc = -EOVERFLOW;
 			goto out_fid2path;
 		}
