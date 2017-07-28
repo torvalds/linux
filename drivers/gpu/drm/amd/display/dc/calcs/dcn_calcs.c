@@ -923,8 +923,10 @@ bool dcn_validate_bandwidth(
 		if (v->is_line_buffer_bpp_fixed == dcn_bw_yes)
 			v->lb_bit_per_pixel[input_idx] = v->line_buffer_fixed_bpp;
 		v->dcc_rate[input_idx] = 1; /*TODO: Worst case? does this change?*/
-		v->output_format[input_idx] = dcn_bw_444;
-		v->output[input_idx] = dcn_bw_dp;
+		v->output_format[input_idx] = pipe->stream->timing.pixel_encoding ==
+				PIXEL_ENCODING_YCBCR420 ? dcn_bw_420 : dcn_bw_444;
+		v->output[input_idx] = pipe->stream->sink->sink_signal ==
+				SIGNAL_TYPE_HDMI_TYPE_A ? dcn_bw_hdmi : dcn_bw_dp;
 
 		input_idx++;
 	}
