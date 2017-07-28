@@ -125,6 +125,7 @@ struct cpts {
 	struct list_head pool;
 	struct cpts_event pool_data[CPTS_MAX_EVENTS];
 	unsigned long ov_check_period;
+	struct sk_buff_head txq;
 };
 
 void cpts_rx_timestamp(struct cpts *cpts, struct sk_buff *skb);
