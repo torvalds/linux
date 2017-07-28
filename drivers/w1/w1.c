@@ -568,7 +568,7 @@ static struct attribute *w1_master_default_attrs[] = {
 	NULL
 };
 
-static struct attribute_group w1_master_defattr_group = {
+static const struct attribute_group w1_master_defattr_group = {
 	.attrs = w1_master_default_attrs,
 };
 
