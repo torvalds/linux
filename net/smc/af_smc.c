@@ -779,11 +779,6 @@ static void smc_listen_work(struct work_struct *work)
 	mutex_lock(&smc_create_lgr_pending);
 	local_contact = smc_conn_create(new_smc, peeraddr.sin_addr.s_addr,
 					smcibdev, ibport, &pclc.lcl, 0);
-	if (local_contact == SMC_REUSE_CONTACT)
-		/* lock no longer needed, free it due to following
-		 * smc_clc_wait_msg() call
-		 */
-		mutex_unlock(&smc_create_lgr_pending);
 	if (local_contact < 0) {
 		rc = local_contact;
 		if (rc == -ENOMEM)
@@ -853,8 +848,7 @@ out_connected:
 	if (newsmcsk->sk_state == SMC_INIT)
 		newsmcsk->sk_state = SMC_ACTIVE;
 enqueue:
-	if (local_contact == SMC_FIRST_CONTACT)
-		mutex_unlock(&smc_create_lgr_pending);
+	mutex_unlock(&smc_create_lgr_pending);
 	lock_sock_nested(&lsmc->sk, SINGLE_DEPTH_NESTING);
 	if (lsmc->sk.sk_state == SMC_LISTEN) {
 		smc_accept_enqueue(&lsmc->sk, newsmcsk);
