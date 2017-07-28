@@ -2302,6 +2302,8 @@ nfsd4_proc_compound(struct svc_rqst *rqstp)
 	}
 	check_if_stalefh_allowed(args);
 
+	rqstp->rq_lease_breaker = (void **)&cstate->clp;
+
 	trace_nfsd_compound(rqstp, args->opcnt);
 	while (!status && resp->opcnt < args->opcnt) {
 		op = &args->ops[resp->opcnt++];
