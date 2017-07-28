@@ -364,7 +364,7 @@ static u64 cpts_find_ts(struct cpts *cpts, struct sk_buff *skb, int ev_type)
 		return 0;
 
 	spin_lock_irqsave(&cpts->lock, flags);
-	cpts_fifo_read(cpts, CPTS_EV_PUSH);
+	cpts_fifo_read(cpts, -1);
 	list_for_each_safe(this, next, &cpts->events) {
 		event = list_entry(this, struct cpts_event, list);
 		if (event_expired(event)) {
