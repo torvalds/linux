@@ -331,8 +331,10 @@ static void spi_qup_dma_terminate(struct spi_master *master,
 		dmaengine_terminate_all(master->dma_rx);
 }
 
-static int spi_qup_do_dma(struct spi_master *master, struct spi_transfer *xfer)
+static int spi_qup_do_dma(struct spi_master *master, struct spi_transfer *xfer,
+			  unsigned long timeout)
 {
+	struct spi_qup *qup = spi_master_get_devdata(master);
 	dma_async_tx_callback rx_done = NULL, tx_done = NULL;
 	int ret;
 
@@ -357,10 +359,14 @@ static int spi_qup_do_dma(struct spi_master *master, struct spi_transfer *xfer)
 		dma_async_issue_pending(master->dma_tx);
 	}
 
+	if (!wait_for_completion_timeout(&qup->done, timeout))
+		return -ETIMEDOUT;
+
 	return 0;
 }
 
-static int spi_qup_do_pio(struct spi_master *master, struct spi_transfer *xfer)
+static int spi_qup_do_pio(struct spi_master *master, struct spi_transfer *xfer,
+			  unsigned long timeout)
 {
 	struct spi_qup *qup = spi_master_get_devdata(master);
 	int ret;
@@ -378,6 +384,9 @@ static int spi_qup_do_pio(struct spi_master *master, struct spi_transfer *xfer)
 	}
 
 	spi_qup_fifo_write(qup, xfer);
+
+	if (!wait_for_completion_timeout(&qup->done, timeout))
+		return -ETIMEDOUT;
 
 	return 0;
 }
@@ -632,9 +641,9 @@ static int spi_qup_transfer_one(struct spi_master *master,
 	spin_unlock_irqrestore(&controller->lock, flags);
 
 	if (spi_qup_is_dma_xfer(controller->mode))
-		ret = spi_qup_do_dma(master, xfer);
+		ret = spi_qup_do_dma(master, xfer, timeout);
 	else
-		ret = spi_qup_do_pio(master, xfer);
+		ret = spi_qup_do_pio(master, xfer, timeout);
 
 	if (ret)
 		goto exit;
