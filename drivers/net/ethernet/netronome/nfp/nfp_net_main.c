@@ -704,7 +704,7 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 	if (!pf->rtbl) {
 		nfp_err(pf->cpp, "No %s, giving up.\n",
 			pf->fw_loaded ? "symbol table" : "firmware found");
-		return -EPROBE_DEFER;
+		return -EINVAL;
 	}
 
 	mutex_lock(&pf->lock);
