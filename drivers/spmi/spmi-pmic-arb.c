@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2015, 2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -419,7 +419,7 @@ static int pmic_arb_write_cmd(struct spmi_controller *ctrl, u8 opc, u8 sid,
 	/* Check the opcode */
 	if (opc >= 0x40 && opc <= 0x5F)
 		opc = PMIC_ARB_OP_WRITE;
-	else if (opc >= 0x00 && opc <= 0x0F)
+	else if (opc <= 0x0F)
 		opc = PMIC_ARB_OP_EXT_WRITE;
 	else if (opc >= 0x30 && opc <= 0x37)
 		opc = PMIC_ARB_OP_EXT_WRITEL;
