@@ -29,7 +29,7 @@ static u32 zfcp_fc_rscn_range_mask[] = {
 };
 
 static bool no_auto_port_rescan;
-module_param_named(no_auto_port_rescan, no_auto_port_rescan, bool, 0600);
+module_param(no_auto_port_rescan, bool, 0600);
 MODULE_PARM_DESC(no_auto_port_rescan,
 		 "no automatic port_rescan (default off)");
 
