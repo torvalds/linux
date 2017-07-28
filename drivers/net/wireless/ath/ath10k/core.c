@@ -1886,6 +1886,7 @@ static int ath10k_core_init_firmware_features(struct ath10k *ar)
 		ar->fw_stats_req_mask = WMI_10_4_STAT_PEER |
 					WMI_10_4_STAT_PEER_EXTD;
 		ar->max_spatial_stream = ar->hw_params.max_spatial_stream;
+		ar->max_num_tdls_vdevs = TARGET_10_4_NUM_TDLS_VDEVS;
 
 		if (test_bit(ATH10K_FW_FEATURE_PEER_FLOW_CONTROL,
 			     fw_file->fw_features))
@@ -2123,6 +2124,14 @@ int ath10k_core_start(struct ath10k *ar, enum ath10k_firmware_mode mode,
 		    test_bit(ATH10K_FW_FEATURE_BTCOEX_PARAM,
 			     ar->running_fw->fw_file.fw_features))
 			val |= WMI_10_4_COEX_GPIO_SUPPORT;
+
+		if (test_bit(WMI_SERVICE_TDLS_EXPLICIT_MODE_ONLY,
+			     ar->wmi.svc_map))
+			val |= WMI_10_4_TDLS_EXPLICIT_MODE_ONLY;
+
+		if (test_bit(WMI_SERVICE_TDLS_UAPSD_BUFFER_STA,
+			     ar->wmi.svc_map))
+			val |= WMI_10_4_TDLS_UAPSD_BUFFER_STA;
 
 		status = ath10k_mac_ext_resource_config(ar, val);
 		if (status) {
