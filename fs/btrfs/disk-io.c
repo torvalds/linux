@@ -3053,11 +3053,9 @@ retry_root_backup:
 	if (IS_ERR(fs_info->transaction_kthread))
 		goto fail_cleaner;
 
-	if (!btrfs_test_opt(fs_info, SSD) &&
-	    !btrfs_test_opt(fs_info, NOSSD) &&
+	if (!btrfs_test_opt(fs_info, NOSSD) &&
 	    !fs_info->fs_devices->rotating) {
-		btrfs_info(fs_info, "detected SSD devices, enabling SSD mode");
-		btrfs_set_opt(fs_info->mount_opt, SSD);
+		btrfs_set_and_info(fs_info, SSD, "enabling ssd optimizations");
 	}
 
 	/*

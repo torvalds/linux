@@ -470,8 +470,8 @@ struct btrfs_block_rsv {
 
 /*
  * free clusters are used to claim free space in relatively large chunks,
- * allowing us to do less seeky writes.  They are used for all metadata
- * allocations and data allocations in ssd mode.
+ * allowing us to do less seeky writes. They are used for all metadata
+ * allocations. In ssd_spread mode they are also used for data allocations.
  */
 struct btrfs_free_cluster {
 	spinlock_t lock;
@@ -967,7 +967,7 @@ struct btrfs_fs_info {
 
 	struct reloc_control *reloc_ctl;
 
-	/* data_alloc_cluster is only used in ssd mode */
+	/* data_alloc_cluster is only used in ssd_spread mode */
 	struct btrfs_free_cluster data_alloc_cluster;
 
 	/* all metadata allocations go through this cluster */

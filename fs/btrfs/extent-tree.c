@@ -6654,19 +6654,20 @@ fetch_cluster_info(struct btrfs_fs_info *fs_info,
 		   struct btrfs_space_info *space_info, u64 *empty_cluster)
 {
 	struct btrfs_free_cluster *ret = NULL;
-	bool ssd = btrfs_test_opt(fs_info, SSD);
 
 	*empty_cluster = 0;
 	if (btrfs_mixed_space_info(space_info))
 		return ret;
 
-	if (ssd)
-		*empty_cluster = SZ_2M;
 	if (space_info->flags & BTRFS_BLOCK_GROUP_METADATA) {
 		ret = &fs_info->meta_alloc_cluster;
-		if (!ssd)
+		if (btrfs_test_opt(fs_info, SSD))
+			*empty_cluster = SZ_2M;
+		else
 			*empty_cluster = SZ_64K;
-	} else if ((space_info->flags & BTRFS_BLOCK_GROUP_DATA) && ssd) {
+	} else if ((space_info->flags & BTRFS_BLOCK_GROUP_DATA) &&
+		   btrfs_test_opt(fs_info, SSD_SPREAD)) {
+		*empty_cluster = SZ_2M;
 		ret = &fs_info->data_alloc_cluster;
 	}
 
