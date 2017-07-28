@@ -323,7 +323,11 @@ void zfcp_dbf_hba_fsf_response(struct zfcp_fsf_req *req)
 {
 	struct fsf_qtcb *qtcb = req->qtcb;
 
-	if ((qtcb->prefix.prot_status != FSF_PROT_GOOD) &&
+	if (unlikely(req->status & (ZFCP_STATUS_FSFREQ_DISMISSED |
+				    ZFCP_STATUS_FSFREQ_ERROR))) {
+		zfcp_dbf_hba_fsf_resp("fs_rerr", 3, req);
+
+	} else if ((qtcb->prefix.prot_status != FSF_PROT_GOOD) &&
 	    (qtcb->prefix.prot_status != FSF_PROT_FSF_STATUS_PRESENTED)) {
 		zfcp_dbf_hba_fsf_resp("fs_perr", 1, req);
 
