@@ -42,16 +42,16 @@ static char	*file = "xlinx_fpga_firmware.bit";
 module_param(file, charp, 0444);
 MODULE_PARM_DESC(file, "Xilinx FPGA firmware file.");
 
-static void read_bitstream(char *bitdata, char *buf, int *offset, int rdsize)
+static void read_bitstream(u8 *bitdata, u8 *buf, int *offset, int rdsize)
 {
 	memcpy(buf, bitdata + *offset, rdsize);
 	*offset += rdsize;
 }
 
-static int readinfo_bitstream(char *bitdata, char *buf, int size, int *offset)
+static int readinfo_bitstream(u8 *bitdata, u8 *buf, int size, int *offset)
 {
-	char tbuf[64];
-	s32 len;
+	u8 tbuf[2];
+	u16 len;
 
 	/* read section char */
 	read_bitstream(bitdata, tbuf, offset, 1);
@@ -74,9 +74,9 @@ static int readinfo_bitstream(char *bitdata, char *buf, int size, int *offset)
 /*
  * read bitdata length
  */
-static int readlength_bitstream(char *bitdata, int *lendata, int *offset)
+static int readlength_bitstream(u8 *bitdata, int *lendata, int *offset)
 {
-	char tbuf[64];
+	u8 tbuf[4];
 
 	/* read section char */
 	read_bitstream(bitdata, tbuf, offset, 1);
@@ -98,9 +98,9 @@ static int readlength_bitstream(char *bitdata, int *lendata, int *offset)
 /*
  * read first 13 bytes to check bitstream magic number
  */
-static int readmagic_bitstream(char *bitdata, int *offset)
+static int readmagic_bitstream(u8 *bitdata, int *offset)
 {
-	char buf[13];
+	u8 buf[13];
 	int r;
 
 	read_bitstream(bitdata, buf, offset, 13);
@@ -135,12 +135,12 @@ static void gs_print_header(struct fpgaimage *fimage)
 
 static int gs_read_bitstream(struct fpgaimage *fimage)
 {
-	char *bitdata;
+	u8 *bitdata;
 	int offset;
 	int err;
 
 	offset = 0;
-	bitdata = (char *)fimage->fw_entry->data;
+	bitdata = (u8 *)fimage->fw_entry->data;
 
 	err = readmagic_bitstream(bitdata, &offset);
 	if (err)
@@ -209,11 +209,11 @@ static int gs_load_image(struct fpgaimage *fimage, char *fw_file)
 
 static int gs_download_image(struct fpgaimage *fimage, enum wbus bus_bytes)
 {
-	char *bitdata;
+	u8 *bitdata;
 	int size, i, cnt;
 
 	cnt = 0;
-	bitdata = (char *)fimage->fpgadata;
+	bitdata = (u8 *)fimage->fpgadata;
 	size = fimage->lendata;
 
 #ifdef DEBUG_FPGA
