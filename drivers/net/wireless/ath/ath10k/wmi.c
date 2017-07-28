@@ -6498,6 +6498,7 @@ ath10k_wmi_op_gen_peer_create(struct ath10k *ar, u32 vdev_id,
 	cmd = (struct wmi_peer_create_cmd *)skb->data;
 	cmd->vdev_id = __cpu_to_le32(vdev_id);
 	ether_addr_copy(cmd->peer_macaddr.addr, peer_addr);
+	cmd->peer_type = __cpu_to_le32(peer_type);
 
 	ath10k_dbg(ar, ATH10K_DBG_WMI,
 		   "wmi peer create vdev_id %d peer_addr %pM\n",

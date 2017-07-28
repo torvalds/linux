@@ -5877,6 +5877,7 @@ struct wmi_tbtt_offset_event {
 struct wmi_peer_create_cmd {
 	__le32 vdev_id;
 	struct wmi_mac_addr peer_macaddr;
+	__le32 peer_type;
 } __packed;
 
 enum wmi_peer_type {
