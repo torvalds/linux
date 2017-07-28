@@ -758,8 +758,8 @@ static int netvsc_set_channels(struct net_device *net,
 	if (!IS_ERR(nvdev)) {
 		netif_set_real_num_tx_queues(net, nvdev->num_chn);
 		netif_set_real_num_rx_queues(net, nvdev->num_chn);
-		ret = PTR_ERR(nvdev);
 	} else {
+		ret = PTR_ERR(nvdev);
 		device_info.num_chn = orig;
 		rndis_filter_device_add(dev, &device_info);
 	}
