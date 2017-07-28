@@ -84,7 +84,7 @@ static int readlength_bitstream(u8 *bitdata, int *lendata, int *offset)
 	/* make sure it is section 'e' */
 	if (tbuf[0] != 'e') {
 		pr_err("error: length section is not 'e', but %c\n", tbuf[0]);
-		return -1;
+		return -EINVAL;
 	}
 
 	/* read 4bytes length */
@@ -107,7 +107,7 @@ static int readmagic_bitstream(u8 *bitdata, int *offset)
 	r = memcmp(buf, bits_magic, 13);
 	if (r) {
 		pr_err("error: corrupted header");
-		return -1;
+		return -EINVAL;
 	}
 	pr_info("bitstream file magic number Ok\n");
 
@@ -184,7 +184,7 @@ static int gs_read_image(struct fpgaimage *fimage)
 		break;
 	default:
 		pr_err("unsupported fpga image format\n");
-		return -1;
+		return -EINVAL;
 	}
 
 	gs_print_header(fimage);
@@ -223,7 +223,7 @@ static int gs_download_image(struct fpgaimage *fimage, enum wbus bus_bytes)
 	if (!xl_supported_prog_bus_width(bus_bytes)) {
 		pr_err("unsupported program bus width %d\n",
 		       bus_bytes);
-		return -1;
+		return -EINVAL;
 	}
 
 	/* Bring csi_b, rdwr_b Low and program_b High */
@@ -250,7 +250,7 @@ static int gs_download_image(struct fpgaimage *fimage, enum wbus bus_bytes)
 	/* Check INIT_B */
 	if (xl_get_init_b() == 0) {
 		pr_err("init_b 0\n");
-		return -1;
+		return -EIO;
 	}
 
 	while (xl_get_done_b() == 0) {
@@ -262,7 +262,7 @@ static int gs_download_image(struct fpgaimage *fimage, enum wbus bus_bytes)
 
 	if (cnt > MAX_WAIT_DONE) {
 		pr_err("fpga download fail\n");
-		return -1;
+		return -EIO;
 	}
 
 	pr_info("download fpgaimage\n");
@@ -351,7 +351,7 @@ err_out2:
 err_out1:
 	kfree(fimage);
 
-	return -1;
+	return err;
 }
 
 static int __init gs_fpgaboot_init(void)
