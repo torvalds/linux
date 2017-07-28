@@ -853,8 +853,9 @@ static void plane_atomic_disable(struct core_dc *dc,
 	struct dce_hwseq *hws = dc->hwseq;
 	struct mem_input *mi = dc->res_pool->mis[fe_idx];
 	struct mpc *mpc = dc->res_pool->mpc;
+	int opp_id = mi->opp_id;
 
-	if (mi->opp_id == 0xf)
+	if (opp_id == 0xf)
 		return;
 
 	mpc->funcs->wait_for_idle(mpc, mi->mpcc_id);
@@ -876,8 +877,8 @@ static void plane_atomic_disable(struct core_dc *dc,
 	REG_UPDATE(DPP_CONTROL[fe_idx],
 			DPP_CLOCK_ENABLE, 0);
 
-	if (dc->res_pool->opps[mi->opp_id]->mpc_tree.num_pipes == 0)
-		REG_UPDATE(OPP_PIPE_CONTROL[mi->opp_id],
+	if (dc->res_pool->opps[opp_id]->mpc_tree.num_pipes == 0)
+		REG_UPDATE(OPP_PIPE_CONTROL[opp_id],
 				OPP_PIPE_CLOCK_EN, 0);
 
 	if (dc->public.debug.sanity_checks)
