@@ -343,6 +343,14 @@ static int spi_qup_do_dma(struct spi_master *master, struct spi_transfer *xfer,
 	else if (xfer->tx_buf)
 		tx_done = spi_qup_dma_done;
 
+	/* before issuing the descriptors, set the QUP to run */
+	ret = spi_qup_set_state(qup, QUP_STATE_RUN);
+	if (ret) {
+		dev_warn(qup->dev, "%s(%d): cannot set RUN state\n",
+				__func__, __LINE__);
+		return ret;
+	}
+
 	if (xfer->rx_buf) {
 		ret = spi_qup_prep_sg(master, xfer, DMA_DEV_TO_MEM, rx_done);
 		if (ret)
@@ -384,6 +392,13 @@ static int spi_qup_do_pio(struct spi_master *master, struct spi_transfer *xfer,
 	}
 
 	spi_qup_fifo_write(qup, xfer);
+
+	ret = spi_qup_set_state(qup, QUP_STATE_RUN);
+	if (ret) {
+		dev_warn(qup->dev, "%s(%d): cannot set RUN state\n",
+				__func__, __LINE__);
+		return ret;
+	}
 
 	if (!wait_for_completion_timeout(&qup->done, timeout))
 		return -ETIMEDOUT;
