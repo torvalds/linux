@@ -42,6 +42,7 @@ union fbc_physical_address {
 		uint32_t low_part;
 		int32_t high_part;
 	} addr;
+	uint64_t quad_part;
 };
 
 struct compr_addr_and_pitch_params {

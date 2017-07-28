@@ -92,6 +92,9 @@ struct dc_context {
 	bool created_bios;
 	struct gpio_service *gpio_service;
 	struct i2caux *i2caux;
+#ifdef ENABLE_FBC
+	uint64_t fbc_gpu_addr;
+#endif
 };
 
 

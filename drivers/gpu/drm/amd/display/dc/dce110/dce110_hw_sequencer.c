@@ -1528,6 +1528,69 @@ static void apply_min_clocks(
 	}
 }
 
+#ifdef ENABLE_FBC
+
+/*
+ *  Check if FBC can be enabled
+ */
+static enum dc_status validate_fbc(struct core_dc *dc,
+		struct validate_context *context)
+{
+	struct pipe_ctx *pipe_ctx =
+			      &context->res_ctx.pipe_ctx[0];
+
+	ASSERT(dc->fbc_compressor);
+
+	/* FBC memory should be allocated */
+	if (!dc->ctx->fbc_gpu_addr)
+		return DC_ERROR_UNEXPECTED;
+
+	/* Only supports single display */
+	if (context->stream_count != 1)
+		return DC_ERROR_UNEXPECTED;
+
+	/* Only supports eDP */
+	if (pipe_ctx->stream->sink->link->connector_signal != SIGNAL_TYPE_EDP)
+		return DC_ERROR_UNEXPECTED;
+
+	/* PSR should not be enabled */
+	if (pipe_ctx->stream->sink->link->psr_enabled)
+		return DC_ERROR_UNEXPECTED;
+
+	return DC_OK;
+}
+
+/*
+ *  Enable FBC
+ */
+static enum dc_status enable_fbc(struct core_dc *dc,
+		struct validate_context *context)
+{
+	enum dc_status status = validate_fbc(dc, context);
+
+	if (status == DC_OK) {
+		/* Program GRPH COMPRESSED ADDRESS and PITCH */
+		struct compr_addr_and_pitch_params params = {0, 0, 0};
+		struct compressor *compr = dc->fbc_compressor;
+		struct pipe_ctx *pipe_ctx =
+				      &context->res_ctx.pipe_ctx[0];
+
+		params.source_view_width =
+				pipe_ctx->stream->timing.h_addressable;
+		params.source_view_height =
+				pipe_ctx->stream->timing.v_addressable;
+
+		compr->compr_surface_address.quad_part = dc->ctx->fbc_gpu_addr;
+
+		compr->funcs->surface_address_and_pitch(compr, &params);
+		compr->funcs->set_fbc_invalidation_triggers(compr, 1);
+
+		compr->funcs->enable_fbc(compr, &params);
+	}
+	return status;
+}
+#endif
+
 static enum dc_status apply_ctx_to_hw_fpga(
 		struct core_dc *dc,
 		struct validate_context *context)
@@ -1836,6 +1899,11 @@ enum dc_status dce110_apply_ctx_to_hw(
 
 	switch_dp_clock_sources(dc, &context->res_ctx);
 
+#ifdef ENABLE_FBC
+	if (dc->fbc_compressor)
+		enable_fbc(dc, context);
+
+#endif
 
 	return DC_OK;
 }
@@ -2244,6 +2312,7 @@ static void init_hw(struct core_dc *dc)
 	if (dc->fbc_compressor)
 		dc->fbc_compressor->funcs->power_up_fbc(dc->fbc_compressor);
 #endif
+
 }
 
 void dce110_fill_display_configs(

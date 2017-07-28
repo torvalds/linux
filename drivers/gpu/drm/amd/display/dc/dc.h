@@ -231,6 +231,9 @@ struct dc_init_data {
 	enum dce_environment dce_environment;
 
 	struct dc_config flags;
+#ifdef ENABLE_FBC
+	uint64_t fbc_gpu_addr;
+#endif
 };
 
 struct dc *dc_create(const struct dc_init_data *init_params);
