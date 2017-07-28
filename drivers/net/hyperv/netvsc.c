@@ -1307,7 +1307,8 @@ struct netvsc_device *netvsc_device_add(struct hv_device *device,
 	return net_device;
 
 close:
-	netif_napi_del(&net_device->chan_table[0].napi);
+	RCU_INIT_POINTER(net_device_ctx->nvdev, NULL);
+	napi_disable(&net_device->chan_table[0].napi);
 
 	/* Now, we can close the channel safely */
 	vmbus_close(device->channel);
