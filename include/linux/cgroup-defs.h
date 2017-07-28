@@ -273,13 +273,18 @@ struct cgroup {
 	 */
 	int level;
 
+	/* Maximum allowed descent tree depth */
+	int max_depth;
+
 	/*
 	 * Keep track of total numbers of visible and dying descent cgroups.
 	 * Dying cgroups are cgroups which were deleted by a user,
 	 * but are still existing because someone else is holding a reference.
+	 * max_descendants is a maximum allowed number of descent cgroups.
 	 */
 	int nr_descendants;
 	int nr_dying_descendants;
+	int max_descendants;
 
 	/*
 	 * Each non-empty css_set associated with this cgroup contributes

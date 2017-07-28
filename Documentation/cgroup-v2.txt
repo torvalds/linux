@@ -854,6 +854,20 @@ All cgroup core files are prefixed with "cgroup."
 		1 if the cgroup or its descendants contains any live
 		processes; otherwise, 0.
 
+  cgroup.max.descendants
+	A read-write single value files.  The default is "max".
+
+	Maximum allowed number of descent cgroups.
+	If the actual number of descendants is equal or larger,
+	an attempt to create a new cgroup in the hierarchy will fail.
+
+  cgroup.max.depth
+	A read-write single value files.  The default is "max".
+
+	Maximum allowed descent depth below the current cgroup.
+	If the actual descent depth is equal or larger,
+	an attempt to create a new child cgroup will fail.
+
 
 Controllers
 ===========
