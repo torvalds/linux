@@ -420,9 +420,20 @@ static inline char *wmi_service_name(int service_id)
 	 __le32_to_cpu((wmi_svc_bmap)[(svc_id) / (sizeof(u32))]) & \
 	 BIT((svc_id) % (sizeof(u32))))
 
+/* This extension is required to accommodate new services, current limit
+ * for wmi_services is 64 as target is using only 4-bits of each 32-bit
+ * wmi_service word. Extending this to make use of remaining unused bits
+ * for new services.
+ */
+#define WMI_EXT_SERVICE_IS_ENABLED(wmi_svc_bmap, svc_id, len) \
+	((svc_id) >= (len) && \
+	__le32_to_cpu((wmi_svc_bmap)[((svc_id) - (len)) / 28]) & \
+	BIT(((((svc_id) - (len)) % 28) & 0x1f) + 4))
+
 #define SVCMAP(x, y, len) \
 	do { \
-		if (WMI_SERVICE_IS_ENABLED((in), (x), (len))) \
+		if ((WMI_SERVICE_IS_ENABLED((in), (x), (len))) || \
+		    (WMI_EXT_SERVICE_IS_ENABLED((in), (x), (len)))) \
 			__set_bit(y, out); \
 	} while (0)
 
