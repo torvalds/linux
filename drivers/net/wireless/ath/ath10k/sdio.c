@@ -683,7 +683,7 @@ static int ath10k_sdio_mbox_rxmsg_pending_handler(struct ath10k *ar,
 	lookaheads[0] = msg_lookahead;
 
 	timeout = jiffies + SDIO_MBOX_PROCESSING_TIMEOUT_HZ;
-	while (time_before(jiffies, timeout)) {
+	do {
 		/* Try to allocate as many HTC RX packets indicated by
 		 * n_lookaheads.
 		 */
@@ -719,7 +719,7 @@ static int ath10k_sdio_mbox_rxmsg_pending_handler(struct ath10k *ar,
 		 * performance in high throughput situations.
 		 */
 		*done = false;
-	}
+	} while (time_before(jiffies, timeout));
 
 	if (ret && (ret != -ECANCELED))
 		ath10k_warn(ar, "failed to get pending recv messages: %d\n",
@@ -1336,11 +1336,11 @@ static void ath10k_sdio_irq_handler(struct sdio_func *func)
 	sdio_release_host(ar_sdio->func);
 
 	timeout = jiffies + ATH10K_SDIO_HIF_COMMUNICATION_TIMEOUT_HZ;
-	while (time_before(jiffies, timeout) && !done) {
+	do {
 		ret = ath10k_sdio_mbox_proc_pending_irqs(ar, &done);
 		if (ret)
 			break;
-	}
+	} while (time_before(jiffies, timeout) && !done);
 
 	sdio_claim_host(ar_sdio->func);
 
