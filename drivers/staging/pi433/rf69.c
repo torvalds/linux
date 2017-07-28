@@ -238,7 +238,7 @@ int rf69_set_frequency(struct spi_device *spi, u32 frequency)
 	do_div(f_step, 524288); //  524288 = 2^19
 
 	// check input value
-	f_max = f_step * 8388608 / factor;
+	f_max = div_u64(f_step * 8388608, factor);
 	if (frequency > f_max)
 	{
 		dev_dbg(&spi->dev, "setFrequency: illegal input param");
