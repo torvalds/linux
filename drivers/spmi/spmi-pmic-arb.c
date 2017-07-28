@@ -622,6 +622,13 @@ static int qpnpint_irq_set_type(struct irq_data *d, unsigned int flow_type)
 	return 0;
 }
 
+static int qpnpint_irq_set_wake(struct irq_data *d, unsigned int on)
+{
+	struct spmi_pmic_arb *pmic_arb = irq_data_get_irq_chip_data(d);
+
+	return irq_set_irq_wake(pmic_arb->irq, on);
+}
+
 static int qpnpint_get_irqchip_state(struct irq_data *d,
 				     enum irqchip_irq_state which,
 				     bool *state)
@@ -644,9 +651,9 @@ static struct irq_chip pmic_arb_irqchip = {
 	.irq_mask	= qpnpint_irq_mask,
 	.irq_unmask	= qpnpint_irq_unmask,
 	.irq_set_type	= qpnpint_irq_set_type,
+	.irq_set_wake	= qpnpint_irq_set_wake,
 	.irq_get_irqchip_state	= qpnpint_get_irqchip_state,
-	.flags		= IRQCHIP_MASK_ON_SUSPEND
-			| IRQCHIP_SKIP_SET_WAKE,
+	.flags		= IRQCHIP_MASK_ON_SUSPEND,
 };
 
 static int qpnpint_irq_domain_dt_translate(struct irq_domain *d,
@@ -1068,8 +1075,6 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 
 	irq_set_chained_handler_and_data(pmic_arb->irq, pmic_arb_chained_irq,
 					pmic_arb);
-	enable_irq_wake(pmic_arb->irq);
-
 	err = spmi_controller_add(ctrl);
 	if (err)
 		goto err_domain_remove;
