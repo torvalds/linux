@@ -178,11 +178,9 @@ struct spmi_pmic_arb {
  */
 struct pmic_arb_ver_ops {
 	const char *ver_str;
-	int (*ppid_to_apid)(struct spmi_pmic_arb *pmic_arb, u8 sid, u16 addr,
-			u16 *apid);
+	int (*ppid_to_apid)(struct spmi_pmic_arb *pmic_arb, u16 ppid);
 	/* spmi commands (read_cmd, write_cmd, cmd) functionality */
-	int (*offset)(struct spmi_pmic_arb *pmic_arb, u8 sid, u16 addr,
-		      u32 *offset);
+	int (*offset)(struct spmi_pmic_arb *pmic_arb, u8 sid, u16 addr);
 	u32 (*fmt_cmd)(u8 opc, u8 sid, u16 addr, u8 bc);
 	int (*non_data_cmd)(struct spmi_controller *ctrl, u8 opc, u8 sid);
 	/* Interrupts controller functionality (offset of PIC registers) */
@@ -242,10 +240,11 @@ static int pmic_arb_wait_for_done(struct spmi_controller *ctrl,
 	u32 offset;
 	int rc;
 
-	rc = pmic_arb->ver_ops->offset(pmic_arb, sid, addr, &offset);
-	if (rc)
+	rc = pmic_arb->ver_ops->offset(pmic_arb, sid, addr);
+	if (rc < 0)
 		return rc;
 
+	offset = rc;
 	offset += PMIC_ARB_STATUS;
 
 	while (timeout--) {
@@ -289,10 +288,11 @@ pmic_arb_non_data_cmd_v1(struct spmi_controller *ctrl, u8 opc, u8 sid)
 	int rc;
 	u32 offset;
 
-	rc = pmic_arb->ver_ops->offset(pmic_arb, sid, 0, &offset);
-	if (rc)
+	rc = pmic_arb->ver_ops->offset(pmic_arb, sid, 0);
+	if (rc < 0)
 		return rc;
 
+	offset = rc;
 	cmd = ((opc | 0x40) << 27) | ((sid & 0xf) << 20);
 
 	raw_spin_lock_irqsave(&pmic_arb->lock, flags);
@@ -333,10 +333,11 @@ static int pmic_arb_read_cmd(struct spmi_controller *ctrl, u8 opc, u8 sid,
 	int rc;
 	u32 offset;
 
-	rc = pmic_arb->ver_ops->offset(pmic_arb, sid, addr, &offset);
-	if (rc)
+	rc = pmic_arb->ver_ops->offset(pmic_arb, sid, addr);
+	if (rc < 0)
 		return rc;
 
+	offset = rc;
 	if (bc >= PMIC_ARB_MAX_TRANS_BYTES) {
 		dev_err(&ctrl->dev, "pmic-arb supports 1..%d bytes per trans, but:%zu requested",
 			PMIC_ARB_MAX_TRANS_BYTES, len);
@@ -383,10 +384,11 @@ static int pmic_arb_write_cmd(struct spmi_controller *ctrl, u8 opc, u8 sid,
 	int rc;
 	u32 offset;
 
-	rc = pmic_arb->ver_ops->offset(pmic_arb, sid, addr, &offset);
-	if (rc)
+	rc = pmic_arb->ver_ops->offset(pmic_arb, sid, addr);
+	if (rc < 0)
 		return rc;
 
+	offset = rc;
 	if (bc >= PMIC_ARB_MAX_TRANS_BYTES) {
 		dev_err(&ctrl->dev, "pmic-arb supports 1..%d bytes per trans, but:%zu requested",
 			PMIC_ARB_MAX_TRANS_BYTES, len);
@@ -655,8 +657,8 @@ static int qpnpint_irq_domain_dt_translate(struct irq_domain *d,
 					   unsigned int *out_type)
 {
 	struct spmi_pmic_arb *pmic_arb = d->host_data;
+	u16 apid, ppid;
 	int rc;
-	u16 apid;
 
 	dev_dbg(&pmic_arb->spmic->dev, "intspec[0] 0x%1x intspec[1] 0x%02x intspec[2] 0x%02x\n",
 		intspec[0], intspec[1], intspec[2]);
@@ -668,14 +670,15 @@ static int qpnpint_irq_domain_dt_translate(struct irq_domain *d,
 	if (intspec[0] > 0xF || intspec[1] > 0xFF || intspec[2] > 0x7)
 		return -EINVAL;
 
-	rc = pmic_arb->ver_ops->ppid_to_apid(pmic_arb, intspec[0],
-					    (intspec[1] << 8), &apid);
+	ppid = intspec[0] << 8 | intspec[1];
+	rc = pmic_arb->ver_ops->ppid_to_apid(pmic_arb, ppid);
 	if (rc < 0) {
 		dev_err(&pmic_arb->spmic->dev, "failed to xlate sid = 0x%x, periph = 0x%x, irq = %x rc = %d\n",
 		intspec[0], intspec[1], intspec[2], rc);
 		return rc;
 	}
 
+	apid = rc;
 	/* Keep track of {max,min}_apid for bounding search during interrupt */
 	if (apid > pmic_arb->max_apid)
 		pmic_arb->max_apid = apid;
@@ -704,19 +707,18 @@ static int qpnpint_irq_domain_map(struct irq_domain *d,
 	return 0;
 }
 
-static int pmic_arb_ppid_to_apid_v1(struct spmi_pmic_arb *pmic_arb, u8 sid,
-				    u16 addr, u16 *apid)
+static int pmic_arb_ppid_to_apid_v1(struct spmi_pmic_arb *pmic_arb, u16 ppid)
 {
-	u16 ppid = sid << 8 | ((addr >> 8) & 0xFF);
 	u32 *mapping_table = pmic_arb->mapping_table;
 	int index = 0, i;
 	u16 apid_valid;
+	u16 apid;
 	u32 data;
 
 	apid_valid = pmic_arb->ppid_to_apid[ppid];
 	if (apid_valid & PMIC_ARB_APID_VALID) {
-		*apid = apid_valid & ~PMIC_ARB_APID_VALID;
-		return 0;
+		apid = apid_valid & ~PMIC_ARB_APID_VALID;
+		return apid;
 	}
 
 	for (i = 0; i < SPMI_MAPPING_TABLE_TREE_DEPTH; ++i) {
@@ -730,21 +732,21 @@ static int pmic_arb_ppid_to_apid_v1(struct spmi_pmic_arb *pmic_arb, u8 sid,
 			if (SPMI_MAPPING_BIT_IS_1_FLAG(data)) {
 				index = SPMI_MAPPING_BIT_IS_1_RESULT(data);
 			} else {
-				*apid = SPMI_MAPPING_BIT_IS_1_RESULT(data);
+				apid = SPMI_MAPPING_BIT_IS_1_RESULT(data);
 				pmic_arb->ppid_to_apid[ppid]
-					= *apid | PMIC_ARB_APID_VALID;
-				pmic_arb->apid_data[*apid].ppid = ppid;
-				return 0;
+					= apid | PMIC_ARB_APID_VALID;
+				pmic_arb->apid_data[apid].ppid = ppid;
+				return apid;
 			}
 		} else {
 			if (SPMI_MAPPING_BIT_IS_0_FLAG(data)) {
 				index = SPMI_MAPPING_BIT_IS_0_RESULT(data);
 			} else {
-				*apid = SPMI_MAPPING_BIT_IS_0_RESULT(data);
+				apid = SPMI_MAPPING_BIT_IS_0_RESULT(data);
 				pmic_arb->ppid_to_apid[ppid]
-					= *apid | PMIC_ARB_APID_VALID;
-				pmic_arb->apid_data[*apid].ppid = ppid;
-				return 0;
+					= apid | PMIC_ARB_APID_VALID;
+				pmic_arb->apid_data[apid].ppid = ppid;
+				return apid;
 			}
 		}
 	}
@@ -753,11 +755,9 @@ static int pmic_arb_ppid_to_apid_v1(struct spmi_pmic_arb *pmic_arb, u8 sid,
 }
 
 /* v1 offset per ee */
-static int pmic_arb_offset_v1(struct spmi_pmic_arb *pmic_arb, u8 sid, u16 addr,
-				u32 *offset)
+static int pmic_arb_offset_v1(struct spmi_pmic_arb *pmic_arb, u8 sid, u16 addr)
 {
-	*offset = 0x800 + 0x80 * pmic_arb->channel;
-	return 0;
+	return 0x800 + 0x80 * pmic_arb->channel;
 }
 
 static u16 pmic_arb_find_apid(struct spmi_pmic_arb *pmic_arb, u16 ppid)
@@ -796,10 +796,8 @@ static u16 pmic_arb_find_apid(struct spmi_pmic_arb *pmic_arb, u16 ppid)
 	return apid;
 }
 
-static int pmic_arb_ppid_to_apid_v2(struct spmi_pmic_arb *pmic_arb, u8 sid,
-				    u16 addr, u16 *apid)
+static int pmic_arb_ppid_to_apid_v2(struct spmi_pmic_arb *pmic_arb, u16 ppid)
 {
-	u16 ppid = (sid << 8) | (addr >> 8);
 	u16 apid_valid;
 
 	apid_valid = pmic_arb->ppid_to_apid[ppid];
@@ -808,23 +806,23 @@ static int pmic_arb_ppid_to_apid_v2(struct spmi_pmic_arb *pmic_arb, u8 sid,
 	if (!(apid_valid & PMIC_ARB_APID_VALID))
 		return -ENODEV;
 
-	*apid = apid_valid & ~PMIC_ARB_APID_VALID;
-	return 0;
+	return apid_valid & ~PMIC_ARB_APID_VALID;
 }
 
 /* v2 offset per ppid and per ee */
-static int pmic_arb_offset_v2(struct spmi_pmic_arb *pmic_arb, u8 sid, u16 addr,
-				u32 *offset)
+static int pmic_arb_offset_v2(struct spmi_pmic_arb *pmic_arb, u8 sid, u16 addr)
 {
 	u16 apid;
+	u16 ppid;
 	int rc;
 
-	rc = pmic_arb_ppid_to_apid_v2(pmic_arb, sid, addr, &apid);
+	ppid = sid << 8 | ((addr >> 8) & 0xFF);
+	rc = pmic_arb_ppid_to_apid_v2(pmic_arb, ppid);
 	if (rc < 0)
 		return rc;
 
-	*offset = 0x1000 * pmic_arb->ee + 0x8000 * apid;
-	return 0;
+	apid = rc;
+	return 0x1000 * pmic_arb->ee + 0x8000 * apid;
 }
 
 static u32 pmic_arb_fmt_cmd_v1(u8 opc, u8 sid, u16 addr, u8 bc)
