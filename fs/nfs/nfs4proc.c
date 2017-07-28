@@ -6419,7 +6419,7 @@ nfs4_retry_setlk(struct nfs4_state *state, int cmd, struct file_lock *request)
 		set_current_state(TASK_INTERRUPTIBLE);
 		spin_unlock_irqrestore(&q->lock, flags);
 
-		freezable_schedule_timeout_interruptible(NFS4_LOCK_MAXTIMEOUT);
+		freezable_schedule_timeout(NFS4_LOCK_MAXTIMEOUT);
 	}
 
 	finish_wait(q, &wait);
