@@ -476,6 +476,29 @@ int filemap_fdatawait_range(struct address_space *mapping, loff_t start_byte,
 EXPORT_SYMBOL(filemap_fdatawait_range);
 
 /**
+ * file_fdatawait_range - wait for writeback to complete
+ * @file:		file pointing to address space structure to wait for
+ * @start_byte:		offset in bytes where the range starts
+ * @end_byte:		offset in bytes where the range ends (inclusive)
+ *
+ * Walk the list of under-writeback pages of the address space that file
+ * refers to, in the given range and wait for all of them.  Check error
+ * status of the address space vs. the file->f_wb_err cursor and return it.
+ *
+ * Since the error status of the file is advanced by this function,
+ * callers are responsible for checking the return value and handling and/or
+ * reporting the error.
+ */
+int file_fdatawait_range(struct file *file, loff_t start_byte, loff_t end_byte)
+{
+	struct address_space *mapping = file->f_mapping;
+
+	__filemap_fdatawait_range(mapping, start_byte, end_byte);
+	return file_check_and_advance_wb_err(file);
+}
+EXPORT_SYMBOL(file_fdatawait_range);
+
+/**
  * filemap_fdatawait_keep_errors - wait for writeback without clearing errors
  * @mapping: address space structure to wait for
  *
