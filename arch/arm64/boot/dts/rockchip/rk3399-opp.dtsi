@@ -26,35 +26,75 @@
 			1	34
 		>;
 
+		rockchip,pvtm-voltage-sel = <
+			0        143500   0
+			143501   148500   1
+			148501   152000   2
+			152001   999999   3
+		>;
+		rockchip,pvtm-freq = <408000>;
+		rockchip,pvtm-volt = <1000000>;
+		rockchip,pvtm-ch = <0 0>;
+		rockchip,pvtm-sample-time = <1000>;
+		rockchip,pvtm-number = <10>;
+		rockchip,pvtm-error = <1000>;
+		rockchip,pvtm-ref-temp = <41>;
+		rockchip,pvtm-temp-prop = <115 66>;
+		rockchip,pvtm-thermal-zone = "soc-thermal";
+
 		opp-408000000 {
 			opp-hz = /bits/ 64 <408000000>;
-			opp-microvolt = <800000>;
+			opp-microvolt = <825000 825000 1250000>;
+			opp-microvolt-L0 = <825000 825000 1250000>;
+			opp-microvolt-L1 = <825000 825000 1250000>;
+			opp-microvolt-L2 = <825000 825000 1250000>;
+			opp-microvolt-L3 = <825000 825000 1250000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-600000000 {
 			opp-hz = /bits/ 64 <600000000>;
-			opp-microvolt = <800000>;
+			opp-microvolt = <825000 825000 1250000>;
+			opp-microvolt-L0 = <825000 825000 1250000>;
+			opp-microvolt-L1 = <825000 825000 1250000>;
+			opp-microvolt-L2 = <825000 825000 1250000>;
+			opp-microvolt-L3 = <825000 825000 1250000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-816000000 {
 			opp-hz = /bits/ 64 <816000000>;
-			opp-microvolt = <850000>;
+			opp-microvolt = <850000 850000 1250000>;
+			opp-microvolt-L0 = <850000 850000 1250000>;
+			opp-microvolt-L1 = <825000 825000 1250000>;
+			opp-microvolt-L2 = <825000 825000 1250000>;
+			opp-microvolt-L3 = <825000 825000 1250000>;
 			clock-latency-ns = <40000>;
 			opp-suspend;
 		};
 		opp-1008000000 {
 			opp-hz = /bits/ 64 <1008000000>;
-			opp-microvolt = <925000>;
+			opp-microvolt = <925000 925000 1250000>;
+			opp-microvolt-L0 = <925000 925000 1250000>;
+			opp-microvolt-L1 = <900000 900000 1250000>;
+			opp-microvolt-L2 = <875000 875000 1250000>;
+			opp-microvolt-L3 = <850000 850000 1250000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1200000000 {
 			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <1000000>;
+			opp-microvolt = <1000000 1000000 1250000>;
+			opp-microvolt-L0 = <1000000 1000000 1250000>;
+			opp-microvolt-L1 = <975000 975000 1250000>;
+			opp-microvolt-L2 = <950000 950000 1250000>;
+			opp-microvolt-L3 = <925000 925000 1250000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1416000000 {
 			opp-hz = /bits/ 64 <1416000000>;
-			opp-microvolt = <1125000>;
+			opp-microvolt = <1125000 1125000 1250000>;
+			opp-microvolt-L0 = <1125000 1125000 1250000>;
+			opp-microvolt-L1 = <1100000 1100000 1250000>;
+			opp-microvolt-L2 = <1075000 1075000 1200000>;
+			opp-microvolt-L3 = <1050000 1050000 1250000>;
 			clock-latency-ns = <40000>;
 		};
 	};
@@ -79,45 +119,102 @@
 			1	17
 		>;
 
+		rockchip,pvtm-voltage-sel = <
+			0        149000   0
+			149001   155000   1
+			155001   159000   2
+			159001   161000   3
+			161001   999999   4
+		>;
+		rockchip,pvtm-freq = <408000>;
+		rockchip,pvtm-volt = <1000000>;
+		rockchip,pvtm-ch = <1 0>;
+		rockchip,pvtm-sample-time = <1000>;
+		rockchip,pvtm-number = <10>;
+		rockchip,pvtm-error = <1000>;
+		rockchip,pvtm-ref-temp = <41>;
+		rockchip,pvtm-temp-prop = <71 35>;
+		rockchip,pvtm-thermal-zone = "soc-thermal";
+
 		opp-408000000 {
 			opp-hz = /bits/ 64 <408000000>;
-			opp-microvolt = <800000>;
+			opp-microvolt = <825000 825000 1250000>;
+			opp-microvolt-L0 = <825000 825000 1250000>;
+			opp-microvolt-L1 = <825000 825000 1250000>;
+			opp-microvolt-L2 = <825000 825000 1250000>;
+			opp-microvolt-L3 = <825000 825000 1250000>;
+			opp-microvolt-L4 = <825000 825000 1250000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-600000000 {
 			opp-hz = /bits/ 64 <600000000>;
-			opp-microvolt = <800000>;
+			opp-microvolt = <825000 825000 1250000>;
+			opp-microvolt-L0 = <825000 825000 1250000>;
+			opp-microvolt-L1 = <825000 825000 1250000>;
+			opp-microvolt-L2 = <825000 825000 1250000>;
+			opp-microvolt-L3 = <825000 825000 1250000>;
+			opp-microvolt-L4 = <825000 825000 1250000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-816000000 {
 			opp-hz = /bits/ 64 <816000000>;
-			opp-microvolt = <825000>;
+			opp-microvolt = <825000 825000 1250000>;
+			opp-microvolt-L0 = <825000 825000 1250000>;
+			opp-microvolt-L1 = <825000 825000 1250000>;
+			opp-microvolt-L2 = <825000 825000 1250000>;
+			opp-microvolt-L3 = <825000 825000 1250000>;
+			opp-microvolt-L4 = <825000 825000 1250000>;
 			clock-latency-ns = <40000>;
 			opp-suspend;
 		};
 		opp-1008000000 {
 			opp-hz = /bits/ 64 <1008000000>;
-			opp-microvolt = <875000>;
+			opp-microvolt = <875000 875000 1250000>;
+			opp-microvolt-L0 = <875000 875000 1250000>;
+			opp-microvolt-L1 = <850000 850000 1250000>;
+			opp-microvolt-L2 = <850000 850000 1250000>;
+			opp-microvolt-L3 = <850000 850000 1250000>;
+			opp-microvolt-L4 = <850000 850000 1250000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1200000000 {
 			opp-hz = /bits/ 64 <1200000000>;
-			opp-microvolt = <950000>;
+			opp-microvolt = <950000 950000 1250000>;
+			opp-microvolt-L0 = <950000 950000 1250000>;
+			opp-microvolt-L1 = <925000 925000 1250000>;
+			opp-microvolt-L2 = <900000 900000 1250000>;
+			opp-microvolt-L3 = <875000 875000 1250000>;
+			opp-microvolt-L4 = <875000 875000 1250000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1416000000 {
 			opp-hz = /bits/ 64 <1416000000>;
-			opp-microvolt = <1025000>;
+			opp-microvolt = <1025000 1025000 1250000>;
+			opp-microvolt-L0 = <1025000 1025000 1250000>;
+			opp-microvolt-L1 = <1000000 1000000 1250000>;
+			opp-microvolt-L2 = <1000000 1000000 1250000>;
+			opp-microvolt-L3 = <975000 975000 1250000>;
+			opp-microvolt-L4 = <975000 975000 1250000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1608000000 {
 			opp-hz = /bits/ 64 <1608000000>;
-			opp-microvolt = <1100000>;
+			opp-microvolt = <1100000 1100000 1250000>;
+			opp-microvolt-L0 = <1100000 1100000 1250000>;
+			opp-microvolt-L1 = <1075000 1075000 1250000>;
+			opp-microvolt-L2 = <1050000 1050000 1250000>;
+			opp-microvolt-L3 = <1025000 1025000 1250000>;
+			opp-microvolt-L4 = <1025000 1025000 1250000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-1800000000 {
 			opp-hz = /bits/ 64 <1800000000>;
-			opp-microvolt = <1200000>;
+			opp-microvolt = <1200000 1200000 1250000>;
+			opp-microvolt-L0 = <1200000 1200000 1250000>;
+			opp-microvolt-L1 = <1175000 1175000 1250000>;
+			opp-microvolt-L2 = <1150000 1150000 1250000>;
+			opp-microvolt-L3 = <1125000 1125000 1250000>;
+			opp-microvolt-L4 = <1100000 1100000 1250000>;
 			clock-latency-ns = <40000>;
 		};
 	};
