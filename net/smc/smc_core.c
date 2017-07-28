@@ -615,6 +615,38 @@ static int __smc_buf_create(struct smc_sock *smc, bool is_rmb)
 	return 0;
 }
 
+void smc_sndbuf_sync_sg_for_cpu(struct smc_connection *conn)
+{
+	struct smc_link_group *lgr = conn->lgr;
+
+	smc_ib_sync_sg_for_cpu(lgr->lnk[SMC_SINGLE_LINK].smcibdev,
+			       conn->sndbuf_desc, DMA_TO_DEVICE);
+}
+
+void smc_sndbuf_sync_sg_for_device(struct smc_connection *conn)
+{
+	struct smc_link_group *lgr = conn->lgr;
+
+	smc_ib_sync_sg_for_device(lgr->lnk[SMC_SINGLE_LINK].smcibdev,
+				  conn->sndbuf_desc, DMA_TO_DEVICE);
+}
+
+void smc_rmb_sync_sg_for_cpu(struct smc_connection *conn)
+{
+	struct smc_link_group *lgr = conn->lgr;
+
+	smc_ib_sync_sg_for_cpu(lgr->lnk[SMC_SINGLE_LINK].smcibdev,
+			       conn->rmb_desc, DMA_FROM_DEVICE);
+}
+
+void smc_rmb_sync_sg_for_device(struct smc_connection *conn)
+{
+	struct smc_link_group *lgr = conn->lgr;
+
+	smc_ib_sync_sg_for_device(lgr->lnk[SMC_SINGLE_LINK].smcibdev,
+				  conn->rmb_desc, DMA_FROM_DEVICE);
+}
+
 /* create the send and receive buffer for an SMC socket;
  * receive buffers are called RMBs;
  * (even though the SMC protocol allows more than one RMB-element per RMB,

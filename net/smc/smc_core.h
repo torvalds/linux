@@ -189,4 +189,8 @@ void smc_lgr_terminate(struct smc_link_group *lgr);
 int smc_buf_create(struct smc_sock *smc);
 int smc_rmb_rtoken_handling(struct smc_connection *conn,
 			    struct smc_clc_msg_accept_confirm *clc);
+void smc_sndbuf_sync_sg_for_cpu(struct smc_connection *conn);
+void smc_sndbuf_sync_sg_for_device(struct smc_connection *conn);
+void smc_rmb_sync_sg_for_cpu(struct smc_connection *conn);
+void smc_rmb_sync_sg_for_device(struct smc_connection *conn);
 #endif

@@ -474,6 +474,7 @@ static int smc_connect_rdma(struct smc_sock *smc)
 			}
 		}
 	}
+	smc_rmb_sync_sg_for_device(&smc->conn);
 
 	rc = smc_clc_send_confirm(smc);
 	if (rc)
@@ -832,6 +833,7 @@ static void smc_listen_work(struct work_struct *work)
 			}
 		}
 	}
+	smc_rmb_sync_sg_for_device(&new_smc->conn);
 
 	rc = smc_clc_send_accept(new_smc, local_contact);
 	if (rc)

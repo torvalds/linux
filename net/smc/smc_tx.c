@@ -174,10 +174,12 @@ int smc_tx_sendmsg(struct smc_sock *smc, struct msghdr *msg, size_t len)
 				  copylen, conn->sndbuf_size - tx_cnt_prep);
 		chunk_len_sum = chunk_len;
 		chunk_off = tx_cnt_prep;
+		smc_sndbuf_sync_sg_for_cpu(conn);
 		for (chunk = 0; chunk < 2; chunk++) {
 			rc = memcpy_from_msg(sndbuf_base + chunk_off,
 					     msg, chunk_len);
 			if (rc) {
+				smc_sndbuf_sync_sg_for_device(conn);
 				if (send_done)
 					return send_done;
 				goto out_err;
@@ -192,6 +194,7 @@ int smc_tx_sendmsg(struct smc_sock *smc, struct msghdr *msg, size_t len)
 			chunk_len_sum += chunk_len;
 			chunk_off = 0; /* modulo offset in send ring buffer */
 		}
+		smc_sndbuf_sync_sg_for_device(conn);
 		/* update cursors */
 		smc_curs_add(conn->sndbuf_size, &prep, copylen);
 		smc_curs_write(&conn->tx_curs_prep,
