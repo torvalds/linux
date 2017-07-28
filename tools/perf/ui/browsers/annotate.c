@@ -110,7 +110,7 @@ static int annotate_browser__set_jumps_percent_color(struct annotate_browser *br
 
 static int annotate_browser__pcnt_width(struct annotate_browser *ab)
 {
-	return 7 * ab->nr_events;
+	return (annotate_browser__opts.show_total_period ? 12 : 7) * ab->nr_events;
 }
 
 static int annotate_browser__cycles_width(struct annotate_browser *ab)
@@ -153,7 +153,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 						bdl->samples[i].percent,
 						current_entry);
 			if (annotate_browser__opts.show_total_period) {
-				ui_browser__printf(browser, "%6" PRIu64 " ",
+				ui_browser__printf(browser, "%11" PRIu64 " ",
 						   bdl->samples[i].he.period);
 			} else {
 				ui_browser__printf(browser, "%6.2f ",
@@ -165,8 +165,10 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 
 		if (!show_title)
 			ui_browser__write_nstring(browser, " ", pcnt_width);
-		else
-			ui_browser__printf(browser, "%*s", 7, annotate_browser__opts.show_total_period ? "Period" : "Percent");
+		else {
+			ui_browser__printf(browser, "%*s", pcnt_width,
+					   annotate_browser__opts.show_total_period ? "Period" : "Percent");
+		}
 	}
 	if (ab->have_cycles) {
 		if (dl->ipc)
