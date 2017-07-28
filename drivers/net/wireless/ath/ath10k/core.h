@@ -993,6 +993,8 @@ struct ath10k {
 		u32 reg_ack_cts_timeout_orig;
 	} fw_coverage;
 
+	u32 ampdu_reference;
+
 	void *ce_priv;
 
 	/* must be last */

@@ -890,16 +890,26 @@ static void ath10k_htt_rx_h_ppdu(struct ath10k *ar,
 		status->nss = 0;
 		status->encoding = RX_ENC_LEGACY;
 		status->bw = RATE_INFO_BW_20;
+
 		status->flag &= ~RX_FLAG_MACTIME_END;
 		status->flag |= RX_FLAG_NO_SIGNAL_VAL;
+
+		status->flag &= ~(RX_FLAG_AMPDU_IS_LAST);
+		status->flag |= RX_FLAG_AMPDU_DETAILS | RX_FLAG_AMPDU_LAST_KNOWN;
+		status->ampdu_reference = ar->ampdu_reference;
 
 		ath10k_htt_rx_h_signal(ar, status, rxd);
 		ath10k_htt_rx_h_channel(ar, status, rxd, vdev_id);
 		ath10k_htt_rx_h_rates(ar, status, rxd);
 	}
 
-	if (is_last_ppdu)
+	if (is_last_ppdu) {
 		ath10k_htt_rx_h_mactime(ar, status, rxd);
+
+		/* set ampdu last segment flag */
+		status->flag |= RX_FLAG_AMPDU_IS_LAST;
+		ar->ampdu_reference++;
+	}
 }
 
 static const char * const tid_to_ac[] = {
