@@ -167,14 +167,14 @@ struct spmi_pmic_arb {
  * @offset:		on v1 offset of per-ee channel.
  *			on v2 offset of per-ee and per-ppid channel.
  * @fmt_cmd:		formats a GENI/SPMI command.
- * @owner_acc_status:	on v1 offset of PMIC_ARB_SPMI_PIC_OWNERm_ACC_STATUSn
- *			on v2 offset of SPMI_PIC_OWNERm_ACC_STATUSn.
- * @acc_enable:		on v1 offset of PMIC_ARB_SPMI_PIC_ACC_ENABLEn
- *			on v2 offset of SPMI_PIC_ACC_ENABLEn.
- * @irq_status:		on v1 offset of PMIC_ARB_SPMI_PIC_IRQ_STATUSn
- *			on v2 offset of SPMI_PIC_IRQ_STATUSn.
- * @irq_clear:		on v1 offset of PMIC_ARB_SPMI_PIC_IRQ_CLEARn
- *			on v2 offset of SPMI_PIC_IRQ_CLEARn.
+ * @owner_acc_status:	on v1 address of PMIC_ARB_SPMI_PIC_OWNERm_ACC_STATUSn
+ *			on v2 address of SPMI_PIC_OWNERm_ACC_STATUSn.
+ * @acc_enable:		on v1 address of PMIC_ARB_SPMI_PIC_ACC_ENABLEn
+ *			on v2 address of SPMI_PIC_ACC_ENABLEn.
+ * @irq_status:		on v1 address of PMIC_ARB_SPMI_PIC_IRQ_STATUSn
+ *			on v2 address of SPMI_PIC_IRQ_STATUSn.
+ * @irq_clear:		on v1 address of PMIC_ARB_SPMI_PIC_IRQ_CLEARn
+ *			on v2 address of SPMI_PIC_IRQ_CLEARn.
  */
 struct pmic_arb_ver_ops {
 	const char *ver_str;
@@ -184,10 +184,11 @@ struct pmic_arb_ver_ops {
 	u32 (*fmt_cmd)(u8 opc, u8 sid, u16 addr, u8 bc);
 	int (*non_data_cmd)(struct spmi_controller *ctrl, u8 opc, u8 sid);
 	/* Interrupts controller functionality (offset of PIC registers) */
-	u32 (*owner_acc_status)(u8 m, u16 n);
-	u32 (*acc_enable)(u16 n);
-	u32 (*irq_status)(u16 n);
-	u32 (*irq_clear)(u16 n);
+	void __iomem *(*owner_acc_status)(struct spmi_pmic_arb *pmic_arb, u8 m,
+					  u16 n);
+	void __iomem *(*acc_enable)(struct spmi_pmic_arb *pmic_arb, u16 n);
+	void __iomem *(*irq_status)(struct spmi_pmic_arb *pmic_arb, u16 n);
+	void __iomem *(*irq_clear)(struct spmi_pmic_arb *pmic_arb, u16 n);
 };
 
 static inline void pmic_arb_base_write(struct spmi_pmic_arb *pmic_arb,
@@ -475,8 +476,7 @@ static void cleanup_irq(struct spmi_pmic_arb *pmic_arb, u16 apid, int id)
 	u8 per = ppid & 0xFF;
 	u8 irq_mask = BIT(id);
 
-	writel_relaxed(irq_mask, pmic_arb->intr +
-				pmic_arb->ver_ops->irq_clear(apid));
+	writel_relaxed(irq_mask, pmic_arb->ver_ops->irq_clear(pmic_arb, apid));
 
 	if (pmic_arb_write_cmd(pmic_arb->spmic, SPMI_CMD_EXT_WRITEL, sid,
 			(per << 8) + QPNPINT_REG_LATCHED_CLR, &irq_mask, 1))
@@ -497,8 +497,7 @@ static void periph_interrupt(struct spmi_pmic_arb *pmic_arb, u16 apid)
 	u8 sid = (pmic_arb->apid_data[apid].ppid >> 8) & 0xF;
 	u8 per = pmic_arb->apid_data[apid].ppid & 0xFF;
 
-	status = readl_relaxed(pmic_arb->intr +
-				pmic_arb->ver_ops->irq_status(apid));
+	status = readl_relaxed(pmic_arb->ver_ops->irq_status(pmic_arb, apid));
 	while (status) {
 		id = ffs(status) - 1;
 		status &= ~BIT(id);
@@ -515,24 +514,25 @@ static void periph_interrupt(struct spmi_pmic_arb *pmic_arb, u16 apid)
 static void pmic_arb_chained_irq(struct irq_desc *desc)
 {
 	struct spmi_pmic_arb *pmic_arb = irq_desc_get_handler_data(desc);
+	const struct pmic_arb_ver_ops *ver_ops = pmic_arb->ver_ops;
 	struct irq_chip *chip = irq_desc_get_chip(desc);
-	void __iomem *intr = pmic_arb->intr;
 	int first = pmic_arb->min_apid >> 5;
 	int last = pmic_arb->max_apid >> 5;
+	u8 ee = pmic_arb->ee;
 	u32 status, enable;
 	int i, id, apid;
 
 	chained_irq_enter(chip, desc);
 
 	for (i = first; i <= last; ++i) {
-		status = readl_relaxed(intr +
-			 pmic_arb->ver_ops->owner_acc_status(pmic_arb->ee, i));
+		status = readl_relaxed(
+				ver_ops->owner_acc_status(pmic_arb, ee, i));
 		while (status) {
 			id = ffs(status) - 1;
 			status &= ~BIT(id);
 			apid = id + i * 32;
-			enable = readl_relaxed(intr +
-					pmic_arb->ver_ops->acc_enable(apid));
+			enable = readl_relaxed(
+					ver_ops->acc_enable(pmic_arb, apid));
 			if (enable & SPMI_PIC_ACC_ENABLE_BIT)
 				periph_interrupt(pmic_arb, apid);
 		}
@@ -548,8 +548,7 @@ static void qpnpint_irq_ack(struct irq_data *d)
 	u16 apid = hwirq_to_apid(d->hwirq);
 	u8 data;
 
-	writel_relaxed(BIT(irq), pmic_arb->intr +
-				pmic_arb->ver_ops->irq_clear(apid));
+	writel_relaxed(BIT(irq), pmic_arb->ver_ops->irq_clear(pmic_arb, apid));
 
 	data = BIT(irq);
 	qpnpint_spmi_write(d, QPNPINT_REG_LATCHED_CLR, &data, 1);
@@ -566,12 +565,13 @@ static void qpnpint_irq_mask(struct irq_data *d)
 static void qpnpint_irq_unmask(struct irq_data *d)
 {
 	struct spmi_pmic_arb *pmic_arb = irq_data_get_irq_chip_data(d);
+	const struct pmic_arb_ver_ops *ver_ops = pmic_arb->ver_ops;
 	u8 irq = hwirq_to_irq(d->hwirq);
 	u16 apid = hwirq_to_apid(d->hwirq);
 	u8 buf[2];
 
 	writel_relaxed(SPMI_PIC_ACC_ENABLE_BIT,
-		pmic_arb->intr + pmic_arb->ver_ops->acc_enable(apid));
+			ver_ops->acc_enable(pmic_arb, apid));
 
 	qpnpint_spmi_read(d, QPNPINT_REG_EN_SET, &buf[0], 1);
 	if (!(buf[0] & BIT(irq))) {
@@ -842,49 +842,58 @@ static u32 pmic_arb_fmt_cmd_v2(u8 opc, u8 sid, u16 addr, u8 bc)
 	return (opc << 27) | ((addr & 0xff) << 4) | (bc & 0x7);
 }
 
-static u32 pmic_arb_owner_acc_status_v1(u8 m, u16 n)
+static void __iomem *
+pmic_arb_owner_acc_status_v1(struct spmi_pmic_arb *pmic_arb, u8 m, u16 n)
 {
-	return 0x20 * m + 0x4 * n;
+	return pmic_arb->intr + 0x20 * m + 0x4 * n;
 }
 
-static u32 pmic_arb_owner_acc_status_v2(u8 m, u16 n)
+static void __iomem *
+pmic_arb_owner_acc_status_v2(struct spmi_pmic_arb *pmic_arb, u8 m, u16 n)
 {
-	return 0x100000 + 0x1000 * m + 0x4 * n;
+	return pmic_arb->intr + 0x100000 + 0x1000 * m + 0x4 * n;
 }
 
-static u32 pmic_arb_owner_acc_status_v3(u8 m, u16 n)
+static void __iomem *
+pmic_arb_owner_acc_status_v3(struct spmi_pmic_arb *pmic_arb, u8 m, u16 n)
 {
-	return 0x200000 + 0x1000 * m + 0x4 * n;
+	return pmic_arb->intr + 0x200000 + 0x1000 * m + 0x4 * n;
 }
 
-static u32 pmic_arb_acc_enable_v1(u16 n)
+static void __iomem *
+pmic_arb_acc_enable_v1(struct spmi_pmic_arb *pmic_arb, u16 n)
 {
-	return 0x200 + 0x4 * n;
+	return pmic_arb->intr + 0x200 + 0x4 * n;
 }
 
-static u32 pmic_arb_acc_enable_v2(u16 n)
+static void __iomem *
+pmic_arb_acc_enable_v2(struct spmi_pmic_arb *pmic_arb, u16 n)
 {
-	return 0x1000 * n;
+	return pmic_arb->intr + 0x1000 * n;
 }
 
-static u32 pmic_arb_irq_status_v1(u16 n)
+static void __iomem *
+pmic_arb_irq_status_v1(struct spmi_pmic_arb *pmic_arb, u16 n)
 {
-	return 0x600 + 0x4 * n;
+	return pmic_arb->intr + 0x600 + 0x4 * n;
 }
 
-static u32 pmic_arb_irq_status_v2(u16 n)
+static void __iomem *
+pmic_arb_irq_status_v2(struct spmi_pmic_arb *pmic_arb, u16 n)
 {
-	return 0x4 + 0x1000 * n;
+	return pmic_arb->intr + 0x4 + 0x1000 * n;
 }
 
-static u32 pmic_arb_irq_clear_v1(u16 n)
+static void __iomem *
+pmic_arb_irq_clear_v1(struct spmi_pmic_arb *pmic_arb, u16 n)
 {
-	return 0xA00 + 0x4 * n;
+	return pmic_arb->intr + 0xA00 + 0x4 * n;
 }
 
-static u32 pmic_arb_irq_clear_v2(u16 n)
+static void __iomem *
+pmic_arb_irq_clear_v2(struct spmi_pmic_arb *pmic_arb, u16 n)
 {
-	return 0x8 + 0x1000 * n;
+	return pmic_arb->intr + 0x8 + 0x1000 * n;
 }
 
 static const struct pmic_arb_ver_ops pmic_arb_v1 = {
