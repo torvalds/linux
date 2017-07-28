@@ -4113,6 +4113,8 @@ int snd_soc_get_dai_id(struct device_node *ep)
 	}
 	mutex_unlock(&client_mutex);
 
+	of_node_put(node);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_soc_get_dai_id);
