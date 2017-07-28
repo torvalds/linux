@@ -963,8 +963,9 @@ double disasm__calc_percent(struct annotation *notes, int evidx, s64 offset,
 		u64 period = 0;
 
 		while (offset < end) {
-			hits += h->addr[offset++].nr_samples;
-			period += h->addr[offset++].period;
+			hits   += h->addr[offset].nr_samples;
+			period += h->addr[offset].period;
+			++offset;
 		}
 
 		if (h->nr_samples) {
