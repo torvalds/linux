@@ -414,6 +414,7 @@ static void mdp5_crtc_disable(struct drm_crtc *crtc)
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(crtc->state);
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
+	struct device *dev = &mdp5_kms->pdev->dev;
 
 	DBG("%s", crtc->name);
 
@@ -424,7 +425,7 @@ static void mdp5_crtc_disable(struct drm_crtc *crtc)
 		mdp_irq_unregister(&mdp5_kms->base, &mdp5_crtc->pp_done);
 
 	mdp_irq_unregister(&mdp5_kms->base, &mdp5_crtc->err);
-	mdp5_disable(mdp5_kms);
+	pm_runtime_put_autosuspend(dev);
 
 	mdp5_crtc->enabled = false;
 }
@@ -434,13 +435,14 @@ static void mdp5_crtc_enable(struct drm_crtc *crtc)
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(crtc->state);
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
+	struct device *dev = &mdp5_kms->pdev->dev;
 
 	DBG("%s", crtc->name);
 
 	if (WARN_ON(mdp5_crtc->enabled))
 		return;
 
-	mdp5_enable(mdp5_kms);
+	pm_runtime_get_sync(dev);
 	mdp_irq_register(&mdp5_kms->base, &mdp5_crtc->err);
 
 	if (mdp5_cstate->cmd_mode)
@@ -725,6 +727,7 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 	struct mdp5_pipeline *pipeline = &mdp5_cstate->pipeline;
 	struct drm_device *dev = crtc->dev;
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
+	struct platform_device *pdev = mdp5_kms->pdev;
 	struct msm_kms *kms = &mdp5_kms->base.base;
 	struct drm_gem_object *cursor_bo, *old_bo = NULL;
 	uint32_t blendcfg, stride;
@@ -753,7 +756,7 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 	if (!handle) {
 		DBG("Cursor off");
 		cursor_enable = false;
-		mdp5_enable(mdp5_kms);
+		pm_runtime_get_sync(&pdev->dev);
 		goto set_cursor;
 	}
 
@@ -768,6 +771,8 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 	lm = mdp5_cstate->pipeline.mixer->lm;
 	stride = width * drm_format_plane_cpp(DRM_FORMAT_ARGB8888, 0);
 
+	pm_runtime_get_sync(&pdev->dev);
+
 	spin_lock_irqsave(&mdp5_crtc->cursor.lock, flags);
 	old_bo = mdp5_crtc->cursor.scanout_bo;
 
@@ -776,8 +781,6 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 	mdp5_crtc->cursor.height = height;
 
 	get_roi(crtc, &roi_w, &roi_h);
-
-	mdp5_enable(mdp5_kms);
 
 	mdp5_write(mdp5_kms, REG_MDP5_LM_CURSOR_STRIDE(lm), stride);
 	mdp5_write(mdp5_kms, REG_MDP5_LM_CURSOR_FORMAT(lm),
@@ -796,6 +799,8 @@ static int mdp5_crtc_cursor_set(struct drm_crtc *crtc,
 
 	spin_unlock_irqrestore(&mdp5_crtc->cursor.lock, flags);
 
+	pm_runtime_put_autosuspend(&pdev->dev);
+
 set_cursor:
 	ret = mdp5_ctl_set_cursor(ctl, pipeline, 0, cursor_enable);
 	if (ret) {
@@ -807,7 +812,7 @@ set_cursor:
 	crtc_flush(crtc, flush_mask);
 
 end:
-	mdp5_disable(mdp5_kms);
+	pm_runtime_put_autosuspend(&pdev->dev);
 	if (old_bo) {
 		drm_flip_work_queue(&mdp5_crtc->unref_cursor_work, old_bo);
 		/* enable vblank to complete cursor work: */
@@ -840,7 +845,7 @@ static int mdp5_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 
 	get_roi(crtc, &roi_w, &roi_h);
 
-	mdp5_enable(mdp5_kms);
+	pm_runtime_get_sync(&mdp5_kms->pdev->dev);
 
 	spin_lock_irqsave(&mdp5_crtc->cursor.lock, flags);
 	mdp5_write(mdp5_kms, REG_MDP5_LM_CURSOR_SIZE(lm),
@@ -853,7 +858,7 @@ static int mdp5_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
 
 	crtc_flush(crtc, flush_mask);
 
-	mdp5_disable(mdp5_kms);
+	pm_runtime_put_autosuspend(&mdp5_kms->pdev->dev);
 
 	return 0;
 }
