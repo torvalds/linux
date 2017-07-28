@@ -587,35 +587,35 @@ static void qpnpint_irq_unmask(struct irq_data *d)
 static int qpnpint_irq_set_type(struct irq_data *d, unsigned int flow_type)
 {
 	struct spmi_pmic_arb_qpnpint_type type;
+	irq_flow_handler_t flow_handler;
 	u8 irq = hwirq_to_irq(d->hwirq);
-	u8 bit_mask_irq = BIT(irq);
 
 	qpnpint_spmi_read(d, QPNPINT_REG_SET_TYPE, &type, sizeof(type));
 
 	if (flow_type & (IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING)) {
-		type.type |= bit_mask_irq;
+		type.type |= BIT(irq);
 		if (flow_type & IRQF_TRIGGER_RISING)
-			type.polarity_high |= bit_mask_irq;
+			type.polarity_high |= BIT(irq);
 		if (flow_type & IRQF_TRIGGER_FALLING)
-			type.polarity_low  |= bit_mask_irq;
+			type.polarity_low  |= BIT(irq);
+
+		flow_handler = handle_edge_irq;
 	} else {
 		if ((flow_type & (IRQF_TRIGGER_HIGH)) &&
 		    (flow_type & (IRQF_TRIGGER_LOW)))
 			return -EINVAL;
 
-		type.type &= ~bit_mask_irq; /* level trig */
+		type.type &= ~BIT(irq); /* level trig */
 		if (flow_type & IRQF_TRIGGER_HIGH)
-			type.polarity_high |= bit_mask_irq;
+			type.polarity_high |= BIT(irq);
 		else
-			type.polarity_low  |= bit_mask_irq;
+			type.polarity_low  |= BIT(irq);
+
+		flow_handler = handle_level_irq;
 	}
 
 	qpnpint_spmi_write(d, QPNPINT_REG_SET_TYPE, &type, sizeof(type));
-
-	if (flow_type & IRQ_TYPE_EDGE_BOTH)
-		irq_set_handler_locked(d, handle_edge_irq);
-	else
-		irq_set_handler_locked(d, handle_level_irq);
+	irq_set_handler_locked(d, flow_handler);
 
 	return 0;
 }
