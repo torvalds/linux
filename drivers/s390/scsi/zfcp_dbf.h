@@ -204,7 +204,7 @@ enum zfcp_dbf_scsi_id {
  * @id: unique number of recovery record type
  * @tag: identifier string specifying the location of initiation
  * @scsi_id: scsi device id
- * @scsi_lun: scsi device logical unit number
+ * @scsi_lun: scsi device logical unit number, low part of 64 bit, old 32 bit
  * @scsi_result: scsi result
  * @scsi_retries: current retry number of scsi request
  * @scsi_allowed: allowed retries
@@ -214,6 +214,7 @@ enum zfcp_dbf_scsi_id {
  * @host_scribble: LLD specific data attached to SCSI request
  * @pl_len: length of paload stored as zfcp_dbf_pay
  * @fsf_rsp: response for fsf request
+ * @scsi_lun_64_hi: scsi device logical unit number, high part of 64 bit
  */
 struct zfcp_dbf_scsi {
 	u8 id;
@@ -230,6 +231,7 @@ struct zfcp_dbf_scsi {
 	u64 host_scribble;
 	u16 pl_len;
 	struct fcp_resp_with_ext fcp_rsp;
+	u32 scsi_lun_64_hi;
 } __packed;
 
 /**
