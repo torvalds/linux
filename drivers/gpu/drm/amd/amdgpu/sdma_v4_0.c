@@ -287,8 +287,6 @@ static uint64_t sdma_v4_0_ring_get_wptr(struct amdgpu_ring *ring)
  */
 static void sdma_v4_0_ring_set_wptr(struct amdgpu_ring *ring)
 {
-	int i;
-	u32 offset;
 	struct amdgpu_device *adev = ring->adev;
 
 	DRM_DEBUG("Setting write pointer\n");
@@ -306,16 +304,6 @@ static void sdma_v4_0_ring_set_wptr(struct amdgpu_ring *ring)
 		WRITE_ONCE(*wb, (ring->wptr << 2));
 		DRM_DEBUG("calling WDOORBELL64(0x%08x, 0x%016llx)\n",
 				ring->doorbell_index, ring->wptr << 2);
-
-		if (amdgpu_sriov_vf(adev)) {
-			for (i = 0; i < adev->sdma.num_instances; i++) {
-				if (&adev->sdma.instance[i].ring == ring) {
-					offset = adev->sdma.instance[i].poll_mem_offs;
-					atomic64_set((atomic64_t *)&adev->wb.wb[offset],
-						     (ring->wptr << 2));
-				}
-			}
-		}
 		WDOORBELL64(ring->doorbell_index, ring->wptr << 2);
 	} else {
 		int me = (ring == &ring->adev->sdma.instance[0].ring) ? 0 : 1;
@@ -586,12 +574,13 @@ static void sdma_v4_0_enable(struct amdgpu_device *adev, bool enable)
 static int sdma_v4_0_gfx_resume(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring;
-	u32 rb_cntl, ib_cntl, wptr_poll_addr_lo, wptr_poll_addr_hi, wptr_poll_cntl;
+	u32 rb_cntl, ib_cntl, wptr_poll_cntl;
 	u32 rb_bufsz;
-	u32 wb_offset, poll_offset;
+	u32 wb_offset;
 	u32 doorbell;
 	u32 doorbell_offset;
 	u32 temp;
+	u64 wptr_gpu_addr;
 	int i, r;
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
@@ -702,17 +691,14 @@ static int sdma_v4_0_gfx_resume(struct amdgpu_device *adev)
 			amdgpu_ttm_set_active_vram_size(adev, adev->mc.real_vram_size);
 
 		if (amdgpu_sriov_vf(adev)) {
-			poll_offset = adev->sdma.instance[i].poll_mem_offs * 4;
-
+			wptr_gpu_addr = adev->wb.gpu_addr + (ring->wptr_offs * 4);
 			wptr_poll_cntl = RREG32(sdma_v4_0_get_reg_offset(i, mmSDMA0_GFX_RB_WPTR_POLL_CNTL));
-			wptr_poll_addr_lo = RREG32(sdma_v4_0_get_reg_offset(i, mmSDMA0_GFX_RB_WPTR_POLL_ADDR_LO));
-			wptr_poll_addr_lo = REG_SET_FIELD(wptr_poll_addr_lo, SDMA0_GFX_RB_WPTR_POLL_ADDR_LO, ADDR,
-								lower_32_bits(adev->wb.gpu_addr + poll_offset) >> 2);
-			wptr_poll_addr_hi = upper_32_bits(adev->wb.gpu_addr + poll_offset);
 			wptr_poll_cntl = REG_SET_FIELD(wptr_poll_cntl, SDMA0_GFX_RB_WPTR_POLL_CNTL, F32_POLL_ENABLE, 1);
 
-			WREG32(sdma_v4_0_get_reg_offset(i, mmSDMA0_GFX_RB_WPTR_POLL_ADDR_LO), wptr_poll_addr_lo);
-			WREG32(sdma_v4_0_get_reg_offset(i, mmSDMA0_GFX_RB_WPTR_POLL_ADDR_HI), wptr_poll_addr_hi);
+			WREG32(sdma_v4_0_get_reg_offset(i, mmSDMA0_GFX_RB_WPTR_POLL_ADDR_LO),
+			       lower_32_bits(wptr_gpu_addr));
+			WREG32(sdma_v4_0_get_reg_offset(i, mmSDMA0_GFX_RB_WPTR_POLL_ADDR_HI),
+			       upper_32_bits(wptr_gpu_addr));
 			WREG32(sdma_v4_0_get_reg_offset(i, mmSDMA0_GFX_RB_WPTR_POLL_CNTL), wptr_poll_cntl);
 		}
 	}
@@ -1275,15 +1261,6 @@ static int sdma_v4_0_sw_init(void *handle)
 				     (i == 0) ?
 				     AMDGPU_SDMA_IRQ_TRAP0 :
 				     AMDGPU_SDMA_IRQ_TRAP1);
-
-		if (amdgpu_sriov_vf(adev)) {
-			r = amdgpu_wb_get_64bit(adev,
-						&adev->sdma.instance[i].poll_mem_offs);
-			if (r) {
-				dev_err(adev->dev, "(%d) failed to allocate SDMA poll mem wb.\n", r);
-				return r;
-			}
-		}
 		if (r)
 			return r;
 	}
@@ -1296,13 +1273,9 @@ static int sdma_v4_0_sw_fini(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	int i;
 
-	for (i = 0; i < adev->sdma.num_instances; i++) {
+	for (i = 0; i < adev->sdma.num_instances; i++)
 		amdgpu_ring_fini(&adev->sdma.instance[i].ring);
 
-		if (amdgpu_sriov_vf(adev))
-			amdgpu_wb_free_64bit(adev,
-					     adev->sdma.instance[i].poll_mem_offs);
-	}
 	return 0;
 }
 

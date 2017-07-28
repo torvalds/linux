@@ -1149,7 +1149,6 @@ struct amdgpu_sdma_instance {
 
 	struct amdgpu_ring	ring;
 	bool			burst_nop;
-	uint32_t		poll_mem_offs;
 };
 
 struct amdgpu_sdma {
