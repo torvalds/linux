@@ -409,15 +409,9 @@ static int spi_qup_do_pio(struct spi_master *master, struct spi_transfer *xfer,
 static irqreturn_t spi_qup_qup_irq(int irq, void *dev_id)
 {
 	struct spi_qup *controller = dev_id;
-	struct spi_transfer *xfer;
+	struct spi_transfer *xfer = controller->xfer;
 	u32 opflags, qup_err, spi_err;
-	unsigned long flags;
 	int error = 0;
-
-	spin_lock_irqsave(&controller->lock, flags);
-	xfer = controller->xfer;
-	controller->xfer = NULL;
-	spin_unlock_irqrestore(&controller->lock, flags);
 
 	qup_err = readl_relaxed(controller->base + QUP_ERROR_FLAGS);
 	spi_err = readl_relaxed(controller->base + SPI_ERROR_FLAGS);
@@ -425,13 +419,6 @@ static irqreturn_t spi_qup_qup_irq(int irq, void *dev_id)
 
 	writel_relaxed(qup_err, controller->base + QUP_ERROR_FLAGS);
 	writel_relaxed(spi_err, controller->base + SPI_ERROR_FLAGS);
-	writel_relaxed(opflags, controller->base + QUP_OPERATIONAL);
-
-	if (!xfer) {
-		dev_err_ratelimited(controller->dev, "unexpected irq %08x %08x %08x\n",
-				    qup_err, spi_err, opflags);
-		return IRQ_HANDLED;
-	}
 
 	if (qup_err) {
 		if (qup_err & QUP_ERROR_OUTPUT_OVER_RUN)
@@ -455,7 +442,9 @@ static irqreturn_t spi_qup_qup_irq(int irq, void *dev_id)
 		error = -EIO;
 	}
 
-	if (!spi_qup_is_dma_xfer(controller->mode)) {
+	if (spi_qup_is_dma_xfer(controller->mode)) {
+		writel_relaxed(opflags, controller->base + QUP_OPERATIONAL);
+	} else {
 		if (opflags & QUP_OP_IN_SERVICE_FLAG)
 			spi_qup_fifo_read(controller, xfer);
 
@@ -463,12 +452,7 @@ static irqreturn_t spi_qup_qup_irq(int irq, void *dev_id)
 			spi_qup_fifo_write(controller, xfer);
 	}
 
-	spin_lock_irqsave(&controller->lock, flags);
-	controller->error = error;
-	controller->xfer = xfer;
-	spin_unlock_irqrestore(&controller->lock, flags);
-
-	if (controller->rx_bytes == xfer->len || error)
+	if ((opflags & QUP_OP_MAX_INPUT_DONE_FLAG) || error)
 		complete(&controller->done);
 
 	return IRQ_HANDLED;
@@ -666,7 +650,6 @@ static int spi_qup_transfer_one(struct spi_master *master,
 exit:
 	spi_qup_set_state(controller, QUP_STATE_RESET);
 	spin_lock_irqsave(&controller->lock, flags);
-	controller->xfer = NULL;
 	if (!ret)
 		ret = controller->error;
 	spin_unlock_irqrestore(&controller->lock, flags);
