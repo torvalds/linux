@@ -47,7 +47,7 @@
 
 / {
 	chosen {
-		bootargs = "earlycon=uart8250,mmio32,0xff690000";
+		bootargs = "earlycon=uart8250,mmio32,0xff690000 vmalloc=496M";
 	};
 
 	/delete-node/ dmc@ff610000;
