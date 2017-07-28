@@ -476,8 +476,8 @@ static int zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *req)
 	if (req->data)
 		memcpy(req->data, bottom, sizeof(*bottom));
 
-	fc_host_port_name(shost) = nsp->fl_wwpn;
-	fc_host_node_name(shost) = nsp->fl_wwnn;
+	fc_host_port_name(shost) = be64_to_cpu(nsp->fl_wwpn);
+	fc_host_node_name(shost) = be64_to_cpu(nsp->fl_wwnn);
 	fc_host_supported_classes(shost) = FC_COS_CLASS2 | FC_COS_CLASS3;
 
 	adapter->timer_ticks = bottom->timer_interval & ZFCP_FSF_TIMER_INT_MASK;
@@ -503,8 +503,8 @@ static int zfcp_fsf_exchange_config_evaluate(struct zfcp_fsf_req *req)
 	switch (bottom->fc_topology) {
 	case FSF_TOPO_P2P:
 		adapter->peer_d_id = ntoh24(bottom->peer_d_id);
-		adapter->peer_wwpn = plogi->fl_wwpn;
-		adapter->peer_wwnn = plogi->fl_wwnn;
+		adapter->peer_wwpn = be64_to_cpu(plogi->fl_wwpn);
+		adapter->peer_wwnn = be64_to_cpu(plogi->fl_wwnn);
 		fc_host_port_type(shost) = FC_PORTTYPE_PTP;
 		break;
 	case FSF_TOPO_FABRIC:

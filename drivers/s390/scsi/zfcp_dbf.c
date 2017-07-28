@@ -461,7 +461,7 @@ static u16 zfcp_dbf_san_res_cap_len_if_gpn_ft(char *tag,
 	      && reqh->ct_fs_subtype == FC_NS_SUBTYPE
 	      && reqh->ct_options == 0
 	      && reqh->_ct_resvd1 == 0
-	      && reqh->ct_cmd == FC_NS_GPN_FT
+	      && reqh->ct_cmd == cpu_to_be16(FC_NS_GPN_FT)
 	      /* reqh->ct_mr_size can vary so do not match but read below */
 	      && reqh->_ct_resvd2 == 0
 	      && reqh->ct_reason == 0
@@ -481,7 +481,8 @@ static u16 zfcp_dbf_san_res_cap_len_if_gpn_ft(char *tag,
 	    (resph->ct_cmd != cpu_to_be16(FC_FS_ACC)))
 		return max(FC_CT_HDR_LEN, ZFCP_DBF_SAN_MAX_PAYLOAD);
 
-	max_entries = (reqh->ct_mr_size * 4 / sizeof(struct fc_gpn_ft_resp))
+	max_entries = (be16_to_cpu(reqh->ct_mr_size) * 4 /
+		       sizeof(struct fc_gpn_ft_resp))
 		+ 1 /* zfcp_fc_scan_ports: bytes correct, entries off-by-one
 		     * to account for header as 1st pseudo "entry" */;
 
