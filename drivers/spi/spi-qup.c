@@ -311,8 +311,8 @@ static int spi_qup_prep_sg(struct spi_master *master, struct spi_transfer *xfer,
 	}
 
 	desc = dmaengine_prep_slave_sg(chan, sgl, nents, dir, flags);
-	if (!desc)
-		return -EINVAL;
+	if (IS_ERR_OR_NULL(desc))
+		return desc ? PTR_ERR(desc) : -EINVAL;
 
 	desc->callback = callback;
 	desc->callback_param = qup;
