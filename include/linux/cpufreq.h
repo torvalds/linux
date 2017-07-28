@@ -562,6 +562,15 @@ struct governor_attr {
 			 size_t count);
 };
 
+static inline bool cpufreq_can_do_remote_dvfs(struct cpufreq_policy *policy)
+{
+	/* Allow remote callbacks only on the CPUs sharing cpufreq policy */
+	if (cpumask_test_cpu(smp_processor_id(), policy->cpus))
+		return true;
+
+	return false;
+}
+
 /*********************************************************************
  *                     FREQUENCY TABLE HELPERS                       *
  *********************************************************************/

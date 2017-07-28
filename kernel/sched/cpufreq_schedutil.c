@@ -52,6 +52,7 @@ struct sugov_policy {
 struct sugov_cpu {
 	struct update_util_data update_util;
 	struct sugov_policy *sg_policy;
+	unsigned int cpu;
 
 	bool iowait_boost_pending;
 	unsigned int iowait_boost;
@@ -76,6 +77,21 @@ static DEFINE_PER_CPU(struct sugov_cpu, sugov_cpu);
 static bool sugov_should_update_freq(struct sugov_policy *sg_policy, u64 time)
 {
 	s64 delta_ns;
+
+	/*
+	 * Since cpufreq_update_util() is called with rq->lock held for
+	 * the @target_cpu, our per-cpu data is fully serialized.
+	 *
+	 * However, drivers cannot in general deal with cross-cpu
+	 * requests, so while get_next_freq() will work, our
+	 * sugov_update_commit() call may not.
+	 *
+	 * Hence stop here for remote requests if they aren't supported
+	 * by the hardware, as calculating the frequency is pointless if
+	 * we cannot in fact act on it.
+	 */
+	if (!cpufreq_can_do_remote_dvfs(sg_policy->policy))
+		return false;
 
 	if (sg_policy->work_in_progress)
 		return false;
@@ -155,12 +171,12 @@ static unsigned int get_next_freq(struct sugov_policy *sg_policy,
 	return cpufreq_driver_resolve_freq(policy, freq);
 }
 
-static void sugov_get_util(unsigned long *util, unsigned long *max)
+static void sugov_get_util(unsigned long *util, unsigned long *max, int cpu)
 {
-	struct rq *rq = this_rq();
+	struct rq *rq = cpu_rq(cpu);
 	unsigned long cfs_max;
 
-	cfs_max = arch_scale_cpu_capacity(NULL, smp_processor_id());
+	cfs_max = arch_scale_cpu_capacity(NULL, cpu);
 
 	*util = min(rq->cfs.avg.util_avg, cfs_max);
 	*max = cfs_max;
@@ -254,7 +270,7 @@ static void sugov_update_single(struct update_util_data *hook, u64 time,
 	if (flags & SCHED_CPUFREQ_RT_DL) {
 		next_f = policy->cpuinfo.max_freq;
 	} else {
-		sugov_get_util(&util, &max);
+		sugov_get_util(&util, &max, sg_cpu->cpu);
 		sugov_iowait_boost(sg_cpu, &util, &max);
 		next_f = get_next_freq(sg_policy, util, max);
 		/*
@@ -316,7 +332,7 @@ static void sugov_update_shared(struct update_util_data *hook, u64 time,
 	unsigned long util, max;
 	unsigned int next_f;
 
-	sugov_get_util(&util, &max);
+	sugov_get_util(&util, &max, sg_cpu->cpu);
 
 	raw_spin_lock(&sg_policy->update_lock);
 
@@ -697,6 +713,11 @@ struct cpufreq_governor *cpufreq_default_governor(void)
 
 static int __init sugov_register(void)
 {
+	int cpu;
+
+	for_each_possible_cpu(cpu)
+		per_cpu(sugov_cpu, cpu).cpu = cpu;
+
 	return cpufreq_register_governor(&schedutil_gov);
 }
 fs_initcall(sugov_register);
