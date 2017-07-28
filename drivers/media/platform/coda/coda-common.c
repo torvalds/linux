@@ -2443,7 +2443,7 @@ static const struct coda_devtype coda_devdata[] = {
 		.num_vdevs    = ARRAY_SIZE(coda9_video_devices),
 		.workbuf_size = 80 * 1024,
 		.tempbuf_size = 204 * 1024,
-		.iram_size    = 0x20000,
+		.iram_size    = 0x1f000, /* leave 4k for suspend code */
 	},
 };
 
