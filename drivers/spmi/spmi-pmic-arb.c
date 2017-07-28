@@ -929,6 +929,7 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 	struct spmi_controller *ctrl;
 	struct resource *res;
 	void __iomem *core;
+	u32 *mapping_table;
 	u32 channel, ee, hw_ver;
 	int err;
 
@@ -1038,16 +1039,14 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 	}
 
 	pmic_arb->ee = ee;
-
-	pmic_arb->mapping_table = devm_kcalloc(&ctrl->dev,
-					PMIC_ARB_MAX_PERIPHS - 1,
-					sizeof(*pmic_arb->mapping_table),
-					GFP_KERNEL);
-	if (!pmic_arb->mapping_table) {
+	mapping_table = devm_kcalloc(&ctrl->dev, PMIC_ARB_MAX_PERIPHS,
+					sizeof(*mapping_table), GFP_KERNEL);
+	if (!mapping_table) {
 		err = -ENOMEM;
 		goto err_put_ctrl;
 	}
 
+	pmic_arb->mapping_table = mapping_table;
 	/* Initialize max_apid/min_apid to the opposite bounds, during
 	 * the irq domain translation, we are sure to update these */
 	pmic_arb->max_apid = 0;
