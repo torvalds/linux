@@ -166,7 +166,7 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 		if (!show_title)
 			ui_browser__write_nstring(browser, " ", pcnt_width);
 		else
-			ui_browser__printf(browser, "%*s", 7, "Percent");
+			ui_browser__printf(browser, "%*s", 7, annotate_browser__opts.show_total_period ? "Period" : "Percent");
 	}
 	if (ab->have_cycles) {
 		if (dl->ipc)
