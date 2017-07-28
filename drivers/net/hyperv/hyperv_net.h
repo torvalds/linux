@@ -190,7 +190,7 @@ void netvsc_device_remove(struct hv_device *device);
 int netvsc_send(struct net_device_context *ndc,
 		struct hv_netvsc_packet *packet,
 		struct rndis_message *rndis_msg,
-		struct hv_page_buffer **page_buffer,
+		struct hv_page_buffer *page_buffer,
 		struct sk_buff *skb);
 void netvsc_linkstatus_callback(struct hv_device *device_obj,
 				struct rndis_message *resp);

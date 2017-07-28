@@ -282,9 +282,8 @@ static u32 fill_pg_buf(struct page *page, u32 offset, u32 len,
 
 static u32 init_page_array(void *hdr, u32 len, struct sk_buff *skb,
 			   struct hv_netvsc_packet *packet,
-			   struct hv_page_buffer **page_buf)
+			   struct hv_page_buffer *pb)
 {
-	struct hv_page_buffer *pb = *page_buf;
 	u32 slots_used = 0;
 	char *data = skb->data;
 	int frags = skb_shinfo(skb)->nr_frags;
@@ -359,8 +358,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	u32 rndis_msg_size;
 	struct rndis_per_packet_info *ppi;
 	u32 hash;
-	struct hv_page_buffer page_buf[MAX_PAGE_BUFFER_COUNT];
-	struct hv_page_buffer *pb = page_buf;
+	struct hv_page_buffer pb[MAX_PAGE_BUFFER_COUNT];
 
 	/* We can only transmit MAX_PAGE_BUFFER_COUNT number
 	 * of pages in a single packet. If skb is scattered around
@@ -503,12 +501,12 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	rndis_msg->msg_len += rndis_msg_size;
 	packet->total_data_buflen = rndis_msg->msg_len;
 	packet->page_buf_cnt = init_page_array(rndis_msg, rndis_msg_size,
-					       skb, packet, &pb);
+					       skb, packet, pb);
 
 	/* timestamp packet in software */
 	skb_tx_timestamp(skb);
 
-	ret = netvsc_send(net_device_ctx, packet, rndis_msg, &pb, skb);
+	ret = netvsc_send(net_device_ctx, packet, rndis_msg, pb, skb);
 	if (likely(ret == 0))
 		return NETDEV_TX_OK;
 
