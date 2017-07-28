@@ -625,26 +625,26 @@ static bool dce110_set_output_transfer_func(
 	struct pipe_ctx *pipe_ctx,
 	const struct dc_stream *stream)
 {
-	struct output_pixel_processor *opp = pipe_ctx->opp;
+	struct transform *xfm = pipe_ctx->xfm;
 
-	opp->funcs->opp_power_on_regamma_lut(opp, true);
-	opp->regamma_params.hw_points_num = GAMMA_HW_POINTS_NUM;
+	xfm->funcs->opp_power_on_regamma_lut(xfm, true);
+	xfm->regamma_params.hw_points_num = GAMMA_HW_POINTS_NUM;
 
 	if (stream->out_transfer_func &&
 		stream->out_transfer_func->type ==
 			TF_TYPE_PREDEFINED &&
 		stream->out_transfer_func->tf ==
 			TRANSFER_FUNCTION_SRGB) {
-		opp->funcs->opp_set_regamma_mode(opp, OPP_REGAMMA_SRGB);
+		xfm->funcs->opp_set_regamma_mode(xfm, OPP_REGAMMA_SRGB);
 	} else if (dce110_translate_regamma_to_hw_format(
-				stream->out_transfer_func, &opp->regamma_params)) {
-			opp->funcs->opp_program_regamma_pwl(opp, &opp->regamma_params);
-			opp->funcs->opp_set_regamma_mode(opp, OPP_REGAMMA_USER);
+				stream->out_transfer_func, &xfm->regamma_params)) {
+		xfm->funcs->opp_program_regamma_pwl(xfm, &xfm->regamma_params);
+		xfm->funcs->opp_set_regamma_mode(xfm, OPP_REGAMMA_USER);
 	} else {
-		opp->funcs->opp_set_regamma_mode(opp, OPP_REGAMMA_BYPASS);
+		xfm->funcs->opp_set_regamma_mode(xfm, OPP_REGAMMA_BYPASS);
 	}
 
-	opp->funcs->opp_power_on_regamma_lut(opp, false);
+	xfm->funcs->opp_power_on_regamma_lut(xfm, false);
 
 	return true;
 }

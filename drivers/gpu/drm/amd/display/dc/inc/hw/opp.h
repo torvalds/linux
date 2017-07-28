@@ -251,24 +251,7 @@ enum ovl_csc_adjust_item {
 };
 
 struct opp_funcs {
-	void (*opp_power_on_regamma_lut)(
-		struct output_pixel_processor *opp,
-		bool power_on);
 
-	bool (*opp_program_regamma_pwl)(
-		struct output_pixel_processor *opp,
-		const struct pwl_params *params);
-
-	void (*opp_set_regamma_mode)(struct output_pixel_processor *opp,
-			enum opp_regamma mode);
-
-	void (*opp_set_csc_adjustment)(
-		struct output_pixel_processor *opp,
-		const struct out_csc_color_matrix *tbl_entry);
-
-	void (*opp_set_csc_default)(
-		struct output_pixel_processor *opp,
-		const struct default_adjustment *default_adjust);
 
 	/* FORMATTER RELATED */
 
