@@ -686,6 +686,8 @@ void dce_mem_input_construct(
 	dce_mi->shifts = mi_shift;
 	dce_mi->masks = mi_mask;
 
+	dce_mi->base.mpcc_id = 0xf;
+	dce_mi->base.opp_id = 0xf;
 }
 
 void dce112_mem_input_construct(

@@ -1066,9 +1066,6 @@ static void plane_atomic_disable(struct dc *dc,
 			fe_idx);*/
 
 	mi->funcs->set_blank(mi, true);
-	/*todo: unhack this*/
-	mi->opp_id = 0xf;
-	mi->mpcc_id = 0xf;
 
 	if (dc->debug.sanity_checks)
 		verify_allow_pstate_change_high(dc->hwseq);
@@ -2304,7 +2301,8 @@ static void update_dchubp_dpp(
 		&plane_state->dcc,
 		plane_state->horizontal_mirror);
 
-	mi->funcs->set_blank(mi, !is_pipe_tree_visible(pipe_ctx));
+	if (is_pipe_tree_visible(pipe_ctx))
+		mi->funcs->set_blank(mi, false);
 }
 
 

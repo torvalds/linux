@@ -51,9 +51,8 @@ static void min10_set_blank(struct mem_input *mem_input, bool blank)
 		REG_WAIT(DCHUBP_CNTL,
 				HUBP_NO_OUTSTANDING_REQ, 1,
 				1, 200);
-		/*todo: unhack this
 		mem_input->mpcc_id = 0xf;
-		mem_input->opp_id = 0xf;*/
+		mem_input->opp_id = 0xf;
 	}
 }
 
