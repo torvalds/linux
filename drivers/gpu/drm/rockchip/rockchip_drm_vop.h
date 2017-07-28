@@ -25,43 +25,50 @@ enum vop_data_format {
 };
 
 struct vop_reg {
-	uint32_t offset;
-	uint32_t shift;
 	uint32_t mask;
+	uint16_t offset;
+	uint8_t shift;
 	bool write_mask;
 	bool relaxed;
 };
 
-struct vop_ctrl {
-	struct vop_reg standby;
-	struct vop_reg data_blank;
-	struct vop_reg gate_en;
-	struct vop_reg mmu_en;
-	struct vop_reg rgb_en;
+struct vop_modeset {
+	struct vop_reg htotal_pw;
+	struct vop_reg hact_st_end;
+	struct vop_reg hpost_st_end;
+	struct vop_reg vtotal_pw;
+	struct vop_reg vact_st_end;
+	struct vop_reg vpost_st_end;
+};
+
+struct vop_output {
+	struct vop_reg pin_pol;
+	struct vop_reg dp_pin_pol;
+	struct vop_reg edp_pin_pol;
+	struct vop_reg hdmi_pin_pol;
+	struct vop_reg mipi_pin_pol;
+	struct vop_reg rgb_pin_pol;
+	struct vop_reg dp_en;
 	struct vop_reg edp_en;
 	struct vop_reg hdmi_en;
 	struct vop_reg mipi_en;
-	struct vop_reg dp_en;
+	struct vop_reg rgb_en;
+};
+
+struct vop_common {
+	struct vop_reg cfg_done;
 	struct vop_reg dsp_blank;
-	struct vop_reg out_mode;
+	struct vop_reg data_blank;
 	struct vop_reg dither_down;
 	struct vop_reg dither_up;
-	struct vop_reg pin_pol;
-	struct vop_reg rgb_pin_pol;
-	struct vop_reg hdmi_pin_pol;
-	struct vop_reg edp_pin_pol;
-	struct vop_reg mipi_pin_pol;
-	struct vop_reg dp_pin_pol;
+	struct vop_reg gate_en;
+	struct vop_reg mmu_en;
+	struct vop_reg out_mode;
+	struct vop_reg standby;
+};
 
-	struct vop_reg htotal_pw;
-	struct vop_reg hact_st_end;
-	struct vop_reg vtotal_pw;
-	struct vop_reg vact_st_end;
-	struct vop_reg hpost_st_end;
-	struct vop_reg vpost_st_end;
-
+struct vop_misc {
 	struct vop_reg global_regdone_en;
-	struct vop_reg cfg_done;
 };
 
 struct vop_intr {
@@ -135,8 +142,11 @@ struct vop_win_data {
 };
 
 struct vop_data {
-	const struct vop_ctrl *ctrl;
 	const struct vop_intr *intr;
+	const struct vop_common *common;
+	const struct vop_misc *misc;
+	const struct vop_modeset *modeset;
+	const struct vop_output *output;
 	const struct vop_win_data *win;
 	unsigned int win_size;
 

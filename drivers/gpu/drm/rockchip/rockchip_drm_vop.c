@@ -42,30 +42,19 @@
 #include "rockchip_drm_psr.h"
 #include "rockchip_drm_vop.h"
 
-#define REG_SET(x, base, reg, v) \
-		vop_mask_write(x, base + reg.offset, reg.mask, reg.shift, \
-			       v, reg.write_mask, reg.relaxed)
-#define REG_SET_MASK(x, base, reg, mask, v) \
-		vop_mask_write(x, base + reg.offset, \
-			       mask, reg.shift, v, reg.write_mask, reg.relaxed)
-
 #define VOP_WIN_SET(x, win, name, v) \
-		REG_SET(x, win->base, win->phy->name, v)
+		vop_reg_set(vop, &win->phy->name, win->base, ~0, v, #name)
 #define VOP_SCL_SET(x, win, name, v) \
-		REG_SET(x, win->base, win->phy->scl->name, v)
+		vop_reg_set(vop, &win->phy->scl->name, win->base, ~0, v, #name)
 #define VOP_SCL_SET_EXT(x, win, name, v) \
-		REG_SET(x, win->base, win->phy->scl->ext->name, v)
-#define VOP_CTRL_SET(x, name, v) \
-		REG_SET(x, 0, (x)->data->ctrl->name, v)
-
-#define VOP_INTR_GET(vop, name) \
-		vop_read_reg(vop, 0, &vop->data->ctrl->name)
-
-#define VOP_INTR_SET(vop, name, v) \
-		REG_SET(vop, 0, vop->data->intr->name, v)
+		vop_reg_set(vop, &win->phy->scl->ext->name, \
+			    win->base, ~0, v, #name)
 
 #define VOP_INTR_SET_MASK(vop, name, mask, v) \
-		REG_SET_MASK(vop, 0, vop->data->intr->name, mask, v)
+		vop_reg_set(vop, &vop->data->intr->name, 0, mask, v, #name)
+
+#define VOP_REG_SET(vop, group, name, v) \
+		    vop_reg_set(vop, &vop->data->group->name, 0, ~0, v, #name)
 
 #define VOP_INTR_SET_TYPE(vop, name, type, v) \
 	do { \
@@ -82,7 +71,7 @@
 		vop_get_intr_type(vop, &vop->data->intr->name, type)
 
 #define VOP_WIN_GET(x, win, name) \
-		vop_read_reg(x, win->base, &win->phy->name)
+		vop_read_reg(x, win->offset, win->phy->name)
 
 #define VOP_WIN_GET_YRGBADDR(vop, win) \
 		vop_readl(vop, win->base + win->phy->yrgb_mst.offset)
@@ -164,14 +153,22 @@ static inline uint32_t vop_read_reg(struct vop *vop, uint32_t base,
 	return (vop_readl(vop, base + reg->offset) >> reg->shift) & reg->mask;
 }
 
-static inline void vop_mask_write(struct vop *vop, uint32_t offset,
-				  uint32_t mask, uint32_t shift, uint32_t v,
-				  bool write_mask, bool relaxed)
+static void vop_reg_set(struct vop *vop, const struct vop_reg *reg,
+			uint32_t _offset, uint32_t _mask, uint32_t v,
+			const char *reg_name)
 {
-	if (!mask)
-		return;
+	int offset, mask, shift;
 
-	if (write_mask) {
+	if (!reg || !reg->mask) {
+		dev_dbg(vop->dev, "Warning: not support %s\n", reg_name);
+		return;
+	}
+
+	offset = reg->offset + _offset;
+	mask = reg->mask & _mask;
+	shift = reg->shift;
+
+	if (reg->write_mask) {
 		v = ((v << shift) & 0xffff) | (mask << (shift + 16));
 	} else {
 		uint32_t cached_val = vop->regsbak[offset >> 2];
@@ -180,7 +177,7 @@ static inline void vop_mask_write(struct vop *vop, uint32_t offset,
 		vop->regsbak[offset >> 2] = v;
 	}
 
-	if (relaxed)
+	if (reg->relaxed)
 		writel_relaxed(v, vop->regs + offset);
 	else
 		writel(v, vop->regs + offset);
@@ -202,7 +199,7 @@ static inline uint32_t vop_get_intr_type(struct vop *vop,
 
 static inline void vop_cfg_done(struct vop *vop)
 {
-	VOP_CTRL_SET(vop, cfg_done, 1);
+	VOP_REG_SET(vop, common, cfg_done, 1);
 }
 
 static bool has_rb_swapped(uint32_t format)
@@ -540,7 +537,7 @@ static int vop_enable(struct drm_crtc *crtc)
 
 	spin_lock(&vop->reg_lock);
 
-	VOP_CTRL_SET(vop, standby, 0);
+	VOP_REG_SET(vop, common, standby, 1);
 
 	spin_unlock(&vop->reg_lock);
 
@@ -601,7 +598,7 @@ static void vop_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	spin_lock(&vop->reg_lock);
 
-	VOP_CTRL_SET(vop, standby, 1);
+	VOP_REG_SET(vop, common, standby, 1);
 
 	spin_unlock(&vop->reg_lock);
 
@@ -925,7 +922,7 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 
 		spin_lock(&vop->reg_lock);
 
-		VOP_CTRL_SET(vop, standby, 1);
+		VOP_REG_SET(vop, common, standby, 1);
 
 		spin_unlock(&vop->reg_lock);
 
@@ -939,29 +936,29 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 		   BIT(HSYNC_POSITIVE) : 0;
 	pin_pol |= (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC) ?
 		   BIT(VSYNC_POSITIVE) : 0;
-	VOP_CTRL_SET(vop, pin_pol, pin_pol);
+	VOP_REG_SET(vop, output, pin_pol, pin_pol);
 
 	switch (s->output_type) {
 	case DRM_MODE_CONNECTOR_LVDS:
-		VOP_CTRL_SET(vop, rgb_en, 1);
-		VOP_CTRL_SET(vop, rgb_pin_pol, pin_pol);
+		VOP_REG_SET(vop, output, rgb_en, 1);
+		VOP_REG_SET(vop, output, rgb_pin_pol, pin_pol);
 		break;
 	case DRM_MODE_CONNECTOR_eDP:
-		VOP_CTRL_SET(vop, edp_pin_pol, pin_pol);
-		VOP_CTRL_SET(vop, edp_en, 1);
+		VOP_REG_SET(vop, output, edp_pin_pol, pin_pol);
+		VOP_REG_SET(vop, output, edp_en, 1);
 		break;
 	case DRM_MODE_CONNECTOR_HDMIA:
-		VOP_CTRL_SET(vop, hdmi_pin_pol, pin_pol);
-		VOP_CTRL_SET(vop, hdmi_en, 1);
+		VOP_REG_SET(vop, output, hdmi_pin_pol, pin_pol);
+		VOP_REG_SET(vop, output, hdmi_en, 1);
 		break;
 	case DRM_MODE_CONNECTOR_DSI:
-		VOP_CTRL_SET(vop, mipi_pin_pol, pin_pol);
-		VOP_CTRL_SET(vop, mipi_en, 1);
+		VOP_REG_SET(vop, output, mipi_pin_pol, pin_pol);
+		VOP_REG_SET(vop, output, mipi_en, 1);
 		break;
 	case DRM_MODE_CONNECTOR_DisplayPort:
 		pin_pol &= ~BIT(DCLK_INVERT);
-		VOP_CTRL_SET(vop, dp_pin_pol, pin_pol);
-		VOP_CTRL_SET(vop, dp_en, 1);
+		VOP_REG_SET(vop, output, dp_pin_pol, pin_pol);
+		VOP_REG_SET(vop, output, dp_en, 1);
 		break;
 	default:
 		DRM_DEV_ERROR(vop->dev, "unsupported connector_type [%d]\n",
@@ -974,25 +971,25 @@ static void vop_crtc_atomic_enable(struct drm_crtc *crtc,
 	if (s->output_mode == ROCKCHIP_OUT_MODE_AAAA &&
 	    !(vop_data->feature & VOP_FEATURE_OUTPUT_RGB10))
 		s->output_mode = ROCKCHIP_OUT_MODE_P888;
-	VOP_CTRL_SET(vop, out_mode, s->output_mode);
+	VOP_REG_SET(vop, common, out_mode, s->output_mode);
 
-	VOP_CTRL_SET(vop, htotal_pw, (htotal << 16) | hsync_len);
+	VOP_REG_SET(vop, modeset, htotal_pw, (htotal << 16) | hsync_len);
 	val = hact_st << 16;
 	val |= hact_end;
-	VOP_CTRL_SET(vop, hact_st_end, val);
-	VOP_CTRL_SET(vop, hpost_st_end, val);
+	VOP_REG_SET(vop, modeset, hact_st_end, val);
+	VOP_REG_SET(vop, modeset, hpost_st_end, val);
 
-	VOP_CTRL_SET(vop, vtotal_pw, (vtotal << 16) | vsync_len);
+	VOP_REG_SET(vop, modeset, vtotal_pw, (vtotal << 16) | vsync_len);
 	val = vact_st << 16;
 	val |= vact_end;
-	VOP_CTRL_SET(vop, vact_st_end, val);
-	VOP_CTRL_SET(vop, vpost_st_end, val);
+	VOP_REG_SET(vop, modeset, vact_st_end, val);
+	VOP_REG_SET(vop, modeset, vpost_st_end, val);
 
-	VOP_INTR_SET(vop, line_flag_num[0], vact_end);
+	VOP_REG_SET(vop, intr, line_flag_num[0], vact_end);
 
 	clk_set_rate(vop->dclk, adjusted_mode->clock * 1000);
 
-	VOP_CTRL_SET(vop, standby, 0);
+	VOP_REG_SET(vop, common, standby, 0);
 
 	rockchip_drm_psr_activate(&vop->crtc);
 }
@@ -1455,8 +1452,8 @@ static int vop_initial(struct vop *vop)
 
 	memcpy(vop->regsbak, vop->regs, vop->len);
 
-	VOP_CTRL_SET(vop, global_regdone_en, 1);
-	VOP_CTRL_SET(vop, dsp_blank, 0);
+	VOP_REG_SET(vop, misc, global_regdone_en, 1);
+	VOP_REG_SET(vop, common, dsp_blank, 0);
 
 	for (i = 0; i < vop_data->win_size; i++) {
 		const struct vop_win_data *win = &vop_data->win[i];
