@@ -27,7 +27,6 @@
 #include "amdgpu_gfx.h"
 #include <linux/module.h>
 
-const struct kfd2kgd_calls *kfd2kgd;
 const struct kgd2kfd_calls *kgd2kfd;
 bool (*kgd2kfd_init_p)(unsigned, const struct kgd2kfd_calls**);
 
@@ -61,24 +60,6 @@ int amdgpu_amdkfd_init(void)
 	return ret;
 }
 
-bool amdgpu_amdkfd_load_interface(struct amdgpu_device *adev)
-{
-	switch (adev->asic_type) {
-#ifdef CONFIG_DRM_AMDGPU_CIK
-	case CHIP_KAVERI:
-		kfd2kgd = amdgpu_amdkfd_gfx_7_get_functions();
-		break;
-#endif
-	case CHIP_CARRIZO:
-		kfd2kgd = amdgpu_amdkfd_gfx_8_0_get_functions();
-		break;
-	default:
-		return false;
-	}
-
-	return true;
-}
-
 void amdgpu_amdkfd_fini(void)
 {
 	if (kgd2kfd) {
@@ -89,9 +70,27 @@ void amdgpu_amdkfd_fini(void)
 
 void amdgpu_amdkfd_device_probe(struct amdgpu_device *adev)
 {
-	if (kgd2kfd)
-		adev->kfd = kgd2kfd->probe((struct kgd_dev *)adev,
-					adev->pdev, kfd2kgd);
+	const struct kfd2kgd_calls *kfd2kgd;
+
+	if (!kgd2kfd)
+		return;
+
+	switch (adev->asic_type) {
+#ifdef CONFIG_DRM_AMDGPU_CIK
+	case CHIP_KAVERI:
+		kfd2kgd = amdgpu_amdkfd_gfx_7_get_functions();
+		break;
+#endif
+	case CHIP_CARRIZO:
+		kfd2kgd = amdgpu_amdkfd_gfx_8_0_get_functions();
+		break;
+	default:
+		dev_info(adev->dev, "kfd not supported on this ASIC\n");
+		return;
+	}
+
+	adev->kfd = kgd2kfd->probe((struct kgd_dev *)adev,
+				   adev->pdev, kfd2kgd);
 }
 
 void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
