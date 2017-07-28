@@ -239,6 +239,8 @@ static struct hdmi *msm_hdmi_init(struct platform_device *pdev)
 		hdmi->pwr_clks[i] = clk;
 	}
 
+	pm_runtime_enable(&pdev->dev);
+
 	hdmi->workq = alloc_ordered_workqueue("msm_hdmi", 0);
 
 	hdmi->i2c = msm_hdmi_i2c_init(hdmi);
