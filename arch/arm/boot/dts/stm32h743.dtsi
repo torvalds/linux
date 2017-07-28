@@ -107,6 +107,40 @@
 
 		};
 
+		dma1: dma@40020000 {
+			compatible = "st,stm32-dma";
+			reg = <0x40020000 0x400>;
+			interrupts = <11>,
+				     <12>,
+				     <13>,
+				     <14>,
+				     <15>,
+				     <16>,
+				     <17>,
+				     <47>;
+			clocks = <&timer_clk>;
+			#dma-cells = <4>;
+			st,mem2mem;
+			status = "disabled";
+		};
+
+		dma2: dma@40020400 {
+			compatible = "st,stm32-dma";
+			reg = <0x40020400 0x400>;
+			interrupts = <56>,
+				     <57>,
+				     <58>,
+				     <59>,
+				     <60>,
+				     <68>,
+				     <69>,
+				     <70>;
+			clocks = <&timer_clk>;
+			#dma-cells = <4>;
+			st,mem2mem;
+			status = "disabled";
+		};
+
 		adc_12: adc@40022000 {
 			compatible = "st,stm32h7-adc-core";
 			reg = <0x40022000 0x400>;
