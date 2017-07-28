@@ -218,6 +218,7 @@ static void smc_sndbuf_unuse(struct smc_connection *conn)
 static void smc_rmb_unuse(struct smc_connection *conn)
 {
 	if (conn->rmb_desc) {
+		conn->rmb_desc->reused = true;
 		conn->rmb_desc->used = 0;
 		conn->rmbe_size = 0;
 	}
@@ -274,6 +275,8 @@ static void smc_lgr_free_rmbs(struct smc_link_group *lgr)
 		list_for_each_entry_safe(rmb_desc, bf_desc, &lgr->rmbs[i],
 					 list) {
 			list_del(&rmb_desc->list);
+			smc_ib_put_memory_region(
+					rmb_desc->mr_rx[SMC_SINGLE_LINK]);
 			smc_ib_buf_unmap_sg(lnk->smcibdev, rmb_desc,
 					    DMA_FROM_DEVICE);
 			kfree(rmb_desc->cpu_addr);
@@ -627,6 +630,21 @@ int smc_rmb_create(struct smc_sock *smc)
 			rmb_desc = NULL;
 			continue; /* if mapping failed, try smaller one */
 		}
+		rc = smc_ib_get_memory_region(lgr->lnk[SMC_SINGLE_LINK].roce_pd,
+					      IB_ACCESS_REMOTE_WRITE |
+					      IB_ACCESS_LOCAL_WRITE,
+					      rmb_desc);
+		if (rc) {
+			smc_ib_buf_unmap_sg(lgr->lnk[SMC_SINGLE_LINK].smcibdev,
+					    rmb_desc, DMA_FROM_DEVICE);
+			sg_free_table(&rmb_desc->sgt[SMC_SINGLE_LINK]);
+			free_pages((unsigned long)rmb_desc->cpu_addr,
+				   rmb_desc->order);
+			kfree(rmb_desc);
+			rmb_desc = NULL;
+			continue;
+		}
+
 		rmb_desc->used = 1;
 		write_lock_bh(&lgr->rmbs_lock);
 		list_add(&rmb_desc->list, &lgr->rmbs[bufsize_short]);

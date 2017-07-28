@@ -192,8 +192,7 @@ int smc_ib_create_protection_domain(struct smc_link *lnk)
 {
 	int rc;
 
-	lnk->roce_pd = ib_alloc_pd(lnk->smcibdev->ibdev,
-				   IB_PD_UNSAFE_GLOBAL_RKEY);
+	lnk->roce_pd = ib_alloc_pd(lnk->smcibdev->ibdev, 0);
 	rc = PTR_ERR_OR_ZERO(lnk->roce_pd);
 	if (IS_ERR(lnk->roce_pd))
 		lnk->roce_pd = NULL;
@@ -252,6 +251,48 @@ int smc_ib_create_queue_pair(struct smc_link *lnk)
 	else
 		smc_wr_remember_qp_attr(lnk);
 	return rc;
+}
+
+void smc_ib_put_memory_region(struct ib_mr *mr)
+{
+	ib_dereg_mr(mr);
+}
+
+static int smc_ib_map_mr_sg(struct smc_buf_desc *buf_slot)
+{
+	unsigned int offset = 0;
+	int sg_num;
+
+	/* map the largest prefix of a dma mapped SG list */
+	sg_num = ib_map_mr_sg(buf_slot->mr_rx[SMC_SINGLE_LINK],
+			      buf_slot->sgt[SMC_SINGLE_LINK].sgl,
+			      buf_slot->sgt[SMC_SINGLE_LINK].orig_nents,
+			      &offset, PAGE_SIZE);
+
+	return sg_num;
+}
+
+/* Allocate a memory region and map the dma mapped SG list of buf_slot */
+int smc_ib_get_memory_region(struct ib_pd *pd, int access_flags,
+			     struct smc_buf_desc *buf_slot)
+{
+	if (buf_slot->mr_rx[SMC_SINGLE_LINK])
+		return 0; /* already done */
+
+	buf_slot->mr_rx[SMC_SINGLE_LINK] =
+		ib_alloc_mr(pd, IB_MR_TYPE_MEM_REG, 1 << buf_slot->order);
+	if (IS_ERR(buf_slot->mr_rx[SMC_SINGLE_LINK])) {
+		int rc;
+
+		rc = PTR_ERR(buf_slot->mr_rx[SMC_SINGLE_LINK]);
+		buf_slot->mr_rx[SMC_SINGLE_LINK] = NULL;
+		return rc;
+	}
+
+	if (smc_ib_map_mr_sg(buf_slot) != 1)
+		return -EINVAL;
+
+	return 0;
 }
 
 /* map a new TX or RX buffer to DMA */

@@ -94,8 +94,13 @@ struct smc_buf_desc {
 						/* mapped address of buffer */
 	void			*cpu_addr;	/* virtual address of buffer */
 	struct sg_table		sgt[SMC_LINKS_PER_LGR_MAX];/* virtual buffer */
+	struct ib_mr		*mr_rx[SMC_LINKS_PER_LGR_MAX];
+						/* for rmb only: memory region
+						 * incl. rkey provided to peer
+						 */
 	u32			order;		/* allocation order */
 	u32			used;		/* currently used / unused */
+	bool			reused;		/* new created / reused */
 };
 
 struct smc_rtoken {				/* address/key of remote RMB */
@@ -175,5 +180,4 @@ int smc_sndbuf_create(struct smc_sock *smc);
 int smc_rmb_create(struct smc_sock *smc);
 int smc_rmb_rtoken_handling(struct smc_connection *conn,
 			    struct smc_clc_msg_accept_confirm *clc);
-
 #endif
