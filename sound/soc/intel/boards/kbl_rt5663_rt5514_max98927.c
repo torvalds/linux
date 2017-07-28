@@ -351,19 +351,10 @@ static int kabylake_ssp0_hw_params(struct snd_pcm_substream *substream,
 				return ret;
 			}
 
-			ret = snd_soc_dai_set_pll(codec_dai, 0,
-				RT5514_PLL1_S_BCLK, RT5514_AIF1_BCLK_FREQ,
-						RT5514_AIF1_SYSCLK_FREQ);
-			if (ret < 0) {
-				dev_err(rtd->dev, "set bclk err: %d\n", ret);
-				return ret;
-			}
-
 			ret = snd_soc_dai_set_sysclk(codec_dai,
-				RT5514_SCLK_S_PLL1, RT5514_AIF1_SYSCLK_FREQ,
-							SND_SOC_CLOCK_IN);
+				RT5514_SCLK_S_MCLK, 24576000, SND_SOC_CLOCK_IN);
 			if (ret < 0) {
-				dev_err(rtd->dev, "set sclk err: %d\n", ret);
+				dev_err(rtd->dev, "set sysclk err: %d\n", ret);
 				return ret;
 			}
 		}
