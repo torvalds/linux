@@ -64,6 +64,12 @@ static inline void syscall_get_arguments(struct task_struct *task,
 {
 	unsigned long mask = -1UL;
 
+	/*
+	 * No arguments for this syscall, there's nothing to do.
+	 */
+	if (!n)
+		return;
+
 	BUG_ON(i + n > 6);
 #ifdef CONFIG_COMPAT
 	if (test_tsk_thread_flag(task, TIF_31BIT))
