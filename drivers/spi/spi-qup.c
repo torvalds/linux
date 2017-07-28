@@ -19,6 +19,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/spi/spi.h>
@@ -1058,9 +1059,7 @@ static int spi_qup_probe(struct platform_device *pdev)
 	else if (!ret)
 		master->can_dma = spi_qup_can_dma;
 
-	/* set v1 flag if device is version 1 */
-	if (of_device_is_compatible(dev->of_node, "qcom,spi-qup-v1.1.1"))
-		controller->qup_v1 = 1;
+	controller->qup_v1 = (int)of_device_get_match_data(dev);
 
 	if (!controller->qup_v1)
 		master->set_cs = spi_qup_set_cs;
@@ -1256,7 +1255,7 @@ static int spi_qup_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id spi_qup_dt_match[] = {
-	{ .compatible = "qcom,spi-qup-v1.1.1", },
+	{ .compatible = "qcom,spi-qup-v1.1.1", .data = (void *)1, },
 	{ .compatible = "qcom,spi-qup-v2.1.1", },
 	{ .compatible = "qcom,spi-qup-v2.2.1", },
 	{ }
