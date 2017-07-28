@@ -1608,8 +1608,16 @@ struct dm_connector_state {
 #define to_dm_connector_state(x)\
 	container_of((x), struct dm_connector_state, base)
 
-static bool modeset_required(struct drm_crtc_state *crtc_state)
+static bool modeset_required(struct drm_crtc_state *crtc_state,
+			     struct dc_stream *new_stream,
+			     struct dc_stream *old_stream)
 {
+	if (dc_is_stream_unchanged(new_stream, old_stream)) {
+		crtc_state->mode_changed = false;
+		DRM_DEBUG_KMS("Mode change not required, setting mode_changed to %d",
+			      crtc_state->mode_changed);
+	}
+
 	if (!drm_atomic_crtc_needs_modeset(crtc_state))
 		return false;
 
@@ -2904,7 +2912,8 @@ static int dm_crtc_helper_atomic_check(
 	struct dm_crtc_state *dm_crtc_state = to_dm_crtc_state(state);
 	int ret = -EINVAL;
 
-	if (unlikely(!dm_crtc_state->stream && modeset_required(state))) {
+	if (unlikely(!dm_crtc_state->stream &&
+		     modeset_required(state, NULL, dm_crtc_state->stream))) {
 		WARN_ON(1);
 		return ret;
 	}
@@ -4087,7 +4096,7 @@ void amdgpu_dm_atomic_commit_tail(
 		 * aconnector as needed
 		 */
 
-		if (modeset_required(new_state)) {
+		if (modeset_required(new_state, new_acrtc_state->stream, old_acrtc_state->stream)) {
 
 			DRM_INFO("Atomic commit: SET crtc id %d: [%p]\n", acrtc->crtc_id, acrtc);
 
@@ -4536,6 +4545,9 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		struct amdgpu_crtc *acrtc = NULL;
 		struct amdgpu_connector *aconnector = NULL;
+		struct dc_stream *new_stream = NULL;
+		struct drm_connector_state *conn_state = NULL;
+		struct dm_connector_state *dm_conn_state = NULL;
 
 		old_acrtc_state = to_dm_crtc_state(crtc->state);
 		new_acrtc_state = to_dm_crtc_state(crtc_state);
@@ -4555,53 +4567,9 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 			crtc_state->active_changed,
 			crtc_state->connectors_changed);
 
-		if (modeset_required(crtc_state)) {
+		if (modereset_required(crtc_state)) {
 
-			struct dc_stream *new_stream = NULL;
-			struct drm_connector_state *conn_state = NULL;
-			struct dm_connector_state *dm_conn_state = NULL;
-
-			if (aconnector) {
-				conn_state = drm_atomic_get_connector_state(state, &aconnector->base);
-				if (IS_ERR(conn_state)) {
-					ret = PTR_ERR_OR_ZERO(conn_state);
-					goto fail;
-				}
-
-				dm_conn_state = to_dm_connector_state(conn_state);
-			}
-
-			new_stream = create_stream_for_sink(aconnector, &crtc_state->mode, dm_conn_state);
-
-			/*
-			 * we can have no stream on ACTION_SET if a display
-			 * was disconnected during S3, in this case it not and
-			 * error, the OS will be updated after detection, and
-			 * do the right thing on next atomic commit
-			 */
-			if (!new_stream) {
-				DRM_DEBUG_KMS("%s: Failed to create new stream for crtc %d\n",
-						__func__, acrtc->base.base.id);
-				break;
-			}
-
-			if (new_acrtc_state->stream)
-				dc_stream_release(new_acrtc_state->stream);
-
-			new_acrtc_state->stream = new_stream;
-
-			set_count = update_in_val_sets_stream(
-					set,
-					set_count,
-					old_acrtc_state->stream,
-					new_acrtc_state->stream,
-					crtc);
-
-			lock_and_validation_needed = true;
-
-		} else if (modereset_required(crtc_state)) {
-
-			/* i.e. reset mode */
+					/* i.e. reset mode */
 			if (new_acrtc_state->stream) {
 				set_count = remove_from_val_sets(
 						set,
@@ -4612,6 +4580,65 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 				new_acrtc_state->stream = NULL;
 
 				lock_and_validation_needed = true;
+			}
+
+		} else {
+
+			if (aconnector) {
+				conn_state = drm_atomic_get_connector_state(state,
+									    &aconnector->base);
+
+				if (IS_ERR(conn_state)) {
+					ret = PTR_ERR_OR_ZERO(conn_state);
+					goto fail;
+				}
+
+				dm_conn_state = to_dm_connector_state(conn_state);
+
+				new_stream = create_stream_for_sink(aconnector,
+								    &crtc_state->mode,
+								    dm_conn_state);
+
+				if (!new_stream) {
+					DRM_DEBUG_KMS("%s: Failed to create new stream for crtc %d\n",
+							__func__, acrtc->base.base.id);
+					break;
+				}
+
+
+			}
+
+			if (modeset_required(crtc_state, new_stream,
+					     old_acrtc_state->stream)) {
+
+
+			/*
+			 * we can have no stream on ACTION_SET if a display
+			 * was disconnected during S3, in this case it not and
+			 * error, the OS will be updated after detection, and
+			 * do the right thing on next atomic commit
+			 */
+
+				if (new_acrtc_state->stream)
+					dc_stream_release(new_acrtc_state->stream);
+
+				new_acrtc_state->stream = new_stream;
+
+				set_count = update_in_val_sets_stream(
+						set,
+						set_count,
+						old_acrtc_state->stream,
+						new_acrtc_state->stream,
+						crtc);
+
+				lock_and_validation_needed = true;
+			} else {
+				/*
+				 * The new stream is unused, so we release it
+				 */
+				if (new_stream)
+					dc_stream_release(new_stream);
+
 			}
 		}
 
