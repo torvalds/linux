@@ -360,6 +360,8 @@ __notrace_funcgraph struct task_struct *__switch_to(struct task_struct *prev,
 	/*
 	 * Complete any pending TLB or cache maintenance on this CPU in case
 	 * the thread migrates to a different CPU.
+	 * This full barrier is also required by the membarrier system
+	 * call.
 	 */
 	dsb(ish);
 

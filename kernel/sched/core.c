@@ -2640,6 +2640,16 @@ static struct rq *finish_task_switch(struct task_struct *prev)
 	prev_state = prev->state;
 	vtime_task_switch(prev);
 	perf_event_task_sched_in(prev, current);
+	/*
+	 * The membarrier system call requires a full memory barrier
+	 * after storing to rq->curr, before going back to user-space.
+	 *
+	 * TODO: This smp_mb__after_unlock_lock can go away if PPC end
+	 * up adding a full barrier to switch_mm(), or we should figure
+	 * out if a smp_mb__after_unlock_lock is really the proper API
+	 * to use.
+	 */
+	smp_mb__after_unlock_lock();
 	finish_lock_switch(rq, prev);
 	finish_arch_post_lock_switch();
 
@@ -3329,6 +3339,21 @@ static void __sched notrace __schedule(bool preempt)
 	if (likely(prev != next)) {
 		rq->nr_switches++;
 		rq->curr = next;
+		/*
+		 * The membarrier system call requires each architecture
+		 * to have a full memory barrier after updating
+		 * rq->curr, before returning to user-space. For TSO
+		 * (e.g. x86), the architecture must provide its own
+		 * barrier in switch_mm(). For weakly ordered machines
+		 * for which spin_unlock() acts as a full memory
+		 * barrier, finish_lock_switch() in common code takes
+		 * care of this barrier. For weakly ordered machines for
+		 * which spin_unlock() acts as a RELEASE barrier (only
+		 * arm64 and PowerPC), arm64 has a full barrier in
+		 * switch_to(), and PowerPC has
+		 * smp_mb__after_unlock_lock() before
+		 * finish_lock_switch().
+		 */
 		++*switch_count;
 
 		trace_sched_switch(preempt, prev, next);
