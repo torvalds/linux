@@ -222,6 +222,8 @@ static const struct config_registers v6_config_registers = {
  * hwicap_command_desync - Send a DESYNC command to the ICAP port.
  * @drvdata: a pointer to the drvdata.
  *
+ * Returns: '0' on success and failure value on error
+ *
  * This command desynchronizes the ICAP After this command, a
  * bitstream containing a NULL packet, followed by a SYNCH packet is
  * required before the ICAP will recognize commands.
@@ -254,6 +256,8 @@ static int hwicap_command_desync(struct hwicap_drvdata *drvdata)
  *		register value to be returned.
  * 		Examples:  XHI_IDCODE, XHI_FLR.
  * @reg_data: returns the value of the register.
+ *
+ * Returns: '0' on success and failure value on error
  *
  * Sends a query packet to the ICAP and then receives the response.
  * The icap is left in Synched state.
