@@ -31,6 +31,7 @@
  */
 
 #include <linux/platform_device.h>
+#include <linux/interrupt.h>
 #include "hns_roce_common.h"
 #include "hns_roce_device.h"
 #include "hns_roce_eq.h"
