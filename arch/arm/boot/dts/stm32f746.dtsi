@@ -398,6 +398,39 @@
 			assigned-clocks = <&rcc 1 CLK_HSE_RTC>;
 			assigned-clock-rates = <1000000>;
 		};
+
+		dma1: dma@40026000 {
+			compatible = "st,stm32-dma";
+			reg = <0x40026000 0x400>;
+			interrupts = <11>,
+				     <12>,
+				     <13>,
+				     <14>,
+				     <15>,
+				     <16>,
+				     <17>,
+				     <47>;
+			clocks = <&rcc 0 STM32F7_AHB1_CLOCK(DMA1)>;
+			#dma-cells = <4>;
+			status = "disabled";
+		};
+
+		dma2: dma@40026400 {
+			compatible = "st,stm32-dma";
+			reg = <0x40026400 0x400>;
+			interrupts = <56>,
+				     <57>,
+				     <58>,
+				     <59>,
+				     <60>,
+				     <68>,
+				     <69>,
+				     <70>;
+			clocks = <&rcc 0 STM32F7_AHB1_CLOCK(DMA2)>;
+			#dma-cells = <4>;
+			st,mem2mem;
+			status = "disabled";
+		};
 	};
 };
 
