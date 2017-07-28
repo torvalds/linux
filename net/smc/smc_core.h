@@ -37,6 +37,14 @@ struct smc_wr_buf {
 	u8	raw[SMC_WR_BUF_SIZE];
 };
 
+#define SMC_WR_REG_MR_WAIT_TIME	(5 * HZ)/* wait time for ib_wr_reg_mr result */
+
+enum smc_wr_reg_state {
+	POSTED,		/* ib_wr_reg_mr request posted */
+	CONFIRMED,	/* ib_wr_reg_mr response: successful */
+	FAILED		/* ib_wr_reg_mr response: failure */
+};
+
 struct smc_link {
 	struct smc_ib_device	*smcibdev;	/* ib-device */
 	u8			ibport;		/* port - values 1 | 2 */
@@ -64,6 +72,10 @@ struct smc_link {
 	dma_addr_t		wr_rx_dma_addr;	/* DMA address of wr_rx_bufs */
 	u64			wr_rx_id;	/* seq # of last recv WR */
 	u32			wr_rx_cnt;	/* number of WR recv buffers */
+
+	struct ib_reg_wr	wr_reg;		/* WR register memory region */
+	wait_queue_head_t	wr_reg_wait;	/* wait for wr_reg result */
+	enum smc_wr_reg_state	wr_reg_state;	/* state of wr_reg request */
 
 	union ib_gid		gid;		/* gid matching used vlan id */
 	u32			peer_qpn;	/* QP number of peer */

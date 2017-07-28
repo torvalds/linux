@@ -175,7 +175,6 @@ static int smc_lgr_create(struct smc_sock *smc, __be32 peer_in_addr,
 	rc = smc_wr_alloc_link_mem(lnk);
 	if (rc)
 		goto free_lgr;
-	init_waitqueue_head(&lnk->wr_tx_wait);
 	rc = smc_ib_create_protection_domain(lnk);
 	if (rc)
 		goto free_link_mem;
