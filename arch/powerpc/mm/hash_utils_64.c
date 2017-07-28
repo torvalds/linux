@@ -509,7 +509,7 @@ static int __init htab_dt_scan_hugepage_blocks(unsigned long node,
 			phys_addr, block_size, expected_pages);
 	if (phys_addr + block_size * expected_pages <= memblock_end_of_DRAM()) {
 		memblock_reserve(phys_addr, block_size * expected_pages);
-		add_gpage(phys_addr, block_size, expected_pages);
+		pseries_add_gpage(phys_addr, block_size, expected_pages);
 	}
 	return 0;
 }

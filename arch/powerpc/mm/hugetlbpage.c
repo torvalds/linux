@@ -36,26 +36,6 @@
 unsigned int HPAGE_SHIFT;
 EXPORT_SYMBOL(HPAGE_SHIFT);
 
-/*
- * Tracks gpages after the device tree is scanned and before the
- * huge_boot_pages list is ready.  On non-Freescale implementations, this is
- * just used to track 16G pages and so is a single array.  FSL-based
- * implementations may have more than one gpage size, so we need multiple
- * arrays
- */
-#if defined(CONFIG_PPC_FSL_BOOK3E) || defined(CONFIG_PPC_8xx)
-#define MAX_NUMBER_GPAGES	128
-struct psize_gpages {
-	u64 gpage_list[MAX_NUMBER_GPAGES];
-	unsigned int nr_gpages;
-};
-static struct psize_gpages gpage_freearray[MMU_PAGE_COUNT];
-#else
-#define MAX_NUMBER_GPAGES	1024
-static u64 gpage_freearray[MAX_NUMBER_GPAGES];
-static unsigned nr_gpages;
-#endif
-
 #define hugepd_none(hpd)	(hpd_val(hpd) == 0)
 
 pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr, unsigned long sz)
@@ -210,145 +190,20 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, unsigned long addr, unsigned long sz
 	return hugepte_offset(*hpdp, addr, pdshift);
 }
 
-#if defined(CONFIG_PPC_FSL_BOOK3E) || defined(CONFIG_PPC_8xx)
-/* Build list of addresses of gigantic pages.  This function is used in early
+#ifdef CONFIG_PPC_BOOK3S_64
+/*
+ * Tracks gpages after the device tree is scanned and before the
+ * huge_boot_pages list is ready on pseries.
+ */
+#define MAX_NUMBER_GPAGES	1024
+__initdata static u64 gpage_freearray[MAX_NUMBER_GPAGES];
+__initdata static unsigned nr_gpages;
+
+/*
+ * Build list of addresses of gigantic pages.  This function is used in early
  * boot before the buddy allocator is setup.
  */
-void add_gpage(u64 addr, u64 page_size, unsigned long number_of_pages)
-{
-	unsigned int idx = shift_to_mmu_psize(__ffs(page_size));
-	int i;
-
-	if (addr == 0)
-		return;
-
-	gpage_freearray[idx].nr_gpages = number_of_pages;
-
-	for (i = 0; i < number_of_pages; i++) {
-		gpage_freearray[idx].gpage_list[i] = addr;
-		addr += page_size;
-	}
-}
-
-/*
- * Moves the gigantic page addresses from the temporary list to the
- * huge_boot_pages list.
- */
-int alloc_bootmem_huge_page(struct hstate *hstate)
-{
-	struct huge_bootmem_page *m;
-	int idx = shift_to_mmu_psize(huge_page_shift(hstate));
-	int nr_gpages = gpage_freearray[idx].nr_gpages;
-
-	if (nr_gpages == 0)
-		return 0;
-
-#ifdef CONFIG_HIGHMEM
-	/*
-	 * If gpages can be in highmem we can't use the trick of storing the
-	 * data structure in the page; allocate space for this
-	 */
-	m = memblock_virt_alloc(sizeof(struct huge_bootmem_page), 0);
-	m->phys = gpage_freearray[idx].gpage_list[--nr_gpages];
-#else
-	m = phys_to_virt(gpage_freearray[idx].gpage_list[--nr_gpages]);
-#endif
-
-	list_add(&m->list, &huge_boot_pages);
-	gpage_freearray[idx].nr_gpages = nr_gpages;
-	gpage_freearray[idx].gpage_list[nr_gpages] = 0;
-	m->hstate = hstate;
-
-	return 1;
-}
-/*
- * Scan the command line hugepagesz= options for gigantic pages; store those in
- * a list that we use to allocate the memory once all options are parsed.
- */
-
-unsigned long gpage_npages[MMU_PAGE_COUNT];
-
-static int __init do_gpage_early_setup(char *param, char *val,
-				       const char *unused, void *arg)
-{
-	static phys_addr_t size;
-	unsigned long npages;
-
-	/*
-	 * The hugepagesz and hugepages cmdline options are interleaved.  We
-	 * use the size variable to keep track of whether or not this was done
-	 * properly and skip over instances where it is incorrect.  Other
-	 * command-line parsing code will issue warnings, so we don't need to.
-	 *
-	 */
-	if ((strcmp(param, "default_hugepagesz") == 0) ||
-	    (strcmp(param, "hugepagesz") == 0)) {
-		size = memparse(val, NULL);
-	} else if (strcmp(param, "hugepages") == 0) {
-		if (size != 0) {
-			if (sscanf(val, "%lu", &npages) <= 0)
-				npages = 0;
-			if (npages > MAX_NUMBER_GPAGES) {
-				pr_warn("MMU: %lu pages requested for page "
-#ifdef CONFIG_PHYS_ADDR_T_64BIT
-					"size %llu KB, limiting to "
-#else
-					"size %u KB, limiting to "
-#endif
-					__stringify(MAX_NUMBER_GPAGES) "\n",
-					npages, size / 1024);
-				npages = MAX_NUMBER_GPAGES;
-			}
-			gpage_npages[shift_to_mmu_psize(__ffs(size))] = npages;
-			size = 0;
-		}
-	}
-	return 0;
-}
-
-
-/*
- * This function allocates physical space for pages that are larger than the
- * buddy allocator can handle.  We want to allocate these in highmem because
- * the amount of lowmem is limited.  This means that this function MUST be
- * called before lowmem_end_addr is set up in MMU_init() in order for the lmb
- * allocate to grab highmem.
- */
-void __init reserve_hugetlb_gpages(void)
-{
-	static __initdata char cmdline[COMMAND_LINE_SIZE];
-	phys_addr_t size, base;
-	int i;
-
-	strlcpy(cmdline, boot_command_line, COMMAND_LINE_SIZE);
-	parse_args("hugetlb gpages", cmdline, NULL, 0, 0, 0,
-			NULL, &do_gpage_early_setup);
-
-	/*
-	 * Walk gpage list in reverse, allocating larger page sizes first.
-	 * Skip over unsupported sizes, or sizes that have 0 gpages allocated.
-	 * When we reach the point in the list where pages are no longer
-	 * considered gpages, we're done.
-	 */
-	for (i = MMU_PAGE_COUNT-1; i >= 0; i--) {
-		if (mmu_psize_defs[i].shift == 0 || gpage_npages[i] == 0)
-			continue;
-		else if (mmu_psize_to_shift(i) < (MAX_ORDER + PAGE_SHIFT))
-			break;
-
-		size = (phys_addr_t)(1ULL << mmu_psize_to_shift(i));
-		base = memblock_alloc_base(size * gpage_npages[i], size,
-					   MEMBLOCK_ALLOC_ANYWHERE);
-		add_gpage(base, size, gpage_npages[i]);
-	}
-}
-
-#else /* !PPC_FSL_BOOK3E */
-
-/* Build list of addresses of gigantic pages.  This function is used in early
- * boot before the buddy allocator is setup.
- */
-void add_gpage(u64 addr, u64 page_size, unsigned long number_of_pages)
+void __init pseries_add_gpage(u64 addr, u64 page_size, unsigned long number_of_pages)
 {
 	if (!addr)
 		return;
@@ -360,10 +215,7 @@ void add_gpage(u64 addr, u64 page_size, unsigned long number_of_pages)
 	}
 }
 
-/* Moves the gigantic page addresses from the temporary list to the
- * huge_boot_pages list.
- */
-int alloc_bootmem_huge_page(struct hstate *hstate)
+int __init pseries_alloc_bootmem_huge_page(struct hstate *hstate)
 {
 	struct huge_bootmem_page *m;
 	if (nr_gpages == 0)
@@ -375,6 +227,17 @@ int alloc_bootmem_huge_page(struct hstate *hstate)
 	return 1;
 }
 #endif
+
+
+int __init alloc_bootmem_huge_page(struct hstate *h)
+{
+
+#ifdef CONFIG_PPC_BOOK3S_64
+	if (firmware_has_feature(FW_FEATURE_LPAR) && !radix_enabled())
+		return pseries_alloc_bootmem_huge_page(h);
+#endif
+	return __alloc_bootmem_huge_page(h);
+}
 
 #if defined(CONFIG_PPC_FSL_BOOK3E) || defined(CONFIG_PPC_8xx)
 #define HUGEPD_FREELIST_SIZE \
