@@ -21,7 +21,7 @@ Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <cec-func-open>`.
+    File descriptor returned by :c:func:`open() <cec-open>`.
 
 ``argp``
 
