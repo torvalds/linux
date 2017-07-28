@@ -923,6 +923,8 @@ static void netvsc_get_stats64(struct net_device *net,
 
 static int netvsc_set_mac_addr(struct net_device *ndev, void *p)
 {
+	struct net_device_context *ndc = netdev_priv(ndev);
+	struct netvsc_device *nvdev = rtnl_dereference(ndc->nvdev);
 	struct sockaddr *addr = p;
 	char save_adr[ETH_ALEN];
 	unsigned char save_aatype;
@@ -935,7 +937,10 @@ static int netvsc_set_mac_addr(struct net_device *ndev, void *p)
 	if (err != 0)
 		return err;
 
-	err = rndis_filter_set_device_mac(ndev, addr->sa_data);
+	if (!nvdev)
+		return -ENODEV;
+
+	err = rndis_filter_set_device_mac(nvdev, addr->sa_data);
 	if (err != 0) {
 		/* roll back to saved MAC */
 		memcpy(ndev->dev_addr, save_adr, ETH_ALEN);
@@ -981,7 +986,7 @@ static void netvsc_get_ethtool_stats(struct net_device *dev,
 				     struct ethtool_stats *stats, u64 *data)
 {
 	struct net_device_context *ndc = netdev_priv(dev);
-	struct netvsc_device *nvdev = rcu_dereference(ndc->nvdev);
+	struct netvsc_device *nvdev = rtnl_dereference(ndc->nvdev);
 	const void *nds = &ndc->eth_stats;
 	const struct netvsc_stats *qstats;
 	unsigned int start;
@@ -1019,7 +1024,7 @@ static void netvsc_get_ethtool_stats(struct net_device *dev,
 static void netvsc_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 {
 	struct net_device_context *ndc = netdev_priv(dev);
-	struct netvsc_device *nvdev = rcu_dereference(ndc->nvdev);
+	struct netvsc_device *nvdev = rtnl_dereference(ndc->nvdev);
 	u8 *p = data;
 	int i;
 
@@ -1077,7 +1082,7 @@ netvsc_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 		 u32 *rules)
 {
 	struct net_device_context *ndc = netdev_priv(dev);
-	struct netvsc_device *nvdev = rcu_dereference(ndc->nvdev);
+	struct netvsc_device *nvdev = rtnl_dereference(ndc->nvdev);
 
 	if (!nvdev)
 		return -ENODEV;
@@ -1127,7 +1132,7 @@ static int netvsc_get_rxfh(struct net_device *dev, u32 *indir, u8 *key,
 			   u8 *hfunc)
 {
 	struct net_device_context *ndc = netdev_priv(dev);
-	struct netvsc_device *ndev = rcu_dereference(ndc->nvdev);
+	struct netvsc_device *ndev = rtnl_dereference(ndc->nvdev);
 	struct rndis_device *rndis_dev;
 	int i;
 

@@ -832,7 +832,7 @@ int netvsc_send(struct net_device_context *ndev_ctx,
 		struct sk_buff *skb)
 {
 	struct netvsc_device *net_device
-		= rcu_dereference_rtnl(ndev_ctx->nvdev);
+		= rcu_dereference_bh(ndev_ctx->nvdev);
 	struct hv_device *device = ndev_ctx->device_ctx;
 	int ret = 0;
 	struct netvsc_channel *nvchan;

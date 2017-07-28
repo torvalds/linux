@@ -217,7 +217,8 @@ int rndis_filter_receive(struct net_device *ndev,
 			 struct vmbus_channel *channel,
 			 void *data, u32 buflen);
 
-int rndis_filter_set_device_mac(struct net_device *ndev, char *mac);
+int rndis_filter_set_device_mac(struct netvsc_device *ndev,
+				const char *mac);
 
 void netvsc_switch_datapath(struct net_device *nv_dev, bool vf);
 
