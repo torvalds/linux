@@ -928,11 +928,11 @@ static bool netvsc_device_idle(const struct netvsc_device *nvdev)
 {
 	int i;
 
-	if (atomic_read(&nvdev->num_outstanding_recvs) > 0)
-		return false;
-
 	for (i = 0; i < nvdev->num_chn; i++) {
 		const struct netvsc_channel *nvchan = &nvdev->chan_table[i];
+
+		if (nvchan->mrc.first != nvchan->mrc.next)
+			return false;
 
 		if (atomic_read(&nvchan->queue_sends) > 0)
 			return false;
@@ -1031,11 +1031,6 @@ static void netvsc_sc_open(struct vmbus_channel *new_sc)
 		return;
 
 	nvchan = nvscdev->chan_table + chn_index;
-	nvchan->mrc.buf
-		= vzalloc(NETVSC_RECVSLOT_MAX * sizeof(struct recv_comp_data));
-
-	if (!nvchan->mrc.buf)
-		return;
 
 	/* Because the device uses NAPI, all the interrupt batching and
 	 * control is done via Net softirq, not the channel handling
@@ -1224,6 +1219,15 @@ struct netvsc_device *rndis_filter_device_add(struct hv_device *dev,
 	num_rss_qs = net_device->num_chn - 1;
 	if (num_rss_qs == 0)
 		return net_device;
+
+	for (i = 1; i < net_device->num_chn; i++) {
+		ret = netvsc_alloc_recv_comp_ring(net_device, i);
+		if (ret) {
+			while (--i != 0)
+				vfree(net_device->chan_table[i].mrc.slots);
+			goto out;
+		}
+	}
 
 	refcount_set(&net_device->sc_offered, num_rss_qs);
 	vmbus_set_sc_create_callback(dev->channel, netvsc_sc_open);
