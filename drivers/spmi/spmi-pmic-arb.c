@@ -230,7 +230,7 @@ static void pmic_arb_write_data(struct spmi_pmic_arb *pmic_arb, const u8 *buf,
 	u32 data = 0;
 
 	memcpy(&data, buf, (bc & 3) + 1);
-	pmic_arb_base_write(pmic_arb, reg, data);
+	__raw_writel(data, pmic_arb->wr_base + reg);
 }
 
 static int pmic_arb_wait_for_done(struct spmi_controller *ctrl,
