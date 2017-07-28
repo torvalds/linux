@@ -955,13 +955,13 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 	pmic_arb->spmic = ctrl;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "core");
-	pmic_arb->core_size = resource_size(res);
-
 	core = devm_ioremap_resource(&ctrl->dev, res);
 	if (IS_ERR(core)) {
 		err = PTR_ERR(core);
 		goto err_put_ctrl;
 	}
+
+	pmic_arb->core_size = resource_size(res);
 
 	pmic_arb->ppid_to_apid = devm_kcalloc(&ctrl->dev, PMIC_ARB_MAX_PPID,
 					      sizeof(*pmic_arb->ppid_to_apid),
