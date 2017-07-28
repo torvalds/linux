@@ -541,12 +541,9 @@ virtblk_cache_type_store(struct device *dev, struct device_attribute *attr,
 	int i;
 
 	BUG_ON(!virtio_has_feature(vblk->vdev, VIRTIO_BLK_F_CONFIG_WCE));
-	for (i = ARRAY_SIZE(virtblk_cache_types); --i >= 0; )
-		if (sysfs_streq(buf, virtblk_cache_types[i]))
-			break;
-
+	i = sysfs_match_string(virtblk_cache_types, buf);
 	if (i < 0)
-		return -EINVAL;
+		return i;
 
 	virtio_cwrite8(vdev, offsetof(struct virtio_blk_config, wce), i);
 	virtblk_update_cache_mode(vdev);
