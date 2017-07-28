@@ -33,6 +33,7 @@
 #ifndef _HNS_ROCE_DEVICE_H
 #define _HNS_ROCE_DEVICE_H
 
+#include <linux/io.h>
 #include <rdma/ib_verbs.h>
 
 #define DRV_NAME "hns_roce"
