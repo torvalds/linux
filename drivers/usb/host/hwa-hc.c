@@ -614,7 +614,7 @@ error:
 	return result;
 }
 
-static struct hc_driver hwahc_hc_driver = {
+static const struct hc_driver hwahc_hc_driver = {
 	.description = "hwa-hcd",
 	.product_desc = "Wireless USB HWA host controller",
 	.hcd_priv_size = sizeof(struct hwahc) - sizeof(struct usb_hcd),
