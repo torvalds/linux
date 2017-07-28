@@ -52,6 +52,10 @@ void dce_pipe_control_lock(struct core_dc *dc,
 	uint32_t dcp_grph, scl, blnd, update_lock_mode, val;
 	struct dce_hwseq *hws = dc->hwseq;
 
+	/* Not lock pipe when blank */
+	if (lock && pipe->tg->funcs->is_blanked(pipe->tg))
+		return;
+
 	val = REG_GET_4(BLND_V_UPDATE_LOCK[pipe->pipe_idx],
 			BLND_DCP_GRPH_V_UPDATE_LOCK, &dcp_grph,
 			BLND_SCL_V_UPDATE_LOCK, &scl,
