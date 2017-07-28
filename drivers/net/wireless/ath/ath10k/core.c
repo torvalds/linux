@@ -1454,6 +1454,7 @@ static void ath10k_core_get_fw_name(struct ath10k *ar, char *fw_name,
 {
 	switch (ar->hif.bus) {
 	case ATH10K_BUS_SDIO:
+	case ATH10K_BUS_USB:
 		scnprintf(fw_name, fw_name_len, "%s-%s-%d.bin",
 			  ATH10K_FW_FILE_BASE, ath10k_bus_str(ar->hif.bus),
 			  fw_api);
