@@ -16,6 +16,7 @@ PMIC's from Qualcomm.
 		    "qcom,pm8941-gpio"
 		    "qcom,pm8994-gpio"
 		    "qcom,pma8084-gpio"
+		    "qcom,pmi8994-gpio"
 
 		    And must contain either "qcom,spmi-gpio" or "qcom,ssbi-gpio"
 		    if the device is on an spmi bus or an ssbi bus respectively
@@ -85,6 +86,7 @@ to specify in a pin configuration subnode:
 		    gpio1-gpio36 for pm8941
 		    gpio1-gpio22 for pm8994
 		    gpio1-gpio22 for pma8084
+		    gpio1-gpio10 for pmi8994
 
 - function:
 	Usage: required
