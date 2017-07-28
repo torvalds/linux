@@ -641,7 +641,7 @@ static bool is_validation_required(
 
 		if (set[i].surface_count != context->stream_status[i].surface_count)
 			return true;
-		if (!is_stream_unchanged(set[i].stream, context->streams[i]))
+		if (!dc_is_stream_unchanged(set[i].stream, context->streams[i]))
 			return true;
 
 		for (j = 0; j < set[i].surface_count; j++) {

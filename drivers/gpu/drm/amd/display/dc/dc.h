@@ -534,6 +534,8 @@ struct dc_stream_update {
 	struct dc_transfer_func *out_transfer_func;
 };
 
+bool dc_is_stream_unchanged(
+	struct dc_stream *old_stream, struct dc_stream *stream);
 
 /*
  * Setup stream attributes if no stream updates are provided

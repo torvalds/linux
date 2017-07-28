@@ -1155,7 +1155,7 @@ static bool are_stream_backends_same(
 	return true;
 }
 
-bool is_stream_unchanged(
+bool dc_is_stream_unchanged(
 	struct dc_stream *old_stream, struct dc_stream *stream)
 {
 
@@ -1176,7 +1176,7 @@ bool resource_validate_attach_surfaces(
 
 	for (i = 0; i < set_count; i++) {
 		for (j = 0; old_context && j < old_context->stream_count; j++)
-			if (is_stream_unchanged(
+			if (dc_is_stream_unchanged(
 					old_context->streams[j],
 					context->streams[i])) {
 				if (!resource_attach_surfaces_to_context(
