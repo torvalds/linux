@@ -924,10 +924,8 @@ out1:
 		ntb_free_mw(nt, i);
 
 	/* if there's an actual failure, we should just bail */
-	if (rc < 0) {
-		ntb_link_disable(ndev);
+	if (rc < 0)
 		return;
-	}
 
 out:
 	if (ntb_link_is_up(ndev, NULL, NULL) == 1)
