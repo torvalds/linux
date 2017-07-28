@@ -224,6 +224,17 @@ static int cpts_ptp_enable(struct ptp_clock_info *ptp,
 	return -EOPNOTSUPP;
 }
 
+static long cpts_overflow_check(struct ptp_clock_info *ptp)
+{
+	struct cpts *cpts = container_of(ptp, struct cpts, info);
+	unsigned long delay = cpts->ov_check_period;
+	struct timespec64 ts;
+
+	cpts_ptp_gettime(&cpts->info, &ts);
+	pr_debug("cpts overflow check at %lld.%09lu\n", ts.tv_sec, ts.tv_nsec);
+	return (long)delay;
+}
+
 static struct ptp_clock_info cpts_info = {
 	.owner		= THIS_MODULE,
 	.name		= "CTPS timer",
@@ -236,17 +247,8 @@ static struct ptp_clock_info cpts_info = {
 	.gettime64	= cpts_ptp_gettime,
 	.settime64	= cpts_ptp_settime,
 	.enable		= cpts_ptp_enable,
+	.do_aux_work	= cpts_overflow_check,
 };
-
-static void cpts_overflow_check(struct work_struct *work)
-{
-	struct timespec64 ts;
-	struct cpts *cpts = container_of(work, struct cpts, overflow_work.work);
-
-	cpts_ptp_gettime(&cpts->info, &ts);
-	pr_debug("cpts overflow check at %lld.%09lu\n", ts.tv_sec, ts.tv_nsec);
-	schedule_delayed_work(&cpts->overflow_work, cpts->ov_check_period);
-}
 
 static int cpts_match(struct sk_buff *skb, unsigned int ptp_class,
 		      u16 ts_seqid, u8 ts_msgtype)
@@ -378,7 +380,7 @@ int cpts_register(struct cpts *cpts)
 	}
 	cpts->phc_index = ptp_clock_index(cpts->clock);
 
-	schedule_delayed_work(&cpts->overflow_work, cpts->ov_check_period);
+	ptp_schedule_worker(cpts->clock, cpts->ov_check_period);
 	return 0;
 
 err_ptp:
@@ -391,8 +393,6 @@ void cpts_unregister(struct cpts *cpts)
 {
 	if (WARN_ON(!cpts->clock))
 		return;
-
-	cancel_delayed_work_sync(&cpts->overflow_work);
 
 	ptp_clock_unregister(cpts->clock);
 	cpts->clock = NULL;
@@ -476,7 +476,6 @@ struct cpts *cpts_create(struct device *dev, void __iomem *regs,
 	cpts->dev = dev;
 	cpts->reg = (struct cpsw_cpts __iomem *)regs;
 	spin_lock_init(&cpts->lock);
-	INIT_DELAYED_WORK(&cpts->overflow_work, cpts_overflow_check);
 
 	ret = cpts_of_parse(cpts, node);
 	if (ret)
