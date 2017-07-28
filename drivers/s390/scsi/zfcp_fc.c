@@ -3,7 +3,7 @@
  *
  * Fibre Channel related functions for the zfcp device driver.
  *
- * Copyright IBM Corp. 2008, 2010
+ * Copyright IBM Corp. 2008, 2017
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -667,7 +667,7 @@ static int zfcp_fc_eval_gpn_ft(struct zfcp_fc_req *fc_req,
 		return -EIO;
 
 	if (hdr->ct_cmd != FC_FS_ACC) {
-		if (hdr->ct_reason == FC_BA_RJT_UNABLE)
+		if (hdr->ct_reason == FC_FS_RJT_UNABL)
 			return -EAGAIN; /* might be a temporary condition */
 		return -EIO;
 	}
