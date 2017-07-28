@@ -1448,7 +1448,7 @@ int compat_udpv6_getsockopt(struct sock *sk, int level, int optname,
 }
 #endif
 
-static struct inet6_protocol udpv6_protocol = {
+static const struct inet6_protocol udpv6_protocol = {
 	.early_demux	=	udp_v6_early_demux,
 	.early_demux_handler =  udp_v6_early_demux,
 	.handler	=	udpv6_rcv,
