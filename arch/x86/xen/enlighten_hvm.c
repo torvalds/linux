@@ -12,6 +12,7 @@
 #include <asm/setup.h>
 #include <asm/hypervisor.h>
 #include <asm/e820/api.h>
+#include <asm/early_ioremap.h>
 
 #include <asm/xen/cpuid.h>
 #include <asm/xen/hypervisor.h>
@@ -21,6 +22,8 @@
 #include "mmu.h"
 #include "smp.h"
 
+static unsigned long shared_info_pfn;
+
 void xen_hvm_init_shared_info(void)
 {
 	struct xen_add_to_physmap xatp;
@@ -28,7 +31,7 @@ void xen_hvm_init_shared_info(void)
 	xatp.domid = DOMID_SELF;
 	xatp.idx = 0;
 	xatp.space = XENMAPSPACE_shared_info;
-	xatp.gpfn = virt_to_pfn(HYPERVISOR_shared_info);
+	xatp.gpfn = shared_info_pfn;
 	if (HYPERVISOR_memory_op(XENMEM_add_to_physmap, &xatp))
 		BUG();
 }
@@ -51,8 +54,16 @@ static void __init reserve_shared_info(void)
 	     pa += PAGE_SIZE)
 		;
 
+	shared_info_pfn = PHYS_PFN(pa);
+
 	memblock_reserve(pa, PAGE_SIZE);
-	HYPERVISOR_shared_info = __va(pa);
+	HYPERVISOR_shared_info = early_memremap(pa, PAGE_SIZE);
+}
+
+static void __init xen_hvm_init_mem_mapping(void)
+{
+	early_memunmap(HYPERVISOR_shared_info, PAGE_SIZE);
+	HYPERVISOR_shared_info = __va(PFN_PHYS(shared_info_pfn));
 }
 
 static void __init init_hvm_pv_info(void)
@@ -221,5 +232,6 @@ const struct hypervisor_x86 x86_hyper_xen_hvm = {
 	.init_platform          = xen_hvm_guest_init,
 	.pin_vcpu               = xen_pin_vcpu,
 	.x2apic_available       = xen_x2apic_para_available,
+	.init_mem_mapping	= xen_hvm_init_mem_mapping,
 };
 EXPORT_SYMBOL(x86_hyper_xen_hvm);
