@@ -295,35 +295,6 @@ int smc_ib_get_memory_region(struct ib_pd *pd, int access_flags,
 	return 0;
 }
 
-/* map a new TX or RX buffer to DMA */
-int smc_ib_buf_map(struct smc_ib_device *smcibdev, int buf_size,
-		   struct smc_buf_desc *buf_slot,
-		   enum dma_data_direction data_direction)
-{
-	int rc = 0;
-
-	if (buf_slot->dma_addr[SMC_SINGLE_LINK])
-		return rc; /* already mapped */
-	buf_slot->dma_addr[SMC_SINGLE_LINK] =
-		ib_dma_map_single(smcibdev->ibdev, buf_slot->cpu_addr,
-				  buf_size, data_direction);
-	if (ib_dma_mapping_error(smcibdev->ibdev,
-				 buf_slot->dma_addr[SMC_SINGLE_LINK]))
-		rc = -EIO;
-	return rc;
-}
-
-void smc_ib_buf_unmap(struct smc_ib_device *smcibdev, int buf_size,
-		      struct smc_buf_desc *buf_slot,
-		      enum dma_data_direction data_direction)
-{
-	if (!buf_slot->dma_addr[SMC_SINGLE_LINK])
-		return; /* already unmapped */
-	ib_dma_unmap_single(smcibdev->ibdev, *buf_slot->dma_addr, buf_size,
-			    data_direction);
-	buf_slot->dma_addr[SMC_SINGLE_LINK] = 0;
-}
-
 /* Map a new TX or RX buffer SG-table to DMA */
 int smc_ib_buf_map_sg(struct smc_ib_device *smcibdev,
 		      struct smc_buf_desc *buf_slot,

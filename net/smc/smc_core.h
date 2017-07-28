@@ -102,8 +102,6 @@ struct smc_link {
 /* tx/rx buffer list element for sndbufs list and rmbs list of a lgr */
 struct smc_buf_desc {
 	struct list_head	list;
-	u64			dma_addr[SMC_LINKS_PER_LGR_MAX];
-						/* mapped address of buffer */
 	void			*cpu_addr;	/* virtual address of buffer */
 	struct sg_table		sgt[SMC_LINKS_PER_LGR_MAX];/* virtual buffer */
 	struct ib_mr		*mr_rx[SMC_LINKS_PER_LGR_MAX];

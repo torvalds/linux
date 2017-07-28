@@ -277,6 +277,7 @@ static int smc_tx_rdma_writes(struct smc_connection *conn)
 	struct smc_link_group *lgr = conn->lgr;
 	int to_send, rmbespace;
 	struct smc_link *link;
+	dma_addr_t dma_addr;
 	int num_sges;
 	int rc;
 
@@ -334,12 +335,11 @@ static int smc_tx_rdma_writes(struct smc_connection *conn)
 		src_len = conn->sndbuf_size - sent.count;
 	}
 	src_len_sum = src_len;
+	dma_addr = sg_dma_address(conn->sndbuf_desc->sgt[SMC_SINGLE_LINK].sgl);
 	for (dstchunk = 0; dstchunk < 2; dstchunk++) {
 		num_sges = 0;
 		for (srcchunk = 0; srcchunk < 2; srcchunk++) {
-			sges[srcchunk].addr =
-				conn->sndbuf_desc->dma_addr[SMC_SINGLE_LINK] +
-				src_off;
+			sges[srcchunk].addr = dma_addr + src_off;
 			sges[srcchunk].length = src_len;
 			sges[srcchunk].lkey = link->roce_pd->local_dma_lkey;
 			num_sges++;

@@ -51,12 +51,6 @@ int smc_ib_register_client(void) __init;
 void smc_ib_unregister_client(void);
 bool smc_ib_port_active(struct smc_ib_device *smcibdev, u8 ibport);
 int smc_ib_remember_port_attr(struct smc_ib_device *smcibdev, u8 ibport);
-int smc_ib_buf_map(struct smc_ib_device *smcibdev, int buf_size,
-		   struct smc_buf_desc *buf_slot,
-		   enum dma_data_direction data_direction);
-void smc_ib_buf_unmap(struct smc_ib_device *smcibdev, int bufsize,
-		      struct smc_buf_desc *buf_slot,
-		      enum dma_data_direction data_direction);
 int smc_ib_buf_map_sg(struct smc_ib_device *smcibdev,
 		      struct smc_buf_desc *buf_slot,
 		      enum dma_data_direction data_direction);
