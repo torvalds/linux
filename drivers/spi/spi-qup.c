@@ -545,12 +545,11 @@ static irqreturn_t spi_qup_qup_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/* set clock freq ... bits per word */
-static int spi_qup_io_config(struct spi_device *spi, struct spi_transfer *xfer)
+/* set clock freq ... bits per word, determine mode */
+static int spi_qup_io_prep(struct spi_device *spi, struct spi_transfer *xfer)
 {
 	struct spi_qup *controller = spi_master_get_devdata(spi->master);
-	u32 config, iomode, control;
-	int ret, n_words;
+	int ret;
 
 	if (spi->mode & SPI_LOOP && xfer->len > controller->in_fifo_sz) {
 		dev_err(controller->dev, "too big size for loopback %d > %d\n",
@@ -565,32 +564,56 @@ static int spi_qup_io_config(struct spi_device *spi, struct spi_transfer *xfer)
 		return -EIO;
 	}
 
+	controller->w_size = DIV_ROUND_UP(xfer->bits_per_word, 8);
+	controller->n_words = xfer->len / controller->w_size;
+
+	if (controller->n_words <= (controller->in_fifo_sz / sizeof(u32)))
+		controller->mode = QUP_IO_M_MODE_FIFO;
+	else if (spi->master->can_dma &&
+		 spi->master->can_dma(spi->master, spi, xfer) &&
+		 spi->master->cur_msg_mapped)
+		controller->mode = QUP_IO_M_MODE_BAM;
+	else
+		controller->mode = QUP_IO_M_MODE_BLOCK;
+
+	return 0;
+}
+
+/* prep qup for another spi transaction of specific type */
+static int spi_qup_io_config(struct spi_device *spi, struct spi_transfer *xfer)
+{
+	struct spi_qup *controller = spi_master_get_devdata(spi->master);
+	u32 config, iomode, control;
+	unsigned long flags;
+
+	spin_lock_irqsave(&controller->lock, flags);
+	controller->xfer     = xfer;
+	controller->error    = 0;
+	controller->rx_bytes = 0;
+	controller->tx_bytes = 0;
+	spin_unlock_irqrestore(&controller->lock, flags);
+
+
 	if (spi_qup_set_state(controller, QUP_STATE_RESET)) {
 		dev_err(controller->dev, "cannot set RESET state\n");
 		return -EIO;
 	}
 
-	controller->w_size = DIV_ROUND_UP(xfer->bits_per_word, 8);
-	controller->n_words = xfer->len / controller->w_size;
-	n_words = controller->n_words;
-
-	if (n_words <= (controller->in_fifo_sz / sizeof(u32))) {
-
-		controller->mode = QUP_IO_M_MODE_FIFO;
-
-		writel_relaxed(n_words, controller->base + QUP_MX_READ_CNT);
-		writel_relaxed(n_words, controller->base + QUP_MX_WRITE_CNT);
+	switch (controller->mode) {
+	case QUP_IO_M_MODE_FIFO:
+		writel_relaxed(controller->n_words,
+			       controller->base + QUP_MX_READ_CNT);
+		writel_relaxed(controller->n_words,
+			       controller->base + QUP_MX_WRITE_CNT);
 		/* must be zero for FIFO */
 		writel_relaxed(0, controller->base + QUP_MX_INPUT_CNT);
 		writel_relaxed(0, controller->base + QUP_MX_OUTPUT_CNT);
-	} else if (spi->master->can_dma &&
-		   spi->master->can_dma(spi->master, spi, xfer) &&
-		   spi->master->cur_msg_mapped) {
-
-		controller->mode = QUP_IO_M_MODE_BAM;
-
-		writel_relaxed(n_words, controller->base + QUP_MX_INPUT_CNT);
-		writel_relaxed(n_words, controller->base + QUP_MX_OUTPUT_CNT);
+		break;
+	case QUP_IO_M_MODE_BAM:
+		writel_relaxed(controller->n_words,
+			       controller->base + QUP_MX_INPUT_CNT);
+		writel_relaxed(controller->n_words,
+			       controller->base + QUP_MX_OUTPUT_CNT);
 		/* must be zero for BLOCK and BAM */
 		writel_relaxed(0, controller->base + QUP_MX_READ_CNT);
 		writel_relaxed(0, controller->base + QUP_MX_WRITE_CNT);
@@ -608,19 +631,25 @@ static int spi_qup_io_config(struct spi_device *spi, struct spi_transfer *xfer)
 			if (xfer->tx_buf)
 				writel_relaxed(0, input_cnt);
 			else
-				writel_relaxed(n_words, input_cnt);
+				writel_relaxed(controller->n_words, input_cnt);
 
 			writel_relaxed(0, controller->base + QUP_MX_OUTPUT_CNT);
 		}
-	} else {
-
-		controller->mode = QUP_IO_M_MODE_BLOCK;
-
-		writel_relaxed(n_words, controller->base + QUP_MX_INPUT_CNT);
-		writel_relaxed(n_words, controller->base + QUP_MX_OUTPUT_CNT);
+		break;
+	case QUP_IO_M_MODE_BLOCK:
+		reinit_completion(&controller->done);
+		writel_relaxed(controller->n_words,
+			       controller->base + QUP_MX_INPUT_CNT);
+		writel_relaxed(controller->n_words,
+			       controller->base + QUP_MX_OUTPUT_CNT);
 		/* must be zero for BLOCK and BAM */
 		writel_relaxed(0, controller->base + QUP_MX_READ_CNT);
 		writel_relaxed(0, controller->base + QUP_MX_WRITE_CNT);
+		break;
+	default:
+		dev_err(controller->dev, "unknown mode = %d\n",
+				controller->mode);
+		return -EIO;
 	}
 
 	iomode = readl_relaxed(controller->base + QUP_IO_M_MODES);
@@ -708,6 +737,10 @@ static int spi_qup_transfer_one(struct spi_master *master,
 	struct spi_qup *controller = spi_master_get_devdata(master);
 	unsigned long timeout, flags;
 	int ret = -EIO;
+
+	ret = spi_qup_io_prep(spi, xfer);
+	if (ret)
+		return ret;
 
 	ret = spi_qup_io_config(spi, xfer);
 	if (ret)
