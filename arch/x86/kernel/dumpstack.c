@@ -267,7 +267,7 @@ int __die(const char *str, struct pt_regs *regs, long err)
 #ifdef CONFIG_X86_32
 	if (user_mode(regs)) {
 		sp = regs->sp;
-		ss = regs->ss & 0xffff;
+		ss = regs->ss;
 	} else {
 		sp = kernel_stack_pointer(regs);
 		savesegment(ss, ss);
