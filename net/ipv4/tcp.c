@@ -388,6 +388,19 @@ static int retrans_to_secs(u8 retrans, int timeout, int rto_max)
 	return period;
 }
 
+static u64 tcp_compute_delivery_rate(const struct tcp_sock *tp)
+{
+	u32 rate = READ_ONCE(tp->rate_delivered);
+	u32 intv = READ_ONCE(tp->rate_interval_us);
+	u64 rate64 = 0;
+
+	if (rate && intv) {
+		rate64 = (u64)rate * tp->mss_cache * USEC_PER_SEC;
+		do_div(rate64, intv);
+	}
+	return rate64;
+}
+
 /* Address-family independent initialization for a tcp_sock.
  *
  * NOTE: A lot of things set to zero explicitly by call to
@@ -2716,7 +2729,7 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 {
 	const struct tcp_sock *tp = tcp_sk(sk); /* iff sk_type == SOCK_STREAM */
 	const struct inet_connection_sock *icsk = inet_csk(sk);
-	u32 now, intv;
+	u32 now;
 	u64 rate64;
 	bool slow;
 	u32 rate;
@@ -2815,13 +2828,9 @@ void tcp_get_info(struct sock *sk, struct tcp_info *info)
 	info->tcpi_data_segs_out = tp->data_segs_out;
 
 	info->tcpi_delivery_rate_app_limited = tp->rate_app_limited ? 1 : 0;
-	rate = READ_ONCE(tp->rate_delivered);
-	intv = READ_ONCE(tp->rate_interval_us);
-	if (rate && intv) {
-		rate64 = (u64)rate * tp->mss_cache * USEC_PER_SEC;
-		do_div(rate64, intv);
+	rate64 = tcp_compute_delivery_rate(tp);
+	if (rate64)
 		info->tcpi_delivery_rate = rate64;
-	}
 	unlock_sock_fast(sk, slow);
 }
 EXPORT_SYMBOL_GPL(tcp_get_info);
