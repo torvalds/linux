@@ -3,7 +3,7 @@
  *
  * Debug traces for zfcp.
  *
- * Copyright IBM Corp. 2002, 2016
+ * Copyright IBM Corp. 2002, 2017
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -447,6 +447,7 @@ static u16 zfcp_dbf_san_res_cap_len_if_gpn_ft(char *tag,
 	struct fc_ct_hdr *reqh = sg_virt(ct_els->req);
 	struct fc_ns_gid_ft *reqn = (struct fc_ns_gid_ft *)(reqh + 1);
 	struct scatterlist *resp_entry = ct_els->resp;
+	struct fc_ct_hdr *resph;
 	struct fc_gpn_ft_resp *acc;
 	int max_entries, x, last = 0;
 
@@ -473,6 +474,13 @@ static u16 zfcp_dbf_san_res_cap_len_if_gpn_ft(char *tag,
 		return len; /* not GPN_FT response so do not cap */
 
 	acc = sg_virt(resp_entry);
+
+	/* cap all but accept CT responses to at least the CT header */
+	resph = (struct fc_ct_hdr *)acc;
+	if ((ct_els->status) ||
+	    (resph->ct_cmd != cpu_to_be16(FC_FS_ACC)))
+		return max(FC_CT_HDR_LEN, ZFCP_DBF_SAN_MAX_PAYLOAD);
+
 	max_entries = (reqh->ct_mr_size * 4 / sizeof(struct fc_gpn_ft_resp))
 		+ 1 /* zfcp_fc_scan_ports: bytes correct, entries off-by-one
 		     * to account for header as 1st pseudo "entry" */;
