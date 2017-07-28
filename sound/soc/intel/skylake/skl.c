@@ -528,7 +528,7 @@ static int probe_codec(struct hdac_ext_bus *ebus, int addr)
 }
 
 /* Codec initialization */
-static int skl_codec_create(struct hdac_ext_bus *ebus)
+static void skl_codec_create(struct hdac_ext_bus *ebus)
 {
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
 	int c, max_slots;
@@ -559,8 +559,6 @@ static int skl_codec_create(struct hdac_ext_bus *ebus)
 			}
 		}
 	}
-
-	return 0;
 }
 
 static const struct hdac_bus_ops bus_core_ops = {
@@ -612,9 +610,7 @@ static void skl_probe_work(struct work_struct *work)
 		dev_info(bus->dev, "no hda codecs found!\n");
 
 	/* create codec instances */
-	err = skl_codec_create(ebus);
-	if (err < 0)
-		goto out_err;
+	skl_codec_create(ebus);
 
 	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)) {
 		err = snd_hdac_display_power(bus, false);
