@@ -457,12 +457,9 @@ early_idt_handler_common:
 	/* The vector number is in pt_regs->gs */
 
 	cld
-	pushl	%fs		/* pt_regs->fs */
-	movw	$0, 2(%esp)	/* clear high bits (some CPUs leave garbage) */
-	pushl	%es		/* pt_regs->es */
-	movw	$0, 2(%esp)	/* clear high bits (some CPUs leave garbage) */
-	pushl	%ds		/* pt_regs->ds */
-	movw	$0, 2(%esp)	/* clear high bits (some CPUs leave garbage) */
+	pushl	%fs		/* pt_regs->fs (__fsh varies by model) */
+	pushl	%es		/* pt_regs->es (__esh varies by model) */
+	pushl	%ds		/* pt_regs->ds (__dsh varies by model) */
 	pushl	%eax		/* pt_regs->ax */
 	pushl	%ebp		/* pt_regs->bp */
 	pushl	%edi		/* pt_regs->di */
@@ -479,9 +476,8 @@ early_idt_handler_common:
 	/* Load the vector number into EDX */
 	movl	PT_GS(%esp), %edx
 
-	/* Load GS into pt_regs->gs and clear high bits */
+	/* Load GS into pt_regs->gs (and maybe clobber __gsh) */
 	movw	%gs, PT_GS(%esp)
-	movw	$0, PT_GS+2(%esp)
 
 	movl	%esp, %eax	/* args are pt_regs (EAX), trapnr (EDX) */
 	call	early_fixup_exception
@@ -493,10 +489,10 @@ early_idt_handler_common:
 	popl	%edi		/* pt_regs->di */
 	popl	%ebp		/* pt_regs->bp */
 	popl	%eax		/* pt_regs->ax */
-	popl	%ds		/* pt_regs->ds */
-	popl	%es		/* pt_regs->es */
-	popl	%fs		/* pt_regs->fs */
-	popl	%gs		/* pt_regs->gs */
+	popl	%ds		/* pt_regs->ds (always ignores __dsh) */
+	popl	%es		/* pt_regs->es (always ignores __esh) */
+	popl	%fs		/* pt_regs->fs (always ignores __fsh) */
+	popl	%gs		/* pt_regs->gs (always ignores __gsh) */
 	decl	%ss:early_recursion_flag
 	addl	$4, %esp	/* pop pt_regs->orig_ax */
 	iret
