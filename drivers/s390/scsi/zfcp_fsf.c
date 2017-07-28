@@ -928,8 +928,8 @@ static void zfcp_fsf_send_ct_handler(struct zfcp_fsf_req *req)
 
 	switch (header->fsf_status) {
         case FSF_GOOD:
-		zfcp_dbf_san_res("fsscth2", req);
 		ct->status = 0;
+		zfcp_dbf_san_res("fsscth2", req);
 		break;
         case FSF_SERVICE_CLASS_NOT_SUPPORTED:
 		zfcp_fsf_class_not_supp(req);
@@ -1109,8 +1109,8 @@ static void zfcp_fsf_send_els_handler(struct zfcp_fsf_req *req)
 
 	switch (header->fsf_status) {
 	case FSF_GOOD:
-		zfcp_dbf_san_res("fsselh1", req);
 		send_els->status = 0;
+		zfcp_dbf_san_res("fsselh1", req);
 		break;
 	case FSF_SERVICE_CLASS_NOT_SUPPORTED:
 		zfcp_fsf_class_not_supp(req);
