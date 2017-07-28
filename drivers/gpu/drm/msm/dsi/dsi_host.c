@@ -221,6 +221,8 @@ static const struct msm_dsi_cfg_handler *dsi_get_config(
 		goto put_gdsc;
 	}
 
+	pm_runtime_get_sync(dev);
+
 	ret = regulator_enable(gdsc_reg);
 	if (ret) {
 		pr_err("%s: unable to enable gdsc\n", __func__);
@@ -247,6 +249,7 @@ disable_clks:
 	clk_disable_unprepare(ahb_clk);
 disable_gdsc:
 	regulator_disable(gdsc_reg);
+	pm_runtime_put_autosuspend(dev);
 put_clk:
 	clk_put(ahb_clk);
 put_gdsc:
@@ -1713,6 +1716,8 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 		goto fail;
 	}
 
+	pm_runtime_enable(&pdev->dev);
+
 	msm_host->cfg_hnd = dsi_get_config(msm_host);
 	if (!msm_host->cfg_hnd) {
 		ret = -EINVAL;
@@ -1786,6 +1791,8 @@ void msm_dsi_host_destroy(struct mipi_dsi_host *host)
 	mutex_destroy(&msm_host->clk_mutex);
 	mutex_destroy(&msm_host->cmd_mutex);
 	mutex_destroy(&msm_host->dev_mutex);
+
+	pm_runtime_disable(&msm_host->pdev->dev);
 }
 
 int msm_dsi_host_modeset_init(struct mipi_dsi_host *host,
@@ -1881,6 +1888,7 @@ int msm_dsi_host_xfer_prepare(struct mipi_dsi_host *host,
 	 * mdss interrupt is generated in mdp core clock domain
 	 * mdp clock need to be enabled to receive dsi interrupt
 	 */
+	pm_runtime_get_sync(&msm_host->pdev->dev);
 	dsi_clk_ctrl(msm_host, 1);
 
 	/* TODO: vote for bus bandwidth */
@@ -1912,6 +1920,7 @@ void msm_dsi_host_xfer_restore(struct mipi_dsi_host *host,
 	/* TODO: unvote for bus bandwidth */
 
 	dsi_clk_ctrl(msm_host, 0);
+	pm_runtime_put_autosuspend(&msm_host->pdev->dev);
 }
 
 int msm_dsi_host_cmd_tx(struct mipi_dsi_host *host,
@@ -2217,6 +2226,7 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host,
 		goto unlock_ret;
 	}
 
+	pm_runtime_get_sync(&msm_host->pdev->dev);
 	ret = dsi_clk_ctrl(msm_host, 1);
 	if (ret) {
 		pr_err("%s: failed to enable clocks. ret=%d\n", __func__, ret);
@@ -2269,6 +2279,7 @@ int msm_dsi_host_power_off(struct mipi_dsi_host *host)
 	pinctrl_pm_select_sleep_state(&msm_host->pdev->dev);
 
 	dsi_clk_ctrl(msm_host, 0);
+	pm_runtime_put_autosuspend(&msm_host->pdev->dev);
 
 	dsi_host_regulator_disable(msm_host);
 
