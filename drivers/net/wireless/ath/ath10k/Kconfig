@@ -29,6 +29,13 @@ config ATH10K_SDIO
 	  This module adds experimental support for SDIO/MMC bus. Currently
 	  work in progress and will not fully work.
 
+config ATH10K_USB
+	tristate "Atheros ath10k USB support (EXPERIMENTAL)"
+	depends on ATH10K && USB
+	---help---
+	  This module adds experimental support for USB bus. Currently
+	  work in progress and will not fully work.
+
 config ATH10K_DEBUG
 	bool "Atheros ath10k debugging"
 	depends on ATH10K
