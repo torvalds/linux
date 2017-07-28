@@ -54,7 +54,6 @@ struct zfcp_qdio {
  * @sbal_last: last sbal for this request
  * @sbal_limit: last possible sbal for this request
  * @sbale_curr: current sbale at creation of this request
- * @sbal_response: sbal used in interrupt
  * @qdio_outb_usage: usage of outbound queue
  */
 struct zfcp_qdio_req {
@@ -64,7 +63,6 @@ struct zfcp_qdio_req {
 	u8	sbal_last;
 	u8	sbal_limit;
 	u8	sbale_curr;
-	u8	sbal_response;
 	u16	qdio_outb_usage;
 };
 
