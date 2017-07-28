@@ -29,6 +29,7 @@
 #define PMIC_ARB_VERSION		0x0000
 #define PMIC_ARB_VERSION_V2_MIN		0x20010000
 #define PMIC_ARB_VERSION_V3_MIN		0x30000000
+#define PMIC_ARB_VERSION_V5_MIN		0x50000000
 #define PMIC_ARB_INT_EN			0x0004
 
 /* PMIC Arbiter channel registers offsets */
@@ -39,7 +40,6 @@
 #define PMIC_ARB_WDATA1			0x14
 #define PMIC_ARB_RDATA0			0x18
 #define PMIC_ARB_RDATA1			0x1C
-#define PMIC_ARB_REG_APID(N)		(0x800 + 0x4 * (N))
 
 /* Mapping Table */
 #define SPMI_MAPPING_TABLE_REG(N)	(0x0B00 + (4 * (N)))
@@ -52,6 +52,8 @@
 #define SPMI_MAPPING_TABLE_TREE_DEPTH	16	/* Maximum of 16-bits */
 #define PMIC_ARB_MAX_PPID		BIT(12) /* PPID is 12bit */
 #define PMIC_ARB_APID_VALID		BIT(15)
+#define PMIC_ARB_CHAN_IS_IRQ_OWNER(reg)	((reg) & BIT(24))
+#define INVALID_EE				0xFF
 
 /* Ownership Table */
 #define SPMI_OWNERSHIP_TABLE_REG(N)	(0x0700 + (4 * (N)))
@@ -86,6 +88,15 @@ enum pmic_arb_cmd_op_code {
 	PMIC_ARB_OP_ZERO_WRITE = 16,
 };
 
+/*
+ * PMIC arbiter version 5 uses different register offsets for read/write vs
+ * observer channels.
+ */
+enum pmic_arb_channel {
+	PMIC_ARB_CHANNEL_RW,
+	PMIC_ARB_CHANNEL_OBS,
+};
+
 /* Maximum number of support PMIC peripherals */
 #define PMIC_ARB_MAX_PERIPHS		512
 #define PMIC_ARB_TIMEOUT_US		100
@@ -112,7 +123,8 @@ struct pmic_arb_ver_ops;
 
 struct apid_data {
 	u16		ppid;
-	u8		owner;
+	u8		write_ee;
+	u8		irq_ee;
 };
 
 /**
@@ -175,12 +187,14 @@ struct spmi_pmic_arb {
  *			on v2 address of SPMI_PIC_IRQ_STATUSn.
  * @irq_clear:		on v1 address of PMIC_ARB_SPMI_PIC_IRQ_CLEARn
  *			on v2 address of SPMI_PIC_IRQ_CLEARn.
+ * @apid_map_offset:	offset of PMIC_ARB_REG_CHNLn
  */
 struct pmic_arb_ver_ops {
 	const char *ver_str;
 	int (*ppid_to_apid)(struct spmi_pmic_arb *pmic_arb, u16 ppid);
 	/* spmi commands (read_cmd, write_cmd, cmd) functionality */
-	int (*offset)(struct spmi_pmic_arb *pmic_arb, u8 sid, u16 addr);
+	int (*offset)(struct spmi_pmic_arb *pmic_arb, u8 sid, u16 addr,
+			enum pmic_arb_channel ch_type);
 	u32 (*fmt_cmd)(u8 opc, u8 sid, u16 addr, u8 bc);
 	int (*non_data_cmd)(struct spmi_controller *ctrl, u8 opc, u8 sid);
 	/* Interrupts controller functionality (offset of PIC registers) */
@@ -189,6 +203,7 @@ struct pmic_arb_ver_ops {
 	void __iomem *(*acc_enable)(struct spmi_pmic_arb *pmic_arb, u16 n);
 	void __iomem *(*irq_status)(struct spmi_pmic_arb *pmic_arb, u16 n);
 	void __iomem *(*irq_clear)(struct spmi_pmic_arb *pmic_arb, u16 n);
+	u32 (*apid_map_offset)(u16 n);
 };
 
 static inline void pmic_arb_base_write(struct spmi_pmic_arb *pmic_arb,
@@ -233,7 +248,8 @@ static void pmic_arb_write_data(struct spmi_pmic_arb *pmic_arb, const u8 *buf,
 }
 
 static int pmic_arb_wait_for_done(struct spmi_controller *ctrl,
-				  void __iomem *base, u8 sid, u16 addr)
+				  void __iomem *base, u8 sid, u16 addr,
+				  enum pmic_arb_channel ch_type)
 {
 	struct spmi_pmic_arb *pmic_arb = spmi_controller_get_drvdata(ctrl);
 	u32 status = 0;
@@ -241,7 +257,7 @@ static int pmic_arb_wait_for_done(struct spmi_controller *ctrl,
 	u32 offset;
 	int rc;
 
-	rc = pmic_arb->ver_ops->offset(pmic_arb, sid, addr);
+	rc = pmic_arb->ver_ops->offset(pmic_arb, sid, addr, ch_type);
 	if (rc < 0)
 		return rc;
 
@@ -289,7 +305,7 @@ pmic_arb_non_data_cmd_v1(struct spmi_controller *ctrl, u8 opc, u8 sid)
 	int rc;
 	u32 offset;
 
-	rc = pmic_arb->ver_ops->offset(pmic_arb, sid, 0);
+	rc = pmic_arb->ver_ops->offset(pmic_arb, sid, 0, PMIC_ARB_CHANNEL_RW);
 	if (rc < 0)
 		return rc;
 
@@ -298,7 +314,8 @@ pmic_arb_non_data_cmd_v1(struct spmi_controller *ctrl, u8 opc, u8 sid)
 
 	raw_spin_lock_irqsave(&pmic_arb->lock, flags);
 	pmic_arb_base_write(pmic_arb, offset + PMIC_ARB_CMD, cmd);
-	rc = pmic_arb_wait_for_done(ctrl, pmic_arb->wr_base, sid, 0);
+	rc = pmic_arb_wait_for_done(ctrl, pmic_arb->wr_base, sid, 0,
+				    PMIC_ARB_CHANNEL_RW);
 	raw_spin_unlock_irqrestore(&pmic_arb->lock, flags);
 
 	return rc;
@@ -334,7 +351,8 @@ static int pmic_arb_read_cmd(struct spmi_controller *ctrl, u8 opc, u8 sid,
 	int rc;
 	u32 offset;
 
-	rc = pmic_arb->ver_ops->offset(pmic_arb, sid, addr);
+	rc = pmic_arb->ver_ops->offset(pmic_arb, sid, addr,
+				       PMIC_ARB_CHANNEL_OBS);
 	if (rc < 0)
 		return rc;
 
@@ -359,7 +377,8 @@ static int pmic_arb_read_cmd(struct spmi_controller *ctrl, u8 opc, u8 sid,
 
 	raw_spin_lock_irqsave(&pmic_arb->lock, flags);
 	pmic_arb_set_rd_cmd(pmic_arb, offset + PMIC_ARB_CMD, cmd);
-	rc = pmic_arb_wait_for_done(ctrl, pmic_arb->rd_base, sid, addr);
+	rc = pmic_arb_wait_for_done(ctrl, pmic_arb->rd_base, sid, addr,
+				    PMIC_ARB_CHANNEL_OBS);
 	if (rc)
 		goto done;
 
@@ -376,7 +395,7 @@ done:
 }
 
 static int pmic_arb_write_cmd(struct spmi_controller *ctrl, u8 opc, u8 sid,
-			      u16 addr, const u8 *buf, size_t len)
+			u16 addr, const u8 *buf, size_t len)
 {
 	struct spmi_pmic_arb *pmic_arb = spmi_controller_get_drvdata(ctrl);
 	unsigned long flags;
@@ -385,7 +404,8 @@ static int pmic_arb_write_cmd(struct spmi_controller *ctrl, u8 opc, u8 sid,
 	int rc;
 	u32 offset;
 
-	rc = pmic_arb->ver_ops->offset(pmic_arb, sid, addr);
+	rc = pmic_arb->ver_ops->offset(pmic_arb, sid, addr,
+					PMIC_ARB_CHANNEL_RW);
 	if (rc < 0)
 		return rc;
 
@@ -420,7 +440,8 @@ static int pmic_arb_write_cmd(struct spmi_controller *ctrl, u8 opc, u8 sid,
 
 	/* Start the transaction */
 	pmic_arb_base_write(pmic_arb, offset + PMIC_ARB_CMD, cmd);
-	rc = pmic_arb_wait_for_done(ctrl, pmic_arb->wr_base, sid, addr);
+	rc = pmic_arb_wait_for_done(ctrl, pmic_arb->wr_base, sid, addr,
+				    PMIC_ARB_CHANNEL_RW);
 	raw_spin_unlock_irqrestore(&pmic_arb->lock, flags);
 
 	return rc;
@@ -680,12 +701,19 @@ static int qpnpint_irq_domain_dt_translate(struct irq_domain *d,
 	ppid = intspec[0] << 8 | intspec[1];
 	rc = pmic_arb->ver_ops->ppid_to_apid(pmic_arb, ppid);
 	if (rc < 0) {
-		dev_err(&pmic_arb->spmic->dev, "failed to xlate sid = 0x%x, periph = 0x%x, irq = %x rc = %d\n",
+		dev_err(&pmic_arb->spmic->dev, "failed to xlate sid = %#x, periph = %#x, irq = %u rc = %d\n",
 		intspec[0], intspec[1], intspec[2], rc);
 		return rc;
 	}
 
 	apid = rc;
+	if (pmic_arb->apid_data[apid].irq_ee != pmic_arb->ee) {
+		dev_err(&pmic_arb->spmic->dev, "failed to xlate sid = %#x, periph = %#x, irq = %u: ee=%u but owner=%u\n",
+			intspec[0], intspec[1], intspec[2], pmic_arb->ee,
+			pmic_arb->apid_data[apid].irq_ee);
+		return -ENODEV;
+	}
+
 	/* Keep track of {max,min}_apid for bounding search during interrupt */
 	if (apid > pmic_arb->max_apid)
 		pmic_arb->max_apid = apid;
@@ -762,7 +790,8 @@ static int pmic_arb_ppid_to_apid_v1(struct spmi_pmic_arb *pmic_arb, u16 ppid)
 }
 
 /* v1 offset per ee */
-static int pmic_arb_offset_v1(struct spmi_pmic_arb *pmic_arb, u8 sid, u16 addr)
+static int pmic_arb_offset_v1(struct spmi_pmic_arb *pmic_arb, u8 sid, u16 addr,
+			enum pmic_arb_channel ch_type)
 {
 	return 0x800 + 0x80 * pmic_arb->channel;
 }
@@ -773,18 +802,15 @@ static u16 pmic_arb_find_apid(struct spmi_pmic_arb *pmic_arb, u16 ppid)
 	u32 regval, offset;
 	u16 id, apid;
 
-	/*
-	 * PMIC_ARB_REG_APID is a table in HW mapping apid to ppid.
-	 * ppid_to_apid is an in-memory invert of that table.
-	 */
 	for (apid = pmic_arb->last_apid; ; apid++, apidd++) {
-		offset = PMIC_ARB_REG_APID(apid);
+		offset = pmic_arb->ver_ops->apid_map_offset(apid);
 		if (offset >= pmic_arb->core_size)
 			break;
 
 		regval = readl_relaxed(pmic_arb->cnfg +
 				      SPMI_OWNERSHIP_TABLE_REG(apid));
-		apidd->owner = SPMI_OWNERSHIP_PERIPH2OWNER(regval);
+		apidd->irq_ee = SPMI_OWNERSHIP_PERIPH2OWNER(regval);
+		apidd->write_ee = apidd->irq_ee;
 
 		regval = readl_relaxed(pmic_arb->core + offset);
 		if (!regval)
@@ -816,8 +842,84 @@ static int pmic_arb_ppid_to_apid_v2(struct spmi_pmic_arb *pmic_arb, u16 ppid)
 	return apid_valid & ~PMIC_ARB_APID_VALID;
 }
 
+static int pmic_arb_read_apid_map_v5(struct spmi_pmic_arb *pmic_arb)
+{
+	struct apid_data *apidd = pmic_arb->apid_data;
+	struct apid_data *prev_apidd;
+	u16 i, apid, ppid;
+	bool valid, is_irq_ee;
+	u32 regval, offset;
+
+	/*
+	 * In order to allow multiple EEs to write to a single PPID in arbiter
+	 * version 5, there is more than one APID mapped to each PPID.
+	 * The owner field for each of these mappings specifies the EE which is
+	 * allowed to write to the APID.  The owner of the last (highest) APID
+	 * for a given PPID will receive interrupts from the PPID.
+	 */
+	for (i = 0; ; i++, apidd++) {
+		offset = pmic_arb->ver_ops->apid_map_offset(i);
+		if (offset >= pmic_arb->core_size)
+			break;
+
+		regval = readl_relaxed(pmic_arb->core + offset);
+		if (!regval)
+			continue;
+		ppid = (regval >> 8) & PMIC_ARB_PPID_MASK;
+		is_irq_ee = PMIC_ARB_CHAN_IS_IRQ_OWNER(regval);
+
+		regval = readl_relaxed(pmic_arb->cnfg +
+				      SPMI_OWNERSHIP_TABLE_REG(i));
+		apidd->write_ee = SPMI_OWNERSHIP_PERIPH2OWNER(regval);
+
+		apidd->irq_ee = is_irq_ee ? apidd->write_ee : INVALID_EE;
+
+		valid = pmic_arb->ppid_to_apid[ppid] & PMIC_ARB_APID_VALID;
+		apid = pmic_arb->ppid_to_apid[ppid] & ~PMIC_ARB_APID_VALID;
+		prev_apidd = &pmic_arb->apid_data[apid];
+
+		if (valid && is_irq_ee &&
+				prev_apidd->write_ee == pmic_arb->ee) {
+			/*
+			 * Duplicate PPID mapping after the one for this EE;
+			 * override the irq owner
+			 */
+			prev_apidd->irq_ee = apidd->irq_ee;
+		} else if (!valid || is_irq_ee) {
+			/* First PPID mapping or duplicate for another EE */
+			pmic_arb->ppid_to_apid[ppid] = i | PMIC_ARB_APID_VALID;
+		}
+
+		apidd->ppid = ppid;
+		pmic_arb->last_apid = i;
+	}
+
+	/* Dump the mapping table for debug purposes. */
+	dev_dbg(&pmic_arb->spmic->dev, "PPID APID Write-EE IRQ-EE\n");
+	for (ppid = 0; ppid < PMIC_ARB_MAX_PPID; ppid++) {
+		apid = pmic_arb->ppid_to_apid[ppid];
+		if (apid & PMIC_ARB_APID_VALID) {
+			apid &= ~PMIC_ARB_APID_VALID;
+			apidd = &pmic_arb->apid_data[apid];
+			dev_dbg(&pmic_arb->spmic->dev, "%#03X %3u %2u %2u\n",
+			      ppid, apid, apidd->write_ee, apidd->irq_ee);
+		}
+	}
+
+	return 0;
+}
+
+static int pmic_arb_ppid_to_apid_v5(struct spmi_pmic_arb *pmic_arb, u16 ppid)
+{
+	if (!(pmic_arb->ppid_to_apid[ppid] & PMIC_ARB_APID_VALID))
+		return -ENODEV;
+
+	return pmic_arb->ppid_to_apid[ppid] & ~PMIC_ARB_APID_VALID;
+}
+
 /* v2 offset per ppid and per ee */
-static int pmic_arb_offset_v2(struct spmi_pmic_arb *pmic_arb, u8 sid, u16 addr)
+static int pmic_arb_offset_v2(struct spmi_pmic_arb *pmic_arb, u8 sid, u16 addr,
+			   enum pmic_arb_channel ch_type)
 {
 	u16 apid;
 	u16 ppid;
@@ -830,6 +932,35 @@ static int pmic_arb_offset_v2(struct spmi_pmic_arb *pmic_arb, u8 sid, u16 addr)
 
 	apid = rc;
 	return 0x1000 * pmic_arb->ee + 0x8000 * apid;
+}
+
+/*
+ * v5 offset per ee and per apid for observer channels and per apid for
+ * read/write channels.
+ */
+static int pmic_arb_offset_v5(struct spmi_pmic_arb *pmic_arb, u8 sid, u16 addr,
+			   enum pmic_arb_channel ch_type)
+{
+	u16 apid;
+	int rc;
+	u32 offset = 0;
+	u16 ppid = (sid << 8) | (addr >> 8);
+
+	rc = pmic_arb_ppid_to_apid_v5(pmic_arb, ppid);
+	if (rc < 0)
+		return rc;
+
+	apid = rc;
+	switch (ch_type) {
+	case PMIC_ARB_CHANNEL_OBS:
+		offset = 0x10000 * pmic_arb->ee + 0x80 * apid;
+		break;
+	case PMIC_ARB_CHANNEL_RW:
+		offset = 0x10000 * apid;
+		break;
+	}
+
+	return offset;
 }
 
 static u32 pmic_arb_fmt_cmd_v1(u8 opc, u8 sid, u16 addr, u8 bc)
@@ -861,6 +992,12 @@ pmic_arb_owner_acc_status_v3(struct spmi_pmic_arb *pmic_arb, u8 m, u16 n)
 }
 
 static void __iomem *
+pmic_arb_owner_acc_status_v5(struct spmi_pmic_arb *pmic_arb, u8 m, u16 n)
+{
+	return pmic_arb->intr + 0x10000 * m + 0x4 * n;
+}
+
+static void __iomem *
 pmic_arb_acc_enable_v1(struct spmi_pmic_arb *pmic_arb, u16 n)
 {
 	return pmic_arb->intr + 0x200 + 0x4 * n;
@@ -870,6 +1007,12 @@ static void __iomem *
 pmic_arb_acc_enable_v2(struct spmi_pmic_arb *pmic_arb, u16 n)
 {
 	return pmic_arb->intr + 0x1000 * n;
+}
+
+static void __iomem *
+pmic_arb_acc_enable_v5(struct spmi_pmic_arb *pmic_arb, u16 n)
+{
+	return pmic_arb->wr_base + 0x100 + 0x10000 * n;
 }
 
 static void __iomem *
@@ -885,6 +1028,12 @@ pmic_arb_irq_status_v2(struct spmi_pmic_arb *pmic_arb, u16 n)
 }
 
 static void __iomem *
+pmic_arb_irq_status_v5(struct spmi_pmic_arb *pmic_arb, u16 n)
+{
+	return pmic_arb->wr_base + 0x104 + 0x10000 * n;
+}
+
+static void __iomem *
 pmic_arb_irq_clear_v1(struct spmi_pmic_arb *pmic_arb, u16 n)
 {
 	return pmic_arb->intr + 0xA00 + 0x4 * n;
@@ -894,6 +1043,22 @@ static void __iomem *
 pmic_arb_irq_clear_v2(struct spmi_pmic_arb *pmic_arb, u16 n)
 {
 	return pmic_arb->intr + 0x8 + 0x1000 * n;
+}
+
+static void __iomem *
+pmic_arb_irq_clear_v5(struct spmi_pmic_arb *pmic_arb, u16 n)
+{
+	return pmic_arb->wr_base + 0x108 + 0x10000 * n;
+}
+
+static u32 pmic_arb_apid_map_offset_v2(u16 n)
+{
+	return 0x800 + 0x4 * n;
+}
+
+static u32 pmic_arb_apid_map_offset_v5(u16 n)
+{
+	return 0x900 + 0x4 * n;
 }
 
 static const struct pmic_arb_ver_ops pmic_arb_v1 = {
@@ -906,6 +1071,7 @@ static const struct pmic_arb_ver_ops pmic_arb_v1 = {
 	.acc_enable		= pmic_arb_acc_enable_v1,
 	.irq_status		= pmic_arb_irq_status_v1,
 	.irq_clear		= pmic_arb_irq_clear_v1,
+	.apid_map_offset	= pmic_arb_apid_map_offset_v2,
 };
 
 static const struct pmic_arb_ver_ops pmic_arb_v2 = {
@@ -918,6 +1084,7 @@ static const struct pmic_arb_ver_ops pmic_arb_v2 = {
 	.acc_enable		= pmic_arb_acc_enable_v2,
 	.irq_status		= pmic_arb_irq_status_v2,
 	.irq_clear		= pmic_arb_irq_clear_v2,
+	.apid_map_offset	= pmic_arb_apid_map_offset_v2,
 };
 
 static const struct pmic_arb_ver_ops pmic_arb_v3 = {
@@ -930,6 +1097,20 @@ static const struct pmic_arb_ver_ops pmic_arb_v3 = {
 	.acc_enable		= pmic_arb_acc_enable_v2,
 	.irq_status		= pmic_arb_irq_status_v2,
 	.irq_clear		= pmic_arb_irq_clear_v2,
+	.apid_map_offset	= pmic_arb_apid_map_offset_v2,
+};
+
+static const struct pmic_arb_ver_ops pmic_arb_v5 = {
+	.ver_str		= "v5",
+	.ppid_to_apid		= pmic_arb_ppid_to_apid_v5,
+	.non_data_cmd		= pmic_arb_non_data_cmd_v2,
+	.offset			= pmic_arb_offset_v5,
+	.fmt_cmd		= pmic_arb_fmt_cmd_v2,
+	.owner_acc_status	= pmic_arb_owner_acc_status_v5,
+	.acc_enable		= pmic_arb_acc_enable_v5,
+	.irq_status		= pmic_arb_irq_status_v5,
+	.irq_clear		= pmic_arb_irq_clear_v5,
+	.apid_map_offset	= pmic_arb_apid_map_offset_v5,
 };
 
 static const struct irq_domain_ops pmic_arb_irq_domain_ops = {
@@ -982,8 +1163,10 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 
 		if (hw_ver < PMIC_ARB_VERSION_V3_MIN)
 			pmic_arb->ver_ops = &pmic_arb_v2;
-		else
+		else if (hw_ver < PMIC_ARB_VERSION_V5_MIN)
 			pmic_arb->ver_ops = &pmic_arb_v3;
+		else
+			pmic_arb->ver_ops = &pmic_arb_v5;
 
 		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
 						   "obsrvr");
@@ -1072,6 +1255,15 @@ static int spmi_pmic_arb_probe(struct platform_device *pdev)
 	ctrl->cmd = pmic_arb_cmd;
 	ctrl->read_cmd = pmic_arb_read_cmd;
 	ctrl->write_cmd = pmic_arb_write_cmd;
+
+	if (hw_ver >= PMIC_ARB_VERSION_V5_MIN) {
+		err = pmic_arb_read_apid_map_v5(pmic_arb);
+		if (err) {
+			dev_err(&pdev->dev, "could not read APID->PPID mapping table, rc= %d\n",
+				err);
+			goto err_put_ctrl;
+		}
+	}
 
 	dev_dbg(&pdev->dev, "adding irq domain\n");
 	pmic_arb->domain = irq_domain_add_tree(pdev->dev.of_node,
