@@ -762,23 +762,22 @@ static int pmic_arb_offset_v1(struct spmi_pmic_arb *pmic_arb, u8 sid, u16 addr,
 
 static u16 pmic_arb_find_apid(struct spmi_pmic_arb *pmic_arb, u16 ppid)
 {
+	struct apid_data *apidd = &pmic_arb->apid_data[pmic_arb->last_apid];
 	u32 regval, offset;
-	u16 apid;
-	u16 id;
+	u16 id, apid;
 
 	/*
-	 * PMIC_ARB_REG_CHNL is a table in HW mapping channel to ppid.
+	 * PMIC_ARB_REG_APID is a table in HW mapping apid to ppid.
 	 * ppid_to_apid is an in-memory invert of that table.
 	 */
-	for (apid = pmic_arb->last_apid; ; apid++) {
+	for (apid = pmic_arb->last_apid; ; apid++, apidd++) {
 		offset = PMIC_ARB_REG_APID(apid);
 		if (offset >= pmic_arb->core_size)
 			break;
 
 		regval = readl_relaxed(pmic_arb->cnfg +
 				      SPMI_OWNERSHIP_TABLE_REG(apid));
-		pmic_arb->apid_data[apid].owner =
-					SPMI_OWNERSHIP_PERIPH2OWNER(regval);
+		apidd->owner = SPMI_OWNERSHIP_PERIPH2OWNER(regval);
 
 		regval = readl_relaxed(pmic_arb->core + offset);
 		if (!regval)
@@ -786,7 +785,7 @@ static u16 pmic_arb_find_apid(struct spmi_pmic_arb *pmic_arb, u16 ppid)
 
 		id = (regval >> 8) & PMIC_ARB_PPID_MASK;
 		pmic_arb->ppid_to_apid[id] = apid | PMIC_ARB_APID_VALID;
-		pmic_arb->apid_data[apid].ppid = id;
+		apidd->ppid = id;
 		if (id == ppid) {
 			apid |= PMIC_ARB_APID_VALID;
 			break;
