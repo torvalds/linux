@@ -4448,7 +4448,10 @@ static int btrfs_log_trailing_hole(struct btrfs_trans_handle *trans,
 			len = btrfs_file_extent_inline_len(leaf,
 							   path->slots[0],
 							   extent);
-			ASSERT(len == i_size);
+			ASSERT(len == i_size ||
+			       (len == fs_info->sectorsize &&
+				btrfs_file_extent_compression(leaf, extent) !=
+				BTRFS_COMPRESS_NONE));
 			return 0;
 		}
 
