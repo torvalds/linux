@@ -547,7 +547,7 @@ static unsigned long rockchip_dsi_calc_bandwidth(struct dw_mipi_dsi *dsi)
 {
 	int bpp;
 	unsigned long mpclk, tmp;
-	unsigned int target_mbps = 1000;
+	unsigned long target_mbps = 1000;
 	unsigned int value;
 	struct device_node *np = dsi->dev->of_node;
 	unsigned int max_mbps;
@@ -578,16 +578,17 @@ static unsigned long rockchip_dsi_calc_bandwidth(struct dw_mipi_dsi *dsi)
 			dev_err(dsi->dev, "DPHY clock frequency is out of range\n");
 	}
 
-	return target_mbps * USEC_PER_SEC;
+	return target_mbps;
 }
 
-static unsigned long dw_mipi_dsi_get_lane_bps(struct dw_mipi_dsi *dsi,
-					      unsigned long rate)
+static int dw_mipi_dsi_get_lane_bps(struct dw_mipi_dsi *dsi)
 {
 	unsigned int i, pre;
 	unsigned long pllref, tmp;
 	unsigned int m = 1, n = 1;
-	unsigned long target_mbps = rate / USEC_PER_SEC;
+	unsigned long target_mbps;
+
+	target_mbps = rockchip_dsi_calc_bandwidth(dsi);
 
 	pllref = DIV_ROUND_UP(clk_get_rate(dsi->dphy.ref_clk), USEC_PER_SEC);
 	tmp = pllref;
@@ -603,10 +604,31 @@ static unsigned long dw_mipi_dsi_get_lane_bps(struct dw_mipi_dsi *dsi,
 			break;
 	}
 
+	dsi->lane_mbps = pllref / n * m;
 	dsi->dphy.input_div = n;
 	dsi->dphy.feedback_div = m;
 
-	return (pllref * m / n) * USEC_PER_SEC;
+	return 0;
+}
+
+static void rockchip_dsi_set_hs_clk(struct dw_mipi_dsi *dsi)
+{
+	int ret;
+	unsigned long target_mbps;
+	unsigned long bw, rate;
+
+	target_mbps = rockchip_dsi_calc_bandwidth(dsi);
+	bw = target_mbps * USEC_PER_SEC;
+
+	rate = clk_round_rate(dsi->dphy.hs_clk, bw);
+	ret = clk_set_rate(dsi->dphy.hs_clk, rate);
+	if (ret)
+		dev_err(dsi->dev, "failed to set hs clock rate: %lu\n",
+			rate);
+
+	clk_prepare_enable(dsi->dphy.hs_clk);
+
+	dsi->lane_mbps = rate / USEC_PER_SEC;
 }
 
 static int dw_mipi_dsi_host_attach(struct mipi_dsi_host *host,
@@ -971,9 +993,6 @@ static void rockchip_dsi_grf_config(struct dw_mipi_dsi *dsi, int vop_id)
 
 static void rockchip_dsi_pre_init(struct dw_mipi_dsi *dsi)
 {
-	unsigned long bw, rate;
-	int ret;
-
 	if (clk_prepare_enable(dsi->pclk)) {
 		dev_err(dsi->dev, "%s: Failed to enable pclk\n", __func__);
 		return;
@@ -994,24 +1013,12 @@ static void rockchip_dsi_pre_init(struct dw_mipi_dsi *dsi)
 		udelay(10);
 	}
 
-	bw = rockchip_dsi_calc_bandwidth(dsi);
-
 	if (dsi->dphy.phy) {
-		rate = clk_round_rate(dsi->dphy.hs_clk, bw);
-		ret = clk_set_rate(dsi->dphy.hs_clk, rate);
-		if (ret) {
-			dev_err(dsi->dev, "failed to set hs clock rate: %lu\n",
-				rate);
-			return;
-		}
-
-		clk_prepare_enable(dsi->dphy.hs_clk);
+		rockchip_dsi_set_hs_clk(dsi);
 		phy_power_on(dsi->dphy.phy);
 	} else {
-		rate = dw_mipi_dsi_get_lane_bps(dsi, bw);
+		dw_mipi_dsi_get_lane_bps(dsi);
 	}
-
-	dsi->lane_mbps = rate / USEC_PER_SEC;
 
 	dev_info(dsi->dev, "final DSI-Link bandwidth: %u x %d Mbps\n",
 		 dsi->lane_mbps, dsi->lanes);
