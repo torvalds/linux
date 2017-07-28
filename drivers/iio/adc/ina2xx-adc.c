@@ -44,6 +44,7 @@
 
 #define INA226_MASK_ENABLE		0x06
 #define INA226_CVRF			BIT(3)
+#define INA219_CNVR			BIT(1)
 
 #define INA2XX_MAX_REGISTERS            8
 
@@ -592,6 +593,7 @@ static int ina2xx_work_buffer(struct iio_dev *indio_dev)
 	int bit, ret, i = 0;
 	s64 time_a, time_b;
 	unsigned int alert;
+	int cnvr_need_clear = 0;
 
 	time_a = iio_get_time_ns(indio_dev);
 
@@ -603,22 +605,30 @@ static int ina2xx_work_buffer(struct iio_dev *indio_dev)
 	 * we check the ConVersionReadyFlag.
 	 * On hardware that supports using the ALERT pin to toggle a
 	 * GPIO a triggered buffer could be used instead.
-	 * For now, we pay for that extra read of the ALERT register
+	 * For now, we do an extra read of the MASK_ENABLE register (INA226)
+	 * resp. the BUS_VOLTAGE register (INA219).
 	 */
 	if (!chip->allow_async_readout)
 		do {
-			ret = regmap_read(chip->regmap, INA226_MASK_ENABLE,
-					  &alert);
+			if (chip->config->chip_id == ina226) {
+				ret = regmap_read(chip->regmap,
+						  INA226_MASK_ENABLE, &alert);
+				alert &= INA226_CVRF;
+			} else {
+				ret = regmap_read(chip->regmap,
+						  INA2XX_BUS_VOLTAGE, &alert);
+				alert &= INA219_CNVR;
+				cnvr_need_clear = alert;
+			}
+
 			if (ret < 0)
 				return ret;
 
-			alert &= INA226_CVRF;
 		} while (!alert);
 
 	/*
-	 * Single register reads: bulk_read will not work with ina226
-	 * as there is no auto-increment of the address register for
-	 * data length longer than 16bits.
+	 * Single register reads: bulk_read will not work with ina226/219
+	 * as there is no auto-increment of the register pointer.
 	 */
 	for_each_set_bit(bit, indio_dev->active_scan_mask,
 			 indio_dev->masklength) {
@@ -630,6 +640,18 @@ static int ina2xx_work_buffer(struct iio_dev *indio_dev)
 			return ret;
 
 		data[i++] = val;
+
+		if (INA2XX_SHUNT_VOLTAGE + bit == INA2XX_POWER)
+			cnvr_need_clear = 0;
+	}
+
+	/* Dummy read on INA219 power register to clear CNVR flag */
+	if (cnvr_need_clear && chip->config->chip_id == ina219) {
+		unsigned int val;
+
+		ret = regmap_read(chip->regmap, INA2XX_POWER, &val);
+		if (ret < 0)
+			return ret;
 	}
 
 	time_b = iio_get_time_ns(indio_dev);

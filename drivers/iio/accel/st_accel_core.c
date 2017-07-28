@@ -444,7 +444,7 @@ static const struct st_sensor_settings st_accel_sensors_settings[] = {
 		.wai = 0x32,
 		.wai_addr = ST_SENSORS_DEFAULT_WAI_ADDRESS,
 		.sensors_supported = {
-			[0] = H3LIS331DL_DRIVER_NAME,
+			[0] = H3LIS331DL_ACCEL_DEV_NAME,
 		},
 		.ch = (struct iio_chan_spec *)st_accel_12bit_channels,
 		.odr = {

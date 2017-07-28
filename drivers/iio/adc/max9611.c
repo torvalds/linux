@@ -549,8 +549,8 @@ static int max9611_probe(struct i2c_client *client,
 	ret = of_property_read_u32(of_node, shunt_res_prop, &of_shunt);
 	if (ret) {
 		dev_err(&client->dev,
-			"Missing %s property for %s node\n",
-			shunt_res_prop, of_node->full_name);
+			"Missing %s property for %pOF node\n",
+			shunt_res_prop, of_node);
 		return ret;
 	}
 	max9611->shunt_resistor_uohm = of_shunt;

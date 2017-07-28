@@ -11,6 +11,8 @@
  * 7-bit I2C slave address 0x39 (TCS34721, TCS34723) or 0x29 (TCS34725,
  * TCS34727)
  *
+ * Datasheet: http://ams.com/eng/content/download/319364/1117183/file/TCS3472_Datasheet_EN_v2.pdf
+ *
  * TODO: interrupt support, thresholds, wait time
  */
 
@@ -169,7 +171,7 @@ static int tcs3472_write_raw(struct iio_dev *indio_dev,
 		for (i = 0; i < 256; i++) {
 			if (val2 == (256 - i) * 2400) {
 				data->atime = i;
-				return i2c_smbus_write_word_data(
+				return i2c_smbus_write_byte_data(
 					data->client, TCS3472_ATIME,
 					data->atime);
 			}
