@@ -856,7 +856,18 @@ bool dcn_validate_bandwidth(
 				- pipe->stream->timing.v_front_porch;
 		v->vactive[input_idx] = pipe->stream->timing.v_addressable;
 		v->pixel_clock[input_idx] = pipe->stream->timing.pix_clk_khz / 1000.0f;
-
+		if (pipe->stream->sink->sink_signal ==  SIGNAL_TYPE_HDMI_TYPE_A) {
+			switch (pipe->stream->timing.display_color_depth) {
+			case COLOR_DEPTH_101010:
+					v->pixel_clock[input_idx]  = (v->pixel_clock[input_idx] * 30) / 24;
+				break;
+			case COLOR_DEPTH_121212:
+				v->pixel_clock[input_idx]  = (v->pixel_clock[input_idx] * 36) / 24;
+				break;
+			default:
+				break;
+			}
+		}
 
 		if (!pipe->surface){
 			v->dcc_enable[input_idx] = dcn_bw_yes;

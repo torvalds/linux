@@ -1657,8 +1657,6 @@ static void set_avi_info_frame(
 			color_space == COLOR_SPACE_YCBCR601_LIMITED)
 		hdmi_info->bits.C0_C1 = COLORIMETRY_ITU601;
 	else {
-		if (stream->timing.pixel_encoding != PIXEL_ENCODING_RGB)
-			BREAK_TO_DEBUGGER();
 		hdmi_info->bits.C0_C1 = COLORIMETRY_NO_DATA;
 	}
 	if (color_space == COLOR_SPACE_2020_RGB_FULLRANGE ||
