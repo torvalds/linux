@@ -186,8 +186,7 @@ struct smc_clc_msg_accept_confirm;
 
 void smc_lgr_free(struct smc_link_group *lgr);
 void smc_lgr_terminate(struct smc_link_group *lgr);
-int smc_sndbuf_create(struct smc_sock *smc);
-int smc_rmb_create(struct smc_sock *smc);
+int smc_buf_create(struct smc_sock *smc);
 int smc_rmb_rtoken_handling(struct smc_connection *conn,
 			    struct smc_clc_msg_accept_confirm *clc);
 #endif

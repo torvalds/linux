@@ -436,12 +436,8 @@ static int smc_connect_rdma(struct smc_sock *smc)
 
 	smc_conn_save_peer_info(smc, &aclc);
 
-	rc = smc_sndbuf_create(smc);
-	if (rc) {
-		reason_code = SMC_CLC_DECL_MEM;
-		goto decline_rdma_unlock;
-	}
-	rc = smc_rmb_create(smc);
+	/* create send buffer and rmb */
+	rc = smc_buf_create(smc);
 	if (rc) {
 		reason_code = SMC_CLC_DECL_MEM;
 		goto decline_rdma_unlock;
@@ -813,12 +809,8 @@ static void smc_listen_work(struct work_struct *work)
 	}
 	link = &new_smc->conn.lgr->lnk[SMC_SINGLE_LINK];
 
-	rc = smc_sndbuf_create(new_smc);
-	if (rc) {
-		reason_code = SMC_CLC_DECL_MEM;
-		goto decline_rdma;
-	}
-	rc = smc_rmb_create(new_smc);
+	/* create send buffer and rmb */
+	rc = smc_buf_create(new_smc);
 	if (rc) {
 		reason_code = SMC_CLC_DECL_MEM;
 		goto decline_rdma;
