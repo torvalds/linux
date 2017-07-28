@@ -1,26 +1,57 @@
 Binding for Rockchip's CPUFreq driver
 ===============================
 
-Rockchip's CPUFreq driver attempts to read SoC version and leakage values
-from eFuse, then supplies the OPP framework with 'prop' and 'supported
-hardware' information respectively. This is based on operating-points-v2,
-but the driver can also create the "cpufreq-dt" platform_device to
-compatibility with operating-points.
+Rockchip's CPUFreq driver attempts to read leakage value from eFuse
+and get frequency count from pvtm, then supplies the OPP framework
+with 'prop' information which is used to determine opp-microvolt-<name>
+property of OPPS when it is parsed by the OPP framework. This is based
+on operating-points-v2, but the driver can also create the "cpufreq-dt"
+platform_device to compatibility with operating-points.
 
 For more information about the expected DT format [See: ../opp/opp.txt].
 
 Optional properties:
 In 'operating-points-v2' table:
-- leakage-voltage-sel: The property is an array of 3-tuples items, and
-               each item consists of leakage and voltage selector like
-               <min-leakage max-leakage volt-selector>.
-               min-leakage: minimum leakage in mA, ranges from 1 to 254
-               max-leakage: maximum leakage in mA, ranges from 1 to 254
-               voltage-selector: a sequence number which is used to math
-               opp-microvolt-L<number> roperty in OPP node
-- nvmem-cells: A phandle to the soc_version and cpu_leakage data provided
-               by a nvmem device.
-- nvmem-cell-names: Should be "soc_version" and "cpu_leakage"
+- rockchip,leakage-voltage-sel: The property is an array of 3-tuples items, and
+                       each item consists of leakage and voltage selector like
+                       <min-leakage max-leakage volt-selector>.
+                       min-leakage: minimum leakage in mA, ranges from 1 to 254.
+                       max-leakage: maximum leakage in mA, ranges from 1 to 254.
+                       voltage-selector: a sequence number which is used to math
+                       opp-microvolt-L<number> roperty in OPP node.
+
+- rockchip,pvtm-voltage-sel: The property is an array of 3-tuples items, and
+                       each item consists of pvtm and voltage selector like
+                       <min-pvtm max-pvtm volt-selector>.
+                       min-pvtm: minimum frequency count in KHz.
+                       max-pvtm: maximum frequency count in KHz.
+                       voltage-selector: a sequence number which is used to math
+                       opp-microvolt-L<number> roperty in OPP node.
+- rockchip,pvtm-freq: Clock frequency in KHz, which is used to set the cpu clock
+                       frequency before get frequency count of pvtm.
+- rockchip,pvtm-volt: Voltage in uV, which is used to set the cpu voltage before
+                       get frequency count of pvtm.
+- rockchip,pvtm-ch: An array of two integers containing pvtm channel and clock
+                       oscillation ring.
+- rockchip,pvtm-sample-time: The number of milliseconds to wait for pvtm to
+                       finish counting.
+- rockchip,pvtm-number: An integer indicating the number of sampling points.
+- rockchip,pvtm-error: An integer indicating the error between the sample
+                       results.
+- rockchip,pvtm-ref-temp: The SoC internal temperature in degree centigrade, the
+                       min-pvtm and max-pvtm in 'leakage-voltage-sel' are
+                       measured at reference temperature.
+- rockchip,pvtm-temp-prop: An array of two integers containing proportional
+                       constants which is used to convert the value at current
+                       temperature to reference temperature. The first one is
+                       used when current temperature is below reference
+                       temperature. Conversely, The second one is used when
+                       current temperature is above reference temperature.
+- rockchip,pvtm-thermal-zone: A thermal zone node containing thermal sensor,
+                       it's used to get the current temperature.
+
+- nvmem-cells: A phandle to cpu_leakage data provided by a nvmem device.
+- nvmem-cell-names: Should be "cpu_leakage"
 
 Examples:
 
@@ -33,7 +64,7 @@ cpus {
 cluster0_opp: opp_table0 {
 	compatible = "operating-points-v2";
 	opp-shared;
-	leakage-voltage-sel = <
+	rockchip,leakage-voltage-sel = <
 		1   24   0
 		25  254  1
 	>;
