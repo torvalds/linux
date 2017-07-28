@@ -750,6 +750,24 @@ err_tx:
 	return ret;
 }
 
+static void spi_qup_set_cs(struct spi_device *spi, bool val)
+{
+	struct spi_qup *controller;
+	u32 spi_ioc;
+	u32 spi_ioc_orig;
+
+	controller = spi_master_get_devdata(spi->master);
+	spi_ioc = readl_relaxed(controller->base + SPI_IO_CONTROL);
+	spi_ioc_orig = spi_ioc;
+	if (!val)
+		spi_ioc |= SPI_IO_C_FORCE_CS;
+	else
+		spi_ioc &= ~SPI_IO_C_FORCE_CS;
+
+	if (spi_ioc != spi_ioc_orig)
+		writel_relaxed(spi_ioc, controller->base + SPI_IO_CONTROL);
+}
+
 static int spi_qup_probe(struct platform_device *pdev)
 {
 	struct spi_master *master;
@@ -845,6 +863,9 @@ static int spi_qup_probe(struct platform_device *pdev)
 	/* set v1 flag if device is version 1 */
 	if (of_device_is_compatible(dev->of_node, "qcom,spi-qup-v1.1.1"))
 		controller->qup_v1 = 1;
+
+	if (!controller->qup_v1)
+		master->set_cs = spi_qup_set_cs;
 
 	spin_lock_init(&controller->lock);
 	init_completion(&controller->done);
