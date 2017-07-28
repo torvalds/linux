@@ -21,6 +21,7 @@
  * GNU General Public License for more details.
  */
 
+#include <linux/acpi.h>
 #include <linux/bitops.h>
 #include <linux/device.h>
 #include <linux/err.h>
@@ -36,6 +37,12 @@
 #include <linux/iio/sysfs.h>
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
+
+/*
+ * In case of ACPI, we use the 5000 mV as default for the reference pin.
+ * Device tree users encode that via the vref-supply regulator.
+ */
+#define TI_ADS7950_VA_MV_ACPI_DEFAULT	5000
 
 #define TI_ADS7950_CR_MANUAL	BIT(12)
 #define TI_ADS7950_CR_WRITE	BIT(11)
@@ -58,6 +65,7 @@ struct ti_ads7950_state {
 	struct spi_message	scan_single_msg;
 
 	struct regulator	*reg;
+	unsigned int		vref_mv;
 
 	unsigned int		settings;
 
@@ -305,11 +313,15 @@ static int ti_ads7950_get_range(struct ti_ads7950_state *st)
 {
 	int vref;
 
-	vref = regulator_get_voltage(st->reg);
-	if (vref < 0)
-		return vref;
+	if (st->vref_mv) {
+		vref = st->vref_mv;
+	} else {
+		vref = regulator_get_voltage(st->reg);
+		if (vref < 0)
+			return vref;
 
-	vref /= 1000;
+		vref /= 1000;
+	}
 
 	if (st->settings & TI_ADS7950_CR_RANGE_5V)
 		vref *= 2;
@@ -410,6 +422,10 @@ static int ti_ads7950_probe(struct spi_device *spi)
 
 	spi_message_init_with_transfers(&st->scan_single_msg,
 					st->scan_single_xfer, 3);
+
+	/* Use hard coded value for reference voltage in ACPI case */
+	if (ACPI_COMPANION(&spi->dev))
+		st->vref_mv = TI_ADS7950_VA_MV_ACPI_DEFAULT;
 
 	st->reg = devm_regulator_get(&spi->dev, "vref");
 	if (IS_ERR(st->reg)) {
