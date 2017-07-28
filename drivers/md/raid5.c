@@ -5279,12 +5279,15 @@ static void make_request(struct mddev *mddev, struct bio * bi)
 				 * userspace, we want an interruptible
 				 * wait.
 				 */
-				flush_signals(current);
 				prepare_to_wait(&conf->wait_for_overlap,
 						&w, TASK_INTERRUPTIBLE);
 				if (logical_sector >= mddev->suspend_lo &&
 				    logical_sector < mddev->suspend_hi) {
+					sigset_t full, old;
+					sigfillset(&full);
+					sigprocmask(SIG_BLOCK, &full, &old);
 					schedule();
+					sigprocmask(SIG_SETMASK, &old, NULL);
 					do_prepare = true;
 				}
 				goto retry;
@@ -7528,12 +7531,10 @@ static void end_reshape(struct r5conf *conf)
 {
 
 	if (!test_bit(MD_RECOVERY_INTR, &conf->mddev->recovery)) {
-		struct md_rdev *rdev;
 
 		spin_lock_irq(&conf->device_lock);
 		conf->previous_raid_disks = conf->raid_disks;
-		rdev_for_each(rdev, conf->mddev)
-			rdev->data_offset = rdev->new_data_offset;
+		md_finish_reshape(conf->mddev);
 		smp_wmb();
 		conf->reshape_progress = MaxSector;
 		conf->mddev->reshape_position = MaxSector;

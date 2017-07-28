@@ -64,6 +64,25 @@ enum intel_pt_pkt_state {
 	INTEL_PT_STATE_FUP_NO_TIP,
 };
 
+static inline bool intel_pt_sample_time(enum intel_pt_pkt_state pkt_state)
+{
+	switch (pkt_state) {
+	case INTEL_PT_STATE_NO_PSB:
+	case INTEL_PT_STATE_NO_IP:
+	case INTEL_PT_STATE_ERR_RESYNC:
+	case INTEL_PT_STATE_IN_SYNC:
+	case INTEL_PT_STATE_TNT:
+		return true;
+	case INTEL_PT_STATE_TIP:
+	case INTEL_PT_STATE_TIP_PGD:
+	case INTEL_PT_STATE_FUP:
+	case INTEL_PT_STATE_FUP_NO_TIP:
+		return false;
+	default:
+		return true;
+	};
+}
+
 #ifdef INTEL_PT_STRICT
 #define INTEL_PT_STATE_ERR1	INTEL_PT_STATE_NO_PSB
 #define INTEL_PT_STATE_ERR2	INTEL_PT_STATE_NO_PSB
@@ -98,6 +117,7 @@ struct intel_pt_decoder {
 	uint64_t timestamp;
 	uint64_t tsc_timestamp;
 	uint64_t ref_timestamp;
+	uint64_t sample_timestamp;
 	uint64_t ret_addr;
 	uint64_t ctc_timestamp;
 	uint64_t ctc_delta;
@@ -140,6 +160,7 @@ struct intel_pt_decoder {
 	unsigned int fup_tx_flags;
 	unsigned int tx_flags;
 	uint64_t timestamp_insn_cnt;
+	uint64_t sample_insn_cnt;
 	uint64_t stuck_ip;
 	int no_progress;
 	int stuck_ip_prd;
@@ -896,6 +917,7 @@ static int intel_pt_walk_insn(struct intel_pt_decoder *decoder,
 
 	decoder->tot_insn_cnt += insn_cnt;
 	decoder->timestamp_insn_cnt += insn_cnt;
+	decoder->sample_insn_cnt += insn_cnt;
 	decoder->period_insn_cnt += insn_cnt;
 
 	if (err) {
@@ -1876,6 +1898,7 @@ static int intel_pt_walk_to_ip(struct intel_pt_decoder *decoder)
 			break;
 
 		case INTEL_PT_PSB:
+			intel_pt_clear_stack(&decoder->stack);
 			err = intel_pt_walk_psb(decoder);
 			if (err)
 				return err;
@@ -1900,6 +1923,8 @@ static int intel_pt_walk_to_ip(struct intel_pt_decoder *decoder)
 static int intel_pt_sync_ip(struct intel_pt_decoder *decoder)
 {
 	int err;
+
+	decoder->set_fup_tx_flags = false;
 
 	intel_pt_log("Scanning for full IP\n");
 	err = intel_pt_walk_to_ip(decoder);
@@ -2035,7 +2060,7 @@ static int intel_pt_sync(struct intel_pt_decoder *decoder)
 
 static uint64_t intel_pt_est_timestamp(struct intel_pt_decoder *decoder)
 {
-	uint64_t est = decoder->timestamp_insn_cnt << 1;
+	uint64_t est = decoder->sample_insn_cnt << 1;
 
 	if (!decoder->cbr || !decoder->max_non_turbo_ratio)
 		goto out;
@@ -2043,7 +2068,7 @@ static uint64_t intel_pt_est_timestamp(struct intel_pt_decoder *decoder)
 	est *= decoder->max_non_turbo_ratio;
 	est /= decoder->cbr;
 out:
-	return decoder->timestamp + est;
+	return decoder->sample_timestamp + est;
 }
 
 const struct intel_pt_state *intel_pt_decode(struct intel_pt_decoder *decoder)
@@ -2060,6 +2085,7 @@ const struct intel_pt_state *intel_pt_decode(struct intel_pt_decoder *decoder)
 			break;
 		case INTEL_PT_STATE_NO_IP:
 			decoder->last_ip = 0;
+			decoder->ip = 0;
 			/* Fall through */
 		case INTEL_PT_STATE_ERR_RESYNC:
 			err = intel_pt_sync_ip(decoder);
@@ -2096,14 +2122,23 @@ const struct intel_pt_state *intel_pt_decode(struct intel_pt_decoder *decoder)
 		}
 	} while (err == -ENOLINK);
 
-	decoder->state.err = err ? intel_pt_ext_err(err) : 0;
-	decoder->state.timestamp = decoder->timestamp;
+	if (err) {
+		decoder->state.err = intel_pt_ext_err(err);
+		decoder->state.from_ip = decoder->ip;
+		decoder->sample_timestamp = decoder->timestamp;
+		decoder->sample_insn_cnt = decoder->timestamp_insn_cnt;
+	} else {
+		decoder->state.err = 0;
+		if (intel_pt_sample_time(decoder->pkt_state)) {
+			decoder->sample_timestamp = decoder->timestamp;
+			decoder->sample_insn_cnt = decoder->timestamp_insn_cnt;
+		}
+	}
+
+	decoder->state.timestamp = decoder->sample_timestamp;
 	decoder->state.est_timestamp = intel_pt_est_timestamp(decoder);
 	decoder->state.cr3 = decoder->cr3;
 	decoder->state.tot_insn_cnt = decoder->tot_insn_cnt;
-
-	if (err)
-		decoder->state.from_ip = decoder->ip;
 
 	return &decoder->state;
 }
