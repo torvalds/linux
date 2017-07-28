@@ -3838,6 +3838,17 @@ static void alc269_fixup_hp_line1_mic1_led(struct hda_codec *codec,
 	}
 }
 
+static struct coef_fw alc225_pre_hsmode[] = {
+	UPDATE_COEF(0x4a, 1<<8, 0),
+	UPDATE_COEFEX(0x57, 0x05, 1<<14, 0),
+	UPDATE_COEF(0x63, 3<<14, 3<<14),
+	UPDATE_COEF(0x4a, 3<<4, 2<<4),
+	UPDATE_COEF(0x4a, 3<<10, 3<<10),
+	UPDATE_COEF(0x45, 0x3f<<10, 0x34<<10),
+	UPDATE_COEF(0x4a, 3<<10, 0),
+	{}
+};
+
 static void alc_headset_mode_unplugged(struct hda_codec *codec)
 {
 	static struct coef_fw coef0255[] = {
@@ -3873,6 +3884,10 @@ static void alc_headset_mode_unplugged(struct hda_codec *codec)
 		UPDATE_COEF(0x67, 0x2000, 0),
 		{}
 	};
+	static struct coef_fw coef0298[] = {
+		UPDATE_COEF(0x19, 0x1300, 0x0300),
+		{}
+	};
 	static struct coef_fw coef0292[] = {
 		WRITE_COEF(0x76, 0x000e),
 		WRITE_COEF(0x6c, 0x2400),
@@ -3895,13 +3910,7 @@ static void alc_headset_mode_unplugged(struct hda_codec *codec)
 		{}
 	};
 	static struct coef_fw coef0225[] = {
-		UPDATE_COEF(0x4a, 1<<8, 0),
-		UPDATE_COEFEX(0x57, 0x05, 1<<14, 0),
-		UPDATE_COEF(0x63, 3<<14, 3<<14),
-		UPDATE_COEF(0x4a, 3<<4, 2<<4),
-		UPDATE_COEF(0x4a, 3<<10, 3<<10),
-		UPDATE_COEF(0x45, 0x3f<<10, 0x34<<10),
-		UPDATE_COEF(0x4a, 3<<10, 0),
+		UPDATE_COEF(0x63, 3<<14, 0),
 		{}
 	};
 	static struct coef_fw coef0274[] = {
@@ -3935,7 +3944,10 @@ static void alc_headset_mode_unplugged(struct hda_codec *codec)
 		break;
 	case 0x10ec0286:
 	case 0x10ec0288:
+		alc_process_coef_fw(codec, coef0288);
+		break;
 	case 0x10ec0298:
+		alc_process_coef_fw(codec, coef0298);
 		alc_process_coef_fw(codec, coef0288);
 		break;
 	case 0x10ec0292:
@@ -3976,6 +3988,7 @@ static void alc_headset_mode_mic_in(struct hda_codec *codec, hda_nid_t hp_pin,
 		{}
 	};
 	static struct coef_fw coef0288[] = {
+		UPDATE_COEF(0x4f, 0x00c0, 0),
 		UPDATE_COEF(0x50, 0x2000, 0),
 		UPDATE_COEF(0x56, 0x0006, 0),
 		UPDATE_COEF(0x4f, 0xfcc0, 0xc400),
@@ -4039,7 +4052,6 @@ static void alc_headset_mode_mic_in(struct hda_codec *codec, hda_nid_t hp_pin,
 	case 0x10ec0286:
 	case 0x10ec0288:
 	case 0x10ec0298:
-		alc_update_coef_idx(codec, 0x4f, 0x000c, 0);
 		snd_hda_set_pin_ctl_cache(codec, hp_pin, 0);
 		alc_process_coef_fw(codec, coef0288);
 		snd_hda_set_pin_ctl_cache(codec, mic_pin, PIN_VREF50);
@@ -4072,6 +4084,7 @@ static void alc_headset_mode_mic_in(struct hda_codec *codec, hda_nid_t hp_pin,
 	case 0x10ec0225:
 	case 0x10ec0295:
 	case 0x10ec0299:
+		alc_process_coef_fw(codec, alc225_pre_hsmode);
 		alc_update_coef_idx(codec, 0x45, 0x3f<<10, 0x31<<10);
 		snd_hda_set_pin_ctl_cache(codec, hp_pin, 0);
 		alc_process_coef_fw(codec, coef0225);
@@ -4084,7 +4097,12 @@ static void alc_headset_mode_mic_in(struct hda_codec *codec, hda_nid_t hp_pin,
 static void alc_headset_mode_default(struct hda_codec *codec)
 {
 	static struct coef_fw coef0225[] = {
-		UPDATE_COEF(0x45, 0x3f<<10, 0x34<<10),
+		UPDATE_COEF(0x45, 0x3f<<10, 0x30<<10),
+		UPDATE_COEF(0x45, 0x3f<<10, 0x31<<10),
+		UPDATE_COEF(0x49, 3<<8, 0<<8),
+		UPDATE_COEF(0x4a, 3<<4, 3<<4),
+		UPDATE_COEF(0x63, 3<<14, 0),
+		UPDATE_COEF(0x67, 0xf000, 0x3000),
 		{}
 	};
 	static struct coef_fw coef0255[] = {
@@ -4138,6 +4156,7 @@ static void alc_headset_mode_default(struct hda_codec *codec)
 	case 0x10ec0225:
 	case 0x10ec0295:
 	case 0x10ec0299:
+		alc_process_coef_fw(codec, alc225_pre_hsmode);
 		alc_process_coef_fw(codec, coef0225);
 		break;
 	case 0x10ec0255:
@@ -4177,6 +4196,8 @@ static void alc_headset_mode_default(struct hda_codec *codec)
 /* Iphone type */
 static void alc_headset_mode_ctia(struct hda_codec *codec)
 {
+	int val;
+
 	static struct coef_fw coef0255[] = {
 		WRITE_COEF(0x45, 0xd489), /* Set to CTIA type */
 		WRITE_COEF(0x1b, 0x0c2b),
@@ -4219,11 +4240,14 @@ static void alc_headset_mode_ctia(struct hda_codec *codec)
 		WRITE_COEF(0xc3, 0x0000),
 		{}
 	};
-	static struct coef_fw coef0225[] = {
+	static struct coef_fw coef0225_1[] = {
 		UPDATE_COEF(0x45, 0x3f<<10, 0x35<<10),
-		UPDATE_COEF(0x49, 1<<8, 1<<8),
-		UPDATE_COEF(0x4a, 7<<6, 7<<6),
-		UPDATE_COEF(0x4a, 3<<4, 3<<4),
+		UPDATE_COEF(0x63, 3<<14, 2<<14),
+		{}
+	};
+	static struct coef_fw coef0225_2[] = {
+		UPDATE_COEF(0x45, 0x3f<<10, 0x35<<10),
+		UPDATE_COEF(0x63, 3<<14, 1<<14),
 		{}
 	};
 
@@ -4244,8 +4268,17 @@ static void alc_headset_mode_ctia(struct hda_codec *codec)
 		alc_process_coef_fw(codec, coef0233);
 		break;
 	case 0x10ec0298:
-		alc_update_coef_idx(codec, 0x8e, 0x0070, 0x0020);/* Headset output enable */
-		/* ALC298 jack type setting is the same with ALC286/ALC288 */
+		val = alc_read_coef_idx(codec, 0x50);
+		if (val & (1 << 12)) {
+			alc_update_coef_idx(codec, 0x8e, 0x0070, 0x0020);
+			alc_update_coef_idx(codec, 0x4f, 0xfcc0, 0xd400);
+			msleep(300);
+		} else {
+			alc_update_coef_idx(codec, 0x8e, 0x0070, 0x0010);
+			alc_update_coef_idx(codec, 0x4f, 0xfcc0, 0xd400);
+			msleep(300);
+		}
+		break;
 	case 0x10ec0286:
 	case 0x10ec0288:
 		alc_update_coef_idx(codec, 0x4f, 0xfcc0, 0xd400);
@@ -4264,7 +4297,11 @@ static void alc_headset_mode_ctia(struct hda_codec *codec)
 	case 0x10ec0225:
 	case 0x10ec0295:
 	case 0x10ec0299:
-		alc_process_coef_fw(codec, coef0225);
+		val = alc_read_coef_idx(codec, 0x45);
+		if (val & (1 << 9))
+			alc_process_coef_fw(codec, coef0225_2);
+		else
+			alc_process_coef_fw(codec, coef0225_1);
 		break;
 	case 0x10ec0867:
 		alc_update_coefex_idx(codec, 0x57, 0x5, 1<<14, 0);
@@ -4320,9 +4357,7 @@ static void alc_headset_mode_omtp(struct hda_codec *codec)
 	};
 	static struct coef_fw coef0225[] = {
 		UPDATE_COEF(0x45, 0x3f<<10, 0x39<<10),
-		UPDATE_COEF(0x49, 1<<8, 1<<8),
-		UPDATE_COEF(0x4a, 7<<6, 7<<6),
-		UPDATE_COEF(0x4a, 3<<4, 3<<4),
+		UPDATE_COEF(0x63, 3<<14, 2<<14),
 		{}
 	};
 
@@ -4344,7 +4379,9 @@ static void alc_headset_mode_omtp(struct hda_codec *codec)
 		break;
 	case 0x10ec0298:
 		alc_update_coef_idx(codec, 0x8e, 0x0070, 0x0010);/* Headset output enable */
-		/* ALC298 jack type setting is the same with ALC286/ALC288 */
+		alc_update_coef_idx(codec, 0x4f, 0xfcc0, 0xe400);
+		msleep(300);
+		break;
 	case 0x10ec0286:
 	case 0x10ec0288:
 		alc_update_coef_idx(codec, 0x4f, 0xfcc0, 0xe400);
@@ -4384,6 +4421,14 @@ static void alc_determine_headset_type(struct hda_codec *codec)
 		UPDATE_COEF(0x4f, 0xfcc0, 0xd400), /* Check Type */
 		{}
 	};
+	static struct coef_fw coef0298[] = {
+		UPDATE_COEF(0x50, 0x2000, 0x2000),
+		UPDATE_COEF(0x56, 0x0006, 0x0006),
+		UPDATE_COEF(0x66, 0x0008, 0),
+		UPDATE_COEF(0x67, 0x2000, 0),
+		UPDATE_COEF(0x19, 0x1300, 0x1300),
+		{}
+	};
 	static struct coef_fw coef0293[] = {
 		UPDATE_COEF(0x4a, 0x000f, 0x0008), /* Combo Jack auto detect */
 		WRITE_COEF(0x45, 0xD429), /* Set to ctia type */
@@ -4394,11 +4439,6 @@ static void alc_determine_headset_type(struct hda_codec *codec)
 		WRITE_COEF(0xb7, 0x802b),
 		WRITE_COEF(0x15, 0x0d60),
 		WRITE_COEF(0xc3, 0x0c00),
-		{}
-	};
-	static struct coef_fw coef0225[] = {
-		UPDATE_COEF(0x45, 0x3f<<10, 0x34<<10),
-		UPDATE_COEF(0x49, 1<<8, 1<<8),
 		{}
 	};
 	static struct coef_fw coef0274[] = {
@@ -4433,8 +4473,34 @@ static void alc_determine_headset_type(struct hda_codec *codec)
 		is_ctia = (val & 0x0070) == 0x0070;
 		break;
 	case 0x10ec0298:
-		alc_update_coef_idx(codec, 0x8e, 0x0070, 0x0020); /* Headset output enable */
-		/* ALC298 check jack type is the same with ALC286/ALC288 */
+		snd_hda_codec_write(codec, 0x21, 0,
+			    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE);
+		msleep(100);
+		snd_hda_codec_write(codec, 0x21, 0,
+			    AC_VERB_SET_PIN_WIDGET_CONTROL, 0x0);
+		msleep(200);
+
+		val = alc_read_coef_idx(codec, 0x50);
+		if (val & (1 << 12)) {
+			alc_update_coef_idx(codec, 0x8e, 0x0070, 0x0020);
+			alc_process_coef_fw(codec, coef0288);
+			msleep(350);
+			val = alc_read_coef_idx(codec, 0x50);
+			is_ctia = (val & 0x0070) == 0x0070;
+		} else {
+			alc_update_coef_idx(codec, 0x8e, 0x0070, 0x0010);
+			alc_process_coef_fw(codec, coef0288);
+			msleep(350);
+			val = alc_read_coef_idx(codec, 0x50);
+			is_ctia = (val & 0x0070) == 0x0070;
+		}
+		alc_process_coef_fw(codec, coef0298);
+		snd_hda_codec_write(codec, 0x21, 0,
+			    AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP);
+		msleep(75);
+		snd_hda_codec_write(codec, 0x21, 0,
+			    AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE);
+		break;
 	case 0x10ec0286:
 	case 0x10ec0288:
 		alc_process_coef_fw(codec, coef0288);
@@ -4463,10 +4529,25 @@ static void alc_determine_headset_type(struct hda_codec *codec)
 	case 0x10ec0225:
 	case 0x10ec0295:
 	case 0x10ec0299:
-		alc_process_coef_fw(codec, coef0225);
-		msleep(800);
-		val = alc_read_coef_idx(codec, 0x46);
-		is_ctia = (val & 0x00f0) == 0x00f0;
+		alc_process_coef_fw(codec, alc225_pre_hsmode);
+		alc_update_coef_idx(codec, 0x67, 0xf000, 0x1000);
+		val = alc_read_coef_idx(codec, 0x45);
+		if (val & (1 << 9)) {
+			alc_update_coef_idx(codec, 0x45, 0x3f<<10, 0x34<<10);
+			alc_update_coef_idx(codec, 0x49, 3<<8, 2<<8);
+			msleep(800);
+			val = alc_read_coef_idx(codec, 0x46);
+			is_ctia = (val & 0x00f0) == 0x00f0;
+		} else {
+			alc_update_coef_idx(codec, 0x45, 0x3f<<10, 0x34<<10);
+			alc_update_coef_idx(codec, 0x49, 3<<8, 1<<8);
+			msleep(800);
+			val = alc_read_coef_idx(codec, 0x46);
+			is_ctia = (val & 0x00f0) == 0x00f0;
+		}
+		alc_update_coef_idx(codec, 0x4a, 7<<6, 7<<6);
+		alc_update_coef_idx(codec, 0x4a, 3<<4, 3<<4);
+		alc_update_coef_idx(codec, 0x67, 0xf000, 0x3000);
 		break;
 	case 0x10ec0867:
 		is_ctia = true;
@@ -6724,6 +6805,7 @@ static int patch_alc269(struct hda_codec *codec)
 	case 0x10ec0225:
 	case 0x10ec0295:
 		spec->codec_variant = ALC269_TYPE_ALC225;
+		spec->gen.mixer_nid = 0; /* no loopback on ALC225 ALC295 */
 		break;
 	case 0x10ec0299:
 		spec->codec_variant = ALC269_TYPE_ALC225;

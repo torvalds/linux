@@ -75,6 +75,7 @@ config DRM_EXYNOS_DP
 config DRM_EXYNOS_HDMI
 	bool "HDMI"
 	depends on DRM_EXYNOS_MIXER || DRM_EXYNOS5433_DECON
+	select CEC_CORE if CEC_NOTIFIER
 	help
 	  Choose this option if you want to use Exynos HDMI for DRM.
 

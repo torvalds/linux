@@ -4463,8 +4463,8 @@ static int skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 		if ((cpp * cstate->base.adjusted_mode.crtc_htotal / 512 < 1) &&
 		    (plane_bytes_per_line / 512 < 1))
 			selected_result = method2;
-		else if ((ddb_allocation && ddb_allocation /
-			fixed_16_16_to_u32_round_up(plane_blocks_per_line)) >= 1)
+		else if (ddb_allocation >=
+			 fixed_16_16_to_u32_round_up(plane_blocks_per_line))
 			selected_result = min_fixed_16_16(method1, method2);
 		else if (latency >= linetime_us)
 			selected_result = min_fixed_16_16(method1, method2);
