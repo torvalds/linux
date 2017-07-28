@@ -62,11 +62,13 @@ struct hwicap_drvdata {
 
 struct hwicap_driver_config {
 	/* Read configuration data given by size into the data buffer.
-	   Return 0 if successful. */
+	 * Return 0 if successful.
+	 */
 	int (*get_configuration)(struct hwicap_drvdata *drvdata, u32 *data,
 			u32 size);
 	/* Write configuration data given by size from the data buffer.
-	   Return 0 if successful. */
+	 * Return 0 if successful.
+	 */
 	int (*set_configuration)(struct hwicap_drvdata *drvdata, u32 *data,
 			u32 size);
 	/* Get the status register, bit pattern given by:
