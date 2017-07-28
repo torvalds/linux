@@ -1312,7 +1312,7 @@ static int bpf_prog_get_info_by_fd(struct bpf_prog *prog,
 	}
 
 	ulen = info.xlated_prog_len;
-	info.xlated_prog_len = bpf_prog_size(prog->len);
+	info.xlated_prog_len = bpf_prog_insn_size(prog);
 	if (info.xlated_prog_len && ulen) {
 		uinsns = u64_to_user_ptr(info.xlated_prog_insns);
 		ulen = min_t(u32, info.xlated_prog_len, ulen);
