@@ -46,7 +46,7 @@
 #define IB_MGMT_BASE_VERSION			1
 #define OPA_MGMT_BASE_VERSION			0x80
 
-#define OPA_SMP_CLASS_VERSION			0x80
+#define OPA_SM_CLASS_VERSION			0x80
 
 /* Management classes */
 #define IB_MGMT_CLASS_SUBN_LID_ROUTED		0x01
@@ -237,12 +237,17 @@ struct ib_vendor_mad {
 	u8			data[IB_MGMT_VENDOR_DATA];
 };
 
+#define IB_MGMT_CLASSPORTINFO_ATTR_ID	cpu_to_be16(0x0001)
+
+#define IB_CLASS_PORT_INFO_RESP_TIME_MASK	0x1F
+#define IB_CLASS_PORT_INFO_RESP_TIME_FIELD_SIZE 5
+
 struct ib_class_port_info {
 	u8			base_version;
 	u8			class_version;
 	__be16			capability_mask;
-	u8			reserved[3];
-	u8			resp_time_value;
+	  /* 27 bits for cap_mask2, 5 bits for resp_time */
+	__be32			cap_mask2_resp_time;
 	u8			redirect_gid[16];
 	__be32			redirect_tcslfl;
 	__be16			redirect_lid;
@@ -256,6 +261,97 @@ struct ib_class_port_info {
 	__be32			trap_hlqp;
 	__be32			trap_qkey;
 };
+
+#define OPA_CLASS_PORT_INFO_PR_SUPPORT BIT(26)
+
+struct opa_class_port_info {
+	u8 base_version;
+	u8 class_version;
+	__be16 cap_mask;
+	__be32 cap_mask2_resp_time;
+
+	u8 redirect_gid[16];
+	__be32 redirect_tc_fl;
+	__be32 redirect_lid;
+	__be32 redirect_sl_qp;
+	__be32 redirect_qkey;
+
+	u8 trap_gid[16];
+	__be32 trap_tc_fl;
+	__be32 trap_lid;
+	__be32 trap_hl_qp;
+	__be32 trap_qkey;
+
+	__be16 trap_pkey;
+	__be16 redirect_pkey;
+
+	u8 trap_sl_rsvd;
+	u8 reserved[3];
+} __packed;
+
+/**
+ * ib_get_cpi_resp_time - Returns the resp_time value from
+ * cap_mask2_resp_time in ib_class_port_info.
+ * @cpi: A struct ib_class_port_info mad.
+ */
+static inline u8 ib_get_cpi_resp_time(struct ib_class_port_info *cpi)
+{
+	return (u8)(be32_to_cpu(cpi->cap_mask2_resp_time) &
+		    IB_CLASS_PORT_INFO_RESP_TIME_MASK);
+}
+
+/**
+ * ib_set_cpi_resptime - Sets the response time in an
+ * ib_class_port_info mad.
+ * @cpi: A struct ib_class_port_info.
+ * @rtime: The response time to set.
+ */
+static inline void ib_set_cpi_resp_time(struct ib_class_port_info *cpi,
+					u8 rtime)
+{
+	cpi->cap_mask2_resp_time =
+		(cpi->cap_mask2_resp_time &
+		 cpu_to_be32(~IB_CLASS_PORT_INFO_RESP_TIME_MASK)) |
+		cpu_to_be32(rtime & IB_CLASS_PORT_INFO_RESP_TIME_MASK);
+}
+
+/**
+ * ib_get_cpi_capmask2 - Returns the capmask2 value from
+ * cap_mask2_resp_time in ib_class_port_info.
+ * @cpi: A struct ib_class_port_info mad.
+ */
+static inline u32 ib_get_cpi_capmask2(struct ib_class_port_info *cpi)
+{
+	return (be32_to_cpu(cpi->cap_mask2_resp_time) >>
+		IB_CLASS_PORT_INFO_RESP_TIME_FIELD_SIZE);
+}
+
+/**
+ * ib_set_cpi_capmask2 - Sets the capmask2 in an
+ * ib_class_port_info mad.
+ * @cpi: A struct ib_class_port_info.
+ * @capmask2: The capmask2 to set.
+ */
+static inline void ib_set_cpi_capmask2(struct ib_class_port_info *cpi,
+				       u32 capmask2)
+{
+	cpi->cap_mask2_resp_time =
+		(cpi->cap_mask2_resp_time &
+		 cpu_to_be32(IB_CLASS_PORT_INFO_RESP_TIME_MASK)) |
+		cpu_to_be32(capmask2 <<
+			    IB_CLASS_PORT_INFO_RESP_TIME_FIELD_SIZE);
+}
+
+/**
+ * opa_get_cpi_capmask2 - Returns the capmask2 value from
+ * cap_mask2_resp_time in ib_class_port_info.
+ * @cpi: A struct opa_class_port_info mad.
+ */
+static inline u32 opa_get_cpi_capmask2(struct opa_class_port_info *cpi)
+{
+	return (be32_to_cpu(cpi->cap_mask2_resp_time) >>
+		IB_CLASS_PORT_INFO_RESP_TIME_FIELD_SIZE);
+}
 
 struct ib_mad_notice_attr {
 	u8 generic_type;
@@ -422,11 +518,11 @@ typedef void (*ib_mad_send_handler)(struct ib_mad_agent *mad_agent,
 /**
  * ib_mad_snoop_handler - Callback handler for snooping sent MADs.
  * @mad_agent: MAD agent that snooped the MAD.
- * @send_wr: Work request information on the sent MAD.
+ * @send_buf: send MAD data buffer.
  * @mad_send_wc: Work completion information on the sent MAD.  Valid
  *   only for snooping that occurs on a send completion.
  *
- * Clients snooping MADs should not modify data referenced by the @send_wr
+ * Clients snooping MADs should not modify data referenced by the @send_buf
  * or @mad_send_wc.
  */
 typedef void (*ib_mad_snoop_handler)(struct ib_mad_agent *mad_agent,
@@ -436,6 +532,7 @@ typedef void (*ib_mad_snoop_handler)(struct ib_mad_agent *mad_agent,
 /**
  * ib_mad_recv_handler - callback handler for a received MAD.
  * @mad_agent: MAD agent requesting the received MAD.
+ * @send_buf: Send buffer if found, else NULL
  * @mad_recv_wc: Received work completion information on the received MAD.
  *
  * MADs received in response to a send request operation will be handed to
@@ -445,6 +542,7 @@ typedef void (*ib_mad_snoop_handler)(struct ib_mad_agent *mad_agent,
  * modify the data referenced by @mad_recv_wc.
  */
 typedef void (*ib_mad_recv_handler)(struct ib_mad_agent *mad_agent,
+				    struct ib_mad_send_buf *send_buf,
 				    struct ib_mad_recv_wc *mad_recv_wc);
 
 /**
@@ -477,6 +575,10 @@ struct ib_mad_agent {
 	u32			flags;
 	u8			port_num;
 	u8			rmpp_version;
+	void			*security;
+	bool			smp_allowed;
+	bool			lsm_nb_reg;
+	struct notifier_block   lsm_nb;
 };
 
 /**
@@ -613,7 +715,7 @@ struct ib_mad_agent *ib_register_mad_snoop(struct ib_device *device,
  * After invoking this routine, MAD services are no longer usable by the
  * client on the associated QP.
  */
-int ib_unregister_mad_agent(struct ib_mad_agent *mad_agent);
+void ib_unregister_mad_agent(struct ib_mad_agent *mad_agent);
 
 /**
  * ib_post_send_mad - Posts MAD(s) to the send queue of the QP associated

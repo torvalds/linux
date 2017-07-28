@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -81,7 +81,7 @@ acpi_ns_get_max_depth(acpi_handle obj_handle,
  *
  ******************************************************************************/
 
-void acpi_ns_print_pathname(u32 num_segments, char *pathname)
+void acpi_ns_print_pathname(u32 num_segments, const char *pathname)
 {
 	u32 i;
 
@@ -114,6 +114,9 @@ void acpi_ns_print_pathname(u32 num_segments, char *pathname)
 	acpi_os_printf("]\n");
 }
 
+#ifdef ACPI_OBSOLETE_FUNCTIONS
+/* Not used at this time, perhaps later */
+
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ns_dump_pathname
@@ -131,7 +134,8 @@ void acpi_ns_print_pathname(u32 num_segments, char *pathname)
  ******************************************************************************/
 
 void
-acpi_ns_dump_pathname(acpi_handle handle, char *msg, u32 level, u32 component)
+acpi_ns_dump_pathname(acpi_handle handle,
+		      const char *msg, u32 level, u32 component)
 {
 
 	ACPI_FUNCTION_TRACE(ns_dump_pathname);
@@ -148,6 +152,7 @@ acpi_ns_dump_pathname(acpi_handle handle, char *msg, u32 level, u32 component)
 	acpi_os_printf("\n");
 	return_VOID;
 }
+#endif
 
 /*******************************************************************************
  *
@@ -333,7 +338,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 		case ACPI_TYPE_STRING:
 
 			acpi_os_printf("Len %.2X ", obj_desc->string.length);
-			acpi_ut_print_string(obj_desc->string.pointer, 32);
+			acpi_ut_print_string(obj_desc->string.pointer, 80);
 			acpi_os_printf("\n");
 			break;
 
@@ -539,11 +544,13 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 				acpi_os_printf
 				    ("(Pointer to ACPI Object type %.2X [UNKNOWN])\n",
 				     obj_type);
+
 				bytes_to_dump = 32;
 			} else {
 				acpi_os_printf
 				    ("(Pointer to ACPI Object type %.2X [%s])\n",
 				     obj_type, acpi_ut_get_type_name(obj_type));
+
 				bytes_to_dump =
 				    sizeof(union acpi_operand_object);
 			}
@@ -573,6 +580,7 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 			 */
 			bytes_to_dump = obj_desc->string.length;
 			obj_desc = (void *)obj_desc->string.pointer;
+
 			acpi_os_printf("(Buffer/String pointer %p length %X)\n",
 				       obj_desc, bytes_to_dump);
 			ACPI_DUMP_BUFFER(obj_desc, bytes_to_dump);
@@ -717,7 +725,7 @@ acpi_ns_dump_one_object_path(acpi_handle obj_handle,
 		return (AE_OK);
 	}
 
-	pathname = acpi_ns_get_external_pathname(node);
+	pathname = acpi_ns_get_normalized_pathname(node, TRUE);
 
 	path_indent = 1;
 	if (level <= max_level) {

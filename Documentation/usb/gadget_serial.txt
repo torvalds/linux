@@ -189,7 +189,7 @@ Once the gadget serial driver is loaded and the USB device connected
 to the Linux host with a USB cable, the host system should recognize
 the gadget serial device.  For example, the command
 
-  cat /proc/bus/usb/devices
+  cat /sys/kernel/debug/usb/devices
 
 should show something like this:
 
@@ -221,7 +221,7 @@ Once the gadget serial driver is loaded and the USB device connected
 to the Linux host with a USB cable, the host system should recognize
 the gadget serial device.  For example, the command
 
-  cat /proc/bus/usb/devices
+  cat /sys/kernel/debug/usb/devices
 
 should show something like this:
 

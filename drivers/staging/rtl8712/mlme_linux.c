@@ -110,14 +110,14 @@ void r8712_os_indicate_disconnect(struct _adapter *adapter)
 		 * disconnect with AP for 60 seconds.
 		 */
 
-		memcpy(&backupPMKIDList[0], &adapter->securitypriv.
-			PMKIDList[0], sizeof(struct RT_PMKID_LIST) *
-			NUM_PMKID_CACHE);
+		memcpy(&backupPMKIDList[0],
+			&adapter->securitypriv.PMKIDList[0],
+			sizeof(struct RT_PMKID_LIST) * NUM_PMKID_CACHE);
 		backupPMKIDIndex = adapter->securitypriv.PMKIDIndex;
-		backupTKIPCountermeasure = adapter->securitypriv.
-					   btkip_countermeasure;
+		backupTKIPCountermeasure =
+			adapter->securitypriv.btkip_countermeasure;
 		memset((unsigned char *)&adapter->securitypriv, 0,
-			 sizeof(struct security_priv));
+		       sizeof(struct security_priv));
 		setup_timer(&adapter->securitypriv.tkip_timer,
 			    r8712_use_tkipkey_handler,
 			    (unsigned long)adapter);
@@ -125,8 +125,8 @@ void r8712_os_indicate_disconnect(struct _adapter *adapter)
 		 * for the following connection.
 		 */
 		memcpy(&adapter->securitypriv.PMKIDList[0],
-			&backupPMKIDList[0],
-			sizeof(struct RT_PMKID_LIST) * NUM_PMKID_CACHE);
+		       &backupPMKIDList[0],
+		       sizeof(struct RT_PMKID_LIST) * NUM_PMKID_CACHE);
 		adapter->securitypriv.PMKIDIndex = backupPMKIDIndex;
 		adapter->securitypriv.btkip_countermeasure =
 					 backupTKIPCountermeasure;
@@ -153,7 +153,7 @@ void r8712_report_sec_ie(struct _adapter *adapter, u8 authmode, u8 *sec_ie)
 	buff = NULL;
 	if (authmode == _WPA_IE_ID_) {
 		buff = kzalloc(IW_CUSTOM_MAX, GFP_ATOMIC);
-		if (buff == NULL)
+		if (!buff)
 			return;
 		p = buff;
 		p += sprintf(p, "ASSOCINFO(ReqIEs=");

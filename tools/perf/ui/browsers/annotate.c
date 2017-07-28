@@ -8,7 +8,11 @@
 #include "../../util/sort.h"
 #include "../../util/symbol.h"
 #include "../../util/evsel.h"
+#include "../../util/config.h"
+#include <inttypes.h>
 #include <pthread.h>
+#include <linux/kernel.h>
+#include <sys/ttydefaults.h>
 
 struct disasm_line_samples {
 	double		percent;
@@ -42,12 +46,15 @@ static struct annotate_browser_opt {
 	.jump_arrows	= true,
 };
 
+struct arch;
+
 struct annotate_browser {
 	struct ui_browser b;
 	struct rb_root	  entries;
 	struct rb_node	  *curr_hot;
 	struct disasm_line  *selection;
 	struct disasm_line  **offsets;
+	struct arch	    *arch;
 	int		    nr_events;
 	u64		    start;
 	int		    nr_asm_entries;
@@ -121,43 +128,57 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 	int i, pcnt_width = annotate_browser__pcnt_width(ab);
 	double percent_max = 0.0;
 	char bf[256];
+	bool show_title = false;
 
 	for (i = 0; i < ab->nr_events; i++) {
 		if (bdl->samples[i].percent > percent_max)
 			percent_max = bdl->samples[i].percent;
 	}
 
+	if ((row == 0) && (dl->offset == -1 || percent_max == 0.0)) {
+		if (ab->have_cycles) {
+			if (dl->ipc == 0.0 && dl->cycles == 0)
+				show_title = true;
+		} else
+			show_title = true;
+	}
+
 	if (dl->offset != -1 && percent_max != 0.0) {
-		if (percent_max != 0.0) {
-			for (i = 0; i < ab->nr_events; i++) {
-				ui_browser__set_percent_color(browser,
-							bdl->samples[i].percent,
-							current_entry);
-				if (annotate_browser__opts.show_total_period) {
-					ui_browser__printf(browser, "%6" PRIu64 " ",
-							   bdl->samples[i].nr);
-				} else {
-					ui_browser__printf(browser, "%6.2f ",
-							   bdl->samples[i].percent);
-				}
+		for (i = 0; i < ab->nr_events; i++) {
+			ui_browser__set_percent_color(browser,
+						bdl->samples[i].percent,
+						current_entry);
+			if (annotate_browser__opts.show_total_period) {
+				ui_browser__printf(browser, "%6" PRIu64 " ",
+						   bdl->samples[i].nr);
+			} else {
+				ui_browser__printf(browser, "%6.2f ",
+						   bdl->samples[i].percent);
 			}
-		} else {
-			ui_browser__write_nstring(browser, " ", 7 * ab->nr_events);
 		}
 	} else {
 		ui_browser__set_percent_color(browser, 0, current_entry);
-		ui_browser__write_nstring(browser, " ", 7 * ab->nr_events);
+
+		if (!show_title)
+			ui_browser__write_nstring(browser, " ", 7 * ab->nr_events);
+		else
+			ui_browser__printf(browser, "%*s", 7, "Percent");
 	}
 	if (ab->have_cycles) {
 		if (dl->ipc)
 			ui_browser__printf(browser, "%*.2f ", IPC_WIDTH - 1, dl->ipc);
-		else
+		else if (!show_title)
 			ui_browser__write_nstring(browser, " ", IPC_WIDTH);
+		else
+			ui_browser__printf(browser, "%*s ", IPC_WIDTH - 1, "IPC");
+
 		if (dl->cycles)
 			ui_browser__printf(browser, "%*" PRIu64 " ",
 					   CYCLES_WIDTH - 1, dl->cycles);
-		else
+		else if (!show_title)
 			ui_browser__write_nstring(browser, " ", CYCLES_WIDTH);
+		else
+			ui_browser__printf(browser, "%*s ", CYCLES_WIDTH - 1, "Cycle");
 	}
 
 	SLsmg_write_char(' ');
@@ -212,26 +233,24 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 		ui_browser__write_nstring(browser, bf, printed);
 		if (change_color)
 			ui_browser__set_color(browser, color);
-		if (dl->ins && dl->ins->ops->scnprintf) {
-			if (ins__is_jump(dl->ins)) {
-				bool fwd = dl->ops.target.offset > (u64)dl->offset;
+		if (dl->ins.ops && dl->ins.ops->scnprintf) {
+			if (ins__is_jump(&dl->ins)) {
+				bool fwd = dl->ops.target.offset > dl->offset;
 
 				ui_browser__write_graph(browser, fwd ? SLSMG_DARROW_CHAR :
 								    SLSMG_UARROW_CHAR);
 				SLsmg_write_char(' ');
-			} else if (ins__is_call(dl->ins)) {
+			} else if (ins__is_call(&dl->ins)) {
 				ui_browser__write_graph(browser, SLSMG_RARROW_CHAR);
+				SLsmg_write_char(' ');
+			} else if (ins__is_ret(&dl->ins)) {
+				ui_browser__write_graph(browser, SLSMG_LARROW_CHAR);
 				SLsmg_write_char(' ');
 			} else {
 				ui_browser__write_nstring(browser, " ", 2);
 			}
 		} else {
-			if (strcmp(dl->name, "retq")) {
-				ui_browser__write_nstring(browser, " ", 2);
-			} else {
-				ui_browser__write_graph(browser, SLSMG_LARROW_CHAR);
-				SLsmg_write_char(' ');
-			}
+			ui_browser__write_nstring(browser, " ", 2);
 		}
 
 		disasm_line__scnprintf(dl, bf, sizeof(bf), !annotate_browser__opts.use_offset);
@@ -244,9 +263,10 @@ static void annotate_browser__write(struct ui_browser *browser, void *entry, int
 
 static bool disasm_line__is_valid_jump(struct disasm_line *dl, struct symbol *sym)
 {
-	if (!dl || !dl->ins || !ins__is_jump(dl->ins)
+	if (!dl || !dl->ins.ops || !ins__is_jump(&dl->ins)
 	    || !disasm_line__has_offset(dl)
-	    || dl->ops.target.offset >= symbol__size(sym))
+	    || dl->ops.target.offset < 0
+	    || dl->ops.target.offset >= (s64)symbol__size(sym))
 		return false;
 
 	return true;
@@ -284,7 +304,7 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 		to = (u64)btarget->idx;
 	}
 
-	ui_browser__set_color(browser, HE_COLORSET_CODE);
+	ui_browser__set_color(browser, HE_COLORSET_JUMP_ARROWS);
 	__ui_browser__line_arrow(browser, pcnt_width + 2 + ab->addr_width,
 				 from, to);
 }
@@ -493,10 +513,10 @@ static bool annotate_browser__callq(struct annotate_browser *browser,
 	};
 	char title[SYM_TITLE_MAX_SIZE];
 
-	if (!ins__is_call(dl->ins))
+	if (!ins__is_call(&dl->ins))
 		return false;
 
-	if (map_groups__find_ams(&target, NULL) ||
+	if (map_groups__find_ams(&target) ||
 	    map__rip_2objdump(target.map, target.map->map_ip(target.map,
 							     target.addr)) !=
 	    dl->ops.target.addr) {
@@ -544,14 +564,16 @@ struct disasm_line *annotate_browser__find_offset(struct annotate_browser *brows
 static bool annotate_browser__jump(struct annotate_browser *browser)
 {
 	struct disasm_line *dl = browser->selection;
+	u64 offset;
 	s64 idx;
 
-	if (!ins__is_jump(dl->ins))
+	if (!ins__is_jump(&dl->ins))
 		return false;
 
-	dl = annotate_browser__find_offset(browser, dl->ops.target.offset, &idx);
+	offset = dl->ops.target.offset;
+	dl = annotate_browser__find_offset(browser, offset, &idx);
 	if (dl == NULL) {
-		ui_helpline__puts("Invalid jump offset");
+		ui_helpline__printf("Invalid jump offset: %" PRIx64, offset);
 		return true;
 	}
 
@@ -755,11 +777,11 @@ static int annotate_browser__run(struct annotate_browser *browser,
 				nd = browser->curr_hot;
 			break;
 		case K_UNTAB:
-			if (nd != NULL)
+			if (nd != NULL) {
 				nd = rb_next(nd);
 				if (nd == NULL)
 					nd = rb_first(&browser->entries);
-			else
+			} else
 				nd = browser->curr_hot;
 			break;
 		case K_F1:
@@ -842,14 +864,14 @@ show_help:
 				ui_helpline__puts("Huh? No selection. Report to linux-kernel@vger.kernel.org");
 			else if (browser->selection->offset == -1)
 				ui_helpline__puts("Actions are only available for assembly lines.");
-			else if (!browser->selection->ins) {
-				if (strcmp(browser->selection->name, "retq"))
-					goto show_sup_ins;
+			else if (!browser->selection->ins.ops)
+				goto show_sup_ins;
+			else if (ins__is_ret(&browser->selection->ins))
 				goto out;
-			} else if (!(annotate_browser__jump(browser) ||
+			else if (!(annotate_browser__jump(browser) ||
 				     annotate_browser__callq(browser, evsel, hbt))) {
 show_sup_ins:
-				ui_helpline__puts("Actions are only available for 'callq', 'retq' & jump instructions.");
+				ui_helpline__puts("Actions are only available for function call/return & jump/branch instructions.");
 			}
 			continue;
 		case 't':
@@ -1027,7 +1049,7 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 			.use_navkeypressed = true,
 		},
 	};
-	int ret = -1;
+	int ret = -1, err;
 	int nr_pcnt = 1;
 	size_t sizeof_bdl = sizeof(struct browser_disasm_line);
 
@@ -1051,8 +1073,12 @@ int symbol__tui_annotate(struct symbol *sym, struct map *map,
 		  (nr_pcnt - 1);
 	}
 
-	if (symbol__annotate(sym, map, sizeof_bdl) < 0) {
-		ui__error("%s", ui_helpline__last_msg);
+	err = symbol__disassemble(sym, map, perf_evsel__env_arch(evsel),
+				  sizeof_bdl, &browser.arch);
+	if (err) {
+		char msg[BUFSIZ];
+		symbol__strerror_disassemble(sym, map, err, msg, sizeof(msg));
+		ui__error("Couldn't annotate %s:\n%s", sym->name, msg);
 		goto out_free_offsets;
 	}
 

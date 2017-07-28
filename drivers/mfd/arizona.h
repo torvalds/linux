@@ -17,13 +17,13 @@
 #include <linux/regmap.h>
 #include <linux/pm.h>
 
-struct wm_arizona;
-
 extern const struct regmap_config wm5102_i2c_regmap;
 extern const struct regmap_config wm5102_spi_regmap;
 
 extern const struct regmap_config wm5110_i2c_regmap;
 extern const struct regmap_config wm5110_spi_regmap;
+
+extern const struct regmap_config cs47l24_spi_regmap;
 
 extern const struct regmap_config wm8997_i2c_regmap;
 
@@ -39,6 +39,8 @@ extern const struct regmap_irq_chip wm5102_irq;
 extern const struct regmap_irq_chip wm5110_aod;
 extern const struct regmap_irq_chip wm5110_irq;
 extern const struct regmap_irq_chip wm5110_revd_irq;
+
+extern const struct regmap_irq_chip cs47l24_irq;
 
 extern const struct regmap_irq_chip wm8997_aod;
 extern const struct regmap_irq_chip wm8997_irq;

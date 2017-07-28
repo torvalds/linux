@@ -20,10 +20,11 @@
 #include <linux/init.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/mutex.h>
@@ -115,10 +116,19 @@ static const struct reg_default wm8903_reg_defaults[] = {
 	{ 172, 0x0000 },    /* R172 - Analogue Output Bias 0 */
 };
 
+#define WM8903_NUM_SUPPLIES 4
+static const char *wm8903_supply_names[WM8903_NUM_SUPPLIES] = {
+	"AVDD",
+	"CPVDD",
+	"DBVDD",
+	"DCVDD",
+};
+
 struct wm8903_priv {
 	struct wm8903_platform_data *pdata;
 	struct device *dev;
 	struct regmap *regmap;
+	struct regulator_bulk_data supplies[WM8903_NUM_SUPPLIES];
 
 	int sysclk;
 	int irq;
@@ -1766,11 +1776,6 @@ static int wm8903_resume(struct snd_soc_codec *codec)
 }
 
 #ifdef CONFIG_GPIOLIB
-static inline struct wm8903_priv *gpio_to_wm8903(struct gpio_chip *chip)
-{
-	return container_of(chip, struct wm8903_priv, gpio_chip);
-}
-
 static int wm8903_gpio_request(struct gpio_chip *chip, unsigned offset)
 {
 	if (offset >= WM8903_NUM_GPIO)
@@ -1781,7 +1786,7 @@ static int wm8903_gpio_request(struct gpio_chip *chip, unsigned offset)
 
 static int wm8903_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 {
-	struct wm8903_priv *wm8903 = gpio_to_wm8903(chip);
+	struct wm8903_priv *wm8903 = gpiochip_get_data(chip);
 	unsigned int mask, val;
 	int ret;
 
@@ -1799,18 +1804,18 @@ static int wm8903_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 
 static int wm8903_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct wm8903_priv *wm8903 = gpio_to_wm8903(chip);
+	struct wm8903_priv *wm8903 = gpiochip_get_data(chip);
 	unsigned int reg;
 
 	regmap_read(wm8903->regmap, WM8903_GPIO_CONTROL_1 + offset, &reg);
 
-	return (reg & WM8903_GP1_LVL_MASK) >> WM8903_GP1_LVL_SHIFT;
+	return !!((reg & WM8903_GP1_LVL_MASK) >> WM8903_GP1_LVL_SHIFT);
 }
 
 static int wm8903_gpio_direction_out(struct gpio_chip *chip,
 				     unsigned offset, int value)
 {
-	struct wm8903_priv *wm8903 = gpio_to_wm8903(chip);
+	struct wm8903_priv *wm8903 = gpiochip_get_data(chip);
 	unsigned int mask, val;
 	int ret;
 
@@ -1828,14 +1833,14 @@ static int wm8903_gpio_direction_out(struct gpio_chip *chip,
 
 static void wm8903_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct wm8903_priv *wm8903 = gpio_to_wm8903(chip);
+	struct wm8903_priv *wm8903 = gpiochip_get_data(chip);
 
 	regmap_update_bits(wm8903->regmap, WM8903_GPIO_CONTROL_1 + offset,
 			   WM8903_GP1_LVL_MASK,
 			   !!value << WM8903_GP1_LVL_SHIFT);
 }
 
-static struct gpio_chip wm8903_template_chip = {
+static const struct gpio_chip wm8903_template_chip = {
 	.label			= "wm8903",
 	.owner			= THIS_MODULE,
 	.request		= wm8903_gpio_request,
@@ -1853,14 +1858,14 @@ static void wm8903_init_gpio(struct wm8903_priv *wm8903)
 
 	wm8903->gpio_chip = wm8903_template_chip;
 	wm8903->gpio_chip.ngpio = WM8903_NUM_GPIO;
-	wm8903->gpio_chip.dev = wm8903->dev;
+	wm8903->gpio_chip.parent = wm8903->dev;
 
 	if (pdata->gpio_base)
 		wm8903->gpio_chip.base = pdata->gpio_base;
 	else
 		wm8903->gpio_chip.base = -1;
 
-	ret = gpiochip_add(&wm8903->gpio_chip);
+	ret = gpiochip_add_data(&wm8903->gpio_chip, wm8903);
 	if (ret != 0)
 		dev_err(wm8903->dev, "Failed to add GPIOs: %d\n", ret);
 }
@@ -1879,18 +1884,20 @@ static void wm8903_free_gpio(struct wm8903_priv *wm8903)
 }
 #endif
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8903 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8903 = {
 	.resume =	wm8903_resume,
 	.set_bias_level = wm8903_set_bias_level,
 	.seq_notifier = wm8903_seq_notifier,
 	.suspend_bias_off = true,
 
-	.controls = wm8903_snd_controls,
-	.num_controls = ARRAY_SIZE(wm8903_snd_controls),
-	.dapm_widgets = wm8903_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm8903_dapm_widgets),
-	.dapm_routes = wm8903_intercon,
-	.num_dapm_routes = ARRAY_SIZE(wm8903_intercon),
+	.component_driver = {
+		.controls		= wm8903_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm8903_snd_controls),
+		.dapm_widgets		= wm8903_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm8903_dapm_widgets),
+		.dapm_routes		= wm8903_intercon,
+		.num_dapm_routes	= ARRAY_SIZE(wm8903_intercon),
+	},
 };
 
 static const struct regmap_config wm8903_regmap = {
@@ -2033,6 +2040,23 @@ static int wm8903_i2c_probe(struct i2c_client *i2c,
 
 	pdata = wm8903->pdata;
 
+	for (i = 0; i < ARRAY_SIZE(wm8903->supplies); i++)
+		wm8903->supplies[i].supply = wm8903_supply_names[i];
+
+	ret = devm_regulator_bulk_get(&i2c->dev, ARRAY_SIZE(wm8903->supplies),
+				      wm8903->supplies);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "Failed to request supplies: %d\n", ret);
+		return ret;
+	}
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(wm8903->supplies),
+				    wm8903->supplies);
+	if (ret != 0) {
+		dev_err(&i2c->dev, "Failed to enable supplies: %d\n", ret);
+		return ret;
+	}
+
 	ret = regmap_read(wm8903->regmap, WM8903_SW_RESET_AND_ID, &val);
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to read chip ID: %d\n", ret);
@@ -2163,6 +2187,8 @@ static int wm8903_i2c_probe(struct i2c_client *i2c,
 
 	return 0;
 err:
+	regulator_bulk_disable(ARRAY_SIZE(wm8903->supplies),
+			       wm8903->supplies);
 	return ret;
 }
 
@@ -2170,6 +2196,8 @@ static int wm8903_i2c_remove(struct i2c_client *client)
 {
 	struct wm8903_priv *wm8903 = i2c_get_clientdata(client);
 
+	regulator_bulk_disable(ARRAY_SIZE(wm8903->supplies),
+			       wm8903->supplies);
 	if (client->irq)
 		free_irq(client->irq, wm8903);
 	wm8903_free_gpio(wm8903);

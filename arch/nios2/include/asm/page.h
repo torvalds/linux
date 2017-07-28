@@ -76,19 +76,24 @@ extern unsigned long memory_size;
 
 extern struct page *mem_map;
 
-#endif /* !__ASSEMBLY__ */
-
 # define __pa(x)		\
 	((unsigned long)(x) - PAGE_OFFSET + PHYS_OFFSET)
 # define __va(x)		\
 	((void *)((unsigned long)(x) + PAGE_OFFSET - PHYS_OFFSET))
 
 #define page_to_virt(page)	\
-	((((page) - mem_map) << PAGE_SHIFT) + PAGE_OFFSET)
+	((void *)(((page) - mem_map) << PAGE_SHIFT) + PAGE_OFFSET)
 
 # define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
-# define pfn_valid(pfn)		((pfn) >= ARCH_PFN_OFFSET &&	\
-					(pfn) < max_mapnr)
+
+static inline bool pfn_valid(unsigned long pfn)
+{
+	/* avoid <linux/mm.h> include hell */
+	extern unsigned long max_mapnr;
+	unsigned long pfn_offset = ARCH_PFN_OFFSET;
+
+	return pfn >= pfn_offset && pfn < max_mapnr;
+}
 
 # define virt_to_page(vaddr)	pfn_to_page(PFN_DOWN(virt_to_phys(vaddr)))
 # define virt_addr_valid(vaddr)	pfn_valid(PFN_DOWN(virt_to_phys(vaddr)))
@@ -105,5 +110,7 @@ extern struct page *mem_map;
 #include <asm-generic/memory_model.h>
 
 #include <asm-generic/getorder.h>
+
+#endif /* !__ASSEMBLY__ */
 
 #endif /* _ASM_NIOS2_PAGE_H */

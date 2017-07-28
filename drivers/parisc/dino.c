@@ -154,7 +154,10 @@ struct dino_device
 };
 
 /* Looks nice and keeps the compiler happy */
-#define DINO_DEV(d) ((struct dino_device *) d)
+#define DINO_DEV(d) ({				\
+	void *__pdata = d;			\
+	BUG_ON(!__pdata);			\
+	(struct dino_device *)__pdata; })
 
 
 /*
@@ -599,8 +602,10 @@ dino_fixup_bus(struct pci_bus *bus)
 		** P2PB's only have 2 BARs, no IRQs.
 		** I'd like to just ignore them for now.
 		*/
-		if ((dev->class >> 8) == PCI_CLASS_BRIDGE_PCI)
+		if ((dev->class >> 8) == PCI_CLASS_BRIDGE_PCI)  {
+			pcibios_init_bridge(dev);
 			continue;
+		}
 
 		/* null out the ROM resource if there is one (we don't
 		 * care about an expansion rom on parisc, since it

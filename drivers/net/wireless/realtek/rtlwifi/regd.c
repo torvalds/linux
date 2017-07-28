@@ -154,13 +154,13 @@ static bool _rtl_is_radar_freq(u16 center_freq)
 static void _rtl_reg_apply_beaconing_flags(struct wiphy *wiphy,
 					   enum nl80211_reg_initiator initiator)
 {
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	struct ieee80211_supported_band *sband;
 	const struct ieee80211_reg_rule *reg_rule;
 	struct ieee80211_channel *ch;
 	unsigned int i;
 
-	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+	for (band = 0; band < NUM_NL80211_BANDS; band++) {
 
 		if (!wiphy->bands[band])
 			continue;
@@ -210,9 +210,9 @@ static void _rtl_reg_apply_active_scan_flags(struct wiphy *wiphy,
 	struct ieee80211_channel *ch;
 	const struct ieee80211_reg_rule *reg_rule;
 
-	if (!wiphy->bands[IEEE80211_BAND_2GHZ])
+	if (!wiphy->bands[NL80211_BAND_2GHZ])
 		return;
-	sband = wiphy->bands[IEEE80211_BAND_2GHZ];
+	sband = wiphy->bands[NL80211_BAND_2GHZ];
 
 	/*
 	 *If no country IE has been received always enable active scan
@@ -262,10 +262,10 @@ static void _rtl_reg_apply_radar_flags(struct wiphy *wiphy)
 	struct ieee80211_channel *ch;
 	unsigned int i;
 
-	if (!wiphy->bands[IEEE80211_BAND_5GHZ])
+	if (!wiphy->bands[NL80211_BAND_5GHZ])
 		return;
 
-	sband = wiphy->bands[IEEE80211_BAND_5GHZ];
+	sband = wiphy->bands[NL80211_BAND_5GHZ];
 
 	for (i = 0; i < sband->n_channels; i++) {
 		ch = &sband->channels[i];
@@ -301,12 +301,12 @@ static void _rtl_reg_apply_world_flags(struct wiphy *wiphy,
 
 static void _rtl_dump_channel_map(struct wiphy *wiphy)
 {
-	enum ieee80211_band band;
+	enum nl80211_band band;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *ch;
 	unsigned int i;
 
-	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
+	for (band = 0; band < NUM_NL80211_BANDS; band++) {
 		if (!wiphy->bands[band])
 			continue;
 		sband = wiphy->bands[band];
@@ -345,13 +345,12 @@ static const struct ieee80211_regdomain *_rtl_regdomain_select(
 		return &rtl_regdom_no_midband;
 	case COUNTRY_CODE_IC:
 		return &rtl_regdom_11;
-	case COUNTRY_CODE_ETSI:
 	case COUNTRY_CODE_TELEC_NETGEAR:
 		return &rtl_regdom_60_64;
+	case COUNTRY_CODE_ETSI:
 	case COUNTRY_CODE_SPAIN:
 	case COUNTRY_CODE_FRANCE:
 	case COUNTRY_CODE_ISRAEL:
-	case COUNTRY_CODE_WORLD_WIDE_13:
 		return &rtl_regdom_12_13;
 	case COUNTRY_CODE_MKK:
 	case COUNTRY_CODE_MKK1:
@@ -360,6 +359,7 @@ static const struct ieee80211_regdomain *_rtl_regdomain_select(
 		return &rtl_regdom_14_60_64;
 	case COUNTRY_CODE_GLOBAL_DOMAIN:
 		return &rtl_regdom_14;
+	case COUNTRY_CODE_WORLD_WIDE_13:
 	case COUNTRY_CODE_WORLD_WIDE_13_5G_ALL:
 		return &rtl_regdom_12_13_5g_all;
 	default:
@@ -406,6 +406,8 @@ static u8 channel_plan_to_country_code(u8 channelplan)
 		return COUNTRY_CODE_WORLD_WIDE_13;
 	case 0x22:
 		return COUNTRY_CODE_IC;
+	case 0x25:
+		return COUNTRY_CODE_ETSI;
 	case 0x32:
 		return COUNTRY_CODE_TELEC_NETGEAR;
 	case 0x41:
@@ -433,12 +435,12 @@ int rtl_regd_init(struct ieee80211_hw *hw,
 		channel_plan_to_country_code(rtlpriv->efuse.channel_plan);
 
 	RT_TRACE(rtlpriv, COMP_REGD, DBG_DMESG,
-		 "rtl: EEPROM regdomain: 0x%0x conuntry code: %d\n",
+		 "rtl: EEPROM regdomain: 0x%0x country code: %d\n",
 		 rtlpriv->efuse.channel_plan, rtlpriv->regd.country_code);
 
 	if (rtlpriv->regd.country_code >= COUNTRY_CODE_MAX) {
 		RT_TRACE(rtlpriv, COMP_REGD, DBG_DMESG,
-			 "rtl: EEPROM indicates invalid contry code, world wide 13 should be used\n");
+			 "rtl: EEPROM indicates invalid country code, world wide 13 should be used\n");
 
 		rtlpriv->regd.country_code = COUNTRY_CODE_WORLD_WIDE_13;
 	}

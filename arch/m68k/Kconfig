@@ -2,6 +2,7 @@ config M68K
 	bool
 	default y
 	select ARCH_MIGHT_HAVE_PC_PARPORT if ISA
+	select ARCH_NO_COHERENT_DMA_MMAP if !MMU
 	select HAVE_IDE
 	select HAVE_AOUT if MMU
 	select HAVE_DEBUG_BUGVERBOSE
@@ -14,7 +15,6 @@ config M68K
 	select GENERIC_IOMAP
 	select GENERIC_STRNCPY_FROM_USER if MMU
 	select GENERIC_STRNLEN_USER if MMU
-	select FPU if MMU
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select ARCH_USES_GETTIMEOFFSET if MMU && !COLDFIRE
 	select HAVE_FUTEX_CMPXCHG if MMU && FUTEX

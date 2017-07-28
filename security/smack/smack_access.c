@@ -36,11 +36,6 @@ struct smack_known smack_known_floor = {
 	.smk_secid	= 5,
 };
 
-struct smack_known smack_known_invalid = {
-	.smk_known	= "",
-	.smk_secid	= 6,
-};
-
 struct smack_known smack_known_web = {
 	.smk_known	= "@",
 	.smk_secid	= 7,
@@ -413,7 +408,7 @@ void smk_insert_entry(struct smack_known *skp)
 	unsigned int hash;
 	struct hlist_head *head;
 
-	hash = full_name_hash(skp->smk_known, strlen(skp->smk_known));
+	hash = full_name_hash(NULL, skp->smk_known, strlen(skp->smk_known));
 	head = &smack_known_hash[hash & (SMACK_HASH_SLOTS - 1)];
 
 	hlist_add_head_rcu(&skp->smk_hashed, head);
@@ -433,7 +428,7 @@ struct smack_known *smk_find_entry(const char *string)
 	struct hlist_head *head;
 	struct smack_known *skp;
 
-	hash = full_name_hash(string, strlen(string));
+	hash = full_name_hash(NULL, string, strlen(string));
 	head = &smack_known_hash[hash & (SMACK_HASH_SLOTS - 1)];
 
 	hlist_for_each_entry_rcu(skp, head, smk_hashed)
@@ -509,7 +504,7 @@ int smk_netlbl_mls(int level, char *catset, struct netlbl_lsm_secattr *sap,
 			if ((m & *cp) == 0)
 				continue;
 			rc = netlbl_catmap_setbit(&sap->attr.mls.cat,
-						  cat, GFP_ATOMIC);
+						  cat, GFP_KERNEL);
 			if (rc < 0) {
 				netlbl_catmap_free(sap->attr.mls.cat);
 				return rc;
@@ -615,7 +610,7 @@ struct smack_known *smack_from_secid(const u32 secid)
 	 * of a secid that is not on the list.
 	 */
 	rcu_read_unlock();
-	return &smack_known_invalid;
+	return &smack_known_huh;
 }
 
 /*
@@ -632,35 +627,38 @@ DEFINE_MUTEX(smack_onlycap_lock);
  * Is the task privileged and allowed to be privileged
  * by the onlycap rule.
  *
- * Returns 1 if the task is allowed to be privileged, 0 if it's not.
+ * Returns true if the task is allowed to be privileged, false if it's not.
  */
-int smack_privileged(int cap)
+bool smack_privileged(int cap)
 {
 	struct smack_known *skp = smk_of_current();
 	struct smack_known_list_elem *sklep;
+	int rc;
 
 	/*
 	 * All kernel tasks are privileged
 	 */
 	if (unlikely(current->flags & PF_KTHREAD))
-		return 1;
+		return true;
 
-	if (!capable(cap))
-		return 0;
+	rc = cap_capable(current_cred(), &init_user_ns, cap,
+				SECURITY_CAP_AUDIT);
+	if (rc)
+		return false;
 
 	rcu_read_lock();
 	if (list_empty(&smack_onlycap_list)) {
 		rcu_read_unlock();
-		return 1;
+		return true;
 	}
 
 	list_for_each_entry_rcu(sklep, &smack_onlycap_list, list) {
 		if (sklep->smk_label == skp) {
 			rcu_read_unlock();
-			return 1;
+			return true;
 		}
 	}
 	rcu_read_unlock();
 
-	return 0;
+	return false;
 }

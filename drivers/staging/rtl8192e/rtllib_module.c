@@ -1,30 +1,30 @@
 /*******************************************************************************
-
-  Copyright(c) 2004 Intel Corporation. All rights reserved.
-
-  Portions of this file are based on the WEP enablement code provided by the
-  Host AP project hostap-drivers v0.1.3
-  Copyright (c) 2001-2002, SSH Communications Security Corp and Jouni Malinen
-  <jkmaline@cc.hut.fi>
-  Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms of version 2 of the GNU General Public License as
-  published by the Free Software Foundation.
-
-  This program is distributed in the hope that it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  The full GNU General Public License is included in this distribution in the
-  file called LICENSE.
-
-  Contact Information:
-  James P. Ketrenos <ipw2100-admin@linux.intel.com>
-  Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
-
-*******************************************************************************/
+ *
+ * Copyright(c) 2004 Intel Corporation. All rights reserved.
+ *
+ * Portions of this file are based on the WEP enablement code provided by the
+ * Host AP project hostap-drivers v0.1.3
+ * Copyright (c) 2001-2002, SSH Communications Security Corp and Jouni Malinen
+ * <jkmaline@cc.hut.fi>
+ * Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of version 2 of the GNU General Public License as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * The full GNU General Public License is included in this distribution in the
+ * file called LICENSE.
+ *
+ * Contact Information:
+ * James P. Ketrenos <ipw2100-admin@linux.intel.com>
+ * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
+ *
+ ******************************************************************************/
 
 #include <linux/compiler.h>
 #include <linux/errno.h>
@@ -45,14 +45,10 @@
 #include <linux/etherdevice.h>
 #include <linux/uaccess.h>
 #include <net/arp.h>
-
 #include "rtllib.h"
-
 
 u32 rt_global_debug_component = COMP_ERR;
 EXPORT_SYMBOL(rt_global_debug_component);
-
-
 
 static inline int rtllib_networks_allocate(struct rtllib_device *ieee)
 {
@@ -110,7 +106,6 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 	}
 	rtllib_networks_initialize(ieee);
 
-
 	/* Default fragmentation threshold is maximum payload size */
 	ieee->fts = DEFAULT_FTS;
 	ieee->scan_age = DEFAULT_MAX_SCAN_AGE;
@@ -143,7 +138,7 @@ struct net_device *alloc_rtllib(int sizeof_priv)
 	rtllib_softmac_init(ieee);
 
 	ieee->pHTInfo = kzalloc(sizeof(struct rt_hi_throughput), GFP_KERNEL);
-	if (ieee->pHTInfo == NULL)
+	if (!ieee->pHTInfo)
 		return NULL;
 
 	HTUpdateDefaultSetting(ieee);

@@ -148,11 +148,11 @@ int ubi_start_update(struct ubi_device *ubi, struct ubi_volume *vol,
 			return err;
 	}
 
-	if (bytes == 0) {
-		err = ubi_wl_flush(ubi, UBI_ALL, UBI_ALL);
-		if (err)
-			return err;
+	err = ubi_wl_flush(ubi, UBI_ALL, UBI_ALL);
+	if (err)
+		return err;
 
+	if (bytes == 0) {
 		err = clear_update_marker(ubi, vol, 0);
 		if (err)
 			return err;
@@ -193,7 +193,7 @@ int ubi_start_leb_change(struct ubi_device *ubi, struct ubi_volume *vol,
 	vol->changing_leb = 1;
 	vol->ch_lnum = req->lnum;
 
-	vol->upd_buf = vmalloc(req->bytes);
+	vol->upd_buf = vmalloc(ALIGN((int)req->bytes, ubi->min_io_size));
 	if (!vol->upd_buf)
 		return -ENOMEM;
 

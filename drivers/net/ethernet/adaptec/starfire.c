@@ -45,7 +45,7 @@
 #include <linux/mm.h>
 #include <linux/firmware.h>
 #include <asm/processor.h>		/* Processor type for cache alignment. */
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/io.h>
 
 /*
@@ -66,7 +66,7 @@
  */
 #define ZEROCOPY
 
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+#if IS_ENABLED(CONFIG_VLAN_8021Q)
 #define VLAN_SUPPORT
 #endif
 
@@ -634,7 +634,6 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_get_stats		= get_stats,
 	.ndo_set_rx_mode	= set_rx_mode,
 	.ndo_do_ioctl		= netdev_ioctl,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 #ifdef VLAN_SUPPORT
@@ -1129,7 +1128,7 @@ static void tx_timeout(struct net_device *dev)
 
 	/* Trigger an immediate transmit demand. */
 
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	dev->stats.tx_errors++;
 	netif_wake_queue(dev);
 }
@@ -1153,6 +1152,12 @@ static void init_ring(struct net_device *dev)
 		if (skb == NULL)
 			break;
 		np->rx_info[i].mapping = pci_map_single(np->pci_dev, skb->data, np->rx_buf_sz, PCI_DMA_FROMDEVICE);
+		if (pci_dma_mapping_error(np->pci_dev,
+					  np->rx_info[i].mapping)) {
+			dev_kfree_skb(skb);
+			np->rx_info[i].skb = NULL;
+			break;
+		}
 		/* Grrr, we cannot offset to correctly align the IP header. */
 		np->rx_ring[i].rxaddr = cpu_to_dma(np->rx_info[i].mapping | RxDescValid);
 	}
@@ -1183,8 +1188,9 @@ static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct netdev_private *np = netdev_priv(dev);
 	unsigned int entry;
+	unsigned int prev_tx;
 	u32 status;
-	int i;
+	int i, j;
 
 	/*
 	 * be cautious here, wrapping the queue has weird semantics
@@ -1202,6 +1208,7 @@ static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev)
 	}
 #endif /* ZEROCOPY && HAS_BROKEN_FIRMWARE */
 
+	prev_tx = np->cur_tx;
 	entry = np->cur_tx % TX_RING_SIZE;
 	for (i = 0; i < skb_num_frags(skb); i++) {
 		int wrap_ring = 0;
@@ -1234,6 +1241,11 @@ static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev)
 					       skb_frag_address(this_frag),
 					       skb_frag_size(this_frag),
 					       PCI_DMA_TODEVICE);
+		}
+		if (pci_dma_mapping_error(np->pci_dev,
+					  np->tx_info[entry].mapping)) {
+			dev->stats.tx_dropped++;
+			goto err_out;
 		}
 
 		np->tx_ring[entry].addr = cpu_to_dma(np->tx_info[entry].mapping);
@@ -1269,8 +1281,30 @@ static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(dev);
 
 	return NETDEV_TX_OK;
-}
 
+err_out:
+	entry = prev_tx % TX_RING_SIZE;
+	np->tx_info[entry].skb = NULL;
+	if (i > 0) {
+		pci_unmap_single(np->pci_dev,
+				 np->tx_info[entry].mapping,
+				 skb_first_frag_len(skb),
+				 PCI_DMA_TODEVICE);
+		np->tx_info[entry].mapping = 0;
+		entry = (entry + np->tx_info[entry].used_slots) % TX_RING_SIZE;
+		for (j = 1; j < i; j++) {
+			pci_unmap_single(np->pci_dev,
+					 np->tx_info[entry].mapping,
+					 skb_frag_size(
+						&skb_shinfo(skb)->frags[j-1]),
+					 PCI_DMA_TODEVICE);
+			entry++;
+		}
+	}
+	dev_kfree_skb_any(skb);
+	np->cur_tx = prev_tx;
+	return NETDEV_TX_OK;
+}
 
 /* The interrupt handler does all of the Rx thread work and cleans up
    after the Tx thread. */
@@ -1570,6 +1604,12 @@ static void refill_rx_ring(struct net_device *dev)
 				break;	/* Better luck next round. */
 			np->rx_info[entry].mapping =
 				pci_map_single(np->pci_dev, skb->data, np->rx_buf_sz, PCI_DMA_FROMDEVICE);
+			if (pci_dma_mapping_error(np->pci_dev,
+						np->rx_info[entry].mapping)) {
+				dev_kfree_skb(skb);
+				np->rx_info[entry].skb = NULL;
+				break;
+			}
 			np->rx_ring[entry].rxaddr =
 				cpu_to_dma(np->rx_info[entry].mapping | RxDescValid);
 		}
@@ -1817,21 +1857,23 @@ static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 	strlcpy(info->bus_info, pci_name(np->pci_dev), sizeof(info->bus_info));
 }
 
-static int get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
+static int get_link_ksettings(struct net_device *dev,
+			      struct ethtool_link_ksettings *cmd)
 {
 	struct netdev_private *np = netdev_priv(dev);
 	spin_lock_irq(&np->lock);
-	mii_ethtool_gset(&np->mii_if, ecmd);
+	mii_ethtool_get_link_ksettings(&np->mii_if, cmd);
 	spin_unlock_irq(&np->lock);
 	return 0;
 }
 
-static int set_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
+static int set_link_ksettings(struct net_device *dev,
+			      const struct ethtool_link_ksettings *cmd)
 {
 	struct netdev_private *np = netdev_priv(dev);
 	int res;
 	spin_lock_irq(&np->lock);
-	res = mii_ethtool_sset(&np->mii_if, ecmd);
+	res = mii_ethtool_set_link_ksettings(&np->mii_if, cmd);
 	spin_unlock_irq(&np->lock);
 	check_duplex(dev);
 	return res;
@@ -1862,12 +1904,12 @@ static void set_msglevel(struct net_device *dev, u32 val)
 static const struct ethtool_ops ethtool_ops = {
 	.begin = check_if_running,
 	.get_drvinfo = get_drvinfo,
-	.get_settings = get_settings,
-	.set_settings = set_settings,
 	.nway_reset = nway_reset,
 	.get_link = get_link,
 	.get_msglevel = get_msglevel,
 	.set_msglevel = set_msglevel,
+	.get_link_ksettings = get_link_ksettings,
+	.set_link_ksettings = set_link_ksettings,
 };
 
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)

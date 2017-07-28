@@ -10,7 +10,7 @@
 
 #include <asm/bcache.h>
 #include <asm/debug.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/debugfs.h>
 #include <linux/init.h>
 
@@ -73,8 +73,8 @@ static int __init sc_debugfs_init(void)
 
 	file = debugfs_create_file("prefetch", S_IRUGO | S_IWUSR, dir,
 				   NULL, &sc_prefetch_fops);
-	if (IS_ERR(file))
-		return PTR_ERR(file);
+	if (!file)
+		return -ENOMEM;
 
 	return 0;
 }

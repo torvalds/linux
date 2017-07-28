@@ -69,13 +69,17 @@ SECTIONS
 	.text ALIGN(PAGE_SIZE) : {
 		TEXT_TEXT
 		SCHED_TEXT
+		CPUIDLE_TEXT
 		LOCK_TEXT
 		KPROBES_TEXT
 		IRQENTRY_TEXT
+		SOFTIRQENTRY_TEXT
 		*(.text.do_softirq)
 		*(.text.sys_exit)
 		*(.text.do_sigaltstack)
 		*(.text.do_fork)
+		*(.text.div)
+		*($$*)			/* millicode routines */
 		*(.text.*)
 		*(.fixup)
 		*(.lock.text)		/* out-of-line lock text */
@@ -88,8 +92,9 @@ SECTIONS
 	/* Start of data section */
 	_sdata = .;
 
-	RO_DATA_SECTION(8)
-
+	/* Architecturally we need to keep __gp below 0x1000000 and thus
+	 * in front of RO_DATA_SECTION() which stores lots of tracepoint
+	 * and ftrace symbols. */
 #ifdef CONFIG_64BIT
 	. = ALIGN(16);
 	/* Linkage tables */
@@ -103,6 +108,12 @@ SECTIONS
 		*(.dlt)
 	}
 #endif
+
+	RO_DATA_SECTION(8)
+
+	/* RO because of BUILDTIME_EXTABLE_SORT */
+	EXCEPTION_TABLE(8)
+	NOTES
 
 	/* unwind info */
 	.PARISC.unwind : {
@@ -119,9 +130,6 @@ SECTIONS
 	. = ALIGN(HUGEPAGE_SIZE);
 	data_start = .;
 
-	EXCEPTION_TABLE(8)
-	NOTES
-
 	/* Data */
 	RW_DATA_SECTION(L1_CACHE_BYTES, PAGE_SIZE, PAGE_SIZE)
 
@@ -136,8 +144,6 @@ SECTIONS
 
 	/* BSS */
 	BSS_SECTION(PAGE_SIZE, PAGE_SIZE, PAGE_SIZE)
-
-	/* bootmap is allocated in setup_bootmem() directly behind bss. */
 
 	. = ALIGN(HUGEPAGE_SIZE);
 	_end = . ;

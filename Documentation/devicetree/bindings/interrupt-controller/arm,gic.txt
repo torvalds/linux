@@ -16,9 +16,12 @@ Main node required properties:
 	"arm,cortex-a15-gic"
 	"arm,cortex-a7-gic"
 	"arm,cortex-a9-gic"
+	"arm,eb11mp-gic"
 	"arm,gic-400"
 	"arm,pl390"
+	"arm,tc11mp-gic"
 	"brcm,brahma-b15-gic"
+	"nvidia,tegra210-agic"
 	"qcom,msm-8660-qgic"
 	"qcom,msm-qgic2"
 - interrupt-controller : Identifies the node as an interrupt controller
@@ -66,7 +69,7 @@ Optional
 	"ic_clk" (for "arm,arm11mp-gic")
 	"PERIPHCLKEN" (for "arm,cortex-a15-gic")
 	"PERIPHCLK", "PERIPHCLKEN" (for "arm,cortex-a9-gic")
-	"clk" (for "arm,gic-400")
+	"clk" (for "arm,gic-400" and "nvidia,tegra210")
 	"gclk" (for "arm,pl390")
 
 - power-domains : A phandle and PM domain specifier as defined by bindings of
@@ -108,7 +111,7 @@ Example:
 		#interrupt-cells = <3>;
 		interrupt-controller;
 		reg = <0x2c001000 0x1000>,
-		      <0x2c002000 0x1000>,
+		      <0x2c002000 0x2000>,
 		      <0x2c004000 0x2000>,
 		      <0x2c006000 0x2000>;
 		interrupts = <1 9 0xf04>;

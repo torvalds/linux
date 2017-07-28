@@ -237,6 +237,9 @@ static int sdhci_sirf_suspend(struct device *dev)
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	int ret;
 
+	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
+		mmc_retune_needed(host->mmc);
+
 	ret = sdhci_suspend_host(host);
 	if (ret)
 		return ret;
@@ -260,9 +263,9 @@ static int sdhci_sirf_resume(struct device *dev)
 
 	return sdhci_resume_host(host);
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(sdhci_sirf_pm_ops, sdhci_sirf_suspend, sdhci_sirf_resume);
-#endif
 
 static const struct of_device_id sdhci_sirf_of_match[] = {
 	{ .compatible = "sirf,prima2-sdhc" },
@@ -274,9 +277,7 @@ static struct platform_driver sdhci_sirf_driver = {
 	.driver		= {
 		.name	= "sdhci-sirf",
 		.of_match_table = sdhci_sirf_of_match,
-#ifdef CONFIG_PM_SLEEP
 		.pm	= &sdhci_sirf_pm_ops,
-#endif
 	},
 	.probe		= sdhci_sirf_probe,
 	.remove		= sdhci_pltfm_unregister,

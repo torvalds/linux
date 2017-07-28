@@ -58,6 +58,7 @@ static const struct team_mode rr_mode = {
 	.owner		= THIS_MODULE,
 	.priv_size	= sizeof(struct rr_priv),
 	.ops		= &rr_mode_ops,
+	.lag_tx_type	= NETDEV_LAG_TX_TYPE_ROUNDROBIN,
 };
 
 static int __init rr_init_module(void)
@@ -76,4 +77,4 @@ module_exit(rr_cleanup_module);
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Jiri Pirko <jpirko@redhat.com>");
 MODULE_DESCRIPTION("Round-robin mode for team");
-MODULE_ALIAS("team-mode-roundrobin");
+MODULE_ALIAS_TEAM_MODE("roundrobin");

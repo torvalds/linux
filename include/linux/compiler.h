@@ -17,16 +17,17 @@
 # define __release(x)	__context__(x,-1)
 # define __cond_lock(x,c)	((c) ? ({ __acquire(x); 1; }) : 0)
 # define __percpu	__attribute__((noderef, address_space(3)))
-# define __pmem		__attribute__((noderef, address_space(5)))
-#ifdef CONFIG_SPARSE_RCU_POINTER
 # define __rcu		__attribute__((noderef, address_space(4)))
-#else
-# define __rcu
-#endif
+# define __private	__attribute__((noderef))
 extern void __chk_user_ptr(const volatile void __user *);
 extern void __chk_io_ptr(const volatile void __iomem *);
-#else
-# define __user
+# define ACCESS_PRIVATE(p, member) (*((typeof((p)->member) __force *) &(p)->member))
+#else /* __CHECKER__ */
+# ifdef STRUCTLEAK_PLUGIN
+#  define __user __attribute__((user))
+# else
+#  define __user
+# endif
 # define __kernel
 # define __safe
 # define __force
@@ -43,8 +44,9 @@ extern void __chk_io_ptr(const volatile void __iomem *);
 # define __cond_lock(x,c) (c)
 # define __percpu
 # define __rcu
-# define __pmem
-#endif
+# define __private
+# define ACCESS_PRIVATE(p, member) ((p)->member)
+#endif /* __CHECKER__ */
 
 /* Indirect macros required for expanded argument pasting, eg. __LINE__. */
 #define ___PASTE(a,b) a##b
@@ -99,29 +101,36 @@ struct ftrace_branch_data {
 	};
 };
 
+struct ftrace_likely_data {
+	struct ftrace_branch_data	data;
+	unsigned long			constant;
+};
+
 /*
  * Note: DISABLE_BRANCH_PROFILING can be used by special lowlevel code
  * to disable branch tracing on a per file basis.
  */
 #if defined(CONFIG_TRACE_BRANCH_PROFILING) \
     && !defined(DISABLE_BRANCH_PROFILING) && !defined(__CHECKER__)
-void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
+void ftrace_likely_update(struct ftrace_likely_data *f, int val,
+			  int expect, int is_constant);
 
 #define likely_notrace(x)	__builtin_expect(!!(x), 1)
 #define unlikely_notrace(x)	__builtin_expect(!!(x), 0)
 
-#define __branch_check__(x, expect) ({					\
+#define __branch_check__(x, expect, is_constant) ({			\
 			int ______r;					\
-			static struct ftrace_branch_data		\
+			static struct ftrace_likely_data		\
 				__attribute__((__aligned__(4)))		\
 				__attribute__((section("_ftrace_annotated_branch"))) \
 				______f = {				\
-				.func = __func__,			\
-				.file = __FILE__,			\
-				.line = __LINE__,			\
+				.data.func = __func__,			\
+				.data.file = __FILE__,			\
+				.data.line = __LINE__,			\
 			};						\
-			______r = likely_notrace(x);			\
-			ftrace_likely_update(&______f, ______r, expect); \
+			______r = __builtin_expect(!!(x), expect);	\
+			ftrace_likely_update(&______f, ______r,		\
+					     expect, is_constant);	\
 			______r;					\
 		})
 
@@ -131,10 +140,10 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
  * written by Daniel Walker.
  */
 # ifndef likely
-#  define likely(x)	(__builtin_constant_p(x) ? !!(x) : __branch_check__(x, 1))
+#  define likely(x)	(__branch_check__(x, 1, __builtin_constant_p(x)))
 # endif
 # ifndef unlikely
-#  define unlikely(x)	(__builtin_constant_p(x) ? !!(x) : __branch_check__(x, 0))
+#  define unlikely(x)	(__branch_check__(x, 0, __builtin_constant_p(x)))
 # endif
 
 #ifdef CONFIG_PROFILE_ALL_BRANCHES
@@ -144,7 +153,7 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
  */
 #define if(cond, ...) __trace_if( (cond , ## __VA_ARGS__) )
 #define __trace_if(cond) \
-	if (__builtin_constant_p((cond)) ? !!(cond) :			\
+	if (__builtin_constant_p(!!(cond)) ? !!(cond) :			\
 	({								\
 		int ______r;						\
 		static struct ftrace_branch_data			\
@@ -178,6 +187,29 @@ void ftrace_likely_update(struct ftrace_branch_data *f, int val, int expect);
 /* Unreachable code */
 #ifndef unreachable
 # define unreachable() do { } while (1)
+#endif
+
+/*
+ * KENTRY - kernel entry point
+ * This can be used to annotate symbols (functions or data) that are used
+ * without their linker symbol being referenced explicitly. For example,
+ * interrupt vector handlers, or functions in the kernel image that are found
+ * programatically.
+ *
+ * Not required for symbols exported with EXPORT_SYMBOL, or initcalls. Those
+ * are handled in their own way (with KEEP() in linker scripts).
+ *
+ * KENTRY can be avoided if the symbols in question are marked as KEEP() in the
+ * linker script. For example an architecture could KEEP() its entire
+ * boot/exception vector code rather than annotate each function and data.
+ */
+#ifndef KENTRY
+# define KENTRY(sym)						\
+	extern typeof(sym) sym;					\
+	static const unsigned long __kentry_##sym		\
+	__used							\
+	__attribute__((section("___kentry" "+" #sym ), used))	\
+	= (unsigned long)&sym;
 #endif
 
 #ifndef RELOC_HIDE
@@ -263,8 +295,9 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
  * In contrast to ACCESS_ONCE these two macros will also work on aggregate
  * data types like structs or unions. If the size of the accessed data
  * type exceeds the word size of the machine (e.g., 32 bits or 64 bits)
- * READ_ONCE() and WRITE_ONCE()  will fall back to memcpy and print a
- * compile-time warning.
+ * READ_ONCE() and WRITE_ONCE() will fall back to memcpy(). There's at
+ * least two memcpy()s: one for the __builtin_memcpy() and then one for
+ * the macro doing the copy of variable - '__u' allocated on the stack.
  *
  * Their two major use cases are: (1) Mediating communication between
  * process-level code and irq/NMI handlers, all running on the same CPU,
@@ -335,6 +368,10 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
 #define __deprecated_for_modules
 #endif
 
+#ifndef __malloc
+#define __malloc
+#endif
+
 /*
  * Allow us to avoid 'defined but not used' warnings on functions and data,
  * as well as force them to be emitted to the assembly file.
@@ -397,6 +434,27 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
  */
 #ifndef __attribute_const__
 # define __attribute_const__	/* unimplemented */
+#endif
+
+#ifndef __designated_init
+# define __designated_init
+#endif
+
+#ifndef __latent_entropy
+# define __latent_entropy
+#endif
+
+#ifndef __randomize_layout
+# define __randomize_layout __designated_init
+#endif
+
+#ifndef __no_randomize_layout
+# define __no_randomize_layout
+#endif
+
+#ifndef randomized_struct_fields_start
+# define randomized_struct_fields_start
+# define randomized_struct_fields_end
 #endif
 
 /*
@@ -519,20 +577,17 @@ static __always_inline void __write_once_size(volatile void *p, void *res, int s
  * Similar to rcu_dereference(), but for situations where the pointed-to
  * object's lifetime is managed by something other than RCU.  That
  * "something other" might be reference counting or simple immortality.
+ *
+ * The seemingly unused variable ___typecheck_p validates that @p is
+ * indeed a pointer type by using a pointer to typeof(*p) as the type.
+ * Taking a pointer to typeof(*p) again is needed in case p is void *.
  */
 #define lockless_dereference(p) \
 ({ \
 	typeof(p) _________p1 = READ_ONCE(p); \
+	typeof(*(p)) *___typecheck_p __maybe_unused; \
 	smp_read_barrier_depends(); /* Dependency order vs. p above. */ \
 	(_________p1); \
 })
 
-/* Ignore/forbid kprobes attach on very low level functions marked by this attribute: */
-#ifdef CONFIG_KPROBES
-# define __kprobes	__attribute__((__section__(".kprobes.text")))
-# define nokprobe_inline	__always_inline
-#else
-# define __kprobes
-# define nokprobe_inline	inline
-#endif
 #endif /* __LINUX_COMPILER_H */

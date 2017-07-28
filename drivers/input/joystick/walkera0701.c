@@ -165,7 +165,7 @@ static void walkera0701_irq_handler(void *handler_data)
 				RESERVE + BIN1_PULSE - BIN0_PULSE)	/* frame sync .. */
 		w->counter = 0;
 
-	hrtimer_start(&w->timer, ktime_set(0, BIN_SAMPLE), HRTIMER_MODE_REL);
+	hrtimer_start(&w->timer, BIN_SAMPLE, HRTIMER_MODE_REL);
 }
 
 static enum hrtimer_restart timer_handler(struct hrtimer
@@ -218,6 +218,7 @@ static void walkera0701_attach(struct parport *pp)
 
 	w->parport = pp;
 
+	memset(&walkera0701_parport_cb, 0, sizeof(walkera0701_parport_cb));
 	walkera0701_parport_cb.flags = PARPORT_FLAG_EXCL;
 	walkera0701_parport_cb.irq_func = walkera0701_irq_handler;
 	walkera0701_parport_cb.private = w;

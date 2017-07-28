@@ -1,0 +1,13 @@
+PCM5102a audio CODECs
+
+These devices does not use I2C or SPI.
+
+Required properties:
+
+  - compatible : set as "ti,pcm5102a"
+
+Examples:
+
+	pcm5102a: pcm5102a {
+		compatible = "ti,pcm5102a";
+	};

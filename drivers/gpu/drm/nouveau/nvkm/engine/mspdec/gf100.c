@@ -35,7 +35,6 @@ gf100_mspdec_init(struct nvkm_falcon *mspdec)
 
 static const struct nvkm_falcon_func
 gf100_mspdec = {
-	.pmc_enable = 0x00020000,
 	.init = gf100_mspdec_init,
 	.sclass = {
 		{ -1, -1, GF100_MSPDEC },

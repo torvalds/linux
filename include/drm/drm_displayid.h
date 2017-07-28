@@ -73,4 +73,21 @@ struct displayid_tiled_block {
 	u8 topology_id[8];
 } __packed;
 
+struct displayid_detailed_timings_1 {
+	u8 pixel_clock[3];
+	u8 flags;
+	u8 hactive[2];
+	u8 hblank[2];
+	u8 hsync[2];
+	u8 hsw[2];
+	u8 vactive[2];
+	u8 vblank[2];
+	u8 vsync[2];
+	u8 vsw[2];
+} __packed;
+
+struct displayid_detailed_timing_block {
+	struct displayid_block base;
+	struct displayid_detailed_timings_1 timings[0];
+};
 #endif

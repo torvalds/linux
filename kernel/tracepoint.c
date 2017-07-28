@@ -24,7 +24,8 @@
 #include <linux/tracepoint.h>
 #include <linux/err.h>
 #include <linux/slab.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/task.h>
 #include <linux/static_key.h>
 
 extern struct tracepoint * const __start___tracepoints_ptrs[];
@@ -194,9 +195,13 @@ static int tracepoint_add_func(struct tracepoint *tp,
 			       struct tracepoint_func *func, int prio)
 {
 	struct tracepoint_func *old, *tp_funcs;
+	int ret;
 
-	if (tp->regfunc && !static_key_enabled(&tp->key))
-		tp->regfunc();
+	if (tp->regfunc && !static_key_enabled(&tp->key)) {
+		ret = tp->regfunc();
+		if (ret < 0)
+			return ret;
+	}
 
 	tp_funcs = rcu_dereference_protected(tp->funcs,
 			lockdep_is_held(&tracepoints_mutex));
@@ -491,7 +496,7 @@ static __init int init_tracepoints(void)
 
 	ret = register_module_notifier(&tracepoint_module_nb);
 	if (ret)
-		pr_warning("Failed to register tracepoint module enter notifier\n");
+		pr_warn("Failed to register tracepoint module enter notifier\n");
 
 	return ret;
 }
@@ -529,7 +534,7 @@ EXPORT_SYMBOL_GPL(for_each_kernel_tracepoint);
 /* NB: reg/unreg are called while guarded with the tracepoints_mutex */
 static int sys_tracepoint_refcount;
 
-void syscall_regfunc(void)
+int syscall_regfunc(void)
 {
 	struct task_struct *p, *t;
 
@@ -541,6 +546,8 @@ void syscall_regfunc(void)
 		read_unlock(&tasklist_lock);
 	}
 	sys_tracepoint_refcount++;
+
+	return 0;
 }
 
 void syscall_unregfunc(void)

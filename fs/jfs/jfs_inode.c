@@ -45,24 +45,6 @@ void jfs_set_inode_flags(struct inode *inode)
 			S_DIRSYNC | S_SYNC);
 }
 
-void jfs_get_inode_flags(struct jfs_inode_info *jfs_ip)
-{
-	unsigned int flags = jfs_ip->vfs_inode.i_flags;
-
-	jfs_ip->mode2 &= ~(JFS_IMMUTABLE_FL | JFS_APPEND_FL | JFS_NOATIME_FL |
-			   JFS_DIRSYNC_FL | JFS_SYNC_FL);
-	if (flags & S_IMMUTABLE)
-		jfs_ip->mode2 |= JFS_IMMUTABLE_FL;
-	if (flags & S_APPEND)
-		jfs_ip->mode2 |= JFS_APPEND_FL;
-	if (flags & S_NOATIME)
-		jfs_ip->mode2 |= JFS_NOATIME_FL;
-	if (flags & S_DIRSYNC)
-		jfs_ip->mode2 |= JFS_DIRSYNC_FL;
-	if (flags & S_SYNC)
-		jfs_ip->mode2 |= JFS_SYNC_FL;
-}
-
 /*
  * NAME:	ialloc()
  *
@@ -131,7 +113,7 @@ struct inode *ialloc(struct inode *parent, umode_t mode)
 	jfs_inode->mode2 |= inode->i_mode;
 
 	inode->i_blocks = 0;
-	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
+	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
 	jfs_inode->otime = inode->i_ctime.tv_sec;
 	inode->i_generation = JFS_SBI(sb)->gengen++;
 
@@ -151,7 +133,7 @@ struct inode *ialloc(struct inode *parent, umode_t mode)
 	jfs_inode->xtlid = 0;
 	jfs_set_inode_flags(inode);
 
-	jfs_info("ialloc returns inode = 0x%p\n", inode);
+	jfs_info("ialloc returns inode = 0x%p", inode);
 
 	return inode;
 

@@ -31,6 +31,11 @@ config SECURITY
 
 	  If you are unsure how to answer this question, answer N.
 
+config SECURITY_WRITABLE_HOOKS
+	depends on SECURITY
+	bool
+	default n
+
 config SECURITYFS
 	bool "Enable the securityfs filesystem"
 	help
@@ -47,6 +52,15 @@ config SECURITY_NETWORK
 	  This enables the socket and networking security hooks.
 	  If enabled, a security module can use these hooks to
 	  implement socket and networking access controls.
+	  If you are unsure how to answer this question, answer N.
+
+config SECURITY_INFINIBAND
+	bool "Infiniband Security Hooks"
+	depends on SECURITY && INFINIBAND
+	help
+	  This enables the Infiniband security hooks.
+	  If enabled, a security module can use these hooks to
+	  implement Infiniband access controls.
 	  If you are unsure how to answer this question, answer N.
 
 config SECURITY_NETWORK_XFRM
@@ -118,10 +132,84 @@ config LSM_MMAP_MIN_ADDR
 	  this low address space will need the permission specific to the
 	  systems running LSM.
 
+config HAVE_HARDENED_USERCOPY_ALLOCATOR
+	bool
+	help
+	  The heap allocator implements __check_heap_object() for
+	  validating memory ranges against heap object sizes in
+	  support of CONFIG_HARDENED_USERCOPY.
+
+config HARDENED_USERCOPY
+	bool "Harden memory copies between kernel and userspace"
+	depends on HAVE_HARDENED_USERCOPY_ALLOCATOR
+	select BUG
+	help
+	  This option checks for obviously wrong memory regions when
+	  copying memory to/from the kernel (via copy_to_user() and
+	  copy_from_user() functions) by rejecting memory ranges that
+	  are larger than the specified heap object, span multiple
+	  separately allocated pages, are not on the process stack,
+	  or are part of the kernel text. This kills entire classes
+	  of heap overflow exploits and similar kernel memory exposures.
+
+config HARDENED_USERCOPY_PAGESPAN
+	bool "Refuse to copy allocations that span multiple pages"
+	depends on HARDENED_USERCOPY
+	depends on EXPERT
+	help
+	  When a multi-page allocation is done without __GFP_COMP,
+	  hardened usercopy will reject attempts to copy it. There are,
+	  however, several cases of this in the kernel that have not all
+	  been removed. This config is intended to be used only while
+	  trying to find such users.
+
+config FORTIFY_SOURCE
+	bool "Harden common str/mem functions against buffer overflows"
+	depends on ARCH_HAS_FORTIFY_SOURCE
+	help
+	  Detect overflows of buffers in common string and memory functions
+	  where the compiler can determine and validate the buffer sizes.
+
+config STATIC_USERMODEHELPER
+	bool "Force all usermode helper calls through a single binary"
+	help
+	  By default, the kernel can call many different userspace
+	  binary programs through the "usermode helper" kernel
+	  interface.  Some of these binaries are statically defined
+	  either in the kernel code itself, or as a kernel configuration
+	  option.  However, some of these are dynamically created at
+	  runtime, or can be modified after the kernel has started up.
+	  To provide an additional layer of security, route all of these
+	  calls through a single executable that can not have its name
+	  changed.
+
+	  Note, it is up to this single binary to then call the relevant
+	  "real" usermode helper binary, based on the first argument
+	  passed to it.  If desired, this program can filter and pick
+	  and choose what real programs are called.
+
+	  If you wish for all usermode helper programs are to be
+	  disabled, choose this option and then set
+	  STATIC_USERMODEHELPER_PATH to an empty string.
+
+config STATIC_USERMODEHELPER_PATH
+	string "Path to the static usermode helper binary"
+	depends on STATIC_USERMODEHELPER
+	default "/sbin/usermode-helper"
+	help
+	  The binary called by the kernel when any usermode helper
+	  program is wish to be run.  The "real" application's name will
+	  be in the first argument passed to this program on the command
+	  line.
+
+	  If you wish for all usermode helper programs to be disabled,
+	  specify an empty string here (i.e. "").
+
 source security/selinux/Kconfig
 source security/smack/Kconfig
 source security/tomoyo/Kconfig
 source security/apparmor/Kconfig
+source security/loadpin/Kconfig
 source security/yama/Kconfig
 
 source security/integrity/Kconfig

@@ -10,7 +10,7 @@
  */
 #include <linux/bug.h>
 #include <linux/init.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
@@ -30,6 +30,7 @@
 #include <linux/hardirq.h>
 #include <linux/gfp.h>
 #include <linux/kcore.h>
+#include <linux/export.h>
 
 #include <asm/asm-offsets.h>
 #include <asm/bootinfo.h>
@@ -98,8 +99,10 @@ static void *__kmap_pgprot(struct page *page, unsigned long addr, pgprot_t prot)
 	idx += in_interrupt() ? FIX_N_COLOURS : 0;
 	vaddr = __fix_to_virt(FIX_CMAP_END - idx);
 	pte = mk_pte(page, prot);
-#if defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
+#if defined(CONFIG_XPA)
 	entrylo = pte_to_entrylo(pte.pte_high);
+#elif defined(CONFIG_PHYS_ADDR_T_64BIT) && defined(CONFIG_CPU_MIPS32)
+	entrylo = pte.pte_high;
 #else
 	entrylo = pte_to_entrylo(pte_val(pte));
 #endif
@@ -110,11 +113,13 @@ static void *__kmap_pgprot(struct page *page, unsigned long addr, pgprot_t prot)
 	write_c0_entrylo0(entrylo);
 	write_c0_entrylo1(entrylo);
 #ifdef CONFIG_XPA
-	entrylo = (pte.pte_low & _PFNX_MASK);
-	writex_c0_entrylo0(entrylo);
-	writex_c0_entrylo1(entrylo);
+	if (cpu_has_xpa) {
+		entrylo = (pte.pte_low & _PFNX_MASK);
+		writex_c0_entrylo0(entrylo);
+		writex_c0_entrylo1(entrylo);
+	}
 #endif
-	tlbidx = read_c0_wired();
+	tlbidx = num_wired_entries();
 	write_c0_wired(tlbidx + 1);
 	write_c0_index(tlbidx);
 	mtc0_tlbw_hazard();
@@ -143,7 +148,7 @@ void kunmap_coherent(void)
 
 	local_irq_save(flags);
 	old_ctx = read_c0_entryhi();
-	wired = read_c0_wired() - 1;
+	wired = num_wired_entries() - 1;
 	write_c0_wired(wired);
 	write_c0_index(wired);
 	write_c0_entryhi(UNIQUE_ENTRYHI(wired));
@@ -165,7 +170,7 @@ void copy_user_highpage(struct page *to, struct page *from,
 
 	vto = kmap_atomic(to);
 	if (cpu_has_dc_aliases &&
-	    page_mapped(from) && !Page_dcache_dirty(from)) {
+	    page_mapcount(from) && !Page_dcache_dirty(from)) {
 		vfrom = kmap_coherent(from, vaddr);
 		copy_page(vto, vfrom);
 		kunmap_coherent();
@@ -187,7 +192,7 @@ void copy_to_user_page(struct vm_area_struct *vma,
 	unsigned long len)
 {
 	if (cpu_has_dc_aliases &&
-	    page_mapped(page) && !Page_dcache_dirty(page)) {
+	    page_mapcount(page) && !Page_dcache_dirty(page)) {
 		void *vto = kmap_coherent(page, vaddr) + (vaddr & ~PAGE_MASK);
 		memcpy(vto, src, len);
 		kunmap_coherent();
@@ -196,7 +201,7 @@ void copy_to_user_page(struct vm_area_struct *vma,
 		if (cpu_has_dc_aliases)
 			SetPageDcacheDirty(page);
 	}
-	if ((vma->vm_flags & VM_EXEC) && !cpu_has_ic_fills_f_dc)
+	if (vma->vm_flags & VM_EXEC)
 		flush_cache_page(vma, vaddr, page_to_pfn(page));
 }
 
@@ -205,7 +210,7 @@ void copy_from_user_page(struct vm_area_struct *vma,
 	unsigned long len)
 {
 	if (cpu_has_dc_aliases &&
-	    page_mapped(page) && !Page_dcache_dirty(page)) {
+	    page_mapcount(page) && !Page_dcache_dirty(page)) {
 		void *vfrom = kmap_coherent(page, vaddr) + (vaddr & ~PAGE_MASK);
 		memcpy(dst, vfrom, len);
 		kunmap_coherent();
@@ -257,7 +262,6 @@ unsigned __weak platform_maar_init(unsigned num_pairs)
 {
 	struct maar_config cfg[BOOT_MEM_MAP_MAX];
 	unsigned i, num_configured, num_cfg = 0;
-	phys_addr_t skip;
 
 	for (i = 0; i < boot_mem_map.nr_map; i++) {
 		switch (boot_mem_map.map[i].type) {
@@ -268,14 +272,14 @@ unsigned __weak platform_maar_init(unsigned num_pairs)
 			continue;
 		}
 
-		skip = 0x10000 - (boot_mem_map.map[i].addr & 0xffff);
-
+		/* Round lower up */
 		cfg[num_cfg].lower = boot_mem_map.map[i].addr;
-		cfg[num_cfg].lower += skip;
+		cfg[num_cfg].lower = (cfg[num_cfg].lower + 0xffff) & ~0xffff;
 
-		cfg[num_cfg].upper = cfg[num_cfg].lower;
-		cfg[num_cfg].upper += boot_mem_map.map[i].size - 1;
-		cfg[num_cfg].upper -= skip;
+		/* Round upper down */
+		cfg[num_cfg].upper = boot_mem_map.map[i].addr +
+					boot_mem_map.map[i].size;
+		cfg[num_cfg].upper = (cfg[num_cfg].upper & ~0xffff) - 1;
 
 		cfg[num_cfg].attrs = MIPS_MAAR_S;
 		num_cfg++;
@@ -344,7 +348,7 @@ void maar_init(void)
 		upper = ((upper & MIPS_MAAR_ADDR) << 4) | 0xffff;
 
 		pr_info("  [%d]: ", i / 2);
-		if (!(attr & MIPS_MAAR_V)) {
+		if (!(attr & MIPS_MAAR_VL)) {
 			pr_cont("disabled\n");
 			continue;
 		}
@@ -437,6 +441,9 @@ static inline void mem_init_free_highmem(void)
 #ifdef CONFIG_HIGHMEM
 	unsigned long tmp;
 
+	if (cpu_has_dc_aliases)
+		return;
+
 	for (tmp = highstart_pfn; tmp < highend_pfn; tmp++) {
 		struct page *page = pfn_to_page(tmp);
 
@@ -500,7 +507,7 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 
 void (*free_init_pages_eva)(void *begin, void *end) = NULL;
 
-void __init_refok free_initmem(void)
+void __ref free_initmem(void)
 {
 	prom_free_prom_memory();
 	/*
@@ -530,7 +537,12 @@ unsigned long pgd_current[NR_CPUS];
  * it in the linker script.
  */
 pgd_t swapper_pg_dir[_PTRS_PER_PGD] __section(.bss..swapper_pg_dir);
+#ifndef __PAGETABLE_PUD_FOLDED
+pud_t invalid_pud_table[PTRS_PER_PUD] __page_aligned_bss;
+#endif
 #ifndef __PAGETABLE_PMD_FOLDED
 pmd_t invalid_pmd_table[PTRS_PER_PMD] __page_aligned_bss;
+EXPORT_SYMBOL_GPL(invalid_pmd_table);
 #endif
 pte_t invalid_pte_table[PTRS_PER_PTE] __page_aligned_bss;
+EXPORT_SYMBOL(invalid_pte_table);

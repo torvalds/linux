@@ -11,11 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
  ******************************************************************************/
 
 
@@ -84,11 +79,6 @@
 #define DM_DIG_FA_TH1_LPS		15 /*  15 lps */
 #define DM_DIG_FA_TH2_LPS		30 /*  30 lps */
 #define RSSI_OFFSET_DIG			0x05;
-
-/* ANT Test */
-#define ANTTESTALL		0x00	/* Ant A or B will be Testing */
-#define ANTTESTA		0x01	/* Ant A will be Testing */
-#define ANTTESTB		0x02	/* Ant B will be testing */
 
 struct rtw_dig {
 	u8		Dig_Enable_Flag;
@@ -320,22 +310,6 @@ enum odm_ability {
 	ODM_PSD2AFH		= 0x00000800
 };
 
-/*  2011/20/20 MH For MP driver RT_WLAN_STA =  struct sta_info */
-/*  Please declare below ODM relative info in your STA info structure. */
-
-struct odm_sta_info {
-	/*  Driver Write */
-	bool	bUsed;		/*  record the sta status link or not? */
-	u8	IOTPeer;	/*  Enum value.	HT_IOT_PEER_E */
-
-	/*  ODM Write */
-	/* 1 PHY_STATUS_INFO */
-	u8	RSSI_Path[4];		/*  */
-	u8	RSSI_Ave;
-	u8	RXEVM[4];
-	u8	RXSNR[4];
-};
-
 /*  2011/10/20 MH Define Common info enum for all team. */
 
 enum odm_common_info_def {
@@ -348,7 +322,6 @@ enum odm_common_info_def {
 	ODM_CMNINFO_MP_TEST_CHIP,
 	ODM_CMNINFO_IC_TYPE,		/* ODM_IC_TYPE_E */
 	ODM_CMNINFO_CUT_VER,		/* ODM_CUT_VERSION_E */
-	ODM_CMNINFO_FAB_VER,		/* ODM_FAB_E */
 	ODM_CMNINFO_RF_TYPE,		/* ODM_RF_PATH_E or ODM_RF_TYPE_E? */
 	ODM_CMNINFO_BOARD_TYPE,		/* ODM_BOARD_TYPE_E */
 	ODM_CMNINFO_EXT_LNA,		/* true */
@@ -449,12 +422,6 @@ enum odm_cut_version {
 	ODM_CUT_E	=	5,
 	ODM_CUT_F	=	6,
 	ODM_CUT_TEST	=	7,
-};
-
-/*  ODM_CMNINFO_FAB_VER */
-enum odm_fab_Version {
-	ODM_TSMC	=	0,
-	ODM_UMC		=	1,
 };
 
 /*  ODM_CMNINFO_RF_TYPE */
@@ -618,7 +585,6 @@ struct odm_rf_cal {
 	s32	RegEBC;
 
 	u8	TXPowercount;
-	bool	bTXPowerTrackingInit;
 	bool	bTXPowerTracking;
 	u8	TxPowerTrackControl; /* for mp mode, turn off txpwrtracking
 				      * as default */
@@ -752,10 +718,6 @@ struct odm_dm_struct {
 	u32	SupportICType;
 	/*  Cut Version TestChip/A-cut/B-cut... = 0/1/2/3/... */
 	u8	CutVersion;
-	/*  Fab Version TSMC/UMC = 0/1 */
-	u8	FabVersion;
-	/*  RF Type 4T4R/3T3R/2T2R/1T2R/1T1R/... */
-	u8	RFType;
 	/*  Board Type Normal/HighPower/MiniCard/SLIM/Combo/. = 0/1/2/3/4/. */
 	u8	BoardType;
 	/*  with external LNA  NO/Yes = 0/1 */

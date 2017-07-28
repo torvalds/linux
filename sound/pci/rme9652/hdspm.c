@@ -1601,6 +1601,9 @@ static void hdspm_set_dds_value(struct hdspm *hdspm, int rate)
 {
 	u64 n;
 
+	if (snd_BUG_ON(rate <= 0))
+		return;
+
 	if (rate >= 112000)
 		rate /= 4;
 	else if (rate >= 56000)
@@ -1663,7 +1666,7 @@ static int hdspm_set_rate(struct hdspm * hdspm, int rate, int called_internally)
 			    HDSPM_AUTOSYNC_FROM_NONE) {
 
 				dev_warn(hdspm->card->dev,
-					 "Detected no Externel Sync\n");
+					 "Detected no External Sync\n");
 				not_set = 1;
 
 			} else if (rate != external_freq) {
@@ -2040,14 +2043,14 @@ static int snd_hdspm_midi_output_close(struct snd_rawmidi_substream *substream)
 	return 0;
 }
 
-static struct snd_rawmidi_ops snd_hdspm_midi_output =
+static const struct snd_rawmidi_ops snd_hdspm_midi_output =
 {
 	.open =		snd_hdspm_midi_output_open,
 	.close =	snd_hdspm_midi_output_close,
 	.trigger =	snd_hdspm_midi_output_trigger,
 };
 
-static struct snd_rawmidi_ops snd_hdspm_midi_input =
+static const struct snd_rawmidi_ops snd_hdspm_midi_input =
 {
 	.open =		snd_hdspm_midi_input_open,
 	.close =	snd_hdspm_midi_input_close,
@@ -2215,6 +2218,8 @@ static int hdspm_get_system_sample_rate(struct hdspm *hdspm)
 		} else {
 			/* slave mode, return external sample rate */
 			rate = hdspm_external_sample_rate(hdspm);
+			if (!rate)
+				rate = hdspm->system_sample_rate;
 		}
 	}
 
@@ -2260,8 +2265,11 @@ static int snd_hdspm_put_system_sample_rate(struct snd_kcontrol *kcontrol,
 					    ucontrol)
 {
 	struct hdspm *hdspm = snd_kcontrol_chip(kcontrol);
+	int rate = ucontrol->value.integer.value[0];
 
-	hdspm_set_dds_value(hdspm, ucontrol->value.enumerated.item[0]);
+	if (rate < 27000 || rate > 207000)
+		return -EINVAL;
+	hdspm_set_dds_value(hdspm, ucontrol->value.integer.value[0]);
 	return 0;
 }
 
@@ -4449,7 +4457,7 @@ static int snd_hdspm_get_tco_word_term(struct snd_kcontrol *kcontrol,
 {
 	struct hdspm *hdspm = snd_kcontrol_chip(kcontrol);
 
-	ucontrol->value.enumerated.item[0] = hdspm->tco->term;
+	ucontrol->value.integer.value[0] = hdspm->tco->term;
 
 	return 0;
 }
@@ -4460,8 +4468,8 @@ static int snd_hdspm_put_tco_word_term(struct snd_kcontrol *kcontrol,
 {
 	struct hdspm *hdspm = snd_kcontrol_chip(kcontrol);
 
-	if (hdspm->tco->term != ucontrol->value.enumerated.item[0]) {
-		hdspm->tco->term = ucontrol->value.enumerated.item[0];
+	if (hdspm->tco->term != ucontrol->value.integer.value[0]) {
+		hdspm->tco->term = ucontrol->value.integer.value[0];
 
 		hdspm_tco_write(hdspm);
 
@@ -6032,11 +6040,11 @@ static int snd_hdspm_hw_rule_out_channels(struct snd_pcm_hw_params *params,
 }
 
 
-static unsigned int hdspm_aes32_sample_rates[] = {
+static const unsigned int hdspm_aes32_sample_rates[] = {
 	32000, 44100, 48000, 64000, 88200, 96000, 128000, 176400, 192000
 };
 
-static struct snd_pcm_hw_constraint_list
+static const struct snd_pcm_hw_constraint_list
 hdspm_hw_constraints_aes32_sample_rates = {
 	.count = ARRAY_SIZE(hdspm_aes32_sample_rates),
 	.list = hdspm_aes32_sample_rates,
@@ -6353,7 +6361,7 @@ static int snd_hdspm_hwdep_ioctl(struct snd_hwdep *hw, struct file *file,
 	return 0;
 }
 
-static struct snd_pcm_ops snd_hdspm_ops = {
+static const struct snd_pcm_ops snd_hdspm_ops = {
 	.open = snd_hdspm_open,
 	.close = snd_hdspm_release,
 	.ioctl = snd_hdspm_ioctl,

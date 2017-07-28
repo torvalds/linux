@@ -82,7 +82,7 @@ bcom_task_alloc(int bd_count, int bd_size, int priv_size)
 
 	/* Get IRQ of that task */
 	tsk->irq = irq_of_parse_and_map(bcom_eng->ofnode, tsk->tasknum);
-	if (tsk->irq == NO_IRQ)
+	if (!tsk->irq)
 		goto error;
 
 	/* Init the BDs, if needed */
@@ -104,7 +104,7 @@ bcom_task_alloc(int bd_count, int bd_size, int priv_size)
 
 error:
 	if (tsk) {
-		if (tsk->irq != NO_IRQ)
+		if (tsk->irq)
 			irq_dispose_mapping(tsk->irq);
 		bcom_sram_free(tsk->bd);
 		kfree(tsk->cookie);
@@ -397,8 +397,6 @@ static int mpc52xx_bcom_probe(struct platform_device *op)
 	/* Get a clean struct */
 	bcom_eng = kzalloc(sizeof(struct bcom_engine), GFP_KERNEL);
 	if (!bcom_eng) {
-		printk(KERN_ERR DRIVER_NAME ": "
-			"Can't allocate state structure\n");
 		rv = -ENOMEM;
 		goto error_sramclean;
 	}

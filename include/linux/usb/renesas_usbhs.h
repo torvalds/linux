@@ -105,12 +105,26 @@ struct renesas_usbhs_platform_callback {
  * some register needs USB chip specific parameters.
  * This struct show it to driver
  */
+
+struct renesas_usbhs_driver_pipe_config {
+	u8 type;	/* USB_ENDPOINT_XFER_xxx */
+	u16 bufsize;
+	u8 bufnum;
+	bool double_buf;
+};
+#define RENESAS_USBHS_PIPE(_type, _size, _num, _double_buf)	{	\
+			.type = (_type),		\
+			.bufsize = (_size),		\
+			.bufnum = (_num),		\
+			.double_buf = (_double_buf),	\
+	}
+
 struct renesas_usbhs_driver_param {
 	/*
 	 * pipe settings
 	 */
-	u32 *pipe_type; /* array of USB_ENDPOINT_XFER_xxx (from ep0) */
-	int pipe_size; /* pipe_type array size */
+	struct renesas_usbhs_driver_pipe_config *pipe_configs;
+	int pipe_size; /* pipe_configs array size */
 
 	/*
 	 * option:
@@ -170,6 +184,7 @@ struct renesas_usbhs_driver_param {
 };
 
 #define USBHS_TYPE_RCAR_GEN2	1
+#define USBHS_TYPE_RCAR_GEN3	2
 
 /*
  * option:

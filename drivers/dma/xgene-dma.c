@@ -29,6 +29,7 @@
 #include <linux/dmapool.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 
@@ -605,12 +606,10 @@ static void xgene_dma_run_tx_complete_actions(struct xgene_dma_chan *chan,
 		return;
 
 	dma_cookie_complete(tx);
+	dma_descriptor_unmap(tx);
 
 	/* Run the link descriptor callback function */
-	if (tx->callback)
-		tx->callback(tx->callback_param);
-
-	dma_descriptor_unmap(tx);
+	dmaengine_desc_get_callback_invoke(tx, NULL);
 
 	/* Run any dependencies */
 	dma_run_dependencies(tx);
@@ -1610,6 +1609,7 @@ static int xgene_dma_request_irqs(struct xgene_dma *pdma)
 	/* Register DMA channel rx irq */
 	for (i = 0; i < XGENE_DMA_MAX_CHANNEL; i++) {
 		chan = &pdma->chan[i];
+		irq_set_status_flags(chan->rx_irq, IRQ_DISABLE_UNLAZY);
 		ret = devm_request_irq(chan->dev, chan->rx_irq,
 				       xgene_dma_chan_ring_isr,
 				       0, chan->name, chan);
@@ -1620,6 +1620,7 @@ static int xgene_dma_request_irqs(struct xgene_dma *pdma)
 
 			for (j = 0; j < i; j++) {
 				chan = &pdma->chan[i];
+				irq_clear_status_flags(chan->rx_irq, IRQ_DISABLE_UNLAZY);
 				devm_free_irq(chan->dev, chan->rx_irq, chan);
 			}
 
@@ -1640,6 +1641,7 @@ static void xgene_dma_free_irqs(struct xgene_dma *pdma)
 
 	for (i = 0; i < XGENE_DMA_MAX_CHANNEL; i++) {
 		chan = &pdma->chan[i];
+		irq_clear_status_flags(chan->rx_irq, IRQ_DISABLE_UNLAZY);
 		devm_free_irq(chan->dev, chan->rx_irq, chan);
 	}
 }

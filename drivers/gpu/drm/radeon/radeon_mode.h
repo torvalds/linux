@@ -32,6 +32,7 @@
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_encoder.h>
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_dp_mst_helper.h>
 #include <drm/drm_fixed.h>
@@ -330,6 +331,7 @@ struct radeon_crtc {
 	u16 lut_r[256], lut_g[256], lut_b[256];
 	bool enabled;
 	bool can_tile;
+	bool cursor_out_of_bounds;
 	uint32_t crtc_offset;
 	struct drm_gem_object *cursor_bo;
 	uint64_t cursor_addr;
@@ -689,6 +691,9 @@ struct atom_voltage_table
 };
 
 /* Driver internal use only flags of radeon_get_crtc_scanoutpos() */
+#define DRM_SCANOUTPOS_VALID        (1 << 0)
+#define DRM_SCANOUTPOS_IN_VBLANK    (1 << 1)
+#define DRM_SCANOUTPOS_ACCURATE     (1 << 2)
 #define USE_REAL_VBLANKSTART 		(1 << 30)
 #define GET_DISTANCE_TO_VBLANKSTART	(1 << 31)
 
@@ -757,8 +762,10 @@ extern u8 radeon_dp_getsinktype(struct radeon_connector *radeon_connector);
 extern bool radeon_dp_getdpcd(struct radeon_connector *radeon_connector);
 extern int radeon_dp_get_panel_mode(struct drm_encoder *encoder,
 				    struct drm_connector *connector);
-int radeon_dp_get_max_link_rate(struct drm_connector *connector,
-				const u8 *dpcd);
+extern int radeon_dp_get_dp_link_config(struct drm_connector *connector,
+					const u8 *dpcd,
+					unsigned pix_clock,
+					unsigned *dp_lanes, unsigned *dp_rate);
 extern void radeon_dp_set_rx_power_state(struct drm_connector *connector,
 					 u8 power_state);
 extern void radeon_dp_aux_init(struct radeon_connector *radeon_connector);
@@ -934,7 +941,7 @@ extern void radeon_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green
 				     u16 *blue, int regno);
 int radeon_framebuffer_init(struct drm_device *dev,
 			     struct radeon_framebuffer *rfb,
-			     struct drm_mode_fb_cmd2 *mode_cmd,
+			     const struct drm_mode_fb_cmd2 *mode_cmd,
 			     struct drm_gem_object *obj);
 
 int radeonfb_remove(struct drm_device *dev, struct drm_framebuffer *fb);

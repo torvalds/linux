@@ -439,19 +439,22 @@ struct rx_mpdu_end {
  *  c) A-MSDU subframe header (14 bytes) if appliable
  *  d) LLC/SNAP (RFC1042, 8 bytes)
  *
- * In case of A-MSDU only first frame in sequence contains (a) and (b). */
+ * In case of A-MSDU only first frame in sequence contains (a) and (b).
+ */
 enum rx_msdu_decap_format {
 	RX_MSDU_DECAP_RAW = 0,
 
 	/* Note: QoS frames are reported as non-QoS. The rx_hdr_status in
-	 * htt_rx_desc contains the original decapped 802.11 header. */
+	 * htt_rx_desc contains the original decapped 802.11 header.
+	 */
 	RX_MSDU_DECAP_NATIVE_WIFI = 1,
 
 	/* Payload contains an ethernet header (struct ethhdr). */
 	RX_MSDU_DECAP_ETHERNET2_DIX = 2,
 
 	/* Payload contains two 48-bit addresses and 2-byte length (14 bytes
-	 * total), followed by an RFC1042 header (8 bytes). */
+	 * total), followed by an RFC1042 header (8 bytes).
+	 */
 	RX_MSDU_DECAP_8023_SNAP_LLC = 3
 };
 
@@ -656,26 +659,6 @@ struct rx_msdu_end {
  *		Reserved: HW should fill with zero.  FW should ignore.
  */
 
-#define RX_PPDU_START_SIG_RATE_SELECT_OFDM 0
-#define RX_PPDU_START_SIG_RATE_SELECT_CCK  1
-
-#define RX_PPDU_START_SIG_RATE_OFDM_48 0
-#define RX_PPDU_START_SIG_RATE_OFDM_24 1
-#define RX_PPDU_START_SIG_RATE_OFDM_12 2
-#define RX_PPDU_START_SIG_RATE_OFDM_6  3
-#define RX_PPDU_START_SIG_RATE_OFDM_54 4
-#define RX_PPDU_START_SIG_RATE_OFDM_36 5
-#define RX_PPDU_START_SIG_RATE_OFDM_18 6
-#define RX_PPDU_START_SIG_RATE_OFDM_9  7
-
-#define RX_PPDU_START_SIG_RATE_CCK_LP_11  0
-#define RX_PPDU_START_SIG_RATE_CCK_LP_5_5 1
-#define RX_PPDU_START_SIG_RATE_CCK_LP_2   2
-#define RX_PPDU_START_SIG_RATE_CCK_LP_1   3
-#define RX_PPDU_START_SIG_RATE_CCK_SP_11  4
-#define RX_PPDU_START_SIG_RATE_CCK_SP_5_5 5
-#define RX_PPDU_START_SIG_RATE_CCK_SP_2   6
-
 #define HTT_RX_PPDU_START_PREAMBLE_LEGACY        0x04
 #define HTT_RX_PPDU_START_PREAMBLE_HT            0x08
 #define HTT_RX_PPDU_START_PREAMBLE_HT_WITH_TXBF  0x09
@@ -710,25 +693,6 @@ struct rx_msdu_end {
 
 /* No idea what this flag means. It seems to be always set in rate. */
 #define RX_PPDU_START_RATE_FLAG BIT(3)
-
-enum rx_ppdu_start_rate {
-	RX_PPDU_START_RATE_OFDM_48M = RX_PPDU_START_RATE_FLAG | ATH10K_HW_RATE_OFDM_48M,
-	RX_PPDU_START_RATE_OFDM_24M = RX_PPDU_START_RATE_FLAG | ATH10K_HW_RATE_OFDM_24M,
-	RX_PPDU_START_RATE_OFDM_12M = RX_PPDU_START_RATE_FLAG | ATH10K_HW_RATE_OFDM_12M,
-	RX_PPDU_START_RATE_OFDM_6M  = RX_PPDU_START_RATE_FLAG | ATH10K_HW_RATE_OFDM_6M,
-	RX_PPDU_START_RATE_OFDM_54M = RX_PPDU_START_RATE_FLAG | ATH10K_HW_RATE_OFDM_54M,
-	RX_PPDU_START_RATE_OFDM_36M = RX_PPDU_START_RATE_FLAG | ATH10K_HW_RATE_OFDM_36M,
-	RX_PPDU_START_RATE_OFDM_18M = RX_PPDU_START_RATE_FLAG | ATH10K_HW_RATE_OFDM_18M,
-	RX_PPDU_START_RATE_OFDM_9M  = RX_PPDU_START_RATE_FLAG | ATH10K_HW_RATE_OFDM_9M,
-
-	RX_PPDU_START_RATE_CCK_LP_11M  = RX_PPDU_START_RATE_FLAG | ATH10K_HW_RATE_CCK_LP_11M,
-	RX_PPDU_START_RATE_CCK_LP_5_5M = RX_PPDU_START_RATE_FLAG | ATH10K_HW_RATE_CCK_LP_5_5M,
-	RX_PPDU_START_RATE_CCK_LP_2M   = RX_PPDU_START_RATE_FLAG | ATH10K_HW_RATE_CCK_LP_2M,
-	RX_PPDU_START_RATE_CCK_LP_1M   = RX_PPDU_START_RATE_FLAG | ATH10K_HW_RATE_CCK_LP_1M,
-	RX_PPDU_START_RATE_CCK_SP_11M  = RX_PPDU_START_RATE_FLAG | ATH10K_HW_RATE_CCK_SP_11M,
-	RX_PPDU_START_RATE_CCK_SP_5_5M = RX_PPDU_START_RATE_FLAG | ATH10K_HW_RATE_CCK_SP_5_5M,
-	RX_PPDU_START_RATE_CCK_SP_2M   = RX_PPDU_START_RATE_FLAG | ATH10K_HW_RATE_CCK_SP_2M,
-};
 
 struct rx_ppdu_start {
 	struct {
@@ -906,7 +870,7 @@ struct rx_ppdu_start {
  *
  * reserved_9
  *		Reserved: HW should fill with 0, FW should ignore.
-*/
+ */
 
 #define RX_PPDU_END_FLAGS_PHY_ERR             (1 << 0)
 #define RX_PPDU_END_FLAGS_RX_LOCATION         (1 << 1)
@@ -994,7 +958,41 @@ struct rx_pkt_end {
 	__le32 info0; /* %RX_PKT_END_INFO0_ */
 	__le32 phy_timestamp_1;
 	__le32 phy_timestamp_2;
-	__le32 rx_location_info; /* %RX_LOCATION_INFO_ */
+} __packed;
+
+#define RX_LOCATION_INFO0_RTT_FAC_LEGACY_MASK		0x00003fff
+#define RX_LOCATION_INFO0_RTT_FAC_LEGACY_LSB		0
+#define RX_LOCATION_INFO0_RTT_FAC_VHT_MASK		0x1fff8000
+#define RX_LOCATION_INFO0_RTT_FAC_VHT_LSB		15
+#define RX_LOCATION_INFO0_RTT_STRONGEST_CHAIN_MASK	0xc0000000
+#define RX_LOCATION_INFO0_RTT_STRONGEST_CHAIN_LSB	30
+#define RX_LOCATION_INFO0_RTT_FAC_LEGACY_STATUS		BIT(14)
+#define RX_LOCATION_INFO0_RTT_FAC_VHT_STATUS		BIT(29)
+
+#define RX_LOCATION_INFO1_RTT_PREAMBLE_TYPE_MASK	0x0000000c
+#define RX_LOCATION_INFO1_RTT_PREAMBLE_TYPE_LSB		2
+#define RX_LOCATION_INFO1_PKT_BW_MASK			0x00000030
+#define RX_LOCATION_INFO1_PKT_BW_LSB			4
+#define RX_LOCATION_INFO1_SKIP_P_SKIP_BTCF_MASK		0x0000ff00
+#define RX_LOCATION_INFO1_SKIP_P_SKIP_BTCF_LSB		8
+#define RX_LOCATION_INFO1_RTT_MSC_RATE_MASK		0x000f0000
+#define RX_LOCATION_INFO1_RTT_MSC_RATE_LSB		16
+#define RX_LOCATION_INFO1_RTT_PBD_LEG_BW_MASK		0x00300000
+#define RX_LOCATION_INFO1_RTT_PBD_LEG_BW_LSB		20
+#define RX_LOCATION_INFO1_TIMING_BACKOFF_MASK		0x07c00000
+#define RX_LOCATION_INFO1_TIMING_BACKOFF_LSB		22
+#define RX_LOCATION_INFO1_RTT_TX_FRAME_PHASE_MASK	0x18000000
+#define RX_LOCATION_INFO1_RTT_TX_FRAME_PHASE_LSB	27
+#define RX_LOCATION_INFO1_RTT_CFR_STATUS		BIT(0)
+#define RX_LOCATION_INFO1_RTT_CIR_STATUS		BIT(1)
+#define RX_LOCATION_INFO1_RTT_GI_TYPE			BIT(7)
+#define RX_LOCATION_INFO1_RTT_MAC_PHY_PHASE		BIT(29)
+#define RX_LOCATION_INFO1_RTT_TX_DATA_START_X_PHASE	BIT(30)
+#define RX_LOCATION_INFO1_RX_LOCATION_VALID		BIT(31)
+
+struct rx_location_info {
+	__le32 rx_location_info0; /* %RX_LOCATION_INFO0_ */
+	__le32 rx_location_info1; /* %RX_LOCATION_INFO1_ */
 } __packed;
 
 enum rx_phy_ppdu_end_info0 {
@@ -1067,6 +1065,17 @@ struct rx_phy_ppdu_end {
 
 struct rx_ppdu_end_qca99x0 {
 	struct rx_pkt_end rx_pkt_end;
+	__le32 rx_location_info; /* %RX_LOCATION_INFO_ */
+	struct rx_phy_ppdu_end rx_phy_ppdu_end;
+	__le32 rx_timing_offset; /* %RX_PPDU_END_RX_TIMING_OFFSET_ */
+	__le32 rx_info; /* %RX_PPDU_END_RX_INFO_ */
+	__le16 bb_length;
+	__le16 info1; /* %RX_PPDU_END_INFO1_ */
+} __packed;
+
+struct rx_ppdu_end_qca9984 {
+	struct rx_pkt_end rx_pkt_end;
+	struct rx_location_info rx_location_info;
 	struct rx_phy_ppdu_end rx_phy_ppdu_end;
 	__le32 rx_timing_offset; /* %RX_PPDU_END_RX_TIMING_OFFSET_ */
 	__le32 rx_info; /* %RX_PPDU_END_RX_INFO_ */
@@ -1080,6 +1089,7 @@ struct rx_ppdu_end {
 		struct rx_ppdu_end_qca988x qca988x;
 		struct rx_ppdu_end_qca6174 qca6174;
 		struct rx_ppdu_end_qca99x0 qca99x0;
+		struct rx_ppdu_end_qca9984 qca9984;
 	} __packed;
 } __packed;
 
@@ -1200,7 +1210,7 @@ struct rx_ppdu_end {
  *		Every time HW sets this bit in memory FW/SW must clear this
  *		bit in memory.  FW will initialize all the ppdu_done dword
  *		to 0.
-*/
+ */
 
 #define FW_RX_DESC_INFO0_DISCARD  (1 << 0)
 #define FW_RX_DESC_INFO0_FORWARD  (1 << 1)

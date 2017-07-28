@@ -26,3 +26,7 @@ config VFIO_PCI_MMAP
 config VFIO_PCI_INTX
 	depends on VFIO_PCI
 	def_bool y if !S390
+
+config VFIO_PCI_IGD
+	depends on VFIO_PCI
+	def_bool y if X86

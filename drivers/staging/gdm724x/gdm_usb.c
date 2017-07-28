@@ -55,9 +55,6 @@ static const struct usb_device_id id_table[] = {
 
 MODULE_DEVICE_TABLE(usb, id_table);
 
-static struct workqueue_struct *usb_tx_wq;
-static struct workqueue_struct *usb_rx_wq;
-
 static void do_tx(struct work_struct *work);
 static void do_rx(struct work_struct *work);
 
@@ -418,10 +415,10 @@ static void do_rx(struct work_struct *work)
 		switch (cmd_evt) {
 		case LTE_GET_INFORMATION_RESULT:
 			if (set_mac_address(hci->data, r->cb_data) == 0) {
-				ret = r->callback(r->cb_data,
-						  r->buf,
-						  r->urb->actual_length,
-						  KERNEL_THREAD);
+				r->callback(r->cb_data,
+					    r->buf,
+					    r->urb->actual_length,
+					    KERNEL_THREAD);
 			}
 			break;
 
@@ -476,7 +473,7 @@ static void gdm_usb_rcv_complete(struct urb *urb)
 	if (!urb->status && r->callback) {
 		spin_lock_irqsave(&rx->to_host_lock, flags);
 		list_add_tail(&r->to_host_list, &rx->to_host_list);
-		queue_work(usb_rx_wq, &udev->work_rx.work);
+		schedule_work(&udev->work_rx.work);
 		spin_unlock_irqrestore(&rx->to_host_lock, flags);
 	} else {
 		if (urb->status && udev->usb_state == PM_NORMAL)
@@ -568,7 +565,7 @@ static void gdm_usb_send_complete(struct urb *urb)
 
 	spin_lock_irqsave(&tx->lock, flags);
 	udev->send_complete = 1;
-	queue_work(usb_tx_wq, &udev->work_tx.work);
+	schedule_work(&udev->work_tx.work);
 	spin_unlock_irqrestore(&tx->lock, flags);
 }
 
@@ -711,7 +708,7 @@ static void do_tx(struct work_struct *work)
 
 #define SDU_PARAM_LEN 12
 static int gdm_usb_sdu_send(void *priv_dev, void *data, int len,
-			    unsigned int dftEpsId, unsigned int epsId,
+			    unsigned int dft_eps_ID, unsigned int eps_ID,
 			    void (*cb)(void *data), void *cb_data,
 			    int dev_idx, int nic_type)
 {
@@ -741,16 +738,16 @@ static int gdm_usb_sdu_send(void *priv_dev, void *data, int len,
 	sdu->cmd_evt = gdm_cpu_to_dev16(&udev->gdm_ed, LTE_TX_SDU);
 	if (nic_type == NIC_TYPE_ARP) {
 		send_len = len + SDU_PARAM_LEN;
-	    memcpy(sdu->data, data, len);
+		memcpy(sdu->data, data, len);
 	} else {
-	    send_len = len - ETH_HLEN;
-	    send_len += SDU_PARAM_LEN;
-	    memcpy(sdu->data, data + ETH_HLEN, len - ETH_HLEN);
+		send_len = len - ETH_HLEN;
+		send_len += SDU_PARAM_LEN;
+		memcpy(sdu->data, data + ETH_HLEN, len - ETH_HLEN);
 	}
 
 	sdu->len = gdm_cpu_to_dev16(&udev->gdm_ed, send_len);
-	sdu->dftEpsId = gdm_cpu_to_dev32(&udev->gdm_ed, dftEpsId);
-	sdu->bearer_ID = gdm_cpu_to_dev32(&udev->gdm_ed, epsId);
+	sdu->dft_eps_ID = gdm_cpu_to_dev32(&udev->gdm_ed, dft_eps_ID);
+	sdu->bearer_ID = gdm_cpu_to_dev32(&udev->gdm_ed, eps_ID);
 	sdu->nic_type = gdm_cpu_to_dev32(&udev->gdm_ed, nic_type);
 
 	t_sdu->len = send_len + HCI_HEADER_SIZE;
@@ -759,7 +756,7 @@ static int gdm_usb_sdu_send(void *priv_dev, void *data, int len,
 
 	spin_lock_irqsave(&tx->lock, flags);
 	list_add_tail(&t_sdu->list, &tx->sdu_list);
-	queue_work(usb_tx_wq, &udev->work_tx.work);
+	schedule_work(&udev->work_tx.work);
 	spin_unlock_irqrestore(&tx->lock, flags);
 
 	if (no_spc)
@@ -796,7 +793,7 @@ static int gdm_usb_hci_send(void *priv_dev, void *data, int len,
 
 	spin_lock_irqsave(&tx->lock, flags);
 	list_add_tail(&t->list, &tx->hci_list);
-	queue_work(usb_tx_wq, &udev->work_tx.work);
+	schedule_work(&udev->work_tx.work);
 	spin_unlock_irqrestore(&tx->lock, flags);
 
 	return 0;
@@ -944,6 +941,9 @@ static int gdm_usb_suspend(struct usb_interface *intf, pm_message_t pm_msg)
 	}
 	spin_unlock_irqrestore(&rx->submit_lock, flags);
 
+	cancel_work_sync(&udev->work_tx.work);
+	cancel_work_sync(&udev->work_rx.work);
+
 	return 0;
 }
 
@@ -981,7 +981,7 @@ static int gdm_usb_resume(struct usb_interface *intf)
 
 	tx = &udev->tx;
 	spin_lock_irqsave(&tx->lock, flags);
-	queue_work(usb_tx_wq, &udev->work_tx.work);
+	schedule_work(&udev->work_tx.work);
 	spin_unlock_irqrestore(&tx->lock, flags);
 
 	return 0;
@@ -1005,14 +1005,6 @@ static int __init gdm_usb_lte_init(void)
 		return -1;
 	}
 
-	usb_tx_wq = create_workqueue("usb_tx_wq");
-	if (!usb_tx_wq)
-		return -1;
-
-	usb_rx_wq = create_workqueue("usb_rx_wq");
-	if (!usb_rx_wq)
-		return -1;
-
 	return usb_register(&gdm_usb_lte_driver);
 }
 
@@ -1021,16 +1013,6 @@ static void __exit gdm_usb_lte_exit(void)
 	gdm_lte_event_exit();
 
 	usb_deregister(&gdm_usb_lte_driver);
-
-	if (usb_tx_wq) {
-		flush_workqueue(usb_tx_wq);
-		destroy_workqueue(usb_tx_wq);
-	}
-
-	if (usb_rx_wq) {
-		flush_workqueue(usb_rx_wq);
-		destroy_workqueue(usb_rx_wq);
-	}
 }
 
 module_init(gdm_usb_lte_init);

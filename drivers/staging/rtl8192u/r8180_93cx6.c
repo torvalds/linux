@@ -1,30 +1,33 @@
 /*
-   This files contains card eeprom (93c46 or 93c56) programming routines,
-   memory is addressed by 16 bits words.
-
-   This is part of rtl8180 OpenSource driver.
-   Copyright (C) Andrea Merello 2004  <andrea.merello@gmail.com>
-   Released under the terms of GPL (General Public Licence)
-
-   Parts of this driver are based on the GPL part of the
-   official realtek driver.
-
-   Parts of this driver are based on the rtl8180 driver skeleton
-   from Patric Schenke & Andres Salomon.
-
-   Parts of this driver are based on the Intel Pro Wireless 2100 GPL driver.
-
-   We want to thank the Authors of those projects and the Ndiswrapper
-   project Authors.
-*/
+ *  This files contains card eeprom (93c46 or 93c56) programming routines,
+ *  memory is addressed by 16 bits words.
+ *
+ *  This is part of rtl8180 OpenSource driver.
+ *  Copyright (C) Andrea Merello 2004  <andrea.merello@gmail.com>
+ *  Released under the terms of GPL (General Public Licence)
+ *
+ *  Parts of this driver are based on the GPL part of the
+ *  official realtek driver.
+ *
+ *  Parts of this driver are based on the rtl8180 driver skeleton
+ *  from Patric Schenke & Andres Salomon.
+ *
+ *  Parts of this driver are based on the Intel Pro Wireless 2100 GPL driver.
+ *
+ *  We want to thank the Authors of those projects and the Ndiswrapper
+ *  project Authors.
+ */
 
 #include "r8180_93cx6.h"
 
 static void eprom_cs(struct net_device *dev, short bit)
 {
 	u8 cmdreg;
+	int err;
 
-	read_nic_byte_E(dev, EPROM_CMD, &cmdreg);
+	err = read_nic_byte_E(dev, EPROM_CMD, &cmdreg);
+	if (err)
+		return;
 	if (bit)
 		/* enable EPROM */
 		write_nic_byte_E(dev, EPROM_CMD, cmdreg | EPROM_CS_BIT);
@@ -40,8 +43,11 @@ static void eprom_cs(struct net_device *dev, short bit)
 static void eprom_ck_cycle(struct net_device *dev)
 {
 	u8 cmdreg;
+	int err;
 
-	read_nic_byte_E(dev, EPROM_CMD, &cmdreg);
+	err = read_nic_byte_E(dev, EPROM_CMD, &cmdreg);
+	if (err)
+		return;
 	write_nic_byte_E(dev, EPROM_CMD, cmdreg | EPROM_CK_BIT);
 	force_pci_posting(dev);
 	udelay(EPROM_DELAY);
@@ -56,8 +62,11 @@ static void eprom_ck_cycle(struct net_device *dev)
 static void eprom_w(struct net_device *dev, short bit)
 {
 	u8 cmdreg;
+	int err;
 
-	read_nic_byte_E(dev, EPROM_CMD, &cmdreg);
+	err = read_nic_byte_E(dev, EPROM_CMD, &cmdreg);
+	if (err)
+		return;
 	if (bit)
 		write_nic_byte_E(dev, EPROM_CMD, cmdreg | EPROM_W_BIT);
 	else
@@ -71,8 +80,12 @@ static void eprom_w(struct net_device *dev, short bit)
 static short eprom_r(struct net_device *dev)
 {
 	u8 bit;
+	int err;
 
-	read_nic_byte_E(dev, EPROM_CMD, &bit);
+	err = read_nic_byte_E(dev, EPROM_CMD, &bit);
+	if (err)
+		return err;
+
 	udelay(EPROM_DELAY);
 
 	if (bit & EPROM_R_BIT)
@@ -93,7 +106,7 @@ static void eprom_send_bits_string(struct net_device *dev, short b[], int len)
 }
 
 
-u32 eprom_read(struct net_device *dev, u32 addr)
+int eprom_read(struct net_device *dev, u32 addr)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	short read_cmd[] = {1, 1, 0};
@@ -101,6 +114,7 @@ u32 eprom_read(struct net_device *dev, u32 addr)
 	int i;
 	int addr_len;
 	u32 ret;
+	int err;
 
 	ret = 0;
 	/* enable EPROM programming */
@@ -144,7 +158,11 @@ u32 eprom_read(struct net_device *dev, u32 addr)
 		 * and reading data. (eeprom outs a dummy 0)
 		 */
 		eprom_ck_cycle(dev);
-		ret |= (eprom_r(dev)<<(15-i));
+		err = eprom_r(dev);
+		if (err < 0)
+			return err;
+
+		ret |= err<<(15-i);
 	}
 
 	eprom_cs(dev, 0);

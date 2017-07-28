@@ -27,16 +27,23 @@ extern void	 atomic64_##op(long long a, atomic64_t *v);
 #define ATOMIC64_OP_RETURN(op)						\
 extern long long atomic64_##op##_return(long long a, atomic64_t *v);
 
-#define ATOMIC64_OPS(op)	ATOMIC64_OP(op) ATOMIC64_OP_RETURN(op)
+#define ATOMIC64_FETCH_OP(op)						\
+extern long long atomic64_fetch_##op(long long a, atomic64_t *v);
+
+#define ATOMIC64_OPS(op)	ATOMIC64_OP(op) ATOMIC64_OP_RETURN(op) ATOMIC64_FETCH_OP(op)
 
 ATOMIC64_OPS(add)
 ATOMIC64_OPS(sub)
 
-ATOMIC64_OP(and)
-ATOMIC64_OP(or)
-ATOMIC64_OP(xor)
+#undef ATOMIC64_OPS
+#define ATOMIC64_OPS(op)	ATOMIC64_OP(op) ATOMIC64_FETCH_OP(op)
+
+ATOMIC64_OPS(and)
+ATOMIC64_OPS(or)
+ATOMIC64_OPS(xor)
 
 #undef ATOMIC64_OPS
+#undef ATOMIC64_FETCH_OP
 #undef ATOMIC64_OP_RETURN
 #undef ATOMIC64_OP
 

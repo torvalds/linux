@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  * File: desc.h
  *
  * Purpose:The header file of descriptor
@@ -157,7 +153,8 @@
 
 /* TD_INFO flags control bit */
 #define TD_FLAGS_NETIF_SKB      0x01    /* check if need release skb */
-#define TD_FLAGS_PRIV_SKB       0x02    /* check if called from private skb (hostap) */
+/* check if called from private skb (hostap) */
+#define TD_FLAGS_PRIV_SKB       0x02
 #define TD_FLAGS_PS_RETRY       0x04    /* check if PS STA frame re-transmit */
 
 /*

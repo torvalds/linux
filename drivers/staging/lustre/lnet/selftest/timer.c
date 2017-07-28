@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -49,25 +45,26 @@
  * sorted by increasing expiry time. The number of slots is 2**7 (128),
  * to cover a time period of 1024 seconds into the future before wrapping.
  */
-#define STTIMER_MINPOLL        3   /* log2 min poll interval (8 s) */
-#define STTIMER_SLOTTIME       (1 << STTIMER_MINPOLL)
+#define STTIMER_MINPOLL        3	/* log2 min poll interval (8 s) */
+#define STTIMER_SLOTTIME	BIT(STTIMER_MINPOLL)
 #define STTIMER_SLOTTIMEMASK   (~(STTIMER_SLOTTIME - 1))
-#define STTIMER_NSLOTS	       (1 << 7)
+#define STTIMER_NSLOTS		BIT(7)
 #define STTIMER_SLOT(t)	       (&stt_data.stt_hash[(((t) >> STTIMER_MINPOLL) & \
 						    (STTIMER_NSLOTS - 1))])
 
 static struct st_timer_data {
-	spinlock_t        stt_lock;
-	unsigned long     stt_prev_slot; /* start time of the slot processed
-					  * previously */
+	spinlock_t	  stt_lock;
+	unsigned long	  stt_prev_slot; /* start time of the slot processed
+					  * previously
+					  */
 	struct list_head  stt_hash[STTIMER_NSLOTS];
-	int               stt_shuttingdown;
+	int		  stt_shuttingdown;
 	wait_queue_head_t stt_waitq;
-	int               stt_nthreads;
+	int		  stt_nthreads;
 } stt_data;
 
 void
-stt_add_timer(stt_timer_t *timer)
+stt_add_timer(struct stt_timer *timer)
 {
 	struct list_head *pos;
 
@@ -75,13 +72,14 @@ stt_add_timer(stt_timer_t *timer)
 
 	LASSERT(stt_data.stt_nthreads > 0);
 	LASSERT(!stt_data.stt_shuttingdown);
-	LASSERT(timer->stt_func != NULL);
+	LASSERT(timer->stt_func);
 	LASSERT(list_empty(&timer->stt_list));
 	LASSERT(timer->stt_expires > ktime_get_real_seconds());
 
 	/* a simple insertion sort */
 	list_for_each_prev(pos, STTIMER_SLOT(timer->stt_expires)) {
-		stt_timer_t *old = list_entry(pos, stt_timer_t, stt_list);
+		struct stt_timer *old = list_entry(pos, struct stt_timer,
+						   stt_list);
 
 		if (timer->stt_expires >= old->stt_expires)
 			break;
@@ -101,7 +99,7 @@ stt_add_timer(stt_timer_t *timer)
  * another CPU.
  */
 int
-stt_del_timer(stt_timer_t *timer)
+stt_del_timer(struct stt_timer *timer)
 {
 	int ret = 0;
 
@@ -124,10 +122,10 @@ static int
 stt_expire_list(struct list_head *slot, time64_t now)
 {
 	int expired = 0;
-	stt_timer_t *timer;
+	struct stt_timer *timer;
 
 	while (!list_empty(slot)) {
-		timer = list_entry(slot->next, stt_timer_t, stt_list);
+		timer = list_entry(slot->next, struct stt_timer, stt_list);
 
 		if (timer->stt_expires > now)
 			break;
@@ -169,20 +167,22 @@ stt_check_timers(unsigned long *last)
 static int
 stt_timer_main(void *arg)
 {
+	int rc = 0;
+
 	cfs_block_allsigs();
 
 	while (!stt_data.stt_shuttingdown) {
 		stt_check_timers(&stt_data.stt_prev_slot);
 
-		wait_event_timeout(stt_data.stt_waitq,
-				   stt_data.stt_shuttingdown,
-				   cfs_time_seconds(STTIMER_SLOTTIME));
+		rc = wait_event_timeout(stt_data.stt_waitq,
+					stt_data.stt_shuttingdown,
+					cfs_time_seconds(STTIMER_SLOTTIME));
 	}
 
 	spin_lock(&stt_data.stt_lock);
 	stt_data.stt_nthreads--;
 	spin_unlock(&stt_data.stt_lock);
-	return 0;
+	return rc;
 }
 
 static int
@@ -218,7 +218,7 @@ stt_startup(void)
 	stt_data.stt_nthreads = 0;
 	init_waitqueue_head(&stt_data.stt_waitq);
 	rc = stt_start_timer_thread();
-	if (rc != 0)
+	if (rc)
 		CERROR("Can't spawn timer thread: %d\n", rc);
 
 	return rc;
@@ -237,7 +237,7 @@ stt_shutdown(void)
 	stt_data.stt_shuttingdown = 1;
 
 	wake_up(&stt_data.stt_waitq);
-	lst_wait_until(stt_data.stt_nthreads == 0, stt_data.stt_lock,
+	lst_wait_until(!stt_data.stt_nthreads, stt_data.stt_lock,
 		       "waiting for %d threads to terminate\n",
 		       stt_data.stt_nthreads);
 

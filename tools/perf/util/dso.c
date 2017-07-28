@@ -1,12 +1,28 @@
 #include <asm/bug.h>
+#include <linux/kernel.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <errno.h>
+#include "compress.h"
+#include "path.h"
 #include "symbol.h"
 #include "dso.h"
 #include "machine.h"
 #include "auxtrace.h"
 #include "util.h"
 #include "debug.h"
+#include "string2.h"
+#include "vdso.h"
+
+static const char * const debuglink_paths[] = {
+	"%.0s%s",
+	"%s/%s",
+	"%s/.debug/%s",
+	"/usr/lib/debug%s/%s"
+};
 
 char dso__symtab_origin(const struct dso *dso)
 {
@@ -38,28 +54,50 @@ int dso__read_binary_type_filename(const struct dso *dso,
 				   enum dso_binary_type type,
 				   char *root_dir, char *filename, size_t size)
 {
-	char build_id_hex[BUILD_ID_SIZE * 2 + 1];
+	char build_id_hex[SBUILD_ID_SIZE];
 	int ret = 0;
 	size_t len;
 
 	switch (type) {
-	case DSO_BINARY_TYPE__DEBUGLINK: {
-		char *debuglink;
+	case DSO_BINARY_TYPE__DEBUGLINK:
+	{
+		const char *last_slash;
+		char dso_dir[PATH_MAX];
+		char symfile[PATH_MAX];
+		unsigned int i;
 
 		len = __symbol__join_symfs(filename, size, dso->long_name);
-		debuglink = filename + len;
-		while (debuglink != filename && *debuglink != '/')
-			debuglink--;
-		if (*debuglink == '/')
-			debuglink++;
-		ret = filename__read_debuglink(filename, debuglink,
-					       size - (debuglink - filename));
+		last_slash = filename + len;
+		while (last_slash != filename && *last_slash != '/')
+			last_slash--;
+
+		strncpy(dso_dir, filename, last_slash - filename);
+		dso_dir[last_slash-filename] = '\0';
+
+		if (!is_regular_file(filename)) {
+			ret = -1;
+			break;
 		}
+
+		ret = filename__read_debuglink(filename, symfile, PATH_MAX);
+		if (ret)
+			break;
+
+		/* Check predefined locations where debug file might reside */
+		ret = -1;
+		for (i = 0; i < ARRAY_SIZE(debuglink_paths); i++) {
+			snprintf(filename, size,
+					debuglink_paths[i], dso_dir, symfile);
+			if (is_regular_file(filename)) {
+				ret = 0;
+				break;
+			}
+		}
+
 		break;
+	}
 	case DSO_BINARY_TYPE__BUILD_ID_CACHE:
-		/* skip the locally configured cache if a symfs is given */
-		if (symbol_conf.symfs[0] ||
-		    (dso__build_id_filename(dso, filename, size) == NULL))
+		if (dso__build_id_filename(dso, filename, size) == NULL)
 			ret = -1;
 		break;
 
@@ -210,6 +248,64 @@ bool dso__needs_decompress(struct dso *dso)
 		dso->symtab_type == DSO_BINARY_TYPE__GUEST_KMODULE_COMP;
 }
 
+static int decompress_kmodule(struct dso *dso, const char *name, char *tmpbuf)
+{
+	int fd = -1;
+	struct kmod_path m;
+
+	if (!dso__needs_decompress(dso))
+		return -1;
+
+	if (kmod_path__parse_ext(&m, dso->long_name))
+		return -1;
+
+	if (!m.comp)
+		goto out;
+
+	fd = mkstemp(tmpbuf);
+	if (fd < 0) {
+		dso->load_errno = errno;
+		goto out;
+	}
+
+	if (!decompress_to_file(m.ext, name, fd)) {
+		dso->load_errno = DSO_LOAD_ERRNO__DECOMPRESSION_FAILURE;
+		close(fd);
+		fd = -1;
+	}
+
+out:
+	free(m.ext);
+	return fd;
+}
+
+int dso__decompress_kmodule_fd(struct dso *dso, const char *name)
+{
+	char tmpbuf[] = KMOD_DECOMP_NAME;
+	int fd;
+
+	fd = decompress_kmodule(dso, name, tmpbuf);
+	unlink(tmpbuf);
+	return fd;
+}
+
+int dso__decompress_kmodule_path(struct dso *dso, const char *name,
+				 char *pathname, size_t len)
+{
+	char tmpbuf[] = KMOD_DECOMP_NAME;
+	int fd;
+
+	fd = decompress_kmodule(dso, name, tmpbuf);
+	if (fd < 0) {
+		unlink(tmpbuf);
+		return -1;
+	}
+
+	strncpy(pathname, tmpbuf, len);
+	close(fd);
+	return 0;
+}
+
 /*
  * Parses kernel module specified in @path and updates
  * @m argument like:
@@ -297,6 +393,21 @@ int __kmod_path__parse(struct kmod_path *m, const char *path,
 	return 0;
 }
 
+void dso__set_module_info(struct dso *dso, struct kmod_path *m,
+			  struct machine *machine)
+{
+	if (machine__is_host(machine))
+		dso->symtab_type = DSO_BINARY_TYPE__SYSTEM_PATH_KMODULE;
+	else
+		dso->symtab_type = DSO_BINARY_TYPE__GUEST_KMODULE;
+
+	/* _KMODULE_COMP should be next to _KMODULE */
+	if (m->kmod && m->comp)
+		dso->symtab_type++;
+
+	dso__set_short_name(dso, strdup(m->name), true);
+}
+
 /*
  * Global list of open DSOs and the counter.
  */
@@ -331,7 +442,7 @@ static int do_open(char *name)
 			return fd;
 
 		pr_debug("dso open failed: %s\n",
-			 strerror_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		if (!dso__data_open_cnt || errno != EMFILE)
 			break;
 
@@ -343,7 +454,7 @@ static int do_open(char *name)
 
 static int __open_dso(struct dso *dso, struct machine *machine)
 {
-	int fd;
+	int fd = -EINVAL;
 	char *root_dir = (char *)"";
 	char *name = malloc(PATH_MAX);
 
@@ -354,12 +465,30 @@ static int __open_dso(struct dso *dso, struct machine *machine)
 		root_dir = machine->root_dir;
 
 	if (dso__read_binary_type_filename(dso, dso->binary_type,
-					    root_dir, name, PATH_MAX)) {
-		free(name);
-		return -EINVAL;
+					    root_dir, name, PATH_MAX))
+		goto out;
+
+	if (!is_regular_file(name))
+		goto out;
+
+	if (dso__needs_decompress(dso)) {
+		char newpath[KMOD_DECOMP_LEN];
+		size_t len = sizeof(newpath);
+
+		if (dso__decompress_kmodule_path(dso, name, newpath, len) < 0) {
+			fd = -dso->load_errno;
+			goto out;
+		}
+
+		strcpy(name, newpath);
 	}
 
 	fd = do_open(name);
+
+	if (dso__needs_decompress(dso))
+		unlink(name);
+
+out:
 	free(name);
 	return fd;
 }
@@ -438,17 +567,27 @@ static rlim_t get_fd_limit(void)
 	return limit;
 }
 
+static rlim_t fd_limit;
+
+/*
+ * Used only by tests/dso-data.c to reset the environment
+ * for tests. I dont expect we should change this during
+ * standard runtime.
+ */
+void reset_fd_limit(void)
+{
+	fd_limit = 0;
+}
+
 static bool may_cache_fd(void)
 {
-	static rlim_t limit;
+	if (!fd_limit)
+		fd_limit = get_fd_limit();
 
-	if (!limit)
-		limit = get_fd_limit();
-
-	if (limit == RLIM_INFINITY)
+	if (fd_limit == RLIM_INFINITY)
 		return true;
 
-	return limit > (rlim_t) dso__data_open_cnt;
+	return fd_limit > (rlim_t) dso__data_open_cnt;
 }
 
 /*
@@ -772,7 +911,7 @@ static int data_file_size(struct dso *dso, struct machine *machine)
 	if (fstat(dso->data.fd, &st) < 0) {
 		ret = -errno;
 		pr_err("dso cache fstat failed: %s\n",
-		       strerror_r(errno, sbuf, sizeof(sbuf)));
+		       str_error_r(errno, sbuf, sizeof(sbuf)));
 		dso->data.status = DSO_DATA_STATUS_ERROR;
 		goto out;
 	}
@@ -908,7 +1047,7 @@ static struct dso *__dso__findlink_by_longname(struct rb_root *root,
 		if (rc == 0) {
 			/*
 			 * In case the new DSO is a duplicate of an existing
-			 * one, print an one-time warning & put the new entry
+			 * one, print a one-time warning & put the new entry
 			 * at the end of the list of duplicates.
 			 */
 			if (!dso || (dso == this))
@@ -1015,7 +1154,7 @@ int dso__name_len(const struct dso *dso)
 {
 	if (!dso)
 		return strlen("[unknown]");
-	if (verbose)
+	if (verbose > 0)
 		return dso->long_name_len;
 
 	return dso->short_name_len;
@@ -1066,7 +1205,7 @@ struct dso *dso__new(const char *name)
 		INIT_LIST_HEAD(&dso->node);
 		INIT_LIST_HEAD(&dso->data.open_entry);
 		pthread_mutex_init(&dso->lock, NULL);
-		atomic_set(&dso->refcnt, 1);
+		refcount_set(&dso->refcnt, 1);
 	}
 
 	return dso;
@@ -1104,13 +1243,13 @@ void dso__delete(struct dso *dso)
 struct dso *dso__get(struct dso *dso)
 {
 	if (dso)
-		atomic_inc(&dso->refcnt);
+		refcount_inc(&dso->refcnt);
 	return dso;
 }
 
 void dso__put(struct dso *dso)
 {
-	if (dso && atomic_dec_and_test(&dso->refcnt))
+	if (dso && refcount_dec_and_test(&dso->refcnt))
 		dso__delete(dso);
 }
 
@@ -1164,7 +1303,7 @@ bool __dsos__read_build_ids(struct list_head *head, bool with_hits)
 	struct dso *pos;
 
 	list_for_each_entry(pos, head, node) {
-		if (with_hits && !pos->hit)
+		if (with_hits && !pos->hit && !dso__is_vdso(pos))
 			continue;
 		if (pos->has_build_id) {
 			have_build_id = true;
@@ -1243,6 +1382,8 @@ struct dso *__dsos__addnew(struct dsos *dsos, const char *name)
 	if (dso != NULL) {
 		__dsos__add(dsos, dso);
 		dso__set_basename(dso);
+		/* Put dso here because __dsos_add already got it */
+		dso__put(dso);
 	}
 	return dso;
 }
@@ -1294,7 +1435,7 @@ size_t __dsos__fprintf(struct list_head *head, FILE *fp)
 
 size_t dso__fprintf_buildid(struct dso *dso, FILE *fp)
 {
-	char sbuild_id[BUILD_ID_SIZE * 2 + 1];
+	char sbuild_id[SBUILD_ID_SIZE];
 
 	build_id__sprintf(dso->build_id, sizeof(dso->build_id), sbuild_id);
 	return fprintf(fp, "%s", sbuild_id);
@@ -1350,7 +1491,7 @@ int dso__strerror_load(struct dso *dso, char *buf, size_t buflen)
 	BUG_ON(buflen == 0);
 
 	if (errnum >= 0) {
-		const char *err = strerror_r(errnum, buf, buflen);
+		const char *err = str_error_r(errnum, buf, buflen);
 
 		if (err != buf)
 			scnprintf(buf, buflen, "%s", err);

@@ -21,6 +21,7 @@
 #include <linux/jiffies.h>
 #include <linux/smp.h>
 
+#include <soc/tegra/flowctrl.h>
 #include <soc/tegra/fuse.h>
 #include <soc/tegra/pmc.h>
 
@@ -30,7 +31,6 @@
 #include <asm/smp_scu.h>
 
 #include "common.h"
-#include "flowctrl.h"
 #include "iomap.h"
 #include "reset.h"
 
@@ -108,19 +108,9 @@ static int tegra30_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 * be un-gated by un-toggling the power gate register
 	 * manually.
 	 */
-	if (!tegra_pmc_cpu_is_powered(cpu)) {
-		ret = tegra_pmc_cpu_power_on(cpu);
-		if (ret)
-			return ret;
-
-		/* Wait for the power to come up. */
-		timeout = jiffies + msecs_to_jiffies(100);
-		while (!tegra_pmc_cpu_is_powered(cpu)) {
-			if (time_after(jiffies, timeout))
-				return -ETIMEDOUT;
-			udelay(10);
-		}
-	}
+	ret = tegra_pmc_cpu_power_on(cpu);
+	if (ret)
+		return ret;
 
 remove_clamps:
 	/* CPU partition is powered. Enable the CPU clock. */
@@ -192,7 +182,7 @@ static void __init tegra_smp_prepare_cpus(unsigned int max_cpus)
 		scu_enable(IO_ADDRESS(scu_a9_get_base()));
 }
 
-struct smp_operations tegra_smp_ops __initdata = {
+const struct smp_operations tegra_smp_ops __initconst = {
 	.smp_prepare_cpus	= tegra_smp_prepare_cpus,
 	.smp_secondary_init	= tegra_secondary_init,
 	.smp_boot_secondary	= tegra_boot_secondary,

@@ -198,7 +198,7 @@ void mpc8xx_get_rtc_time(struct rtc_time *tm)
 	return;
 }
 
-void mpc8xx_restart(char *cmd)
+void __noreturn mpc8xx_restart(char *cmd)
 {
 	car8xx_t __iomem *clk_r = immr_map(im_clkrst);
 
@@ -241,6 +241,6 @@ void __init mpc8xx_pics_init(void)
 	}
 
 	irq = cpm_pic_init();
-	if (irq != NO_IRQ)
+	if (irq)
 		irq_set_chained_handler(irq, cpm_cascade);
 }

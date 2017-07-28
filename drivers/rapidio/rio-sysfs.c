@@ -108,15 +108,11 @@ static struct attribute *rio_dev_attrs[] = {
 	&dev_attr_lprev.attr,
 	&dev_attr_destid.attr,
 	&dev_attr_modalias.attr,
-	NULL,
-};
 
-static const struct attribute_group rio_dev_group = {
-	.attrs = rio_dev_attrs,
-};
-
-const struct attribute_group *rio_dev_groups[] = {
-	&rio_dev_group,
+	/* Switch-only attributes */
+	&dev_attr_routes.attr,
+	&dev_attr_lnext.attr,
+	&dev_attr_hopcount.attr,
 	NULL,
 };
 
@@ -125,8 +121,7 @@ rio_read_config(struct file *filp, struct kobject *kobj,
 		struct bin_attribute *bin_attr,
 		char *buf, loff_t off, size_t count)
 {
-	struct rio_dev *dev =
-	    to_rio_dev(container_of(kobj, struct device, kobj));
+	struct rio_dev *dev = to_rio_dev(kobj_to_dev(kobj));
 	unsigned int size = 0x100;
 	loff_t init_off = off;
 	u8 *data = (u8 *) buf;
@@ -197,8 +192,7 @@ rio_write_config(struct file *filp, struct kobject *kobj,
 		 struct bin_attribute *bin_attr,
 		 char *buf, loff_t off, size_t count)
 {
-	struct rio_dev *dev =
-	    to_rio_dev(container_of(kobj, struct device, kobj));
+	struct rio_dev *dev = to_rio_dev(kobj_to_dev(kobj));
 	unsigned int size = count;
 	loff_t init_off = off;
 	u8 *data = (u8 *) buf;
@@ -261,46 +255,40 @@ static struct bin_attribute rio_config_attr = {
 	.write = rio_write_config,
 };
 
-/**
- * rio_create_sysfs_dev_files - create RIO specific sysfs files
- * @rdev: device whose entries should be created
- *
- * Create files when @rdev is added to sysfs.
- */
-int rio_create_sysfs_dev_files(struct rio_dev *rdev)
+static struct bin_attribute *rio_dev_bin_attrs[] = {
+	&rio_config_attr,
+	NULL,
+};
+
+static umode_t rio_dev_is_attr_visible(struct kobject *kobj,
+				       struct attribute *attr, int n)
 {
-	int err = 0;
+	struct rio_dev *rdev = to_rio_dev(kobj_to_dev(kobj));
+	umode_t mode = attr->mode;
 
-	err = device_create_bin_file(&rdev->dev, &rio_config_attr);
-
-	if (!err && (rdev->pef & RIO_PEF_SWITCH)) {
-		err |= device_create_file(&rdev->dev, &dev_attr_routes);
-		err |= device_create_file(&rdev->dev, &dev_attr_lnext);
-		err |= device_create_file(&rdev->dev, &dev_attr_hopcount);
+	if (!(rdev->pef & RIO_PEF_SWITCH) &&
+	    (attr == &dev_attr_routes.attr ||
+	     attr == &dev_attr_lnext.attr ||
+	     attr == &dev_attr_hopcount.attr)) {
+		/*
+		 * Hide switch-specific attributes for a non-switch device.
+		 */
+		mode = 0;
 	}
 
-	if (err)
-		pr_warning("RIO: Failed to create attribute file(s) for %s\n",
-			   rio_name(rdev));
-
-	return err;
+	return mode;
 }
 
-/**
- * rio_remove_sysfs_dev_files - cleanup RIO specific sysfs files
- * @rdev: device whose entries we should free
- *
- * Cleanup when @rdev is removed from sysfs.
- */
-void rio_remove_sysfs_dev_files(struct rio_dev *rdev)
-{
-	device_remove_bin_file(&rdev->dev, &rio_config_attr);
-	if (rdev->pef & RIO_PEF_SWITCH) {
-		device_remove_file(&rdev->dev, &dev_attr_routes);
-		device_remove_file(&rdev->dev, &dev_attr_lnext);
-		device_remove_file(&rdev->dev, &dev_attr_hopcount);
-	}
-}
+static const struct attribute_group rio_dev_group = {
+	.attrs		= rio_dev_attrs,
+	.is_visible	= rio_dev_is_attr_visible,
+	.bin_attrs	= rio_dev_bin_attrs,
+};
+
+const struct attribute_group *rio_dev_groups[] = {
+	&rio_dev_group,
+	NULL,
+};
 
 static ssize_t bus_scan_store(struct bus_type *bus, const char *buf,
 				size_t count)

@@ -302,9 +302,9 @@ static s32 igb_check_for_rst_pf(struct e1000_hw *hw, u16 vf_number)
 	u32 vflre = rd32(E1000_VFLRE);
 	s32 ret_val = -E1000_ERR_MBX;
 
-	if (vflre & (1 << vf_number)) {
+	if (vflre & BIT(vf_number)) {
 		ret_val = 0;
-		wr32(E1000_VFLRE, (1 << vf_number));
+		wr32(E1000_VFLRE, BIT(vf_number));
 		hw->mbx.stats.rsts++;
 	}
 
@@ -322,14 +322,20 @@ static s32 igb_obtain_mbx_lock_pf(struct e1000_hw *hw, u16 vf_number)
 {
 	s32 ret_val = -E1000_ERR_MBX;
 	u32 p2v_mailbox;
+	int count = 10;
 
-	/* Take ownership of the buffer */
-	wr32(E1000_P2VMAILBOX(vf_number), E1000_P2VMAILBOX_PFU);
+	do {
+		/* Take ownership of the buffer */
+		wr32(E1000_P2VMAILBOX(vf_number), E1000_P2VMAILBOX_PFU);
 
-	/* reserve mailbox for vf use */
-	p2v_mailbox = rd32(E1000_P2VMAILBOX(vf_number));
-	if (p2v_mailbox & E1000_P2VMAILBOX_PFU)
-		ret_val = 0;
+		/* reserve mailbox for vf use */
+		p2v_mailbox = rd32(E1000_P2VMAILBOX(vf_number));
+		if (p2v_mailbox & E1000_P2VMAILBOX_PFU) {
+			ret_val = 0;
+			break;
+		}
+		udelay(1000);
+	} while (count-- > 0);
 
 	return ret_val;
 }

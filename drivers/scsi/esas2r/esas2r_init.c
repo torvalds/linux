@@ -237,7 +237,7 @@ static void esas2r_claim_interrupts(struct esas2r_adapter *a)
 		flags |= IRQF_SHARED;
 
 	esas2r_log(ESAS2R_LOG_INFO,
-		   "esas2r_claim_interrupts irq=%d (%p, %s, %x)",
+		   "esas2r_claim_interrupts irq=%d (%p, %s, %lx)",
 		   a->pcid->irq, a, a->name, flags);
 
 	if (request_irq(a->pcid->irq,
@@ -327,8 +327,8 @@ int esas2r_init_adapter(struct Scsi_Host *host, struct pci_dev *pcid,
 	esas2r_debug("new adapter %p, name %s", a, a->name);
 	spin_lock_init(&a->request_lock);
 	spin_lock_init(&a->fw_event_lock);
-	sema_init(&a->fm_api_semaphore, 1);
-	sema_init(&a->fs_api_semaphore, 1);
+	mutex_init(&a->fm_api_mutex);
+	mutex_init(&a->fs_api_mutex);
 	sema_init(&a->nvram_semaphore, 1);
 
 	esas2r_fw_event_off(a);
@@ -963,10 +963,6 @@ bool esas2r_init_adapter_struct(struct esas2r_adapter *a,
 
 	/* initialize the allocated memory */
 	if (test_bit(AF_FIRST_INIT, &a->flags)) {
-		memset(a->req_table, 0,
-		       (num_requests + num_ae_requests +
-			1) * sizeof(struct esas2r_request *));
-
 		esas2r_targ_db_initialize(a);
 
 		/* prime parts of the inbound list */

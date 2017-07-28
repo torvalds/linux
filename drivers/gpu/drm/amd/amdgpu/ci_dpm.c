@@ -22,7 +22,7 @@
  */
 
 #include <linux/firmware.h>
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_pm.h"
 #include "amdgpu_ucode.h"
@@ -31,6 +31,7 @@
 #include "ci_dpm.h"
 #include "gfx_v7_0.h"
 #include "atom.h"
+#include "amd_pcie.h"
 #include <linux/seq_file.h>
 
 #include "smu/smu_7_0_1_d.h"
@@ -49,7 +50,9 @@
 #include "gmc/gmc_7_1_sh_mask.h"
 
 MODULE_FIRMWARE("radeon/bonaire_smc.bin");
+MODULE_FIRMWARE("radeon/bonaire_k_smc.bin");
 MODULE_FIRMWARE("radeon/hawaii_smc.bin");
+MODULE_FIRMWARE("radeon/hawaii_k_smc.bin");
 
 #define MC_CG_ARB_FREQ_F0           0x0a
 #define MC_CG_ARB_FREQ_F1           0x0b
@@ -83,12 +86,14 @@ static const struct ci_pt_defaults defaults_bonaire_xt =
 	{ 0x17C, 0x172, 0x180, 0x1BC, 0x1B3, 0x1BD, 0x206, 0x200, 0x203, 0x25D, 0x25A, 0x255, 0x2C3, 0x2C5, 0x2B4 }
 };
 
+#if 0
 static const struct ci_pt_defaults defaults_bonaire_pro =
 {
 	1, 0xF, 0xFD, 0x19, 5, 45, 0, 0x65062,
 	{ 0x8C,  0x23F, 0x244, 0xA6,  0x83,  0x85,  0x86,  0x86,  0x83,  0xDB,  0xDB,  0xDA,  0x67,  0x60,  0x5F  },
 	{ 0x187, 0x193, 0x193, 0x1C7, 0x1D1, 0x1D1, 0x210, 0x219, 0x219, 0x266, 0x26C, 0x26C, 0x2C9, 0x2CB, 0x2CB }
 };
+#endif
 
 static const struct ci_pt_defaults defaults_saturn_xt =
 {
@@ -97,12 +102,14 @@ static const struct ci_pt_defaults defaults_saturn_xt =
 	{ 0x187, 0x187, 0x187, 0x1C7, 0x1C7, 0x1C7, 0x210, 0x210, 0x210, 0x266, 0x266, 0x266, 0x2C9, 0x2C9, 0x2C9 }
 };
 
+#if 0
 static const struct ci_pt_defaults defaults_saturn_pro =
 {
 	1, 0xF, 0xFD, 0x19, 5, 55, 0, 0x30000,
 	{ 0x96,  0x21D, 0x23B, 0xA1,  0x85,  0x87,  0x83,  0x84,  0x81,  0xE6,  0xE6,  0xE6,  0x71,  0x6A,  0x6A  },
 	{ 0x193, 0x19E, 0x19E, 0x1D2, 0x1DC, 0x1DC, 0x21A, 0x223, 0x223, 0x26E, 0x27E, 0x274, 0x2CF, 0x2D2, 0x2D2 }
 };
+#endif
 
 static const struct ci_pt_config_reg didt_config_ci[] =
 {
@@ -735,19 +742,19 @@ static int ci_enable_didt(struct amdgpu_device *adev, bool enable)
 
 	if (pi->caps_sq_ramping || pi->caps_db_ramping ||
 	    pi->caps_td_ramping || pi->caps_tcp_ramping) {
-		gfx_v7_0_enter_rlc_safe_mode(adev);
+		adev->gfx.rlc.funcs->enter_safe_mode(adev);
 
 		if (enable) {
 			ret = ci_program_pt_config_registers(adev, didt_config_ci);
 			if (ret) {
-				gfx_v7_0_exit_rlc_safe_mode(adev);
+				adev->gfx.rlc.funcs->exit_safe_mode(adev);
 				return ret;
 			}
 		}
 
 		ci_do_enable_didt(adev, enable);
 
-		gfx_v7_0_exit_rlc_safe_mode(adev);
+		adev->gfx.rlc.funcs->exit_safe_mode(adev);
 	}
 
 	return 0;
@@ -880,18 +887,30 @@ static void ci_dpm_powergate_uvd(struct amdgpu_device *adev, bool gate)
 {
 	struct ci_power_info *pi = ci_get_pi(adev);
 
-	if (pi->uvd_power_gated == gate)
-		return;
-
 	pi->uvd_power_gated = gate;
 
-	ci_update_uvd_dpm(adev, gate);
+	if (gate) {
+		/* stop the UVD block */
+		amdgpu_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
+							AMD_PG_STATE_GATE);
+		ci_update_uvd_dpm(adev, gate);
+	} else {
+		amdgpu_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_UVD,
+							AMD_PG_STATE_UNGATE);
+		ci_update_uvd_dpm(adev, gate);
+	}
 }
 
 static bool ci_dpm_vblank_too_short(struct amdgpu_device *adev)
 {
 	u32 vblank_time = amdgpu_dpm_get_vblank_time(adev);
 	u32 switch_limit = adev->mc.vram_type == AMDGPU_VRAM_TYPE_GDDR5 ? 450 : 300;
+
+	/* disable mclk switching if the refresh is >120Hz, even if the
+	 * blanking period would allow it
+	 */
+	if (amdgpu_dpm_get_vrefresh(adev) > 120)
+		return true;
 
 	if (vblank_time < switch_limit)
 		return true;
@@ -952,6 +971,12 @@ static void ci_apply_state_adjust_rules(struct amdgpu_device *adev,
 		mclk = ps->performance_levels[0].mclk;
 		sclk = ps->performance_levels[0].sclk;
 	}
+
+	if (adev->pm.pm_display_cfg.min_core_set_clock > sclk)
+		sclk = adev->pm.pm_display_cfg.min_core_set_clock;
+
+	if (adev->pm.pm_display_cfg.min_mem_set_clock > mclk)
+		mclk = adev->pm.pm_display_cfg.min_mem_set_clock;
 
 	if (rps->vce_active) {
 		if (sclk < adev->pm.dpm.vce_states[adev->pm.dpm.vce_level].sclk)
@@ -1248,30 +1273,33 @@ static int ci_dpm_set_fan_speed_percent(struct amdgpu_device *adev,
 
 static void ci_dpm_set_fan_control_mode(struct amdgpu_device *adev, u32 mode)
 {
-	if (mode) {
-		/* stop auto-manage */
+	switch (mode) {
+	case AMD_FAN_CTRL_NONE:
 		if (adev->pm.dpm.fan.ucode_fan_control)
 			ci_fan_ctrl_stop_smc_fan_control(adev);
-		ci_fan_ctrl_set_static_mode(adev, mode);
-	} else {
-		/* restart auto-manage */
+		ci_dpm_set_fan_speed_percent(adev, 100);
+		break;
+	case AMD_FAN_CTRL_MANUAL:
+		if (adev->pm.dpm.fan.ucode_fan_control)
+			ci_fan_ctrl_stop_smc_fan_control(adev);
+		break;
+	case AMD_FAN_CTRL_AUTO:
 		if (adev->pm.dpm.fan.ucode_fan_control)
 			ci_thermal_start_smc_fan_control(adev);
-		else
-			ci_fan_ctrl_set_default_mode(adev);
+		break;
+	default:
+		break;
 	}
 }
 
 static u32 ci_dpm_get_fan_control_mode(struct amdgpu_device *adev)
 {
 	struct ci_power_info *pi = ci_get_pi(adev);
-	u32 tmp;
 
 	if (pi->fan_is_controlled_by_smc)
-		return 0;
-
-	tmp = RREG32_SMC(ixCG_FDO_CTRL2) & CG_FDO_CTRL2__FDO_PWM_MODE_MASK;
-	return (tmp >> CG_FDO_CTRL2__FDO_PWM_MODE__SHIFT);
+		return AMD_FAN_CTRL_AUTO;
+	else
+		return AMD_FAN_CTRL_MANUAL;
 }
 
 #if 0
@@ -1395,7 +1423,6 @@ static void ci_thermal_stop_thermal_controller(struct amdgpu_device *adev)
 		ci_fan_ctrl_set_default_mode(adev);
 }
 
-#if 0
 static int ci_read_smc_soft_register(struct amdgpu_device *adev,
 				     u16 reg_offset, u32 *value)
 {
@@ -1405,7 +1432,6 @@ static int ci_read_smc_soft_register(struct amdgpu_device *adev,
 				      pi->soft_regs_start + reg_offset,
 				      value, pi->sram_end);
 }
-#endif
 
 static int ci_write_smc_soft_register(struct amdgpu_device *adev,
 				      u16 reg_offset, u32 value)
@@ -2193,8 +2219,12 @@ static void ci_clear_vc(struct amdgpu_device *adev)
 
 static int ci_upload_firmware(struct amdgpu_device *adev)
 {
-	struct ci_power_info *pi = ci_get_pi(adev);
 	int i, ret;
+
+	if (amdgpu_ci_is_smc_running(adev)) {
+		DRM_INFO("smc is running, no need to load smc firmware\n");
+		return 0;
+	}
 
 	for (i = 0; i < adev->usec_timeout; i++) {
 		if (RREG32_SMC(ixRCU_UC_EVENTS) & RCU_UC_EVENTS__boot_seq_done_MASK)
@@ -2205,7 +2235,7 @@ static int ci_upload_firmware(struct amdgpu_device *adev)
 	amdgpu_ci_stop_smc_clock(adev);
 	amdgpu_ci_reset_smc(adev);
 
-	ret = amdgpu_ci_load_smc_ucode(adev, pi->sram_end);
+	ret = amdgpu_ci_load_smc_ucode(adev, SMC_RAM_END);
 
 	return ret;
 
@@ -2550,19 +2580,17 @@ static int ci_get_dependency_volt_by_clk(struct amdgpu_device *adev,
 	return 0;
 }
 
-static u8 ci_get_sleep_divider_id_from_clock(struct amdgpu_device *adev,
-					     u32 sclk, u32 min_sclk_in_sr)
+static u8 ci_get_sleep_divider_id_from_clock(u32 sclk, u32 min_sclk_in_sr)
 {
 	u32 i;
 	u32 tmp;
-	u32 min = (min_sclk_in_sr > CISLAND_MINIMUM_ENGINE_CLOCK) ?
-		min_sclk_in_sr : CISLAND_MINIMUM_ENGINE_CLOCK;
+	u32 min = max(min_sclk_in_sr, (u32)CISLAND_MINIMUM_ENGINE_CLOCK);
 
 	if (sclk < min)
 		return 0;
 
 	for (i = CISLAND_MAX_DEEPSLEEP_DIVIDER_ID;  ; i--) {
-		tmp = sclk / (1 << i);
+		tmp = sclk >> i;
 		if (tmp >= min || i == 0)
 			break;
 	}
@@ -3017,8 +3045,8 @@ static int ci_populate_single_memory_level(struct amdgpu_device *adev,
 						      memory_clock,
 						      &memory_level->MinVddcPhases);
 
-	memory_level->EnabledForThrottle = 1;
 	memory_level->EnabledForActivity = 1;
+	memory_level->EnabledForThrottle = 1;
 	memory_level->UpH = 0;
 	memory_level->DownH = 100;
 	memory_level->VoltageDownH = 0;
@@ -3034,7 +3062,7 @@ static int ci_populate_single_memory_level(struct amdgpu_device *adev,
 
 	if (pi->mclk_stutter_mode_threshold &&
 	    (memory_clock <= pi->mclk_stutter_mode_threshold) &&
-	    (pi->uvd_enabled == false) &&
+	    (!pi->uvd_enabled) &&
 	    (RREG32(mmDPG_PIPE_STUTTER_CONTROL) & DPG_PIPE_STUTTER_CONTROL__STUTTER_ENABLE_MASK) &&
 	    (adev->pm.dpm.new_active_crtc_count <= 2))
 		memory_level->StutterEnable = true;
@@ -3360,8 +3388,7 @@ static int ci_populate_single_graphic_level(struct amdgpu_device *adev,
 	graphic_level->PowerThrottle = 0;
 
 	if (pi->caps_sclk_ds)
-		graphic_level->DeepSleepDivId = ci_get_sleep_divider_id_from_clock(adev,
-										   engine_clock,
+		graphic_level->DeepSleepDivId = ci_get_sleep_divider_id_from_clock(engine_clock,
 										   CISLAND_MINIMUM_ENGINE_CLOCK);
 
 	graphic_level->DisplayWatermark = PPSMC_DISPLAY_WATERMARK_LOW;
@@ -3377,7 +3404,6 @@ static int ci_populate_single_graphic_level(struct amdgpu_device *adev,
 	graphic_level->SpllSpreadSpectrum2 = cpu_to_be32(graphic_level->SpllSpreadSpectrum2);
 	graphic_level->CcPwrDynRm = cpu_to_be32(graphic_level->CcPwrDynRm);
 	graphic_level->CcPwrDynRm1 = cpu_to_be32(graphic_level->CcPwrDynRm1);
-	graphic_level->EnabledForActivity = 1;
 
 	return 0;
 }
@@ -3408,6 +3434,7 @@ static int ci_populate_all_graphic_levels(struct amdgpu_device *adev)
 			pi->smc_state_table.GraphicsLevel[i].DisplayWatermark =
 				PPSMC_DISPLAY_WATERMARK_HIGH;
 	}
+	pi->smc_state_table.GraphicsLevel[0].EnabledForActivity = 1;
 
 	pi->smc_state_table.GraphicsDpmLevelCount = (u8)dpm_table->sclk_table.count;
 	pi->dpm_level_enable_mask.sclk_dpm_enable_mask =
@@ -3639,6 +3666,10 @@ static int ci_setup_default_dpm_tables(struct amdgpu_device *adev)
 
 	ci_setup_default_pcie_tables(adev);
 
+	/* save a copy of the default DPM table */
+	memcpy(&(pi->golden_dpm_table), &(pi->dpm_table),
+			sizeof(struct ci_dpm_table));
+
 	return 0;
 }
 
@@ -3656,6 +3687,40 @@ static int ci_find_boot_level(struct ci_single_dpm_table *table,
 	}
 
 	return ret;
+}
+
+static void ci_save_default_power_profile(struct amdgpu_device *adev)
+{
+	struct ci_power_info *pi = ci_get_pi(adev);
+	struct SMU7_Discrete_GraphicsLevel *levels =
+				pi->smc_state_table.GraphicsLevel;
+	uint32_t min_level = 0;
+
+	pi->default_gfx_power_profile.activity_threshold =
+			be16_to_cpu(levels[0].ActivityLevel);
+	pi->default_gfx_power_profile.up_hyst = levels[0].UpH;
+	pi->default_gfx_power_profile.down_hyst = levels[0].DownH;
+	pi->default_gfx_power_profile.type = AMD_PP_GFX_PROFILE;
+
+	pi->default_compute_power_profile = pi->default_gfx_power_profile;
+	pi->default_compute_power_profile.type = AMD_PP_COMPUTE_PROFILE;
+
+	/* Optimize compute power profile: Use only highest
+	 * 2 power levels (if more than 2 are available), Hysteresis:
+	 * 0ms up, 5ms down
+	 */
+	if (pi->smc_state_table.GraphicsDpmLevelCount > 2)
+		min_level = pi->smc_state_table.GraphicsDpmLevelCount - 2;
+	else if (pi->smc_state_table.GraphicsDpmLevelCount == 2)
+		min_level = 1;
+	pi->default_compute_power_profile.min_sclk =
+			be32_to_cpu(levels[min_level].SclkFrequency);
+
+	pi->default_compute_power_profile.up_hyst = 0;
+	pi->default_compute_power_profile.down_hyst = 5;
+
+	pi->gfx_power_profile = pi->default_gfx_power_profile;
+	pi->compute_power_profile = pi->default_compute_power_profile;
 }
 
 static int ci_init_smc_table(struct amdgpu_device *adev)
@@ -3802,6 +3867,8 @@ static int ci_init_smc_table(struct amdgpu_device *adev)
 				   pi->sram_end);
 	if (ret)
 		return ret;
+
+	ci_save_default_power_profile(adev);
 
 	return 0;
 }
@@ -4068,7 +4135,7 @@ static int ci_enable_uvd_dpm(struct amdgpu_device *adev, bool enable)
 							  pi->dpm_level_enable_mask.mclk_dpm_enable_mask);
 		}
 	} else {
-		if (pi->last_mclk_dpm_enable_mask & 0x1) {
+		if (pi->uvd_enabled) {
 			pi->uvd_enabled = false;
 			pi->dpm_level_enable_mask.mclk_dpm_enable_mask |= 1;
 			amdgpu_ci_send_msg_to_smc_with_parameter(adev,
@@ -4183,8 +4250,10 @@ static int ci_update_uvd_dpm(struct amdgpu_device *adev, bool gate)
 {
 	struct ci_power_info *pi = ci_get_pi(adev);
 	u32 tmp;
+	int ret = 0;
 
 	if (!gate) {
+		/* turn the clocks on when decoding */
 		if (pi->caps_uvd_dpm ||
 		    (adev->pm.dpm.dyn_state.uvd_clock_voltage_dependency_table.count <= 0))
 			pi->smc_state_table.UvdBootLevel = 0;
@@ -4196,9 +4265,14 @@ static int ci_update_uvd_dpm(struct amdgpu_device *adev, bool gate)
 		tmp &= ~DPM_TABLE_475__UvdBootLevel_MASK;
 		tmp |= (pi->smc_state_table.UvdBootLevel << DPM_TABLE_475__UvdBootLevel__SHIFT);
 		WREG32_SMC(ixDPM_TABLE_475, tmp);
+		ret = ci_enable_uvd_dpm(adev, true);
+	} else {
+		ret = ci_enable_uvd_dpm(adev, false);
+		if (ret)
+			return ret;
 	}
 
-	return ci_enable_uvd_dpm(adev, !gate);
+	return ret;
 }
 
 static u8 ci_get_vce_boot_level(struct amdgpu_device *adev)
@@ -4226,12 +4300,6 @@ static int ci_update_vce_dpm(struct amdgpu_device *adev,
 
 	if (amdgpu_current_state->evclk != amdgpu_new_state->evclk) {
 		if (amdgpu_new_state->evclk) {
-			/* turn the clocks on when encoding */
-			ret = amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
-							    AMD_CG_STATE_UNGATE);
-			if (ret)
-				return ret;
-
 			pi->smc_state_table.VceBootLevel = ci_get_vce_boot_level(adev);
 			tmp = RREG32_SMC(ixDPM_TABLE_475);
 			tmp &= ~DPM_TABLE_475__VceBootLevel_MASK;
@@ -4240,13 +4308,9 @@ static int ci_update_vce_dpm(struct amdgpu_device *adev,
 
 			ret = ci_enable_vce_dpm(adev, true);
 		} else {
-			/* turn the clocks off when not encoding */
-			ret = amdgpu_set_clockgating_state(adev, AMD_IP_BLOCK_TYPE_VCE,
-							    AMD_CG_STATE_GATE);
+			ret = ci_enable_vce_dpm(adev, false);
 			if (ret)
 				return ret;
-
-			ret = ci_enable_vce_dpm(adev, false);
 		}
 	}
 	return ret;
@@ -4315,13 +4379,13 @@ static u32 ci_get_lowest_enabled_level(struct amdgpu_device *adev,
 
 
 static int ci_dpm_force_performance_level(struct amdgpu_device *adev,
-					  enum amdgpu_dpm_forced_level level)
+					  enum amd_dpm_forced_level level)
 {
 	struct ci_power_info *pi = ci_get_pi(adev);
 	u32 tmp, levels, i;
 	int ret;
 
-	if (level == AMDGPU_DPM_FORCED_LEVEL_HIGH) {
+	if (level == AMD_DPM_FORCED_LEVEL_HIGH) {
 		if ((!pi->pcie_dpm_key_disabled) &&
 		    pi->dpm_level_enable_mask.pcie_dpm_enable_mask) {
 			levels = 0;
@@ -4382,27 +4446,7 @@ static int ci_dpm_force_performance_level(struct amdgpu_device *adev,
 				}
 			}
 		}
-		if ((!pi->pcie_dpm_key_disabled) &&
-		    pi->dpm_level_enable_mask.pcie_dpm_enable_mask) {
-			levels = 0;
-			tmp = pi->dpm_level_enable_mask.pcie_dpm_enable_mask;
-			while (tmp >>= 1)
-				levels++;
-			if (levels) {
-				ret = ci_dpm_force_state_pcie(adev, level);
-				if (ret)
-					return ret;
-				for (i = 0; i < adev->usec_timeout; i++) {
-					tmp = (RREG32_SMC(ixTARGET_AND_CURRENT_PROFILE_INDEX_1) &
-					TARGET_AND_CURRENT_PROFILE_INDEX_1__CURR_PCIE_INDEX_MASK) >>
-					TARGET_AND_CURRENT_PROFILE_INDEX_1__CURR_PCIE_INDEX__SHIFT;
-					if (tmp == levels)
-						break;
-					udelay(1);
-				}
-			}
-		}
-	} else if (level == AMDGPU_DPM_FORCED_LEVEL_LOW) {
+	} else if (level == AMD_DPM_FORCED_LEVEL_LOW) {
 		if ((!pi->sclk_dpm_key_disabled) &&
 		    pi->dpm_level_enable_mask.sclk_dpm_enable_mask) {
 			levels = ci_get_lowest_enabled_level(adev,
@@ -4451,7 +4495,7 @@ static int ci_dpm_force_performance_level(struct amdgpu_device *adev,
 				udelay(1);
 			}
 		}
-	} else if (level == AMDGPU_DPM_FORCED_LEVEL_AUTO) {
+	} else if (level == AMD_DPM_FORCED_LEVEL_AUTO) {
 		if (!pi->pcie_dpm_key_disabled) {
 			PPSMC_Result smc_result;
 
@@ -5232,6 +5276,7 @@ static void ci_update_current_ps(struct amdgpu_device *adev,
 	pi->current_rps = *rps;
 	pi->current_ps = *new_ps;
 	pi->current_rps.ps_priv = &pi->current_ps;
+	adev->pm.dpm.current_ps = &pi->current_rps;
 }
 
 static void ci_update_requested_ps(struct amdgpu_device *adev,
@@ -5243,6 +5288,7 @@ static void ci_update_requested_ps(struct amdgpu_device *adev,
 	pi->requested_rps = *rps;
 	pi->requested_ps = *new_ps;
 	pi->requested_rps.ps_priv = &pi->requested_ps;
+	adev->pm.dpm.requested_ps = &pi->requested_rps;
 }
 
 static int ci_dpm_pre_set_power_state(struct amdgpu_device *adev)
@@ -5280,8 +5326,6 @@ static int ci_dpm_enable(struct amdgpu_device *adev)
 	struct amdgpu_ps *boot_ps = adev->pm.dpm.boot_ps;
 	int ret;
 
-	if (amdgpu_ci_is_smc_running(adev))
-		return -EINVAL;
 	if (pi->voltage_control != CISLANDS_VOLTAGE_CONTROL_NONE) {
 		ci_enable_voltage_control(adev);
 		ret = ci_construct_voltage_tables(adev);
@@ -5396,30 +5440,6 @@ static int ci_dpm_enable(struct amdgpu_device *adev)
 
 	ci_update_current_ps(adev, boot_ps);
 
-	if (adev->irq.installed &&
-	    amdgpu_is_internal_thermal_sensor(adev->pm.int_thermal_type)) {
-#if 0
-		PPSMC_Result result;
-#endif
-		ret = ci_thermal_set_temperature_range(adev, CISLANDS_TEMP_RANGE_MIN,
-						       CISLANDS_TEMP_RANGE_MAX);
-		if (ret) {
-			DRM_ERROR("ci_thermal_set_temperature_range failed\n");
-			return ret;
-		}
-		amdgpu_irq_get(adev, &adev->pm.dpm.thermal.irq,
-			       AMDGPU_THERMAL_IRQ_LOW_TO_HIGH);
-		amdgpu_irq_get(adev, &adev->pm.dpm.thermal.irq,
-			       AMDGPU_THERMAL_IRQ_HIGH_TO_LOW);
-
-#if 0
-		result = amdgpu_ci_send_msg_to_smc(adev, PPSMC_MSG_EnableThermalInterrupt);
-
-		if (result != PPSMC_Result_OK)
-			DRM_DEBUG_KMS("Could not enable thermal interrupts.\n");
-#endif
-	}
-
 	return 0;
 }
 
@@ -5433,7 +5453,7 @@ static void ci_dpm_disable(struct amdgpu_device *adev)
 	amdgpu_irq_put(adev, &adev->pm.dpm.thermal.irq,
 		       AMDGPU_THERMAL_IRQ_HIGH_TO_LOW);
 
-	ci_dpm_powergate_uvd(adev, false);
+	ci_dpm_powergate_uvd(adev, true);
 
 	if (!amdgpu_ci_is_smc_running(adev))
 		return;
@@ -5726,7 +5746,7 @@ static int ci_parse_power_table(struct amdgpu_device *adev)
 	adev->pm.dpm.num_ps = state_array->ucNumEntries;
 
 	/* fill in the vce power states */
-	for (i = 0; i < AMDGPU_MAX_VCE_LEVELS; i++) {
+	for (i = 0; i < adev->pm.dpm.num_of_vce_states; i++) {
 		u32 sclk, mclk;
 		clock_array_index = adev->pm.dpm.vce_states[i].clk_idx;
 		clock_info = (union pplib_clock_info *)
@@ -5801,13 +5821,22 @@ static int ci_dpm_init_microcode(struct amdgpu_device *adev)
 
 	switch (adev->asic_type) {
 	case CHIP_BONAIRE:
-		chip_name = "bonaire";
+		if ((adev->pdev->revision == 0x80) ||
+		    (adev->pdev->revision == 0x81) ||
+		    (adev->pdev->device == 0x665f))
+			chip_name = "bonaire_k";
+		else
+			chip_name = "bonaire";
 		break;
 	case CHIP_HAWAII:
-		chip_name = "hawaii";
+		if (adev->pdev->revision == 0x80)
+			chip_name = "hawaii_k";
+		else
+			chip_name = "hawaii";
 		break;
 	case CHIP_KAVERI:
 	case CHIP_KABINI:
+	case CHIP_MULLINS:
 	default: BUG();
 	}
 
@@ -5819,9 +5848,7 @@ static int ci_dpm_init_microcode(struct amdgpu_device *adev)
 
 out:
 	if (err) {
-		printk(KERN_ERR
-		       "cik_smc: Failed to load firmware \"%s\"\n",
-		       fw_name);
+		pr_err("cik_smc: Failed to load firmware \"%s\"\n", fw_name);
 		release_firmware(adev->pm.fw);
 		adev->pm.fw = NULL;
 	}
@@ -5837,18 +5864,16 @@ static int ci_dpm_init(struct amdgpu_device *adev)
 	u8 frev, crev;
 	struct ci_power_info *pi;
 	int ret;
-	u32 mask;
 
 	pi = kzalloc(sizeof(struct ci_power_info), GFP_KERNEL);
 	if (pi == NULL)
 		return -ENOMEM;
 	adev->pm.dpm.priv = pi;
 
-	ret = drm_pcie_get_speed_cap_mask(adev->ddev, &mask);
-	if (ret)
-		pi->sys_pcie_mask = 0;
-	else
-		pi->sys_pcie_mask = mask;
+	pi->sys_pcie_mask =
+		(adev->pm.pcie_gen_mask & CAIL_PCIE_LINK_SPEED_SUPPORT_MASK) >>
+		CAIL_PCIE_LINK_SPEED_SUPPORT_SHIFT;
+
 	pi->force_pcie_gen = AMDGPU_PCIE_GEN_INVALID;
 
 	pi->pcie_gen_performance.max = AMDGPU_PCIE_GEN1;
@@ -5904,7 +5929,10 @@ static int ci_dpm_init(struct amdgpu_device *adev)
 	pi->pcie_dpm_key_disabled = 0;
 	pi->thermal_sclk_dpm_enabled = 0;
 
-	pi->caps_sclk_ds = true;
+	if (amdgpu_pp_feature_mask & SCLK_DEEP_SLEEP_MASK)
+		pi->caps_sclk_ds = true;
+	else
+		pi->caps_sclk_ds = false;
 
 	pi->mclk_strobe_mode_threshold = 40000;
 	pi->mclk_stutter_mode_threshold = 40000;
@@ -6004,7 +6032,7 @@ static int ci_dpm_init(struct amdgpu_device *adev)
 			tmp |= CNB_PWRMGT_CNTL__DPM_ENABLED_MASK;
 			break;
 		default:
-			DRM_ERROR("Invalid PCC GPIO: %u!\n", gpio.shift);
+			DRM_INFO("Invalid PCC GPIO: %u!\n", gpio.shift);
 			break;
 		}
 		WREG32_SMC(ixCNB_PWRMGT_CNTL, tmp);
@@ -6063,7 +6091,7 @@ static int ci_dpm_init(struct amdgpu_device *adev)
 
 	pi->caps_dynamic_ac_timing = true;
 
-	pi->uvd_power_gated = false;
+	pi->uvd_power_gated = true;
 
 	/* make sure dc limits are valid */
 	if ((adev->pm.dpm.dyn_state.max_clock_voltage_on_dc.sclk == 0) ||
@@ -6084,11 +6112,23 @@ ci_dpm_debugfs_print_current_performance_level(struct amdgpu_device *adev,
 	struct amdgpu_ps *rps = &pi->current_rps;
 	u32 sclk = ci_get_average_sclk_freq(adev);
 	u32 mclk = ci_get_average_mclk_freq(adev);
+	u32 activity_percent = 50;
+	int ret;
 
-	seq_printf(m, "uvd %sabled\n", pi->uvd_enabled ? "en" : "dis");
+	ret = ci_read_smc_soft_register(adev, offsetof(SMU7_SoftRegisters, AverageGraphicsA),
+					&activity_percent);
+
+	if (ret == 0) {
+		activity_percent += 0x80;
+		activity_percent >>= 8;
+		activity_percent = activity_percent > 100 ? 100 : activity_percent;
+	}
+
+	seq_printf(m, "uvd %sabled\n", pi->uvd_power_gated ? "dis" : "en");
 	seq_printf(m, "vce %sabled\n", rps->vce_active ? "en" : "dis");
 	seq_printf(m, "power level avg    sclk: %u mclk: %u\n",
 		   sclk, mclk);
+	seq_printf(m, "GPU load: %u %%\n", activity_percent);
 }
 
 static void ci_dpm_print_power_state(struct amdgpu_device *adev,
@@ -6107,6 +6147,56 @@ static void ci_dpm_print_power_state(struct amdgpu_device *adev,
 		       i, pl->sclk, pl->mclk, pl->pcie_gen + 1, pl->pcie_lane);
 	}
 	amdgpu_dpm_print_ps_status(adev, rps);
+}
+
+static inline bool ci_are_power_levels_equal(const struct ci_pl *ci_cpl1,
+						const struct ci_pl *ci_cpl2)
+{
+	return ((ci_cpl1->mclk == ci_cpl2->mclk) &&
+		  (ci_cpl1->sclk == ci_cpl2->sclk) &&
+		  (ci_cpl1->pcie_gen == ci_cpl2->pcie_gen) &&
+		  (ci_cpl1->pcie_lane == ci_cpl2->pcie_lane));
+}
+
+static int ci_check_state_equal(struct amdgpu_device *adev,
+				struct amdgpu_ps *cps,
+				struct amdgpu_ps *rps,
+				bool *equal)
+{
+	struct ci_ps *ci_cps;
+	struct ci_ps *ci_rps;
+	int i;
+
+	if (adev == NULL || cps == NULL || rps == NULL || equal == NULL)
+		return -EINVAL;
+
+	ci_cps = ci_get_ps(cps);
+	ci_rps = ci_get_ps(rps);
+
+	if (ci_cps == NULL) {
+		*equal = false;
+		return 0;
+	}
+
+	if (ci_cps->performance_level_count != ci_rps->performance_level_count) {
+
+		*equal = false;
+		return 0;
+	}
+
+	for (i = 0; i < ci_cps->performance_level_count; i++) {
+		if (!ci_are_power_levels_equal(&(ci_cps->performance_levels[i]),
+					&(ci_rps->performance_levels[i]))) {
+			*equal = false;
+			return 0;
+		}
+	}
+
+	/* If all performance levels are the same try to use the UVD clocks to break the tie.*/
+	*equal = ((cps->vclk == rps->vclk) && (cps->dclk == rps->dclk));
+	*equal &= ((cps->evclk == rps->evclk) && (cps->ecclk == rps->ecclk));
+
+	return 0;
 }
 
 static u32 ci_dpm_get_sclk(struct amdgpu_device *adev, bool low)
@@ -6194,8 +6284,6 @@ static int ci_dpm_late_init(void *handle)
 	if (ret)
 		return ret;
 
-	ci_dpm_powergate_uvd(adev, true);
-
 	return 0;
 }
 
@@ -6204,30 +6292,32 @@ static int ci_dpm_sw_init(void *handle)
 	int ret;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	ret = amdgpu_irq_add_id(adev, 230, &adev->pm.dpm.thermal.irq);
+	ret = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 230,
+				&adev->pm.dpm.thermal.irq);
 	if (ret)
 		return ret;
 
-	ret = amdgpu_irq_add_id(adev, 231, &adev->pm.dpm.thermal.irq);
+	ret = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 231,
+				&adev->pm.dpm.thermal.irq);
 	if (ret)
 		return ret;
 
 	/* default to balanced state */
 	adev->pm.dpm.state = POWER_STATE_TYPE_BALANCED;
 	adev->pm.dpm.user_state = POWER_STATE_TYPE_BALANCED;
-	adev->pm.dpm.forced_level = AMDGPU_DPM_FORCED_LEVEL_AUTO;
+	adev->pm.dpm.forced_level = AMD_DPM_FORCED_LEVEL_AUTO;
 	adev->pm.default_sclk = adev->clock.default_sclk;
 	adev->pm.default_mclk = adev->clock.default_mclk;
 	adev->pm.current_sclk = adev->clock.default_sclk;
 	adev->pm.current_mclk = adev->clock.default_mclk;
 	adev->pm.int_thermal_type = THERMAL_TYPE_NONE;
 
-	if (amdgpu_dpm == 0)
-		return 0;
-
 	ret = ci_dpm_init_microcode(adev);
 	if (ret)
 		return ret;
+
+	if (amdgpu_dpm == 0)
+		return 0;
 
 	INIT_WORK(&adev->pm.dpm.thermal.work, amdgpu_dpm_thermal_work_handler);
 	mutex_lock(&adev->pm.mutex);
@@ -6253,10 +6343,15 @@ static int ci_dpm_sw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	flush_work(&adev->pm.dpm.thermal.work);
+
 	mutex_lock(&adev->pm.mutex);
 	amdgpu_pm_sysfs_fini(adev);
 	ci_dpm_fini(adev);
 	mutex_unlock(&adev->pm.mutex);
+
+	release_firmware(adev->pm.fw);
+	adev->pm.fw = NULL;
 
 	return 0;
 }
@@ -6267,8 +6362,15 @@ static int ci_dpm_hw_init(void *handle)
 
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (!amdgpu_dpm)
+	if (!amdgpu_dpm) {
+		ret = ci_upload_firmware(adev);
+		if (ret) {
+			DRM_ERROR("ci_upload_firmware failed\n");
+			return ret;
+		}
+		ci_dpm_start_smc(adev);
 		return 0;
+	}
 
 	mutex_lock(&adev->pm.mutex);
 	ci_dpm_setup_asic(adev);
@@ -6290,6 +6392,8 @@ static int ci_dpm_hw_fini(void *handle)
 		mutex_lock(&adev->pm.mutex);
 		ci_dpm_disable(adev);
 		mutex_unlock(&adev->pm.mutex);
+	} else {
+		ci_dpm_stop_smc(adev);
 	}
 
 	return 0;
@@ -6301,12 +6405,19 @@ static int ci_dpm_suspend(void *handle)
 
 	if (adev->pm.dpm_enabled) {
 		mutex_lock(&adev->pm.mutex);
-		/* disable dpm */
-		ci_dpm_disable(adev);
-		/* reset the power state */
-		adev->pm.dpm.current_ps = adev->pm.dpm.requested_ps = adev->pm.dpm.boot_ps;
+		amdgpu_irq_put(adev, &adev->pm.dpm.thermal.irq,
+			       AMDGPU_THERMAL_IRQ_LOW_TO_HIGH);
+		amdgpu_irq_put(adev, &adev->pm.dpm.thermal.irq,
+			       AMDGPU_THERMAL_IRQ_HIGH_TO_LOW);
+		adev->pm.dpm.last_user_state = adev->pm.dpm.user_state;
+		adev->pm.dpm.last_state = adev->pm.dpm.state;
+		adev->pm.dpm.user_state = POWER_STATE_TYPE_INTERNAL_BOOT;
+		adev->pm.dpm.state = POWER_STATE_TYPE_INTERNAL_BOOT;
 		mutex_unlock(&adev->pm.mutex);
+		amdgpu_pm_compute_clocks(adev);
+
 	}
+
 	return 0;
 }
 
@@ -6324,6 +6435,8 @@ static int ci_dpm_resume(void *handle)
 			adev->pm.dpm_enabled = false;
 		else
 			adev->pm.dpm_enabled = true;
+		adev->pm.dpm.user_state = adev->pm.dpm.last_user_state;
+		adev->pm.dpm.state = adev->pm.dpm.last_state;
 		mutex_unlock(&adev->pm.mutex);
 		if (adev->pm.dpm_enabled)
 			amdgpu_pm_compute_clocks(adev);
@@ -6341,215 +6454,6 @@ static int ci_dpm_wait_for_idle(void *handle)
 {
 	/* XXX */
 	return 0;
-}
-
-static void ci_dpm_print_status(void *handle)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-
-	dev_info(adev->dev, "CIK DPM registers\n");
-	dev_info(adev->dev, "  BIOS_SCRATCH_4=0x%08X\n",
-		 RREG32(mmBIOS_SCRATCH_4));
-	dev_info(adev->dev, "  MC_ARB_DRAM_TIMING=0x%08X\n",
-		 RREG32(mmMC_ARB_DRAM_TIMING));
-	dev_info(adev->dev, "  MC_ARB_DRAM_TIMING2=0x%08X\n",
-		 RREG32(mmMC_ARB_DRAM_TIMING2));
-	dev_info(adev->dev, "  MC_ARB_BURST_TIME=0x%08X\n",
-		 RREG32(mmMC_ARB_BURST_TIME));
-	dev_info(adev->dev, "  MC_ARB_DRAM_TIMING_1=0x%08X\n",
-		 RREG32(mmMC_ARB_DRAM_TIMING_1));
-	dev_info(adev->dev, "  MC_ARB_DRAM_TIMING2_1=0x%08X\n",
-		 RREG32(mmMC_ARB_DRAM_TIMING2_1));
-	dev_info(adev->dev, "  MC_CG_CONFIG=0x%08X\n",
-		 RREG32(mmMC_CG_CONFIG));
-	dev_info(adev->dev, "  MC_ARB_CG=0x%08X\n",
-		 RREG32(mmMC_ARB_CG));
-	dev_info(adev->dev, "  DIDT_SQ_CTRL0=0x%08X\n",
-		 RREG32_DIDT(ixDIDT_SQ_CTRL0));
-	dev_info(adev->dev, "  DIDT_DB_CTRL0=0x%08X\n",
-		 RREG32_DIDT(ixDIDT_DB_CTRL0));
-	dev_info(adev->dev, "  DIDT_TD_CTRL0=0x%08X\n",
-		 RREG32_DIDT(ixDIDT_TD_CTRL0));
-	dev_info(adev->dev, "  DIDT_TCP_CTRL0=0x%08X\n",
-		 RREG32_DIDT(ixDIDT_TCP_CTRL0));
-	dev_info(adev->dev, "  CG_THERMAL_INT=0x%08X\n",
-		 RREG32_SMC(ixCG_THERMAL_INT));
-	dev_info(adev->dev, "  CG_THERMAL_CTRL=0x%08X\n",
-		 RREG32_SMC(ixCG_THERMAL_CTRL));
-	dev_info(adev->dev, "  GENERAL_PWRMGT=0x%08X\n",
-		 RREG32_SMC(ixGENERAL_PWRMGT));
-	dev_info(adev->dev, "  MC_SEQ_CNTL_3=0x%08X\n",
-		 RREG32(mmMC_SEQ_CNTL_3));
-	dev_info(adev->dev, "  LCAC_MC0_CNTL=0x%08X\n",
-		 RREG32_SMC(ixLCAC_MC0_CNTL));
-	dev_info(adev->dev, "  LCAC_MC1_CNTL=0x%08X\n",
-		 RREG32_SMC(ixLCAC_MC1_CNTL));
-	dev_info(adev->dev, "  LCAC_CPL_CNTL=0x%08X\n",
-		 RREG32_SMC(ixLCAC_CPL_CNTL));
-	dev_info(adev->dev, "  SCLK_PWRMGT_CNTL=0x%08X\n",
-		 RREG32_SMC(ixSCLK_PWRMGT_CNTL));
-	dev_info(adev->dev, "  BIF_LNCNT_RESET=0x%08X\n",
-		 RREG32(mmBIF_LNCNT_RESET));
-	dev_info(adev->dev, "  FIRMWARE_FLAGS=0x%08X\n",
-		 RREG32_SMC(ixFIRMWARE_FLAGS));
-	dev_info(adev->dev, "  CG_SPLL_FUNC_CNTL=0x%08X\n",
-		 RREG32_SMC(ixCG_SPLL_FUNC_CNTL));
-	dev_info(adev->dev, "  CG_SPLL_FUNC_CNTL_2=0x%08X\n",
-		 RREG32_SMC(ixCG_SPLL_FUNC_CNTL_2));
-	dev_info(adev->dev, "  CG_SPLL_FUNC_CNTL_3=0x%08X\n",
-		 RREG32_SMC(ixCG_SPLL_FUNC_CNTL_3));
-	dev_info(adev->dev, "  CG_SPLL_FUNC_CNTL_4=0x%08X\n",
-		 RREG32_SMC(ixCG_SPLL_FUNC_CNTL_4));
-	dev_info(adev->dev, "  CG_SPLL_SPREAD_SPECTRUM=0x%08X\n",
-		 RREG32_SMC(ixCG_SPLL_SPREAD_SPECTRUM));
-	dev_info(adev->dev, "  CG_SPLL_SPREAD_SPECTRUM_2=0x%08X\n",
-		 RREG32_SMC(ixCG_SPLL_SPREAD_SPECTRUM_2));
-	dev_info(adev->dev, "  DLL_CNTL=0x%08X\n",
-		 RREG32(mmDLL_CNTL));
-	dev_info(adev->dev, "  MCLK_PWRMGT_CNTL=0x%08X\n",
-		 RREG32(mmMCLK_PWRMGT_CNTL));
-	dev_info(adev->dev, "  MPLL_AD_FUNC_CNTL=0x%08X\n",
-		 RREG32(mmMPLL_AD_FUNC_CNTL));
-	dev_info(adev->dev, "  MPLL_DQ_FUNC_CNTL=0x%08X\n",
-		 RREG32(mmMPLL_DQ_FUNC_CNTL));
-	dev_info(adev->dev, "  MPLL_FUNC_CNTL=0x%08X\n",
-		 RREG32(mmMPLL_FUNC_CNTL));
-	dev_info(adev->dev, "  MPLL_FUNC_CNTL_1=0x%08X\n",
-		 RREG32(mmMPLL_FUNC_CNTL_1));
-	dev_info(adev->dev, "  MPLL_FUNC_CNTL_2=0x%08X\n",
-		 RREG32(mmMPLL_FUNC_CNTL_2));
-	dev_info(adev->dev, "  MPLL_SS1=0x%08X\n",
-		 RREG32(mmMPLL_SS1));
-	dev_info(adev->dev, "  MPLL_SS2=0x%08X\n",
-		 RREG32(mmMPLL_SS2));
-	dev_info(adev->dev, "  CG_DISPLAY_GAP_CNTL=0x%08X\n",
-		 RREG32_SMC(ixCG_DISPLAY_GAP_CNTL));
-	dev_info(adev->dev, "  CG_DISPLAY_GAP_CNTL2=0x%08X\n",
-		 RREG32_SMC(ixCG_DISPLAY_GAP_CNTL2));
-	dev_info(adev->dev, "  CG_STATIC_SCREEN_PARAMETER=0x%08X\n",
-		 RREG32_SMC(ixCG_STATIC_SCREEN_PARAMETER));
-	dev_info(adev->dev, "  CG_FREQ_TRAN_VOTING_0=0x%08X\n",
-		 RREG32_SMC(ixCG_FREQ_TRAN_VOTING_0));
-	dev_info(adev->dev, "  CG_FREQ_TRAN_VOTING_1=0x%08X\n",
-		 RREG32_SMC(ixCG_FREQ_TRAN_VOTING_1));
-	dev_info(adev->dev, "  CG_FREQ_TRAN_VOTING_2=0x%08X\n",
-		 RREG32_SMC(ixCG_FREQ_TRAN_VOTING_2));
-	dev_info(adev->dev, "  CG_FREQ_TRAN_VOTING_3=0x%08X\n",
-		 RREG32_SMC(ixCG_FREQ_TRAN_VOTING_3));
-	dev_info(adev->dev, "  CG_FREQ_TRAN_VOTING_4=0x%08X\n",
-		 RREG32_SMC(ixCG_FREQ_TRAN_VOTING_4));
-	dev_info(adev->dev, "  CG_FREQ_TRAN_VOTING_5=0x%08X\n",
-		 RREG32_SMC(ixCG_FREQ_TRAN_VOTING_5));
-	dev_info(adev->dev, "  CG_FREQ_TRAN_VOTING_6=0x%08X\n",
-		 RREG32_SMC(ixCG_FREQ_TRAN_VOTING_6));
-	dev_info(adev->dev, "  CG_FREQ_TRAN_VOTING_7=0x%08X\n",
-		 RREG32_SMC(ixCG_FREQ_TRAN_VOTING_7));
-	dev_info(adev->dev, "  RCU_UC_EVENTS=0x%08X\n",
-		 RREG32_SMC(ixRCU_UC_EVENTS));
-	dev_info(adev->dev, "  DPM_TABLE_475=0x%08X\n",
-		 RREG32_SMC(ixDPM_TABLE_475));
-	dev_info(adev->dev, "  MC_SEQ_RAS_TIMING_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_RAS_TIMING_LP));
-	dev_info(adev->dev, "  MC_SEQ_RAS_TIMING=0x%08X\n",
-		 RREG32(mmMC_SEQ_RAS_TIMING));
-	dev_info(adev->dev, "  MC_SEQ_CAS_TIMING_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_CAS_TIMING_LP));
-	dev_info(adev->dev, "  MC_SEQ_CAS_TIMING=0x%08X\n",
-		 RREG32(mmMC_SEQ_CAS_TIMING));
-	dev_info(adev->dev, "  MC_SEQ_DLL_STBY_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_DLL_STBY_LP));
-	dev_info(adev->dev, "  MC_SEQ_DLL_STBY=0x%08X\n",
-		 RREG32(mmMC_SEQ_DLL_STBY));
-	dev_info(adev->dev, "  MC_SEQ_G5PDX_CMD0_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_G5PDX_CMD0_LP));
-	dev_info(adev->dev, "  MC_SEQ_G5PDX_CMD0=0x%08X\n",
-		 RREG32(mmMC_SEQ_G5PDX_CMD0));
-	dev_info(adev->dev, "  MC_SEQ_G5PDX_CMD1_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_G5PDX_CMD1_LP));
-	dev_info(adev->dev, "  MC_SEQ_G5PDX_CMD1=0x%08X\n",
-		 RREG32(mmMC_SEQ_G5PDX_CMD1));
-	dev_info(adev->dev, "  MC_SEQ_G5PDX_CTRL_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_G5PDX_CTRL_LP));
-	dev_info(adev->dev, "  MC_SEQ_G5PDX_CTRL=0x%08X\n",
-		 RREG32(mmMC_SEQ_G5PDX_CTRL));
-	dev_info(adev->dev, "  MC_SEQ_PMG_DVS_CMD_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_PMG_DVS_CMD_LP));
-	dev_info(adev->dev, "  MC_SEQ_PMG_DVS_CMD=0x%08X\n",
-		 RREG32(mmMC_SEQ_PMG_DVS_CMD));
-	dev_info(adev->dev, "  MC_SEQ_PMG_DVS_CTL_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_PMG_DVS_CTL_LP));
-	dev_info(adev->dev, "  MC_SEQ_PMG_DVS_CTL=0x%08X\n",
-		 RREG32(mmMC_SEQ_PMG_DVS_CTL));
-	dev_info(adev->dev, "  MC_SEQ_MISC_TIMING_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_MISC_TIMING_LP));
-	dev_info(adev->dev, "  MC_SEQ_MISC_TIMING=0x%08X\n",
-		 RREG32(mmMC_SEQ_MISC_TIMING));
-	dev_info(adev->dev, "  MC_SEQ_MISC_TIMING2_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_MISC_TIMING2_LP));
-	dev_info(adev->dev, "  MC_SEQ_MISC_TIMING2=0x%08X\n",
-		 RREG32(mmMC_SEQ_MISC_TIMING2));
-	dev_info(adev->dev, "  MC_SEQ_PMG_CMD_EMRS_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_PMG_CMD_EMRS_LP));
-	dev_info(adev->dev, "  MC_PMG_CMD_EMRS=0x%08X\n",
-		 RREG32(mmMC_PMG_CMD_EMRS));
-	dev_info(adev->dev, "  MC_SEQ_PMG_CMD_MRS_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_PMG_CMD_MRS_LP));
-	dev_info(adev->dev, "  MC_PMG_CMD_MRS=0x%08X\n",
-		 RREG32(mmMC_PMG_CMD_MRS));
-	dev_info(adev->dev, "  MC_SEQ_PMG_CMD_MRS1_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_PMG_CMD_MRS1_LP));
-	dev_info(adev->dev, "  MC_PMG_CMD_MRS1=0x%08X\n",
-		 RREG32(mmMC_PMG_CMD_MRS1));
-	dev_info(adev->dev, "  MC_SEQ_WR_CTL_D0_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_WR_CTL_D0_LP));
-	dev_info(adev->dev, "  MC_SEQ_WR_CTL_D0=0x%08X\n",
-		 RREG32(mmMC_SEQ_WR_CTL_D0));
-	dev_info(adev->dev, "  MC_SEQ_WR_CTL_D1_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_WR_CTL_D1_LP));
-	dev_info(adev->dev, "  MC_SEQ_WR_CTL_D1=0x%08X\n",
-		 RREG32(mmMC_SEQ_WR_CTL_D1));
-	dev_info(adev->dev, "  MC_SEQ_RD_CTL_D0_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_RD_CTL_D0_LP));
-	dev_info(adev->dev, "  MC_SEQ_RD_CTL_D0=0x%08X\n",
-		 RREG32(mmMC_SEQ_RD_CTL_D0));
-	dev_info(adev->dev, "  MC_SEQ_RD_CTL_D1_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_RD_CTL_D1_LP));
-	dev_info(adev->dev, "  MC_SEQ_RD_CTL_D1=0x%08X\n",
-		 RREG32(mmMC_SEQ_RD_CTL_D1));
-	dev_info(adev->dev, "  MC_SEQ_PMG_TIMING_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_PMG_TIMING_LP));
-	dev_info(adev->dev, "  MC_SEQ_PMG_TIMING=0x%08X\n",
-		 RREG32(mmMC_SEQ_PMG_TIMING));
-	dev_info(adev->dev, "  MC_SEQ_PMG_CMD_MRS2_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_PMG_CMD_MRS2_LP));
-	dev_info(adev->dev, "  MC_PMG_CMD_MRS2=0x%08X\n",
-		 RREG32(mmMC_PMG_CMD_MRS2));
-	dev_info(adev->dev, "  MC_SEQ_WR_CTL_2_LP=0x%08X\n",
-		 RREG32(mmMC_SEQ_WR_CTL_2_LP));
-	dev_info(adev->dev, "  MC_SEQ_WR_CTL_2=0x%08X\n",
-		 RREG32(mmMC_SEQ_WR_CTL_2));
-	dev_info(adev->dev, "  PCIE_LC_SPEED_CNTL=0x%08X\n",
-		 RREG32_PCIE(ixPCIE_LC_SPEED_CNTL));
-	dev_info(adev->dev, "  PCIE_LC_LINK_WIDTH_CNTL=0x%08X\n",
-		 RREG32_PCIE(ixPCIE_LC_LINK_WIDTH_CNTL));
-	dev_info(adev->dev, "  SMC_IND_INDEX_0=0x%08X\n",
-		 RREG32(mmSMC_IND_INDEX_0));
-	dev_info(adev->dev, "  SMC_IND_DATA_0=0x%08X\n",
-		 RREG32(mmSMC_IND_DATA_0));
-	dev_info(adev->dev, "  SMC_IND_ACCESS_CNTL=0x%08X\n",
-		 RREG32(mmSMC_IND_ACCESS_CNTL));
-	dev_info(adev->dev, "  SMC_RESP_0=0x%08X\n",
-		 RREG32(mmSMC_RESP_0));
-	dev_info(adev->dev, "  SMC_MESSAGE_0=0x%08X\n",
-		 RREG32(mmSMC_MESSAGE_0));
-	dev_info(adev->dev, "  SMC_SYSCON_RESET_CNTL=0x%08X\n",
-		 RREG32_SMC(ixSMC_SYSCON_RESET_CNTL));
-	dev_info(adev->dev, "  SMC_SYSCON_CLOCK_CNTL_0=0x%08X\n",
-		 RREG32_SMC(ixSMC_SYSCON_CLOCK_CNTL_0));
-	dev_info(adev->dev, "  SMC_SYSCON_MISC_CNTL=0x%08X\n",
-		 RREG32_SMC(ixSMC_SYSCON_MISC_CNTL));
-	dev_info(adev->dev, "  SMC_PC_C=0x%08X\n",
-		 RREG32_SMC(ixSMC_PC_C));
 }
 
 static int ci_dpm_soft_reset(void *handle)
@@ -6606,7 +6510,7 @@ static int ci_dpm_set_interrupt_state(struct amdgpu_device *adev,
 }
 
 static int ci_dpm_process_interrupt(struct amdgpu_device *adev,
-				    struct amdgpu_irq_src *source, 
+				    struct amdgpu_irq_src *source,
 				    struct amdgpu_iv_entry *entry)
 {
 	bool queue_thermal = false;
@@ -6647,7 +6551,443 @@ static int ci_dpm_set_powergating_state(void *handle,
 	return 0;
 }
 
+static int ci_dpm_print_clock_levels(struct amdgpu_device *adev,
+		enum pp_clock_type type, char *buf)
+{
+	struct ci_power_info *pi = ci_get_pi(adev);
+	struct ci_single_dpm_table *sclk_table = &pi->dpm_table.sclk_table;
+	struct ci_single_dpm_table *mclk_table = &pi->dpm_table.mclk_table;
+	struct ci_single_dpm_table *pcie_table = &pi->dpm_table.pcie_speed_table;
+
+	int i, now, size = 0;
+	uint32_t clock, pcie_speed;
+
+	switch (type) {
+	case PP_SCLK:
+		amdgpu_ci_send_msg_to_smc(adev, PPSMC_MSG_API_GetSclkFrequency);
+		clock = RREG32(mmSMC_MSG_ARG_0);
+
+		for (i = 0; i < sclk_table->count; i++) {
+			if (clock > sclk_table->dpm_levels[i].value)
+				continue;
+			break;
+		}
+		now = i;
+
+		for (i = 0; i < sclk_table->count; i++)
+			size += sprintf(buf + size, "%d: %uMhz %s\n",
+					i, sclk_table->dpm_levels[i].value / 100,
+					(i == now) ? "*" : "");
+		break;
+	case PP_MCLK:
+		amdgpu_ci_send_msg_to_smc(adev, PPSMC_MSG_API_GetMclkFrequency);
+		clock = RREG32(mmSMC_MSG_ARG_0);
+
+		for (i = 0; i < mclk_table->count; i++) {
+			if (clock > mclk_table->dpm_levels[i].value)
+				continue;
+			break;
+		}
+		now = i;
+
+		for (i = 0; i < mclk_table->count; i++)
+			size += sprintf(buf + size, "%d: %uMhz %s\n",
+					i, mclk_table->dpm_levels[i].value / 100,
+					(i == now) ? "*" : "");
+		break;
+	case PP_PCIE:
+		pcie_speed = ci_get_current_pcie_speed(adev);
+		for (i = 0; i < pcie_table->count; i++) {
+			if (pcie_speed != pcie_table->dpm_levels[i].value)
+				continue;
+			break;
+		}
+		now = i;
+
+		for (i = 0; i < pcie_table->count; i++)
+			size += sprintf(buf + size, "%d: %s %s\n", i,
+					(pcie_table->dpm_levels[i].value == 0) ? "2.5GB, x1" :
+					(pcie_table->dpm_levels[i].value == 1) ? "5.0GB, x16" :
+					(pcie_table->dpm_levels[i].value == 2) ? "8.0GB, x16" : "",
+					(i == now) ? "*" : "");
+		break;
+	default:
+		break;
+	}
+
+	return size;
+}
+
+static int ci_dpm_force_clock_level(struct amdgpu_device *adev,
+		enum pp_clock_type type, uint32_t mask)
+{
+	struct ci_power_info *pi = ci_get_pi(adev);
+
+	if (adev->pm.dpm.forced_level & (AMD_DPM_FORCED_LEVEL_AUTO |
+				AMD_DPM_FORCED_LEVEL_LOW |
+				AMD_DPM_FORCED_LEVEL_HIGH))
+		return -EINVAL;
+
+	switch (type) {
+	case PP_SCLK:
+		if (!pi->sclk_dpm_key_disabled)
+			amdgpu_ci_send_msg_to_smc_with_parameter(adev,
+					PPSMC_MSG_SCLKDPM_SetEnabledMask,
+					pi->dpm_level_enable_mask.sclk_dpm_enable_mask & mask);
+		break;
+
+	case PP_MCLK:
+		if (!pi->mclk_dpm_key_disabled)
+			amdgpu_ci_send_msg_to_smc_with_parameter(adev,
+					PPSMC_MSG_MCLKDPM_SetEnabledMask,
+					pi->dpm_level_enable_mask.mclk_dpm_enable_mask & mask);
+		break;
+
+	case PP_PCIE:
+	{
+		uint32_t tmp = mask & pi->dpm_level_enable_mask.pcie_dpm_enable_mask;
+		uint32_t level = 0;
+
+		while (tmp >>= 1)
+			level++;
+
+		if (!pi->pcie_dpm_key_disabled)
+			amdgpu_ci_send_msg_to_smc_with_parameter(adev,
+					PPSMC_MSG_PCIeDPM_ForceLevel,
+					level);
+		break;
+	}
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int ci_dpm_get_sclk_od(struct amdgpu_device *adev)
+{
+	struct ci_power_info *pi = ci_get_pi(adev);
+	struct ci_single_dpm_table *sclk_table = &(pi->dpm_table.sclk_table);
+	struct ci_single_dpm_table *golden_sclk_table =
+			&(pi->golden_dpm_table.sclk_table);
+	int value;
+
+	value = (sclk_table->dpm_levels[sclk_table->count - 1].value -
+			golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value) *
+			100 /
+			golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value;
+
+	return value;
+}
+
+static int ci_dpm_set_sclk_od(struct amdgpu_device *adev, uint32_t value)
+{
+	struct ci_power_info *pi = ci_get_pi(adev);
+	struct ci_ps *ps = ci_get_ps(adev->pm.dpm.requested_ps);
+	struct ci_single_dpm_table *golden_sclk_table =
+			&(pi->golden_dpm_table.sclk_table);
+
+	if (value > 20)
+		value = 20;
+
+	ps->performance_levels[ps->performance_level_count - 1].sclk =
+			golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value *
+			value / 100 +
+			golden_sclk_table->dpm_levels[golden_sclk_table->count - 1].value;
+
+	return 0;
+}
+
+static int ci_dpm_get_mclk_od(struct amdgpu_device *adev)
+{
+	struct ci_power_info *pi = ci_get_pi(adev);
+	struct ci_single_dpm_table *mclk_table = &(pi->dpm_table.mclk_table);
+	struct ci_single_dpm_table *golden_mclk_table =
+			&(pi->golden_dpm_table.mclk_table);
+	int value;
+
+	value = (mclk_table->dpm_levels[mclk_table->count - 1].value -
+			golden_mclk_table->dpm_levels[golden_mclk_table->count - 1].value) *
+			100 /
+			golden_mclk_table->dpm_levels[golden_mclk_table->count - 1].value;
+
+	return value;
+}
+
+static int ci_dpm_set_mclk_od(struct amdgpu_device *adev, uint32_t value)
+{
+	struct ci_power_info *pi = ci_get_pi(adev);
+	struct ci_ps *ps = ci_get_ps(adev->pm.dpm.requested_ps);
+	struct ci_single_dpm_table *golden_mclk_table =
+			&(pi->golden_dpm_table.mclk_table);
+
+	if (value > 20)
+		value = 20;
+
+	ps->performance_levels[ps->performance_level_count - 1].mclk =
+			golden_mclk_table->dpm_levels[golden_mclk_table->count - 1].value *
+			value / 100 +
+			golden_mclk_table->dpm_levels[golden_mclk_table->count - 1].value;
+
+	return 0;
+}
+
+static int ci_dpm_get_power_profile_state(struct amdgpu_device *adev,
+		struct amd_pp_profile *query)
+{
+	struct ci_power_info *pi = ci_get_pi(adev);
+
+	if (!pi || !query)
+		return -EINVAL;
+
+	if (query->type == AMD_PP_GFX_PROFILE)
+		memcpy(query, &pi->gfx_power_profile,
+				sizeof(struct amd_pp_profile));
+	else if (query->type == AMD_PP_COMPUTE_PROFILE)
+		memcpy(query, &pi->compute_power_profile,
+				sizeof(struct amd_pp_profile));
+	else
+		return -EINVAL;
+
+	return 0;
+}
+
+static int ci_populate_requested_graphic_levels(struct amdgpu_device *adev,
+		struct amd_pp_profile *request)
+{
+	struct ci_power_info *pi = ci_get_pi(adev);
+	struct ci_dpm_table *dpm_table = &(pi->dpm_table);
+	struct SMU7_Discrete_GraphicsLevel *levels =
+			pi->smc_state_table.GraphicsLevel;
+	uint32_t array = pi->dpm_table_start +
+			offsetof(SMU7_Discrete_DpmTable, GraphicsLevel);
+	uint32_t array_size = sizeof(struct SMU7_Discrete_GraphicsLevel) *
+			SMU7_MAX_LEVELS_GRAPHICS;
+	uint32_t i;
+
+	for (i = 0; i < dpm_table->sclk_table.count; i++) {
+		levels[i].ActivityLevel =
+				cpu_to_be16(request->activity_threshold);
+		levels[i].EnabledForActivity = 1;
+		levels[i].UpH = request->up_hyst;
+		levels[i].DownH = request->down_hyst;
+	}
+
+	return amdgpu_ci_copy_bytes_to_smc(adev, array, (uint8_t *)levels,
+				array_size, pi->sram_end);
+}
+
+static void ci_find_min_clock_masks(struct amdgpu_device *adev,
+		uint32_t *sclk_mask, uint32_t *mclk_mask,
+		uint32_t min_sclk, uint32_t min_mclk)
+{
+	struct ci_power_info *pi = ci_get_pi(adev);
+	struct ci_dpm_table *dpm_table = &(pi->dpm_table);
+	uint32_t i;
+
+	for (i = 0; i < dpm_table->sclk_table.count; i++) {
+		if (dpm_table->sclk_table.dpm_levels[i].enabled &&
+			dpm_table->sclk_table.dpm_levels[i].value >= min_sclk)
+			*sclk_mask |= 1 << i;
+	}
+
+	for (i = 0; i < dpm_table->mclk_table.count; i++) {
+		if (dpm_table->mclk_table.dpm_levels[i].enabled &&
+			dpm_table->mclk_table.dpm_levels[i].value >= min_mclk)
+			*mclk_mask |= 1 << i;
+	}
+}
+
+static int ci_set_power_profile_state(struct amdgpu_device *adev,
+		struct amd_pp_profile *request)
+{
+	struct ci_power_info *pi = ci_get_pi(adev);
+	int tmp_result, result = 0;
+	uint32_t sclk_mask = 0, mclk_mask = 0;
+
+	tmp_result = ci_freeze_sclk_mclk_dpm(adev);
+	if (tmp_result) {
+		DRM_ERROR("Failed to freeze SCLK MCLK DPM!");
+		result = tmp_result;
+	}
+
+	tmp_result = ci_populate_requested_graphic_levels(adev,
+			request);
+	if (tmp_result) {
+		DRM_ERROR("Failed to populate requested graphic levels!");
+		result = tmp_result;
+	}
+
+	tmp_result = ci_unfreeze_sclk_mclk_dpm(adev);
+	if (tmp_result) {
+		DRM_ERROR("Failed to unfreeze SCLK MCLK DPM!");
+		result = tmp_result;
+	}
+
+	ci_find_min_clock_masks(adev, &sclk_mask, &mclk_mask,
+			request->min_sclk, request->min_mclk);
+
+	if (sclk_mask) {
+		if (!pi->sclk_dpm_key_disabled)
+			amdgpu_ci_send_msg_to_smc_with_parameter(
+				adev,
+				PPSMC_MSG_SCLKDPM_SetEnabledMask,
+				pi->dpm_level_enable_mask.
+				sclk_dpm_enable_mask &
+				sclk_mask);
+	}
+
+	if (mclk_mask) {
+		if (!pi->mclk_dpm_key_disabled)
+			amdgpu_ci_send_msg_to_smc_with_parameter(
+				adev,
+				PPSMC_MSG_MCLKDPM_SetEnabledMask,
+				pi->dpm_level_enable_mask.
+				mclk_dpm_enable_mask &
+				mclk_mask);
+	}
+
+
+	return result;
+}
+
+static int ci_dpm_set_power_profile_state(struct amdgpu_device *adev,
+		struct amd_pp_profile *request)
+{
+	struct ci_power_info *pi = ci_get_pi(adev);
+	int ret = -1;
+
+	if (!pi || !request)
+		return -EINVAL;
+
+	if (adev->pm.dpm.forced_level !=
+			AMD_DPM_FORCED_LEVEL_AUTO)
+		return -EINVAL;
+
+	if (request->min_sclk ||
+		request->min_mclk ||
+		request->activity_threshold ||
+		request->up_hyst ||
+		request->down_hyst) {
+		if (request->type == AMD_PP_GFX_PROFILE)
+			memcpy(&pi->gfx_power_profile, request,
+					sizeof(struct amd_pp_profile));
+		else if (request->type == AMD_PP_COMPUTE_PROFILE)
+			memcpy(&pi->compute_power_profile, request,
+					sizeof(struct amd_pp_profile));
+		else
+			return -EINVAL;
+
+		if (request->type == pi->current_power_profile)
+			ret = ci_set_power_profile_state(
+					adev,
+					request);
+	} else {
+		/* set power profile if it exists */
+		switch (request->type) {
+		case AMD_PP_GFX_PROFILE:
+			ret = ci_set_power_profile_state(
+				adev,
+				&pi->gfx_power_profile);
+			break;
+		case AMD_PP_COMPUTE_PROFILE:
+			ret = ci_set_power_profile_state(
+				adev,
+				&pi->compute_power_profile);
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+
+	if (!ret)
+		pi->current_power_profile = request->type;
+
+	return 0;
+}
+
+static int ci_dpm_reset_power_profile_state(struct amdgpu_device *adev,
+		struct amd_pp_profile *request)
+{
+	struct ci_power_info *pi = ci_get_pi(adev);
+
+	if (!pi || !request)
+		return -EINVAL;
+
+	if (request->type == AMD_PP_GFX_PROFILE) {
+		pi->gfx_power_profile = pi->default_gfx_power_profile;
+		return ci_dpm_set_power_profile_state(adev,
+					  &pi->gfx_power_profile);
+	} else if (request->type == AMD_PP_COMPUTE_PROFILE) {
+		pi->compute_power_profile =
+			pi->default_compute_power_profile;
+		return ci_dpm_set_power_profile_state(adev,
+					  &pi->compute_power_profile);
+	} else
+		return -EINVAL;
+}
+
+static int ci_dpm_switch_power_profile(struct amdgpu_device *adev,
+		enum amd_pp_profile_type type)
+{
+	struct ci_power_info *pi = ci_get_pi(adev);
+	struct amd_pp_profile request = {0};
+
+	if (!pi)
+		return -EINVAL;
+
+	if (pi->current_power_profile != type) {
+		request.type = type;
+		return ci_dpm_set_power_profile_state(adev, &request);
+	}
+
+	return 0;
+}
+
+static int ci_dpm_read_sensor(struct amdgpu_device *adev, int idx,
+			      void *value, int *size)
+{
+	u32 activity_percent = 50;
+	int ret;
+
+	/* size must be at least 4 bytes for all sensors */
+	if (*size < 4)
+		return -EINVAL;
+
+	switch (idx) {
+	case AMDGPU_PP_SENSOR_GFX_SCLK:
+		*((uint32_t *)value) = ci_get_average_sclk_freq(adev);
+		*size = 4;
+		return 0;
+	case AMDGPU_PP_SENSOR_GFX_MCLK:
+		*((uint32_t *)value) = ci_get_average_mclk_freq(adev);
+		*size = 4;
+		return 0;
+	case AMDGPU_PP_SENSOR_GPU_TEMP:
+		*((uint32_t *)value) = ci_dpm_get_temp(adev);
+		*size = 4;
+		return 0;
+	case AMDGPU_PP_SENSOR_GPU_LOAD:
+		ret = ci_read_smc_soft_register(adev,
+						offsetof(SMU7_SoftRegisters,
+							 AverageGraphicsA),
+						&activity_percent);
+		if (ret == 0) {
+			activity_percent += 0x80;
+			activity_percent >>= 8;
+			activity_percent =
+				activity_percent > 100 ? 100 : activity_percent;
+		}
+		*((uint32_t *)value) = activity_percent;
+		*size = 4;
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 const struct amd_ip_funcs ci_dpm_ip_funcs = {
+	.name = "ci_dpm",
 	.early_init = ci_dpm_early_init,
 	.late_init = ci_dpm_late_init,
 	.sw_init = ci_dpm_sw_init,
@@ -6659,7 +6999,6 @@ const struct amd_ip_funcs ci_dpm_ip_funcs = {
 	.is_idle = ci_dpm_is_idle,
 	.wait_for_idle = ci_dpm_wait_for_idle,
 	.soft_reset = ci_dpm_soft_reset,
-	.print_status = ci_dpm_print_status,
 	.set_clockgating_state = ci_dpm_set_clockgating_state,
 	.set_powergating_state = ci_dpm_set_powergating_state,
 };
@@ -6681,6 +7020,19 @@ static const struct amdgpu_dpm_funcs ci_dpm_funcs = {
 	.get_fan_control_mode = &ci_dpm_get_fan_control_mode,
 	.set_fan_speed_percent = &ci_dpm_set_fan_speed_percent,
 	.get_fan_speed_percent = &ci_dpm_get_fan_speed_percent,
+	.print_clock_levels = ci_dpm_print_clock_levels,
+	.force_clock_level = ci_dpm_force_clock_level,
+	.get_sclk_od = ci_dpm_get_sclk_od,
+	.set_sclk_od = ci_dpm_set_sclk_od,
+	.get_mclk_od = ci_dpm_get_mclk_od,
+	.set_mclk_od = ci_dpm_set_mclk_od,
+	.check_state_equal = ci_check_state_equal,
+	.get_vce_clock_state = amdgpu_get_vce_clock_state,
+	.get_power_profile_state = ci_dpm_get_power_profile_state,
+	.set_power_profile_state = ci_dpm_set_power_profile_state,
+	.reset_power_profile_state = ci_dpm_reset_power_profile_state,
+	.switch_power_profile = ci_dpm_switch_power_profile,
+	.read_sensor = ci_dpm_read_sensor,
 };
 
 static void ci_dpm_set_dpm_funcs(struct amdgpu_device *adev)

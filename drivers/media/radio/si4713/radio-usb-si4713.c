@@ -31,7 +31,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-event.h>
-#include <media/si4713.h>
+#include <linux/platform_data/media/si4713.h>
 
 #include "si4713.h"
 
@@ -402,7 +402,7 @@ static u32 si4713_functionality(struct i2c_adapter *adapter)
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
-static struct i2c_algorithm si4713_algo = {
+static const struct i2c_algorithm si4713_algo = {
 	.master_xfer   = si4713_transfer,
 	.functionality = si4713_functionality,
 };

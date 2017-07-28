@@ -27,7 +27,6 @@
 
 #include <linux/mtd/partitions.h>
 
-
 /*
  * This uses SPI to talk with an "AVR Butterfly", which is a $US20 card
  * with a battery powered AVR microcontroller and lots of goodies.  You
@@ -36,7 +35,6 @@
  * See Documentation/spi/butterfly for information about how to build
  * and use this custom parallel port cable.
  */
-
 
 /* DATA output bits (pins 2..9 == D0..D7) */
 #define	butterfly_nreset (1 << 1)		/* pin 3 */
@@ -52,13 +50,10 @@
 /* CONTROL output bits */
 #define	spi_cs_bit	PARPORT_CONTROL_SELECT	/* pin 17 */
 
-
-
 static inline struct butterfly *spidev_to_pp(struct spi_device *spi)
 {
 	return spi->controller_data;
 }
-
 
 struct butterfly {
 	/* REVISIT ... for now, this must be first */
@@ -140,7 +135,6 @@ static void butterfly_chipselect(struct spi_device *spi, int value)
 	parport_frob_control(pp->port, spi_cs_bit, value ? spi_cs_bit : 0);
 }
 
-
 /* we only needed to implement one mode here, and choose SPI_MODE_0 */
 
 #define spidelay(X)	do { } while (0)
@@ -149,9 +143,8 @@ static void butterfly_chipselect(struct spi_device *spi, int value)
 #include "spi-bitbang-txrx.h"
 
 static u32
-butterfly_txrx_word_mode0(struct spi_device *spi,
-		unsigned nsecs,
-		u32 word, u8 bits)
+butterfly_txrx_word_mode0(struct spi_device *spi, unsigned nsecs, u32 word,
+			  u8 bits)
 {
 	return bitbang_txrx_be_cpha0(spi, nsecs, 0, 0, word, bits);
 }
@@ -186,7 +179,6 @@ static struct flash_platform_data flash = {
 	.nr_parts	= ARRAY_SIZE(partitions),
 };
 
-
 /* REVISIT remove this ugly global and its "only one" limitation */
 static struct butterfly *butterfly;
 
@@ -197,6 +189,7 @@ static void butterfly_attach(struct parport *p)
 	struct butterfly	*pp;
 	struct spi_master	*master;
 	struct device		*dev = p->physport->dev;
+	struct pardev_cb	butterfly_cb;
 
 	if (butterfly || !dev)
 		return;
@@ -229,9 +222,9 @@ static void butterfly_attach(struct parport *p)
 	 * parport hookup
 	 */
 	pp->port = p;
-	pd = parport_register_device(p, "spi_butterfly",
-			NULL, NULL, NULL,
-			0 /* FLAGS */, pp);
+	memset(&butterfly_cb, 0, sizeof(butterfly_cb));
+	butterfly_cb.private = pp;
+	pd = parport_register_dev_model(p, "spi_butterfly", &butterfly_cb, 0);
 	if (!pd) {
 		status = -ENOMEM;
 		goto clean0;
@@ -262,7 +255,6 @@ static void butterfly_attach(struct parport *p)
 	parport_write_data(pp->port, pp->lastbyte);
 	msleep(100);
 
-
 	/*
 	 * Start SPI ... for now, hide that we're two physical busses.
 	 */
@@ -283,7 +275,7 @@ static void butterfly_attach(struct parport *p)
 	pp->dataflash = spi_new_device(pp->bitbang.master, &pp->info[0]);
 	if (pp->dataflash)
 		pr_debug("%s: dataflash at %s\n", p->name,
-				dev_name(&pp->dataflash->dev));
+			 dev_name(&pp->dataflash->dev));
 
 	pr_info("%s: AVR Butterfly\n", p->name);
 	butterfly = pp;
@@ -297,7 +289,7 @@ clean2:
 clean1:
 	parport_unregister_device(pd);
 clean0:
-	(void) spi_master_put(pp->bitbang.master);
+	spi_master_put(pp->bitbang.master);
 done:
 	pr_debug("%s: butterfly probe, fail %d\n", p->name, status);
 }
@@ -325,15 +317,15 @@ static void butterfly_detach(struct parport *p)
 	parport_release(pp->pd);
 	parport_unregister_device(pp->pd);
 
-	(void) spi_master_put(pp->bitbang.master);
+	spi_master_put(pp->bitbang.master);
 }
 
 static struct parport_driver butterfly_driver = {
 	.name =		"spi_butterfly",
-	.attach =	butterfly_attach,
+	.match_port =	butterfly_attach,
 	.detach =	butterfly_detach,
+	.devmodel = true,
 };
-
 
 static int __init butterfly_init(void)
 {

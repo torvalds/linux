@@ -335,17 +335,15 @@ static int stv6110x_get_status(struct dvb_frontend *fe, u32 *status)
 }
 
 
-static int stv6110x_release(struct dvb_frontend *fe)
+static void stv6110x_release(struct dvb_frontend *fe)
 {
 	struct stv6110x_state *stv6110x = fe->tuner_priv;
 
 	fe->tuner_priv = NULL;
 	kfree(stv6110x);
-
-	return 0;
 }
 
-static struct dvb_tuner_ops stv6110x_ops = {
+static const struct dvb_tuner_ops stv6110x_ops = {
 	.info = {
 		.name		= "STV6110(A) Silicon Tuner",
 		.frequency_min	=  950000,
@@ -355,7 +353,7 @@ static struct dvb_tuner_ops stv6110x_ops = {
 	.release		= stv6110x_release
 };
 
-static struct stv6110x_devctl stv6110x_ctl = {
+static const struct stv6110x_devctl stv6110x_ctl = {
 	.tuner_init		= stv6110x_init,
 	.tuner_sleep		= stv6110x_sleep,
 	.tuner_set_mode		= stv6110x_set_mode,
@@ -369,7 +367,7 @@ static struct stv6110x_devctl stv6110x_ctl = {
 	.tuner_get_status	= stv6110x_get_status,
 };
 
-struct stv6110x_devctl *stv6110x_attach(struct dvb_frontend *fe,
+const struct stv6110x_devctl *stv6110x_attach(struct dvb_frontend *fe,
 					const struct stv6110x_config *config,
 					struct i2c_adapter *i2c)
 {

@@ -32,7 +32,8 @@
 #include <linux/smp.h>
 #include <linux/rcupdate.h>
 #include <linux/interrupt.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <uapi/linux/sched/types.h>
 #include <linux/atomic.h>
 #include <linux/bitops.h>
 #include <linux/completion.h>
@@ -50,6 +51,8 @@
 #include <asm/byteorder.h>
 #include <linux/torture.h>
 #include <linux/vmalloc.h>
+
+#include "rcu.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Paul E. McKenney <paulmck@us.ibm.com> and Josh Triplett <josh@joshtriplett.org>");
@@ -130,10 +133,8 @@ static struct rcu_torture __rcu *rcu_torture_current;
 static unsigned long rcu_torture_current_version;
 static struct rcu_torture rcu_tortures[10 * RCU_TORTURE_PIPE_LEN];
 static DEFINE_SPINLOCK(rcu_torture_lock);
-static DEFINE_PER_CPU(long [RCU_TORTURE_PIPE_LEN + 1],
-		      rcu_torture_count) = { 0 };
-static DEFINE_PER_CPU(long [RCU_TORTURE_PIPE_LEN + 1],
-		      rcu_torture_batch) = { 0 };
+static DEFINE_PER_CPU(long [RCU_TORTURE_PIPE_LEN + 1], rcu_torture_count);
+static DEFINE_PER_CPU(long [RCU_TORTURE_PIPE_LEN + 1], rcu_torture_batch);
 static atomic_t rcu_torture_wcount[RCU_TORTURE_PIPE_LEN + 1];
 static atomic_t n_rcu_torture_alloc;
 static atomic_t n_rcu_torture_alloc_fail;
@@ -162,13 +163,29 @@ static int rcu_torture_writer_state;
 #define RTWS_SYNC		7
 #define RTWS_STUTTER		8
 #define RTWS_STOPPING		9
+static const char * const rcu_torture_writer_state_names[] = {
+	"RTWS_FIXED_DELAY",
+	"RTWS_DELAY",
+	"RTWS_REPLACE",
+	"RTWS_DEF_FREE",
+	"RTWS_EXP_SYNC",
+	"RTWS_COND_GET",
+	"RTWS_COND_SYNC",
+	"RTWS_SYNC",
+	"RTWS_STUTTER",
+	"RTWS_STOPPING",
+};
 
-#if defined(MODULE) || defined(CONFIG_RCU_TORTURE_TEST_RUNNABLE)
-#define RCUTORTURE_RUNNABLE_INIT 1
-#else
-#define RCUTORTURE_RUNNABLE_INIT 0
-#endif
-static int torture_runnable = RCUTORTURE_RUNNABLE_INIT;
+static const char *rcu_torture_writer_state_getname(void)
+{
+	unsigned int i = READ_ONCE(rcu_torture_writer_state);
+
+	if (i >= ARRAY_SIZE(rcu_torture_writer_state_names))
+		return "???";
+	return rcu_torture_writer_state_names[i];
+}
+
+static int torture_runnable = IS_ENABLED(MODULE);
 module_param(torture_runnable, int, 0444);
 MODULE_PARM_DESC(torture_runnable, "Start rcutorture at boot");
 
@@ -275,15 +292,24 @@ static int rcu_torture_read_lock(void) __acquires(RCU)
 
 static void rcu_read_delay(struct torture_random_state *rrsp)
 {
+	unsigned long started;
+	unsigned long completed;
 	const unsigned long shortdelay_us = 200;
 	const unsigned long longdelay_ms = 50;
+	unsigned long long ts;
 
 	/* We want a short delay sometimes to make a reader delay the grace
 	 * period, and we want a long delay occasionally to trigger
 	 * force_quiescent_state. */
 
-	if (!(torture_random(rrsp) % (nrealreaders * 2000 * longdelay_ms)))
+	if (!(torture_random(rrsp) % (nrealreaders * 2000 * longdelay_ms))) {
+		started = cur_ops->completed();
+		ts = rcu_trace_clock_local();
 		mdelay(longdelay_ms);
+		completed = cur_ops->completed();
+		do_trace_rcu_torture_read(cur_ops->name, NULL, ts,
+					  started, completed);
+	}
 	if (!(torture_random(rrsp) % (nrealreaders * 2 * shortdelay_us)))
 		udelay(shortdelay_us);
 #ifdef CONFIG_PREEMPT
@@ -535,19 +561,44 @@ static void srcu_torture_barrier(void)
 
 static void srcu_torture_stats(void)
 {
-	int cpu;
-	int idx = srcu_ctlp->completed & 0x1;
+	int __maybe_unused cpu;
+	int idx;
 
-	pr_alert("%s%s per-CPU(idx=%d):",
+#ifdef CONFIG_TREE_SRCU
+	idx = srcu_ctlp->srcu_idx & 0x1;
+	pr_alert("%s%s Tree SRCU per-CPU(idx=%d):",
 		 torture_type, TORTURE_FLAG, idx);
 	for_each_possible_cpu(cpu) {
+		unsigned long l0, l1;
+		unsigned long u0, u1;
 		long c0, c1;
+		struct srcu_data *counts;
 
-		c0 = (long)per_cpu_ptr(srcu_ctlp->per_cpu_ref, cpu)->c[!idx];
-		c1 = (long)per_cpu_ptr(srcu_ctlp->per_cpu_ref, cpu)->c[idx];
+		counts = per_cpu_ptr(srcu_ctlp->sda, cpu);
+		u0 = counts->srcu_unlock_count[!idx];
+		u1 = counts->srcu_unlock_count[idx];
+
+		/*
+		 * Make sure that a lock is always counted if the corresponding
+		 * unlock is counted.
+		 */
+		smp_rmb();
+
+		l0 = counts->srcu_lock_count[!idx];
+		l1 = counts->srcu_lock_count[idx];
+
+		c0 = l0 - u0;
+		c1 = l1 - u1;
 		pr_cont(" %d(%ld,%ld)", cpu, c0, c1);
 	}
 	pr_cont("\n");
+#elif defined(CONFIG_TINY_SRCU)
+	idx = READ_ONCE(srcu_ctlp->srcu_idx) & 0x1;
+	pr_alert("%s%s Tiny SRCU per-CPU(idx=%d): (%hd,%hd)\n",
+		 torture_type, TORTURE_FLAG, idx,
+		 READ_ONCE(srcu_ctlp->srcu_lock_nesting[!idx]),
+		 READ_ONCE(srcu_ctlp->srcu_lock_nesting[idx]));
+#endif
 }
 
 static void srcu_torture_synchronize_expedited(void)
@@ -897,7 +948,7 @@ rcu_torture_fqs(void *arg)
 static int
 rcu_torture_writer(void *arg)
 {
-	bool can_expedite = !rcu_gp_is_expedited();
+	bool can_expedite = !rcu_gp_is_expedited() && !rcu_gp_is_normal();
 	int expediting = 0;
 	unsigned long gp_snap;
 	bool gp_cond1 = gp_cond, gp_exp1 = gp_exp, gp_normal1 = gp_normal;
@@ -911,12 +962,14 @@ rcu_torture_writer(void *arg)
 	int nsynctypes = 0;
 
 	VERBOSE_TOROUT_STRING("rcu_torture_writer task started");
-	pr_alert("%s" TORTURE_FLAG
-		 " Grace periods expedited from boot/sysfs for %s,\n",
-		 torture_type, cur_ops->name);
-	pr_alert("%s" TORTURE_FLAG
-		 " Testing of dynamic grace-period expediting diabled.\n",
-		 torture_type);
+	if (!can_expedite) {
+		pr_alert("%s" TORTURE_FLAG
+			 " GP expediting controlled from boot/sysfs for %s,\n",
+			 torture_type, cur_ops->name);
+		pr_alert("%s" TORTURE_FLAG
+			 " Disabled dynamic grace-period expediting.\n",
+			 torture_type);
+	}
 
 	/* Initialize synctype[] array.  If none set, take default. */
 	if (!gp_cond1 && !gp_exp1 && !gp_normal1 && !gp_sync1)
@@ -1061,17 +1114,6 @@ rcu_torture_fakewriter(void *arg)
 	return 0;
 }
 
-static void rcutorture_trace_dump(void)
-{
-	static atomic_t beenhere = ATOMIC_INIT(0);
-
-	if (atomic_read(&beenhere))
-		return;
-	if (atomic_xchg(&beenhere, 1) != 0)
-		return;
-	ftrace_dump(DUMP_ALL);
-}
-
 /*
  * RCU torture reader from timer handler.  Dereferences rcu_torture_current,
  * incrementing the corresponding element of the pipeline array.  The
@@ -1121,7 +1163,7 @@ static void rcu_torture_timer(unsigned long unused)
 	if (pipe_count > 1) {
 		do_trace_rcu_torture_read(cur_ops->name, &p->rtort_rcu, ts,
 					  started, completed);
-		rcutorture_trace_dump();
+		rcu_ftrace_dump(DUMP_ALL);
 	}
 	__this_cpu_inc(rcu_torture_count[pipe_count]);
 	completed = completed - started;
@@ -1194,7 +1236,7 @@ rcu_torture_reader(void *arg)
 		if (pipe_count > 1) {
 			do_trace_rcu_torture_read(cur_ops->name, &p->rtort_rcu,
 						  ts, started, completed);
-			rcutorture_trace_dump();
+			rcu_ftrace_dump(DUMP_ALL);
 		}
 		__this_cpu_inc(rcu_torture_count[pipe_count]);
 		completed = completed - started;
@@ -1233,6 +1275,7 @@ rcu_torture_stats_print(void)
 	long pipesummary[RCU_TORTURE_PIPE_LEN + 1] = { 0 };
 	long batchsummary[RCU_TORTURE_PIPE_LEN + 1] = { 0 };
 	static unsigned long rtcv_snap = ULONG_MAX;
+	struct task_struct *wtp;
 
 	for_each_possible_cpu(cpu) {
 		for (i = 0; i < RCU_TORTURE_PIPE_LEN + 1; i++) {
@@ -1253,8 +1296,9 @@ rcu_torture_stats_print(void)
 		atomic_read(&n_rcu_torture_alloc),
 		atomic_read(&n_rcu_torture_alloc_fail),
 		atomic_read(&n_rcu_torture_free));
-	pr_cont("rtmbe: %d rtbke: %ld rtbre: %ld ",
+	pr_cont("rtmbe: %d rtbe: %ld rtbke: %ld rtbre: %ld ",
 		atomic_read(&n_rcu_torture_mberror),
+		n_rcu_torture_barrier_error,
 		n_rcu_torture_boost_ktrerror,
 		n_rcu_torture_boost_rterror);
 	pr_cont("rtbf: %ld rtb: %ld nt: %ld ",
@@ -1301,17 +1345,22 @@ rcu_torture_stats_print(void)
 		cur_ops->stats();
 	if (rtcv_snap == rcu_torture_current_version &&
 	    rcu_torture_current != NULL) {
-		int __maybe_unused flags;
-		unsigned long __maybe_unused gpnum;
-		unsigned long __maybe_unused completed;
+		int __maybe_unused flags = 0;
+		unsigned long __maybe_unused gpnum = 0;
+		unsigned long __maybe_unused completed = 0;
 
 		rcutorture_get_gp_data(cur_ops->ttype,
 				       &flags, &gpnum, &completed);
-		pr_alert("??? Writer stall state %d g%lu c%lu f%#x\n",
+		srcutorture_get_gp_data(cur_ops->ttype, srcu_ctlp,
+					&flags, &gpnum, &completed);
+		wtp = READ_ONCE(writer_task);
+		pr_alert("??? Writer stall state %s(%d) g%lu c%lu f%#x ->state %#lx\n",
+			 rcu_torture_writer_state_getname(),
 			 rcu_torture_writer_state,
-			 gpnum, completed, flags);
+			 gpnum, completed, flags,
+			 wtp == NULL ? ~0UL : wtp->state);
 		show_rcu_gp_kthreads();
-		rcutorture_trace_dump();
+		rcu_ftrace_dump(DUMP_ALL);
 	}
 	rtcv_snap = rcu_torture_current_version;
 }
@@ -1356,12 +1405,12 @@ rcu_torture_print_module_parms(struct rcu_torture_ops *cur_ops, const char *tag)
 		 onoff_interval, onoff_holdoff);
 }
 
-static void rcutorture_booster_cleanup(int cpu)
+static int rcutorture_booster_cleanup(unsigned int cpu)
 {
 	struct task_struct *t;
 
 	if (boost_tasks[cpu] == NULL)
-		return;
+		return 0;
 	mutex_lock(&boost_mutex);
 	t = boost_tasks[cpu];
 	boost_tasks[cpu] = NULL;
@@ -1369,9 +1418,10 @@ static void rcutorture_booster_cleanup(int cpu)
 
 	/* This must be outside of the mutex, otherwise deadlock! */
 	torture_stop_kthread(rcu_torture_boost, t);
+	return 0;
 }
 
-static int rcutorture_booster_init(int cpu)
+static int rcutorture_booster_init(unsigned int cpu)
 {
 	int retval;
 
@@ -1465,9 +1515,11 @@ static int rcu_torture_barrier_cbs(void *arg)
 			break;
 		/*
 		 * The above smp_load_acquire() ensures barrier_phase load
-		 * is ordered before the folloiwng ->call().
+		 * is ordered before the following ->call().
 		 */
+		local_irq_disable(); /* Just to test no-irq call_rcu(). */
 		cur_ops->call(&rcu, rcu_torture_barrier_cbf);
+		local_irq_enable();
 		if (atomic_dec_and_test(&barrier_cbs_count))
 			wake_up(&barrier_wq);
 	} while (!torture_must_stop());
@@ -1569,28 +1621,7 @@ static void rcu_torture_barrier_cleanup(void)
 	}
 }
 
-static int rcutorture_cpu_notify(struct notifier_block *self,
-				 unsigned long action, void *hcpu)
-{
-	long cpu = (long)hcpu;
-
-	switch (action) {
-	case CPU_ONLINE:
-	case CPU_DOWN_FAILED:
-		(void)rcutorture_booster_init(cpu);
-		break;
-	case CPU_DOWN_PREPARE:
-		rcutorture_booster_cleanup(cpu);
-		break;
-	default:
-		break;
-	}
-	return NOTIFY_OK;
-}
-
-static struct notifier_block rcutorture_cpu_nb = {
-	.notifier_call = rcutorture_cpu_notify,
-};
+static enum cpuhp_state rcutor_hp;
 
 static void
 rcu_torture_cleanup(void)
@@ -1630,11 +1661,8 @@ rcu_torture_cleanup(void)
 	for (i = 0; i < ncbflooders; i++)
 		torture_stop_kthread(rcu_torture_cbflood, cbflood_task[i]);
 	if ((test_boost == 1 && cur_ops->can_boost) ||
-	    test_boost == 2) {
-		unregister_cpu_notifier(&rcutorture_cpu_nb);
-		for_each_possible_cpu(i)
-			rcutorture_booster_cleanup(i);
-	}
+	    test_boost == 2)
+		cpuhp_remove_state(rcutor_hp);
 
 	/*
 	 * Wait for all RCU callbacks to fire, then do flavor-specific
@@ -1861,14 +1889,13 @@ rcu_torture_init(void)
 	    test_boost == 2) {
 
 		boost_starttime = jiffies + test_boost_interval * HZ;
-		register_cpu_notifier(&rcutorture_cpu_nb);
-		for_each_possible_cpu(i) {
-			if (cpu_is_offline(i))
-				continue;  /* Heuristic: CPU can go offline. */
-			firsterr = rcutorture_booster_init(i);
-			if (firsterr)
-				goto unwind;
-		}
+
+		firsterr = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "RCU_TORTURE",
+					     rcutorture_booster_init,
+					     rcutorture_booster_cleanup);
+		if (firsterr < 0)
+			goto unwind;
+		rcutor_hp = firsterr;
 	}
 	firsterr = torture_shutdown_init(shutdown_secs, rcu_torture_cleanup);
 	if (firsterr)

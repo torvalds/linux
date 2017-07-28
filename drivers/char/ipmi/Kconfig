@@ -5,6 +5,7 @@
 menuconfig IPMI_HANDLER
        tristate 'IPMI top-level message handler'
        depends on HAS_IOMEM
+       select IPMI_DMI_DECODE if DMI
        help
          This enables the central IPMI message handler, required for IPMI
 	 to work.
@@ -15,6 +16,9 @@ menuconfig IPMI_HANDLER
          See <file:Documentation/IPMI.txt> for more details on the driver.
 
 	 If unsure, say N.
+
+config IPMI_DMI_DECODE
+       bool
 
 if IPMI_HANDLER
 
@@ -50,18 +54,6 @@ config IPMI_SI
 	 Currently, only KCS and SMIC are supported.  If
 	 you are using IPMI, you should probably say "y" here.
 
-config IPMI_SI_PROBE_DEFAULTS
-       bool 'Probe for all possible IPMI system interfaces by default'
-       default n
-       depends on IPMI_SI
-       help
-	 Modern systems will usually expose IPMI interfaces via a discoverable
-	 firmware mechanism such as ACPI or DMI. Older systems do not, and so
-	 the driver is forced to probe hardware manually. This may cause boot
-	 delays. Say "n" here to disable this manual probing. IPMI will then
-	 only be available on older systems if the "ipmi_si_intf.trydefaults=1"
-	 boot argument is passed.
-
 config IPMI_SSIF
        tristate 'IPMI SMBus handler (SSIF)'
        select I2C
@@ -88,3 +80,12 @@ config IPMI_POWEROFF
 	 the IPMI management controller is capable of this.
 
 endif # IPMI_HANDLER
+
+config ASPEED_BT_IPMI_BMC
+	depends on ARCH_ASPEED || COMPILE_TEST
+       depends on REGMAP && REGMAP_MMIO && MFD_SYSCON
+	tristate "BT IPMI bmc driver"
+	help
+	  Provides a driver for the BT (Block Transfer) IPMI interface
+	  found on Aspeed SOCs (AST2400 and AST2500). The driver
+	  implements the BMC side of the BT interface.

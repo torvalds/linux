@@ -51,14 +51,14 @@
 #include "mlme_osdep.h"
 
 /*
-Caller and the r8712_cmd_thread can protect cmd_q by spin_lock.
-No irqsave is necessary.
-*/
+ * Caller and the r8712_cmd_thread can protect cmd_q by spin_lock.
+ * No irqsave is necessary.
+ */
 
 static sint _init_cmd_priv(struct cmd_priv *pcmdpriv)
 {
-	sema_init(&(pcmdpriv->cmd_queue_sema), 0);
-	sema_init(&(pcmdpriv->terminate_cmdthread_sema), 0);
+	init_completion(&pcmdpriv->cmd_queue_comp);
+	init_completion(&pcmdpriv->terminate_cmdthread_comp);
 
 	_init_queue(&(pcmdpriv->cmd_queue));
 
@@ -66,14 +66,17 @@ static sint _init_cmd_priv(struct cmd_priv *pcmdpriv)
 	pcmdpriv->cmd_seq = 1;
 	pcmdpriv->cmd_allocated_buf = kmalloc(MAX_CMDSZ + CMDBUFF_ALIGN_SZ,
 					      GFP_ATOMIC);
-	if (pcmdpriv->cmd_allocated_buf == NULL)
+	if (!pcmdpriv->cmd_allocated_buf)
 		return _FAIL;
 	pcmdpriv->cmd_buf = pcmdpriv->cmd_allocated_buf  +  CMDBUFF_ALIGN_SZ -
 			    ((addr_t)(pcmdpriv->cmd_allocated_buf) &
 			    (CMDBUFF_ALIGN_SZ - 1));
 	pcmdpriv->rsp_allocated_buf = kmalloc(MAX_RSPSZ + 4, GFP_ATOMIC);
-	if (pcmdpriv->rsp_allocated_buf == NULL)
+	if (!pcmdpriv->rsp_allocated_buf) {
+		kfree(pcmdpriv->cmd_allocated_buf);
+		pcmdpriv->cmd_allocated_buf = NULL;
 		return _FAIL;
+	}
 	pcmdpriv->rsp_buf = pcmdpriv->rsp_allocated_buf  +  4 -
 			    ((addr_t)(pcmdpriv->rsp_allocated_buf) & 3);
 	pcmdpriv->cmd_issued_cnt = 0;
@@ -88,7 +91,7 @@ static sint _init_evt_priv(struct evt_priv *pevtpriv)
 	pevtpriv->event_seq = 0;
 	pevtpriv->evt_allocated_buf = kmalloc(MAX_EVTSZ + 4, GFP_ATOMIC);
 
-	if (pevtpriv->evt_allocated_buf == NULL)
+	if (!pevtpriv->evt_allocated_buf)
 		return _FAIL;
 	pevtpriv->evt_buf = pevtpriv->evt_allocated_buf  +  4 -
 			    ((addr_t)(pevtpriv->evt_allocated_buf) & 3);
@@ -110,20 +113,20 @@ static void _free_cmd_priv(struct cmd_priv *pcmdpriv)
 }
 
 /*
-Calling Context:
-
-_enqueue_cmd can only be called between kernel thread,
-since only spin_lock is used.
-
-ISR/Call-Back functions can't call this sub-function.
-
-*/
+ * Calling Context:
+ *
+ * _enqueue_cmd can only be called between kernel thread,
+ * since only spin_lock is used.
+ *
+ * ISR/Call-Back functions can't call this sub-function.
+ *
+ */
 
 static sint _enqueue_cmd(struct  __queue *queue, struct cmd_obj *obj)
 {
 	unsigned long irqL;
 
-	if (obj == NULL)
+	if (!obj)
 		return _SUCCESS;
 	spin_lock_irqsave(&queue->lock, irqL);
 	list_add_tail(&obj->list, &queue->queue);
@@ -136,15 +139,12 @@ static struct cmd_obj *_dequeue_cmd(struct  __queue *queue)
 	unsigned long irqL;
 	struct cmd_obj *obj;
 
-	spin_lock_irqsave(&(queue->lock), irqL);
-	if (list_empty(&(queue->queue))) {
-		obj = NULL;
-	} else {
-		obj = LIST_CONTAINOR(queue->queue.next,
-				     struct cmd_obj, list);
+	spin_lock_irqsave(&queue->lock, irqL);
+	obj = list_first_entry_or_null(&queue->queue,
+				       struct cmd_obj, list);
+	if (obj)
 		list_del_init(&obj->list);
-	}
-	spin_unlock_irqrestore(&(queue->lock), irqL);
+	spin_unlock_irqrestore(&queue->lock, irqL);
 	return obj;
 }
 
@@ -175,7 +175,7 @@ u32 r8712_enqueue_cmd(struct cmd_priv *pcmdpriv, struct cmd_obj *obj)
 	if (pcmdpriv->padapter->eeprompriv.bautoload_fail_flag)
 		return _FAIL;
 	res = _enqueue_cmd(&pcmdpriv->cmd_queue, obj);
-	up(&pcmdpriv->cmd_queue_sema);
+	complete(&pcmdpriv->cmd_queue_comp);
 	return res;
 }
 
@@ -184,7 +184,7 @@ u32 r8712_enqueue_cmd_ex(struct cmd_priv *pcmdpriv, struct cmd_obj *obj)
 	unsigned long irqL;
 	struct  __queue *queue;
 
-	if (obj == NULL)
+	if (!obj)
 		return _SUCCESS;
 	if (pcmdpriv->padapter->eeprompriv.bautoload_fail_flag)
 		return _FAIL;
@@ -192,7 +192,7 @@ u32 r8712_enqueue_cmd_ex(struct cmd_priv *pcmdpriv, struct cmd_obj *obj)
 	spin_lock_irqsave(&queue->lock, irqL);
 	list_add_tail(&obj->list, &queue->queue);
 	spin_unlock_irqrestore(&queue->lock, irqL);
-	up(&pcmdpriv->cmd_queue_sema);
+	complete(&pcmdpriv->cmd_queue_comp);
 	return _SUCCESS;
 }
 
@@ -214,11 +214,11 @@ void r8712_free_cmd_obj(struct cmd_obj *pcmd)
 }
 
 /*
-r8712_sitesurvey_cmd(~)
-	### NOTE:#### (!!!!)
-	MUST TAKE CARE THAT BEFORE CALLING THIS FUNC,
-	 YOU SHOULD HAVE LOCKED pmlmepriv->lock
-*/
+ *	r8712_sitesurvey_cmd(~)
+ *		### NOTE:#### (!!!!)
+ *		MUST TAKE CARE THAT BEFORE CALLING THIS FUNC,
+ *		YOU SHOULD HAVE LOCKED pmlmepriv->lock
+ */
 u8 r8712_sitesurvey_cmd(struct _adapter *padapter,
 			struct ndis_802_11_ssid *pssid)
 {
@@ -228,10 +228,10 @@ u8 r8712_sitesurvey_cmd(struct _adapter *padapter,
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
 	ph2c = kmalloc(sizeof(*ph2c), GFP_ATOMIC);
-	if (ph2c == NULL)
+	if (!ph2c)
 		return _FAIL;
 	psurveyPara = kmalloc(sizeof(*psurveyPara), GFP_ATOMIC);
-	if (psurveyPara == NULL) {
+	if (!psurveyPara) {
 		kfree(ph2c);
 		return _FAIL;
 	}
@@ -261,10 +261,10 @@ u8 r8712_setdatarate_cmd(struct _adapter *padapter, u8 *rateset)
 	struct cmd_priv		*pcmdpriv = &padapter->cmdpriv;
 
 	ph2c = kmalloc(sizeof(*ph2c), GFP_ATOMIC);
-	if (ph2c == NULL)
+	if (!ph2c)
 		return _FAIL;
 	pbsetdataratepara = kmalloc(sizeof(*pbsetdataratepara), GFP_ATOMIC);
-	if (pbsetdataratepara == NULL) {
+	if (!pbsetdataratepara) {
 		kfree(ph2c);
 		return _FAIL;
 	}
@@ -283,10 +283,10 @@ u8 r8712_set_chplan_cmd(struct _adapter *padapter, int chplan)
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 
 	ph2c = kmalloc(sizeof(*ph2c), GFP_ATOMIC);
-	if (ph2c == NULL)
+	if (!ph2c)
 		return _FAIL;
 	psetchplanpara = kmalloc(sizeof(*psetchplanpara), GFP_ATOMIC);
-	if (psetchplanpara == NULL) {
+	if (!psetchplanpara) {
 		kfree(ph2c);
 		return _FAIL;
 	}
@@ -304,37 +304,16 @@ u8 r8712_setbasicrate_cmd(struct _adapter *padapter, u8 *rateset)
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 
 	ph2c = kmalloc(sizeof(*ph2c), GFP_ATOMIC);
-	if (ph2c == NULL)
+	if (!ph2c)
 		return _FAIL;
 	pssetbasicratepara = kmalloc(sizeof(*pssetbasicratepara), GFP_ATOMIC);
-	if (pssetbasicratepara == NULL) {
+	if (!pssetbasicratepara) {
 		kfree(ph2c);
 		return _FAIL;
 	}
 	init_h2fwcmd_w_parm_no_rsp(ph2c, pssetbasicratepara,
 		_SetBasicRate_CMD_);
 	memcpy(pssetbasicratepara->basicrates, rateset, NumRates);
-	r8712_enqueue_cmd(pcmdpriv, ph2c);
-	return _SUCCESS;
-}
-
-/* power tracking mechanism setting */
-u8 r8712_setptm_cmd(struct _adapter *padapter, u8 type)
-{
-	struct cmd_obj		*ph2c;
-	struct writePTM_parm	*pwriteptmparm;
-	struct cmd_priv		*pcmdpriv = &padapter->cmdpriv;
-
-	ph2c = kmalloc(sizeof(*ph2c), GFP_ATOMIC);
-	if (ph2c == NULL)
-		return _FAIL;
-	pwriteptmparm = kmalloc(sizeof(*pwriteptmparm), GFP_ATOMIC);
-	if (pwriteptmparm == NULL) {
-		kfree(ph2c);
-		return _FAIL;
-	}
-	init_h2fwcmd_w_parm_no_rsp(ph2c, pwriteptmparm, GEN_CMD_CODE(_SetPT));
-	pwriteptmparm->type = type;
 	r8712_enqueue_cmd(pcmdpriv, ph2c);
 	return _SUCCESS;
 }
@@ -346,10 +325,10 @@ u8 r8712_setfwdig_cmd(struct _adapter *padapter, u8 type)
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 
 	ph2c = kmalloc(sizeof(*ph2c), GFP_ATOMIC);
-	if (ph2c == NULL)
+	if (!ph2c)
 		return _FAIL;
 	pwriteptmparm = kmalloc(sizeof(*pwriteptmparm), GFP_ATOMIC);
-	if (pwriteptmparm == NULL) {
+	if (!pwriteptmparm) {
 		kfree(ph2c);
 		return _FAIL;
 	}
@@ -366,10 +345,10 @@ u8 r8712_setfwra_cmd(struct _adapter *padapter, u8 type)
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 
 	ph2c = kmalloc(sizeof(*ph2c), GFP_ATOMIC);
-	if (ph2c == NULL)
+	if (!ph2c)
 		return _FAIL;
 	pwriteptmparm = kmalloc(sizeof(*pwriteptmparm), GFP_ATOMIC);
-	if (pwriteptmparm == NULL) {
+	if (!pwriteptmparm) {
 		kfree(ph2c);
 		return _FAIL;
 	}
@@ -386,10 +365,10 @@ u8 r8712_setrfreg_cmd(struct _adapter  *padapter, u8 offset, u32 val)
 	struct cmd_priv	*pcmdpriv = &padapter->cmdpriv;
 
 	ph2c = kmalloc(sizeof(*ph2c), GFP_ATOMIC);
-	if (ph2c == NULL)
+	if (!ph2c)
 		return _FAIL;
 	pwriterfparm = kmalloc(sizeof(*pwriterfparm), GFP_ATOMIC);
-	if (pwriterfparm == NULL) {
+	if (!pwriterfparm) {
 		kfree(ph2c);
 		return _FAIL;
 	}
@@ -407,10 +386,10 @@ u8 r8712_getrfreg_cmd(struct _adapter *padapter, u8 offset, u8 *pval)
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 
 	ph2c = kmalloc(sizeof(*ph2c), GFP_ATOMIC);
-	if (ph2c == NULL)
+	if (!ph2c)
 		return _FAIL;
 	prdrfparm = kmalloc(sizeof(*prdrfparm), GFP_ATOMIC);
-	if (prdrfparm == NULL) {
+	if (!prdrfparm) {
 		kfree(ph2c);
 		return _FAIL;
 	}
@@ -451,7 +430,7 @@ u8 r8712_createbss_cmd(struct _adapter *padapter)
 
 	padapter->ledpriv.LedControlHandler(padapter, LED_CTL_START_TO_LINK);
 	pcmd = kmalloc(sizeof(*pcmd), GFP_ATOMIC);
-	if (pcmd == NULL)
+	if (!pcmd)
 		return _FAIL;
 	INIT_LIST_HEAD(&pcmd->list);
 	pcmd->cmdcode = _CreateBss_CMD_;
@@ -481,7 +460,7 @@ u8 r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 
 	padapter->ledpriv.LedControlHandler(padapter, LED_CTL_START_TO_LINK);
 	pcmd = kmalloc(sizeof(*pcmd), GFP_ATOMIC);
-	if (pcmd == NULL)
+	if (!pcmd)
 		return _FAIL;
 
 	/* for hidden ap to set fw_state here */
@@ -501,7 +480,7 @@ u8 r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 		}
 	}
 	psecnetwork = &psecuritypriv->sec_bss;
-	if (psecnetwork == NULL) {
+	if (!psecnetwork) {
 		kfree(pcmd);
 		return _FAIL;
 	}
@@ -515,8 +494,9 @@ u8 r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 		memcpy(&psecuritypriv->authenticator_ie[1],
 			&psecnetwork->IEs[12], (256 - 1));
 	psecnetwork->IELength = 0;
-	/* If the driver wants to use the bssid to create the connection.
-	 * If not,  we copy the connecting AP's MAC address to it so that
+	/*
+	 * If the driver wants to use the bssid to create the connection.
+	 * If not, we copy the connecting AP's MAC address to it so that
 	 * the driver just has the bssid information for PMKIDList searching.
 	 */
 	if (!pmlmepriv->assoc_by_bssid)
@@ -543,7 +523,8 @@ u8 r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 		}
 	}
 	if (pregistrypriv->ht_enable) {
-		/* For WEP mode, we will use the bg mode to do the connection
+		/*
+		 * For WEP mode, we will use the bg mode to do the connection
 		 * to avoid some IOT issues, especially for Realtek 8192u
 		 * SoftAP.
 		 */
@@ -611,10 +592,10 @@ u8 r8712_disassoc_cmd(struct _adapter *padapter) /* for sta_mode */
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 
 	pdisconnect_cmd = kmalloc(sizeof(*pdisconnect_cmd), GFP_ATOMIC);
-	if (pdisconnect_cmd == NULL)
+	if (!pdisconnect_cmd)
 		return _FAIL;
 	pdisconnect = kmalloc(sizeof(*pdisconnect), GFP_ATOMIC);
-	if (pdisconnect == NULL) {
+	if (!pdisconnect) {
 		kfree(pdisconnect_cmd);
 		return _FAIL;
 	}
@@ -633,10 +614,10 @@ u8 r8712_setopmode_cmd(struct _adapter *padapter,
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 
 	ph2c = kmalloc(sizeof(*ph2c), GFP_ATOMIC);
-	if (ph2c == NULL)
+	if (!ph2c)
 		return _FAIL;
 	psetop = kmalloc(sizeof(*psetop), GFP_ATOMIC);
-	if (psetop == NULL) {
+	if (!psetop) {
 		kfree(ph2c);
 		return _FAIL;
 	}
@@ -657,15 +638,15 @@ u8 r8712_setstakey_cmd(struct _adapter *padapter, u8 *psta, u8 unicast_key)
 	struct sta_info *sta = (struct sta_info *)psta;
 
 	ph2c = kmalloc(sizeof(*ph2c), GFP_ATOMIC);
-	if (ph2c == NULL)
+	if (!ph2c)
 		return _FAIL;
 	psetstakey_para = kmalloc(sizeof(*psetstakey_para), GFP_ATOMIC);
-	if (psetstakey_para == NULL) {
+	if (!psetstakey_para) {
 		kfree(ph2c);
 		return _FAIL;
 	}
 	psetstakey_rsp = kmalloc(sizeof(*psetstakey_rsp), GFP_ATOMIC);
-	if (psetstakey_rsp == NULL) {
+	if (!psetstakey_rsp) {
 		kfree(ph2c);
 		kfree(psetstakey_para);
 		return _FAIL;
@@ -697,10 +678,10 @@ u8 r8712_setrfintfs_cmd(struct _adapter *padapter, u8 mode)
 	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
 
 	ph2c = kmalloc(sizeof(*ph2c), GFP_ATOMIC);
-	if (ph2c == NULL)
+	if (!ph2c)
 		return _FAIL;
 	psetrfintfsparm = kmalloc(sizeof(*psetrfintfsparm), GFP_ATOMIC);
-	if (psetrfintfsparm == NULL) {
+	if (!psetrfintfsparm) {
 		kfree(ph2c);
 		return _FAIL;
 	}
@@ -719,42 +700,16 @@ u8 r8712_setrttbl_cmd(struct _adapter *padapter,
 	struct cmd_priv	*pcmdpriv = &padapter->cmdpriv;
 
 	ph2c = kmalloc(sizeof(*ph2c), GFP_ATOMIC);
-	if (ph2c == NULL)
+	if (!ph2c)
 		return _FAIL;
 	psetrttblparm = kmalloc(sizeof(*psetrttblparm), GFP_ATOMIC);
-	if (psetrttblparm == NULL) {
+	if (!psetrttblparm) {
 		kfree(ph2c);
 		return _FAIL;
 	}
 	init_h2fwcmd_w_parm_no_rsp(ph2c, psetrttblparm,
 				   GEN_CMD_CODE(_SetRaTable));
 	memcpy(psetrttblparm, prate_table, sizeof(struct setratable_parm));
-	r8712_enqueue_cmd(pcmdpriv, ph2c);
-	return _SUCCESS;
-}
-
-u8 r8712_gettssi_cmd(struct _adapter *padapter, u8 offset, u8 *pval)
-{
-	struct cmd_priv *pcmdpriv = &padapter->cmdpriv;
-	struct cmd_obj *ph2c;
-	struct readTSSI_parm *prdtssiparm;
-
-	ph2c = kmalloc(sizeof(*ph2c), GFP_ATOMIC);
-	if (ph2c == NULL)
-		return _FAIL;
-	prdtssiparm = kmalloc(sizeof(*prdtssiparm), GFP_ATOMIC);
-	if (prdtssiparm == NULL) {
-		kfree(ph2c);
-		return _FAIL;
-	}
-	INIT_LIST_HEAD(&ph2c->list);
-	ph2c->cmdcode = GEN_CMD_CODE(_ReadTSSI);
-	ph2c->parmbuf = (unsigned char *)prdtssiparm;
-	ph2c->cmdsz = sizeof(struct readTSSI_parm);
-	ph2c->rsp = pval;
-	ph2c->rspsz = sizeof(struct readTSSI_rsp);
-
-	prdtssiparm->offset = offset;
 	r8712_enqueue_cmd(pcmdpriv, ph2c);
 	return _SUCCESS;
 }
@@ -766,10 +721,10 @@ u8 r8712_setMacAddr_cmd(struct _adapter *padapter, u8 *mac_addr)
 	struct SetMacAddr_param	*psetMacAddr_para;
 
 	ph2c = kmalloc(sizeof(*ph2c), GFP_ATOMIC);
-	if (ph2c == NULL)
+	if (!ph2c)
 		return _FAIL;
 	psetMacAddr_para = kmalloc(sizeof(*psetMacAddr_para), GFP_ATOMIC);
-	if (psetMacAddr_para == NULL) {
+	if (!psetMacAddr_para) {
 		kfree(ph2c);
 		return _FAIL;
 	}
@@ -788,15 +743,15 @@ u8 r8712_setassocsta_cmd(struct _adapter *padapter, u8 *mac_addr)
 	struct set_assocsta_rsp		*psetassocsta_rsp = NULL;
 
 	ph2c = kmalloc(sizeof(*ph2c), GFP_ATOMIC);
-	if (ph2c == NULL)
+	if (!ph2c)
 		return _FAIL;
 	psetassocsta_para = kmalloc(sizeof(*psetassocsta_para), GFP_ATOMIC);
-	if (psetassocsta_para == NULL) {
+	if (!psetassocsta_para) {
 		kfree(ph2c);
 		return _FAIL;
 	}
 	psetassocsta_rsp = kmalloc(sizeof(*psetassocsta_rsp), GFP_ATOMIC);
-	if (psetassocsta_rsp == NULL) {
+	if (!psetassocsta_rsp) {
 		kfree(ph2c);
 		kfree(psetassocsta_para);
 		return _FAIL;
@@ -816,10 +771,10 @@ u8 r8712_addbareq_cmd(struct _adapter *padapter, u8 tid)
 	struct addBaReq_parm	*paddbareq_parm;
 
 	ph2c = kmalloc(sizeof(*ph2c), GFP_ATOMIC);
-	if (ph2c == NULL)
+	if (!ph2c)
 		return _FAIL;
 	paddbareq_parm = kmalloc(sizeof(*paddbareq_parm), GFP_ATOMIC);
-	if (paddbareq_parm == NULL) {
+	if (!paddbareq_parm) {
 		kfree(ph2c);
 		return _FAIL;
 	}
@@ -837,10 +792,10 @@ u8 r8712_wdg_wk_cmd(struct _adapter *padapter)
 	struct cmd_priv	*pcmdpriv = &padapter->cmdpriv;
 
 	ph2c = kmalloc(sizeof(*ph2c), GFP_ATOMIC);
-	if (ph2c == NULL)
+	if (!ph2c)
 		return _FAIL;
 	pdrvintcmd_param = kmalloc(sizeof(*pdrvintcmd_param), GFP_ATOMIC);
-	if (pdrvintcmd_param == NULL) {
+	if (!pdrvintcmd_param) {
 		kfree(ph2c);
 		return _FAIL;
 	}
@@ -932,16 +887,16 @@ void r8712_createbss_cmd_callback(struct _adapter *padapter,
 		if (!psta) {
 			psta = r8712_alloc_stainfo(&padapter->stapriv,
 						   pnetwork->MacAddress);
-			if (psta == NULL)
+			if (!psta)
 				goto createbss_cmd_fail;
 		}
 		r8712_indicate_connect(padapter);
 	} else {
 		pwlan = _r8712_alloc_network(pmlmepriv);
-		if (pwlan == NULL) {
+		if (!pwlan) {
 			pwlan = r8712_get_oldest_wlan_network(
 				&pmlmepriv->scanned_queue);
-			if (pwlan == NULL)
+			if (!pwlan)
 				goto createbss_cmd_fail;
 			pwlan->last_scanned = jiffies;
 		} else
@@ -954,8 +909,10 @@ void r8712_createbss_cmd_callback(struct _adapter *padapter,
 			(r8712_get_wlan_bssid_ex_sz(pnetwork)));
 		if (pmlmepriv->fw_state & _FW_UNDER_LINKING)
 			pmlmepriv->fw_state ^= _FW_UNDER_LINKING;
-		/* we will set _FW_LINKED when there is one more sat to
-		 * join us (stassoc_event_callback) */
+		/*
+		 * we will set _FW_LINKED when there is one more sat to
+		 * join us (stassoc_event_callback)
+		 */
 	}
 createbss_cmd_fail:
 	spin_unlock_irqrestore(&pmlmepriv->lock, irqL);
@@ -971,7 +928,7 @@ void r8712_setstaKey_cmdrsp_callback(struct _adapter *padapter,
 	struct sta_info *psta = r8712_get_stainfo(pstapriv,
 						  psetstakey_rsp->addr);
 
-	if (psta == NULL)
+	if (!psta)
 		goto exit;
 	psta->aid = psta->mac_id = psetstakey_rsp->keyid; /*CAM_ID(CAM_ENTRY)*/
 exit:
@@ -991,7 +948,7 @@ void r8712_setassocsta_cmdrsp_callback(struct _adapter *padapter,
 	struct sta_info *psta = r8712_get_stainfo(pstapriv,
 						  passocsta_parm->addr);
 
-	if (psta == NULL)
+	if (!psta)
 		return;
 	psta->aid = psta->mac_id = passocsta_rsp->cam_id;
 	spin_lock_irqsave(&pmlmepriv->lock, irqL);
@@ -1011,10 +968,10 @@ u8 r8712_disconnectCtrlEx_cmd(struct _adapter *adapter, u32 enableDrvCtrl,
 	struct cmd_priv *pcmdpriv = &adapter->cmdpriv;
 
 	ph2c = kmalloc(sizeof(*ph2c), GFP_ATOMIC);
-	if (ph2c == NULL)
+	if (!ph2c)
 		return _FAIL;
 	param = kzalloc(sizeof(*param), GFP_ATOMIC);
-	if (param == NULL) {
+	if (!param) {
 		kfree(ph2c);
 		return _FAIL;
 	}

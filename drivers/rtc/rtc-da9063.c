@@ -191,24 +191,13 @@ static void da9063_tm_to_data(struct rtc_time *tm, u8 *data,
 {
 	const struct da9063_compatible_rtc_regmap *config = rtc->config;
 
-	data[RTC_SEC] &= ~config->rtc_count_sec_mask;
-	data[RTC_SEC] |= tm->tm_sec & config->rtc_count_sec_mask;
-
-	data[RTC_MIN] &= ~config->rtc_count_min_mask;
-	data[RTC_MIN] |= tm->tm_min & config->rtc_count_min_mask;
-
-	data[RTC_HOUR] &= ~config->rtc_count_hour_mask;
-	data[RTC_HOUR] |= tm->tm_hour & config->rtc_count_hour_mask;
-
-	data[RTC_DAY] &= ~config->rtc_count_day_mask;
-	data[RTC_DAY] |= tm->tm_mday & config->rtc_count_day_mask;
-
-	data[RTC_MONTH] &= ~config->rtc_count_month_mask;
-	data[RTC_MONTH] |= MONTHS_TO_DA9063(tm->tm_mon) &
+	data[RTC_SEC]   = tm->tm_sec & config->rtc_count_sec_mask;
+	data[RTC_MIN]   = tm->tm_min & config->rtc_count_min_mask;
+	data[RTC_HOUR]  = tm->tm_hour & config->rtc_count_hour_mask;
+	data[RTC_DAY]   = tm->tm_mday & config->rtc_count_day_mask;
+	data[RTC_MONTH] = MONTHS_TO_DA9063(tm->tm_mon) &
 				config->rtc_count_month_mask;
-
-	data[RTC_YEAR] &= ~config->rtc_count_year_mask;
-	data[RTC_YEAR] |= YEARS_TO_DA9063(tm->tm_year) &
+	data[RTC_YEAR]  = YEARS_TO_DA9063(tm->tm_year) &
 				config->rtc_count_year_mask;
 }
 
@@ -483,17 +472,6 @@ static int da9063_rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rtc);
 
-	irq_alarm = platform_get_irq_byname(pdev, "ALARM");
-	ret = devm_request_threaded_irq(&pdev->dev, irq_alarm, NULL,
-					da9063_alarm_event,
-					IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-					"ALARM", rtc);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to request ALARM IRQ %d: %d\n",
-			irq_alarm, ret);
-		return ret;
-	}
-
 	rtc->rtc_dev = devm_rtc_device_register(&pdev->dev, DA9063_DRVNAME_RTC,
 					   &da9063_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc->rtc_dev))
@@ -501,6 +479,16 @@ static int da9063_rtc_probe(struct platform_device *pdev)
 
 	da9063_data_to_tm(data, &rtc->alarm_time, rtc);
 	rtc->rtc_sync = false;
+
+	irq_alarm = platform_get_irq_byname(pdev, "ALARM");
+	ret = devm_request_threaded_irq(&pdev->dev, irq_alarm, NULL,
+					da9063_alarm_event,
+					IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+					"ALARM", rtc);
+	if (ret)
+		dev_err(&pdev->dev, "Failed to request ALARM IRQ %d: %d\n",
+			irq_alarm, ret);
+
 	return ret;
 }
 

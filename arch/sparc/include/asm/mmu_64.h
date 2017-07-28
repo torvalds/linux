@@ -52,7 +52,7 @@
 #define CTX_NR_MASK		TAG_CONTEXT_BITS
 #define CTX_HW_MASK		(CTX_NR_MASK | CTX_PGSZ_MASK)
 
-#define CTX_FIRST_VERSION	((_AC(1,UL) << CTX_VERSION_SHIFT) + _AC(1,UL))
+#define CTX_FIRST_VERSION	BIT(CTX_VERSION_SHIFT)
 #define CTX_VALID(__ctx)	\
 	 (!(((__ctx.sparc64_ctx_val) ^ tlb_context_cache) & CTX_VERSION_MASK))
 #define CTX_HWBITS(__ctx)	((__ctx.sparc64_ctx_val) & CTX_HW_MASK)
@@ -92,7 +92,8 @@ struct tsb_config {
 typedef struct {
 	spinlock_t		lock;
 	unsigned long		sparc64_ctx_val;
-	unsigned long		huge_pte_count;
+	unsigned long		hugetlb_pte_count;
+	unsigned long		thp_pte_count;
 	struct tsb_config	tsb_block[MM_NUM_TSBS];
 	struct hv_tsb_descr	tsb_descr[MM_NUM_TSBS];
 } mm_context_t;

@@ -383,3 +383,8 @@ SYSCALL(sys_recvfrom,compat_sys_recvfrom)
 SYSCALL(sys_recvmsg,compat_sys_recvmsg)
 SYSCALL(sys_shutdown,sys_shutdown)
 SYSCALL(sys_mlock2,compat_sys_mlock2)
+SYSCALL(sys_copy_file_range,compat_sys_copy_file_range) /* 375 */
+SYSCALL(sys_preadv2,compat_sys_preadv2)
+SYSCALL(sys_pwritev2,compat_sys_pwritev2)
+SYSCALL(sys_s390_guarded_storage,compat_sys_s390_guarded_storage) /* 378 */
+SYSCALL(sys_statx,compat_sys_statx)

@@ -116,7 +116,7 @@ static int receive_chars_getchar(struct uart_port *port)
 
 static int receive_chars_read(struct uart_port *port)
 {
-	int saw_console_brk = 0;
+	static int saw_console_brk;
 	int limit = 10000;
 
 	while (limit-- > 0) {
@@ -128,6 +128,9 @@ static int receive_chars_read(struct uart_port *port)
 			bytes_read = 0;
 
 			if (stat == CON_BREAK) {
+				if (saw_console_brk)
+					sun_do_break();
+
 				if (uart_handle_break(port))
 					continue;
 				saw_console_brk = 1;
@@ -148,8 +151,11 @@ static int receive_chars_read(struct uart_port *port)
 			uart_handle_dcd_change(port, 1);
 		}
 
-		for (i = 0; i < bytes_read; i++)
-			uart_handle_sysrq_char(port, con_read_page[i]);
+		if (port->sysrq != 0 &&  *con_read_page) {
+			for (i = 0; i < bytes_read; i++)
+				uart_handle_sysrq_char(port, con_read_page[i]);
+			saw_console_brk = 0;
+		}
 
 		if (port->state == NULL)
 			continue;
@@ -168,17 +174,17 @@ struct sunhv_ops {
 	int (*receive_chars)(struct uart_port *port);
 };
 
-static struct sunhv_ops bychar_ops = {
+static const struct sunhv_ops bychar_ops = {
 	.transmit_chars = transmit_chars_putchar,
 	.receive_chars = receive_chars_getchar,
 };
 
-static struct sunhv_ops bywrite_ops = {
+static const struct sunhv_ops bywrite_ops = {
 	.transmit_chars = transmit_chars_write,
 	.receive_chars = receive_chars_read,
 };
 
-static struct sunhv_ops *sunhv_ops = &bychar_ops;
+static const struct sunhv_ops *sunhv_ops = &bychar_ops;
 
 static struct tty_port *receive_chars(struct uart_port *port)
 {
@@ -368,7 +374,7 @@ static int sunhv_verify_port(struct uart_port *port, struct serial_struct *ser)
 	return -EINVAL;
 }
 
-static struct uart_ops sunhv_pops = {
+static const struct uart_ops sunhv_pops = {
 	.tx_empty	= sunhv_tx_empty,
 	.set_mctrl	= sunhv_set_mctrl,
 	.get_mctrl	= sunhv_get_mctrl,
@@ -395,6 +401,12 @@ static struct uart_driver sunhv_reg = {
 };
 
 static struct uart_port *sunhv_port;
+
+void sunhv_migrate_hvcons_irq(int cpu)
+{
+	/* Migrate hvcons irq to param cpu */
+	irq_force_affinity(sunhv_port->irq, cpumask_of(cpu));
+}
 
 /* Copy 's' into the con_write_page, decoding "\n" into
  * "\r\n" along the way.  We have to return two lengths
@@ -488,12 +500,6 @@ static void sunhv_console_write_bychar(struct console *con, const char *s, unsig
 		locked = spin_trylock_irqsave(&port->lock, flags);
 	else
 		spin_lock_irqsave(&port->lock, flags);
-	if (port->sysrq) {
-		locked = 0;
-	} else if (oops_in_progress) {
-		locked = spin_trylock(&port->lock);
-	} else
-		spin_lock(&port->lock);
 
 	for (i = 0; i < n; i++) {
 		if (*s == '\n')
@@ -602,7 +608,8 @@ static int hv_remove(struct platform_device *dev)
 	uart_remove_one_port(&sunhv_reg, port);
 
 	sunserial_unregister_minors(&sunhv_reg, 1);
-
+	kfree(con_read_page);
+	kfree(con_write_page);
 	kfree(port);
 	sunhv_port = NULL;
 

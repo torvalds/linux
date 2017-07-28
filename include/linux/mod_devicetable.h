@@ -175,7 +175,8 @@ struct ap_device_id {
 	kernel_ulong_t driver_info;
 };
 
-#define AP_DEVICE_ID_MATCH_DEVICE_TYPE		0x01
+#define AP_DEVICE_ID_MATCH_CARD_TYPE		0x01
+#define AP_DEVICE_ID_MATCH_QUEUE_TYPE		0x02
 
 /* s390 css bus devices (subchannels) */
 struct css_device_id {
@@ -404,7 +405,7 @@ struct virtio_device_id {
  * For Hyper-V devices we use the device guid as the id.
  */
 struct hv_vmbus_device_id {
-	__u8 guid[16];
+	uuid_le guid;
 	kernel_ulong_t driver_data;	/* Data private to the driver */
 };
 
@@ -425,6 +426,16 @@ struct rpmsg_device_id {
 struct i2c_device_id {
 	char name[I2C_NAME_SIZE];
 	kernel_ulong_t driver_data;	/* Data private to the driver */
+};
+
+/* pci_epf */
+
+#define PCI_EPF_NAME_SIZE	20
+#define PCI_EPF_MODULE_PREFIX	"pci_epf:"
+
+struct pci_epf_device_id {
+	char name[PCI_EPF_NAME_SIZE];
+	kernel_ulong_t driver_data;
 };
 
 /* spi */
@@ -456,6 +467,7 @@ enum dmi_field {
 	DMI_PRODUCT_VERSION,
 	DMI_PRODUCT_SERIAL,
 	DMI_PRODUCT_UUID,
+	DMI_PRODUCT_FAMILY,
 	DMI_BOARD_VENDOR,
 	DMI_BOARD_NAME,
 	DMI_BOARD_VERSION,
@@ -500,6 +512,7 @@ struct platform_device_id {
 	kernel_ulong_t driver_data;
 };
 
+#define MDIO_NAME_SIZE		32
 #define MDIO_MODULE_PREFIX	"mdio:"
 
 #define MDIO_ID_FMT "%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d%d"
@@ -656,5 +669,21 @@ struct ulpi_device_id {
 	__u16 product;
 	kernel_ulong_t driver_data;
 };
+
+/**
+ * struct fsl_mc_device_id - MC object device identifier
+ * @vendor: vendor ID
+ * @obj_type: MC object type
+ * @ver_major: MC object version major number
+ * @ver_minor: MC object version minor number
+ *
+ * Type of entries in the "device Id" table for MC object devices supported by
+ * a MC object device driver. The last entry of the table has vendor set to 0x0
+ */
+struct fsl_mc_device_id {
+	__u16 vendor;
+	const char obj_type[16];
+};
+
 
 #endif /* LINUX_MOD_DEVICETABLE_H */

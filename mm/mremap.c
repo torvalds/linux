@@ -20,9 +20,9 @@
 #include <linux/security.h>
 #include <linux/syscalls.h>
 #include <linux/mmu_notifier.h>
-#include <linux/sched/sysctl.h>
 #include <linux/uaccess.h>
 #include <linux/mm-arch-hooks.h>
+#include <linux/userfaultfd_k.h>
 
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
@@ -32,6 +32,7 @@
 static pmd_t *get_old_pmd(struct mm_struct *mm, unsigned long addr)
 {
 	pgd_t *pgd;
+	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd;
 
@@ -39,7 +40,11 @@ static pmd_t *get_old_pmd(struct mm_struct *mm, unsigned long addr)
 	if (pgd_none_or_clear_bad(pgd))
 		return NULL;
 
-	pud = pud_offset(pgd, addr);
+	p4d = p4d_offset(pgd, addr);
+	if (p4d_none_or_clear_bad(p4d))
+		return NULL;
+
+	pud = pud_offset(p4d, addr);
 	if (pud_none_or_clear_bad(pud))
 		return NULL;
 
@@ -54,11 +59,15 @@ static pmd_t *alloc_new_pmd(struct mm_struct *mm, struct vm_area_struct *vma,
 			    unsigned long addr)
 {
 	pgd_t *pgd;
+	p4d_t *p4d;
 	pud_t *pud;
 	pmd_t *pmd;
 
 	pgd = pgd_offset(mm, addr);
-	pud = pud_alloc(mm, pgd, addr);
+	p4d = p4d_alloc(mm, pgd, addr);
+	if (!p4d)
+		return NULL;
+	pud = pud_alloc(mm, p4d, addr);
 	if (!pud)
 		return NULL;
 
@@ -69,6 +78,22 @@ static pmd_t *alloc_new_pmd(struct mm_struct *mm, struct vm_area_struct *vma,
 	VM_BUG_ON(pmd_trans_huge(*pmd));
 
 	return pmd;
+}
+
+static void take_rmap_locks(struct vm_area_struct *vma)
+{
+	if (vma->vm_file)
+		i_mmap_lock_write(vma->vm_file->f_mapping);
+	if (vma->anon_vma)
+		anon_vma_lock_write(vma->anon_vma);
+}
+
+static void drop_rmap_locks(struct vm_area_struct *vma)
+{
+	if (vma->anon_vma)
+		anon_vma_unlock_write(vma->anon_vma);
+	if (vma->vm_file)
+		i_mmap_unlock_write(vma->vm_file->f_mapping);
 }
 
 static pte_t move_soft_dirty_pte(pte_t pte)
@@ -89,13 +114,13 @@ static pte_t move_soft_dirty_pte(pte_t pte)
 static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 		unsigned long old_addr, unsigned long old_end,
 		struct vm_area_struct *new_vma, pmd_t *new_pmd,
-		unsigned long new_addr, bool need_rmap_locks)
+		unsigned long new_addr, bool need_rmap_locks, bool *need_flush)
 {
-	struct address_space *mapping = NULL;
-	struct anon_vma *anon_vma = NULL;
 	struct mm_struct *mm = vma->vm_mm;
 	pte_t *old_pte, *new_pte, pte;
 	spinlock_t *old_ptl, *new_ptl;
+	bool force_flush = false;
+	unsigned long len = old_end - old_addr;
 
 	/*
 	 * When need_rmap_locks is true, we take the i_mmap_rwsem and anon_vma
@@ -115,16 +140,8 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 	 *   serialize access to individual ptes, but only rmap traversal
 	 *   order guarantees that we won't miss both the old and new ptes).
 	 */
-	if (need_rmap_locks) {
-		if (vma->vm_file) {
-			mapping = vma->vm_file->f_mapping;
-			i_mmap_lock_write(mapping);
-		}
-		if (vma->anon_vma) {
-			anon_vma = vma->anon_vma;
-			anon_vma_lock_write(anon_vma);
-		}
-	}
+	if (need_rmap_locks)
+		take_rmap_locks(vma);
 
 	/*
 	 * We don't have to worry about the ordering of src and dst
@@ -141,7 +158,19 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 				   new_pte++, new_addr += PAGE_SIZE) {
 		if (pte_none(*old_pte))
 			continue;
+
 		pte = ptep_get_and_clear(mm, old_addr, old_pte);
+		/*
+		 * If we are remapping a dirty PTE, make sure
+		 * to flush TLB before we drop the PTL for the
+		 * old PTE or we may race with page_mkclean().
+		 *
+		 * This check has to be done after we removed the
+		 * old PTE from page tables or another thread may
+		 * dirty it after the check and before the removal.
+		 */
+		if (pte_present(pte) && pte_dirty(pte))
+			force_flush = true;
 		pte = move_pte(pte, new_vma->vm_page_prot, old_addr, new_addr);
 		pte = move_soft_dirty_pte(pte);
 		set_pte_at(mm, new_addr, new_pte, pte);
@@ -151,11 +180,13 @@ static void move_ptes(struct vm_area_struct *vma, pmd_t *old_pmd,
 	if (new_ptl != old_ptl)
 		spin_unlock(new_ptl);
 	pte_unmap(new_pte - 1);
+	if (force_flush)
+		flush_tlb_range(vma, old_end - len, old_end);
+	else
+		*need_flush = true;
 	pte_unmap_unlock(old_pte - 1, old_ptl);
-	if (anon_vma)
-		anon_vma_unlock_write(anon_vma);
-	if (mapping)
-		i_mmap_unlock_write(mapping);
+	if (need_rmap_locks)
+		drop_rmap_locks(vma);
 }
 
 #define LATENCY_LIMIT	(64 * PAGE_SIZE)
@@ -192,40 +223,34 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
 		if (!new_pmd)
 			break;
 		if (pmd_trans_huge(*old_pmd)) {
-			int err = 0;
 			if (extent == HPAGE_PMD_SIZE) {
-				VM_BUG_ON_VMA(vma->vm_file || !vma->anon_vma,
-					      vma);
+				bool moved;
 				/* See comment in move_ptes() */
 				if (need_rmap_locks)
-					anon_vma_lock_write(vma->anon_vma);
-				err = move_huge_pmd(vma, new_vma, old_addr,
-						    new_addr, old_end,
-						    old_pmd, new_pmd);
+					take_rmap_locks(vma);
+				moved = move_huge_pmd(vma, old_addr, new_addr,
+						    old_end, old_pmd, new_pmd,
+						    &need_flush);
 				if (need_rmap_locks)
-					anon_vma_unlock_write(vma->anon_vma);
+					drop_rmap_locks(vma);
+				if (moved)
+					continue;
 			}
-			if (err > 0) {
-				need_flush = true;
+			split_huge_pmd(vma, old_pmd, old_addr);
+			if (pmd_trans_unstable(old_pmd))
 				continue;
-			} else if (!err) {
-				split_huge_page_pmd(vma, old_addr, old_pmd);
-			}
-			VM_BUG_ON(pmd_trans_huge(*old_pmd));
 		}
-		if (pmd_none(*new_pmd) && __pte_alloc(new_vma->vm_mm, new_vma,
-						      new_pmd, new_addr))
+		if (pte_alloc(new_vma->vm_mm, new_pmd, new_addr))
 			break;
 		next = (new_addr + PMD_SIZE) & PMD_MASK;
 		if (extent > next - new_addr)
 			extent = next - new_addr;
 		if (extent > LATENCY_LIMIT)
 			extent = LATENCY_LIMIT;
-		move_ptes(vma, old_pmd, old_addr, old_addr + extent,
-			  new_vma, new_pmd, new_addr, need_rmap_locks);
-		need_flush = true;
+		move_ptes(vma, old_pmd, old_addr, old_addr + extent, new_vma,
+			  new_pmd, new_addr, need_rmap_locks, &need_flush);
 	}
-	if (likely(need_flush))
+	if (need_flush)
 		flush_tlb_range(vma, old_end-len, old_addr);
 
 	mmu_notifier_invalidate_range_end(vma->vm_mm, mmun_start, mmun_end);
@@ -235,7 +260,9 @@ unsigned long move_page_tables(struct vm_area_struct *vma,
 
 static unsigned long move_vma(struct vm_area_struct *vma,
 		unsigned long old_addr, unsigned long old_len,
-		unsigned long new_len, unsigned long new_addr, bool *locked)
+		unsigned long new_len, unsigned long new_addr,
+		bool *locked, struct vm_userfaultfd_ctx *uf,
+		struct list_head *uf_unmap)
 {
 	struct mm_struct *mm = vma->vm_mm;
 	struct vm_area_struct *new_vma;
@@ -294,6 +321,7 @@ static unsigned long move_vma(struct vm_area_struct *vma,
 		old_addr = new_addr;
 		new_addr = err;
 	} else {
+		mremap_userfaultfd_prep(new_vma, uf);
 		arch_remap(mm, old_addr, old_addr + old_len,
 			   new_addr, new_addr + new_len);
 	}
@@ -317,9 +345,13 @@ static unsigned long move_vma(struct vm_area_struct *vma,
 	 * If this were a serious issue, we'd add a flag to do_munmap().
 	 */
 	hiwater_vm = mm->hiwater_vm;
-	vm_stat_account(mm, vma->vm_flags, vma->vm_file, new_len>>PAGE_SHIFT);
+	vm_stat_account(mm, vma->vm_flags, new_len >> PAGE_SHIFT);
 
-	if (do_munmap(mm, old_addr, old_len) < 0) {
+	/* Tell pfnmap has moved from this vma */
+	if (unlikely(vma->vm_flags & VM_PFNMAP))
+		untrack_pfn_moved(vma);
+
+	if (do_munmap(mm, old_addr, old_len, uf_unmap) < 0) {
 		/* OOM: unable to split vma, just get accounts right */
 		vm_unacct_memory(excess >> PAGE_SHIFT);
 		excess = 0;
@@ -379,7 +411,8 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
 			return ERR_PTR(-EAGAIN);
 	}
 
-	if (!may_expand_vm(mm, (new_len - old_len) >> PAGE_SHIFT))
+	if (!may_expand_vm(mm, vma->vm_flags,
+				(new_len - old_len) >> PAGE_SHIFT))
 		return ERR_PTR(-ENOMEM);
 
 	if (vma->vm_flags & VM_ACCOUNT) {
@@ -393,7 +426,9 @@ static struct vm_area_struct *vma_to_resize(unsigned long addr,
 }
 
 static unsigned long mremap_to(unsigned long addr, unsigned long old_len,
-		unsigned long new_addr, unsigned long new_len, bool *locked)
+		unsigned long new_addr, unsigned long new_len, bool *locked,
+		struct vm_userfaultfd_ctx *uf,
+		struct list_head *uf_unmap)
 {
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
@@ -411,12 +446,12 @@ static unsigned long mremap_to(unsigned long addr, unsigned long old_len,
 	if (addr + old_len > new_addr && new_addr + new_len > addr)
 		goto out;
 
-	ret = do_munmap(mm, new_addr, new_len);
+	ret = do_munmap(mm, new_addr, new_len, NULL);
 	if (ret)
 		goto out;
 
 	if (old_len >= new_len) {
-		ret = do_munmap(mm, addr+new_len, old_len - new_len);
+		ret = do_munmap(mm, addr+new_len, old_len - new_len, uf_unmap);
 		if (ret && old_len != new_len)
 			goto out;
 		old_len = new_len;
@@ -438,7 +473,8 @@ static unsigned long mremap_to(unsigned long addr, unsigned long old_len,
 	if (offset_in_page(ret))
 		goto out1;
 
-	ret = move_vma(vma, addr, old_len, new_len, new_addr, locked);
+	ret = move_vma(vma, addr, old_len, new_len, new_addr, locked, uf,
+		       uf_unmap);
 	if (!(offset_in_page(ret)))
 		goto out;
 out1:
@@ -477,6 +513,8 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
 	unsigned long ret = -EINVAL;
 	unsigned long charged = 0;
 	bool locked = false;
+	struct vm_userfaultfd_ctx uf = NULL_VM_UFFD_CTX;
+	LIST_HEAD(uf_unmap);
 
 	if (flags & ~(MREMAP_FIXED | MREMAP_MAYMOVE))
 		return ret;
@@ -498,11 +536,12 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
 	if (!new_len)
 		return ret;
 
-	down_write(&current->mm->mmap_sem);
+	if (down_write_killable(&current->mm->mmap_sem))
+		return -EINTR;
 
 	if (flags & MREMAP_FIXED) {
 		ret = mremap_to(addr, old_len, new_addr, new_len,
-				&locked);
+				&locked, &uf, &uf_unmap);
 		goto out;
 	}
 
@@ -512,7 +551,7 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
 	 * do_munmap does all the needed commit accounting
 	 */
 	if (old_len >= new_len) {
-		ret = do_munmap(mm, addr+new_len, old_len - new_len);
+		ret = do_munmap(mm, addr+new_len, old_len - new_len, &uf_unmap);
 		if (ret && old_len != new_len)
 			goto out;
 		ret = addr;
@@ -541,7 +580,7 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
 				goto out;
 			}
 
-			vm_stat_account(mm, vma->vm_flags, vma->vm_file, pages);
+			vm_stat_account(mm, vma->vm_flags, pages);
 			if (vma->vm_flags & VM_LOCKED) {
 				mm->locked_vm += pages;
 				locked = true;
@@ -571,7 +610,8 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
 			goto out;
 		}
 
-		ret = move_vma(vma, addr, old_len, new_len, new_addr, &locked);
+		ret = move_vma(vma, addr, old_len, new_len, new_addr,
+			       &locked, &uf, &uf_unmap);
 	}
 out:
 	if (offset_in_page(ret)) {
@@ -581,5 +621,7 @@ out:
 	up_write(&current->mm->mmap_sem);
 	if (locked && new_len > old_len)
 		mm_populate(new_addr + old_len, new_len - old_len);
+	mremap_userfaultfd_complete(&uf, addr, new_addr, old_len);
+	userfaultfd_unmap_complete(mm, &uf_unmap);
 	return ret;
 }

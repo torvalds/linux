@@ -241,8 +241,8 @@ static const struct regmap_config rc5t583_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.volatile_reg = volatile_reg,
-	.max_register = RC5T583_MAX_REGS,
-	.num_reg_defaults_raw = RC5T583_MAX_REGS,
+	.max_register = RC5T583_MAX_REG,
+	.num_reg_defaults_raw = RC5T583_NUM_REGS,
 	.cache_type = REGCACHE_RBTREE,
 };
 
@@ -252,7 +252,6 @@ static int rc5t583_i2c_probe(struct i2c_client *i2c,
 	struct rc5t583 *rc5t583;
 	struct rc5t583_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	int ret;
-	bool irq_init_success = false;
 
 	if (!pdata) {
 		dev_err(&i2c->dev, "Err: Platform data not found\n");
@@ -284,31 +283,15 @@ static int rc5t583_i2c_probe(struct i2c_client *i2c,
 		/* Still continue with warning, if irq init fails */
 		if (ret)
 			dev_warn(&i2c->dev, "IRQ init failed: %d\n", ret);
-		else
-			irq_init_success = true;
 	}
 
-	ret = mfd_add_devices(rc5t583->dev, -1, rc5t583_subdevs,
-			      ARRAY_SIZE(rc5t583_subdevs), NULL, 0, NULL);
+	ret = devm_mfd_add_devices(rc5t583->dev, -1, rc5t583_subdevs,
+				   ARRAY_SIZE(rc5t583_subdevs), NULL, 0, NULL);
 	if (ret) {
 		dev_err(&i2c->dev, "add mfd devices failed: %d\n", ret);
-		goto err_add_devs;
+		return ret;
 	}
 
-	return 0;
-
-err_add_devs:
-	if (irq_init_success)
-		rc5t583_irq_exit(rc5t583);
-	return ret;
-}
-
-static int  rc5t583_i2c_remove(struct i2c_client *i2c)
-{
-	struct rc5t583 *rc5t583 = i2c_get_clientdata(i2c);
-
-	mfd_remove_devices(rc5t583->dev);
-	rc5t583_irq_exit(rc5t583);
 	return 0;
 }
 
@@ -324,7 +307,6 @@ static struct i2c_driver rc5t583_i2c_driver = {
 		   .name = "rc5t583",
 		   },
 	.probe = rc5t583_i2c_probe,
-	.remove = rc5t583_i2c_remove,
 	.id_table = rc5t583_i2c_id,
 };
 

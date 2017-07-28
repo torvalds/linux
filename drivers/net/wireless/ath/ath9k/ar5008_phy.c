@@ -260,8 +260,8 @@ void ar5008_hw_cmn_spur_mitigate(struct ath_hw *ah,
 	int cur_bin;
 	int upper, lower, cur_vit_mask;
 	int i;
-	int8_t mask_m[123];
-	int8_t mask_p[123];
+	int8_t mask_m[123] = {0};
+	int8_t mask_p[123] = {0};
 	int8_t mask_amt;
 	int tmp_mask;
 	static const int pilot_mask_reg[4] = {
@@ -299,7 +299,7 @@ void ar5008_hw_cmn_spur_mitigate(struct ath_hw *ah,
 	upper = bin + 120;
 	lower = bin - 120;
 
-	for (i = 0; i < 123; i++) {
+	for (i = 0; i < ARRAY_SIZE(mask_m); i++) {
 		if ((cur_vit_mask > lower) && (cur_vit_mask < upper)) {
 			/* workaround for gcc bug #37014 */
 			volatile int tmp_v = abs(cur_vit_mask - bin);
@@ -424,13 +424,8 @@ static void ar5008_hw_spur_mitigate(struct ath_hw *ah,
 	int tmp, new;
 	int i;
 
-	int8_t mask_m[123];
-	int8_t mask_p[123];
 	int cur_bb_spur;
 	bool is2GHz = IS_CHAN_2GHZ(chan);
-
-	memset(&mask_m, 0, sizeof(int8_t) * 123);
-	memset(&mask_p, 0, sizeof(int8_t) * 123);
 
 	for (i = 0; i < AR_EEPROM_MODAL_SPURS; i++) {
 		cur_bb_spur = ah->eep_ops->get_spur_channel(ah, i, is2GHz);
@@ -529,7 +524,7 @@ static bool ar5008_hw_set_rf_regs(struct ath_hw *ah,
 		return true;
 
 	/* Setup rf parameters */
-	eepMinorRev = ah->eep_ops->get_eeprom(ah, EEP_MINOR_REV);
+	eepMinorRev = ah->eep_ops->get_eeprom_rev(ah);
 
 	for (i = 0; i < ah->iniBank6.ia_rows; i++)
 		ah->analogBank6Data[i] = INI_RA(&ah->iniBank6, i, modesIndex);

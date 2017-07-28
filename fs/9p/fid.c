@@ -91,10 +91,10 @@ static struct p9_fid *v9fs_fid_find(struct dentry *dentry, kuid_t uid, int any)
  * dentry names.
  */
 static int build_path_from_dentry(struct v9fs_session_info *v9ses,
-				  struct dentry *dentry, char ***names)
+				  struct dentry *dentry, const unsigned char ***names)
 {
 	int n = 0, i;
-	char **wnames;
+	const unsigned char **wnames;
 	struct dentry *ds;
 
 	for (ds = dentry; !IS_ROOT(ds); ds = ds->d_parent)
@@ -105,7 +105,7 @@ static int build_path_from_dentry(struct v9fs_session_info *v9ses,
 		goto err_out;
 
 	for (ds = dentry, i = (n-1); i >= 0; i--, ds = ds->d_parent)
-		wnames[i] = (char  *)ds->d_name.name;
+		wnames[i] = ds->d_name.name;
 
 	*names = wnames;
 	return n;
@@ -117,7 +117,7 @@ static struct p9_fid *v9fs_fid_lookup_with_uid(struct dentry *dentry,
 					       kuid_t uid, int any)
 {
 	struct dentry *ds;
-	char **wnames, *uname;
+	const unsigned char **wnames, *uname;
 	int i, n, l, clone, access;
 	struct v9fs_session_info *v9ses;
 	struct p9_fid *fid, *old_fid = NULL;
@@ -137,7 +137,7 @@ static struct p9_fid *v9fs_fid_lookup_with_uid(struct dentry *dentry,
 	fid = v9fs_fid_find(ds, uid, any);
 	if (fid) {
 		/* Found the parent fid do a lookup with that */
-		fid = p9_client_walk(fid, 1, (char **)&dentry->d_name.name, 1);
+		fid = p9_client_walk(fid, 1, &dentry->d_name.name, 1);
 		goto fid_out;
 	}
 	up_read(&v9ses->rename_sem);
@@ -257,36 +257,12 @@ struct p9_fid *v9fs_fid_lookup(struct dentry *dentry)
 	return v9fs_fid_lookup_with_uid(dentry, uid, any);
 }
 
-struct p9_fid *v9fs_fid_clone(struct dentry *dentry)
-{
-	struct p9_fid *fid, *ret;
-
-	fid = v9fs_fid_lookup(dentry);
-	if (IS_ERR(fid))
-		return fid;
-
-	ret = p9_client_walk(fid, 0, NULL, 1);
-	return ret;
-}
-
-static struct p9_fid *v9fs_fid_clone_with_uid(struct dentry *dentry, kuid_t uid)
-{
-	struct p9_fid *fid, *ret;
-
-	fid = v9fs_fid_lookup_with_uid(dentry, uid, 0);
-	if (IS_ERR(fid))
-		return fid;
-
-	ret = p9_client_walk(fid, 0, NULL, 1);
-	return ret;
-}
-
 struct p9_fid *v9fs_writeback_fid(struct dentry *dentry)
 {
 	int err;
 	struct p9_fid *fid;
 
-	fid = v9fs_fid_clone_with_uid(dentry, GLOBAL_ROOT_UID);
+	fid = clone_fid(v9fs_fid_lookup_with_uid(dentry, GLOBAL_ROOT_UID, 0));
 	if (IS_ERR(fid))
 		goto error_out;
 	/*

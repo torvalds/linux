@@ -46,13 +46,14 @@
 #include <linux/socket.h>
 #include <linux/sockios.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
 #include <linux/init.h>
 #include <linux/net.h>
 #include <linux/irda.h>
 #include <linux/poll.h>
 
 #include <asm/ioctls.h>		/* TIOCOUTQ, TIOCINQ */
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <net/sock.h>
 #include <net/tcp_states.h>
@@ -827,15 +828,16 @@ out:
  *    Wait for incoming connection
  *
  */
-static int irda_accept(struct socket *sock, struct socket *newsock, int flags)
+static int irda_accept(struct socket *sock, struct socket *newsock, int flags,
+		       bool kern)
 {
 	struct sock *sk = sock->sk;
 	struct irda_sock *new, *self = irda_sk(sk);
 	struct sock *newsk;
-	struct sk_buff *skb;
+	struct sk_buff *skb = NULL;
 	int err;
 
-	err = irda_create(sock_net(sk), newsock, sk->sk_protocol, 0);
+	err = irda_create(sock_net(sk), newsock, sk->sk_protocol, kern);
 	if (err)
 		return err;
 
@@ -843,9 +845,6 @@ static int irda_accept(struct socket *sock, struct socket *newsock, int flags)
 
 	lock_sock(sk);
 	if (sock->state != SS_UNCONNECTED)
-		goto out;
-
-	if ((sk = sock->sk) == NULL)
 		goto out;
 
 	err = -EOPNOTSUPP;
@@ -900,7 +899,6 @@ static int irda_accept(struct socket *sock, struct socket *newsock, int flags)
 	err = -EPERM; /* value does not seem to make sense. -arnd */
 	if (!new->tsap) {
 		pr_debug("%s(), dup failed!\n", __func__);
-		kfree_skb(skb);
 		goto out;
 	}
 
@@ -919,7 +917,6 @@ static int irda_accept(struct socket *sock, struct socket *newsock, int flags)
 	/* Clean up the original one to keep it in listen state */
 	irttp_listen(self->tsap);
 
-	kfree_skb(skb);
 	sk->sk_ack_backlog--;
 
 	newsock->state = SS_CONNECTED;
@@ -927,6 +924,7 @@ static int irda_accept(struct socket *sock, struct socket *newsock, int flags)
 	irda_connect_response(new);
 	err = 0;
 out:
+	kfree_skb(skb);
 	release_sock(sk);
 	return err;
 }
@@ -1024,8 +1022,11 @@ static int irda_connect(struct socket *sock, struct sockaddr *uaddr,
 	}
 
 	/* Check if we have opened a local TSAP */
-	if (!self->tsap)
-		irda_open_tsap(self, LSAP_ANY, addr->sir_name);
+	if (!self->tsap) {
+		err = irda_open_tsap(self, LSAP_ANY, addr->sir_name);
+		if (err)
+			goto out;
+	}
 
 	/* Move to connecting socket, start sending Connect Requests */
 	sock->state = SS_CONNECTING;
@@ -1085,6 +1086,9 @@ static int irda_create(struct net *net, struct socket *sock, int protocol,
 {
 	struct sock *sk;
 	struct irda_sock *self;
+
+	if (protocol < 0 || protocol > SK_PROTOCOL_MAX)
+		return -EINVAL;
 
 	if (net != &init_net)
 		return -EAFNOSUPPORT;
@@ -1897,16 +1901,10 @@ static int irda_setsockopt(struct socket *sock, int level, int optname,
 			goto out;
 		}
 
-		ias_opt = kmalloc(sizeof(struct irda_ias_set), GFP_ATOMIC);
-		if (ias_opt == NULL) {
-			err = -ENOMEM;
-			goto out;
-		}
-
 		/* Copy query to the driver. */
-		if (copy_from_user(ias_opt, optval, optlen)) {
-			kfree(ias_opt);
-			err = -EFAULT;
+		ias_opt = memdup_user(optval, optlen);
+		if (IS_ERR(ias_opt)) {
+			err = PTR_ERR(ias_opt);
 			goto out;
 		}
 
@@ -2028,16 +2026,10 @@ static int irda_setsockopt(struct socket *sock, int level, int optname,
 			goto out;
 		}
 
-		ias_opt = kmalloc(sizeof(struct irda_ias_set), GFP_ATOMIC);
-		if (ias_opt == NULL) {
-			err = -ENOMEM;
-			goto out;
-		}
-
 		/* Copy query to the driver. */
-		if (copy_from_user(ias_opt, optval, optlen)) {
-			kfree(ias_opt);
-			err = -EFAULT;
+		ias_opt = memdup_user(optval, optlen);
+		if (IS_ERR(ias_opt)) {
+			err = PTR_ERR(ias_opt);
 			goto out;
 		}
 
@@ -2313,16 +2305,10 @@ bed:
 			goto out;
 		}
 
-		ias_opt = kmalloc(sizeof(struct irda_ias_set), GFP_ATOMIC);
-		if (ias_opt == NULL) {
-			err = -ENOMEM;
-			goto out;
-		}
-
 		/* Copy query to the driver. */
-		if (copy_from_user(ias_opt, optval, len)) {
-			kfree(ias_opt);
-			err = -EFAULT;
+		ias_opt = memdup_user(optval, len);
+		if (IS_ERR(ias_opt)) {
+			err = PTR_ERR(ias_opt);
 			goto out;
 		}
 
@@ -2377,16 +2363,10 @@ bed:
 			goto out;
 		}
 
-		ias_opt = kmalloc(sizeof(struct irda_ias_set), GFP_ATOMIC);
-		if (ias_opt == NULL) {
-			err = -ENOMEM;
-			goto out;
-		}
-
 		/* Copy query to the driver. */
-		if (copy_from_user(ias_opt, optval, len)) {
-			kfree(ias_opt);
-			err = -EFAULT;
+		ias_opt = memdup_user(optval, len);
+		if (IS_ERR(ias_opt)) {
+			err = PTR_ERR(ias_opt);
 			goto out;
 		}
 

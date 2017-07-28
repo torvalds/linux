@@ -19,7 +19,8 @@ static ssize_t name##_show(struct device *dev, struct device_attribute *attr, ch
 {									\
 	struct superhyway_device *s = to_superhyway_device(dev);	\
 	return sprintf(buf, fmt, s->field);				\
-}
+}									\
+static DEVICE_ATTR_RO(name);
 
 /* VCR flags */
 superhyway_ro_attr(perr_flags, "0x%02x\n", vcr.perr_flags);
@@ -32,14 +33,22 @@ superhyway_ro_attr(top_mb, "0x%02x\n", vcr.top_mb);
 /* Misc */
 superhyway_ro_attr(resource, "0x%08lx\n", resource[0].start);
 
-struct device_attribute superhyway_dev_attrs[] = {
-	__ATTR_RO(perr_flags),
-	__ATTR_RO(merr_flags),
-	__ATTR_RO(mod_vers),
-	__ATTR_RO(mod_id),
-	__ATTR_RO(bot_mb),
-	__ATTR_RO(top_mb),
-	__ATTR_RO(resource),
-	__ATTR_NULL,
+static struct attribute *superhyway_dev_attrs[] = {
+	&dev_attr_perr_flags.attr,
+	&dev_attr_merr_flags.attr,
+	&dev_attr_mod_vers.attr,
+	&dev_attr_mod_id.attr,
+	&dev_attr_bot_mb.attr,
+	&dev_attr_top_mb.attr,
+	&dev_attr_resource.attr,
+	NULL,
 };
 
+static const struct attribute_group superhyway_dev_group = {
+	.attrs = superhyway_dev_attrs,
+};
+
+const struct attribute_group *superhyway_dev_groups[] = {
+	&superhyway_dev_group,
+	NULL,
+};

@@ -131,28 +131,15 @@ static void nf_nat_ipv6_csum_recalc(struct sk_buff *skb,
 				    u8 proto, void *data, __sum16 *check,
 				    int datalen, int oldlen)
 {
-	const struct ipv6hdr *ipv6h = ipv6_hdr(skb);
-	struct rt6_info *rt = (struct rt6_info *)skb_dst(skb);
-
 	if (skb->ip_summed != CHECKSUM_PARTIAL) {
-		if (!(rt->rt6i_flags & RTF_LOCAL) &&
-		    (!skb->dev || skb->dev->features & NETIF_F_V6_CSUM)) {
-			skb->ip_summed = CHECKSUM_PARTIAL;
-			skb->csum_start = skb_headroom(skb) +
-					  skb_network_offset(skb) +
-					  (data - (void *)skb->data);
-			skb->csum_offset = (void *)check - data;
-			*check = ~csum_ipv6_magic(&ipv6h->saddr, &ipv6h->daddr,
-						  datalen, proto, 0);
-		} else {
-			*check = 0;
-			*check = csum_ipv6_magic(&ipv6h->saddr, &ipv6h->daddr,
-						 datalen, proto,
-						 csum_partial(data, datalen,
-							      0));
-			if (proto == IPPROTO_UDP && !*check)
-				*check = CSUM_MANGLED_0;
-		}
+		const struct ipv6hdr *ipv6h = ipv6_hdr(skb);
+
+		skb->ip_summed = CHECKSUM_PARTIAL;
+		skb->csum_start = skb_headroom(skb) + skb_network_offset(skb) +
+			(data - (void *)skb->data);
+		skb->csum_offset = (void *)check - data;
+		*check = ~csum_ipv6_magic(&ipv6h->saddr, &ipv6h->daddr,
+					  datalen, proto, 0);
 	} else
 		inet_proto_csum_replace2(check, skb,
 					 htons(oldlen), htons(datalen), true);
@@ -248,7 +235,7 @@ int nf_nat_icmpv6_reply_translation(struct sk_buff *skb,
 		inside->icmp6.icmp6_cksum =
 			csum_ipv6_magic(&ipv6h->saddr, &ipv6h->daddr,
 					skb->len - hdrlen, IPPROTO_ICMPV6,
-					csum_partial(&inside->icmp6,
+					skb_checksum(skb, hdrlen,
 						     skb->len - hdrlen, 0));
 	}
 
@@ -286,13 +273,7 @@ nf_nat_ipv6_fn(void *priv, struct sk_buff *skb,
 	if (!ct)
 		return NF_ACCEPT;
 
-	/* Don't try to NAT if this packet is not conntracked */
-	if (nf_ct_is_untracked(ct))
-		return NF_ACCEPT;
-
-	nat = nf_ct_nat_ext_add(ct);
-	if (nat == NULL)
-		return NF_ACCEPT;
+	nat = nfct_nat(ct);
 
 	switch (ctinfo) {
 	case IP_CT_RELATED:

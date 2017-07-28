@@ -20,9 +20,10 @@
 #define ATOMIC_INIT(i)  { (i) }
 
 int atomic_add_return(int, atomic_t *);
-void atomic_and(int, atomic_t *);
-void atomic_or(int, atomic_t *);
-void atomic_xor(int, atomic_t *);
+int atomic_fetch_add(int, atomic_t *);
+int atomic_fetch_and(int, atomic_t *);
+int atomic_fetch_or(int, atomic_t *);
+int atomic_fetch_xor(int, atomic_t *);
 int atomic_cmpxchg(atomic_t *, int, int);
 int atomic_xchg(atomic_t *, int);
 int __atomic_add_unless(atomic_t *, int, int);
@@ -35,7 +36,13 @@ void atomic_set(atomic_t *, int);
 #define atomic_inc(v)		((void)atomic_add_return(        1, (v)))
 #define atomic_dec(v)		((void)atomic_add_return(       -1, (v)))
 
+#define atomic_and(i, v)	((void)atomic_fetch_and((i), (v)))
+#define atomic_or(i, v)		((void)atomic_fetch_or((i), (v)))
+#define atomic_xor(i, v)	((void)atomic_fetch_xor((i), (v)))
+
 #define atomic_sub_return(i, v)	(atomic_add_return(-(int)(i), (v)))
+#define atomic_fetch_sub(i, v)  (atomic_fetch_add (-(int)(i), (v)))
+
 #define atomic_inc_return(v)	(atomic_add_return(        1, (v)))
 #define atomic_dec_return(v)	(atomic_add_return(       -1, (v)))
 

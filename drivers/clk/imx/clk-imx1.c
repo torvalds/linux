@@ -45,10 +45,13 @@ static void __iomem *ccm __initdata;
 #define CCM_PCDR	(ccm + 0x0020)
 #define SCM_GCCR	(ccm + 0x0810)
 
-static void __init _mx1_clocks_init(unsigned long fref)
+static void __init mx1_clocks_init_dt(struct device_node *np)
 {
+	ccm = of_iomap(np, 0);
+	BUG_ON(!ccm);
+
 	clk[IMX1_CLK_DUMMY] = imx_clk_fixed("dummy", 0);
-	clk[IMX1_CLK_CLK32] = imx_obtain_fixed_clock("clk32", fref);
+	clk[IMX1_CLK_CLK32] = imx_obtain_fixed_clock("clk32", 32768);
 	clk[IMX1_CLK_CLK16M_EXT] = imx_clk_fixed("clk16m_ext", 16000000);
 	clk[IMX1_CLK_CLK16M] = imx_clk_gate("clk16m", "clk16m_ext", CCM_CSCR, 17);
 	clk[IMX1_CLK_CLK32_PREMULT] = imx_clk_fixed_factor("clk32_premult", "clk32", 512, 1);
@@ -74,45 +77,6 @@ static void __init _mx1_clocks_init(unsigned long fref)
 	clk[IMX1_CLK_USBD_GATE] = imx_clk_gate("usbd_gate", "clk48m", SCM_GCCR, 0);
 
 	imx_check_clocks(clk, ARRAY_SIZE(clk));
-}
-
-int __init mx1_clocks_init(unsigned long fref)
-{
-	ccm = ioremap(MX1_CCM_BASE_ADDR, SZ_4K);
-	BUG_ON(!ccm);
-
-	_mx1_clocks_init(fref);
-
-	clk_register_clkdev(clk[IMX1_CLK_PER1], "per", "imx-gpt.0");
-	clk_register_clkdev(clk[IMX1_CLK_HCLK], "ipg", "imx-gpt.0");
-	clk_register_clkdev(clk[IMX1_CLK_DMA_GATE], "ahb", "imx1-dma");
-	clk_register_clkdev(clk[IMX1_CLK_HCLK], "ipg", "imx1-dma");
-	clk_register_clkdev(clk[IMX1_CLK_PER1], "per", "imx1-uart.0");
-	clk_register_clkdev(clk[IMX1_CLK_HCLK], "ipg", "imx1-uart.0");
-	clk_register_clkdev(clk[IMX1_CLK_PER1], "per", "imx1-uart.1");
-	clk_register_clkdev(clk[IMX1_CLK_HCLK], "ipg", "imx1-uart.1");
-	clk_register_clkdev(clk[IMX1_CLK_PER1], "per", "imx1-uart.2");
-	clk_register_clkdev(clk[IMX1_CLK_UART3_GATE], "ipg", "imx1-uart.2");
-	clk_register_clkdev(clk[IMX1_CLK_HCLK], NULL, "imx1-i2c.0");
-	clk_register_clkdev(clk[IMX1_CLK_PER2], "per", "imx1-cspi.0");
-	clk_register_clkdev(clk[IMX1_CLK_DUMMY], "ipg", "imx1-cspi.0");
-	clk_register_clkdev(clk[IMX1_CLK_PER2], "per", "imx1-cspi.1");
-	clk_register_clkdev(clk[IMX1_CLK_DUMMY], "ipg", "imx1-cspi.1");
-	clk_register_clkdev(clk[IMX1_CLK_PER2], "per", "imx1-fb.0");
-	clk_register_clkdev(clk[IMX1_CLK_DUMMY], "ipg", "imx1-fb.0");
-	clk_register_clkdev(clk[IMX1_CLK_DUMMY], "ahb", "imx1-fb.0");
-
-	mxc_timer_init(MX1_TIM1_BASE_ADDR, MX1_TIM1_INT, GPT_TYPE_IMX1);
-
-	return 0;
-}
-
-static void __init mx1_clocks_init_dt(struct device_node *np)
-{
-	ccm = of_iomap(np, 0);
-	BUG_ON(!ccm);
-
-	_mx1_clocks_init(32768);
 
 	clk_data.clks = clk;
 	clk_data.clk_num = ARRAY_SIZE(clk);

@@ -28,14 +28,9 @@ struct wm8350_gpio_data {
 	struct gpio_chip gpio_chip;
 };
 
-static inline struct wm8350_gpio_data *to_wm8350_gpio(struct gpio_chip *chip)
-{
-	return container_of(chip, struct wm8350_gpio_data, gpio_chip);
-}
-
 static int wm8350_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 {
-	struct wm8350_gpio_data *wm8350_gpio = to_wm8350_gpio(chip);
+	struct wm8350_gpio_data *wm8350_gpio = gpiochip_get_data(chip);
 	struct wm8350 *wm8350 = wm8350_gpio->wm8350;
 
 	return wm8350_set_bits(wm8350, WM8350_GPIO_CONFIGURATION_I_O,
@@ -44,7 +39,7 @@ static int wm8350_gpio_direction_in(struct gpio_chip *chip, unsigned offset)
 
 static int wm8350_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct wm8350_gpio_data *wm8350_gpio = to_wm8350_gpio(chip);
+	struct wm8350_gpio_data *wm8350_gpio = gpiochip_get_data(chip);
 	struct wm8350 *wm8350 = wm8350_gpio->wm8350;
 	int ret;
 
@@ -60,7 +55,7 @@ static int wm8350_gpio_get(struct gpio_chip *chip, unsigned offset)
 
 static void wm8350_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct wm8350_gpio_data *wm8350_gpio = to_wm8350_gpio(chip);
+	struct wm8350_gpio_data *wm8350_gpio = gpiochip_get_data(chip);
 	struct wm8350 *wm8350 = wm8350_gpio->wm8350;
 
 	if (value)
@@ -72,7 +67,7 @@ static void wm8350_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 static int wm8350_gpio_direction_out(struct gpio_chip *chip,
 				     unsigned offset, int value)
 {
-	struct wm8350_gpio_data *wm8350_gpio = to_wm8350_gpio(chip);
+	struct wm8350_gpio_data *wm8350_gpio = gpiochip_get_data(chip);
 	struct wm8350 *wm8350 = wm8350_gpio->wm8350;
 	int ret;
 
@@ -89,7 +84,7 @@ static int wm8350_gpio_direction_out(struct gpio_chip *chip,
 
 static int wm8350_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
-	struct wm8350_gpio_data *wm8350_gpio = to_wm8350_gpio(chip);
+	struct wm8350_gpio_data *wm8350_gpio = gpiochip_get_data(chip);
 	struct wm8350 *wm8350 = wm8350_gpio->wm8350;
 
 	if (!wm8350->irq_base)
@@ -98,7 +93,7 @@ static int wm8350_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	return wm8350->irq_base + WM8350_IRQ_GPIO(offset);
 }
 
-static struct gpio_chip template_chip = {
+static const struct gpio_chip template_chip = {
 	.label			= "wm8350",
 	.owner			= THIS_MODULE,
 	.direction_input	= wm8350_gpio_direction_in,
@@ -124,13 +119,14 @@ static int wm8350_gpio_probe(struct platform_device *pdev)
 	wm8350_gpio->wm8350 = wm8350;
 	wm8350_gpio->gpio_chip = template_chip;
 	wm8350_gpio->gpio_chip.ngpio = 13;
-	wm8350_gpio->gpio_chip.dev = &pdev->dev;
+	wm8350_gpio->gpio_chip.parent = &pdev->dev;
 	if (pdata && pdata->gpio_base)
 		wm8350_gpio->gpio_chip.base = pdata->gpio_base;
 	else
 		wm8350_gpio->gpio_chip.base = -1;
 
-	ret = gpiochip_add(&wm8350_gpio->gpio_chip);
+	ret = devm_gpiochip_add_data(&pdev->dev, &wm8350_gpio->gpio_chip,
+				     wm8350_gpio);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
 		return ret;
@@ -141,19 +137,9 @@ static int wm8350_gpio_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int wm8350_gpio_remove(struct platform_device *pdev)
-{
-	struct wm8350_gpio_data *wm8350_gpio = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&wm8350_gpio->gpio_chip);
-	return 0;
-}
-
 static struct platform_driver wm8350_gpio_driver = {
 	.driver.name	= "wm8350-gpio",
-	.driver.owner	= THIS_MODULE,
 	.probe		= wm8350_gpio_probe,
-	.remove		= wm8350_gpio_remove,
 };
 
 static int __init wm8350_gpio_init(void)

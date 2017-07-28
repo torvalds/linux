@@ -30,7 +30,7 @@
 #include <linux/inotify.h>
 #include <linux/kernel.h> /* roundup() */
 #include <linux/namei.h> /* LOOKUP_FOLLOW */
-#include <linux/sched.h> /* struct user */
+#include <linux/sched/signal.h>
 #include <linux/slab.h> /* struct kmem_cache */
 #include <linux/syscalls.h>
 #include <linux/types.h>
@@ -44,12 +44,10 @@
 
 #include <asm/ioctls.h>
 
-/* these are configurable via /proc/sys/fs/inotify/ */
-static int inotify_max_user_instances __read_mostly;
+/* configurable via /proc/sys/fs/inotify/ */
 static int inotify_max_queued_events __read_mostly;
-static int inotify_max_user_watches __read_mostly;
 
-static struct kmem_cache *inotify_inode_mark_cachep __read_mostly;
+struct kmem_cache *inotify_inode_mark_cachep __read_mostly;
 
 #ifdef CONFIG_SYSCTL
 
@@ -60,7 +58,7 @@ static int zero;
 struct ctl_table inotify_table[] = {
 	{
 		.procname	= "max_user_instances",
-		.data		= &inotify_max_user_instances,
+		.data		= &init_user_ns.ucount_max[UCOUNT_INOTIFY_INSTANCES],
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
@@ -68,7 +66,7 @@ struct ctl_table inotify_table[] = {
 	},
 	{
 		.procname	= "max_user_watches",
-		.data		= &inotify_max_user_watches,
+		.data		= &init_user_ns.ucount_max[UCOUNT_INOTIFY_WATCHES],
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
@@ -115,10 +113,10 @@ static unsigned int inotify_poll(struct file *file, poll_table *wait)
 	int ret = 0;
 
 	poll_wait(file, &group->notification_waitq, wait);
-	mutex_lock(&group->notification_mutex);
+	spin_lock(&group->notification_lock);
 	if (!fsnotify_notify_queue_is_empty(group))
 		ret = POLLIN | POLLRDNORM;
-	mutex_unlock(&group->notification_mutex);
+	spin_unlock(&group->notification_lock);
 
 	return ret;
 }
@@ -138,7 +136,7 @@ static int round_event_name_len(struct fsnotify_event *fsn_event)
  * enough to fit in "count". Return an error pointer if
  * not large enough.
  *
- * Called with the group->notification_mutex held.
+ * Called with the group->notification_lock held.
  */
 static struct fsnotify_event *get_one_event(struct fsnotify_group *group,
 					    size_t count)
@@ -157,7 +155,7 @@ static struct fsnotify_event *get_one_event(struct fsnotify_group *group,
 	if (event_size > count)
 		return ERR_PTR(-EINVAL);
 
-	/* held the notification_mutex the whole time, so this is the
+	/* held the notification_lock the whole time, so this is the
 	 * same event we peeked above */
 	fsnotify_remove_first_event(group);
 
@@ -234,9 +232,9 @@ static ssize_t inotify_read(struct file *file, char __user *buf,
 
 	add_wait_queue(&group->notification_waitq, &wait);
 	while (1) {
-		mutex_lock(&group->notification_mutex);
+		spin_lock(&group->notification_lock);
 		kevent = get_one_event(group, count);
-		mutex_unlock(&group->notification_mutex);
+		spin_unlock(&group->notification_lock);
 
 		pr_debug("%s: group=%p kevent=%p\n", __func__, group, kevent);
 
@@ -300,13 +298,13 @@ static long inotify_ioctl(struct file *file, unsigned int cmd,
 
 	switch (cmd) {
 	case FIONREAD:
-		mutex_lock(&group->notification_mutex);
+		spin_lock(&group->notification_lock);
 		list_for_each_entry(fsn_event, &group->notification_list,
 				    list) {
 			send_len += sizeof(struct inotify_event);
 			send_len += round_event_name_len(fsn_event);
 		}
-		mutex_unlock(&group->notification_mutex);
+		spin_unlock(&group->notification_lock);
 		ret = put_user(send_len, (int __user *) p);
 		break;
 	}
@@ -397,21 +395,6 @@ static struct inotify_inode_mark *inotify_idr_find(struct fsnotify_group *group,
 	return i_mark;
 }
 
-static void do_inotify_remove_from_idr(struct fsnotify_group *group,
-				       struct inotify_inode_mark *i_mark)
-{
-	struct idr *idr = &group->inotify_data.idr;
-	spinlock_t *idr_lock = &group->inotify_data.idr_lock;
-	int wd = i_mark->wd;
-
-	assert_spin_locked(idr_lock);
-
-	idr_remove(idr, wd);
-
-	/* removed from the idr, drop that ref */
-	fsnotify_put_mark(&i_mark->fsn_mark);
-}
-
 /*
  * Remove the mark from the idr (if present) and drop the reference
  * on the mark because it was in the idr.
@@ -419,6 +402,7 @@ static void do_inotify_remove_from_idr(struct fsnotify_group *group,
 static void inotify_remove_from_idr(struct fsnotify_group *group,
 				    struct inotify_inode_mark *i_mark)
 {
+	struct idr *idr = &group->inotify_data.idr;
 	spinlock_t *idr_lock = &group->inotify_data.idr_lock;
 	struct inotify_inode_mark *found_i_mark = NULL;
 	int wd;
@@ -431,18 +415,16 @@ static void inotify_remove_from_idr(struct fsnotify_group *group,
 	 * if it wasn't....
 	 */
 	if (wd == -1) {
-		WARN_ONCE(1, "%s: i_mark=%p i_mark->wd=%d i_mark->group=%p"
-			" i_mark->inode=%p\n", __func__, i_mark, i_mark->wd,
-			i_mark->fsn_mark.group, i_mark->fsn_mark.inode);
+		WARN_ONCE(1, "%s: i_mark=%p i_mark->wd=%d i_mark->group=%p\n",
+			__func__, i_mark, i_mark->wd, i_mark->fsn_mark.group);
 		goto out;
 	}
 
 	/* Lets look in the idr to see if we find it */
 	found_i_mark = inotify_idr_find_locked(group, wd);
 	if (unlikely(!found_i_mark)) {
-		WARN_ONCE(1, "%s: i_mark=%p i_mark->wd=%d i_mark->group=%p"
-			" i_mark->inode=%p\n", __func__, i_mark, i_mark->wd,
-			i_mark->fsn_mark.group, i_mark->fsn_mark.inode);
+		WARN_ONCE(1, "%s: i_mark=%p i_mark->wd=%d i_mark->group=%p\n",
+			__func__, i_mark, i_mark->wd, i_mark->fsn_mark.group);
 		goto out;
 	}
 
@@ -453,35 +435,33 @@ static void inotify_remove_from_idr(struct fsnotify_group *group,
 	 */
 	if (unlikely(found_i_mark != i_mark)) {
 		WARN_ONCE(1, "%s: i_mark=%p i_mark->wd=%d i_mark->group=%p "
-			"mark->inode=%p found_i_mark=%p found_i_mark->wd=%d "
-			"found_i_mark->group=%p found_i_mark->inode=%p\n",
-			__func__, i_mark, i_mark->wd, i_mark->fsn_mark.group,
-			i_mark->fsn_mark.inode, found_i_mark, found_i_mark->wd,
-			found_i_mark->fsn_mark.group,
-			found_i_mark->fsn_mark.inode);
+			"found_i_mark=%p found_i_mark->wd=%d "
+			"found_i_mark->group=%p\n", __func__, i_mark,
+			i_mark->wd, i_mark->fsn_mark.group, found_i_mark,
+			found_i_mark->wd, found_i_mark->fsn_mark.group);
 		goto out;
 	}
 
 	/*
 	 * One ref for being in the idr
-	 * one ref held by the caller trying to kill us
 	 * one ref grabbed by inotify_idr_find
 	 */
-	if (unlikely(atomic_read(&i_mark->fsn_mark.refcnt) < 3)) {
-		printk(KERN_ERR "%s: i_mark=%p i_mark->wd=%d i_mark->group=%p"
-			" i_mark->inode=%p\n", __func__, i_mark, i_mark->wd,
-			i_mark->fsn_mark.group, i_mark->fsn_mark.inode);
+	if (unlikely(atomic_read(&i_mark->fsn_mark.refcnt) < 2)) {
+		printk(KERN_ERR "%s: i_mark=%p i_mark->wd=%d i_mark->group=%p\n",
+			 __func__, i_mark, i_mark->wd, i_mark->fsn_mark.group);
 		/* we can't really recover with bad ref cnting.. */
 		BUG();
 	}
 
-	do_inotify_remove_from_idr(group, i_mark);
+	idr_remove(idr, wd);
+	/* Removed from the idr, drop that ref. */
+	fsnotify_put_mark(&i_mark->fsn_mark);
 out:
+	i_mark->wd = -1;
+	spin_unlock(idr_lock);
 	/* match the ref taken by inotify_idr_find_locked() */
 	if (found_i_mark)
 		fsnotify_put_mark(&found_i_mark->fsn_mark);
-	i_mark->wd = -1;
-	spin_unlock(idr_lock);
 }
 
 /*
@@ -494,23 +474,13 @@ void inotify_ignored_and_remove_idr(struct fsnotify_mark *fsn_mark,
 
 	/* Queue ignore event for the watch */
 	inotify_handle_event(group, NULL, fsn_mark, NULL, FS_IN_IGNORED,
-			     NULL, FSNOTIFY_EVENT_NONE, NULL, 0);
+			     NULL, FSNOTIFY_EVENT_NONE, NULL, 0, NULL);
 
 	i_mark = container_of(fsn_mark, struct inotify_inode_mark, fsn_mark);
 	/* remove this mark from the idr */
 	inotify_remove_from_idr(group, i_mark);
 
-	atomic_dec(&group->inotify_data.user->inotify_watches);
-}
-
-/* ding dong the mark is dead */
-static void inotify_free_mark(struct fsnotify_mark *fsn_mark)
-{
-	struct inotify_inode_mark *i_mark;
-
-	i_mark = container_of(fsn_mark, struct inotify_inode_mark, fsn_mark);
-
-	kmem_cache_free(inotify_inode_mark_cachep, i_mark);
+	dec_inotify_watches(group->inotify_data.ucounts);
 }
 
 static int inotify_update_existing_watch(struct fsnotify_group *group,
@@ -526,21 +496,19 @@ static int inotify_update_existing_watch(struct fsnotify_group *group,
 
 	mask = inotify_arg_to_mask(arg);
 
-	fsn_mark = fsnotify_find_inode_mark(group, inode);
+	fsn_mark = fsnotify_find_mark(&inode->i_fsnotify_marks, group);
 	if (!fsn_mark)
 		return -ENOENT;
 
 	i_mark = container_of(fsn_mark, struct inotify_inode_mark, fsn_mark);
 
 	spin_lock(&fsn_mark->lock);
-
 	old_mask = fsn_mark->mask;
 	if (add)
-		fsnotify_set_mark_mask_locked(fsn_mark, (fsn_mark->mask | mask));
+		fsn_mark->mask |= mask;
 	else
-		fsnotify_set_mark_mask_locked(fsn_mark, mask);
+		fsn_mark->mask = mask;
 	new_mask = fsn_mark->mask;
-
 	spin_unlock(&fsn_mark->lock);
 
 	if (old_mask != new_mask) {
@@ -551,7 +519,7 @@ static int inotify_update_existing_watch(struct fsnotify_group *group,
 
 		/* update the inode with this new fsn_mark */
 		if (dropped || do_inode)
-			fsnotify_recalc_inode_mask(inode);
+			fsnotify_recalc_mask(inode->i_fsnotify_marks);
 
 	}
 
@@ -580,29 +548,29 @@ static int inotify_new_watch(struct fsnotify_group *group,
 	if (unlikely(!tmp_i_mark))
 		return -ENOMEM;
 
-	fsnotify_init_mark(&tmp_i_mark->fsn_mark, inotify_free_mark);
+	fsnotify_init_mark(&tmp_i_mark->fsn_mark, group);
 	tmp_i_mark->fsn_mark.mask = mask;
 	tmp_i_mark->wd = -1;
-
-	ret = -ENOSPC;
-	if (atomic_read(&group->inotify_data.user->inotify_watches) >= inotify_max_user_watches)
-		goto out_err;
 
 	ret = inotify_add_to_idr(idr, idr_lock, tmp_i_mark);
 	if (ret)
 		goto out_err;
 
+	/* increment the number of watches the user has */
+	if (!inc_inotify_watches(group->inotify_data.ucounts)) {
+		inotify_remove_from_idr(group, tmp_i_mark);
+		ret = -ENOSPC;
+		goto out_err;
+	}
+
 	/* we are on the idr, now get on the inode */
-	ret = fsnotify_add_mark_locked(&tmp_i_mark->fsn_mark, group, inode,
-				       NULL, 0);
+	ret = fsnotify_add_mark_locked(&tmp_i_mark->fsn_mark, inode, NULL, 0);
 	if (ret) {
 		/* we failed to get on the inode, get off the idr */
 		inotify_remove_from_idr(group, tmp_i_mark);
 		goto out_err;
 	}
 
-	/* increment the number of watches the user has */
-	atomic_inc(&group->inotify_data.user->inotify_watches);
 
 	/* return the watch descriptor for this new mark */
 	ret = tmp_i_mark->wd;
@@ -653,10 +621,11 @@ static struct fsnotify_group *inotify_new_group(unsigned int max_events)
 
 	spin_lock_init(&group->inotify_data.idr_lock);
 	idr_init(&group->inotify_data.idr);
-	group->inotify_data.user = get_current_user();
+	group->inotify_data.ucounts = inc_ucount(current_user_ns(),
+						 current_euid(),
+						 UCOUNT_INOTIFY_INSTANCES);
 
-	if (atomic_inc_return(&group->inotify_data.user->inotify_devs) >
-	    inotify_max_user_instances) {
+	if (!group->inotify_data.ucounts) {
 		fsnotify_destroy_group(group);
 		return ERR_PTR(-EMFILE);
 	}
@@ -819,8 +788,8 @@ static int __init inotify_user_setup(void)
 	inotify_inode_mark_cachep = KMEM_CACHE(inotify_inode_mark, SLAB_PANIC);
 
 	inotify_max_queued_events = 16384;
-	inotify_max_user_instances = 128;
-	inotify_max_user_watches = 8192;
+	init_user_ns.ucount_max[UCOUNT_INOTIFY_INSTANCES] = 128;
+	init_user_ns.ucount_max[UCOUNT_INOTIFY_WATCHES] = 8192;
 
 	return 0;
 }

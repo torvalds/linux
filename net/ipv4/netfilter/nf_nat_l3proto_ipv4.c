@@ -127,28 +127,15 @@ static void nf_nat_ipv4_csum_recalc(struct sk_buff *skb,
 				    u8 proto, void *data, __sum16 *check,
 				    int datalen, int oldlen)
 {
-	const struct iphdr *iph = ip_hdr(skb);
-	struct rtable *rt = skb_rtable(skb);
-
 	if (skb->ip_summed != CHECKSUM_PARTIAL) {
-		if (!(rt->rt_flags & RTCF_LOCAL) &&
-		    (!skb->dev || skb->dev->features & NETIF_F_V4_CSUM)) {
-			skb->ip_summed = CHECKSUM_PARTIAL;
-			skb->csum_start = skb_headroom(skb) +
-					  skb_network_offset(skb) +
-					  ip_hdrlen(skb);
-			skb->csum_offset = (void *)check - data;
-			*check = ~csum_tcpudp_magic(iph->saddr, iph->daddr,
-						    datalen, proto, 0);
-		} else {
-			*check = 0;
-			*check = csum_tcpudp_magic(iph->saddr, iph->daddr,
-						   datalen, proto,
-						   csum_partial(data, datalen,
-								0));
-			if (proto == IPPROTO_UDP && !*check)
-				*check = CSUM_MANGLED_0;
-		}
+		const struct iphdr *iph = ip_hdr(skb);
+
+		skb->ip_summed = CHECKSUM_PARTIAL;
+		skb->csum_start = skb_headroom(skb) + skb_network_offset(skb) +
+			ip_hdrlen(skb);
+		skb->csum_offset = (void *)check - data;
+		*check = ~csum_tcpudp_magic(iph->saddr, iph->daddr, datalen,
+					    proto, 0);
 	} else
 		inet_proto_csum_replace2(check, skb,
 					 htons(oldlen), htons(datalen), true);
@@ -268,11 +255,6 @@ nf_nat_ipv4_fn(void *priv, struct sk_buff *skb,
 	/* maniptype == SRC for postrouting. */
 	enum nf_nat_manip_type maniptype = HOOK2MANIP(state->hook);
 
-	/* We never see fragments: conntrack defrags on pre-routing
-	 * and local-out, and nf_nat_out protects post-routing.
-	 */
-	NF_CT_ASSERT(!ip_is_fragment(ip_hdr(skb)));
-
 	ct = nf_ct_get(skb, &ctinfo);
 	/* Can't track?  It's not due to stress, or conntrack would
 	 * have dropped it.  Hence it's the user's responsibilty to
@@ -282,13 +264,7 @@ nf_nat_ipv4_fn(void *priv, struct sk_buff *skb,
 	if (!ct)
 		return NF_ACCEPT;
 
-	/* Don't try to NAT if this packet is not conntracked */
-	if (nf_ct_is_untracked(ct))
-		return NF_ACCEPT;
-
-	nat = nf_ct_nat_ext_add(ct);
-	if (nat == NULL)
-		return NF_ACCEPT;
+	nat = nfct_nat(ct);
 
 	switch (ctinfo) {
 	case IP_CT_RELATED:

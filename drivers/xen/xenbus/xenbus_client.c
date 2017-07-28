@@ -47,7 +47,7 @@
 #include <xen/xen.h>
 #include <xen/features.h>
 
-#include "xenbus_probe.h"
+#include "xenbus.h"
 
 #define XENBUS_PAGES(_grants)	(DIV_ROUND_UP(_grants, XEN_PFN_PER_PAGE))
 
@@ -115,7 +115,7 @@ EXPORT_SYMBOL_GPL(xenbus_strstate);
 int xenbus_watch_path(struct xenbus_device *dev, const char *path,
 		      struct xenbus_watch *watch,
 		      void (*callback)(struct xenbus_watch *,
-				       const char **, unsigned int))
+				       const char *, const char *))
 {
 	int err;
 
@@ -153,7 +153,7 @@ EXPORT_SYMBOL_GPL(xenbus_watch_path);
 int xenbus_watch_pathfmt(struct xenbus_device *dev,
 			 struct xenbus_watch *watch,
 			 void (*callback)(struct xenbus_watch *,
-					const char **, unsigned int),
+					  const char *, const char *),
 			 const char *pathfmt, ...)
 {
 	int err;
@@ -259,52 +259,33 @@ int xenbus_frontend_closed(struct xenbus_device *dev)
 }
 EXPORT_SYMBOL_GPL(xenbus_frontend_closed);
 
-/**
- * Return the path to the error node for the given device, or NULL on failure.
- * If the value returned is non-NULL, then it is the caller's to kfree.
- */
-static char *error_path(struct xenbus_device *dev)
-{
-	return kasprintf(GFP_KERNEL, "error/%s", dev->nodename);
-}
-
-
 static void xenbus_va_dev_error(struct xenbus_device *dev, int err,
 				const char *fmt, va_list ap)
 {
 	unsigned int len;
-	char *printf_buffer = NULL;
-	char *path_buffer = NULL;
+	char *printf_buffer;
+	char *path_buffer;
 
 #define PRINTF_BUFFER_SIZE 4096
+
 	printf_buffer = kmalloc(PRINTF_BUFFER_SIZE, GFP_KERNEL);
-	if (printf_buffer == NULL)
-		goto fail;
+	if (!printf_buffer)
+		return;
 
 	len = sprintf(printf_buffer, "%i ", -err);
-	vsnprintf(printf_buffer+len, PRINTF_BUFFER_SIZE-len, fmt, ap);
+	vsnprintf(printf_buffer + len, PRINTF_BUFFER_SIZE - len, fmt, ap);
 
 	dev_err(&dev->dev, "%s\n", printf_buffer);
 
-	path_buffer = error_path(dev);
-
-	if (path_buffer == NULL) {
+	path_buffer = kasprintf(GFP_KERNEL, "error/%s", dev->nodename);
+	if (!path_buffer ||
+	    xenbus_write(XBT_NIL, path_buffer, "error", printf_buffer))
 		dev_err(&dev->dev, "failed to write error node for %s (%s)\n",
-		       dev->nodename, printf_buffer);
-		goto fail;
-	}
+			dev->nodename, printf_buffer);
 
-	if (xenbus_write(XBT_NIL, path_buffer, "error", printf_buffer) != 0) {
-		dev_err(&dev->dev, "failed to write error node for %s (%s)\n",
-		       dev->nodename, printf_buffer);
-		goto fail;
-	}
-
-fail:
 	kfree(printf_buffer);
 	kfree(path_buffer);
 }
-
 
 /**
  * xenbus_dev_error

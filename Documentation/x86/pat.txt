@@ -196,3 +196,35 @@ Another, more verbose way of getting PAT related debug messages is with
 "debugpat" boot parameter. With this parameter, various debug messages are
 printed to dmesg log.
 
+PAT Initialization
+------------------
+
+The following table describes how PAT is initialized under various
+configurations. The PAT MSR must be updated by Linux in order to support WC
+and WT attributes. Otherwise, the PAT MSR has the value programmed in it
+by the firmware. Note, Xen enables WC attribute in the PAT MSR for guests.
+
+ MTRR PAT   Call Sequence               PAT State  PAT MSR
+ =========================================================
+ E    E     MTRR -> PAT init            Enabled    OS
+ E    D     MTRR -> PAT init            Disabled    -
+ D    E     MTRR -> PAT disable         Disabled   BIOS
+ D    D     MTRR -> PAT disable         Disabled    -
+ -    np/E  PAT  -> PAT disable         Disabled   BIOS
+ -    np/D  PAT  -> PAT disable         Disabled    -
+ E    !P/E  MTRR -> PAT init            Disabled   BIOS
+ D    !P/E  MTRR -> PAT disable         Disabled   BIOS
+ !M   !P/E  MTRR stub -> PAT disable    Disabled   BIOS
+
+ Legend
+ ------------------------------------------------
+ E         Feature enabled in CPU
+ D	   Feature disabled/unsupported in CPU
+ np	   "nopat" boot option specified
+ !P	   CONFIG_X86_PAT option unset
+ !M	   CONFIG_MTRR option unset
+ Enabled   PAT state set to enabled
+ Disabled  PAT state set to disabled
+ OS        PAT initializes PAT MSR with OS setting
+ BIOS      PAT keeps PAT MSR with BIOS setting
+

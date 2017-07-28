@@ -32,7 +32,7 @@
 #include "stv0297.h"
 #include "l64781.h"
 
-#include <media/saa7146_vv.h>
+#include <media/drv-intf/saa7146_vv.h>
 
 
 #define ANALOG_TUNER_VES1820 1
@@ -40,8 +40,11 @@
 
 extern int av7110_debug;
 
-#define dprintk(level,args...) \
-	    do { if ((av7110_debug & level)) { printk("dvb-ttpci: %s(): ", __func__); printk(args); } } while (0)
+#define dprintk(level, fmt, arg...) do {				\
+	if (level & av7110_debug)					\
+		printk(KERN_DEBUG KBUILD_MODNAME ": %s(): " fmt,	\
+		       __func__, ##arg);				\
+} while (0)
 
 #define MAXFILT 32
 

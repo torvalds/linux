@@ -73,14 +73,21 @@ static int m25p80_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
 	return spi_write(spi, flash->command, len + 1);
 }
 
-static void m25p80_write(struct spi_nor *nor, loff_t to, size_t len,
-			size_t *retlen, const u_char *buf)
+static ssize_t m25p80_write(struct spi_nor *nor, loff_t to, size_t len,
+			    const u_char *buf)
 {
 	struct m25p *flash = nor->priv;
 	struct spi_device *spi = flash->spi;
-	struct spi_transfer t[2] = {};
+	unsigned int inst_nbits, addr_nbits, data_nbits, data_idx;
+	struct spi_transfer t[3] = {};
 	struct spi_message m;
 	int cmd_sz = m25p_cmdsz(nor);
+	ssize_t ret;
+
+	/* get transfer protocols. */
+	inst_nbits = spi_nor_get_protocol_inst_nbits(nor->write_proto);
+	addr_nbits = spi_nor_get_protocol_addr_nbits(nor->write_proto);
+	data_nbits = spi_nor_get_protocol_data_nbits(nor->write_proto);
 
 	spi_message_init(&m);
 
@@ -91,45 +98,82 @@ static void m25p80_write(struct spi_nor *nor, loff_t to, size_t len,
 	m25p_addr2cmd(nor, to, flash->command);
 
 	t[0].tx_buf = flash->command;
+	t[0].tx_nbits = inst_nbits;
 	t[0].len = cmd_sz;
 	spi_message_add_tail(&t[0], &m);
 
-	t[1].tx_buf = buf;
-	t[1].len = len;
-	spi_message_add_tail(&t[1], &m);
+	/* split the op code and address bytes into two transfers if needed. */
+	data_idx = 1;
+	if (addr_nbits != inst_nbits) {
+		t[0].len = 1;
 
-	spi_sync(spi, &m);
+		t[1].tx_buf = &flash->command[1];
+		t[1].tx_nbits = addr_nbits;
+		t[1].len = cmd_sz - 1;
+		spi_message_add_tail(&t[1], &m);
 
-	*retlen += m.actual_length - cmd_sz;
-}
-
-static inline unsigned int m25p80_rx_nbits(struct spi_nor *nor)
-{
-	switch (nor->flash_read) {
-	case SPI_NOR_DUAL:
-		return 2;
-	case SPI_NOR_QUAD:
-		return 4;
-	default:
-		return 0;
+		data_idx = 2;
 	}
+
+	t[data_idx].tx_buf = buf;
+	t[data_idx].tx_nbits = data_nbits;
+	t[data_idx].len = len;
+	spi_message_add_tail(&t[data_idx], &m);
+
+	ret = spi_sync(spi, &m);
+	if (ret)
+		return ret;
+
+	ret = m.actual_length - cmd_sz;
+	if (ret < 0)
+		return -EIO;
+	return ret;
 }
 
 /*
  * Read an address range from the nor chip.  The address range
  * may be any size provided it is within the physical boundaries.
  */
-static int m25p80_read(struct spi_nor *nor, loff_t from, size_t len,
-			size_t *retlen, u_char *buf)
+static ssize_t m25p80_read(struct spi_nor *nor, loff_t from, size_t len,
+			   u_char *buf)
 {
 	struct m25p *flash = nor->priv;
 	struct spi_device *spi = flash->spi;
-	struct spi_transfer t[2];
+	unsigned int inst_nbits, addr_nbits, data_nbits, data_idx;
+	struct spi_transfer t[3];
 	struct spi_message m;
 	unsigned int dummy = nor->read_dummy;
+	ssize_t ret;
+	int cmd_sz;
+
+	/* get transfer protocols. */
+	inst_nbits = spi_nor_get_protocol_inst_nbits(nor->read_proto);
+	addr_nbits = spi_nor_get_protocol_addr_nbits(nor->read_proto);
+	data_nbits = spi_nor_get_protocol_data_nbits(nor->read_proto);
 
 	/* convert the dummy cycles to the number of bytes */
-	dummy /= 8;
+	dummy = (dummy * addr_nbits) / 8;
+
+	if (spi_flash_read_supported(spi)) {
+		struct spi_flash_read_message msg;
+
+		memset(&msg, 0, sizeof(msg));
+
+		msg.buf = buf;
+		msg.from = from;
+		msg.len = len;
+		msg.read_opcode = nor->read_opcode;
+		msg.addr_width = nor->addr_width;
+		msg.dummy_bytes = dummy;
+		msg.opcode_nbits = inst_nbits;
+		msg.addr_nbits = addr_nbits;
+		msg.data_nbits = data_nbits;
+
+		ret = spi_flash_read(spi, &msg);
+		if (ret < 0)
+			return ret;
+		return msg.retlen;
+	}
 
 	spi_message_init(&m);
 	memset(t, 0, (sizeof t));
@@ -138,34 +182,48 @@ static int m25p80_read(struct spi_nor *nor, loff_t from, size_t len,
 	m25p_addr2cmd(nor, from, flash->command);
 
 	t[0].tx_buf = flash->command;
+	t[0].tx_nbits = inst_nbits;
 	t[0].len = m25p_cmdsz(nor) + dummy;
 	spi_message_add_tail(&t[0], &m);
 
-	t[1].rx_buf = buf;
-	t[1].rx_nbits = m25p80_rx_nbits(nor);
-	t[1].len = len;
-	spi_message_add_tail(&t[1], &m);
+	/*
+	 * Set all dummy/mode cycle bits to avoid sending some manufacturer
+	 * specific pattern, which might make the memory enter its Continuous
+	 * Read mode by mistake.
+	 * Based on the different mode cycle bit patterns listed and described
+	 * in the JESD216B specification, the 0xff value works for all memories
+	 * and all manufacturers.
+	 */
+	cmd_sz = t[0].len;
+	memset(flash->command + cmd_sz - dummy, 0xff, dummy);
 
-	spi_sync(spi, &m);
+	/* split the op code and address bytes into two transfers if needed. */
+	data_idx = 1;
+	if (addr_nbits != inst_nbits) {
+		t[0].len = 1;
 
-	*retlen = m.actual_length - m25p_cmdsz(nor) - dummy;
-	return 0;
-}
+		t[1].tx_buf = &flash->command[1];
+		t[1].tx_nbits = addr_nbits;
+		t[1].len = cmd_sz - 1;
+		spi_message_add_tail(&t[1], &m);
 
-static int m25p80_erase(struct spi_nor *nor, loff_t offset)
-{
-	struct m25p *flash = nor->priv;
+		data_idx = 2;
+	}
 
-	dev_dbg(nor->dev, "%dKiB at 0x%08x\n",
-		flash->spi_nor.mtd.erasesize / 1024, (u32)offset);
+	t[data_idx].rx_buf = buf;
+	t[data_idx].rx_nbits = data_nbits;
+	t[data_idx].len = min3(len, spi_max_transfer_size(spi),
+			       spi_max_message_size(spi) - cmd_sz);
+	spi_message_add_tail(&t[data_idx], &m);
 
-	/* Set up command buffer. */
-	flash->command[0] = nor->erase_opcode;
-	m25p_addr2cmd(nor, offset, flash->command);
+	ret = spi_sync(spi, &m);
+	if (ret)
+		return ret;
 
-	spi_write(flash->spi, flash->command, m25p_cmdsz(nor));
-
-	return 0;
+	ret = m.actual_length - cmd_sz;
+	if (ret < 0)
+		return -EIO;
+	return ret;
 }
 
 /*
@@ -175,12 +233,15 @@ static int m25p80_erase(struct spi_nor *nor, loff_t offset)
  */
 static int m25p_probe(struct spi_device *spi)
 {
-	struct mtd_part_parser_data	ppdata;
 	struct flash_platform_data	*data;
 	struct m25p *flash;
 	struct spi_nor *nor;
-	enum read_mode mode = SPI_NOR_NORMAL;
-	char *flash_name = NULL;
+	struct spi_nor_hwcaps hwcaps = {
+		.mask = SNOR_HWCAPS_READ |
+			SNOR_HWCAPS_READ_FAST |
+			SNOR_HWCAPS_PP,
+	};
+	char *flash_name;
 	int ret;
 
 	data = dev_get_platdata(&spi->dev);
@@ -194,21 +255,29 @@ static int m25p_probe(struct spi_device *spi)
 	/* install the hooks */
 	nor->read = m25p80_read;
 	nor->write = m25p80_write;
-	nor->erase = m25p80_erase;
 	nor->write_reg = m25p80_write_reg;
 	nor->read_reg = m25p80_read_reg;
 
 	nor->dev = &spi->dev;
-	nor->flash_node = spi->dev.of_node;
+	spi_nor_set_flash_node(nor, spi->dev.of_node);
 	nor->priv = flash;
 
 	spi_set_drvdata(spi, flash);
 	flash->spi = spi;
 
-	if (spi->mode & SPI_RX_QUAD)
-		mode = SPI_NOR_QUAD;
-	else if (spi->mode & SPI_RX_DUAL)
-		mode = SPI_NOR_DUAL;
+	if (spi->mode & SPI_RX_QUAD) {
+		hwcaps.mask |= SNOR_HWCAPS_READ_1_1_4;
+
+		if (spi->mode & SPI_TX_QUAD)
+			hwcaps.mask |= (SNOR_HWCAPS_READ_1_4_4 |
+					SNOR_HWCAPS_PP_1_1_4 |
+					SNOR_HWCAPS_PP_1_4_4);
+	} else if (spi->mode & SPI_RX_DUAL) {
+		hwcaps.mask |= SNOR_HWCAPS_READ_1_1_2;
+
+		if (spi->mode & SPI_TX_DUAL)
+			hwcaps.mask |= SNOR_HWCAPS_READ_1_2_2;
+	}
 
 	if (data && data->name)
 		nor->mtd.name = data->name;
@@ -220,18 +289,17 @@ static int m25p_probe(struct spi_device *spi)
 	 */
 	if (data && data->type)
 		flash_name = data->type;
+	else if (!strcmp(spi->modalias, "spi-nor"))
+		flash_name = NULL; /* auto-detect */
 	else
 		flash_name = spi->modalias;
 
-	ret = spi_nor_scan(nor, flash_name, mode);
+	ret = spi_nor_scan(nor, flash_name, &hwcaps);
 	if (ret)
 		return ret;
 
-	ppdata.of_node = spi->dev.of_node;
-
-	return mtd_device_parse_register(&nor->mtd, NULL, &ppdata,
-			data ? data->parts : NULL,
-			data ? data->nr_parts : 0);
+	return mtd_device_register(&nor->mtd, data ? data->parts : NULL,
+				   data ? data->nr_parts : 0);
 }
 
 
@@ -257,17 +325,23 @@ static int m25p_remove(struct spi_device *spi)
  */
 static const struct spi_device_id m25p_ids[] = {
 	/*
+	 * Allow non-DT platform devices to bind to the "spi-nor" modalias, and
+	 * hack around the fact that the SPI core does not provide uevent
+	 * matching for .of_match_table
+	 */
+	{"spi-nor"},
+
+	/*
 	 * Entries not used in DTs that should be safe to drop after replacing
-	 * them with "nor-jedec" in platform data.
+	 * them with "spi-nor" in platform data.
 	 */
 	{"s25sl064a"},	{"w25x16"},	{"m25p10"},	{"m25px64"},
 
 	/*
-	 * Entries that were used in DTs without "nor-jedec" fallback and should
-	 * be kept for backward compatibility.
+	 * Entries that were used in DTs without "jedec,spi-nor" fallback and
+	 * should be kept for backward compatibility.
 	 */
 	{"at25df321a"},	{"at25df641"},	{"at26df081a"},
-	{"mr25h256"},
 	{"mx25l4005a"},	{"mx25l1606e"},	{"mx25l6405d"},	{"mx25l12805d"},
 	{"mx25l25635e"},{"mx66l51235l"},
 	{"n25q064"},	{"n25q128a11"},	{"n25q128a13"},	{"n25q512a"},
@@ -283,6 +357,11 @@ static const struct spi_device_id m25p_ids[] = {
 	{"m25p05-nonjedec"},	{"m25p10-nonjedec"},	{"m25p20-nonjedec"},
 	{"m25p40-nonjedec"},	{"m25p80-nonjedec"},	{"m25p16-nonjedec"},
 	{"m25p32-nonjedec"},	{"m25p64-nonjedec"},	{"m25p128-nonjedec"},
+
+	/* Everspin MRAMs (non-JEDEC) */
+	{ "mr25h256" }, /* 256 Kib, 40 MHz */
+	{ "mr25h10" },  /*   1 Mib, 40 MHz */
+	{ "mr25h40" },  /*   4 Mib, 40 MHz */
 
 	{ },
 };

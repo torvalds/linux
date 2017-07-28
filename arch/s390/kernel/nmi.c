@@ -14,20 +14,24 @@
 #include <linux/hardirq.h>
 #include <linux/time.h>
 #include <linux/module.h>
+#include <linux/sched/signal.h>
+
+#include <linux/export.h>
 #include <asm/lowcore.h>
 #include <asm/smp.h>
-#include <asm/etr.h>
+#include <asm/stp.h>
 #include <asm/cputime.h>
 #include <asm/nmi.h>
 #include <asm/crw.h>
 #include <asm/switch_to.h>
 #include <asm/ctl_reg.h>
+#include <asm/asm-offsets.h>
+#include <linux/kvm_host.h>
 
 struct mcck_struct {
 	unsigned int kill_task : 1;
 	unsigned int channel_report : 1;
 	unsigned int warning : 1;
-	unsigned int etr_queue : 1;
 	unsigned int stp_queue : 1;
 	unsigned long mcck_code;
 };
@@ -82,8 +86,6 @@ void s390_handle_mcck(void)
 		if (xchg(&mchchk_wng_posted, 1) == 0)
 			kill_cad_pid(SIGPWR, 1);
 	}
-	if (mcck.etr_queue)
-		etr_queue_work();
 	if (mcck.stp_queue)
 		stp_queue_work();
 	if (mcck.kill_task) {
@@ -101,11 +103,12 @@ EXPORT_SYMBOL_GPL(s390_handle_mcck);
  * returns 0 if all registers could be validated
  * returns 1 otherwise
  */
-static int notrace s390_validate_registers(union mci mci)
+static int notrace s390_validate_registers(union mci mci, int umode)
 {
 	int kill_task;
 	u64 zero;
-	void *fpt_save_area, *fpt_creg_save_area;
+	void *fpt_save_area;
+	struct mcesa *mcesa;
 
 	kill_task = 0;
 	zero = 0;
@@ -113,29 +116,59 @@ static int notrace s390_validate_registers(union mci mci)
 	if (!mci.gr) {
 		/*
 		 * General purpose registers couldn't be restored and have
-		 * unknown contents. Process needs to be terminated.
+		 * unknown contents. Stop system or terminate process.
 		 */
+		if (!umode)
+			s390_handle_damage();
 		kill_task = 1;
+	}
+	/* Validate control registers */
+	if (!mci.cr) {
+		/*
+		 * Control registers have unknown contents.
+		 * Can't recover and therefore stopping machine.
+		 */
+		s390_handle_damage();
+	} else {
+		asm volatile(
+			"	lctlg	0,15,0(%0)\n"
+			"	ptlb\n"
+			: : "a" (&S390_lowcore.cregs_save_area) : "memory");
 	}
 	if (!mci.fp) {
 		/*
-		 * Floating point registers can't be restored and
-		 * therefore the process needs to be terminated.
+		 * Floating point registers can't be restored. If the
+		 * kernel currently uses floating point registers the
+		 * system is stopped. If the process has its floating
+		 * pointer registers loaded it is terminated.
+		 * Otherwise just revalidate the registers.
 		 */
-		kill_task = 1;
+		if (S390_lowcore.fpu_flags & KERNEL_VXR_V0V7)
+			s390_handle_damage();
+		if (!test_cpu_flag(CIF_FPU))
+			kill_task = 1;
 	}
 	fpt_save_area = &S390_lowcore.floating_pt_save_area;
-	fpt_creg_save_area = &S390_lowcore.fpt_creg_save_area;
 	if (!mci.fc) {
 		/*
 		 * Floating point control register can't be restored.
-		 * Task will be terminated.
+		 * If the kernel currently uses the floating pointer
+		 * registers and needs the FPC register the system is
+		 * stopped. If the process has its floating pointer
+		 * registers loaded it is terminated. Otherwiese the
+		 * FPC is just revalidated.
 		 */
-		asm volatile("lfpc 0(%0)" : : "a" (&zero), "m" (zero));
-		kill_task = 1;
-	} else
-		asm volatile("lfpc 0(%0)" : : "a" (fpt_creg_save_area));
+		if (S390_lowcore.fpu_flags & KERNEL_FPC)
+			s390_handle_damage();
+		asm volatile("lfpc %0" : : "Q" (zero));
+		if (!test_cpu_flag(CIF_FPU))
+			kill_task = 1;
+	} else {
+		asm volatile("lfpc %0"
+			     : : "Q" (S390_lowcore.fpt_creg_save_area));
+	}
 
+	mcesa = (struct mcesa *)(S390_lowcore.mcesad & MCESA_ORIGIN_MASK);
 	if (!MACHINE_HAS_VX) {
 		/* Validate floating point registers */
 		asm volatile(
@@ -155,17 +188,23 @@ static int notrace s390_validate_registers(union mci mci)
 			"	ld	13,104(%0)\n"
 			"	ld	14,112(%0)\n"
 			"	ld	15,120(%0)\n"
-			: : "a" (fpt_save_area));
+			: : "a" (fpt_save_area) : "memory");
 	} else {
 		/* Validate vector registers */
 		union ctlreg0 cr0;
 
 		if (!mci.vr) {
 			/*
-			 * Vector registers can't be restored and therefore
-			 * the process needs to be terminated.
+			 * Vector registers can't be restored. If the kernel
+			 * currently uses vector registers the system is
+			 * stopped. If the process has its vector registers
+			 * loaded it is terminated. Otherwise just revalidate
+			 * the registers.
 			 */
-			kill_task = 1;
+			if (S390_lowcore.fpu_flags & KERNEL_VXR)
+				s390_handle_damage();
+			if (!test_cpu_flag(CIF_FPU))
+				kill_task = 1;
 		}
 		cr0.val = S390_lowcore.cregs_save_area[0];
 		cr0.afp = cr0.vx = 1;
@@ -174,8 +213,8 @@ static int notrace s390_validate_registers(union mci mci)
 			"	la	1,%0\n"
 			"	.word	0xe70f,0x1000,0x0036\n"	/* vlm 0,15,0(1) */
 			"	.word	0xe70f,0x1100,0x0c36\n"	/* vlm 16,31,256(1) */
-			: : "Q" (*(struct vx_array *)
-				 &S390_lowcore.vector_save_area) : "1");
+			: : "Q" (*(struct vx_array *) mcesa->vector_save_area)
+			: "1");
 		__ctl_load(S390_lowcore.cregs_save_area[0], 0, 0);
 	}
 	/* Validate access registers */
@@ -189,17 +228,18 @@ static int notrace s390_validate_registers(union mci mci)
 		 */
 		kill_task = 1;
 	}
-	/* Validate control registers */
-	if (!mci.cr) {
-		/*
-		 * Control registers have unknown contents.
-		 * Can't recover and therefore stopping machine.
-		 */
-		s390_handle_damage();
-	} else {
-		asm volatile(
-			"	lctlg	0,15,0(%0)"
-			: : "a" (&S390_lowcore.cregs_save_area));
+	/* Validate guarded storage registers */
+	if (MACHINE_HAS_GS && (S390_lowcore.cregs_save_area[2] & (1UL << 4))) {
+		if (!mci.gs)
+			/*
+			 * Guarded storage register can't be restored and
+			 * the current processes uses guarded storage.
+			 * It has to be terminated.
+			 */
+			kill_task = 1;
+		else
+			load_gs_cb((struct gs_cb *)
+				   mcesa->guarded_storage_save_area);
 	}
 	/*
 	 * We don't even try to validate the TOD register, since we simply
@@ -216,9 +256,9 @@ static int notrace s390_validate_registers(union mci mci)
 			: : : "0", "cc");
 	else
 		asm volatile(
-			"	l	0,0(%0)\n"
+			"	l	0,%0\n"
 			"	sckpf"
-			: : "a" (&S390_lowcore.tod_progreg_save_area)
+			: : "Q" (S390_lowcore.tod_progreg_save_area)
 			: "0", "cc");
 	/* Validate clock comparator register */
 	set_clock_comparator(S390_lowcore.clock_comparator);
@@ -236,13 +276,38 @@ static int notrace s390_validate_registers(union mci mci)
 	return kill_task;
 }
 
+/*
+ * Backup the guest's machine check info to its description block
+ */
+static void notrace s390_backup_mcck_info(struct pt_regs *regs)
+{
+	struct mcck_volatile_info *mcck_backup;
+	struct sie_page *sie_page;
+
+	/* r14 contains the sie block, which was set in sie64a */
+	struct kvm_s390_sie_block *sie_block =
+			(struct kvm_s390_sie_block *) regs->gprs[14];
+
+	if (sie_block == NULL)
+		/* Something's seriously wrong, stop system. */
+		s390_handle_damage();
+
+	sie_page = container_of(sie_block, struct sie_page, sie_block);
+	mcck_backup = &sie_page->mcck_info;
+	mcck_backup->mcic = S390_lowcore.mcck_interruption_code &
+				~(MCCK_CODE_CP | MCCK_CODE_EXT_DAMAGE);
+	mcck_backup->ext_damage_code = S390_lowcore.external_damage_code;
+	mcck_backup->failing_storage_address
+			= S390_lowcore.failing_storage_address;
+}
+
 #define MAX_IPD_COUNT	29
 #define MAX_IPD_TIME	(5 * 60 * USEC_PER_SEC) /* 5 minutes */
 
 #define ED_STP_ISLAND	6	/* External damage STP island check */
 #define ED_STP_SYNC	7	/* External damage STP sync check */
-#define ED_ETR_SYNC	12	/* External damage ETR sync check */
-#define ED_ETR_SWITCH	13	/* External damage ETR switch to local */
+
+#define MCCK_CODE_NO_GUEST	(MCCK_CODE_CP | MCCK_CODE_EXT_DAMAGE)
 
 /*
  * machine check handler.
@@ -255,19 +320,24 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 	struct mcck_struct *mcck;
 	unsigned long long tmp;
 	union mci mci;
-	int umode;
+	unsigned long mcck_dam_code;
 
 	nmi_enter();
 	inc_irq_stat(NMI_NMI);
 	mci.val = S390_lowcore.mcck_interruption_code;
 	mcck = this_cpu_ptr(&cpu_mcck);
-	umode = user_mode(regs);
 
 	if (mci.sd) {
 		/* System damage -> stopping machine */
 		s390_handle_damage();
 	}
-	if (mci.pd) {
+
+	/*
+	 * Reinject the instruction processing damages' machine checks
+	 * including Delayed Access Exception into the guest
+	 * instead of damaging the host if they happen in the guest.
+	 */
+	if (mci.pd && !test_cpu_flag(CIF_MCCK_GUEST)) {
 		if (mci.b) {
 			/* Processing backup -> verify if we can survive this */
 			u64 z_mcic, o_mcic, t_mcic;
@@ -302,49 +372,52 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 			s390_handle_damage();
 		}
 	}
-	if (s390_validate_registers(mci)) {
-		if (umode) {
-			/*
-			 * Couldn't restore all register contents while in
-			 * user mode -> mark task for termination.
-			 */
-			mcck->kill_task = 1;
-			mcck->mcck_code = mci.val;
-			set_cpu_flag(CIF_MCCK_PENDING);
-		} else {
-			/*
-			 * Couldn't restore all register contents while in
-			 * kernel mode -> stopping machine.
-			 */
-			s390_handle_damage();
-		}
+	if (s390_validate_registers(mci, user_mode(regs))) {
+		/*
+		 * Couldn't restore all register contents for the
+		 * user space process -> mark task for termination.
+		 */
+		mcck->kill_task = 1;
+		mcck->mcck_code = mci.val;
+		set_cpu_flag(CIF_MCCK_PENDING);
 	}
+
+	/*
+	 * Backup the machine check's info if it happens when the guest
+	 * is running.
+	 */
+	if (test_cpu_flag(CIF_MCCK_GUEST))
+		s390_backup_mcck_info(regs);
+
 	if (mci.cd) {
 		/* Timing facility damage */
 		s390_handle_damage();
 	}
 	if (mci.ed && mci.ec) {
 		/* External damage */
-		if (S390_lowcore.external_damage_code & (1U << ED_ETR_SYNC))
-			mcck->etr_queue |= etr_sync_check();
-		if (S390_lowcore.external_damage_code & (1U << ED_ETR_SWITCH))
-			mcck->etr_queue |= etr_switch_to_local();
 		if (S390_lowcore.external_damage_code & (1U << ED_STP_SYNC))
 			mcck->stp_queue |= stp_sync_check();
 		if (S390_lowcore.external_damage_code & (1U << ED_STP_ISLAND))
 			mcck->stp_queue |= stp_island_check();
-		if (mcck->etr_queue || mcck->stp_queue)
+		if (mcck->stp_queue)
 			set_cpu_flag(CIF_MCCK_PENDING);
 	}
-	if (mci.se)
-		/* Storage error uncorrected */
-		s390_handle_damage();
-	if (mci.ke)
-		/* Storage key-error uncorrected */
-		s390_handle_damage();
-	if (mci.ds && mci.fa)
-		/* Storage degradation */
-		s390_handle_damage();
+
+	/*
+	 * Reinject storage related machine checks into the guest if they
+	 * happen when the guest is running.
+	 */
+	if (!test_cpu_flag(CIF_MCCK_GUEST)) {
+		if (mci.se)
+			/* Storage error uncorrected */
+			s390_handle_damage();
+		if (mci.ke)
+			/* Storage key-error uncorrected */
+			s390_handle_damage();
+		if (mci.ds && mci.fa)
+			/* Storage degradation */
+			s390_handle_damage();
+	}
 	if (mci.cp) {
 		/* Channel report word pending */
 		mcck->channel_report = 1;
@@ -355,6 +428,19 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 		mcck->warning = 1;
 		set_cpu_flag(CIF_MCCK_PENDING);
 	}
+
+	/*
+	 * If there are only Channel Report Pending and External Damage
+	 * machine checks, they will not be reinjected into the guest
+	 * because they refer to host conditions only.
+	 */
+	mcck_dam_code = (mci.val & MCIC_SUBCLASS_MASK);
+	if (test_cpu_flag(CIF_MCCK_GUEST) &&
+	(mcck_dam_code & MCCK_CODE_NO_GUEST) != mcck_dam_code) {
+		/* Set exit reason code for host's later handling */
+		*((long *)(regs->gprs[15] + __SF_SIE_REASON)) = -EINTR;
+	}
+	clear_cpu_flag(CIF_MCCK_GUEST);
 	nmi_exit();
 }
 

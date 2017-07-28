@@ -127,8 +127,11 @@ __SYSCALL(__NR_unlinkat, sys_unlinkat)
 __SYSCALL(__NR_symlinkat, sys_symlinkat)
 #define __NR_linkat 37
 __SYSCALL(__NR_linkat, sys_linkat)
+#ifdef __ARCH_WANT_RENAMEAT
+/* renameat is superseded with flags by renameat2 */
 #define __NR_renameat 38
 __SYSCALL(__NR_renameat, sys_renameat)
+#endif /* __ARCH_WANT_RENAMEAT */
 
 /* fs/namespace.c */
 #define __NR_umount2 39
@@ -191,8 +194,7 @@ __SYSCALL(__NR_quotactl, sys_quotactl)
 
 /* fs/readdir.c */
 #define __NR_getdents64 61
-#define __ARCH_WANT_COMPAT_SYS_GETDENTS64
-__SC_COMP(__NR_getdents64, sys_getdents64, compat_sys_getdents64)
+__SYSCALL(__NR_getdents64, sys_getdents64)
 
 /* fs/read_write.c */
 #define __NR3264_lseek 62
@@ -715,9 +717,23 @@ __SYSCALL(__NR_userfaultfd, sys_userfaultfd)
 __SYSCALL(__NR_membarrier, sys_membarrier)
 #define __NR_mlock2 284
 __SYSCALL(__NR_mlock2, sys_mlock2)
+#define __NR_copy_file_range 285
+__SYSCALL(__NR_copy_file_range, sys_copy_file_range)
+#define __NR_preadv2 286
+__SC_COMP(__NR_preadv2, sys_preadv2, compat_sys_preadv2)
+#define __NR_pwritev2 287
+__SC_COMP(__NR_pwritev2, sys_pwritev2, compat_sys_pwritev2)
+#define __NR_pkey_mprotect 288
+__SYSCALL(__NR_pkey_mprotect, sys_pkey_mprotect)
+#define __NR_pkey_alloc 289
+__SYSCALL(__NR_pkey_alloc,    sys_pkey_alloc)
+#define __NR_pkey_free 290
+__SYSCALL(__NR_pkey_free,     sys_pkey_free)
+#define __NR_statx 291
+__SYSCALL(__NR_statx,     sys_statx)
 
 #undef __NR_syscalls
-#define __NR_syscalls 285
+#define __NR_syscalls 292
 
 /*
  * All syscalls below here should go away really,

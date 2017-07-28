@@ -13,7 +13,7 @@
 #include <linux/rtc.h>
 #include <linux/types.h>
 #include <linux/bcd.h>
-#include <linux/rtc-ds2404.h>
+#include <linux/platform_data/rtc-ds2404.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/slab.h>
@@ -48,7 +48,7 @@ struct ds2404_gpio {
 
 struct ds2404 {
 	struct ds2404_gpio *gpio;
-	struct ds2404_chip_ops *ops;
+	const struct ds2404_chip_ops *ops;
 	struct rtc_device *rtc;
 };
 
@@ -95,7 +95,7 @@ static void ds2404_gpio_unmap(struct ds2404 *chip)
 		gpio_free(ds2404_gpio[i].gpio);
 }
 
-static struct ds2404_chip_ops ds2404_gpio_ops = {
+static const struct ds2404_chip_ops ds2404_gpio_ops = {
 	.map_io		= ds2404_gpio_map,
 	.unmap_io	= ds2404_gpio_unmap,
 };

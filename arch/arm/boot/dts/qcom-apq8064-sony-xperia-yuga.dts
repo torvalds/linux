@@ -1,0 +1,401 @@
+#include "qcom-apq8064-v2.0.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/mfd/qcom-rpm.h>
+#include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
+
+/ {
+	model = "Sony Xperia Z";
+	compatible = "sony,xperia-yuga", "qcom,apq8064";
+
+	aliases {
+		serial0 = &gsbi5_serial;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		input-name = "gpio-keys";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&gpio_keys_pin_a>;
+
+		camera-focus {
+			label = "camera_focus";
+			gpios = <&pm8921_gpio 3 GPIO_ACTIVE_LOW>;
+			linux,input-type = <1>;
+			linux,code = <KEY_CAMERA_FOCUS>;
+		};
+
+		camera-snapshot {
+			label = "camera_snapshot";
+			gpios = <&pm8921_gpio 4 GPIO_ACTIVE_LOW>;
+			linux,input-type = <1>;
+			linux,code = <KEY_CAMERA>;
+		};
+
+		volume-down {
+			label = "volume_down";
+			gpios = <&pm8921_gpio 29 GPIO_ACTIVE_LOW>;
+			linux,input-type = <1>;
+			linux,code = <KEY_VOLUMEDOWN>;
+		};
+
+		volume-up {
+			label = "volume_up";
+			gpios = <&pm8921_gpio 35 GPIO_ACTIVE_LOW>;
+			linux,input-type = <1>;
+			linux,code = <KEY_VOLUMEUP>;
+		};
+	};
+
+	soc {
+		pinctrl@800000 {
+			gsbi5_uart_pin_a: gsbi5-uart-pin-active {
+				rx {
+					pins = "gpio52";
+					function = "gsbi5";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+
+				tx {
+					pins = "gpio51";
+					function = "gsbi5";
+					drive-strength = <4>;
+					bias-disable;
+				};
+			};
+
+
+			sdcc3_cd_pin_a: sdcc3-cd-pin-active {
+				pins = "gpio26";
+				function = "gpio";
+
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
+
+
+		rpm@108000 {
+			regulators {
+				vin_l1_l2_l12_l18-supply = <&pm8921_s4>;
+				vin_lvs_1_3_6-supply = <&pm8921_s4>;
+				vin_lvs_4_5_7-supply = <&pm8921_s4>;
+				vin_ncp-supply = <&pm8921_l6>;
+				vin_lvs2-supply = <&pm8921_s4>;
+				vin_l24-supply = <&pm8921_s1>;
+				vin_l25-supply = <&pm8921_s1>;
+				vin_l27-supply = <&pm8921_s7>;
+				vin_l28-supply = <&pm8921_s7>;
+
+				/* Buck SMPS */
+				s1 {
+					regulator-always-on;
+					regulator-min-microvolt = <1225000>;
+					regulator-max-microvolt = <1225000>;
+					qcom,switch-mode-frequency = <3200000>;
+					bias-pull-down;
+				};
+
+				s2 {
+					regulator-min-microvolt = <1300000>;
+					regulator-max-microvolt = <1300000>;
+					qcom,switch-mode-frequency = <1600000>;
+					bias-pull-down;
+				};
+
+				s3 {
+					regulator-min-microvolt = <500000>;
+					regulator-max-microvolt = <1150000>;
+					qcom,switch-mode-frequency = <4800000>;
+					bias-pull-down;
+				};
+
+				s4 {
+					regulator-always-on;
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+					qcom,switch-mode-frequency = <1600000>;
+					bias-pull-down;
+					qcom,force-mode = <QCOM_RPM_FORCE_MODE_AUTO>;
+				};
+
+				s7 {
+					regulator-min-microvolt = <1300000>;
+					regulator-max-microvolt = <1300000>;
+					qcom,switch-mode-frequency = <3200000>;
+				};
+
+				s8 {
+					regulator-min-microvolt = <2200000>;
+					regulator-max-microvolt = <2200000>;
+					qcom,switch-mode-frequency = <1600000>;
+				};
+
+				/* PMOS LDO */
+				l1 {
+					regulator-always-on;
+					regulator-min-microvolt = <1100000>;
+					regulator-max-microvolt = <1100000>;
+					bias-pull-down;
+				};
+
+				l2 {
+					regulator-min-microvolt = <1200000>;
+					regulator-max-microvolt = <1200000>;
+					bias-pull-down;
+				};
+
+				l3 {
+					regulator-min-microvolt = <3075000>;
+					regulator-max-microvolt = <3075000>;
+					bias-pull-down;
+				};
+
+				l4 {
+					regulator-always-on;
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+					bias-pull-down;
+				};
+
+				l5 {
+					regulator-min-microvolt = <2950000>;
+					regulator-max-microvolt = <2950000>;
+					bias-pull-down;
+				};
+
+				l6 {
+					regulator-min-microvolt = <2950000>;
+					regulator-max-microvolt = <2950000>;
+					bias-pull-down;
+				};
+
+				l7 {
+					regulator-min-microvolt = <1850000>;
+					regulator-max-microvolt = <2950000>;
+					bias-pull-down;
+				};
+
+				l8 {
+					regulator-min-microvolt = <2800000>;
+					regulator-max-microvolt = <2800000>;
+					bias-pull-down;
+				};
+
+				l9 {
+					regulator-min-microvolt = <3000000>;
+					regulator-max-microvolt = <3000000>;
+					bias-pull-down;
+				};
+
+				l10 {
+					regulator-min-microvolt = <2900000>;
+					regulator-max-microvolt = <2900000>;
+					bias-pull-down;
+				};
+
+				l11 {
+					regulator-min-microvolt = <3000000>;
+					regulator-max-microvolt = <3000000>;
+					bias-pull-down;
+				};
+
+				l12 {
+					regulator-min-microvolt = <1200000>;
+					regulator-max-microvolt = <1200000>;
+					bias-pull-down;
+				};
+
+				l14 {
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+					bias-pull-down;
+				};
+
+				l15 {
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <2950000>;
+					bias-pull-down;
+				};
+
+				l16 {
+					regulator-min-microvolt = <2800000>;
+					regulator-max-microvolt = <2800000>;
+					bias-pull-down;
+				};
+
+				l17 {
+					regulator-min-microvolt = <2000000>;
+					regulator-max-microvolt = <2000000>;
+					bias-pull-down;
+				};
+
+				l18 {
+					regulator-min-microvolt = <1200000>;
+					regulator-max-microvolt = <1200000>;
+					bias-pull-down;
+				};
+
+				l21 {
+					regulator-min-microvolt = <1050000>;
+					regulator-max-microvolt = <1050000>;
+					bias-pull-down;
+				};
+
+				l22 {
+					regulator-min-microvolt = <2600000>;
+					regulator-max-microvolt = <2600000>;
+					bias-pull-down;
+				};
+
+				l23 {
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+					bias-pull-down;
+				};
+
+				l24 {
+					regulator-min-microvolt = <750000>;
+					regulator-max-microvolt = <1150000>;
+					bias-pull-down;
+				};
+
+				l25 {
+					regulator-always-on;
+					regulator-min-microvolt = <1250000>;
+					regulator-max-microvolt = <1250000>;
+					bias-pull-down;
+				};
+
+				l27 {
+					regulator-min-microvolt = <1100000>;
+					regulator-max-microvolt = <1100000>;
+				};
+
+				l28 {
+					regulator-min-microvolt = <1050000>;
+					regulator-max-microvolt = <1050000>;
+					bias-pull-down;
+				};
+
+				l29 {
+					regulator-min-microvolt = <2000000>;
+					regulator-max-microvolt = <2000000>;
+					bias-pull-down;
+				};
+
+				/* Low Voltage Switch */
+				lvs1 {
+					bias-pull-down;
+				};
+
+				lvs2 {
+					bias-pull-down;
+				};
+
+				lvs3 {
+					bias-pull-down;
+				};
+
+				lvs4 {
+					bias-pull-down;
+				};
+
+				lvs5 {
+					bias-pull-down;
+				};
+
+				lvs6 {
+					bias-pull-down;
+				};
+
+				lvs7 {
+					bias-pull-down;
+				};
+
+				usb-switch {};
+
+				hdmi-switch {};
+
+				ncp {
+					regulator-min-microvolt = <1800000>;
+					regulator-max-microvolt = <1800000>;
+					qcom,switch-mode-frequency = <1600000>;
+				};
+			};
+		};
+
+		qcom,ssbi@500000 {
+			pmic@0 {
+				gpio@150 {
+					gpio_keys_pin_a: gpio-keys-pin-active {
+						pins = "gpio3", "gpio4", "gpio29", "gpio35";
+						function = "normal";
+
+						bias-pull-up;
+						drive-push-pull;
+						input-enable;
+						power-source = <2>;
+						qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
+						qcom,pull-up-strength = <0>;
+					};
+				};
+			};
+		};
+
+		usb@12500000 {
+			status = "okay";
+			dr_mode = "otg";
+			ulpi {
+				phy {
+					v3p3-supply = <&pm8921_l3>;
+					v1p8-supply = <&pm8921_l4>;
+				};
+			};
+		};
+
+		gsbi@1a200000 {
+			status = "ok";
+			qcom,mode = <GSBI_PROT_I2C_UART>;
+
+			serial@1a240000 {
+				status = "ok";
+
+				pinctrl-names = "default";
+				pinctrl-0 = <&gsbi5_uart_pin_a>;
+			};
+		};
+
+		amba {
+			sdcc1: sdcc@12400000 {
+				status = "okay";
+
+				vmmc-supply = <&pm8921_l5>;
+				vqmmc-supply = <&pm8921_s4>;
+			};
+
+			sdcc3: sdcc@12180000 {
+				status = "okay";
+
+				vmmc-supply = <&pm8921_l6>;
+				cd-gpios = <&tlmm_pinmux 26 GPIO_ACTIVE_LOW>;
+
+				pinctrl-names = "default";
+				pinctrl-0 = <&sdcc3_pins>, <&sdcc3_cd_pin_a>;
+			};
+		};
+
+		riva-pil@3204000 {
+			status = "okay";
+
+			pinctrl-names = "default";
+			pinctrl-0 = <&riva_wlan_pin_a>, <&riva_bt_pin_a>, <&riva_fm_pin_a>;
+		};
+	};
+};

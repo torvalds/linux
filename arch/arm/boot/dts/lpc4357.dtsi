@@ -37,3 +37,7 @@
 		};
 	};
 };
+
+&eeprom {
+	status = "okay";
+};

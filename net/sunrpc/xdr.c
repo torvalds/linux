@@ -164,7 +164,7 @@ EXPORT_SYMBOL_GPL(xdr_inline_pages);
  * Note: the addresses pgto_base and pgfrom_base are both calculated in
  *       the same way:
  *            if a memory area starts at byte 'base' in page 'pages[i]',
- *            then its address is given as (i << PAGE_CACHE_SHIFT) + base
+ *            then its address is given as (i << PAGE_SHIFT) + base
  * Also note: pgfrom_base must be < pgto_base, but the memory areas
  * 	they point to may overlap.
  */
@@ -181,20 +181,20 @@ _shift_data_right_pages(struct page **pages, size_t pgto_base,
 	pgto_base += len;
 	pgfrom_base += len;
 
-	pgto = pages + (pgto_base >> PAGE_CACHE_SHIFT);
-	pgfrom = pages + (pgfrom_base >> PAGE_CACHE_SHIFT);
+	pgto = pages + (pgto_base >> PAGE_SHIFT);
+	pgfrom = pages + (pgfrom_base >> PAGE_SHIFT);
 
-	pgto_base &= ~PAGE_CACHE_MASK;
-	pgfrom_base &= ~PAGE_CACHE_MASK;
+	pgto_base &= ~PAGE_MASK;
+	pgfrom_base &= ~PAGE_MASK;
 
 	do {
 		/* Are any pointers crossing a page boundary? */
 		if (pgto_base == 0) {
-			pgto_base = PAGE_CACHE_SIZE;
+			pgto_base = PAGE_SIZE;
 			pgto--;
 		}
 		if (pgfrom_base == 0) {
-			pgfrom_base = PAGE_CACHE_SIZE;
+			pgfrom_base = PAGE_SIZE;
 			pgfrom--;
 		}
 
@@ -236,11 +236,11 @@ _copy_to_pages(struct page **pages, size_t pgbase, const char *p, size_t len)
 	char *vto;
 	size_t copy;
 
-	pgto = pages + (pgbase >> PAGE_CACHE_SHIFT);
-	pgbase &= ~PAGE_CACHE_MASK;
+	pgto = pages + (pgbase >> PAGE_SHIFT);
+	pgbase &= ~PAGE_MASK;
 
 	for (;;) {
-		copy = PAGE_CACHE_SIZE - pgbase;
+		copy = PAGE_SIZE - pgbase;
 		if (copy > len)
 			copy = len;
 
@@ -253,7 +253,7 @@ _copy_to_pages(struct page **pages, size_t pgbase, const char *p, size_t len)
 			break;
 
 		pgbase += copy;
-		if (pgbase == PAGE_CACHE_SIZE) {
+		if (pgbase == PAGE_SIZE) {
 			flush_dcache_page(*pgto);
 			pgbase = 0;
 			pgto++;
@@ -280,11 +280,11 @@ _copy_from_pages(char *p, struct page **pages, size_t pgbase, size_t len)
 	char *vfrom;
 	size_t copy;
 
-	pgfrom = pages + (pgbase >> PAGE_CACHE_SHIFT);
-	pgbase &= ~PAGE_CACHE_MASK;
+	pgfrom = pages + (pgbase >> PAGE_SHIFT);
+	pgbase &= ~PAGE_MASK;
 
 	do {
-		copy = PAGE_CACHE_SIZE - pgbase;
+		copy = PAGE_SIZE - pgbase;
 		if (copy > len)
 			copy = len;
 
@@ -293,7 +293,7 @@ _copy_from_pages(char *p, struct page **pages, size_t pgbase, size_t len)
 		kunmap_atomic(vfrom);
 
 		pgbase += copy;
-		if (pgbase == PAGE_CACHE_SIZE) {
+		if (pgbase == PAGE_SIZE) {
 			pgbase = 0;
 			pgfrom++;
 		}
@@ -767,7 +767,7 @@ static void xdr_set_next_page(struct xdr_stream *xdr)
 	newbase -= xdr->buf->page_base;
 
 	if (xdr_set_page_base(xdr, newbase, PAGE_SIZE) < 0)
-		xdr_set_iov(xdr, xdr->buf->tail, xdr->buf->len);
+		xdr_set_iov(xdr, xdr->buf->tail, xdr->nwords << 2);
 }
 
 static bool xdr_set_next_buffer(struct xdr_stream *xdr)
@@ -776,7 +776,7 @@ static bool xdr_set_next_buffer(struct xdr_stream *xdr)
 		xdr_set_next_page(xdr);
 	else if (xdr->iov == xdr->buf->head) {
 		if (xdr_set_page_base(xdr, 0, PAGE_SIZE) < 0)
-			xdr_set_iov(xdr, xdr->buf->tail, xdr->buf->len);
+			xdr_set_iov(xdr, xdr->buf->tail, xdr->nwords << 2);
 	}
 	return xdr->p != xdr->end;
 }
@@ -797,6 +797,8 @@ void xdr_init_decode(struct xdr_stream *xdr, struct xdr_buf *buf, __be32 *p)
 		xdr_set_iov(xdr, buf->head, buf->len);
 	else if (buf->page_len != 0)
 		xdr_set_page_base(xdr, 0, buf->len);
+	else
+		xdr_set_iov(xdr, buf->head, buf->len);
 	if (p != NULL && p > xdr->p && xdr->end >= p) {
 		xdr->nwords -= p - xdr->p;
 		xdr->p = p;
@@ -805,7 +807,7 @@ void xdr_init_decode(struct xdr_stream *xdr, struct xdr_buf *buf, __be32 *p)
 EXPORT_SYMBOL_GPL(xdr_init_decode);
 
 /**
- * xdr_init_decode - Initialize an xdr_stream for decoding data.
+ * xdr_init_decode_pages - Initialize an xdr_stream for decoding into pages
  * @xdr: pointer to xdr_stream struct
  * @buf: pointer to XDR buffer from which to decode data
  * @pages: list of pages to decode into
@@ -857,12 +859,15 @@ EXPORT_SYMBOL_GPL(xdr_set_scratch_buffer);
 static __be32 *xdr_copy_to_scratch(struct xdr_stream *xdr, size_t nbytes)
 {
 	__be32 *p;
-	void *cpdest = xdr->scratch.iov_base;
+	char *cpdest = xdr->scratch.iov_base;
 	size_t cplen = (char *)xdr->end - (char *)xdr->p;
 
 	if (nbytes > xdr->scratch.iov_len)
 		return NULL;
-	memcpy(cpdest, xdr->p, cplen);
+	p = __xdr_inline_decode(xdr, cplen);
+	if (p == NULL)
+		return NULL;
+	memcpy(cpdest, p, cplen);
 	cpdest += cplen;
 	nbytes -= cplen;
 	if (!xdr_set_next_buffer(xdr))
@@ -1038,8 +1043,8 @@ xdr_buf_subsegment(struct xdr_buf *buf, struct xdr_buf *subbuf,
 	if (base < buf->page_len) {
 		subbuf->page_len = min(buf->page_len - base, len);
 		base += buf->page_base;
-		subbuf->page_base = base & ~PAGE_CACHE_MASK;
-		subbuf->pages = &buf->pages[base >> PAGE_CACHE_SHIFT];
+		subbuf->page_base = base & ~PAGE_MASK;
+		subbuf->pages = &buf->pages[base >> PAGE_SHIFT];
 		len -= subbuf->page_len;
 		base = 0;
 	} else {
@@ -1297,9 +1302,9 @@ xdr_xcode_array2(struct xdr_buf *buf, unsigned int base,
 		todo -= avail_here;
 
 		base += buf->page_base;
-		ppages = buf->pages + (base >> PAGE_CACHE_SHIFT);
-		base &= ~PAGE_CACHE_MASK;
-		avail_page = min_t(unsigned int, PAGE_CACHE_SIZE - base,
+		ppages = buf->pages + (base >> PAGE_SHIFT);
+		base &= ~PAGE_MASK;
+		avail_page = min_t(unsigned int, PAGE_SIZE - base,
 					avail_here);
 		c = kmap(*ppages) + base;
 
@@ -1383,7 +1388,7 @@ xdr_xcode_array2(struct xdr_buf *buf, unsigned int base,
 			}
 
 			avail_page = min(avail_here,
-				 (unsigned int) PAGE_CACHE_SIZE);
+				 (unsigned int) PAGE_SIZE);
 		}
 		base = buf->page_len;  /* align to start of tail */
 	}
@@ -1479,9 +1484,9 @@ xdr_process_buf(struct xdr_buf *buf, unsigned int offset, unsigned int len,
 		if (page_len > len)
 			page_len = len;
 		len -= page_len;
-		page_offset = (offset + buf->page_base) & (PAGE_CACHE_SIZE - 1);
-		i = (offset + buf->page_base) >> PAGE_CACHE_SHIFT;
-		thislen = PAGE_CACHE_SIZE - page_offset;
+		page_offset = (offset + buf->page_base) & (PAGE_SIZE - 1);
+		i = (offset + buf->page_base) >> PAGE_SHIFT;
+		thislen = PAGE_SIZE - page_offset;
 		do {
 			if (thislen > page_len)
 				thislen = page_len;
@@ -1492,7 +1497,7 @@ xdr_process_buf(struct xdr_buf *buf, unsigned int offset, unsigned int len,
 			page_len -= thislen;
 			i++;
 			page_offset = 0;
-			thislen = PAGE_CACHE_SIZE;
+			thislen = PAGE_SIZE;
 		} while (page_len != 0);
 		offset = 0;
 	}
@@ -1513,3 +1518,37 @@ out:
 }
 EXPORT_SYMBOL_GPL(xdr_process_buf);
 
+/**
+ * xdr_stream_decode_string_dup - Decode and duplicate variable length string
+ * @xdr: pointer to xdr_stream
+ * @str: location to store pointer to string
+ * @maxlen: maximum acceptable string length
+ * @gfp_flags: GFP mask to use
+ *
+ * Return values:
+ *   On success, returns length of NUL-terminated string stored in *@ptr
+ *   %-EBADMSG on XDR buffer overflow
+ *   %-EMSGSIZE if the size of the string would exceed @maxlen
+ *   %-ENOMEM on memory allocation failure
+ */
+ssize_t xdr_stream_decode_string_dup(struct xdr_stream *xdr, char **str,
+		size_t maxlen, gfp_t gfp_flags)
+{
+	void *p;
+	ssize_t ret;
+
+	ret = xdr_stream_decode_opaque_inline(xdr, &p, maxlen);
+	if (ret > 0) {
+		char *s = kmalloc(ret + 1, gfp_flags);
+		if (s != NULL) {
+			memcpy(s, p, ret);
+			s[ret] = '\0';
+			*str = s;
+			return strlen(s);
+		}
+		ret = -ENOMEM;
+	}
+	*str = NULL;
+	return ret;
+}
+EXPORT_SYMBOL_GPL(xdr_stream_decode_string_dup);

@@ -16,6 +16,7 @@
 
 #include <linux/user.h>
 #include <linux/elfcore.h>
+#include <linux/mm_types.h>
 
 /*
  * fill in the user structure for an a.out core dump

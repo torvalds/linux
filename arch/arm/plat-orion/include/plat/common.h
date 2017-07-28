@@ -12,7 +12,7 @@
 #include <linux/mv643xx_eth.h>
 #include <linux/platform_data/usb-ehci-orion.h>
 
-struct dsa_platform_data;
+struct dsa_chip_data;
 struct mv_sata_platform_data;
 
 void __init orion_uart0_init(void __iomem *membase,
@@ -47,21 +47,17 @@ void __init orion_ge00_init(struct mv643xx_eth_platform_data *eth_data,
 void __init orion_ge01_init(struct mv643xx_eth_platform_data *eth_data,
 			    unsigned long mapbase,
 			    unsigned long irq,
-			    unsigned long irq_err,
 			    unsigned int tx_csum_limit);
 
 void __init orion_ge10_init(struct mv643xx_eth_platform_data *eth_data,
 			    unsigned long mapbase,
-			    unsigned long irq,
-			    unsigned long irq_err);
+			    unsigned long irq);
 
 void __init orion_ge11_init(struct mv643xx_eth_platform_data *eth_data,
 			    unsigned long mapbase,
-			    unsigned long irq,
-			    unsigned long irq_err);
+			    unsigned long irq);
 
-void __init orion_ge00_switch_init(struct dsa_platform_data *d,
-				   int irq);
+void __init orion_ge00_switch_init(struct dsa_chip_data *d);
 
 void __init orion_i2c_init(unsigned long mapbase,
 			   unsigned long irq,
@@ -74,8 +70,6 @@ void __init orion_i2c_1_init(unsigned long mapbase,
 void __init orion_spi_init(unsigned long mapbase);
 
 void __init orion_spi_1_init(unsigned long mapbase);
-
-void __init orion_wdt_init(void);
 
 void __init orion_xor0_init(unsigned long mapbase_low,
 			    unsigned long mapbase_high,

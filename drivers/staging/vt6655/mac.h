@@ -12,11 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
- *
  * File: mac.h
  *
  * Purpose: MAC routines
@@ -554,393 +549,393 @@
 
 /*---------------------  Export Macros ------------------------------*/
 
-#define MACvRegBitsOn(dwIoBase, byRegOfs, byBits)			\
+#define MACvRegBitsOn(iobase, byRegOfs, byBits)			\
 do {									\
 	unsigned char byData;						\
-	VNSvInPortB(dwIoBase + byRegOfs, &byData);			\
-	VNSvOutPortB(dwIoBase + byRegOfs, byData | (byBits));		\
+	VNSvInPortB(iobase + byRegOfs, &byData);			\
+	VNSvOutPortB(iobase + byRegOfs, byData | (byBits));		\
 } while (0)
 
-#define MACvWordRegBitsOn(dwIoBase, byRegOfs, wBits)			\
+#define MACvWordRegBitsOn(iobase, byRegOfs, wBits)			\
 do {									\
 	unsigned short wData;						\
-	VNSvInPortW(dwIoBase + byRegOfs, &wData);			\
-	VNSvOutPortW(dwIoBase + byRegOfs, wData | (wBits));		\
+	VNSvInPortW(iobase + byRegOfs, &wData);			\
+	VNSvOutPortW(iobase + byRegOfs, wData | (wBits));		\
 } while (0)
 
-#define MACvDWordRegBitsOn(dwIoBase, byRegOfs, dwBits)			\
+#define MACvDWordRegBitsOn(iobase, byRegOfs, dwBits)			\
 do {									\
 	unsigned long dwData;						\
-	VNSvInPortD(dwIoBase + byRegOfs, &dwData);			\
-	VNSvOutPortD(dwIoBase + byRegOfs, dwData | (dwBits));		\
+	VNSvInPortD(iobase + byRegOfs, &dwData);			\
+	VNSvOutPortD(iobase + byRegOfs, dwData | (dwBits));		\
 } while (0)
 
-#define MACvRegBitsOnEx(dwIoBase, byRegOfs, byMask, byBits)		\
+#define MACvRegBitsOnEx(iobase, byRegOfs, byMask, byBits)		\
 do {									\
 	unsigned char byData;						\
-	VNSvInPortB(dwIoBase + byRegOfs, &byData);			\
+	VNSvInPortB(iobase + byRegOfs, &byData);			\
 	byData &= byMask;						\
-	VNSvOutPortB(dwIoBase + byRegOfs, byData | (byBits));		\
+	VNSvOutPortB(iobase + byRegOfs, byData | (byBits));		\
 } while (0)
 
-#define MACvRegBitsOff(dwIoBase, byRegOfs, byBits)			\
+#define MACvRegBitsOff(iobase, byRegOfs, byBits)			\
 do {									\
 	unsigned char byData;						\
-	VNSvInPortB(dwIoBase + byRegOfs, &byData);			\
-	VNSvOutPortB(dwIoBase + byRegOfs, byData & ~(byBits));		\
+	VNSvInPortB(iobase + byRegOfs, &byData);			\
+	VNSvOutPortB(iobase + byRegOfs, byData & ~(byBits));		\
 } while (0)
 
-#define MACvWordRegBitsOff(dwIoBase, byRegOfs, wBits)			\
+#define MACvWordRegBitsOff(iobase, byRegOfs, wBits)			\
 do {									\
 	unsigned short wData;						\
-	VNSvInPortW(dwIoBase + byRegOfs, &wData);			\
-	VNSvOutPortW(dwIoBase + byRegOfs, wData & ~(wBits));		\
+	VNSvInPortW(iobase + byRegOfs, &wData);			\
+	VNSvOutPortW(iobase + byRegOfs, wData & ~(wBits));		\
 } while (0)
 
-#define MACvDWordRegBitsOff(dwIoBase, byRegOfs, dwBits)			\
+#define MACvDWordRegBitsOff(iobase, byRegOfs, dwBits)			\
 do {									\
 	unsigned long dwData;						\
-	VNSvInPortD(dwIoBase + byRegOfs, &dwData);			\
-	VNSvOutPortD(dwIoBase + byRegOfs, dwData & ~(dwBits));		\
+	VNSvInPortD(iobase + byRegOfs, &dwData);			\
+	VNSvOutPortD(iobase + byRegOfs, dwData & ~(dwBits));		\
 } while (0)
 
-#define MACvGetCurrRx0DescAddr(dwIoBase, pdwCurrDescAddr)	\
-	VNSvInPortD(dwIoBase + MAC_REG_RXDMAPTR0,		\
+#define MACvGetCurrRx0DescAddr(iobase, pdwCurrDescAddr)	\
+	VNSvInPortD(iobase + MAC_REG_RXDMAPTR0,		\
 		    (unsigned long *)pdwCurrDescAddr)
 
-#define MACvGetCurrRx1DescAddr(dwIoBase, pdwCurrDescAddr)	\
-	VNSvInPortD(dwIoBase + MAC_REG_RXDMAPTR1,		\
+#define MACvGetCurrRx1DescAddr(iobase, pdwCurrDescAddr)	\
+	VNSvInPortD(iobase + MAC_REG_RXDMAPTR1,		\
 		    (unsigned long *)pdwCurrDescAddr)
 
-#define MACvGetCurrTx0DescAddr(dwIoBase, pdwCurrDescAddr)	\
-	VNSvInPortD(dwIoBase + MAC_REG_TXDMAPTR0,		\
+#define MACvGetCurrTx0DescAddr(iobase, pdwCurrDescAddr)	\
+	VNSvInPortD(iobase + MAC_REG_TXDMAPTR0,		\
 		    (unsigned long *)pdwCurrDescAddr)
 
-#define MACvGetCurrAC0DescAddr(dwIoBase, pdwCurrDescAddr)	\
-	VNSvInPortD(dwIoBase + MAC_REG_AC0DMAPTR,		\
+#define MACvGetCurrAC0DescAddr(iobase, pdwCurrDescAddr)	\
+	VNSvInPortD(iobase + MAC_REG_AC0DMAPTR,		\
 		    (unsigned long *)pdwCurrDescAddr)
 
-#define MACvGetCurrSyncDescAddr(dwIoBase, pdwCurrDescAddr)	\
-	VNSvInPortD(dwIoBase + MAC_REG_SYNCDMAPTR,		\
+#define MACvGetCurrSyncDescAddr(iobase, pdwCurrDescAddr)	\
+	VNSvInPortD(iobase + MAC_REG_SYNCDMAPTR,		\
 		    (unsigned long *)pdwCurrDescAddr)
 
-#define MACvGetCurrATIMDescAddr(dwIoBase, pdwCurrDescAddr)	\
-	VNSvInPortD(dwIoBase + MAC_REG_ATIMDMAPTR,		\
+#define MACvGetCurrATIMDescAddr(iobase, pdwCurrDescAddr)	\
+	VNSvInPortD(iobase + MAC_REG_ATIMDMAPTR,		\
 		    (unsigned long *)pdwCurrDescAddr)
 
 /* set the chip with current BCN tx descriptor address */
-#define MACvSetCurrBCNTxDescAddr(dwIoBase, dwCurrDescAddr)	\
-	VNSvOutPortD(dwIoBase + MAC_REG_BCNDMAPTR,		\
+#define MACvSetCurrBCNTxDescAddr(iobase, dwCurrDescAddr)	\
+	VNSvOutPortD(iobase + MAC_REG_BCNDMAPTR,		\
 		     dwCurrDescAddr)
 
 /* set the chip with current BCN length */
-#define MACvSetCurrBCNLength(dwIoBase, wCurrBCNLength)		\
-	VNSvOutPortW(dwIoBase + MAC_REG_BCNDMACTL+2,		\
+#define MACvSetCurrBCNLength(iobase, wCurrBCNLength)		\
+	VNSvOutPortW(iobase + MAC_REG_BCNDMACTL+2,		\
 		     wCurrBCNLength)
 
-#define MACvReadBSSIDAddress(dwIoBase, pbyEtherAddr)		\
+#define MACvReadBSSIDAddress(iobase, pbyEtherAddr)		\
 do {								\
-	VNSvOutPortB(dwIoBase + MAC_REG_PAGE1SEL, 1);		\
-	VNSvInPortB(dwIoBase + MAC_REG_BSSID0,			\
+	VNSvOutPortB(iobase + MAC_REG_PAGE1SEL, 1);		\
+	VNSvInPortB(iobase + MAC_REG_BSSID0,			\
 		    (unsigned char *)pbyEtherAddr);		\
-	VNSvInPortB(dwIoBase + MAC_REG_BSSID0 + 1,		\
+	VNSvInPortB(iobase + MAC_REG_BSSID0 + 1,		\
 		    pbyEtherAddr + 1);				\
-	VNSvInPortB(dwIoBase + MAC_REG_BSSID0 + 2,		\
+	VNSvInPortB(iobase + MAC_REG_BSSID0 + 2,		\
 		    pbyEtherAddr + 2);				\
-	VNSvInPortB(dwIoBase + MAC_REG_BSSID0 + 3,		\
+	VNSvInPortB(iobase + MAC_REG_BSSID0 + 3,		\
 		    pbyEtherAddr + 3);				\
-	VNSvInPortB(dwIoBase + MAC_REG_BSSID0 + 4,		\
+	VNSvInPortB(iobase + MAC_REG_BSSID0 + 4,		\
 		    pbyEtherAddr + 4);				\
-	VNSvInPortB(dwIoBase + MAC_REG_BSSID0 + 5,		\
+	VNSvInPortB(iobase + MAC_REG_BSSID0 + 5,		\
 		    pbyEtherAddr + 5);				\
-	VNSvOutPortB(dwIoBase + MAC_REG_PAGE1SEL, 0);		\
+	VNSvOutPortB(iobase + MAC_REG_PAGE1SEL, 0);		\
 } while (0)
 
-#define MACvWriteBSSIDAddress(dwIoBase, pbyEtherAddr)		\
+#define MACvWriteBSSIDAddress(iobase, pbyEtherAddr)		\
 do {								\
-	VNSvOutPortB(dwIoBase + MAC_REG_PAGE1SEL, 1);		\
-	VNSvOutPortB(dwIoBase + MAC_REG_BSSID0,			\
+	VNSvOutPortB(iobase + MAC_REG_PAGE1SEL, 1);		\
+	VNSvOutPortB(iobase + MAC_REG_BSSID0,			\
 		     *(pbyEtherAddr));				\
-	VNSvOutPortB(dwIoBase + MAC_REG_BSSID0 + 1,		\
+	VNSvOutPortB(iobase + MAC_REG_BSSID0 + 1,		\
 		     *(pbyEtherAddr + 1));			\
-	VNSvOutPortB(dwIoBase + MAC_REG_BSSID0 + 2,		\
+	VNSvOutPortB(iobase + MAC_REG_BSSID0 + 2,		\
 		     *(pbyEtherAddr + 2));			\
-	VNSvOutPortB(dwIoBase + MAC_REG_BSSID0 + 3,		\
+	VNSvOutPortB(iobase + MAC_REG_BSSID0 + 3,		\
 		     *(pbyEtherAddr + 3));			\
-	VNSvOutPortB(dwIoBase + MAC_REG_BSSID0 + 4,		\
+	VNSvOutPortB(iobase + MAC_REG_BSSID0 + 4,		\
 		     *(pbyEtherAddr + 4));			\
-	VNSvOutPortB(dwIoBase + MAC_REG_BSSID0 + 5,		\
+	VNSvOutPortB(iobase + MAC_REG_BSSID0 + 5,		\
 		     *(pbyEtherAddr + 5));			\
-	VNSvOutPortB(dwIoBase + MAC_REG_PAGE1SEL, 0);		\
+	VNSvOutPortB(iobase + MAC_REG_PAGE1SEL, 0);		\
 } while (0)
 
-#define MACvReadEtherAddress(dwIoBase, pbyEtherAddr)		\
+#define MACvReadEtherAddress(iobase, pbyEtherAddr)		\
 do {								\
-	VNSvOutPortB(dwIoBase + MAC_REG_PAGE1SEL, 1);		\
-	VNSvInPortB(dwIoBase + MAC_REG_PAR0,			\
+	VNSvOutPortB(iobase + MAC_REG_PAGE1SEL, 1);		\
+	VNSvInPortB(iobase + MAC_REG_PAR0,			\
 		    (unsigned char *)pbyEtherAddr);		\
-	VNSvInPortB(dwIoBase + MAC_REG_PAR0 + 1,		\
+	VNSvInPortB(iobase + MAC_REG_PAR0 + 1,		\
 		    pbyEtherAddr + 1);				\
-	VNSvInPortB(dwIoBase + MAC_REG_PAR0 + 2,		\
+	VNSvInPortB(iobase + MAC_REG_PAR0 + 2,		\
 		    pbyEtherAddr + 2);				\
-	VNSvInPortB(dwIoBase + MAC_REG_PAR0 + 3,		\
+	VNSvInPortB(iobase + MAC_REG_PAR0 + 3,		\
 		    pbyEtherAddr + 3);				\
-	VNSvInPortB(dwIoBase + MAC_REG_PAR0 + 4,		\
+	VNSvInPortB(iobase + MAC_REG_PAR0 + 4,		\
 		    pbyEtherAddr + 4);				\
-	VNSvInPortB(dwIoBase + MAC_REG_PAR0 + 5,		\
+	VNSvInPortB(iobase + MAC_REG_PAR0 + 5,		\
 		    pbyEtherAddr + 5);				\
-	VNSvOutPortB(dwIoBase + MAC_REG_PAGE1SEL, 0);		\
+	VNSvOutPortB(iobase + MAC_REG_PAGE1SEL, 0);		\
 } while (0)
 
-#define MACvWriteEtherAddress(dwIoBase, pbyEtherAddr)		\
+#define MACvWriteEtherAddress(iobase, pbyEtherAddr)		\
 do {								\
-	VNSvOutPortB(dwIoBase + MAC_REG_PAGE1SEL, 1);		\
-	VNSvOutPortB(dwIoBase + MAC_REG_PAR0,			\
+	VNSvOutPortB(iobase + MAC_REG_PAGE1SEL, 1);		\
+	VNSvOutPortB(iobase + MAC_REG_PAR0,			\
 		     *pbyEtherAddr);				\
-	VNSvOutPortB(dwIoBase + MAC_REG_PAR0 + 1,		\
+	VNSvOutPortB(iobase + MAC_REG_PAR0 + 1,		\
 		     *(pbyEtherAddr + 1));			\
-	VNSvOutPortB(dwIoBase + MAC_REG_PAR0 + 2,		\
+	VNSvOutPortB(iobase + MAC_REG_PAR0 + 2,		\
 		     *(pbyEtherAddr + 2));			\
-	VNSvOutPortB(dwIoBase + MAC_REG_PAR0 + 3,		\
+	VNSvOutPortB(iobase + MAC_REG_PAR0 + 3,		\
 		     *(pbyEtherAddr + 3));			\
-	VNSvOutPortB(dwIoBase + MAC_REG_PAR0 + 4,		\
+	VNSvOutPortB(iobase + MAC_REG_PAR0 + 4,		\
 		     *(pbyEtherAddr + 4));			\
-	VNSvOutPortB(dwIoBase + MAC_REG_PAR0 + 5,		\
+	VNSvOutPortB(iobase + MAC_REG_PAR0 + 5,		\
 		     *(pbyEtherAddr + 5));			\
-	VNSvOutPortB(dwIoBase + MAC_REG_PAGE1SEL, 0);		\
+	VNSvOutPortB(iobase + MAC_REG_PAGE1SEL, 0);		\
 } while (0)
 
-#define MACvClearISR(dwIoBase)						\
-	VNSvOutPortD(dwIoBase + MAC_REG_ISR, IMR_MASK_VALUE)
+#define MACvClearISR(iobase)						\
+	VNSvOutPortD(iobase + MAC_REG_ISR, IMR_MASK_VALUE)
 
-#define MACvStart(dwIoBase)						\
-	VNSvOutPortB(dwIoBase + MAC_REG_HOSTCR,				\
+#define MACvStart(iobase)						\
+	VNSvOutPortB(iobase + MAC_REG_HOSTCR,				\
 		     (HOSTCR_MACEN | HOSTCR_RXON | HOSTCR_TXON))
 
-#define MACvRx0PerPktMode(dwIoBase)					\
-	VNSvOutPortD(dwIoBase + MAC_REG_RXDMACTL0, RX_PERPKT)
+#define MACvRx0PerPktMode(iobase)					\
+	VNSvOutPortD(iobase + MAC_REG_RXDMACTL0, RX_PERPKT)
 
-#define MACvRx0BufferFillMode(dwIoBase)					\
-	VNSvOutPortD(dwIoBase + MAC_REG_RXDMACTL0, RX_PERPKTCLR)
+#define MACvRx0BufferFillMode(iobase)					\
+	VNSvOutPortD(iobase + MAC_REG_RXDMACTL0, RX_PERPKTCLR)
 
-#define MACvRx1PerPktMode(dwIoBase)					\
-	VNSvOutPortD(dwIoBase + MAC_REG_RXDMACTL1, RX_PERPKT)
+#define MACvRx1PerPktMode(iobase)					\
+	VNSvOutPortD(iobase + MAC_REG_RXDMACTL1, RX_PERPKT)
 
-#define MACvRx1BufferFillMode(dwIoBase)					\
-	VNSvOutPortD(dwIoBase + MAC_REG_RXDMACTL1, RX_PERPKTCLR)
+#define MACvRx1BufferFillMode(iobase)					\
+	VNSvOutPortD(iobase + MAC_REG_RXDMACTL1, RX_PERPKTCLR)
 
-#define MACvRxOn(dwIoBase)						\
-	MACvRegBitsOn(dwIoBase, MAC_REG_HOSTCR, HOSTCR_RXON)
+#define MACvRxOn(iobase)						\
+	MACvRegBitsOn(iobase, MAC_REG_HOSTCR, HOSTCR_RXON)
 
-#define MACvReceive0(dwIoBase)						\
+#define MACvReceive0(iobase)						\
 do {									\
 	unsigned long dwData;						\
-	VNSvInPortD(dwIoBase + MAC_REG_RXDMACTL0, &dwData);		\
+	VNSvInPortD(iobase + MAC_REG_RXDMACTL0, &dwData);		\
 	if (dwData & DMACTL_RUN)					\
-		VNSvOutPortD(dwIoBase + MAC_REG_RXDMACTL0, DMACTL_WAKE); \
+		VNSvOutPortD(iobase + MAC_REG_RXDMACTL0, DMACTL_WAKE); \
 	else								\
-		VNSvOutPortD(dwIoBase + MAC_REG_RXDMACTL0, DMACTL_RUN); \
+		VNSvOutPortD(iobase + MAC_REG_RXDMACTL0, DMACTL_RUN); \
 } while (0)
 
-#define MACvReceive1(dwIoBase)						\
+#define MACvReceive1(iobase)						\
 do {									\
 	unsigned long dwData;						\
-	VNSvInPortD(dwIoBase + MAC_REG_RXDMACTL1, &dwData);		\
+	VNSvInPortD(iobase + MAC_REG_RXDMACTL1, &dwData);		\
 	if (dwData & DMACTL_RUN)					\
-		VNSvOutPortD(dwIoBase + MAC_REG_RXDMACTL1, DMACTL_WAKE); \
+		VNSvOutPortD(iobase + MAC_REG_RXDMACTL1, DMACTL_WAKE); \
 	else								\
-		VNSvOutPortD(dwIoBase + MAC_REG_RXDMACTL1, DMACTL_RUN); \
+		VNSvOutPortD(iobase + MAC_REG_RXDMACTL1, DMACTL_RUN); \
 } while (0)
 
-#define MACvTxOn(dwIoBase)						\
-	MACvRegBitsOn(dwIoBase, MAC_REG_HOSTCR, HOSTCR_TXON)
+#define MACvTxOn(iobase)						\
+	MACvRegBitsOn(iobase, MAC_REG_HOSTCR, HOSTCR_TXON)
 
-#define MACvTransmit0(dwIoBase)						\
+#define MACvTransmit0(iobase)						\
 do {									\
 	unsigned long dwData;						\
-	VNSvInPortD(dwIoBase + MAC_REG_TXDMACTL0, &dwData);		\
+	VNSvInPortD(iobase + MAC_REG_TXDMACTL0, &dwData);		\
 	if (dwData & DMACTL_RUN)					\
-		VNSvOutPortD(dwIoBase + MAC_REG_TXDMACTL0, DMACTL_WAKE); \
+		VNSvOutPortD(iobase + MAC_REG_TXDMACTL0, DMACTL_WAKE); \
 	else								\
-		VNSvOutPortD(dwIoBase + MAC_REG_TXDMACTL0, DMACTL_RUN); \
+		VNSvOutPortD(iobase + MAC_REG_TXDMACTL0, DMACTL_RUN); \
 } while (0)
 
-#define MACvTransmitAC0(dwIoBase)					\
+#define MACvTransmitAC0(iobase)					\
 do {									\
 	unsigned long dwData;						\
-	VNSvInPortD(dwIoBase + MAC_REG_AC0DMACTL, &dwData);		\
+	VNSvInPortD(iobase + MAC_REG_AC0DMACTL, &dwData);		\
 	if (dwData & DMACTL_RUN)					\
-		VNSvOutPortD(dwIoBase + MAC_REG_AC0DMACTL, DMACTL_WAKE); \
+		VNSvOutPortD(iobase + MAC_REG_AC0DMACTL, DMACTL_WAKE); \
 	else								\
-		VNSvOutPortD(dwIoBase + MAC_REG_AC0DMACTL, DMACTL_RUN); \
+		VNSvOutPortD(iobase + MAC_REG_AC0DMACTL, DMACTL_RUN); \
 } while (0)
 
-#define MACvTransmitSYNC(dwIoBase)					\
+#define MACvTransmitSYNC(iobase)					\
 do {									\
 	unsigned long dwData;						\
-	VNSvInPortD(dwIoBase + MAC_REG_SYNCDMACTL, &dwData);		\
+	VNSvInPortD(iobase + MAC_REG_SYNCDMACTL, &dwData);		\
 	if (dwData & DMACTL_RUN)					\
-		VNSvOutPortD(dwIoBase + MAC_REG_SYNCDMACTL, DMACTL_WAKE); \
+		VNSvOutPortD(iobase + MAC_REG_SYNCDMACTL, DMACTL_WAKE); \
 	else								\
-		VNSvOutPortD(dwIoBase + MAC_REG_SYNCDMACTL, DMACTL_RUN); \
+		VNSvOutPortD(iobase + MAC_REG_SYNCDMACTL, DMACTL_RUN); \
 } while (0)
 
-#define MACvTransmitATIM(dwIoBase)					\
+#define MACvTransmitATIM(iobase)					\
 do {									\
 	unsigned long dwData;						\
-	VNSvInPortD(dwIoBase + MAC_REG_ATIMDMACTL, &dwData);		\
+	VNSvInPortD(iobase + MAC_REG_ATIMDMACTL, &dwData);		\
 	if (dwData & DMACTL_RUN)					\
-		VNSvOutPortD(dwIoBase + MAC_REG_ATIMDMACTL, DMACTL_WAKE); \
+		VNSvOutPortD(iobase + MAC_REG_ATIMDMACTL, DMACTL_WAKE); \
 	else								\
-		VNSvOutPortD(dwIoBase + MAC_REG_ATIMDMACTL, DMACTL_RUN); \
+		VNSvOutPortD(iobase + MAC_REG_ATIMDMACTL, DMACTL_RUN); \
 } while (0)
 
-#define MACvTransmitBCN(dwIoBase)					\
-	VNSvOutPortB(dwIoBase + MAC_REG_BCNDMACTL, BEACON_READY)
+#define MACvTransmitBCN(iobase)					\
+	VNSvOutPortB(iobase + MAC_REG_BCNDMACTL, BEACON_READY)
 
-#define MACvClearStckDS(dwIoBase)					\
+#define MACvClearStckDS(iobase)					\
 do {									\
 	unsigned char byOrgValue;					\
-	VNSvInPortB(dwIoBase + MAC_REG_STICKHW, &byOrgValue);		\
+	VNSvInPortB(iobase + MAC_REG_STICKHW, &byOrgValue);		\
 	byOrgValue = byOrgValue & 0xFC;					\
-	VNSvOutPortB(dwIoBase + MAC_REG_STICKHW, byOrgValue);		\
+	VNSvOutPortB(iobase + MAC_REG_STICKHW, byOrgValue);		\
 } while (0)
 
-#define MACvReadISR(dwIoBase, pdwValue)				\
-	VNSvInPortD(dwIoBase + MAC_REG_ISR, pdwValue)
+#define MACvReadISR(iobase, pdwValue)				\
+	VNSvInPortD(iobase + MAC_REG_ISR, pdwValue)
 
-#define MACvWriteISR(dwIoBase, dwValue)				\
-	VNSvOutPortD(dwIoBase + MAC_REG_ISR, dwValue)
+#define MACvWriteISR(iobase, dwValue)				\
+	VNSvOutPortD(iobase + MAC_REG_ISR, dwValue)
 
-#define MACvIntEnable(dwIoBase, dwMask)				\
-	VNSvOutPortD(dwIoBase + MAC_REG_IMR, dwMask)
+#define MACvIntEnable(iobase, dwMask)				\
+	VNSvOutPortD(iobase + MAC_REG_IMR, dwMask)
 
-#define MACvIntDisable(dwIoBase)				\
-	VNSvOutPortD(dwIoBase + MAC_REG_IMR, 0)
+#define MACvIntDisable(iobase)				\
+	VNSvOutPortD(iobase + MAC_REG_IMR, 0)
 
-#define MACvSelectPage0(dwIoBase)				\
-		VNSvOutPortB(dwIoBase + MAC_REG_PAGE1SEL, 0)
+#define MACvSelectPage0(iobase)				\
+		VNSvOutPortB(iobase + MAC_REG_PAGE1SEL, 0)
 
-#define MACvSelectPage1(dwIoBase)				\
-	VNSvOutPortB(dwIoBase + MAC_REG_PAGE1SEL, 1)
+#define MACvSelectPage1(iobase)				\
+	VNSvOutPortB(iobase + MAC_REG_PAGE1SEL, 1)
 
-#define MACvReadMIBCounter(dwIoBase, pdwCounter)			\
-	VNSvInPortD(dwIoBase + MAC_REG_MIBCNTR, pdwCounter)
+#define MACvReadMIBCounter(iobase, pdwCounter)			\
+	VNSvInPortD(iobase + MAC_REG_MIBCNTR, pdwCounter)
 
-#define MACvPwrEvntDisable(dwIoBase)					\
-	VNSvOutPortW(dwIoBase + MAC_REG_WAKEUPEN0, 0x0000)
+#define MACvPwrEvntDisable(iobase)					\
+	VNSvOutPortW(iobase + MAC_REG_WAKEUPEN0, 0x0000)
 
-#define MACvEnableProtectMD(dwIoBase)					\
+#define MACvEnableProtectMD(iobase)					\
 do {									\
 	unsigned long dwOrgValue;					\
-	VNSvInPortD(dwIoBase + MAC_REG_ENCFG, &dwOrgValue);		\
+	VNSvInPortD(iobase + MAC_REG_ENCFG, &dwOrgValue);		\
 	dwOrgValue = dwOrgValue | EnCFG_ProtectMd;			\
-	VNSvOutPortD(dwIoBase + MAC_REG_ENCFG, dwOrgValue);		\
+	VNSvOutPortD(iobase + MAC_REG_ENCFG, dwOrgValue);		\
 } while (0)
 
-#define MACvDisableProtectMD(dwIoBase)					\
+#define MACvDisableProtectMD(iobase)					\
 do {									\
 	unsigned long dwOrgValue;					\
-	VNSvInPortD(dwIoBase + MAC_REG_ENCFG, &dwOrgValue);		\
+	VNSvInPortD(iobase + MAC_REG_ENCFG, &dwOrgValue);		\
 	dwOrgValue = dwOrgValue & ~EnCFG_ProtectMd;			\
-	VNSvOutPortD(dwIoBase + MAC_REG_ENCFG, dwOrgValue);		\
+	VNSvOutPortD(iobase + MAC_REG_ENCFG, dwOrgValue);		\
 } while (0)
 
-#define MACvEnableBarkerPreambleMd(dwIoBase)				\
+#define MACvEnableBarkerPreambleMd(iobase)				\
 do {									\
 	unsigned long dwOrgValue;					\
-	VNSvInPortD(dwIoBase + MAC_REG_ENCFG, &dwOrgValue);		\
+	VNSvInPortD(iobase + MAC_REG_ENCFG, &dwOrgValue);		\
 	dwOrgValue = dwOrgValue | EnCFG_BarkerPream;			\
-	VNSvOutPortD(dwIoBase + MAC_REG_ENCFG, dwOrgValue);		\
+	VNSvOutPortD(iobase + MAC_REG_ENCFG, dwOrgValue);		\
 } while (0)
 
-#define MACvDisableBarkerPreambleMd(dwIoBase)				\
+#define MACvDisableBarkerPreambleMd(iobase)				\
 do {									\
 	unsigned long dwOrgValue;					\
-	VNSvInPortD(dwIoBase + MAC_REG_ENCFG, &dwOrgValue);		\
+	VNSvInPortD(iobase + MAC_REG_ENCFG, &dwOrgValue);		\
 	dwOrgValue = dwOrgValue & ~EnCFG_BarkerPream;			\
-	VNSvOutPortD(dwIoBase + MAC_REG_ENCFG, dwOrgValue);		\
+	VNSvOutPortD(iobase + MAC_REG_ENCFG, dwOrgValue);		\
 } while (0)
 
-#define MACvSetBBType(dwIoBase, byTyp)					\
+#define MACvSetBBType(iobase, byTyp)					\
 do {									\
 	unsigned long dwOrgValue;					\
-	VNSvInPortD(dwIoBase + MAC_REG_ENCFG, &dwOrgValue);		\
+	VNSvInPortD(iobase + MAC_REG_ENCFG, &dwOrgValue);		\
 	dwOrgValue = dwOrgValue & ~EnCFG_BBType_MASK;			\
 	dwOrgValue = dwOrgValue | (unsigned long)byTyp;			\
-	VNSvOutPortD(dwIoBase + MAC_REG_ENCFG, dwOrgValue);		\
+	VNSvOutPortD(iobase + MAC_REG_ENCFG, dwOrgValue);		\
 } while (0)
 
-#define MACvReadATIMW(dwIoBase, pwCounter)				\
-	VNSvInPortW(dwIoBase + MAC_REG_AIDATIM, pwCounter)
+#define MACvReadATIMW(iobase, pwCounter)				\
+	VNSvInPortW(iobase + MAC_REG_AIDATIM, pwCounter)
 
-#define MACvWriteATIMW(dwIoBase, wCounter)				\
-	VNSvOutPortW(dwIoBase + MAC_REG_AIDATIM, wCounter)
+#define MACvWriteATIMW(iobase, wCounter)				\
+	VNSvOutPortW(iobase + MAC_REG_AIDATIM, wCounter)
 
-#define MACvWriteCRC16_128(dwIoBase, byRegOfs, wCRC)		\
+#define MACvWriteCRC16_128(iobase, byRegOfs, wCRC)		\
 do {								\
-	VNSvOutPortB(dwIoBase + MAC_REG_PAGE1SEL, 1);		\
-	VNSvOutPortW(dwIoBase + byRegOfs, wCRC);		\
-	VNSvOutPortB(dwIoBase + MAC_REG_PAGE1SEL, 0);		\
+	VNSvOutPortB(iobase + MAC_REG_PAGE1SEL, 1);		\
+	VNSvOutPortW(iobase + byRegOfs, wCRC);		\
+	VNSvOutPortB(iobase + MAC_REG_PAGE1SEL, 0);		\
 } while (0)
 
-#define MACvGPIOIn(dwIoBase, pbyValue)					\
-	VNSvInPortB(dwIoBase + MAC_REG_GPIOCTL1, pbyValue)
+#define MACvGPIOIn(iobase, pbyValue)					\
+	VNSvInPortB(iobase + MAC_REG_GPIOCTL1, pbyValue)
 
-#define MACvSetRFLE_LatchBase(dwIoBase)                                 \
-	MACvWordRegBitsOn(dwIoBase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_RFLEOPT)
+#define MACvSetRFLE_LatchBase(iobase)                                 \
+	MACvWordRegBitsOn(iobase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_RFLEOPT)
 
-bool MACbIsRegBitsOn(void __iomem *dwIoBase, unsigned char byRegOfs,
+bool MACbIsRegBitsOn(struct vnt_private *priv, unsigned char byRegOfs,
 		     unsigned char byTestBits);
-bool MACbIsRegBitsOff(void __iomem *dwIoBase, unsigned char byRegOfs,
+bool MACbIsRegBitsOff(struct vnt_private *priv, unsigned char byRegOfs,
 		      unsigned char byTestBits);
 
-bool MACbIsIntDisable(void __iomem *dwIoBase);
+bool MACbIsIntDisable(struct vnt_private *priv);
 
-void MACvSetShortRetryLimit(void __iomem *dwIoBase, unsigned char byRetryLimit);
+void MACvSetShortRetryLimit(struct vnt_private *priv, unsigned char byRetryLimit);
 
-void MACvSetLongRetryLimit(void __iomem *dwIoBase, unsigned char byRetryLimit);
-void MACvGetLongRetryLimit(void __iomem *dwIoBase,
+void MACvSetLongRetryLimit(struct vnt_private *priv, unsigned char byRetryLimit);
+void MACvGetLongRetryLimit(struct vnt_private *priv,
 			   unsigned char *pbyRetryLimit);
 
-void MACvSetLoopbackMode(void __iomem *dwIoBase, unsigned char byLoopbackMode);
+void MACvSetLoopbackMode(struct vnt_private *priv, unsigned char byLoopbackMode);
 
-void MACvSaveContext(void __iomem *dwIoBase, unsigned char *pbyCxtBuf);
-void MACvRestoreContext(void __iomem *dwIoBase, unsigned char *pbyCxtBuf);
+void MACvSaveContext(struct vnt_private *priv, unsigned char *pbyCxtBuf);
+void MACvRestoreContext(struct vnt_private *priv, unsigned char *pbyCxtBuf);
 
-bool MACbSoftwareReset(void __iomem *dwIoBase);
-bool MACbSafeSoftwareReset(void __iomem *dwIoBase);
-bool MACbSafeRxOff(void __iomem *dwIoBase);
-bool MACbSafeTxOff(void __iomem *dwIoBase);
-bool MACbSafeStop(void __iomem *dwIoBase);
-bool MACbShutdown(void __iomem *dwIoBase);
-void MACvInitialize(void __iomem *dwIoBase);
-void MACvSetCurrRx0DescAddr(void __iomem *dwIoBase,
-			    unsigned long dwCurrDescAddr);
-void MACvSetCurrRx1DescAddr(void __iomem *dwIoBase,
-			    unsigned long dwCurrDescAddr);
-void MACvSetCurrTXDescAddr(int iTxType, void __iomem *dwIoBase,
-			   unsigned long dwCurrDescAddr);
-void MACvSetCurrTx0DescAddrEx(void __iomem *dwIoBase,
-			      unsigned long dwCurrDescAddr);
-void MACvSetCurrAC0DescAddrEx(void __iomem *dwIoBase,
-			      unsigned long dwCurrDescAddr);
-void MACvSetCurrSyncDescAddrEx(void __iomem *dwIoBase,
-			       unsigned long dwCurrDescAddr);
-void MACvSetCurrATIMDescAddrEx(void __iomem *dwIoBase,
-			       unsigned long dwCurrDescAddr);
-void MACvTimer0MicroSDelay(void __iomem *dwIoBase, unsigned int uDelay);
-void MACvOneShotTimer1MicroSec(void __iomem *dwIoBase, unsigned int uDelayTime);
+bool MACbSoftwareReset(struct vnt_private *priv);
+bool MACbSafeSoftwareReset(struct vnt_private *priv);
+bool MACbSafeRxOff(struct vnt_private *priv);
+bool MACbSafeTxOff(struct vnt_private *priv);
+bool MACbSafeStop(struct vnt_private *priv);
+bool MACbShutdown(struct vnt_private *priv);
+void MACvInitialize(struct vnt_private *priv);
+void MACvSetCurrRx0DescAddr(struct vnt_private *priv,
+			    u32 curr_desc_addr);
+void MACvSetCurrRx1DescAddr(struct vnt_private *priv,
+			    u32 curr_desc_addr);
+void MACvSetCurrTXDescAddr(int iTxType, struct vnt_private *priv,
+			   u32 curr_desc_addr);
+void MACvSetCurrTx0DescAddrEx(struct vnt_private *priv,
+			      u32 curr_desc_addr);
+void MACvSetCurrAC0DescAddrEx(struct vnt_private *priv,
+			      u32 curr_desc_addr);
+void MACvSetCurrSyncDescAddrEx(struct vnt_private *priv,
+			       u32 curr_desc_addr);
+void MACvSetCurrATIMDescAddrEx(struct vnt_private *priv,
+			       u32 curr_desc_addr);
+void MACvTimer0MicroSDelay(struct vnt_private *priv, unsigned int uDelay);
+void MACvOneShotTimer1MicroSec(struct vnt_private *priv, unsigned int uDelayTime);
 
-void MACvSetMISCFifo(void __iomem *dwIoBase, unsigned short wOffset,
-		     unsigned long dwData);
+void MACvSetMISCFifo(struct vnt_private *priv, unsigned short wOffset,
+		     u32 dwData);
 
-bool MACbPSWakeup(void __iomem *dwIoBase);
+bool MACbPSWakeup(struct vnt_private *priv);
 
-void MACvSetKeyEntry(void __iomem *dwIoBase, unsigned short wKeyCtl,
+void MACvSetKeyEntry(struct vnt_private *priv, unsigned short wKeyCtl,
 		     unsigned int uEntryIdx, unsigned int uKeyIdx,
 		     unsigned char *pbyAddr, u32 *pdwKey,
 		     unsigned char byLocalID);
-void MACvDisableKeyEntry(void __iomem *dwIoBase, unsigned int uEntryIdx);
+void MACvDisableKeyEntry(struct vnt_private *priv, unsigned int uEntryIdx);
 
 #endif /* __MAC_H__ */

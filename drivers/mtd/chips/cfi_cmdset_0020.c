@@ -416,7 +416,7 @@ static int cfi_staa_read (struct mtd_info *mtd, loff_t from, size_t len, size_t 
 	return ret;
 }
 
-static inline int do_write_buffer(struct map_info *map, struct flchip *chip,
+static int do_write_buffer(struct map_info *map, struct flchip *chip,
 				  unsigned long adr, const u_char *buf, int len)
 {
 	struct cfi_private *cfi = map->fldrv_priv;
@@ -666,7 +666,7 @@ cfi_staa_writev(struct mtd_info *mtd, const struct kvec *vecs,
 	size_t	 totlen = 0, thislen;
 	int	 ret = 0;
 	size_t	 buflen = 0;
-	static char *buffer;
+	char *buffer;
 
 	if (!ECCBUF_SIZE) {
 		/* We should fall back to a general writev implementation.

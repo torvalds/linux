@@ -15,32 +15,6 @@
 #include "lib.h"
 
 
-int pick_online_cpu(void)
-{
-	cpu_set_t mask;
-	int cpu;
-
-	CPU_ZERO(&mask);
-
-	if (sched_getaffinity(0, sizeof(mask), &mask)) {
-		perror("sched_getaffinity");
-		return -1;
-	}
-
-	/* We prefer a primary thread, but skip 0 */
-	for (cpu = 8; cpu < CPU_SETSIZE; cpu += 8)
-		if (CPU_ISSET(cpu, &mask))
-			return cpu;
-
-	/* Search for anything, but in reverse */
-	for (cpu = CPU_SETSIZE - 1; cpu >= 0; cpu--)
-		if (CPU_ISSET(cpu, &mask))
-			return cpu;
-
-	printf("No cpus in affinity mask?!\n");
-	return -1;
-}
-
 int bind_to_cpu(int cpu)
 {
 	cpu_set_t mask;
@@ -216,12 +190,12 @@ int parse_proc_maps(void)
 
 bool require_paranoia_below(int level)
 {
-	unsigned long current;
+	long current;
 	char *end, buf[16];
 	FILE *f;
-	int rc;
+	bool rc;
 
-	rc = -1;
+	rc = false;
 
 	f = fopen(PARANOID_PATH, "r");
 	if (!f) {
@@ -234,7 +208,7 @@ bool require_paranoia_below(int level)
 		goto out_close;
 	}
 
-	current = strtoul(buf, &end, 10);
+	current = strtol(buf, &end, 10);
 
 	if (end == buf) {
 		printf("Couldn't parse " PARANOID_PATH "?\n");
@@ -242,9 +216,9 @@ bool require_paranoia_below(int level)
 	}
 
 	if (current >= level)
-		goto out;
+		goto out_close;
 
-	rc = 0;
+	rc = true;
 out_close:
 	fclose(f);
 out:

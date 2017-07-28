@@ -183,12 +183,33 @@ static int wm5110_sysclk_ev(struct snd_soc_dapm_widget *w,
 				regmap_write_async(regmap, patch[i].reg,
 						   patch[i].def);
 		break;
-
+	case SND_SOC_DAPM_PRE_PMU:
+	case SND_SOC_DAPM_POST_PMD:
+		return arizona_clk_ev(w, kcontrol, event);
 	default:
 		break;
 	}
 
 	return 0;
+}
+
+static int wm5110_adsp_power_ev(struct snd_soc_dapm_widget *w,
+				struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
+	unsigned int v;
+	int ret;
+
+	ret = regmap_read(arizona->regmap, ARIZONA_SYSTEM_CLOCK_1, &v);
+	if (ret != 0) {
+		dev_err(codec->dev, "Failed to read SYSCLK state: %d\n", ret);
+		return ret;
+	}
+
+	v = (v & ARIZONA_SYSCLK_FREQ_MASK) >> ARIZONA_SYSCLK_FREQ_SHIFT;
+
+	return wm_adsp2_early_event(w, kcontrol, event, v);
 }
 
 static const struct reg_sequence wm5110_no_dre_left_enable[] = {
@@ -360,15 +381,13 @@ static int wm5110_hp_ev(struct snd_soc_dapm_widget *w,
 
 static int wm5110_clear_pga_volume(struct arizona *arizona, int output)
 {
-	struct reg_sequence clear_pga = {
-		ARIZONA_OUTPUT_PATH_CONFIG_1L + output * 4, 0x80
-	};
+	unsigned int reg = ARIZONA_OUTPUT_PATH_CONFIG_1L + output * 4;
 	int ret;
 
-	ret = regmap_multi_reg_write_bypassed(arizona->regmap, &clear_pga, 1);
+	ret = regmap_write(arizona->regmap, reg, 0x80);
 	if (ret)
 		dev_err(arizona->dev, "Failed to clear PGA (0x%x): %d\n",
-			clear_pga.reg, ret);
+			reg, ret);
 
 	return ret;
 }
@@ -439,18 +458,17 @@ static int wm5110_in_pga_get(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
-	struct snd_soc_card *card = dapm->card;
 	int ret;
 
 	/*
 	 * PGA Volume is also used as part of the enable sequence, so
 	 * usage of it should be avoided whilst that is running.
 	 */
-	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
+	snd_soc_dapm_mutex_lock(dapm);
 
 	ret = snd_soc_get_volsw_range(kcontrol, ucontrol);
 
-	mutex_unlock(&card->dapm_mutex);
+	snd_soc_dapm_mutex_unlock(dapm);
 
 	return ret;
 }
@@ -460,18 +478,17 @@ static int wm5110_in_pga_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
-	struct snd_soc_card *card = dapm->card;
 	int ret;
 
 	/*
 	 * PGA Volume is also used as part of the enable sequence, so
 	 * usage of it should be avoided whilst that is running.
 	 */
-	mutex_lock_nested(&card->dapm_mutex, SND_SOC_DAPM_CLASS_RUNTIME);
+	snd_soc_dapm_mutex_lock(dapm);
 
 	ret = snd_soc_put_volsw_range(kcontrol, ucontrol);
 
-	mutex_unlock(&card->dapm_mutex);
+	snd_soc_dapm_mutex_unlock(dapm);
 
 	return ret;
 }
@@ -575,6 +592,33 @@ static DECLARE_TLV_DB_SCALE(ng_tlv, -10200, 600, 0);
 	SOC_SINGLE(name " NG SPKDAT2L Switch", base, 10, 1, 0), \
 	SOC_SINGLE(name " NG SPKDAT2R Switch", base, 11, 1, 0)
 
+#define WM5110_RXANC_INPUT_ROUTES(widget, name) \
+	{ widget, NULL, name " NG Mux" }, \
+	{ name " NG Internal", NULL, "RXANC NG Clock" }, \
+	{ name " NG Internal", NULL, name " Channel" }, \
+	{ name " NG External", NULL, "RXANC NG External Clock" }, \
+	{ name " NG External", NULL, name " Channel" }, \
+	{ name " NG Mux", "None", name " Channel" }, \
+	{ name " NG Mux", "Internal", name " NG Internal" }, \
+	{ name " NG Mux", "External", name " NG External" }, \
+	{ name " Channel", "Left", name " Left Input" }, \
+	{ name " Channel", "Combine", name " Left Input" }, \
+	{ name " Channel", "Right", name " Right Input" }, \
+	{ name " Channel", "Combine", name " Right Input" }, \
+	{ name " Left Input", "IN1", "IN1L PGA" }, \
+	{ name " Right Input", "IN1", "IN1R PGA" }, \
+	{ name " Left Input", "IN2", "IN2L PGA" }, \
+	{ name " Right Input", "IN2", "IN2R PGA" }, \
+	{ name " Left Input", "IN3", "IN3L PGA" }, \
+	{ name " Right Input", "IN3", "IN3R PGA" }, \
+	{ name " Left Input", "IN4", "IN4L PGA" }, \
+	{ name " Right Input", "IN4", "IN4R PGA" }
+
+#define WM5110_RXANC_OUTPUT_ROUTES(widget, name) \
+	{ widget, NULL, name " ANC Source" }, \
+	{ name " ANC Source", "RXANCL", "RXANCL" }, \
+	{ name " ANC Source", "RXANCR", "RXANCR" }
+
 static const struct snd_kcontrol_new wm5110_snd_controls[] = {
 SOC_ENUM("IN1 OSR", arizona_in_dmic_osr[0]),
 SOC_ENUM("IN2 OSR", arizona_in_dmic_osr[1]),
@@ -638,6 +682,15 @@ SOC_SINGLE_TLV("IN4R Digital Volume", ARIZONA_ADC_DIGITAL_VOLUME_4R,
 
 SOC_ENUM("Input Ramp Up", arizona_in_vi_ramp),
 SOC_ENUM("Input Ramp Down", arizona_in_vd_ramp),
+
+SND_SOC_BYTES("RXANC Coefficients", ARIZONA_ANC_COEFF_START,
+	      ARIZONA_ANC_COEFF_END - ARIZONA_ANC_COEFF_START + 1),
+SND_SOC_BYTES("RXANCL Config", ARIZONA_FCL_FILTER_CONTROL, 1),
+SND_SOC_BYTES("RXANCL Coefficients", ARIZONA_FCL_COEFF_START,
+	      ARIZONA_FCL_COEFF_END - ARIZONA_FCL_COEFF_START + 1),
+SND_SOC_BYTES("RXANCR Config", ARIZONA_FCR_FILTER_CONTROL, 1),
+SND_SOC_BYTES("RXANCR Coefficients", ARIZONA_FCR_COEFF_START,
+	      ARIZONA_FCR_COEFF_END - ARIZONA_FCR_COEFF_START + 1),
 
 ARIZONA_MIXER_CONTROLS("EQ1", ARIZONA_EQ1MIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("EQ2", ARIZONA_EQ2MIX_INPUT_1_SOURCE),
@@ -724,6 +777,11 @@ SOC_ENUM("ISRC1 FSH", arizona_isrc_fsh[0]),
 SOC_ENUM("ISRC2 FSH", arizona_isrc_fsh[1]),
 SOC_ENUM("ISRC3 FSH", arizona_isrc_fsh[2]),
 SOC_ENUM("ASRC RATE 1", arizona_asrc_rate1),
+
+WM_ADSP2_PRELOAD_SWITCH("DSP1", 1),
+WM_ADSP2_PRELOAD_SWITCH("DSP2", 2),
+WM_ADSP2_PRELOAD_SWITCH("DSP3", 3),
+WM_ADSP2_PRELOAD_SWITCH("DSP4", 4),
 
 ARIZONA_MIXER_CONTROLS("DSP1L", ARIZONA_DSP1LMIX_INPUT_1_SOURCE),
 ARIZONA_MIXER_CONTROLS("DSP1R", ARIZONA_DSP1RMIX_INPUT_1_SOURCE),
@@ -995,11 +1053,38 @@ static const struct soc_enum wm5110_aec_loopback =
 static const struct snd_kcontrol_new wm5110_aec_loopback_mux =
 	SOC_DAPM_ENUM("AEC Loopback", wm5110_aec_loopback);
 
+static const struct snd_kcontrol_new wm5110_anc_input_mux[] = {
+	SOC_DAPM_ENUM("RXANCL Input", arizona_anc_input_src[0]),
+	SOC_DAPM_ENUM("RXANCL Channel", arizona_anc_input_src[1]),
+	SOC_DAPM_ENUM("RXANCR Input", arizona_anc_input_src[2]),
+	SOC_DAPM_ENUM("RXANCR Channel", arizona_anc_input_src[3]),
+};
+
+static const struct snd_kcontrol_new wm5110_anc_ng_mux =
+	SOC_DAPM_ENUM("RXANC NG Source", arizona_anc_ng_enum);
+
+static const struct snd_kcontrol_new wm5110_output_anc_src[] = {
+	SOC_DAPM_ENUM("HPOUT1L ANC Source", arizona_output_anc_src[0]),
+	SOC_DAPM_ENUM("HPOUT1R ANC Source", arizona_output_anc_src[1]),
+	SOC_DAPM_ENUM("HPOUT2L ANC Source", arizona_output_anc_src[2]),
+	SOC_DAPM_ENUM("HPOUT2R ANC Source", arizona_output_anc_src[3]),
+	SOC_DAPM_ENUM("HPOUT3L ANC Source", arizona_output_anc_src[4]),
+	SOC_DAPM_ENUM("HPOUT3R ANC Source", arizona_output_anc_src[5]),
+	SOC_DAPM_ENUM("SPKOUTL ANC Source", arizona_output_anc_src[6]),
+	SOC_DAPM_ENUM("SPKOUTR ANC Source", arizona_output_anc_src[7]),
+	SOC_DAPM_ENUM("SPKDAT1L ANC Source", arizona_output_anc_src[8]),
+	SOC_DAPM_ENUM("SPKDAT1R ANC Source", arizona_output_anc_src[9]),
+	SOC_DAPM_ENUM("SPKDAT2L ANC Source", arizona_output_anc_src[10]),
+	SOC_DAPM_ENUM("SPKDAT2R ANC Source", arizona_output_anc_src[11]),
+};
+
 static const struct snd_soc_dapm_widget wm5110_dapm_widgets[] = {
 SND_SOC_DAPM_SUPPLY("SYSCLK", ARIZONA_SYSTEM_CLOCK_1, ARIZONA_SYSCLK_ENA_SHIFT,
-		    0, wm5110_sysclk_ev, SND_SOC_DAPM_POST_PMU),
+		    0, wm5110_sysclk_ev, SND_SOC_DAPM_POST_PMU |
+		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 SND_SOC_DAPM_SUPPLY("ASYNCCLK", ARIZONA_ASYNC_CLOCK_1,
-		    ARIZONA_ASYNC_CLK_ENA_SHIFT, 0, NULL, 0),
+		    ARIZONA_ASYNC_CLK_ENA_SHIFT, 0, arizona_clk_ev,
+		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 SND_SOC_DAPM_SUPPLY("OPCLK", ARIZONA_OUTPUT_SYSTEM_CLOCK,
 		    ARIZONA_OPCLK_ENA_SHIFT, 0, NULL, 0),
 SND_SOC_DAPM_SUPPLY("ASYNCOPCLK", ARIZONA_OUTPUT_ASYNC_CLOCK,
@@ -1027,6 +1112,11 @@ SND_SOC_DAPM_INPUT("IN4R"),
 
 SND_SOC_DAPM_OUTPUT("DRC1 Signal Activity"),
 SND_SOC_DAPM_OUTPUT("DRC2 Signal Activity"),
+
+SND_SOC_DAPM_OUTPUT("DSP Voice Trigger"),
+
+SND_SOC_DAPM_SWITCH("DSP3 Voice Trigger", SND_SOC_NOPM, 2, 0,
+		    &arizona_voice_trigger_switch[2]),
 
 SND_SOC_DAPM_PGA_E("IN1L PGA", ARIZONA_INPUT_ENABLES, ARIZONA_IN1L_ENA_SHIFT,
 		   0, NULL, 0, wm5110_in_ev,
@@ -1122,10 +1212,10 @@ SND_SOC_DAPM_PGA("ASRC2L", ARIZONA_ASRC_ENABLE, ARIZONA_ASRC2L_ENA_SHIFT, 0,
 SND_SOC_DAPM_PGA("ASRC2R", ARIZONA_ASRC_ENABLE, ARIZONA_ASRC2R_ENA_SHIFT, 0,
 		 NULL, 0),
 
-WM_ADSP2("DSP1", 0),
-WM_ADSP2("DSP2", 1),
-WM_ADSP2("DSP3", 2),
-WM_ADSP2("DSP4", 3),
+WM_ADSP2("DSP1", 0, wm5110_adsp_power_ev),
+WM_ADSP2("DSP2", 1, wm5110_adsp_power_ev),
+WM_ADSP2("DSP3", 2, wm5110_adsp_power_ev),
+WM_ADSP2("DSP4", 3, wm5110_adsp_power_ev),
 
 SND_SOC_DAPM_PGA("ISRC1INT1", ARIZONA_ISRC_1_CTRL_3,
 		 ARIZONA_ISRC1_INT0_ENA_SHIFT, 0, NULL, 0),
@@ -1184,6 +1274,65 @@ SND_SOC_DAPM_PGA("ISRC3DEC4", ARIZONA_ISRC_3_CTRL_3,
 SND_SOC_DAPM_MUX("AEC Loopback", ARIZONA_DAC_AEC_CONTROL_1,
 		       ARIZONA_AEC_LOOPBACK_ENA_SHIFT, 0,
 		       &wm5110_aec_loopback_mux),
+
+SND_SOC_DAPM_SUPPLY("RXANC NG External Clock", SND_SOC_NOPM,
+		   ARIZONA_EXT_NG_SEL_SET_SHIFT, 0, arizona_anc_ev,
+		   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+SND_SOC_DAPM_PGA("RXANCL NG External", SND_SOC_NOPM, 0, 0, NULL, 0),
+SND_SOC_DAPM_PGA("RXANCR NG External", SND_SOC_NOPM, 0, 0, NULL, 0),
+
+SND_SOC_DAPM_SUPPLY("RXANC NG Clock", SND_SOC_NOPM,
+		   ARIZONA_CLK_NG_ENA_SET_SHIFT, 0, arizona_anc_ev,
+		   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+SND_SOC_DAPM_PGA("RXANCL NG Internal", SND_SOC_NOPM, 0, 0, NULL, 0),
+SND_SOC_DAPM_PGA("RXANCR NG Internal", SND_SOC_NOPM, 0, 0, NULL, 0),
+
+SND_SOC_DAPM_MUX("RXANCL Left Input", SND_SOC_NOPM, 0, 0,
+		 &wm5110_anc_input_mux[0]),
+SND_SOC_DAPM_MUX("RXANCL Right Input", SND_SOC_NOPM, 0, 0,
+		 &wm5110_anc_input_mux[0]),
+SND_SOC_DAPM_MUX("RXANCL Channel", SND_SOC_NOPM, 0, 0,
+		 &wm5110_anc_input_mux[1]),
+SND_SOC_DAPM_MUX("RXANCL NG Mux", SND_SOC_NOPM, 0, 0, &wm5110_anc_ng_mux),
+SND_SOC_DAPM_MUX("RXANCR Left Input", SND_SOC_NOPM, 0, 0,
+		 &wm5110_anc_input_mux[2]),
+SND_SOC_DAPM_MUX("RXANCR Right Input", SND_SOC_NOPM, 0, 0,
+		 &wm5110_anc_input_mux[2]),
+SND_SOC_DAPM_MUX("RXANCR Channel", SND_SOC_NOPM, 0, 0,
+		 &wm5110_anc_input_mux[3]),
+SND_SOC_DAPM_MUX("RXANCR NG Mux", SND_SOC_NOPM, 0, 0, &wm5110_anc_ng_mux),
+
+SND_SOC_DAPM_PGA_E("RXANCL", SND_SOC_NOPM, ARIZONA_CLK_L_ENA_SET_SHIFT,
+		   0, NULL, 0, arizona_anc_ev,
+		   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+SND_SOC_DAPM_PGA_E("RXANCR", SND_SOC_NOPM, ARIZONA_CLK_R_ENA_SET_SHIFT,
+		   0, NULL, 0, arizona_anc_ev,
+		   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+
+SND_SOC_DAPM_MUX("HPOUT1L ANC Source", SND_SOC_NOPM, 0, 0,
+		 &wm5110_output_anc_src[0]),
+SND_SOC_DAPM_MUX("HPOUT1R ANC Source", SND_SOC_NOPM, 0, 0,
+		 &wm5110_output_anc_src[1]),
+SND_SOC_DAPM_MUX("HPOUT2L ANC Source", SND_SOC_NOPM, 0, 0,
+		 &wm5110_output_anc_src[2]),
+SND_SOC_DAPM_MUX("HPOUT2R ANC Source", SND_SOC_NOPM, 0, 0,
+		 &wm5110_output_anc_src[3]),
+SND_SOC_DAPM_MUX("HPOUT3L ANC Source", SND_SOC_NOPM, 0, 0,
+		 &wm5110_output_anc_src[4]),
+SND_SOC_DAPM_MUX("HPOUT3R ANC Source", SND_SOC_NOPM, 0, 0,
+		 &wm5110_output_anc_src[5]),
+SND_SOC_DAPM_MUX("SPKOUTL ANC Source", SND_SOC_NOPM, 0, 0,
+		 &wm5110_output_anc_src[6]),
+SND_SOC_DAPM_MUX("SPKOUTR ANC Source", SND_SOC_NOPM, 0, 0,
+		 &wm5110_output_anc_src[7]),
+SND_SOC_DAPM_MUX("SPKDAT1L ANC Source", SND_SOC_NOPM, 0, 0,
+		 &wm5110_output_anc_src[8]),
+SND_SOC_DAPM_MUX("SPKDAT1R ANC Source", SND_SOC_NOPM, 0, 0,
+		 &wm5110_output_anc_src[9]),
+SND_SOC_DAPM_MUX("SPKDAT2L ANC Source", SND_SOC_NOPM, 0, 0,
+		 &wm5110_output_anc_src[10]),
+SND_SOC_DAPM_MUX("SPKDAT2R ANC Source", SND_SOC_NOPM, 0, 0,
+		 &wm5110_output_anc_src[11]),
 
 SND_SOC_DAPM_AIF_OUT("AIF1TX1", NULL, 0,
 		     ARIZONA_AIF1_TX_ENABLES, ARIZONA_AIF1TX1_ENA_SHIFT, 0),
@@ -1588,6 +1737,7 @@ static const struct snd_soc_dapm_route wm5110_dapm_routes[] = {
 	{ "OUT2L", NULL, "SYSCLK" },
 	{ "OUT2R", NULL, "SYSCLK" },
 	{ "OUT3L", NULL, "SYSCLK" },
+	{ "OUT3R", NULL, "SYSCLK" },
 	{ "OUT4L", NULL, "SYSCLK" },
 	{ "OUT4R", NULL, "SYSCLK" },
 	{ "OUT5L", NULL, "SYSCLK" },
@@ -1603,6 +1753,16 @@ static const struct snd_soc_dapm_route wm5110_dapm_routes[] = {
 	{ "IN3R", NULL, "SYSCLK" },
 	{ "IN4L", NULL, "SYSCLK" },
 	{ "IN4R", NULL, "SYSCLK" },
+
+	{ "ASRC1L", NULL, "SYSCLK" },
+	{ "ASRC1R", NULL, "SYSCLK" },
+	{ "ASRC2L", NULL, "SYSCLK" },
+	{ "ASRC2R", NULL, "SYSCLK" },
+
+	{ "ASRC1L", NULL, "ASYNCCLK" },
+	{ "ASRC1R", NULL, "ASYNCCLK" },
+	{ "ASRC2L", NULL, "ASYNCCLK" },
+	{ "ASRC2R", NULL, "ASYNCCLK" },
 
 	{ "MICBIAS1", NULL, "MICVDD" },
 	{ "MICBIAS2", NULL, "MICVDD" },
@@ -1689,6 +1849,10 @@ static const struct snd_soc_dapm_route wm5110_dapm_routes[] = {
 	{ "Slim1 Capture", NULL, "SYSCLK" },
 	{ "Slim2 Capture", NULL, "SYSCLK" },
 	{ "Slim3 Capture", NULL, "SYSCLK" },
+
+	{ "Voice Control DSP", NULL, "DSP3" },
+
+	{ "Audio Trace DSP", NULL, "DSP1" },
 
 	{ "IN1L PGA", NULL, "IN1L" },
 	{ "IN1R PGA", NULL, "IN1R" },
@@ -1838,12 +2002,34 @@ static const struct snd_soc_dapm_route wm5110_dapm_routes[] = {
 	{ "SPKDAT2L", NULL, "OUT6L" },
 	{ "SPKDAT2R", NULL, "OUT6R" },
 
+	WM5110_RXANC_INPUT_ROUTES("RXANCL", "RXANCL"),
+	WM5110_RXANC_INPUT_ROUTES("RXANCR", "RXANCR"),
+
+	WM5110_RXANC_OUTPUT_ROUTES("OUT1L", "HPOUT1L"),
+	WM5110_RXANC_OUTPUT_ROUTES("OUT1R", "HPOUT1R"),
+	WM5110_RXANC_OUTPUT_ROUTES("OUT2L", "HPOUT2L"),
+	WM5110_RXANC_OUTPUT_ROUTES("OUT2R", "HPOUT2R"),
+	WM5110_RXANC_OUTPUT_ROUTES("OUT3L", "HPOUT3L"),
+	WM5110_RXANC_OUTPUT_ROUTES("OUT3R", "HPOUT3R"),
+	WM5110_RXANC_OUTPUT_ROUTES("OUT4L", "SPKOUTL"),
+	WM5110_RXANC_OUTPUT_ROUTES("OUT4R", "SPKOUTR"),
+	WM5110_RXANC_OUTPUT_ROUTES("OUT5L", "SPKDAT1L"),
+	WM5110_RXANC_OUTPUT_ROUTES("OUT5R", "SPKDAT1R"),
+	WM5110_RXANC_OUTPUT_ROUTES("OUT6L", "SPKDAT2L"),
+	WM5110_RXANC_OUTPUT_ROUTES("OUT6R", "SPKDAT2R"),
+
 	{ "MICSUPP", NULL, "SYSCLK" },
 
+	{ "DRC1 Signal Activity", NULL, "SYSCLK" },
+	{ "DRC2 Signal Activity", NULL, "SYSCLK" },
 	{ "DRC1 Signal Activity", NULL, "DRC1L" },
 	{ "DRC1 Signal Activity", NULL, "DRC1R" },
 	{ "DRC2 Signal Activity", NULL, "DRC2L" },
 	{ "DRC2 Signal Activity", NULL, "DRC2R" },
+
+	{ "DSP Voice Trigger", NULL, "SYSCLK" },
+	{ "DSP Voice Trigger", NULL, "DSP3 Voice Trigger" },
+	{ "DSP3 Voice Trigger", "Switch", "DSP3" },
 };
 
 static int wm5110_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
@@ -1867,7 +2053,7 @@ static int wm5110_set_fll(struct snd_soc_codec *codec, int fll_id, int source,
 	}
 }
 
-#define WM5110_RATES SNDRV_PCM_RATE_8000_192000
+#define WM5110_RATES SNDRV_PCM_RATE_KNOT
 
 #define WM5110_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
@@ -1996,19 +2182,115 @@ static struct snd_soc_dai_driver wm5110_dai[] = {
 		 },
 		.ops = &arizona_simple_dai_ops,
 	},
+	{
+		.name = "wm5110-cpu-voicectrl",
+		.capture = {
+			.stream_name = "Voice Control CPU",
+			.channels_min = 1,
+			.channels_max = 1,
+			.rates = WM5110_RATES,
+			.formats = WM5110_FORMATS,
+		},
+		.compress_new = snd_soc_new_compress,
+	},
+	{
+		.name = "wm5110-dsp-voicectrl",
+		.capture = {
+			.stream_name = "Voice Control DSP",
+			.channels_min = 1,
+			.channels_max = 1,
+			.rates = WM5110_RATES,
+			.formats = WM5110_FORMATS,
+		},
+	},
+	{
+		.name = "wm5110-cpu-trace",
+		.capture = {
+			.stream_name = "Audio Trace CPU",
+			.channels_min = 1,
+			.channels_max = 6,
+			.rates = WM5110_RATES,
+			.formats = WM5110_FORMATS,
+		},
+		.compress_new = snd_soc_new_compress,
+	},
+	{
+		.name = "wm5110-dsp-trace",
+		.capture = {
+			.stream_name = "Audio Trace DSP",
+			.channels_min = 1,
+			.channels_max = 6,
+			.rates = WM5110_RATES,
+			.formats = WM5110_FORMATS,
+		},
+	},
 };
+
+static int wm5110_open(struct snd_compr_stream *stream)
+{
+	struct snd_soc_pcm_runtime *rtd = stream->private_data;
+	struct wm5110_priv *priv = snd_soc_platform_get_drvdata(rtd->platform);
+	struct arizona *arizona = priv->core.arizona;
+	int n_adsp;
+
+	if (strcmp(rtd->codec_dai->name, "wm5110-dsp-voicectrl") == 0) {
+		n_adsp = 2;
+	} else if (strcmp(rtd->codec_dai->name, "wm5110-dsp-trace") == 0) {
+		n_adsp = 0;
+	} else {
+		dev_err(arizona->dev,
+			"No suitable compressed stream for DAI '%s'\n",
+			rtd->codec_dai->name);
+		return -EINVAL;
+	}
+
+	return wm_adsp_compr_open(&priv->core.adsp[n_adsp], stream);
+}
+
+static irqreturn_t wm5110_adsp2_irq(int irq, void *data)
+{
+	struct wm5110_priv *priv = data;
+	struct arizona *arizona = priv->core.arizona;
+	struct arizona_voice_trigger_info info;
+	int serviced = 0;
+	int i, ret;
+
+	for (i = 0; i < WM5110_NUM_ADSP; ++i) {
+		ret = wm_adsp_compr_handle_irq(&priv->core.adsp[i]);
+		if (ret != -ENODEV)
+			serviced++;
+		if (ret == WM_ADSP_COMPR_VOICE_TRIGGER) {
+			info.core = i;
+			arizona_call_notifiers(arizona,
+					       ARIZONA_NOTIFY_VOICE_TRIGGER,
+					       &info);
+		}
+	}
+
+	if (!serviced) {
+		dev_err(arizona->dev, "Spurious compressed data IRQ\n");
+		return IRQ_NONE;
+	}
+
+	return IRQ_HANDLED;
+}
 
 static int wm5110_codec_probe(struct snd_soc_codec *codec)
 {
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(dapm);
 	struct wm5110_priv *priv = snd_soc_codec_get_drvdata(codec);
 	int i, ret;
 
 	priv->core.arizona->dapm = dapm;
 
-	arizona_init_spk(codec);
+	ret = arizona_init_spk(codec);
+	if (ret < 0)
+		return ret;
+
 	arizona_init_gpio(codec);
 	arizona_init_mono(codec);
+	arizona_init_notifiers(codec);
 
 	for (i = 0; i < WM5110_NUM_ADSP; ++i) {
 		ret = wm_adsp2_codec_probe(&priv->core.adsp[i], codec);
@@ -2022,7 +2304,7 @@ static int wm5110_codec_probe(struct snd_soc_codec *codec)
 	if (ret)
 		goto err_adsp2_codec_probe;
 
-	snd_soc_dapm_disable_pin(dapm, "HAPTICS");
+	snd_soc_component_disable_pin(component, "HAPTICS");
 
 	return 0;
 
@@ -2070,7 +2352,7 @@ static struct regmap *wm5110_get_regmap(struct device *dev)
 	return priv->core.arizona->regmap;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm5110 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm5110 = {
 	.probe = wm5110_codec_probe,
 	.remove = wm5110_codec_remove,
 	.get_regmap = wm5110_get_regmap,
@@ -2080,12 +2362,28 @@ static struct snd_soc_codec_driver soc_codec_dev_wm5110 = {
 	.set_sysclk = arizona_set_sysclk,
 	.set_pll = wm5110_set_fll,
 
-	.controls = wm5110_snd_controls,
-	.num_controls = ARRAY_SIZE(wm5110_snd_controls),
-	.dapm_widgets = wm5110_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm5110_dapm_widgets),
-	.dapm_routes = wm5110_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(wm5110_dapm_routes),
+	.component_driver = {
+		.controls		= wm5110_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm5110_snd_controls),
+		.dapm_widgets		= wm5110_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm5110_dapm_widgets),
+		.dapm_routes		= wm5110_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(wm5110_dapm_routes),
+	},
+};
+
+static struct snd_compr_ops wm5110_compr_ops = {
+	.open = wm5110_open,
+	.free = wm_adsp_compr_free,
+	.set_params = wm_adsp_compr_set_params,
+	.get_caps = wm_adsp_compr_get_caps,
+	.trigger = wm_adsp_compr_trigger,
+	.pointer = wm_adsp_compr_pointer,
+	.copy = wm_adsp_compr_copy,
+};
+
+static struct snd_soc_platform_driver wm5110_compr_platform = {
+	.compr_ops = &wm5110_compr_ops,
 };
 
 static int wm5110_probe(struct platform_device *pdev)
@@ -2148,14 +2446,59 @@ static int wm5110_probe(struct platform_device *pdev)
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_idle(&pdev->dev);
 
-	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_wm5110,
+	ret = arizona_request_irq(arizona, ARIZONA_IRQ_DSP_IRQ1,
+				  "ADSP2 Compressed IRQ", wm5110_adsp2_irq,
+				  wm5110);
+	if (ret != 0) {
+		dev_err(&pdev->dev, "Failed to request DSP IRQ: %d\n", ret);
+		return ret;
+	}
+
+	ret = arizona_init_spk_irqs(arizona);
+	if (ret < 0)
+		goto err_dsp_irq;
+
+	ret = snd_soc_register_platform(&pdev->dev, &wm5110_compr_platform);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to register platform: %d\n", ret);
+		goto err_spk_irqs;
+	}
+
+	ret = snd_soc_register_codec(&pdev->dev, &soc_codec_dev_wm5110,
 				      wm5110_dai, ARRAY_SIZE(wm5110_dai));
+	if (ret < 0) {
+		dev_err(&pdev->dev, "Failed to register codec: %d\n", ret);
+		goto err_platform;
+	}
+
+	return ret;
+
+err_platform:
+	snd_soc_unregister_platform(&pdev->dev);
+err_spk_irqs:
+	arizona_free_spk_irqs(arizona);
+err_dsp_irq:
+	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, wm5110);
+
+	return ret;
 }
 
 static int wm5110_remove(struct platform_device *pdev)
 {
+	struct wm5110_priv *wm5110 = platform_get_drvdata(pdev);
+	struct arizona *arizona = wm5110->core.arizona;
+	int i;
+
+	snd_soc_unregister_platform(&pdev->dev);
 	snd_soc_unregister_codec(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
+
+	for (i = 0; i < WM5110_NUM_ADSP; i++)
+		wm_adsp2_remove(&wm5110->core.adsp[i]);
+
+	arizona_free_spk_irqs(arizona);
+
+	arizona_free_irq(arizona, ARIZONA_IRQ_DSP_IRQ1, wm5110);
 
 	return 0;
 }

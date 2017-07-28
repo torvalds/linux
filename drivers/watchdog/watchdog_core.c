@@ -32,6 +32,7 @@
 #include <linux/types.h>	/* For standard types */
 #include <linux/errno.h>	/* For the -ENODEV/... values */
 #include <linux/kernel.h>	/* For printk/panic/... */
+#include <linux/reboot.h>	/* For restart handler */
 #include <linux/watchdog.h>	/* For watchdog specific items */
 #include <linux/init.h>		/* For __init/__exit/... */
 #include <linux/idr.h>		/* For ida_* macros */
@@ -41,7 +42,6 @@
 #include "watchdog_core.h"	/* For watchdog_dev_register/... */
 
 static DEFINE_IDA(watchdog_ida);
-static struct class *watchdog_class;
 
 /*
  * Deferred Registration infrastructure.
@@ -88,7 +88,7 @@ static void watchdog_check_min_max_timeout(struct watchdog_device *wdd)
 	 * Check that we have valid min and max timeout values, if
 	 * not reset them both to 0 (=not used or unknown)
 	 */
-	if (wdd->min_timeout > wdd->max_timeout) {
+	if (!wdd->max_hw_heartbeat_ms && wdd->min_timeout > wdd->max_timeout) {
 		pr_info("Invalid min and max timeout values, resetting to 0!\n");
 		wdd->min_timeout = 0;
 		wdd->max_timeout = 0;
@@ -104,7 +104,7 @@ static void watchdog_check_min_max_timeout(struct watchdog_device *wdd)
  * timeout module parameter (if it is valid value) or the timeout-sec property
  * (only if it is a valid value and the timeout_parm is out of bounds).
  * If none of them are valid then we keep the old value (which should normally
- * be the default timeout value.
+ * be the default timeout value).
  *
  * A zero is returned on success and -EINVAL for failure.
  */
@@ -137,15 +137,69 @@ int watchdog_init_timeout(struct watchdog_device *wdd,
 }
 EXPORT_SYMBOL_GPL(watchdog_init_timeout);
 
+static int watchdog_reboot_notifier(struct notifier_block *nb,
+				    unsigned long code, void *data)
+{
+	struct watchdog_device *wdd = container_of(nb, struct watchdog_device,
+						   reboot_nb);
+
+	if (code == SYS_DOWN || code == SYS_HALT) {
+		if (watchdog_active(wdd)) {
+			int ret;
+
+			ret = wdd->ops->stop(wdd);
+			if (ret)
+				return NOTIFY_BAD;
+		}
+	}
+
+	return NOTIFY_DONE;
+}
+
+static int watchdog_restart_notifier(struct notifier_block *nb,
+				     unsigned long action, void *data)
+{
+	struct watchdog_device *wdd = container_of(nb, struct watchdog_device,
+						   restart_nb);
+
+	int ret;
+
+	ret = wdd->ops->restart(wdd, action, data);
+	if (ret)
+		return NOTIFY_BAD;
+
+	return NOTIFY_DONE;
+}
+
+/**
+ * watchdog_set_restart_priority - Change priority of restart handler
+ * @wdd: watchdog device
+ * @priority: priority of the restart handler, should follow these guidelines:
+ *   0:   use watchdog's restart function as last resort, has limited restart
+ *        capabilies
+ *   128: default restart handler, use if no other handler is expected to be
+ *        available and/or if restart is sufficient to restart the entire system
+ *   255: preempt all other handlers
+ *
+ * If a wdd->ops->restart function is provided when watchdog_register_device is
+ * called, it will be registered as a restart handler with the priority given
+ * here.
+ */
+void watchdog_set_restart_priority(struct watchdog_device *wdd, int priority)
+{
+	wdd->restart_nb.priority = priority;
+}
+EXPORT_SYMBOL_GPL(watchdog_set_restart_priority);
+
 static int __watchdog_register_device(struct watchdog_device *wdd)
 {
-	int ret, id = -1, devno;
+	int ret, id = -1;
 
 	if (wdd == NULL || wdd->info == NULL || wdd->ops == NULL)
 		return -EINVAL;
 
 	/* Mandatory operations need to be supported */
-	if (wdd->ops->start == NULL || wdd->ops->stop == NULL)
+	if (!wdd->ops->start || (!wdd->ops->stop && !wdd->max_hw_heartbeat_ms))
 		return -EINVAL;
 
 	watchdog_check_min_max_timeout(wdd);
@@ -155,8 +209,6 @@ static int __watchdog_register_device(struct watchdog_device *wdd)
 	 * will not check this anymore in other functions. If data gets
 	 * corrupted in a later stage then we expect a kernel panic!
 	 */
-
-	mutex_init(&wdd->lock);
 
 	/* Use alias for watchdog id if possible */
 	if (wdd->parent) {
@@ -192,14 +244,26 @@ static int __watchdog_register_device(struct watchdog_device *wdd)
 		}
 	}
 
-	devno = wdd->cdev.dev;
-	wdd->dev = device_create(watchdog_class, wdd->parent, devno,
-					NULL, "watchdog%d", wdd->id);
-	if (IS_ERR(wdd->dev)) {
-		watchdog_dev_unregister(wdd);
-		ida_simple_remove(&watchdog_ida, id);
-		ret = PTR_ERR(wdd->dev);
-		return ret;
+	if (test_bit(WDOG_STOP_ON_REBOOT, &wdd->status)) {
+		wdd->reboot_nb.notifier_call = watchdog_reboot_notifier;
+
+		ret = register_reboot_notifier(&wdd->reboot_nb);
+		if (ret) {
+			pr_err("watchdog%d: Cannot register reboot notifier (%d)\n",
+			       wdd->id, ret);
+			watchdog_dev_unregister(wdd);
+			ida_simple_remove(&watchdog_ida, wdd->id);
+			return ret;
+		}
+	}
+
+	if (wdd->ops->restart) {
+		wdd->restart_nb.notifier_call = watchdog_restart_notifier;
+
+		ret = register_restart_handler(&wdd->restart_nb);
+		if (ret)
+			pr_warn("watchdog%d: Cannot register restart handler (%d)\n",
+				wdd->id, ret);
 	}
 
 	return 0;
@@ -232,19 +296,17 @@ EXPORT_SYMBOL_GPL(watchdog_register_device);
 
 static void __watchdog_unregister_device(struct watchdog_device *wdd)
 {
-	int ret;
-	int devno;
-
 	if (wdd == NULL)
 		return;
 
-	devno = wdd->cdev.dev;
-	ret = watchdog_dev_unregister(wdd);
-	if (ret)
-		pr_err("error unregistering /dev/watchdog (err=%d)\n", ret);
-	device_destroy(watchdog_class, devno);
+	if (wdd->ops->restart)
+		unregister_restart_handler(&wdd->restart_nb);
+
+	if (test_bit(WDOG_STOP_ON_REBOOT, &wdd->status))
+		unregister_reboot_notifier(&wdd->reboot_nb);
+
+	watchdog_dev_unregister(wdd);
 	ida_simple_remove(&watchdog_ida, wdd->id);
-	wdd->dev = NULL;
 }
 
 /**
@@ -267,6 +329,43 @@ void watchdog_unregister_device(struct watchdog_device *wdd)
 
 EXPORT_SYMBOL_GPL(watchdog_unregister_device);
 
+static void devm_watchdog_unregister_device(struct device *dev, void *res)
+{
+	watchdog_unregister_device(*(struct watchdog_device **)res);
+}
+
+/**
+ * devm_watchdog_register_device() - resource managed watchdog_register_device()
+ * @dev: device that is registering this watchdog device
+ * @wdd: watchdog device
+ *
+ * Managed watchdog_register_device(). For watchdog device registered by this
+ * function,  watchdog_unregister_device() is automatically called on driver
+ * detach. See watchdog_register_device() for more information.
+ */
+int devm_watchdog_register_device(struct device *dev,
+				struct watchdog_device *wdd)
+{
+	struct watchdog_device **rcwdd;
+	int ret;
+
+	rcwdd = devres_alloc(devm_watchdog_unregister_device, sizeof(*rcwdd),
+			     GFP_KERNEL);
+	if (!rcwdd)
+		return -ENOMEM;
+
+	ret = watchdog_register_device(wdd);
+	if (!ret) {
+		*rcwdd = wdd;
+		devres_add(dev, rcwdd);
+	} else {
+		devres_free(rcwdd);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(devm_watchdog_register_device);
+
 static int __init watchdog_deferred_registration(void)
 {
 	mutex_lock(&wtd_deferred_reg_mutex);
@@ -287,17 +386,9 @@ static int __init watchdog_init(void)
 {
 	int err;
 
-	watchdog_class = class_create(THIS_MODULE, "watchdog");
-	if (IS_ERR(watchdog_class)) {
-		pr_err("couldn't create class\n");
-		return PTR_ERR(watchdog_class);
-	}
-
 	err = watchdog_dev_init();
-	if (err < 0) {
-		class_destroy(watchdog_class);
+	if (err < 0)
 		return err;
-	}
 
 	watchdog_deferred_registration();
 	return 0;
@@ -306,7 +397,6 @@ static int __init watchdog_init(void)
 static void __exit watchdog_exit(void)
 {
 	watchdog_dev_exit();
-	class_destroy(watchdog_class);
 	ida_destroy(&watchdog_ida);
 }
 

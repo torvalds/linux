@@ -562,9 +562,9 @@ static int cx22702_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 	return 0;
 }
 
-static int cx22702_get_frontend(struct dvb_frontend *fe)
+static int cx22702_get_frontend(struct dvb_frontend *fe,
+				struct dtv_frontend_properties *c)
 {
-	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct cx22702_state *state = fe->demodulator_priv;
 
 	u8 reg0C = cx22702_readreg(state, 0x0C);

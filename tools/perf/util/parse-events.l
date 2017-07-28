@@ -9,8 +9,8 @@
 %{
 #include <errno.h>
 #include "../perf.h"
-#include "parse-events-bison.h"
 #include "parse-events.h"
+#include "parse-events-bison.h"
 
 char *parse_events_get_text(yyscan_t yyscanner);
 YYSTYPE *parse_events_get_lval(yyscan_t yyscanner);
@@ -50,6 +50,26 @@ static int str(yyscan_t scanner, int token)
 	char *text = parse_events_get_text(scanner);
 
 	yylval->str = strdup(text);
+	return token;
+}
+
+/*
+ * This function is called when the parser gets two kind of input:
+ *
+ * 	@cfg1 or @cfg2=config
+ *
+ * The leading '@' is stripped off before 'cfg1' and 'cfg2=config' are given to
+ * bison.  In the latter case it is necessary to keep the string intact so that
+ * the PMU kernel driver can determine what configurable is associated to
+ * 'config'.
+ */
+static int drv_str(yyscan_t scanner, int token)
+{
+	YYSTYPE *yylval = parse_events_get_lval(scanner);
+	char *text = parse_events_get_text(scanner);
+
+	/* Strip off the '@' */
+	yylval->str = strdup(text + 1);
 	return token;
 }
 
@@ -111,18 +131,20 @@ do {							\
 %x mem
 %s config
 %x event
+%x array
 
 group		[^,{}/]*[{][^}]*[}][^,{}/]*
 event_pmu	[^,{}/]+[/][^/]*[/][^,{}/]*
 event		[^,{}/]+
-bpf_object	.*\.(o|bpf)
-bpf_source	.*\.c
+bpf_object	[^,{}]+\.(o|bpf)
+bpf_source	[^,{}]+\.c
 
 num_dec		[0-9]+
 num_hex		0x[a-fA-F0-9]+
 num_raw_hex	[a-fA-F0-9]+
 name		[a-zA-Z_*?][a-zA-Z0-9_*?.]*
-name_minus	[a-zA-Z_*?][a-zA-Z0-9\-_*?.]*
+name_minus	[a-zA-Z_*?][a-zA-Z0-9\-_*?.:]*
+drv_cfg_term	[a-zA-Z0-9_\.]+(=[a-zA-Z0-9_*?\.:]+)?
 /* If you add a modifier you need to update check_modifier() */
 modifier_event	[ukhpPGHSDI]+
 modifier_bp	[rwx]{1,3}
@@ -176,10 +198,17 @@ modifier_bp	[rwx]{1,3}
 
 }
 
+<array>{
+"]"			{ BEGIN(config); return ']'; }
+{num_dec}		{ return value(yyscanner, 10); }
+{num_hex}		{ return value(yyscanner, 16); }
+,			{ return ','; }
+"\.\.\."		{ return PE_ARRAY_RANGE; }
+}
+
 <config>{
 	/*
-	 * Please update parse_events_formats_error_string any time
-	 * new static term is added.
+	 * Please update config_term_names when new static term is added.
 	 */
 config			{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_CONFIG); }
 config1			{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_CONFIG1); }
@@ -191,11 +220,17 @@ branch_type		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_BRANCH_SAMPLE_TYPE
 time			{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_TIME); }
 call-graph		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_CALLGRAPH); }
 stack-size		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_STACKSIZE); }
+max-stack		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_MAX_STACK); }
 inherit			{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_INHERIT); }
 no-inherit		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_NOINHERIT); }
+overwrite		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_OVERWRITE); }
+no-overwrite		{ return term(yyscanner, PARSE_EVENTS__TERM_TYPE_NOOVERWRITE); }
 ,			{ return ','; }
 "/"			{ BEGIN(INITIAL); return '/'; }
 {name_minus}		{ return str(yyscanner, PE_NAME); }
+\[all\]			{ return PE_ARRAY_ALL; }
+"["			{ BEGIN(array); return '['; }
+@{drv_cfg_term}		{ return drv_str(yyscanner, PE_DRV_CFG_TERM); }
 }
 
 <mem>{
@@ -238,6 +273,7 @@ cpu-migrations|migrations			{ return sym(yyscanner, PERF_TYPE_SOFTWARE, PERF_COU
 alignment-faults				{ return sym(yyscanner, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_ALIGNMENT_FAULTS); }
 emulation-faults				{ return sym(yyscanner, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_EMULATION_FAULTS); }
 dummy						{ return sym(yyscanner, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_DUMMY); }
+bpf-output					{ return sym(yyscanner, PERF_TYPE_SOFTWARE, PERF_COUNT_SW_BPF_OUTPUT); }
 
 	/*
 	 * We have to handle the kernel PMU event cycles-ct/cycles-t/mem-loads/mem-stores separately.
@@ -248,6 +284,7 @@ cycles-ct					{ return str(yyscanner, PE_KERNEL_PMU_EVENT); }
 cycles-t					{ return str(yyscanner, PE_KERNEL_PMU_EVENT); }
 mem-loads					{ return str(yyscanner, PE_KERNEL_PMU_EVENT); }
 mem-stores					{ return str(yyscanner, PE_KERNEL_PMU_EVENT); }
+topdown-[a-z-]+					{ return str(yyscanner, PE_KERNEL_PMU_EVENT); }
 
 L1-dcache|l1-d|l1d|L1-data		|
 L1-icache|l1-i|l1i|L1-instruction	|

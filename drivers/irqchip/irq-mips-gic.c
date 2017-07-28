@@ -30,15 +30,19 @@ struct gic_pcpu_mask {
 };
 
 static unsigned long __gic_base_addr;
+
 static void __iomem *gic_base;
 static struct gic_pcpu_mask pcpu_masks[NR_CPUS];
 static DEFINE_SPINLOCK(gic_lock);
 static struct irq_domain *gic_irq_domain;
+static struct irq_domain *gic_ipi_domain;
 static int gic_shared_intrs;
 static int gic_vpes;
 static unsigned int gic_cpu_pin;
 static unsigned int timer_cpu_pin;
 static struct irq_chip gic_level_irq_controller, gic_edge_irq_controller;
+DECLARE_BITMAP(ipi_resrv, GIC_MAX_INTRS);
+DECLARE_BITMAP(ipi_available, GIC_MAX_INTRS);
 
 static void __gic_irq_dispatch(void);
 
@@ -136,12 +140,12 @@ static inline void gic_map_to_vpe(unsigned int intr, unsigned int vpe)
 }
 
 #ifdef CONFIG_CLKSRC_MIPS_GIC
-cycle_t gic_read_count(void)
+u64 notrace gic_read_count(void)
 {
 	unsigned int hi, hi2, lo;
 
 	if (mips_cm_is64)
-		return (cycle_t)gic_read(GIC_REG(SHARED, GIC_SH_COUNTER));
+		return (u64)gic_read(GIC_REG(SHARED, GIC_SH_COUNTER));
 
 	do {
 		hi = gic_read32(GIC_REG(SHARED, GIC_SH_COUNTER_63_32));
@@ -149,7 +153,7 @@ cycle_t gic_read_count(void)
 		hi2 = gic_read32(GIC_REG(SHARED, GIC_SH_COUNTER_63_32));
 	} while (hi2 != hi);
 
-	return (((cycle_t) hi) << 32) + lo;
+	return (((u64) hi) << 32) + lo;
 }
 
 unsigned int gic_get_count_width(void)
@@ -163,7 +167,7 @@ unsigned int gic_get_count_width(void)
 	return bits;
 }
 
-void gic_write_compare(cycle_t cnt)
+void notrace gic_write_compare(u64 cnt)
 {
 	if (mips_cm_is64) {
 		gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_COMPARE), cnt);
@@ -175,13 +179,13 @@ void gic_write_compare(cycle_t cnt)
 	}
 }
 
-void gic_write_cpu_compare(cycle_t cnt, int cpu)
+void notrace gic_write_cpu_compare(u64 cnt, int cpu)
 {
 	unsigned long flags;
 
 	local_irq_save(flags);
 
-	gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR), cpu);
+	gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR), mips_cm_vp_id(cpu));
 
 	if (mips_cm_is64) {
 		gic_write(GIC_REG(VPE_OTHER, GIC_VPE_COMPARE), cnt);
@@ -195,17 +199,17 @@ void gic_write_cpu_compare(cycle_t cnt, int cpu)
 	local_irq_restore(flags);
 }
 
-cycle_t gic_read_compare(void)
+u64 gic_read_compare(void)
 {
 	unsigned int hi, lo;
 
 	if (mips_cm_is64)
-		return (cycle_t)gic_read(GIC_REG(VPE_LOCAL, GIC_VPE_COMPARE));
+		return (u64)gic_read(GIC_REG(VPE_LOCAL, GIC_VPE_COMPARE));
 
 	hi = gic_read32(GIC_REG(VPE_LOCAL, GIC_VPE_COMPARE_HI));
 	lo = gic_read32(GIC_REG(VPE_LOCAL, GIC_VPE_COMPARE_LO));
 
-	return (((cycle_t) hi) << 32) + lo;
+	return (((u64) hi) << 32) + lo;
 }
 
 void gic_start_count(void)
@@ -229,6 +233,14 @@ void gic_stop_count(void)
 }
 
 #endif
+
+unsigned gic_read_local_vp_id(void)
+{
+	unsigned long ident;
+
+	ident = gic_read(GIC_REG(VPE_LOCAL, GIC_VP_IDENT));
+	return ident & GIC_VP_IDENT_VCNUM_MSK;
+}
 
 static bool gic_local_irq_is_routable(int intr)
 {
@@ -264,9 +276,11 @@ static void gic_bind_eic_interrupt(int irq, int set)
 		  GIC_VPE_EIC_SS(irq), set);
 }
 
-void gic_send_ipi(unsigned int intr)
+static void gic_send_ipi(struct irq_data *d, unsigned int cpu)
 {
-	gic_write(GIC_REG(SHARED, GIC_SH_WEDGE), GIC_SH_WEDGE_SET(intr));
+	irq_hw_number_t hwirq = GIC_HWIRQ_TO_SHARED(irqd_to_hwirq(d));
+
+	gic_write(GIC_REG(SHARED, GIC_SH_WEDGE), GIC_SH_WEDGE_SET(hwirq));
 }
 
 int gic_get_c0_compare_int(void)
@@ -333,7 +347,7 @@ static void gic_handle_shared_int(bool chained)
 		pending_reg += gic_reg_step;
 		intrmask_reg += gic_reg_step;
 
-		if (!config_enabled(CONFIG_64BIT) || mips_cm_is64)
+		if (!IS_ENABLED(CONFIG_64BIT) || mips_cm_is64)
 			continue;
 
 		pending[i] |= (u64)gic_read(pending_reg) << 32;
@@ -345,18 +359,13 @@ static void gic_handle_shared_int(bool chained)
 	bitmap_and(pending, pending, intrmask, gic_shared_intrs);
 	bitmap_and(pending, pending, pcpu_mask, gic_shared_intrs);
 
-	intr = find_first_bit(pending, gic_shared_intrs);
-	while (intr != gic_shared_intrs) {
+	for_each_set_bit(intr, pending, gic_shared_intrs) {
 		virq = irq_linear_revmap(gic_irq_domain,
 					 GIC_SHARED_TO_HWIRQ(intr));
 		if (chained)
 			generic_handle_irq(virq);
 		else
 			do_IRQ(virq);
-
-		/* go to next pending bit */
-		bitmap_clear(pending, intr, 1);
-		intr = find_first_bit(pending, gic_shared_intrs);
 	}
 }
 
@@ -449,7 +458,7 @@ static int gic_set_affinity(struct irq_data *d, const struct cpumask *cpumask,
 	gic_map_to_vpe(irq, mips_cm_vp_id(cpumask_first(&tmp)));
 
 	/* Update the pcpu_masks */
-	for (i = 0; i < NR_CPUS; i++)
+	for (i = 0; i < min(gic_vpes, NR_CPUS); i++)
 		clear_bit(irq, pcpu_masks[i].pcpu_mask);
 	set_bit(irq, pcpu_masks[cpumask_first(&tmp)].pcpu_mask);
 
@@ -479,6 +488,7 @@ static struct irq_chip gic_edge_irq_controller = {
 #ifdef CONFIG_SMP
 	.irq_set_affinity	=	gic_set_affinity,
 #endif
+	.ipi_send_single	=	gic_send_ipi,
 };
 
 static void gic_handle_local_int(bool chained)
@@ -491,18 +501,13 @@ static void gic_handle_local_int(bool chained)
 
 	bitmap_and(&pending, &pending, &masked, GIC_NUM_LOCAL_INTRS);
 
-	intr = find_first_bit(&pending, GIC_NUM_LOCAL_INTRS);
-	while (intr != GIC_NUM_LOCAL_INTRS) {
+	for_each_set_bit(intr, &pending, GIC_NUM_LOCAL_INTRS) {
 		virq = irq_linear_revmap(gic_irq_domain,
 					 GIC_LOCAL_TO_HWIRQ(intr));
 		if (chained)
 			generic_handle_irq(virq);
 		else
 			do_IRQ(virq);
-
-		/* go to next pending bit */
-		bitmap_clear(&pending, intr, 1);
-		intr = find_first_bit(&pending, GIC_NUM_LOCAL_INTRS);
 	}
 }
 
@@ -534,7 +539,8 @@ static void gic_mask_local_irq_all_vpes(struct irq_data *d)
 
 	spin_lock_irqsave(&gic_lock, flags);
 	for (i = 0; i < gic_vpes; i++) {
-		gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR), i);
+		gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR),
+			  mips_cm_vp_id(i));
 		gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_RMASK), 1 << intr);
 	}
 	spin_unlock_irqrestore(&gic_lock, flags);
@@ -548,7 +554,8 @@ static void gic_unmask_local_irq_all_vpes(struct irq_data *d)
 
 	spin_lock_irqsave(&gic_lock, flags);
 	for (i = 0; i < gic_vpes; i++) {
-		gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR), i);
+		gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR),
+			  mips_cm_vp_id(i));
 		gic_write32(GIC_REG(VPE_OTHER, GIC_VPE_SMASK), 1 << intr);
 	}
 	spin_unlock_irqrestore(&gic_lock, flags);
@@ -572,83 +579,6 @@ static void gic_irq_dispatch(struct irq_desc *desc)
 	gic_handle_shared_int(true);
 }
 
-#ifdef CONFIG_MIPS_GIC_IPI
-static int gic_resched_int_base;
-static int gic_call_int_base;
-
-unsigned int plat_ipi_resched_int_xlate(unsigned int cpu)
-{
-	return gic_resched_int_base + cpu;
-}
-
-unsigned int plat_ipi_call_int_xlate(unsigned int cpu)
-{
-	return gic_call_int_base + cpu;
-}
-
-static irqreturn_t ipi_resched_interrupt(int irq, void *dev_id)
-{
-	scheduler_ipi();
-
-	return IRQ_HANDLED;
-}
-
-static irqreturn_t ipi_call_interrupt(int irq, void *dev_id)
-{
-	generic_smp_call_function_interrupt();
-
-	return IRQ_HANDLED;
-}
-
-static struct irqaction irq_resched = {
-	.handler	= ipi_resched_interrupt,
-	.flags		= IRQF_PERCPU,
-	.name		= "IPI resched"
-};
-
-static struct irqaction irq_call = {
-	.handler	= ipi_call_interrupt,
-	.flags		= IRQF_PERCPU,
-	.name		= "IPI call"
-};
-
-static __init void gic_ipi_init_one(unsigned int intr, int cpu,
-				    struct irqaction *action)
-{
-	int virq = irq_create_mapping(gic_irq_domain,
-				      GIC_SHARED_TO_HWIRQ(intr));
-	int i;
-
-	gic_map_to_vpe(intr, mips_cm_vp_id(cpu));
-	for (i = 0; i < NR_CPUS; i++)
-		clear_bit(intr, pcpu_masks[i].pcpu_mask);
-	set_bit(intr, pcpu_masks[cpu].pcpu_mask);
-
-	irq_set_irq_type(virq, IRQ_TYPE_EDGE_RISING);
-
-	irq_set_handler(virq, handle_percpu_irq);
-	setup_irq(virq, action);
-}
-
-static __init void gic_ipi_init(void)
-{
-	int i;
-
-	/* Use last 2 * NR_CPUS interrupts as IPIs */
-	gic_resched_int_base = gic_shared_intrs - nr_cpu_ids;
-	gic_call_int_base = gic_resched_int_base - nr_cpu_ids;
-
-	for (i = 0; i < nr_cpu_ids; i++) {
-		gic_ipi_init_one(gic_call_int_base + i, i, &irq_call);
-		gic_ipi_init_one(gic_resched_int_base + i, i, &irq_resched);
-	}
-}
-#else
-static inline void gic_ipi_init(void)
-{
-}
-#endif
-
 static void __init gic_basic_init(void)
 {
 	unsigned int i;
@@ -665,7 +595,8 @@ static void __init gic_basic_init(void)
 	for (i = 0; i < gic_vpes; i++) {
 		unsigned int j;
 
-		gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR), i);
+		gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR),
+			  mips_cm_vp_id(i));
 		for (j = 0; j < GIC_NUM_LOCAL_INTRS; j++) {
 			if (!gic_local_irq_is_routable(j))
 				continue;
@@ -685,32 +616,12 @@ static int gic_local_irq_domain_map(struct irq_domain *d, unsigned int virq,
 	if (!gic_local_irq_is_routable(intr))
 		return -EPERM;
 
-	/*
-	 * HACK: These are all really percpu interrupts, but the rest
-	 * of the MIPS kernel code does not use the percpu IRQ API for
-	 * the CP0 timer and performance counter interrupts.
-	 */
-	switch (intr) {
-	case GIC_LOCAL_INT_TIMER:
-	case GIC_LOCAL_INT_PERFCTR:
-	case GIC_LOCAL_INT_FDC:
-		irq_set_chip_and_handler(virq,
-					 &gic_all_vpes_local_irq_controller,
-					 handle_percpu_irq);
-		break;
-	default:
-		irq_set_chip_and_handler(virq,
-					 &gic_local_irq_controller,
-					 handle_percpu_devid_irq);
-		irq_set_percpu_devid(virq);
-		break;
-	}
-
 	spin_lock_irqsave(&gic_lock, flags);
 	for (i = 0; i < gic_vpes; i++) {
 		u32 val = GIC_MAP_TO_PIN_MSK | gic_cpu_pin;
 
-		gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR), i);
+		gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR),
+			  mips_cm_vp_id(i));
 
 		switch (intr) {
 		case GIC_LOCAL_INT_WD:
@@ -753,30 +664,21 @@ static int gic_local_irq_domain_map(struct irq_domain *d, unsigned int virq,
 }
 
 static int gic_shared_irq_domain_map(struct irq_domain *d, unsigned int virq,
-				     irq_hw_number_t hw)
+				     irq_hw_number_t hw, unsigned int vpe)
 {
 	int intr = GIC_HWIRQ_TO_SHARED(hw);
 	unsigned long flags;
-
-	irq_set_chip_and_handler(virq, &gic_level_irq_controller,
-				 handle_level_irq);
+	int i;
 
 	spin_lock_irqsave(&gic_lock, flags);
 	gic_map_to_pin(intr, gic_cpu_pin);
-	/* Map to VPE 0 by default */
-	gic_map_to_vpe(intr, 0);
-	set_bit(intr, pcpu_masks[0].pcpu_mask);
+	gic_map_to_vpe(intr, mips_cm_vp_id(vpe));
+	for (i = 0; i < min(gic_vpes, NR_CPUS); i++)
+		clear_bit(intr, pcpu_masks[i].pcpu_mask);
+	set_bit(intr, pcpu_masks[vpe].pcpu_mask);
 	spin_unlock_irqrestore(&gic_lock, flags);
 
 	return 0;
-}
-
-static int gic_irq_domain_map(struct irq_domain *d, unsigned int virq,
-			      irq_hw_number_t hw)
-{
-	if (GIC_HWIRQ_TO_LOCAL(hw) < GIC_NUM_LOCAL_INTRS)
-		return gic_local_irq_domain_map(d, virq, hw);
-	return gic_shared_irq_domain_map(d, virq, hw);
 }
 
 static int gic_irq_domain_xlate(struct irq_domain *d, struct device_node *ctrlr,
@@ -798,9 +700,185 @@ static int gic_irq_domain_xlate(struct irq_domain *d, struct device_node *ctrlr,
 	return 0;
 }
 
+static int gic_irq_domain_map(struct irq_domain *d, unsigned int virq,
+			      irq_hw_number_t hwirq)
+{
+	int err;
+
+	if (hwirq >= GIC_SHARED_HWIRQ_BASE) {
+		/* verify that shared irqs don't conflict with an IPI irq */
+		if (test_bit(GIC_HWIRQ_TO_SHARED(hwirq), ipi_resrv))
+			return -EBUSY;
+
+		err = irq_domain_set_hwirq_and_chip(d, virq, hwirq,
+						    &gic_level_irq_controller,
+						    NULL);
+		if (err)
+			return err;
+
+		return gic_shared_irq_domain_map(d, virq, hwirq, 0);
+	}
+
+	switch (GIC_HWIRQ_TO_LOCAL(hwirq)) {
+	case GIC_LOCAL_INT_TIMER:
+	case GIC_LOCAL_INT_PERFCTR:
+	case GIC_LOCAL_INT_FDC:
+		/*
+		 * HACK: These are all really percpu interrupts, but
+		 * the rest of the MIPS kernel code does not use the
+		 * percpu IRQ API for them.
+		 */
+		err = irq_domain_set_hwirq_and_chip(d, virq, hwirq,
+						    &gic_all_vpes_local_irq_controller,
+						    NULL);
+		if (err)
+			return err;
+
+		irq_set_handler(virq, handle_percpu_irq);
+		break;
+
+	default:
+		err = irq_domain_set_hwirq_and_chip(d, virq, hwirq,
+						    &gic_local_irq_controller,
+						    NULL);
+		if (err)
+			return err;
+
+		irq_set_handler(virq, handle_percpu_devid_irq);
+		irq_set_percpu_devid(virq);
+		break;
+	}
+
+	return gic_local_irq_domain_map(d, virq, hwirq);
+}
+
+static int gic_irq_domain_alloc(struct irq_domain *d, unsigned int virq,
+				unsigned int nr_irqs, void *arg)
+{
+	struct irq_fwspec *fwspec = arg;
+	irq_hw_number_t hwirq;
+
+	if (fwspec->param[0] == GIC_SHARED)
+		hwirq = GIC_SHARED_TO_HWIRQ(fwspec->param[1]);
+	else
+		hwirq = GIC_LOCAL_TO_HWIRQ(fwspec->param[1]);
+
+	return gic_irq_domain_map(d, virq, hwirq);
+}
+
+void gic_irq_domain_free(struct irq_domain *d, unsigned int virq,
+			 unsigned int nr_irqs)
+{
+}
+
 static const struct irq_domain_ops gic_irq_domain_ops = {
-	.map = gic_irq_domain_map,
 	.xlate = gic_irq_domain_xlate,
+	.alloc = gic_irq_domain_alloc,
+	.free = gic_irq_domain_free,
+	.map = gic_irq_domain_map,
+};
+
+static int gic_ipi_domain_xlate(struct irq_domain *d, struct device_node *ctrlr,
+				const u32 *intspec, unsigned int intsize,
+				irq_hw_number_t *out_hwirq,
+				unsigned int *out_type)
+{
+	/*
+	 * There's nothing to translate here. hwirq is dynamically allocated and
+	 * the irq type is always edge triggered.
+	 * */
+	*out_hwirq = 0;
+	*out_type = IRQ_TYPE_EDGE_RISING;
+
+	return 0;
+}
+
+static int gic_ipi_domain_alloc(struct irq_domain *d, unsigned int virq,
+				unsigned int nr_irqs, void *arg)
+{
+	struct cpumask *ipimask = arg;
+	irq_hw_number_t hwirq, base_hwirq;
+	int cpu, ret, i;
+
+	base_hwirq = find_first_bit(ipi_available, gic_shared_intrs);
+	if (base_hwirq == gic_shared_intrs)
+		return -ENOMEM;
+
+	/* check that we have enough space */
+	for (i = base_hwirq; i < nr_irqs; i++) {
+		if (!test_bit(i, ipi_available))
+			return -EBUSY;
+	}
+	bitmap_clear(ipi_available, base_hwirq, nr_irqs);
+
+	/* map the hwirq for each cpu consecutively */
+	i = 0;
+	for_each_cpu(cpu, ipimask) {
+		hwirq = GIC_SHARED_TO_HWIRQ(base_hwirq + i);
+
+		ret = irq_domain_set_hwirq_and_chip(d, virq + i, hwirq,
+						    &gic_edge_irq_controller,
+						    NULL);
+		if (ret)
+			goto error;
+
+		ret = irq_domain_set_hwirq_and_chip(d->parent, virq + i, hwirq,
+						    &gic_edge_irq_controller,
+						    NULL);
+		if (ret)
+			goto error;
+
+		ret = irq_set_irq_type(virq + i, IRQ_TYPE_EDGE_RISING);
+		if (ret)
+			goto error;
+
+		ret = gic_shared_irq_domain_map(d, virq + i, hwirq, cpu);
+		if (ret)
+			goto error;
+
+		i++;
+	}
+
+	return 0;
+error:
+	bitmap_set(ipi_available, base_hwirq, nr_irqs);
+	return ret;
+}
+
+void gic_ipi_domain_free(struct irq_domain *d, unsigned int virq,
+			 unsigned int nr_irqs)
+{
+	irq_hw_number_t base_hwirq;
+	struct irq_data *data;
+
+	data = irq_get_irq_data(virq);
+	if (!data)
+		return;
+
+	base_hwirq = GIC_HWIRQ_TO_SHARED(irqd_to_hwirq(data));
+	bitmap_set(ipi_available, base_hwirq, nr_irqs);
+}
+
+int gic_ipi_domain_match(struct irq_domain *d, struct device_node *node,
+			 enum irq_domain_bus_token bus_token)
+{
+	bool is_ipi;
+
+	switch (bus_token) {
+	case DOMAIN_BUS_IPI:
+		is_ipi = d->bus_token == bus_token;
+		return (!node || to_of_node(d->fwnode) == node) && is_ipi;
+		break;
+	default:
+		return 0;
+	}
+}
+
+static const struct irq_domain_ops gic_ipi_domain_ops = {
+	.xlate = gic_ipi_domain_xlate,
+	.alloc = gic_ipi_domain_alloc,
+	.free = gic_ipi_domain_free,
+	.match = gic_ipi_domain_match,
 };
 
 static void __init __gic_init(unsigned long gic_base_addr,
@@ -808,7 +886,8 @@ static void __init __gic_init(unsigned long gic_base_addr,
 			      unsigned int cpu_vec, unsigned int irqbase,
 			      struct device_node *node)
 {
-	unsigned int gicconfig;
+	unsigned int gicconfig, cpu;
+	unsigned int v[2];
 
 	__gic_base_addr = gic_base_addr;
 
@@ -824,6 +903,14 @@ static void __init __gic_init(unsigned long gic_base_addr,
 	gic_vpes = gic_vpes + 1;
 
 	if (cpu_has_veic) {
+		/* Set EIC mode for all VPEs */
+		for_each_present_cpu(cpu) {
+			gic_write(GIC_REG(VPE_LOCAL, GIC_VPE_OTHER_ADDR),
+				  mips_cm_vp_id(cpu));
+			gic_write(GIC_REG(VPE_OTHER, GIC_VPE_CTL),
+				  GIC_VPE_CTL_EIC_MODE_MSK);
+		}
+
 		/* Always use vector 1 in EIC mode */
 		gic_cpu_pin = 0;
 		timer_cpu_pin = gic_cpu_pin;
@@ -864,9 +951,27 @@ static void __init __gic_init(unsigned long gic_base_addr,
 	if (!gic_irq_domain)
 		panic("Failed to add GIC IRQ domain");
 
-	gic_basic_init();
+	gic_ipi_domain = irq_domain_add_hierarchy(gic_irq_domain,
+						  IRQ_DOMAIN_FLAG_IPI_PER_CPU,
+						  GIC_NUM_LOCAL_INTRS + gic_shared_intrs,
+						  node, &gic_ipi_domain_ops, NULL);
+	if (!gic_ipi_domain)
+		panic("Failed to add GIC IPI domain");
 
-	gic_ipi_init();
+	irq_domain_update_bus_token(gic_ipi_domain, DOMAIN_BUS_IPI);
+
+	if (node &&
+	    !of_property_read_u32_array(node, "mti,reserved-ipi-vectors", v, 2)) {
+		bitmap_set(ipi_resrv, v[0], v[1]);
+	} else {
+		/* Make the last 2 * gic_vpes available for IPIs */
+		bitmap_set(ipi_resrv,
+			   gic_shared_intrs - 2 * gic_vpes,
+			   2 * gic_vpes);
+	}
+
+	bitmap_copy(ipi_available, ipi_resrv, GIC_MAX_INTRS);
+	gic_basic_init();
 }
 
 void __init gic_init(unsigned long gic_base_addr,

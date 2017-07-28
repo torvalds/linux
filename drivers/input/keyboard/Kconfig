@@ -12,6 +12,21 @@ menuconfig INPUT_KEYBOARD
 
 if INPUT_KEYBOARD
 
+config KEYBOARD_ADC
+	tristate "ADC Ladder Buttons"
+	depends on IIO
+	select INPUT_POLLDEV
+	help
+	  This driver implements support for buttons connected
+	  to an ADC using a resistor ladder.
+
+	  Say Y here if your device has such buttons connected to an ADC.  Your
+	  board-specific setup logic must also provide a configuration data
+	  for mapping voltages to buttons.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called adc_keys.
+
 config KEYBOARD_ADP5520
 	tristate "Keypad Support for ADP5520 PMIC"
 	depends on PMIC_ADP5520
@@ -162,6 +177,17 @@ config KEYBOARD_CLPS711X
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called clps711x-keypad.
+
+config KEYBOARD_DLINK_DIR685
+	tristate "D-Link DIR-685 touchkeys support"
+	depends on I2C
+	default ARCH_GEMINI
+	help
+	  If you say yes here you get support for the D-Link DIR-685
+	  touchkeys.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called dlink-dir685-touchkeys.
 
 config KEYBOARD_LKKBD
 	tristate "DECstation/VAXstation LK201/LK401 keyboard"
@@ -560,7 +586,7 @@ config KEYBOARD_SUNKBD
 
 config KEYBOARD_SH_KEYSC
 	tristate "SuperH KEYSC keypad support"
-	depends on SUPERH || ARCH_SHMOBILE || COMPILE_TEST
+	depends on ARCH_SHMOBILE || COMPILE_TEST
 	help
 	  Say Y here if you want to use a keypad attached to the KEYSC block
 	  on SuperH processors such as sh7722 and sh7343.
@@ -650,6 +676,17 @@ config KEYBOARD_TC3589X
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called tc3589x-keypad.
+
+config KEYBOARD_TM2_TOUCHKEY
+	tristate "TM2 touchkey support"
+	depends on I2C
+	depends on LEDS_CLASS
+	help
+	  Say Y here to enable device driver for tm2-touchkey with
+	  LED control for the Exynos5433 TM2 board.
+
+	  To compile this driver as a module, choose M here.
+	  module will be called tm2-touchkey.
 
 config KEYBOARD_TWL4030
 	tristate "TI TWL4030/TWL5030/TPS659x0 keypad support"

@@ -252,9 +252,10 @@ def irq__irq_handler_exit(name, context, cpu, sec, nsec, pid, comm, callchain, i
 	event_info = (name, context, cpu, nsecs(sec, nsec), pid, comm, irq, ret)
 	all_event_list.append(event_info)
 
-def napi__napi_poll(name, context, cpu, sec, nsec, pid, comm, callchain, napi, dev_name):
+def napi__napi_poll(name, context, cpu, sec, nsec, pid, comm, callchain, napi,
+                    dev_name, work=None, budget=None):
 	event_info = (name, context, cpu, nsecs(sec, nsec), pid, comm,
-			napi, dev_name)
+			napi, dev_name, work, budget)
 	all_event_list.append(event_info)
 
 def net__netif_receive_skb(name, context, cpu, sec, nsec, pid, comm, callchain, skbaddr,
@@ -354,11 +355,13 @@ def handle_irq_softirq_exit(event_info):
 	receive_hunk_list.append(rec_data)
 
 def handle_napi_poll(event_info):
-	(name, context, cpu, time, pid, comm, napi, dev_name) = event_info
+	(name, context, cpu, time, pid, comm, napi, dev_name,
+		work, budget) = event_info
 	if cpu in net_rx_dic.keys():
 		event_list = net_rx_dic[cpu]['event_list']
 		rec_data = {'event_name':'napi_poll',
-				'dev':dev_name, 'event_t':time}
+				'dev':dev_name, 'event_t':time,
+				'work':work, 'budget':budget}
 		event_list.append(rec_data)
 
 def handle_netif_rx(event_info):

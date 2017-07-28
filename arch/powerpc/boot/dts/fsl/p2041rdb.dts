@@ -1,7 +1,7 @@
 /*
  * P2041RDB Device Tree Source
  *
- * Copyright 2011 - 2014 Freescale Semiconductor Inc.
+ * Copyright 2011 - 2015 Freescale Semiconductor Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -40,6 +40,19 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 	interrupt-parent = <&mpic>;
+
+	aliases {
+		phy_rgmii_0 = &phy_rgmii_0;
+		phy_rgmii_1 = &phy_rgmii_1;
+		phy_sgmii_2 = &phy_sgmii_2;
+		phy_sgmii_3 = &phy_sgmii_3;
+		phy_sgmii_4 = &phy_sgmii_4;
+		phy_sgmii_1c = &phy_sgmii_1c;
+		phy_sgmii_1d = &phy_sgmii_1d;
+		phy_sgmii_1e = &phy_sgmii_1e;
+		phy_sgmii_1f = &phy_sgmii_1f;
+		phy_xgmii_2 = &phy_xgmii_2;
+	};
 
 	memory {
 		device_type = "memory";
@@ -83,7 +96,7 @@
 			flash@0 {
 				#address-cells = <1>;
 				#size-cells = <1>;
-				compatible = "spansion,s25sl12801";
+				compatible = "spansion,s25sl12801", "jedec,spi-nor";
 				reg = <0>;
 				spi-max-frequency = <40000000>; /* input clock */
 				partition@u-boot {
@@ -114,7 +127,7 @@
 				reg = <0x48>;
 			};
 			eeprom@50 {
-				compatible = "at24,24c256";
+				compatible = "atmel,24c256";
 				reg = <0x50>;
 			};
 			rtc@68 {
@@ -129,13 +142,90 @@
 
 		i2c@118100 {
 			eeprom@50 {
-				compatible = "at24,24c256";
+				compatible = "atmel,24c256";
 				reg = <0x50>;
 			};
 		};
 
 		usb1: usb@211000 {
 			dr_mode = "host";
+		};
+
+		fman@400000 {
+			ethernet@e0000 {
+				phy-handle = <&phy_sgmii_2>;
+				phy-connection-type = "sgmii";
+			};
+
+			mdio@e1120 {
+				phy_rgmii_0: ethernet-phy@0 {
+					reg = <0x0>;
+				};
+
+				phy_rgmii_1: ethernet-phy@1 {
+					reg = <0x1>;
+				};
+
+				phy_sgmii_2: ethernet-phy@2 {
+					reg = <0x2>;
+				};
+
+				phy_sgmii_3: ethernet-phy@3 {
+					reg = <0x3>;
+				};
+
+				phy_sgmii_4: ethernet-phy@4 {
+					reg = <0x4>;
+				};
+
+				phy_sgmii_1c: ethernet-phy@1c {
+					reg = <0x1c>;
+				};
+
+				phy_sgmii_1d: ethernet-phy@1d {
+					reg = <0x1d>;
+				};
+
+				phy_sgmii_1e: ethernet-phy@1e {
+					reg = <0x1e>;
+				};
+
+				phy_sgmii_1f: ethernet-phy@1f {
+					reg = <0x1f>;
+				};
+			};
+
+			ethernet@e2000 {
+				phy-handle = <&phy_sgmii_3>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e4000 {
+				phy-handle = <&phy_sgmii_4>;
+				phy-connection-type = "sgmii";
+			};
+
+			ethernet@e6000 {
+				phy-handle = <&phy_rgmii_1>;
+				phy-connection-type = "rgmii";
+			};
+
+			ethernet@e8000 {
+				phy-handle = <&phy_rgmii_0>;
+				phy-connection-type = "rgmii";
+			};
+
+			ethernet@f0000 {
+				phy-handle = <&phy_xgmii_2>;
+				phy-connection-type = "xgmii";
+			};
+
+			mdio@f1000 {
+				phy_xgmii_2: ethernet-phy@0 {
+					compatible = "ethernet-phy-ieee802.3-c45";
+					reg = <0x0>;
+				};
+			};
 		};
 	};
 

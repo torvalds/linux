@@ -14,10 +14,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
- *
  */
 
 #ifndef _DVBDEV_H_
@@ -34,7 +30,7 @@
 #if defined(CONFIG_DVB_MAX_ADAPTERS) && CONFIG_DVB_MAX_ADAPTERS > 0
   #define DVB_MAX_ADAPTERS CONFIG_DVB_MAX_ADAPTERS
 #else
-  #define DVB_MAX_ADAPTERS 8
+  #define DVB_MAX_ADAPTERS 16
 #endif
 
 #define DVB_UNSET (-1)
@@ -75,6 +71,9 @@ struct dvb_frontend;
  *			used.
  * @mdev:		pointer to struct media_device, used when the media
  *			controller is used.
+ * @conn:		RF connector. Used only if the device has no separate
+ *			tuner.
+ * @conn_pads:		pointer to struct media_pad associated with @conn;
  */
 struct dvb_adapter {
 	int num;
@@ -94,6 +93,8 @@ struct dvb_adapter {
 
 #if defined(CONFIG_MEDIA_CONTROLLER_DVB)
 	struct media_device *mdev;
+	struct media_entity *conn;
+	struct media_pad *conn_pads;
 #endif
 };
 
@@ -120,6 +121,11 @@ struct dvb_adapter {
  * @entity:	pointer to struct media_entity associated with the device node
  * @pads:	pointer to struct media_pad associated with @entity;
  * @priv:	private data
+ * @intf_devnode: Pointer to media_intf_devnode. Used by the dvbdev core to
+ *		store the MC device node interface
+ * @tsout_num_entities: Number of Transport Stream output entities
+ * @tsout_entity: array with MC entities associated to each TS output node
+ * @tsout_pads: array with the source pads for each @tsout_entity
  *
  * This structure is used by the DVB core (frontend, CA, net, demux) in
  * order to create the device nodes. Usually, driver should not initialize
@@ -148,8 +154,11 @@ struct dvb_device {
 	const char *name;
 
 	/* Allocated and filled inside dvbdev.c */
-	struct media_entity *entity;
-	struct media_pad *pads;
+	struct media_intf_devnode *intf_devnode;
+
+	unsigned tsout_num_entities;
+	struct media_entity *entity, *tsout_entity;
+	struct media_pad *pads, *tsout_pads;
 #endif
 
 	void *priv;
@@ -185,33 +194,87 @@ int dvb_unregister_adapter(struct dvb_adapter *adap);
  *		stored
  * @template:	Template used to create &pdvbdev;
  * @priv:	private data
- * @type:	type of the device: DVB_DEVICE_SEC, DVB_DEVICE_FRONTEND,
- *		DVB_DEVICE_DEMUX, DVB_DEVICE_DVR, DVB_DEVICE_CA, DVB_DEVICE_NET
+ * @type:	type of the device: %DVB_DEVICE_SEC, %DVB_DEVICE_FRONTEND,
+ *		%DVB_DEVICE_DEMUX, %DVB_DEVICE_DVR, %DVB_DEVICE_CA,
+ *		%DVB_DEVICE_NET
+ * @demux_sink_pads: Number of demux outputs, to be used to create the TS
+ *		outputs via the Media Controller.
  */
 int dvb_register_device(struct dvb_adapter *adap,
 			struct dvb_device **pdvbdev,
 			const struct dvb_device *template,
 			void *priv,
-			int type);
+			int type,
+			int demux_sink_pads);
+
+/**
+ * dvb_remove_device - Remove a registered DVB device
+ *
+ * This does not free memory.  To do that, call dvb_free_device().
+ *
+ * @dvbdev:	pointer to struct dvb_device
+ */
+void dvb_remove_device(struct dvb_device *dvbdev);
+
+/**
+ * dvb_free_device - Free memory occupied by a DVB device.
+ *
+ * Call dvb_unregister_device() before calling this function.
+ *
+ * @dvbdev:	pointer to struct dvb_device
+ */
+void dvb_free_device(struct dvb_device *dvbdev);
 
 /**
  * dvb_unregister_device - Unregisters a DVB device
+ *
+ * This is a combination of dvb_remove_device() and dvb_free_device().
+ * Using this function is usually a mistake, and is often an indicator
+ * for a use-after-free bug (when a userspace process keeps a file
+ * handle to a detached device).
  *
  * @dvbdev:	pointer to struct dvb_device
  */
 void dvb_unregister_device(struct dvb_device *dvbdev);
 
 #ifdef CONFIG_MEDIA_CONTROLLER_DVB
-void dvb_create_media_graph(struct dvb_adapter *adap);
+/**
+ * dvb_create_media_graph - Creates media graph for the Digital TV part of the
+ * 				device.
+ *
+ * @adap:			pointer to struct dvb_adapter
+ * @create_rf_connector:	if true, it creates the RF connector too
+ *
+ * This function checks all DVB-related functions at the media controller
+ * entities and creates the needed links for the media graph. It is
+ * capable of working with multiple tuners or multiple frontends, but it
+ * won't create links if the device has multiple tuners and multiple frontends
+ * or if the device has multiple muxes. In such case, the caller driver should
+ * manually create the remaining links.
+ */
+__must_check int dvb_create_media_graph(struct dvb_adapter *adap,
+					bool create_rf_connector);
+
 static inline void dvb_register_media_controller(struct dvb_adapter *adap,
 						 struct media_device *mdev)
 {
 	adap->mdev = mdev;
 }
 
+static inline struct media_device
+*dvb_get_media_controller(struct dvb_adapter *adap)
+{
+	return adap->mdev;
+}
 #else
-static inline void dvb_create_media_graph(struct dvb_adapter *adap) {}
+static inline
+int dvb_create_media_graph(struct dvb_adapter *adap,
+			   bool create_rf_connector)
+{
+	return 0;
+};
 #define dvb_register_media_controller(a, b) {}
+#define dvb_get_media_controller(a) NULL
 #endif
 
 int dvb_generic_open (struct inode *inode, struct file *file);

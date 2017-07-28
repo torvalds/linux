@@ -82,6 +82,20 @@ config INPUT_ARIZONA_HAPTICS
 	  To compile this driver as a module, choose M here: the
 	  module will be called arizona-haptics.
 
+config INPUT_ATMEL_CAPTOUCH
+	tristate "Atmel Capacitive Touch Button Driver"
+	depends on OF || COMPILE_TEST
+	depends on I2C
+	help
+	  Say Y here if an Atmel Capacitive Touch Button device which
+	  implements "captouch" protocol is connected to I2C bus. Typically
+	  this device consists of Atmel Touch sensor controlled by AtMegaXX
+	  MCU running firmware based on Qtouch library.
+	  One should find "atmel,captouch" node in the board specific DTS.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called atmel_captouch.
+
 config INPUT_BMA150
 	tristate "BMA150/SMB380 acceleration sensor support"
 	depends on I2C
@@ -129,7 +143,7 @@ config INPUT_PM8941_PWRKEY
 
 config INPUT_PM8XXX_VIBRATOR
 	tristate "Qualcomm PM8XXX vibrator support"
-	depends on MFD_PM8XXX
+	depends on MFD_PM8XXX || MFD_SPMI_PMIC
 	select INPUT_FF_MEMLESS
 	help
 	  This option enables device driver support for the vibrator
@@ -220,16 +234,6 @@ config INPUT_MMA8450
 	  To compile this driver as a module, choose M here: the
 	  module will be called mma8450.
 
-config INPUT_MPU3050
-	tristate "MPU3050 Triaxial gyroscope sensor"
-	depends on I2C
-	help
-	  Say Y here if you want to support InvenSense MPU3050
-	  connected via an I2C bus.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called mpu3050.
-
 config INPUT_APANEL
 	tristate "Fujitsu Lifebook Application Panel buttons"
 	depends on X86 && I2C && LEDS_CLASS
@@ -278,6 +282,18 @@ config INPUT_GPIO_TILT_POLLED
 	  To compile this driver as a module, choose M here: the
 	  module will be called gpio_tilt_polled.
 
+config INPUT_GPIO_DECODER
+	tristate "Polled GPIO Decoder Input driver"
+	depends on GPIOLIB || COMPILE_TEST
+	select INPUT_POLLDEV
+	help
+	 Say Y here if you want driver to read status of multiple GPIO
+	 lines and report the encoded value as an absolute integer to
+	 input subsystem.
+
+	 To compile this driver as a module, choose M here: the module
+	 will be called gpio_decoder.
+
 config INPUT_IXP4XX_BEEPER
 	tristate "IXP4XX Beeper support"
 	depends on ARCH_IXP4XX
@@ -299,6 +315,16 @@ config INPUT_COBALT_BTNS
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called cobalt_btns.
+
+config INPUT_CPCAP_PWRBUTTON
+	tristate "CPCAP OnKey"
+	depends on MFD_CPCAP
+	help
+	  Say Y here if you want to enable power key reporting via the
+	  Motorola CPCAP chip.
+
+	  To compile this driver as a module, choose M here. The module will
+	  be called cpcap-pwrbutton.
 
 config INPUT_WISTRON_BTNS
 	tristate "x86 Wistron laptop button interface"
@@ -440,10 +466,10 @@ config INPUT_RETU_PWRBUTTON
 
 config INPUT_TPS65218_PWRBUTTON
 	tristate "TPS65218 Power button driver"
-	depends on MFD_TPS65218
+	depends on (MFD_TPS65217 || MFD_TPS65218)
 	help
 	  Say Y here if you want to enable power buttong reporting for
-	  the TPS65218 Power Management IC device.
+	  TPS65217 and TPS65218 Power Management IC devices.
 
 	  To compile this driver as a module, choose M here. The module will
 	  be called tps65218-pwrbutton.
@@ -599,11 +625,12 @@ config INPUT_DA9055_ONKEY
 	  will be called da9055_onkey.
 
 config INPUT_DA9063_ONKEY
-	tristate "Dialog DA9062/63 OnKey"
+	tristate "Dialog DA9063/62/61 OnKey"
 	depends on MFD_DA9063 || MFD_DA9062
 	help
-	  Support the ONKEY of Dialog DA9063 and DA9062 Power Management ICs
-	  as an input device capable of reporting the power button status.
+	  Support the ONKEY of Dialog DA9063, DA9062 and DA9061 Power
+	  Management ICs as an input device capable of reporting the
+	  power button status.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called da9063_onkey.
@@ -733,7 +760,7 @@ config INPUT_XEN_KBDDEV_FRONTEND
 	  module will be called xen-kbdfront.
 
 config INPUT_SIRFSOC_ONKEY
-	bool "CSR SiRFSoC power on/off/suspend key support"
+	tristate "CSR SiRFSoC power on/off/suspend key support"
 	depends on ARCH_SIRF && OF
 	default y
 	help
@@ -795,5 +822,14 @@ config INPUT_DRV2667_HAPTICS
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called drv2667-haptics.
+
+config INPUT_HISI_POWERKEY
+	tristate "Hisilicon PMIC ONKEY support"
+	depends on ARCH_HISI || COMPILE_TEST
+	help
+	  Say Y to enable support for PMIC ONKEY.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hisi_powerkey.
 
 endif

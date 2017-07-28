@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -130,83 +130,17 @@ void acpi_ut_print_string(char *string, u16 max_length)
 			} else {
 				/* All others will be Hex escapes */
 
-				acpi_os_printf("\\x%2.2X", (s32) string[i]);
+				acpi_os_printf("\\x%2.2X", (s32)string[i]);
 			}
 			break;
 		}
 	}
+
 	acpi_os_printf("\"");
 
 	if (i == max_length && string[i]) {
 		acpi_os_printf("...");
 	}
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ut_valid_acpi_char
- *
- * PARAMETERS:  char            - The character to be examined
- *              position        - Byte position (0-3)
- *
- * RETURN:      TRUE if the character is valid, FALSE otherwise
- *
- * DESCRIPTION: Check for a valid ACPI character. Must be one of:
- *              1) Upper case alpha
- *              2) numeric
- *              3) underscore
- *
- *              We allow a '!' as the last character because of the ASF! table
- *
- ******************************************************************************/
-
-u8 acpi_ut_valid_acpi_char(char character, u32 position)
-{
-
-	if (!((character >= 'A' && character <= 'Z') ||
-	      (character >= '0' && character <= '9') || (character == '_'))) {
-
-		/* Allow a '!' in the last position */
-
-		if (character == '!' && position == 3) {
-			return (TRUE);
-		}
-
-		return (FALSE);
-	}
-
-	return (TRUE);
-}
-
-/*******************************************************************************
- *
- * FUNCTION:    acpi_ut_valid_acpi_name
- *
- * PARAMETERS:  name            - The name to be examined. Does not have to
- *                                be NULL terminated string.
- *
- * RETURN:      TRUE if the name is valid, FALSE otherwise
- *
- * DESCRIPTION: Check for a valid ACPI name. Each character must be one of:
- *              1) Upper case alpha
- *              2) numeric
- *              3) underscore
- *
- ******************************************************************************/
-
-u8 acpi_ut_valid_acpi_name(char *name)
-{
-	u32 i;
-
-	ACPI_FUNCTION_ENTRY();
-
-	for (i = 0; i < ACPI_NAME_SIZE; i++) {
-		if (!acpi_ut_valid_acpi_char(name[i], i)) {
-			return (FALSE);
-		}
-	}
-
-	return (TRUE);
 }
 
 /*******************************************************************************
@@ -239,12 +173,20 @@ void acpi_ut_repair_name(char *name)
 
 	ACPI_FUNCTION_NAME(ut_repair_name);
 
+	/*
+	 * Special case for the root node. This can happen if we get an
+	 * error during the execution of module-level code.
+	 */
+	if (ACPI_COMPARE_NAME(name, "\\___")) {
+		return;
+	}
+
 	ACPI_MOVE_NAME(&original_name, name);
 
 	/* Check each character in the name */
 
 	for (i = 0; i < ACPI_NAME_SIZE; i++) {
-		if (acpi_ut_valid_acpi_char(name[i], i)) {
+		if (acpi_ut_valid_name_char(name[i], i)) {
 			continue;
 		}
 

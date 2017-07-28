@@ -25,7 +25,7 @@
  *
  *
  *  libata documentation is available via 'make {ps|pdf}docs',
- *  as Documentation/DocBook/libata.*
+ *  as Documentation/driver-api/libata.rst
  *
  *  Hardware documentation available under NDA.
  *
@@ -61,6 +61,7 @@ enum {
 	SATA_CHAN_ENAB		= 0x40, /* SATA channel enable */
 	SATA_INT_GATE		= 0x41, /* SATA interrupt gating */
 	SATA_NATIVE_MODE	= 0x42, /* Native mode enable */
+	SVIA_MISC_3		= 0x46,	/* Miscellaneous Control III */
 	PATA_UDMA_TIMING	= 0xB3, /* PATA timing for DMA/ cable detect */
 	PATA_PIO_TIMING		= 0xAB, /* PATA timing register */
 
@@ -71,9 +72,22 @@ enum {
 	NATIVE_MODE_ALL		= (1 << 7) | (1 << 6) | (1 << 5) | (1 << 4),
 
 	SATA_EXT_PHY		= (1 << 6), /* 0==use PATA, 1==ext phy */
+
+	SATA_HOTPLUG		= (1 << 5), /* enable IRQ on hotplug */
 };
 
+struct svia_priv {
+	bool			wd_workaround;
+};
+
+static int vt6420_hotplug;
+module_param_named(vt6420_hotplug, vt6420_hotplug, int, 0644);
+MODULE_PARM_DESC(vt6420_hotplug, "Enable hot-plug support for VT6420 (0=Don't support, 1=support)");
+
 static int svia_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
+#ifdef CONFIG_PM_SLEEP
+static int svia_pci_device_resume(struct pci_dev *pdev);
+#endif
 static int svia_scr_read(struct ata_link *link, unsigned int sc_reg, u32 *val);
 static int svia_scr_write(struct ata_link *link, unsigned int sc_reg, u32 val);
 static int vt8251_scr_read(struct ata_link *link, unsigned int scr, u32 *val);
@@ -85,6 +99,7 @@ static void vt6420_bmdma_start(struct ata_queued_cmd *qc);
 static int vt6421_pata_cable_detect(struct ata_port *ap);
 static void vt6421_set_pio_mode(struct ata_port *ap, struct ata_device *adev);
 static void vt6421_set_dma_mode(struct ata_port *ap, struct ata_device *adev);
+static void vt6421_error_handler(struct ata_port *ap);
 
 static const struct pci_device_id svia_pci_tbl[] = {
 	{ PCI_VDEVICE(VIA, 0x5337), vt6420 },
@@ -105,7 +120,7 @@ static struct pci_driver svia_pci_driver = {
 	.probe			= svia_init_one,
 #ifdef CONFIG_PM_SLEEP
 	.suspend		= ata_pci_device_suspend,
-	.resume			= ata_pci_device_resume,
+	.resume			= svia_pci_device_resume,
 #endif
 	.remove			= ata_pci_remove_one,
 };
@@ -137,6 +152,7 @@ static struct ata_port_operations vt6421_sata_ops = {
 	.inherits		= &svia_base_ops,
 	.scr_read		= svia_scr_read,
 	.scr_write		= svia_scr_write,
+	.error_handler		= vt6421_error_handler,
 };
 
 static struct ata_port_operations vt8251_ops = {
@@ -154,7 +170,7 @@ static const struct ata_port_info vt6420_port_info = {
 	.port_ops	= &vt6420_sata_ops,
 };
 
-static struct ata_port_info vt6421_sport_info = {
+static const struct ata_port_info vt6421_sport_info = {
 	.flags		= ATA_FLAG_SATA,
 	.pio_mask	= ATA_PIO4,
 	.mwdma_mask	= ATA_MWDMA2,
@@ -162,7 +178,7 @@ static struct ata_port_info vt6421_sport_info = {
 	.port_ops	= &vt6421_sata_ops,
 };
 
-static struct ata_port_info vt6421_pport_info = {
+static const struct ata_port_info vt6421_pport_info = {
 	.flags		= ATA_FLAG_SLAVE_POSS,
 	.pio_mask	= ATA_PIO4,
 	/* No MWDMA */
@@ -170,7 +186,7 @@ static struct ata_port_info vt6421_pport_info = {
 	.port_ops	= &vt6421_pata_ops,
 };
 
-static struct ata_port_info vt8251_port_info = {
+static const struct ata_port_info vt8251_port_info = {
 	.flags		= ATA_FLAG_SATA | ATA_FLAG_SLAVE_POSS,
 	.pio_mask	= ATA_PIO4,
 	.mwdma_mask	= ATA_MWDMA2,
@@ -461,6 +477,11 @@ static int vt6420_prepare_host(struct pci_dev *pdev, struct ata_host **r_host)
 	struct ata_host *host;
 	int rc;
 
+	if (vt6420_hotplug) {
+		ppi[0]->port_ops->scr_read = svia_scr_read;
+		ppi[0]->port_ops->scr_write = svia_scr_write;
+	}
+
 	rc = ata_pci_bmdma_prepare_host(pdev, ppi, &host);
 	if (rc)
 		return rc;
@@ -536,7 +557,67 @@ static int vt8251_prepare_host(struct pci_dev *pdev, struct ata_host **r_host)
 	return 0;
 }
 
-static void svia_configure(struct pci_dev *pdev, int board_id)
+static void svia_wd_fix(struct pci_dev *pdev)
+{
+	u8 tmp8;
+
+	pci_read_config_byte(pdev, 0x52, &tmp8);
+	pci_write_config_byte(pdev, 0x52, tmp8 | BIT(2));
+}
+
+static irqreturn_t vt642x_interrupt(int irq, void *dev_instance)
+{
+	struct ata_host *host = dev_instance;
+	irqreturn_t rc = ata_bmdma_interrupt(irq, dev_instance);
+
+	/* if the IRQ was not handled, it might be a hotplug IRQ */
+	if (rc != IRQ_HANDLED) {
+		u32 serror;
+		unsigned long flags;
+
+		spin_lock_irqsave(&host->lock, flags);
+		/* check for hotplug on port 0 */
+		svia_scr_read(&host->ports[0]->link, SCR_ERROR, &serror);
+		if (serror & SERR_PHYRDY_CHG) {
+			ata_ehi_hotplugged(&host->ports[0]->link.eh_info);
+			ata_port_freeze(host->ports[0]);
+			rc = IRQ_HANDLED;
+		}
+		/* check for hotplug on port 1 */
+		svia_scr_read(&host->ports[1]->link, SCR_ERROR, &serror);
+		if (serror & SERR_PHYRDY_CHG) {
+			ata_ehi_hotplugged(&host->ports[1]->link.eh_info);
+			ata_port_freeze(host->ports[1]);
+			rc = IRQ_HANDLED;
+		}
+		spin_unlock_irqrestore(&host->lock, flags);
+	}
+
+	return rc;
+}
+
+static void vt6421_error_handler(struct ata_port *ap)
+{
+	struct svia_priv *hpriv = ap->host->private_data;
+	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
+	u32 serror;
+
+	/* see svia_configure() for description */
+	if (!hpriv->wd_workaround) {
+		svia_scr_read(&ap->link, SCR_ERROR, &serror);
+		if (serror == 0x1000500) {
+			ata_port_warn(ap, "Incompatible drive: enabling workaround. This slows down transfer rate to ~60 MB/s");
+			svia_wd_fix(pdev);
+			hpriv->wd_workaround = true;
+			ap->link.eh_context.i.flags |= ATA_EHI_QUIET;
+		}
+	}
+
+	ata_sff_error_handler(ap);
+}
+
+static void svia_configure(struct pci_dev *pdev, int board_id,
+			   struct svia_priv *hpriv)
 {
 	u8 tmp8;
 
@@ -572,6 +653,18 @@ static void svia_configure(struct pci_dev *pdev, int board_id)
 		pci_write_config_byte(pdev, SATA_NATIVE_MODE, tmp8);
 	}
 
+	if ((board_id == vt6420 && vt6420_hotplug) || board_id == vt6421) {
+		/* enable IRQ on hotplug */
+		pci_read_config_byte(pdev, SVIA_MISC_3, &tmp8);
+		if ((tmp8 & SATA_HOTPLUG) != SATA_HOTPLUG) {
+			dev_dbg(&pdev->dev,
+				"enabling SATA hotplug (0x%x)\n",
+				(int) tmp8);
+			tmp8 |= SATA_HOTPLUG;
+			pci_write_config_byte(pdev, SVIA_MISC_3, tmp8);
+		}
+	}
+
 	/*
 	 * vt6420/1 has problems talking to some drives.  The following
 	 * is the fix from Joseph Chan <JosephChan@via.com.tw>.
@@ -593,11 +686,15 @@ static void svia_configure(struct pci_dev *pdev, int board_id)
 	 * https://bugzilla.kernel.org/show_bug.cgi?id=15173
 	 * http://article.gmane.org/gmane.linux.ide/46352
 	 * http://thread.gmane.org/gmane.linux.kernel/1062139
+	 *
+	 * As the fix slows down data transfer, apply it only if the error
+	 * actually appears - see vt6421_error_handler()
+	 * Apply the fix always on vt6420 as we don't know if SCR_ERROR can be
+	 * read safely.
 	 */
-	if (board_id == vt6420 || board_id == vt6421) {
-		pci_read_config_byte(pdev, 0x52, &tmp8);
-		tmp8 |= 1 << 2;
-		pci_write_config_byte(pdev, 0x52, tmp8);
+	if (board_id == vt6420) {
+		svia_wd_fix(pdev);
+		hpriv->wd_workaround = true;
 	}
 }
 
@@ -608,6 +705,7 @@ static int svia_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct ata_host *host = NULL;
 	int board_id = (int) ent->driver_data;
 	const unsigned *bar_sizes;
+	struct svia_priv *hpriv;
 
 	ata_print_version_once(&pdev->dev, DRV_VERSION);
 
@@ -647,11 +745,39 @@ static int svia_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		return rc;
 
-	svia_configure(pdev, board_id);
+	hpriv = devm_kzalloc(&pdev->dev, sizeof(*hpriv), GFP_KERNEL);
+	if (!hpriv)
+		return -ENOMEM;
+	host->private_data = hpriv;
+
+	svia_configure(pdev, board_id, hpriv);
 
 	pci_set_master(pdev);
-	return ata_host_activate(host, pdev->irq, ata_bmdma_interrupt,
-				 IRQF_SHARED, &svia_sht);
+	if ((board_id == vt6420 && vt6420_hotplug) || board_id == vt6421)
+		return ata_host_activate(host, pdev->irq, vt642x_interrupt,
+					 IRQF_SHARED, &svia_sht);
+	else
+		return ata_host_activate(host, pdev->irq, ata_bmdma_interrupt,
+					 IRQF_SHARED, &svia_sht);
 }
+
+#ifdef CONFIG_PM_SLEEP
+static int svia_pci_device_resume(struct pci_dev *pdev)
+{
+	struct ata_host *host = pci_get_drvdata(pdev);
+	struct svia_priv *hpriv = host->private_data;
+	int rc;
+
+	rc = ata_pci_device_do_resume(pdev);
+	if (rc)
+		return rc;
+
+	if (hpriv->wd_workaround)
+		svia_wd_fix(pdev);
+	ata_host_resume(host);
+
+	return 0;
+}
+#endif
 
 module_pci_driver(svia_pci_driver);

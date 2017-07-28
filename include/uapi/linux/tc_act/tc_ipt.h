@@ -14,6 +14,7 @@ enum {
 	TCA_IPT_CNT,
 	TCA_IPT_TM,
 	TCA_IPT_TARG,
+	TCA_IPT_PAD,
 	__TCA_IPT_MAX
 };
 #define TCA_IPT_MAX (__TCA_IPT_MAX - 1)

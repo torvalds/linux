@@ -22,6 +22,8 @@ SoCs:
    compatible = "ti,k2l", "ti,keystone"
 - Keystone 2 Edison
    compatible = "ti,k2e", "ti,keystone"
+- K2G
+   compatible = "ti,k2g", "ti,keystone"
 
 Boards:
 -  Keystone 2 Hawking/Kepler EVM
@@ -32,3 +34,9 @@ Boards:
 
 -  Keystone 2 Edison EVM
    compatible = "ti,k2e-evm", "ti,k2e", "ti,keystone"
+
+-  K2G EVM
+   compatible = "ti,k2g-evm", "ti,k2g", "ti-keystone"
+
+-  K2G Industrial Communication Engine EVM
+   compatible = "ti,k2g-ice", "ti,k2g", "ti-keystone"

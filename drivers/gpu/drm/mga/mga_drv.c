@@ -37,8 +37,6 @@
 
 #include <drm/drm_pciids.h>
 
-static int mga_driver_device_is_agp(struct drm_device *dev);
-
 static struct pci_device_id pciidlist[] = {
 	mga_PCI_IDS
 };
@@ -58,7 +56,7 @@ static const struct file_operations mga_driver_fops = {
 
 static struct drm_driver driver = {
 	.driver_features =
-	    DRIVER_USE_AGP | DRIVER_PCI_DMA |
+	    DRIVER_USE_AGP | DRIVER_PCI_DMA | DRIVER_LEGACY |
 	    DRIVER_HAVE_DMA | DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED,
 	.dev_priv_size = sizeof(drm_mga_buf_priv_t),
 	.load = mga_driver_load,
@@ -66,7 +64,6 @@ static struct drm_driver driver = {
 	.lastclose = mga_driver_lastclose,
 	.set_busid = drm_pci_set_busid,
 	.dma_quiescent = mga_driver_dma_quiescent,
-	.device_is_agp = mga_driver_device_is_agp,
 	.get_vblank_counter = mga_get_vblank_counter,
 	.enable_vblank = mga_enable_vblank,
 	.disable_vblank = mga_disable_vblank,
@@ -107,37 +104,3 @@ module_exit(mga_exit);
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL and additional rights");
-
-/**
- * Determine if the device really is AGP or not.
- *
- * In addition to the usual tests performed by \c drm_device_is_agp, this
- * function detects PCI G450 cards that appear to the system exactly like
- * AGP G450 cards.
- *
- * \param dev   The device to be tested.
- *
- * \returns
- * If the device is a PCI G450, zero is returned.  Otherwise 2 is returned.
- */
-static int mga_driver_device_is_agp(struct drm_device *dev)
-{
-	const struct pci_dev *const pdev = dev->pdev;
-
-	/* There are PCI versions of the G450.  These cards have the
-	 * same PCI ID as the AGP G450, but have an additional PCI-to-PCI
-	 * bridge chip.  We detect these cards, which are not currently
-	 * supported by this driver, by looking at the device ID of the
-	 * bus the "card" is on.  If vendor is 0x3388 (Hint Corp) and the
-	 * device is 0x0021 (HB6 Universal PCI-PCI bridge), we reject the
-	 * device.
-	 */
-
-	if ((pdev->device == 0x0525) && pdev->bus->self
-	    && (pdev->bus->self->vendor == 0x3388)
-	    && (pdev->bus->self->device == 0x0021)) {
-		return 0;
-	}
-
-	return 2;
-}

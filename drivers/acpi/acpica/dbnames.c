@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -285,7 +285,7 @@ void acpi_db_dump_namespace_by_owner(char *owner_arg, char *depth_arg)
 	u32 max_depth = ACPI_UINT32_MAX;
 	acpi_owner_id owner_id;
 
-	owner_id = (acpi_owner_id) strtoul(owner_arg, NULL, 0);
+	owner_id = (acpi_owner_id)strtoul(owner_arg, NULL, 0);
 
 	/* Now we can check for the depth argument */
 
@@ -438,7 +438,7 @@ acpi_db_walk_for_predefined_names(acpi_handle obj_handle,
 		return (AE_OK);
 	}
 
-	pathname = acpi_ns_get_external_pathname(node);
+	pathname = acpi_ns_get_normalized_pathname(node, TRUE);
 	if (!pathname) {
 		return (AE_OK);
 	}
@@ -709,7 +709,7 @@ acpi_db_integrity_walk(acpi_handle obj_handle,
 		return (AE_OK);
 	}
 
-	if (!acpi_ut_valid_acpi_name(node->name.ascii)) {
+	if (!acpi_ut_valid_nameseg(node->name.ascii)) {
 		acpi_os_printf("Invalid AcpiName for Node %p\n", node);
 		return (AE_OK);
 	}

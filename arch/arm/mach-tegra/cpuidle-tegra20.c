@@ -26,11 +26,13 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
+#include <soc/tegra/flowctrl.h>
+
 #include <asm/cpuidle.h>
 #include <asm/smp_plat.h>
 #include <asm/suspend.h>
 
-#include "flowctrl.h"
+#include "cpuidle.h"
 #include "iomap.h"
 #include "irq.h"
 #include "pm.h"

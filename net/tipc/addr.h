@@ -43,9 +43,6 @@
 #include <net/netns/generic.h>
 #include "core.h"
 
-#define TIPC_ZONE_MASK		0xff000000u
-#define TIPC_CLUSTER_MASK	0xfffff000u
-
 static inline u32 tipc_own_addr(struct net *net)
 {
 	struct tipc_net *tn = net_generic(net, tipc_net_id);
@@ -60,7 +57,7 @@ static inline u32 tipc_zone_mask(u32 addr)
 
 static inline u32 tipc_cluster_mask(u32 addr)
 {
-	return addr & TIPC_CLUSTER_MASK;
+	return addr & TIPC_ZONE_CLUSTER_MASK;
 }
 
 u32 tipc_own_addr(struct net *net);
@@ -73,4 +70,5 @@ int tipc_addr_node_valid(u32 addr);
 int tipc_in_scope(u32 domain, u32 addr);
 int tipc_addr_scope(u32 domain);
 char *tipc_addr_string_fill(char *string, u32 addr);
+
 #endif

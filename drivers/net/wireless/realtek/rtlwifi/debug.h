@@ -36,7 +36,7 @@
  *unexpected HW behavior, HW BUG
  *and so on.
  */
-#define DBG_EMERG			0
+/*#define DBG_EMERG			0 */
 
 /*
  *Abnormal, rare, or unexpeted cases.
@@ -105,6 +105,7 @@
 #define COMP_EASY_CONCURRENT	COMP_USB /* reuse of this bit is OK */
 #define COMP_BT_COEXIST			BIT(30)
 #define COMP_IQK			BIT(31)
+#define COMP_TX_REPORT			BIT_ULL(32)
 
 /*--------------------------------------------------------------
 		Define the rt_print components
@@ -166,57 +167,39 @@ enum dbgp_flag_e {
 
 #ifdef CONFIG_RTLWIFI_DEBUG
 
-#define RT_ASSERT(_exp, fmt, ...)					\
-do {									\
-	if (!(_exp)) {							\
-		printk(KERN_DEBUG KBUILD_MODNAME ":%s(): " fmt,		\
-		       __func__, ##__VA_ARGS__);			\
-	}								\
-} while (0)
+struct rtl_priv;
+
+__printf(4, 5)
+void _rtl_dbg_trace(struct rtl_priv *rtlpriv, u64 comp, int level,
+		    const char *fmt, ...);
+
+__printf(4, 5)
+void _rtl_dbg_print(struct rtl_priv *rtlpriv, u64 comp, int level,
+		    const char *fmt, ...);
+
+void _rtl_dbg_print_data(struct rtl_priv *rtlpriv, u64 comp, int level,
+			 const char *titlestring,
+			 const void *hexdata, int hexdatalen);
 
 #define RT_TRACE(rtlpriv, comp, level, fmt, ...)			\
-do {									\
-	if (unlikely(((comp) & rtlpriv->dbg.global_debugcomponents) &&	\
-		     ((level) <= rtlpriv->dbg.global_debuglevel))) {	\
-		printk(KERN_DEBUG KBUILD_MODNAME ":%s():<%lx-%x> " fmt,	\
-		       __func__, in_interrupt(), in_atomic(),		\
-		       ##__VA_ARGS__);					\
-	}								\
-} while (0)
+	_rtl_dbg_trace(rtlpriv, comp, level,				\
+		       fmt, ##__VA_ARGS__)
 
 #define RTPRINT(rtlpriv, dbgtype, dbgflag, fmt, ...)			\
-do {									\
-	if (unlikely(rtlpriv->dbg.dbgp_type[dbgtype] & dbgflag)) {	\
-		printk(KERN_DEBUG KBUILD_MODNAME ": " fmt,		\
-		       ##__VA_ARGS__);					\
-	}								\
-} while (0)
+	_rtl_dbg_print(rtlpriv, dbgtype, dbgflag, fmt, ##__VA_ARGS__)
 
 #define RT_PRINT_DATA(rtlpriv, _comp, _level, _titlestring, _hexdata,	\
 		      _hexdatalen)					\
-do {									\
-	if (unlikely(((_comp) & rtlpriv->dbg.global_debugcomponents) &&	\
-		     (_level <= rtlpriv->dbg.global_debuglevel))) {	\
-		printk(KERN_DEBUG "%s: In process \"%s\" (pid %i): %s\n", \
-		       KBUILD_MODNAME, current->comm, current->pid,	\
-		       _titlestring);					\
-		print_hex_dump_bytes("", DUMP_PREFIX_NONE,		\
-				     _hexdata, _hexdatalen);		\
-	}								\
-} while (0)
+	_rtl_dbg_print_data(rtlpriv, _comp, _level,			\
+			    _titlestring, _hexdata, _hexdatalen)
 
 #else
 
 struct rtl_priv;
 
-__printf(2, 3)
-static inline void RT_ASSERT(int exp, const char *fmt, ...)
-{
-}
-
 __printf(4, 5)
 static inline void RT_TRACE(struct rtl_priv *rtlpriv,
-			    int comp, int level,
+			    u64 comp, int level,
 			    const char *fmt, ...)
 {
 }
@@ -229,13 +212,11 @@ static inline void RTPRINT(struct rtl_priv *rtlpriv,
 }
 
 static inline void RT_PRINT_DATA(struct rtl_priv *rtlpriv,
-				 int comp, int level,
+				 u64 comp, int level,
 				 const char *titlestring,
 				 const void *hexdata, size_t hexdatalen)
 {
 }
 
 #endif
-
-void rtl_dbgp_flag_init(struct ieee80211_hw *hw);
 #endif

@@ -17,7 +17,7 @@
 #include <linux/sysctl.h>
 #include <linux/moduleparam.h>
 
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/errno.h>
 #include <linux/in.h>
 #include <linux/uio.h>
@@ -25,13 +25,17 @@
 #include <linux/mutex.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
+#include <linux/inetdevice.h>
 
 #include <linux/sunrpc/types.h>
 #include <linux/sunrpc/stats.h>
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/svc.h>
 #include <linux/sunrpc/svcsock.h>
+#include <linux/sunrpc/svc_xprt.h>
 #include <net/ip.h>
+#include <net/addrconf.h>
+#include <net/ipv6.h>
 #include <linux/lockd/lockd.h>
 #include <linux/nfs.h>
 
@@ -44,7 +48,7 @@
 
 static struct svc_program	nlmsvc_program;
 
-struct nlmsvc_binding *		nlmsvc_ops;
+const struct nlmsvc_binding	*nlmsvc_ops;
 EXPORT_SYMBOL_GPL(nlmsvc_ops);
 
 static DEFINE_MUTEX(nlmsvc_mutex);
@@ -53,7 +57,7 @@ static struct task_struct	*nlmsvc_task;
 static struct svc_rqst		*nlmsvc_rqst;
 unsigned long			nlmsvc_timeout;
 
-int lockd_net_id;
+unsigned int lockd_net_id;
 
 /*
  * These can be set at insmod time (useful for NFS as root filesystem),
@@ -90,8 +94,7 @@ static unsigned long get_lockd_grace_period(void)
 
 static void grace_ender(struct work_struct *grace)
 {
-	struct delayed_work *dwork = container_of(grace, struct delayed_work,
-						  work);
+	struct delayed_work *dwork = to_delayed_work(grace);
 	struct lockd_net *ln = container_of(dwork, struct lockd_net,
 					    grace_period_end);
 
@@ -129,6 +132,8 @@ lockd(void *vrqstp)
 {
 	int		err = 0;
 	struct svc_rqst *rqstp = vrqstp;
+	struct net *net = &init_net;
+	struct lockd_net *ln = net_generic(net, lockd_net_id);
 
 	/* try_to_freeze() is called from svc_recv() */
 	set_freezable();
@@ -173,6 +178,8 @@ lockd(void *vrqstp)
 	if (nlmsvc_ops)
 		nlmsvc_invalidate_all();
 	nlm_shutdown_hosts();
+	cancel_delayed_work_sync(&ln->grace_period_end);
+	locks_end_grace(&ln->lockd_manager);
 	return 0;
 }
 
@@ -267,8 +274,6 @@ static void lockd_down_net(struct svc_serv *serv, struct net *net)
 	if (ln->nlmsvc_users) {
 		if (--ln->nlmsvc_users == 0) {
 			nlm_shutdown_hosts_net(net);
-			cancel_delayed_work_sync(&ln->grace_period_end);
-			locks_end_grace(&ln->lockd_manager);
 			svc_shutdown_net(serv, net);
 			dprintk("lockd_down_net: per-net data destroyed; net=%p\n", net);
 		}
@@ -277,6 +282,75 @@ static void lockd_down_net(struct svc_serv *serv, struct net *net)
 				nlmsvc_task, net);
 		BUG();
 	}
+}
+
+static int lockd_inetaddr_event(struct notifier_block *this,
+	unsigned long event, void *ptr)
+{
+	struct in_ifaddr *ifa = (struct in_ifaddr *)ptr;
+	struct sockaddr_in sin;
+
+	if (event != NETDEV_DOWN)
+		goto out;
+
+	if (nlmsvc_rqst) {
+		dprintk("lockd_inetaddr_event: removed %pI4\n",
+			&ifa->ifa_local);
+		sin.sin_family = AF_INET;
+		sin.sin_addr.s_addr = ifa->ifa_local;
+		svc_age_temp_xprts_now(nlmsvc_rqst->rq_server,
+			(struct sockaddr *)&sin);
+	}
+
+out:
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block lockd_inetaddr_notifier = {
+	.notifier_call = lockd_inetaddr_event,
+};
+
+#if IS_ENABLED(CONFIG_IPV6)
+static int lockd_inet6addr_event(struct notifier_block *this,
+	unsigned long event, void *ptr)
+{
+	struct inet6_ifaddr *ifa = (struct inet6_ifaddr *)ptr;
+	struct sockaddr_in6 sin6;
+
+	if (event != NETDEV_DOWN)
+		goto out;
+
+	if (nlmsvc_rqst) {
+		dprintk("lockd_inet6addr_event: removed %pI6\n", &ifa->addr);
+		sin6.sin6_family = AF_INET6;
+		sin6.sin6_addr = ifa->addr;
+		if (ipv6_addr_type(&sin6.sin6_addr) & IPV6_ADDR_LINKLOCAL)
+			sin6.sin6_scope_id = ifa->idev->dev->ifindex;
+		svc_age_temp_xprts_now(nlmsvc_rqst->rq_server,
+			(struct sockaddr *)&sin6);
+	}
+
+out:
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block lockd_inet6addr_notifier = {
+	.notifier_call = lockd_inet6addr_event,
+};
+#endif
+
+static void lockd_unregister_notifiers(void)
+{
+	unregister_inetaddr_notifier(&lockd_inetaddr_notifier);
+#if IS_ENABLED(CONFIG_IPV6)
+	unregister_inet6addr_notifier(&lockd_inet6addr_notifier);
+#endif
+}
+
+static void lockd_svc_exit_thread(void)
+{
+	lockd_unregister_notifiers();
+	svc_exit_thread(nlmsvc_rqst);
 }
 
 static int lockd_start_svc(struct svc_serv *serv)
@@ -315,7 +389,7 @@ static int lockd_start_svc(struct svc_serv *serv)
 	return 0;
 
 out_task:
-	svc_exit_thread(nlmsvc_rqst);
+	lockd_svc_exit_thread();
 	nlmsvc_task = NULL;
 out_rqst:
 	nlmsvc_rqst = NULL;
@@ -360,6 +434,10 @@ static struct svc_serv *lockd_create_svc(void)
 		printk(KERN_WARNING "lockd_up: create service failed\n");
 		return ERR_PTR(-ENOMEM);
 	}
+	register_inetaddr_notifier(&lockd_inetaddr_notifier);
+#if IS_ENABLED(CONFIG_IPV6)
+	register_inet6addr_notifier(&lockd_inet6addr_notifier);
+#endif
 	dprintk("lockd_up: service created\n");
 	return serv;
 }
@@ -393,7 +471,7 @@ int lockd_up(struct net *net)
 	 * Note: svc_serv structures have an initial use count of 1,
 	 * so we exit through here on both success and failure.
 	 */
-err_net:
+err_put:
 	svc_destroy(serv);
 err_create:
 	mutex_unlock(&nlmsvc_mutex);
@@ -401,7 +479,9 @@ err_create:
 
 err_start:
 	lockd_down_net(serv, net);
-	goto err_net;
+err_net:
+	lockd_unregister_notifiers();
+	goto err_put;
 }
 EXPORT_SYMBOL_GPL(lockd_up);
 
@@ -428,7 +508,7 @@ lockd_down(struct net *net)
 	}
 	kthread_stop(nlmsvc_task);
 	dprintk("lockd_down: service stopped\n");
-	svc_exit_thread(nlmsvc_rqst);
+	lockd_svc_exit_thread();
 	dprintk("lockd_down: service destroyed\n");
 	nlmsvc_task = NULL;
 	nlmsvc_rqst = NULL;
@@ -659,27 +739,33 @@ module_exit(exit_nlm);
 /*
  * Define NLM program and procedures
  */
-static struct svc_version	nlmsvc_version1 = {
-		.vs_vers	= 1,
-		.vs_nproc	= 17,
-		.vs_proc	= nlmsvc_procedures,
-		.vs_xdrsize	= NLMSVC_XDRSIZE,
+static unsigned int nlmsvc_version1_count[17];
+static const struct svc_version	nlmsvc_version1 = {
+	.vs_vers	= 1,
+	.vs_nproc	= 17,
+	.vs_proc	= nlmsvc_procedures,
+	.vs_count	= nlmsvc_version1_count,
+	.vs_xdrsize	= NLMSVC_XDRSIZE,
 };
-static struct svc_version	nlmsvc_version3 = {
-		.vs_vers	= 3,
-		.vs_nproc	= 24,
-		.vs_proc	= nlmsvc_procedures,
-		.vs_xdrsize	= NLMSVC_XDRSIZE,
+static unsigned int nlmsvc_version3_count[24];
+static const struct svc_version	nlmsvc_version3 = {
+	.vs_vers	= 3,
+	.vs_nproc	= 24,
+	.vs_proc	= nlmsvc_procedures,
+	.vs_count	= nlmsvc_version3_count,
+	.vs_xdrsize	= NLMSVC_XDRSIZE,
 };
 #ifdef CONFIG_LOCKD_V4
-static struct svc_version	nlmsvc_version4 = {
-		.vs_vers	= 4,
-		.vs_nproc	= 24,
-		.vs_proc	= nlmsvc_procedures4,
-		.vs_xdrsize	= NLMSVC_XDRSIZE,
+static unsigned int nlmsvc_version4_count[24];
+static const struct svc_version	nlmsvc_version4 = {
+	.vs_vers	= 4,
+	.vs_nproc	= 24,
+	.vs_proc	= nlmsvc_procedures4,
+	.vs_count	= nlmsvc_version4_count,
+	.vs_xdrsize	= NLMSVC_XDRSIZE,
 };
 #endif
-static struct svc_version *	nlmsvc_version[] = {
+static const struct svc_version *nlmsvc_version[] = {
 	[1] = &nlmsvc_version1,
 	[3] = &nlmsvc_version3,
 #ifdef CONFIG_LOCKD_V4

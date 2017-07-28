@@ -16,6 +16,8 @@ struct lockdep_map;
 extern int prove_locking;
 extern int lock_stat;
 
+#define MAX_LOCKDEP_SUBCLASSES		8UL
+
 #ifdef CONFIG_LOCKDEP
 
 #include <linux/linkage.h>
@@ -28,8 +30,6 @@ extern int lock_stat;
  * the total number of states... :-(
  */
 #define XXX_LOCK_USAGE_STATES		(1+3*4)
-
-#define MAX_LOCKDEP_SUBCLASSES		8UL
 
 /*
  * NR_LOCKDEP_CACHING_CLASSES ... Number of classes
@@ -66,7 +66,7 @@ struct lock_class {
 	/*
 	 * class-hash:
 	 */
-	struct list_head		hash_entry;
+	struct hlist_node		hash_entry;
 
 	/*
 	 * global list of all lock-classes:
@@ -196,10 +196,12 @@ struct lock_list {
  * We record lock dependency chains, so that we can cache them:
  */
 struct lock_chain {
-	u8				irq_context;
-	u8				depth;
-	u16				base;
-	struct list_head		entry;
+	/* see BUILD_BUG_ON()s in lookup_chain_cache() */
+	unsigned int			irq_context :  2,
+					depth       :  6,
+					base	    : 24;
+	/* 4 byte hole */
+	struct hlist_node		entry;
 	u64				chain_key;
 };
 
@@ -261,7 +263,6 @@ struct held_lock {
 /*
  * Initialization, self-test and debugging-output methods:
  */
-extern void lockdep_init(void);
 extern void lockdep_info(void);
 extern void lockdep_reset(void);
 extern void lockdep_reset_lock(struct lockdep_map *lock);
@@ -337,9 +338,18 @@ extern void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 extern void lock_release(struct lockdep_map *lock, int nested,
 			 unsigned long ip);
 
-#define lockdep_is_held(lock)	lock_is_held(&(lock)->dep_map)
+/*
+ * Same "read" as for lock_acquire(), except -1 means any.
+ */
+extern int lock_is_held_type(struct lockdep_map *lock, int read);
 
-extern int lock_is_held(struct lockdep_map *lock);
+static inline int lock_is_held(struct lockdep_map *lock)
+{
+	return lock_is_held_type(lock, -1);
+}
+
+#define lockdep_is_held(lock)		lock_is_held(&(lock)->dep_map)
+#define lockdep_is_held_type(lock, r)	lock_is_held_type(&(lock)->dep_map, (r))
 
 extern void lock_set_class(struct lockdep_map *lock, const char *name,
 			   struct lock_class_key *key, unsigned int subclass,
@@ -351,12 +361,19 @@ static inline void lock_set_subclass(struct lockdep_map *lock,
 	lock_set_class(lock, lock->name, lock->key, subclass, ip);
 }
 
+extern void lock_downgrade(struct lockdep_map *lock, unsigned long ip);
+
 extern void lockdep_set_current_reclaim_state(gfp_t gfp_mask);
 extern void lockdep_clear_current_reclaim_state(void);
 extern void lockdep_trace_alloc(gfp_t mask);
 
-extern void lock_pin_lock(struct lockdep_map *lock);
-extern void lock_unpin_lock(struct lockdep_map *lock);
+struct pin_cookie { unsigned int val; };
+
+#define NIL_COOKIE (struct pin_cookie){ .val = 0U, }
+
+extern struct pin_cookie lock_pin_lock(struct lockdep_map *lock);
+extern void lock_repin_lock(struct lockdep_map *lock, struct pin_cookie);
+extern void lock_unpin_lock(struct lockdep_map *lock, struct pin_cookie);
 
 # define INIT_LOCKDEP				.lockdep_recursion = 0, .lockdep_reclaim_gfp = 0,
 
@@ -366,14 +383,23 @@ extern void lock_unpin_lock(struct lockdep_map *lock);
 		WARN_ON(debug_locks && !lockdep_is_held(l));	\
 	} while (0)
 
+#define lockdep_assert_held_exclusive(l)	do {			\
+		WARN_ON(debug_locks && !lockdep_is_held_type(l, 0));	\
+	} while (0)
+
+#define lockdep_assert_held_read(l)	do {				\
+		WARN_ON(debug_locks && !lockdep_is_held_type(l, 1));	\
+	} while (0)
+
 #define lockdep_assert_held_once(l)	do {				\
 		WARN_ON_ONCE(debug_locks && !lockdep_is_held(l));	\
 	} while (0)
 
 #define lockdep_recursing(tsk)	((tsk)->lockdep_recursion)
 
-#define lockdep_pin_lock(l)		lock_pin_lock(&(l)->dep_map)
-#define lockdep_unpin_lock(l)	lock_unpin_lock(&(l)->dep_map)
+#define lockdep_pin_lock(l)	lock_pin_lock(&(l)->dep_map)
+#define lockdep_repin_lock(l,c)	lock_repin_lock(&(l)->dep_map, (c))
+#define lockdep_unpin_lock(l,c)	lock_unpin_lock(&(l)->dep_map, (c))
 
 #else /* !CONFIG_LOCKDEP */
 
@@ -387,12 +413,12 @@ static inline void lockdep_on(void)
 
 # define lock_acquire(l, s, t, r, c, n, i)	do { } while (0)
 # define lock_release(l, n, i)			do { } while (0)
+# define lock_downgrade(l, i)			do { } while (0)
 # define lock_set_class(l, n, k, s, i)		do { } while (0)
 # define lock_set_subclass(l, s, i)		do { } while (0)
 # define lockdep_set_current_reclaim_state(g)	do { } while (0)
 # define lockdep_clear_current_reclaim_state()	do { } while (0)
 # define lockdep_trace_alloc(g)			do { } while (0)
-# define lockdep_init()				do { } while (0)
 # define lockdep_info()				do { } while (0)
 # define lockdep_init_map(lock, name, key, sub) \
 		do { (void)(name); (void)(key); } while (0)
@@ -422,13 +448,22 @@ struct lock_class_key { };
 
 #define lockdep_depth(tsk)	(0)
 
+#define lockdep_is_held_type(l, r)		(1)
+
 #define lockdep_assert_held(l)			do { (void)(l); } while (0)
+#define lockdep_assert_held_exclusive(l)	do { (void)(l); } while (0)
+#define lockdep_assert_held_read(l)		do { (void)(l); } while (0)
 #define lockdep_assert_held_once(l)		do { (void)(l); } while (0)
 
 #define lockdep_recursing(tsk)			(0)
 
-#define lockdep_pin_lock(l)				do { (void)(l); } while (0)
-#define lockdep_unpin_lock(l)			do { (void)(l); } while (0)
+struct pin_cookie { };
+
+#define NIL_COOKIE (struct pin_cookie){ }
+
+#define lockdep_pin_lock(l)			({ struct pin_cookie cookie; cookie; })
+#define lockdep_repin_lock(l, c)		do { (void)(l); (void)(c); } while (0)
+#define lockdep_unpin_lock(l, c)		do { (void)(l); (void)(c); } while (0)
 
 #endif /* !LOCKDEP */
 
@@ -446,12 +481,27 @@ do {								\
 	lock_acquired(&(_lock)->dep_map, _RET_IP_);			\
 } while (0)
 
+#define LOCK_CONTENDED_RETURN(_lock, try, lock)			\
+({								\
+	int ____err = 0;					\
+	if (!try(_lock)) {					\
+		lock_contended(&(_lock)->dep_map, _RET_IP_);	\
+		____err = lock(_lock);				\
+	}							\
+	if (!____err)						\
+		lock_acquired(&(_lock)->dep_map, _RET_IP_);	\
+	____err;						\
+})
+
 #else /* CONFIG_LOCK_STAT */
 
 #define lock_contended(lockdep_map, ip) do {} while (0)
 #define lock_acquired(lockdep_map, ip) do {} while (0)
 
 #define LOCK_CONTENDED(_lock, try, lock) \
+	lock(_lock)
+
+#define LOCK_CONTENDED_RETURN(_lock, try, lock) \
 	lock(_lock)
 
 #endif /* CONFIG_LOCK_STAT */

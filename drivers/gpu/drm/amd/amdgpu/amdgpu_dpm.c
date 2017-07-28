@@ -22,7 +22,7 @@
  * Authors: Alex Deucher
  */
 
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "amdgpu.h"
 #include "amdgpu_atombios.h"
 #include "amdgpu_i2c.h"
@@ -31,106 +31,110 @@
 
 void amdgpu_dpm_print_class_info(u32 class, u32 class2)
 {
-	printk("\tui class: ");
+	const char *s;
+
 	switch (class & ATOM_PPLIB_CLASSIFICATION_UI_MASK) {
 	case ATOM_PPLIB_CLASSIFICATION_UI_NONE:
 	default:
-		printk("none\n");
+		s = "none";
 		break;
 	case ATOM_PPLIB_CLASSIFICATION_UI_BATTERY:
-		printk("battery\n");
+		s = "battery";
 		break;
 	case ATOM_PPLIB_CLASSIFICATION_UI_BALANCED:
-		printk("balanced\n");
+		s = "balanced";
 		break;
 	case ATOM_PPLIB_CLASSIFICATION_UI_PERFORMANCE:
-		printk("performance\n");
+		s = "performance";
 		break;
 	}
-	printk("\tinternal class: ");
+	printk("\tui class: %s\n", s);
+	printk("\tinternal class:");
 	if (((class & ~ATOM_PPLIB_CLASSIFICATION_UI_MASK) == 0) &&
 	    (class2 == 0))
-		printk("none");
+		pr_cont(" none");
 	else {
 		if (class & ATOM_PPLIB_CLASSIFICATION_BOOT)
-			printk("boot ");
+			pr_cont(" boot");
 		if (class & ATOM_PPLIB_CLASSIFICATION_THERMAL)
-			printk("thermal ");
+			pr_cont(" thermal");
 		if (class & ATOM_PPLIB_CLASSIFICATION_LIMITEDPOWERSOURCE)
-			printk("limited_pwr ");
+			pr_cont(" limited_pwr");
 		if (class & ATOM_PPLIB_CLASSIFICATION_REST)
-			printk("rest ");
+			pr_cont(" rest");
 		if (class & ATOM_PPLIB_CLASSIFICATION_FORCED)
-			printk("forced ");
+			pr_cont(" forced");
 		if (class & ATOM_PPLIB_CLASSIFICATION_3DPERFORMANCE)
-			printk("3d_perf ");
+			pr_cont(" 3d_perf");
 		if (class & ATOM_PPLIB_CLASSIFICATION_OVERDRIVETEMPLATE)
-			printk("ovrdrv ");
+			pr_cont(" ovrdrv");
 		if (class & ATOM_PPLIB_CLASSIFICATION_UVDSTATE)
-			printk("uvd ");
+			pr_cont(" uvd");
 		if (class & ATOM_PPLIB_CLASSIFICATION_3DLOW)
-			printk("3d_low ");
+			pr_cont(" 3d_low");
 		if (class & ATOM_PPLIB_CLASSIFICATION_ACPI)
-			printk("acpi ");
+			pr_cont(" acpi");
 		if (class & ATOM_PPLIB_CLASSIFICATION_HD2STATE)
-			printk("uvd_hd2 ");
+			pr_cont(" uvd_hd2");
 		if (class & ATOM_PPLIB_CLASSIFICATION_HDSTATE)
-			printk("uvd_hd ");
+			pr_cont(" uvd_hd");
 		if (class & ATOM_PPLIB_CLASSIFICATION_SDSTATE)
-			printk("uvd_sd ");
+			pr_cont(" uvd_sd");
 		if (class2 & ATOM_PPLIB_CLASSIFICATION2_LIMITEDPOWERSOURCE_2)
-			printk("limited_pwr2 ");
+			pr_cont(" limited_pwr2");
 		if (class2 & ATOM_PPLIB_CLASSIFICATION2_ULV)
-			printk("ulv ");
+			pr_cont(" ulv");
 		if (class2 & ATOM_PPLIB_CLASSIFICATION2_MVC)
-			printk("uvd_mvc ");
+			pr_cont(" uvd_mvc");
 	}
-	printk("\n");
+	pr_cont("\n");
 }
 
 void amdgpu_dpm_print_cap_info(u32 caps)
 {
-	printk("\tcaps: ");
+	printk("\tcaps:");
 	if (caps & ATOM_PPLIB_SINGLE_DISPLAY_ONLY)
-		printk("single_disp ");
+		pr_cont(" single_disp");
 	if (caps & ATOM_PPLIB_SUPPORTS_VIDEO_PLAYBACK)
-		printk("video ");
+		pr_cont(" video");
 	if (caps & ATOM_PPLIB_DISALLOW_ON_DC)
-		printk("no_dc ");
-	printk("\n");
+		pr_cont(" no_dc");
+	pr_cont("\n");
 }
 
 void amdgpu_dpm_print_ps_status(struct amdgpu_device *adev,
 				struct amdgpu_ps *rps)
 {
-	printk("\tstatus: ");
+	printk("\tstatus:");
 	if (rps == adev->pm.dpm.current_ps)
-		printk("c ");
+		pr_cont(" c");
 	if (rps == adev->pm.dpm.requested_ps)
-		printk("r ");
+		pr_cont(" r");
 	if (rps == adev->pm.dpm.boot_ps)
-		printk("b ");
-	printk("\n");
+		pr_cont(" b");
+	pr_cont("\n");
 }
+
 
 u32 amdgpu_dpm_get_vblank_time(struct amdgpu_device *adev)
 {
 	struct drm_device *dev = adev->ddev;
 	struct drm_crtc *crtc;
 	struct amdgpu_crtc *amdgpu_crtc;
-	u32 line_time_us, vblank_lines;
+	u32 vblank_in_pixels;
 	u32 vblank_time_us = 0xffffffff; /* if the displays are off, vblank time is max */
 
 	if (adev->mode_info.num_crtc && adev->mode_info.mode_config_initialized) {
 		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 			amdgpu_crtc = to_amdgpu_crtc(crtc);
 			if (crtc->enabled && amdgpu_crtc->enabled && amdgpu_crtc->hw_mode.clock) {
-				line_time_us = (amdgpu_crtc->hw_mode.crtc_htotal * 1000) /
-					amdgpu_crtc->hw_mode.clock;
-				vblank_lines = amdgpu_crtc->hw_mode.crtc_vblank_end -
+				vblank_in_pixels =
+					amdgpu_crtc->hw_mode.crtc_htotal *
+					(amdgpu_crtc->hw_mode.crtc_vblank_end -
 					amdgpu_crtc->hw_mode.crtc_vdisplay +
-					(amdgpu_crtc->v_border * 2);
-				vblank_time_us = vblank_lines * line_time_us;
+					(amdgpu_crtc->v_border * 2));
+
+				vblank_time_us = vblank_in_pixels * 1000 / amdgpu_crtc->hw_mode.clock;
 				break;
 			}
 		}
@@ -150,7 +154,7 @@ u32 amdgpu_dpm_get_vrefresh(struct amdgpu_device *adev)
 		list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 			amdgpu_crtc = to_amdgpu_crtc(crtc);
 			if (crtc->enabled && amdgpu_crtc->enabled && amdgpu_crtc->hw_mode.clock) {
-				vrefresh = amdgpu_crtc->hw_mode.vrefresh;
+				vrefresh = drm_mode_vrefresh(&amdgpu_crtc->hw_mode);
 				break;
 			}
 		}
@@ -551,9 +555,10 @@ int amdgpu_parse_extended_power_table(struct amdgpu_device *adev)
 				entry = (ATOM_PPLIB_VCE_Clock_Voltage_Limit_Record *)
 					((u8 *)entry + sizeof(ATOM_PPLIB_VCE_Clock_Voltage_Limit_Record));
 			}
-			for (i = 0; i < states->numEntries; i++) {
-				if (i >= AMDGPU_MAX_VCE_LEVELS)
-					break;
+			adev->pm.dpm.num_of_vce_states =
+					states->numEntries > AMD_MAX_VCE_LEVELS ?
+					AMD_MAX_VCE_LEVELS : states->numEntries;
+			for (i = 0; i < adev->pm.dpm.num_of_vce_states; i++) {
 				vce_clk = (VCEClockInfo *)
 					((u8 *)&array->entries[0] +
 					 (state_entry->ucVCEClockInfoIndex * sizeof(VCEClockInfo)));
@@ -952,4 +957,13 @@ u8 amdgpu_encode_pci_lane_width(u32 lanes)
 		return 0;
 
 	return encoded_lanes[lanes];
+}
+
+struct amd_vce_state*
+amdgpu_get_vce_clock_state(struct amdgpu_device *adev, unsigned idx)
+{
+	if (idx < adev->pm.dpm.num_of_vce_states)
+		return &adev->pm.dpm.vce_states[idx];
+
+	return NULL;
 }

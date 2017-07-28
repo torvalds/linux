@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -61,7 +61,7 @@ ACPI_MODULE_NAME("utxface")
  * DESCRIPTION: Shutdown the ACPICA subsystem and release all resources.
  *
  ******************************************************************************/
-acpi_status __init acpi_terminate(void)
+acpi_status ACPI_INIT_FUNCTION acpi_terminate(void)
 {
 	acpi_status status;
 
@@ -127,7 +127,7 @@ ACPI_EXPORT_SYMBOL(acpi_subsystem_status)
  *              and the value of out_buffer is undefined.
  *
  ******************************************************************************/
-acpi_status acpi_get_system_info(struct acpi_buffer * out_buffer)
+acpi_status acpi_get_system_info(struct acpi_buffer *out_buffer)
 {
 	struct acpi_system_info *info_ptr;
 	acpi_status status;
@@ -154,7 +154,6 @@ acpi_status acpi_get_system_info(struct acpi_buffer * out_buffer)
 	 * Populate the return buffer
 	 */
 	info_ptr = (struct acpi_system_info *)out_buffer->pointer;
-
 	info_ptr->acpi_ca_version = ACPI_CA_VERSION;
 
 	/* System flags (ACPI capabilities) */
@@ -216,7 +215,6 @@ acpi_status acpi_get_statistics(struct acpi_statistics *stats)
 	/* Other counters */
 
 	stats->method_count = acpi_method_count;
-
 	return_ACPI_STATUS(AE_OK);
 }
 
@@ -485,7 +483,7 @@ ACPI_EXPORT_SYMBOL(acpi_check_address_range)
  ******************************************************************************/
 acpi_status
 acpi_decode_pld_buffer(u8 *in_buffer,
-		       acpi_size length, struct acpi_pld_info ** return_buffer)
+		       acpi_size length, struct acpi_pld_info **return_buffer)
 {
 	struct acpi_pld_info *pld_info;
 	u32 *buffer = ACPI_CAST_PTR(u32, in_buffer);

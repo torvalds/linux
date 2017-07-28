@@ -74,27 +74,29 @@ static int versatile_pci_parse_request_of_pci_ranges(struct device *dev,
 	int err, mem = 1, res_valid = 0;
 	struct device_node *np = dev->of_node;
 	resource_size_t iobase;
-	struct resource_entry *win;
+	struct resource_entry *win, *tmp;
 
 	err = of_pci_get_host_bridge_resources(np, 0, 0xff, res, &iobase);
 	if (err)
 		return err;
 
-	resource_list_for_each_entry(win, res) {
-		struct resource *parent, *res = win->res;
+	err = devm_request_pci_bus_resources(dev, res);
+	if (err)
+		goto out_release_res;
+
+	resource_list_for_each_entry_safe(win, tmp, res) {
+		struct resource *res = win->res;
 
 		switch (resource_type(res)) {
 		case IORESOURCE_IO:
-			parent = &ioport_resource;
 			err = pci_remap_iospace(res, iobase);
 			if (err) {
 				dev_warn(dev, "error %d: failed to map resource %pR\n",
 					 err, res);
-				continue;
+				resource_list_destroy_entry(win);
 			}
 			break;
 		case IORESOURCE_MEM:
-			parent = &iomem_resource;
 			res_valid |= !(res->flags & IORESOURCE_PREFETCH);
 
 			writel(res->start >> 28, PCI_IMAP(mem));
@@ -102,57 +104,51 @@ static int versatile_pci_parse_request_of_pci_ranges(struct device *dev,
 			mem++;
 
 			break;
-		case IORESOURCE_BUS:
-		default:
-			continue;
 		}
-
-		err = devm_request_resource(dev, parent, res);
-		if (err)
-			goto out_release_res;
 	}
 
-	if (!res_valid) {
-		dev_err(dev, "non-prefetchable memory resource required\n");
-		err = -EINVAL;
-		goto out_release_res;
-	}
+	if (res_valid)
+		return 0;
 
-	return 0;
+	dev_err(dev, "non-prefetchable memory resource required\n");
+	err = -EINVAL;
 
 out_release_res:
 	pci_free_resource_list(res);
 	return err;
 }
 
-/* Unused, temporary to satisfy ARM arch code */
-struct pci_sys_data sys;
-
 static int versatile_pci_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct resource *res;
 	int ret, i, myslot = -1;
 	u32 val;
 	void __iomem *local_pci_cfg_base;
-	struct pci_bus *bus;
+	struct pci_bus *bus, *child;
+	struct pci_host_bridge *bridge;
 	LIST_HEAD(pci_res);
 
+	bridge = devm_pci_alloc_host_bridge(dev, 0);
+	if (!bridge)
+		return -ENOMEM;
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	versatile_pci_base = devm_ioremap_resource(&pdev->dev, res);
+	versatile_pci_base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(versatile_pci_base))
 		return PTR_ERR(versatile_pci_base);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	versatile_cfg_base[0] = devm_ioremap_resource(&pdev->dev, res);
+	versatile_cfg_base[0] = devm_ioremap_resource(dev, res);
 	if (IS_ERR(versatile_cfg_base[0]))
 		return PTR_ERR(versatile_cfg_base[0]);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-	versatile_cfg_base[1] = devm_ioremap_resource(&pdev->dev, res);
+	versatile_cfg_base[1] = devm_pci_remap_cfg_resource(dev, res);
 	if (IS_ERR(versatile_cfg_base[1]))
 		return PTR_ERR(versatile_cfg_base[1]);
 
-	ret = versatile_pci_parse_request_of_pci_ranges(&pdev->dev, &pci_res);
+	ret = versatile_pci_parse_request_of_pci_ranges(dev, &pci_res);
 	if (ret)
 		return ret;
 
@@ -168,7 +164,7 @@ static int versatile_pci_probe(struct platform_device *pdev)
 		}
 	}
 	if (myslot == -1) {
-		dev_err(&pdev->dev, "Cannot find PCI core!\n");
+		dev_err(dev, "Cannot find PCI core!\n");
 		return -EIO;
 	}
 	/*
@@ -176,7 +172,7 @@ static int versatile_pci_probe(struct platform_device *pdev)
 	 */
 	pci_slot_ignore |= (1 << myslot);
 
-	dev_info(&pdev->dev, "PCI core found (slot %d)\n", myslot);
+	dev_info(dev, "PCI core found (slot %d)\n", myslot);
 
 	writel(myslot, PCI_SELFID);
 	local_pci_cfg_base = versatile_cfg_base[1] + (myslot << 11);
@@ -208,12 +204,23 @@ static int versatile_pci_probe(struct platform_device *pdev)
 	pci_add_flags(PCI_ENABLE_PROC_DOMAINS);
 	pci_add_flags(PCI_REASSIGN_ALL_BUS | PCI_REASSIGN_ALL_RSRC);
 
-	bus = pci_scan_root_bus(&pdev->dev, 0, &pci_versatile_ops, &sys, &pci_res);
-	if (!bus)
-		return -ENOMEM;
+	list_splice_init(&pci_res, &bridge->windows);
+	bridge->dev.parent = dev;
+	bridge->sysdata = NULL;
+	bridge->busnr = 0;
+	bridge->ops = &pci_versatile_ops;
+	bridge->map_irq = of_irq_parse_and_map_pci;
+	bridge->swizzle_irq = pci_common_swizzle;
 
-	pci_fixup_irqs(pci_common_swizzle, of_irq_parse_and_map_pci);
+	ret = pci_scan_root_bus_bridge(bridge);
+	if (ret < 0)
+		return ret;
+
+	bus = bridge->bus;
+
 	pci_assign_unassigned_bus_resources(bus);
+	list_for_each_entry(child, &bus->children, node)
+		pcie_bus_configure_settings(child);
 	pci_bus_add_devices(bus);
 
 	return 0;
@@ -229,6 +236,7 @@ static struct platform_driver versatile_pci_driver = {
 	.driver = {
 		.name = "versatile-pci",
 		.of_match_table = versatile_pci_of_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe = versatile_pci_probe,
 };

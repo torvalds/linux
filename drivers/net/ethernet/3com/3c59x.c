@@ -92,7 +92,7 @@ static int vortex_debug = 1;
 #include <linux/gfp.h>
 #include <asm/irq.h>			/* For nr_irqs only. */
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* Kernel compatibility defines, some common to David Hinds' PCMCIA package.
    This is only in the support-all-kernels source code. */
@@ -813,8 +813,8 @@ module_param(global_enable_wol, int, 0);
 module_param_array(enable_wol, int, NULL, 0);
 module_param(rx_copybreak, int, 0);
 module_param(max_interrupt_work, int, 0);
-module_param(compaq_ioaddr, int, 0);
-module_param(compaq_irq, int, 0);
+module_param_hw(compaq_ioaddr, int, ioport, 0);
+module_param_hw(compaq_irq, int, irq, 0);
 module_param(compaq_device_id, int, 0);
 module_param(watchdog, int, 0);
 module_param(global_use_mmio, int, 0);
@@ -907,7 +907,7 @@ static struct eisa_device_id vortex_eisa_ids[] = {
 };
 MODULE_DEVICE_TABLE(eisa, vortex_eisa_ids);
 
-static int __init vortex_eisa_probe(struct device *device)
+static int vortex_eisa_probe(struct device *device)
 {
 	void __iomem *ioaddr;
 	struct eisa_device *edev;
@@ -1062,7 +1062,6 @@ static const struct net_device_ops boomrang_netdev_ops = {
 	.ndo_do_ioctl 		= vortex_ioctl,
 #endif
 	.ndo_set_rx_mode	= set_rx_mode,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -1080,7 +1079,6 @@ static const struct net_device_ops vortex_netdev_ops = {
 	.ndo_do_ioctl 		= vortex_ioctl,
 #endif
 	.ndo_set_rx_mode	= set_rx_mode,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -1601,15 +1599,9 @@ vortex_up(struct net_device *dev)
 				dev->name, media_tbl[dev->if_port].name);
 	}
 
-	init_timer(&vp->timer);
-	vp->timer.expires = RUN_AT(media_tbl[dev->if_port].wait);
-	vp->timer.data = (unsigned long)dev;
-	vp->timer.function = vortex_timer;		/* timer handler */
-	add_timer(&vp->timer);
-
-	init_timer(&vp->rx_oom_timer);
-	vp->rx_oom_timer.data = (unsigned long)dev;
-	vp->rx_oom_timer.function = rx_oom_timer;
+	setup_timer(&vp->timer, vortex_timer, (unsigned long)dev);
+	mod_timer(&vp->timer, RUN_AT(media_tbl[dev->if_port].wait));
+	setup_timer(&vp->rx_oom_timer, rx_oom_timer, (unsigned long)dev);
 
 	if (vortex_debug > 1)
 		pr_debug("%s: Initial media type %s.\n",
@@ -1950,7 +1942,7 @@ static void vortex_tx_timeout(struct net_device *dev)
 	}
 	/* Issue Tx Enable */
 	iowrite16(TxEnable, ioaddr + EL3_CMD);
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 }
 
 /*
@@ -2459,8 +2451,13 @@ boomerang_interrupt(int irq, void *dev_id)
 					struct sk_buff *skb = vp->tx_skbuff[entry];
 #if DO_ZEROCOPY
 					int i;
-					for (i=0; i<=skb_shinfo(skb)->nr_frags; i++)
-							pci_unmap_single(VORTEX_PCI(vp),
+					pci_unmap_single(VORTEX_PCI(vp),
+							le32_to_cpu(vp->tx_ring[entry].frag[0].addr),
+							le32_to_cpu(vp->tx_ring[entry].frag[0].length)&0xFFF,
+							PCI_DMA_TODEVICE);
+
+					for (i=1; i<=skb_shinfo(skb)->nr_frags; i++)
+							pci_unmap_page(VORTEX_PCI(vp),
 											 le32_to_cpu(vp->tx_ring[entry].frag[i].addr),
 											 le32_to_cpu(vp->tx_ring[entry].frag[i].length)&0xFFF,
 											 PCI_DMA_TODEVICE);
@@ -2631,9 +2628,8 @@ boomerang_rx(struct net_device *dev)
 				skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
 				pci_dma_sync_single_for_cpu(VORTEX_PCI(vp), dma, PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
 				/* 'skb_put()' points to the start of sk_buff data area. */
-				memcpy(skb_put(skb, pkt_len),
-					   vp->rx_skbuff[entry]->data,
-					   pkt_len);
+				skb_put_data(skb, vp->rx_skbuff[entry]->data,
+					     pkt_len);
 				pci_dma_sync_single_for_device(VORTEX_PCI(vp), dma, PKT_BUF_SZ, PCI_DMA_FROMDEVICE);
 				vp->rx_copy++;
 			} else {
@@ -2910,18 +2906,22 @@ static int vortex_nway_reset(struct net_device *dev)
 	return mii_nway_restart(&vp->mii);
 }
 
-static int vortex_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int vortex_get_link_ksettings(struct net_device *dev,
+				     struct ethtool_link_ksettings *cmd)
 {
 	struct vortex_private *vp = netdev_priv(dev);
 
-	return mii_ethtool_gset(&vp->mii, cmd);
+	mii_ethtool_get_link_ksettings(&vp->mii, cmd);
+
+	return 0;
 }
 
-static int vortex_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int vortex_set_link_ksettings(struct net_device *dev,
+				     const struct ethtool_link_ksettings *cmd)
 {
 	struct vortex_private *vp = netdev_priv(dev);
 
-	return mii_ethtool_sset(&vp->mii, cmd);
+	return mii_ethtool_set_link_ksettings(&vp->mii, cmd);
 }
 
 static u32 vortex_get_msglevel(struct net_device *dev)
@@ -3034,13 +3034,13 @@ static const struct ethtool_ops vortex_ethtool_ops = {
 	.set_msglevel           = vortex_set_msglevel,
 	.get_ethtool_stats      = vortex_get_ethtool_stats,
 	.get_sset_count		= vortex_get_sset_count,
-	.get_settings           = vortex_get_settings,
-	.set_settings           = vortex_set_settings,
 	.get_link               = ethtool_op_get_link,
 	.nway_reset             = vortex_nway_reset,
 	.get_wol                = vortex_get_wol,
 	.set_wol                = vortex_set_wol,
 	.get_ts_info		= ethtool_op_get_ts_info,
+	.get_link_ksettings     = vortex_get_link_ksettings,
+	.set_link_ksettings     = vortex_set_link_ksettings,
 };
 
 #ifdef CONFIG_PCI
@@ -3090,7 +3090,7 @@ static void set_rx_mode(struct net_device *dev)
 	iowrite16(new_mode, ioaddr + EL3_CMD);
 }
 
-#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
+#if IS_ENABLED(CONFIG_VLAN_8021Q)
 /* Setup the card so that it can receive frames with an 802.1q VLAN tag.
    Note that this must be done after each RxReset due to some backwards
    compatibility logic in the Cyclone and Tornado ASICs */

@@ -36,6 +36,10 @@ struct trace_bprintk_fmt {
 static inline struct trace_bprintk_fmt *lookup_format(const char *fmt)
 {
 	struct trace_bprintk_fmt *pos;
+
+	if (!fmt)
+		return ERR_PTR(-EINVAL);
+
 	list_for_each_entry(pos, &trace_bprintk_fmt_list, list) {
 		if (!strcmp(pos->fmt, fmt))
 			return pos;
@@ -57,7 +61,8 @@ void hold_module_trace_bprintk_format(const char **start, const char **end)
 	for (iter = start; iter < end; iter++) {
 		struct trace_bprintk_fmt *tb_fmt = lookup_format(*iter);
 		if (tb_fmt) {
-			*iter = tb_fmt->fmt;
+			if (!IS_ERR(tb_fmt))
+				*iter = tb_fmt->fmt;
 			continue;
 		}
 
@@ -273,6 +278,7 @@ static const char **find_next(void *v, loff_t *pos)
 	if (*pos < last_index + start_index)
 		return __start___tracepoint_str + (*pos - last_index);
 
+	start_index += last_index;
 	return find_next_mod_format(start_index, v, fmt, pos);
 }
 
@@ -294,6 +300,9 @@ static int t_show(struct seq_file *m, void *v)
 	const char **fmt = v;
 	const char *str = *fmt;
 	int i;
+
+	if (!*fmt)
+		return 0;
 
 	seq_printf(m, "0x%lx : \"", *(unsigned long *)fmt);
 

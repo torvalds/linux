@@ -37,35 +37,21 @@ int __hash_page_thp(unsigned long ea, unsigned long access, unsigned long vsid,
 
 		old_pmd = pmd_val(pmd);
 		/* If PMD busy, retry the access */
-		if (unlikely(old_pmd & _PAGE_BUSY))
-			return 0;
-		/* If PMD is trans splitting retry the access */
-		if (unlikely(old_pmd & _PAGE_SPLITTING))
+		if (unlikely(old_pmd & H_PAGE_BUSY))
 			return 0;
 		/* If PMD permissions don't match, take page fault */
-		if (unlikely(access & ~old_pmd))
+		if (unlikely(!check_pte_access(access, old_pmd)))
 			return 1;
 		/*
 		 * Try to lock the PTE, add ACCESSED and DIRTY if it was
 		 * a write access
 		 */
-		new_pmd = old_pmd | _PAGE_BUSY | _PAGE_ACCESSED;
-		if (access & _PAGE_RW)
+		new_pmd = old_pmd | H_PAGE_BUSY | _PAGE_ACCESSED;
+		if (access & _PAGE_WRITE)
 			new_pmd |= _PAGE_DIRTY;
-	} while (old_pmd != __cmpxchg_u64((unsigned long *)pmdp,
-					  old_pmd, new_pmd));
-	/*
-	 * PP bits. _PAGE_USER is already PP bit 0x2, so we only
-	 * need to add in 0x1 if it's a read-only user page
-	 */
-	rflags = new_pmd & _PAGE_USER;
-	if ((new_pmd & _PAGE_USER) && !((new_pmd & _PAGE_RW) &&
-					   (new_pmd & _PAGE_DIRTY)))
-		rflags |= 0x1;
-	/*
-	 * _PAGE_EXEC -> HW_NO_EXEC since it's inverted
-	 */
-	rflags |= ((new_pmd & _PAGE_EXEC) ? 0 : HPTE_R_N);
+	} while (!pmd_xchg(pmdp, __pmd(old_pmd), __pmd(new_pmd)));
+
+	rflags = htab_convert_pte_flags(new_pmd);
 
 #if 0
 	if (!cpu_has_feature(CPU_FTR_COHERENT_ICACHE)) {
@@ -82,7 +68,7 @@ int __hash_page_thp(unsigned long ea, unsigned long access, unsigned long vsid,
 	 */
 	shift = mmu_psize_defs[psize].shift;
 	index = (ea & ~HPAGE_PMD_MASK) >> shift;
-	BUG_ON(index >= 4096);
+	BUG_ON(index >= PTE_FRAG_SIZE);
 
 	vpn = hpt_vpn(ea, vsid, ssize);
 	hpte_slot_array = get_hpte_slot_array(pmdp);
@@ -92,9 +78,19 @@ int __hash_page_thp(unsigned long ea, unsigned long access, unsigned long vsid,
 		 * base page size. This is because demote_segment won't flush
 		 * hash page table entries.
 		 */
-		if ((old_pmd & _PAGE_HASHPTE) && !(old_pmd & _PAGE_COMBO))
+		if ((old_pmd & H_PAGE_HASHPTE) && !(old_pmd & H_PAGE_COMBO)) {
 			flush_hash_hugepage(vsid, ea, pmdp, MMU_PAGE_64K,
 					    ssize, flags);
+			/*
+			 * With THP, we also clear the slot information with
+			 * respect to all the 64K hash pte mapping the 16MB
+			 * page. They are all invalid now. This make sure we
+			 * don't find the slot valid when we fault with 4k
+			 * base page size.
+			 *
+			 */
+			memset(hpte_slot_array, 0, PTE_FRAG_SIZE);
+		}
 	}
 
 	valid = hpte_valid(hpte_slot_array, index);
@@ -107,8 +103,8 @@ int __hash_page_thp(unsigned long ea, unsigned long access, unsigned long vsid,
 		slot = (hash & htab_hash_mask) * HPTES_PER_GROUP;
 		slot += hidx & _PTEIDX_GROUP_IX;
 
-		ret = ppc_md.hpte_updatepp(slot, rflags, vpn,
-					   psize, lpsize, ssize, flags);
+		ret = mmu_hash_ops.hpte_updatepp(slot, rflags, vpn,
+						 psize, lpsize, ssize, flags);
 		/*
 		 * We failed to update, try to insert a new entry.
 		 */
@@ -129,36 +125,30 @@ int __hash_page_thp(unsigned long ea, unsigned long access, unsigned long vsid,
 		hash = hpt_hash(vpn, shift, ssize);
 		/* insert new entry */
 		pa = pmd_pfn(__pmd(old_pmd)) << PAGE_SHIFT;
-		new_pmd |= _PAGE_HASHPTE;
+		new_pmd |= H_PAGE_HASHPTE;
 
-		/* Add in WIMG bits */
-		rflags |= (new_pmd & (_PAGE_WRITETHRU | _PAGE_NO_CACHE |
-				      _PAGE_GUARDED));
-		/*
-		 * enable the memory coherence always
-		 */
-		rflags |= HPTE_R_M;
 repeat:
 		hpte_group = ((hash & htab_hash_mask) * HPTES_PER_GROUP) & ~0x7UL;
 
 		/* Insert into the hash table, primary slot */
-		slot = ppc_md.hpte_insert(hpte_group, vpn, pa, rflags, 0,
-					  psize, lpsize, ssize);
+		slot = mmu_hash_ops.hpte_insert(hpte_group, vpn, pa, rflags, 0,
+						psize, lpsize, ssize);
 		/*
 		 * Primary is full, try the secondary
 		 */
 		if (unlikely(slot == -1)) {
 			hpte_group = ((~hash & htab_hash_mask) *
 				      HPTES_PER_GROUP) & ~0x7UL;
-			slot = ppc_md.hpte_insert(hpte_group, vpn, pa,
-						  rflags, HPTE_V_SECONDARY,
-						  psize, lpsize, ssize);
+			slot = mmu_hash_ops.hpte_insert(hpte_group, vpn, pa,
+							rflags,
+							HPTE_V_SECONDARY,
+							psize, lpsize, ssize);
 			if (slot == -1) {
 				if (mftb() & 0x1)
 					hpte_group = ((hash & htab_hash_mask) *
 						      HPTES_PER_GROUP) & ~0x7UL;
 
-				ppc_md.hpte_remove(hpte_group);
+				mmu_hash_ops.hpte_remove(hpte_group);
 				goto repeat;
 			}
 		}
@@ -180,17 +170,17 @@ repeat:
 		mark_hpte_slot_valid(hpte_slot_array, index, slot);
 	}
 	/*
-	 * Mark the pte with _PAGE_COMBO, if we are trying to hash it with
+	 * Mark the pte with H_PAGE_COMBO, if we are trying to hash it with
 	 * base page size 4k.
 	 */
 	if (psize == MMU_PAGE_4K)
-		new_pmd |= _PAGE_COMBO;
+		new_pmd |= H_PAGE_COMBO;
 	/*
 	 * The hpte valid is stored in the pgtable whose address is in the
 	 * second half of the PMD. Order this against clearing of the busy bit in
 	 * huge pmd.
 	 */
 	smp_wmb();
-	*pmdp = __pmd(new_pmd & ~_PAGE_BUSY);
+	*pmdp = __pmd(new_pmd & ~H_PAGE_BUSY);
 	return 0;
 }

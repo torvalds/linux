@@ -49,13 +49,12 @@ static void dcon_clear_irq(void)
 
 static int dcon_was_irq(void)
 {
-	u_int8_t tmp;
+	u8 tmp;
 
 	/* irq status will appear in PMIO_Rx50[6] on gpio12 */
 	tmp = inb(VX855_GPI_STATUS_CHG);
-	return !!(tmp & BIT_GPIO12);
 
-	return 0;
+	return !!(tmp & BIT_GPIO12);
 }
 
 static int dcon_init_xo_1_5(struct dcon_priv *dcon)
@@ -65,7 +64,7 @@ static int dcon_init_xo_1_5(struct dcon_priv *dcon)
 	dcon_clear_irq();
 
 	/* set   PMIO_Rx52[6] to enable SCI/SMI on gpio12 */
-	outb(inb(VX855_GPI_SCI_SMI)|BIT_GPIO12, VX855_GPI_SCI_SMI);
+	outb(inb(VX855_GPI_SCI_SMI) | BIT_GPIO12, VX855_GPI_SCI_SMI);
 
 	/* Determine the current state of DCONLOAD, likely set by firmware */
 	/* GPIO1 */
@@ -108,7 +107,6 @@ static void set_i2c_line(int sda, int scl)
 	outb(tmp, 0x3c5);
 }
 
-
 static void dcon_wiggle_xo_1_5(void)
 {
 	int x;
@@ -131,7 +129,7 @@ static void dcon_wiggle_xo_1_5(void)
 	udelay(5);
 
 	/* set   PMIO_Rx52[6] to enable SCI/SMI on gpio12 */
-	outb(inb(VX855_GPI_SCI_SMI)|BIT_GPIO12, VX855_GPI_SCI_SMI);
+	outb(inb(VX855_GPI_SCI_SMI) | BIT_GPIO12, VX855_GPI_SCI_SMI);
 }
 
 static void dcon_set_dconload_xo_1_5(int val)

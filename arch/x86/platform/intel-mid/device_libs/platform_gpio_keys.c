@@ -1,5 +1,5 @@
 /*
- * platform_gpio_keys.c: gpio_keys platform data initilization file
+ * platform_gpio_keys.c: gpio_keys platform data initialization file
  *
  * (C) Copyright 2013 Intel Corporation
  * Author: Sathyanarayanan Kuppuswamy <sathyanarayanan.kuppuswamy@intel.com>
@@ -32,6 +32,9 @@ static struct gpio_keys_button gpio_button[] = {
 	{SW_LID,		-1, 1, "lid_switch",	EV_SW,  0, 20},
 	{KEY_VOLUMEUP,		-1, 1, "vol_up",	EV_KEY, 0, 20},
 	{KEY_VOLUMEDOWN,	-1, 1, "vol_down",	EV_KEY, 0, 20},
+	{KEY_MUTE,		-1, 1, "mute_enable",	EV_KEY, 0, 20},
+	{KEY_VOLUMEUP,		-1, 1, "volume_up",	EV_KEY, 0, 20},
+	{KEY_VOLUMEDOWN,	-1, 1, "volume_down",	EV_KEY, 0, 20},
 	{KEY_CAMERA,		-1, 1, "camera_full",	EV_KEY, 0, 20},
 	{KEY_CAMERA_FOCUS,	-1, 1, "camera_half",	EV_KEY, 0, 20},
 	{SW_KEYPAD_SLIDE,	-1, 1, "MagSw1",	EV_SW,  0, 20},

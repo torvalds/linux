@@ -724,7 +724,7 @@
 
 /**********
  *
- * 0xFFFFF8xx -- Serial Periferial Interface Master (SPIM)
+ * 0xFFFFF8xx -- Serial Peripheral Interface Master (SPIM)
  *
  **********/
 
@@ -806,7 +806,7 @@
 
 #define UBAUD_PRESCALER_MASK	0x003f	/* Actual divisor is 65 - PRESCALER */
 #define UBAUD_PRESCALER_SHIFT	0
-#define UBAUD_DIVIDE_MASK	0x0700	/* Baud Rate freq. divizor */
+#define UBAUD_DIVIDE_MASK	0x0700	/* Baud Rate freq. divisor */
 #define UBAUD_DIVIDE_SHIFT	8
 #define UBAUD_BAUD_SRC		0x0800	/* Baud Rate Source */
 #define UBAUD_UCLKDIR		0x2000	/* UCLK Direction */
@@ -909,7 +909,7 @@ typedef struct {
   volatile unsigned short int nipr;
   volatile unsigned short int hmark;
   volatile unsigned short int unused;
-} __attribute__((packed)) m68328_uart;
+} __packed m68328_uart;
 
 
 
@@ -1256,7 +1256,7 @@ typedef struct {
 #define DRAMMC_COL10		0x0080	/* Col address bit for MD10 PA11/PA0  */
 #define DRAMMC_COL9		0x0040	/* Col address bit for MD9  PA10/PA0  */
 #define DRAMMC_COL8		0x0020	/* Col address bit for MD8  PA9/PA0   */
-#define DRAMMC_REF_MASK		0x001f	/* Reresh Cycle */
+#define DRAMMC_REF_MASK		0x001f	/* Refresh Cycle */
 #define DRAMMC_REF_SHIFT	0
 
 /*

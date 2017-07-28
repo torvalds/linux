@@ -33,6 +33,7 @@ static bool nf_dup_ipv6_route(struct net *net, struct sk_buff *skb,
 	fl6.daddr = *gw;
 	fl6.flowlabel = (__force __be32)(((iph->flow_lbl[0] & 0xF) << 16) |
 			(iph->flow_lbl[1] << 8) | iph->flow_lbl[2]);
+	fl6.flowi6_flags = FLOWI_FLAG_KNOWN_NH;
 	dst = ip6_route_output(net, NULL, &fl6);
 	if (dst->error) {
 		dst_release(dst);
@@ -56,10 +57,8 @@ void nf_dup_ipv6(struct net *net, struct sk_buff *skb, unsigned int hooknum,
 		return;
 
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
-	nf_conntrack_put(skb->nfct);
-	skb->nfct     = &nf_ct_untracked_get()->ct_general;
-	skb->nfctinfo = IP_CT_NEW;
-	nf_conntrack_get(skb->nfct);
+	nf_reset(skb);
+	nf_ct_set(skb, NULL, IP_CT_UNTRACKED);
 #endif
 	if (hooknum == NF_INET_PRE_ROUTING ||
 	    hooknum == NF_INET_LOCAL_IN) {

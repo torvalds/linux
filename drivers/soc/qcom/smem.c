@@ -684,8 +684,7 @@ static int qcom_smem_map_memory(struct qcom_smem *smem, struct device *dev,
 
 	smem->regions[i].aux_base = (u32)r.start;
 	smem->regions[i].size = resource_size(&r);
-	smem->regions[i].virt_base = devm_ioremap_nocache(dev, r.start,
-							  resource_size(&r));
+	smem->regions[i].virt_base = devm_ioremap_wc(dev, r.start, resource_size(&r));
 	if (!smem->regions[i].virt_base)
 		return -ENOMEM;
 
@@ -741,7 +740,8 @@ static int qcom_smem_probe(struct platform_device *pdev)
 
 	hwlock_id = of_hwspin_lock_get_id(pdev->dev.of_node, 0);
 	if (hwlock_id < 0) {
-		dev_err(&pdev->dev, "failed to retrieve hwlock\n");
+		if (hwlock_id != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "failed to retrieve hwlock\n");
 		return hwlock_id;
 	}
 

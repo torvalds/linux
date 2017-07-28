@@ -23,17 +23,5 @@ config SND_SGI_HAL2
         help
                 Sound support for the SGI Indy and Indigo2 Workstation.
 
-
-config SND_AU1X00
-	tristate "Au1x00 AC97 Port Driver (DEPRECATED)"
-	depends on MIPS_ALCHEMY
-	select SND_PCM
-	select SND_AC97_CODEC
-	help
-	  ALSA Sound driver for the Au1x00's AC97 port.
-
-	  Newer drivers for ASoC are available, please do not use
-	  this driver as it will be removed in the future.
-
 endif	# SND_MIPS
 

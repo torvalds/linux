@@ -8,7 +8,7 @@
  */
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/stat.h>
@@ -167,7 +167,7 @@ static int __init boot_params_kdebugfs_init(void)
 	struct dentry *dbp, *version, *data;
 	int error = -ENOMEM;
 
-	dbp = debugfs_create_dir("boot_params", NULL);
+	dbp = debugfs_create_dir("boot_params", arch_debugfs_dir);
 	if (!dbp)
 		return -ENOMEM;
 

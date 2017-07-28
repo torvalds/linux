@@ -465,7 +465,7 @@ int snd_hdac_stream_set_params(struct hdac_stream *azx_dev,
 }
 EXPORT_SYMBOL_GPL(snd_hdac_stream_set_params);
 
-static cycle_t azx_cc_read(const struct cyclecounter *cc)
+static u64 azx_cc_read(const struct cyclecounter *cc)
 {
 	struct hdac_stream *azx_dev = container_of(cc, struct hdac_stream, cc);
 
@@ -473,7 +473,7 @@ static cycle_t azx_cc_read(const struct cyclecounter *cc)
 }
 
 static void azx_timecounter_init(struct hdac_stream *azx_dev,
-				 bool force, cycle_t last)
+				 bool force, u64 last)
 {
 	struct timecounter *tc = &azx_dev->tc;
 	struct cyclecounter *cc = &azx_dev->cc;
@@ -523,7 +523,7 @@ void snd_hdac_stream_timecounter_init(struct hdac_stream *azx_dev,
 	struct snd_pcm_runtime *runtime = azx_dev->substream->runtime;
 	struct hdac_stream *s;
 	bool inited = false;
-	cycle_t cycle_last = 0;
+	u64 cycle_last = 0;
 	int i = 0;
 
 	list_for_each_entry(s, &bus->stream_list, list) {
@@ -555,12 +555,12 @@ void snd_hdac_stream_sync_trigger(struct hdac_stream *azx_dev, bool set,
 
 	if (!reg)
 		reg = AZX_REG_SSYNC;
-	val = _snd_hdac_chip_read(l, bus, reg);
+	val = _snd_hdac_chip_readl(bus, reg);
 	if (set)
 		val |= streams;
 	else
 		val &= ~streams;
-	_snd_hdac_chip_write(l, bus, reg, val);
+	_snd_hdac_chip_writel(bus, reg, val);
 }
 EXPORT_SYMBOL_GPL(snd_hdac_stream_sync_trigger);
 

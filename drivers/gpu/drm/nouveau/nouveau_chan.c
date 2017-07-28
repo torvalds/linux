@@ -24,12 +24,17 @@
 
 #include <nvif/os.h>
 #include <nvif/class.h>
+#include <nvif/cl0002.h>
+#include <nvif/cl006b.h>
+#include <nvif/cl506f.h>
+#include <nvif/cl906f.h>
+#include <nvif/cla06f.h>
 #include <nvif/ioctl.h>
 
 /*XXX*/
 #include <core/client.h>
 
-#include "nouveau_drm.h"
+#include "nouveau_drv.h"
 #include "nouveau_dma.h"
 #include "nouveau_bo.h"
 #include "nouveau_chan.h"
@@ -40,10 +45,20 @@ MODULE_PARM_DESC(vram_pushbuf, "Create DMA push buffers in VRAM");
 int nouveau_vram_pushbuf;
 module_param_named(vram_pushbuf, nouveau_vram_pushbuf, int, 0400);
 
+static int
+nouveau_channel_killed(struct nvif_notify *ntfy)
+{
+	struct nouveau_channel *chan = container_of(ntfy, typeof(*chan), kill);
+	struct nouveau_cli *cli = (void *)chan->user.client;
+	NV_PRINTK(warn, cli, "channel %d killed!\n", chan->chid);
+	atomic_set(&chan->killed, 1);
+	return NVIF_NOTIFY_DROP;
+}
+
 int
 nouveau_channel_idle(struct nouveau_channel *chan)
 {
-	if (likely(chan && chan->fence)) {
+	if (likely(chan && chan->fence && !atomic_read(&chan->killed))) {
 		struct nouveau_cli *cli = (void *)chan->user.client;
 		struct nouveau_fence *fence = NULL;
 		int ret;
@@ -73,6 +88,7 @@ nouveau_channel_del(struct nouveau_channel **pchan)
 		nvif_object_fini(&chan->nvsw);
 		nvif_object_fini(&chan->gart);
 		nvif_object_fini(&chan->vram);
+		nvif_notify_fini(&chan->kill);
 		nvif_object_fini(&chan->user);
 		nvif_object_fini(&chan->push.ctxdma);
 		nouveau_bo_vma_del(chan->push.buffer, &chan->push.vma);
@@ -102,13 +118,14 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 
 	chan->device = device;
 	chan->drm = drm;
+	atomic_set(&chan->killed, 0);
 
 	/* allocate memory for dma push buffer */
 	target = TTM_PL_FLAG_TT | TTM_PL_FLAG_UNCACHED;
 	if (nouveau_vram_pushbuf)
 		target = TTM_PL_FLAG_VRAM;
 
-	ret = nouveau_bo_new(drm->dev, size, 0, target, 0, 0, NULL, NULL,
+	ret = nouveau_bo_new(cli, size, 0, target, 0, 0, NULL, NULL,
 			    &chan->push.buffer);
 	if (ret == 0) {
 		ret = nouveau_bo_pin(chan->push.buffer, target, false);
@@ -186,7 +203,9 @@ static int
 nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
 		    u32 engine, struct nouveau_channel **pchan)
 {
-	static const u16 oclasses[] = { MAXWELL_CHANNEL_GPFIFO_A,
+	static const u16 oclasses[] = { PASCAL_CHANNEL_GPFIFO_A,
+					MAXWELL_CHANNEL_GPFIFO_A,
+					KEPLER_CHANNEL_GPFIFO_B,
 					KEPLER_CHANNEL_GPFIFO_A,
 					FERMI_CHANNEL_GPFIFO,
 					G82_CHANNEL_GPFIFO,
@@ -212,7 +231,7 @@ nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
 	do {
 		if (oclass[0] >= KEPLER_CHANNEL_GPFIFO_A) {
 			args.kepler.version = 0;
-			args.kepler.engine  = engine;
+			args.kepler.engines = engine;
 			args.kepler.ilength = 0x02000;
 			args.kepler.ioffset = 0x10000 + chan->push.vma.offset;
 			args.kepler.vm = 0;
@@ -294,11 +313,25 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 {
 	struct nvif_device *device = chan->device;
 	struct nouveau_cli *cli = (void *)chan->user.client;
+	struct nouveau_drm *drm = chan->drm;
 	struct nvkm_mmu *mmu = nvxx_mmu(device);
 	struct nv_dma_v0 args = {};
 	int ret, i;
 
 	nvif_object_map(&chan->user);
+
+	if (chan->user.oclass >= FERMI_CHANNEL_GPFIFO) {
+		ret = nvif_notify_init(&chan->user, nouveau_channel_killed,
+				       true, NV906F_V0_NTFY_KILLED,
+				       NULL, 0, 0, &chan->kill);
+		if (ret == 0)
+			ret = nvif_notify_get(&chan->kill);
+		if (ret) {
+			NV_ERROR(drm, "Failed to request channel kill "
+				      "notification: %d\n", ret);
+			return ret;
+		}
+	}
 
 	/* allocate dma objects to cover all allowed vram, and gart */
 	if (device->info.family < NV_DEVICE_INFO_V0_FERMI) {
@@ -378,7 +411,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 	/* allocate software object class (used for fences on <= nv05) */
 	if (device->info.family < NV_DEVICE_INFO_V0_CELSIUS) {
 		ret = nvif_object_init(&chan->user, 0x006e,
-				       NVIF_IOCTL_NEW_V0_SW_NV04,
+				       NVIF_CLASS_SW_NV04,
 				       NULL, 0, &chan->nvsw);
 		if (ret)
 			return ret;

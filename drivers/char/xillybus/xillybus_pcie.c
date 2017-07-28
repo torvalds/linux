@@ -98,7 +98,6 @@ static int xilly_map_single_pci(struct xilly_endpoint *ep,
 	int pci_direction;
 	dma_addr_t addr;
 	struct xilly_mapping *this;
-	int rc;
 
 	this = kzalloc(sizeof(*this), GFP_KERNEL);
 	if (!this)
@@ -120,14 +119,7 @@ static int xilly_map_single_pci(struct xilly_endpoint *ep,
 
 	*ret_dma_handle = addr;
 
-	rc = devm_add_action(ep->dev, xilly_pci_unmap, this);
-	if (rc) {
-		pci_unmap_single(ep->pdev, addr, size, pci_direction);
-		kfree(this);
-		return rc;
-	}
-
-	return 0;
+	return devm_add_action_or_reset(ep->dev, xilly_pci_unmap, this);
 }
 
 static struct xilly_endpoint_hardware pci_hw = {

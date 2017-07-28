@@ -13,29 +13,45 @@
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- *
  */
-
 
 #include <linux/device.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/module.h>
 #include <linux/nvmem-provider.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
-#include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/random.h>
 
+/* Registers and special values for doing register-based SID readout on H3 */
+#define SUN8I_SID_PRCTL		0x40
+#define SUN8I_SID_RDKEY		0x60
+
+#define SUN8I_SID_OFFSET_MASK	0x1FF
+#define SUN8I_SID_OFFSET_SHIFT	16
+#define SUN8I_SID_OP_LOCK	(0xAC << 8)
+#define SUN8I_SID_READ		BIT(1)
 
 static struct nvmem_config econfig = {
 	.name = "sunxi-sid",
 	.read_only = true,
+	.stride = 4,
+	.word_size = 1,
 	.owner = THIS_MODULE,
+};
+
+struct sunxi_sid_cfg {
+	u32	value_offset;
+	u32	size;
+	bool	need_register_readout;
 };
 
 struct sunxi_sid {
 	void __iomem		*base;
+	u32			value_offset;
 };
 
 /* We read the entire key, due to a 32 bit read alignment requirement. Since we
@@ -54,83 +70,94 @@ static u8 sunxi_sid_read_byte(const struct sunxi_sid *sid,
 	return sid_key; /* Only return the last byte */
 }
 
-static int sunxi_sid_read(void *context,
-			    const void *reg, size_t reg_size,
-			    void *val, size_t val_size)
+static int sunxi_sid_read(void *context, unsigned int offset,
+			  void *val, size_t bytes)
 {
 	struct sunxi_sid *sid = context;
-	unsigned int offset = *(u32 *)reg;
 	u8 *buf = val;
 
-	while (val_size) {
-		*buf++ = sunxi_sid_read_byte(sid, offset);
-		val_size--;
-		offset++;
-	}
+	/* Offset the read operation to the real position of SID */
+	offset += sid->value_offset;
+
+	while (bytes--)
+		*buf++ = sunxi_sid_read_byte(sid, offset++);
 
 	return 0;
 }
 
-static int sunxi_sid_write(void *context, const void *data, size_t count)
+static int sun8i_sid_register_readout(const struct sunxi_sid *sid,
+				      const unsigned int word)
 {
-	/* Unimplemented, dummy to keep regmap core happy */
+	u32 reg_val;
+	int ret;
+
+	/* Set word, lock access, and set read command */
+	reg_val = (word & SUN8I_SID_OFFSET_MASK)
+		  << SUN8I_SID_OFFSET_SHIFT;
+	reg_val |= SUN8I_SID_OP_LOCK | SUN8I_SID_READ;
+	writel(reg_val, sid->base + SUN8I_SID_PRCTL);
+
+	ret = readl_poll_timeout(sid->base + SUN8I_SID_PRCTL, reg_val,
+				 !(reg_val & SUN8I_SID_READ), 100, 250000);
+	if (ret)
+		return ret;
+
+	writel(0, sid->base + SUN8I_SID_PRCTL);
 	return 0;
 }
-
-static struct regmap_bus sunxi_sid_bus = {
-	.read = sunxi_sid_read,
-	.write = sunxi_sid_write,
-	.reg_format_endian_default = REGMAP_ENDIAN_NATIVE,
-	.val_format_endian_default = REGMAP_ENDIAN_NATIVE,
-};
-
-static bool sunxi_sid_writeable_reg(struct device *dev, unsigned int reg)
-{
-	return false;
-}
-
-static struct regmap_config sunxi_sid_regmap_config = {
-	.reg_bits = 32,
-	.val_bits = 8,
-	.reg_stride = 1,
-	.writeable_reg = sunxi_sid_writeable_reg,
-};
 
 static int sunxi_sid_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct resource *res;
 	struct nvmem_device *nvmem;
-	struct regmap *regmap;
 	struct sunxi_sid *sid;
 	int ret, i, size;
 	char *randomness;
+	const struct sunxi_sid_cfg *cfg;
 
 	sid = devm_kzalloc(dev, sizeof(*sid), GFP_KERNEL);
 	if (!sid)
 		return -ENOMEM;
+
+	cfg = of_device_get_match_data(dev);
+	if (!cfg)
+		return -EINVAL;
+	sid->value_offset = cfg->value_offset;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	sid->base = devm_ioremap_resource(dev, res);
 	if (IS_ERR(sid->base))
 		return PTR_ERR(sid->base);
 
-	size = resource_size(res) - 1;
-	sunxi_sid_regmap_config.max_register = size;
+	size = cfg->size;
 
-	regmap = devm_regmap_init(dev, &sunxi_sid_bus, sid,
-				  &sunxi_sid_regmap_config);
-	if (IS_ERR(regmap)) {
-		dev_err(dev, "regmap init failed\n");
-		return PTR_ERR(regmap);
+	if (cfg->need_register_readout) {
+		/*
+		 * H3's SID controller have a bug that the value at 0x200
+		 * offset is not the correct value when the hardware is reseted.
+		 * However, after doing a register-based read operation, the
+		 * value become right.
+		 * Do a full read operation here, but ignore its value
+		 * (as it's more fast to read by direct MMIO value than
+		 * with registers)
+		 */
+		for (i = 0; i < (size >> 2); i++) {
+			ret = sun8i_sid_register_readout(sid, i);
+			if (ret)
+				return ret;
+		}
 	}
 
+	econfig.size = size;
 	econfig.dev = dev;
+	econfig.reg_read = sunxi_sid_read;
+	econfig.priv = sid;
 	nvmem = nvmem_register(&econfig);
 	if (IS_ERR(nvmem))
 		return PTR_ERR(nvmem);
 
-	randomness = kzalloc(sizeof(u8) * size, GFP_KERNEL);
+	randomness = kzalloc(sizeof(u8) * (size), GFP_KERNEL);
 	if (!randomness) {
 		ret = -EINVAL;
 		goto err_unreg_nvmem;
@@ -158,9 +185,24 @@ static int sunxi_sid_remove(struct platform_device *pdev)
 	return nvmem_unregister(nvmem);
 }
 
+static const struct sunxi_sid_cfg sun4i_a10_cfg = {
+	.size = 0x10,
+};
+
+static const struct sunxi_sid_cfg sun7i_a20_cfg = {
+	.size = 0x200,
+};
+
+static const struct sunxi_sid_cfg sun8i_h3_cfg = {
+	.value_offset = 0x200,
+	.size = 0x100,
+	.need_register_readout = true,
+};
+
 static const struct of_device_id sunxi_sid_of_match[] = {
-	{ .compatible = "allwinner,sun4i-a10-sid" },
-	{ .compatible = "allwinner,sun7i-a20-sid" },
+	{ .compatible = "allwinner,sun4i-a10-sid", .data = &sun4i_a10_cfg },
+	{ .compatible = "allwinner,sun7i-a20-sid", .data = &sun7i_a20_cfg },
+	{ .compatible = "allwinner,sun8i-h3-sid", .data = &sun8i_h3_cfg },
 	{/* sentinel */},
 };
 MODULE_DEVICE_TABLE(of, sunxi_sid_of_match);

@@ -10,16 +10,13 @@
 #include <linux/smp.h>
 #include <linux/export.h>
 #include <linux/memblock.h>
+#include <linux/sched/task.h>
 
 #include <asm/lppaca.h>
 #include <asm/paca.h>
 #include <asm/sections.h>
 #include <asm/pgtable.h>
 #include <asm/kexec.h>
-
-/* This symbol is provided by the linker - let it fill in the paca
- * field correctly */
-extern unsigned long __toc_start;
 
 #ifdef CONFIG_PPC_BOOK3S
 
@@ -149,11 +146,6 @@ EXPORT_SYMBOL(paca);
 
 void __init initialise_paca(struct paca_struct *new_paca, int cpu)
 {
-       /* The TOC register (GPR2) points 32kB into the TOC, so that 64kB
-	* of the TOC can be addressed using a single machine instruction.
-	*/
-	unsigned long kernel_toc = (unsigned long)(&__toc_start) + 0x8000UL;
-
 #ifdef CONFIG_PPC_BOOK3S
 	new_paca->lppaca_ptr = new_lppaca(cpu);
 #else
@@ -161,7 +153,7 @@ void __init initialise_paca(struct paca_struct *new_paca, int cpu)
 #endif
 	new_paca->lock_token = 0x8000;
 	new_paca->paca_index = cpu;
-	new_paca->kernel_toc = kernel_toc;
+	new_paca->kernel_toc = kernel_toc_addr();
 	new_paca->kernelbase = (unsigned long) _stext;
 	/* Only set MSR:IR/DR when MMU is initialized */
 	new_paca->kernel_msr = MSR_KERNEL & ~(MSR_IR | MSR_DR);
@@ -193,7 +185,7 @@ void setup_paca(struct paca_struct *new_paca)
 	 * if we do a GET_PACA() before the feature fixups have been
 	 * applied
 	 */
-	if (cpu_has_feature(CPU_FTR_HVMODE))
+	if (early_cpu_has_feature(CPU_FTR_HVMODE))
 		mtspr(SPRN_SPRG_HPACA, local_paca);
 #endif
 	mtspr(SPRN_SPRG_PACA, local_paca);
@@ -252,4 +244,25 @@ void __init free_unused_pacas(void)
 	paca_size = new_size;
 
 	free_lppacas();
+}
+
+void copy_mm_to_paca(struct mm_struct *mm)
+{
+#ifdef CONFIG_PPC_BOOK3S
+	mm_context_t *context = &mm->context;
+
+	get_paca()->mm_ctx_id = context->id;
+#ifdef CONFIG_PPC_MM_SLICES
+	VM_BUG_ON(!mm->context.addr_limit);
+	get_paca()->addr_limit = mm->context.addr_limit;
+	get_paca()->mm_ctx_low_slices_psize = context->low_slices_psize;
+	memcpy(&get_paca()->mm_ctx_high_slices_psize,
+	       &context->high_slices_psize, TASK_SLICE_ARRAY_SZ(mm));
+#else /* CONFIG_PPC_MM_SLICES */
+	get_paca()->mm_ctx_user_psize = context->user_psize;
+	get_paca()->mm_ctx_sllp = context->sllp;
+#endif
+#else /* CONFIG_PPC_BOOK3S */
+	return;
+#endif
 }

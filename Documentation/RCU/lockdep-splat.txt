@@ -57,7 +57,7 @@ Call Trace:
  [<ffffffff817db154>] kernel_thread_helper+0x4/0x10
  [<ffffffff81066430>] ? finish_task_switch+0x80/0x110
  [<ffffffff817d9c04>] ? retint_restore_args+0xe/0xe
- [<ffffffff81097510>] ? __init_kthread_worker+0x70/0x70
+ [<ffffffff81097510>] ? __kthread_init_worker+0x70/0x70
  [<ffffffff817db150>] ? gs_change+0xb/0xb
 
 Line 2776 of block/cfq-iosched.c in v3.0-rc5 is as follows:

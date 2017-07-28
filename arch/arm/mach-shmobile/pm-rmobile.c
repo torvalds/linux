@@ -12,7 +12,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  */
-#include <linux/clk/shmobile.h>
+#include <linux/clk/renesas.h>
 #include <linux/console.h>
 #include <linux/delay.h>
 #include <linux/of.h>
@@ -130,22 +130,14 @@ static void rmobile_init_pm_domain(struct rmobile_pm_domain *rmobile_pd)
 	struct generic_pm_domain *genpd = &rmobile_pd->genpd;
 	struct dev_power_governor *gov = rmobile_pd->gov;
 
-	genpd->flags = GENPD_FLAG_PM_CLK;
-	pm_genpd_init(genpd, gov ? : &simple_qos_governor, false);
+	genpd->flags |= GENPD_FLAG_PM_CLK;
 	genpd->dev_ops.active_wakeup	= rmobile_pd_active_wakeup;
 	genpd->power_off		= rmobile_pd_power_down;
 	genpd->power_on			= rmobile_pd_power_up;
 	genpd->attach_dev		= cpg_mstp_attach_dev;
 	genpd->detach_dev		= cpg_mstp_detach_dev;
 	__rmobile_pd_power_up(rmobile_pd, false);
-}
-
-static int rmobile_pd_suspend_busy(void)
-{
-	/*
-	 * This domain should not be turned off.
-	 */
-	return -EBUSY;
+	pm_genpd_init(genpd, gov ? : &simple_qos_governor, false);
 }
 
 static int rmobile_pd_suspend_console(void)
@@ -260,8 +252,7 @@ static void __init rmobile_setup_pm_domain(struct device_node *np,
 		 * only be turned off if the CPU is not in use.
 		 */
 		pr_debug("PM domain %s contains CPU\n", name);
-		pd->gov = &pm_domain_always_on_gov;
-		pd->suspend = rmobile_pd_suspend_busy;
+		pd->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
 		break;
 
 	case PD_CONSOLE:
@@ -277,8 +268,7 @@ static void __init rmobile_setup_pm_domain(struct device_node *np,
 		 * is not in use.
 		 */
 		pr_debug("PM domain %s contains Coresight-ETM\n", name);
-		pd->gov = &pm_domain_always_on_gov;
-		pd->suspend = rmobile_pd_suspend_busy;
+		pd->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
 		break;
 
 	case PD_MEMCTL:
@@ -287,8 +277,7 @@ static void __init rmobile_setup_pm_domain(struct device_node *np,
 		 * should only be turned off if memory is not in use.
 		 */
 		pr_debug("PM domain %s contains MEMCTL\n", name);
-		pd->gov = &pm_domain_always_on_gov;
-		pd->suspend = rmobile_pd_suspend_busy;
+		pd->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
 		break;
 
 	case PD_NORMAL:

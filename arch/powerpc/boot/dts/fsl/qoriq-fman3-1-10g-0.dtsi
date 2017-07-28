@@ -52,6 +52,7 @@ fman@500000 {
 		compatible = "fsl,fman-memac";
 		reg = <0xf0000 0x1000>;
 		fsl,fman-ports = <&fman1_rx_0x10 &fman1_tx_0x30>;
+		pcsphy-handle = <&pcsphy14>;
 	};
 
 	mdio@f1000 {
@@ -59,5 +60,9 @@ fman@500000 {
 		#size-cells = <0>;
 		compatible = "fsl,fman-memac-mdio", "fsl,fman-xmdio";
 		reg = <0xf1000 0x1000>;
+
+		pcsphy14: ethernet-phy@0 {
+			reg = <0x0>;
+		};
 	};
 };

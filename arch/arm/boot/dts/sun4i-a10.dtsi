@@ -47,7 +47,6 @@
 
 #include <dt-bindings/clock/sun4i-a10-pll2.h>
 #include <dt-bindings/dma/sun4i-a10.h>
-#include <dt-bindings/pinctrl/sun4i-a10.h>
 
 / {
 	interrupt-parent = <&intc>;
@@ -65,8 +64,9 @@
 			compatible = "allwinner,simple-framebuffer",
 				     "simple-framebuffer";
 			allwinner,pipeline = "de_be0-lcd0-hdmi";
-			clocks = <&pll5 1>, <&ahb_gates 36>, <&ahb_gates 43>,
-				 <&ahb_gates 44>;
+			clocks = <&ahb_gates 36>, <&ahb_gates 43>,
+				 <&ahb_gates 44>, <&de_be0_clk>,
+				 <&tcon0_ch1_clk>, <&dram_gates 26>;
 			status = "disabled";
 		};
 
@@ -74,8 +74,10 @@
 			compatible = "allwinner,simple-framebuffer",
 				     "simple-framebuffer";
 			allwinner,pipeline = "de_fe0-de_be0-lcd0-hdmi";
-			clocks = <&pll5 1>, <&ahb_gates 36>, <&ahb_gates 43>,
-				 <&ahb_gates 44>, <&ahb_gates 46>;
+			clocks = <&ahb_gates 36>, <&ahb_gates 43>,
+				 <&ahb_gates 44>, <&ahb_gates 46>,
+				 <&de_be0_clk>, <&de_fe0_clk>, <&tcon0_ch1_clk>,
+				 <&dram_gates 25>, <&dram_gates 26>;
 			status = "disabled";
 		};
 
@@ -83,8 +85,9 @@
 			compatible = "allwinner,simple-framebuffer",
 				     "simple-framebuffer";
 			allwinner,pipeline = "de_fe0-de_be0-lcd0";
-			clocks = <&pll5 1>, <&ahb_gates 36>, <&ahb_gates 44>,
-				 <&ahb_gates 46>;
+			clocks = <&ahb_gates 36>, <&ahb_gates 44>, <&ahb_gates 46>,
+				 <&de_be0_clk>, <&de_fe0_clk>, <&tcon0_ch0_clk>,
+				 <&dram_gates 25>, <&dram_gates 26>;
 			status = "disabled";
 		};
 
@@ -92,8 +95,11 @@
 			compatible = "allwinner,simple-framebuffer",
 				     "simple-framebuffer";
 			allwinner,pipeline = "de_fe0-de_be0-lcd0-tve0";
-			clocks = <&pll5 1>, <&ahb_gates 34>, <&ahb_gates 36>,
-				 <&ahb_gates 44>, <&ahb_gates 46>;
+			clocks = <&ahb_gates 34>, <&ahb_gates 36>,
+				 <&ahb_gates 44>, <&ahb_gates 46>,
+				 <&de_be0_clk>, <&de_fe0_clk>,
+				 <&tcon0_ch1_clk>, <&dram_gates 5>,
+				 <&dram_gates 25>, <&dram_gates 26>;
 			status = "disabled";
 		};
 	};
@@ -181,6 +187,15 @@
 			clock-output-names = "osc24M";
 		};
 
+		osc3M: osc3M_clk {
+			compatible = "fixed-factor-clock";
+			#clock-cells = <0>;
+			clock-div = <8>;
+			clock-mult = <1>;
+			clocks = <&osc24M>;
+			clock-output-names = "osc3M";
+		};
+
 		osc32k: clk@0 {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
@@ -205,6 +220,23 @@
 					     "pll2-4x", "pll2-8x";
 		};
 
+		pll3: clk@01c20010 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun4i-a10-pll3-clk";
+			reg = <0x01c20010 0x4>;
+			clocks = <&osc3M>;
+			clock-output-names = "pll3";
+		};
+
+		pll3x2: pll3x2_clk {
+			compatible = "fixed-factor-clock";
+			#clock-cells = <0>;
+			clock-div = <1>;
+			clock-mult = <2>;
+			clocks = <&pll3>;
+			clock-output-names = "pll3-2x";
+		};
+
 		pll4: clk@01c20018 {
 			#clock-cells = <0>;
 			compatible = "allwinner,sun4i-a10-pll1-clk";
@@ -227,6 +259,23 @@
 			reg = <0x01c20028 0x4>;
 			clocks = <&osc24M>;
 			clock-output-names = "pll6_sata", "pll6_other", "pll6";
+		};
+
+		pll7: clk@01c20030 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun4i-a10-pll3-clk";
+			reg = <0x01c20030 0x4>;
+			clocks = <&osc3M>;
+			clock-output-names = "pll7";
+		};
+
+		pll7x2: pll7x2_clk {
+			compatible = "fixed-factor-clock";
+			#clock-cells = <0>;
+			clock-div = <1>;
+			clock-mult = <2>;
+			clocks = <&pll7>;
+			clock-output-names = "pll7-2x";
 		};
 
 		/* dummy is 200M */
@@ -474,6 +523,17 @@
 			clock-output-names = "ir1";
 		};
 
+		spdif_clk: clk@01c200c0 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun4i-a10-mod1-clk";
+			reg = <0x01c200c0 0x4>;
+			clocks = <&pll2 SUN4I_A10_PLL2_8X>,
+				 <&pll2 SUN4I_A10_PLL2_4X>,
+				 <&pll2 SUN4I_A10_PLL2_2X>,
+				 <&pll2 SUN4I_A10_PLL2_1X>;
+			clock-output-names = "spdif";
+		};
+
 		usb_clk: clk@01c200cc {
 			#clock-cells = <1>;
 			#reset-cells = <1>;
@@ -490,6 +550,115 @@
 			reg = <0x01c200d4 0x4>;
 			clocks = <&osc24M>, <&pll6 1>, <&pll5 1>;
 			clock-output-names = "spi3";
+		};
+
+		dram_gates: clk@01c20100 {
+			#clock-cells = <1>;
+			compatible = "allwinner,sun4i-a10-dram-gates-clk";
+			reg = <0x01c20100 0x4>;
+			clocks = <&pll5 0>;
+			clock-indices = <0>,
+					<1>, <2>,
+					<3>,
+					<4>,
+					<5>, <6>,
+					<15>,
+					<24>, <25>,
+					<26>, <27>,
+					<28>, <29>;
+			clock-output-names = "dram_ve",
+					     "dram_csi0", "dram_csi1",
+					     "dram_ts",
+					     "dram_tvd",
+					     "dram_tve0", "dram_tve1",
+					     "dram_output",
+					     "dram_de_fe1", "dram_de_fe0",
+					     "dram_de_be0", "dram_de_be1",
+					     "dram_de_mp", "dram_ace";
+		};
+
+		de_be0_clk: clk@01c20104 {
+			#clock-cells = <0>;
+			#reset-cells = <0>;
+			compatible = "allwinner,sun4i-a10-display-clk";
+			reg = <0x01c20104 0x4>;
+			clocks = <&pll3>, <&pll7>, <&pll5 1>;
+			clock-output-names = "de-be0";
+		};
+
+		de_be1_clk: clk@01c20108 {
+			#clock-cells = <0>;
+			#reset-cells = <0>;
+			compatible = "allwinner,sun4i-a10-display-clk";
+			reg = <0x01c20108 0x4>;
+			clocks = <&pll3>, <&pll7>, <&pll5 1>;
+			clock-output-names = "de-be1";
+		};
+
+		de_fe0_clk: clk@01c2010c {
+			#clock-cells = <0>;
+			#reset-cells = <0>;
+			compatible = "allwinner,sun4i-a10-display-clk";
+			reg = <0x01c2010c 0x4>;
+			clocks = <&pll3>, <&pll7>, <&pll5 1>;
+			clock-output-names = "de-fe0";
+		};
+
+		de_fe1_clk: clk@01c20110 {
+			#clock-cells = <0>;
+			#reset-cells = <0>;
+			compatible = "allwinner,sun4i-a10-display-clk";
+			reg = <0x01c20110 0x4>;
+			clocks = <&pll3>, <&pll7>, <&pll5 1>;
+			clock-output-names = "de-fe1";
+		};
+
+
+		tcon0_ch0_clk: clk@01c20118 {
+			#clock-cells = <0>;
+			#reset-cells = <1>;
+			compatible = "allwinner,sun4i-a10-tcon-ch0-clk";
+			reg = <0x01c20118 0x4>;
+			clocks = <&pll3>, <&pll7>, <&pll3x2>, <&pll7x2>;
+			clock-output-names = "tcon0-ch0-sclk";
+
+		};
+
+		tcon1_ch0_clk: clk@01c2011c {
+			#clock-cells = <0>;
+			#reset-cells = <1>;
+			compatible = "allwinner,sun4i-a10-tcon-ch1-clk";
+			reg = <0x01c2011c 0x4>;
+			clocks = <&pll3>, <&pll7>, <&pll3x2>, <&pll7x2>;
+			clock-output-names = "tcon1-ch0-sclk";
+
+		};
+
+		tcon0_ch1_clk: clk@01c2012c {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun4i-a10-tcon-ch0-clk";
+			reg = <0x01c2012c 0x4>;
+			clocks = <&pll3>, <&pll7>, <&pll3x2>, <&pll7x2>;
+			clock-output-names = "tcon0-ch1-sclk";
+
+		};
+
+		tcon1_ch1_clk: clk@01c20130 {
+			#clock-cells = <0>;
+			compatible = "allwinner,sun4i-a10-tcon-ch1-clk";
+			reg = <0x01c20130 0x4>;
+			clocks = <&pll3>, <&pll7>, <&pll3x2>, <&pll7x2>;
+			clock-output-names = "tcon1-ch1-sclk";
+
+		};
+
+		ve_clk: clk@01c2013c {
+			#clock-cells = <0>;
+			#reset-cells = <0>;
+			compatible = "allwinner,sun4i-a10-ve-clk";
+			reg = <0x01c2013c 0x4>;
+			clocks = <&pll4>;
+			clock-output-names = "ve";
 		};
 
 		codec_clk: clk@01c20140 {
@@ -549,6 +718,19 @@
 			interrupts = <27>;
 			clocks = <&ahb_gates 6>;
 			#dma-cells = <2>;
+		};
+
+		nfc: nand@01c03000 {
+			compatible = "allwinner,sun4i-a10-nand";
+			reg = <0x01c03000 0x1000>;
+			interrupts = <37>;
+			clocks = <&ahb_gates 13>, <&nand_clk>;
+			clock-names = "ahb", "mod";
+			dmas = <&dma SUN4I_DMA_DEDICATED 3>;
+			dma-names = "rxtx";
+			status = "disabled";
+			#address-cells = <1>;
+			#size-cells = <0>;
 		};
 
 		spi0: spi@01c05000 {
@@ -784,190 +966,149 @@
 			compatible = "allwinner,sun4i-a10-pinctrl";
 			reg = <0x01c20800 0x400>;
 			interrupts = <28>;
-			clocks = <&apb0_gates 5>;
+			clocks = <&apb0_gates 5>, <&osc24M>, <&osc32k>;
+			clock-names = "apb", "hosc", "losc";
 			gpio-controller;
 			interrupt-controller;
 			#interrupt-cells = <3>;
 			#gpio-cells = <3>;
 
-			pwm0_pins_a: pwm0@0 {
-				allwinner,pins = "PB2";
-				allwinner,function = "pwm";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-			};
-
-			pwm1_pins_a: pwm1@0 {
-				allwinner,pins = "PI3";
-				allwinner,function = "pwm";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-			};
-
-			uart0_pins_a: uart0@0 {
-				allwinner,pins = "PB22", "PB23";
-				allwinner,function = "uart0";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-			};
-
-			uart0_pins_b: uart0@1 {
-				allwinner,pins = "PF2", "PF4";
-				allwinner,function = "uart0";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-			};
-
-			uart1_pins_a: uart1@0 {
-				allwinner,pins = "PA10", "PA11";
-				allwinner,function = "uart1";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-			};
-
-			i2c0_pins_a: i2c0@0 {
-				allwinner,pins = "PB0", "PB1";
-				allwinner,function = "i2c0";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-			};
-
-			i2c1_pins_a: i2c1@0 {
-				allwinner,pins = "PB18", "PB19";
-				allwinner,function = "i2c1";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-			};
-
-			i2c2_pins_a: i2c2@0 {
-				allwinner,pins = "PB20", "PB21";
-				allwinner,function = "i2c2";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			can0_pins_a: can0@0 {
+				pins = "PH20", "PH21";
+				function = "can";
 			};
 
 			emac_pins_a: emac0@0 {
-				allwinner,pins = "PA0", "PA1", "PA2",
-						"PA3", "PA4", "PA5", "PA6",
-						"PA7", "PA8", "PA9", "PA10",
-						"PA11", "PA12", "PA13", "PA14",
-						"PA15", "PA16";
-				allwinner,function = "emac";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				pins = "PA0", "PA1", "PA2",
+				       "PA3", "PA4", "PA5", "PA6",
+				       "PA7", "PA8", "PA9", "PA10",
+				       "PA11", "PA12", "PA13", "PA14",
+				       "PA15", "PA16";
+				function = "emac";
 			};
 
-			mmc0_pins_a: mmc0@0 {
-				allwinner,pins = "PF0", "PF1", "PF2",
-						 "PF3", "PF4", "PF5";
-				allwinner,function = "mmc0";
-				allwinner,drive = <SUN4I_PINCTRL_30_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			i2c0_pins_a: i2c0@0 {
+				pins = "PB0", "PB1";
+				function = "i2c0";
 			};
 
-			mmc0_cd_pin_reference_design: mmc0_cd_pin@0 {
-				allwinner,pins = "PH1";
-				allwinner,function = "gpio_in";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_PULL_UP>;
+			i2c1_pins_a: i2c1@0 {
+				pins = "PB18", "PB19";
+				function = "i2c1";
+			};
+
+			i2c2_pins_a: i2c2@0 {
+				pins = "PB20", "PB21";
+				function = "i2c2";
 			};
 
 			ir0_rx_pins_a: ir0@0 {
-				allwinner,pins = "PB4";
-				allwinner,function = "ir0";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				pins = "PB4";
+				function = "ir0";
 			};
 
 			ir0_tx_pins_a: ir0@1 {
-				allwinner,pins = "PB3";
-				allwinner,function = "ir0";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				pins = "PB3";
+				function = "ir0";
 			};
 
 			ir1_rx_pins_a: ir1@0 {
-				allwinner,pins = "PB23";
-				allwinner,function = "ir1";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				pins = "PB23";
+				function = "ir1";
 			};
 
 			ir1_tx_pins_a: ir1@1 {
-				allwinner,pins = "PB22";
-				allwinner,function = "ir1";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				pins = "PB22";
+				function = "ir1";
 			};
 
-			spi0_pins_a: spi0@0 {
-				allwinner,pins = "PI11", "PI12", "PI13";
-				allwinner,function = "spi0";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-			};
-
-			spi0_cs0_pins_a: spi0_cs0@0 {
-				allwinner,pins = "PI10";
-				allwinner,function = "spi0";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-			};
-
-			spi1_pins_a: spi1@0 {
-				allwinner,pins = "PI17", "PI18", "PI19";
-				allwinner,function = "spi1";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-			};
-
-			spi1_cs0_pins_a: spi1_cs0@0 {
-				allwinner,pins = "PI16";
-				allwinner,function = "spi1";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-			};
-
-			spi2_pins_a: spi2@0 {
-				allwinner,pins = "PC20", "PC21", "PC22";
-				allwinner,function = "spi2";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-			};
-
-			spi2_pins_b: spi2@1 {
-				allwinner,pins = "PB15", "PB16", "PB17";
-				allwinner,function = "spi2";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-			};
-
-			spi2_cs0_pins_a: spi2_cs0@0 {
-				allwinner,pins = "PC19";
-				allwinner,function = "spi2";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
-			};
-
-			spi2_cs0_pins_b: spi2_cs0@1 {
-				allwinner,pins = "PB14";
-				allwinner,function = "spi2";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+			mmc0_pins_a: mmc0@0 {
+				pins = "PF0", "PF1", "PF2",
+				       "PF3", "PF4", "PF5";
+				function = "mmc0";
+				drive-strength = <30>;
+				bias-pull-up;
 			};
 
 			ps20_pins_a: ps20@0 {
-				allwinner,pins = "PI20", "PI21";
-				allwinner,function = "ps2";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				pins = "PI20", "PI21";
+				function = "ps2";
 			};
 
 			ps21_pins_a: ps21@0 {
-				allwinner,pins = "PH12", "PH13";
-				allwinner,function = "ps2";
-				allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-				allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+				pins = "PH12", "PH13";
+				function = "ps2";
+			};
+
+			pwm0_pins_a: pwm0@0 {
+				pins = "PB2";
+				function = "pwm";
+			};
+
+			pwm1_pins_a: pwm1@0 {
+				pins = "PI3";
+				function = "pwm";
+			};
+
+			spdif_tx_pins_a: spdif@0 {
+				pins = "PB13";
+				function = "spdif";
+				bias-pull-up;
+			};
+
+			spi0_pins_a: spi0@0 {
+				pins = "PI11", "PI12", "PI13";
+				function = "spi0";
+			};
+
+			spi0_cs0_pins_a: spi0_cs0@0 {
+				pins = "PI10";
+				function = "spi0";
+			};
+
+			spi1_pins_a: spi1@0 {
+				pins = "PI17", "PI18", "PI19";
+				function = "spi1";
+			};
+
+			spi1_cs0_pins_a: spi1_cs0@0 {
+				pins = "PI16";
+				function = "spi1";
+			};
+
+			spi2_pins_a: spi2@0 {
+				pins = "PC20", "PC21", "PC22";
+				function = "spi2";
+			};
+
+			spi2_pins_b: spi2@1 {
+				pins = "PB15", "PB16", "PB17";
+				function = "spi2";
+			};
+
+			spi2_cs0_pins_a: spi2_cs0@0 {
+				pins = "PC19";
+				function = "spi2";
+			};
+
+			spi2_cs0_pins_b: spi2_cs0@1 {
+				pins = "PB14";
+				function = "spi2";
+			};
+
+			uart0_pins_a: uart0@0 {
+				pins = "PB22", "PB23";
+				function = "uart0";
+			};
+
+			uart0_pins_b: uart0@1 {
+				pins = "PF2", "PF4";
+				function = "uart0";
+			};
+
+			uart1_pins_a: uart1@0 {
+				pins = "PA10", "PA11";
+				function = "uart1";
 			};
 		};
 
@@ -994,6 +1135,19 @@
 			reg = <0x01c20e00 0xc>;
 			clocks = <&osc24M>;
 			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
+		spdif: spdif@01c21000 {
+			#sound-dai-cells = <0>;
+			compatible = "allwinner,sun4i-a10-spdif";
+			reg = <0x01c21000 0x400>;
+			interrupts = <13>;
+			clocks = <&apb0_gates 1>, <&spdif_clk>;
+			clock-names = "apb", "spdif";
+			dmas = <&dma SUN4I_DMA_NORMAL 2>,
+			       <&dma SUN4I_DMA_NORMAL 2>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
 
@@ -1127,6 +1281,22 @@
 			status = "disabled";
 		};
 
+		ps20: ps2@01c2a000 {
+			compatible = "allwinner,sun4i-a10-ps2";
+			reg = <0x01c2a000 0x400>;
+			interrupts = <62>;
+			clocks = <&apb1_gates 6>;
+			status = "disabled";
+		};
+
+		ps21: ps2@01c2a400 {
+			compatible = "allwinner,sun4i-a10-ps2";
+			reg = <0x01c2a400 0x400>;
+			interrupts = <63>;
+			clocks = <&apb1_gates 7>;
+			status = "disabled";
+		};
+
 		i2c0: i2c@01c2ac00 {
 			compatible = "allwinner,sun4i-a10-i2c";
 			reg = <0x01c2ac00 0x400>;
@@ -1157,19 +1327,11 @@
 			#size-cells = <0>;
 		};
 
-		ps20: ps2@01c2a000 {
-			compatible = "allwinner,sun4i-a10-ps2";
-			reg = <0x01c2a000 0x400>;
-			interrupts = <62>;
-			clocks = <&apb1_gates 6>;
-			status = "disabled";
-		};
-
-		ps21: ps2@01c2a400 {
-			compatible = "allwinner,sun4i-a10-ps2";
-			reg = <0x01c2a400 0x400>;
-			interrupts = <63>;
-			clocks = <&apb1_gates 7>;
+		can0: can@01c2bc00 {
+			compatible = "allwinner,sun4i-a10-can";
+			reg = <0x01c2bc00 0x400>;
+			interrupts = <26>;
+			clocks = <&apb1_gates 4>;
 			status = "disabled";
 		};
 	};

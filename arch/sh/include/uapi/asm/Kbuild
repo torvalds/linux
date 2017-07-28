@@ -1,25 +1,22 @@
 # UAPI Header export list
 include include/uapi/asm-generic/Kbuild.asm
 
-header-y += auxvec.h
-header-y += byteorder.h
-header-y += cachectl.h
-header-y += cpu-features.h
-header-y += hw_breakpoint.h
-header-y += ioctls.h
-header-y += posix_types.h
-header-y += posix_types_32.h
-header-y += posix_types_64.h
-header-y += ptrace.h
-header-y += ptrace_32.h
-header-y += ptrace_64.h
-header-y += setup.h
-header-y += sigcontext.h
-header-y += signal.h
-header-y += sockios.h
-header-y += stat.h
-header-y += swab.h
-header-y += types.h
-header-y += unistd.h
-header-y += unistd_32.h
-header-y += unistd_64.h
+generic-y += bitsperlong.h
+generic-y += errno.h
+generic-y += fcntl.h
+generic-y += ioctl.h
+generic-y += ipcbuf.h
+generic-y += kvm_para.h
+generic-y += mman.h
+generic-y += msgbuf.h
+generic-y += param.h
+generic-y += poll.h
+generic-y += resource.h
+generic-y += sembuf.h
+generic-y += shmbuf.h
+generic-y += siginfo.h
+generic-y += socket.h
+generic-y += statfs.h
+generic-y += termbits.h
+generic-y += termios.h
+generic-y += ucontext.h

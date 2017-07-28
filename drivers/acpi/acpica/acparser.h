@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -78,6 +78,8 @@ extern const u8 acpi_gbl_long_op_index[];
  */
 acpi_status acpi_ps_execute_method(struct acpi_evaluate_info *info);
 
+acpi_status acpi_ps_execute_table(struct acpi_evaluate_info *info);
+
 /*
  * psargs - Parse AML opcode arguments
  */
@@ -92,7 +94,13 @@ acpi_ps_get_next_simple_arg(struct acpi_parse_state *parser_state,
 acpi_status
 acpi_ps_get_next_namepath(struct acpi_walk_state *walk_state,
 			  struct acpi_parse_state *parser_state,
-			  union acpi_parse_object *arg, u8 method_call);
+			  union acpi_parse_object *arg,
+			  u8 possible_method_call);
+
+/* Values for u8 above */
+
+#define ACPI_NOT_METHOD_CALL            FALSE
+#define ACPI_POSSIBLE_METHOD_CALL       TRUE
 
 acpi_status
 acpi_ps_get_next_arg(struct acpi_walk_state *walk_state,
@@ -133,7 +141,7 @@ acpi_ps_complete_final_op(struct acpi_walk_state *walk_state,
  */
 const struct acpi_opcode_info *acpi_ps_get_opcode_info(u16 opcode);
 
-char *acpi_ps_get_opcode_name(u16 opcode);
+const char *acpi_ps_get_opcode_name(u16 opcode);
 
 u8 acpi_ps_get_argument_count(u32 op_type);
 

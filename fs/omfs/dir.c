@@ -143,7 +143,7 @@ static int omfs_add_link(struct dentry *dentry, struct inode *inode)
 	mark_buffer_dirty(bh);
 	brelse(bh);
 
-	dir->i_ctime = CURRENT_TIME_SEC;
+	dir->i_ctime = current_time(dir);
 
 	/* mark affected inodes dirty to rebuild checksums */
 	mark_inode_dirty(dir);
@@ -371,11 +371,15 @@ static bool omfs_fill_chain(struct inode *dir, struct dir_context *ctx,
 }
 
 static int omfs_rename(struct inode *old_dir, struct dentry *old_dentry,
-		struct inode *new_dir, struct dentry *new_dentry)
+		       struct inode *new_dir, struct dentry *new_dentry,
+		       unsigned int flags)
 {
 	struct inode *new_inode = d_inode(new_dentry);
 	struct inode *old_inode = d_inode(old_dentry);
 	int err;
+
+	if (flags & ~RENAME_NOREPLACE)
+		return -EINVAL;
 
 	if (new_inode) {
 		/* overwriting existing file/dir */
@@ -395,7 +399,7 @@ static int omfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (err)
 		goto out;
 
-	old_inode->i_ctime = CURRENT_TIME_SEC;
+	old_inode->i_ctime = current_time(old_inode);
 	mark_inode_dirty(old_inode);
 out:
 	return err;
@@ -452,6 +456,6 @@ const struct inode_operations omfs_dir_inops = {
 
 const struct file_operations omfs_dir_operations = {
 	.read = generic_read_dir,
-	.iterate = omfs_readdir,
+	.iterate_shared = omfs_readdir,
 	.llseek = generic_file_llseek,
 };

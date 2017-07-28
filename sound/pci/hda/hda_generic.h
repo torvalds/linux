@@ -229,6 +229,7 @@ struct hda_gen_spec {
 	unsigned int add_jack_modes:1; /* add i/o jack mode enum ctls */
 	unsigned int power_down_unused:1; /* power down unused widgets */
 	unsigned int dac_min_mute:1; /* minimal = mute for DACs */
+	unsigned int suppress_vmaster:1; /* don't create vmaster kctls */
 
 	/* other internal flags */
 	unsigned int no_analog:1; /* digital I/O only */
@@ -306,13 +307,8 @@ int snd_hda_gen_spec_init(struct hda_gen_spec *spec);
 int snd_hda_gen_init(struct hda_codec *codec);
 void snd_hda_gen_free(struct hda_codec *codec);
 
-struct nid_path *snd_hda_get_nid_path(struct hda_codec *codec,
-				      hda_nid_t from_nid, hda_nid_t to_nid);
 int snd_hda_get_path_idx(struct hda_codec *codec, struct nid_path *path);
 struct nid_path *snd_hda_get_path_from_idx(struct hda_codec *codec, int idx);
-bool snd_hda_parse_nid_path(struct hda_codec *codec, hda_nid_t from_nid,
-			    hda_nid_t to_nid, int anchor_nid,
-			    struct nid_path *path);
 struct nid_path *
 snd_hda_add_new_path(struct hda_codec *codec, hda_nid_t from_nid,
 		     hda_nid_t to_nid, int anchor_nid);

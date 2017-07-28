@@ -4,6 +4,7 @@
  * Copyright (C) 2001-2003 Andreas Gruenbacher, <agruen@suse.de>
  */
 
+#include <linux/quotaops.h>
 #include "ext4_jbd2.h"
 #include "ext4.h"
 #include "xattr.h"
@@ -172,9 +173,6 @@ ext4_get_acl(struct inode *inode, int type)
 		acl = ERR_PTR(retval);
 	kfree(value);
 
-	if (!IS_ERR(acl))
-		set_cached_acl(inode, type, acl);
-
 	return acl;
 }
 
@@ -185,7 +183,7 @@ ext4_get_acl(struct inode *inode, int type)
  */
 static int
 __ext4_set_acl(handle_t *handle, struct inode *inode, int type,
-	     struct posix_acl *acl)
+	     struct posix_acl *acl, int xattr_flags)
 {
 	int name_index;
 	void *value = NULL;
@@ -196,15 +194,11 @@ __ext4_set_acl(handle_t *handle, struct inode *inode, int type,
 	case ACL_TYPE_ACCESS:
 		name_index = EXT4_XATTR_INDEX_POSIX_ACL_ACCESS;
 		if (acl) {
-			error = posix_acl_equiv_mode(acl, &inode->i_mode);
-			if (error < 0)
+			error = posix_acl_update_mode(inode, &inode->i_mode, &acl);
+			if (error)
 				return error;
-			else {
-				inode->i_ctime = ext4_current_time(inode);
-				ext4_mark_inode_dirty(handle, inode);
-				if (error == 0)
-					acl = NULL;
-			}
+			inode->i_ctime = current_time(inode);
+			ext4_mark_inode_dirty(handle, inode);
 		}
 		break;
 
@@ -224,7 +218,7 @@ __ext4_set_acl(handle_t *handle, struct inode *inode, int type,
 	}
 
 	error = ext4_xattr_set_handle(handle, inode, name_index, "",
-				      value, size, 0);
+				      value, size, xattr_flags);
 
 	kfree(value);
 	if (!error)
@@ -237,15 +231,23 @@ int
 ext4_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 {
 	handle_t *handle;
-	int error, retries = 0;
+	int error, credits, retries = 0;
+	size_t acl_size = acl ? ext4_acl_size(acl->a_count) : 0;
 
+	error = dquot_initialize(inode);
+	if (error)
+		return error;
 retry:
-	handle = ext4_journal_start(inode, EXT4_HT_XATTR,
-				    ext4_jbd2_credits_xattr(inode));
+	error = ext4_xattr_set_credits(inode, acl_size, false /* is_create */,
+				       &credits);
+	if (error)
+		return error;
+
+	handle = ext4_journal_start(inode, EXT4_HT_XATTR, credits);
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
-	error = __ext4_set_acl(handle, inode, type, acl);
+	error = __ext4_set_acl(handle, inode, type, acl, 0 /* xattr_flags */);
 	ext4_journal_stop(handle);
 	if (error == -ENOSPC && ext4_should_retry_alloc(inode->i_sb, &retries))
 		goto retry;
@@ -270,13 +272,13 @@ ext4_init_acl(handle_t *handle, struct inode *inode, struct inode *dir)
 
 	if (default_acl) {
 		error = __ext4_set_acl(handle, inode, ACL_TYPE_DEFAULT,
-				       default_acl);
+				       default_acl, XATTR_CREATE);
 		posix_acl_release(default_acl);
 	}
 	if (acl) {
 		if (!error)
 			error = __ext4_set_acl(handle, inode, ACL_TYPE_ACCESS,
-					       acl);
+					       acl, XATTR_CREATE);
 		posix_acl_release(acl);
 	}
 	return error;

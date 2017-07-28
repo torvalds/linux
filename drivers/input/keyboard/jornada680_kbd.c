@@ -197,8 +197,6 @@ static int jornada680kbd_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	platform_set_drvdata(pdev, jornadakbd);
-
 	jornadakbd->poll_dev = poll_dev;
 
 	memcpy(jornadakbd->keymap, jornada_scancodes,

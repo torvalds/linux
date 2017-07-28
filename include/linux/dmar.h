@@ -26,7 +26,7 @@
 #include <linux/msi.h>
 #include <linux/irqreturn.h>
 #include <linux/rwsem.h>
-#include <linux/rcupdate.h>
+#include <linux/rculist.h>
 
 struct acpi_dmar_header;
 

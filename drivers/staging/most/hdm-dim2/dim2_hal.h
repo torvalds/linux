@@ -16,11 +16,7 @@
 #define _DIM2_HAL_H
 
 #include <linux/types.h>
-
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "dim2_reg.h"
 
 /*
  * The values below are specified in the hardware specification.
@@ -42,14 +38,12 @@ struct dim_ch_state_t {
 	u16 done_buffers; /* Number of completed buffers */
 };
 
-typedef int atomic_counter_t;
-
 struct int_ch_state {
 	/* changed only in interrupt context */
-	volatile atomic_counter_t request_counter;
+	volatile int request_counter;
 
 	/* changed only in task context */
-	volatile atomic_counter_t service_counter;
+	volatile int service_counter;
 
 	u8 idx1;
 	u8 idx2;
@@ -66,54 +60,53 @@ struct dim_channel {
 	u16 done_sw_buffers_number; /*< Done software buffers number. */
 };
 
+u8 dim_startup(struct dim2_regs __iomem *dim_base_address, u32 mlb_clock,
+	       u32 fcnt);
 
-u8 DIM_Startup(void *dim_base_address, u32 mlb_clock);
+void dim_shutdown(void);
 
-void DIM_Shutdown(void);
+bool dim_get_lock_state(void);
 
-bool DIM_GetLockState(void);
+u16 dim_norm_ctrl_async_buffer_size(u16 buf_size);
 
-u16 DIM_NormCtrlAsyncBufferSize(u16 buf_size);
+u16 dim_norm_isoc_buffer_size(u16 buf_size, u16 packet_length);
 
-u16 DIM_NormIsocBufferSize(u16 buf_size, u16 packet_length);
+u16 dim_norm_sync_buffer_size(u16 buf_size, u16 bytes_per_frame);
 
-u16 DIM_NormSyncBufferSize(u16 buf_size, u16 bytes_per_frame);
+u8 dim_init_control(struct dim_channel *ch, u8 is_tx, u16 ch_address,
+		    u16 max_buffer_size);
 
-u8 DIM_InitControl(struct dim_channel *ch, u8 is_tx, u16 ch_address,
-		   u16 max_buffer_size);
+u8 dim_init_async(struct dim_channel *ch, u8 is_tx, u16 ch_address,
+		  u16 max_buffer_size);
 
-u8 DIM_InitAsync(struct dim_channel *ch, u8 is_tx, u16 ch_address,
-		 u16 max_buffer_size);
+u8 dim_init_isoc(struct dim_channel *ch, u8 is_tx, u16 ch_address,
+		 u16 packet_length);
 
-u8 DIM_InitIsoc(struct dim_channel *ch, u8 is_tx, u16 ch_address,
-		u16 packet_length);
+u8 dim_init_sync(struct dim_channel *ch, u8 is_tx, u16 ch_address,
+		 u16 bytes_per_frame);
 
-u8 DIM_InitSync(struct dim_channel *ch, u8 is_tx, u16 ch_address,
-		u16 bytes_per_frame);
+u8 dim_destroy_channel(struct dim_channel *ch);
 
-u8 DIM_DestroyChannel(struct dim_channel *ch);
+void dim_service_mlb_int_irq(void);
 
-void DIM_ServiceIrq(struct dim_channel *const *channels);
+void dim_service_ahb_int_irq(struct dim_channel *const *channels);
 
-u8 DIM_ServiceChannel(struct dim_channel *ch);
+u8 dim_service_channel(struct dim_channel *ch);
 
-struct dim_ch_state_t *DIM_GetChannelState(struct dim_channel *ch,
-		struct dim_ch_state_t *dim_ch_state_ptr);
+struct dim_ch_state_t *dim_get_channel_state(struct dim_channel *ch,
+					     struct dim_ch_state_t *state_ptr);
 
-bool DIM_EnqueueBuffer(struct dim_channel *ch, u32 buffer_addr,
-		       u16 buffer_size);
+u16 dim_dbr_space(struct dim_channel *ch);
 
-bool DIM_DetachBuffers(struct dim_channel *ch, u16 buffers_number);
+bool dim_enqueue_buffer(struct dim_channel *ch, u32 buffer_addr,
+			u16 buffer_size);
 
-u32 DIMCB_IoRead(u32 *ptr32);
+bool dim_detach_buffers(struct dim_channel *ch, u16 buffers_number);
 
-void DIMCB_IoWrite(u32 *ptr32, u32 value);
+u32 dimcb_io_read(u32 __iomem *ptr32);
 
-void DIMCB_OnError(u8 error_id, const char *error_message);
+void dimcb_io_write(u32 __iomem *ptr32, u32 value);
 
-
-#ifdef __cplusplus
-}
-#endif
+void dimcb_on_error(u8 error_id, const char *error_message);
 
 #endif /* _DIM2_HAL_H */

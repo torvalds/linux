@@ -37,7 +37,37 @@
 
 static DEFINE_SPINLOCK(hisi_clk_lock);
 
-struct hisi_clock_data __init *hisi_clk_init(struct device_node *np,
+struct hisi_clock_data *hisi_clk_alloc(struct platform_device *pdev,
+						int nr_clks)
+{
+	struct hisi_clock_data *clk_data;
+	struct resource *res;
+	struct clk **clk_table;
+
+	clk_data = devm_kmalloc(&pdev->dev, sizeof(*clk_data), GFP_KERNEL);
+	if (!clk_data)
+		return NULL;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	clk_data->base = devm_ioremap(&pdev->dev,
+				res->start, resource_size(res));
+	if (!clk_data->base)
+		return NULL;
+
+	clk_table = devm_kmalloc_array(&pdev->dev, nr_clks,
+				       sizeof(*clk_table),
+				       GFP_KERNEL);
+	if (!clk_table)
+		return NULL;
+
+	clk_data->clk_data.clks = clk_table;
+	clk_data->clk_data.clk_num = nr_clks;
+
+	return clk_data;
+}
+EXPORT_SYMBOL_GPL(hisi_clk_alloc);
+
+struct hisi_clock_data *hisi_clk_init(struct device_node *np,
 					     int nr_clks)
 {
 	struct hisi_clock_data *clk_data;
@@ -51,17 +81,14 @@ struct hisi_clock_data __init *hisi_clk_init(struct device_node *np,
 	}
 
 	clk_data = kzalloc(sizeof(*clk_data), GFP_KERNEL);
-	if (!clk_data) {
-		pr_err("%s: could not allocate clock data\n", __func__);
+	if (!clk_data)
 		goto err;
-	}
-	clk_data->base = base;
 
-	clk_table = kzalloc(sizeof(struct clk *) * nr_clks, GFP_KERNEL);
-	if (!clk_table) {
-		pr_err("%s: could not allocate clock lookup table\n", __func__);
+	clk_data->base = base;
+	clk_table = kcalloc(nr_clks, sizeof(*clk_table), GFP_KERNEL);
+	if (!clk_table)
 		goto err_data;
-	}
+
 	clk_data->clk_data.clks = clk_table;
 	clk_data->clk_data.clk_num = nr_clks;
 	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data->clk_data);
@@ -71,8 +98,9 @@ err_data:
 err:
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(hisi_clk_init);
 
-void __init hisi_clk_register_fixed_rate(struct hisi_fixed_rate_clock *clks,
+int hisi_clk_register_fixed_rate(const struct hisi_fixed_rate_clock *clks,
 					 int nums, struct hisi_clock_data *data)
 {
 	struct clk *clk;
@@ -86,13 +114,22 @@ void __init hisi_clk_register_fixed_rate(struct hisi_fixed_rate_clock *clks,
 		if (IS_ERR(clk)) {
 			pr_err("%s: failed to register clock %s\n",
 			       __func__, clks[i].name);
-			continue;
+			goto err;
 		}
 		data->clk_data.clks[clks[i].id] = clk;
 	}
-}
 
-void __init hisi_clk_register_fixed_factor(struct hisi_fixed_factor_clock *clks,
+	return 0;
+
+err:
+	while (i--)
+		clk_unregister_fixed_rate(data->clk_data.clks[clks[i].id]);
+
+	return PTR_ERR(clk);
+}
+EXPORT_SYMBOL_GPL(hisi_clk_register_fixed_rate);
+
+int hisi_clk_register_fixed_factor(const struct hisi_fixed_factor_clock *clks,
 					   int nums,
 					   struct hisi_clock_data *data)
 {
@@ -107,13 +144,22 @@ void __init hisi_clk_register_fixed_factor(struct hisi_fixed_factor_clock *clks,
 		if (IS_ERR(clk)) {
 			pr_err("%s: failed to register clock %s\n",
 			       __func__, clks[i].name);
-			continue;
+			goto err;
 		}
 		data->clk_data.clks[clks[i].id] = clk;
 	}
-}
 
-void __init hisi_clk_register_mux(struct hisi_mux_clock *clks,
+	return 0;
+
+err:
+	while (i--)
+		clk_unregister_fixed_factor(data->clk_data.clks[clks[i].id]);
+
+	return PTR_ERR(clk);
+}
+EXPORT_SYMBOL_GPL(hisi_clk_register_fixed_factor);
+
+int hisi_clk_register_mux(const struct hisi_mux_clock *clks,
 				  int nums, struct hisi_clock_data *data)
 {
 	struct clk *clk;
@@ -132,7 +178,7 @@ void __init hisi_clk_register_mux(struct hisi_mux_clock *clks,
 		if (IS_ERR(clk)) {
 			pr_err("%s: failed to register clock %s\n",
 			       __func__, clks[i].name);
-			continue;
+			goto err;
 		}
 
 		if (clks[i].alias)
@@ -140,9 +186,18 @@ void __init hisi_clk_register_mux(struct hisi_mux_clock *clks,
 
 		data->clk_data.clks[clks[i].id] = clk;
 	}
-}
 
-void __init hisi_clk_register_divider(struct hisi_divider_clock *clks,
+	return 0;
+
+err:
+	while (i--)
+		clk_unregister_mux(data->clk_data.clks[clks[i].id]);
+
+	return PTR_ERR(clk);
+}
+EXPORT_SYMBOL_GPL(hisi_clk_register_mux);
+
+int hisi_clk_register_divider(const struct hisi_divider_clock *clks,
 				      int nums, struct hisi_clock_data *data)
 {
 	struct clk *clk;
@@ -161,7 +216,7 @@ void __init hisi_clk_register_divider(struct hisi_divider_clock *clks,
 		if (IS_ERR(clk)) {
 			pr_err("%s: failed to register clock %s\n",
 			       __func__, clks[i].name);
-			continue;
+			goto err;
 		}
 
 		if (clks[i].alias)
@@ -169,9 +224,18 @@ void __init hisi_clk_register_divider(struct hisi_divider_clock *clks,
 
 		data->clk_data.clks[clks[i].id] = clk;
 	}
-}
 
-void __init hisi_clk_register_gate(struct hisi_gate_clock *clks,
+	return 0;
+
+err:
+	while (i--)
+		clk_unregister_divider(data->clk_data.clks[clks[i].id]);
+
+	return PTR_ERR(clk);
+}
+EXPORT_SYMBOL_GPL(hisi_clk_register_divider);
+
+int hisi_clk_register_gate(const struct hisi_gate_clock *clks,
 				       int nums, struct hisi_clock_data *data)
 {
 	struct clk *clk;
@@ -189,7 +253,7 @@ void __init hisi_clk_register_gate(struct hisi_gate_clock *clks,
 		if (IS_ERR(clk)) {
 			pr_err("%s: failed to register clock %s\n",
 			       __func__, clks[i].name);
-			continue;
+			goto err;
 		}
 
 		if (clks[i].alias)
@@ -197,9 +261,18 @@ void __init hisi_clk_register_gate(struct hisi_gate_clock *clks,
 
 		data->clk_data.clks[clks[i].id] = clk;
 	}
-}
 
-void __init hisi_clk_register_gate_sep(struct hisi_gate_clock *clks,
+	return 0;
+
+err:
+	while (i--)
+		clk_unregister_gate(data->clk_data.clks[clks[i].id]);
+
+	return PTR_ERR(clk);
+}
+EXPORT_SYMBOL_GPL(hisi_clk_register_gate);
+
+void hisi_clk_register_gate_sep(const struct hisi_gate_clock *clks,
 				       int nums, struct hisi_clock_data *data)
 {
 	struct clk *clk;
@@ -226,8 +299,9 @@ void __init hisi_clk_register_gate_sep(struct hisi_gate_clock *clks,
 		data->clk_data.clks[clks[i].id] = clk;
 	}
 }
+EXPORT_SYMBOL_GPL(hisi_clk_register_gate_sep);
 
-void __init hi6220_clk_register_divider(struct hi6220_divider_clock *clks,
+void __init hi6220_clk_register_divider(const struct hi6220_divider_clock *clks,
 					int nums, struct hisi_clock_data *data)
 {
 	struct clk *clk;

@@ -18,6 +18,7 @@
 #define SI2157_PRIV_H
 
 #include <linux/firmware.h>
+#include <media/v4l2-mc.h>
 #include "si2157.h"
 
 /* state struct */
@@ -25,16 +26,23 @@ struct si2157_dev {
 	struct mutex i2c_mutex;
 	struct dvb_frontend *fe;
 	bool active;
-	bool fw_loaded;
 	bool inversion;
 	u8 chiptype;
 	u8 if_port;
 	u32 if_frequency;
 	struct delayed_work stat_work;
+
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	struct media_device	*mdev;
+	struct media_entity	ent;
+	struct media_pad	pad[TUNER_NUM_PADS];
+#endif
+
 };
 
 #define SI2157_CHIPTYPE_SI2157 0
 #define SI2157_CHIPTYPE_SI2146 1
+#define SI2157_CHIPTYPE_SI2141 2
 
 /* firmware command struct */
 #define SI2157_ARGLEN      30
@@ -45,5 +53,6 @@ struct si2157_cmd {
 };
 
 #define SI2158_A20_FIRMWARE "dvb-tuner-si2158-a20-01.fw"
+#define SI2141_A10_FIRMWARE "dvb-tuner-si2141-a10-01.fw"
 
 #endif

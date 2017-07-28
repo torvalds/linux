@@ -67,12 +67,12 @@ The two basic thread commands are:
  * add_device DEVICE@NAME -- adds a single device
  * rem_device_all         -- remove all associated devices
 
-When adding a device to a thread, a corrosponding procfile is created
+When adding a device to a thread, a corresponding procfile is created
 which is used for configuring this device. Thus, device names need to
 be unique.
 
 To support adding the same device to multiple threads, which is useful
-with multi queue NICs, a the device naming scheme is extended with "@":
+with multi queue NICs, the device naming scheme is extended with "@":
  device@something
 
 The part after "@" can be anything, but it is custom to use the thread
@@ -221,7 +221,7 @@ Sample scripts
 
 A collection of tutorial scripts and helpers for pktgen is in the
 samples/pktgen directory. The helper parameters.sh file support easy
-and consistant parameter parsing across the sample scripts.
+and consistent parameter parsing across the sample scripts.
 
 Usage example and help:
  ./pktgen_sample01_simple.sh -i eth4 -m 00:1B:21:3C:9D:F8 -d 192.168.8.2

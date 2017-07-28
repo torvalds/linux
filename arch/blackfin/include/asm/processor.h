@@ -75,18 +75,6 @@ static inline void release_thread(struct task_struct *dead_task)
 {
 }
 
-/*
- * Free current thread data structures etc..
- */
-static inline void exit_thread(void)
-{
-}
-
-/*
- * Return saved PC of a blocked thread.
- */
-#define thread_saved_pc(tsk)	(tsk->thread.pc)
-
 unsigned long get_wchan(struct task_struct *p);
 
 #define	KSTK_EIP(tsk)							\
@@ -99,7 +87,6 @@ unsigned long get_wchan(struct task_struct *p);
 #define	KSTK_ESP(tsk)	((tsk) == current ? rdusp() : (tsk)->thread.usp)
 
 #define cpu_relax()    	smp_mb()
-#define cpu_relax_lowlatency() cpu_relax()
 
 /* Get the Silicon Revision of the chip */
 static inline uint32_t __pure bfin_revid(void)

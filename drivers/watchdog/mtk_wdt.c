@@ -28,8 +28,6 @@
 #include <linux/platform_device.h>
 #include <linux/types.h>
 #include <linux/watchdog.h>
-#include <linux/notifier.h>
-#include <linux/reboot.h>
 #include <linux/delay.h>
 
 #define WDT_MAX_TIMEOUT		31
@@ -64,16 +62,14 @@ static unsigned int timeout = WDT_MAX_TIMEOUT;
 struct mtk_wdt_dev {
 	struct watchdog_device wdt_dev;
 	void __iomem *wdt_base;
-	struct notifier_block restart_handler;
 };
 
-static int mtk_reset_handler(struct notifier_block *this, unsigned long mode,
-				void *cmd)
+static int mtk_wdt_restart(struct watchdog_device *wdt_dev,
+			   unsigned long action, void *data)
 {
-	struct mtk_wdt_dev *mtk_wdt;
+	struct mtk_wdt_dev *mtk_wdt = watchdog_get_drvdata(wdt_dev);
 	void __iomem *wdt_base;
 
-	mtk_wdt = container_of(this, struct mtk_wdt_dev, restart_handler);
 	wdt_base = mtk_wdt->wdt_base;
 
 	while (1) {
@@ -81,7 +77,7 @@ static int mtk_reset_handler(struct notifier_block *this, unsigned long mode,
 		mdelay(5);
 	}
 
-	return NOTIFY_DONE;
+	return 0;
 }
 
 static int mtk_wdt_ping(struct watchdog_device *wdt_dev)
@@ -161,6 +157,7 @@ static const struct watchdog_ops mtk_wdt_ops = {
 	.stop		= mtk_wdt_stop,
 	.ping		= mtk_wdt_ping,
 	.set_timeout	= mtk_wdt_set_timeout,
+	.restart	= mtk_wdt_restart,
 };
 
 static int mtk_wdt_probe(struct platform_device *pdev)
@@ -189,6 +186,7 @@ static int mtk_wdt_probe(struct platform_device *pdev)
 
 	watchdog_init_timeout(&mtk_wdt->wdt_dev, timeout, &pdev->dev);
 	watchdog_set_nowayout(&mtk_wdt->wdt_dev, nowayout);
+	watchdog_set_restart_priority(&mtk_wdt->wdt_dev, 128);
 
 	watchdog_set_drvdata(&mtk_wdt->wdt_dev, mtk_wdt);
 
@@ -197,13 +195,6 @@ static int mtk_wdt_probe(struct platform_device *pdev)
 	err = watchdog_register_device(&mtk_wdt->wdt_dev);
 	if (unlikely(err))
 		return err;
-
-	mtk_wdt->restart_handler.notifier_call = mtk_reset_handler;
-	mtk_wdt->restart_handler.priority = 128;
-	err = register_restart_handler(&mtk_wdt->restart_handler);
-	if (err)
-		dev_warn(&pdev->dev,
-			"cannot register restart handler (err=%d)\n", err);
 
 	dev_info(&pdev->dev, "Watchdog enabled (timeout=%d sec, nowayout=%d)\n",
 			mtk_wdt->wdt_dev.timeout, nowayout);
@@ -222,8 +213,6 @@ static void mtk_wdt_shutdown(struct platform_device *pdev)
 static int mtk_wdt_remove(struct platform_device *pdev)
 {
 	struct mtk_wdt_dev *mtk_wdt = platform_get_drvdata(pdev);
-
-	unregister_restart_handler(&mtk_wdt->restart_handler);
 
 	watchdog_unregister_device(&mtk_wdt->wdt_dev);
 

@@ -2,6 +2,7 @@
 #define __EXTENTMAP__
 
 #include <linux/rbtree.h>
+#include <linux/refcount.h>
 
 #define EXTENT_MAP_LAST_BYTE ((u64)-4)
 #define EXTENT_MAP_HOLE ((u64)-3)
@@ -32,8 +33,16 @@ struct extent_map {
 	u64 block_len;
 	u64 generation;
 	unsigned long flags;
-	struct block_device *bdev;
-	atomic_t refs;
+	union {
+		struct block_device *bdev;
+
+		/*
+		 * used for chunk mappings
+		 * flags & EXTENT_FLAG_FS_MAPPING must be set
+		 */
+		struct map_lookup *map_lookup;
+	};
+	refcount_t refs;
 	unsigned int compress_type;
 	struct list_head list;
 };

@@ -43,6 +43,7 @@
 #include <linux/parser.h>
 #include <linux/semaphore.h>
 #include <linux/slab.h>
+#include <linux/seq_file.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 #include <net/9p/transport.h>
@@ -70,6 +71,8 @@
  * @dm_mr: DMA Memory Region pointer
  * @lkey: The local access only memory region key
  * @timeout: Number of uSecs to wait for connection management events
+ * @privport: Whether a privileged port may be used
+ * @port: The port to use
  * @sq_depth: The depth of the Send Queue
  * @sq_sem: Semaphore for the SQ
  * @rq_depth: The depth of the Receive Queue.
@@ -95,6 +98,8 @@ struct p9_trans_rdma {
 	struct ib_qp *qp;
 	struct ib_cq *cq;
 	long timeout;
+	bool privport;
+	u16 port;
 	int sq_depth;
 	struct semaphore sq_sem;
 	int rq_depth;
@@ -109,14 +114,13 @@ struct p9_trans_rdma {
 /**
  * p9_rdma_context - Keeps track of in-process WR
  *
- * @wc_op: The original WR op for when the CQE completes in error.
  * @busa: Bus address to unmap when the WR completes
  * @req: Keeps track of requests (send)
  * @rc: Keepts track of replies (receive)
  */
 struct p9_rdma_req;
 struct p9_rdma_context {
-	enum ib_wc_opcode wc_op;
+	struct ib_cqe cqe;
 	dma_addr_t busa;
 	union {
 		struct p9_req_t *req;
@@ -134,10 +138,10 @@ struct p9_rdma_context {
  */
 struct p9_rdma_opts {
 	short port;
+	bool privport;
 	int sq_depth;
 	int rq_depth;
 	long timeout;
-	int privport;
 };
 
 /*
@@ -160,6 +164,23 @@ static match_table_t tokens = {
 	{Opt_err, NULL},
 };
 
+static int p9_rdma_show_options(struct seq_file *m, struct p9_client *clnt)
+{
+	struct p9_trans_rdma *rdma = clnt->trans;
+
+	if (rdma->port != P9_PORT)
+		seq_printf(m, ",port=%u", rdma->port);
+	if (rdma->sq_depth != P9_RDMA_SQ_DEPTH)
+		seq_printf(m, ",sq=%u", rdma->sq_depth);
+	if (rdma->rq_depth != P9_RDMA_RQ_DEPTH)
+		seq_printf(m, ",rq=%u", rdma->rq_depth);
+	if (rdma->timeout != P9_RDMA_TIMEOUT)
+		seq_printf(m, ",timeout=%lu", rdma->timeout);
+	if (rdma->privport)
+		seq_puts(m, ",privport");
+	return 0;
+}
+
 /**
  * parse_opts - parse mount options into rdma options structure
  * @params: options string passed from mount
@@ -178,7 +199,7 @@ static int parse_opts(char *params, struct p9_rdma_opts *opts)
 	opts->sq_depth = P9_RDMA_SQ_DEPTH;
 	opts->rq_depth = P9_RDMA_RQ_DEPTH;
 	opts->timeout = P9_RDMA_TIMEOUT;
-	opts->privport = 0;
+	opts->privport = false;
 
 	if (!params)
 		return 0;
@@ -219,7 +240,7 @@ static int parse_opts(char *params, struct p9_rdma_opts *opts)
 			opts->timeout = option;
 			break;
 		case Opt_privport:
-			opts->privport = 1;
+			opts->privport = true;
 			break;
 		default:
 			continue;
@@ -284,9 +305,12 @@ p9_cm_event_handler(struct rdma_cm_id *id, struct rdma_cm_event *event)
 }
 
 static void
-handle_recv(struct p9_client *client, struct p9_trans_rdma *rdma,
-	    struct p9_rdma_context *c, enum ib_wc_status status, u32 byte_len)
+recv_done(struct ib_cq *cq, struct ib_wc *wc)
 {
+	struct p9_client *client = cq->cq_context;
+	struct p9_trans_rdma *rdma = client->trans;
+	struct p9_rdma_context *c =
+		container_of(wc->wr_cqe, struct p9_rdma_context, cqe);
 	struct p9_req_t *req;
 	int err = 0;
 	int16_t tag;
@@ -295,7 +319,7 @@ handle_recv(struct p9_client *client, struct p9_trans_rdma *rdma,
 	ib_dma_unmap_single(rdma->cm_id->device, c->busa, client->msize,
 							 DMA_FROM_DEVICE);
 
-	if (status != IB_WC_SUCCESS)
+	if (wc->status != IB_WC_SUCCESS)
 		goto err_out;
 
 	err = p9_parse_header(c->rc, NULL, NULL, &tag, 1);
@@ -316,63 +340,38 @@ handle_recv(struct p9_client *client, struct p9_trans_rdma *rdma,
 	req->rc = c->rc;
 	p9_client_cb(client, req, REQ_STATUS_RCVD);
 
+ out:
+	up(&rdma->rq_sem);
+	kfree(c);
 	return;
 
  err_out:
-	p9_debug(P9_DEBUG_ERROR, "req %p err %d status %d\n", req, err, status);
+	p9_debug(P9_DEBUG_ERROR, "req %p err %d status %d\n",
+			req, err, wc->status);
 	rdma->state = P9_RDMA_FLUSHING;
 	client->status = Disconnected;
+	goto out;
 }
 
 static void
-handle_send(struct p9_client *client, struct p9_trans_rdma *rdma,
-	    struct p9_rdma_context *c, enum ib_wc_status status, u32 byte_len)
+send_done(struct ib_cq *cq, struct ib_wc *wc)
 {
+	struct p9_client *client = cq->cq_context;
+	struct p9_trans_rdma *rdma = client->trans;
+	struct p9_rdma_context *c =
+		container_of(wc->wr_cqe, struct p9_rdma_context, cqe);
+
 	ib_dma_unmap_single(rdma->cm_id->device,
 			    c->busa, c->req->tc->size,
 			    DMA_TO_DEVICE);
+	up(&rdma->sq_sem);
+	kfree(c);
 }
 
 static void qp_event_handler(struct ib_event *event, void *context)
 {
 	p9_debug(P9_DEBUG_ERROR, "QP event %d context %p\n",
 		 event->event, context);
-}
-
-static void cq_comp_handler(struct ib_cq *cq, void *cq_context)
-{
-	struct p9_client *client = cq_context;
-	struct p9_trans_rdma *rdma = client->trans;
-	int ret;
-	struct ib_wc wc;
-
-	ib_req_notify_cq(rdma->cq, IB_CQ_NEXT_COMP);
-	while ((ret = ib_poll_cq(cq, 1, &wc)) > 0) {
-		struct p9_rdma_context *c = (void *) (unsigned long) wc.wr_id;
-
-		switch (c->wc_op) {
-		case IB_WC_RECV:
-			handle_recv(client, rdma, c, wc.status, wc.byte_len);
-			up(&rdma->rq_sem);
-			break;
-
-		case IB_WC_SEND:
-			handle_send(client, rdma, c, wc.status, wc.byte_len);
-			up(&rdma->sq_sem);
-			break;
-
-		default:
-			pr_err("unexpected completion type, c->wc_op=%d, wc.opcode=%d, status=%d\n",
-			       c->wc_op, wc.opcode, wc.status);
-			break;
-		}
-		kfree(c);
-	}
-}
-
-static void cq_event_handler(struct ib_event *e, void *v)
-{
-	p9_debug(P9_DEBUG_ERROR, "CQ event %d context %p\n", e->event, v);
 }
 
 static void rdma_destroy_trans(struct p9_trans_rdma *rdma)
@@ -387,7 +386,7 @@ static void rdma_destroy_trans(struct p9_trans_rdma *rdma)
 		ib_dealloc_pd(rdma->pd);
 
 	if (rdma->cq && !IS_ERR(rdma->cq))
-		ib_destroy_cq(rdma->cq);
+		ib_free_cq(rdma->cq);
 
 	if (rdma->cm_id && !IS_ERR(rdma->cm_id))
 		rdma_destroy_id(rdma->cm_id);
@@ -408,13 +407,14 @@ post_recv(struct p9_client *client, struct p9_rdma_context *c)
 	if (ib_dma_mapping_error(rdma->cm_id->device, c->busa))
 		goto error;
 
+	c->cqe.done = recv_done;
+
 	sge.addr = c->busa;
 	sge.length = client->msize;
 	sge.lkey = rdma->pd->local_dma_lkey;
 
 	wr.next = NULL;
-	c->wc_op = IB_WC_RECV;
-	wr.wr_id = (unsigned long) c;
+	wr.wr_cqe = &c->cqe;
 	wr.sg_list = &sge;
 	wr.num_sge = 1;
 	return ib_post_recv(rdma->qp, &wr, &bad_wr);
@@ -499,13 +499,14 @@ dont_need_post_recv:
 		goto send_error;
 	}
 
+	c->cqe.done = send_done;
+
 	sge.addr = c->busa;
 	sge.length = c->req->tc->size;
 	sge.lkey = rdma->pd->local_dma_lkey;
 
 	wr.next = NULL;
-	c->wc_op = IB_WC_SEND;
-	wr.wr_id = (unsigned long) c;
+	wr.wr_cqe = &c->cqe;
 	wr.opcode = IB_WR_SEND;
 	wr.send_flags = IB_SEND_SIGNALED;
 	wr.sg_list = &sge;
@@ -581,6 +582,8 @@ static struct p9_trans_rdma *alloc_rdma(struct p9_rdma_opts *opts)
 	if (!rdma)
 		return NULL;
 
+	rdma->port = opts->port;
+	rdma->privport = opts->privport;
 	rdma->sq_depth = opts->sq_depth;
 	rdma->rq_depth = opts->rq_depth;
 	rdma->timeout = opts->timeout;
@@ -642,7 +645,6 @@ rdma_create_trans(struct p9_client *client, const char *addr, char *args)
 	struct p9_trans_rdma *rdma;
 	struct rdma_conn_param conn_param;
 	struct ib_qp_init_attr qp_attr;
-	struct ib_cq_init_attr cq_attr = {};
 
 	/* Parse the transport specific mount options */
 	err = parse_opts(args, &opts);
@@ -695,16 +697,14 @@ rdma_create_trans(struct p9_client *client, const char *addr, char *args)
 		goto error;
 
 	/* Create the Completion Queue */
-	cq_attr.cqe = opts.sq_depth + opts.rq_depth + 1;
-	rdma->cq = ib_create_cq(rdma->cm_id->device, cq_comp_handler,
-				cq_event_handler, client,
-				&cq_attr);
+	rdma->cq = ib_alloc_cq(rdma->cm_id->device, client,
+			opts.sq_depth + opts.rq_depth + 1,
+			0, IB_POLL_SOFTIRQ);
 	if (IS_ERR(rdma->cq))
 		goto error;
-	ib_req_notify_cq(rdma->cq, IB_CQ_NEXT_COMP);
 
 	/* Create the Protection Domain */
-	rdma->pd = ib_alloc_pd(rdma->cm_id->device);
+	rdma->pd = ib_alloc_pd(rdma->cm_id->device, 0);
 	if (IS_ERR(rdma->pd))
 		goto error;
 
@@ -757,6 +757,7 @@ static struct p9_trans_module p9_rdma_trans = {
 	.request = rdma_request,
 	.cancel = rdma_cancel,
 	.cancelled = rdma_cancelled,
+	.show_options = p9_rdma_show_options,
 };
 
 /**

@@ -9,7 +9,7 @@
  * 2 of the License, or (at your option) any later version.
  *
  *
- * See Documentation/security/keys.txt for information on keys/keyrings.
+ * See Documentation/security/keys/core.rst for information on keys/keyrings.
  */
 
 #ifndef _LINUX_KEY_H
@@ -23,6 +23,7 @@
 #include <linux/rwsem.h>
 #include <linux/atomic.h>
 #include <linux/assoc_array.h>
+#include <linux/refcount.h>
 
 #ifdef __KERNEL__
 #include <linux/uidgid.h>
@@ -126,6 +127,17 @@ static inline bool is_key_possessed(const key_ref_t key_ref)
 	return (unsigned long) key_ref & 1UL;
 }
 
+typedef int (*key_restrict_link_func_t)(struct key *dest_keyring,
+					const struct key_type *type,
+					const union key_payload *payload,
+					struct key *restriction_key);
+
+struct key_restriction {
+	key_restrict_link_func_t check;
+	struct key *key;
+	struct key_type *keytype;
+};
+
 /*****************************************************************************/
 /*
  * authentication token / access credential / keyring
@@ -135,7 +147,7 @@ static inline bool is_key_possessed(const key_ref_t key_ref)
  *   - Kerberos TGTs and tickets
  */
 struct key {
-	atomic_t		usage;		/* number of references */
+	refcount_t		usage;		/* number of references */
 	key_serial_t		serial;		/* key serial number */
 	union {
 		struct list_head graveyard_link;
@@ -161,7 +173,6 @@ struct key {
 #ifdef KEY_DEBUGGING
 	unsigned		magic;
 #define KEY_DEBUG_MAGIC		0x18273645u
-#define KEY_DEBUG_MAGIC_X	0xf8e9dacbu
 #endif
 
 	unsigned long		flags;		/* status flags (change with bitops) */
@@ -173,10 +184,9 @@ struct key {
 #define KEY_FLAG_NEGATIVE	5	/* set if key is negative */
 #define KEY_FLAG_ROOT_CAN_CLEAR	6	/* set if key can be cleared by root without permission */
 #define KEY_FLAG_INVALIDATED	7	/* set if key has been invalidated */
-#define KEY_FLAG_TRUSTED	8	/* set if key is trusted */
-#define KEY_FLAG_TRUSTED_ONLY	9	/* set if keyring only accepts links to trusted keys */
-#define KEY_FLAG_BUILTIN	10	/* set if key is builtin */
-#define KEY_FLAG_ROOT_CAN_INVAL	11	/* set if key can be invalidated by root without permission */
+#define KEY_FLAG_BUILTIN	8	/* set if key is built in to the kernel */
+#define KEY_FLAG_ROOT_CAN_INVAL	9	/* set if key can be invalidated by root without permission */
+#define KEY_FLAG_KEEP		10	/* set if key should not be removed */
 
 	/* the key type and key description string
 	 * - the desc is used to match a key against search criteria
@@ -204,6 +214,19 @@ struct key {
 		};
 		int reject_error;
 	};
+
+	/* This is set on a keyring to restrict the addition of a link to a key
+	 * to it.  If this structure isn't provided then it is assumed that the
+	 * keyring is open to any addition.  It is ignored for non-keyring
+	 * keys. Only set this value using keyring_restrict(), keyring_alloc(),
+	 * or key_alloc().
+	 *
+	 * This is intended for use with rings of trusted keys whereby addition
+	 * to the keyring needs to be controlled.  KEY_ALLOC_BYPASS_RESTRICTION
+	 * overrides this, allowing the kernel to add extra keys without
+	 * restriction.
+	 */
+	struct key_restriction *restrict_link;
 };
 
 extern struct key *key_alloc(struct key_type *type,
@@ -211,13 +234,15 @@ extern struct key *key_alloc(struct key_type *type,
 			     kuid_t uid, kgid_t gid,
 			     const struct cred *cred,
 			     key_perm_t perm,
-			     unsigned long flags);
+			     unsigned long flags,
+			     struct key_restriction *restrict_link);
 
 
-#define KEY_ALLOC_IN_QUOTA	0x0000	/* add to quota, reject if would overrun */
-#define KEY_ALLOC_QUOTA_OVERRUN	0x0001	/* add to quota, permit even if overrun */
-#define KEY_ALLOC_NOT_IN_QUOTA	0x0002	/* not in quota */
-#define KEY_ALLOC_TRUSTED	0x0004	/* Key should be flagged as trusted */
+#define KEY_ALLOC_IN_QUOTA		0x0000	/* add to quota, reject if would overrun */
+#define KEY_ALLOC_QUOTA_OVERRUN		0x0001	/* add to quota, permit even if overrun */
+#define KEY_ALLOC_NOT_IN_QUOTA		0x0002	/* not in quota */
+#define KEY_ALLOC_BUILT_IN		0x0004	/* Key is built into kernel */
+#define KEY_ALLOC_BYPASS_RESTRICTION	0x0008	/* Override the check on restricted keyrings */
 
 extern void key_revoke(struct key *key);
 extern void key_invalidate(struct key *key);
@@ -225,7 +250,7 @@ extern void key_put(struct key *key);
 
 static inline struct key *__key_get(struct key *key)
 {
-	atomic_inc(&key->usage);
+	refcount_inc(&key->usage);
 	return key;
 }
 
@@ -286,7 +311,13 @@ extern struct key *keyring_alloc(const char *description, kuid_t uid, kgid_t gid
 				 const struct cred *cred,
 				 key_perm_t perm,
 				 unsigned long flags,
+				 struct key_restriction *restrict_link,
 				 struct key *dest);
+
+extern int restrict_link_reject(struct key *keyring,
+				const struct key_type *type,
+				const union key_payload *payload,
+				struct key *restriction_key);
 
 extern int keyring_clear(struct key *keyring);
 
@@ -296,6 +327,9 @@ extern key_ref_t keyring_search(key_ref_t keyring,
 
 extern int keyring_add_key(struct key *keyring,
 			   struct key *key);
+
+extern int keyring_restrict(key_ref_t keyring, const char *type,
+			    const char *restriction);
 
 extern struct key *key_lookup(key_serial_t id);
 
@@ -330,7 +364,10 @@ static inline bool key_is_instantiated(const struct key *key)
 		!test_bit(KEY_FLAG_NEGATIVE, &key->flags);
 }
 
-#define rcu_dereference_key(KEY)					\
+#define dereference_key_rcu(KEY)					\
+	(rcu_dereference((KEY)->payload.rcu_data0))
+
+#define dereference_key_locked(KEY)					\
 	(rcu_dereference_protected((KEY)->payload.rcu_data0,		\
 				   rwsem_is_locked(&((struct key *)(KEY))->sem)))
 

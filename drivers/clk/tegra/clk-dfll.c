@@ -55,6 +55,7 @@
 #include <linux/seq_file.h>
 
 #include "clk-dfll.h"
+#include "cvb.h"
 
 /*
  * DFLL control registers - access via dfll_{readl,writel}
@@ -442,8 +443,8 @@ static void dfll_tune_low(struct tegra_dfll *td)
 {
 	td->tune_range = DFLL_TUNE_LOW;
 
-	dfll_writel(td, td->soc->tune0_low, DFLL_TUNE0);
-	dfll_writel(td, td->soc->tune1, DFLL_TUNE1);
+	dfll_writel(td, td->soc->cvb->cpu_dfll_data.tune0_low, DFLL_TUNE0);
+	dfll_writel(td, td->soc->cvb->cpu_dfll_data.tune1, DFLL_TUNE1);
 	dfll_wmb(td);
 
 	if (td->soc->set_clock_trimmers_low)
@@ -632,16 +633,12 @@ static int find_lut_index_for_rate(struct tegra_dfll *td, unsigned long rate)
 	struct dev_pm_opp *opp;
 	int i, uv;
 
-	rcu_read_lock();
-
 	opp = dev_pm_opp_find_freq_ceil(td->soc->dev, &rate);
-	if (IS_ERR(opp)) {
-		rcu_read_unlock();
+	if (IS_ERR(opp))
 		return PTR_ERR(opp);
-	}
-	uv = dev_pm_opp_get_voltage(opp);
 
-	rcu_read_unlock();
+	uv = dev_pm_opp_get_voltage(opp);
+	dev_pm_opp_put(opp);
 
 	for (i = 0; i < td->i2c_lut_size; i++) {
 		if (regulator_list_voltage(td->vdd_reg, td->i2c_lut[i]) == uv)
@@ -995,7 +992,6 @@ static const struct clk_ops dfll_clk_ops = {
 };
 
 static struct clk_init_data dfll_clk_init_data = {
-	.flags		= CLK_IS_ROOT,
 	.ops		= &dfll_clk_ops,
 	.num_parents	= 0,
 };
@@ -1440,8 +1436,6 @@ static int dfll_build_i2c_lut(struct tegra_dfll *td)
 	struct dev_pm_opp *opp;
 	int lut;
 
-	rcu_read_lock();
-
 	rate = ULONG_MAX;
 	opp = dev_pm_opp_find_freq_floor(td->soc->dev, &rate);
 	if (IS_ERR(opp)) {
@@ -1449,8 +1443,9 @@ static int dfll_build_i2c_lut(struct tegra_dfll *td)
 		goto out;
 	}
 	v_max = dev_pm_opp_get_voltage(opp);
+	dev_pm_opp_put(opp);
 
-	v = td->soc->min_millivolts * 1000;
+	v = td->soc->cvb->min_millivolts * 1000;
 	lut = find_vdd_map_entry_exact(td, v);
 	if (lut < 0)
 		goto out;
@@ -1462,8 +1457,10 @@ static int dfll_build_i2c_lut(struct tegra_dfll *td)
 			break;
 		v_opp = dev_pm_opp_get_voltage(opp);
 
-		if (v_opp <= td->soc->min_millivolts * 1000)
+		if (v_opp <= td->soc->cvb->min_millivolts * 1000)
 			td->dvco_rate_min = dev_pm_opp_get_freq(opp);
+
+		dev_pm_opp_put(opp);
 
 		for (;;) {
 			v += max(1, (v_max - v) / (MAX_DFLL_VOLTAGES - j));
@@ -1491,13 +1488,11 @@ static int dfll_build_i2c_lut(struct tegra_dfll *td)
 
 	if (!td->dvco_rate_min)
 		dev_err(td->dev, "no opp above DFLL minimum voltage %d mV\n",
-			td->soc->min_millivolts);
+			td->soc->cvb->min_millivolts);
 	else
 		ret = 0;
 
 out:
-	rcu_read_unlock();
-
 	return ret;
 }
 

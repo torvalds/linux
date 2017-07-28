@@ -79,7 +79,7 @@ struct arcfb_par {
 	spinlock_t lock;
 };
 
-static struct fb_fix_screeninfo arcfb_fix = {
+static const struct fb_fix_screeninfo arcfb_fix = {
 	.id =		"arcfb",
 	.type =		FB_TYPE_PACKED_PIXELS,
 	.visual =	FB_VISUAL_MONO01,
@@ -89,7 +89,7 @@ static struct fb_fix_screeninfo arcfb_fix = {
 	.accel =	FB_ACCEL_NONE,
 };
 
-static struct fb_var_screeninfo arcfb_var = {
+static const struct fb_var_screeninfo arcfb_var = {
 	.xres		= 128,
 	.yres		= 64,
 	.xres_virtual	= 128,
@@ -645,17 +645,17 @@ module_param(nosplash, uint, 0);
 MODULE_PARM_DESC(nosplash, "Disable doing the splash screen");
 module_param(arcfb_enable, uint, 0);
 MODULE_PARM_DESC(arcfb_enable, "Enable communication with Arc board");
-module_param(dio_addr, ulong, 0);
+module_param_hw(dio_addr, ulong, ioport, 0);
 MODULE_PARM_DESC(dio_addr, "IO address for data, eg: 0x480");
-module_param(cio_addr, ulong, 0);
+module_param_hw(cio_addr, ulong, ioport, 0);
 MODULE_PARM_DESC(cio_addr, "IO address for control, eg: 0x400");
-module_param(c2io_addr, ulong, 0);
+module_param_hw(c2io_addr, ulong, ioport, 0);
 MODULE_PARM_DESC(c2io_addr, "IO address for secondary control, eg: 0x408");
 module_param(splashval, ulong, 0);
 MODULE_PARM_DESC(splashval, "Splash pattern: 0xFF is black, 0x00 is green");
 module_param(tuhold, ulong, 0);
 MODULE_PARM_DESC(tuhold, "Time to hold between strobing data to Arc board");
-module_param(irq, uint, 0);
+module_param_hw(irq, uint, irq, 0);
 MODULE_PARM_DESC(irq, "IRQ for the Arc board");
 
 module_init(arcfb_init);

@@ -2,7 +2,7 @@
  * zfcp device driver
  * debug feature declarations
  *
- * Copyright IBM Corp. 2008, 2010
+ * Copyright IBM Corp. 2008, 2016
  */
 
 #ifndef ZFCP_DBF_H
@@ -16,6 +16,11 @@
 #define ZFCP_DBF_TAG_LEN       7
 
 #define ZFCP_DBF_INVALID_LUN	0xFFFFFFFFFFFFFFFFull
+
+enum zfcp_dbf_pseudo_erp_act_type {
+	ZFCP_PSEUDO_ERP_ACTION_RPORT_ADD = 0xff,
+	ZFCP_PSEUDO_ERP_ACTION_RPORT_DEL = 0xfe,
+};
 
 /**
  * struct zfcp_dbf_rec_trigger - trace record for triggered recovery action
@@ -110,6 +115,7 @@ struct zfcp_dbf_san {
 	u32 d_id;
 #define ZFCP_DBF_SAN_MAX_PAYLOAD (FC_CT_HDR_LEN + 32)
 	char payload[ZFCP_DBF_SAN_MAX_PAYLOAD];
+	u16 pl_len;
 } __packed;
 
 /**
@@ -126,6 +132,8 @@ struct zfcp_dbf_hba_res {
 	u8  prot_status_qual[FSF_PROT_STATUS_QUAL_SIZE];
 	u32 fsf_status;
 	u8  fsf_status_qual[FSF_STATUS_QUALIFIER_SIZE];
+	u32 port_handle;
+	u32 lun_handle;
 } __packed;
 
 /**
@@ -275,11 +283,35 @@ struct zfcp_dbf {
 	struct zfcp_dbf_scsi		scsi_buf;
 };
 
+/**
+ * zfcp_dbf_hba_fsf_resp_suppress - true if we should not trace by default
+ * @req: request that has been completed
+ *
+ * Returns true if FCP response with only benign residual under count.
+ */
+static inline
+bool zfcp_dbf_hba_fsf_resp_suppress(struct zfcp_fsf_req *req)
+{
+	struct fsf_qtcb *qtcb = req->qtcb;
+	u32 fsf_stat = qtcb->header.fsf_status;
+	struct fcp_resp *fcp_rsp;
+	u8 rsp_flags, fr_status;
+
+	if (qtcb->prefix.qtcb_type != FSF_IO_COMMAND)
+		return false; /* not an FCP response */
+	fcp_rsp = (struct fcp_resp *)&qtcb->bottom.io.fcp_rsp;
+	rsp_flags = fcp_rsp->fr_flags;
+	fr_status = fcp_rsp->fr_status;
+	return (fsf_stat == FSF_FCP_RSP_AVAILABLE) &&
+		(rsp_flags == FCP_RESID_UNDER) &&
+		(fr_status == SAM_STAT_GOOD);
+}
+
 static inline
 void zfcp_dbf_hba_fsf_resp(char *tag, int level, struct zfcp_fsf_req *req)
 {
 	if (debug_level_enabled(req->adapter->dbf->hba, level))
-		zfcp_dbf_hba_fsf_res(tag, req);
+		zfcp_dbf_hba_fsf_res(tag, level, req);
 }
 
 /**
@@ -296,7 +328,9 @@ void zfcp_dbf_hba_fsf_response(struct zfcp_fsf_req *req)
 		zfcp_dbf_hba_fsf_resp("fs_perr", 1, req);
 
 	} else if (qtcb->header.fsf_status != FSF_GOOD) {
-		zfcp_dbf_hba_fsf_resp("fs_ferr", 1, req);
+		zfcp_dbf_hba_fsf_resp("fs_ferr",
+				      zfcp_dbf_hba_fsf_resp_suppress(req)
+				      ? 5 : 1, req);
 
 	} else if ((req->fsf_command == FSF_QTCB_OPEN_PORT_WITH_DID) ||
 		   (req->fsf_command == FSF_QTCB_OPEN_LUN)) {
@@ -318,7 +352,7 @@ void _zfcp_dbf_scsi(char *tag, int level, struct scsi_cmnd *scmd,
 					scmd->device->host->hostdata[0];
 
 	if (debug_level_enabled(adapter->dbf->scsi, level))
-		zfcp_dbf_scsi(tag, scmd, req);
+		zfcp_dbf_scsi(tag, level, scmd, req);
 }
 
 /**
@@ -378,6 +412,17 @@ void zfcp_dbf_scsi_devreset(char *tag, struct scsi_cmnd *scmnd, u8 flag)
 
 	memcpy(&tmp_tag[3], tag, 4);
 	_zfcp_dbf_scsi(tmp_tag, 1, scmnd, NULL);
+}
+
+/**
+ * zfcp_dbf_scsi_nullcmnd() - trace NULLify of SCSI command in dev/tgt-reset.
+ * @scmnd: SCSI command that was NULLified.
+ * @fsf_req: request that owned @scmnd.
+ */
+static inline void zfcp_dbf_scsi_nullcmnd(struct scsi_cmnd *scmnd,
+					  struct zfcp_fsf_req *fsf_req)
+{
+	_zfcp_dbf_scsi("scfc__1", 3, scmnd, fsf_req);
 }
 
 #endif /* ZFCP_DBF_H */

@@ -6,6 +6,12 @@ BPF_EXTRAVERSION = 1
 
 MAKEFLAGS += --no-print-directory
 
+ifeq ($(srctree),)
+srctree := $(patsubst %/,%,$(dir $(CURDIR)))
+srctree := $(patsubst %/,%,$(dir $(srctree)))
+srctree := $(patsubst %/,%,$(dir $(srctree)))
+#$(info Determined 'srctree' to be $(srctree))
+endif
 
 # Makefiles suck: This macro sets a default value of $(2) for the
 # variable named by $(1), unless the variable has been set by
@@ -31,7 +37,8 @@ INSTALL = install
 DESTDIR ?=
 DESTDIR_SQ = '$(subst ','\'',$(DESTDIR))'
 
-LP64 := $(shell echo __LP64__ | ${CC} ${CFLAGS} -E -x c - | tail -n 1)
+include $(srctree)/tools/scripts/Makefile.arch
+
 ifeq ($(LP64), 1)
   libdir_relative = lib64
 else
@@ -57,21 +64,28 @@ ifndef VERBOSE
   VERBOSE = 0
 endif
 
-ifeq ($(srctree),)
-srctree := $(patsubst %/,%,$(dir $(shell pwd)))
-srctree := $(patsubst %/,%,$(dir $(srctree)))
-srctree := $(patsubst %/,%,$(dir $(srctree)))
-#$(info Determined 'srctree' to be $(srctree))
-endif
-
 FEATURE_USER = .libbpf
 FEATURE_TESTS = libelf libelf-getphdrnum libelf-mmap bpf
 FEATURE_DISPLAY = libelf bpf
 
-INCLUDES = -I. -I$(srctree)/tools/include -I$(srctree)/arch/$(ARCH)/include/uapi -I$(srctree)/include/uapi
+INCLUDES = -I. -I$(srctree)/tools/include -I$(srctree)/tools/arch/$(ARCH)/include/uapi -I$(srctree)/tools/include/uapi
 FEATURE_CHECK_CFLAGS-bpf = $(INCLUDES)
 
+check_feat := 1
+NON_CHECK_FEAT_TARGETS := clean TAGS tags cscope help
+ifdef MAKECMDGOALS
+ifeq ($(filter-out $(NON_CHECK_FEAT_TARGETS),$(MAKECMDGOALS)),)
+  check_feat := 0
+endif
+endif
+
+ifeq ($(check_feat),1)
+ifeq ($(FEATURES_DUMP),)
 include $(srctree)/tools/build/Makefile.feature
+else
+include $(FEATURES_DUMP)
+endif
+endif
 
 export prefix libdir src obj
 
@@ -118,7 +132,7 @@ else
   Q = @
 endif
 
-# Disable command line variables (CFLAGS) overide from top
+# Disable command line variables (CFLAGS) override from top
 # level Makefile (perf), otherwise build Makefile will get
 # the same command line setup.
 MAKEOVERRIDES=
@@ -140,6 +154,12 @@ all: fixdep $(VERSION_FILES) all_cmd
 all_cmd: $(CMD_TARGETS)
 
 $(BPF_IN): force elfdep bpfdep
+	@(test -f ../../../include/uapi/linux/bpf.h -a -f ../../../include/uapi/linux/bpf.h && ( \
+	(diff -B ../../include/uapi/linux/bpf.h ../../../include/uapi/linux/bpf.h >/dev/null) || \
+	echo "Warning: tools/include/uapi/linux/bpf.h differs from kernel" >&2 )) || true
+	@(test -f ../../../include/uapi/linux/bpf_common.h -a -f ../../../include/uapi/linux/bpf_common.h && ( \
+	(diff -B ../../include/uapi/linux/bpf_common.h ../../../include/uapi/linux/bpf_common.h >/dev/null) || \
+	echo "Warning: tools/include/uapi/linux/bpf_common.h differs from kernel" >&2 )) || true
 	$(Q)$(MAKE) $(build)=libbpf
 
 $(OUTPUT)libbpf.so: $(BPF_IN)
@@ -178,7 +198,7 @@ config-clean:
 	$(Q)$(MAKE) -C $(srctree)/tools/build/feature/ clean >/dev/null
 
 clean:
-	$(call QUIET_CLEAN, libbpf) $(RM) *.o *~ $(TARGETS) *.a *.so $(VERSION_FILES) .*.d \
+	$(call QUIET_CLEAN, libbpf) $(RM) *.o *~ $(TARGETS) *.a *.so $(VERSION_FILES) .*.d .*.cmd \
 		$(RM) LIBBPF-CFLAGS
 	$(call QUIET_CLEAN, core-gen) $(RM) $(OUTPUT)FEATURE-DUMP.libbpf
 

@@ -176,7 +176,8 @@
 #define CLK_APMIXED_LVDSPLL		13
 #define CLK_APMIXED_MSDCPLL2		14
 #define CLK_APMIXED_REF2USB_TX		15
-#define CLK_APMIXED_NR_CLK		16
+#define CLK_APMIXED_HDMI_REF		16
+#define CLK_APMIXED_NR_CLK		17
 
 /* INFRA_SYS */
 
@@ -192,7 +193,9 @@
 #define CLK_INFRA_PMICSPI		10
 #define CLK_INFRA_PMICWRAP		11
 #define CLK_INFRA_CLK_13M		12
-#define CLK_INFRA_NR_CLK		13
+#define CLK_INFRA_CA53SEL               13
+#define CLK_INFRA_CA57SEL               14
+#define CLK_INFRA_NR_CLK                15
 
 /* PERI_SYS */
 

@@ -601,8 +601,8 @@ static const u_int ahc_num_pci_devs = ARRAY_SIZE(ahc_pci_ident_table);
 #define STA	0x08
 #define DPR	0x01
 
-static int ahc_9005_subdevinfo_valid(uint16_t vendor, uint16_t device,
-				     uint16_t subvendor, uint16_t subdevice);
+static int ahc_9005_subdevinfo_valid(uint16_t device, uint16_t vendor,
+				     uint16_t subdevice, uint16_t subvendor);
 static int ahc_ext_scbram_present(struct ahc_softc *ahc);
 static void ahc_scbram_config(struct ahc_softc *ahc, int enable,
 				  int pcheck, int fast, int large);

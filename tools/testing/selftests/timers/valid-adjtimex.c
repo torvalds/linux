@@ -45,7 +45,17 @@ static inline int ksft_exit_fail(void)
 }
 #endif
 
-#define NSEC_PER_SEC 1000000000L
+#define NSEC_PER_SEC 1000000000LL
+#define USEC_PER_SEC 1000000LL
+
+#define ADJ_SETOFFSET 0x0100
+
+#include <sys/syscall.h>
+static int clock_adjtime(clockid_t id, struct timex *tx)
+{
+	return syscall(__NR_clock_adjtime, id, tx);
+}
+
 
 /* clear NTP time_status & time_state */
 int clear_time_state(void)
@@ -193,9 +203,136 @@ out:
 }
 
 
+int set_offset(long long offset, int use_nano)
+{
+	struct timex tmx = {};
+	int ret;
+
+	tmx.modes = ADJ_SETOFFSET;
+	if (use_nano) {
+		tmx.modes |= ADJ_NANO;
+
+		tmx.time.tv_sec = offset / NSEC_PER_SEC;
+		tmx.time.tv_usec = offset % NSEC_PER_SEC;
+
+		if (offset < 0 && tmx.time.tv_usec) {
+			tmx.time.tv_sec -= 1;
+			tmx.time.tv_usec += NSEC_PER_SEC;
+		}
+	} else {
+		tmx.time.tv_sec = offset / USEC_PER_SEC;
+		tmx.time.tv_usec = offset % USEC_PER_SEC;
+
+		if (offset < 0 && tmx.time.tv_usec) {
+			tmx.time.tv_sec -= 1;
+			tmx.time.tv_usec += USEC_PER_SEC;
+		}
+	}
+
+	ret = clock_adjtime(CLOCK_REALTIME, &tmx);
+	if (ret < 0) {
+		printf("(sec: %ld  usec: %ld) ", tmx.time.tv_sec, tmx.time.tv_usec);
+		printf("[FAIL]\n");
+		return -1;
+	}
+	return 0;
+}
+
+int set_bad_offset(long sec, long usec, int use_nano)
+{
+	struct timex tmx = {};
+	int ret;
+
+	tmx.modes = ADJ_SETOFFSET;
+	if (use_nano)
+		tmx.modes |= ADJ_NANO;
+
+	tmx.time.tv_sec = sec;
+	tmx.time.tv_usec = usec;
+	ret = clock_adjtime(CLOCK_REALTIME, &tmx);
+	if (ret >= 0) {
+		printf("Invalid (sec: %ld  usec: %ld) did not fail! ", tmx.time.tv_sec, tmx.time.tv_usec);
+		printf("[FAIL]\n");
+		return -1;
+	}
+	return 0;
+}
+
+int validate_set_offset(void)
+{
+	printf("Testing ADJ_SETOFFSET... ");
+
+	/* Test valid values */
+	if (set_offset(NSEC_PER_SEC - 1, 1))
+		return -1;
+
+	if (set_offset(-NSEC_PER_SEC + 1, 1))
+		return -1;
+
+	if (set_offset(-NSEC_PER_SEC - 1, 1))
+		return -1;
+
+	if (set_offset(5 * NSEC_PER_SEC, 1))
+		return -1;
+
+	if (set_offset(-5 * NSEC_PER_SEC, 1))
+		return -1;
+
+	if (set_offset(5 * NSEC_PER_SEC + NSEC_PER_SEC / 2, 1))
+		return -1;
+
+	if (set_offset(-5 * NSEC_PER_SEC - NSEC_PER_SEC / 2, 1))
+		return -1;
+
+	if (set_offset(USEC_PER_SEC - 1, 0))
+		return -1;
+
+	if (set_offset(-USEC_PER_SEC + 1, 0))
+		return -1;
+
+	if (set_offset(-USEC_PER_SEC - 1, 0))
+		return -1;
+
+	if (set_offset(5 * USEC_PER_SEC, 0))
+		return -1;
+
+	if (set_offset(-5 * USEC_PER_SEC, 0))
+		return -1;
+
+	if (set_offset(5 * USEC_PER_SEC + USEC_PER_SEC / 2, 0))
+		return -1;
+
+	if (set_offset(-5 * USEC_PER_SEC - USEC_PER_SEC / 2, 0))
+		return -1;
+
+	/* Test invalid values */
+	if (set_bad_offset(0, -1, 1))
+		return -1;
+	if (set_bad_offset(0, -1, 0))
+		return -1;
+	if (set_bad_offset(0, 2 * NSEC_PER_SEC, 1))
+		return -1;
+	if (set_bad_offset(0, 2 * USEC_PER_SEC, 0))
+		return -1;
+	if (set_bad_offset(0, NSEC_PER_SEC, 1))
+		return -1;
+	if (set_bad_offset(0, USEC_PER_SEC, 0))
+		return -1;
+	if (set_bad_offset(0, -NSEC_PER_SEC, 1))
+		return -1;
+	if (set_bad_offset(0, -USEC_PER_SEC, 0))
+		return -1;
+
+	printf("[OK]\n");
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
 	if (validate_freq())
+		return ksft_exit_fail();
+
+	if (validate_set_offset())
 		return ksft_exit_fail();
 
 	return ksft_exit_pass();

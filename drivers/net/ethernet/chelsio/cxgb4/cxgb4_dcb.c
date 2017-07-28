@@ -253,7 +253,7 @@ void cxgb4_dcb_handle_fw_update(struct adapter *adap,
 {
 	const union fw_port_dcb *fwdcb = &pcmd->u.dcb;
 	int port = FW_PORT_CMD_PORTID_G(be32_to_cpu(pcmd->op_to_portid));
-	struct net_device *dev = adap->port[port];
+	struct net_device *dev = adap->port[adap->chan_map[port]];
 	struct port_info *pi = netdev_priv(dev);
 	struct port_dcb_info *dcb = &pi->dcb;
 	int dcb_type = pcmd->u.dcb.pgid.type;

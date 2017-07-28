@@ -62,6 +62,10 @@
 
 #define E1000_VF_RESET		0x01 /* VF requests reset */
 #define E1000_VF_SET_MAC_ADDR	0x02 /* VF requests PF to set MAC addr */
+/* VF requests PF to clear all unicast MAC filters */
+#define E1000_VF_MAC_FILTER_CLR (0x01 << E1000_VT_MSGINFO_SHIFT)
+/* VF requests PF to add unicast MAC filter */
+#define E1000_VF_MAC_FILTER_ADD (0x02 << E1000_VT_MSGINFO_SHIFT)
 #define E1000_VF_SET_MULTICAST	0x03 /* VF requests PF to set MC addr */
 #define E1000_VF_SET_VLAN	0x04 /* VF requests PF to set VLAN */
 #define E1000_VF_SET_LPE	0x05 /* VF requests PF to set VMOLR.LPE */

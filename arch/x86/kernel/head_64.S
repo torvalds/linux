@@ -20,6 +20,8 @@
 #include <asm/processor-flags.h>
 #include <asm/percpu.h>
 #include <asm/nops.h>
+#include "../entry/calling.h"
+#include <asm/export.h>
 
 #ifdef CONFIG_PARAVIRT
 #include <asm/asm-offsets.h>
@@ -35,11 +37,11 @@
  *
  */
 
+#define p4d_index(x)	(((x) >> P4D_SHIFT) & (PTRS_PER_P4D-1))
 #define pud_index(x)	(((x) >> PUD_SHIFT) & (PTRS_PER_PUD-1))
 
-L4_PAGE_OFFSET = pgd_index(__PAGE_OFFSET)
-L3_PAGE_OFFSET = pud_index(__PAGE_OFFSET)
-L4_START_KERNEL = pgd_index(__START_KERNEL_map)
+PGD_PAGE_OFFSET = pgd_index(__PAGE_OFFSET_BASE)
+PGD_START_KERNEL = pgd_index(__START_KERNEL_map)
 L3_START_KERNEL = pud_index(__START_KERNEL_map)
 
 	.text
@@ -65,102 +67,18 @@ startup_64:
 	 * tables and then reload them.
 	 */
 
+	/* Set up the stack for verify_cpu(), similar to initial_stack below */
+	leaq	(__end_init_task - SIZEOF_PTREGS)(%rip), %rsp
+
 	/* Sanitize CPU configuration */
 	call verify_cpu
 
-	/*
-	 * Compute the delta between the address I am compiled to run at and the
-	 * address I am actually running at.
-	 */
-	leaq	_text(%rip), %rbp
-	subq	$_text - __START_KERNEL_map, %rbp
-
-	/* Is the address not 2M aligned? */
-	movq	%rbp, %rax
-	andl	$~PMD_PAGE_MASK, %eax
-	testl	%eax, %eax
-	jnz	bad_address
-
-	/*
-	 * Is the address too large?
-	 */
-	leaq	_text(%rip), %rax
-	shrq	$MAX_PHYSMEM_BITS, %rax
-	jnz	bad_address
-
-	/*
-	 * Fixup the physical addresses in the page table
-	 */
-	addq	%rbp, early_level4_pgt + (L4_START_KERNEL*8)(%rip)
-
-	addq	%rbp, level3_kernel_pgt + (510*8)(%rip)
-	addq	%rbp, level3_kernel_pgt + (511*8)(%rip)
-
-	addq	%rbp, level2_fixmap_pgt + (506*8)(%rip)
-
-	/*
-	 * Set up the identity mapping for the switchover.  These
-	 * entries should *NOT* have the global bit set!  This also
-	 * creates a bunch of nonsense entries but that is fine --
-	 * it avoids problems around wraparound.
-	 */
 	leaq	_text(%rip), %rdi
-	leaq	early_level4_pgt(%rip), %rbx
+	pushq	%rsi
+	call	__startup_64
+	popq	%rsi
 
-	movq	%rdi, %rax
-	shrq	$PGDIR_SHIFT, %rax
-
-	leaq	(4096 + _KERNPG_TABLE)(%rbx), %rdx
-	movq	%rdx, 0(%rbx,%rax,8)
-	movq	%rdx, 8(%rbx,%rax,8)
-
-	addq	$4096, %rdx
-	movq	%rdi, %rax
-	shrq	$PUD_SHIFT, %rax
-	andl	$(PTRS_PER_PUD-1), %eax
-	movq	%rdx, 4096(%rbx,%rax,8)
-	incl	%eax
-	andl	$(PTRS_PER_PUD-1), %eax
-	movq	%rdx, 4096(%rbx,%rax,8)
-
-	addq	$8192, %rbx
-	movq	%rdi, %rax
-	shrq	$PMD_SHIFT, %rdi
-	addq	$(__PAGE_KERNEL_LARGE_EXEC & ~_PAGE_GLOBAL), %rax
-	leaq	(_end - 1)(%rip), %rcx
-	shrq	$PMD_SHIFT, %rcx
-	subq	%rdi, %rcx
-	incl	%ecx
-
-1:
-	andq	$(PTRS_PER_PMD - 1), %rdi
-	movq	%rax, (%rbx,%rdi,8)
-	incq	%rdi
-	addq	$PMD_SIZE, %rax
-	decl	%ecx
-	jnz	1b
-
-	/*
-	 * Fixup the kernel text+data virtual addresses. Note that
-	 * we might write invalid pmds, when the kernel is relocated
-	 * cleanup_highmap() fixes this up along with the mappings
-	 * beyond _end.
-	 */
-	leaq	level2_kernel_pgt(%rip), %rdi
-	leaq	4096(%rdi), %r8
-	/* See if it is a valid page table entry */
-1:	testb	$1, 0(%rdi)
-	jz	2f
-	addq	%rbp, 0(%rdi)
-	/* Go to the next page */
-2:	addq	$8, %rdi
-	cmp	%r8, %rdi
-	jne	1b
-
-	/* Fixup phys_base */
-	addq	%rbp, phys_base(%rip)
-
-	movq	$(early_level4_pgt - __START_KERNEL_map), %rax
+	movq	$(early_top_pgt - __START_KERNEL_map), %rax
 	jmp 1f
 ENTRY(secondary_startup_64)
 	/*
@@ -180,14 +98,17 @@ ENTRY(secondary_startup_64)
 	/* Sanitize CPU configuration */
 	call verify_cpu
 
-	movq	$(init_level4_pgt - __START_KERNEL_map), %rax
+	movq	$(init_top_pgt - __START_KERNEL_map), %rax
 1:
 
-	/* Enable PAE mode and PGE */
+	/* Enable PAE mode, PGE and LA57 */
 	movl	$(X86_CR4_PAE | X86_CR4_PGE), %ecx
+#ifdef CONFIG_X86_5LEVEL
+	orl	$X86_CR4_LA57, %ecx
+#endif
 	movq	%rcx, %cr4
 
-	/* Setup early boot stage 4 level pagetables. */
+	/* Setup early boot stage 4-/5-level pagetables. */
 	addq	phys_base(%rip), %rax
 	movq	%rax, %cr3
 
@@ -220,7 +141,7 @@ ENTRY(secondary_startup_64)
 	movq	%rax, %cr0
 
 	/* Setup a boot time stack */
-	movq stack_start(%rip), %rsp
+	movq initial_stack(%rip), %rsp
 
 	/* zero EFLAGS after setting rsp */
 	pushq $0
@@ -258,13 +179,15 @@ ENTRY(secondary_startup_64)
 	movl	$MSR_GS_BASE,%ecx
 	movl	initial_gs(%rip),%eax
 	movl	initial_gs+4(%rip),%edx
-	wrmsr	
+	wrmsr
 
 	/* rsi is pointer to real mode structure with interesting info.
 	   pass it to C */
 	movq	%rsi, %rdi
-	
-	/* Finally jump to run C code and to be on real kernel address
+
+.Ljump_to_C_code:
+	/*
+	 * Jump to run C code and to be on a real kernel address.
 	 * Since we are running on identity-mapped space we have to jump
 	 * to the full 64bit address, this is only possible as indirect
 	 * jump.  In addition we need to ensure %cs is set so we make this
@@ -288,11 +211,14 @@ ENTRY(secondary_startup_64)
 	 *	REX.W + FF /5 JMP m16:64 Jump far, absolute indirect,
 	 *		address given in m16:64.
 	 */
-	movq	initial_code(%rip),%rax
-	pushq	$0		# fake return address to stop unwinder
+	pushq	$.Lafter_lret	# put return address on stack for unwinder
+	xorq	%rbp, %rbp	# clear frame pointer
+	movq	initial_code(%rip), %rax
 	pushq	$__KERNEL_CS	# set correct cs
 	pushq	%rax		# target address in negative space
 	lretq
+.Lafter_lret:
+ENDPROC(secondary_startup_64)
 
 #include "verify_cpu.S"
 
@@ -300,29 +226,27 @@ ENTRY(secondary_startup_64)
 /*
  * Boot CPU0 entry point. It's called from play_dead(). Everything has been set
  * up already except stack. We just set up stack here. Then call
- * start_secondary().
+ * start_secondary() via .Ljump_to_C_code.
  */
 ENTRY(start_cpu0)
-	movq stack_start(%rip),%rsp
-	movq	initial_code(%rip),%rax
-	pushq	$0		# fake return address to stop unwinder
-	pushq	$__KERNEL_CS	# set correct cs
-	pushq	%rax		# target address in negative space
-	lretq
+	movq	initial_stack(%rip), %rsp
+	jmp	.Ljump_to_C_code
 ENDPROC(start_cpu0)
 #endif
 
-	/* SMP bootup changes these two */
+	/* Both SMP bootup and ACPI suspend change these variables */
 	__REFDATA
 	.balign	8
 	GLOBAL(initial_code)
 	.quad	x86_64_start_kernel
 	GLOBAL(initial_gs)
 	.quad	INIT_PER_CPU_VAR(irq_stack_union)
-
-	GLOBAL(stack_start)
-	.quad  init_thread_union+THREAD_SIZE-8
-	.word  0
+	GLOBAL(initial_stack)
+	/*
+	 * The SIZEOF_PTREGS gap is a convention which helps the in-kernel
+	 * unwinder reliably detect the end of the stack.
+	 */
+	.quad  init_thread_union + THREAD_SIZE - SIZEOF_PTREGS
 	__FINITDATA
 
 bad_address:
@@ -353,89 +277,47 @@ early_idt_handler_common:
 	 */
 	cld
 
-	cmpl $2,(%rsp)		# X86_TRAP_NMI
-	je .Lis_nmi		# Ignore NMI
-
-	cmpl $2,early_recursion_flag(%rip)
-	jz  1f
 	incl early_recursion_flag(%rip)
 
-	pushq %rax		# 64(%rsp)
-	pushq %rcx		# 56(%rsp)
-	pushq %rdx		# 48(%rsp)
-	pushq %rsi		# 40(%rsp)
-	pushq %rdi		# 32(%rsp)
-	pushq %r8		# 24(%rsp)
-	pushq %r9		# 16(%rsp)
-	pushq %r10		#  8(%rsp)
-	pushq %r11		#  0(%rsp)
+	/* The vector number is currently in the pt_regs->di slot. */
+	pushq %rsi				/* pt_regs->si */
+	movq 8(%rsp), %rsi			/* RSI = vector number */
+	movq %rdi, 8(%rsp)			/* pt_regs->di = RDI */
+	pushq %rdx				/* pt_regs->dx */
+	pushq %rcx				/* pt_regs->cx */
+	pushq %rax				/* pt_regs->ax */
+	pushq %r8				/* pt_regs->r8 */
+	pushq %r9				/* pt_regs->r9 */
+	pushq %r10				/* pt_regs->r10 */
+	pushq %r11				/* pt_regs->r11 */
+	pushq %rbx				/* pt_regs->bx */
+	pushq %rbp				/* pt_regs->bp */
+	pushq %r12				/* pt_regs->r12 */
+	pushq %r13				/* pt_regs->r13 */
+	pushq %r14				/* pt_regs->r14 */
+	pushq %r15				/* pt_regs->r15 */
 
-	cmpl $__KERNEL_CS,96(%rsp)
-	jne 11f
-
-	cmpl $14,72(%rsp)	# Page fault?
+	cmpq $14,%rsi		/* Page fault? */
 	jnz 10f
-	GET_CR2_INTO(%rdi)	# can clobber any volatile register if pv
+	GET_CR2_INTO(%rdi)	/* Can clobber any volatile register if pv */
 	call early_make_pgtable
 	andl %eax,%eax
-	jz 20f			# All good
+	jz 20f			/* All good */
 
 10:
-	leaq 88(%rsp),%rdi	# Pointer to %rip
+	movq %rsp,%rdi		/* RDI = pt_regs; RSI is already trapnr */
 	call early_fixup_exception
-	andl %eax,%eax
-	jnz 20f			# Found an exception entry
 
-11:
-#ifdef CONFIG_EARLY_PRINTK
-	GET_CR2_INTO(%r9)	# can clobber any volatile register if pv
-	movl 80(%rsp),%r8d	# error code
-	movl 72(%rsp),%esi	# vector number
-	movl 96(%rsp),%edx	# %cs
-	movq 88(%rsp),%rcx	# %rip
-	xorl %eax,%eax
-	leaq early_idt_msg(%rip),%rdi
-	call early_printk
-	cmpl $2,early_recursion_flag(%rip)
-	jz  1f
-	call dump_stack
-#ifdef CONFIG_KALLSYMS	
-	leaq early_idt_ripmsg(%rip),%rdi
-	movq 40(%rsp),%rsi	# %rip again
-	call __print_symbol
-#endif
-#endif /* EARLY_PRINTK */
-1:	hlt
-	jmp 1b
-
-20:	# Exception table entry found or page table generated
-	popq %r11
-	popq %r10
-	popq %r9
-	popq %r8
-	popq %rdi
-	popq %rsi
-	popq %rdx
-	popq %rcx
-	popq %rax
+20:
 	decl early_recursion_flag(%rip)
-.Lis_nmi:
-	addq $16,%rsp		# drop vector number and error code
-	INTERRUPT_RETURN
+	jmp restore_regs_and_iret
 ENDPROC(early_idt_handler_common)
 
 	__INITDATA
 
 	.balign 4
-early_recursion_flag:
+GLOBAL(early_recursion_flag)
 	.long 0
-
-#ifdef CONFIG_EARLY_PRINTK
-early_idt_msg:
-	.asciz "PANIC: early exception %02lx rip %lx:%lx error %lx cr2 %lx\n"
-early_idt_ripmsg:
-	.asciz "RIP %s\n"
-#endif /* CONFIG_EARLY_PRINTK */
 
 #define NEXT_PAGE(name) \
 	.balign	PAGE_SIZE; \
@@ -450,9 +332,13 @@ GLOBAL(name)
 	.endr
 
 	__INITDATA
-NEXT_PAGE(early_level4_pgt)
+NEXT_PAGE(early_top_pgt)
 	.fill	511,8,0
+#ifdef CONFIG_X86_5LEVEL
+	.quad	level4_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE
+#else
 	.quad	level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE
+#endif
 
 NEXT_PAGE(early_dynamic_pgts)
 	.fill	512*EARLY_DYNAMIC_PAGE_TABLES,8,0
@@ -460,14 +346,14 @@ NEXT_PAGE(early_dynamic_pgts)
 	.data
 
 #ifndef CONFIG_XEN
-NEXT_PAGE(init_level4_pgt)
+NEXT_PAGE(init_top_pgt)
 	.fill	512,8,0
 #else
-NEXT_PAGE(init_level4_pgt)
+NEXT_PAGE(init_top_pgt)
 	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE
-	.org    init_level4_pgt + L4_PAGE_OFFSET*8, 0
+	.org    init_top_pgt + PGD_PAGE_OFFSET*8, 0
 	.quad   level3_ident_pgt - __START_KERNEL_map + _KERNPG_TABLE
-	.org    init_level4_pgt + L4_START_KERNEL*8, 0
+	.org    init_top_pgt + PGD_START_KERNEL*8, 0
 	/* (2^48-(2*1024*1024*1024))/(2^39) = 511 */
 	.quad   level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE
 
@@ -479,6 +365,12 @@ NEXT_PAGE(level2_ident_pgt)
 	 * Don't set NX because code runs from these pages.
 	 */
 	PMDS(0, __PAGE_KERNEL_IDENT_LARGE_EXEC, PTRS_PER_PMD)
+#endif
+
+#ifdef CONFIG_X86_5LEVEL
+NEXT_PAGE(level4_kernel_pgt)
+	.fill	511,8,0
+	.quad	level3_kernel_pgt - __START_KERNEL_map + _PAGE_TABLE
 #endif
 
 NEXT_PAGE(level3_kernel_pgt)
@@ -523,10 +415,12 @@ early_gdt_descr_base:
 ENTRY(phys_base)
 	/* This must match the first entry in level2_kernel_pgt */
 	.quad   0x0000000000000000
+EXPORT_SYMBOL(phys_base)
 
 #include "../../x86/xen/xen-head.S"
 	
 	__PAGE_ALIGNED_BSS
 NEXT_PAGE(empty_zero_page)
 	.skip PAGE_SIZE
+EXPORT_SYMBOL(empty_zero_page)
 

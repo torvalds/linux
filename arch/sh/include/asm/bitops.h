@@ -18,6 +18,8 @@
 #include <asm/bitops-op32.h>
 #elif defined(CONFIG_CPU_SH4A)
 #include <asm/bitops-llsc.h>
+#elif defined(CONFIG_CPU_J2) && defined(CONFIG_SMP)
+#include <asm/bitops-cas.h>
 #else
 #include <asm-generic/bitops/atomic.h>
 #include <asm-generic/bitops/non-atomic.h>

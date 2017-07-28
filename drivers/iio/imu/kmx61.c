@@ -14,7 +14,6 @@
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/acpi.h>
-#include <linux/gpio/consumer.h>
 #include <linux/interrupt.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
@@ -1390,6 +1389,14 @@ static int kmx61_probe(struct i2c_client *client,
 		}
 	}
 
+	ret = pm_runtime_set_active(&client->dev);
+	if (ret < 0)
+		goto err_buffer_cleanup_mag;
+
+	pm_runtime_enable(&client->dev);
+	pm_runtime_set_autosuspend_delay(&client->dev, KMX61_SLEEP_DELAY_MS);
+	pm_runtime_use_autosuspend(&client->dev);
+
 	ret = iio_device_register(data->acc_indio_dev);
 	if (ret < 0) {
 		dev_err(&client->dev, "Failed to register acc iio device\n");
@@ -1402,18 +1409,8 @@ static int kmx61_probe(struct i2c_client *client,
 		goto err_iio_unregister_acc;
 	}
 
-	ret = pm_runtime_set_active(&client->dev);
-	if (ret < 0)
-		goto err_iio_unregister_mag;
-
-	pm_runtime_enable(&client->dev);
-	pm_runtime_set_autosuspend_delay(&client->dev, KMX61_SLEEP_DELAY_MS);
-	pm_runtime_use_autosuspend(&client->dev);
-
 	return 0;
 
-err_iio_unregister_mag:
-	iio_device_unregister(data->mag_indio_dev);
 err_iio_unregister_acc:
 	iio_device_unregister(data->acc_indio_dev);
 err_buffer_cleanup_mag:
@@ -1437,12 +1434,12 @@ static int kmx61_remove(struct i2c_client *client)
 {
 	struct kmx61_data *data = i2c_get_clientdata(client);
 
+	iio_device_unregister(data->acc_indio_dev);
+	iio_device_unregister(data->mag_indio_dev);
+
 	pm_runtime_disable(&client->dev);
 	pm_runtime_set_suspended(&client->dev);
 	pm_runtime_put_noidle(&client->dev);
-
-	iio_device_unregister(data->acc_indio_dev);
-	iio_device_unregister(data->mag_indio_dev);
 
 	if (client->irq > 0) {
 		iio_triggered_buffer_cleanup(data->acc_indio_dev);

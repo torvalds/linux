@@ -11,10 +11,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  * ccdc device API
  */
 #ifndef _CCDC_HW_DEVICE_H
@@ -79,13 +75,6 @@ struct ccdc_hw_ops {
 	void (*get_image_window) (struct v4l2_rect *win);
 	/* Pointer to function to get line length */
 	unsigned int (*get_line_length) (void);
-
-	/* Query CCDC control IDs */
-	int (*queryctrl)(struct v4l2_queryctrl *qctrl);
-	/* Set CCDC control */
-	int (*set_control)(struct v4l2_control *ctrl);
-	/* Get CCDC control */
-	int (*get_control)(struct v4l2_control *ctrl);
 
 	/* Pointer to function to set frame buffer address */
 	void (*setfbaddr) (unsigned long addr);

@@ -494,7 +494,7 @@ static void ath9k_htc_tx_process(struct ath9k_htc_priv *priv,
 		if (txs->ts_flags & ATH9K_HTC_TXSTAT_SGI)
 			rate->flags |= IEEE80211_TX_RC_SHORT_GI;
 	} else {
-		if (cur_conf->chandef.chan->band == IEEE80211_BAND_5GHZ)
+		if (cur_conf->chandef.chan->band == NL80211_BAND_5GHZ)
 			rate->idx += 4; /* No CCK rates */
 	}
 
@@ -929,11 +929,12 @@ void ath9k_host_rx_init(struct ath9k_htc_priv *priv)
 static inline void convert_htc_flag(struct ath_rx_status *rx_stats,
 				   struct ath_htc_rx_status *rxstatus)
 {
-	rx_stats->flag = 0;
+	rx_stats->enc_flags = 0;
+	rx_stats->bw = RATE_INFO_BW_20;
 	if (rxstatus->rs_flags & ATH9K_RX_2040)
-		rx_stats->flag |= RX_FLAG_40MHZ;
+		rx_stats->bw = RATE_INFO_BW_40;
 	if (rxstatus->rs_flags & ATH9K_RX_GI)
-		rx_stats->flag |= RX_FLAG_SHORT_GI;
+		rx_stats->enc_flags |= RX_ENC_FLAG_SHORT_GI;
 }
 
 static void rx_status_htc_to_ath(struct ath_rx_status *rx_stats,

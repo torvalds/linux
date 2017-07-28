@@ -254,6 +254,54 @@ static inline bool ensure_mtu_is_adequate(struct netns_ipvs *ipvs, int skb_af,
 	return true;
 }
 
+static inline bool decrement_ttl(struct netns_ipvs *ipvs,
+				 int skb_af,
+				 struct sk_buff *skb)
+{
+	struct net *net = ipvs->net;
+
+#ifdef CONFIG_IP_VS_IPV6
+	if (skb_af == AF_INET6) {
+		struct dst_entry *dst = skb_dst(skb);
+
+		/* check and decrement ttl */
+		if (ipv6_hdr(skb)->hop_limit <= 1) {
+			/* Force OUTPUT device used as source address */
+			skb->dev = dst->dev;
+			icmpv6_send(skb, ICMPV6_TIME_EXCEED,
+				    ICMPV6_EXC_HOPLIMIT, 0);
+			__IP6_INC_STATS(net, ip6_dst_idev(dst),
+					IPSTATS_MIB_INHDRERRORS);
+
+			return false;
+		}
+
+		/* don't propagate ttl change to cloned packets */
+		if (!skb_make_writable(skb, sizeof(struct ipv6hdr)))
+			return false;
+
+		ipv6_hdr(skb)->hop_limit--;
+	} else
+#endif
+	{
+		if (ip_hdr(skb)->ttl <= 1) {
+			/* Tell the sender its packet died... */
+			__IP_INC_STATS(net, IPSTATS_MIB_INHDRERRORS);
+			icmp_send(skb, ICMP_TIME_EXCEEDED, ICMP_EXC_TTL, 0);
+			return false;
+		}
+
+		/* don't propagate ttl change to cloned packets */
+		if (!skb_make_writable(skb, sizeof(struct iphdr)))
+			return false;
+
+		/* Decrease ttl */
+		ip_decrease_ttl(ip_hdr(skb));
+	}
+
+	return true;
+}
+
 /* Get route to destination or remote server */
 static int
 __ip_vs_get_out_rt(struct netns_ipvs *ipvs, int skb_af, struct sk_buff *skb,
@@ -325,6 +373,9 @@ __ip_vs_get_out_rt(struct netns_ipvs *ipvs, int skb_af, struct sk_buff *skb,
 			ip_rt_put(rt);
 		return local;
 	}
+
+	if (!decrement_ttl(ipvs, skb_af, skb))
+		goto err_put;
 
 	if (likely(!(rt_mode & IP_VS_RT_MODE_TUNNEL))) {
 		mtu = dst_mtu(&rt->dst);
@@ -473,6 +524,9 @@ __ip_vs_get_out_rt_v6(struct netns_ipvs *ipvs, int skb_af, struct sk_buff *skb,
 		return local;
 	}
 
+	if (!decrement_ttl(ipvs, skb_af, skb))
+		goto err_put;
+
 	/* MTU checking */
 	if (likely(!(rt_mode & IP_VS_RT_MODE_TUNNEL)))
 		mtu = dst_mtu(&rt->dst);
@@ -531,8 +585,6 @@ static inline int ip_vs_tunnel_xmit_prepare(struct sk_buff *skb,
 	if (ret == NF_ACCEPT) {
 		nf_reset(skb);
 		skb_forward_csum(skb);
-		if (!skb->sk)
-			skb_sender_cpu_clear(skb);
 	}
 	return ret;
 }
@@ -573,8 +625,6 @@ static inline int ip_vs_nat_send_or_cont(int pf, struct sk_buff *skb,
 
 	if (!local) {
 		skb_forward_csum(skb);
-		if (!skb->sk)
-			skb_sender_cpu_clear(skb);
 		NF_HOOK(pf, NF_INET_LOCAL_OUT, cp->ipvs->net, NULL, skb,
 			NULL, skb_dst(skb)->dev, dst_output);
 	} else
@@ -595,8 +645,6 @@ static inline int ip_vs_send_or_cont(int pf, struct sk_buff *skb,
 	if (!local) {
 		ip_vs_drop_early_demux_sk(skb);
 		skb_forward_csum(skb);
-		if (!skb->sk)
-			skb_sender_cpu_clear(skb);
 		NF_HOOK(pf, NF_INET_LOCAL_OUT, cp->ipvs->net, NULL, skb,
 			NULL, skb_dst(skb)->dev, dst_output);
 	} else
@@ -727,7 +775,7 @@ ip_vs_nat_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 		enum ip_conntrack_info ctinfo;
 		struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 
-		if (ct && !nf_ct_is_untracked(ct)) {
+		if (ct) {
 			IP_VS_DBG_RL_PKT(10, AF_INET, pp, skb, ipvsh->off,
 					 "ip_vs_nat_xmit(): "
 					 "stopping DNAT to local address");
@@ -818,7 +866,7 @@ ip_vs_nat_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 		enum ip_conntrack_info ctinfo;
 		struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 
-		if (ct && !nf_ct_is_untracked(ct)) {
+		if (ct) {
 			IP_VS_DBG_RL_PKT(10, AF_INET6, pp, skb, ipvsh->off,
 					 "ip_vs_nat_xmit_v6(): "
 					 "stopping DNAT to local address");
@@ -938,17 +986,14 @@ error:
 
 static inline int __tun_gso_type_mask(int encaps_af, int orig_af)
 {
-	if (encaps_af == AF_INET) {
-		if (orig_af == AF_INET)
-			return SKB_GSO_IPIP;
-
-		return SKB_GSO_SIT;
+	switch (encaps_af) {
+	case AF_INET:
+		return SKB_GSO_IPXIP4;
+	case AF_INET6:
+		return SKB_GSO_IPXIP6;
+	default:
+		return 0;
 	}
-
-	/* GSO: we need to provide proper SKB_GSO_ value for IPv6:
-	 * SKB_GSO_SIT/IPV6
-	 */
-	return 0;
 }
 
 /*
@@ -1019,9 +1064,7 @@ ip_vs_tunnel_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	if (IS_ERR(skb))
 		goto tx_error;
 
-	skb = iptunnel_handle_offloads(
-		skb, false, __tun_gso_type_mask(AF_INET, cp->af));
-	if (IS_ERR(skb))
+	if (iptunnel_handle_offloads(skb, __tun_gso_type_mask(AF_INET, cp->af)))
 		goto tx_error;
 
 	skb->transport_header = skb->network_header;
@@ -1112,9 +1155,7 @@ ip_vs_tunnel_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 	if (IS_ERR(skb))
 		goto tx_error;
 
-	skb = iptunnel_handle_offloads(
-		skb, false, __tun_gso_type_mask(AF_INET6, cp->af));
-	if (IS_ERR(skb))
+	if (iptunnel_handle_offloads(skb, __tun_gso_type_mask(AF_INET6, cp->af)))
 		goto tx_error;
 
 	skb->transport_header = skb->network_header;
@@ -1297,7 +1338,7 @@ ip_vs_icmp_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 		enum ip_conntrack_info ctinfo;
 		struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 
-		if (ct && !nf_ct_is_untracked(ct)) {
+		if (ct) {
 			IP_VS_DBG(10, "%s(): "
 				  "stopping DNAT to local address %pI4\n",
 				  __func__, &cp->daddr.ip);
@@ -1388,7 +1429,7 @@ ip_vs_icmp_xmit_v6(struct sk_buff *skb, struct ip_vs_conn *cp,
 		enum ip_conntrack_info ctinfo;
 		struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 
-		if (ct && !nf_ct_is_untracked(ct)) {
+		if (ct) {
 			IP_VS_DBG(10, "%s(): "
 				  "stopping DNAT to local address %pI6\n",
 				  __func__, &cp->daddr.in6);

@@ -125,6 +125,16 @@ struct irqaction {
 
 extern irqreturn_t no_action(int cpl, void *dev_id);
 
+/*
+ * If a (PCI) device interrupt is not connected we set dev->irq to
+ * IRQ_NOTCONNECTED. This causes request_irq() to fail with -ENOTCONN, so we
+ * can distingiush that case from other error returns.
+ *
+ * 0x80000000 is guaranteed to be outside the available range of interrupts
+ * and easy to distinguish from other possible incorrect values.
+ */
+#define IRQ_NOTCONNECTED	(1U << 31)
+
 extern int __must_check
 request_threaded_irq(unsigned int irq, irq_handler_t handler,
 		     irq_handler_t thread_fn,
@@ -142,10 +152,19 @@ request_any_context_irq(unsigned int irq, irq_handler_t handler,
 			unsigned long flags, const char *name, void *dev_id);
 
 extern int __must_check
-request_percpu_irq(unsigned int irq, irq_handler_t handler,
-		   const char *devname, void __percpu *percpu_dev_id);
+__request_percpu_irq(unsigned int irq, irq_handler_t handler,
+		     unsigned long flags, const char *devname,
+		     void __percpu *percpu_dev_id);
 
-extern void free_irq(unsigned int, void *);
+static inline int __must_check
+request_percpu_irq(unsigned int irq, irq_handler_t handler,
+		   const char *devname, void __percpu *percpu_dev_id)
+{
+	return __request_percpu_irq(irq, handler, 0,
+				    devname, percpu_dev_id);
+}
+
+extern const void *free_irq(unsigned int, void *);
 extern void free_percpu_irq(unsigned int, void __percpu *);
 
 struct device;
@@ -195,6 +214,7 @@ extern void disable_irq(unsigned int irq);
 extern void disable_percpu_irq(unsigned int irq);
 extern void enable_irq(unsigned int irq);
 extern void enable_percpu_irq(unsigned int irq, unsigned int type);
+extern bool irq_percpu_is_enabled(unsigned int irq);
 extern void irq_wake_thread(unsigned int irq, void *dev_id);
 
 /* The following three functions are for the core kernel use only. */
@@ -219,6 +239,18 @@ struct irq_affinity_notify {
 	struct work_struct work;
 	void (*notify)(struct irq_affinity_notify *, const cpumask_t *mask);
 	void (*release)(struct kref *ref);
+};
+
+/**
+ * struct irq_affinity - Description for automatic irq affinity assignements
+ * @pre_vectors:	Don't apply affinity to @pre_vectors at beginning of
+ *			the MSI(-X) vector space
+ * @post_vectors:	Don't apply affinity to @post_vectors at end of
+ *			the MSI(-X) vector space
+ */
+struct irq_affinity {
+	int	pre_vectors;
+	int	post_vectors;
 };
 
 #if defined(CONFIG_SMP)
@@ -267,6 +299,9 @@ extern int irq_set_affinity_hint(unsigned int irq, const struct cpumask *m);
 extern int
 irq_set_affinity_notifier(unsigned int irq, struct irq_affinity_notify *notify);
 
+struct cpumask *irq_create_affinity_masks(int nvec, const struct irq_affinity *affd);
+int irq_calc_affinity_vectors(int minvec, int maxvec, const struct irq_affinity *affd);
+
 #else /* CONFIG_SMP */
 
 static inline int irq_set_affinity(unsigned int irq, const struct cpumask *m)
@@ -297,6 +332,19 @@ irq_set_affinity_notifier(unsigned int irq, struct irq_affinity_notify *notify)
 {
 	return 0;
 }
+
+static inline struct cpumask *
+irq_create_affinity_masks(int nvec, const struct irq_affinity *affd)
+{
+	return NULL;
+}
+
+static inline int
+irq_calc_affinity_vectors(int minvec, int maxvec, const struct irq_affinity *affd)
+{
+	return maxvec;
+}
+
 #endif /* CONFIG_SMP */
 
 /*
@@ -412,7 +460,7 @@ enum
 	NET_TX_SOFTIRQ,
 	NET_RX_SOFTIRQ,
 	BLOCK_SOFTIRQ,
-	BLOCK_IOPOLL_SOFTIRQ,
+	IRQ_POLL_SOFTIRQ,
 	TASKLET_SOFTIRQ,
 	SCHED_SOFTIRQ,
 	HRTIMER_SOFTIRQ, /* Unused, but kept as tools rely on the
@@ -664,6 +712,12 @@ static inline void init_irq_proc(void)
 }
 #endif
 
+#ifdef CONFIG_IRQ_TIMINGS
+void irq_timings_enable(void);
+void irq_timings_disable(void);
+u64 irq_timings_next_event(u64 now);
+#endif
+
 struct seq_file;
 int show_interrupts(struct seq_file *p, void *v);
 int arch_show_interrupts(struct seq_file *p, int prec);
@@ -671,5 +725,25 @@ int arch_show_interrupts(struct seq_file *p, int prec);
 extern int early_irq_init(void);
 extern int arch_probe_nr_irqs(void);
 extern int arch_early_irq_init(void);
+
+#if defined(CONFIG_FUNCTION_GRAPH_TRACER) || defined(CONFIG_KASAN)
+/*
+ * We want to know which function is an entrypoint of a hardirq or a softirq.
+ */
+#define __irq_entry		 __attribute__((__section__(".irqentry.text")))
+#define __softirq_entry  \
+	__attribute__((__section__(".softirqentry.text")))
+
+/* Limits of hardirq entrypoints */
+extern char __irqentry_text_start[];
+extern char __irqentry_text_end[];
+/* Limits of softirq entrypoints */
+extern char __softirqentry_text_start[];
+extern char __softirqentry_text_end[];
+
+#else
+#define __irq_entry
+#define __softirq_entry
+#endif
 
 #endif

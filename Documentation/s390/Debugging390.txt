@@ -2116,7 +2116,7 @@ The sysrq key reading is very picky ( I have to type the keys in an
 This is particularly useful for syncing disks unmounting & rebooting
 if the machine gets partially hung.
 
-Read Documentation/sysrq.txt for more info
+Read Documentation/admin-guide/sysrq.rst for more info
 
 References:
 ===========

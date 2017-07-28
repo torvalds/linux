@@ -148,7 +148,7 @@
 				};
 
 				at24@50 {
-					compatible = "at24,24c256";
+					compatible = "atmel,24c256";
 					reg = <0x50>;
 				};
 
@@ -446,7 +446,7 @@
 
 		hdd {
 			gpios = <&mcu_pio 1 0>;
-			linux,default-trigger = "ide-disk";
+			linux,default-trigger = "disk-activity";
 		};
 	};
 };

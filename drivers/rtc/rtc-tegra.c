@@ -17,16 +17,18 @@
  * with this program; if not, write to the Free Software Foundation, Inc.,
  * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
-#include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/slab.h>
-#include <linux/irq.h>
-#include <linux/io.h>
+
+#include <linux/clk.h>
 #include <linux/delay.h>
-#include <linux/rtc.h>
+#include <linux/init.h>
+#include <linux/io.h>
+#include <linux/irq.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
+#include <linux/rtc.h>
+#include <linux/slab.h>
 
 /* set to 1 = busy every eight 32kHz clocks during copy of sec+msec to AHB */
 #define TEGRA_RTC_REG_BUSY			0x004
@@ -59,6 +61,7 @@ struct tegra_rtc_info {
 	struct platform_device	*pdev;
 	struct rtc_device	*rtc_dev;
 	void __iomem		*rtc_base; /* NULL if not initialized. */
+	struct clk		*clk;
 	int			tegra_rtc_irq; /* alarm and periodic irq */
 	spinlock_t		tegra_rtc_lock;
 };
@@ -179,12 +182,6 @@ static int tegra_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	if (sec == 0) {
 		/* alarm is disabled. */
 		alarm->enabled = 0;
-		alarm->time.tm_mon = -1;
-		alarm->time.tm_mday = -1;
-		alarm->time.tm_year = -1;
-		alarm->time.tm_hour = -1;
-		alarm->time.tm_min = -1;
-		alarm->time.tm_sec = -1;
 	} else {
 		/* alarm is enabled. */
 		alarm->enabled = 1;
@@ -297,7 +294,7 @@ static irqreturn_t tegra_rtc_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static struct rtc_class_ops tegra_rtc_ops = {
+static const struct rtc_class_ops tegra_rtc_ops = {
 	.read_time	= tegra_rtc_read_time,
 	.set_time	= tegra_rtc_set_time,
 	.read_alarm	= tegra_rtc_read_alarm,
@@ -332,6 +329,14 @@ static int __init tegra_rtc_probe(struct platform_device *pdev)
 	if (info->tegra_rtc_irq <= 0)
 		return -EBUSY;
 
+	info->clk = devm_clk_get(&pdev->dev, NULL);
+	if (IS_ERR(info->clk))
+		return PTR_ERR(info->clk);
+
+	ret = clk_prepare_enable(info->clk);
+	if (ret < 0)
+		return ret;
+
 	/* set context info. */
 	info->pdev = pdev;
 	spin_lock_init(&info->tegra_rtc_lock);
@@ -352,7 +357,7 @@ static int __init tegra_rtc_probe(struct platform_device *pdev)
 		ret = PTR_ERR(info->rtc_dev);
 		dev_err(&pdev->dev, "Unable to register device (err=%d).\n",
 			ret);
-		return ret;
+		goto disable_clk;
 	}
 
 	ret = devm_request_irq(&pdev->dev, info->tegra_rtc_irq,
@@ -362,10 +367,23 @@ static int __init tegra_rtc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev,
 			"Unable to request interrupt for device (err=%d).\n",
 			ret);
-		return ret;
+		goto disable_clk;
 	}
 
 	dev_notice(&pdev->dev, "Tegra internal Real Time Clock\n");
+
+	return 0;
+
+disable_clk:
+	clk_disable_unprepare(info->clk);
+	return ret;
+}
+
+static int tegra_rtc_remove(struct platform_device *pdev)
+{
+	struct tegra_rtc_info *info = platform_get_drvdata(pdev);
+
+	clk_disable_unprepare(info->clk);
 
 	return 0;
 }
@@ -419,6 +437,7 @@ static void tegra_rtc_shutdown(struct platform_device *pdev)
 
 MODULE_ALIAS("platform:tegra_rtc");
 static struct platform_driver tegra_rtc_driver = {
+	.remove		= tegra_rtc_remove,
 	.shutdown	= tegra_rtc_shutdown,
 	.driver		= {
 		.name	= "tegra_rtc",

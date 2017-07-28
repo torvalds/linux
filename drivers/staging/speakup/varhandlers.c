@@ -98,7 +98,7 @@ void speakup_register_var(struct var_t *var)
 		}
 	}
 	p_header = var_ptrs[var->var_id];
-	if (p_header->data != NULL)
+	if (p_header->data)
 		return;
 	p_header->data = var;
 	switch (p_header->var_type) {
@@ -176,7 +176,6 @@ struct punc_var_t *spk_get_punc_var(enum var_id_t var_id)
 int spk_set_num_var(int input, struct st_var_header *var, int how)
 {
 	int val;
-	short ret = 0;
 	int *p_val = var->p_val;
 	int l;
 	char buf[32];
@@ -186,50 +185,51 @@ int spk_set_num_var(int input, struct st_var_header *var, int how)
 	if (!var_data)
 		return -ENODATA;
 
-	if (how == E_NEW_DEFAULT) {
+	val = var_data->u.n.value;
+	switch (how) {
+	case E_NEW_DEFAULT:
 		if (input < var_data->u.n.low || input > var_data->u.n.high)
 			return -ERANGE;
 		var_data->u.n.default_val = input;
 		return 0;
-	}
-	if (how == E_DEFAULT) {
+	case E_DEFAULT:
 		val = var_data->u.n.default_val;
-		ret = -ERESTART;
-	} else {
-		if (how == E_SET)
-			val = input;
-		else
-			val = var_data->u.n.value;
-		if (how == E_INC)
-			val += input;
-		else if (how == E_DEC)
-			val -= input;
-		if (val < var_data->u.n.low || val > var_data->u.n.high)
-			return -ERANGE;
+		break;
+	case E_SET:
+		val = input;
+		break;
+	case E_INC:
+		val += input;
+		break;
+	case E_DEC:
+		val -= input;
+		break;
 	}
+
+	if (val < var_data->u.n.low || val > var_data->u.n.high)
+		return -ERANGE;
+
 	var_data->u.n.value = val;
-	if (var->var_type == VAR_TIME && p_val != NULL) {
+	if (var->var_type == VAR_TIME && p_val) {
 		*p_val = msecs_to_jiffies(val);
-		return ret;
+		return 0;
 	}
-	if (p_val != NULL)
+	if (p_val)
 		*p_val = val;
 	if (var->var_id == PUNC_LEVEL) {
 		spk_punc_mask = spk_punc_masks[val];
-		return ret;
+		return 0;
 	}
 	if (var_data->u.n.multiplier != 0)
 		val *= var_data->u.n.multiplier;
 	val += var_data->u.n.offset;
 	if (var->var_id < FIRST_SYNTH_VAR || !synth)
-		return ret;
-	if (synth->synth_adjust) {
-		int status = synth->synth_adjust(var);
+		return 0;
+	if (synth->synth_adjust)
+		return synth->synth_adjust(var);
 
-		return (status != 0) ? status : ret;
-	}
 	if (!var_data->u.n.synth_fmt)
-		return ret;
+		return 0;
 	if (var->var_id == PITCH)
 		cp = spk_pitch_buff;
 	else
@@ -237,10 +237,9 @@ int spk_set_num_var(int input, struct st_var_header *var, int how)
 	if (!var_data->u.n.out_str)
 		l = sprintf(cp, var_data->u.n.synth_fmt, (int)val);
 	else
-		l = sprintf(cp,
-			var_data->u.n.synth_fmt, var_data->u.n.out_str[val]);
+		l = sprintf(cp,	var_data->u.n.synth_fmt, var_data->u.n.out_str[val]);
 	synth_printf("%s", cp);
-	return ret;
+	return 0;
 }
 
 int spk_set_string_var(const char *page, struct st_var_header *var, int len)
@@ -259,14 +258,16 @@ int spk_set_string_var(const char *page, struct st_var_header *var, int len)
 		if (var->p_val != var_data->u.s.default_val)
 			strcpy((char *)var->p_val, var_data->u.s.default_val);
 		return -ERESTART;
-	} else if (var->p_val)
+	} else if (var->p_val) {
 		strcpy((char *)var->p_val, page);
-	else
+	} else {
 		return -E2BIG;
+	}
 	return 0;
 }
 
-/* spk_set_mask_bits sets or clears the punc/delim/repeat bits,
+/*
+ * spk_set_mask_bits sets or clears the punc/delim/repeat bits,
  * if input is null uses the defaults.
  * values for how: 0 clears bits of chars supplied,
  * 1 clears allk, 2 sets bits for chars
@@ -276,28 +277,29 @@ int spk_set_mask_bits(const char *input, const int which, const int how)
 	u_char *cp;
 	short mask = spk_punc_info[which].mask;
 
-	if (how&1) {
+	if (how & 1) {
 		for (cp = (u_char *)spk_punc_info[3].value; *cp; cp++)
 			spk_chartab[*cp] &= ~mask;
 	}
 	cp = (u_char *)input;
-	if (!cp)
+	if (!cp) {
 		cp = spk_punc_info[which].value;
-	else {
+	} else {
 		for (; *cp; cp++) {
 			if (*cp < SPACE)
 				break;
 			if (mask < PUNC) {
 				if (!(spk_chartab[*cp] & PUNC))
 					break;
-			} else if (spk_chartab[*cp]&B_NUM)
+			} else if (spk_chartab[*cp] & B_NUM) {
 				break;
+			}
 		}
 		if (*cp)
 			return -EINVAL;
 		cp = (u_char *)input;
 	}
-	if (how&2) {
+	if (how & 2) {
 		for (; *cp; cp++)
 			if (*cp > SPACE)
 				spk_chartab[*cp] |= mask;

@@ -1,12 +1,13 @@
 config ARCH_ROCKCHIP
-	bool "Rockchip RK2928 and RK3xxx SOCs" if ARCH_MULTI_V7
+	bool "Rockchip RK2928 and RK3xxx SOCs"
+	depends on ARCH_MULTI_V7
 	select PINCTRL
 	select PINCTRL_ROCKCHIP
 	select ARCH_HAS_RESET_CONTROLLER
-	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
 	select ARM_GIC
 	select CACHE_L2X0
+	select GPIOLIB
 	select HAVE_ARM_ARCH_TIMER
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP

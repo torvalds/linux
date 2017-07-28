@@ -11,7 +11,6 @@
 #include <linux/kernel.h>
 #include <linux/mm_types.h>
 
-#include <asm/cpufeature.h>
 #include <asm/processor.h>
 #include <asm/vdso.h>
 
@@ -31,8 +30,10 @@ static int __init vdso32_setup(char *s)
 {
 	vdso32_enabled = simple_strtoul(s, NULL, 0);
 
-	if (vdso32_enabled > 1)
+	if (vdso32_enabled > 1) {
 		pr_warn("vdso32 values other than 0 and 1 are no longer allowed; vdso disabled\n");
+		vdso32_enabled = 0;
+	}
 
 	return 1;
 }
@@ -63,13 +64,18 @@ subsys_initcall(sysenter_setup);
 /* Register vsyscall32 into the ABI table */
 #include <linux/sysctl.h>
 
+static const int zero;
+static const int one = 1;
+
 static struct ctl_table abi_table2[] = {
 	{
 		.procname	= "vsyscall32",
 		.data		= &vdso32_enabled,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= (int *)&zero,
+		.extra2		= (int *)&one,
 	},
 	{}
 };

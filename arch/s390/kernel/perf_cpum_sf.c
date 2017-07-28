@@ -601,17 +601,12 @@ static void release_pmc_hardware(void)
 
 	irq_subclass_unregister(IRQ_SUBCLASS_MEASUREMENT_ALERT);
 	on_each_cpu(setup_pmc_cpu, &flags, 1);
-	perf_release_sampling();
 }
 
 static int reserve_pmc_hardware(void)
 {
 	int flags = PMC_INIT;
-	int err;
 
-	err = perf_reserve_sampling();
-	if (err)
-		return err;
 	on_each_cpu(setup_pmc_cpu, &flags, 1);
 	if (flags & PMC_FAILURE) {
 		release_pmc_hardware();
@@ -828,7 +823,7 @@ static int cpumsf_pmu_event_init(struct perf_event *event)
 	}
 
 	/* Check online status of the CPU to which the event is pinned */
-	if (event->cpu >= nr_cpumask_bits ||
+	if ((unsigned int)event->cpu >= nr_cpumask_bits ||
 	    (event->cpu >= 0 && !cpu_online(event->cpu)))
 		return -ENODEV;
 
@@ -979,12 +974,15 @@ static int perf_push_sample(struct perf_event *event, struct sf_raw_sample *sfr)
 	struct pt_regs regs;
 	struct perf_sf_sde_regs *sde_regs;
 	struct perf_sample_data data;
-	struct perf_raw_record raw;
+	struct perf_raw_record raw = {
+		.frag = {
+			.size = sfr->size,
+			.data = sfr,
+		},
+	};
 
 	/* Setup perf sample */
 	perf_sample_data_init(&data, 0, event->hw.last_period);
-	raw.size = sfr->size;
-	raw.data = sfr;
 	data.raw = &raw;
 
 	/* Setup pt_regs to look like an CPU-measurement external interrupt
@@ -997,36 +995,35 @@ static int perf_push_sample(struct perf_event *event, struct sf_raw_sample *sfr)
 	regs.int_parm = CPU_MF_INT_SF_PRA;
 	sde_regs = (struct perf_sf_sde_regs *) &regs.int_parm_long;
 
-	regs.psw.addr = sfr->basic.ia;
-	if (sfr->basic.T)
-		regs.psw.mask |= PSW_MASK_DAT;
-	if (sfr->basic.W)
-		regs.psw.mask |= PSW_MASK_WAIT;
-	if (sfr->basic.P)
-		regs.psw.mask |= PSW_MASK_PSTATE;
-	switch (sfr->basic.AS) {
-	case 0x0:
-		regs.psw.mask |= PSW_ASC_PRIMARY;
-		break;
-	case 0x1:
-		regs.psw.mask |= PSW_ASC_ACCREG;
-		break;
-	case 0x2:
-		regs.psw.mask |= PSW_ASC_SECONDARY;
-		break;
-	case 0x3:
-		regs.psw.mask |= PSW_ASC_HOME;
-		break;
-	}
+	psw_bits(regs.psw).ia	= sfr->basic.ia;
+	psw_bits(regs.psw).dat	= sfr->basic.T;
+	psw_bits(regs.psw).wait = sfr->basic.W;
+	psw_bits(regs.psw).pstate = sfr->basic.P;
+	psw_bits(regs.psw).as	= sfr->basic.AS;
 
 	/*
-	 * A non-zero guest program parameter indicates a guest
-	 * sample.
-	 * Note that some early samples might be misaccounted to
-	 * the host.
+	 * Use the hardware provided configuration level to decide if the
+	 * sample belongs to a guest or host. If that is not available,
+	 * fall back to the following heuristics:
+	 * A non-zero guest program parameter always indicates a guest
+	 * sample. Some early samples or samples from guests without
+	 * lpp usage would be misaccounted to the host. We use the asn
+	 * value as an addon heuristic to detect most of these guest samples.
+	 * If the value differs from 0xffff (the host value), we assume to
+	 * be a KVM guest.
 	 */
-	if (sfr->basic.gpp)
+	switch (sfr->basic.CL) {
+	case 1: /* logical partition */
+		sde_regs->in_guest = 0;
+		break;
+	case 2: /* virtual machine */
 		sde_regs->in_guest = 1;
+		break;
+	default: /* old machine, use heuristics */
+		if (sfr->basic.gpp || sfr->basic.prim_asn != 0xffff)
+			sde_regs->in_guest = 1;
+		break;
+	}
 
 	overflow = 0;
 	if (perf_exclude_event(event, &regs, sde_regs))
@@ -1503,34 +1500,28 @@ static void cpumf_measurement_alert(struct ext_code ext_code,
 		sf_disable();
 	}
 }
-
-static int cpumf_pmu_notifier(struct notifier_block *self,
-			      unsigned long action, void *hcpu)
+static int cpusf_pmu_setup(unsigned int cpu, int flags)
 {
-	unsigned int cpu = (long) hcpu;
-	int flags;
-
 	/* Ignore the notification if no events are scheduled on the PMU.
 	 * This might be racy...
 	 */
 	if (!atomic_read(&num_events))
-		return NOTIFY_OK;
+		return 0;
 
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_ONLINE:
-	case CPU_ONLINE_FROZEN:
-		flags = PMC_INIT;
-		smp_call_function_single(cpu, setup_pmc_cpu, &flags, 1);
-		break;
-	case CPU_DOWN_PREPARE:
-		flags = PMC_RELEASE;
-		smp_call_function_single(cpu, setup_pmc_cpu, &flags, 1);
-		break;
-	default:
-		break;
-	}
+	local_irq_disable();
+	setup_pmc_cpu(&flags);
+	local_irq_enable();
+	return 0;
+}
 
-	return NOTIFY_OK;
+static int s390_pmu_sf_online_cpu(unsigned int cpu)
+{
+	return cpusf_pmu_setup(cpu, PMC_INIT);
+}
+
+static int s390_pmu_sf_offline_cpu(unsigned int cpu)
+{
+	return cpusf_pmu_setup(cpu, PMC_RELEASE);
 }
 
 static int param_get_sfb_size(char *buffer, const struct kernel_param *kp)
@@ -1630,7 +1621,9 @@ static int __init init_cpum_sampling_pmu(void)
 					cpumf_measurement_alert);
 		goto out;
 	}
-	perf_cpu_notifier(cpumf_pmu_notifier);
+
+	cpuhp_setup_state(CPUHP_AP_PERF_S390_SF_ONLINE, "perf/s390/sf:online",
+			  s390_pmu_sf_online_cpu, s390_pmu_sf_offline_cpu);
 out:
 	return err;
 }

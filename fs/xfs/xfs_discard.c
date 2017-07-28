@@ -39,7 +39,7 @@ xfs_trim_extents(
 	xfs_daddr_t		start,
 	xfs_daddr_t		end,
 	xfs_daddr_t		minlen,
-	__uint64_t		*blocks_trimmed)
+	uint64_t		*blocks_trimmed)
 {
 	struct block_device	*bdev = mp->m_ddev_targp->bt_bdev;
 	struct xfs_btree_cur	*cur;
@@ -132,6 +132,11 @@ next_extent:
 		error = xfs_btree_decrement(cur, 0, &i);
 		if (error)
 			goto out_del_cursor;
+
+		if (fatal_signal_pending(current)) {
+			error = -ERESTARTSYS;
+			goto out_del_cursor;
+		}
 	}
 
 out_del_cursor:
@@ -161,7 +166,7 @@ xfs_ioc_trim(
 	struct fstrim_range	range;
 	xfs_daddr_t		start, end, minlen;
 	xfs_agnumber_t		start_agno, end_agno, agno;
-	__uint64_t		blocks_trimmed = 0;
+	uint64_t		blocks_trimmed = 0;
 	int			error, last_error = 0;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -179,7 +184,7 @@ xfs_ioc_trim(
 	 * matter as trimming blocks is an advisory interface.
 	 */
 	if (range.start >= XFS_FSB_TO_B(mp, mp->m_sb.sb_dblocks) ||
-	    range.minlen > XFS_FSB_TO_B(mp, XFS_ALLOC_AG_MAX_USABLE(mp)) ||
+	    range.minlen > XFS_FSB_TO_B(mp, mp->m_ag_max_usable) ||
 	    range.len < mp->m_sb.sb_blocksize)
 		return -EINVAL;
 
@@ -196,8 +201,11 @@ xfs_ioc_trim(
 	for (agno = start_agno; agno <= end_agno; agno++) {
 		error = xfs_trim_extents(mp, agno, start, end, minlen,
 					  &blocks_trimmed);
-		if (error)
+		if (error) {
 			last_error = error;
+			if (error == -ERESTARTSYS)
+				break;
+		}
 	}
 
 	if (last_error)
@@ -206,34 +214,5 @@ xfs_ioc_trim(
 	range.len = XFS_FSB_TO_B(mp, blocks_trimmed);
 	if (copy_to_user(urange, &range, sizeof(range)))
 		return -EFAULT;
-	return 0;
-}
-
-int
-xfs_discard_extents(
-	struct xfs_mount	*mp,
-	struct list_head	*list)
-{
-	struct xfs_extent_busy	*busyp;
-	int			error = 0;
-
-	list_for_each_entry(busyp, list, list) {
-		trace_xfs_discard_extent(mp, busyp->agno, busyp->bno,
-					 busyp->length);
-
-		error = blkdev_issue_discard(mp->m_ddev_targp->bt_bdev,
-				XFS_AGB_TO_DADDR(mp, busyp->agno, busyp->bno),
-				XFS_FSB_TO_BB(mp, busyp->length),
-				GFP_NOFS, 0);
-		if (error && error != -EOPNOTSUPP) {
-			xfs_info(mp,
-	 "discard failed for extent [0x%llu,%u], error %d",
-				 (unsigned long long)busyp->bno,
-				 busyp->length,
-				 error);
-			return error;
-		}
-	}
-
 	return 0;
 }

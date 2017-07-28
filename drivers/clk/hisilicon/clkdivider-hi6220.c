@@ -18,6 +18,8 @@
 #include <linux/err.h>
 #include <linux/spinlock.h>
 
+#include "clk.h"
+
 #define div_mask(width)	((1 << (width)) - 1)
 
 /**

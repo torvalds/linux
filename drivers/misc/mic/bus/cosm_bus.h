@@ -30,6 +30,7 @@
  * @attr_group: Pointer to list of sysfs attribute groups.
  * @sdev: Device for sysfs entries.
  * @state: MIC state.
+ * @prev_state: MIC state previous to MIC_RESETTING
  * @shutdown_status: MIC status reported by card for shutdown/crashes.
  * @shutdown_status_int: Internal shutdown status maintained by the driver
  * @cosm_mutex: Mutex for synchronizing access to data structures.
@@ -55,6 +56,7 @@ struct cosm_device {
 	const struct attribute_group **attr_group;
 	struct device *sdev;
 	u8 state;
+	u8 prev_state;
 	u8 shutdown_status;
 	u8 shutdown_status_int;
 	struct mutex cosm_mutex;

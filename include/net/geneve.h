@@ -1,10 +1,7 @@
 #ifndef __NET_GENEVE_H
 #define __NET_GENEVE_H  1
 
-#ifdef CONFIG_INET
 #include <net/udp_tunnel.h>
-#endif
-
 
 /* Geneve Header:
  *  +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+

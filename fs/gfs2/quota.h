@@ -18,6 +18,8 @@ struct gfs2_sbd;
 #define NO_UID_QUOTA_CHANGE INVALID_UID
 #define NO_GID_QUOTA_CHANGE INVALID_GID
 
+extern int gfs2_qa_alloc(struct gfs2_inode *ip);
+extern void gfs2_qa_delete(struct gfs2_inode *ip, atomic_t *wcount);
 extern int gfs2_quota_hold(struct gfs2_inode *ip, kuid_t uid, kgid_t gid);
 extern void gfs2_quota_unhold(struct gfs2_inode *ip);
 

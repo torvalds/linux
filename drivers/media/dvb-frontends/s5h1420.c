@@ -16,10 +16,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/kernel.h>
@@ -756,9 +752,9 @@ static int s5h1420_set_frontend(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int s5h1420_get_frontend(struct dvb_frontend* fe)
+static int s5h1420_get_frontend(struct dvb_frontend* fe,
+				struct dtv_frontend_properties *p)
 {
-	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct s5h1420_state* state = fe->demodulator_priv;
 
 	p->frequency = state->tunedfreq + s5h1420_getfreqoffset(state);
@@ -880,7 +876,7 @@ struct i2c_adapter *s5h1420_get_tuner_i2c_adapter(struct dvb_frontend *fe)
 }
 EXPORT_SYMBOL(s5h1420_get_tuner_i2c_adapter);
 
-static struct dvb_frontend_ops s5h1420_ops;
+static const struct dvb_frontend_ops s5h1420_ops;
 
 struct dvb_frontend *s5h1420_attach(const struct s5h1420_config *config,
 				    struct i2c_adapter *i2c)
@@ -934,7 +930,7 @@ error:
 }
 EXPORT_SYMBOL(s5h1420_attach);
 
-static struct dvb_frontend_ops s5h1420_ops = {
+static const struct dvb_frontend_ops s5h1420_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name     = "Samsung S5H1420/PnpNetwork PN1010 DVB-S",

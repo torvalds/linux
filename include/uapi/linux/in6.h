@@ -143,6 +143,7 @@ struct in6_flowlabel_req {
 #define IPV6_TLV_PAD1		0
 #define IPV6_TLV_PADN		1
 #define IPV6_TLV_ROUTERALERT	5
+#define IPV6_TLV_CALIPSO	7	/* RFC 5570 */
 #define IPV6_TLV_JUMBO		194
 #define IPV6_TLV_HAO		201	/* home address option */
 
@@ -196,6 +197,7 @@ struct in6_flowlabel_req {
 
 #define IPV6_IPSEC_POLICY	34
 #define IPV6_XFRM_POLICY	35
+#define IPV6_HDRINCL		36
 #endif
 
 /*
@@ -281,6 +283,7 @@ struct in6_flowlabel_req {
 #define IPV6_RECVORIGDSTADDR    IPV6_ORIGDSTADDR
 #define IPV6_TRANSPARENT        75
 #define IPV6_UNICAST_IF         76
+#define IPV6_RECVFRAGSIZE	77
 
 /*
  * Multicast Routing:

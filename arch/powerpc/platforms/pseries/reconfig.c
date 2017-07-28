@@ -19,7 +19,7 @@
 
 #include <asm/prom.h>
 #include <asm/machdep.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/mmu.h>
 
 #include "of_helpers.h"
@@ -303,7 +303,6 @@ static int do_remove_property(char *buf, size_t bufsize)
 {
 	struct device_node *np;
 	char *tmp;
-	struct property *prop;
 	buf = parse_node(buf, bufsize, &np);
 
 	if (!np)
@@ -316,9 +315,7 @@ static int do_remove_property(char *buf, size_t bufsize)
 	if (strlen(buf) == 0)
 		return -EINVAL;
 
-	prop = of_find_property(np, buf, NULL);
-
-	return of_remove_property(np, prop);
+	return of_remove_property(np, of_find_property(np, buf, NULL));
 }
 
 static int do_update_property(char *buf, size_t bufsize)

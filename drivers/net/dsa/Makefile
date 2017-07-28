@@ -1,16 +1,12 @@
+obj-$(CONFIG_NET_DSA_BCM_SF2)	+= bcm-sf2.o
+bcm-sf2-objs			:= bcm_sf2.o bcm_sf2_cfp.o
+obj-$(CONFIG_NET_DSA_LOOP)	+= dsa_loop.o dsa_loop_bdinfo.o
+obj-$(CONFIG_NET_DSA_MT7530)	+= mt7530.o
 obj-$(CONFIG_NET_DSA_MV88E6060) += mv88e6060.o
-obj-$(CONFIG_NET_DSA_MV88E6XXX) += mv88e6xxx_drv.o
-mv88e6xxx_drv-y += mv88e6xxx.o
-ifdef CONFIG_NET_DSA_MV88E6123_61_65
-mv88e6xxx_drv-y += mv88e6123_61_65.o
-endif
-ifdef CONFIG_NET_DSA_MV88E6131
-mv88e6xxx_drv-y += mv88e6131.o
-endif
-ifdef CONFIG_NET_DSA_MV88E6352
-mv88e6xxx_drv-y += mv88e6352.o
-endif
-ifdef CONFIG_NET_DSA_MV88E6171
-mv88e6xxx_drv-y += mv88e6171.o
-endif
-obj-$(CONFIG_NET_DSA_BCM_SF2)	+= bcm_sf2.o
+obj-$(CONFIG_NET_DSA_QCA8K)	+= qca8k.o
+obj-$(CONFIG_NET_DSA_SMSC_LAN9303) += lan9303-core.o
+obj-$(CONFIG_NET_DSA_SMSC_LAN9303_I2C) += lan9303_i2c.o
+obj-$(CONFIG_NET_DSA_SMSC_LAN9303_MDIO) += lan9303_mdio.o
+obj-y				+= b53/
+obj-y				+= microchip/
+obj-y				+= mv88e6xxx/

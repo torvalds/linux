@@ -50,7 +50,6 @@ struct ath_aic_sram_info {
 struct ath_aic_out_info {
 	int16_t dir_path_gain_lin;
 	int16_t quad_path_gain_lin;
-	struct ath_aic_sram_info sram;
 };
 
 u8 ar9003_aic_calibration(struct ath_hw *ah);

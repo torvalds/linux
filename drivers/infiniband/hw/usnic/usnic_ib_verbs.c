@@ -46,12 +46,13 @@
 #include "usnic_log.h"
 #include "usnic_uiom.h"
 #include "usnic_transport.h"
+#include "usnic_ib_verbs.h"
 
 #define USNIC_DEFAULT_TRANSPORT USNIC_TRANSPORT_ROCE_CUSTOM
 
 static void usnic_ib_fw_string_to_u64(char *fw_ver_str, u64 *fw_ver)
 {
-	*fw_ver = (u64) *fw_ver_str;
+	*fw_ver = *((u64 *)fw_ver_str);
 }
 
 static int usnic_ib_fill_create_qp_resp(struct usnic_ib_qp_grp *qp_grp,
@@ -87,12 +88,12 @@ static int usnic_ib_fill_create_qp_resp(struct usnic_ib_qp_grp *qp_grp,
 	resp.bar_len = bar->len;
 
 	chunk = usnic_ib_qp_grp_get_chunk(qp_grp, USNIC_VNIC_RES_TYPE_RQ);
-	if (IS_ERR_OR_NULL(chunk)) {
+	if (IS_ERR(chunk)) {
 		usnic_err("Failed to get chunk %s for qp_grp %d with err %ld\n",
 			usnic_vnic_res_type_to_str(USNIC_VNIC_RES_TYPE_RQ),
 			qp_grp->grp_id,
 			PTR_ERR(chunk));
-		return chunk ? PTR_ERR(chunk) : -ENOMEM;
+		return PTR_ERR(chunk);
 	}
 
 	WARN_ON(chunk->type != USNIC_VNIC_RES_TYPE_RQ);
@@ -101,12 +102,12 @@ static int usnic_ib_fill_create_qp_resp(struct usnic_ib_qp_grp *qp_grp,
 		resp.rq_idx[i] = chunk->res[i]->vnic_idx;
 
 	chunk = usnic_ib_qp_grp_get_chunk(qp_grp, USNIC_VNIC_RES_TYPE_WQ);
-	if (IS_ERR_OR_NULL(chunk)) {
+	if (IS_ERR(chunk)) {
 		usnic_err("Failed to get chunk %s for qp_grp %d with err %ld\n",
 			usnic_vnic_res_type_to_str(USNIC_VNIC_RES_TYPE_WQ),
 			qp_grp->grp_id,
 			PTR_ERR(chunk));
-		return chunk ? PTR_ERR(chunk) : -ENOMEM;
+		return PTR_ERR(chunk);
 	}
 
 	WARN_ON(chunk->type != USNIC_VNIC_RES_TYPE_WQ);
@@ -115,12 +116,12 @@ static int usnic_ib_fill_create_qp_resp(struct usnic_ib_qp_grp *qp_grp,
 		resp.wq_idx[i] = chunk->res[i]->vnic_idx;
 
 	chunk = usnic_ib_qp_grp_get_chunk(qp_grp, USNIC_VNIC_RES_TYPE_CQ);
-	if (IS_ERR_OR_NULL(chunk)) {
+	if (IS_ERR(chunk)) {
 		usnic_err("Failed to get chunk %s for qp_grp %d with err %ld\n",
 			usnic_vnic_res_type_to_str(USNIC_VNIC_RES_TYPE_CQ),
 			qp_grp->grp_id,
 			PTR_ERR(chunk));
-		return chunk ? PTR_ERR(chunk) : -ENOMEM;
+		return PTR_ERR(chunk);
 	}
 
 	WARN_ON(chunk->type != USNIC_VNIC_RES_TYPE_CQ);
@@ -151,7 +152,7 @@ find_free_vf_and_create_qp_grp(struct usnic_ib_dev *us_ibdev,
 	struct usnic_vnic *vnic;
 	struct usnic_ib_qp_grp *qp_grp;
 	struct device *dev, **dev_list;
-	int i, found = 0;
+	int i;
 
 	BUG_ON(!mutex_is_locked(&us_ibdev->usdev_lock));
 
@@ -173,8 +174,13 @@ find_free_vf_and_create_qp_grp(struct usnic_ib_dev *us_ibdev,
 						us_ibdev->ib_dev.name,
 						pci_name(usnic_vnic_get_pdev(
 									vnic)));
-				found = 1;
-				break;
+				qp_grp = usnic_ib_qp_grp_create(us_ibdev->ufdev,
+								vf, pd,
+								res_spec,
+								trans_spec);
+
+				spin_unlock(&vf->lock);
+				goto qp_grp_check;
 			}
 			spin_unlock(&vf->lock);
 
@@ -182,34 +188,30 @@ find_free_vf_and_create_qp_grp(struct usnic_ib_dev *us_ibdev,
 		usnic_uiom_free_dev_list(dev_list);
 	}
 
-	if (!found) {
-		/* Try to find resources on an unused vf */
-		list_for_each_entry(vf, &us_ibdev->vf_dev_list, link) {
-			spin_lock(&vf->lock);
-			vnic = vf->vnic;
-			if (vf->qp_grp_ref_cnt == 0 &&
-				usnic_vnic_check_room(vnic, res_spec) == 0) {
-				found = 1;
-				break;
-			}
+	/* Try to find resources on an unused vf */
+	list_for_each_entry(vf, &us_ibdev->vf_dev_list, link) {
+		spin_lock(&vf->lock);
+		vnic = vf->vnic;
+		if (vf->qp_grp_ref_cnt == 0 &&
+		    usnic_vnic_check_room(vnic, res_spec) == 0) {
+			qp_grp = usnic_ib_qp_grp_create(us_ibdev->ufdev, vf,
+							pd, res_spec,
+							trans_spec);
+
 			spin_unlock(&vf->lock);
+			goto qp_grp_check;
 		}
+		spin_unlock(&vf->lock);
 	}
 
-	if (!found) {
-		usnic_info("No free qp grp found on %s\n",
-				us_ibdev->ib_dev.name);
-		return ERR_PTR(-ENOMEM);
-	}
+	usnic_info("No free qp grp found on %s\n", us_ibdev->ib_dev.name);
+	return ERR_PTR(-ENOMEM);
 
-	qp_grp = usnic_ib_qp_grp_create(us_ibdev->ufdev, vf, pd, res_spec,
-						trans_spec);
-	spin_unlock(&vf->lock);
+qp_grp_check:
 	if (IS_ERR_OR_NULL(qp_grp)) {
 		usnic_err("Failed to allocate qp_grp\n");
 		return ERR_PTR(qp_grp ? PTR_ERR(qp_grp) : -ENOMEM);
 	}
-
 	return qp_grp;
 }
 
@@ -269,7 +271,6 @@ int usnic_ib_query_device(struct ib_device *ibdev,
 	struct usnic_ib_dev *us_ibdev = to_usdev(ibdev);
 	union ib_gid gid;
 	struct ethtool_drvinfo info;
-	struct ethtool_cmd cmd;
 	int qp_per_vf;
 
 	usnic_dbg("\n");
@@ -278,7 +279,6 @@ int usnic_ib_query_device(struct ib_device *ibdev,
 
 	mutex_lock(&us_ibdev->usdev_lock);
 	us_ibdev->netdev->ethtool_ops->get_drvinfo(us_ibdev->netdev, &info);
-	us_ibdev->netdev->ethtool_ops->get_settings(us_ibdev->netdev, &cmd);
 	memset(props, 0, sizeof(*props));
 	usnic_mac_ip_to_gid(us_ibdev->ufdev->mac, us_ibdev->ufdev->inaddr,
 			&gid.raw[0]);
@@ -293,11 +293,11 @@ int usnic_ib_query_device(struct ib_device *ibdev,
 	qp_per_vf = max(us_ibdev->vf_res_cnt[USNIC_VNIC_RES_TYPE_WQ],
 			us_ibdev->vf_res_cnt[USNIC_VNIC_RES_TYPE_RQ]);
 	props->max_qp = qp_per_vf *
-		atomic_read(&us_ibdev->vf_cnt.refcount);
+		kref_read(&us_ibdev->vf_cnt);
 	props->device_cap_flags = IB_DEVICE_PORT_ACTIVE_EVENT |
 		IB_DEVICE_SYS_IMAGE_GUID | IB_DEVICE_BLOCK_MULTICAST_LOOPBACK;
 	props->max_cq = us_ibdev->vf_res_cnt[USNIC_VNIC_RES_TYPE_CQ] *
-		atomic_read(&us_ibdev->vf_cnt.refcount);
+		kref_read(&us_ibdev->vf_cnt);
 	props->max_pd = USNIC_UIOM_MAX_PD_CNT;
 	props->max_mr = USNIC_UIOM_MAX_MR_CNT;
 	props->local_ca_ack_delay = 0;
@@ -326,13 +326,13 @@ int usnic_ib_query_port(struct ib_device *ibdev, u8 port,
 				struct ib_port_attr *props)
 {
 	struct usnic_ib_dev *us_ibdev = to_usdev(ibdev);
-	struct ethtool_cmd cmd;
+	struct ethtool_link_ksettings cmd;
 
 	usnic_dbg("\n");
 
 	mutex_lock(&us_ibdev->usdev_lock);
-	us_ibdev->netdev->ethtool_ops->get_settings(us_ibdev->netdev, &cmd);
-	memset(props, 0, sizeof(*props));
+	__ethtool_get_link_ksettings(us_ibdev->netdev, &cmd);
+	/* props being zeroed by the caller, avoid zeroing it here */
 
 	props->lid = 0;
 	props->lmc = 1;
@@ -355,8 +355,8 @@ int usnic_ib_query_port(struct ib_device *ibdev, u8 port,
 	props->pkey_tbl_len = 1;
 	props->bad_pkey_cntr = 0;
 	props->qkey_viol_cntr = 0;
-	eth_speed_to_ib_speed(cmd.speed, &props->active_speed,
-				&props->active_width);
+	eth_speed_to_ib_speed(cmd.base.speed, &props->active_speed,
+			      &props->active_width);
 	props->max_mtu = IB_MTU_4096;
 	props->active_mtu = iboe_get_mtu(us_ibdev->ufdev->mtu);
 	/* Userspace will adjust for hdrs */
@@ -571,20 +571,20 @@ int usnic_ib_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	qp_grp = to_uqp_grp(ibqp);
 
-	/* TODO: Future Support All States */
 	mutex_lock(&qp_grp->vf->pf->usdev_lock);
-	if ((attr_mask & IB_QP_STATE) && attr->qp_state == IB_QPS_INIT) {
-		status = usnic_ib_qp_grp_modify(qp_grp, IB_QPS_INIT, NULL);
-	} else if ((attr_mask & IB_QP_STATE) && attr->qp_state == IB_QPS_RTR) {
-		status = usnic_ib_qp_grp_modify(qp_grp, IB_QPS_RTR, NULL);
-	} else if ((attr_mask & IB_QP_STATE) && attr->qp_state == IB_QPS_RTS) {
-		status = usnic_ib_qp_grp_modify(qp_grp, IB_QPS_RTS, NULL);
+	if ((attr_mask & IB_QP_PORT) && attr->port_num != 1) {
+		/* usnic devices only have one port */
+		status = -EINVAL;
+		goto out_unlock;
+	}
+	if (attr_mask & IB_QP_STATE) {
+		status = usnic_ib_qp_grp_modify(qp_grp, attr->qp_state, NULL);
 	} else {
-		usnic_err("Unexpected combination mask: %u state: %u\n",
-				attr_mask & IB_QP_STATE, attr->qp_state);
+		usnic_err("Unhandled request, attr_mask=0x%x\n", attr_mask);
 		status = -EINVAL;
 	}
 
+out_unlock:
 	mutex_unlock(&qp_grp->vf->pf->usdev_lock);
 	return status;
 }
@@ -625,8 +625,8 @@ struct ib_mr *usnic_ib_reg_mr(struct ib_pd *pd, u64 start, u64 length,
 			virt_addr, length);
 
 	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
-	if (IS_ERR_OR_NULL(mr))
-		return ERR_PTR(mr ? PTR_ERR(mr) : -ENOMEM);
+	if (!mr)
+		return ERR_PTR(-ENOMEM);
 
 	mr->umem = usnic_uiom_reg_get(to_upd(pd)->umem_pd, start, length,
 					access_flags, 0);
@@ -740,7 +740,9 @@ int usnic_ib_mmap(struct ib_ucontext *context,
 
 /* In ib callbacks section -  Start of stub funcs */
 struct ib_ah *usnic_ib_create_ah(struct ib_pd *pd,
-					struct ib_ah_attr *ah_attr)
+				 struct rdma_ah_attr *ah_attr,
+				 struct ib_udata *udata)
+
 {
 	usnic_dbg("\n");
 	return ERR_PTR(-EPERM);

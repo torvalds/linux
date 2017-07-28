@@ -35,6 +35,7 @@ const struct inode_operations afs_mntpt_inode_operations = {
 	.lookup		= afs_mntpt_lookup,
 	.readlink	= page_readlink,
 	.getattr	= afs_getattr,
+	.listxattr	= afs_listxattr,
 };
 
 const struct inode_operations afs_autocell_inode_operations = {
@@ -45,59 +46,6 @@ static LIST_HEAD(afs_vfsmounts);
 static DECLARE_DELAYED_WORK(afs_mntpt_expiry_timer, afs_mntpt_expiry_timed_out);
 
 static unsigned long afs_mntpt_expiry_timeout = 10 * 60;
-
-/*
- * check a symbolic link to see whether it actually encodes a mountpoint
- * - sets the AFS_VNODE_MOUNTPOINT flag on the vnode appropriately
- */
-int afs_mntpt_check_symlink(struct afs_vnode *vnode, struct key *key)
-{
-	struct page *page;
-	size_t size;
-	char *buf;
-	int ret;
-
-	_enter("{%x:%u,%u}",
-	       vnode->fid.vid, vnode->fid.vnode, vnode->fid.unique);
-
-	/* read the contents of the symlink into the pagecache */
-	page = read_cache_page(AFS_VNODE_TO_I(vnode)->i_mapping, 0,
-			       afs_page_filler, key);
-	if (IS_ERR(page)) {
-		ret = PTR_ERR(page);
-		goto out;
-	}
-
-	ret = -EIO;
-	if (PageError(page))
-		goto out_free;
-
-	buf = kmap(page);
-
-	/* examine the symlink's contents */
-	size = vnode->status.size;
-	_debug("symlink to %*.*s", (int) size, (int) size, buf);
-
-	if (size > 2 &&
-	    (buf[0] == '%' || buf[0] == '#') &&
-	    buf[size - 1] == '.'
-	    ) {
-		_debug("symlink is a mountpoint");
-		spin_lock(&vnode->lock);
-		set_bit(AFS_VNODE_MOUNTPOINT, &vnode->flags);
-		vnode->vfs_inode.i_flags |= S_AUTOMOUNT;
-		spin_unlock(&vnode->lock);
-	}
-
-	ret = 0;
-
-	kunmap(page);
-out_free:
-	page_cache_release(page);
-out:
-	_leave(" = %d", ret);
-	return ret;
-}
 
 /*
  * no valid lookup procedure on this sort of dir
@@ -189,7 +137,7 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 		buf = kmap_atomic(page);
 		memcpy(devname, buf, size);
 		kunmap_atomic(buf);
-		page_cache_release(page);
+		put_page(page);
 		page = NULL;
 	}
 
@@ -202,7 +150,7 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 
 	/* try and do the mount */
 	_debug("--- attempting mount %s -o %s ---", devname, options);
-	mnt = vfs_kern_mount(&afs_fs_type, 0, devname, options);
+	mnt = vfs_submount(mntpt, &afs_fs_type, devname, options);
 	_debug("--- mount result %p ---", mnt);
 
 	free_page((unsigned long) devname);
@@ -211,7 +159,7 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 	return mnt;
 
 error:
-	page_cache_release(page);
+	put_page(page);
 error_no_page:
 	free_page((unsigned long) options);
 error_no_options:

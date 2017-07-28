@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -150,7 +150,7 @@ acpi_status acpi_ut_initialize_interfaces(void)
 	     i < (ACPI_ARRAY_LENGTH(acpi_default_supported_interfaces) - 1);
 	     i++) {
 		acpi_default_supported_interfaces[i].next =
-		    &acpi_default_supported_interfaces[(acpi_size) i + 1];
+		    &acpi_default_supported_interfaces[(acpi_size)i + 1];
 	}
 
 	acpi_os_release_mutex(acpi_gbl_osi_mutex);
@@ -269,9 +269,10 @@ acpi_status acpi_ut_remove_interface(acpi_string interface_name)
 	previous_interface = next_interface = acpi_gbl_supported_interfaces;
 	while (next_interface) {
 		if (!strcmp(interface_name, next_interface->name)) {
-
-			/* Found: name is in either the static list or was added at runtime */
-
+			/*
+			 * Found: name is in either the static list
+			 * or was added at runtime
+			 */
 			if (next_interface->flags & ACPI_OSI_DYNAMIC) {
 
 				/* Interface was added dynamically, remove and free it */
@@ -288,8 +289,8 @@ acpi_status acpi_ut_remove_interface(acpi_string interface_name)
 				ACPI_FREE(next_interface);
 			} else {
 				/*
-				 * Interface is in static list. If marked invalid, then it
-				 * does not actually exist. Else, mark it invalid.
+				 * Interface is in static list. If marked invalid, then
+				 * it does not actually exist. Else, mark it invalid.
 				 */
 				if (next_interface->flags & ACPI_OSI_INVALID) {
 					return (AE_NOT_EXIST);
@@ -389,21 +390,32 @@ struct acpi_interface_info *acpi_ut_get_interface(acpi_string interface_name)
  * PARAMETERS:  walk_state          - Current walk state
  *
  * RETURN:      Status
+ *              Integer: TRUE (0) if input string is matched
+ *                       FALSE (-1) if string is not matched
  *
  * DESCRIPTION: Implementation of the _OSI predefined control method. When
  *              an invocation of _OSI is encountered in the system AML,
  *              control is transferred to this function.
  *
+ * (August 2016)
+ * Note:  _OSI is now defined to return "Ones" to indicate a match, for
+ * compatibility with other ACPI implementations. On a 32-bit DSDT, Ones
+ * is 0xFFFFFFFF. On a 64-bit DSDT, Ones is 0xFFFFFFFFFFFFFFFF
+ * (ACPI_UINT64_MAX).
+ *
+ * This function always returns ACPI_UINT64_MAX for TRUE, and later code
+ * will truncate this to 32 bits if necessary.
+ *
  ******************************************************************************/
 
-acpi_status acpi_ut_osi_implementation(struct acpi_walk_state * walk_state)
+acpi_status acpi_ut_osi_implementation(struct acpi_walk_state *walk_state)
 {
 	union acpi_operand_object *string_desc;
 	union acpi_operand_object *return_desc;
 	struct acpi_interface_info *interface_info;
 	acpi_interface_handler interface_handler;
 	acpi_status status;
-	u32 return_value;
+	u64 return_value;
 
 	ACPI_FUNCTION_TRACE(ut_osi_implementation);
 
@@ -443,7 +455,7 @@ acpi_status acpi_ut_osi_implementation(struct acpi_walk_state * walk_state)
 			acpi_gbl_osi_data = interface_info->value;
 		}
 
-		return_value = ACPI_UINT32_MAX;
+		return_value = ACPI_UINT64_MAX;
 	}
 
 	acpi_os_release_mutex(acpi_gbl_osi_mutex);
@@ -455,9 +467,10 @@ acpi_status acpi_ut_osi_implementation(struct acpi_walk_state * walk_state)
 	 */
 	interface_handler = acpi_gbl_interface_handler;
 	if (interface_handler) {
-		return_value =
-		    interface_handler(string_desc->string.pointer,
-				      return_value);
+		if (interface_handler
+		    (string_desc->string.pointer, (u32)return_value)) {
+			return_value = ACPI_UINT64_MAX;
+		}
 	}
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INFO,

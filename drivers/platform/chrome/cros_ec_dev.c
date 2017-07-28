@@ -18,11 +18,14 @@
  */
 
 #include <linux/fs.h>
+#include <linux/mfd/core.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 
+#include "cros_ec_debugfs.h"
 #include "cros_ec_dev.h"
 
 /* Device variables */
@@ -87,6 +90,41 @@ exit:
 	return ret;
 }
 
+static int cros_ec_check_features(struct cros_ec_dev *ec, int feature)
+{
+	struct cros_ec_command *msg;
+	int ret;
+
+	if (ec->features[0] == -1U && ec->features[1] == -1U) {
+		/* features bitmap not read yet */
+
+		msg = kmalloc(sizeof(*msg) + sizeof(ec->features), GFP_KERNEL);
+		if (!msg)
+			return -ENOMEM;
+
+		msg->version = 0;
+		msg->command = EC_CMD_GET_FEATURES + ec->cmd_offset;
+		msg->insize = sizeof(ec->features);
+		msg->outsize = 0;
+
+		ret = cros_ec_cmd_xfer(ec->ec_dev, msg);
+		if (ret < 0 || msg->result != EC_RES_SUCCESS) {
+			dev_warn(ec->dev, "cannot get EC features: %d/%d\n",
+				 ret, msg->result);
+			memset(ec->features, 0, sizeof(ec->features));
+		}
+
+		memcpy(ec->features, msg->data, sizeof(ec->features));
+
+		dev_dbg(ec->dev, "EC features %08x %08x\n",
+			ec->features[0], ec->features[1]);
+
+		kfree(msg);
+	}
+
+	return ec->features[feature / 32] & EC_FEATURE_MASK_0(feature);
+}
+
 /* Device file ops */
 static int ec_device_open(struct inode *inode, struct file *filp)
 {
@@ -137,6 +175,10 @@ static long ec_device_ioctl_xcmd(struct cros_ec_dev *ec, void __user *arg)
 	if (copy_from_user(&u_cmd, arg, sizeof(u_cmd)))
 		return -EFAULT;
 
+	if ((u_cmd.outsize > EC_MAX_MSG_BYTES) ||
+	    (u_cmd.insize > EC_MAX_MSG_BYTES))
+		return -EINVAL;
+
 	s_cmd = kmalloc(sizeof(*s_cmd) + max(u_cmd.outsize, u_cmd.insize),
 			GFP_KERNEL);
 	if (!s_cmd)
@@ -147,13 +189,19 @@ static long ec_device_ioctl_xcmd(struct cros_ec_dev *ec, void __user *arg)
 		goto exit;
 	}
 
+	if (u_cmd.outsize != s_cmd->outsize ||
+	    u_cmd.insize != s_cmd->insize) {
+		ret = -EINVAL;
+		goto exit;
+	}
+
 	s_cmd->command += ec->cmd_offset;
 	ret = cros_ec_cmd_xfer(ec->ec_dev, s_cmd);
 	/* Only copy data to userland if data was received. */
 	if (ret < 0)
 		goto exit;
 
-	if (copy_to_user(arg, s_cmd, sizeof(*s_cmd) + u_cmd.insize))
+	if (copy_to_user(arg, s_cmd, sizeof(*s_cmd) + s_cmd->insize))
 		ret = -EFAULT;
 exit:
 	kfree(s_cmd);
@@ -208,6 +256,9 @@ static const struct file_operations fops = {
 	.release = ec_device_release,
 	.read = ec_device_read,
 	.unlocked_ioctl = ec_device_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = ec_device_ioctl,
+#endif
 };
 
 static void __remove(struct device *dev)
@@ -217,12 +268,131 @@ static void __remove(struct device *dev)
 	kfree(ec);
 }
 
+static void cros_ec_sensors_register(struct cros_ec_dev *ec)
+{
+	/*
+	 * Issue a command to get the number of sensor reported.
+	 * Build an array of sensors driver and register them all.
+	 */
+	int ret, i, id, sensor_num;
+	struct mfd_cell *sensor_cells;
+	struct cros_ec_sensor_platform *sensor_platforms;
+	int sensor_type[MOTIONSENSE_TYPE_MAX];
+	struct ec_params_motion_sense *params;
+	struct ec_response_motion_sense *resp;
+	struct cros_ec_command *msg;
+
+	msg = kzalloc(sizeof(struct cros_ec_command) +
+		      max(sizeof(*params), sizeof(*resp)), GFP_KERNEL);
+	if (msg == NULL)
+		return;
+
+	msg->version = 2;
+	msg->command = EC_CMD_MOTION_SENSE_CMD + ec->cmd_offset;
+	msg->outsize = sizeof(*params);
+	msg->insize = sizeof(*resp);
+
+	params = (struct ec_params_motion_sense *)msg->data;
+	params->cmd = MOTIONSENSE_CMD_DUMP;
+
+	ret = cros_ec_cmd_xfer(ec->ec_dev, msg);
+	if (ret < 0 || msg->result != EC_RES_SUCCESS) {
+		dev_warn(ec->dev, "cannot get EC sensor information: %d/%d\n",
+			 ret, msg->result);
+		goto error;
+	}
+
+	resp = (struct ec_response_motion_sense *)msg->data;
+	sensor_num = resp->dump.sensor_count;
+	/* Allocate 2 extra sensors in case lid angle or FIFO are needed */
+	sensor_cells = kzalloc(sizeof(struct mfd_cell) * (sensor_num + 2),
+			       GFP_KERNEL);
+	if (sensor_cells == NULL)
+		goto error;
+
+	sensor_platforms = kzalloc(sizeof(struct cros_ec_sensor_platform) *
+		  (sensor_num + 1), GFP_KERNEL);
+	if (sensor_platforms == NULL)
+		goto error_platforms;
+
+	memset(sensor_type, 0, sizeof(sensor_type));
+	id = 0;
+	for (i = 0; i < sensor_num; i++) {
+		params->cmd = MOTIONSENSE_CMD_INFO;
+		params->info.sensor_num = i;
+		ret = cros_ec_cmd_xfer(ec->ec_dev, msg);
+		if (ret < 0 || msg->result != EC_RES_SUCCESS) {
+			dev_warn(ec->dev, "no info for EC sensor %d : %d/%d\n",
+				 i, ret, msg->result);
+			continue;
+		}
+		switch (resp->info.type) {
+		case MOTIONSENSE_TYPE_ACCEL:
+			sensor_cells[id].name = "cros-ec-accel";
+			break;
+		case MOTIONSENSE_TYPE_BARO:
+			sensor_cells[id].name = "cros-ec-baro";
+			break;
+		case MOTIONSENSE_TYPE_GYRO:
+			sensor_cells[id].name = "cros-ec-gyro";
+			break;
+		case MOTIONSENSE_TYPE_MAG:
+			sensor_cells[id].name = "cros-ec-mag";
+			break;
+		case MOTIONSENSE_TYPE_PROX:
+			sensor_cells[id].name = "cros-ec-prox";
+			break;
+		case MOTIONSENSE_TYPE_LIGHT:
+			sensor_cells[id].name = "cros-ec-light";
+			break;
+		case MOTIONSENSE_TYPE_ACTIVITY:
+			sensor_cells[id].name = "cros-ec-activity";
+			break;
+		default:
+			dev_warn(ec->dev, "unknown type %d\n", resp->info.type);
+			continue;
+		}
+		sensor_platforms[id].sensor_num = i;
+		sensor_cells[id].id = sensor_type[resp->info.type];
+		sensor_cells[id].platform_data = &sensor_platforms[id];
+		sensor_cells[id].pdata_size =
+			sizeof(struct cros_ec_sensor_platform);
+
+		sensor_type[resp->info.type]++;
+		id++;
+	}
+	if (sensor_type[MOTIONSENSE_TYPE_ACCEL] >= 2) {
+		sensor_platforms[id].sensor_num = sensor_num;
+
+		sensor_cells[id].name = "cros-ec-angle";
+		sensor_cells[id].id = 0;
+		sensor_cells[id].platform_data = &sensor_platforms[id];
+		sensor_cells[id].pdata_size =
+			sizeof(struct cros_ec_sensor_platform);
+		id++;
+	}
+	if (cros_ec_check_features(ec, EC_FEATURE_MOTION_SENSE_FIFO)) {
+		sensor_cells[id].name = "cros-ec-ring";
+		id++;
+	}
+
+	ret = mfd_add_devices(ec->dev, 0, sensor_cells, id,
+			      NULL, 0, NULL);
+	if (ret)
+		dev_err(ec->dev, "failed to add EC sensors\n");
+
+	kfree(sensor_platforms);
+error_platforms:
+	kfree(sensor_cells);
+error:
+	kfree(msg);
+}
+
 static int ec_device_probe(struct platform_device *pdev)
 {
 	int retval = -ENOMEM;
 	struct device *dev = &pdev->dev;
 	struct cros_ec_platform *ec_platform = dev_get_platdata(dev);
-	dev_t devno = MKDEV(ec_major, pdev->id);
 	struct cros_ec_dev *ec = kzalloc(sizeof(*ec), GFP_KERNEL);
 
 	if (!ec)
@@ -232,27 +402,17 @@ static int ec_device_probe(struct platform_device *pdev)
 	ec->ec_dev = dev_get_drvdata(dev->parent);
 	ec->dev = dev;
 	ec->cmd_offset = ec_platform->cmd_offset;
+	ec->features[0] = -1U; /* Not cached yet */
+	ec->features[1] = -1U; /* Not cached yet */
 	device_initialize(&ec->class_dev);
 	cdev_init(&ec->cdev, &fops);
-
-	/*
-	 * Add the character device
-	 * Link cdev to the class device to be sure device is not used
-	 * before unbinding it.
-	 */
-	ec->cdev.kobj.parent = &ec->class_dev.kobj;
-	retval = cdev_add(&ec->cdev, devno, 1);
-	if (retval) {
-		dev_err(dev, ": failed to add character device\n");
-		goto cdev_add_failed;
-	}
 
 	/*
 	 * Add the class device
 	 * Link to the character device for creating the /dev entry
 	 * in devtmpfs.
 	 */
-	ec->class_dev.devt = ec->cdev.dev;
+	ec->class_dev.devt = MKDEV(ec_major, pdev->id);
 	ec->class_dev.class = &cros_class;
 	ec->class_dev.parent = dev;
 	ec->class_dev.release = __remove;
@@ -260,29 +420,41 @@ static int ec_device_probe(struct platform_device *pdev)
 	retval = dev_set_name(&ec->class_dev, "%s", ec_platform->ec_name);
 	if (retval) {
 		dev_err(dev, "dev_set_name failed => %d\n", retval);
-		goto set_named_failed;
+		goto failed;
 	}
 
-	retval = device_add(&ec->class_dev);
+	retval = cdev_device_add(&ec->cdev, &ec->class_dev);
 	if (retval) {
-		dev_err(dev, "device_register failed => %d\n", retval);
-		goto dev_reg_failed;
+		dev_err(dev, "cdev_device_add failed => %d\n", retval);
+		goto failed;
 	}
+
+	if (cros_ec_debugfs_init(ec))
+		dev_warn(dev, "failed to create debugfs directory\n");
+
+	/* check whether this EC is a sensor hub. */
+	if (cros_ec_check_features(ec, EC_FEATURE_MOTION_SENSE))
+		cros_ec_sensors_register(ec);
+
+	/* Take control of the lightbar from the EC. */
+	lb_manual_suspend_ctrl(ec, 1);
 
 	return 0;
 
-dev_reg_failed:
-set_named_failed:
-	dev_set_drvdata(dev, NULL);
-	cdev_del(&ec->cdev);
-cdev_add_failed:
-	kfree(ec);
+failed:
+	put_device(&ec->class_dev);
 	return retval;
 }
 
 static int ec_device_remove(struct platform_device *pdev)
 {
 	struct cros_ec_dev *ec = dev_get_drvdata(&pdev->dev);
+
+	/* Let the EC take over the lightbar again. */
+	lb_manual_suspend_ctrl(ec, 0);
+
+	cros_ec_debugfs_remove(ec);
+
 	cdev_del(&ec->cdev);
 	device_unregister(&ec->class_dev);
 	return 0;
@@ -294,9 +466,35 @@ static const struct platform_device_id cros_ec_id[] = {
 };
 MODULE_DEVICE_TABLE(platform, cros_ec_id);
 
+static __maybe_unused int ec_device_suspend(struct device *dev)
+{
+	struct cros_ec_dev *ec = dev_get_drvdata(dev);
+
+	lb_suspend(ec);
+
+	return 0;
+}
+
+static __maybe_unused int ec_device_resume(struct device *dev)
+{
+	struct cros_ec_dev *ec = dev_get_drvdata(dev);
+
+	lb_resume(ec);
+
+	return 0;
+}
+
+static const struct dev_pm_ops cros_ec_dev_pm_ops = {
+#ifdef CONFIG_PM_SLEEP
+	.suspend = ec_device_suspend,
+	.resume = ec_device_resume,
+#endif
+};
+
 static struct platform_driver cros_ec_dev_driver = {
 	.driver = {
 		.name = "cros-ec-ctl",
+		.pm = &cros_ec_dev_pm_ops,
 	},
 	.probe = ec_device_probe,
 	.remove = ec_device_remove,

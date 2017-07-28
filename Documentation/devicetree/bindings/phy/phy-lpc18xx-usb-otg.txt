@@ -18,7 +18,7 @@ creg: syscon@40043000 {
 	compatible = "nxp,lpc1850-creg", "syscon", "simple-mfd";
 	reg = <0x40043000 0x1000>;
 
-	usb0_otg_phy: phy@004 {
+	usb0_otg_phy: phy {
 		compatible = "nxp,lpc1850-usb-otg-phy";
 		clocks = <&ccu1 CLK_USB0>;
 		#phy-cells = <0>;

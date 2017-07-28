@@ -12,8 +12,8 @@
 #include "imx53.dtsi"
 
 / {
-	model = "DENX M53";
-	compatible = "denx,imx53-m53", "fsl,imx53";
+	model = "Aries/DENX M53";
+	compatible = "aries,imx53-m53", "denx,imx53-m53", "fsl,imx53";
 
 	memory {
 		reg = <0x70000000 0x20000000>,
@@ -84,7 +84,7 @@
 	};
 
 	rtc: rtc@68 {
-		compatible = "stm,m41t62";
+		compatible = "st,m41t62";
 		reg = <0x68>;
 	};
 };

@@ -1,11 +1,3 @@
-/*
- * Common code for the sigreturn entry points in vDSO images.
- * So far this code is the same for both int80 and sysenter versions.
- * This file is #include'd by int80.S et al to define them first thing.
- * The kernel assumes that the addresses of these routines are constant
- * for all vDSO implementations.
- */
-
 #include <linux/linkage.h>
 #include <asm/unistd_32.h>
 #include <asm/asm-offsets.h>

@@ -9,7 +9,7 @@
 #include <linux/poll.h>
 #include <linux/init.h>
 #include <linux/fs.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/list.h>
@@ -45,10 +45,10 @@ struct eventfd_ctx {
  *
  * This function is supposed to be called by the kernel in paths that do not
  * allow sleeping. In this function we allow the counter to reach the ULLONG_MAX
- * value, and we signal this as overflow condition by returining a POLLERR
+ * value, and we signal this as overflow condition by returning a POLLERR
  * to poll(2).
  *
- * Returns the amount by which the counter was incrememnted.  This will be less
+ * Returns the amount by which the counter was incremented.  This will be less
  * than @n if the counter has overflowed.
  */
 __u64 eventfd_signal(struct eventfd_ctx *ctx, __u64 n)
@@ -121,8 +121,46 @@ static unsigned int eventfd_poll(struct file *file, poll_table *wait)
 	u64 count;
 
 	poll_wait(file, &ctx->wqh, wait);
-	smp_rmb();
-	count = ctx->count;
+
+	/*
+	 * All writes to ctx->count occur within ctx->wqh.lock.  This read
+	 * can be done outside ctx->wqh.lock because we know that poll_wait
+	 * takes that lock (through add_wait_queue) if our caller will sleep.
+	 *
+	 * The read _can_ therefore seep into add_wait_queue's critical
+	 * section, but cannot move above it!  add_wait_queue's spin_lock acts
+	 * as an acquire barrier and ensures that the read be ordered properly
+	 * against the writes.  The following CAN happen and is safe:
+	 *
+	 *     poll                               write
+	 *     -----------------                  ------------
+	 *     lock ctx->wqh.lock (in poll_wait)
+	 *     count = ctx->count
+	 *     __add_wait_queue
+	 *     unlock ctx->wqh.lock
+	 *                                        lock ctx->qwh.lock
+	 *                                        ctx->count += n
+	 *                                        if (waitqueue_active)
+	 *                                          wake_up_locked_poll
+	 *                                        unlock ctx->qwh.lock
+	 *     eventfd_poll returns 0
+	 *
+	 * but the following, which would miss a wakeup, cannot happen:
+	 *
+	 *     poll                               write
+	 *     -----------------                  ------------
+	 *     count = ctx->count (INVALID!)
+	 *                                        lock ctx->qwh.lock
+	 *                                        ctx->count += n
+	 *                                        **waitqueue_active is false**
+	 *                                        **no wake_up_locked_poll!**
+	 *                                        unlock ctx->qwh.lock
+	 *     lock ctx->wqh.lock (in poll_wait)
+	 *     __add_wait_queue
+	 *     unlock ctx->wqh.lock
+	 *     eventfd_poll returns 0
+	 */
+	count = READ_ONCE(ctx->count);
 
 	if (count > 0)
 		events |= POLLIN;
@@ -153,7 +191,7 @@ static void eventfd_ctx_do_read(struct eventfd_ctx *ctx, __u64 *cnt)
  * This is used to atomically remove a wait queue entry from the eventfd wait
  * queue head, and read/reset the counter value.
  */
-int eventfd_ctx_remove_wait_queue(struct eventfd_ctx *ctx, wait_queue_t *wait,
+int eventfd_ctx_remove_wait_queue(struct eventfd_ctx *ctx, wait_queue_entry_t *wait,
 				  __u64 *cnt)
 {
 	unsigned long flags;
@@ -177,8 +215,8 @@ EXPORT_SYMBOL_GPL(eventfd_ctx_remove_wait_queue);
  *
  * Returns %0 if successful, or the following error codes:
  *
- * -EAGAIN      : The operation would have blocked but @no_wait was non-zero.
- * -ERESTARTSYS : A signal interrupted the wait operation.
+ *  - -EAGAIN      : The operation would have blocked but @no_wait was non-zero.
+ *  - -ERESTARTSYS : A signal interrupted the wait operation.
  *
  * If @no_wait is zero, the function might sleep until the eventfd internal
  * counter becomes greater than zero.

@@ -23,10 +23,9 @@
 #include <linux/types.h>
 #include <linux/err.h>
 #include <linux/prctl.h>
-#include <linux/context_tracking.h>
 #include <asm/cacheflush.h>
 #include <asm/traps.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/unaligned.h>
 #include <arch/abi.h>
 #include <arch/spr_def.h>
@@ -739,7 +738,6 @@ static DEFINE_PER_CPU(unsigned long, ss_saved_pc);
 
 void gx_singlestep_handle(struct pt_regs *regs, int fault_num)
 {
-	enum ctx_state prev_state = exception_enter();
 	unsigned long *ss_pc = this_cpu_ptr(&ss_saved_pc);
 	struct thread_info *info = (void *)current_thread_info();
 	int is_single_step = test_ti_thread_flag(info, TIF_SINGLESTEP);
@@ -756,7 +754,6 @@ void gx_singlestep_handle(struct pt_regs *regs, int fault_num)
 		__insn_mtspr(SPR_SINGLE_STEP_CONTROL_K, control);
 		send_sigtrap(current, regs);
 	}
-	exception_exit(prev_state);
 }
 
 

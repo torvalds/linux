@@ -101,6 +101,8 @@ enum latency_range {
 
 #define IGBVF_MNG_VLAN_NONE	(-1)
 
+#define IGBVF_MAX_MAC_FILTERS	3
+
 /* Number of packet split data buffers (not including the header buffer) */
 #define PS_PAGE_BUFFERS		(MAX_PS_BUFFERS - 1)
 
@@ -241,7 +243,6 @@ struct igbvf_adapter {
 	/* OS defined structs */
 	struct net_device *netdev;
 	struct pci_dev *pdev;
-	struct net_device_stats net_stats;
 	spinlock_t stats_lock; /* prevent concurrent stats updates */
 
 	/* structs defined in e1000_hw.h */
@@ -287,8 +288,8 @@ struct igbvf_info {
 };
 
 /* hardware capability, feature, and workaround flags */
-#define IGBVF_FLAG_RX_CSUM_DISABLED	(1 << 0)
-#define IGBVF_FLAG_RX_LB_VLAN_BSWAP	(1 << 1)
+#define IGBVF_FLAG_RX_CSUM_DISABLED	BIT(0)
+#define IGBVF_FLAG_RX_LB_VLAN_BSWAP	BIT(1)
 #define IGBVF_RX_DESC_ADV(R, i)     \
 	(&((((R).desc))[i].rx_desc))
 #define IGBVF_TX_DESC_ADV(R, i)     \

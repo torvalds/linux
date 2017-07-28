@@ -67,7 +67,7 @@
 #include <asm/pgtable.h>
 #include <asm/desc.h>
 #include <asm/setup.h>
-#include <asm/e820.h>
+#include <asm/e820/api.h>
 #include <asm/mce.h>
 #include <asm/io.h>
 #include <asm/fpu/api.h>
@@ -497,38 +497,24 @@ static void lguest_cpuid(unsigned int *ax, unsigned int *bx,
  * a whole series of functions like read_cr0() and write_cr0().
  *
  * We start with cr0.  cr0 allows you to turn on and off all kinds of basic
- * features, but Linux only really cares about one: the horrifically-named Task
- * Switched (TS) bit at bit 3 (ie. 8)
+ * features, but the only cr0 bit that Linux ever used at runtime was the
+ * horrifically-named Task Switched (TS) bit at bit 3 (ie. 8)
  *
  * What does the TS bit do?  Well, it causes the CPU to trap (interrupt 7) if
  * the floating point unit is used.  Which allows us to restore FPU state
- * lazily after a task switch, and Linux uses that gratefully, but wouldn't a
- * name like "FPUTRAP bit" be a little less cryptic?
+ * lazily after a task switch if we wanted to, but wouldn't a name like
+ * "FPUTRAP bit" be a little less cryptic?
  *
- * We store cr0 locally because the Host never changes it.  The Guest sometimes
- * wants to read it and we'd prefer not to bother the Host unnecessarily.
+ * Fortunately, Linux keeps it simple and doesn't use TS, so we can ignore
+ * cr0.
  */
-static unsigned long current_cr0;
 static void lguest_write_cr0(unsigned long val)
 {
-	lazy_hcall1(LHCALL_TS, val & X86_CR0_TS);
-	current_cr0 = val;
 }
 
 static unsigned long lguest_read_cr0(void)
 {
-	return current_cr0;
-}
-
-/*
- * Intel provided a special instruction to clear the TS bit for people too cool
- * to use write_cr0() to do it.  This "clts" instruction is faster, because all
- * the vowels have been optimized out.
- */
-static void lguest_clts(void)
-{
-	lazy_hcall1(LHCALL_TS, 0);
-	current_cr0 &= ~X86_CR0_TS;
+	return 0;
 }
 
 /*
@@ -930,7 +916,7 @@ static unsigned long lguest_tsc_khz(void)
  * If we can't use the TSC, the kernel falls back to our lower-priority
  * "lguest_clock", where we read the time value given to us by the Host.
  */
-static cycle_t lguest_clock_read(struct clocksource *cs)
+static u64 lguest_clock_read(struct clocksource *cs)
 {
 	unsigned long sec, nsec;
 
@@ -1008,7 +994,9 @@ static struct clock_event_device lguest_clockevent = {
 	.mult                   = 1,
 	.shift                  = 0,
 	.min_delta_ns           = LG_CLOCK_MIN_DELTA,
+	.min_delta_ticks        = LG_CLOCK_MIN_DELTA,
 	.max_delta_ns           = LG_CLOCK_MAX_DELTA,
+	.max_delta_ticks        = LG_CLOCK_MAX_DELTA,
 };
 
 /*
@@ -1192,9 +1180,9 @@ static __init char *lguest_memory_setup(void)
 	 * The Linux bootloader header contains an "e820" memory map: the
 	 * Launcher populated the first entry with our memory limit.
 	 */
-	e820_add_region(boot_params.e820_map[0].addr,
-			  boot_params.e820_map[0].size,
-			  boot_params.e820_map[0].type);
+	e820__range_add(boot_params.e820_table[0].addr,
+			  boot_params.e820_table[0].size,
+			  boot_params.e820_table[0].type);
 
 	/* This string is for the boot messages. */
 	return "LGUEST";
@@ -1233,8 +1221,6 @@ static void write_bar_via_cfg(u32 cfg_offset, u32 off, u32 val)
 static void probe_pci_console(void)
 {
 	u8 cap, common_cap = 0, device_cap = 0;
-	/* Offset within BAR0 */
-	u32 device_offset;
 	u32 device_len;
 
 	/* Avoid recursive printk into here. */
@@ -1258,24 +1244,16 @@ static void probe_pci_console(void)
 		u8 vndr = read_pci_config_byte(0, 1, 0, cap);
 		if (vndr == PCI_CAP_ID_VNDR) {
 			u8 type, bar;
-			u32 offset, length;
 
 			type = read_pci_config_byte(0, 1, 0,
 			    cap + offsetof(struct virtio_pci_cap, cfg_type));
 			bar = read_pci_config_byte(0, 1, 0,
 			    cap + offsetof(struct virtio_pci_cap, bar));
-			offset = read_pci_config(0, 1, 0,
-			    cap + offsetof(struct virtio_pci_cap, offset));
-			length = read_pci_config(0, 1, 0,
-			    cap + offsetof(struct virtio_pci_cap, length));
 
 			switch (type) {
 			case VIRTIO_PCI_CAP_DEVICE_CFG:
-				if (bar == 0) {
+				if (bar == 0)
 					device_cap = cap;
-					device_offset = offset;
-					device_len = length;
-				}
 				break;
 			case VIRTIO_PCI_CAP_PCI_CFG:
 				console_access_cap = cap;
@@ -1297,13 +1275,16 @@ static void probe_pci_console(void)
 	 * emerg_wr.  If it doesn't support VIRTIO_CONSOLE_F_EMERG_WRITE
 	 * it should ignore the access.
 	 */
+	device_len = read_pci_config(0, 1, 0,
+			device_cap + offsetof(struct virtio_pci_cap, length));
 	if (device_len < (offsetof(struct virtio_console_config, emerg_wr)
 			  + sizeof(u32))) {
 		printk(KERN_ERR "lguest: console missing emerg_wr field\n");
 		return;
 	}
 
-	console_cfg_offset = device_offset;
+	console_cfg_offset = read_pci_config(0, 1, 0,
+			device_cap + offsetof(struct virtio_pci_cap, offset));
 	printk(KERN_INFO "lguest: Console via virtio-pci emerg_wr\n");
 }
 
@@ -1408,8 +1389,6 @@ __init void lguest_init(void)
 {
 	/* We're under lguest. */
 	pv_info.name = "lguest";
-	/* Paravirt is enabled. */
-	pv_info.paravirt_enabled = 1;
 	/* We're running at privilege level 1, not 0 as normal. */
 	pv_info.kernel_rpl = 1;
 	/* Everyone except Xen runs with this set. */
@@ -1441,7 +1420,6 @@ __init void lguest_init(void)
 	pv_cpu_ops.load_tls = lguest_load_tls;
 	pv_cpu_ops.get_debugreg = lguest_get_debugreg;
 	pv_cpu_ops.set_debugreg = lguest_set_debugreg;
-	pv_cpu_ops.clts = lguest_clts;
 	pv_cpu_ops.read_cr0 = lguest_read_cr0;
 	pv_cpu_ops.write_cr0 = lguest_write_cr0;
 	pv_cpu_ops.read_cr4 = lguest_read_cr4;
@@ -1472,7 +1450,6 @@ __init void lguest_init(void)
 	pv_mmu_ops.lazy_mode.leave = lguest_leave_lazy_mmu_mode;
 	pv_mmu_ops.lazy_mode.flush = paravirt_flush_lazy_mmu;
 	pv_mmu_ops.pte_update = lguest_pte_update;
-	pv_mmu_ops.pte_update_defer = lguest_pte_update;
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	/* APIC read/write intercepts */
@@ -1520,12 +1497,6 @@ __init void lguest_init(void)
 	 */
 	reserve_top_address(lguest_data.reserve_mem);
 
-	/*
-	 * If we don't initialize the lock dependency checker now, it crashes
-	 * atomic_notifier_chain_register, then paravirt_disable_iospace.
-	 */
-	lockdep_init();
-
 	/* Hook in our special panic hypercall code. */
 	atomic_notifier_chain_register(&panic_notifier_list, &paniced);
 
@@ -1535,7 +1506,7 @@ __init void lguest_init(void)
 	 */
 	cpu_detect(&new_cpu_data);
 	/* head.S usually sets up the first capability word, so do it here. */
-	new_cpu_data.x86_capability[0] = cpuid_edx(1);
+	new_cpu_data.x86_capability[CPUID_1_EDX] = cpuid_edx(1);
 
 	/* Math is always hard! */
 	set_cpu_cap(&new_cpu_data, X86_FEATURE_FPU);

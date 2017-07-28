@@ -68,7 +68,7 @@
 
 #include <asm/pdc.h>
 #include <asm/page.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/hardware.h>
 
 #define PDCS_VERSION	"0.30"
@@ -954,7 +954,7 @@ static struct attribute *pdcs_subsys_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group pdcs_attr_group = {
+static const struct attribute_group pdcs_attr_group = {
 	.attrs = pdcs_subsys_attrs,
 };
 

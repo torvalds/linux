@@ -34,8 +34,6 @@
 #define DP_MAX_PORTS           USHRT_MAX
 #define DP_VPORT_HASH_BUCKETS  1024
 
-#define SAMPLE_ACTION_DEPTH 3
-
 /**
  * struct dp_stats_percpu - per-cpu packet processing statistics for a given
  * datapath.
@@ -68,6 +66,8 @@ struct dp_stats_percpu {
  * ovs_mutex and RCU.
  * @stats_percpu: Per-CPU datapath statistics.
  * @net: Reference to net namespace.
+ * @max_headroom: the maximum headroom of all vports in this datapath; it will
+ * be used by all the internal vports in this dp.
  *
  * Context: See the comment on locking at the top of datapath.c for additional
  * locking information.
@@ -89,6 +89,8 @@ struct datapath {
 	possible_net_t net;
 
 	u32 user_features;
+
+	u32 max_headroom;
 };
 
 /**
@@ -97,10 +99,12 @@ struct datapath {
  * when a packet is received by OVS.
  * @mru: The maximum received fragement size; 0 if the packet is not
  * fragmented.
+ * @cutlen: The number of bytes from the packet end to be removed.
  */
 struct ovs_skb_cb {
 	struct vport		*input_vport;
 	u16			mru;
+	u32			cutlen;
 };
 #define OVS_CB(skb) ((struct ovs_skb_cb *)(skb)->cb)
 
@@ -138,7 +142,7 @@ struct ovs_net {
 	bool xt_label;
 };
 
-extern int ovs_net_id;
+extern unsigned int ovs_net_id;
 void ovs_lock(void);
 void ovs_unlock(void);
 
@@ -190,7 +194,8 @@ extern struct genl_family dp_vport_genl_family;
 void ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key);
 void ovs_dp_detach_port(struct vport *);
 int ovs_dp_upcall(struct datapath *, struct sk_buff *,
-		  const struct sw_flow_key *, const struct dp_upcall_info *);
+		  const struct sw_flow_key *, const struct dp_upcall_info *,
+		  uint32_t cutlen);
 
 const char *ovs_dp_name(const struct datapath *dp);
 struct sk_buff *ovs_vport_cmd_build_info(struct vport *, u32 pid, u32 seq,

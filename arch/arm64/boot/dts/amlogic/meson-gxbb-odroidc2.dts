@@ -1,0 +1,311 @@
+/*
+ * Copyright (c) 2016 Andreas Färber
+ * Copyright (c) 2016 BayLibre, Inc.
+ * Author: Kevin Hilman <khilman@kernel.org>
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This library is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This library is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/dts-v1/;
+
+#include "meson-gxbb.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	compatible = "hardkernel,odroid-c2", "amlogic,meson-gxbb";
+	model = "Hardkernel ODROID-C2";
+	
+	aliases {
+		serial0 = &uart_AO;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x0 0x0 0x80000000>;
+	};
+
+	usb_otg_pwr: regulator-usb-pwrs {
+		compatible = "regulator-fixed";
+
+		regulator-name = "USB_OTG_PWR";
+
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+
+		gpio = <&gpio_ao GPIOAO_5 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		blue {
+			label = "c2:blue:alive";
+			gpios = <&gpio_ao GPIOAO_13 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "heartbeat";
+			default-state = "off";
+		};
+	};
+
+	tflash_vdd: regulator-tflash_vdd {
+		/*
+		 * signal name from schematics: TFLASH_VDD_EN
+		 */
+		compatible = "regulator-fixed";
+
+		regulator-name = "TFLASH_VDD";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpio = <&gpio GPIOY_12 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	tf_io: gpio-regulator-tf_io {
+		compatible = "regulator-gpio";
+
+		regulator-name = "TF_IO";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+
+		/*
+		 * signal name from schematics: TF_3V3N_1V8_EN
+		 */
+		gpios = <&gpio_ao GPIOAO_3 GPIO_ACTIVE_HIGH>;
+		gpios-states = <0>;
+
+		states = <3300000 0
+			  1800000 1>;
+	};
+
+	vcc1v8: regulator-vcc1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
+	vcc3v3: regulator-vcc3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	emmc_pwrseq: emmc-pwrseq {
+		compatible = "mmc-pwrseq-emmc";
+		reset-gpios = <&gpio BOOT_9 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&ethmac {
+	status = "okay";
+	pinctrl-0 = <&eth_rgmii_pins>;
+	pinctrl-names = "default";
+	phy-handle = <&eth_phy0>;
+	phy-mode = "rgmii";
+
+	snps,reset-gpio = <&gpio GPIOZ_14 0>;
+	snps,reset-delays-us = <0 10000 1000000>;
+	snps,reset-active-low;
+
+	amlogic,tx-delay-ns = <2>;
+
+	mdio {
+		compatible = "snps,dwmac-mdio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		eth_phy0: ethernet-phy@0 {
+			reg = <0>;
+			eee-broken-1000t;
+		};
+	};
+};
+
+&gpio_ao {
+	/*
+	 * WARNING: The USB Hub on the Odroid-C2 needs a reset signal
+	 * to be turned high in order to be detected by the USB Controller
+	 * This signal should be handled by a USB specific power sequence
+	 * in order to reset the Hub when USB bus is powered down.
+	 */
+	usb-hub {
+		gpio-hog;
+		gpios = <GPIOAO_4 GPIO_ACTIVE_HIGH>;
+		output-high;
+		line-name = "usb-hub-reset";
+	};
+};
+
+&i2c_A {
+	status = "okay";
+	pinctrl-0 = <&i2c_a_pins>;
+	pinctrl-names = "default";
+};
+
+&ir {
+	status = "okay";
+	pinctrl-0 = <&remote_input_ao_pins>;
+	pinctrl-names = "default";
+};
+
+&pinctrl_aobus {
+	gpio-line-names = "UART TX", "UART RX", "VCCK En", "TF 3V3/1V8 En",
+			  "USB HUB nRESET", "USB OTG Power En",
+			  "J7 Header Pin2", "IR In", "J7 Header Pin4",
+			  "J7 Header Pin6", "J7 Header Pin5", "J7 Header Pin7",
+			  "HDMI CEC", "SYS LED";
+};
+
+&pinctrl_periphs {
+	gpio-line-names = /* Bank GPIOZ */
+			  "Eth MDIO", "Eth MDC", "Eth RGMII RX Clk",
+			  "Eth RX DV", "Eth RX D0", "Eth RX D1", "Eth RX D2",
+			  "Eth RX D3", "Eth RGMII TX Clk", "Eth TX En",
+			  "Eth TX D0", "Eth TX D1", "Eth TX D2", "Eth TX D3",
+			  "Eth PHY nRESET", "Eth PHY Intc",
+			  /* Bank GPIOH */
+			  "HDMI HPD", "HDMI DDC SDA", "HDMI DDC SCL", "",
+			  /* Bank BOOT */
+			  "eMMC D0", "eMMC D1", "eMMC D2", "eMMC D3", "eMMC D4",
+			  "eMMC D5", "eMMC D6", "eMMC D7", "eMMC Clk",
+			  "eMMC Reset", "eMMC CMD",
+			  "", "", "", "", "", "", "",
+			  /* Bank CARD */
+			  "SDCard D1", "SDCard D0", "SDCard CLK", "SDCard CMD",
+			  "SDCard D3", "SDCard D2", "SDCard Det",
+			  /* Bank GPIODV */
+			  "", "", "", "", "", "", "", "", "", "", "", "", "",
+			  "", "", "", "", "", "", "", "", "", "", "",
+			  "I2C A SDA", "I2C A SCK", "I2C B SDA", "I2C B SCK",
+			  "PWM D", "PWM B",
+			  /* Bank GPIOY */
+			  "Revision Bit0", "Revision Bit1", "",
+			  "J2 Header Pin35", "", "", "", "J2 Header Pin36",
+			  "J2 Header Pin31", "", "", "", "TF VDD En",
+			  "J2 Header Pin32", "J2 Header Pin26", "", "",
+			  /* Bank GPIOX */
+			  "J2 Header Pin29", "J2 Header Pin24",
+			  "J2 Header Pin23", "J2 Header Pin22",
+			  "J2 Header Pin21", "J2 Header Pin18",
+			  "J2 Header Pin33", "J2 Header Pin19",
+			  "J2 Header Pin16", "J2 Header Pin15",
+			  "J2 Header Pin12", "J2 Header Pin13",
+			  "J2 Header Pin8", "J2 Header Pin10",
+			  "", "", "", "", "",
+			  "J2 Header Pin11", "", "J2 Header Pin7",
+			  /* Bank GPIOCLK */
+			  "", "", "", "",
+			  /* GPIO_TEST_N */
+			  "";
+};
+
+&saradc {
+	status = "okay";
+	vref-supply = <&vcc1v8>;
+};
+
+&scpi_clocks {
+	status = "disabled";
+};
+
+/* SD */
+&sd_emmc_b {
+	status = "okay";
+	pinctrl-0 = <&sdcard_pins>;
+	pinctrl-names = "default";
+
+	bus-width = <4>;
+	cap-sd-highspeed;
+	max-frequency = <100000000>;
+	disable-wp;
+
+	cd-gpios = <&gpio CARD_6 GPIO_ACTIVE_HIGH>;
+	cd-inverted;
+
+	vmmc-supply = <&tflash_vdd>;
+	vqmmc-supply = <&tf_io>;
+};
+
+/* eMMC */
+&sd_emmc_c {
+	status = "okay";
+	pinctrl-0 = <&emmc_pins>;
+	pinctrl-names = "default";
+
+	bus-width = <8>;
+	cap-sd-highspeed;
+	max-frequency = <200000000>;
+	non-removable;
+	disable-wp;
+	cap-mmc-highspeed;
+	mmc-ddr-1_8v;
+	mmc-hs200-1_8v;
+
+	mmc-pwrseq = <&emmc_pwrseq>;
+	vmmc-supply = <&vcc3v3>;
+	vqmmc-supply = <&vcc1v8>;
+};
+
+&uart_AO {
+	status = "okay";
+	pinctrl-0 = <&uart_ao_a_pins>;
+	pinctrl-names = "default";
+};
+
+&usb0_phy {
+	status = "okay";
+	phy-supply = <&usb_otg_pwr>;
+};
+
+&usb1_phy {
+	status = "okay";
+};
+
+&usb0 {
+	status = "okay";
+};
+
+&usb1 {
+	status = "okay";
+};

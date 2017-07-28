@@ -11,24 +11,23 @@
  */
 
 #include <linux/module.h>
-#include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/acpi.h>
-#include <linux/gpio.h>
 #include <linux/gpio/driver.h>
+#include <linux/log2.h>
 #include <linux/platform_device.h>
-#include <linux/pm.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinconf-generic.h>
 
+#include "../core.h"
 #include "pinctrl-intel.h"
 
-/* Maximum number of pads in each group */
-#define NPADS_IN_GPP			24
-
 /* Offset from regs */
+#define REVID				0x000
+#define REVID_SHIFT			16
+#define REVID_MASK			GENMASK(31, 16)
+
 #define PADBAR				0x00c
 #define GPI_IS				0x100
 #define GPI_GPE_STS			0x140
@@ -37,6 +36,7 @@
 #define PADOWN_BITS			4
 #define PADOWN_SHIFT(p)			((p) % 8 * PADOWN_BITS)
 #define PADOWN_MASK(p)			(0xf << PADOWN_SHIFT(p))
+#define PADOWN_GPP(p)			((p) / 8)
 
 /* Offset from pad_regs */
 #define PADCFG0				0x000
@@ -46,6 +46,7 @@
 #define PADCFG0_RXEVCFG_EDGE		1
 #define PADCFG0_RXEVCFG_DISABLED	2
 #define PADCFG0_RXEVCFG_EDGE_BOTH	3
+#define PADCFG0_PREGFRXSEL		BIT(24)
 #define PADCFG0_RXINV			BIT(23)
 #define PADCFG0_GPIROUTIOXAPIC		BIT(20)
 #define PADCFG0_GPIROUTSCI		BIT(19)
@@ -67,9 +68,17 @@
 #define PADCFG1_TERM_5K			2
 #define PADCFG1_TERM_1K			1
 
+#define PADCFG2				0x008
+#define PADCFG2_DEBEN			BIT(0)
+#define PADCFG2_DEBOUNCE_SHIFT		1
+#define PADCFG2_DEBOUNCE_MASK		GENMASK(4, 1)
+
+#define DEBOUNCE_PERIOD			31250 /* ns */
+
 struct intel_pad_context {
 	u32 padcfg0;
 	u32 padcfg1;
+	u32 padcfg2;
 };
 
 struct intel_community_context {
@@ -92,10 +101,11 @@ struct intel_pinctrl_context {
  * @communities: All communities in this pin controller
  * @ncommunities: Number of communities in this pin controller
  * @context: Configuration saved over system sleep
+ * @irq: pinctrl/GPIO chip irq number
  */
 struct intel_pinctrl {
 	struct device *dev;
-	spinlock_t lock;
+	raw_spinlock_t lock;
 	struct pinctrl_desc pctldesc;
 	struct pinctrl_dev *pctldev;
 	struct gpio_chip chip;
@@ -103,10 +113,11 @@ struct intel_pinctrl {
 	struct intel_community *communities;
 	size_t ncommunities;
 	struct intel_pinctrl_context context;
+	int irq;
 };
 
-#define gpiochip_to_pinctrl(c)	container_of(c, struct intel_pinctrl, chip)
 #define pin_to_padno(c, p)	((p) - (c)->pin_base)
+#define padgroup_offset(g, p)	((p) - (g)->base)
 
 static struct intel_community *intel_get_community(struct intel_pinctrl *pctrl,
 						   unsigned pin)
@@ -125,24 +136,47 @@ static struct intel_community *intel_get_community(struct intel_pinctrl *pctrl,
 	return NULL;
 }
 
+static const struct intel_padgroup *
+intel_community_get_padgroup(const struct intel_community *community,
+			     unsigned pin)
+{
+	int i;
+
+	for (i = 0; i < community->ngpps; i++) {
+		const struct intel_padgroup *padgrp = &community->gpps[i];
+
+		if (pin >= padgrp->base && pin < padgrp->base + padgrp->size)
+			return padgrp;
+	}
+
+	return NULL;
+}
+
 static void __iomem *intel_get_padcfg(struct intel_pinctrl *pctrl, unsigned pin,
 				      unsigned reg)
 {
 	const struct intel_community *community;
 	unsigned padno;
+	size_t nregs;
 
 	community = intel_get_community(pctrl, pin);
 	if (!community)
 		return NULL;
 
 	padno = pin_to_padno(community, pin);
-	return community->pad_regs + reg + padno * 8;
+	nregs = (community->features & PINCTRL_FEATURE_DEBOUNCE) ? 4 : 2;
+
+	if (reg == PADCFG2 && !(community->features & PINCTRL_FEATURE_DEBOUNCE))
+		return NULL;
+
+	return community->pad_regs + reg + padno * nregs * 4;
 }
 
 static bool intel_pad_owned_by_host(struct intel_pinctrl *pctrl, unsigned pin)
 {
 	const struct intel_community *community;
-	unsigned padno, gpp, gpp_offset, offset;
+	const struct intel_padgroup *padgrp;
+	unsigned gpp, offset, gpp_offset;
 	void __iomem *padown;
 
 	community = intel_get_community(pctrl, pin);
@@ -151,19 +185,23 @@ static bool intel_pad_owned_by_host(struct intel_pinctrl *pctrl, unsigned pin)
 	if (!community->padown_offset)
 		return true;
 
-	padno = pin_to_padno(community, pin);
-	gpp = padno / NPADS_IN_GPP;
-	gpp_offset = padno % NPADS_IN_GPP;
-	offset = community->padown_offset + gpp * 16 + (gpp_offset / 8) * 4;
+	padgrp = intel_community_get_padgroup(community, pin);
+	if (!padgrp)
+		return false;
+
+	gpp_offset = padgroup_offset(padgrp, pin);
+	gpp = PADOWN_GPP(gpp_offset);
+	offset = community->padown_offset + padgrp->padown_num * 4 + gpp * 4;
 	padown = community->regs + offset;
 
-	return !(readl(padown) & PADOWN_MASK(padno));
+	return !(readl(padown) & PADOWN_MASK(gpp_offset));
 }
 
 static bool intel_pad_acpi_mode(struct intel_pinctrl *pctrl, unsigned pin)
 {
 	const struct intel_community *community;
-	unsigned padno, gpp, offset;
+	const struct intel_padgroup *padgrp;
+	unsigned offset, gpp_offset;
 	void __iomem *hostown;
 
 	community = intel_get_community(pctrl, pin);
@@ -172,18 +210,22 @@ static bool intel_pad_acpi_mode(struct intel_pinctrl *pctrl, unsigned pin)
 	if (!community->hostown_offset)
 		return false;
 
-	padno = pin_to_padno(community, pin);
-	gpp = padno / NPADS_IN_GPP;
-	offset = community->hostown_offset + gpp * 4;
+	padgrp = intel_community_get_padgroup(community, pin);
+	if (!padgrp)
+		return true;
+
+	gpp_offset = padgroup_offset(padgrp, pin);
+	offset = community->hostown_offset + padgrp->reg_num * 4;
 	hostown = community->regs + offset;
 
-	return !(readl(hostown) & BIT(padno % NPADS_IN_GPP));
+	return !(readl(hostown) & BIT(gpp_offset));
 }
 
 static bool intel_pad_locked(struct intel_pinctrl *pctrl, unsigned pin)
 {
 	struct intel_community *community;
-	unsigned padno, gpp, offset;
+	const struct intel_padgroup *padgrp;
+	unsigned offset, gpp_offset;
 	u32 value;
 
 	community = intel_get_community(pctrl, pin);
@@ -192,22 +234,25 @@ static bool intel_pad_locked(struct intel_pinctrl *pctrl, unsigned pin)
 	if (!community->padcfglock_offset)
 		return false;
 
-	padno = pin_to_padno(community, pin);
-	gpp = padno / NPADS_IN_GPP;
+	padgrp = intel_community_get_padgroup(community, pin);
+	if (!padgrp)
+		return true;
+
+	gpp_offset = padgroup_offset(padgrp, pin);
 
 	/*
 	 * If PADCFGLOCK and PADCFGLOCKTX bits are both clear for this pad,
 	 * the pad is considered unlocked. Any other case means that it is
 	 * either fully or partially locked and we don't touch it.
 	 */
-	offset = community->padcfglock_offset + gpp * 8;
+	offset = community->padcfglock_offset + padgrp->reg_num * 8;
 	value = readl(community->regs + offset);
-	if (value & BIT(pin % NPADS_IN_GPP))
+	if (value & BIT(gpp_offset))
 		return true;
 
-	offset = community->padcfglock_offset + 4 + gpp * 8;
+	offset = community->padcfglock_offset + 4 + padgrp->reg_num * 8;
 	value = readl(community->regs + offset);
-	if (value & BIT(pin % NPADS_IN_GPP))
+	if (value & BIT(gpp_offset))
 		return true;
 
 	return false;
@@ -248,6 +293,7 @@ static void intel_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 			       unsigned pin)
 {
 	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
+	void __iomem *padcfg;
 	u32 cfg0, cfg1, mode;
 	bool locked, acpi;
 
@@ -266,6 +312,11 @@ static void intel_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 		seq_printf(s, "mode %d ", mode);
 
 	seq_printf(s, "0x%08x 0x%08x", cfg0, cfg1);
+
+	/* Dump the additional PADCFG registers if available */
+	padcfg = intel_get_padcfg(pctrl, pin, PADCFG2);
+	if (padcfg)
+		seq_printf(s, " 0x%08x", readl(padcfg));
 
 	locked = intel_pad_locked(pctrl, pin);
 	acpi = intel_pad_acpi_mode(pctrl, pin);
@@ -325,7 +376,7 @@ static int intel_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned function,
 	unsigned long flags;
 	int i;
 
-	spin_lock_irqsave(&pctrl->lock, flags);
+	raw_spin_lock_irqsave(&pctrl->lock, flags);
 
 	/*
 	 * All pins in the groups needs to be accessible and writable
@@ -333,7 +384,7 @@ static int intel_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned function,
 	 */
 	for (i = 0; i < grp->npins; i++) {
 		if (!intel_pad_usable(pctrl, grp->pins[i])) {
-			spin_unlock_irqrestore(&pctrl->lock, flags);
+			raw_spin_unlock_irqrestore(&pctrl->lock, flags);
 			return -EBUSY;
 		}
 	}
@@ -347,14 +398,33 @@ static int intel_pinmux_set_mux(struct pinctrl_dev *pctldev, unsigned function,
 		value = readl(padcfg0);
 
 		value &= ~PADCFG0_PMODE_MASK;
-		value |= grp->mode << PADCFG0_PMODE_SHIFT;
+
+		if (grp->modes)
+			value |= grp->modes[i] << PADCFG0_PMODE_SHIFT;
+		else
+			value |= grp->mode << PADCFG0_PMODE_SHIFT;
 
 		writel(value, padcfg0);
 	}
 
-	spin_unlock_irqrestore(&pctrl->lock, flags);
+	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
 
 	return 0;
+}
+
+static void __intel_gpio_set_direction(void __iomem *padcfg0, bool input)
+{
+	u32 value;
+
+	value = readl(padcfg0);
+	if (input) {
+		value &= ~PADCFG0_GPIORXDIS;
+		value |= PADCFG0_GPIOTXDIS;
+	} else {
+		value &= ~PADCFG0_GPIOTXDIS;
+		value |= PADCFG0_GPIORXDIS;
+	}
+	writel(value, padcfg0);
 }
 
 static int intel_gpio_request_enable(struct pinctrl_dev *pctldev,
@@ -366,10 +436,10 @@ static int intel_gpio_request_enable(struct pinctrl_dev *pctldev,
 	unsigned long flags;
 	u32 value;
 
-	spin_lock_irqsave(&pctrl->lock, flags);
+	raw_spin_lock_irqsave(&pctrl->lock, flags);
 
 	if (!intel_pad_usable(pctrl, pin)) {
-		spin_unlock_irqrestore(&pctrl->lock, flags);
+		raw_spin_unlock_irqrestore(&pctrl->lock, flags);
 		return -EBUSY;
 	}
 
@@ -379,12 +449,12 @@ static int intel_gpio_request_enable(struct pinctrl_dev *pctldev,
 	/* Disable SCI/SMI/NMI generation */
 	value &= ~(PADCFG0_GPIROUTIOXAPIC | PADCFG0_GPIROUTSCI);
 	value &= ~(PADCFG0_GPIROUTSMI | PADCFG0_GPIROUTNMI);
-	/* Disable TX buffer and enable RX (this will be input) */
-	value &= ~PADCFG0_GPIORXDIS;
-	value |= PADCFG0_GPIOTXDIS;
 	writel(value, padcfg0);
 
-	spin_unlock_irqrestore(&pctrl->lock, flags);
+	/* Disable TX buffer and enable RX (this will be input) */
+	__intel_gpio_set_direction(padcfg0, true);
+
+	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
 
 	return 0;
 }
@@ -396,20 +466,13 @@ static int intel_gpio_set_direction(struct pinctrl_dev *pctldev,
 	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 	void __iomem *padcfg0;
 	unsigned long flags;
-	u32 value;
 
-	spin_lock_irqsave(&pctrl->lock, flags);
+	raw_spin_lock_irqsave(&pctrl->lock, flags);
 
 	padcfg0 = intel_get_padcfg(pctrl, pin, PADCFG0);
+	__intel_gpio_set_direction(padcfg0, input);
 
-	value = readl(padcfg0);
-	if (input)
-		value |= PADCFG0_GPIOTXDIS;
-	else
-		value &= ~PADCFG0_GPIOTXDIS;
-	writel(value, padcfg0);
-
-	spin_unlock_irqrestore(&pctrl->lock, flags);
+	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
 
 	return 0;
 }
@@ -428,12 +491,14 @@ static int intel_config_get(struct pinctrl_dev *pctldev, unsigned pin,
 {
 	struct intel_pinctrl *pctrl = pinctrl_dev_get_drvdata(pctldev);
 	enum pin_config_param param = pinconf_to_config_param(*config);
+	const struct intel_community *community;
 	u32 value, term;
-	u16 arg = 0;
+	u32 arg = 0;
 
 	if (!intel_pad_owned_by_host(pctrl, pin))
 		return -ENOTSUPP;
 
+	community = intel_get_community(pctrl, pin);
 	value = readl(intel_get_padcfg(pctrl, pin, PADCFG1));
 	term = (value & PADCFG1_TERM_MASK) >> PADCFG1_TERM_SHIFT;
 
@@ -469,6 +534,11 @@ static int intel_config_get(struct pinctrl_dev *pctldev, unsigned pin,
 			return -EINVAL;
 
 		switch (term) {
+		case PADCFG1_TERM_1K:
+			if (!(community->features & PINCTRL_FEATURE_1K_PD))
+				return -EINVAL;
+			arg = 1000;
+			break;
 		case PADCFG1_TERM_5K:
 			arg = 5000;
 			break;
@@ -478,6 +548,24 @@ static int intel_config_get(struct pinctrl_dev *pctldev, unsigned pin,
 		}
 
 		break;
+
+	case PIN_CONFIG_INPUT_DEBOUNCE: {
+		void __iomem *padcfg2;
+		u32 v;
+
+		padcfg2 = intel_get_padcfg(pctrl, pin, PADCFG2);
+		if (!padcfg2)
+			return -ENOTSUPP;
+
+		v = readl(padcfg2);
+		if (!(v & PADCFG2_DEBEN))
+			return -EINVAL;
+
+		v = (v & PADCFG2_DEBOUNCE_MASK) >> PADCFG2_DEBOUNCE_SHIFT;
+		arg = BIT(v) * DEBOUNCE_PERIOD / 1000;
+
+		break;
+	}
 
 	default:
 		return -ENOTSUPP;
@@ -492,13 +580,15 @@ static int intel_config_set_pull(struct intel_pinctrl *pctrl, unsigned pin,
 {
 	unsigned param = pinconf_to_config_param(config);
 	unsigned arg = pinconf_to_config_argument(config);
+	const struct intel_community *community;
 	void __iomem *padcfg1;
 	unsigned long flags;
 	int ret = 0;
 	u32 value;
 
-	spin_lock_irqsave(&pctrl->lock, flags);
+	raw_spin_lock_irqsave(&pctrl->lock, flags);
 
+	community = intel_get_community(pctrl, pin);
 	padcfg1 = intel_get_padcfg(pctrl, pin, PADCFG1);
 	value = readl(padcfg1);
 
@@ -541,6 +631,13 @@ static int intel_config_set_pull(struct intel_pinctrl *pctrl, unsigned pin,
 		case 5000:
 			value |= PADCFG1_TERM_5K << PADCFG1_TERM_SHIFT;
 			break;
+		case 1000:
+			if (!(community->features & PINCTRL_FEATURE_1K_PD)) {
+				ret = -EINVAL;
+				break;
+			}
+			value |= PADCFG1_TERM_1K << PADCFG1_TERM_SHIFT;
+			break;
 		default:
 			ret = -EINVAL;
 		}
@@ -551,7 +648,54 @@ static int intel_config_set_pull(struct intel_pinctrl *pctrl, unsigned pin,
 	if (!ret)
 		writel(value, padcfg1);
 
-	spin_unlock_irqrestore(&pctrl->lock, flags);
+	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+
+	return ret;
+}
+
+static int intel_config_set_debounce(struct intel_pinctrl *pctrl, unsigned pin,
+				     unsigned debounce)
+{
+	void __iomem *padcfg0, *padcfg2;
+	unsigned long flags;
+	u32 value0, value2;
+	int ret = 0;
+
+	padcfg2 = intel_get_padcfg(pctrl, pin, PADCFG2);
+	if (!padcfg2)
+		return -ENOTSUPP;
+
+	padcfg0 = intel_get_padcfg(pctrl, pin, PADCFG0);
+
+	raw_spin_lock_irqsave(&pctrl->lock, flags);
+
+	value0 = readl(padcfg0);
+	value2 = readl(padcfg2);
+
+	/* Disable glitch filter and debouncer */
+	value0 &= ~PADCFG0_PREGFRXSEL;
+	value2 &= ~(PADCFG2_DEBEN | PADCFG2_DEBOUNCE_MASK);
+
+	if (debounce) {
+		unsigned long v;
+
+		v = order_base_2(debounce * 1000 / DEBOUNCE_PERIOD);
+		if (v < 3 || v > 15) {
+			ret = -EINVAL;
+			goto exit_unlock;
+		} else {
+			/* Enable glitch filter and debouncer */
+			value0 |= PADCFG0_PREGFRXSEL;
+			value2 |= v << PADCFG2_DEBOUNCE_SHIFT;
+			value2 |= PADCFG2_DEBEN;
+		}
+	}
+
+	writel(value0, padcfg0);
+	writel(value2, padcfg2);
+
+exit_unlock:
+	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
 
 	return ret;
 }
@@ -571,6 +715,13 @@ static int intel_config_set(struct pinctrl_dev *pctldev, unsigned pin,
 		case PIN_CONFIG_BIAS_PULL_UP:
 		case PIN_CONFIG_BIAS_PULL_DOWN:
 			ret = intel_config_set_pull(pctrl, pin, configs[i]);
+			if (ret)
+				return ret;
+			break;
+
+		case PIN_CONFIG_INPUT_DEBOUNCE:
+			ret = intel_config_set_debounce(pctrl, pin,
+				pinconf_to_config_argument(configs[i]));
 			if (ret)
 				return ret;
 			break;
@@ -598,7 +749,7 @@ static const struct pinctrl_desc intel_pinctrl_desc = {
 
 static int intel_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct intel_pinctrl *pctrl = gpiochip_to_pinctrl(chip);
+	struct intel_pinctrl *pctrl = gpiochip_get_data(chip);
 	void __iomem *reg;
 
 	reg = intel_get_padcfg(pctrl, offset, PADCFG0);
@@ -610,7 +761,7 @@ static int intel_gpio_get(struct gpio_chip *chip, unsigned offset)
 
 static void intel_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 {
-	struct intel_pinctrl *pctrl = gpiochip_to_pinctrl(chip);
+	struct intel_pinctrl *pctrl = gpiochip_get_data(chip);
 	void __iomem *reg;
 
 	reg = intel_get_padcfg(pctrl, offset, PADCFG0);
@@ -618,14 +769,14 @@ static void intel_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 		unsigned long flags;
 		u32 padcfg0;
 
-		spin_lock_irqsave(&pctrl->lock, flags);
+		raw_spin_lock_irqsave(&pctrl->lock, flags);
 		padcfg0 = readl(reg);
 		if (value)
 			padcfg0 |= PADCFG0_GPIOTXSTATE;
 		else
 			padcfg0 &= ~PADCFG0_GPIOTXSTATE;
 		writel(padcfg0, reg);
-		spin_unlock_irqrestore(&pctrl->lock, flags);
+		raw_spin_unlock_irqrestore(&pctrl->lock, flags);
 	}
 }
 
@@ -649,57 +800,99 @@ static const struct gpio_chip intel_gpio_chip = {
 	.direction_output = intel_gpio_direction_output,
 	.get = intel_gpio_get,
 	.set = intel_gpio_set,
+	.set_config = gpiochip_generic_config,
 };
 
 static void intel_gpio_irq_ack(struct irq_data *d)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct intel_pinctrl *pctrl = gpiochip_to_pinctrl(gc);
+	struct intel_pinctrl *pctrl = gpiochip_get_data(gc);
 	const struct intel_community *community;
 	unsigned pin = irqd_to_hwirq(d);
 
-	spin_lock(&pctrl->lock);
+	community = intel_get_community(pctrl, pin);
+	if (community) {
+		const struct intel_padgroup *padgrp;
+		unsigned gpp, gpp_offset;
+
+		padgrp = intel_community_get_padgroup(community, pin);
+		if (!padgrp)
+			return;
+
+		gpp = padgrp->reg_num;
+		gpp_offset = padgroup_offset(padgrp, pin);
+
+		raw_spin_lock(&pctrl->lock);
+		writel(BIT(gpp_offset), community->regs + GPI_IS + gpp * 4);
+		raw_spin_unlock(&pctrl->lock);
+	}
+}
+
+static void intel_gpio_irq_enable(struct irq_data *d)
+{
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	struct intel_pinctrl *pctrl = gpiochip_get_data(gc);
+	const struct intel_community *community;
+	unsigned pin = irqd_to_hwirq(d);
 
 	community = intel_get_community(pctrl, pin);
 	if (community) {
-		unsigned padno = pin_to_padno(community, pin);
-		unsigned gpp_offset = padno % NPADS_IN_GPP;
-		unsigned gpp = padno / NPADS_IN_GPP;
+		const struct intel_padgroup *padgrp;
+		unsigned gpp, gpp_offset;
+		unsigned long flags;
+		u32 value;
 
+		padgrp = intel_community_get_padgroup(community, pin);
+		if (!padgrp)
+			return;
+
+		gpp = padgrp->reg_num;
+		gpp_offset = padgroup_offset(padgrp, pin);
+
+		raw_spin_lock_irqsave(&pctrl->lock, flags);
+		/* Clear interrupt status first to avoid unexpected interrupt */
 		writel(BIT(gpp_offset), community->regs + GPI_IS + gpp * 4);
-	}
 
-	spin_unlock(&pctrl->lock);
+		value = readl(community->regs + community->ie_offset + gpp * 4);
+		value |= BIT(gpp_offset);
+		writel(value, community->regs + community->ie_offset + gpp * 4);
+		raw_spin_unlock_irqrestore(&pctrl->lock, flags);
+	}
 }
 
 static void intel_gpio_irq_mask_unmask(struct irq_data *d, bool mask)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct intel_pinctrl *pctrl = gpiochip_to_pinctrl(gc);
+	struct intel_pinctrl *pctrl = gpiochip_get_data(gc);
 	const struct intel_community *community;
 	unsigned pin = irqd_to_hwirq(d);
-	unsigned long flags;
-
-	spin_lock_irqsave(&pctrl->lock, flags);
 
 	community = intel_get_community(pctrl, pin);
 	if (community) {
-		unsigned padno = pin_to_padno(community, pin);
-		unsigned gpp_offset = padno % NPADS_IN_GPP;
-		unsigned gpp = padno / NPADS_IN_GPP;
+		const struct intel_padgroup *padgrp;
+		unsigned gpp, gpp_offset;
+		unsigned long flags;
 		void __iomem *reg;
 		u32 value;
 
+		padgrp = intel_community_get_padgroup(community, pin);
+		if (!padgrp)
+			return;
+
+		gpp = padgrp->reg_num;
+		gpp_offset = padgroup_offset(padgrp, pin);
+
 		reg = community->regs + community->ie_offset + gpp * 4;
+
+		raw_spin_lock_irqsave(&pctrl->lock, flags);
 		value = readl(reg);
 		if (mask)
 			value &= ~BIT(gpp_offset);
 		else
 			value |= BIT(gpp_offset);
 		writel(value, reg);
+		raw_spin_unlock_irqrestore(&pctrl->lock, flags);
 	}
-
-	spin_unlock_irqrestore(&pctrl->lock, flags);
 }
 
 static void intel_gpio_irq_mask(struct irq_data *d)
@@ -715,7 +908,7 @@ static void intel_gpio_irq_unmask(struct irq_data *d)
 static int intel_gpio_irq_type(struct irq_data *d, unsigned type)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct intel_pinctrl *pctrl = gpiochip_to_pinctrl(gc);
+	struct intel_pinctrl *pctrl = gpiochip_get_data(gc);
 	unsigned pin = irqd_to_hwirq(d);
 	unsigned long flags;
 	void __iomem *reg;
@@ -735,7 +928,7 @@ static int intel_gpio_irq_type(struct irq_data *d, unsigned type)
 		return -EPERM;
 	}
 
-	spin_lock_irqsave(&pctrl->lock, flags);
+	raw_spin_lock_irqsave(&pctrl->lock, flags);
 
 	value = readl(reg);
 
@@ -748,8 +941,9 @@ static int intel_gpio_irq_type(struct irq_data *d, unsigned type)
 		value |= PADCFG0_RXINV;
 	} else if (type & IRQ_TYPE_EDGE_RISING) {
 		value |= PADCFG0_RXEVCFG_EDGE << PADCFG0_RXEVCFG_SHIFT;
-	} else if (type & IRQ_TYPE_LEVEL_LOW) {
-		value |= PADCFG0_RXINV;
+	} else if (type & IRQ_TYPE_LEVEL_MASK) {
+		if (type & IRQ_TYPE_LEVEL_LOW)
+			value |= PADCFG0_RXINV;
 	} else {
 		value |= PADCFG0_RXEVCFG_DISABLED << PADCFG0_RXEVCFG_SHIFT;
 	}
@@ -761,7 +955,7 @@ static int intel_gpio_irq_type(struct irq_data *d, unsigned type)
 	else if (type & IRQ_TYPE_LEVEL_MASK)
 		irq_set_handler_locked(d, handle_level_irq);
 
-	spin_unlock_irqrestore(&pctrl->lock, flags);
+	raw_spin_unlock_irqrestore(&pctrl->lock, flags);
 
 	return 0;
 }
@@ -769,34 +963,13 @@ static int intel_gpio_irq_type(struct irq_data *d, unsigned type)
 static int intel_gpio_irq_wake(struct irq_data *d, unsigned int on)
 {
 	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
-	struct intel_pinctrl *pctrl = gpiochip_to_pinctrl(gc);
-	const struct intel_community *community;
+	struct intel_pinctrl *pctrl = gpiochip_get_data(gc);
 	unsigned pin = irqd_to_hwirq(d);
-	unsigned padno, gpp, gpp_offset;
-	u32 gpe_en;
 
-	community = intel_get_community(pctrl, pin);
-	if (!community)
-		return -EINVAL;
-
-	padno = pin_to_padno(community, pin);
-	gpp = padno / NPADS_IN_GPP;
-	gpp_offset = padno % NPADS_IN_GPP;
-
-	/* Clear the existing wake status */
-	writel(BIT(gpp_offset), community->regs + GPI_GPE_STS + gpp * 4);
-
-	/*
-	 * The controller will generate wake when GPE of the corresponding
-	 * pad is enabled and it is not routed to SCI (GPIROUTSCI is not
-	 * set).
-	 */
-	gpe_en = readl(community->regs + GPI_GPE_EN + gpp * 4);
 	if (on)
-		gpe_en |= BIT(gpp_offset);
+		enable_irq_wake(pctrl->irq);
 	else
-		gpe_en &= ~BIT(gpp_offset);
-	writel(gpe_en, community->regs + GPI_GPE_EN + gpp * 4);
+		disable_irq_wake(pctrl->irq);
 
 	dev_dbg(pctrl->dev, "%sable wake for pin %u\n", on ? "en" : "dis", pin);
 	return 0;
@@ -810,23 +983,20 @@ static irqreturn_t intel_gpio_community_irq_handler(struct intel_pinctrl *pctrl,
 	int gpp;
 
 	for (gpp = 0; gpp < community->ngpps; gpp++) {
+		const struct intel_padgroup *padgrp = &community->gpps[gpp];
 		unsigned long pending, enabled, gpp_offset;
 
-		pending = readl(community->regs + GPI_IS + gpp * 4);
+		pending = readl(community->regs + GPI_IS + padgrp->reg_num * 4);
 		enabled = readl(community->regs + community->ie_offset +
-				gpp * 4);
+				padgrp->reg_num * 4);
 
 		/* Only interrupts that are enabled */
 		pending &= enabled;
 
-		for_each_set_bit(gpp_offset, &pending, NPADS_IN_GPP) {
+		for_each_set_bit(gpp_offset, &pending, padgrp->size) {
 			unsigned padno, irq;
 
-			/*
-			 * The last group in community can have less pins
-			 * than NPADS_IN_GPP.
-			 */
-			padno = gpp_offset + gpp * NPADS_IN_GPP;
+			padno = padgrp->base - community->pin_base + gpp_offset;
 			if (padno >= community->npins)
 				break;
 
@@ -859,6 +1029,7 @@ static irqreturn_t intel_gpio_irq(int irq, void *data)
 
 static struct irq_chip intel_gpio_irqchip = {
 	.name = "intel-gpio",
+	.irq_enable = intel_gpio_irq_enable,
 	.irq_ack = intel_gpio_irq_ack,
 	.irq_mask = intel_gpio_irq_mask,
 	.irq_unmask = intel_gpio_irq_unmask,
@@ -874,10 +1045,11 @@ static int intel_gpio_probe(struct intel_pinctrl *pctrl, int irq)
 
 	pctrl->chip.ngpio = pctrl->soc->npins;
 	pctrl->chip.label = dev_name(pctrl->dev);
-	pctrl->chip.dev = pctrl->dev;
+	pctrl->chip.parent = pctrl->dev;
 	pctrl->chip.base = -1;
+	pctrl->irq = irq;
 
-	ret = gpiochip_add(&pctrl->chip);
+	ret = devm_gpiochip_add_data(pctrl->dev, &pctrl->chip, pctrl);
 	if (ret) {
 		dev_err(pctrl->dev, "failed to register gpiochip\n");
 		return ret;
@@ -887,7 +1059,7 @@ static int intel_gpio_probe(struct intel_pinctrl *pctrl, int irq)
 				     0, 0, pctrl->soc->npins);
 	if (ret) {
 		dev_err(pctrl->dev, "failed to add GPIO pin range\n");
-		goto fail;
+		return ret;
 	}
 
 	/*
@@ -895,28 +1067,74 @@ static int intel_gpio_probe(struct intel_pinctrl *pctrl, int irq)
 	 * to the irq directly) because on some platforms several GPIO
 	 * controllers share the same interrupt line.
 	 */
-	ret = devm_request_irq(pctrl->dev, irq, intel_gpio_irq, IRQF_SHARED,
+	ret = devm_request_irq(pctrl->dev, irq, intel_gpio_irq,
+			       IRQF_SHARED | IRQF_NO_THREAD,
 			       dev_name(pctrl->dev), pctrl);
 	if (ret) {
 		dev_err(pctrl->dev, "failed to request interrupt\n");
-		goto fail;
+		return ret;
 	}
 
 	ret = gpiochip_irqchip_add(&pctrl->chip, &intel_gpio_irqchip, 0,
-				   handle_simple_irq, IRQ_TYPE_NONE);
+				   handle_bad_irq, IRQ_TYPE_NONE);
 	if (ret) {
 		dev_err(pctrl->dev, "failed to add irqchip\n");
-		goto fail;
+		return ret;
 	}
 
 	gpiochip_set_chained_irqchip(&pctrl->chip, &intel_gpio_irqchip, irq,
 				     NULL);
 	return 0;
+}
 
-fail:
-	gpiochip_remove(&pctrl->chip);
+static int intel_pinctrl_add_padgroups(struct intel_pinctrl *pctrl,
+				       struct intel_community *community)
+{
+	struct intel_padgroup *gpps;
+	unsigned npins = community->npins;
+	unsigned padown_num = 0;
+	size_t ngpps, i;
 
-	return ret;
+	if (community->gpps)
+		ngpps = community->ngpps;
+	else
+		ngpps = DIV_ROUND_UP(community->npins, community->gpp_size);
+
+	gpps = devm_kcalloc(pctrl->dev, ngpps, sizeof(*gpps), GFP_KERNEL);
+	if (!gpps)
+		return -ENOMEM;
+
+	for (i = 0; i < ngpps; i++) {
+		if (community->gpps) {
+			gpps[i] = community->gpps[i];
+		} else {
+			unsigned gpp_size = community->gpp_size;
+
+			gpps[i].reg_num = i;
+			gpps[i].base = community->pin_base + i * gpp_size;
+			gpps[i].size = min(gpp_size, npins);
+			npins -= gpps[i].size;
+		}
+
+		if (gpps[i].size > 32)
+			return -EINVAL;
+
+		gpps[i].padown_num = padown_num;
+
+		/*
+		 * In older hardware the number of padown registers per
+		 * group is fixed regardless of the group size.
+		 */
+		if (community->gpp_num_padown_regs)
+			padown_num += community->gpp_num_padown_regs;
+		else
+			padown_num += DIV_ROUND_UP(gpps[i].size * 4, 32);
+	}
+
+	community->ngpps = ngpps;
+	community->gpps = gpps;
+
+	return 0;
 }
 
 static int intel_pinctrl_pm_init(struct intel_pinctrl *pctrl)
@@ -971,7 +1189,7 @@ int intel_pinctrl_probe(struct platform_device *pdev,
 
 	pctrl->dev = &pdev->dev;
 	pctrl->soc = soc_data;
-	spin_lock_init(&pctrl->lock);
+	raw_spin_lock_init(&pctrl->lock);
 
 	/*
 	 * Make a copy of the communities which we can use to hold pointers
@@ -997,12 +1215,29 @@ int intel_pinctrl_probe(struct platform_device *pdev,
 		if (IS_ERR(regs))
 			return PTR_ERR(regs);
 
+		/*
+		 * Determine community features based on the revision if
+		 * not specified already.
+		 */
+		if (!community->features) {
+			u32 rev;
+
+			rev = (readl(regs + REVID) & REVID_MASK) >> REVID_SHIFT;
+			if (rev >= 0x94) {
+				community->features |= PINCTRL_FEATURE_DEBOUNCE;
+				community->features |= PINCTRL_FEATURE_1K_PD;
+			}
+		}
+
 		/* Read offset of the pad configuration registers */
 		padbar = readl(regs + PADBAR);
 
 		community->regs = regs;
 		community->pad_regs = regs + padbar;
-		community->ngpps = DIV_ROUND_UP(community->npins, NPADS_IN_GPP);
+
+		ret = intel_pinctrl_add_padgroups(pctrl, community);
+		if (ret)
+			return ret;
 	}
 
 	irq = platform_get_irq(pdev, 0);
@@ -1020,17 +1255,16 @@ int intel_pinctrl_probe(struct platform_device *pdev,
 	pctrl->pctldesc.pins = pctrl->soc->pins;
 	pctrl->pctldesc.npins = pctrl->soc->npins;
 
-	pctrl->pctldev = pinctrl_register(&pctrl->pctldesc, &pdev->dev, pctrl);
+	pctrl->pctldev = devm_pinctrl_register(&pdev->dev, &pctrl->pctldesc,
+					       pctrl);
 	if (IS_ERR(pctrl->pctldev)) {
 		dev_err(&pdev->dev, "failed to register pinctrl driver\n");
 		return PTR_ERR(pctrl->pctldev);
 	}
 
 	ret = intel_gpio_probe(pctrl, irq);
-	if (ret) {
-		pinctrl_unregister(pctrl->pctldev);
+	if (ret)
 		return ret;
-	}
 
 	platform_set_drvdata(pdev, pctrl);
 
@@ -1038,18 +1272,27 @@ int intel_pinctrl_probe(struct platform_device *pdev,
 }
 EXPORT_SYMBOL_GPL(intel_pinctrl_probe);
 
-int intel_pinctrl_remove(struct platform_device *pdev)
-{
-	struct intel_pinctrl *pctrl = platform_get_drvdata(pdev);
-
-	gpiochip_remove(&pctrl->chip);
-	pinctrl_unregister(pctrl->pctldev);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(intel_pinctrl_remove);
-
 #ifdef CONFIG_PM_SLEEP
+static bool intel_pinctrl_should_save(struct intel_pinctrl *pctrl, unsigned pin)
+{
+	const struct pin_desc *pd = pin_desc_get(pctrl->pctldev, pin);
+
+	if (!pd || !intel_pad_usable(pctrl, pin))
+		return false;
+
+	/*
+	 * Only restore the pin if it is actually in use by the kernel (or
+	 * by userspace). It is possible that some pins are used by the
+	 * BIOS during resume and those are not always locked down so leave
+	 * them alone.
+	 */
+	if (pd->mux_owner || pd->gpio_owner ||
+	    gpiochip_line_is_irq(&pctrl->chip, pin))
+		return true;
+
+	return false;
+}
+
 int intel_pinctrl_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -1061,15 +1304,20 @@ int intel_pinctrl_suspend(struct device *dev)
 	pads = pctrl->context.pads;
 	for (i = 0; i < pctrl->soc->npins; i++) {
 		const struct pinctrl_pin_desc *desc = &pctrl->soc->pins[i];
+		void __iomem *padcfg;
 		u32 val;
 
-		if (!intel_pad_usable(pctrl, desc->number))
+		if (!intel_pinctrl_should_save(pctrl, desc->number))
 			continue;
 
 		val = readl(intel_get_padcfg(pctrl, desc->number, PADCFG0));
 		pads[i].padcfg0 = val & ~PADCFG0_GPIORXSTATE;
 		val = readl(intel_get_padcfg(pctrl, desc->number, PADCFG1));
 		pads[i].padcfg1 = val;
+
+		padcfg = intel_get_padcfg(pctrl, desc->number, PADCFG2);
+		if (padcfg)
+			pads[i].padcfg2 = readl(padcfg);
 	}
 
 	communities = pctrl->context.communities;
@@ -1124,7 +1372,7 @@ int intel_pinctrl_resume(struct device *dev)
 		void __iomem *padcfg;
 		u32 val;
 
-		if (!intel_pad_usable(pctrl, desc->number))
+		if (!intel_pinctrl_should_save(pctrl, desc->number))
 			continue;
 
 		padcfg = intel_get_padcfg(pctrl, desc->number, PADCFG0);
@@ -1141,6 +1389,16 @@ int intel_pinctrl_resume(struct device *dev)
 			writel(pads[i].padcfg1, padcfg);
 			dev_dbg(dev, "restored pin %u padcfg1 %#08x\n",
 				desc->number, readl(padcfg));
+		}
+
+		padcfg = intel_get_padcfg(pctrl, desc->number, PADCFG2);
+		if (padcfg) {
+			val = readl(padcfg);
+			if (val != pads[i].padcfg2) {
+				writel(pads[i].padcfg2, padcfg);
+				dev_dbg(dev, "restored pin %u padcfg2 %#08x\n",
+					desc->number, readl(padcfg));
+			}
 		}
 	}
 

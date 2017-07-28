@@ -1,8 +1,8 @@
-#include <linux/module.h>
+#include <linux/export.h>
 
 #include "libgcc.h"
 
-word_type __cmpdi2(long long a, long long b)
+word_type notrace __cmpdi2(long long a, long long b)
 {
 	const DWunion au = {
 		.ll = a

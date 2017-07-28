@@ -1,5 +1,5 @@
-/* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+/* Intel(R) Ethernet Switch Host Interface Driver
+ * Copyright(c) 2013 - 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -29,7 +29,6 @@ enum fm10k_vf_tlv_msg_id {
 	FM10K_VF_MSG_ID_MSIX,
 	FM10K_VF_MSG_ID_MAC_VLAN,
 	FM10K_VF_MSG_ID_LPORT_STATE,
-	FM10K_VF_MSG_ID_1588,
 	FM10K_VF_MSG_ID_MAX,
 };
 
@@ -49,11 +48,6 @@ enum fm10k_tlv_lport_state_attr_id {
 	FM10K_LPORT_STATE_MSG_MAX
 };
 
-enum fm10k_tlv_1588_attr_id {
-	FM10K_1588_MSG_TIMESTAMP,
-	FM10K_1588_MSG_MAX
-};
-
 #define FM10K_VF_MSG_MSIX_HANDLER(func) \
 	 FM10K_MSG_HANDLER(FM10K_VF_MSG_ID_MSIX, NULL, func)
 
@@ -70,9 +64,5 @@ extern const struct fm10k_tlv_attr fm10k_lport_state_msg_attr[];
 	FM10K_MSG_HANDLER(FM10K_VF_MSG_ID_LPORT_STATE, \
 			  fm10k_lport_state_msg_attr, func)
 
-extern const struct fm10k_tlv_attr fm10k_1588_msg_attr[];
-#define FM10K_VF_MSG_1588_HANDLER(func) \
-	FM10K_MSG_HANDLER(FM10K_VF_MSG_ID_1588, fm10k_1588_msg_attr, func)
-
-extern struct fm10k_info fm10k_vf_info;
+extern const struct fm10k_info fm10k_vf_info;
 #endif /* _FM10K_VF_H */

@@ -80,14 +80,14 @@ static void __comedi_buf_free(struct comedi_device *dev,
 
 static void __comedi_buf_alloc(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
-			       unsigned n_pages)
+			       unsigned int n_pages)
 {
 	struct comedi_async *async = s->async;
 	struct page **pages = NULL;
 	struct comedi_buf_map *bm;
 	struct comedi_buf_page *buf;
 	unsigned long flags;
-	unsigned i;
+	unsigned int i;
 
 	if (!IS_ENABLED(CONFIG_HAS_DMA) && s->async_dma_dir != DMA_NONE) {
 		dev_err(dev->class_dev,
@@ -161,6 +161,30 @@ int comedi_buf_map_put(struct comedi_buf_map *bm)
 	return 1;
 }
 
+/* helper for "access" vm operation */
+int comedi_buf_map_access(struct comedi_buf_map *bm, unsigned long offset,
+			  void *buf, int len, int write)
+{
+	unsigned int pgoff = offset & ~PAGE_MASK;
+	unsigned long pg = offset >> PAGE_SHIFT;
+	int done = 0;
+
+	while (done < len && pg < bm->n_pages) {
+		int l = min_t(int, len - done, PAGE_SIZE - pgoff);
+		void *b = bm->page_list[pg].virt_addr + pgoff;
+
+		if (write)
+			memcpy(b, buf, l);
+		else
+			memcpy(buf, b, l);
+		buf += l;
+		done += l;
+		pg++;
+		pgoff = 0;
+	}
+	return done;
+}
+
 /* returns s->async->buf_map and increments its kref refcount */
 struct comedi_buf_map *
 comedi_buf_map_from_subdev_get(struct comedi_subdevice *s)
@@ -188,7 +212,7 @@ bool comedi_buf_is_mmapped(struct comedi_subdevice *s)
 {
 	struct comedi_buf_map *bm = s->async->buf_map;
 
-	return bm && (atomic_read(&bm->refcount.refcount) > 1);
+	return bm && (kref_read(&bm->refcount) > 1);
 }
 
 int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
@@ -208,7 +232,7 @@ int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	/* allocate new buffer */
 	if (new_size) {
-		unsigned n_pages = new_size >> PAGE_SHIFT;
+		unsigned int n_pages = new_size >> PAGE_SHIFT;
 
 		__comedi_buf_alloc(dev, s, n_pages);
 
@@ -302,7 +326,7 @@ static unsigned int comedi_buf_munge(struct comedi_subdevice *s,
 {
 	struct comedi_async *async = s->async;
 	unsigned int count = 0;
-	const unsigned num_sample_bytes = comedi_bytes_per_sample(s);
+	const unsigned int num_sample_bytes = comedi_bytes_per_sample(s);
 
 	if (!s->munge || (async->cmd.flags & CMDF_RAWDATA)) {
 		async->munge_count += num_bytes;
@@ -395,7 +419,7 @@ EXPORT_SYMBOL_GPL(comedi_buf_write_free);
 unsigned int comedi_buf_read_n_available(struct comedi_subdevice *s)
 {
 	struct comedi_async *async = s->async;
-	unsigned num_bytes;
+	unsigned int num_bytes;
 
 	if (!async)
 		return 0;

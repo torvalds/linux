@@ -12,6 +12,8 @@
 #include <string.h>
 #include <time.h>
 #include <linux/bpf.h>
+#include <sys/resource.h>
+
 #include "libbpf.h"
 #include "bpf_load.h"
 
@@ -37,8 +39,8 @@ static void print_old_objects(int fd)
 	key = write(1, "\e[1;1H\e[2J", 12); /* clear screen */
 
 	key = -1;
-	while (bpf_get_next_key(map_fd[0], &key, &next_key) == 0) {
-		bpf_lookup_elem(map_fd[0], &next_key, &v);
+	while (bpf_map_get_next_key(map_fd[0], &key, &next_key) == 0) {
+		bpf_map_lookup_elem(map_fd[0], &next_key, &v);
 		key = next_key;
 		if (val - v.val < 1000000000ll)
 			/* object was allocated more then 1 sec ago */
@@ -50,10 +52,16 @@ static void print_old_objects(int fd)
 
 int main(int ac, char **argv)
 {
+	struct rlimit r = {RLIM_INFINITY, RLIM_INFINITY};
 	char filename[256];
 	int i;
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
+
+	if (setrlimit(RLIMIT_MEMLOCK, &r)) {
+		perror("setrlimit(RLIMIT_MEMLOCK, RLIM_INFINITY)");
+		return 1;
+	}
 
 	if (load_bpf_file(filename)) {
 		printf("%s", bpf_log_buf);

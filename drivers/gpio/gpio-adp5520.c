@@ -27,7 +27,7 @@ static int adp5520_gpio_get_value(struct gpio_chip *chip, unsigned off)
 	struct adp5520_gpio *dev;
 	uint8_t reg_val;
 
-	dev = container_of(chip, struct adp5520_gpio, gpio_chip);
+	dev = gpiochip_get_data(chip);
 
 	/*
 	 * There are dedicated registers for GPIO IN/OUT.
@@ -46,7 +46,7 @@ static void adp5520_gpio_set_value(struct gpio_chip *chip,
 		unsigned off, int val)
 {
 	struct adp5520_gpio *dev;
-	dev = container_of(chip, struct adp5520_gpio, gpio_chip);
+	dev = gpiochip_get_data(chip);
 
 	if (val)
 		adp5520_set_bits(dev->master, ADP5520_GPIO_OUT, dev->lut[off]);
@@ -57,7 +57,7 @@ static void adp5520_gpio_set_value(struct gpio_chip *chip,
 static int adp5520_gpio_direction_input(struct gpio_chip *chip, unsigned off)
 {
 	struct adp5520_gpio *dev;
-	dev = container_of(chip, struct adp5520_gpio, gpio_chip);
+	dev = gpiochip_get_data(chip);
 
 	clear_bit(off, &dev->output);
 
@@ -70,7 +70,7 @@ static int adp5520_gpio_direction_output(struct gpio_chip *chip,
 {
 	struct adp5520_gpio *dev;
 	int ret = 0;
-	dev = container_of(chip, struct adp5520_gpio, gpio_chip);
+	dev = gpiochip_get_data(chip);
 
 	set_bit(off, &dev->output);
 
@@ -153,7 +153,7 @@ static int adp5520_gpio_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	ret = gpiochip_add(&dev->gpio_chip);
+	ret = devm_gpiochip_add_data(&pdev->dev, &dev->gpio_chip, dev);
 	if (ret)
 		goto err;
 
@@ -164,22 +164,11 @@ err:
 	return ret;
 }
 
-static int adp5520_gpio_remove(struct platform_device *pdev)
-{
-	struct adp5520_gpio *dev;
-
-	dev = platform_get_drvdata(pdev);
-	gpiochip_remove(&dev->gpio_chip);
-
-	return 0;
-}
-
 static struct platform_driver adp5520_gpio_driver = {
 	.driver	= {
 		.name	= "adp5520-gpio",
 	},
 	.probe		= adp5520_gpio_probe,
-	.remove		= adp5520_gpio_remove,
 };
 
 module_platform_driver(adp5520_gpio_driver);

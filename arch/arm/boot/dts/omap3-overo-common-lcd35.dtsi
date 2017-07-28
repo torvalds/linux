@@ -119,7 +119,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcspi1_pins>;
 
-	lcd0: display@0 {
+	lcd0: display@1 {
 		compatible = "lgphilips,lb035q02";
 		label = "lcd35";
 
@@ -161,6 +161,6 @@
 		ti,x-plate-ohms = /bits/ 16 <180>;
 		ti,pressure-max = /bits/ 16 <255>;
 
-		linux,wakeup;
+		wakeup-source;
 	};
 };

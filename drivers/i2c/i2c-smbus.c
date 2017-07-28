@@ -15,14 +15,14 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/device.h>
-#include <linux/interrupt.h>
-#include <linux/workqueue.h>
 #include <linux/i2c.h>
 #include <linux/i2c-smbus.h>
+#include <linux/interrupt.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/workqueue.h>
 
 struct i2c_smbus_alert {
 	unsigned int		alert_edge_triggered:1;
@@ -33,7 +33,8 @@ struct i2c_smbus_alert {
 
 struct alert_data {
 	unsigned short		addr;
-	u8			flag:1;
+	enum i2c_alert_protocol	type;
+	unsigned int		data;
 };
 
 /* If this is the alerting device, notify its driver */
@@ -56,7 +57,7 @@ static int smbus_do_alert(struct device *dev, void *addrp)
 	if (client->dev.driver) {
 		driver = to_i2c_driver(client->dev.driver);
 		if (driver->alert)
-			driver->alert(client, data->flag);
+			driver->alert(client, data->type, data->data);
 		else
 			dev_warn(&client->dev, "no driver alert()!\n");
 	} else
@@ -96,8 +97,9 @@ static void smbus_alert(struct work_struct *work)
 		if (status < 0)
 			break;
 
-		data.flag = status & 1;
+		data.data = status & 1;
 		data.addr = status >> 1;
+		data.type = I2C_PROTOCOL_SMBUS_ALERT;
 
 		if (data.addr == prev_addr) {
 			dev_warn(&ara->dev, "Duplicate SMBALERT# from dev "
@@ -105,7 +107,7 @@ static void smbus_alert(struct work_struct *work)
 			break;
 		}
 		dev_dbg(&ara->dev, "SMBALERT# from dev 0x%02x, flag %d\n",
-			data.addr, data.flag);
+			data.addr, data.data);
 
 		/* Notify driver for the device which issued the alert */
 		device_for_each_child(&ara->adapter->dev, &data,

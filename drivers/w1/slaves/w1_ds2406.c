@@ -17,13 +17,9 @@
 #include <linux/slab.h>
 #include <linux/crc16.h>
 
-#include "../w1.h"
-#include "../w1_int.h"
-#include "../w1_family.h"
+#include <linux/w1.h>
 
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Scott Alfter <scott@alfter.us>");
-MODULE_DESCRIPTION("w1 family 12 driver for DS2406 2 Pin IO");
+#define W1_FAMILY_DS2406	0x12
 
 #define W1_F12_FUNC_READ_STATUS		   0xAA
 #define W1_F12_FUNC_WRITE_STATUS	   0x55
@@ -153,16 +149,8 @@ static struct w1_family w1_family_12 = {
 	.fid = W1_FAMILY_DS2406,
 	.fops = &w1_f12_fops,
 };
+module_w1_family(w1_family_12);
 
-static int __init w1_f12_init(void)
-{
-	return w1_register_family(&w1_family_12);
-}
-
-static void __exit w1_f12_exit(void)
-{
-	w1_unregister_family(&w1_family_12);
-}
-
-module_init(w1_f12_init);
-module_exit(w1_f12_exit);
+MODULE_AUTHOR("Scott Alfter <scott@alfter.us>");
+MODULE_DESCRIPTION("w1 family 12 driver for DS2406 2 Pin IO");
+MODULE_LICENSE("GPL");

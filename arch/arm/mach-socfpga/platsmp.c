@@ -40,7 +40,7 @@ static int socfpga_boot_secondary(unsigned int cpu, struct task_struct *idle)
 
 		memcpy(phys_to_virt(0), &secondary_trampoline, trampoline_size);
 
-		writel(virt_to_phys(secondary_startup),
+		writel(__pa_symbol(secondary_startup),
 		       sys_manager_base_addr + (socfpga_cpu1start_addr & 0x000000ff));
 
 		flush_cache_all();
@@ -63,7 +63,7 @@ static int socfpga_a10_boot_secondary(unsigned int cpu, struct task_struct *idle
 		       SOCFPGA_A10_RSTMGR_MODMPURST);
 		memcpy(phys_to_virt(0), &secondary_trampoline, trampoline_size);
 
-		writel(virt_to_phys(secondary_startup),
+		writel(__pa_symbol(secondary_startup),
 		       sys_manager_base_addr + (socfpga_cpu1start_addr & 0x00000fff));
 
 		flush_cache_all();
@@ -94,6 +94,7 @@ static void __init socfpga_smp_prepare_cpus(unsigned int max_cpus)
 	scu_enable(socfpga_scu_base_addr);
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
 /*
  * platform-specific code to shutdown a CPU
  *
@@ -116,8 +117,9 @@ static int socfpga_cpu_kill(unsigned int cpu)
 {
 	return 1;
 }
+#endif
 
-static struct smp_operations socfpga_smp_ops __initdata = {
+static const struct smp_operations socfpga_smp_ops __initconst = {
 	.smp_prepare_cpus	= socfpga_smp_prepare_cpus,
 	.smp_boot_secondary	= socfpga_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
@@ -126,7 +128,7 @@ static struct smp_operations socfpga_smp_ops __initdata = {
 #endif
 };
 
-static struct smp_operations socfpga_a10_smp_ops __initdata = {
+static const struct smp_operations socfpga_a10_smp_ops __initconst = {
 	.smp_prepare_cpus	= socfpga_smp_prepare_cpus,
 	.smp_boot_secondary	= socfpga_a10_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU

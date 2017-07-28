@@ -557,7 +557,7 @@ int ODM_RAInfo_Init(struct odm_dm_struct *dm_odm, u8 macid)
 	u8 WirelessMode = 0xFF; /* invalid value */
 	u8 max_rate_idx = 0x13; /* MCS7 */
 
-	if (dm_odm->pWirelessMode != NULL)
+	if (dm_odm->pWirelessMode)
 		WirelessMode = *(dm_odm->pWirelessMode);
 
 	if (WirelessMode != 0xFF) {
@@ -733,7 +733,7 @@ void ODM_RA_TxRPT2Handle_8188E(struct odm_dm_struct *dm_odm, u8 *TxRPT_Buf, u16 
 					     pRAInfo->RTY[0], pRAInfo->RTY[1],
 					     pRAInfo->RTY[2], pRAInfo->RTY[3],
 					     pRAInfo->RTY[4], pRAInfo->DROP,
-					     macid_entry0 , macid_entry1));
+					     macid_entry0, macid_entry1));
 				if (pRAInfo->PTActive) {
 					if (pRAInfo->RAstage < 5)
 						odm_RateDecision_8188E(dm_odm, pRAInfo);

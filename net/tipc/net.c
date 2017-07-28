@@ -41,11 +41,7 @@
 #include "socket.h"
 #include "node.h"
 #include "bcast.h"
-
-static const struct nla_policy tipc_nl_net_policy[TIPC_NLA_NET_MAX + 1] = {
-	[TIPC_NLA_NET_UNSPEC]	= { .type = NLA_UNSPEC },
-	[TIPC_NLA_NET_ID]	= { .type = NLA_U32 }
-};
+#include "netlink.h"
 
 /*
  * The TIPC locking policy is designed to ensure a very fine locking
@@ -114,9 +110,12 @@ int tipc_net_start(struct net *net, u32 addr)
 	char addr_string[16];
 
 	tn->own_addr = addr;
+
+	/* Ensure that the new address is visible before we reinit. */
+	smp_mb();
+
 	tipc_named_reinit(net);
 	tipc_sk_reinit(net);
-	tipc_bcast_reinit(net);
 
 	tipc_nametbl_publish(net, TIPC_CFG_SRV, tn->own_addr, tn->own_addr,
 			     TIPC_ZONE_SCOPE, 0, tn->own_addr);
@@ -212,8 +211,8 @@ int tipc_nl_net_set(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 
 	err = nla_parse_nested(attrs, TIPC_NLA_NET_MAX,
-			       info->attrs[TIPC_NLA_NET],
-			       tipc_nl_net_policy);
+			       info->attrs[TIPC_NLA_NET], tipc_nl_net_policy,
+			       info->extack);
 	if (err)
 		return err;
 

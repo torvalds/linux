@@ -16,7 +16,8 @@ int snd_usb_apply_interface_quirk(struct snd_usb_audio *chip,
 
 int snd_usb_apply_boot_quirk(struct usb_device *dev,
 			     struct usb_interface *intf,
-			     const struct snd_usb_audio_quirk *quirk);
+			     const struct snd_usb_audio_quirk *quirk,
+			     unsigned int usb_id);
 
 void snd_usb_set_format_quirk(struct snd_usb_substream *subs,
 			      struct audioformat *fmt);

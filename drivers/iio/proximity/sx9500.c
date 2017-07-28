@@ -387,14 +387,18 @@ static int sx9500_read_raw(struct iio_dev *indio_dev,
 			   int *val, int *val2, long mask)
 {
 	struct sx9500_data *data = iio_priv(indio_dev);
+	int ret;
 
 	switch (chan->type) {
 	case IIO_PROXIMITY:
 		switch (mask) {
 		case IIO_CHAN_INFO_RAW:
-			if (iio_buffer_enabled(indio_dev))
-				return -EBUSY;
-			return sx9500_read_proximity(data, chan, val);
+			ret = iio_device_claim_direct_mode(indio_dev);
+			if (ret)
+				return ret;
+			ret = sx9500_read_proximity(data, chan, val);
+			iio_device_release_direct_mode(indio_dev);
+			return ret;
 		case IIO_CHAN_INFO_SAMP_FREQ:
 			return sx9500_read_samp_freq(data, val, val2);
 		default:
@@ -492,7 +496,7 @@ static void sx9500_push_events(struct iio_dev *indio_dev)
 		dir = new_prox ? IIO_EV_DIR_FALLING : IIO_EV_DIR_RISING;
 		ev = IIO_UNMOD_EVENT_CODE(IIO_PROXIMITY, chan,
 					  IIO_EV_TYPE_THRESH, dir);
-		iio_push_event(indio_dev, ev, iio_get_time_ns());
+		iio_push_event(indio_dev, ev, iio_get_time_ns(indio_dev));
 		data->prox_stat[chan] = new_prox;
 	}
 }
@@ -516,7 +520,7 @@ static irqreturn_t sx9500_irq_thread_handler(int irq, void *private)
 		sx9500_push_events(indio_dev);
 
 	if (val & SX9500_CONVDONE_IRQ)
-		complete_all(&data->completion);
+		complete(&data->completion);
 
 out:
 	mutex_unlock(&data->mutex);
@@ -669,7 +673,7 @@ static irqreturn_t sx9500_trigger_handler(int irq, void *private)
 	}
 
 	iio_push_to_buffers_with_timestamp(indio_dev, data->buffer,
-					   iio_get_time_ns());
+					   iio_get_time_ns(indio_dev));
 
 out:
 	mutex_unlock(&data->mutex);
@@ -874,8 +878,7 @@ static void sx9500_gpio_probe(struct i2c_client *client,
 
 	dev = &client->dev;
 
-	data->gpiod_rst = devm_gpiod_get_index(dev, SX9500_GPIO_RESET,
-					       0, GPIOD_OUT_HIGH);
+	data->gpiod_rst = devm_gpiod_get(dev, SX9500_GPIO_RESET, GPIOD_OUT_HIGH);
 	if (IS_ERR(data->gpiod_rst)) {
 		dev_warn(dev, "gpio get reset pin failed\n");
 		data->gpiod_rst = NULL;
@@ -1025,6 +1028,12 @@ static const struct acpi_device_id sx9500_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, sx9500_acpi_match);
 
+static const struct of_device_id sx9500_of_match[] = {
+	{ .compatible = "semtech,sx9500", },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, sx9500_of_match);
+
 static const struct i2c_device_id sx9500_id[] = {
 	{"sx9500", 0},
 	{ },
@@ -1035,6 +1044,7 @@ static struct i2c_driver sx9500_driver = {
 	.driver = {
 		.name	= SX9500_DRIVER_NAME,
 		.acpi_match_table = ACPI_PTR(sx9500_acpi_match),
+		.of_match_table = of_match_ptr(sx9500_of_match),
 		.pm = &sx9500_pm_ops,
 	},
 	.probe		= sx9500_probe,

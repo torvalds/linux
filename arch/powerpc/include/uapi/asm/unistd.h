@@ -388,18 +388,11 @@
 #define __NR_switch_endian	363
 #define __NR_userfaultfd	364
 #define __NR_membarrier		365
-#define __NR_semop		366
-#define __NR_semget		367
-#define __NR_semctl		368
-#define __NR_semtimedop		369
-#define __NR_msgsnd		370
-#define __NR_msgrcv		371
-#define __NR_msgget		372
-#define __NR_msgctl		373
-#define __NR_shmat		374
-#define __NR_shmdt		375
-#define __NR_shmget		376
-#define __NR_shmctl		377
 #define __NR_mlock2		378
+#define __NR_copy_file_range	379
+#define __NR_preadv2		380
+#define __NR_pwritev2		381
+#define __NR_kexec_file_load	382
+#define __NR_statx		383
 
 #endif /* _UAPI_ASM_POWERPC_UNISTD_H_ */

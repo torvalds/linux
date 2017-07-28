@@ -36,6 +36,7 @@
 #include <linux/dma-mapping.h>
 #include <rdma/rdma_cm.h>
 
+#include "rds_single_path.h"
 #include "rds.h"
 #include "ib.h"
 
@@ -193,6 +194,8 @@ static void rds_ib_frag_free(struct rds_ib_connection *ic,
 	rdsdebug("frag %p page %p\n", frag, sg_page(&frag->f_sg));
 
 	rds_ib_recv_cache_put(&frag->f_cache_entry, &ic->i_cache_frags);
+	atomic_add(RDS_FRAG_SIZE / SZ_1K, &ic->i_cache_allocs);
+	rds_ib_stats_add(s_ib_recv_added_to_cache, RDS_FRAG_SIZE);
 }
 
 /* Recycle inc after freeing attached frags */
@@ -260,6 +263,7 @@ static struct rds_ib_incoming *rds_ib_refill_one_inc(struct rds_ib_connection *i
 			atomic_dec(&rds_ib_allocation);
 			return NULL;
 		}
+		rds_ib_stats_inc(s_ib_rx_total_incs);
 	}
 	INIT_LIST_HEAD(&ibinc->ii_frags);
 	rds_inc_init(&ibinc->ii_inc, ic->conn, ic->conn->c_faddr);
@@ -277,6 +281,8 @@ static struct rds_page_frag *rds_ib_refill_one_frag(struct rds_ib_connection *ic
 	cache_item = rds_ib_recv_cache_get(&ic->i_cache_frags);
 	if (cache_item) {
 		frag = container_of(cache_item, struct rds_page_frag, f_cache_entry);
+		atomic_sub(RDS_FRAG_SIZE / SZ_1K, &ic->i_cache_allocs);
+		rds_ib_stats_add(s_ib_recv_added_to_cache, RDS_FRAG_SIZE);
 	} else {
 		frag = kmem_cache_alloc(rds_ib_frag_slab, slab_mask);
 		if (!frag)
@@ -289,6 +295,7 @@ static struct rds_page_frag *rds_ib_refill_one_frag(struct rds_ib_connection *ic
 			kmem_cache_free(rds_ib_frag_slab, frag);
 			return NULL;
 		}
+		rds_ib_stats_inc(s_ib_rx_total_frags);
 	}
 
 	INIT_LIST_HEAD(&frag->f_item);
@@ -796,7 +803,7 @@ static void rds_ib_cong_recv(struct rds_connection *conn,
 
 		addr = kmap_atomic(sg_page(&frag->f_sg));
 
-		src = addr + frag_off;
+		src = addr + frag->f_sg.offset + frag_off;
 		dst = (void *)map->m_page_addrs[map_page] + map_off;
 		for (k = 0; k < to_copy; k += 8) {
 			/* Record ports that became uncongested, ie
@@ -904,8 +911,12 @@ static void rds_ib_process_recv(struct rds_connection *conn,
 		ic->i_ibinc = ibinc;
 
 		hdr = &ibinc->ii_inc.i_hdr;
+		ibinc->ii_inc.i_rx_lat_trace[RDS_MSG_RX_HDR] =
+				local_clock();
 		memcpy(hdr, ihdr, sizeof(*hdr));
 		ic->i_recv_data_rem = be32_to_cpu(hdr->h_len);
+		ibinc->ii_inc.i_rx_lat_trace[RDS_MSG_RX_START] =
+				local_clock();
 
 		rdsdebug("ic %p ibinc %p rem %u flag 0x%x\n", ic, ibinc,
 			 ic->i_recv_data_rem, hdr->h_flags);
@@ -979,8 +990,8 @@ void rds_ib_recv_cqe_handler(struct rds_ib_connection *ic,
 	} else {
 		/* We expect errors as the qp is drained during shutdown */
 		if (rds_conn_up(conn) || rds_conn_connecting(conn))
-			rds_ib_conn_error(conn, "recv completion on %pI4 had status %u (%s), disconnecting and reconnecting\n",
-					  &conn->c_faddr,
+			rds_ib_conn_error(conn, "recv completion on <%pI4,%pI4> had status %u (%s), disconnecting and reconnecting\n",
+					  &conn->c_laddr, &conn->c_faddr,
 					  wc->status,
 					  ib_wc_status_msg(wc->status));
 	}
@@ -1008,8 +1019,9 @@ void rds_ib_recv_cqe_handler(struct rds_ib_connection *ic,
 		rds_ib_recv_refill(conn, 0, GFP_NOWAIT);
 }
 
-int rds_ib_recv(struct rds_connection *conn)
+int rds_ib_recv_path(struct rds_conn_path *cp)
 {
+	struct rds_connection *conn = cp->cp_conn;
 	struct rds_ib_connection *ic = conn->c_transport_data;
 	int ret = 0;
 

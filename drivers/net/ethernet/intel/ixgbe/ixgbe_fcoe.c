@@ -77,7 +77,7 @@ int ixgbe_fcoe_ddp_put(struct net_device *netdev, u16 xid)
 	if (!netdev)
 		return 0;
 
-	if (xid >= IXGBE_FCOE_DDP_MAX)
+	if (xid >= netdev->fcoe_ddp_xid)
 		return 0;
 
 	adapter = netdev_priv(netdev);
@@ -177,7 +177,7 @@ static int ixgbe_fcoe_ddp_setup(struct net_device *netdev, u16 xid,
 		return 0;
 
 	adapter = netdev_priv(netdev);
-	if (xid >= IXGBE_FCOE_DDP_MAX) {
+	if (xid >= netdev->fcoe_ddp_xid) {
 		e_warn(drv, "xid=0x%x out-of-range\n", xid);
 		return 0;
 	}
@@ -491,7 +491,7 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 	if ((fh->fh_r_ctl == FC_RCTL_DD_SOL_DATA) &&
 	    (fctl & FC_FC_END_SEQ)) {
 		skb_linearize(skb);
-		crc = (struct fcoe_crc_eof *)skb_put(skb, sizeof(*crc));
+		crc = skb_put(skb, sizeof(*crc));
 		crc->fcoe_eof = FC_EOF_T;
 	}
 
@@ -517,6 +517,7 @@ int ixgbe_fso(struct ixgbe_ring *tx_ring,
 	u32 vlan_macip_lens;
 	u32 fcoe_sof_eof = 0;
 	u32 mss_l4len_idx;
+	u32 type_tucmd = IXGBE_ADVTXT_TUCMD_FCOE;
 	u8 sof, eof;
 
 	if (skb_is_gso(skb) && (skb_shinfo(skb)->gso_type != SKB_GSO_FCOE)) {
@@ -593,6 +594,8 @@ int ixgbe_fso(struct ixgbe_ring *tx_ring,
 					       skb_shinfo(skb)->gso_size);
 		first->bytecount += (first->gso_segs - 1) * *hdr_len;
 		first->tx_flags |= IXGBE_TX_FLAGS_TSO;
+		/* Hardware expects L4T to be RSV for FCoE TSO */
+		type_tucmd |= IXGBE_ADVTXD_TUCMD_L4T_RSV;
 	}
 
 	/* set flag indicating FCOE to ixgbe_tx_map call */
@@ -610,7 +613,7 @@ int ixgbe_fso(struct ixgbe_ring *tx_ring,
 
 	/* write context desc */
 	ixgbe_tx_ctxtdesc(tx_ring, vlan_macip_lens, fcoe_sof_eof,
-			  IXGBE_ADVTXT_TUCMD_FCOE, mss_l4len_idx);
+			  type_tucmd, mss_l4len_idx);
 
 	return 0;
 }
@@ -620,8 +623,7 @@ static void ixgbe_fcoe_dma_pool_free(struct ixgbe_fcoe *fcoe, unsigned int cpu)
 	struct ixgbe_fcoe_ddp_pool *ddp_pool;
 
 	ddp_pool = per_cpu_ptr(fcoe->ddp_pool, cpu);
-	if (ddp_pool->pool)
-		dma_pool_destroy(ddp_pool->pool);
+	dma_pool_destroy(ddp_pool->pool);
 	ddp_pool->pool = NULL;
 }
 
@@ -997,8 +999,7 @@ int ixgbe_fcoe_get_hbainfo(struct net_device *netdev,
 		return -EINVAL;
 
 	/* Don't return information on unsupported devices */
-	if (hw->mac.type != ixgbe_mac_82599EB &&
-	    hw->mac.type != ixgbe_mac_X540)
+	if (!(adapter->flags & IXGBE_FLAG_FCOE_ENABLED))
 		return -EINVAL;
 
 	/* Manufacturer */
@@ -1044,6 +1045,10 @@ int ixgbe_fcoe_get_hbainfo(struct net_device *netdev,
 		snprintf(info->model,
 			 sizeof(info->model),
 			 "Intel 82599");
+	} else if (hw->mac.type == ixgbe_mac_X550) {
+		snprintf(info->model,
+			 sizeof(info->model),
+			 "Intel X550");
 	} else {
 		snprintf(info->model,
 			 sizeof(info->model),

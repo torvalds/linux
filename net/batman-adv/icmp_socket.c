@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2015 B.A.T.M.A.N. contributors:
+/* Copyright (C) 2007-2017  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -38,13 +38,13 @@
 #include <linux/skbuff.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/stat.h>
 #include <linux/stddef.h>
 #include <linux/string.h>
 #include <linux/uaccess.h>
 #include <linux/wait.h>
 
 #include "hard-interface.h"
+#include "log.h"
 #include "originator.h"
 #include "packet.h"
 #include "send.h"
@@ -104,25 +104,21 @@ static int batadv_socket_open(struct inode *inode, struct file *file)
 
 static int batadv_socket_release(struct inode *inode, struct file *file)
 {
-	struct batadv_socket_client *socket_client = file->private_data;
-	struct batadv_socket_packet *socket_packet;
-	struct list_head *list_pos, *list_pos_tmp;
+	struct batadv_socket_client *client = file->private_data;
+	struct batadv_socket_packet *packet, *tmp;
 
-	spin_lock_bh(&socket_client->lock);
+	spin_lock_bh(&client->lock);
 
 	/* for all packets in the queue ... */
-	list_for_each_safe(list_pos, list_pos_tmp, &socket_client->queue_list) {
-		socket_packet = list_entry(list_pos,
-					   struct batadv_socket_packet, list);
-
-		list_del(list_pos);
-		kfree(socket_packet);
+	list_for_each_entry_safe(packet, tmp, &client->queue_list, list) {
+		list_del(&packet->list);
+		kfree(packet);
 	}
 
-	batadv_socket_client_hash[socket_client->index] = NULL;
-	spin_unlock_bh(&socket_client->lock);
+	batadv_socket_client_hash[client->index] = NULL;
+	spin_unlock_bh(&client->lock);
 
-	kfree(socket_client);
+	kfree(client);
 	module_put(THIS_MODULE);
 
 	return 0;
@@ -211,7 +207,7 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 
 	skb->priority = TC_PRIO_CONTROL;
 	skb_reserve(skb, ETH_HLEN);
-	icmp_header = (struct batadv_icmp_header *)skb_put(skb, packet_len);
+	icmp_header = skb_put(skb, packet_len);
 
 	if (copy_from_user(icmp_header, buff, packet_len)) {
 		len = -EFAULT;
@@ -278,7 +274,7 @@ static ssize_t batadv_socket_write(struct file *file, const char __user *buff,
 
 	ether_addr_copy(icmp_header->orig, primary_if->net_dev->dev_addr);
 
-	batadv_send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
+	batadv_send_unicast_skb(skb, neigh_node);
 	goto out;
 
 dst_unreach:
@@ -288,11 +284,11 @@ free_skb:
 	kfree_skb(skb);
 out:
 	if (primary_if)
-		batadv_hardif_free_ref(primary_if);
+		batadv_hardif_put(primary_if);
 	if (neigh_node)
-		batadv_neigh_node_free_ref(neigh_node);
+		batadv_neigh_node_put(neigh_node);
 	if (orig_node)
-		batadv_orig_node_free_ref(orig_node);
+		batadv_orig_node_put(orig_node);
 	return len;
 }
 
@@ -325,8 +321,8 @@ int batadv_socket_setup(struct batadv_priv *bat_priv)
 	if (!bat_priv->debug_dir)
 		goto err;
 
-	d = debugfs_create_file(BATADV_ICMP_SOCKET, S_IFREG | S_IWUSR | S_IRUSR,
-				bat_priv->debug_dir, bat_priv, &batadv_fops);
+	d = debugfs_create_file(BATADV_ICMP_SOCKET, 0600, bat_priv->debug_dir,
+				bat_priv, &batadv_fops);
 	if (!d)
 		goto err;
 
@@ -337,7 +333,7 @@ err:
 }
 
 /**
- * batadv_socket_receive_packet - schedule an icmp packet to be sent to
+ * batadv_socket_add_packet - schedule an icmp packet to be sent to
  *  userspace on an icmp socket.
  * @socket_client: the socket this packet belongs to
  * @icmph: pointer to the header of the icmp packet

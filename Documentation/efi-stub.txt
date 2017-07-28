@@ -1,5 +1,6 @@
-			  The EFI Boot Stub
-		     ---------------------------
+=================
+The EFI Boot Stub
+=================
 
 On the x86 and ARM platforms, a kernel zImage/bzImage can masquerade
 as a PE/COFF image, thereby convincing EFI firmware loaders to load
@@ -10,12 +11,12 @@ arch/x86/boot/header.S and arch/x86/boot/compressed/eboot.c,
 respectively. For ARM the EFI stub is implemented in
 arch/arm/boot/compressed/efi-header.S and
 arch/arm/boot/compressed/efi-stub.c. EFI stub code that is shared
-between architectures is in drivers/firmware/efi/efi-stub-helper.c.
+between architectures is in drivers/firmware/efi/libstub.
 
 For arm64, there is no compressed kernel support, so the Image itself
 masquerades as a PE/COFF image and the EFI stub is linked into the
 kernel. The arm64 EFI stub lives in arch/arm64/kernel/efi-entry.S
-and arch/arm64/kernel/efi-stub.c.
+and drivers/firmware/efi/libstub/arm64-stub.c.
 
 By using the EFI boot stub it's possible to boot a Linux kernel
 without the use of a conventional EFI boot loader, such as grub or
@@ -25,7 +26,8 @@ a certain sense it *IS* the boot loader.
 The EFI boot stub is enabled with the CONFIG_EFI_STUB kernel option.
 
 
-**** How to install bzImage.efi
+How to install bzImage.efi
+--------------------------
 
 The bzImage located in arch/x86/boot/bzImage must be copied to the EFI
 System Partition (ESP) and renamed with the extension ".efi". Without
@@ -37,14 +39,16 @@ may not need to be renamed. Similarly for arm64, arch/arm64/boot/Image
 should be copied but not necessarily renamed.
 
 
-**** Passing kernel parameters from the EFI shell
+Passing kernel parameters from the EFI shell
+--------------------------------------------
 
-Arguments to the kernel can be passed after bzImage.efi, e.g.
+Arguments to the kernel can be passed after bzImage.efi, e.g.::
 
 	fs0:> bzImage.efi console=ttyS0 root=/dev/sda4
 
 
-**** The "initrd=" option
+The "initrd=" option
+--------------------
 
 Like most boot loaders, the EFI stub allows the user to specify
 multiple initrd files using the "initrd=" option. This is the only EFI
@@ -54,9 +58,9 @@ kernel when it boots.
 The path to the initrd file must be an absolute path from the
 beginning of the ESP, relative path names do not work. Also, the path
 is an EFI-style path and directory elements must be separated with
-backslashes (\). For example, given the following directory layout,
+backslashes (\). For example, given the following directory layout::
 
-fs0:>
+  fs0:>
 	Kernels\
 			bzImage.efi
 			initrd-large.img
@@ -66,7 +70,7 @@ fs0:>
 			initrd-medium.img
 
 to boot with the initrd-large.img file if the current working
-directory is fs0:\Kernels, the following command must be used,
+directory is fs0:\Kernels, the following command must be used::
 
 	fs0:\Kernels> bzImage.efi initrd=\Kernels\initrd-large.img
 
@@ -76,7 +80,8 @@ which understands relative paths, whereas the rest of the command line
 is passed to bzImage.efi.
 
 
-**** The "dtb=" option
+The "dtb=" option
+-----------------
 
 For the ARM and arm64 architectures, we also need to be able to provide a
 device tree to the kernel. This is done with the "dtb=" command line option,

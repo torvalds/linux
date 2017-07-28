@@ -85,12 +85,16 @@ ip_vs_update_conntrack(struct sk_buff *skb, struct ip_vs_conn *cp, int outin)
 	struct nf_conn *ct = nf_ct_get(skb, &ctinfo);
 	struct nf_conntrack_tuple new_tuple;
 
-	if (ct == NULL || nf_ct_is_confirmed(ct) || nf_ct_is_untracked(ct) ||
+	if (ct == NULL || nf_ct_is_confirmed(ct) ||
 	    nf_ct_is_dying(ct))
 		return;
 
 	/* Never alter conntrack for non-NAT conns */
 	if (IP_VS_FWD_METHOD(cp) != IP_VS_CONN_F_MASQ)
+		return;
+
+	/* Never alter conntrack for OPS conns (no reply is expected) */
+	if (cp->flags & IP_VS_CONN_F_ONE_PACKET)
 		return;
 
 	/* Alter reply only in original direction */
@@ -228,7 +232,7 @@ void ip_vs_nfct_expect_related(struct sk_buff *skb, struct nf_conn *ct,
 {
 	struct nf_conntrack_expect *exp;
 
-	if (ct == NULL || nf_ct_is_untracked(ct))
+	if (ct == NULL)
 		return;
 
 	exp = nf_ct_expect_alloc(ct);
@@ -277,13 +281,10 @@ void ip_vs_conn_drop_conntrack(struct ip_vs_conn *cp)
 	h = nf_conntrack_find_get(cp->ipvs->net, &nf_ct_zone_dflt, &tuple);
 	if (h) {
 		ct = nf_ct_tuplehash_to_ctrack(h);
-		/* Show what happens instead of calling nf_ct_kill() */
-		if (del_timer(&ct->timeout)) {
-			IP_VS_DBG(7, "%s: ct=%p, deleted conntrack timer for tuple="
+		if (nf_ct_kill(ct)) {
+			IP_VS_DBG(7, "%s: ct=%p, deleted conntrack for tuple="
 				FMT_TUPLE "\n",
 				__func__, ct, ARG_TUPLE(&tuple));
-			if (ct->timeout.function)
-				ct->timeout.function(ct->timeout.data);
 		} else {
 			IP_VS_DBG(7, "%s: ct=%p, no conntrack timer for tuple="
 				FMT_TUPLE "\n",

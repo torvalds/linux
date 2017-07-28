@@ -40,7 +40,6 @@ show up in /proc/sys/kernel:
 - hung_task_warnings
 - kexec_load_disabled
 - kptr_restrict
-- kstack_depth_to_print       [ X86 only ]
 - l2cr                        [ PPC only ]
 - modprobe                    ==> Documentation/debugging-modules.txt
 - modules_disabled
@@ -58,14 +57,20 @@ show up in /proc/sys/kernel:
 - panic_on_stackoverflow
 - panic_on_unrecovered_nmi
 - panic_on_warn
+- panic_on_rcu_stall
+- perf_cpu_time_max_percent
+- perf_event_paranoid
+- perf_event_max_stack
+- perf_event_max_contexts_per_stack
 - pid_max
 - powersave-nap               [ PPC only ]
 - printk
 - printk_delay
 - printk_ratelimit
 - printk_ratelimit_burst
+- pty                         ==> Documentation/filesystems/devpts.txt
 - randomize_va_space
-- real-root-dev               ==> Documentation/initrd.txt
+- real-root-dev               ==> Documentation/admin-guide/initrd.rst
 - reboot-cmd                  [ SPARC only ]
 - rtsig-max
 - rtsig-nr
@@ -80,7 +85,7 @@ show up in /proc/sys/kernel:
 - softlockup_all_cpu_backtrace
 - soft_watchdog
 - stop-a                      [ SPARC only ]
-- sysrq                       ==> Documentation/sysrq.txt
+- sysrq                       ==> Documentation/admin-guide/sysrq.rst
 - sysctl_writes_strict
 - tainted
 - threads-max
@@ -389,13 +394,6 @@ When kptr_restrict is set to (2), kernel pointers printed using
 
 ==============================================================
 
-kstack_depth_to_print: (X86 only)
-
-Controls the number of words to print when dumping the raw
-kernel stack.
-
-==============================================================
-
 l2cr: (PPC only)
 
 This flag controls the L2 cache of G3 processor boards. If
@@ -447,7 +445,7 @@ in a KVM virtual machine. This default can be overridden by adding
 
    nmi_watchdog=1
 
-to the guest kernel command line (see Documentation/kernel-parameters.txt).
+to the guest kernel command line (see Documentation/admin-guide/kernel-parameters.rst).
 
 ==============================================================
 
@@ -551,6 +549,21 @@ the recommended setting is 60.
 
 ==============================================================
 
+panic_on_io_nmi:
+
+Controls the kernel's behavior when a CPU receives an NMI caused by
+an IO error.
+
+0: try to continue operation (default)
+
+1: panic immediately. The IO error triggered an NMI. This indicates a
+   serious system condition which could result in IO data corruption.
+   Rather than continuing, panicking might be a better choice. Some
+   servers issue this sort of NMI when the dump button is pushed,
+   and you can use this option to take a crash dump.
+
+==============================================================
+
 panic_on_oops:
 
 Controls the kernel's behaviour when an oops or BUG is encountered.
@@ -598,6 +611,17 @@ a kernel rebuild when attempting to kdump at the location of a WARN().
 
 ==============================================================
 
+panic_on_rcu_stall:
+
+When set to 1, calls panic() after RCU stall detection messages. This
+is useful to define the root cause of RCU stalls using a vmcore.
+
+0: do not panic() when RCU stall takes place, default behavior.
+
+1: panic() after printing RCU stall messages.
+
+==============================================================
+
 perf_cpu_time_max_percent:
 
 Hints to the kernel how much CPU time it should be allowed to
@@ -624,6 +648,43 @@ allowed to execute.
 
 ==============================================================
 
+perf_event_paranoid:
+
+Controls use of the performance events system by unprivileged
+users (without CAP_SYS_ADMIN).  The default value is 2.
+
+ -1: Allow use of (almost) all events by all users
+>=0: Disallow raw tracepoint access by users without CAP_IOC_LOCK
+>=1: Disallow CPU event access by users without CAP_SYS_ADMIN
+>=2: Disallow kernel profiling by users without CAP_SYS_ADMIN
+
+==============================================================
+
+perf_event_max_stack:
+
+Controls maximum number of stack frames to copy for (attr.sample_type &
+PERF_SAMPLE_CALLCHAIN) configured events, for instance, when using
+'perf record -g' or 'perf trace --call-graph fp'.
+
+This can only be done when no events are in use that have callchains
+enabled, otherwise writing to this file will return -EBUSY.
+
+The default value is 127.
+
+==============================================================
+
+perf_event_max_contexts_per_stack:
+
+Controls maximum number of stack frame context entries for
+(attr.sample_type & PERF_SAMPLE_CALLCHAIN) configured events, for
+instance, when using 'perf record -g' or 'perf trace --call-graph fp'.
+
+This can only be done when no events are in use that have callchains
+enabled, otherwise writing to this file will return -EBUSY.
+
+The default value is 8.
+
+==============================================================
 
 pid_max:
 
@@ -695,6 +756,20 @@ send before ratelimiting kicks in.
 
 ==============================================================
 
+printk_devkmsg:
+
+Control the logging to /dev/kmsg from userspace:
+
+ratelimit: default, ratelimited
+on: unlimited logging to /dev/kmsg from userspace
+off: logging to /dev/kmsg disabled
+
+The kernel command line parameter printk.devkmsg= overrides this and is
+a one-time setting until next reboot: once set, it cannot be changed by
+this sysctl interface anymore.
+
+==============================================================
+
 randomize_va_space:
 
 This option can be used to select the type of process address
@@ -742,6 +817,14 @@ of POSIX realtime (queued) signals that can be outstanding
 in the system.
 
 rtsig-nr shows the number of RT signals currently queued.
+
+==============================================================
+
+sched_schedstats:
+
+Enables/disables scheduler statistics. Enabling this feature
+incurs a small amount of overhead in the scheduler but is
+useful for debugging and performance tuning.
 
 ==============================================================
 
@@ -810,14 +893,13 @@ via the /proc/sys interface:
        Each write syscall must fully contain the sysctl value to be
        written, and multiple writes on the same sysctl file descriptor
        will rewrite the sysctl value, regardless of file position.
-   0 - (default) Same behavior as above, but warn about processes that
-       perform writes to a sysctl file descriptor when the file position
-       is not 0.
-   1 - Respect file position when writing sysctl strings. Multiple writes
-       will append to the sysctl value buffer. Anything past the max length
-       of the sysctl value buffer will be ignored. Writes to numeric sysctl
-       entries must always be at file position 0 and the value must be
-       fully contained in the buffer sent in the write syscall.
+   0 - Same behavior as above, but warn about processes that perform writes
+       to a sysctl file descriptor when the file position is not 0.
+   1 - (default) Respect file position when writing sysctl strings. Multiple
+       writes will append to the sysctl value buffer. Anything past the max
+       length of the sysctl value buffer will be ignored. Writes to numeric
+       sysctl entries must always be at file position 0 and the value must
+       be fully contained in the buffer sent in the write syscall.
 
 ==============================================================
 

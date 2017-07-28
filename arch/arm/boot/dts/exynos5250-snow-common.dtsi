@@ -19,7 +19,8 @@
 		i2c104 = &i2c_104;
 	};
 
-	memory {
+	memory@40000000 {
+		device_type = "memory";
 		reg = <0x40000000 0x80000000>;
 	};
 
@@ -37,7 +38,7 @@
 			label = "Power";
 			gpios = <&gpx1 3 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		lid-switch {
@@ -46,7 +47,7 @@
 			linux,input-type = <5>; /* EV_SW */
 			linux,code = <0>; /* SW_LID */
 			debounce-interval = <1>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 
@@ -61,7 +62,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		i2c-parent = <&{/i2c@12CA0000}>;
+		i2c-parent = <&i2c_4>;
 
 		our-claim-gpio = <&gpf0 3 GPIO_ACTIVE_LOW>;
 		their-claim-gpios = <&gpe0 4 GPIO_ACTIVE_LOW>;
@@ -84,7 +85,7 @@
 				sbs,poll-retry-count = <1>;
 			};
 
-			cros_ec: embedded-controller {
+			cros_ec: embedded-controller@1e {
 				compatible = "google,cros-ec-i2c";
 				reg = <0x1e>;
 				interrupts = <6 IRQ_TYPE_NONE>;
@@ -94,7 +95,7 @@
 				wakeup-source;
 			};
 
-			power-regulator {
+			power-regulator@48 {
 				compatible = "ti,tps65090";
 				reg = <0x48>;
 
@@ -236,15 +237,13 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&dp_hpd>;
 	samsung,color-space = <0>;
-	samsung,dynamic-range = <0>;
-	samsung,ycbcr-coeff = <0>;
 	samsung,color-depth = <1>;
 	samsung,link-rate = <0x0a>;
 	samsung,lane-count = <2>;
-	samsung,hpd-gpio = <&gpx0 7 GPIO_ACTIVE_HIGH>;
+	hpd-gpios = <&gpx0 7 GPIO_ACTIVE_HIGH>;
 
 	ports {
-		port@0 {
+		port {
 			dp_out: endpoint {
 				remote-endpoint = <&bridge_in>;
 			};
@@ -262,7 +261,7 @@
 };
 
 &hdmi {
-	hpd-gpio = <&gpx3 7 GPIO_ACTIVE_HIGH>;
+	hpd-gpios = <&gpx3 7 GPIO_ACTIVE_HIGH>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&hdmi_hpd_irq>;
 	phy = <&hdmiphy>;
@@ -271,6 +270,10 @@
 	vdd-supply = <&ldo8_reg>;
 	vdd_osc-supply = <&ldo10_reg>;
 	vdd_pll-supply = <&ldo8_reg>;
+};
+
+&hdmicec {
+	status = "okay";
 };
 
 &i2c_0 {
@@ -428,7 +431,7 @@
 	samsung,i2c-sda-delay = <100>;
 	samsung,i2c-max-bus-freq = <378000>;
 
-	trackpad {
+	trackpad@67 {
 		reg = <0x67>;
 		compatible = "cypress,cyapa";
 		interrupts = <2 IRQ_TYPE_NONE>;
@@ -442,7 +445,7 @@
  * double-pulling gets us out of spec in some cases.
  */
 &i2c2_bus {
-	samsung,pin-pud = <0>;
+	samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 };
 
 &i2c_2 {
@@ -487,13 +490,20 @@
 		edid-emulation = <5>;
 
 		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
 			port@0 {
+				reg = <0>;
+
 				bridge_out: endpoint {
 					remote-endpoint = <&panel_in>;
 				};
 			};
 
 			port@1 {
+				reg = <1>;
+
 				bridge_in: endpoint {
 					remote-endpoint = <&dp_out>;
 				};
@@ -517,11 +527,11 @@
 	status = "okay";
 };
 
+/* eMMC flash */
 &mmc_0 {
 	status = "okay";
 	num-slots = <1>;
-	broken-cd;
-	card-detect-delay = <200>;
+	non-removable;
 	samsung,dw-mshc-ciu-div = <3>;
 	samsung,dw-mshc-sdr-timing = <2 3>;
 	samsung,dw-mshc-ddr-timing = <1 2>;
@@ -531,6 +541,7 @@
 	cap-mmc-highspeed;
 };
 
+/* uSD card */
 &mmc_2 {
 	status = "okay";
 	num-slots = <1>;
@@ -548,14 +559,15 @@
 /*
  * On Snow we've got SIP WiFi and so can keep drive strengths low to
  * reduce EMI.
+ *
+ * WiFi SDIO module
  */
 &mmc_3 {
 	status = "okay";
 	num-slots = <1>;
-	broken-cd;
+	non-removable;
 	cap-sdio-irq;
 	keep-power-in-suspend;
-	card-detect-delay = <200>;
 	samsung,dw-mshc-ciu-div = <3>;
 	samsung,dw-mshc-sdr-timing = <2 3>;
 	samsung,dw-mshc-ddr-timing = <1 2>;
@@ -569,81 +581,81 @@
 &pinctrl_0 {
 	wifi_en: wifi-en {
 		samsung,pins = "gpx0-1";
-		samsung,pin-function = <1>;
-		samsung,pin-pud = <0>;
-		samsung,pin-drv = <0>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
 	wifi_rst: wifi-rst {
 		samsung,pins = "gpx0-2";
-		samsung,pin-function = <1>;
-		samsung,pin-pud = <0>;
-		samsung,pin-drv = <0>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
 	power_key_irq: power-key-irq {
 		samsung,pins = "gpx1-3";
-		samsung,pin-function = <0xf>;
-		samsung,pin-pud = <0>;
-		samsung,pin-drv = <0>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
 	ec_irq: ec-irq {
 		samsung,pins = "gpx1-6";
-		samsung,pin-function = <0>;
-		samsung,pin-pud = <0>;
-		samsung,pin-drv = <0>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
 	tps65090_irq: tps65090-irq {
 		samsung,pins = "gpx2-6";
-		samsung,pin-function = <0>;
-		samsung,pin-pud = <0>;
-		samsung,pin-drv = <0>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
 	usb3_vbus_en: usb3-vbus-en {
 		samsung,pins = "gpx2-7";
-		samsung,pin-function = <1>;
-		samsung,pin-pud = <0>;
-		samsung,pin-drv = <0>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
 	max77686_irq: max77686-irq {
 		samsung,pins = "gpx3-2";
-		samsung,pin-function = <0>;
-		samsung,pin-pud = <0>;
-		samsung,pin-drv = <0>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
 	lid_irq: lid-irq {
 		samsung,pins = "gpx3-5";
-		samsung,pin-function = <0xf>;
-		samsung,pin-pud = <0>;
-		samsung,pin-drv = <0>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
 	hdmi_hpd_irq: hdmi-hpd-irq {
 		samsung,pins = "gpx3-7";
-		samsung,pin-function = <0>;
-		samsung,pin-pud = <1>;
-		samsung,pin-drv = <0>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 };
 
 &pinctrl_1 {
 	arb_their_claim: arb-their-claim {
 		samsung,pins = "gpe0-4";
-		samsung,pin-function = <0>;
-		samsung,pin-pud = <3>;
-		samsung,pin-drv = <0>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
 	arb_our_claim: arb-our-claim {
 		samsung,pins = "gpf0-3";
-		samsung,pin-function = <1>;
-		samsung,pin-pud = <0>;
-		samsung,pin-drv = <0>;
+		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 };
 
@@ -654,16 +666,16 @@
 };
 
 &sd3_bus4 {
-	samsung,pin-drv = <0>;
+	samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 };
 
 &sd3_clk {
-	samsung,pin-drv = <0>;
+	samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 };
 
 &sd3_cmd {
-	samsung,pin-pud = <3>;
-	samsung,pin-drv = <0>;
+	samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+	samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 };
 
 &spi_1 {

@@ -11,7 +11,7 @@
 
 #include <asm/time.h>
 
-static cycle_t c0_hpt_read(struct clocksource *cs)
+static u64 c0_hpt_read(struct clocksource *cs)
 {
 	return read_c0_count();
 }
@@ -23,7 +23,7 @@ static struct clocksource clocksource_mips = {
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
-static u64 notrace r4k_read_sched_clock(void)
+static u64 __maybe_unused notrace r4k_read_sched_clock(void)
 {
 	return read_c0_count();
 }
@@ -82,7 +82,9 @@ int __init init_r4k_clocksource(void)
 
 	clocksource_register_hz(&clocksource_mips, mips_hpt_frequency);
 
+#ifndef CONFIG_CPU_FREQ
 	sched_clock_register(r4k_read_sched_clock, 32, mips_hpt_frequency);
+#endif
 
 	return 0;
 }

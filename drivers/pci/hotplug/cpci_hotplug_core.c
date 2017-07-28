@@ -27,6 +27,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/sched/signal.h>
 #include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
@@ -45,12 +46,12 @@
 #define dbg(format, arg...)					\
 	do {							\
 		if (cpci_debug)					\
-			printk (KERN_DEBUG "%s: " format "\n",	\
-				MY_NAME , ## arg);		\
+			printk(KERN_DEBUG "%s: " format "\n",	\
+				MY_NAME, ## arg);		\
 	} while (0)
-#define err(format, arg...) printk(KERN_ERR "%s: " format "\n", MY_NAME , ## arg)
-#define info(format, arg...) printk(KERN_INFO "%s: " format "\n", MY_NAME , ## arg)
-#define warn(format, arg...) printk(KERN_WARNING "%s: " format "\n", MY_NAME , ## arg)
+#define err(format, arg...) printk(KERN_ERR "%s: " format "\n", MY_NAME, ## arg)
+#define info(format, arg...) printk(KERN_INFO "%s: " format "\n", MY_NAME, ## arg)
+#define warn(format, arg...) printk(KERN_WARNING "%s: " format "\n", MY_NAME, ## arg)
 
 /* local variables */
 static DECLARE_RWSEM(list_rwsem);
@@ -238,21 +239,21 @@ cpci_hp_register_bus(struct pci_bus *bus, u8 first, u8 last)
 	 * with the pci_hotplug subsystem.
 	 */
 	for (i = first; i <= last; ++i) {
-		slot = kzalloc(sizeof (struct slot), GFP_KERNEL);
+		slot = kzalloc(sizeof(struct slot), GFP_KERNEL);
 		if (!slot) {
 			status = -ENOMEM;
 			goto error;
 		}
 
 		hotplug_slot =
-			kzalloc(sizeof (struct hotplug_slot), GFP_KERNEL);
+			kzalloc(sizeof(struct hotplug_slot), GFP_KERNEL);
 		if (!hotplug_slot) {
 			status = -ENOMEM;
 			goto error_slot;
 		}
 		slot->hotplug_slot = hotplug_slot;
 
-		info = kzalloc(sizeof (struct hotplug_slot_info), GFP_KERNEL);
+		info = kzalloc(sizeof(struct hotplug_slot_info), GFP_KERNEL);
 		if (!info) {
 			status = -ENOMEM;
 			goto error_hpslot;
@@ -718,14 +719,4 @@ cpci_hotplug_init(int debug)
 {
 	cpci_debug = debug;
 	return 0;
-}
-
-void __exit
-cpci_hotplug_exit(void)
-{
-	/*
-	 * Clean everything up.
-	 */
-	cpci_hp_stop();
-	cpci_hp_unregister_controller(controller);
 }

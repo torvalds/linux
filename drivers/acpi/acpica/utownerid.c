@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -61,7 +61,7 @@ ACPI_MODULE_NAME("utownerid")
  *              when the method exits or the table is unloaded.
  *
  ******************************************************************************/
-acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
+acpi_status acpi_ut_allocate_owner_id(acpi_owner_id *owner_id)
 {
 	u32 i;
 	u32 j;
@@ -73,8 +73,8 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 	/* Guard against multiple allocations of ID to the same location */
 
 	if (*owner_id) {
-		ACPI_ERROR((AE_INFO, "Owner ID [0x%2.2X] already exists",
-			    *owner_id));
+		ACPI_ERROR((AE_INFO,
+			    "Owner ID [0x%2.2X] already exists", *owner_id));
 		return_ACPI_STATUS(AE_ALREADY_EXISTS);
 	}
 
@@ -87,8 +87,8 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 
 	/*
 	 * Find a free owner ID, cycle through all possible IDs on repeated
-	 * allocations. (ACPI_NUM_OWNERID_MASKS + 1) because first index may have
-	 * to be scanned twice.
+	 * allocations. (ACPI_NUM_OWNERID_MASKS + 1) because first index
+	 * may have to be scanned twice.
 	 */
 	for (i = 0, j = acpi_gbl_last_owner_id_index;
 	     i < (ACPI_NUM_OWNERID_MASKS + 1); i++, j++) {
@@ -104,13 +104,19 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 				break;
 			}
 
-			if (!(acpi_gbl_owner_id_mask[j] & (1 << k))) {
+			/*
+			 * Note: the u32 cast ensures that 1 is stored as a unsigned
+			 * integer. Omitting the cast may result in 1 being stored as an
+			 * int. Some compilers or runtime error detection may flag this as
+			 * an error.
+			 */
+			if (!(acpi_gbl_owner_id_mask[j] & ((u32)1 << k))) {
 				/*
 				 * Found a free ID. The actual ID is the bit index plus one,
 				 * making zero an invalid Owner ID. Save this as the last ID
 				 * allocated and update the global ID mask.
 				 */
-				acpi_gbl_owner_id_mask[j] |= (1 << k);
+				acpi_gbl_owner_id_mask[j] |= ((u32)1 << k);
 
 				acpi_gbl_last_owner_id_index = (u8)j;
 				acpi_gbl_next_owner_id_offset = (u8)(k + 1);
@@ -122,7 +128,7 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 				 * permanently allocated (prevents +1 overflow)
 				 */
 				*owner_id =
-				    (acpi_owner_id) ((k + 1) + ACPI_MUL_32(j));
+				    (acpi_owner_id)((k + 1) + ACPI_MUL_32(j));
 
 				ACPI_DEBUG_PRINT((ACPI_DB_VALUES,
 						  "Allocated OwnerId: %2.2X\n",
@@ -141,8 +147,8 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 	 * they are released when a table is unloaded or a method completes
 	 * execution.
 	 *
-	 * If this error happens, there may be very deep nesting of invoked control
-	 * methods, or there may be a bug where the IDs are not released.
+	 * If this error happens, there may be very deep nesting of invoked
+	 * control methods, or there may be a bug where the IDs are not released.
 	 */
 	status = AE_OWNER_ID_LIMIT;
 	ACPI_ERROR((AE_INFO,
@@ -167,7 +173,7 @@ exit:
  *
  ******************************************************************************/
 
-void acpi_ut_release_owner_id(acpi_owner_id * owner_id_ptr)
+void acpi_ut_release_owner_id(acpi_owner_id *owner_id_ptr)
 {
 	acpi_owner_id owner_id = *owner_id_ptr;
 	acpi_status status;
@@ -201,7 +207,7 @@ void acpi_ut_release_owner_id(acpi_owner_id * owner_id_ptr)
 	/* Decode ID to index/offset pair */
 
 	index = ACPI_DIV_32(owner_id);
-	bit = 1 << ACPI_MOD_32(owner_id);
+	bit = (u32)1 << ACPI_MOD_32(owner_id);
 
 	/* Free the owner ID only if it is valid */
 

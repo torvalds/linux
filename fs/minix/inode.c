@@ -91,7 +91,7 @@ static int __init init_inodecache(void)
 	minix_inode_cachep = kmem_cache_create("minix_inode_cache",
 					     sizeof(struct minix_inode_info),
 					     0, (SLAB_RECLAIM_ACCOUNT|
-						SLAB_MEM_SPREAD),
+						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
 					     init_once);
 	if (minix_inode_cachep == NULL)
 		return -ENOMEM;
@@ -434,9 +434,7 @@ static const struct address_space_operations minix_aops = {
 };
 
 static const struct inode_operations minix_symlink_inode_operations = {
-	.readlink	= generic_readlink,
-	.follow_link	= page_follow_link_light,
-	.put_link	= page_put_link,
+	.get_link	= page_get_link,
 	.getattr	= minix_getattr,
 };
 
@@ -452,6 +450,7 @@ void minix_set_inode(struct inode *inode, dev_t rdev)
 		inode->i_mapping->a_ops = &minix_aops;
 	} else if (S_ISLNK(inode->i_mode)) {
 		inode->i_op = &minix_symlink_inode_operations;
+		inode_nohighmem(inode);
 		inode->i_mapping->a_ops = &minix_aops;
 	} else
 		init_special_inode(inode, inode->i_mode, rdev);
@@ -623,11 +622,14 @@ static int minix_write_inode(struct inode *inode, struct writeback_control *wbc)
 	return err;
 }
 
-int minix_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat)
+int minix_getattr(const struct path *path, struct kstat *stat,
+		  u32 request_mask, unsigned int flags)
 {
-	struct super_block *sb = dentry->d_sb;
-	generic_fillattr(d_inode(dentry), stat);
-	if (INODE_VERSION(d_inode(dentry)) == MINIX_V1)
+	struct super_block *sb = path->dentry->d_sb;
+	struct inode *inode = d_inode(path->dentry);
+
+	generic_fillattr(inode, stat);
+	if (INODE_VERSION(inode) == MINIX_V1)
 		stat->blocks = (BLOCK_SIZE / 512) * V1_minix_blocks(stat->size, sb);
 	else
 		stat->blocks = (sb->s_blocksize / 512) * V2_minix_blocks(stat->size, sb);

@@ -301,13 +301,13 @@ static uint32_t ips_statupd_copperhead_memio(ips_ha_t *);
 static uint32_t ips_statupd_morpheus(ips_ha_t *);
 static ips_scb_t *ips_getscb(ips_ha_t *);
 static void ips_putq_scb_head(ips_scb_queue_t *, ips_scb_t *);
-static void ips_putq_wait_tail(ips_wait_queue_t *, struct scsi_cmnd *);
+static void ips_putq_wait_tail(ips_wait_queue_entry_t *, struct scsi_cmnd *);
 static void ips_putq_copp_tail(ips_copp_queue_t *,
 				      ips_copp_wait_item_t *);
 static ips_scb_t *ips_removeq_scb_head(ips_scb_queue_t *);
 static ips_scb_t *ips_removeq_scb(ips_scb_queue_t *, ips_scb_t *);
-static struct scsi_cmnd *ips_removeq_wait_head(ips_wait_queue_t *);
-static struct scsi_cmnd *ips_removeq_wait(ips_wait_queue_t *,
+static struct scsi_cmnd *ips_removeq_wait_head(ips_wait_queue_entry_t *);
+static struct scsi_cmnd *ips_removeq_wait(ips_wait_queue_entry_t *,
 					  struct scsi_cmnd *);
 static ips_copp_wait_item_t *ips_removeq_copp(ips_copp_queue_t *,
 						     ips_copp_wait_item_t *);
@@ -2241,9 +2241,6 @@ ips_get_bios_version(ips_ha_t * ha, int intr)
 	uint8_t minor;
 	uint8_t subminor;
 	uint8_t *buffer;
-	char hexDigits[] =
-	    { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C',
-     'D', 'E', 'F' };
 
 	METHOD_TRACE("ips_get_bios_version", 1);
 
@@ -2374,13 +2371,13 @@ ips_get_bios_version(ips_ha_t * ha, int intr)
 		}
 	}
 
-	ha->bios_version[0] = hexDigits[(major & 0xF0) >> 4];
+	ha->bios_version[0] = hex_asc_upper_hi(major);
 	ha->bios_version[1] = '.';
-	ha->bios_version[2] = hexDigits[major & 0x0F];
-	ha->bios_version[3] = hexDigits[subminor];
+	ha->bios_version[2] = hex_asc_upper_lo(major);
+	ha->bios_version[3] = hex_asc_upper_lo(subminor);
 	ha->bios_version[4] = '.';
-	ha->bios_version[5] = hexDigits[(minor & 0xF0) >> 4];
-	ha->bios_version[6] = hexDigits[minor & 0x0F];
+	ha->bios_version[5] = hex_asc_upper_hi(minor);
+	ha->bios_version[6] = hex_asc_upper_lo(minor);
 	ha->bios_version[7] = 0;
 }
 
@@ -2874,7 +2871,7 @@ ips_removeq_scb(ips_scb_queue_t * queue, ips_scb_t * item)
 /* ASSUMED to be called from within the HA lock                             */
 /*                                                                          */
 /****************************************************************************/
-static void ips_putq_wait_tail(ips_wait_queue_t *queue, struct scsi_cmnd *item)
+static void ips_putq_wait_tail(ips_wait_queue_entry_t *queue, struct scsi_cmnd *item)
 {
 	METHOD_TRACE("ips_putq_wait_tail", 1);
 
@@ -2905,7 +2902,7 @@ static void ips_putq_wait_tail(ips_wait_queue_t *queue, struct scsi_cmnd *item)
 /* ASSUMED to be called from within the HA lock                             */
 /*                                                                          */
 /****************************************************************************/
-static struct scsi_cmnd *ips_removeq_wait_head(ips_wait_queue_t *queue)
+static struct scsi_cmnd *ips_removeq_wait_head(ips_wait_queue_entry_t *queue)
 {
 	struct scsi_cmnd *item;
 
@@ -2939,7 +2936,7 @@ static struct scsi_cmnd *ips_removeq_wait_head(ips_wait_queue_t *queue)
 /* ASSUMED to be called from within the HA lock                             */
 /*                                                                          */
 /****************************************************************************/
-static struct scsi_cmnd *ips_removeq_wait(ips_wait_queue_t *queue,
+static struct scsi_cmnd *ips_removeq_wait(ips_wait_queue_entry_t *queue,
 					  struct scsi_cmnd *item)
 {
 	struct scsi_cmnd *p;

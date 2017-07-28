@@ -53,7 +53,8 @@ static void smh_write(struct console *con, const char *s, unsigned n)
 	uart_console_write(&dev->port, s, n, smh_putc);
 }
 
-int __init early_smh_setup(struct earlycon_device *device, const char *opt)
+static int
+__init early_smh_setup(struct earlycon_device *device, const char *opt)
 {
 	device->con->write = smh_write;
 	return 0;

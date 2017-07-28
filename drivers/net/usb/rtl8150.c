@@ -14,7 +14,7 @@
 #include <linux/mii.h>
 #include <linux/ethtool.h>
 #include <linux/usb.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 /* Version Information */
 #define DRIVER_VERSION "v0.6.2 (2004/08/27)"
@@ -155,16 +155,36 @@ static const char driver_name [] = "rtl8150";
 */
 static int get_registers(rtl8150_t * dev, u16 indx, u16 size, void *data)
 {
-	return usb_control_msg(dev->udev, usb_rcvctrlpipe(dev->udev, 0),
-			       RTL8150_REQ_GET_REGS, RTL8150_REQT_READ,
-			       indx, 0, data, size, 500);
+	void *buf;
+	int ret;
+
+	buf = kmalloc(size, GFP_NOIO);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = usb_control_msg(dev->udev, usb_rcvctrlpipe(dev->udev, 0),
+			      RTL8150_REQ_GET_REGS, RTL8150_REQT_READ,
+			      indx, 0, buf, size, 500);
+	if (ret > 0 && ret <= size)
+		memcpy(data, buf, ret);
+	kfree(buf);
+	return ret;
 }
 
-static int set_registers(rtl8150_t * dev, u16 indx, u16 size, void *data)
+static int set_registers(rtl8150_t * dev, u16 indx, u16 size, const void *data)
 {
-	return usb_control_msg(dev->udev, usb_sndctrlpipe(dev->udev, 0),
-			       RTL8150_REQ_SET_REGS, RTL8150_REQT_WRITE,
-			       indx, 0, data, size, 500);
+	void *buf;
+	int ret;
+
+	buf = kmemdup(data, size, GFP_NOIO);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = usb_control_msg(dev->udev, usb_sndctrlpipe(dev->udev, 0),
+			      RTL8150_REQ_SET_REGS, RTL8150_REQT_WRITE,
+			      indx, 0, buf, size, 500);
+	kfree(buf);
+	return ret;
 }
 
 static void async_set_reg_cb(struct urb *urb)
@@ -451,7 +471,7 @@ static void write_bulk_callback(struct urb *urb)
 	if (status)
 		dev_info(&urb->dev->dev, "%s: Tx status %d\n",
 			 dev->netdev->name, status);
-	dev->netdev->trans_start = jiffies;
+	netif_trans_update(dev->netdev);
 	netif_wake_queue(dev->netdev);
 }
 
@@ -694,7 +714,7 @@ static netdev_tx_t rtl8150_start_xmit(struct sk_buff *skb,
 	} else {
 		netdev->stats.tx_packets++;
 		netdev->stats.tx_bytes += skb->len;
-		netdev->trans_start = jiffies;
+		netif_trans_update(netdev);
 	}
 
 	return NETDEV_TX_OK;
@@ -771,47 +791,52 @@ static void rtl8150_get_drvinfo(struct net_device *netdev, struct ethtool_drvinf
 	usb_make_path(dev->udev, info->bus_info, sizeof(info->bus_info));
 }
 
-static int rtl8150_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
+static int rtl8150_get_link_ksettings(struct net_device *netdev,
+				      struct ethtool_link_ksettings *ecmd)
 {
 	rtl8150_t *dev = netdev_priv(netdev);
 	short lpa, bmcr;
+	u32 supported;
 
-	ecmd->supported = (SUPPORTED_10baseT_Half |
+	supported = (SUPPORTED_10baseT_Half |
 			  SUPPORTED_10baseT_Full |
 			  SUPPORTED_100baseT_Half |
 			  SUPPORTED_100baseT_Full |
 			  SUPPORTED_Autoneg |
 			  SUPPORTED_TP | SUPPORTED_MII);
-	ecmd->port = PORT_TP;
-	ecmd->transceiver = XCVR_INTERNAL;
-	ecmd->phy_address = dev->phy;
+	ecmd->base.port = PORT_TP;
+	ecmd->base.phy_address = dev->phy;
 	get_registers(dev, BMCR, 2, &bmcr);
 	get_registers(dev, ANLP, 2, &lpa);
 	if (bmcr & BMCR_ANENABLE) {
 		u32 speed = ((lpa & (LPA_100HALF | LPA_100FULL)) ?
 			     SPEED_100 : SPEED_10);
-		ethtool_cmd_speed_set(ecmd, speed);
-		ecmd->autoneg = AUTONEG_ENABLE;
+		ecmd->base.speed = speed;
+		ecmd->base.autoneg = AUTONEG_ENABLE;
 		if (speed == SPEED_100)
-			ecmd->duplex = (lpa & LPA_100FULL) ?
+			ecmd->base.duplex = (lpa & LPA_100FULL) ?
 			    DUPLEX_FULL : DUPLEX_HALF;
 		else
-			ecmd->duplex = (lpa & LPA_10FULL) ?
+			ecmd->base.duplex = (lpa & LPA_10FULL) ?
 			    DUPLEX_FULL : DUPLEX_HALF;
 	} else {
-		ecmd->autoneg = AUTONEG_DISABLE;
-		ethtool_cmd_speed_set(ecmd, ((bmcr & BMCR_SPEED100) ?
-					     SPEED_100 : SPEED_10));
-		ecmd->duplex = (bmcr & BMCR_FULLDPLX) ?
+		ecmd->base.autoneg = AUTONEG_DISABLE;
+		ecmd->base.speed = ((bmcr & BMCR_SPEED100) ?
+					     SPEED_100 : SPEED_10);
+		ecmd->base.duplex = (bmcr & BMCR_FULLDPLX) ?
 		    DUPLEX_FULL : DUPLEX_HALF;
 	}
+
+	ethtool_convert_legacy_u32_to_link_mode(ecmd->link_modes.supported,
+						supported);
+
 	return 0;
 }
 
 static const struct ethtool_ops ops = {
 	.get_drvinfo = rtl8150_get_drvinfo,
-	.get_settings = rtl8150_get_settings,
-	.get_link = ethtool_op_get_link
+	.get_link = ethtool_op_get_link,
+	.get_link_ksettings = rtl8150_get_link_ksettings,
 };
 
 static int rtl8150_ioctl(struct net_device *netdev, struct ifreq *rq, int cmd)
@@ -847,7 +872,6 @@ static const struct net_device_ops rtl8150_netdev_ops = {
 	.ndo_set_rx_mode	= rtl8150_set_multicast,
 	.ndo_set_mac_address	= rtl8150_set_mac_address,
 
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
 };
 

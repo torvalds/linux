@@ -24,6 +24,15 @@
 #include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-vmalloc.h>
 
+/*
+ * Used Avago MGA-81563 RF amplifier could be destroyed pretty easily with too
+ * strong signal or transmitting to bad antenna.
+ * Set RF gain control to 'grabbed' state by default for sure.
+ */
+static bool hackrf_enable_rf_gain_ctrl;
+module_param_named(enable_rf_gain_ctrl, hackrf_enable_rf_gain_ctrl, bool, 0644);
+MODULE_PARM_DESC(enable_rf_gain_ctrl, "enable RX/TX RF amplifier control (warn: could damage amplifier)");
+
 /* HackRF USB API commands (from HackRF Library) */
 enum {
 	CMD_SET_TRANSCEIVER_MODE           = 0x01,
@@ -120,7 +129,7 @@ struct hackrf_dev {
 	struct list_head rx_buffer_list;
 	struct list_head tx_buffer_list;
 	spinlock_t buffer_list_lock; /* Protects buffer_list */
-	unsigned sequence;	     /* Buffer sequence counter */
+	unsigned int sequence;	     /* Buffer sequence counter */
 	unsigned int vb_full;        /* vb is full and packets dropped */
 	unsigned int vb_empty;       /* vb is empty and packets dropped */
 
@@ -517,7 +526,7 @@ static void hackrf_urb_complete_in(struct urb *urb)
 		    urb->transfer_buffer, len);
 	vb2_set_plane_payload(&buffer->vb.vb2_buf, 0, len);
 	buffer->vb.sequence = dev->sequence++;
-	v4l2_get_timestamp(&buffer->vb.timestamp);
+	buffer->vb.vb2_buf.timestamp = ktime_get_ns();
 	vb2_buffer_done(&buffer->vb.vb2_buf, VB2_BUF_STATE_DONE);
 exit_usb_submit_urb:
 	usb_submit_urb(urb, GFP_ATOMIC);
@@ -562,7 +571,7 @@ static void hackrf_urb_complete_out(struct urb *urb)
 			   vb2_plane_vaddr(&buffer->vb.vb2_buf, 0), len);
 	urb->actual_length = len;
 	buffer->vb.sequence = dev->sequence++;
-	v4l2_get_timestamp(&buffer->vb.timestamp);
+	buffer->vb.vb2_buf.timestamp = ktime_get_ns();
 	vb2_buffer_done(&buffer->vb.vb2_buf, VB2_BUF_STATE_DONE);
 exit_usb_submit_urb:
 	usb_submit_urb(urb, GFP_ATOMIC);
@@ -682,7 +691,6 @@ static int hackrf_alloc_urbs(struct hackrf_dev *dev, bool rcv)
 		dev_dbg(dev->dev, "alloc urb=%d\n", i);
 		dev->urb_list[i] = usb_alloc_urb(0, GFP_ATOMIC);
 		if (!dev->urb_list[i]) {
-			dev_dbg(dev->dev, "failed\n");
 			for (j = 0; j < i; j++)
 				usb_free_urb(dev->urb_list[j]);
 			return -ENOMEM;
@@ -750,8 +758,8 @@ static void hackrf_return_all_buffers(struct vb2_queue *vq,
 }
 
 static int hackrf_queue_setup(struct vb2_queue *vq,
-		const void *parg, unsigned int *nbuffers,
-		unsigned int *nplanes, unsigned int sizes[], void *alloc_ctxs[])
+		unsigned int *nbuffers,
+		unsigned int *nplanes, unsigned int sizes[], struct device *alloc_devs[])
 {
 	struct hackrf_dev *dev = vb2_get_drv_priv(vq);
 
@@ -883,7 +891,7 @@ static void hackrf_stop_streaming(struct vb2_queue *vq)
 	mutex_unlock(&dev->v4l2_lock);
 }
 
-static struct vb2_ops hackrf_vb2_ops = {
+static const struct vb2_ops hackrf_vb2_ops = {
 	.queue_setup            = hackrf_queue_setup,
 	.buf_queue              = hackrf_buf_queue,
 	.start_streaming        = hackrf_start_streaming,
@@ -1451,6 +1459,7 @@ static int hackrf_probe(struct usb_interface *intf,
 		dev_err(dev->dev, "Could not initialize controls\n");
 		goto err_v4l2_ctrl_handler_free_rx;
 	}
+	v4l2_ctrl_grab(dev->rx_rf_gain, !hackrf_enable_rf_gain_ctrl);
 	v4l2_ctrl_handler_setup(&dev->rx_ctrl_handler);
 
 	/* Register controls for transmitter */
@@ -1471,6 +1480,7 @@ static int hackrf_probe(struct usb_interface *intf,
 		dev_err(dev->dev, "Could not initialize controls\n");
 		goto err_v4l2_ctrl_handler_free_tx;
 	}
+	v4l2_ctrl_grab(dev->tx_rf_gain, !hackrf_enable_rf_gain_ctrl);
 	v4l2_ctrl_handler_setup(&dev->tx_ctrl_handler);
 
 	/* Register the v4l2_device structure */
@@ -1530,7 +1540,7 @@ err_v4l2_ctrl_handler_free_rx:
 err_kfree:
 	kfree(dev);
 err:
-	dev_dbg(dev->dev, "failed=%d\n", ret);
+	dev_dbg(&intf->dev, "failed=%d\n", ret);
 	return ret;
 }
 

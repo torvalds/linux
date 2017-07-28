@@ -186,7 +186,7 @@ done:
 
 	if (!sample_invalid)
 		iio_push_to_buffers_with_timestamp(indio_dev, data,
-						   iio_get_time_ns());
+						   iio_get_time_ns(indio_dev));
 	iio_trigger_notify_done(indio_dev->trig);
 
 	return IRQ_HANDLED;

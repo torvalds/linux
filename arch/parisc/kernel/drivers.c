@@ -40,7 +40,7 @@
 #include <asm/parisc-device.h>
 
 /* See comments in include/asm-parisc/pci.h */
-struct hppa_dma_ops *hppa_dma_ops __read_mostly;
+const struct dma_map_ops *hppa_dma_ops __read_mostly;
 EXPORT_SYMBOL(hppa_dma_ops);
 
 static struct device root = {
@@ -575,7 +575,8 @@ static ssize_t name##_show(struct device *dev, struct device_attribute *attr, ch
 {									\
 	struct parisc_device *padev = to_parisc_device(dev);		\
 	return sprintf(buf, format_string, padev->field);		\
-}
+}									\
+static DEVICE_ATTR_RO(name);
 
 #define pa_dev_attr_id(field, format) pa_dev_attr(field, id.field, format)
 
@@ -589,22 +590,24 @@ static ssize_t modalias_show(struct device *dev, struct device_attribute *attr, 
 {
 	return make_modalias(dev, buf);
 }
+static DEVICE_ATTR_RO(modalias);
 
-static struct device_attribute parisc_device_attrs[] = {
-	__ATTR_RO(irq),
-	__ATTR_RO(hw_type),
-	__ATTR_RO(rev),
-	__ATTR_RO(hversion),
-	__ATTR_RO(sversion),
-	__ATTR_RO(modalias),
-	__ATTR_NULL,
+static struct attribute *parisc_device_attrs[] = {
+	&dev_attr_irq.attr,
+	&dev_attr_hw_type.attr,
+	&dev_attr_rev.attr,
+	&dev_attr_hversion.attr,
+	&dev_attr_sversion.attr,
+	&dev_attr_modalias.attr,
+	NULL,
 };
+ATTRIBUTE_GROUPS(parisc_device);
 
 struct bus_type parisc_bus_type = {
 	.name = "parisc",
 	.match = parisc_generic_match,
 	.uevent = parisc_uevent,
-	.dev_attrs = parisc_device_attrs,
+	.dev_groups = parisc_device_groups,
 	.probe = parisc_driver_probe,
 	.remove = parisc_driver_remove,
 };
@@ -873,11 +876,11 @@ static void print_parisc_device(struct parisc_device *dev)
 
 	if (dev->num_addrs) {
 		int k;
-		printk(", additional addresses: ");
+		pr_cont(", additional addresses: ");
 		for (k = 0; k < dev->num_addrs; k++)
-			printk("0x%lx ", dev->addr[k]);
+			pr_cont("0x%lx ", dev->addr[k]);
 	}
-	printk("\n");
+	pr_cont("\n");
 }
 
 /**

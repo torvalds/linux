@@ -72,10 +72,12 @@ enum rpi_firmware_property_tag {
 	RPI_FIRMWARE_SET_ENABLE_QPU =                         0x00030012,
 	RPI_FIRMWARE_GET_DISPMANX_RESOURCE_MEM_HANDLE =       0x00030014,
 	RPI_FIRMWARE_GET_EDID_BLOCK =                         0x00030020,
+	RPI_FIRMWARE_GET_DOMAIN_STATE =                       0x00030030,
 	RPI_FIRMWARE_SET_CLOCK_STATE =                        0x00038001,
 	RPI_FIRMWARE_SET_CLOCK_RATE =                         0x00038002,
 	RPI_FIRMWARE_SET_VOLTAGE =                            0x00038003,
 	RPI_FIRMWARE_SET_TURBO =                              0x00038009,
+	RPI_FIRMWARE_SET_DOMAIN_STATE =                       0x00038030,
 
 	/* Dispmanx TAGS */
 	RPI_FIRMWARE_FRAMEBUFFER_ALLOCATE =                   0x00040001,
@@ -107,14 +109,35 @@ enum rpi_firmware_property_tag {
 	RPI_FIRMWARE_FRAMEBUFFER_SET_OVERSCAN =               0x0004800a,
 	RPI_FIRMWARE_FRAMEBUFFER_SET_PALETTE =                0x0004800b,
 
+	RPI_FIRMWARE_VCHIQ_INIT =                             0x00048010,
+
 	RPI_FIRMWARE_GET_COMMAND_LINE =                       0x00050001,
 	RPI_FIRMWARE_GET_DMA_CHANNELS =                       0x00060001,
 };
 
+#if IS_ENABLED(CONFIG_RASPBERRYPI_FIRMWARE)
 int rpi_firmware_property(struct rpi_firmware *fw,
 			  u32 tag, void *data, size_t len);
 int rpi_firmware_property_list(struct rpi_firmware *fw,
 			       void *data, size_t tag_size);
 struct rpi_firmware *rpi_firmware_get(struct device_node *firmware_node);
+#else
+static inline int rpi_firmware_property(struct rpi_firmware *fw, u32 tag,
+					void *data, size_t len)
+{
+	return 0;
+}
+
+static inline int rpi_firmware_property_list(struct rpi_firmware *fw,
+					     void *data, size_t tag_size)
+{
+	return 0;
+}
+
+static inline struct rpi_firmware *rpi_firmware_get(struct device_node *firmware_node)
+{
+	return NULL;
+}
+#endif
 
 #endif /* __SOC_RASPBERRY_FIRMWARE_H__ */

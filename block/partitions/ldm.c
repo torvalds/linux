@@ -27,6 +27,8 @@
 #include <linux/pagemap.h>
 #include <linux/stringify.h>
 #include <linux/kernel.h>
+#include <linux/uuid.h>
+
 #include "ldm.h"
 #include "check.h"
 #include "msdos.h"
@@ -63,60 +65,6 @@ void _ldm_printk(const char *level, const char *function, const char *fmt, ...)
 	printk("%s%s(): %pV\n", level, function, &vaf);
 
 	va_end(args);
-}
-
-/**
- * ldm_parse_hexbyte - Convert a ASCII hex number to a byte
- * @src:  Pointer to at least 2 characters to convert.
- *
- * Convert a two character ASCII hex string to a number.
- *
- * Return:  0-255  Success, the byte was parsed correctly
- *          -1     Error, an invalid character was supplied
- */
-static int ldm_parse_hexbyte (const u8 *src)
-{
-	unsigned int x;		/* For correct wrapping */
-	int h;
-
-	/* high part */
-	x = h = hex_to_bin(src[0]);
-	if (h < 0)
-		return -1;
-
-	/* low part */
-	h = hex_to_bin(src[1]);
-	if (h < 0)
-		return -1;
-
-	return (x << 4) + h;
-}
-
-/**
- * ldm_parse_guid - Convert GUID from ASCII to binary
- * @src:   36 char string of the form fa50ff2b-f2e8-45de-83fa-65417f2f49ba
- * @dest:  Memory block to hold binary GUID (16 bytes)
- *
- * N.B. The GUID need not be NULL terminated.
- *
- * Return:  'true'   @dest contains binary GUID
- *          'false'  @dest contents are undefined
- */
-static bool ldm_parse_guid (const u8 *src, u8 *dest)
-{
-	static const int size[] = { 4, 2, 2, 2, 6 };
-	int i, j, v;
-
-	if (src[8]  != '-' || src[13] != '-' ||
-	    src[18] != '-' || src[23] != '-')
-		return false;
-
-	for (j = 0; j < 5; j++, src++)
-		for (i = 0; i < size[j]; i++, src+=2, *dest++ = v)
-			if ((v = ldm_parse_hexbyte (src)) < 0)
-				return false;
-
-	return true;
 }
 
 /**
@@ -167,7 +115,7 @@ static bool ldm_parse_privhead(const u8 *data, struct privhead *ph)
 		ldm_error("PRIVHEAD disk size doesn't match real disk size");
 		return false;
 	}
-	if (!ldm_parse_guid(data + 0x0030, ph->disk_id)) {
+	if (uuid_parse(data + 0x0030, &ph->disk_id)) {
 		ldm_error("PRIVHEAD contains an invalid GUID.");
 		return false;
 	}
@@ -286,7 +234,7 @@ static bool ldm_compare_privheads (const struct privhead *ph1,
 		(ph1->logical_disk_size  == ph2->logical_disk_size)	&&
 		(ph1->config_start       == ph2->config_start)		&&
 		(ph1->config_size        == ph2->config_size)		&&
-		!memcmp (ph1->disk_id, ph2->disk_id, GUID_SIZE));
+		uuid_equal(&ph1->disk_id, &ph2->disk_id));
 }
 
 /**
@@ -609,7 +557,7 @@ static struct vblk * ldm_get_disk_objid (const struct ldmdb *ldb)
 
 	list_for_each (item, &ldb->v_disk) {
 		struct vblk *v = list_entry (item, struct vblk, list);
-		if (!memcmp (v->vblk.disk.disk_id, ldb->ph.disk_id, GUID_SIZE))
+		if (uuid_equal(&v->vblk.disk.disk_id, &ldb->ph.disk_id))
 			return v;
 	}
 
@@ -944,7 +892,7 @@ static bool ldm_parse_dsk3 (const u8 *buffer, int buflen, struct vblk *vb)
 	disk = &vb->vblk.disk;
 	ldm_get_vstr (buffer + 0x18 + r_diskid, disk->alt_name,
 		sizeof (disk->alt_name));
-	if (!ldm_parse_guid (buffer + 0x19 + r_name, disk->disk_id))
+	if (uuid_parse(buffer + 0x19 + r_name, &disk->disk_id))
 		return false;
 
 	return true;
@@ -979,7 +927,7 @@ static bool ldm_parse_dsk4 (const u8 *buffer, int buflen, struct vblk *vb)
 		return false;
 
 	disk = &vb->vblk.disk;
-	memcpy (disk->disk_id, buffer + 0x18 + r_name, GUID_SIZE);
+	uuid_copy(&disk->disk_id, (uuid_t *)(buffer + 0x18 + r_name));
 	return true;
 }
 

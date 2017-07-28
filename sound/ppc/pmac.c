@@ -34,7 +34,6 @@
 #include "pmac.h"
 #include <sound/pcm_params.h>
 #include <asm/pmac_feature.h>
-#include <asm/pci-bridge.h>
 
 
 /* fixed frequency table for awacs, screamer, burgundy, DACA (44100 max) */

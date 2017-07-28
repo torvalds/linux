@@ -36,7 +36,8 @@
 #define HW_PART1_START_ADDR             (HW_PARTITION_REGISTERS_ADDR + 12)
 #define HW_PART2_SIZE_ADDR              (HW_PARTITION_REGISTERS_ADDR + 16)
 #define HW_PART2_START_ADDR             (HW_PARTITION_REGISTERS_ADDR + 20)
-#define HW_PART3_START_ADDR             (HW_PARTITION_REGISTERS_ADDR + 24)
+#define HW_PART3_SIZE_ADDR              (HW_PARTITION_REGISTERS_ADDR + 24)
+#define HW_PART3_START_ADDR             (HW_PARTITION_REGISTERS_ADDR + 28)
 
 #define HW_ACCESS_REGISTER_SIZE         4
 
@@ -207,19 +208,23 @@ static inline int __must_check wlcore_write_reg(struct wl1271 *wl, int reg,
 
 static inline void wl1271_power_off(struct wl1271 *wl)
 {
-	int ret;
+	int ret = 0;
 
 	if (!test_bit(WL1271_FLAG_GPIO_POWER, &wl->flags))
 		return;
 
-	ret = wl->if_ops->power(wl->dev, false);
+	if (wl->if_ops->power)
+		ret = wl->if_ops->power(wl->dev, false);
 	if (!ret)
 		clear_bit(WL1271_FLAG_GPIO_POWER, &wl->flags);
 }
 
 static inline int wl1271_power_on(struct wl1271 *wl)
 {
-	int ret = wl->if_ops->power(wl->dev, true);
+	int ret = 0;
+
+	if (wl->if_ops->power)
+		ret = wl->if_ops->power(wl->dev, true);
 	if (ret == 0)
 		set_bit(WL1271_FLAG_GPIO_POWER, &wl->flags);
 

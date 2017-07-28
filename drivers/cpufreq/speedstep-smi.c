@@ -12,6 +12,8 @@
  *                        SPEEDSTEP - DEFINITIONS                    *
  *********************************************************************/
 
+#define pr_fmt(fmt) "cpufreq: " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -204,9 +206,8 @@ static void speedstep_set_state(unsigned int state)
 			(speedstep_freqs[new_state].frequency / 1000),
 			retry, result);
 	else
-		printk(KERN_ERR "cpufreq: change to state %u "
-			"failed with new_state %u and result %u\n",
-			state, new_state, result);
+		pr_err("change to state %u failed with new_state %u and result %u\n",
+		       state, new_state, result);
 
 	return;
 }
@@ -377,7 +378,7 @@ static void __exit speedstep_exit(void)
 	cpufreq_unregister_driver(&speedstep_driver);
 }
 
-module_param(smi_port, int, 0444);
+module_param_hw(smi_port, int, ioport, 0444);
 module_param(smi_cmd,  int, 0444);
 module_param(smi_sig, uint, 0444);
 

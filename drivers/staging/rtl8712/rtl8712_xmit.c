@@ -169,8 +169,8 @@ static struct xmit_frame *dequeue_one_xmitframe(struct xmit_priv *pxmitpriv,
 	xmitframe_phead = &pframe_queue->queue;
 	xmitframe_plist = xmitframe_phead->next;
 	if (!end_of_queue_search(xmitframe_phead, xmitframe_plist)) {
-		pxmitframe = LIST_CONTAINOR(xmitframe_plist,
-			     struct xmit_frame, list);
+		pxmitframe = container_of(xmitframe_plist,
+					  struct xmit_frame, list);
 		list_del_init(&pxmitframe->list);
 		ptxservq->qcnt--;
 		phwxmit->txcmdcnt++;
@@ -209,8 +209,8 @@ static struct xmit_frame *dequeue_xframe_ex(struct xmit_priv *pxmitpriv,
 		sta_phead = &phwxmit->sta_queue->queue;
 		sta_plist = sta_phead->next;
 		while (!end_of_queue_search(sta_phead, sta_plist)) {
-			ptxservq = LIST_CONTAINOR(sta_plist, struct tx_servq,
-				  tx_pending);
+			ptxservq = container_of(sta_plist, struct tx_servq,
+						tx_pending);
 			pframe_queue = &ptxservq->sta_pending;
 			pxmitframe = dequeue_one_xmitframe(pxmitpriv, phwxmit,
 				     ptxservq, pframe_queue);
@@ -302,7 +302,7 @@ u8 r8712_append_mpdu_unit(struct xmit_buf *pxmitbuf,
 	int last_txcmdsz = 0;
 	int padding_sz = 0;
 
-	/* 802.3->802.11 convertor */
+	/* 802.3->802.11 converter */
 	r8712_xmitframe_coalesce(padapter, pxmitframe->pkt, pxmitframe);
 	/* free skb struct */
 	r8712_xmit_complete(padapter, pxmitframe);
@@ -535,7 +535,8 @@ static void update_txdesc(struct xmit_frame *pxmitframe, uint *pmem, int sz)
 		 * seqnum per tid. about usb using 4-endpoint, qsel points out
 		 * the correct mapping between AC&Endpoint,
 		 * the purpose is that correct mapping lets the MAC release
-		 * the AC Queue list correctly. */
+		 * the AC Queue list correctly.
+		 */
 		ptxdesc->txdw3 = cpu_to_le32((pattrib->priority << SEQ_SHT) &
 				 0x0fff0000);
 		if ((pattrib->ether_type != 0x888e) &&
@@ -560,19 +561,19 @@ static void update_txdesc(struct xmit_frame *pxmitframe, uint *pmem, int sz)
 
 			ptxdesc_mp = &txdesc_mp;
 			/* offset 8 */
-			ptxdesc->txdw2 = cpu_to_le32(ptxdesc_mp->txdw2);
+			ptxdesc->txdw2 = ptxdesc_mp->txdw2;
 			if (bmcst)
 				ptxdesc->txdw2 |= cpu_to_le32(BMC);
 			ptxdesc->txdw2 |= cpu_to_le32(BK);
 			/* offset 16 */
-			ptxdesc->txdw4 = cpu_to_le32(ptxdesc_mp->txdw4);
+			ptxdesc->txdw4 = ptxdesc_mp->txdw4;
 			/* offset 20 */
-			ptxdesc->txdw5 = cpu_to_le32(ptxdesc_mp->txdw5);
+			ptxdesc->txdw5 = ptxdesc_mp->txdw5;
 			pattrib->pctrl = 0;/* reset to zero; */
 		}
 	} else if (pxmitframe->frame_tag == MGNT_FRAMETAG) {
 		/* offset 4 */
-		ptxdesc->txdw1 |= (0x05) & 0x1f;/*CAM_ID(MAC_ID), default=5;*/
+		ptxdesc->txdw1 |= cpu_to_le32((0x05) & 0x1f);/*CAM_ID(MAC_ID), default=5;*/
 		qsel = (uint)(pattrib->qsel & 0x0000001f);
 		ptxdesc->txdw1 |= cpu_to_le32((qsel << QSEL_SHT) & 0x00001f00);
 		ptxdesc->txdw1 |= cpu_to_le32(BIT(16));/* Non-QoS */
@@ -586,7 +587,8 @@ static void update_txdesc(struct xmit_frame *pxmitframe, uint *pmem, int sz)
 		 * per tid. about usb using 4-endpoint, qsel points out the
 		 * correct mapping between AC&Endpoint,
 		 * the purpose is that correct mapping let the MAC releases
-		 * the AC Queue list correctly. */
+		 * the AC Queue list correctly.
+		 */
 		ptxdesc->txdw3 = cpu_to_le32((pattrib->priority << SEQ_SHT) &
 					      0x0fff0000);
 		/* offset 16 */
@@ -627,7 +629,7 @@ int r8712_xmitframe_complete(struct _adapter *padapter,
 
 	phwxmits = pxmitpriv->hwxmits;
 	hwentry = pxmitpriv->hwxmit_entry;
-	if (pxmitbuf == NULL) {
+	if (!pxmitbuf) {
 		pxmitbuf = r8712_alloc_xmitbuf(pxmitpriv);
 		if (!pxmitbuf)
 			return false;
@@ -686,7 +688,8 @@ int r8712_xmitframe_complete(struct _adapter *padapter,
 				res = r8712_xmitframe_coalesce(padapter,
 					pxmitframe->pkt, pxmitframe);
 			/* always return ndis_packet after
-			 * r8712_xmitframe_coalesce */
+			 * r8712_xmitframe_coalesce
+			 */
 			r8712_xmit_complete(padapter, pxmitframe);
 		}
 		if (res == _SUCCESS)

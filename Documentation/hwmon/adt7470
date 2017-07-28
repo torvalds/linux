@@ -65,6 +65,23 @@ from 0 (off) to 255 (full speed).  Fan speed will be set to maximum when the
 temperature sensor associated with the PWM control exceeds
 pwm#_auto_point2_temp.
 
+The driver also allows control of the PWM frequency:
+
+* pwm1_freq
+
+The PWM frequency is rounded to the nearest one of:
+
+* 11.0 Hz
+* 14.7 Hz
+* 22.1 Hz
+* 29.4 Hz
+* 35.3 Hz
+* 44.1 Hz
+* 58.8 Hz
+* 88.2 Hz
+* 1.4 kHz
+* 22.5 kHz
+
 Notes
 -----
 

@@ -13,6 +13,19 @@ __cert_list_start:
 	.incbin "certs/x509_certificate_list"
 __cert_list_end:
 
+#ifdef CONFIG_SYSTEM_EXTRA_CERTIFICATE
+	.globl VMLINUX_SYMBOL(system_extra_cert)
+	.size system_extra_cert, CONFIG_SYSTEM_EXTRA_CERTIFICATE_SIZE
+VMLINUX_SYMBOL(system_extra_cert):
+	.fill CONFIG_SYSTEM_EXTRA_CERTIFICATE_SIZE, 1, 0
+
+	.align 4
+	.globl VMLINUX_SYMBOL(system_extra_cert_used)
+VMLINUX_SYMBOL(system_extra_cert_used):
+	.int 0
+
+#endif /* CONFIG_SYSTEM_EXTRA_CERTIFICATE */
+
 	.align 8
 	.globl VMLINUX_SYMBOL(system_certificate_list_size)
 VMLINUX_SYMBOL(system_certificate_list_size):

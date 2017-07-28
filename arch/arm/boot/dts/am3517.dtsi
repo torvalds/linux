@@ -13,9 +13,10 @@
 / {
 	aliases {
 		serial3 = &uart4;
+		can = &hecc;
 	};
 
-	ocp {
+	ocp@68000000 {
 		am35x_otg_hs: am35x_otg_hs@5c040000 {
 			compatible = "ti,omap3-musb";
 			ti,hwmods = "am35x_otg_hs";
@@ -66,10 +67,22 @@
 			reg = <0x480025d8 0x24>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			#pinctrl-cells = <1>;
 			#interrupt-cells = <1>;
 			interrupt-controller;
 			pinctrl-single,register-width = <16>;
 			pinctrl-single,function-mask = <0xff1f>;
+		};
+
+		hecc: can@5c050000 {
+			compatible = "ti,am3517-hecc";
+			status = "disabled";
+			reg = <0x5c050000 0x80>,
+			      <0x5c053000 0x180>,
+			      <0x5c052000 0x200>;
+			reg-names = "hecc", "hecc-ram", "mbx";
+			interrupts = <24>;
+			clocks = <&hecc_ck>;
 		};
 	};
 };

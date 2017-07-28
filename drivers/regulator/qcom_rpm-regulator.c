@@ -448,6 +448,44 @@ static struct regulator_ops switch_ops = {
 };
 
 /*
+ * PM8018 regulators
+ */
+static const struct qcom_rpm_reg pm8018_pldo = {
+	.desc.linear_ranges = pldo_ranges,
+	.desc.n_linear_ranges = ARRAY_SIZE(pldo_ranges),
+	.desc.n_voltages = 161,
+	.desc.ops = &uV_ops,
+	.parts = &rpm8960_ldo_parts,
+	.supports_force_mode_auto = false,
+	.supports_force_mode_bypass = false,
+};
+
+static const struct qcom_rpm_reg pm8018_nldo = {
+	.desc.linear_ranges = nldo_ranges,
+	.desc.n_linear_ranges = ARRAY_SIZE(nldo_ranges),
+	.desc.n_voltages = 64,
+	.desc.ops = &uV_ops,
+	.parts = &rpm8960_ldo_parts,
+	.supports_force_mode_auto = false,
+	.supports_force_mode_bypass = false,
+};
+
+static const struct qcom_rpm_reg pm8018_smps = {
+	.desc.linear_ranges = smps_ranges,
+	.desc.n_linear_ranges = ARRAY_SIZE(smps_ranges),
+	.desc.n_voltages = 154,
+	.desc.ops = &uV_ops,
+	.parts = &rpm8960_smps_parts,
+	.supports_force_mode_auto = false,
+	.supports_force_mode_bypass = false,
+};
+
+static const struct qcom_rpm_reg pm8018_switch = {
+	.desc.ops = &switch_ops,
+	.parts = &rpm8960_switch_parts,
+};
+
+/*
  * PM8058 regulators
  */
 static const struct qcom_rpm_reg pm8058_pldo = {
@@ -755,6 +793,32 @@ struct rpm_regulator_data {
 	const char *supply;
 };
 
+static const struct rpm_regulator_data rpm_pm8018_regulators[] = {
+	{ "s1",  QCOM_RPM_PM8018_SMPS1, &pm8018_smps, "vdd_s1" },
+	{ "s2",  QCOM_RPM_PM8018_SMPS2, &pm8018_smps, "vdd_s2" },
+	{ "s3",  QCOM_RPM_PM8018_SMPS3, &pm8018_smps, "vdd_s3" },
+	{ "s4",  QCOM_RPM_PM8018_SMPS4, &pm8018_smps, "vdd_s4" },
+	{ "s5",  QCOM_RPM_PM8018_SMPS5, &pm8018_smps, "vdd_s5" },
+
+	{ "l2",  QCOM_RPM_PM8018_LDO2,  &pm8018_pldo, "vdd_l2" },
+	{ "l3",  QCOM_RPM_PM8018_LDO3,  &pm8018_pldo, "vdd_l3" },
+	{ "l4",  QCOM_RPM_PM8018_LDO4,  &pm8018_pldo, "vdd_l4" },
+	{ "l5",  QCOM_RPM_PM8018_LDO5,  &pm8018_pldo, "vdd_l5" },
+	{ "l6",  QCOM_RPM_PM8018_LDO6,  &pm8018_pldo, "vdd_l7" },
+	{ "l7",  QCOM_RPM_PM8018_LDO7,  &pm8018_pldo, "vdd_l7" },
+	{ "l8",  QCOM_RPM_PM8018_LDO8,  &pm8018_nldo, "vdd_l8" },
+	{ "l9",  QCOM_RPM_PM8018_LDO9,  &pm8921_nldo1200,
+						      "vdd_l9_l10_l11_l12" },
+	{ "l10", QCOM_RPM_PM8018_LDO10, &pm8018_nldo, "vdd_l9_l10_l11_l12" },
+	{ "l11", QCOM_RPM_PM8018_LDO11, &pm8018_nldo, "vdd_l9_l10_l11_l12" },
+	{ "l12", QCOM_RPM_PM8018_LDO12, &pm8018_nldo, "vdd_l9_l10_l11_l12" },
+	{ "l14", QCOM_RPM_PM8018_LDO14, &pm8018_pldo, "vdd_l14" },
+
+	{ "lvs1", QCOM_RPM_PM8018_LVS1, &pm8018_switch, "lvs1_in" },
+
+	{ }
+};
+
 static const struct rpm_regulator_data rpm_pm8058_regulators[] = {
 	{ "l0",   QCOM_RPM_PM8058_LDO0,   &pm8058_nldo, "vdd_l0_l1_lvs"	},
 	{ "l1",   QCOM_RPM_PM8058_LDO1,   &pm8058_nldo, "vdd_l0_l1_lvs" },
@@ -870,6 +934,8 @@ static const struct rpm_regulator_data rpm_pm8921_regulators[] = {
 };
 
 static const struct of_device_id rpm_of_match[] = {
+	{ .compatible = "qcom,rpm-pm8018-regulators",
+		.data = &rpm_pm8018_regulators },
 	{ .compatible = "qcom,rpm-pm8058-regulators", .data = &rpm_pm8058_regulators },
 	{ .compatible = "qcom,rpm-pm8901-regulators", .data = &rpm_pm8901_regulators },
 	{ .compatible = "qcom,rpm-pm8921-regulators", .data = &rpm_pm8921_regulators },

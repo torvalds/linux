@@ -11,7 +11,7 @@ Required properties:
 
 Optional properties:
 - clock-frequency : Constains desired I2C/HS-I2C bus clock frequency in Hz.
-  The absence of the propoerty indicates the default frequency 100 kHz.
+  The absence of the property indicates the default frequency 100 kHz.
 - dmas: A list of two dma specifiers, one for each entry in dma-names.
 - dma-names: should contain "tx" and "rx".
 - scl-gpios: specify the gpio related to SCL pin

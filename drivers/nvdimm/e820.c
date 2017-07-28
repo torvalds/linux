@@ -47,6 +47,7 @@ static int e820_pmem_probe(struct platform_device *pdev)
 
 	nd_desc.attr_groups = e820_pmem_attribute_groups;
 	nd_desc.provider_name = "e820";
+	nd_desc.module = THIS_MODULE;
 	nvdimm_bus = nvdimm_bus_register(dev, &nd_desc);
 	if (!nvdimm_bus)
 		goto err;
@@ -55,7 +56,7 @@ static int e820_pmem_probe(struct platform_device *pdev)
 	for (p = iomem_resource.child; p ; p = p->sibling) {
 		struct nd_region_desc ndr_desc;
 
-		if (strncmp(p->name, "Persistent Memory (legacy)", 26) != 0)
+		if (p->desc != IORES_DESC_PERSISTENT_MEMORY_LEGACY)
 			continue;
 
 		memset(&ndr_desc, 0, sizeof(ndr_desc));
@@ -83,18 +84,8 @@ static struct platform_driver e820_pmem_driver = {
 	},
 };
 
-static __init int e820_pmem_init(void)
-{
-	return platform_driver_register(&e820_pmem_driver);
-}
-
-static __exit void e820_pmem_exit(void)
-{
-	platform_driver_unregister(&e820_pmem_driver);
-}
+module_platform_driver(e820_pmem_driver);
 
 MODULE_ALIAS("platform:e820_pmem*");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Intel Corporation");
-module_init(e820_pmem_init);
-module_exit(e820_pmem_exit);

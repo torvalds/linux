@@ -1183,7 +1183,7 @@ static void hci_cc_le_set_scan_enable(struct hci_dev *hdev,
 			hci_discovery_set_state(hdev, DISCOVERY_STOPPED);
 		else if (!hci_dev_test_flag(hdev, HCI_LE_ADV) &&
 			 hdev->discovery.state == DISCOVERY_FINDING)
-			mgmt_reenable_advertising(hdev);
+			hci_req_reenable_advertising(hdev);
 
 		break;
 
@@ -2176,7 +2176,7 @@ static void hci_conn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			hci_send_cmd(hdev, HCI_OP_READ_REMOTE_FEATURES,
 				     sizeof(cp), &cp);
 
-			hci_update_page_scan(hdev);
+			hci_req_update_scan(hdev);
 		}
 
 		/* Set packet type for incoming connection */
@@ -2332,7 +2332,7 @@ static u8 hci_to_mgmt_reason(u8 err)
 static void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct hci_ev_disconn_complete *ev = (void *) skb->data;
-	u8 reason = hci_to_mgmt_reason(ev->reason);
+	u8 reason;
 	struct hci_conn_params *params;
 	struct hci_conn *conn;
 	bool mgmt_connected;
@@ -2355,6 +2355,12 @@ static void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	conn->state = BT_CLOSED;
 
 	mgmt_connected = test_and_clear_bit(HCI_CONN_MGMT_CONNECTED, &conn->flags);
+
+	if (test_bit(HCI_CONN_AUTH_FAILURE, &conn->flags))
+		reason = MGMT_DEV_DISCONN_AUTH_FAILURE;
+	else
+		reason = hci_to_mgmt_reason(ev->reason);
+
 	mgmt_device_disconnected(hdev, &conn->dst, conn->type, conn->dst_type,
 				reason, mgmt_connected);
 
@@ -2362,7 +2368,7 @@ static void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		if (test_bit(HCI_CONN_FLUSH_KEY, &conn->flags))
 			hci_remove_link_key(hdev, &conn->dst);
 
-		hci_update_page_scan(hdev);
+		hci_req_update_scan(hdev);
 	}
 
 	params = hci_conn_params_lookup(hdev, &conn->dst, conn->dst_type);
@@ -2401,7 +2407,7 @@ static void hci_disconn_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	 * is timed out due to Directed Advertising."
 	 */
 	if (type == LE_LINK)
-		mgmt_reenable_advertising(hdev);
+		hci_req_reenable_advertising(hdev);
 
 unlock:
 	hci_dev_unlock(hdev);
@@ -2421,6 +2427,8 @@ static void hci_auth_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 		goto unlock;
 
 	if (!ev->status) {
+		clear_bit(HCI_CONN_AUTH_FAILURE, &conn->flags);
+
 		if (!hci_conn_ssp_enabled(conn) &&
 		    test_bit(HCI_CONN_REAUTH_PEND, &conn->flags)) {
 			BT_INFO("re-auth of legacy device is not possible.");
@@ -2429,6 +2437,9 @@ static void hci_auth_complete_evt(struct hci_dev *hdev, struct sk_buff *skb)
 			conn->sec_level = conn->pending_sec_level;
 		}
 	} else {
+		if (ev->status == HCI_ERROR_PIN_OR_KEY_MISSING)
+			set_bit(HCI_CONN_AUTH_FAILURE, &conn->flags);
+
 		mgmt_auth_failed(conn, ev->status);
 	}
 
@@ -2613,6 +2624,9 @@ static void hci_encrypt_change_evt(struct hci_dev *hdev, struct sk_buff *skb)
 	clear_bit(HCI_CONN_ENCRYPT_PEND, &conn->flags);
 
 	if (ev->status && conn->state == BT_CONNECTED) {
+		if (ev->status == HCI_ERROR_PIN_OR_KEY_MISSING)
+			set_bit(HCI_CONN_AUTH_FAILURE, &conn->flags);
+
 		hci_disconnect(conn, HCI_ERROR_AUTH_FAILURE);
 		hci_conn_drop(conn);
 		goto unlock;
@@ -3249,7 +3263,7 @@ static struct hci_conn *__hci_conn_lookup_handle(struct hci_dev *hdev,
 	struct hci_chan *chan;
 
 	switch (hdev->dev_type) {
-	case HCI_BREDR:
+	case HCI_PRIMARY:
 		return hci_conn_hash_lookup_handle(hdev, handle);
 	case HCI_AMP:
 		chan = hci_chan_lookup_handle(hdev, handle);
@@ -3833,9 +3847,9 @@ static void hci_extended_inquiry_result_evt(struct hci_dev *hdev,
 		data.ssp_mode		= 0x01;
 
 		if (hci_dev_test_flag(hdev, HCI_MGMT))
-			name_known = eir_has_data_type(info->data,
-						       sizeof(info->data),
-						       EIR_NAME_COMPLETE);
+			name_known = eir_get_data(info->data,
+						  sizeof(info->data),
+						  EIR_NAME_COMPLETE, NULL);
 		else
 			name_known = true;
 
@@ -4726,6 +4740,19 @@ static void process_adv_report(struct hci_dev *hdev, u8 type, bdaddr_t *bdaddr,
 	bool match;
 	u32 flags;
 	u8 *ptr, real_len;
+
+	switch (type) {
+	case LE_ADV_IND:
+	case LE_ADV_DIRECT_IND:
+	case LE_ADV_SCAN_IND:
+	case LE_ADV_NONCONN_IND:
+	case LE_ADV_SCAN_RSP:
+		break;
+	default:
+		BT_ERR_RATELIMITED("Unknown advertising packet type: 0x%02x",
+				   type);
+		return;
+	}
 
 	/* Find the end of the data in case the report contains padded zero
 	 * bytes at the end causing an invalid length value.

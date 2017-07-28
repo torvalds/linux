@@ -110,7 +110,7 @@
  * initialization. Do not change this register after the initial programming.
  */
 union cvmx_usbcx_gahbcfg {
-	uint32_t u32;
+	u32 u32;
 	/**
 	 * struct cvmx_usbcx_gahbcfg_s
 	 * @ptxfemplvl: Periodic TxFIFO Empty Level (PTxFEmpLvl)
@@ -145,13 +145,13 @@ union cvmx_usbcx_gahbcfg {
 	 *	* 1'b1: Unmask the interrupt assertion to the application.
 	 */
 	struct cvmx_usbcx_gahbcfg_s {
-		__BITFIELD_FIELD(uint32_t reserved_9_31	: 23,
-		__BITFIELD_FIELD(uint32_t ptxfemplvl	: 1,
-		__BITFIELD_FIELD(uint32_t nptxfemplvl	: 1,
-		__BITFIELD_FIELD(uint32_t reserved_6_6	: 1,
-		__BITFIELD_FIELD(uint32_t dmaen		: 1,
-		__BITFIELD_FIELD(uint32_t hbstlen	: 4,
-		__BITFIELD_FIELD(uint32_t glblintrmsk	: 1,
+		__BITFIELD_FIELD(u32 reserved_9_31	: 23,
+		__BITFIELD_FIELD(u32 ptxfemplvl		: 1,
+		__BITFIELD_FIELD(u32 nptxfemplvl	: 1,
+		__BITFIELD_FIELD(u32 reserved_6_6	: 1,
+		__BITFIELD_FIELD(u32 dmaen		: 1,
+		__BITFIELD_FIELD(u32 hbstlen		: 4,
+		__BITFIELD_FIELD(u32 glblintrmsk	: 1,
 		;)))))))
 	} s;
 };
@@ -164,7 +164,7 @@ union cvmx_usbcx_gahbcfg {
  * This register contains the configuration options of the O2P USB core.
  */
 union cvmx_usbcx_ghwcfg3 {
-	uint32_t u32;
+	u32 u32;
 	/**
 	 * struct cvmx_usbcx_ghwcfg3_s
 	 * @dfifodepth: DFIFO Depth (DfifoDepth)
@@ -212,16 +212,16 @@ union cvmx_usbcx_ghwcfg3 {
 	 *	* Others: Reserved
 	 */
 	struct cvmx_usbcx_ghwcfg3_s {
-		__BITFIELD_FIELD(uint32_t dfifodepth			: 16,
-		__BITFIELD_FIELD(uint32_t reserved_13_15		: 3,
-		__BITFIELD_FIELD(uint32_t ahbphysync			: 1,
-		__BITFIELD_FIELD(uint32_t rsttype			: 1,
-		__BITFIELD_FIELD(uint32_t optfeature			: 1,
-		__BITFIELD_FIELD(uint32_t vendor_control_interface_support : 1,
-		__BITFIELD_FIELD(uint32_t i2c_selection			: 1,
-		__BITFIELD_FIELD(uint32_t otgen				: 1,
-		__BITFIELD_FIELD(uint32_t pktsizewidth			: 3,
-		__BITFIELD_FIELD(uint32_t xfersizewidth			: 4,
+		__BITFIELD_FIELD(u32 dfifodepth				: 16,
+		__BITFIELD_FIELD(u32 reserved_13_15			: 3,
+		__BITFIELD_FIELD(u32 ahbphysync				: 1,
+		__BITFIELD_FIELD(u32 rsttype				: 1,
+		__BITFIELD_FIELD(u32 optfeature				: 1,
+		__BITFIELD_FIELD(u32 vendor_control_interface_support	: 1,
+		__BITFIELD_FIELD(u32 i2c_selection			: 1,
+		__BITFIELD_FIELD(u32 otgen				: 1,
+		__BITFIELD_FIELD(u32 pktsizewidth			: 3,
+		__BITFIELD_FIELD(u32 xfersizewidth			: 4,
 		;))))))))))
 	} s;
 };
@@ -238,7 +238,7 @@ union cvmx_usbcx_ghwcfg3 {
  * Mask interrupt: 1'b0, Unmask interrupt: 1'b1
  */
 union cvmx_usbcx_gintmsk {
-	uint32_t u32;
+	u32 u32;
 	/**
 	 * struct cvmx_usbcx_gintmsk_s
 	 * @wkupintmsk: Resume/Remote Wakeup Detected Interrupt Mask
@@ -279,38 +279,38 @@ union cvmx_usbcx_gintmsk {
 	 * @modemismsk: Mode Mismatch Interrupt Mask (ModeMisMsk)
 	 */
 	struct cvmx_usbcx_gintmsk_s {
-		__BITFIELD_FIELD(uint32_t wkupintmsk		: 1,
-		__BITFIELD_FIELD(uint32_t sessreqintmsk		: 1,
-		__BITFIELD_FIELD(uint32_t disconnintmsk		: 1,
-		__BITFIELD_FIELD(uint32_t conidstschngmsk	: 1,
-		__BITFIELD_FIELD(uint32_t reserved_27_27	: 1,
-		__BITFIELD_FIELD(uint32_t ptxfempmsk		: 1,
-		__BITFIELD_FIELD(uint32_t hchintmsk		: 1,
-		__BITFIELD_FIELD(uint32_t prtintmsk		: 1,
-		__BITFIELD_FIELD(uint32_t reserved_23_23	: 1,
-		__BITFIELD_FIELD(uint32_t fetsuspmsk		: 1,
-		__BITFIELD_FIELD(uint32_t incomplpmsk		: 1,
-		__BITFIELD_FIELD(uint32_t incompisoinmsk	: 1,
-		__BITFIELD_FIELD(uint32_t oepintmsk		: 1,
-		__BITFIELD_FIELD(uint32_t inepintmsk		: 1,
-		__BITFIELD_FIELD(uint32_t epmismsk		: 1,
-		__BITFIELD_FIELD(uint32_t reserved_16_16	: 1,
-		__BITFIELD_FIELD(uint32_t eopfmsk		: 1,
-		__BITFIELD_FIELD(uint32_t isooutdropmsk		: 1,
-		__BITFIELD_FIELD(uint32_t enumdonemsk		: 1,
-		__BITFIELD_FIELD(uint32_t usbrstmsk		: 1,
-		__BITFIELD_FIELD(uint32_t usbsuspmsk		: 1,
-		__BITFIELD_FIELD(uint32_t erlysuspmsk		: 1,
-		__BITFIELD_FIELD(uint32_t i2cint		: 1,
-		__BITFIELD_FIELD(uint32_t ulpickintmsk		: 1,
-		__BITFIELD_FIELD(uint32_t goutnakeffmsk		: 1,
-		__BITFIELD_FIELD(uint32_t ginnakeffmsk		: 1,
-		__BITFIELD_FIELD(uint32_t nptxfempmsk		: 1,
-		__BITFIELD_FIELD(uint32_t rxflvlmsk		: 1,
-		__BITFIELD_FIELD(uint32_t sofmsk		: 1,
-		__BITFIELD_FIELD(uint32_t otgintmsk		: 1,
-		__BITFIELD_FIELD(uint32_t modemismsk		: 1,
-		__BITFIELD_FIELD(uint32_t reserved_0_0		: 1,
+		__BITFIELD_FIELD(u32 wkupintmsk		: 1,
+		__BITFIELD_FIELD(u32 sessreqintmsk	: 1,
+		__BITFIELD_FIELD(u32 disconnintmsk	: 1,
+		__BITFIELD_FIELD(u32 conidstschngmsk	: 1,
+		__BITFIELD_FIELD(u32 reserved_27_27	: 1,
+		__BITFIELD_FIELD(u32 ptxfempmsk		: 1,
+		__BITFIELD_FIELD(u32 hchintmsk		: 1,
+		__BITFIELD_FIELD(u32 prtintmsk		: 1,
+		__BITFIELD_FIELD(u32 reserved_23_23	: 1,
+		__BITFIELD_FIELD(u32 fetsuspmsk		: 1,
+		__BITFIELD_FIELD(u32 incomplpmsk	: 1,
+		__BITFIELD_FIELD(u32 incompisoinmsk	: 1,
+		__BITFIELD_FIELD(u32 oepintmsk		: 1,
+		__BITFIELD_FIELD(u32 inepintmsk		: 1,
+		__BITFIELD_FIELD(u32 epmismsk		: 1,
+		__BITFIELD_FIELD(u32 reserved_16_16	: 1,
+		__BITFIELD_FIELD(u32 eopfmsk		: 1,
+		__BITFIELD_FIELD(u32 isooutdropmsk	: 1,
+		__BITFIELD_FIELD(u32 enumdonemsk	: 1,
+		__BITFIELD_FIELD(u32 usbrstmsk		: 1,
+		__BITFIELD_FIELD(u32 usbsuspmsk		: 1,
+		__BITFIELD_FIELD(u32 erlysuspmsk	: 1,
+		__BITFIELD_FIELD(u32 i2cint		: 1,
+		__BITFIELD_FIELD(u32 ulpickintmsk	: 1,
+		__BITFIELD_FIELD(u32 goutnakeffmsk	: 1,
+		__BITFIELD_FIELD(u32 ginnakeffmsk	: 1,
+		__BITFIELD_FIELD(u32 nptxfempmsk	: 1,
+		__BITFIELD_FIELD(u32 rxflvlmsk		: 1,
+		__BITFIELD_FIELD(u32 sofmsk		: 1,
+		__BITFIELD_FIELD(u32 otgintmsk		: 1,
+		__BITFIELD_FIELD(u32 modemismsk		: 1,
+		__BITFIELD_FIELD(u32 reserved_0_0	: 1,
 		;))))))))))))))))))))))))))))))))
 	} s;
 };
@@ -331,7 +331,7 @@ union cvmx_usbcx_gintmsk {
  * automatically.
  */
 union cvmx_usbcx_gintsts {
-	uint32_t u32;
+	u32 u32;
 	/**
 	 * struct cvmx_usbcx_gintsts_s
 	 * @wkupint: Resume/Remote Wakeup Detected Interrupt (WkUpInt)
@@ -509,38 +509,38 @@ union cvmx_usbcx_gintsts {
 	 *	* 1'b1: Host mode
 	 */
 	struct cvmx_usbcx_gintsts_s {
-		__BITFIELD_FIELD(uint32_t wkupint		: 1,
-		__BITFIELD_FIELD(uint32_t sessreqint		: 1,
-		__BITFIELD_FIELD(uint32_t disconnint		: 1,
-		__BITFIELD_FIELD(uint32_t conidstschng		: 1,
-		__BITFIELD_FIELD(uint32_t reserved_27_27	: 1,
-		__BITFIELD_FIELD(uint32_t ptxfemp		: 1,
-		__BITFIELD_FIELD(uint32_t hchint		: 1,
-		__BITFIELD_FIELD(uint32_t prtint		: 1,
-		__BITFIELD_FIELD(uint32_t reserved_23_23	: 1,
-		__BITFIELD_FIELD(uint32_t fetsusp		: 1,
-		__BITFIELD_FIELD(uint32_t incomplp		: 1,
-		__BITFIELD_FIELD(uint32_t incompisoin		: 1,
-		__BITFIELD_FIELD(uint32_t oepint		: 1,
-		__BITFIELD_FIELD(uint32_t iepint		: 1,
-		__BITFIELD_FIELD(uint32_t epmis			: 1,
-		__BITFIELD_FIELD(uint32_t reserved_16_16	: 1,
-		__BITFIELD_FIELD(uint32_t eopf			: 1,
-		__BITFIELD_FIELD(uint32_t isooutdrop		: 1,
-		__BITFIELD_FIELD(uint32_t enumdone		: 1,
-		__BITFIELD_FIELD(uint32_t usbrst		: 1,
-		__BITFIELD_FIELD(uint32_t usbsusp		: 1,
-		__BITFIELD_FIELD(uint32_t erlysusp		: 1,
-		__BITFIELD_FIELD(uint32_t i2cint		: 1,
-		__BITFIELD_FIELD(uint32_t ulpickint		: 1,
-		__BITFIELD_FIELD(uint32_t goutnakeff		: 1,
-		__BITFIELD_FIELD(uint32_t ginnakeff		: 1,
-		__BITFIELD_FIELD(uint32_t nptxfemp		: 1,
-		__BITFIELD_FIELD(uint32_t rxflvl		: 1,
-		__BITFIELD_FIELD(uint32_t sof			: 1,
-		__BITFIELD_FIELD(uint32_t otgint		: 1,
-		__BITFIELD_FIELD(uint32_t modemis		: 1,
-		__BITFIELD_FIELD(uint32_t curmod		: 1,
+		__BITFIELD_FIELD(u32 wkupint		: 1,
+		__BITFIELD_FIELD(u32 sessreqint		: 1,
+		__BITFIELD_FIELD(u32 disconnint		: 1,
+		__BITFIELD_FIELD(u32 conidstschng	: 1,
+		__BITFIELD_FIELD(u32 reserved_27_27	: 1,
+		__BITFIELD_FIELD(u32 ptxfemp		: 1,
+		__BITFIELD_FIELD(u32 hchint		: 1,
+		__BITFIELD_FIELD(u32 prtint		: 1,
+		__BITFIELD_FIELD(u32 reserved_23_23	: 1,
+		__BITFIELD_FIELD(u32 fetsusp		: 1,
+		__BITFIELD_FIELD(u32 incomplp		: 1,
+		__BITFIELD_FIELD(u32 incompisoin	: 1,
+		__BITFIELD_FIELD(u32 oepint		: 1,
+		__BITFIELD_FIELD(u32 iepint		: 1,
+		__BITFIELD_FIELD(u32 epmis		: 1,
+		__BITFIELD_FIELD(u32 reserved_16_16	: 1,
+		__BITFIELD_FIELD(u32 eopf		: 1,
+		__BITFIELD_FIELD(u32 isooutdrop		: 1,
+		__BITFIELD_FIELD(u32 enumdone		: 1,
+		__BITFIELD_FIELD(u32 usbrst		: 1,
+		__BITFIELD_FIELD(u32 usbsusp		: 1,
+		__BITFIELD_FIELD(u32 erlysusp		: 1,
+		__BITFIELD_FIELD(u32 i2cint		: 1,
+		__BITFIELD_FIELD(u32 ulpickint		: 1,
+		__BITFIELD_FIELD(u32 goutnakeff		: 1,
+		__BITFIELD_FIELD(u32 ginnakeff		: 1,
+		__BITFIELD_FIELD(u32 nptxfemp		: 1,
+		__BITFIELD_FIELD(u32 rxflvl		: 1,
+		__BITFIELD_FIELD(u32 sof		: 1,
+		__BITFIELD_FIELD(u32 otgint		: 1,
+		__BITFIELD_FIELD(u32 modemis		: 1,
+		__BITFIELD_FIELD(u32 curmod		: 1,
 		;))))))))))))))))))))))))))))))))
 	} s;
 };
@@ -554,7 +554,7 @@ union cvmx_usbcx_gintsts {
  * Non-Periodic TxFIFO.
  */
 union cvmx_usbcx_gnptxfsiz {
-	uint32_t u32;
+	u32 u32;
 	/**
 	 * struct cvmx_usbcx_gnptxfsiz_s
 	 * @nptxfdep: Non-Periodic TxFIFO Depth (NPTxFDep)
@@ -566,8 +566,8 @@ union cvmx_usbcx_gnptxfsiz {
 	 *	Transmit FIFO RAM.
 	 */
 	struct cvmx_usbcx_gnptxfsiz_s {
-		__BITFIELD_FIELD(uint32_t nptxfdep	: 16,
-		__BITFIELD_FIELD(uint32_t nptxfstaddr	: 16,
+		__BITFIELD_FIELD(u32 nptxfdep		: 16,
+		__BITFIELD_FIELD(u32 nptxfstaddr	: 16,
 		;))
 	} s;
 };
@@ -581,7 +581,7 @@ union cvmx_usbcx_gnptxfsiz {
  * Non-Periodic TxFIFO and the Non-Periodic Transmit Request Queue.
  */
 union cvmx_usbcx_gnptxsts {
-	uint32_t u32;
+	u32 u32;
 	/**
 	 * struct cvmx_usbcx_gnptxsts_s
 	 * @nptxqtop: Top of the Non-Periodic Transmit Request Queue (NPTxQTop)
@@ -617,10 +617,10 @@ union cvmx_usbcx_gnptxsts {
 	 *	* Others: Reserved
 	 */
 	struct cvmx_usbcx_gnptxsts_s {
-		__BITFIELD_FIELD(uint32_t reserved_31_31	: 1,
-		__BITFIELD_FIELD(uint32_t nptxqtop		: 7,
-		__BITFIELD_FIELD(uint32_t nptxqspcavail		: 8,
-		__BITFIELD_FIELD(uint32_t nptxfspcavail		: 16,
+		__BITFIELD_FIELD(u32 reserved_31_31	: 1,
+		__BITFIELD_FIELD(u32 nptxqtop		: 7,
+		__BITFIELD_FIELD(u32 nptxqspcavail	: 8,
+		__BITFIELD_FIELD(u32 nptxfspcavail	: 16,
 		;))))
 	} s;
 };
@@ -634,7 +634,7 @@ union cvmx_usbcx_gnptxsts {
  * the core.
  */
 union cvmx_usbcx_grstctl {
-	uint32_t u32;
+	u32 u32;
 	/**
 	 * struct cvmx_usbcx_grstctl_s
 	 * @ahbidle: AHB Master Idle (AHBIdle)
@@ -739,16 +739,16 @@ union cvmx_usbcx_grstctl {
 	 *	selected, the PHY domain has to be reset for proper operation.
 	 */
 	struct cvmx_usbcx_grstctl_s {
-		__BITFIELD_FIELD(uint32_t ahbidle		: 1,
-		__BITFIELD_FIELD(uint32_t dmareq		: 1,
-		__BITFIELD_FIELD(uint32_t reserved_11_29	: 19,
-		__BITFIELD_FIELD(uint32_t txfnum		: 5,
-		__BITFIELD_FIELD(uint32_t txfflsh		: 1,
-		__BITFIELD_FIELD(uint32_t rxfflsh		: 1,
-		__BITFIELD_FIELD(uint32_t intknqflsh		: 1,
-		__BITFIELD_FIELD(uint32_t frmcntrrst		: 1,
-		__BITFIELD_FIELD(uint32_t hsftrst		: 1,
-		__BITFIELD_FIELD(uint32_t csftrst		: 1,
+		__BITFIELD_FIELD(u32 ahbidle		: 1,
+		__BITFIELD_FIELD(u32 dmareq		: 1,
+		__BITFIELD_FIELD(u32 reserved_11_29	: 19,
+		__BITFIELD_FIELD(u32 txfnum		: 5,
+		__BITFIELD_FIELD(u32 txfflsh		: 1,
+		__BITFIELD_FIELD(u32 rxfflsh		: 1,
+		__BITFIELD_FIELD(u32 intknqflsh		: 1,
+		__BITFIELD_FIELD(u32 frmcntrrst		: 1,
+		__BITFIELD_FIELD(u32 hsftrst		: 1,
+		__BITFIELD_FIELD(u32 csftrst		: 1,
 		;))))))))))
 	} s;
 };
@@ -762,7 +762,7 @@ union cvmx_usbcx_grstctl {
  * RxFIFO.
  */
 union cvmx_usbcx_grxfsiz {
-	uint32_t u32;
+	u32 u32;
 	/**
 	 * struct cvmx_usbcx_grxfsiz_s
 	 * @rxfdep: RxFIFO Depth (RxFDep)
@@ -771,8 +771,8 @@ union cvmx_usbcx_grxfsiz {
 	 *	* Maximum value is 32768
 	 */
 	struct cvmx_usbcx_grxfsiz_s {
-		__BITFIELD_FIELD(uint32_t reserved_16_31	: 16,
-		__BITFIELD_FIELD(uint32_t rxfdep		: 16,
+		__BITFIELD_FIELD(u32 reserved_16_31	: 16,
+		__BITFIELD_FIELD(u32 rxfdep		: 16,
 		;))
 	} s;
 };
@@ -792,7 +792,7 @@ union cvmx_usbcx_grxfsiz {
  *       hardware.
  */
 union cvmx_usbcx_grxstsph {
-	uint32_t u32;
+	u32 u32;
 	/**
 	 * struct cvmx_usbcx_grxstsph_s
 	 * @pktsts: Packet Status (PktSts)
@@ -814,11 +814,11 @@ union cvmx_usbcx_grxstsph {
 	 *	packet belongs.
 	 */
 	struct cvmx_usbcx_grxstsph_s {
-		__BITFIELD_FIELD(uint32_t reserved_21_31	: 11,
-		__BITFIELD_FIELD(uint32_t pktsts		: 4,
-		__BITFIELD_FIELD(uint32_t dpid			: 2,
-		__BITFIELD_FIELD(uint32_t bcnt			: 11,
-		__BITFIELD_FIELD(uint32_t chnum			: 4,
+		__BITFIELD_FIELD(u32 reserved_21_31	: 11,
+		__BITFIELD_FIELD(u32 pktsts		: 4,
+		__BITFIELD_FIELD(u32 dpid		: 2,
+		__BITFIELD_FIELD(u32 bcnt		: 11,
+		__BITFIELD_FIELD(u32 chnum		: 4,
 		;)))))
 	} s;
 };
@@ -835,7 +835,7 @@ union cvmx_usbcx_grxstsph {
  * to this register after the initial programming.
  */
 union cvmx_usbcx_gusbcfg {
-	uint32_t u32;
+	u32 u32;
 	/**
 	 * struct cvmx_usbcx_gusbcfg_s
 	 * @otgi2csel: UTMIFS or I2C Interface Select (OtgI2CSel)
@@ -895,19 +895,19 @@ union cvmx_usbcx_gusbcfg {
 	 *	* One 48-MHz PHY clock = 0.25 bit times
 	 */
 	struct cvmx_usbcx_gusbcfg_s {
-		__BITFIELD_FIELD(uint32_t reserved_17_31	: 15,
-		__BITFIELD_FIELD(uint32_t otgi2csel		: 1,
-		__BITFIELD_FIELD(uint32_t phylpwrclksel		: 1,
-		__BITFIELD_FIELD(uint32_t reserved_14_14	: 1,
-		__BITFIELD_FIELD(uint32_t usbtrdtim		: 4,
-		__BITFIELD_FIELD(uint32_t hnpcap		: 1,
-		__BITFIELD_FIELD(uint32_t srpcap		: 1,
-		__BITFIELD_FIELD(uint32_t ddrsel		: 1,
-		__BITFIELD_FIELD(uint32_t physel		: 1,
-		__BITFIELD_FIELD(uint32_t fsintf		: 1,
-		__BITFIELD_FIELD(uint32_t ulpi_utmi_sel		: 1,
-		__BITFIELD_FIELD(uint32_t phyif			: 1,
-		__BITFIELD_FIELD(uint32_t toutcal		: 3,
+		__BITFIELD_FIELD(u32 reserved_17_31	: 15,
+		__BITFIELD_FIELD(u32 otgi2csel		: 1,
+		__BITFIELD_FIELD(u32 phylpwrclksel	: 1,
+		__BITFIELD_FIELD(u32 reserved_14_14	: 1,
+		__BITFIELD_FIELD(u32 usbtrdtim		: 4,
+		__BITFIELD_FIELD(u32 hnpcap		: 1,
+		__BITFIELD_FIELD(u32 srpcap		: 1,
+		__BITFIELD_FIELD(u32 ddrsel		: 1,
+		__BITFIELD_FIELD(u32 physel		: 1,
+		__BITFIELD_FIELD(u32 fsintf		: 1,
+		__BITFIELD_FIELD(u32 ulpi_utmi_sel	: 1,
+		__BITFIELD_FIELD(u32 phyif		: 1,
+		__BITFIELD_FIELD(u32 toutcal		: 3,
 		;)))))))))))))
 	} s;
 };
@@ -925,15 +925,15 @@ union cvmx_usbcx_gusbcfg {
  * in the corresponding Host Channel-n Interrupt register.
  */
 union cvmx_usbcx_haint {
-	uint32_t u32;
+	u32 u32;
 	/**
 	 * struct cvmx_usbcx_haint_s
 	 * @haint: Channel Interrupts (HAINT)
 	 *	One bit per channel: Bit 0 for Channel 0, bit 15 for Channel 15
 	 */
 	struct cvmx_usbcx_haint_s {
-		__BITFIELD_FIELD(uint32_t reserved_16_31	: 16,
-		__BITFIELD_FIELD(uint32_t haint			: 16,
+		__BITFIELD_FIELD(u32 reserved_16_31	: 16,
+		__BITFIELD_FIELD(u32 haint		: 16,
 		;))
 	} s;
 };
@@ -950,15 +950,15 @@ union cvmx_usbcx_haint {
  * Mask interrupt: 1'b0 Unmask interrupt: 1'b1
  */
 union cvmx_usbcx_haintmsk {
-	uint32_t u32;
+	u32 u32;
 	/**
 	 * struct cvmx_usbcx_haintmsk_s
 	 * @haintmsk: Channel Interrupt Mask (HAINTMsk)
 	 *	One bit per channel: Bit 0 for channel 0, bit 15 for channel 15
 	 */
 	struct cvmx_usbcx_haintmsk_s {
-		__BITFIELD_FIELD(uint32_t reserved_16_31	: 16,
-		__BITFIELD_FIELD(uint32_t haintmsk		: 16,
+		__BITFIELD_FIELD(u32 reserved_16_31	: 16,
+		__BITFIELD_FIELD(u32 haintmsk		: 16,
 		;))
 	} s;
 };
@@ -970,7 +970,7 @@ union cvmx_usbcx_haintmsk {
  *
  */
 union cvmx_usbcx_hccharx {
-	uint32_t u32;
+	u32 u32;
 	/**
 	 * struct cvmx_usbcx_hccharx_s
 	 * @chena: Channel Enable (ChEna)
@@ -1028,17 +1028,17 @@ union cvmx_usbcx_hccharx {
 	 *	Indicates the maximum packet size of the associated endpoint.
 	 */
 	struct cvmx_usbcx_hccharx_s {
-		__BITFIELD_FIELD(uint32_t chena			: 1,
-		__BITFIELD_FIELD(uint32_t chdis			: 1,
-		__BITFIELD_FIELD(uint32_t oddfrm		: 1,
-		__BITFIELD_FIELD(uint32_t devaddr		: 7,
-		__BITFIELD_FIELD(uint32_t ec			: 2,
-		__BITFIELD_FIELD(uint32_t eptype		: 2,
-		__BITFIELD_FIELD(uint32_t lspddev		: 1,
-		__BITFIELD_FIELD(uint32_t reserved_16_16	: 1,
-		__BITFIELD_FIELD(uint32_t epdir			: 1,
-		__BITFIELD_FIELD(uint32_t epnum			: 4,
-		__BITFIELD_FIELD(uint32_t mps			: 11,
+		__BITFIELD_FIELD(u32 chena		: 1,
+		__BITFIELD_FIELD(u32 chdis		: 1,
+		__BITFIELD_FIELD(u32 oddfrm		: 1,
+		__BITFIELD_FIELD(u32 devaddr		: 7,
+		__BITFIELD_FIELD(u32 ec			: 2,
+		__BITFIELD_FIELD(u32 eptype		: 2,
+		__BITFIELD_FIELD(u32 lspddev		: 1,
+		__BITFIELD_FIELD(u32 reserved_16_16	: 1,
+		__BITFIELD_FIELD(u32 epdir		: 1,
+		__BITFIELD_FIELD(u32 epnum		: 4,
+		__BITFIELD_FIELD(u32 mps		: 11,
 		;)))))))))))
 	} s;
 };
@@ -1052,7 +1052,7 @@ union cvmx_usbcx_hccharx {
  * register after initializing the host.
  */
 union cvmx_usbcx_hcfg {
-	uint32_t u32;
+	u32 u32;
 	/**
 	 * struct cvmx_usbcx_hcfg_s
 	 * @fslssupp: FS- and LS-Only Support (FSLSSupp)
@@ -1084,9 +1084,9 @@ union cvmx_usbcx_hcfg {
 	 *	* 2'b11: Reserved
 	 */
 	struct cvmx_usbcx_hcfg_s {
-		__BITFIELD_FIELD(uint32_t reserved_3_31	: 29,
-		__BITFIELD_FIELD(uint32_t fslssupp	: 1,
-		__BITFIELD_FIELD(uint32_t fslspclksel	: 2,
+		__BITFIELD_FIELD(u32 reserved_3_31	: 29,
+		__BITFIELD_FIELD(u32 fslssupp		: 1,
+		__BITFIELD_FIELD(u32 fslspclksel	: 2,
 		;)))
 	} s;
 };
@@ -1106,7 +1106,7 @@ union cvmx_usbcx_hcfg {
  * HAINT and GINTSTS registers.
  */
 union cvmx_usbcx_hcintx {
-	uint32_t u32;
+	u32 u32;
 	/**
 	 * struct cvmx_usbcx_hcintx_s
 	 * @datatglerr: Data Toggle Error (DataTglErr)
@@ -1126,18 +1126,18 @@ union cvmx_usbcx_hcintx {
 	 *	Transfer completed normally without any errors.
 	 */
 	struct cvmx_usbcx_hcintx_s {
-		__BITFIELD_FIELD(uint32_t reserved_11_31	: 21,
-		__BITFIELD_FIELD(uint32_t datatglerr		: 1,
-		__BITFIELD_FIELD(uint32_t frmovrun		: 1,
-		__BITFIELD_FIELD(uint32_t bblerr		: 1,
-		__BITFIELD_FIELD(uint32_t xacterr		: 1,
-		__BITFIELD_FIELD(uint32_t nyet			: 1,
-		__BITFIELD_FIELD(uint32_t ack			: 1,
-		__BITFIELD_FIELD(uint32_t nak			: 1,
-		__BITFIELD_FIELD(uint32_t stall			: 1,
-		__BITFIELD_FIELD(uint32_t ahberr		: 1,
-		__BITFIELD_FIELD(uint32_t chhltd		: 1,
-		__BITFIELD_FIELD(uint32_t xfercompl		: 1,
+		__BITFIELD_FIELD(u32 reserved_11_31	: 21,
+		__BITFIELD_FIELD(u32 datatglerr		: 1,
+		__BITFIELD_FIELD(u32 frmovrun		: 1,
+		__BITFIELD_FIELD(u32 bblerr		: 1,
+		__BITFIELD_FIELD(u32 xacterr		: 1,
+		__BITFIELD_FIELD(u32 nyet		: 1,
+		__BITFIELD_FIELD(u32 ack		: 1,
+		__BITFIELD_FIELD(u32 nak		: 1,
+		__BITFIELD_FIELD(u32 stall		: 1,
+		__BITFIELD_FIELD(u32 ahberr		: 1,
+		__BITFIELD_FIELD(u32 chhltd		: 1,
+		__BITFIELD_FIELD(u32 xfercompl		: 1,
 		;))))))))))))
 	} s;
 };
@@ -1152,7 +1152,7 @@ union cvmx_usbcx_hcintx {
  * Mask interrupt: 1'b0 Unmask interrupt: 1'b1
  */
 union cvmx_usbcx_hcintmskx {
-	uint32_t u32;
+	u32 u32;
 	/**
 	 * struct cvmx_usbcx_hcintmskx_s
 	 * @datatglerrmsk: Data Toggle Error Mask (DataTglErrMsk)
@@ -1168,18 +1168,18 @@ union cvmx_usbcx_hcintmskx {
 	 * @xfercomplmsk: Transfer Completed Mask (XferComplMsk)
 	 */
 	struct cvmx_usbcx_hcintmskx_s {
-		__BITFIELD_FIELD(uint32_t reserved_11_31		: 21,
-		__BITFIELD_FIELD(uint32_t datatglerrmsk			: 1,
-		__BITFIELD_FIELD(uint32_t frmovrunmsk			: 1,
-		__BITFIELD_FIELD(uint32_t bblerrmsk			: 1,
-		__BITFIELD_FIELD(uint32_t xacterrmsk			: 1,
-		__BITFIELD_FIELD(uint32_t nyetmsk			: 1,
-		__BITFIELD_FIELD(uint32_t ackmsk			: 1,
-		__BITFIELD_FIELD(uint32_t nakmsk			: 1,
-		__BITFIELD_FIELD(uint32_t stallmsk			: 1,
-		__BITFIELD_FIELD(uint32_t ahberrmsk			: 1,
-		__BITFIELD_FIELD(uint32_t chhltdmsk			: 1,
-		__BITFIELD_FIELD(uint32_t xfercomplmsk			: 1,
+		__BITFIELD_FIELD(u32 reserved_11_31		: 21,
+		__BITFIELD_FIELD(u32 datatglerrmsk		: 1,
+		__BITFIELD_FIELD(u32 frmovrunmsk		: 1,
+		__BITFIELD_FIELD(u32 bblerrmsk			: 1,
+		__BITFIELD_FIELD(u32 xacterrmsk			: 1,
+		__BITFIELD_FIELD(u32 nyetmsk			: 1,
+		__BITFIELD_FIELD(u32 ackmsk			: 1,
+		__BITFIELD_FIELD(u32 nakmsk			: 1,
+		__BITFIELD_FIELD(u32 stallmsk			: 1,
+		__BITFIELD_FIELD(u32 ahberrmsk			: 1,
+		__BITFIELD_FIELD(u32 chhltdmsk			: 1,
+		__BITFIELD_FIELD(u32 xfercomplmsk		: 1,
 		;))))))))))))
 	} s;
 };
@@ -1191,7 +1191,7 @@ union cvmx_usbcx_hcintmskx {
  *
  */
 union cvmx_usbcx_hcspltx {
-	uint32_t u32;
+	u32 u32;
 	/**
 	 * struct cvmx_usbcx_hcspltx_s
 	 * @spltena: Split Enable (SpltEna)
@@ -1219,12 +1219,12 @@ union cvmx_usbcx_hcspltx {
 	 *	translator.
 	 */
 	struct cvmx_usbcx_hcspltx_s {
-		__BITFIELD_FIELD(uint32_t spltena			: 1,
-		__BITFIELD_FIELD(uint32_t reserved_17_30		: 14,
-		__BITFIELD_FIELD(uint32_t compsplt			: 1,
-		__BITFIELD_FIELD(uint32_t xactpos			: 2,
-		__BITFIELD_FIELD(uint32_t hubaddr			: 7,
-		__BITFIELD_FIELD(uint32_t prtaddr			: 7,
+		__BITFIELD_FIELD(u32 spltena			: 1,
+		__BITFIELD_FIELD(u32 reserved_17_30		: 14,
+		__BITFIELD_FIELD(u32 compsplt			: 1,
+		__BITFIELD_FIELD(u32 xactpos			: 2,
+		__BITFIELD_FIELD(u32 hubaddr			: 7,
+		__BITFIELD_FIELD(u32 prtaddr			: 7,
 		;))))))
 	} s;
 };
@@ -1236,7 +1236,7 @@ union cvmx_usbcx_hcspltx {
  *
  */
 union cvmx_usbcx_hctsizx {
-	uint32_t u32;
+	u32 u32;
 	/**
 	 * struct cvmx_usbcx_hctsizx_s
 	 * @dopng: Do Ping (DoPng)
@@ -1265,10 +1265,10 @@ union cvmx_usbcx_hctsizx {
 	 *	size for IN transactions (periodic and non-periodic).
 	 */
 	struct cvmx_usbcx_hctsizx_s {
-		__BITFIELD_FIELD(uint32_t dopng			: 1,
-		__BITFIELD_FIELD(uint32_t pid			: 2,
-		__BITFIELD_FIELD(uint32_t pktcnt		: 10,
-		__BITFIELD_FIELD(uint32_t xfersize		: 19,
+		__BITFIELD_FIELD(u32 dopng		: 1,
+		__BITFIELD_FIELD(u32 pid		: 2,
+		__BITFIELD_FIELD(u32 pktcnt		: 10,
+		__BITFIELD_FIELD(u32 xfersize		: 19,
 		;))))
 	} s;
 };
@@ -1282,7 +1282,7 @@ union cvmx_usbcx_hctsizx {
  * which the O2P USB core has enumerated.
  */
 union cvmx_usbcx_hfir {
-	uint32_t u32;
+	u32 u32;
 	/**
 	 * struct cvmx_usbcx_hfir_s
 	 * @frint: Frame Interval (FrInt)
@@ -1303,8 +1303,8 @@ union cvmx_usbcx_hfir {
 	 *	* 1 ms (PHY clock frequency for FS/LS)
 	 */
 	struct cvmx_usbcx_hfir_s {
-		__BITFIELD_FIELD(uint32_t reserved_16_31		: 16,
-		__BITFIELD_FIELD(uint32_t frint				: 16,
+		__BITFIELD_FIELD(u32 reserved_16_31		: 16,
+		__BITFIELD_FIELD(u32 frint			: 16,
 		;))
 	} s;
 };
@@ -1319,7 +1319,7 @@ union cvmx_usbcx_hfir {
  * in the current (micro)frame.
  */
 union cvmx_usbcx_hfnum {
-	uint32_t u32;
+	u32 u32;
 	/**
 	 * struct cvmx_usbcx_hfnum_s
 	 * @frrem: Frame Time Remaining (FrRem)
@@ -1333,8 +1333,8 @@ union cvmx_usbcx_hfnum {
 	 *	USB, and is reset to 0 when it reaches 16'h3FFF.
 	 */
 	struct cvmx_usbcx_hfnum_s {
-		__BITFIELD_FIELD(uint32_t frrem		: 16,
-		__BITFIELD_FIELD(uint32_t frnum		: 16,
+		__BITFIELD_FIELD(u32 frrem		: 16,
+		__BITFIELD_FIELD(u32 frnum		: 16,
 		;))
 	} s;
 };
@@ -1355,7 +1355,7 @@ union cvmx_usbcx_hfnum {
  * the application must write a 1 to the bit to clear the interrupt.
  */
 union cvmx_usbcx_hprt {
-	uint32_t u32;
+	u32 u32;
 	/**
 	 * struct cvmx_usbcx_hprt_s
 	 * @prtspd: Port Speed (PrtSpd)
@@ -1461,21 +1461,21 @@ union cvmx_usbcx_hprt {
 	 *	* 1: A device is attached to the port.
 	 */
 	struct cvmx_usbcx_hprt_s {
-		__BITFIELD_FIELD(uint32_t reserved_19_31	: 13,
-		__BITFIELD_FIELD(uint32_t prtspd		: 2,
-		__BITFIELD_FIELD(uint32_t prttstctl		: 4,
-		__BITFIELD_FIELD(uint32_t prtpwr		: 1,
-		__BITFIELD_FIELD(uint32_t prtlnsts		: 2,
-		__BITFIELD_FIELD(uint32_t reserved_9_9		: 1,
-		__BITFIELD_FIELD(uint32_t prtrst		: 1,
-		__BITFIELD_FIELD(uint32_t prtsusp		: 1,
-		__BITFIELD_FIELD(uint32_t prtres		: 1,
-		__BITFIELD_FIELD(uint32_t prtovrcurrchng	: 1,
-		__BITFIELD_FIELD(uint32_t prtovrcurract		: 1,
-		__BITFIELD_FIELD(uint32_t prtenchng		: 1,
-		__BITFIELD_FIELD(uint32_t prtena		: 1,
-		__BITFIELD_FIELD(uint32_t prtconndet		: 1,
-		__BITFIELD_FIELD(uint32_t prtconnsts		: 1,
+		__BITFIELD_FIELD(u32 reserved_19_31	: 13,
+		__BITFIELD_FIELD(u32 prtspd		: 2,
+		__BITFIELD_FIELD(u32 prttstctl		: 4,
+		__BITFIELD_FIELD(u32 prtpwr		: 1,
+		__BITFIELD_FIELD(u32 prtlnsts		: 2,
+		__BITFIELD_FIELD(u32 reserved_9_9	: 1,
+		__BITFIELD_FIELD(u32 prtrst		: 1,
+		__BITFIELD_FIELD(u32 prtsusp		: 1,
+		__BITFIELD_FIELD(u32 prtres		: 1,
+		__BITFIELD_FIELD(u32 prtovrcurrchng	: 1,
+		__BITFIELD_FIELD(u32 prtovrcurract	: 1,
+		__BITFIELD_FIELD(u32 prtenchng		: 1,
+		__BITFIELD_FIELD(u32 prtena		: 1,
+		__BITFIELD_FIELD(u32 prtconndet		: 1,
+		__BITFIELD_FIELD(u32 prtconnsts		: 1,
 		;)))))))))))))))
 	} s;
 };
@@ -1489,7 +1489,7 @@ union cvmx_usbcx_hprt {
  * TxFIFO, as shown in Figures 310 and 311.
  */
 union cvmx_usbcx_hptxfsiz {
-	uint32_t u32;
+	u32 u32;
 	/**
 	 * struct cvmx_usbcx_hptxfsiz_s
 	 * @ptxfsize: Host Periodic TxFIFO Depth (PTxFSize)
@@ -1499,8 +1499,8 @@ union cvmx_usbcx_hptxfsiz {
 	 * @ptxfstaddr: Host Periodic TxFIFO Start Address (PTxFStAddr)
 	 */
 	struct cvmx_usbcx_hptxfsiz_s {
-		__BITFIELD_FIELD(uint32_t ptxfsize	: 16,
-		__BITFIELD_FIELD(uint32_t ptxfstaddr	: 16,
+		__BITFIELD_FIELD(u32 ptxfsize	: 16,
+		__BITFIELD_FIELD(u32 ptxfstaddr	: 16,
 		;))
 	} s;
 };
@@ -1514,7 +1514,7 @@ union cvmx_usbcx_hptxfsiz {
  * TxFIFO and the Periodic Transmit Request Queue
  */
 union cvmx_usbcx_hptxsts {
-	uint32_t u32;
+	u32 u32;
 	/**
 	 * struct cvmx_usbcx_hptxsts_s
 	 * @ptxqtop: Top of the Periodic Transmit Request Queue (PTxQTop)
@@ -1555,9 +1555,9 @@ union cvmx_usbcx_hptxsts {
 	 *	* Others: Reserved
 	 */
 	struct cvmx_usbcx_hptxsts_s {
-		__BITFIELD_FIELD(uint32_t ptxqtop	: 8,
-		__BITFIELD_FIELD(uint32_t ptxqspcavail	: 8,
-		__BITFIELD_FIELD(uint32_t ptxfspcavail	: 16,
+		__BITFIELD_FIELD(u32 ptxqtop		: 8,
+		__BITFIELD_FIELD(u32 ptxqspcavail	: 8,
+		__BITFIELD_FIELD(u32 ptxfspcavail	: 16,
 		;)))
 	} s;
 };
@@ -1571,7 +1571,7 @@ union cvmx_usbcx_hptxsts {
  * hreset and phy_rst signals.
  */
 union cvmx_usbnx_clk_ctl {
-	uint64_t u64;
+	u64 u64;
 	/**
 	 * struct cvmx_usbnx_clk_ctl_s
 	 * @divide2: The 'hclk' used by the USB subsystem is derived
@@ -1661,21 +1661,21 @@ union cvmx_usbnx_clk_ctl {
 	 *	until AFTER this field is set and then read.
 	 */
 	struct cvmx_usbnx_clk_ctl_s {
-		__BITFIELD_FIELD(uint64_t reserved_20_63	: 44,
-		__BITFIELD_FIELD(uint64_t divide2		: 2,
-		__BITFIELD_FIELD(uint64_t hclk_rst		: 1,
-		__BITFIELD_FIELD(uint64_t p_x_on		: 1,
-		__BITFIELD_FIELD(uint64_t p_rtype		: 2,
-		__BITFIELD_FIELD(uint64_t p_com_on		: 1,
-		__BITFIELD_FIELD(uint64_t p_c_sel		: 2,
-		__BITFIELD_FIELD(uint64_t cdiv_byp		: 1,
-		__BITFIELD_FIELD(uint64_t sd_mode		: 2,
-		__BITFIELD_FIELD(uint64_t s_bist		: 1,
-		__BITFIELD_FIELD(uint64_t por			: 1,
-		__BITFIELD_FIELD(uint64_t enable		: 1,
-		__BITFIELD_FIELD(uint64_t prst			: 1,
-		__BITFIELD_FIELD(uint64_t hrst			: 1,
-		__BITFIELD_FIELD(uint64_t divide		: 3,
+		__BITFIELD_FIELD(u64 reserved_20_63	: 44,
+		__BITFIELD_FIELD(u64 divide2		: 2,
+		__BITFIELD_FIELD(u64 hclk_rst		: 1,
+		__BITFIELD_FIELD(u64 p_x_on		: 1,
+		__BITFIELD_FIELD(u64 p_rtype		: 2,
+		__BITFIELD_FIELD(u64 p_com_on		: 1,
+		__BITFIELD_FIELD(u64 p_c_sel		: 2,
+		__BITFIELD_FIELD(u64 cdiv_byp		: 1,
+		__BITFIELD_FIELD(u64 sd_mode		: 2,
+		__BITFIELD_FIELD(u64 s_bist		: 1,
+		__BITFIELD_FIELD(u64 por		: 1,
+		__BITFIELD_FIELD(u64 enable		: 1,
+		__BITFIELD_FIELD(u64 prst		: 1,
+		__BITFIELD_FIELD(u64 hrst		: 1,
+		__BITFIELD_FIELD(u64 divide		: 3,
 		;)))))))))))))))
 	} s;
 };
@@ -1688,7 +1688,7 @@ union cvmx_usbnx_clk_ctl {
  * Contains general control and status information for the USBN block.
  */
 union cvmx_usbnx_usbp_ctl_status {
-	uint64_t u64;
+	u64 u64;
 	/**
 	 * struct cvmx_usbnx_usbp_ctl_status_s
 	 * @txrisetune: HS Transmitter Rise/Fall Time Adjustment
@@ -1804,41 +1804,41 @@ union cvmx_usbnx_usbp_ctl_status {
 	 *	de-assertion.
 	 */
 	struct cvmx_usbnx_usbp_ctl_status_s {
-		__BITFIELD_FIELD(uint64_t txrisetune		: 1,
-		__BITFIELD_FIELD(uint64_t txvreftune		: 4,
-		__BITFIELD_FIELD(uint64_t txfslstune		: 4,
-		__BITFIELD_FIELD(uint64_t txhsxvtune		: 2,
-		__BITFIELD_FIELD(uint64_t sqrxtune		: 3,
-		__BITFIELD_FIELD(uint64_t compdistune		: 3,
-		__BITFIELD_FIELD(uint64_t otgtune		: 3,
-		__BITFIELD_FIELD(uint64_t otgdisable		: 1,
-		__BITFIELD_FIELD(uint64_t portreset		: 1,
-		__BITFIELD_FIELD(uint64_t drvvbus		: 1,
-		__BITFIELD_FIELD(uint64_t lsbist		: 1,
-		__BITFIELD_FIELD(uint64_t fsbist		: 1,
-		__BITFIELD_FIELD(uint64_t hsbist		: 1,
-		__BITFIELD_FIELD(uint64_t bist_done		: 1,
-		__BITFIELD_FIELD(uint64_t bist_err		: 1,
-		__BITFIELD_FIELD(uint64_t tdata_out		: 4,
-		__BITFIELD_FIELD(uint64_t siddq			: 1,
-		__BITFIELD_FIELD(uint64_t txpreemphasistune	: 1,
-		__BITFIELD_FIELD(uint64_t dma_bmode		: 1,
-		__BITFIELD_FIELD(uint64_t usbc_end		: 1,
-		__BITFIELD_FIELD(uint64_t usbp_bist		: 1,
-		__BITFIELD_FIELD(uint64_t tclk			: 1,
-		__BITFIELD_FIELD(uint64_t dp_pulld		: 1,
-		__BITFIELD_FIELD(uint64_t dm_pulld		: 1,
-		__BITFIELD_FIELD(uint64_t hst_mode		: 1,
-		__BITFIELD_FIELD(uint64_t tuning		: 4,
-		__BITFIELD_FIELD(uint64_t tx_bs_enh		: 1,
-		__BITFIELD_FIELD(uint64_t tx_bs_en		: 1,
-		__BITFIELD_FIELD(uint64_t loop_enb		: 1,
-		__BITFIELD_FIELD(uint64_t vtest_enb		: 1,
-		__BITFIELD_FIELD(uint64_t bist_enb		: 1,
-		__BITFIELD_FIELD(uint64_t tdata_sel		: 1,
-		__BITFIELD_FIELD(uint64_t taddr_in		: 4,
-		__BITFIELD_FIELD(uint64_t tdata_in		: 8,
-		__BITFIELD_FIELD(uint64_t ate_reset		: 1,
+		__BITFIELD_FIELD(u64 txrisetune		: 1,
+		__BITFIELD_FIELD(u64 txvreftune		: 4,
+		__BITFIELD_FIELD(u64 txfslstune		: 4,
+		__BITFIELD_FIELD(u64 txhsxvtune		: 2,
+		__BITFIELD_FIELD(u64 sqrxtune		: 3,
+		__BITFIELD_FIELD(u64 compdistune	: 3,
+		__BITFIELD_FIELD(u64 otgtune		: 3,
+		__BITFIELD_FIELD(u64 otgdisable		: 1,
+		__BITFIELD_FIELD(u64 portreset		: 1,
+		__BITFIELD_FIELD(u64 drvvbus		: 1,
+		__BITFIELD_FIELD(u64 lsbist		: 1,
+		__BITFIELD_FIELD(u64 fsbist		: 1,
+		__BITFIELD_FIELD(u64 hsbist		: 1,
+		__BITFIELD_FIELD(u64 bist_done		: 1,
+		__BITFIELD_FIELD(u64 bist_err		: 1,
+		__BITFIELD_FIELD(u64 tdata_out		: 4,
+		__BITFIELD_FIELD(u64 siddq		: 1,
+		__BITFIELD_FIELD(u64 txpreemphasistune	: 1,
+		__BITFIELD_FIELD(u64 dma_bmode		: 1,
+		__BITFIELD_FIELD(u64 usbc_end		: 1,
+		__BITFIELD_FIELD(u64 usbp_bist		: 1,
+		__BITFIELD_FIELD(u64 tclk		: 1,
+		__BITFIELD_FIELD(u64 dp_pulld		: 1,
+		__BITFIELD_FIELD(u64 dm_pulld		: 1,
+		__BITFIELD_FIELD(u64 hst_mode		: 1,
+		__BITFIELD_FIELD(u64 tuning		: 4,
+		__BITFIELD_FIELD(u64 tx_bs_enh		: 1,
+		__BITFIELD_FIELD(u64 tx_bs_en		: 1,
+		__BITFIELD_FIELD(u64 loop_enb		: 1,
+		__BITFIELD_FIELD(u64 vtest_enb		: 1,
+		__BITFIELD_FIELD(u64 bist_enb		: 1,
+		__BITFIELD_FIELD(u64 tdata_sel		: 1,
+		__BITFIELD_FIELD(u64 taddr_in		: 4,
+		__BITFIELD_FIELD(u64 tdata_in		: 8,
+		__BITFIELD_FIELD(u64 ate_reset		: 1,
 		;)))))))))))))))))))))))))))))))))))
 	} s;
 };

@@ -30,7 +30,14 @@
 #include <linux/ioport.h>
 #include <linux/dcache.h>
 #include <linux/cred.h>
+#include <linux/uuid.h>
+#include <linux/of.h>
 #include <net/addrconf.h>
+#ifdef CONFIG_BLOCK
+#include <linux/blkdev.h>
+#endif
+
+#include "../mm/internal.h"	/* For the trace_print_flags arrays */
 
 #include <asm/page.h>		/* for PAGE_SIZE */
 #include <asm/sections.h>	/* for dereference_function_descriptor() */
@@ -380,13 +387,14 @@ enum format_type {
 };
 
 struct printf_spec {
-	u8	type;		/* format_type enum */
-	u8	flags;		/* flags to number() */
-	u8	base;		/* number base, 8, 10 or 16 only */
-	u8	qualifier;	/* number qualifier, one of 'hHlLtzZ' */
-	s16	field_width;	/* width of output field */
-	s16	precision;	/* # of digits/chars */
-};
+	unsigned int	type:8;		/* format_type enum */
+	signed int	field_width:24;	/* width of output field */
+	unsigned int	flags:8;	/* flags to number() */
+	unsigned int	base:8;		/* number base, 8, 10 or 16 only */
+	signed int	precision:16;	/* # of digits/chars */
+} __packed;
+#define FIELD_WIDTH_MAX ((1 << 23) - 1)
+#define PRECISION_MAX ((1 << 15) - 1)
 
 static noinline_for_stack
 char *number(char *buf, char *end, unsigned long long num,
@@ -399,6 +407,10 @@ char *number(char *buf, char *end, unsigned long long num,
 	int need_pfx = ((spec.flags & SPECIAL) && spec.base != 10);
 	int i;
 	bool is_zero = num == 0LL;
+	int field_width = spec.field_width;
+	int precision = spec.precision;
+
+	BUILD_BUG_ON(sizeof(struct printf_spec) != 8);
 
 	/* locase = 0 or 0x20. ORing digits or letters with 'locase'
 	 * produces same digits or (maybe lowercased) letters */
@@ -410,20 +422,20 @@ char *number(char *buf, char *end, unsigned long long num,
 		if ((signed long long)num < 0) {
 			sign = '-';
 			num = -(signed long long)num;
-			spec.field_width--;
+			field_width--;
 		} else if (spec.flags & PLUS) {
 			sign = '+';
-			spec.field_width--;
+			field_width--;
 		} else if (spec.flags & SPACE) {
 			sign = ' ';
-			spec.field_width--;
+			field_width--;
 		}
 	}
 	if (need_pfx) {
 		if (spec.base == 16)
-			spec.field_width -= 2;
+			field_width -= 2;
 		else if (!is_zero)
-			spec.field_width--;
+			field_width--;
 	}
 
 	/* generate full string in tmp[], in reverse order */
@@ -445,12 +457,12 @@ char *number(char *buf, char *end, unsigned long long num,
 	}
 
 	/* printing 100 using %2d gives "100", not "00" */
-	if (i > spec.precision)
-		spec.precision = i;
+	if (i > precision)
+		precision = i;
 	/* leading space padding */
-	spec.field_width -= spec.precision;
+	field_width -= precision;
 	if (!(spec.flags & (ZEROPAD | LEFT))) {
-		while (--spec.field_width >= 0) {
+		while (--field_width >= 0) {
 			if (buf < end)
 				*buf = ' ';
 			++buf;
@@ -479,14 +491,14 @@ char *number(char *buf, char *end, unsigned long long num,
 	if (!(spec.flags & LEFT)) {
 		char c = ' ' + (spec.flags & ZEROPAD);
 		BUILD_BUG_ON(' ' + ZEROPAD != '0');
-		while (--spec.field_width >= 0) {
+		while (--field_width >= 0) {
 			if (buf < end)
 				*buf = c;
 			++buf;
 		}
 	}
 	/* hmm even more zero padding? */
-	while (i <= --spec.precision) {
+	while (i <= --precision) {
 		if (buf < end)
 			*buf = '0';
 		++buf;
@@ -498,7 +510,7 @@ char *number(char *buf, char *end, unsigned long long num,
 		++buf;
 	}
 	/* trailing space padding */
-	while (--spec.field_width >= 0) {
+	while (--field_width >= 0) {
 		if (buf < end)
 			*buf = ' ';
 		++buf;
@@ -508,37 +520,20 @@ char *number(char *buf, char *end, unsigned long long num,
 }
 
 static noinline_for_stack
-char *string(char *buf, char *end, const char *s, struct printf_spec spec)
+char *special_hex_number(char *buf, char *end, unsigned long long num, int size)
 {
-	int len, i;
+	struct printf_spec spec;
 
-	if ((unsigned long)s < PAGE_SIZE)
-		s = "(null)";
+	spec.type = FORMAT_TYPE_PTR;
+	spec.field_width = 2 + 2 * size;	/* 0x + hex */
+	spec.flags = SPECIAL | SMALL | ZEROPAD;
+	spec.base = 16;
+	spec.precision = -1;
 
-	len = strnlen(s, spec.precision);
-
-	if (!(spec.flags & LEFT)) {
-		while (len < spec.field_width--) {
-			if (buf < end)
-				*buf = ' ';
-			++buf;
-		}
-	}
-	for (i = 0; i < len; ++i) {
-		if (buf < end)
-			*buf = *s;
-		++buf; ++s;
-	}
-	while (len < spec.field_width--) {
-		if (buf < end)
-			*buf = ' ';
-		++buf;
-	}
-
-	return buf;
+	return number(buf, end, num, spec);
 }
 
-static void widen(char *buf, char *end, unsigned len, unsigned spaces)
+static void move_right(char *buf, char *end, unsigned len, unsigned spaces)
 {
 	size_t size;
 	if (buf >= end)	/* nowhere to put anything */
@@ -554,6 +549,56 @@ static void widen(char *buf, char *end, unsigned len, unsigned spaces)
 		memmove(buf + spaces, buf, len);
 	}
 	memset(buf, ' ', spaces);
+}
+
+/*
+ * Handle field width padding for a string.
+ * @buf: current buffer position
+ * @n: length of string
+ * @end: end of output buffer
+ * @spec: for field width and flags
+ * Returns: new buffer position after padding.
+ */
+static noinline_for_stack
+char *widen_string(char *buf, int n, char *end, struct printf_spec spec)
+{
+	unsigned spaces;
+
+	if (likely(n >= spec.field_width))
+		return buf;
+	/* we want to pad the sucker */
+	spaces = spec.field_width - n;
+	if (!(spec.flags & LEFT)) {
+		move_right(buf - n, end, n, spaces);
+		return buf + spaces;
+	}
+	while (spaces--) {
+		if (buf < end)
+			*buf = ' ';
+		++buf;
+	}
+	return buf;
+}
+
+static noinline_for_stack
+char *string(char *buf, char *end, const char *s, struct printf_spec spec)
+{
+	int len = 0;
+	size_t lim = spec.precision;
+
+	if ((unsigned long)s < PAGE_SIZE)
+		s = "(null)";
+
+	while (lim--) {
+		char c = *s++;
+		if (!c)
+			break;
+		if (buf < end)
+			*buf = c;
+		++buf;
+		++len;
+	}
+	return widen_string(buf, len, end, spec);
 }
 
 static noinline_for_stack
@@ -597,21 +642,28 @@ char *dentry_name(char *buf, char *end, const struct dentry *d, struct printf_sp
 			*buf = c;
 	}
 	rcu_read_unlock();
-	if (n < spec.field_width) {
-		/* we want to pad the sucker */
-		unsigned spaces = spec.field_width - n;
-		if (!(spec.flags & LEFT)) {
-			widen(buf - n, end, n, spaces);
-			return buf + spaces;
-		}
-		while (spaces--) {
+	return widen_string(buf, n, end, spec);
+}
+
+#ifdef CONFIG_BLOCK
+static noinline_for_stack
+char *bdev_name(char *buf, char *end, struct block_device *bdev,
+		struct printf_spec spec, const char *fmt)
+{
+	struct gendisk *hd = bdev->bd_disk;
+	
+	buf = string(buf, end, hd->disk_name, spec);
+	if (bdev->bd_part->partno) {
+		if (isdigit(hd->disk_name[strlen(hd->disk_name)-1])) {
 			if (buf < end)
-				*buf = ' ';
-			++buf;
+				*buf = 'p';
+			buf++;
 		}
+		buf = number(buf, end, bdev->bd_part->partno, spec);
 	}
 	return buf;
 }
+#endif
 
 static noinline_for_stack
 char *symbol_string(char *buf, char *end, void *ptr,
@@ -636,11 +688,7 @@ char *symbol_string(char *buf, char *end, void *ptr,
 
 	return string(buf, end, sym, spec);
 #else
-	spec.field_width = 2 * sizeof(void *);
-	spec.flags |= SPECIAL | SMALL | ZEROPAD;
-	spec.base = 16;
-
-	return number(buf, end, value, spec);
+	return special_hex_number(buf, end, value, sizeof(void *));
 #endif
 }
 
@@ -1258,19 +1306,17 @@ static noinline_for_stack
 char *uuid_string(char *buf, char *end, const u8 *addr,
 		  struct printf_spec spec, const char *fmt)
 {
-	char uuid[sizeof("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")];
+	char uuid[UUID_STRING_LEN + 1];
 	char *p = uuid;
 	int i;
-	static const u8 be[16] = {0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15};
-	static const u8 le[16] = {3,2,1,0,5,4,7,6,8,9,10,11,12,13,14,15};
-	const u8 *index = be;
+	const u8 *index = uuid_index;
 	bool uc = false;
 
 	switch (*(++fmt)) {
 	case 'L':
 		uc = true;		/* fall-through */
 	case 'l':
-		index = le;
+		index = guid_index;
 		break;
 	case 'B':
 		uc = true;
@@ -1278,7 +1324,10 @@ char *uuid_string(char *buf, char *end, const u8 *addr,
 	}
 
 	for (i = 0; i < 16; i++) {
-		p = hex_byte_pack(p, addr[index[i]]);
+		if (uc)
+			p = hex_byte_pack_upper(p, addr[index[i]]);
+		else
+			p = hex_byte_pack(p, addr[index[i]]);
 		switch (i) {
 		case 3:
 		case 5:
@@ -1291,50 +1340,48 @@ char *uuid_string(char *buf, char *end, const u8 *addr,
 
 	*p = 0;
 
-	if (uc) {
-		p = uuid;
-		do {
-			*p = toupper(*p);
-		} while (*(++p));
-	}
-
 	return string(buf, end, uuid, spec);
 }
 
-static
-char *netdev_feature_string(char *buf, char *end, const u8 *addr,
-		      struct printf_spec spec)
+static noinline_for_stack
+char *netdev_bits(char *buf, char *end, const void *addr, const char *fmt)
 {
-	spec.flags |= SPECIAL | SMALL | ZEROPAD;
-	if (spec.field_width == -1)
-		spec.field_width = 2 + 2 * sizeof(netdev_features_t);
-	spec.base = 16;
+	unsigned long long num;
+	int size;
 
-	return number(buf, end, *(const netdev_features_t *)addr, spec);
+	switch (fmt[1]) {
+	case 'F':
+		num = *(const netdev_features_t *)addr;
+		size = sizeof(netdev_features_t);
+		break;
+	default:
+		num = (unsigned long)addr;
+		size = sizeof(unsigned long);
+		break;
+	}
+
+	return special_hex_number(buf, end, num, size);
 }
 
 static noinline_for_stack
-char *address_val(char *buf, char *end, const void *addr,
-		  struct printf_spec spec, const char *fmt)
+char *address_val(char *buf, char *end, const void *addr, const char *fmt)
 {
 	unsigned long long num;
-
-	spec.flags |= SPECIAL | SMALL | ZEROPAD;
-	spec.base = 16;
+	int size;
 
 	switch (fmt[1]) {
 	case 'd':
 		num = *(const dma_addr_t *)addr;
-		spec.field_width = sizeof(dma_addr_t) * 2 + 2;
+		size = sizeof(dma_addr_t);
 		break;
 	case 'p':
 	default:
 		num = *(const phys_addr_t *)addr;
-		spec.field_width = sizeof(phys_addr_t) * 2 + 2;
+		size = sizeof(phys_addr_t);
 		break;
 	}
 
-	return number(buf, end, num, spec);
+	return special_hex_number(buf, end, num, size);
 }
 
 static noinline_for_stack
@@ -1353,12 +1400,195 @@ char *clock(char *buf, char *end, struct clk *clk, struct printf_spec spec,
 #ifdef CONFIG_COMMON_CLK
 		return string(buf, end, __clk_get_name(clk), spec);
 #else
-		spec.base = 16;
-		spec.field_width = sizeof(unsigned long) * 2 + 2;
-		spec.flags |= SPECIAL | SMALL | ZEROPAD;
-		return number(buf, end, (unsigned long)clk, spec);
+		return special_hex_number(buf, end, (unsigned long)clk, sizeof(unsigned long));
 #endif
 	}
+}
+
+static
+char *format_flags(char *buf, char *end, unsigned long flags,
+					const struct trace_print_flags *names)
+{
+	unsigned long mask;
+	const struct printf_spec strspec = {
+		.field_width = -1,
+		.precision = -1,
+	};
+	const struct printf_spec numspec = {
+		.flags = SPECIAL|SMALL,
+		.field_width = -1,
+		.precision = -1,
+		.base = 16,
+	};
+
+	for ( ; flags && names->name; names++) {
+		mask = names->mask;
+		if ((flags & mask) != mask)
+			continue;
+
+		buf = string(buf, end, names->name, strspec);
+
+		flags &= ~mask;
+		if (flags) {
+			if (buf < end)
+				*buf = '|';
+			buf++;
+		}
+	}
+
+	if (flags)
+		buf = number(buf, end, flags, numspec);
+
+	return buf;
+}
+
+static noinline_for_stack
+char *flags_string(char *buf, char *end, void *flags_ptr, const char *fmt)
+{
+	unsigned long flags;
+	const struct trace_print_flags *names;
+
+	switch (fmt[1]) {
+	case 'p':
+		flags = *(unsigned long *)flags_ptr;
+		/* Remove zone id */
+		flags &= (1UL << NR_PAGEFLAGS) - 1;
+		names = pageflag_names;
+		break;
+	case 'v':
+		flags = *(unsigned long *)flags_ptr;
+		names = vmaflag_names;
+		break;
+	case 'g':
+		flags = *(gfp_t *)flags_ptr;
+		names = gfpflag_names;
+		break;
+	default:
+		WARN_ONCE(1, "Unsupported flags modifier: %c\n", fmt[1]);
+		return buf;
+	}
+
+	return format_flags(buf, end, flags, names);
+}
+
+static const char *device_node_name_for_depth(const struct device_node *np, int depth)
+{
+	for ( ; np && depth; depth--)
+		np = np->parent;
+
+	return kbasename(np->full_name);
+}
+
+static noinline_for_stack
+char *device_node_gen_full_name(const struct device_node *np, char *buf, char *end)
+{
+	int depth;
+	const struct device_node *parent = np->parent;
+	static const struct printf_spec strspec = {
+		.field_width = -1,
+		.precision = -1,
+	};
+
+	/* special case for root node */
+	if (!parent)
+		return string(buf, end, "/", strspec);
+
+	for (depth = 0; parent->parent; depth++)
+		parent = parent->parent;
+
+	for ( ; depth >= 0; depth--) {
+		buf = string(buf, end, "/", strspec);
+		buf = string(buf, end, device_node_name_for_depth(np, depth),
+			     strspec);
+	}
+	return buf;
+}
+
+static noinline_for_stack
+char *device_node_string(char *buf, char *end, struct device_node *dn,
+			 struct printf_spec spec, const char *fmt)
+{
+	char tbuf[sizeof("xxxx") + 1];
+	const char *p;
+	int ret;
+	char *buf_start = buf;
+	struct property *prop;
+	bool has_mult, pass;
+	static const struct printf_spec num_spec = {
+		.flags = SMALL,
+		.field_width = -1,
+		.precision = -1,
+		.base = 10,
+	};
+
+	struct printf_spec str_spec = spec;
+	str_spec.field_width = -1;
+
+	if (!IS_ENABLED(CONFIG_OF))
+		return string(buf, end, "(!OF)", spec);
+
+	if ((unsigned long)dn < PAGE_SIZE)
+		return string(buf, end, "(null)", spec);
+
+	/* simple case without anything any more format specifiers */
+	fmt++;
+	if (fmt[0] == '\0' || strcspn(fmt,"fnpPFcC") > 0)
+		fmt = "f";
+
+	for (pass = false; strspn(fmt,"fnpPFcC"); fmt++, pass = true) {
+		if (pass) {
+			if (buf < end)
+				*buf = ':';
+			buf++;
+		}
+
+		switch (*fmt) {
+		case 'f':	/* full_name */
+			buf = device_node_gen_full_name(dn, buf, end);
+			break;
+		case 'n':	/* name */
+			buf = string(buf, end, dn->name, str_spec);
+			break;
+		case 'p':	/* phandle */
+			buf = number(buf, end, (unsigned int)dn->phandle, num_spec);
+			break;
+		case 'P':	/* path-spec */
+			p = kbasename(of_node_full_name(dn));
+			if (!p[1])
+				p = "/";
+			buf = string(buf, end, p, str_spec);
+			break;
+		case 'F':	/* flags */
+			tbuf[0] = of_node_check_flag(dn, OF_DYNAMIC) ? 'D' : '-';
+			tbuf[1] = of_node_check_flag(dn, OF_DETACHED) ? 'd' : '-';
+			tbuf[2] = of_node_check_flag(dn, OF_POPULATED) ? 'P' : '-';
+			tbuf[3] = of_node_check_flag(dn, OF_POPULATED_BUS) ? 'B' : '-';
+			tbuf[4] = 0;
+			buf = string(buf, end, tbuf, str_spec);
+			break;
+		case 'c':	/* major compatible string */
+			ret = of_property_read_string(dn, "compatible", &p);
+			if (!ret)
+				buf = string(buf, end, p, str_spec);
+			break;
+		case 'C':	/* full compatible string */
+			has_mult = false;
+			of_property_for_each_string(dn, "compatible", prop, p) {
+				if (has_mult)
+					buf = string(buf, end, ",", str_spec);
+				buf = string(buf, end, "\"", str_spec);
+				buf = string(buf, end, p, str_spec);
+				buf = string(buf, end, "\"", str_spec);
+
+				has_mult = true;
+			}
+			break;
+		default:
+			break;
+		}
+	}
+
+	return widen_string(buf, buf - buf_start, end, spec);
 }
 
 int kptr_restrict __read_mostly;
@@ -1367,6 +1597,9 @@ int kptr_restrict __read_mostly;
  * Show a '%p' thing.  A kernel extension is that the '%p' is followed
  * by an extra set of alphanumeric characters that are extended format
  * specifiers.
+ *
+ * Please update scripts/checkpatch.pl when adding/removing conversion
+ * characters.  (Search for "check for vsprintf extension").
  *
  * Right now we handle:
  *
@@ -1443,11 +1676,27 @@ int kptr_restrict __read_mostly;
  *           (default assumed to be phys_addr_t, passed by reference)
  * - 'd[234]' For a dentry name (optionally 2-4 last components)
  * - 'D[234]' Same as 'd' but for a struct file
+ * - 'g' For block_device name (gendisk + partition number)
  * - 'C' For a clock, it prints the name (Common Clock Framework) or address
  *       (legacy clock framework) of the clock
  * - 'Cn' For a clock, it prints the name (Common Clock Framework) or address
  *        (legacy clock framework) of the clock
  * - 'Cr' For a clock, it prints the current rate of the clock
+ * - 'G' For flags to be printed as a collection of symbolic strings that would
+ *       construct the specific value. Supported flags given by option:
+ *       p page flags (see struct page) given as pointer to unsigned long
+ *       g gfp flags (GFP_* and __GFP_*) given as pointer to gfp_t
+ *       v vma flags (VM_*) given as pointer to unsigned long
+ * - 'O' For a kobject based struct. Must be one of the following:
+ *       - 'OF[fnpPcCF]'  For a device tree object
+ *                        Without any optional arguments prints the full_name
+ *                        f device node full_name
+ *                        n device node name
+ *                        p device node phandle
+ *                        P device node path spec (name + @unit)
+ *                        F device node flags
+ *                        c major compatible string
+ *                        C full compatible string
  *
  * ** Please update also Documentation/printk-formats.txt when making changes **
  *
@@ -1543,22 +1792,23 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 			return buf;
 		}
 	case 'K':
-		/*
-		 * %pK cannot be used in IRQ context because its test
-		 * for CAP_SYSLOG would be meaningless.
-		 */
-		if (kptr_restrict && (in_irq() || in_serving_softirq() ||
-				      in_nmi())) {
-			if (spec.field_width == -1)
-				spec.field_width = default_width;
-			return string(buf, end, "pK-error", spec);
-		}
-
 		switch (kptr_restrict) {
 		case 0:
 			/* Always print %pK values */
 			break;
 		case 1: {
+			const struct cred *cred;
+
+			/*
+			 * kptr_restrict==1 cannot be used in IRQ context
+			 * because its test for CAP_SYSLOG would be meaningless.
+			 */
+			if (in_irq() || in_serving_softirq() || in_nmi()) {
+				if (spec.field_width == -1)
+					spec.field_width = default_width;
+				return string(buf, end, "pK-error", spec);
+			}
+
 			/*
 			 * Only print the real pointer value if the current
 			 * process has CAP_SYSLOG and is running with the
@@ -1568,8 +1818,7 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 			 * leak pointer values if a binary opens a file using
 			 * %pK and then elevates privileges before reading it.
 			 */
-			const struct cred *cred = current_cred();
-
+			cred = current_cred();
 			if (!has_capability_noaudit(current, CAP_SYSLOG) ||
 			    !uid_eq(cred->euid, cred->uid) ||
 			    !gid_eq(cred->egid, cred->gid))
@@ -1585,13 +1834,9 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 		break;
 
 	case 'N':
-		switch (fmt[1]) {
-		case 'F':
-			return netdev_feature_string(buf, end, ptr, spec);
-		}
-		break;
+		return netdev_bits(buf, end, ptr, fmt);
 	case 'a':
-		return address_val(buf, end, ptr, spec, fmt);
+		return address_val(buf, end, ptr, fmt);
 	case 'd':
 		return dentry_name(buf, end, ptr, spec, fmt);
 	case 'C':
@@ -1600,6 +1845,18 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
 		return dentry_name(buf, end,
 				   ((const struct file *)ptr)->f_path.dentry,
 				   spec, fmt);
+#ifdef CONFIG_BLOCK
+	case 'g':
+		return bdev_name(buf, end, ptr, spec, fmt);
+#endif
+
+	case 'G':
+		return flags_string(buf, end, ptr, fmt);
+	case 'O':
+		switch (fmt[1]) {
+		case 'F':
+			return device_node_string(buf, end, ptr, spec, fmt + 1);
+		}
 	}
 	spec.flags |= SMALL;
 	if (spec.field_width == -1) {
@@ -1621,6 +1878,7 @@ char *pointer(const char *fmt, char *buf, char *end, void *ptr,
  * 'h', 'l', or 'L' for integer fields
  * 'z' support added 23/7/1999 S.H.
  * 'z' changed to 'Z' --davidm 1/25/99
+ * 'Z' changed to 'z' --adobriyan 2017-01-25
  * 't' added for ptrdiff_t
  *
  * @fmt: the format string
@@ -1635,6 +1893,7 @@ static noinline_for_stack
 int format_decode(const char *fmt, struct printf_spec *spec)
 {
 	const char *start = fmt;
+	char qualifier;
 
 	/* we finished early by reading the field width */
 	if (spec->type == FORMAT_TYPE_WIDTH) {
@@ -1717,16 +1976,16 @@ precision:
 
 qualifier:
 	/* get the conversion qualifier */
-	spec->qualifier = -1;
+	qualifier = 0;
 	if (*fmt == 'h' || _tolower(*fmt) == 'l' ||
-	    _tolower(*fmt) == 'z' || *fmt == 't') {
-		spec->qualifier = *fmt++;
-		if (unlikely(spec->qualifier == *fmt)) {
-			if (spec->qualifier == 'l') {
-				spec->qualifier = 'L';
+	    *fmt == 'z' || *fmt == 't') {
+		qualifier = *fmt++;
+		if (unlikely(qualifier == *fmt)) {
+			if (qualifier == 'l') {
+				qualifier = 'L';
 				++fmt;
-			} else if (spec->qualifier == 'h') {
-				spec->qualifier = 'H';
+			} else if (qualifier == 'h') {
+				qualifier = 'H';
 				++fmt;
 			}
 		}
@@ -1783,19 +2042,19 @@ qualifier:
 		return fmt - start;
 	}
 
-	if (spec->qualifier == 'L')
+	if (qualifier == 'L')
 		spec->type = FORMAT_TYPE_LONG_LONG;
-	else if (spec->qualifier == 'l') {
+	else if (qualifier == 'l') {
 		BUILD_BUG_ON(FORMAT_TYPE_ULONG + SIGN != FORMAT_TYPE_LONG);
 		spec->type = FORMAT_TYPE_ULONG + (spec->flags & SIGN);
-	} else if (_tolower(spec->qualifier) == 'z') {
+	} else if (qualifier == 'z') {
 		spec->type = FORMAT_TYPE_SIZE_T;
-	} else if (spec->qualifier == 't') {
+	} else if (qualifier == 't') {
 		spec->type = FORMAT_TYPE_PTRDIFF;
-	} else if (spec->qualifier == 'H') {
+	} else if (qualifier == 'H') {
 		BUILD_BUG_ON(FORMAT_TYPE_UBYTE + SIGN != FORMAT_TYPE_BYTE);
 		spec->type = FORMAT_TYPE_UBYTE + (spec->flags & SIGN);
-	} else if (spec->qualifier == 'h') {
+	} else if (qualifier == 'h') {
 		BUILD_BUG_ON(FORMAT_TYPE_USHORT + SIGN != FORMAT_TYPE_SHORT);
 		spec->type = FORMAT_TYPE_USHORT + (spec->flags & SIGN);
 	} else {
@@ -1804,6 +2063,24 @@ qualifier:
 	}
 
 	return ++fmt - start;
+}
+
+static void
+set_field_width(struct printf_spec *spec, int width)
+{
+	spec->field_width = width;
+	if (WARN_ONCE(spec->field_width != width, "field width %d too large", width)) {
+		spec->field_width = clamp(width, -FIELD_WIDTH_MAX, FIELD_WIDTH_MAX);
+	}
+}
+
+static void
+set_precision(struct printf_spec *spec, int prec)
+{
+	spec->precision = prec;
+	if (WARN_ONCE(spec->precision != prec, "precision %d too large", prec)) {
+		spec->precision = clamp(prec, 0, PRECISION_MAX);
+	}
 }
 
 /**
@@ -1816,13 +2093,13 @@ qualifier:
  * This function generally follows C99 vsnprintf, but has some
  * extensions and a few limitations:
  *
- * %n is unsupported
- * %p* is handled by pointer()
+ *  - ``%n`` is unsupported
+ *  - ``%p*`` is handled by pointer()
  *
  * See pointer() or Documentation/printk-formats.txt for more
  * extensive description.
  *
- * ** Please update the documentation in both places when making changes **
+ * **Please update the documentation in both places when making changes**
  *
  * The return value is the number of characters which would
  * be generated for the given input, excluding the trailing
@@ -1873,11 +2150,11 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 		}
 
 		case FORMAT_TYPE_WIDTH:
-			spec.field_width = va_arg(args, int);
+			set_field_width(&spec, va_arg(args, int));
 			break;
 
 		case FORMAT_TYPE_PRECISION:
-			spec.precision = va_arg(args, int);
+			set_precision(&spec, va_arg(args, int));
 			break;
 
 		case FORMAT_TYPE_CHAR: {
@@ -2317,11 +2594,11 @@ int bstr_printf(char *buf, size_t size, const char *fmt, const u32 *bin_buf)
 		}
 
 		case FORMAT_TYPE_WIDTH:
-			spec.field_width = get_arg(int);
+			set_field_width(&spec, get_arg(int));
 			break;
 
 		case FORMAT_TYPE_PRECISION:
-			spec.precision = get_arg(int);
+			set_precision(&spec, get_arg(int));
 			break;
 
 		case FORMAT_TYPE_CHAR: {
@@ -2498,8 +2775,12 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 		if (*fmt == '*') {
 			if (!*str)
 				break;
-			while (!isspace(*fmt) && *fmt != '%' && *fmt)
+			while (!isspace(*fmt) && *fmt != '%' && *fmt) {
+				/* '%*[' not yet supported, invalid format */
+				if (*fmt == '[')
+					return num;
 				fmt++;
+			}
 			while (!isspace(*str) && *str)
 				str++;
 			continue;
@@ -2516,7 +2797,7 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 		/* get conversion qualifier */
 		qualifier = -1;
 		if (*fmt == 'h' || _tolower(*fmt) == 'l' ||
-		    _tolower(*fmt) == 'z') {
+		    *fmt == 'z') {
 			qualifier = *fmt++;
 			if (unlikely(qualifier == *fmt)) {
 				if (qualifier == 'h') {
@@ -2570,6 +2851,59 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 				*s++ = *str++;
 			*s = '\0';
 			num++;
+		}
+		continue;
+		/*
+		 * Warning: This implementation of the '[' conversion specifier
+		 * deviates from its glibc counterpart in the following ways:
+		 * (1) It does NOT support ranges i.e. '-' is NOT a special
+		 *     character
+		 * (2) It cannot match the closing bracket ']' itself
+		 * (3) A field width is required
+		 * (4) '%*[' (discard matching input) is currently not supported
+		 *
+		 * Example usage:
+		 * ret = sscanf("00:0a:95","%2[^:]:%2[^:]:%2[^:]",
+		 *		buf1, buf2, buf3);
+		 * if (ret < 3)
+		 *    // etc..
+		 */
+		case '[':
+		{
+			char *s = (char *)va_arg(args, char *);
+			DECLARE_BITMAP(set, 256) = {0};
+			unsigned int len = 0;
+			bool negate = (*fmt == '^');
+
+			/* field width is required */
+			if (field_width == -1)
+				return num;
+
+			if (negate)
+				++fmt;
+
+			for ( ; *fmt && *fmt != ']'; ++fmt, ++len)
+				set_bit((u8)*fmt, set);
+
+			/* no ']' or no character set found */
+			if (!*fmt || !len)
+				return num;
+			++fmt;
+
+			if (negate) {
+				bitmap_complement(set, set, 256);
+				/* exclude null '\0' byte */
+				clear_bit(0, set);
+			}
+
+			/* match must be non-empty */
+			if (!test_bit((u8)*str, set))
+				return num;
+
+			while (test_bit((u8)*str, set) && field_width--)
+				*s++ = *str++;
+			*s = '\0';
+			++num;
 		}
 		continue;
 		case 'o':
@@ -2657,7 +2991,6 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 			else
 				*va_arg(args, unsigned long long *) = val.u;
 			break;
-		case 'Z':
 		case 'z':
 			*va_arg(args, size_t *) = val.u;
 			break;

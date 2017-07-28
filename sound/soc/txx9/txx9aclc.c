@@ -206,7 +206,7 @@ static void txx9aclc_dma_tasklet(unsigned long data)
 static int txx9aclc_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 {
 	struct txx9aclc_dmadata *dmadata = substream->runtime->private_data;
-	struct txx9aclc_plat_drvdata *drvdata =txx9aclc_drvdata;
+	struct txx9aclc_plat_drvdata *drvdata = txx9aclc_drvdata;
 	void __iomem *base = drvdata->base;
 	unsigned long flags;
 	int ret = 0;
@@ -340,7 +340,7 @@ static bool filter(struct dma_chan *chan, void *param)
 static int txx9aclc_dma_init(struct txx9aclc_soc_device *dev,
 			     struct txx9aclc_dmadata *dmadata)
 {
-	struct txx9aclc_plat_drvdata *drvdata =txx9aclc_drvdata;
+	struct txx9aclc_plat_drvdata *drvdata = txx9aclc_drvdata;
 	struct txx9dmac_slave *ds = &dmadata->dma_slave;
 	dma_cap_mask_t mask;
 
@@ -392,6 +392,7 @@ static int txx9aclc_pcm_remove(struct snd_soc_platform *platform)
 	for (i = 0; i < 2; i++) {
 		struct txx9aclc_dmadata *dmadata = &dev->dmadata[i];
 		struct dma_chan *chan = dmadata->dma_chan;
+
 		if (chan) {
 			dmadata->frag_count = -1;
 			dmaengine_terminate_all(chan);

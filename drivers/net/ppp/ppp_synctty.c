@@ -47,7 +47,7 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <asm/unaligned.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #define PPP_VERSION	"2.4.2"
 
@@ -697,8 +697,7 @@ ppp_sync_input(struct syncppp *ap, const unsigned char *buf,
 		goto err;
 	}
 
-	p = skb_put(skb, count);
-	memcpy(p, buf, count);
+	skb_put_data(skb, buf, count);
 
 	/* strip address/control field if present */
 	p = skb->data;
@@ -712,7 +711,7 @@ ppp_sync_input(struct syncppp *ap, const unsigned char *buf,
 	/* decompress protocol field if compressed */
 	if (p[0] & 1) {
 		/* protocol is compressed */
-		skb_push(skb, 1)[0] = 0;
+		*(u8 *)skb_push(skb, 1) = 0;
 	} else if (skb->len < 2)
 		goto err;
 

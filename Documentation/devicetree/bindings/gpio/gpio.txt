@@ -74,11 +74,14 @@ GPIO pin number, and GPIO flags as accepted by the "qe_pio_e" gpio-controller.
 Optional standard bitfield specifiers for the last cell:
 
 - Bit 0: 0 means active high, 1 means active low
-- Bit 1: 1 means single-ended wiring, see:
+- Bit 1: 0 mean push-pull wiring, see:
+           https://en.wikipedia.org/wiki/Push-pull_output
+         1 means single-ended wiring, see:
            https://en.wikipedia.org/wiki/Single-ended_triode
-	   When used with active-low, this means open drain/collector, see:
+- Bit 2: 0 means open-source, 1 means open drain, see:
            https://en.wikipedia.org/wiki/Open_collector
-	   When used with active-high, this means open source/emitter
+- Bit 3: 0 means the output should be maintained during sleep/low-power mode
+         1 means the output state can be lost during sleep/low-power mode
 
 1.1) GPIO specifier best practices
 ----------------------------------
@@ -131,6 +134,13 @@ Every GPIO controller node must contain both an empty "gpio-controller"
 property, and a #gpio-cells integer property, which indicates the number of
 cells in a gpio-specifier.
 
+Some system-on-chips (SoCs) use the concept of GPIO banks. A GPIO bank is an
+instance of a hardware IP core on a silicon die, usually exposed to the
+programmer as a coherent range of I/O addresses. Usually each such bank is
+exposed in the device tree as an individual gpio-controller node, reflecting
+the fact that the hardware was synthesized by reusing the same IP block a
+few times over.
+
 Optionally, a GPIO controller may have a "ngpios" property. This property
 indicates the number of in-use slots of available slots for GPIOs. The
 typical example is something like this: the hardware register is 32 bits
@@ -145,6 +155,21 @@ additional bitmask is needed to specify which GPIOs are actually in use,
 and which are dummies. The bindings for this case has not yet been
 specified, but should be specified if/when such hardware appears.
 
+Optionally, a GPIO controller may have a "gpio-line-names" property. This is
+an array of strings defining the names of the GPIO lines going out of the
+GPIO controller. This name should be the most meaningful producer name
+for the system, such as a rail name indicating the usage. Package names
+such as pin name are discouraged: such lines have opaque names (since they
+are by definition generic purpose) and such names are usually not very
+helpful. For example "MMC-CD", "Red LED Vdd" and "ethernet reset" are
+reasonable line names as they describe what the line is used for. "GPIO0"
+is not a good name to give to a GPIO line. Placeholders are discouraged:
+rather use the "" (blank string) if the use of the GPIO line is undefined
+in your design. The names are assigned starting from line offset 0 from
+left to right from the passed array. An incomplete array (where the number
+of passed named are less than ngpios) will still be used up until the last
+provided valid line index.
+
 Example:
 
 gpio-controller@00000000 {
@@ -153,6 +178,10 @@ gpio-controller@00000000 {
 	gpio-controller;
 	#gpio-cells = <2>;
 	ngpios = <18>;
+	gpio-line-names = "MMC-CD", "MMC-WP", "VDD eth", "RST eth", "LED R",
+		"LED G", "LED B", "Col A", "Col B", "Col C", "Col D",
+		"Row A", "Row B", "Row C", "Row D", "NMI button",
+		"poweroff", "reset";
 }
 
 The GPIO chip may contain GPIO hog definitions. GPIO hogging is a mechanism
@@ -161,10 +190,10 @@ gpio-controller's driver probe function.
 
 Each GPIO hog definition is represented as a child node of the GPIO controller.
 Required properties:
-- gpio-hog:   A property specifying that this child node represent a GPIO hog.
-- gpios:      Store the GPIO information (id, flags, ...). Shall contain the
-	      number of cells specified in its parent node (GPIO controller
-	      node).
+- gpio-hog:   A property specifying that this child node represents a GPIO hog.
+- gpios:      Store the GPIO information (id, flags, ...) for each GPIO to
+	      affect. Shall contain an integer multiple of the number of cells
+	      specified in its parent node (GPIO controller node).
 Only one of the following properties scanned in the order shown below.
 This means that when multiple properties are present they will be searched
 in the order presented below and the first match is taken as the intended
@@ -256,8 +285,8 @@ Example 1:
 	};
 
 Here, a single GPIO controller has GPIOs 0..9 routed to pin controller
-pinctrl1's pins 20..29, and GPIOs 10..19 routed to pin controller pinctrl2's
-pins 50..59.
+pinctrl1's pins 20..29, and GPIOs 10..29 routed to pin controller pinctrl2's
+pins 50..69.
 
 Example 2:
 

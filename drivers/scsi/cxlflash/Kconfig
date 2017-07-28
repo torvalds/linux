@@ -5,6 +5,7 @@
 config CXLFLASH
 	tristate "Support for IBM CAPI Flash"
 	depends on PCI && SCSI && CXL && EEH
+	select IRQ_POLL
 	default m
 	help
 	  Allows CAPI Accelerated IO to Flash

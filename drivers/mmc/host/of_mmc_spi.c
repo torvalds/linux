@@ -55,8 +55,8 @@ static int of_mmc_spi_init(struct device *dev,
 {
 	struct of_mmc_spi *oms = to_of_mmc_spi(dev);
 
-	return request_threaded_irq(oms->detect_irq, NULL, irqhandler, 0,
-				    dev_name(dev), mmc);
+	return request_threaded_irq(oms->detect_irq, NULL, irqhandler,
+					IRQF_ONESHOT, dev_name(dev), mmc);
 }
 
 static void of_mmc_spi_exit(struct device *dev, void *mmc)
@@ -74,7 +74,6 @@ struct mmc_spi_platform_data *mmc_spi_get_pdata(struct spi_device *spi)
 	const u32 *voltage_ranges;
 	int num_ranges;
 	int i;
-	int ret = -EINVAL;
 
 	if (dev->platform_data || !np)
 		return dev->platform_data;
@@ -97,7 +96,6 @@ struct mmc_spi_platform_data *mmc_spi_get_pdata(struct spi_device *spi)
 		mask = mmc_vddrange_to_ocrmask(be32_to_cpu(voltage_ranges[j]),
 					       be32_to_cpu(voltage_ranges[j + 1]));
 		if (!mask) {
-			ret = -EINVAL;
 			dev_err(dev, "OF: voltage-range #%d is invalid\n", i);
 			goto err_ocr;
 		}

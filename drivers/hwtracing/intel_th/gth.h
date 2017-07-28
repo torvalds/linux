@@ -57,9 +57,6 @@ enum {
 	REG_GTH_SCRPD3		= 0xec, /* ScratchPad[3] */
 };
 
-/* Externall debugger is using Intel TH */
-#define SCRPD_DEBUGGER_IN_USE	BIT(24)
-
 /* waiting for Pipeline Empty bit(s) to assert for GTH */
 #define GTH_PLE_WAITLOOP_DEPTH	10000
 

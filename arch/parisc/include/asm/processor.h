@@ -93,9 +93,7 @@ struct system_cpuinfo_parisc {
 /* Per CPU data structure - ie varies per CPU.  */
 struct cpuinfo_parisc {
 	unsigned long it_value;     /* Interval Timer at last timer Intr */
-	unsigned long it_delta;     /* Interval delta (tic_10ms / HZ * 100) */
 	unsigned long irq_count;    /* number of IRQ's since boot */
-	unsigned long irq_max_cr16; /* longest time to handle a single IRQ */
 	unsigned long cpuid;        /* aka slot_number or set to NO_PROC_ID */
 	unsigned long hpa;          /* Host Physical address */
 	unsigned long txn_addr;     /* MMIO addr of EIR or id_eid */
@@ -103,10 +101,10 @@ struct cpuinfo_parisc {
 	unsigned long pending_ipi;  /* bitmap of type ipi_message_type */
 #endif
 	unsigned long bh_count;     /* number of times bh was invoked */
-	unsigned long prof_counter; /* per CPU profiling support */
-	unsigned long prof_multiplier;	/* per CPU profiling support */
 	unsigned long fp_rev;
 	unsigned long fp_model;
+	unsigned long cpu_num;      /* CPU number from PAT firmware */
+	unsigned long cpu_loc;      /* CPU location from PAT firmware */
 	unsigned int state;
 	struct parisc_device *dev;
 	unsigned long loops_per_jiffy;
@@ -167,12 +165,7 @@ struct thread_struct {
 	.flags		= 0 \
 	}
 
-/*
- * Return saved PC of a blocked thread.  This is used by ps mostly.
- */
-
 struct task_struct;
-unsigned long thread_saved_pc(struct task_struct *t);
 void show_trace(struct task_struct *task, unsigned long *stack);
 
 /*
@@ -309,20 +302,18 @@ extern unsigned long get_wchan(struct task_struct *p);
 #define KSTK_ESP(tsk)	((tsk)->thread.regs.gr[30])
 
 #define cpu_relax()	barrier()
-#define cpu_relax_lowlatency() cpu_relax()
 
-/* Used as a macro to identify the combined VIPT/PIPT cached
- * CPUs which require a guarantee of coherency (no inequivalent
- * aliases with different data, whether clean or not) to operate */
-static inline int parisc_requires_coherency(void)
-{
+/*
+ * parisc_requires_coherency() is used to identify the combined VIPT/PIPT
+ * cached CPUs which require a guarantee of coherency (no inequivalent aliases
+ * with different data, whether clean or not) to operate
+ */
 #ifdef CONFIG_PA8X00
-	return (boot_cpu_data.cpu_type == mako) ||
-		(boot_cpu_data.cpu_type == mako2);
+extern int _parisc_requires_coherency;
+#define parisc_requires_coherency()	_parisc_requires_coherency
 #else
-	return 0;
+#define parisc_requires_coherency()	(0)
 #endif
-}
 
 #endif /* __ASSEMBLY__ */
 

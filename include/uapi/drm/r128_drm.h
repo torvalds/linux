@@ -33,7 +33,11 @@
 #ifndef __R128_DRM_H__
 #define __R128_DRM_H__
 
-#include <drm/drm.h>
+#include "drm.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /* WARNING: If you change any of these defines, make sure to change the
  * defines in the X server file (r128_sarea.h)
@@ -324,5 +328,9 @@ typedef struct drm_r128_getparam {
 	int param;
 	void __user *value;
 } drm_r128_getparam_t;
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif

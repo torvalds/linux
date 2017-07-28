@@ -275,6 +275,13 @@ static struct ctl_table sctp_net_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
+		.procname	= "reconf_enable",
+		.data		= &init_net.sctp.reconf_enable,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
 		.procname	= "auth_enable",
 		.data		= &init_net.sctp.auth_enable,
 		.maxlen		= sizeof(int),
@@ -308,6 +315,13 @@ static struct ctl_table sctp_net_table[] = {
 		.extra1		= &max_autoclose_min,
 		.extra2		= &max_autoclose_max,
 	},
+	{
+		.procname	= "pf_enable",
+		.data		= &init_net.sctp.pf_enable,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
 
 	{ /* sentinel */ }
 };
@@ -320,7 +334,7 @@ static int proc_sctp_do_hmac_alg(struct ctl_table *ctl, int write,
 	struct ctl_table tbl;
 	bool changed = false;
 	char *none = "none";
-	char tmp[8];
+	char tmp[8] = {0};
 	int ret;
 
 	memset(&tbl, 0, sizeof(struct ctl_table));

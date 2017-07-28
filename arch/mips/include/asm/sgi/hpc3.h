@@ -39,7 +39,7 @@ struct hpc3_pbus_dmacregs {
 	volatile u32 pbdma_dptr;	/* pbus dma channel desc ptr */
 	u32 _unused0[0x1000/4 - 2];	/* padding */
 	volatile u32 pbdma_ctrl;	/* pbus dma channel control register has
-					 * copletely different meaning for read
+					 * completely different meaning for read
 					 * compared with write */
 	/* read */
 #define HPC3_PDMACTRL_INT	0x00000001 /* interrupt (cleared after read) */
@@ -147,7 +147,7 @@ struct hpc3_ethregs {
 #define HPC3_EPCFG_P1	 0x000f /* Cycles to spend in P1 state for PIO */
 #define HPC3_EPCFG_P2	 0x00f0 /* Cycles to spend in P2 state for PIO */
 #define HPC3_EPCFG_P3	 0x0f00 /* Cycles to spend in P3 state for PIO */
-#define HPC3_EPCFG_TST	 0x1000 /* Diagnistic ram test feature bit */
+#define HPC3_EPCFG_TST	 0x1000 /* Diagnostic ram test feature bit */
 
 	u32 _unused2[0x1000/4 - 8];	/* padding */
 

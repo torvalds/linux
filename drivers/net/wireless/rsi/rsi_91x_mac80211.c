@@ -20,84 +20,84 @@
 #include "rsi_common.h"
 
 static const struct ieee80211_channel rsi_2ghz_channels[] = {
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2412,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2412,
 	  .hw_value = 1 }, /* Channel 1 */
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2417,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2417,
 	  .hw_value = 2 }, /* Channel 2 */
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2422,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2422,
 	  .hw_value = 3 }, /* Channel 3 */
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2427,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2427,
 	  .hw_value = 4 }, /* Channel 4 */
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2432,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2432,
 	  .hw_value = 5 }, /* Channel 5 */
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2437,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2437,
 	  .hw_value = 6 }, /* Channel 6 */
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2442,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2442,
 	  .hw_value = 7 }, /* Channel 7 */
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2447,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2447,
 	  .hw_value = 8 }, /* Channel 8 */
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2452,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2452,
 	  .hw_value = 9 }, /* Channel 9 */
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2457,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2457,
 	  .hw_value = 10 }, /* Channel 10 */
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2462,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2462,
 	  .hw_value = 11 }, /* Channel 11 */
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2467,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2467,
 	  .hw_value = 12 }, /* Channel 12 */
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2472,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2472,
 	  .hw_value = 13 }, /* Channel 13 */
-	{ .band = IEEE80211_BAND_2GHZ, .center_freq = 2484,
+	{ .band = NL80211_BAND_2GHZ, .center_freq = 2484,
 	  .hw_value = 14 }, /* Channel 14 */
 };
 
 static const struct ieee80211_channel rsi_5ghz_channels[] = {
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5180,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5180,
 	  .hw_value = 36,  }, /* Channel 36 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5200,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5200,
 	  .hw_value = 40, }, /* Channel 40 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5220,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5220,
 	  .hw_value = 44, }, /* Channel 44 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5240,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5240,
 	  .hw_value = 48, }, /* Channel 48 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5260,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5260,
 	  .hw_value = 52, }, /* Channel 52 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5280,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5280,
 	  .hw_value = 56, }, /* Channel 56 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5300,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5300,
 	  .hw_value = 60, }, /* Channel 60 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5320,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5320,
 	  .hw_value = 64, }, /* Channel 64 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5500,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5500,
 	  .hw_value = 100, }, /* Channel 100 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5520,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5520,
 	  .hw_value = 104, }, /* Channel 104 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5540,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5540,
 	  .hw_value = 108, }, /* Channel 108 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5560,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5560,
 	  .hw_value = 112, }, /* Channel 112 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5580,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5580,
 	  .hw_value = 116, }, /* Channel 116 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5600,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5600,
 	  .hw_value = 120, }, /* Channel 120 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5620,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5620,
 	  .hw_value = 124, }, /* Channel 124 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5640,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5640,
 	  .hw_value = 128, }, /* Channel 128 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5660,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5660,
 	  .hw_value = 132, }, /* Channel 132 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5680,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5680,
 	  .hw_value = 136, }, /* Channel 136 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5700,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5700,
 	  .hw_value = 140, }, /* Channel 140 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5745,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5745,
 	  .hw_value = 149, }, /* Channel 149 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5765,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5765,
 	  .hw_value = 153, }, /* Channel 153 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5785,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5785,
 	  .hw_value = 157, }, /* Channel 157 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5805,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5805,
 	  .hw_value = 161, }, /* Channel 161 */
-	{ .band = IEEE80211_BAND_5GHZ, .center_freq = 5825,
+	{ .band = NL80211_BAND_5GHZ, .center_freq = 5825,
 	  .hw_value = 165, }, /* Channel 165 */
 };
 
@@ -150,12 +150,12 @@ static void rsi_register_rates_channels(struct rsi_hw *adapter, int band)
 	struct ieee80211_supported_band *sbands = &adapter->sbands[band];
 	void *channels = NULL;
 
-	if (band == IEEE80211_BAND_2GHZ) {
+	if (band == NL80211_BAND_2GHZ) {
 		channels = kmalloc(sizeof(rsi_2ghz_channels), GFP_KERNEL);
 		memcpy(channels,
 		       rsi_2ghz_channels,
 		       sizeof(rsi_2ghz_channels));
-		sbands->band = IEEE80211_BAND_2GHZ;
+		sbands->band = NL80211_BAND_2GHZ;
 		sbands->n_channels = ARRAY_SIZE(rsi_2ghz_channels);
 		sbands->bitrates = rsi_rates;
 		sbands->n_bitrates = ARRAY_SIZE(rsi_rates);
@@ -164,7 +164,7 @@ static void rsi_register_rates_channels(struct rsi_hw *adapter, int band)
 		memcpy(channels,
 		       rsi_5ghz_channels,
 		       sizeof(rsi_5ghz_channels));
-		sbands->band = IEEE80211_BAND_5GHZ;
+		sbands->band = NL80211_BAND_5GHZ;
 		sbands->n_channels = ARRAY_SIZE(rsi_5ghz_channels);
 		sbands->bitrates = &rsi_rates[4];
 		sbands->n_bitrates = ARRAY_SIZE(rsi_rates) - 4;
@@ -194,6 +194,7 @@ static void rsi_register_rates_channels(struct rsi_hw *adapter, int band)
 void rsi_mac80211_detach(struct rsi_hw *adapter)
 {
 	struct ieee80211_hw *hw = adapter->hw;
+	enum nl80211_band band;
 
 	if (hw) {
 		ieee80211_stop_queues(hw);
@@ -201,7 +202,17 @@ void rsi_mac80211_detach(struct rsi_hw *adapter)
 		ieee80211_free_hw(hw);
 	}
 
+	for (band = 0; band < NUM_NL80211_BANDS; band++) {
+		struct ieee80211_supported_band *sband =
+					&adapter->sbands[band];
+
+		kfree(sband->channels);
+	}
+
+#ifdef CONFIG_RSI_DEBUGFS
 	rsi_remove_dbgfs(adapter);
+	kfree(adapter->dfsentry);
+#endif
 }
 EXPORT_SYMBOL_GPL(rsi_mac80211_detach);
 
@@ -264,6 +275,8 @@ static int rsi_mac80211_start(struct ieee80211_hw *hw)
 	common->iface_down = false;
 	mutex_unlock(&common->mutex);
 
+	rsi_send_rx_filter_frame(common, 0);
+
 	return 0;
 }
 
@@ -304,7 +317,9 @@ static int rsi_mac80211_add_interface(struct ieee80211_hw *hw,
 		if (!adapter->sc_nvifs) {
 			++adapter->sc_nvifs;
 			adapter->vifs[0] = vif;
-			ret = rsi_set_vap_capabilities(common, STA_OPMODE);
+			ret = rsi_set_vap_capabilities(common,
+						       STA_OPMODE,
+						       VAP_ADD);
 		}
 		break;
 	default:
@@ -332,8 +347,10 @@ static void rsi_mac80211_remove_interface(struct ieee80211_hw *hw,
 	struct rsi_common *common = adapter->priv;
 
 	mutex_lock(&common->mutex);
-	if (vif->type == NL80211_IFTYPE_STATION)
+	if (vif->type == NL80211_IFTYPE_STATION) {
 		adapter->sc_nvifs--;
+		rsi_set_vap_capabilities(common, STA_OPMODE, VAP_DELETE);
+	}
 
 	if (!memcmp(adapter->vifs[0], vif, sizeof(struct ieee80211_vif)))
 		adapter->vifs[0] = NULL;
@@ -373,7 +390,7 @@ static int rsi_channel_change(struct ieee80211_hw *hw)
 
 	status = rsi_band_check(common);
 	if (!status)
-		status = rsi_set_channel(adapter->priv, channel);
+		status = rsi_set_channel(adapter->priv, curchan);
 
 	if (bss->assoc) {
 		if (common->hw_data_qs_blocked &&
@@ -391,6 +408,34 @@ static int rsi_channel_change(struct ieee80211_hw *hw)
 	}
 
 	return status;
+}
+
+/**
+ * rsi_config_power() - This function configures tx power to device
+ * @hw: Pointer to the ieee80211_hw structure.
+ *
+ * Return: 0 on success, negative error code on failure.
+ */
+static int rsi_config_power(struct ieee80211_hw *hw)
+{
+	struct rsi_hw *adapter = hw->priv;
+	struct rsi_common *common = adapter->priv;
+	struct ieee80211_conf *conf = &hw->conf;
+
+	if (adapter->sc_nvifs <= 0) {
+		rsi_dbg(ERR_ZONE, "%s: No virtual interface found\n", __func__);
+		return -EINVAL;
+	}
+
+	rsi_dbg(INFO_ZONE,
+		"%s: Set tx power: %d dBM\n", __func__, conf->power_level);
+
+	if (conf->power_level == common->tx_power)
+		return 0;
+
+	common->tx_power = conf->power_level;
+
+	return rsi_send_radio_params_update(common);
 }
 
 /**
@@ -413,6 +458,12 @@ static int rsi_mac80211_config(struct ieee80211_hw *hw,
 
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL)
 		status = rsi_channel_change(hw);
+
+	/* tx power */
+	if (changed & IEEE80211_CONF_CHANGE_POWER) {
+		rsi_dbg(INFO_ZONE, "%s: Configuring Power\n", __func__);
+		status = rsi_config_power(hw);
+	}
 
 	mutex_unlock(&common->mutex);
 
@@ -456,11 +507,19 @@ static void rsi_mac80211_bss_info_changed(struct ieee80211_hw *hw,
 {
 	struct rsi_hw *adapter = hw->priv;
 	struct rsi_common *common = adapter->priv;
+	u16 rx_filter_word = 0;
 
 	mutex_lock(&common->mutex);
 	if (changed & BSS_CHANGED_ASSOC) {
 		rsi_dbg(INFO_ZONE, "%s: Changed Association status: %d\n",
 			__func__, bss_conf->assoc);
+		if (bss_conf->assoc) {
+			/* Send the RX filter frame */
+			rx_filter_word = (ALLOW_DATA_ASSOC_PEER |
+					  ALLOW_CTRL_ASSOC_PEER |
+					  ALLOW_MGMT_ASSOC_PEER);
+			rsi_send_rx_filter_frame(common, rx_filter_word);
+		}
 		rsi_inform_bss_status(common,
 				      bss_conf->assoc,
 				      bss_conf->bssid,
@@ -659,29 +718,24 @@ static int rsi_mac80211_set_key(struct ieee80211_hw *hw,
  *				 informs the f/w regarding this.
  * @hw: Pointer to the ieee80211_hw structure.
  * @vif: Pointer to the ieee80211_vif structure.
- * @action: ieee80211_ampdu_mlme_action enum.
- * @sta: Pointer to the ieee80211_sta structure.
- * @tid: Traffic identifier.
- * @ssn: Pointer to ssn value.
- * @buf_size: Buffer size (for kernel version > 2.6.38).
- * @amsdu: is AMSDU in AMPDU allowed
+ * @params: Pointer to A-MPDU action parameters
  *
  * Return: status: 0 on success, negative error code on failure.
  */
 static int rsi_mac80211_ampdu_action(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif,
-				     enum ieee80211_ampdu_mlme_action action,
-				     struct ieee80211_sta *sta,
-				     unsigned short tid,
-				     unsigned short *ssn,
-				     unsigned char buf_size,
-				     bool amsdu)
+				     struct ieee80211_ampdu_params *params)
 {
 	int status = -EOPNOTSUPP;
 	struct rsi_hw *adapter = hw->priv;
 	struct rsi_common *common = adapter->priv;
 	u16 seq_no = 0;
 	u8 ii = 0;
+	struct ieee80211_sta *sta = params->sta;
+	enum ieee80211_ampdu_mlme_action action = params->action;
+	u16 tid = params->tid;
+	u16 *ssn = &params->ssn;
+	u8 buf_size = params->buf_size;
 
 	for (ii = 0; ii < RSI_MAX_VIFS; ii++) {
 		if (vif == adapter->vifs[ii])
@@ -780,7 +834,7 @@ static int rsi_mac80211_set_rate_mask(struct ieee80211_hw *hw,
 {
 	struct rsi_hw *adapter = hw->priv;
 	struct rsi_common *common = adapter->priv;
-	enum ieee80211_band band = hw->conf.chandef.chan->band;
+	enum nl80211_band band = hw->conf.chandef.chan->band;
 
 	mutex_lock(&common->mutex);
 	common->fixedrate_mask[band] = 0;
@@ -823,7 +877,7 @@ static void rsi_perform_cqm(struct rsi_common *common,
 
 	common->cqm_info.last_cqm_event_rssi = rssi;
 	rsi_dbg(INFO_ZONE, "CQM: Notifying event: %d\n", event);
-	ieee80211_cqm_rssi_notify(adapter->vifs[0], event, GFP_KERNEL);
+	ieee80211_cqm_rssi_notify(adapter->vifs[0], event, rssi, GFP_KERNEL);
 
 	return;
 }
@@ -1003,18 +1057,124 @@ static int rsi_mac80211_sta_remove(struct ieee80211_hw *hw,
 	struct rsi_common *common = adapter->priv;
 
 	mutex_lock(&common->mutex);
+
 	/* Resetting all the fields to default values */
-	common->bitrate_mask[IEEE80211_BAND_2GHZ] = 0;
-	common->bitrate_mask[IEEE80211_BAND_5GHZ] = 0;
+	common->bitrate_mask[NL80211_BAND_2GHZ] = 0;
+	common->bitrate_mask[NL80211_BAND_5GHZ] = 0;
 	common->min_rate = 0xffff;
 	common->vif_info[0].is_ht = false;
 	common->vif_info[0].sgi = false;
 	common->vif_info[0].seq_start = 0;
 	common->secinfo.ptk_cipher = 0;
 	common->secinfo.gtk_cipher = 0;
-	mutex_unlock(&common->mutex);
 
+	rsi_send_rx_filter_frame(common, 0);
+	
+	mutex_unlock(&common->mutex);
+	
 	return 0;
+}
+
+/**
+ * rsi_mac80211_set_antenna() - This function is used to configure
+ *				tx and rx antennas.
+ * @hw: Pointer to the ieee80211_hw structure.
+ * @tx_ant: Bitmap for tx antenna
+ * @rx_ant: Bitmap for rx antenna
+ *
+ * Return: 0 on success, Negative error code on failure.
+ */
+static int rsi_mac80211_set_antenna(struct ieee80211_hw *hw,
+				    u32 tx_ant, u32 rx_ant)
+{
+	struct rsi_hw *adapter = hw->priv;
+	struct rsi_common *common = adapter->priv;
+	u8 antenna = 0;
+
+	if (tx_ant > 1 || rx_ant > 1) {
+		rsi_dbg(ERR_ZONE,
+			"Invalid antenna selection (tx: %d, rx:%d)\n",
+			tx_ant, rx_ant);
+		rsi_dbg(ERR_ZONE,
+			"Use 0 for int_ant, 1 for ext_ant\n");
+		return -EINVAL; 
+	}
+
+	rsi_dbg(INFO_ZONE, "%s: Antenna map Tx %x Rx %d\n",
+			__func__, tx_ant, rx_ant);
+
+	mutex_lock(&common->mutex);
+
+	antenna = tx_ant ? ANTENNA_SEL_UFL : ANTENNA_SEL_INT;
+	if (common->ant_in_use != antenna)
+		if (rsi_set_antenna(common, antenna))
+			goto fail_set_antenna;
+
+	rsi_dbg(INFO_ZONE, "(%s) Antenna path configured successfully\n",
+		tx_ant ? "UFL" : "INT");
+
+	common->ant_in_use = antenna;
+	
+	mutex_unlock(&common->mutex);
+	
+	return 0;
+
+fail_set_antenna:
+	rsi_dbg(ERR_ZONE, "%s: Failed.\n", __func__);
+	mutex_unlock(&common->mutex);
+	return -EINVAL;
+}
+
+/**
+ * rsi_mac80211_get_antenna() - This function is used to configure 
+ * 				tx and rx antennas.
+ *
+ * @hw: Pointer to the ieee80211_hw structure.
+ * @tx_ant: Bitmap for tx antenna
+ * @rx_ant: Bitmap for rx antenna
+ * 
+ * Return: 0 on success, -1 on failure.
+ */
+static int rsi_mac80211_get_antenna(struct ieee80211_hw *hw,
+				    u32 *tx_ant, u32 *rx_ant)
+{
+	struct rsi_hw *adapter = hw->priv;
+	struct rsi_common *common = adapter->priv;
+
+	mutex_lock(&common->mutex);
+
+	*tx_ant = (common->ant_in_use == ANTENNA_SEL_UFL) ? 1 : 0;
+	*rx_ant = 0;
+
+	mutex_unlock(&common->mutex);
+	
+	return 0;	
+}
+
+static void rsi_reg_notify(struct wiphy *wiphy,
+			   struct regulatory_request *request)
+{
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_channel *ch;
+	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
+	struct rsi_hw * adapter = hw->priv; 
+	int i;
+
+	sband = wiphy->bands[NL80211_BAND_5GHZ];
+	
+	for (i = 0; i < sband->n_channels; i++) {
+		ch = &sband->channels[i];
+		if (ch->flags & IEEE80211_CHAN_DISABLED)
+			continue;
+
+		if (ch->flags & IEEE80211_CHAN_RADAR)
+			ch->flags |= IEEE80211_CHAN_NO_IR;
+	}
+	
+	rsi_dbg(INFO_ZONE,
+		"country = %s dfs_region = %d\n",
+		request->alpha2, request->dfs_region);
+	adapter->dfs_region = request->dfs_region;
 }
 
 static struct ieee80211_ops mac80211_ops = {
@@ -1033,6 +1193,8 @@ static struct ieee80211_ops mac80211_ops = {
 	.ampdu_action = rsi_mac80211_ampdu_action,
 	.sta_add = rsi_mac80211_sta_add,
 	.sta_remove = rsi_mac80211_sta_remove,
+	.set_antenna = rsi_mac80211_set_antenna,
+	.get_antenna = rsi_mac80211_get_antenna,
 };
 
 /**
@@ -1075,8 +1237,8 @@ int rsi_mac80211_attach(struct rsi_common *common)
 	hw->max_rate_tries = MAX_RETRIES;
 
 	hw->max_tx_aggregation_subframes = 6;
-	rsi_register_rates_channels(adapter, IEEE80211_BAND_2GHZ);
-	rsi_register_rates_channels(adapter, IEEE80211_BAND_5GHZ);
+	rsi_register_rates_channels(adapter, NL80211_BAND_2GHZ);
+	rsi_register_rates_channels(adapter, NL80211_BAND_5GHZ);
 	hw->rate_control_algorithm = "AARF";
 
 	SET_IEEE80211_PERM_ADDR(hw, common->mac_addr);
@@ -1092,10 +1254,14 @@ int rsi_mac80211_attach(struct rsi_common *common)
 
 	wiphy->available_antennas_rx = 1;
 	wiphy->available_antennas_tx = 1;
-	wiphy->bands[IEEE80211_BAND_2GHZ] =
-		&adapter->sbands[IEEE80211_BAND_2GHZ];
-	wiphy->bands[IEEE80211_BAND_5GHZ] =
-		&adapter->sbands[IEEE80211_BAND_5GHZ];
+	wiphy->bands[NL80211_BAND_2GHZ] =
+		&adapter->sbands[NL80211_BAND_2GHZ];
+	wiphy->bands[NL80211_BAND_5GHZ] =
+		&adapter->sbands[NL80211_BAND_5GHZ];
+
+	wiphy->reg_notifier = rsi_reg_notify;
+
+	wiphy_ext_feature_set(wiphy, NL80211_EXT_FEATURE_CQM_RSSI_LIST);
 
 	status = ieee80211_register_hw(hw);
 	if (status)

@@ -126,7 +126,7 @@ static void mac802154_get_mac_params(struct net_device *dev,
 	params->lbt = wpan_dev->lbt;
 }
 
-static struct ieee802154_llsec_ops mac802154_llsec_ops = {
+static const struct ieee802154_llsec_ops mac802154_llsec_ops = {
 	.get_params = mac802154_get_params,
 	.set_params = mac802154_set_params,
 	.add_key = mac802154_add_key,

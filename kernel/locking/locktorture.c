@@ -32,6 +32,8 @@
 #include <linux/smp.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
+#include <uapi/linux/sched/types.h>
+#include <linux/rtmutex.h>
 #include <linux/atomic.h>
 #include <linux/moduleparam.h>
 #include <linux/delay.h>
@@ -75,12 +77,7 @@ struct lock_stress_stats {
 	long n_lock_acquired;
 };
 
-#if defined(MODULE)
-#define LOCKTORTURE_RUNNABLE_INIT 1
-#else
-#define LOCKTORTURE_RUNNABLE_INIT 0
-#endif
-int torture_runnable = LOCKTORTURE_RUNNABLE_INIT;
+int torture_runnable = IS_ENABLED(MODULE);
 module_param(torture_runnable, int, 0444);
 MODULE_PARM_DESC(torture_runnable, "Start locktorture at module init");
 
@@ -377,6 +374,78 @@ static struct lock_torture_ops mutex_lock_ops = {
 	.name		= "mutex_lock"
 };
 
+#include <linux/ww_mutex.h>
+static DEFINE_WW_CLASS(torture_ww_class);
+static DEFINE_WW_MUTEX(torture_ww_mutex_0, &torture_ww_class);
+static DEFINE_WW_MUTEX(torture_ww_mutex_1, &torture_ww_class);
+static DEFINE_WW_MUTEX(torture_ww_mutex_2, &torture_ww_class);
+
+static int torture_ww_mutex_lock(void)
+__acquires(torture_ww_mutex_0)
+__acquires(torture_ww_mutex_1)
+__acquires(torture_ww_mutex_2)
+{
+	LIST_HEAD(list);
+	struct reorder_lock {
+		struct list_head link;
+		struct ww_mutex *lock;
+	} locks[3], *ll, *ln;
+	struct ww_acquire_ctx ctx;
+
+	locks[0].lock = &torture_ww_mutex_0;
+	list_add(&locks[0].link, &list);
+
+	locks[1].lock = &torture_ww_mutex_1;
+	list_add(&locks[1].link, &list);
+
+	locks[2].lock = &torture_ww_mutex_2;
+	list_add(&locks[2].link, &list);
+
+	ww_acquire_init(&ctx, &torture_ww_class);
+
+	list_for_each_entry(ll, &list, link) {
+		int err;
+
+		err = ww_mutex_lock(ll->lock, &ctx);
+		if (!err)
+			continue;
+
+		ln = ll;
+		list_for_each_entry_continue_reverse(ln, &list, link)
+			ww_mutex_unlock(ln->lock);
+
+		if (err != -EDEADLK)
+			return err;
+
+		ww_mutex_lock_slow(ll->lock, &ctx);
+		list_move(&ll->link, &list);
+	}
+
+	ww_acquire_fini(&ctx);
+	return 0;
+}
+
+static void torture_ww_mutex_unlock(void)
+__releases(torture_ww_mutex_0)
+__releases(torture_ww_mutex_1)
+__releases(torture_ww_mutex_2)
+{
+	ww_mutex_unlock(&torture_ww_mutex_0);
+	ww_mutex_unlock(&torture_ww_mutex_1);
+	ww_mutex_unlock(&torture_ww_mutex_2);
+}
+
+static struct lock_torture_ops ww_mutex_lock_ops = {
+	.writelock	= torture_ww_mutex_lock,
+	.write_delay	= torture_mutex_delay,
+	.task_boost     = torture_boost_dummy,
+	.writeunlock	= torture_ww_mutex_unlock,
+	.readlock       = NULL,
+	.read_delay     = NULL,
+	.readunlock     = NULL,
+	.name		= "ww_mutex_lock"
+};
+
 #ifdef CONFIG_RT_MUTEXES
 static DEFINE_RT_MUTEX(torture_rtmutex);
 
@@ -394,12 +463,12 @@ static void torture_rtmutex_boost(struct torture_random_state *trsp)
 
 	if (!rt_task(current)) {
 		/*
-		 * (1) Boost priority once every ~50k operations. When the
+		 * Boost priority once every ~50k operations. When the
 		 * task tries to take the lock, the rtmutex it will account
 		 * for the new priority, and do any corresponding pi-dance.
 		 */
-		if (!(torture_random(trsp) %
-		      (cxt.nrealwriters_stress * factor))) {
+		if (trsp && !(torture_random(trsp) %
+			      (cxt.nrealwriters_stress * factor))) {
 			policy = SCHED_FIFO;
 			param.sched_priority = MAX_RT_PRIO - 1;
 		} else /* common case, do nothing */
@@ -748,6 +817,15 @@ static void lock_torture_cleanup(void)
 	if (torture_cleanup_begin())
 		return;
 
+	/*
+	 * Indicates early cleanup, meaning that the test has not run,
+	 * such as when passing bogus args when loading the module. As
+	 * such, only perform the underlying torture-specific cleanups,
+	 * and avoid anything related to locktorture.
+	 */
+	if (!cxt.lwsa)
+		goto end;
+
 	if (writer_tasks) {
 		for (i = 0; i < cxt.nrealwriters_stress; i++)
 			torture_stop_kthread(lock_torture_writer,
@@ -776,6 +854,11 @@ static void lock_torture_cleanup(void)
 	else
 		lock_torture_print_module_parms(cxt.cur_ops,
 						"End of test: SUCCESS");
+
+	kfree(cxt.lwsa);
+	kfree(cxt.lrsa);
+
+end:
 	torture_cleanup_end();
 }
 
@@ -788,6 +871,7 @@ static int __init lock_torture_init(void)
 		&spin_lock_ops, &spin_lock_irq_ops,
 		&rw_lock_ops, &rw_lock_irq_ops,
 		&mutex_lock_ops,
+		&ww_mutex_lock_ops,
 #ifdef CONFIG_RT_MUTEXES
 		&rtmutex_lock_ops,
 #endif
@@ -870,6 +954,7 @@ static int __init lock_torture_init(void)
 			VERBOSE_TOROUT_STRING("cxt.lrsa: Out of memory");
 			firsterr = -ENOMEM;
 			kfree(cxt.lwsa);
+			cxt.lwsa = NULL;
 			goto unwind;
 		}
 
@@ -878,6 +963,7 @@ static int __init lock_torture_init(void)
 			cxt.lrsa[i].n_lock_acquired = 0;
 		}
 	}
+
 	lock_torture_print_module_parms(cxt.cur_ops, "Start of test");
 
 	/* Prepare torture context. */
@@ -917,6 +1003,8 @@ static int __init lock_torture_init(void)
 				       GFP_KERNEL);
 		if (reader_tasks == NULL) {
 			VERBOSE_TOROUT_ERRSTRING("reader_tasks: Out of memory");
+			kfree(writer_tasks);
+			writer_tasks = NULL;
 			firsterr = -ENOMEM;
 			goto unwind;
 		}

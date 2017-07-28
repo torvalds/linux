@@ -53,7 +53,7 @@ struct iommu_table_ops {
 			long index, long npages,
 			unsigned long uaddr,
 			enum dma_data_direction direction,
-			struct dma_attrs *attrs);
+			unsigned long attrs);
 #ifdef CONFIG_IOMMU_API
 	/*
 	 * Exchanges existing TCE with new TCE plus direction bits;
@@ -61,6 +61,11 @@ struct iommu_table_ops {
 	 * @tce is a physical address.
 	 */
 	int (*exchange)(struct iommu_table *tbl,
+			long index,
+			unsigned long *hpa,
+			enum dma_data_direction *direction);
+	/* Real mode */
+	int (*exchange_rm)(struct iommu_table *tbl,
 			long index,
 			unsigned long *hpa,
 			enum dma_data_direction *direction);
@@ -114,6 +119,7 @@ struct iommu_table {
 	struct list_head it_group_list;/* List of iommu_table_group_link */
 	unsigned long *it_userspace; /* userspace view of the table */
 	struct iommu_table_ops *it_ops;
+	struct kref    it_kref;
 };
 
 #define IOMMU_TABLE_USERSPACE_ENTRY(tbl, entry) \
@@ -133,6 +139,8 @@ struct scatterlist;
 
 #ifdef CONFIG_PPC64
 
+#define IOMMU_MAPPING_ERROR		(~(dma_addr_t)0x0)
+
 static inline void set_iommu_table_base(struct device *dev,
 					struct iommu_table *base)
 {
@@ -146,8 +154,8 @@ static inline void *get_iommu_table_base(struct device *dev)
 
 extern int dma_iommu_dma_supported(struct device *dev, u64 mask);
 
-/* Frees table for an individual device node */
-extern void iommu_free_table(struct iommu_table *tbl, const char *node_name);
+extern struct iommu_table *iommu_tce_table_get(struct iommu_table *tbl);
+extern int iommu_tce_table_put(struct iommu_table *tbl);
 
 /* Initializes an iommu_table based in values set in the passed-in
  * structure
@@ -208,6 +216,8 @@ extern void iommu_del_device(struct device *dev);
 extern int __init tce_iommu_bus_notifier_init(void);
 extern long iommu_tce_xchg(struct iommu_table *tbl, unsigned long entry,
 		unsigned long *hpa, enum dma_data_direction *direction);
+extern long iommu_tce_xchg_rm(struct iommu_table *tbl, unsigned long entry,
+		unsigned long *hpa, enum dma_data_direction *direction);
 #else
 static inline void iommu_register_group(struct iommu_table_group *table_group,
 					int pci_domain_number,
@@ -230,6 +240,8 @@ static inline int __init tce_iommu_bus_notifier_init(void)
 }
 #endif /* !CONFIG_IOMMU_API */
 
+int dma_iommu_mapping_error(struct device *dev, dma_addr_t dma_addr);
+
 #else
 
 static inline void *get_iommu_table_base(struct device *dev)
@@ -248,12 +260,12 @@ extern int ppc_iommu_map_sg(struct device *dev, struct iommu_table *tbl,
 			    struct scatterlist *sglist, int nelems,
 			    unsigned long mask,
 			    enum dma_data_direction direction,
-			    struct dma_attrs *attrs);
+			    unsigned long attrs);
 extern void ppc_iommu_unmap_sg(struct iommu_table *tbl,
 			       struct scatterlist *sglist,
 			       int nelems,
 			       enum dma_data_direction direction,
-			       struct dma_attrs *attrs);
+			       unsigned long attrs);
 
 extern void *iommu_alloc_coherent(struct device *dev, struct iommu_table *tbl,
 				  size_t size, dma_addr_t *dma_handle,
@@ -264,16 +276,15 @@ extern dma_addr_t iommu_map_page(struct device *dev, struct iommu_table *tbl,
 				 struct page *page, unsigned long offset,
 				 size_t size, unsigned long mask,
 				 enum dma_data_direction direction,
-				 struct dma_attrs *attrs);
+				 unsigned long attrs);
 extern void iommu_unmap_page(struct iommu_table *tbl, dma_addr_t dma_handle,
 			     size_t size, enum dma_data_direction direction,
-			     struct dma_attrs *attrs);
+			     unsigned long attrs);
 
 extern void iommu_init_early_pSeries(void);
 extern void iommu_init_early_dart(struct pci_controller_ops *controller_ops);
 extern void iommu_init_early_pasemi(void);
 
-extern void alloc_dart_table(void);
 #if defined(CONFIG_PPC64) && defined(CONFIG_PM)
 static inline void iommu_save(void)
 {
@@ -289,11 +300,21 @@ static inline void iommu_restore(void)
 #endif
 
 /* The API to support IOMMU operations for VFIO */
-extern int iommu_tce_clear_param_check(struct iommu_table *tbl,
-		unsigned long ioba, unsigned long tce_value,
-		unsigned long npages);
-extern int iommu_tce_put_param_check(struct iommu_table *tbl,
-		unsigned long ioba, unsigned long tce);
+extern int iommu_tce_check_ioba(unsigned long page_shift,
+		unsigned long offset, unsigned long size,
+		unsigned long ioba, unsigned long npages);
+extern int iommu_tce_check_gpa(unsigned long page_shift,
+		unsigned long gpa);
+
+#define iommu_tce_clear_param_check(tbl, ioba, tce_value, npages) \
+		(iommu_tce_check_ioba((tbl)->it_page_shift,       \
+				(tbl)->it_offset, (tbl)->it_size, \
+				(ioba), (npages)) || (tce_value))
+#define iommu_tce_put_param_check(tbl, ioba, gpa)                 \
+		(iommu_tce_check_ioba((tbl)->it_page_shift,       \
+				(tbl)->it_offset, (tbl)->it_size, \
+				(ioba), 1) ||                     \
+		iommu_tce_check_gpa((tbl)->it_page_shift, (gpa)))
 
 extern void iommu_flush_tce(struct iommu_table *tbl);
 extern int iommu_take_ownership(struct iommu_table *tbl);

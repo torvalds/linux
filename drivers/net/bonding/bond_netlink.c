@@ -118,7 +118,8 @@ static const struct nla_policy bond_slave_policy[IFLA_BOND_SLAVE_MAX + 1] = {
 	[IFLA_BOND_SLAVE_QUEUE_ID]	= { .type = NLA_U16 },
 };
 
-static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
+static int bond_validate(struct nlattr *tb[], struct nlattr *data[],
+			 struct netlink_ext_ack *extack)
 {
 	if (tb[IFLA_ADDRESS]) {
 		if (nla_len(tb[IFLA_ADDRESS]) != ETH_ALEN)
@@ -131,7 +132,8 @@ static int bond_validate(struct nlattr *tb[], struct nlattr *data[])
 
 static int bond_slave_changelink(struct net_device *bond_dev,
 				 struct net_device *slave_dev,
-				 struct nlattr *tb[], struct nlattr *data[])
+				 struct nlattr *tb[], struct nlattr *data[],
+				 struct netlink_ext_ack *extack)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct bond_opt_value newval;
@@ -156,8 +158,9 @@ static int bond_slave_changelink(struct net_device *bond_dev,
 	return 0;
 }
 
-static int bond_changelink(struct net_device *bond_dev,
-			   struct nlattr *tb[], struct nlattr *data[])
+static int bond_changelink(struct net_device *bond_dev, struct nlattr *tb[],
+			   struct nlattr *data[],
+			   struct netlink_ext_ack *extack)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct bond_opt_value newval;
@@ -438,15 +441,25 @@ static int bond_changelink(struct net_device *bond_dev,
 }
 
 static int bond_newlink(struct net *src_net, struct net_device *bond_dev,
-			struct nlattr *tb[], struct nlattr *data[])
+			struct nlattr *tb[], struct nlattr *data[],
+			struct netlink_ext_ack *extack)
 {
 	int err;
 
-	err = bond_changelink(bond_dev, tb, data);
+	err = bond_changelink(bond_dev, tb, data, extack);
 	if (err < 0)
 		return err;
 
-	return register_netdevice(bond_dev);
+	err = register_netdevice(bond_dev);
+
+	netif_carrier_off(bond_dev);
+	if (!err) {
+		struct bonding *bond = netdev_priv(bond_dev);
+
+		bond_work_init_all(bond);
+	}
+
+	return err;
 }
 
 static size_t bond_get_size(const struct net_device *bond_dev)
@@ -540,7 +553,8 @@ static int bond_fill_info(struct sk_buff *skb,
 	targets_added = 0;
 	for (i = 0; i < BOND_MAX_ARP_TARGETS; i++) {
 		if (bond->params.arp_targets[i]) {
-			nla_put_be32(skb, i, bond->params.arp_targets[i]);
+			if (nla_put_be32(skb, i, bond->params.arp_targets[i]))
+				goto nla_put_failure;
 			targets_added = 1;
 		}
 	}

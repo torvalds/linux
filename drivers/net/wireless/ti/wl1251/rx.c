@@ -53,7 +53,7 @@ static void wl1251_rx_status(struct wl1251 *wl,
 
 	memset(status, 0, sizeof(struct ieee80211_rx_status));
 
-	status->band = IEEE80211_BAND_2GHZ;
+	status->band = NL80211_BAND_2GHZ;
 	status->mactime = desc->timestamp;
 
 	/*
@@ -141,7 +141,7 @@ static void wl1251_rx_status(struct wl1251 *wl,
 	}
 
 	if (desc->mod_pre & SHORT_PREAMBLE_BIT)
-		status->flag |= RX_FLAG_SHORTPRE;
+		status->enc_flags |= RX_ENC_FLAG_SHORTPRE;
 }
 
 static void wl1251_rx_body(struct wl1251 *wl,

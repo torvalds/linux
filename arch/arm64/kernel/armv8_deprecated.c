@@ -14,14 +14,13 @@
 #include <linux/slab.h>
 #include <linux/sysctl.h>
 
-#include <asm/alternative.h>
 #include <asm/cpufeature.h>
 #include <asm/insn.h>
-#include <asm/opcodes.h>
 #include <asm/sysreg.h>
 #include <asm/system_misc.h>
 #include <asm/traps.h>
-#include <asm/uaccess.h>
+#include <asm/kprobes.h>
+#include <linux/uaccess.h>
 #include <asm/cpufeature.h>
 
 #define CREATE_TRACE_POINTS
@@ -62,7 +61,7 @@ struct insn_emulation {
 };
 
 static LIST_HEAD(insn_emulation);
-static int nr_insn_emulated;
+static int nr_insn_emulated __initdata;
 static DEFINE_RAW_SPINLOCK(insn_emulation_lock);
 
 static void register_emulation_hooks(struct insn_emulation_ops *ops)
@@ -121,7 +120,7 @@ static int run_all_cpu_set_hw_mode(struct insn_emulation *insn, bool enable)
  *  0 		- If all the hooks ran successfully.
  * -EINVAL	- At least one hook is not supported by the CPU.
  */
-static int run_all_insn_set_hw_mode(unsigned long cpu)
+static int run_all_insn_set_hw_mode(unsigned int cpu)
 {
 	int rc = 0;
 	unsigned long flags;
@@ -131,7 +130,7 @@ static int run_all_insn_set_hw_mode(unsigned long cpu)
 	list_for_each_entry(insn, &insn_emulation, node) {
 		bool enable = (insn->current_mode == INSN_HW);
 		if (insn->ops->set_hw_mode && insn->ops->set_hw_mode(enable)) {
-			pr_warn("CPU[%ld] cannot support the emulation of %s",
+			pr_warn("CPU[%u] cannot support the emulation of %s",
 				cpu, insn->ops->name);
 			rc = -EINVAL;
 		}
@@ -173,7 +172,7 @@ static int update_insn_emulation_mode(struct insn_emulation *insn,
 	return ret;
 }
 
-static void register_insn_emulation(struct insn_emulation_ops *ops)
+static void __init register_insn_emulation(struct insn_emulation_ops *ops)
 {
 	unsigned long flags;
 	struct insn_emulation *insn;
@@ -237,7 +236,7 @@ static struct ctl_table ctl_abi[] = {
 	{ }
 };
 
-static void register_insn_emulation_sysctl(struct ctl_table *table)
+static void __init register_insn_emulation_sysctl(struct ctl_table *table)
 {
 	unsigned long flags;
 	int i = 0;
@@ -280,66 +279,50 @@ static void register_insn_emulation_sysctl(struct ctl_table *table)
 /*
  * Error-checking SWP macros implemented using ldxr{b}/stxr{b}
  */
-#define __user_swpX_asm(data, addr, res, temp, B)		\
+
+/* Arbitrary constant to ensure forward-progress of the LL/SC loop */
+#define __SWP_LL_SC_LOOPS	4
+
+#define __user_swpX_asm(data, addr, res, temp, temp2, B)	\
+do {								\
+	uaccess_enable();					\
 	__asm__ __volatile__(					\
-	ALTERNATIVE("nop", SET_PSTATE_PAN(0), ARM64_HAS_PAN,	\
-		    CONFIG_ARM64_PAN)				\
-	"0:	ldxr"B"		%w2, [%3]\n"			\
-	"1:	stxr"B"		%w0, %w1, [%3]\n"		\
+	"	mov		%w3, %w7\n"			\
+	"0:	ldxr"B"		%w2, [%4]\n"			\
+	"1:	stxr"B"		%w0, %w1, [%4]\n"		\
 	"	cbz		%w0, 2f\n"			\
-	"	mov		%w0, %w4\n"			\
+	"	sub		%w3, %w3, #1\n"			\
+	"	cbnz		%w3, 0b\n"			\
+	"	mov		%w0, %w5\n"			\
 	"	b		3f\n"				\
 	"2:\n"							\
 	"	mov		%w1, %w2\n"			\
 	"3:\n"							\
 	"	.pushsection	 .fixup,\"ax\"\n"		\
 	"	.align		2\n"				\
-	"4:	mov		%w0, %w5\n"			\
+	"4:	mov		%w0, %w6\n"			\
 	"	b		3b\n"				\
 	"	.popsection"					\
-	"	.pushsection	 __ex_table,\"a\"\n"		\
-	"	.align		3\n"				\
-	"	.quad		0b, 4b\n"			\
-	"	.quad		1b, 4b\n"			\
-	"	.popsection\n"					\
-	ALTERNATIVE("nop", SET_PSTATE_PAN(1), ARM64_HAS_PAN,	\
-		CONFIG_ARM64_PAN)				\
-	: "=&r" (res), "+r" (data), "=&r" (temp)		\
-	: "r" (addr), "i" (-EAGAIN), "i" (-EFAULT)		\
-	: "memory")
+	_ASM_EXTABLE(0b, 4b)					\
+	_ASM_EXTABLE(1b, 4b)					\
+	: "=&r" (res), "+r" (data), "=&r" (temp), "=&r" (temp2)	\
+	: "r" ((unsigned long)addr), "i" (-EAGAIN),		\
+	  "i" (-EFAULT),					\
+	  "i" (__SWP_LL_SC_LOOPS)				\
+	: "memory");						\
+	uaccess_disable();					\
+} while (0)
 
-#define __user_swp_asm(data, addr, res, temp) \
-	__user_swpX_asm(data, addr, res, temp, "")
-#define __user_swpb_asm(data, addr, res, temp) \
-	__user_swpX_asm(data, addr, res, temp, "b")
+#define __user_swp_asm(data, addr, res, temp, temp2) \
+	__user_swpX_asm(data, addr, res, temp, temp2, "")
+#define __user_swpb_asm(data, addr, res, temp, temp2) \
+	__user_swpX_asm(data, addr, res, temp, temp2, "b")
 
 /*
  * Bit 22 of the instruction encoding distinguishes between
  * the SWP and SWPB variants (bit set means SWPB).
  */
 #define TYPE_SWPB (1 << 22)
-
-/*
- * Set up process info to signal segmentation fault - called on access error.
- */
-static void set_segfault(struct pt_regs *regs, unsigned long addr)
-{
-	siginfo_t info;
-
-	down_read(&current->mm->mmap_sem);
-	if (find_vma(current->mm, addr) == NULL)
-		info.si_code = SEGV_MAPERR;
-	else
-		info.si_code = SEGV_ACCERR;
-	up_read(&current->mm->mmap_sem);
-
-	info.si_signo = SIGSEGV;
-	info.si_errno = 0;
-	info.si_addr  = (void *) instruction_pointer(regs);
-
-	pr_debug("SWP{B} emulation: access caused memory abort!\n");
-	arm64_notify_die("Illegal memory access", regs, &info, 0);
-}
 
 static int emulate_swpX(unsigned int address, unsigned int *data,
 			unsigned int type)
@@ -353,12 +336,12 @@ static int emulate_swpX(unsigned int address, unsigned int *data,
 	}
 
 	while (1) {
-		unsigned long temp;
+		unsigned long temp, temp2;
 
 		if (type == TYPE_SWPB)
-			__user_swpb_asm(*data, address, res, temp);
+			__user_swpb_asm(*data, address, res, temp, temp2);
 		else
-			__user_swp_asm(*data, address, res, temp);
+			__user_swp_asm(*data, address, res, temp, temp2);
 
 		if (likely(res != -EAGAIN) || signal_pending(current))
 			break;
@@ -367,6 +350,25 @@ static int emulate_swpX(unsigned int address, unsigned int *data,
 	}
 
 	return res;
+}
+
+#define ARM_OPCODE_CONDTEST_FAIL   0
+#define ARM_OPCODE_CONDTEST_PASS   1
+#define ARM_OPCODE_CONDTEST_UNCOND 2
+
+#define	ARM_OPCODE_CONDITION_UNCOND	0xf
+
+static unsigned int __kprobes aarch32_check_condition(u32 opcode, u32 psr)
+{
+	u32 cc_bits  = opcode >> 28;
+
+	if (cc_bits != ARM_OPCODE_CONDITION_UNCOND) {
+		if ((*aarch32_opcode_cond_checks[cc_bits])(psr))
+			return ARM_OPCODE_CONDTEST_PASS;
+		else
+			return ARM_OPCODE_CONDTEST_FAIL;
+	}
+	return ARM_OPCODE_CONDTEST_UNCOND;
 }
 
 /*
@@ -383,7 +385,7 @@ static int swp_handler(struct pt_regs *regs, u32 instr)
 
 	type = instr & TYPE_SWPB;
 
-	switch (arm_check_condition(instr, regs->pstate)) {
+	switch (aarch32_check_condition(instr, regs->pstate)) {
 	case ARM_OPCODE_CONDTEST_PASS:
 		break;
 	case ARM_OPCODE_CONDTEST_FAIL:
@@ -433,7 +435,8 @@ ret:
 	return 0;
 
 fault:
-	set_segfault(regs, address);
+	pr_debug("SWP{B} emulation: access caused memory abort!\n");
+	arm64_notify_segfault(regs, address);
 
 	return 0;
 }
@@ -464,7 +467,7 @@ static int cp15barrier_handler(struct pt_regs *regs, u32 instr)
 {
 	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, regs, regs->pc);
 
-	switch (arm_check_condition(instr, regs->pstate)) {
+	switch (aarch32_check_condition(instr, regs->pstate)) {
 	case ARM_OPCODE_CONDTEST_PASS:
 		break;
 	case ARM_OPCODE_CONDTEST_FAIL:
@@ -620,20 +623,6 @@ static struct insn_emulation_ops setend_ops = {
 	.set_hw_mode = setend_set_hw_mode,
 };
 
-static int insn_cpu_hotplug_notify(struct notifier_block *b,
-			      unsigned long action, void *hcpu)
-{
-	int rc = 0;
-	if ((action & ~CPU_TASKS_FROZEN) == CPU_STARTING)
-		rc = run_all_insn_set_hw_mode((unsigned long)hcpu);
-
-	return notifier_from_errno(rc);
-}
-
-static struct notifier_block insn_cpu_hotplug_notifier = {
-	.notifier_call = insn_cpu_hotplug_notify,
-};
-
 /*
  * Invoked as late_initcall, since not needed before init spawned.
  */
@@ -649,10 +638,12 @@ static int __init armv8_deprecated_init(void)
 		if(system_supports_mixed_endian_el0())
 			register_insn_emulation(&setend_ops);
 		else
-			pr_info("setend instruction emulation is not supported on the system");
+			pr_info("setend instruction emulation is not supported on this system\n");
 	}
 
-	register_cpu_notifier(&insn_cpu_hotplug_notifier);
+	cpuhp_setup_state_nocalls(CPUHP_AP_ARM64_ISNDEP_STARTING,
+				  "arm64/isndep:starting",
+				  run_all_insn_set_hw_mode, NULL);
 	register_insn_emulation_sysctl(ctl_abi);
 
 	return 0;

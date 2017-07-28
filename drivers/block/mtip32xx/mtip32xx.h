@@ -134,15 +134,24 @@ enum {
 	MTIP_PF_EH_ACTIVE_BIT       = 1, /* error handling */
 	MTIP_PF_SE_ACTIVE_BIT       = 2, /* secure erase */
 	MTIP_PF_DM_ACTIVE_BIT       = 3, /* download microcde */
+	MTIP_PF_TO_ACTIVE_BIT       = 9, /* timeout handling */
 	MTIP_PF_PAUSE_IO      =	((1 << MTIP_PF_IC_ACTIVE_BIT) |
 				(1 << MTIP_PF_EH_ACTIVE_BIT) |
 				(1 << MTIP_PF_SE_ACTIVE_BIT) |
-				(1 << MTIP_PF_DM_ACTIVE_BIT)),
+				(1 << MTIP_PF_DM_ACTIVE_BIT) |
+				(1 << MTIP_PF_TO_ACTIVE_BIT)),
+	MTIP_PF_HOST_CAP_64         = 10, /* cache HOST_CAP_64 */
 
 	MTIP_PF_SVC_THD_ACTIVE_BIT  = 4,
 	MTIP_PF_ISSUE_CMDS_BIT      = 5,
 	MTIP_PF_REBUILD_BIT         = 6,
 	MTIP_PF_SVC_THD_STOP_BIT    = 8,
+
+	MTIP_PF_SVC_THD_WORK	= ((1 << MTIP_PF_EH_ACTIVE_BIT) |
+				  (1 << MTIP_PF_ISSUE_CMDS_BIT) |
+				  (1 << MTIP_PF_REBUILD_BIT) |
+				  (1 << MTIP_PF_SVC_THD_STOP_BIT) |
+				  (1 << MTIP_PF_TO_ACTIVE_BIT)),
 
 	/* below are bit numbers in 'dd_flag' defined in driver_data */
 	MTIP_DDF_SEC_LOCK_BIT	    = 0,
@@ -153,6 +162,7 @@ enum {
 	MTIP_DDF_RESUME_BIT         = 6,
 	MTIP_DDF_INIT_DONE_BIT      = 7,
 	MTIP_DDF_REBUILD_FAILED_BIT = 8,
+	MTIP_DDF_REMOVAL_BIT	    = 9,
 
 	MTIP_DDF_STOP_IO      = ((1 << MTIP_DDF_REMOVE_PENDING_BIT) |
 				(1 << MTIP_DDF_SEC_LOCK_BIT) |
@@ -324,16 +334,6 @@ struct mtip_cmd {
 
 	dma_addr_t command_dma; /* corresponding physical address */
 
-	void *comp_data; /* data passed to completion function comp_func() */
-	/*
-	 * Completion function called by the ISR upon completion of
-	 * a command.
-	 */
-	void (*comp_func)(struct mtip_port *port,
-				int tag,
-				struct mtip_cmd *cmd,
-				int status);
-
 	int scatter_ents; /* Number of scatter list entries used */
 
 	int unaligned; /* command is unaligned on 4k boundary */
@@ -343,6 +343,7 @@ struct mtip_cmd {
 	int retries; /* The number of retries left for this command. */
 
 	int direction; /* Data transfer direction */
+	blk_status_t status;
 };
 
 /* Structure used to describe a port. */

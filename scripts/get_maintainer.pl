@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
 # (c) 2007, Joe Perches <joe@perches.com>
 #           created from checkpatch.pl
 #
@@ -10,13 +10,16 @@
 #
 # Licensed under the terms of the GNU GPL License version 2
 
+use warnings;
 use strict;
 
 my $P = $0;
 my $V = '0.26';
 
 use Getopt::Long qw(:config no_auto_abbrev);
+use Cwd;
 
+my $cur_path = fastgetcwd() . '/';
 my $lk_path = "./";
 my $email = 1;
 my $email_usename = 1;
@@ -47,6 +50,7 @@ my $scm = 0;
 my $web = 0;
 my $subsystem = 0;
 my $status = 0;
+my $letters = "";
 my $keywords = 1;
 my $sections = 0;
 my $file_emails = 0;
@@ -131,6 +135,7 @@ my %VCS_cmds_git = (
     "author_pattern" => "^GitAuthor: (.*)",
     "subject_pattern" => "^GitSubject: (.*)",
     "stat_pattern" => "^(\\d+)\\t(\\d+)\\t\$file\$",
+    "file_exists_cmd" => "git ls-files \$file",
 );
 
 my %VCS_cmds_hg = (
@@ -159,6 +164,7 @@ my %VCS_cmds_hg = (
     "author_pattern" => "^HgAuthor: (.*)",
     "subject_pattern" => "^HgSubject: (.*)",
     "stat_pattern" => "^(\\d+)\t(\\d+)\t\$file\$",
+    "file_exists_cmd" => "hg files \$file",
 );
 
 my $conf = which_conf(".get_maintainer.conf");
@@ -237,6 +243,7 @@ if (!GetOptions(
 		'status!' => \$status,
 		'scm!' => \$scm,
 		'web!' => \$web,
+		'letters=s' => \$letters,
 		'pattern-depth=i' => \$pattern_depth,
 		'k|keywords!' => \$keywords,
 		'sections!' => \$sections,
@@ -267,7 +274,8 @@ $output_multiline = 0 if ($output_separator ne ", ");
 $output_rolestats = 1 if ($interactive);
 $output_roles = 1 if ($output_rolestats);
 
-if ($sections) {
+if ($sections || $letters ne "") {
+    $sections = 1;
     $email = 0;
     $email_list = 0;
     $scm = 0;
@@ -428,7 +436,9 @@ foreach my $file (@ARGV) {
 	    die "$P: file '${file}' not found\n";
 	}
     }
-    if ($from_filename) {
+    if ($from_filename || ($file ne "&STDIN" && vcs_file_exists($file))) {
+	$file =~ s/^\Q${cur_path}\E//;	#strip any absolute path
+	$file =~ s/^\Q${lk_path}\E//;	#or the path to the lk tree
 	push(@files, $file);
 	if ($file ne "MAINTAINERS" && -f $file && ($keywords || $file_emails)) {
 	    open(my $f, '<', $file)
@@ -676,8 +686,10 @@ sub get_maintainers {
 			$line =~ s/\\\./\./g;       	##Convert \. to .
 			$line =~ s/\.\*/\*/g;       	##Convert .* to *
 		    }
-		    $line =~ s/^([A-Z]):/$1:\t/g;
-		    print("$line\n");
+		    my $count = $line =~ s/^([A-Z]):/$1:\t/g;
+		    if ($letters eq "" || (!$count || $letters =~ /$1/i)) {
+			print("$line\n");
+		    }
 		}
 		print("\n");
 	    }
@@ -808,6 +820,7 @@ Other options:
   --pattern-depth => Number of pattern directory traversals (default: 0 (all))
   --keywords => scan patch for keywords (default: $keywords)
   --sections => print all of the subsystem sections with pattern matches
+  --letters => print all matching 'letter' types from all matching sections
   --mailmap => use .mailmap file (default: $email_use_mailmap)
   --version => show version
   --help => show this help information
@@ -2118,6 +2131,24 @@ sub vcs_file_blame {
 	}
 	vcs_assign("modified commits", $total_commits, @signers);
     }
+}
+
+sub vcs_file_exists {
+    my ($file) = @_;
+
+    my $exists;
+
+    my $vcs_used = vcs_exists();
+    return 0 if (!$vcs_used);
+
+    my $cmd = $VCS_cmds{"file_exists_cmd"};
+    $cmd =~ s/(\$\w+)/$1/eeg;		# interpolate $cmd
+    $cmd .= " 2>&1";
+    $exists = &{$VCS_cmds{"execute_cmd"}}($cmd);
+
+    return 0 if ($? != 0);
+
+    return $exists;
 }
 
 sub uniq {

@@ -25,6 +25,80 @@
 
 #include <core/pci.h>
 
+static int
+g84_pcie_version_supported(struct nvkm_pci *pci)
+{
+	/* g84 and g86 report wrong information about what they support */
+	return 1;
+}
+
+int
+g84_pcie_version(struct nvkm_pci *pci)
+{
+	struct nvkm_device *device = pci->subdev.device;
+	return (nvkm_rd32(device, 0x00154c) & 0x1) + 1;
+}
+
+void
+g84_pcie_set_version(struct nvkm_pci *pci, u8 ver)
+{
+	struct nvkm_device *device = pci->subdev.device;
+	nvkm_mask(device, 0x00154c, 0x1, (ver >= 2 ? 0x1 : 0x0));
+}
+
+static void
+g84_pcie_set_cap_speed(struct nvkm_pci *pci, bool full_speed)
+{
+	struct nvkm_device *device = pci->subdev.device;
+	nvkm_mask(device, 0x00154c, 0x80, full_speed ? 0x80 : 0x0);
+}
+
+enum nvkm_pcie_speed
+g84_pcie_cur_speed(struct nvkm_pci *pci)
+{
+	u32 reg_v = nvkm_pci_rd32(pci, 0x88) & 0x30000;
+	switch (reg_v) {
+	case 0x30000:
+		return NVKM_PCIE_SPEED_8_0;
+	case 0x20000:
+		return NVKM_PCIE_SPEED_5_0;
+	case 0x10000:
+	default:
+		return NVKM_PCIE_SPEED_2_5;
+	}
+}
+
+enum nvkm_pcie_speed
+g84_pcie_max_speed(struct nvkm_pci *pci)
+{
+	u32 reg_v = nvkm_pci_rd32(pci, 0x460) & 0x3300;
+	if (reg_v == 0x2200)
+		return NVKM_PCIE_SPEED_5_0;
+	return NVKM_PCIE_SPEED_2_5;
+}
+
+void
+g84_pcie_set_link_speed(struct nvkm_pci *pci, enum nvkm_pcie_speed speed)
+{
+	u32 mask_value;
+
+	if (speed == NVKM_PCIE_SPEED_5_0)
+		mask_value = 0x20;
+	else
+		mask_value = 0x10;
+
+	nvkm_pci_mask(pci, 0x460, 0x30, mask_value);
+	nvkm_pci_mask(pci, 0x460, 0x1, 0x1);
+}
+
+int
+g84_pcie_set_link(struct nvkm_pci *pci, enum nvkm_pcie_speed speed, u8 width)
+{
+	g84_pcie_set_cap_speed(pci, speed == NVKM_PCIE_SPEED_5_0);
+	g84_pcie_set_link_speed(pci, speed);
+	return 0;
+}
+
 void
 g84_pci_init(struct nvkm_pci *pci)
 {
@@ -48,6 +122,14 @@ g84_pci_init(struct nvkm_pci *pci)
 		nvkm_pci_mask(pci, 0x041c, 0x00000060, 0x00000000);
 }
 
+int
+g84_pcie_init(struct nvkm_pci *pci)
+{
+	bool full_speed = g84_pcie_cur_speed(pci) == NVKM_PCIE_SPEED_5_0;
+	g84_pcie_set_cap_speed(pci, full_speed);
+	return 0;
+}
+
 static const struct nvkm_pci_func
 g84_pci_func = {
 	.init = g84_pci_init,
@@ -55,6 +137,16 @@ g84_pci_func = {
 	.wr08 = nv40_pci_wr08,
 	.wr32 = nv40_pci_wr32,
 	.msi_rearm = nv46_pci_msi_rearm,
+
+	.pcie.init = g84_pcie_init,
+	.pcie.set_link = g84_pcie_set_link,
+
+	.pcie.max_speed = g84_pcie_max_speed,
+	.pcie.cur_speed = g84_pcie_cur_speed,
+
+	.pcie.set_version = g84_pcie_set_version,
+	.pcie.version = g84_pcie_version,
+	.pcie.version_supported = g84_pcie_version_supported,
 };
 
 int

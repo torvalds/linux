@@ -25,7 +25,7 @@
 #include <linux/tracehook.h>
 #include <asm/cacheflush.h>
 #include <asm/ucontext.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/fpu.h>
 #include "sigframe.h"
 
@@ -75,7 +75,7 @@ static int restore_sigcontext(struct pt_regs *regs,
 		struct fpucontext *buf;
 		err |= __get_user(buf, &sc->fpucontext);
 		if (buf) {
-			if (verify_area(VERIFY_READ, buf, sizeof(*buf)))
+			if (!access_ok(VERIFY_READ, buf, sizeof(*buf)))
 				goto badframe;
 			err |= fpu_restore_sigcontext(buf);
 		}
@@ -98,7 +98,7 @@ asmlinkage long sys_sigreturn(void)
 	long d0;
 
 	frame = (struct sigframe __user *) current_frame()->sp;
-	if (verify_area(VERIFY_READ, frame, sizeof(*frame)))
+	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
 	if (__get_user(set.sig[0], &frame->sc.oldmask))
 		goto badframe;
@@ -130,7 +130,7 @@ asmlinkage long sys_rt_sigreturn(void)
 	long d0;
 
 	frame = (struct rt_sigframe __user *) current_frame()->sp;
-	if (verify_area(VERIFY_READ, frame, sizeof(*frame)))
+	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
 		goto badframe;
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;

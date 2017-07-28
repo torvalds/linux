@@ -26,6 +26,13 @@
 #include <crypto/sha1_base.h>
 #include <asm/byteorder.h>
 
+const u8 sha1_zero_message_hash[SHA1_DIGEST_SIZE] = {
+	0xda, 0x39, 0xa3, 0xee, 0x5e, 0x6b, 0x4b, 0x0d,
+	0x32, 0x55, 0xbf, 0xef, 0x95, 0x60, 0x18, 0x90,
+	0xaf, 0xd8, 0x07, 0x09
+};
+EXPORT_SYMBOL_GPL(sha1_zero_message_hash);
+
 static void sha1_generic_block_fn(struct sha1_state *sst, u8 const *src,
 				  int blocks)
 {

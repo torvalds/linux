@@ -35,7 +35,7 @@ Required properties (tsin (child) node):
 
 - tsin-num	: tsin id of the InputBlock (must be between 0 to 6)
 - i2c-bus	: phandle to the I2C bus DT node which the demodulators & tuners on this tsin channel are connected.
-- rst-gpio	: reset gpio for this tsin channel.
+- reset-gpios	: reset gpio for this tsin channel.
 
 Optional properties (tsin (child) node):
 
@@ -55,27 +55,27 @@ Example:
 		status = "okay";
 		reg = <0x08a20000 0x10000>, <0x08a00000 0x4000>;
 		reg-names = "stfe", "stfe-ram";
-		interrupts = <0 34 0>, <0 35 0>;
+		interrupts = <GIC_SPI 34 IRQ_TYPE_NONE>, <GIC_SPI 35 IRQ_TYPE_NONE>;
 		interrupt-names = "stfe-error-irq", "stfe-idle-irq";
-
-		pinctrl-names	= "tsin0-serial", "tsin0-parallel", "tsin3-serial",
-				"tsin4-serial", "tsin5-serial";
-
 		pinctrl-0	= <&pinctrl_tsin0_serial>;
 		pinctrl-1	= <&pinctrl_tsin0_parallel>;
 		pinctrl-2	= <&pinctrl_tsin3_serial>;
 		pinctrl-3	= <&pinctrl_tsin4_serial_alt3>;
 		pinctrl-4	= <&pinctrl_tsin5_serial_alt1>;
-
+		pinctrl-names	= "tsin0-serial",
+				  "tsin0-parallel",
+				  "tsin3-serial",
+				  "tsin4-serial",
+				  "tsin5-serial";
 		clocks = <&clk_s_c0_flexgen CLK_PROC_STFE>;
-		clock-names = "stfe";
+		clock-names = "c8sectpfe";
 
 		/* tsin0 is TSA on NIMA */
 		tsin0: port@0 {
 			tsin-num		= <0>;
 			serial-not-parallel;
 			i2c-bus			= <&ssc2>;
-			rst-gpio		= <&pio15 4 0>;
+			reset-gpios		= <&pio15 4 GPIO_ACTIVE_HIGH>;
 			dvb-card		= <STV0367_TDA18212_NIMA_1>;
 		};
 
@@ -83,7 +83,7 @@ Example:
 			tsin-num		= <3>;
 			serial-not-parallel;
 			i2c-bus			= <&ssc3>;
-			rst-gpio		= <&pio15 7 0>;
+			reset-gpios		= <&pio15 7 GPIO_ACTIVE_HIGH>;
 			dvb-card		= <STV0367_TDA18212_NIMB_1>;
 		};
 	};

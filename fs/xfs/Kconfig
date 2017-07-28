@@ -4,6 +4,7 @@ config XFS_FS
 	depends on (64BIT || LBDAF)
 	select EXPORTFS
 	select LIBCRC32C
+	select FS_IOMAP
 	help
 	  XFS is a high performance journaling filesystem which originated
 	  on the SGI IRIX platform.  It is completely multi-threaded, can
@@ -95,3 +96,16 @@ config XFS_DEBUG
 	  not useful unless you are debugging a particular problem.
 
 	  Say N unless you are an XFS developer, or you play one on TV.
+
+config XFS_ASSERT_FATAL
+	bool "XFS fatal asserts"
+	default y
+	depends on XFS_FS && XFS_DEBUG
+	help
+	  Set the default DEBUG mode ASSERT failure behavior.
+
+	  Say Y here to cause DEBUG mode ASSERT failures to result in fatal
+	  errors that BUG() the kernel by default. If you say N, ASSERT failures
+	  result in warnings.
+
+	  This behavior can be modified at runtime via sysfs.

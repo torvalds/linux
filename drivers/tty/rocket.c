@@ -250,15 +250,15 @@ static int sReadAiopNumChan(WordIO_t io);
 
 MODULE_AUTHOR("Theodore Ts'o");
 MODULE_DESCRIPTION("Comtrol RocketPort driver");
-module_param(board1, ulong, 0);
+module_param_hw(board1, ulong, ioport, 0);
 MODULE_PARM_DESC(board1, "I/O port for (ISA) board #1");
-module_param(board2, ulong, 0);
+module_param_hw(board2, ulong, ioport, 0);
 MODULE_PARM_DESC(board2, "I/O port for (ISA) board #2");
-module_param(board3, ulong, 0);
+module_param_hw(board3, ulong, ioport, 0);
 MODULE_PARM_DESC(board3, "I/O port for (ISA) board #3");
-module_param(board4, ulong, 0);
+module_param_hw(board4, ulong, ioport, 0);
 MODULE_PARM_DESC(board4, "I/O port for (ISA) board #4");
-module_param(controller, ulong, 0);
+module_param_hw(controller, ulong, ioport, 0);
 MODULE_PARM_DESC(controller, "I/O port for (ISA) rocketport controller");
 module_param(support_low_speed, bool, 0);
 MODULE_PARM_DESC(support_low_speed, "1 means support 50 baud, 0 means support 460400 baud");
@@ -495,7 +495,7 @@ static void rp_handle_port(struct r_port *info)
 	if (!info)
 		return;
 
-	if ((info->port.flags & ASYNC_INITIALIZED) == 0) {
+	if (!tty_port_initialized(&info->port)) {
 		printk(KERN_WARNING "rp: WARNING: rp_handle_port called with "
 				"info->flags & NOT_INIT\n");
 		return;
@@ -615,7 +615,8 @@ static void rp_do_poll(unsigned long dummy)
  *  the board.  
  *  Inputs:  board, aiop, chan numbers
  */
-static void init_r_port(int board, int aiop, int chan, struct pci_dev *pci_dev)
+static void __init
+init_r_port(int board, int aiop, int chan, struct pci_dev *pci_dev)
 {
 	unsigned rocketMode;
 	struct r_port *info;
@@ -643,7 +644,6 @@ static void init_r_port(int board, int aiop, int chan, struct pci_dev *pci_dev)
 	info->chan = chan;
 	tty_port_init(&info->port);
 	info->port.ops = &rocket_port_ops;
-	init_completion(&info->close_wait);
 	info->flags &= ~ROCKET_MODE_MASK;
 	switch (pc104[board][line]) {
 	case 422:
@@ -921,7 +921,7 @@ static int rp_open(struct tty_struct *tty, struct file *filp)
 	/*
 	 * Info->count is now 1; so it's safe to sleep now.
 	 */
-	if (!test_bit(ASYNCB_INITIALIZED, &port->flags)) {
+	if (!tty_port_initialized(port)) {
 		cp = &info->channel;
 		sSetRxTrigger(cp, TRIG_1);
 		if (sGetChanStatus(cp) & CD_ACT)
@@ -945,22 +945,10 @@ static int rp_open(struct tty_struct *tty, struct file *filp)
 		sEnRxFIFO(cp);
 		sEnTransmit(cp);
 
-		set_bit(ASYNCB_INITIALIZED, &info->port.flags);
-
-		/*
-		 * Set up the tty->alt_speed kludge
-		 */
-		if ((info->flags & ROCKET_SPD_MASK) == ROCKET_SPD_HI)
-			tty->alt_speed = 57600;
-		if ((info->flags & ROCKET_SPD_MASK) == ROCKET_SPD_VHI)
-			tty->alt_speed = 115200;
-		if ((info->flags & ROCKET_SPD_MASK) == ROCKET_SPD_SHI)
-			tty->alt_speed = 230400;
-		if ((info->flags & ROCKET_SPD_MASK) == ROCKET_SPD_WARP)
-			tty->alt_speed = 460800;
+		tty_port_set_initialized(&info->port, 1);
 
 		configure_r_port(tty, info, NULL);
-		if (tty->termios.c_cflag & CBAUD) {
+		if (C_BAUD(tty)) {
 			sSetDTR(cp);
 			sSetRTS(cp);
 		}
@@ -1043,13 +1031,13 @@ static void rp_close(struct tty_struct *tty, struct file *filp)
 		}
 	}
 	spin_lock_irq(&port->lock);
-	info->port.flags &= ~(ASYNC_INITIALIZED | ASYNC_CLOSING | ASYNC_NORMAL_ACTIVE);
 	tty->closing = 0;
 	spin_unlock_irq(&port->lock);
+	tty_port_set_initialized(port, 0);
+	tty_port_set_active(port, 0);
 	mutex_unlock(&port->mutex);
 	tty_port_tty_set(port, NULL);
 
-	complete_all(&info->close_wait);
 	atomic_dec(&rp_num_ports_open);
 
 #ifdef ROCKET_DEBUG_OPEN
@@ -1086,18 +1074,18 @@ static void rp_set_termios(struct tty_struct *tty,
 	cp = &info->channel;
 
 	/* Handle transition to B0 status */
-	if ((old_termios->c_cflag & CBAUD) && !(tty->termios.c_cflag & CBAUD)) {
+	if ((old_termios->c_cflag & CBAUD) && !C_BAUD(tty)) {
 		sClrDTR(cp);
 		sClrRTS(cp);
 	}
 
 	/* Handle transition away from B0 status */
-	if (!(old_termios->c_cflag & CBAUD) && (tty->termios.c_cflag & CBAUD)) {
+	if (!(old_termios->c_cflag & CBAUD) && C_BAUD(tty)) {
 		sSetRTS(cp);
 		sSetDTR(cp);
 	}
 
-	if ((old_termios->c_cflag & CRTSCTS) && !(tty->termios.c_cflag & CRTSCTS))
+	if ((old_termios->c_cflag & CRTSCTS) && !C_CRTSCTS(tty))
 		rp_start(tty);
 }
 
@@ -1189,8 +1177,6 @@ static int get_config(struct r_port *info, struct rocket_config __user *retinfo)
 {
 	struct rocket_config tmp;
 
-	if (!retinfo)
-		return -EFAULT;
 	memset(&tmp, 0, sizeof (tmp));
 	mutex_lock(&info->port.mutex);
 	tmp.line = info->line;
@@ -1221,23 +1207,20 @@ static int set_config(struct tty_struct *tty, struct r_port *info,
 			return -EPERM;
 		}
 		info->flags = ((info->flags & ~ROCKET_USR_MASK) | (new_serial.flags & ROCKET_USR_MASK));
-		configure_r_port(tty, info, NULL);
 		mutex_unlock(&info->port.mutex);
 		return 0;
+	}
+
+	if ((new_serial.flags ^ info->flags) & ROCKET_SPD_MASK) {
+		/* warn about deprecation, unless clearing */
+		if (new_serial.flags & ROCKET_SPD_MASK)
+			dev_warn_ratelimited(tty->dev, "use of SPD flags is deprecated\n");
 	}
 
 	info->flags = ((info->flags & ~ROCKET_FLAGS) | (new_serial.flags & ROCKET_FLAGS));
 	info->port.close_delay = new_serial.close_delay;
 	info->port.closing_wait = new_serial.closing_wait;
 
-	if ((info->flags & ROCKET_SPD_MASK) == ROCKET_SPD_HI)
-		tty->alt_speed = 57600;
-	if ((info->flags & ROCKET_SPD_MASK) == ROCKET_SPD_VHI)
-		tty->alt_speed = 115200;
-	if ((info->flags & ROCKET_SPD_MASK) == ROCKET_SPD_SHI)
-		tty->alt_speed = 230400;
-	if ((info->flags & ROCKET_SPD_MASK) == ROCKET_SPD_WARP)
-		tty->alt_speed = 460800;
 	mutex_unlock(&info->port.mutex);
 
 	configure_r_port(tty, info, NULL);
@@ -1255,8 +1238,6 @@ static int get_ports(struct r_port *info, struct rocket_ports __user *retports)
 	struct rocket_ports tmp;
 	int board;
 
-	if (!retports)
-		return -EFAULT;
 	memset(&tmp, 0, sizeof (tmp));
 	tmp.tty_major = rocket_driver->major;
 
@@ -1360,8 +1341,7 @@ static void rp_throttle(struct tty_struct *tty)
 	struct r_port *info = tty->driver_data;
 
 #ifdef ROCKET_DEBUG_THROTTLE
-	printk(KERN_INFO "throttle %s: %d....\n", tty->name,
-	       tty->ldisc.chars_in_buffer(tty));
+	printk(KERN_INFO "throttle %s ....\n", tty->name);
 #endif
 
 	if (rocket_paranoia_check(info, "rp_throttle"))
@@ -1377,8 +1357,7 @@ static void rp_unthrottle(struct tty_struct *tty)
 {
 	struct r_port *info = tty->driver_data;
 #ifdef ROCKET_DEBUG_THROTTLE
-	printk(KERN_INFO "unthrottle %s: %d....\n", tty->name,
-	       tty->ldisc.chars_in_buffer(tty));
+	printk(KERN_INFO "unthrottle %s ....\n", tty->name);
 #endif
 
 	if (rocket_paranoia_check(info, "rp_unthrottle"))
@@ -1516,7 +1495,7 @@ static void rp_hangup(struct tty_struct *tty)
 	sDisCTSFlowCtl(cp);
 	sDisTxSoftFlowCtl(cp);
 	sClrTxXOFF(cp);
-	clear_bit(ASYNCB_INITIALIZED, &info->port.flags);
+	tty_port_set_initialized(&info->port, 0);
 
 	wake_up_interruptible(&info->port.open_wait);
 }
@@ -1628,7 +1607,7 @@ static int rp_write(struct tty_struct *tty,
 	/*  Write remaining data into the port's xmit_buf */
 	while (1) {
 		/* Hung up ? */
-		if (!test_bit(ASYNCB_NORMAL_ACTIVE, &info->port.flags))
+		if (!tty_port_active(&info->port))
 			goto end;
 		c = min(count, XMIT_BUF_SIZE - info->xmit_cnt - 1);
 		c = min(c, XMIT_BUF_SIZE - info->xmit_head);

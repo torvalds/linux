@@ -141,7 +141,7 @@ void ocfs2_free_ac_resource(struct ocfs2_alloc_context *ac)
 		if (ac->ac_which != OCFS2_AC_USE_LOCAL)
 			ocfs2_inode_unlock(inode, 1);
 
-		mutex_unlock(&inode->i_mutex);
+		inode_unlock(inode);
 
 		iput(inode);
 		ac->ac_inode = NULL;
@@ -797,11 +797,11 @@ static int ocfs2_reserve_suballoc_bits(struct ocfs2_super *osb,
 		return -EINVAL;
 	}
 
-	mutex_lock(&alloc_inode->i_mutex);
+	inode_lock(alloc_inode);
 
 	status = ocfs2_inode_lock(alloc_inode, &bh, 1);
 	if (status < 0) {
-		mutex_unlock(&alloc_inode->i_mutex);
+		inode_unlock(alloc_inode);
 		iput(alloc_inode);
 
 		mlog_errno(status);
@@ -1164,7 +1164,8 @@ static int ocfs2_reserve_clusters_with_limit(struct ocfs2_super *osb,
 					     int flags,
 					     struct ocfs2_alloc_context **ac)
 {
-	int status;
+	int status, ret = 0;
+	int retried = 0;
 
 	*ac = kzalloc(sizeof(struct ocfs2_alloc_context), GFP_KERNEL);
 	if (!(*ac)) {
@@ -1189,7 +1190,34 @@ static int ocfs2_reserve_clusters_with_limit(struct ocfs2_super *osb,
 	}
 
 	if (status == -ENOSPC) {
+retry:
 		status = ocfs2_reserve_cluster_bitmap_bits(osb, *ac);
+		/* Retry if there is sufficient space cached in truncate log */
+		if (status == -ENOSPC && !retried) {
+			retried = 1;
+			ocfs2_inode_unlock((*ac)->ac_inode, 1);
+			inode_unlock((*ac)->ac_inode);
+
+			ret = ocfs2_try_to_free_truncate_log(osb, bits_wanted);
+			if (ret == 1) {
+				iput((*ac)->ac_inode);
+				(*ac)->ac_inode = NULL;
+				goto retry;
+			}
+
+			if (ret < 0)
+				mlog_errno(ret);
+
+			inode_lock((*ac)->ac_inode);
+			ret = ocfs2_inode_lock((*ac)->ac_inode, NULL, 1);
+			if (ret < 0) {
+				mlog_errno(ret);
+				inode_unlock((*ac)->ac_inode);
+				iput((*ac)->ac_inode);
+				(*ac)->ac_inode = NULL;
+				goto bail;
+			}
+		}
 		if (status < 0) {
 			if (status != -ENOSPC)
 				mlog_errno(status);
@@ -2875,10 +2903,10 @@ int ocfs2_test_inode_bit(struct ocfs2_super *osb, u64 blkno, int *res)
 		goto bail;
 	}
 
-	mutex_lock(&inode_alloc_inode->i_mutex);
+	inode_lock(inode_alloc_inode);
 	status = ocfs2_inode_lock(inode_alloc_inode, &alloc_bh, 0);
 	if (status < 0) {
-		mutex_unlock(&inode_alloc_inode->i_mutex);
+		inode_unlock(inode_alloc_inode);
 		iput(inode_alloc_inode);
 		mlog(ML_ERROR, "lock on alloc inode on slot %u failed %d\n",
 		     (u32)suballoc_slot, status);
@@ -2891,7 +2919,7 @@ int ocfs2_test_inode_bit(struct ocfs2_super *osb, u64 blkno, int *res)
 		mlog(ML_ERROR, "test suballoc bit failed %d\n", status);
 
 	ocfs2_inode_unlock(inode_alloc_inode, 0);
-	mutex_unlock(&inode_alloc_inode->i_mutex);
+	inode_unlock(inode_alloc_inode);
 
 	iput(inode_alloc_inode);
 	brelse(alloc_bh);

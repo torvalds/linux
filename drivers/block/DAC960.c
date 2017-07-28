@@ -48,7 +48,7 @@
 #include <linux/random.h>
 #include <linux/scatterlist.h>
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "DAC960.h"
 
 #define DAC960_GAM_MINOR	252
@@ -2954,7 +2954,7 @@ DAC960_DetectController(struct pci_dev *PCI_Device,
 	case DAC960_PD_Controller:
 	  if (!request_region(Controller->IO_Address, 0x80,
 			      Controller->FullModelName)) {
-		DAC960_Error("IO port 0x%d busy for Controller at\n",
+		DAC960_Error("IO port 0x%lx busy for Controller at\n",
 			     Controller, Controller->IO_Address);
 		goto Failure;
 	  }
@@ -2990,7 +2990,7 @@ DAC960_DetectController(struct pci_dev *PCI_Device,
 	case DAC960_P_Controller:
 	  if (!request_region(Controller->IO_Address, 0x80,
 			      Controller->FullModelName)){
-		DAC960_Error("IO port 0x%d busy for Controller at\n",
+		DAC960_Error("IO port 0x%lx busy for Controller at\n",
 		   	     Controller, Controller->IO_Address);
 		goto Failure;
 	  }
@@ -3464,7 +3464,7 @@ static inline bool DAC960_ProcessCompletedRequest(DAC960_Command_T *Command,
 						 bool SuccessfulIO)
 {
 	struct request *Request = Command->Request;
-	int Error = SuccessfulIO ? 0 : -EIO;
+	blk_status_t Error = SuccessfulIO ? BLK_STS_OK : BLK_STS_IOERR;
 
 	pci_unmap_sg(Command->Controller->PCIDevice, Command->cmd_sglist,
 		Command->SegmentCount, Command->DmaDirection);

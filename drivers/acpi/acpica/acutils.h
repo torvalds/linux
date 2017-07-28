@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -85,6 +85,7 @@ extern const char *acpi_gbl_bpb_decode[];
 extern const char *acpi_gbl_sb_decode[];
 extern const char *acpi_gbl_fc_decode[];
 extern const char *acpi_gbl_pt_decode[];
+extern const char *acpi_gbl_ptyp_decode[];
 #endif
 
 /*
@@ -114,13 +115,25 @@ extern const char *acpi_gbl_pt_decode[];
 /*
  * Common error message prefixes
  */
+#ifndef ACPI_MSG_ERROR
 #define ACPI_MSG_ERROR          "ACPI Error: "
+#endif
+#ifndef ACPI_MSG_EXCEPTION
 #define ACPI_MSG_EXCEPTION      "ACPI Exception: "
+#endif
+#ifndef ACPI_MSG_WARNING
 #define ACPI_MSG_WARNING        "ACPI Warning: "
+#endif
+#ifndef ACPI_MSG_INFO
 #define ACPI_MSG_INFO           "ACPI: "
+#endif
 
+#ifndef ACPI_MSG_BIOS_ERROR
 #define ACPI_MSG_BIOS_ERROR     "ACPI BIOS Error (bug): "
+#endif
+#ifndef ACPI_MSG_BIOS_WARNING
 #define ACPI_MSG_BIOS_WARNING   "ACPI BIOS Warning (bug): "
+#endif
 
 /*
  * Common message suffix
@@ -136,16 +149,16 @@ extern const char *acpi_gbl_pt_decode[];
 #define ACPI_SMALL_VARIABLE_LENGTH      3
 
 typedef
-acpi_status(*acpi_walk_aml_callback) (u8 *aml,
-				      u32 length,
-				      u32 offset,
-				      u8 resource_index, void **context);
+acpi_status (*acpi_walk_aml_callback) (u8 *aml,
+				       u32 length,
+				       u32 offset,
+				       u8 resource_index, void **context);
 
 typedef
-acpi_status(*acpi_pkg_callback) (u8 object_type,
-				 union acpi_operand_object *source_object,
-				 union acpi_generic_state * state,
-				 void *context);
+acpi_status (*acpi_pkg_callback) (u8 object_type,
+				  union acpi_operand_object * source_object,
+				  union acpi_generic_state * state,
+				  void *context);
 
 struct acpi_pkg_info {
 	u8 *free_space;
@@ -167,6 +180,15 @@ struct acpi_pkg_info {
 #define DB_QWORD_DISPLAY    8
 
 /*
+ * utascii - ASCII utilities
+ */
+u8 acpi_ut_valid_nameseg(char *signature);
+
+u8 acpi_ut_valid_name_char(char character, u32 position);
+
+void acpi_ut_check_and_repair_ascii(u8 *name, char *repaired_name, u32 count);
+
+/*
  * utnonansi - Non-ANSI C library functions
  */
 void acpi_ut_strupr(char *src_string);
@@ -175,7 +197,15 @@ void acpi_ut_strlwr(char *src_string);
 
 int acpi_ut_stricmp(char *string1, char *string2);
 
-acpi_status acpi_ut_strtoul64(char *string, u32 base, u64 *ret_integer);
+acpi_status acpi_ut_strtoul64(char *string, u32 flags, u64 *ret_integer);
+
+/*
+ * Values for Flags above
+ * Note: LIMIT values correspond to acpi_gbl_integer_byte_width values (4/8)
+ */
+#define ACPI_STRTOUL_32BIT          0x04	/* 4 bytes */
+#define ACPI_STRTOUL_64BIT          0x08	/* 8 bytes */
+#define ACPI_STRTOUL_BASE16         0x10	/* Default: Base10/16 */
 
 /*
  * utglobal - Global data structures and procedures
@@ -184,26 +214,30 @@ acpi_status acpi_ut_init_globals(void);
 
 #if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
 
-char *acpi_ut_get_mutex_name(u32 mutex_id);
+const char *acpi_ut_get_mutex_name(u32 mutex_id);
 
 const char *acpi_ut_get_notify_name(u32 notify_value, acpi_object_type type);
 #endif
 
-char *acpi_ut_get_type_name(acpi_object_type type);
+const char *acpi_ut_get_type_name(acpi_object_type type);
 
-char *acpi_ut_get_node_name(void *object);
+const char *acpi_ut_get_node_name(void *object);
 
-char *acpi_ut_get_descriptor_name(void *object);
+const char *acpi_ut_get_descriptor_name(void *object);
 
 const char *acpi_ut_get_reference_name(union acpi_operand_object *object);
 
-char *acpi_ut_get_object_type_name(union acpi_operand_object *obj_desc);
+const char *acpi_ut_get_object_type_name(union acpi_operand_object *obj_desc);
 
-char *acpi_ut_get_region_name(u8 space_id);
+const char *acpi_ut_get_region_name(u8 space_id);
 
-char *acpi_ut_get_event_name(u32 event_id);
+const char *acpi_ut_get_event_name(u32 event_id);
+
+const char *acpi_ut_get_argument_type_name(u32 arg_type);
 
 char acpi_ut_hex_to_ascii_char(u64 integer, u32 position);
+
+acpi_status acpi_ut_ascii_to_hex_byte(char *two_ascii_chars, u8 *return_byte);
 
 u8 acpi_ut_ascii_char_to_hex(int hex_char);
 
@@ -266,7 +300,8 @@ acpi_ut_trace(u32 line_number,
 void
 acpi_ut_trace_ptr(u32 line_number,
 		  const char *function_name,
-		  const char *module_name, u32 component_id, void *pointer);
+		  const char *module_name,
+		  u32 component_id, const void *pointer);
 
 void
 acpi_ut_trace_u32(u32 line_number,
@@ -276,7 +311,8 @@ acpi_ut_trace_u32(u32 line_number,
 void
 acpi_ut_trace_str(u32 line_number,
 		  const char *function_name,
-		  const char *module_name, u32 component_id, char *string);
+		  const char *module_name,
+		  u32 component_id, const char *string);
 
 void
 acpi_ut_exit(u32 line_number,
@@ -298,6 +334,11 @@ void
 acpi_ut_ptr_exit(u32 line_number,
 		 const char *function_name,
 		 const char *module_name, u32 component_id, u8 *ptr);
+
+void
+acpi_ut_str_exit(u32 line_number,
+		 const char *function_name,
+		 const char *module_name, u32 component_id, const char *string);
 
 void
 acpi_ut_debug_dump_buffer(u8 *buffer, u32 count, u32 display, u32 component_id);
@@ -335,12 +376,12 @@ void acpi_ut_delete_internal_object_list(union acpi_operand_object **obj_list);
  */
 acpi_status
 acpi_ut_evaluate_object(struct acpi_namespace_node *prefix_node,
-			char *path,
+			const char *path,
 			u32 expected_return_btypes,
 			union acpi_operand_object **return_desc);
 
 acpi_status
-acpi_ut_evaluate_numeric_object(char *object_name,
+acpi_ut_evaluate_numeric_object(const char *object_name,
 				struct acpi_namespace_node *device_node,
 				u64 *value);
 
@@ -353,14 +394,6 @@ acpi_ut_execute_power_methods(struct acpi_namespace_node *device_node,
 			      u8 method_count, u8 *out_values);
 
 /*
- * utfileio - file operations
- */
-#ifdef ACPI_APPLICATION
-acpi_status
-acpi_ut_read_table_from_file(char *filename, struct acpi_table_header **table);
-#endif
-
-/*
  * utids - device ID support
  */
 acpi_status
@@ -370,10 +403,6 @@ acpi_ut_execute_HID(struct acpi_namespace_node *device_node,
 acpi_status
 acpi_ut_execute_UID(struct acpi_namespace_node *device_node,
 		    struct acpi_pnp_device_id ** return_id);
-
-acpi_status
-acpi_ut_execute_SUB(struct acpi_namespace_node *device_node,
-		    struct acpi_pnp_device_id **return_id);
 
 acpi_status
 acpi_ut_execute_CID(struct acpi_namespace_node *device_node,
@@ -427,7 +456,7 @@ union acpi_operand_object *acpi_ut_create_buffer_object(acpi_size buffer_size);
 union acpi_operand_object *acpi_ut_create_string_object(acpi_size string_size);
 
 acpi_status
-acpi_ut_get_object_size(union acpi_operand_object *obj, acpi_size * obj_length);
+acpi_ut_get_object_size(union acpi_operand_object *obj, acpi_size *obj_length);
 
 /*
  * utosi - Support for the _OSI predefined control method
@@ -538,15 +567,15 @@ void acpi_ut_set_integer_width(u8 revision);
 void
 acpi_ut_display_init_pathname(u8 type,
 			      struct acpi_namespace_node *obj_handle,
-			      char *path);
+			      const char *path);
 #endif
 
 /*
  * utownerid - Support for Table/Method Owner IDs
  */
-acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id);
+acpi_status acpi_ut_allocate_owner_id(acpi_owner_id *owner_id);
 
-void acpi_ut_release_owner_id(acpi_owner_id * owner_id);
+void acpi_ut_release_owner_id(acpi_owner_id *owner_id);
 
 /*
  * utresrc
@@ -581,10 +610,6 @@ void acpi_ut_print_string(char *string, u16 max_length);
 #if defined ACPI_ASL_COMPILER || defined ACPI_EXEC_APP
 void ut_convert_backslashes(char *pathname);
 #endif
-
-u8 acpi_ut_valid_acpi_name(char *name);
-
-u8 acpi_ut_valid_acpi_char(char character, u32 position);
 
 void acpi_ut_repair_name(char *name);
 
@@ -640,7 +665,7 @@ void acpi_ut_dump_allocation_info(void);
 void acpi_ut_dump_allocations(u32 component, const char *module);
 
 acpi_status
-acpi_ut_create_list(char *list_name,
+acpi_ut_create_list(const char *list_name,
 		    u16 object_size, struct acpi_memory_list **return_cache);
 
 #endif				/* ACPI_DBG_TRACK_ALLOCATIONS */
@@ -703,25 +728,6 @@ const struct ah_predefined_name *acpi_ah_match_predefined_name(char *nameseg);
 const struct ah_device_id *acpi_ah_match_hardware_id(char *hid);
 
 const char *acpi_ah_match_uuid(u8 *data);
-
-/*
- * utprint - printf/vprintf output functions
- */
-const char *acpi_ut_scan_number(const char *string, u64 *number_ptr);
-
-const char *acpi_ut_print_number(char *string, u64 number);
-
-int
-acpi_ut_vsnprintf(char *string,
-		  acpi_size size, const char *format, va_list args);
-
-int acpi_ut_snprintf(char *string, acpi_size size, const char *format, ...);
-
-#ifdef ACPI_APPLICATION
-int acpi_ut_file_vprintf(ACPI_FILE file, const char *format, va_list args);
-
-int acpi_ut_file_printf(ACPI_FILE file, const char *format, ...);
-#endif
 
 /*
  * utuuid -- UUID support functions

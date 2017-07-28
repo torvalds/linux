@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -60,6 +56,7 @@
 #include <linux/moduleparam.h>
 #include <linux/mutex.h>
 #include <linux/notifier.h>
+#include <linux/pagemap.h>
 #include <linux/random.h>
 #include <linux/rbtree.h>
 #include <linux/rwsem.h>
@@ -83,7 +80,6 @@
 #include <stdarg.h>
 #include "linux-cpu.h"
 #include "linux-time.h"
-#include "linux-mem.h"
 
 #define LUSTRE_TRACE_SIZE (THREAD_SIZE >> 5)
 
@@ -118,9 +114,6 @@ do {								    \
 #define CDEBUG_STACK() (0L)
 #endif /* __x86_64__ */
 
-/* initial pid  */
-#define LUSTRE_LNET_PID	  12345
-
 #define __current_nesting_level() (0)
 
 /**
@@ -131,10 +124,6 @@ do {								    \
 #define CFS_CURPROC_COMM_MAX (sizeof((struct task_struct *)0)->comm)
 
 #include <linux/capability.h>
-
-/* long integer with size equal to pointer */
-typedef unsigned long ulong_ptr_t;
-typedef long long_ptr_t;
 
 #ifndef WITH_WATCHDOG
 #define WITH_WATCHDOG

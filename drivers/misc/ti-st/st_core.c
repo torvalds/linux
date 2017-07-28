@@ -141,7 +141,7 @@ static void st_send_frame(unsigned char chnl_id, struct st_data_s *st_gdata)
  * This function is being called with spin lock held, protocol drivers are
  * only expected to complete their waits and do nothing more than that.
  */
-static void st_reg_complete(struct st_data_s *st_gdata, char err)
+static void st_reg_complete(struct st_data_s *st_gdata, int err)
 {
 	unsigned char i = 0;
 	pr_info(" %s ", __func__);
@@ -262,7 +262,7 @@ void st_int_recv(void *disc_data,
 	while (count) {
 		if (st_gdata->rx_count) {
 			len = min_t(unsigned int, st_gdata->rx_count, count);
-			memcpy(skb_put(st_gdata->rx_skb, len), ptr, len);
+			skb_put_data(st_gdata->rx_skb, ptr, len);
 			st_gdata->rx_count -= len;
 			count -= len;
 			ptr += len;
@@ -632,7 +632,6 @@ long st_register(struct st_proto_s *new_proto)
 		spin_unlock_irqrestore(&st_gdata->lock, flags);
 		return err;
 	}
-	pr_debug("done %s(%d) ", __func__, new_proto->chnl_id);
 }
 EXPORT_SYMBOL_GPL(st_register);
 

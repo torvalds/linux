@@ -20,6 +20,9 @@
 
 #ifndef __ASSEMBLY__
 
+#define __nops(n)	".rept	" #n "\nnop\n.endr\n"
+#define nops(n)		asm volatile(__nops(n))
+
 #define sev()		asm volatile("sev" : : : "memory")
 #define wfe()		asm volatile("wfe" : : : "memory")
 #define wfi()		asm volatile("wfi" : : : "memory")
@@ -35,34 +38,44 @@
 #define dma_rmb()	dmb(oshld)
 #define dma_wmb()	dmb(oshst)
 
-#define smp_mb()	dmb(ish)
-#define smp_rmb()	dmb(ishld)
-#define smp_wmb()	dmb(ishst)
+#define __smp_mb()	dmb(ish)
+#define __smp_rmb()	dmb(ishld)
+#define __smp_wmb()	dmb(ishst)
 
-#define smp_store_release(p, v)						\
+#define __smp_store_release(p, v)					\
 do {									\
+	union { typeof(*p) __val; char __c[1]; } __u =			\
+		{ .__val = (__force typeof(*p)) (v) }; 			\
 	compiletime_assert_atomic_type(*p);				\
 	switch (sizeof(*p)) {						\
 	case 1:								\
 		asm volatile ("stlrb %w1, %0"				\
-				: "=Q" (*p) : "r" (v) : "memory");	\
+				: "=Q" (*p)				\
+				: "r" (*(__u8 *)__u.__c)		\
+				: "memory");				\
 		break;							\
 	case 2:								\
 		asm volatile ("stlrh %w1, %0"				\
-				: "=Q" (*p) : "r" (v) : "memory");	\
+				: "=Q" (*p)				\
+				: "r" (*(__u16 *)__u.__c)		\
+				: "memory");				\
 		break;							\
 	case 4:								\
 		asm volatile ("stlr %w1, %0"				\
-				: "=Q" (*p) : "r" (v) : "memory");	\
+				: "=Q" (*p)				\
+				: "r" (*(__u32 *)__u.__c)		\
+				: "memory");				\
 		break;							\
 	case 8:								\
 		asm volatile ("stlr %1, %0"				\
-				: "=Q" (*p) : "r" (v) : "memory");	\
+				: "=Q" (*p)				\
+				: "r" (*(__u64 *)__u.__c)		\
+				: "memory");				\
 		break;							\
 	}								\
 } while (0)
 
-#define smp_load_acquire(p)						\
+#define __smp_load_acquire(p)						\
 ({									\
 	union { typeof(*p) __val; char __c[1]; } __u;			\
 	compiletime_assert_atomic_type(*p);				\
@@ -91,14 +104,20 @@ do {									\
 	__u.__val;							\
 })
 
-#define read_barrier_depends()		do { } while(0)
-#define smp_read_barrier_depends()	do { } while(0)
+#define smp_cond_load_acquire(ptr, cond_expr)				\
+({									\
+	typeof(ptr) __PTR = (ptr);					\
+	typeof(*ptr) VAL;						\
+	for (;;) {							\
+		VAL = smp_load_acquire(__PTR);				\
+		if (cond_expr)						\
+			break;						\
+		__cmpwait_relaxed(__PTR, VAL);				\
+	}								\
+	VAL;								\
+})
 
-#define smp_store_mb(var, value)	do { WRITE_ONCE(var, value); smp_mb(); } while (0)
-#define nop()		asm volatile("nop");
-
-#define smp_mb__before_atomic()	smp_mb()
-#define smp_mb__after_atomic()	smp_mb()
+#include <asm-generic/barrier.h>
 
 #endif	/* __ASSEMBLY__ */
 

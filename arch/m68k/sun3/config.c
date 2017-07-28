@@ -26,7 +26,6 @@
 #include <asm/pgalloc.h>
 #include <asm/sun3-head.h>
 #include <asm/sun3mmu.h>
-#include <asm/rtc.h>
 #include <asm/machdep.h>
 #include <asm/machines.h>
 #include <asm/idprom.h>
@@ -135,7 +134,7 @@ void __init config_sun3(void)
 {
 	unsigned long memory_start, memory_end;
 
-	printk("ARCH: SUN3\n");
+	pr_info("ARCH: SUN3\n");
 	idprom_init();
 
 	/* Subtract kernel memory from available memory */
@@ -171,7 +170,7 @@ static void __init sun3_sched_init(irq_handler_t timer_routine)
         intersil_clear();
 }
 
-#ifdef CONFIG_SUN3_SCSI
+#if IS_ENABLED(CONFIG_SUN3_SCSI)
 
 static const struct resource sun3_scsi_vme_rsrc[] __initconst = {
 	{

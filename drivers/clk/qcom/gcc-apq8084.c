@@ -1142,7 +1142,7 @@ static struct clk_rcg2 sdcc1_apps_clk_src = {
 		.name = "sdcc1_apps_clk_src",
 		.parent_names = gcc_xo_gpll0_gpll4,
 		.num_parents = 3,
-		.ops = &clk_rcg2_ops,
+		.ops = &clk_rcg2_floor_ops,
 	},
 };
 
@@ -1156,7 +1156,7 @@ static struct clk_rcg2 sdcc2_apps_clk_src = {
 		.name = "sdcc2_apps_clk_src",
 		.parent_names = gcc_xo_gpll0,
 		.num_parents = 2,
-		.ops = &clk_rcg2_ops,
+		.ops = &clk_rcg2_floor_ops,
 	},
 };
 
@@ -1170,7 +1170,7 @@ static struct clk_rcg2 sdcc3_apps_clk_src = {
 		.name = "sdcc3_apps_clk_src",
 		.parent_names = gcc_xo_gpll0,
 		.num_parents = 2,
-		.ops = &clk_rcg2_ops,
+		.ops = &clk_rcg2_floor_ops,
 	},
 };
 
@@ -1184,7 +1184,7 @@ static struct clk_rcg2 sdcc4_apps_clk_src = {
 		.name = "sdcc4_apps_clk_src",
 		.parent_names = gcc_xo_gpll0,
 		.num_parents = 2,
-		.ops = &clk_rcg2_ops,
+		.ops = &clk_rcg2_floor_ops,
 	},
 };
 
@@ -3607,18 +3607,16 @@ MODULE_DEVICE_TABLE(of, gcc_apq8084_match_table);
 
 static int gcc_apq8084_probe(struct platform_device *pdev)
 {
-	struct clk *clk;
+	int ret;
 	struct device *dev = &pdev->dev;
 
-	/* Temporary until RPM clocks supported */
-	clk = clk_register_fixed_rate(dev, "xo", NULL, CLK_IS_ROOT, 19200000);
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
+	ret = qcom_cc_register_board_clk(dev, "xo_board", "xo", 19200000);
+	if (ret)
+		return ret;
 
-	clk = clk_register_fixed_rate(dev, "sleep_clk_src", NULL,
-				      CLK_IS_ROOT, 32768);
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
+	ret = qcom_cc_register_sleep_clk(dev);
+	if (ret)
+		return ret;
 
 	return qcom_cc_probe(pdev, &gcc_apq8084_desc);
 }

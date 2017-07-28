@@ -52,6 +52,7 @@ typedef unsigned int pending_ring_idx_t;
 
 struct pending_tx_info {
 	struct xen_netif_tx_request req; /* tx request */
+	unsigned int extra_count;
 	/* Callback data for released SKBs. The callback is always
 	 * xenvif_zerocopy_callback, desc contains the pending_idx, which is
 	 * also an index in pending_tx_info array. It is initialized in
@@ -90,13 +91,6 @@ struct xenvif_rx_meta {
  */
 #define MAX_XEN_SKB_FRAGS (65536 / XEN_PAGE_SIZE + 1)
 
-/* It's possible for an skb to have a maximal number of frags
- * but still be less than MAX_BUFFER_OFFSET in size. Thus the
- * worst-case number of copy operations is MAX_XEN_SKB_FRAGS per
- * ring slot.
- */
-#define MAX_GRANT_COPY_OPS (MAX_XEN_SKB_FRAGS * XEN_NETIF_RX_RING_SIZE)
-
 #define NETBACK_INVALID_HANDLE -1
 
 /* To avoid confusion, we define XEN_NETBK_LEGACY_SLOTS_MAX indicating
@@ -119,10 +113,10 @@ struct xenvif_stats {
 	 * A subset of struct net_device_stats that contains only the
 	 * fields that are updated in netback.c for each queue.
 	 */
-	unsigned int rx_bytes;
-	unsigned int rx_packets;
-	unsigned int tx_bytes;
-	unsigned int tx_packets;
+	u64 rx_bytes;
+	u64 rx_packets;
+	u64 tx_bytes;
+	u64 tx_packets;
 
 	/* Additional stats used by xenvif */
 	unsigned long rx_gso_checksum_fixup;
@@ -130,6 +124,15 @@ struct xenvif_stats {
 	unsigned long tx_zerocopy_success;
 	unsigned long tx_zerocopy_fail;
 	unsigned long tx_frag_overflow;
+};
+
+#define COPY_BATCH_SIZE 64
+
+struct xenvif_copy_state {
+	struct gnttab_copy op[COPY_BATCH_SIZE];
+	RING_IDX idx[COPY_BATCH_SIZE];
+	unsigned int num;
+	struct sk_buff_head *completed;
 };
 
 struct xenvif_queue { /* Per-queue data for xenvif */
@@ -188,12 +191,7 @@ struct xenvif_queue { /* Per-queue data for xenvif */
 	unsigned long last_rx_time;
 	bool stalled;
 
-	struct gnttab_copy grant_copy_op[MAX_GRANT_COPY_OPS];
-
-	/* We create one meta structure per ring request we consume, so
-	 * the maximum number is the same as the ring size.
-	 */
-	struct xenvif_rx_meta meta[XEN_NETIF_RX_RING_SIZE];
+	struct xenvif_copy_state rx_copy;
 
 	/* Transmit shaping: allow 'credit_bytes' every 'credit_usec'. */
 	unsigned long   credit_bytes;
@@ -201,6 +199,7 @@ struct xenvif_queue { /* Per-queue data for xenvif */
 	unsigned long   remaining_credit;
 	struct timer_list credit_timeout;
 	u64 credit_window_start;
+	bool rate_limited;
 
 	/* Statistics */
 	struct xenvif_stats stats;
@@ -219,6 +218,35 @@ struct xenvif_mcast_addr {
 
 #define XEN_NETBK_MCAST_MAX 64
 
+#define XEN_NETBK_MAX_HASH_KEY_SIZE 40
+#define XEN_NETBK_MAX_HASH_MAPPING_SIZE 128
+#define XEN_NETBK_HASH_TAG_SIZE 40
+
+struct xenvif_hash_cache_entry {
+	struct list_head link;
+	struct rcu_head rcu;
+	u8 tag[XEN_NETBK_HASH_TAG_SIZE];
+	unsigned int len;
+	u32 val;
+	int seq;
+};
+
+struct xenvif_hash_cache {
+	spinlock_t lock;
+	struct list_head list;
+	unsigned int count;
+	atomic_t seq;
+};
+
+struct xenvif_hash {
+	unsigned int alg;
+	u32 flags;
+	u8 key[XEN_NETBK_MAX_HASH_KEY_SIZE];
+	u32 mapping[XEN_NETBK_MAX_HASH_MAPPING_SIZE];
+	unsigned int size;
+	struct xenvif_hash_cache cache;
+};
+
 struct xenvif {
 	/* Unique identifier for this interface. */
 	domid_t          domid;
@@ -230,7 +258,6 @@ struct xenvif {
 
 	/* Frontend feature information. */
 	int gso_mask;
-	int gso_prefix_mask;
 
 	u8 can_sg:1;
 	u8 ip_csum:1;
@@ -250,13 +277,19 @@ struct xenvif {
 	unsigned int num_queues; /* active queues, resource allocated */
 	unsigned int stalled_queues;
 
+	struct xenvif_hash hash;
+
 	struct xenbus_watch credit_watch;
+	struct xenbus_watch mcast_ctrl_watch;
 
 	spinlock_t lock;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *xenvif_dbg_root;
 #endif
+
+	struct xen_netif_ctrl_back_ring ctrl;
+	unsigned int ctrl_irq;
 
 	/* Miscellaneous private stuff. */
 	struct net_device *dev;
@@ -283,10 +316,15 @@ struct xenvif *xenvif_alloc(struct device *parent,
 int xenvif_init_queue(struct xenvif_queue *queue);
 void xenvif_deinit_queue(struct xenvif_queue *queue);
 
-int xenvif_connect(struct xenvif_queue *queue, unsigned long tx_ring_ref,
-		   unsigned long rx_ring_ref, unsigned int tx_evtchn,
-		   unsigned int rx_evtchn);
-void xenvif_disconnect(struct xenvif *vif);
+int xenvif_connect_data(struct xenvif_queue *queue,
+			unsigned long tx_ring_ref,
+			unsigned long rx_ring_ref,
+			unsigned int tx_evtchn,
+			unsigned int rx_evtchn);
+void xenvif_disconnect_data(struct xenvif *vif);
+int xenvif_connect_ctrl(struct xenvif *vif, grant_ref_t ring_ref,
+			unsigned int evtchn);
+void xenvif_disconnect_ctrl(struct xenvif *vif);
 void xenvif_free(struct xenvif *vif);
 
 int xenvif_xenbus_init(void);
@@ -298,10 +336,10 @@ int xenvif_queue_stopped(struct xenvif_queue *queue);
 void xenvif_wake_queue(struct xenvif_queue *queue);
 
 /* (Un)Map communication rings. */
-void xenvif_unmap_frontend_rings(struct xenvif_queue *queue);
-int xenvif_map_frontend_rings(struct xenvif_queue *queue,
-			      grant_ref_t tx_ring_ref,
-			      grant_ref_t rx_ring_ref);
+void xenvif_unmap_frontend_data_rings(struct xenvif_queue *queue);
+int xenvif_map_frontend_data_rings(struct xenvif_queue *queue,
+				   grant_ref_t tx_ring_ref,
+				   grant_ref_t rx_ring_ref);
 
 /* Check for SKBs from frontend and schedule backend processing */
 void xenvif_napi_schedule_or_enable_events(struct xenvif_queue *queue);
@@ -316,6 +354,9 @@ void xenvif_kick_thread(struct xenvif_queue *queue);
 
 int xenvif_dealloc_kthread(void *data);
 
+irqreturn_t xenvif_ctrl_irq_fn(int irq, void *data);
+
+void xenvif_rx_action(struct xenvif_queue *queue);
 void xenvif_rx_queue_tail(struct xenvif_queue *queue, struct sk_buff *skb);
 
 void xenvif_carrier_on(struct xenvif *vif);
@@ -339,6 +380,7 @@ extern bool separate_tx_rx_irq;
 extern unsigned int rx_drain_timeout_msecs;
 extern unsigned int rx_stall_timeout_msecs;
 extern unsigned int xenvif_max_queues;
+extern unsigned int xenvif_hash_cache_size;
 
 #ifdef CONFIG_DEBUG_FS
 extern struct dentry *xen_netback_dbg_root;
@@ -351,5 +393,23 @@ void xenvif_skb_zerocopy_complete(struct xenvif_queue *queue);
 /* Multicast control */
 bool xenvif_mcast_match(struct xenvif *vif, const u8 *addr);
 void xenvif_mcast_addr_list_free(struct xenvif *vif);
+
+/* Hash */
+void xenvif_init_hash(struct xenvif *vif);
+void xenvif_deinit_hash(struct xenvif *vif);
+
+u32 xenvif_set_hash_alg(struct xenvif *vif, u32 alg);
+u32 xenvif_get_hash_flags(struct xenvif *vif, u32 *flags);
+u32 xenvif_set_hash_flags(struct xenvif *vif, u32 flags);
+u32 xenvif_set_hash_key(struct xenvif *vif, u32 gref, u32 len);
+u32 xenvif_set_hash_mapping_size(struct xenvif *vif, u32 size);
+u32 xenvif_set_hash_mapping(struct xenvif *vif, u32 gref, u32 len,
+			    u32 off);
+
+void xenvif_set_skb_hash(struct xenvif *vif, struct sk_buff *skb);
+
+#ifdef CONFIG_DEBUG_FS
+void xenvif_dump_hash_info(struct xenvif *vif, struct seq_file *m);
+#endif
 
 #endif /* __XEN_NETBACK__COMMON_H__ */

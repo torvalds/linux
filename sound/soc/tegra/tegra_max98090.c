@@ -93,7 +93,7 @@ static int tegra_max98090_asoc_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops tegra_max98090_ops = {
+static const struct snd_soc_ops tegra_max98090_ops = {
 	.hw_params = tegra_max98090_asoc_hw_params,
 };
 
@@ -225,10 +225,8 @@ static int tegra_max98090_probe(struct platform_device *pdev)
 
 	machine = devm_kzalloc(&pdev->dev,
 			sizeof(struct tegra_max98090), GFP_KERNEL);
-	if (!machine) {
-		dev_err(&pdev->dev, "Can't allocate tegra_max98090\n");
+	if (!machine)
 		return -ENOMEM;
-	}
 
 	card->dev = &pdev->dev;
 	platform_set_drvdata(pdev, card);

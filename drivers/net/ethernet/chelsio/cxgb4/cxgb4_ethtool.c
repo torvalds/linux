@@ -35,79 +35,79 @@ static void set_msglevel(struct net_device *dev, u32 val)
 }
 
 static const char stats_strings[][ETH_GSTRING_LEN] = {
-	"tx_octets_ok		",
-	"tx_frames_ok		",
-	"tx_broadcast_frames	",
-	"tx_multicast_frames	",
-	"tx_unicast_frames	",
-	"tx_error_frames	",
+	"tx_octets_ok           ",
+	"tx_frames_ok           ",
+	"tx_broadcast_frames    ",
+	"tx_multicast_frames    ",
+	"tx_unicast_frames      ",
+	"tx_error_frames        ",
 
-	"tx_frames_64		",
-	"tx_frames_65_to_127	",
-	"tx_frames_128_to_255	",
-	"tx_frames_256_to_511	",
-	"tx_frames_512_to_1023	",
-	"tx_frames_1024_to_1518	",
-	"tx_frames_1519_to_max	",
+	"tx_frames_64           ",
+	"tx_frames_65_to_127    ",
+	"tx_frames_128_to_255   ",
+	"tx_frames_256_to_511   ",
+	"tx_frames_512_to_1023  ",
+	"tx_frames_1024_to_1518 ",
+	"tx_frames_1519_to_max  ",
 
-	"tx_frames_dropped	",
-	"tx_pause_frames	",
-	"tx_ppp0_frames		",
-	"tx_ppp1_frames		",
-	"tx_ppp2_frames		",
-	"tx_ppp3_frames		",
-	"tx_ppp4_frames		",
-	"tx_ppp5_frames		",
-	"tx_ppp6_frames		",
-	"tx_ppp7_frames		",
+	"tx_frames_dropped      ",
+	"tx_pause_frames        ",
+	"tx_ppp0_frames         ",
+	"tx_ppp1_frames         ",
+	"tx_ppp2_frames         ",
+	"tx_ppp3_frames         ",
+	"tx_ppp4_frames         ",
+	"tx_ppp5_frames         ",
+	"tx_ppp6_frames         ",
+	"tx_ppp7_frames         ",
 
-	"rx_octets_ok		",
-	"rx_frames_ok		",
-	"rx_broadcast_frames	",
-	"rx_multicast_frames	",
-	"rx_unicast_frames	",
+	"rx_octets_ok           ",
+	"rx_frames_ok           ",
+	"rx_broadcast_frames    ",
+	"rx_multicast_frames    ",
+	"rx_unicast_frames      ",
 
-	"rx_frames_too_long	",
-	"rx_jabber_errors	",
-	"rx_fcs_errors		",
-	"rx_length_errors	",
-	"rx_symbol_errors	",
-	"rx_runt_frames		",
+	"rx_frames_too_long     ",
+	"rx_jabber_errors       ",
+	"rx_fcs_errors          ",
+	"rx_length_errors       ",
+	"rx_symbol_errors       ",
+	"rx_runt_frames         ",
 
-	"rx_frames_64		",
-	"rx_frames_65_to_127	",
-	"rx_frames_128_to_255	",
-	"rx_frames_256_to_511	",
-	"rx_frames_512_to_1023	",
-	"rx_frames_1024_to_1518	",
-	"rx_frames_1519_to_max	",
+	"rx_frames_64           ",
+	"rx_frames_65_to_127    ",
+	"rx_frames_128_to_255   ",
+	"rx_frames_256_to_511   ",
+	"rx_frames_512_to_1023  ",
+	"rx_frames_1024_to_1518 ",
+	"rx_frames_1519_to_max  ",
 
-	"rx_pause_frames	",
-	"rx_ppp0_frames		",
-	"rx_ppp1_frames		",
-	"rx_ppp2_frames		",
-	"rx_ppp3_frames		",
-	"rx_ppp4_frames		",
-	"rx_ppp5_frames		",
-	"rx_ppp6_frames		",
-	"rx_ppp7_frames		",
+	"rx_pause_frames        ",
+	"rx_ppp0_frames         ",
+	"rx_ppp1_frames         ",
+	"rx_ppp2_frames         ",
+	"rx_ppp3_frames         ",
+	"rx_ppp4_frames         ",
+	"rx_ppp5_frames         ",
+	"rx_ppp6_frames         ",
+	"rx_ppp7_frames         ",
 
-	"rx_bg0_frames_dropped	",
-	"rx_bg1_frames_dropped	",
-	"rx_bg2_frames_dropped	",
-	"rx_bg3_frames_dropped	",
-	"rx_bg0_frames_trunc	",
-	"rx_bg1_frames_trunc	",
-	"rx_bg2_frames_trunc	",
-	"rx_bg3_frames_trunc	",
+	"rx_bg0_frames_dropped  ",
+	"rx_bg1_frames_dropped  ",
+	"rx_bg2_frames_dropped  ",
+	"rx_bg3_frames_dropped  ",
+	"rx_bg0_frames_trunc    ",
+	"rx_bg1_frames_trunc    ",
+	"rx_bg2_frames_trunc    ",
+	"rx_bg3_frames_trunc    ",
 
-	"tso			",
-	"tx_csum_offload	",
-	"rx_csum_good		",
-	"vlan_extractions	",
-	"vlan_insertions	",
-	"gro_packets		",
-	"gro_merged		",
+	"tso                    ",
+	"tx_csum_offload        ",
+	"rx_csum_good           ",
+	"vlan_extractions       ",
+	"vlan_insertions        ",
+	"gro_packets            ",
+	"gro_merged             ",
 };
 
 static char adapter_stats_strings[][ETH_GSTRING_LEN] = {
@@ -480,123 +480,57 @@ static int identify_port(struct net_device *dev,
 	return t4_identify_port(adap, adap->pf, netdev2pinfo(dev)->viid, val);
 }
 
-static unsigned int from_fw_linkcaps(enum fw_port_type type, unsigned int caps)
+/**
+ *	from_fw_port_mod_type - translate Firmware Port/Module type to Ethtool
+ *	@port_type: Firmware Port Type
+ *	@mod_type: Firmware Module Type
+ *
+ *	Translate Firmware Port/Module type to Ethtool Port Type.
+ */
+static int from_fw_port_mod_type(enum fw_port_type port_type,
+				 enum fw_port_module_type mod_type)
 {
-	unsigned int v = 0;
-
-	if (type == FW_PORT_TYPE_BT_SGMII || type == FW_PORT_TYPE_BT_XFI ||
-	    type == FW_PORT_TYPE_BT_XAUI) {
-		v |= SUPPORTED_TP;
-		if (caps & FW_PORT_CAP_SPEED_100M)
-			v |= SUPPORTED_100baseT_Full;
-		if (caps & FW_PORT_CAP_SPEED_1G)
-			v |= SUPPORTED_1000baseT_Full;
-		if (caps & FW_PORT_CAP_SPEED_10G)
-			v |= SUPPORTED_10000baseT_Full;
-	} else if (type == FW_PORT_TYPE_KX4 || type == FW_PORT_TYPE_KX) {
-		v |= SUPPORTED_Backplane;
-		if (caps & FW_PORT_CAP_SPEED_1G)
-			v |= SUPPORTED_1000baseKX_Full;
-		if (caps & FW_PORT_CAP_SPEED_10G)
-			v |= SUPPORTED_10000baseKX4_Full;
-	} else if (type == FW_PORT_TYPE_KR) {
-		v |= SUPPORTED_Backplane | SUPPORTED_10000baseKR_Full;
-	} else if (type == FW_PORT_TYPE_BP_AP) {
-		v |= SUPPORTED_Backplane | SUPPORTED_10000baseR_FEC |
-		     SUPPORTED_10000baseKR_Full | SUPPORTED_1000baseKX_Full;
-	} else if (type == FW_PORT_TYPE_BP4_AP) {
-		v |= SUPPORTED_Backplane | SUPPORTED_10000baseR_FEC |
-		     SUPPORTED_10000baseKR_Full | SUPPORTED_1000baseKX_Full |
-		     SUPPORTED_10000baseKX4_Full;
-	} else if (type == FW_PORT_TYPE_FIBER_XFI ||
-		   type == FW_PORT_TYPE_FIBER_XAUI ||
-		   type == FW_PORT_TYPE_SFP ||
-		   type == FW_PORT_TYPE_QSFP_10G ||
-		   type == FW_PORT_TYPE_QSA) {
-		v |= SUPPORTED_FIBRE;
-		if (caps & FW_PORT_CAP_SPEED_1G)
-			v |= SUPPORTED_1000baseT_Full;
-		if (caps & FW_PORT_CAP_SPEED_10G)
-			v |= SUPPORTED_10000baseT_Full;
-	} else if (type == FW_PORT_TYPE_BP40_BA ||
-		   type == FW_PORT_TYPE_QSFP) {
-		v |= SUPPORTED_40000baseSR4_Full;
-		v |= SUPPORTED_FIBRE;
-	}
-
-	if (caps & FW_PORT_CAP_ANEG)
-		v |= SUPPORTED_Autoneg;
-	return v;
-}
-
-static unsigned int to_fw_linkcaps(unsigned int caps)
-{
-	unsigned int v = 0;
-
-	if (caps & ADVERTISED_100baseT_Full)
-		v |= FW_PORT_CAP_SPEED_100M;
-	if (caps & ADVERTISED_1000baseT_Full)
-		v |= FW_PORT_CAP_SPEED_1G;
-	if (caps & ADVERTISED_10000baseT_Full)
-		v |= FW_PORT_CAP_SPEED_10G;
-	if (caps & ADVERTISED_40000baseSR4_Full)
-		v |= FW_PORT_CAP_SPEED_40G;
-	return v;
-}
-
-static int get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
-{
-	const struct port_info *p = netdev_priv(dev);
-
-	if (p->port_type == FW_PORT_TYPE_BT_SGMII ||
-	    p->port_type == FW_PORT_TYPE_BT_XFI ||
-	    p->port_type == FW_PORT_TYPE_BT_XAUI) {
-		cmd->port = PORT_TP;
-	} else if (p->port_type == FW_PORT_TYPE_FIBER_XFI ||
-		   p->port_type == FW_PORT_TYPE_FIBER_XAUI) {
-		cmd->port = PORT_FIBRE;
-	} else if (p->port_type == FW_PORT_TYPE_SFP ||
-		   p->port_type == FW_PORT_TYPE_QSFP_10G ||
-		   p->port_type == FW_PORT_TYPE_QSA ||
-		   p->port_type == FW_PORT_TYPE_QSFP) {
-		if (p->mod_type == FW_PORT_MOD_TYPE_LR ||
-		    p->mod_type == FW_PORT_MOD_TYPE_SR ||
-		    p->mod_type == FW_PORT_MOD_TYPE_ER ||
-		    p->mod_type == FW_PORT_MOD_TYPE_LRM)
-			cmd->port = PORT_FIBRE;
-		else if (p->mod_type == FW_PORT_MOD_TYPE_TWINAX_PASSIVE ||
-			 p->mod_type == FW_PORT_MOD_TYPE_TWINAX_ACTIVE)
-			cmd->port = PORT_DA;
+	if (port_type == FW_PORT_TYPE_BT_SGMII ||
+	    port_type == FW_PORT_TYPE_BT_XFI ||
+	    port_type == FW_PORT_TYPE_BT_XAUI) {
+		return PORT_TP;
+	} else if (port_type == FW_PORT_TYPE_FIBER_XFI ||
+		   port_type == FW_PORT_TYPE_FIBER_XAUI) {
+		return PORT_FIBRE;
+	} else if (port_type == FW_PORT_TYPE_SFP ||
+		   port_type == FW_PORT_TYPE_QSFP_10G ||
+		   port_type == FW_PORT_TYPE_QSA ||
+		   port_type == FW_PORT_TYPE_QSFP ||
+		   port_type == FW_PORT_TYPE_CR4_QSFP ||
+		   port_type == FW_PORT_TYPE_CR_QSFP ||
+		   port_type == FW_PORT_TYPE_CR2_QSFP ||
+		   port_type == FW_PORT_TYPE_SFP28) {
+		if (mod_type == FW_PORT_MOD_TYPE_LR ||
+		    mod_type == FW_PORT_MOD_TYPE_SR ||
+		    mod_type == FW_PORT_MOD_TYPE_ER ||
+		    mod_type == FW_PORT_MOD_TYPE_LRM)
+			return PORT_FIBRE;
+		else if (mod_type == FW_PORT_MOD_TYPE_TWINAX_PASSIVE ||
+			 mod_type == FW_PORT_MOD_TYPE_TWINAX_ACTIVE)
+			return PORT_DA;
 		else
-			cmd->port = PORT_OTHER;
-	} else {
-		cmd->port = PORT_OTHER;
+			return PORT_OTHER;
+	} else if (port_type == FW_PORT_TYPE_KR4_100G ||
+		   port_type == FW_PORT_TYPE_KR_SFP28) {
+		return PORT_NONE;
 	}
 
-	if (p->mdio_addr >= 0) {
-		cmd->phy_address = p->mdio_addr;
-		cmd->transceiver = XCVR_EXTERNAL;
-		cmd->mdio_support = p->port_type == FW_PORT_TYPE_BT_SGMII ?
-			MDIO_SUPPORTS_C22 : MDIO_SUPPORTS_C45;
-	} else {
-		cmd->phy_address = 0;  /* not really, but no better option */
-		cmd->transceiver = XCVR_INTERNAL;
-		cmd->mdio_support = 0;
-	}
-
-	cmd->supported = from_fw_linkcaps(p->port_type, p->link_cfg.supported);
-	cmd->advertising = from_fw_linkcaps(p->port_type,
-					    p->link_cfg.advertising);
-	ethtool_cmd_speed_set(cmd,
-			      netif_carrier_ok(dev) ? p->link_cfg.speed : 0);
-	cmd->duplex = DUPLEX_FULL;
-	cmd->autoneg = p->link_cfg.autoneg;
-	cmd->maxtxpkt = 0;
-	cmd->maxrxpkt = 0;
-	return 0;
+	return PORT_OTHER;
 }
 
-static unsigned int speed_to_caps(int speed)
+/**
+ *	speed_to_fw_caps - translate Port Speed to Firmware Port Capabilities
+ *	@speed: speed in Kb/s
+ *
+ *	Translates a specific Port Speed into a Firmware Port Capabilities
+ *	value.
+ */
+static unsigned int speed_to_fw_caps(int speed)
 {
 	if (speed == 100)
 		return FW_PORT_CAP_SPEED_100M;
@@ -604,54 +538,263 @@ static unsigned int speed_to_caps(int speed)
 		return FW_PORT_CAP_SPEED_1G;
 	if (speed == 10000)
 		return FW_PORT_CAP_SPEED_10G;
+	if (speed == 25000)
+		return FW_PORT_CAP_SPEED_25G;
 	if (speed == 40000)
 		return FW_PORT_CAP_SPEED_40G;
+	if (speed == 100000)
+		return FW_PORT_CAP_SPEED_100G;
 	return 0;
 }
 
-static int set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+/**
+ *	fw_caps_to_lmm - translate Firmware to ethtool Link Mode Mask
+ *	@port_type: Firmware Port Type
+ *	@fw_caps: Firmware Port Capabilities
+ *	@link_mode_mask: ethtool Link Mode Mask
+ *
+ *	Translate a Firmware Port Capabilities specification to an ethtool
+ *	Link Mode Mask.
+ */
+static void fw_caps_to_lmm(enum fw_port_type port_type,
+			   unsigned int fw_caps,
+			   unsigned long *link_mode_mask)
 {
-	unsigned int cap;
-	struct port_info *p = netdev_priv(dev);
-	struct link_config *lc = &p->link_cfg;
-	u32 speed = ethtool_cmd_speed(cmd);
-	struct link_config old_lc;
-	int ret;
+	#define SET_LMM(__lmm_name) __set_bit(ETHTOOL_LINK_MODE_ ## __lmm_name \
+					## _BIT, link_mode_mask)
 
-	if (cmd->duplex != DUPLEX_FULL)     /* only full-duplex supported */
+	#define FW_CAPS_TO_LMM(__fw_name, __lmm_name) \
+		do { \
+			if (fw_caps & FW_PORT_CAP_ ## __fw_name) \
+				SET_LMM(__lmm_name); \
+		} while (0)
+
+	switch (port_type) {
+	case FW_PORT_TYPE_BT_SGMII:
+	case FW_PORT_TYPE_BT_XFI:
+	case FW_PORT_TYPE_BT_XAUI:
+		SET_LMM(TP);
+		FW_CAPS_TO_LMM(SPEED_100M, 100baseT_Full);
+		FW_CAPS_TO_LMM(SPEED_1G, 1000baseT_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseT_Full);
+		break;
+
+	case FW_PORT_TYPE_KX4:
+	case FW_PORT_TYPE_KX:
+		SET_LMM(Backplane);
+		FW_CAPS_TO_LMM(SPEED_1G, 1000baseKX_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseKX4_Full);
+		break;
+
+	case FW_PORT_TYPE_KR:
+		SET_LMM(Backplane);
+		SET_LMM(10000baseKR_Full);
+		break;
+
+	case FW_PORT_TYPE_BP_AP:
+		SET_LMM(Backplane);
+		SET_LMM(10000baseR_FEC);
+		SET_LMM(10000baseKR_Full);
+		SET_LMM(1000baseKX_Full);
+		break;
+
+	case FW_PORT_TYPE_BP4_AP:
+		SET_LMM(Backplane);
+		SET_LMM(10000baseR_FEC);
+		SET_LMM(10000baseKR_Full);
+		SET_LMM(1000baseKX_Full);
+		SET_LMM(10000baseKX4_Full);
+		break;
+
+	case FW_PORT_TYPE_FIBER_XFI:
+	case FW_PORT_TYPE_FIBER_XAUI:
+	case FW_PORT_TYPE_SFP:
+	case FW_PORT_TYPE_QSFP_10G:
+	case FW_PORT_TYPE_QSA:
+		SET_LMM(FIBRE);
+		FW_CAPS_TO_LMM(SPEED_1G, 1000baseT_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseT_Full);
+		break;
+
+	case FW_PORT_TYPE_BP40_BA:
+	case FW_PORT_TYPE_QSFP:
+		SET_LMM(FIBRE);
+		SET_LMM(40000baseSR4_Full);
+		break;
+
+	case FW_PORT_TYPE_CR_QSFP:
+	case FW_PORT_TYPE_SFP28:
+		SET_LMM(FIBRE);
+		FW_CAPS_TO_LMM(SPEED_1G, 1000baseT_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseT_Full);
+		FW_CAPS_TO_LMM(SPEED_25G, 25000baseCR_Full);
+		break;
+
+	case FW_PORT_TYPE_KR_SFP28:
+		SET_LMM(Backplane);
+		FW_CAPS_TO_LMM(SPEED_1G, 1000baseT_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseKR_Full);
+		FW_CAPS_TO_LMM(SPEED_25G, 25000baseKR_Full);
+		break;
+
+	case FW_PORT_TYPE_CR2_QSFP:
+		SET_LMM(FIBRE);
+		SET_LMM(50000baseSR2_Full);
+		break;
+
+	case FW_PORT_TYPE_KR4_100G:
+	case FW_PORT_TYPE_CR4_QSFP:
+		SET_LMM(FIBRE);
+		SET_LMM(100000baseCR4_Full);
+		break;
+
+	default:
+		break;
+	}
+
+	FW_CAPS_TO_LMM(ANEG, Autoneg);
+	FW_CAPS_TO_LMM(802_3_PAUSE, Pause);
+	FW_CAPS_TO_LMM(802_3_ASM_DIR, Asym_Pause);
+
+	#undef FW_CAPS_TO_LMM
+	#undef SET_LMM
+}
+
+/**
+ *	lmm_to_fw_caps - translate ethtool Link Mode Mask to Firmware
+ *	capabilities
+ *
+ *	@link_mode_mask: ethtool Link Mode Mask
+ *
+ *	Translate ethtool Link Mode Mask into a Firmware Port capabilities
+ *	value.
+ */
+static unsigned int lmm_to_fw_caps(const unsigned long *link_mode_mask)
+{
+	unsigned int fw_caps = 0;
+
+	#define LMM_TO_FW_CAPS(__lmm_name, __fw_name) \
+		do { \
+			if (test_bit(ETHTOOL_LINK_MODE_ ## __lmm_name ## _BIT, \
+				     link_mode_mask)) \
+				fw_caps |= FW_PORT_CAP_ ## __fw_name; \
+		} while (0)
+
+	LMM_TO_FW_CAPS(100baseT_Full, SPEED_100M);
+	LMM_TO_FW_CAPS(1000baseT_Full, SPEED_1G);
+	LMM_TO_FW_CAPS(10000baseT_Full, SPEED_10G);
+	LMM_TO_FW_CAPS(40000baseSR4_Full, SPEED_40G);
+	LMM_TO_FW_CAPS(25000baseCR_Full, SPEED_25G);
+	LMM_TO_FW_CAPS(100000baseCR4_Full, SPEED_100G);
+
+	#undef LMM_TO_FW_CAPS
+
+	return fw_caps;
+}
+
+static int get_link_ksettings(struct net_device *dev,
+			      struct ethtool_link_ksettings *link_ksettings)
+{
+	struct port_info *pi = netdev_priv(dev);
+	struct ethtool_link_settings *base = &link_ksettings->base;
+
+	ethtool_link_ksettings_zero_link_mode(link_ksettings, supported);
+	ethtool_link_ksettings_zero_link_mode(link_ksettings, advertising);
+	ethtool_link_ksettings_zero_link_mode(link_ksettings, lp_advertising);
+
+	/* For the nonce, the Firmware doesn't send up Port State changes
+	 * when the Virtual Interface attached to the Port is down.  So
+	 * if it's down, let's grab any changes.
+	 */
+	if (!netif_running(dev))
+		(void)t4_update_port_info(pi);
+
+	base->port = from_fw_port_mod_type(pi->port_type, pi->mod_type);
+
+	if (pi->mdio_addr >= 0) {
+		base->phy_address = pi->mdio_addr;
+		base->mdio_support = (pi->port_type == FW_PORT_TYPE_BT_SGMII
+				      ? ETH_MDIO_SUPPORTS_C22
+				      : ETH_MDIO_SUPPORTS_C45);
+	} else {
+		base->phy_address = 255;
+		base->mdio_support = 0;
+	}
+
+	fw_caps_to_lmm(pi->port_type, pi->link_cfg.supported,
+		       link_ksettings->link_modes.supported);
+	fw_caps_to_lmm(pi->port_type, pi->link_cfg.advertising,
+		       link_ksettings->link_modes.advertising);
+	fw_caps_to_lmm(pi->port_type, pi->link_cfg.lp_advertising,
+		       link_ksettings->link_modes.lp_advertising);
+
+	if (netif_carrier_ok(dev)) {
+		base->speed = pi->link_cfg.speed;
+		base->duplex = DUPLEX_FULL;
+	} else {
+		base->speed = SPEED_UNKNOWN;
+		base->duplex = DUPLEX_UNKNOWN;
+	}
+
+	base->autoneg = pi->link_cfg.autoneg;
+	if (pi->link_cfg.supported & FW_PORT_CAP_ANEG)
+		ethtool_link_ksettings_add_link_mode(link_ksettings,
+						     supported, Autoneg);
+	if (pi->link_cfg.autoneg)
+		ethtool_link_ksettings_add_link_mode(link_ksettings,
+						     advertising, Autoneg);
+
+	return 0;
+}
+
+static int set_link_ksettings(struct net_device *dev,
+			      const struct ethtool_link_ksettings
+						*link_ksettings)
+{
+	struct port_info *pi = netdev_priv(dev);
+	struct link_config *lc = &pi->link_cfg;
+	const struct ethtool_link_settings *base = &link_ksettings->base;
+	struct link_config old_lc;
+	unsigned int fw_caps;
+	int ret = 0;
+
+	/* only full-duplex supported */
+	if (base->duplex != DUPLEX_FULL)
 		return -EINVAL;
 
 	if (!(lc->supported & FW_PORT_CAP_ANEG)) {
 		/* PHY offers a single speed.  See if that's what's
 		 * being requested.
 		 */
-		if (cmd->autoneg == AUTONEG_DISABLE &&
-		    (lc->supported & speed_to_caps(speed)))
+		if (base->autoneg == AUTONEG_DISABLE &&
+		    (lc->supported & speed_to_fw_caps(base->speed)))
 			return 0;
 		return -EINVAL;
 	}
 
 	old_lc = *lc;
-	if (cmd->autoneg == AUTONEG_DISABLE) {
-		cap = speed_to_caps(speed);
+	if (base->autoneg == AUTONEG_DISABLE) {
+		fw_caps = speed_to_fw_caps(base->speed);
 
-		if (!(lc->supported & cap))
+		if (!(lc->supported & fw_caps))
 			return -EINVAL;
-		lc->requested_speed = cap;
+		lc->requested_speed = fw_caps;
 		lc->advertising = 0;
 	} else {
-		cap = to_fw_linkcaps(cmd->advertising);
-		if (!(lc->supported & cap))
+		fw_caps =
+			lmm_to_fw_caps(link_ksettings->link_modes.advertising);
+
+		if (!(lc->supported & fw_caps))
 			return -EINVAL;
 		lc->requested_speed = 0;
-		lc->advertising = cap | FW_PORT_CAP_ANEG;
+		lc->advertising = fw_caps | FW_PORT_CAP_ANEG;
 	}
-	lc->autoneg = cmd->autoneg;
+	lc->autoneg = base->autoneg;
 
 	/* If the firmware rejects the Link Configuration request, back out
 	 * the changes and report the error.
 	 */
-	ret = t4_link_l1cfg(p->adapter, p->adapter->mbox, p->tx_chan, lc);
+	ret = t4_link_l1cfg(pi->adapter, pi->adapter->mbox, pi->tx_chan, lc);
 	if (ret)
 		*lc = old_lc;
 
@@ -686,7 +829,7 @@ static int set_pauseparam(struct net_device *dev,
 	if (epause->tx_pause)
 		lc->requested_fc |= PAUSE_TX;
 	if (netif_running(dev))
-		return t4_link_l1cfg(p->adapter, p->adapter->pf, p->tx_chan,
+		return t4_link_l1cfg(p->adapter, p->adapter->mbox, p->tx_chan,
 				     lc);
 	return 0;
 }
@@ -854,7 +997,7 @@ static int get_eeprom(struct net_device *dev, struct ethtool_eeprom *e,
 {
 	int i, err = 0;
 	struct adapter *adapter = netdev2adap(dev);
-	u8 *buf = t4_alloc_mem(EEPROMSIZE);
+	u8 *buf = kvzalloc(EEPROMSIZE, GFP_KERNEL);
 
 	if (!buf)
 		return -ENOMEM;
@@ -865,7 +1008,7 @@ static int get_eeprom(struct net_device *dev, struct ethtool_eeprom *e,
 
 	if (!err)
 		memcpy(data, buf + e->offset, e->len);
-	t4_free_mem(buf);
+	kvfree(buf);
 	return err;
 }
 
@@ -894,7 +1037,7 @@ static int set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	if (aligned_offset != eeprom->offset || aligned_len != eeprom->len) {
 		/* RMW possibly needed for first or last words.
 		 */
-		buf = t4_alloc_mem(aligned_len);
+		buf = kvzalloc(aligned_len, GFP_KERNEL);
 		if (!buf)
 			return -ENOMEM;
 		err = eeprom_rd_phys(adapter, aligned_offset, (u32 *)buf);
@@ -922,7 +1065,7 @@ static int set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 		err = t4_seeprom_wp(adapter, true);
 out:
 	if (buf != data)
-		t4_free_mem(buf);
+		kvfree(buf);
 	return err;
 }
 
@@ -970,14 +1113,31 @@ static int set_flash(struct net_device *netdev, struct ethtool_flash *ef)
 
 static int get_ts_info(struct net_device *dev, struct ethtool_ts_info *ts_info)
 {
+	struct port_info *pi = netdev_priv(dev);
+	struct  adapter *adapter = pi->adapter;
+
 	ts_info->so_timestamping = SOF_TIMESTAMPING_TX_SOFTWARE |
 				   SOF_TIMESTAMPING_RX_SOFTWARE |
 				   SOF_TIMESTAMPING_SOFTWARE;
 
 	ts_info->so_timestamping |= SOF_TIMESTAMPING_RX_HARDWARE |
+				    SOF_TIMESTAMPING_TX_HARDWARE |
 				    SOF_TIMESTAMPING_RAW_HARDWARE;
 
-	ts_info->phc_index = -1;
+	ts_info->tx_types = (1 << HWTSTAMP_TX_OFF) |
+			    (1 << HWTSTAMP_TX_ON);
+
+	ts_info->rx_filters = (1 << HWTSTAMP_FILTER_NONE) |
+			      (1 << HWTSTAMP_FILTER_PTP_V2_L4_EVENT) |
+			      (1 << HWTSTAMP_FILTER_PTP_V1_L4_SYNC) |
+			      (1 << HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ) |
+			      (1 << HWTSTAMP_FILTER_PTP_V2_L4_SYNC) |
+			      (1 << HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ);
+
+	if (adapter->ptp_clock)
+		ts_info->phc_index = ptp_clock_index(adapter->ptp_clock);
+	else
+		ts_info->phc_index = -1;
 
 	return 0;
 }
@@ -1093,8 +1253,8 @@ static int get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 }
 
 static const struct ethtool_ops cxgb_ethtool_ops = {
-	.get_settings      = get_settings,
-	.set_settings      = set_settings,
+	.get_link_ksettings = get_link_ksettings,
+	.set_link_ksettings = set_link_ksettings,
 	.get_drvinfo       = get_drvinfo,
 	.get_msglevel      = get_msglevel,
 	.set_msglevel      = set_msglevel,

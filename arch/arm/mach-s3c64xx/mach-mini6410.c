@@ -41,6 +41,7 @@
 #include <linux/platform_data/mmc-sdhci-s3c.h>
 #include <plat/sdhci.h>
 #include <linux/platform_data/touchscreen-s3c2410.h>
+#include <mach/irqs.h>
 
 #include <video/platform_lcd.h>
 #include <video/samsung_fimd.h>
@@ -141,6 +142,7 @@ static struct s3c2410_platform_nand mini6410_nand_info = {
 	.twrph1		= 40,
 	.nr_sets	= ARRAY_SIZE(mini6410_nand_sets),
 	.sets		= mini6410_nand_sets,
+	.ecc_mode       = NAND_ECC_SOFT,
 };
 
 static struct s3c_fb_pd_win mini6410_lcd_type0_fb_win = {
@@ -233,7 +235,6 @@ static struct platform_device *mini6410_devices[] __initdata = {
 	&s3c_device_fb,
 	&mini6410_lcd_powerdev,
 	&s3c_device_adc,
-	&s3c_device_ts,
 };
 
 static void __init mini6410_map_io(void)
@@ -332,7 +333,7 @@ static void __init mini6410_machine_init(void)
 	s3c_nand_set_platdata(&mini6410_nand_info);
 	s3c_fb_set_platdata(&mini6410_lcd_pdata[features.lcd_index]);
 	s3c_sdhci1_set_platdata(&mini6410_hsmmc1_pdata);
-	s3c24xx_ts_set_platdata(NULL);
+	s3c64xx_ts_set_platdata(NULL);
 
 	/* configure nCS1 width to 16 bits */
 
@@ -363,6 +364,7 @@ static void __init mini6410_machine_init(void)
 MACHINE_START(MINI6410, "MINI6410")
 	/* Maintainer: Darius Augulis <augulis.darius@gmail.com> */
 	.atag_offset	= 0x100,
+	.nr_irqs	= S3C64XX_NR_IRQS,
 	.init_irq	= s3c6410_init_irq,
 	.map_io		= mini6410_map_io,
 	.init_machine	= mini6410_machine_init,

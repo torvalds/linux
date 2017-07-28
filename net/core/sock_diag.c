@@ -19,7 +19,7 @@ static int (*inet_rcv_compat)(struct sk_buff *skb, struct nlmsghdr *nlh);
 static DEFINE_MUTEX(sock_diag_table_mutex);
 static struct workqueue_struct *broadcast_wq;
 
-static u64 sock_gen_cookie(struct sock *sk)
+u64 sock_gen_cookie(struct sock *sk)
 {
 	while (1) {
 		u64 res = atomic64_read(&sk->sk_cookie);
@@ -59,14 +59,7 @@ int sock_diag_put_meminfo(struct sock *sk, struct sk_buff *skb, int attrtype)
 {
 	u32 mem[SK_MEMINFO_VARS];
 
-	mem[SK_MEMINFO_RMEM_ALLOC] = sk_rmem_alloc_get(sk);
-	mem[SK_MEMINFO_RCVBUF] = sk->sk_rcvbuf;
-	mem[SK_MEMINFO_WMEM_ALLOC] = sk_wmem_alloc_get(sk);
-	mem[SK_MEMINFO_SNDBUF] = sk->sk_sndbuf;
-	mem[SK_MEMINFO_FWD_ALLOC] = sk->sk_forward_alloc;
-	mem[SK_MEMINFO_WMEM_QUEUED] = sk->sk_wmem_queued;
-	mem[SK_MEMINFO_OPTMEM] = atomic_read(&sk->sk_omem_alloc);
-	mem[SK_MEMINFO_BACKLOG] = sk->sk_backlog.len;
+	sk_get_meminfo(sk, mem);
 
 	return nla_put(skb, attrtype, sizeof(mem), &mem);
 }
@@ -119,7 +112,7 @@ static size_t sock_diag_nlmsg_size(void)
 {
 	return NLMSG_ALIGN(sizeof(struct inet_diag_msg)
 	       + nla_total_size(sizeof(u8)) /* INET_DIAG_PROTOCOL */
-	       + nla_total_size(sizeof(struct tcp_info))); /* INET_DIAG_INFO */
+	       + nla_total_size_64bit(sizeof(struct tcp_info))); /* INET_DIAG_INFO */
 }
 
 static void sock_diag_broadcast_destroy_work(struct work_struct *work)
@@ -214,7 +207,7 @@ void sock_diag_unregister(const struct sock_diag_handler *hnld)
 }
 EXPORT_SYMBOL_GPL(sock_diag_unregister);
 
-static int __sock_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int __sock_diag_cmd(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	int err;
 	struct sock_diag_req *req = nlmsg_data(nlh);
@@ -234,14 +227,19 @@ static int __sock_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 	hndl = sock_diag_handlers[req->sdiag_family];
 	if (hndl == NULL)
 		err = -ENOENT;
-	else
+	else if (nlh->nlmsg_type == SOCK_DIAG_BY_FAMILY)
 		err = hndl->dump(skb, nlh);
+	else if (nlh->nlmsg_type == SOCK_DESTROY && hndl->destroy)
+		err = hndl->destroy(skb, nlh);
+	else
+		err = -EOPNOTSUPP;
 	mutex_unlock(&sock_diag_table_mutex);
 
 	return err;
 }
 
-static int sock_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
+static int sock_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
+			     struct netlink_ext_ack *extack)
 {
 	int ret;
 
@@ -261,7 +259,8 @@ static int sock_diag_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 		return ret;
 	case SOCK_DIAG_BY_FAMILY:
-		return __sock_diag_rcv_msg(skb, nlh);
+	case SOCK_DESTROY:
+		return __sock_diag_cmd(skb, nlh);
 	default:
 		return -EINVAL;
 	}
@@ -294,6 +293,18 @@ static int sock_diag_bind(struct net *net, int group)
 	}
 	return 0;
 }
+
+int sock_diag_destroy(struct sock *sk, int err)
+{
+	if (!ns_capable(sock_net(sk)->user_ns, CAP_NET_ADMIN))
+		return -EPERM;
+
+	if (!sk->sk_prot->diag_destroy)
+		return -EOPNOTSUPP;
+
+	return sk->sk_prot->diag_destroy(sk, err);
+}
+EXPORT_SYMBOL_GPL(sock_diag_destroy);
 
 static int __net_init diag_net_init(struct net *net)
 {

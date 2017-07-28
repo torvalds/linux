@@ -19,16 +19,6 @@
 		linux,initrd-end   = <0x4800000>;
 	};
 
-	mbus {
-		pcie-controller {
-			status = "okay";
-
-			pcie@1,0 {
-				status = "okay";
-			};
-		};
-	};
-
 	ocp@f1000000 {
 		pinctrl: pin-controller@10000 {
 			pmx_button_reset: pmx-button-reset {
@@ -136,13 +126,13 @@
 		pinctrl-0 = < &pmx_button_reset &pmx_button_otb >;
 		pinctrl-names = "default";
 
-		button@1 {
+		otb {
 			label = "OTB Button";
 			linux,code = <KEY_COPY>;
 			gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
 			debounce-interval = <100>;
 		};
-		button@2 {
+		reset {
 			label = "Reset";
 			linux,code = <KEY_RESTART>;
 			gpios = <&gpio0 12 GPIO_ACTIVE_LOW>;
@@ -193,4 +183,12 @@
 	ethernet0-port@0 {
 		phy-handle = <&ethphy0>;
 	};
+};
+
+&pciec {
+        status = "okay";
+};
+
+&pcie0 {
+	status = "okay";
 };

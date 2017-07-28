@@ -21,10 +21,12 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/string.h>
+#include <linux/fsl/edac.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/memblock.h>
 #include <linux/log2.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/suspend.h>
 #include <linux/syscore_ops.h>
@@ -35,6 +37,7 @@
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
 #include <asm/machdep.h>
+#include <asm/mpc85xx.h>
 #include <asm/disassemble.h>
 #include <asm/ppc-opcode.h>
 #include <sysdev/fsl_soc.h>
@@ -108,8 +111,7 @@ static struct pci_ops fsl_indirect_pcie_ops =
 	.write = indirect_write_config,
 };
 
-#define MAX_PHYS_ADDR_BITS	40
-static u64 pci64_dma_offset = 1ull << MAX_PHYS_ADDR_BITS;
+static u64 pci64_dma_offset;
 
 #ifdef CONFIG_SWIOTLB
 static void setup_swiotlb_ops(struct pci_controller *hose)
@@ -129,12 +131,10 @@ static int fsl_pci_dma_set_mask(struct device *dev, u64 dma_mask)
 		return -EIO;
 
 	/*
-	 * Fixup PCI devices that are able to DMA to above the physical
-	 * address width of the SoC such that we can address any internal
-	 * SoC address from across PCI if needed
+	 * Fix up PCI devices that are able to DMA to the large inbound
+	 * mapping that allows addressing any RAM address from across PCI.
 	 */
-	if ((dev_is_pci(dev)) &&
-	    dma_mask >= DMA_BIT_MASK(MAX_PHYS_ADDR_BITS)) {
+	if (dev_is_pci(dev) && dma_mask >= pci64_dma_offset * 2 - 1) {
 		set_dma_ops(dev, &dma_direct_ops);
 		set_dma_offset(dev, pci64_dma_offset);
 	}
@@ -215,6 +215,19 @@ static void setup_pci_atmu(struct pci_controller *hose)
 	 * hose->dma_window_size still get set.
 	 */
 	setup_inbound = !is_kdump();
+
+	if (of_device_is_compatible(hose->dn, "fsl,bsc9132-pcie")) {
+		/*
+		 * BSC9132 Rev1.0 has an issue where all the PEX inbound
+		 * windows have implemented the default target value as 0xf
+		 * for CCSR space.In all Freescale legacy devices the target
+		 * of 0xf is reserved for local memory space. 9132 Rev1.0
+		 * now has local mempry space mapped to target 0x0 instead of
+		 * 0xf. Hence adding a workaround to remove the target 0xf
+		 * defined for memory space from Inbound window attributes.
+		 */
+		piwar &= ~PIWAR_TGI_LOCAL;
+	}
 
 	if (early_find_capability(hose, 0, 0, PCI_CAP_ID_EXP)) {
 		if (in_be32(&pci->block_rev1) >= PCIE_IP_REV_2_2) {
@@ -371,6 +384,7 @@ static void setup_pci_atmu(struct pci_controller *hose)
 				mem_log++;
 
 			piwar = (piwar & ~PIWAR_SZ_MASK) | (mem_log - 1);
+			pci64_dma_offset = 1ULL << mem_log;
 
 			if (setup_inbound) {
 				/* Setup inbound memory window */
@@ -512,6 +526,8 @@ int fsl_add_bridge(struct platform_device *pdev, int is_primary)
 	u8 hdr_type, progif;
 	struct device_node *dev;
 	struct ccsr_pci __iomem *pci;
+	u16 temp;
+	u32 svr = mfspr(SPRN_SVR);
 
 	dev = pdev->dev.of_node;
 
@@ -560,7 +576,7 @@ int fsl_add_bridge(struct platform_device *pdev, int is_primary)
 	if (early_find_capability(hose, 0, 0, PCI_CAP_ID_EXP)) {
 		/* use fsl_indirect_read_config for PCIe */
 		hose->ops = &fsl_indirect_pcie_ops;
-		/* For PCIE read HEADER_TYPE to identify controler mode */
+		/* For PCIE read HEADER_TYPE to identify controller mode */
 		early_read_config_byte(hose, 0, 0, PCI_HEADER_TYPE, &hdr_type);
 		if ((hdr_type & 0x7f) != PCI_HEADER_TYPE_BRIDGE)
 			goto no_bridge;
@@ -581,6 +597,27 @@ int fsl_add_bridge(struct platform_device *pdev, int is_primary)
 			PPC_INDIRECT_TYPE_SURPRESS_PRIMARY_BUS;
 		if (fsl_pcie_check_link(hose))
 			hose->indirect_type |= PPC_INDIRECT_TYPE_NO_PCIE_LINK;
+	} else {
+		/*
+		 * Set PBFR(PCI Bus Function Register)[10] = 1 to
+		 * disable the combining of crossing cacheline
+		 * boundary requests into one burst transaction.
+		 * PCI-X operation is not affected.
+		 * Fix erratum PCI 5 on MPC8548
+		 */
+#define PCI_BUS_FUNCTION 0x44
+#define PCI_BUS_FUNCTION_MDS 0x400	/* Master disable streaming */
+		if (((SVR_SOC_VER(svr) == SVR_8543) ||
+		     (SVR_SOC_VER(svr) == SVR_8545) ||
+		     (SVR_SOC_VER(svr) == SVR_8547) ||
+		     (SVR_SOC_VER(svr) == SVR_8548)) &&
+		    !early_find_capability(hose, 0, 0, PCI_CAP_ID_PCIX)) {
+			early_read_config_word(hose, 0, 0,
+					PCI_BUS_FUNCTION, &temp);
+			temp |= PCI_BUS_FUNCTION_MDS;
+			early_write_config_word(hose, 0, 0,
+					PCI_BUS_FUNCTION, temp);
+		}
 	}
 
 	printk(KERN_INFO "Found FSL PCI host bridge at 0x%016llx. "
@@ -1255,6 +1292,25 @@ void fsl_pcibios_fixup_phb(struct pci_controller *phb)
 #endif
 }
 
+static int add_err_dev(struct platform_device *pdev)
+{
+	struct platform_device *errdev;
+	struct mpc85xx_edac_pci_plat_data pd = {
+		.of_node = pdev->dev.of_node
+	};
+
+	errdev = platform_device_register_resndata(&pdev->dev,
+						   "mpc85xx-pci-edac",
+						   PLATFORM_DEVID_AUTO,
+						   pdev->resource,
+						   pdev->num_resources,
+						   &pd, sizeof(pd));
+	if (IS_ERR(errdev))
+		return PTR_ERR(errdev);
+
+	return 0;
+}
+
 static int fsl_pci_probe(struct platform_device *pdev)
 {
 	struct device_node *node;
@@ -1262,8 +1318,13 @@ static int fsl_pci_probe(struct platform_device *pdev)
 
 	node = pdev->dev.of_node;
 	ret = fsl_add_bridge(pdev, fsl_pci_primary == node);
+	if (ret)
+		return ret;
 
-	mpc85xx_pci_err_probe(pdev);
+	ret = add_err_dev(pdev);
+	if (ret)
+		dev_err(&pdev->dev, "couldn't register error device: %d\n",
+			ret);
 
 	return 0;
 }

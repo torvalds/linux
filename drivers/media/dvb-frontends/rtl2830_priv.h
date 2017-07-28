@@ -24,16 +24,16 @@
 #include <linux/i2c-mux.h>
 #include <linux/math64.h>
 #include <linux/regmap.h>
+#include <linux/bitops.h>
 
 struct rtl2830_dev {
 	struct rtl2830_platform_data *pdata;
 	struct i2c_client *client;
 	struct regmap *regmap;
-	struct i2c_adapter *adapter;
+	struct i2c_mux_core *muxc;
 	struct dvb_frontend fe;
 	bool sleeping;
 	unsigned long filters;
-	struct delayed_work stat_work;
 	enum fe_status fe_status;
 	u64 post_bit_error_prev; /* for old DVBv3 read_ber() calculation */
 	u64 post_bit_error;

@@ -13,6 +13,7 @@ struct netns_frags {
 	int			timeout;
 	int			high_thresh;
 	int			low_thresh;
+	int			max_dist;
 };
 
 /**
@@ -49,7 +50,7 @@ struct inet_frag_queue {
 	spinlock_t		lock;
 	struct timer_list	timer;
 	struct hlist_node	list;
-	atomic_t		refcnt;
+	refcount_t		refcnt;
 	struct sk_buff		*fragments;
 	struct sk_buff		*fragments_tail;
 	ktime_t			stamp;
@@ -91,7 +92,7 @@ struct inet_frags {
 	 */
 	u32			rnd;
 	seqlock_t		rnd_seqlock;
-	int			qsize;
+	unsigned int		qsize;
 
 	unsigned int		(*hashfn)(const struct inet_frag_queue *);
 	bool			(*match)(const struct inet_frag_queue *q,
@@ -99,7 +100,6 @@ struct inet_frags {
 	void			(*constructor)(struct inet_frag_queue *q,
 					       const void *arg);
 	void			(*destructor)(struct inet_frag_queue *);
-	void			(*skb_free)(struct sk_buff *);
 	void			(*frag_expire)(unsigned long data);
 	struct kmem_cache	*frags_cachep;
 	const char		*frags_cache_name;
@@ -129,7 +129,7 @@ void inet_frag_maybe_warn_overflow(struct inet_frag_queue *q,
 
 static inline void inet_frag_put(struct inet_frag_queue *q, struct inet_frags *f)
 {
-	if (atomic_dec_and_test(&q->refcnt))
+	if (refcount_dec_and_test(&q->refcnt))
 		inet_frag_destroy(q, f);
 }
 
@@ -154,23 +154,17 @@ static inline int frag_mem_limit(struct netns_frags *nf)
 
 static inline void sub_frag_mem_limit(struct netns_frags *nf, int i)
 {
-	__percpu_counter_add(&nf->mem, -i, frag_percpu_counter_batch);
+	percpu_counter_add_batch(&nf->mem, -i, frag_percpu_counter_batch);
 }
 
 static inline void add_frag_mem_limit(struct netns_frags *nf, int i)
 {
-	__percpu_counter_add(&nf->mem, i, frag_percpu_counter_batch);
+	percpu_counter_add_batch(&nf->mem, i, frag_percpu_counter_batch);
 }
 
 static inline unsigned int sum_frag_mem_limit(struct netns_frags *nf)
 {
-	unsigned int res;
-
-	local_bh_disable();
-	res = percpu_counter_sum_positive(&nf->mem);
-	local_bh_enable();
-
-	return res;
+	return percpu_counter_sum_positive(&nf->mem);
 }
 
 /* RFC 3168 support :

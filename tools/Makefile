@@ -8,23 +8,29 @@ include scripts/Makefile.include
 help:
 	@echo 'Possible targets:'
 	@echo ''
-	@echo '  acpi       - ACPI tools'
-	@echo '  cgroup     - cgroup tools'
-	@echo '  cpupower   - a tool for all things x86 CPU power'
-	@echo '  firewire   - the userspace part of nosy, an IEEE-1394 traffic sniffer'
-	@echo '  hv         - tools used when in Hyper-V clients'
-	@echo '  iio        - IIO tools'
-	@echo '  lguest     - a minimal 32-bit x86 hypervisor'
-	@echo '  perf       - Linux performance measurement and analysis tool'
-	@echo '  selftests  - various kernel selftests'
-	@echo '  turbostat  - Intel CPU idle stats and freq reporting tool'
-	@echo '  usb        - USB testing tools'
-	@echo '  virtio     - vhost test module'
-	@echo '  net        - misc networking tools'
-	@echo '  vm         - misc vm tools'
+	@echo '  acpi                   - ACPI tools'
+	@echo '  cgroup                 - cgroup tools'
+	@echo '  cpupower               - a tool for all things x86 CPU power'
+	@echo '  firewire               - the userspace part of nosy, an IEEE-1394 traffic sniffer'
+	@echo '  freefall               - laptop accelerometer program for disk protection'
+	@echo '  gpio                   - GPIO tools'
+	@echo '  hv                     - tools used when in Hyper-V clients'
+	@echo '  iio                    - IIO tools'
+	@echo '  kvm_stat               - top-like utility for displaying kvm statistics'
+	@echo '  leds                   - LEDs  tools'
+	@echo '  lguest                 - a minimal 32-bit x86 hypervisor'
+	@echo '  liblockdep             - user-space wrapper for kernel locking-validator'
+	@echo '  net                    - misc networking tools'
+	@echo '  perf                   - Linux performance measurement and analysis tool'
+	@echo '  selftests              - various kernel selftests'
+	@echo '  spi                    - spi tools'
+	@echo '  objtool                - an ELF object analysis tool'
+	@echo '  tmon                   - thermal monitoring and tuning tool'
+	@echo '  turbostat              - Intel CPU idle stats and freq reporting tool'
+	@echo '  usb                    - USB testing tools'
+	@echo '  virtio                 - vhost test module'
+	@echo '  vm                     - misc vm tools'
 	@echo '  x86_energy_perf_policy - Intel energy policy tool'
-	@echo '  tmon       - thermal monitoring and tuning tool'
-	@echo '  freefall   - laptop accelerometer program for disk protection'
 	@echo ''
 	@echo 'You can do:'
 	@echo ' $$ make -C tools/ <tool>_install'
@@ -52,7 +58,7 @@ acpi: FORCE
 cpupower: FORCE
 	$(call descend,power/$@)
 
-cgroup firewire hv guest usb virtio vm net iio: FORCE
+cgroup firewire hv guest spi usb virtio vm net iio gpio objtool leds: FORCE
 	$(call descend,$@)
 
 liblockdep: FORCE
@@ -81,10 +87,13 @@ tmon: FORCE
 freefall: FORCE
 	$(call descend,laptop/$@)
 
-all: acpi cgroup cpupower hv firewire lguest \
+kvm_stat: FORCE
+	$(call descend,kvm/$@)
+
+all: acpi cgroup cpupower gpio hv firewire lguest liblockdep \
 		perf selftests turbostat usb \
 		virtio vm net x86_energy_perf_policy \
-		tmon freefall
+		tmon freefall objtool kvm_stat
 
 acpi_install:
 	$(call descend,power/$(@:_install=),install)
@@ -92,11 +101,14 @@ acpi_install:
 cpupower_install:
 	$(call descend,power/$(@:_install=),install)
 
-cgroup_install firewire_install hv_install lguest_install perf_install usb_install virtio_install vm_install net_install:
+cgroup_install firewire_install gpio_install hv_install lguest_install perf_install usb_install virtio_install vm_install net_install objtool_install:
 	$(call descend,$(@:_install=),install)
 
+liblockdep_install:
+	$(call descend,lib/lockdep,install)
+
 selftests_install:
-	$(call descend,testing/$(@:_clean=),install)
+	$(call descend,testing/$(@:_install=),install)
 
 turbostat_install x86_energy_perf_policy_install:
 	$(call descend,power/x86/$(@:_install=),install)
@@ -107,10 +119,14 @@ tmon_install:
 freefall_install:
 	$(call descend,laptop/$(@:_install=),install)
 
-install: acpi_install cgroup_install cpupower_install hv_install firewire_install lguest_install \
+kvm_stat_install:
+	$(call descend,kvm/$(@:_install=),install)
+
+install: acpi_install cgroup_install cpupower_install gpio_install \
+		hv_install firewire_install lguest_install liblockdep_install \
 		perf_install selftests_install turbostat_install usb_install \
 		virtio_install vm_install net_install x86_energy_perf_policy_install \
-		tmon_install freefall_install
+		tmon_install freefall_install objtool_install kvm_stat_install
 
 acpi_clean:
 	$(call descend,power/acpi,clean)
@@ -118,7 +134,7 @@ acpi_clean:
 cpupower_clean:
 	$(call descend,power/cpupower,clean)
 
-cgroup_clean hv_clean firewire_clean lguest_clean usb_clean virtio_clean vm_clean net_clean iio_clean:
+cgroup_clean hv_clean firewire_clean lguest_clean spi_clean usb_clean virtio_clean vm_clean net_clean iio_clean gpio_clean objtool_clean leds_clean:
 	$(call descend,$(@:_clean=),clean)
 
 liblockdep_clean:
@@ -127,8 +143,15 @@ liblockdep_clean:
 libapi_clean:
 	$(call descend,lib/api,clean)
 
+libbpf_clean:
+	$(call descend,lib/bpf,clean)
+
+libsubcmd_clean:
+	$(call descend,lib/subcmd,clean)
+
 perf_clean:
-	$(call descend,$(@:_clean=),clean)
+	$(Q)mkdir -p $(PERF_O) .
+	$(Q)$(MAKE) --no-print-directory -C perf O=$(PERF_O) subdir= clean
 
 selftests_clean:
 	$(call descend,testing/$(@:_clean=),clean)
@@ -142,9 +165,13 @@ tmon_clean:
 freefall_clean:
 	$(call descend,laptop/freefall,clean)
 
+build_clean:
+	$(call descend,build,clean)
+
 clean: acpi_clean cgroup_clean cpupower_clean hv_clean firewire_clean lguest_clean \
-		perf_clean selftests_clean turbostat_clean usb_clean virtio_clean \
+		perf_clean selftests_clean turbostat_clean spi_clean usb_clean virtio_clean \
 		vm_clean net_clean iio_clean x86_energy_perf_policy_clean tmon_clean \
-		freefall_clean
+		freefall_clean build_clean libbpf_clean libsubcmd_clean liblockdep_clean \
+		gpio_clean objtool_clean leds_clean
 
 .PHONY: FORCE

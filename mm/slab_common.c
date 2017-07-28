@@ -30,24 +30,29 @@ LIST_HEAD(slab_caches);
 DEFINE_MUTEX(slab_mutex);
 struct kmem_cache *kmem_cache;
 
+static LIST_HEAD(slab_caches_to_rcu_destroy);
+static void slab_caches_to_rcu_destroy_workfn(struct work_struct *work);
+static DECLARE_WORK(slab_caches_to_rcu_destroy_work,
+		    slab_caches_to_rcu_destroy_workfn);
+
 /*
  * Set of flags that will prevent slab merging
  */
 #define SLAB_NEVER_MERGE (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER | \
-		SLAB_TRACE | SLAB_DESTROY_BY_RCU | SLAB_NOLEAKTRACE | \
-		SLAB_FAILSLAB)
+		SLAB_TRACE | SLAB_TYPESAFE_BY_RCU | SLAB_NOLEAKTRACE | \
+		SLAB_FAILSLAB | SLAB_KASAN)
 
-#define SLAB_MERGE_SAME (SLAB_RECLAIM_ACCOUNT | SLAB_CACHE_DMA | SLAB_NOTRACK)
+#define SLAB_MERGE_SAME (SLAB_RECLAIM_ACCOUNT | SLAB_CACHE_DMA | \
+			 SLAB_NOTRACK | SLAB_ACCOUNT)
 
 /*
  * Merge control. If this is set then no merging of slab caches will occur.
- * (Could be removed. This was introduced to pacify the merge skeptics.)
  */
-static int slab_nomerge;
+static bool slab_nomerge = !IS_ENABLED(CONFIG_SLAB_MERGE_DEFAULT);
 
 static int __init setup_slab_nomerge(char *str)
 {
-	slab_nomerge = 1;
+	slab_nomerge = true;
 	return 1;
 }
 
@@ -108,8 +113,12 @@ void __kmem_cache_free_bulk(struct kmem_cache *s, size_t nr, void **p)
 {
 	size_t i;
 
-	for (i = 0; i < nr; i++)
-		kmem_cache_free(s, p[i]);
+	for (i = 0; i < nr; i++) {
+		if (s)
+			kmem_cache_free(s, p[i]);
+		else
+			kfree(p[i]);
+	}
 }
 
 int __kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t nr,
@@ -127,12 +136,15 @@ int __kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t nr,
 	return i;
 }
 
-#ifdef CONFIG_MEMCG_KMEM
+#if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
+
+LIST_HEAD(slab_root_caches);
+
 void slab_init_memcg_params(struct kmem_cache *s)
 {
-	s->memcg_params.is_root_cache = true;
-	INIT_LIST_HEAD(&s->memcg_params.list);
+	s->memcg_params.root_cache = NULL;
 	RCU_INIT_POINTER(s->memcg_params.memcg_caches, NULL);
+	INIT_LIST_HEAD(&s->memcg_params.children);
 }
 
 static int init_memcg_params(struct kmem_cache *s,
@@ -140,10 +152,11 @@ static int init_memcg_params(struct kmem_cache *s,
 {
 	struct memcg_cache_array *arr;
 
-	if (memcg) {
-		s->memcg_params.is_root_cache = false;
-		s->memcg_params.memcg = memcg;
+	if (root_cache) {
 		s->memcg_params.root_cache = root_cache;
+		s->memcg_params.memcg = memcg;
+		INIT_LIST_HEAD(&s->memcg_params.children_node);
+		INIT_LIST_HEAD(&s->memcg_params.kmem_caches_node);
 		return 0;
 	}
 
@@ -172,9 +185,6 @@ static int update_memcg_params(struct kmem_cache *s, int new_array_size)
 {
 	struct memcg_cache_array *old, *new;
 
-	if (!is_root_cache(s))
-		return 0;
-
 	new = kzalloc(sizeof(struct memcg_cache_array) +
 		      new_array_size * sizeof(void *), GFP_KERNEL);
 	if (!new)
@@ -198,7 +208,7 @@ int memcg_update_all_caches(int num_memcgs)
 	int ret = 0;
 
 	mutex_lock(&slab_mutex);
-	list_for_each_entry(s, &slab_caches, list) {
+	list_for_each_entry(s, &slab_root_caches, root_caches_node) {
 		ret = update_memcg_params(s, num_memcgs);
 		/*
 		 * Instead of freeing the memory, we'll just leave the caches
@@ -210,6 +220,28 @@ int memcg_update_all_caches(int num_memcgs)
 	mutex_unlock(&slab_mutex);
 	return ret;
 }
+
+void memcg_link_cache(struct kmem_cache *s)
+{
+	if (is_root_cache(s)) {
+		list_add(&s->root_caches_node, &slab_root_caches);
+	} else {
+		list_add(&s->memcg_params.children_node,
+			 &s->memcg_params.root_cache->memcg_params.children);
+		list_add(&s->memcg_params.kmem_caches_node,
+			 &s->memcg_params.memcg->kmem_caches);
+	}
+}
+
+static void memcg_unlink_cache(struct kmem_cache *s)
+{
+	if (is_root_cache(s)) {
+		list_del(&s->root_caches_node);
+	} else {
+		list_del(&s->memcg_params.children_node);
+		list_del(&s->memcg_params.kmem_caches_node);
+	}
+}
 #else
 static inline int init_memcg_params(struct kmem_cache *s,
 		struct mem_cgroup *memcg, struct kmem_cache *root_cache)
@@ -220,7 +252,11 @@ static inline int init_memcg_params(struct kmem_cache *s,
 static inline void destroy_memcg_params(struct kmem_cache *s)
 {
 }
-#endif /* CONFIG_MEMCG_KMEM */
+
+static inline void memcg_unlink_cache(struct kmem_cache *s)
+{
+}
+#endif /* CONFIG_MEMCG && !CONFIG_SLOB */
 
 /*
  * Find a mergeable slab cache
@@ -250,7 +286,7 @@ struct kmem_cache *find_mergeable(size_t size, size_t align,
 {
 	struct kmem_cache *s;
 
-	if (slab_nomerge || (flags & SLAB_NEVER_MERGE))
+	if (slab_nomerge)
 		return NULL;
 
 	if (ctor)
@@ -261,7 +297,10 @@ struct kmem_cache *find_mergeable(size_t size, size_t align,
 	size = ALIGN(size, align);
 	flags = kmem_cache_flags(size, flags, name, NULL);
 
-	list_for_each_entry_reverse(s, &slab_caches, list) {
+	if (flags & SLAB_NEVER_MERGE)
+		return NULL;
+
+	list_for_each_entry_reverse(s, &slab_root_caches, root_caches_node) {
 		if (slab_unmergeable(s))
 			continue;
 
@@ -345,6 +384,7 @@ static struct kmem_cache *create_cache(const char *name,
 
 	s->refcount = 1;
 	list_add(&s->list, &slab_caches);
+	memcg_link_cache(s);
 out:
 	if (err)
 		return ERR_PTR(err);
@@ -399,6 +439,12 @@ kmem_cache_create(const char *name, size_t size, size_t align,
 		goto out_unlock;
 	}
 
+	/* Refuse requests with allocator specific flags */
+	if (flags & ~SLAB_FLAGS_PERMITTED) {
+		err = -EINVAL;
+		goto out_unlock;
+	}
+
 	/*
 	 * Some allocators will constraint the set of valid flags to a subset
 	 * of all flags. We expect them to define CACHE_CREATE_MASK in this
@@ -437,7 +483,7 @@ out_unlock:
 			panic("kmem_cache_create: Failed to create slab '%s'. Error %d\n",
 				name, err);
 		else {
-			printk(KERN_WARNING "kmem_cache_create(%s) failed with error %d",
+			pr_warn("kmem_cache_create(%s) failed with error %d\n",
 				name, err);
 			dump_stack();
 		}
@@ -447,36 +493,64 @@ out_unlock:
 }
 EXPORT_SYMBOL(kmem_cache_create);
 
-static int shutdown_cache(struct kmem_cache *s,
-		struct list_head *release, bool *need_rcu_barrier)
+static void slab_caches_to_rcu_destroy_workfn(struct work_struct *work)
 {
-	if (__kmem_cache_shutdown(s) != 0)
-		return -EBUSY;
-
-	if (s->flags & SLAB_DESTROY_BY_RCU)
-		*need_rcu_barrier = true;
-
-	list_move(&s->list, release);
-	return 0;
-}
-
-static void release_caches(struct list_head *release, bool need_rcu_barrier)
-{
+	LIST_HEAD(to_destroy);
 	struct kmem_cache *s, *s2;
 
-	if (need_rcu_barrier)
-		rcu_barrier();
+	/*
+	 * On destruction, SLAB_TYPESAFE_BY_RCU kmem_caches are put on the
+	 * @slab_caches_to_rcu_destroy list.  The slab pages are freed
+	 * through RCU and and the associated kmem_cache are dereferenced
+	 * while freeing the pages, so the kmem_caches should be freed only
+	 * after the pending RCU operations are finished.  As rcu_barrier()
+	 * is a pretty slow operation, we batch all pending destructions
+	 * asynchronously.
+	 */
+	mutex_lock(&slab_mutex);
+	list_splice_init(&slab_caches_to_rcu_destroy, &to_destroy);
+	mutex_unlock(&slab_mutex);
 
-	list_for_each_entry_safe(s, s2, release, list) {
+	if (list_empty(&to_destroy))
+		return;
+
+	rcu_barrier();
+
+	list_for_each_entry_safe(s, s2, &to_destroy, list) {
 #ifdef SLAB_SUPPORTS_SYSFS
-		sysfs_slab_remove(s);
+		sysfs_slab_release(s);
 #else
 		slab_kmem_cache_release(s);
 #endif
 	}
 }
 
-#ifdef CONFIG_MEMCG_KMEM
+static int shutdown_cache(struct kmem_cache *s)
+{
+	/* free asan quarantined objects */
+	kasan_cache_shutdown(s);
+
+	if (__kmem_cache_shutdown(s) != 0)
+		return -EBUSY;
+
+	memcg_unlink_cache(s);
+	list_del(&s->list);
+
+	if (s->flags & SLAB_TYPESAFE_BY_RCU) {
+		list_add_tail(&s->list, &slab_caches_to_rcu_destroy);
+		schedule_work(&slab_caches_to_rcu_destroy_work);
+	} else {
+#ifdef SLAB_SUPPORTS_SYSFS
+		sysfs_slab_release(s);
+#else
+		slab_kmem_cache_release(s);
+#endif
+	}
+
+	return 0;
+}
+
+#if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
 /*
  * memcg_create_kmem_cache - Create a cache for a memory cgroup.
  * @memcg: The memory cgroup the new cache is for.
@@ -502,10 +576,10 @@ void memcg_create_kmem_cache(struct mem_cgroup *memcg,
 	mutex_lock(&slab_mutex);
 
 	/*
-	 * The memory cgroup could have been deactivated while the cache
+	 * The memory cgroup could have been offlined while the cache
 	 * creation work was pending.
 	 */
-	if (!memcg_kmem_is_active(memcg))
+	if (memcg->kmem_state != KMEM_ONLINE)
 		goto out_unlock;
 
 	idx = memcg_cache_id(memcg);
@@ -521,15 +595,15 @@ void memcg_create_kmem_cache(struct mem_cgroup *memcg,
 		goto out_unlock;
 
 	cgroup_name(css->cgroup, memcg_name_buf, sizeof(memcg_name_buf));
-	cache_name = kasprintf(GFP_KERNEL, "%s(%d:%s)", root_cache->name,
-			       css->id, memcg_name_buf);
+	cache_name = kasprintf(GFP_KERNEL, "%s(%llu:%s)", root_cache->name,
+			       css->serial_nr, memcg_name_buf);
 	if (!cache_name)
 		goto out_unlock;
 
 	s = create_cache(cache_name, root_cache->object_size,
 			 root_cache->size, root_cache->align,
-			 root_cache->flags, root_cache->ctor,
-			 memcg, root_cache);
+			 root_cache->flags & CACHE_CREATE_MASK,
+			 root_cache->ctor, memcg, root_cache);
 	/*
 	 * If we could not create a memcg cache, do not complain, because
 	 * that's not critical at all as we can always proceed with the root
@@ -539,8 +613,6 @@ void memcg_create_kmem_cache(struct mem_cgroup *memcg,
 		kfree(cache_name);
 		goto out_unlock;
 	}
-
-	list_add(&s->memcg_params.list, &root_cache->memcg_params.list);
 
 	/*
 	 * Since readers won't lock (see cache_from_memcg_idx()), we need a
@@ -557,6 +629,66 @@ out_unlock:
 	put_online_cpus();
 }
 
+static void kmemcg_deactivate_workfn(struct work_struct *work)
+{
+	struct kmem_cache *s = container_of(work, struct kmem_cache,
+					    memcg_params.deact_work);
+
+	get_online_cpus();
+	get_online_mems();
+
+	mutex_lock(&slab_mutex);
+
+	s->memcg_params.deact_fn(s);
+
+	mutex_unlock(&slab_mutex);
+
+	put_online_mems();
+	put_online_cpus();
+
+	/* done, put the ref from slab_deactivate_memcg_cache_rcu_sched() */
+	css_put(&s->memcg_params.memcg->css);
+}
+
+static void kmemcg_deactivate_rcufn(struct rcu_head *head)
+{
+	struct kmem_cache *s = container_of(head, struct kmem_cache,
+					    memcg_params.deact_rcu_head);
+
+	/*
+	 * We need to grab blocking locks.  Bounce to ->deact_work.  The
+	 * work item shares the space with the RCU head and can't be
+	 * initialized eariler.
+	 */
+	INIT_WORK(&s->memcg_params.deact_work, kmemcg_deactivate_workfn);
+	queue_work(memcg_kmem_cache_wq, &s->memcg_params.deact_work);
+}
+
+/**
+ * slab_deactivate_memcg_cache_rcu_sched - schedule deactivation after a
+ *					   sched RCU grace period
+ * @s: target kmem_cache
+ * @deact_fn: deactivation function to call
+ *
+ * Schedule @deact_fn to be invoked with online cpus, mems and slab_mutex
+ * held after a sched RCU grace period.  The slab is guaranteed to stay
+ * alive until @deact_fn is finished.  This is to be used from
+ * __kmemcg_cache_deactivate().
+ */
+void slab_deactivate_memcg_cache_rcu_sched(struct kmem_cache *s,
+					   void (*deact_fn)(struct kmem_cache *))
+{
+	if (WARN_ON_ONCE(is_root_cache(s)) ||
+	    WARN_ON_ONCE(s->memcg_params.deact_fn))
+		return;
+
+	/* pin memcg so that @s doesn't get destroyed in the middle */
+	css_get(&s->memcg_params.memcg->css);
+
+	s->memcg_params.deact_fn = deact_fn;
+	call_rcu_sched(&s->memcg_params.deact_rcu_head, kmemcg_deactivate_rcufn);
+}
+
 void memcg_deactivate_kmem_caches(struct mem_cgroup *memcg)
 {
 	int idx;
@@ -569,17 +701,14 @@ void memcg_deactivate_kmem_caches(struct mem_cgroup *memcg)
 	get_online_mems();
 
 	mutex_lock(&slab_mutex);
-	list_for_each_entry(s, &slab_caches, list) {
-		if (!is_root_cache(s))
-			continue;
-
+	list_for_each_entry(s, &slab_root_caches, root_caches_node) {
 		arr = rcu_dereference_protected(s->memcg_params.memcg_caches,
 						lockdep_is_held(&slab_mutex));
 		c = arr->entries[idx];
 		if (!c)
 			continue;
 
-		__kmem_cache_shrink(c, true);
+		__kmemcg_cache_deactivate(c);
 		arr->entries[idx] = NULL;
 	}
 	mutex_unlock(&slab_mutex);
@@ -588,47 +717,29 @@ void memcg_deactivate_kmem_caches(struct mem_cgroup *memcg)
 	put_online_cpus();
 }
 
-static int __shutdown_memcg_cache(struct kmem_cache *s,
-		struct list_head *release, bool *need_rcu_barrier)
-{
-	BUG_ON(is_root_cache(s));
-
-	if (shutdown_cache(s, release, need_rcu_barrier))
-		return -EBUSY;
-
-	list_del(&s->memcg_params.list);
-	return 0;
-}
-
 void memcg_destroy_kmem_caches(struct mem_cgroup *memcg)
 {
-	LIST_HEAD(release);
-	bool need_rcu_barrier = false;
 	struct kmem_cache *s, *s2;
 
 	get_online_cpus();
 	get_online_mems();
 
 	mutex_lock(&slab_mutex);
-	list_for_each_entry_safe(s, s2, &slab_caches, list) {
-		if (is_root_cache(s) || s->memcg_params.memcg != memcg)
-			continue;
+	list_for_each_entry_safe(s, s2, &memcg->kmem_caches,
+				 memcg_params.kmem_caches_node) {
 		/*
 		 * The cgroup is about to be freed and therefore has no charges
 		 * left. Hence, all its caches must be empty by now.
 		 */
-		BUG_ON(__shutdown_memcg_cache(s, &release, &need_rcu_barrier));
+		BUG_ON(shutdown_cache(s));
 	}
 	mutex_unlock(&slab_mutex);
 
 	put_online_mems();
 	put_online_cpus();
-
-	release_caches(&release, need_rcu_barrier);
 }
 
-static int shutdown_memcg_caches(struct kmem_cache *s,
-		struct list_head *release, bool *need_rcu_barrier)
+static int shutdown_memcg_caches(struct kmem_cache *s)
 {
 	struct memcg_cache_array *arr;
 	struct kmem_cache *c, *c2;
@@ -647,13 +758,13 @@ static int shutdown_memcg_caches(struct kmem_cache *s,
 		c = arr->entries[i];
 		if (!c)
 			continue;
-		if (__shutdown_memcg_cache(c, release, need_rcu_barrier))
+		if (shutdown_cache(c))
 			/*
 			 * The cache still has objects. Move it to a temporary
 			 * list so as not to try to destroy it for a second
 			 * time while iterating over inactive caches below.
 			 */
-			list_move(&c->memcg_params.list, &busy);
+			list_move(&c->memcg_params.children_node, &busy);
 		else
 			/*
 			 * The cache is empty and will be destroyed soon. Clear
@@ -668,30 +779,30 @@ static int shutdown_memcg_caches(struct kmem_cache *s,
 	 * Second, shutdown all caches left from memory cgroups that are now
 	 * offline.
 	 */
-	list_for_each_entry_safe(c, c2, &s->memcg_params.list,
-				 memcg_params.list)
-		__shutdown_memcg_cache(c, release, need_rcu_barrier);
+	list_for_each_entry_safe(c, c2, &s->memcg_params.children,
+				 memcg_params.children_node)
+		shutdown_cache(c);
 
-	list_splice(&busy, &s->memcg_params.list);
+	list_splice(&busy, &s->memcg_params.children);
 
 	/*
 	 * A cache being destroyed must be empty. In particular, this means
 	 * that all per memcg caches attached to it must be empty too.
 	 */
-	if (!list_empty(&s->memcg_params.list))
+	if (!list_empty(&s->memcg_params.children))
 		return -EBUSY;
 	return 0;
 }
 #else
-static inline int shutdown_memcg_caches(struct kmem_cache *s,
-		struct list_head *release, bool *need_rcu_barrier)
+static inline int shutdown_memcg_caches(struct kmem_cache *s)
 {
 	return 0;
 }
-#endif /* CONFIG_MEMCG_KMEM */
+#endif /* CONFIG_MEMCG && !CONFIG_SLOB */
 
 void slab_kmem_cache_release(struct kmem_cache *s)
 {
+	__kmem_cache_release(s);
 	destroy_memcg_params(s);
 	kfree_const(s->name);
 	kmem_cache_free(kmem_cache, s);
@@ -699,8 +810,6 @@ void slab_kmem_cache_release(struct kmem_cache *s)
 
 void kmem_cache_destroy(struct kmem_cache *s)
 {
-	LIST_HEAD(release);
-	bool need_rcu_barrier = false;
 	int err;
 
 	if (unlikely(!s))
@@ -715,13 +824,13 @@ void kmem_cache_destroy(struct kmem_cache *s)
 	if (s->refcount)
 		goto out_unlock;
 
-	err = shutdown_memcg_caches(s, &release, &need_rcu_barrier);
+	err = shutdown_memcg_caches(s);
 	if (!err)
-		err = shutdown_cache(s, &release, &need_rcu_barrier);
+		err = shutdown_cache(s);
 
 	if (err) {
-		pr_err("kmem_cache_destroy %s: "
-		       "Slab cache still has objects\n", s->name);
+		pr_err("kmem_cache_destroy %s: Slab cache still has objects\n",
+		       s->name);
 		dump_stack();
 	}
 out_unlock:
@@ -729,8 +838,6 @@ out_unlock:
 
 	put_online_mems();
 	put_online_cpus();
-
-	release_caches(&release, need_rcu_barrier);
 }
 EXPORT_SYMBOL(kmem_cache_destroy);
 
@@ -747,7 +854,8 @@ int kmem_cache_shrink(struct kmem_cache *cachep)
 
 	get_online_cpus();
 	get_online_mems();
-	ret = __kmem_cache_shrink(cachep, false);
+	kasan_cache_shrink(cachep);
+	ret = __kmem_cache_shrink(cachep);
 	put_online_mems();
 	put_online_cpus();
 	return ret;
@@ -791,6 +899,7 @@ struct kmem_cache *__init create_kmalloc_cache(const char *name, size_t size,
 
 	create_boot_cache(s, name, size, flags);
 	list_add(&s->list, &slab_caches);
+	memcg_link_cache(s);
 	s->refcount = 1;
 	return s;
 }
@@ -875,10 +984,7 @@ struct kmem_cache *kmalloc_slab(size_t size, gfp_t flags)
  * kmalloc_index() supports up to 2^26=64MB, so the final entry of the table is
  * kmalloc-67108864.
  */
-static struct {
-	const char *name;
-	unsigned long size;
-} const kmalloc_info[] __initconst = {
+const struct kmalloc_info_struct kmalloc_info[] __initconst = {
 	{NULL,                      0},		{"kmalloc-96",             96},
 	{"kmalloc-192",           192},		{"kmalloc-8",               8},
 	{"kmalloc-16",             16},		{"kmalloc-32",             32},
@@ -1004,10 +1110,10 @@ void *kmalloc_order(size_t size, gfp_t flags, unsigned int order)
 	struct page *page;
 
 	flags |= __GFP_COMP;
-	page = alloc_kmem_pages(flags, order);
+	page = alloc_pages(flags, order);
 	ret = page ? page_address(page) : NULL;
 	kmemleak_alloc(ret, size, 1, flags);
-	kasan_kmalloc_large(ret, size);
+	kasan_kmalloc_large(ret, size, flags);
 	return ret;
 }
 EXPORT_SYMBOL(kmalloc_order);
@@ -1021,6 +1127,53 @@ void *kmalloc_order_trace(size_t size, gfp_t flags, unsigned int order)
 }
 EXPORT_SYMBOL(kmalloc_order_trace);
 #endif
+
+#ifdef CONFIG_SLAB_FREELIST_RANDOM
+/* Randomize a generic freelist */
+static void freelist_randomize(struct rnd_state *state, unsigned int *list,
+			size_t count)
+{
+	size_t i;
+	unsigned int rand;
+
+	for (i = 0; i < count; i++)
+		list[i] = i;
+
+	/* Fisher-Yates shuffle */
+	for (i = count - 1; i > 0; i--) {
+		rand = prandom_u32_state(state);
+		rand %= (i + 1);
+		swap(list[i], list[rand]);
+	}
+}
+
+/* Create a random sequence per cache */
+int cache_random_seq_create(struct kmem_cache *cachep, unsigned int count,
+				    gfp_t gfp)
+{
+	struct rnd_state state;
+
+	if (count < 2 || cachep->random_seq)
+		return 0;
+
+	cachep->random_seq = kcalloc(count, sizeof(unsigned int), gfp);
+	if (!cachep->random_seq)
+		return -ENOMEM;
+
+	/* Get best entropy at this stage of boot */
+	prandom_seed_state(&state, get_random_long());
+
+	freelist_randomize(&state, cachep->random_seq, count);
+	return 0;
+}
+
+/* Destroy the per-cache random freelist sequence */
+void cache_random_seq_destroy(struct kmem_cache *cachep)
+{
+	kfree(cachep->random_seq);
+	cachep->random_seq = NULL;
+}
+#endif /* CONFIG_SLAB_FREELIST_RANDOM */
 
 #ifdef CONFIG_SLABINFO
 
@@ -1041,13 +1194,11 @@ static void print_slabinfo_header(struct seq_file *m)
 #else
 	seq_puts(m, "slabinfo - version: 2.1\n");
 #endif
-	seq_puts(m, "# name            <active_objs> <num_objs> <objsize> "
-		 "<objperslab> <pagesperslab>");
+	seq_puts(m, "# name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab>");
 	seq_puts(m, " : tunables <limit> <batchcount> <sharedfactor>");
 	seq_puts(m, " : slabdata <active_slabs> <num_slabs> <sharedavail>");
 #ifdef CONFIG_DEBUG_SLAB
-	seq_puts(m, " : globalstat <listallocs> <maxobjs> <grown> <reaped> "
-		 "<error> <maxfreeable> <nodeallocs> <remotefrees> <alienoverflow>");
+	seq_puts(m, " : globalstat <listallocs> <maxobjs> <grown> <reaped> <error> <maxfreeable> <nodeallocs> <remotefrees> <alienoverflow>");
 	seq_puts(m, " : cpustat <allochit> <allocmiss> <freehit> <freemiss>");
 #endif
 	seq_putc(m, '\n');
@@ -1056,12 +1207,12 @@ static void print_slabinfo_header(struct seq_file *m)
 void *slab_start(struct seq_file *m, loff_t *pos)
 {
 	mutex_lock(&slab_mutex);
-	return seq_list_start(&slab_caches, *pos);
+	return seq_list_start(&slab_root_caches, *pos);
 }
 
 void *slab_next(struct seq_file *m, void *p, loff_t *pos)
 {
-	return seq_list_next(p, &slab_caches, pos);
+	return seq_list_next(p, &slab_root_caches, pos);
 }
 
 void slab_stop(struct seq_file *m, void *p)
@@ -1113,25 +1264,44 @@ static void cache_show(struct kmem_cache *s, struct seq_file *m)
 
 static int slab_show(struct seq_file *m, void *p)
 {
-	struct kmem_cache *s = list_entry(p, struct kmem_cache, list);
+	struct kmem_cache *s = list_entry(p, struct kmem_cache, root_caches_node);
 
-	if (p == slab_caches.next)
+	if (p == slab_root_caches.next)
 		print_slabinfo_header(m);
-	if (is_root_cache(s))
-		cache_show(s, m);
+	cache_show(s, m);
 	return 0;
 }
 
-#ifdef CONFIG_MEMCG_KMEM
-int memcg_slab_show(struct seq_file *m, void *p)
+#if defined(CONFIG_MEMCG) && !defined(CONFIG_SLOB)
+void *memcg_slab_start(struct seq_file *m, loff_t *pos)
 {
-	struct kmem_cache *s = list_entry(p, struct kmem_cache, list);
 	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
 
-	if (p == slab_caches.next)
+	mutex_lock(&slab_mutex);
+	return seq_list_start(&memcg->kmem_caches, *pos);
+}
+
+void *memcg_slab_next(struct seq_file *m, void *p, loff_t *pos)
+{
+	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+
+	return seq_list_next(p, &memcg->kmem_caches, pos);
+}
+
+void memcg_slab_stop(struct seq_file *m, void *p)
+{
+	mutex_unlock(&slab_mutex);
+}
+
+int memcg_slab_show(struct seq_file *m, void *p)
+{
+	struct kmem_cache *s = list_entry(p, struct kmem_cache,
+					  memcg_params.kmem_caches_node);
+	struct mem_cgroup *memcg = mem_cgroup_from_css(seq_css(m));
+
+	if (p == memcg->kmem_caches.next)
 		print_slabinfo_header(m);
-	if (!is_root_cache(s) && s->memcg_params.memcg == memcg)
-		cache_show(s, m);
+	cache_show(s, m);
 	return 0;
 }
 #endif
@@ -1188,7 +1358,7 @@ static __always_inline void *__do_krealloc(const void *p, size_t new_size,
 		ks = ksize(p);
 
 	if (ks >= new_size) {
-		kasan_krealloc((void *)p, new_size);
+		kasan_krealloc((void *)p, new_size, flags);
 		return (void *)p;
 	}
 

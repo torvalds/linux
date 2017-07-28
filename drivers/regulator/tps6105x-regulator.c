@@ -27,90 +27,12 @@ static const unsigned int tps6105x_voltages[] = {
 	5000000, /* There is an additional 5V */
 };
 
-static int tps6105x_regulator_enable(struct regulator_dev *rdev)
-{
-	struct tps6105x *tps6105x = rdev_get_drvdata(rdev);
-	int ret;
-
-	/* Activate voltage mode */
-	ret = regmap_update_bits(tps6105x->regmap, TPS6105X_REG_0,
-		TPS6105X_REG0_MODE_MASK,
-		TPS6105X_REG0_MODE_VOLTAGE << TPS6105X_REG0_MODE_SHIFT);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-static int tps6105x_regulator_disable(struct regulator_dev *rdev)
-{
-	struct tps6105x *tps6105x = rdev_get_drvdata(rdev);
-	int ret;
-
-	/* Set into shutdown mode */
-	ret = regmap_update_bits(tps6105x->regmap, TPS6105X_REG_0,
-		TPS6105X_REG0_MODE_MASK,
-		TPS6105X_REG0_MODE_SHUTDOWN << TPS6105X_REG0_MODE_SHIFT);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-static int tps6105x_regulator_is_enabled(struct regulator_dev *rdev)
-{
-	struct tps6105x *tps6105x = rdev_get_drvdata(rdev);
-	unsigned int regval;
-	int ret;
-
-	ret = regmap_read(tps6105x->regmap, TPS6105X_REG_0, &regval);
-	if (ret)
-		return ret;
-	regval &= TPS6105X_REG0_MODE_MASK;
-	regval >>= TPS6105X_REG0_MODE_SHIFT;
-
-	if (regval == TPS6105X_REG0_MODE_VOLTAGE)
-		return 1;
-
-	return 0;
-}
-
-static int tps6105x_regulator_get_voltage_sel(struct regulator_dev *rdev)
-{
-	struct tps6105x *tps6105x = rdev_get_drvdata(rdev);
-	unsigned int regval;
-	int ret;
-
-	ret = regmap_read(tps6105x->regmap, TPS6105X_REG_0, &regval);
-	if (ret)
-		return ret;
-
-	regval &= TPS6105X_REG0_VOLTAGE_MASK;
-	regval >>= TPS6105X_REG0_VOLTAGE_SHIFT;
-	return (int) regval;
-}
-
-static int tps6105x_regulator_set_voltage_sel(struct regulator_dev *rdev,
-					      unsigned selector)
-{
-	struct tps6105x *tps6105x = rdev_get_drvdata(rdev);
-	int ret;
-
-	ret = regmap_update_bits(tps6105x->regmap, TPS6105X_REG_0,
-				    TPS6105X_REG0_VOLTAGE_MASK,
-				    selector << TPS6105X_REG0_VOLTAGE_SHIFT);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
 static struct regulator_ops tps6105x_regulator_ops = {
-	.enable		= tps6105x_regulator_enable,
-	.disable	= tps6105x_regulator_disable,
-	.is_enabled	= tps6105x_regulator_is_enabled,
-	.get_voltage_sel = tps6105x_regulator_get_voltage_sel,
-	.set_voltage_sel = tps6105x_regulator_set_voltage_sel,
+	.enable		= regulator_enable_regmap,
+	.disable	= regulator_disable_regmap,
+	.is_enabled	= regulator_is_enabled_regmap,
+	.get_voltage_sel = regulator_get_voltage_sel_regmap,
+	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.list_voltage	= regulator_list_voltage_table,
 };
 
@@ -122,6 +44,12 @@ static const struct regulator_desc tps6105x_regulator_desc = {
 	.owner		= THIS_MODULE,
 	.n_voltages	= ARRAY_SIZE(tps6105x_voltages),
 	.volt_table	= tps6105x_voltages,
+	.vsel_reg	= TPS6105X_REG_0,
+	.vsel_mask	= TPS6105X_REG0_VOLTAGE_MASK,
+	.enable_reg	= TPS6105X_REG_0,
+	.enable_mask	= TPS6105X_REG0_MODE_MASK,
+	.enable_val	= TPS6105X_REG0_MODE_VOLTAGE <<
+			  TPS6105X_REG0_MODE_SHIFT,
 };
 
 /*
@@ -144,6 +72,7 @@ static int tps6105x_regulator_probe(struct platform_device *pdev)
 	config.dev = &tps6105x->client->dev;
 	config.init_data = pdata->regulator_data;
 	config.driver_data = tps6105x;
+	config.regmap = tps6105x->regmap;
 
 	/* Register regulator with framework */
 	tps6105x->regulator = devm_regulator_register(&pdev->dev,

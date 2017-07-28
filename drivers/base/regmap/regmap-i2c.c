@@ -259,7 +259,7 @@ static const struct regmap_bus *regmap_get_i2c_bus(struct i2c_client *i2c,
 {
 	if (i2c_check_functionality(i2c->adapter, I2C_FUNC_I2C))
 		return &regmap_i2c;
-	else if (config->reg_bits == 8 &&
+	else if (config->val_bits == 8 && config->reg_bits == 8 &&
 		 i2c_check_functionality(i2c->adapter,
 					 I2C_FUNC_SMBUS_I2C_BLOCK))
 		return &regmap_i2c_smbus_i2c_block;

@@ -101,7 +101,7 @@ int check_compaction(unsigned long mem_free, unsigned int hugepage_size)
 
 	/* Start with the initial condition of 0 huge pages*/
 	if (write(fd, "0", sizeof(char)) != sizeof(char)) {
-		perror("Failed to write to /proc/sys/vm/nr_hugepages\n");
+		perror("Failed to write 0 to /proc/sys/vm/nr_hugepages\n");
 		goto close_fd;
 	}
 
@@ -110,14 +110,14 @@ int check_compaction(unsigned long mem_free, unsigned int hugepage_size)
 	/* Request a large number of huge pages. The Kernel will allocate
 	   as much as it can */
 	if (write(fd, "100000", (6*sizeof(char))) != (6*sizeof(char))) {
-		perror("Failed to write to /proc/sys/vm/nr_hugepages\n");
+		perror("Failed to write 100000 to /proc/sys/vm/nr_hugepages\n");
 		goto close_fd;
 	}
 
 	lseek(fd, 0, SEEK_SET);
 
 	if (read(fd, nr_hugepages, sizeof(nr_hugepages)) <= 0) {
-		perror("Failed to read from /proc/sys/vm/nr_hugepages\n");
+		perror("Failed to re-read from /proc/sys/vm/nr_hugepages\n");
 		goto close_fd;
 	}
 
@@ -136,9 +136,9 @@ int check_compaction(unsigned long mem_free, unsigned int hugepage_size)
 	printf("No of huge pages allocated = %d\n",
 	       (atoi(nr_hugepages)));
 
-	if (write(fd, initial_nr_hugepages, sizeof(initial_nr_hugepages))
+	if (write(fd, initial_nr_hugepages, strlen(initial_nr_hugepages))
 	    != strlen(initial_nr_hugepages)) {
-		perror("Failed to write to /proc/sys/vm/nr_hugepages\n");
+		perror("Failed to write value to /proc/sys/vm/nr_hugepages\n");
 		goto close_fd;
 	}
 

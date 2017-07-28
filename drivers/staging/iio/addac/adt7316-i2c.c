@@ -21,7 +21,7 @@
 static int adt7316_i2c_read(void *client, u8 reg, u8 *data)
 {
 	struct i2c_client *cl = client;
-	int ret = 0;
+	int ret;
 
 	ret = i2c_smbus_write_byte(cl, reg);
 	if (ret < 0) {
@@ -93,7 +93,7 @@ static int adt7316_i2c_multi_write(void *client, u8 reg, u8 count, u8 *data)
  */
 
 static int adt7316_i2c_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+			     const struct i2c_device_id *id)
 {
 	struct adt7316_bus bus = {
 		.client = client,

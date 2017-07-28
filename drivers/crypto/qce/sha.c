@@ -92,6 +92,11 @@ static int qce_ahash_async_req_handle(struct crypto_async_request *async_req)
 	}
 
 	rctx->src_nents = sg_nents_for_len(req->src, req->nbytes);
+	if (rctx->src_nents < 0) {
+		dev_err(qce->dev, "Invalid numbers of src SG.\n");
+		return rctx->src_nents;
+	}
+
 	ret = dma_map_sg(qce->dev, req->src, rctx->src_nents, DMA_TO_DEVICE);
 	if (ret < 0)
 		return ret;

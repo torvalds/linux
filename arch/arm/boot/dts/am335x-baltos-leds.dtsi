@@ -1,0 +1,50 @@
+/*
+ * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ */
+
+/*
+ * VScom OnRISC
+ * http://www.vscom.de
+ */
+
+/*#include "am33xx.dtsi"*/
+
+/ {
+	leds {
+		pinctrl-names = "default";
+		pinctrl-0 = <&user_leds>;
+
+		compatible = "gpio-leds";
+
+		power {
+			label = "onrisc:red:power";
+			linux,default-trigger = "default-on";
+			gpios = <&gpio3 0 GPIO_ACTIVE_LOW>;
+			default-state = "on";
+		};
+		wlan {
+			label = "onrisc:blue:wlan";
+			gpios = <&gpio0 16 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+		app {
+			label = "onrisc:green:app";
+			gpios = <&gpio0 17 GPIO_ACTIVE_HIGH>;
+			default-state = "off";
+		};
+	};
+};
+
+&am33xx_pinmux {
+	user_leds: pinmux_user_leds {
+		pinctrl-single,pins = <
+			AM33XX_IOPAD(0x908, PIN_OUTPUT_PULLDOWN | MUX_MODE7)	/* mii1_col.gpio3_0 PWR LED */
+			AM33XX_IOPAD(0x91c, PIN_OUTPUT_PULLDOWN | MUX_MODE7)	/* mii1_txd3.gpio0_16 WLAN LED */
+			AM33XX_IOPAD(0x920, PIN_OUTPUT_PULLDOWN | MUX_MODE7)	/* mii1_txd2.gpio0_17 APP LED */
+		>;
+	};
+};

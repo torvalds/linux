@@ -4,7 +4,7 @@ be listed here unless the driver has its own driver-specific information
 file.
 
 
-See Documentation/kernel-parameters.txt for information on
+See Documentation/admin-guide/kernel-parameters.rst for information on
 providing kernel parameters for builtin drivers versus loadable
 modules.
 
@@ -86,6 +86,10 @@ nowayout: Watchdog cannot be stopped once started
 davinci_wdt:
 heartbeat: Watchdog heartbeat period in seconds from 1 to 600, default 60
 -------------------------------------------------
+ebc-c384_wdt:
+timeout: Watchdog timeout in seconds. (1<=timeout<=15300, default=60)
+nowayout: Watchdog cannot be stopped once started
+-------------------------------------------------
 ep93xx_wdt:
 nowayout: Watchdog cannot be stopped once started
 timeout: Watchdog timeout in seconds. (1<=timeout<=3600, default=TBD)
@@ -113,7 +117,7 @@ nowayout: Watchdog cannot be stopped once started
 -------------------------------------------------
 iTCO_wdt:
 heartbeat: Watchdog heartbeat in seconds.
-	(2<heartbeat<39 (TCO v1) or 613 (TCO v2), default=30)
+	(5<=heartbeat<=74 (TCO v1) or 1226 (TCO v2), default=30)
 nowayout: Watchdog cannot be stopped once started
 	(default=kernel config parameter)
 -------------------------------------------------
@@ -197,6 +201,16 @@ nowayout: Watchdog cannot be stopped once started
 	(default=kernel config parameter)
 -------------------------------------------------
 mv64x60_wdt:
+nowayout: Watchdog cannot be stopped once started
+	(default=kernel config parameter)
+-------------------------------------------------
+ni903x_wdt:
+timeout: Initial watchdog timeout in seconds (0<timeout<516, default=60)
+nowayout: Watchdog cannot be stopped once started
+	(default=kernel config parameter)
+-------------------------------------------------
+nic7018_wdt:
+timeout: Initial watchdog timeout in seconds (0<timeout<464, default=80)
 nowayout: Watchdog cannot be stopped once started
 	(default=kernel config parameter)
 -------------------------------------------------
@@ -284,6 +298,13 @@ sbc_fitpc2_wdt:
 margin: Watchdog margin in seconds (default 60s)
 nowayout: Watchdog cannot be stopped once started
 -------------------------------------------------
+sbsa_gwdt:
+timeout: Watchdog timeout in seconds. (default 10s)
+action: Watchdog action at the first stage timeout,
+	set to 0 to ignore, 1 to panic. (default=0)
+nowayout: Watchdog cannot be stopped once started
+	(default=kernel config parameter)
+-------------------------------------------------
 sc1200wdt:
 isapnp: When set to 0 driver ISA PnP support will be disabled (default=1)
 io: io port
@@ -348,6 +369,12 @@ timeout: Watchdog timeout in seconds. (0<timeout<N, default=60)
 nowayout: Watchdog cannot be stopped once started
 	(default=kernel config parameter)
 -------------------------------------------------
+uniphier_wdt:
+timeout: Watchdog timeout in power of two seconds.
+	(1 <= timeout <= 128, default=64)
+nowayout: Watchdog cannot be stopped once started
+	(default=kernel config parameter)
+-------------------------------------------------
 w83627hf_wdt:
 wdt_io: w83627hf/thf WDT io port (default 0x2E)
 timeout: Watchdog timeout in seconds. 1 <= timeout <= 255, default=60.
@@ -399,4 +426,8 @@ nowayout: Watchdog cannot be stopped once started
 wm8350_wdt:
 nowayout: Watchdog cannot be stopped once started
 	(default=kernel config parameter)
+-------------------------------------------------
+sun4v_wdt:
+timeout_ms: Watchdog timeout in milliseconds 1..180000, default=60000)
+nowayout: Watchdog cannot be stopped once started
 -------------------------------------------------

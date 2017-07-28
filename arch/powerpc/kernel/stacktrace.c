@@ -12,6 +12,7 @@
 
 #include <linux/export.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/stacktrace.h>
 #include <asm/ptrace.h>
 #include <asm/processor.h>
@@ -58,6 +59,20 @@ EXPORT_SYMBOL_GPL(save_stack_trace);
 
 void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 {
-	save_context_stack(trace, tsk->thread.ksp, tsk, 0);
+	unsigned long sp;
+
+	if (tsk == current)
+		sp = current_stack_pointer();
+	else
+		sp = tsk->thread.ksp;
+
+	save_context_stack(trace, sp, tsk, 0);
 }
 EXPORT_SYMBOL_GPL(save_stack_trace_tsk);
+
+void
+save_stack_trace_regs(struct pt_regs *regs, struct stack_trace *trace)
+{
+	save_context_stack(trace, regs->gpr[1], current, 0);
+}
+EXPORT_SYMBOL_GPL(save_stack_trace_regs);

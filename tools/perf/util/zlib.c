@@ -4,6 +4,7 @@
 #include <sys/mman.h>
 #include <zlib.h>
 
+#include "util/compress.h"
 #include "util/util.h"
 #include "util/debug.h"
 

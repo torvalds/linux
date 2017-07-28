@@ -154,7 +154,7 @@
 #define V3D_PCTRS14  0x006f4
 #define V3D_PCTR15   0x006f8
 #define V3D_PCTRS15  0x006fc
-#define V3D_BGE      0x00f00
+#define V3D_DBGE     0x00f00
 #define V3D_FDBGO    0x00f04
 #define V3D_FDBGB    0x00f08
 #define V3D_FDBGR    0x00f0c
@@ -175,19 +175,27 @@
 # define PV_CONTROL_CLR_AT_START		BIT(14)
 # define PV_CONTROL_TRIGGER_UNDERFLOW		BIT(13)
 # define PV_CONTROL_WAIT_HSTART			BIT(12)
-# define PV_CONTROL_CLK_SELECT_DSI_VEC		0
+# define PV_CONTROL_PIXEL_REP_MASK		VC4_MASK(5, 4)
+# define PV_CONTROL_PIXEL_REP_SHIFT		4
+# define PV_CONTROL_CLK_SELECT_DSI		0
 # define PV_CONTROL_CLK_SELECT_DPI_SMI_HDMI	1
+# define PV_CONTROL_CLK_SELECT_VEC		2
 # define PV_CONTROL_CLK_SELECT_MASK		VC4_MASK(3, 2)
 # define PV_CONTROL_CLK_SELECT_SHIFT		2
 # define PV_CONTROL_FIFO_CLR			BIT(1)
 # define PV_CONTROL_EN				BIT(0)
 
 #define PV_V_CONTROL				0x04
+# define PV_VCONTROL_ODD_DELAY_MASK		VC4_MASK(22, 6)
+# define PV_VCONTROL_ODD_DELAY_SHIFT		6
+# define PV_VCONTROL_ODD_FIRST			BIT(5)
 # define PV_VCONTROL_INTERLACE			BIT(4)
+# define PV_VCONTROL_DSI			BIT(3)
+# define PV_VCONTROL_COMMAND			BIT(2)
 # define PV_VCONTROL_CONTINUOUS			BIT(1)
 # define PV_VCONTROL_VIDEN			BIT(0)
 
-#define PV_VSYNCD				0x08
+#define PV_VSYNCD_EVEN				0x08
 
 #define PV_HORZA				0x0c
 # define PV_HORZA_HBP_MASK			VC4_MASK(31, 16)
@@ -238,6 +246,9 @@
 # define SCALER_DISPCTRL_ENABLE			BIT(31)
 # define SCALER_DISPCTRL_DSP2EISLUR		BIT(15)
 # define SCALER_DISPCTRL_DSP1EISLUR		BIT(14)
+# define SCALER_DISPCTRL_DSP3_MUX_MASK		VC4_MASK(19, 18)
+# define SCALER_DISPCTRL_DSP3_MUX_SHIFT		18
+
 /* Enables Display 0 short line and underrun contribution to
  * SCALER_DISPSTAT_IRQDISP0.  Note that short frame contributions are
  * always enabled.
@@ -341,6 +352,10 @@
 #define SCALER_DISPLACT0                        0x00000030
 #define SCALER_DISPLACT1                        0x00000034
 #define SCALER_DISPLACT2                        0x00000038
+#define SCALER_DISPLACTX(x)			(SCALER_DISPLACT0 +	\
+						 (x) * (SCALER_DISPLACT1 - \
+							SCALER_DISPLACT0))
+
 #define SCALER_DISPCTRL0                        0x00000040
 # define SCALER_DISPCTRLX_ENABLE		BIT(31)
 # define SCALER_DISPCTRLX_RESET			BIT(30)
@@ -350,8 +365,18 @@
 # define SCALER_DISPCTRLX_HEIGHT_SHIFT		0
 
 #define SCALER_DISPBKGND0                       0x00000044
+# define SCALER_DISPBKGND_AUTOHS		BIT(31)
+# define SCALER_DISPBKGND_INTERLACE		BIT(30)
+# define SCALER_DISPBKGND_GAMMA			BIT(29)
+# define SCALER_DISPBKGND_TESTMODE_MASK		VC4_MASK(28, 25)
+# define SCALER_DISPBKGND_TESTMODE_SHIFT	25
+/* Enables filling the scaler line with the RGB value in the low 24
+ * bits before compositing.  Costs cycles, so should be skipped if
+ * opaque display planes will cover everything.
+ */
+# define SCALER_DISPBKGND_FILL			BIT(24)
+
 #define SCALER_DISPSTAT0                        0x00000048
-#define SCALER_DISPBASE0                        0x0000004c
 # define SCALER_DISPSTATX_MODE_MASK		VC4_MASK(31, 30)
 # define SCALER_DISPSTATX_MODE_SHIFT		30
 # define SCALER_DISPSTATX_MODE_DISABLED		0
@@ -360,13 +385,37 @@
 # define SCALER_DISPSTATX_MODE_EOF		3
 # define SCALER_DISPSTATX_FULL			BIT(29)
 # define SCALER_DISPSTATX_EMPTY			BIT(28)
+# define SCALER_DISPSTATX_FRAME_COUNT_MASK	VC4_MASK(17, 12)
+# define SCALER_DISPSTATX_FRAME_COUNT_SHIFT	12
+# define SCALER_DISPSTATX_LINE_MASK		VC4_MASK(11, 0)
+# define SCALER_DISPSTATX_LINE_SHIFT		0
+
+#define SCALER_DISPBASE0                        0x0000004c
+/* Last pixel in the COB (display FIFO memory) allocated to this HVS
+ * channel.  Must be 4-pixel aligned (and thus 4 pixels less than the
+ * next COB base).
+ */
+# define SCALER_DISPBASEX_TOP_MASK		VC4_MASK(31, 16)
+# define SCALER_DISPBASEX_TOP_SHIFT		16
+/* First pixel in the COB (display FIFO memory) allocated to this HVS
+ * channel.  Must be 4-pixel aligned.
+ */
+# define SCALER_DISPBASEX_BASE_MASK		VC4_MASK(15, 0)
+# define SCALER_DISPBASEX_BASE_SHIFT		0
+
 #define SCALER_DISPCTRL1                        0x00000050
 #define SCALER_DISPBKGND1                       0x00000054
+#define SCALER_DISPBKGNDX(x)			(SCALER_DISPBKGND0 +        \
+						 (x) * (SCALER_DISPBKGND1 - \
+							SCALER_DISPBKGND0))
 #define SCALER_DISPSTAT1                        0x00000058
 #define SCALER_DISPSTATX(x)			(SCALER_DISPSTAT0 +        \
 						 (x) * (SCALER_DISPSTAT1 - \
 							SCALER_DISPSTAT0))
 #define SCALER_DISPBASE1                        0x0000005c
+#define SCALER_DISPBASEX(x)			(SCALER_DISPBASE0 +        \
+						 (x) * (SCALER_DISPBASE1 - \
+							SCALER_DISPBASE0))
 #define SCALER_DISPCTRL2                        0x00000060
 #define SCALER_DISPCTRLX(x)			(SCALER_DISPCTRL0 +        \
 						 (x) * (SCALER_DISPCTRL1 - \
@@ -376,6 +425,12 @@
 #define SCALER_DISPBASE2                        0x0000006c
 #define SCALER_DISPALPHA2                       0x00000070
 #define SCALER_GAMADDR                          0x00000078
+# define SCALER_GAMADDR_AUTOINC			BIT(31)
+/* Enables all gamma ramp SRAMs, not just those of CRTCs with gamma
+ * enabled.
+ */
+# define SCALER_GAMADDR_SRAMENB			BIT(30)
+
 #define SCALER_GAMDATA                          0x000000e0
 #define SCALER_DLIST_START                      0x00002000
 #define SCALER_DLIST_SIZE                       0x00004000
@@ -391,8 +446,61 @@
 #define VC4_HDMI_HOTPLUG			0x00c
 # define VC4_HDMI_HOTPLUG_CONNECTED		BIT(0)
 
+/* 3 bits per field, where each field maps from that corresponding MAI
+ * bus channel to the given HDMI channel.
+ */
+#define VC4_HDMI_MAI_CHANNEL_MAP		0x090
+
+#define VC4_HDMI_MAI_CONFIG			0x094
+# define VC4_HDMI_MAI_CONFIG_FORMAT_REVERSE		BIT(27)
+# define VC4_HDMI_MAI_CONFIG_BIT_REVERSE		BIT(26)
+# define VC4_HDMI_MAI_CHANNEL_MASK_MASK			VC4_MASK(15, 0)
+# define VC4_HDMI_MAI_CHANNEL_MASK_SHIFT		0
+
+/* Last received format word on the MAI bus. */
+#define VC4_HDMI_MAI_FORMAT			0x098
+
+#define VC4_HDMI_AUDIO_PACKET_CONFIG		0x09c
+# define VC4_HDMI_AUDIO_PACKET_ZERO_DATA_ON_SAMPLE_FLAT		BIT(29)
+# define VC4_HDMI_AUDIO_PACKET_ZERO_DATA_ON_INACTIVE_CHANNELS	BIT(24)
+# define VC4_HDMI_AUDIO_PACKET_FORCE_SAMPLE_PRESENT		BIT(19)
+# define VC4_HDMI_AUDIO_PACKET_FORCE_B_FRAME			BIT(18)
+# define VC4_HDMI_AUDIO_PACKET_B_FRAME_IDENTIFIER_MASK		VC4_MASK(13, 10)
+# define VC4_HDMI_AUDIO_PACKET_B_FRAME_IDENTIFIER_SHIFT		10
+/* If set, then multichannel, otherwise 2 channel. */
+# define VC4_HDMI_AUDIO_PACKET_AUDIO_LAYOUT			BIT(9)
+/* If set, then AUDIO_LAYOUT overrides audio_cea_mask */
+# define VC4_HDMI_AUDIO_PACKET_FORCE_AUDIO_LAYOUT		BIT(8)
+# define VC4_HDMI_AUDIO_PACKET_CEA_MASK_MASK			VC4_MASK(7, 0)
+# define VC4_HDMI_AUDIO_PACKET_CEA_MASK_SHIFT			0
+
 #define VC4_HDMI_RAM_PACKET_CONFIG		0x0a0
 # define VC4_HDMI_RAM_PACKET_ENABLE		BIT(16)
+
+#define VC4_HDMI_RAM_PACKET_STATUS		0x0a4
+
+#define VC4_HDMI_CRP_CFG			0x0a8
+/* When set, the CTS_PERIOD counts based on MAI bus sync pulse instead
+ * of pixel clock.
+ */
+# define VC4_HDMI_CRP_USE_MAI_BUS_SYNC_FOR_CTS	BIT(26)
+/* When set, no CRP packets will be sent. */
+# define VC4_HDMI_CRP_CFG_DISABLE		BIT(25)
+/* If set, generates CTS values based on N, audio clock, and video
+ * clock.  N must be divisible by 128.
+ */
+# define VC4_HDMI_CRP_CFG_EXTERNAL_CTS_EN	BIT(24)
+# define VC4_HDMI_CRP_CFG_N_MASK		VC4_MASK(19, 0)
+# define VC4_HDMI_CRP_CFG_N_SHIFT		0
+
+/* 20-bit fields containing CTS values to be transmitted if !EXTERNAL_CTS_EN */
+#define VC4_HDMI_CTS_0				0x0ac
+#define VC4_HDMI_CTS_1				0x0b0
+/* 20-bit fields containing number of clocks to send CTS0/1 before
+ * switching to the other one.
+ */
+#define VC4_HDMI_CTS_PERIOD_0			0x0b4
+#define VC4_HDMI_CTS_PERIOD_1			0x0b8
 
 #define VC4_HDMI_HORZA				0x0c4
 # define VC4_HDMI_HORZA_VPOS			BIT(14)
@@ -455,11 +563,70 @@
 
 #define VC4_HDMI_TX_PHY_RESET_CTL		0x2c0
 
+#define VC4_HDMI_TX_PHY_CTL0			0x2c4
+# define VC4_HDMI_TX_PHY_RNG_PWRDN		BIT(25)
+
+#define VC4_HDMI_GCP(x)				(0x400 + ((x) * 0x4))
+#define VC4_HDMI_RAM_PACKET(x)			(0x400 + ((x) * 0x24))
+#define VC4_HDMI_PACKET_STRIDE			0x24
+
 #define VC4_HD_M_CTL				0x00c
+# define VC4_HD_M_REGISTER_FILE_STANDBY		(3 << 6)
+# define VC4_HD_M_RAM_STANDBY			(3 << 4)
 # define VC4_HD_M_SW_RST			BIT(2)
 # define VC4_HD_M_ENABLE			BIT(0)
 
 #define VC4_HD_MAI_CTL				0x014
+/* Set when audio stream is received at a slower rate than the
+ * sampling period, so MAI fifo goes empty.  Write 1 to clear.
+ */
+# define VC4_HD_MAI_CTL_DLATE			BIT(15)
+# define VC4_HD_MAI_CTL_BUSY			BIT(14)
+# define VC4_HD_MAI_CTL_CHALIGN			BIT(13)
+# define VC4_HD_MAI_CTL_WHOLSMP			BIT(12)
+# define VC4_HD_MAI_CTL_FULL			BIT(11)
+# define VC4_HD_MAI_CTL_EMPTY			BIT(10)
+# define VC4_HD_MAI_CTL_FLUSH			BIT(9)
+/* If set, MAI bus generates SPDIF (bit 31) parity instead of passing
+ * through.
+ */
+# define VC4_HD_MAI_CTL_PAREN			BIT(8)
+# define VC4_HD_MAI_CTL_CHNUM_MASK		VC4_MASK(7, 4)
+# define VC4_HD_MAI_CTL_CHNUM_SHIFT		4
+# define VC4_HD_MAI_CTL_ENABLE			BIT(3)
+/* Underflow error status bit, write 1 to clear. */
+# define VC4_HD_MAI_CTL_ERRORE			BIT(2)
+/* Overflow error status bit, write 1 to clear. */
+# define VC4_HD_MAI_CTL_ERRORF			BIT(1)
+/* Single-shot reset bit.  Read value is undefined. */
+# define VC4_HD_MAI_CTL_RESET			BIT(0)
+
+#define VC4_HD_MAI_THR				0x018
+# define VC4_HD_MAI_THR_PANICHIGH_MASK		VC4_MASK(29, 24)
+# define VC4_HD_MAI_THR_PANICHIGH_SHIFT		24
+# define VC4_HD_MAI_THR_PANICLOW_MASK		VC4_MASK(21, 16)
+# define VC4_HD_MAI_THR_PANICLOW_SHIFT		16
+# define VC4_HD_MAI_THR_DREQHIGH_MASK		VC4_MASK(13, 8)
+# define VC4_HD_MAI_THR_DREQHIGH_SHIFT		8
+# define VC4_HD_MAI_THR_DREQLOW_MASK		VC4_MASK(5, 0)
+# define VC4_HD_MAI_THR_DREQLOW_SHIFT		0
+
+/* Format header to be placed on the MAI data. Unused. */
+#define VC4_HD_MAI_FMT				0x01c
+
+/* Register for DMAing in audio data to be transported over the MAI
+ * bus to the Falcon core.
+ */
+#define VC4_HD_MAI_DATA				0x020
+
+/* Divider from HDMI HSM clock to MAI serial clock.  Sampling period
+ * converges to N / (M + 1) cycles.
+ */
+#define VC4_HD_MAI_SMP				0x02c
+# define VC4_HD_MAI_SMP_N_MASK			VC4_MASK(31, 8)
+# define VC4_HD_MAI_SMP_N_SHIFT			8
+# define VC4_HD_MAI_SMP_M_MASK			VC4_MASK(7, 0)
+# define VC4_HD_MAI_SMP_M_SHIFT			0
 
 #define VC4_HD_VID_CTL				0x038
 # define VC4_HD_VID_CTL_ENABLE			BIT(31)
@@ -482,9 +649,16 @@
 # define VC4_HD_CSC_CTL_MODE_SHIFT		2
 # define VC4_HD_CSC_CTL_MODE_RGB_TO_SD_YPRPB	0
 # define VC4_HD_CSC_CTL_MODE_RGB_TO_HD_YPRPB	1
-# define VC4_HD_CSC_CTL_MODE_CUSTOM		2
+# define VC4_HD_CSC_CTL_MODE_CUSTOM		3
 # define VC4_HD_CSC_CTL_RGB2YCC			BIT(1)
 # define VC4_HD_CSC_CTL_ENABLE			BIT(0)
+
+#define VC4_HD_CSC_12_11			0x044
+#define VC4_HD_CSC_14_13			0x048
+#define VC4_HD_CSC_22_21			0x04c
+#define VC4_HD_CSC_24_23			0x050
+#define VC4_HD_CSC_32_31			0x054
+#define VC4_HD_CSC_34_33			0x058
 
 #define VC4_HD_FRAME_COUNT			0x068
 
@@ -503,7 +677,12 @@ enum hvs_pixel_format {
 	HVS_PIXEL_FORMAT_RGB888 = 5,
 	HVS_PIXEL_FORMAT_RGBA6666 = 6,
 	/* 32bpp */
-	HVS_PIXEL_FORMAT_RGBA8888 = 7
+	HVS_PIXEL_FORMAT_RGBA8888 = 7,
+
+	HVS_PIXEL_FORMAT_YCBCR_YUV420_3PLANE = 8,
+	HVS_PIXEL_FORMAT_YCBCR_YUV420_2PLANE = 9,
+	HVS_PIXEL_FORMAT_YCBCR_YUV422_3PLANE = 10,
+	HVS_PIXEL_FORMAT_YCBCR_YUV422_2PLANE = 11,
 };
 
 /* Note: the LSB is the rightmost character shown.  Only valid for
@@ -530,11 +709,33 @@ enum hvs_pixel_format {
 #define SCALER_CTL0_SIZE_MASK			VC4_MASK(29, 24)
 #define SCALER_CTL0_SIZE_SHIFT			24
 
+#define SCALER_CTL0_TILING_MASK			VC4_MASK(21, 20)
+#define SCALER_CTL0_TILING_SHIFT		20
+#define SCALER_CTL0_TILING_LINEAR		0
+#define SCALER_CTL0_TILING_64B			1
+#define SCALER_CTL0_TILING_128B			2
+#define SCALER_CTL0_TILING_256B_OR_T		3
+
 #define SCALER_CTL0_HFLIP                       BIT(16)
 #define SCALER_CTL0_VFLIP                       BIT(15)
 
 #define SCALER_CTL0_ORDER_MASK			VC4_MASK(14, 13)
 #define SCALER_CTL0_ORDER_SHIFT			13
+
+#define SCALER_CTL0_SCL1_MASK			VC4_MASK(10, 8)
+#define SCALER_CTL0_SCL1_SHIFT			8
+
+#define SCALER_CTL0_SCL0_MASK			VC4_MASK(7, 5)
+#define SCALER_CTL0_SCL0_SHIFT			5
+
+#define SCALER_CTL0_SCL_H_PPF_V_PPF		0
+#define SCALER_CTL0_SCL_H_TPZ_V_PPF		1
+#define SCALER_CTL0_SCL_H_PPF_V_TPZ		2
+#define SCALER_CTL0_SCL_H_TPZ_V_TPZ		3
+#define SCALER_CTL0_SCL_H_PPF_V_NONE		4
+#define SCALER_CTL0_SCL_H_NONE_V_PPF		5
+#define SCALER_CTL0_SCL_H_NONE_V_TPZ		6
+#define SCALER_CTL0_SCL_H_TPZ_V_NONE		7
 
 /* Set to indicate no scaling. */
 #define SCALER_CTL0_UNITY			BIT(4)
@@ -551,6 +752,12 @@ enum hvs_pixel_format {
 #define SCALER_POS0_START_X_MASK		VC4_MASK(11, 0)
 #define SCALER_POS0_START_X_SHIFT		0
 
+#define SCALER_POS1_SCL_HEIGHT_MASK		VC4_MASK(27, 16)
+#define SCALER_POS1_SCL_HEIGHT_SHIFT		16
+
+#define SCALER_POS1_SCL_WIDTH_MASK		VC4_MASK(11, 0)
+#define SCALER_POS1_SCL_WIDTH_SHIFT		0
+
 #define SCALER_POS2_ALPHA_MODE_MASK		VC4_MASK(31, 30)
 #define SCALER_POS2_ALPHA_MODE_SHIFT		30
 #define SCALER_POS2_ALPHA_MODE_PIPELINE		0
@@ -564,7 +771,93 @@ enum hvs_pixel_format {
 #define SCALER_POS2_WIDTH_MASK			VC4_MASK(11, 0)
 #define SCALER_POS2_WIDTH_SHIFT			0
 
+/* Color Space Conversion words.  Some values are S2.8 signed
+ * integers, except that the 2 integer bits map as {0x0: 0, 0x1: 1,
+ * 0x2: 2, 0x3: -1}
+ */
+/* bottom 8 bits of S2.8 contribution of Cr to Blue */
+#define SCALER_CSC0_COEF_CR_BLU_MASK		VC4_MASK(31, 24)
+#define SCALER_CSC0_COEF_CR_BLU_SHIFT		24
+/* Signed offset to apply to Y before CSC. (Y' = Y + YY_OFS) */
+#define SCALER_CSC0_COEF_YY_OFS_MASK		VC4_MASK(23, 16)
+#define SCALER_CSC0_COEF_YY_OFS_SHIFT		16
+/* Signed offset to apply to CB before CSC (Cb' = Cb - 128 + CB_OFS). */
+#define SCALER_CSC0_COEF_CB_OFS_MASK		VC4_MASK(15, 8)
+#define SCALER_CSC0_COEF_CB_OFS_SHIFT		8
+/* Signed offset to apply to CB before CSC (Cr' = Cr - 128 + CR_OFS). */
+#define SCALER_CSC0_COEF_CR_OFS_MASK		VC4_MASK(7, 0)
+#define SCALER_CSC0_COEF_CR_OFS_SHIFT		0
+#define SCALER_CSC0_ITR_R_601_5			0x00f00000
+#define SCALER_CSC0_ITR_R_709_3			0x00f00000
+#define SCALER_CSC0_JPEG_JFIF			0x00000000
+
+/* S2.8 contribution of Cb to Green */
+#define SCALER_CSC1_COEF_CB_GRN_MASK		VC4_MASK(31, 22)
+#define SCALER_CSC1_COEF_CB_GRN_SHIFT		22
+/* S2.8 contribution of Cr to Green */
+#define SCALER_CSC1_COEF_CR_GRN_MASK		VC4_MASK(21, 12)
+#define SCALER_CSC1_COEF_CR_GRN_SHIFT		12
+/* S2.8 contribution of Y to all of RGB */
+#define SCALER_CSC1_COEF_YY_ALL_MASK		VC4_MASK(11, 2)
+#define SCALER_CSC1_COEF_YY_ALL_SHIFT		2
+/* top 2 bits of S2.8 contribution of Cr to Blue */
+#define SCALER_CSC1_COEF_CR_BLU_MASK		VC4_MASK(1, 0)
+#define SCALER_CSC1_COEF_CR_BLU_SHIFT		0
+#define SCALER_CSC1_ITR_R_601_5			0xe73304a8
+#define SCALER_CSC1_ITR_R_709_3			0xf2b784a8
+#define SCALER_CSC1_JPEG_JFIF			0xea34a400
+
+/* S2.8 contribution of Cb to Red */
+#define SCALER_CSC2_COEF_CB_RED_MASK		VC4_MASK(29, 20)
+#define SCALER_CSC2_COEF_CB_RED_SHIFT		20
+/* S2.8 contribution of Cr to Red */
+#define SCALER_CSC2_COEF_CR_RED_MASK		VC4_MASK(19, 10)
+#define SCALER_CSC2_COEF_CR_RED_SHIFT		10
+/* S2.8 contribution of Cb to Blue */
+#define SCALER_CSC2_COEF_CB_BLU_MASK		VC4_MASK(19, 10)
+#define SCALER_CSC2_COEF_CB_BLU_SHIFT		10
+#define SCALER_CSC2_ITR_R_601_5			0x00066204
+#define SCALER_CSC2_ITR_R_709_3			0x00072a1c
+#define SCALER_CSC2_JPEG_JFIF			0x000599c5
+
+#define SCALER_TPZ0_VERT_RECALC			BIT(31)
+#define SCALER_TPZ0_SCALE_MASK			VC4_MASK(28, 8)
+#define SCALER_TPZ0_SCALE_SHIFT			8
+#define SCALER_TPZ0_IPHASE_MASK			VC4_MASK(7, 0)
+#define SCALER_TPZ0_IPHASE_SHIFT		0
+#define SCALER_TPZ1_RECIP_MASK			VC4_MASK(15, 0)
+#define SCALER_TPZ1_RECIP_SHIFT			0
+
+/* Skips interpolating coefficients to 64 phases, so just 8 are used.
+ * Required for nearest neighbor.
+ */
+#define SCALER_PPF_NOINTERP			BIT(31)
+/* Replaes the highest valued coefficient with one that makes all 4
+ * sum to unity.
+ */
+#define SCALER_PPF_AGC				BIT(30)
+#define SCALER_PPF_SCALE_MASK			VC4_MASK(24, 8)
+#define SCALER_PPF_SCALE_SHIFT			8
+#define SCALER_PPF_IPHASE_MASK			VC4_MASK(6, 0)
+#define SCALER_PPF_IPHASE_SHIFT			0
+
+#define SCALER_PPF_KERNEL_OFFSET_MASK		VC4_MASK(13, 0)
+#define SCALER_PPF_KERNEL_OFFSET_SHIFT		0
+#define SCALER_PPF_KERNEL_UNCACHED		BIT(31)
+
+/* PITCH0/1/2 fields for raster. */
 #define SCALER_SRC_PITCH_MASK			VC4_MASK(15, 0)
 #define SCALER_SRC_PITCH_SHIFT			0
+
+/* PITCH0 fields for T-tiled. */
+#define SCALER_PITCH0_TILE_WIDTH_L_MASK		VC4_MASK(22, 16)
+#define SCALER_PITCH0_TILE_WIDTH_L_SHIFT	16
+#define SCALER_PITCH0_TILE_LINE_DIR		BIT(15)
+#define SCALER_PITCH0_TILE_INITIAL_LINE_DIR	BIT(14)
+/* Y offset within a tile. */
+#define SCALER_PITCH0_TILE_Y_OFFSET_MASK	VC4_MASK(13, 7)
+#define SCALER_PITCH0_TILE_Y_OFFSET_SHIFT	7
+#define SCALER_PITCH0_TILE_WIDTH_R_MASK		VC4_MASK(6, 0)
+#define SCALER_PITCH0_TILE_WIDTH_R_SHIFT	0
 
 #endif /* VC4_REGS_H */

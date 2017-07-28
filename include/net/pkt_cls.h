@@ -17,6 +17,35 @@ struct tcf_walker {
 int register_tcf_proto_ops(struct tcf_proto_ops *ops);
 int unregister_tcf_proto_ops(struct tcf_proto_ops *ops);
 
+#ifdef CONFIG_NET_CLS
+struct tcf_chain *tcf_chain_get(struct tcf_block *block, u32 chain_index,
+				bool create);
+void tcf_chain_put(struct tcf_chain *chain);
+int tcf_block_get(struct tcf_block **p_block,
+		  struct tcf_proto __rcu **p_filter_chain);
+void tcf_block_put(struct tcf_block *block);
+int tcf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
+		 struct tcf_result *res, bool compat_mode);
+
+#else
+static inline
+int tcf_block_get(struct tcf_block **p_block,
+		  struct tcf_proto __rcu **p_filter_chain)
+{
+	return 0;
+}
+
+static inline void tcf_block_put(struct tcf_block *block)
+{
+}
+
+static inline int tcf_classify(struct sk_buff *skb, const struct tcf_proto *tp,
+			       struct tcf_result *res, bool compat_mode)
+{
+	return TC_ACT_UNSPEC;
+}
+#endif
+
 static inline unsigned long
 __cls_set_class(unsigned long *clp, unsigned long cl)
 {
@@ -59,7 +88,8 @@ tcf_unbind_filter(struct tcf_proto *tp, struct tcf_result *r)
 struct tcf_exts {
 #ifdef CONFIG_NET_CLS_ACT
 	__u32	type; /* for backward compat(TCA_OLD_COMPAT) */
-	struct list_head actions;
+	int nr_actions;
+	struct tc_action **actions;
 #endif
 	/* Map to export classifier specific extension TLV types to the
 	 * generic extensions API. Unsupported extensions must be set to 0.
@@ -68,14 +98,19 @@ struct tcf_exts {
 	int police;
 };
 
-static inline void tcf_exts_init(struct tcf_exts *exts, int action, int police)
+static inline int tcf_exts_init(struct tcf_exts *exts, int action, int police)
 {
 #ifdef CONFIG_NET_CLS_ACT
 	exts->type = 0;
-	INIT_LIST_HEAD(&exts->actions);
+	exts->nr_actions = 0;
+	exts->actions = kcalloc(TCA_ACT_MAX_PRIO, sizeof(struct tc_action *),
+				GFP_KERNEL);
+	if (!exts->actions)
+		return -ENOMEM;
 #endif
 	exts->action = action;
 	exts->police = police;
+	return 0;
 }
 
 /**
@@ -89,7 +124,7 @@ static inline int
 tcf_exts_is_predicative(struct tcf_exts *exts)
 {
 #ifdef CONFIG_NET_CLS_ACT
-	return !list_empty(&exts->actions);
+	return exts->nr_actions;
 #else
 	return 0;
 #endif
@@ -108,6 +143,39 @@ tcf_exts_is_available(struct tcf_exts *exts)
 	return tcf_exts_is_predicative(exts);
 }
 
+static inline void tcf_exts_to_list(const struct tcf_exts *exts,
+				    struct list_head *actions)
+{
+#ifdef CONFIG_NET_CLS_ACT
+	int i;
+
+	for (i = 0; i < exts->nr_actions; i++) {
+		struct tc_action *a = exts->actions[i];
+
+		list_add_tail(&a->list, actions);
+	}
+#endif
+}
+
+static inline void
+tcf_exts_stats_update(const struct tcf_exts *exts,
+		      u64 bytes, u64 packets, u64 lastuse)
+{
+#ifdef CONFIG_NET_CLS_ACT
+	int i;
+
+	preempt_disable();
+
+	for (i = 0; i < exts->nr_actions; i++) {
+		struct tc_action *a = exts->actions[i];
+
+		tcf_action_stats_update(a, bytes, packets, lastuse);
+	}
+
+	preempt_enable();
+#endif
+}
+
 /**
  * tcf_exts_exec - execute tc filter extensions
  * @skb: socket buffer
@@ -124,11 +192,24 @@ tcf_exts_exec(struct sk_buff *skb, struct tcf_exts *exts,
 	       struct tcf_result *res)
 {
 #ifdef CONFIG_NET_CLS_ACT
-	if (!list_empty(&exts->actions))
-		return tcf_action_exec(skb, &exts->actions, res);
+	if (exts->nr_actions)
+		return tcf_action_exec(skb, exts->actions, exts->nr_actions,
+				       res);
 #endif
 	return 0;
 }
+
+#ifdef CONFIG_NET_CLS_ACT
+
+#define tc_no_actions(_exts)  ((_exts)->nr_actions == 0)
+#define tc_single_action(_exts) ((_exts)->nr_actions == 1)
+
+#else /* CONFIG_NET_CLS_ACT */
+
+#define tc_no_actions(_exts) true
+#define tc_single_action(_exts) false
+
+#endif /* CONFIG_NET_CLS_ACT */
 
 int tcf_exts_validate(struct net *net, struct tcf_proto *tp,
 		      struct nlattr **tb, struct nlattr *rate_tlv,
@@ -138,6 +219,8 @@ void tcf_exts_change(struct tcf_proto *tp, struct tcf_exts *dst,
 		     struct tcf_exts *src);
 int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts);
 int tcf_exts_dump_stats(struct sk_buff *skb, struct tcf_exts *exts);
+int tcf_exts_get_dev(struct net_device *dev, struct tcf_exts *exts,
+		     struct net_device **hw_dev);
 
 /**
  * struct tcf_pkt_info - packet information
@@ -358,4 +441,140 @@ tcf_match_indev(struct sk_buff *skb, int ifindex)
 }
 #endif /* CONFIG_NET_CLS_IND */
 
+struct tc_cls_u32_knode {
+	struct tcf_exts *exts;
+	struct tc_u32_sel *sel;
+	u32 handle;
+	u32 val;
+	u32 mask;
+	u32 link_handle;
+	u8 fshift;
+};
+
+struct tc_cls_u32_hnode {
+	u32 handle;
+	u32 prio;
+	unsigned int divisor;
+};
+
+enum tc_clsu32_command {
+	TC_CLSU32_NEW_KNODE,
+	TC_CLSU32_REPLACE_KNODE,
+	TC_CLSU32_DELETE_KNODE,
+	TC_CLSU32_NEW_HNODE,
+	TC_CLSU32_REPLACE_HNODE,
+	TC_CLSU32_DELETE_HNODE,
+};
+
+struct tc_cls_u32_offload {
+	/* knode values */
+	enum tc_clsu32_command command;
+	union {
+		struct tc_cls_u32_knode knode;
+		struct tc_cls_u32_hnode hnode;
+	};
+};
+
+static inline bool tc_can_offload(const struct net_device *dev,
+				  const struct tcf_proto *tp)
+{
+	const struct Qdisc *sch = tp->q;
+	const struct Qdisc_class_ops *cops = sch->ops->cl_ops;
+
+	if (!(dev->features & NETIF_F_HW_TC))
+		return false;
+	if (!dev->netdev_ops->ndo_setup_tc)
+		return false;
+	if (cops && cops->tcf_cl_offload)
+		return cops->tcf_cl_offload(tp->classid);
+
+	return true;
+}
+
+static inline bool tc_skip_hw(u32 flags)
+{
+	return (flags & TCA_CLS_FLAGS_SKIP_HW) ? true : false;
+}
+
+static inline bool tc_should_offload(const struct net_device *dev,
+				     const struct tcf_proto *tp, u32 flags)
+{
+	if (tc_skip_hw(flags))
+		return false;
+	return tc_can_offload(dev, tp);
+}
+
+static inline bool tc_skip_sw(u32 flags)
+{
+	return (flags & TCA_CLS_FLAGS_SKIP_SW) ? true : false;
+}
+
+/* SKIP_HW and SKIP_SW are mutually exclusive flags. */
+static inline bool tc_flags_valid(u32 flags)
+{
+	if (flags & ~(TCA_CLS_FLAGS_SKIP_HW | TCA_CLS_FLAGS_SKIP_SW))
+		return false;
+
+	if (!(flags ^ (TCA_CLS_FLAGS_SKIP_HW | TCA_CLS_FLAGS_SKIP_SW)))
+		return false;
+
+	return true;
+}
+
+static inline bool tc_in_hw(u32 flags)
+{
+	return (flags & TCA_CLS_FLAGS_IN_HW) ? true : false;
+}
+
+enum tc_fl_command {
+	TC_CLSFLOWER_REPLACE,
+	TC_CLSFLOWER_DESTROY,
+	TC_CLSFLOWER_STATS,
+};
+
+struct tc_cls_flower_offload {
+	enum tc_fl_command command;
+	u32 prio;
+	unsigned long cookie;
+	struct flow_dissector *dissector;
+	struct fl_flow_key *mask;
+	struct fl_flow_key *key;
+	struct tcf_exts *exts;
+};
+
+enum tc_matchall_command {
+	TC_CLSMATCHALL_REPLACE,
+	TC_CLSMATCHALL_DESTROY,
+};
+
+struct tc_cls_matchall_offload {
+	enum tc_matchall_command command;
+	struct tcf_exts *exts;
+	unsigned long cookie;
+};
+
+enum tc_clsbpf_command {
+	TC_CLSBPF_ADD,
+	TC_CLSBPF_REPLACE,
+	TC_CLSBPF_DESTROY,
+	TC_CLSBPF_STATS,
+};
+
+struct tc_cls_bpf_offload {
+	enum tc_clsbpf_command command;
+	struct tcf_exts *exts;
+	struct bpf_prog *prog;
+	const char *name;
+	bool exts_integrated;
+	u32 gen_flags;
+};
+
+
+/* This structure holds cookie structure that is passed from user
+ * to the kernel for actions and classifiers
+ */
+struct tc_cookie {
+	u8  *data;
+	u32 len;
+};
 #endif

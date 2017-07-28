@@ -201,7 +201,7 @@ static const struct pinctrl_ops as3722_pinctrl_ops = {
 	.get_group_name = as3722_pinctrl_get_group_name,
 	.get_group_pins = as3722_pinctrl_get_group_pins,
 	.dt_node_to_map = pinconf_generic_dt_node_to_map_pin,
-	.dt_free_map = pinctrl_utils_dt_free_map,
+	.dt_free_map = pinctrl_utils_free_map,
 };
 
 static int as3722_pinctrl_get_funcs_count(struct pinctrl_dev *pctldev)
@@ -436,14 +436,9 @@ static struct pinctrl_desc as3722_pinctrl_desc = {
 	.owner = THIS_MODULE,
 };
 
-static inline struct as3722_pctrl_info *to_as_pci(struct gpio_chip *chip)
-{
-	return container_of(chip, struct as3722_pctrl_info, gpio_chip);
-}
-
 static int as3722_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct as3722_pctrl_info *as_pci = to_as_pci(chip);
+	struct as3722_pctrl_info *as_pci = gpiochip_get_data(chip);
 	struct as3722 *as3722 = as_pci->as3722;
 	int ret;
 	u32 reg;
@@ -491,7 +486,7 @@ static int as3722_gpio_get(struct gpio_chip *chip, unsigned offset)
 static void as3722_gpio_set(struct gpio_chip *chip, unsigned offset,
 		int value)
 {
-	struct as3722_pctrl_info *as_pci = to_as_pci(chip);
+	struct as3722_pctrl_info *as_pci = gpiochip_get_data(chip);
 	struct as3722 *as3722 = as_pci->as3722;
 	int en_invert;
 	u32 val;
@@ -531,7 +526,7 @@ static int as3722_gpio_direction_output(struct gpio_chip *chip,
 
 static int as3722_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 {
-	struct as3722_pctrl_info *as_pci = to_as_pci(chip);
+	struct as3722_pctrl_info *as_pci = gpiochip_get_data(chip);
 
 	return as3722_irq_get_virq(as_pci->as3722, offset);
 }
@@ -574,20 +569,20 @@ static int as3722_pinctrl_probe(struct platform_device *pdev)
 	as3722_pinctrl_desc.name = dev_name(&pdev->dev);
 	as3722_pinctrl_desc.pins = as3722_pins_desc;
 	as3722_pinctrl_desc.npins = ARRAY_SIZE(as3722_pins_desc);
-	as_pci->pctl = pinctrl_register(&as3722_pinctrl_desc,
-					&pdev->dev, as_pci);
+	as_pci->pctl = devm_pinctrl_register(&pdev->dev, &as3722_pinctrl_desc,
+					     as_pci);
 	if (IS_ERR(as_pci->pctl)) {
 		dev_err(&pdev->dev, "Couldn't register pinctrl driver\n");
 		return PTR_ERR(as_pci->pctl);
 	}
 
 	as_pci->gpio_chip = as3722_gpio_chip;
-	as_pci->gpio_chip.dev = &pdev->dev;
+	as_pci->gpio_chip.parent = &pdev->dev;
 	as_pci->gpio_chip.of_node = pdev->dev.parent->of_node;
-	ret = gpiochip_add(&as_pci->gpio_chip);
+	ret = gpiochip_add_data(&as_pci->gpio_chip, as_pci);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Couldn't register gpiochip, %d\n", ret);
-		goto fail_chip_add;
+		return ret;
 	}
 
 	ret = gpiochip_add_pin_range(&as_pci->gpio_chip, dev_name(&pdev->dev),
@@ -601,8 +596,6 @@ static int as3722_pinctrl_probe(struct platform_device *pdev)
 
 fail_range_add:
 	gpiochip_remove(&as_pci->gpio_chip);
-fail_chip_add:
-	pinctrl_unregister(as_pci->pctl);
 	return ret;
 }
 
@@ -611,7 +604,6 @@ static int as3722_pinctrl_remove(struct platform_device *pdev)
 	struct as3722_pctrl_info *as_pci = platform_get_drvdata(pdev);
 
 	gpiochip_remove(&as_pci->gpio_chip);
-	pinctrl_unregister(as_pci->pctl);
 	return 0;
 }
 

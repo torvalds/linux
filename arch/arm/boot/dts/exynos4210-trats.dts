@@ -20,7 +20,8 @@
 	model = "Samsung Trats based on Exynos4210";
 	compatible = "samsung,trats", "samsung,exynos4210", "samsung,exynos4";
 
-	memory {
+	memory@40000000 {
+		device_type = "memory";
 		reg =  <0x40000000 0x10000000
 			0x50000000 0x10000000
 			0x60000000 0x10000000
@@ -112,7 +113,7 @@
 			linux,code = <116>;
 			label = "power";
 			debounce-interval = <10>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		ok-key {
@@ -196,6 +197,8 @@
 &dsi_0 {
 	vddcore-supply = <&vusb_reg>;
 	vddio-supply = <&vmipi_reg>;
+	samsung,burst-clock-frequency = <500000000>;
+	samsung,esc-clock-frequency = <20000000>;
 	samsung,pll-clock-frequency = <24000000>;
 	status = "okay";
 
@@ -278,7 +281,7 @@
 		compatible = "melfas,mms114";
 		reg = <0x48>;
 		interrupt-parent = <&gpx0>;
-		interrupts = <4 2>;
+		interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
 		x-size = <720>;
 		y-size = <1280>;
 		avdd-supply = <&tsp_reg>;
@@ -298,6 +301,8 @@
 		compatible = "maxim,max8997-pmic";
 
 		reg = <0x66>;
+		interrupt-parent = <&gpx0>;
+		interrupts = <7 IRQ_TYPE_NONE>;
 
 		max8997,pmic-buck1-uses-gpio-dvs;
 		max8997,pmic-buck2-uses-gpio-dvs;
@@ -359,7 +364,7 @@
 			};
 
 			vusbdac_reg: LDO8 {
-			     regulator-name = "VUSB/VDAC_3.3V_C210";
+			     regulator-name = "VUSB+VDAC_3.3V_C210";
 			     regulator-min-microvolt = <3300000>;
 			     regulator-max-microvolt = <3300000>;
 			};

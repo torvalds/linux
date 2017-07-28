@@ -1,7 +1,7 @@
 Cirrus Logic CLPS711X GPIO controller
 
 Required properties:
-- compatible: Should be "cirrus,clps711x-gpio"
+- compatible: Should be "cirrus,ep7209-gpio"
 - reg: Physical base GPIO controller registers location and length.
   There should be two registers, first is DATA register, the second
   is DIRECTION.
@@ -21,7 +21,7 @@ aliases {
 };
 
 porta: gpio@80000000 {
-	compatible = "cirrus,clps711x-gpio";
+	compatible = "cirrus,ep7312-gpio","cirrus,ep7209-gpio";
 	reg = <0x80000000 0x1>, <0x80000040 0x1>;
 	gpio-controller;
 	#gpio-cells = <2>;

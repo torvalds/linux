@@ -31,26 +31,6 @@ Required properties for dp-controller:
 		from general PHY binding: the phandle for the PHY device.
 	-phy-names:
 		from general PHY binding: Should be "dp".
-	-samsung,color-space:
-		input video data format.
-			COLOR_RGB = 0, COLOR_YCBCR422 = 1, COLOR_YCBCR444 = 2
-	-samsung,dynamic-range:
-		dynamic range for input video data.
-			VESA = 0, CEA = 1
-	-samsung,ycbcr-coeff:
-		YCbCr co-efficients for input video.
-			COLOR_YCBCR601 = 0, COLOR_YCBCR709 = 1
-	-samsung,color-depth:
-		number of bits per colour component.
-			COLOR_6 = 0, COLOR_8 = 1, COLOR_10 = 2, COLOR_12 = 3
-	-samsung,link-rate:
-		link rate supported by the panel.
-			LINK_RATE_1_62GBPS = 0x6, LINK_RATE_2_70GBPS = 0x0A
-	-samsung,lane-count:
-		number of lanes supported by the panel.
-			LANE_COUNT1 = 1, LANE_COUNT2 = 2, LANE_COUNT4 = 4
-	- display-timings: timings for the connected panel as described by
-		Documentation/devicetree/bindings/display/display-timing.txt
 
 Optional properties for dp-controller:
 	-interlaced:
@@ -67,9 +47,30 @@ Optional properties for dp-controller:
 			Indicates which GPIO should be used for hotplug
 			detection
 	-video interfaces: Device node can contain video interface port
-			    nodes according to [1].
+			nodes according to [1].
+	- display-timings: timings for the connected panel as described by
+		Documentation/devicetree/bindings/display/panel/display-timing.txt
 
-[1]: Documentation/devicetree/bindings/media/video-interfaces.txt
+For the below properties, please refer to Analogix DP binding document:
+ * Documentation/devicetree/bindings/display/bridge/analogix_dp.txt
+	-phys (required)
+	-phy-names (required)
+	-hpd-gpios (optional)
+	 force-hpd (optional)
+
+Deprecated properties for DisplayPort:
+-interlaced:            deprecated prop that can parsed from drm_display_mode.
+-vsync-active-high:     deprecated prop that can parsed from drm_display_mode.
+-hsync-active-high:     deprecated prop that can parsed from drm_display_mode.
+-samsung,ycbcr-coeff:   deprecated prop that can parsed from drm_display_mode.
+-samsung,dynamic-range: deprecated prop that can parsed from drm_display_mode.
+-samsung,color-space:   deprecated prop that can parsed from drm_display_info.
+-samsung,color-depth:   deprecated prop that can parsed from drm_display_info.
+-samsung,link-rate:     deprecated prop that can reading from monitor by dpcd method.
+-samsung,lane-count:    deprecated prop that can reading from monitor by dpcd method.
+-samsung,hpd-gpio:      deprecated name for hpd-gpios.
+
+-------------------------------------------------------------------------------
 
 Example:
 
@@ -88,13 +89,6 @@ SOC specific portion:
 
 Board Specific portion:
 	dp-controller {
-		samsung,color-space = <0>;
-		samsung,dynamic-range = <0>;
-		samsung,ycbcr-coeff = <0>;
-		samsung,color-depth = <1>;
-		samsung,link-rate = <0x0a>;
-		samsung,lane-count = <4>;
-
 		display-timings {
 			native-mode = <&lcd_timing>;
 			lcd_timing: 1366x768 {

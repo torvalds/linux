@@ -1,0 +1,38 @@
+TI ADC128D818 ADC System Monitor With Temperature Sensor
+--------------------------------------------------------
+
+Operation modes:
+
+ - Mode 0:  7 single-ended voltage readings (IN0-IN6),
+            1 temperature reading (internal)
+ - Mode 1:  8 single-ended voltage readings (IN0-IN7),
+            no temperature
+ - Mode 2:  4 pseudo-differential voltage readings
+              (IN0-IN1, IN3-IN2, IN4-IN5, IN7-IN6),
+            1 temperature reading (internal)
+ - Mode 3:  4 single-ended voltage readings (IN0-IN3),
+            2 pseudo-differential voltage readings
+              (IN4-IN5, IN7-IN6),
+            1 temperature reading (internal)
+
+If no operation mode is configured via device tree, the driver keeps the
+currently active chip operation mode (default is mode 0).
+
+
+Required node properties:
+
+ - compatible:  must be set to "ti,adc128d818"
+ - reg:         I2C address of the device
+
+Optional node properties:
+
+ - ti,mode:     Operation mode (see above).
+
+
+Example (operation mode 2):
+
+	adc128d818@1d {
+		compatible = "ti,adc128d818";
+		reg = <0x1d>;
+		ti,mode = <2>;
+	};

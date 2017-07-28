@@ -29,13 +29,13 @@
 
 		compatible = "gpio-leds";
 
-		led@0 {
+		led0 {
 			label = "base:red:user";
 			gpios = <&gpio1 21 GPIO_ACTIVE_HIGH>;	/* gpio1_21 */
 			default-state = "off";
 		};
 
-		led@1 {
+		led1 {
 			label = "base:green:user";
 			gpios = <&gpio2 0 GPIO_ACTIVE_HIGH>;	/* gpio2_0 */
 			default-state = "off";
@@ -89,7 +89,7 @@
 
 &i2c0 {
 	eeprom: eeprom@50 {
-		compatible = "at,24c256";
+		compatible = "atmel,24c256";
 		reg = <0x50>;
 	};
 };

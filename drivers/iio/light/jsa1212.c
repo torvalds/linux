@@ -325,9 +325,6 @@ static int jsa1212_probe(struct i2c_client *client,
 	struct regmap *regmap;
 	int ret;
 
-	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		return -ENODEV;
-
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
 		return -ENOMEM;

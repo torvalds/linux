@@ -21,6 +21,7 @@
 
 #include "fjes_hw.h"
 #include "fjes.h"
+#include "fjes_trace.h"
 
 static void fjes_hw_update_zone_task(struct work_struct *);
 static void fjes_hw_epstop_task(struct work_struct *);
@@ -179,6 +180,8 @@ void fjes_hw_setup_epbuf(struct epbuf_handler *epbh, u8 *mac_addr, u32 mtu)
 
 	for (i = 0; i < EP_BUFFER_SUPPORT_VLAN_MAX; i++)
 		info->v1i.vlan_id[i] = vlan_id[i];
+
+	info->v1i.rx_status |= FJES_RX_MTU_CHANGING_DONE;
 }
 
 void
@@ -214,6 +217,7 @@ static int fjes_hw_setup(struct fjes_hw *hw)
 	u8 mac[ETH_ALEN] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 	struct fjes_device_command_param param;
 	struct ep_share_mem_info *buf_pair;
+	unsigned long flags;
 	size_t mem_size;
 	int result;
 	int epidx;
@@ -262,10 +266,12 @@ static int fjes_hw_setup(struct fjes_hw *hw)
 			if (result)
 				return result;
 
+			spin_lock_irqsave(&hw->rx_status_lock, flags);
 			fjes_hw_setup_epbuf(&buf_pair->tx, mac,
 					    fjes_support_mtu[0]);
 			fjes_hw_setup_epbuf(&buf_pair->rx, mac,
 					    fjes_support_mtu[0]);
+			spin_unlock_irqrestore(&hw->rx_status_lock, flags);
 		}
 	}
 
@@ -327,6 +333,7 @@ int fjes_hw_init(struct fjes_hw *hw)
 	INIT_WORK(&hw->epstop_task, fjes_hw_epstop_task);
 
 	mutex_init(&hw->hw_info.lock);
+	spin_lock_init(&hw->rx_status_lock);
 
 	hw->max_epid = fjes_hw_get_max_epid(hw);
 	hw->my_epid = fjes_hw_get_my_epid(hw);
@@ -336,6 +343,9 @@ int fjes_hw_init(struct fjes_hw *hw)
 
 	ret = fjes_hw_setup(hw);
 
+	hw->hw_info.trace = vzalloc(FJES_DEBUG_BUFFER_SIZE);
+	hw->hw_info.trace_size = FJES_DEBUG_BUFFER_SIZE;
+
 	return ret;
 }
 
@@ -344,6 +354,18 @@ void fjes_hw_exit(struct fjes_hw *hw)
 	int ret;
 
 	if (hw->base) {
+
+		if (hw->debug_mode) {
+			/* disable debug mode */
+			mutex_lock(&hw->hw_info.lock);
+			fjes_hw_stop_debug(hw);
+			mutex_unlock(&hw->hw_info.lock);
+		}
+		vfree(hw->hw_info.trace);
+		hw->hw_info.trace = NULL;
+		hw->hw_info.trace_size = 0;
+		hw->debug_mode = 0;
+
 		ret = fjes_hw_reset(hw);
 		if (ret)
 			pr_err("%s: reset error", __func__);
@@ -365,7 +387,7 @@ fjes_hw_issue_request_command(struct fjes_hw *hw,
 	enum fjes_dev_command_response_e ret = FJES_CMD_STATUS_UNKNOWN;
 	union REG_CR cr;
 	union REG_CS cs;
-	int timeout;
+	int timeout = FJES_COMMAND_REQ_TIMEOUT * 1000;
 
 	cr.reg = 0;
 	cr.bits.req_start = 1;
@@ -402,6 +424,8 @@ fjes_hw_issue_request_command(struct fjes_hw *hw,
 		}
 	}
 
+	trace_fjes_hw_issue_request_command(&cr, &cs, timeout, ret);
+
 	return ret;
 }
 
@@ -421,11 +445,13 @@ int fjes_hw_request_info(struct fjes_hw *hw)
 	res_buf->info.code = 0;
 
 	ret = fjes_hw_issue_request_command(hw, FJES_CMD_REQ_INFO);
+	trace_fjes_hw_request_info(hw, res_buf);
 
 	result = 0;
 
 	if (FJES_DEV_COMMAND_INFO_RES_LEN((*hw->hw_info.max_epid)) !=
 		res_buf->info.length) {
+		trace_fjes_hw_request_info_err("Invalid res_buf");
 		result = -ENOMSG;
 	} else if (ret == FJES_CMD_STATUS_NORMAL) {
 		switch (res_buf->info.code) {
@@ -442,6 +468,7 @@ int fjes_hw_request_info(struct fjes_hw *hw)
 			result = -EPERM;
 			break;
 		case FJES_CMD_STATUS_TIMEOUT:
+			trace_fjes_hw_request_info_err("Timeout");
 			result = -EBUSY;
 			break;
 		case FJES_CMD_STATUS_ERROR_PARAM:
@@ -506,6 +533,8 @@ int fjes_hw_register_buff_addr(struct fjes_hw *hw, int dest_epid,
 	res_buf->share_buffer.length = 0;
 	res_buf->share_buffer.code = 0;
 
+	trace_fjes_hw_register_buff_addr_req(req_buf, buf_pair);
+
 	ret = fjes_hw_issue_request_command(hw, FJES_CMD_REQ_SHARE_BUFFER);
 
 	timeout = FJES_COMMAND_REQ_BUFF_TIMEOUT * 1000;
@@ -526,16 +555,20 @@ int fjes_hw_register_buff_addr(struct fjes_hw *hw, int dest_epid,
 
 	result = 0;
 
+	trace_fjes_hw_register_buff_addr(res_buf, timeout);
+
 	if (res_buf->share_buffer.length !=
-			FJES_DEV_COMMAND_SHARE_BUFFER_RES_LEN)
+			FJES_DEV_COMMAND_SHARE_BUFFER_RES_LEN) {
+		trace_fjes_hw_register_buff_addr_err("Invalid res_buf");
 		result = -ENOMSG;
-	else if (ret == FJES_CMD_STATUS_NORMAL) {
+	} else if (ret == FJES_CMD_STATUS_NORMAL) {
 		switch (res_buf->share_buffer.code) {
 		case FJES_CMD_REQ_RES_CODE_NORMAL:
 			result = 0;
 			set_bit(dest_epid, &hw->hw_info.buffer_share_bit);
 			break;
 		case FJES_CMD_REQ_RES_CODE_BUSY:
+			trace_fjes_hw_register_buff_addr_err("Busy Timeout");
 			result = -EBUSY;
 			break;
 		default:
@@ -548,6 +581,7 @@ int fjes_hw_register_buff_addr(struct fjes_hw *hw, int dest_epid,
 			result = -EPERM;
 			break;
 		case FJES_CMD_STATUS_TIMEOUT:
+			trace_fjes_hw_register_buff_addr_err("Timeout");
 			result = -EBUSY;
 			break;
 		case FJES_CMD_STATUS_ERROR_PARAM:
@@ -589,6 +623,7 @@ int fjes_hw_unregister_buff_addr(struct fjes_hw *hw, int dest_epid)
 	res_buf->unshare_buffer.length = 0;
 	res_buf->unshare_buffer.code = 0;
 
+	trace_fjes_hw_unregister_buff_addr_req(req_buf);
 	ret = fjes_hw_issue_request_command(hw, FJES_CMD_REQ_UNSHARE_BUFFER);
 
 	timeout = FJES_COMMAND_REQ_BUFF_TIMEOUT * 1000;
@@ -610,8 +645,11 @@ int fjes_hw_unregister_buff_addr(struct fjes_hw *hw, int dest_epid)
 
 	result = 0;
 
+	trace_fjes_hw_unregister_buff_addr(res_buf, timeout);
+
 	if (res_buf->unshare_buffer.length !=
 			FJES_DEV_COMMAND_UNSHARE_BUFFER_RES_LEN) {
+		trace_fjes_hw_unregister_buff_addr_err("Invalid res_buf");
 		result = -ENOMSG;
 	} else if (ret == FJES_CMD_STATUS_NORMAL) {
 		switch (res_buf->unshare_buffer.code) {
@@ -620,6 +658,7 @@ int fjes_hw_unregister_buff_addr(struct fjes_hw *hw, int dest_epid)
 			clear_bit(dest_epid, &hw->hw_info.buffer_share_bit);
 			break;
 		case FJES_CMD_REQ_RES_CODE_BUSY:
+			trace_fjes_hw_unregister_buff_addr_err("Busy Timeout");
 			result = -EBUSY;
 			break;
 		default:
@@ -632,6 +671,7 @@ int fjes_hw_unregister_buff_addr(struct fjes_hw *hw, int dest_epid)
 			result = -EPERM;
 			break;
 		case FJES_CMD_STATUS_TIMEOUT:
+			trace_fjes_hw_unregister_buff_addr_err("Timeout");
 			result = -EBUSY;
 			break;
 		case FJES_CMD_STATUS_ERROR_PARAM:
@@ -734,6 +774,7 @@ fjes_hw_get_partner_ep_status(struct fjes_hw *hw, int epid)
 void fjes_hw_raise_epstop(struct fjes_hw *hw)
 {
 	enum ep_partner_status status;
+	unsigned long flags;
 	int epidx;
 
 	for (epidx = 0; epidx < hw->max_epid; epidx++) {
@@ -745,6 +786,7 @@ void fjes_hw_raise_epstop(struct fjes_hw *hw)
 		case EP_PARTNER_SHARED:
 			fjes_hw_raise_interrupt(hw, epidx,
 						REG_ICTL_MASK_TXRX_STOP_REQ);
+			hw->ep_shm_info[epidx].ep_stats.send_intr_unshare += 1;
 			break;
 		default:
 			break;
@@ -753,8 +795,10 @@ void fjes_hw_raise_epstop(struct fjes_hw *hw)
 		set_bit(epidx, &hw->hw_info.buffer_unshare_reserve_bit);
 		set_bit(epidx, &hw->txrx_stop_req_bit);
 
+		spin_lock_irqsave(&hw->rx_status_lock, flags);
 		hw->ep_shm_info[epidx].tx.info->v1i.rx_status |=
 				FJES_RX_STOP_REQ_REQUEST;
+		spin_unlock_irqrestore(&hw->rx_status_lock, flags);
 	}
 }
 
@@ -810,7 +854,8 @@ bool fjes_hw_check_mtu(struct epbuf_handler *epbh, u32 mtu)
 {
 	union ep_buffer_info *info = epbh->info;
 
-	return (info->v1i.frame_max == FJES_MTU_TO_FRAME_SIZE(mtu));
+	return ((info->v1i.frame_max == FJES_MTU_TO_FRAME_SIZE(mtu)) &&
+		info->v1i.rx_status & FJES_RX_MTU_CHANGING_DONE);
 }
 
 bool fjes_hw_check_vlan_id(struct epbuf_handler *epbh, u16 vlan_id)
@@ -862,6 +907,9 @@ void fjes_hw_del_vlan_id(struct epbuf_handler *epbh, u16 vlan_id)
 bool fjes_hw_epbuf_rx_is_empty(struct epbuf_handler *epbh)
 {
 	union ep_buffer_info *info = epbh->info;
+
+	if (!(info->v1i.rx_status & FJES_RX_MTU_CHANGING_DONE))
+		return true;
 
 	if (info->v1i.count_max == 0)
 		return true;
@@ -932,6 +980,7 @@ static void fjes_hw_update_zone_task(struct work_struct *work)
 
 	struct fjes_adapter *adapter;
 	struct net_device *netdev;
+	unsigned long flags;
 
 	ulong unshare_bit = 0;
 	ulong share_bit = 0;
@@ -1024,8 +1073,10 @@ static void fjes_hw_update_zone_task(struct work_struct *work)
 			continue;
 
 		if (test_bit(epidx, &share_bit)) {
+			spin_lock_irqsave(&hw->rx_status_lock, flags);
 			fjes_hw_setup_epbuf(&hw->ep_shm_info[epidx].tx,
 					    netdev->dev_addr, netdev->mtu);
+			spin_unlock_irqrestore(&hw->rx_status_lock, flags);
 
 			mutex_lock(&hw->hw_info.lock);
 
@@ -1046,6 +1097,9 @@ static void fjes_hw_update_zone_task(struct work_struct *work)
 				break;
 			}
 			mutex_unlock(&hw->hw_info.lock);
+
+			hw->ep_shm_info[epidx].ep_stats
+					      .com_regist_buf_exec += 1;
 		}
 
 		if (test_bit(epidx, &unshare_bit)) {
@@ -1069,20 +1123,31 @@ static void fjes_hw_update_zone_task(struct work_struct *work)
 
 			mutex_unlock(&hw->hw_info.lock);
 
-			if (ret == 0)
+			hw->ep_shm_info[epidx].ep_stats
+					      .com_unregist_buf_exec += 1;
+
+			if (ret == 0) {
+				spin_lock_irqsave(&hw->rx_status_lock, flags);
 				fjes_hw_setup_epbuf(
 					&hw->ep_shm_info[epidx].tx,
 					netdev->dev_addr, netdev->mtu);
+				spin_unlock_irqrestore(&hw->rx_status_lock,
+						       flags);
+			}
 		}
 
 		if (test_bit(epidx, &irq_bit)) {
 			fjes_hw_raise_interrupt(hw, epidx,
 						REG_ICTL_MASK_TXRX_STOP_REQ);
 
+			hw->ep_shm_info[epidx].ep_stats.send_intr_unshare += 1;
+
 			set_bit(epidx, &hw->txrx_stop_req_bit);
+			spin_lock_irqsave(&hw->rx_status_lock, flags);
 			hw->ep_shm_info[epidx].tx.
 				info->v1i.rx_status |=
 					FJES_RX_STOP_REQ_REQUEST;
+			spin_unlock_irqrestore(&hw->rx_status_lock, flags);
 			set_bit(epidx, &hw->hw_info.buffer_unshare_reserve_bit);
 		}
 	}
@@ -1098,6 +1163,7 @@ static void fjes_hw_epstop_task(struct work_struct *work)
 {
 	struct fjes_hw *hw = container_of(work, struct fjes_hw, epstop_task);
 	struct fjes_adapter *adapter = (struct fjes_adapter *)hw->back;
+	unsigned long flags;
 
 	ulong remain_bit;
 	int epid_bit;
@@ -1105,9 +1171,12 @@ static void fjes_hw_epstop_task(struct work_struct *work)
 	while ((remain_bit = hw->epstop_req_bit)) {
 		for (epid_bit = 0; remain_bit; remain_bit >>= 1, epid_bit++) {
 			if (remain_bit & 1) {
+				spin_lock_irqsave(&hw->rx_status_lock, flags);
 				hw->ep_shm_info[epid_bit].
 					tx.info->v1i.rx_status |=
 						FJES_RX_STOP_REQ_DONE;
+				spin_unlock_irqrestore(&hw->rx_status_lock,
+						       flags);
 
 				clear_bit(epid_bit, &hw->epstop_req_bit);
 				set_bit(epid_bit,
@@ -1120,4 +1189,126 @@ static void fjes_hw_epstop_task(struct work_struct *work)
 			}
 		}
 	}
+}
+
+int fjes_hw_start_debug(struct fjes_hw *hw)
+{
+	union fjes_device_command_req *req_buf = hw->hw_info.req_buf;
+	union fjes_device_command_res *res_buf = hw->hw_info.res_buf;
+	enum fjes_dev_command_response_e ret;
+	int page_count;
+	int result = 0;
+	void *addr;
+	int i;
+
+	if (!hw->hw_info.trace)
+		return -EPERM;
+	memset(hw->hw_info.trace, 0, FJES_DEBUG_BUFFER_SIZE);
+
+	memset(req_buf, 0, hw->hw_info.req_buf_size);
+	memset(res_buf, 0, hw->hw_info.res_buf_size);
+
+	req_buf->start_trace.length =
+		FJES_DEV_COMMAND_START_DBG_REQ_LEN(hw->hw_info.trace_size);
+	req_buf->start_trace.mode = hw->debug_mode;
+	req_buf->start_trace.buffer_len = hw->hw_info.trace_size;
+	page_count = hw->hw_info.trace_size / FJES_DEBUG_PAGE_SIZE;
+	for (i = 0; i < page_count; i++) {
+		addr = ((u8 *)hw->hw_info.trace) + i * FJES_DEBUG_PAGE_SIZE;
+		req_buf->start_trace.buffer[i] =
+			(__le64)(page_to_phys(vmalloc_to_page(addr)) +
+			offset_in_page(addr));
+	}
+
+	res_buf->start_trace.length = 0;
+	res_buf->start_trace.code = 0;
+
+	trace_fjes_hw_start_debug_req(req_buf);
+	ret = fjes_hw_issue_request_command(hw, FJES_CMD_REQ_START_DEBUG);
+	trace_fjes_hw_start_debug(res_buf);
+
+	if (res_buf->start_trace.length !=
+		FJES_DEV_COMMAND_START_DBG_RES_LEN) {
+		result = -ENOMSG;
+		trace_fjes_hw_start_debug_err("Invalid res_buf");
+	} else if (ret == FJES_CMD_STATUS_NORMAL) {
+		switch (res_buf->start_trace.code) {
+		case FJES_CMD_REQ_RES_CODE_NORMAL:
+			result = 0;
+			break;
+		default:
+			result = -EPERM;
+			break;
+		}
+	} else {
+		switch (ret) {
+		case FJES_CMD_STATUS_UNKNOWN:
+			result = -EPERM;
+			break;
+		case FJES_CMD_STATUS_TIMEOUT:
+			trace_fjes_hw_start_debug_err("Busy Timeout");
+			result = -EBUSY;
+			break;
+		case FJES_CMD_STATUS_ERROR_PARAM:
+		case FJES_CMD_STATUS_ERROR_STATUS:
+		default:
+			result = -EPERM;
+			break;
+		}
+	}
+
+	return result;
+}
+
+int fjes_hw_stop_debug(struct fjes_hw *hw)
+{
+	union fjes_device_command_req *req_buf = hw->hw_info.req_buf;
+	union fjes_device_command_res *res_buf = hw->hw_info.res_buf;
+	enum fjes_dev_command_response_e ret;
+	int result = 0;
+
+	if (!hw->hw_info.trace)
+		return -EPERM;
+
+	memset(req_buf, 0, hw->hw_info.req_buf_size);
+	memset(res_buf, 0, hw->hw_info.res_buf_size);
+	req_buf->stop_trace.length = FJES_DEV_COMMAND_STOP_DBG_REQ_LEN;
+
+	res_buf->stop_trace.length = 0;
+	res_buf->stop_trace.code = 0;
+
+	ret = fjes_hw_issue_request_command(hw, FJES_CMD_REQ_STOP_DEBUG);
+	trace_fjes_hw_stop_debug(res_buf);
+
+	if (res_buf->stop_trace.length != FJES_DEV_COMMAND_STOP_DBG_RES_LEN) {
+		trace_fjes_hw_stop_debug_err("Invalid res_buf");
+		result = -ENOMSG;
+	} else if (ret == FJES_CMD_STATUS_NORMAL) {
+		switch (res_buf->stop_trace.code) {
+		case FJES_CMD_REQ_RES_CODE_NORMAL:
+			result = 0;
+			hw->debug_mode = 0;
+			break;
+		default:
+			result = -EPERM;
+			break;
+		}
+	} else {
+		switch (ret) {
+		case FJES_CMD_STATUS_UNKNOWN:
+			result = -EPERM;
+			break;
+		case FJES_CMD_STATUS_TIMEOUT:
+			result = -EBUSY;
+			trace_fjes_hw_stop_debug_err("Busy Timeout");
+			break;
+		case FJES_CMD_STATUS_ERROR_PARAM:
+		case FJES_CMD_STATUS_ERROR_STATUS:
+		default:
+			result = -EPERM;
+			break;
+		}
+	}
+
+	return result;
 }

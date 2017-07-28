@@ -17,6 +17,7 @@
 
 #include <linux/signal.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
@@ -26,7 +27,7 @@
 #include <linux/mm.h>
 #include <linux/interrupt.h>
 #include <linux/highmem.h>
-#include <linux/module.h>
+#include <linux/extable.h>
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
 #include <linux/perf_event.h>
@@ -119,8 +120,6 @@ static int do_sigbus(struct pt_regs *regs, unsigned long address,
 	siginfo_t info;
 	unsigned int lsb = 0;
 
-	up_read(&current->mm->mmap_sem);
-
 	if (!user_mode(regs))
 		return MM_FAULT_ERR(SIGBUS);
 
@@ -153,13 +152,6 @@ static int mm_fault_error(struct pt_regs *regs, unsigned long addr, int fault)
 	 * continue the pagefault.
 	 */
 	if (fatal_signal_pending(current)) {
-		/*
-		 * If we have retry set, the mmap semaphore will have
-		 * alrady been released in __lock_page_or_retry(). Else
-		 * we release it now.
-		 */
-		if (!(fault & VM_FAULT_RETRY))
-			up_read(&current->mm->mmap_sem);
 		/* Coming from kernel, we need to deal with uaccess fixups */
 		if (user_mode(regs))
 			return MM_FAULT_RETURN;
@@ -172,8 +164,6 @@ static int mm_fault_error(struct pt_regs *regs, unsigned long addr, int fault)
 
 	/* Out of memory */
 	if (fault & VM_FAULT_OOM) {
-		up_read(&current->mm->mmap_sem);
-
 		/*
 		 * We ran out of memory, or some other thing happened to us that
 		 * made us unable to handle the page fault gracefully.
@@ -205,7 +195,7 @@ static int mm_fault_error(struct pt_regs *regs, unsigned long addr, int fault)
  * The return value is 0 if the fault was handled, or the signal
  * number if this is a kernel fault that can't be handled here.
  */
-int __kprobes do_page_fault(struct pt_regs *regs, unsigned long address,
+int do_page_fault(struct pt_regs *regs, unsigned long address,
 			    unsigned long error_code)
 {
 	enum ctx_state prev_state = exception_enter();
@@ -216,6 +206,7 @@ int __kprobes do_page_fault(struct pt_regs *regs, unsigned long address,
 	int is_write = 0;
 	int trap = TRAP(regs);
  	int is_exec = trap == 0x400;
+	int is_user = user_mode(regs);
 	int fault;
 	int rc = 0, store_update_sp = 0;
 
@@ -226,7 +217,7 @@ int __kprobes do_page_fault(struct pt_regs *regs, unsigned long address,
 	 * bits we are interested in.  But there are some bits which
 	 * indicate errors in DSISR but can validly be set in SRR1.
 	 */
-	if (trap == 0x400)
+	if (is_exec)
 		error_code &= 0x48200000;
 	else
 		is_write = error_code & DSISR_ISSTORE;
@@ -253,14 +244,17 @@ int __kprobes do_page_fault(struct pt_regs *regs, unsigned long address,
 	if (unlikely(debugger_fault_handler(regs)))
 		goto bail;
 
-	/* On a kernel SLB miss we can only check for a valid exception entry */
-	if (!user_mode(regs) && (address >= TASK_SIZE)) {
+	/*
+	 * The kernel should never take an execute fault nor should it
+	 * take a page fault to a kernel address.
+	 */
+	if (!is_user && (is_exec || (address >= TASK_SIZE))) {
 		rc = SIGSEGV;
 		goto bail;
 	}
 
 #if !(defined(CONFIG_4xx) || defined(CONFIG_BOOKE) || \
-			     defined(CONFIG_PPC_BOOK3S_64))
+      defined(CONFIG_PPC_BOOK3S_64) || defined(CONFIG_PPC_8xx))
   	if (error_code & DSISR_DABRMATCH) {
 		/* breakpoint match */
 		do_break(regs, address, error_code);
@@ -273,7 +267,7 @@ int __kprobes do_page_fault(struct pt_regs *regs, unsigned long address,
 		local_irq_enable();
 
 	if (faulthandler_disabled() || mm == NULL) {
-		if (!user_mode(regs)) {
+		if (!is_user) {
 			rc = SIGSEGV;
 			goto bail;
 		}
@@ -294,10 +288,10 @@ int __kprobes do_page_fault(struct pt_regs *regs, unsigned long address,
 	 * can result in fault, which will cause a deadlock when called with
 	 * mmap_sem held
 	 */
-	if (user_mode(regs))
+	if (is_write && is_user)
 		store_update_sp = store_updates_sp(regs);
 
-	if (user_mode(regs))
+	if (is_user)
 		flags |= FAULT_FLAG_USER;
 
 	/* When running in the kernel we expect faults to occur only to
@@ -316,7 +310,7 @@ int __kprobes do_page_fault(struct pt_regs *regs, unsigned long address,
 	 * thus avoiding the deadlock.
 	 */
 	if (!down_read_trylock(&mm->mmap_sem)) {
-		if (!user_mode(regs) && !search_exception_tables(regs->nip))
+		if (!is_user && !search_exception_tables(regs->nip))
 			goto bad_area_nosemaphore;
 
 retry:
@@ -404,14 +398,6 @@ good_area:
 		    (cpu_has_feature(CPU_FTR_NOEXECUTE) ||
 		     !(vma->vm_flags & (VM_READ | VM_WRITE))))
 			goto bad_area;
-#ifdef CONFIG_PPC_STD_MMU
-		/*
-		 * protfault should only happen due to us
-		 * mapping a region readonly temporarily. PROT_NONE
-		 * is also covered by the VMA check above.
-		 */
-		WARN_ON_ONCE(error_code & DSISR_PROTFAULT);
-#endif /* CONFIG_PPC_STD_MMU */
 	/* a write */
 	} else if (is_write) {
 		if (!(vma->vm_flags & VM_WRITE))
@@ -421,18 +407,71 @@ good_area:
 	} else {
 		if (!(vma->vm_flags & (VM_READ | VM_EXEC | VM_WRITE)))
 			goto bad_area;
-		WARN_ON_ONCE(error_code & DSISR_PROTFAULT);
 	}
+#ifdef CONFIG_PPC_STD_MMU
+	/*
+	 * For hash translation mode, we should never get a
+	 * PROTFAULT. Any update to pte to reduce access will result in us
+	 * removing the hash page table entry, thus resulting in a DSISR_NOHPTE
+	 * fault instead of DSISR_PROTFAULT.
+	 *
+	 * A pte update to relax the access will not result in a hash page table
+	 * entry invalidate and hence can result in DSISR_PROTFAULT.
+	 * ptep_set_access_flags() doesn't do a hpte flush. This is why we have
+	 * the special !is_write in the below conditional.
+	 *
+	 * For platforms that doesn't supports coherent icache and do support
+	 * per page noexec bit, we do setup things such that we do the
+	 * sync between D/I cache via fault. But that is handled via low level
+	 * hash fault code (hash_page_do_lazy_icache()) and we should not reach
+	 * here in such case.
+	 *
+	 * For wrong access that can result in PROTFAULT, the above vma->vm_flags
+	 * check should handle those and hence we should fall to the bad_area
+	 * handling correctly.
+	 *
+	 * For embedded with per page exec support that doesn't support coherent
+	 * icache we do get PROTFAULT and we handle that D/I cache sync in
+	 * set_pte_at while taking the noexec/prot fault. Hence this is WARN_ON
+	 * is conditional for server MMU.
+	 *
+	 * For radix, we can get prot fault for autonuma case, because radix
+	 * page table will have them marked noaccess for user.
+	 */
+	if (!radix_enabled() && !is_write)
+		WARN_ON_ONCE(error_code & DSISR_PROTFAULT);
+#endif /* CONFIG_PPC_STD_MMU */
 
 	/*
 	 * If for any reason at all we couldn't handle the fault,
 	 * make sure we exit gracefully rather than endlessly redo
 	 * the fault.
 	 */
-	fault = handle_mm_fault(mm, vma, address, flags);
+	fault = handle_mm_fault(vma, address, flags);
+
+	/*
+	 * Handle the retry right now, the mmap_sem has been released in that
+	 * case.
+	 */
+	if (unlikely(fault & VM_FAULT_RETRY)) {
+		/* We retry only once */
+		if (flags & FAULT_FLAG_ALLOW_RETRY) {
+			/*
+			 * Clear FAULT_FLAG_ALLOW_RETRY to avoid any risk
+			 * of starvation.
+			 */
+			flags &= ~FAULT_FLAG_ALLOW_RETRY;
+			flags |= FAULT_FLAG_TRIED;
+			if (!fatal_signal_pending(current))
+				goto retry;
+		}
+		/* We will enter mm_fault_error() below */
+	} else
+		up_read(&current->mm->mmap_sem);
+
 	if (unlikely(fault & (VM_FAULT_RETRY|VM_FAULT_ERROR))) {
 		if (fault & VM_FAULT_SIGSEGV)
-			goto bad_area;
+			goto bad_area_nosemaphore;
 		rc = mm_fault_error(regs, address, fault);
 		if (rc >= MM_FAULT_RETURN)
 			goto bail;
@@ -441,41 +480,29 @@ good_area:
 	}
 
 	/*
-	 * Major/minor page fault accounting is only done on the
-	 * initial attempt. If we go through a retry, it is extremely
-	 * likely that the page will be found in page cache at that point.
+	 * Major/minor page fault accounting.
 	 */
-	if (flags & FAULT_FLAG_ALLOW_RETRY) {
-		if (fault & VM_FAULT_MAJOR) {
-			current->maj_flt++;
-			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1,
-				      regs, address);
+	if (fault & VM_FAULT_MAJOR) {
+		current->maj_flt++;
+		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1,
+			      regs, address);
 #ifdef CONFIG_PPC_SMLPAR
-			if (firmware_has_feature(FW_FEATURE_CMO)) {
-				u32 page_ins;
+		if (firmware_has_feature(FW_FEATURE_CMO)) {
+			u32 page_ins;
 
-				preempt_disable();
-				page_ins = be32_to_cpu(get_lppaca()->page_ins);
-				page_ins += 1 << PAGE_FACTOR;
-				get_lppaca()->page_ins = cpu_to_be32(page_ins);
-				preempt_enable();
-			}
+			preempt_disable();
+			page_ins = be32_to_cpu(get_lppaca()->page_ins);
+			page_ins += 1 << PAGE_FACTOR;
+			get_lppaca()->page_ins = cpu_to_be32(page_ins);
+			preempt_enable();
+		}
 #endif /* CONFIG_PPC_SMLPAR */
-		} else {
-			current->min_flt++;
-			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1,
-				      regs, address);
-		}
-		if (fault & VM_FAULT_RETRY) {
-			/* Clear FAULT_FLAG_ALLOW_RETRY to avoid any risk
-			 * of starvation. */
-			flags &= ~FAULT_FLAG_ALLOW_RETRY;
-			flags |= FAULT_FLAG_TRIED;
-			goto retry;
-		}
+	} else {
+		current->min_flt++;
+		perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1,
+			      regs, address);
 	}
 
-	up_read(&mm->mmap_sem);
 	goto bail;
 
 bad_area:
@@ -483,7 +510,7 @@ bad_area:
 
 bad_area_nosemaphore:
 	/* User mode accesses cause a SIGSEGV */
-	if (user_mode(regs)) {
+	if (is_user) {
 		_exception(SIGSEGV, regs, code, address);
 		goto bail;
 	}
@@ -498,8 +525,8 @@ bad_area_nosemaphore:
 bail:
 	exception_exit(prev_state);
 	return rc;
-
 }
+NOKPROBE_SYMBOL(do_page_fault);
 
 /*
  * bad_page_fault is called when we have a bad access from the kernel.
@@ -512,7 +539,7 @@ void bad_page_fault(struct pt_regs *regs, unsigned long address, int sig)
 
 	/* Are we prepared to handle this fault?  */
 	if ((entry = search_exception_tables(regs->nip)) != NULL) {
-		regs->nip = entry->fixup;
+		regs->nip = extable_fixup(entry);
 		return;
 	}
 

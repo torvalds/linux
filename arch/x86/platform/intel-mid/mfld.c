@@ -17,16 +17,6 @@
 
 #include "intel_mid_weak_decls.h"
 
-static void penwell_arch_setup(void);
-/* penwell arch ops */
-static struct intel_mid_ops penwell_ops = {
-	.arch_setup = penwell_arch_setup,
-};
-
-static void mfld_power_off(void)
-{
-}
-
 static unsigned long __init mfld_calibrate_tsc(void)
 {
 	unsigned long fast_calibrate;
@@ -49,20 +39,25 @@ static unsigned long __init mfld_calibrate_tsc(void)
 	fast_calibrate = ratio * fsb;
 	pr_debug("read penwell tsc %lu khz\n", fast_calibrate);
 	lapic_timer_frequency = fsb * 1000 / HZ;
-	/* mark tsc clocksource as reliable */
-	set_cpu_cap(&boot_cpu_data, X86_FEATURE_TSC_RELIABLE);
 
-	if (fast_calibrate)
-		return fast_calibrate;
+	/*
+	 * TSC on Intel Atom SoCs is reliable and of known frequency.
+	 * See tsc_msr.c for details.
+	 */
+	setup_force_cpu_cap(X86_FEATURE_TSC_KNOWN_FREQ);
+	setup_force_cpu_cap(X86_FEATURE_TSC_RELIABLE);
 
-	return 0;
+	return fast_calibrate;
 }
 
 static void __init penwell_arch_setup(void)
 {
 	x86_platform.calibrate_tsc = mfld_calibrate_tsc;
-	pm_power_off = mfld_power_off;
 }
+
+static struct intel_mid_ops penwell_ops = {
+	.arch_setup = penwell_arch_setup,
+};
 
 void *get_penwell_ops(void)
 {

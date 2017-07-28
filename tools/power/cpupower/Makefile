@@ -47,6 +47,11 @@ NLS ?=		true
 # cpufreq-bench benchmarking tool
 CPUFREQ_BENCH ?= true
 
+# Do not build libraries, but build the code in statically
+# Libraries are still built, otherwise the Makefile code would
+# be rather ugly.
+export STATIC ?= false
+
 # Prefix to the directories we're installing to
 DESTDIR ?=
 
@@ -58,7 +63,7 @@ DESTDIR ?=
 # and _should_ modify the PACKAGE_BUGREPORT definition
 
 VERSION=			$(shell ./utils/version-gen.sh)
-LIB_MAJ=			0.0.0
+LIB_MAJ=			0.0.1
 LIB_MIN=			0
 
 PACKAGE =			cpupower
@@ -103,9 +108,6 @@ MKDIR = mkdir
 # Now we set up the build system
 #
 
-# set up PWD so that older versions of make will work with our build.
-PWD = $(shell pwd)
-
 GMO_FILES = ${shell for HLANG in ${LANGUAGES}; do echo $(OUTPUT)po/$$HLANG.gmo; done;}
 
 export CROSS CC AR STRIP RANLIB CFLAGS LDFLAGS LIB_OBJS
@@ -124,7 +126,7 @@ WARNINGS += -Wshadow
 CFLAGS += -DVERSION=\"$(VERSION)\" -DPACKAGE=\"$(PACKAGE)\" \
 		-DPACKAGE_BUGREPORT=\"$(PACKAGE_BUGREPORT)\" -D_GNU_SOURCE
 
-UTIL_OBJS =  utils/helpers/amd.o utils/helpers/topology.o utils/helpers/msr.o \
+UTIL_OBJS =  utils/helpers/amd.o utils/helpers/msr.o \
 	utils/helpers/sysfs.o utils/helpers/misc.o utils/helpers/cpuid.o \
 	utils/helpers/pci.o utils/helpers/bitmask.o \
 	utils/idle_monitor/nhm_idle.o utils/idle_monitor/snb_idle.o \
@@ -143,9 +145,9 @@ UTIL_HEADERS = utils/helpers/helpers.h utils/idle_monitor/cpupower-monitor.h \
 	utils/helpers/bitmask.h \
 	utils/idle_monitor/idle_monitors.h utils/idle_monitor/idle_monitors.def
 
-LIB_HEADERS = 	lib/cpufreq.h lib/sysfs.h
-LIB_SRC = 	lib/cpufreq.c lib/sysfs.c
-LIB_OBJS = 	lib/cpufreq.o lib/sysfs.o
+LIB_HEADERS = 	lib/cpufreq.h lib/cpupower.h lib/cpuidle.h
+LIB_SRC = 	lib/cpufreq.c lib/cpupower.c lib/cpuidle.c
+LIB_OBJS = 	lib/cpufreq.o lib/cpupower.o lib/cpuidle.o
 LIB_OBJS :=	$(addprefix $(OUTPUT),$(LIB_OBJS))
 
 CFLAGS +=	-pipe
@@ -159,6 +161,12 @@ endif
 ifeq ($(strip $(CPUFREQ_BENCH)),true)
 	INSTALL_BENCH += install-bench
 	COMPILE_BENCH += compile-bench
+endif
+
+ifeq ($(strip $(STATIC)),true)
+        UTIL_OBJS += $(LIB_OBJS)
+        UTIL_HEADERS += $(LIB_HEADERS)
+        UTIL_SRC += $(LIB_SRC)
 endif
 
 CFLAGS += $(WARNINGS)
@@ -209,7 +217,11 @@ $(OUTPUT)%.o: %.c
 
 $(OUTPUT)cpupower: $(UTIL_OBJS) $(OUTPUT)libcpupower.so.$(LIB_MAJ)
 	$(ECHO) "  CC      " $@
+ifeq ($(strip $(STATIC)),true)
+	$(QUIET) $(CC) $(CFLAGS) $(LDFLAGS) $(UTIL_OBJS) -lrt -lpci -L$(OUTPUT) -o $@
+else
 	$(QUIET) $(CC) $(CFLAGS) $(LDFLAGS) $(UTIL_OBJS) -lcpupower -lrt -lpci -L$(OUTPUT) -o $@
+endif
 	$(QUIET) $(STRIPCMD) $@
 
 $(OUTPUT)po/$(PACKAGE).pot: $(UTIL_SRC)
@@ -265,6 +277,7 @@ install-lib:
 	$(CP) $(OUTPUT)libcpupower.so* $(DESTDIR)${libdir}/
 	$(INSTALL) -d $(DESTDIR)${includedir}
 	$(INSTALL_DATA) lib/cpufreq.h $(DESTDIR)${includedir}/cpufreq.h
+	$(INSTALL_DATA) lib/cpuidle.h $(DESTDIR)${includedir}/cpuidle.h
 
 install-tools:
 	$(INSTALL) -d $(DESTDIR)${bindir}
@@ -291,11 +304,16 @@ install-bench:
 	@#DESTDIR must be set from outside to survive
 	@sbindir=$(sbindir) bindir=$(bindir) docdir=$(docdir) confdir=$(confdir) $(MAKE) -C bench O=$(OUTPUT) install
 
+ifeq ($(strip $(STATIC)),true)
+install: all install-tools install-man $(INSTALL_NLS) $(INSTALL_BENCH)
+else
 install: all install-lib install-tools install-man $(INSTALL_NLS) $(INSTALL_BENCH)
+endif
 
 uninstall:
 	- rm -f $(DESTDIR)${libdir}/libcpupower.*
 	- rm -f $(DESTDIR)${includedir}/cpufreq.h
+	- rm -f $(DESTDIR)${includedir}/cpuidle.h
 	- rm -f $(DESTDIR)${bindir}/utils/cpupower
 	- rm -f $(DESTDIR)${mandir}/man1/cpupower.1
 	- rm -f $(DESTDIR)${mandir}/man1/cpupower-frequency-set.1

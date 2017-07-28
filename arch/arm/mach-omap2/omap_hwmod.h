@@ -313,6 +313,7 @@ struct omap_hwmod_ocp_if {
 	struct omap_hwmod_addr_space	*addr;
 	const char			*clk;
 	struct clk			*_clk;
+	struct list_head		node;
 	union {
 		struct omap_hwmod_omap2_firewall omap2;
 	}				fw;
@@ -410,7 +411,6 @@ struct omap_hwmod_class_sysconfig {
 	struct omap_hwmod_sysc_fields *sysc_fields;
 	u8 srst_udelay;
 	u8 idlemodes;
-	u8 clockact;
 };
 
 /**
@@ -443,8 +443,12 @@ struct omap_hwmod_omap2_prcm {
  * HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT: Some IP blocks don't have a PRCM
  *     module-level context loss register associated with them; this
  *     flag bit should be set in those cases
+ * HWMOD_OMAP4_ZERO_CLKCTRL_OFFSET: Some IP blocks have a valid CLKCTRL
+ *	offset of zero; this flag bit should be set in those cases to
+ *	distinguish from hwmods that have no clkctrl offset.
  */
 #define HWMOD_OMAP4_NO_CONTEXT_LOSS_BIT		(1 << 0)
+#define HWMOD_OMAP4_ZERO_CLKCTRL_OFFSET		(1 << 1)
 
 /**
  * struct omap_hwmod_omap4_prcm - OMAP4-specific PRCM data
@@ -525,6 +529,12 @@ struct omap_hwmod_omap4_prcm {
  *     or idled.
  * HWMOD_OPT_CLKS_NEEDED: The optional clocks are needed for the module to
  *     operate and they need to be handled at the same time as the main_clk.
+ * HWMOD_NO_IDLE: Do not idle the hwmod at all. Useful to handle certain
+ *     IPs like CPSW on DRA7, where clocks to this module cannot be disabled.
+ * HWMOD_CLKDM_NOAUTO: Allows the hwmod's clockdomain to be prevented from
+ *     entering HW_AUTO while hwmod is active. This is needed to workaround
+ *     some modules which don't function correctly with HW_AUTO. For example,
+ *     DCAN on DRA7x SoC needs this to workaround errata i893.
  */
 #define HWMOD_SWSUP_SIDLE			(1 << 0)
 #define HWMOD_SWSUP_MSTANDBY			(1 << 1)
@@ -541,6 +551,8 @@ struct omap_hwmod_omap4_prcm {
 #define HWMOD_SWSUP_SIDLE_ACT			(1 << 12)
 #define HWMOD_RECONFIG_IO_CHAIN			(1 << 13)
 #define HWMOD_OPT_CLKS_NEEDED			(1 << 14)
+#define HWMOD_NO_IDLE				(1 << 15)
+#define HWMOD_CLKDM_NOAUTO			(1 << 16)
 
 /*
  * omap_hwmod._int_flags definitions
@@ -610,16 +622,6 @@ struct omap_hwmod_class {
 };
 
 /**
- * struct omap_hwmod_link - internal structure linking hwmods with ocp_ifs
- * @ocp_if: OCP interface structure record pointer
- * @node: list_head pointing to next struct omap_hwmod_link in a list
- */
-struct omap_hwmod_link {
-	struct omap_hwmod_ocp_if	*ocp_if;
-	struct list_head		node;
-};
-
-/**
  * struct omap_hwmod - integration data for OMAP hardware "modules" (IP blocks)
  * @name: name of the hwmod
  * @class: struct omap_hwmod_class * to the class of this hwmod
@@ -679,9 +681,8 @@ struct omap_hwmod {
 	const char			*main_clk;
 	struct clk			*_clk;
 	struct omap_hwmod_opt_clk	*opt_clks;
-	char				*clkdm_name;
+	const char			*clkdm_name;
 	struct clockdomain		*clkdm;
-	struct list_head		master_ports; /* connect to *_IA */
 	struct list_head		slave_ports; /* connect to *_TA */
 	void				*dev_attr;
 	u32				_sysc_cache;
@@ -691,12 +692,11 @@ struct omap_hwmod {
 	struct list_head		node;
 	struct omap_hwmod_ocp_if	*_mpu_port;
 	unsigned int			(*xlate_irq)(unsigned int);
-	u16				flags;
+	u32				flags;
 	u8				mpu_rt_idx;
 	u8				response_lat;
 	u8				rst_lines_cnt;
 	u8				opt_clks_cnt;
-	u8				masters_cnt;
 	u8				slaves_cnt;
 	u8				hwmods_cnt;
 	u8				_int_flags;
@@ -751,6 +751,8 @@ const char *omap_hwmod_get_main_clk(struct omap_hwmod *oh);
  */
 
 extern int omap_hwmod_aess_preprogram(struct omap_hwmod *oh);
+void omap_hwmod_rtc_unlock(struct omap_hwmod *oh);
+void omap_hwmod_rtc_lock(struct omap_hwmod *oh);
 
 /*
  * Chip variant-specific hwmod init routines - XXX should be converted

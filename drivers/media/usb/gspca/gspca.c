@@ -15,10 +15,6 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software Foundation,
- * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -201,8 +197,7 @@ static int alloc_and_submit_int_urb(struct gspca_dev *gspca_dev,
 
 	buffer_len = le16_to_cpu(ep->wMaxPacketSize);
 	interval = ep->bInterval;
-	PDEBUG(D_CONF, "found int in endpoint: 0x%x, "
-		"buffer_len=%u, interval=%u",
+	PDEBUG(D_CONF, "found int in endpoint: 0x%x, buffer_len=%u, interval=%u",
 		ep->bEndpointAddress, buffer_len, interval);
 
 	dev = gspca_dev->dev;
@@ -522,7 +517,7 @@ static int frame_alloc(struct gspca_dev *gspca_dev, struct file *file,
 		frame = &gspca_dev->frame[i];
 		frame->v4l2_buf.index = i;
 		frame->v4l2_buf.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-		frame->v4l2_buf.flags = 0;
+		frame->v4l2_buf.flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		frame->v4l2_buf.field = V4L2_FIELD_NONE;
 		frame->v4l2_buf.length = frsz;
 		frame->v4l2_buf.memory = memory;
@@ -705,7 +700,7 @@ static int build_isoc_ep_tb(struct gspca_dev *gspca_dev,
 			psize = (psize & 0x07ff) * (1 + ((psize >> 11) & 3));
 			bandwidth = psize * 1000;
 			if (gspca_dev->dev->speed == USB_SPEED_HIGH
-			 || gspca_dev->dev->speed == USB_SPEED_SUPER)
+			 || gspca_dev->dev->speed >= USB_SPEED_SUPER)
 				bandwidth *= 8;
 			bandwidth /= 1 << (ep->desc.bInterval - 1);
 			if (bandwidth <= last_bw)
@@ -795,10 +790,8 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 
 	for (n = 0; n < nurbs; n++) {
 		urb = usb_alloc_urb(npkt, GFP_KERNEL);
-		if (!urb) {
-			pr_err("usb_alloc_urb failed\n");
+		if (!urb)
 			return -ENOMEM;
-		}
 		gspca_dev->urb[n] = urb;
 		urb->transfer_buffer = usb_alloc_coherent(gspca_dev->dev,
 						bsize,
@@ -996,6 +989,19 @@ static int wxh_to_mode(struct gspca_dev *gspca_dev,
 {
 	int i;
 
+	for (i = 0; i < gspca_dev->cam.nmodes; i++) {
+		if (width == gspca_dev->cam.cam_mode[i].width
+		    && height == gspca_dev->cam.cam_mode[i].height)
+			return i;
+	}
+	return -EINVAL;
+}
+
+static int wxh_to_nearest_mode(struct gspca_dev *gspca_dev,
+			int width, int height)
+{
+	int i;
+
 	for (i = gspca_dev->cam.nmodes; --i > 0; ) {
 		if (width >= gspca_dev->cam.cam_mode[i].width
 		    && height >= gspca_dev->cam.cam_mode[i].height)
@@ -1125,8 +1131,8 @@ static int try_fmt_vid_cap(struct gspca_dev *gspca_dev,
 	PDEBUG_MODE(gspca_dev, D_CONF, "try fmt cap",
 		    fmt->fmt.pix.pixelformat, w, h);
 
-	/* search the closest mode for width and height */
-	mode = wxh_to_mode(gspca_dev, w, h);
+	/* search the nearest mode for width and height */
+	mode = wxh_to_nearest_mode(gspca_dev, w, h);
 
 	/* OK if right palette */
 	if (gspca_dev->cam.cam_mode[mode].pixelformat
@@ -1233,8 +1239,12 @@ static int vidioc_enum_frameintervals(struct file *filp, void *priv,
 				      struct v4l2_frmivalenum *fival)
 {
 	struct gspca_dev *gspca_dev = video_drvdata(filp);
-	int mode = wxh_to_mode(gspca_dev, fival->width, fival->height);
+	int mode;
 	__u32 i;
+
+	mode = wxh_to_mode(gspca_dev, fival->width, fival->height);
+	if (mode < 0)
+		return -EINVAL;
 
 	if (gspca_dev->cam.mode_framerates == NULL ||
 			gspca_dev->cam.mode_framerates[mode].nrates == 0)
@@ -1246,7 +1256,7 @@ static int vidioc_enum_frameintervals(struct file *filp, void *priv,
 
 	for (i = 0; i < gspca_dev->cam.mode_framerates[mode].nrates; i++) {
 		if (fival->index == i) {
-			fival->type = V4L2_FRMSIZE_TYPE_DISCRETE;
+			fival->type = V4L2_FRMIVAL_TYPE_DISCRETE;
 			fival->discrete.numerator = 1;
 			fival->discrete.denominator =
 				gspca_dev->cam.mode_framerates[mode].rates[i];

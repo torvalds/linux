@@ -224,7 +224,6 @@ static DECLARE_TRANSPORT_CLASS(ata_port_class,
 
 static void ata_tport_release(struct device *dev)
 {
-	put_device(dev->parent);
 }
 
 /**
@@ -284,7 +283,7 @@ int ata_tport_add(struct device *parent,
 	device_initialize(dev);
 	dev->type = &ata_port_type;
 
-	dev->parent = get_device(parent);
+	dev->parent = parent;
 	dev->release = ata_tport_release;
 	dev_set_name(dev, "ata%d", ap->print_id);
 	transport_setup_device(dev);
@@ -348,7 +347,6 @@ static DECLARE_TRANSPORT_CLASS(ata_link_class,
 
 static void ata_tlink_release(struct device *dev)
 {
-	put_device(dev->parent);
 }
 
 /**
@@ -410,7 +408,7 @@ int ata_tlink_add(struct ata_link *link)
 	int error;
 
 	device_initialize(dev);
-	dev->parent = get_device(&ap->tdev);
+	dev->parent = &ap->tdev;
 	dev->release = ata_tlink_release;
 	if (ata_is_host_link(link))
 		dev_set_name(dev, "link%d", ap->print_id);
@@ -495,12 +493,13 @@ struct ata_show_ering_arg {
 static int ata_show_ering(struct ata_ering_entry *ent, void *void_arg)
 {
 	struct ata_show_ering_arg* arg = void_arg;
-	struct timespec time;
+	u64 seconds;
+	u32 rem;
 
-	jiffies_to_timespec(ent->timestamp,&time);
+	seconds = div_u64_rem(ent->timestamp, HZ, &rem);
 	arg->written += sprintf(arg->buf + arg->written,
-			       "[%5lu.%06lu]",
-			       time.tv_sec, time.tv_nsec);
+			        "[%5llu.%09lu]", seconds,
+				rem * NSEC_PER_SEC / HZ);
 	arg->written += get_ata_err_names(ent->err_mask,
 					  arg->buf + arg->written);
 	return 0;
@@ -588,7 +587,6 @@ static DECLARE_TRANSPORT_CLASS(ata_dev_class,
 
 static void ata_tdev_release(struct device *dev)
 {
-	put_device(dev->parent);
 }
 
 /**
@@ -661,7 +659,7 @@ static int ata_tdev_add(struct ata_device *ata_dev)
 	int error;
 
 	device_initialize(dev);
-	dev->parent = get_device(&link->tdev);
+	dev->parent = &link->tdev;
 	dev->release = ata_tdev_release;
 	if (ata_is_host_link(link))
 		dev_set_name(dev, "dev%d.%d", ap->print_id,ata_dev->devno);
@@ -715,7 +713,6 @@ struct scsi_transport_template *ata_attach_transport(void)
 		return NULL;
 
 	i->t.eh_strategy_handler	= ata_scsi_error;
-	i->t.eh_timed_out		= ata_scsi_timed_out;
 	i->t.user_scan			= ata_scsi_user_scan;
 
 	i->t.host_attrs.ac.attrs = &i->port_attrs[0];

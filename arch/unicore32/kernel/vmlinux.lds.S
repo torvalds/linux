@@ -37,6 +37,7 @@ SECTIONS
 	.text : {		/* Real text segment */
 		TEXT_TEXT
 		SCHED_TEXT
+		CPUIDLE_TEXT
 		LOCK_TEXT
 
 		*(.fixup)

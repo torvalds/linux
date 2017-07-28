@@ -32,13 +32,15 @@ static void nft_log_eval(const struct nft_expr *expr,
 {
 	const struct nft_log *priv = nft_expr_priv(expr);
 
-	nf_log_packet(pkt->net, pkt->pf, pkt->hook, pkt->skb, pkt->in,
-		      pkt->out, &priv->loginfo, "%s", priv->prefix);
+	nf_log_packet(nft_net(pkt), nft_pf(pkt), nft_hook(pkt), pkt->skb,
+		      nft_in(pkt), nft_out(pkt), &priv->loginfo, "%s",
+		      priv->prefix);
 }
 
 static const struct nla_policy nft_log_policy[NFTA_LOG_MAX + 1] = {
 	[NFTA_LOG_GROUP]	= { .type = NLA_U16 },
-	[NFTA_LOG_PREFIX]	= { .type = NLA_STRING },
+	[NFTA_LOG_PREFIX]	= { .type = NLA_STRING,
+				    .len = NF_LOG_PREFIXLEN - 1 },
 	[NFTA_LOG_SNAPLEN]	= { .type = NLA_U32 },
 	[NFTA_LOG_QTHRESHOLD]	= { .type = NLA_U16 },
 	[NFTA_LOG_LEVEL]	= { .type = NLA_U32 },
@@ -52,7 +54,17 @@ static int nft_log_init(const struct nft_ctx *ctx,
 	struct nft_log *priv = nft_expr_priv(expr);
 	struct nf_loginfo *li = &priv->loginfo;
 	const struct nlattr *nla;
-	int ret;
+	int err;
+
+	li->type = NF_LOG_TYPE_LOG;
+	if (tb[NFTA_LOG_LEVEL] != NULL &&
+	    tb[NFTA_LOG_GROUP] != NULL)
+		return -EINVAL;
+	if (tb[NFTA_LOG_GROUP] != NULL) {
+		li->type = NF_LOG_TYPE_ULOG;
+		if (tb[NFTA_LOG_FLAGS] != NULL)
+			return -EINVAL;
+	}
 
 	nla = tb[NFTA_LOG_PREFIX];
 	if (nla != NULL) {
@@ -64,13 +76,6 @@ static int nft_log_init(const struct nft_ctx *ctx,
 		priv->prefix = (char *)nft_log_null_prefix;
 	}
 
-	li->type = NF_LOG_TYPE_LOG;
-	if (tb[NFTA_LOG_LEVEL] != NULL &&
-	    tb[NFTA_LOG_GROUP] != NULL)
-		return -EINVAL;
-	if (tb[NFTA_LOG_GROUP] != NULL)
-		li->type = NF_LOG_TYPE_ULOG;
-
 	switch (li->type) {
 	case NF_LOG_TYPE_LOG:
 		if (tb[NFTA_LOG_LEVEL] != NULL) {
@@ -79,14 +84,24 @@ static int nft_log_init(const struct nft_ctx *ctx,
 		} else {
 			li->u.log.level = LOGLEVEL_WARNING;
 		}
+		if (li->u.log.level > LOGLEVEL_DEBUG) {
+			err = -EINVAL;
+			goto err1;
+		}
+
 		if (tb[NFTA_LOG_FLAGS] != NULL) {
 			li->u.log.logflags =
 				ntohl(nla_get_be32(tb[NFTA_LOG_FLAGS]));
+			if (li->u.log.logflags & ~NF_LOG_MASK) {
+				err = -EINVAL;
+				goto err1;
+			}
 		}
 		break;
 	case NF_LOG_TYPE_ULOG:
 		li->u.ulog.group = ntohs(nla_get_be16(tb[NFTA_LOG_GROUP]));
 		if (tb[NFTA_LOG_SNAPLEN] != NULL) {
+			li->u.ulog.flags |= NF_LOG_F_COPY_LEN;
 			li->u.ulog.copy_len =
 				ntohl(nla_get_be32(tb[NFTA_LOG_SNAPLEN]));
 		}
@@ -97,20 +112,16 @@ static int nft_log_init(const struct nft_ctx *ctx,
 		break;
 	}
 
-	if (ctx->afi->family == NFPROTO_INET) {
-		ret = nf_logger_find_get(NFPROTO_IPV4, li->type);
-		if (ret < 0)
-			return ret;
+	err = nf_logger_find_get(ctx->afi->family, li->type);
+	if (err < 0)
+		goto err1;
 
-		ret = nf_logger_find_get(NFPROTO_IPV6, li->type);
-		if (ret < 0) {
-			nf_logger_put(NFPROTO_IPV4, li->type);
-			return ret;
-		}
-		return 0;
-	}
+	return 0;
 
-	return nf_logger_find_get(ctx->afi->family, li->type);
+err1:
+	if (priv->prefix != nft_log_null_prefix)
+		kfree(priv->prefix);
+	return err;
 }
 
 static void nft_log_destroy(const struct nft_ctx *ctx,
@@ -122,12 +133,7 @@ static void nft_log_destroy(const struct nft_ctx *ctx,
 	if (priv->prefix != nft_log_null_prefix)
 		kfree(priv->prefix);
 
-	if (ctx->afi->family == NFPROTO_INET) {
-		nf_logger_put(NFPROTO_IPV4, li->type);
-		nf_logger_put(NFPROTO_IPV6, li->type);
-	} else {
-		nf_logger_put(ctx->afi->family, li->type);
-	}
+	nf_logger_put(ctx->afi->family, li->type);
 }
 
 static int nft_log_dump(struct sk_buff *skb, const struct nft_expr *expr)
@@ -153,7 +159,7 @@ static int nft_log_dump(struct sk_buff *skb, const struct nft_expr *expr)
 		if (nla_put_be16(skb, NFTA_LOG_GROUP, htons(li->u.ulog.group)))
 			goto nla_put_failure;
 
-		if (li->u.ulog.copy_len) {
+		if (li->u.ulog.flags & NF_LOG_F_COPY_LEN) {
 			if (nla_put_be32(skb, NFTA_LOG_SNAPLEN,
 					 htonl(li->u.ulog.copy_len)))
 				goto nla_put_failure;

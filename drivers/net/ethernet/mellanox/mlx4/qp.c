@@ -167,6 +167,12 @@ static int __mlx4_qp_modify(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 		context->log_page_size   = mtt->page_shift - MLX4_ICM_PAGE_SHIFT;
 	}
 
+	if ((cur_state == MLX4_QP_STATE_RTR) &&
+	    (new_state == MLX4_QP_STATE_RTS) &&
+	    dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_ROCE_V1_V2)
+		context->roce_entropy =
+			cpu_to_be16(mlx4_qp_roce_entropy(dev, qp->qpn));
+
 	*(__be32 *) mailbox->buf = cpu_to_be32(optpar);
 	memcpy(mailbox->buf + 8, context, sizeof *context);
 
@@ -295,29 +301,29 @@ void mlx4_qp_release_range(struct mlx4_dev *dev, int base_qpn, int cnt)
 }
 EXPORT_SYMBOL_GPL(mlx4_qp_release_range);
 
-int __mlx4_qp_alloc_icm(struct mlx4_dev *dev, int qpn, gfp_t gfp)
+int __mlx4_qp_alloc_icm(struct mlx4_dev *dev, int qpn)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_qp_table *qp_table = &priv->qp_table;
 	int err;
 
-	err = mlx4_table_get(dev, &qp_table->qp_table, qpn, gfp);
+	err = mlx4_table_get(dev, &qp_table->qp_table, qpn);
 	if (err)
 		goto err_out;
 
-	err = mlx4_table_get(dev, &qp_table->auxc_table, qpn, gfp);
+	err = mlx4_table_get(dev, &qp_table->auxc_table, qpn);
 	if (err)
 		goto err_put_qp;
 
-	err = mlx4_table_get(dev, &qp_table->altc_table, qpn, gfp);
+	err = mlx4_table_get(dev, &qp_table->altc_table, qpn);
 	if (err)
 		goto err_put_auxc;
 
-	err = mlx4_table_get(dev, &qp_table->rdmarc_table, qpn, gfp);
+	err = mlx4_table_get(dev, &qp_table->rdmarc_table, qpn);
 	if (err)
 		goto err_put_altc;
 
-	err = mlx4_table_get(dev, &qp_table->cmpt_table, qpn, gfp);
+	err = mlx4_table_get(dev, &qp_table->cmpt_table, qpn);
 	if (err)
 		goto err_put_rdmarc;
 
@@ -339,7 +345,7 @@ err_out:
 	return err;
 }
 
-static int mlx4_qp_alloc_icm(struct mlx4_dev *dev, int qpn, gfp_t gfp)
+static int mlx4_qp_alloc_icm(struct mlx4_dev *dev, int qpn)
 {
 	u64 param = 0;
 
@@ -349,7 +355,7 @@ static int mlx4_qp_alloc_icm(struct mlx4_dev *dev, int qpn, gfp_t gfp)
 				    MLX4_CMD_ALLOC_RES, MLX4_CMD_TIME_CLASS_A,
 				    MLX4_CMD_WRAPPED);
 	}
-	return __mlx4_qp_alloc_icm(dev, qpn, gfp);
+	return __mlx4_qp_alloc_icm(dev, qpn);
 }
 
 void __mlx4_qp_free_icm(struct mlx4_dev *dev, int qpn)
@@ -378,7 +384,20 @@ static void mlx4_qp_free_icm(struct mlx4_dev *dev, int qpn)
 		__mlx4_qp_free_icm(dev, qpn);
 }
 
-int mlx4_qp_alloc(struct mlx4_dev *dev, int qpn, struct mlx4_qp *qp, gfp_t gfp)
+struct mlx4_qp *mlx4_qp_lookup(struct mlx4_dev *dev, u32 qpn)
+{
+	struct mlx4_qp_table *qp_table = &mlx4_priv(dev)->qp_table;
+	struct mlx4_qp *qp;
+
+	spin_lock(&qp_table->lock);
+
+	qp = __mlx4_qp_lookup(dev, qpn);
+
+	spin_unlock(&qp_table->lock);
+	return qp;
+}
+
+int mlx4_qp_alloc(struct mlx4_dev *dev, int qpn, struct mlx4_qp *qp)
 {
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	struct mlx4_qp_table *qp_table = &priv->qp_table;
@@ -389,7 +408,7 @@ int mlx4_qp_alloc(struct mlx4_dev *dev, int qpn, struct mlx4_qp *qp, gfp_t gfp)
 
 	qp->qpn = qpn;
 
-	err = mlx4_qp_alloc_icm(dev, qpn, gfp);
+	err = mlx4_qp_alloc_icm(dev, qpn);
 	if (err)
 		return err;
 
@@ -441,7 +460,7 @@ int mlx4_update_qp(struct mlx4_dev *dev, u32 qpn,
 		      & MLX4_DEV_CAP_FLAG2_UPDATE_QP_SRC_CHECK_LB)) {
 			mlx4_warn(dev,
 				  "Trying to set src check LB, but it isn't supported\n");
-			err = -ENOTSUPP;
+			err = -EOPNOTSUPP;
 			goto out;
 		}
 		pri_addr_path_mask |=
@@ -465,6 +484,12 @@ int mlx4_update_qp(struct mlx4_dev *dev, u32 qpn,
 	}
 
 	if (attr & MLX4_UPDATE_QP_QOS_VPORT) {
+		if (!(dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_QOS_VPP)) {
+			mlx4_warn(dev, "Granular QoS per VF is not enabled\n");
+			err = -EOPNOTSUPP;
+			goto out;
+		}
+
 		qp_mask |= 1ULL << MLX4_UPD_QP_MASK_QOS_VPP;
 		cmd->qp_context.qos_vport = params->qos_vport;
 	}
@@ -921,3 +946,23 @@ int mlx4_qp_to_ready(struct mlx4_dev *dev, struct mlx4_mtt *mtt,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(mlx4_qp_to_ready);
+
+u16 mlx4_qp_roce_entropy(struct mlx4_dev *dev, u32 qpn)
+{
+	struct mlx4_qp_context context;
+	struct mlx4_qp qp;
+	int err;
+
+	qp.qpn = qpn;
+	err = mlx4_qp_query(dev, &qp, &context);
+	if (!err) {
+		u32 dest_qpn = be32_to_cpu(context.remote_qpn) & 0xffffff;
+		u16 folded_dst = folded_qp(dest_qpn);
+		u16 folded_src = folded_qp(qpn);
+
+		return (dest_qpn != qpn) ?
+			((folded_dst ^ folded_src) | 0xC000) :
+			folded_src | 0xC000;
+	}
+	return 0xdead;
+}

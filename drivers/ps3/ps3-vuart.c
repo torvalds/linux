@@ -958,7 +958,7 @@ static int ps3_vuart_bus_interrupt_get(void)
 
 fail_request_irq:
 	ps3_vuart_irq_destroy(vuart_bus_priv.virq);
-	vuart_bus_priv.virq = NO_IRQ;
+	vuart_bus_priv.virq = 0;
 fail_alloc_irq:
 	kfree(vuart_bus_priv.bmp);
 	vuart_bus_priv.bmp = NULL;
@@ -982,7 +982,7 @@ static int ps3_vuart_bus_interrupt_put(void)
 	free_irq(vuart_bus_priv.virq, &vuart_bus_priv);
 
 	ps3_vuart_irq_destroy(vuart_bus_priv.virq);
-	vuart_bus_priv.virq = NO_IRQ;
+	vuart_bus_priv.virq = 0;
 
 	kfree(vuart_bus_priv.bmp);
 	vuart_bus_priv.bmp = NULL;

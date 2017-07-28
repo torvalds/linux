@@ -140,7 +140,7 @@ struct pevent_plugin_option {
  *   struct pevent_plugin_option PEVENT_PLUGIN_OPTIONS[] = {
  *	{
  *		.name = "option-name",
- *		.plugin_alias = "overide-file-name", (optional)
+ *		.plugin_alias = "override-file-name", (optional)
  *		.description = "description of option to show users",
  *	},
  *	{
@@ -171,9 +171,6 @@ struct pevent_plugin_option {
 #define PEVENT_PLUGIN_UNLOADER_NAME MAKE_STR(PEVENT_PLUGIN_UNLOADER)
 #define PEVENT_PLUGIN_OPTIONS_NAME MAKE_STR(PEVENT_PLUGIN_OPTIONS)
 #define PEVENT_PLUGIN_ALIAS_NAME MAKE_STR(PEVENT_PLUGIN_ALIAS)
-
-#define NSECS_PER_SEC		1000000000ULL
-#define NSECS_PER_USEC		1000ULL
 
 enum format_flags {
 	FIELD_IS_ARRAY		= 1,
@@ -295,6 +292,7 @@ enum print_arg_type {
 	PRINT_FUNC,
 	PRINT_BITMASK,
 	PRINT_DYNAMIC_ARRAY_LEN,
+	PRINT_HEX_STR,
 };
 
 struct print_arg {
@@ -628,6 +626,16 @@ int pevent_register_print_string(struct pevent *pevent, const char *fmt,
 				 unsigned long long addr);
 int pevent_pid_is_registered(struct pevent *pevent, int pid);
 
+void pevent_print_event_task(struct pevent *pevent, struct trace_seq *s,
+			     struct event_format *event,
+			     struct pevent_record *record);
+void pevent_print_event_time(struct pevent *pevent, struct trace_seq *s,
+			     struct event_format *event,
+			     struct pevent_record *record,
+			     bool use_trace_clock);
+void pevent_print_event_data(struct pevent *pevent, struct trace_seq *s,
+			     struct event_format *event,
+			     struct pevent_record *record);
 void pevent_print_event(struct pevent *pevent, struct trace_seq *s,
 			struct pevent_record *record, bool use_trace_clock);
 
@@ -694,17 +702,26 @@ struct event_format *pevent_find_event(struct pevent *pevent, int id);
 struct event_format *
 pevent_find_event_by_name(struct pevent *pevent, const char *sys, const char *name);
 
+struct event_format *
+pevent_find_event_by_record(struct pevent *pevent, struct pevent_record *record);
+
 void pevent_data_lat_fmt(struct pevent *pevent,
 			 struct trace_seq *s, struct pevent_record *record);
 int pevent_data_type(struct pevent *pevent, struct pevent_record *rec);
 struct event_format *pevent_data_event_from_type(struct pevent *pevent, int type);
 int pevent_data_pid(struct pevent *pevent, struct pevent_record *rec);
+int pevent_data_preempt_count(struct pevent *pevent, struct pevent_record *rec);
+int pevent_data_flags(struct pevent *pevent, struct pevent_record *rec);
 const char *pevent_data_comm_from_pid(struct pevent *pevent, int pid);
 struct cmdline;
 struct cmdline *pevent_data_pid_from_comm(struct pevent *pevent, const char *comm,
 					  struct cmdline *next);
 int pevent_cmdline_pid(struct pevent *pevent, struct cmdline *cmdline);
 
+void pevent_print_field(struct trace_seq *s, void *data,
+			struct format_field *field);
+void pevent_print_fields(struct trace_seq *s, void *data,
+			 int size __maybe_unused, struct event_format *event);
 void pevent_event_info(struct trace_seq *s, struct event_format *event,
 		       struct pevent_record *record);
 int pevent_strerror(struct pevent *pevent, enum pevent_errno errnum,

@@ -20,8 +20,8 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/pxa320.h>
-#include <mach/mxm8x10.h>
+#include "pxa320.h"
+#include "mxm8x10.h"
 
 #include <linux/spi/spi.h>
 #include <linux/spi/pxa2xx_spi.h>

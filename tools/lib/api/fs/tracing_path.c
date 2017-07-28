@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <linux/string.h>
 #include <errno.h>
 #include <unistd.h>
 #include "fs.h"
@@ -85,9 +86,13 @@ void put_tracing_file(char *file)
 	free(file);
 }
 
-static int strerror_open(int err, char *buf, size_t size, const char *filename)
+int tracing_path__strerror_open_tp(int err, char *buf, size_t size,
+				   const char *sys, const char *name)
 {
 	char sbuf[128];
+	char filename[PATH_MAX];
+
+	snprintf(filename, PATH_MAX, "%s/%s", sys, name ?: "*");
 
 	switch (err) {
 	case ENOENT:
@@ -98,10 +103,19 @@ static int strerror_open(int err, char *buf, size_t size, const char *filename)
 		 * - jirka
 		 */
 		if (debugfs__configured() || tracefs__configured()) {
-			snprintf(buf, size,
-				 "Error:\tFile %s/%s not found.\n"
-				 "Hint:\tPerhaps this kernel misses some CONFIG_ setting to enable this feature?.\n",
-				 tracing_events_path, filename);
+			/* sdt markers */
+			if (!strncmp(filename, "sdt_", 4)) {
+				snprintf(buf, size,
+					"Error:\tFile %s/%s not found.\n"
+					"Hint:\tSDT event cannot be directly recorded on.\n"
+					"\tPlease first use 'perf probe %s:%s' before recording it.\n",
+					tracing_events_path, filename, sys, name);
+			} else {
+				snprintf(buf, size,
+					 "Error:\tFile %s/%s not found.\n"
+					 "Hint:\tPerhaps this kernel misses some CONFIG_ setting to enable this feature?.\n",
+					 tracing_events_path, filename);
+			}
 			break;
 		}
 		snprintf(buf, size, "%s",
@@ -118,18 +132,9 @@ static int strerror_open(int err, char *buf, size_t size, const char *filename)
 	}
 		break;
 	default:
-		snprintf(buf, size, "%s", strerror_r(err, sbuf, sizeof(sbuf)));
+		snprintf(buf, size, "%s", str_error_r(err, sbuf, sizeof(sbuf)));
 		break;
 	}
 
 	return 0;
-}
-
-int tracing_path__strerror_open_tp(int err, char *buf, size_t size, const char *sys, const char *name)
-{
-	char path[PATH_MAX];
-
-	snprintf(path, PATH_MAX, "%s/%s", sys, name ?: "*");
-
-	return strerror_open(err, buf, size, path);
 }

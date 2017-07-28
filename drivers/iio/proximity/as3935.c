@@ -40,9 +40,9 @@
 #define AS3935_AFE_PWR_BIT	BIT(0)
 
 #define AS3935_INT		0x03
-#define AS3935_INT_MASK		0x07
+#define AS3935_INT_MASK		0x0f
 #define AS3935_EVENT_INT	BIT(3)
-#define AS3935_NOISE_INT	BIT(1)
+#define AS3935_NOISE_INT	BIT(0)
 
 #define AS3935_DATA		0x07
 #define AS3935_DATA_MASK	0x3F
@@ -50,7 +50,6 @@
 #define AS3935_TUNE_CAP		0x08
 #define AS3935_CALIBRATE	0x3D
 
-#define AS3935_WRITE_DATA	BIT(15)
 #define AS3935_READ_DATA	BIT(14)
 #define AS3935_ADDRESS(x)	((x) << 8)
 
@@ -64,6 +63,7 @@ struct as3935_state {
 	struct delayed_work work;
 
 	u32 tune_cap;
+	u8 buffer[16]; /* 8-bit data + 56-bit padding + 64-bit timestamp */
 	u8 buf[2] ____cacheline_aligned;
 };
 
@@ -72,7 +72,8 @@ static const struct iio_chan_spec as3935_channels[] = {
 		.type           = IIO_PROXIMITY,
 		.info_mask_separate =
 			BIT(IIO_CHAN_INFO_RAW) |
-			BIT(IIO_CHAN_INFO_PROCESSED),
+			BIT(IIO_CHAN_INFO_PROCESSED) |
+			BIT(IIO_CHAN_INFO_SCALE),
 		.scan_index     = 0,
 		.scan_type = {
 			.sign           = 'u',
@@ -103,7 +104,7 @@ static int as3935_write(struct as3935_state *st,
 {
 	u8 *buf = st->buf;
 
-	buf[0] = (AS3935_WRITE_DATA | AS3935_ADDRESS(reg)) >> 8;
+	buf[0] = AS3935_ADDRESS(reg) >> 8;
 	buf[1] = val;
 
 	return spi_write(st->spi, buf, 2);
@@ -153,7 +154,7 @@ static struct attribute *as3935_attributes[] = {
 	NULL,
 };
 
-static struct attribute_group as3935_attribute_group = {
+static const struct attribute_group as3935_attribute_group = {
 	.attrs = as3935_attributes,
 };
 
@@ -175,13 +176,18 @@ static int as3935_read_raw(struct iio_dev *indio_dev,
 		if (ret)
 			return ret;
 
-		if (m == IIO_CHAN_INFO_RAW)
-			return IIO_VAL_INT;
-
 		/* storm out of range */
 		if (*val == AS3935_DATA_MASK)
 			return -EINVAL;
-		*val *= 1000;
+
+		if (m == IIO_CHAN_INFO_RAW)
+			return IIO_VAL_INT;
+
+		if (m == IIO_CHAN_INFO_PROCESSED)
+			*val *= 1000;
+		break;
+	case IIO_CHAN_INFO_SCALE:
+		*val = 1000;
 		break;
 	default:
 		return -EINVAL;
@@ -206,10 +212,10 @@ static irqreturn_t as3935_trigger_handler(int irq, void *private)
 	ret = as3935_read(st, AS3935_DATA, &val);
 	if (ret)
 		goto err_read;
-	val &= AS3935_DATA_MASK;
-	val *= 1000;
 
-	iio_push_to_buffers_with_timestamp(indio_dev, &val, pf->timestamp);
+	st->buffer[0] = val & AS3935_DATA_MASK;
+	iio_push_to_buffers_with_timestamp(indio_dev, &st->buffer,
+					   iio_get_time_ns(indio_dev));
 err_read:
 	iio_trigger_notify_done(indio_dev->trig);
 
@@ -224,18 +230,24 @@ static void as3935_event_work(struct work_struct *work)
 {
 	struct as3935_state *st;
 	int val;
+	int ret;
 
 	st = container_of(work, struct as3935_state, work.work);
 
-	as3935_read(st, AS3935_INT, &val);
+	ret = as3935_read(st, AS3935_INT, &val);
+	if (ret) {
+		dev_warn(&st->spi->dev, "read error\n");
+		return;
+	}
+
 	val &= AS3935_INT_MASK;
 
 	switch (val) {
 	case AS3935_EVENT_INT:
-		iio_trigger_poll(st->trig);
+		iio_trigger_poll_chained(st->trig);
 		break;
 	case AS3935_NOISE_INT:
-		dev_warn(&st->spi->dev, "noise level is too high");
+		dev_warn(&st->spi->dev, "noise level is too high\n");
 		break;
 	}
 }
@@ -257,8 +269,6 @@ static irqreturn_t as3935_interrupt_handler(int irq, void *private)
 
 static void calibrate_as3935(struct as3935_state *st)
 {
-	mutex_lock(&st->lock);
-
 	/* mask disturber interrupt bit */
 	as3935_write(st, AS3935_INT, BIT(5));
 
@@ -268,8 +278,6 @@ static void calibrate_as3935(struct as3935_state *st)
 
 	mdelay(2);
 	as3935_write(st, AS3935_TUNE_CAP, (st->tune_cap / TUNE_CAP_DIV));
-
-	mutex_unlock(&st->lock);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -306,6 +314,8 @@ static int as3935_resume(struct device *dev)
 	val &= ~AS3935_AFE_PWR_BIT;
 	ret = as3935_write(st, AS3935_AFE_GAIN, val);
 
+	calibrate_as3935(st);
+
 err_resume:
 	mutex_unlock(&st->lock);
 
@@ -339,7 +349,6 @@ static int as3935_probe(struct spi_device *spi)
 
 	st = iio_priv(indio_dev);
 	st->spi = spi;
-	st->tune_cap = 0;
 
 	spi_set_drvdata(spi, indio_dev);
 	mutex_init(&st->lock);
@@ -385,7 +394,7 @@ static int as3935_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	ret = iio_triggered_buffer_setup(indio_dev, NULL,
+	ret = iio_triggered_buffer_setup(indio_dev, iio_pollfunc_store_time,
 		&as3935_trigger_handler, NULL);
 
 	if (ret) {
@@ -461,4 +470,3 @@ module_spi_driver(as3935_driver);
 MODULE_AUTHOR("Matt Ranostay <mranostay@gmail.com>");
 MODULE_DESCRIPTION("AS3935 lightning sensor");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("spi:as3935");

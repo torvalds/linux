@@ -11,11 +11,50 @@
 #include <linux/timer.h>
 #include <linux/string.h>
 #include <linux/slab.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/wait.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/serdev.h>
+
+static int tty_port_default_receive_buf(struct tty_port *port,
+					const unsigned char *p,
+					const unsigned char *f, size_t count)
+{
+	int ret;
+	struct tty_struct *tty;
+	struct tty_ldisc *disc;
+
+	tty = READ_ONCE(port->itty);
+	if (!tty)
+		return 0;
+
+	disc = tty_ldisc_ref(tty);
+	if (!disc)
+		return 0;
+
+	ret = tty_ldisc_receive_buf(disc, p, (char *)f, count);
+
+	tty_ldisc_deref(disc);
+
+	return ret;
+}
+
+static void tty_port_default_wakeup(struct tty_port *port)
+{
+	struct tty_struct *tty = tty_port_tty_get(port);
+
+	if (tty) {
+		tty_wakeup(tty);
+		tty_kref_put(tty);
+	}
+}
+
+static const struct tty_port_client_operations default_client_ops = {
+	.receive_buf = tty_port_default_receive_buf,
+	.write_wakeup = tty_port_default_wakeup,
+};
 
 void tty_port_init(struct tty_port *port)
 {
@@ -28,6 +67,7 @@ void tty_port_init(struct tty_port *port)
 	spin_lock_init(&port->lock);
 	port->close_delay = (50 * HZ) / 100;
 	port->closing_wait = (3000 * HZ) / 100;
+	port->client_ops = &default_client_ops;
 	kref_init(&port->kref);
 }
 EXPORT_SYMBOL(tty_port_init);
@@ -67,8 +107,7 @@ struct device *tty_port_register_device(struct tty_port *port,
 		struct tty_driver *driver, unsigned index,
 		struct device *device)
 {
-	tty_port_link_device(port, driver, index);
-	return tty_register_device(driver, index, device);
+	return tty_port_register_device_attr(port, driver, index, device, NULL, NULL);
 }
 EXPORT_SYMBOL_GPL(tty_port_register_device);
 
@@ -95,6 +134,80 @@ struct device *tty_port_register_device_attr(struct tty_port *port,
 			attr_grp);
 }
 EXPORT_SYMBOL_GPL(tty_port_register_device_attr);
+
+/**
+ * tty_port_register_device_attr_serdev - register tty or serdev device
+ * @port: tty_port of the device
+ * @driver: tty_driver for this device
+ * @index: index of the tty
+ * @device: parent if exists, otherwise NULL
+ * @drvdata: driver data for the device
+ * @attr_grp: attribute group for the device
+ *
+ * Register a serdev or tty device depending on if the parent device has any
+ * defined serdev clients or not.
+ */
+struct device *tty_port_register_device_attr_serdev(struct tty_port *port,
+		struct tty_driver *driver, unsigned index,
+		struct device *device, void *drvdata,
+		const struct attribute_group **attr_grp)
+{
+	struct device *dev;
+
+	tty_port_link_device(port, driver, index);
+
+	dev = serdev_tty_port_register(port, device, driver, index);
+	if (PTR_ERR(dev) != -ENODEV) {
+		/* Skip creating cdev if we registered a serdev device */
+		return dev;
+	}
+
+	return tty_register_device_attr(driver, index, device, drvdata,
+			attr_grp);
+}
+EXPORT_SYMBOL_GPL(tty_port_register_device_attr_serdev);
+
+/**
+ * tty_port_register_device_serdev - register tty or serdev device
+ * @port: tty_port of the device
+ * @driver: tty_driver for this device
+ * @index: index of the tty
+ * @device: parent if exists, otherwise NULL
+ *
+ * Register a serdev or tty device depending on if the parent device has any
+ * defined serdev clients or not.
+ */
+struct device *tty_port_register_device_serdev(struct tty_port *port,
+		struct tty_driver *driver, unsigned index,
+		struct device *device)
+{
+	return tty_port_register_device_attr_serdev(port, driver, index,
+			device, NULL, NULL);
+}
+EXPORT_SYMBOL_GPL(tty_port_register_device_serdev);
+
+/**
+ * tty_port_unregister_device - deregister a tty or serdev device
+ * @port: tty_port of the device
+ * @driver: tty_driver for this device
+ * @index: index of the tty
+ *
+ * If a tty or serdev device is registered with a call to
+ * tty_port_register_device_serdev() then this function must be called when
+ * the device is gone.
+ */
+void tty_port_unregister_device(struct tty_port *port,
+		struct tty_driver *driver, unsigned index)
+{
+	int ret;
+
+	ret = serdev_tty_port_unregister(port);
+	if (ret == 0)
+		return;
+
+	tty_unregister_device(driver, index);
+}
+EXPORT_SYMBOL_GPL(tty_port_unregister_device);
 
 int tty_port_alloc_xmit_buf(struct tty_port *port)
 {
@@ -204,7 +317,8 @@ static void tty_port_shutdown(struct tty_port *port, struct tty_struct *tty)
 	if (port->console)
 		goto out;
 
-	if (test_and_clear_bit(ASYNCB_INITIALIZED, &port->flags)) {
+	if (tty_port_initialized(port)) {
+		tty_port_set_initialized(port, 0);
 		/*
 		 * Drop DTR/RTS if HUPCL is set. This causes any attached
 		 * modem to hang up the line.
@@ -236,12 +350,12 @@ void tty_port_hangup(struct tty_port *port)
 
 	spin_lock_irqsave(&port->lock, flags);
 	port->count = 0;
-	port->flags &= ~ASYNC_NORMAL_ACTIVE;
 	tty = port->tty;
 	if (tty)
 		set_bit(TTY_IO_ERROR, &tty->flags);
 	port->tty = NULL;
 	spin_unlock_irqrestore(&port->lock, flags);
+	tty_port_set_active(port, 0);
 	tty_port_shutdown(port, tty);
 	tty_kref_put(tty);
 	wake_up_interruptible(&port->open_wait);
@@ -272,12 +386,7 @@ EXPORT_SYMBOL_GPL(tty_port_tty_hangup);
  */
 void tty_port_tty_wakeup(struct tty_port *port)
 {
-	struct tty_struct *tty = tty_port_tty_get(port);
-
-	if (tty) {
-		tty_wakeup(tty);
-		tty_kref_put(tty);
-	}
+	port->client_ops->write_wakeup(port);
 }
 EXPORT_SYMBOL_GPL(tty_port_tty_wakeup);
 
@@ -334,7 +443,7 @@ EXPORT_SYMBOL(tty_port_lower_dtr_rts);
  *	tty_port_block_til_ready	-	Waiting logic for tty open
  *	@port: the tty port being opened
  *	@tty: the tty device being bound
- *	@filp: the file pointer of the opener
+ *	@filp: the file pointer of the opener or NULL
  *
  *	Implement the core POSIX/SuS tty behaviour when opening a tty device.
  *	Handles:
@@ -364,15 +473,15 @@ int tty_port_block_til_ready(struct tty_port *port,
 
 	/* if non-blocking mode is set we can pass directly to open unless
 	   the port has just hung up or is in another error state */
-	if (tty->flags & (1 << TTY_IO_ERROR)) {
-		port->flags |= ASYNC_NORMAL_ACTIVE;
+	if (tty_io_error(tty)) {
+		tty_port_set_active(port, 1);
 		return 0;
 	}
-	if (filp->f_flags & O_NONBLOCK) {
+	if (filp == NULL || (filp->f_flags & O_NONBLOCK)) {
 		/* Indicate we are open */
-		if (tty->termios.c_cflag & CBAUD)
+		if (C_BAUD(tty))
 			tty_port_raise_dtr_rts(port);
-		port->flags |= ASYNC_NORMAL_ACTIVE;
+		tty_port_set_active(port, 1);
 		return 0;
 	}
 
@@ -393,13 +502,13 @@ int tty_port_block_til_ready(struct tty_port *port,
 
 	while (1) {
 		/* Indicate we are open */
-		if (C_BAUD(tty) && test_bit(ASYNCB_INITIALIZED, &port->flags))
+		if (C_BAUD(tty) && tty_port_initialized(port))
 			tty_port_raise_dtr_rts(port);
 
 		prepare_to_wait(&port->open_wait, &wait, TASK_INTERRUPTIBLE);
 		/* Check for a hangup or uninitialised port.
 							Return accordingly */
-		if (tty_hung_up_p(filp) || !(port->flags & ASYNC_INITIALIZED)) {
+		if (tty_hung_up_p(filp) || !tty_port_initialized(port)) {
 			if (port->flags & ASYNC_HUP_NOTIFY)
 				retval = -EAGAIN;
 			else
@@ -430,9 +539,9 @@ int tty_port_block_til_ready(struct tty_port *port,
 	if (!tty_hung_up_p(filp))
 		port->count++;
 	port->blocked_open--;
-	if (retval == 0)
-		port->flags |= ASYNC_NORMAL_ACTIVE;
 	spin_unlock_irqrestore(&port->lock, flags);
+	if (retval == 0)
+		tty_port_set_active(port, 1);
 	return retval;
 }
 EXPORT_SYMBOL(tty_port_block_til_ready);
@@ -462,14 +571,13 @@ int tty_port_close_start(struct tty_port *port,
 
 	spin_lock_irqsave(&port->lock, flags);
 	if (tty->count == 1 && port->count != 1) {
-		printk(KERN_WARNING
-		    "tty_port_close_start: tty->count = 1 port count = %d.\n",
-								port->count);
+		tty_warn(tty, "%s: tty->count = 1 port count = %d\n", __func__,
+			 port->count);
 		port->count = 1;
 	}
 	if (--port->count < 0) {
-		printk(KERN_WARNING "tty_port_close_start: count = %d\n",
-								port->count);
+		tty_warn(tty, "%s: bad port count (%d)\n", __func__,
+			 port->count);
 		port->count = 0;
 	}
 
@@ -477,12 +585,11 @@ int tty_port_close_start(struct tty_port *port,
 		spin_unlock_irqrestore(&port->lock, flags);
 		return 0;
 	}
-	set_bit(ASYNCB_CLOSING, &port->flags);
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	tty->closing = 1;
 
-	if (test_bit(ASYNCB_INITIALIZED, &port->flags)) {
+	if (tty_port_initialized(port)) {
 		/* Don't block on a stalled port, just pull the chain */
 		if (tty->flow_stopped)
 			tty_driver_flush_buffer(tty);
@@ -511,15 +618,13 @@ void tty_port_close_end(struct tty_port *port, struct tty_struct *tty)
 
 	if (port->blocked_open) {
 		spin_unlock_irqrestore(&port->lock, flags);
-		if (port->close_delay) {
-			msleep_interruptible(
-				jiffies_to_msecs(port->close_delay));
-		}
+		if (port->close_delay)
+			msleep_interruptible(jiffies_to_msecs(port->close_delay));
 		spin_lock_irqsave(&port->lock, flags);
 		wake_up_interruptible(&port->open_wait);
 	}
-	port->flags &= ~(ASYNC_NORMAL_ACTIVE | ASYNC_CLOSING);
 	spin_unlock_irqrestore(&port->lock, flags);
+	tty_port_set_active(port, 0);
 }
 EXPORT_SYMBOL(tty_port_close_end);
 
@@ -582,7 +687,7 @@ int tty_port_open(struct tty_port *port, struct tty_struct *tty,
 
 	mutex_lock(&port->mutex);
 
-	if (!test_bit(ASYNCB_INITIALIZED, &port->flags)) {
+	if (!tty_port_initialized(port)) {
 		clear_bit(TTY_IO_ERROR, &tty->flags);
 		if (port->ops->activate) {
 			int retval = port->ops->activate(port, tty);
@@ -591,7 +696,7 @@ int tty_port_open(struct tty_port *port, struct tty_struct *tty,
 				return retval;
 			}
 		}
-		set_bit(ASYNCB_INITIALIZED, &port->flags);
+		tty_port_set_initialized(port, 1);
 	}
 	mutex_unlock(&port->mutex);
 	return tty_port_block_til_ready(port, tty, filp);

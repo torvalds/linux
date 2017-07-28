@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Virtual Function Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
+ * Copyright(c) 2013 - 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -551,10 +551,6 @@ i40e_status i40evf_init_adminq(struct i40e_hw *hw)
 		goto init_adminq_exit;
 	}
 
-	/* initialize locks */
-	mutex_init(&hw->aq.asq_mutex);
-	mutex_init(&hw->aq.arq_mutex);
-
 	/* Set up register offsets */
 	i40e_adminq_init_regs(hw);
 
@@ -595,8 +591,6 @@ i40e_status i40evf_shutdown_adminq(struct i40e_hw *hw)
 
 	i40e_shutdown_asq(hw);
 	i40e_shutdown_arq(hw);
-
-	/* destroy the locks */
 
 	if (hw->nvm_buff.va)
 		i40e_free_virt_mem(hw, &hw->nvm_buff);
@@ -803,8 +797,8 @@ i40e_status i40evf_asq_send_command(struct i40e_hw *hw,
 			 */
 			if (i40evf_asq_done(hw))
 				break;
-			usleep_range(1000, 2000);
-			total_delay++;
+			udelay(50);
+			total_delay += 50;
 		} while (total_delay < hw->aq.asq_cmd_timeout);
 	}
 
@@ -893,6 +887,9 @@ i40e_status i40evf_clean_arq_element(struct i40e_hw *hw,
 	u16 flags;
 	u16 ntu;
 
+	/* pre-clean the event info */
+	memset(&e->desc, 0, sizeof(e->desc));
+
 	/* take the lock before we start messing with the ring */
 	mutex_lock(&hw->aq.arq_mutex);
 
@@ -915,11 +912,11 @@ i40e_status i40evf_clean_arq_element(struct i40e_hw *hw,
 	desc = I40E_ADMINQ_DESC(hw->aq.arq, ntc);
 	desc_idx = ntc;
 
+	hw->aq.arq_last_status =
+		(enum i40e_admin_queue_err)le16_to_cpu(desc->retval);
 	flags = le16_to_cpu(desc->flags);
 	if (flags & I40E_AQ_FLAG_ERR) {
 		ret_code = I40E_ERR_ADMIN_QUEUE_ERROR;
-		hw->aq.arq_last_status =
-			(enum i40e_admin_queue_err)le16_to_cpu(desc->retval);
 		i40e_debug(hw,
 			   I40E_DEBUG_AQ_MESSAGE,
 			   "AQRX: Event received with error 0x%X.\n",

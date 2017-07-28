@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -72,6 +72,7 @@ acpi_status acpi_ev_init_global_lock_handler(void);
 ACPI_HW_DEPENDENT_RETURN_OK(acpi_status
 			    acpi_ev_acquire_global_lock(u16 timeout))
 ACPI_HW_DEPENDENT_RETURN_OK(acpi_status acpi_ev_release_global_lock(void))
+
 acpi_status acpi_ev_remove_global_lock_handler(void);
 
 /*
@@ -83,6 +84,9 @@ acpi_status
 acpi_ev_update_gpe_enable_mask(struct acpi_gpe_event_info *gpe_event_info);
 
 acpi_status acpi_ev_enable_gpe(struct acpi_gpe_event_info *gpe_event_info);
+
+acpi_status
+acpi_ev_mask_gpe(struct acpi_gpe_event_info *gpe_event_info, u8 is_masked);
 
 acpi_status
 acpi_ev_add_gpe_reference(struct acpi_gpe_event_info *gpe_event_info);
@@ -161,6 +165,11 @@ acpi_ev_delete_gpe_handlers(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 /*
  * evhandler - Address space handling
  */
+union acpi_operand_object *acpi_ev_find_region_handler(acpi_adr_space_type
+						       space_id,
+						       union acpi_operand_object
+						       *handler_obj);
+
 u8
 acpi_ev_has_default_handler(struct acpi_namespace_node *node,
 			    acpi_adr_space_type space_id);
@@ -193,9 +202,9 @@ void
 acpi_ev_detach_region(union acpi_operand_object *region_obj,
 		      u8 acpi_ns_is_locked);
 
-acpi_status
+void
 acpi_ev_execute_reg_methods(struct acpi_namespace_node *node,
-			    acpi_adr_space_type space_id);
+			    acpi_adr_space_type space_id, u32 function);
 
 acpi_status
 acpi_ev_execute_reg_method(union acpi_operand_object *region_obj, u32 function);
@@ -234,9 +243,7 @@ acpi_ev_default_region_setup(acpi_handle handle,
 			     u32 function,
 			     void *handler_context, void **region_context);
 
-acpi_status
-acpi_ev_initialize_region(union acpi_operand_object *region_obj,
-			  u8 acpi_ns_locked);
+acpi_status acpi_ev_initialize_region(union acpi_operand_object *region_obj);
 
 /*
  * evsci - SCI (System Control Interrupt) handling/dispatch

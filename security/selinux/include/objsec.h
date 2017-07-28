@@ -10,6 +10,7 @@
  *
  *  Copyright (C) 2001,2002 Networks Associates Technology, Inc.
  *  Copyright (C) 2003 Red Hat, Inc., James Morris <jmorris@redhat.com>
+ *  Copyright (C) 2016 Mellanox Technologies
  *
  *	This program is free software; you can redistribute it and/or modify
  *	it under the terms of the GNU General Public License version 2,
@@ -37,6 +38,22 @@ struct task_security_struct {
 	u32 sockcreate_sid;	/* fscreate SID */
 };
 
+/*
+ * get the subjective security ID of the current task
+ */
+static inline u32 current_sid(void)
+{
+	const struct task_security_struct *tsec = current_security();
+
+	return tsec->sid;
+}
+
+enum label_initialized {
+	LABEL_INVALID,		/* invalid or not initialized */
+	LABEL_INITIALIZED,	/* initialized */
+	LABEL_PENDING
+};
+
 struct inode_security_struct {
 	struct inode *inode;	/* back pointer to inode object */
 	union {
@@ -47,7 +64,7 @@ struct inode_security_struct {
 	u32 sid;		/* SID of this object */
 	u16 sclass;		/* security class of this object */
 	unsigned char initialized;	/* initialization flag */
-	struct mutex lock;
+	spinlock_t lock;
 };
 
 struct file_security_struct {
@@ -121,6 +138,16 @@ struct tun_security_struct {
 
 struct key_security_struct {
 	u32 sid;	/* SID of key */
+};
+
+struct ib_security_struct {
+	u32 sid;        /* SID of the queue pair or MAD agent */
+};
+
+struct pkey_security_struct {
+	u64	subnet_prefix; /* Port subnet prefix */
+	u16	pkey;	/* PKey number */
+	u32	sid;	/* SID of pkey */
 };
 
 extern unsigned int selinux_checkreqprot;

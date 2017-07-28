@@ -23,28 +23,15 @@
 #include <asm/current.h>
 #include <asm/machdep.h>
 #include <asm/cacheflush.h>
+#include <asm/firmware.h>
 #include <asm/paca.h>
 #include <asm/mmu.h>
 #include <asm/sections.h>	/* _end */
 #include <asm/prom.h>
 #include <asm/smp.h>
 #include <asm/hw_breakpoint.h>
+#include <asm/asm-prototypes.h>
 
-#ifdef CONFIG_PPC_BOOK3E
-int default_machine_kexec_prepare(struct kimage *image)
-{
-	int i;
-	/*
-	 * Since we use the kernel fault handlers and paging code to
-	 * handle the virtual mode, we must make sure no destination
-	 * overlaps kernel static data or bss.
-	 */
-	for (i = 0; i < image->nr_segments; i++)
-		if (image->segment[i].mem < __pa(_end))
-			return -ETXTBSY;
-	return 0;
-}
-#else
 int default_machine_kexec_prepare(struct kimage *image)
 {
 	int i;
@@ -54,9 +41,6 @@ int default_machine_kexec_prepare(struct kimage *image)
 	const unsigned long *basep;
 	const unsigned int *sizep;
 
-	if (!ppc_md.hpte_clear_all)
-		return -ENOENT;
-
 	/*
 	 * Since we use the kernel fault handlers and paging code to
 	 * handle the virtual mode, we must make sure no destination
@@ -65,29 +49,6 @@ int default_machine_kexec_prepare(struct kimage *image)
 	for (i = 0; i < image->nr_segments; i++)
 		if (image->segment[i].mem < __pa(_end))
 			return -ETXTBSY;
-
-	/*
-	 * For non-LPAR, we absolutely can not overwrite the mmu hash
-	 * table, since we are still using the bolted entries in it to
-	 * do the copy.  Check that here.
-	 *
-	 * It is safe if the end is below the start of the blocked
-	 * region (end <= low), or if the beginning is after the
-	 * end of the blocked region (begin >= high).  Use the
-	 * boolean identity !(a || b)  === (!a && !b).
-	 */
-	if (htab_address) {
-		low = __pa(htab_address);
-		high = low + htab_size_bytes;
-
-		for (i = 0; i < image->nr_segments; i++) {
-			begin = image->segment[i].mem;
-			end = begin + image->segment[i].memsz;
-
-			if ((begin < high) && (end > low))
-				return -ETXTBSY;
-		}
-	}
 
 	/* We also should not overwrite the tce tables */
 	for_each_node_by_type(node, "pci") {
@@ -110,7 +71,6 @@ int default_machine_kexec_prepare(struct kimage *image)
 
 	return 0;
 }
-#endif /* !CONFIG_PPC_BOOK3E */
 
 static void copy_segments(unsigned long ind)
 {
@@ -329,11 +289,14 @@ struct paca_struct kexec_paca;
 /* Our assembly helper, in misc_64.S */
 extern void kexec_sequence(void *newstack, unsigned long start,
 			   void *image, void *control,
-			   void (*clear_all)(void)) __noreturn;
+			   void (*clear_all)(void),
+			   bool copy_with_mmu_off) __noreturn;
 
 /* too late to fail here */
 void default_machine_kexec(struct kimage *image)
 {
+	bool copy_with_mmu_off;
+
 	/* prepare control code if any */
 
 	/*
@@ -347,7 +310,7 @@ void default_machine_kexec(struct kimage *image)
 	if (!kdump_in_progress())
 		kexec_prepare_cpus();
 
-	pr_debug("kexec: Starting switchover sequence.\n");
+	printk("kexec: Starting switchover sequence.\n");
 
 	/* switch to a staticly allocated stack.  Based on irq stack code.
 	 * We setup preempt_count to avoid using VMX in memcpy.
@@ -371,17 +334,33 @@ void default_machine_kexec(struct kimage *image)
 	/* XXX: If anyone does 'dynamic lppacas' this will also need to be
 	 * switched to a static version!
 	 */
+	/*
+	 * On Book3S, the copy must happen with the MMU off if we are either
+	 * using Radix page tables or we are not in an LPAR since we can
+	 * overwrite the page tables while copying.
+	 *
+	 * In an LPAR, we keep the MMU on otherwise we can't access beyond
+	 * the RMA. On BookE there is no real MMU off mode, so we have to
+	 * keep it enabled as well (but then we have bolted TLB entries).
+	 */
+#ifdef CONFIG_PPC_BOOK3E
+	copy_with_mmu_off = false;
+#else
+	copy_with_mmu_off = radix_enabled() ||
+		!(firmware_has_feature(FW_FEATURE_LPAR) ||
+		  firmware_has_feature(FW_FEATURE_PS3_LV1));
+#endif
 
 	/* Some things are best done in assembly.  Finding globals with
 	 * a toc is easier in C, so pass in what we can.
 	 */
 	kexec_sequence(&kexec_stack, image->start, image,
-			page_address(image->control_code_page),
-			ppc_md.hpte_clear_all);
+		       page_address(image->control_code_page),
+		       mmu_cleanup_all, copy_with_mmu_off);
 	/* NOTREACHED */
 }
 
-#ifndef CONFIG_PPC_BOOK3E
+#ifdef CONFIG_PPC_STD_MMU_64
 /* Values we need to export to the second kernel via the device tree. */
 static unsigned long htab_base;
 static unsigned long htab_size;
@@ -401,7 +380,6 @@ static struct property htab_size_prop = {
 static int __init export_htab_values(void)
 {
 	struct device_node *node;
-	struct property *prop;
 
 	/* On machines with no htab htab_address is NULL */
 	if (!htab_address)
@@ -412,12 +390,8 @@ static int __init export_htab_values(void)
 		return -ENODEV;
 
 	/* remove any stale propertys so ours can be found */
-	prop = of_find_property(node, htab_base_prop.name, NULL);
-	if (prop)
-		of_remove_property(node, prop);
-	prop = of_find_property(node, htab_size_prop.name, NULL);
-	if (prop)
-		of_remove_property(node, prop);
+	of_remove_property(node, of_find_property(node, htab_base_prop.name, NULL));
+	of_remove_property(node, of_find_property(node, htab_size_prop.name, NULL));
 
 	htab_base = cpu_to_be64(__pa(htab_address));
 	of_add_property(node, &htab_base_prop);
@@ -428,4 +402,4 @@ static int __init export_htab_values(void)
 	return 0;
 }
 late_initcall(export_htab_values);
-#endif /* !CONFIG_PPC_BOOK3E */
+#endif /* CONFIG_PPC_STD_MMU_64 */

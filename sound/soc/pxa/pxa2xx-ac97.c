@@ -27,8 +27,6 @@
 #include <mach/regs-ac97.h>
 #include <mach/audio.h>
 
-#include "pxa2xx-ac97.h"
-
 static void pxa2xx_ac97_warm_reset(struct snd_ac97 *ac97)
 {
 	pxa2xx_ac97_try_warm_reset(ac97);
@@ -142,9 +140,8 @@ static int pxa2xx_ac97_mic_startup(struct snd_pcm_substream *substream,
 {
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		return -ENODEV;
-	else
-		snd_soc_dai_set_dma_data(cpu_dai, substream,
-					 &pxa2xx_ac97_pcm_mic_mono_in);
+	snd_soc_dai_set_dma_data(cpu_dai, substream,
+				 &pxa2xx_ac97_pcm_mic_mono_in);
 
 	return 0;
 }
@@ -287,3 +284,4 @@ module_platform_driver(pxa2xx_ac97_driver);
 MODULE_AUTHOR("Nicolas Pitre");
 MODULE_DESCRIPTION("AC97 driver for the Intel PXA2xx chip");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:pxa2xx-ac97");

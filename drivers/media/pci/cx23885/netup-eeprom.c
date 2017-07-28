@@ -52,7 +52,7 @@ int netup_eeprom_read(struct i2c_adapter *i2c_adap, u8 addr)
 	ret = i2c_transfer(i2c_adap, msg, 2);
 
 	if (ret != 2) {
-		printk(KERN_ERR "eeprom i2c read error, status=%d\n", ret);
+		pr_err("eeprom i2c read error, status=%d\n", ret);
 		return -1;
 	}
 
@@ -80,7 +80,7 @@ int netup_eeprom_write(struct i2c_adapter *i2c_adap, u8 addr, u8 data)
 	ret = i2c_transfer(i2c_adap, msg, 1);
 
 	if (ret != 1) {
-		printk(KERN_ERR "eeprom i2c write error, status=%d\n", ret);
+		pr_err("eeprom i2c write error, status=%d\n", ret);
 		return -1;
 	}
 

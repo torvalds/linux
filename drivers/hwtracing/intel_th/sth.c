@@ -67,10 +67,13 @@ static void sth_iowrite(void __iomem *dest, const unsigned char *payload,
 	}
 }
 
-static ssize_t sth_stm_packet(struct stm_data *stm_data, unsigned int master,
-			      unsigned int channel, unsigned int packet,
-			      unsigned int flags, unsigned int size,
-			      const unsigned char *payload)
+static ssize_t notrace sth_stm_packet(struct stm_data *stm_data,
+				      unsigned int master,
+				      unsigned int channel,
+				      unsigned int packet,
+				      unsigned int flags,
+				      unsigned int size,
+				      const unsigned char *payload)
 {
 	struct sth_device *sth = container_of(stm_data, struct sth_device, stm);
 	struct intel_th_channel __iomem *out =
@@ -94,10 +97,13 @@ static ssize_t sth_stm_packet(struct stm_data *stm_data, unsigned int master,
 	case STP_PACKET_TRIG:
 		if (flags & STP_PACKET_TIMESTAMPED)
 			reg += 4;
-		iowrite8(*payload, sth->base + reg);
+		writeb_relaxed(*payload, sth->base + reg);
 		break;
 
 	case STP_PACKET_MERR:
+		if (size > 4)
+			size = 4;
+
 		sth_iowrite(&out->MERR, payload, size);
 		break;
 
@@ -107,8 +113,8 @@ static ssize_t sth_stm_packet(struct stm_data *stm_data, unsigned int master,
 		else
 			outp = (u64 __iomem *)&out->FLAG;
 
-		size = 1;
-		sth_iowrite(outp, payload, size);
+		size = 0;
+		writeb_relaxed(0, outp);
 		break;
 
 	case STP_PACKET_USER:
@@ -129,6 +135,8 @@ static ssize_t sth_stm_packet(struct stm_data *stm_data, unsigned int master,
 
 		sth_iowrite(outp, payload, size);
 		break;
+	default:
+		return -ENOTSUPP;
 	}
 
 	return size;

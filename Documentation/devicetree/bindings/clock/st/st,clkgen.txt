@@ -13,23 +13,11 @@ address is common of all subnode.
 			...
 		};
 
-		prediv_node {
-			...
-		};
-
-		divmux_node {
-			...
-		};
-
 		quadfs_node {
 			...
 		};
 
 		mux_node {
-			...
-		};
-
-		vcc_node {
 			...
 		};
 
@@ -40,14 +28,11 @@ address is common of all subnode.
 	};
 
 This binding uses the common clock binding[1].
-Each subnode should use the binding discribe in [2]..[7]
+Each subnode should use the binding described in [2]..[7]
 
 [1] Documentation/devicetree/bindings/clock/clock-bindings.txt
-[2] Documentation/devicetree/bindings/clock/st,clkgen-divmux.txt
 [3] Documentation/devicetree/bindings/clock/st,clkgen-mux.txt
 [4] Documentation/devicetree/bindings/clock/st,clkgen-pll.txt
-[5] Documentation/devicetree/bindings/clock/st,clkgen-prediv.txt
-[6] Documentation/devicetree/bindings/clock/st,vcc.txt
 [7] Documentation/devicetree/bindings/clock/st,quadfs.txt
 [8] Documentation/devicetree/bindings/clock/st,flexgen.txt
 
@@ -57,44 +42,27 @@ Required properties:
 
 Example:
 
-	clockgen-a@fee62000 {
-
-		reg = <0xfee62000 0xb48>;
+	clockgen-a@090ff000 {
+		compatible = "st,clkgen-c32";
+		reg = <0x90ff000 0x1000>;
 
 		clk_s_a0_pll: clk-s-a0-pll {
 			#clock-cells = <1>;
-			compatible = "st,clkgena-plls-c65";
-
-			clocks = <&clk-sysin>;
-
-			clock-output-names = "clk-s-a0-pll0-hs",
-					     "clk-s-a0-pll0-ls",
-					     "clk-s-a0-pll1";
-		};
-
-		clk_s_a0_osc_prediv: clk-s-a0-osc-prediv {
-			#clock-cells = <0>;
-			compatible = "st,clkgena-prediv-c65",
-				     "st,clkgena-prediv";
+			compatible = "st,clkgen-pll0";
 
 			clocks = <&clk_sysin>;
 
-			clock-output-names = "clk-s-a0-osc-prediv";
+			clock-output-names = "clk-s-a0-pll-ofd-0";
 		};
 
-		clk_s_a0_hs: clk-s-a0-hs {
+		clk_s_a0_flexgen: clk-s-a0-flexgen {
+			compatible = "st,flexgen";
+
 			#clock-cells = <1>;
-			compatible = "st,clkgena-divmux-c65-hs",
-				     "st,clkgena-divmux";
 
-			clocks = <&clk-s_a0_osc_prediv>,
-				 <&clk-s_a0_pll 0>, /* pll0 hs */
-				 <&clk-s_a0_pll 2>; /* pll1 */
+			clocks = <&clk_s_a0_pll 0>,
+				 <&clk_sysin>;
 
-			clock-output-names = "clk-s-fdma-0",
-					     "clk-s-fdma-1",
-					     ""; /* clk-s-jit-sense */
-					     /* fourth output unused */
+			clock-output-names = "clk-ic-lmi0";
 		};
 	};
-

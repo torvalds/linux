@@ -11,6 +11,9 @@
 #include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
+
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/unistd.h>
@@ -39,6 +42,41 @@ SYSCALL_DEFINE1(arc_settls, void *, user_tls_data_ptr)
 SYSCALL_DEFINE0(arc_gettls)
 {
 	return task_thread_info(current)->thr_ptr;
+}
+
+SYSCALL_DEFINE3(arc_usr_cmpxchg, int *, uaddr, int, expected, int, new)
+{
+	struct pt_regs *regs = current_pt_regs();
+	int uval = -EFAULT;
+
+	/*
+	 * This is only for old cores lacking LLOCK/SCOND, which by defintion
+	 * can't possibly be SMP. Thus doesn't need to be SMP safe.
+	 * And this also helps reduce the overhead for serializing in
+	 * the UP case
+	 */
+	WARN_ON_ONCE(IS_ENABLED(CONFIG_SMP));
+
+	/* Z indicates to userspace if operation succeded */
+	regs->status32 &= ~STATUS_Z_MASK;
+
+	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(int)))
+		return -EFAULT;
+
+	preempt_disable();
+
+	if (__get_user(uval, uaddr))
+		goto done;
+
+	if (uval == expected) {
+		if (!__put_user(new, uaddr))
+			regs->status32 |= STATUS_Z_MASK;
+	}
+
+done:
+	preempt_enable();
+
+	return uval;
 }
 
 void arch_cpu_idle(void)
@@ -183,13 +221,6 @@ void flush_thread(void)
 {
 }
 
-/*
- * Free any architecture-specific thread data structures, etc.
- */
-void exit_thread(void)
-{
-}
-
 int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 {
 	return 0;
@@ -206,7 +237,7 @@ int elf_check_arch(const struct elf32_hdr *x)
 	}
 
 	eflags = x->e_flags;
-	if ((eflags & EF_ARC_OSABI_MSK) < EF_ARC_OSABI_CURRENT) {
+	if ((eflags & EF_ARC_OSABI_MSK) != EF_ARC_OSABI_CURRENT) {
 		pr_err("ABI mismatch - you need newer toolchain\n");
 		force_sigsegv(SIGSEGV, current);
 		return 0;

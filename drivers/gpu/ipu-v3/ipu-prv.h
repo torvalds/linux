@@ -75,6 +75,38 @@ struct ipu_soc;
 #define IPU_INT_CTRL(n)		IPU_CM_REG(0x003C + 4 * (n))
 #define IPU_INT_STAT(n)		IPU_CM_REG(0x0200 + 4 * (n))
 
+/* SRM_PRI2 */
+#define DP_S_SRM_MODE_MASK		(0x3 << 3)
+#define DP_S_SRM_MODE_NOW		(0x3 << 3)
+#define DP_S_SRM_MODE_NEXT_FRAME	(0x1 << 3)
+
+/* FS_PROC_FLOW1 */
+#define FS_PRPENC_ROT_SRC_SEL_MASK	(0xf << 0)
+#define FS_PRPENC_ROT_SRC_SEL_ENC		(0x7 << 0)
+#define FS_PRPVF_ROT_SRC_SEL_MASK	(0xf << 8)
+#define FS_PRPVF_ROT_SRC_SEL_VF			(0x8 << 8)
+#define FS_PP_SRC_SEL_MASK		(0xf << 12)
+#define FS_PP_ROT_SRC_SEL_MASK		(0xf << 16)
+#define FS_PP_ROT_SRC_SEL_PP			(0x5 << 16)
+#define FS_VDI1_SRC_SEL_MASK		(0x3 << 20)
+#define FS_VDI3_SRC_SEL_MASK		(0x3 << 20)
+#define FS_PRP_SRC_SEL_MASK		(0xf << 24)
+#define FS_VDI_SRC_SEL_MASK		(0x3 << 28)
+#define FS_VDI_SRC_SEL_CSI_DIRECT		(0x1 << 28)
+#define FS_VDI_SRC_SEL_VDOA			(0x2 << 28)
+
+/* FS_PROC_FLOW2 */
+#define FS_PRP_ENC_DEST_SEL_MASK	(0xf << 0)
+#define FS_PRP_ENC_DEST_SEL_IRT_ENC		(0x1 << 0)
+#define FS_PRPVF_DEST_SEL_MASK		(0xf << 4)
+#define FS_PRPVF_DEST_SEL_IRT_VF		(0x1 << 4)
+#define FS_PRPVF_ROT_DEST_SEL_MASK	(0xf << 8)
+#define FS_PP_DEST_SEL_MASK		(0xf << 12)
+#define FS_PP_DEST_SEL_IRT_PP			(0x3 << 12)
+#define FS_PP_ROT_DEST_SEL_MASK		(0xf << 16)
+#define FS_PRPENC_ROT_DEST_SEL_MASK	(0xf << 20)
+#define FS_PRP_DEST_SEL_MASK		(0xf << 24)
+
 #define IPU_DI0_COUNTER_RELEASE			(1 << 24)
 #define IPU_DI1_COUNTER_RELEASE			(1 << 25)
 
@@ -125,11 +157,8 @@ enum ipu_modules {
 
 struct ipuv3_channel {
 	unsigned int num;
-
-	bool enabled;
-	bool busy;
-
 	struct ipu_soc *ipu;
+	struct list_head list;
 };
 
 struct ipu_cpmem;
@@ -138,7 +167,11 @@ struct ipu_dc_priv;
 struct ipu_dmfc_priv;
 struct ipu_di;
 struct ipu_ic_priv;
+struct ipu_vdi;
+struct ipu_image_convert_priv;
 struct ipu_smfc_priv;
+struct ipu_pre;
+struct ipu_prg;
 
 struct ipu_devtype;
 
@@ -148,15 +181,15 @@ struct ipu_soc {
 	enum ipuv3_type		ipu_type;
 	spinlock_t		lock;
 	struct mutex		channel_lock;
+	struct list_head	channels;
 
 	void __iomem		*cm_reg;
 	void __iomem		*idmac_reg;
 
+	int			id;
 	int			usecount;
 
 	struct clk		*clk;
-
-	struct ipuv3_channel	channel[64];
 
 	int			irq_sync;
 	int			irq_err;
@@ -169,7 +202,10 @@ struct ipu_soc {
 	struct ipu_di		*di_priv[2];
 	struct ipu_csi		*csi_priv[2];
 	struct ipu_ic_priv	*ic_priv;
+	struct ipu_vdi          *vdi_priv;
+	struct ipu_image_convert_priv *image_convert_priv;
 	struct ipu_smfc_priv	*smfc_priv;
+	struct ipu_prg		*prg_priv;
 };
 
 static inline u32 ipu_idmac_read(struct ipu_soc *ipu, unsigned offset)
@@ -183,13 +219,12 @@ static inline void ipu_idmac_write(struct ipu_soc *ipu, u32 value,
 	writel(value, ipu->idmac_reg + offset);
 }
 
-void ipu_srm_dp_sync_update(struct ipu_soc *ipu);
+void ipu_srm_dp_update(struct ipu_soc *ipu, bool sync);
 
 int ipu_module_enable(struct ipu_soc *ipu, u32 mask);
 int ipu_module_disable(struct ipu_soc *ipu, u32 mask);
 
 bool ipu_idmac_channel_busy(struct ipu_soc *ipu, unsigned int chno);
-int ipu_wait_interrupt(struct ipu_soc *ipu, int irq, int ms);
 
 int ipu_csi_init(struct ipu_soc *ipu, struct device *dev, int id,
 		 unsigned long base, u32 module, struct clk *clk_ipu);
@@ -198,6 +233,13 @@ void ipu_csi_exit(struct ipu_soc *ipu, int id);
 int ipu_ic_init(struct ipu_soc *ipu, struct device *dev,
 		unsigned long base, unsigned long tpmem_base);
 void ipu_ic_exit(struct ipu_soc *ipu);
+
+int ipu_vdi_init(struct ipu_soc *ipu, struct device *dev,
+		 unsigned long base, u32 module);
+void ipu_vdi_exit(struct ipu_soc *ipu);
+
+int ipu_image_convert_init(struct ipu_soc *ipu, struct device *dev);
+void ipu_image_convert_exit(struct ipu_soc *ipu);
 
 int ipu_di_init(struct ipu_soc *ipu, struct device *dev, int id,
 		unsigned long base, u32 module, struct clk *ipu_clk);
@@ -219,5 +261,22 @@ void ipu_cpmem_exit(struct ipu_soc *ipu);
 
 int ipu_smfc_init(struct ipu_soc *ipu, struct device *dev, unsigned long base);
 void ipu_smfc_exit(struct ipu_soc *ipu);
+
+struct ipu_pre *ipu_pre_lookup_by_phandle(struct device *dev, const char *name,
+					  int index);
+int ipu_pre_get_available_count(void);
+int ipu_pre_get(struct ipu_pre *pre);
+void ipu_pre_put(struct ipu_pre *pre);
+u32 ipu_pre_get_baddr(struct ipu_pre *pre);
+void ipu_pre_configure(struct ipu_pre *pre, unsigned int width,
+		       unsigned int height,
+		       unsigned int stride, u32 format, unsigned int bufaddr);
+void ipu_pre_update(struct ipu_pre *pre, unsigned int bufaddr);
+
+struct ipu_prg *ipu_prg_lookup_by_phandle(struct device *dev, const char *name,
+					  int ipu_id);
+
+extern struct platform_driver ipu_pre_drv;
+extern struct platform_driver ipu_prg_drv;
 
 #endif				/* __IPU_PRV_H__ */

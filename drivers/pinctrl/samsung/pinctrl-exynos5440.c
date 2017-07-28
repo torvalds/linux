@@ -1,6 +1,8 @@
 /*
  * pin-controller/pin-mux/pin-config/gpio-driver for Samsung's EXYNOS5440 SoC.
  *
+ * Author: Thomas Abraham <thomas.ab@samsung.com>
+ *
  * Copyright (c) 2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
@@ -10,12 +12,12 @@
  * (at your option) any later version.
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/device.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
@@ -107,6 +109,7 @@ struct exynos5440_pmx_func {
  * @nr_groups: number of pin groups available.
  * @pmx_functions: list of pin functions parsed from device tree.
  * @nr_functions: number of pin functions available.
+ * @range: gpio range to register with pinctrl
  */
 struct exynos5440_pinctrl_priv_data {
 	void __iomem			*reg_base;
@@ -117,6 +120,7 @@ struct exynos5440_pinctrl_priv_data {
 	unsigned int			nr_groups;
 	const struct exynos5440_pmx_func	*pmx_functions;
 	unsigned int			nr_functions;
+	struct pinctrl_gpio_range	range;
 };
 
 /**
@@ -539,7 +543,7 @@ static const struct pinconf_ops exynos5440_pinconf_ops = {
 /* gpiolib gpio_set callback function */
 static void exynos5440_gpio_set(struct gpio_chip *gc, unsigned offset, int value)
 {
-	struct exynos5440_pinctrl_priv_data *priv = dev_get_drvdata(gc->dev);
+	struct exynos5440_pinctrl_priv_data *priv = gpiochip_get_data(gc);
 	void __iomem *base = priv->reg_base;
 	u32 data;
 
@@ -553,7 +557,7 @@ static void exynos5440_gpio_set(struct gpio_chip *gc, unsigned offset, int value
 /* gpiolib gpio_get callback function */
 static int exynos5440_gpio_get(struct gpio_chip *gc, unsigned offset)
 {
-	struct exynos5440_pinctrl_priv_data *priv = dev_get_drvdata(gc->dev);
+	struct exynos5440_pinctrl_priv_data *priv = gpiochip_get_data(gc);
 	void __iomem *base = priv->reg_base;
 	u32 data;
 
@@ -566,7 +570,7 @@ static int exynos5440_gpio_get(struct gpio_chip *gc, unsigned offset)
 /* gpiolib gpio_direction_input callback function */
 static int exynos5440_gpio_direction_input(struct gpio_chip *gc, unsigned offset)
 {
-	struct exynos5440_pinctrl_priv_data *priv = dev_get_drvdata(gc->dev);
+	struct exynos5440_pinctrl_priv_data *priv = gpiochip_get_data(gc);
 	void __iomem *base = priv->reg_base;
 	u32 data;
 
@@ -586,7 +590,7 @@ static int exynos5440_gpio_direction_input(struct gpio_chip *gc, unsigned offset
 static int exynos5440_gpio_direction_output(struct gpio_chip *gc, unsigned offset,
 							int value)
 {
-	struct exynos5440_pinctrl_priv_data *priv = dev_get_drvdata(gc->dev);
+	struct exynos5440_pinctrl_priv_data *priv = gpiochip_get_data(gc);
 	void __iomem *base = priv->reg_base;
 	u32 data;
 
@@ -607,7 +611,7 @@ static int exynos5440_gpio_direction_output(struct gpio_chip *gc, unsigned offse
 /* gpiolib gpio_to_irq callback function */
 static int exynos5440_gpio_to_irq(struct gpio_chip *gc, unsigned offset)
 {
-	struct exynos5440_pinctrl_priv_data *priv = dev_get_drvdata(gc->dev);
+	struct exynos5440_pinctrl_priv_data *priv = gpiochip_get_data(gc);
 	unsigned int virq;
 
 	if (offset < 16 || offset > 23)
@@ -742,7 +746,6 @@ static int exynos5440_pinctrl_register(struct platform_device *pdev,
 	struct pinctrl_desc *ctrldesc;
 	struct pinctrl_dev *pctl_dev;
 	struct pinctrl_pin_desc *pindesc, *pdesc;
-	struct pinctrl_gpio_range grange;
 	char *pin_names;
 	int pin, ret;
 
@@ -788,18 +791,18 @@ static int exynos5440_pinctrl_register(struct platform_device *pdev,
 	if (ret)
 		return ret;
 
-	pctl_dev = pinctrl_register(ctrldesc, &pdev->dev, priv);
+	pctl_dev = devm_pinctrl_register(&pdev->dev, ctrldesc, priv);
 	if (IS_ERR(pctl_dev)) {
 		dev_err(&pdev->dev, "could not register pinctrl driver\n");
 		return PTR_ERR(pctl_dev);
 	}
 
-	grange.name = "exynos5440-pctrl-gpio-range";
-	grange.id = 0;
-	grange.base = 0;
-	grange.npins = EXYNOS5440_MAX_PINS;
-	grange.gc = priv->gc;
-	pinctrl_add_gpio_range(pctl_dev, &grange);
+	priv->range.name = "exynos5440-pctrl-gpio-range";
+	priv->range.id = 0;
+	priv->range.base = 0;
+	priv->range.npins = EXYNOS5440_MAX_PINS;
+	priv->range.gc = priv->gc;
+	pinctrl_add_gpio_range(pctl_dev, &priv->range);
 	return 0;
 }
 
@@ -817,7 +820,7 @@ static int exynos5440_gpiolib_register(struct platform_device *pdev,
 	priv->gc = gc;
 	gc->base = 0;
 	gc->ngpio = EXYNOS5440_MAX_PINS;
-	gc->dev = &pdev->dev;
+	gc->parent = &pdev->dev;
 	gc->set = exynos5440_gpio_set;
 	gc->get = exynos5440_gpio_get;
 	gc->direction_input = exynos5440_gpio_direction_input;
@@ -825,7 +828,7 @@ static int exynos5440_gpiolib_register(struct platform_device *pdev,
 	gc->to_irq = exynos5440_gpio_to_irq;
 	gc->label = "gpiolib-exynos5440";
 	gc->owner = THIS_MODULE;
-	ret = gpiochip_add(gc);
+	ret = gpiochip_add_data(gc, priv);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to register gpio_chip %s, error "
 					"code: %d\n", gc->label, ret);
@@ -990,13 +993,13 @@ static const struct of_device_id exynos5440_pinctrl_dt_match[] = {
 	{ .compatible = "samsung,exynos5440-pinctrl" },
 	{},
 };
-MODULE_DEVICE_TABLE(of, exynos5440_pinctrl_dt_match);
 
 static struct platform_driver exynos5440_pinctrl_driver = {
 	.probe		= exynos5440_pinctrl_probe,
 	.driver = {
 		.name	= "exynos5440-pinctrl",
 		.of_match_table = exynos5440_pinctrl_dt_match,
+		.suppress_bind_attrs = true,
 	},
 };
 
@@ -1005,13 +1008,3 @@ static int __init exynos5440_pinctrl_drv_register(void)
 	return platform_driver_register(&exynos5440_pinctrl_driver);
 }
 postcore_initcall(exynos5440_pinctrl_drv_register);
-
-static void __exit exynos5440_pinctrl_drv_unregister(void)
-{
-	platform_driver_unregister(&exynos5440_pinctrl_driver);
-}
-module_exit(exynos5440_pinctrl_drv_unregister);
-
-MODULE_AUTHOR("Thomas Abraham <thomas.ab@samsung.com>");
-MODULE_DESCRIPTION("Samsung EXYNOS5440 SoC pinctrl driver");
-MODULE_LICENSE("GPL v2");

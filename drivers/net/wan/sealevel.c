@@ -174,7 +174,6 @@ static int sealevel_attach(struct net_device *dev, unsigned short encoding,
 static const struct net_device_ops sealevel_ops = {
 	.ndo_open       = sealevel_open,
 	.ndo_stop       = sealevel_close,
-	.ndo_change_mtu = hdlc_change_mtu,
 	.ndo_start_xmit = hdlc_start_xmit,
 	.ndo_do_ioctl   = sealevel_ioctl,
 };
@@ -364,13 +363,13 @@ static int rxdma=3;
 static int irq=5;
 static bool slow=false;
 
-module_param(io, int, 0);
+module_param_hw(io, int, ioport, 0);
 MODULE_PARM_DESC(io, "The I/O base of the Sealevel card");
-module_param(txdma, int, 0);
+module_param_hw(txdma, int, dma, 0);
 MODULE_PARM_DESC(txdma, "Transmit DMA channel");
-module_param(rxdma, int, 0);
+module_param_hw(rxdma, int, dma, 0);
 MODULE_PARM_DESC(rxdma, "Receive DMA channel");
-module_param(irq, int, 0);
+module_param_hw(irq, int, irq, 0);
 MODULE_PARM_DESC(irq, "The interrupt line setting for the SeaLevel card");
 module_param(slow, bool, 0);
 MODULE_PARM_DESC(slow, "Set this for an older Sealevel card such as the 4012");

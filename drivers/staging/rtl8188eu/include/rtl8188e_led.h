@@ -11,11 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
  ******************************************************************************/
 #ifndef __RTL8188E_LED_H__
 #define __RTL8188E_LED_H__
@@ -27,8 +22,6 @@
 /*  */
 /*  Interface to manipulate LED objects. */
 /*  */
-void rtl8188eu_InitSwLeds(struct adapter *padapter);
-void rtl8188eu_DeInitSwLeds(struct adapter *padapter);
 void SwLedOn(struct adapter *padapter, struct LED_871x *pLed);
 void SwLedOff(struct adapter *padapter, struct LED_871x *pLed);
 

@@ -386,3 +386,17 @@ ENTRY(sys_call_table)
 	.long sys_process_vm_writev
 	.long sys_kcmp
 	.long sys_finit_module
+	.long sys_sched_getattr
+	.long sys_sched_setattr		/* 370 */
+	.long sys_renameat2
+	.long sys_seccomp
+	.long sys_getrandom
+	.long sys_memfd_create
+	.long sys_bpf			/* 375 */
+	.long sys_execveat
+	.long sys_userfaultfd
+	.long sys_membarrier
+	.long sys_mlock2
+	.long sys_copy_file_range	/* 380 */
+	.long sys_preadv2
+	.long sys_pwritev2

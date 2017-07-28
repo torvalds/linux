@@ -744,8 +744,8 @@ static int snd_via82xx_modem_pcm_open(struct via82xx_modem *chip, struct viadev 
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
-        static unsigned int rates[] = { 8000,  9600, 12000, 16000 };
-        static struct snd_pcm_hw_constraint_list hw_constraints_rates = {
+	static const unsigned int rates[] = { 8000,  9600, 12000, 16000 };
+	static const struct snd_pcm_hw_constraint_list hw_constraints_rates = {
                 .count = ARRAY_SIZE(rates),
                 .list = rates,
                 .mask = 0,
@@ -804,7 +804,7 @@ static int snd_via82xx_pcm_close(struct snd_pcm_substream *substream)
 
 
 /* via686 playback callbacks */
-static struct snd_pcm_ops snd_via686_playback_ops = {
+static const struct snd_pcm_ops snd_via686_playback_ops = {
 	.open =		snd_via82xx_playback_open,
 	.close =	snd_via82xx_pcm_close,
 	.ioctl =	snd_pcm_lib_ioctl,
@@ -817,7 +817,7 @@ static struct snd_pcm_ops snd_via686_playback_ops = {
 };
 
 /* via686 capture callbacks */
-static struct snd_pcm_ops snd_via686_capture_ops = {
+static const struct snd_pcm_ops snd_via686_capture_ops = {
 	.open =		snd_via82xx_capture_open,
 	.close =	snd_via82xx_pcm_close,
 	.ioctl =	snd_pcm_lib_ioctl,

@@ -38,8 +38,6 @@ struct nouveau_crtc {
 	uint32_t dpms_saved_fp_control;
 	uint32_t fp_users;
 	int saturation;
-	int color_vibrance;
-	int vibrant_hue;
 	int sharpness;
 	int last_dpms;
 
@@ -54,7 +52,6 @@ struct nouveau_crtc {
 
 	struct {
 		struct nouveau_bo *nvbo;
-		bool visible;
 		uint32_t offset;
 		void (*set_offset)(struct nouveau_crtc *, uint32_t offset);
 		void (*set_pos)(struct nouveau_crtc *, int x, int y);
@@ -70,9 +67,8 @@ struct nouveau_crtc {
 		int depth;
 	} lut;
 
-	int (*set_dither)(struct nouveau_crtc *crtc, bool update);
-	int (*set_scale)(struct nouveau_crtc *crtc, bool update);
-	int (*set_color_vibrance)(struct nouveau_crtc *crtc, bool update);
+	void (*save)(struct drm_crtc *crtc);
+	void (*restore)(struct drm_crtc *crtc);
 };
 
 static inline struct nouveau_crtc *nouveau_crtc(struct drm_crtc *crtc)

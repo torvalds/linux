@@ -44,6 +44,7 @@
 #include <linux/interrupt.h>
 #include <linux/log2.h>
 #include <linux/dma-mapping.h>
+#include <linux/if_ether.h>
 
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_user_verbs.h>
@@ -579,6 +580,8 @@ static int ocrdma_mbx_create_mq(struct ocrdma_dev *dev,
 
 	cmd->async_event_bitmap = BIT(OCRDMA_ASYNC_GRP5_EVE_CODE);
 	cmd->async_event_bitmap |= BIT(OCRDMA_ASYNC_RDMA_EVE_CODE);
+	/* Request link events on this  MQ. */
+	cmd->async_event_bitmap |= BIT(OCRDMA_ASYNC_LINK_EVE_CODE);
 
 	cmd->async_cqid_ringsize = cq->id;
 	cmd->async_cqid_ringsize |= (ocrdma_encoded_q_len(mq->len) <<
@@ -819,20 +822,42 @@ static void ocrdma_process_grp5_aync(struct ocrdma_dev *dev,
 	}
 }
 
+static void ocrdma_process_link_state(struct ocrdma_dev *dev,
+				      struct ocrdma_ae_mcqe *cqe)
+{
+	struct ocrdma_ae_lnkst_mcqe *evt;
+	u8 lstate;
+
+	evt = (struct ocrdma_ae_lnkst_mcqe *)cqe;
+	lstate = ocrdma_get_ae_link_state(evt->speed_state_ptn);
+
+	if (!(lstate & OCRDMA_AE_LSC_LLINK_MASK))
+		return;
+
+	if (dev->flags & OCRDMA_FLAGS_LINK_STATUS_INIT)
+		ocrdma_update_link_state(dev, (lstate & OCRDMA_LINK_ST_MASK));
+}
+
 static void ocrdma_process_acqe(struct ocrdma_dev *dev, void *ae_cqe)
 {
 	/* async CQE processing */
 	struct ocrdma_ae_mcqe *cqe = ae_cqe;
 	u32 evt_code = (cqe->valid_ae_event & OCRDMA_AE_MCQE_EVENT_CODE_MASK) >>
 			OCRDMA_AE_MCQE_EVENT_CODE_SHIFT;
-
-	if (evt_code == OCRDMA_ASYNC_RDMA_EVE_CODE)
+	switch (evt_code) {
+	case OCRDMA_ASYNC_LINK_EVE_CODE:
+		ocrdma_process_link_state(dev, cqe);
+		break;
+	case OCRDMA_ASYNC_RDMA_EVE_CODE:
 		ocrdma_dispatch_ibevent(dev, cqe);
-	else if (evt_code == OCRDMA_ASYNC_GRP5_EVE_CODE)
+		break;
+	case OCRDMA_ASYNC_GRP5_EVE_CODE:
 		ocrdma_process_grp5_aync(dev, cqe);
-	else
+		break;
+	default:
 		pr_err("%s(%d) invalid evt code=0x%x\n", __func__,
 		       dev->id, evt_code);
+	}
 }
 
 static void ocrdma_process_mcqe(struct ocrdma_dev *dev, struct ocrdma_mcqe *cqe)
@@ -1089,7 +1114,7 @@ mbx_err:
 static int ocrdma_nonemb_mbx_cmd(struct ocrdma_dev *dev, struct ocrdma_mqe *mqe,
 				 void *payload_va)
 {
-	int status = 0;
+	int status;
 	struct ocrdma_mbx_rsp *rsp = payload_va;
 
 	if ((mqe->hdr.spcl_sge_cnt_emb & OCRDMA_MQE_HDR_EMB_MASK) >>
@@ -1120,6 +1145,9 @@ static void ocrdma_get_attr(struct ocrdma_dev *dev,
 	attr->max_pd =
 	    (rsp->max_pd_ca_ack_delay & OCRDMA_MBX_QUERY_CFG_MAX_PD_MASK) >>
 	    OCRDMA_MBX_QUERY_CFG_MAX_PD_SHIFT;
+	attr->udp_encap = (rsp->max_pd_ca_ack_delay &
+			   OCRDMA_MBX_QUERY_CFG_L3_TYPE_MASK) >>
+			   OCRDMA_MBX_QUERY_CFG_L3_TYPE_SHIFT;
 	attr->max_dpp_pds =
 	   (rsp->max_dpp_pds_credits & OCRDMA_MBX_QUERY_CFG_MAX_DPP_PDS_MASK) >>
 	    OCRDMA_MBX_QUERY_CFG_MAX_DPP_PDS_OFFSET;
@@ -1129,18 +1157,18 @@ static void ocrdma_get_attr(struct ocrdma_dev *dev,
 	attr->max_srq =
 		(rsp->max_srq_rpir_qps & OCRDMA_MBX_QUERY_CFG_MAX_SRQ_MASK) >>
 		OCRDMA_MBX_QUERY_CFG_MAX_SRQ_OFFSET;
-	attr->max_send_sge = ((rsp->max_write_send_sge &
+	attr->max_send_sge = ((rsp->max_recv_send_sge &
 			       OCRDMA_MBX_QUERY_CFG_MAX_SEND_SGE_MASK) >>
 			      OCRDMA_MBX_QUERY_CFG_MAX_SEND_SGE_SHIFT);
-	attr->max_recv_sge = (rsp->max_write_send_sge &
-			      OCRDMA_MBX_QUERY_CFG_MAX_SEND_SGE_MASK) >>
-	    OCRDMA_MBX_QUERY_CFG_MAX_SEND_SGE_SHIFT;
+	attr->max_recv_sge = (rsp->max_recv_send_sge &
+			      OCRDMA_MBX_QUERY_CFG_MAX_RECV_SGE_MASK) >>
+	    OCRDMA_MBX_QUERY_CFG_MAX_RECV_SGE_SHIFT;
 	attr->max_srq_sge = (rsp->max_srq_rqe_sge &
 			      OCRDMA_MBX_QUERY_CFG_MAX_SRQ_SGE_MASK) >>
 	    OCRDMA_MBX_QUERY_CFG_MAX_SRQ_SGE_OFFSET;
-	attr->max_rdma_sge = (rsp->max_write_send_sge &
-			      OCRDMA_MBX_QUERY_CFG_MAX_WRITE_SGE_MASK) >>
-	    OCRDMA_MBX_QUERY_CFG_MAX_WRITE_SGE_SHIFT;
+	attr->max_rdma_sge = (rsp->max_wr_rd_sge &
+			      OCRDMA_MBX_QUERY_CFG_MAX_RD_SGE_MASK) >>
+	    OCRDMA_MBX_QUERY_CFG_MAX_RD_SGE_SHIFT;
 	attr->max_ord_per_qp = (rsp->max_ird_ord_per_qp &
 				OCRDMA_MBX_QUERY_CFG_MAX_ORD_PER_QP_MASK) >>
 	    OCRDMA_MBX_QUERY_CFG_MAX_ORD_PER_QP_SHIFT;
@@ -1363,7 +1391,8 @@ mbx_err:
 	return status;
 }
 
-int ocrdma_mbx_get_link_speed(struct ocrdma_dev *dev, u8 *lnk_speed)
+int ocrdma_mbx_get_link_speed(struct ocrdma_dev *dev, u8 *lnk_speed,
+			      u8 *lnk_state)
 {
 	int status = -ENOMEM;
 	struct ocrdma_get_link_speed_rsp *rsp;
@@ -1384,8 +1413,11 @@ int ocrdma_mbx_get_link_speed(struct ocrdma_dev *dev, u8 *lnk_speed)
 		goto mbx_err;
 
 	rsp = (struct ocrdma_get_link_speed_rsp *)cmd;
-	*lnk_speed = (rsp->pflt_pps_ld_pnum & OCRDMA_PHY_PS_MASK)
-			>> OCRDMA_PHY_PS_SHIFT;
+	if (lnk_speed)
+		*lnk_speed = (rsp->pflt_pps_ld_pnum & OCRDMA_PHY_PS_MASK)
+			      >> OCRDMA_PHY_PS_SHIFT;
+	if (lnk_state)
+		*lnk_state = (rsp->res_lnk_st & OCRDMA_LINK_ST_MASK);
 
 mbx_err:
 	kfree(cmd);
@@ -1565,10 +1597,9 @@ void ocrdma_alloc_pd_pool(struct ocrdma_dev *dev)
 
 	dev->pd_mgr = kzalloc(sizeof(struct ocrdma_pd_resource_mgr),
 			      GFP_KERNEL);
-	if (!dev->pd_mgr) {
-		pr_err("%s(%d)Memory allocation failure.\n", __func__, dev->id);
+	if (!dev->pd_mgr)
 		return;
-	}
+
 	status = ocrdma_mbx_alloc_pd_range(dev);
 	if (status) {
 		pr_err("%s(%d) Unable to initialize PD pool, using default.\n",
@@ -1611,7 +1642,7 @@ static int ocrdma_build_q_conf(u32 *num_entries, int entry_size,
 static int ocrdma_mbx_create_ah_tbl(struct ocrdma_dev *dev)
 {
 	int i;
-	int status = 0;
+	int status = -ENOMEM;
 	int max_ah;
 	struct ocrdma_create_ah_tbl *cmd;
 	struct ocrdma_create_ah_tbl_rsp *rsp;
@@ -2110,7 +2141,6 @@ int ocrdma_qp_state_change(struct ocrdma_qp *qp, enum ib_qp_state new_ib_state,
 			   enum ib_qp_state *old_ib_state)
 {
 	unsigned long flags;
-	int status = 0;
 	enum ocrdma_qp_state new_state;
 	new_state = get_ocrdma_qp_state(new_ib_state);
 
@@ -2135,7 +2165,7 @@ int ocrdma_qp_state_change(struct ocrdma_qp *qp, enum ib_qp_state new_ib_state,
 	qp->state = new_state;
 
 	spin_unlock_irqrestore(&qp->q_lock, flags);
-	return status;
+	return 0;
 }
 
 static u32 ocrdma_set_create_qp_mbx_access_flags(struct ocrdma_qp *qp)
@@ -2469,29 +2499,39 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 				int attr_mask)
 {
 	int status;
-	struct ib_ah_attr *ah_attr = &attrs->ah_attr;
+	struct rdma_ah_attr *ah_attr = &attrs->ah_attr;
 	union ib_gid sgid, zgid;
 	struct ib_gid_attr sgid_attr;
 	u32 vlan_id = 0xFFFF;
-	u8 mac_addr[6];
+	u8 mac_addr[6], hdr_type;
+	union {
+		struct sockaddr     _sockaddr;
+		struct sockaddr_in  _sockaddr_in;
+		struct sockaddr_in6 _sockaddr_in6;
+	} sgid_addr, dgid_addr;
 	struct ocrdma_dev *dev = get_ocrdma_dev(qp->ibqp.device);
+	const struct ib_global_route *grh;
 
-	if ((ah_attr->ah_flags & IB_AH_GRH) == 0)
+	if ((rdma_ah_get_ah_flags(ah_attr) & IB_AH_GRH) == 0)
 		return -EINVAL;
+	grh = rdma_ah_read_grh(ah_attr);
 	if (atomic_cmpxchg(&dev->update_sl, 1, 0))
 		ocrdma_init_service_level(dev);
 	cmd->params.tclass_sq_psn |=
-	    (ah_attr->grh.traffic_class << OCRDMA_QP_PARAMS_TCLASS_SHIFT);
+	    (grh->traffic_class << OCRDMA_QP_PARAMS_TCLASS_SHIFT);
 	cmd->params.rnt_rc_sl_fl |=
-	    (ah_attr->grh.flow_label & OCRDMA_QP_PARAMS_FLOW_LABEL_MASK);
-	cmd->params.rnt_rc_sl_fl |= (ah_attr->sl << OCRDMA_QP_PARAMS_SL_SHIFT);
+	    (grh->flow_label & OCRDMA_QP_PARAMS_FLOW_LABEL_MASK);
+	cmd->params.rnt_rc_sl_fl |= (rdma_ah_get_sl(ah_attr) <<
+				     OCRDMA_QP_PARAMS_SL_SHIFT);
 	cmd->params.hop_lmt_rq_psn |=
-	    (ah_attr->grh.hop_limit << OCRDMA_QP_PARAMS_HOP_LMT_SHIFT);
+	    (grh->hop_limit << OCRDMA_QP_PARAMS_HOP_LMT_SHIFT);
 	cmd->flags |= OCRDMA_QP_PARA_FLOW_LBL_VALID;
-	memcpy(&cmd->params.dgid[0], &ah_attr->grh.dgid.raw[0],
+
+	/* GIDs */
+	memcpy(&cmd->params.dgid[0], &grh->dgid.raw[0],
 	       sizeof(cmd->params.dgid));
 
-	status = ib_get_cached_gid(&dev->ibdev, 1, ah_attr->grh.sgid_index,
+	status = ib_get_cached_gid(&dev->ibdev, 1, grh->sgid_index,
 				   &sgid, &sgid_attr);
 	if (!status && sgid_attr.ndev) {
 		vlan_id = rdma_vlan_dev_vlan_id(sgid_attr.ndev);
@@ -2503,21 +2543,32 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 	if (!memcmp(&sgid, &zgid, sizeof(zgid)))
 		return -EINVAL;
 
-	qp->sgid_idx = ah_attr->grh.sgid_index;
+	qp->sgid_idx = grh->sgid_index;
 	memcpy(&cmd->params.sgid[0], &sgid.raw[0], sizeof(cmd->params.sgid));
 	status = ocrdma_resolve_dmac(dev, ah_attr, &mac_addr[0]);
 	if (status)
 		return status;
 	cmd->params.dmac_b0_to_b3 = mac_addr[0] | (mac_addr[1] << 8) |
 				(mac_addr[2] << 16) | (mac_addr[3] << 24);
+
+	hdr_type = ib_gid_to_network_type(sgid_attr.gid_type, &sgid);
+	if (hdr_type == RDMA_NETWORK_IPV4) {
+		rdma_gid2ip(&sgid_addr._sockaddr, &sgid);
+		rdma_gid2ip(&dgid_addr._sockaddr, &grh->dgid);
+		memcpy(&cmd->params.dgid[0],
+		       &dgid_addr._sockaddr_in.sin_addr.s_addr, 4);
+		memcpy(&cmd->params.sgid[0],
+		       &sgid_addr._sockaddr_in.sin_addr.s_addr, 4);
+	}
 	/* convert them to LE format. */
 	ocrdma_cpu_to_le32(&cmd->params.dgid[0], sizeof(cmd->params.dgid));
 	ocrdma_cpu_to_le32(&cmd->params.sgid[0], sizeof(cmd->params.sgid));
 	cmd->params.vlan_dmac_b4_to_b5 = mac_addr[4] | (mac_addr[5] << 8);
 
-	if (vlan_id < 0x1000) {
-		if (dev->pfc_state) {
-			vlan_id = 0;
+	if (vlan_id == 0xFFFF)
+		vlan_id = 0;
+	if (vlan_id || dev->pfc_state) {
+		if (!vlan_id) {
 			pr_err("ocrdma%d:Using VLAN with PFC is recommended\n",
 			       dev->id);
 			pr_err("ocrdma%d:Using VLAN 0 for this connection\n",
@@ -2529,7 +2580,9 @@ static int ocrdma_set_av_params(struct ocrdma_qp *qp,
 		cmd->params.rnt_rc_sl_fl |=
 			(dev->sl & 0x07) << OCRDMA_QP_PARAMS_SL_SHIFT;
 	}
-
+	cmd->params.max_sge_recv_flags |= ((hdr_type <<
+					OCRDMA_QP_PARAMS_FLAGS_L3_TYPE_SHIFT) &
+					OCRDMA_QP_PARAMS_FLAGS_L3_TYPE_MASK);
 	return 0;
 }
 
@@ -2842,7 +2895,7 @@ int ocrdma_mbx_destroy_srq(struct ocrdma_dev *dev, struct ocrdma_srq *srq)
 static int ocrdma_mbx_get_dcbx_config(struct ocrdma_dev *dev, u32 ptype,
 				      struct ocrdma_dcbx_cfg *dcbxcfg)
 {
-	int status = 0;
+	int status;
 	dma_addr_t pa;
 	struct ocrdma_mqe cmd;
 
@@ -2935,7 +2988,7 @@ static int ocrdma_parse_dcbxcfg_rsp(struct ocrdma_dev *dev, int ptype,
 				OCRDMA_APP_PARAM_APP_PROTO_MASK;
 
 		if (
-			valid && proto == OCRDMA_APP_PROTO_ROCE &&
+			valid && proto == ETH_P_IBOE &&
 			proto_sel == OCRDMA_PROTO_SELECT_L2) {
 			for (slindx = 0; slindx <
 				OCRDMA_MAX_SERVICE_LEVEL_INDEX; slindx++) {

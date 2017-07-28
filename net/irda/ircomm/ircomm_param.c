@@ -134,10 +134,9 @@ int ircomm_param_request(struct ircomm_tty_cb *self, __u8 pi, int flush)
 		return -1;
 	}
 	skb_put(skb, count);
+	pr_debug("%s(), skb->len=%d\n", __func__, skb->len);
 
 	spin_unlock_irqrestore(&self->spinlock, flags);
-
-	pr_debug("%s(), skb->len=%d\n", __func__ , skb->len);
 
 	if (flush) {
 		/* ircomm_tty_do_softint will take care of the rest */

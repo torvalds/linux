@@ -32,6 +32,8 @@ Currently, these files are in /proc/sys/fs:
 - nr_open
 - overflowuid
 - overflowgid
+- pipe-user-pages-hard
+- pipe-user-pages-soft
 - protected_hardlinks
 - protected_symlinks
 - suid_dumpable
@@ -159,6 +161,27 @@ The default is 65534.
 
 ==============================================================
 
+pipe-user-pages-hard:
+
+Maximum total number of pages a non-privileged user may allocate for pipes.
+Once this limit is reached, no new pipes may be allocated until usage goes
+below the limit again. When set to 0, no limit is applied, which is the default
+setting.
+
+==============================================================
+
+pipe-user-pages-soft:
+
+Maximum total number of pages a non-privileged user may allocate for pipes
+before the pipe size gets limited to a single page. Once this limit is reached,
+new pipes will be limited to a single page in size for this user in order to
+limit total memory usage, and trying to increase them using fcntl() will be
+denied until usage goes below the limit again. The default value allows to
+allocate up to 1024 pipes at their default size. When set to 0, no limit is
+applied.
+
+==============================================================
+
 protected_hardlinks:
 
 A long-standing class of security issues is the hardlink-based
@@ -239,6 +262,13 @@ aio-nr & aio-max-nr:
 aio-nr shows the current system-wide number of asynchronous io
 requests.  aio-max-nr allows you to change the maximum value
 aio-nr can grow to.
+
+==============================================================
+
+mount-max:
+
+This denotes the maximum number of mounts that may exist
+in a mount namespace.
 
 ==============================================================
 

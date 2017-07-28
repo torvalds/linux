@@ -11,11 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
  ******************************************************************************/
 
 #ifndef	__ODM_REGDEFINE11N_H__
@@ -46,8 +41,8 @@
 #define	ODM_REG_TX_ANT_CTRL_11N			0x80C
 #define	ODM_REG_BB_PWR_SAV5_11N			0x818
 #define	ODM_REG_CCK_RPT_FORMAT_11N		0x824
-#define	ODM_REG_RX_DEFUALT_A_11N		0x858
-#define	ODM_REG_RX_DEFUALT_B_11N		0x85A
+#define	ODM_REG_RX_DEFAULT_A_11N		0x858
+#define	ODM_REG_RX_DEFAULT_B_11N		0x85A
 #define	ODM_REG_BB_PWR_SAV3_11N			0x85C
 #define	ODM_REG_ANTSEL_CTRL_11N			0x860
 #define	ODM_REG_RX_ANT_CTRL_11N			0x864

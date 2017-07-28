@@ -111,6 +111,7 @@ static void pruss_cleanup(struct device *dev, struct uio_pruss_dev *gdev)
 			      gdev->sram_vaddr,
 			      sram_pool_sz);
 	kfree(gdev->info);
+	clk_disable(gdev->pruss_clk);
 	clk_put(gdev->pruss_clk);
 	kfree(gdev);
 }
@@ -143,7 +144,14 @@ static int pruss_probe(struct platform_device *pdev)
 		kfree(gdev);
 		return ret;
 	} else {
-		clk_enable(gdev->pruss_clk);
+		ret = clk_enable(gdev->pruss_clk);
+		if (ret) {
+			dev_err(dev, "Failed to enable clock\n");
+			clk_put(gdev->pruss_clk);
+			kfree(gdev->info);
+			kfree(gdev);
+			return ret;
+		}
 	}
 
 	regs_prussio = platform_get_resource(pdev, IORESOURCE_MEM, 0);

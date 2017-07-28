@@ -383,16 +383,16 @@ static int mc13xxx_probe_flags_dt(struct mc13xxx *mc13xxx)
 	if (!np)
 		return -ENODEV;
 
-	if (of_get_property(np, "fsl,mc13xxx-uses-adc", NULL))
+	if (of_property_read_bool(np, "fsl,mc13xxx-uses-adc"))
 		mc13xxx->flags |= MC13XXX_USE_ADC;
 
-	if (of_get_property(np, "fsl,mc13xxx-uses-codec", NULL))
+	if (of_property_read_bool(np, "fsl,mc13xxx-uses-codec"))
 		mc13xxx->flags |= MC13XXX_USE_CODEC;
 
-	if (of_get_property(np, "fsl,mc13xxx-uses-rtc", NULL))
+	if (of_property_read_bool(np, "fsl,mc13xxx-uses-rtc"))
 		mc13xxx->flags |= MC13XXX_USE_RTC;
 
-	if (of_get_property(np, "fsl,mc13xxx-uses-touch", NULL))
+	if (of_property_read_bool(np, "fsl,mc13xxx-uses-touch"))
 		mc13xxx->flags |= MC13XXX_USE_TOUCHSCREEN;
 
 	return 0;

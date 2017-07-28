@@ -19,6 +19,7 @@
 #include <linux/elf.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/sched/task_stack.h>
 #include <linux/mm.h>
 #include <linux/errno.h>
 #include <linux/ptrace.h>
@@ -41,7 +42,7 @@
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/syscall.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/bootinfo.h>
 #include <asm/reg.h>
 
@@ -57,8 +58,7 @@ static void init_fp_ctx(struct task_struct *target)
 	/* Begin with data registers set to all 1s... */
 	memset(&target->thread.fpu.fpr, ~0, sizeof(target->thread.fpu.fpr));
 
-	/* ...and FCSR zeroed */
-	target->thread.fpu.fcr31 = 0;
+	/* FCSR has been preset by `mips_set_personality_nan'.  */
 
 	/*
 	 * Record that the target has "used" math, such that the context
@@ -77,6 +77,21 @@ void ptrace_disable(struct task_struct *child)
 {
 	/* Don't load the watchpoint registers for the ex-child. */
 	clear_tsk_thread_flag(child, TIF_LOAD_WATCH);
+}
+
+/*
+ * Poke at FCSR according to its mask.  Set the Cause bits even
+ * if a corresponding Enable bit is set.  This will be noticed at
+ * the time the thread is switched to and SIGFPE thrown accordingly.
+ */
+static void ptrace_setfcr31(struct task_struct *child, u32 value)
+{
+	u32 fcr31;
+	u32 mask;
+
+	fcr31 = child->thread.fpu.fcr31;
+	mask = boot_cpu_data.fpu_msk31;
+	child->thread.fpu.fcr31 = (value & ~mask) | (fcr31 & mask);
 }
 
 /*
@@ -159,9 +174,7 @@ int ptrace_setfpregs(struct task_struct *child, __u32 __user *data)
 {
 	union fpureg *fregs;
 	u64 fpr_val;
-	u32 fcr31;
 	u32 value;
-	u32 mask;
 	int i;
 
 	if (!access_ok(VERIFY_READ, data, 33 * 8))
@@ -176,9 +189,7 @@ int ptrace_setfpregs(struct task_struct *child, __u32 __user *data)
 	}
 
 	__get_user(value, data + 64);
-	fcr31 = child->thread.fpu.fcr31;
-	mask = boot_cpu_data.fpu_msk31;
-	child->thread.fpu.fcr31 = (value & ~mask) | (fcr31 & mask);
+	ptrace_setfcr31(child, value);
 
 	/* FIR may not be written.  */
 
@@ -210,7 +221,8 @@ int ptrace_get_watch_regs(struct task_struct *child,
 	for (i = 0; i < boot_cpu_data.watch_reg_use_cnt; i++) {
 		__put_user(child->thread.watch.mips3264.watchlo[i],
 			   &addr->WATCH_STYLE.watchlo[i]);
-		__put_user(child->thread.watch.mips3264.watchhi[i] & 0xfff,
+		__put_user(child->thread.watch.mips3264.watchhi[i] &
+				(MIPS_WATCHHI_MASK | MIPS_WATCHHI_IRW),
 			   &addr->WATCH_STYLE.watchhi[i]);
 		__put_user(boot_cpu_data.watch_reg_masks[i],
 			   &addr->WATCH_STYLE.watch_masks[i]);
@@ -252,12 +264,12 @@ int ptrace_set_watch_regs(struct task_struct *child,
 		}
 #endif
 		__get_user(ht[i], &addr->WATCH_STYLE.watchhi[i]);
-		if (ht[i] & ~0xff8)
+		if (ht[i] & ~MIPS_WATCHHI_MASK)
 			return -EINVAL;
 	}
 	/* Install them. */
 	for (i = 0; i < boot_cpu_data.watch_reg_use_cnt; i++) {
-		if (lt[i] & 7)
+		if (lt[i] & MIPS_WATCHLO_IRW)
 			watch_active = 1;
 		child->thread.watch.mips3264.watchlo[i] = lt[i];
 		/* Set the G bit. */
@@ -283,23 +295,8 @@ static int gpr32_get(struct task_struct *target,
 {
 	struct pt_regs *regs = task_pt_regs(target);
 	u32 uregs[ELF_NGREG] = {};
-	unsigned i;
 
-	for (i = MIPS32_EF_R1; i <= MIPS32_EF_R31; i++) {
-		/* k0/k1 are copied as zero. */
-		if (i == MIPS32_EF_R26 || i == MIPS32_EF_R27)
-			continue;
-
-		uregs[i] = regs->regs[i - MIPS32_EF_R0];
-	}
-
-	uregs[MIPS32_EF_LO] = regs->lo;
-	uregs[MIPS32_EF_HI] = regs->hi;
-	uregs[MIPS32_EF_CP0_EPC] = regs->cp0_epc;
-	uregs[MIPS32_EF_CP0_BADVADDR] = regs->cp0_badvaddr;
-	uregs[MIPS32_EF_CP0_STATUS] = regs->cp0_status;
-	uregs[MIPS32_EF_CP0_CAUSE] = regs->cp0_cause;
-
+	mips_dump_regs32(uregs, regs);
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, uregs, 0,
 				   sizeof(uregs));
 }
@@ -362,23 +359,8 @@ static int gpr64_get(struct task_struct *target,
 {
 	struct pt_regs *regs = task_pt_regs(target);
 	u64 uregs[ELF_NGREG] = {};
-	unsigned i;
 
-	for (i = MIPS64_EF_R1; i <= MIPS64_EF_R31; i++) {
-		/* k0/k1 are copied as zero. */
-		if (i == MIPS64_EF_R26 || i == MIPS64_EF_R27)
-			continue;
-
-		uregs[i] = regs->regs[i - MIPS64_EF_R0];
-	}
-
-	uregs[MIPS64_EF_LO] = regs->lo;
-	uregs[MIPS64_EF_HI] = regs->hi;
-	uregs[MIPS64_EF_CP0_EPC] = regs->cp0_epc;
-	uregs[MIPS64_EF_CP0_BADVADDR] = regs->cp0_badvaddr;
-	uregs[MIPS64_EF_CP0_STATUS] = regs->cp0_status;
-	uregs[MIPS64_EF_CP0_CAUSE] = regs->cp0_cause;
-
+	mips_dump_regs64(uregs, regs);
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, uregs, 0,
 				   sizeof(uregs));
 }
@@ -474,7 +456,8 @@ static int fpr_set(struct task_struct *target,
 					  &target->thread.fpu,
 					  0, sizeof(elf_fpregset_t));
 
-	for (i = 0; i < NUM_FPU_REGS; i++) {
+	BUILD_BUG_ON(sizeof(fpr_val) != sizeof(elf_fpreg_t));
+	for (i = 0; i < NUM_FPU_REGS && count >= sizeof(elf_fpreg_t); i++) {
 		err = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 					 &fpr_val, i * sizeof(elf_fpreg_t),
 					 (i + 1) * sizeof(elf_fpreg_t));
@@ -548,9 +531,6 @@ static const struct pt_regs_offset regoffset_table[] = {
 	REG_OFFSET_NAME(c0_badvaddr, cp0_badvaddr),
 	REG_OFFSET_NAME(c0_cause, cp0_cause),
 	REG_OFFSET_NAME(c0_epc, cp0_epc),
-#ifdef CONFIG_MIPS_MT_SMTC
-	REG_OFFSET_NAME(c0_tcstatus, cp0_tcstatus),
-#endif
 #ifdef CONFIG_CPU_CAVIUM_OCTEON
 	REG_OFFSET_NAME(mpl0, mpl[0]),
 	REG_OFFSET_NAME(mpl1, mpl[1]),
@@ -808,7 +788,8 @@ long arch_ptrace(struct task_struct *child, long request,
 			break;
 #endif
 		case FPC_CSR:
-			child->thread.fpu.fcr31 = data & ~FPU_CSR_ALL_X;
+			init_fp_ctx(child);
+			ptrace_setfcr31(child, data);
 			break;
 		case DSP_BASE ... DSP_BASE + 5: {
 			dspreg_t *dregs;
@@ -879,23 +860,47 @@ long arch_ptrace(struct task_struct *child, long request,
  */
 asmlinkage long syscall_trace_enter(struct pt_regs *regs, long syscall)
 {
-	long ret = 0;
 	user_exit();
 
 	current_thread_info()->syscall = syscall;
 
-	if (secure_computing() == -1)
-		return -1;
-
 	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
 	    tracehook_report_syscall_entry(regs))
-		ret = -1;
+		return -1;
+
+#ifdef CONFIG_SECCOMP
+	if (unlikely(test_thread_flag(TIF_SECCOMP))) {
+		int ret, i;
+		struct seccomp_data sd;
+
+		sd.nr = syscall;
+		sd.arch = syscall_get_arch();
+		for (i = 0; i < 6; i++) {
+			unsigned long v, r;
+
+			r = mips_get_syscall_arg(&v, current, regs, i);
+			sd.args[i] = r ? 0 : v;
+		}
+		sd.instruction_pointer = KSTK_EIP(current);
+
+		ret = __secure_computing(&sd);
+		if (ret == -1)
+			return ret;
+	}
+#endif
 
 	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
 		trace_sys_enter(regs, regs->regs[2]);
 
 	audit_syscall_entry(syscall, regs->regs[4], regs->regs[5],
 			    regs->regs[6], regs->regs[7]);
+
+	/*
+	 * Negative syscall numbers are mistaken for rejected syscalls, but
+	 * won't have had the return value set appropriately, so we do so now.
+	 */
+	if (syscall < 0)
+		syscall_set_return_value(current, regs, -ENOSYS, 0);
 	return syscall;
 }
 
@@ -915,7 +920,7 @@ asmlinkage void syscall_trace_leave(struct pt_regs *regs)
 	audit_syscall_exit(regs);
 
 	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
-		trace_sys_exit(regs, regs->regs[2]);
+		trace_sys_exit(regs, regs_return_value(regs));
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
 		tracehook_report_syscall_exit(regs, 0);

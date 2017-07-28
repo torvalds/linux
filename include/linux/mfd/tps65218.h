@@ -63,6 +63,11 @@
 #define TPS65218_CHIPID_CHIP_MASK	0xF8
 #define TPS65218_CHIPID_REV_MASK	0x07
 
+#define TPS65218_REV_1_0		0x0
+#define TPS65218_REV_1_1		0x1
+#define TPS65218_REV_2_0		0x2
+#define TPS65218_REV_2_1		0x3
+
 #define TPS65218_INT1_VPRG		BIT(5)
 #define TPS65218_INT1_AC		BIT(4)
 #define TPS65218_INT1_PB		BIT(3)
@@ -200,6 +205,8 @@ enum tps65218_regulator_id {
 	TPS65218_DCDC_4,
 	TPS65218_DCDC_5,
 	TPS65218_DCDC_6,
+	/* LS's */
+	TPS65218_LS_3,
 	/* LDOs */
 	TPS65218_LDO_1,
 };
@@ -210,8 +217,11 @@ enum tps65218_regulator_id {
 #define TPS65218_NUM_DCDC		6
 /* Number of LDO voltage regulators available */
 #define TPS65218_NUM_LDO		1
+/* Number of total LS current regulators available */
+#define TPS65218_NUM_LS			1
 /* Number of total regulators available */
-#define TPS65218_NUM_REGULATOR		(TPS65218_NUM_DCDC + TPS65218_NUM_LDO)
+#define TPS65218_NUM_REGULATOR		(TPS65218_NUM_DCDC + TPS65218_NUM_LDO \
+					 + TPS65218_NUM_LS)
 
 /* Define the TPS65218 IRQ numbers */
 enum tps65218_irqs {
@@ -241,6 +251,7 @@ enum tps65218_irqs {
  * @name:		Voltage regulator name
  * @min_uV:		minimum micro volts
  * @max_uV:		minimum micro volts
+ * @strobe:		sequencing strobe value for the regulator
  *
  * This data is used to check the regualtor voltage limits while setting.
  */
@@ -249,6 +260,7 @@ struct tps_info {
 	const char *name;
 	int min_uV;
 	int max_uV;
+	int strobe;
 };
 
 /**
@@ -260,6 +272,7 @@ struct tps_info {
 struct tps65218 {
 	struct device *dev;
 	unsigned int id;
+	u8 rev;
 
 	struct mutex tps_lock;		/* lock guarding the data structure */
 	/* IRQ Data */
@@ -269,10 +282,9 @@ struct tps65218 {
 	struct regulator_desc desc[TPS65218_NUM_REGULATOR];
 	struct tps_info *info[TPS65218_NUM_REGULATOR];
 	struct regmap *regmap;
+	u8 *strobes;
 };
 
-int tps65218_reg_read(struct tps65218 *tps, unsigned int reg,
-					unsigned int *val);
 int tps65218_reg_write(struct tps65218 *tps, unsigned int reg,
 			unsigned int val, unsigned int level);
 int tps65218_set_bits(struct tps65218 *tps, unsigned int reg,

@@ -32,6 +32,7 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>
+#include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 #include <linux/notifier.h>
@@ -62,7 +63,22 @@ static void _add_clkdev(struct omap_device *od, const char *clk_alias,
 		return;
 	}
 
-	rc = clk_add_alias(clk_alias, dev_name(&od->pdev->dev), clk_name, NULL);
+	r = clk_get_sys(NULL, clk_name);
+
+	if (IS_ERR(r)) {
+		struct of_phandle_args clkspec;
+
+		clkspec.np = of_find_node_by_name(NULL, clk_name);
+
+		r = of_clk_get_from_provider(&clkspec);
+
+		rc = clk_register_clkdev(r, clk_alias,
+					 dev_name(&od->pdev->dev));
+	} else {
+		rc = clk_add_alias(clk_alias, dev_name(&od->pdev->dev),
+				   clk_name, NULL);
+	}
+
 	if (rc) {
 		if (rc == -ENODEV || rc == -ENOMEM)
 			dev_err(&od->pdev->dev,
@@ -168,7 +184,7 @@ static int omap_device_build_from_dt(struct platform_device *pdev)
 			r->name = dev_name(&pdev->dev);
 	}
 
-	pdev->dev.pm_domain = &omap_device_pm_domain;
+	dev_pm_domain_set(&pdev->dev, &omap_device_pm_domain);
 
 	if (device_active) {
 		omap_device_enable(pdev);
@@ -180,7 +196,7 @@ odbfd_exit1:
 odbfd_exit:
 	/* if data/we are at fault.. load up a fail handler */
 	if (ret)
-		pdev->dev.pm_domain = &omap_device_fail_pm_domain;
+		dev_pm_domain_set(&pdev->dev, &omap_device_fail_pm_domain);
 
 	return ret;
 }
@@ -190,11 +206,29 @@ static int _omap_device_notifier_call(struct notifier_block *nb,
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct omap_device *od;
+	int err;
 
 	switch (event) {
-	case BUS_NOTIFY_DEL_DEVICE:
+	case BUS_NOTIFY_REMOVED_DEVICE:
 		if (pdev->archdata.od)
 			omap_device_delete(pdev->archdata.od);
+		break;
+	case BUS_NOTIFY_UNBOUND_DRIVER:
+		od = to_omap_device(pdev);
+		if (od && (od->_state == OMAP_DEVICE_STATE_ENABLED)) {
+			dev_info(dev, "enabled after unload, idling\n");
+			err = omap_device_idle(pdev);
+			if (err)
+				dev_err(dev, "failed to idle\n");
+		}
+		break;
+	case BUS_NOTIFY_BIND_DRIVER:
+		od = to_omap_device(pdev);
+		if (od && (od->_state == OMAP_DEVICE_STATE_ENABLED) &&
+		    pm_runtime_status_suspended(dev)) {
+			od->_driver_status = BUS_NOTIFY_BIND_DRIVER;
+			pm_runtime_set_active(dev);
+		}
 		break;
 	case BUS_NOTIFY_ADD_DEVICE:
 		if (pdev->dev.of_node)
@@ -257,7 +291,7 @@ static int _omap_device_idle_hwmods(struct omap_device *od)
  * function returns a value different than the value the caller got
  * the last time it called this function.
  *
- * If any hwmods exist for the omap_device assoiated with @pdev,
+ * If any hwmods exist for the omap_device associated with @pdev,
  * return the context loss counter for that hwmod, otherwise return
  * zero.
  */
@@ -601,8 +635,10 @@ static int _od_runtime_resume(struct device *dev)
 	int ret;
 
 	ret = omap_device_enable(pdev);
-	if (ret)
+	if (ret) {
+		dev_err(dev, "use pm_runtime_put_sync_suspend() in driver?\n");
 		return ret;
+	}
 
 	return pm_generic_runtime_resume(dev);
 }
@@ -701,7 +737,7 @@ int omap_device_register(struct platform_device *pdev)
 {
 	pr_debug("omap_device: %s: registering\n", pdev->name);
 
-	pdev->dev.pm_domain = &omap_device_pm_domain;
+	dev_pm_domain_set(&pdev->dev, &omap_device_pm_domain);
 	return platform_device_add(pdev);
 }
 
@@ -869,7 +905,7 @@ static int __init omap_device_init(void)
 	bus_register_notifier(&platform_bus_type, &platform_nb);
 	return 0;
 }
-omap_core_initcall(omap_device_init);
+omap_postcore_initcall(omap_device_init);
 
 /**
  * omap_device_late_idle - idle devices without drivers
@@ -916,9 +952,6 @@ static int __init omap_device_late_idle(struct device *dev, void *data)
 static int __init omap_device_late_init(void)
 {
 	bus_for_each_dev(&platform_bus_type, NULL, NULL, omap_device_late_idle);
-
-	WARN(!of_have_populated_dt(),
-		"legacy booting deprecated, please update to boot with .dts\n");
 
 	return 0;
 }

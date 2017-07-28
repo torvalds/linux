@@ -12,6 +12,7 @@
 #include <linux/io.h>
 #include <linux/platform_data/clk-integrator.h>
 
+#include "icst.h"
 #include "clk-icst.h"
 
 #define IMPD1_OSC1	0x00
@@ -98,8 +99,7 @@ void integrator_impd1_clk_init(void __iomem *base, unsigned int id)
 
 	/* Register the fixed rate PCLK */
 	imc->pclkname = kasprintf(GFP_KERNEL, "lm%x-pclk", id);
-	pclk = clk_register_fixed_rate(NULL, imc->pclkname, NULL,
-				      CLK_IS_ROOT, 0);
+	pclk = clk_register_fixed_rate(NULL, imc->pclkname, NULL, 0, 0);
 	imc->pclk = pclk;
 
 	imc->vco1name = kasprintf(GFP_KERNEL, "lm%x-vco1", id);

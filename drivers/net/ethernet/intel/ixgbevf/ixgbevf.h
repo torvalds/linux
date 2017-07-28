@@ -37,11 +37,6 @@
 
 #include "vf.h"
 
-#ifdef CONFIG_NET_RX_BUSY_POLL
-#include <net/busy_poll.h>
-#define BP_EXTENDED_STATS
-#endif
-
 #define IXGBE_MAX_TXD_PWR	14
 #define IXGBE_MAX_DATA_PER_TXD	BIT(IXGBE_MAX_TXD_PWR)
 
@@ -73,11 +68,6 @@ struct ixgbevf_rx_buffer {
 struct ixgbevf_stats {
 	u64 packets;
 	u64 bytes;
-#ifdef BP_EXTENDED_STATS
-	u64 yields;
-	u64 misses;
-	u64 cleaned;
-#endif
 };
 
 struct ixgbevf_tx_queue_stats {
@@ -166,10 +156,10 @@ struct ixgbevf_ring {
 
 #define MAXIMUM_ETHERNET_VLAN_SIZE (VLAN_ETH_FRAME_LEN + ETH_FCS_LEN)
 
-#define IXGBE_TX_FLAGS_CSUM		(u32)(1)
-#define IXGBE_TX_FLAGS_VLAN		(u32)(1 << 1)
-#define IXGBE_TX_FLAGS_TSO		(u32)(1 << 2)
-#define IXGBE_TX_FLAGS_IPV4		(u32)(1 << 3)
+#define IXGBE_TX_FLAGS_CSUM		BIT(0)
+#define IXGBE_TX_FLAGS_VLAN		BIT(1)
+#define IXGBE_TX_FLAGS_TSO		BIT(2)
+#define IXGBE_TX_FLAGS_IPV4		BIT(3)
 #define IXGBE_TX_FLAGS_VLAN_MASK	0xffff0000
 #define IXGBE_TX_FLAGS_VLAN_PRIO_MASK	0x0000e000
 #define IXGBE_TX_FLAGS_VLAN_SHIFT	16
@@ -217,117 +207,13 @@ struct ixgbevf_q_vector {
 #endif /* CONFIG_NET_RX_BUSY_POLL */
 };
 
-#ifdef CONFIG_NET_RX_BUSY_POLL
-static inline void ixgbevf_qv_init_lock(struct ixgbevf_q_vector *q_vector)
-{
-	spin_lock_init(&q_vector->lock);
-	q_vector->state = IXGBEVF_QV_STATE_IDLE;
-}
-
-/* called from the device poll routine to get ownership of a q_vector */
-static inline bool ixgbevf_qv_lock_napi(struct ixgbevf_q_vector *q_vector)
-{
-	int rc = true;
-
-	spin_lock_bh(&q_vector->lock);
-	if (q_vector->state & IXGBEVF_QV_LOCKED) {
-		WARN_ON(q_vector->state & IXGBEVF_QV_STATE_NAPI);
-		q_vector->state |= IXGBEVF_QV_STATE_NAPI_YIELD;
-		rc = false;
-#ifdef BP_EXTENDED_STATS
-		q_vector->tx.ring->stats.yields++;
-#endif
-	} else {
-		/* we don't care if someone yielded */
-		q_vector->state = IXGBEVF_QV_STATE_NAPI;
-	}
-	spin_unlock_bh(&q_vector->lock);
-	return rc;
-}
-
-/* returns true is someone tried to get the qv while napi had it */
-static inline bool ixgbevf_qv_unlock_napi(struct ixgbevf_q_vector *q_vector)
-{
-	int rc = false;
-
-	spin_lock_bh(&q_vector->lock);
-	WARN_ON(q_vector->state & (IXGBEVF_QV_STATE_POLL |
-				   IXGBEVF_QV_STATE_NAPI_YIELD));
-
-	if (q_vector->state & IXGBEVF_QV_STATE_POLL_YIELD)
-		rc = true;
-	/* reset state to idle, unless QV is disabled */
-	q_vector->state &= IXGBEVF_QV_STATE_DISABLED;
-	spin_unlock_bh(&q_vector->lock);
-	return rc;
-}
-
-/* called from ixgbevf_low_latency_poll() */
-static inline bool ixgbevf_qv_lock_poll(struct ixgbevf_q_vector *q_vector)
-{
-	int rc = true;
-
-	spin_lock_bh(&q_vector->lock);
-	if ((q_vector->state & IXGBEVF_QV_LOCKED)) {
-		q_vector->state |= IXGBEVF_QV_STATE_POLL_YIELD;
-		rc = false;
-#ifdef BP_EXTENDED_STATS
-		q_vector->rx.ring->stats.yields++;
-#endif
-	} else {
-		/* preserve yield marks */
-		q_vector->state |= IXGBEVF_QV_STATE_POLL;
-	}
-	spin_unlock_bh(&q_vector->lock);
-	return rc;
-}
-
-/* returns true if someone tried to get the qv while it was locked */
-static inline bool ixgbevf_qv_unlock_poll(struct ixgbevf_q_vector *q_vector)
-{
-	int rc = false;
-
-	spin_lock_bh(&q_vector->lock);
-	WARN_ON(q_vector->state & (IXGBEVF_QV_STATE_NAPI));
-
-	if (q_vector->state & IXGBEVF_QV_STATE_POLL_YIELD)
-		rc = true;
-	/* reset state to idle, unless QV is disabled */
-	q_vector->state &= IXGBEVF_QV_STATE_DISABLED;
-	spin_unlock_bh(&q_vector->lock);
-	return rc;
-}
-
-/* true if a socket is polling, even if it did not get the lock */
-static inline bool ixgbevf_qv_busy_polling(struct ixgbevf_q_vector *q_vector)
-{
-	WARN_ON(!(q_vector->state & IXGBEVF_QV_OWNED));
-	return q_vector->state & IXGBEVF_QV_USER_PEND;
-}
-
-/* false if QV is currently owned */
-static inline bool ixgbevf_qv_disable(struct ixgbevf_q_vector *q_vector)
-{
-	int rc = true;
-
-	spin_lock_bh(&q_vector->lock);
-	if (q_vector->state & IXGBEVF_QV_OWNED)
-		rc = false;
-	q_vector->state |= IXGBEVF_QV_STATE_DISABLED;
-	spin_unlock_bh(&q_vector->lock);
-	return rc;
-}
-
-#endif /* CONFIG_NET_RX_BUSY_POLL */
-
 /* microsecond values for various ITR rates shifted by 2 to fit itr register
  * with the first 3 bits reserved 0
  */
 #define IXGBE_MIN_RSC_ITR	24
 #define IXGBE_100K_ITR		40
 #define IXGBE_20K_ITR		200
-#define IXGBE_10K_ITR		400
-#define IXGBE_8K_ITR		500
+#define IXGBE_12K_ITR		336
 
 /* Helper macros to switch between ints/sec and what the register uses.
  * And yes, it's the same math going both ways.  The lowest value
@@ -404,13 +290,6 @@ struct ixgbevf_adapter {
 	u32 alloc_rx_page_failed;
 	u32 alloc_rx_buff_failed;
 
-	/* Some features need tri-state capability,
-	 * thus the additional *_CAPABLE flags.
-	 */
-	u32 flags;
-#define IXGBEVF_FLAG_RESET_REQUESTED		(u32)(1)
-#define IXGBEVF_FLAG_QUEUE_RESET_REQUESTED	(u32)(1 << 2)
-
 	struct msix_entry *msix_entries;
 
 	/* OS defined structs */
@@ -430,16 +309,6 @@ struct ixgbevf_adapter {
 	unsigned int tx_ring_count;
 	unsigned int rx_ring_count;
 
-#ifdef BP_EXTENDED_STATS
-	u64 bp_rx_yields;
-	u64 bp_rx_cleaned;
-	u64 bp_rx_missed;
-
-	u64 bp_tx_yields;
-	u64 bp_tx_cleaned;
-	u64 bp_tx_missed;
-#endif
-
 	u8 __iomem *io_addr; /* Mainly for iounmap use */
 	u32 link_speed;
 	bool link_up;
@@ -450,7 +319,7 @@ struct ixgbevf_adapter {
 	spinlock_t mbx_lock;
 	unsigned long last_reset;
 
-	u32 rss_key[IXGBEVF_VFRSSRK_REGS];
+	u32 *rss_key;
 	u8 rss_indir_tbl[IXGBEVF_X550_VFRETA_SIZE];
 };
 
@@ -462,19 +331,27 @@ enum ixbgevf_state_t {
 	__IXGBEVF_REMOVING,
 	__IXGBEVF_SERVICE_SCHED,
 	__IXGBEVF_SERVICE_INITED,
+	__IXGBEVF_RESET_REQUESTED,
+	__IXGBEVF_QUEUE_RESET_REQUESTED,
 };
 
 enum ixgbevf_boards {
 	board_82599_vf,
+	board_82599_vf_hv,
 	board_X540_vf,
+	board_X540_vf_hv,
 	board_X550_vf,
+	board_X550_vf_hv,
 	board_X550EM_x_vf,
+	board_X550EM_x_vf_hv,
+	board_x550em_a_vf,
 };
 
 enum ixgbevf_xcast_modes {
 	IXGBEVF_XCAST_MODE_NONE = 0,
 	IXGBEVF_XCAST_MODE_MULTI,
 	IXGBEVF_XCAST_MODE_ALLMULTI,
+	IXGBEVF_XCAST_MODE_PROMISC,
 };
 
 extern const struct ixgbevf_info ixgbevf_82599_vf_info;
@@ -482,11 +359,20 @@ extern const struct ixgbevf_info ixgbevf_X540_vf_info;
 extern const struct ixgbevf_info ixgbevf_X550_vf_info;
 extern const struct ixgbevf_info ixgbevf_X550EM_x_vf_info;
 extern const struct ixgbe_mbx_operations ixgbevf_mbx_ops;
+extern const struct ixgbevf_info ixgbevf_x550em_a_vf_info;
+
+extern const struct ixgbevf_info ixgbevf_82599_vf_hv_info;
+extern const struct ixgbevf_info ixgbevf_X540_vf_hv_info;
+extern const struct ixgbevf_info ixgbevf_X550_vf_hv_info;
+extern const struct ixgbevf_info ixgbevf_X550EM_x_vf_hv_info;
+extern const struct ixgbe_mbx_operations ixgbevf_hv_mbx_ops;
 
 /* needed by ethtool.c */
 extern const char ixgbevf_driver_name[];
 extern const char ixgbevf_driver_version[];
 
+int ixgbevf_open(struct net_device *netdev);
+int ixgbevf_close(struct net_device *netdev);
 void ixgbevf_up(struct ixgbevf_adapter *adapter);
 void ixgbevf_down(struct ixgbevf_adapter *adapter);
 void ixgbevf_reinit_locked(struct ixgbevf_adapter *adapter);
@@ -504,12 +390,9 @@ extern void ixgbevf_write_eitr(struct ixgbevf_q_vector *q_vector);
 void ixgbe_napi_add_all(struct ixgbevf_adapter *adapter);
 void ixgbe_napi_del_all(struct ixgbevf_adapter *adapter);
 
-#ifdef DEBUG
-char *ixgbevf_get_hw_dev_name(struct ixgbe_hw *hw);
-#define hw_dbg(hw, format, arg...) \
-	printk(KERN_DEBUG "%s: " format, ixgbevf_get_hw_dev_name(hw), ##arg)
-#else
-#define hw_dbg(hw, format, arg...) do {} while (0)
-#endif
+#define ixgbevf_hw_to_netdev(hw) \
+	(((struct ixgbevf_adapter *)(hw)->back)->netdev)
 
+#define hw_dbg(hw, format, arg...) \
+	netdev_dbg(ixgbevf_hw_to_netdev(hw), format, ## arg)
 #endif /* _IXGBEVF_H_ */

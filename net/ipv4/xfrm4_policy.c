@@ -17,8 +17,6 @@
 #include <net/ip.h>
 #include <net/l3mdev.h>
 
-static struct xfrm_policy_afinfo xfrm4_policy_afinfo;
-
 static struct dst_entry *__xfrm4_dst_lookup(struct net *net, struct flowi4 *fl4,
 					    int tos, int oif,
 					    const xfrm_address_t *saddr,
@@ -29,7 +27,7 @@ static struct dst_entry *__xfrm4_dst_lookup(struct net *net, struct flowi4 *fl4,
 	memset(fl4, 0, sizeof(*fl4));
 	fl4->daddr = daddr->a4;
 	fl4->flowi4_tos = tos;
-	fl4->flowi4_oif = oif;
+	fl4->flowi4_oif = l3mdev_master_ifindex_by_index(net, oif);
 	if (saddr)
 		fl4->saddr = saddr->a4;
 
@@ -112,7 +110,7 @@ _decode_session4(struct sk_buff *skb, struct flowi *fl, int reverse)
 	int oif = 0;
 
 	if (skb_dst(skb))
-		oif = l3mdev_fib_oif(skb_dst(skb)->dev);
+		oif = skb_dst(skb)->dev->ifindex;
 
 	memset(fl4, 0, sizeof(struct flowi4));
 	fl4->flowi4_mark = skb->mark;
@@ -219,7 +217,7 @@ static inline int xfrm4_garbage_collect(struct dst_ops *ops)
 {
 	struct net *net = container_of(ops, struct net, xfrm.xfrm4_dst_ops);
 
-	xfrm4_policy_afinfo.garbage_collect(net);
+	xfrm_garbage_collect_deferred(net);
 	return (dst_entries_get_slow(ops) > ops->gc_thresh * 2);
 }
 
@@ -259,7 +257,7 @@ static void xfrm4_dst_ifdown(struct dst_entry *dst, struct net_device *dev,
 	xfrm_dst_ifdown(dst, dev);
 }
 
-static struct dst_ops xfrm4_dst_ops = {
+static struct dst_ops xfrm4_dst_ops_template = {
 	.family =		AF_INET,
 	.gc =			xfrm4_garbage_collect,
 	.update_pmtu =		xfrm4_update_pmtu,
@@ -271,9 +269,8 @@ static struct dst_ops xfrm4_dst_ops = {
 	.gc_thresh =		INT_MAX,
 };
 
-static struct xfrm_policy_afinfo xfrm4_policy_afinfo = {
-	.family = 		AF_INET,
-	.dst_ops =		&xfrm4_dst_ops,
+static const struct xfrm_policy_afinfo xfrm4_policy_afinfo = {
+	.dst_ops =		&xfrm4_dst_ops_template,
 	.dst_lookup =		xfrm4_dst_lookup,
 	.get_saddr =		xfrm4_get_saddr,
 	.decode_session =	_decode_session4,
@@ -295,7 +292,7 @@ static struct ctl_table xfrm4_policy_table[] = {
 	{ }
 };
 
-static int __net_init xfrm4_net_init(struct net *net)
+static __net_init int xfrm4_net_sysctl_init(struct net *net)
 {
 	struct ctl_table *table;
 	struct ctl_table_header *hdr;
@@ -323,7 +320,7 @@ err_alloc:
 	return -ENOMEM;
 }
 
-static void __net_exit xfrm4_net_exit(struct net *net)
+static __net_exit void xfrm4_net_sysctl_exit(struct net *net)
 {
 	struct ctl_table *table;
 
@@ -335,27 +332,55 @@ static void __net_exit xfrm4_net_exit(struct net *net)
 	if (!net_eq(net, &init_net))
 		kfree(table);
 }
+#else /* CONFIG_SYSCTL */
+static inline int xfrm4_net_sysctl_init(struct net *net)
+{
+	return 0;
+}
+
+static inline void xfrm4_net_sysctl_exit(struct net *net)
+{
+}
+#endif
+
+static int __net_init xfrm4_net_init(struct net *net)
+{
+	int ret;
+
+	memcpy(&net->xfrm.xfrm4_dst_ops, &xfrm4_dst_ops_template,
+	       sizeof(xfrm4_dst_ops_template));
+	ret = dst_entries_init(&net->xfrm.xfrm4_dst_ops);
+	if (ret)
+		return ret;
+
+	ret = xfrm4_net_sysctl_init(net);
+	if (ret)
+		dst_entries_destroy(&net->xfrm.xfrm4_dst_ops);
+
+	return ret;
+}
+
+static void __net_exit xfrm4_net_exit(struct net *net)
+{
+	xfrm4_net_sysctl_exit(net);
+	dst_entries_destroy(&net->xfrm.xfrm4_dst_ops);
+}
 
 static struct pernet_operations __net_initdata xfrm4_net_ops = {
 	.init	= xfrm4_net_init,
 	.exit	= xfrm4_net_exit,
 };
-#endif
 
 static void __init xfrm4_policy_init(void)
 {
-	xfrm_policy_register_afinfo(&xfrm4_policy_afinfo);
+	xfrm_policy_register_afinfo(&xfrm4_policy_afinfo, AF_INET);
 }
 
 void __init xfrm4_init(void)
 {
-	dst_entries_init(&xfrm4_dst_ops);
-
 	xfrm4_state_init();
 	xfrm4_policy_init();
 	xfrm4_protocol_init();
-#ifdef CONFIG_SYSCTL
 	register_pernet_subsys(&xfrm4_net_ops);
-#endif
 }
 

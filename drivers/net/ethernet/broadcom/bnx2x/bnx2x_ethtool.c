@@ -52,7 +52,7 @@ static const struct {
 	{ Q_STATS_OFFSET32(rx_skb_alloc_failed),
 					 4, "[%s]: rx_skb_alloc_discard" },
 	{ Q_STATS_OFFSET32(hw_csum_err), 4, "[%s]: rx_csum_offload_errors" },
-
+	{ Q_STATS_OFFSET32(driver_xoff), 4, "[%s]: tx_exhaustion_events" },
 	{ Q_STATS_OFFSET32(total_bytes_transmitted_hi),	8, "[%s]: tx_bytes" },
 /* 10 */{ Q_STATS_OFFSET32(total_unicast_packets_transmitted_hi),
 						8, "[%s]: tx_ucast_packets" },
@@ -74,117 +74,115 @@ static const struct {
 static const struct {
 	long offset;
 	int size;
-	u32 flags;
-#define STATS_FLAGS_PORT		1
-#define STATS_FLAGS_FUNC		2
-#define STATS_FLAGS_BOTH		(STATS_FLAGS_FUNC | STATS_FLAGS_PORT)
+	bool is_port_stat;
 	char string[ETH_GSTRING_LEN];
 } bnx2x_stats_arr[] = {
 /* 1 */	{ STATS_OFFSET32(total_bytes_received_hi),
-				8, STATS_FLAGS_BOTH, "rx_bytes" },
+				8, false, "rx_bytes" },
 	{ STATS_OFFSET32(error_bytes_received_hi),
-				8, STATS_FLAGS_BOTH, "rx_error_bytes" },
+				8, false, "rx_error_bytes" },
 	{ STATS_OFFSET32(total_unicast_packets_received_hi),
-				8, STATS_FLAGS_BOTH, "rx_ucast_packets" },
+				8, false, "rx_ucast_packets" },
 	{ STATS_OFFSET32(total_multicast_packets_received_hi),
-				8, STATS_FLAGS_BOTH, "rx_mcast_packets" },
+				8, false, "rx_mcast_packets" },
 	{ STATS_OFFSET32(total_broadcast_packets_received_hi),
-				8, STATS_FLAGS_BOTH, "rx_bcast_packets" },
+				8, false, "rx_bcast_packets" },
 	{ STATS_OFFSET32(rx_stat_dot3statsfcserrors_hi),
-				8, STATS_FLAGS_PORT, "rx_crc_errors" },
+				8, true, "rx_crc_errors" },
 	{ STATS_OFFSET32(rx_stat_dot3statsalignmenterrors_hi),
-				8, STATS_FLAGS_PORT, "rx_align_errors" },
+				8, true, "rx_align_errors" },
 	{ STATS_OFFSET32(rx_stat_etherstatsundersizepkts_hi),
-				8, STATS_FLAGS_PORT, "rx_undersize_packets" },
+				8, true, "rx_undersize_packets" },
 	{ STATS_OFFSET32(etherstatsoverrsizepkts_hi),
-				8, STATS_FLAGS_PORT, "rx_oversize_packets" },
+				8, true, "rx_oversize_packets" },
 /* 10 */{ STATS_OFFSET32(rx_stat_etherstatsfragments_hi),
-				8, STATS_FLAGS_PORT, "rx_fragments" },
+				8, true, "rx_fragments" },
 	{ STATS_OFFSET32(rx_stat_etherstatsjabbers_hi),
-				8, STATS_FLAGS_PORT, "rx_jabbers" },
+				8, true, "rx_jabbers" },
 	{ STATS_OFFSET32(no_buff_discard_hi),
-				8, STATS_FLAGS_BOTH, "rx_discards" },
+				8, false, "rx_discards" },
 	{ STATS_OFFSET32(mac_filter_discard),
-				4, STATS_FLAGS_PORT, "rx_filtered_packets" },
+				4, true, "rx_filtered_packets" },
 	{ STATS_OFFSET32(mf_tag_discard),
-				4, STATS_FLAGS_PORT, "rx_mf_tag_discard" },
+				4, true, "rx_mf_tag_discard" },
 	{ STATS_OFFSET32(pfc_frames_received_hi),
-				8, STATS_FLAGS_PORT, "pfc_frames_received" },
+				8, true, "pfc_frames_received" },
 	{ STATS_OFFSET32(pfc_frames_sent_hi),
-				8, STATS_FLAGS_PORT, "pfc_frames_sent" },
+				8, true, "pfc_frames_sent" },
 	{ STATS_OFFSET32(brb_drop_hi),
-				8, STATS_FLAGS_PORT, "rx_brb_discard" },
+				8, true, "rx_brb_discard" },
 	{ STATS_OFFSET32(brb_truncate_hi),
-				8, STATS_FLAGS_PORT, "rx_brb_truncate" },
+				8, true, "rx_brb_truncate" },
 	{ STATS_OFFSET32(pause_frames_received_hi),
-				8, STATS_FLAGS_PORT, "rx_pause_frames" },
+				8, true, "rx_pause_frames" },
 	{ STATS_OFFSET32(rx_stat_maccontrolframesreceived_hi),
-				8, STATS_FLAGS_PORT, "rx_mac_ctrl_frames" },
+				8, true, "rx_mac_ctrl_frames" },
 	{ STATS_OFFSET32(nig_timer_max),
-			4, STATS_FLAGS_PORT, "rx_constant_pause_events" },
+				4, true, "rx_constant_pause_events" },
 /* 20 */{ STATS_OFFSET32(rx_err_discard_pkt),
-				4, STATS_FLAGS_BOTH, "rx_phy_ip_err_discards"},
+				4, false, "rx_phy_ip_err_discards"},
 	{ STATS_OFFSET32(rx_skb_alloc_failed),
-				4, STATS_FLAGS_BOTH, "rx_skb_alloc_discard" },
+				4, false, "rx_skb_alloc_discard" },
 	{ STATS_OFFSET32(hw_csum_err),
-				4, STATS_FLAGS_BOTH, "rx_csum_offload_errors" },
-
+				4, false, "rx_csum_offload_errors" },
+	{ STATS_OFFSET32(driver_xoff),
+				4, false, "tx_exhaustion_events" },
 	{ STATS_OFFSET32(total_bytes_transmitted_hi),
-				8, STATS_FLAGS_BOTH, "tx_bytes" },
+				8, false, "tx_bytes" },
 	{ STATS_OFFSET32(tx_stat_ifhcoutbadoctets_hi),
-				8, STATS_FLAGS_PORT, "tx_error_bytes" },
+				8, true, "tx_error_bytes" },
 	{ STATS_OFFSET32(total_unicast_packets_transmitted_hi),
-				8, STATS_FLAGS_BOTH, "tx_ucast_packets" },
+				8, false, "tx_ucast_packets" },
 	{ STATS_OFFSET32(total_multicast_packets_transmitted_hi),
-				8, STATS_FLAGS_BOTH, "tx_mcast_packets" },
+				8, false, "tx_mcast_packets" },
 	{ STATS_OFFSET32(total_broadcast_packets_transmitted_hi),
-				8, STATS_FLAGS_BOTH, "tx_bcast_packets" },
+				8, false, "tx_bcast_packets" },
 	{ STATS_OFFSET32(tx_stat_dot3statsinternalmactransmiterrors_hi),
-				8, STATS_FLAGS_PORT, "tx_mac_errors" },
+				8, true, "tx_mac_errors" },
 	{ STATS_OFFSET32(rx_stat_dot3statscarriersenseerrors_hi),
-				8, STATS_FLAGS_PORT, "tx_carrier_errors" },
+				8, true, "tx_carrier_errors" },
 /* 30 */{ STATS_OFFSET32(tx_stat_dot3statssinglecollisionframes_hi),
-				8, STATS_FLAGS_PORT, "tx_single_collisions" },
+				8, true, "tx_single_collisions" },
 	{ STATS_OFFSET32(tx_stat_dot3statsmultiplecollisionframes_hi),
-				8, STATS_FLAGS_PORT, "tx_multi_collisions" },
+				8, true, "tx_multi_collisions" },
 	{ STATS_OFFSET32(tx_stat_dot3statsdeferredtransmissions_hi),
-				8, STATS_FLAGS_PORT, "tx_deferred" },
+				8, true, "tx_deferred" },
 	{ STATS_OFFSET32(tx_stat_dot3statsexcessivecollisions_hi),
-				8, STATS_FLAGS_PORT, "tx_excess_collisions" },
+				8, true, "tx_excess_collisions" },
 	{ STATS_OFFSET32(tx_stat_dot3statslatecollisions_hi),
-				8, STATS_FLAGS_PORT, "tx_late_collisions" },
+				8, true, "tx_late_collisions" },
 	{ STATS_OFFSET32(tx_stat_etherstatscollisions_hi),
-				8, STATS_FLAGS_PORT, "tx_total_collisions" },
+				8, true, "tx_total_collisions" },
 	{ STATS_OFFSET32(tx_stat_etherstatspkts64octets_hi),
-				8, STATS_FLAGS_PORT, "tx_64_byte_packets" },
+				8, true, "tx_64_byte_packets" },
 	{ STATS_OFFSET32(tx_stat_etherstatspkts65octetsto127octets_hi),
-			8, STATS_FLAGS_PORT, "tx_65_to_127_byte_packets" },
+				8, true, "tx_65_to_127_byte_packets" },
 	{ STATS_OFFSET32(tx_stat_etherstatspkts128octetsto255octets_hi),
-			8, STATS_FLAGS_PORT, "tx_128_to_255_byte_packets" },
+				8, true, "tx_128_to_255_byte_packets" },
 	{ STATS_OFFSET32(tx_stat_etherstatspkts256octetsto511octets_hi),
-			8, STATS_FLAGS_PORT, "tx_256_to_511_byte_packets" },
+				8, true, "tx_256_to_511_byte_packets" },
 /* 40 */{ STATS_OFFSET32(tx_stat_etherstatspkts512octetsto1023octets_hi),
-			8, STATS_FLAGS_PORT, "tx_512_to_1023_byte_packets" },
+				8, true, "tx_512_to_1023_byte_packets" },
 	{ STATS_OFFSET32(etherstatspkts1024octetsto1522octets_hi),
-			8, STATS_FLAGS_PORT, "tx_1024_to_1522_byte_packets" },
+				8, true, "tx_1024_to_1522_byte_packets" },
 	{ STATS_OFFSET32(etherstatspktsover1522octets_hi),
-			8, STATS_FLAGS_PORT, "tx_1523_to_9022_byte_packets" },
+				8, true, "tx_1523_to_9022_byte_packets" },
 	{ STATS_OFFSET32(pause_frames_sent_hi),
-				8, STATS_FLAGS_PORT, "tx_pause_frames" },
+				8, true, "tx_pause_frames" },
 	{ STATS_OFFSET32(total_tpa_aggregations_hi),
-			8, STATS_FLAGS_FUNC, "tpa_aggregations" },
+				8, false, "tpa_aggregations" },
 	{ STATS_OFFSET32(total_tpa_aggregated_frames_hi),
-			8, STATS_FLAGS_FUNC, "tpa_aggregated_frames"},
+				8, false, "tpa_aggregated_frames"},
 	{ STATS_OFFSET32(total_tpa_bytes_hi),
-			8, STATS_FLAGS_FUNC, "tpa_bytes"},
+				8, false, "tpa_bytes"},
 	{ STATS_OFFSET32(recoverable_error),
-			4, STATS_FLAGS_FUNC, "recoverable_errors" },
+				4, false, "recoverable_errors" },
 	{ STATS_OFFSET32(unrecoverable_error),
-			4, STATS_FLAGS_FUNC, "unrecoverable_errors" },
+				4, false, "unrecoverable_errors" },
 	{ STATS_OFFSET32(driver_filtered_tx_pkt),
-			4, STATS_FLAGS_FUNC, "driver_filtered_tx_pkt" },
+				4, false, "driver_filtered_tx_pkt" },
 	{ STATS_OFFSET32(eee_tx_lpi),
-			4, STATS_FLAGS_PORT, "Tx LPI entry count"}
+				4, true, "Tx LPI entry count"}
 };
 
 #define BNX2X_NUM_STATS		ARRAY_SIZE(bnx2x_stats_arr)
@@ -218,165 +216,184 @@ static int bnx2x_get_port_type(struct bnx2x *bp)
 	return port_type;
 }
 
-static int bnx2x_get_vf_settings(struct net_device *dev,
-				 struct ethtool_cmd *cmd)
+static int bnx2x_get_vf_link_ksettings(struct net_device *dev,
+				       struct ethtool_link_ksettings *cmd)
 {
 	struct bnx2x *bp = netdev_priv(dev);
+	u32 supported, advertising;
+
+	ethtool_convert_link_mode_to_legacy_u32(&supported,
+						cmd->link_modes.supported);
+	ethtool_convert_link_mode_to_legacy_u32(&advertising,
+						cmd->link_modes.advertising);
 
 	if (bp->state == BNX2X_STATE_OPEN) {
 		if (test_bit(BNX2X_LINK_REPORT_FD,
 			     &bp->vf_link_vars.link_report_flags))
-			cmd->duplex = DUPLEX_FULL;
+			cmd->base.duplex = DUPLEX_FULL;
 		else
-			cmd->duplex = DUPLEX_HALF;
+			cmd->base.duplex = DUPLEX_HALF;
 
-		ethtool_cmd_speed_set(cmd, bp->vf_link_vars.line_speed);
+		cmd->base.speed = bp->vf_link_vars.line_speed;
 	} else {
-		cmd->duplex = DUPLEX_UNKNOWN;
-		ethtool_cmd_speed_set(cmd, SPEED_UNKNOWN);
+		cmd->base.duplex = DUPLEX_UNKNOWN;
+		cmd->base.speed = SPEED_UNKNOWN;
 	}
 
-	cmd->port		= PORT_OTHER;
-	cmd->phy_address	= 0;
-	cmd->transceiver	= XCVR_INTERNAL;
-	cmd->autoneg		= AUTONEG_DISABLE;
-	cmd->maxtxpkt		= 0;
-	cmd->maxrxpkt		= 0;
+	cmd->base.port		= PORT_OTHER;
+	cmd->base.phy_address	= 0;
+	cmd->base.autoneg	= AUTONEG_DISABLE;
 
 	DP(BNX2X_MSG_ETHTOOL, "ethtool_cmd: cmd %d\n"
 	   "  supported 0x%x  advertising 0x%x  speed %u\n"
-	   "  duplex %d  port %d  phy_address %d  transceiver %d\n"
-	   "  autoneg %d  maxtxpkt %d  maxrxpkt %d\n",
-	   cmd->cmd, cmd->supported, cmd->advertising,
-	   ethtool_cmd_speed(cmd),
-	   cmd->duplex, cmd->port, cmd->phy_address, cmd->transceiver,
-	   cmd->autoneg, cmd->maxtxpkt, cmd->maxrxpkt);
+	   "  duplex %d  port %d  phy_address %d\n"
+	   "  autoneg %d\n",
+	   cmd->base.cmd, supported, advertising,
+	   cmd->base.speed,
+	   cmd->base.duplex, cmd->base.port, cmd->base.phy_address,
+	   cmd->base.autoneg);
 
 	return 0;
 }
 
-static int bnx2x_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int bnx2x_get_link_ksettings(struct net_device *dev,
+				    struct ethtool_link_ksettings *cmd)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	int cfg_idx = bnx2x_get_link_cfg_idx(bp);
 	u32 media_type;
+	u32 supported, advertising, lp_advertising;
+
+	ethtool_convert_link_mode_to_legacy_u32(&lp_advertising,
+						cmd->link_modes.lp_advertising);
 
 	/* Dual Media boards present all available port types */
-	cmd->supported = bp->port.supported[cfg_idx] |
+	supported = bp->port.supported[cfg_idx] |
 		(bp->port.supported[cfg_idx ^ 1] &
 		 (SUPPORTED_TP | SUPPORTED_FIBRE));
-	cmd->advertising = bp->port.advertising[cfg_idx];
+	advertising = bp->port.advertising[cfg_idx];
 	media_type = bp->link_params.phy[bnx2x_get_cur_phy_idx(bp)].media_type;
 	if (media_type == ETH_PHY_SFP_1G_FIBER) {
-		cmd->supported &= ~(SUPPORTED_10000baseT_Full);
-		cmd->advertising &= ~(ADVERTISED_10000baseT_Full);
+		supported &= ~(SUPPORTED_10000baseT_Full);
+		advertising &= ~(ADVERTISED_10000baseT_Full);
 	}
 
 	if ((bp->state == BNX2X_STATE_OPEN) && bp->link_vars.link_up &&
 	    !(bp->flags & MF_FUNC_DIS)) {
-		cmd->duplex = bp->link_vars.duplex;
+		cmd->base.duplex = bp->link_vars.duplex;
 
 		if (IS_MF(bp) && !BP_NOMCP(bp))
-			ethtool_cmd_speed_set(cmd, bnx2x_get_mf_speed(bp));
+			cmd->base.speed = bnx2x_get_mf_speed(bp);
 		else
-			ethtool_cmd_speed_set(cmd, bp->link_vars.line_speed);
+			cmd->base.speed = bp->link_vars.line_speed;
 	} else {
-		cmd->duplex = DUPLEX_UNKNOWN;
-		ethtool_cmd_speed_set(cmd, SPEED_UNKNOWN);
+		cmd->base.duplex = DUPLEX_UNKNOWN;
+		cmd->base.speed = SPEED_UNKNOWN;
 	}
 
-	cmd->port = bnx2x_get_port_type(bp);
+	cmd->base.port = bnx2x_get_port_type(bp);
 
-	cmd->phy_address = bp->mdio.prtad;
-	cmd->transceiver = XCVR_INTERNAL;
+	cmd->base.phy_address = bp->mdio.prtad;
 
 	if (bp->link_params.req_line_speed[cfg_idx] == SPEED_AUTO_NEG)
-		cmd->autoneg = AUTONEG_ENABLE;
+		cmd->base.autoneg = AUTONEG_ENABLE;
 	else
-		cmd->autoneg = AUTONEG_DISABLE;
+		cmd->base.autoneg = AUTONEG_DISABLE;
 
 	/* Publish LP advertised speeds and FC */
 	if (bp->link_vars.link_status & LINK_STATUS_AUTO_NEGOTIATE_COMPLETE) {
 		u32 status = bp->link_vars.link_status;
 
-		cmd->lp_advertising |= ADVERTISED_Autoneg;
+		lp_advertising |= ADVERTISED_Autoneg;
 		if (status & LINK_STATUS_LINK_PARTNER_SYMMETRIC_PAUSE)
-			cmd->lp_advertising |= ADVERTISED_Pause;
+			lp_advertising |= ADVERTISED_Pause;
 		if (status & LINK_STATUS_LINK_PARTNER_ASYMMETRIC_PAUSE)
-			cmd->lp_advertising |= ADVERTISED_Asym_Pause;
+			lp_advertising |= ADVERTISED_Asym_Pause;
 
 		if (status & LINK_STATUS_LINK_PARTNER_10THD_CAPABLE)
-			cmd->lp_advertising |= ADVERTISED_10baseT_Half;
+			lp_advertising |= ADVERTISED_10baseT_Half;
 		if (status & LINK_STATUS_LINK_PARTNER_10TFD_CAPABLE)
-			cmd->lp_advertising |= ADVERTISED_10baseT_Full;
+			lp_advertising |= ADVERTISED_10baseT_Full;
 		if (status & LINK_STATUS_LINK_PARTNER_100TXHD_CAPABLE)
-			cmd->lp_advertising |= ADVERTISED_100baseT_Half;
+			lp_advertising |= ADVERTISED_100baseT_Half;
 		if (status & LINK_STATUS_LINK_PARTNER_100TXFD_CAPABLE)
-			cmd->lp_advertising |= ADVERTISED_100baseT_Full;
+			lp_advertising |= ADVERTISED_100baseT_Full;
 		if (status & LINK_STATUS_LINK_PARTNER_1000THD_CAPABLE)
-			cmd->lp_advertising |= ADVERTISED_1000baseT_Half;
+			lp_advertising |= ADVERTISED_1000baseT_Half;
 		if (status & LINK_STATUS_LINK_PARTNER_1000TFD_CAPABLE) {
 			if (media_type == ETH_PHY_KR) {
-				cmd->lp_advertising |=
+				lp_advertising |=
 					ADVERTISED_1000baseKX_Full;
 			} else {
-				cmd->lp_advertising |=
+				lp_advertising |=
 					ADVERTISED_1000baseT_Full;
 			}
 		}
 		if (status & LINK_STATUS_LINK_PARTNER_2500XFD_CAPABLE)
-			cmd->lp_advertising |= ADVERTISED_2500baseX_Full;
+			lp_advertising |= ADVERTISED_2500baseX_Full;
 		if (status & LINK_STATUS_LINK_PARTNER_10GXFD_CAPABLE) {
 			if (media_type == ETH_PHY_KR) {
-				cmd->lp_advertising |=
+				lp_advertising |=
 					ADVERTISED_10000baseKR_Full;
 			} else {
-				cmd->lp_advertising |=
+				lp_advertising |=
 					ADVERTISED_10000baseT_Full;
 			}
 		}
 		if (status & LINK_STATUS_LINK_PARTNER_20GXFD_CAPABLE)
-			cmd->lp_advertising |= ADVERTISED_20000baseKR2_Full;
+			lp_advertising |= ADVERTISED_20000baseKR2_Full;
 	}
 
-	cmd->maxtxpkt = 0;
-	cmd->maxrxpkt = 0;
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
+						supported);
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.advertising,
+						advertising);
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.lp_advertising,
+						lp_advertising);
 
 	DP(BNX2X_MSG_ETHTOOL, "ethtool_cmd: cmd %d\n"
 	   "  supported 0x%x  advertising 0x%x  speed %u\n"
-	   "  duplex %d  port %d  phy_address %d  transceiver %d\n"
-	   "  autoneg %d  maxtxpkt %d  maxrxpkt %d\n",
-	   cmd->cmd, cmd->supported, cmd->advertising,
-	   ethtool_cmd_speed(cmd),
-	   cmd->duplex, cmd->port, cmd->phy_address, cmd->transceiver,
-	   cmd->autoneg, cmd->maxtxpkt, cmd->maxrxpkt);
+	   "  duplex %d  port %d  phy_address %d\n"
+	   "  autoneg %d\n",
+	   cmd->base.cmd, supported, advertising,
+	   cmd->base.speed,
+	   cmd->base.duplex, cmd->base.port, cmd->base.phy_address,
+	   cmd->base.autoneg);
 
 	return 0;
 }
 
-static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+static int bnx2x_set_link_ksettings(struct net_device *dev,
+				    const struct ethtool_link_ksettings *cmd)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	u32 advertising, cfg_idx, old_multi_phy_config, new_multi_phy_config;
 	u32 speed, phy_idx;
+	u32 supported;
+	u8 duplex = cmd->base.duplex;
+
+	ethtool_convert_link_mode_to_legacy_u32(&supported,
+						cmd->link_modes.supported);
+	ethtool_convert_link_mode_to_legacy_u32(&advertising,
+						cmd->link_modes.advertising);
 
 	if (IS_MF_SD(bp))
 		return 0;
 
 	DP(BNX2X_MSG_ETHTOOL, "ethtool_cmd: cmd %d\n"
 	   "  supported 0x%x  advertising 0x%x  speed %u\n"
-	   "  duplex %d  port %d  phy_address %d  transceiver %d\n"
-	   "  autoneg %d  maxtxpkt %d  maxrxpkt %d\n",
-	   cmd->cmd, cmd->supported, cmd->advertising,
-	   ethtool_cmd_speed(cmd),
-	   cmd->duplex, cmd->port, cmd->phy_address, cmd->transceiver,
-	   cmd->autoneg, cmd->maxtxpkt, cmd->maxrxpkt);
+	   "  duplex %d  port %d  phy_address %d\n"
+	   "  autoneg %d\n",
+	   cmd->base.cmd, supported, advertising,
+	   cmd->base.speed,
+	   cmd->base.duplex, cmd->base.port, cmd->base.phy_address,
+	   cmd->base.autoneg);
 
-	speed = ethtool_cmd_speed(cmd);
+	speed = cmd->base.speed;
 
 	/* If received a request for an unknown duplex, assume full*/
-	if (cmd->duplex == DUPLEX_UNKNOWN)
-		cmd->duplex = DUPLEX_FULL;
+	if (duplex == DUPLEX_UNKNOWN)
+		duplex = DUPLEX_FULL;
 
 	if (IS_MF_SI(bp)) {
 		u32 part;
@@ -412,8 +429,8 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	cfg_idx = bnx2x_get_link_cfg_idx(bp);
 	old_multi_phy_config = bp->link_params.multi_phy_config;
-	if (cmd->port != bnx2x_get_port_type(bp)) {
-		switch (cmd->port) {
+	if (cmd->base.port != bnx2x_get_port_type(bp)) {
+		switch (cmd->base.port) {
 		case PORT_TP:
 			if (!(bp->port.supported[0] & SUPPORTED_TP ||
 			      bp->port.supported[1] & SUPPORTED_TP)) {
@@ -463,7 +480,7 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	bp->link_params.multi_phy_config = old_multi_phy_config;
 	DP(BNX2X_MSG_ETHTOOL, "cfg_idx = %x\n", cfg_idx);
 
-	if (cmd->autoneg == AUTONEG_ENABLE) {
+	if (cmd->base.autoneg == AUTONEG_ENABLE) {
 		u32 an_supported_speed = bp->port.supported[cfg_idx];
 		if (bp->link_params.phy[EXT_PHY1].type ==
 		    PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM84833)
@@ -475,51 +492,51 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		}
 
 		/* advertise the requested speed and duplex if supported */
-		if (cmd->advertising & ~an_supported_speed) {
+		if (advertising & ~an_supported_speed) {
 			DP(BNX2X_MSG_ETHTOOL,
 			   "Advertisement parameters are not supported\n");
 			return -EINVAL;
 		}
 
 		bp->link_params.req_line_speed[cfg_idx] = SPEED_AUTO_NEG;
-		bp->link_params.req_duplex[cfg_idx] = cmd->duplex;
+		bp->link_params.req_duplex[cfg_idx] = duplex;
 		bp->port.advertising[cfg_idx] = (ADVERTISED_Autoneg |
-					 cmd->advertising);
-		if (cmd->advertising) {
+					 advertising);
+		if (advertising) {
 
 			bp->link_params.speed_cap_mask[cfg_idx] = 0;
-			if (cmd->advertising & ADVERTISED_10baseT_Half) {
+			if (advertising & ADVERTISED_10baseT_Half) {
 				bp->link_params.speed_cap_mask[cfg_idx] |=
 				PORT_HW_CFG_SPEED_CAPABILITY_D0_10M_HALF;
 			}
-			if (cmd->advertising & ADVERTISED_10baseT_Full)
+			if (advertising & ADVERTISED_10baseT_Full)
 				bp->link_params.speed_cap_mask[cfg_idx] |=
 				PORT_HW_CFG_SPEED_CAPABILITY_D0_10M_FULL;
 
-			if (cmd->advertising & ADVERTISED_100baseT_Full)
+			if (advertising & ADVERTISED_100baseT_Full)
 				bp->link_params.speed_cap_mask[cfg_idx] |=
 				PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_FULL;
 
-			if (cmd->advertising & ADVERTISED_100baseT_Half) {
+			if (advertising & ADVERTISED_100baseT_Half) {
 				bp->link_params.speed_cap_mask[cfg_idx] |=
 				     PORT_HW_CFG_SPEED_CAPABILITY_D0_100M_HALF;
 			}
-			if (cmd->advertising & ADVERTISED_1000baseT_Half) {
+			if (advertising & ADVERTISED_1000baseT_Half) {
 				bp->link_params.speed_cap_mask[cfg_idx] |=
 					PORT_HW_CFG_SPEED_CAPABILITY_D0_1G;
 			}
-			if (cmd->advertising & (ADVERTISED_1000baseT_Full |
+			if (advertising & (ADVERTISED_1000baseT_Full |
 						ADVERTISED_1000baseKX_Full))
 				bp->link_params.speed_cap_mask[cfg_idx] |=
 					PORT_HW_CFG_SPEED_CAPABILITY_D0_1G;
 
-			if (cmd->advertising & (ADVERTISED_10000baseT_Full |
+			if (advertising & (ADVERTISED_10000baseT_Full |
 						ADVERTISED_10000baseKX4_Full |
 						ADVERTISED_10000baseKR_Full))
 				bp->link_params.speed_cap_mask[cfg_idx] |=
 					PORT_HW_CFG_SPEED_CAPABILITY_D0_10G;
 
-			if (cmd->advertising & ADVERTISED_20000baseKR2_Full)
+			if (advertising & ADVERTISED_20000baseKR2_Full)
 				bp->link_params.speed_cap_mask[cfg_idx] |=
 					PORT_HW_CFG_SPEED_CAPABILITY_D0_20G;
 		}
@@ -527,7 +544,7 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		/* advertise the requested speed and duplex if supported */
 		switch (speed) {
 		case SPEED_10:
-			if (cmd->duplex == DUPLEX_FULL) {
+			if (duplex == DUPLEX_FULL) {
 				if (!(bp->port.supported[cfg_idx] &
 				      SUPPORTED_10baseT_Full)) {
 					DP(BNX2X_MSG_ETHTOOL,
@@ -551,7 +568,7 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 			break;
 
 		case SPEED_100:
-			if (cmd->duplex == DUPLEX_FULL) {
+			if (duplex == DUPLEX_FULL) {
 				if (!(bp->port.supported[cfg_idx] &
 						SUPPORTED_100baseT_Full)) {
 					DP(BNX2X_MSG_ETHTOOL,
@@ -575,7 +592,7 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 			break;
 
 		case SPEED_1000:
-			if (cmd->duplex != DUPLEX_FULL) {
+			if (duplex != DUPLEX_FULL) {
 				DP(BNX2X_MSG_ETHTOOL,
 				   "1G half not supported\n");
 				return -EINVAL;
@@ -598,7 +615,7 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 			break;
 
 		case SPEED_2500:
-			if (cmd->duplex != DUPLEX_FULL) {
+			if (duplex != DUPLEX_FULL) {
 				DP(BNX2X_MSG_ETHTOOL,
 				   "2.5G half not supported\n");
 				return -EINVAL;
@@ -616,7 +633,7 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 			break;
 
 		case SPEED_10000:
-			if (cmd->duplex != DUPLEX_FULL) {
+			if (duplex != DUPLEX_FULL) {
 				DP(BNX2X_MSG_ETHTOOL,
 				   "10G half not supported\n");
 				return -EINVAL;
@@ -646,7 +663,7 @@ static int bnx2x_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		}
 
 		bp->link_params.req_line_speed[cfg_idx] = speed;
-		bp->link_params.req_duplex[cfg_idx] = cmd->duplex;
+		bp->link_params.req_duplex[cfg_idx] = duplex;
 		bp->port.advertising[cfg_idx] = advertising;
 	}
 
@@ -982,6 +999,11 @@ static void bnx2x_get_regs(struct net_device *dev,
 
 	memcpy(p, &dump_hdr, sizeof(struct dump_header));
 	p += dump_hdr.header_size + 1;
+
+	/* This isn't really an error, but since attention handling is going
+	 * to print the GRC timeouts using this macro, we use the same.
+	 */
+	BNX2X_ERR("Generating register dump. Might trigger harmless GRC timeouts\n");
 
 	/* Actually read the registers */
 	__bnx2x_get_regs(bp, p);
@@ -1869,8 +1891,16 @@ static void bnx2x_get_ringparam(struct net_device *dev,
 
 	ering->rx_max_pending = MAX_RX_AVAIL;
 
+	/* If size isn't already set, we give an estimation of the number
+	 * of buffers we'll have. We're neglecting some possible conditions
+	 * [we couldn't know for certain at this point if number of queues
+	 * might shrink] but the number would be correct for the likely
+	 * scenario.
+	 */
 	if (bp->rx_ring_size)
 		ering->rx_pending = bp->rx_ring_size;
+	else if (BNX2X_NUM_RX_QUEUES(bp))
+		ering->rx_pending = MAX_RX_AVAIL / BNX2X_NUM_RX_QUEUES(bp);
 	else
 		ering->rx_pending = MAX_RX_AVAIL;
 
@@ -2856,7 +2886,7 @@ static int bnx2x_test_nvram_tbl(struct bnx2x *bp,
 
 static int bnx2x_test_nvram(struct bnx2x *bp)
 {
-	const struct crc_pair nvram_tbl[] = {
+	static const struct crc_pair nvram_tbl[] = {
 		{     0,  0x14 }, /* bootstrap */
 		{  0x14,  0xec }, /* dir */
 		{ 0x100, 0x350 }, /* manuf_info */
@@ -2865,7 +2895,7 @@ static int bnx2x_test_nvram(struct bnx2x *bp)
 		{ 0x708,  0x70 }, /* manuf_key_info */
 		{     0,     0 }
 	};
-	const struct crc_pair nvram_tbl2[] = {
+	static const struct crc_pair nvram_tbl2[] = {
 		{ 0x7e8, 0x350 }, /* manuf_info2 */
 		{ 0xb38,  0xf0 }, /* feature_info */
 		{     0,     0 }
@@ -3065,12 +3095,8 @@ static void bnx2x_self_test(struct net_device *dev,
 	}
 }
 
-#define IS_PORT_STAT(i) \
-	((bnx2x_stats_arr[i].flags & STATS_FLAGS_BOTH) == STATS_FLAGS_PORT)
-#define IS_FUNC_STAT(i)		(bnx2x_stats_arr[i].flags & STATS_FLAGS_FUNC)
-#define HIDE_PORT_STAT(bp) \
-		((IS_MF(bp) && !(bp->msg_enable & BNX2X_MSG_STATS)) || \
-		 IS_VF(bp))
+#define IS_PORT_STAT(i)		(bnx2x_stats_arr[i].is_port_stat)
+#define HIDE_PORT_STAT(bp)	IS_VF(bp)
 
 /* ethtool statistics are displayed for all regular ethernet queues and the
  * fcoe L2 queue if not disabled
@@ -3094,7 +3120,7 @@ static int bnx2x_get_sset_count(struct net_device *dev, int stringset)
 			num_strings = 0;
 		if (HIDE_PORT_STAT(bp)) {
 			for (i = 0; i < BNX2X_NUM_STATS; i++)
-				if (IS_FUNC_STAT(i))
+				if (!IS_PORT_STAT(i))
 					num_strings++;
 		} else
 			num_strings += BNX2X_NUM_STATS;
@@ -3136,7 +3162,8 @@ static void bnx2x_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 		if (is_multi(bp)) {
 			for_each_eth_queue(bp, i) {
 				memset(queue_name, 0, sizeof(queue_name));
-				sprintf(queue_name, "%d", i);
+				snprintf(queue_name, sizeof(queue_name),
+					 "%d", i);
 				for (j = 0; j < BNX2X_NUM_Q_STATS; j++)
 					snprintf(buf + (k + j)*ETH_GSTRING_LEN,
 						ETH_GSTRING_LEN,
@@ -3598,8 +3625,6 @@ static int bnx2x_get_ts_info(struct net_device *dev,
 }
 
 static const struct ethtool_ops bnx2x_ethtool_ops = {
-	.get_settings		= bnx2x_get_settings,
-	.set_settings		= bnx2x_set_settings,
 	.get_drvinfo		= bnx2x_get_drvinfo,
 	.get_regs_len		= bnx2x_get_regs_len,
 	.get_regs		= bnx2x_get_regs,
@@ -3639,10 +3664,11 @@ static const struct ethtool_ops bnx2x_ethtool_ops = {
 	.get_eee		= bnx2x_get_eee,
 	.set_eee		= bnx2x_set_eee,
 	.get_ts_info		= bnx2x_get_ts_info,
+	.get_link_ksettings	= bnx2x_get_link_ksettings,
+	.set_link_ksettings	= bnx2x_set_link_ksettings,
 };
 
 static const struct ethtool_ops bnx2x_vf_ethtool_ops = {
-	.get_settings		= bnx2x_get_vf_settings,
 	.get_drvinfo		= bnx2x_get_drvinfo,
 	.get_msglevel		= bnx2x_get_msglevel,
 	.set_msglevel		= bnx2x_set_msglevel,
@@ -3660,6 +3686,7 @@ static const struct ethtool_ops bnx2x_vf_ethtool_ops = {
 	.set_rxfh		= bnx2x_set_rxfh,
 	.get_channels		= bnx2x_get_channels,
 	.set_channels		= bnx2x_set_channels,
+	.get_link_ksettings	= bnx2x_get_vf_link_ksettings,
 };
 
 void bnx2x_set_ethtool_ops(struct bnx2x *bp, struct net_device *netdev)

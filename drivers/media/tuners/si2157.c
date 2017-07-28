@@ -84,17 +84,31 @@ static int si2157_init(struct dvb_frontend *fe)
 	struct si2157_cmd cmd;
 	const struct firmware *fw;
 	const char *fw_name;
-	unsigned int chip_id;
+	unsigned int uitmp, chip_id;
 
 	dev_dbg(&client->dev, "\n");
 
-	if (dev->fw_loaded)
+	/* Returned IF frequency is garbage when firmware is not running */
+	memcpy(cmd.args, "\x15\x00\x06\x07", 4);
+	cmd.wlen = 4;
+	cmd.rlen = 4;
+	ret = si2157_cmd_execute(client, &cmd);
+	if (ret)
+		goto err;
+
+	uitmp = cmd.args[2] << 0 | cmd.args[3] << 8;
+	dev_dbg(&client->dev, "if_frequency kHz=%u\n", uitmp);
+
+	if (uitmp == dev->if_frequency / 1000)
 		goto warm;
 
 	/* power up */
 	if (dev->chiptype == SI2157_CHIPTYPE_SI2146) {
 		memcpy(cmd.args, "\xc0\x05\x01\x00\x00\x0b\x00\x00\x01", 9);
 		cmd.wlen = 9;
+	} else if (dev->chiptype == SI2157_CHIPTYPE_SI2141) {
+		memcpy(cmd.args, "\xc0\x00\x0d\x0e\x00\x01\x01\x01\x01\x03", 10);
+		cmd.wlen = 10;
 	} else {
 		memcpy(cmd.args, "\xc0\x00\x0c\x00\x00\x01\x01\x01\x01\x01\x01\x02\x00\x00\x01", 15);
 		cmd.wlen = 15;
@@ -103,6 +117,15 @@ static int si2157_init(struct dvb_frontend *fe)
 	ret = si2157_cmd_execute(client, &cmd);
 	if (ret)
 		goto err;
+
+	/* Si2141 needs a second command before it answers the revision query */
+	if (dev->chiptype == SI2157_CHIPTYPE_SI2141) {
+		memcpy(cmd.args, "\xc0\x08\x01\x02\x00\x00\x01", 7);
+		cmd.wlen = 7;
+		ret = si2157_cmd_execute(client, &cmd);
+		if (ret)
+			goto err;
+	}
 
 	/* query chip revision */
 	memcpy(cmd.args, "\x02", 1);
@@ -120,11 +143,15 @@ static int si2157_init(struct dvb_frontend *fe)
 	#define SI2157_A30 ('A' << 24 | 57 << 16 | '3' << 8 | '0' << 0)
 	#define SI2147_A30 ('A' << 24 | 47 << 16 | '3' << 8 | '0' << 0)
 	#define SI2146_A10 ('A' << 24 | 46 << 16 | '1' << 8 | '0' << 0)
+	#define SI2141_A10 ('A' << 24 | 41 << 16 | '1' << 8 | '0' << 0)
 
 	switch (chip_id) {
 	case SI2158_A20:
 	case SI2148_A20:
 		fw_name = SI2158_A20_FIRMWARE;
+		break;
+	case SI2141_A10:
+		fw_name = SI2141_A10_FIRMWARE;
 		break;
 	case SI2157_A30:
 	case SI2147_A30:
@@ -168,6 +195,7 @@ static int si2157_init(struct dvb_frontend *fe)
 		len = fw->data[fw->size - remaining];
 		if (len > SI2157_ARGLEN) {
 			dev_err(&client->dev, "Bad firmware length\n");
+			ret = -EINVAL;
 			goto err_release_firmware;
 		}
 		memcpy(cmd.args, &fw->data[(fw->size - remaining) + 1], len);
@@ -202,9 +230,6 @@ skip_fw_download:
 
 	dev_info(&client->dev, "firmware version: %c.%c.%d\n",
 			cmd.args[6], cmd.args[7], cmd.args[8]);
-
-	dev->fw_loaded = true;
-
 warm:
 	/* init statistics in order signal app which are supported */
 	c->strength.len = 1;
@@ -362,9 +387,9 @@ static int si2157_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 
 static const struct dvb_tuner_ops si2157_ops = {
 	.info = {
-		.name           = "Silicon Labs Si2146/2147/2148/2157/2158",
-		.frequency_min  = 55000000,
-		.frequency_max  = 862000000,
+		.name           = "Silicon Labs Si2141/Si2146/2147/2148/2157/2158",
+		.frequency_min  = 42000000,
+		.frequency_max  = 870000000,
 	},
 
 	.init = si2157_init,
@@ -402,7 +427,7 @@ err:
 }
 
 static int si2157_probe(struct i2c_client *client,
-		const struct i2c_device_id *id)
+			const struct i2c_device_id *id)
 {
 	struct si2157_config *cfg = client->dev.platform_data;
 	struct dvb_frontend *fe = cfg->fe;
@@ -421,7 +446,6 @@ static int si2157_probe(struct i2c_client *client,
 	dev->fe = cfg->fe;
 	dev->inversion = cfg->inversion;
 	dev->if_port = cfg->if_port;
-	dev->fw_loaded = false;
 	dev->chiptype = (u8)id->driver_data;
 	dev->if_frequency = 5000000; /* default value of property 0x0706 */
 	mutex_init(&dev->i2c_mutex);
@@ -437,7 +461,33 @@ static int si2157_probe(struct i2c_client *client,
 	memcpy(&fe->ops.tuner_ops, &si2157_ops, sizeof(struct dvb_tuner_ops));
 	fe->tuner_priv = client;
 
+#ifdef CONFIG_MEDIA_CONTROLLER
+	if (cfg->mdev) {
+		dev->mdev = cfg->mdev;
+
+		dev->ent.name = KBUILD_MODNAME;
+		dev->ent.function = MEDIA_ENT_F_TUNER;
+
+		dev->pad[TUNER_PAD_RF_INPUT].flags = MEDIA_PAD_FL_SINK;
+		dev->pad[TUNER_PAD_OUTPUT].flags = MEDIA_PAD_FL_SOURCE;
+		dev->pad[TUNER_PAD_AUD_OUT].flags = MEDIA_PAD_FL_SOURCE;
+
+		ret = media_entity_pads_init(&dev->ent, TUNER_NUM_PADS,
+					     &dev->pad[0]);
+
+		if (ret)
+			goto err_kfree;
+
+		ret = media_device_register_entity(cfg->mdev, &dev->ent);
+		if (ret) {
+			media_entity_cleanup(&dev->ent);
+			goto err_kfree;
+		}
+	}
+#endif
+
 	dev_info(&client->dev, "Silicon Labs %s successfully attached\n",
+			dev->chiptype == SI2157_CHIPTYPE_SI2141 ?  "Si2141" :
 			dev->chiptype == SI2157_CHIPTYPE_SI2146 ?
 			"Si2146" : "Si2147/2148/2157/2158");
 
@@ -457,6 +507,14 @@ static int si2157_remove(struct i2c_client *client)
 
 	dev_dbg(&client->dev, "\n");
 
+	/* stop statistics polling */
+	cancel_delayed_work_sync(&dev->stat_work);
+
+#ifdef CONFIG_MEDIA_CONTROLLER_DVB
+	if (dev->mdev)
+		media_device_unregister_entity(&dev->ent);
+#endif
+
 	memset(&fe->ops.tuner_ops, 0, sizeof(struct dvb_tuner_ops));
 	fe->tuner_priv = NULL;
 	kfree(dev);
@@ -467,13 +525,15 @@ static int si2157_remove(struct i2c_client *client)
 static const struct i2c_device_id si2157_id_table[] = {
 	{"si2157", SI2157_CHIPTYPE_SI2157},
 	{"si2146", SI2157_CHIPTYPE_SI2146},
+	{"si2141", SI2157_CHIPTYPE_SI2141},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, si2157_id_table);
 
 static struct i2c_driver si2157_driver = {
 	.driver = {
-		.name	= "si2157",
+		.name	             = "si2157",
+		.suppress_bind_attrs = true,
 	},
 	.probe		= si2157_probe,
 	.remove		= si2157_remove,
@@ -482,7 +542,8 @@ static struct i2c_driver si2157_driver = {
 
 module_i2c_driver(si2157_driver);
 
-MODULE_DESCRIPTION("Silicon Labs Si2146/2147/2148/2157/2158 silicon tuner driver");
+MODULE_DESCRIPTION("Silicon Labs Si2141/Si2146/2147/2148/2157/2158 silicon tuner driver");
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
 MODULE_LICENSE("GPL");
 MODULE_FIRMWARE(SI2158_A20_FIRMWARE);
+MODULE_FIRMWARE(SI2141_A10_FIRMWARE);

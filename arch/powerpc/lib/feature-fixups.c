@@ -13,14 +13,17 @@
  */
 
 #include <linux/types.h>
+#include <linux/jump_label.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/init.h>
+#include <linux/sched/mm.h>
 #include <asm/cputable.h>
 #include <asm/code-patching.h>
 #include <asm/page.h>
 #include <asm/sections.h>
-
+#include <asm/setup.h>
+#include <asm/firmware.h>
 
 struct fixup_entry {
 	unsigned long	mask;
@@ -130,7 +133,7 @@ void do_lwsync_fixups(unsigned long value, void *fixup_start, void *fixup_end)
 	}
 }
 
-void do_final_fixups(void)
+static void do_final_fixups(void)
 {
 #if defined(CONFIG_PPC64) && defined(CONFIG_RELOCATABLE)
 	int *src, *dest;
@@ -151,6 +154,70 @@ void do_final_fixups(void)
 #endif
 }
 
+static unsigned long __initdata saved_cpu_features;
+static unsigned int __initdata saved_mmu_features;
+#ifdef CONFIG_PPC64
+static unsigned long __initdata saved_firmware_features;
+#endif
+
+void __init apply_feature_fixups(void)
+{
+	struct cpu_spec *spec = PTRRELOC(*PTRRELOC(&cur_cpu_spec));
+
+	*PTRRELOC(&saved_cpu_features) = spec->cpu_features;
+	*PTRRELOC(&saved_mmu_features) = spec->mmu_features;
+
+	/*
+	 * Apply the CPU-specific and firmware specific fixups to kernel text
+	 * (nop out sections not relevant to this CPU or this firmware).
+	 */
+	do_feature_fixups(spec->cpu_features,
+			  PTRRELOC(&__start___ftr_fixup),
+			  PTRRELOC(&__stop___ftr_fixup));
+
+	do_feature_fixups(spec->mmu_features,
+			  PTRRELOC(&__start___mmu_ftr_fixup),
+			  PTRRELOC(&__stop___mmu_ftr_fixup));
+
+	do_lwsync_fixups(spec->cpu_features,
+			 PTRRELOC(&__start___lwsync_fixup),
+			 PTRRELOC(&__stop___lwsync_fixup));
+
+#ifdef CONFIG_PPC64
+	saved_firmware_features = powerpc_firmware_features;
+	do_feature_fixups(powerpc_firmware_features,
+			  &__start___fw_ftr_fixup, &__stop___fw_ftr_fixup);
+#endif
+	do_final_fixups();
+}
+
+void __init setup_feature_keys(void)
+{
+	/*
+	 * Initialise jump label. This causes all the cpu/mmu_has_feature()
+	 * checks to take on their correct polarity based on the current set of
+	 * CPU/MMU features.
+	 */
+	jump_label_init();
+	cpu_feature_keys_init();
+	mmu_feature_keys_init();
+}
+
+static int __init check_features(void)
+{
+	WARN(saved_cpu_features != cur_cpu_spec->cpu_features,
+	     "CPU features changed after feature patching!\n");
+	WARN(saved_mmu_features != cur_cpu_spec->mmu_features,
+	     "MMU features changed after feature patching!\n");
+#ifdef CONFIG_PPC64
+	WARN(saved_firmware_features != powerpc_firmware_features,
+	     "Firmware features changed after feature patching!\n");
+#endif
+
+	return 0;
+}
+late_initcall(check_features);
+
 #ifdef CONFIG_FTR_FIXUP_SELFTEST
 
 #define check(x)	\
@@ -166,192 +233,192 @@ static long calc_offset(struct fixup_entry *entry, unsigned int *p)
 
 static void test_basic_patching(void)
 {
-	extern unsigned int ftr_fixup_test1;
-	extern unsigned int end_ftr_fixup_test1;
-	extern unsigned int ftr_fixup_test1_orig;
-	extern unsigned int ftr_fixup_test1_expected;
-	int size = &end_ftr_fixup_test1 - &ftr_fixup_test1;
+	extern unsigned int ftr_fixup_test1[];
+	extern unsigned int end_ftr_fixup_test1[];
+	extern unsigned int ftr_fixup_test1_orig[];
+	extern unsigned int ftr_fixup_test1_expected[];
+	int size = end_ftr_fixup_test1 - ftr_fixup_test1;
 
 	fixup.value = fixup.mask = 8;
-	fixup.start_off = calc_offset(&fixup, &ftr_fixup_test1 + 1);
-	fixup.end_off = calc_offset(&fixup, &ftr_fixup_test1 + 2);
+	fixup.start_off = calc_offset(&fixup, ftr_fixup_test1 + 1);
+	fixup.end_off = calc_offset(&fixup, ftr_fixup_test1 + 2);
 	fixup.alt_start_off = fixup.alt_end_off = 0;
 
 	/* Sanity check */
-	check(memcmp(&ftr_fixup_test1, &ftr_fixup_test1_orig, size) == 0);
+	check(memcmp(ftr_fixup_test1, ftr_fixup_test1_orig, size) == 0);
 
 	/* Check we don't patch if the value matches */
 	patch_feature_section(8, &fixup);
-	check(memcmp(&ftr_fixup_test1, &ftr_fixup_test1_orig, size) == 0);
+	check(memcmp(ftr_fixup_test1, ftr_fixup_test1_orig, size) == 0);
 
 	/* Check we do patch if the value doesn't match */
 	patch_feature_section(0, &fixup);
-	check(memcmp(&ftr_fixup_test1, &ftr_fixup_test1_expected, size) == 0);
+	check(memcmp(ftr_fixup_test1, ftr_fixup_test1_expected, size) == 0);
 
 	/* Check we do patch if the mask doesn't match */
-	memcpy(&ftr_fixup_test1, &ftr_fixup_test1_orig, size);
-	check(memcmp(&ftr_fixup_test1, &ftr_fixup_test1_orig, size) == 0);
+	memcpy(ftr_fixup_test1, ftr_fixup_test1_orig, size);
+	check(memcmp(ftr_fixup_test1, ftr_fixup_test1_orig, size) == 0);
 	patch_feature_section(~8, &fixup);
-	check(memcmp(&ftr_fixup_test1, &ftr_fixup_test1_expected, size) == 0);
+	check(memcmp(ftr_fixup_test1, ftr_fixup_test1_expected, size) == 0);
 }
 
 static void test_alternative_patching(void)
 {
-	extern unsigned int ftr_fixup_test2;
-	extern unsigned int end_ftr_fixup_test2;
-	extern unsigned int ftr_fixup_test2_orig;
-	extern unsigned int ftr_fixup_test2_alt;
-	extern unsigned int ftr_fixup_test2_expected;
-	int size = &end_ftr_fixup_test2 - &ftr_fixup_test2;
+	extern unsigned int ftr_fixup_test2[];
+	extern unsigned int end_ftr_fixup_test2[];
+	extern unsigned int ftr_fixup_test2_orig[];
+	extern unsigned int ftr_fixup_test2_alt[];
+	extern unsigned int ftr_fixup_test2_expected[];
+	int size = end_ftr_fixup_test2 - ftr_fixup_test2;
 
 	fixup.value = fixup.mask = 0xF;
-	fixup.start_off = calc_offset(&fixup, &ftr_fixup_test2 + 1);
-	fixup.end_off = calc_offset(&fixup, &ftr_fixup_test2 + 2);
-	fixup.alt_start_off = calc_offset(&fixup, &ftr_fixup_test2_alt);
-	fixup.alt_end_off = calc_offset(&fixup, &ftr_fixup_test2_alt + 1);
+	fixup.start_off = calc_offset(&fixup, ftr_fixup_test2 + 1);
+	fixup.end_off = calc_offset(&fixup, ftr_fixup_test2 + 2);
+	fixup.alt_start_off = calc_offset(&fixup, ftr_fixup_test2_alt);
+	fixup.alt_end_off = calc_offset(&fixup, ftr_fixup_test2_alt + 1);
 
 	/* Sanity check */
-	check(memcmp(&ftr_fixup_test2, &ftr_fixup_test2_orig, size) == 0);
+	check(memcmp(ftr_fixup_test2, ftr_fixup_test2_orig, size) == 0);
 
 	/* Check we don't patch if the value matches */
 	patch_feature_section(0xF, &fixup);
-	check(memcmp(&ftr_fixup_test2, &ftr_fixup_test2_orig, size) == 0);
+	check(memcmp(ftr_fixup_test2, ftr_fixup_test2_orig, size) == 0);
 
 	/* Check we do patch if the value doesn't match */
 	patch_feature_section(0, &fixup);
-	check(memcmp(&ftr_fixup_test2, &ftr_fixup_test2_expected, size) == 0);
+	check(memcmp(ftr_fixup_test2, ftr_fixup_test2_expected, size) == 0);
 
 	/* Check we do patch if the mask doesn't match */
-	memcpy(&ftr_fixup_test2, &ftr_fixup_test2_orig, size);
-	check(memcmp(&ftr_fixup_test2, &ftr_fixup_test2_orig, size) == 0);
+	memcpy(ftr_fixup_test2, ftr_fixup_test2_orig, size);
+	check(memcmp(ftr_fixup_test2, ftr_fixup_test2_orig, size) == 0);
 	patch_feature_section(~0xF, &fixup);
-	check(memcmp(&ftr_fixup_test2, &ftr_fixup_test2_expected, size) == 0);
+	check(memcmp(ftr_fixup_test2, ftr_fixup_test2_expected, size) == 0);
 }
 
 static void test_alternative_case_too_big(void)
 {
-	extern unsigned int ftr_fixup_test3;
-	extern unsigned int end_ftr_fixup_test3;
-	extern unsigned int ftr_fixup_test3_orig;
-	extern unsigned int ftr_fixup_test3_alt;
-	int size = &end_ftr_fixup_test3 - &ftr_fixup_test3;
+	extern unsigned int ftr_fixup_test3[];
+	extern unsigned int end_ftr_fixup_test3[];
+	extern unsigned int ftr_fixup_test3_orig[];
+	extern unsigned int ftr_fixup_test3_alt[];
+	int size = end_ftr_fixup_test3 - ftr_fixup_test3;
 
 	fixup.value = fixup.mask = 0xC;
-	fixup.start_off = calc_offset(&fixup, &ftr_fixup_test3 + 1);
-	fixup.end_off = calc_offset(&fixup, &ftr_fixup_test3 + 2);
-	fixup.alt_start_off = calc_offset(&fixup, &ftr_fixup_test3_alt);
-	fixup.alt_end_off = calc_offset(&fixup, &ftr_fixup_test3_alt + 2);
+	fixup.start_off = calc_offset(&fixup, ftr_fixup_test3 + 1);
+	fixup.end_off = calc_offset(&fixup, ftr_fixup_test3 + 2);
+	fixup.alt_start_off = calc_offset(&fixup, ftr_fixup_test3_alt);
+	fixup.alt_end_off = calc_offset(&fixup, ftr_fixup_test3_alt + 2);
 
 	/* Sanity check */
-	check(memcmp(&ftr_fixup_test3, &ftr_fixup_test3_orig, size) == 0);
+	check(memcmp(ftr_fixup_test3, ftr_fixup_test3_orig, size) == 0);
 
 	/* Expect nothing to be patched, and the error returned to us */
 	check(patch_feature_section(0xF, &fixup) == 1);
-	check(memcmp(&ftr_fixup_test3, &ftr_fixup_test3_orig, size) == 0);
+	check(memcmp(ftr_fixup_test3, ftr_fixup_test3_orig, size) == 0);
 	check(patch_feature_section(0, &fixup) == 1);
-	check(memcmp(&ftr_fixup_test3, &ftr_fixup_test3_orig, size) == 0);
+	check(memcmp(ftr_fixup_test3, ftr_fixup_test3_orig, size) == 0);
 	check(patch_feature_section(~0xF, &fixup) == 1);
-	check(memcmp(&ftr_fixup_test3, &ftr_fixup_test3_orig, size) == 0);
+	check(memcmp(ftr_fixup_test3, ftr_fixup_test3_orig, size) == 0);
 }
 
 static void test_alternative_case_too_small(void)
 {
-	extern unsigned int ftr_fixup_test4;
-	extern unsigned int end_ftr_fixup_test4;
-	extern unsigned int ftr_fixup_test4_orig;
-	extern unsigned int ftr_fixup_test4_alt;
-	extern unsigned int ftr_fixup_test4_expected;
-	int size = &end_ftr_fixup_test4 - &ftr_fixup_test4;
+	extern unsigned int ftr_fixup_test4[];
+	extern unsigned int end_ftr_fixup_test4[];
+	extern unsigned int ftr_fixup_test4_orig[];
+	extern unsigned int ftr_fixup_test4_alt[];
+	extern unsigned int ftr_fixup_test4_expected[];
+	int size = end_ftr_fixup_test4 - ftr_fixup_test4;
 	unsigned long flag;
 
 	/* Check a high-bit flag */
 	flag = 1UL << ((sizeof(unsigned long) - 1) * 8);
 	fixup.value = fixup.mask = flag;
-	fixup.start_off = calc_offset(&fixup, &ftr_fixup_test4 + 1);
-	fixup.end_off = calc_offset(&fixup, &ftr_fixup_test4 + 5);
-	fixup.alt_start_off = calc_offset(&fixup, &ftr_fixup_test4_alt);
-	fixup.alt_end_off = calc_offset(&fixup, &ftr_fixup_test4_alt + 2);
+	fixup.start_off = calc_offset(&fixup, ftr_fixup_test4 + 1);
+	fixup.end_off = calc_offset(&fixup, ftr_fixup_test4 + 5);
+	fixup.alt_start_off = calc_offset(&fixup, ftr_fixup_test4_alt);
+	fixup.alt_end_off = calc_offset(&fixup, ftr_fixup_test4_alt + 2);
 
 	/* Sanity check */
-	check(memcmp(&ftr_fixup_test4, &ftr_fixup_test4_orig, size) == 0);
+	check(memcmp(ftr_fixup_test4, ftr_fixup_test4_orig, size) == 0);
 
 	/* Check we don't patch if the value matches */
 	patch_feature_section(flag, &fixup);
-	check(memcmp(&ftr_fixup_test4, &ftr_fixup_test4_orig, size) == 0);
+	check(memcmp(ftr_fixup_test4, ftr_fixup_test4_orig, size) == 0);
 
 	/* Check we do patch if the value doesn't match */
 	patch_feature_section(0, &fixup);
-	check(memcmp(&ftr_fixup_test4, &ftr_fixup_test4_expected, size) == 0);
+	check(memcmp(ftr_fixup_test4, ftr_fixup_test4_expected, size) == 0);
 
 	/* Check we do patch if the mask doesn't match */
-	memcpy(&ftr_fixup_test4, &ftr_fixup_test4_orig, size);
-	check(memcmp(&ftr_fixup_test4, &ftr_fixup_test4_orig, size) == 0);
+	memcpy(ftr_fixup_test4, ftr_fixup_test4_orig, size);
+	check(memcmp(ftr_fixup_test4, ftr_fixup_test4_orig, size) == 0);
 	patch_feature_section(~flag, &fixup);
-	check(memcmp(&ftr_fixup_test4, &ftr_fixup_test4_expected, size) == 0);
+	check(memcmp(ftr_fixup_test4, ftr_fixup_test4_expected, size) == 0);
 }
 
 static void test_alternative_case_with_branch(void)
 {
-	extern unsigned int ftr_fixup_test5;
-	extern unsigned int end_ftr_fixup_test5;
-	extern unsigned int ftr_fixup_test5_expected;
-	int size = &end_ftr_fixup_test5 - &ftr_fixup_test5;
+	extern unsigned int ftr_fixup_test5[];
+	extern unsigned int end_ftr_fixup_test5[];
+	extern unsigned int ftr_fixup_test5_expected[];
+	int size = end_ftr_fixup_test5 - ftr_fixup_test5;
 
-	check(memcmp(&ftr_fixup_test5, &ftr_fixup_test5_expected, size) == 0);
+	check(memcmp(ftr_fixup_test5, ftr_fixup_test5_expected, size) == 0);
 }
 
 static void test_alternative_case_with_external_branch(void)
 {
-	extern unsigned int ftr_fixup_test6;
-	extern unsigned int end_ftr_fixup_test6;
-	extern unsigned int ftr_fixup_test6_expected;
-	int size = &end_ftr_fixup_test6 - &ftr_fixup_test6;
+	extern unsigned int ftr_fixup_test6[];
+	extern unsigned int end_ftr_fixup_test6[];
+	extern unsigned int ftr_fixup_test6_expected[];
+	int size = end_ftr_fixup_test6 - ftr_fixup_test6;
 
-	check(memcmp(&ftr_fixup_test6, &ftr_fixup_test6_expected, size) == 0);
+	check(memcmp(ftr_fixup_test6, ftr_fixup_test6_expected, size) == 0);
 }
 
 static void test_cpu_macros(void)
 {
-	extern u8 ftr_fixup_test_FTR_macros;
-	extern u8 ftr_fixup_test_FTR_macros_expected;
-	unsigned long size = &ftr_fixup_test_FTR_macros_expected -
-			     &ftr_fixup_test_FTR_macros;
+	extern u8 ftr_fixup_test_FTR_macros[];
+	extern u8 ftr_fixup_test_FTR_macros_expected[];
+	unsigned long size = ftr_fixup_test_FTR_macros_expected -
+			     ftr_fixup_test_FTR_macros;
 
 	/* The fixups have already been done for us during boot */
-	check(memcmp(&ftr_fixup_test_FTR_macros,
-		     &ftr_fixup_test_FTR_macros_expected, size) == 0);
+	check(memcmp(ftr_fixup_test_FTR_macros,
+		     ftr_fixup_test_FTR_macros_expected, size) == 0);
 }
 
 static void test_fw_macros(void)
 {
 #ifdef CONFIG_PPC64
-	extern u8 ftr_fixup_test_FW_FTR_macros;
-	extern u8 ftr_fixup_test_FW_FTR_macros_expected;
-	unsigned long size = &ftr_fixup_test_FW_FTR_macros_expected -
-			     &ftr_fixup_test_FW_FTR_macros;
+	extern u8 ftr_fixup_test_FW_FTR_macros[];
+	extern u8 ftr_fixup_test_FW_FTR_macros_expected[];
+	unsigned long size = ftr_fixup_test_FW_FTR_macros_expected -
+			     ftr_fixup_test_FW_FTR_macros;
 
 	/* The fixups have already been done for us during boot */
-	check(memcmp(&ftr_fixup_test_FW_FTR_macros,
-		     &ftr_fixup_test_FW_FTR_macros_expected, size) == 0);
+	check(memcmp(ftr_fixup_test_FW_FTR_macros,
+		     ftr_fixup_test_FW_FTR_macros_expected, size) == 0);
 #endif
 }
 
 static void test_lwsync_macros(void)
 {
-	extern u8 lwsync_fixup_test;
-	extern u8 end_lwsync_fixup_test;
-	extern u8 lwsync_fixup_test_expected_LWSYNC;
-	extern u8 lwsync_fixup_test_expected_SYNC;
-	unsigned long size = &end_lwsync_fixup_test -
-			     &lwsync_fixup_test;
+	extern u8 lwsync_fixup_test[];
+	extern u8 end_lwsync_fixup_test[];
+	extern u8 lwsync_fixup_test_expected_LWSYNC[];
+	extern u8 lwsync_fixup_test_expected_SYNC[];
+	unsigned long size = end_lwsync_fixup_test -
+			     lwsync_fixup_test;
 
 	/* The fixups have already been done for us during boot */
 	if (cur_cpu_spec->cpu_features & CPU_FTR_LWSYNC) {
-		check(memcmp(&lwsync_fixup_test,
-			     &lwsync_fixup_test_expected_LWSYNC, size) == 0);
+		check(memcmp(lwsync_fixup_test,
+			     lwsync_fixup_test_expected_LWSYNC, size) == 0);
 	} else {
-		check(memcmp(&lwsync_fixup_test,
-			     &lwsync_fixup_test_expected_SYNC, size) == 0);
+		check(memcmp(lwsync_fixup_test,
+			     lwsync_fixup_test_expected_SYNC, size) == 0);
 	}
 }
 

@@ -4,7 +4,7 @@
  * Copyright (C) 2005 Ralph Metzler <rjkm@metzlerbros.de>
  *                    Metzler Brothers Systementwicklung GbR
  *
- * Copyright (C) 2005 Patrick Boettcher <patrick.boettcher@desy.de>
+ * Copyright (C) 2005 Patrick Boettcher <patrick.boettcher@posteo.de>
  *
  * Thanks to Twinhan who kindly provided hardware and information.
  *
@@ -439,7 +439,7 @@ static struct usb_driver vp702x_usb_driver = {
 
 module_usb_driver(vp702x_usb_driver);
 
-MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@desy.de>");
+MODULE_AUTHOR("Patrick Boettcher <patrick.boettcher@posteo.de>");
 MODULE_DESCRIPTION("Driver for Twinhan StarBox DVB-S USB2.0 and clones");
 MODULE_VERSION("1.0");
 MODULE_LICENSE("GPL");

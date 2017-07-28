@@ -9,10 +9,10 @@
 
 #include <linux/clk-provider.h>
 #include <linux/mfd/dbx500-prcmu.h>
-#include <linux/platform_data/clk-ux500.h>
 #include "clk.h"
 
-void u9540_clk_init(void)
+static void u9540_clk_init(struct device_node *np)
 {
 	/* register clocks here */
 }
+CLK_OF_DECLARE(u9540_clks, "stericsson,u9540-clks", u9540_clk_init);

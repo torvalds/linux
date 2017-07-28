@@ -333,13 +333,12 @@ void ccw_request_timeout(struct ccw_device *cdev)
 
 	for (chp = 0; chp < 8; chp++) {
 		if ((0x80 >> chp) & sch->schib.pmcw.lpum)
-			pr_warning("%s: No interrupt was received within %lus "
-				   "(CS=%02x, DS=%02x, CHPID=%x.%02x)\n",
-				   dev_name(&cdev->dev), req->timeout / HZ,
-				   scsw_cstat(&sch->schib.scsw),
-				   scsw_dstat(&sch->schib.scsw),
-				   sch->schid.cssid,
-				   sch->schib.pmcw.chpid[chp]);
+			pr_warn("%s: No interrupt was received within %lus (CS=%02x, DS=%02x, CHPID=%x.%02x)\n",
+				dev_name(&cdev->dev), req->timeout / HZ,
+				scsw_cstat(&sch->schib.scsw),
+				scsw_dstat(&sch->schib.scsw),
+				sch->schid.cssid,
+				sch->schib.pmcw.chpid[chp]);
 	}
 
 	if (!ccwreq_next_path(cdev)) {

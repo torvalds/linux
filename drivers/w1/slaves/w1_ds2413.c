@@ -16,14 +16,9 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 
-#include "../w1.h"
-#include "../w1_int.h"
-#include "../w1_family.h"
+#include <linux/w1.h>
 
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Mariusz Bialonczyk <manio@skyboo.net>");
-MODULE_DESCRIPTION("w1 family 3a driver for DS2413 2 Pin IO");
-MODULE_ALIAS("w1-family-" __stringify(W1_FAMILY_DS2413));
+#define W1_FAMILY_DS2413	0x3A
 
 #define W1_F3A_RETRIES                     3
 #define W1_F3A_FUNC_PIO_ACCESS_READ        0xF5
@@ -135,16 +130,9 @@ static struct w1_family w1_family_3a = {
 	.fid = W1_FAMILY_DS2413,
 	.fops = &w1_f3a_fops,
 };
+module_w1_family(w1_family_3a);
 
-static int __init w1_f3a_init(void)
-{
-	return w1_register_family(&w1_family_3a);
-}
-
-static void __exit w1_f3a_exit(void)
-{
-	w1_unregister_family(&w1_family_3a);
-}
-
-module_init(w1_f3a_init);
-module_exit(w1_f3a_exit);
+MODULE_AUTHOR("Mariusz Bialonczyk <manio@skyboo.net>");
+MODULE_DESCRIPTION("w1 family 3a driver for DS2413 2 Pin IO");
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("w1-family-" __stringify(W1_FAMILY_DS2413));

@@ -36,14 +36,11 @@
 #define POLICYDB_VERSION_DEFAULT_TYPE	28
 #define POLICYDB_VERSION_CONSTRAINT_NAMES	29
 #define POLICYDB_VERSION_XPERMS_IOCTL	30
+#define POLICYDB_VERSION_INFINIBAND		31
 
 /* Range of policy versions we understand*/
 #define POLICYDB_VERSION_MIN   POLICYDB_VERSION_BASE
-#ifdef CONFIG_SECURITY_SELINUX_POLICYDB_VERSION_MAX
-#define POLICYDB_VERSION_MAX	CONFIG_SECURITY_SELINUX_POLICYDB_VERSION_MAX_VALUE
-#else
-#define POLICYDB_VERSION_MAX	POLICYDB_VERSION_XPERMS_IOCTL
-#endif
+#define POLICYDB_VERSION_MAX   POLICYDB_VERSION_INFINIBAND
 
 /* Mask for just the mount related flags */
 #define SE_MNTMASK	0x0f
@@ -73,15 +70,20 @@ extern int selinux_enabled;
 enum {
 	POLICYDB_CAPABILITY_NETPEER,
 	POLICYDB_CAPABILITY_OPENPERM,
-	POLICYDB_CAPABILITY_REDHAT1,
+	POLICYDB_CAPABILITY_EXTSOCKCLASS,
 	POLICYDB_CAPABILITY_ALWAYSNETWORK,
+	POLICYDB_CAPABILITY_CGROUPSECLABEL,
 	__POLICYDB_CAPABILITY_MAX
 };
 #define POLICYDB_CAPABILITY_MAX (__POLICYDB_CAPABILITY_MAX - 1)
 
+extern char *selinux_policycap_names[__POLICYDB_CAPABILITY_MAX];
+
 extern int selinux_policycap_netpeer;
 extern int selinux_policycap_openperm;
+extern int selinux_policycap_extsockclass;
 extern int selinux_policycap_alwaysnetwork;
+extern int selinux_policycap_cgroupseclabel;
 
 /*
  * type_datum properties
@@ -179,6 +181,10 @@ int security_get_user_sids(u32 callsid, char *username,
 
 int security_port_sid(u8 protocol, u16 port, u32 *out_sid);
 
+int security_ib_pkey_sid(u64 subnet_prefix, u16 pkey_num, u32 *out_sid);
+
+int security_ib_endport_sid(const char *dev_name, u8 port_num, u32 *out_sid);
+
 int security_netif_sid(char *name, u32 *if_sid);
 
 int security_node_sid(u16 domain, void *addr, u32 addrlen,
@@ -186,6 +192,9 @@ int security_node_sid(u16 domain, void *addr, u32 addrlen,
 
 int security_validate_transition(u32 oldsid, u32 newsid, u32 tasksid,
 				 u16 tclass);
+
+int security_validate_transition_user(u32 oldsid, u32 newsid, u32 tasksid,
+				      u16 tclass);
 
 int security_bounded_transition(u32 oldsid, u32 newsid);
 

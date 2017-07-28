@@ -11,11 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- *
  ******************************************************************************/
 #ifndef __RTW_SECURITY_H_
 #define __RTW_SECURITY_H_
@@ -138,8 +133,6 @@ struct security_priv {
 	u8	busetkipkey;
 	u8	bcheck_grpkey;
 	u8	bgrpkey_handshake;
-	s32	sw_encrypt;/* from registry_priv */
-	s32	sw_decrypt;/* from registry_priv */
 	s32	hw_decrypted;/* if the rx packets is hw_decrypted==false,i
 			      * it means the hw has not been ready. */
 
@@ -167,12 +160,6 @@ struct security_priv {
 	struct rt_pmkid_list PMKIDList[NUM_PMKID_CACHE];
 	u8	PMKIDIndex;
 	u8 bWepDefaultKeyIdxSet;
-};
-
-struct sha256_state {
-	u64 length;
-	u32 state[8], curlen;
-	u8 buf[64];
 };
 
 #define GET_ENCRY_ALGO(psecuritypriv, psta, encry_algo, bmcst)		\
@@ -265,42 +252,6 @@ static inline u32 rotr(u32 val, int bits)
 #define TE1(i) rotr(Te0[((i) >> 16) & 0xff], 8)
 #define TE2(i) rotr(Te0[((i) >> 8) & 0xff], 16)
 #define TE3(i) rotr(Te0[(i) & 0xff], 24)
-
-#define GETU32(pt) (((u32)(pt)[0] << 24) ^ ((u32)(pt)[1] << 16) ^ \
-			((u32)(pt)[2] <<  8) ^ ((u32)(pt)[3]))
-
-#define PUTU32(ct, st) { \
-(ct)[0] = (u8)((st) >> 24); (ct)[1] = (u8)((st) >> 16); \
-(ct)[2] = (u8)((st) >>  8); (ct)[3] = (u8)(st); }
-
-#define WPA_GET_BE32(a) ((((u32)(a)[0]) << 24) | (((u32)(a)[1]) << 16) | \
-			 (((u32)(a)[2]) << 8) | ((u32)(a)[3]))
-
-#define WPA_PUT_LE16(a, val)			\
-	do {					\
-		(a)[1] = ((u16)(val)) >> 8;	\
-		(a)[0] = ((u16)(val)) & 0xff;	\
-	} while (0)
-
-#define WPA_PUT_BE32(a, val)					\
-	do {							\
-		(a)[0] = (u8)((((u32)(val)) >> 24) & 0xff);	\
-		(a)[1] = (u8)((((u32)(val)) >> 16) & 0xff);	\
-		(a)[2] = (u8)((((u32)(val)) >> 8) & 0xff);	\
-		(a)[3] = (u8)(((u32)(val)) & 0xff);		\
-	} while (0)
-
-#define WPA_PUT_BE64(a, val)				\
-	do {						\
-		(a)[0] = (u8)(((u64)(val)) >> 56);	\
-		(a)[1] = (u8)(((u64)(val)) >> 48);	\
-		(a)[2] = (u8)(((u64)(val)) >> 40);	\
-		(a)[3] = (u8)(((u64)(val)) >> 32);	\
-		(a)[4] = (u8)(((u64)(val)) >> 24);	\
-		(a)[5] = (u8)(((u64)(val)) >> 16);	\
-		(a)[6] = (u8)(((u64)(val)) >> 8);	\
-		(a)[7] = (u8)(((u64)(val)) & 0xff);	\
-	} while (0)
 
 /* ===== start - public domain SHA256 implementation ===== */
 

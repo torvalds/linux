@@ -1,19 +1,24 @@
 #ifndef _LINUX_TIMEKEEPING_H
 #define _LINUX_TIMEKEEPING_H
 
+#include <linux/errno.h>
+
 /* Included from linux/ktime.h */
 
 void timekeeping_init(void);
 extern int timekeeping_suspended;
+
+/* Architecture timer tick functions: */
+extern void update_process_times(int user);
+extern void xtime_update(unsigned long ticks);
 
 /*
  * Get and set timeofday
  */
 extern void do_gettimeofday(struct timeval *tv);
 extern int do_settimeofday64(const struct timespec64 *ts);
-extern int do_sys_settimeofday(const struct timespec *tv,
-			       const struct timezone *tz);
-
+extern int do_sys_settimeofday64(const struct timespec64 *tv,
+				 const struct timezone *tz);
 /*
  * Kernel time accessors
  */
@@ -233,6 +238,7 @@ static inline u64 ktime_get_raw_ns(void)
 
 extern u64 ktime_get_mono_fast_ns(void);
 extern u64 ktime_get_raw_fast_ns(void);
+extern u64 ktime_get_boot_fast_ns(void);
 
 /*
  * Timespec interfaces utilizing the ktime based ones
@@ -252,6 +258,11 @@ static inline void timekeeping_clocktai(struct timespec *ts)
 	*ts = ktime_to_timespec(ktime_get_clocktai());
 }
 
+static inline void timekeeping_clocktai64(struct timespec64 *ts)
+{
+	*ts = ktime_to_timespec64(ktime_get_clocktai());
+}
+
 /*
  * RTC specific
  */
@@ -265,6 +276,64 @@ extern void timekeeping_inject_sleeptime64(struct timespec64 *delta);
  */
 extern void ktime_get_raw_and_real_ts64(struct timespec64 *ts_raw,
 				        struct timespec64 *ts_real);
+
+/*
+ * struct system_time_snapshot - simultaneous raw/real time capture with
+ *	counter value
+ * @cycles:	Clocksource counter value to produce the system times
+ * @real:	Realtime system time
+ * @raw:	Monotonic raw system time
+ * @clock_was_set_seq:	The sequence number of clock was set events
+ * @cs_was_changed_seq:	The sequence number of clocksource change events
+ */
+struct system_time_snapshot {
+	u64		cycles;
+	ktime_t		real;
+	ktime_t		raw;
+	unsigned int	clock_was_set_seq;
+	u8		cs_was_changed_seq;
+};
+
+/*
+ * struct system_device_crosststamp - system/device cross-timestamp
+ *	(syncronized capture)
+ * @device:		Device time
+ * @sys_realtime:	Realtime simultaneous with device time
+ * @sys_monoraw:	Monotonic raw simultaneous with device time
+ */
+struct system_device_crosststamp {
+	ktime_t device;
+	ktime_t sys_realtime;
+	ktime_t sys_monoraw;
+};
+
+/*
+ * struct system_counterval_t - system counter value with the pointer to the
+ *	corresponding clocksource
+ * @cycles:	System counter value
+ * @cs:		Clocksource corresponding to system counter value. Used by
+ *	timekeeping code to verify comparibility of two cycle values
+ */
+struct system_counterval_t {
+	u64			cycles;
+	struct clocksource	*cs;
+};
+
+/*
+ * Get cross timestamp between system clock and device clock
+ */
+extern int get_device_system_crosststamp(
+			int (*get_time_fn)(ktime_t *device_time,
+				struct system_counterval_t *system_counterval,
+				void *ctx),
+			void *ctx,
+			struct system_time_snapshot *history,
+			struct system_device_crosststamp *xtstamp);
+
+/*
+ * Simultaneously snapshot realtime and monotonic raw clocks
+ */
+extern void ktime_get_snapshot(struct system_time_snapshot *systime_snapshot);
 
 /*
  * Persistent clock related interfaces

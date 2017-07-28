@@ -1,5 +1,5 @@
-/* Intel Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2015 Intel Corporation.
+/* Intel(R) Ethernet Switch Host Interface Driver
+ * Copyright(c) 2013 - 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -17,8 +17,6 @@
  * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  */
-
-#ifdef CONFIG_DEBUG_FS
 
 #include "fm10k.h"
 
@@ -258,5 +256,3 @@ void fm10k_dbg_exit(void)
 	debugfs_remove_recursive(dbg_root);
 	dbg_root = NULL;
 }
-
-#endif /* CONFIG_DEBUG_FS */

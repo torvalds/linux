@@ -3,6 +3,11 @@
 
 #include <linux/notifier.h>
 
+#define IPCMSG_INDIRECT_READ	0x02
+#define IPCMSG_INDIRECT_WRITE	0x05
+
+#define IPCMSG_COLD_OFF		0x80	/* Only for Tangier */
+
 #define IPCMSG_WARM_RESET	0xF0
 #define IPCMSG_COLD_RESET	0xF1
 #define IPCMSG_SOFT_RESET	0xF2
@@ -43,7 +48,10 @@ int intel_scu_ipc_update_register(u16 addr, u8 data, u8 mask);
 /* Issue commands to the SCU with or without data */
 int intel_scu_ipc_simple_command(int cmd, int sub);
 int intel_scu_ipc_command(int cmd, int sub, u32 *in, int inlen,
-							u32 *out, int outlen);
+			  u32 *out, int outlen);
+int intel_scu_ipc_raw_command(int cmd, int sub, u8 *in, int inlen,
+			      u32 *out, int outlen, u32 dptr, u32 sptr);
+
 /* I2C control api */
 int intel_scu_ipc_i2c_cntrl(u32 addr, u32 *data);
 

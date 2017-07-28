@@ -38,26 +38,6 @@ struct davinci_cpufreq {
 };
 static struct davinci_cpufreq cpufreq;
 
-static int davinci_verify_speed(struct cpufreq_policy *policy)
-{
-	struct davinci_cpufreq_config *pdata = cpufreq.dev->platform_data;
-	struct cpufreq_frequency_table *freq_table = pdata->freq_table;
-	struct clk *armclk = cpufreq.armclk;
-
-	if (freq_table)
-		return cpufreq_frequency_table_verify(policy, freq_table);
-
-	if (policy->cpu)
-		return -EINVAL;
-
-	cpufreq_verify_within_cpu_limits(policy);
-	policy->min = clk_round_rate(armclk, policy->min * 1000) / 1000;
-	policy->max = clk_round_rate(armclk, policy->max * 1000) / 1000;
-	cpufreq_verify_within_limits(policy, policy->cpuinfo.min_freq,
-						policy->cpuinfo.max_freq);
-	return 0;
-}
-
 static int davinci_target(struct cpufreq_policy *policy, unsigned int idx)
 {
 	struct davinci_cpufreq_config *pdata = cpufreq.dev->platform_data;
@@ -75,7 +55,7 @@ static int davinci_target(struct cpufreq_policy *policy, unsigned int idx)
 			return ret;
 	}
 
-	ret = clk_set_rate(armclk, idx);
+	ret = clk_set_rate(armclk, new_freq * 1000);
 	if (ret)
 		return ret;
 
@@ -121,7 +101,7 @@ static int davinci_cpu_init(struct cpufreq_policy *policy)
 
 static struct cpufreq_driver davinci_driver = {
 	.flags		= CPUFREQ_STICKY | CPUFREQ_NEED_INITIAL_FREQ_CHECK,
-	.verify		= davinci_verify_speed,
+	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= davinci_target,
 	.get		= cpufreq_generic_get,
 	.init		= davinci_cpu_init,

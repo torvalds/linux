@@ -18,16 +18,16 @@
 #include "msm_drv.h"
 #include "msm_kms.h"
 #include "msm_gem.h"
+#include "msm_fence.h"
 
 struct msm_commit {
 	struct drm_device *dev;
 	struct drm_atomic_state *state;
-	uint32_t fence;
-	struct msm_fence_cb fence_cb;
+	struct work_struct work;
 	uint32_t crtc_mask;
 };
 
-static void fence_cb(struct msm_fence_cb *cb);
+static void commit_worker(struct work_struct *work);
 
 /* block until specified crtcs are no longer pending update, and
  * atomically mark them as pending update
@@ -69,11 +69,7 @@ static struct msm_commit *commit_init(struct drm_atomic_state *state)
 	c->dev = state->dev;
 	c->state = state;
 
-	/* TODO we might need a way to indicate to run the cb on a
-	 * different wq so wait_for_vblanks() doesn't block retiring
-	 * bo's..
-	 */
-	INIT_FENCE_CB(&c->fence_cb, fence_cb);
+	INIT_WORK(&c->work, commit_worker);
 
 	return c;
 }
@@ -88,23 +84,13 @@ static void msm_atomic_wait_for_commit_done(struct drm_device *dev,
 		struct drm_atomic_state *old_state)
 {
 	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
 	struct msm_drm_private *priv = old_state->dev->dev_private;
 	struct msm_kms *kms = priv->kms;
-	int ncrtcs = old_state->dev->mode_config.num_crtc;
 	int i;
 
-	for (i = 0; i < ncrtcs; i++) {
-		crtc = old_state->crtcs[i];
-
-		if (!crtc)
-			continue;
-
+	for_each_crtc_in_state(old_state, crtc, crtc_state, i) {
 		if (!crtc->state->enable)
-			continue;
-
-		/* Legacy cursor ioctls are completely unsynced, and userspace
-		 * relies on that (by doing tons of cursor updates). */
-		if (old_state->legacy_cursor_update)
 			continue;
 
 		kms->funcs->wait_for_crtc_commit_done(kms, crtc);
@@ -114,18 +100,20 @@ static void msm_atomic_wait_for_commit_done(struct drm_device *dev,
 /* The (potentially) asynchronous part of the commit.  At this point
  * nothing can fail short of armageddon.
  */
-static void complete_commit(struct msm_commit *c)
+static void complete_commit(struct msm_commit *c, bool async)
 {
 	struct drm_atomic_state *state = c->state;
 	struct drm_device *dev = state->dev;
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_kms *kms = priv->kms;
 
+	drm_atomic_helper_wait_for_fences(dev, state, false);
+
 	kms->funcs->prepare_commit(kms, state);
 
 	drm_atomic_helper_commit_modeset_disables(dev, state);
 
-	drm_atomic_helper_commit_planes(dev, state, false);
+	drm_atomic_helper_commit_planes(dev, state, 0);
 
 	drm_atomic_helper_commit_modeset_enables(dev, state);
 
@@ -148,38 +136,39 @@ static void complete_commit(struct msm_commit *c)
 
 	kms->funcs->complete_commit(kms, state);
 
-	drm_atomic_state_free(state);
+	drm_atomic_state_put(state);
 
 	commit_destroy(c);
 }
 
-static void fence_cb(struct msm_fence_cb *cb)
+static void commit_worker(struct work_struct *work)
 {
-	struct msm_commit *c =
-			container_of(cb, struct msm_commit, fence_cb);
-	complete_commit(c);
+	complete_commit(container_of(work, struct msm_commit, work), true);
 }
 
-static void add_fb(struct msm_commit *c, struct drm_framebuffer *fb)
-{
-	struct drm_gem_object *obj = msm_framebuffer_bo(fb, 0);
-	c->fence = max(c->fence, msm_gem_fence(to_msm_bo(obj), MSM_PREP_READ));
-}
-
+/*
+ * this func is identical to the drm_atomic_helper_check, but we keep this
+ * because we might eventually need to have a more finegrained check
+ * sequence without using the atomic helpers.
+ *
+ * In the past, we first called drm_atomic_helper_check_planes, and then
+ * drm_atomic_helper_check_modeset. We needed this because the MDP5 plane's
+ * ->atomic_check could update ->mode_changed for pixel format changes.
+ * This, however isn't needed now because if there is a pixel format change,
+ * we just assign a new hwpipe for it with a new SMP allocation. We might
+ * eventually hit a condition where we would need to do a full modeset if
+ * we run out of planes. There, we'd probably need to set mode_changed.
+ */
 int msm_atomic_check(struct drm_device *dev,
 		     struct drm_atomic_state *state)
 {
 	int ret;
 
-	/*
-	 * msm ->atomic_check can update ->mode_changed for pixel format
-	 * changes, hence must be run before we check the modeset changes.
-	 */
-	ret = drm_atomic_helper_check_planes(dev, state);
+	ret = drm_atomic_helper_check_modeset(dev, state);
 	if (ret)
 		return ret;
 
-	ret = drm_atomic_helper_check_modeset(dev, state);
+	ret = drm_atomic_helper_check_planes(dev, state);
 	if (ret)
 		return ret;
 
@@ -190,22 +179,23 @@ int msm_atomic_check(struct drm_device *dev,
  * drm_atomic_helper_commit - commit validated state object
  * @dev: DRM device
  * @state: the driver state object
- * @async: asynchronous commit
+ * @nonblock: nonblocking commit
  *
  * This function commits a with drm_atomic_helper_check() pre-validated state
- * object. This can still fail when e.g. the framebuffer reservation fails. For
- * now this doesn't implement asynchronous commits.
+ * object. This can still fail when e.g. the framebuffer reservation fails.
  *
  * RETURNS
  * Zero for success or -errno.
  */
 int msm_atomic_commit(struct drm_device *dev,
-		struct drm_atomic_state *state, bool async)
+		struct drm_atomic_state *state, bool nonblock)
 {
-	int nplanes = dev->mode_config.num_total_plane;
-	int ncrtcs = dev->mode_config.num_crtc;
-	ktime_t timeout;
+	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_commit *c;
+	struct drm_crtc *crtc;
+	struct drm_crtc_state *crtc_state;
+	struct drm_plane *plane;
+	struct drm_plane_state *plane_state;
 	int i, ret;
 
 	ret = drm_atomic_helper_prepare_planes(dev, state);
@@ -221,25 +211,20 @@ int msm_atomic_commit(struct drm_device *dev,
 	/*
 	 * Figure out what crtcs we have:
 	 */
-	for (i = 0; i < ncrtcs; i++) {
-		struct drm_crtc *crtc = state->crtcs[i];
-		if (!crtc)
-			continue;
-		c->crtc_mask |= (1 << drm_crtc_index(crtc));
-	}
+	for_each_crtc_in_state(state, crtc, crtc_state, i)
+		c->crtc_mask |= drm_crtc_mask(crtc);
 
 	/*
 	 * Figure out what fence to wait for:
 	 */
-	for (i = 0; i < nplanes; i++) {
-		struct drm_plane *plane = state->planes[i];
-		struct drm_plane_state *new_state = state->plane_states[i];
+	for_each_plane_in_state(state, plane, plane_state, i) {
+		if ((plane->state->fb != plane_state->fb) && plane_state->fb) {
+			struct drm_gem_object *obj = msm_framebuffer_bo(plane_state->fb, 0);
+			struct msm_gem_object *msm_obj = to_msm_bo(obj);
+			struct dma_fence *fence = reservation_object_get_excl_rcu(msm_obj->resv);
 
-		if (!plane)
-			continue;
-
-		if ((plane->state->fb != new_state->fb) && new_state->fb)
-			add_fb(c, new_state->fb);
+			drm_atomic_set_fence_for_plane(plane_state, fence);
+		}
 	}
 
 	/*
@@ -258,7 +243,11 @@ int msm_atomic_commit(struct drm_device *dev,
 	 * the software side now.
 	 */
 
-	drm_atomic_helper_swap_state(dev, state);
+	drm_atomic_helper_swap_state(state, true);
+
+	/* swap driver private state while still holding state_lock */
+	if (to_kms_state(state)->state)
+		priv->kms->funcs->swap_state(priv->kms, state);
 
 	/*
 	 * Everything below can be run asynchronously without the need to grab
@@ -276,21 +265,44 @@ int msm_atomic_commit(struct drm_device *dev,
 	 * current layout.
 	 */
 
-	if (async) {
-		msm_queue_fence_cb(dev, &c->fence_cb, c->fence);
+	drm_atomic_state_get(state);
+	if (nonblock) {
+		queue_work(priv->atomic_wq, &c->work);
 		return 0;
 	}
 
-	timeout = ktime_add_ms(ktime_get(), 1000);
-
-	/* uninterruptible wait */
-	msm_wait_fence(dev, c->fence, &timeout, false);
-
-	complete_commit(c);
+	complete_commit(c, false);
 
 	return 0;
 
 error:
 	drm_atomic_helper_cleanup_planes(dev, state);
 	return ret;
+}
+
+struct drm_atomic_state *msm_atomic_state_alloc(struct drm_device *dev)
+{
+	struct msm_kms_state *state = kzalloc(sizeof(*state), GFP_KERNEL);
+
+	if (!state || drm_atomic_state_init(dev, &state->base) < 0) {
+		kfree(state);
+		return NULL;
+	}
+
+	return &state->base;
+}
+
+void msm_atomic_state_clear(struct drm_atomic_state *s)
+{
+	struct msm_kms_state *state = to_kms_state(s);
+	drm_atomic_state_default_clear(&state->base);
+	kfree(state->state);
+	state->state = NULL;
+}
+
+void msm_atomic_state_free(struct drm_atomic_state *state)
+{
+	kfree(to_kms_state(state)->state);
+	drm_atomic_state_default_release(state);
+	kfree(state);
 }

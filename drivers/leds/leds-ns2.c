@@ -45,23 +45,11 @@ struct ns2_led_data {
 	unsigned		cmd;
 	unsigned		slow;
 	bool			can_sleep;
-	int			mode_index;
 	unsigned char		sata; /* True when SATA mode active. */
 	rwlock_t		rw_lock; /* Lock GPIOs. */
-	struct work_struct	work;
 	int			num_modes;
 	struct ns2_led_modval	*modval;
 };
-
-static void ns2_led_work(struct work_struct *work)
-{
-	struct ns2_led_data *led_dat =
-		container_of(work, struct ns2_led_data, work);
-	int i = led_dat->mode_index;
-
-	gpio_set_value_cansleep(led_dat->cmd, led_dat->modval[i].cmd_level);
-	gpio_set_value_cansleep(led_dat->slow, led_dat->modval[i].slow_level);
-}
 
 static int ns2_led_get_mode(struct ns2_led_data *led_dat,
 			    enum ns2_led_modes *mode)
@@ -112,8 +100,8 @@ static void ns2_led_set_mode(struct ns2_led_data *led_dat,
 		goto exit_unlock;
 	}
 
-	led_dat->mode_index = i;
-	schedule_work(&led_dat->work);
+	gpio_set_value_cansleep(led_dat->cmd, led_dat->modval[i].cmd_level);
+	gpio_set_value_cansleep(led_dat->slow, led_dat->modval[i].slow_level);
 
 exit_unlock:
 	write_unlock_irqrestore(&led_dat->rw_lock, flags);
@@ -134,6 +122,13 @@ static void ns2_led_set(struct led_classdev *led_cdev,
 		mode = NS_V2_LED_ON;
 
 	ns2_led_set_mode(led_dat, mode);
+}
+
+static int ns2_led_set_blocking(struct led_classdev *led_cdev,
+			enum led_brightness value)
+{
+	ns2_led_set(led_cdev, value);
+	return 0;
 }
 
 static ssize_t ns2_led_sata_store(struct device *dev,
@@ -219,13 +214,16 @@ create_ns2_led(struct platform_device *pdev, struct ns2_led_data *led_dat,
 	led_dat->cdev.name = template->name;
 	led_dat->cdev.default_trigger = template->default_trigger;
 	led_dat->cdev.blink_set = NULL;
-	led_dat->cdev.brightness_set = ns2_led_set;
 	led_dat->cdev.flags |= LED_CORE_SUSPENDRESUME;
 	led_dat->cdev.groups = ns2_led_groups;
 	led_dat->cmd = template->cmd;
 	led_dat->slow = template->slow;
 	led_dat->can_sleep = gpio_cansleep(led_dat->cmd) |
 				gpio_cansleep(led_dat->slow);
+	if (led_dat->can_sleep)
+		led_dat->cdev.brightness_set_blocking = ns2_led_set_blocking;
+	else
+		led_dat->cdev.brightness_set = ns2_led_set;
 	led_dat->modval = template->modval;
 	led_dat->num_modes = template->num_modes;
 
@@ -238,8 +236,6 @@ create_ns2_led(struct platform_device *pdev, struct ns2_led_data *led_dat,
 	led_dat->cdev.brightness =
 		(mode == NS_V2_LED_OFF) ? LED_OFF : LED_FULL;
 
-	INIT_WORK(&led_dat->work, ns2_led_work);
-
 	ret = led_classdev_register(&pdev->dev, &led_dat->cdev);
 	if (ret < 0)
 		return ret;
@@ -250,7 +246,6 @@ create_ns2_led(struct platform_device *pdev, struct ns2_led_data *led_dat,
 static void delete_ns2_led(struct ns2_led_data *led_dat)
 {
 	led_classdev_unregister(&led_dat->cdev);
-	cancel_work_sync(&led_dat->work);
 }
 
 #ifdef CONFIG_OF_GPIO

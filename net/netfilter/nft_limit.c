@@ -17,15 +17,15 @@
 #include <linux/netfilter/nf_tables.h>
 #include <net/netfilter/nf_tables.h>
 
-static DEFINE_SPINLOCK(limit_lock);
-
 struct nft_limit {
+	spinlock_t	lock;
 	u64		last;
 	u64		tokens;
 	u64		tokens_max;
 	u64		rate;
 	u64		nsecs;
 	u32		burst;
+	bool		invert;
 };
 
 static inline bool nft_limit_eval(struct nft_limit *limit, u64 cost)
@@ -33,7 +33,7 @@ static inline bool nft_limit_eval(struct nft_limit *limit, u64 cost)
 	u64 now, tokens;
 	s64 delta;
 
-	spin_lock_bh(&limit_lock);
+	spin_lock_bh(&limit->lock);
 	now = ktime_get_ns();
 	tokens = limit->tokens + now - limit->last;
 	if (tokens > limit->tokens_max)
@@ -43,12 +43,12 @@ static inline bool nft_limit_eval(struct nft_limit *limit, u64 cost)
 	delta = tokens - cost;
 	if (delta >= 0) {
 		limit->tokens = delta;
-		spin_unlock_bh(&limit_lock);
-		return false;
+		spin_unlock_bh(&limit->lock);
+		return limit->invert;
 	}
 	limit->tokens = tokens;
-	spin_unlock_bh(&limit_lock);
-	return true;
+	spin_unlock_bh(&limit->lock);
+	return !limit->invert;
 }
 
 static int nft_limit_init(struct nft_limit *limit,
@@ -78,7 +78,14 @@ static int nft_limit_init(struct nft_limit *limit,
 
 		limit->rate = rate;
 	}
+	if (tb[NFTA_LIMIT_FLAGS]) {
+		u32 flags = ntohl(nla_get_be32(tb[NFTA_LIMIT_FLAGS]));
+
+		if (flags & NFT_LIMIT_F_INV)
+			limit->invert = true;
+	}
 	limit->last = ktime_get_ns();
+	spin_lock_init(&limit->lock);
 
 	return 0;
 }
@@ -86,13 +93,17 @@ static int nft_limit_init(struct nft_limit *limit,
 static int nft_limit_dump(struct sk_buff *skb, const struct nft_limit *limit,
 			  enum nft_limit_type type)
 {
+	u32 flags = limit->invert ? NFT_LIMIT_F_INV : 0;
 	u64 secs = div_u64(limit->nsecs, NSEC_PER_SEC);
 	u64 rate = limit->rate - limit->burst;
 
-	if (nla_put_be64(skb, NFTA_LIMIT_RATE, cpu_to_be64(rate)) ||
-	    nla_put_be64(skb, NFTA_LIMIT_UNIT, cpu_to_be64(secs)) ||
+	if (nla_put_be64(skb, NFTA_LIMIT_RATE, cpu_to_be64(rate),
+			 NFTA_LIMIT_PAD) ||
+	    nla_put_be64(skb, NFTA_LIMIT_UNIT, cpu_to_be64(secs),
+			 NFTA_LIMIT_PAD) ||
 	    nla_put_be32(skb, NFTA_LIMIT_BURST, htonl(limit->burst)) ||
-	    nla_put_be32(skb, NFTA_LIMIT_TYPE, htonl(type)))
+	    nla_put_be32(skb, NFTA_LIMIT_TYPE, htonl(type)) ||
+	    nla_put_be32(skb, NFTA_LIMIT_FLAGS, htonl(flags)))
 		goto nla_put_failure;
 	return 0;
 
@@ -120,6 +131,7 @@ static const struct nla_policy nft_limit_policy[NFTA_LIMIT_MAX + 1] = {
 	[NFTA_LIMIT_UNIT]	= { .type = NLA_U64 },
 	[NFTA_LIMIT_BURST]	= { .type = NLA_U32 },
 	[NFTA_LIMIT_TYPE]	= { .type = NLA_U32 },
+	[NFTA_LIMIT_FLAGS]	= { .type = NLA_U32 },
 };
 
 static int nft_limit_pkts_init(const struct nft_ctx *ctx,
@@ -133,7 +145,7 @@ static int nft_limit_pkts_init(const struct nft_ctx *ctx,
 	if (err < 0)
 		return err;
 
-	priv->cost = div_u64(priv->limit.nsecs, priv->limit.rate);
+	priv->cost = div64_u64(priv->limit.nsecs, priv->limit.rate);
 	return 0;
 }
 
@@ -158,7 +170,7 @@ static void nft_limit_pkt_bytes_eval(const struct nft_expr *expr,
 				     const struct nft_pktinfo *pkt)
 {
 	struct nft_limit *priv = nft_expr_priv(expr);
-	u64 cost = div_u64(priv->nsecs * pkt->skb->len, priv->rate);
+	u64 cost = div64_u64(priv->nsecs * pkt->skb->len, priv->rate);
 
 	if (nft_limit_eval(priv, cost))
 		regs->verdict.code = NFT_BREAK;

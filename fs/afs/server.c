@@ -178,13 +178,18 @@ server_in_two_cells:
 /*
  * look up a server by its IP address
  */
-struct afs_server *afs_find_server(const struct in_addr *_addr)
+struct afs_server *afs_find_server(const struct sockaddr_rxrpc *srx)
 {
 	struct afs_server *server = NULL;
 	struct rb_node *p;
-	struct in_addr addr = *_addr;
+	struct in_addr addr = srx->transport.sin.sin_addr;
 
-	_enter("%pI4", &addr.s_addr);
+	_enter("{%d,%pI4}", srx->transport.family, &addr.s_addr);
+
+	if (srx->transport.family != AF_INET) {
+		WARN(true, "AFS does not yes support non-IPv4 addresses\n");
+		return NULL;
+	}
 
 	read_lock(&afs_servers_lock);
 
@@ -237,7 +242,7 @@ void afs_put_server(struct afs_server *server)
 	spin_lock(&afs_server_graveyard_lock);
 	if (atomic_read(&server->usage) == 0) {
 		list_move_tail(&server->grave, &afs_server_graveyard);
-		server->time_of_death = get_seconds();
+		server->time_of_death = ktime_get_real_seconds();
 		queue_delayed_work(afs_wq, &afs_server_reaper,
 				   afs_server_timeout * HZ);
 	}
@@ -272,9 +277,9 @@ static void afs_reap_server(struct work_struct *work)
 	LIST_HEAD(corpses);
 	struct afs_server *server;
 	unsigned long delay, expiry;
-	time_t now;
+	time64_t now;
 
-	now = get_seconds();
+	now = ktime_get_real_seconds();
 	spin_lock(&afs_server_graveyard_lock);
 
 	while (!list_empty(&afs_server_graveyard)) {

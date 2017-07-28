@@ -25,6 +25,7 @@
 #include <linux/sysfs.h>
 #include "common.h"
 #include "rcar2.h"
+#include "rcar3.h"
 
 /*
  *		image of renesas_usbhs
@@ -302,37 +303,37 @@ static void usbhsc_set_buswait(struct usbhs_priv *priv)
  */
 
 /* commonly used on old SH-Mobile SoCs */
-static u32 usbhsc_default_pipe_type[] = {
-		USB_ENDPOINT_XFER_CONTROL,
-		USB_ENDPOINT_XFER_ISOC,
-		USB_ENDPOINT_XFER_ISOC,
-		USB_ENDPOINT_XFER_BULK,
-		USB_ENDPOINT_XFER_BULK,
-		USB_ENDPOINT_XFER_BULK,
-		USB_ENDPOINT_XFER_INT,
-		USB_ENDPOINT_XFER_INT,
-		USB_ENDPOINT_XFER_INT,
-		USB_ENDPOINT_XFER_INT,
+static struct renesas_usbhs_driver_pipe_config usbhsc_default_pipe[] = {
+	RENESAS_USBHS_PIPE(USB_ENDPOINT_XFER_CONTROL, 64, 0x00, false),
+	RENESAS_USBHS_PIPE(USB_ENDPOINT_XFER_ISOC, 1024, 0x08, false),
+	RENESAS_USBHS_PIPE(USB_ENDPOINT_XFER_ISOC, 1024, 0x18, false),
+	RENESAS_USBHS_PIPE(USB_ENDPOINT_XFER_BULK, 512, 0x28, true),
+	RENESAS_USBHS_PIPE(USB_ENDPOINT_XFER_BULK, 512, 0x38, true),
+	RENESAS_USBHS_PIPE(USB_ENDPOINT_XFER_BULK, 512, 0x48, true),
+	RENESAS_USBHS_PIPE(USB_ENDPOINT_XFER_INT, 64, 0x04, false),
+	RENESAS_USBHS_PIPE(USB_ENDPOINT_XFER_INT, 64, 0x05, false),
+	RENESAS_USBHS_PIPE(USB_ENDPOINT_XFER_INT, 64, 0x06, false),
+	RENESAS_USBHS_PIPE(USB_ENDPOINT_XFER_INT, 64, 0x07, false),
 };
 
 /* commonly used on newer SH-Mobile and R-Car SoCs */
-static u32 usbhsc_new_pipe_type[] = {
-		USB_ENDPOINT_XFER_CONTROL,
-		USB_ENDPOINT_XFER_ISOC,
-		USB_ENDPOINT_XFER_ISOC,
-		USB_ENDPOINT_XFER_BULK,
-		USB_ENDPOINT_XFER_BULK,
-		USB_ENDPOINT_XFER_BULK,
-		USB_ENDPOINT_XFER_INT,
-		USB_ENDPOINT_XFER_INT,
-		USB_ENDPOINT_XFER_INT,
-		USB_ENDPOINT_XFER_BULK,
-		USB_ENDPOINT_XFER_BULK,
-		USB_ENDPOINT_XFER_BULK,
-		USB_ENDPOINT_XFER_BULK,
-		USB_ENDPOINT_XFER_BULK,
-		USB_ENDPOINT_XFER_BULK,
-		USB_ENDPOINT_XFER_BULK,
+static struct renesas_usbhs_driver_pipe_config usbhsc_new_pipe[] = {
+	RENESAS_USBHS_PIPE(USB_ENDPOINT_XFER_CONTROL, 64, 0x00, false),
+	RENESAS_USBHS_PIPE(USB_ENDPOINT_XFER_ISOC, 1024, 0x08, true),
+	RENESAS_USBHS_PIPE(USB_ENDPOINT_XFER_ISOC, 1024, 0x28, true),
+	RENESAS_USBHS_PIPE(USB_ENDPOINT_XFER_BULK, 512, 0x48, true),
+	RENESAS_USBHS_PIPE(USB_ENDPOINT_XFER_BULK, 512, 0x58, true),
+	RENESAS_USBHS_PIPE(USB_ENDPOINT_XFER_BULK, 512, 0x68, true),
+	RENESAS_USBHS_PIPE(USB_ENDPOINT_XFER_INT, 64, 0x04, false),
+	RENESAS_USBHS_PIPE(USB_ENDPOINT_XFER_INT, 64, 0x05, false),
+	RENESAS_USBHS_PIPE(USB_ENDPOINT_XFER_INT, 64, 0x06, false),
+	RENESAS_USBHS_PIPE(USB_ENDPOINT_XFER_BULK, 512, 0x78, true),
+	RENESAS_USBHS_PIPE(USB_ENDPOINT_XFER_BULK, 512, 0x88, true),
+	RENESAS_USBHS_PIPE(USB_ENDPOINT_XFER_BULK, 512, 0x98, true),
+	RENESAS_USBHS_PIPE(USB_ENDPOINT_XFER_BULK, 512, 0xa8, true),
+	RENESAS_USBHS_PIPE(USB_ENDPOINT_XFER_BULK, 512, 0xb8, true),
+	RENESAS_USBHS_PIPE(USB_ENDPOINT_XFER_BULK, 512, 0xc8, true),
+	RENESAS_USBHS_PIPE(USB_ENDPOINT_XFER_BULK, 512, 0xd8, true),
 };
 
 /*
@@ -388,7 +389,7 @@ static void usbhsc_hotplug(struct usbhs_priv *priv)
 
 	if (enable && !mod) {
 		if (priv->edev) {
-			cable = extcon_get_cable_state_(priv->edev, EXTCON_USB_HOST);
+			cable = extcon_get_state(priv->edev, EXTCON_USB_HOST);
 			if ((cable > 0 && id != USBHS_HOST) ||
 			    (!cable && id != USBHS_GADGET)) {
 				dev_info(&pdev->dev,
@@ -477,9 +478,20 @@ static const struct of_device_id usbhs_of_match[] = {
 		.data = (void *)USBHS_TYPE_RCAR_GEN2,
 	},
 	{
-		/* Gen3 is compatible with Gen2 */
 		.compatible = "renesas,usbhs-r8a7795",
+		.data = (void *)USBHS_TYPE_RCAR_GEN3,
+	},
+	{
+		.compatible = "renesas,usbhs-r8a7796",
+		.data = (void *)USBHS_TYPE_RCAR_GEN3,
+	},
+	{
+		.compatible = "renesas,rcar-gen2-usbhs",
 		.data = (void *)USBHS_TYPE_RCAR_GEN2,
+	},
+	{
+		.compatible = "renesas,rcar-gen3-usbhs",
+		.data = (void *)USBHS_TYPE_RCAR_GEN3,
 	},
 	{ },
 };
@@ -506,7 +518,8 @@ static struct renesas_usbhs_platform_info *usbhs_parse_dt(struct device *dev)
 	if (gpio > 0)
 		dparam->enable_gpio = gpio;
 
-	if (dparam->type == USBHS_TYPE_RCAR_GEN2)
+	if (dparam->type == USBHS_TYPE_RCAR_GEN2 ||
+	    dparam->type == USBHS_TYPE_RCAR_GEN3)
 		dparam->has_usb_dmac = 1;
 
 	return info;
@@ -564,10 +577,16 @@ static int usbhs_probe(struct platform_device *pdev)
 	switch (priv->dparam.type) {
 	case USBHS_TYPE_RCAR_GEN2:
 		priv->pfunc = usbhs_rcar2_ops;
-		if (!priv->dparam.pipe_type) {
-			priv->dparam.pipe_type = usbhsc_new_pipe_type;
-			priv->dparam.pipe_size =
-				ARRAY_SIZE(usbhsc_new_pipe_type);
+		if (!priv->dparam.pipe_configs) {
+			priv->dparam.pipe_configs = usbhsc_new_pipe;
+			priv->dparam.pipe_size = ARRAY_SIZE(usbhsc_new_pipe);
+		}
+		break;
+	case USBHS_TYPE_RCAR_GEN3:
+		priv->pfunc = usbhs_rcar3_ops;
+		if (!priv->dparam.pipe_configs) {
+			priv->dparam.pipe_configs = usbhsc_new_pipe;
+			priv->dparam.pipe_size = ARRAY_SIZE(usbhsc_new_pipe);
 		}
 		break;
 	default:
@@ -586,9 +605,9 @@ static int usbhs_probe(struct platform_device *pdev)
 	dfunc->notify_hotplug	= usbhsc_drvcllbck_notify_hotplug;
 
 	/* set default param if platform doesn't have */
-	if (!priv->dparam.pipe_type) {
-		priv->dparam.pipe_type = usbhsc_default_pipe_type;
-		priv->dparam.pipe_size = ARRAY_SIZE(usbhsc_default_pipe_type);
+	if (!priv->dparam.pipe_configs) {
+		priv->dparam.pipe_configs = usbhsc_default_pipe;
+		priv->dparam.pipe_size = ARRAY_SIZE(usbhsc_default_pipe);
 	}
 	if (!priv->dparam.pio_dma_border)
 		priv->dparam.pio_dma_border = 64; /* 64byte */
@@ -683,7 +702,7 @@ probe_end_fifo_exit:
 probe_end_pipe_exit:
 	usbhs_pipe_remove(priv);
 
-	dev_info(&pdev->dev, "probe failed\n");
+	dev_info(&pdev->dev, "probe failed (%d)\n", ret);
 
 	return ret;
 }
@@ -733,8 +752,10 @@ static int usbhsc_resume(struct device *dev)
 	struct usbhs_priv *priv = dev_get_drvdata(dev);
 	struct platform_device *pdev = usbhs_priv_to_pdev(priv);
 
-	if (!usbhsc_flags_has(priv, USBHSF_RUNTIME_PWCTRL))
+	if (!usbhsc_flags_has(priv, USBHSF_RUNTIME_PWCTRL)) {
 		usbhsc_power_ctrl(priv, 1);
+		usbhs_mod_autonomy_mode(priv);
+	}
 
 	usbhs_platform_call(priv, phy_reset, pdev);
 

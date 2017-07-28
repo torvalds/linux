@@ -23,10 +23,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <linux/i2c.h>
@@ -42,9 +38,9 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-mediabus.h>
-#include <media/v4l2-of.h>
+#include <media/v4l2-fwnode.h>
 #include <media/v4l2-ctrls.h>
-#include <media/tvp514x.h>
+#include <media/i2c/tvp514x.h>
 #include <media/media-entity.h>
 
 #include "tvp514x_regs.h"
@@ -894,7 +890,7 @@ static int tvp514x_enum_mbus_code(struct v4l2_subdev *sd,
 	if (index != 0)
 		return -EINVAL;
 
-	code->code = MEDIA_BUS_FMT_YUYV8_2X8;
+	code->code = MEDIA_BUS_FMT_UYVY8_2X8;
 
 	return 0;
 }
@@ -922,7 +918,7 @@ static int tvp514x_get_pad_format(struct v4l2_subdev *sd,
 		return 0;
 	}
 
-	format->format.code = MEDIA_BUS_FMT_YUYV8_2X8;
+	format->format.code = MEDIA_BUS_FMT_UYVY8_2X8;
 	format->format.width = tvp514x_std_list[decoder->current_std].width;
 	format->format.height = tvp514x_std_list[decoder->current_std].height;
 	format->format.colorspace = V4L2_COLORSPACE_SMPTE170M;
@@ -946,7 +942,7 @@ static int tvp514x_set_pad_format(struct v4l2_subdev *sd,
 	struct tvp514x_decoder *decoder = to_decoder(sd);
 
 	if (fmt->format.field != V4L2_FIELD_INTERLACED ||
-	    fmt->format.code != MEDIA_BUS_FMT_YUYV8_2X8 ||
+	    fmt->format.code != MEDIA_BUS_FMT_UYVY8_2X8 ||
 	    fmt->format.colorspace != V4L2_COLORSPACE_SMPTE170M ||
 	    fmt->format.width != tvp514x_std_list[decoder->current_std].width ||
 	    fmt->format.height != tvp514x_std_list[decoder->current_std].height)
@@ -977,7 +973,7 @@ static const struct v4l2_subdev_ops tvp514x_ops = {
 	.pad = &tvp514x_pad_ops,
 };
 
-static struct tvp514x_decoder tvp514x_dev = {
+static const struct tvp514x_decoder tvp514x_dev = {
 	.streaming = 0,
 	.fmt_list = tvp514x_fmt_list,
 	.num_fmts = ARRAY_SIZE(tvp514x_fmt_list),
@@ -1001,8 +997,8 @@ static struct tvp514x_decoder tvp514x_dev = {
 static struct tvp514x_platform_data *
 tvp514x_get_pdata(struct i2c_client *client)
 {
-	struct tvp514x_platform_data *pdata;
-	struct v4l2_of_endpoint bus_cfg;
+	struct tvp514x_platform_data *pdata = NULL;
+	struct v4l2_fwnode_endpoint bus_cfg;
 	struct device_node *endpoint;
 	unsigned int flags;
 
@@ -1013,11 +1009,13 @@ tvp514x_get_pdata(struct i2c_client *client)
 	if (!endpoint)
 		return NULL;
 
+	if (v4l2_fwnode_endpoint_parse(of_fwnode_handle(endpoint), &bus_cfg))
+		goto done;
+
 	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		goto done;
 
-	v4l2_of_parse_endpoint(endpoint, &bus_cfg);
 	flags = bus_cfg.bus.parallel.flags;
 
 	if (flags & V4L2_MBUS_HSYNC_ACTIVE_HIGH)
@@ -1095,9 +1093,9 @@ tvp514x_probe(struct i2c_client *client, const struct i2c_device_id *id)
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	decoder->pad.flags = MEDIA_PAD_FL_SOURCE;
 	decoder->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-	decoder->sd.entity.flags |= MEDIA_ENT_T_V4L2_SUBDEV_DECODER;
+	decoder->sd.entity.flags |= MEDIA_ENT_F_ATV_DECODER;
 
-	ret = media_entity_init(&decoder->sd.entity, 1, &decoder->pad, 0);
+	ret = media_entity_pads_init(&decoder->sd.entity, 1, &decoder->pad);
 	if (ret < 0) {
 		v4l2_err(sd, "%s decoder driver failed to register !!\n",
 			 sd->name);
@@ -1231,7 +1229,6 @@ MODULE_DEVICE_TABLE(of, tvp514x_of_match);
 static struct i2c_driver tvp514x_driver = {
 	.driver = {
 		.of_match_table = of_match_ptr(tvp514x_of_match),
-		.owner = THIS_MODULE,
 		.name = TVP514X_MODULE_NAME,
 	},
 	.probe = tvp514x_probe,

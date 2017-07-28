@@ -163,7 +163,6 @@ struct fimc_context {
 	u32		clk_frequency;
 	struct regmap	*sysreg;
 	struct fimc_scaler	sc;
-	struct exynos_drm_ipp_pol	pol;
 	int	id;
 	int	irq;
 	bool	suspended;
@@ -256,32 +255,6 @@ static void fimc_set_type_ctrl(struct fimc_context *ctx, enum fimc_wb wb)
 			EXYNOS_CIGCTRL_SELCAM_FIMC_ITU);
 		break;
 	}
-
-	fimc_write(ctx, cfg, EXYNOS_CIGCTRL);
-}
-
-static void fimc_set_polarity(struct fimc_context *ctx,
-		struct exynos_drm_ipp_pol *pol)
-{
-	u32 cfg;
-
-	DRM_DEBUG_KMS("inv_pclk[%d]inv_vsync[%d]\n",
-		pol->inv_pclk, pol->inv_vsync);
-	DRM_DEBUG_KMS("inv_href[%d]inv_hsync[%d]\n",
-		pol->inv_href, pol->inv_hsync);
-
-	cfg = fimc_read(ctx, EXYNOS_CIGCTRL);
-	cfg &= ~(EXYNOS_CIGCTRL_INVPOLPCLK | EXYNOS_CIGCTRL_INVPOLVSYNC |
-		 EXYNOS_CIGCTRL_INVPOLHREF | EXYNOS_CIGCTRL_INVPOLHSYNC);
-
-	if (pol->inv_pclk)
-		cfg |= EXYNOS_CIGCTRL_INVPOLPCLK;
-	if (pol->inv_vsync)
-		cfg |= EXYNOS_CIGCTRL_INVPOLVSYNC;
-	if (pol->inv_href)
-		cfg |= EXYNOS_CIGCTRL_INVPOLHREF;
-	if (pol->inv_hsync)
-		cfg |= EXYNOS_CIGCTRL_INVPOLHSYNC;
 
 	fimc_write(ctx, cfg, EXYNOS_CIGCTRL);
 }
@@ -1460,14 +1433,13 @@ static int fimc_ippdrv_start(struct device *dev, enum drm_exynos_ipp_cmd cmd)
 		&img_pos[EXYNOS_DRM_OPS_SRC],
 		&img_pos[EXYNOS_DRM_OPS_DST]);
 	if (ret) {
-		dev_err(dev, "failed to set precalser.\n");
+		dev_err(dev, "failed to set prescaler.\n");
 		return ret;
 	}
 
 	/* If set ture, we can save jpeg about screen */
 	fimc_handle_jpeg(ctx, false);
 	fimc_set_scaler(ctx, &ctx->sc);
-	fimc_set_polarity(ctx, &ctx->pol);
 
 	switch (cmd) {
 	case IPP_CMD_M2M:
@@ -1723,7 +1695,7 @@ static int fimc_probe(struct platform_device *pdev)
 		goto err_put_clk;
 	}
 
-	DRM_DEBUG_KMS("id[%d]ippdrv[0x%x]\n", ctx->id, (int)ippdrv);
+	DRM_DEBUG_KMS("id[%d]ippdrv[%pK]\n", ctx->id, ippdrv);
 
 	spin_lock_init(&ctx->lock);
 	platform_set_drvdata(pdev, ctx);
@@ -1781,32 +1753,6 @@ static int fimc_clk_ctrl(struct fimc_context *ctx, bool enable)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int fimc_suspend(struct device *dev)
-{
-	struct fimc_context *ctx = get_fimc_context(dev);
-
-	DRM_DEBUG_KMS("id[%d]\n", ctx->id);
-
-	if (pm_runtime_suspended(dev))
-		return 0;
-
-	return fimc_clk_ctrl(ctx, false);
-}
-
-static int fimc_resume(struct device *dev)
-{
-	struct fimc_context *ctx = get_fimc_context(dev);
-
-	DRM_DEBUG_KMS("id[%d]\n", ctx->id);
-
-	if (!pm_runtime_suspended(dev))
-		return fimc_clk_ctrl(ctx, true);
-
-	return 0;
-}
-#endif
-
 static int fimc_runtime_suspend(struct device *dev)
 {
 	struct fimc_context *ctx = get_fimc_context(dev);
@@ -1827,7 +1773,8 @@ static int fimc_runtime_resume(struct device *dev)
 #endif
 
 static const struct dev_pm_ops fimc_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(fimc_suspend, fimc_resume)
+	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
+				pm_runtime_force_resume)
 	SET_RUNTIME_PM_OPS(fimc_runtime_suspend, fimc_runtime_resume, NULL)
 };
 

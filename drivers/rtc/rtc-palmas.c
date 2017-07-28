@@ -225,7 +225,7 @@ static irqreturn_t palmas_rtc_interrupt(int irq, void *context)
 	return IRQ_HANDLED;
 }
 
-static struct rtc_class_ops palmas_rtc_ops = {
+static const struct rtc_class_ops palmas_rtc_ops = {
 	.read_time	= palmas_rtc_read_time,
 	.set_time	= palmas_rtc_set_time,
 	.read_alarm	= palmas_rtc_read_alarm,
@@ -311,8 +311,7 @@ static int palmas_rtc_probe(struct platform_device *pdev)
 
 	ret = devm_request_threaded_irq(&pdev->dev, palmas_rtc->irq, NULL,
 			palmas_rtc_interrupt,
-			IRQF_TRIGGER_LOW | IRQF_ONESHOT |
-			IRQF_EARLY_RESUME,
+			IRQF_TRIGGER_LOW | IRQF_ONESHOT,
 			dev_name(&pdev->dev), palmas_rtc);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "IRQ request failed, err = %d\n", ret);

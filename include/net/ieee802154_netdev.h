@@ -337,7 +337,7 @@ struct ieee802154_mlme_ops {
 	void (*get_mac_params)(struct net_device *dev,
 			       struct ieee802154_mac_params *params);
 
-	struct ieee802154_llsec_ops *llsec;
+	const struct ieee802154_llsec_ops *llsec;
 };
 
 static inline struct ieee802154_mlme_ops *

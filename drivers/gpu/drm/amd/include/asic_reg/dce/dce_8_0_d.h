@@ -1379,6 +1379,7 @@
 #define mmDC_GPIO_PAD_STRENGTH_1                                                0x1978
 #define mmDC_GPIO_PAD_STRENGTH_2                                                0x1979
 #define mmPHY_AUX_CNTL                                                          0x197f
+#define mmDC_GPIO_I2CPAD_MASK                                                   0x1974
 #define mmDC_GPIO_I2CPAD_A                                                      0x1975
 #define mmDC_GPIO_I2CPAD_EN                                                     0x1976
 #define mmDC_GPIO_I2CPAD_Y                                                      0x1977
@@ -3919,6 +3920,14 @@
 #define mmDP4_DP_DPHY_PRBS_CNTL                                                 0x48d4
 #define mmDP5_DP_DPHY_PRBS_CNTL                                                 0x4bd4
 #define mmDP6_DP_DPHY_PRBS_CNTL                                                 0x4ed4
+#define mmDP_DPHY_SCRAM_CNTL                                                    0x1cd5
+#define mmDP0_DP_DPHY_SCRAM_CNTL                                                0x1cd5
+#define mmDP1_DP_DPHY_SCRAM_CNTL                                                0x1fd5
+#define mmDP2_DP_DPHY_SCRAM_CNTL                                                0x42d5
+#define mmDP3_DP_DPHY_SCRAM_CNTL                                                0x45d5
+#define mmDP4_DP_DPHY_SCRAM_CNTL                                                0x48d5
+#define mmDP5_DP_DPHY_SCRAM_CNTL                                                0x4bd5
+#define mmDP6_DP_DPHY_SCRAM_CNTL                                                0x4ed5
 #define mmDP_DPHY_CRC_EN                                                        0x1cd6
 #define mmDP0_DP_DPHY_CRC_EN                                                    0x1cd6
 #define mmDP1_DP_DPHY_CRC_EN                                                    0x1fd6

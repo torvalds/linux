@@ -25,7 +25,18 @@
 #define GICC_ENABLE			0x1
 #define GICC_INT_PRI_THRESHOLD		0xf0
 
-#define GIC_CPU_CTRL_EOImodeNS		(1 << 9)
+#define GIC_CPU_CTRL_EnableGrp0_SHIFT	0
+#define GIC_CPU_CTRL_EnableGrp0		(1 << GIC_CPU_CTRL_EnableGrp0_SHIFT)
+#define GIC_CPU_CTRL_EnableGrp1_SHIFT	1
+#define GIC_CPU_CTRL_EnableGrp1		(1 << GIC_CPU_CTRL_EnableGrp1_SHIFT)
+#define GIC_CPU_CTRL_AckCtl_SHIFT	2
+#define GIC_CPU_CTRL_AckCtl		(1 << GIC_CPU_CTRL_AckCtl_SHIFT)
+#define GIC_CPU_CTRL_FIQEn_SHIFT	3
+#define GIC_CPU_CTRL_FIQEn		(1 << GIC_CPU_CTRL_FIQEn_SHIFT)
+#define GIC_CPU_CTRL_CBPR_SHIFT		4
+#define GIC_CPU_CTRL_CBPR		(1 << GIC_CPU_CTRL_CBPR_SHIFT)
+#define GIC_CPU_CTRL_EOImodeNS_SHIFT	9
+#define GIC_CPU_CTRL_EOImodeNS		(1 << GIC_CPU_CTRL_EOImodeNS_SHIFT)
 
 #define GICC_IAR_INT_ID_MASK		0x3ff
 #define GICC_INT_SPURIOUS		1023
@@ -33,6 +44,7 @@
 
 #define GIC_DIST_CTRL			0x000
 #define GIC_DIST_CTR			0x004
+#define GIC_DIST_IIDR			0x008
 #define GIC_DIST_IGROUP			0x080
 #define GIC_DIST_ENABLE_SET		0x100
 #define GIC_DIST_ENABLE_CLEAR		0x180
@@ -76,14 +88,26 @@
 #define GICH_LR_VIRTUALID		(0x3ff << 0)
 #define GICH_LR_PHYSID_CPUID_SHIFT	(10)
 #define GICH_LR_PHYSID_CPUID		(0x3ff << GICH_LR_PHYSID_CPUID_SHIFT)
+#define GICH_LR_PRIORITY_SHIFT		23
 #define GICH_LR_STATE			(3 << 28)
 #define GICH_LR_PENDING_BIT		(1 << 28)
 #define GICH_LR_ACTIVE_BIT		(1 << 29)
 #define GICH_LR_EOI			(1 << 19)
 #define GICH_LR_HW			(1 << 31)
 
-#define GICH_VMCR_CTRL_SHIFT		0
-#define GICH_VMCR_CTRL_MASK		(0x21f << GICH_VMCR_CTRL_SHIFT)
+#define GICH_VMCR_ENABLE_GRP0_SHIFT	0
+#define GICH_VMCR_ENABLE_GRP0_MASK	(1 << GICH_VMCR_ENABLE_GRP0_SHIFT)
+#define GICH_VMCR_ENABLE_GRP1_SHIFT	1
+#define GICH_VMCR_ENABLE_GRP1_MASK	(1 << GICH_VMCR_ENABLE_GRP1_SHIFT)
+#define GICH_VMCR_ACK_CTL_SHIFT		2
+#define GICH_VMCR_ACK_CTL_MASK		(1 << GICH_VMCR_ACK_CTL_SHIFT)
+#define GICH_VMCR_FIQ_EN_SHIFT		3
+#define GICH_VMCR_FIQ_EN_MASK		(1 << GICH_VMCR_FIQ_EN_SHIFT)
+#define GICH_VMCR_CBPR_SHIFT		4
+#define GICH_VMCR_CBPR_MASK		(1 << GICH_VMCR_CBPR_SHIFT)
+#define GICH_VMCR_EOI_MODE_SHIFT	9
+#define GICH_VMCR_EOI_MODE_MASK		(1 << GICH_VMCR_EOI_MODE_SHIFT)
+
 #define GICH_VMCR_PRIMASK_SHIFT		27
 #define GICH_VMCR_PRIMASK_MASK		(0x1f << GICH_VMCR_PRIMASK_SHIFT)
 #define GICH_VMCR_BINPOINT_SHIFT	21
@@ -94,19 +118,44 @@
 #define GICH_MISR_EOI			(1 << 0)
 #define GICH_MISR_U			(1 << 1)
 
+#define GICV_PMR_PRIORITY_SHIFT		3
+#define GICV_PMR_PRIORITY_MASK		(0x1f << GICV_PMR_PRIORITY_SHIFT)
+
 #ifndef __ASSEMBLY__
 
 #include <linux/irqdomain.h>
 
 struct device_node;
+struct gic_chip_data;
 
 void gic_cascade_irq(unsigned int gic_nr, unsigned int irq);
 int gic_cpu_if_down(unsigned int gic_nr);
+void gic_cpu_save(struct gic_chip_data *gic);
+void gic_cpu_restore(struct gic_chip_data *gic);
+void gic_dist_save(struct gic_chip_data *gic);
+void gic_dist_restore(struct gic_chip_data *gic);
 
+/*
+ * Subdrivers that need some preparatory work can initialize their
+ * chips and call this to register their GICs.
+ */
+int gic_of_init(struct device_node *node, struct device_node *parent);
+
+/*
+ * Initialises and registers a non-root or child GIC chip. Memory for
+ * the gic_chip_data structure is dynamically allocated.
+ */
+int gic_of_init_child(struct device *dev, struct gic_chip_data **gic, int irq);
+
+/*
+ * Legacy platforms not converted to DT yet must use this to init
+ * their GIC
+ */
 void gic_init(unsigned int nr, int start,
 	      void __iomem *dist , void __iomem *cpu);
 
-int gicv2m_of_init(struct device_node *node, struct irq_domain *parent);
+int gicv2m_init(struct fwnode_handle *parent_handle,
+		struct irq_domain *parent);
 
 void gic_send_sgi(unsigned int cpu_id, unsigned int irq);
 int gic_get_cpu_id(unsigned int cpu);

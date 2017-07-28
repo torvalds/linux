@@ -10,10 +10,6 @@
   FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
   more details.
 
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc.,
-  51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
-
   The full GNU General Public License is included in this distribution in
   the file called "COPYING".
 
@@ -24,7 +20,7 @@
 #define __STMMAC_H__
 
 #define STMMAC_RESOURCE_NAME   "stmmaceth"
-#define DRV_MODULE_VERSION	"March_2013"
+#define DRV_MODULE_VERSION	"Jan_2016"
 
 #include <linux/clk.h>
 #include <linux/stmmac.h>
@@ -45,40 +41,56 @@ struct stmmac_resources {
 struct stmmac_tx_info {
 	dma_addr_t buf;
 	bool map_as_page;
+	unsigned len;
+	bool last_segment;
+	bool is_jumbo;
+};
+
+/* Frequently used values are kept adjacent for cache effect */
+struct stmmac_tx_queue {
+	u32 queue_index;
+	struct stmmac_priv *priv_data;
+	struct dma_extended_desc *dma_etx ____cacheline_aligned_in_smp;
+	struct dma_desc *dma_tx;
+	struct sk_buff **tx_skbuff;
+	struct stmmac_tx_info *tx_skbuff_dma;
+	unsigned int cur_tx;
+	unsigned int dirty_tx;
+	dma_addr_t dma_tx_phy;
+	u32 tx_tail_addr;
+};
+
+struct stmmac_rx_queue {
+	u32 queue_index;
+	struct stmmac_priv *priv_data;
+	struct dma_extended_desc *dma_erx;
+	struct dma_desc *dma_rx ____cacheline_aligned_in_smp;
+	struct sk_buff **rx_skbuff;
+	dma_addr_t *rx_skbuff_dma;
+	unsigned int cur_rx;
+	unsigned int dirty_rx;
+	u32 rx_zeroc_thresh;
+	dma_addr_t dma_rx_phy;
+	u32 rx_tail_addr;
+	struct napi_struct napi ____cacheline_aligned_in_smp;
 };
 
 struct stmmac_priv {
 	/* Frequently used values are kept adjacent for cache effect */
-	struct dma_extended_desc *dma_etx ____cacheline_aligned_in_smp;
-	struct dma_desc *dma_tx;
-	struct sk_buff **tx_skbuff;
-	unsigned int cur_tx;
-	unsigned int dirty_tx;
-	unsigned int dma_tx_size;
 	u32 tx_count_frames;
 	u32 tx_coal_frames;
 	u32 tx_coal_timer;
-	struct stmmac_tx_info *tx_skbuff_dma;
-	dma_addr_t dma_tx_phy;
+
 	int tx_coalesce;
 	int hwts_tx_en;
-	spinlock_t tx_lock;
 	bool tx_path_in_lpi_mode;
 	struct timer_list txtimer;
+	bool tso;
 
-	struct dma_desc *dma_rx	____cacheline_aligned_in_smp;
-	struct dma_extended_desc *dma_erx;
-	struct sk_buff **rx_skbuff;
-	unsigned int cur_rx;
-	unsigned int dirty_rx;
-	unsigned int dma_rx_size;
 	unsigned int dma_buf_sz;
+	unsigned int rx_copybreak;
 	u32 rx_riwt;
 	int hwts_rx_en;
-	dma_addr_t *rx_skbuff_dma;
-	dma_addr_t dma_rx_phy;
-
-	struct napi_struct napi ____cacheline_aligned_in_smp;
 
 	void __iomem *ioaddr;
 	struct net_device *dev;
@@ -86,8 +98,13 @@ struct stmmac_priv {
 	struct mac_device_info *hw;
 	spinlock_t lock;
 
-	struct phy_device *phydev ____cacheline_aligned_in_smp;
-	int oldlink;
+	/* RX Queue */
+	struct stmmac_rx_queue rx_queue[MTL_MAX_RX_QUEUES];
+
+	/* TX Queue */
+	struct stmmac_tx_queue tx_queue[MTL_MAX_TX_QUEUES];
+
+	bool oldlink;
 	int speed;
 	int oldduplex;
 	unsigned int flow_ctrl;
@@ -104,27 +121,24 @@ struct stmmac_priv {
 	u32 msg_enable;
 	int wolopts;
 	int wol_irq;
-	struct clk *stmmac_clk;
-	struct clk *pclk;
-	struct reset_control *stmmac_rst;
 	int clk_csr;
 	struct timer_list eee_ctrl_timer;
 	int lpi_irq;
 	int eee_enabled;
 	int eee_active;
 	int tx_lpi_timer;
-	int pcs;
 	unsigned int mode;
 	int extend_desc;
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_clock_ops;
 	unsigned int default_addend;
-	struct clk *clk_ptp_ref;
-	unsigned int clk_ptp_rate;
 	u32 adv_ts;
 	int use_riwt;
 	int irq_wake;
 	spinlock_t ptp_lock;
+	void __iomem *mmcaddr;
+	void __iomem *ptpaddr;
+	u32 mss;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *dbgfs_dir;
@@ -138,11 +152,11 @@ int stmmac_mdio_register(struct net_device *ndev);
 int stmmac_mdio_reset(struct mii_bus *mii);
 void stmmac_set_ethtool_ops(struct net_device *netdev);
 
-int stmmac_ptp_register(struct stmmac_priv *priv);
+void stmmac_ptp_register(struct stmmac_priv *priv);
 void stmmac_ptp_unregister(struct stmmac_priv *priv);
-int stmmac_resume(struct net_device *ndev);
-int stmmac_suspend(struct net_device *ndev);
-int stmmac_dvr_remove(struct net_device *ndev);
+int stmmac_resume(struct device *dev);
+int stmmac_suspend(struct device *dev);
+int stmmac_dvr_remove(struct device *dev);
 int stmmac_dvr_probe(struct device *device,
 		     struct plat_stmmacenet_data *plat_dat,
 		     struct stmmac_resources *res);

@@ -59,11 +59,13 @@ __drm_gem_cma_create(struct drm_device *drm, size_t size)
 	struct drm_gem_object *gem_obj;
 	int ret;
 
-	cma_obj = kzalloc(sizeof(*cma_obj), GFP_KERNEL);
-	if (!cma_obj)
+	if (drm->driver->gem_create_object)
+		gem_obj = drm->driver->gem_create_object(drm, size);
+	else
+		gem_obj = kzalloc(sizeof(*cma_obj), GFP_KERNEL);
+	if (!gem_obj)
 		return ERR_PTR(-ENOMEM);
-
-	gem_obj = &cma_obj->base;
+	cma_obj = container_of(gem_obj, struct drm_gem_cma_object, base);
 
 	ret = drm_gem_object_init(drm, gem_obj, size);
 	if (ret)
@@ -107,8 +109,8 @@ struct drm_gem_cma_object *drm_gem_cma_create(struct drm_device *drm,
 	if (IS_ERR(cma_obj))
 		return cma_obj;
 
-	cma_obj->vaddr = dma_alloc_writecombine(drm->dev, size,
-			&cma_obj->paddr, GFP_KERNEL | __GFP_NOWARN);
+	cma_obj->vaddr = dma_alloc_wc(drm->dev, size, &cma_obj->paddr,
+				      GFP_KERNEL | __GFP_NOWARN);
 	if (!cma_obj->vaddr) {
 		dev_err(drm->dev, "failed to allocate buffer with size %zu\n",
 			size);
@@ -119,7 +121,7 @@ struct drm_gem_cma_object *drm_gem_cma_create(struct drm_device *drm,
 	return cma_obj;
 
 error:
-	drm_gem_cma_free_object(&cma_obj->base);
+	drm_gem_object_put_unlocked(&cma_obj->base);
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(drm_gem_cma_create);
@@ -160,18 +162,12 @@ drm_gem_cma_create_with_handle(struct drm_file *file_priv,
 	 * and handle has the id what user can see.
 	 */
 	ret = drm_gem_handle_create(file_priv, gem_obj, handle);
-	if (ret)
-		goto err_handle_create;
-
 	/* drop reference from allocate - handle holds it now. */
-	drm_gem_object_unreference_unlocked(gem_obj);
+	drm_gem_object_put_unlocked(gem_obj);
+	if (ret)
+		return ERR_PTR(ret);
 
 	return cma_obj;
-
-err_handle_create:
-	drm_gem_cma_free_object(gem_obj);
-
-	return ERR_PTR(ret);
 }
 
 /**
@@ -180,8 +176,8 @@ err_handle_create:
  *
  * This function frees the backing memory of the CMA GEM object, cleans up the
  * GEM object state and frees the memory used to store the object itself.
- * Drivers using the CMA helpers should set this as their DRM driver's
- * ->gem_free_object() callback.
+ * Drivers using the CMA helpers should set this as their
+ * &drm_driver.gem_free_object callback.
  */
 void drm_gem_cma_free_object(struct drm_gem_object *gem_obj)
 {
@@ -190,8 +186,8 @@ void drm_gem_cma_free_object(struct drm_gem_object *gem_obj)
 	cma_obj = to_drm_gem_cma_obj(gem_obj);
 
 	if (cma_obj->vaddr) {
-		dma_free_writecombine(gem_obj->dev->dev, cma_obj->base.size,
-				      cma_obj->vaddr, cma_obj->paddr);
+		dma_free_wc(gem_obj->dev->dev, cma_obj->base.size,
+			    cma_obj->vaddr, cma_obj->paddr);
 	} else if (gem_obj->import_attach) {
 		drm_prime_gem_destroy(gem_obj, cma_obj->sgt);
 	}
@@ -211,7 +207,7 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_free_object);
  * This aligns the pitch and size arguments to the minimum required. This is
  * an internal helper that can be wrapped by a driver to account for hardware
  * with more specific alignment requirements. It should not be used directly
- * as the ->dumb_create() callback in a DRM driver.
+ * as their &drm_driver.dumb_create callback.
  *
  * Returns:
  * 0 on success or a negative error code on failure.
@@ -244,7 +240,7 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_dumb_create_internal);
  * This function computes the pitch of the dumb buffer and rounds it up to an
  * integer number of bytes per pixel. Drivers for hardware that doesn't have
  * any additional restrictions on the pitch can directly use this function as
- * their ->dumb_create() callback.
+ * their &drm_driver.dumb_create callback.
  *
  * For hardware with additional restrictions, drivers can adjust the fields
  * set up by userspace and pass the IOCTL data along to the
@@ -278,7 +274,7 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_dumb_create);
  *
  * This function look up an object by its handle and returns the fake mmap
  * offset associated with it. Drivers using the CMA helpers should set this
- * as their DRM driver's ->dumb_map_offset() callback.
+ * as their &drm_driver.dumb_map_offset callback.
  *
  * Returns:
  * 0 on success or a negative error code on failure.
@@ -289,7 +285,7 @@ int drm_gem_cma_dumb_map_offset(struct drm_file *file_priv,
 {
 	struct drm_gem_object *gem_obj;
 
-	gem_obj = drm_gem_object_lookup(drm, file_priv, handle);
+	gem_obj = drm_gem_object_lookup(file_priv, handle);
 	if (!gem_obj) {
 		dev_err(drm->dev, "failed to lookup GEM object\n");
 		return -EINVAL;
@@ -297,7 +293,7 @@ int drm_gem_cma_dumb_map_offset(struct drm_file *file_priv,
 
 	*offset = drm_vma_node_offset_addr(&gem_obj->vma_node);
 
-	drm_gem_object_unreference_unlocked(gem_obj);
+	drm_gem_object_put_unlocked(gem_obj);
 
 	return 0;
 }
@@ -322,9 +318,8 @@ static int drm_gem_cma_mmap_obj(struct drm_gem_cma_object *cma_obj,
 	vma->vm_flags &= ~VM_PFNMAP;
 	vma->vm_pgoff = 0;
 
-	ret = dma_mmap_writecombine(cma_obj->base.dev->dev, vma,
-				    cma_obj->vaddr, cma_obj->paddr,
-				    vma->vm_end - vma->vm_start);
+	ret = dma_mmap_wc(cma_obj->base.dev->dev, vma, cma_obj->vaddr,
+			  cma_obj->paddr, vma->vm_end - vma->vm_start);
 	if (ret)
 		drm_gem_vm_close(vma);
 
@@ -342,6 +337,9 @@ static int drm_gem_cma_mmap_obj(struct drm_gem_cma_object *cma_obj,
  * faulting. Drivers which employ the CMA helpers should use this function
  * as their ->mmap() handler in the DRM device file's file_operations
  * structure.
+ *
+ * Instead of directly referencing this function, drivers should use the
+ * DEFINE_DRM_GEM_CMA_FOPS().macro.
  *
  * Returns:
  * 0 on success or a negative error code on failure.
@@ -363,6 +361,77 @@ int drm_gem_cma_mmap(struct file *filp, struct vm_area_struct *vma)
 }
 EXPORT_SYMBOL_GPL(drm_gem_cma_mmap);
 
+#ifndef CONFIG_MMU
+/**
+ * drm_gem_cma_get_unmapped_area - propose address for mapping in noMMU cases
+ * @filp: file object
+ * @addr: memory address
+ * @len: buffer size
+ * @pgoff: page offset
+ * @flags: memory flags
+ *
+ * This function is used in noMMU platforms to propose address mapping
+ * for a given buffer.
+ * It's intended to be used as a direct handler for the struct
+ * &file_operations.get_unmapped_area operation.
+ *
+ * Returns:
+ * mapping address on success or a negative error code on failure.
+ */
+unsigned long drm_gem_cma_get_unmapped_area(struct file *filp,
+					    unsigned long addr,
+					    unsigned long len,
+					    unsigned long pgoff,
+					    unsigned long flags)
+{
+	struct drm_gem_cma_object *cma_obj;
+	struct drm_gem_object *obj = NULL;
+	struct drm_file *priv = filp->private_data;
+	struct drm_device *dev = priv->minor->dev;
+	struct drm_vma_offset_node *node;
+
+	if (drm_device_is_unplugged(dev))
+		return -ENODEV;
+
+	drm_vma_offset_lock_lookup(dev->vma_offset_manager);
+	node = drm_vma_offset_exact_lookup_locked(dev->vma_offset_manager,
+						  pgoff,
+						  len >> PAGE_SHIFT);
+	if (likely(node)) {
+		obj = container_of(node, struct drm_gem_object, vma_node);
+		/*
+		 * When the object is being freed, after it hits 0-refcnt it
+		 * proceeds to tear down the object. In the process it will
+		 * attempt to remove the VMA offset and so acquire this
+		 * mgr->vm_lock.  Therefore if we find an object with a 0-refcnt
+		 * that matches our range, we know it is in the process of being
+		 * destroyed and will be freed as soon as we release the lock -
+		 * so we have to check for the 0-refcnted object and treat it as
+		 * invalid.
+		 */
+		if (!kref_get_unless_zero(&obj->refcount))
+			obj = NULL;
+	}
+
+	drm_vma_offset_unlock_lookup(dev->vma_offset_manager);
+
+	if (!obj)
+		return -EINVAL;
+
+	if (!drm_vma_node_is_allowed(node, priv)) {
+		drm_gem_object_put_unlocked(obj);
+		return -EACCES;
+	}
+
+	cma_obj = to_drm_gem_cma_obj(obj);
+
+	drm_gem_object_put_unlocked(obj);
+
+	return cma_obj->vaddr ? (unsigned long)cma_obj->vaddr : -EINVAL;
+}
+EXPORT_SYMBOL_GPL(drm_gem_cma_get_unmapped_area);
+#endif
+
 #ifdef CONFIG_DEBUG_FS
 /**
  * drm_gem_cma_describe - describe a CMA GEM object for debugfs
@@ -381,7 +450,7 @@ void drm_gem_cma_describe(struct drm_gem_cma_object *cma_obj,
 	off = drm_vma_node_start(&obj->vma_node);
 
 	seq_printf(m, "%2d (%2d) %08llx %pad %p %zu",
-			obj->name, obj->refcount.refcount.counter,
+			obj->name, kref_read(&obj->refcount),
 			off, &cma_obj->paddr, cma_obj->vaddr, obj->size);
 
 	seq_printf(m, "\n");
@@ -396,7 +465,7 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_describe);
  *
  * This function exports a scatter/gather table suitable for PRIME usage by
  * calling the standard DMA mapping API. Drivers using the CMA helpers should
- * set this as their DRM driver's ->gem_prime_get_sg_table() callback.
+ * set this as their &drm_driver.gem_prime_get_sg_table callback.
  *
  * Returns:
  * A pointer to the scatter/gather table of pinned pages or NULL on failure.
@@ -434,8 +503,8 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_prime_get_sg_table);
  * This function imports a scatter/gather table exported via DMA-BUF by
  * another driver. Imported buffers must be physically contiguous in memory
  * (i.e. the scatter/gather table must contain a single entry). Drivers that
- * use the CMA helpers should set this as their DRM driver's
- * ->gem_prime_import_sg_table() callback.
+ * use the CMA helpers should set this as their
+ * &drm_driver.gem_prime_import_sg_table callback.
  *
  * Returns:
  * A pointer to a newly created GEM object or an ERR_PTR-encoded negative
@@ -472,7 +541,7 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_prime_import_sg_table);
  *
  * This function maps a buffer imported via DRM PRIME into a userspace
  * process's address space. Drivers that use the CMA helpers should set this
- * as their DRM driver's ->gem_prime_mmap() callback.
+ * as their &drm_driver.gem_prime_mmap callback.
  *
  * Returns:
  * 0 on success or a negative error code on failure.
@@ -501,7 +570,7 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_prime_mmap);
  * virtual address space. Since the CMA buffers are already mapped into the
  * kernel virtual address space this simply returns the cached virtual
  * address. Drivers using the CMA helpers should set this as their DRM
- * driver's ->gem_prime_vmap() callback.
+ * driver's &drm_driver.gem_prime_vmap callback.
  *
  * Returns:
  * The kernel virtual address of the CMA GEM object's backing store.
@@ -523,7 +592,7 @@ EXPORT_SYMBOL_GPL(drm_gem_cma_prime_vmap);
  * This function removes a buffer exported via DRM PRIME from the kernel's
  * virtual address space. This is a no-op because CMA buffers cannot be
  * unmapped from kernel space. Drivers using the CMA helpers should set this
- * as their DRM driver's ->gem_prime_vunmap() callback.
+ * as their &drm_driver.gem_prime_vunmap callback.
  */
 void drm_gem_cma_prime_vunmap(struct drm_gem_object *obj, void *vaddr)
 {

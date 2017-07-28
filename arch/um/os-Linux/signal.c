@@ -15,6 +15,7 @@
 #include <kern_util.h>
 #include <os.h>
 #include <sysdep/mcontext.h>
+#include <um_malloc.h>
 
 void (*sig_info[NSIG])(int, struct siginfo *, struct uml_pt_regs *) = {
 	[SIGTRAP]	= relay_signal,
@@ -29,23 +30,29 @@ void (*sig_info[NSIG])(int, struct siginfo *, struct uml_pt_regs *) = {
 
 static void sig_handler_common(int sig, struct siginfo *si, mcontext_t *mc)
 {
-	struct uml_pt_regs r;
+	struct uml_pt_regs *r;
 	int save_errno = errno;
 
-	r.is_user = 0;
+	r = uml_kmalloc(sizeof(struct uml_pt_regs), UM_GFP_ATOMIC);
+	if (!r)
+		panic("out of memory");
+
+	r->is_user = 0;
 	if (sig == SIGSEGV) {
 		/* For segfaults, we want the data from the sigcontext. */
-		get_regs_from_mc(&r, mc);
-		GET_FAULTINFO_FROM_MC(r.faultinfo, mc);
+		get_regs_from_mc(r, mc);
+		GET_FAULTINFO_FROM_MC(r->faultinfo, mc);
 	}
 
 	/* enable signals if sig isn't IRQ signal */
 	if ((sig != SIGIO) && (sig != SIGWINCH) && (sig != SIGALRM))
 		unblock_signals();
 
-	(*sig_info[sig])(sig, si, &r);
+	(*sig_info[sig])(sig, si, r);
 
 	errno = save_errno;
+
+	free(r);
 }
 
 /*
@@ -62,6 +69,7 @@ static void sig_handler_common(int sig, struct siginfo *si, mcontext_t *mc)
 
 static int signals_enabled;
 static unsigned int signals_pending;
+static unsigned int signals_active = 0;
 
 void sig_handler(int sig, struct siginfo *si, mcontext_t *mc)
 {
@@ -82,11 +90,17 @@ void sig_handler(int sig, struct siginfo *si, mcontext_t *mc)
 
 static void timer_real_alarm_handler(mcontext_t *mc)
 {
-	struct uml_pt_regs regs;
+	struct uml_pt_regs *regs;
+
+	regs = uml_kmalloc(sizeof(struct uml_pt_regs), UM_GFP_ATOMIC);
+	if (!regs)
+		panic("out of memory");
 
 	if (mc != NULL)
-		get_regs_from_mc(&regs, mc);
-	timer_handler(SIGALRM, NULL, &regs);
+		get_regs_from_mc(regs, mc);
+	timer_handler(SIGALRM, NULL, regs);
+
+	free(regs);
 }
 
 void timer_alarm_handler(int sig, struct siginfo *unused_si, mcontext_t *mc)
@@ -101,7 +115,12 @@ void timer_alarm_handler(int sig, struct siginfo *unused_si, mcontext_t *mc)
 
 	block_signals();
 
+	signals_active |= SIGALRM_MASK;
+
 	timer_real_alarm_handler(mc);
+
+	signals_active &= ~SIGALRM_MASK;
+
 	set_signals(enabled);
 }
 
@@ -286,8 +305,16 @@ void unblock_signals(void)
 		if (save_pending & SIGIO_MASK)
 			sig_handler_common(SIGIO, NULL, NULL);
 
-		if (save_pending & SIGALRM_MASK)
+		/* Do not reenter the handler */
+
+		if ((save_pending & SIGALRM_MASK) && (!(signals_active & SIGALRM_MASK)))
 			timer_real_alarm_handler(NULL);
+
+		/* Rerun the loop only if there is still pending SIGIO and not in TIMER handler */
+
+		if (!(signals_pending & SIGIO_MASK) && (signals_active & SIGALRM_MASK))
+			return;
+
 	}
 }
 

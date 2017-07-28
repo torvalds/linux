@@ -14,6 +14,7 @@
 #include <linux/amba/pl08x.h>
 #include <linux/of.h>
 
+#include <plat/cpu.h>
 #include <mach/irqs.h>
 #include <mach/map.h>
 
@@ -116,23 +117,38 @@ static struct pl08x_channel_data s3c64xx_dma0_info[] = {
 	}
 };
 
+static const struct dma_slave_map s3c64xx_dma0_slave_map[] = {
+	{ "s3c6400-uart.0", "tx", &s3c64xx_dma0_info[0] },
+	{ "s3c6400-uart.0", "rx", &s3c64xx_dma0_info[1] },
+	{ "s3c6400-uart.1", "tx", &s3c64xx_dma0_info[2] },
+	{ "s3c6400-uart.1", "rx", &s3c64xx_dma0_info[3] },
+	{ "s3c6400-uart.2", "tx", &s3c64xx_dma0_info[4] },
+	{ "s3c6400-uart.2", "rx", &s3c64xx_dma0_info[5] },
+	{ "s3c6400-uart.3", "tx", &s3c64xx_dma0_info[6] },
+	{ "s3c6400-uart.3", "rx", &s3c64xx_dma0_info[7] },
+	{ "samsung-pcm.0", "tx", &s3c64xx_dma0_info[8] },
+	{ "samsung-pcm.0", "rx", &s3c64xx_dma0_info[9] },
+	{ "samsung-i2s.0", "tx", &s3c64xx_dma0_info[10] },
+	{ "samsung-i2s.0", "rx", &s3c64xx_dma0_info[11] },
+	{ "s3c6410-spi.0", "tx", &s3c64xx_dma0_info[12] },
+	{ "s3c6410-spi.0", "rx", &s3c64xx_dma0_info[13] },
+	{ "samsung-i2s.2", "tx", &s3c64xx_dma0_info[14] },
+	{ "samsung-i2s.2", "rx", &s3c64xx_dma0_info[15] },
+};
+
 struct pl08x_platform_data s3c64xx_dma0_plat_data = {
-	.memcpy_channel = {
-		.bus_id = "memcpy",
-		.cctl_memcpy =
-			(PL080_BSIZE_4 << PL080_CONTROL_SB_SIZE_SHIFT |
-			PL080_BSIZE_4 << PL080_CONTROL_DB_SIZE_SHIFT |
-			PL080_WIDTH_32BIT << PL080_CONTROL_SWIDTH_SHIFT |
-			PL080_WIDTH_32BIT << PL080_CONTROL_DWIDTH_SHIFT |
-			PL080_CONTROL_PROT_BUFF | PL080_CONTROL_PROT_CACHE |
-			PL080_CONTROL_PROT_SYS),
-	},
+	.memcpy_burst_size = PL08X_BURST_SZ_4,
+	.memcpy_bus_width = PL08X_BUS_WIDTH_32_BITS,
+	.memcpy_prot_buff = true,
+	.memcpy_prot_cache = true,
 	.lli_buses = PL08X_AHB1,
 	.mem_buses = PL08X_AHB1,
 	.get_xfer_signal = pl08x_get_xfer_signal,
 	.put_xfer_signal = pl08x_put_xfer_signal,
 	.slave_channels = s3c64xx_dma0_info,
 	.num_slave_channels = ARRAY_SIZE(s3c64xx_dma0_info),
+	.slave_map = s3c64xx_dma0_slave_map,
+	.slave_map_len = ARRAY_SIZE(s3c64xx_dma0_slave_map),
 };
 
 static AMBA_AHB_DEVICE(s3c64xx_dma0, "dma-pl080s.0", 0,
@@ -206,23 +222,28 @@ static struct pl08x_channel_data s3c64xx_dma1_info[] = {
 	},
 };
 
+static const struct dma_slave_map s3c64xx_dma1_slave_map[] = {
+	{ "samsung-pcm.1", "tx", &s3c64xx_dma1_info[0] },
+	{ "samsung-pcm.1", "rx", &s3c64xx_dma1_info[1] },
+	{ "samsung-i2s.1", "tx", &s3c64xx_dma1_info[2] },
+	{ "samsung-i2s.1", "rx", &s3c64xx_dma1_info[3] },
+	{ "s3c6410-spi.1", "tx", &s3c64xx_dma1_info[4] },
+	{ "s3c6410-spi.1", "rx", &s3c64xx_dma1_info[5] },
+};
+
 struct pl08x_platform_data s3c64xx_dma1_plat_data = {
-	.memcpy_channel = {
-		.bus_id = "memcpy",
-		.cctl_memcpy =
-			(PL080_BSIZE_4 << PL080_CONTROL_SB_SIZE_SHIFT |
-			PL080_BSIZE_4 << PL080_CONTROL_DB_SIZE_SHIFT |
-			PL080_WIDTH_32BIT << PL080_CONTROL_SWIDTH_SHIFT |
-			PL080_WIDTH_32BIT << PL080_CONTROL_DWIDTH_SHIFT |
-			PL080_CONTROL_PROT_BUFF | PL080_CONTROL_PROT_CACHE |
-			PL080_CONTROL_PROT_SYS),
-	},
+	.memcpy_burst_size = PL08X_BURST_SZ_4,
+	.memcpy_bus_width = PL08X_BUS_WIDTH_32_BITS,
+	.memcpy_prot_buff = true,
+	.memcpy_prot_cache = true,
 	.lli_buses = PL08X_AHB1,
 	.mem_buses = PL08X_AHB1,
 	.get_xfer_signal = pl08x_get_xfer_signal,
 	.put_xfer_signal = pl08x_put_xfer_signal,
 	.slave_channels = s3c64xx_dma1_info,
 	.num_slave_channels = ARRAY_SIZE(s3c64xx_dma1_info),
+	.slave_map = s3c64xx_dma1_slave_map,
+	.slave_map_len = ARRAY_SIZE(s3c64xx_dma1_slave_map),
 };
 
 static AMBA_AHB_DEVICE(s3c64xx_dma1, "dma-pl080s.1", 0,
@@ -230,6 +251,9 @@ static AMBA_AHB_DEVICE(s3c64xx_dma1, "dma-pl080s.1", 0,
 
 static int __init s3c64xx_pl080_init(void)
 {
+	if (!soc_is_s3c64xx())
+		return 0;
+
 	/* Set all DMA configuration to be DMA, not SDMA */
 	writel(0xffffff, S3C64XX_SDMA_SEL);
 

@@ -24,6 +24,9 @@
 #include <linux/efi.h>
 #include <linux/export.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/stddef.h>
@@ -45,9 +48,12 @@
 #include <linux/personality.h>
 #include <linux/notifier.h>
 #include <trace/events/power.h>
+#include <linux/percpu.h>
 
+#include <asm/alternative.h>
 #include <asm/compat.h>
 #include <asm/cacheflush.h>
+#include <asm/exec.h>
 #include <asm/fpsimd.h>
 #include <asm/mmu_context.h>
 #include <asm/processor.h>
@@ -185,30 +191,31 @@ void __show_regs(struct pt_regs *regs)
 	printk("pc : [<%016llx>] lr : [<%016llx>] pstate: %08llx\n",
 	       regs->pc, lr, regs->pstate);
 	printk("sp : %016llx\n", sp);
-	for (i = top_reg; i >= 0; i--) {
+
+	i = top_reg;
+
+	while (i >= 0) {
 		printk("x%-2d: %016llx ", i, regs->regs[i]);
-		if (i % 2 == 0)
-			printk("\n");
+		i--;
+
+		if (i % 2 == 0) {
+			pr_cont("x%-2d: %016llx ", i, regs->regs[i]);
+			i--;
+		}
+
+		pr_cont("\n");
 	}
-	printk("\n");
 }
 
 void show_regs(struct pt_regs * regs)
 {
-	printk("\n");
 	__show_regs(regs);
-}
-
-/*
- * Free current thread data structures etc..
- */
-void exit_thread(void)
-{
+	dump_backtrace(regs, NULL);
 }
 
 static void tls_thread_flush(void)
 {
-	asm ("msr tpidr_el0, xzr");
+	write_sysreg(0, tpidr_el0);
 
 	if (is_compat_task()) {
 		current->thread.tp_value = 0;
@@ -219,7 +226,7 @@ static void tls_thread_flush(void)
 		 * with a stale shadow state during context switch.
 		 */
 		barrier();
-		asm ("msr tpidrro_el0, xzr");
+		write_sysreg(0, tpidrro_el0);
 	}
 }
 
@@ -259,14 +266,11 @@ int copy_thread(unsigned long clone_flags, unsigned long stack_start,
 		 * Read the current TLS pointer from tpidr_el0 as it may be
 		 * out-of-sync with the saved value.
 		 */
-		asm("mrs %0, tpidr_el0" : "=r" (*task_user_tls(p)));
+		*task_user_tls(p) = read_sysreg(tpidr_el0);
 
 		if (stack_start) {
 			if (is_compat_thread(task_thread_info(p)))
 				childregs->compat_sp = stack_start;
-			/* 16-byte aligned stack mandatory on AArch64 */
-			else if (stack_start & 15)
-				return -EINVAL;
 			else
 				childregs->sp = stack_start;
 		}
@@ -280,6 +284,9 @@ int copy_thread(unsigned long clone_flags, unsigned long stack_start,
 	} else {
 		memset(childregs, 0, sizeof(struct pt_regs));
 		childregs->pstate = PSR_MODE_EL1h;
+		if (IS_ENABLED(CONFIG_ARM64_UAO) &&
+		    cpus_have_const_cap(ARM64_HAS_UAO))
+			childregs->pstate |= PSR_UAO_BIT;
 		p->thread.cpu_context.x19 = stack_start;
 		p->thread.cpu_context.x20 = stk_sz;
 	}
@@ -291,27 +298,54 @@ int copy_thread(unsigned long clone_flags, unsigned long stack_start,
 	return 0;
 }
 
+void tls_preserve_current_state(void)
+{
+	*task_user_tls(current) = read_sysreg(tpidr_el0);
+}
+
 static void tls_thread_switch(struct task_struct *next)
 {
 	unsigned long tpidr, tpidrro;
 
-	asm("mrs %0, tpidr_el0" : "=r" (tpidr));
-	*task_user_tls(current) = tpidr;
+	tls_preserve_current_state();
 
 	tpidr = *task_user_tls(next);
 	tpidrro = is_compat_thread(task_thread_info(next)) ?
 		  next->thread.tp_value : 0;
 
-	asm(
-	"	msr	tpidr_el0, %0\n"
-	"	msr	tpidrro_el0, %1"
-	: : "r" (tpidr), "r" (tpidrro));
+	write_sysreg(tpidr, tpidr_el0);
+	write_sysreg(tpidrro, tpidrro_el0);
+}
+
+/* Restore the UAO state depending on next's addr_limit */
+void uao_thread_switch(struct task_struct *next)
+{
+	if (IS_ENABLED(CONFIG_ARM64_UAO)) {
+		if (task_thread_info(next)->addr_limit == KERNEL_DS)
+			asm(ALTERNATIVE("nop", SET_PSTATE_UAO(1), ARM64_HAS_UAO));
+		else
+			asm(ALTERNATIVE("nop", SET_PSTATE_UAO(0), ARM64_HAS_UAO));
+	}
+}
+
+/*
+ * We store our current task in sp_el0, which is clobbered by userspace. Keep a
+ * shadow copy so that we can restore this upon entry from userspace.
+ *
+ * This is *only* for exception entry from EL0, and is not valid until we
+ * __switch_to() a user task.
+ */
+DEFINE_PER_CPU(struct task_struct *, __entry_task);
+
+static void entry_task_switch(struct task_struct *next)
+{
+	__this_cpu_write(__entry_task, next);
 }
 
 /*
  * Thread switching.
  */
-struct task_struct *__switch_to(struct task_struct *prev,
+__notrace_funcgraph struct task_struct *__switch_to(struct task_struct *prev,
 				struct task_struct *next)
 {
 	struct task_struct *last;
@@ -320,6 +354,8 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	tls_thread_switch(next);
 	hw_breakpoint_thread_switch(next);
 	contextidr_thread_switch(next);
+	entry_task_switch(next);
+	uao_thread_switch(next);
 
 	/*
 	 * Complete any pending TLB or cache maintenance on this CPU in case
@@ -336,24 +372,35 @@ struct task_struct *__switch_to(struct task_struct *prev,
 unsigned long get_wchan(struct task_struct *p)
 {
 	struct stackframe frame;
-	unsigned long stack_page;
+	unsigned long stack_page, ret = 0;
 	int count = 0;
 	if (!p || p == current || p->state == TASK_RUNNING)
+		return 0;
+
+	stack_page = (unsigned long)try_get_task_stack(p);
+	if (!stack_page)
 		return 0;
 
 	frame.fp = thread_saved_fp(p);
 	frame.sp = thread_saved_sp(p);
 	frame.pc = thread_saved_pc(p);
-	stack_page = (unsigned long)task_stack_page(p);
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	frame.graph = p->curr_ret_stack;
+#endif
 	do {
 		if (frame.sp < stack_page ||
 		    frame.sp >= stack_page + THREAD_SIZE ||
-		    unwind_frame(&frame))
-			return 0;
-		if (!in_sched_functions(frame.pc))
-			return frame.pc;
+		    unwind_frame(p, &frame))
+			goto out;
+		if (!in_sched_functions(frame.pc)) {
+			ret = frame.pc;
+			goto out;
+		}
 	} while (count ++ < 16);
-	return 0;
+
+out:
+	put_task_stack(p);
+	return ret;
 }
 
 unsigned long arch_align_stack(unsigned long sp)
@@ -363,13 +410,10 @@ unsigned long arch_align_stack(unsigned long sp)
 	return sp & ~0xf;
 }
 
-static unsigned long randomize_base(unsigned long base)
-{
-	unsigned long range_end = base + (STACK_RND_MASK << PAGE_SHIFT) + 1;
-	return randomize_range(base, range_end, 0) ? : base;
-}
-
 unsigned long arch_randomize_brk(struct mm_struct *mm)
 {
-	return randomize_base(mm->brk);
+	if (is_compat_task())
+		return randomize_page(mm->brk, SZ_32M);
+	else
+		return randomize_page(mm->brk, SZ_1G);
 }

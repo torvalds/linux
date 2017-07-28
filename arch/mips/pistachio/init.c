@@ -2,6 +2,7 @@
  * Pistachio platform setup
  *
  * Copyright (C) 2014 Google, Inc.
+ * Copyright (C) 2016 Imagination Technologies
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -9,10 +10,10 @@
  */
 
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/of_address.h>
 #include <linux/of_fdt.h>
-#include <linux/of_platform.h>
 
 #include <asm/cacheflush.h>
 #include <asm/dma-coherence.h>
@@ -24,42 +25,50 @@
 #include <asm/smp-ops.h>
 #include <asm/traps.h>
 
+/*
+ * Core revision register decoding
+ * Bits 23 to 20: Major rev
+ * Bits 15 to 8: Minor rev
+ * Bits 7 to 0: Maintenance rev
+ */
+#define PISTACHIO_CORE_REV_REG	0xB81483D0
+#define PISTACHIO_CORE_REV_A1	0x00100006
+#define PISTACHIO_CORE_REV_B0	0x00100106
+
 const char *get_system_type(void)
 {
-	return "IMG Pistachio SoC";
+	u32 core_rev;
+	const char *sys_type;
+
+	core_rev = __raw_readl((const void *)PISTACHIO_CORE_REV_REG);
+
+	switch (core_rev) {
+	case PISTACHIO_CORE_REV_B0:
+		sys_type = "IMG Pistachio SoC (B0)";
+		break;
+
+	case PISTACHIO_CORE_REV_A1:
+		sys_type = "IMG Pistachio SoC (A1)";
+		break;
+
+	default:
+		sys_type = "IMG Pistachio SoC";
+		break;
+	}
+
+	return sys_type;
 }
 
-static void __init plat_setup_iocoherency(void)
+void __init *plat_get_fdt(void)
 {
-	/*
-	 * Kernel has been configured with software coherency
-	 * but we might choose to turn it off and use hardware
-	 * coherency instead.
-	 */
-	if (mips_cm_numiocu() != 0) {
-		/* Nothing special needs to be done to enable coherency */
-		pr_info("CMP IOCU detected\n");
-		hw_coherentio = 1;
-		if (coherentio == 0)
-			pr_info("Hardware DMA cache coherency disabled\n");
-		else
-			pr_info("Hardware DMA cache coherency enabled\n");
-	} else {
-		if (coherentio == 1)
-			pr_info("Hardware DMA cache coherency unsupported, but enabled from command line!\n");
-		else
-			pr_info("Software DMA cache coherency enabled\n");
-	}
+	if (fw_arg0 != -2)
+		panic("Device-tree not present");
+	return (void *)fw_arg1;
 }
 
 void __init plat_mem_setup(void)
 {
-	if (fw_arg0 != -2)
-		panic("Device-tree not present");
-
-	__dt_setup_arch((void *)fw_arg1);
-
-	plat_setup_iocoherency();
+	__dt_setup_arch(plat_get_fdt());
 }
 
 #define DEFAULT_CPC_BASE_ADDR	0x1bde0000
@@ -109,6 +118,8 @@ void __init prom_init(void)
 	mips_cm_probe();
 	mips_cpc_probe();
 	register_cps_smp_ops();
+
+	pr_info("SoC Type: %s\n", get_system_type());
 }
 
 void __init prom_free_prom_memory(void)
@@ -122,15 +133,3 @@ void __init device_tree_init(void)
 
 	unflatten_and_copy_device_tree();
 }
-
-static int __init plat_of_setup(void)
-{
-	if (!of_have_populated_dt())
-		panic("Device tree not present");
-
-	if (of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL))
-		panic("Failed to populate DT");
-
-	return 0;
-}
-arch_initcall(plat_of_setup);

@@ -48,6 +48,7 @@ enum {
 	NMTUS          = 16,    /* size of MTU table */
 	NCCTRL_WIN     = 32,    /* # of congestion control windows */
 	PM_NSTATS      = 5,     /* # of PM stats */
+	T6_PM_NSTATS   = 7,     /* # of PM stats in T6 */
 	MBOX_LEN       = 64,    /* mailbox size in bytes */
 	TRACE_LEN      = 112,   /* length of trace data and mask */
 	FILTER_OPT_LEN = 36,    /* filter tuple width for optional components */
@@ -218,6 +219,13 @@ enum {
 	FLASH_FW_NSECS = 16,
 	FLASH_FW_START = FLASH_START(FLASH_FW_START_SEC),
 	FLASH_FW_MAX_SIZE = FLASH_MAX_SIZE(FLASH_FW_NSECS),
+
+	/* Location of bootstrap firmware image in FLASH.
+	 */
+	FLASH_FWBOOTSTRAP_START_SEC = 27,
+	FLASH_FWBOOTSTRAP_NSECS = 1,
+	FLASH_FWBOOTSTRAP_START = FLASH_START(FLASH_FWBOOTSTRAP_START_SEC),
+	FLASH_FWBOOTSTRAP_MAX_SIZE = FLASH_MAX_SIZE(FLASH_FWBOOTSTRAP_NSECS),
 
 	/*
 	 * iSCSI persistent/crash information.

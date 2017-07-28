@@ -13,11 +13,6 @@
  * General Public License version 2 for more details (a copy is included
  * in the LICENSE file that accompanied this code).
  *
- * You should have received a copy of the GNU General Public License
- * version 2 along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA
- *
  * GPL HEADER END
  */
 /*
@@ -28,7 +23,7 @@
  * This file is part of Lustre, http://www.lustre.org/
  * Lustre is a trademark of Sun Microsystems, Inc.
  *
- * libcfs/include/libcfs/linux/linux-mem.h
+ * libcfs/include/libcfs/linux/linux-cpu.h
  *
  * Basic library routines.
  *
@@ -57,17 +52,17 @@ struct cfs_cpu_partition {
 	/* nodes mask for this partition */
 	nodemask_t			*cpt_nodemask;
 	/* spread rotor for NUMA allocator */
-	unsigned			cpt_spread_rotor;
+	unsigned int			cpt_spread_rotor;
 };
 
 /** descriptor for CPU partitions */
 struct cfs_cpt_table {
 	/* version, reserved for hotplug */
-	unsigned			ctb_version;
+	unsigned int			ctb_version;
 	/* spread rotor for NUMA allocator */
-	unsigned			ctb_spread_rotor;
+	unsigned int			ctb_spread_rotor;
 	/* # of CPU partitions */
-	unsigned			ctb_nparts;
+	unsigned int			ctb_nparts;
 	/* partitions tables */
 	struct cfs_cpu_partition	*ctb_parts;
 	/* shadow HW CPU to CPU partition ID */

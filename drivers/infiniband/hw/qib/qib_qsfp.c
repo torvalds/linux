@@ -292,7 +292,7 @@ int qib_refresh_qsfp_cache(struct qib_pportdata *ppd, struct qib_qsfp_cache *cp)
 		qib_dev_porterr(ppd->dd, ppd->port,
 				"QSFP byte0 is 0x%02X, S/B 0x0C/D\n", peek[0]);
 
-	if ((peek[2] & 2) == 0) {
+	if ((peek[2] & 4) == 0) {
 		/*
 		 * If cable is paged, rather than "flat memory", we need to
 		 * set the page to zero, Even if it already appears to be zero.
@@ -485,16 +485,6 @@ void qib_qsfp_init(struct qib_qsfp_data *qd,
 	dd->f_gpio_mod(dd, mask, mask, mask);
 }
 
-void qib_qsfp_deinit(struct qib_qsfp_data *qd)
-{
-	/*
-	 * There is nothing to do here for now.  our work is scheduled
-	 * with queue_work(), and flush_workqueue() from remove_one
-	 * will block until all work setup with queue_work()
-	 * completes.
-	 */
-}
-
 int qib_qsfp_dump(struct qib_pportdata *ppd, char *buf, int len)
 {
 	struct qib_qsfp_cache cd;
@@ -538,7 +528,7 @@ int qib_qsfp_dump(struct qib_pportdata *ppd, char *buf, int len)
 	sofar += scnprintf(buf + sofar, len - sofar, "Date:%.*s\n",
 			   QSFP_DATE_LEN, cd.date);
 	sofar += scnprintf(buf + sofar, len - sofar, "Lot:%.*s\n",
-			   QSFP_LOT_LEN, cd.date);
+			   QSFP_LOT_LEN, cd.lot);
 
 	while (bidx < QSFP_DEFAULT_HDR_CNT) {
 		int iidx;

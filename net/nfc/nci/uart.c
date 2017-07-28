@@ -171,14 +171,7 @@ static int nci_uart_tty_open(struct tty_struct *tty)
 	tty->disc_data = NULL;
 	tty->receive_room = 65536;
 
-	/* Flush any pending characters in the driver and line discipline. */
-
-	/* FIXME: why is this needed. Note don't use ldisc_ref here as the
-	 * open path is before the ldisc is referencable.
-	 */
-
-	if (tty->ldisc->ops->flush_buffer)
-		tty->ldisc->ops->flush_buffer(tty);
+	/* Flush any pending characters in the driver */
 	tty_driver_flush_buffer(tty);
 
 	return 0;
@@ -362,7 +355,7 @@ static int nci_uart_default_recv_buf(struct nci_uart *nu, const u8 *data,
 
 		/* Eat byte after byte till full packet header is received */
 		if (nu->rx_skb->len < NCI_CTRL_HDR_SIZE) {
-			*skb_put(nu->rx_skb, 1) = *data++;
+			skb_put_u8(nu->rx_skb, *data++);
 			--count;
 			continue;
 		}
@@ -378,7 +371,7 @@ static int nci_uart_default_recv_buf(struct nci_uart *nu, const u8 *data,
 		chunk_len = nu->rx_packet_len - nu->rx_skb->len;
 		if (count < chunk_len)
 			chunk_len = count;
-		memcpy(skb_put(nu->rx_skb, chunk_len), data, chunk_len);
+		skb_put_data(nu->rx_skb, data, chunk_len);
 		data += chunk_len;
 		count -= chunk_len;
 

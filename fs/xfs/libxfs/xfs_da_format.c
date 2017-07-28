@@ -40,8 +40,7 @@ xfs_dir2_sf_entsize(
 	int count = sizeof(struct xfs_dir2_sf_entry);	/* namelen + offset */
 
 	count += len;					/* name */
-	count += hdr->i8count ? sizeof(xfs_dir2_ino8_t) :
-				sizeof(xfs_dir2_ino4_t); /* ino # */
+	count += hdr->i8count ? XFS_INO64_SIZE : XFS_INO32_SIZE; /* ino # */
 	return count;
 }
 
@@ -50,7 +49,7 @@ xfs_dir3_sf_entsize(
 	struct xfs_dir2_sf_hdr	*hdr,
 	int			len)
 {
-	return xfs_dir2_sf_entsize(hdr, len) + sizeof(__uint8_t);
+	return xfs_dir2_sf_entsize(hdr, len) + sizeof(uint8_t);
 }
 
 static struct xfs_dir2_sf_entry *
@@ -78,7 +77,7 @@ xfs_dir3_sf_nextentry(
  * not necessary. For non-filetype enable directories, the type is always
  * unknown and we never store the value.
  */
-static __uint8_t
+static uint8_t
 xfs_dir2_sfe_get_ftype(
 	struct xfs_dir2_sf_entry *sfep)
 {
@@ -88,16 +87,16 @@ xfs_dir2_sfe_get_ftype(
 static void
 xfs_dir2_sfe_put_ftype(
 	struct xfs_dir2_sf_entry *sfep,
-	__uint8_t		ftype)
+	uint8_t			ftype)
 {
 	ASSERT(ftype < XFS_DIR3_FT_MAX);
 }
 
-static __uint8_t
+static uint8_t
 xfs_dir3_sfe_get_ftype(
 	struct xfs_dir2_sf_entry *sfep)
 {
-	__uint8_t	ftype;
+	uint8_t		ftype;
 
 	ftype = sfep->name[sfep->namelen];
 	if (ftype >= XFS_DIR3_FT_MAX)
@@ -108,7 +107,7 @@ xfs_dir3_sfe_get_ftype(
 static void
 xfs_dir3_sfe_put_ftype(
 	struct xfs_dir2_sf_entry *sfep,
-	__uint8_t		ftype)
+	uint8_t			ftype)
 {
 	ASSERT(ftype < XFS_DIR3_FT_MAX);
 
@@ -125,33 +124,33 @@ xfs_dir3_sfe_put_ftype(
 static xfs_ino_t
 xfs_dir2_sf_get_ino(
 	struct xfs_dir2_sf_hdr	*hdr,
-	xfs_dir2_inou_t		*from)
+	uint8_t			*from)
 {
 	if (hdr->i8count)
-		return get_unaligned_be64(&from->i8.i) & 0x00ffffffffffffffULL;
+		return get_unaligned_be64(from) & 0x00ffffffffffffffULL;
 	else
-		return get_unaligned_be32(&from->i4.i);
+		return get_unaligned_be32(from);
 }
 
 static void
 xfs_dir2_sf_put_ino(
 	struct xfs_dir2_sf_hdr	*hdr,
-	xfs_dir2_inou_t		*to,
+	uint8_t			*to,
 	xfs_ino_t		ino)
 {
 	ASSERT((ino & 0xff00000000000000ULL) == 0);
 
 	if (hdr->i8count)
-		put_unaligned_be64(ino, &to->i8.i);
+		put_unaligned_be64(ino, to);
 	else
-		put_unaligned_be32(ino, &to->i4.i);
+		put_unaligned_be32(ino, to);
 }
 
 static xfs_ino_t
 xfs_dir2_sf_get_parent_ino(
 	struct xfs_dir2_sf_hdr	*hdr)
 {
-	return xfs_dir2_sf_get_ino(hdr, &hdr->parent);
+	return xfs_dir2_sf_get_ino(hdr, hdr->parent);
 }
 
 static void
@@ -159,7 +158,7 @@ xfs_dir2_sf_put_parent_ino(
 	struct xfs_dir2_sf_hdr	*hdr,
 	xfs_ino_t		ino)
 {
-	xfs_dir2_sf_put_ino(hdr, &hdr->parent, ino);
+	xfs_dir2_sf_put_ino(hdr, hdr->parent, ino);
 }
 
 /*
@@ -173,8 +172,7 @@ xfs_dir2_sfe_get_ino(
 	struct xfs_dir2_sf_hdr	*hdr,
 	struct xfs_dir2_sf_entry *sfep)
 {
-	return xfs_dir2_sf_get_ino(hdr,
-				(xfs_dir2_inou_t *)&sfep->name[sfep->namelen]);
+	return xfs_dir2_sf_get_ino(hdr, &sfep->name[sfep->namelen]);
 }
 
 static void
@@ -183,8 +181,7 @@ xfs_dir2_sfe_put_ino(
 	struct xfs_dir2_sf_entry *sfep,
 	xfs_ino_t		ino)
 {
-	xfs_dir2_sf_put_ino(hdr,
-			    (xfs_dir2_inou_t *)&sfep->name[sfep->namelen], ino);
+	xfs_dir2_sf_put_ino(hdr, &sfep->name[sfep->namelen], ino);
 }
 
 static xfs_ino_t
@@ -192,8 +189,7 @@ xfs_dir3_sfe_get_ino(
 	struct xfs_dir2_sf_hdr	*hdr,
 	struct xfs_dir2_sf_entry *sfep)
 {
-	return xfs_dir2_sf_get_ino(hdr,
-			(xfs_dir2_inou_t *)&sfep->name[sfep->namelen + 1]);
+	return xfs_dir2_sf_get_ino(hdr, &sfep->name[sfep->namelen + 1]);
 }
 
 static void
@@ -202,8 +198,7 @@ xfs_dir3_sfe_put_ino(
 	struct xfs_dir2_sf_entry *sfep,
 	xfs_ino_t		ino)
 {
-	xfs_dir2_sf_put_ino(hdr,
-			(xfs_dir2_inou_t *)&sfep->name[sfep->namelen + 1], ino);
+	xfs_dir2_sf_put_ino(hdr, &sfep->name[sfep->namelen + 1], ino);
 }
 
 
@@ -230,7 +225,7 @@ xfs_dir3_sfe_put_ino(
 
 #define XFS_DIR3_DATA_ENTSIZE(n)					\
 	round_up((offsetof(struct xfs_dir2_data_entry, name[0]) + (n) +	\
-		 sizeof(xfs_dir2_data_off_t) + sizeof(__uint8_t)),	\
+		 sizeof(xfs_dir2_data_off_t) + sizeof(uint8_t)),	\
 		XFS_DIR2_DATA_ALIGN)
 
 static int
@@ -247,7 +242,7 @@ xfs_dir3_data_entsize(
 	return XFS_DIR3_DATA_ENTSIZE(n);
 }
 
-static __uint8_t
+static uint8_t
 xfs_dir2_data_get_ftype(
 	struct xfs_dir2_data_entry *dep)
 {
@@ -257,16 +252,16 @@ xfs_dir2_data_get_ftype(
 static void
 xfs_dir2_data_put_ftype(
 	struct xfs_dir2_data_entry *dep,
-	__uint8_t		ftype)
+	uint8_t			ftype)
 {
 	ASSERT(ftype < XFS_DIR3_FT_MAX);
 }
 
-static __uint8_t
+static uint8_t
 xfs_dir3_data_get_ftype(
 	struct xfs_dir2_data_entry *dep)
 {
-	__uint8_t	ftype = dep->name[dep->namelen];
+	uint8_t		ftype = dep->name[dep->namelen];
 
 	if (ftype >= XFS_DIR3_FT_MAX)
 		return XFS_DIR3_FT_UNKNOWN;
@@ -276,7 +271,7 @@ xfs_dir3_data_get_ftype(
 static void
 xfs_dir3_data_put_ftype(
 	struct xfs_dir2_data_entry *dep,
-	__uint8_t		type)
+	uint8_t			type)
 {
 	ASSERT(type < XFS_DIR3_FT_MAX);
 	ASSERT(dep->namelen != 0);

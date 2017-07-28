@@ -129,7 +129,7 @@ static int poodle_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static struct snd_soc_ops poodle_ops = {
+static const struct snd_soc_ops poodle_ops = {
 	.startup = poodle_startup,
 	.hw_params = poodle_hw_params,
 	.shutdown = poodle_shutdown,
@@ -138,7 +138,7 @@ static struct snd_soc_ops poodle_ops = {
 static int poodle_get_jack(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	ucontrol->value.integer.value[0] = poodle_jack_func;
+	ucontrol->value.enumerated.item[0] = poodle_jack_func;
 	return 0;
 }
 
@@ -147,10 +147,10 @@ static int poodle_set_jack(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_card *card =  snd_kcontrol_chip(kcontrol);
 
-	if (poodle_jack_func == ucontrol->value.integer.value[0])
+	if (poodle_jack_func == ucontrol->value.enumerated.item[0])
 		return 0;
 
-	poodle_jack_func = ucontrol->value.integer.value[0];
+	poodle_jack_func = ucontrol->value.enumerated.item[0];
 	poodle_ext_control(&card->dapm);
 	return 1;
 }
@@ -158,7 +158,7 @@ static int poodle_set_jack(struct snd_kcontrol *kcontrol,
 static int poodle_get_spk(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
-	ucontrol->value.integer.value[0] = poodle_spk_func;
+	ucontrol->value.enumerated.item[0] = poodle_spk_func;
 	return 0;
 }
 
@@ -167,10 +167,10 @@ static int poodle_set_spk(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_card *card =  snd_kcontrol_chip(kcontrol);
 
-	if (poodle_spk_func == ucontrol->value.integer.value[0])
+	if (poodle_spk_func == ucontrol->value.enumerated.item[0])
 		return 0;
 
-	poodle_spk_func = ucontrol->value.integer.value[0];
+	poodle_spk_func = ucontrol->value.enumerated.item[0];
 	poodle_ext_control(&card->dapm);
 	return 1;
 }
@@ -209,8 +209,8 @@ static const struct snd_soc_dapm_route poodle_audio_map[] = {
 	{"MICIN", NULL, "Microphone"},
 };
 
-static const char *jack_function[] = {"Off", "Headphone"};
-static const char *spk_function[] = {"Off", "On"};
+static const char * const jack_function[] = {"Off", "Headphone"};
+static const char * const spk_function[] = {"Off", "On"};
 static const struct soc_enum poodle_enum[] = {
 	SOC_ENUM_SINGLE_EXT(2, jack_function),
 	SOC_ENUM_SINGLE_EXT(2, spk_function),

@@ -31,6 +31,7 @@
 #include <linux/slab.h>
 #include <linux/regmap.h>
 #include <linux/reset.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/usb/of.h>
 
 #include "core.h"
@@ -129,12 +130,18 @@ static int st_dwc3_drd_init(struct st_dwc3 *dwc3_data)
 	switch (dwc3_data->dr_mode) {
 	case USB_DR_MODE_PERIPHERAL:
 
-		val &= ~(USB3_FORCE_VBUSVALID | USB3_DELAY_VBUSVALID
+		val &= ~(USB3_DELAY_VBUSVALID
 			| USB3_SEL_FORCE_OPMODE | USB3_FORCE_OPMODE(0x3)
 			| USB3_SEL_FORCE_DPPULLDOWN2 | USB3_FORCE_DPPULLDOWN2
 			| USB3_SEL_FORCE_DMPULLDOWN2 | USB3_FORCE_DMPULLDOWN2);
 
-		val |= USB3_DEVICE_NOT_HOST;
+		/*
+		 * USB3_PORT2_FORCE_VBUSVALID When '1' and when
+		 * USB3_PORT2_DEVICE_NOT_HOST = 1, forces VBUSVLDEXT2 input
+		 * of the pico PHY to 1.
+		 */
+
+		val |= USB3_DEVICE_NOT_HOST | USB3_FORCE_VBUSVALID;
 		break;
 
 	case USB_DR_MODE_HOST:
@@ -212,7 +219,6 @@ static int st_dwc3_probe(struct platform_device *pdev)
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 
-	dma_set_coherent_mask(dev, dev->coherent_dma_mask);
 	dwc3_data->dev = dev;
 	dwc3_data->regmap = regmap;
 
@@ -224,10 +230,11 @@ static int st_dwc3_probe(struct platform_device *pdev)
 
 	dwc3_data->syscfg_reg_off = res->start;
 
-	dev_vdbg(&pdev->dev, "glue-logic addr 0x%p, syscfg-reg offset 0x%x\n",
+	dev_vdbg(&pdev->dev, "glue-logic addr 0x%pK, syscfg-reg offset 0x%x\n",
 		 dwc3_data->glue_base, dwc3_data->syscfg_reg_off);
 
-	dwc3_data->rstc_pwrdn = devm_reset_control_get(dev, "powerdown");
+	dwc3_data->rstc_pwrdn =
+		devm_reset_control_get_exclusive(dev, "powerdown");
 	if (IS_ERR(dwc3_data->rstc_pwrdn)) {
 		dev_err(&pdev->dev, "could not get power controller\n");
 		ret = PTR_ERR(dwc3_data->rstc_pwrdn);
@@ -237,7 +244,8 @@ static int st_dwc3_probe(struct platform_device *pdev)
 	/* Manage PowerDown */
 	reset_control_deassert(dwc3_data->rstc_pwrdn);
 
-	dwc3_data->rstc_rst = devm_reset_control_get(dev, "softreset");
+	dwc3_data->rstc_rst =
+		devm_reset_control_get_shared(dev, "softreset");
 	if (IS_ERR(dwc3_data->rstc_rst)) {
 		dev_err(&pdev->dev, "could not get reset controller\n");
 		ret = PTR_ERR(dwc3_data->rstc_rst);

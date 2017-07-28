@@ -18,14 +18,11 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
- * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
+ * To obtain the license, point your browser to
+ * http://www.gnu.org/copyleft/gpl.html
  *
  *
- * the project's page is at http://www.linuxtv.org/ 
+ * the project's page is at https://linuxtv.org
  */
 
 #include <linux/types.h>
@@ -280,9 +277,11 @@ int av7110_pes_play(void *dest, struct dvb_ringbuffer *buf, int dlen)
 }
 
 
-int av7110_set_volume(struct av7110 *av7110, int volleft, int volright)
+int av7110_set_volume(struct av7110 *av7110, unsigned int volleft,
+		      unsigned int volright)
 {
-	int err, vol, val, balance = 0;
+	unsigned int vol, val, balance = 0;
+	int err;
 
 	dprintk(2, "av7110:%p, \n", av7110);
 
@@ -1043,6 +1042,9 @@ static int play_iframe(struct av7110 *av7110, char __user *buf, unsigned int len
 
 	dprintk(2, "av7110:%p, \n", av7110);
 
+	if (len == 0)
+		return 0;
+
 	if (!(av7110->playing & RP_VIDEO)) {
 		if (av7110_av_start_play(av7110, RP_VIDEO) < 0)
 			return -EBUSY;
@@ -1589,10 +1591,10 @@ int av7110_av_register(struct av7110 *av7110)
 	memset(&av7110->video_size, 0, sizeof (video_size_t));
 
 	dvb_register_device(&av7110->dvb_adapter, &av7110->video_dev,
-			    &dvbdev_video, av7110, DVB_DEVICE_VIDEO);
+			    &dvbdev_video, av7110, DVB_DEVICE_VIDEO, 0);
 
 	dvb_register_device(&av7110->dvb_adapter, &av7110->audio_dev,
-			    &dvbdev_audio, av7110, DVB_DEVICE_AUDIO);
+			    &dvbdev_audio, av7110, DVB_DEVICE_AUDIO, 0);
 
 	return 0;
 }

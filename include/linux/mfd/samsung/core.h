@@ -30,6 +30,9 @@
 #define MIN_600_MV		600000
 #define MIN_500_MV		500000
 
+/* Ramp delay in uV/us */
+#define RAMP_DELAY_12_MVUS	12000
+
 /* Macros to represent steps for LDO/BUCK */
 #define STEP_50_MV		50000
 #define STEP_25_MV		25000
@@ -44,6 +47,7 @@ enum sec_device_type {
 	S2MPS11X,
 	S2MPS13X,
 	S2MPS14X,
+	S2MPS15X,
 	S2MPU02,
 };
 

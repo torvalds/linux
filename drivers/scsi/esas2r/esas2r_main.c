@@ -194,11 +194,11 @@ static ssize_t write_hw(struct file *file, struct kobject *kobj,
 	int length = min(sizeof(struct atto_ioctl), count);
 
 	if (!a->local_atto_ioctl) {
-		a->local_atto_ioctl = kzalloc(sizeof(struct atto_ioctl),
+		a->local_atto_ioctl = kmalloc(sizeof(struct atto_ioctl),
 					      GFP_KERNEL);
 		if (a->local_atto_ioctl == NULL) {
 			esas2r_log(ESAS2R_LOG_WARN,
-				   "write_hw kzalloc failed for %d bytes",
+				   "write_hw kzalloc failed for %zu bytes",
 				   sizeof(struct atto_ioctl));
 			return -ENOMEM;
 		}
@@ -246,7 +246,7 @@ static struct scsi_host_template driver_template = {
 	.eh_target_reset_handler	= esas2r_target_reset,
 	.can_queue			= 128,
 	.this_id			= -1,
-	.sg_tablesize			= SCSI_MAX_SG_SEGMENTS,
+	.sg_tablesize			= SG_CHUNK_SIZE,
 	.cmd_per_lun			=
 		ESAS2R_DEFAULT_CMD_PER_LUN,
 	.present			= 0,
@@ -271,7 +271,7 @@ module_param(num_sg_lists, int, 0);
 MODULE_PARM_DESC(num_sg_lists,
 		 "Number of scatter/gather lists.  Default 1024.");
 
-int sg_tablesize = SCSI_MAX_SG_SEGMENTS;
+int sg_tablesize = SG_CHUNK_SIZE;
 module_param(sg_tablesize, int, 0);
 MODULE_PARM_DESC(sg_tablesize,
 		 "Maximum number of entries in a scatter/gather table.");
@@ -1186,7 +1186,7 @@ retry:
 		} else {
 			esas2r_log(ESAS2R_LOG_CRIT,
 				   "unable to allocate a request for a "
-				   "device reset (%d:%d)!",
+				   "device reset (%d:%llu)!",
 				   cmd->device->id,
 				   cmd->device->lun);
 		}

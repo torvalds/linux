@@ -53,15 +53,16 @@ struct cvb_table {
 
 	int speedo_scale;
 	int voltage_scale;
-	struct cvb_table_freq_entry cvb_table[MAX_DVFS_FREQS];
+	struct cvb_table_freq_entry entries[MAX_DVFS_FREQS];
 	struct cvb_cpu_dfll_data cpu_dfll_data;
 };
 
-const struct cvb_table *tegra_cvb_build_opp_table(
-		const struct cvb_table *cvb_tables,
-		size_t sz, int process_id,
-		int speedo_id, int speedo_value,
-		unsigned long max_rate,
-		struct device *opp_dev);
+const struct cvb_table *
+tegra_cvb_add_opp_table(struct device *dev, const struct cvb_table *cvb_tables,
+			size_t count, int process_id, int speedo_id,
+			int speedo_value, unsigned long max_freq);
+void tegra_cvb_remove_opp_table(struct device *dev,
+				const struct cvb_table *table,
+				unsigned long max_freq);
 
 #endif

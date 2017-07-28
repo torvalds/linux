@@ -111,8 +111,10 @@ static u32 lba_t32;
 
 
 /* Looks nice and keeps the compiler happy */
-#define LBA_DEV(d) ((struct lba_device *) (d))
-
+#define LBA_DEV(d) ({				\
+	void *__pdata = d;			\
+	BUG_ON(!__pdata);			\
+	(struct lba_device *)__pdata; })
 
 /*
 ** Only allow 8 subsidiary busses per LBA
@@ -790,8 +792,10 @@ lba_fixup_bus(struct pci_bus *bus)
                 /*
 		** P2PB's have no IRQs. ignore them.
 		*/
-		if ((dev->class >> 8) == PCI_CLASS_BRIDGE_PCI)
+		if ((dev->class >> 8) == PCI_CLASS_BRIDGE_PCI) {
+			pcibios_init_bridge(dev);
 			continue;
+		}
 
 		/* Adjust INTERRUPT_LINE for this dev */
 		iosapic_fixup_irq(ldev->iosapic_obj, dev);

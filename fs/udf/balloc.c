@@ -447,9 +447,6 @@ static void udf_table_free_blocks(struct super_block *sb,
 		 */
 
 		int adsize;
-		struct short_ad *sad = NULL;
-		struct long_ad *lad = NULL;
-		struct allocExtDesc *aed;
 
 		eloc.logicalBlockNum = start;
 		elen = EXT_RECORDED_ALLOCATED |
@@ -466,102 +463,17 @@ static void udf_table_free_blocks(struct super_block *sb,
 		}
 
 		if (epos.offset + (2 * adsize) > sb->s_blocksize) {
-			unsigned char *sptr, *dptr;
-			int loffset;
-
-			brelse(oepos.bh);
-			oepos = epos;
-
 			/* Steal a block from the extent being free'd */
-			epos.block.logicalBlockNum = eloc.logicalBlockNum;
+			udf_setup_indirect_aext(table, eloc.logicalBlockNum,
+						&epos);
+
 			eloc.logicalBlockNum++;
 			elen -= sb->s_blocksize;
-
-			epos.bh = udf_tread(sb,
-					udf_get_lb_pblock(sb, &epos.block, 0));
-			if (!epos.bh) {
-				brelse(oepos.bh);
-				goto error_return;
-			}
-			aed = (struct allocExtDesc *)(epos.bh->b_data);
-			aed->previousAllocExtLocation =
-				cpu_to_le32(oepos.block.logicalBlockNum);
-			if (epos.offset + adsize > sb->s_blocksize) {
-				loffset = epos.offset;
-				aed->lengthAllocDescs = cpu_to_le32(adsize);
-				sptr = iinfo->i_ext.i_data + epos.offset
-								- adsize;
-				dptr = epos.bh->b_data +
-					sizeof(struct allocExtDesc);
-				memcpy(dptr, sptr, adsize);
-				epos.offset = sizeof(struct allocExtDesc) +
-						adsize;
-			} else {
-				loffset = epos.offset + adsize;
-				aed->lengthAllocDescs = cpu_to_le32(0);
-				if (oepos.bh) {
-					sptr = oepos.bh->b_data + epos.offset;
-					aed = (struct allocExtDesc *)
-						oepos.bh->b_data;
-					le32_add_cpu(&aed->lengthAllocDescs,
-							adsize);
-				} else {
-					sptr = iinfo->i_ext.i_data +
-								epos.offset;
-					iinfo->i_lenAlloc += adsize;
-					mark_inode_dirty(table);
-				}
-				epos.offset = sizeof(struct allocExtDesc);
-			}
-			if (sbi->s_udfrev >= 0x0200)
-				udf_new_tag(epos.bh->b_data, TAG_IDENT_AED,
-					    3, 1, epos.block.logicalBlockNum,
-					    sizeof(struct tag));
-			else
-				udf_new_tag(epos.bh->b_data, TAG_IDENT_AED,
-					    2, 1, epos.block.logicalBlockNum,
-					    sizeof(struct tag));
-
-			switch (iinfo->i_alloc_type) {
-			case ICBTAG_FLAG_AD_SHORT:
-				sad = (struct short_ad *)sptr;
-				sad->extLength = cpu_to_le32(
-					EXT_NEXT_EXTENT_ALLOCDECS |
-					sb->s_blocksize);
-				sad->extPosition =
-					cpu_to_le32(epos.block.logicalBlockNum);
-				break;
-			case ICBTAG_FLAG_AD_LONG:
-				lad = (struct long_ad *)sptr;
-				lad->extLength = cpu_to_le32(
-					EXT_NEXT_EXTENT_ALLOCDECS |
-					sb->s_blocksize);
-				lad->extLocation =
-					cpu_to_lelb(epos.block);
-				break;
-			}
-			if (oepos.bh) {
-				udf_update_tag(oepos.bh->b_data, loffset);
-				mark_buffer_dirty(oepos.bh);
-			} else {
-				mark_inode_dirty(table);
-			}
 		}
 
 		/* It's possible that stealing the block emptied the extent */
-		if (elen) {
-			udf_write_aext(table, &epos, &eloc, elen, 1);
-
-			if (!epos.bh) {
-				iinfo->i_lenAlloc += adsize;
-				mark_inode_dirty(table);
-			} else {
-				aed = (struct allocExtDesc *)epos.bh->b_data;
-				le32_add_cpu(&aed->lengthAllocDescs, adsize);
-				udf_update_tag(epos.bh->b_data, epos.offset);
-				mark_buffer_dirty(epos.bh);
-			}
-		}
+		if (elen)
+			__udf_add_aext(table, &epos, &eloc, elen, 1);
 	}
 
 	brelse(epos.bh);

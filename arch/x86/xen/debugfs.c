@@ -1,7 +1,6 @@
 #include <linux/init.h>
 #include <linux/debugfs.h>
 #include <linux/slab.h>
-#include <linux/module.h>
 
 #include "debugfs.h"
 

@@ -22,7 +22,7 @@
 #include <linux/usb/isp1362.h>
 #endif
 #include <linux/i2c.h>
-#include <linux/i2c/adp5588.h>
+#include <linux/platform_data/adp5588.h>
 #include <linux/etherdevice.h>
 #include <linux/ata_platform.h>
 #include <linux/irq.h>
@@ -404,7 +404,7 @@ static struct mtd_partition bfin_plat_nand_partitions[] = {
 #define BFIN_NAND_PLAT_ALE 1
 static void bfin_plat_nand_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 {
-	struct nand_chip *this = mtd->priv;
+	struct nand_chip *this = mtd_to_nand(mtd);
 
 	if (cmd == NAND_CMD_NONE)
 		return;
@@ -776,7 +776,7 @@ static const struct ad7877_platform_data bfin_ad7877_ts_info = {
 #endif
 
 #if IS_ENABLED(CONFIG_TOUCHSCREEN_AD7879)
-#include <linux/spi/ad7879.h>
+#include <linux/platform_data/ad7879.h>
 static const struct ad7879_platform_data bfin_ad7879_ts_info = {
 	.model			= 7879,	/* Model = AD7879 */
 	.x_plate_ohms		= 620,	/* 620 Ohm from the touch datasheet */
@@ -1995,7 +1995,7 @@ static struct adp5588_gpio_platform_data adp5588_gpio_data = {
 #endif
 
 #if IS_ENABLED(CONFIG_BACKLIGHT_ADP8870)
-#include <linux/i2c/adp8870.h>
+#include <linux/platform_data/adp8870.h>
 static struct led_info adp8870_leds[] = {
 	{
 		.name = "adp8870-led7",
@@ -2047,7 +2047,7 @@ static struct adp8870_backlight_platform_data adp8870_pdata = {
 #endif
 
 #if IS_ENABLED(CONFIG_BACKLIGHT_ADP8860)
-#include <linux/i2c/adp8860.h>
+#include <linux/platform_data/adp8860.h>
 static struct led_info adp8860_leds[] = {
 	{
 		.name = "adp8860-led7",

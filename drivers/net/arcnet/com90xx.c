@@ -88,8 +88,8 @@ static int irq;
 static int shmem;
 static char device[9];		/* use eg. device=arc1 to change name */
 
-module_param(io, int, 0);
-module_param(irq, int, 0);
+module_param_hw(io, int, ioport, 0);
+module_param_hw(irq, int, irq, 0);
 module_param(shmem, int, 0);
 module_param_string(device, device, sizeof(device), 0);
 
@@ -433,7 +433,7 @@ static void __init com90xx_probe(void)
 	kfree(iomem);
 }
 
-static int check_mirror(unsigned long addr, size_t size)
+static int __init check_mirror(unsigned long addr, size_t size)
 {
 	void __iomem *p;
 	int res = -1;

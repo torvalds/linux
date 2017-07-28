@@ -24,7 +24,13 @@ static __always_inline int preempt_count(void)
 
 static __always_inline void preempt_count_set(int pc)
 {
-	raw_cpu_write_4(__preempt_count, pc);
+	int old, new;
+
+	do {
+		old = raw_cpu_read_4(__preempt_count);
+		new = (old & PREEMPT_NEED_RESCHED) |
+			(pc & ~PREEMPT_NEED_RESCHED);
+	} while (raw_cpu_cmpxchg_4(__preempt_count, old, new) != old);
 }
 
 /*
@@ -81,7 +87,7 @@ static __always_inline void __preempt_count_sub(int val)
  */
 static __always_inline bool __preempt_count_dec_and_test(void)
 {
-	GEN_UNARY_RMWcc("decl", __preempt_count, __percpu_arg(0), "e");
+	GEN_UNARY_RMWcc("decl", __preempt_count, __percpu_arg(0), e);
 }
 
 /*
@@ -94,10 +100,19 @@ static __always_inline bool should_resched(int preempt_offset)
 
 #ifdef CONFIG_PREEMPT
   extern asmlinkage void ___preempt_schedule(void);
-# define __preempt_schedule() asm ("call ___preempt_schedule")
+# define __preempt_schedule()					\
+({								\
+	register void *__sp asm(_ASM_SP);			\
+	asm volatile ("call ___preempt_schedule" : "+r"(__sp));	\
+})
+
   extern asmlinkage void preempt_schedule(void);
   extern asmlinkage void ___preempt_schedule_notrace(void);
-# define __preempt_schedule_notrace() asm ("call ___preempt_schedule_notrace")
+# define __preempt_schedule_notrace()					\
+({									\
+	register void *__sp asm(_ASM_SP);				\
+	asm volatile ("call ___preempt_schedule_notrace" : "+r"(__sp));	\
+})
   extern asmlinkage void preempt_schedule_notrace(void);
 #endif
 

@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -49,13 +45,11 @@ enum {
 
 static inline int node_is_left_child(struct interval_node *node)
 {
-	LASSERT(node->in_parent != NULL);
 	return node == node->in_parent->in_left;
 }
 
 static inline int node_is_right_child(struct interval_node *node)
 {
-	LASSERT(node->in_parent != NULL);
 	return node == node->in_parent->in_right;
 }
 
@@ -96,21 +90,15 @@ static inline int extent_equal(struct interval_node_extent *e1,
 	return (e1->start == e2->start) && (e1->end == e2->end);
 }
 
-static inline int node_compare(struct interval_node *n1,
-			       struct interval_node *n2)
+static inline int extent_overlapped(struct interval_node_extent *e1,
+				    struct interval_node_extent *e2)
 {
-	return extent_compare(&n1->in_extent, &n2->in_extent);
+	return (e1->start <= e2->end) && (e2->start <= e1->end);
 }
 
-static inline int node_equal(struct interval_node *n1,
-			     struct interval_node *n2)
+static inline int node_equal(struct interval_node *n1, struct interval_node *n2)
 {
 	return extent_equal(&n1->in_extent, &n2->in_extent);
-}
-
-static inline __u64 max_u64(__u64 x, __u64 y)
-{
-	return x > y ? x : y;
 }
 
 static struct interval_node *interval_first(struct interval_node *node)
@@ -141,13 +129,14 @@ static void __rotate_change_maxhigh(struct interval_node *node,
 	rotate->in_max_high = node->in_max_high;
 	left_max = node->in_left ? node->in_left->in_max_high : 0;
 	right_max = node->in_right ? node->in_right->in_max_high : 0;
-	node->in_max_high  = max_u64(interval_high(node),
-				     max_u64(left_max, right_max));
+	node->in_max_high  = max(interval_high(node),
+				 max(left_max, right_max));
 }
 
 /* The left rotation "pivots" around the link from node to node->right, and
  * - node will be linked to node->right's left child, and
- * - node->right's left child will be linked to node's right child.  */
+ * - node->right's left child will be linked to node's right child.
+ */
 static void __rotate_left(struct interval_node *node,
 			  struct interval_node **root)
 {
@@ -176,7 +165,8 @@ static void __rotate_left(struct interval_node *node,
 
 /* The right rotation "pivots" around the link from node to node->left, and
  * - node will be linked to node->left's right child, and
- * - node->left's right child will be linked to node's left child.  */
+ * - node->left's right child will be linked to node's left child.
+ */
 static void __rotate_right(struct interval_node *node,
 			   struct interval_node **root)
 {
@@ -285,7 +275,7 @@ struct interval_node *interval_insert(struct interval_node *node,
 		if (parent->in_max_high < interval_high(node))
 			parent->in_max_high = interval_high(node);
 
-		if (node_compare(node, parent) < 0)
+		if (extent_compare(&node->in_extent, &parent->in_extent) < 0)
 			p = &parent->in_left;
 		else
 			p = &parent->in_right;
@@ -399,8 +389,8 @@ static void update_maxhigh(struct interval_node *node,
 	while (node) {
 		left_max = node->in_left ? node->in_left->in_max_high : 0;
 		right_max = node->in_right ? node->in_right->in_max_high : 0;
-		node->in_max_high = max_u64(interval_high(node),
-					    max_u64(left_max, right_max));
+		node->in_max_high = max(interval_high(node),
+					max(left_max, right_max));
 
 		if (node->in_max_high >= old_maxhigh)
 			break;
@@ -479,3 +469,90 @@ color:
 		interval_erase_color(child, parent, root);
 }
 EXPORT_SYMBOL(interval_erase);
+
+static inline int interval_may_overlap(struct interval_node *node,
+				       struct interval_node_extent *ext)
+{
+	return (ext->start <= node->in_max_high &&
+		ext->end >= interval_low(node));
+}
+
+/*
+ * This function finds all intervals that overlap interval ext,
+ * and calls func to handle resulted intervals one by one.
+ * in lustre, this function will find all conflicting locks in
+ * the granted queue and add these locks to the ast work list.
+ *
+ * {
+ *	if (!node)
+ *		return 0;
+ *	if (ext->end < interval_low(node)) {
+ *		interval_search(node->in_left, ext, func, data);
+ *	} else if (interval_may_overlap(node, ext)) {
+ *		if (extent_overlapped(ext, &node->in_extent))
+ *			func(node, data);
+ *		interval_search(node->in_left, ext, func, data);
+ *		interval_search(node->in_right, ext, func, data);
+ *	}
+ *	return 0;
+ * }
+ *
+ */
+enum interval_iter interval_search(struct interval_node *node,
+				   struct interval_node_extent *ext,
+				   interval_callback_t func,
+				   void *data)
+{
+	enum interval_iter rc = INTERVAL_ITER_CONT;
+	struct interval_node *parent;
+
+	LASSERT(ext);
+	LASSERT(func);
+
+	while (node) {
+		if (ext->end < interval_low(node)) {
+			if (node->in_left) {
+				node = node->in_left;
+				continue;
+			}
+		} else if (interval_may_overlap(node, ext)) {
+			if (extent_overlapped(ext, &node->in_extent)) {
+				rc = func(node, data);
+				if (rc == INTERVAL_ITER_STOP)
+					break;
+			}
+
+			if (node->in_left) {
+				node = node->in_left;
+				continue;
+			}
+			if (node->in_right) {
+				node = node->in_right;
+				continue;
+			}
+		}
+
+		parent = node->in_parent;
+		while (parent) {
+			if (node_is_left_child(node) &&
+			    parent->in_right) {
+				/*
+				 * If we ever got the left, it means that the
+				 * parent met ext->end<interval_low(parent), or
+				 * may_overlap(parent). If the former is true,
+				 * we needn't go back. So stop early and check
+				 * may_overlap(parent) after this loop.
+				 */
+				node = parent->in_right;
+				break;
+			}
+			node = parent;
+			parent = parent->in_parent;
+		}
+		if (!parent || !interval_may_overlap(parent, ext))
+			break;
+	}
+
+	return rc;
+}
+EXPORT_SYMBOL(interval_search);

@@ -6,7 +6,7 @@
 
 #define ASM_OFFSETS_C 1
 
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/pid.h>
 #include <linux/clocksource.h>
 #include <linux/kbuild.h>
@@ -56,7 +56,6 @@ void foo(void)
 	DEFINE(IA64_TASK_PENDING_OFFSET,offsetof (struct task_struct, pending));
 	DEFINE(IA64_TASK_PID_OFFSET, offsetof (struct task_struct, pid));
 	DEFINE(IA64_TASK_REAL_PARENT_OFFSET, offsetof (struct task_struct, real_parent));
-	DEFINE(IA64_TASK_SIGHAND_OFFSET,offsetof (struct task_struct, sighand));
 	DEFINE(IA64_TASK_SIGNAL_OFFSET,offsetof (struct task_struct, signal));
 	DEFINE(IA64_TASK_TGID_OFFSET, offsetof (struct task_struct, tgid));
 	DEFINE(IA64_TASK_THREAD_KSP_OFFSET, offsetof (struct task_struct, thread.ksp));
@@ -64,9 +63,6 @@ void foo(void)
 
 	BLANK();
 
-	DEFINE(IA64_SIGHAND_SIGLOCK_OFFSET,offsetof (struct sighand_struct, siglock));
-
-	BLANK();
 
 	DEFINE(IA64_SIGNAL_GROUP_STOP_COUNT_OFFSET,offsetof (struct signal_struct,
 							     group_stop_count));

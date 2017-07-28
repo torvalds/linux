@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2007-2013 Nicira, Inc.
+ * Copyright (c) 2007-2017 Nicira, Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of version 2 of the GNU General Public
@@ -84,6 +84,7 @@ enum ovs_datapath_attr {
 	OVS_DP_ATTR_STATS,		/* struct ovs_dp_stats */
 	OVS_DP_ATTR_MEGAFLOW_STATS,	/* struct ovs_dp_megaflow_stats */
 	OVS_DP_ATTR_USER_FEATURES,	/* OVS_DP_F_*  */
+	OVS_DP_ATTR_PAD,
 	__OVS_DP_ATTR_MAX
 };
 
@@ -165,6 +166,7 @@ enum ovs_packet_cmd {
  * output port is actually a tunnel port. Contains the output tunnel key
  * extracted from the packet as nested %OVS_TUNNEL_KEY_ATTR_* attributes.
  * @OVS_PACKET_ATTR_MRU: Present for an %OVS_PACKET_CMD_ACTION and
+ * @OVS_PACKET_ATTR_LEN: Packet size before truncation.
  * %OVS_PACKET_ATTR_USERSPACE action specify the Maximum received fragment
  * size.
  *
@@ -184,6 +186,7 @@ enum ovs_packet_attr {
 	OVS_PACKET_ATTR_PROBE,      /* Packet operation is a feature probe,
 				       error logging should be suppressed. */
 	OVS_PACKET_ATTR_MRU,	    /* Maximum received IP fragment size. */
+	OVS_PACKET_ATTR_LEN,		/* Packet size before truncation. */
 	__OVS_PACKET_ATTR_MAX
 };
 
@@ -253,6 +256,7 @@ enum ovs_vport_attr {
 	OVS_VPORT_ATTR_UPCALL_PID, /* array of u32 Netlink socket PIDs for */
 				/* receiving upcalls */
 	OVS_VPORT_ATTR_STATS,	/* struct ovs_vport_stats */
+	OVS_VPORT_ATTR_PAD,
 	__OVS_VPORT_ATTR_MAX
 };
 
@@ -327,6 +331,8 @@ enum ovs_key_attr {
 	OVS_KEY_ATTR_CT_ZONE,	/* u16 connection tracking zone. */
 	OVS_KEY_ATTR_CT_MARK,	/* u32 connection tracking mark */
 	OVS_KEY_ATTR_CT_LABELS,	/* 16-octet connection tracking label */
+	OVS_KEY_ATTR_CT_ORIG_TUPLE_IPV4,   /* struct ovs_key_ct_tuple_ipv4 */
+	OVS_KEY_ATTR_CT_ORIG_TUPLE_IPV6,   /* struct ovs_key_ct_tuple_ipv6 */
 
 #ifdef __KERNEL__
 	OVS_KEY_ATTR_TUNNEL_INFO,  /* struct ip_tunnel_info */
@@ -337,6 +343,7 @@ enum ovs_key_attr {
 #define OVS_KEY_ATTR_MAX (__OVS_KEY_ATTR_MAX - 1)
 
 enum ovs_tunnel_key_attr {
+	/* OVS_TUNNEL_KEY_ATTR_NONE, standard nl API requires this attribute! */
 	OVS_TUNNEL_KEY_ATTR_ID,                 /* be64 Tunnel ID */
 	OVS_TUNNEL_KEY_ATTR_IPV4_SRC,           /* be32 src IP address. */
 	OVS_TUNNEL_KEY_ATTR_IPV4_DST,           /* be32 dst IP address. */
@@ -351,6 +358,7 @@ enum ovs_tunnel_key_attr {
 	OVS_TUNNEL_KEY_ATTR_VXLAN_OPTS,		/* Nested OVS_VXLAN_EXT_* */
 	OVS_TUNNEL_KEY_ATTR_IPV6_SRC,		/* struct in6_addr src IPv6 address. */
 	OVS_TUNNEL_KEY_ATTR_IPV6_DST,		/* struct in6_addr dst IPv6 address. */
+	OVS_TUNNEL_KEY_ATTR_PAD,
 	__OVS_TUNNEL_KEY_ATTR_MAX
 };
 
@@ -441,9 +449,13 @@ struct ovs_key_nd {
 	__u8	nd_tll[ETH_ALEN];
 };
 
-#define OVS_CT_LABELS_LEN	16
+#define OVS_CT_LABELS_LEN_32	4
+#define OVS_CT_LABELS_LEN	(OVS_CT_LABELS_LEN_32 * sizeof(__u32))
 struct ovs_key_ct_labels {
-	__u8	ct_labels[OVS_CT_LABELS_LEN];
+	union {
+		__u8	ct_labels[OVS_CT_LABELS_LEN];
+		__u32	ct_labels_32[OVS_CT_LABELS_LEN_32];
+	};
 };
 
 /* OVS_KEY_ATTR_CT_STATE flags */
@@ -454,6 +466,30 @@ struct ovs_key_ct_labels {
 #define OVS_CS_F_REPLY_DIR         0x08 /* Flow is in the reply direction. */
 #define OVS_CS_F_INVALID           0x10 /* Could not track connection. */
 #define OVS_CS_F_TRACKED           0x20 /* Conntrack has occurred. */
+#define OVS_CS_F_SRC_NAT           0x40 /* Packet's source address/port was
+					 * mangled by NAT.
+					 */
+#define OVS_CS_F_DST_NAT           0x80 /* Packet's destination address/port
+					 * was mangled by NAT.
+					 */
+
+#define OVS_CS_F_NAT_MASK (OVS_CS_F_SRC_NAT | OVS_CS_F_DST_NAT)
+
+struct ovs_key_ct_tuple_ipv4 {
+	__be32 ipv4_src;
+	__be32 ipv4_dst;
+	__be16 src_port;
+	__be16 dst_port;
+	__u8   ipv4_proto;
+};
+
+struct ovs_key_ct_tuple_ipv6 {
+	__be32 ipv6_src[4];
+	__be32 ipv6_dst[4];
+	__be16 src_port;
+	__be16 dst_port;
+	__u8   ipv6_proto;
+};
 
 /**
  * enum ovs_flow_attr - attributes for %OVS_FLOW_* commands.
@@ -510,6 +546,7 @@ enum ovs_flow_attr {
 				  * logging should be suppressed. */
 	OVS_FLOW_ATTR_UFID,      /* Variable length unique flow identifier. */
 	OVS_FLOW_ATTR_UFID_FLAGS,/* u32 of OVS_UFID_F_*. */
+	OVS_FLOW_ATTR_PAD,
 	__OVS_FLOW_ATTR_MAX
 };
 
@@ -542,9 +579,24 @@ enum ovs_sample_attr {
 	OVS_SAMPLE_ATTR_PROBABILITY, /* u32 number */
 	OVS_SAMPLE_ATTR_ACTIONS,     /* Nested OVS_ACTION_ATTR_* attributes. */
 	__OVS_SAMPLE_ATTR_MAX,
+
+#ifdef __KERNEL__
+	OVS_SAMPLE_ATTR_ARG          /* struct sample_arg  */
+#endif
 };
 
 #define OVS_SAMPLE_ATTR_MAX (__OVS_SAMPLE_ATTR_MAX - 1)
+
+#ifdef __KERNEL__
+struct sample_arg {
+	bool exec;                   /* When true, actions in sample will not
+				      * change flow keys. False otherwise.
+				      */
+	u32  probability;            /* Same value as
+				      * 'OVS_SAMPLE_ATTR_PROBABILITY'.
+				      */
+};
+#endif
 
 /**
  * enum ovs_userspace_attr - Attributes for %OVS_ACTION_ATTR_USERSPACE action.
@@ -568,6 +620,10 @@ enum ovs_userspace_attr {
 
 #define OVS_USERSPACE_ATTR_MAX (__OVS_USERSPACE_ATTR_MAX - 1)
 
+struct ovs_action_trunc {
+	__u32 max_len; /* Max packet size in bytes. */
+};
+
 /**
  * struct ovs_action_push_mpls - %OVS_ACTION_ATTR_PUSH_MPLS action argument.
  * @mpls_lse: MPLS label stack entry to push.
@@ -587,13 +643,13 @@ struct ovs_action_push_mpls {
  * @vlan_tci: Tag control identifier (TCI) to push.  The CFI bit must be set
  * (but it will not be set in the 802.1Q header that is pushed).
  *
- * The @vlan_tpid value is typically %ETH_P_8021Q.  The only acceptable TPID
- * values are those that the kernel module also parses as 802.1Q headers, to
- * prevent %OVS_ACTION_ATTR_PUSH_VLAN followed by %OVS_ACTION_ATTR_POP_VLAN
- * from having surprising results.
+ * The @vlan_tpid value is typically %ETH_P_8021Q or %ETH_P_8021AD.
+ * The only acceptable TPID values are those that the kernel module also parses
+ * as 802.1Q or 802.1AD headers, to prevent %OVS_ACTION_ATTR_PUSH_VLAN followed
+ * by %OVS_ACTION_ATTR_POP_VLAN from having surprising results.
  */
 struct ovs_action_push_vlan {
-	__be16 vlan_tpid;	/* 802.1Q TPID. */
+	__be16 vlan_tpid;	/* 802.1Q or 802.1ad TPID. */
 	__be16 vlan_tci;	/* 802.1Q TCI (VLAN ID and priority). */
 };
 
@@ -614,8 +670,8 @@ enum ovs_hash_alg {
  * @hash_basis: basis used for computing hash.
  */
 struct ovs_action_hash {
-	uint32_t  hash_alg;     /* One of ovs_hash_alg. */
-	uint32_t  hash_basis;
+	__u32  hash_alg;     /* One of ovs_hash_alg. */
+	__u32  hash_basis;
 };
 
 /**
@@ -628,10 +684,27 @@ struct ovs_action_hash {
  * @OVS_CT_ATTR_MARK: u32 value followed by u32 mask. For each bit set in the
  * mask, the corresponding bit in the value is copied to the connection
  * tracking mark field in the connection.
- * @OVS_CT_ATTR_LABEL: %OVS_CT_LABELS_LEN value followed by %OVS_CT_LABELS_LEN
+ * @OVS_CT_ATTR_LABELS: %OVS_CT_LABELS_LEN value followed by %OVS_CT_LABELS_LEN
  * mask. For each bit set in the mask, the corresponding bit in the value is
  * copied to the connection tracking label field in the connection.
  * @OVS_CT_ATTR_HELPER: variable length string defining conntrack ALG.
+ * @OVS_CT_ATTR_NAT: Nested OVS_NAT_ATTR_* for performing L3 network address
+ * translation (NAT) on the packet.
+ * @OVS_CT_ATTR_FORCE_COMMIT: Like %OVS_CT_ATTR_COMMIT, but instead of doing
+ * nothing if the connection is already committed will check that the current
+ * packet is in conntrack entry's original direction.  If directionality does
+ * not match, will delete the existing conntrack entry and commit a new one.
+ * @OVS_CT_ATTR_EVENTMASK: Mask of bits indicating which conntrack event types
+ * (enum ip_conntrack_events IPCT_*) should be reported.  For any bit set to
+ * zero, the corresponding event type is not generated.  Default behavior
+ * depends on system configuration, but typically all event types are
+ * generated, hence listening on NFNLGRP_CONNTRACK_UPDATE events may get a lot
+ * of events.  Explicitly passing this attribute allows limiting the updates
+ * received to the events of interest.  The bit 1 << IPCT_NEW, 1 <<
+ * IPCT_RELATED, and 1 << IPCT_DESTROY must be set to ones for those events to
+ * be received on NFNLGRP_CONNTRACK_NEW and NFNLGRP_CONNTRACK_DESTROY groups,
+ * respectively.  Remaining bits control the changes for which an event is
+ * delivered on the NFNLGRP_CONNTRACK_UPDATE group.
  */
 enum ovs_ct_attr {
 	OVS_CT_ATTR_UNSPEC,
@@ -641,15 +714,66 @@ enum ovs_ct_attr {
 	OVS_CT_ATTR_LABELS,     /* labels to associate with this connection. */
 	OVS_CT_ATTR_HELPER,     /* netlink helper to assist detection of
 				   related connections. */
+	OVS_CT_ATTR_NAT,        /* Nested OVS_NAT_ATTR_* */
+	OVS_CT_ATTR_FORCE_COMMIT,  /* No argument */
+	OVS_CT_ATTR_EVENTMASK,  /* u32 mask of IPCT_* events. */
 	__OVS_CT_ATTR_MAX
 };
 
 #define OVS_CT_ATTR_MAX (__OVS_CT_ATTR_MAX - 1)
 
 /**
+ * enum ovs_nat_attr - Attributes for %OVS_CT_ATTR_NAT.
+ *
+ * @OVS_NAT_ATTR_SRC: Flag for Source NAT (mangle source address/port).
+ * @OVS_NAT_ATTR_DST: Flag for Destination NAT (mangle destination
+ * address/port).  Only one of (@OVS_NAT_ATTR_SRC, @OVS_NAT_ATTR_DST) may be
+ * specified.  Effective only for packets for ct_state NEW connections.
+ * Packets of committed connections are mangled by the NAT action according to
+ * the committed NAT type regardless of the flags specified.  As a corollary, a
+ * NAT action without a NAT type flag will only mangle packets of committed
+ * connections.  The following NAT attributes only apply for NEW
+ * (non-committed) connections, and they may be included only when the CT
+ * action has the @OVS_CT_ATTR_COMMIT flag and either @OVS_NAT_ATTR_SRC or
+ * @OVS_NAT_ATTR_DST is also included.
+ * @OVS_NAT_ATTR_IP_MIN: struct in_addr or struct in6_addr
+ * @OVS_NAT_ATTR_IP_MAX: struct in_addr or struct in6_addr
+ * @OVS_NAT_ATTR_PROTO_MIN: u16 L4 protocol specific lower boundary (port)
+ * @OVS_NAT_ATTR_PROTO_MAX: u16 L4 protocol specific upper boundary (port)
+ * @OVS_NAT_ATTR_PERSISTENT: Flag for persistent IP mapping across reboots
+ * @OVS_NAT_ATTR_PROTO_HASH: Flag for pseudo random L4 port mapping (MD5)
+ * @OVS_NAT_ATTR_PROTO_RANDOM: Flag for fully randomized L4 port mapping
+ */
+enum ovs_nat_attr {
+	OVS_NAT_ATTR_UNSPEC,
+	OVS_NAT_ATTR_SRC,
+	OVS_NAT_ATTR_DST,
+	OVS_NAT_ATTR_IP_MIN,
+	OVS_NAT_ATTR_IP_MAX,
+	OVS_NAT_ATTR_PROTO_MIN,
+	OVS_NAT_ATTR_PROTO_MAX,
+	OVS_NAT_ATTR_PERSISTENT,
+	OVS_NAT_ATTR_PROTO_HASH,
+	OVS_NAT_ATTR_PROTO_RANDOM,
+	__OVS_NAT_ATTR_MAX,
+};
+
+#define OVS_NAT_ATTR_MAX (__OVS_NAT_ATTR_MAX - 1)
+
+/*
+ * struct ovs_action_push_eth - %OVS_ACTION_ATTR_PUSH_ETH action argument.
+ * @addresses: Source and destination MAC addresses.
+ * @eth_type: Ethernet type
+ */
+struct ovs_action_push_eth {
+	struct ovs_key_ethernet addresses;
+};
+
+/**
  * enum ovs_action_attr - Action types.
  *
  * @OVS_ACTION_ATTR_OUTPUT: Output packet to port.
+ * @OVS_ACTION_ATTR_TRUNC: Output packet to port with truncated packet size.
  * @OVS_ACTION_ATTR_USERSPACE: Send packet to userspace according to nested
  * %OVS_USERSPACE_ATTR_* attributes.
  * @OVS_ACTION_ATTR_SET: Replaces the contents of an existing header.  The
@@ -661,9 +785,10 @@ enum ovs_ct_attr {
  * is copied from the value to the packet header field, rest of the bits are
  * left unchanged.  The non-masked value bits must be passed in as zeroes.
  * Masking is not supported for the %OVS_KEY_ATTR_TUNNEL attribute.
- * @OVS_ACTION_ATTR_PUSH_VLAN: Push a new outermost 802.1Q header onto the
- * packet.
- * @OVS_ACTION_ATTR_POP_VLAN: Pop the outermost 802.1Q header off the packet.
+ * @OVS_ACTION_ATTR_PUSH_VLAN: Push a new outermost 802.1Q or 802.1ad header
+ * onto the packet.
+ * @OVS_ACTION_ATTR_POP_VLAN: Pop the outermost 802.1Q or 802.1ad header
+ * from the packet.
  * @OVS_ACTION_ATTR_SAMPLE: Probabilitically executes actions, as specified in
  * the nested %OVS_SAMPLE_ATTR_* attributes.
  * @OVS_ACTION_ATTR_PUSH_MPLS: Push a new MPLS label stack entry onto the
@@ -677,6 +802,10 @@ enum ovs_ct_attr {
  * is no MPLS label stack, as determined by ethertype, no action is taken.
  * @OVS_ACTION_ATTR_CT: Track the connection. Populate the conntrack-related
  * entries in the flow key.
+ * @OVS_ACTION_ATTR_PUSH_ETH: Push a new outermost Ethernet header onto the
+ * packet.
+ * @OVS_ACTION_ATTR_POP_ETH: Pop the outermost Ethernet header off the
+ * packet.
  *
  * Only a single header can be set with a single %OVS_ACTION_ATTR_SET.  Not all
  * fields within a header are modifiable, e.g. the IPv4 protocol and fragment
@@ -703,6 +832,9 @@ enum ovs_action_attr {
 				       * The data must be zero for the unmasked
 				       * bits. */
 	OVS_ACTION_ATTR_CT,           /* Nested OVS_CT_ATTR_* . */
+	OVS_ACTION_ATTR_TRUNC,        /* u32 struct ovs_action_trunc. */
+	OVS_ACTION_ATTR_PUSH_ETH,     /* struct ovs_action_push_eth. */
+	OVS_ACTION_ATTR_POP_ETH,      /* No argument. */
 
 	__OVS_ACTION_ATTR_MAX,	      /* Nothing past this will be accepted
 				       * from userspace. */

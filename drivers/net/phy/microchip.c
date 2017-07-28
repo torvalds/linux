@@ -55,7 +55,7 @@ static int lan88xx_phy_ack_interrupt(struct phy_device *phydev)
 	return rc < 0 ? rc : 0;
 }
 
-int lan88xx_suspend(struct phy_device *phydev)
+static int lan88xx_suspend(struct phy_device *phydev)
 {
 	struct lan88xx_priv *priv = phydev->priv;
 
@@ -68,7 +68,7 @@ int lan88xx_suspend(struct phy_device *phydev)
 
 static int lan88xx_probe(struct phy_device *phydev)
 {
-	struct device *dev = &phydev->dev;
+	struct device *dev = &phydev->mdio.dev;
 	struct lan88xx_priv *priv;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -78,10 +78,8 @@ static int lan88xx_probe(struct phy_device *phydev)
 	priv->wolopts = 0;
 
 	/* these values can be used to identify internal PHY */
-	priv->chip_id = phy_read_mmd_indirect(phydev, LAN88XX_MMD3_CHIP_ID,
-					      3, phydev->addr);
-	priv->chip_rev = phy_read_mmd_indirect(phydev, LAN88XX_MMD3_CHIP_REV,
-					       3, phydev->addr);
+	priv->chip_id = phy_read_mmd(phydev, 3, LAN88XX_MMD3_CHIP_ID);
+	priv->chip_rev = phy_read_mmd(phydev, 3, LAN88XX_MMD3_CHIP_REV);
 
 	phydev->priv = priv;
 
@@ -90,7 +88,7 @@ static int lan88xx_probe(struct phy_device *phydev)
 
 static void lan88xx_remove(struct phy_device *phydev)
 {
-	struct device *dev = &phydev->dev;
+	struct device *dev = &phydev->mdio.dev;
 	struct lan88xx_priv *priv = phydev->priv;
 
 	if (priv)
@@ -107,21 +105,54 @@ static int lan88xx_set_wol(struct phy_device *phydev,
 	return 0;
 }
 
+static void lan88xx_set_mdix(struct phy_device *phydev)
+{
+	int buf;
+	int val;
+
+	switch (phydev->mdix_ctrl) {
+	case ETH_TP_MDI:
+		val = LAN88XX_EXT_MODE_CTRL_MDI_;
+		break;
+	case ETH_TP_MDI_X:
+		val = LAN88XX_EXT_MODE_CTRL_MDI_X_;
+		break;
+	case ETH_TP_MDI_AUTO:
+		val = LAN88XX_EXT_MODE_CTRL_AUTO_MDIX_;
+		break;
+	default:
+		return;
+	}
+
+	phy_write(phydev, LAN88XX_EXT_PAGE_ACCESS, LAN88XX_EXT_PAGE_SPACE_1);
+	buf = phy_read(phydev, LAN88XX_EXT_MODE_CTRL);
+	buf &= ~LAN88XX_EXT_MODE_CTRL_MDIX_MASK_;
+	buf |= val;
+	phy_write(phydev, LAN88XX_EXT_MODE_CTRL, buf);
+	phy_write(phydev, LAN88XX_EXT_PAGE_ACCESS, LAN88XX_EXT_PAGE_SPACE_0);
+}
+
+static int lan88xx_config_aneg(struct phy_device *phydev)
+{
+	lan88xx_set_mdix(phydev);
+
+	return genphy_config_aneg(phydev);
+}
+
 static struct phy_driver microchip_phy_driver[] = {
 {
 	.phy_id		= 0x0007c130,
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "Microchip LAN88xx",
 
-	.features	= (PHY_GBIT_FEATURES |
-			   SUPPORTED_Pause | SUPPORTED_Asym_Pause),
-	.flags		= PHY_HAS_INTERRUPT | PHY_HAS_MAGICANEG,
+	.features	= PHY_GBIT_FEATURES,
+	.flags		= PHY_HAS_INTERRUPT,
 
 	.probe		= lan88xx_probe,
 	.remove		= lan88xx_remove,
 
 	.config_init	= genphy_config_init,
-	.config_aneg	= genphy_config_aneg,
+	.config_aneg	= lan88xx_config_aneg,
 	.read_status	= genphy_read_status,
 
 	.ack_interrupt	= lan88xx_phy_ack_interrupt,
@@ -130,8 +161,6 @@ static struct phy_driver microchip_phy_driver[] = {
 	.suspend	= lan88xx_suspend,
 	.resume		= genphy_resume,
 	.set_wol	= lan88xx_set_wol,
-
-	.driver		= { .owner = THIS_MODULE, }
 } };
 
 module_phy_driver(microchip_phy_driver);

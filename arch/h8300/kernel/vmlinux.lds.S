@@ -29,6 +29,7 @@ SECTIONS
 	_stext = . ;
 		TEXT_TEXT
 		SCHED_TEXT
+		CPUIDLE_TEXT
 		LOCK_TEXT
 #if defined(CONFIG_ROMKERNEL)
 		*(.int_redirect)

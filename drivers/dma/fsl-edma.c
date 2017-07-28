@@ -116,6 +116,10 @@
 				BIT(DMA_SLAVE_BUSWIDTH_2_BYTES) | \
 				BIT(DMA_SLAVE_BUSWIDTH_4_BYTES) | \
 				BIT(DMA_SLAVE_BUSWIDTH_8_BYTES)
+enum fsl_edma_pm_state {
+	RUNNING = 0,
+	SUSPENDED,
+};
 
 struct fsl_edma_hw_tcd {
 	__le32	saddr;
@@ -147,6 +151,9 @@ struct fsl_edma_slave_config {
 struct fsl_edma_chan {
 	struct virt_dma_chan		vchan;
 	enum dma_status			status;
+	enum fsl_edma_pm_state		pm_state;
+	bool				idle;
+	u32				slave_id;
 	struct fsl_edma_engine		*edma;
 	struct fsl_edma_desc		*edesc;
 	struct fsl_edma_slave_config	fsc;
@@ -298,6 +305,7 @@ static int fsl_edma_terminate_all(struct dma_chan *chan)
 	spin_lock_irqsave(&fsl_chan->vchan.lock, flags);
 	fsl_edma_disable_request(fsl_chan);
 	fsl_chan->edesc = NULL;
+	fsl_chan->idle = true;
 	vchan_get_all_descriptors(&fsl_chan->vchan, &head);
 	spin_unlock_irqrestore(&fsl_chan->vchan.lock, flags);
 	vchan_dma_desc_free_list(&fsl_chan->vchan, &head);
@@ -313,6 +321,7 @@ static int fsl_edma_pause(struct dma_chan *chan)
 	if (fsl_chan->edesc) {
 		fsl_edma_disable_request(fsl_chan);
 		fsl_chan->status = DMA_PAUSED;
+		fsl_chan->idle = true;
 	}
 	spin_unlock_irqrestore(&fsl_chan->vchan.lock, flags);
 	return 0;
@@ -327,6 +336,7 @@ static int fsl_edma_resume(struct dma_chan *chan)
 	if (fsl_chan->edesc) {
 		fsl_edma_enable_request(fsl_chan);
 		fsl_chan->status = DMA_IN_PROGRESS;
+		fsl_chan->idle = false;
 	}
 	spin_unlock_irqrestore(&fsl_chan->vchan.lock, flags);
 	return 0;
@@ -648,6 +658,7 @@ static void fsl_edma_xfer_desc(struct fsl_edma_chan *fsl_chan)
 	fsl_edma_set_tcd_regs(fsl_chan, fsl_chan->edesc->tcd[0].vtcd);
 	fsl_edma_enable_request(fsl_chan);
 	fsl_chan->status = DMA_IN_PROGRESS;
+	fsl_chan->idle = false;
 }
 
 static irqreturn_t fsl_edma_tx_handler(int irq, void *dev_id)
@@ -676,6 +687,7 @@ static irqreturn_t fsl_edma_tx_handler(int irq, void *dev_id)
 				vchan_cookie_complete(&fsl_chan->edesc->vdesc);
 				fsl_chan->edesc = NULL;
 				fsl_chan->status = DMA_COMPLETE;
+				fsl_chan->idle = true;
 			} else {
 				vchan_cyclic_callback(&fsl_chan->edesc->vdesc);
 			}
@@ -704,6 +716,7 @@ static irqreturn_t fsl_edma_err_handler(int irq, void *dev_id)
 			edma_writeb(fsl_edma, EDMA_CERR_CERR(ch),
 				fsl_edma->membase + EDMA_CERR);
 			fsl_edma->chans[ch].status = DMA_ERROR;
+			fsl_edma->chans[ch].idle = true;
 		}
 	}
 	return IRQ_HANDLED;
@@ -724,6 +737,12 @@ static void fsl_edma_issue_pending(struct dma_chan *chan)
 
 	spin_lock_irqsave(&fsl_chan->vchan.lock, flags);
 
+	if (unlikely(fsl_chan->pm_state != RUNNING)) {
+		spin_unlock_irqrestore(&fsl_chan->vchan.lock, flags);
+		/* cannot submit due to suspend */
+		return;
+	}
+
 	if (vchan_issue_pending(&fsl_chan->vchan) && !fsl_chan->edesc)
 		fsl_edma_xfer_desc(fsl_chan);
 
@@ -735,6 +754,7 @@ static struct dma_chan *fsl_edma_xlate(struct of_phandle_args *dma_spec,
 {
 	struct fsl_edma_engine *fsl_edma = ofdma->of_dma_data;
 	struct dma_chan *chan, *_chan;
+	struct fsl_edma_chan *fsl_chan;
 	unsigned long chans_per_mux = fsl_edma->n_chans / DMAMUX_NR;
 
 	if (dma_spec->args_count != 2)
@@ -748,8 +768,10 @@ static struct dma_chan *fsl_edma_xlate(struct of_phandle_args *dma_spec,
 			chan = dma_get_slave_channel(chan);
 			if (chan) {
 				chan->device->privatecnt++;
-				fsl_edma_chan_mux(to_fsl_edma_chan(chan),
-					dma_spec->args[1], true);
+				fsl_chan = to_fsl_edma_chan(chan);
+				fsl_chan->slave_id = dma_spec->args[1];
+				fsl_edma_chan_mux(fsl_chan, fsl_chan->slave_id,
+						true);
 				mutex_unlock(&fsl_edma->fsl_edma_mutex);
 				return chan;
 			}
@@ -830,6 +852,25 @@ fsl_edma_irq_init(struct platform_device *pdev, struct fsl_edma_engine *fsl_edma
 	return 0;
 }
 
+static void fsl_edma_irq_exit(
+		struct platform_device *pdev, struct fsl_edma_engine *fsl_edma)
+{
+	if (fsl_edma->txirq == fsl_edma->errirq) {
+		devm_free_irq(&pdev->dev, fsl_edma->txirq, fsl_edma);
+	} else {
+		devm_free_irq(&pdev->dev, fsl_edma->txirq, fsl_edma);
+		devm_free_irq(&pdev->dev, fsl_edma->errirq, fsl_edma);
+	}
+}
+
+static void fsl_disable_clocks(struct fsl_edma_engine *fsl_edma)
+{
+	int i;
+
+	for (i = 0; i < DMAMUX_NR; i++)
+		clk_disable_unprepare(fsl_edma->muxclk[i]);
+}
+
 static int fsl_edma_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -875,6 +916,10 @@ static int fsl_edma_probe(struct platform_device *pdev)
 
 		ret = clk_prepare_enable(fsl_edma->muxclk[i]);
 		if (ret) {
+			/* disable only clks which were enabled on error */
+			for (; i >= 0; i--)
+				clk_disable_unprepare(fsl_edma->muxclk[i]);
+
 			dev_err(&pdev->dev, "DMAMUX clk block failed.\n");
 			return ret;
 		}
@@ -888,7 +933,9 @@ static int fsl_edma_probe(struct platform_device *pdev)
 		struct fsl_edma_chan *fsl_chan = &fsl_edma->chans[i];
 
 		fsl_chan->edma = fsl_edma;
-
+		fsl_chan->pm_state = RUNNING;
+		fsl_chan->slave_id = 0;
+		fsl_chan->idle = true;
 		fsl_chan->vchan.desc_free = fsl_edma_free_desc;
 		vchan_init(&fsl_chan->vchan, &fsl_edma->dma_dev);
 
@@ -927,14 +974,18 @@ static int fsl_edma_probe(struct platform_device *pdev)
 
 	ret = dma_async_device_register(&fsl_edma->dma_dev);
 	if (ret) {
-		dev_err(&pdev->dev, "Can't register Freescale eDMA engine.\n");
+		dev_err(&pdev->dev,
+			"Can't register Freescale eDMA engine. (%d)\n", ret);
+		fsl_disable_clocks(fsl_edma);
 		return ret;
 	}
 
 	ret = of_dma_controller_register(np, fsl_edma_xlate, fsl_edma);
 	if (ret) {
-		dev_err(&pdev->dev, "Can't register Freescale eDMA of_dma.\n");
+		dev_err(&pdev->dev,
+			"Can't register Freescale eDMA of_dma. (%d)\n", ret);
 		dma_async_device_unregister(&fsl_edma->dma_dev);
+		fsl_disable_clocks(fsl_edma);
 		return ret;
 	}
 
@@ -944,20 +995,84 @@ static int fsl_edma_probe(struct platform_device *pdev)
 	return 0;
 }
 
+static void fsl_edma_cleanup_vchan(struct dma_device *dmadev)
+{
+	struct fsl_edma_chan *chan, *_chan;
+
+	list_for_each_entry_safe(chan, _chan,
+				&dmadev->channels, vchan.chan.device_node) {
+		list_del(&chan->vchan.chan.device_node);
+		tasklet_kill(&chan->vchan.task);
+	}
+}
+
 static int fsl_edma_remove(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct fsl_edma_engine *fsl_edma = platform_get_drvdata(pdev);
-	int i;
 
+	fsl_edma_irq_exit(pdev, fsl_edma);
+	fsl_edma_cleanup_vchan(&fsl_edma->dma_dev);
 	of_dma_controller_free(np);
 	dma_async_device_unregister(&fsl_edma->dma_dev);
-
-	for (i = 0; i < DMAMUX_NR; i++)
-		clk_disable_unprepare(fsl_edma->muxclk[i]);
+	fsl_disable_clocks(fsl_edma);
 
 	return 0;
 }
+
+static int fsl_edma_suspend_late(struct device *dev)
+{
+	struct fsl_edma_engine *fsl_edma = dev_get_drvdata(dev);
+	struct fsl_edma_chan *fsl_chan;
+	unsigned long flags;
+	int i;
+
+	for (i = 0; i < fsl_edma->n_chans; i++) {
+		fsl_chan = &fsl_edma->chans[i];
+		spin_lock_irqsave(&fsl_chan->vchan.lock, flags);
+		/* Make sure chan is idle or will force disable. */
+		if (unlikely(!fsl_chan->idle)) {
+			dev_warn(dev, "WARN: There is non-idle channel.");
+			fsl_edma_disable_request(fsl_chan);
+			fsl_edma_chan_mux(fsl_chan, 0, false);
+		}
+
+		fsl_chan->pm_state = SUSPENDED;
+		spin_unlock_irqrestore(&fsl_chan->vchan.lock, flags);
+	}
+
+	return 0;
+}
+
+static int fsl_edma_resume_early(struct device *dev)
+{
+	struct fsl_edma_engine *fsl_edma = dev_get_drvdata(dev);
+	struct fsl_edma_chan *fsl_chan;
+	int i;
+
+	for (i = 0; i < fsl_edma->n_chans; i++) {
+		fsl_chan = &fsl_edma->chans[i];
+		fsl_chan->pm_state = RUNNING;
+		edma_writew(fsl_edma, 0x0, fsl_edma->membase + EDMA_TCD_CSR(i));
+		if (fsl_chan->slave_id != 0)
+			fsl_edma_chan_mux(fsl_chan, fsl_chan->slave_id, true);
+	}
+
+	edma_writel(fsl_edma, EDMA_CR_ERGA | EDMA_CR_ERCA,
+			fsl_edma->membase + EDMA_CR);
+
+	return 0;
+}
+
+/*
+ * eDMA provides the service to others, so it should be suspend late
+ * and resume early. When eDMA suspend, all of the clients should stop
+ * the DMA data transmission and let the channel idle.
+ */
+static const struct dev_pm_ops fsl_edma_pm_ops = {
+	.suspend_late   = fsl_edma_suspend_late,
+	.resume_early   = fsl_edma_resume_early,
+};
 
 static const struct of_device_id fsl_edma_dt_ids[] = {
 	{ .compatible = "fsl,vf610-edma", },
@@ -969,6 +1084,7 @@ static struct platform_driver fsl_edma_driver = {
 	.driver		= {
 		.name	= "fsl-edma",
 		.of_match_table = fsl_edma_dt_ids,
+		.pm     = &fsl_edma_pm_ops,
 	},
 	.probe          = fsl_edma_probe,
 	.remove		= fsl_edma_remove,

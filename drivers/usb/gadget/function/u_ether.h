@@ -64,6 +64,7 @@ struct gether {
 	struct usb_ep			*out_ep;
 
 	bool				is_zlp_ok;
+	bool				no_skb_reserve;
 
 	u16				cdc_filter;
 

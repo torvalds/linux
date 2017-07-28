@@ -123,11 +123,11 @@ static int ocfb_setupfb(struct ocfb_dev *fbdev)
 
 	/* Horizontal timings */
 	ocfb_writereg(fbdev, OCFB_HTIM, (var->hsync_len - 1) << 24 |
-		      (var->right_margin - 1) << 16 | (var->xres - 1));
+		      (var->left_margin - 1) << 16 | (var->xres - 1));
 
 	/* Vertical timings */
 	ocfb_writereg(fbdev, OCFB_VTIM, (var->vsync_len - 1) << 24 |
-		      (var->lower_margin - 1) << 16 | (var->yres - 1));
+		      (var->upper_margin - 1) << 16 | (var->yres - 1));
 
 	/* Total length of frame */
 	hlen = var->left_margin + var->right_margin + var->hsync_len +

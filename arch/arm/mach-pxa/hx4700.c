@@ -24,10 +24,10 @@
 #include <linux/input.h>
 #include <linux/input/navpoint.h>
 #include <linux/lcd.h>
-#include <linux/mfd/htc-egpio.h>
 #include <linux/mfd/asic3.h>
 #include <linux/mtd/physmap.h>
 #include <linux/pda_power.h>
+#include <linux/platform_data/gpio-htc-egpio.h>
 #include <linux/pwm.h>
 #include <linux/pwm_backlight.h>
 #include <linux/regulator/driver.h>
@@ -44,7 +44,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/pxa27x.h>
+#include "pxa27x.h"
 #include <mach/hx4700.h>
 #include <linux/platform_data/irda-pxaficp.h>
 

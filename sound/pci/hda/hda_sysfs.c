@@ -141,14 +141,6 @@ static int reconfig_codec(struct hda_codec *codec)
 	err = snd_hda_codec_configure(codec);
 	if (err < 0)
 		goto error;
-	/* rebuild PCMs */
-	err = snd_hda_codec_build_pcms(codec);
-	if (err < 0)
-		goto error;
-	/* rebuild mixers */
-	err = snd_hda_codec_build_controls(codec);
-	if (err < 0)
-		goto error;
 	err = snd_card_register(codec->card);
  error:
 	snd_hda_power_down(codec);
@@ -769,7 +761,7 @@ static struct attribute *hda_dev_attrs[] = {
 	NULL
 };
 
-static struct attribute_group hda_dev_attr_group = {
+static const struct attribute_group hda_dev_attr_group = {
 	.attrs	= hda_dev_attrs,
 };
 

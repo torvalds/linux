@@ -22,14 +22,9 @@
 
 #endif
 
-#include "../w1.h"
-#include "../w1_int.h"
-#include "../w1_family.h"
+#include <linux/w1.h>
 
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Ben Gardner <bgardner@wabtec.com>");
-MODULE_DESCRIPTION("w1 family 23 driver for DS2433, 4kb EEPROM");
-MODULE_ALIAS("w1-family-" __stringify(W1_EEPROM_DS2433));
+#define W1_EEPROM_DS2433	0x23
 
 #define W1_EEPROM_SIZE		512
 #define W1_PAGE_COUNT		16
@@ -305,16 +300,9 @@ static struct w1_family w1_family_23 = {
 	.fid = W1_EEPROM_DS2433,
 	.fops = &w1_f23_fops,
 };
+module_w1_family(w1_family_23);
 
-static int __init w1_f23_init(void)
-{
-	return w1_register_family(&w1_family_23);
-}
-
-static void __exit w1_f23_fini(void)
-{
-	w1_unregister_family(&w1_family_23);
-}
-
-module_init(w1_f23_init);
-module_exit(w1_f23_fini);
+MODULE_AUTHOR("Ben Gardner <bgardner@wabtec.com>");
+MODULE_DESCRIPTION("w1 family 23 driver for DS2433, 4kb EEPROM");
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("w1-family-" __stringify(W1_EEPROM_DS2433));

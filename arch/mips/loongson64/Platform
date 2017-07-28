@@ -22,6 +22,27 @@ ifdef CONFIG_CPU_LOONGSON2F_WORKAROUNDS
   endif
 endif
 
+cflags-$(CONFIG_CPU_LOONGSON3)	+= -Wa,--trap
+#
+# binutils from v2.25 on and gcc starting from v4.9.0 treat -march=loongson3a
+# as MIPS64 R2; older versions as just R1.  This leaves the possibility open
+# that GCC might generate R2 code for -march=loongson3a which then is rejected
+# by GAS.  The cc-option can't probe for this behaviour so -march=loongson3a
+# can't easily be used safely within the kbuild framework.
+#
+ifeq ($(call cc-ifversion, -ge, 0409, y), y)
+  ifeq ($(call ld-ifversion, -ge, 225000000, y), y)
+    cflags-$(CONFIG_CPU_LOONGSON3)  += \
+      $(call cc-option,-march=loongson3a -U_MIPS_ISA -D_MIPS_ISA=_MIPS_ISA_MIPS64)
+  else
+    cflags-$(CONFIG_CPU_LOONGSON3)  += \
+      $(call cc-option,-march=mips64r2,-mips64r2 -U_MIPS_ISA -D_MIPS_ISA=_MIPS_ISA_MIPS64)
+  endif
+else
+    cflags-$(CONFIG_CPU_LOONGSON3)  += \
+      $(call cc-option,-march=mips64r2,-mips64r2 -U_MIPS_ISA -D_MIPS_ISA=_MIPS_ISA_MIPS64)
+endif
+
 #
 # Loongson Machines' Support
 #

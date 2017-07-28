@@ -1,0 +1,480 @@
+===========================
+ drm/i915 Intel GFX Driver
+===========================
+
+The drm/i915 driver supports all (with the exception of some very early
+models) integrated GFX chipsets with both Intel display and rendering
+blocks. This excludes a set of SoC platforms with an SGX rendering unit,
+those have basic support through the gma500 drm driver.
+
+Core Driver Infrastructure
+==========================
+
+This section covers core driver infrastructure used by both the display
+and the GEM parts of the driver.
+
+Runtime Power Management
+------------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_runtime_pm.c
+   :doc: runtime pm
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_runtime_pm.c
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_uncore.c
+   :internal:
+
+Interrupt Handling
+------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_irq.c
+   :doc: interrupt handling
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_irq.c
+   :functions: intel_irq_init intel_irq_init_hw intel_hpd_init
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_irq.c
+   :functions: intel_runtime_pm_disable_interrupts
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_irq.c
+   :functions: intel_runtime_pm_enable_interrupts
+
+Intel GVT-g Guest Support(vGPU)
+-------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_vgpu.c
+   :doc: Intel GVT-g guest support
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_vgpu.c
+   :internal:
+
+Intel GVT-g Host Support(vGPU device model)
+-------------------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_gvt.c
+   :doc: Intel GVT-g host support
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_gvt.c
+   :internal:
+
+Display Hardware Handling
+=========================
+
+This section covers everything related to the display hardware including
+the mode setting infrastructure, plane, sprite and cursor handling and
+display, output probing and related topics.
+
+Mode Setting Infrastructure
+---------------------------
+
+The i915 driver is thus far the only DRM driver which doesn't use the
+common DRM helper code to implement mode setting sequences. Thus it has
+its own tailor-made infrastructure for executing a display configuration
+change.
+
+Frontbuffer Tracking
+--------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_frontbuffer.c
+   :doc: frontbuffer tracking
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_frontbuffer.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_frontbuffer.c
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_gem.c
+   :functions: i915_gem_track_fb
+
+Display FIFO Underrun Reporting
+-------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_fifo_underrun.c
+   :doc: fifo underrun handling
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_fifo_underrun.c
+   :internal:
+
+Plane Configuration
+-------------------
+
+This section covers plane configuration and composition with the primary
+plane, sprites, cursors and overlays. This includes the infrastructure
+to do atomic vsync'ed updates of all this state and also tightly coupled
+topics like watermark setup and computation, framebuffer compression and
+panel self refresh.
+
+Atomic Plane Helpers
+--------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_atomic_plane.c
+   :doc: atomic plane helpers
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_atomic_plane.c
+   :internal:
+
+Output Probing
+--------------
+
+This section covers output probing and related infrastructure like the
+hotplug interrupt storm detection and mitigation code. Note that the
+i915 driver still uses most of the common DRM helper code for output
+probing, so those sections fully apply.
+
+Hotplug
+-------
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_hotplug.c
+   :doc: Hotplug
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_hotplug.c
+   :internal:
+
+High Definition Audio
+---------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_audio.c
+   :doc: High Definition Audio over HDMI and Display Port
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_audio.c
+   :internal:
+
+.. kernel-doc:: include/drm/i915_component.h
+   :internal:
+
+Intel HDMI LPE Audio Support
+----------------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_lpe_audio.c
+   :doc: LPE Audio integration for HDMI or DP playback
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_lpe_audio.c
+   :internal:
+
+Panel Self Refresh PSR (PSR/SRD)
+--------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_psr.c
+   :doc: Panel Self Refresh (PSR/SRD)
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_psr.c
+   :internal:
+
+Frame Buffer Compression (FBC)
+------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_fbc.c
+   :doc: Frame Buffer Compression (FBC)
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_fbc.c
+   :internal:
+
+Display Refresh Rate Switching (DRRS)
+-------------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_dp.c
+   :doc: Display Refresh Rate Switching (DRRS)
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_dp.c
+   :functions: intel_dp_set_drrs_state
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_dp.c
+   :functions: intel_edp_drrs_enable
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_dp.c
+   :functions: intel_edp_drrs_disable
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_dp.c
+   :functions: intel_edp_drrs_invalidate
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_dp.c
+   :functions: intel_edp_drrs_flush
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_dp.c
+   :functions: intel_dp_drrs_init
+
+DPIO
+----
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_dpio_phy.c
+   :doc: DPIO
+
+CSR firmware support for DMC
+----------------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_csr.c
+   :doc: csr support for dmc
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_csr.c
+   :internal:
+
+Video BIOS Table (VBT)
+----------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_bios.c
+   :doc: Video BIOS Table (VBT)
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_bios.c
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_vbt_defs.h
+   :internal:
+
+Display clocks
+--------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_cdclk.c
+   :doc: CDCLK / RAWCLK
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_cdclk.c
+   :internal:
+
+Display PLLs
+------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_dpll_mgr.c
+   :doc: Display PLLs
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_dpll_mgr.c
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_dpll_mgr.h
+   :internal:
+
+Memory Management and Command Submission
+========================================
+
+This sections covers all things related to the GEM implementation in the
+i915 driver.
+
+Batchbuffer Parsing
+-------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_cmd_parser.c
+   :doc: batch buffer command parser
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_cmd_parser.c
+   :internal:
+
+Batchbuffer Pools
+-----------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_batch_pool.c
+   :doc: batch pool
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_batch_pool.c
+   :internal:
+
+Logical Rings, Logical Ring Contexts and Execlists
+--------------------------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_lrc.c
+   :doc: Logical Rings, Logical Ring Contexts and Execlists
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_lrc.c
+   :internal:
+
+Global GTT views
+----------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_gtt.c
+   :doc: Global GTT views
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_gtt.c
+   :internal:
+
+GTT Fences and Swizzling
+------------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_fence_reg.c
+   :internal:
+
+Global GTT Fence Handling
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_fence_reg.c
+   :doc: fence register handling
+
+Hardware Tiling and Swizzling Details
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_fence_reg.c
+   :doc: tiling swizzling details
+
+Object Tiling IOCTLs
+--------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_tiling.c
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_tiling.c
+   :doc: buffer object tiling
+
+Buffer Object Eviction
+----------------------
+
+This section documents the interface functions for evicting buffer
+objects to make space available in the virtual gpu address spaces. Note
+that this is mostly orthogonal to shrinking buffer objects caches, which
+has the goal to make main memory (shared with the gpu through the
+unified memory architecture) available.
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_evict.c
+   :internal:
+
+Buffer Object Memory Shrinking
+------------------------------
+
+This section documents the interface function for shrinking memory usage
+of buffer object caches. Shrinking is used to make main memory
+available. Note that this is mostly orthogonal to evicting buffer
+objects, which has the goal to make space in gpu virtual address spaces.
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_shrinker.c
+   :internal:
+
+GuC
+===
+
+GuC-specific firmware loader
+----------------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_guc_loader.c
+   :doc: GuC-specific firmware loader
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_guc_loader.c
+   :internal:
+
+GuC-based command submission
+----------------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_guc_submission.c
+   :doc: GuC-based command submission
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_guc_submission.c
+   :internal:
+
+GuC Firmware Layout
+-------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/intel_guc_fwif.h
+   :doc: GuC Firmware Layout
+
+Tracing
+=======
+
+This sections covers all things related to the tracepoints implemented
+in the i915 driver.
+
+i915_ppgtt_create and i915_ppgtt_release
+----------------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_trace.h
+   :doc: i915_ppgtt_create and i915_ppgtt_release tracepoints
+
+i915_context_create and i915_context_free
+-----------------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_trace.h
+   :doc: i915_context_create and i915_context_free tracepoints
+
+switch_mm
+---------
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_trace.h
+   :doc: switch_mm tracepoint
+
+Perf
+====
+
+Overview
+--------
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :doc: i915 Perf Overview
+
+Comparison with Core Perf
+-------------------------
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :doc: i915 Perf History and Comparison with Core Perf
+
+i915 Driver Entry Points
+------------------------
+
+This section covers the entrypoints exported outside of i915_perf.c to
+integrate with drm/i915 and to handle the `DRM_I915_PERF_OPEN` ioctl.
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_perf_init
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_perf_fini
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_perf_register
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_perf_unregister
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_perf_open_ioctl
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_perf_release
+
+i915 Perf Stream
+----------------
+
+This section covers the stream-semantics-agnostic structures and functions
+for representing an i915 perf stream FD and associated file operations.
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_drv.h
+   :functions: i915_perf_stream
+.. kernel-doc:: drivers/gpu/drm/i915/i915_drv.h
+   :functions: i915_perf_stream_ops
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: read_properties_unlocked
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_perf_open_ioctl_locked
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_perf_destroy_locked
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_perf_read
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_perf_ioctl
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_perf_enable_locked
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_perf_disable_locked
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_perf_poll
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_perf_poll_locked
+
+i915 Perf Observation Architecture Stream
+-----------------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_drv.h
+   :functions: i915_oa_ops
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_oa_stream_init
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_oa_read
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_oa_stream_enable
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_oa_stream_disable
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_oa_wait_unlocked
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_oa_poll_wait
+
+All i915 Perf Internals
+-----------------------
+
+This section simply includes all currently documented i915 perf internals, in
+no particular order, but may include some more minor utilities or platform
+specific details than found in the more high-level sections.
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :internal:
+
+.. WARNING: DOCPROC directive not supported: !Cdrivers/gpu/drm/i915/i915_irq.c

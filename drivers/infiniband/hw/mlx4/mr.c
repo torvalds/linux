@@ -32,6 +32,7 @@
  */
 
 #include <linux/slab.h>
+#include <rdma/ib_user_verbs.h>
 
 #include "mlx4_ib.h"
 
@@ -106,7 +107,7 @@ int mlx4_ib_umem_write_mtt(struct mlx4_ib_dev *dev, struct mlx4_mtt *mtt,
 		len = sg_dma_len(sg) >> mtt->page_shift;
 		for (k = 0; k < len; ++k) {
 			pages[i++] = sg_dma_address(sg) +
-				umem->page_size * k;
+				(k << umem->page_shift);
 			/*
 			 * Be friendly to mlx4_write_mtt() and
 			 * pass it chunks of appropriate size.
@@ -154,7 +155,7 @@ struct ib_mr *mlx4_ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 	}
 
 	n = ib_umem_page_count(mr->umem);
-	shift = ilog2(mr->umem->page_size);
+	shift = mr->umem->page_shift;
 
 	err = mlx4_mr_alloc(dev->dev, to_mpd(pd)->pdn, virt_addr, length,
 			    convert_access(access_flags), n, shift, &mr->mmr);
@@ -238,7 +239,7 @@ int mlx4_ib_rereg_user_mr(struct ib_mr *mr, int flags,
 			goto release_mpt_entry;
 		}
 		n = ib_umem_page_count(mmr->umem);
-		shift = ilog2(mmr->umem->page_size);
+		shift = mmr->umem->page_shift;
 
 		err = mlx4_mr_rereg_mem_write(dev->dev, &mmr->mmr,
 					      virt_addr, length, n, shift,
@@ -276,30 +277,33 @@ mlx4_alloc_priv_pages(struct ib_device *device,
 		      struct mlx4_ib_mr *mr,
 		      int max_pages)
 {
-	int size = max_pages * sizeof(u64);
-	int add_size;
 	int ret;
 
-	add_size = max_t(int, MLX4_MR_PAGES_ALIGN - ARCH_KMALLOC_MINALIGN, 0);
+	/* Ensure that size is aligned to DMA cacheline
+	 * requirements.
+	 * max_pages is limited to MLX4_MAX_FAST_REG_PAGES
+	 * so page_map_size will never cross PAGE_SIZE.
+	 */
+	mr->page_map_size = roundup(max_pages * sizeof(u64),
+				    MLX4_MR_PAGES_ALIGN);
 
-	mr->pages_alloc = kzalloc(size + add_size, GFP_KERNEL);
-	if (!mr->pages_alloc)
+	/* Prevent cross page boundary allocation. */
+	mr->pages = (__be64 *)get_zeroed_page(GFP_KERNEL);
+	if (!mr->pages)
 		return -ENOMEM;
 
-	mr->pages = PTR_ALIGN(mr->pages_alloc, MLX4_MR_PAGES_ALIGN);
+	mr->page_map = dma_map_single(device->dev.parent, mr->pages,
+				      mr->page_map_size, DMA_TO_DEVICE);
 
-	mr->page_map = dma_map_single(device->dma_device, mr->pages,
-				      size, DMA_TO_DEVICE);
-
-	if (dma_mapping_error(device->dma_device, mr->page_map)) {
+	if (dma_mapping_error(device->dev.parent, mr->page_map)) {
 		ret = -ENOMEM;
 		goto err;
 	}
 
 	return 0;
-err:
-	kfree(mr->pages_alloc);
 
+err:
+	free_page((unsigned long)mr->pages);
 	return ret;
 }
 
@@ -308,11 +312,10 @@ mlx4_free_priv_pages(struct mlx4_ib_mr *mr)
 {
 	if (mr->pages) {
 		struct ib_device *device = mr->ibmr.device;
-		int size = mr->max_pages * sizeof(u64);
 
-		dma_unmap_single(device->dma_device, mr->page_map,
-				 size, DMA_TO_DEVICE);
-		kfree(mr->pages_alloc);
+		dma_unmap_single(device->dev.parent, mr->page_map,
+				 mr->page_map_size, DMA_TO_DEVICE);
+		free_page((unsigned long)mr->pages);
 		mr->pages = NULL;
 	}
 }
@@ -334,7 +337,8 @@ int mlx4_ib_dereg_mr(struct ib_mr *ibmr)
 	return 0;
 }
 
-struct ib_mw *mlx4_ib_alloc_mw(struct ib_pd *pd, enum ib_mw_type type)
+struct ib_mw *mlx4_ib_alloc_mw(struct ib_pd *pd, enum ib_mw_type type,
+			       struct ib_udata *udata)
 {
 	struct mlx4_ib_dev *dev = to_mdev(pd->device);
 	struct mlx4_ib_mw *mw;
@@ -364,28 +368,6 @@ err_free:
 	kfree(mw);
 
 	return ERR_PTR(err);
-}
-
-int mlx4_ib_bind_mw(struct ib_qp *qp, struct ib_mw *mw,
-		    struct ib_mw_bind *mw_bind)
-{
-	struct ib_bind_mw_wr  wr;
-	struct ib_send_wr *bad_wr;
-	int ret;
-
-	memset(&wr, 0, sizeof(wr));
-	wr.wr.opcode		= IB_WR_BIND_MW;
-	wr.wr.wr_id		= mw_bind->wr_id;
-	wr.wr.send_flags	= mw_bind->send_flags;
-	wr.mw			= mw;
-	wr.bind_info		= mw_bind->bind_info;
-	wr.rkey			= ib_inc_rkey(mw->rkey);
-
-	ret = mlx4_ib_post_send(qp, &wr.wr, &bad_wr);
-	if (!ret)
-		mw->rkey = wr.rkey;
-
-	return ret;
 }
 
 int mlx4_ib_dealloc_mw(struct ib_mw *ibmw)
@@ -548,9 +530,8 @@ static int mlx4_set_page(struct ib_mr *ibmr, u64 addr)
 	return 0;
 }
 
-int mlx4_ib_map_mr_sg(struct ib_mr *ibmr,
-		      struct scatterlist *sg,
-		      int sg_nents)
+int mlx4_ib_map_mr_sg(struct ib_mr *ibmr, struct scatterlist *sg, int sg_nents,
+		      unsigned int *sg_offset)
 {
 	struct mlx4_ib_mr *mr = to_mmr(ibmr);
 	int rc;
@@ -558,14 +539,12 @@ int mlx4_ib_map_mr_sg(struct ib_mr *ibmr,
 	mr->npages = 0;
 
 	ib_dma_sync_single_for_cpu(ibmr->device, mr->page_map,
-				   sizeof(u64) * mr->max_pages,
-				   DMA_TO_DEVICE);
+				   mr->page_map_size, DMA_TO_DEVICE);
 
-	rc = ib_sg_to_pages(ibmr, sg, sg_nents, mlx4_set_page);
+	rc = ib_sg_to_pages(ibmr, sg, sg_nents, sg_offset, mlx4_set_page);
 
 	ib_dma_sync_single_for_device(ibmr->device, mr->page_map,
-				      sizeof(u64) * mr->max_pages,
-				      DMA_TO_DEVICE);
+				      mr->page_map_size, DMA_TO_DEVICE);
 
 	return rc;
 }

@@ -13,6 +13,7 @@
 #include <sys/mount.h>
 
 #include "fs.h"
+#include "debug-internal.h"
 
 #define _STR(x) #x
 #define STR(x) _STR(x)
@@ -31,6 +32,14 @@
 
 #ifndef TRACEFS_MAGIC
 #define TRACEFS_MAGIC          0x74726163
+#endif
+
+#ifndef HUGETLBFS_MAGIC
+#define HUGETLBFS_MAGIC        0x958458f6
+#endif
+
+#ifndef BPF_FS_MAGIC
+#define BPF_FS_MAGIC           0xcafe4a11
 #endif
 
 static const char * const sysfs__fs_known_mountpoints[] = {
@@ -66,6 +75,15 @@ static const char * const tracefs__known_mountpoints[] = {
 	0,
 };
 
+static const char * const hugetlbfs__known_mountpoints[] = {
+	0,
+};
+
+static const char * const bpf_fs__known_mountpoints[] = {
+	"/sys/fs/bpf",
+	0,
+};
+
 struct fs {
 	const char		*name;
 	const char * const	*mounts;
@@ -79,6 +97,8 @@ enum {
 	FS__PROCFS  = 1,
 	FS__DEBUGFS = 2,
 	FS__TRACEFS = 3,
+	FS__HUGETLBFS = 4,
+	FS__BPF_FS = 5,
 };
 
 #ifndef TRACEFS_MAGIC
@@ -105,6 +125,16 @@ static struct fs fs__entries[] = {
 		.name	= "tracefs",
 		.mounts	= tracefs__known_mountpoints,
 		.magic	= TRACEFS_MAGIC,
+	},
+	[FS__HUGETLBFS] = {
+		.name	= "hugetlbfs",
+		.mounts = hugetlbfs__known_mountpoints,
+		.magic	= HUGETLBFS_MAGIC,
+	},
+	[FS__BPF_FS] = {
+		.name	= "bpf",
+		.mounts = bpf_fs__known_mountpoints,
+		.magic	= BPF_FS_MAGIC,
 	},
 };
 
@@ -264,6 +294,8 @@ FS(sysfs,   FS__SYSFS);
 FS(procfs,  FS__PROCFS);
 FS(debugfs, FS__DEBUGFS);
 FS(tracefs, FS__TRACEFS);
+FS(hugetlbfs, FS__HUGETLBFS);
+FS(bpf_fs, FS__BPF_FS);
 
 int filename__read_int(const char *filename, int *value)
 {
@@ -282,6 +314,11 @@ int filename__read_int(const char *filename, int *value)
 	return err;
 }
 
+/*
+ * Parses @value out of @filename with strtoull.
+ * By using 0 for base, the strtoull detects the
+ * base automatically (see man strtoull).
+ */
 int filename__read_ull(const char *filename, unsigned long long *value)
 {
 	char line[64];
@@ -291,13 +328,92 @@ int filename__read_ull(const char *filename, unsigned long long *value)
 		return -1;
 
 	if (read(fd, line, sizeof(line)) > 0) {
-		*value = strtoull(line, NULL, 10);
+		*value = strtoull(line, NULL, 0);
 		if (*value != ULLONG_MAX)
 			err = 0;
 	}
 
 	close(fd);
 	return err;
+}
+
+#define STRERR_BUFSIZE  128     /* For the buffer size of strerror_r */
+
+int filename__read_str(const char *filename, char **buf, size_t *sizep)
+{
+	size_t size = 0, alloc_size = 0;
+	void *bf = NULL, *nbf;
+	int fd, n, err = 0;
+	char sbuf[STRERR_BUFSIZE];
+
+	fd = open(filename, O_RDONLY);
+	if (fd < 0)
+		return -errno;
+
+	do {
+		if (size == alloc_size) {
+			alloc_size += BUFSIZ;
+			nbf = realloc(bf, alloc_size);
+			if (!nbf) {
+				err = -ENOMEM;
+				break;
+			}
+
+			bf = nbf;
+		}
+
+		n = read(fd, bf + size, alloc_size - size);
+		if (n < 0) {
+			if (size) {
+				pr_warning("read failed %d: %s\n", errno,
+					 strerror_r(errno, sbuf, sizeof(sbuf)));
+				err = 0;
+			} else
+				err = -errno;
+
+			break;
+		}
+
+		size += n;
+	} while (n > 0);
+
+	if (!err) {
+		*sizep = size;
+		*buf   = bf;
+	} else
+		free(bf);
+
+	close(fd);
+	return err;
+}
+
+int filename__write_int(const char *filename, int value)
+{
+	int fd = open(filename, O_WRONLY), err = -1;
+	char buf[64];
+
+	if (fd < 0)
+		return err;
+
+	sprintf(buf, "%d", value);
+	if (write(fd, buf, sizeof(buf)) == sizeof(buf))
+		err = 0;
+
+	close(fd);
+	return err;
+}
+
+int procfs__read_str(const char *entry, char **buf, size_t *sizep)
+{
+	char path[PATH_MAX];
+	const char *procfs = procfs__mountpoint();
+
+	if (!procfs)
+		return -1;
+
+	snprintf(path, sizeof(path), "%s/%s", procfs, entry);
+
+	return filename__read_str(path, buf, sizep);
 }
 
 int sysfs__read_ull(const char *entry, unsigned long long *value)
@@ -326,6 +442,48 @@ int sysfs__read_int(const char *entry, int *value)
 	return filename__read_int(path, value);
 }
 
+int sysfs__read_str(const char *entry, char **buf, size_t *sizep)
+{
+	char path[PATH_MAX];
+	const char *sysfs = sysfs__mountpoint();
+
+	if (!sysfs)
+		return -1;
+
+	snprintf(path, sizeof(path), "%s/%s", sysfs, entry);
+
+	return filename__read_str(path, buf, sizep);
+}
+
+int sysfs__read_bool(const char *entry, bool *value)
+{
+	char *buf;
+	size_t size;
+	int ret;
+
+	ret = sysfs__read_str(entry, &buf, &size);
+	if (ret < 0)
+		return ret;
+
+	switch (buf[0]) {
+	case '1':
+	case 'y':
+	case 'Y':
+		*value = true;
+		break;
+	case '0':
+	case 'n':
+	case 'N':
+		*value = false;
+		break;
+	default:
+		ret = -1;
+	}
+
+	free(buf);
+
+	return ret;
+}
 int sysctl__read_int(const char *sysctl, int *value)
 {
 	char path[PATH_MAX];
@@ -337,4 +495,18 @@ int sysctl__read_int(const char *sysctl, int *value)
 	snprintf(path, sizeof(path), "%s/sys/%s", procfs, sysctl);
 
 	return filename__read_int(path, value);
+}
+
+int sysfs__write_int(const char *entry, int value)
+{
+	char path[PATH_MAX];
+	const char *sysfs = sysfs__mountpoint();
+
+	if (!sysfs)
+		return -1;
+
+	if (snprintf(path, sizeof(path), "%s/%s", sysfs, entry) >= PATH_MAX)
+		return -1;
+
+	return filename__write_int(path, value);
 }

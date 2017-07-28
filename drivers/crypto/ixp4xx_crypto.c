@@ -23,6 +23,7 @@
 #include <crypto/ctr.h>
 #include <crypto/des.h>
 #include <crypto/aes.h>
+#include <crypto/hmac.h>
 #include <crypto/sha.h>
 #include <crypto/algapi.h>
 #include <crypto/internal/aead.h>
@@ -90,8 +91,6 @@
 #define CTL_FLAG_PERFORM_AEAD	0x0008
 #define CTL_FLAG_MASK		0x000f
 
-#define HMAC_IPAD_VALUE   0x36
-#define HMAC_OPAD_VALUE   0x5C
 #define HMAC_PAD_BLOCKLEN SHA1_BLOCK_SIZE
 
 #define MD5_DIGEST_SIZE   16
@@ -447,9 +446,8 @@ static int init_ixp_crypto(struct device *dev)
 
 	if (!npe_running(npe_c)) {
 		ret = npe_load_firmware(npe_c, npe_name(npe_c), dev);
-		if (ret) {
-			return ret;
-		}
+		if (ret)
+			goto npe_release;
 		if (npe_recv_message(npe_c, msg, "STATUS_MSG"))
 			goto npe_error;
 	} else {
@@ -473,7 +471,8 @@ static int init_ixp_crypto(struct device *dev)
 	default:
 		printk(KERN_ERR "Firmware of %s lacks crypto support\n",
 			npe_name(npe_c));
-		return -ENODEV;
+		ret = -ENODEV;
+		goto npe_release;
 	}
 	/* buffer_pool will also be used to sometimes store the hmac,
 	 * so assure it is large enough
@@ -510,10 +509,9 @@ npe_error:
 	printk(KERN_ERR "%s not responding\n", npe_name(npe_c));
 	ret = -EIO;
 err:
-	if (ctx_pool)
-		dma_pool_destroy(ctx_pool);
-	if (buffer_pool)
-		dma_pool_destroy(buffer_pool);
+	dma_pool_destroy(ctx_pool);
+	dma_pool_destroy(buffer_pool);
+npe_release:
 	npe_release(npe_c);
 	return ret;
 }
@@ -807,7 +805,7 @@ static struct buffer_desc *chainup_buffers(struct device *dev,
 		void *ptr;
 
 		nbytes -= len;
-		ptr = page_address(sg_page(sg)) + sg->offset;
+		ptr = sg_virt(sg);
 		next_buf = dma_pool_alloc(buffer_pool, flags, &next_buf_phys);
 		if (!next_buf) {
 			buf = NULL;
@@ -1033,6 +1031,18 @@ static int aead_perform(struct aead_request *req, int encrypt,
 	BUG_ON(ivsize && !req->iv);
 	memcpy(crypt->iv, req->iv, ivsize);
 
+	buf = chainup_buffers(dev, req->src, crypt->auth_len,
+			      &src_hook, flags, src_direction);
+	req_ctx->src = src_hook.next;
+	crypt->src_buf = src_hook.phys_next;
+	if (!buf)
+		goto free_buf_src;
+
+	lastlen = buf->buf_len;
+	if (lastlen >= authsize)
+		crypt->icv_rev_aes = buf->phys_addr +
+				     buf->buf_len - authsize;
+
 	req_ctx->dst = NULL;
 
 	if (req->src != req->dst) {
@@ -1055,20 +1065,6 @@ static int aead_perform(struct aead_request *req, int encrypt,
 				crypt->icv_rev_aes = buf->phys_addr +
 						     buf->buf_len - authsize;
 		}
-	}
-
-	buf = chainup_buffers(dev, req->src, crypt->auth_len,
-			      &src_hook, flags, src_direction);
-	req_ctx->src = src_hook.next;
-	crypt->src_buf = src_hook.phys_next;
-	if (!buf)
-		goto free_buf_src;
-
-	if (!encrypt || !req_ctx->dst) {
-		lastlen = buf->buf_len;
-		if (lastlen >= authsize)
-			crypt->icv_rev_aes = buf->phys_addr +
-					     buf->buf_len - authsize;
 	}
 
 	if (unlikely(lastlen < authsize)) {

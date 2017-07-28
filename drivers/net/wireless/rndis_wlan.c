@@ -479,7 +479,7 @@ struct rndis_wlan_private {
  */
 static int rndis_change_virtual_intf(struct wiphy *wiphy,
 					struct net_device *dev,
-					enum nl80211_iftype type, u32 *flags,
+					enum nl80211_iftype type,
 					struct vif_params *params);
 
 static int rndis_scan(struct wiphy *wiphy,
@@ -1291,7 +1291,7 @@ static int set_channel(struct usbnet *usbdev, int channel)
 		return 0;
 
 	dsconfig = 1000 *
-		ieee80211_channel_to_frequency(channel, IEEE80211_BAND_2GHZ);
+		ieee80211_channel_to_frequency(channel, NL80211_BAND_2GHZ);
 
 	len = sizeof(config);
 	ret = rndis_query_oid(usbdev,
@@ -1857,7 +1857,7 @@ error:
  */
 static int rndis_change_virtual_intf(struct wiphy *wiphy,
 					struct net_device *dev,
-					enum nl80211_iftype type, u32 *flags,
+					enum nl80211_iftype type,
 					struct vif_params *params)
 {
 	struct rndis_wlan_private *priv = wiphy_priv(wiphy);
@@ -2134,6 +2134,7 @@ static void rndis_get_scan_results(struct work_struct *work)
 	struct rndis_wlan_private *priv =
 		container_of(work, struct rndis_wlan_private, scan_work.work);
 	struct usbnet *usbdev = priv->usbdev;
+	struct cfg80211_scan_info info = {};
 	int ret;
 
 	netdev_dbg(usbdev->net, "get_scan_results\n");
@@ -2143,7 +2144,8 @@ static void rndis_get_scan_results(struct work_struct *work)
 
 	ret = rndis_check_bssid_list(usbdev, NULL, NULL);
 
-	cfg80211_scan_done(priv->scan_request, ret < 0);
+	info.aborted = ret < 0;
+	cfg80211_scan_done(priv->scan_request, &info);
 
 	priv->scan_request = NULL;
 }
@@ -2828,15 +2830,22 @@ static void rndis_wlan_do_link_up_work(struct usbnet *usbdev)
 	}
 
 	if (priv->infra_mode == NDIS_80211_INFRA_INFRA) {
-		if (!roamed)
+		if (!roamed) {
 			cfg80211_connect_result(usbdev->net, bssid, req_ie,
 						req_ie_len, resp_ie,
 						resp_ie_len, 0, GFP_KERNEL);
-		else
-			cfg80211_roamed(usbdev->net,
-					get_current_channel(usbdev, NULL),
-					bssid, req_ie, req_ie_len,
-					resp_ie, resp_ie_len, GFP_KERNEL);
+		} else {
+			struct cfg80211_roam_info roam_info = {
+				.channel = get_current_channel(usbdev, NULL),
+				.bssid = bssid,
+				.req_ie = req_ie,
+				.req_ie_len = req_ie_len,
+				.resp_ie = resp_ie,
+				.resp_ie_len = resp_ie_len,
+			};
+
+			cfg80211_roamed(usbdev->net, &roam_info, GFP_KERNEL);
+		}
 	} else if (priv->infra_mode == NDIS_80211_INFRA_ADHOC)
 		cfg80211_ibss_joined(usbdev->net, bssid,
 				     get_current_channel(usbdev, NULL),
@@ -3185,7 +3194,7 @@ static void rndis_do_cqm(struct usbnet *usbdev, s32 rssi)
 		return;
 
 	priv->last_cqm_event_rssi = rssi;
-	cfg80211_cqm_rssi_notify(usbdev->net, event, GFP_KERNEL);
+	cfg80211_cqm_rssi_notify(usbdev->net, event, rssi, GFP_KERNEL);
 }
 
 #define DEVICE_POLLER_JIFFIES (HZ)
@@ -3390,6 +3399,7 @@ static const struct net_device_ops rndis_wlan_netdev_ops = {
 	.ndo_stop		= usbnet_stop,
 	.ndo_start_xmit		= usbnet_start_xmit,
 	.ndo_tx_timeout		= usbnet_tx_timeout,
+	.ndo_get_stats64	= usbnet_get_stats64,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_rx_mode	= rndis_wlan_set_multicast_list,
@@ -3425,6 +3435,10 @@ static int rndis_wlan_bind(struct usbnet *usbdev, struct usb_interface *intf)
 
 	/* because rndis_command() sleeps we need to use workqueue */
 	priv->workqueue = create_singlethread_workqueue("rndis_wlan");
+	if (!priv->workqueue) {
+		wiphy_free(wiphy);
+		return -ENOMEM;
+	}
 	INIT_WORK(&priv->work, rndis_wlan_worker);
 	INIT_DELAYED_WORK(&priv->dev_poller_work, rndis_device_poller);
 	INIT_DELAYED_WORK(&priv->scan_work, rndis_get_scan_results);
@@ -3476,7 +3490,7 @@ static int rndis_wlan_bind(struct usbnet *usbdev, struct usb_interface *intf)
 	priv->band.n_channels = ARRAY_SIZE(rndis_channels);
 	priv->band.bitrates = priv->rates;
 	priv->band.n_bitrates = ARRAY_SIZE(rndis_rates);
-	wiphy->bands[IEEE80211_BAND_2GHZ] = &priv->band;
+	wiphy->bands[NL80211_BAND_2GHZ] = &priv->band;
 	wiphy->signal_type = CFG80211_SIGNAL_TYPE_UNSPEC;
 
 	memcpy(priv->cipher_suites, rndis_cipher_suites,
@@ -3574,7 +3588,11 @@ static int rndis_wlan_stop(struct usbnet *usbdev)
 	flush_workqueue(priv->workqueue);
 
 	if (priv->scan_request) {
-		cfg80211_scan_done(priv->scan_request, true);
+		struct cfg80211_scan_info info = {
+			.aborted = true,
+		};
+
+		cfg80211_scan_done(priv->scan_request, &info);
 		priv->scan_request = NULL;
 	}
 

@@ -262,7 +262,6 @@ struct cobalt {
 	int instance;
 	struct pci_dev *pci_dev;
 	struct v4l2_device v4l2_dev;
-	void *alloc_ctx;
 
 	void __iomem *bar0, *bar1;
 
@@ -287,8 +286,6 @@ struct cobalt {
 	u32 irq_dma[COBALT_NUM_STREAMS];
 	u32 irq_none;
 	u32 irq_full_fifo;
-
-	bool msi_enabled;
 
 	/* omnitek dma */
 	int dma_channels;

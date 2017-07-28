@@ -202,8 +202,15 @@ static void i2c_davinci_calc_clk_dividers(struct davinci_i2c_dev *dev)
 	 * d is always 6 on Keystone I2C controller
 	 */
 
-	/* get minimum of 7 MHz clock, but max of 12 MHz */
-	psc = (input_clock / 7000000) - 1;
+	/*
+	 * Both Davinci and current Keystone User Guides recommend a value
+	 * between 7MHz and 12MHz. In reality 7MHz module clock doesn't
+	 * always produce enough margin between SDA and SCL transitions.
+	 * Measurements show that the higher the module clock is, the
+	 * bigger is the margin, providing more reliable communication.
+	 * So we better target for 12MHz.
+	 */
+	psc = (input_clock / 12000000) - 1;
 	if ((input_clock / (psc + 1)) > 12000000)
 		psc++;	/* better to run under spec than over */
 	d = (psc >= 2) ? 5 : 7 - psc;
@@ -839,10 +846,8 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 
 	adap->nr = pdev->id;
 	r = i2c_add_numbered_adapter(adap);
-	if (r) {
-		dev_err(&pdev->dev, "failure adding adapter\n");
+	if (r)
 		goto err_unuse_clocks;
-	}
 
 	return 0;
 

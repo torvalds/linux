@@ -26,7 +26,7 @@
 #include "stats.h"
 #include <linux/export.h>
 
-u8 rtl_query_rxpwrpercentage(char antpower)
+u8 rtl_query_rxpwrpercentage(s8 antpower)
 {
 	if ((antpower <= -100) || (antpower >= 20))
 		return 0;
@@ -37,9 +37,9 @@ u8 rtl_query_rxpwrpercentage(char antpower)
 }
 EXPORT_SYMBOL(rtl_query_rxpwrpercentage);
 
-u8 rtl_evm_db_to_percentage(char value)
+u8 rtl_evm_db_to_percentage(s8 value)
 {
-	char ret_val = clamp(-value, 0, 33) * 3;
+	s8 ret_val = clamp(-value, 0, 33) * 3;
 
 	if (ret_val == 99)
 		ret_val = 100;

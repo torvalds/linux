@@ -93,8 +93,6 @@ static void cy_send_xchar(struct tty_struct *tty, char ch);
 #define	SERIAL_XMIT_SIZE	(min(PAGE_SIZE, 4096))
 #endif
 
-#define STD_COM_FLAGS (0)
-
 /* firmware stuff */
 #define ZL_MAX_BLOCKS	16
 #define DRIVER_VERSION	0x02010203
@@ -158,8 +156,8 @@ static unsigned int cy_isa_addresses[] = {
 static long maddr[NR_CARDS];
 static int irq[NR_CARDS];
 
-module_param_array(maddr, long, NULL, 0);
-module_param_array(irq, int, NULL, 0);
+module_param_hw_array(maddr, long, iomem, NULL, 0);
+module_param_hw_array(irq, int, irq, NULL, 0);
 
 #endif				/* CONFIG_ISA */
 
@@ -292,14 +290,14 @@ static void cyz_rx_restart(unsigned long);
 static struct timer_list cyz_rx_full_timer[NR_PORTS];
 #endif				/* CONFIG_CYZ_INTR */
 
-static inline void cyy_writeb(struct cyclades_port *port, u32 reg, u8 val)
+static void cyy_writeb(struct cyclades_port *port, u32 reg, u8 val)
 {
 	struct cyclades_card *card = port->card;
 
 	cy_writeb(port->u.cyy.base_addr + (reg << card->bus_index), val);
 }
 
-static inline u8 cyy_readb(struct cyclades_port *port, u32 reg)
+static u8 cyy_readb(struct cyclades_port *port, u32 reg)
 {
 	struct cyclades_card *card = port->card;
 
@@ -321,7 +319,7 @@ static inline bool cyz_fpga_loaded(struct cyclades_card *card)
 	return __cyz_fpga_loaded(card->ctl_addr.p9060);
 }
 
-static inline bool cyz_is_loaded(struct cyclades_card *card)
+static bool cyz_is_loaded(struct cyclades_card *card)
 {
 	struct FIRM_ID __iomem *fw_id = card->base_addr + ID_ADDRESS;
 
@@ -329,7 +327,7 @@ static inline bool cyz_is_loaded(struct cyclades_card *card)
 			readl(&fw_id->signature) == ZFIRM_ID;
 }
 
-static inline int serial_paranoia_check(struct cyclades_port *info,
+static int serial_paranoia_check(struct cyclades_port *info,
 		const char *name, const char *routine)
 {
 #ifdef SERIAL_PARANOIA_CHECK
@@ -714,7 +712,7 @@ static void cyy_chip_modem(struct cyclades_card *cinfo, int chip,
 		wake_up_interruptible(&info->port.delta_msr_wait);
 	}
 
-	if ((mdm_change & CyDCD) && (info->port.flags & ASYNC_CHECK_CD)) {
+	if ((mdm_change & CyDCD) && tty_port_check_carrier(&info->port)) {
 		if (mdm_status & CyDCD)
 			wake_up_interruptible(&info->port.open_wait);
 		else
@@ -1119,7 +1117,7 @@ static void cyz_handle_cmd(struct cyclades_card *cinfo)
 		case C_CM_MDCD:
 			info->icount.dcd++;
 			delta_count++;
-			if (info->port.flags & ASYNC_CHECK_CD) {
+			if (tty_port_check_carrier(&info->port)) {
 				u32 dcd = fw_ver > 241 ? param :
 					readl(&info->u.cyz.ch_ctrl->rs_status);
 				if (dcd & C_RS_DCD)
@@ -1279,7 +1277,7 @@ static int cy_startup(struct cyclades_port *info, struct tty_struct *tty)
 
 	spin_lock_irqsave(&card->card_lock, flags);
 
-	if (info->port.flags & ASYNC_INITIALIZED)
+	if (tty_port_initialized(&info->port))
 		goto errout;
 
 	if (!info->type) {
@@ -1364,7 +1362,7 @@ static int cy_startup(struct cyclades_port *info, struct tty_struct *tty)
 		/* enable send, recv, modem !!! */
 	}
 
-	info->port.flags |= ASYNC_INITIALIZED;
+	tty_port_set_initialized(&info->port, 1);
 
 	clear_bit(TTY_IO_ERROR, &tty->flags);
 	info->xmit_cnt = info->xmit_head = info->xmit_tail = 0;
@@ -1424,7 +1422,7 @@ static void cy_shutdown(struct cyclades_port *info, struct tty_struct *tty)
 	struct cyclades_card *card;
 	unsigned long flags;
 
-	if (!(info->port.flags & ASYNC_INITIALIZED))
+	if (!tty_port_initialized(&info->port))
 		return;
 
 	card = info->card;
@@ -1440,7 +1438,7 @@ static void cy_shutdown(struct cyclades_port *info, struct tty_struct *tty)
 			info->port.xmit_buf = NULL;
 			free_page((unsigned long)temp);
 		}
-		if (tty->termios.c_cflag & HUPCL)
+		if (C_HUPCL(tty))
 			cyy_change_rts_dtr(info, 0, TIOCM_RTS | TIOCM_DTR);
 
 		cyy_issue_cmd(info, CyCHAN_CTL | CyDIS_RCVR);
@@ -1448,7 +1446,7 @@ static void cy_shutdown(struct cyclades_port *info, struct tty_struct *tty)
 		   some later date (after testing)!!! */
 
 		set_bit(TTY_IO_ERROR, &tty->flags);
-		info->port.flags &= ~ASYNC_INITIALIZED;
+		tty_port_set_initialized(&info->port, 0);
 		spin_unlock_irqrestore(&card->card_lock, flags);
 	} else {
 #ifdef CY_DEBUG_OPEN
@@ -1469,11 +1467,11 @@ static void cy_shutdown(struct cyclades_port *info, struct tty_struct *tty)
 			free_page((unsigned long)temp);
 		}
 
-		if (tty->termios.c_cflag & HUPCL)
+		if (C_HUPCL(tty))
 			tty_port_lower_dtr_rts(&info->port);
 
 		set_bit(TTY_IO_ERROR, &tty->flags);
-		info->port.flags &= ~ASYNC_INITIALIZED;
+		tty_port_set_initialized(&info->port, 0);
 
 		spin_unlock_irqrestore(&card->card_lock, flags);
 	}
@@ -1711,7 +1709,7 @@ static void cy_do_close(struct tty_port *port)
 		/* Stop accepting input */
 		cyy_writeb(info, CyCAR, channel & 0x03);
 		cyy_writeb(info, CySRER, cyy_readb(info, CySRER) & ~CyRxData);
-		if (info->port.flags & ASYNC_INITIALIZED) {
+		if (tty_port_initialized(&info->port)) {
 			/* Waiting for on-board buffers to be empty before
 			   closing the port */
 			spin_unlock_irqrestore(&card->card_lock, flags);
@@ -1977,18 +1975,6 @@ static void cy_set_line_char(struct cyclades_port *info, struct tty_struct *tty)
 	cflag = tty->termios.c_cflag;
 	iflag = tty->termios.c_iflag;
 
-	/*
-	 * Set up the tty->alt_speed kludge
-	 */
-	if ((info->port.flags & ASYNC_SPD_MASK) == ASYNC_SPD_HI)
-		tty->alt_speed = 57600;
-	if ((info->port.flags & ASYNC_SPD_MASK) == ASYNC_SPD_VHI)
-		tty->alt_speed = 115200;
-	if ((info->port.flags & ASYNC_SPD_MASK) == ASYNC_SPD_SHI)
-		tty->alt_speed = 230400;
-	if ((info->port.flags & ASYNC_SPD_MASK) == ASYNC_SPD_WARP)
-		tty->alt_speed = 460800;
-
 	card = info->card;
 	channel = info->line - card->first_line;
 
@@ -2083,17 +2069,12 @@ static void cy_set_line_char(struct cyclades_port *info, struct tty_struct *tty)
 			info->cor1 |= CyPARITY_NONE;
 
 		/* CTS flow control flag */
-		if (cflag & CRTSCTS) {
-			info->port.flags |= ASYNC_CTS_FLOW;
+		tty_port_set_cts_flow(&info->port, cflag & CRTSCTS);
+		if (cflag & CRTSCTS)
 			info->cor2 |= CyCtsAE;
-		} else {
-			info->port.flags &= ~ASYNC_CTS_FLOW;
-			info->cor2 &= ~CyCtsAE;
-		}
-		if (cflag & CLOCAL)
-			info->port.flags &= ~ASYNC_CHECK_CD;
 		else
-			info->port.flags |= ASYNC_CHECK_CD;
+			info->cor2 &= ~CyCtsAE;
+		tty_port_set_check_carrier(&info->port, ~cflag & CLOCAL);
 
 	 /***********************************************
 	    The hardware option, CyRtsAO, presents RTS when
@@ -2234,7 +2215,7 @@ static void cy_set_line_char(struct cyclades_port *info, struct tty_struct *tty)
 		}
 		/* As the HW flow control is done in firmware, the driver
 		   doesn't need to care about it */
-		info->port.flags &= ~ASYNC_CTS_FLOW;
+		tty_port_set_cts_flow(&info->port, 0);
 
 		/* XON/XOFF/XANY flow control flags */
 		sw_flow = 0;
@@ -2252,10 +2233,7 @@ static void cy_set_line_char(struct cyclades_port *info, struct tty_struct *tty)
 		}
 
 		/* CD sensitivity */
-		if (cflag & CLOCAL)
-			info->port.flags &= ~ASYNC_CHECK_CD;
-		else
-			info->port.flags |= ASYNC_CHECK_CD;
+		tty_port_set_check_carrier(&info->port, ~cflag & CLOCAL);
 
 		if (baud == 0) {	/* baud rate is zero, turn off line */
 			cy_writel(&ch_ctrl->rs_control,
@@ -2296,7 +2274,6 @@ static int cy_get_serial_info(struct cyclades_port *info,
 		.closing_wait = info->port.closing_wait,
 		.baud_base = info->baud,
 		.custom_divisor = info->custom_divisor,
-		.hub6 = 0,		/*!!! */
 	};
 	return copy_to_user(retinfo, &tmp, sizeof(*retinfo)) ? -EFAULT : 0;
 }
@@ -2306,12 +2283,16 @@ cy_set_serial_info(struct cyclades_port *info, struct tty_struct *tty,
 		struct serial_struct __user *new_info)
 {
 	struct serial_struct new_serial;
+	int old_flags;
 	int ret;
 
 	if (copy_from_user(&new_serial, new_info, sizeof(new_serial)))
 		return -EFAULT;
 
 	mutex_lock(&info->port.mutex);
+
+	old_flags = info->port.flags;
+
 	if (!capable(CAP_SYS_ADMIN)) {
 		if (new_serial.close_delay != info->port.close_delay ||
 				new_serial.baud_base != info->baud ||
@@ -2342,7 +2323,12 @@ cy_set_serial_info(struct cyclades_port *info, struct tty_struct *tty,
 	info->port.closing_wait = new_serial.closing_wait * HZ / 100;
 
 check_and_exit:
-	if (info->port.flags & ASYNC_INITIALIZED) {
+	if (tty_port_initialized(&info->port)) {
+		if ((new_serial.flags ^ old_flags) & ASYNC_SPD_MASK) {
+			/* warn about deprecation unless clearing */
+			if (new_serial.flags & ASYNC_SPD_MASK)
+				dev_warn_ratelimited(tty->dev, "use of SPD flags is deprecated\n");
+		}
 		cy_set_line_char(info, tty);
 		ret = 0;
 	} else {
@@ -2795,8 +2781,7 @@ static void cy_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 
 	cy_set_line_char(info, tty);
 
-	if ((old_termios->c_cflag & CRTSCTS) &&
-			!(tty->termios.c_cflag & CRTSCTS)) {
+	if ((old_termios->c_cflag & CRTSCTS) && !C_CRTSCTS(tty)) {
 		tty->hw_stopped = 0;
 		cy_start(tty);
 	}
@@ -2807,8 +2792,7 @@ static void cy_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	 * XXX  It's not clear whether the current behavior is correct
 	 * or not.  Hence, this may change.....
 	 */
-	if (!(old_termios->c_cflag & CLOCAL) &&
-	    (tty->termios.c_cflag & CLOCAL))
+	if (!(old_termios->c_cflag & CLOCAL) && C_CLOCAL(tty))
 		wake_up_interruptible(&info->port.open_wait);
 #endif
 }				/* cy_set_termios */
@@ -2852,8 +2836,8 @@ static void cy_throttle(struct tty_struct *tty)
 	unsigned long flags;
 
 #ifdef CY_DEBUG_THROTTLE
-	printk(KERN_DEBUG "cyc:throttle %s: %ld...ttyC%d\n", tty_name(tty),
-			tty->ldisc.chars_in_buffer(tty), info->line);
+	printk(KERN_DEBUG "cyc:throttle %s ...ttyC%d\n", tty_name(tty),
+			 info->line);
 #endif
 
 	if (serial_paranoia_check(info, tty->name, "cy_throttle"))
@@ -2868,7 +2852,7 @@ static void cy_throttle(struct tty_struct *tty)
 			info->throttle = 1;
 	}
 
-	if (tty->termios.c_cflag & CRTSCTS) {
+	if (C_CRTSCTS(tty)) {
 		if (!cy_is_Z(card)) {
 			spin_lock_irqsave(&card->card_lock, flags);
 			cyy_change_rts_dtr(info, 0, TIOCM_RTS);
@@ -2891,8 +2875,8 @@ static void cy_unthrottle(struct tty_struct *tty)
 	unsigned long flags;
 
 #ifdef CY_DEBUG_THROTTLE
-	printk(KERN_DEBUG "cyc:unthrottle %s: %ld...ttyC%d\n",
-		tty_name(tty), tty_chars_in_buffer(tty), info->line);
+	printk(KERN_DEBUG "cyc:unthrottle %s ...ttyC%d\n",
+		tty_name(tty), info->line);
 #endif
 
 	if (serial_paranoia_check(info, tty->name, "cy_unthrottle"))
@@ -2905,7 +2889,7 @@ static void cy_unthrottle(struct tty_struct *tty)
 			cy_send_xchar(tty, START_CHAR(tty));
 	}
 
-	if (tty->termios.c_cflag & CRTSCTS) {
+	if (C_CRTSCTS(tty)) {
 		card = info->card;
 		if (!cy_is_Z(card)) {
 			spin_lock_irqsave(&card->card_lock, flags);
@@ -3094,7 +3078,6 @@ static int cy_init_card(struct cyclades_card *cinfo)
 
 		info->port.closing_wait = CLOSING_WAIT_DELAY;
 		info->port.close_delay = 5 * HZ / 10;
-		info->port.flags = STD_COM_FLAGS;
 		init_completion(&info->shutdown_wait);
 
 		if (cy_is_Z(cinfo)) {

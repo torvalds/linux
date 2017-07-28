@@ -661,12 +661,12 @@ static void set_rate(struct snd_ice1712 *ice, unsigned int rate)
  * supported sample rates (to override the default one)
  */
 
-static unsigned int rates[] = {
+static const unsigned int rates[] = {
 	32000, 44100, 48000, 64000, 88200, 96000, 176400, 192000
 };
 
 /* playback rates: 32..192 kHz */
-static struct snd_pcm_hw_constraint_list dac_rates = {
+static const struct snd_pcm_hw_constraint_list dac_rates = {
 	.count = ARRAY_SIZE(rates),
 	.list = rates,
 	.mask = 0

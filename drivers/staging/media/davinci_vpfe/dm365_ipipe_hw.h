@@ -278,9 +278,10 @@
 /* Resizer Rescale Parameters */
 #define RSZ_EN_A		0x58
 #define RSZ_EN_B		0xe8
-/* offset of the registers to be added with base register of
-   either RSZ0 or RSZ1
-*/
+/*
+ * offset of the registers to be added with base register of
+ * either RSZ0 or RSZ1
+ */
 #define RSZ_MODE		0x4
 #define RSZ_420			0x8
 #define RSZ_I_VPS		0xc

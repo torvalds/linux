@@ -96,31 +96,23 @@ static int PROTOCOL_OVERRIDE = -1;
 
 static s32 vmci_transport_error_to_vsock_error(s32 vmci_error)
 {
-	int err;
-
 	switch (vmci_error) {
 	case VMCI_ERROR_NO_MEM:
-		err = ENOMEM;
-		break;
+		return -ENOMEM;
 	case VMCI_ERROR_DUPLICATE_ENTRY:
 	case VMCI_ERROR_ALREADY_EXISTS:
-		err = EADDRINUSE;
-		break;
+		return -EADDRINUSE;
 	case VMCI_ERROR_NO_ACCESS:
-		err = EPERM;
-		break;
+		return -EPERM;
 	case VMCI_ERROR_NO_RESOURCES:
-		err = ENOBUFS;
-		break;
+		return -ENOBUFS;
 	case VMCI_ERROR_INVALID_RESOURCE:
-		err = EHOSTUNREACH;
-		break;
+		return -EHOSTUNREACH;
 	case VMCI_ERROR_INVALID_ARGS:
 	default:
-		err = EINVAL;
+		break;
 	}
-
-	return err > 0 ? -err : err;
+	return -EINVAL;
 }
 
 static u32 vmci_transport_peer_rid(u32 peer_cid)
@@ -842,7 +834,7 @@ static void vmci_transport_peer_detach_cb(u32 sub_id,
 	 * qp_handle.
 	 */
 	if (vmci_handle_is_invalid(e_payload->handle) ||
-	    vmci_handle_is_equal(trans->qp_handle, e_payload->handle))
+	    !vmci_handle_is_equal(trans->qp_handle, e_payload->handle))
 		return;
 
 	/* We don't ask for delayed CBs when we subscribe to this event (we
@@ -1644,6 +1636,8 @@ static void vmci_transport_destruct(struct vsock_sock *vsk)
 
 static void vmci_transport_release(struct vsock_sock *vsk)
 {
+	vsock_remove_sock(vsk);
+
 	if (!vmci_handle_is_invalid(vmci_trans(vsk)->dg_handle)) {
 		vmci_datagram_destroy_handle(vmci_trans(vsk)->dg_handle);
 		vmci_trans(vsk)->dg_handle = VMCI_INVALID_HANDLE;
@@ -1735,11 +1729,8 @@ static int vmci_transport_dgram_dequeue(struct vsock_sock *vsk,
 	/* Retrieve the head sk_buff from the socket's receive queue. */
 	err = 0;
 	skb = skb_recv_datagram(&vsk->sk, flags, noblock, &err);
-	if (err)
-		return err;
-
 	if (!skb)
-		return -EAGAIN;
+		return err;
 
 	dg = (struct vmci_datagram *)skb->data;
 	if (!dg)
@@ -2054,7 +2045,7 @@ static u32 vmci_transport_get_local_cid(void)
 	return vmci_get_context_id();
 }
 
-static struct vsock_transport vmci_transport = {
+static const struct vsock_transport vmci_transport = {
 	.init = vmci_transport_socket_init,
 	.destruct = vmci_transport_destruct,
 	.release = vmci_transport_release,
@@ -2154,7 +2145,7 @@ module_exit(vmci_transport_exit);
 
 MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMCI transport for Virtual Sockets");
-MODULE_VERSION("1.0.2.0-k");
+MODULE_VERSION("1.0.4.0-k");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("vmware_vsock");
 MODULE_ALIAS_NETPROTO(PF_VSOCK);

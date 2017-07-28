@@ -32,21 +32,21 @@
 #include <linux/err.h>
 #include <linux/ioctl.h>
 #include <linux/init.h>
+#include <linux/of.h>
 #include <linux/proc_fs.h>
 #include <linux/idr.h>
 #include <linux/backing-dev.h>
 #include <linux/gfp.h>
 #include <linux/slab.h>
 #include <linux/reboot.h>
-#include <linux/kconfig.h>
+#include <linux/leds.h>
 
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 
 #include "mtdcore.h"
 
-static struct backing_dev_info mtd_bdi = {
-};
+struct backing_dev_info *mtd_bdi;
 
 #ifdef CONFIG_PM_SLEEP
 
@@ -374,6 +374,110 @@ static int mtd_reboot_notifier(struct notifier_block *n, unsigned long state,
 }
 
 /**
+ * mtd_wunit_to_pairing_info - get pairing information of a wunit
+ * @mtd: pointer to new MTD device info structure
+ * @wunit: write unit we are interested in
+ * @info: returned pairing information
+ *
+ * Retrieve pairing information associated to the wunit.
+ * This is mainly useful when dealing with MLC/TLC NANDs where pages can be
+ * paired together, and where programming a page may influence the page it is
+ * paired with.
+ * The notion of page is replaced by the term wunit (write-unit) to stay
+ * consistent with the ->writesize field.
+ *
+ * The @wunit argument can be extracted from an absolute offset using
+ * mtd_offset_to_wunit(). @info is filled with the pairing information attached
+ * to @wunit.
+ *
+ * From the pairing info the MTD user can find all the wunits paired with
+ * @wunit using the following loop:
+ *
+ * for (i = 0; i < mtd_pairing_groups(mtd); i++) {
+ *	info.pair = i;
+ *	mtd_pairing_info_to_wunit(mtd, &info);
+ *	...
+ * }
+ */
+int mtd_wunit_to_pairing_info(struct mtd_info *mtd, int wunit,
+			      struct mtd_pairing_info *info)
+{
+	int npairs = mtd_wunit_per_eb(mtd) / mtd_pairing_groups(mtd);
+
+	if (wunit < 0 || wunit >= npairs)
+		return -EINVAL;
+
+	if (mtd->pairing && mtd->pairing->get_info)
+		return mtd->pairing->get_info(mtd, wunit, info);
+
+	info->group = 0;
+	info->pair = wunit;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mtd_wunit_to_pairing_info);
+
+/**
+ * mtd_wunit_to_pairing_info - get wunit from pairing information
+ * @mtd: pointer to new MTD device info structure
+ * @info: pairing information struct
+ *
+ * Returns a positive number representing the wunit associated to the info
+ * struct, or a negative error code.
+ *
+ * This is the reverse of mtd_wunit_to_pairing_info(), and can help one to
+ * iterate over all wunits of a given pair (see mtd_wunit_to_pairing_info()
+ * doc).
+ *
+ * It can also be used to only program the first page of each pair (i.e.
+ * page attached to group 0), which allows one to use an MLC NAND in
+ * software-emulated SLC mode:
+ *
+ * info.group = 0;
+ * npairs = mtd_wunit_per_eb(mtd) / mtd_pairing_groups(mtd);
+ * for (info.pair = 0; info.pair < npairs; info.pair++) {
+ *	wunit = mtd_pairing_info_to_wunit(mtd, &info);
+ *	mtd_write(mtd, mtd_wunit_to_offset(mtd, blkoffs, wunit),
+ *		  mtd->writesize, &retlen, buf + (i * mtd->writesize));
+ * }
+ */
+int mtd_pairing_info_to_wunit(struct mtd_info *mtd,
+			      const struct mtd_pairing_info *info)
+{
+	int ngroups = mtd_pairing_groups(mtd);
+	int npairs = mtd_wunit_per_eb(mtd) / ngroups;
+
+	if (!info || info->pair < 0 || info->pair >= npairs ||
+	    info->group < 0 || info->group >= ngroups)
+		return -EINVAL;
+
+	if (mtd->pairing && mtd->pairing->get_wunit)
+		return mtd->pairing->get_wunit(mtd, info);
+
+	return info->pair;
+}
+EXPORT_SYMBOL_GPL(mtd_pairing_info_to_wunit);
+
+/**
+ * mtd_pairing_groups - get the number of pairing groups
+ * @mtd: pointer to new MTD device info structure
+ *
+ * Returns the number of pairing groups.
+ *
+ * This number is usually equal to the number of bits exposed by a single
+ * cell, and can be used in conjunction with mtd_pairing_info_to_wunit()
+ * to iterate over all pages of a given pair.
+ */
+int mtd_pairing_groups(struct mtd_info *mtd)
+{
+	if (!mtd->pairing || !mtd->pairing->ngroups)
+		return 1;
+
+	return mtd->pairing->ngroups;
+}
+EXPORT_SYMBOL_GPL(mtd_pairing_groups);
+
+/**
  *	add_mtd_device - register an MTD device
  *	@mtd: pointer to new MTD device info structure
  *
@@ -392,10 +496,8 @@ int add_mtd_device(struct mtd_info *mtd)
 	 * mtd_device_parse_register() multiple times on the same master MTD,
 	 * especially with CONFIG_MTD_PARTITIONED_MASTER=y.
 	 */
-	if (WARN_ONCE(mtd->backing_dev_info, "MTD already registered\n"))
+	if (WARN_ONCE(mtd->dev.type, "MTD already registered\n"))
 		return -EEXIST;
-
-	mtd->backing_dev_info = &mtd_bdi;
 
 	BUG_ON(mtd->writesize == 0);
 	mutex_lock(&mtd_table_mutex);
@@ -426,15 +528,6 @@ int add_mtd_device(struct mtd_info *mtd)
 	mtd->erasesize_mask = (1 << mtd->erasesize_shift) - 1;
 	mtd->writesize_mask = (1 << mtd->writesize_shift) - 1;
 
-	if (mtd->dev.parent) {
-		if (!mtd->owner && mtd->dev.parent->driver)
-			mtd->owner = mtd->dev.parent->driver->owner;
-		if (!mtd->name)
-			mtd->name = dev_name(mtd->dev.parent);
-	} else {
-		pr_debug("mtd device won't show a device symlink in sysfs\n");
-	}
-
 	/* Some chips always power up locked. Unlock them now */
 	if ((mtd->flags & MTD_WRITEABLE) && (mtd->flags & MTD_POWERUP_LOCK)) {
 		error = mtd_unlock(mtd, 0, mtd->size);
@@ -454,6 +547,7 @@ int add_mtd_device(struct mtd_info *mtd)
 	mtd->dev.devt = MTD_DEVT(i);
 	dev_set_name(&mtd->dev, "mtd%d", i);
 	dev_set_drvdata(&mtd->dev, mtd);
+	of_node_get(mtd_get_of_node(mtd));
 	error = device_register(&mtd->dev);
 	if (error)
 		goto fail_added;
@@ -476,6 +570,7 @@ int add_mtd_device(struct mtd_info *mtd)
 	return 0;
 
 fail_added:
+	of_node_put(mtd_get_of_node(mtd));
 	idr_remove(&mtd_idr, i);
 fail_locked:
 	mutex_unlock(&mtd_table_mutex);
@@ -517,6 +612,7 @@ int del_mtd_device(struct mtd_info *mtd)
 		device_unregister(&mtd->dev);
 
 		idr_remove(&mtd_idr, mtd->index);
+		of_node_put(mtd_get_of_node(mtd));
 
 		module_put(THIS_MODULE);
 		ret = 0;
@@ -528,9 +624,10 @@ out_error:
 }
 
 static int mtd_add_device_partitions(struct mtd_info *mtd,
-				     struct mtd_partition *real_parts,
-				     int nbparts)
+				     struct mtd_partitions *parts)
 {
+	const struct mtd_partition *real_parts = parts->parts;
+	int nbparts = parts->nr_parts;
 	int ret;
 
 	if (nbparts == 0 || IS_ENABLED(CONFIG_MTD_PARTITIONED_MASTER)) {
@@ -549,6 +646,21 @@ static int mtd_add_device_partitions(struct mtd_info *mtd,
 	return 0;
 }
 
+/*
+ * Set a few defaults based on the parent devices, if not provided by the
+ * driver
+ */
+static void mtd_set_dev_defaults(struct mtd_info *mtd)
+{
+	if (mtd->dev.parent) {
+		if (!mtd->owner && mtd->dev.parent->driver)
+			mtd->owner = mtd->dev.parent->driver->owner;
+		if (!mtd->name)
+			mtd->name = dev_name(mtd->dev.parent);
+	} else {
+		pr_debug("mtd device won't show a device symlink in sysfs\n");
+	}
+}
 
 /**
  * mtd_device_parse_register - parse partitions and register an MTD device.
@@ -584,27 +696,29 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 			      const struct mtd_partition *parts,
 			      int nr_parts)
 {
+	struct mtd_partitions parsed;
 	int ret;
-	struct mtd_partition *real_parts = NULL;
 
-	ret = parse_mtd_partitions(mtd, types, &real_parts, parser_data);
-	if (ret <= 0 && nr_parts && parts) {
-		real_parts = kmemdup(parts, sizeof(*parts) * nr_parts,
-				     GFP_KERNEL);
-		if (!real_parts)
-			ret = -ENOMEM;
-		else
-			ret = nr_parts;
-	}
-	/* Didn't come up with either parsed OR fallback partitions */
-	if (ret < 0) {
+	mtd_set_dev_defaults(mtd);
+
+	memset(&parsed, 0, sizeof(parsed));
+
+	ret = parse_mtd_partitions(mtd, types, &parsed, parser_data);
+	if ((ret < 0 || parsed.nr_parts == 0) && parts && nr_parts) {
+		/* Fall back to driver-provided partitions */
+		parsed = (struct mtd_partitions){
+			.parts		= parts,
+			.nr_parts	= nr_parts,
+		};
+	} else if (ret < 0) {
+		/* Didn't come up with parsed OR fallback partitions */
 		pr_info("mtd: failed to find partitions; one or more parsers reports errors (%d)\n",
 			ret);
 		/* Don't abort on errors; we can still use unpartitioned MTD */
-		ret = 0;
+		memset(&parsed, 0, sizeof(parsed));
 	}
 
-	ret = mtd_add_device_partitions(mtd, real_parts, ret);
+	ret = mtd_add_device_partitions(mtd, &parsed);
 	if (ret)
 		goto out;
 
@@ -624,7 +738,8 @@ int mtd_device_parse_register(struct mtd_info *mtd, const char * const *types,
 	}
 
 out:
-	kfree(real_parts);
+	/* Cleanup any parsed partitions */
+	mtd_part_parser_cleanup(&parsed);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(mtd_device_parse_register);
@@ -848,6 +963,7 @@ int mtd_erase(struct mtd_info *mtd, struct erase_info *instr)
 		mtd_erase_callback(instr);
 		return 0;
 	}
+	ledtrig_mtd_activity();
 	return mtd->_erase(mtd, instr);
 }
 EXPORT_SYMBOL_GPL(mtd_erase);
@@ -875,7 +991,7 @@ EXPORT_SYMBOL_GPL(mtd_point);
 /* We probably shouldn't allow XIP if the unpoint isn't a NULL */
 int mtd_unpoint(struct mtd_info *mtd, loff_t from, size_t len)
 {
-	if (!mtd->_point)
+	if (!mtd->_unpoint)
 		return -EOPNOTSUPP;
 	if (from < 0 || from >= mtd->size || len > mtd->size - from)
 		return -EINVAL;
@@ -911,6 +1027,7 @@ int mtd_read(struct mtd_info *mtd, loff_t from, size_t len, size_t *retlen,
 	if (!len)
 		return 0;
 
+	ledtrig_mtd_activity();
 	/*
 	 * In the absence of an error, drivers return a non-negative integer
 	 * representing the maximum number of bitflips that were corrected on
@@ -935,6 +1052,7 @@ int mtd_write(struct mtd_info *mtd, loff_t to, size_t len, size_t *retlen,
 		return -EROFS;
 	if (!len)
 		return 0;
+	ledtrig_mtd_activity();
 	return mtd->_write(mtd, to, len, retlen, buf);
 }
 EXPORT_SYMBOL_GPL(mtd_write);
@@ -968,6 +1086,8 @@ int mtd_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_ops *ops)
 	ops->retlen = ops->oobretlen = 0;
 	if (!mtd->_read_oob)
 		return -EOPNOTSUPP;
+
+	ledtrig_mtd_activity();
 	/*
 	 * In cases where ops->datbuf != NULL, mtd->_read_oob() has semantics
 	 * similar to mtd->_read(), returning a non-negative integer
@@ -982,6 +1102,379 @@ int mtd_read_oob(struct mtd_info *mtd, loff_t from, struct mtd_oob_ops *ops)
 	return ret_code >= mtd->bitflip_threshold ? -EUCLEAN : 0;
 }
 EXPORT_SYMBOL_GPL(mtd_read_oob);
+
+int mtd_write_oob(struct mtd_info *mtd, loff_t to,
+				struct mtd_oob_ops *ops)
+{
+	ops->retlen = ops->oobretlen = 0;
+	if (!mtd->_write_oob)
+		return -EOPNOTSUPP;
+	if (!(mtd->flags & MTD_WRITEABLE))
+		return -EROFS;
+	ledtrig_mtd_activity();
+	return mtd->_write_oob(mtd, to, ops);
+}
+EXPORT_SYMBOL_GPL(mtd_write_oob);
+
+/**
+ * mtd_ooblayout_ecc - Get the OOB region definition of a specific ECC section
+ * @mtd: MTD device structure
+ * @section: ECC section. Depending on the layout you may have all the ECC
+ *	     bytes stored in a single contiguous section, or one section
+ *	     per ECC chunk (and sometime several sections for a single ECC
+ *	     ECC chunk)
+ * @oobecc: OOB region struct filled with the appropriate ECC position
+ *	    information
+ *
+ * This function returns ECC section information in the OOB area. If you want
+ * to get all the ECC bytes information, then you should call
+ * mtd_ooblayout_ecc(mtd, section++, oobecc) until it returns -ERANGE.
+ *
+ * Returns zero on success, a negative error code otherwise.
+ */
+int mtd_ooblayout_ecc(struct mtd_info *mtd, int section,
+		      struct mtd_oob_region *oobecc)
+{
+	memset(oobecc, 0, sizeof(*oobecc));
+
+	if (!mtd || section < 0)
+		return -EINVAL;
+
+	if (!mtd->ooblayout || !mtd->ooblayout->ecc)
+		return -ENOTSUPP;
+
+	return mtd->ooblayout->ecc(mtd, section, oobecc);
+}
+EXPORT_SYMBOL_GPL(mtd_ooblayout_ecc);
+
+/**
+ * mtd_ooblayout_free - Get the OOB region definition of a specific free
+ *			section
+ * @mtd: MTD device structure
+ * @section: Free section you are interested in. Depending on the layout
+ *	     you may have all the free bytes stored in a single contiguous
+ *	     section, or one section per ECC chunk plus an extra section
+ *	     for the remaining bytes (or other funky layout).
+ * @oobfree: OOB region struct filled with the appropriate free position
+ *	     information
+ *
+ * This function returns free bytes position in the OOB area. If you want
+ * to get all the free bytes information, then you should call
+ * mtd_ooblayout_free(mtd, section++, oobfree) until it returns -ERANGE.
+ *
+ * Returns zero on success, a negative error code otherwise.
+ */
+int mtd_ooblayout_free(struct mtd_info *mtd, int section,
+		       struct mtd_oob_region *oobfree)
+{
+	memset(oobfree, 0, sizeof(*oobfree));
+
+	if (!mtd || section < 0)
+		return -EINVAL;
+
+	if (!mtd->ooblayout || !mtd->ooblayout->free)
+		return -ENOTSUPP;
+
+	return mtd->ooblayout->free(mtd, section, oobfree);
+}
+EXPORT_SYMBOL_GPL(mtd_ooblayout_free);
+
+/**
+ * mtd_ooblayout_find_region - Find the region attached to a specific byte
+ * @mtd: mtd info structure
+ * @byte: the byte we are searching for
+ * @sectionp: pointer where the section id will be stored
+ * @oobregion: used to retrieve the ECC position
+ * @iter: iterator function. Should be either mtd_ooblayout_free or
+ *	  mtd_ooblayout_ecc depending on the region type you're searching for
+ *
+ * This function returns the section id and oobregion information of a
+ * specific byte. For example, say you want to know where the 4th ECC byte is
+ * stored, you'll use:
+ *
+ * mtd_ooblayout_find_region(mtd, 3, &section, &oobregion, mtd_ooblayout_ecc);
+ *
+ * Returns zero on success, a negative error code otherwise.
+ */
+static int mtd_ooblayout_find_region(struct mtd_info *mtd, int byte,
+				int *sectionp, struct mtd_oob_region *oobregion,
+				int (*iter)(struct mtd_info *,
+					    int section,
+					    struct mtd_oob_region *oobregion))
+{
+	int pos = 0, ret, section = 0;
+
+	memset(oobregion, 0, sizeof(*oobregion));
+
+	while (1) {
+		ret = iter(mtd, section, oobregion);
+		if (ret)
+			return ret;
+
+		if (pos + oobregion->length > byte)
+			break;
+
+		pos += oobregion->length;
+		section++;
+	}
+
+	/*
+	 * Adjust region info to make it start at the beginning at the
+	 * 'start' ECC byte.
+	 */
+	oobregion->offset += byte - pos;
+	oobregion->length -= byte - pos;
+	*sectionp = section;
+
+	return 0;
+}
+
+/**
+ * mtd_ooblayout_find_eccregion - Find the ECC region attached to a specific
+ *				  ECC byte
+ * @mtd: mtd info structure
+ * @eccbyte: the byte we are searching for
+ * @sectionp: pointer where the section id will be stored
+ * @oobregion: OOB region information
+ *
+ * Works like mtd_ooblayout_find_region() except it searches for a specific ECC
+ * byte.
+ *
+ * Returns zero on success, a negative error code otherwise.
+ */
+int mtd_ooblayout_find_eccregion(struct mtd_info *mtd, int eccbyte,
+				 int *section,
+				 struct mtd_oob_region *oobregion)
+{
+	return mtd_ooblayout_find_region(mtd, eccbyte, section, oobregion,
+					 mtd_ooblayout_ecc);
+}
+EXPORT_SYMBOL_GPL(mtd_ooblayout_find_eccregion);
+
+/**
+ * mtd_ooblayout_get_bytes - Extract OOB bytes from the oob buffer
+ * @mtd: mtd info structure
+ * @buf: destination buffer to store OOB bytes
+ * @oobbuf: OOB buffer
+ * @start: first byte to retrieve
+ * @nbytes: number of bytes to retrieve
+ * @iter: section iterator
+ *
+ * Extract bytes attached to a specific category (ECC or free)
+ * from the OOB buffer and copy them into buf.
+ *
+ * Returns zero on success, a negative error code otherwise.
+ */
+static int mtd_ooblayout_get_bytes(struct mtd_info *mtd, u8 *buf,
+				const u8 *oobbuf, int start, int nbytes,
+				int (*iter)(struct mtd_info *,
+					    int section,
+					    struct mtd_oob_region *oobregion))
+{
+	struct mtd_oob_region oobregion;
+	int section, ret;
+
+	ret = mtd_ooblayout_find_region(mtd, start, &section,
+					&oobregion, iter);
+
+	while (!ret) {
+		int cnt;
+
+		cnt = min_t(int, nbytes, oobregion.length);
+		memcpy(buf, oobbuf + oobregion.offset, cnt);
+		buf += cnt;
+		nbytes -= cnt;
+
+		if (!nbytes)
+			break;
+
+		ret = iter(mtd, ++section, &oobregion);
+	}
+
+	return ret;
+}
+
+/**
+ * mtd_ooblayout_set_bytes - put OOB bytes into the oob buffer
+ * @mtd: mtd info structure
+ * @buf: source buffer to get OOB bytes from
+ * @oobbuf: OOB buffer
+ * @start: first OOB byte to set
+ * @nbytes: number of OOB bytes to set
+ * @iter: section iterator
+ *
+ * Fill the OOB buffer with data provided in buf. The category (ECC or free)
+ * is selected by passing the appropriate iterator.
+ *
+ * Returns zero on success, a negative error code otherwise.
+ */
+static int mtd_ooblayout_set_bytes(struct mtd_info *mtd, const u8 *buf,
+				u8 *oobbuf, int start, int nbytes,
+				int (*iter)(struct mtd_info *,
+					    int section,
+					    struct mtd_oob_region *oobregion))
+{
+	struct mtd_oob_region oobregion;
+	int section, ret;
+
+	ret = mtd_ooblayout_find_region(mtd, start, &section,
+					&oobregion, iter);
+
+	while (!ret) {
+		int cnt;
+
+		cnt = min_t(int, nbytes, oobregion.length);
+		memcpy(oobbuf + oobregion.offset, buf, cnt);
+		buf += cnt;
+		nbytes -= cnt;
+
+		if (!nbytes)
+			break;
+
+		ret = iter(mtd, ++section, &oobregion);
+	}
+
+	return ret;
+}
+
+/**
+ * mtd_ooblayout_count_bytes - count the number of bytes in a OOB category
+ * @mtd: mtd info structure
+ * @iter: category iterator
+ *
+ * Count the number of bytes in a given category.
+ *
+ * Returns a positive value on success, a negative error code otherwise.
+ */
+static int mtd_ooblayout_count_bytes(struct mtd_info *mtd,
+				int (*iter)(struct mtd_info *,
+					    int section,
+					    struct mtd_oob_region *oobregion))
+{
+	struct mtd_oob_region oobregion;
+	int section = 0, ret, nbytes = 0;
+
+	while (1) {
+		ret = iter(mtd, section++, &oobregion);
+		if (ret) {
+			if (ret == -ERANGE)
+				ret = nbytes;
+			break;
+		}
+
+		nbytes += oobregion.length;
+	}
+
+	return ret;
+}
+
+/**
+ * mtd_ooblayout_get_eccbytes - extract ECC bytes from the oob buffer
+ * @mtd: mtd info structure
+ * @eccbuf: destination buffer to store ECC bytes
+ * @oobbuf: OOB buffer
+ * @start: first ECC byte to retrieve
+ * @nbytes: number of ECC bytes to retrieve
+ *
+ * Works like mtd_ooblayout_get_bytes(), except it acts on ECC bytes.
+ *
+ * Returns zero on success, a negative error code otherwise.
+ */
+int mtd_ooblayout_get_eccbytes(struct mtd_info *mtd, u8 *eccbuf,
+			       const u8 *oobbuf, int start, int nbytes)
+{
+	return mtd_ooblayout_get_bytes(mtd, eccbuf, oobbuf, start, nbytes,
+				       mtd_ooblayout_ecc);
+}
+EXPORT_SYMBOL_GPL(mtd_ooblayout_get_eccbytes);
+
+/**
+ * mtd_ooblayout_set_eccbytes - set ECC bytes into the oob buffer
+ * @mtd: mtd info structure
+ * @eccbuf: source buffer to get ECC bytes from
+ * @oobbuf: OOB buffer
+ * @start: first ECC byte to set
+ * @nbytes: number of ECC bytes to set
+ *
+ * Works like mtd_ooblayout_set_bytes(), except it acts on ECC bytes.
+ *
+ * Returns zero on success, a negative error code otherwise.
+ */
+int mtd_ooblayout_set_eccbytes(struct mtd_info *mtd, const u8 *eccbuf,
+			       u8 *oobbuf, int start, int nbytes)
+{
+	return mtd_ooblayout_set_bytes(mtd, eccbuf, oobbuf, start, nbytes,
+				       mtd_ooblayout_ecc);
+}
+EXPORT_SYMBOL_GPL(mtd_ooblayout_set_eccbytes);
+
+/**
+ * mtd_ooblayout_get_databytes - extract data bytes from the oob buffer
+ * @mtd: mtd info structure
+ * @databuf: destination buffer to store ECC bytes
+ * @oobbuf: OOB buffer
+ * @start: first ECC byte to retrieve
+ * @nbytes: number of ECC bytes to retrieve
+ *
+ * Works like mtd_ooblayout_get_bytes(), except it acts on free bytes.
+ *
+ * Returns zero on success, a negative error code otherwise.
+ */
+int mtd_ooblayout_get_databytes(struct mtd_info *mtd, u8 *databuf,
+				const u8 *oobbuf, int start, int nbytes)
+{
+	return mtd_ooblayout_get_bytes(mtd, databuf, oobbuf, start, nbytes,
+				       mtd_ooblayout_free);
+}
+EXPORT_SYMBOL_GPL(mtd_ooblayout_get_databytes);
+
+/**
+ * mtd_ooblayout_get_eccbytes - set data bytes into the oob buffer
+ * @mtd: mtd info structure
+ * @eccbuf: source buffer to get data bytes from
+ * @oobbuf: OOB buffer
+ * @start: first ECC byte to set
+ * @nbytes: number of ECC bytes to set
+ *
+ * Works like mtd_ooblayout_get_bytes(), except it acts on free bytes.
+ *
+ * Returns zero on success, a negative error code otherwise.
+ */
+int mtd_ooblayout_set_databytes(struct mtd_info *mtd, const u8 *databuf,
+				u8 *oobbuf, int start, int nbytes)
+{
+	return mtd_ooblayout_set_bytes(mtd, databuf, oobbuf, start, nbytes,
+				       mtd_ooblayout_free);
+}
+EXPORT_SYMBOL_GPL(mtd_ooblayout_set_databytes);
+
+/**
+ * mtd_ooblayout_count_freebytes - count the number of free bytes in OOB
+ * @mtd: mtd info structure
+ *
+ * Works like mtd_ooblayout_count_bytes(), except it count free bytes.
+ *
+ * Returns zero on success, a negative error code otherwise.
+ */
+int mtd_ooblayout_count_freebytes(struct mtd_info *mtd)
+{
+	return mtd_ooblayout_count_bytes(mtd, mtd_ooblayout_free);
+}
+EXPORT_SYMBOL_GPL(mtd_ooblayout_count_freebytes);
+
+/**
+ * mtd_ooblayout_count_freebytes - count the number of ECC bytes in OOB
+ * @mtd: mtd info structure
+ *
+ * Works like mtd_ooblayout_count_bytes(), except it count ECC bytes.
+ *
+ * Returns zero on success, a negative error code otherwise.
+ */
+int mtd_ooblayout_count_eccbytes(struct mtd_info *mtd)
+{
+	return mtd_ooblayout_count_bytes(mtd, mtd_ooblayout_ecc);
+}
+EXPORT_SYMBOL_GPL(mtd_ooblayout_count_eccbytes);
 
 /*
  * Method to access the protection register area, present in some flash
@@ -1275,18 +1768,25 @@ static const struct file_operations mtd_proc_ops = {
 /*====================================================================*/
 /* Init code */
 
-static int __init mtd_bdi_init(struct backing_dev_info *bdi, const char *name)
+static struct backing_dev_info * __init mtd_bdi_init(char *name)
 {
+	struct backing_dev_info *bdi;
 	int ret;
 
-	ret = bdi_init(bdi);
-	if (!ret)
-		ret = bdi_register(bdi, NULL, "%s", name);
+	bdi = bdi_alloc(GFP_KERNEL);
+	if (!bdi)
+		return ERR_PTR(-ENOMEM);
 
+	bdi->name = name;
+	/*
+	 * We put '-0' suffix to the name to get the same name format as we
+	 * used to get. Since this is called only once, we get a unique name. 
+	 */
+	ret = bdi_register(bdi, "%.28s-0", name);
 	if (ret)
-		bdi_destroy(bdi);
+		bdi_put(bdi);
 
-	return ret;
+	return ret ? ERR_PTR(ret) : bdi;
 }
 
 static struct proc_dir_entry *proc_mtd;
@@ -1299,9 +1799,11 @@ static int __init init_mtd(void)
 	if (ret)
 		goto err_reg;
 
-	ret = mtd_bdi_init(&mtd_bdi, "mtd");
-	if (ret)
+	mtd_bdi = mtd_bdi_init("mtd");
+	if (IS_ERR(mtd_bdi)) {
+		ret = PTR_ERR(mtd_bdi);
 		goto err_bdi;
+	}
 
 	proc_mtd = proc_create("mtd", 0, NULL, &mtd_proc_ops);
 
@@ -1314,6 +1816,7 @@ static int __init init_mtd(void)
 out_procfs:
 	if (proc_mtd)
 		remove_proc_entry("mtd", NULL);
+	bdi_put(mtd_bdi);
 err_bdi:
 	class_unregister(&mtd_class);
 err_reg:
@@ -1327,7 +1830,7 @@ static void __exit cleanup_mtd(void)
 	if (proc_mtd)
 		remove_proc_entry("mtd", NULL);
 	class_unregister(&mtd_class);
-	bdi_destroy(&mtd_bdi);
+	bdi_put(mtd_bdi);
 	idr_destroy(&mtd_idr);
 }
 

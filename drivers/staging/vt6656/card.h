@@ -12,9 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * File: card.h
  *
@@ -38,21 +35,23 @@
 
 struct vnt_private;
 
-void vnt_set_channel(struct vnt_private *, u32);
-void vnt_set_rspinf(struct vnt_private *, u8);
-void vnt_update_ifs(struct vnt_private *);
-void vnt_update_top_rates(struct vnt_private *);
-int vnt_ofdm_min_rate(struct vnt_private *);
-void vnt_adjust_tsf(struct vnt_private *, u8, u64, u64);
-bool vnt_get_current_tsf(struct vnt_private *, u64 *);
-bool vnt_clear_current_tsf(struct vnt_private *);
-void vnt_reset_next_tbtt(struct vnt_private *, u16);
-void vnt_update_next_tbtt(struct vnt_private *, u64, u16);
-u64 vnt_get_next_tbtt(u64, u16);
-u64 vnt_get_tsf_offset(u8 byRxRate, u64 qwTSF1, u64 qwTSF2);
-int vnt_radio_power_off(struct vnt_private *);
-int vnt_radio_power_on(struct vnt_private *);
-u8 vnt_get_pkt_type(struct vnt_private *);
-void vnt_set_bss_mode(struct vnt_private *);
+void vnt_set_channel(struct vnt_private *priv, u32 connection_channel);
+void vnt_set_rspinf(struct vnt_private *priv, u8 bb_type);
+void vnt_update_ifs(struct vnt_private *priv);
+void vnt_update_top_rates(struct vnt_private *priv);
+int vnt_ofdm_min_rate(struct vnt_private *priv);
+void vnt_adjust_tsf(struct vnt_private *priv, u8 rx_rate,
+		    u64 time_stamp, u64 local_tsf);
+bool vnt_get_current_tsf(struct vnt_private *priv, u64 *current_tsf);
+bool vnt_clear_current_tsf(struct vnt_private *priv);
+void vnt_reset_next_tbtt(struct vnt_private *priv, u16 beacon_interval);
+void vnt_update_next_tbtt(struct vnt_private *priv, u64 tsf,
+			  u16 beacon_interval);
+u64 vnt_get_next_tbtt(u64 tsf, u16 beacon_interval);
+u64 vnt_get_tsf_offset(u8 rx_rate, u64 tsf1, u64 tsf2);
+int vnt_radio_power_off(struct vnt_private *priv);
+int vnt_radio_power_on(struct vnt_private *priv);
+u8 vnt_get_pkt_type(struct vnt_private *priv);
+void vnt_set_bss_mode(struct vnt_private *priv);
 
 #endif /* __CARD_H__ */

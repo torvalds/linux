@@ -15,15 +15,14 @@ Required properties:
 - reg:		Memory map of eDMA CC
 - reg-names:	"edma3_cc"
 - interrupts:	Interrupt lines for CCINT, MPERR and CCERRINT.
-- interrupt-names: "edma3_ccint", "emda3_mperr" and "edma3_ccerrint"
+- interrupt-names: "edma3_ccint", "edma3_mperr" and "edma3_ccerrint"
 - ti,tptcs:	List of TPTCs associated with the eDMA in the following form:
 		<&tptc_phandle TC_priority_number>. The highest priority is 0.
 
 Optional properties:
 - ti,hwmods:	Name of the hwmods associated to the eDMA CC
 - ti,edma-memcpy-channels: List of channels allocated to be used for memcpy, iow
-		these channels will be SW triggered channels. The list must
-		contain 16 bits numbers, see example.
+		these channels will be SW triggered channels. See example.
 - ti,edma-reserved-slot-ranges: PaRAM slot ranges which should not be used by
 		the driver, they are allocated to be used by for example the
 		DSP. See example.
@@ -49,17 +48,16 @@ edma: edma@49000000 {
 	reg =	<0x49000000 0x10000>;
 	reg-names = "edma3_cc";
 	interrupts = <12 13 14>;
-	interrupt-names = "edma3_ccint", "emda3_mperr", "edma3_ccerrint";
+	interrupt-names = "edma3_ccint", "edma3_mperr", "edma3_ccerrint";
 	dma-requests = <64>;
 	#dma-cells = <2>;
 
 	ti,tptcs = <&edma_tptc0 7>, <&edma_tptc1 7>, <&edma_tptc2 0>;
 
 	/* Channel 20 and 21 is allocated for memcpy */
-	ti,edma-memcpy-channels = /bits/ 16 <20 21>;
-	/* The following PaRAM slots are reserved: 35-45 and 100-110 */
-	ti,edma-reserved-slot-ranges = /bits/ 16 <35 10>,
-				       /bits/ 16 <100 10>;
+	ti,edma-memcpy-channels = <20 21>;
+	/* The following PaRAM slots are reserved: 35-44 and 100-109 */
+	ti,edma-reserved-slot-ranges = <35 10>, <100 10>;
 };
 
 edma_tptc0: tptc@49800000 {

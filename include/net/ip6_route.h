@@ -18,9 +18,11 @@ struct route_info {
 	__u8			prefix[0];	/* 0,8 or 16 */
 };
 
+#include <net/addrconf.h>
 #include <net/flow.h>
 #include <net/ip6_fib.h>
 #include <net/sock.h>
+#include <net/lwtunnel.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/route.h>
@@ -31,6 +33,7 @@ struct route_info {
 #define RT6_LOOKUP_F_SRCPREF_TMP	0x00000008
 #define RT6_LOOKUP_F_SRCPREF_PUBLIC	0x00000010
 #define RT6_LOOKUP_F_SRCPREF_COA	0x00000020
+#define RT6_LOOKUP_F_IGNORE_LINKSTATE	0x00000040
 
 /* We do not (yet ?) support IPv6 jumbograms (RFC 2675)
  * Unlike IPv4, hdr->seg_len doesn't include the IPv6 header
@@ -63,35 +66,65 @@ static inline bool rt6_need_strict(const struct in6_addr *daddr)
 }
 
 void ip6_route_input(struct sk_buff *skb);
+struct dst_entry *ip6_route_input_lookup(struct net *net,
+					 struct net_device *dev,
+					 struct flowi6 *fl6, int flags);
 
-struct dst_entry *ip6_route_output(struct net *net, const struct sock *sk,
-				   struct flowi6 *fl6);
+struct dst_entry *ip6_route_output_flags(struct net *net, const struct sock *sk,
+					 struct flowi6 *fl6, int flags);
+
+static inline struct dst_entry *ip6_route_output(struct net *net,
+						 const struct sock *sk,
+						 struct flowi6 *fl6)
+{
+	return ip6_route_output_flags(net, sk, fl6, 0);
+}
+
 struct dst_entry *ip6_route_lookup(struct net *net, struct flowi6 *fl6,
 				   int flags);
+struct rt6_info *ip6_pol_route(struct net *net, struct fib6_table *table,
+			       int ifindex, struct flowi6 *fl6, int flags);
 
+void ip6_route_init_special_entries(void);
 int ip6_route_init(void);
 void ip6_route_cleanup(void);
 
 int ipv6_route_ioctl(struct net *net, unsigned int cmd, void __user *arg);
 
-int ip6_route_add(struct fib6_config *cfg);
+int ip6_route_add(struct fib6_config *cfg, struct netlink_ext_ack *extack);
 int ip6_ins_rt(struct rt6_info *);
 int ip6_del_rt(struct rt6_info *);
 
-int ip6_route_get_saddr(struct net *net, struct rt6_info *rt,
-			const struct in6_addr *daddr, unsigned int prefs,
-			struct in6_addr *saddr);
+static inline int ip6_route_get_saddr(struct net *net, struct rt6_info *rt,
+				      const struct in6_addr *daddr,
+				      unsigned int prefs,
+				      struct in6_addr *saddr)
+{
+	struct inet6_dev *idev =
+			rt ? ip6_dst_idev((struct dst_entry *)rt) : NULL;
+	int err = 0;
+
+	if (rt && rt->rt6i_prefsrc.plen)
+		*saddr = rt->rt6i_prefsrc.addr;
+	else
+		err = ipv6_dev_get_saddr(net, idev ? idev->dev : NULL,
+					 daddr, prefs, saddr);
+
+	return err;
+}
 
 struct rt6_info *rt6_lookup(struct net *net, const struct in6_addr *daddr,
 			    const struct in6_addr *saddr, int oif, int flags);
 
 struct dst_entry *icmp6_dst_alloc(struct net_device *dev, struct flowi6 *fl6);
-int icmp6_dst_gc(void);
 
 void fib6_force_start_gc(struct net *net);
 
 struct rt6_info *addrconf_dst_alloc(struct inet6_dev *idev,
 				    const struct in6_addr *addr, bool anycast);
+
+struct rt6_info *ip6_dst_alloc(struct net *net, struct net_device *dev,
+			       int flags);
 
 /*
  *	support functions for ND
@@ -108,9 +141,10 @@ int rt6_route_rcv(struct net_device *dev, u8 *opt, int len,
 		  const struct in6_addr *gwaddr);
 
 void ip6_update_pmtu(struct sk_buff *skb, struct net *net, __be32 mtu, int oif,
-		     u32 mark);
+		     u32 mark, kuid_t uid);
 void ip6_sk_update_pmtu(struct sk_buff *skb, struct sock *sk, __be32 mtu);
-void ip6_redirect(struct sk_buff *skb, struct net *net, int oif, u32 mark);
+void ip6_redirect(struct sk_buff *skb, struct net *net, int oif, u32 mark,
+		  kuid_t uid);
 void ip6_redirect_no_header(struct sk_buff *skb, struct net *net, int oif,
 			    u32 mark);
 void ip6_sk_redirect(struct sk_buff *skb, struct sock *sk);
@@ -199,4 +233,11 @@ static inline struct in6_addr *rt6_nexthop(struct rt6_info *rt,
 		return daddr;
 }
 
+static inline bool rt6_duplicate_nexthop(struct rt6_info *a, struct rt6_info *b)
+{
+	return a->dst.dev == b->dst.dev &&
+	       a->rt6i_idev == b->rt6i_idev &&
+	       ipv6_addr_equal(&a->rt6i_gateway, &b->rt6i_gateway) &&
+	       !lwtunnel_cmp_encap(a->dst.lwtstate, b->dst.lwtstate);
+}
 #endif

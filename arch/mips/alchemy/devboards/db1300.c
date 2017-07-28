@@ -13,6 +13,7 @@
 #include <linux/i2c.h>
 #include <linux/io.h>
 #include <linux/leds.h>
+#include <linux/interrupt.h>
 #include <linux/ata_platform.h>
 #include <linux/mmc/host.h>
 #include <linux/module.h>
@@ -150,7 +151,7 @@ static void __init db1300_gpio_config(void)
 static void au1300_nand_cmd_ctrl(struct mtd_info *mtd, int cmd,
 				 unsigned int ctrl)
 {
-	struct nand_chip *this = mtd->priv;
+	struct nand_chip *this = mtd_to_nand(mtd);
 	unsigned long ioaddr = (unsigned long)this->IO_ADDR_W;
 
 	ioaddr &= 0xffffff00;

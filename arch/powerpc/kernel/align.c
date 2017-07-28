@@ -20,12 +20,13 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <asm/processor.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/cache.h>
 #include <asm/cputable.h>
 #include <asm/emulated_ops.h>
 #include <asm/switch_to.h>
 #include <asm/disassemble.h>
+#include <asm/cpu_has_feature.h>
 
 struct aligninfo {
 	unsigned char len;
@@ -203,7 +204,7 @@ static int emulate_dcbz(struct pt_regs *regs, unsigned char __user *addr)
 	int i, size;
 
 #ifdef __powerpc64__
-	size = ppc64_caches.dline_size;
+	size = ppc64_caches.l1d.block_size;
 #else
 	size = L1_CACHE_BYTES;
 #endif
@@ -228,9 +229,7 @@ static int emulate_dcbz(struct pt_regs *regs, unsigned char __user *addr)
 #else
 #define REG_BYTE(rp, i)		*((u8 *)(rp) + (i))
 #endif
-#endif
-
-#ifdef __LITTLE_ENDIAN__
+#else
 #define REG_BYTE(rp, i)		(*(((u8 *)((rp) + ((i)>>2)) + ((i)&3))))
 #endif
 
@@ -808,14 +807,25 @@ int fix_alignment(struct pt_regs *regs)
 	nb = aligninfo[instr].len;
 	flags = aligninfo[instr].flags;
 
-	/* ldbrx/stdbrx overlap lfs/stfs in the DSISR unfortunately */
-	if (IS_XFORM(instruction) && ((instruction >> 1) & 0x3ff) == 532) {
-		nb = 8;
-		flags = LD+SW;
-	} else if (IS_XFORM(instruction) &&
-		   ((instruction >> 1) & 0x3ff) == 660) {
-		nb = 8;
-		flags = ST+SW;
+	/*
+	 * Handle some cases which give overlaps in the DSISR values.
+	 */
+	if (IS_XFORM(instruction)) {
+		switch (get_xop(instruction)) {
+		case 532:	/* ldbrx */
+			nb = 8;
+			flags = LD+SW;
+			break;
+		case 660:	/* stdbrx */
+			nb = 8;
+			flags = ST+SW;
+			break;
+		case 20:	/* lwarx */
+		case 84:	/* ldarx */
+		case 116:	/* lharx */
+		case 276:	/* lqarx */
+			return 0;	/* not emulated ever */
+		}
 	}
 
 	/* Byteswap little endian loads and stores */
@@ -875,6 +885,20 @@ int fix_alignment(struct pt_regs *regs)
 		return emulate_vsx(addr, reg, areg, regs, flags, nb, elsize);
 	}
 #endif
+
+	/*
+	 * ISA 3.0 (such as P9) copy, copy_first, paste and paste_last alignment
+	 * check.
+	 *
+	 * Send a SIGBUS to the process that caused the fault.
+	 *
+	 * We do not emulate these because paste may contain additional metadata
+	 * when pasting to a co-processor. Furthermore, paste_last is the
+	 * synchronisation point for preceding copy/paste sequences.
+	 */
+	if ((instruction & 0xfc0006fe) == PPC_INST_COPY)
+		return -EIO;
+
 	/* A size of 0 indicates an instruction we don't support, with
 	 * the exception of DCBZ which is handled as a special case here
 	 */
@@ -960,6 +984,7 @@ int fix_alignment(struct pt_regs *regs)
 			preempt_disable();
 			enable_kernel_fp();
 			cvt_df(&data.dd, (float *)&data.x32.low32);
+			disable_kernel_fp();
 			preempt_enable();
 #else
 			return 0;
@@ -1000,6 +1025,7 @@ int fix_alignment(struct pt_regs *regs)
 		preempt_disable();
 		enable_kernel_fp();
 		cvt_fd((float *)&data.x32.low32, &data.dd);
+		disable_kernel_fp();
 		preempt_enable();
 #else
 		return 0;

@@ -178,7 +178,7 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 		dev->hdr_type = PCI_HEADER_TYPE_NORMAL;
 		dev->rom_base_reg = PCI_ROM_ADDRESS;
 		/* Maybe do a default OF mapping here */
-		dev->irq = NO_IRQ;
+		dev->irq = 0;
 	}
 
 	of_pci_parse_addrs(node, dev);
@@ -186,9 +186,6 @@ struct pci_dev *of_create_pci_dev(struct device_node *node,
 	pr_debug("    adding to system ...\n");
 
 	pci_device_add(dev, bus);
-
-	/* Setup MSI caps & disable MSI/MSI-X interrupts */
-	pci_msi_setup_pci_dev(dev);
 
 	return dev;
 }

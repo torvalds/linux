@@ -13,12 +13,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
- * Written by Seiji Kihara <kihara@osrg.net>
- * Revised by Ryusuke Konishi <ryusuke@osrg.net>
+ * Written by Seiji Kihara.
+ * Revised by Ryusuke Konishi.
  */
 
 #ifndef _NILFS_BTNODE_H
@@ -47,7 +43,7 @@ void nilfs_btnode_cache_clear(struct address_space *);
 struct buffer_head *nilfs_btnode_create_block(struct address_space *btnc,
 					      __u64 blocknr);
 int nilfs_btnode_submit_block(struct address_space *, __u64, sector_t, int,
-			      struct buffer_head **, sector_t *);
+			      int, struct buffer_head **, sector_t *);
 void nilfs_btnode_delete(struct buffer_head *);
 int nilfs_btnode_prepare_change_key(struct address_space *,
 				    struct nilfs_btnode_chkey_ctxt *);

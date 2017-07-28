@@ -37,11 +37,13 @@
 #include <sound/control.h>
 #include <sound/hwdep.h>
 #include <sound/info.h>
+#include <sound/tlv.h>
 
 #include "usbaudio.h"
 #include "mixer.h"
 #include "mixer_quirks.h"
 #include "mixer_scarlett.h"
+#include "mixer_us16x08.h"
 #include "helper.h"
 
 extern struct snd_kcontrol_new *snd_usb_feature_unit_ctl;
@@ -360,7 +362,7 @@ static int snd_audigy2nx_led_resume(struct usb_mixer_elem_list *list)
 }
 
 /* name and private_value are set dynamically */
-static struct snd_kcontrol_new snd_audigy2nx_control = {
+static const struct snd_kcontrol_new snd_audigy2nx_control = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.info = snd_audigy2nx_led_info,
 	.get = snd_audigy2nx_led_get,
@@ -792,7 +794,7 @@ static int snd_nativeinstruments_control_put(struct snd_kcontrol *kcontrol,
 		return 0;
 
 	kcontrol->private_value &= ~(0xff << 24);
-	kcontrol->private_value |= newval;
+	kcontrol->private_value |= (unsigned int)newval << 24;
 	err = snd_ni_update_cur_val(list);
 	return err < 0 ? err : 1;
 }
@@ -1518,7 +1520,11 @@ static int snd_microii_spdif_default_get(struct snd_kcontrol *kcontrol,
 
 	/* use known values for that card: interface#1 altsetting#1 */
 	iface = usb_ifnum_to_if(chip->dev, 1);
+	if (!iface || iface->num_altsetting < 2)
+		return -EINVAL;
 	alts = &iface->altsetting[1];
+	if (get_iface_desc(alts)->bNumEndpoints < 1)
+		return -EINVAL;
 	ep = get_endpoint(alts, 0)->bEndpointAddress;
 
 	err = snd_usb_ctl_msg(chip->dev,
@@ -1724,6 +1730,10 @@ int snd_usb_mixer_apply_create_quirk(struct usb_mixer_interface *mixer)
 		return err;
 
 	switch (mixer->chip->usb_id) {
+	/* Tascam US-16x08 */
+	case USB_ID(0x0644, 0x8047):
+		err = snd_us16x08_controls_create(mixer);
+		break;
 	case USB_ID(0x041e, 0x3020):
 	case USB_ID(0x041e, 0x3040):
 	case USB_ID(0x041e, 0x3042):
@@ -1821,6 +1831,52 @@ void snd_usb_mixer_rc_memory_change(struct usb_mixer_interface *mixer,
 		break;
 	default:
 		usb_audio_dbg(mixer->chip, "memory change in unknown unit %d\n", unitid);
+		break;
+	}
+}
+
+static void snd_dragonfly_quirk_db_scale(struct usb_mixer_interface *mixer,
+					 struct usb_mixer_elem_info *cval,
+					 struct snd_kcontrol *kctl)
+{
+	/* Approximation using 10 ranges based on output measurement on hw v1.2.
+	 * This seems close to the cubic mapping e.g. alsamixer uses. */
+	static const DECLARE_TLV_DB_RANGE(scale,
+		 0,  1, TLV_DB_MINMAX_ITEM(-5300, -4970),
+		 2,  5, TLV_DB_MINMAX_ITEM(-4710, -4160),
+		 6,  7, TLV_DB_MINMAX_ITEM(-3884, -3710),
+		 8, 14, TLV_DB_MINMAX_ITEM(-3443, -2560),
+		15, 16, TLV_DB_MINMAX_ITEM(-2475, -2324),
+		17, 19, TLV_DB_MINMAX_ITEM(-2228, -2031),
+		20, 26, TLV_DB_MINMAX_ITEM(-1910, -1393),
+		27, 31, TLV_DB_MINMAX_ITEM(-1322, -1032),
+		32, 40, TLV_DB_MINMAX_ITEM(-968, -490),
+		41, 50, TLV_DB_MINMAX_ITEM(-441, 0),
+	);
+
+	if (cval->min == 0 && cval->max == 50) {
+		usb_audio_info(mixer->chip, "applying DragonFly dB scale quirk (0-50 variant)\n");
+		kctl->tlv.p = scale;
+		kctl->vd[0].access |= SNDRV_CTL_ELEM_ACCESS_TLV_READ;
+		kctl->vd[0].access &= ~SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK;
+
+	} else if (cval->min == 0 && cval->max <= 1000) {
+		/* Some other clearly broken DragonFly variant.
+		 * At least a 0..53 variant (hw v1.0) exists.
+		 */
+		usb_audio_info(mixer->chip, "ignoring too narrow dB range on a DragonFly device");
+		kctl->vd[0].access &= ~SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK;
+	}
+}
+
+void snd_usb_mixer_fu_apply_quirk(struct usb_mixer_interface *mixer,
+				  struct usb_mixer_elem_info *cval, int unitid,
+				  struct snd_kcontrol *kctl)
+{
+	switch (mixer->chip->usb_id) {
+	case USB_ID(0x21b4, 0x0081): /* AudioQuest DragonFly */
+		if (unitid == 7 && cval->control == UAC_FU_VOLUME)
+			snd_dragonfly_quirk_db_scale(mixer, cval, kctl);
 		break;
 	}
 }

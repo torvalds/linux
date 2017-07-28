@@ -50,9 +50,9 @@ static int exynos_drm_fb_mmap(struct fb_info *info,
 	if (vm_size > exynos_gem->size)
 		return -EINVAL;
 
-	ret = dma_mmap_attrs(helper->dev->dev, vma, exynos_gem->pages,
+	ret = dma_mmap_attrs(to_dma_dev(helper->dev), vma, exynos_gem->cookie,
 			     exynos_gem->dma_addr, exynos_gem->size,
-			     &exynos_gem->dma_attrs);
+			     exynos_gem->dma_attrs);
 	if (ret < 0) {
 		DRM_ERROR("failed to mmap.\n");
 		return ret;
@@ -63,15 +63,11 @@ static int exynos_drm_fb_mmap(struct fb_info *info,
 
 static struct fb_ops exynos_drm_fb_ops = {
 	.owner		= THIS_MODULE,
+	DRM_FB_HELPER_DEFAULT_OPS,
 	.fb_mmap        = exynos_drm_fb_mmap,
 	.fb_fillrect	= drm_fb_helper_cfb_fillrect,
 	.fb_copyarea	= drm_fb_helper_cfb_copyarea,
 	.fb_imageblit	= drm_fb_helper_cfb_imageblit,
-	.fb_check_var	= drm_fb_helper_check_var,
-	.fb_set_par	= drm_fb_helper_set_par,
-	.fb_blank	= drm_fb_helper_blank,
-	.fb_pan_display	= drm_fb_helper_pan_display,
-	.fb_setcmap	= drm_fb_helper_setcmap,
 };
 
 static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
@@ -80,7 +76,7 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 {
 	struct fb_info *fbi;
 	struct drm_framebuffer *fb = helper->fb;
-	unsigned int size = fb->width * fb->height * (fb->bits_per_pixel >> 3);
+	unsigned int size = fb->width * fb->height * fb->format->cpp[0];
 	unsigned int nr_pages;
 	unsigned long offset;
 
@@ -94,7 +90,7 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 	fbi->flags = FBINFO_FLAG_DEFAULT;
 	fbi->fbops = &exynos_drm_fb_ops;
 
-	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->depth);
+	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->format->depth);
 	drm_fb_helper_fill_var(fbi, helper, sizes->fb_width, sizes->fb_height);
 
 	nr_pages = exynos_gem->size >> PAGE_SHIFT;
@@ -103,11 +99,10 @@ static int exynos_drm_fbdev_update(struct drm_fb_helper *helper,
 				VM_MAP, pgprot_writecombine(PAGE_KERNEL));
 	if (!exynos_gem->kvaddr) {
 		DRM_ERROR("failed to map pages to kernel space.\n");
-		drm_fb_helper_release_fbi(helper);
 		return -EIO;
 	}
 
-	offset = fbi->var.xoffset * (fb->bits_per_pixel >> 3);
+	offset = fbi->var.xoffset * fb->format->cpp[0];
 	offset += fbi->var.yoffset * fb->pitches[0];
 
 	fbi->screen_base = exynos_gem->kvaddr + offset;
@@ -124,7 +119,6 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 	struct exynos_drm_gem *exynos_gem;
 	struct drm_device *dev = helper->dev;
 	struct drm_mode_fb_cmd2 mode_cmd = { 0 };
-	struct platform_device *pdev = dev->platformdev;
 	unsigned long size;
 	int ret;
 
@@ -138,8 +132,6 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 	mode_cmd.pixel_format = drm_mode_legacy_fb_format(sizes->surface_bpp,
 							  sizes->surface_depth);
 
-	mutex_lock(&dev->struct_mutex);
-
 	size = mode_cmd.pitches[0] * mode_cmd.height;
 
 	exynos_gem = exynos_drm_gem_create(dev, EXYNOS_BO_CONTIG, size);
@@ -149,15 +141,13 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 	 * memory area.
 	 */
 	if (IS_ERR(exynos_gem) && is_drm_iommu_supported(dev)) {
-		dev_warn(&pdev->dev, "contiguous FB allocation failed, falling back to non-contiguous\n");
+		dev_warn(dev->dev, "contiguous FB allocation failed, falling back to non-contiguous\n");
 		exynos_gem = exynos_drm_gem_create(dev, EXYNOS_BO_NONCONTIG,
 						   size);
 	}
 
-	if (IS_ERR(exynos_gem)) {
-		ret = PTR_ERR(exynos_gem);
-		goto out;
-	}
+	if (IS_ERR(exynos_gem))
+		return PTR_ERR(exynos_gem);
 
 	exynos_fbdev->exynos_gem = exynos_gem;
 
@@ -173,7 +163,6 @@ static int exynos_drm_fbdev_create(struct drm_fb_helper *helper,
 	if (ret < 0)
 		goto err_destroy_framebuffer;
 
-	mutex_unlock(&dev->struct_mutex);
 	return ret;
 
 err_destroy_framebuffer:
@@ -181,13 +170,12 @@ err_destroy_framebuffer:
 err_destroy_gem:
 	exynos_drm_gem_destroy(exynos_gem);
 
-/*
- * if failed, all resources allocated above would be released by
- * drm_mode_config_cleanup() when drm_load() had been called prior
- * to any specific driver such as fimd or hdmi driver.
- */
-out:
-	mutex_unlock(&dev->struct_mutex);
+	/*
+	 * if failed, all resources allocated above would be released by
+	 * drm_mode_config_cleanup() when drm_load() had been called prior
+	 * to any specific driver such as fimd or hdmi driver.
+	 */
+
 	return ret;
 }
 
@@ -218,7 +206,6 @@ int exynos_drm_fbdev_init(struct drm_device *dev)
 	struct exynos_drm_fbdev *fbdev;
 	struct exynos_drm_private *private = dev->dev_private;
 	struct drm_fb_helper *helper;
-	unsigned int num_crtc;
 	int ret;
 
 	if (!dev->mode_config.num_crtc || !dev->mode_config.num_connector)
@@ -235,9 +222,7 @@ int exynos_drm_fbdev_init(struct drm_device *dev)
 
 	drm_fb_helper_prepare(dev, helper, &exynos_drm_fb_helper_funcs);
 
-	num_crtc = dev->mode_config.num_crtc;
-
-	ret = drm_fb_helper_init(dev, helper, num_crtc, MAX_CONNECTOR);
+	ret = drm_fb_helper_init(dev, helper, MAX_CONNECTOR);
 	if (ret < 0) {
 		DRM_ERROR("failed to initialize drm fb helper.\n");
 		goto err_init;
@@ -275,20 +260,16 @@ static void exynos_drm_fbdev_destroy(struct drm_device *dev,
 	struct exynos_drm_gem *exynos_gem = exynos_fbd->exynos_gem;
 	struct drm_framebuffer *fb;
 
-	if (exynos_gem->kvaddr)
-		vunmap(exynos_gem->kvaddr);
+	vunmap(exynos_gem->kvaddr);
 
 	/* release drm framebuffer and real buffer */
 	if (fb_helper->fb && fb_helper->fb->funcs) {
 		fb = fb_helper->fb;
-		if (fb) {
-			drm_framebuffer_unregister_private(fb);
+		if (fb)
 			drm_framebuffer_remove(fb);
-		}
 	}
 
 	drm_fb_helper_unregister_fbi(fb_helper);
-	drm_fb_helper_release_fbi(fb_helper);
 
 	drm_fb_helper_fini(fb_helper);
 }
@@ -316,4 +297,15 @@ void exynos_drm_fbdev_restore_mode(struct drm_device *dev)
 		return;
 
 	drm_fb_helper_restore_fbdev_mode_unlocked(private->fb_helper);
+}
+
+void exynos_drm_output_poll_changed(struct drm_device *dev)
+{
+	struct exynos_drm_private *private = dev->dev_private;
+	struct drm_fb_helper *fb_helper = private->fb_helper;
+
+	if (fb_helper)
+		drm_fb_helper_hotplug_event(fb_helper);
+	else
+		exynos_drm_fbdev_init(dev);
 }

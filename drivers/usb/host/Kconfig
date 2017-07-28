@@ -5,6 +5,7 @@ comment "USB Host Controller Drivers"
 
 config USB_C67X00_HCD
 	tristate "Cypress C67x00 HCD support"
+	depends on HAS_IOMEM
 	help
 	  The Cypress C67x00 (EZ-Host/EZ-OTG) chips are dual-role
 	  host/peripheral/OTG USB controllers.
@@ -17,6 +18,7 @@ config USB_C67X00_HCD
 
 config USB_XHCI_HCD
 	tristate "xHCI HCD (USB 3.0) support"
+	depends on HAS_DMA && HAS_IOMEM
 	---help---
 	  The eXtensible Host Controller Interface (xHCI) is standard for USB 3.0
 	  "SuperSpeed" host controller hardware.
@@ -28,11 +30,12 @@ if USB_XHCI_HCD
 
 config USB_XHCI_PCI
        tristate
-       depends on PCI
+       depends on USB_PCI
        default y
 
 config USB_XHCI_PLATFORM
 	tristate "Generic xHCI driver for a platform device"
+	select USB_XHCI_RCAR if ARCH_RENESAS
 	---help---
 	  Adds an xHCI host driver for a generic platform device, which
 	  provides a memory space and an irq.
@@ -41,9 +44,19 @@ config USB_XHCI_PLATFORM
 
 	  If unsure, say N.
 
+config USB_XHCI_MTK
+	tristate "xHCI support for Mediatek MT65xx/MT7621"
+	select MFD_SYSCON
+	depends on (MIPS && SOC_MT7621) || ARCH_MEDIATEK || COMPILE_TEST
+	---help---
+	  Say 'Y' to enable the support for the xHCI host controller
+	  found in Mediatek MT65xx SoCs.
+	  If unsure, say N.
+
 config USB_XHCI_MVEBU
 	tristate "xHCI support for Marvell Armada 375/38x"
 	select USB_XHCI_PLATFORM
+	depends on HAS_IOMEM
 	depends on ARCH_MVEBU || COMPILE_TEST
 	---help---
 	  Say 'Y' to enable the support for the xHCI host controller
@@ -51,16 +64,26 @@ config USB_XHCI_MVEBU
 
 config USB_XHCI_RCAR
 	tristate "xHCI support for Renesas R-Car SoCs"
-	select USB_XHCI_PLATFORM
-	depends on ARCH_SHMOBILE || COMPILE_TEST
+	depends on USB_XHCI_PLATFORM
+	depends on ARCH_RENESAS || COMPILE_TEST
 	---help---
 	  Say 'Y' to enable the support for the xHCI host controller
 	  found in Renesas R-Car ARM SoCs.
+
+config USB_XHCI_TEGRA
+	tristate "xHCI support for NVIDIA Tegra SoCs"
+	depends on PHY_TEGRA_XUSB
+	depends on RESET_CONTROLLER
+	select FW_LOADER
+	---help---
+	  Say 'Y' to enable the support for the xHCI host controller
+	  found in NVIDIA Tegra124 and later SoCs.
 
 endif # USB_XHCI_HCD
 
 config USB_EHCI_HCD
 	tristate "EHCI HCD (USB 2.0) support"
+	depends on HAS_DMA && HAS_IOMEM
 	---help---
 	  The Enhanced Host Controller Interface (EHCI) is standard for USB 2.0
 	  "high speed" (480 Mbit/sec, 60 Mbyte/sec) host controller hardware.
@@ -112,14 +135,11 @@ config USB_EHCI_TT_NEWSCHED
 
 	  If unsure, say Y.
 
-config USB_FSL_MPH_DR_OF
-	tristate
-
 if USB_EHCI_HCD
 
 config USB_EHCI_PCI
 	tristate
-	depends on PCI
+	depends on USB_PCI
 	default y
 
 config USB_EHCI_HCD_PMC_MSP
@@ -147,7 +167,6 @@ config USB_EHCI_FSL
 	tristate "Support for Freescale PPC on-chip EHCI USB controller"
 	depends on FSL_SOC
 	select USB_EHCI_ROOT_HUB_TT
-	select USB_FSL_MPH_DR_OF if OF
 	---help---
 	  Variation of ARC USB block used in some Freescale chips.
 
@@ -161,7 +180,7 @@ config USB_EHCI_MXC
 config USB_EHCI_HCD_OMAP
 	tristate "EHCI support for OMAP3 and later chips"
 	depends on ARCH_OMAP
-	select NOP_USB_XCEIV
+	depends on NOP_USB_XCEIV
 	default y
 	---help---
 	  Enables support for the on-chip EHCI controller on
@@ -169,7 +188,7 @@ config USB_EHCI_HCD_OMAP
 
 config USB_EHCI_HCD_ORION
 	tristate  "Support for Marvell EBU on-chip EHCI USB controller"
-	depends on USB_EHCI_HCD && PLAT_ORION
+	depends on USB_EHCI_HCD && (PLAT_ORION || ARCH_MVEBU)
 	default y
 	---help---
 	  Enables support for the on-chip EHCI controller on Marvell's
@@ -220,6 +239,8 @@ config USB_EHCI_TEGRA
        depends on ARCH_TEGRA
        select USB_EHCI_ROOT_HUB_TT
        select USB_PHY
+	select USB_ULPI
+	select USB_ULPI_VIEWPORT
        help
          This driver enables support for the internal USB Host Controllers
          found in NVIDIA Tegra SoCs. The controllers are EHCI compliant.
@@ -317,6 +338,7 @@ endif # USB_EHCI_HCD
 
 config USB_OXU210HP_HCD
 	tristate "OXU210HP HCD support"
+	depends on HAS_IOMEM
 	---help---
 	  The OXU210HP is an USB host/OTG/device controller. Enable this
 	  option if your board has this chip. If unsure, say N.
@@ -329,6 +351,7 @@ config USB_OXU210HP_HCD
 
 config USB_ISP116X_HCD
 	tristate "ISP116X HCD support"
+	depends on HAS_IOMEM
 	---help---
 	  The ISP1160 and ISP1161 chips are USB host controllers. Enable this
 	  option if your board has this chip. If unsure, say N.
@@ -340,6 +363,7 @@ config USB_ISP116X_HCD
 
 config USB_ISP1362_HCD
 	tristate "ISP1362 HCD support"
+	depends on HAS_IOMEM
 	---help---
 	  Supports the Philips ISP1362 chip as a host controller
 
@@ -350,7 +374,7 @@ config USB_ISP1362_HCD
 
 config USB_FOTG210_HCD
 	tristate "FOTG210 HCD support"
-	depends on USB
+	depends on USB && HAS_DMA && HAS_IOMEM
 	---help---
 	  Faraday FOTG210 is an OTG controller which can be configured as
 	  an USB2.0 host. It is designed to meet USB2.0 EHCI specification
@@ -372,6 +396,7 @@ config USB_MAX3421_HCD
 
 config USB_OHCI_HCD
 	tristate "OHCI HCD (USB 1.1) support"
+	depends on HAS_DMA && HAS_IOMEM
 	---help---
 	  The Open Host Controller Interface (OHCI) is a standard for accessing
 	  USB 1.1 host controller hardware.  It does more in hardware than Intel's
@@ -447,16 +472,21 @@ config USB_OHCI_HCD_AT91
 
 config USB_OHCI_HCD_OMAP3
 	tristate "OHCI support for OMAP3 and later chips"
-	depends on (ARCH_OMAP3 || ARCH_OMAP4)
+	depends on (ARCH_OMAP3 || ARCH_OMAP4 || SOC_OMAP5)
+	select USB_OHCI_HCD_PLATFORM
 	default y
-	---help---
+	help
+	  This option is deprecated now and the driver was removed, use
+	  USB_OHCI_HCD_PLATFORM instead.
+
 	  Enables support for the on-chip OHCI controller on
 	  OMAP3 and later chips.
 
 config USB_OHCI_HCD_DAVINCI
-	bool "OHCI support for TI DaVinci DA8xx"
+	tristate "OHCI support for TI DaVinci DA8xx"
 	depends on ARCH_DAVINCI_DA8XX
-	depends on USB_OHCI_HCD=y
+	depends on USB_OHCI_HCD
+	select PHY_DA8XX_USB
 	default y
 	help
 	  Enables support for the DaVinci DA8xx integrated OHCI
@@ -499,7 +529,7 @@ config USB_OHCI_HCD_PPC_OF
 
 config USB_OHCI_HCD_PCI
 	tristate "OHCI support for PCI-bus USB controllers"
-	depends on PCI
+	depends on USB_PCI
 	default y
 	select USB_OHCI_LITTLE_ENDIAN
 	---help---
@@ -580,7 +610,7 @@ endif # USB_OHCI_HCD
 
 config USB_UHCI_HCD
 	tristate "UHCI HCD (most Intel and VIA) support"
-	depends on PCI || USB_UHCI_SUPPORT_NON_PCI_HC
+	depends on USB_PCI || USB_UHCI_SUPPORT_NON_PCI_HC
 	---help---
 	  The Universal Host Controller Interface is a standard by Intel for
 	  accessing the USB hardware in the PC (which is also called the USB
@@ -601,7 +631,11 @@ config USB_UHCI_SUPPORT_NON_PCI_HC
 
 config USB_UHCI_PLATFORM
 	bool
-	default y if ARCH_VT8500
+	default y if (ARCH_VT8500 || ARCH_ASPEED)
+
+config USB_UHCI_ASPEED
+       bool
+       default y if ARCH_ASPEED
 
 config USB_UHCI_BIG_ENDIAN_MMIO
 	bool
@@ -657,6 +691,7 @@ config USB_U132_HCD
 
 config USB_SL811_HCD
 	tristate "SL811HS HCD support"
+	depends on HAS_IOMEM
 	help
 	  The SL811HS is a single-port USB controller that supports either
 	  host side or peripheral side roles.  Enable this option if your
@@ -688,6 +723,7 @@ config USB_SL811_CS
 
 config USB_R8A66597_HCD
 	tristate "R8A66597 HCD support"
+	depends on HAS_IOMEM
 	help
 	  The R8A66597 is a USB 2.0 host and peripheral controller.
 
@@ -711,7 +747,7 @@ config USB_RENESAS_USBHS_HCD
 
 config USB_WHCI_HCD
 	tristate "Wireless USB Host Controller Interface (WHCI) driver"
-	depends on PCI && USB && UWB
+	depends on USB_PCI && USB && UWB
 	select USB_WUSB
 	select UWB_WHCI
 	help

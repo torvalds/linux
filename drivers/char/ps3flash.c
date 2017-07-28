@@ -290,9 +290,9 @@ static int ps3flash_fsync(struct file *file, loff_t start, loff_t end, int datas
 {
 	struct inode *inode = file_inode(file);
 	int err;
-	mutex_lock(&inode->i_mutex);
+	inode_lock(inode);
 	err = ps3flash_writeback(ps3flash_dev);
-	mutex_unlock(&inode->i_mutex);
+	inode_unlock(inode);
 	return err;
 }
 

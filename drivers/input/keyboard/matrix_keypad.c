@@ -42,9 +42,10 @@ struct matrix_keypad {
 };
 
 /*
- * NOTE: normally the GPIO has to be put into HiZ when de-activated to cause
- * minmal side effect when scanning other columns, here it is configured to
- * be input, and it should work on most platforms.
+ * NOTE: If drive_inactive_cols is false, then the GPIO has to be put into
+ * HiZ when de-activated to cause minmal side effect when scanning other
+ * columns. In that case it is configured here to be input, otherwise it is
+ * driven with the inactive value.
  */
 static void __activate_col(const struct matrix_keypad_platform_data *pdata,
 			   int col, bool on)
@@ -55,7 +56,8 @@ static void __activate_col(const struct matrix_keypad_platform_data *pdata,
 		gpio_direction_output(pdata->col_gpios[col], level_on);
 	} else {
 		gpio_set_value_cansleep(pdata->col_gpios[col], !level_on);
-		gpio_direction_input(pdata->col_gpios[col]);
+		if (!pdata->drive_inactive_cols)
+			gpio_direction_input(pdata->col_gpios[col]);
 	}
 }
 
@@ -432,6 +434,9 @@ matrix_keypad_parse_dt(struct device *dev)
 	if (of_get_property(np, "gpio-activelow", NULL))
 		pdata->active_low = true;
 
+	pdata->drive_inactive_cols =
+		of_property_read_bool(np, "drive-inactive-cols");
+
 	of_property_read_u32(np, "debounce-delay-ms", &pdata->debounce_ms);
 	of_property_read_u32(np, "col-scan-delay-us",
 						&pdata->col_scan_delay_us);
@@ -544,8 +549,6 @@ err_free_mem:
 static int matrix_keypad_remove(struct platform_device *pdev)
 {
 	struct matrix_keypad *keypad = platform_get_drvdata(pdev);
-
-	device_init_wakeup(&pdev->dev, 0);
 
 	matrix_keypad_free_gpio(keypad);
 	input_unregister_device(keypad->input_dev);

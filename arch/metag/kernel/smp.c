@@ -12,7 +12,9 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/hotplug.h>
+#include <linux/sched/task_stack.h>
 #include <linux/interrupt.h>
 #include <linux/cache.h>
 #include <linux/profile.h>
@@ -344,8 +346,8 @@ asmlinkage void secondary_start_kernel(void)
 	 * All kernel threads share the same mm context; grab a
 	 * reference and switch to it.
 	 */
-	atomic_inc(&mm->mm_users);
-	atomic_inc(&mm->mm_count);
+	mmget(mm);
+	mmgrab(mm);
 	current->active_mm = mm;
 	cpumask_set_cpu(cpu, mm_cpumask(mm));
 	enter_lazy_tlb(mm, current);
@@ -396,7 +398,7 @@ asmlinkage void secondary_start_kernel(void)
 	/*
 	 * OK, it's off to the idle thread for us
 	 */
-	cpu_startup_entry(CPUHP_ONLINE);
+	cpu_startup_entry(CPUHP_AP_ONLINE_IDLE);
 }
 
 void __init smp_cpus_done(unsigned int max_cpus)
@@ -565,8 +567,7 @@ static void stop_this_cpu(void *data)
 {
 	unsigned int cpu = smp_processor_id();
 
-	if (system_state == SYSTEM_BOOTING ||
-	    system_state == SYSTEM_RUNNING) {
+	if (system_state <= SYSTEM_RUNNING) {
 		spin_lock(&stop_lock);
 		pr_crit("CPU%u: stopping\n", cpu);
 		dump_stack();

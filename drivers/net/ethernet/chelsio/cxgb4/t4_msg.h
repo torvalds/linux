@@ -51,6 +51,7 @@ enum {
 	CPL_TX_PKT            = 0xE,
 	CPL_L2T_WRITE_REQ     = 0x12,
 	CPL_TID_RELEASE       = 0x1A,
+	CPL_TX_DATA_ISO	      = 0x1F,
 
 	CPL_CLOSE_LISTSRV_RPL = 0x20,
 	CPL_L2T_WRITE_RPL     = 0x23,
@@ -60,6 +61,7 @@ enum {
 	CPL_ABORT_REQ_RSS     = 0x2B,
 	CPL_ABORT_RPL_RSS     = 0x2D,
 
+	CPL_RX_PHYS_ADDR      = 0x30,
 	CPL_CLOSE_CON_RPL     = 0x32,
 	CPL_ISCSI_HDR         = 0x33,
 	CPL_RDMA_CQE          = 0x35,
@@ -74,6 +76,7 @@ enum {
 	CPL_PASS_ESTABLISH    = 0x41,
 	CPL_RX_DATA_DDP       = 0x42,
 	CPL_PASS_ACCEPT_REQ   = 0x44,
+	CPL_RX_ISCSI_CMP      = 0x45,
 	CPL_TRACE_PKT_T5      = 0x48,
 	CPL_RX_ISCSI_DDP      = 0x49,
 
@@ -82,9 +85,14 @@ enum {
 	CPL_PASS_OPEN_REQ6    = 0x81,
 	CPL_ACT_OPEN_REQ6     = 0x83,
 
+	CPL_TX_TLS_PDU     =    0x88,
+	CPL_TX_SEC_PDU        = 0x8A,
+	CPL_TX_TLS_ACK        = 0x8B,
+
 	CPL_RDMA_TERMINATE    = 0xA2,
 	CPL_RDMA_WRITE        = 0xA4,
 	CPL_SGE_EGR_UPDATE    = 0xA5,
+	CPL_RX_MPS_PKT        = 0xAF,
 
 	CPL_TRACE_PKT         = 0xB0,
 	CPL_ISCSI_DATA	      = 0xB2,
@@ -92,6 +100,8 @@ enum {
 	CPL_FW4_MSG           = 0xC0,
 	CPL_FW4_PLD           = 0xC1,
 	CPL_FW4_ACK           = 0xC3,
+
+	CPL_RX_PHYS_DSGL      = 0xD0,
 
 	CPL_FW6_MSG           = 0xE0,
 	CPL_FW6_PLD           = 0xE1,
@@ -103,6 +113,8 @@ enum {
 
 enum CPL_error {
 	CPL_ERR_NONE               = 0,
+	CPL_ERR_TCAM_PARITY        = 1,
+	CPL_ERR_TCAM_MISS          = 2,
 	CPL_ERR_TCAM_FULL          = 3,
 	CPL_ERR_BAD_LENGTH         = 15,
 	CPL_ERR_BAD_ROUTE          = 18,
@@ -343,6 +355,87 @@ struct cpl_pass_open_rpl {
 	u8 rsvd[3];
 	u8 status;
 };
+
+struct tcp_options {
+	__be16 mss;
+	__u8 wsf;
+#if defined(__LITTLE_ENDIAN_BITFIELD)
+	__u8:4;
+	__u8 unknown:1;
+	__u8:1;
+	__u8 sack:1;
+	__u8 tstamp:1;
+#else
+	__u8 tstamp:1;
+	__u8 sack:1;
+	__u8:1;
+	__u8 unknown:1;
+	__u8:4;
+#endif
+};
+
+struct cpl_pass_accept_req {
+	union opcode_tid ot;
+	__be16 rsvd;
+	__be16 len;
+	__be32 hdr_len;
+	__be16 vlan;
+	__be16 l2info;
+	__be32 tos_stid;
+	struct tcp_options tcpopt;
+};
+
+/* cpl_pass_accept_req.hdr_len fields */
+#define SYN_RX_CHAN_S    0
+#define SYN_RX_CHAN_M    0xF
+#define SYN_RX_CHAN_V(x) ((x) << SYN_RX_CHAN_S)
+#define SYN_RX_CHAN_G(x) (((x) >> SYN_RX_CHAN_S) & SYN_RX_CHAN_M)
+
+#define TCP_HDR_LEN_S    10
+#define TCP_HDR_LEN_M    0x3F
+#define TCP_HDR_LEN_V(x) ((x) << TCP_HDR_LEN_S)
+#define TCP_HDR_LEN_G(x) (((x) >> TCP_HDR_LEN_S) & TCP_HDR_LEN_M)
+
+#define IP_HDR_LEN_S    16
+#define IP_HDR_LEN_M    0x3FF
+#define IP_HDR_LEN_V(x) ((x) << IP_HDR_LEN_S)
+#define IP_HDR_LEN_G(x) (((x) >> IP_HDR_LEN_S) & IP_HDR_LEN_M)
+
+#define ETH_HDR_LEN_S    26
+#define ETH_HDR_LEN_M    0x1F
+#define ETH_HDR_LEN_V(x) ((x) << ETH_HDR_LEN_S)
+#define ETH_HDR_LEN_G(x) (((x) >> ETH_HDR_LEN_S) & ETH_HDR_LEN_M)
+
+/* cpl_pass_accept_req.l2info fields */
+#define SYN_MAC_IDX_S    0
+#define SYN_MAC_IDX_M    0x1FF
+#define SYN_MAC_IDX_V(x) ((x) << SYN_MAC_IDX_S)
+#define SYN_MAC_IDX_G(x) (((x) >> SYN_MAC_IDX_S) & SYN_MAC_IDX_M)
+
+#define SYN_XACT_MATCH_S    9
+#define SYN_XACT_MATCH_V(x) ((x) << SYN_XACT_MATCH_S)
+#define SYN_XACT_MATCH_F    SYN_XACT_MATCH_V(1U)
+
+#define SYN_INTF_S    12
+#define SYN_INTF_M    0xF
+#define SYN_INTF_V(x) ((x) << SYN_INTF_S)
+#define SYN_INTF_G(x) (((x) >> SYN_INTF_S) & SYN_INTF_M)
+
+enum {                     /* TCP congestion control algorithms */
+	CONG_ALG_RENO,
+	CONG_ALG_TAHOE,
+	CONG_ALG_NEWRENO,
+	CONG_ALG_HIGHSPEED
+};
+
+#define CONG_CNTRL_S    14
+#define CONG_CNTRL_M    0x3
+#define CONG_CNTRL_V(x) ((x) << CONG_CNTRL_S)
+#define CONG_CNTRL_G(x) (((x) >> CONG_CNTRL_S) & CONG_CNTRL_M)
+
+#define T5_ISS_S    18
+#define T5_ISS_V(x) ((x) << T5_ISS_S)
+#define T5_ISS_F    T5_ISS_V(1U)
 
 struct cpl_pass_accept_rpl {
 	WR_HDR;
@@ -715,6 +808,10 @@ struct cpl_tx_pkt {
 #define TXPKT_INS_OVLAN_V(x) ((x) << TXPKT_INS_OVLAN_S)
 #define TXPKT_INS_OVLAN_F    TXPKT_INS_OVLAN_V(1U)
 
+#define TXPKT_TSTAMP_S    23
+#define TXPKT_TSTAMP_V(x) ((x) << TXPKT_TSTAMP_S)
+#define TXPKT_TSTAMP_F    TXPKT_TSTAMP_V(1ULL)
+
 #define TXPKT_OPCODE_S    24
 #define TXPKT_OPCODE_V(x) ((x) << TXPKT_OPCODE_S)
 
@@ -818,6 +915,122 @@ struct cpl_iscsi_hdr {
 #define ISCSI_DDP_V(x) ((x) << ISCSI_DDP_S)
 #define ISCSI_DDP_F    ISCSI_DDP_V(1U)
 
+struct cpl_rx_data_ddp {
+	union opcode_tid ot;
+	__be16 urg;
+	__be16 len;
+	__be32 seq;
+	union {
+		__be32 nxt_seq;
+		__be32 ddp_report;
+	};
+	__be32 ulp_crc;
+	__be32 ddpvld;
+};
+
+#define cpl_rx_iscsi_ddp cpl_rx_data_ddp
+
+struct cpl_iscsi_data {
+	union opcode_tid ot;
+	__u8 rsvd0[2];
+	__be16 len;
+	__be32 seq;
+	__be16 urg;
+	__u8 rsvd1;
+	__u8 status;
+};
+
+struct cpl_rx_iscsi_cmp {
+	union opcode_tid ot;
+	__be16 pdu_len_ddp;
+	__be16 len;
+	__be32 seq;
+	__be16 urg;
+	__u8 rsvd;
+	__u8 status;
+	__be32 ulp_crc;
+	__be32 ddpvld;
+};
+
+struct cpl_tx_data_iso {
+	__be32 op_to_scsi;
+	__u8   reserved1;
+	__u8   ahs_len;
+	__be16 mpdu;
+	__be32 burst_size;
+	__be32 len;
+	__be32 reserved2_seglen_offset;
+	__be32 datasn_offset;
+	__be32 buffer_offset;
+	__be32 reserved3;
+
+	/* encapsulated CPL_TX_DATA follows here */
+};
+
+/* cpl_tx_data_iso.op_to_scsi fields */
+#define CPL_TX_DATA_ISO_OP_S	24
+#define CPL_TX_DATA_ISO_OP_M	0xff
+#define CPL_TX_DATA_ISO_OP_V(x)	((x) << CPL_TX_DATA_ISO_OP_S)
+#define CPL_TX_DATA_ISO_OP_G(x)	\
+	(((x) >> CPL_TX_DATA_ISO_OP_S) & CPL_TX_DATA_ISO_OP_M)
+
+#define CPL_TX_DATA_ISO_FIRST_S		23
+#define CPL_TX_DATA_ISO_FIRST_M		0x1
+#define CPL_TX_DATA_ISO_FIRST_V(x)	((x) << CPL_TX_DATA_ISO_FIRST_S)
+#define CPL_TX_DATA_ISO_FIRST_G(x)	\
+	(((x) >> CPL_TX_DATA_ISO_FIRST_S) & CPL_TX_DATA_ISO_FIRST_M)
+#define CPL_TX_DATA_ISO_FIRST_F	CPL_TX_DATA_ISO_FIRST_V(1U)
+
+#define CPL_TX_DATA_ISO_LAST_S		22
+#define CPL_TX_DATA_ISO_LAST_M		0x1
+#define CPL_TX_DATA_ISO_LAST_V(x)	((x) << CPL_TX_DATA_ISO_LAST_S)
+#define CPL_TX_DATA_ISO_LAST_G(x)	\
+	(((x) >> CPL_TX_DATA_ISO_LAST_S) & CPL_TX_DATA_ISO_LAST_M)
+#define CPL_TX_DATA_ISO_LAST_F	CPL_TX_DATA_ISO_LAST_V(1U)
+
+#define CPL_TX_DATA_ISO_CPLHDRLEN_S	21
+#define CPL_TX_DATA_ISO_CPLHDRLEN_M	0x1
+#define CPL_TX_DATA_ISO_CPLHDRLEN_V(x)	((x) << CPL_TX_DATA_ISO_CPLHDRLEN_S)
+#define CPL_TX_DATA_ISO_CPLHDRLEN_G(x)	\
+	(((x) >> CPL_TX_DATA_ISO_CPLHDRLEN_S) & CPL_TX_DATA_ISO_CPLHDRLEN_M)
+#define CPL_TX_DATA_ISO_CPLHDRLEN_F	CPL_TX_DATA_ISO_CPLHDRLEN_V(1U)
+
+#define CPL_TX_DATA_ISO_HDRCRC_S	20
+#define CPL_TX_DATA_ISO_HDRCRC_M	0x1
+#define CPL_TX_DATA_ISO_HDRCRC_V(x)	((x) << CPL_TX_DATA_ISO_HDRCRC_S)
+#define CPL_TX_DATA_ISO_HDRCRC_G(x)	\
+	(((x) >> CPL_TX_DATA_ISO_HDRCRC_S) & CPL_TX_DATA_ISO_HDRCRC_M)
+#define CPL_TX_DATA_ISO_HDRCRC_F	CPL_TX_DATA_ISO_HDRCRC_V(1U)
+
+#define CPL_TX_DATA_ISO_PLDCRC_S	19
+#define CPL_TX_DATA_ISO_PLDCRC_M	0x1
+#define CPL_TX_DATA_ISO_PLDCRC_V(x)	((x) << CPL_TX_DATA_ISO_PLDCRC_S)
+#define CPL_TX_DATA_ISO_PLDCRC_G(x)	\
+	(((x) >> CPL_TX_DATA_ISO_PLDCRC_S) & CPL_TX_DATA_ISO_PLDCRC_M)
+#define CPL_TX_DATA_ISO_PLDCRC_F	CPL_TX_DATA_ISO_PLDCRC_V(1U)
+
+#define CPL_TX_DATA_ISO_IMMEDIATE_S	18
+#define CPL_TX_DATA_ISO_IMMEDIATE_M	0x1
+#define CPL_TX_DATA_ISO_IMMEDIATE_V(x)	((x) << CPL_TX_DATA_ISO_IMMEDIATE_S)
+#define CPL_TX_DATA_ISO_IMMEDIATE_G(x)	\
+	(((x) >> CPL_TX_DATA_ISO_IMMEDIATE_S) & CPL_TX_DATA_ISO_IMMEDIATE_M)
+#define CPL_TX_DATA_ISO_IMMEDIATE_F	CPL_TX_DATA_ISO_IMMEDIATE_V(1U)
+
+#define CPL_TX_DATA_ISO_SCSI_S		16
+#define CPL_TX_DATA_ISO_SCSI_M		0x3
+#define CPL_TX_DATA_ISO_SCSI_V(x)	((x) << CPL_TX_DATA_ISO_SCSI_S)
+#define CPL_TX_DATA_ISO_SCSI_G(x)	\
+	(((x) >> CPL_TX_DATA_ISO_SCSI_S) & CPL_TX_DATA_ISO_SCSI_M)
+
+/* cpl_tx_data_iso.reserved2_seglen_offset fields */
+#define CPL_TX_DATA_ISO_SEGLEN_OFFSET_S		0
+#define CPL_TX_DATA_ISO_SEGLEN_OFFSET_M		0xffffff
+#define CPL_TX_DATA_ISO_SEGLEN_OFFSET_V(x)	\
+	((x) << CPL_TX_DATA_ISO_SEGLEN_OFFSET_S)
+#define CPL_TX_DATA_ISO_SEGLEN_OFFSET_G(x)	\
+	(((x) >> CPL_TX_DATA_ISO_SEGLEN_OFFSET_S) & \
+	 CPL_TX_DATA_ISO_SEGLEN_OFFSET_M)
+
 struct cpl_rx_data {
 	union opcode_tid ot;
 	__be16 rsvd;
@@ -853,6 +1066,15 @@ struct cpl_rx_data_ack {
 #define RX_FORCE_ACK_S    28
 #define RX_FORCE_ACK_V(x) ((x) << RX_FORCE_ACK_S)
 #define RX_FORCE_ACK_F    RX_FORCE_ACK_V(1U)
+
+#define RX_DACK_MODE_S    29
+#define RX_DACK_MODE_M    0x3
+#define RX_DACK_MODE_V(x) ((x) << RX_DACK_MODE_S)
+#define RX_DACK_MODE_G(x) (((x) >> RX_DACK_MODE_S) & RX_DACK_MODE_M)
+
+#define RX_DACK_CHANGE_S    31
+#define RX_DACK_CHANGE_V(x) ((x) << RX_DACK_CHANGE_S)
+#define RX_DACK_CHANGE_F    RX_DACK_CHANGE_V(1U)
 
 struct cpl_rx_pkt {
 	struct rss_header rsshdr;
@@ -958,6 +1180,21 @@ struct cpl_rx_pkt {
 #define RXERR_CSUM_V(x) ((x) << RXERR_CSUM_S)
 #define RXERR_CSUM_F    RXERR_CSUM_V(1U)
 
+#define T6_COMPR_RXERR_LEN_S    1
+#define T6_COMPR_RXERR_LEN_V(x) ((x) << T6_COMPR_RXERR_LEN_S)
+#define T6_COMPR_RXERR_LEN_F    T6_COMPR_RXERR_LEN_V(1U)
+
+#define T6_COMPR_RXERR_VEC_S    0
+#define T6_COMPR_RXERR_VEC_M    0x3F
+#define T6_COMPR_RXERR_VEC_V(x) ((x) << T6_COMPR_RXERR_LEN_S)
+#define T6_COMPR_RXERR_VEC_G(x) \
+		(((x) >> T6_COMPR_RXERR_VEC_S) & T6_COMPR_RXERR_VEC_M)
+
+/* Logical OR of RX_ERROR_CSUM, RX_ERROR_CSIP */
+#define T6_COMPR_RXERR_SUM_S    4
+#define T6_COMPR_RXERR_SUM_V(x) ((x) << T6_COMPR_RXERR_SUM_S)
+#define T6_COMPR_RXERR_SUM_F    T6_COMPR_RXERR_SUM_V(1U)
+
 struct cpl_trace_pkt {
 	u8 opcode;
 	u8 intf;
@@ -1020,6 +1257,8 @@ struct cpl_l2t_write_req {
 #define L2T_W_NOREPLY_S    15
 #define L2T_W_NOREPLY_V(x) ((x) << L2T_W_NOREPLY_S)
 #define L2T_W_NOREPLY_F    L2T_W_NOREPLY_V(1U)
+
+#define CPL_L2T_VLAN_NONE 0xfff
 
 struct cpl_l2t_write_rpl {
 	union opcode_tid ot;
@@ -1088,6 +1327,12 @@ struct cpl_fw4_ack {
 	__be64 rsvd1;
 };
 
+enum {
+	CPL_FW4_ACK_FLAGS_SEQVAL	= 0x1,	/* seqn valid */
+	CPL_FW4_ACK_FLAGS_CH		= 0x2,	/* channel change complete */
+	CPL_FW4_ACK_FLAGS_FLOWC		= 0x4,	/* fw_flowc_wr complete */
+};
+
 struct cpl_fw6_msg {
 	u8 opcode;
 	u8 type;
@@ -1112,6 +1357,21 @@ struct cpl_fw6_msg_ofld_connection_wr_rpl {
 	__u8    retval;
 	__u8    rsvd[2];
 };
+
+struct cpl_tx_data {
+	union opcode_tid ot;
+	__be32 len;
+	__be32 rsvd;
+	__be32 flags;
+};
+
+/* cpl_tx_data.flags field */
+#define TX_FORCE_S	13
+#define TX_FORCE_V(x)	((x) << TX_FORCE_S)
+
+#define T6_TX_FORCE_S		20
+#define T6_TX_FORCE_V(x)	((x) << T6_TX_FORCE_S)
+#define T6_TX_FORCE_F		T6_TX_FORCE_V(1U)
 
 enum {
 	ULP_TX_MEM_READ = 2,
@@ -1141,12 +1401,42 @@ struct ulptx_sgl {
 	struct ulptx_sge_pair sge[0];
 };
 
+struct ulptx_idata {
+	__be32 cmd_more;
+	__be32 len;
+};
+
+struct ulp_txpkt {
+	__be32 cmd_dest;
+	__be32 len;
+};
+
+#define ULPTX_CMD_S    24
+#define ULPTX_CMD_M    0xFF
+#define ULPTX_CMD_V(x) ((x) << ULPTX_CMD_S)
+
 #define ULPTX_NSGE_S    0
 #define ULPTX_NSGE_V(x) ((x) << ULPTX_NSGE_S)
 
 #define ULPTX_MORE_S	23
 #define ULPTX_MORE_V(x)	((x) << ULPTX_MORE_S)
 #define ULPTX_MORE_F	ULPTX_MORE_V(1U)
+
+#define ULP_TXPKT_DEST_S    16
+#define ULP_TXPKT_DEST_M    0x3
+#define ULP_TXPKT_DEST_V(x) ((x) << ULP_TXPKT_DEST_S)
+
+#define ULP_TXPKT_FID_S     4
+#define ULP_TXPKT_FID_M     0x7ff
+#define ULP_TXPKT_FID_V(x)  ((x) << ULP_TXPKT_FID_S)
+
+#define ULP_TXPKT_RO_S      3
+#define ULP_TXPKT_RO_V(x) ((x) << ULP_TXPKT_RO_S)
+#define ULP_TXPKT_RO_F ULP_TXPKT_RO_V(1U)
+
+#define ULP_TX_SC_MORE_S 23
+#define ULP_TX_SC_MORE_V(x) ((x) << ULP_TX_SC_MORE_S)
+#define ULP_TX_SC_MORE_F  ULP_TX_SC_MORE_V(1U)
 
 struct ulp_mem_io {
 	WR_HDR;
@@ -1173,6 +1463,10 @@ struct ulp_mem_io {
 #define T5_ULP_MEMIO_ORDER_V(x) ((x) << T5_ULP_MEMIO_ORDER_S)
 #define T5_ULP_MEMIO_ORDER_F    T5_ULP_MEMIO_ORDER_V(1U)
 
+#define T5_ULP_MEMIO_FID_S	4
+#define T5_ULP_MEMIO_FID_M	0x7ff
+#define T5_ULP_MEMIO_FID_V(x)	((x) << T5_ULP_MEMIO_FID_S)
+
 /* ulp_mem_io.lock_addr fields */
 #define ULP_MEMIO_ADDR_S    0
 #define ULP_MEMIO_ADDR_V(x) ((x) << ULP_MEMIO_ADDR_S)
@@ -1181,4 +1475,432 @@ struct ulp_mem_io {
 #define ULP_MEMIO_DATA_LEN_S    0
 #define ULP_MEMIO_DATA_LEN_V(x) ((x) << ULP_MEMIO_DATA_LEN_S)
 
+#define ULPTX_NSGE_S    0
+#define ULPTX_NSGE_M    0xFFFF
+#define ULPTX_NSGE_V(x) ((x) << ULPTX_NSGE_S)
+#define ULPTX_NSGE_G(x) (((x) >> ULPTX_NSGE_S) & ULPTX_NSGE_M)
+
+struct ulptx_sc_memrd {
+	__be32 cmd_to_len;
+	__be32 addr;
+};
+
+#define ULP_TXPKT_DATAMODIFY_S       23
+#define ULP_TXPKT_DATAMODIFY_M       0x1
+#define ULP_TXPKT_DATAMODIFY_V(x)    ((x) << ULP_TXPKT_DATAMODIFY_S)
+#define ULP_TXPKT_DATAMODIFY_G(x)    \
+	(((x) >> ULP_TXPKT_DATAMODIFY_S) & ULP_TXPKT_DATAMODIFY__M)
+#define ULP_TXPKT_DATAMODIFY_F       ULP_TXPKT_DATAMODIFY_V(1U)
+
+#define ULP_TXPKT_CHANNELID_S        22
+#define ULP_TXPKT_CHANNELID_M        0x1
+#define ULP_TXPKT_CHANNELID_V(x)     ((x) << ULP_TXPKT_CHANNELID_S)
+#define ULP_TXPKT_CHANNELID_G(x)     \
+	(((x) >> ULP_TXPKT_CHANNELID_S) & ULP_TXPKT_CHANNELID_M)
+#define ULP_TXPKT_CHANNELID_F        ULP_TXPKT_CHANNELID_V(1U)
+
+#define SCMD_SEQ_NO_CTRL_S      29
+#define SCMD_SEQ_NO_CTRL_M      0x3
+#define SCMD_SEQ_NO_CTRL_V(x)   ((x) << SCMD_SEQ_NO_CTRL_S)
+#define SCMD_SEQ_NO_CTRL_G(x)   \
+	(((x) >> SCMD_SEQ_NO_CTRL_S) & SCMD_SEQ_NO_CTRL_M)
+
+/* StsFieldPrsnt- Status field at the end of the TLS PDU */
+#define SCMD_STATUS_PRESENT_S   28
+#define SCMD_STATUS_PRESENT_M   0x1
+#define SCMD_STATUS_PRESENT_V(x)    ((x) << SCMD_STATUS_PRESENT_S)
+#define SCMD_STATUS_PRESENT_G(x)    \
+	(((x) >> SCMD_STATUS_PRESENT_S) & SCMD_STATUS_PRESENT_M)
+#define SCMD_STATUS_PRESENT_F   SCMD_STATUS_PRESENT_V(1U)
+
+/* ProtoVersion - Protocol Version 0: 1.2, 1:1.1, 2:DTLS, 3:Generic,
+ * 3-15: Reserved.
+ */
+#define SCMD_PROTO_VERSION_S    24
+#define SCMD_PROTO_VERSION_M    0xf
+#define SCMD_PROTO_VERSION_V(x) ((x) << SCMD_PROTO_VERSION_S)
+#define SCMD_PROTO_VERSION_G(x) \
+	(((x) >> SCMD_PROTO_VERSION_S) & SCMD_PROTO_VERSION_M)
+
+/* EncDecCtrl - Encryption/Decryption Control. 0: Encrypt, 1: Decrypt */
+#define SCMD_ENC_DEC_CTRL_S     23
+#define SCMD_ENC_DEC_CTRL_M     0x1
+#define SCMD_ENC_DEC_CTRL_V(x)  ((x) << SCMD_ENC_DEC_CTRL_S)
+#define SCMD_ENC_DEC_CTRL_G(x)  \
+	(((x) >> SCMD_ENC_DEC_CTRL_S) & SCMD_ENC_DEC_CTRL_M)
+#define SCMD_ENC_DEC_CTRL_F SCMD_ENC_DEC_CTRL_V(1U)
+
+/* CipherAuthSeqCtrl - Cipher Authentication Sequence Control. */
+#define SCMD_CIPH_AUTH_SEQ_CTRL_S       22
+#define SCMD_CIPH_AUTH_SEQ_CTRL_M       0x1
+#define SCMD_CIPH_AUTH_SEQ_CTRL_V(x)    \
+	((x) << SCMD_CIPH_AUTH_SEQ_CTRL_S)
+#define SCMD_CIPH_AUTH_SEQ_CTRL_G(x)    \
+	(((x) >> SCMD_CIPH_AUTH_SEQ_CTRL_S) & SCMD_CIPH_AUTH_SEQ_CTRL_M)
+#define SCMD_CIPH_AUTH_SEQ_CTRL_F   SCMD_CIPH_AUTH_SEQ_CTRL_V(1U)
+
+/* CiphMode -  Cipher Mode. 0: NOP, 1:AES-CBC, 2:AES-GCM, 3:AES-CTR,
+ * 4:Generic-AES, 5-15: Reserved.
+ */
+#define SCMD_CIPH_MODE_S    18
+#define SCMD_CIPH_MODE_M    0xf
+#define SCMD_CIPH_MODE_V(x) ((x) << SCMD_CIPH_MODE_S)
+#define SCMD_CIPH_MODE_G(x) \
+	(((x) >> SCMD_CIPH_MODE_S) & SCMD_CIPH_MODE_M)
+
+/* AuthMode - Auth Mode. 0: NOP, 1:SHA1, 2:SHA2-224, 3:SHA2-256
+ * 4-15: Reserved
+ */
+#define SCMD_AUTH_MODE_S    14
+#define SCMD_AUTH_MODE_M    0xf
+#define SCMD_AUTH_MODE_V(x) ((x) << SCMD_AUTH_MODE_S)
+#define SCMD_AUTH_MODE_G(x) \
+	(((x) >> SCMD_AUTH_MODE_S) & SCMD_AUTH_MODE_M)
+
+/* HmacCtrl - HMAC Control. 0:NOP, 1:No truncation, 2:Support HMAC Truncation
+ * per RFC 4366, 3:IPSec 96 bits, 4-7:Reserved
+ */
+#define SCMD_HMAC_CTRL_S    11
+#define SCMD_HMAC_CTRL_M    0x7
+#define SCMD_HMAC_CTRL_V(x) ((x) << SCMD_HMAC_CTRL_S)
+#define SCMD_HMAC_CTRL_G(x) \
+	(((x) >> SCMD_HMAC_CTRL_S) & SCMD_HMAC_CTRL_M)
+
+/* IvSize - IV size in units of 2 bytes */
+#define SCMD_IV_SIZE_S  7
+#define SCMD_IV_SIZE_M  0xf
+#define SCMD_IV_SIZE_V(x)   ((x) << SCMD_IV_SIZE_S)
+#define SCMD_IV_SIZE_G(x)   \
+	(((x) >> SCMD_IV_SIZE_S) & SCMD_IV_SIZE_M)
+
+/* NumIVs - Number of IVs */
+#define SCMD_NUM_IVS_S  0
+#define SCMD_NUM_IVS_M  0x7f
+#define SCMD_NUM_IVS_V(x)   ((x) << SCMD_NUM_IVS_S)
+#define SCMD_NUM_IVS_G(x)   \
+	(((x) >> SCMD_NUM_IVS_S) & SCMD_NUM_IVS_M)
+
+/* EnbDbgId - If this is enabled upper 20 (63:44) bits if SeqNumber
+ * (below) are used as Cid (connection id for debug status), these
+ * bits are padded to zero for forming the 64 bit
+ * sequence number for TLS
+ */
+#define SCMD_ENB_DBGID_S  31
+#define SCMD_ENB_DBGID_M  0x1
+#define SCMD_ENB_DBGID_V(x)   ((x) << SCMD_ENB_DBGID_S)
+#define SCMD_ENB_DBGID_G(x)   \
+	(((x) >> SCMD_ENB_DBGID_S) & SCMD_ENB_DBGID_M)
+
+/* IV generation in SW. */
+#define SCMD_IV_GEN_CTRL_S      30
+#define SCMD_IV_GEN_CTRL_M      0x1
+#define SCMD_IV_GEN_CTRL_V(x)   ((x) << SCMD_IV_GEN_CTRL_S)
+#define SCMD_IV_GEN_CTRL_G(x)   \
+	(((x) >> SCMD_IV_GEN_CTRL_S) & SCMD_IV_GEN_CTRL_M)
+#define SCMD_IV_GEN_CTRL_F  SCMD_IV_GEN_CTRL_V(1U)
+
+/* More frags */
+#define SCMD_MORE_FRAGS_S   20
+#define SCMD_MORE_FRAGS_M   0x1
+#define SCMD_MORE_FRAGS_V(x)    ((x) << SCMD_MORE_FRAGS_S)
+#define SCMD_MORE_FRAGS_G(x)    (((x) >> SCMD_MORE_FRAGS_S) & SCMD_MORE_FRAGS_M)
+
+/*last frag */
+#define SCMD_LAST_FRAG_S    19
+#define SCMD_LAST_FRAG_M    0x1
+#define SCMD_LAST_FRAG_V(x) ((x) << SCMD_LAST_FRAG_S)
+#define SCMD_LAST_FRAG_G(x) (((x) >> SCMD_LAST_FRAG_S) & SCMD_LAST_FRAG_M)
+
+/* TlsCompPdu */
+#define SCMD_TLS_COMPPDU_S    18
+#define SCMD_TLS_COMPPDU_M    0x1
+#define SCMD_TLS_COMPPDU_V(x) ((x) << SCMD_TLS_COMPPDU_S)
+#define SCMD_TLS_COMPPDU_G(x) (((x) >> SCMD_TLS_COMPPDU_S) & SCMD_TLS_COMPPDU_M)
+
+/* KeyCntxtInline - Key context inline after the scmd  OR PayloadOnly*/
+#define SCMD_KEY_CTX_INLINE_S   17
+#define SCMD_KEY_CTX_INLINE_M   0x1
+#define SCMD_KEY_CTX_INLINE_V(x)    ((x) << SCMD_KEY_CTX_INLINE_S)
+#define SCMD_KEY_CTX_INLINE_G(x)    \
+	(((x) >> SCMD_KEY_CTX_INLINE_S) & SCMD_KEY_CTX_INLINE_M)
+#define SCMD_KEY_CTX_INLINE_F   SCMD_KEY_CTX_INLINE_V(1U)
+
+/* TLSFragEnable - 0: Host created TLS PDUs, 1: TLS Framgmentation in ASIC */
+#define SCMD_TLS_FRAG_ENABLE_S  16
+#define SCMD_TLS_FRAG_ENABLE_M  0x1
+#define SCMD_TLS_FRAG_ENABLE_V(x)   ((x) << SCMD_TLS_FRAG_ENABLE_S)
+#define SCMD_TLS_FRAG_ENABLE_G(x)   \
+	(((x) >> SCMD_TLS_FRAG_ENABLE_S) & SCMD_TLS_FRAG_ENABLE_M)
+#define SCMD_TLS_FRAG_ENABLE_F  SCMD_TLS_FRAG_ENABLE_V(1U)
+
+/* MacOnly - Only send the MAC and discard PDU. This is valid for hash only
+ * modes, in this case TLS_TX  will drop the PDU and only
+ * send back the MAC bytes.
+ */
+#define SCMD_MAC_ONLY_S 15
+#define SCMD_MAC_ONLY_M 0x1
+#define SCMD_MAC_ONLY_V(x)  ((x) << SCMD_MAC_ONLY_S)
+#define SCMD_MAC_ONLY_G(x)  \
+	(((x) >> SCMD_MAC_ONLY_S) & SCMD_MAC_ONLY_M)
+#define SCMD_MAC_ONLY_F SCMD_MAC_ONLY_V(1U)
+
+/* AadIVDrop - Drop the AAD and IV fields. Useful in protocols
+ * which have complex AAD and IV formations Eg:AES-CCM
+ */
+#define SCMD_AADIVDROP_S 14
+#define SCMD_AADIVDROP_M 0x1
+#define SCMD_AADIVDROP_V(x)  ((x) << SCMD_AADIVDROP_S)
+#define SCMD_AADIVDROP_G(x)  \
+	(((x) >> SCMD_AADIVDROP_S) & SCMD_AADIVDROP_M)
+#define SCMD_AADIVDROP_F SCMD_AADIVDROP_V(1U)
+
+/* HdrLength - Length of all headers excluding TLS header
+ * present before start of crypto PDU/payload.
+ */
+#define SCMD_HDR_LEN_S  0
+#define SCMD_HDR_LEN_M  0x3fff
+#define SCMD_HDR_LEN_V(x)   ((x) << SCMD_HDR_LEN_S)
+#define SCMD_HDR_LEN_G(x)   \
+	(((x) >> SCMD_HDR_LEN_S) & SCMD_HDR_LEN_M)
+
+struct cpl_tx_sec_pdu {
+	__be32 op_ivinsrtofst;
+	__be32 pldlen;
+	__be32 aadstart_cipherstop_hi;
+	__be32 cipherstop_lo_authinsert;
+	__be32 seqno_numivs;
+	__be32 ivgen_hdrlen;
+	__be64 scmd1;
+};
+
+#define CPL_TX_SEC_PDU_OPCODE_S     24
+#define CPL_TX_SEC_PDU_OPCODE_M     0xff
+#define CPL_TX_SEC_PDU_OPCODE_V(x)  ((x) << CPL_TX_SEC_PDU_OPCODE_S)
+#define CPL_TX_SEC_PDU_OPCODE_G(x)  \
+	(((x) >> CPL_TX_SEC_PDU_OPCODE_S) & CPL_TX_SEC_PDU_OPCODE_M)
+
+/* RX Channel Id */
+#define CPL_TX_SEC_PDU_RXCHID_S  22
+#define CPL_TX_SEC_PDU_RXCHID_M  0x1
+#define CPL_TX_SEC_PDU_RXCHID_V(x)   ((x) << CPL_TX_SEC_PDU_RXCHID_S)
+#define CPL_TX_SEC_PDU_RXCHID_G(x)   \
+	(((x) >> CPL_TX_SEC_PDU_RXCHID_S) & CPL_TX_SEC_PDU_RXCHID_M)
+#define CPL_TX_SEC_PDU_RXCHID_F  CPL_TX_SEC_PDU_RXCHID_V(1U)
+
+/* Ack Follows */
+#define CPL_TX_SEC_PDU_ACKFOLLOWS_S  21
+#define CPL_TX_SEC_PDU_ACKFOLLOWS_M  0x1
+#define CPL_TX_SEC_PDU_ACKFOLLOWS_V(x)   ((x) << CPL_TX_SEC_PDU_ACKFOLLOWS_S)
+#define CPL_TX_SEC_PDU_ACKFOLLOWS_G(x)   \
+	(((x) >> CPL_TX_SEC_PDU_ACKFOLLOWS_S) & CPL_TX_SEC_PDU_ACKFOLLOWS_M)
+#define CPL_TX_SEC_PDU_ACKFOLLOWS_F  CPL_TX_SEC_PDU_ACKFOLLOWS_V(1U)
+
+/* Loopback bit in cpl_tx_sec_pdu */
+#define CPL_TX_SEC_PDU_ULPTXLPBK_S  20
+#define CPL_TX_SEC_PDU_ULPTXLPBK_M  0x1
+#define CPL_TX_SEC_PDU_ULPTXLPBK_V(x)   ((x) << CPL_TX_SEC_PDU_ULPTXLPBK_S)
+#define CPL_TX_SEC_PDU_ULPTXLPBK_G(x)   \
+	(((x) >> CPL_TX_SEC_PDU_ULPTXLPBK_S) & CPL_TX_SEC_PDU_ULPTXLPBK_M)
+#define CPL_TX_SEC_PDU_ULPTXLPBK_F  CPL_TX_SEC_PDU_ULPTXLPBK_V(1U)
+
+/* Length of cpl header encapsulated */
+#define CPL_TX_SEC_PDU_CPLLEN_S     16
+#define CPL_TX_SEC_PDU_CPLLEN_M     0xf
+#define CPL_TX_SEC_PDU_CPLLEN_V(x)  ((x) << CPL_TX_SEC_PDU_CPLLEN_S)
+#define CPL_TX_SEC_PDU_CPLLEN_G(x)  \
+	(((x) >> CPL_TX_SEC_PDU_CPLLEN_S) & CPL_TX_SEC_PDU_CPLLEN_M)
+
+/* PlaceHolder */
+#define CPL_TX_SEC_PDU_PLACEHOLDER_S    10
+#define CPL_TX_SEC_PDU_PLACEHOLDER_M    0x1
+#define CPL_TX_SEC_PDU_PLACEHOLDER_V(x) ((x) << CPL_TX_SEC_PDU_PLACEHOLDER_S)
+#define CPL_TX_SEC_PDU_PLACEHOLDER_G(x) \
+	(((x) >> CPL_TX_SEC_PDU_PLACEHOLDER_S) & \
+	 CPL_TX_SEC_PDU_PLACEHOLDER_M)
+
+/* IvInsrtOffset: Insertion location for IV */
+#define CPL_TX_SEC_PDU_IVINSRTOFST_S    0
+#define CPL_TX_SEC_PDU_IVINSRTOFST_M    0x3ff
+#define CPL_TX_SEC_PDU_IVINSRTOFST_V(x) ((x) << CPL_TX_SEC_PDU_IVINSRTOFST_S)
+#define CPL_TX_SEC_PDU_IVINSRTOFST_G(x) \
+	(((x) >> CPL_TX_SEC_PDU_IVINSRTOFST_S) & \
+	 CPL_TX_SEC_PDU_IVINSRTOFST_M)
+
+/* AadStartOffset: Offset in bytes for AAD start from
+ * the first byte following the pkt headers (0-255 bytes)
+ */
+#define CPL_TX_SEC_PDU_AADSTART_S   24
+#define CPL_TX_SEC_PDU_AADSTART_M   0xff
+#define CPL_TX_SEC_PDU_AADSTART_V(x)    ((x) << CPL_TX_SEC_PDU_AADSTART_S)
+#define CPL_TX_SEC_PDU_AADSTART_G(x)    \
+	(((x) >> CPL_TX_SEC_PDU_AADSTART_S) & \
+	 CPL_TX_SEC_PDU_AADSTART_M)
+
+/* AadStopOffset: offset in bytes for AAD stop/end from the first byte following
+ * the pkt headers (0-511 bytes)
+ */
+#define CPL_TX_SEC_PDU_AADSTOP_S    15
+#define CPL_TX_SEC_PDU_AADSTOP_M    0x1ff
+#define CPL_TX_SEC_PDU_AADSTOP_V(x) ((x) << CPL_TX_SEC_PDU_AADSTOP_S)
+#define CPL_TX_SEC_PDU_AADSTOP_G(x) \
+	(((x) >> CPL_TX_SEC_PDU_AADSTOP_S) & CPL_TX_SEC_PDU_AADSTOP_M)
+
+/* CipherStartOffset: offset in bytes for encryption/decryption start from the
+ * first byte following the pkt headers (0-1023 bytes)
+ */
+#define CPL_TX_SEC_PDU_CIPHERSTART_S    5
+#define CPL_TX_SEC_PDU_CIPHERSTART_M    0x3ff
+#define CPL_TX_SEC_PDU_CIPHERSTART_V(x) ((x) << CPL_TX_SEC_PDU_CIPHERSTART_S)
+#define CPL_TX_SEC_PDU_CIPHERSTART_G(x) \
+	(((x) >> CPL_TX_SEC_PDU_CIPHERSTART_S) & \
+	 CPL_TX_SEC_PDU_CIPHERSTART_M)
+
+/* CipherStopOffset: offset in bytes for encryption/decryption end
+ * from end of the payload of this command (0-511 bytes)
+ */
+#define CPL_TX_SEC_PDU_CIPHERSTOP_HI_S      0
+#define CPL_TX_SEC_PDU_CIPHERSTOP_HI_M      0x1f
+#define CPL_TX_SEC_PDU_CIPHERSTOP_HI_V(x)   \
+	((x) << CPL_TX_SEC_PDU_CIPHERSTOP_HI_S)
+#define CPL_TX_SEC_PDU_CIPHERSTOP_HI_G(x)   \
+	(((x) >> CPL_TX_SEC_PDU_CIPHERSTOP_HI_S) & \
+	 CPL_TX_SEC_PDU_CIPHERSTOP_HI_M)
+
+#define CPL_TX_SEC_PDU_CIPHERSTOP_LO_S      28
+#define CPL_TX_SEC_PDU_CIPHERSTOP_LO_M      0xf
+#define CPL_TX_SEC_PDU_CIPHERSTOP_LO_V(x)   \
+	((x) << CPL_TX_SEC_PDU_CIPHERSTOP_LO_S)
+#define CPL_TX_SEC_PDU_CIPHERSTOP_LO_G(x)   \
+	(((x) >> CPL_TX_SEC_PDU_CIPHERSTOP_LO_S) & \
+	 CPL_TX_SEC_PDU_CIPHERSTOP_LO_M)
+
+/* AuthStartOffset: offset in bytes for authentication start from
+ * the first byte following the pkt headers (0-1023)
+ */
+#define CPL_TX_SEC_PDU_AUTHSTART_S  18
+#define CPL_TX_SEC_PDU_AUTHSTART_M  0x3ff
+#define CPL_TX_SEC_PDU_AUTHSTART_V(x)   ((x) << CPL_TX_SEC_PDU_AUTHSTART_S)
+#define CPL_TX_SEC_PDU_AUTHSTART_G(x)   \
+	(((x) >> CPL_TX_SEC_PDU_AUTHSTART_S) & \
+	 CPL_TX_SEC_PDU_AUTHSTART_M)
+
+/* AuthStopOffset: offset in bytes for authentication
+ * end from end of the payload of this command (0-511 Bytes)
+ */
+#define CPL_TX_SEC_PDU_AUTHSTOP_S   9
+#define CPL_TX_SEC_PDU_AUTHSTOP_M   0x1ff
+#define CPL_TX_SEC_PDU_AUTHSTOP_V(x)    ((x) << CPL_TX_SEC_PDU_AUTHSTOP_S)
+#define CPL_TX_SEC_PDU_AUTHSTOP_G(x)    \
+	(((x) >> CPL_TX_SEC_PDU_AUTHSTOP_S) & \
+	 CPL_TX_SEC_PDU_AUTHSTOP_M)
+
+/* AuthInsrtOffset: offset in bytes for authentication insertion
+ * from end of the payload of this command (0-511 bytes)
+ */
+#define CPL_TX_SEC_PDU_AUTHINSERT_S 0
+#define CPL_TX_SEC_PDU_AUTHINSERT_M 0x1ff
+#define CPL_TX_SEC_PDU_AUTHINSERT_V(x)  ((x) << CPL_TX_SEC_PDU_AUTHINSERT_S)
+#define CPL_TX_SEC_PDU_AUTHINSERT_G(x)  \
+	(((x) >> CPL_TX_SEC_PDU_AUTHINSERT_S) & \
+	 CPL_TX_SEC_PDU_AUTHINSERT_M)
+
+struct cpl_rx_phys_dsgl {
+	__be32 op_to_tid;
+	__be32 pcirlxorder_to_noofsgentr;
+	struct rss_header rss_hdr_int;
+};
+
+#define CPL_RX_PHYS_DSGL_OPCODE_S       24
+#define CPL_RX_PHYS_DSGL_OPCODE_M       0xff
+#define CPL_RX_PHYS_DSGL_OPCODE_V(x)    ((x) << CPL_RX_PHYS_DSGL_OPCODE_S)
+#define CPL_RX_PHYS_DSGL_OPCODE_G(x)    \
+	(((x) >> CPL_RX_PHYS_DSGL_OPCODE_S) & CPL_RX_PHYS_DSGL_OPCODE_M)
+
+#define CPL_RX_PHYS_DSGL_ISRDMA_S       23
+#define CPL_RX_PHYS_DSGL_ISRDMA_M       0x1
+#define CPL_RX_PHYS_DSGL_ISRDMA_V(x)    ((x) << CPL_RX_PHYS_DSGL_ISRDMA_S)
+#define CPL_RX_PHYS_DSGL_ISRDMA_G(x)    \
+	(((x) >> CPL_RX_PHYS_DSGL_ISRDMA_S) & CPL_RX_PHYS_DSGL_ISRDMA_M)
+#define CPL_RX_PHYS_DSGL_ISRDMA_F       CPL_RX_PHYS_DSGL_ISRDMA_V(1U)
+
+#define CPL_RX_PHYS_DSGL_RSVD1_S        20
+#define CPL_RX_PHYS_DSGL_RSVD1_M        0x7
+#define CPL_RX_PHYS_DSGL_RSVD1_V(x)     ((x) << CPL_RX_PHYS_DSGL_RSVD1_S)
+#define CPL_RX_PHYS_DSGL_RSVD1_G(x)     \
+	(((x) >> CPL_RX_PHYS_DSGL_RSVD1_S) & \
+	 CPL_RX_PHYS_DSGL_RSVD1_M)
+
+#define CPL_RX_PHYS_DSGL_PCIRLXORDER_S          31
+#define CPL_RX_PHYS_DSGL_PCIRLXORDER_M          0x1
+#define CPL_RX_PHYS_DSGL_PCIRLXORDER_V(x)       \
+	((x) << CPL_RX_PHYS_DSGL_PCIRLXORDER_S)
+#define CPL_RX_PHYS_DSGL_PCIRLXORDER_G(x)       \
+	(((x) >> CPL_RX_PHYS_DSGL_PCIRLXORDER_S) & \
+	 CPL_RX_PHYS_DSGL_PCIRLXORDER_M)
+#define CPL_RX_PHYS_DSGL_PCIRLXORDER_F  CPL_RX_PHYS_DSGL_PCIRLXORDER_V(1U)
+
+#define CPL_RX_PHYS_DSGL_PCINOSNOOP_S           30
+#define CPL_RX_PHYS_DSGL_PCINOSNOOP_M           0x1
+#define CPL_RX_PHYS_DSGL_PCINOSNOOP_V(x)        \
+	((x) << CPL_RX_PHYS_DSGL_PCINOSNOOP_S)
+#define CPL_RX_PHYS_DSGL_PCINOSNOOP_G(x)        \
+	(((x) >> CPL_RX_PHYS_DSGL_PCINOSNOOP_S) & \
+	 CPL_RX_PHYS_DSGL_PCINOSNOOP_M)
+
+#define CPL_RX_PHYS_DSGL_PCINOSNOOP_F   CPL_RX_PHYS_DSGL_PCINOSNOOP_V(1U)
+
+#define CPL_RX_PHYS_DSGL_PCITPHNTENB_S          29
+#define CPL_RX_PHYS_DSGL_PCITPHNTENB_M          0x1
+#define CPL_RX_PHYS_DSGL_PCITPHNTENB_V(x)       \
+	((x) << CPL_RX_PHYS_DSGL_PCITPHNTENB_S)
+#define CPL_RX_PHYS_DSGL_PCITPHNTENB_G(x)       \
+	(((x) >> CPL_RX_PHYS_DSGL_PCITPHNTENB_S) & \
+	 CPL_RX_PHYS_DSGL_PCITPHNTENB_M)
+#define CPL_RX_PHYS_DSGL_PCITPHNTENB_F  CPL_RX_PHYS_DSGL_PCITPHNTENB_V(1U)
+
+#define CPL_RX_PHYS_DSGL_PCITPHNT_S     27
+#define CPL_RX_PHYS_DSGL_PCITPHNT_M     0x3
+#define CPL_RX_PHYS_DSGL_PCITPHNT_V(x)  ((x) << CPL_RX_PHYS_DSGL_PCITPHNT_S)
+#define CPL_RX_PHYS_DSGL_PCITPHNT_G(x)  \
+	(((x) >> CPL_RX_PHYS_DSGL_PCITPHNT_S) & \
+	 CPL_RX_PHYS_DSGL_PCITPHNT_M)
+
+#define CPL_RX_PHYS_DSGL_DCAID_S        16
+#define CPL_RX_PHYS_DSGL_DCAID_M        0x7ff
+#define CPL_RX_PHYS_DSGL_DCAID_V(x)     ((x) << CPL_RX_PHYS_DSGL_DCAID_S)
+#define CPL_RX_PHYS_DSGL_DCAID_G(x)     \
+	(((x) >> CPL_RX_PHYS_DSGL_DCAID_S) & \
+	 CPL_RX_PHYS_DSGL_DCAID_M)
+
+#define CPL_RX_PHYS_DSGL_NOOFSGENTR_S           0
+#define CPL_RX_PHYS_DSGL_NOOFSGENTR_M           0xffff
+#define CPL_RX_PHYS_DSGL_NOOFSGENTR_V(x)        \
+	((x) << CPL_RX_PHYS_DSGL_NOOFSGENTR_S)
+#define CPL_RX_PHYS_DSGL_NOOFSGENTR_G(x)        \
+	(((x) >> CPL_RX_PHYS_DSGL_NOOFSGENTR_S) & \
+	 CPL_RX_PHYS_DSGL_NOOFSGENTR_M)
+
+struct cpl_rx_mps_pkt {
+	__be32 op_to_r1_hi;
+	__be32 r1_lo_length;
+};
+
+#define CPL_RX_MPS_PKT_OP_S     24
+#define CPL_RX_MPS_PKT_OP_M     0xff
+#define CPL_RX_MPS_PKT_OP_V(x)  ((x) << CPL_RX_MPS_PKT_OP_S)
+#define CPL_RX_MPS_PKT_OP_G(x)  \
+	(((x) >> CPL_RX_MPS_PKT_OP_S) & CPL_RX_MPS_PKT_OP_M)
+
+#define CPL_RX_MPS_PKT_TYPE_S           20
+#define CPL_RX_MPS_PKT_TYPE_M           0xf
+#define CPL_RX_MPS_PKT_TYPE_V(x)        ((x) << CPL_RX_MPS_PKT_TYPE_S)
+#define CPL_RX_MPS_PKT_TYPE_G(x)        \
+	(((x) >> CPL_RX_MPS_PKT_TYPE_S) & CPL_RX_MPS_PKT_TYPE_M)
+
+enum {
+	X_CPL_RX_MPS_PKT_TYPE_PAUSE = 1 << 0,
+	X_CPL_RX_MPS_PKT_TYPE_PPP   = 1 << 1,
+	X_CPL_RX_MPS_PKT_TYPE_QFC   = 1 << 2,
+	X_CPL_RX_MPS_PKT_TYPE_PTP   = 1 << 3
+};
 #endif  /* __T4_MSG_H */

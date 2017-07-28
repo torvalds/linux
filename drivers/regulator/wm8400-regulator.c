@@ -24,7 +24,7 @@ static const struct regulator_linear_range wm8400_ldo_ranges[] = {
 	REGULATOR_LINEAR_RANGE(1700000, 15, 31, 100000),
 };
 
-static struct regulator_ops wm8400_ldo_ops = {
+static const struct regulator_ops wm8400_ldo_ops = {
 	.is_enabled = regulator_is_enabled_regmap,
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,
@@ -106,7 +106,7 @@ static unsigned int wm8400_dcdc_get_optimum_mode(struct regulator_dev *dev,
 	return REGULATOR_MODE_NORMAL;
 }
 
-static struct regulator_ops wm8400_dcdc_ops = {
+static const struct regulator_ops wm8400_dcdc_ops = {
 	.is_enabled = regulator_is_enabled_regmap,
 	.enable = regulator_enable_regmap,
 	.disable = regulator_disable_regmap,

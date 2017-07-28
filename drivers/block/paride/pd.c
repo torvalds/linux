@@ -61,7 +61,7 @@
                         first drive found.
 			
 
-            major       You may use this parameter to overide the
+            major       You may use this parameter to override the
                         default major number (45) that this driver
                         will use.  Be sure to change the device
                         name as well.
@@ -126,7 +126,7 @@
 */
 #include <linux/types.h>
 
-static bool verbose = 0;
+static int verbose = 0;
 static int major = PD_MAJOR;
 static char *name = PD_NAME;
 static int cluster = 64;
@@ -155,13 +155,13 @@ enum {D_PRT, D_PRO, D_UNI, D_MOD, D_GEO, D_SBY, D_DLY, D_SLV};
 #include <linux/blkpg.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/workqueue.h>
 
 static DEFINE_MUTEX(pd_mutex);
 static DEFINE_SPINLOCK(pd_lock);
 
-module_param(verbose, bool, 0);
+module_param(verbose, int, 0);
 module_param(major, int, 0);
 module_param(name, charp, 0);
 module_param(cluster, int, 0);
@@ -381,11 +381,32 @@ static enum action do_pd_write_start(void);
 static enum action do_pd_read_drq(void);
 static enum action do_pd_write_done(void);
 
-static struct request_queue *pd_queue;
+static int pd_queue;
 static int pd_claimed;
 
 static struct pd_unit *pd_current; /* current request's drive */
 static PIA *pi_current; /* current request's PIA */
+
+static int set_next_request(void)
+{
+	struct gendisk *disk;
+	struct request_queue *q;
+	int old_pos = pd_queue;
+
+	do {
+		disk = pd[pd_queue].gd;
+		q = disk ? disk->queue : NULL;
+		if (++pd_queue == PD_UNITS)
+			pd_queue = 0;
+		if (q) {
+			pd_req = blk_fetch_request(q);
+			if (pd_req)
+				break;
+		}
+	} while (pd_queue != old_pos);
+
+	return pd_req != NULL;
+}
 
 static void run_fsm(void)
 {
@@ -417,9 +438,8 @@ static void run_fsm(void)
 				phase = NULL;
 				spin_lock_irqsave(&pd_lock, saved_flags);
 				if (!__blk_end_request_cur(pd_req,
-						res == Ok ? 0 : -EIO)) {
-					pd_req = blk_fetch_request(pd_queue);
-					if (!pd_req)
+						res == Ok ? 0 : BLK_STS_IOERR)) {
+					if (!set_next_request())
 						stop = 1;
 				}
 				spin_unlock_irqrestore(&pd_lock, saved_flags);
@@ -439,18 +459,16 @@ static int pd_retries = 0;	/* i/o error retry count */
 static int pd_block;		/* address of next requested block */
 static int pd_count;		/* number of blocks still to do */
 static int pd_run;		/* sectors in current cluster */
-static int pd_cmd;		/* current command READ/WRITE */
 static char *pd_buf;		/* buffer for request in progress */
 
 static enum action do_pd_io_start(void)
 {
-	if (pd_req->cmd_type == REQ_TYPE_DRV_PRIV) {
+	switch (req_op(pd_req)) {
+	case REQ_OP_DRV_IN:
 		phase = pd_special;
 		return pd_special();
-	}
-
-	pd_cmd = rq_data_dir(pd_req);
-	if (pd_cmd == READ || pd_cmd == WRITE) {
+	case REQ_OP_READ:
+	case REQ_OP_WRITE:
 		pd_block = blk_rq_pos(pd_req);
 		pd_count = blk_rq_cur_sectors(pd_req);
 		if (pd_block + pd_count > get_capacity(pd_req->rq_disk))
@@ -458,7 +476,7 @@ static enum action do_pd_io_start(void)
 		pd_run = blk_rq_sectors(pd_req);
 		pd_buf = bio_data(pd_req->bio);
 		pd_retries = 0;
-		if (pd_cmd == READ)
+		if (req_op(pd_req) == REQ_OP_READ)
 			return do_pd_read_start();
 		else
 			return do_pd_write_start();
@@ -721,19 +739,15 @@ static int pd_special_command(struct pd_unit *disk,
 		      enum action (*func)(struct pd_unit *disk))
 {
 	struct request *rq;
-	int err = 0;
 
-	rq = blk_get_request(disk->gd->queue, READ, __GFP_RECLAIM);
+	rq = blk_get_request(disk->gd->queue, REQ_OP_DRV_IN, __GFP_RECLAIM);
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
 
-	rq->cmd_type = REQ_TYPE_DRV_PRIV;
 	rq->special = func;
-
-	err = blk_execute_rq(disk->gd->queue, disk->gd, rq, 0);
-
+	blk_execute_rq(disk->gd->queue, disk->gd, rq, 0);
 	blk_put_request(rq);
-	return err;
+	return 0;
 }
 
 /* kernel glue structures */
@@ -842,7 +856,14 @@ static void pd_probe_drive(struct pd_unit *disk)
 	p->first_minor = (disk - pd) << PD_BITS;
 	disk->gd = p;
 	p->private_data = disk;
-	p->queue = pd_queue;
+	p->queue = blk_init_queue(do_pd_request, &pd_lock);
+	if (!p->queue) {
+		disk->gd = NULL;
+		put_disk(p);
+		return;
+	}
+	blk_queue_max_hw_sectors(p->queue, cluster);
+	blk_queue_bounce_limit(p->queue, BLK_BOUNCE_HIGH);
 
 	if (disk->drive == -1) {
 		for (disk->drive = 0; disk->drive <= 1; disk->drive++)
@@ -922,26 +943,18 @@ static int __init pd_init(void)
 	if (disable)
 		goto out1;
 
-	pd_queue = blk_init_queue(do_pd_request, &pd_lock);
-	if (!pd_queue)
-		goto out1;
-
-	blk_queue_max_hw_sectors(pd_queue, cluster);
-
 	if (register_blkdev(major, name))
-		goto out2;
+		goto out1;
 
 	printk("%s: %s version %s, major %d, cluster %d, nice %d\n",
 	       name, name, PD_VERSION, major, cluster, nice);
 	if (!pd_detect())
-		goto out3;
+		goto out2;
 
 	return 0;
 
-out3:
-	unregister_blkdev(major, name);
 out2:
-	blk_cleanup_queue(pd_queue);
+	unregister_blkdev(major, name);
 out1:
 	return -ENODEV;
 }
@@ -956,11 +969,11 @@ static void __exit pd_exit(void)
 		if (p) {
 			disk->gd = NULL;
 			del_gendisk(p);
+			blk_cleanup_queue(p->queue);
 			put_disk(p);
 			pi_release(disk->pi);
 		}
 	}
-	blk_cleanup_queue(pd_queue);
 }
 
 MODULE_LICENSE("GPL");

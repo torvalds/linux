@@ -804,7 +804,7 @@ mac_ready:
 	return err;
 }
 
-static struct snd_pcm_ops lx_ops_playback = {
+static const struct snd_pcm_ops lx_ops_playback = {
 	.open      = lx_pcm_open,
 	.close     = lx_pcm_close,
 	.ioctl     = snd_pcm_lib_ioctl,
@@ -815,7 +815,7 @@ static struct snd_pcm_ops lx_ops_playback = {
 	.pointer   = lx_pcm_stream_pointer,
 };
 
-static struct snd_pcm_ops lx_ops_capture = {
+static const struct snd_pcm_ops lx_ops_capture = {
 	.open      = lx_pcm_open,
 	.close     = lx_pcm_close,
 	.ioctl     = snd_pcm_lib_ioctl,
@@ -899,7 +899,7 @@ static int lx_control_playback_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-static struct snd_kcontrol_new lx_control_playback_switch = {
+static const struct snd_kcontrol_new lx_control_playback_switch = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.name = "PCM Playback Switch",
 	.index = 0,

@@ -158,7 +158,7 @@ char *audit_unpack_string(void **bufp, size_t *remain, size_t len)
 	return str;
 }
 
-/* Translate an inode field to kernel respresentation. */
+/* Translate an inode field to kernel representation. */
 static inline int audit_to_inode(struct audit_krule *krule,
 				 struct audit_field *f)
 {
@@ -338,7 +338,7 @@ static int audit_field_valid(struct audit_entry *entry, struct audit_field *f)
 		    entry->rule.listnr != AUDIT_FILTER_USER)
 			return -EINVAL;
 		break;
-	};
+	}
 
 	switch(f->type) {
 	default:
@@ -363,6 +363,7 @@ static int audit_field_valid(struct audit_entry *entry, struct audit_field *f)
 	case AUDIT_EXIT:
 	case AUDIT_SUCCESS:
 	case AUDIT_INODE:
+	case AUDIT_SESSIONID:
 		/* bit ops are only useful on syscall args */
 		if (f->op == Audit_bitmask || f->op == Audit_bittest)
 			return -EINVAL;
@@ -411,11 +412,11 @@ static int audit_field_valid(struct audit_entry *entry, struct audit_field *f)
 		if (entry->rule.listnr != AUDIT_FILTER_EXIT)
 			return -EINVAL;
 		break;
-	};
+	}
 	return 0;
 }
 
-/* Translate struct audit_rule_data to kernel's rule respresentation. */
+/* Translate struct audit_rule_data to kernel's rule representation. */
 static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 					       size_t datasz)
 {
@@ -476,6 +477,7 @@ static struct audit_entry *audit_data_to_entry(struct audit_rule_data *data,
 			if (!gid_valid(f->gid))
 				goto exit_free;
 			break;
+		case AUDIT_SESSIONID:
 		case AUDIT_ARCH:
 			entry->rule.arch_f = f;
 			break;
@@ -593,7 +595,7 @@ static inline size_t audit_pack_string(void **bufp, const char *str)
 	return len;
 }
 
-/* Translate kernel rule respresentation to struct audit_rule_data. */
+/* Translate kernel rule representation to struct audit_rule_data. */
 static struct audit_rule_data *audit_krule_to_data(struct audit_krule *krule)
 {
 	struct audit_rule_data *data;
@@ -1031,7 +1033,7 @@ out:
 }
 
 /* List rules using struct audit_rule_data. */
-static void audit_list_rules(__u32 portid, int seq, struct sk_buff_head *q)
+static void audit_list_rules(int seq, struct sk_buff_head *q)
 {
 	struct sk_buff *skb;
 	struct audit_krule *r;
@@ -1046,15 +1048,15 @@ static void audit_list_rules(__u32 portid, int seq, struct sk_buff_head *q)
 			data = audit_krule_to_data(r);
 			if (unlikely(!data))
 				break;
-			skb = audit_make_reply(portid, seq, AUDIT_LIST_RULES,
-					       0, 1, data,
+			skb = audit_make_reply(seq, AUDIT_LIST_RULES, 0, 1,
+					       data,
 					       sizeof(*data) + data->buflen);
 			if (skb)
 				skb_queue_tail(q, skb);
 			kfree(data);
 		}
 	}
-	skb = audit_make_reply(portid, seq, AUDIT_LIST_RULES, 1, 1, NULL, 0);
+	skb = audit_make_reply(seq, AUDIT_LIST_RULES, 1, 1, NULL, 0);
 	if (skb)
 		skb_queue_tail(q, skb);
 }
@@ -1074,8 +1076,7 @@ static void audit_log_rule_change(char *action, struct audit_krule *rule, int re
 		return;
 	audit_log_format(ab, "auid=%u ses=%u" ,loginuid, sessionid);
 	audit_log_task_context(ab);
-	audit_log_format(ab, " op=");
-	audit_log_string(ab, action);
+	audit_log_format(ab, " op=%s", action);
 	audit_log_key(ab, rule->filterkey);
 	audit_log_format(ab, " list=%d res=%d", rule->listnr, res);
 	audit_log_end(ab);
@@ -1084,13 +1085,11 @@ static void audit_log_rule_change(char *action, struct audit_krule *rule, int re
 /**
  * audit_rule_change - apply all rules to the specified message type
  * @type: audit message type
- * @portid: target port id for netlink audit messages
  * @seq: netlink audit message sequence (serial) number
  * @data: payload data
  * @datasz: size of payload data
  */
-int audit_rule_change(int type, __u32 portid, int seq, void *data,
-			size_t datasz)
+int audit_rule_change(int type, int seq, void *data, size_t datasz)
 {
 	int err = 0;
 	struct audit_entry *entry;
@@ -1149,7 +1148,7 @@ int audit_list_rules_send(struct sk_buff *request_skb, int seq)
 	skb_queue_head_init(&dest->q);
 
 	mutex_lock(&audit_filter_mutex);
-	audit_list_rules(portid, seq, &dest->q);
+	audit_list_rules(seq, &dest->q);
 	mutex_unlock(&audit_filter_mutex);
 
 	tsk = kthread_run(audit_send_list, dest, "audit_send_list");
@@ -1290,113 +1289,72 @@ int audit_compare_dname_path(const char *dname, const char *path, int parentlen)
 	return strncmp(p, dname, dlen);
 }
 
-static int audit_filter_user_rules(struct audit_krule *rule, int type,
-				   enum audit_state *state)
+int audit_filter(int msgtype, unsigned int listtype)
 {
-	int i;
-
-	for (i = 0; i < rule->field_count; i++) {
-		struct audit_field *f = &rule->fields[i];
-		pid_t pid;
-		int result = 0;
-		u32 sid;
-
-		switch (f->type) {
-		case AUDIT_PID:
-			pid = task_pid_nr(current);
-			result = audit_comparator(pid, f->op, f->val);
-			break;
-		case AUDIT_UID:
-			result = audit_uid_comparator(current_uid(), f->op, f->uid);
-			break;
-		case AUDIT_GID:
-			result = audit_gid_comparator(current_gid(), f->op, f->gid);
-			break;
-		case AUDIT_LOGINUID:
-			result = audit_uid_comparator(audit_get_loginuid(current),
-						  f->op, f->uid);
-			break;
-		case AUDIT_LOGINUID_SET:
-			result = audit_comparator(audit_loginuid_set(current),
-						  f->op, f->val);
-			break;
-		case AUDIT_MSGTYPE:
-			result = audit_comparator(type, f->op, f->val);
-			break;
-		case AUDIT_SUBJ_USER:
-		case AUDIT_SUBJ_ROLE:
-		case AUDIT_SUBJ_TYPE:
-		case AUDIT_SUBJ_SEN:
-		case AUDIT_SUBJ_CLR:
-			if (f->lsm_rule) {
-				security_task_getsecid(current, &sid);
-				result = security_audit_rule_match(sid,
-								   f->type,
-								   f->op,
-								   f->lsm_rule,
-								   NULL);
-			}
-			break;
-		}
-
-		if (!result)
-			return 0;
-	}
-	switch (rule->action) {
-	case AUDIT_NEVER:    *state = AUDIT_DISABLED;	    break;
-	case AUDIT_ALWAYS:   *state = AUDIT_RECORD_CONTEXT; break;
-	}
-	return 1;
-}
-
-int audit_filter_user(int type)
-{
-	enum audit_state state = AUDIT_DISABLED;
 	struct audit_entry *e;
-	int rc, ret;
-
-	ret = 1; /* Audit by default */
+	int ret = 1; /* Audit by default */
 
 	rcu_read_lock();
-	list_for_each_entry_rcu(e, &audit_filter_list[AUDIT_FILTER_USER], list) {
-		rc = audit_filter_user_rules(&e->rule, type, &state);
-		if (rc) {
-			if (rc > 0 && state == AUDIT_DISABLED)
+	if (list_empty(&audit_filter_list[listtype]))
+		goto unlock_and_return;
+	list_for_each_entry_rcu(e, &audit_filter_list[listtype], list) {
+		int i, result = 0;
+
+		for (i = 0; i < e->rule.field_count; i++) {
+			struct audit_field *f = &e->rule.fields[i];
+			pid_t pid;
+			u32 sid;
+
+			switch (f->type) {
+			case AUDIT_PID:
+				pid = task_pid_nr(current);
+				result = audit_comparator(pid, f->op, f->val);
+				break;
+			case AUDIT_UID:
+				result = audit_uid_comparator(current_uid(), f->op, f->uid);
+				break;
+			case AUDIT_GID:
+				result = audit_gid_comparator(current_gid(), f->op, f->gid);
+				break;
+			case AUDIT_LOGINUID:
+				result = audit_uid_comparator(audit_get_loginuid(current),
+							      f->op, f->uid);
+				break;
+			case AUDIT_LOGINUID_SET:
+				result = audit_comparator(audit_loginuid_set(current),
+							  f->op, f->val);
+				break;
+			case AUDIT_MSGTYPE:
+				result = audit_comparator(msgtype, f->op, f->val);
+				break;
+			case AUDIT_SUBJ_USER:
+			case AUDIT_SUBJ_ROLE:
+			case AUDIT_SUBJ_TYPE:
+			case AUDIT_SUBJ_SEN:
+			case AUDIT_SUBJ_CLR:
+				if (f->lsm_rule) {
+					security_task_getsecid(current, &sid);
+					result = security_audit_rule_match(sid,
+							f->type, f->op, f->lsm_rule, NULL);
+				}
+				break;
+			default:
+				goto unlock_and_return;
+			}
+			if (result < 0) /* error */
+				goto unlock_and_return;
+			if (!result)
+				break;
+		}
+		if (result > 0) {
+			if (e->rule.action == AUDIT_NEVER || listtype == AUDIT_FILTER_TYPE)
 				ret = 0;
 			break;
 		}
 	}
-	rcu_read_unlock();
-
-	return ret;
-}
-
-int audit_filter_type(int type)
-{
-	struct audit_entry *e;
-	int result = 0;
-
-	rcu_read_lock();
-	if (list_empty(&audit_filter_list[AUDIT_FILTER_TYPE]))
-		goto unlock_and_return;
-
-	list_for_each_entry_rcu(e, &audit_filter_list[AUDIT_FILTER_TYPE],
-				list) {
-		int i;
-		for (i = 0; i < e->rule.field_count; i++) {
-			struct audit_field *f = &e->rule.fields[i];
-			if (f->type == AUDIT_MSGTYPE) {
-				result = audit_comparator(type, f->op, f->val);
-				if (!result)
-					break;
-			}
-		}
-		if (result)
-			goto unlock_and_return;
-	}
 unlock_and_return:
 	rcu_read_unlock();
-	return result;
+	return ret;
 }
 
 static int update_lsm_rule(struct audit_krule *r)

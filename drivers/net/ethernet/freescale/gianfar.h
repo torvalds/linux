@@ -40,7 +40,7 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <linux/module.h>
 #include <linux/crc32.h>
 #include <linux/workqueue.h>
@@ -100,7 +100,8 @@ extern const char gfar_driver_version[];
 #define DEFAULT_RX_LFC_THR  16
 #define DEFAULT_LFC_PTVVAL  4
 
-#define GFAR_RXB_SIZE 1536
+/* prevent fragmenation by HW in DSA environments */
+#define GFAR_RXB_SIZE roundup(1536 + 8, 64)
 #define GFAR_SKBFRAG_SIZE (RXBUF_ALIGNMENT + GFAR_RXB_SIZE \
 			  + SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
 #define GFAR_RXB_TRUESIZE 2048
@@ -923,6 +924,7 @@ struct gfar {
 #define FSL_GIANFAR_DEV_HAS_BUF_STASHING	0x00000400
 #define FSL_GIANFAR_DEV_HAS_TIMER		0x00000800
 #define FSL_GIANFAR_DEV_HAS_WAKE_ON_FILER	0x00001000
+#define FSL_GIANFAR_DEV_HAS_RX_FILER		0x00002000
 
 #if (MAXGROUPS == 2)
 #define DEFAULT_MAPPING 	0xAA
@@ -1152,7 +1154,6 @@ struct gfar_private {
 	phy_interface_t interface;
 	struct device_node *phy_node;
 	struct device_node *tbi_node;
-	struct phy_device *phydev;
 	struct mii_bus *mii_bus;
 	int oldspeed;
 	int oldduplex;

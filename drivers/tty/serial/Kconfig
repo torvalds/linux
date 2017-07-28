@@ -114,31 +114,32 @@ config SERIAL_SB1250_DUART_CONSOLE
 	  If unsure, say Y.
 
 config SERIAL_ATMEL
-	bool "AT91 / AT32 on-chip serial port support"
-	depends on ARCH_AT91 || AVR32 || COMPILE_TEST
+	bool "AT91 on-chip serial port support"
+	depends on HAS_DMA
+	depends on ARCH_AT91 || COMPILE_TEST
 	select SERIAL_CORE
 	select SERIAL_MCTRL_GPIO if GPIOLIB
 	help
 	  This enables the driver for the on-chip UARTs of the Atmel
-	  AT91 and AT32 processors.
+	  AT91 processors.
 
 config SERIAL_ATMEL_CONSOLE
-	bool "Support for console on AT91 / AT32 serial port"
+	bool "Support for console on AT91 serial port"
 	depends on SERIAL_ATMEL=y
 	select SERIAL_CORE_CONSOLE
 	help
 	  Say Y here if you wish to use an on-chip UART on a Atmel
-	  AT91 or AT32 processor as the system console (the system
+	  AT91 processor as the system console (the system
 	  console is the device which receives all kernel messages and
 	  warnings and which allows logins in single user mode).
 
 config SERIAL_ATMEL_PDC
-	bool "Support DMA transfers on AT91 / AT32 serial port"
+	bool "Support DMA transfers on AT91 serial port"
 	depends on SERIAL_ATMEL
 	default y
 	help
 	  Say Y here if you wish to use the PDC to do DMA transfers to
-	  and from the Atmel AT91 / AT32 serial port. In order to
+	  and from the Atmel AT91 serial port. In order to
 	  actually use DMA transfers, make sure that the use_dma_tx
 	  and use_dma_rx members in the atmel_uart_data struct is set
 	  appropriately for each port.
@@ -151,7 +152,7 @@ config SERIAL_ATMEL_TTYAT
 	bool "Install as device ttyATn instead of ttySn"
 	depends on SERIAL_ATMEL=y
 	help
-	  Say Y here if you wish to have the internal AT91 / AT32 UARTs
+	  Say Y here if you wish to have the internal AT91 UARTs
 	  appear as /dev/ttyATn (major 204, minor starting at 154)
 	  instead of the normal /dev/ttySn (major 4, minor starting at
 	  64). This is necessary if you also want other UARTs, such as
@@ -212,6 +213,7 @@ config SERIAL_MESON_CONSOLE
 	bool "Support for console on meson"
 	depends on SERIAL_MESON=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	help
 	  Say Y here if you wish to use a Amlogic MesonX UART as the
 	  system console (the system console is the device which
@@ -436,17 +438,27 @@ config SERIAL_MPSC_CONSOLE
 	  Say Y here if you want to support a serial console on a Marvell MPSC.
 
 config SERIAL_PXA
-	bool "PXA serial port support"
+	bool "PXA serial port support (DEPRECATED)"
 	depends on ARCH_PXA || ARCH_MMP
 	select SERIAL_CORE
+	select SERIAL_8250_PXA if SERIAL_8250=y
+	select SERIAL_PXA_NON8250 if !SERIAL_8250=y
 	help
 	  If you have a machine based on an Intel XScale PXA2xx CPU you
 	  can enable its onboard serial ports by enabling this option.
 
+	  Unless you have a specific need, you should use SERIAL_8250_PXA
+	  instead of this.
+
+config SERIAL_PXA_NON8250
+	bool
+	depends on !SERIAL_8250
+
 config SERIAL_PXA_CONSOLE
-	bool "Console on PXA serial port"
+	bool "Console on PXA serial port (DEPRECATED)"
 	depends on SERIAL_PXA
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_8250_CONSOLE if SERIAL_8250=y
 	help
 	  If you have enabled the serial port on the Intel XScale PXA
 	  CPU you can make it the console by answering Y to this option.
@@ -457,6 +469,9 @@ config SERIAL_PXA_CONSOLE
 	  "console=ttySA0". (Try "man bootparam" or see the documentation of
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
+
+	  Unless you have a specific need, you should use SERIAL_8250_PXA
+	  and SERIAL_8250_CONSOLE instead of this.
 
 config SERIAL_SA1100
 	bool "SA1100 serial port support"
@@ -571,9 +586,11 @@ config BFIN_UART3_CTSRTS
 
 config SERIAL_IMX
 	tristate "IMX serial port support"
+	depends on HAS_DMA
 	depends on ARCH_MXC || COMPILE_TEST
 	select SERIAL_CORE
 	select RATIONAL
+	select SERIAL_MCTRL_GPIO if GPIOLIB
 	help
 	  If you have a machine based on a Motorola IMX CPU you
 	  can enable its onboard serial port by enabling this option.
@@ -607,10 +624,20 @@ config SERIAL_UARTLITE_CONSOLE
 	bool "Support for console on Xilinx uartlite serial port"
 	depends on SERIAL_UARTLITE=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	help
 	  Say Y here if you wish to use a Xilinx uartlite as the system
 	  console (the system console is the device which receives all kernel
 	  messages and warnings and which allows logins in single user mode).
+
+config SERIAL_UARTLITE_NR_UARTS
+	int "Maximum number of uartlite serial ports"
+	depends on SERIAL_UARTLITE
+	range 1 256
+	default 1
+	help
+	  Set this to the number of uartlites in your system, or the number
+	  you think you might implement.
 
 config SERIAL_SUNCORE
 	bool
@@ -729,8 +756,9 @@ config SERIAL_IP22_ZILOG_CONSOLE
 
 config SERIAL_SH_SCI
 	tristate "SuperH SCI(F) serial port support"
-	depends on SUPERH || ARCH_SHMOBILE || H8300 || COMPILE_TEST
+	depends on SUPERH || ARCH_RENESAS || H8300 || COMPILE_TEST
 	select SERIAL_CORE
+	select SERIAL_MCTRL_GPIO if GPIOLIB
 
 config SERIAL_SH_SCI_NR_UARTS
 	int "Maximum number of SCI(F) serial ports"
@@ -741,6 +769,12 @@ config SERIAL_SH_SCI_CONSOLE
 	bool "Support for console on SuperH SCI(F)"
 	depends on SERIAL_SH_SCI=y
 	select SERIAL_CORE_CONSOLE
+
+config SERIAL_SH_SCI_EARLYCON
+	bool "Support for early console on SuperH SCI(F)"
+	depends on SERIAL_SH_SCI=y
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 
 config SERIAL_SH_SCI_DMA
 	bool "DMA support"
@@ -789,17 +823,6 @@ config SERIAL_CORE_CONSOLE
 
 config CONSOLE_POLL
 	bool
-
-config SERIAL_68328
-	bool "68328 serial support"
-	depends on M68328 || M68EZ328 || M68VZ328
-	help
-	  This driver supports the built-in serial port of the Motorola 68328
-	  (standard, EZ and VZ varieties).
-
-config SERIAL_68328_RTS_CTS
-	bool "Support RTS/CTS on 68328 serial port"
-	depends on SERIAL_68328
 
 config SERIAL_MCF
 	bool "Coldfire serial support"
@@ -900,6 +923,27 @@ config SERIAL_SGI_L1_CONSOLE
 		If you have an SGI Altix and you would like to use the system
 		controller serial port as your console (you want this!),
 		say Y.  Otherwise, say N.
+
+config SERIAL_PIC32
+	tristate "Microchip PIC32 serial support"
+	depends on MACH_PIC32
+	select SERIAL_CORE
+	help
+	  If you have a PIC32, this driver supports the serial ports.
+
+	  Say Y or M to use PIC32 serial ports, otherwise say N. Note that
+	  to use a serial port as a console, this must be included in kernel and
+	  not as a module.
+
+config SERIAL_PIC32_CONSOLE
+	bool "PIC32 serial console support"
+	depends on SERIAL_PIC32
+	select SERIAL_CORE_CONSOLE
+	help
+	  If you have a PIC32, this driver supports the putting a console on one
+	  of the serial ports.
+
+	  Say Y to use the PIC32 console, otherwise say N.
 
 config SERIAL_MPC52xx
 	tristate "Freescale MPC52xx/MPC512x family PSC serial support"
@@ -1044,7 +1088,7 @@ config SERIAL_SGI_IOC3
 	  say Y or M.  Otherwise, say N.
 
 config SERIAL_MSM
-	bool "MSM on-chip serial port support"
+	tristate "MSM on-chip serial port support"
 	depends on ARCH_QCOM
 	select SERIAL_CORE
 
@@ -1094,16 +1138,6 @@ config SERIAL_NETX_CONSOLE
 	  If you have enabled the serial port on the Hilscher NetX SoC
 	  you can make it the console by answering Y to this option.
 
-config SERIAL_OF_PLATFORM
-	tristate "Serial port on Open Firmware platform bus"
-	depends on OF
-	depends on SERIAL_8250 || SERIAL_OF_PLATFORM_NWPSERIAL
-	help
-	  If you have a PowerPC based system that has serial ports
-	  on a platform specific bus, you should enable this option.
-	  Currently, only 8250 compatible ports are supported, but
-	  others can easily be added.
-
 config SERIAL_OMAP
 	tristate "OMAP serial port support"
 	depends on ARCH_OMAP2PLUS
@@ -1131,28 +1165,12 @@ config SERIAL_OMAP_CONSOLE
 	  your boot loader about how to pass options to the kernel at
 	  boot time.)
 
-config SERIAL_OF_PLATFORM_NWPSERIAL
-	tristate "NWP serial port driver"
-	depends on PPC_DCR
-	select SERIAL_OF_PLATFORM
-	select SERIAL_CORE_CONSOLE
-	select SERIAL_CORE
-	help
-	  This driver supports the cell network processor nwp serial
-	  device.
-
-config SERIAL_OF_PLATFORM_NWPSERIAL_CONSOLE
-	bool "Console on NWP serial port"
-	depends on SERIAL_OF_PLATFORM_NWPSERIAL=y
-	select SERIAL_CORE_CONSOLE
-	help
-	  Support for Console on the NWP serial ports.
-
 config SERIAL_LANTIQ
 	bool "Lantiq serial driver"
 	depends on LANTIQ
 	select SERIAL_CORE
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	help
 	  Support for console and UART on Lantiq SoCs.
 
@@ -1334,6 +1352,7 @@ config SERIAL_ALTERA_JTAGUART_CONSOLE
 	bool "Altera JTAG UART console support"
 	depends on SERIAL_ALTERA_JTAGUART=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	help
 	  Enable a Altera JTAG UART port to be the system console.
 
@@ -1373,6 +1392,7 @@ config SERIAL_ALTERA_UART_CONSOLE
 	bool "Altera UART console support"
 	depends on SERIAL_ALTERA_UART=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 	help
 	  Enable a Altera UART port to be the system console.
 
@@ -1385,7 +1405,7 @@ config SERIAL_IFX6X60
 
 config SERIAL_PCH_UART
 	tristate "Intel EG20T PCH/LAPIS Semicon IOH(ML7213/ML7223/ML7831) UART"
-	depends on PCI && (X86_32 || COMPILE_TEST)
+	depends on PCI && (X86_32 || MIPS ||  COMPILE_TEST)
 	select SERIAL_CORE
 	help
 	  This driver is for PCH(Platform controller Hub) UART of Intel EG20T
@@ -1409,12 +1429,14 @@ config SERIAL_PCH_UART_CONSOLE
 	  warnings and which allows logins in single user mode).
 
 config SERIAL_MXS_AUART
-	depends on ARCH_MXS || COMPILE_TEST
 	tristate "MXS AUART support"
+	depends on HAS_DMA
+	depends on ARCH_MXS || MACH_ASM9260 || COMPILE_TEST
 	select SERIAL_CORE
 	select SERIAL_MCTRL_GPIO if GPIOLIB
 	help
-	  This driver supports the MXS Application UART (AUART) port.
+	  This driver supports the MXS and Alphascale ASM9260 Application
+	  UART (AUART) port.
 
 config SERIAL_MXS_AUART_CONSOLE
 	bool "MXS AUART console support"
@@ -1472,6 +1494,19 @@ config SERIAL_EFM32_UART
 	help
 	  This driver support the USART and UART ports on
 	  Energy Micro's efm32 SoCs.
+
+config SERIAL_MPS2_UART_CONSOLE
+	bool "MPS2 UART console support"
+	depends on SERIAL_MPS2_UART
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
+
+config SERIAL_MPS2_UART
+	bool "MPS2 UART port"
+	depends on ARCH_MPS2 || COMPILE_TEST
+	select SERIAL_CORE
+	help
+	  This driver support the UART ports on ARM MPS2.
 
 config SERIAL_EFM32_UART_CONSOLE
 	bool "EFM32 UART/USART console support"
@@ -1615,7 +1650,8 @@ config SERIAL_SPRD_CONSOLE
 config SERIAL_STM32
 	tristate "STMicroelectronics STM32 serial port support"
 	select SERIAL_CORE
-	depends on ARM || COMPILE_TEST
+	depends on HAS_DMA
+	depends on ARCH_STM32 || COMPILE_TEST
 	help
 	  This driver is for the on-chip Serial Controller on
 	  STMicroelectronics STM32 MCUs.
@@ -1628,6 +1664,48 @@ config SERIAL_STM32_CONSOLE
 	bool "Support for console on STM32"
 	depends on SERIAL_STM32=y
 	select SERIAL_CORE_CONSOLE
+
+config SERIAL_MVEBU_UART
+	bool "Marvell EBU serial port support"
+	depends on ARCH_MVEBU || COMPILE_TEST
+	select SERIAL_CORE
+	help
+	  This driver is for Marvell EBU SoC's UART. If you have a machine
+	  based on the Armada-3700 SoC and wish to use the on-board serial
+	  port,
+	  say 'Y' here.
+	  Otherwise, say 'N'.
+
+config SERIAL_MVEBU_CONSOLE
+	bool "Console on Marvell EBU serial port"
+	depends on SERIAL_MVEBU_UART
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
+	default y
+	help
+	  Say 'Y' here if you wish to use Armada-3700 UART as the system console.
+	  (the system console is the device which receives all kernel messages
+	  and warnings and which allows logins in single user mode)
+	  Otherwise, say 'N'.
+
+config SERIAL_OWL
+	bool "Actions Semi Owl serial port support"
+	depends on ARCH_ACTIONS || COMPILE_TEST
+	select SERIAL_CORE
+	help
+	  This driver is for Actions Semiconductor S500/S900 SoC's UART.
+	  Say 'Y' here if you wish to use the on-board serial port.
+	  Otherwise, say 'N'.
+
+config SERIAL_OWL_CONSOLE
+	bool "Console on Actions Semi Owl serial port"
+	depends on SERIAL_OWL=y
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
+	default y
+	help
+	  Say 'Y' here if you wish to use Actions Semiconductor S500/S900 UART
+	  as the system console. Only earlycon is implemented currently.
 
 endmenu
 

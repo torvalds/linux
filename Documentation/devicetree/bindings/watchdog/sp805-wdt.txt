@@ -1,0 +1,31 @@
+* ARM SP805 Watchdog Timer (WDT) Controller
+
+SP805 WDT is a ARM Primecell Peripheral and has a standard-id register that
+can be used to identify the peripheral type, vendor, and revision.
+This value can be used for driver matching.
+
+As SP805 WDT is a primecell IP, it follows the base bindings specified in
+'arm/primecell.txt'
+
+Required properties:
+- compatible : Should be "arm,sp805-wdt", "arm,primecell"
+- reg : Base address and size of the watchdog timer registers.
+- clocks : From common clock binding.
+           First clock is PCLK and the second is WDOGCLK.
+           WDOGCLK can be equal to or be a sub-multiple of the PCLK frequency.
+- clock-names : From common clock binding.
+                Shall be "apb_pclk" for first clock and "wdog_clk" for the
+                second one.
+
+Optional properties:
+- interrupts : Should specify WDT interrupt number.
+
+Examples:
+
+		cluster1_core0_watchdog: wdt@c000000 {
+			compatible = "arm,sp805-wdt", "arm,primecell";
+			reg = <0x0 0xc000000 0x0 0x1000>;
+			clocks = <&clockgen 4 3>, <&clockgen 4 3>;
+			clock-names = "apb_pclk", "wdog_clk";
+		};
+

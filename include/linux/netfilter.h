@@ -49,44 +49,18 @@ struct sock;
 
 struct nf_hook_state {
 	unsigned int hook;
-	int thresh;
 	u_int8_t pf;
 	struct net_device *in;
 	struct net_device *out;
 	struct sock *sk;
 	struct net *net;
-	struct list_head *hook_list;
 	int (*okfn)(struct net *, struct sock *, struct sk_buff *);
 };
-
-static inline void nf_hook_state_init(struct nf_hook_state *p,
-				      struct list_head *hook_list,
-				      unsigned int hook,
-				      int thresh, u_int8_t pf,
-				      struct net_device *indev,
-				      struct net_device *outdev,
-				      struct sock *sk,
-				      struct net *net,
-				      int (*okfn)(struct net *, struct sock *, struct sk_buff *))
-{
-	p->hook = hook;
-	p->thresh = thresh;
-	p->pf = pf;
-	p->in = indev;
-	p->out = outdev;
-	p->sk = sk;
-	p->net = net;
-	p->hook_list = hook_list;
-	p->okfn = okfn;
-}
 
 typedef unsigned int nf_hookfn(void *priv,
 			       struct sk_buff *skb,
 			       const struct nf_hook_state *state);
-
 struct nf_hook_ops {
-	struct list_head 	list;
-
 	/* User fills in from here down. */
 	nf_hookfn		*hook;
 	struct net_device	*dev;
@@ -96,6 +70,61 @@ struct nf_hook_ops {
 	/* Hooks are ordered in ascending priority. */
 	int			priority;
 };
+
+struct nf_hook_entry {
+	struct nf_hook_entry __rcu	*next;
+	nf_hookfn			*hook;
+	void				*priv;
+	const struct nf_hook_ops	*orig_ops;
+};
+
+static inline void
+nf_hook_entry_init(struct nf_hook_entry *entry,	const struct nf_hook_ops *ops)
+{
+	entry->next = NULL;
+	entry->hook = ops->hook;
+	entry->priv = ops->priv;
+	entry->orig_ops = ops;
+}
+
+static inline int
+nf_hook_entry_priority(const struct nf_hook_entry *entry)
+{
+	return entry->orig_ops->priority;
+}
+
+static inline int
+nf_hook_entry_hookfn(const struct nf_hook_entry *entry, struct sk_buff *skb,
+		     struct nf_hook_state *state)
+{
+	return entry->hook(entry->priv, skb, state);
+}
+
+static inline const struct nf_hook_ops *
+nf_hook_entry_ops(const struct nf_hook_entry *entry)
+{
+	return entry->orig_ops;
+}
+
+static inline void nf_hook_state_init(struct nf_hook_state *p,
+				      unsigned int hook,
+				      u_int8_t pf,
+				      struct net_device *indev,
+				      struct net_device *outdev,
+				      struct sock *sk,
+				      struct net *net,
+				      int (*okfn)(struct net *, struct sock *, struct sk_buff *))
+{
+	p->hook = hook;
+	p->pf = pf;
+	p->in = indev;
+	p->out = outdev;
+	p->sk = sk;
+	p->net = net;
+	p->okfn = okfn;
+}
+
+
 
 struct nf_sockopt_ops {
 	struct list_head list;
@@ -129,11 +158,6 @@ int nf_register_net_hooks(struct net *net, const struct nf_hook_ops *reg,
 void nf_unregister_net_hooks(struct net *net, const struct nf_hook_ops *reg,
 			     unsigned int n);
 
-int nf_register_hook(struct nf_hook_ops *reg);
-void nf_unregister_hook(struct nf_hook_ops *reg);
-int nf_register_hooks(struct nf_hook_ops *reg, unsigned int n);
-void nf_unregister_hooks(struct nf_hook_ops *reg, unsigned int n);
-
 /* Functions to register get/setsockopt ranges (non-inclusive).  You
    need to check permissions yourself! */
 int nf_register_sockopt(struct nf_sockopt_ops *reg);
@@ -141,62 +165,48 @@ void nf_unregister_sockopt(struct nf_sockopt_ops *reg);
 
 #ifdef HAVE_JUMP_LABEL
 extern struct static_key nf_hooks_needed[NFPROTO_NUMPROTO][NF_MAX_HOOKS];
-
-static inline bool nf_hook_list_active(struct list_head *hook_list,
-				       u_int8_t pf, unsigned int hook)
-{
-	if (__builtin_constant_p(pf) &&
-	    __builtin_constant_p(hook))
-		return static_key_false(&nf_hooks_needed[pf][hook]);
-
-	return !list_empty(hook_list);
-}
-#else
-static inline bool nf_hook_list_active(struct list_head *hook_list,
-				       u_int8_t pf, unsigned int hook)
-{
-	return !list_empty(hook_list);
-}
 #endif
 
-int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state);
+int nf_hook_slow(struct sk_buff *skb, struct nf_hook_state *state,
+		 struct nf_hook_entry *entry);
 
 /**
- *	nf_hook_thresh - call a netfilter hook
+ *	nf_hook - call a netfilter hook
  *
  *	Returns 1 if the hook has allowed the packet to pass.  The function
  *	okfn must be invoked by the caller in this case.  Any other return
  *	value indicates the packet has been consumed by the hook.
  */
-static inline int nf_hook_thresh(u_int8_t pf, unsigned int hook,
-				 struct net *net,
-				 struct sock *sk,
-				 struct sk_buff *skb,
-				 struct net_device *indev,
-				 struct net_device *outdev,
-				 int (*okfn)(struct net *, struct sock *, struct sk_buff *),
-				 int thresh)
-{
-	struct list_head *hook_list = &net->nf.hooks[pf][hook];
-
-	if (nf_hook_list_active(hook_list, pf, hook)) {
-		struct nf_hook_state state;
-
-		nf_hook_state_init(&state, hook_list, hook, thresh,
-				   pf, indev, outdev, sk, net, okfn);
-		return nf_hook_slow(skb, &state);
-	}
-	return 1;
-}
-
 static inline int nf_hook(u_int8_t pf, unsigned int hook, struct net *net,
 			  struct sock *sk, struct sk_buff *skb,
 			  struct net_device *indev, struct net_device *outdev,
 			  int (*okfn)(struct net *, struct sock *, struct sk_buff *))
 {
-	return nf_hook_thresh(pf, hook, net, sk, skb, indev, outdev, okfn, INT_MIN);
+	struct nf_hook_entry *hook_head;
+	int ret = 1;
+
+#ifdef HAVE_JUMP_LABEL
+	if (__builtin_constant_p(pf) &&
+	    __builtin_constant_p(hook) &&
+	    !static_key_false(&nf_hooks_needed[pf][hook]))
+		return 1;
+#endif
+
+	rcu_read_lock();
+	hook_head = rcu_dereference(net->nf.hooks[pf][hook]);
+	if (hook_head) {
+		struct nf_hook_state state;
+
+		nf_hook_state_init(&state, hook, pf, indev, outdev,
+				   sk, net, okfn);
+
+		ret = nf_hook_slow(skb, &state, hook_head);
+	}
+	rcu_read_unlock();
+
+	return ret;
 }
-                   
+
 /* Activate hook; either okfn or kfree_skb called, unless a hook
    returns NF_STOLEN (in which case, it's up to the hook to deal with
    the consequences).
@@ -215,19 +225,6 @@ static inline int nf_hook(u_int8_t pf, unsigned int hook, struct net *net,
 */
 
 static inline int
-NF_HOOK_THRESH(uint8_t pf, unsigned int hook, struct net *net, struct sock *sk,
-	       struct sk_buff *skb, struct net_device *in,
-	       struct net_device *out,
-	       int (*okfn)(struct net *, struct sock *, struct sk_buff *),
-	       int thresh)
-{
-	int ret = nf_hook_thresh(pf, hook, net, sk, skb, in, out, okfn, thresh);
-	if (ret == 1)
-		ret = okfn(net, sk, skb);
-	return ret;
-}
-
-static inline int
 NF_HOOK_COND(uint8_t pf, unsigned int hook, struct net *net, struct sock *sk,
 	     struct sk_buff *skb, struct net_device *in, struct net_device *out,
 	     int (*okfn)(struct net *, struct sock *, struct sk_buff *),
@@ -236,7 +233,7 @@ NF_HOOK_COND(uint8_t pf, unsigned int hook, struct net *net, struct sock *sk,
 	int ret;
 
 	if (!cond ||
-	    ((ret = nf_hook_thresh(pf, hook, net, sk, skb, in, out, okfn, INT_MIN)) == 1))
+	    ((ret = nf_hook(pf, hook, net, sk, skb, in, out, okfn)) == 1))
 		ret = okfn(net, sk, skb);
 	return ret;
 }
@@ -246,7 +243,10 @@ NF_HOOK(uint8_t pf, unsigned int hook, struct net *net, struct sock *sk, struct 
 	struct net_device *in, struct net_device *out,
 	int (*okfn)(struct net *, struct sock *, struct sk_buff *))
 {
-	return NF_HOOK_THRESH(pf, hook, net, sk, skb, in, out, okfn, INT_MIN);
+	int ret = nf_hook(pf, hook, net, sk, skb, in, out, okfn);
+	if (ret == 1)
+		ret = okfn(net, sk, skb);
+	return ret;
 }
 
 /* Call setsockopt() */

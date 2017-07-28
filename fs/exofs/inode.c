@@ -317,7 +317,7 @@ static int read_exec(struct page_collect *pcol)
 
 	if (!pcol->ios) {
 		int ret = ore_get_rw_state(&pcol->sbi->layout, &oi->oc, true,
-					     pcol->pg_first << PAGE_CACHE_SHIFT,
+					     pcol->pg_first << PAGE_SHIFT,
 					     pcol->length, &pcol->ios);
 
 		if (ret)
@@ -383,7 +383,7 @@ static int readpage_strip(void *data, struct page *page)
 	struct inode *inode = pcol->inode;
 	struct exofs_i_info *oi = exofs_i(inode);
 	loff_t i_size = i_size_read(inode);
-	pgoff_t end_index = i_size >> PAGE_CACHE_SHIFT;
+	pgoff_t end_index = i_size >> PAGE_SHIFT;
 	size_t len;
 	int ret;
 
@@ -397,9 +397,9 @@ static int readpage_strip(void *data, struct page *page)
 	pcol->that_locked_page = page;
 
 	if (page->index < end_index)
-		len = PAGE_CACHE_SIZE;
+		len = PAGE_SIZE;
 	else if (page->index == end_index)
-		len = i_size & ~PAGE_CACHE_MASK;
+		len = i_size & ~PAGE_MASK;
 	else
 		len = 0;
 
@@ -442,8 +442,8 @@ try_again:
 			goto fail;
 	}
 
-	if (len != PAGE_CACHE_SIZE)
-		zero_user(page, len, PAGE_CACHE_SIZE - len);
+	if (len != PAGE_SIZE)
+		zero_user(page, len, PAGE_SIZE - len);
 
 	EXOFS_DBGMSG2("    readpage_strip(0x%lx, 0x%lx) len=0x%zx\n",
 		     inode->i_ino, page->index, len);
@@ -592,10 +592,7 @@ static struct page *__r4w_get_page(void *priv, u64 offset, bool *uptodate)
 			}
 			unlock_page(page);
 		}
-		if (PageDirty(page) || PageWriteback(page))
-			*uptodate = true;
-		else
-			*uptodate = PageUptodate(page);
+		*uptodate = PageUptodate(page);
 		EXOFS_DBGMSG2("index=0x%lx uptodate=%d\n", index, *uptodate);
 		return page;
 	} else {
@@ -612,7 +609,7 @@ static void __r4w_put_page(void *priv, struct page *page)
 
 	if ((pcol->that_locked_page != page) && (ZERO_PAGE(0) != page)) {
 		EXOFS_DBGMSG2("index=0x%lx\n", page->index);
-		page_cache_release(page);
+		put_page(page);
 		return;
 	}
 	EXOFS_DBGMSG2("that_locked_page index=0x%lx\n",
@@ -636,7 +633,7 @@ static int write_exec(struct page_collect *pcol)
 
 	BUG_ON(pcol->ios);
 	ret = ore_get_rw_state(&pcol->sbi->layout, &oi->oc, false,
-				 pcol->pg_first << PAGE_CACHE_SHIFT,
+				 pcol->pg_first << PAGE_SHIFT,
 				 pcol->length, &pcol->ios);
 	if (unlikely(ret))
 		goto err;
@@ -699,7 +696,7 @@ static int writepage_strip(struct page *page,
 	struct inode *inode = pcol->inode;
 	struct exofs_i_info *oi = exofs_i(inode);
 	loff_t i_size = i_size_read(inode);
-	pgoff_t end_index = i_size >> PAGE_CACHE_SHIFT;
+	pgoff_t end_index = i_size >> PAGE_SHIFT;
 	size_t len;
 	int ret;
 
@@ -711,9 +708,9 @@ static int writepage_strip(struct page *page,
 
 	if (page->index < end_index)
 		/* in this case, the page is within the limits of the file */
-		len = PAGE_CACHE_SIZE;
+		len = PAGE_SIZE;
 	else {
-		len = i_size & ~PAGE_CACHE_MASK;
+		len = i_size & ~PAGE_MASK;
 
 		if (page->index > end_index || !len) {
 			/* in this case, the page is outside the limits
@@ -781,7 +778,7 @@ try_again:
 fail:
 	EXOFS_DBGMSG("Error: writepage_strip(0x%lx, 0x%lx)=>%d\n",
 		     inode->i_ino, page->index, ret);
-	set_bit(AS_EIO, &page->mapping->flags);
+	mapping_set_error(page->mapping, -EIO);
 	unlock_page(page);
 	return ret;
 }
@@ -793,10 +790,10 @@ static int exofs_writepages(struct address_space *mapping,
 	long start, end, expected_pages;
 	int ret;
 
-	start = wbc->range_start >> PAGE_CACHE_SHIFT;
+	start = wbc->range_start >> PAGE_SHIFT;
 	end = (wbc->range_end == LLONG_MAX) ?
 			start + mapping->nrpages :
-			wbc->range_end >> PAGE_CACHE_SHIFT;
+			wbc->range_end >> PAGE_SHIFT;
 
 	if (start || end)
 		expected_pages = end - start + 1;
@@ -873,46 +870,31 @@ int exofs_write_begin(struct file *file, struct address_space *mapping,
 
 	page = *pagep;
 	if (page == NULL) {
-		ret = simple_write_begin(file, mapping, pos, len, flags, pagep,
-					 fsdata);
-		if (ret) {
-			EXOFS_DBGMSG("simple_write_begin failed\n");
-			goto out;
+		page = grab_cache_page_write_begin(mapping, pos >> PAGE_SHIFT,
+						   flags);
+		if (!page) {
+			EXOFS_DBGMSG("grab_cache_page_write_begin failed\n");
+			return -ENOMEM;
 		}
-
-		page = *pagep;
+		*pagep = page;
 	}
 
 	 /* read modify write */
-	if (!PageUptodate(page) && (len != PAGE_CACHE_SIZE)) {
+	if (!PageUptodate(page) && (len != PAGE_SIZE)) {
 		loff_t i_size = i_size_read(mapping->host);
-		pgoff_t end_index = i_size >> PAGE_CACHE_SHIFT;
-		size_t rlen;
+		pgoff_t end_index = i_size >> PAGE_SHIFT;
 
-		if (page->index < end_index)
-			rlen = PAGE_CACHE_SIZE;
-		else if (page->index == end_index)
-			rlen = i_size & ~PAGE_CACHE_MASK;
-		else
-			rlen = 0;
-
-		if (!rlen) {
+		if (page->index > end_index) {
 			clear_highpage(page);
 			SetPageUptodate(page);
-			goto out;
-		}
-
-		ret = _readpage(page, true);
-		if (ret) {
-			/*SetPageError was done by _readpage. Is it ok?*/
-			unlock_page(page);
-			EXOFS_DBGMSG("__readpage failed\n");
+		} else {
+			ret = _readpage(page, true);
+			if (ret) {
+				unlock_page(page);
+				EXOFS_DBGMSG("__readpage failed\n");
+			}
 		}
 	}
-out:
-	if (unlikely(ret))
-		_write_failed(mapping->host, pos + len);
-
 	return ret;
 }
 
@@ -932,18 +914,25 @@ static int exofs_write_end(struct file *file, struct address_space *mapping,
 			struct page *page, void *fsdata)
 {
 	struct inode *inode = mapping->host;
-	/* According to comment in simple_write_end i_mutex is held */
-	loff_t i_size = inode->i_size;
-	int ret;
+	loff_t last_pos = pos + copied;
 
-	ret = simple_write_end(file, mapping,pos, len, copied, page, fsdata);
-	if (unlikely(ret))
-		_write_failed(inode, pos + len);
-
-	/* TODO: once simple_write_end marks inode dirty remove */
-	if (i_size != inode->i_size)
+	if (!PageUptodate(page)) {
+		if (copied < len) {
+			_write_failed(inode, pos + len);
+			copied = 0;
+			goto out;
+		}
+		SetPageUptodate(page);
+	}
+	if (last_pos > inode->i_size) {
+		i_size_write(inode, last_pos);
 		mark_inode_dirty(inode);
-	return ret;
+	}
+	set_page_dirty(page);
+out:
+	unlock_page(page);
+	put_page(page);
+	return copied;
 }
 
 static int exofs_releasepage(struct page *page, gfp_t gfp)
@@ -963,8 +952,7 @@ static void exofs_invalidatepage(struct page *page, unsigned int offset,
 
 
  /* TODO: Should be easy enough to do proprly */
-static ssize_t exofs_direct_IO(struct kiocb *iocb, struct iov_iter *iter,
-			       loff_t offset)
+static ssize_t exofs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 {
 	return 0;
 }
@@ -1011,7 +999,7 @@ static int _do_truncate(struct inode *inode, loff_t newsize)
 	struct exofs_sb_info *sbi = inode->i_sb->s_fs_info;
 	int ret;
 
-	inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+	inode->i_mtime = inode->i_ctime = current_time(inode);
 
 	ret = ore_truncate(&sbi->layout, &oi->oc, (u64)newsize);
 	if (likely(!ret))
@@ -1038,7 +1026,7 @@ int exofs_setattr(struct dentry *dentry, struct iattr *iattr)
 	if (unlikely(error))
 		return error;
 
-	error = inode_change_ok(inode, iattr);
+	error = setattr_prepare(dentry, iattr);
 	if (unlikely(error))
 		return error;
 
@@ -1227,6 +1215,7 @@ struct inode *exofs_iget(struct super_block *sb, unsigned long ino)
 			inode->i_link = (char *)oi->i_data;
 		} else {
 			inode->i_op = &page_symlink_inode_operations;
+			inode_nohighmem(inode);
 			inode->i_mapping->a_ops = &exofs_aops;
 		}
 	} else {
@@ -1316,7 +1305,7 @@ struct inode *exofs_new_inode(struct inode *dir, umode_t mode)
 	inode_init_owner(inode, dir, mode);
 	inode->i_ino = sbi->s_nextid++;
 	inode->i_blkbits = EXOFS_BLKSHIFT;
-	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
+	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
 	oi->i_commit_size = inode->i_size = 0;
 	spin_lock(&sbi->s_next_gen_lock);
 	inode->i_generation = sbi->s_next_generation++;

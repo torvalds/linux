@@ -37,6 +37,9 @@ enum ath10k_debug_mask {
 	ATH10K_DBG_TESTMODE	= 0x00001000,
 	ATH10K_DBG_WMI_PRINT	= 0x00002000,
 	ATH10K_DBG_PCI_PS	= 0x00004000,
+	ATH10K_DBG_AHB		= 0x00008000,
+	ATH10K_DBG_SDIO		= 0x00010000,
+	ATH10K_DBG_SDIO_DUMP	= 0x00020000,
 	ATH10K_DBG_ANY		= 0xffffffff,
 };
 
@@ -56,13 +59,17 @@ enum ath10k_dbg_aggr_mode {
 };
 
 /* FIXME: How to calculate the buffer size sanely? */
-#define ATH10K_FW_STATS_BUF_SIZE (1024*1024)
+#define ATH10K_FW_STATS_BUF_SIZE (1024 * 1024)
 
 extern unsigned int ath10k_debug_mask;
 
 __printf(2, 3) void ath10k_info(struct ath10k *ar, const char *fmt, ...);
 __printf(2, 3) void ath10k_err(struct ath10k *ar, const char *fmt, ...);
 __printf(2, 3) void ath10k_warn(struct ath10k *ar, const char *fmt, ...);
+
+void ath10k_debug_print_hwfw_info(struct ath10k *ar);
+void ath10k_debug_print_board_info(struct ath10k *ar);
+void ath10k_debug_print_boot_info(struct ath10k *ar);
 void ath10k_print_driver_info(struct ath10k *ar);
 
 #ifdef CONFIG_ATH10K_DEBUGFS
@@ -79,6 +86,9 @@ struct ath10k_fw_crash_data *
 ath10k_debug_get_new_fw_crash_data(struct ath10k *ar);
 
 void ath10k_debug_dbglog_add(struct ath10k *ar, u8 *buffer, int len);
+
+int ath10k_debug_fw_devcoredump(struct ath10k *ar);
+
 #define ATH10K_DFS_STAT_INC(ar, c) (ar->debug.dfs_stats.c++)
 
 void ath10k_debug_get_et_strings(struct ieee80211_hw *hw,
@@ -89,7 +99,19 @@ int ath10k_debug_get_et_sset_count(struct ieee80211_hw *hw,
 void ath10k_debug_get_et_stats(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif,
 			       struct ethtool_stats *stats, u64 *data);
+
+static inline u64 ath10k_debug_get_fw_dbglog_mask(struct ath10k *ar)
+{
+	return ar->debug.fw_dbglog_mask;
+}
+
+static inline u32 ath10k_debug_get_fw_dbglog_level(struct ath10k *ar)
+{
+	return ar->debug.fw_dbglog_level;
+}
+
 #else
+
 static inline int ath10k_debug_start(struct ath10k *ar)
 {
 	return 0;
@@ -139,6 +161,21 @@ ath10k_debug_get_new_fw_crash_data(struct ath10k *ar)
 	return NULL;
 }
 
+static inline u64 ath10k_debug_get_fw_dbglog_mask(struct ath10k *ar)
+{
+	return 0;
+}
+
+static inline u32 ath10k_debug_get_fw_dbglog_level(struct ath10k *ar)
+{
+	return 0;
+}
+
+static inline int ath10k_debug_fw_devcoredump(struct ath10k *ar)
+{
+	return 0;
+}
+
 #define ATH10K_DFS_STAT_INC(ar, c) do { } while (0)
 
 #define ath10k_debug_get_et_strings NULL
@@ -149,6 +186,17 @@ ath10k_debug_get_new_fw_crash_data(struct ath10k *ar)
 #ifdef CONFIG_MAC80211_DEBUGFS
 void ath10k_sta_add_debugfs(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta, struct dentry *dir);
+void ath10k_sta_update_rx_duration(struct ath10k *ar,
+				   struct ath10k_fw_stats *stats);
+void ath10k_sta_statistics(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			   struct ieee80211_sta *sta,
+			   struct station_info *sinfo);
+#else
+static inline
+void ath10k_sta_update_rx_duration(struct ath10k *ar,
+				   struct ath10k_fw_stats *stats)
+{
+}
 #endif /* CONFIG_MAC80211_DEBUGFS */
 
 #ifdef CONFIG_ATH10K_DEBUG

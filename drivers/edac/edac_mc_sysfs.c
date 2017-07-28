@@ -19,7 +19,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/uaccess.h>
 
-#include "edac_core.h"
+#include "edac_mc.h"
 #include "edac_module.h"
 
 /* MC EDAC Controls, setable by module parameter, and sysfs */
@@ -313,7 +313,6 @@ static struct device_type csrow_attr_type = {
  * possible dynamic channel DIMM Label attribute files
  *
  */
-
 DEVICE_CHANNEL(ch0_dimm_label, S_IRUGO | S_IWUSR,
 	channel_dimm_label_show, channel_dimm_label_store, 0);
 DEVICE_CHANNEL(ch1_dimm_label, S_IRUGO | S_IWUSR,
@@ -326,6 +325,10 @@ DEVICE_CHANNEL(ch4_dimm_label, S_IRUGO | S_IWUSR,
 	channel_dimm_label_show, channel_dimm_label_store, 4);
 DEVICE_CHANNEL(ch5_dimm_label, S_IRUGO | S_IWUSR,
 	channel_dimm_label_show, channel_dimm_label_store, 5);
+DEVICE_CHANNEL(ch6_dimm_label, S_IRUGO | S_IWUSR,
+	channel_dimm_label_show, channel_dimm_label_store, 6);
+DEVICE_CHANNEL(ch7_dimm_label, S_IRUGO | S_IWUSR,
+	channel_dimm_label_show, channel_dimm_label_store, 7);
 
 /* Total possible dynamic DIMM Label attribute file table */
 static struct attribute *dynamic_csrow_dimm_attr[] = {
@@ -335,6 +338,8 @@ static struct attribute *dynamic_csrow_dimm_attr[] = {
 	&dev_attr_legacy_ch3_dimm_label.attr.attr,
 	&dev_attr_legacy_ch4_dimm_label.attr.attr,
 	&dev_attr_legacy_ch5_dimm_label.attr.attr,
+	&dev_attr_legacy_ch6_dimm_label.attr.attr,
+	&dev_attr_legacy_ch7_dimm_label.attr.attr,
 	NULL
 };
 
@@ -351,6 +356,10 @@ DEVICE_CHANNEL(ch4_ce_count, S_IRUGO,
 		   channel_ce_count_show, NULL, 4);
 DEVICE_CHANNEL(ch5_ce_count, S_IRUGO,
 		   channel_ce_count_show, NULL, 5);
+DEVICE_CHANNEL(ch6_ce_count, S_IRUGO,
+		   channel_ce_count_show, NULL, 6);
+DEVICE_CHANNEL(ch7_ce_count, S_IRUGO,
+		   channel_ce_count_show, NULL, 7);
 
 /* Total possible dynamic ce_count attribute file table */
 static struct attribute *dynamic_csrow_ce_count_attr[] = {
@@ -360,6 +369,8 @@ static struct attribute *dynamic_csrow_ce_count_attr[] = {
 	&dev_attr_legacy_ch3_ce_count.attr.attr,
 	&dev_attr_legacy_ch4_ce_count.attr.attr,
 	&dev_attr_legacy_ch5_ce_count.attr.attr,
+	&dev_attr_legacy_ch6_ce_count.attr.attr,
+	&dev_attr_legacy_ch7_ce_count.attr.attr,
 	NULL
 };
 
@@ -371,9 +382,16 @@ static umode_t csrow_dev_is_visible(struct kobject *kobj,
 
 	if (idx >= csrow->nr_channels)
 		return 0;
+
+	if (idx >= ARRAY_SIZE(dynamic_csrow_ce_count_attr) - 1) {
+		WARN_ONCE(1, "idx: %d\n", idx);
+		return 0;
+	}
+
 	/* Only expose populated DIMMs */
 	if (!csrow->channels[idx]->dimm->nr_pages)
 		return 0;
+
 	return attr->mode;
 }
 
@@ -551,6 +569,40 @@ static ssize_t dimmdev_edac_mode_show(struct device *dev,
 	return sprintf(data, "%s\n", edac_caps[dimm->edac_mode]);
 }
 
+static ssize_t dimmdev_ce_count_show(struct device *dev,
+				      struct device_attribute *mattr,
+				      char *data)
+{
+	struct dimm_info *dimm = to_dimm(dev);
+	u32 count;
+	int off;
+
+	off = EDAC_DIMM_OFF(dimm->mci->layers,
+			    dimm->mci->n_layers,
+			    dimm->location[0],
+			    dimm->location[1],
+			    dimm->location[2]);
+	count = dimm->mci->ce_per_layer[dimm->mci->n_layers-1][off];
+	return sprintf(data, "%u\n", count);
+}
+
+static ssize_t dimmdev_ue_count_show(struct device *dev,
+				      struct device_attribute *mattr,
+				      char *data)
+{
+	struct dimm_info *dimm = to_dimm(dev);
+	u32 count;
+	int off;
+
+	off = EDAC_DIMM_OFF(dimm->mci->layers,
+			    dimm->mci->n_layers,
+			    dimm->location[0],
+			    dimm->location[1],
+			    dimm->location[2]);
+	count = dimm->mci->ue_per_layer[dimm->mci->n_layers-1][off];
+	return sprintf(data, "%u\n", count);
+}
+
 /* dimm/rank attribute files */
 static DEVICE_ATTR(dimm_label, S_IRUGO | S_IWUSR,
 		   dimmdev_label_show, dimmdev_label_store);
@@ -559,6 +611,8 @@ static DEVICE_ATTR(size, S_IRUGO, dimmdev_size_show, NULL);
 static DEVICE_ATTR(dimm_mem_type, S_IRUGO, dimmdev_mem_type_show, NULL);
 static DEVICE_ATTR(dimm_dev_type, S_IRUGO, dimmdev_dev_type_show, NULL);
 static DEVICE_ATTR(dimm_edac_mode, S_IRUGO, dimmdev_edac_mode_show, NULL);
+static DEVICE_ATTR(dimm_ce_count, S_IRUGO, dimmdev_ce_count_show, NULL);
+static DEVICE_ATTR(dimm_ue_count, S_IRUGO, dimmdev_ue_count_show, NULL);
 
 /* attributes of the dimm<id>/rank<id> object */
 static struct attribute *dimm_attrs[] = {
@@ -568,6 +622,8 @@ static struct attribute *dimm_attrs[] = {
 	&dev_attr_dimm_mem_type.attr,
 	&dev_attr_dimm_dev_type.attr,
 	&dev_attr_dimm_edac_mode.attr,
+	&dev_attr_dimm_ce_count.attr,
+	&dev_attr_dimm_ue_count.attr,
 	NULL,
 };
 
@@ -813,7 +869,7 @@ static DEVICE_ATTR(ce_count, S_IRUGO, mci_ce_count_show, NULL);
 static DEVICE_ATTR(max_location, S_IRUGO, mci_max_location_show, NULL);
 
 /* memory scrubber attribute file */
-DEVICE_ATTR(sdram_scrub_rate, 0, mci_sdram_scrub_rate_show,
+static DEVICE_ATTR(sdram_scrub_rate, 0, mci_sdram_scrub_rate_show,
 	    mci_sdram_scrub_rate_store); /* umode set later in is_visible */
 
 static struct attribute *mci_attrs[] = {
@@ -880,21 +936,26 @@ static struct device_type mci_attr_type = {
 int edac_create_sysfs_mci_device(struct mem_ctl_info *mci,
 				 const struct attribute_group **groups)
 {
+	char *name;
 	int i, err;
 
 	/*
 	 * The memory controller needs its own bus, in order to avoid
 	 * namespace conflicts at /sys/bus/edac.
 	 */
-	mci->bus->name = kasprintf(GFP_KERNEL, "mc%d", mci->mc_idx);
-	if (!mci->bus->name)
+	name = kasprintf(GFP_KERNEL, "mc%d", mci->mc_idx);
+	if (!name)
 		return -ENOMEM;
+
+	mci->bus->name = name;
 
 	edac_dbg(0, "creating bus %s\n", mci->bus->name);
 
 	err = bus_register(mci->bus);
-	if (err < 0)
-		goto fail_free_name;
+	if (err < 0) {
+		kfree(name);
+		return err;
+	}
 
 	/* get the /sys/devices/system/edac subsys reference */
 	mci->dev.type = &mci_attr_type;
@@ -961,8 +1022,8 @@ fail_unregister_dimm:
 	device_unregister(&mci->dev);
 fail_unregister_bus:
 	bus_unregister(mci->bus);
-fail_free_name:
-	kfree(mci->bus->name);
+	kfree(name);
+
 	return err;
 }
 
@@ -993,10 +1054,13 @@ void edac_remove_sysfs_mci_device(struct mem_ctl_info *mci)
 
 void edac_unregister_sysfs(struct mem_ctl_info *mci)
 {
+	struct bus_type *bus = mci->bus;
+	const char *name = mci->bus->name;
+
 	edac_dbg(1, "Unregistering device %s\n", dev_name(&mci->dev));
 	device_unregister(&mci->dev);
-	bus_unregister(mci->bus);
-	kfree(mci->bus->name);
+	bus_unregister(bus);
+	kfree(name);
 }
 
 static void mc_attr_release(struct device *dev)
@@ -1018,24 +1082,15 @@ static struct device_type mc_attr_type = {
  */
 int __init edac_mc_sysfs_init(void)
 {
-	struct bus_type *edac_subsys;
 	int err;
-
-	/* get the /sys/devices/system/edac subsys reference */
-	edac_subsys = edac_get_sysfs_subsys();
-	if (edac_subsys == NULL) {
-		edac_dbg(1, "no edac_subsys\n");
-		err = -EINVAL;
-		goto out;
-	}
 
 	mci_pdev = kzalloc(sizeof(*mci_pdev), GFP_KERNEL);
 	if (!mci_pdev) {
 		err = -ENOMEM;
-		goto out_put_sysfs;
+		goto out;
 	}
 
-	mci_pdev->bus = edac_subsys;
+	mci_pdev->bus = edac_get_sysfs_subsys();
 	mci_pdev->type = &mc_attr_type;
 	device_initialize(mci_pdev);
 	dev_set_name(mci_pdev, "mc");
@@ -1050,8 +1105,6 @@ int __init edac_mc_sysfs_init(void)
 
  out_dev_free:
 	kfree(mci_pdev);
- out_put_sysfs:
-	edac_put_sysfs_subsys();
  out:
 	return err;
 }
@@ -1059,5 +1112,4 @@ int __init edac_mc_sysfs_init(void)
 void edac_mc_sysfs_exit(void)
 {
 	device_unregister(mci_pdev);
-	edac_put_sysfs_subsys();
 }

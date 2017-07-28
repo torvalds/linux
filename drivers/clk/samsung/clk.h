@@ -16,18 +16,17 @@
 #include <linux/clk-provider.h>
 #include "clk-pll.h"
 
-struct clk;
-
 /**
  * struct samsung_clk_provider: information about clock provider
  * @reg_base: virtual address for the register base.
- * @clk_data: holds clock related data like clk* and number of clocks.
  * @lock: maintains exclusion between callbacks for a given clock-provider.
+ * @clk_data: holds clock related data like clk_hw* and number of clocks.
  */
 struct samsung_clk_provider {
 	void __iomem *reg_base;
-	struct clk_onecell_data clk_data;
 	spinlock_t lock;
+	/* clk_data must be the last entry due to variable lenght 'hws' array */
+	struct clk_hw_onecell_data clk_data;
 };
 
 /**
@@ -261,7 +260,7 @@ struct samsung_gate_clock {
 #define GATE_DA(_id, dname, cname, pname, o, b, f, gf, a)	\
 	__GATE(_id, dname, cname, pname, o, b, f, gf, a)
 
-#define PNAME(x) static const char *x[] __initdata
+#define PNAME(x) static const char * const x[] __initconst
 
 /**
  * struct samsung_clk_reg_dump: register dump of clock controller registers.
@@ -330,28 +329,28 @@ struct samsung_clock_reg_cache {
 
 struct samsung_cmu_info {
 	/* list of pll clocks and respective count */
-	struct samsung_pll_clock *pll_clks;
+	const struct samsung_pll_clock *pll_clks;
 	unsigned int nr_pll_clks;
 	/* list of mux clocks and respective count */
-	struct samsung_mux_clock *mux_clks;
+	const struct samsung_mux_clock *mux_clks;
 	unsigned int nr_mux_clks;
 	/* list of div clocks and respective count */
-	struct samsung_div_clock *div_clks;
+	const struct samsung_div_clock *div_clks;
 	unsigned int nr_div_clks;
 	/* list of gate clocks and respective count */
-	struct samsung_gate_clock *gate_clks;
+	const struct samsung_gate_clock *gate_clks;
 	unsigned int nr_gate_clks;
 	/* list of fixed clocks and respective count */
-	struct samsung_fixed_rate_clock *fixed_clks;
+	const struct samsung_fixed_rate_clock *fixed_clks;
 	unsigned int nr_fixed_clks;
 	/* list of fixed factor clocks and respective count */
-	struct samsung_fixed_factor_clock *fixed_factor_clks;
+	const struct samsung_fixed_factor_clock *fixed_factor_clks;
 	unsigned int nr_fixed_factor_clks;
 	/* total number of clocks with IDs assigned*/
 	unsigned int nr_clk_ids;
 
 	/* list and number of clocks registers */
-	unsigned long *clk_regs;
+	const unsigned long *clk_regs;
 	unsigned int nr_clk_regs;
 };
 
@@ -367,7 +366,7 @@ extern void __init samsung_clk_of_register_fixed_ext(
 			const struct of_device_id *clk_matches);
 
 extern void samsung_clk_add_lookup(struct samsung_clk_provider *ctx,
-			struct clk *clk, unsigned int id);
+			struct clk_hw *clk_hw, unsigned int id);
 
 extern void __init samsung_clk_register_alias(struct samsung_clk_provider *ctx,
 			const struct samsung_clock_alias *list,
@@ -395,9 +394,13 @@ extern void __init samsung_clk_register_pll(struct samsung_clk_provider *ctx,
 
 extern struct samsung_clk_provider __init *samsung_cmu_register_one(
 			struct device_node *,
-			struct samsung_cmu_info *);
+			const struct samsung_cmu_info *);
 
 extern unsigned long _get_rate(const char *clk_name);
+
+extern void samsung_clk_sleep_init(void __iomem *reg_base,
+			const unsigned long *rdump,
+			unsigned long nr_rdump);
 
 extern void samsung_clk_save(void __iomem *base,
 			struct samsung_clk_reg_dump *rd,

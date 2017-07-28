@@ -25,11 +25,8 @@
 #include <linux/mm.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-debug.h>
-#include <linux/dma-attrs.h>
 #include <asm/io.h>
 #include <asm/cacheflush.h>
-
-#define DMA_ERROR_CODE		(~(dma_addr_t)0x0)
 
 #define __dma_alloc_coherent(dev, gfp, size, handle)	NULL
 #define __dma_free_coherent(size, addr)		((void)0)
@@ -37,14 +34,12 @@
 /*
  * Available generic sets of operations
  */
-extern struct dma_map_ops dma_direct_ops;
+extern const struct dma_map_ops dma_direct_ops;
 
-static inline struct dma_map_ops *get_dma_ops(struct device *dev)
+static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
 {
 	return &dma_direct_ops;
 }
-
-#include <asm-generic/dma-mapping-common.h>
 
 static inline void __dma_sync(unsigned long paddr,
 			      size_t size, enum dma_data_direction direction)

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -118,10 +118,9 @@ acpi_ds_auto_serialize_method(struct acpi_namespace_node *node,
 		return_ACPI_STATUS(AE_NO_MEMORY);
 	}
 
-	status =
-	    acpi_ds_init_aml_walk(walk_state, op, node,
-				  obj_desc->method.aml_start,
-				  obj_desc->method.aml_length, NULL, 0);
+	status = acpi_ds_init_aml_walk(walk_state, op, node,
+				       obj_desc->method.aml_start,
+				       obj_desc->method.aml_length, NULL, 0);
 	if (ACPI_FAILURE(status)) {
 		acpi_ds_delete_walk_state(walk_state);
 		acpi_ps_free_op(op);
@@ -210,9 +209,10 @@ acpi_ds_detect_named_opcodes(struct acpi_walk_state *walk_state,
  ******************************************************************************/
 
 acpi_status
-acpi_ds_method_error(acpi_status status, struct acpi_walk_state * walk_state)
+acpi_ds_method_error(acpi_status status, struct acpi_walk_state *walk_state)
 {
 	u32 aml_offset;
+	acpi_name name = 0;
 
 	ACPI_FUNCTION_ENTRY();
 
@@ -238,10 +238,13 @@ acpi_ds_method_error(acpi_status status, struct acpi_walk_state * walk_state)
 						walk_state->parser_state.
 						aml_start);
 
-		status = acpi_gbl_exception_handler(status,
-						    walk_state->method_node ?
-						    walk_state->method_node->
-						    name.integer : 0,
+		if (walk_state->method_node) {
+			name = walk_state->method_node->name.integer;
+		} else if (walk_state->deferred_node) {
+			name = walk_state->deferred_node->name.integer;
+		}
+
+		status = acpi_gbl_exception_handler(status, name,
 						    walk_state->opcode,
 						    aml_offset, NULL);
 		acpi_ex_enter_interpreter();
@@ -375,7 +378,8 @@ acpi_ds_begin_method_execution(struct acpi_namespace_node *method_node,
 		    && (walk_state->thread->current_sync_level >
 			obj_desc->method.mutex->mutex.sync_level)) {
 			ACPI_ERROR((AE_INFO,
-				    "Cannot acquire Mutex for method [%4.4s], current SyncLevel is too large (%u)",
+				    "Cannot acquire Mutex for method [%4.4s]"
+				    ", current SyncLevel is too large (%u)",
 				    acpi_ut_get_node_name(method_node),
 				    walk_state->thread->current_sync_level));
 
@@ -411,12 +415,26 @@ acpi_ds_begin_method_execution(struct acpi_namespace_node *method_node,
 
 				obj_desc->method.mutex->mutex.thread_id =
 				    walk_state->thread->thread_id;
-				walk_state->thread->current_sync_level =
-				    obj_desc->method.sync_level;
+
+				/*
+				 * Update the current sync_level only if this is not an auto-
+				 * serialized method. In the auto case, we have to ignore
+				 * the sync level for the method mutex (created for the
+				 * auto-serialization) because we have no idea of what the
+				 * sync level should be. Therefore, just ignore it.
+				 */
+				if (!(obj_desc->method.info_flags &
+				      ACPI_METHOD_IGNORE_SYNC_LEVEL)) {
+					walk_state->thread->current_sync_level =
+					    obj_desc->method.sync_level;
+				}
 			} else {
 				obj_desc->method.mutex->mutex.
 				    original_sync_level =
 				    obj_desc->method.mutex->mutex.sync_level;
+
+				obj_desc->method.mutex->mutex.thread_id =
+				    acpi_os_get_thread_id();
 			}
 		}
 
@@ -501,16 +519,18 @@ acpi_ds_call_control_method(struct acpi_thread_state *thread,
 
 	/* Init for new method, possibly wait on method mutex */
 
-	status = acpi_ds_begin_method_execution(method_node, obj_desc,
-						this_walk_state);
+	status =
+	    acpi_ds_begin_method_execution(method_node, obj_desc,
+					   this_walk_state);
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
 
 	/* Begin method parse/execution. Create a new walk state */
 
-	next_walk_state = acpi_ds_create_walk_state(obj_desc->method.owner_id,
-						    NULL, obj_desc, thread);
+	next_walk_state =
+	    acpi_ds_create_walk_state(obj_desc->method.owner_id, NULL, obj_desc,
+				      thread);
 	if (!next_walk_state) {
 		status = AE_NO_MEMORY;
 		goto cleanup;
@@ -709,6 +729,43 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 		acpi_ds_method_data_delete_all(walk_state);
 
 		/*
+		 * Delete any namespace objects created anywhere within the
+		 * namespace by the execution of this method. Unless:
+		 * 1) This method is a module-level executable code method, in which
+		 *    case we want make the objects permanent.
+		 * 2) There are other threads executing the method, in which case we
+		 *    will wait until the last thread has completed.
+		 */
+		if (!(method_desc->method.info_flags & ACPI_METHOD_MODULE_LEVEL)
+		    && (method_desc->method.thread_count == 1)) {
+
+			/* Delete any direct children of (created by) this method */
+
+			(void)acpi_ex_exit_interpreter();
+			acpi_ns_delete_namespace_subtree(walk_state->
+							 method_node);
+			(void)acpi_ex_enter_interpreter();
+
+			/*
+			 * Delete any objects that were created by this method
+			 * elsewhere in the namespace (if any were created).
+			 * Use of the ACPI_METHOD_MODIFIED_NAMESPACE optimizes the
+			 * deletion such that we don't have to perform an entire
+			 * namespace walk for every control method execution.
+			 */
+			if (method_desc->method.
+			    info_flags & ACPI_METHOD_MODIFIED_NAMESPACE) {
+				(void)acpi_ex_exit_interpreter();
+				acpi_ns_delete_namespace_by_owner(method_desc->
+								  method.
+								  owner_id);
+				(void)acpi_ex_enter_interpreter();
+				method_desc->method.info_flags &=
+				    ~ACPI_METHOD_MODIFIED_NAMESPACE;
+			}
+		}
+
+		/*
 		 * If method is serialized, release the mutex and restore the
 		 * current sync level for this thread
 		 */
@@ -725,39 +782,6 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 				acpi_os_release_mutex(method_desc->method.
 						      mutex->mutex.os_mutex);
 				method_desc->method.mutex->mutex.thread_id = 0;
-			}
-		}
-
-		/*
-		 * Delete any namespace objects created anywhere within the
-		 * namespace by the execution of this method. Unless:
-		 * 1) This method is a module-level executable code method, in which
-		 *    case we want make the objects permanent.
-		 * 2) There are other threads executing the method, in which case we
-		 *    will wait until the last thread has completed.
-		 */
-		if (!(method_desc->method.info_flags & ACPI_METHOD_MODULE_LEVEL)
-		    && (method_desc->method.thread_count == 1)) {
-
-			/* Delete any direct children of (created by) this method */
-
-			acpi_ns_delete_namespace_subtree(walk_state->
-							 method_node);
-
-			/*
-			 * Delete any objects that were created by this method
-			 * elsewhere in the namespace (if any were created).
-			 * Use of the ACPI_METHOD_MODIFIED_NAMESPACE optimizes the
-			 * deletion such that we don't have to perform an entire
-			 * namespace walk for every control method execution.
-			 */
-			if (method_desc->method.
-			    info_flags & ACPI_METHOD_MODIFIED_NAMESPACE) {
-				acpi_ns_delete_namespace_by_owner(method_desc->
-								  method.
-								  owner_id);
-				method_desc->method.info_flags &=
-				    ~ACPI_METHOD_MODIFIED_NAMESPACE;
 			}
 		}
 	}
@@ -796,8 +820,8 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 		if (method_desc->method.
 		    info_flags & ACPI_METHOD_SERIALIZED_PENDING) {
 			if (walk_state) {
-				ACPI_INFO((AE_INFO,
-					   "Marking method %4.4s as Serialized because of AE_ALREADY_EXISTS error",
+				ACPI_INFO(("Marking method %4.4s as Serialized "
+					   "because of AE_ALREADY_EXISTS error",
 					   walk_state->method_node->name.
 					   ascii));
 			}
@@ -815,6 +839,7 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 			 */
 			method_desc->method.info_flags &=
 			    ~ACPI_METHOD_SERIALIZED_PENDING;
+
 			method_desc->method.info_flags |=
 			    (ACPI_METHOD_SERIALIZED |
 			     ACPI_METHOD_IGNORE_SYNC_LEVEL);

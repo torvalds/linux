@@ -113,9 +113,12 @@ void __init pdm360ng_init(void)
 
 static int __init pdm360ng_probe(void)
 {
-	unsigned long root = of_get_flat_dt_root();
+	if (!of_machine_is_compatible("ifm,pdm360ng"))
+		return 0;
 
-	return of_flat_dt_is_compatible(root, "ifm,pdm360ng");
+	mpc512x_init_early();
+
+	return 1;
 }
 
 define_machine(pdm360ng) {
@@ -123,7 +126,6 @@ define_machine(pdm360ng) {
 	.probe			= pdm360ng_probe,
 	.setup_arch		= mpc512x_setup_arch,
 	.init			= pdm360ng_init,
-	.init_early		= mpc512x_init_early,
 	.init_IRQ		= mpc512x_init_IRQ,
 	.get_irq		= ipic_get_irq,
 	.calibrate_decr		= generic_calibrate_decr,

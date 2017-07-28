@@ -19,12 +19,12 @@
 #include <linux/irq.h>
 #include <asm/mach-types.h>
 #include <asm/outercache.h>
-#include <mach/hardware.h>
-#include <mach/cputype.h>
-#include <mach/addr-map.h>
-#include <mach/pm-pxa910.h>
-#include <mach/regs-icu.h>
-#include <mach/irqs.h>
+
+#include "cputype.h"
+#include "addr-map.h"
+#include "pm-pxa910.h"
+#include "regs-icu.h"
+#include "irqs.h"
 
 int pxa910_set_wake(struct irq_data *data, unsigned int on)
 {

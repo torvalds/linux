@@ -26,16 +26,33 @@ enum host1x_class {
 	HOST1X_CLASS_HOST1X = 0x1,
 	HOST1X_CLASS_GR2D = 0x51,
 	HOST1X_CLASS_GR2D_SB = 0x52,
+	HOST1X_CLASS_VIC = 0x5D,
 	HOST1X_CLASS_GR3D = 0x60,
 };
 
 struct host1x_client;
 
+/**
+ * struct host1x_client_ops - host1x client operations
+ * @init: host1x client initialization code
+ * @exit: host1x client tear down code
+ */
 struct host1x_client_ops {
 	int (*init)(struct host1x_client *client);
 	int (*exit)(struct host1x_client *client);
 };
 
+/**
+ * struct host1x_client - host1x client structure
+ * @list: list node for the host1x client
+ * @parent: pointer to struct device representing the host1x controller
+ * @dev: pointer to struct device backing this host1x client
+ * @ops: host1x client operations
+ * @class: host1x class represented by this client
+ * @channel: host1x channel associated with this client
+ * @syncpts: array of syncpoints requested for this client
+ * @num_syncpts: number of syncpoints requested for this client
+ */
 struct host1x_client {
 	struct list_head list;
 	struct device *parent;
@@ -155,7 +172,6 @@ struct host1x_channel;
 struct host1x_job;
 
 struct host1x_channel *host1x_channel_request(struct device *dev);
-void host1x_channel_free(struct host1x_channel *channel);
 struct host1x_channel *host1x_channel_get(struct host1x_channel *channel);
 void host1x_channel_put(struct host1x_channel *channel);
 int host1x_job_submit(struct host1x_job *job);
@@ -174,6 +190,13 @@ struct host1x_reloc {
 		unsigned long offset;
 	} target;
 	unsigned long shift;
+};
+
+struct host1x_waitchk {
+	struct host1x_bo *bo;
+	u32 offset;
+	u32 syncpt_id;
+	u32 thresh;
 };
 
 struct host1x_job {
@@ -225,7 +248,10 @@ struct host1x_job {
 	u8 *gather_copy_mapped;
 
 	/* Check if register is marked as an address reg */
-	int (*is_addr_reg)(struct device *dev, u32 reg, u32 class);
+	int (*is_addr_reg)(struct device *dev, u32 class, u32 reg);
+
+	/* Check if class belongs to the unit */
+	int (*is_valid_class)(u32 class);
 
 	/* Request a SETCLASS to this class */
 	u32 class;
@@ -250,6 +276,15 @@ void host1x_job_unpin(struct host1x_job *job);
 
 struct host1x_device;
 
+/**
+ * struct host1x_driver - host1x logical device driver
+ * @driver: core driver
+ * @subdevs: table of OF device IDs matching subdevices for this driver
+ * @list: list node for the driver
+ * @probe: called when the host1x logical device is probed
+ * @remove: called when the host1x logical device is removed
+ * @shutdown: called when the host1x logical device is shut down
+ */
 struct host1x_driver {
 	struct device_driver driver;
 
@@ -304,6 +339,8 @@ struct tegra_mipi_device;
 
 struct tegra_mipi_device *tegra_mipi_request(struct device *device);
 void tegra_mipi_free(struct tegra_mipi_device *device);
+int tegra_mipi_enable(struct tegra_mipi_device *device);
+int tegra_mipi_disable(struct tegra_mipi_device *device);
 int tegra_mipi_calibrate(struct tegra_mipi_device *device);
 
 #endif

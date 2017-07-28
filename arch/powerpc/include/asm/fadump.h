@@ -43,11 +43,10 @@
 #define MIN_BOOT_MEM	(((RMA_END < (0x1UL << 28)) ? (0x1UL << 28) : RMA_END) \
 			+ (0x1UL << 26))
 
-#define memblock_num_regions(memblock_type)	(memblock.memblock_type.cnt)
+/* The upper limit percentage for user specified boot memory size (25%) */
+#define MAX_BOOT_MEM_RATIO			4
 
-#ifndef ELF_CORE_EFLAGS
-#define ELF_CORE_EFLAGS 0
-#endif
+#define memblock_num_regions(memblock_type)	(memblock.memblock_type.cnt)
 
 /* Firmware provided dump sections */
 #define FADUMP_CPU_STATE_DATA	0x0001
@@ -76,6 +75,8 @@
 		reg_entry++;						\
 	reg_entry++;							\
 })
+
+extern int crashing_cpu;
 
 /* Kernel Dump section info */
 struct fadump_section {
@@ -191,7 +192,7 @@ struct fadump_crash_info_header {
 	u64		elfcorehdr_addr;
 	u32		crashing_cpu;
 	struct pt_regs	regs;
-	struct cpumask	cpu_online_mask;
+	struct cpumask	online_mask;
 };
 
 /* Crash memory ranges */
@@ -202,6 +203,7 @@ struct fad_crash_memory_ranges {
 	unsigned long long	size;
 };
 
+extern int is_fadump_boot_memory_area(u64 addr, ulong size);
 extern int early_init_dt_scan_fw_dump(unsigned long node,
 		const char *uname, int depth, void *data);
 extern int fadump_reserve_mem(void);

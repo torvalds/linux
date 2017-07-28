@@ -165,7 +165,7 @@ static int save_msa_extcontext(void __user *buf)
 		 * should already have been done when handling scalar FP
 		 * context.
 		 */
-		BUG_ON(config_enabled(CONFIG_EVA));
+		BUG_ON(IS_ENABLED(CONFIG_EVA));
 
 		err = __put_user(read_msa_csr(), &msa->csr);
 		err |= _save_msa_all_upper(&msa->wr);
@@ -195,6 +195,9 @@ static int restore_msa_extcontext(void __user *buf, unsigned int size)
 	unsigned int csr;
 	int i, err;
 
+	if (!IS_ENABLED(CONFIG_CPU_HAS_MSA))
+		return SIGSYS;
+
 	if (size != sizeof(*msa))
 		return -EINVAL;
 
@@ -212,7 +215,7 @@ static int restore_msa_extcontext(void __user *buf, unsigned int size)
 		 * scalar FP context, so FPU & MSA should have already been
 		 * disabled whilst handling scalar FP context.
 		 */
-		BUG_ON(config_enabled(CONFIG_EVA));
+		BUG_ON(IS_ENABLED(CONFIG_EVA));
 
 		write_msa_csr(csr);
 		err |= _restore_msa_all_upper(&msa->wr);
@@ -312,7 +315,7 @@ int protected_save_fp_context(void __user *sc)
 	 * EVA does not have userland equivalents of ldc1 or sdc1, so
 	 * save to the kernel FP context & copy that to userland below.
 	 */
-	if (config_enabled(CONFIG_EVA))
+	if (IS_ENABLED(CONFIG_EVA))
 		lose_fpu(1);
 
 	while (1) {
@@ -375,7 +378,7 @@ int protected_restore_fp_context(void __user *sc)
 	 * disable the FPU here such that the code below simply copies to
 	 * the kernel FP context.
 	 */
-	if (config_enabled(CONFIG_EVA))
+	if (IS_ENABLED(CONFIG_EVA))
 		lose_fpu(0);
 
 	while (1) {
@@ -398,8 +401,8 @@ int protected_restore_fp_context(void __user *sc)
 	}
 
 fp_done:
-	if (used & USED_EXTCONTEXT)
-		err |= restore_extcontext(sc_to_extcontext(sc));
+	if (!err && (used & USED_EXTCONTEXT))
+		err = restore_extcontext(sc_to_extcontext(sc));
 
 	return err ?: sig;
 }
@@ -767,15 +770,15 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 	sigset_t *oldset = sigmask_to_save();
 	int ret;
 	struct mips_abi *abi = current->thread.abi;
-#ifdef CONFIG_CPU_MICROMIPS
-	void *vdso;
-	unsigned long tmp = (unsigned long)current->mm->context.vdso;
-
-	set_isa16_mode(tmp);
-	vdso = (void *)tmp;
-#else
 	void *vdso = current->mm->context.vdso;
-#endif
+
+	/*
+	 * If we were emulating a delay slot instruction, exit that frame such
+	 * that addresses in the sigframe are as expected for userland and we
+	 * don't have a problem if we reuse the thread's frame for an
+	 * instruction within the signal handler.
+	 */
+	dsemul_thread_rollback(regs);
 
 	if (regs->regs[0]) {
 		switch(regs->regs[2]) {
@@ -798,7 +801,7 @@ static void handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 		regs->regs[0] = 0;		/* Don't deal with this again.	*/
 	}
 
-	if (sig_uses_siginfo(&ksig->ka))
+	if (sig_uses_siginfo(&ksig->ka, abi))
 		ret = abi->setup_rt_frame(vdso + abi->vdso->off_rt_sigreturn,
 					  ksig, regs, oldset);
 	else

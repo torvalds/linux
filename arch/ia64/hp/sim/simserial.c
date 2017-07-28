@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/major.h>
@@ -300,7 +301,7 @@ static int rs_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 	if ((cmd != TIOCGSERIAL) && (cmd != TIOCSSERIAL) &&
 	    (cmd != TIOCSERCONFIG) && (cmd != TIOCSERGSTRUCT) &&
 	    (cmd != TIOCMIWAIT)) {
-		if (tty->flags & (1 << TTY_IO_ERROR))
+		if (tty_io_error(tty))
 		    return -EIO;
 	}
 
@@ -386,19 +387,6 @@ static int activate(struct tty_port *port, struct tty_struct *tty)
 	}
 
 	state->xmit.head = state->xmit.tail = 0;
-
-	/*
-	 * Set up the tty->alt_speed kludge
-	 */
-	if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_HI)
-		tty->alt_speed = 57600;
-	if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_VHI)
-		tty->alt_speed = 115200;
-	if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_SHI)
-		tty->alt_speed = 230400;
-	if ((port->flags & ASYNC_SPD_MASK) == ASYNC_SPD_WARP)
-		tty->alt_speed = 460800;
-
 errout:
 	local_irq_restore(flags);
 	return retval;

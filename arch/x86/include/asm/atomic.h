@@ -3,7 +3,6 @@
 
 #include <linux/compiler.h>
 #include <linux/types.h>
-#include <asm/processor.h>
 #include <asm/alternative.h>
 #include <asm/cmpxchg.h>
 #include <asm/rmwcc.h>
@@ -76,9 +75,9 @@ static __always_inline void atomic_sub(int i, atomic_t *v)
  * true if the result is zero, or false for all
  * other cases.
  */
-static __always_inline int atomic_sub_and_test(int i, atomic_t *v)
+static __always_inline bool atomic_sub_and_test(int i, atomic_t *v)
 {
-	GEN_BINARY_RMWcc(LOCK_PREFIX "subl", v->counter, "er", i, "%0", "e");
+	GEN_BINARY_RMWcc(LOCK_PREFIX "subl", v->counter, "er", i, "%0", e);
 }
 
 /**
@@ -113,9 +112,9 @@ static __always_inline void atomic_dec(atomic_t *v)
  * returns true if the result is 0, or false for all other
  * cases.
  */
-static __always_inline int atomic_dec_and_test(atomic_t *v)
+static __always_inline bool atomic_dec_and_test(atomic_t *v)
 {
-	GEN_UNARY_RMWcc(LOCK_PREFIX "decl", v->counter, "%0", "e");
+	GEN_UNARY_RMWcc(LOCK_PREFIX "decl", v->counter, "%0", e);
 }
 
 /**
@@ -126,9 +125,9 @@ static __always_inline int atomic_dec_and_test(atomic_t *v)
  * and returns true if the result is zero, or false for all
  * other cases.
  */
-static __always_inline int atomic_inc_and_test(atomic_t *v)
+static __always_inline bool atomic_inc_and_test(atomic_t *v)
 {
-	GEN_UNARY_RMWcc(LOCK_PREFIX "incl", v->counter, "%0", "e");
+	GEN_UNARY_RMWcc(LOCK_PREFIX "incl", v->counter, "%0", e);
 }
 
 /**
@@ -140,9 +139,9 @@ static __always_inline int atomic_inc_and_test(atomic_t *v)
  * if the result is negative, or false when
  * result is greater than or equal to zero.
  */
-static __always_inline int atomic_add_negative(int i, atomic_t *v)
+static __always_inline bool atomic_add_negative(int i, atomic_t *v)
 {
-	GEN_BINARY_RMWcc(LOCK_PREFIX "addl", v->counter, "er", i, "%0", "s");
+	GEN_BINARY_RMWcc(LOCK_PREFIX "addl", v->counter, "er", i, "%0", s);
 }
 
 /**
@@ -172,9 +171,25 @@ static __always_inline int atomic_sub_return(int i, atomic_t *v)
 #define atomic_inc_return(v)  (atomic_add_return(1, v))
 #define atomic_dec_return(v)  (atomic_sub_return(1, v))
 
+static __always_inline int atomic_fetch_add(int i, atomic_t *v)
+{
+	return xadd(&v->counter, i);
+}
+
+static __always_inline int atomic_fetch_sub(int i, atomic_t *v)
+{
+	return xadd(&v->counter, -i);
+}
+
 static __always_inline int atomic_cmpxchg(atomic_t *v, int old, int new)
 {
 	return cmpxchg(&v->counter, old, new);
+}
+
+#define atomic_try_cmpxchg atomic_try_cmpxchg
+static __always_inline bool atomic_try_cmpxchg(atomic_t *v, int *old, int new)
+{
+	return try_cmpxchg(&v->counter, old, new);
 }
 
 static inline int atomic_xchg(atomic_t *v, int new)
@@ -191,10 +206,25 @@ static inline void atomic_##op(int i, atomic_t *v)			\
 			: "memory");					\
 }
 
-ATOMIC_OP(and)
-ATOMIC_OP(or)
-ATOMIC_OP(xor)
+#define ATOMIC_FETCH_OP(op, c_op)					\
+static inline int atomic_fetch_##op(int i, atomic_t *v)			\
+{									\
+	int val = atomic_read(v);					\
+	do {								\
+	} while (!atomic_try_cmpxchg(v, &val, val c_op i));		\
+	return val;							\
+}
 
+#define ATOMIC_OPS(op, c_op)						\
+	ATOMIC_OP(op)							\
+	ATOMIC_FETCH_OP(op, c_op)
+
+ATOMIC_OPS(and, &)
+ATOMIC_OPS(or , |)
+ATOMIC_OPS(xor, ^)
+
+#undef ATOMIC_OPS
+#undef ATOMIC_FETCH_OP
 #undef ATOMIC_OP
 
 /**
@@ -208,30 +238,12 @@ ATOMIC_OP(xor)
  */
 static __always_inline int __atomic_add_unless(atomic_t *v, int a, int u)
 {
-	int c, old;
-	c = atomic_read(v);
-	for (;;) {
-		if (unlikely(c == (u)))
+	int c = atomic_read(v);
+	do {
+		if (unlikely(c == u))
 			break;
-		old = atomic_cmpxchg((v), c, c + (a));
-		if (likely(old == c))
-			break;
-		c = old;
-	}
+	} while (!atomic_try_cmpxchg(v, &c, c + a));
 	return c;
-}
-
-/**
- * atomic_inc_short - increment of a short integer
- * @v: pointer to type int
- *
- * Atomically adds 1 to @v
- * Returns the new value of @u
- */
-static __always_inline short int atomic_inc_short(short int *v)
-{
-	asm(LOCK_PREFIX "addw $1, %0" : "+m" (*v));
-	return *v;
 }
 
 #ifdef CONFIG_X86_32

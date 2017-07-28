@@ -60,16 +60,6 @@ static inline int atomic_add_negative(int i, atomic_t *v)
 	return atomic_add_return(i, v) < 0;
 }
 
-static inline void atomic_add(int i, atomic_t *v)
-{
-	atomic_add_return(i, v);
-}
-
-static inline void atomic_sub(int i, atomic_t *v)
-{
-	atomic_sub_return(i, v);
-}
-
 static inline void atomic_inc(atomic_t *v)
 {
 	atomic_inc_return(v);
@@ -136,16 +126,6 @@ static inline long long atomic64_add_negative(long long i, atomic64_t *v)
 	return atomic64_add_return(i, v) < 0;
 }
 
-static inline void atomic64_add(long long i, atomic64_t *v)
-{
-	atomic64_add_return(i, v);
-}
-
-static inline void atomic64_sub(long long i, atomic64_t *v)
-{
-	atomic64_sub_return(i, v);
-}
-
 static inline void atomic64_inc(atomic64_t *v)
 {
 	atomic64_inc_return(v);
@@ -159,7 +139,7 @@ static inline void atomic64_dec(atomic64_t *v)
 #define atomic64_sub_and_test(i,v)	(atomic64_sub_return((i), (v)) == 0)
 #define atomic64_dec_and_test(v)	(atomic64_dec_return((v)) == 0)
 #define atomic64_inc_and_test(v)	(atomic64_inc_return((v)) == 0)
-
+#define atomic64_inc_not_zero(v)	atomic64_add_unless((v), 1, 0)
 
 #define atomic_cmpxchg(v, old, new)	(cmpxchg(&(v)->counter, old, new))
 #define atomic_xchg(v, new)		(xchg(&(v)->counter, new))
@@ -181,12 +161,53 @@ static __inline__ int __atomic_add_unless(atomic_t *v, int a, int u)
 	return c;
 }
 
+static inline int atomic64_add_unless(atomic64_t *v, long long i, long long u)
+{
+	long long c, old;
+
+	c = atomic64_read(v);
+	for (;;) {
+		if (unlikely(c == u))
+			break;
+		old = atomic64_cmpxchg(v, c, c + i);
+		if (likely(old == c))
+			break;
+		c = old;
+	}
+	return c != u;
+}
+
+static inline long long atomic64_dec_if_positive(atomic64_t *v)
+{
+	long long c, old, dec;
+
+	c = atomic64_read(v);
+	for (;;) {
+		dec = c - 1;
+		if (unlikely(dec < 0))
+			break;
+		old = atomic64_cmpxchg((v), c, dec);
+		if (likely(old == c))
+			break;
+		c = old;
+	}
+		return dec;
+}
+
 #define ATOMIC_OP(op)							\
+static inline int atomic_fetch_##op(int i, atomic_t *v)			\
+{									\
+	return __atomic32_fetch_##op(i, &v->counter);			\
+}									\
 static inline void atomic_##op(int i, atomic_t *v)			\
 {									\
 	(void)__atomic32_fetch_##op(i, &v->counter);			\
 }									\
 									\
+static inline long long atomic64_fetch_##op(long long i, atomic64_t *v)	\
+{									\
+	return __atomic64_fetch_##op(i, &v->counter);			\
+}									\
 static inline void atomic64_##op(long long i, atomic64_t *v)		\
 {									\
 	(void)__atomic64_fetch_##op(i, &v->counter);			\
@@ -195,6 +216,8 @@ static inline void atomic64_##op(long long i, atomic64_t *v)		\
 ATOMIC_OP(or)
 ATOMIC_OP(and)
 ATOMIC_OP(xor)
+ATOMIC_OP(add)
+ATOMIC_OP(sub)
 
 #undef ATOMIC_OP
 

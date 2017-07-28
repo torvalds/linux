@@ -1,0 +1,32 @@
+/*
+ * Device Tree Source for the M3ULCB (R-Car Starter Kit Pro) board
+ *
+ * Copyright (C) 2016 Renesas Electronics Corp.
+ * Copyright (C) 2016 Cogent Embedded, Inc.
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+
+#define CPG_AUDIO_CLK_I		R8A7796_CLK_S0D4
+
+/dts-v1/;
+#include "r8a7796.dtsi"
+#include "ulcb.dtsi"
+
+/ {
+	model = "Renesas M3ULCB board based on r8a7796";
+	compatible = "renesas,m3ulcb", "renesas,r8a7796";
+
+	memory@48000000 {
+		device_type = "memory";
+		/* first 128MB is reserved for secure area. */
+		reg = <0x0 0x48000000 0x0 0x38000000>;
+	};
+
+	memory@600000000 {
+		device_type = "memory";
+		reg = <0x6 0x00000000 0x0 0x40000000>;
+	};
+};

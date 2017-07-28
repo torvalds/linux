@@ -12,6 +12,7 @@
  * the SpitFire page tables.
  */
 
+#include <asm-generic/5level-fixup.h>
 #include <linux/compiler.h>
 #include <linux/const.h>
 #include <asm/types.h>
@@ -218,7 +219,7 @@ extern pgprot_t PAGE_KERNEL_LOCKED;
 extern pgprot_t PAGE_COPY;
 extern pgprot_t PAGE_SHARED;
 
-/* XXX This uglyness is for the atyfb driver's sparc mmap() support. XXX */
+/* XXX This ugliness is for the atyfb driver's sparc mmap() support. XXX */
 extern unsigned long _PAGE_IE;
 extern unsigned long _PAGE_E;
 extern unsigned long _PAGE_CACHE;
@@ -375,7 +376,10 @@ static inline pgprot_t pgprot_noncached(pgprot_t prot)
 #define pgprot_noncached pgprot_noncached
 
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
-static inline pte_t pte_mkhuge(pte_t pte)
+extern pte_t arch_make_huge_pte(pte_t entry, struct vm_area_struct *vma,
+				struct page *page, int writable);
+#define arch_make_huge_pte arch_make_huge_pte
+static inline unsigned long __pte_default_huge_mask(void)
 {
 	unsigned long mask;
 
@@ -390,8 +394,26 @@ static inline pte_t pte_mkhuge(pte_t pte)
 	: "=r" (mask)
 	: "i" (_PAGE_SZHUGE_4U), "i" (_PAGE_SZHUGE_4V));
 
-	return __pte(pte_val(pte) | mask);
+	return mask;
 }
+
+static inline pte_t pte_mkhuge(pte_t pte)
+{
+	return __pte(pte_val(pte) | __pte_default_huge_mask());
+}
+
+static inline bool is_default_hugetlb_pte(pte_t pte)
+{
+	unsigned long mask = __pte_default_huge_mask();
+
+	return (pte_val(pte) & mask) == mask;
+}
+
+static inline bool is_hugetlb_pmd(pmd_t pmd)
+{
+	return !!(pmd_val(pmd) & _PAGE_PMD_HUGE);
+}
+
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 static inline pmd_t pmd_mkhuge(pmd_t pmd)
 {
@@ -403,6 +425,11 @@ static inline pmd_t pmd_mkhuge(pmd_t pmd)
 	return __pmd(pte_val(pte));
 }
 #endif
+#else
+static inline bool is_hugetlb_pte(pte_t pte)
+{
+	return false;
+}
 #endif
 
 static inline pte_t pte_mkdirty(pte_t pte)
@@ -652,6 +679,14 @@ static inline unsigned long pmd_pfn(pmd_t pmd)
 	return pte_pfn(pte);
 }
 
+#define __HAVE_ARCH_PMD_WRITE
+static inline unsigned long pmd_write(pmd_t pmd)
+{
+	pte_t pte = __pte(pmd_val(pmd));
+
+	return pte_write(pte);
+}
+
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
 static inline unsigned long pmd_dirty(pmd_t pmd)
 {
@@ -667,28 +702,12 @@ static inline unsigned long pmd_young(pmd_t pmd)
 	return pte_young(pte);
 }
 
-static inline unsigned long pmd_write(pmd_t pmd)
-{
-	pte_t pte = __pte(pmd_val(pmd));
-
-	return pte_write(pte);
-}
-
 static inline unsigned long pmd_trans_huge(pmd_t pmd)
 {
 	pte_t pte = __pte(pmd_val(pmd));
 
 	return pte_val(pte) & _PAGE_PMD_HUGE;
 }
-
-static inline unsigned long pmd_trans_splitting(pmd_t pmd)
-{
-	pte_t pte = __pte(pmd_val(pmd));
-
-	return pmd_trans_huge(pmd) && pte_special(pte);
-}
-
-#define has_transparent_hugepage() 1
 
 static inline pmd_t pmd_mkold(pmd_t pmd)
 {
@@ -717,6 +736,15 @@ static inline pmd_t pmd_mkdirty(pmd_t pmd)
 	return __pmd(pte_val(pte));
 }
 
+static inline pmd_t pmd_mkclean(pmd_t pmd)
+{
+	pte_t pte = __pte(pmd_val(pmd));
+
+	pte = pte_mkclean(pte);
+
+	return __pmd(pte_val(pte));
+}
+
 static inline pmd_t pmd_mkyoung(pmd_t pmd)
 {
 	pte_t pte = __pte(pmd_val(pmd));
@@ -731,15 +759,6 @@ static inline pmd_t pmd_mkwrite(pmd_t pmd)
 	pte_t pte = __pte(pmd_val(pmd));
 
 	pte = pte_mkwrite(pte);
-
-	return __pmd(pte_val(pte));
-}
-
-static inline pmd_t pmd_mksplitting(pmd_t pmd)
-{
-	pte_t pte = __pte(pmd_val(pmd));
-
-	pte = pte_mkspecial(pte);
 
 	return __pmd(pte_val(pte));
 }
@@ -814,7 +833,7 @@ static inline unsigned long __pmd_page(pmd_t pmd)
 #define pgd_page_vaddr(pgd)		\
 	((unsigned long) __va(pgd_val(pgd)))
 #define pgd_present(pgd)		(pgd_val(pgd) != 0U)
-#define pgd_clear(pgdp)			(pgd_val(*(pgd)) = 0UL)
+#define pgd_clear(pgdp)			(pgd_val(*(pgdp)) = 0UL)
 
 static inline unsigned long pud_large(pud_t pud)
 {
@@ -861,9 +880,27 @@ static inline unsigned long pud_pfn(pud_t pud)
 #define pte_offset_map			pte_index
 #define pte_unmap(pte)			do { } while (0)
 
+/* We cannot include <linux/mm_types.h> at this point yet: */
+extern struct mm_struct init_mm;
+
 /* Actual page table PTE updates.  */
 void tlb_batch_add(struct mm_struct *mm, unsigned long vaddr,
-		   pte_t *ptep, pte_t orig, int fullmm);
+		   pte_t *ptep, pte_t orig, int fullmm,
+		   unsigned int hugepage_shift);
+
+static void maybe_tlb_batch_add(struct mm_struct *mm, unsigned long vaddr,
+				pte_t *ptep, pte_t orig, int fullmm,
+				unsigned int hugepage_shift)
+{
+	/* It is more efficient to let flush_tlb_kernel_range()
+	 * handle init_mm tlb flushes.
+	 *
+	 * SUN4V NOTE: _PAGE_VALID is the same value in both the SUN4U
+	 *             and SUN4V pte layout, so this inline test is fine.
+	 */
+	if (likely(mm != &init_mm) && pte_accessible(mm, orig))
+		tlb_batch_add(mm, vaddr, ptep, orig, fullmm, hugepage_shift);
+}
 
 #define __HAVE_ARCH_PMDP_HUGE_GET_AND_CLEAR
 static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
@@ -881,15 +918,7 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 	pte_t orig = *ptep;
 
 	*ptep = pte;
-
-	/* It is more efficient to let flush_tlb_kernel_range()
-	 * handle init_mm tlb flushes.
-	 *
-	 * SUN4V NOTE: _PAGE_VALID is the same value in both the SUN4U
-	 *             and SUN4V pte layout, so this inline test is fine.
-	 */
-	if (likely(mm != &init_mm) && pte_accessible(mm, orig))
-		tlb_batch_add(mm, addr, ptep, orig, fullmm);
+	maybe_tlb_batch_add(mm, addr, ptep, orig, fullmm, PAGE_SHIFT);
 }
 
 #define set_pte_at(mm,addr,ptep,pte)	\

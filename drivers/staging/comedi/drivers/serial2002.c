@@ -95,7 +95,7 @@ struct serial_data {
 #define S2002_CFG_SIGN(x)		(((x) >> 13) & 0x1)
 #define S2002_CFG_BASE(x)		(((x) >> 14) & 0xfffff)
 
-static long serial2002_tty_ioctl(struct file *f, unsigned op,
+static long serial2002_tty_ioctl(struct file *f, unsigned int op,
 				 unsigned long param)
 {
 	if (f->f_op->unlocked_ioctl)
@@ -379,7 +379,10 @@ static int serial2002_setup_subdevice(struct comedi_subdevice *s,
 				range_table_list[chan] =
 				    (const struct comedi_lrange *)&range[j];
 			}
-			maxdata_list[chan] = ((long long)1 << cfg[j].bits) - 1;
+			if (cfg[j].bits < 32)
+				maxdata_list[chan] = (1u << cfg[j].bits) - 1;
+			else
+				maxdata_list[chan] = 0xffffffff;
 			chan++;
 		}
 	}

@@ -1,15 +1,15 @@
 menuconfig ARCH_U8500
-	bool "ST-Ericsson U8500 Series" if ARCH_MULTI_V7
-	depends on MMU
+	bool "ST-Ericsson U8500 Series"
+	depends on ARCH_MULTI_V7 && MMU
 	select AB8500_CORE
 	select ABX500_CORE
-	select ARCH_REQUIRE_GPIOLIB
 	select ARM_AMBA
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_764369 if SMP
 	select ARM_GIC
 	select CACHE_L2X0
 	select CLKSRC_NOMADIK_MTU
+	select GPIOLIB
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
 	select PINCTRL
@@ -32,6 +32,7 @@ config UX500_SOC_DB8500
 	select PINCTRL_AB8540
 	select REGULATOR
 	select REGULATOR_DB8500_PRCMU
+	select CLKSRC_DBX500_PRCMU
 	select PM_GENERIC_DOMAINS if PM
 
 config MACH_MOP500

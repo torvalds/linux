@@ -1,9 +1,7 @@
 /*
  *  Probe for F81216A LPC to 4 UART
  *
- *  Based on drivers/tty/serial/8250_pnp.c, by Russell King, et al
- *
- *  Copyright (C) 2014 Ricardo Ribalda, Qtechnology A/S
+ *  Copyright (C) 2014-2016 Ricardo Ribalda, Qtechnology A/S
  *
  *
  * This program is free software; you can redistribute it and/or modify
@@ -15,6 +13,7 @@
 #include <linux/pnp.h>
 #include <linux/kernel.h>
 #include <linux/serial_core.h>
+#include <linux/irq.h>
 #include  "8250.h"
 
 #define ADDR_PORT 0
@@ -22,8 +21,11 @@
 #define EXIT_KEY 0xAA
 #define CHIP_ID1  0x20
 #define CHIP_ID2  0x21
-#define CHIP_ID_0 0x1602
-#define CHIP_ID_1 0x0501
+#define CHIP_ID_F81865 0x0407
+#define CHIP_ID_F81866 0x1010
+#define CHIP_ID_F81216AD 0x1602
+#define CHIP_ID_F81216H 0x0501
+#define CHIP_ID_F81216 0x0802
 #define VENDOR_ID1 0x23
 #define VENDOR_ID1_VAL 0x19
 #define VENDOR_ID2 0x24
@@ -32,25 +34,88 @@
 #define IO_ADDR2 0x60
 #define LDN 0x7
 
+#define FINTEK_IRQ_MODE	0x70
+#define IRQ_SHARE	BIT(4)
+#define IRQ_MODE_MASK	(BIT(6) | BIT(5))
+#define IRQ_LEVEL_LOW	0
+#define IRQ_EDGE_HIGH	BIT(5)
+
 #define RS485  0xF0
 #define RTS_INVERT BIT(5)
 #define RS485_URA BIT(4)
 #define RXW4C_IRA BIT(3)
 #define TXW4C_IRA BIT(2)
 
-#define DRIVER_NAME "8250_fintek"
+#define FIFO_CTRL		0xF6
+#define FIFO_MODE_MASK		(BIT(1) | BIT(0))
+#define FIFO_MODE_128		(BIT(1) | BIT(0))
+#define RXFTHR_MODE_MASK	(BIT(5) | BIT(4))
+#define RXFTHR_MODE_4X		BIT(5)
+
+#define F81216_LDN_LOW	0x0
+#define F81216_LDN_HIGH	0x4
+
+/*
+ * F81866 registers
+ *
+ * The IRQ setting mode of F81866 is not the same with F81216 series.
+ *	Level/Low: IRQ_MODE0:0, IRQ_MODE1:0
+ *	Edge/High: IRQ_MODE0:1, IRQ_MODE1:0
+ *
+ * Clock speeds for UART (register F2h)
+ * 00: 1.8432MHz.
+ * 01: 18.432MHz.
+ * 10: 24MHz.
+ * 11: 14.769MHz.
+ */
+#define F81866_IRQ_MODE		0xf0
+#define F81866_IRQ_SHARE	BIT(0)
+#define F81866_IRQ_MODE0	BIT(1)
+
+#define F81866_FIFO_CTRL	FIFO_CTRL
+#define F81866_IRQ_MODE1	BIT(3)
+
+#define F81866_LDN_LOW		0x10
+#define F81866_LDN_HIGH		0x16
+
+#define F81866_UART_CLK 0xF2
+#define F81866_UART_CLK_MASK (BIT(1) | BIT(0))
+#define F81866_UART_CLK_1_8432MHZ 0
+#define F81866_UART_CLK_14_769MHZ (BIT(1) | BIT(0))
+#define F81866_UART_CLK_18_432MHZ BIT(0)
+#define F81866_UART_CLK_24MHZ BIT(1)
 
 struct fintek_8250 {
+	u16 pid;
 	u16 base_port;
 	u8 index;
 	u8 key;
-	long line;
 };
+
+static u8 sio_read_reg(struct fintek_8250 *pdata, u8 reg)
+{
+	outb(reg, pdata->base_port + ADDR_PORT);
+	return inb(pdata->base_port + DATA_PORT);
+}
+
+static void sio_write_reg(struct fintek_8250 *pdata, u8 reg, u8 data)
+{
+	outb(reg, pdata->base_port + ADDR_PORT);
+	outb(data, pdata->base_port + DATA_PORT);
+}
+
+static void sio_write_mask_reg(struct fintek_8250 *pdata, u8 reg, u8 mask,
+			       u8 data)
+{
+	u8 tmp;
+
+	tmp = (sio_read_reg(pdata, reg) & ~mask) | (mask & data);
+	sio_write_reg(pdata, reg, tmp);
+}
 
 static int fintek_8250_enter_key(u16 base_port, u8 key)
 {
-
-	if (!request_muxed_region(base_port, 2, DRIVER_NAME))
+	if (!request_muxed_region(base_port, 2, "8250_fintek"))
 		return -EBUSY;
 
 	outb(key, base_port + ADDR_PORT);
@@ -65,27 +130,53 @@ static void fintek_8250_exit_key(u16 base_port)
 	release_region(base_port + ADDR_PORT, 2);
 }
 
-static int fintek_8250_check_id(u16 base_port)
+static int fintek_8250_check_id(struct fintek_8250 *pdata)
 {
 	u16 chip;
 
-	outb(VENDOR_ID1, base_port + ADDR_PORT);
-	if (inb(base_port + DATA_PORT) != VENDOR_ID1_VAL)
+	if (sio_read_reg(pdata, VENDOR_ID1) != VENDOR_ID1_VAL)
 		return -ENODEV;
 
-	outb(VENDOR_ID2, base_port + ADDR_PORT);
-	if (inb(base_port + DATA_PORT) != VENDOR_ID2_VAL)
+	if (sio_read_reg(pdata, VENDOR_ID2) != VENDOR_ID2_VAL)
 		return -ENODEV;
 
-	outb(CHIP_ID1, base_port + ADDR_PORT);
-	chip = inb(base_port + DATA_PORT);
-	outb(CHIP_ID2, base_port + ADDR_PORT);
-	chip |= inb(base_port + DATA_PORT) << 8;
+	chip = sio_read_reg(pdata, CHIP_ID1);
+	chip |= sio_read_reg(pdata, CHIP_ID2) << 8;
 
-	if (chip != CHIP_ID_0 && chip != CHIP_ID_1)
+	switch (chip) {
+	case CHIP_ID_F81865:
+	case CHIP_ID_F81866:
+	case CHIP_ID_F81216AD:
+	case CHIP_ID_F81216H:
+	case CHIP_ID_F81216:
+		break;
+	default:
 		return -ENODEV;
+	}
 
+	pdata->pid = chip;
 	return 0;
+}
+
+static int fintek_8250_get_ldn_range(struct fintek_8250 *pdata, int *min,
+				     int *max)
+{
+	switch (pdata->pid) {
+	case CHIP_ID_F81865:
+	case CHIP_ID_F81866:
+		*min = F81866_LDN_LOW;
+		*max = F81866_LDN_HIGH;
+		return 0;
+
+	case CHIP_ID_F81216AD:
+	case CHIP_ID_F81216H:
+	case CHIP_ID_F81216:
+		*min = F81216_LDN_LOW;
+		*max = F81216_LDN_HIGH;
+		return 0;
+	}
+
+	return -ENODEV;
 }
 
 static int fintek_8250_rs485_config(struct uart_port *port,
@@ -127,10 +218,8 @@ static int fintek_8250_rs485_config(struct uart_port *port,
 	if (fintek_8250_enter_key(pdata->base_port, pdata->key))
 		return -EBUSY;
 
-	outb(LDN, pdata->base_port + ADDR_PORT);
-	outb(pdata->index, pdata->base_port + DATA_PORT);
-	outb(RS485, pdata->base_port + ADDR_PORT);
-	outb(config, pdata->base_port + DATA_PORT);
+	sio_write_reg(pdata, LDN, pdata->index);
+	sio_write_reg(pdata, RS485, config);
 	fintek_8250_exit_key(pdata->base_port);
 
 	port->rs485 = *rs485;
@@ -138,40 +227,113 @@ static int fintek_8250_rs485_config(struct uart_port *port,
 	return 0;
 }
 
-static int fintek_8250_base_port(u16 io_address, u8 *key, u8 *index)
+static void fintek_8250_set_irq_mode(struct fintek_8250 *pdata, bool is_level)
+{
+	sio_write_reg(pdata, LDN, pdata->index);
+
+	switch (pdata->pid) {
+	case CHIP_ID_F81866:
+		sio_write_mask_reg(pdata, F81866_FIFO_CTRL, F81866_IRQ_MODE1,
+				   0);
+		/* fall through */
+	case CHIP_ID_F81865:
+		sio_write_mask_reg(pdata, F81866_IRQ_MODE, F81866_IRQ_SHARE,
+				   F81866_IRQ_SHARE);
+		sio_write_mask_reg(pdata, F81866_IRQ_MODE, F81866_IRQ_MODE0,
+				   is_level ? 0 : F81866_IRQ_MODE0);
+		break;
+
+	case CHIP_ID_F81216AD:
+	case CHIP_ID_F81216H:
+	case CHIP_ID_F81216:
+		sio_write_mask_reg(pdata, FINTEK_IRQ_MODE, IRQ_SHARE,
+				   IRQ_SHARE);
+		sio_write_mask_reg(pdata, FINTEK_IRQ_MODE, IRQ_MODE_MASK,
+				   is_level ? IRQ_LEVEL_LOW : IRQ_EDGE_HIGH);
+		break;
+	}
+}
+
+static void fintek_8250_set_max_fifo(struct fintek_8250 *pdata)
+{
+	switch (pdata->pid) {
+	case CHIP_ID_F81216H: /* 128Bytes FIFO */
+	case CHIP_ID_F81866:
+		sio_write_mask_reg(pdata, FIFO_CTRL,
+				   FIFO_MODE_MASK | RXFTHR_MODE_MASK,
+				   FIFO_MODE_128 | RXFTHR_MODE_4X);
+		break;
+
+	default: /* Default 16Bytes FIFO */
+		break;
+	}
+}
+
+static void fintek_8250_goto_highspeed(struct uart_8250_port *uart,
+			      struct fintek_8250 *pdata)
+{
+	sio_write_reg(pdata, LDN, pdata->index);
+
+	switch (pdata->pid) {
+	case CHIP_ID_F81866: /* set uart clock for high speed serial mode */
+		sio_write_mask_reg(pdata, F81866_UART_CLK,
+			F81866_UART_CLK_MASK,
+			F81866_UART_CLK_14_769MHZ);
+
+			uart->port.uartclk = 921600 * 16;
+		break;
+	default: /* leave clock speed untouched */
+		break;
+	}
+}
+
+static int probe_setup_port(struct fintek_8250 *pdata,
+					struct uart_8250_port *uart)
 {
 	static const u16 addr[] = {0x4e, 0x2e};
 	static const u8 keys[] = {0x77, 0xa0, 0x87, 0x67};
-	int i, j, k;
+	struct irq_data *irq_data;
+	bool level_mode = false;
+	int i, j, k, min, max;
 
 	for (i = 0; i < ARRAY_SIZE(addr); i++) {
 		for (j = 0; j < ARRAY_SIZE(keys); j++) {
+			pdata->base_port = addr[i];
+			pdata->key = keys[j];
 
 			if (fintek_8250_enter_key(addr[i], keys[j]))
 				continue;
-			if (fintek_8250_check_id(addr[i])) {
+			if (fintek_8250_check_id(pdata) ||
+			    fintek_8250_get_ldn_range(pdata, &min, &max)) {
 				fintek_8250_exit_key(addr[i]);
 				continue;
 			}
 
-			for (k = 0; k < 4; k++) {
+			for (k = min; k < max; k++) {
 				u16 aux;
 
-				outb(LDN, addr[i] + ADDR_PORT);
-				outb(k, addr[i] + DATA_PORT);
-
-				outb(IO_ADDR1, addr[i] + ADDR_PORT);
-				aux = inb(addr[i] + DATA_PORT);
-				outb(IO_ADDR2, addr[i] + ADDR_PORT);
-				aux |= inb(addr[i] + DATA_PORT) << 8;
-				if (aux != io_address)
+				sio_write_reg(pdata, LDN, k);
+				aux = sio_read_reg(pdata, IO_ADDR1);
+				aux |= sio_read_reg(pdata, IO_ADDR2) << 8;
+				if (aux != uart->port.iobase)
 					continue;
 
+				pdata->index = k;
+
+				irq_data = irq_get_irq_data(uart->port.irq);
+				if (irq_data)
+					level_mode =
+						irqd_is_level_type(irq_data);
+
+				fintek_8250_set_irq_mode(pdata, level_mode);
+				fintek_8250_set_max_fifo(pdata);
+				fintek_8250_goto_highspeed(uart, pdata);
+
 				fintek_8250_exit_key(addr[i]);
-				*key = keys[j];
-				*index = k;
-				return addr[i];
+
+				return 0;
 			}
+
 			fintek_8250_exit_key(addr[i]);
 		}
 	}
@@ -179,104 +341,38 @@ static int fintek_8250_base_port(u16 io_address, u8 *key, u8 *index)
 	return -ENODEV;
 }
 
-static int
-fintek_8250_probe(struct pnp_dev *dev, const struct pnp_device_id *dev_id)
+static void fintek_8250_set_rs485_handler(struct uart_8250_port *uart)
 {
-	struct uart_8250_port uart;
+	struct fintek_8250 *pdata = uart->port.private_data;
+
+	switch (pdata->pid) {
+	case CHIP_ID_F81216AD:
+	case CHIP_ID_F81216H:
+	case CHIP_ID_F81866:
+	case CHIP_ID_F81865:
+		uart->port.rs485_config = fintek_8250_rs485_config;
+		break;
+
+	default: /* No RS485 Auto direction functional */
+		break;
+	}
+}
+
+int fintek_8250_probe(struct uart_8250_port *uart)
+{
 	struct fintek_8250 *pdata;
-	int base_port;
-	u8 key;
-	u8 index;
+	struct fintek_8250 probe_data;
 
-	if (!pnp_port_valid(dev, 0))
+	if (probe_setup_port(&probe_data, uart))
 		return -ENODEV;
 
-	base_port = fintek_8250_base_port(pnp_port_start(dev, 0), &key, &index);
-	if (base_port < 0)
-		return -ENODEV;
-
-	memset(&uart, 0, sizeof(uart));
-
-	pdata = devm_kzalloc(&dev->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc(uart->port.dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
-	uart.port.private_data = pdata;
 
-	if (!pnp_irq_valid(dev, 0))
-		return -ENODEV;
-	uart.port.irq = pnp_irq(dev, 0);
-	uart.port.iobase = pnp_port_start(dev, 0);
-	uart.port.iotype = UPIO_PORT;
-	uart.port.rs485_config = fintek_8250_rs485_config;
+	memcpy(pdata, &probe_data, sizeof(probe_data));
+	uart->port.private_data = pdata;
+	fintek_8250_set_rs485_handler(uart);
 
-	uart.port.flags |= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF;
-	if (pnp_irq_flags(dev, 0) & IORESOURCE_IRQ_SHAREABLE)
-		uart.port.flags |= UPF_SHARE_IRQ;
-	uart.port.uartclk = 1843200;
-	uart.port.dev = &dev->dev;
-
-	pdata->key = key;
-	pdata->base_port = base_port;
-	pdata->index = index;
-	pdata->line = serial8250_register_8250_port(&uart);
-	if (pdata->line < 0)
-		return -ENODEV;
-
-	pnp_set_drvdata(dev, pdata);
 	return 0;
 }
-
-static void fintek_8250_remove(struct pnp_dev *dev)
-{
-	struct fintek_8250 *pdata = pnp_get_drvdata(dev);
-
-	if (pdata)
-		serial8250_unregister_port(pdata->line);
-}
-
-#ifdef CONFIG_PM
-static int fintek_8250_suspend(struct pnp_dev *dev, pm_message_t state)
-{
-	struct fintek_8250 *pdata = pnp_get_drvdata(dev);
-
-	if (!pdata)
-		return -ENODEV;
-	serial8250_suspend_port(pdata->line);
-	return 0;
-}
-
-static int fintek_8250_resume(struct pnp_dev *dev)
-{
-	struct fintek_8250 *pdata = pnp_get_drvdata(dev);
-
-	if (!pdata)
-		return -ENODEV;
-	serial8250_resume_port(pdata->line);
-	return 0;
-}
-#else
-#define fintek_8250_suspend NULL
-#define fintek_8250_resume NULL
-#endif /* CONFIG_PM */
-
-static const struct pnp_device_id fintek_dev_table[] = {
-	/* Qtechnology Panel PC / IO1000 */
-	{ "PNP0501"},
-	{}
-};
-
-MODULE_DEVICE_TABLE(pnp, fintek_dev_table);
-
-static struct pnp_driver fintek_8250_driver = {
-	.name		= DRIVER_NAME,
-	.probe		= fintek_8250_probe,
-	.remove		= fintek_8250_remove,
-	.suspend	= fintek_8250_suspend,
-	.resume		= fintek_8250_resume,
-	.id_table	= fintek_dev_table,
-};
-
-module_pnp_driver(fintek_8250_driver);
-MODULE_DESCRIPTION("Fintek F812164 module");
-MODULE_AUTHOR("Ricardo Ribalda <ricardo.ribalda@gmail.com>");
-MODULE_LICENSE("GPL");

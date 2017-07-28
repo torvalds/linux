@@ -206,7 +206,8 @@ enum {
 	MLX4_SET_PORT_GID_TABLE = 0x5,
 	MLX4_SET_PORT_PRIO2TC	= 0x8,
 	MLX4_SET_PORT_SCHEDULER = 0x9,
-	MLX4_SET_PORT_VXLAN	= 0xB
+	MLX4_SET_PORT_VXLAN	= 0xB,
+	MLX4_SET_PORT_ROCE_ADDR	= 0xD
 };
 
 enum {
@@ -307,8 +308,9 @@ int mlx4_get_counter_stats(struct mlx4_dev *dev, int counter_index,
 int mlx4_get_vf_stats(struct mlx4_dev *dev, int port, int vf_idx,
 		      struct ifla_vf_stats *vf_stats);
 u32 mlx4_comm_get_version(void);
-int mlx4_set_vf_mac(struct mlx4_dev *dev, int port, int vf, u64 mac);
-int mlx4_set_vf_vlan(struct mlx4_dev *dev, int port, int vf, u16 vlan, u8 qos);
+int mlx4_set_vf_mac(struct mlx4_dev *dev, int port, int vf, u8 *mac);
+int mlx4_set_vf_vlan(struct mlx4_dev *dev, int port, int vf, u16 vlan,
+		     u8 qos, __be16 proto);
 int mlx4_set_vf_rate(struct mlx4_dev *dev, int port, int vf, int min_tx_rate,
 		     int max_tx_rate);
 int mlx4_set_vf_spoofchk(struct mlx4_dev *dev, int port, int vf, bool setting);

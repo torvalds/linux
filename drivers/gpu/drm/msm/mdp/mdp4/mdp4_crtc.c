@@ -15,12 +15,12 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "mdp4_kms.h"
-
+#include <drm/drm_crtc.h>
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_flip_work.h>
 #include <drm/drm_mode.h>
-#include "drm_crtc.h"
-#include "drm_crtc_helper.h"
-#include "drm_flip_work.h"
+
+#include "mdp4_kms.h"
 
 struct mdp4_crtc {
 	struct drm_crtc base;
@@ -114,15 +114,9 @@ static void complete_flip(struct drm_crtc *crtc, struct drm_file *file)
 	spin_lock_irqsave(&dev->event_lock, flags);
 	event = mdp4_crtc->event;
 	if (event) {
-		/* if regular vblank case (!file) or if cancel-flip from
-		 * preclose on file that requested flip, then send the
-		 * event:
-		 */
-		if (!file || (event->base.file_priv == file)) {
-			mdp4_crtc->event = NULL;
-			DBG("%s: send event: %p", mdp4_crtc->name, event);
-			drm_send_vblank_event(dev, mdp4_crtc->id, event);
-		}
+		mdp4_crtc->event = NULL;
+		DBG("%s: send event: %p", mdp4_crtc->name, event);
+		drm_crtc_send_vblank_event(crtc, event);
 	}
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
@@ -132,8 +126,9 @@ static void unref_cursor_worker(struct drm_flip_work *work, void *val)
 	struct mdp4_crtc *mdp4_crtc =
 		container_of(work, struct mdp4_crtc, unref_cursor_work);
 	struct mdp4_kms *mdp4_kms = get_kms(&mdp4_crtc->base);
+	struct msm_kms *kms = &mdp4_kms->base.base;
 
-	msm_gem_put_iova(val, mdp4_kms->id);
+	msm_gem_put_iova(val, kms->aspace);
 	drm_gem_object_unreference_unlocked(val);
 }
 
@@ -145,13 +140,6 @@ static void mdp4_crtc_destroy(struct drm_crtc *crtc)
 	drm_flip_work_cleanup(&mdp4_crtc->unref_cursor_work);
 
 	kfree(mdp4_crtc);
-}
-
-static bool mdp4_crtc_mode_fixup(struct drm_crtc *crtc,
-		const struct drm_display_mode *mode,
-		struct drm_display_mode *adjusted_mode)
-{
-	return true;
 }
 
 /* statically (for now) map planes to mixer stage (z-order): */
@@ -361,13 +349,6 @@ static void mdp4_crtc_atomic_flush(struct drm_crtc *crtc,
 	request_pending(crtc, PENDING_FLIP);
 }
 
-static int mdp4_crtc_set_property(struct drm_crtc *crtc,
-		struct drm_property *property, uint64_t val)
-{
-	// XXX
-	return -EINVAL;
-}
-
 #define CURSOR_WIDTH 64
 #define CURSOR_HEIGHT 64
 
@@ -380,6 +361,7 @@ static void update_cursor(struct drm_crtc *crtc)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 	struct mdp4_kms *mdp4_kms = get_kms(crtc);
+	struct msm_kms *kms = &mdp4_kms->base.base;
 	enum mdp4_dma dma = mdp4_crtc->dma;
 	unsigned long flags;
 
@@ -387,12 +369,12 @@ static void update_cursor(struct drm_crtc *crtc)
 	if (mdp4_crtc->cursor.stale) {
 		struct drm_gem_object *next_bo = mdp4_crtc->cursor.next_bo;
 		struct drm_gem_object *prev_bo = mdp4_crtc->cursor.scanout_bo;
-		uint32_t iova = mdp4_crtc->cursor.next_iova;
+		uint64_t iova = mdp4_crtc->cursor.next_iova;
 
 		if (next_bo) {
 			/* take a obj ref + iova ref when we start scanning out: */
 			drm_gem_object_reference(next_bo);
-			msm_gem_get_iova_locked(next_bo, mdp4_kms->id, &iova);
+			msm_gem_get_iova(next_bo, kms->aspace, &iova);
 
 			/* enable cursor: */
 			mdp4_write(mdp4_kms, REG_MDP4_DMA_CURSOR_SIZE(dma),
@@ -429,10 +411,11 @@ static int mdp4_crtc_cursor_set(struct drm_crtc *crtc,
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 	struct mdp4_kms *mdp4_kms = get_kms(crtc);
+	struct msm_kms *kms = &mdp4_kms->base.base;
 	struct drm_device *dev = crtc->dev;
 	struct drm_gem_object *cursor_bo, *old_bo;
 	unsigned long flags;
-	uint32_t iova;
+	uint64_t iova;
 	int ret;
 
 	if ((width > CURSOR_WIDTH) || (height > CURSOR_HEIGHT)) {
@@ -441,7 +424,7 @@ static int mdp4_crtc_cursor_set(struct drm_crtc *crtc,
 	}
 
 	if (handle) {
-		cursor_bo = drm_gem_object_lookup(dev, file_priv, handle);
+		cursor_bo = drm_gem_object_lookup(file_priv, handle);
 		if (!cursor_bo)
 			return -ENOENT;
 	} else {
@@ -449,7 +432,7 @@ static int mdp4_crtc_cursor_set(struct drm_crtc *crtc,
 	}
 
 	if (cursor_bo) {
-		ret = msm_gem_get_iova(cursor_bo, mdp4_kms->id, &iova);
+		ret = msm_gem_get_iova(cursor_bo, kms->aspace, &iova);
 		if (ret)
 			goto fail;
 	} else {
@@ -499,7 +482,7 @@ static const struct drm_crtc_funcs mdp4_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.destroy = mdp4_crtc_destroy,
 	.page_flip = drm_atomic_helper_page_flip,
-	.set_property = mdp4_crtc_set_property,
+	.set_property = drm_atomic_helper_crtc_set_property,
 	.cursor_set = mdp4_crtc_cursor_set,
 	.cursor_move = mdp4_crtc_cursor_move,
 	.reset = drm_atomic_helper_crtc_reset,
@@ -508,7 +491,6 @@ static const struct drm_crtc_funcs mdp4_crtc_funcs = {
 };
 
 static const struct drm_crtc_helper_funcs mdp4_crtc_helper_funcs = {
-	.mode_fixup = mdp4_crtc_mode_fixup,
 	.mode_set_nofb = mdp4_crtc_mode_set_nofb,
 	.disable = mdp4_crtc_disable,
 	.enable = mdp4_crtc_enable,
@@ -573,13 +555,6 @@ uint32_t mdp4_crtc_vblank(struct drm_crtc *crtc)
 {
 	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
 	return mdp4_crtc->vblank.irqmask;
-}
-
-void mdp4_crtc_cancel_pending_flip(struct drm_crtc *crtc, struct drm_file *file)
-{
-	struct mdp4_crtc *mdp4_crtc = to_mdp4_crtc(crtc);
-	DBG("%s: cancel: %p", mdp4_crtc->name, file);
-	complete_flip(crtc, file);
 }
 
 /* set dma config, ie. the format the encoder wants. */
@@ -678,7 +653,8 @@ struct drm_crtc *mdp4_crtc_init(struct drm_device *dev,
 	drm_flip_work_init(&mdp4_crtc->unref_cursor_work,
 			"unref cursor", unref_cursor_worker);
 
-	drm_crtc_init_with_planes(dev, crtc, plane, NULL, &mdp4_crtc_funcs);
+	drm_crtc_init_with_planes(dev, crtc, plane, NULL, &mdp4_crtc_funcs,
+				  NULL);
 	drm_crtc_helper_add(crtc, &mdp4_crtc_helper_funcs);
 	plane->crtc = crtc;
 

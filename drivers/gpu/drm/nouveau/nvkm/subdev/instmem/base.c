@@ -104,7 +104,7 @@ nvkm_instobj_dtor(struct nvkm_memory *memory)
 	return iobj;
 }
 
-const struct nvkm_memory_func
+static const struct nvkm_memory_func
 nvkm_instobj_func = {
 	.dtor = nvkm_instobj_dtor,
 	.target = nvkm_instobj_target,
@@ -156,7 +156,7 @@ nvkm_instobj_wr32_slow(struct nvkm_memory *memory, u64 offset, u32 data)
 	return nvkm_wo32(iobj->parent, offset, data);
 }
 
-const struct nvkm_memory_func
+static const struct nvkm_memory_func
 nvkm_instobj_func_slow = {
 	.dtor = nvkm_instobj_dtor,
 	.target = nvkm_instobj_target,
@@ -311,7 +311,7 @@ nvkm_instmem_ctor(const struct nvkm_instmem_func *func,
 		  struct nvkm_device *device, int index,
 		  struct nvkm_instmem *imem)
 {
-	nvkm_subdev_ctor(&nvkm_instmem, device, index, 0, &imem->subdev);
+	nvkm_subdev_ctor(&nvkm_instmem, device, index, &imem->subdev);
 	imem->func = func;
 	spin_lock_init(&imem->lock);
 	INIT_LIST_HEAD(&imem->list);

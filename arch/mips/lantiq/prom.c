@@ -3,7 +3,7 @@
  *  under the terms of the GNU General Public License version 2 as published
  *  by the Free Software Foundation.
  *
- * Copyright (C) 2010 John Crispin <blogic@openwrt.org>
+ * Copyright (C) 2010 John Crispin <john@phrozen.org>
  */
 
 #include <linux/export.h>
@@ -24,6 +24,12 @@
 /* access to the ebu needs to be locked between different drivers */
 DEFINE_SPINLOCK(ebu_lock);
 EXPORT_SYMBOL_GPL(ebu_lock);
+
+/*
+ * This is needed by the VPE loader code, just set it to 0 and assume
+ * that the firmware hardcodes this value to something useful.
+ */
+unsigned long physical_memsize = 0L;
 
 /*
  * this struct is filled by the soc specific detection code and holds
@@ -65,6 +71,8 @@ static void __init prom_init_cmdline(void)
 
 void __init plat_mem_setup(void)
 {
+	void *dtb;
+
 	ioport_resource.start = IOPORT_RESOURCE_START;
 	ioport_resource.end = IOPORT_RESOURCE_END;
 	iomem_resource.start = IOMEM_RESOURCE_START;
@@ -72,11 +80,18 @@ void __init plat_mem_setup(void)
 
 	set_io_port_base((unsigned long) KSEG1);
 
+	if (fw_passed_dtb) /* UHI interface */
+		dtb = (void *)fw_passed_dtb;
+	else if (__dtb_start != __dtb_end)
+		dtb = (void *)__dtb_start;
+	else
+		panic("no dtb found");
+
 	/*
-	 * Load the builtin devicetree. This causes the chosen node to be
+	 * Load the devicetree. This causes the chosen node to be
 	 * parsed resulting in our memory appearing
 	 */
-	__dt_setup_arch(__dtb_start);
+	__dt_setup_arch(dtb);
 }
 
 void __init device_tree_init(void)

@@ -89,7 +89,7 @@ EXPORT_SYMBOL(zynq_cpun_start);
 
 static int zynq_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
-	return zynq_cpun_start(virt_to_phys(secondary_startup), cpu);
+	return zynq_cpun_start(__pa_symbol(secondary_startup), cpu);
 }
 
 /*
@@ -157,7 +157,7 @@ static void zynq_cpu_die(unsigned int cpu)
 }
 #endif
 
-struct smp_operations zynq_smp_ops __initdata = {
+const struct smp_operations zynq_smp_ops __initconst = {
 	.smp_init_cpus		= zynq_smp_init_cpus,
 	.smp_prepare_cpus	= zynq_smp_prepare_cpus,
 	.smp_boot_secondary	= zynq_boot_secondary,

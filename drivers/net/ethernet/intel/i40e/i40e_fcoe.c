@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 - 2015 Intel Corporation.
+ * Copyright(c) 2013 - 2016 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -36,16 +36,6 @@
 
 #include "i40e.h"
 #include "i40e_fcoe.h"
-
-/**
- * i40e_rx_is_fcoe - returns true if the rx packet type is FCoE
- * @ptype: the packet type field from rx descriptor write-back
- **/
-static inline bool i40e_rx_is_fcoe(u16 ptype)
-{
-	return (ptype >= I40E_RX_PTYPE_L2_FCOE_PAY3) &&
-	       (ptype <= I40E_RX_PTYPE_L2_FCOE_VFT_FCOTHER);
-}
 
 /**
  * i40e_fcoe_sof_is_class2 - returns true if this is a FC Class 2 SOF
@@ -295,11 +285,11 @@ void i40e_init_pf_fcoe(struct i40e_pf *pf)
 	}
 
 	/* enable FCoE hash filter */
-	val = rd32(hw, I40E_PFQF_HENA(1));
+	val = i40e_read_rx_ctl(hw, I40E_PFQF_HENA(1));
 	val |= BIT(I40E_FILTER_PCTYPE_FCOE_OX - 32);
 	val |= BIT(I40E_FILTER_PCTYPE_FCOE_RX - 32);
 	val &= I40E_PFQF_HENA_PTYPE_ENA_MASK;
-	wr32(hw, I40E_PFQF_HENA(1), val);
+	i40e_write_rx_ctl(hw, I40E_PFQF_HENA(1), val);
 
 	/* enable flag */
 	pf->flags |= I40E_FLAG_FCOE_ENABLED;
@@ -317,11 +307,11 @@ void i40e_init_pf_fcoe(struct i40e_pf *pf)
 	pf->filter_settings.fcoe_cntx_num = I40E_DMA_CNTX_SIZE_4K;
 
 	/* Setup max frame with FCoE_MTU plus L2 overheads */
-	val = rd32(hw, I40E_GLFCOE_RCTL);
+	val = i40e_read_rx_ctl(hw, I40E_GLFCOE_RCTL);
 	val &= ~I40E_GLFCOE_RCTL_MAX_SIZE_MASK;
 	val |= ((FCOE_MTU + ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN)
 		 << I40E_GLFCOE_RCTL_MAX_SIZE_SHIFT);
-	wr32(hw, I40E_GLFCOE_RCTL, val);
+	i40e_write_rx_ctl(hw, I40E_GLFCOE_RCTL, val);
 
 	dev_info(&pf->pdev->dev, "FCoE is supported.\n");
 }
@@ -772,7 +762,7 @@ int i40e_fcoe_handle_offload(struct i40e_ring *rx_ring,
 		    (fh->fh_r_ctl == FC_RCTL_DD_SOL_DATA)) {
 			struct fcoe_crc_eof *crc = NULL;
 
-			crc = (struct fcoe_crc_eof *)skb_put(skb, sizeof(*crc));
+			crc = skb_put(skb, sizeof(*crc));
 			crc->fcoe_eof = FC_EOF_T;
 		} else {
 			/* otherwise, drop the header only frame */
@@ -1359,16 +1349,32 @@ static netdev_tx_t i40e_fcoe_xmit_frame(struct sk_buff *skb,
 	struct i40e_ring *tx_ring = vsi->tx_rings[skb->queue_mapping];
 	struct i40e_tx_buffer *first;
 	u32 tx_flags = 0;
+	int fso, count;
 	u8 hdr_len = 0;
 	u8 sof = 0;
 	u8 eof = 0;
-	int fso;
 
 	if (i40e_fcoe_set_skb_header(skb))
 		goto out_drop;
 
-	if (!i40e_xmit_descriptor_count(skb, tx_ring))
+	count = i40e_xmit_descriptor_count(skb);
+	if (i40e_chk_linearize(skb, count)) {
+		if (__skb_linearize(skb))
+			goto out_drop;
+		count = i40e_txd_use_count(skb->len);
+		tx_ring->tx_stats.tx_linearize++;
+	}
+
+	/* need: 1 descriptor per page * PAGE_SIZE/I40E_MAX_DATA_PER_TXD,
+	 *       + 1 desc for skb_head_len/I40E_MAX_DATA_PER_TXD,
+	 *       + 4 desc gap to avoid the cache line where head is,
+	 *       + 1 desc for context descriptor,
+	 * otherwise try next time
+	 */
+	if (i40e_maybe_stop_tx(tx_ring, count + 4 + 1)) {
+		tx_ring->tx_stats.tx_busy++;
 		return NETDEV_TX_BUSY;
+	}
 
 	/* prepare the xmit flags */
 	if (i40e_tx_prepare_vlan_flags(skb, tx_ring, &tx_flags))
@@ -1457,7 +1463,7 @@ static const struct net_device_ops i40e_fcoe_netdev_ops = {
 	.ndo_tx_timeout		= i40e_tx_timeout,
 	.ndo_vlan_rx_add_vid	= i40e_vlan_rx_add_vid,
 	.ndo_vlan_rx_kill_vid	= i40e_vlan_rx_kill_vid,
-	.ndo_setup_tc		= i40e_setup_tc,
+	.ndo_setup_tc		= __i40e_setup_tc,
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= i40e_netpoll,
@@ -1516,12 +1522,12 @@ void i40e_fcoe_config_netdev(struct net_device *netdev, struct i40e_vsi *vsi)
 	 * same PCI function.
 	 */
 	netdev->dev_port = 1;
-	spin_lock_bh(&vsi->mac_filter_list_lock);
-	i40e_add_filter(vsi, hw->mac.san_addr, 0, false, false);
-	i40e_add_filter(vsi, (u8[6]) FC_FCOE_FLOGI_MAC, 0, false, false);
-	i40e_add_filter(vsi, FIP_ALL_FCOE_MACS, 0, false, false);
-	i40e_add_filter(vsi, FIP_ALL_ENODE_MACS, 0, false, false);
-	spin_unlock_bh(&vsi->mac_filter_list_lock);
+	spin_lock_bh(&vsi->mac_filter_hash_lock);
+	i40e_add_filter(vsi, hw->mac.san_addr, 0);
+	i40e_add_filter(vsi, (u8[6]) FC_FCOE_FLOGI_MAC, 0);
+	i40e_add_filter(vsi, FIP_ALL_FCOE_MACS, 0);
+	i40e_add_filter(vsi, FIP_ALL_ENODE_MACS, 0);
+	spin_unlock_bh(&vsi->mac_filter_hash_lock);
 
 	/* use san mac */
 	ether_addr_copy(netdev->dev_addr, hw->mac.san_addr);
@@ -1543,8 +1549,6 @@ void i40e_fcoe_vsi_setup(struct i40e_pf *pf)
 
 	if (!(pf->flags & I40E_FLAG_FCOE_ENABLED))
 		return;
-
-	BUG_ON(!pf->vsi[pf->lan_vsi]);
 
 	for (i = 0; i < pf->num_alloc_vsi; i++) {
 		vsi = pf->vsi[i];

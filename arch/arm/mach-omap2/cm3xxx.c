@@ -118,7 +118,7 @@ static int omap3xxx_cm_wait_module_ready(u8 part, s16 prcm_mod, u16 idlest_id,
  * XXX This function is only needed until absolute register addresses are
  * removed from the OMAP struct clk records.
  */
-static int omap3xxx_cm_split_idlest_reg(void __iomem *idlest_reg,
+static int omap3xxx_cm_split_idlest_reg(struct clk_omap_reg *idlest_reg,
 					s16 *prcm_inst,
 					u8 *idlest_reg_id)
 {
@@ -126,11 +126,7 @@ static int omap3xxx_cm_split_idlest_reg(void __iomem *idlest_reg,
 	u8 idlest_offs;
 	int i;
 
-	if (idlest_reg < (cm_base + OMAP3430_IVA2_MOD) ||
-	    idlest_reg > (cm_base + 0x1ffff))
-		return -EINVAL;
-
-	idlest_offs = (unsigned long)idlest_reg & 0xff;
+	idlest_offs = idlest_reg->offset & 0xff;
 	for (i = 0; i < ARRAY_SIZE(omap3xxx_cm_idlest_offs); i++) {
 		if (idlest_offs == omap3xxx_cm_idlest_offs[i]) {
 			*idlest_reg_id = i + 1;
@@ -141,7 +137,7 @@ static int omap3xxx_cm_split_idlest_reg(void __iomem *idlest_reg,
 	if (i == ARRAY_SIZE(omap3xxx_cm_idlest_offs))
 		return -EINVAL;
 
-	offs = idlest_reg - cm_base;
+	offs = idlest_reg->offset;
 	offs &= 0xff00;
 	*prcm_inst = offs;
 
@@ -649,7 +645,7 @@ void omap3_cm_save_scratchpad_contents(u32 *ptr)
 	/*
 	 * As per erratum i671, ROM code does not respect the PER DPLL
 	 * programming scheme if CM_AUTOIDLE_PLL..AUTO_PERIPH_DPLL == 1.
-	 * Then,  in anycase, clear these bits to avoid extra latencies.
+	 * Then,  in any case, clear these bits to avoid extra latencies.
 	 */
 	*ptr++ = omap2_cm_read_mod_reg(PLL_MOD, CM_AUTOIDLE) &
 		~OMAP3430_AUTO_PERIPH_DPLL_MASK;
@@ -673,7 +669,8 @@ static struct cm_ll_data omap3xxx_cm_ll_data = {
 
 int __init omap3xxx_cm_init(const struct omap_prcm_init_data *data)
 {
-	omap2_clk_legacy_provider_init(TI_CLKM_CM, cm_base + OMAP3430_IVA2_MOD);
+	omap2_clk_legacy_provider_init(TI_CLKM_CM, cm_base.va +
+				       OMAP3430_IVA2_MOD);
 	return cm_register(&omap3xxx_cm_ll_data);
 }
 

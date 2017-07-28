@@ -486,7 +486,7 @@ secinfo_parse(char **mesg, char *buf, struct svc_export *exp) { return 0; }
 #endif
 
 static inline int
-uuid_parse(char **mesg, char *buf, unsigned char **puuid)
+nfsd_uuid_parse(char **mesg, char *buf, unsigned char **puuid)
 {
 	int len;
 
@@ -586,7 +586,7 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 			if (strcmp(buf, "fsloc") == 0)
 				err = fsloc_parse(&mesg, buf, &exp.ex_fslocs);
 			else if (strcmp(buf, "uuid") == 0)
-				err = uuid_parse(&mesg, buf, &exp.ex_uuid);
+				err = nfsd_uuid_parse(&mesg, buf, &exp.ex_uuid);
 			else if (strcmp(buf, "secinfo") == 0)
 				err = secinfo_parse(&mesg, buf, &exp);
 			else
@@ -706,7 +706,7 @@ static void svc_export_init(struct cache_head *cnew, struct cache_head *citem)
 	new->ex_fslocs.locations = NULL;
 	new->ex_fslocs.locations_count = 0;
 	new->ex_fslocs.migrated = 0;
-	new->ex_layout_type = 0;
+	new->ex_layout_types = 0;
 	new->ex_uuid = NULL;
 	new->cd = item->cd;
 }
@@ -731,7 +731,7 @@ static void export_update(struct cache_head *cnew, struct cache_head *citem)
 	item->ex_fslocs.locations_count = 0;
 	new->ex_fslocs.migrated = item->ex_fslocs.migrated;
 	item->ex_fslocs.migrated = 0;
-	new->ex_layout_type = item->ex_layout_type;
+	new->ex_layout_types = item->ex_layout_types;
 	new->ex_nflavors = item->ex_nflavors;
 	for (i = 0; i < MAX_SECINFO_LIST; i++) {
 		new->ex_flavors[i] = item->ex_flavors[i];
@@ -954,6 +954,16 @@ __be32 check_nfsd_access(struct svc_export *exp, struct svc_rqst *rqstp)
 		    rqstp->rq_cred.cr_flavor == RPC_AUTH_UNIX)
 			return 0;
 	}
+
+	/* If the compound op contains a spo_must_allowed op,
+	 * it will be sent with integrity/protection which
+	 * will have to be expressly allowed on mounts that
+	 * don't support it
+	 */
+
+	if (nfsd4_spo_must_allow(rqstp))
+		return 0;
+
 	return nfserr_wrongsec;
 }
 
@@ -1092,6 +1102,7 @@ static struct flags {
 	{ NFSEXP_NOAUTHNLM, {"insecure_locks", ""}},
 	{ NFSEXP_V4ROOT, {"v4root", ""}},
 	{ NFSEXP_PNFS, {"pnfs", ""}},
+	{ NFSEXP_SECURITY_LABEL, {"security_label", ""}},
 	{ 0, {"", ""}}
 };
 

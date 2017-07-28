@@ -714,10 +714,8 @@ static int i2c_pnx_probe(struct platform_device *pdev)
 
 	/* Register this adapter with the I2C subsystem */
 	ret = i2c_add_numbered_adapter(&alg_data->adapter);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "I2C: Failed to add bus\n");
+	if (ret < 0)
 		goto out_clock;
-	}
 
 	dev_dbg(&pdev->dev, "%s: Master at %#8x, irq %d.\n",
 		alg_data->adapter.name, res->start, alg_data->irq);

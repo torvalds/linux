@@ -10,6 +10,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/sched/debug.h>
 
 #include <asm/timer.h>
 #include <asm/traps.h>

@@ -1,14 +1,11 @@
 # Makefile for mount selftests.
 CFLAGS = -Wall \
          -O2
-all: unprivileged-remount-test
 
-unprivileged-remount-test: unprivileged-remount-test.c
-	$(CC) $(CFLAGS) unprivileged-remount-test.c -o unprivileged-remount-test
+TEST_GEN_PROGS := unprivileged-remount-test
 
 include ../lib.mk
 
-TEST_PROGS := unprivileged-remount-test
 override RUN_TESTS := if [ -f /proc/self/uid_map ] ; \
 		      then	\
 				./unprivileged-remount-test ; \
@@ -17,5 +14,3 @@ override RUN_TESTS := if [ -f /proc/self/uid_map ] ; \
 		      fi
 override EMIT_TESTS := echo "$(RUN_TESTS)"
 
-clean:
-	rm -f unprivileged-remount-test

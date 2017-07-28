@@ -98,6 +98,7 @@ static int qcom_hwspinlock_probe(struct platform_device *pdev)
 	}
 
 	regmap = syscon_node_to_regmap(syscon);
+	of_node_put(syscon);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
 

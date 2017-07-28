@@ -7,7 +7,6 @@ static void pci_free_resources(struct pci_dev *dev)
 {
 	int i;
 
-	pci_cleanup_rom(dev);
 	for (i = 0; i < PCI_NUM_RESOURCES; i++) {
 		struct resource *res = dev->resource + i;
 		if (res->parent)
@@ -41,6 +40,7 @@ static void pci_destroy_dev(struct pci_dev *dev)
 	list_del(&dev->bus_list);
 	up_write(&pci_bus_sem);
 
+	pci_bridge_d3_update(dev);
 	pci_free_resources(dev);
 	put_device(&dev->dev);
 }
@@ -54,6 +54,10 @@ void pci_remove_bus(struct pci_bus *bus)
 	pci_bus_release_busn_res(bus);
 	up_write(&pci_bus_sem);
 	pci_remove_legacy_files(bus);
+
+	if (bus->ops->remove_bus)
+		bus->ops->remove_bus(bus);
+
 	pcibios_remove_bus(bus);
 	device_unregister(&bus->dev);
 }

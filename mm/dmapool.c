@@ -93,7 +93,7 @@ show_pools(struct device *dev, struct device_attribute *attr, char *buf)
 		spin_unlock_irq(&pool->lock);
 
 		/* per-pool info, no real statistics yet */
-		temp = scnprintf(next, size, "%-16s %4u %4Zu %4Zu %2u\n",
+		temp = scnprintf(next, size, "%-16s %4u %4zu %4zu %2u\n",
 				 pool->name, blocks,
 				 pages * (pool->allocation / pool->size),
 				 pool->size, pages);
@@ -294,8 +294,7 @@ void dma_pool_destroy(struct dma_pool *pool)
 					"dma_pool_destroy %s, %p busy\n",
 					pool->name, page->vaddr);
 			else
-				printk(KERN_ERR
-				       "dma_pool_destroy %s, %p busy\n",
+				pr_err("dma_pool_destroy %s, %p busy\n",
 				       pool->name, page->vaddr);
 			/* leak the still-in-use consistent memory */
 			list_del(&page->page_list);
@@ -424,7 +423,7 @@ void dma_pool_free(struct dma_pool *pool, void *vaddr, dma_addr_t dma)
 				"dma_pool_free %s, %p/%lx (bad dma)\n",
 				pool->name, vaddr, (unsigned long)dma);
 		else
-			printk(KERN_ERR "dma_pool_free %s, %p/%lx (bad dma)\n",
+			pr_err("dma_pool_free %s, %p/%lx (bad dma)\n",
 			       pool->name, vaddr, (unsigned long)dma);
 		return;
 	}
@@ -435,12 +434,11 @@ void dma_pool_free(struct dma_pool *pool, void *vaddr, dma_addr_t dma)
 		spin_unlock_irqrestore(&pool->lock, flags);
 		if (pool->dev)
 			dev_err(pool->dev,
-				"dma_pool_free %s, %p (bad vaddr)/%Lx\n",
-				pool->name, vaddr, (unsigned long long)dma);
+				"dma_pool_free %s, %p (bad vaddr)/%pad\n",
+				pool->name, vaddr, &dma);
 		else
-			printk(KERN_ERR
-			       "dma_pool_free %s, %p (bad vaddr)/%Lx\n",
-			       pool->name, vaddr, (unsigned long long)dma);
+			pr_err("dma_pool_free %s, %p (bad vaddr)/%pad\n",
+			       pool->name, vaddr, &dma);
 		return;
 	}
 	{
@@ -452,13 +450,11 @@ void dma_pool_free(struct dma_pool *pool, void *vaddr, dma_addr_t dma)
 			}
 			spin_unlock_irqrestore(&pool->lock, flags);
 			if (pool->dev)
-				dev_err(pool->dev, "dma_pool_free %s, dma %Lx "
-					"already free\n", pool->name,
-					(unsigned long long)dma);
+				dev_err(pool->dev, "dma_pool_free %s, dma %pad already free\n",
+					pool->name, &dma);
 			else
-				printk(KERN_ERR "dma_pool_free %s, dma %Lx "
-					"already free\n", pool->name,
-					(unsigned long long)dma);
+				pr_err("dma_pool_free %s, dma %pad already free\n",
+				       pool->name, &dma);
 			return;
 		}
 	}

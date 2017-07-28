@@ -9,8 +9,7 @@
     |       alpha: | TODO |
     |         arc: | TODO |
     |         arm: | TODO |
-    |       arm64: | TODO |
-    |       avr32: | TODO |
+    |       arm64: |  ok  |
     |    blackfin: | TODO |
     |         c6x: | TODO |
     |        cris: | TODO |

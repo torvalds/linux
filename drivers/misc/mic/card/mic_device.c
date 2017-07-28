@@ -34,7 +34,6 @@
 #include <linux/mic_common.h>
 #include "../common/mic_dev.h"
 #include "mic_device.h"
-#include "mic_virtio.h"
 
 static struct mic_driver *g_drv;
 
@@ -250,12 +249,82 @@ static struct scif_hw_ops scif_hw_ops = {
 	.iounmap = ___mic_iounmap,
 };
 
+static inline struct mic_driver *vpdev_to_mdrv(struct vop_device *vpdev)
+{
+	return dev_get_drvdata(vpdev->dev.parent);
+}
+
+static struct mic_irq *
+__mic_request_irq(struct vop_device *vpdev,
+		  irqreturn_t (*func)(int irq, void *data),
+		   const char *name, void *data, int intr_src)
+{
+	return mic_request_card_irq(func, NULL, name, data, intr_src);
+}
+
+static void __mic_free_irq(struct vop_device *vpdev,
+			   struct mic_irq *cookie, void *data)
+{
+	return mic_free_card_irq(cookie, data);
+}
+
+static void __mic_ack_interrupt(struct vop_device *vpdev, int num)
+{
+	struct mic_driver *mdrv = vpdev_to_mdrv(vpdev);
+
+	mic_ack_interrupt(&mdrv->mdev);
+}
+
+static int __mic_next_db(struct vop_device *vpdev)
+{
+	return mic_next_card_db();
+}
+
+static void __iomem *__mic_get_remote_dp(struct vop_device *vpdev)
+{
+	struct mic_driver *mdrv = vpdev_to_mdrv(vpdev);
+
+	return mdrv->dp;
+}
+
+static void __mic_send_intr(struct vop_device *vpdev, int db)
+{
+	struct mic_driver *mdrv = vpdev_to_mdrv(vpdev);
+
+	mic_send_intr(&mdrv->mdev, db);
+}
+
+static void __iomem *__mic_ioremap(struct vop_device *vpdev,
+				   dma_addr_t pa, size_t len)
+{
+	struct mic_driver *mdrv = vpdev_to_mdrv(vpdev);
+
+	return mic_card_map(&mdrv->mdev, pa, len);
+}
+
+static void __mic_iounmap(struct vop_device *vpdev, void __iomem *va)
+{
+	struct mic_driver *mdrv = vpdev_to_mdrv(vpdev);
+
+	mic_card_unmap(&mdrv->mdev, va);
+}
+
+static struct vop_hw_ops vop_hw_ops = {
+	.request_irq = __mic_request_irq,
+	.free_irq = __mic_free_irq,
+	.ack_interrupt = __mic_ack_interrupt,
+	.next_db = __mic_next_db,
+	.get_remote_dp = __mic_get_remote_dp,
+	.send_intr = __mic_send_intr,
+	.ioremap = __mic_ioremap,
+	.iounmap = __mic_iounmap,
+};
+
 static int mic_request_dma_chans(struct mic_driver *mdrv)
 {
 	dma_cap_mask_t mask;
 	struct dma_chan *chan;
 
-	request_module("mic_x100_dma");
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_MEMCPY, mask);
 
@@ -309,9 +378,13 @@ int __init mic_driver_init(struct mic_driver *mdrv)
 		rc = -ENODEV;
 		goto irq_uninit;
 	}
-	rc = mic_devices_init(mdrv);
-	if (rc)
+	mdrv->vpdev = vop_register_device(mdrv->dev, VOP_DEV_TRNSP,
+					  NULL, &vop_hw_ops, 0,
+					  NULL, mdrv->dma_ch[0]);
+	if (IS_ERR(mdrv->vpdev)) {
+		rc = PTR_ERR(mdrv->vpdev);
 		goto dma_free;
+	}
 	bootparam = mdrv->dp;
 	node_id = ioread8(&bootparam->node_id);
 	mdrv->scdev = scif_register_device(mdrv->dev, MIC_SCIF_DEV,
@@ -321,13 +394,13 @@ int __init mic_driver_init(struct mic_driver *mdrv)
 					   mdrv->num_dma_ch, true);
 	if (IS_ERR(mdrv->scdev)) {
 		rc = PTR_ERR(mdrv->scdev);
-		goto device_uninit;
+		goto vop_remove;
 	}
 	mic_create_card_debug_dir(mdrv);
 done:
 	return rc;
-device_uninit:
-	mic_devices_uninit(mdrv);
+vop_remove:
+	vop_unregister_device(mdrv->vpdev);
 dma_free:
 	mic_free_dma_chans(mdrv);
 irq_uninit:
@@ -348,7 +421,7 @@ void mic_driver_uninit(struct mic_driver *mdrv)
 {
 	mic_delete_card_debug_dir(mdrv);
 	scif_unregister_device(mdrv->scdev);
-	mic_devices_uninit(mdrv);
+	vop_unregister_device(mdrv->vpdev);
 	mic_free_dma_chans(mdrv);
 	mic_uninit_irq();
 	mic_dp_uninit();

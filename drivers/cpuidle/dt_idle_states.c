@@ -38,6 +38,12 @@ static int init_state_node(struct cpuidle_state *idle_state,
 	 * state enter function.
 	 */
 	idle_state->enter = match_id->data;
+	/*
+	 * Since this is not a "coupled" state, it's safe to assume interrupts
+	 * won't be enabled when it exits allowing the tick to be frozen
+	 * safely. So enter() can be also enter_freeze() callback.
+	 */
+	idle_state->enter_freeze = match_id->data;
 
 	err = of_property_read_u32(state_node, "wakeup-latency-us",
 				   &idle_state->exit_latency);
@@ -174,8 +180,10 @@ int dt_init_idle_driver(struct cpuidle_driver *drv,
 		if (!state_node)
 			break;
 
-		if (!of_device_is_available(state_node))
+		if (!of_device_is_available(state_node)) {
+			of_node_put(state_node);
 			continue;
+		}
 
 		if (!idle_state_valid(state_node, i, cpumask)) {
 			pr_warn("%s idle state not valid, bailing out\n",

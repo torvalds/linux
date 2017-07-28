@@ -28,6 +28,7 @@
 #include "amdgpu.h"
 #include "amdgpu_amdkfd.h"
 #include "amdgpu_ucode.h"
+#include "gfx_v8_0.h"
 #include "gca/gfx_8_0_sh_mask.h"
 #include "gca/gfx_8_0_d.h"
 #include "gca/gfx_8_0_enum.h"
@@ -37,8 +38,6 @@
 #include "gmc/gmc_8_1_d.h"
 #include "vi_structs.h"
 #include "vid.h"
-
-#define VI_PIPE_PER_MEC	(4)
 
 struct cik_sdma_rlc_registers;
 
@@ -62,10 +61,10 @@ static bool kgd_hqd_is_occupied(struct kgd_dev *kgd, uint64_t queue_address,
 		uint32_t pipe_id, uint32_t queue_id);
 static bool kgd_hqd_sdma_is_occupied(struct kgd_dev *kgd, void *mqd);
 static int kgd_hqd_destroy(struct kgd_dev *kgd, uint32_t reset_type,
-				unsigned int timeout, uint32_t pipe_id,
+				unsigned int utimeout, uint32_t pipe_id,
 				uint32_t queue_id);
 static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
-				unsigned int timeout);
+				unsigned int utimeout);
 static void write_vmid_invalidate_request(struct kgd_dev *kgd, uint8_t vmid);
 static int kgd_address_watch_disable(struct kgd_dev *kgd);
 static int kgd_address_watch_execute(struct kgd_dev *kgd,
@@ -115,7 +114,7 @@ static const struct kfd2kgd_calls kfd2kgd = {
 	.get_fw_version = get_fw_version
 };
 
-struct kfd2kgd_calls *amdgpu_amdkfd_gfx_8_0_get_functions()
+struct kfd2kgd_calls *amdgpu_amdkfd_gfx_8_0_get_functions(void)
 {
 	return (struct kfd2kgd_calls *)&kfd2kgd;
 }
@@ -146,8 +145,10 @@ static void unlock_srbm(struct kgd_dev *kgd)
 static void acquire_queue(struct kgd_dev *kgd, uint32_t pipe_id,
 				uint32_t queue_id)
 {
-	uint32_t mec = (++pipe_id / VI_PIPE_PER_MEC) + 1;
-	uint32_t pipe = (pipe_id % VI_PIPE_PER_MEC);
+	struct amdgpu_device *adev = get_amdgpu_device(kgd);
+
+	uint32_t mec = (++pipe_id / adev->gfx.mec.num_pipe_per_mec) + 1;
+	uint32_t pipe = (pipe_id % adev->gfx.mec.num_pipe_per_mec);
 
 	lock_srbm(kgd, mec, pipe, queue_id, 0);
 }
@@ -205,6 +206,7 @@ static int kgd_set_pasid_vmid_mapping(struct kgd_dev *kgd, unsigned int pasid,
 static int kgd_init_pipeline(struct kgd_dev *kgd, uint32_t pipe_id,
 				uint32_t hpd_size, uint64_t hpd_gpu_addr)
 {
+	/* amdgpu owns the per-pipe state */
 	return 0;
 }
 
@@ -214,8 +216,8 @@ static int kgd_init_interrupts(struct kgd_dev *kgd, uint32_t pipe_id)
 	uint32_t mec;
 	uint32_t pipe;
 
-	mec = (++pipe_id / VI_PIPE_PER_MEC) + 1;
-	pipe = (pipe_id % VI_PIPE_PER_MEC);
+	mec = (++pipe_id / adev->gfx.mec.num_pipe_per_mec) + 1;
+	pipe = (pipe_id % adev->gfx.mec.num_pipe_per_mec);
 
 	lock_srbm(kgd, mec, pipe, 0, 0);
 
@@ -251,53 +253,11 @@ static int kgd_hqd_load(struct kgd_dev *kgd, void *mqd, uint32_t pipe_id,
 	m = get_mqd(mqd);
 
 	valid_wptr = copy_from_user(&shadow_wptr, wptr, sizeof(shadow_wptr));
+	if (valid_wptr == 0)
+		m->cp_hqd_pq_wptr = shadow_wptr;
+
 	acquire_queue(kgd, pipe_id, queue_id);
-
-	WREG32(mmCP_MQD_CONTROL, m->cp_mqd_control);
-	WREG32(mmCP_MQD_BASE_ADDR, m->cp_mqd_base_addr_lo);
-	WREG32(mmCP_MQD_BASE_ADDR_HI, m->cp_mqd_base_addr_hi);
-
-	WREG32(mmCP_HQD_VMID, m->cp_hqd_vmid);
-	WREG32(mmCP_HQD_PERSISTENT_STATE, m->cp_hqd_persistent_state);
-	WREG32(mmCP_HQD_PIPE_PRIORITY, m->cp_hqd_pipe_priority);
-	WREG32(mmCP_HQD_QUEUE_PRIORITY, m->cp_hqd_queue_priority);
-	WREG32(mmCP_HQD_QUANTUM, m->cp_hqd_quantum);
-	WREG32(mmCP_HQD_PQ_BASE, m->cp_hqd_pq_base_lo);
-	WREG32(mmCP_HQD_PQ_BASE_HI, m->cp_hqd_pq_base_hi);
-	WREG32(mmCP_HQD_PQ_RPTR_REPORT_ADDR, m->cp_hqd_pq_rptr_report_addr_lo);
-	WREG32(mmCP_HQD_PQ_RPTR_REPORT_ADDR_HI,
-			m->cp_hqd_pq_rptr_report_addr_hi);
-
-	if (valid_wptr > 0)
-		WREG32(mmCP_HQD_PQ_WPTR, shadow_wptr);
-
-	WREG32(mmCP_HQD_PQ_CONTROL, m->cp_hqd_pq_control);
-	WREG32(mmCP_HQD_PQ_DOORBELL_CONTROL, m->cp_hqd_pq_doorbell_control);
-
-	WREG32(mmCP_HQD_EOP_BASE_ADDR, m->cp_hqd_eop_base_addr_lo);
-	WREG32(mmCP_HQD_EOP_BASE_ADDR_HI, m->cp_hqd_eop_base_addr_hi);
-	WREG32(mmCP_HQD_EOP_CONTROL, m->cp_hqd_eop_control);
-	WREG32(mmCP_HQD_EOP_RPTR, m->cp_hqd_eop_rptr);
-	WREG32(mmCP_HQD_EOP_WPTR, m->cp_hqd_eop_wptr);
-	WREG32(mmCP_HQD_EOP_EVENTS, m->cp_hqd_eop_done_events);
-
-	WREG32(mmCP_HQD_CTX_SAVE_BASE_ADDR_LO, m->cp_hqd_ctx_save_base_addr_lo);
-	WREG32(mmCP_HQD_CTX_SAVE_BASE_ADDR_HI, m->cp_hqd_ctx_save_base_addr_hi);
-	WREG32(mmCP_HQD_CTX_SAVE_CONTROL, m->cp_hqd_ctx_save_control);
-	WREG32(mmCP_HQD_CNTL_STACK_OFFSET, m->cp_hqd_cntl_stack_offset);
-	WREG32(mmCP_HQD_CNTL_STACK_SIZE, m->cp_hqd_cntl_stack_size);
-	WREG32(mmCP_HQD_WG_STATE_OFFSET, m->cp_hqd_wg_state_offset);
-	WREG32(mmCP_HQD_CTX_SAVE_SIZE, m->cp_hqd_ctx_save_size);
-
-	WREG32(mmCP_HQD_IB_CONTROL, m->cp_hqd_ib_control);
-
-	WREG32(mmCP_HQD_DEQUEUE_REQUEST, m->cp_hqd_dequeue_request);
-	WREG32(mmCP_HQD_ERROR, m->cp_hqd_error);
-	WREG32(mmCP_HQD_EOP_WPTR_MEM, m->cp_hqd_eop_wptr_mem);
-	WREG32(mmCP_HQD_EOP_DONES, m->cp_hqd_eop_dones);
-
-	WREG32(mmCP_HQD_ACTIVE, m->cp_hqd_active);
-
+	gfx_v8_0_mqd_commit(adev, mqd);
 	release_queue(kgd);
 
 	return 0;
@@ -349,11 +309,12 @@ static bool kgd_hqd_sdma_is_occupied(struct kgd_dev *kgd, void *mqd)
 }
 
 static int kgd_hqd_destroy(struct kgd_dev *kgd, uint32_t reset_type,
-				unsigned int timeout, uint32_t pipe_id,
+				unsigned int utimeout, uint32_t pipe_id,
 				uint32_t queue_id)
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	uint32_t temp;
+	int timeout = utimeout;
 
 	acquire_queue(kgd, pipe_id, queue_id);
 
@@ -363,9 +324,8 @@ static int kgd_hqd_destroy(struct kgd_dev *kgd, uint32_t reset_type,
 		temp = RREG32(mmCP_HQD_ACTIVE);
 		if (temp & CP_HQD_ACTIVE__ACTIVE_MASK)
 			break;
-		if (timeout == 0) {
-			pr_err("kfd: cp queue preemption time out (%dms)\n",
-				temp);
+		if (timeout <= 0) {
+			pr_err("kfd: cp queue preemption time out.\n");
 			release_queue(kgd);
 			return -ETIME;
 		}
@@ -378,12 +338,13 @@ static int kgd_hqd_destroy(struct kgd_dev *kgd, uint32_t reset_type,
 }
 
 static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
-				unsigned int timeout)
+				unsigned int utimeout)
 {
 	struct amdgpu_device *adev = get_amdgpu_device(kgd);
 	struct cik_sdma_rlc_registers *m;
 	uint32_t sdma_base_addr;
 	uint32_t temp;
+	int timeout = utimeout;
 
 	m = get_sdma_mqd(mqd);
 	sdma_base_addr = get_sdma_base_addr(m);
@@ -396,7 +357,7 @@ static int kgd_hqd_sdma_destroy(struct kgd_dev *kgd, void *mqd,
 		temp = RREG32(sdma_base_addr + mmSDMA0_RLC0_CONTEXT_STATUS);
 		if (temp & SDMA0_STATUS_REG__RB_CMD_IDLE__SHIFT)
 			break;
-		if (timeout == 0)
+		if (timeout <= 0)
 			return -ETIME;
 		msleep(20);
 		timeout -= 20;

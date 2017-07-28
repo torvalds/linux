@@ -316,27 +316,29 @@ static int __init ftm_calc_closest_round_cyc(unsigned long freq)
 	return 0;
 }
 
-static void __init ftm_timer_init(struct device_node *np)
+static int __init ftm_timer_init(struct device_node *np)
 {
 	unsigned long freq;
-	int irq;
+	int ret, irq;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return;
+		return -ENOMEM;
 
+	ret = -ENXIO;
 	priv->clkevt_base = of_iomap(np, 0);
 	if (!priv->clkevt_base) {
 		pr_err("ftm: unable to map event timer registers\n");
-		goto err;
+		goto err_clkevt;
 	}
 
 	priv->clksrc_base = of_iomap(np, 1);
 	if (!priv->clksrc_base) {
 		pr_err("ftm: unable to map source timer registers\n");
-		goto err;
+		goto err_clksrc;
 	}
 
+	ret = -EINVAL;
 	irq = irq_of_parse_and_map(np, 0);
 	if (irq <= 0) {
 		pr_err("ftm: unable to get IRQ from DT, %d\n", irq);
@@ -349,18 +351,26 @@ static void __init ftm_timer_init(struct device_node *np)
 	if (!freq)
 		goto err;
 
-	if (ftm_calc_closest_round_cyc(freq))
+	ret = ftm_calc_closest_round_cyc(freq);
+	if (ret)
 		goto err;
 
-	if (ftm_clocksource_init(freq))
+	ret = ftm_clocksource_init(freq);
+	if (ret)
 		goto err;
 
-	if (ftm_clockevent_init(freq, irq))
+	ret = ftm_clockevent_init(freq, irq);
+	if (ret)
 		goto err;
 
-	return;
+	return 0;
 
 err:
+	iounmap(priv->clksrc_base);
+err_clksrc:
+	iounmap(priv->clkevt_base);
+err_clkevt:
 	kfree(priv);
+	return ret;
 }
-CLOCKSOURCE_OF_DECLARE(flextimer, "fsl,ftm-timer", ftm_timer_init);
+TIMER_OF_DECLARE(flextimer, "fsl,ftm-timer", ftm_timer_init);

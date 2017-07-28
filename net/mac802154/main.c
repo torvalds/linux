@@ -218,7 +218,6 @@ void ieee802154_unregister_hw(struct ieee802154_hw *hw)
 
 	tasklet_kill(&local->tasklet);
 	flush_workqueue(local->workqueue);
-	destroy_workqueue(local->workqueue);
 
 	rtnl_lock();
 
@@ -226,6 +225,7 @@ void ieee802154_unregister_hw(struct ieee802154_hw *hw)
 
 	rtnl_unlock();
 
+	destroy_workqueue(local->workqueue);
 	wpan_phy_unregister(local->phy);
 }
 EXPORT_SYMBOL(ieee802154_unregister_hw);

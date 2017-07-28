@@ -1,6 +1,9 @@
 /*
  * Copyright (C) 2011 matt mooney <mfm@muteddisk.com>
  *               2005-2007 Takahiro Hirofuchi
+ * Copyright (C) 2015-2016 Samsung Electronics
+ *               Igor Kotrasinski <i.kotrasinsk@samsung.com>
+ *               Krzysztof Opasiak <k.opasiak@samsung.com>
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -36,7 +39,8 @@
 static const char usbip_attach_usage_string[] =
 	"usbip attach <args>\n"
 	"    -r, --remote=<host>      The machine with exported USB devices\n"
-	"    -b, --busid=<busid>    Busid of the device on <host>\n";
+	"    -b, --busid=<busid>    Busid of the device on <host>\n"
+	"    -d, --device=<devid>    Id of the virtual UDC on <host>\n";
 
 void usbip_attach_usage(void)
 {
@@ -90,6 +94,7 @@ static int import_device(int sockfd, struct usbip_usb_device *udev)
 {
 	int rc;
 	int port;
+	uint32_t speed = udev->speed;
 
 	rc = usbip_vhci_driver_open();
 	if (rc < 0) {
@@ -97,12 +102,14 @@ static int import_device(int sockfd, struct usbip_usb_device *udev)
 		return -1;
 	}
 
-	port = usbip_vhci_get_free_port();
+	port = usbip_vhci_get_free_port(speed);
 	if (port < 0) {
 		err("no free port");
 		usbip_vhci_driver_close();
 		return -1;
 	}
+
+	dbg("got free port %d", port);
 
 	rc = usbip_vhci_attach_device(port, sockfd, udev->busnum,
 				      udev->devnum, udev->speed);
@@ -203,6 +210,7 @@ int usbip_attach(int argc, char *argv[])
 	static const struct option opts[] = {
 		{ "remote", required_argument, NULL, 'r' },
 		{ "busid",  required_argument, NULL, 'b' },
+		{ "device",  required_argument, NULL, 'd' },
 		{ NULL, 0,  NULL, 0 }
 	};
 	char *host = NULL;
@@ -211,7 +219,7 @@ int usbip_attach(int argc, char *argv[])
 	int ret = -1;
 
 	for (;;) {
-		opt = getopt_long(argc, argv, "r:b:", opts, NULL);
+		opt = getopt_long(argc, argv, "d:r:b:", opts, NULL);
 
 		if (opt == -1)
 			break;
@@ -220,6 +228,7 @@ int usbip_attach(int argc, char *argv[])
 		case 'r':
 			host = optarg;
 			break;
+		case 'd':
 		case 'b':
 			busid = optarg;
 			break;

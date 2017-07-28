@@ -13,7 +13,7 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -336,7 +336,6 @@ static const struct of_device_id mt8127_pctrl_match[] = {
 	{ .compatible = "mediatek,mt8127-pinctrl", },
 	{ }
 };
-MODULE_DEVICE_TABLE(of, mt8127_pctrl_match);
 
 static struct platform_driver mtk_pinctrl_driver = {
 	.probe = mt8127_pinctrl_probe,
@@ -350,9 +349,4 @@ static int __init mtk_pinctrl_init(void)
 {
 	return platform_driver_register(&mtk_pinctrl_driver);
 }
-
-module_init(mtk_pinctrl_init);
-
-MODULE_LICENSE("GPL v2");
-MODULE_DESCRIPTION("MediaTek MT8127 Pinctrl Driver");
-MODULE_AUTHOR("Yingjoe Chen <yingjoe.chen@mediatek.com>");
+arch_initcall(mtk_pinctrl_init);

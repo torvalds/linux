@@ -133,9 +133,7 @@ static void i2c_lpc2k_pump_msg(struct lpc2k_i2c *i2c)
 	case M_START:
 	case M_REPSTART:
 		/* Start bit was just sent out, send out addr and dir */
-		data = i2c->msg->addr << 1;
-		if (i2c->msg->flags & I2C_M_RD)
-			data |= 1;
+		data = i2c_8bit_addr_from_msg(i2c->msg);
 
 		writel(data, i2c->base + LPC24XX_I2DAT);
 		writel(LPC24XX_STA, i2c->base + LPC24XX_I2CONCLR);
@@ -434,10 +432,8 @@ static int i2c_lpc2k_probe(struct platform_device *pdev)
 	i2c->adap.dev.of_node = pdev->dev.of_node;
 
 	ret = i2c_add_adapter(&i2c->adap);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to add adapter!\n");
+	if (ret < 0)
 		goto fail_clk;
-	}
 
 	dev_info(&pdev->dev, "LPC2K I2C adapter\n");
 

@@ -50,15 +50,15 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-event.h>
-#include <media/tvaudio.h>
-#include <media/msp3400.h>
+#include <media/i2c/tvaudio.h>
+#include <media/drv-intf/msp3400.h>
 
 #include <linux/dma-mapping.h>
 
 #include <asm/io.h>
 #include <asm/byteorder.h>
 
-#include <media/saa6588.h>
+#include <media/i2c/saa6588.h>
 
 #define BTTV_VERSION "0.9.19"
 
@@ -148,8 +148,7 @@ MODULE_PARM_DESC(irq_debug, "irq handler debug messages, default is 0 (no)");
 MODULE_PARM_DESC(disable_ir, "disable infrared remote support");
 MODULE_PARM_DESC(gbuffers, "number of capture buffers. range 2-32, default 8");
 MODULE_PARM_DESC(gbufsize, "size of the capture buffers, default is 0x208000");
-MODULE_PARM_DESC(reset_crop, "reset cropping parameters at open(), default "
-		 "is 1 (yes) for compatibility with older applications");
+MODULE_PARM_DESC(reset_crop, "reset cropping parameters at open(), default is 1 (yes) for compatibility with older applications");
 MODULE_PARM_DESC(automute, "mute audio on bad/missing video signal, default is 1 (yes)");
 MODULE_PARM_DESC(chroma_agc, "enables the AGC of chroma signal, default is 0 (no)");
 MODULE_PARM_DESC(agc_crush, "enables the luminance AGC crush, default is 1 (yes)");
@@ -186,7 +185,7 @@ MODULE_VERSION(BTTV_VERSION);
 static ssize_t show_card(struct device *cd,
 			 struct device_attribute *attr, char *buf)
 {
-	struct video_device *vfd = container_of(cd, struct video_device, dev);
+	struct video_device *vfd = to_video_device(cd);
 	struct bttv *btv = video_get_drvdata(vfd);
 	return sprintf(buf, "%d\n", btv ? btv->c.type : UNSET);
 }
@@ -1726,22 +1725,15 @@ static int bttv_s_std(struct file *file, void *priv, v4l2_std_id id)
 	struct bttv_fh *fh  = priv;
 	struct bttv *btv = fh->btv;
 	unsigned int i;
-	int err = 0;
 
 	for (i = 0; i < BTTV_TVNORMS; i++)
 		if (id & bttv_tvnorms[i].v4l2_id)
 			break;
-	if (i == BTTV_TVNORMS) {
-		err = -EINVAL;
-		goto err;
-	}
-
+	if (i == BTTV_TVNORMS)
+		return -EINVAL;
 	btv->std = id;
 	set_tvnorm(btv, i);
-
-err:
-
-	return err;
+	return 0;
 }
 
 static int bttv_g_std(struct file *file, void *priv, v4l2_std_id *id)
@@ -1770,12 +1762,9 @@ static int bttv_enum_input(struct file *file, void *priv,
 {
 	struct bttv_fh *fh = priv;
 	struct bttv *btv = fh->btv;
-	int rc = 0;
 
-	if (i->index >= bttv_tvcards[btv->c.type].video_inputs) {
-		rc = -EINVAL;
-		goto err;
-	}
+	if (i->index >= bttv_tvcards[btv->c.type].video_inputs)
+		return -EINVAL;
 
 	i->type     = V4L2_INPUT_TYPE_CAMERA;
 	i->audioset = 0;
@@ -1799,10 +1788,7 @@ static int bttv_enum_input(struct file *file, void *priv,
 	}
 
 	i->std = BTTV_NORMS;
-
-err:
-
-	return rc;
+	return 0;
 }
 
 static int bttv_g_input(struct file *file, void *priv, unsigned int *i)
@@ -2334,6 +2320,19 @@ static int bttv_g_fmt_vid_overlay(struct file *file, void *priv,
 	return 0;
 }
 
+static void bttv_get_width_mask_vid_cap(const struct bttv_format *fmt,
+					unsigned int *width_mask,
+					unsigned int *width_bias)
+{
+	if (fmt->flags & FORMAT_FLAGS_PLANAR) {
+		*width_mask = ~15; /* width must be a multiple of 16 pixels */
+		*width_bias = 8;   /* nearest */
+	} else {
+		*width_mask = ~3; /* width must be a multiple of 4 pixels */
+		*width_bias = 2;  /* nearest */
+	}
+}
+
 static int bttv_try_fmt_vid_cap(struct file *file, void *priv,
 						struct v4l2_format *f)
 {
@@ -2343,6 +2342,7 @@ static int bttv_try_fmt_vid_cap(struct file *file, void *priv,
 	enum v4l2_field field;
 	__s32 width, height;
 	__s32 height2;
+	unsigned int width_mask, width_bias;
 	int rc;
 
 	fmt = format_by_fourcc(f->fmt.pix.pixelformat);
@@ -2375,9 +2375,9 @@ static int bttv_try_fmt_vid_cap(struct file *file, void *priv,
 	width = f->fmt.pix.width;
 	height = f->fmt.pix.height;
 
+	bttv_get_width_mask_vid_cap(fmt, &width_mask, &width_bias);
 	rc = limit_scaled_size_lock(fh, &width, &height, field,
-			       /* width_mask: 4 pixels */ ~3,
-			       /* width_bias: nearest */ 2,
+			       width_mask, width_bias,
 			       /* adjust_size */ 1,
 			       /* adjust_crop */ 0);
 	if (0 != rc)
@@ -2410,6 +2410,7 @@ static int bttv_s_fmt_vid_cap(struct file *file, void *priv,
 	struct bttv_fh *fh = priv;
 	struct bttv *btv = fh->btv;
 	__s32 width, height;
+	unsigned int width_mask, width_bias;
 	enum v4l2_field field;
 
 	retval = bttv_switch_type(fh, f->type);
@@ -2424,17 +2425,16 @@ static int bttv_s_fmt_vid_cap(struct file *file, void *priv,
 	height = f->fmt.pix.height;
 	field = f->fmt.pix.field;
 
+	fmt = format_by_fourcc(f->fmt.pix.pixelformat);
+	bttv_get_width_mask_vid_cap(fmt, &width_mask, &width_bias);
 	retval = limit_scaled_size_lock(fh, &width, &height, f->fmt.pix.field,
-			       /* width_mask: 4 pixels */ ~3,
-			       /* width_bias: nearest */ 2,
+			       width_mask, width_bias,
 			       /* adjust_size */ 1,
 			       /* adjust_crop */ 1);
 	if (0 != retval)
 		return retval;
 
 	f->fmt.pix.field = field;
-
-	fmt = format_by_fourcc(f->fmt.pix.pixelformat);
 
 	/* update our state informations */
 	fh->fmt              = fmt;
@@ -2803,30 +2803,44 @@ static int bttv_cropcap(struct file *file, void *priv,
 	    cap->type != V4L2_BUF_TYPE_VIDEO_OVERLAY)
 		return -EINVAL;
 
-	*cap = bttv_tvnorms[btv->tvnorm].cropcap;
+	/* defrect and bounds are set via g_selection */
+	cap->pixelaspect = bttv_tvnorms[btv->tvnorm].cropcap.pixelaspect;
 
 	return 0;
 }
 
-static int bttv_g_crop(struct file *file, void *f, struct v4l2_crop *crop)
+static int bttv_g_selection(struct file *file, void *f, struct v4l2_selection *sel)
 {
 	struct bttv_fh *fh = f;
 	struct bttv *btv = fh->btv;
 
-	if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE &&
-	    crop->type != V4L2_BUF_TYPE_VIDEO_OVERLAY)
+	if (sel->type != V4L2_BUF_TYPE_VIDEO_CAPTURE &&
+	    sel->type != V4L2_BUF_TYPE_VIDEO_OVERLAY)
 		return -EINVAL;
 
-	/* No fh->do_crop = 1; because btv->crop[1] may be
-	   inconsistent with fh->width or fh->height and apps
-	   do not expect a change here. */
-
-	crop->c = btv->crop[!!fh->do_crop].rect;
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP:
+		/*
+		 * No fh->do_crop = 1; because btv->crop[1] may be
+		 * inconsistent with fh->width or fh->height and apps
+		 * do not expect a change here.
+		 */
+		sel->r = btv->crop[!!fh->do_crop].rect;
+		break;
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+		sel->r = bttv_tvnorms[btv->tvnorm].cropcap.defrect;
+		break;
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+		sel->r = bttv_tvnorms[btv->tvnorm].cropcap.bounds;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	return 0;
 }
 
-static int bttv_s_crop(struct file *file, void *f, const struct v4l2_crop *crop)
+static int bttv_s_selection(struct file *file, void *f, struct v4l2_selection *sel)
 {
 	struct bttv_fh *fh = f;
 	struct bttv *btv = fh->btv;
@@ -2838,8 +2852,11 @@ static int bttv_s_crop(struct file *file, void *f, const struct v4l2_crop *crop)
 	__s32 b_right;
 	__s32 b_bottom;
 
-	if (crop->type != V4L2_BUF_TYPE_VIDEO_CAPTURE &&
-	    crop->type != V4L2_BUF_TYPE_VIDEO_OVERLAY)
+	if (sel->type != V4L2_BUF_TYPE_VIDEO_CAPTURE &&
+	    sel->type != V4L2_BUF_TYPE_VIDEO_OVERLAY)
+		return -EINVAL;
+
+	if (sel->target != V4L2_SEL_TGT_CROP)
 		return -EINVAL;
 
 	/* Make sure tvnorm, vbi_end and the current cropping
@@ -2863,21 +2880,23 @@ static int bttv_s_crop(struct file *file, void *f, const struct v4l2_crop *crop)
 	}
 
 	/* Min. scaled size 48 x 32. */
-	c.rect.left = clamp_t(s32, crop->c.left, b_left, b_right - 48);
+	c.rect.left = clamp_t(s32, sel->r.left, b_left, b_right - 48);
 	c.rect.left = min(c.rect.left, (__s32) MAX_HDELAY);
 
-	c.rect.width = clamp_t(s32, crop->c.width,
+	c.rect.width = clamp_t(s32, sel->r.width,
 			     48, b_right - c.rect.left);
 
-	c.rect.top = clamp_t(s32, crop->c.top, b_top, b_bottom - 32);
+	c.rect.top = clamp_t(s32, sel->r.top, b_top, b_bottom - 32);
 	/* Top and height must be a multiple of two. */
 	c.rect.top = (c.rect.top + 1) & ~1;
 
-	c.rect.height = clamp_t(s32, crop->c.height,
+	c.rect.height = clamp_t(s32, sel->r.height,
 			      32, b_bottom - c.rect.top);
 	c.rect.height = (c.rect.height + 1) & ~1;
 
 	bttv_crop_calc_limits(&c);
+
+	sel->r = c.rect;
 
 	btv->crop[1] = c;
 
@@ -3046,10 +3065,10 @@ static int bttv_open(struct file *file)
 	   which only change on request. These are stored in btv->crop[1].
 	   However for compatibility with V4L apps and cropping unaware
 	   V4L2 apps we now reset the cropping parameters as seen through
-	   this fh, which is to say VIDIOC_G_CROP and scaling limit checks
+	   this fh, which is to say VIDIOC_G_SELECTION and scaling limit checks
 	   will use btv->crop[0], the default cropping parameters for the
 	   current video standard, and VIDIOC_S_FMT will not implicitely
-	   change the cropping parameters until VIDIOC_S_CROP has been
+	   change the cropping parameters until VIDIOC_S_SELECTION has been
 	   called. */
 	fh->do_crop = !reset_crop; /* module parameter */
 
@@ -3158,8 +3177,8 @@ static const struct v4l2_ioctl_ops bttv_ioctl_ops = {
 	.vidioc_streamoff               = bttv_streamoff,
 	.vidioc_g_tuner                 = bttv_g_tuner,
 	.vidioc_s_tuner                 = bttv_s_tuner,
-	.vidioc_g_crop                  = bttv_g_crop,
-	.vidioc_s_crop                  = bttv_s_crop,
+	.vidioc_g_selection             = bttv_g_selection,
+	.vidioc_s_selection             = bttv_s_selection,
 	.vidioc_g_fbuf                  = bttv_g_fbuf,
 	.vidioc_s_fbuf                  = bttv_s_fbuf,
 	.vidioc_overlay                 = bttv_overlay,
@@ -3486,8 +3505,7 @@ static void bttv_irq_debug_low_latency(struct bttv *btv, u32 rc)
 		(unsigned long)rc);
 
 	if (0 == (btread(BT848_DSTATUS) & BT848_DSTATUS_HLOC)) {
-		pr_notice("%d: Oh, there (temporarily?) is no input signal. "
-			  "Ok, then this is harmless, don't worry ;)\n",
+		pr_notice("%d: Oh, there (temporarily?) is no input signal. Ok, then this is harmless, don't worry ;)\n",
 			  btv->c.nr);
 		return;
 	}
@@ -4025,9 +4043,7 @@ static int bttv_probe(struct pci_dev *dev, const struct pci_device_id *pci_id)
 	INIT_LIST_HEAD(&btv->capture);
 	INIT_LIST_HEAD(&btv->vcapture);
 
-	init_timer(&btv->timeout);
-	btv->timeout.function = bttv_irq_timeout;
-	btv->timeout.data     = (unsigned long)btv;
+	setup_timer(&btv->timeout, bttv_irq_timeout, (unsigned long)btv);
 
 	btv->i2c_rc = -1;
 	btv->tuner_type  = UNSET;

@@ -36,7 +36,7 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 
-#include <media/tvaudio.h>
+#include <media/i2c/tvaudio.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
 
@@ -1855,13 +1855,6 @@ static const struct v4l2_ctrl_ops tvaudio_ctrl_ops = {
 
 static const struct v4l2_subdev_core_ops tvaudio_core_ops = {
 	.log_status = tvaudio_log_status,
-	.g_ext_ctrls = v4l2_subdev_g_ext_ctrls,
-	.try_ext_ctrls = v4l2_subdev_try_ext_ctrls,
-	.s_ext_ctrls = v4l2_subdev_s_ext_ctrls,
-	.g_ctrl = v4l2_subdev_g_ctrl,
-	.s_ctrl = v4l2_subdev_s_ctrl,
-	.queryctrl = v4l2_subdev_queryctrl,
-	.querymenu = v4l2_subdev_querymenu,
 };
 
 static const struct v4l2_subdev_tuner_ops tvaudio_tuner_ops = {
@@ -1901,8 +1894,9 @@ static int tvaudio_probe(struct i2c_client *client, const struct i2c_device_id *
 		printk(KERN_INFO "tvaudio: TV audio decoder + audio/video mux driver\n");
 		printk(KERN_INFO "tvaudio: known chips: ");
 		for (desc = chiplist; desc->name != NULL; desc++)
-			printk("%s%s", (desc == chiplist) ? "" : ", ", desc->name);
-		printk("\n");
+			printk(KERN_CONT "%s%s",
+			       (desc == chiplist) ? "" : ", ", desc->name);
+		printk(KERN_CONT "\n");
 	}
 
 	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);

@@ -13,6 +13,7 @@
 #include <linux/ctype.h>
 #include <linux/netdevice.h>
 #include <linux/kernel.h>
+#include <linux/uuid.h>
 #include <linux/slab.h>
 #include <linux/compat.h>
 
@@ -1117,9 +1118,8 @@ static ssize_t bin_uuid(struct file *file,
 
 	/* Only supports reads */
 	if (oldval && oldlen) {
-		char buf[40], *str = buf;
-		unsigned char uuid[16];
-		int i;
+		char buf[UUID_STRING_LEN + 1];
+		uuid_t uuid;
 
 		result = kernel_read(file, 0, buf, sizeof(buf) - 1);
 		if (result < 0)
@@ -1127,24 +1127,15 @@ static ssize_t bin_uuid(struct file *file,
 
 		buf[result] = '\0';
 
-		/* Convert the uuid to from a string to binary */
-		for (i = 0; i < 16; i++) {
-			result = -EIO;
-			if (!isxdigit(str[0]) || !isxdigit(str[1]))
-				goto out;
-
-			uuid[i] = (hex_to_bin(str[0]) << 4) |
-					hex_to_bin(str[1]);
-			str += 2;
-			if (*str == '-')
-				str++;
-		}
+		result = -EIO;
+		if (uuid_parse(buf, &uuid))
+			goto out;
 
 		if (oldlen > 16)
 			oldlen = 16;
 
 		result = -EFAULT;
-		if (copy_to_user(oldval, uuid, oldlen))
+		if (copy_to_user(oldval, &uuid, oldlen))
 			goto out;
 
 		copied = oldlen;
@@ -1321,7 +1312,7 @@ static ssize_t binary_sysctl(const int *name, int nlen,
 	}
 
 	mnt = task_active_pid_ns(current)->proc_mnt;
-	file = file_open_root(mnt->mnt_root, mnt, pathname, flags);
+	file = file_open_root(mnt->mnt_root, mnt, pathname, flags, 0);
 	result = PTR_ERR(file);
 	if (IS_ERR(file))
 		goto out_putname;
@@ -1355,7 +1346,7 @@ static void deprecated_sysctl_warning(const int *name, int nlen)
 	 * CTL_KERN/KERN_VERSION is used by older glibc and cannot
 	 * ever go away.
 	 */
-	if (name[0] == CTL_KERN && name[1] == KERN_VERSION)
+	if (nlen >= 2 && name[0] == CTL_KERN && name[1] == KERN_VERSION)
 		return;
 
 	if (printk_ratelimit()) {
@@ -1363,8 +1354,8 @@ static void deprecated_sysctl_warning(const int *name, int nlen)
 			"warning: process `%s' used the deprecated sysctl "
 			"system call with ", current->comm);
 		for (i = 0; i < nlen; i++)
-			printk("%d.", name[i]);
-		printk("\n");
+			printk(KERN_CONT "%d.", name[i]);
+		printk(KERN_CONT "\n");
 	}
 	return;
 }

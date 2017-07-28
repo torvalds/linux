@@ -21,6 +21,8 @@
  *
  * DEFINE_STATIC_KEY_TRUE(key);
  * DEFINE_STATIC_KEY_FALSE(key);
+ * DEFINE_STATIC_KEY_ARRAY_TRUE(keys, count);
+ * DEFINE_STATIC_KEY_ARRAY_FALSE(keys, count);
  * static_branch_likely()
  * static_branch_unlikely()
  *
@@ -76,7 +78,6 @@
 
 #include <linux/types.h>
 #include <linux/compiler.h>
-#include <linux/bug.h>
 
 extern bool static_key_initialized;
 
@@ -88,11 +89,24 @@ extern bool static_key_initialized;
 
 struct static_key {
 	atomic_t enabled;
-/* Set lsb bit to 1 if branch is default true, 0 ot */
-	struct jump_entry *entries;
-#ifdef CONFIG_MODULES
-	struct static_key_mod *next;
-#endif
+/*
+ * Note:
+ *   To make anonymous unions work with old compilers, the static
+ *   initialization of them requires brackets. This creates a dependency
+ *   on the order of the struct with the initializers. If any fields
+ *   are added, STATIC_KEY_INIT_TRUE and STATIC_KEY_INIT_FALSE may need
+ *   to be modified.
+ *
+ * bit 0 => 1 if key is initially true
+ *	    0 if initially false
+ * bit 1 => 1 if points to struct static_key_mod
+ *	    0 if points to struct jump_entry
+ */
+	union {
+		unsigned long type;
+		struct jump_entry *entries;
+		struct static_key_mod *next;
+	};
 };
 
 #else
@@ -115,18 +129,12 @@ enum jump_label_type {
 
 struct module;
 
-#include <linux/atomic.h>
-
-static inline int static_key_count(struct static_key *key)
-{
-	return atomic_read(&key->enabled);
-}
-
 #ifdef HAVE_JUMP_LABEL
 
-#define JUMP_TYPE_FALSE	0UL
-#define JUMP_TYPE_TRUE	1UL
-#define JUMP_TYPE_MASK	1UL
+#define JUMP_TYPE_FALSE		0UL
+#define JUMP_TYPE_TRUE		1UL
+#define JUMP_TYPE_LINKED	2UL
+#define JUMP_TYPE_MASK		3UL
 
 static __always_inline bool static_key_false(struct static_key *key)
 {
@@ -152,15 +160,33 @@ extern int jump_label_text_reserved(void *start, void *end);
 extern void static_key_slow_inc(struct static_key *key);
 extern void static_key_slow_dec(struct static_key *key);
 extern void jump_label_apply_nops(struct module *mod);
+extern int static_key_count(struct static_key *key);
+extern void static_key_enable(struct static_key *key);
+extern void static_key_disable(struct static_key *key);
 
+/*
+ * We should be using ATOMIC_INIT() for initializing .enabled, but
+ * the inclusion of atomic.h is problematic for inclusion of jump_label.h
+ * in 'low-level' headers. Thus, we are initializing .enabled with a
+ * raw value, but have added a BUILD_BUG_ON() to catch any issues in
+ * jump_label_init() see: kernel/jump_label.c.
+ */
 #define STATIC_KEY_INIT_TRUE					\
-	{ .enabled = ATOMIC_INIT(1),				\
-	  .entries = (void *)JUMP_TYPE_TRUE }
+	{ .enabled = { 1 },					\
+	  { .entries = (void *)JUMP_TYPE_TRUE } }
 #define STATIC_KEY_INIT_FALSE					\
-	{ .enabled = ATOMIC_INIT(0),				\
-	  .entries = (void *)JUMP_TYPE_FALSE }
+	{ .enabled = { 0 },					\
+	  { .entries = (void *)JUMP_TYPE_FALSE } }
 
 #else  /* !HAVE_JUMP_LABEL */
+
+#include <linux/atomic.h>
+#include <linux/bug.h>
+
+static inline int static_key_count(struct static_key *key)
+{
+	return atomic_read(&key->enabled);
+}
 
 static __always_inline void jump_label_init(void)
 {
@@ -206,14 +232,6 @@ static inline int jump_label_apply_nops(struct module *mod)
 	return 0;
 }
 
-#define STATIC_KEY_INIT_TRUE	{ .enabled = ATOMIC_INIT(1) }
-#define STATIC_KEY_INIT_FALSE	{ .enabled = ATOMIC_INIT(0) }
-
-#endif	/* HAVE_JUMP_LABEL */
-
-#define STATIC_KEY_INIT STATIC_KEY_INIT_FALSE
-#define jump_label_enabled static_key_enabled
-
 static inline void static_key_enable(struct static_key *key)
 {
 	int count = static_key_count(key);
@@ -233,6 +251,14 @@ static inline void static_key_disable(struct static_key *key)
 	if (count)
 		static_key_slow_dec(key);
 }
+
+#define STATIC_KEY_INIT_TRUE	{ .enabled = ATOMIC_INIT(1) }
+#define STATIC_KEY_INIT_FALSE	{ .enabled = ATOMIC_INIT(0) }
+
+#endif	/* HAVE_JUMP_LABEL */
+
+#define STATIC_KEY_INIT STATIC_KEY_INIT_FALSE
+#define jump_label_enabled static_key_enabled
 
 /* -------------------------------------------------------------------------- */
 
@@ -257,8 +283,24 @@ struct static_key_false {
 #define DEFINE_STATIC_KEY_TRUE(name)	\
 	struct static_key_true name = STATIC_KEY_TRUE_INIT
 
+#define DECLARE_STATIC_KEY_TRUE(name)	\
+	extern struct static_key_true name
+
 #define DEFINE_STATIC_KEY_FALSE(name)	\
 	struct static_key_false name = STATIC_KEY_FALSE_INIT
+
+#define DECLARE_STATIC_KEY_FALSE(name)	\
+	extern struct static_key_false name
+
+#define DEFINE_STATIC_KEY_ARRAY_TRUE(name, count)		\
+	struct static_key_true name[count] = {			\
+		[0 ... (count) - 1] = STATIC_KEY_TRUE_INIT,	\
+	}
+
+#define DEFINE_STATIC_KEY_ARRAY_FALSE(name, count)		\
+	struct static_key_false name[count] = {			\
+		[0 ... (count) - 1] = STATIC_KEY_FALSE_INIT,	\
+	}
 
 extern bool ____wrong_branch_error(void);
 
@@ -374,6 +416,6 @@ extern bool ____wrong_branch_error(void);
 #define static_branch_enable(x)		static_key_enable(&(x)->key)
 #define static_branch_disable(x)	static_key_disable(&(x)->key)
 
-#endif	/* _LINUX_JUMP_LABEL_H */
-
 #endif /* __ASSEMBLY__ */
+
+#endif	/* _LINUX_JUMP_LABEL_H */

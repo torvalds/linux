@@ -15,6 +15,8 @@
 #include <asm/smp_plat.h>
 #include <asm/cp15.h>
 
+#include "core.h"
+
 static inline void cpu_enter_lowpower(void)
 {
 	unsigned int v;

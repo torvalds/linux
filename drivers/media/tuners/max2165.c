@@ -13,10 +13,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -370,22 +366,20 @@ static int max2165_init(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int max2165_release(struct dvb_frontend *fe)
+static void max2165_release(struct dvb_frontend *fe)
 {
 	struct max2165_priv *priv = fe->tuner_priv;
 	dprintk("%s()\n", __func__);
 
 	kfree(priv);
 	fe->tuner_priv = NULL;
-
-	return 0;
 }
 
 static const struct dvb_tuner_ops max2165_tuner_ops = {
 	.info = {
 		.name           = "Maxim MAX2165",
 		.frequency_min  = 470000000,
-		.frequency_max  = 780000000,
+		.frequency_max  = 862000000,
 		.frequency_step =     50000,
 	},
 

@@ -27,7 +27,11 @@
 #ifndef _DRM_MODE_H
 #define _DRM_MODE_H
 
-#include <linux/types.h>
+#include "drm.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #define DRM_DISPLAY_INFO_LEN	32
 #define DRM_CONNECTOR_NAME_LEN	32
@@ -43,7 +47,15 @@
 #define DRM_MODE_TYPE_DRIVER	(1<<6)
 
 /* Video mode flags */
-/* bit compatible with the xorg definitions. */
+/* bit compatible with the xrandr RR_ definitions (bits 0-13)
+ *
+ * ABI warning: Existing userspace really expects
+ * the mode flags to match the xrandr definitions. Any
+ * changes that don't match the xrandr definitions will
+ * likely need a new client cap or some other mechanism
+ * to avoid breaking existing userspace. This includes
+ * allocating new flags in the previously unused bits!
+ */
 #define DRM_MODE_FLAG_PHSYNC			(1<<0)
 #define DRM_MODE_FLAG_NHSYNC			(1<<1)
 #define DRM_MODE_FLAG_PVSYNC			(1<<2)
@@ -63,7 +75,7 @@
   * (define not exposed to user space).
   */
 #define DRM_MODE_FLAG_3D_MASK			(0x1f<<14)
-#define  DRM_MODE_FLAG_3D_NONE			(0<<14)
+#define  DRM_MODE_FLAG_3D_NONE		(0<<14)
 #define  DRM_MODE_FLAG_3D_FRAME_PACKING		(1<<14)
 #define  DRM_MODE_FLAG_3D_FIELD_ALTERNATIVE	(2<<14)
 #define  DRM_MODE_FLAG_3D_LINE_ALTERNATIVE	(3<<14)
@@ -73,6 +85,19 @@
 #define  DRM_MODE_FLAG_3D_TOP_AND_BOTTOM	(7<<14)
 #define  DRM_MODE_FLAG_3D_SIDE_BY_SIDE_HALF	(8<<14)
 
+/* Picture aspect ratio options */
+#define DRM_MODE_PICTURE_ASPECT_NONE		0
+#define DRM_MODE_PICTURE_ASPECT_4_3		1
+#define DRM_MODE_PICTURE_ASPECT_16_9		2
+
+/* Aspect ratio flag bitmask (4 bits 22:19) */
+#define DRM_MODE_FLAG_PIC_AR_MASK		(0x0F<<19)
+#define  DRM_MODE_FLAG_PIC_AR_NONE \
+			(DRM_MODE_PICTURE_ASPECT_NONE<<19)
+#define  DRM_MODE_FLAG_PIC_AR_4_3 \
+			(DRM_MODE_PICTURE_ASPECT_4_3<<19)
+#define  DRM_MODE_FLAG_PIC_AR_16_9 \
+			(DRM_MODE_PICTURE_ASPECT_16_9<<19)
 
 /* DPMS flags */
 /* bit compatible with the xorg definitions. */
@@ -88,11 +113,6 @@
 #define DRM_MODE_SCALE_CENTER		2 /* Centered, no scaling */
 #define DRM_MODE_SCALE_ASPECT		3 /* Full screen, preserve aspect */
 
-/* Picture aspect ratio options */
-#define DRM_MODE_PICTURE_ASPECT_NONE	0
-#define DRM_MODE_PICTURE_ASPECT_4_3	1
-#define DRM_MODE_PICTURE_ASPECT_16_9	2
-
 /* Dithering mode options */
 #define DRM_MODE_DITHERING_OFF	0
 #define DRM_MODE_DITHERING_ON	1
@@ -102,6 +122,57 @@
 #define DRM_MODE_DIRTY_OFF      0
 #define DRM_MODE_DIRTY_ON       1
 #define DRM_MODE_DIRTY_ANNOTATE 2
+
+/* Link Status options */
+#define DRM_MODE_LINK_STATUS_GOOD	0
+#define DRM_MODE_LINK_STATUS_BAD	1
+
+/*
+ * DRM_MODE_ROTATE_<degrees>
+ *
+ * Signals that a drm plane is been rotated <degrees> degrees in counter
+ * clockwise direction.
+ *
+ * This define is provided as a convenience, looking up the property id
+ * using the name->prop id lookup is the preferred method.
+ */
+#define DRM_MODE_ROTATE_0       (1<<0)
+#define DRM_MODE_ROTATE_90      (1<<1)
+#define DRM_MODE_ROTATE_180     (1<<2)
+#define DRM_MODE_ROTATE_270     (1<<3)
+
+/*
+ * DRM_MODE_ROTATE_MASK
+ *
+ * Bitmask used to look for drm plane rotations.
+ */
+#define DRM_MODE_ROTATE_MASK (\
+		DRM_MODE_ROTATE_0  | \
+		DRM_MODE_ROTATE_90  | \
+		DRM_MODE_ROTATE_180 | \
+		DRM_MODE_ROTATE_270)
+
+/*
+ * DRM_MODE_REFLECT_<axis>
+ *
+ * Signals that the contents of a drm plane is reflected in the <axis> axis,
+ * in the same way as mirroring.
+ *
+ * This define is provided as a convenience, looking up the property id
+ * using the name->prop id lookup is the preferred method.
+ */
+#define DRM_MODE_REFLECT_X      (1<<4)
+#define DRM_MODE_REFLECT_Y      (1<<5)
+
+/*
+ * DRM_MODE_REFLECT_MASK
+ *
+ * Bitmask used to look for drm plane reflections.
+ */
+#define DRM_MODE_REFLECT_MASK (\
+		DRM_MODE_REFLECT_X | \
+		DRM_MODE_REFLECT_Y)
+
 
 struct drm_mode_modeinfo {
 	__u32 clock;
@@ -202,6 +273,7 @@ struct drm_mode_get_plane_res {
 #define DRM_MODE_ENCODER_VIRTUAL 5
 #define DRM_MODE_ENCODER_DSI	6
 #define DRM_MODE_ENCODER_DPMST	7
+#define DRM_MODE_ENCODER_DPI	8
 
 struct drm_mode_get_encoder {
 	__u32 encoder_id;
@@ -215,14 +287,16 @@ struct drm_mode_get_encoder {
 
 /* This is for connectors with multiple signal types. */
 /* Try to match DRM_MODE_CONNECTOR_X as closely as possible. */
-#define DRM_MODE_SUBCONNECTOR_Automatic	0
-#define DRM_MODE_SUBCONNECTOR_Unknown	0
-#define DRM_MODE_SUBCONNECTOR_DVID	3
-#define DRM_MODE_SUBCONNECTOR_DVIA	4
-#define DRM_MODE_SUBCONNECTOR_Composite	5
-#define DRM_MODE_SUBCONNECTOR_SVIDEO	6
-#define DRM_MODE_SUBCONNECTOR_Component	8
-#define DRM_MODE_SUBCONNECTOR_SCART	9
+enum drm_mode_subconnector {
+	DRM_MODE_SUBCONNECTOR_Automatic = 0,
+	DRM_MODE_SUBCONNECTOR_Unknown = 0,
+	DRM_MODE_SUBCONNECTOR_DVID = 3,
+	DRM_MODE_SUBCONNECTOR_DVIA = 4,
+	DRM_MODE_SUBCONNECTOR_Composite = 5,
+	DRM_MODE_SUBCONNECTOR_SVIDEO = 6,
+	DRM_MODE_SUBCONNECTOR_Component = 8,
+	DRM_MODE_SUBCONNECTOR_SCART = 9,
+};
 
 #define DRM_MODE_CONNECTOR_Unknown	0
 #define DRM_MODE_CONNECTOR_VGA		1
@@ -241,6 +315,7 @@ struct drm_mode_get_encoder {
 #define DRM_MODE_CONNECTOR_eDP		14
 #define DRM_MODE_CONNECTOR_VIRTUAL      15
 #define DRM_MODE_CONNECTOR_DSI		16
+#define DRM_MODE_CONNECTOR_DPI		17
 
 struct drm_mode_get_connector {
 
@@ -320,6 +395,16 @@ struct drm_mode_connector_set_property {
 	__u32 connector_id;
 };
 
+#define DRM_MODE_OBJECT_CRTC 0xcccccccc
+#define DRM_MODE_OBJECT_CONNECTOR 0xc0c0c0c0
+#define DRM_MODE_OBJECT_ENCODER 0xe0e0e0e0
+#define DRM_MODE_OBJECT_MODE 0xdededede
+#define DRM_MODE_OBJECT_PROPERTY 0xb0b0b0b0
+#define DRM_MODE_OBJECT_FB 0xfbfbfbfb
+#define DRM_MODE_OBJECT_BLOB 0xbbbbbbbb
+#define DRM_MODE_OBJECT_PLANE 0xeeeeeeee
+#define DRM_MODE_OBJECT_ANY 0
+
 struct drm_mode_obj_get_properties {
 	__u64 props_ptr;
 	__u64 prop_values_ptr;
@@ -376,17 +461,20 @@ struct drm_mode_fb_cmd2 {
 	 * offsets[1].  Note that offsets[0] will generally
 	 * be 0 (but this is not required).
 	 *
-	 * To accommodate tiled, compressed, etc formats, a per-plane
+	 * To accommodate tiled, compressed, etc formats, a
 	 * modifier can be specified.  The default value of zero
 	 * indicates "native" format as specified by the fourcc.
-	 * Vendor specific modifier token.  This allows, for example,
-	 * different tiling/swizzling pattern on different planes.
-	 * See discussion above of DRM_FORMAT_MOD_xxx.
+	 * Vendor specific modifier token.  Note that even though
+	 * it looks like we have a modifier per-plane, we in fact
+	 * do not. The modifier for each plane must be identical.
+	 * Thus all combinations of different data layouts for
+	 * multi plane formats must be enumerated as separate
+	 * modifiers.
 	 */
 	__u32 handles[4];
 	__u32 pitches[4]; /* pitch for each plane */
 	__u32 offsets[4]; /* offset of each plane */
-	__u64 modifier[4]; /* ie, tiling, compressed (per plane) */
+	__u64 modifier[4]; /* ie, tiling, compress */
 };
 
 #define DRM_MODE_FB_DIRTY_ANNOTATE_COPY 0x01
@@ -487,9 +575,30 @@ struct drm_mode_crtc_lut {
 	__u64 blue;
 };
 
+struct drm_color_ctm {
+	/* Conversion matrix in S31.32 format. */
+	__s64 matrix[9];
+};
+
+struct drm_color_lut {
+	/*
+	 * Data is U0.16 fixed point format.
+	 */
+	__u16 red;
+	__u16 green;
+	__u16 blue;
+	__u16 reserved;
+};
+
 #define DRM_MODE_PAGE_FLIP_EVENT 0x01
 #define DRM_MODE_PAGE_FLIP_ASYNC 0x02
-#define DRM_MODE_PAGE_FLIP_FLAGS (DRM_MODE_PAGE_FLIP_EVENT|DRM_MODE_PAGE_FLIP_ASYNC)
+#define DRM_MODE_PAGE_FLIP_TARGET_ABSOLUTE 0x4
+#define DRM_MODE_PAGE_FLIP_TARGET_RELATIVE 0x8
+#define DRM_MODE_PAGE_FLIP_TARGET (DRM_MODE_PAGE_FLIP_TARGET_ABSOLUTE | \
+				   DRM_MODE_PAGE_FLIP_TARGET_RELATIVE)
+#define DRM_MODE_PAGE_FLIP_FLAGS (DRM_MODE_PAGE_FLIP_EVENT | \
+				  DRM_MODE_PAGE_FLIP_ASYNC | \
+				  DRM_MODE_PAGE_FLIP_TARGET)
 
 /*
  * Request a page flip on the specified crtc.
@@ -512,8 +621,7 @@ struct drm_mode_crtc_lut {
  * 'as soon as possible', meaning that it not delay waiting for vblank.
  * This may cause tearing on the screen.
  *
- * The reserved field must be zero until we figure out something
- * clever to use it for.
+ * The reserved field must be zero.
  */
 
 struct drm_mode_crtc_page_flip {
@@ -524,16 +632,44 @@ struct drm_mode_crtc_page_flip {
 	__u64 user_data;
 };
 
+/*
+ * Request a page flip on the specified crtc.
+ *
+ * Same as struct drm_mode_crtc_page_flip, but supports new flags and
+ * re-purposes the reserved field:
+ *
+ * The sequence field must be zero unless either of the
+ * DRM_MODE_PAGE_FLIP_TARGET_ABSOLUTE/RELATIVE flags is specified. When
+ * the ABSOLUTE flag is specified, the sequence field denotes the absolute
+ * vblank sequence when the flip should take effect. When the RELATIVE
+ * flag is specified, the sequence field denotes the relative (to the
+ * current one when the ioctl is called) vblank sequence when the flip
+ * should take effect. NOTE: DRM_IOCTL_WAIT_VBLANK must still be used to
+ * make sure the vblank sequence before the target one has passed before
+ * calling this ioctl. The purpose of the
+ * DRM_MODE_PAGE_FLIP_TARGET_ABSOLUTE/RELATIVE flags is merely to clarify
+ * the target for when code dealing with a page flip runs during a
+ * vertical blank period.
+ */
+
+struct drm_mode_crtc_page_flip_target {
+	__u32 crtc_id;
+	__u32 fb_id;
+	__u32 flags;
+	__u32 sequence;
+	__u64 user_data;
+};
+
 /* create a dumb scanout buffer */
 struct drm_mode_create_dumb {
-	uint32_t height;
-	uint32_t width;
-	uint32_t bpp;
-	uint32_t flags;
+	__u32 height;
+	__u32 width;
+	__u32 bpp;
+	__u32 flags;
 	/* handle, pitch, size will be returned */
-	uint32_t handle;
-	uint32_t pitch;
-	uint64_t size;
+	__u32 handle;
+	__u32 pitch;
+	__u64 size;
 };
 
 /* set up for mmap of a dumb scanout buffer */
@@ -550,7 +686,7 @@ struct drm_mode_map_dumb {
 };
 
 struct drm_mode_destroy_dumb {
-	uint32_t handle;
+	__u32 handle;
 };
 
 /* page-flip flags are valid, plus: */
@@ -595,5 +731,9 @@ struct drm_mode_create_blob {
 struct drm_mode_destroy_blob {
 	__u32 blob_id;
 };
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif

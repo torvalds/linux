@@ -13,10 +13,13 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
+#include <linux/time.h>
 
 #include "pwm-lpss.h"
 
@@ -24,11 +27,7 @@
 #define PWM_ENABLE			BIT(31)
 #define PWM_SW_UPDATE			BIT(30)
 #define PWM_BASE_UNIT_SHIFT		8
-#define PWM_BASE_UNIT_MASK		0x00ffff00
 #define PWM_ON_TIME_DIV_MASK		0x000000ff
-#define PWM_DIVISION_CORRECTION		0x2
-#define PWM_LIMIT			(0x8000 + PWM_DIVISION_CORRECTION)
-#define NSECS_PER_SEC			1000000000UL
 
 /* Size of each PWM register space if multiple */
 #define PWM_SIZE			0x400
@@ -36,29 +35,8 @@
 struct pwm_lpss_chip {
 	struct pwm_chip chip;
 	void __iomem *regs;
-	unsigned long clk_rate;
+	const struct pwm_lpss_boardinfo *info;
 };
-
-/* BayTrail */
-const struct pwm_lpss_boardinfo pwm_lpss_byt_info = {
-	.clk_rate = 25000000,
-	.npwm = 1,
-};
-EXPORT_SYMBOL_GPL(pwm_lpss_byt_info);
-
-/* Braswell */
-const struct pwm_lpss_boardinfo pwm_lpss_bsw_info = {
-	.clk_rate = 19200000,
-	.npwm = 1,
-};
-EXPORT_SYMBOL_GPL(pwm_lpss_bsw_info);
-
-/* Broxton */
-const struct pwm_lpss_boardinfo pwm_lpss_bxt_info = {
-	.clk_rate = 19200000,
-	.npwm = 4,
-};
-EXPORT_SYMBOL_GPL(pwm_lpss_bxt_info);
 
 static inline struct pwm_lpss_chip *to_lpwm(struct pwm_chip *chip)
 {
@@ -79,66 +57,116 @@ static inline void pwm_lpss_write(const struct pwm_device *pwm, u32 value)
 	writel(value, lpwm->regs + pwm->hwpwm * PWM_SIZE + PWM);
 }
 
-static int pwm_lpss_config(struct pwm_chip *chip, struct pwm_device *pwm,
-			   int duty_ns, int period_ns)
+static int pwm_lpss_wait_for_update(struct pwm_device *pwm)
 {
-	struct pwm_lpss_chip *lpwm = to_lpwm(chip);
-	u8 on_time_div;
-	unsigned long c;
-	unsigned long long base_unit, freq = NSECS_PER_SEC;
+	struct pwm_lpss_chip *lpwm = to_lpwm(pwm->chip);
+	const void __iomem *addr = lpwm->regs + pwm->hwpwm * PWM_SIZE + PWM;
+	const unsigned int ms = 500 * USEC_PER_MSEC;
+	u32 val;
+	int err;
+
+	/*
+	 * PWM Configuration register has SW_UPDATE bit that is set when a new
+	 * configuration is written to the register. The bit is automatically
+	 * cleared at the start of the next output cycle by the IP block.
+	 *
+	 * If one writes a new configuration to the register while it still has
+	 * the bit enabled, PWM may freeze. That is, while one can still write
+	 * to the register, it won't have an effect. Thus, we try to sleep long
+	 * enough that the bit gets cleared and make sure the bit is not
+	 * enabled while we update the configuration.
+	 */
+	err = readl_poll_timeout(addr, val, !(val & PWM_SW_UPDATE), 40, ms);
+	if (err)
+		dev_err(pwm->chip->dev, "PWM_SW_UPDATE was not cleared\n");
+
+	return err;
+}
+
+static inline int pwm_lpss_is_updating(struct pwm_device *pwm)
+{
+	return (pwm_lpss_read(pwm) & PWM_SW_UPDATE) ? -EBUSY : 0;
+}
+
+static void pwm_lpss_prepare(struct pwm_lpss_chip *lpwm, struct pwm_device *pwm,
+			     int duty_ns, int period_ns)
+{
+	unsigned long long on_time_div;
+	unsigned long c = lpwm->info->clk_rate, base_unit_range;
+	unsigned long long base_unit, freq = NSEC_PER_SEC;
 	u32 ctrl;
 
 	do_div(freq, period_ns);
 
-	/* The equation is: base_unit = ((freq / c) * 65536) + correction */
-	base_unit = freq * 65536;
+	/*
+	 * The equation is:
+	 * base_unit = round(base_unit_range * freq / c)
+	 */
+	base_unit_range = BIT(lpwm->info->base_unit_bits) - 1;
+	freq *= base_unit_range;
 
-	c = lpwm->clk_rate;
-	if (!c)
-		return -EINVAL;
+	base_unit = DIV_ROUND_CLOSEST_ULL(freq, c);
 
-	do_div(base_unit, c);
-	base_unit += PWM_DIVISION_CORRECTION;
-	if (base_unit > PWM_LIMIT)
-		return -EINVAL;
-
-	if (duty_ns <= 0)
-		duty_ns = 1;
-	on_time_div = 255 - (255 * duty_ns / period_ns);
-
-	pm_runtime_get_sync(chip->dev);
+	on_time_div = 255ULL * duty_ns;
+	do_div(on_time_div, period_ns);
+	on_time_div = 255ULL - on_time_div;
 
 	ctrl = pwm_lpss_read(pwm);
-	ctrl &= ~(PWM_BASE_UNIT_MASK | PWM_ON_TIME_DIV_MASK);
-	ctrl |= (u16) base_unit << PWM_BASE_UNIT_SHIFT;
+	ctrl &= ~PWM_ON_TIME_DIV_MASK;
+	ctrl &= ~(base_unit_range << PWM_BASE_UNIT_SHIFT);
+	base_unit &= base_unit_range;
+	ctrl |= (u32) base_unit << PWM_BASE_UNIT_SHIFT;
 	ctrl |= on_time_div;
-	/* request PWM to update on next cycle */
-	ctrl |= PWM_SW_UPDATE;
 	pwm_lpss_write(pwm, ctrl);
-
-	pm_runtime_put(chip->dev);
-
-	return 0;
 }
 
-static int pwm_lpss_enable(struct pwm_chip *chip, struct pwm_device *pwm)
+static inline void pwm_lpss_cond_enable(struct pwm_device *pwm, bool cond)
 {
-	pm_runtime_get_sync(chip->dev);
-	pwm_lpss_write(pwm, pwm_lpss_read(pwm) | PWM_ENABLE);
-	return 0;
+	if (cond)
+		pwm_lpss_write(pwm, pwm_lpss_read(pwm) | PWM_ENABLE);
 }
 
-static void pwm_lpss_disable(struct pwm_chip *chip, struct pwm_device *pwm)
+static int pwm_lpss_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+			  struct pwm_state *state)
 {
-	pwm_lpss_write(pwm, pwm_lpss_read(pwm) & ~PWM_ENABLE);
-	pm_runtime_put(chip->dev);
+	struct pwm_lpss_chip *lpwm = to_lpwm(chip);
+	int ret;
+
+	if (state->enabled) {
+		if (!pwm_is_enabled(pwm)) {
+			pm_runtime_get_sync(chip->dev);
+			ret = pwm_lpss_is_updating(pwm);
+			if (ret) {
+				pm_runtime_put(chip->dev);
+				return ret;
+			}
+			pwm_lpss_prepare(lpwm, pwm, state->duty_cycle, state->period);
+			pwm_lpss_write(pwm, pwm_lpss_read(pwm) | PWM_SW_UPDATE);
+			pwm_lpss_cond_enable(pwm, lpwm->info->bypass == false);
+			ret = pwm_lpss_wait_for_update(pwm);
+			if (ret) {
+				pm_runtime_put(chip->dev);
+				return ret;
+			}
+			pwm_lpss_cond_enable(pwm, lpwm->info->bypass == true);
+		} else {
+			ret = pwm_lpss_is_updating(pwm);
+			if (ret)
+				return ret;
+			pwm_lpss_prepare(lpwm, pwm, state->duty_cycle, state->period);
+			pwm_lpss_write(pwm, pwm_lpss_read(pwm) | PWM_SW_UPDATE);
+			return pwm_lpss_wait_for_update(pwm);
+		}
+	} else if (pwm_is_enabled(pwm)) {
+		pwm_lpss_write(pwm, pwm_lpss_read(pwm) & ~PWM_ENABLE);
+		pm_runtime_put(chip->dev);
+	}
+
+	return 0;
 }
 
 static const struct pwm_ops pwm_lpss_ops = {
-	.free = pwm_lpss_disable,
-	.config = pwm_lpss_config,
-	.enable = pwm_lpss_enable,
-	.disable = pwm_lpss_disable,
+	.apply = pwm_lpss_apply,
 	.owner = THIS_MODULE,
 };
 
@@ -146,6 +174,7 @@ struct pwm_lpss_chip *pwm_lpss_probe(struct device *dev, struct resource *r,
 				     const struct pwm_lpss_boardinfo *info)
 {
 	struct pwm_lpss_chip *lpwm;
+	unsigned long c;
 	int ret;
 
 	lpwm = devm_kzalloc(dev, sizeof(*lpwm), GFP_KERNEL);
@@ -156,7 +185,12 @@ struct pwm_lpss_chip *pwm_lpss_probe(struct device *dev, struct resource *r,
 	if (IS_ERR(lpwm->regs))
 		return ERR_CAST(lpwm->regs);
 
-	lpwm->clk_rate = info->clk_rate;
+	lpwm->info = info;
+
+	c = lpwm->info->clk_rate;
+	if (!c)
+		return ERR_PTR(-EINVAL);
+
 	lpwm->chip.dev = dev;
 	lpwm->chip.ops = &pwm_lpss_ops;
 	lpwm->chip.base = -1;

@@ -1165,7 +1165,7 @@ serial_omap_type(struct uart_port *port)
 
 #define BOTH_EMPTY (UART_LSR_TEMT | UART_LSR_THRE)
 
-static inline void wait_for_xmitr(struct uart_omap_port *up)
+static void __maybe_unused wait_for_xmitr(struct uart_omap_port *up)
 {
 	unsigned int status, tmout = 10000;
 
@@ -1233,6 +1233,61 @@ out:
 #endif /* CONFIG_CONSOLE_POLL */
 
 #ifdef CONFIG_SERIAL_OMAP_CONSOLE
+
+#ifdef CONFIG_SERIAL_EARLYCON
+static unsigned int __init omap_serial_early_in(struct uart_port *port,
+						int offset)
+{
+	offset <<= port->regshift;
+	return readw(port->membase + offset);
+}
+
+static void __init omap_serial_early_out(struct uart_port *port, int offset,
+					 int value)
+{
+	offset <<= port->regshift;
+	writew(value, port->membase + offset);
+}
+
+static void __init omap_serial_early_putc(struct uart_port *port, int c)
+{
+	unsigned int status;
+
+	for (;;) {
+		status = omap_serial_early_in(port, UART_LSR);
+		if ((status & BOTH_EMPTY) == BOTH_EMPTY)
+			break;
+		cpu_relax();
+	}
+	omap_serial_early_out(port, UART_TX, c);
+}
+
+static void __init early_omap_serial_write(struct console *console,
+					   const char *s, unsigned int count)
+{
+	struct earlycon_device *device = console->data;
+	struct uart_port *port = &device->port;
+
+	uart_console_write(port, s, count, omap_serial_early_putc);
+}
+
+static int __init early_omap_serial_setup(struct earlycon_device *device,
+					  const char *options)
+{
+	struct uart_port *port = &device->port;
+
+	if (!(device->port.membase || device->port.iobase))
+		return -ENODEV;
+
+	port->regshift = 2;
+	device->con->write = early_omap_serial_write;
+	return 0;
+}
+
+OF_EARLYCON_DECLARE(omapserial, "ti,omap2-uart", early_omap_serial_setup);
+OF_EARLYCON_DECLARE(omapserial, "ti,omap3-uart", early_omap_serial_setup);
+OF_EARLYCON_DECLARE(omapserial, "ti,omap4-uart", early_omap_serial_setup);
+#endif /* CONFIG_SERIAL_EARLYCON */
 
 static struct uart_omap_port *serial_omap_console_ports[OMAP_MAX_HSUART_PORTS];
 
@@ -1343,7 +1398,7 @@ static inline void serial_omap_add_console_port(struct uart_omap_port *up)
 
 /* Enable or disable the rs485 support */
 static int
-serial_omap_config_rs485(struct uart_port *port, struct serial_rs485 *rs485conf)
+serial_omap_config_rs485(struct uart_port *port, struct serial_rs485 *rs485)
 {
 	struct uart_omap_port *up = to_uart_omap_port(port);
 	unsigned int mode;
@@ -1356,8 +1411,12 @@ serial_omap_config_rs485(struct uart_port *port, struct serial_rs485 *rs485conf)
 	up->ier = 0;
 	serial_out(up, UART_IER, 0);
 
+	/* Clamp the delays to [0, 100ms] */
+	rs485->delay_rts_before_send = min(rs485->delay_rts_before_send, 100U);
+	rs485->delay_rts_after_send  = min(rs485->delay_rts_after_send, 100U);
+
 	/* store new config */
-	port->rs485 = *rs485conf;
+	port->rs485 = *rs485;
 
 	/*
 	 * Just as a precaution, only allow rs485
@@ -1391,7 +1450,7 @@ serial_omap_config_rs485(struct uart_port *port, struct serial_rs485 *rs485conf)
 	return 0;
 }
 
-static struct uart_ops serial_omap_pops = {
+static const struct uart_ops serial_omap_pops = {
 	.tx_empty	= serial_omap_tx_empty,
 	.set_mctrl	= serial_omap_set_mctrl,
 	.get_mctrl	= serial_omap_get_mctrl,
@@ -1538,6 +1597,9 @@ static struct omap_uart_port_info *of_get_uart_port_info(struct device *dev)
 
 	of_property_read_u32(dev->of_node, "clock-frequency",
 					 &omap_up_info->uartclk);
+
+	omap_up_info->flags = UPF_BOOT_AUTOCONF;
+
 	return omap_up_info;
 }
 
@@ -1708,7 +1770,8 @@ static int serial_omap_probe(struct platform_device *pdev)
 	return 0;
 
 err_add_port:
-	pm_runtime_put(&pdev->dev);
+	pm_runtime_dont_use_autosuspend(&pdev->dev);
+	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	pm_qos_remove_request(&up->pm_qos_request);
 	device_init_wakeup(up->dev, false);
@@ -1721,9 +1784,13 @@ static int serial_omap_remove(struct platform_device *dev)
 {
 	struct uart_omap_port *up = platform_get_drvdata(dev);
 
+	pm_runtime_get_sync(up->dev);
+
+	uart_remove_one_port(&serial_omap_reg, &up->port);
+
+	pm_runtime_dont_use_autosuspend(up->dev);
 	pm_runtime_put_sync(up->dev);
 	pm_runtime_disable(up->dev);
-	uart_remove_one_port(&serial_omap_reg, &up->port);
 	pm_qos_remove_request(&up->pm_qos_request);
 	device_init_wakeup(&dev->dev, false);
 
@@ -1866,7 +1933,7 @@ static struct platform_driver serial_omap_driver = {
 	.probe          = serial_omap_probe,
 	.remove         = serial_omap_remove,
 	.driver		= {
-		.name	= DRIVER_NAME,
+		.name	= OMAP_SERIAL_DRIVER_NAME,
 		.pm	= &serial_omap_dev_pm_ops,
 		.of_match_table = of_match_ptr(omap_serial_of_match),
 	},

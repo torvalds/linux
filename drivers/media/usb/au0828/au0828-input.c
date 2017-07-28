@@ -130,7 +130,7 @@ static int au0828_get_key_au8522(struct au0828_rc *ir)
 	bool first = true;
 
 	/* do nothing if device is disconnected */
-	if (ir->dev->dev_state == DEV_DISCONNECTED)
+	if (test_bit(DEV_DISCONNECTED, &ir->dev->dev_state))
 		return 0;
 
 	/* Check IR int */
@@ -260,7 +260,7 @@ static void au0828_rc_stop(struct rc_dev *rc)
 	cancel_delayed_work_sync(&ir->work);
 
 	/* do nothing if device is disconnected */
-	if (ir->dev->dev_state != DEV_DISCONNECTED) {
+	if (!test_bit(DEV_DISCONNECTED, &ir->dev->dev_state)) {
 		/* Disable IR */
 		au8522_rc_clear(ir, 0xe0, 1 << 4);
 	}
@@ -298,7 +298,7 @@ int au0828_rc_register(struct au0828_dev *dev)
 		return -ENODEV;
 
 	ir = kzalloc(sizeof(*ir), GFP_KERNEL);
-	rc = rc_allocate_device();
+	rc = rc_allocate_device(RC_DRIVER_IR_RAW);
 	if (!ir || !rc)
 		goto error;
 
@@ -343,8 +343,8 @@ int au0828_rc_register(struct au0828_dev *dev)
 	rc->input_id.product = le16_to_cpu(dev->usbdev->descriptor.idProduct);
 	rc->dev.parent = &dev->usbdev->dev;
 	rc->driver_name = "au0828-input";
-	rc->driver_type = RC_DRIVER_IR_RAW;
-	rc->allowed_protocols = RC_BIT_NEC | RC_BIT_RC5;
+	rc->allowed_protocols = RC_BIT_NEC | RC_BIT_NECX | RC_BIT_NEC32 |
+								RC_BIT_RC5;
 
 	/* all done */
 	err = rc_register_device(rc);

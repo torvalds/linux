@@ -24,7 +24,7 @@
 #include <linux/v4l2-mediabus.h>
 #include <linux/videodev2.h>
 
-#include <media/ov772x.h>
+#include <media/i2c/ov772x.h>
 #include <media/soc_camera.h>
 #include <media/v4l2-clk.h>
 #include <media/v4l2-ctrls.h>
@@ -851,29 +851,28 @@ ov772x_set_fmt_error:
 	return ret;
 }
 
-static int ov772x_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
+static int ov772x_get_selection(struct v4l2_subdev *sd,
+		struct v4l2_subdev_pad_config *cfg,
+		struct v4l2_subdev_selection *sel)
 {
-	a->c.left	= 0;
-	a->c.top	= 0;
-	a->c.width	= VGA_WIDTH;
-	a->c.height	= VGA_HEIGHT;
-	a->type		= V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	if (sel->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
-	return 0;
-}
-
-static int ov772x_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
-{
-	a->bounds.left			= 0;
-	a->bounds.top			= 0;
-	a->bounds.width			= OV772X_MAX_WIDTH;
-	a->bounds.height		= OV772X_MAX_HEIGHT;
-	a->defrect			= a->bounds;
-	a->type				= V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	a->pixelaspect.numerator	= 1;
-	a->pixelaspect.denominator	= 1;
-
-	return 0;
+	sel->r.left = 0;
+	sel->r.top = 0;
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+		sel->r.width = OV772X_MAX_WIDTH;
+		sel->r.height = OV772X_MAX_HEIGHT;
+		return 0;
+	case V4L2_SEL_TGT_CROP:
+		sel->r.width = VGA_WIDTH;
+		sel->r.height = VGA_HEIGHT;
+		return 0;
+	default:
+		return -EINVAL;
+	}
 }
 
 static int ov772x_get_fmt(struct v4l2_subdev *sd,
@@ -895,38 +894,15 @@ static int ov772x_get_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ov772x_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
-{
-	struct ov772x_priv *priv = to_ov772x(sd);
-	const struct ov772x_color_format *cfmt;
-	const struct ov772x_win_size *win;
-	int ret;
-
-	ov772x_select_params(mf, &cfmt, &win);
-
-	ret = ov772x_set_params(priv, cfmt, win);
-	if (ret < 0)
-		return ret;
-
-	priv->win = win;
-	priv->cfmt = cfmt;
-
-	mf->code = cfmt->code;
-	mf->width = win->rect.width;
-	mf->height = win->rect.height;
-	mf->field = V4L2_FIELD_NONE;
-	mf->colorspace = cfmt->colorspace;
-
-	return 0;
-}
-
 static int ov772x_set_fmt(struct v4l2_subdev *sd,
 		struct v4l2_subdev_pad_config *cfg,
 		struct v4l2_subdev_format *format)
 {
+	struct ov772x_priv *priv = to_ov772x(sd);
 	struct v4l2_mbus_framefmt *mf = &format->format;
 	const struct ov772x_color_format *cfmt;
 	const struct ov772x_win_size *win;
+	int ret;
 
 	if (format->pad)
 		return -EINVAL;
@@ -939,9 +915,17 @@ static int ov772x_set_fmt(struct v4l2_subdev *sd,
 	mf->field = V4L2_FIELD_NONE;
 	mf->colorspace = cfmt->colorspace;
 
-	if (format->which == V4L2_SUBDEV_FORMAT_ACTIVE)
-		return ov772x_s_fmt(sd, mf);
-	cfg->try_fmt = *mf;
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
+		cfg->try_fmt = *mf;
+		return 0;
+	}
+
+	ret = ov772x_set_params(priv, cfmt, win);
+	if (ret < 0)
+		return ret;
+
+	priv->win = win;
+	priv->cfmt = cfmt;
 	return 0;
 }
 
@@ -994,7 +978,7 @@ static const struct v4l2_ctrl_ops ov772x_ctrl_ops = {
 	.s_ctrl = ov772x_s_ctrl,
 };
 
-static struct v4l2_subdev_core_ops ov772x_subdev_core_ops = {
+static const struct v4l2_subdev_core_ops ov772x_subdev_core_ops = {
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.g_register	= ov772x_g_register,
 	.s_register	= ov772x_s_register,
@@ -1028,20 +1012,19 @@ static int ov772x_g_mbus_config(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static struct v4l2_subdev_video_ops ov772x_subdev_video_ops = {
+static const struct v4l2_subdev_video_ops ov772x_subdev_video_ops = {
 	.s_stream	= ov772x_s_stream,
-	.cropcap	= ov772x_cropcap,
-	.g_crop		= ov772x_g_crop,
 	.g_mbus_config	= ov772x_g_mbus_config,
 };
 
 static const struct v4l2_subdev_pad_ops ov772x_subdev_pad_ops = {
 	.enum_mbus_code = ov772x_enum_mbus_code,
+	.get_selection	= ov772x_get_selection,
 	.get_fmt	= ov772x_get_fmt,
 	.set_fmt	= ov772x_set_fmt,
 };
 
-static struct v4l2_subdev_ops ov772x_subdev_ops = {
+static const struct v4l2_subdev_ops ov772x_subdev_ops = {
 	.core	= &ov772x_subdev_core_ops,
 	.video	= &ov772x_subdev_video_ops,
 	.pad	= &ov772x_subdev_pad_ops,
@@ -1064,12 +1047,13 @@ static int ov772x_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
+	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA |
+					      I2C_FUNC_PROTOCOL_MANGLING)) {
 		dev_err(&adapter->dev,
-			"I2C-Adapter doesn't support "
-			"I2C_FUNC_SMBUS_BYTE_DATA\n");
+			"I2C-Adapter doesn't support SMBUS_BYTE_DATA or PROTOCOL_MANGLING\n");
 		return -EIO;
 	}
+	client->flags |= I2C_CLIENT_SCCB;
 
 	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)

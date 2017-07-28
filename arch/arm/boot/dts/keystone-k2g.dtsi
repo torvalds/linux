@@ -1,0 +1,143 @@
+/*
+ * Device Tree Source for K2G SOC
+ *
+ * Copyright (C) 2016 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed "as is" WITHOUT ANY WARRANTY of any
+ * kind, whether express or implied; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/pinctrl/keystone.h>
+
+/ {
+	compatible = "ti,k2g","ti,keystone";
+	model = "Texas Instruments K2G SoC";
+	#address-cells = <2>;
+	#size-cells = <2>;
+	interrupt-parent = <&gic>;
+
+	chosen { };
+
+	aliases {
+		serial0 = &uart0;
+	};
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			compatible = "arm,cortex-a15";
+			device_type = "cpu";
+			reg = <0>;
+		};
+	};
+
+	gic: interrupt-controller@02561000 {
+		compatible = "arm,gic-400", "arm,cortex-a15-gic";
+		#interrupt-cells = <3>;
+		interrupt-controller;
+		reg = <0x0 0x02561000 0x0 0x1000>,
+		      <0x0 0x02562000 0x0 0x2000>,
+		      <0x0 0x02564000 0x0 0x2000>,
+		      <0x0 0x02566000 0x0 0x2000>;
+		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) |
+				IRQ_TYPE_LEVEL_HIGH)>;
+	};
+
+	timer {
+		compatible = "arm,armv7-timer";
+		interrupts =
+			<GIC_PPI 13
+				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			<GIC_PPI 14
+				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			<GIC_PPI 11
+				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>,
+			<GIC_PPI 10
+				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_LOW)>;
+	};
+
+	pmu {
+		compatible = "arm,cortex-a15-pmu";
+		interrupts = <GIC_SPI 4 IRQ_TYPE_EDGE_RISING>;
+	};
+
+	soc {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		#pinctrl-cells = <1>;
+		compatible = "ti,keystone","simple-bus";
+		ranges = <0x0 0x0 0x0 0xc0000000>;
+		dma-ranges = <0x80000000 0x8 0x00000000 0x80000000>;
+
+		msm_ram: msmram@0c000000 {
+			compatible = "mmio-sram";
+			reg = <0x0c000000 0x100000>;
+			ranges = <0x0 0x0c000000 0x100000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			sram-bm@f7000 {
+				reg = <0x000f7000 0x8000>;
+			};
+		};
+
+		k2g_pinctrl: pinmux@02621000 {
+			compatible = "pinctrl-single";
+			reg = <0x02621000 0x410>;
+			pinctrl-single,register-width = <32>;
+			pinctrl-single,function-mask = <0x001b0007>;
+		};
+
+		devctrl: device-state-control@02620000 {
+			compatible = "ti,keystone-devctrl", "syscon";
+			reg = <0x02620000 0x1000>;
+		};
+
+		uart0: serial@02530c00 {
+			compatible = "ti,da830-uart", "ns16550a";
+			current-speed = <115200>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			reg = <0x02530c00 0x100>;
+			interrupts = <GIC_SPI 164 IRQ_TYPE_EDGE_RISING>;
+			clock-frequency = <200000000>;
+			status = "disabled";
+		};
+
+		kirq0: keystone_irq@026202a0 {
+			compatible = "ti,keystone-irq";
+			interrupts = <GIC_SPI 1 IRQ_TYPE_EDGE_RISING>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
+			ti,syscon-dev = <&devctrl 0x2a0>;
+		};
+
+		dspgpio0: keystone_dsp_gpio@02620240 {
+			compatible = "ti,keystone-dsp-gpio";
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio,syscon-dev = <&devctrl 0x240>;
+		};
+
+		msgmgr: msgmgr@02a00000 {
+			compatible = "ti,k2g-message-manager";
+			#mbox-cells = <2>;
+			reg-names = "queue_proxy_region",
+				    "queue_state_debug_region";
+			reg = <0x02a00000 0x400000>, <0x028c3400 0x400>;
+			interrupt-names = "rx_005",
+					  "rx_057";
+			interrupts = <GIC_SPI 324 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 327 IRQ_TYPE_LEVEL_HIGH>;
+		};
+	};
+};

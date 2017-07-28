@@ -23,15 +23,14 @@
  * Default types range from 0~12. type can range from 0 to 0xff
  * SST types start at higher to avoid any overlapping in future
  */
-#define SOC_CONTROL_TYPE_HDA_SST_ALGO_PARAMS	0x100
-#define SOC_CONTROL_TYPE_HDA_SST_MUX		0x101
-#define SOC_CONTROL_TYPE_HDA_SST_MIX		0x101
-#define SOC_CONTROL_TYPE_HDA_SST_BYTE		0x103
+#define SKL_CONTROL_TYPE_BYTE_TLV	0x100
+#define SKL_CONTROL_TYPE_MIC_SELECT	0x102
 
 #define HDA_SST_CFG_MAX	900 /* size of copier cfg*/
 #define MAX_IN_QUEUE 8
 #define MAX_OUT_QUEUE 8
 
+#define SKL_UUID_STR_SZ 40
 /* Event types goes here */
 /* Reserve event type 0 for no event handlers */
 enum skl_event_types {
@@ -72,6 +71,7 @@ enum skl_ch_cfg {
 	SKL_CH_CFG_DUAL_MONO = 9,
 	SKL_CH_CFG_I2S_DUAL_STEREO_0 = 10,
 	SKL_CH_CFG_I2S_DUAL_STEREO_1 = 11,
+	SKL_CH_CFG_4_CHANNEL = 12,
 	SKL_CH_CFG_INVALID
 };
 
@@ -79,7 +79,11 @@ enum skl_module_type {
 	SKL_MODULE_TYPE_MIXER = 0,
 	SKL_MODULE_TYPE_COPIER,
 	SKL_MODULE_TYPE_UPDWMIX,
-	SKL_MODULE_TYPE_SRCINT
+	SKL_MODULE_TYPE_SRCINT,
+	SKL_MODULE_TYPE_ALGO,
+	SKL_MODULE_TYPE_BASE_OUTFMT,
+	SKL_MODULE_TYPE_KPB,
+	SKL_MODULE_TYPE_MIC_SELECT,
 };
 
 enum skl_core_affinity {
@@ -110,62 +114,59 @@ enum skl_dev_type {
 	SKL_DEVICE_NONE
 };
 
-struct skl_dfw_module_pin {
-	u16 module_id;
-	u16 instance_id;
-} __packed;
-
-struct skl_dfw_module_fmt {
-	u32 channels;
-	u32 freq;
-	u32 bit_depth;
-	u32 valid_bit_depth;
-	u32 ch_cfg;
-} __packed;
-
-struct skl_dfw_module_caps {
-	u32 caps_size;
-	u32 caps[HDA_SST_CFG_MAX];
+/**
+ * enum skl_interleaving - interleaving style
+ *
+ * @SKL_INTERLEAVING_PER_CHANNEL: [s1_ch1...s1_chN,...,sM_ch1...sM_chN]
+ * @SKL_INTERLEAVING_PER_SAMPLE: [s1_ch1...sM_ch1,...,s1_chN...sM_chN]
+ */
+enum skl_interleaving {
+	SKL_INTERLEAVING_PER_CHANNEL = 0,
+	SKL_INTERLEAVING_PER_SAMPLE = 1,
 };
 
-struct skl_dfw_pipe {
-	u8 pipe_id;
-	u8 pipe_priority;
-	u16 conn_type;
-	u32 memory_pages;
-} __packed;
+enum skl_sample_type {
+	SKL_SAMPLE_TYPE_INT_MSB = 0,
+	SKL_SAMPLE_TYPE_INT_LSB = 1,
+	SKL_SAMPLE_TYPE_INT_SIGNED = 2,
+	SKL_SAMPLE_TYPE_INT_UNSIGNED = 3,
+	SKL_SAMPLE_TYPE_FLOAT = 4
+};
 
-struct skl_dfw_module {
-	u16 module_id;
-	u16 instance_id;
-	u32 max_mcps;
-	u8 core_id;
-	u8 max_in_queue;
-	u8 max_out_queue;
-	u8 is_loadable;
-	u8 conn_type;
-	u8 dev_type;
-	u8 hw_conn_type;
-	u8 time_slot;
-	u32 obs;
-	u32 ibs;
-	u32 params_fixup;
-	u32 converter;
-	u32 module_type;
-	u32 vbus_id;
-	u8 is_dynamic_in_pin;
-	u8 is_dynamic_out_pin;
-	struct skl_dfw_pipe pipe;
-	struct skl_dfw_module_fmt in_fmt;
-	struct skl_dfw_module_fmt out_fmt;
-	struct skl_dfw_module_pin in_pin[MAX_IN_QUEUE];
-	struct skl_dfw_module_pin out_pin[MAX_OUT_QUEUE];
-	struct skl_dfw_module_caps caps;
-} __packed;
+enum module_pin_type {
+	/* All pins of the module takes same PCM inputs or outputs
+	* e.g. mixout
+	*/
+	SKL_PIN_TYPE_HOMOGENEOUS,
+	/* All pins of the module takes different PCM inputs or outputs
+	* e.g mux
+	*/
+	SKL_PIN_TYPE_HETEROGENEOUS,
+};
+
+enum skl_module_param_type {
+	SKL_PARAM_DEFAULT = 0,
+	SKL_PARAM_INIT,
+	SKL_PARAM_SET,
+	SKL_PARAM_BIND
+};
 
 struct skl_dfw_algo_data {
+	u32 set_params:2;
+	u32 rsvd:30;
+	u32 param_id;
 	u32 max;
-	char *params;
+	char params[0];
 } __packed;
+
+enum skl_tkn_dir {
+	SKL_DIR_IN,
+	SKL_DIR_OUT
+};
+
+enum skl_tuple_type {
+	SKL_TYPE_TUPLE,
+	SKL_TYPE_DATA
+};
 
 #endif

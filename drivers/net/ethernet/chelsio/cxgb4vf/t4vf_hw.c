@@ -76,21 +76,33 @@ static void get_mbox_rpl(struct adapter *adapter, __be64 *rpl, int size,
 		*rpl++ = cpu_to_be64(t4_read_reg64(adapter, mbox_data));
 }
 
-/*
- * Dump contents of mailbox with a leading tag.
+/**
+ *	t4vf_record_mbox - record a Firmware Mailbox Command/Reply in the log
+ *	@adapter: the adapter
+ *	@cmd: the Firmware Mailbox Command or Reply
+ *	@size: command length in bytes
+ *	@access: the time (ms) needed to access the Firmware Mailbox
+ *	@execute: the time (ms) the command spent being executed
  */
-static void dump_mbox(struct adapter *adapter, const char *tag, u32 mbox_data)
+static void t4vf_record_mbox(struct adapter *adapter, const __be64 *cmd,
+			     int size, int access, int execute)
 {
-	dev_err(adapter->pdev_dev,
-		"mbox %s: %llx %llx %llx %llx %llx %llx %llx %llx\n", tag,
-		(unsigned long long)t4_read_reg64(adapter, mbox_data +  0),
-		(unsigned long long)t4_read_reg64(adapter, mbox_data +  8),
-		(unsigned long long)t4_read_reg64(adapter, mbox_data + 16),
-		(unsigned long long)t4_read_reg64(adapter, mbox_data + 24),
-		(unsigned long long)t4_read_reg64(adapter, mbox_data + 32),
-		(unsigned long long)t4_read_reg64(adapter, mbox_data + 40),
-		(unsigned long long)t4_read_reg64(adapter, mbox_data + 48),
-		(unsigned long long)t4_read_reg64(adapter, mbox_data + 56));
+	struct mbox_cmd_log *log = adapter->mbox_log;
+	struct mbox_cmd *entry;
+	int i;
+
+	entry = mbox_cmd_log_entry(log, log->cursor++);
+	if (log->cursor == log->size)
+		log->cursor = 0;
+
+	for (i = 0; i < size / 8; i++)
+		entry->cmd[i] = be64_to_cpu(cmd[i]);
+	while (i < MBOX_LEN / 8)
+		entry->cmd[i++] = 0;
+	entry->timestamp = jiffies;
+	entry->seqno = log->seqno++;
+	entry->access = access;
+	entry->execute = execute;
 }
 
 /**
@@ -120,11 +132,22 @@ int t4vf_wr_mbox_core(struct adapter *adapter, const void *cmd, int size,
 		1, 1, 3, 5, 10, 10, 20, 50, 100
 	};
 
-	u32 v;
-	int i, ms, delay_idx;
+	u16 access = 0, execute = 0;
+	u32 v, mbox_data;
+	int i, ms, delay_idx, ret;
 	const __be64 *p;
-	u32 mbox_data = T4VF_MBDATA_BASE_ADDR;
 	u32 mbox_ctl = T4VF_CIM_BASE_ADDR + CIM_VF_EXT_MAILBOX_CTRL;
+	u32 cmd_op = FW_CMD_OP_G(be32_to_cpu(((struct fw_cmd_hdr *)cmd)->hi));
+	__be64 cmd_rpl[MBOX_LEN / 8];
+	struct mbox_list entry;
+
+	/* In T6, mailbox size is changed to 128 bytes to avoid
+	 * invalidating the entire prefetch buffer.
+	 */
+	if (CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5)
+		mbox_data = T4VF_MBDATA_BASE_ADDR;
+	else
+		mbox_data = T6VF_MBDATA_BASE_ADDR;
 
 	/*
 	 * Commands must be multiples of 16 bytes in length and may not be
@@ -134,6 +157,51 @@ int t4vf_wr_mbox_core(struct adapter *adapter, const void *cmd, int size,
 	    size > NUM_CIM_VF_MAILBOX_DATA_INSTANCES * 4)
 		return -EINVAL;
 
+	/* Queue ourselves onto the mailbox access list.  When our entry is at
+	 * the front of the list, we have rights to access the mailbox.  So we
+	 * wait [for a while] till we're at the front [or bail out with an
+	 * EBUSY] ...
+	 */
+	spin_lock(&adapter->mbox_lock);
+	list_add_tail(&entry.list, &adapter->mlist.list);
+	spin_unlock(&adapter->mbox_lock);
+
+	delay_idx = 0;
+	ms = delay[0];
+
+	for (i = 0; ; i += ms) {
+		/* If we've waited too long, return a busy indication.  This
+		 * really ought to be based on our initial position in the
+		 * mailbox access list but this is a start.  We very rearely
+		 * contend on access to the mailbox ...
+		 */
+		if (i > FW_CMD_MAX_TIMEOUT) {
+			spin_lock(&adapter->mbox_lock);
+			list_del(&entry.list);
+			spin_unlock(&adapter->mbox_lock);
+			ret = -EBUSY;
+			t4vf_record_mbox(adapter, cmd, size, access, ret);
+			return ret;
+		}
+
+		/* If we're at the head, break out and start the mailbox
+		 * protocol.
+		 */
+		if (list_first_entry(&adapter->mlist.list, struct mbox_list,
+				     list) == &entry)
+			break;
+
+		/* Delay for a bit before checking again ... */
+		if (sleep_ok) {
+			ms = delay[delay_idx];  /* last element may repeat */
+			if (delay_idx < ARRAY_SIZE(delay) - 1)
+				delay_idx++;
+			msleep(ms);
+		} else {
+			mdelay(ms);
+		}
+	}
+
 	/*
 	 * Loop trying to get ownership of the mailbox.  Return an error
 	 * if we can't gain ownership.
@@ -141,8 +209,14 @@ int t4vf_wr_mbox_core(struct adapter *adapter, const void *cmd, int size,
 	v = MBOWNER_G(t4_read_reg(adapter, mbox_ctl));
 	for (i = 0; v == MBOX_OWNER_NONE && i < 3; i++)
 		v = MBOWNER_G(t4_read_reg(adapter, mbox_ctl));
-	if (v != MBOX_OWNER_DRV)
-		return v == MBOX_OWNER_FW ? -EBUSY : -ETIMEDOUT;
+	if (v != MBOX_OWNER_DRV) {
+		spin_lock(&adapter->mbox_lock);
+		list_del(&entry.list);
+		spin_unlock(&adapter->mbox_lock);
+		ret = (v == MBOX_OWNER_FW) ? -EBUSY : -ETIMEDOUT;
+		t4vf_record_mbox(adapter, cmd, size, access, ret);
+		return ret;
+	}
 
 	/*
 	 * Write the command array into the Mailbox Data register array and
@@ -157,6 +231,8 @@ int t4vf_wr_mbox_core(struct adapter *adapter, const void *cmd, int size,
 	 * Data registers before doing the write to the VF Mailbox Control
 	 * register.
 	 */
+	if (cmd_op != FW_VI_STATS_CMD)
+		t4vf_record_mbox(adapter, cmd, size, access, 0);
 	for (i = 0, p = cmd; i < size; i += 8)
 		t4_write_reg64(adapter, mbox_data + i, be64_to_cpu(*p++));
 	t4_read_reg(adapter, mbox_data);         /* flush write */
@@ -202,53 +278,45 @@ int t4vf_wr_mbox_core(struct adapter *adapter, const void *cmd, int size,
 			 * We return the (negated) firmware command return
 			 * code (this depends on FW_SUCCESS == 0).
 			 */
+			get_mbox_rpl(adapter, cmd_rpl, size, mbox_data);
 
 			/* return value in low-order little-endian word */
-			v = t4_read_reg(adapter, mbox_data);
-			if (FW_CMD_RETVAL_G(v))
-				dump_mbox(adapter, "FW Error", mbox_data);
+			v = be64_to_cpu(cmd_rpl[0]);
 
 			if (rpl) {
 				/* request bit in high-order BE word */
 				WARN_ON((be32_to_cpu(*(const __be32 *)cmd)
 					 & FW_CMD_REQUEST_F) == 0);
-				get_mbox_rpl(adapter, rpl, size, mbox_data);
+				memcpy(rpl, cmd_rpl, size);
 				WARN_ON((be32_to_cpu(*(__be32 *)rpl)
 					 & FW_CMD_REQUEST_F) != 0);
 			}
 			t4_write_reg(adapter, mbox_ctl,
 				     MBOWNER_V(MBOX_OWNER_NONE));
+			execute = i + ms;
+			if (cmd_op != FW_VI_STATS_CMD)
+				t4vf_record_mbox(adapter, cmd_rpl, size, access,
+						 execute);
+			spin_lock(&adapter->mbox_lock);
+			list_del(&entry.list);
+			spin_unlock(&adapter->mbox_lock);
 			return -FW_CMD_RETVAL_G(v);
 		}
 	}
 
-	/*
-	 * We timed out.  Return the error ...
-	 */
-	dump_mbox(adapter, "FW Timeout", mbox_data);
-	return -ETIMEDOUT;
-}
-
-/**
- *	hash_mac_addr - return the hash value of a MAC address
- *	@addr: the 48-bit Ethernet MAC address
- *
- *	Hashes a MAC address according to the hash function used by hardware
- *	inexact (hash) address matching.
- */
-static int hash_mac_addr(const u8 *addr)
-{
-	u32 a = ((u32)addr[0] << 16) | ((u32)addr[1] << 8) | addr[2];
-	u32 b = ((u32)addr[3] << 16) | ((u32)addr[4] << 8) | addr[5];
-	a ^= b;
-	a ^= (a >> 12);
-	a ^= (a >> 6);
-	return a & 0x3f;
+	/* We timed out.  Return the error ... */
+	ret = -ETIMEDOUT;
+	t4vf_record_mbox(adapter, cmd, size, access, ret);
+	spin_lock(&adapter->mbox_lock);
+	list_del(&entry.list);
+	spin_unlock(&adapter->mbox_lock);
+	return ret;
 }
 
 #define ADVERT_MASK (FW_PORT_CAP_SPEED_100M | FW_PORT_CAP_SPEED_1G |\
-		     FW_PORT_CAP_SPEED_10G | FW_PORT_CAP_SPEED_40G | \
-		     FW_PORT_CAP_SPEED_100G | FW_PORT_CAP_ANEG)
+		     FW_PORT_CAP_SPEED_10G | FW_PORT_CAP_SPEED_25G | \
+		     FW_PORT_CAP_SPEED_40G | FW_PORT_CAP_SPEED_100G | \
+		     FW_PORT_CAP_ANEG)
 
 /**
  *	init_link_config - initialize a link's SW state
@@ -261,6 +329,7 @@ static int hash_mac_addr(const u8 *addr)
 static void init_link_config(struct link_config *lc, unsigned int caps)
 {
 	lc->supported = caps;
+	lc->lp_advertising = 0;
 	lc->requested_speed = 0;
 	lc->speed = 0;
 	lc->requested_fc = lc->fc = PAUSE_RX | PAUSE_TX;
@@ -428,6 +497,61 @@ int t4vf_set_params(struct adapter *adapter, unsigned int nparams,
 }
 
 /**
+ *	t4vf_fl_pkt_align - return the fl packet alignment
+ *	@adapter: the adapter
+ *
+ *	T4 has a single field to specify the packing and padding boundary.
+ *	T5 onwards has separate fields for this and hence the alignment for
+ *	next packet offset is maximum of these two.  And T6 changes the
+ *	Ingress Padding Boundary Shift, so it's all a mess and it's best
+ *	if we put this in low-level Common Code ...
+ *
+ */
+int t4vf_fl_pkt_align(struct adapter *adapter)
+{
+	u32 sge_control, sge_control2;
+	unsigned int ingpadboundary, ingpackboundary, fl_align, ingpad_shift;
+
+	sge_control = adapter->params.sge.sge_control;
+
+	/* T4 uses a single control field to specify both the PCIe Padding and
+	 * Packing Boundary.  T5 introduced the ability to specify these
+	 * separately.  The actual Ingress Packet Data alignment boundary
+	 * within Packed Buffer Mode is the maximum of these two
+	 * specifications.  (Note that it makes no real practical sense to
+	 * have the Pading Boudary be larger than the Packing Boundary but you
+	 * could set the chip up that way and, in fact, legacy T4 code would
+	 * end doing this because it would initialize the Padding Boundary and
+	 * leave the Packing Boundary initialized to 0 (16 bytes).)
+	 * Padding Boundary values in T6 starts from 8B,
+	 * where as it is 32B for T4 and T5.
+	 */
+	if (CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5)
+		ingpad_shift = INGPADBOUNDARY_SHIFT_X;
+	else
+		ingpad_shift = T6_INGPADBOUNDARY_SHIFT_X;
+
+	ingpadboundary = 1 << (INGPADBOUNDARY_G(sge_control) + ingpad_shift);
+
+	fl_align = ingpadboundary;
+	if (!is_t4(adapter->params.chip)) {
+		/* T5 has a different interpretation of one of the PCIe Packing
+		 * Boundary values.
+		 */
+		sge_control2 = adapter->params.sge.sge_control2;
+		ingpackboundary = INGPACKBOUNDARY_G(sge_control2);
+		if (ingpackboundary == INGPACKBOUNDARY_16B_X)
+			ingpackboundary = 16;
+		else
+			ingpackboundary = 1 << (ingpackboundary +
+						INGPACKBOUNDARY_SHIFT_X);
+
+		fl_align = max(ingpadboundary, ingpackboundary);
+	}
+	return fl_align;
+}
+
+/**
  *	t4vf_bar2_sge_qregs - return BAR2 SGE Queue register information
  *	@adapter: the adapter
  *	@qid: the Queue ID
@@ -516,6 +640,15 @@ int t4vf_bar2_sge_qregs(struct adapter *adapter,
 	return 0;
 }
 
+unsigned int t4vf_get_pf_from_vf(struct adapter *adapter)
+{
+	u32 whoami;
+
+	whoami = t4_read_reg(adapter, T4VF_PL_BASE_ADDR + PL_VF_WHOAMI_A);
+	return (CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5 ?
+			SOURCEPF_G(whoami) : T6_SOURCEPF_G(whoami));
+}
+
 /**
  *	t4vf_get_sge_params - retrieve adapter Scatter gather Engine parameters
  *	@adapter: the adapter
@@ -593,7 +726,6 @@ int t4vf_get_sge_params(struct adapter *adapter)
 	 * read.
 	 */
 	if (!is_t4(adapter->params.chip)) {
-		u32 whoami;
 		unsigned int pf, s_hps, s_qpp;
 
 		params[0] = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_REG) |
@@ -617,11 +749,7 @@ int t4vf_get_sge_params(struct adapter *adapter)
 		 * register we just read. Do it once here so other code in
 		 * the driver can just use it.
 		 */
-		whoami = t4_read_reg(adapter,
-				     T4VF_PL_BASE_ADDR + PL_VF_WHOAMI_A);
-		pf = CHELSIO_CHIP_VERSION(adapter->params.chip) <= CHELSIO_T5 ?
-			SOURCEPF_G(whoami) : T6_SOURCEPF_G(whoami);
-
+		pf = t4vf_get_pf_from_vf(adapter);
 		s_hps = (HOSTPAGESIZEPF0_S +
 			 (HOSTPAGESIZEPF1_S - HOSTPAGESIZEPF0_S) * pf);
 		sge_params->sge_vf_hps =
@@ -1259,6 +1387,77 @@ int t4vf_alloc_mac_filt(struct adapter *adapter, unsigned int viid, bool free,
 }
 
 /**
+ *	t4vf_free_mac_filt - frees exact-match filters of given MAC addresses
+ *	@adapter: the adapter
+ *	@viid: the VI id
+ *	@naddr: the number of MAC addresses to allocate filters for (up to 7)
+ *	@addr: the MAC address(es)
+ *	@sleep_ok: call is allowed to sleep
+ *
+ *	Frees the exact-match filter for each of the supplied addresses
+ *
+ *	Returns a negative error number or the number of filters freed.
+ */
+int t4vf_free_mac_filt(struct adapter *adapter, unsigned int viid,
+		       unsigned int naddr, const u8 **addr, bool sleep_ok)
+{
+	int offset, ret = 0;
+	struct fw_vi_mac_cmd cmd;
+	unsigned int nfilters = 0;
+	unsigned int max_naddr = adapter->params.arch.mps_tcam_size;
+	unsigned int rem = naddr;
+
+	if (naddr > max_naddr)
+		return -EINVAL;
+
+	for (offset = 0; offset < (int)naddr ; /**/) {
+		unsigned int fw_naddr = (rem < ARRAY_SIZE(cmd.u.exact) ?
+					 rem : ARRAY_SIZE(cmd.u.exact));
+		size_t len16 = DIV_ROUND_UP(offsetof(struct fw_vi_mac_cmd,
+						     u.exact[fw_naddr]), 16);
+		struct fw_vi_mac_exact *p;
+		int i;
+
+		memset(&cmd, 0, sizeof(cmd));
+		cmd.op_to_viid = cpu_to_be32(FW_CMD_OP_V(FW_VI_MAC_CMD) |
+				     FW_CMD_REQUEST_F |
+				     FW_CMD_WRITE_F |
+				     FW_CMD_EXEC_V(0) |
+				     FW_VI_MAC_CMD_VIID_V(viid));
+		cmd.freemacs_to_len16 =
+				cpu_to_be32(FW_VI_MAC_CMD_FREEMACS_V(0) |
+					    FW_CMD_LEN16_V(len16));
+
+		for (i = 0, p = cmd.u.exact; i < (int)fw_naddr; i++, p++) {
+			p->valid_to_idx = cpu_to_be16(
+				FW_VI_MAC_CMD_VALID_F |
+				FW_VI_MAC_CMD_IDX_V(FW_VI_MAC_MAC_BASED_FREE));
+			memcpy(p->macaddr, addr[offset+i], sizeof(p->macaddr));
+		}
+
+		ret = t4vf_wr_mbox_core(adapter, &cmd, sizeof(cmd), &cmd,
+					sleep_ok);
+		if (ret)
+			break;
+
+		for (i = 0, p = cmd.u.exact; i < fw_naddr; i++, p++) {
+			u16 index = FW_VI_MAC_CMD_IDX_G(
+						be16_to_cpu(p->valid_to_idx));
+
+			if (index < max_naddr)
+				nfilters++;
+		}
+
+		offset += fw_naddr;
+		rem -= fw_naddr;
+	}
+
+	if (ret == 0)
+		ret = nfilters;
+	return ret;
+}
+
+/**
  *	t4vf_change_mac - modifies the exact-match filter for a MAC address
  *	@adapter: the adapter
  *	@viid: the Virtual Interface ID
@@ -1518,8 +1717,12 @@ int t4vf_handle_fw_rpl(struct adapter *adapter, const __be64 *rpl)
 			speed = 1000;
 		else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_10G))
 			speed = 10000;
+		else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_25G))
+			speed = 25000;
 		else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_40G))
 			speed = 40000;
+		else if (stat & FW_PORT_CMD_LSPEED_V(FW_PORT_CAP_SPEED_100G))
+			speed = 100000;
 
 		/*
 		 * Scan all of our "ports" (Virtual Interfaces) looking for
@@ -1550,6 +1753,8 @@ int t4vf_handle_fw_rpl(struct adapter *adapter, const __be64 *rpl)
 				lc->fc = fc;
 				lc->supported =
 					be16_to_cpu(port_cmd->u.info.pcap);
+				lc->lp_advertising =
+					be16_to_cpu(port_cmd->u.info.lpacap);
 				t4vf_os_link_changed(adapter, pidx, link_ok);
 			}
 		}
@@ -1610,4 +1815,51 @@ int t4vf_prep_adapter(struct adapter *adapter)
 	}
 
 	return 0;
+}
+
+/**
+ *	t4vf_get_vf_mac_acl - Get the MAC address to be set to
+ *			      the VI of this VF.
+ *	@adapter: The adapter
+ *	@pf: The pf associated with vf
+ *	@naddr: the number of ACL MAC addresses returned in addr
+ *	@addr: Placeholder for MAC addresses
+ *
+ *	Find the MAC address to be set to the VF's VI. The requested MAC address
+ *	is from the host OS via callback in the PF driver.
+ */
+int t4vf_get_vf_mac_acl(struct adapter *adapter, unsigned int pf,
+			unsigned int *naddr, u8 *addr)
+{
+	struct fw_acl_mac_cmd cmd;
+	int ret;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.op_to_vfn = cpu_to_be32(FW_CMD_OP_V(FW_ACL_MAC_CMD) |
+				    FW_CMD_REQUEST_F |
+				    FW_CMD_READ_F);
+	cmd.en_to_len16 = cpu_to_be32((unsigned int)FW_LEN16(cmd));
+	ret = t4vf_wr_mbox(adapter, &cmd, sizeof(cmd), &cmd);
+	if (ret)
+		return ret;
+
+	if (cmd.nmac < *naddr)
+		*naddr = cmd.nmac;
+
+	switch (pf) {
+	case 3:
+		memcpy(addr, cmd.macaddr3, sizeof(cmd.macaddr3));
+		break;
+	case 2:
+		memcpy(addr, cmd.macaddr2, sizeof(cmd.macaddr2));
+		break;
+	case 1:
+		memcpy(addr, cmd.macaddr1, sizeof(cmd.macaddr1));
+		break;
+	case 0:
+		memcpy(addr, cmd.macaddr0, sizeof(cmd.macaddr0));
+		break;
+	}
+
+	return ret;
 }

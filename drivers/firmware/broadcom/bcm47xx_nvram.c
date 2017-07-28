@@ -56,9 +56,7 @@ static u32 find_nvram_size(void __iomem *end)
 static int nvram_find_and_copy(void __iomem *iobase, u32 lim)
 {
 	struct nvram_header __iomem *header;
-	int i;
 	u32 off;
-	u32 *src, *dst;
 	u32 size;
 
 	if (nvram_len) {
@@ -95,24 +93,20 @@ static int nvram_find_and_copy(void __iomem *iobase, u32 lim)
 	return -ENXIO;
 
 found:
-	src = (u32 *)header;
-	dst = (u32 *)nvram_buf;
-	for (i = 0; i < sizeof(struct nvram_header); i += 4)
-		*dst++ = __raw_readl(src++);
-	header = (struct nvram_header *)nvram_buf;
-	nvram_len = header->len;
+	__ioread32_copy(nvram_buf, header, sizeof(*header) / 4);
+	nvram_len = ((struct nvram_header *)(nvram_buf))->len;
 	if (nvram_len > size) {
 		pr_err("The nvram size according to the header seems to be bigger than the partition on flash\n");
 		nvram_len = size;
 	}
 	if (nvram_len >= NVRAM_SPACE) {
 		pr_err("nvram on flash (%i bytes) is bigger than the reserved space in memory, will just copy the first %i bytes\n",
-		       header->len, NVRAM_SPACE - 1);
+		       nvram_len, NVRAM_SPACE - 1);
 		nvram_len = NVRAM_SPACE - 1;
 	}
 	/* proceed reading data after header */
-	for (; i < nvram_len; i += 4)
-		*dst++ = readl(src++);
+	__ioread32_copy(nvram_buf + sizeof(*header), header + 1,
+			DIV_ROUND_UP(nvram_len, 4));
 	nvram_buf[NVRAM_SPACE - 1] = '\0';
 
 	return 0;

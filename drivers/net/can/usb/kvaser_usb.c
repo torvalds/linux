@@ -59,11 +59,14 @@
 #define USB_CAN_R_PRODUCT_ID		39
 #define USB_LEAF_LITE_V2_PRODUCT_ID	288
 #define USB_MINI_PCIE_HS_PRODUCT_ID	289
+#define USB_LEAF_LIGHT_HS_V2_OEM_PRODUCT_ID 290
+#define USB_USBCAN_LIGHT_2HS_PRODUCT_ID	291
+#define USB_MINI_PCIE_2HS_PRODUCT_ID	292
 
 static inline bool kvaser_is_leaf(const struct usb_device_id *id)
 {
 	return id->idProduct >= USB_LEAF_DEVEL_PRODUCT_ID &&
-	       id->idProduct <= USB_MINI_PCIE_HS_PRODUCT_ID;
+	       id->idProduct <= USB_MINI_PCIE_2HS_PRODUCT_ID;
 }
 
 /* Kvaser USBCan-II devices */
@@ -456,7 +459,7 @@ struct kvaser_usb {
 	struct usb_endpoint_descriptor *bulk_in, *bulk_out;
 	struct usb_anchor rx_submitted;
 
-	/* @max_tx_urbs: Firmware-reported maximum number of oustanding,
+	/* @max_tx_urbs: Firmware-reported maximum number of outstanding,
 	 * not yet ACKed, transmissions on this device. This value is
 	 * also used as a sentinel for marking free tx contexts.
 	 */
@@ -537,6 +540,9 @@ static const struct usb_device_id kvaser_usb_table[] = {
 		.driver_info = KVASER_HAS_TXRX_ERRORS },
 	{ USB_DEVICE(KVASER_VENDOR_ID, USB_LEAF_LITE_V2_PRODUCT_ID) },
 	{ USB_DEVICE(KVASER_VENDOR_ID, USB_MINI_PCIE_HS_PRODUCT_ID) },
+	{ USB_DEVICE(KVASER_VENDOR_ID, USB_LEAF_LIGHT_HS_V2_OEM_PRODUCT_ID) },
+	{ USB_DEVICE(KVASER_VENDOR_ID, USB_USBCAN_LIGHT_2HS_PRODUCT_ID) },
+	{ USB_DEVICE(KVASER_VENDOR_ID, USB_MINI_PCIE_2HS_PRODUCT_ID) },
 
 	/* USBCANII family IDs */
 	{ USB_DEVICE(KVASER_VENDOR_ID, USB_USBCAN2_PRODUCT_ID),
@@ -781,10 +787,8 @@ static int kvaser_usb_simple_msg_async(struct kvaser_usb_net_priv *priv,
 	int err;
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (!urb) {
-		netdev_err(netdev, "No memory left for URBs\n");
+	if (!urb)
 		return -ENOMEM;
-	}
 
 	buf = kmalloc(sizeof(struct kvaser_msg), GFP_ATOMIC);
 	if (!buf) {
@@ -1387,8 +1391,6 @@ static int kvaser_usb_setup_rx_urbs(struct kvaser_usb *dev)
 
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb) {
-			dev_warn(dev->udev->dev.parent,
-				 "No memory left for URBs\n");
 			err = -ENOMEM;
 			break;
 		}
@@ -1664,7 +1666,6 @@ static netdev_tx_t kvaser_usb_start_xmit(struct sk_buff *skb,
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb) {
-		netdev_err(netdev, "No memory left for URBs\n");
 		stats->tx_dropped++;
 		dev_kfree_skb(skb);
 		return NETDEV_TX_OK;
@@ -2026,7 +2027,7 @@ static int kvaser_usb_probe(struct usb_interface *intf,
 		((dev->fw_version >> 16) & 0xff),
 		(dev->fw_version & 0xffff));
 
-	dev_dbg(&intf->dev, "Max oustanding tx = %d URBs\n", dev->max_tx_urbs);
+	dev_dbg(&intf->dev, "Max outstanding tx = %d URBs\n", dev->max_tx_urbs);
 
 	err = kvaser_usb_get_card_info(dev);
 	if (err) {

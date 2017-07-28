@@ -24,6 +24,7 @@
 
 #include <asm/cpufeature.h>
 #include <asm/mmu_context.h>
+#include <asm/smp.h>
 #include <asm/tlbflush.h>
 
 static u32 asid_bits;
@@ -40,6 +41,51 @@ static cpumask_t tlb_flush_pending;
 #define ASID_FIRST_VERSION	(1UL << asid_bits)
 #define NUM_USER_ASIDS		ASID_FIRST_VERSION
 
+/* Get the ASIDBits supported by the current CPU */
+static u32 get_cpu_asid_bits(void)
+{
+	u32 asid;
+	int fld = cpuid_feature_extract_unsigned_field(read_cpuid(ID_AA64MMFR0_EL1),
+						ID_AA64MMFR0_ASID_SHIFT);
+
+	switch (fld) {
+	default:
+		pr_warn("CPU%d: Unknown ASID size (%d); assuming 8-bit\n",
+					smp_processor_id(),  fld);
+		/* Fallthrough */
+	case 0:
+		asid = 8;
+		break;
+	case 2:
+		asid = 16;
+	}
+
+	return asid;
+}
+
+/* Check if the current cpu's ASIDBits is compatible with asid_bits */
+void verify_cpu_asid_bits(void)
+{
+	u32 asid = get_cpu_asid_bits();
+
+	if (asid < asid_bits) {
+		/*
+		 * We cannot decrease the ASID size at runtime, so panic if we support
+		 * fewer ASID bits than the boot CPU.
+		 */
+		pr_crit("CPU%d: smaller ASID size(%u) than boot CPU (%u)\n",
+				smp_processor_id(), asid, asid_bits);
+		cpu_panic_kernel();
+	}
+}
+
+static void set_reserved_asid_bits(void)
+{
+	if (IS_ENABLED(CONFIG_QCOM_FALKOR_ERRATUM_1003) &&
+	    cpus_have_const_cap(ARM64_WORKAROUND_QCOM_FALKOR_E1003))
+		__set_bit(FALKOR_RESERVED_ASID, asid_map);
+}
+
 static void flush_context(unsigned int cpu)
 {
 	int i;
@@ -47,6 +93,8 @@ static void flush_context(unsigned int cpu)
 
 	/* Update the list of reserved ASIDs and the ASID bitmap. */
 	bitmap_clear(asid_map, 0, NUM_USER_ASIDS);
+
+	set_reserved_asid_bits();
 
 	/*
 	 * Ensure the generation bump is observed before we xchg the
@@ -71,9 +119,6 @@ static void flush_context(unsigned int cpu)
 
 	/* Queue a TLB invalidate and flush the I-cache if necessary. */
 	cpumask_setall(&tlb_flush_pending);
-
-	if (icache_is_aivivt())
-		__flush_icache_all();
 }
 
 static bool check_update_reserved_asid(u64 asid, u64 newasid)
@@ -140,7 +185,7 @@ static u64 new_context(struct mm_struct *mm, unsigned int cpu)
 						 &asid_generation);
 	flush_context(cpu);
 
-	/* We have at least 1 ASID per CPU, so this will always succeed */
+	/* We have more ASIDs than CPUs, so this will always succeed */
 	asid = find_next_zero_bit(asid_map, NUM_USER_ASIDS, 1);
 
 set_asid:
@@ -182,32 +227,30 @@ void check_and_switch_context(struct mm_struct *mm, unsigned int cpu)
 	raw_spin_unlock_irqrestore(&cpu_asid_lock, flags);
 
 switch_mm_fastpath:
-	cpu_switch_mm(mm->pgd, mm);
+	/*
+	 * Defer TTBR0_EL1 setting for user threads to uaccess_enable() when
+	 * emulating PAN.
+	 */
+	if (!system_uses_ttbr0_pan())
+		cpu_switch_mm(mm->pgd, mm);
 }
 
 static int asids_init(void)
 {
-	int fld = cpuid_feature_extract_field(read_cpuid(ID_AA64MMFR0_EL1), 4);
-
-	switch (fld) {
-	default:
-		pr_warn("Unknown ASID size (%d); assuming 8-bit\n", fld);
-		/* Fallthrough */
-	case 0:
-		asid_bits = 8;
-		break;
-	case 2:
-		asid_bits = 16;
-	}
-
-	/* If we end up with more CPUs than ASIDs, expect things to crash */
-	WARN_ON(NUM_USER_ASIDS < num_possible_cpus());
+	asid_bits = get_cpu_asid_bits();
+	/*
+	 * Expect allocation after rollover to fail if we don't have at least
+	 * one more ASID than CPUs. ASID #0 is reserved for init_mm.
+	 */
+	WARN_ON(NUM_USER_ASIDS - 1 <= num_possible_cpus());
 	atomic64_set(&asid_generation, ASID_FIRST_VERSION);
 	asid_map = kzalloc(BITS_TO_LONGS(NUM_USER_ASIDS) * sizeof(*asid_map),
 			   GFP_KERNEL);
 	if (!asid_map)
 		panic("Failed to allocate bitmap for %lu ASIDs\n",
 		      NUM_USER_ASIDS);
+
+	set_reserved_asid_bits();
 
 	pr_info("ASID allocator initialised with %lu entries\n", NUM_USER_ASIDS);
 	return 0;

@@ -269,6 +269,7 @@ static void fsl_chan_set_src_loop_size(struct fsldma_chan *chan, int size)
 	case 2:
 	case 4:
 	case 8:
+		mode &= ~FSL_DMA_MR_SAHTS_MASK;
 		mode |= FSL_DMA_MR_SAHE | (__ilog2(size) << 14);
 		break;
 	}
@@ -301,6 +302,7 @@ static void fsl_chan_set_dst_loop_size(struct fsldma_chan *chan, int size)
 	case 2:
 	case 4:
 	case 8:
+		mode &= ~FSL_DMA_MR_DAHTS_MASK;
 		mode |= FSL_DMA_MR_DAHE | (__ilog2(size) << 16);
 		break;
 	}
@@ -327,7 +329,8 @@ static void fsl_chan_set_request_count(struct fsldma_chan *chan, int size)
 	BUG_ON(size > 1024);
 
 	mode = get_mr(chan);
-	mode |= (__ilog2(size) << 24) & 0x0f000000;
+	mode &= ~FSL_DMA_MR_BWC_MASK;
+	mode |= (__ilog2(size) << 24) & FSL_DMA_MR_BWC_MASK;
 
 	set_mr(chan, mode);
 }
@@ -462,13 +465,12 @@ static struct fsl_desc_sw *fsl_dma_alloc_descriptor(struct fsldma_chan *chan)
 	struct fsl_desc_sw *desc;
 	dma_addr_t pdesc;
 
-	desc = dma_pool_alloc(chan->desc_pool, GFP_ATOMIC, &pdesc);
+	desc = dma_pool_zalloc(chan->desc_pool, GFP_ATOMIC, &pdesc);
 	if (!desc) {
 		chan_dbg(chan, "out of memory for link descriptor\n");
 		return NULL;
 	}
 
-	memset(desc, 0, sizeof(*desc));
 	INIT_LIST_HEAD(&desc->tx_list);
 	dma_async_tx_descriptor_init(&desc->async_tx, &chan->common);
 	desc->async_tx.tx_submit = fsl_dma_tx_submit;
@@ -517,11 +519,9 @@ static dma_cookie_t fsldma_run_tx_complete_actions(struct fsldma_chan *chan,
 	if (txd->cookie > 0) {
 		ret = txd->cookie;
 
+		dma_descriptor_unmap(txd);
 		/* Run the link descriptor callback function */
-		if (txd->callback) {
-			chan_dbg(chan, "LD %p callback\n", desc);
-			txd->callback(txd->callback_param);
-		}
+		dmaengine_desc_get_callback_invoke(txd, NULL);
 	}
 
 	/* Run any dependencies */
@@ -1152,7 +1152,7 @@ static void fsldma_free_irqs(struct fsldma_device *fdev)
 	struct fsldma_chan *chan;
 	int i;
 
-	if (fdev->irq != NO_IRQ) {
+	if (fdev->irq) {
 		dev_dbg(fdev->dev, "free per-controller IRQ\n");
 		free_irq(fdev->irq, fdev);
 		return;
@@ -1160,7 +1160,7 @@ static void fsldma_free_irqs(struct fsldma_device *fdev)
 
 	for (i = 0; i < FSL_DMA_MAX_CHANS_PER_DEVICE; i++) {
 		chan = fdev->chan[i];
-		if (chan && chan->irq != NO_IRQ) {
+		if (chan && chan->irq) {
 			chan_dbg(chan, "free per-channel IRQ\n");
 			free_irq(chan->irq, chan);
 		}
@@ -1174,7 +1174,7 @@ static int fsldma_request_irqs(struct fsldma_device *fdev)
 	int i;
 
 	/* if we have a per-controller IRQ, use that */
-	if (fdev->irq != NO_IRQ) {
+	if (fdev->irq) {
 		dev_dbg(fdev->dev, "request per-controller IRQ\n");
 		ret = request_irq(fdev->irq, fsldma_ctrl_irq, IRQF_SHARED,
 				  "fsldma-controller", fdev);
@@ -1187,7 +1187,7 @@ static int fsldma_request_irqs(struct fsldma_device *fdev)
 		if (!chan)
 			continue;
 
-		if (chan->irq == NO_IRQ) {
+		if (!chan->irq) {
 			chan_err(chan, "interrupts property missing in device tree\n");
 			ret = -ENODEV;
 			goto out_unwind;
@@ -1210,7 +1210,7 @@ out_unwind:
 		if (!chan)
 			continue;
 
-		if (chan->irq == NO_IRQ)
+		if (!chan->irq)
 			continue;
 
 		free_irq(chan->irq, chan);
@@ -1233,7 +1233,6 @@ static int fsl_dma_chan_probe(struct fsldma_device *fdev,
 	/* alloc channel */
 	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
 	if (!chan) {
-		dev_err(fdev->dev, "no free memory for DMA channels!\n");
 		err = -ENOMEM;
 		goto out_return;
 	}
@@ -1311,7 +1310,7 @@ static int fsl_dma_chan_probe(struct fsldma_device *fdev,
 	list_add_tail(&chan->common.device_node, &fdev->common.channels);
 
 	dev_info(fdev->dev, "#%d (%s), irq %d\n", chan->id, compatible,
-		 chan->irq != NO_IRQ ? chan->irq : fdev->irq);
+		 chan->irq ? chan->irq : fdev->irq);
 
 	return 0;
 
@@ -1339,7 +1338,6 @@ static int fsldma_of_probe(struct platform_device *op)
 
 	fdev = kzalloc(sizeof(*fdev), GFP_KERNEL);
 	if (!fdev) {
-		dev_err(&op->dev, "No enough memory for 'priv'\n");
 		err = -ENOMEM;
 		goto out_return;
 	}
@@ -1352,7 +1350,7 @@ static int fsldma_of_probe(struct platform_device *op)
 	if (!fdev->regs) {
 		dev_err(&op->dev, "unable to ioremap registers\n");
 		err = -ENOMEM;
-		goto out_free_fdev;
+		goto out_free;
 	}
 
 	/* map the channel IRQ if it exists, but don't hookup the handler yet */
@@ -1417,6 +1415,8 @@ static int fsldma_of_probe(struct platform_device *op)
 
 out_free_fdev:
 	irq_dispose_mapping(fdev->irq);
+	iounmap(fdev->regs);
+out_free:
 	kfree(fdev);
 out_return:
 	return err;

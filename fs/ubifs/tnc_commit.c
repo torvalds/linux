@@ -57,6 +57,8 @@ static int make_idx_node(struct ubifs_info *c, struct ubifs_idx_node *idx,
 			ubifs_dump_znode(c, znode);
 			if (zbr->znode)
 				ubifs_dump_znode(c, zbr->znode);
+
+			return -EINVAL;
 		}
 	}
 	ubifs_prepare_node(c, idx, len, 0);
@@ -370,7 +372,7 @@ static int layout_in_gaps(struct ubifs_info *c, int cnt)
 
 	p = c->gap_lebs;
 	do {
-		ubifs_assert(p < c->gap_lebs + sizeof(int) * c->lst.idx_lebs);
+		ubifs_assert(p < c->gap_lebs + c->lst.idx_lebs);
 		written = layout_leb_in_gaps(c, p);
 		if (written < 0) {
 			err = written;
@@ -859,6 +861,8 @@ static int write_index(struct ubifs_info *c)
 				ubifs_dump_znode(c, znode);
 				if (zbr->znode)
 					ubifs_dump_znode(c, zbr->znode);
+
+				return -EINVAL;
 			}
 		}
 		len = ubifs_idx_node_sz(c, znode->child_cnt);

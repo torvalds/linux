@@ -14,6 +14,11 @@
 #include <asm/arcregs.h>
 #include <asm/irqflags.h>
 
+; A maximum number of supported interrupts in the core interrupt controller.
+; This number is not equal to the maximum interrupt number (256) because
+; first 16 lines are reserved for exceptions and are not configurable.
+#define NR_CPU_IRQS	240
+
 	.cpu HS
 
 #define VECTOR	.word
@@ -45,13 +50,14 @@ VECTOR	reserved		; Reserved slots
 VECTOR	handle_interrupt	; (16) Timer0
 VECTOR	handle_interrupt	; unused (Timer1)
 VECTOR	handle_interrupt	; unused (WDT)
-VECTOR	handle_interrupt	; (19) ICI (inter core interrupt)
-VECTOR	handle_interrupt
-VECTOR	handle_interrupt
-VECTOR	handle_interrupt
-VECTOR	handle_interrupt	; (23) End of fixed IRQs
+VECTOR	handle_interrupt	; (19) Inter core Interrupt (IPI)
+VECTOR	handle_interrupt	; (20) perf Interrupt
+VECTOR	handle_interrupt	; (21) Software Triggered Intr (Self IPI)
+VECTOR	handle_interrupt	; unused
+VECTOR	handle_interrupt	; (23) unused
+# End of fixed IRQs
 
-.rept CONFIG_ARC_NUMBER_OF_INTERRUPTS - 8
+.rept NR_CPU_IRQS - 8
 	VECTOR	handle_interrupt
 .endr
 
@@ -66,10 +72,24 @@ ENTRY(handle_interrupt)
 
 	INTERRUPT_PROLOGUE  irq
 
-	clri		; To make status32.IE agree with CPU internal state
+	# irq control APIs local_irq_save/restore/disable/enable fiddle with
+	# global interrupt enable bits in STATUS32 (.IE for 1 prio, .E[] for 2 prio)
+	# However a taken interrupt doesn't clear these bits. Thus irqs_disabled()
+	# query in hard ISR path would return false (since .IE is set) which would
+	# trips genirq interrupt handling asserts.
+	#
+	# So do a "soft" disable of interrutps here.
+	#
+	# Note this disable is only for consistent book-keeping as further interrupts
+	# will be disabled anyways even w/o this. Hardware tracks active interrupts
+	# seperately in AUX_IRQ_ACTIVE.active and will not take new interrupts
+	# unless this one returns (or higher prio becomes pending in 2-prio scheme)
 
+	IRQ_DISABLE
+
+	; icause is banked: one per priority level
+	; so a higher prio interrupt taken here won't clobber prev prio icause
 	lr  r0, [ICAUSE]
-
 	mov   blink, ret_from_exception
 
 	b.d  arch_do_IRQ
@@ -80,15 +100,21 @@ END(handle_interrupt)
 ;################### Non TLB Exception Handling #############################
 
 ENTRY(EV_SWI)
-	flag 1
+	; TODO: implement this
+	EXCEPTION_PROLOGUE
+	b   ret_from_exception
 END(EV_SWI)
 
 ENTRY(EV_DivZero)
-	flag 1
+	; TODO: implement this
+	EXCEPTION_PROLOGUE
+	b   ret_from_exception
 END(EV_DivZero)
 
 ENTRY(EV_DCError)
-	flag 1
+	; TODO: implement this
+	EXCEPTION_PROLOGUE
+	b   ret_from_exception
 END(EV_DCError)
 
 ; ---------------------------------------------
@@ -167,6 +193,12 @@ END(EV_TLBProtV)
 ; All 2 entry points to here already disable interrupts
 
 .Lrestore_regs:
+restore_regs:
+
+	# Interrpts are actually disabled from this point on, but will get
+	# reenabled after we return from interrupt/exception.
+	# But irq tracer needs to be told now...
+	TRACE_ASM_IRQ_ENABLE
 
 	ld	r0, [sp, PT_status32]	; U/K mode at time of entry
 	lr	r10, [AUX_IRQ_ACT]
@@ -211,7 +243,11 @@ debug_marker_syscall:
 ; (since IRQ NOT allowed in DS in ARCv2, this can only happen if orig
 ; entry was via Exception in DS which got preempted in kernel).
 ;
-; IRQ RTIE won't reliably restore DE bit and/or BTA, needs handling
+; IRQ RTIE won't reliably restore DE bit and/or BTA, needs workaround
+;
+; Solution is return from Intr w/o any delay slot quirks into a kernel trampoline
+; and from pure kernel mode return to delay slot which handles DS bit/BTA correctly
+
 .Lintr_ret_to_delay_slot:
 debug_marker_ds:
 
@@ -222,18 +258,23 @@ debug_marker_ds:
 	ld	r2, [sp, PT_ret]
 	ld	r3, [sp, PT_status32]
 
+	; STAT32 for Int return created from scratch
+	; (No delay dlot, disable Further intr in trampoline)
+
 	bic  	r0, r3, STATUS_U_MASK|STATUS_DE_MASK|STATUS_IE_MASK|STATUS_L_MASK
 	st	r0, [sp, PT_status32]
 
 	mov	r1, .Lintr_ret_to_delay_slot_2
 	st	r1, [sp, PT_ret]
 
+	; Orig exception PC/STAT32 safekept @orig_r0 and @event stack slots
 	st	r2, [sp, 0]
 	st	r3, [sp, 4]
 
 	b	.Lisr_ret_fast_path
 
 .Lintr_ret_to_delay_slot_2:
+	; Trampoline to restore orig exception PC/STAT32/BTA/AUX_USER_SP
 	sub	sp, sp, SZ_PT_REGS
 	st	r9, [sp, -4]
 
@@ -243,11 +284,19 @@ debug_marker_ds:
 	ld	r9, [sp, 4]
 	sr	r9, [erstatus]
 
+	; restore AUX_USER_SP if returning to U mode
+	bbit0	r9, STATUS_U_BIT, 1f
+	ld	r9, [sp, PT_sp]
+	sr	r9, [AUX_USER_SP]
+
+1:
 	ld	r9, [sp, 8]
 	sr	r9, [erbta]
 
 	ld	r9, [sp, -4]
 	add	sp, sp, SZ_PT_REGS
+
+	; return from pure kernel mode to delay slot
 	rtie
 
 END(ret_from_exception)

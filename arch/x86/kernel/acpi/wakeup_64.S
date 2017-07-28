@@ -5,6 +5,7 @@
 #include <asm/page_types.h>
 #include <asm/msr.h>
 #include <asm/asm-offsets.h>
+#include <asm/frame.h>
 
 # Copyright 2003 Pavel Machek <pavel@suse.cz>, distribute under GPLv2
 
@@ -39,6 +40,7 @@ bogus_64_magic:
 	jmp	bogus_64_magic
 
 ENTRY(do_suspend_lowlevel)
+	FRAME_BEGIN
 	subq	$8, %rsp
 	xorl	%eax, %eax
 	call	save_processor_state
@@ -107,8 +109,18 @@ ENTRY(do_suspend_lowlevel)
 	movq	pt_regs_r14(%rax), %r14
 	movq	pt_regs_r15(%rax), %r15
 
+#ifdef CONFIG_KASAN
+	/*
+	 * The suspend path may have poisoned some areas deeper in the stack,
+	 * which we now need to unpoison.
+	 */
+	movq	%rsp, %rdi
+	call	kasan_unpoison_task_stack_below
+#endif
+
 	xorl	%eax, %eax
 	addq	$8, %rsp
+	FRAME_END
 	jmp	restore_processor_state
 ENDPROC(do_suspend_lowlevel)
 

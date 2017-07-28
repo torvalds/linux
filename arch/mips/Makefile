@@ -12,6 +12,9 @@
 # for "archclean" cleaning up for this architecture.
 #
 
+archscripts: scripts_basic
+	$(Q)$(MAKE) $(build)=arch/mips/boot/tools relocs
+
 KBUILD_DEFCONFIG := ip22_defconfig
 
 #
@@ -93,6 +96,10 @@ LDFLAGS_vmlinux			+= -G 0 -static -n -nostdlib
 KBUILD_AFLAGS_MODULE		+= -mlong-calls
 KBUILD_CFLAGS_MODULE		+= -mlong-calls
 
+ifeq ($(CONFIG_RELOCATABLE),y)
+LDFLAGS_vmlinux			+= --emit-relocs
+endif
+
 #
 # pass -msoft-float to GAS if it supports it.  However on newer binutils
 # (specifically newer than 2.24.51.20140728) we then also need to explicitly
@@ -124,6 +131,21 @@ cflags-$(CONFIG_CPU_LITTLE_ENDIAN)	+= $(shell $(CC) -dumpmachine |grep -q 'mips.
 
 cflags-$(CONFIG_SB1XXX_CORELIS)	+= $(call cc-option,-mno-sched-prolog) \
 				   -fno-omit-frame-pointer
+
+# Some distribution-specific toolchains might pass the -fstack-check
+# option during the build, which adds a simple stack-probe at the beginning
+# of every function.  This stack probe is to ensure that there is enough
+# stack space, else a SEGV is generated.  This is not desirable for MIPS
+# as kernel stacks are small, placed in unmapped virtual memory, and do not
+# grow when overflowed.  Especially on SGI IP27 platforms, this check will
+# lead to a NULL pointer dereference in _raw_spin_lock_irq.
+#
+# In disassembly, this stack probe appears at the top of a function as:
+#    sd		zero,<offset>(sp)
+# Where <offset> is a negative value.
+#
+cflags-y += -fno-stack-check
+
 #
 # CPU-dependent compiler/assembler options for optimization.
 #
@@ -138,7 +160,7 @@ cflags-$(CONFIG_CPU_MIPS32_R1)	+= $(call cc-option,-march=mips32,-mips32 -U_MIPS
 			-Wa,-mips32 -Wa,--trap
 cflags-$(CONFIG_CPU_MIPS32_R2)	+= $(call cc-option,-march=mips32r2,-mips32r2 -U_MIPS_ISA -D_MIPS_ISA=_MIPS_ISA_MIPS32) \
 			-Wa,-mips32r2 -Wa,--trap
-cflags-$(CONFIG_CPU_MIPS32_R6)	+= -march=mips32r6 -Wa,--trap
+cflags-$(CONFIG_CPU_MIPS32_R6)	+= -march=mips32r6 -Wa,--trap -modd-spreg
 cflags-$(CONFIG_CPU_MIPS64_R1)	+= $(call cc-option,-march=mips64,-mips64 -U_MIPS_ISA -D_MIPS_ISA=_MIPS_ISA_MIPS64) \
 			-Wa,-mips64 -Wa,--trap
 cflags-$(CONFIG_CPU_MIPS64_R2)	+= $(call cc-option,-march=mips64r2,-mips64r2 -U_MIPS_ISA -D_MIPS_ISA=_MIPS_ISA_MIPS64) \
@@ -166,16 +188,6 @@ cflags-$(CONFIG_CPU_CAVIUM_OCTEON) += -Wa,-march=octeon
 endif
 cflags-$(CONFIG_CAVIUM_CN63XXP1) += -Wa,-mfix-cn63xxp1
 cflags-$(CONFIG_CPU_BMIPS)	+= -march=mips32 -Wa,-mips32 -Wa,--trap
-#
-# binutils from v2.25 on and gcc starting from v4.9.0 treat -march=loongson3a
-# as MIPS64 R1; older versions as just R1.  This leaves the possibility open
-# that GCC might generate R2 code for -march=loongson3a which then is rejected
-# by GAS.  The cc-option can't probe for this behaviour so -march=loongson3a
-# can't easily be used safely within the kbuild framework.
-#
-cflags-$(CONFIG_CPU_LOONGSON3)  +=					\
-	$(call cc-option,-march=mips64r2,-mips64r2 -U_MIPS_ISA -D_MIPS_ISA=_MIPS_ISA_MIPS64) \
-	-Wa,-mips64r2 -Wa,--trap
 
 cflags-$(CONFIG_CPU_R4000_WORKAROUNDS)	+= $(call cc-option,-mfix-r4000,)
 cflags-$(CONFIG_CPU_R4400_WORKAROUNDS)	+= $(call cc-option,-mfix-r4400,)
@@ -203,10 +215,8 @@ ifeq ($(CONFIG_CPU_HAS_MSA),y)
 toolchain-msa				:= $(call cc-option-yn,$(mips-cflags) -mhard-float -mfp64 -Wa$(comma)-mmsa)
 cflags-$(toolchain-msa)			+= -DTOOLCHAIN_SUPPORTS_MSA
 endif
-
-cflags-$(CONFIG_MIPS_COMPACT_BRANCHES_NEVER)	+= -mcompact-branches=never
-cflags-$(CONFIG_MIPS_COMPACT_BRANCHES_OPTIMAL)	+= -mcompact-branches=optimal
-cflags-$(CONFIG_MIPS_COMPACT_BRANCHES_ALWAYS)	+= -mcompact-branches=always
+toolchain-virt				:= $(call cc-option-yn,$(mips-cflags) -mvirt)
+cflags-$(toolchain-virt)		+= -DTOOLCHAIN_SUPPORTS_VIRT
 
 #
 # Firmware support
@@ -267,7 +277,14 @@ KBUILD_CPPFLAGS += -DVMLINUX_LOAD_ADDRESS=$(load-y)
 KBUILD_CPPFLAGS += -DDATAOFFSET=$(if $(dataoffset-y),$(dataoffset-y),0)
 
 bootvars-y	= VMLINUX_LOAD_ADDRESS=$(load-y) \
-		  VMLINUX_ENTRY_ADDRESS=$(entry-y)
+		  VMLINUX_ENTRY_ADDRESS=$(entry-y) \
+		  PLATFORM="$(platform-y)"
+ifdef CONFIG_32BIT
+bootvars-y	+= ADDR_BITS=32
+endif
+ifdef CONFIG_64BIT
+bootvars-y	+= ADDR_BITS=64
+endif
 
 LDFLAGS			+= -m $(ld-emul)
 
@@ -307,12 +324,20 @@ boot-y			+= uImage.gz
 boot-y			+= uImage.lzma
 boot-y			+= uImage.lzo
 endif
+boot-y			+= vmlinux.itb
+boot-y			+= vmlinux.gz.itb
+boot-y			+= vmlinux.bz2.itb
+boot-y			+= vmlinux.lzma.itb
+boot-y			+= vmlinux.lzo.itb
 
 # compressed boot image targets (arch/mips/boot/compressed/)
 bootz-y			:= vmlinuz
 bootz-y			+= vmlinuz.bin
 bootz-y			+= vmlinuz.ecoff
 bootz-y			+= vmlinuz.srec
+ifeq ($(shell expr $(zload-y) \< 0xffffffff80000000 2> /dev/null), 0)
+bootz-y			+= uzImage.bin
+endif
 
 ifdef CONFIG_LASAT
 rom.bin rom.sw: vmlinux
@@ -376,11 +401,11 @@ dtbs_install:
 
 archprepare:
 ifdef CONFIG_MIPS32_N32
-	@echo '  Checking missing-syscalls for N32'
+	@$(kecho) '  Checking missing-syscalls for N32'
 	$(Q)$(MAKE) $(build)=. missing-syscalls missing_syscalls_flags="-mabi=n32"
 endif
 ifdef CONFIG_MIPS32_O32
-	@echo '  Checking missing-syscalls for O32'
+	@$(kecho) '  Checking missing-syscalls for O32'
 	$(Q)$(MAKE) $(build)=. missing-syscalls missing_syscalls_flags="-mabi=32"
 endif
 
@@ -395,6 +420,7 @@ endif
 archclean:
 	$(Q)$(MAKE) $(clean)=arch/mips/boot
 	$(Q)$(MAKE) $(clean)=arch/mips/boot/compressed
+	$(Q)$(MAKE) $(clean)=arch/mips/boot/tools
 	$(Q)$(MAKE) $(clean)=arch/mips/lasat
 
 define archhelp
@@ -413,8 +439,72 @@ define archhelp
 	echo '  uImage.gz            - U-Boot image (gzip)'
 	echo '  uImage.lzma          - U-Boot image (lzma)'
 	echo '  uImage.lzo           - U-Boot image (lzo)'
+	echo '  uzImage.bin          - U-Boot image (self-extracting)'
 	echo '  dtbs                 - Device-tree blobs for enabled boards'
 	echo '  dtbs_install         - Install dtbs to $(INSTALL_DTBS_PATH)'
 	echo
 	echo '  These will be default as appropriate for a configured platform.'
+	echo
+	echo '  If you are targeting a system supported by generic kernels you may'
+	echo '  configure the kernel for a given architecture target like so:'
+	echo
+	echo '  {micro32,32,64}{r1,r2,r6}{el,}_defconfig <BOARDS="list of boards">'
+	echo
+	echo '  Otherwise, the following default configurations are available:'
 endef
+
+generic_config_dir = $(srctree)/arch/$(ARCH)/configs/generic
+generic_defconfigs :=
+
+#
+# If the user generates a generic kernel configuration without specifying a
+# list of boards to include the config fragments for, default to including all
+# available board config fragments.
+#
+ifeq ($(BOARDS),)
+BOARDS = $(patsubst board-%.config,%,$(notdir $(wildcard $(generic_config_dir)/board-*.config)))
+endif
+
+#
+# Generic kernel configurations which merge generic_defconfig with the
+# appropriate config fragments from arch/mips/configs/generic/, resulting in
+# the ability to easily configure the kernel for a given architecture,
+# endianness & set of boards without duplicating the needed configuration in
+# hundreds of defconfig files.
+#
+define gen_generic_defconfigs
+$(foreach bits,$(1),$(foreach rev,$(2),$(foreach endian,$(3),
+target := $(bits)$(rev)$(filter el,$(endian))_defconfig
+generic_defconfigs += $$(target)
+$$(target): $(generic_config_dir)/$(bits)$(rev).config
+$$(target): $(generic_config_dir)/$(endian).config
+)))
+endef
+
+$(eval $(call gen_generic_defconfigs,32 64,r1 r2 r6,eb el))
+$(eval $(call gen_generic_defconfigs,micro32,r2,eb el))
+
+.PHONY: $(generic_defconfigs)
+$(generic_defconfigs):
+	$(Q)$(CONFIG_SHELL) $(srctree)/scripts/kconfig/merge_config.sh \
+		-m -O $(objtree) $(srctree)/arch/$(ARCH)/configs/generic_defconfig $^ \
+		$(foreach board,$(BOARDS),$(generic_config_dir)/board-$(board).config)
+	$(Q)$(MAKE) -f $(srctree)/Makefile olddefconfig
+
+#
+# Prevent generic merge_config rules attempting to merge single fragments
+#
+$(generic_config_dir)/%.config: ;
+
+#
+# Legacy defconfig compatibility - these targets used to be real defconfigs but
+# now that the boards have been converted to use the generic kernel they are
+# wrappers around the generic rules above.
+#
+.PHONY: sead3_defconfig
+sead3_defconfig:
+	$(Q)$(MAKE) -f $(srctree)/Makefile 32r2el_defconfig BOARDS=sead-3
+
+.PHONY: sead3micro_defconfig
+sead3micro_defconfig:
+	$(Q)$(MAKE) -f $(srctree)/Makefile micro32r2el_defconfig BOARDS=sead-3

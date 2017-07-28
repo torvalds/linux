@@ -55,7 +55,7 @@ static struct usb_device_descriptor msg_device_desc = {
 	.bLength =		sizeof msg_device_desc,
 	.bDescriptorType =	USB_DT_DEVICE,
 
-	.bcdUSB =		cpu_to_le16(0x0200),
+	/* .bcdUSB = DYNAMIC */
 	.bDeviceClass =		USB_CLASS_PER_INTERFACE,
 
 	/* Vendor and product id can be overridden by module parameters.  */
@@ -131,10 +131,6 @@ static int msg_do_config(struct usb_configuration *c)
 	f_msg = usb_get_function(fi_msg);
 	if (IS_ERR(f_msg))
 		return PTR_ERR(f_msg);
-
-	ret = fsg_common_run_thread(opts->common);
-	if (ret)
-		goto put_func;
 
 	ret = usb_add_function(c, f_msg);
 	if (ret)
@@ -214,7 +210,6 @@ static int msg_bind(struct usb_composite_dev *cdev)
 	usb_composite_overwrite_options(cdev, &coverwrite);
 	dev_info(&cdev->gadget->dev,
 		 DRIVER_DESC ", version: " DRIVER_VERSION "\n");
-	set_bit(0, &msg_registered);
 	return 0;
 
 fail_otg_desc:
@@ -261,7 +256,12 @@ MODULE_LICENSE("GPL");
 
 static int __init msg_init(void)
 {
-	return usb_composite_probe(&msg_driver);
+	int ret;
+
+	ret = usb_composite_probe(&msg_driver);
+	set_bit(0, &msg_registered);
+
+	return ret;
 }
 module_init(msg_init);
 

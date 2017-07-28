@@ -22,23 +22,12 @@
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
-
-#include <asm/gpio.h>
+#include <linux/gpio.h>
 
 #include <mach/hardware.h>
 #include <mach/mux.h>
 
 #include "omapfb.h"
-
-static int osk_panel_init(struct lcd_panel *panel, struct omapfb_device *fbdev)
-{
-	/* gpio2 was allocated in board init */
-	return 0;
-}
-
-static void osk_panel_cleanup(struct lcd_panel *panel)
-{
-}
 
 static int osk_panel_enable(struct lcd_panel *panel)
 {
@@ -69,12 +58,7 @@ static void osk_panel_disable(struct lcd_panel *panel)
 	gpio_set_value(2, 0);
 }
 
-static unsigned long osk_panel_get_caps(struct lcd_panel *panel)
-{
-	return 0;
-}
-
-struct lcd_panel osk_panel = {
+static struct lcd_panel osk_panel = {
 	.name		= "osk",
 	.config		= OMAP_LCDC_PANEL_TFT,
 
@@ -91,11 +75,8 @@ struct lcd_panel osk_panel = {
 	.vbp		= 0,
 	.pcd		= 12,
 
-	.init		= osk_panel_init,
-	.cleanup	= osk_panel_cleanup,
 	.enable		= osk_panel_enable,
 	.disable	= osk_panel_disable,
-	.get_caps	= osk_panel_get_caps,
 };
 
 static int osk_panel_probe(struct platform_device *pdev)
@@ -104,26 +85,8 @@ static int osk_panel_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int osk_panel_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
-static int osk_panel_suspend(struct platform_device *pdev, pm_message_t mesg)
-{
-	return 0;
-}
-
-static int osk_panel_resume(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static struct platform_driver osk_panel_driver = {
 	.probe		= osk_panel_probe,
-	.remove		= osk_panel_remove,
-	.suspend	= osk_panel_suspend,
-	.resume		= osk_panel_resume,
 	.driver		= {
 		.name	= "lcd_osk",
 	},

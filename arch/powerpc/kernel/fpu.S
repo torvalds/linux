@@ -24,6 +24,7 @@
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
 #include <asm/ptrace.h>
+#include <asm/export.h>
 
 #ifdef CONFIG_VSX
 #define __REST_32FPVSRS(n,c,base)					\
@@ -50,52 +51,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX);					\
 #define REST_32FPVSRS(n,c,base) __REST_32FPVSRS(n,__REG_##c,__REG_##base)
 #define SAVE_32FPVSRS(n,c,base) __SAVE_32FPVSRS(n,__REG_##c,__REG_##base)
 
-#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
-/* void do_load_up_transact_fpu(struct thread_struct *thread)
- *
- * This is similar to load_up_fpu but for the transactional version of the FP
- * register set.  It doesn't mess with the task MSR or valid flags.
- * Furthermore, we don't do lazy FP with TM currently.
- */
-_GLOBAL(do_load_up_transact_fpu)
-	mfmsr	r6
-	ori	r5,r6,MSR_FP
-#ifdef CONFIG_VSX
-BEGIN_FTR_SECTION
-	oris	r5,r5,MSR_VSX@h
-END_FTR_SECTION_IFSET(CPU_FTR_VSX)
-#endif
-	SYNC
-	MTMSRD(r5)
-
-	addi	r7,r3,THREAD_TRANSACT_FPSTATE
-	lfd	fr0,FPSTATE_FPSCR(r7)
-	MTFSF_L(fr0)
-	REST_32FPVSRS(0, R4, R7)
-
-	/* FP/VSX off again */
-	MTMSRD(r6)
-	SYNC
-
-	blr
-#endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
-
-/*
- * Enable use of the FPU, and VSX if possible, for the caller.
- */
-_GLOBAL(fp_enable)
-	mfmsr	r3
-	ori	r3,r3,MSR_FP
-#ifdef CONFIG_VSX
-BEGIN_FTR_SECTION
-	oris	r3,r3,MSR_VSX@h
-END_FTR_SECTION_IFSET(CPU_FTR_VSX)
-#endif
-	SYNC
-	MTMSRD(r3)
-	isync			/* (not necessary for arch 2.02 and later) */
-	blr
-
 /*
  * Load state from memory into FP registers including FPSCR.
  * Assumes the caller has enabled FP in the MSR.
@@ -105,6 +60,7 @@ _GLOBAL(load_fp_state)
 	MTFSF_L(fr0)
 	REST_32FPVSRS(0, R4, R3)
 	blr
+EXPORT_SYMBOL(load_fp_state)
 
 /*
  * Store FP state into memory, including FPSCR
@@ -115,6 +71,7 @@ _GLOBAL(store_fp_state)
 	mffs	fr0
 	stfd	fr0,FPSTATE_FPSCR(r3)
 	blr
+EXPORT_SYMBOL(store_fp_state)
 
 /*
  * This task wants to use the FPU now.
@@ -136,31 +93,6 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 	SYNC
 	MTMSRD(r5)			/* enable use of fpu now */
 	isync
-/*
- * For SMP, we don't do lazy FPU switching because it just gets too
- * horrendously complex, especially when a task switches from one CPU
- * to another.  Instead we call giveup_fpu in switch_to.
- */
-#ifndef CONFIG_SMP
-	LOAD_REG_ADDRBASE(r3, last_task_used_math)
-	toreal(r3)
-	PPC_LL	r4,ADDROFF(last_task_used_math)(r3)
-	PPC_LCMPI	0,r4,0
-	beq	1f
-	toreal(r4)
-	addi	r4,r4,THREAD		/* want last_task_used_math->thread */
-	addi	r10,r4,THREAD_FPSTATE
-	SAVE_32FPVSRS(0, R5, R10)
-	mffs	fr0
-	stfd	fr0,FPSTATE_FPSCR(r10)
-	PPC_LL	r5,PT_REGS(r4)
-	toreal(r5)
-	PPC_LL	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
-	li	r10,MSR_FP|MSR_FE0|MSR_FE1
-	andc	r4,r4,r10		/* disable FP for previous task */
-	PPC_STL	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
-1:
-#endif /* CONFIG_SMP */
 	/* enable use of FP after return */
 #ifdef CONFIG_PPC32
 	mfspr	r5,SPRN_SPRG_THREAD	/* current task's THREAD (phys) */
@@ -175,66 +107,33 @@ END_FTR_SECTION_IFSET(CPU_FTR_VSX)
 	or	r12,r12,r4
 	std	r12,_MSR(r1)
 #endif
+	/* Don't care if r4 overflows, this is desired behaviour */
+	lbz	r4,THREAD_LOAD_FP(r5)
+	addi	r4,r4,1
+	stb	r4,THREAD_LOAD_FP(r5)
 	addi	r10,r5,THREAD_FPSTATE
 	lfd	fr0,FPSTATE_FPSCR(r10)
 	MTFSF_L(fr0)
 	REST_32FPVSRS(0, R4, R10)
-#ifndef CONFIG_SMP
-	subi	r4,r5,THREAD
-	fromreal(r4)
-	PPC_STL	r4,ADDROFF(last_task_used_math)(r3)
-#endif /* CONFIG_SMP */
 	/* restore registers and return */
 	/* we haven't used ctr or xer or lr */
 	blr
 
 /*
- * giveup_fpu(tsk)
- * Disable FP for the task given as the argument,
- * and save the floating-point registers in its thread_struct.
+ * save_fpu(tsk)
+ * Save the floating-point registers in its thread_struct.
  * Enables the FPU for use in the kernel on return.
  */
-_GLOBAL(giveup_fpu)
-	mfmsr	r5
-	ori	r5,r5,MSR_FP
-#ifdef CONFIG_VSX
-BEGIN_FTR_SECTION
-	oris	r5,r5,MSR_VSX@h
-END_FTR_SECTION_IFSET(CPU_FTR_VSX)
-#endif
-	SYNC_601
-	ISYNC_601
-	MTMSRD(r5)			/* enable use of fpu now */
-	SYNC_601
-	isync
-	PPC_LCMPI	0,r3,0
-	beqlr-				/* if no previous owner, done */
+_GLOBAL(save_fpu)
 	addi	r3,r3,THREAD	        /* want THREAD of task */
 	PPC_LL	r6,THREAD_FPSAVEAREA(r3)
 	PPC_LL	r5,PT_REGS(r3)
 	PPC_LCMPI	0,r6,0
 	bne	2f
 	addi	r6,r3,THREAD_FPSTATE
-2:	PPC_LCMPI	0,r5,0
-	SAVE_32FPVSRS(0, R4, R6)
+2:	SAVE_32FPVSRS(0, R4, R6)
 	mffs	fr0
 	stfd	fr0,FPSTATE_FPSCR(r6)
-	beq	1f
-	PPC_LL	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
-	li	r3,MSR_FP|MSR_FE0|MSR_FE1
-#ifdef CONFIG_VSX
-BEGIN_FTR_SECTION
-	oris	r3,r3,MSR_VSX@h
-END_FTR_SECTION_IFSET(CPU_FTR_VSX)
-#endif
-	andc	r4,r4,r3		/* disable FP for previous task */
-	PPC_STL	r4,_MSR-STACK_FRAME_OVERHEAD(r5)
-1:
-#ifndef CONFIG_SMP
-	li	r5,0
-	LOAD_REG_ADDRBASE(r4,last_task_used_math)
-	PPC_STL	r5,ADDROFF(last_task_used_math)(r4)
-#endif /* CONFIG_SMP */
 	blr
 
 /*

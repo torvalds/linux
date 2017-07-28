@@ -36,6 +36,7 @@
 #include <linux/dmapool.h>
 #include <linux/ratelimit.h>
 
+#include "rds_single_path.h"
 #include "rds.h"
 #include "ib.h"
 
@@ -66,16 +67,6 @@ static void rds_ib_send_complete(struct rds_message *rm,
 		break;
 	}
 	complete(rm, notify_status);
-}
-
-static void rds_ib_send_unmap_data(struct rds_ib_connection *ic,
-				   struct rm_data_op *op,
-				   int wc_status)
-{
-	if (op->op_nents)
-		ib_dma_unmap_sg(ic->i_cm_id->device,
-				op->op_sg, op->op_nents,
-				DMA_TO_DEVICE);
 }
 
 static void rds_ib_send_unmap_rdma(struct rds_ib_connection *ic,
@@ -138,6 +129,21 @@ static void rds_ib_send_unmap_atomic(struct rds_ib_connection *ic,
 		rds_ib_stats_inc(s_ib_atomic_fadd);
 }
 
+static void rds_ib_send_unmap_data(struct rds_ib_connection *ic,
+				   struct rm_data_op *op,
+				   int wc_status)
+{
+	struct rds_message *rm = container_of(op, struct rds_message, data);
+
+	if (op->op_nents)
+		ib_dma_unmap_sg(ic->i_cm_id->device,
+				op->op_sg, op->op_nents,
+				DMA_TO_DEVICE);
+
+	if (rm->rdma.op_active && rm->data.op_notify)
+		rds_ib_send_unmap_rdma(ic, &rm->rdma, wc_status);
+}
+
 /*
  * Unmap the resources associated with a struct send_work.
  *
@@ -195,7 +201,7 @@ void rds_ib_send_init_ring(struct rds_ib_connection *ic)
 
 		send->s_op = NULL;
 
-		send->s_wr.wr_id = i | RDS_IB_SEND_OP;
+		send->s_wr.wr_id = i;
 		send->s_wr.sg_list = send->s_sge;
 		send->s_wr.ex.imm_data = 0;
 
@@ -263,9 +269,7 @@ void rds_ib_send_cqe_handler(struct rds_ib_connection *ic, struct ib_wc *wc)
 
 	oldest = rds_ib_ring_oldest(&ic->i_send_ring);
 
-	completed = rds_ib_ring_completed(&ic->i_send_ring,
-					  (wc->wr_id & ~RDS_IB_SEND_OP),
-					  oldest);
+	completed = rds_ib_ring_completed(&ic->i_send_ring, wc->wr_id, oldest);
 
 	for (i = 0; i < completed; i++) {
 		send = &ic->i_sends[oldest];
@@ -301,8 +305,8 @@ void rds_ib_send_cqe_handler(struct rds_ib_connection *ic, struct ib_wc *wc)
 
 	/* We expect errors as the qp is drained during shutdown */
 	if (wc->status != IB_WC_SUCCESS && rds_conn_up(conn)) {
-		rds_ib_conn_error(conn, "send completion on %pI4 had status %u (%s), disconnecting and reconnecting\n",
-				  &conn->c_faddr, wc->status,
+		rds_ib_conn_error(conn, "send completion on <%pI4,%pI4> had status %u (%s), disconnecting and reconnecting\n",
+				  &conn->c_laddr, &conn->c_faddr, wc->status,
 				  ib_wc_status_msg(wc->status));
 	}
 }
@@ -766,7 +770,6 @@ int rds_ib_xmit_atomic(struct rds_connection *conn, struct rm_atomic_op *op)
 
 	work_alloc = rds_ib_ring_alloc(&ic->i_send_ring, 1, &pos);
 	if (work_alloc != 1) {
-		rds_ib_ring_unalloc(&ic->i_send_ring, work_alloc);
 		rds_ib_stats_inc(s_ib_tx_ring_full);
 		ret = -ENOMEM;
 		goto out;
@@ -981,8 +984,9 @@ out:
 	return ret;
 }
 
-void rds_ib_xmit_complete(struct rds_connection *conn)
+void rds_ib_xmit_path_complete(struct rds_conn_path *cp)
 {
+	struct rds_connection *conn = cp->cp_conn;
 	struct rds_ib_connection *ic = conn->c_transport_data;
 
 	/* We may have a pending ACK or window update we were unable

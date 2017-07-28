@@ -11,7 +11,6 @@
 #define __ARCH_SI_PREAMBLE_SIZE	(4 * sizeof(int))
 
 #define HAVE_ARCH_SIGINFO_T
-#define HAVE_ARCH_COPY_SIGINFO
 #define HAVE_ARCH_COPY_SIGINFO_TO_USER
 
 #include <asm-generic/siginfo.h>
@@ -63,10 +62,15 @@ typedef struct siginfo {
 			unsigned int _flags;	/* see below */
 			unsigned long _isr;	/* isr */
 			short _addr_lsb;	/* lsb of faulting address */
-			struct {
-				void __user *_lower;
-				void __user *_upper;
-			} _addr_bnd;
+			union {
+				/* used when si_code=SEGV_BNDERR */
+				struct {
+					void __user *_lower;
+					void __user *_upper;
+				} _addr_bnd;
+				/* used when si_code=SEGV_PKUERR */
+				__u32 _pkey;
+			};
 		} _sigfault;
 
 		/* SIGPOLL */

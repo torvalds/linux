@@ -100,10 +100,10 @@ static inline void handle_pairwise_key(struct sta_info *psta,
 	memcpy(psta->x_UncstKey.skey, param->u.crypt.key,
 	       (param->u.crypt. key_len > 16 ? 16 : param->u.crypt.key_len));
 	if (strcmp(param->u.crypt.alg, "TKIP") == 0) { /* set mic key */
-		memcpy(psta->tkiptxmickey. skey, &(param->u.crypt.
-			key[16]), 8);
-		memcpy(psta->tkiprxmickey. skey, &(param->u.crypt.
-			key[24]), 8);
+		memcpy(psta->tkiptxmickey. skey,
+		       &(param->u.crypt.key[16]), 8);
+		memcpy(psta->tkiprxmickey. skey,
+		       &(param->u.crypt.key[24]), 8);
 		padapter->securitypriv. busetkipkey = false;
 		mod_timer(&padapter->securitypriv.tkip_timer,
 			  jiffies + msecs_to_jiffies(50));
@@ -137,7 +137,7 @@ static inline void handle_group_key(struct ieee_param *param,
 	}
 }
 
-static inline char *translate_scan(struct _adapter *padapter,
+static noinline_for_stack char *translate_scan(struct _adapter *padapter,
 				   struct iw_request_info *info,
 				   struct wlan_network *pnetwork,
 				   char *start, char *stop)
@@ -199,7 +199,7 @@ static inline char *translate_scan(struct _adapter *padapter,
 	iwe.cmd = SIOCGIWMODE;
 	memcpy((u8 *)&cap, r8712_get_capability_from_ie(pnetwork->network.IEs),
 		2);
-	cap = le16_to_cpu(cap);
+	le16_to_cpus(&cap);
 	if (cap & (WLAN_CAPABILITY_IBSS | WLAN_CAPABILITY_BSS)) {
 		if (cap & WLAN_CAPABILITY_BSS)
 			iwe.u.mode = (u32)IW_MODE_MASTER;
@@ -378,13 +378,12 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param,
 	if (param_len != (u32)((u8 *) param->u.crypt.key - (u8 *)param) +
 			 param->u.crypt.key_len)
 		return -EINVAL;
-	if (is_broadcast_ether_addr(param->sta_addr)) {
-		if (param->u.crypt.idx >= WEP_KEYS) {
-			/* for large key indices, set the default (0) */
-			param->u.crypt.idx = 0;
-		}
-	} else {
+	if (!is_broadcast_ether_addr(param->sta_addr))
 		return -EINVAL;
+
+	if (param->u.crypt.idx >= WEP_KEYS) {
+		/* for large key indices, set the default (0) */
+		param->u.crypt.idx = 0;
 	}
 	if (strcmp(param->u.crypt.alg, "WEP") == 0) {
 		netdev_info(dev, "r8712u: %s: crypt.alg = WEP\n", __func__);
@@ -396,26 +395,19 @@ static int wpa_set_encryption(struct net_device *dev, struct ieee_param *param,
 		wep_key_len = param->u.crypt.key_len;
 		if (wep_key_idx >= WEP_KEYS)
 			wep_key_idx = 0;
-		if (wep_key_len > 0) {
-			wep_key_len = wep_key_len <= 5 ? 5 : 13;
-			pwep = kmalloc((u32)(wep_key_len +
-				FIELD_OFFSET(struct NDIS_802_11_WEP,
-				KeyMaterial)), GFP_ATOMIC);
-			if (pwep == NULL)
-				return -ENOMEM;
-			memset(pwep, 0, sizeof(struct NDIS_802_11_WEP));
-			pwep->KeyLength = wep_key_len;
-			pwep->Length = wep_key_len +
-				 FIELD_OFFSET(struct NDIS_802_11_WEP,
-				 KeyMaterial);
-			if (wep_key_len == 13) {
-				padapter->securitypriv.PrivacyAlgrthm =
-					 _WEP104_;
-				padapter->securitypriv.XGrpPrivacy =
-					 _WEP104_;
-			}
-		} else {
+		if (wep_key_len <= 0)
 			return -EINVAL;
+
+		wep_key_len = wep_key_len <= 5 ? 5 : 13;
+		pwep = kzalloc(sizeof(*pwep), GFP_ATOMIC);
+		if (!pwep)
+			return -ENOMEM;
+		pwep->KeyLength = wep_key_len;
+		pwep->Length = wep_key_len +
+			FIELD_OFFSET(struct NDIS_802_11_WEP, KeyMaterial);
+		if (wep_key_len == 13) {
+			padapter->securitypriv.PrivacyAlgrthm = _WEP104_;
+			padapter->securitypriv.XGrpPrivacy = _WEP104_;
 		}
 		pwep->KeyIndex = wep_key_idx;
 		pwep->KeyIndex |= 0x80000000;
@@ -591,9 +583,9 @@ static int r871x_set_wpa_ie(struct _adapter *padapter, char *pie,
 					netdev_info(padapter->pnetdev, "r8712u: SET WPS_IE, wps_phase==true\n");
 					cnt += buf[cnt + 1] + 2;
 					break;
-				} else {
-					cnt += buf[cnt + 1] + 2;
 				}
+
+				cnt += buf[cnt + 1] + 2;
 			}
 		}
 	}
@@ -703,14 +695,14 @@ static int r8711_wx_get_freq(struct net_device *dev,
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct wlan_bssid_ex *pcur_bss = &pmlmepriv->cur_network.network;
 
-	if (check_fwstate(pmlmepriv, _FW_LINKED)) {
-		wrqu->freq.m = ieee80211_wlan_frequencies[
-			       pcur_bss->Configuration.DSConfig - 1] * 100000;
-		wrqu->freq.e = 1;
-		wrqu->freq.i = pcur_bss->Configuration.DSConfig;
-	} else {
+	if (!check_fwstate(pmlmepriv, _FW_LINKED))
 		return -ENOLINK;
-	}
+
+	wrqu->freq.m = ieee80211_wlan_frequencies[
+		       pcur_bss->Configuration.DSConfig - 1] * 100000;
+	wrqu->freq.e = 1;
+	wrqu->freq.i = pcur_bss->Configuration.DSConfig;
+
 	return 0;
 }
 
@@ -1063,8 +1055,8 @@ static int r8711_wx_set_wap(struct net_device *dev,
 	while (1) {
 		if (end_of_queue_search(phead, pmlmepriv->pscanned))
 			break;
-		pnetwork = LIST_CONTAINOR(pmlmepriv->pscanned,
-			   struct wlan_network, list);
+		pnetwork = container_of(pmlmepriv->pscanned,
+					struct wlan_network, list);
 		pmlmepriv->pscanned = pmlmepriv->pscanned->next;
 		dst_bssid = pnetwork->network.MacAddress;
 		if (!memcmp(dst_bssid, temp->sa_data, ETH_ALEN)) {
@@ -1219,7 +1211,7 @@ static int r8711_wx_get_scan(struct net_device *dev,
 			ret = -E2BIG;
 			break;
 		}
-		pnetwork = LIST_CONTAINOR(plist, struct wlan_network, list);
+		pnetwork = container_of(plist, struct wlan_network, list);
 		ev = translate_scan(padapter, a, pnetwork, ev, stop);
 		plist = plist->next;
 	}
@@ -1274,8 +1266,8 @@ static int r8711_wx_set_essid(struct net_device *dev,
 		while (1) {
 			if (end_of_queue_search(phead, pmlmepriv->pscanned))
 				break;
-			pnetwork = LIST_CONTAINOR(pmlmepriv->pscanned,
-				   struct wlan_network, list);
+			pnetwork = container_of(pmlmepriv->pscanned,
+						struct wlan_network, list);
 			pmlmepriv->pscanned = pmlmepriv->pscanned->next;
 			dst_ssid = pnetwork->network.Ssid.Ssid;
 			if ((!memcmp(dst_ssid, src_ssid, ndis_ssid.SsidLength))
@@ -1414,44 +1406,41 @@ static int r8711_wx_get_rate(struct net_device *dev,
 	u16 mcs_rate = 0;
 
 	i = 0;
-	if (check_fwstate(pmlmepriv, _FW_LINKED | WIFI_ADHOC_MASTER_STATE)) {
-		p = r8712_get_ie(&pcur_bss->IEs[12],
-				 _HT_CAPABILITY_IE_, &ht_ielen,
-		    pcur_bss->IELength - 12);
-		if (p && ht_ielen > 0) {
-			ht_cap = true;
-			pht_capie = (struct ieee80211_ht_cap *)(p + 2);
-			memcpy(&mcs_rate, pht_capie->supp_mcs_set, 2);
-			bw_40MHz = (pht_capie->cap_info &
-				    IEEE80211_HT_CAP_SUP_WIDTH) ? 1 : 0;
-			short_GI = (pht_capie->cap_info &
-				    (IEEE80211_HT_CAP_SGI_20 |
-				    IEEE80211_HT_CAP_SGI_40)) ? 1 : 0;
-		}
-		while ((pcur_bss->rates[i] != 0) &&
-			(pcur_bss->rates[i] != 0xFF)) {
-			rate = pcur_bss->rates[i] & 0x7F;
-			if (rate > max_rate)
-				max_rate = rate;
-			wrqu->bitrate.fixed = 0;	/* no auto select */
-			wrqu->bitrate.value = rate * 500000;
-			i++;
-		}
-		if (ht_cap) {
-			if (mcs_rate & 0x8000 /* MCS15 */
-				&&
-				rf_type == RTL8712_RF_2T2R)
-				max_rate = (bw_40MHz) ? ((short_GI) ? 300 :
-					    270) : ((short_GI) ? 144 : 130);
-			else /* default MCS7 */
-				max_rate = (bw_40MHz) ? ((short_GI) ? 150 :
-					    135) : ((short_GI) ? 72 : 65);
-			max_rate *= 2; /* Mbps/2 */
-		}
-		wrqu->bitrate.value = max_rate * 500000;
-	} else {
+	if (!check_fwstate(pmlmepriv, _FW_LINKED | WIFI_ADHOC_MASTER_STATE))
 		return -ENOLINK;
+	p = r8712_get_ie(&pcur_bss->IEs[12], _HT_CAPABILITY_IE_, &ht_ielen,
+			 pcur_bss->IELength - 12);
+	if (p && ht_ielen > 0) {
+		ht_cap = true;
+		pht_capie = (struct ieee80211_ht_cap *)(p + 2);
+		memcpy(&mcs_rate, pht_capie->supp_mcs_set, 2);
+		bw_40MHz = (le16_to_cpu(pht_capie->cap_info) &
+			    IEEE80211_HT_CAP_SUP_WIDTH) ? 1 : 0;
+		short_GI = (le16_to_cpu(pht_capie->cap_info) &
+			    (IEEE80211_HT_CAP_SGI_20 |
+			    IEEE80211_HT_CAP_SGI_40)) ? 1 : 0;
 	}
+	while ((pcur_bss->rates[i] != 0) &&
+	       (pcur_bss->rates[i] != 0xFF)) {
+		rate = pcur_bss->rates[i] & 0x7F;
+		if (rate > max_rate)
+			max_rate = rate;
+		wrqu->bitrate.fixed = 0;	/* no auto select */
+		wrqu->bitrate.value = rate * 500000;
+		i++;
+	}
+	if (ht_cap) {
+		if (mcs_rate & 0x8000 /* MCS15 */
+		    &&
+		    rf_type == RTL8712_RF_2T2R)
+			max_rate = (bw_40MHz) ? ((short_GI) ? 300 : 270) :
+			((short_GI) ? 144 : 130);
+		else /* default MCS7 */
+			max_rate = (bw_40MHz) ? ((short_GI) ? 150 : 135) :
+			((short_GI) ? 72 : 65);
+		max_rate *= 2; /* Mbps/2 */
+	}
+	wrqu->bitrate.value = max_rate * 500000;
 	return 0;
 }
 
@@ -1796,7 +1785,7 @@ static int r871x_wx_set_enc_ext(struct net_device *dev,
 
 	param_len = sizeof(struct ieee_param) + pext->key_len;
 	param = kzalloc(param_len, GFP_ATOMIC);
-	if (param == NULL)
+	if (!param)
 		return -ENOMEM;
 	param->cmd = IEEE_CMD_SET_ENCRYPTION;
 	eth_broadcast_addr(param->sta_addr);
@@ -1964,7 +1953,7 @@ static int r871x_get_ap_info(struct net_device *dev,
 	struct list_head *plist, *phead;
 	unsigned char *pbuf;
 	u8 bssid[ETH_ALEN];
-	char data[32];
+	char data[33];
 
 	if (padapter->bDriverStopped || (pdata == NULL))
 		return -EINVAL;
@@ -1976,19 +1965,19 @@ static int r871x_get_ap_info(struct net_device *dev,
 			break;
 	}
 	pdata->flags = 0;
-	if (pdata->length >= 32) {
-		if (copy_from_user(data, pdata->pointer, 32))
-			return -EINVAL;
-	} else {
-		 return -EINVAL;
-	}
+	if (pdata->length < 32)
+		return -EINVAL;
+	if (copy_from_user(data, pdata->pointer, 32))
+		return -EINVAL;
+	data[32] = 0;
+
 	spin_lock_irqsave(&(pmlmepriv->scanned_queue.lock), irqL);
 	phead = &queue->queue;
 	plist = phead->next;
 	while (1) {
 		if (end_of_queue_search(phead, plist))
 			break;
-		pnetwork = LIST_CONTAINOR(plist, struct wlan_network, list);
+		pnetwork = container_of(plist, struct wlan_network, list);
 		if (!mac_pton(data, bssid)) {
 			netdev_info(dev, "r8712u: Invalid BSSID '%s'.\n",
 				    (u8 *)data);
@@ -2324,7 +2313,7 @@ static struct iw_statistics *r871x_get_wireless_stats(struct net_device *dev)
 		piwstats->qual.level = 0;
 		piwstats->qual.noise = 0;
 	} else {
-		/* show percentage, we need transfer dbm to orignal value. */
+		/* show percentage, we need transfer dbm to original value. */
 		tmp_level = padapter->recvpriv.fw_rssi;
 		tmp_qual = padapter->recvpriv.signal;
 		tmp_noise = padapter->recvpriv.noise;

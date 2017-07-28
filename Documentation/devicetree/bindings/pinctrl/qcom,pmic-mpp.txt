@@ -9,13 +9,18 @@ of PMIC's from Qualcomm.
 	Definition: Should contain one of:
 		    "qcom,pm8018-mpp",
 		    "qcom,pm8038-mpp",
+		    "qcom,pm8058-mpp",
 		    "qcom,pm8821-mpp",
 		    "qcom,pm8841-mpp",
 		    "qcom,pm8916-mpp",
 		    "qcom,pm8917-mpp",
 		    "qcom,pm8921-mpp",
 		    "qcom,pm8941-mpp",
+		    "qcom,pm8994-mpp",
 		    "qcom,pma8084-mpp",
+
+		    And must contain either "qcom,spmi-mpp" or "qcom,ssbi-mpp"
+		    if the device is on an spmi bus or an ssbi bus respectively.
 
 - reg:
 	Usage: required
@@ -156,7 +161,7 @@ to specify in a pin configuration subnode:
 Example:
 
 	mpps@a000 {
-		compatible = "qcom,pm8841-mpp";
+		compatible = "qcom,pm8841-mpp", "qcom,spmi-mpp";
 		reg = <0xa000>;
 		gpio-controller;
 		#gpio-cells = <2>;

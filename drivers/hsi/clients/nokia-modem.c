@@ -102,12 +102,10 @@ static int nokia_modem_gpio_probe(struct device *dev)
 		return -EINVAL;
 	}
 
-	modem->gpios = devm_kzalloc(dev, gpio_count *
-				sizeof(struct nokia_modem_gpio), GFP_KERNEL);
-	if (!modem->gpios) {
-		dev_err(dev, "Could not allocate memory for gpios\n");
+	modem->gpios = devm_kcalloc(dev, gpio_count, sizeof(*modem->gpios),
+				    GFP_KERNEL);
+	if (!modem->gpios)
 		return -ENOMEM;
-	}
 
 	modem->gpio_amount = gpio_count;
 
@@ -156,10 +154,9 @@ static int nokia_modem_probe(struct device *dev)
 	}
 
 	modem = devm_kzalloc(dev, sizeof(*modem), GFP_KERNEL);
-	if (!modem) {
-		dev_err(dev, "Could not allocate memory for nokia_modem_device\n");
+	if (!modem)
 		return -ENOMEM;
-	}
+
 	dev_set_drvdata(dev, modem);
 	modem->device = dev;
 
@@ -182,7 +179,7 @@ static int nokia_modem_probe(struct device *dev)
 	}
 	enable_irq_wake(irq);
 
-	if(pm) {
+	if (pm) {
 		err = nokia_modem_gpio_probe(dev);
 		if (err < 0) {
 			dev_err(dev, "Could not probe GPIOs\n");
@@ -281,6 +278,8 @@ static int nokia_modem_remove(struct device *dev)
 #ifdef CONFIG_OF
 static const struct of_device_id nokia_modem_of_match[] = {
 	{ .compatible = "nokia,n900-modem", },
+	{ .compatible = "nokia,n950-modem", },
+	{ .compatible = "nokia,n9-modem", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, nokia_modem_of_match);

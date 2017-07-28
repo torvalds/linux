@@ -23,7 +23,7 @@
 #include <linux/slab.h>
 
 #include <linux/atomic.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static DEFINE_MUTEX(mem_sysfs_mutex);
 
@@ -128,6 +128,9 @@ static ssize_t show_mem_removable(struct device *dev,
 	int ret = 1;
 	struct memory_block *mem = to_memory_block(dev);
 
+	if (mem->state != MEM_ONLINE)
+		goto out;
+
 	for (i = 0; i < sections_per_block; i++) {
 		if (!present_section_nr(mem->start_section_nr + i))
 			continue;
@@ -135,6 +138,7 @@ static ssize_t show_mem_removable(struct device *dev,
 		ret &= is_mem_section_removable(pfn, PAGES_PER_SECTION);
 	}
 
+out:
 	return sprintf(buf, "%d\n", ret);
 }
 
@@ -226,11 +230,9 @@ memory_block_action(unsigned long phys_index, unsigned long action, int online_t
 {
 	unsigned long start_pfn;
 	unsigned long nr_pages = PAGES_PER_SECTION * sections_per_block;
-	struct page *first_page;
 	int ret;
 
 	start_pfn = section_nr_to_pfn(phys_index);
-	first_page = pfn_to_page(start_pfn);
 
 	switch (action) {
 	case MEM_ONLINE:
@@ -303,6 +305,10 @@ static int memory_subsys_offline(struct device *dev)
 	if (mem->state == MEM_OFFLINE)
 		return 0;
 
+	/* Can't offline block with non-present sections */
+	if (mem->section_count != sections_per_block)
+		return -EINVAL;
+
 	return memory_block_change_state(mem, MEM_OFFLINE, MEM_ONLINE);
 }
 
@@ -357,8 +363,11 @@ store_mem_state(struct device *dev,
 err:
 	unlock_device_hotplug();
 
-	if (ret)
+	if (ret < 0)
 		return ret;
+	if (ret)
+		return -EINVAL;
+
 	return count;
 }
 
@@ -383,36 +392,46 @@ static ssize_t show_valid_zones(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct memory_block *mem = to_memory_block(dev);
-	unsigned long start_pfn, end_pfn;
+	unsigned long start_pfn = section_nr_to_pfn(mem->start_section_nr);
 	unsigned long nr_pages = PAGES_PER_SECTION * sections_per_block;
-	struct page *first_page;
-	struct zone *zone;
+	unsigned long valid_start_pfn, valid_end_pfn;
+	bool append = false;
+	int nid;
 
-	start_pfn = section_nr_to_pfn(mem->start_section_nr);
-	end_pfn = start_pfn + nr_pages;
-	first_page = pfn_to_page(start_pfn);
-
-	/* The block contains more than one zone can not be offlined. */
-	if (!test_pages_in_a_zone(start_pfn, end_pfn))
+	/*
+	 * The block contains more than one zone can not be offlined.
+	 * This can happen e.g. for ZONE_DMA and ZONE_DMA32
+	 */
+	if (!test_pages_in_a_zone(start_pfn, start_pfn + nr_pages, &valid_start_pfn, &valid_end_pfn))
 		return sprintf(buf, "none\n");
 
-	zone = page_zone(first_page);
+	start_pfn = valid_start_pfn;
+	nr_pages = valid_end_pfn - start_pfn;
 
-	if (zone_idx(zone) == ZONE_MOVABLE - 1) {
-		/*The mem block is the last memoryblock of this zone.*/
-		if (end_pfn == zone_end_pfn(zone))
-			return sprintf(buf, "%s %s\n",
-					zone->name, (zone + 1)->name);
+	/*
+	 * Check the existing zone. Make sure that we do that only on the
+	 * online nodes otherwise the page_zone is not reliable
+	 */
+	if (mem->state == MEM_ONLINE) {
+		strcat(buf, page_zone(pfn_to_page(start_pfn))->name);
+		goto out;
 	}
 
-	if (zone_idx(zone) == ZONE_MOVABLE) {
-		/*The mem block is the first memoryblock of ZONE_MOVABLE.*/
-		if (start_pfn == zone->zone_start_pfn)
-			return sprintf(buf, "%s %s\n",
-					zone->name, (zone - 1)->name);
+	nid = pfn_to_nid(start_pfn);
+	if (allow_online_pfn_range(nid, start_pfn, nr_pages, MMOP_ONLINE_KERNEL)) {
+		strcat(buf, default_zone_for_pfn(nid, start_pfn, nr_pages)->name);
+		append = true;
 	}
 
-	return sprintf(buf, "%s\n", zone->name);
+	if (allow_online_pfn_range(nid, start_pfn, nr_pages, MMOP_ONLINE_MOVABLE)) {
+		if (append)
+			strcat(buf, " ");
+		strcat(buf, NODE_DATA(nid)->node_zones[ZONE_MOVABLE].name);
+	}
+out:
+	strcat(buf, "\n");
+
+	return strlen(buf);
 }
 static DEVICE_ATTR(valid_zones, 0444, show_valid_zones, NULL);
 #endif
@@ -435,6 +454,37 @@ print_block_size(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(block_size_bytes, 0444, print_block_size, NULL);
 
 /*
+ * Memory auto online policy.
+ */
+
+static ssize_t
+show_auto_online_blocks(struct device *dev, struct device_attribute *attr,
+			char *buf)
+{
+	if (memhp_auto_online)
+		return sprintf(buf, "online\n");
+	else
+		return sprintf(buf, "offline\n");
+}
+
+static ssize_t
+store_auto_online_blocks(struct device *dev, struct device_attribute *attr,
+			 const char *buf, size_t count)
+{
+	if (sysfs_streq(buf, "online"))
+		memhp_auto_online = true;
+	else if (sysfs_streq(buf, "offline"))
+		memhp_auto_online = false;
+	else
+		return -EINVAL;
+
+	return count;
+}
+
+static DEVICE_ATTR(auto_online_blocks, 0644, show_auto_online_blocks,
+		   store_auto_online_blocks);
+
+/*
  * Some architectures will have custom drivers to do this, and
  * will not need to do it from userspace.  The fake hot-add code
  * as well as ppc64 will do all of their discovery in userspace
@@ -446,8 +496,7 @@ memory_probe_store(struct device *dev, struct device_attribute *attr,
 		   const char *buf, size_t count)
 {
 	u64 phys_addr;
-	int nid;
-	int i, ret;
+	int nid, ret;
 	unsigned long pages_per_block = PAGES_PER_SECTION * sections_per_block;
 
 	ret = kstrtoull(buf, 0, &phys_addr);
@@ -457,15 +506,12 @@ memory_probe_store(struct device *dev, struct device_attribute *attr,
 	if (phys_addr & ((pages_per_block << PAGE_SHIFT) - 1))
 		return -EINVAL;
 
-	for (i = 0; i < sections_per_block; i++) {
-		nid = memory_add_physaddr_to_nid(phys_addr);
-		ret = add_memory(nid, phys_addr,
-				 PAGES_PER_SECTION << PAGE_SHIFT);
-		if (ret)
-			goto out;
+	nid = memory_add_physaddr_to_nid(phys_addr);
+	ret = add_memory(nid, phys_addr,
+			 MIN_MEMORY_BLOCK_SIZE * sections_per_block);
 
-		phys_addr += MIN_MEMORY_BLOCK_SIZE;
-	}
+	if (ret)
+		goto out;
 
 	ret = count;
 out:
@@ -614,7 +660,6 @@ static int init_memory_block(struct memory_block **memory,
 			base_memory_block_id(scn_nr) * sections_per_block;
 	mem->end_section_nr = mem->start_section_nr + sections_per_block - 1;
 	mem->state = state;
-	mem->section_count++;
 	start_pfn = section_nr_to_pfn(mem->start_section_nr);
 	mem->phys_device = arch_get_memory_phys_device(start_pfn);
 
@@ -648,7 +693,6 @@ static int add_memory_block(int base_section_nr)
 	return 0;
 }
 
-
 /*
  * need an interface for the VM to add new memory regions,
  * but without onlining it.
@@ -668,6 +712,7 @@ int register_new_memory(int nid, struct mem_section *section)
 		ret = init_memory_block(&mem, section, MEM_OFFLINE);
 		if (ret)
 			goto out;
+		mem->section_count++;
 	}
 
 	if (mem->section_count == sections_per_block)
@@ -688,13 +733,21 @@ unregister_memory(struct memory_block *memory)
 	device_unregister(&memory->dev);
 }
 
-static int remove_memory_block(unsigned long node_id,
+static int remove_memory_section(unsigned long node_id,
 			       struct mem_section *section, int phys_device)
 {
 	struct memory_block *mem;
 
 	mutex_lock(&mem_sysfs_mutex);
+
+	/*
+	 * Some users of the memory hotplug do not want/need memblock to
+	 * track all sections. Skip over those.
+	 */
 	mem = find_memory_block(section);
+	if (!mem)
+		goto out_unlock;
+
 	unregister_mem_sect_under_nodes(mem, __section_nr(section));
 
 	mem->section_count--;
@@ -703,6 +756,7 @@ static int remove_memory_block(unsigned long node_id,
 	else
 		put_device(&mem->dev);
 
+out_unlock:
 	mutex_unlock(&mem_sysfs_mutex);
 	return 0;
 }
@@ -712,7 +766,7 @@ int unregister_memory_section(struct mem_section *section)
 	if (!present_section(section))
 		return -EINVAL;
 
-	return remove_memory_block(0, section, 0);
+	return remove_memory_section(0, section, 0);
 }
 #endif /* CONFIG_MEMORY_HOTREMOVE */
 
@@ -733,6 +787,7 @@ static struct attribute *memory_root_attrs[] = {
 #endif
 
 	&dev_attr_block_size_bytes.attr,
+	&dev_attr_auto_online_blocks.attr,
 	NULL
 };
 
@@ -768,6 +823,10 @@ int __init memory_dev_init(void)
 	 */
 	mutex_lock(&mem_sysfs_mutex);
 	for (i = 0; i < NR_MEM_SECTIONS; i += sections_per_block) {
+		/* Don't iterate over sections we know are !present: */
+		if (i > __highest_present_section_nr)
+			break;
+
 		err = add_memory_block(i);
 		if (!ret)
 			ret = err;

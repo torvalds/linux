@@ -481,8 +481,8 @@
 				dbgu {
 					pinctrl_dbgu: dbgu-0 {
 						atmel,pins =
-							<AT91_PIOA 30 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PA30 periph A */
-							 AT91_PIOA 31 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>;	/* PA31 periph with pullup */
+							<AT91_PIOA 30 AT91_PERIPH_A AT91_PINCTRL_PULL_UP
+							 AT91_PIOA 31 AT91_PERIPH_A AT91_PINCTRL_NONE>;
 					};
 				};
 
@@ -948,7 +948,7 @@
 		};
 	};
 
-	i2c@0 {
+	i2c-gpio-0 {
 		compatible = "i2c-gpio";
 		gpios = <&pioA 25 GPIO_ACTIVE_HIGH /* sda */
 			 &pioA 26 GPIO_ACTIVE_HIGH /* scl */

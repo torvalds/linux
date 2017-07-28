@@ -94,23 +94,10 @@ struct plist;
 
 #define TIPC_MEDIA_INFO_OFFSET	5
 
-/**
- * TIPC message buffer code
- *
- * TIPC message buffer headroom reserves space for the worst-case
- * link-level device header (in case the message is sent off-node).
- *
- * Note: Headroom should be a multiple of 4 to ensure the TIPC header fields
- *       are word aligned for quicker access
- */
-#define BUF_HEADROOM (LL_MAX_HEADER + 48)
-
 struct tipc_skb_cb {
-	void *handle;
+	u32 bytes_read;
 	struct sk_buff *tail;
 	bool validated;
-	bool wakeup_pending;
-	u16 chain_sz;
 	u16 chain_imp;
 	u16 ackers;
 };
@@ -644,12 +631,9 @@ static inline void msg_set_bc_netid(struct tipc_msg *m, u32 id)
 
 static inline u32 msg_link_selector(struct tipc_msg *m)
 {
+	if (msg_user(m) == MSG_FRAGMENTER)
+		m = (void *)msg_data(m);
 	return msg_bits(m, 4, 0, 1);
-}
-
-static inline void msg_set_link_selector(struct tipc_msg *m, u32 n)
-{
-	msg_set_bits(m, 4, 0, 1, n);
 }
 
 /*
@@ -715,9 +699,46 @@ static inline void msg_set_redundant_link(struct tipc_msg *m, u32 r)
 	msg_set_bits(m, 5, 12, 0x1, r);
 }
 
+static inline u32 msg_peer_stopping(struct tipc_msg *m)
+{
+	return msg_bits(m, 5, 13, 0x1);
+}
+
+static inline void msg_set_peer_stopping(struct tipc_msg *m, u32 s)
+{
+	msg_set_bits(m, 5, 13, 0x1, s);
+}
+
+static inline bool msg_bc_ack_invalid(struct tipc_msg *m)
+{
+	switch (msg_user(m)) {
+	case BCAST_PROTOCOL:
+	case NAME_DISTRIBUTOR:
+	case LINK_PROTOCOL:
+		return msg_bits(m, 5, 14, 0x1);
+	default:
+		return false;
+	}
+}
+
+static inline void msg_set_bc_ack_invalid(struct tipc_msg *m, bool invalid)
+{
+	msg_set_bits(m, 5, 14, 0x1, invalid);
+}
+
 static inline char *msg_media_addr(struct tipc_msg *m)
 {
 	return (char *)&m->hdr[TIPC_MEDIA_INFO_OFFSET];
+}
+
+static inline u32 msg_bc_gap(struct tipc_msg *m)
+{
+	return msg_bits(m, 8, 0, 0x3ff);
+}
+
+static inline void msg_set_bc_gap(struct tipc_msg *m, u32 n)
+{
+	msg_set_bits(m, 8, 0, 0x3ff, n);
 }
 
 /*
@@ -733,14 +754,24 @@ static inline void msg_set_msgcnt(struct tipc_msg *m, u16 n)
 	msg_set_bits(m, 9, 16, 0xffff, n);
 }
 
-static inline u32 msg_bcast_tag(struct tipc_msg *m)
+static inline u32 msg_conn_ack(struct tipc_msg *m)
 {
 	return msg_bits(m, 9, 16, 0xffff);
 }
 
-static inline void msg_set_bcast_tag(struct tipc_msg *m, u32 n)
+static inline void msg_set_conn_ack(struct tipc_msg *m, u32 n)
 {
 	msg_set_bits(m, 9, 16, 0xffff, n);
+}
+
+static inline u32 msg_adv_win(struct tipc_msg *m)
+{
+	return msg_bits(m, 9, 0, 0xffff);
+}
+
+static inline void msg_set_adv_win(struct tipc_msg *m, u32 n)
+{
+	msg_set_bits(m, 9, 0, 0xffff, n);
 }
 
 static inline u32 msg_max_pkt(struct tipc_msg *m)
@@ -779,7 +810,12 @@ static inline bool msg_peer_node_is_up(struct tipc_msg *m)
 	return msg_redundant_link(m);
 }
 
-struct sk_buff *tipc_buf_acquire(u32 size);
+static inline bool msg_is_reset(struct tipc_msg *hdr)
+{
+	return (msg_user(hdr) == LINK_PROTOCOL) && (msg_type(hdr) == RESET_MSG);
+}
+
+struct sk_buff *tipc_buf_acquire(u32 size, gfp_t gfp);
 bool tipc_msg_validate(struct sk_buff *skb);
 bool tipc_msg_reverse(u32 own_addr, struct sk_buff **skb, int err);
 void tipc_msg_init(u32 own_addr, struct tipc_msg *m, u32 user, u32 type,
@@ -796,6 +832,8 @@ int tipc_msg_build(struct tipc_msg *mhdr, struct msghdr *m,
 		   int offset, int dsz, int mtu, struct sk_buff_head *list);
 bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, int *err);
 bool tipc_msg_reassemble(struct sk_buff_head *list, struct sk_buff_head *rcvq);
+bool tipc_msg_pskb_copy(u32 dst, struct sk_buff_head *msg,
+			struct sk_buff_head *cpy);
 void __tipc_skb_queue_sorted(struct sk_buff_head *list, u16 seqno,
 			     struct sk_buff *skb);
 

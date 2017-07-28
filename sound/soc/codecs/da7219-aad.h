@@ -176,8 +176,10 @@
 #define DA7219_AAD_MICBIAS_CHK_DELAY	10
 #define DA7219_AAD_MICBIAS_CHK_RETRIES	5
 
-#define DA7219_AAD_HPTEST_RAMP_FREQ	0x28
-#define DA7219_AAD_HPTEST_PERIOD	65
+#define DA7219_AAD_HPTEST_RAMP_FREQ		0x28
+#define DA7219_AAD_HPTEST_RAMP_FREQ_INT_OSC	0x4D
+#define DA7219_AAD_HPTEST_PERIOD		65
+#define DA7219_AAD_HPTEST_INT_OSC_PATH_DELAY	20
 
 enum da7219_aad_event_regs {
 	DA7219_AAD_IRQ_REG_A = 0,
@@ -199,11 +201,16 @@ struct da7219_aad_priv {
 	struct work_struct hptest_work;
 
 	struct snd_soc_jack *jack;
+	bool micbias_resume_enable;
 	bool jack_inserted;
 };
 
 /* AAD control */
 void da7219_aad_jack_det(struct snd_soc_codec *codec, struct snd_soc_jack *jack);
+
+/* Suspend/Resume */
+void da7219_aad_suspend(struct snd_soc_codec *codec);
+void da7219_aad_resume(struct snd_soc_codec *codec);
 
 /* Init/Exit */
 int da7219_aad_init(struct snd_soc_codec *codec);

@@ -21,7 +21,7 @@
 #include <linux/fcntl.h>
 #include <linux/pagemap.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 #include <asm/string.h>
@@ -191,7 +191,7 @@ struct ncp_cache_head {
 	int		eof;
 };
 
-#define NCP_DIRCACHE_SIZE	((int)(PAGE_CACHE_SIZE/sizeof(struct dentry *)))
+#define NCP_DIRCACHE_SIZE	((int)(PAGE_SIZE/sizeof(struct dentry *)))
 union ncp_dir_cache {
 	struct ncp_cache_head	head;
 	struct dentry		*dentry[NCP_DIRCACHE_SIZE];

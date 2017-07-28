@@ -31,10 +31,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -360,40 +356,6 @@ static const struct v4l2_pix_format ov511_sif_mode[] = {
 		.priv = 0},
 };
 
-static const struct v4l2_pix_format ovfx2_vga_mode[] = {
-	{320, 240, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
-		.bytesperline = 320,
-		.sizeimage = 320 * 240,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 1},
-	{640, 480, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
-		.bytesperline = 640,
-		.sizeimage = 640 * 480,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 0},
-};
-static const struct v4l2_pix_format ovfx2_cif_mode[] = {
-	{160, 120, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
-		.bytesperline = 160,
-		.sizeimage = 160 * 120,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 3},
-	{176, 144, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
-		.bytesperline = 176,
-		.sizeimage = 176 * 144,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 1},
-	{320, 240, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
-		.bytesperline = 320,
-		.sizeimage = 320 * 240,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 2},
-	{352, 288, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
-		.bytesperline = 352,
-		.sizeimage = 352 * 288,
-		.colorspace = V4L2_COLORSPACE_SRGB,
-		.priv = 0},
-};
 static const struct v4l2_pix_format ovfx2_ov2610_mode[] = {
 	{800, 600, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
 		.bytesperline = 800,
@@ -2042,6 +2004,9 @@ static void reg_w(struct sd *sd, u16 index, u16 value)
 	if (sd->gspca_dev.usb_err < 0)
 		return;
 
+	/* Avoid things going to fast for the bridge with a xhci host */
+	udelay(150);
+
 	switch (sd->bridge) {
 	case BRIDGE_OV511:
 	case BRIDGE_OV511PLUS:
@@ -2103,6 +2068,8 @@ static int reg_r(struct sd *sd, u16 index)
 		req = 1;
 	}
 
+	/* Avoid things going to fast for the bridge with a xhci host */
+	udelay(150);
 	ret = usb_control_msg(sd->gspca_dev.dev,
 			usb_rcvctrlpipe(sd->gspca_dev.dev, 0),
 			req,
@@ -2131,6 +2098,8 @@ static int reg_r8(struct sd *sd,
 	if (sd->gspca_dev.usb_err < 0)
 		return -1;
 
+	/* Avoid things going to fast for the bridge with a xhci host */
+	udelay(150);
 	ret = usb_control_msg(sd->gspca_dev.dev,
 			usb_rcvctrlpipe(sd->gspca_dev.dev, 0),
 			1,			/* REQ_IO */
@@ -2187,6 +2156,8 @@ static void ov518_reg_w32(struct sd *sd, u16 index, u32 value, int n)
 
 	*((__le32 *) sd->gspca_dev.usb_buf) = __cpu_to_le32(value);
 
+	/* Avoid things going to fast for the bridge with a xhci host */
+	udelay(150);
 	ret = usb_control_msg(sd->gspca_dev.dev,
 			usb_sndctrlpipe(sd->gspca_dev.dev, 0),
 			1 /* REG_IO */,
@@ -3555,7 +3526,8 @@ static void ov511_mode_init_regs(struct sd *sd)
 				sd->clockdiv = 0;
 				break;
 			}
-			/* Fall through for 640x480 case */
+			/* For 640x480 case */
+			/* fall through */
 		default:
 /*		case 20: */
 /*		case 15: */
@@ -4351,8 +4323,7 @@ static void ov511_pkt_scan(struct gspca_dev *gspca_dev,
 			/* Frame end */
 			if ((in[9] + 1) * 8 != gspca_dev->pixfmt.width ||
 			    (in[10] + 1) * 8 != gspca_dev->pixfmt.height) {
-				PERR("Invalid frame size, got: %dx%d,"
-					" requested: %dx%d\n",
+				PERR("Invalid frame size, got: %dx%d, requested: %dx%d\n",
 					(in[9] + 1) * 8, (in[10] + 1) * 8,
 					gspca_dev->pixfmt.width,
 					gspca_dev->pixfmt.height);

@@ -80,7 +80,6 @@ struct fsl_pwm_chip {
 
 	struct mutex lock;
 
-	unsigned int use_count;
 	unsigned int cnt_select;
 	unsigned int clk_ps;
 
@@ -300,9 +299,6 @@ static int fsl_counter_clock_enable(struct fsl_pwm_chip *fpc)
 {
 	int ret;
 
-	if (fpc->use_count++ != 0)
-		return 0;
-
 	/* select counter clock source */
 	regmap_update_bits(fpc->regmap, FTM_SC, FTM_SC_CLK_MASK,
 			   FTM_SC_CLK(fpc->cnt_select));
@@ -334,25 +330,6 @@ static int fsl_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 	return ret;
 }
 
-static void fsl_counter_clock_disable(struct fsl_pwm_chip *fpc)
-{
-	/*
-	 * already disabled, do nothing
-	 */
-	if (fpc->use_count == 0)
-		return;
-
-	/* there are still users, so can't disable yet */
-	if (--fpc->use_count > 0)
-		return;
-
-	/* no users left, disable PWM counter clock */
-	regmap_update_bits(fpc->regmap, FTM_SC, FTM_SC_CLK_MASK, 0);
-
-	clk_disable_unprepare(fpc->clk[FSL_PWM_CLK_CNTEN]);
-	clk_disable_unprepare(fpc->clk[fpc->cnt_select]);
-}
-
 static void fsl_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct fsl_pwm_chip *fpc = to_fsl_chip(chip);
@@ -362,7 +339,8 @@ static void fsl_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	regmap_update_bits(fpc->regmap, FTM_OUTMASK, BIT(pwm->hwpwm),
 			   BIT(pwm->hwpwm));
 
-	fsl_counter_clock_disable(fpc);
+	clk_disable_unprepare(fpc->clk[FSL_PWM_CLK_CNTEN]);
+	clk_disable_unprepare(fpc->clk[fpc->cnt_select]);
 
 	regmap_read(fpc->regmap, FTM_OUTMASK, &val);
 	if ((val & 0xFF) == 0xFF)
@@ -414,7 +392,7 @@ static const struct regmap_config fsl_pwm_regmap_config = {
 
 	.max_register = FTM_PWMLOAD,
 	.volatile_reg = fsl_pwm_volatile_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_FLAT,
 };
 
 static int fsl_pwm_probe(struct platform_device *pdev)
@@ -468,7 +446,6 @@ static int fsl_pwm_probe(struct platform_device *pdev)
 	fpc->chip.of_pwm_n_cells = 3;
 	fpc->chip.base = -1;
 	fpc->chip.npwm = 8;
-	fpc->chip.can_sleep = true;
 
 	ret = pwmchip_add(&fpc->chip);
 	if (ret < 0) {
@@ -492,17 +469,24 @@ static int fsl_pwm_remove(struct platform_device *pdev)
 static int fsl_pwm_suspend(struct device *dev)
 {
 	struct fsl_pwm_chip *fpc = dev_get_drvdata(dev);
-	u32 val;
+	int i;
 
 	regcache_cache_only(fpc->regmap, true);
 	regcache_mark_dirty(fpc->regmap);
 
-	/* read from cache */
-	regmap_read(fpc->regmap, FTM_OUTMASK, &val);
-	if ((val & 0xFF) != 0xFF) {
+	for (i = 0; i < fpc->chip.npwm; i++) {
+		struct pwm_device *pwm = &fpc->chip.pwms[i];
+
+		if (!test_bit(PWMF_REQUESTED, &pwm->flags))
+			continue;
+
+		clk_disable_unprepare(fpc->clk[FSL_PWM_CLK_SYS]);
+
+		if (!pwm_is_enabled(pwm))
+			continue;
+
 		clk_disable_unprepare(fpc->clk[FSL_PWM_CLK_CNTEN]);
 		clk_disable_unprepare(fpc->clk[fpc->cnt_select]);
-		clk_disable_unprepare(fpc->clk[FSL_PWM_CLK_SYS]);
 	}
 
 	return 0;
@@ -511,12 +495,19 @@ static int fsl_pwm_suspend(struct device *dev)
 static int fsl_pwm_resume(struct device *dev)
 {
 	struct fsl_pwm_chip *fpc = dev_get_drvdata(dev);
-	u32 val;
+	int i;
 
-	/* read from cache */
-	regmap_read(fpc->regmap, FTM_OUTMASK, &val);
-	if ((val & 0xFF) != 0xFF) {
+	for (i = 0; i < fpc->chip.npwm; i++) {
+		struct pwm_device *pwm = &fpc->chip.pwms[i];
+
+		if (!test_bit(PWMF_REQUESTED, &pwm->flags))
+			continue;
+
 		clk_prepare_enable(fpc->clk[FSL_PWM_CLK_SYS]);
+
+		if (!pwm_is_enabled(pwm))
+			continue;
+
 		clk_prepare_enable(fpc->clk[fpc->cnt_select]);
 		clk_prepare_enable(fpc->clk[FSL_PWM_CLK_CNTEN]);
 	}

@@ -18,79 +18,15 @@
 #include <linux/kexec.h>
 #include <linux/mutex.h>
 #include <linux/list.h>
+#include <linux/fs.h>
+#include <linux/ima.h>
 #include <crypto/hash.h>
 #include <crypto/sha.h>
 #include <linux/syscalls.h>
 #include <linux/vmalloc.h>
 #include "kexec_internal.h"
 
-/*
- * Declare these symbols weak so that if architecture provides a purgatory,
- * these will be overridden.
- */
-char __weak kexec_purgatory[0];
-size_t __weak kexec_purgatory_size = 0;
-
 static int kexec_calculate_store_digests(struct kimage *image);
-
-static int copy_file_from_fd(int fd, void **buf, unsigned long *buf_len)
-{
-	struct fd f = fdget(fd);
-	int ret;
-	struct kstat stat;
-	loff_t pos;
-	ssize_t bytes = 0;
-
-	if (!f.file)
-		return -EBADF;
-
-	ret = vfs_getattr(&f.file->f_path, &stat);
-	if (ret)
-		goto out;
-
-	if (stat.size > INT_MAX) {
-		ret = -EFBIG;
-		goto out;
-	}
-
-	/* Don't hand 0 to vmalloc, it whines. */
-	if (stat.size == 0) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	*buf = vmalloc(stat.size);
-	if (!*buf) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	pos = 0;
-	while (pos < stat.size) {
-		bytes = kernel_read(f.file, pos, (char *)(*buf) + pos,
-				    stat.size - pos);
-		if (bytes < 0) {
-			vfree(*buf);
-			ret = bytes;
-			goto out;
-		}
-
-		if (bytes == 0)
-			break;
-		pos += bytes;
-	}
-
-	if (pos != stat.size) {
-		ret = -EBADF;
-		vfree(*buf);
-		goto out;
-	}
-
-	*buf_len = pos;
-out:
-	fdput(f);
-	return ret;
-}
 
 /* Architectures can provide this probe function */
 int __weak arch_kexec_kernel_image_probe(struct kimage *image, void *buf,
@@ -109,11 +45,13 @@ int __weak arch_kimage_file_post_load_cleanup(struct kimage *image)
 	return -EINVAL;
 }
 
+#ifdef CONFIG_KEXEC_VERIFY_SIG
 int __weak arch_kexec_kernel_verify_sig(struct kimage *image, void *buf,
 					unsigned long buf_len)
 {
 	return -EKEYREJECTED;
 }
+#endif
 
 /* Apply relocations of type RELA */
 int __weak
@@ -180,16 +118,20 @@ kimage_file_prepare_segments(struct kimage *image, int kernel_fd, int initrd_fd,
 {
 	int ret = 0;
 	void *ldata;
+	loff_t size;
 
-	ret = copy_file_from_fd(kernel_fd, &image->kernel_buf,
-				&image->kernel_buf_len);
+	ret = kernel_read_file_from_fd(kernel_fd, &image->kernel_buf,
+				       &size, INT_MAX, READING_KEXEC_IMAGE);
 	if (ret)
 		return ret;
+	image->kernel_buf_len = size;
+
+	/* IMA needs to pass the measurement list to the next kernel. */
+	ima_add_kexec_buffer(image);
 
 	/* Call arch image probe handlers */
 	ret = arch_kexec_kernel_image_probe(image, image->kernel_buf,
 					    image->kernel_buf_len);
-
 	if (ret)
 		goto out;
 
@@ -204,23 +146,19 @@ kimage_file_prepare_segments(struct kimage *image, int kernel_fd, int initrd_fd,
 #endif
 	/* It is possible that there no initramfs is being loaded */
 	if (!(flags & KEXEC_FILE_NO_INITRAMFS)) {
-		ret = copy_file_from_fd(initrd_fd, &image->initrd_buf,
-					&image->initrd_buf_len);
+		ret = kernel_read_file_from_fd(initrd_fd, &image->initrd_buf,
+					       &size, INT_MAX,
+					       READING_KEXEC_INITRAMFS);
 		if (ret)
 			goto out;
+		image->initrd_buf_len = size;
 	}
 
 	if (cmdline_len) {
-		image->cmdline_buf = kzalloc(cmdline_len, GFP_KERNEL);
-		if (!image->cmdline_buf) {
-			ret = -ENOMEM;
-			goto out;
-		}
-
-		ret = copy_from_user(image->cmdline_buf, cmdline_ptr,
-				     cmdline_len);
-		if (ret) {
-			ret = -EFAULT;
+		image->cmdline_buf = memdup_user(cmdline_ptr, cmdline_len);
+		if (IS_ERR(image->cmdline_buf)) {
+			ret = PTR_ERR(image->cmdline_buf);
+			image->cmdline_buf = NULL;
 			goto out;
 		}
 
@@ -327,8 +265,11 @@ SYSCALL_DEFINE5(kexec_file_load, int, kernel_fd, int, initrd_fd,
 		return -EBUSY;
 
 	dest_image = &kexec_image;
-	if (flags & KEXEC_FILE_ON_CRASH)
+	if (flags & KEXEC_FILE_ON_CRASH) {
 		dest_image = &kexec_crash_image;
+		if (kexec_crash_image)
+			arch_kexec_unprotect_crashkres();
+	}
 
 	if (flags & KEXEC_FILE_UNLOAD)
 		goto exchange;
@@ -347,6 +288,14 @@ SYSCALL_DEFINE5(kexec_file_load, int, kernel_fd, int, initrd_fd,
 		goto out;
 
 	ret = machine_kexec_prepare(image);
+	if (ret)
+		goto out;
+
+	/*
+	 * Some architecture(like S390) may touch the crash memory before
+	 * machine_kexec_prepare(), we must copy vmcoreinfo data after it.
+	 */
+	ret = kimage_crash_copy_vmcoreinfo(image);
 	if (ret)
 		goto out;
 
@@ -377,6 +326,9 @@ SYSCALL_DEFINE5(kexec_file_load, int, kernel_fd, int, initrd_fd,
 exchange:
 	image = xchg(dest_image, image);
 out:
+	if ((flags & KEXEC_FILE_ON_CRASH) && kexec_crash_image)
+		arch_kexec_protect_crashkres();
+
 	mutex_unlock(&kexec_mutex);
 	kimage_free(image);
 	return ret;
@@ -475,25 +427,65 @@ static int locate_mem_hole_callback(u64 start, u64 end, void *arg)
 	return locate_mem_hole_bottom_up(start, end, kbuf);
 }
 
-/*
- * Helper function for placing a buffer in a kexec segment. This assumes
- * that kexec_mutex is held.
+/**
+ * arch_kexec_walk_mem - call func(data) on free memory regions
+ * @kbuf:	Context info for the search. Also passed to @func.
+ * @func:	Function to call for each memory region.
+ *
+ * Return: The memory walk will stop when func returns a non-zero value
+ * and that value will be returned. If all free regions are visited without
+ * func returning non-zero, then zero will be returned.
  */
-int kexec_add_buffer(struct kimage *image, char *buffer, unsigned long bufsz,
-		     unsigned long memsz, unsigned long buf_align,
-		     unsigned long buf_min, unsigned long buf_max,
-		     bool top_down, unsigned long *load_addr)
+int __weak arch_kexec_walk_mem(struct kexec_buf *kbuf,
+			       int (*func)(u64, u64, void *))
+{
+	if (kbuf->image->type == KEXEC_TYPE_CRASH)
+		return walk_iomem_res_desc(crashk_res.desc,
+					   IORESOURCE_SYSTEM_RAM | IORESOURCE_BUSY,
+					   crashk_res.start, crashk_res.end,
+					   kbuf, func);
+	else
+		return walk_system_ram_res(0, ULONG_MAX, kbuf, func);
+}
+
+/**
+ * kexec_locate_mem_hole - find free memory for the purgatory or the next kernel
+ * @kbuf:	Parameters for the memory search.
+ *
+ * On success, kbuf->mem will have the start address of the memory region found.
+ *
+ * Return: 0 on success, negative errno on error.
+ */
+int kexec_locate_mem_hole(struct kexec_buf *kbuf)
+{
+	int ret;
+
+	ret = arch_kexec_walk_mem(kbuf, locate_mem_hole_callback);
+
+	return ret == 1 ? 0 : -EADDRNOTAVAIL;
+}
+
+/**
+ * kexec_add_buffer - place a buffer in a kexec segment
+ * @kbuf:	Buffer contents and memory parameters.
+ *
+ * This function assumes that kexec_mutex is held.
+ * On successful return, @kbuf->mem will have the physical address of
+ * the buffer in memory.
+ *
+ * Return: 0 on success, negative errno on error.
+ */
+int kexec_add_buffer(struct kexec_buf *kbuf)
 {
 
 	struct kexec_segment *ksegment;
-	struct kexec_buf buf, *kbuf;
 	int ret;
 
 	/* Currently adding segment this way is allowed only in file mode */
-	if (!image->file_mode)
+	if (!kbuf->image->file_mode)
 		return -EINVAL;
 
-	if (image->nr_segments >= KEXEC_SEGMENT_MAX)
+	if (kbuf->image->nr_segments >= KEXEC_SEGMENT_MAX)
 		return -EINVAL;
 
 	/*
@@ -503,45 +495,27 @@ int kexec_add_buffer(struct kimage *image, char *buffer, unsigned long bufsz,
 	 * logic goes through list of segments to make sure there are
 	 * no destination overlaps.
 	 */
-	if (!list_empty(&image->control_pages)) {
+	if (!list_empty(&kbuf->image->control_pages)) {
 		WARN_ON(1);
 		return -EINVAL;
 	}
 
-	memset(&buf, 0, sizeof(struct kexec_buf));
-	kbuf = &buf;
-	kbuf->image = image;
-	kbuf->buffer = buffer;
-	kbuf->bufsz = bufsz;
-
-	kbuf->memsz = ALIGN(memsz, PAGE_SIZE);
-	kbuf->buf_align = max(buf_align, PAGE_SIZE);
-	kbuf->buf_min = buf_min;
-	kbuf->buf_max = buf_max;
-	kbuf->top_down = top_down;
+	/* Ensure minimum alignment needed for segments. */
+	kbuf->memsz = ALIGN(kbuf->memsz, PAGE_SIZE);
+	kbuf->buf_align = max(kbuf->buf_align, PAGE_SIZE);
 
 	/* Walk the RAM ranges and allocate a suitable range for the buffer */
-	if (image->type == KEXEC_TYPE_CRASH)
-		ret = walk_iomem_res("Crash kernel",
-				     IORESOURCE_MEM | IORESOURCE_BUSY,
-				     crashk_res.start, crashk_res.end, kbuf,
-				     locate_mem_hole_callback);
-	else
-		ret = walk_system_ram_res(0, -1, kbuf,
-					  locate_mem_hole_callback);
-	if (ret != 1) {
-		/* A suitable memory range could not be found for buffer */
-		return -EADDRNOTAVAIL;
-	}
+	ret = kexec_locate_mem_hole(kbuf);
+	if (ret)
+		return ret;
 
 	/* Found a suitable memory range */
-	ksegment = &image->segment[image->nr_segments];
+	ksegment = &kbuf->image->segment[kbuf->image->nr_segments];
 	ksegment->kbuf = kbuf->buffer;
 	ksegment->bufsz = kbuf->bufsz;
 	ksegment->mem = kbuf->mem;
 	ksegment->memsz = kbuf->memsz;
-	image->nr_segments++;
-	*load_addr = ksegment->mem;
+	kbuf->image->nr_segments++;
 	return 0;
 }
 
@@ -635,13 +609,13 @@ static int kexec_calculate_store_digests(struct kimage *image)
 		ret = crypto_shash_final(desc, digest);
 		if (ret)
 			goto out_free_digest;
-		ret = kexec_purgatory_get_set_symbol(image, "sha_regions",
-						sha_regions, sha_region_sz, 0);
+		ret = kexec_purgatory_get_set_symbol(image, "purgatory_sha_regions",
+						     sha_regions, sha_region_sz, 0);
 		if (ret)
 			goto out_free_digest;
 
-		ret = kexec_purgatory_get_set_symbol(image, "sha256_digest",
-						digest, SHA256_DIGEST_SIZE, 0);
+		ret = kexec_purgatory_get_set_symbol(image, "purgatory_sha256_digest",
+						     digest, SHA256_DIGEST_SIZE, 0);
 		if (ret)
 			goto out_free_digest;
 	}
@@ -663,13 +637,15 @@ static int __kexec_load_purgatory(struct kimage *image, unsigned long min,
 				  unsigned long max, int top_down)
 {
 	struct purgatory_info *pi = &image->purgatory_info;
-	unsigned long align, buf_align, bss_align, buf_sz, bss_sz, bss_pad;
-	unsigned long memsz, entry, load_addr, curr_load_addr, bss_addr, offset;
+	unsigned long align, bss_align, bss_sz, bss_pad;
+	unsigned long entry, load_addr, curr_load_addr, bss_addr, offset;
 	unsigned char *buf_addr, *src;
 	int i, ret = 0, entry_sidx = -1;
 	const Elf_Shdr *sechdrs_c;
 	Elf_Shdr *sechdrs = NULL;
-	void *purgatory_buf = NULL;
+	struct kexec_buf kbuf = { .image = image, .bufsz = 0, .buf_align = 1,
+				  .buf_min = min, .buf_max = max,
+				  .top_down = top_down };
 
 	/*
 	 * sechdrs_c points to section headers in purgatory and are read
@@ -735,9 +711,7 @@ static int __kexec_load_purgatory(struct kimage *image, unsigned long min,
 	}
 
 	/* Determine how much memory is needed to load relocatable object. */
-	buf_align = 1;
 	bss_align = 1;
-	buf_sz = 0;
 	bss_sz = 0;
 
 	for (i = 0; i < pi->ehdr->e_shnum; i++) {
@@ -746,10 +720,10 @@ static int __kexec_load_purgatory(struct kimage *image, unsigned long min,
 
 		align = sechdrs[i].sh_addralign;
 		if (sechdrs[i].sh_type != SHT_NOBITS) {
-			if (buf_align < align)
-				buf_align = align;
-			buf_sz = ALIGN(buf_sz, align);
-			buf_sz += sechdrs[i].sh_size;
+			if (kbuf.buf_align < align)
+				kbuf.buf_align = align;
+			kbuf.bufsz = ALIGN(kbuf.bufsz, align);
+			kbuf.bufsz += sechdrs[i].sh_size;
 		} else {
 			/* bss section */
 			if (bss_align < align)
@@ -761,32 +735,31 @@ static int __kexec_load_purgatory(struct kimage *image, unsigned long min,
 
 	/* Determine the bss padding required to align bss properly */
 	bss_pad = 0;
-	if (buf_sz & (bss_align - 1))
-		bss_pad = bss_align - (buf_sz & (bss_align - 1));
+	if (kbuf.bufsz & (bss_align - 1))
+		bss_pad = bss_align - (kbuf.bufsz & (bss_align - 1));
 
-	memsz = buf_sz + bss_pad + bss_sz;
+	kbuf.memsz = kbuf.bufsz + bss_pad + bss_sz;
 
 	/* Allocate buffer for purgatory */
-	purgatory_buf = vzalloc(buf_sz);
-	if (!purgatory_buf) {
+	kbuf.buffer = vzalloc(kbuf.bufsz);
+	if (!kbuf.buffer) {
 		ret = -ENOMEM;
 		goto out;
 	}
 
-	if (buf_align < bss_align)
-		buf_align = bss_align;
+	if (kbuf.buf_align < bss_align)
+		kbuf.buf_align = bss_align;
 
 	/* Add buffer to segment list */
-	ret = kexec_add_buffer(image, purgatory_buf, buf_sz, memsz,
-				buf_align, min, max, top_down,
-				&pi->purgatory_load_addr);
+	ret = kexec_add_buffer(&kbuf);
 	if (ret)
 		goto out;
+	pi->purgatory_load_addr = kbuf.mem;
 
 	/* Load SHF_ALLOC sections */
-	buf_addr = purgatory_buf;
+	buf_addr = kbuf.buffer;
 	load_addr = curr_load_addr = pi->purgatory_load_addr;
-	bss_addr = load_addr + buf_sz + bss_pad;
+	bss_addr = load_addr + kbuf.bufsz + bss_pad;
 
 	for (i = 0; i < pi->ehdr->e_shnum; i++) {
 		if (!(sechdrs[i].sh_flags & SHF_ALLOC))
@@ -832,11 +805,11 @@ static int __kexec_load_purgatory(struct kimage *image, unsigned long min,
 	 * Used later to identify which section is purgatory and skip it
 	 * from checksumming.
 	 */
-	pi->purgatory_buf = purgatory_buf;
+	pi->purgatory_buf = kbuf.buffer;
 	return ret;
 out:
 	vfree(sechdrs);
-	vfree(purgatory_buf);
+	vfree(kbuf.buffer);
 	return ret;
 }
 
@@ -934,7 +907,10 @@ int kexec_load_purgatory(struct kimage *image, unsigned long min,
 	return 0;
 out:
 	vfree(pi->sechdrs);
+	pi->sechdrs = NULL;
+
 	vfree(pi->purgatory_buf);
+	pi->purgatory_buf = NULL;
 	return ret;
 }
 

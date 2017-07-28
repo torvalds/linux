@@ -13,15 +13,27 @@
 #define pr_fmt(fmt) "kasan: " fmt
 #include <linux/kasan.h>
 #include <linux/kernel.h>
+#include <linux/sched/task.h>
 #include <linux/memblock.h>
 #include <linux/start_kernel.h>
+#include <linux/mm.h>
 
+#include <asm/mmu_context.h>
+#include <asm/kernel-pgtable.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
+#include <asm/sections.h>
 #include <asm/tlbflush.h>
 
 static pgd_t tmp_pg_dir[PTRS_PER_PGD] __initdata __aligned(PGD_SIZE);
+
+/*
+ * The p*d_populate functions call virt_to_phys implicitly so they can't be used
+ * directly on kernel symbols (bm_p*d). All the early functions are called too
+ * early to use lm_alias so __p*d_populate functions must be used to populate
+ * with the physical address from __pa_symbol.
+ */
 
 static void __init kasan_early_pte_populate(pmd_t *pmd, unsigned long addr,
 					unsigned long end)
@@ -30,12 +42,12 @@ static void __init kasan_early_pte_populate(pmd_t *pmd, unsigned long addr,
 	unsigned long next;
 
 	if (pmd_none(*pmd))
-		pmd_populate_kernel(&init_mm, pmd, kasan_zero_pte);
+		__pmd_populate(pmd, __pa_symbol(kasan_zero_pte), PMD_TYPE_TABLE);
 
-	pte = pte_offset_kernel(pmd, addr);
+	pte = pte_offset_kimg(pmd, addr);
 	do {
 		next = addr + PAGE_SIZE;
-		set_pte(pte, pfn_pte(virt_to_pfn(kasan_zero_page),
+		set_pte(pte, pfn_pte(sym_to_pfn(kasan_zero_page),
 					PAGE_KERNEL));
 	} while (pte++, addr = next, addr != end && pte_none(*pte));
 }
@@ -48,9 +60,9 @@ static void __init kasan_early_pmd_populate(pud_t *pud,
 	unsigned long next;
 
 	if (pud_none(*pud))
-		pud_populate(&init_mm, pud, kasan_zero_pmd);
+		__pud_populate(pud, __pa_symbol(kasan_zero_pmd), PMD_TYPE_TABLE);
 
-	pmd = pmd_offset(pud, addr);
+	pmd = pmd_offset_kimg(pud, addr);
 	do {
 		next = pmd_addr_end(addr, end);
 		kasan_early_pte_populate(pmd, addr, next);
@@ -65,9 +77,9 @@ static void __init kasan_early_pud_populate(pgd_t *pgd,
 	unsigned long next;
 
 	if (pgd_none(*pgd))
-		pgd_populate(&init_mm, pgd, kasan_zero_pud);
+		__pgd_populate(pgd, __pa_symbol(kasan_zero_pud), PUD_TYPE_TABLE);
 
-	pud = pud_offset(pgd, addr);
+	pud = pud_offset_kimg(pgd, addr);
 	do {
 		next = pud_addr_end(addr, end);
 		kasan_early_pmd_populate(pud, addr, next);
@@ -96,6 +108,21 @@ asmlinkage void __init kasan_early_init(void)
 	kasan_map_early_shadow();
 }
 
+/*
+ * Copy the current shadow region into a new pgdir.
+ */
+void __init kasan_copy_shadow(pgd_t *pgdir)
+{
+	pgd_t *pgd, *pgd_new, *pgd_end;
+
+	pgd = pgd_offset_k(KASAN_SHADOW_START);
+	pgd_end = pgd_offset_k(KASAN_SHADOW_END);
+	pgd_new = pgd_offset_raw(pgdir, KASAN_SHADOW_START);
+	do {
+		set_pgd(pgd_new, *pgd);
+	} while (pgd++, pgd_new++, pgd != pgd_end);
+}
+
 static void __init clear_pgds(unsigned long start,
 			unsigned long end)
 {
@@ -108,18 +135,18 @@ static void __init clear_pgds(unsigned long start,
 		set_pgd(pgd_offset_k(start), __pgd(0));
 }
 
-static void __init cpu_set_ttbr1(unsigned long ttbr1)
-{
-	asm(
-	"	msr	ttbr1_el1, %0\n"
-	"	isb"
-	:
-	: "r" (ttbr1));
-}
-
 void __init kasan_init(void)
 {
+	u64 kimg_shadow_start, kimg_shadow_end;
+	u64 mod_shadow_start, mod_shadow_end;
 	struct memblock_region *reg;
+	int i;
+
+	kimg_shadow_start = (u64)kasan_mem_to_shadow(_text);
+	kimg_shadow_end = (u64)kasan_mem_to_shadow(_end);
+
+	mod_shadow_start = (u64)kasan_mem_to_shadow((void *)MODULES_VADDR);
+	mod_shadow_end = (u64)kasan_mem_to_shadow((void *)MODULES_END);
 
 	/*
 	 * We are going to perform proper setup of shadow memory.
@@ -129,13 +156,33 @@ void __init kasan_init(void)
 	 * setup will be finished.
 	 */
 	memcpy(tmp_pg_dir, swapper_pg_dir, sizeof(tmp_pg_dir));
-	cpu_set_ttbr1(__pa(tmp_pg_dir));
-	flush_tlb_all();
+	dsb(ishst);
+	cpu_replace_ttbr1(lm_alias(tmp_pg_dir));
 
 	clear_pgds(KASAN_SHADOW_START, KASAN_SHADOW_END);
 
+	vmemmap_populate(kimg_shadow_start, kimg_shadow_end,
+			 pfn_to_nid(virt_to_pfn(lm_alias(_text))));
+
+	/*
+	 * vmemmap_populate() has populated the shadow region that covers the
+	 * kernel image with SWAPPER_BLOCK_SIZE mappings, so we have to round
+	 * the start and end addresses to SWAPPER_BLOCK_SIZE as well, to prevent
+	 * kasan_populate_zero_shadow() from replacing the page table entries
+	 * (PMD or PTE) at the edges of the shadow region for the kernel
+	 * image.
+	 */
+	kimg_shadow_start = round_down(kimg_shadow_start, SWAPPER_BLOCK_SIZE);
+	kimg_shadow_end = round_up(kimg_shadow_end, SWAPPER_BLOCK_SIZE);
+
 	kasan_populate_zero_shadow((void *)KASAN_SHADOW_START,
-			kasan_mem_to_shadow((void *)MODULES_VADDR));
+				   (void *)mod_shadow_start);
+	kasan_populate_zero_shadow((void *)kimg_shadow_end,
+				   kasan_mem_to_shadow((void *)PAGE_OFFSET));
+
+	if (kimg_shadow_start > mod_shadow_end)
+		kasan_populate_zero_shadow((void *)mod_shadow_end,
+					   (void *)kimg_shadow_start);
 
 	for_each_memblock(memory, reg) {
 		void *start = (void *)__phys_to_virt(reg->base);
@@ -144,20 +191,21 @@ void __init kasan_init(void)
 		if (start >= end)
 			break;
 
-		/*
-		 * end + 1 here is intentional. We check several shadow bytes in
-		 * advance to slightly speed up fastpath. In some rare cases
-		 * we could cross boundary of mapped shadow, so we just map
-		 * some more here.
-		 */
 		vmemmap_populate((unsigned long)kasan_mem_to_shadow(start),
-				(unsigned long)kasan_mem_to_shadow(end) + 1,
+				(unsigned long)kasan_mem_to_shadow(end),
 				pfn_to_nid(virt_to_pfn(start)));
 	}
 
+	/*
+	 * KAsan may reuse the contents of kasan_zero_pte directly, so we
+	 * should make sure that it maps the zero page read-only.
+	 */
+	for (i = 0; i < PTRS_PER_PTE; i++)
+		set_pte(&kasan_zero_pte[i],
+			pfn_pte(sym_to_pfn(kasan_zero_page), PAGE_KERNEL_RO));
+
 	memset(kasan_zero_page, 0, PAGE_SIZE);
-	cpu_set_ttbr1(__pa(swapper_pg_dir));
-	flush_tlb_all();
+	cpu_replace_ttbr1(lm_alias(swapper_pg_dir));
 
 	/* At this point kasan is fully initialized. Enable error messages */
 	init_task.kasan_depth = 0;

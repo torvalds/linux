@@ -43,7 +43,7 @@ Author: Guenter Roeck <linux@roeck-us.net>
 Description
 -----------
 
-This driver supports hardware montoring for various PMBus compliant devices.
+This driver supports hardware monitoring for various PMBus compliant devices.
 It supports voltage, current, power, and temperature sensors as supported
 by the device.
 

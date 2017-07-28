@@ -27,8 +27,6 @@
 #include "omap-gpmc-smsc9221.dtsi"
 
 &gpmc {
-	ranges = <5 0 0x2c000000 0x1000000>;	/* CS5 */
-
 	ethernet@gpmc {
 		reg = <5 0 0xff>;
 		interrupt-parent = <&gpio6>;

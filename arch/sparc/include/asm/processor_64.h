@@ -18,10 +18,6 @@
 #include <asm/ptrace.h>
 #include <asm/page.h>
 
-/* The sparc has no problems with write protection */
-#define wp_works_ok 1
-#define wp_works_ok__is_a_macro /* for versions in ksyms.c */
-
 /*
  * User lives in his very own context, and cannot reference us. Note
  * that TASK_SIZE is a misnomer, it really gives maximum user virtual
@@ -93,9 +89,7 @@ struct thread_struct {
 #include <linux/types.h>
 #include <asm/fpumacro.h>
 
-/* Return saved PC of a blocked thread. */
 struct task_struct;
-unsigned long thread_saved_pc(struct task_struct *);
 
 /* On Uniprocessor, even in RMO processes see TSO semantics */
 #ifdef CONFIG_SMP
@@ -201,7 +195,7 @@ unsigned long get_wchan(struct task_struct *task);
 #define KSTK_ESP(tsk)  (task_pt_regs(tsk)->u_regs[UREG_FP])
 
 /* Please see the commentary in asm/backoff.h for a description of
- * what these instructions are doing and how they have been choosen.
+ * what these instructions are doing and how they have been chosen.
  * To make a long story short, we are trying to yield the current cpu
  * strand during busy loops.
  */
@@ -216,7 +210,6 @@ unsigned long get_wchan(struct task_struct *task);
 				     "nop\n\t"				\
 				     ".previous"			\
 				     ::: "memory")
-#define cpu_relax_lowlatency() cpu_relax()
 
 /* Prefetch support.  This is tuned for UltraSPARC-III and later.
  * UltraSPARC-I will treat these as nops, and UltraSPARC-II has

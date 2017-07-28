@@ -22,7 +22,7 @@ int wcn36xx_pmc_enter_bmps_state(struct wcn36xx *wcn,
 				 struct ieee80211_vif *vif)
 {
 	int ret = 0;
-	struct wcn36xx_vif *vif_priv = (struct wcn36xx_vif *)vif->drv_priv;
+	struct wcn36xx_vif *vif_priv = wcn36xx_vif_to_priv(vif);
 	/* TODO: Make sure the TX chain clean */
 	ret = wcn36xx_smd_enter_bmps(wcn, vif);
 	if (!ret) {
@@ -42,7 +42,7 @@ int wcn36xx_pmc_enter_bmps_state(struct wcn36xx *wcn,
 int wcn36xx_pmc_exit_bmps_state(struct wcn36xx *wcn,
 				struct ieee80211_vif *vif)
 {
-	struct wcn36xx_vif *vif_priv = (struct wcn36xx_vif *)vif->drv_priv;
+	struct wcn36xx_vif *vif_priv = wcn36xx_vif_to_priv(vif);
 
 	if (WCN36XX_BMPS != vif_priv->pw_state) {
 		wcn36xx_err("Not in BMPS mode, no need to exit from BMPS mode!\n");

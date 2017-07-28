@@ -40,7 +40,7 @@
 #include <arch/sim.h>
 
 /*
- * This file containes the routines to search for PCI buses,
+ * This file contains the routines to search for PCI buses,
  * enumerate the buses, and configure any attached devices.
  */
 
@@ -131,7 +131,7 @@ static int tile_irq_cpu(int irq)
 
 	count = cpumask_weight(&intr_cpus_map);
 	if (unlikely(count == 0)) {
-		pr_warn("intr_cpus_map empty, interrupts will be delievered to dataplane tiles\n");
+		pr_warn("intr_cpus_map empty, interrupts will be delivered to dataplane tiles\n");
 		return irq % (smp_height * smp_width);
 	}
 
@@ -434,7 +434,7 @@ int __init tile_pci_init(void)
 
 	/*
 	 * Now determine which PCIe ports are configured to operate in RC
-	 * mode. There is a differece in the port configuration capability
+	 * mode. There is a difference in the port configuration capability
 	 * between the Gx36 and Gx72 devices.
 	 *
 	 * The Gx36 has configuration capability for each of the 3 PCIe
@@ -1326,7 +1326,7 @@ invalid_device:
 
 
 /*
- * See tile_cfg_read() for relevent comments.
+ * See tile_cfg_read() for relevant comments.
  * Note that "val" is the value to write, not a pointer to that value.
  */
 static int tile_cfg_write(struct pci_bus *bus, unsigned int devfn, int offset,

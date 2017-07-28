@@ -1,9 +1,10 @@
 #ifndef __PERF_DSO
 #define __PERF_DSO
 
-#include <linux/atomic.h>
+#include <linux/refcount.h>
 #include <linux/types.h>
 #include <linux/rbtree.h>
+#include <sys/types.h>
 #include <stdbool.h>
 #include <pthread.h>
 #include <linux/types.h>
@@ -162,6 +163,7 @@ struct dso {
 	u8		 loaded;
 	u8		 rel;
 	u8		 build_id[BUILD_ID_SIZE];
+	u64		 text_offset;
 	const char	 *short_name;
 	const char	 *long_name;
 	u16		 long_name_len;
@@ -185,7 +187,7 @@ struct dso {
 		void	 *priv;
 		u64	 db_id;
 	};
-	atomic_t	 refcnt;
+	refcount_t	 refcnt;
 	char		 name[0];
 };
 
@@ -242,6 +244,12 @@ bool is_supported_compression(const char *ext);
 bool is_kernel_module(const char *pathname, int cpumode);
 bool decompress_to_file(const char *ext, const char *filename, int output_fd);
 bool dso__needs_decompress(struct dso *dso);
+int dso__decompress_kmodule_fd(struct dso *dso, const char *name);
+int dso__decompress_kmodule_path(struct dso *dso, const char *name,
+				 char *pathname, size_t len);
+
+#define KMOD_DECOMP_NAME  "/tmp/perf-kmod-XXXXXX"
+#define KMOD_DECOMP_LEN   sizeof(KMOD_DECOMP_NAME)
 
 struct kmod_path {
 	char *name;
@@ -256,6 +264,9 @@ int __kmod_path__parse(struct kmod_path *m, const char *path,
 #define kmod_path__parse(__m, __p)      __kmod_path__parse(__m, __p, false, false)
 #define kmod_path__parse_name(__m, __p) __kmod_path__parse(__m, __p, true , false)
 #define kmod_path__parse_ext(__m, __p)  __kmod_path__parse(__m, __p, false, true)
+
+void dso__set_module_info(struct dso *dso, struct kmod_path *m,
+			  struct machine *machine);
 
 /*
  * The dso__data_* external interface provides following functions:
@@ -301,7 +312,7 @@ int __kmod_path__parse(struct kmod_path *m, const char *path,
  * TODO
 */
 int dso__data_get_fd(struct dso *dso, struct machine *machine);
-void dso__data_put_fd(struct dso *dso __maybe_unused);
+void dso__data_put_fd(struct dso *dso);
 void dso__data_close(struct dso *dso);
 
 off_t dso__data_size(struct dso *dso, struct machine *machine);
@@ -348,10 +359,17 @@ static inline bool dso__is_kcore(struct dso *dso)
 	       dso->binary_type == DSO_BINARY_TYPE__GUEST_KCORE;
 }
 
+static inline bool dso__is_kallsyms(struct dso *dso)
+{
+	return dso->kernel && dso->long_name[0] != '/';
+}
+
 void dso__free_a2l(struct dso *dso);
 
 enum dso_type dso__type(struct dso *dso, struct machine *machine);
 
 int dso__strerror_load(struct dso *dso, char *buf, size_t buflen);
+
+void reset_fd_limit(void);
 
 #endif /* __PERF_DSO */

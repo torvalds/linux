@@ -447,8 +447,11 @@ static int ipipe_link_setup(struct media_entity *entity,
 	struct iss_ipipe_device *ipipe = v4l2_get_subdevdata(sd);
 	struct iss_device *iss = to_iss_device(ipipe);
 
-	switch (local->index | media_entity_type(remote->entity)) {
-	case IPIPE_PAD_SINK | MEDIA_ENT_T_V4L2_SUBDEV:
+	if (!is_media_entity_v4l2_subdev(remote->entity))
+		return -EINVAL;
+
+	switch (local->index) {
+	case IPIPE_PAD_SINK:
 		/* Read from IPIPEIF. */
 		if (!(flags & MEDIA_LNK_FL_ENABLED)) {
 			ipipe->input = IPIPE_INPUT_NONE;
@@ -463,7 +466,7 @@ static int ipipe_link_setup(struct media_entity *entity,
 
 		break;
 
-	case IPIPE_PAD_SOURCE_VP | MEDIA_ENT_T_V4L2_SUBDEV:
+	case IPIPE_PAD_SOURCE_VP:
 		/* Send to RESIZER */
 		if (flags & MEDIA_LNK_FL_ENABLED) {
 			if (ipipe->output & ~IPIPE_OUTPUT_VP)
@@ -505,7 +508,7 @@ static int ipipe_init_entities(struct iss_ipipe_device *ipipe)
 	v4l2_subdev_init(sd, &ipipe_v4l2_ops);
 	sd->internal_ops = &ipipe_v4l2_internal_ops;
 	strlcpy(sd->name, "OMAP4 ISS ISP IPIPE", sizeof(sd->name));
-	sd->grp_id = 1 << 16;	/* group ID for iss subdevs */
+	sd->grp_id = BIT(16);	/* group ID for iss subdevs */
 	v4l2_set_subdevdata(sd, ipipe);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
@@ -513,7 +516,7 @@ static int ipipe_init_entities(struct iss_ipipe_device *ipipe)
 	pads[IPIPE_PAD_SOURCE_VP].flags = MEDIA_PAD_FL_SOURCE;
 
 	me->ops = &ipipe_media_ops;
-	ret = media_entity_init(me, IPIPE_PADS_NUM, pads, 0);
+	ret = media_entity_pads_init(me, IPIPE_PADS_NUM, pads);
 	if (ret < 0)
 		return ret;
 

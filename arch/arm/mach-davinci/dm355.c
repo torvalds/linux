@@ -13,6 +13,7 @@
 #include <linux/serial_8250.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
+#include <linux/dmaengine.h>
 #include <linux/spi/spi.h>
 #include <linux/platform_data/edma.h>
 #include <linux/platform_data/gpio-davinci.h>
@@ -21,7 +22,7 @@
 #include <asm/mach/map.h>
 
 #include <mach/cputype.h>
-#include <mach/psc.h>
+#include "psc.h"
 #include <mach/mux.h>
 #include <mach/irqs.h>
 #include <mach/time.h>
@@ -396,14 +397,6 @@ static struct resource dm355_spi0_resources[] = {
 		.start = IRQ_DM355_SPINT0_0,
 		.flags = IORESOURCE_IRQ,
 	},
-	{
-		.start = 17,
-		.flags = IORESOURCE_DMA,
-	},
-	{
-		.start = 16,
-		.flags = IORESOURCE_DMA,
-	},
 };
 
 static struct davinci_spi_platform_data dm355_spi0_pdata = {
@@ -576,9 +569,28 @@ static s8 queue_priority_mapping[][2] = {
 	{-1, -1},
 };
 
+static const struct dma_slave_map dm355_edma_map[] = {
+	{ "davinci-mcbsp.0", "tx", EDMA_FILTER_PARAM(0, 2) },
+	{ "davinci-mcbsp.0", "rx", EDMA_FILTER_PARAM(0, 3) },
+	{ "davinci-mcbsp.1", "tx", EDMA_FILTER_PARAM(0, 8) },
+	{ "davinci-mcbsp.1", "rx", EDMA_FILTER_PARAM(0, 9) },
+	{ "spi_davinci.2", "tx", EDMA_FILTER_PARAM(0, 10) },
+	{ "spi_davinci.2", "rx", EDMA_FILTER_PARAM(0, 11) },
+	{ "spi_davinci.1", "tx", EDMA_FILTER_PARAM(0, 14) },
+	{ "spi_davinci.1", "rx", EDMA_FILTER_PARAM(0, 15) },
+	{ "spi_davinci.0", "tx", EDMA_FILTER_PARAM(0, 16) },
+	{ "spi_davinci.0", "rx", EDMA_FILTER_PARAM(0, 17) },
+	{ "dm6441-mmc.0", "rx", EDMA_FILTER_PARAM(0, 26) },
+	{ "dm6441-mmc.0", "tx", EDMA_FILTER_PARAM(0, 27) },
+	{ "dm6441-mmc.1", "rx", EDMA_FILTER_PARAM(0, 30) },
+	{ "dm6441-mmc.1", "tx", EDMA_FILTER_PARAM(0, 31) },
+};
+
 static struct edma_soc_info dm355_edma_pdata = {
 	.queue_priority_mapping	= queue_priority_mapping,
 	.default_queue		= EVENTQ_1,
+	.slave_map		= dm355_edma_map,
+	.slavecnt		= ARRAY_SIZE(dm355_edma_map),
 };
 
 static struct resource edma_resources[] = {
@@ -1015,7 +1027,7 @@ static struct davinci_soc_info davinci_soc_info_dm355 = {
 	.sram_len		= SZ_32K,
 };
 
-void __init dm355_init_asp1(u32 evt_enable, struct snd_platform_data *pdata)
+void __init dm355_init_asp1(u32 evt_enable)
 {
 	/* we don't use ASP1 IRQs, or we'd need to mux them ... */
 	if (evt_enable & ASP1_TX_EVT_EN)
@@ -1024,7 +1036,6 @@ void __init dm355_init_asp1(u32 evt_enable, struct snd_platform_data *pdata)
 	if (evt_enable & ASP1_RX_EVT_EN)
 		davinci_cfg_reg(DM355_EVT9_ASP1_RX);
 
-	dm355_asp1_device.dev.platform_data = pdata;
 	platform_device_register(&dm355_asp1_device);
 }
 
@@ -1032,6 +1043,7 @@ void __init dm355_init(void)
 {
 	davinci_common_init(&davinci_soc_info_dm355);
 	davinci_map_sysmod();
+	davinci_clk_init(davinci_soc_info_dm355.cpu_clks);
 }
 
 int __init dm355_init_video(struct vpfe_config *vpfe_cfg,

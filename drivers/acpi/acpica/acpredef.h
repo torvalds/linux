@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -129,7 +129,8 @@ enum acpi_return_package_types {
 	ACPI_PTYPE2_REV_FIXED = 9,
 	ACPI_PTYPE2_FIX_VAR = 10,
 	ACPI_PTYPE2_VAR_VAR = 11,
-	ACPI_PTYPE2_UUID_PAIR = 12
+	ACPI_PTYPE2_UUID_PAIR = 12,
+	ACPI_PTYPE_CUSTOM = 13
 };
 
 /* Support macros for users of the predefined info table */
@@ -340,7 +341,7 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 
 	{{"_BIX", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_PACKAGE)}},	/* Fixed-length (16 Int),(4 Str) */
-	PACKAGE_INFO(ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER, 16,
+	PACKAGE_INFO(ACPI_PTYPE_CUSTOM, ACPI_RTYPE_INTEGER, 16,
 		     ACPI_RTYPE_STRING, 4, 0),
 
 	{{"_BLT",
@@ -523,6 +524,9 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	  METHOD_RETURNS(ACPI_RTYPE_PACKAGE)}},	/* Fixed-length (4 Int) */
 	PACKAGE_INFO(ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER, 4, 0, 0, 0),
 
+	{{"_FIT", METHOD_0ARGS,
+	  METHOD_RETURNS(ACPI_RTYPE_BUFFER)}},	/* ACPI 6.0 */
+
 	{{"_FIX", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_PACKAGE)}},	/* Variable-length (Ints) */
 	PACKAGE_INFO(ACPI_PTYPE1_VAR, ACPI_RTYPE_INTEGER, 0, 0, 0, 0),
@@ -577,6 +581,9 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	{{"_HID", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER | ACPI_RTYPE_STRING)}},
 
+	{{"_HMA", METHOD_0ARGS,
+	  METHOD_RETURNS(ACPI_RTYPE_BUFFER)}},
+
 	{{"_HOT", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
 
@@ -621,6 +628,19 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	PACKAGE_INFO(ACPI_PTYPE2_VAR_VAR, ACPI_RTYPE_INTEGER, 3,
 		     ACPI_RTYPE_INTEGER | ACPI_RTYPE_BUFFER | ACPI_RTYPE_STRING,
 		     10, 0),
+
+	{{"_LSI", METHOD_0ARGS,
+	  METHOD_RETURNS(ACPI_RTYPE_PACKAGE)}},
+	PACKAGE_INFO(ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER, 3, 0, 0, 0),
+
+	{{"_LSR", METHOD_2ARGS(ACPI_TYPE_INTEGER, ACPI_TYPE_INTEGER),
+	  METHOD_RETURNS(ACPI_RTYPE_PACKAGE)}},
+	PACKAGE_INFO(ACPI_PTYPE1_FIXED, ACPI_RTYPE_INTEGER, 1,
+		     ACPI_RTYPE_BUFFER, 1, 0),
+
+	{{"_LSW",
+	  METHOD_3ARGS(ACPI_TYPE_INTEGER, ACPI_TYPE_INTEGER, ACPI_TYPE_BUFFER),
+	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},
 
 	{{"_MAT", METHOD_0ARGS,
 	  METHOD_RETURNS(ACPI_RTYPE_BUFFER)}},
@@ -1053,6 +1073,12 @@ const union acpi_predefined_info acpi_gbl_predefined_methods[] = {
 	  METHOD_RETURNS(ACPI_RTYPE_INTEGER | ACPI_RTYPE_STRING |
 			 ACPI_RTYPE_BUFFER)}},
 
+	{{"_WPC", METHOD_0ARGS,
+	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},	/* ACPI 6.1 */
+
+	{{"_WPP", METHOD_0ARGS,
+	  METHOD_RETURNS(ACPI_RTYPE_INTEGER)}},	/* ACPI 6.1 */
+
 	PACKAGE_INFO(0, 0, 0, 0, 0, 0)	/* Table terminator */
 };
 #else
@@ -1125,7 +1151,7 @@ const union acpi_predefined_info acpi_gbl_resource_names[] = {
 	PACKAGE_INFO(0, 0, 0, 0, 0, 0)	/* Table terminator */
 };
 
-static const union acpi_predefined_info acpi_gbl_scope_names[] = {
+const union acpi_predefined_info acpi_gbl_scope_names[] = {
 	{{"_GPE", 0, 0}},
 	{{"_PR_", 0, 0}},
 	{{"_SB_", 0, 0}},

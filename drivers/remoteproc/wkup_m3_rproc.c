@@ -111,7 +111,7 @@ static void *wkup_m3_rproc_da_to_va(struct rproc *rproc, u64 da, int len)
 	return va;
 }
 
-static struct rproc_ops wkup_m3_rproc_ops = {
+static const struct rproc_ops wkup_m3_rproc_ops = {
 	.start		= wkup_m3_rproc_start,
 	.stop		= wkup_m3_rproc_stop,
 	.da_to_va	= wkup_m3_rproc_da_to_va,
@@ -122,6 +122,7 @@ static const struct of_device_id wkup_m3_rproc_of_match[] = {
 	{ .compatible = "ti,am4372-wkup-m3", },
 	{},
 };
+MODULE_DEVICE_TABLE(of, wkup_m3_rproc_of_match);
 
 static int wkup_m3_rproc_probe(struct platform_device *pdev)
 {
@@ -166,6 +167,8 @@ static int wkup_m3_rproc_probe(struct platform_device *pdev)
 		goto err;
 	}
 
+	rproc->auto_boot = false;
+
 	wkupm3 = rproc->priv;
 	wkupm3->rproc = rproc;
 	wkupm3->pdev = pdev;
@@ -205,7 +208,7 @@ static int wkup_m3_rproc_probe(struct platform_device *pdev)
 	return 0;
 
 err_put_rproc:
-	rproc_put(rproc);
+	rproc_free(rproc);
 err:
 	pm_runtime_put_noidle(dev);
 	pm_runtime_disable(dev);
@@ -217,7 +220,7 @@ static int wkup_m3_rproc_remove(struct platform_device *pdev)
 	struct rproc *rproc = platform_get_drvdata(pdev);
 
 	rproc_del(rproc);
-	rproc_put(rproc);
+	rproc_free(rproc);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 

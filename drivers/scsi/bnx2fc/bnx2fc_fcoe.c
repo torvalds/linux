@@ -4,7 +4,8 @@
  * FIP/FCoE packets, listen to link events etc.
  *
  * Copyright (c) 2008-2013 Broadcom Corporation
- * Copyright (c) 2014-2015 QLogic Corporation
+ * Copyright (c) 2014-2016 QLogic Corporation
+ * Copyright (c) 2016-2017 Cavium Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -57,7 +58,7 @@ static struct scsi_host_template bnx2fc_shost_template;
 static struct fc_function_template bnx2fc_transport_function;
 static struct fcoe_sysfs_function_template bnx2fc_fcoe_sysfs_templ;
 static struct fc_function_template bnx2fc_vport_xport_function;
-static int bnx2fc_create(struct net_device *netdev, enum fip_state fip_mode);
+static int bnx2fc_create(struct net_device *netdev, enum fip_mode fip_mode);
 static void __bnx2fc_destroy(struct bnx2fc_interface *interface);
 static int bnx2fc_destroy(struct net_device *net_device);
 static int bnx2fc_enable(struct net_device *netdev);
@@ -97,13 +98,35 @@ static void __exit bnx2fc_mod_exit(void);
 
 unsigned int bnx2fc_debug_level;
 module_param_named(debug_logging, bnx2fc_debug_level, int, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(debug_logging,
+		"Option to enable extended logging,\n"
+		"\t\tDefault is 0 - no logging.\n"
+		"\t\t0x01 - SCSI cmd error, cleanup.\n"
+		"\t\t0x02 - Session setup, cleanup, etc.\n"
+		"\t\t0x04 - lport events, link, mtu, etc.\n"
+		"\t\t0x08 - ELS logs.\n"
+		"\t\t0x10 - fcoe L2 fame related logs.\n"
+		"\t\t0xff - LOG all messages.");
 
-static int bnx2fc_cpu_callback(struct notifier_block *nfb,
-			     unsigned long action, void *hcpu);
-/* notification function for CPU hotplug events */
-static struct notifier_block bnx2fc_cpu_notifier = {
-	.notifier_call = bnx2fc_cpu_callback,
-};
+uint bnx2fc_devloss_tmo;
+module_param_named(devloss_tmo, bnx2fc_devloss_tmo, uint, S_IRUGO);
+MODULE_PARM_DESC(devloss_tmo, " Change devloss_tmo for the remote ports "
+	"attached via bnx2fc.");
+
+uint bnx2fc_max_luns = BNX2FC_MAX_LUN;
+module_param_named(max_luns, bnx2fc_max_luns, uint, S_IRUGO);
+MODULE_PARM_DESC(max_luns, " Change the default max_lun per SCSI host. Default "
+	"0xffff.");
+
+uint bnx2fc_queue_depth;
+module_param_named(queue_depth, bnx2fc_queue_depth, uint, S_IRUGO);
+MODULE_PARM_DESC(queue_depth, " Change the default queue depth of SCSI devices "
+	"attached via bnx2fc.");
+
+uint bnx2fc_log_fka;
+module_param_named(log_fka, bnx2fc_log_fka, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(log_fka, " Print message to kernel log when fcoe is "
+	"initiating a FIP keep alive when debug logging is enabled.");
 
 static inline struct net_device *bnx2fc_netdev(const struct fc_lport *lport)
 {
@@ -329,7 +352,7 @@ static int bnx2fc_xmit(struct fc_lport *lport, struct fc_frame *fp)
 		frag = &skb_shinfo(skb)->frags[skb_shinfo(skb)->nr_frags - 1];
 		cp = kmap_atomic(skb_frag_page(frag)) + frag->page_offset;
 	} else {
-		cp = (struct fcoe_crc_eof *)skb_put(skb, tlen);
+		cp = skb_put(skb, tlen);
 	}
 
 	memset(cp, 0, sizeof(*cp));
@@ -457,7 +480,7 @@ static int bnx2fc_rcv(struct sk_buff *skb, struct net_device *dev,
 
 	__skb_queue_tail(&bg->fcoe_rx_list, skb);
 	if (bg->fcoe_rx_list.qlen == 1)
-		wake_up_process(bg->thread);
+		wake_up_process(bg->kthread);
 
 	spin_unlock(&bg->fcoe_rx_list.lock);
 
@@ -500,10 +523,12 @@ static void bnx2fc_recv_frame(struct sk_buff *skb)
 	struct fcoe_crc_eof crc_eof;
 	struct fc_frame *fp;
 	struct fc_lport *vn_port;
-	struct fcoe_port *port;
+	struct fcoe_port *port, *phys_port;
 	u8 *mac = NULL;
 	u8 *dest_mac = NULL;
 	struct fcoe_hdr *hp;
+	struct bnx2fc_interface *interface;
+	struct fcoe_ctlr *ctlr;
 
 	fr = fcoe_dev_from_skb(skb);
 	lport = fr->fr_dev;
@@ -539,13 +564,32 @@ static void bnx2fc_recv_frame(struct sk_buff *skb)
 		return;
 	}
 
+	phys_port = lport_priv(lport);
+	interface = phys_port->priv;
+	ctlr = bnx2fc_to_ctlr(interface);
+
 	fh = fc_frame_header_get(fp);
+
+	if (ntoh24(&dest_mac[3]) != ntoh24(fh->fh_d_id)) {
+		BNX2FC_HBA_DBG(lport, "FC frame d_id mismatch with MAC %pM.\n",
+		    dest_mac);
+		kfree_skb(skb);
+		return;
+	}
 
 	vn_port = fc_vport_id_lookup(lport, ntoh24(fh->fh_d_id));
 	if (vn_port) {
 		port = lport_priv(vn_port);
 		if (!ether_addr_equal(port->data_src_addr, dest_mac)) {
 			BNX2FC_HBA_DBG(lport, "fpma mismatch\n");
+			kfree_skb(skb);
+			return;
+		}
+	}
+	if (ctlr->state) {
+		if (!ether_addr_equal(mac, ctlr->dest_addr)) {
+			BNX2FC_HBA_DBG(lport, "Wrong source address: mac:%pM dest_addr:%pM.\n",
+			    mac, ctlr->dest_addr);
 			kfree_skb(skb);
 			return;
 		}
@@ -575,6 +619,18 @@ static void bnx2fc_recv_frame(struct sk_buff *skb)
 		return;
 	}
 
+	/*
+	 * If the destination ID from the frame header does not match what we
+	 * have on record for lport and the search for a NPIV port came up
+	 * empty then this is not addressed to our port so simply drop it.
+	 */
+	if (lport->port_id != ntoh24(fh->fh_d_id) && !vn_port) {
+		BNX2FC_HBA_DBG(lport, "Dropping frame due to destination mismatch: lport->port_id=%x fh->d_id=%x.\n",
+		    lport->port_id, ntoh24(fh->fh_d_id));
+		kfree_skb(skb);
+		return;
+	}
+
 	stats = per_cpu_ptr(lport->stats, smp_processor_id());
 	stats->RxFrames++;
 	stats->RxWords += fr_len / FCOE_WORD_TO_BYTE;
@@ -596,7 +652,7 @@ static void bnx2fc_recv_frame(struct sk_buff *skb)
  *
  * @arg:	ptr to bnx2fc_percpu_info structure
  */
-int bnx2fc_percpu_io_thread(void *arg)
+static int bnx2fc_percpu_io_thread(void *arg)
 {
 	struct bnx2fc_percpu_s *p = arg;
 	struct bnx2fc_work *work, *tmp;
@@ -641,15 +697,17 @@ static struct fc_host_statistics *bnx2fc_get_host_stats(struct Scsi_Host *shost)
 	if (!fw_stats)
 		return NULL;
 
+	mutex_lock(&hba->hba_stats_mutex);
+
 	bnx2fc_stats = fc_get_host_stats(shost);
 
 	init_completion(&hba->stat_req_done);
 	if (bnx2fc_send_stat_req(hba))
-		return bnx2fc_stats;
+		goto unlock_stats_mutex;
 	rc = wait_for_completion_timeout(&hba->stat_req_done, (2 * HZ));
 	if (!rc) {
 		BNX2FC_HBA_DBG(lport, "FW stat req timed out\n");
-		return bnx2fc_stats;
+		goto unlock_stats_mutex;
 	}
 	BNX2FC_STATS(hba, rx_stat2, fc_crc_cnt);
 	bnx2fc_stats->invalid_crc_count += hba->bfw_stats.fc_crc_cnt;
@@ -671,6 +729,9 @@ static struct fc_host_statistics *bnx2fc_get_host_stats(struct Scsi_Host *shost)
 
 	memcpy(&hba->prev_stats, hba->stats_buffer,
 	       sizeof(struct fcoe_statistics_params));
+
+unlock_stats_mutex:
+	mutex_unlock(&hba->hba_stats_mutex);
 	return bnx2fc_stats;
 }
 
@@ -683,7 +744,7 @@ static int bnx2fc_shost_config(struct fc_lport *lport, struct device *dev)
 	int rc = 0;
 
 	shost->max_cmd_len = BNX2FC_MAX_CMD_LEN;
-	shost->max_lun = BNX2FC_MAX_LUN;
+	shost->max_lun = bnx2fc_max_luns;
 	shost->max_id = BNX2FC_MAX_FCP_TGT;
 	shost->max_channel = 0;
 	if (lport->vport)
@@ -941,7 +1002,6 @@ static int bnx2fc_libfc_config(struct fc_lport *lport)
 		sizeof(struct libfc_function_template));
 	fc_elsct_init(lport);
 	fc_exch_init(lport);
-	fc_rport_init(lport);
 	fc_disc_init(lport);
 	fc_disc_config(lport, lport);
 	return 0;
@@ -1052,6 +1112,20 @@ static u8 *bnx2fc_get_src_mac(struct fc_lport *lport)
  */
 static void bnx2fc_fip_send(struct fcoe_ctlr *fip, struct sk_buff *skb)
 {
+	struct fip_header *fiph;
+	struct ethhdr *eth_hdr;
+	u16 op;
+	u8 sub;
+
+	fiph = (struct fip_header *) ((void *)skb->data + 2 * ETH_ALEN + 2);
+	eth_hdr = (struct ethhdr *)skb_mac_header(skb);
+	op = ntohs(fiph->fip_op);
+	sub = fiph->fip_subcode;
+
+	if (op == FIP_OP_CTRL && sub == FIP_SC_SOL && bnx2fc_log_fka)
+		BNX2FC_MISC_DBG("Sending FKA from %pM to %pM.\n",
+		    eth_hdr->h_source, eth_hdr->h_dest);
+
 	skb->dev = bnx2fc_from_ctlr(fip)->netdev;
 	dev_queue_xmit(skb);
 }
@@ -1092,6 +1166,9 @@ static int bnx2fc_vport_create(struct fc_vport *vport, bool disabled)
 			netdev->name);
 		return -EIO;
 	}
+
+	if (bnx2fc_devloss_tmo)
+		fc_host_dev_loss_tmo(vn_port->host) = bnx2fc_devloss_tmo;
 
 	if (disabled) {
 		fc_vport_set_state(vport, FC_VPORT_DISABLED);
@@ -1302,6 +1379,7 @@ static struct bnx2fc_hba *bnx2fc_hba_create(struct cnic_dev *cnic)
 	}
 	spin_lock_init(&hba->hba_lock);
 	mutex_init(&hba->hba_mutex);
+	mutex_init(&hba->hba_stats_mutex);
 
 	hba->cnic = cnic;
 
@@ -1364,9 +1442,10 @@ bind_err:
 	return NULL;
 }
 
-struct bnx2fc_interface *bnx2fc_interface_create(struct bnx2fc_hba *hba,
-				      struct net_device *netdev,
-				      enum fip_state fip_mode)
+static struct bnx2fc_interface *
+bnx2fc_interface_create(struct bnx2fc_hba *hba,
+			struct net_device *netdev,
+			enum fip_state fip_mode)
 {
 	struct fcoe_ctlr_device *ctlr_dev;
 	struct bnx2fc_interface *interface;
@@ -1485,6 +1564,9 @@ static struct fc_lport *bnx2fc_if_create(struct bnx2fc_interface *interface,
 		goto shost_err;
 	}
 	fc_host_port_type(lport->host) = FC_PORTTYPE_UNKNOWN;
+
+	if (bnx2fc_devloss_tmo)
+		fc_host_dev_loss_tmo(shost) = bnx2fc_devloss_tmo;
 
 	/* Allocate exchange manager */
 	if (!npiv)
@@ -1990,6 +2072,8 @@ static void bnx2fc_ulp_init(struct cnic_dev *dev)
 		return;
 	}
 
+	pr_info(PFX "FCoE initialized for %s.\n", dev->netdev->name);
+
 	/* Add HBA to the adapter list */
 	mutex_lock(&bnx2fc_dev_lock);
 	list_add_tail(&hba->list, &adapter_list);
@@ -2055,6 +2139,9 @@ static uint bnx2fc_npiv_create_vports(struct fc_lport *lport,
 {
 	struct fc_vport_identifiers vpid;
 	uint i, created = 0;
+	u64 wwnn = 0;
+	char wwpn_str[32];
+	char wwnn_str[32];
 
 	if (npiv_tbl->count > MAX_NPIV_ENTRIES) {
 		BNX2FC_HBA_DBG(lport, "Exceeded count max of npiv table\n");
@@ -2073,11 +2160,23 @@ static uint bnx2fc_npiv_create_vports(struct fc_lport *lport,
 	vpid.disable = false;
 
 	for (i = 0; i < npiv_tbl->count; i++) {
-		vpid.node_name = wwn_to_u64(npiv_tbl->wwnn[i]);
+		wwnn = wwn_to_u64(npiv_tbl->wwnn[i]);
+		if (wwnn == 0) {
+			/*
+			 * If we get a 0 element from for the WWNN then assume
+			 * the WWNN should be the same as the physical port.
+			 */
+			wwnn = lport->wwnn;
+		}
+		vpid.node_name = wwnn;
 		vpid.port_name = wwn_to_u64(npiv_tbl->wwpn[i]);
 		scnprintf(vpid.symbolic_name, sizeof(vpid.symbolic_name),
 		    "NPIV[%u]:%016llx-%016llx",
 		    created, vpid.port_name, vpid.node_name);
+		fcoe_wwn_to_str(vpid.node_name, wwnn_str, sizeof(wwnn_str));
+		fcoe_wwn_to_str(vpid.port_name, wwpn_str, sizeof(wwpn_str));
+		BNX2FC_HBA_DBG(lport, "Creating vport %s:%s.\n", wwnn_str,
+		    wwpn_str);
 		if (fc_vport_create(lport->host, 0, &vpid))
 			created++;
 		else
@@ -2209,7 +2308,7 @@ enum bnx2fc_create_link_state {
  * Returns: 0 for success
  */
 static int _bnx2fc_create(struct net_device *netdev,
-			  enum fip_state fip_mode,
+			  enum fip_mode fip_mode,
 			  enum bnx2fc_create_link_state link_state)
 {
 	struct fcoe_ctlr_device *cdev;
@@ -2238,7 +2337,7 @@ static int _bnx2fc_create(struct net_device *netdev,
 	}
 
 	/* obtain physical netdev */
-	if (netdev->priv_flags & IFF_802_1Q_VLAN)
+	if (is_vlan_dev(netdev))
 		phys_dev = vlan_dev_real_dev(netdev);
 
 	/* verify if the physical device is a netxtreme2 device */
@@ -2276,7 +2375,7 @@ static int _bnx2fc_create(struct net_device *netdev,
 		goto ifput_err;
 	}
 
-	if (netdev->priv_flags & IFF_802_1Q_VLAN) {
+	if (is_vlan_dev(netdev)) {
 		vlan_id = vlan_dev_vlan_id(netdev);
 		interface->vlan_enabled = 1;
 	}
@@ -2284,6 +2383,7 @@ static int _bnx2fc_create(struct net_device *netdev,
 	ctlr = bnx2fc_to_ctlr(interface);
 	cdev = fcoe_ctlr_to_ctlr_dev(ctlr);
 	interface->vlan_id = vlan_id;
+	interface->tm_timeout = BNX2FC_TM_TIMEOUT;
 
 	interface->timer_work_queue =
 			create_singlethread_workqueue("bnx2fc_timer_wq");
@@ -2360,7 +2460,7 @@ mod_err:
  *
  * Returns: 0 for success
  */
-static int bnx2fc_create(struct net_device *netdev, enum fip_state fip_mode)
+static int bnx2fc_create(struct net_device *netdev, enum fip_mode fip_mode)
 {
 	return _bnx2fc_create(netdev, fip_mode, BNX2FC_CREATE_LINK_UP);
 }
@@ -2473,6 +2573,11 @@ static void bnx2fc_ulp_exit(struct cnic_dev *dev)
 	bnx2fc_hba_destroy(hba);
 }
 
+static void bnx2fc_rport_terminate_io(struct fc_rport *rport)
+{
+	/* This is a no-op */
+}
+
 /**
  * bnx2fc_fcoe_reset - Resets the fcoe
  *
@@ -2493,7 +2598,7 @@ static bool bnx2fc_match(struct net_device *netdev)
 	struct net_device *phys_dev = netdev;
 
 	mutex_lock(&bnx2fc_dev_lock);
-	if (netdev->priv_flags & IFF_802_1Q_VLAN)
+	if (is_vlan_dev(netdev))
 		phys_dev = vlan_dev_real_dev(netdev);
 
 	if (bnx2fc_hba_lookup(phys_dev)) {
@@ -2570,38 +2675,31 @@ static void bnx2fc_percpu_thread_destroy(unsigned int cpu)
 		kthread_stop(thread);
 }
 
-/**
- * bnx2fc_cpu_callback - Handler for CPU hotplug events
- *
- * @nfb:    The callback data block
- * @action: The event triggering the callback
- * @hcpu:   The index of the CPU that the event is for
- *
- * This creates or destroys per-CPU data for fcoe
- *
- * Returns NOTIFY_OK always.
- */
-static int bnx2fc_cpu_callback(struct notifier_block *nfb,
-			     unsigned long action, void *hcpu)
-{
-	unsigned cpu = (unsigned long)hcpu;
 
-	switch (action) {
-	case CPU_ONLINE:
-	case CPU_ONLINE_FROZEN:
-		printk(PFX "CPU %x online: Create Rx thread\n", cpu);
-		bnx2fc_percpu_thread_create(cpu);
-		break;
-	case CPU_DEAD:
-	case CPU_DEAD_FROZEN:
-		printk(PFX "CPU %x offline: Remove Rx thread\n", cpu);
-		bnx2fc_percpu_thread_destroy(cpu);
-		break;
-	default:
-		break;
-	}
-	return NOTIFY_OK;
+static int bnx2fc_cpu_online(unsigned int cpu)
+{
+	printk(PFX "CPU %x online: Create Rx thread\n", cpu);
+	bnx2fc_percpu_thread_create(cpu);
+	return 0;
 }
+
+static int bnx2fc_cpu_dead(unsigned int cpu)
+{
+	printk(PFX "CPU %x offline: Remove Rx thread\n", cpu);
+	bnx2fc_percpu_thread_destroy(cpu);
+	return 0;
+}
+
+static int bnx2fc_slave_configure(struct scsi_device *sdev)
+{
+	if (!bnx2fc_queue_depth)
+		return 0;
+
+	scsi_change_queue_depth(sdev, bnx2fc_queue_depth);
+	return 0;
+}
+
+static enum cpuhp_state bnx2fc_online_state;
 
 /**
  * bnx2fc_mod_init - module init entry point
@@ -2654,7 +2752,7 @@ static int __init bnx2fc_mod_init(void)
 	}
 	wake_up_process(l2_thread);
 	spin_lock_bh(&bg->fcoe_rx_list.lock);
-	bg->thread = l2_thread;
+	bg->kthread = l2_thread;
 	spin_unlock_bh(&bg->fcoe_rx_list.lock);
 
 	for_each_possible_cpu(cpu) {
@@ -2663,21 +2761,31 @@ static int __init bnx2fc_mod_init(void)
 		spin_lock_init(&p->fp_work_lock);
 	}
 
-	cpu_notifier_register_begin();
+	get_online_cpus();
 
-	for_each_online_cpu(cpu) {
+	for_each_online_cpu(cpu)
 		bnx2fc_percpu_thread_create(cpu);
-	}
 
-	/* Initialize per CPU interrupt thread */
-	__register_hotcpu_notifier(&bnx2fc_cpu_notifier);
+	rc = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+				       "scsi/bnx2fc:online",
+				       bnx2fc_cpu_online, NULL);
+	if (rc < 0)
+		goto stop_threads;
+	bnx2fc_online_state = rc;
 
-	cpu_notifier_register_done();
+	cpuhp_setup_state_nocalls(CPUHP_SCSI_BNX2FC_DEAD, "scsi/bnx2fc:dead",
+				  NULL, bnx2fc_cpu_dead);
+	put_online_cpus();
 
 	cnic_register_driver(CNIC_ULP_FCOE, &bnx2fc_cnic_cb);
 
 	return 0;
 
+stop_threads:
+	for_each_online_cpu(cpu)
+		bnx2fc_percpu_thread_destroy(cpu);
+	put_online_cpus();
+	kthread_stop(l2_thread);
 free_wq:
 	destroy_workqueue(bnx2fc_wq);
 release_bt:
@@ -2704,8 +2812,7 @@ static void __exit bnx2fc_mod_exit(void)
 	 * held.
 	 */
 	mutex_lock(&bnx2fc_dev_lock);
-	list_splice(&adapter_list, &to_be_deleted);
-	INIT_LIST_HEAD(&adapter_list);
+	list_splice_init(&adapter_list, &to_be_deleted);
 	adapter_count = 0;
 	mutex_unlock(&bnx2fc_dev_lock);
 
@@ -2727,8 +2834,8 @@ static void __exit bnx2fc_mod_exit(void)
 	/* Destroy global thread */
 	bg = &bnx2fc_global;
 	spin_lock_bh(&bg->fcoe_rx_list.lock);
-	l2_thread = bg->thread;
-	bg->thread = NULL;
+	l2_thread = bg->kthread;
+	bg->kthread = NULL;
 	while ((skb = __skb_dequeue(&bg->fcoe_rx_list)) != NULL)
 		kfree_skb(skb);
 
@@ -2737,16 +2844,16 @@ static void __exit bnx2fc_mod_exit(void)
 	if (l2_thread)
 		kthread_stop(l2_thread);
 
-	cpu_notifier_register_begin();
-
+	get_online_cpus();
 	/* Destroy per cpu threads */
 	for_each_online_cpu(cpu) {
 		bnx2fc_percpu_thread_destroy(cpu);
 	}
 
-	__unregister_hotcpu_notifier(&bnx2fc_cpu_notifier);
+	cpuhp_remove_state_nocalls(bnx2fc_online_state);
+	cpuhp_remove_state_nocalls(CPUHP_SCSI_BNX2FC_DEAD);
 
-	cpu_notifier_register_done();
+	put_online_cpus();
 
 	destroy_workqueue(bnx2fc_wq);
 	/*
@@ -2807,7 +2914,7 @@ static struct fc_function_template bnx2fc_transport_function = {
 
 	.issue_fc_host_lip = bnx2fc_fcoe_reset,
 
-	.terminate_rport_io = fc_rport_terminate_io,
+	.terminate_rport_io = bnx2fc_rport_terminate_io,
 
 	.vport_create = bnx2fc_vport_create,
 	.vport_delete = bnx2fc_vport_destroy,
@@ -2849,6 +2956,50 @@ static struct fc_function_template bnx2fc_vport_xport_function = {
 	.bsg_request = fc_lport_bsg_request,
 };
 
+/*
+ * Additional scsi_host attributes.
+ */
+static ssize_t
+bnx2fc_tm_timeout_show(struct device *dev, struct device_attribute *attr,
+	char *buf)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct fc_lport *lport = shost_priv(shost);
+	struct fcoe_port *port = lport_priv(lport);
+	struct bnx2fc_interface *interface = port->priv;
+
+	sprintf(buf, "%u\n", interface->tm_timeout);
+	return strlen(buf);
+}
+
+static ssize_t
+bnx2fc_tm_timeout_store(struct device *dev,
+	struct device_attribute *attr, const char *buf, size_t count)
+{
+	struct Scsi_Host *shost = class_to_shost(dev);
+	struct fc_lport *lport = shost_priv(shost);
+	struct fcoe_port *port = lport_priv(lport);
+	struct bnx2fc_interface *interface = port->priv;
+	int rval, val;
+
+	rval = kstrtouint(buf, 10, &val);
+	if (rval)
+		return rval;
+	if (val > 255)
+		return -ERANGE;
+
+	interface->tm_timeout = (u8)val;
+	return strlen(buf);
+}
+
+static DEVICE_ATTR(tm_timeout, S_IRUGO|S_IWUSR, bnx2fc_tm_timeout_show,
+	bnx2fc_tm_timeout_store);
+
+static struct device_attribute *bnx2fc_host_attrs[] = {
+	&dev_attr_tm_timeout,
+	NULL,
+};
+
 /**
  * scsi_host_template structure used while registering with SCSI-ml
  */
@@ -2856,6 +3007,7 @@ static struct scsi_host_template bnx2fc_shost_template = {
 	.module			= THIS_MODULE,
 	.name			= "QLogic Offload FCoE Initiator",
 	.queuecommand		= bnx2fc_queuecommand,
+	.eh_timed_out		= fc_eh_timed_out,
 	.eh_abort_handler	= bnx2fc_eh_abort,	  /* abts */
 	.eh_device_reset_handler = bnx2fc_eh_device_reset, /* lun reset */
 	.eh_target_reset_handler = bnx2fc_eh_target_reset, /* tgt reset */
@@ -2868,6 +3020,8 @@ static struct scsi_host_template bnx2fc_shost_template = {
 	.sg_tablesize		= BNX2FC_MAX_BDS_PER_CMD,
 	.max_sectors		= 1024,
 	.track_queue_depth	= 1,
+	.slave_configure	= bnx2fc_slave_configure,
+	.shost_attrs		= bnx2fc_host_attrs,
 };
 
 static struct libfc_function_template bnx2fc_libfc_fcn_templ = {

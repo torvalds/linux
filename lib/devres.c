@@ -17,7 +17,7 @@ static int devm_ioremap_match(struct device *dev, void *res, void *match_data)
 /**
  * devm_ioremap - Managed ioremap()
  * @dev: Generic device to remap IO address for
- * @offset: BUS offset to map
+ * @offset: Resource address to map
  * @size: Size of map
  *
  * Managed ioremap().  Map is automatically unmapped on driver detach.
@@ -45,7 +45,7 @@ EXPORT_SYMBOL(devm_ioremap);
 /**
  * devm_ioremap_nocache - Managed ioremap_nocache()
  * @dev: Generic device to remap IO address for
- * @offset: BUS offset to map
+ * @offset: Resource address to map
  * @size: Size of map
  *
  * Managed ioremap_nocache().  Map is automatically unmapped on driver
@@ -74,7 +74,7 @@ EXPORT_SYMBOL(devm_ioremap_nocache);
 /**
  * devm_ioremap_wc - Managed ioremap_wc()
  * @dev: Generic device to remap IO address for
- * @offset: BUS offset to map
+ * @offset: Resource address to map
  * @size: Size of map
  *
  * Managed ioremap_wc().  Map is automatically unmapped on driver detach.
@@ -236,7 +236,7 @@ struct pcim_iomap_devres {
 
 static void pcim_iomap_release(struct device *gendev, void *res)
 {
-	struct pci_dev *dev = container_of(gendev, struct pci_dev, dev);
+	struct pci_dev *dev = to_pci_dev(gendev);
 	struct pcim_iomap_devres *this = res;
 	int i;
 

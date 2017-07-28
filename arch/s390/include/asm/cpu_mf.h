@@ -20,9 +20,11 @@
 #define CPU_MF_INT_SF_PRA	(1 << 29)	/* program request alert */
 #define CPU_MF_INT_SF_SACA	(1 << 23)	/* sampler auth. change alert */
 #define CPU_MF_INT_SF_LSDA	(1 << 22)	/* loss of sample data alert */
+#define CPU_MF_INT_CF_MTDA	(1 << 15)	/* loss of MT ctr. data alert */
 #define CPU_MF_INT_CF_CACA	(1 <<  7)	/* counter auth. change alert */
 #define CPU_MF_INT_CF_LCDA	(1 <<  6)	/* loss of counter data alert */
-#define CPU_MF_INT_CF_MASK	(CPU_MF_INT_CF_CACA|CPU_MF_INT_CF_LCDA)
+#define CPU_MF_INT_CF_MASK	(CPU_MF_INT_CF_MTDA|CPU_MF_INT_CF_CACA| \
+				 CPU_MF_INT_CF_LCDA)
 #define CPU_MF_INT_SF_MASK	(CPU_MF_INT_SF_IAE|CPU_MF_INT_SF_ISE|	\
 				 CPU_MF_INT_SF_PRA|CPU_MF_INT_SF_SACA|	\
 				 CPU_MF_INT_SF_LSDA)
@@ -104,7 +106,8 @@ struct hws_basic_entry {
 	unsigned int P:1;	    /* 28 PSW Problem state		 */
 	unsigned int AS:2;	    /* 29-30 PSW address-space control	 */
 	unsigned int I:1;	    /* 31 entry valid or invalid	 */
-	unsigned int:16;
+	unsigned int CL:2;	    /* 32-33 Configuration Level	 */
+	unsigned int:14;
 	unsigned int prim_asn:16;   /* primary ASN			 */
 	unsigned long long ia;	    /* Instruction Address		 */
 	unsigned long long gpp;     /* Guest Program Parameter		 */
@@ -169,16 +172,27 @@ static inline int lcctl(u64 ctl)
 }
 
 /* Extract CPU counter */
-static inline int ecctr(u64 ctr, u64 *val)
+static inline int __ecctr(u64 ctr, u64 *content)
 {
-	register u64 content asm("4") = 0;
+	u64 _content;
 	int cc;
 
 	asm volatile (
 		"	.insn	rre,0xb2e40000,%0,%2\n"
 		"	ipm	%1\n"
 		"	srl	%1,28\n"
-		: "=d" (content), "=d" (cc) : "d" (ctr) : "cc");
+		: "=d" (_content), "=d" (cc) : "d" (ctr) : "cc");
+	*content = _content;
+	return cc;
+}
+
+/* Extract CPU counter */
+static inline int ecctr(u64 ctr, u64 *val)
+{
+	u64 content;
+	int cc;
+
+	cc = __ecctr(ctr, &content);
 	if (!cc)
 		*val = content;
 	return cc;
@@ -187,32 +201,29 @@ static inline int ecctr(u64 ctr, u64 *val)
 /* Store CPU counter multiple for the MT utilization counter set */
 static inline int stcctm5(u64 num, u64 *val)
 {
-	typedef struct { u64 _[num]; } addrtype;
 	int cc;
 
 	asm volatile (
 		"	.insn	rsy,0xeb0000000017,%2,5,%1\n"
 		"	ipm	%0\n"
 		"	srl	%0,28\n"
-		: "=d" (cc), "=Q" (*(addrtype *) val)  : "d" (num) : "cc");
+		: "=d" (cc)
+		: "Q" (*val), "d" (num)
+		: "cc", "memory");
 	return cc;
 }
 
 /* Query sampling information */
 static inline int qsi(struct hws_qsi_info_block *info)
 {
-	int cc;
-	cc = 1;
+	int cc = 1;
 
 	asm volatile(
-		"0:	.insn	s,0xb2860000,0(%1)\n"
+		"0:	.insn	s,0xb2860000,%1\n"
 		"1:	lhi	%0,0\n"
 		"2:\n"
 		EX_TABLE(0b, 2b) EX_TABLE(1b, 2b)
-		: "=d" (cc), "+a" (info)
-		: "m" (*info)
-		: "cc", "memory");
-
+		: "+d" (cc), "+Q" (*info));
 	return cc ? -EINVAL : 0;
 }
 

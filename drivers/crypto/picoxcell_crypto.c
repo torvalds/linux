@@ -171,7 +171,7 @@ struct spacc_ablk_ctx {
 	 * The fallback cipher. If the operation can't be done in hardware,
 	 * fallback to a software version.
 	 */
-	struct crypto_ablkcipher	*sw_cipher;
+	struct crypto_skcipher		*sw_cipher;
 };
 
 /* AEAD cipher context. */
@@ -272,12 +272,6 @@ static unsigned spacc_load_ctx(struct spacc_generic_ctx *ctx,
 	return indx;
 }
 
-/* Count the number of scatterlist entries in a scatterlist. */
-static inline int sg_count(struct scatterlist *sg_list, int nbytes)
-{
-	return sg_nents_for_len(sg_list, nbytes);
-}
-
 static inline void ddt_set(struct spacc_ddt *ddt, dma_addr_t phys, size_t len)
 {
 	ddt->p = phys;
@@ -295,12 +289,17 @@ static struct spacc_ddt *spacc_sg_to_ddt(struct spacc_engine *engine,
 					 enum dma_data_direction dir,
 					 dma_addr_t *ddt_phys)
 {
-	unsigned nents, mapped_ents;
+	unsigned mapped_ents;
 	struct scatterlist *cur;
 	struct spacc_ddt *ddt;
 	int i;
+	int nents;
 
-	nents = sg_count(payload, nbytes);
+	nents = sg_nents_for_len(payload, nbytes);
+	if (nents < 0) {
+		dev_err(engine->dev, "Invalid numbers of SG.\n");
+		return NULL;
+	}
 	mapped_ents = dma_map_sg(engine->dev, payload, nents, dir);
 
 	if (mapped_ents + 1 > MAX_DDT_LEN)
@@ -328,7 +327,7 @@ static int spacc_aead_make_ddts(struct aead_request *areq)
 	struct spacc_engine *engine = req->engine;
 	struct spacc_ddt *src_ddt, *dst_ddt;
 	unsigned total;
-	unsigned int src_nents, dst_nents;
+	int src_nents, dst_nents;
 	struct scatterlist *cur;
 	int i, dst_ents, src_ents;
 
@@ -336,13 +335,21 @@ static int spacc_aead_make_ddts(struct aead_request *areq)
 	if (req->is_encrypt)
 		total += crypto_aead_authsize(aead);
 
-	src_nents = sg_count(areq->src, total);
+	src_nents = sg_nents_for_len(areq->src, total);
+	if (src_nents < 0) {
+		dev_err(engine->dev, "Invalid numbers of src SG.\n");
+		return src_nents;
+	}
 	if (src_nents + 1 > MAX_DDT_LEN)
 		return -E2BIG;
 
 	dst_nents = 0;
 	if (areq->src != areq->dst) {
-		dst_nents = sg_count(areq->dst, total);
+		dst_nents = sg_nents_for_len(areq->dst, total);
+		if (dst_nents < 0) {
+			dev_err(engine->dev, "Invalid numbers of dst SG.\n");
+			return dst_nents;
+		}
 		if (src_nents + 1 > MAX_DDT_LEN)
 			return -E2BIG;
 	}
@@ -422,13 +429,22 @@ static void spacc_aead_free_ddts(struct spacc_req *req)
 			 (req->is_encrypt ? crypto_aead_authsize(aead) : 0);
 	struct spacc_aead_ctx *aead_ctx = crypto_aead_ctx(aead);
 	struct spacc_engine *engine = aead_ctx->generic.engine;
-	unsigned nents = sg_count(areq->src, total);
+	int nents = sg_nents_for_len(areq->src, total);
+
+	/* sg_nents_for_len should not fail since it works when mapping sg */
+	if (unlikely(nents < 0)) {
+		dev_err(engine->dev, "Invalid numbers of src SG.\n");
+		return;
+	}
 
 	if (areq->src != areq->dst) {
 		dma_unmap_sg(engine->dev, areq->src, nents, DMA_TO_DEVICE);
-		dma_unmap_sg(engine->dev, areq->dst,
-			     sg_count(areq->dst, total),
-			     DMA_FROM_DEVICE);
+		nents = sg_nents_for_len(areq->dst, total);
+		if (unlikely(nents < 0)) {
+			dev_err(engine->dev, "Invalid numbers of dst SG.\n");
+			return;
+		}
+		dma_unmap_sg(engine->dev, areq->dst, nents, DMA_FROM_DEVICE);
 	} else
 		dma_unmap_sg(engine->dev, areq->src, nents, DMA_BIDIRECTIONAL);
 
@@ -440,7 +456,12 @@ static void spacc_free_ddt(struct spacc_req *req, struct spacc_ddt *ddt,
 			   dma_addr_t ddt_addr, struct scatterlist *payload,
 			   unsigned nbytes, enum dma_data_direction dir)
 {
-	unsigned nents = sg_count(payload, nbytes);
+	int nents = sg_nents_for_len(payload, nbytes);
+
+	if (nents < 0) {
+		dev_err(req->engine->dev, "Invalid numbers of SG.\n");
+		return;
+	}
 
 	dma_unmap_sg(req->engine->dev, payload, nents, dir);
 	dma_pool_free(req->engine->req_pool, ddt, ddt_addr);
@@ -768,33 +789,35 @@ static int spacc_aes_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 	 * request for any other size (192 bits) then we need to do a software
 	 * fallback.
 	 */
-	if (len != AES_KEYSIZE_128 && len != AES_KEYSIZE_256 &&
-	    ctx->sw_cipher) {
+	if (len != AES_KEYSIZE_128 && len != AES_KEYSIZE_256) {
+		if (!ctx->sw_cipher)
+			return -EINVAL;
+
 		/*
 		 * Set the fallback transform to use the same request flags as
 		 * the hardware transform.
 		 */
-		ctx->sw_cipher->base.crt_flags &= ~CRYPTO_TFM_REQ_MASK;
-		ctx->sw_cipher->base.crt_flags |=
-			cipher->base.crt_flags & CRYPTO_TFM_REQ_MASK;
+		crypto_skcipher_clear_flags(ctx->sw_cipher,
+					    CRYPTO_TFM_REQ_MASK);
+		crypto_skcipher_set_flags(ctx->sw_cipher,
+					  cipher->base.crt_flags &
+					  CRYPTO_TFM_REQ_MASK);
 
-		err = crypto_ablkcipher_setkey(ctx->sw_cipher, key, len);
+		err = crypto_skcipher_setkey(ctx->sw_cipher, key, len);
+
+		tfm->crt_flags &= ~CRYPTO_TFM_RES_MASK;
+		tfm->crt_flags |=
+			crypto_skcipher_get_flags(ctx->sw_cipher) &
+			CRYPTO_TFM_RES_MASK;
+
 		if (err)
 			goto sw_setkey_failed;
-	} else if (len != AES_KEYSIZE_128 && len != AES_KEYSIZE_256 &&
-		   !ctx->sw_cipher)
-		err = -EINVAL;
+	}
 
 	memcpy(ctx->key, key, len);
 	ctx->key_len = len;
 
 sw_setkey_failed:
-	if (err && ctx->sw_cipher) {
-		tfm->crt_flags &= ~CRYPTO_TFM_RES_MASK;
-		tfm->crt_flags |=
-			ctx->sw_cipher->base.crt_flags & CRYPTO_TFM_RES_MASK;
-	}
-
 	return err;
 }
 
@@ -835,8 +858,7 @@ static int spacc_ablk_need_fallback(struct spacc_req *req)
 
 static void spacc_ablk_complete(struct spacc_req *req)
 {
-	struct ablkcipher_request *ablk_req =
-		container_of(req->req, struct ablkcipher_request, base);
+	struct ablkcipher_request *ablk_req = ablkcipher_request_cast(req->req);
 
 	if (ablk_req->src != ablk_req->dst) {
 		spacc_free_ddt(req, req->src_ddt, req->src_addr, ablk_req->src,
@@ -890,20 +912,21 @@ static int spacc_ablk_do_fallback(struct ablkcipher_request *req,
 	struct crypto_tfm *old_tfm =
 	    crypto_ablkcipher_tfm(crypto_ablkcipher_reqtfm(req));
 	struct spacc_ablk_ctx *ctx = crypto_tfm_ctx(old_tfm);
+	SKCIPHER_REQUEST_ON_STACK(subreq, ctx->sw_cipher);
 	int err;
-
-	if (!ctx->sw_cipher)
-		return -EINVAL;
 
 	/*
 	 * Change the request to use the software fallback transform, and once
 	 * the ciphering has completed, put the old transform back into the
 	 * request.
 	 */
-	ablkcipher_request_set_tfm(req, ctx->sw_cipher);
-	err = is_encrypt ? crypto_ablkcipher_encrypt(req) :
-		crypto_ablkcipher_decrypt(req);
-	ablkcipher_request_set_tfm(req, __crypto_ablkcipher_cast(old_tfm));
+	skcipher_request_set_tfm(subreq, ctx->sw_cipher);
+	skcipher_request_set_callback(subreq, req->base.flags, NULL, NULL);
+	skcipher_request_set_crypt(subreq, req->src, req->dst,
+				   req->nbytes, req->info);
+	err = is_encrypt ? crypto_skcipher_encrypt(subreq) :
+			   crypto_skcipher_decrypt(subreq);
+	skcipher_request_zero(subreq);
 
 	return err;
 }
@@ -995,12 +1018,13 @@ static int spacc_ablk_cra_init(struct crypto_tfm *tfm)
 	ctx->generic.flags = spacc_alg->type;
 	ctx->generic.engine = engine;
 	if (alg->cra_flags & CRYPTO_ALG_NEED_FALLBACK) {
-		ctx->sw_cipher = crypto_alloc_ablkcipher(alg->cra_name, 0,
-				CRYPTO_ALG_ASYNC | CRYPTO_ALG_NEED_FALLBACK);
+		ctx->sw_cipher = crypto_alloc_skcipher(
+			alg->cra_name, 0, CRYPTO_ALG_ASYNC |
+					  CRYPTO_ALG_NEED_FALLBACK);
 		if (IS_ERR(ctx->sw_cipher)) {
 			dev_warn(engine->dev, "failed to allocate fallback for %s\n",
 				 alg->cra_name);
-			ctx->sw_cipher = NULL;
+			return PTR_ERR(ctx->sw_cipher);
 		}
 	}
 	ctx->generic.key_offs = spacc_alg->key_offs;
@@ -1015,9 +1039,7 @@ static void spacc_ablk_cra_exit(struct crypto_tfm *tfm)
 {
 	struct spacc_ablk_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	if (ctx->sw_cipher)
-		crypto_free_ablkcipher(ctx->sw_cipher);
-	ctx->sw_cipher = NULL;
+	crypto_free_skcipher(ctx->sw_cipher);
 }
 
 static int spacc_ablk_encrypt(struct ablkcipher_request *req)
@@ -1594,32 +1616,17 @@ static const struct of_device_id spacc_of_id_table[] = {
 MODULE_DEVICE_TABLE(of, spacc_of_id_table);
 #endif /* CONFIG_OF */
 
-static bool spacc_is_compatible(struct platform_device *pdev,
-				const char *spacc_type)
-{
-	const struct platform_device_id *platid = platform_get_device_id(pdev);
-
-	if (platid && !strcmp(platid->name, spacc_type))
-		return true;
-
-#ifdef CONFIG_OF
-	if (of_device_is_compatible(pdev->dev.of_node, spacc_type))
-		return true;
-#endif /* CONFIG_OF */
-
-	return false;
-}
-
 static int spacc_probe(struct platform_device *pdev)
 {
 	int i, err, ret = -EINVAL;
 	struct resource *mem, *irq;
+	struct device_node *np = pdev->dev.of_node;
 	struct spacc_engine *engine = devm_kzalloc(&pdev->dev, sizeof(*engine),
 						   GFP_KERNEL);
 	if (!engine)
 		return -ENOMEM;
 
-	if (spacc_is_compatible(pdev, "picochip,spacc-ipsec")) {
+	if (of_device_is_compatible(np, "picochip,spacc-ipsec")) {
 		engine->max_ctxs	= SPACC_CRYPTO_IPSEC_MAX_CTXS;
 		engine->cipher_pg_sz	= SPACC_CRYPTO_IPSEC_CIPHER_PG_SZ;
 		engine->hash_pg_sz	= SPACC_CRYPTO_IPSEC_HASH_PG_SZ;
@@ -1628,7 +1635,7 @@ static int spacc_probe(struct platform_device *pdev)
 		engine->num_algs	= ARRAY_SIZE(ipsec_engine_algs);
 		engine->aeads		= ipsec_engine_aeads;
 		engine->num_aeads	= ARRAY_SIZE(ipsec_engine_aeads);
-	} else if (spacc_is_compatible(pdev, "picochip,spacc-l2")) {
+	} else if (of_device_is_compatible(np, "picochip,spacc-l2")) {
 		engine->max_ctxs	= SPACC_CRYPTO_L2_MAX_CTXS;
 		engine->cipher_pg_sz	= SPACC_CRYPTO_L2_CIPHER_PG_SZ;
 		engine->hash_pg_sz	= SPACC_CRYPTO_L2_HASH_PG_SZ;
@@ -1781,12 +1788,6 @@ static int spacc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct platform_device_id spacc_id_table[] = {
-	{ "picochip,spacc-ipsec", },
-	{ "picochip,spacc-l2", },
-	{ }
-};
-
 static struct platform_driver spacc_driver = {
 	.probe		= spacc_probe,
 	.remove		= spacc_remove,
@@ -1797,7 +1798,6 @@ static struct platform_driver spacc_driver = {
 #endif /* CONFIG_PM */
 		.of_match_table	= of_match_ptr(spacc_of_id_table),
 	},
-	.id_table	= spacc_id_table,
 };
 
 module_platform_driver(spacc_driver);

@@ -361,9 +361,11 @@
 
 /* AUI bit definition */
 #define HDMI_AUI_CON_NO_TRAN		(0 << 0)
+#define HDMI_AUI_CON_EVERY_VSYNC	(1 << 1)
 
 /* VSI bit definition */
 #define HDMI_VSI_CON_DO_NOT_TRANSMIT	(0 << 0)
+#define HDMI_VSI_CON_EVERY_VSYNC	(1 << 1)
 
 /* HDCP related registers */
 #define HDMI_HDCP_SHA1(n)		HDMI_CORE_BASE(0x7000 + 4 * (n))
@@ -586,10 +588,12 @@
 #define HDMI_TG_VACT_ST4_L		HDMI_TG_BASE(0x0070)
 #define HDMI_TG_VACT_ST4_H		HDMI_TG_BASE(0x0074)
 #define HDMI_TG_3D			HDMI_TG_BASE(0x00F0)
+#define HDMI_TG_DECON_EN		HDMI_TG_BASE(0x01e0)
 
 /* HDMI PHY Registers Offsets*/
-#define HDMIPHY_POWER		(0x74 >> 2)
-#define HDMIPHY_MODE_SET_DONE		(0x7c >> 2)
+#define HDMIPHY_POWER			0x74
+#define HDMIPHY_MODE_SET_DONE		0x7c
+#define HDMIPHY5433_MODE_SET_DONE	0x84
 
 /* HDMI PHY Values */
 #define HDMI_PHY_POWER_ON              0x80
@@ -602,5 +606,8 @@
 /* PMU Registers for PHY */
 #define PMU_HDMI_PHY_CONTROL		0x700
 #define PMU_HDMI_PHY_ENABLE_BIT		BIT(0)
+
+#define EXYNOS5433_SYSREG_DISP_HDMI_PHY	0x1008
+#define SYSREG_HDMI_REFCLK_INT_CLK	1
 
 #endif /* SAMSUNG_REGS_HDMI_H */

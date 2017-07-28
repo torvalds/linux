@@ -31,12 +31,12 @@
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
-#include <mach/pxa25x.h>
+#include "pxa25x.h"
 #include <mach/eseries-gpio.h>
-#include <mach/eseries-irq.h>
+#include "eseries-irq.h"
 #include <mach/audio.h>
 #include <linux/platform_data/video-pxafb.h>
-#include <mach/udc.h>
+#include "udc.h"
 #include <linux/platform_data/irda-pxaficp.h>
 
 #include "devices.h"
@@ -57,7 +57,7 @@ struct gpio_vbus_mach_info e7xx_udc_info = {
 	.gpio_pullup_inverted = 1
 };
 
-static struct platform_device e7xx_gpio_vbus = {
+static struct platform_device e7xx_gpio_vbus __maybe_unused = {
 	.name	= "gpio-vbus",
 	.id	= -1,
 	.dev	= {
@@ -126,9 +126,9 @@ struct resource eseries_tmio_resources[] = {
 };
 
 /* Some e-series hardware cannot control the 32K clock */
-static void __init eseries_register_clks(void)
+static void __init __maybe_unused eseries_register_clks(void)
 {
-	clk_register_fixed_rate(NULL, "CLK_CK32K", NULL, CLK_IS_ROOT, 32768);
+	clk_register_fixed_rate(NULL, "CLK_CK32K", NULL, 0, 32768);
 }
 
 #ifdef CONFIG_MACH_E330

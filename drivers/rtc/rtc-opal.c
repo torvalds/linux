@@ -40,7 +40,7 @@ static void opal_to_tm(u32 y_m_d, u64 h_m_s_ms, struct rtc_time *tm)
 	tm->tm_min  = bcd2bin((h_m_s_ms >> 48) & 0xff);
 	tm->tm_sec  = bcd2bin((h_m_s_ms >> 40) & 0xff);
 
-	GregorianDay(tm);
+	tm->tm_wday = -1;
 }
 
 static void tm_to_opal(struct rtc_time *tm, u32 *y_m_d, u64 *h_m_s_ms)
@@ -134,7 +134,7 @@ static int opal_get_tpo_time(struct device *dev, struct rtc_wkalrm *alarm)
 		goto exit;
 	}
 
-	rc = be64_to_cpu(msg.params[1]);
+	rc = opal_get_async_rc(msg);
 	if (rc != OPAL_SUCCESS) {
 		rc = -EIO;
 		goto exit;
@@ -142,6 +142,16 @@ static int opal_get_tpo_time(struct device *dev, struct rtc_wkalrm *alarm)
 
 	y_m_d = be32_to_cpu(__y_m_d);
 	h_m_s_ms = ((u64)be32_to_cpu(__h_m) << 32);
+
+	/* check if no alarm is set */
+	if (y_m_d == 0 && h_m_s_ms == 0) {
+		pr_debug("No alarm is set\n");
+		rc = -ENOENT;
+		goto exit;
+	} else {
+		pr_debug("Alarm set to %x %llx\n", y_m_d, h_m_s_ms);
+	}
+
 	opal_to_tm(y_m_d, h_m_s_ms, &alarm->time);
 
 exit:
@@ -157,7 +167,14 @@ static int opal_set_tpo_time(struct device *dev, struct rtc_wkalrm *alarm)
 	u32 y_m_d = 0;
 	int token, rc;
 
-	tm_to_opal(&alarm->time, &y_m_d, &h_m_s_ms);
+	/* if alarm is enabled */
+	if (alarm->enabled) {
+		tm_to_opal(&alarm->time, &y_m_d, &h_m_s_ms);
+		pr_debug("Alarm set to %x %llx\n", y_m_d, h_m_s_ms);
+
+	} else {
+		pr_debug("Alarm getting disabled\n");
+	}
 
 	token = opal_async_get_token_interruptible();
 	if (token < 0) {
@@ -181,13 +198,25 @@ static int opal_set_tpo_time(struct device *dev, struct rtc_wkalrm *alarm)
 		goto exit;
 	}
 
-	rc = be64_to_cpu(msg.params[1]);
+	rc = opal_get_async_rc(msg);
 	if (rc != OPAL_SUCCESS)
 		rc = -EIO;
 
 exit:
 	opal_async_release_token(token);
 	return rc;
+}
+
+int opal_tpo_alarm_irq_enable(struct device *dev, unsigned int enabled)
+{
+	struct rtc_wkalrm alarm = { .enabled = 0 };
+
+	/*
+	 * TPO is automatically enabled when opal_set_tpo_time() is called with
+	 * non-zero rtc-time. We only handle disable case which needs to be
+	 * explicitly told to opal.
+	 */
+	return enabled ? 0 : opal_set_tpo_time(dev, &alarm);
 }
 
 static struct rtc_class_ops opal_rtc_ops = {
@@ -205,6 +234,7 @@ static int opal_rtc_probe(struct platform_device *pdev)
 		device_set_wakeup_capable(&pdev->dev, true);
 		opal_rtc_ops.read_alarm	= opal_get_tpo_time;
 		opal_rtc_ops.set_alarm = opal_set_tpo_time;
+		opal_rtc_ops.alarm_irq_enable = opal_tpo_alarm_irq_enable;
 	}
 
 	rtc = devm_rtc_device_register(&pdev->dev, DRVNAME, &opal_rtc_ops,

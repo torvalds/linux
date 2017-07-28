@@ -491,18 +491,14 @@ static int skel_probe(struct usb_interface *interface,
 		      const struct usb_device_id *id)
 {
 	struct usb_skel *dev;
-	struct usb_host_interface *iface_desc;
-	struct usb_endpoint_descriptor *endpoint;
-	size_t buffer_size;
-	int i;
-	int retval = -ENOMEM;
+	struct usb_endpoint_descriptor *bulk_in, *bulk_out;
+	int retval;
 
 	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev) {
-		dev_err(&interface->dev, "Out of memory\n");
-		goto error;
-	}
+	if (!dev)
+		return -ENOMEM;
+
 	kref_init(&dev->kref);
 	sema_init(&dev->limit_sem, WRITES_IN_FLIGHT);
 	mutex_init(&dev->io_mutex);
@@ -515,41 +511,28 @@ static int skel_probe(struct usb_interface *interface,
 
 	/* set up the endpoint information */
 	/* use only the first bulk-in and bulk-out endpoints */
-	iface_desc = interface->cur_altsetting;
-	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
-		endpoint = &iface_desc->endpoint[i].desc;
-
-		if (!dev->bulk_in_endpointAddr &&
-		    usb_endpoint_is_bulk_in(endpoint)) {
-			/* we found a bulk in endpoint */
-			buffer_size = usb_endpoint_maxp(endpoint);
-			dev->bulk_in_size = buffer_size;
-			dev->bulk_in_endpointAddr = endpoint->bEndpointAddress;
-			dev->bulk_in_buffer = kmalloc(buffer_size, GFP_KERNEL);
-			if (!dev->bulk_in_buffer) {
-				dev_err(&interface->dev,
-					"Could not allocate bulk_in_buffer\n");
-				goto error;
-			}
-			dev->bulk_in_urb = usb_alloc_urb(0, GFP_KERNEL);
-			if (!dev->bulk_in_urb) {
-				dev_err(&interface->dev,
-					"Could not allocate bulk_in_urb\n");
-				goto error;
-			}
-		}
-
-		if (!dev->bulk_out_endpointAddr &&
-		    usb_endpoint_is_bulk_out(endpoint)) {
-			/* we found a bulk out endpoint */
-			dev->bulk_out_endpointAddr = endpoint->bEndpointAddress;
-		}
-	}
-	if (!(dev->bulk_in_endpointAddr && dev->bulk_out_endpointAddr)) {
+	retval = usb_find_common_endpoints(interface->cur_altsetting,
+			&bulk_in, &bulk_out, NULL, NULL);
+	if (retval) {
 		dev_err(&interface->dev,
 			"Could not find both bulk-in and bulk-out endpoints\n");
 		goto error;
 	}
+
+	dev->bulk_in_size = usb_endpoint_maxp(bulk_in);
+	dev->bulk_in_endpointAddr = bulk_in->bEndpointAddress;
+	dev->bulk_in_buffer = kmalloc(dev->bulk_in_size, GFP_KERNEL);
+	if (!dev->bulk_in_buffer) {
+		retval = -ENOMEM;
+		goto error;
+	}
+	dev->bulk_in_urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!dev->bulk_in_urb) {
+		retval = -ENOMEM;
+		goto error;
+	}
+
+	dev->bulk_out_endpointAddr = bulk_out->bEndpointAddress;
 
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(interface, dev);
@@ -571,9 +554,9 @@ static int skel_probe(struct usb_interface *interface,
 	return 0;
 
 error:
-	if (dev)
-		/* this frees allocated memory */
-		kref_put(&dev->kref, skel_delete);
+	/* this frees allocated memory */
+	kref_put(&dev->kref, skel_delete);
+
 	return retval;
 }
 

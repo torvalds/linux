@@ -112,19 +112,21 @@ static int rtc_proc_open(struct inode *inode, struct file *file)
 	int ret;
 	struct rtc_device *rtc = PDE_DATA(inode);
 
-	if (!try_module_get(THIS_MODULE))
+	if (!try_module_get(rtc->owner))
 		return -ENODEV;
 
 	ret = single_open(file, rtc_proc_show, rtc);
 	if (ret)
-		module_put(THIS_MODULE);
+		module_put(rtc->owner);
 	return ret;
 }
 
 static int rtc_proc_release(struct inode *inode, struct file *file)
 {
 	int res = single_release(inode, file);
-	module_put(THIS_MODULE);
+	struct rtc_device *rtc = PDE_DATA(inode);
+
+	module_put(rtc->owner);
 	return res;
 }
 

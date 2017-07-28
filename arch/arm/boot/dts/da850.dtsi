@@ -15,15 +15,15 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		ranges;
-		intc: interrupt-controller {
+		intc: interrupt-controller@fffee000 {
 			compatible = "ti,cp-intc";
 			interrupt-controller;
 			#interrupt-cells = <1>;
-			ti,intc-size = <100>;
+			ti,intc-size = <101>;
 			reg = <0xfffee000 0x2000>;
 		};
 	};
-	soc {
+	soc@1c00000 {
 		compatible = "simple-bus";
 		model = "da850";
 		#address-cells = <1>;
@@ -31,36 +31,63 @@
 		ranges = <0x0 0x01c00000 0x400000>;
 		interrupt-parent = <&intc>;
 
-		pmx_core: pinmux@1c14120 {
+		pmx_core: pinmux@14120 {
 			compatible = "pinctrl-single";
 			reg = <0x14120 0x50>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			#pinctrl-cells = <2>;
 			pinctrl-single,bit-per-mux;
 			pinctrl-single,register-width = <32>;
 			pinctrl-single,function-mask = <0xf>;
 			status = "disabled";
 
-			nand_cs3_pins: pinmux_nand_pins {
+			serial0_rtscts_pins: pinmux_serial0_rtscts_pins {
 				pinctrl-single,bits = <
-					/* EMA_OE, EMA_WE */
-					0x1c 0x00110000  0x00ff0000
-					/* EMA_CS[4],EMA_CS[3]*/
-					0x1c 0x00000110  0x00000ff0
-					/*
-					 * EMA_D[0], EMA_D[1], EMA_D[2],
-					 * EMA_D[3], EMA_D[4], EMA_D[5],
-					 * EMA_D[6], EMA_D[7]
-					 */
-					0x24 0x11111111  0xffffffff
-					/* EMA_A[1], EMA_A[2] */
-					0x30 0x01100000  0x0ff00000
+					/* UART0_RTS UART0_CTS */
+					0x0c 0x22000000 0xff000000
+				>;
+			};
+			serial0_rxtx_pins: pinmux_serial0_rxtx_pins {
+				pinctrl-single,bits = <
+					/* UART0_TXD UART0_RXD */
+					0x0c 0x00220000 0x00ff0000
+				>;
+			};
+			serial1_rtscts_pins: pinmux_serial1_rtscts_pins {
+				pinctrl-single,bits = <
+					/* UART1_CTS UART1_RTS */
+					0x00 0x00440000 0x00ff0000
+				>;
+			};
+			serial1_rxtx_pins: pinmux_serial1_rxtx_pins {
+				pinctrl-single,bits = <
+					/* UART1_TXD UART1_RXD */
+					0x10 0x22000000 0xff000000
+				>;
+			};
+			serial2_rtscts_pins: pinmux_serial2_rtscts_pins {
+				pinctrl-single,bits = <
+					/* UART2_CTS UART2_RTS */
+					0x00 0x44000000 0xff000000
+				>;
+			};
+			serial2_rxtx_pins: pinmux_serial2_rxtx_pins {
+				pinctrl-single,bits = <
+					/* UART2_TXD UART2_RXD */
+					0x10 0x00220000 0x00ff0000
 				>;
 			};
 			i2c0_pins: pinmux_i2c0_pins {
 				pinctrl-single,bits = <
 					/* I2C0_SDA,I2C0_SCL */
 					0x10 0x00002200 0x0000ff00
+				>;
+			};
+			i2c1_pins: pinmux_i2c1_pins {
+				pinctrl-single,bits = <
+					/* I2C1_SDA, I2C1_SCL */
+					0x10 0x00440000 0x00ff0000
 				>;
 			};
 			mmc0_pins: pinmux_mmc_pins {
@@ -114,7 +141,25 @@
 					0x4 0x00000004 0x0000000f
 				>;
 			};
-			spi1_pins: pinmux_spi_pins {
+			spi0_pins: pinmux_spi0_pins {
+				pinctrl-single,bits = <
+					/* SIMO, SOMI, CLK */
+					0xc 0x00001101 0x0000ff0f
+				>;
+			};
+			spi0_cs0_pin: pinmux_spi0_cs0 {
+				pinctrl-single,bits = <
+					/* CS0 */
+					0x10 0x00000010 0x000000f0
+				>;
+			};
+			spi0_cs3_pin: pinmux_spi0_cs3_pin {
+				pinctrl-single,bits = <
+					/* CS3 */
+					0xc 0x01000000 0x0f000000
+				>;
+			};
+			spi1_pins: pinmux_spi1_pins {
 				pinctrl-single,bits = <
 					/* SIMO, SOMI, CLK */
 					0x14 0x00110100 0x00ff0f00
@@ -148,43 +193,140 @@
 					0xc 0x88888888 0xffffffff
 				>;
 			};
+			lcd_pins: pinmux_lcd_pins {
+				pinctrl-single,bits = <
+					/*
+					 * LCD_D[2], LCD_D[3], LCD_D[4], LCD_D[5],
+					 * LCD_D[6], LCD_D[7]
+					 */
+					0x40 0x22222200 0xffffff00
+					/*
+					 * LCD_D[10], LCD_D[11], LCD_D[12], LCD_D[13],
+					 * LCD_D[14], LCD_D[15], LCD_D[0], LCD_D[1]
+					 */
+					0x44 0x22222222 0xffffffff
+					/* LCD_D[8], LCD_D[9] */
+					0x48 0x00000022 0x000000ff
 
+					/* LCD_PCLK */
+					0x48 0x02000000 0x0f000000
+					/* LCD_AC_ENB_CS, LCD_VSYNC, LCD_HSYNC */
+					0x4c 0x02000022 0x0f0000ff
+				>;
+			};
+			vpif_capture_pins: vpif_capture_pins {
+				pinctrl-single,bits = <
+					/* VP_DIN[2..7], VP_CLKIN1, VP_CLKIN0 */
+					0x38 0x11111111 0xffffffff
+					/* VP_DIN[10..15,0..1] */
+					0x3c 0x11111111 0xffffffff
+					/* VP_DIN[8..9] */
+					0x40 0x00000011 0x000000ff
+				>;
+			};
+			vpif_display_pins: vpif_display_pins {
+				pinctrl-single,bits = <
+					/* VP_DOUT[2..7] */
+					0x40 0x11111100 0xffffff00
+					/* VP_DOUT[10..15,0..1] */
+					0x44 0x11111111 0xffffffff
+					/*  VP_DOUT[8..9] */
+					0x48 0x00000011 0x000000ff
+					/*
+					 * VP_CLKOUT3, VP_CLKIN3,
+					 * VP_CLKOUT2, VP_CLKIN2
+					 */
+					0x4c 0x00111100 0x00ffff00
+				>;
+			};
 		};
-		edma0: edma@01c00000 {
-			compatible = "ti,edma3";
-			reg =	<0x0 0x10000>;
-			interrupts = <11 13 12>;
-			#dma-cells = <1>;
+		prictrl: priority-controller@14110 {
+			compatible = "ti,da850-mstpri";
+			reg = <0x14110 0x0c>;
+			status = "disabled";
 		};
-		serial0: serial@1c42000 {
-			compatible = "ns16550a";
+		cfgchip: chip-controller@1417c {
+			compatible = "ti,da830-cfgchip", "syscon", "simple-mfd";
+			reg = <0x1417c 0x14>;
+
+			usb_phy: usb-phy {
+				compatible = "ti,da830-usb-phy";
+				#phy-cells = <1>;
+				status = "disabled";
+			};
+		};
+		edma0: edma@0 {
+			compatible = "ti,edma3-tpcc";
+			/* eDMA3 CC0: 0x01c0 0000 - 0x01c0 7fff */
+			reg =	<0x0 0x8000>;
+			reg-names = "edma3_cc";
+			interrupts = <11 12>;
+			interrupt-names = "edma3_ccint", "edma3_ccerrint";
+			#dma-cells = <2>;
+
+			ti,tptcs = <&edma0_tptc0 7>, <&edma0_tptc1 0>;
+		};
+		edma0_tptc0: tptc@8000 {
+			compatible = "ti,edma3-tptc";
+			reg =	<0x8000 0x400>;
+			interrupts = <13>;
+			interrupt-names = "edm3_tcerrint";
+		};
+		edma0_tptc1: tptc@8400 {
+			compatible = "ti,edma3-tptc";
+			reg =	<0x8400 0x400>;
+			interrupts = <32>;
+			interrupt-names = "edm3_tcerrint";
+		};
+		edma1: edma@230000 {
+			compatible = "ti,edma3-tpcc";
+			/* eDMA3 CC1: 0x01e3 0000 - 0x01e3 7fff */
+			reg =	<0x230000 0x8000>;
+			reg-names = "edma3_cc";
+			interrupts = <93 94>;
+			interrupt-names = "edma3_ccint", "edma3_ccerrint";
+			#dma-cells = <2>;
+
+			ti,tptcs = <&edma1_tptc0 7>;
+		};
+		edma1_tptc0: tptc@238000 {
+			compatible = "ti,edma3-tptc";
+			reg =	<0x238000 0x400>;
+			interrupts = <95>;
+			interrupt-names = "edm3_tcerrint";
+		};
+		serial0: serial@42000 {
+			compatible = "ti,da830-uart", "ns16550a";
 			reg = <0x42000 0x100>;
+			reg-io-width = <4>;
 			reg-shift = <2>;
 			interrupts = <25>;
 			status = "disabled";
 		};
-		serial1: serial@1d0c000 {
-			compatible = "ns16550a";
+		serial1: serial@10c000 {
+			compatible = "ti,da830-uart", "ns16550a";
 			reg = <0x10c000 0x100>;
+			reg-io-width = <4>;
 			reg-shift = <2>;
 			interrupts = <53>;
 			status = "disabled";
 		};
-		serial2: serial@1d0d000 {
-			compatible = "ns16550a";
+		serial2: serial@10d000 {
+			compatible = "ti,da830-uart", "ns16550a";
 			reg = <0x10d000 0x100>;
+			reg-io-width = <4>;
 			reg-shift = <2>;
 			interrupts = <61>;
 			status = "disabled";
 		};
-		rtc0: rtc@1c23000 {
+		rtc0: rtc@23000 {
 			compatible = "ti,da830-rtc";
 			reg = <0x23000 0x1000>;
 			interrupts = <19
 				      19>;
 			status = "disabled";
 		};
-		i2c0: i2c@1c22000 {
+		i2c0: i2c@22000 {
 			compatible = "ti,davinci-i2c";
 			reg = <0x22000 0x1000>;
 			interrupts = <15>;
@@ -192,48 +334,105 @@
 			#size-cells = <0>;
 			status = "disabled";
 		};
-		wdt: wdt@1c21000 {
+		i2c1: i2c@228000 {
+			compatible = "ti,davinci-i2c";
+			reg = <0x228000 0x1000>;
+			interrupts = <51>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			status = "disabled";
+		};
+		wdt: wdt@21000 {
 			compatible = "ti,davinci-wdt";
 			reg = <0x21000 0x1000>;
 			status = "disabled";
 		};
-		mmc0: mmc@1c40000 {
+		mmc0: mmc@40000 {
 			compatible = "ti,da830-mmc";
 			reg = <0x40000 0x1000>;
+			cap-sd-highspeed;
+			cap-mmc-highspeed;
 			interrupts = <16>;
+			dmas = <&edma0 16 0>, <&edma0 17 0>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
-		ehrpwm0: ehrpwm@01f00000 {
-			compatible = "ti,da850-ehrpwm", "ti,am33xx-ehrpwm";
+		vpif: video@217000 {
+			compatible = "ti,da850-vpif";
+			reg = <0x217000 0x1000>;
+			interrupts = <92>;
+			status = "disabled";
+
+			/* VPIF capture port */
+			port@0 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			/* VPIF display port */
+			port@1 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+		};
+		mmc1: mmc@21b000 {
+			compatible = "ti,da830-mmc";
+			reg = <0x21b000 0x1000>;
+			cap-sd-highspeed;
+			cap-mmc-highspeed;
+			interrupts = <72>;
+			dmas = <&edma1 28 0>, <&edma1 29 0>;
+			dma-names = "rx", "tx";
+			status = "disabled";
+		};
+		ehrpwm0: pwm@300000 {
+			compatible = "ti,da850-ehrpwm", "ti,am3352-ehrpwm",
+				     "ti,am33xx-ehrpwm";
 			#pwm-cells = <3>;
 			reg = <0x300000 0x2000>;
 			status = "disabled";
 		};
-		ehrpwm1: ehrpwm@01f02000 {
-			compatible = "ti,da850-ehrpwm", "ti,am33xx-ehrpwm";
+		ehrpwm1: pwm@302000 {
+			compatible = "ti,da850-ehrpwm", "ti,am3352-ehrpwm",
+				     "ti,am33xx-ehrpwm";
 			#pwm-cells = <3>;
 			reg = <0x302000 0x2000>;
 			status = "disabled";
 		};
-		ecap0: ecap@01f06000 {
-			compatible = "ti,da850-ecap", "ti,am33xx-ecap";
+		ecap0: ecap@306000 {
+			compatible = "ti,da850-ecap", "ti,am3352-ecap",
+				     "ti,am33xx-ecap";
 			#pwm-cells = <3>;
 			reg = <0x306000 0x80>;
 			status = "disabled";
 		};
-		ecap1: ecap@01f07000 {
-			compatible = "ti,da850-ecap", "ti,am33xx-ecap";
+		ecap1: ecap@307000 {
+			compatible = "ti,da850-ecap", "ti,am3352-ecap",
+				     "ti,am33xx-ecap";
 			#pwm-cells = <3>;
 			reg = <0x307000 0x80>;
 			status = "disabled";
 		};
-		ecap2: ecap@01f08000 {
-			compatible = "ti,da850-ecap", "ti,am33xx-ecap";
+		ecap2: ecap@308000 {
+			compatible = "ti,da850-ecap", "ti,am3352-ecap",
+				     "ti,am33xx-ecap";
 			#pwm-cells = <3>;
 			reg = <0x308000 0x80>;
 			status = "disabled";
 		};
-		spi1: spi@1f0e000 {
+		spi0: spi@41000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "ti,da830-spi";
+			reg = <0x41000 0x1000>;
+			num-cs = <6>;
+			ti,davinci-spi-intr-line = <1>;
+			interrupts = <20>;
+			dmas = <&edma0 14 0>, <&edma0 15 0>;
+			dma-names = "rx", "tx";
+			status = "disabled";
+		};
+		spi1: spi@30e000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "ti,da830-spi";
@@ -241,15 +440,59 @@
 			num-cs = <4>;
 			ti,davinci-spi-intr-line = <1>;
 			interrupts = <56>;
+			dmas = <&edma0 18 0>, <&edma0 19 0>;
+			dma-names = "rx", "tx";
 			status = "disabled";
 		};
-		mdio: mdio@1e24000 {
+		usb0: usb@200000 {
+			compatible = "ti,da830-musb";
+			reg = <0x200000 0x1000>;
+			ranges;
+			interrupts = <58>;
+			interrupt-names = "mc";
+			dr_mode = "otg";
+			phys = <&usb_phy 0>;
+			phy-names = "usb-phy";
+			status = "disabled";
+
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			dmas = <&cppi41dma 0 0 &cppi41dma 1 0
+				&cppi41dma 2 0 &cppi41dma 3 0
+				&cppi41dma 0 1 &cppi41dma 1 1
+				&cppi41dma 2 1 &cppi41dma 3 1>;
+			dma-names =
+				"rx1", "rx2", "rx3", "rx4",
+				"tx1", "tx2", "tx3", "tx4";
+
+			cppi41dma: dma-controller@201000 {
+				compatible = "ti,da830-cppi41";
+				reg =  <0x201000 0x1000
+					0x202000 0x1000
+					0x204000 0x4000>;
+				reg-names = "controller",
+					    "scheduler", "queuemgr";
+				interrupts = <58>;
+				#dma-cells = <2>;
+				#dma-channels = <4>;
+				status = "okay";
+			};
+		};
+		sata: sata@218000 {
+			compatible = "ti,da850-ahci";
+			reg = <0x218000 0x2000>, <0x22c018 0x4>;
+			interrupts = <67>;
+			status = "disabled";
+		};
+		mdio: mdio@224000 {
 			compatible = "ti,davinci_mdio";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x224000 0x1000>;
+			status = "disabled";
 		};
-		eth0: ethernet@1e20000 {
+		eth0: ethernet@220000 {
 			compatible = "ti,davinci-dm6467-emac";
 			reg = <0x220000 0x4000>;
 			ti,davinci-ctrl-reg-offset = <0x3000>;
@@ -262,10 +505,20 @@
 					35
 					36
 					>;
+			status = "disabled";
 		};
-		gpio: gpio@1e26000 {
+		usb1: usb@225000 {
+			compatible = "ti,da830-ohci";
+			reg = <0x225000 0x1000>;
+			interrupts = <59>;
+			phys = <&usb_phy 1>;
+			phy-names = "usb-phy";
+			status = "disabled";
+		};
+		gpio: gpio@226000 {
 			compatible = "ti,dm6441-gpio";
 			gpio-controller;
+			#gpio-cells = <2>;
 			reg = <0x226000 0x1000>;
 			interrupts = <42 IRQ_TYPE_EDGE_BOTH
 				43 IRQ_TYPE_EDGE_BOTH 44 IRQ_TYPE_EDGE_BOTH
@@ -275,9 +528,16 @@
 			ti,ngpio = <144>;
 			ti,davinci-gpio-unbanked = <0>;
 			status = "disabled";
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+		pinconf: pin-controller@22c00c {
+			compatible = "ti,da850-pupd";
+			reg = <0x22c00c 0x8>;
+			status = "disabled";
 		};
 
-		mcasp0: mcasp@01d00000 {
+		mcasp0: mcasp@100000 {
 			compatible = "ti,da830-mcasp-audio";
 			reg = <0x100000 0x2000>,
 			      <0x102000 0x400000>;
@@ -285,22 +545,32 @@
 			interrupts = <54>;
 			interrupt-names = "common";
 			status = "disabled";
-			dmas = <&edma0 1>,
-				<&edma0 0>;
+			dmas = <&edma0 1 1>,
+				<&edma0 0 1>;
 			dma-names = "tx", "rx";
 		};
+
+		lcdc: display@213000 {
+			compatible = "ti,da850-tilcdc";
+			reg = <0x213000 0x1000>;
+			interrupts = <52>;
+			max-pixelclock = <37500>;
+			status = "disabled";
+		};
 	};
-	nand_cs3@62000000 {
-		compatible = "ti,davinci-nand";
-		reg = <0x62000000 0x807ff
-		       0x68000000 0x8000>;
-		ti,davinci-chipselect = <1>;
-		ti,davinci-mask-ale = <0>;
-		ti,davinci-mask-cle = <0>;
-		ti,davinci-mask-chipsel = <0>;
-		ti,davinci-ecc-mode = "hw";
-		ti,davinci-ecc-bits = <4>;
-		ti,davinci-nand-use-bbt;
+	aemif: aemif@68000000 {
+		compatible = "ti,da850-aemif";
+		#address-cells = <2>;
+		#size-cells = <1>;
+
+		reg = <0x68000000 0x00008000>;
+		ranges = <0 0 0x60000000 0x08000000
+			  1 0 0x68000000 0x00008000>;
+		status = "disabled";
+	};
+	memctrl: memory-controller@b0000000 {
+		compatible = "ti,da850-ddr-controller";
+		reg = <0xb0000000 0xe8>;
 		status = "disabled";
 	};
 };

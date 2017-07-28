@@ -126,9 +126,6 @@ static int sdh_setup_data(struct sdh_host *host, struct mmc_data *data)
 	length = data->blksz * data->blocks;
 	bfin_write_SDH_DATA_LGTH(length);
 
-	if (data->flags & MMC_DATA_STREAM)
-		data_ctl |= DTX_MODE;
-
 	if (data->flags & MMC_DATA_READ)
 		data_ctl |= DTX_DIR;
 	/* Only supports power-of-2 block size */

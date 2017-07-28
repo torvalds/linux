@@ -4,6 +4,7 @@
 #include <net/net_namespace.h>
 #include <linux/netfilter/nf_conntrack_common.h>
 #include <linux/netfilter/nf_conntrack_tuple_common.h>
+#include <linux/refcount.h>
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_extend.h>
 
@@ -12,7 +13,7 @@
 struct ctnl_timeout {
 	struct list_head	head;
 	struct rcu_head		rcu_head;
-	atomic_t		refcnt;
+	refcount_t		refcnt;
 	char			name[CTNL_TIMEOUT_NAME_MAX];
 	__u16			l3num;
 	struct nf_conntrack_l4proto *l4proto;
@@ -104,7 +105,7 @@ static inline void nf_conntrack_timeout_fini(void)
 #endif /* CONFIG_NF_CONNTRACK_TIMEOUT */
 
 #ifdef CONFIG_NF_CONNTRACK_TIMEOUT
-extern struct ctnl_timeout *(*nf_ct_timeout_find_get_hook)(const char *name);
+extern struct ctnl_timeout *(*nf_ct_timeout_find_get_hook)(struct net *net, const char *name);
 extern void (*nf_ct_timeout_put_hook)(struct ctnl_timeout *timeout);
 #endif
 

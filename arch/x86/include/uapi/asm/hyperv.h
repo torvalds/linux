@@ -34,16 +34,10 @@
 #define HV_X64_MSR_REFERENCE_TSC		0x40000021
 
 /*
- * There is a single feature flag that signifies the presence of the MSR
- * that can be used to retrieve both the local APIC Timer frequency as
- * well as the TSC frequency.
+ * There is a single feature flag that signifies if the partition has access
+ * to MSRs with local APIC and TSC frequencies.
  */
-
-/* Local APIC timer frequency MSR (HV_X64_MSR_APIC_FREQUENCY) is available */
-#define HV_X64_MSR_APIC_FREQUENCY_AVAILABLE (1 << 11)
-
-/* TSC frequency MSR (HV_X64_MSR_TSC_FREQUENCY) is available */
-#define HV_X64_MSR_TSC_FREQUENCY_AVAILABLE (1 << 11)
+#define HV_X64_ACCESS_FREQUENCY_MSRS		(1 << 11)
 
 /*
  * Basic SynIC MSRs (HV_X64_MSR_SCONTROL through HV_X64_MSR_EOM
@@ -72,6 +66,12 @@
   * HV_X64_MSR_STATS_VP_INTERNAL_PAGE) available
   */
 #define HV_X64_MSR_STAT_PAGES_AVAILABLE		(1 << 8)
+
+/* Frequency MSRs available */
+#define HV_FEATURE_FREQUENCY_MSRS_AVAILABLE	(1 << 8)
+
+/* Crash MSR available */
+#define HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE (1 << 10)
 
 /*
  * Feature identification: EBX indicates which flags were specified at
@@ -121,7 +121,7 @@
   * Recommend using hypercall for address space switches rather
   * than MOV to CR3 instruction
   */
-#define HV_X64_MWAIT_RECOMMENDED		(1 << 0)
+#define HV_X64_AS_SWITCH_RECOMMENDED		(1 << 0)
 /* Recommend using hypercall for local TLB flushes rather
  * than INVLPG or MOV to CR3 instructions */
 #define HV_X64_LOCAL_TLB_FLUSH_RECOMMENDED	(1 << 1)
@@ -143,6 +143,22 @@
  * timely delivery of external interrupts
  */
 #define HV_X64_RELAXED_TIMING_RECOMMENDED	(1 << 5)
+
+/*
+ * Virtual APIC support
+ */
+#define HV_X64_DEPRECATING_AEOI_RECOMMENDED	(1 << 9)
+
+/*
+ * HV_VP_SET available
+ */
+#define HV_X64_EX_PROCESSOR_MASKS_RECOMMENDED	(1 << 11)
+
+
+/*
+ * Crash notification flag.
+ */
+#define HV_CRASH_CTL_CRASH_NOTIFY (1ULL << 63)
 
 /* MSR used to identify the guest OS. */
 #define HV_X64_MSR_GUEST_OS_ID			0x40000000
@@ -226,7 +242,9 @@
 		(~((1ull << HV_X64_MSR_HYPERCALL_PAGE_ADDRESS_SHIFT) - 1))
 
 /* Declare the various hypercall operations. */
-#define HV_X64_HV_NOTIFY_LONG_SPIN_WAIT		0x0008
+#define HVCALL_NOTIFY_LONG_SPIN_WAIT		0x0008
+#define HVCALL_POST_MESSAGE			0x005c
+#define HVCALL_SIGNAL_EVENT			0x005d
 
 #define HV_X64_MSR_APIC_ASSIST_PAGE_ENABLE		0x00000001
 #define HV_X64_MSR_APIC_ASSIST_PAGE_ADDRESS_SHIFT	12
@@ -268,5 +286,97 @@ typedef struct _HV_REFERENCE_TSC_PAGE {
 #define HV_SYNIC_SINT_MASKED		(1ULL << 16)
 #define HV_SYNIC_SINT_AUTO_EOI		(1ULL << 17)
 #define HV_SYNIC_SINT_VECTOR_MASK	(0xFF)
+
+#define HV_SYNIC_STIMER_COUNT		(4)
+
+/* Define synthetic interrupt controller message constants. */
+#define HV_MESSAGE_SIZE			(256)
+#define HV_MESSAGE_PAYLOAD_BYTE_COUNT	(240)
+#define HV_MESSAGE_PAYLOAD_QWORD_COUNT	(30)
+
+/* Define hypervisor message types. */
+enum hv_message_type {
+	HVMSG_NONE			= 0x00000000,
+
+	/* Memory access messages. */
+	HVMSG_UNMAPPED_GPA		= 0x80000000,
+	HVMSG_GPA_INTERCEPT		= 0x80000001,
+
+	/* Timer notification messages. */
+	HVMSG_TIMER_EXPIRED			= 0x80000010,
+
+	/* Error messages. */
+	HVMSG_INVALID_VP_REGISTER_VALUE	= 0x80000020,
+	HVMSG_UNRECOVERABLE_EXCEPTION	= 0x80000021,
+	HVMSG_UNSUPPORTED_FEATURE		= 0x80000022,
+
+	/* Trace buffer complete messages. */
+	HVMSG_EVENTLOG_BUFFERCOMPLETE	= 0x80000040,
+
+	/* Platform-specific processor intercept messages. */
+	HVMSG_X64_IOPORT_INTERCEPT		= 0x80010000,
+	HVMSG_X64_MSR_INTERCEPT		= 0x80010001,
+	HVMSG_X64_CPUID_INTERCEPT		= 0x80010002,
+	HVMSG_X64_EXCEPTION_INTERCEPT	= 0x80010003,
+	HVMSG_X64_APIC_EOI			= 0x80010004,
+	HVMSG_X64_LEGACY_FP_ERROR		= 0x80010005
+};
+
+/* Define synthetic interrupt controller message flags. */
+union hv_message_flags {
+	__u8 asu8;
+	struct {
+		__u8 msg_pending:1;
+		__u8 reserved:7;
+	};
+};
+
+/* Define port identifier type. */
+union hv_port_id {
+	__u32 asu32;
+	struct {
+		__u32 id:24;
+		__u32 reserved:8;
+	} u;
+};
+
+/* Define synthetic interrupt controller message header. */
+struct hv_message_header {
+	__u32 message_type;
+	__u8 payload_size;
+	union hv_message_flags message_flags;
+	__u8 reserved[2];
+	union {
+		__u64 sender;
+		union hv_port_id port;
+	};
+};
+
+/* Define synthetic interrupt controller message format. */
+struct hv_message {
+	struct hv_message_header header;
+	union {
+		__u64 payload[HV_MESSAGE_PAYLOAD_QWORD_COUNT];
+	} u;
+};
+
+/* Define the synthetic interrupt message page layout. */
+struct hv_message_page {
+	struct hv_message sint_message[HV_SYNIC_SINT_COUNT];
+};
+
+/* Define timer message payload structure. */
+struct hv_timer_message_payload {
+	__u32 timer_index;
+	__u32 reserved;
+	__u64 expiration_time;	/* When the timer expired */
+	__u64 delivery_time;	/* When the message was delivered */
+};
+
+#define HV_STIMER_ENABLE		(1ULL << 0)
+#define HV_STIMER_PERIODIC		(1ULL << 1)
+#define HV_STIMER_LAZY			(1ULL << 2)
+#define HV_STIMER_AUTOENABLE		(1ULL << 3)
+#define HV_STIMER_SINT(config)		(__u8)(((config) >> 16) & 0x0F)
 
 #endif

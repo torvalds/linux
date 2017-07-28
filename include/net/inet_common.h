@@ -17,10 +17,11 @@ int inet_release(struct socket *sock);
 int inet_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 			int addr_len, int flags);
 int __inet_stream_connect(struct socket *sock, struct sockaddr *uaddr,
-			  int addr_len, int flags);
+			  int addr_len, int flags, int is_sendmsg);
 int inet_dgram_connect(struct socket *sock, struct sockaddr *uaddr,
 		       int addr_len, int flags);
-int inet_accept(struct socket *sock, struct socket *newsock, int flags);
+int inet_accept(struct socket *sock, struct socket *newsock, int flags,
+		bool kern);
 int inet_sendmsg(struct socket *sock, struct msghdr *msg, size_t size);
 ssize_t inet_sendpage(struct socket *sock, struct page *page, int offset,
 		      size_t size, int flags);
@@ -38,6 +39,11 @@ int inet_ctl_sock_create(struct sock **sk, unsigned short family,
 			 struct net *net);
 int inet_recv_error(struct sock *sk, struct msghdr *msg, int len,
 		    int *addr_len);
+
+struct sk_buff **inet_gro_receive(struct sk_buff **head, struct sk_buff *skb);
+int inet_gro_complete(struct sk_buff *skb, int nhoff);
+struct sk_buff *inet_gso_segment(struct sk_buff *skb,
+				 netdev_features_t features);
 
 static inline void inet_ctl_sock_destroy(struct sock *sk)
 {

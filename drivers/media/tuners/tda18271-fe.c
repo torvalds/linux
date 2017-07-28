@@ -18,15 +18,15 @@
     Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#include <linux/delay.h>
-#include <linux/videodev2.h>
 #include "tda18271-priv.h"
 #include "tda8290.h"
 
+#include <linux/delay.h>
+#include <linux/videodev2.h>
+
 int tda18271_debug;
 module_param_named(debug, tda18271_debug, int, 0644);
-MODULE_PARM_DESC(debug, "set debug level "
-		 "(info=1, map=2, reg=4, adv=8, cal=16 (or-able))");
+MODULE_PARM_DESC(debug, "set debug level (info=1, map=2, reg=4, adv=8, cal=16 (or-able))");
 
 static int tda18271_cal_on_startup = -1;
 module_param_named(cal, tda18271_cal_on_startup, int, 0644);
@@ -646,7 +646,7 @@ static int tda18271_calc_rf_filter_curve(struct dvb_frontend *fe)
 	unsigned int i;
 	int ret;
 
-	tda_info("tda18271: performing RF tracking filter calibration\n");
+	tda_info("performing RF tracking filter calibration\n");
 
 	/* wait for die temperature stabilization */
 	msleep(200);
@@ -692,12 +692,12 @@ static int tda18271c2_rf_cal_init(struct dvb_frontend *fe)
 	if (tda_fail(ret))
 		goto fail;
 
-	tda_info("tda18271: RF tracking filter calibration complete\n");
+	tda_info("RF tracking filter calibration complete\n");
 
 	priv->cal_initialized = true;
 	goto end;
 fail:
-	tda_info("tda18271: RF tracking filter calibration failed!\n");
+	tda_info("RF tracking filter calibration failed!\n");
 end:
 	return ret;
 }
@@ -960,7 +960,7 @@ static int tda18271_set_params(struct dvb_frontend *fe)
 		break;
 	case SYS_DVBC_ANNEX_B:
 		bw = 6000000;
-		/* falltrough */
+		/* fall through */
 	case SYS_DVBC_ANNEX_A:
 	case SYS_DVBC_ANNEX_C:
 		if (bw <= 6000000) {
@@ -1048,7 +1048,7 @@ fail:
 	return ret;
 }
 
-static int tda18271_release(struct dvb_frontend *fe)
+static void tda18271_release(struct dvb_frontend *fe)
 {
 	struct tda18271_priv *priv = fe->tuner_priv;
 
@@ -1060,8 +1060,6 @@ static int tda18271_release(struct dvb_frontend *fe)
 	mutex_unlock(&tda18271_list_mutex);
 
 	fe->tuner_priv = NULL;
-
-	return 0;
 }
 
 static int tda18271_get_frequency(struct dvb_frontend *fe, u32 *frequency)

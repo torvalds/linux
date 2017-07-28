@@ -35,95 +35,82 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 
-static void amdgpu_flip_wait_fence(struct amdgpu_device *adev,
-				   struct fence **f)
+static void amdgpu_flip_callback(struct dma_fence *f, struct dma_fence_cb *cb)
 {
-	struct amdgpu_fence *fence;
-	long r;
+	struct amdgpu_flip_work *work =
+		container_of(cb, struct amdgpu_flip_work, cb);
 
-	if (*f == NULL)
-		return;
+	dma_fence_put(f);
+	schedule_work(&work->flip_work.work);
+}
 
-	fence = to_amdgpu_fence(*f);
-	if (fence) {
-		r = fence_wait(&fence->base, false);
-		if (r == -EDEADLK)
-			r = amdgpu_gpu_reset(adev);
-	} else
-		r = fence_wait(*f, false);
+static bool amdgpu_flip_handle_fence(struct amdgpu_flip_work *work,
+				     struct dma_fence **f)
+{
+	struct dma_fence *fence= *f;
 
-	if (r)
-		DRM_ERROR("failed to wait on page flip fence (%ld)!\n", r);
+	if (fence == NULL)
+		return false;
 
-	/* We continue with the page flip even if we failed to wait on
-	 * the fence, otherwise the DRM core and userspace will be
-	 * confused about which BO the CRTC is scanning out
-	 */
-	fence_put(*f);
 	*f = NULL;
+
+	if (!dma_fence_add_callback(fence, &work->cb, amdgpu_flip_callback))
+		return true;
+
+	dma_fence_put(fence);
+	return false;
 }
 
 static void amdgpu_flip_work_func(struct work_struct *__work)
 {
+	struct delayed_work *delayed_work =
+		container_of(__work, struct delayed_work, work);
 	struct amdgpu_flip_work *work =
-		container_of(__work, struct amdgpu_flip_work, flip_work);
+		container_of(delayed_work, struct amdgpu_flip_work, flip_work);
 	struct amdgpu_device *adev = work->adev;
-	struct amdgpu_crtc *amdgpuCrtc = adev->mode_info.crtcs[work->crtc_id];
+	struct amdgpu_crtc *amdgpu_crtc = adev->mode_info.crtcs[work->crtc_id];
 
-	struct drm_crtc *crtc = &amdgpuCrtc->base;
+	struct drm_crtc *crtc = &amdgpu_crtc->base;
 	unsigned long flags;
 	unsigned i;
-	int vpos, hpos, stat, min_udelay;
-	struct drm_vblank_crtc *vblank = &crtc->dev->vblank[work->crtc_id];
+	int vpos, hpos;
 
-	amdgpu_flip_wait_fence(adev, &work->excl);
+	if (amdgpu_flip_handle_fence(work, &work->excl))
+		return;
+
 	for (i = 0; i < work->shared_count; ++i)
-		amdgpu_flip_wait_fence(adev, &work->shared[i]);
+		if (amdgpu_flip_handle_fence(work, &work->shared[i]))
+			return;
+
+	/* Wait until we're out of the vertical blank period before the one
+	 * targeted by the flip
+	 */
+	if (amdgpu_crtc->enabled &&
+	    (amdgpu_get_crtc_scanoutpos(adev->ddev, work->crtc_id, 0,
+					&vpos, &hpos, NULL, NULL,
+					&crtc->hwmode)
+	     & (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_IN_VBLANK)) ==
+	    (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_IN_VBLANK) &&
+	    (int)(work->target_vblank -
+		  amdgpu_get_vblank_counter_kms(adev->ddev, amdgpu_crtc->crtc_id)) > 0) {
+		schedule_delayed_work(&work->flip_work, usecs_to_jiffies(1000));
+		return;
+	}
 
 	/* We borrow the event spin lock for protecting flip_status */
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
 
-	/* If this happens to execute within the "virtually extended" vblank
-	 * interval before the start of the real vblank interval then it needs
-	 * to delay programming the mmio flip until the real vblank is entered.
-	 * This prevents completing a flip too early due to the way we fudge
-	 * our vblank counter and vblank timestamps in order to work around the
-	 * problem that the hw fires vblank interrupts before actual start of
-	 * vblank (when line buffer refilling is done for a frame). It
-	 * complements the fudging logic in amdgpu_get_crtc_scanoutpos() for
-	 * timestamping and amdgpu_get_vblank_counter_kms() for vblank counts.
-	 *
-	 * In practice this won't execute very often unless on very fast
-	 * machines because the time window for this to happen is very small.
-	 */
-	for (;;) {
-		/* GET_DISTANCE_TO_VBLANKSTART returns distance to real vblank
-		 * start in hpos, and to the "fudged earlier" vblank start in
-		 * vpos.
-		 */
-		stat = amdgpu_get_crtc_scanoutpos(adev->ddev, work->crtc_id,
-						  GET_DISTANCE_TO_VBLANKSTART,
-						  &vpos, &hpos, NULL, NULL,
-						  &crtc->hwmode);
+	/* Do the flip (mmio) */
+	adev->mode_info.funcs->page_flip(adev, work->crtc_id, work->base, work->async);
 
-		if ((stat & (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_ACCURATE)) !=
-		    (DRM_SCANOUTPOS_VALID | DRM_SCANOUTPOS_ACCURATE) ||
-		    !(vpos >= 0 && hpos <= 0))
-			break;
-
-		/* Sleep at least until estimated real start of hw vblank */
-		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
-		min_udelay = (-hpos + 1) * max(vblank->linedur_ns / 1000, 5);
-		usleep_range(min_udelay, 2 * min_udelay);
-		spin_lock_irqsave(&crtc->dev->event_lock, flags);
-	};
-
-	/* do the flip (mmio) */
-	adev->mode_info.funcs->page_flip(adev, work->crtc_id, work->base);
-	/* set the flip status */
-	amdgpuCrtc->pflip_status = AMDGPU_FLIP_SUBMITTED;
-
+	/* Set the flip status */
+	amdgpu_crtc->pflip_status = AMDGPU_FLIP_SUBMITTED;
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
+
+
+	DRM_DEBUG_DRIVER("crtc:%d[%p], pflip_stat:AMDGPU_FLIP_SUBMITTED, work: %p,\n",
+					 amdgpu_crtc->crtc_id, amdgpu_crtc, work);
+
 }
 
 /*
@@ -136,25 +123,26 @@ static void amdgpu_unpin_work_func(struct work_struct *__work)
 	int r;
 
 	/* unpin of the old buffer */
-	r = amdgpu_bo_reserve(work->old_rbo, false);
+	r = amdgpu_bo_reserve(work->old_abo, true);
 	if (likely(r == 0)) {
-		r = amdgpu_bo_unpin(work->old_rbo);
+		r = amdgpu_bo_unpin(work->old_abo);
 		if (unlikely(r != 0)) {
 			DRM_ERROR("failed to unpin buffer after flip\n");
 		}
-		amdgpu_bo_unreserve(work->old_rbo);
+		amdgpu_bo_unreserve(work->old_abo);
 	} else
 		DRM_ERROR("failed to reserve buffer after flip\n");
 
-	amdgpu_bo_unref(&work->old_rbo);
+	amdgpu_bo_unref(&work->old_abo);
 	kfree(work->shared);
 	kfree(work);
 }
 
-int amdgpu_crtc_page_flip(struct drm_crtc *crtc,
-			  struct drm_framebuffer *fb,
-			  struct drm_pending_vblank_event *event,
-			  uint32_t page_flip_flags)
+int amdgpu_crtc_page_flip_target(struct drm_crtc *crtc,
+				 struct drm_framebuffer *fb,
+				 struct drm_pending_vblank_event *event,
+				 uint32_t page_flip_flags, uint32_t target,
+				 struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_device *dev = crtc->dev;
 	struct amdgpu_device *adev = dev->dev_private;
@@ -163,7 +151,7 @@ int amdgpu_crtc_page_flip(struct drm_crtc *crtc,
 	struct amdgpu_framebuffer *new_amdgpu_fb;
 	struct drm_gem_object *obj;
 	struct amdgpu_flip_work *work;
-	struct amdgpu_bo *new_rbo;
+	struct amdgpu_bo *new_abo;
 	unsigned long flags;
 	u64 tiling_flags;
 	u64 base;
@@ -173,59 +161,53 @@ int amdgpu_crtc_page_flip(struct drm_crtc *crtc,
 	if (work == NULL)
 		return -ENOMEM;
 
-	INIT_WORK(&work->flip_work, amdgpu_flip_work_func);
+	INIT_DELAYED_WORK(&work->flip_work, amdgpu_flip_work_func);
 	INIT_WORK(&work->unpin_work, amdgpu_unpin_work_func);
 
 	work->event = event;
 	work->adev = adev;
 	work->crtc_id = amdgpu_crtc->crtc_id;
+	work->async = (page_flip_flags & DRM_MODE_PAGE_FLIP_ASYNC) != 0;
 
 	/* schedule unpin of the old buffer */
 	old_amdgpu_fb = to_amdgpu_framebuffer(crtc->primary->fb);
 	obj = old_amdgpu_fb->obj;
 
 	/* take a reference to the old object */
-	work->old_rbo = gem_to_amdgpu_bo(obj);
-	amdgpu_bo_ref(work->old_rbo);
+	work->old_abo = gem_to_amdgpu_bo(obj);
+	amdgpu_bo_ref(work->old_abo);
 
 	new_amdgpu_fb = to_amdgpu_framebuffer(fb);
 	obj = new_amdgpu_fb->obj;
-	new_rbo = gem_to_amdgpu_bo(obj);
+	new_abo = gem_to_amdgpu_bo(obj);
 
 	/* pin the new buffer */
-	r = amdgpu_bo_reserve(new_rbo, false);
+	r = amdgpu_bo_reserve(new_abo, false);
 	if (unlikely(r != 0)) {
-		DRM_ERROR("failed to reserve new rbo buffer before flip\n");
+		DRM_ERROR("failed to reserve new abo buffer before flip\n");
 		goto cleanup;
 	}
 
-	r = amdgpu_bo_pin_restricted(new_rbo, AMDGPU_GEM_DOMAIN_VRAM, 0, 0, &base);
+	r = amdgpu_bo_pin(new_abo, AMDGPU_GEM_DOMAIN_VRAM, &base);
 	if (unlikely(r != 0)) {
-		amdgpu_bo_unreserve(new_rbo);
-		r = -EINVAL;
-		DRM_ERROR("failed to pin new rbo buffer before flip\n");
-		goto cleanup;
+		DRM_ERROR("failed to pin new abo buffer before flip\n");
+		goto unreserve;
 	}
 
-	r = reservation_object_get_fences_rcu(new_rbo->tbo.resv, &work->excl,
+	r = reservation_object_get_fences_rcu(new_abo->tbo.resv, &work->excl,
 					      &work->shared_count,
 					      &work->shared);
 	if (unlikely(r != 0)) {
-		amdgpu_bo_unreserve(new_rbo);
 		DRM_ERROR("failed to get fences for buffer\n");
-		goto cleanup;
+		goto unpin;
 	}
 
-	amdgpu_bo_get_tiling_flags(new_rbo, &tiling_flags);
-	amdgpu_bo_unreserve(new_rbo);
+	amdgpu_bo_get_tiling_flags(new_abo, &tiling_flags);
+	amdgpu_bo_unreserve(new_abo);
 
 	work->base = base;
-
-	r = drm_vblank_get(crtc->dev, amdgpu_crtc->crtc_id);
-	if (r) {
-		DRM_ERROR("failed to get vblank before flip\n");
-		goto pflip_cleanup;
-	}
+	work->target_vblank = target - drm_crtc_vblank_count(crtc) +
+		amdgpu_get_vblank_counter_kms(dev, work->crtc_id);
 
 	/* we borrow the event spin lock for protecting flip_wrok */
 	spin_lock_irqsave(&crtc->dev->event_lock, flags);
@@ -233,43 +215,46 @@ int amdgpu_crtc_page_flip(struct drm_crtc *crtc,
 		DRM_DEBUG_DRIVER("flip queue: crtc already busy\n");
 		spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
 		r = -EBUSY;
-		goto vblank_cleanup;
+		goto pflip_cleanup;
 	}
 
 	amdgpu_crtc->pflip_status = AMDGPU_FLIP_PENDING;
 	amdgpu_crtc->pflip_works = work;
 
+
+	DRM_DEBUG_DRIVER("crtc:%d[%p], pflip_stat:AMDGPU_FLIP_PENDING, work: %p,\n",
+					 amdgpu_crtc->crtc_id, amdgpu_crtc, work);
 	/* update crtc fb */
 	crtc->primary->fb = fb;
 	spin_unlock_irqrestore(&crtc->dev->event_lock, flags);
-	queue_work(amdgpu_crtc->pflip_queue, &work->flip_work);
+	amdgpu_flip_work_func(&work->flip_work.work);
 	return 0;
 
-vblank_cleanup:
-	drm_vblank_put(crtc->dev, amdgpu_crtc->crtc_id);
-
 pflip_cleanup:
-	if (unlikely(amdgpu_bo_reserve(new_rbo, false) != 0)) {
-		DRM_ERROR("failed to reserve new rbo in error path\n");
+	if (unlikely(amdgpu_bo_reserve(new_abo, false) != 0)) {
+		DRM_ERROR("failed to reserve new abo in error path\n");
 		goto cleanup;
 	}
-	if (unlikely(amdgpu_bo_unpin(new_rbo) != 0)) {
-		DRM_ERROR("failed to unpin new rbo in error path\n");
+unpin:
+	if (unlikely(amdgpu_bo_unpin(new_abo) != 0)) {
+		DRM_ERROR("failed to unpin new abo in error path\n");
 	}
-	amdgpu_bo_unreserve(new_rbo);
+unreserve:
+	amdgpu_bo_unreserve(new_abo);
 
 cleanup:
-	amdgpu_bo_unref(&work->old_rbo);
-	fence_put(work->excl);
+	amdgpu_bo_unref(&work->old_abo);
+	dma_fence_put(work->excl);
 	for (i = 0; i < work->shared_count; ++i)
-		fence_put(work->shared[i]);
+		dma_fence_put(work->shared[i]);
 	kfree(work->shared);
 	kfree(work);
 
 	return r;
 }
 
-int amdgpu_crtc_set_config(struct drm_mode_set *set)
+int amdgpu_crtc_set_config(struct drm_mode_set *set,
+			   struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_device *dev;
 	struct amdgpu_device *adev;
@@ -286,7 +271,7 @@ int amdgpu_crtc_set_config(struct drm_mode_set *set)
 	if (ret < 0)
 		return ret;
 
-	ret = drm_crtc_helper_set_config(set);
+	ret = drm_crtc_helper_set_config(set, ctx);
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head)
 		if (crtc->enabled)
@@ -313,7 +298,7 @@ int amdgpu_crtc_set_config(struct drm_mode_set *set)
 	return ret;
 }
 
-static const char *encoder_names[38] = {
+static const char *encoder_names[41] = {
 	"NONE",
 	"INTERNAL_LVDS",
 	"INTERNAL_TMDS1",
@@ -352,6 +337,9 @@ static const char *encoder_names[38] = {
 	"TRAVIS",
 	"INTERNAL_VCE",
 	"INTERNAL_UNIPHY3",
+	"HDMI_ANX9805",
+	"INTERNAL_AMCLK",
+	"VIRTUAL",
 };
 
 static const char *hpd_names[6] = {
@@ -494,9 +482,7 @@ static void amdgpu_user_framebuffer_destroy(struct drm_framebuffer *fb)
 {
 	struct amdgpu_framebuffer *amdgpu_fb = to_amdgpu_framebuffer(fb);
 
-	if (amdgpu_fb->obj) {
-		drm_gem_object_unreference_unlocked(amdgpu_fb->obj);
-	}
+	drm_gem_object_unreference_unlocked(amdgpu_fb->obj);
 	drm_framebuffer_cleanup(fb);
 	kfree(amdgpu_fb);
 }
@@ -518,12 +504,12 @@ static const struct drm_framebuffer_funcs amdgpu_fb_funcs = {
 int
 amdgpu_framebuffer_init(struct drm_device *dev,
 			struct amdgpu_framebuffer *rfb,
-			struct drm_mode_fb_cmd2 *mode_cmd,
+			const struct drm_mode_fb_cmd2 *mode_cmd,
 			struct drm_gem_object *obj)
 {
 	int ret;
 	rfb->obj = obj;
-	drm_helper_mode_fill_fb_struct(&rfb->base, mode_cmd);
+	drm_helper_mode_fill_fb_struct(dev, &rfb->base, mode_cmd);
 	ret = drm_framebuffer_init(dev, &rfb->base, &amdgpu_fb_funcs);
 	if (ret) {
 		rfb->obj = NULL;
@@ -535,17 +521,23 @@ amdgpu_framebuffer_init(struct drm_device *dev,
 static struct drm_framebuffer *
 amdgpu_user_framebuffer_create(struct drm_device *dev,
 			       struct drm_file *file_priv,
-			       struct drm_mode_fb_cmd2 *mode_cmd)
+			       const struct drm_mode_fb_cmd2 *mode_cmd)
 {
 	struct drm_gem_object *obj;
 	struct amdgpu_framebuffer *amdgpu_fb;
 	int ret;
 
-	obj = drm_gem_object_lookup(dev, file_priv, mode_cmd->handles[0]);
+	obj = drm_gem_object_lookup(file_priv, mode_cmd->handles[0]);
 	if (obj ==  NULL) {
 		dev_err(&dev->pdev->dev, "No GEM object associated to handle 0x%08X, "
 			"can't create framebuffer\n", mode_cmd->handles[0]);
 		return ERR_PTR(-ENOENT);
+	}
+
+	/* Handle is imported dma-buf, so cannot be migrated to VRAM for scanout */
+	if (obj->import_attach) {
+		DRM_DEBUG_KMS("Cannot create framebuffer from imported dma_buf\n");
+		return ERR_PTR(-EINVAL);
 	}
 
 	amdgpu_fb = kzalloc(sizeof(*amdgpu_fb), GFP_KERNEL);
@@ -575,20 +567,20 @@ const struct drm_mode_config_funcs amdgpu_mode_funcs = {
 	.output_poll_changed = amdgpu_output_poll_changed
 };
 
-static struct drm_prop_enum_list amdgpu_underscan_enum_list[] =
+static const struct drm_prop_enum_list amdgpu_underscan_enum_list[] =
 {	{ UNDERSCAN_OFF, "off" },
 	{ UNDERSCAN_ON, "on" },
 	{ UNDERSCAN_AUTO, "auto" },
 };
 
-static struct drm_prop_enum_list amdgpu_audio_enum_list[] =
+static const struct drm_prop_enum_list amdgpu_audio_enum_list[] =
 {	{ AMDGPU_AUDIO_DISABLE, "off" },
 	{ AMDGPU_AUDIO_ENABLE, "on" },
 	{ AMDGPU_AUDIO_AUTO, "auto" },
 };
 
 /* XXX support different dither options? spatial, temporal, both, etc. */
-static struct drm_prop_enum_list amdgpu_dither_enum_list[] =
+static const struct drm_prop_enum_list amdgpu_dither_enum_list[] =
 {	{ AMDGPU_FMT_DITHER_DISABLE, "off" },
 	{ AMDGPU_FMT_DITHER_ENABLE, "on" },
 };
@@ -597,12 +589,10 @@ int amdgpu_modeset_create_props(struct amdgpu_device *adev)
 {
 	int sz;
 
-	if (adev->is_atom_bios) {
-		adev->mode_info.coherent_mode_property =
-			drm_property_create_range(adev->ddev, 0 , "coherent", 0, 1);
-		if (!adev->mode_info.coherent_mode_property)
-			return -ENOMEM;
-	}
+	adev->mode_info.coherent_mode_property =
+		drm_property_create_range(adev->ddev, 0 , "coherent", 0, 1);
+	if (!adev->mode_info.coherent_mode_property)
+		return -ENOMEM;
 
 	adev->mode_info.load_detect_property =
 		drm_property_create_range(adev->ddev, 0, "load detection", 0, 1);

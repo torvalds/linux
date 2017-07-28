@@ -185,7 +185,7 @@ struct ath_common {
 	bool bt_ant_diversity;
 
 	int last_rssi;
-	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
+	struct ieee80211_supported_band sbands[NUM_NL80211_BANDS];
 };
 
 static inline const struct ath_ps_ops *ath_ps_ops(struct ath_common *common)
@@ -326,5 +326,11 @@ static inline const char *ath_opmode_to_string(enum nl80211_iftype opmode)
 	return "UNKNOWN";
 }
 #endif
+
+extern const char *ath_bus_type_strings[];
+static inline const char *ath_bus_type_to_string(enum ath_bus_type bustype)
+{
+	return ath_bus_type_strings[bustype];
+}
 
 #endif /* ATH_H */

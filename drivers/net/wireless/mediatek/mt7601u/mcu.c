@@ -43,8 +43,8 @@ static inline void mt7601u_dma_skb_wrap_cmd(struct sk_buff *skb,
 					    u8 seq, enum mcu_cmd cmd)
 {
 	WARN_ON(mt7601u_dma_skb_wrap(skb, CPU_TX_PORT, DMA_COMMAND,
-				     MT76_SET(MT_TXD_CMD_INFO_SEQ, seq) |
-				     MT76_SET(MT_TXD_CMD_INFO_TYPE, cmd)));
+				     FIELD_PREP(MT_TXD_CMD_INFO_SEQ, seq) |
+				     FIELD_PREP(MT_TXD_CMD_INFO_TYPE, cmd)));
 }
 
 static inline void trace_mt_mcu_msg_send_cs(struct mt7601u_dev *dev,
@@ -66,8 +66,10 @@ mt7601u_mcu_msg_alloc(struct mt7601u_dev *dev, const void *data, int len)
 	WARN_ON(len % 4); /* if length is not divisible by 4 we need to pad */
 
 	skb = alloc_skb(len + MT_DMA_HDR_LEN + 4, GFP_KERNEL);
-	skb_reserve(skb, MT_DMA_HDR_LEN);
-	memcpy(skb_put(skb, len), data, len);
+	if (skb) {
+		skb_reserve(skb, MT_DMA_HDR_LEN);
+		skb_put_data(skb, data, len);
+	}
 
 	return skb;
 }
@@ -100,13 +102,13 @@ static int mt7601u_mcu_wait_resp(struct mt7601u_dev *dev, u8 seq)
 			dev_err(dev->dev, "Error: MCU resp urb failed:%d\n",
 				urb_status);
 
-		if (MT76_GET(MT_RXD_CMD_INFO_CMD_SEQ, rxfce) == seq &&
-		    MT76_GET(MT_RXD_CMD_INFO_EVT_TYPE, rxfce) == CMD_DONE)
+		if (FIELD_GET(MT_RXD_CMD_INFO_CMD_SEQ, rxfce) == seq &&
+		    FIELD_GET(MT_RXD_CMD_INFO_EVT_TYPE, rxfce) == CMD_DONE)
 			return 0;
 
-		dev_err(dev->dev, "Error: MCU resp evt:%hhx seq:%hhx-%hhx!\n",
-			MT76_GET(MT_RXD_CMD_INFO_EVT_TYPE, rxfce),
-			seq, MT76_GET(MT_RXD_CMD_INFO_CMD_SEQ, rxfce));
+		dev_err(dev->dev, "Error: MCU resp evt:%lx seq:%hhx-%lx!\n",
+			FIELD_GET(MT_RXD_CMD_INFO_EVT_TYPE, rxfce),
+			seq, FIELD_GET(MT_RXD_CMD_INFO_CMD_SEQ, rxfce));
 	}
 
 	dev_err(dev->dev, "Error: %s timed out\n", __func__);
@@ -170,6 +172,8 @@ static int mt7601u_mcu_function_select(struct mt7601u_dev *dev,
 	};
 
 	skb = mt7601u_mcu_msg_alloc(dev, &msg, sizeof(msg));
+	if (!skb)
+		return -ENOMEM;
 	return mt7601u_mcu_msg_send(dev, skb, CMD_FUN_SET_OP, func == 5);
 }
 
@@ -205,6 +209,8 @@ mt7601u_mcu_calibrate(struct mt7601u_dev *dev, enum mcu_calibrate cal, u32 val)
 	};
 
 	skb = mt7601u_mcu_msg_alloc(dev, &msg, sizeof(msg));
+	if (!skb)
+		return -ENOMEM;
 	return mt7601u_mcu_msg_send(dev, skb, CMD_CALIBRATION_OP, true);
 }
 
@@ -291,9 +297,9 @@ static int __mt7601u_dma_fw(struct mt7601u_dev *dev,
 	u32 val;
 	int ret;
 
-	reg = cpu_to_le32(MT76_SET(MT_TXD_INFO_TYPE, DMA_PACKET) |
-			  MT76_SET(MT_TXD_INFO_D_PORT, CPU_TX_PORT) |
-			  MT76_SET(MT_TXD_INFO_LEN, len));
+	reg = cpu_to_le32(FIELD_PREP(MT_TXD_INFO_TYPE, DMA_PACKET) |
+			  FIELD_PREP(MT_TXD_INFO_D_PORT, CPU_TX_PORT) |
+			  FIELD_PREP(MT_TXD_INFO_LEN, len));
 	memcpy(buf.buf, &reg, sizeof(reg));
 	memcpy(buf.buf + sizeof(reg), data, len);
 	memset(buf.buf + sizeof(reg) + len, 0, 8);
@@ -362,7 +368,9 @@ mt7601u_upload_firmware(struct mt7601u_dev *dev, const struct mt76_fw *fw)
 	int i, ret;
 
 	ivb = kmemdup(fw->ivb, sizeof(fw->ivb), GFP_KERNEL);
-	if (!ivb || mt7601u_usb_alloc_buf(dev, MCU_FW_URB_SIZE, &dma_buf)) {
+	if (!ivb)
+		return -ENOMEM;
+	if (mt7601u_usb_alloc_buf(dev, MCU_FW_URB_SIZE, &dma_buf)) {
 		ret = -ENOMEM;
 		goto error;
 	}

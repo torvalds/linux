@@ -56,10 +56,9 @@ enum most_channel_direction {
 enum most_channel_data_type {
 	MOST_CH_CONTROL = 1 << 0,
 	MOST_CH_ASYNC = 1 << 1,
-	MOST_CH_ISOC_AVP = 1 << 2,
+	MOST_CH_ISOC = 1 << 2,
 	MOST_CH_SYNC = 1 << 5,
 };
-
 
 enum mbo_status_flags {
 	/* MBO was processed successfully (data was send or received )*/
@@ -113,7 +112,7 @@ struct most_channel_capability {
 	u16 buffer_size_packet;
 	u16 num_buffers_streaming;
 	u16 buffer_size_streaming;
-	char *name_suffix;
+	const char *name_suffix;
 };
 
 /**
@@ -234,6 +233,8 @@ struct mbo {
  *   The callback returns a negative value on error, otherwise 0.
  * @request_netinfo: triggers retrieving of network info from the HDM by
  *   means of "Message exchange over MDP/MEP"
+ *   The call of the function request_netinfo with the parameter on_netinfo as
+ *   NULL prohibits use of the previously obtained function pointer.
  * @priv Private field used by mostcore to store context information.
  */
 struct most_interface {
@@ -247,7 +248,10 @@ struct most_interface {
 	int (*enqueue)(struct most_interface *iface, int channel_idx,
 		       struct mbo *mbo);
 	int (*poison_channel)(struct most_interface *iface, int channel_idx);
-	void (*request_netinfo)(struct most_interface *iface, int channel_idx);
+	void (*request_netinfo)(struct most_interface *iface, int channel_idx,
+				void (*on_netinfo)(struct most_interface *iface,
+						   unsigned char link_stat,
+						   unsigned char *mac_addr));
 	void *priv;
 };
 
@@ -288,7 +292,7 @@ struct kobject *most_register_interface(struct most_interface *iface);
  * @intf_instance Pointer to the interface instance description.
  */
 void most_deregister_interface(struct most_interface *iface);
-int most_submit_mbo(struct mbo *mbo);
+void most_submit_mbo(struct mbo *mbo);
 
 /**
  * most_stop_enqueue - prevents core from enqueing MBOs
@@ -311,11 +315,11 @@ int most_deregister_aim(struct most_aim *aim);
 struct mbo *most_get_mbo(struct most_interface *iface, int channel_idx,
 			 struct most_aim *);
 void most_put_mbo(struct mbo *mbo);
-int channel_has_mbo(struct most_interface *iface, int channel_idx);
+int channel_has_mbo(struct most_interface *iface, int channel_idx,
+		    struct most_aim *aim);
 int most_start_channel(struct most_interface *iface, int channel_idx,
 		       struct most_aim *);
 int most_stop_channel(struct most_interface *iface, int channel_idx,
 		      struct most_aim *);
-
 
 #endif /* MOST_CORE_H_ */

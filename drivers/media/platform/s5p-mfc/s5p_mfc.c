@@ -22,6 +22,8 @@
 #include <media/v4l2-event.h>
 #include <linux/workqueue.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
+#include <linux/of_reserved_mem.h>
 #include <media/videobuf2-v4l2.h>
 #include "s5p_mfc_common.h"
 #include "s5p_mfc_ctrl.h"
@@ -29,17 +31,21 @@
 #include "s5p_mfc_dec.h"
 #include "s5p_mfc_enc.h"
 #include "s5p_mfc_intr.h"
+#include "s5p_mfc_iommu.h"
 #include "s5p_mfc_opr.h"
 #include "s5p_mfc_cmd.h"
 #include "s5p_mfc_pm.h"
 
-#define S5P_MFC_NAME		"s5p-mfc"
 #define S5P_MFC_DEC_NAME	"s5p-mfc-dec"
 #define S5P_MFC_ENC_NAME	"s5p-mfc-enc"
 
 int mfc_debug_level;
 module_param_named(debug, mfc_debug_level, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug level - higher value produces more verbose messages");
+
+static char *mfc_mem_size;
+module_param_named(mem, mfc_mem_size, charp, 0644);
+MODULE_PARM_DESC(mem, "Preallocated memory size for the firmware and context buffers");
 
 /* Helper functions for interrupt processing */
 
@@ -85,6 +91,26 @@ void set_work_bit_irqsave(struct s5p_mfc_ctx *ctx)
 	spin_unlock_irqrestore(&dev->condlock, flags);
 }
 
+int s5p_mfc_get_new_ctx(struct s5p_mfc_dev *dev)
+{
+	unsigned long flags;
+	int ctx;
+
+	spin_lock_irqsave(&dev->condlock, flags);
+	ctx = dev->curr_ctx;
+	do {
+		ctx = (ctx + 1) % MFC_NUM_CONTEXTS;
+		if (ctx == dev->curr_ctx) {
+			if (!test_bit(ctx, &dev->ctx_work_bits))
+				ctx = -EAGAIN;
+			break;
+		}
+	} while (!test_bit(ctx, &dev->ctx_work_bits));
+	spin_unlock_irqrestore(&dev->condlock, flags);
+
+	return ctx;
+}
+
 /* Wake up context wait_queue */
 static void wake_up_ctx(struct s5p_mfc_ctx *ctx, unsigned int reason,
 			unsigned int err)
@@ -105,6 +131,20 @@ static void wake_up_dev(struct s5p_mfc_dev *dev, unsigned int reason,
 	wake_up(&dev->queue);
 }
 
+void s5p_mfc_cleanup_queue(struct list_head *lh, struct vb2_queue *vq)
+{
+	struct s5p_mfc_buf *b;
+	int i;
+
+	while (!list_empty(lh)) {
+		b = list_entry(lh->next, struct s5p_mfc_buf, list);
+		for (i = 0; i < b->b->vb2_buf.num_planes; i++)
+			vb2_set_plane_payload(&b->b->vb2_buf, i, 0);
+		vb2_buffer_done(&b->b->vb2_buf, VB2_BUF_STATE_ERROR);
+		list_del(&b->list);
+	}
+}
+
 static void s5p_mfc_watchdog(unsigned long arg)
 {
 	struct s5p_mfc_dev *dev = (struct s5p_mfc_dev *)arg;
@@ -118,7 +158,7 @@ static void s5p_mfc_watchdog(unsigned long arg)
 		 * error. Now it is time to kill all instances and
 		 * reset the MFC. */
 		mfc_err("Time out during waiting for HW\n");
-		queue_work(dev->watchdog_workqueue, &dev->watchdog_work);
+		schedule_work(&dev->watchdog_work);
 	}
 	dev->watchdog_timer.expires = jiffies +
 					msecs_to_jiffies(MFC_WATCHDOG_INTERVAL);
@@ -150,10 +190,8 @@ static void s5p_mfc_watchdog_worker(struct work_struct *work)
 		if (!ctx)
 			continue;
 		ctx->state = MFCINST_ERROR;
-		s5p_mfc_hw_call_void(dev->mfc_ops, cleanup_queue,
-						&ctx->dst_queue, &ctx->vq_dst);
-		s5p_mfc_hw_call_void(dev->mfc_ops, cleanup_queue,
-						&ctx->src_queue, &ctx->vq_src);
+		s5p_mfc_cleanup_queue(&ctx->dst_queue, &ctx->vq_dst);
+		s5p_mfc_cleanup_queue(&ctx->src_queue, &ctx->vq_src);
 		clear_work_bit(ctx);
 		wake_up_ctx(ctx, S5P_MFC_R2H_CMD_ERR_RET, 0);
 	}
@@ -173,6 +211,7 @@ static void s5p_mfc_watchdog_worker(struct work_struct *work)
 		}
 		s5p_mfc_clock_on();
 		ret = s5p_mfc_init_hw(dev);
+		s5p_mfc_clock_off();
 		if (ret)
 			mfc_err("Failed to reinit FW\n");
 	}
@@ -233,8 +272,8 @@ static void s5p_mfc_handle_frame_copy_time(struct s5p_mfc_ctx *ctx)
 				== dec_y_addr) {
 			dst_buf->b->timecode =
 						src_buf->b->timecode;
-			dst_buf->b->timestamp =
-						src_buf->b->timestamp;
+			dst_buf->b->vb2_buf.timestamp =
+						src_buf->b->vb2_buf.timestamp;
 			dst_buf->b->flags &=
 				~V4L2_BUF_FLAG_TSTAMP_SRC_MASK;
 			dst_buf->b->flags |=
@@ -327,7 +366,6 @@ static void s5p_mfc_handle_frame(struct s5p_mfc_ctx *ctx,
 	unsigned int dst_frame_status;
 	unsigned int dec_frame_status;
 	struct s5p_mfc_buf *src_buf;
-	unsigned long flags;
 	unsigned int res_change;
 
 	dst_frame_status = s5p_mfc_hw_call(dev->mfc_ops, get_dspl_status, dev)
@@ -343,17 +381,16 @@ static void s5p_mfc_handle_frame(struct s5p_mfc_ctx *ctx,
 	if (res_change == S5P_FIMV_RES_INCREASE ||
 		res_change == S5P_FIMV_RES_DECREASE) {
 		ctx->state = MFCINST_RES_CHANGE_INIT;
-		s5p_mfc_hw_call_void(dev->mfc_ops, clear_int_flags, dev);
+		s5p_mfc_hw_call(dev->mfc_ops, clear_int_flags, dev);
 		wake_up_ctx(ctx, reason, err);
 		WARN_ON(test_and_clear_bit(0, &dev->hw_lock) == 0);
 		s5p_mfc_clock_off();
-		s5p_mfc_hw_call_void(dev->mfc_ops, try_run, dev);
+		s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
 		return;
 	}
 	if (ctx->dpb_flush_flag)
 		ctx->dpb_flush_flag = 0;
 
-	spin_lock_irqsave(&dev->irqlock, flags);
 	/* All frames remaining in the buffer have been extracted  */
 	if (dst_frame_status == S5P_FIMV_DEC_STATUS_DECODING_EMPTY) {
 		if (ctx->state == MFCINST_RES_CHANGE_FLUSH) {
@@ -413,11 +450,10 @@ static void s5p_mfc_handle_frame(struct s5p_mfc_ctx *ctx,
 		}
 	}
 leave_handle_frame:
-	spin_unlock_irqrestore(&dev->irqlock, flags);
 	if ((ctx->src_queue_cnt == 0 && ctx->state != MFCINST_FINISHING)
 				    || ctx->dst_queue_cnt < ctx->pb_count)
 		clear_work_bit(ctx);
-	s5p_mfc_hw_call_void(dev->mfc_ops, clear_int_flags, dev);
+	s5p_mfc_hw_call(dev->mfc_ops, clear_int_flags, dev);
 	wake_up_ctx(ctx, reason, err);
 	WARN_ON(test_and_clear_bit(0, &dev->hw_lock) == 0);
 	s5p_mfc_clock_off();
@@ -425,15 +461,13 @@ leave_handle_frame:
 	if (test_bit(0, &dev->enter_suspend))
 		wake_up_dev(dev, reason, err);
 	else
-		s5p_mfc_hw_call_void(dev->mfc_ops, try_run, dev);
+		s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
 }
 
 /* Error handling for interrupt */
 static void s5p_mfc_handle_error(struct s5p_mfc_dev *dev,
 		struct s5p_mfc_ctx *ctx, unsigned int reason, unsigned int err)
 {
-	unsigned long flags;
-
 	mfc_err("Interrupt Error: %08x\n", err);
 
 	if (ctx != NULL) {
@@ -450,13 +484,9 @@ static void s5p_mfc_handle_error(struct s5p_mfc_dev *dev,
 			clear_work_bit(ctx);
 			ctx->state = MFCINST_ERROR;
 			/* Mark all dst buffers as having an error */
-			spin_lock_irqsave(&dev->irqlock, flags);
-			s5p_mfc_hw_call_void(dev->mfc_ops, cleanup_queue,
-						&ctx->dst_queue, &ctx->vq_dst);
+			s5p_mfc_cleanup_queue(&ctx->dst_queue, &ctx->vq_dst);
 			/* Mark all src buffers as having an error */
-			s5p_mfc_hw_call_void(dev->mfc_ops, cleanup_queue,
-						&ctx->src_queue, &ctx->vq_src);
-			spin_unlock_irqrestore(&dev->irqlock, flags);
+			s5p_mfc_cleanup_queue(&ctx->src_queue, &ctx->vq_src);
 			wake_up_ctx(ctx, reason, err);
 			break;
 		default:
@@ -467,10 +497,9 @@ static void s5p_mfc_handle_error(struct s5p_mfc_dev *dev,
 		}
 	}
 	WARN_ON(test_and_clear_bit(0, &dev->hw_lock) == 0);
-	s5p_mfc_hw_call_void(dev->mfc_ops, clear_int_flags, dev);
+	s5p_mfc_hw_call(dev->mfc_ops, clear_int_flags, dev);
 	s5p_mfc_clock_off();
 	wake_up_dev(dev, reason, err);
-	return;
 }
 
 /* Header parsing interrupt handling */
@@ -491,7 +520,7 @@ static void s5p_mfc_handle_seq_done(struct s5p_mfc_ctx *ctx,
 		ctx->img_height = s5p_mfc_hw_call(dev->mfc_ops, get_img_height,
 				dev);
 
-		s5p_mfc_hw_call_void(dev->mfc_ops, dec_calc_dpb_size, ctx);
+		s5p_mfc_hw_call(dev->mfc_ops, dec_calc_dpb_size, ctx);
 
 		ctx->pb_count = s5p_mfc_hw_call(dev->mfc_ops, get_dpb_count,
 				dev);
@@ -518,11 +547,11 @@ static void s5p_mfc_handle_seq_done(struct s5p_mfc_ctx *ctx,
 			ctx->head_processed = 1;
 		}
 	}
-	s5p_mfc_hw_call_void(dev->mfc_ops, clear_int_flags, dev);
+	s5p_mfc_hw_call(dev->mfc_ops, clear_int_flags, dev);
 	clear_work_bit(ctx);
 	WARN_ON(test_and_clear_bit(0, &dev->hw_lock) == 0);
 	s5p_mfc_clock_off();
-	s5p_mfc_hw_call_void(dev->mfc_ops, try_run, dev);
+	s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
 	wake_up_ctx(ctx, reason, err);
 }
 
@@ -532,12 +561,11 @@ static void s5p_mfc_handle_init_buffers(struct s5p_mfc_ctx *ctx,
 {
 	struct s5p_mfc_buf *src_buf;
 	struct s5p_mfc_dev *dev;
-	unsigned long flags;
 
 	if (ctx == NULL)
 		return;
 	dev = ctx->dev;
-	s5p_mfc_hw_call_void(dev->mfc_ops, clear_int_flags, dev);
+	s5p_mfc_hw_call(dev->mfc_ops, clear_int_flags, dev);
 	ctx->int_type = reason;
 	ctx->int_err = err;
 	ctx->int_cond = 1;
@@ -545,7 +573,6 @@ static void s5p_mfc_handle_init_buffers(struct s5p_mfc_ctx *ctx,
 	if (err == 0) {
 		ctx->state = MFCINST_RUNNING;
 		if (!ctx->dpb_flush_flag && ctx->head_processed) {
-			spin_lock_irqsave(&dev->irqlock, flags);
 			if (!list_empty(&ctx->src_queue)) {
 				src_buf = list_entry(ctx->src_queue.next,
 					     struct s5p_mfc_buf, list);
@@ -554,7 +581,6 @@ static void s5p_mfc_handle_init_buffers(struct s5p_mfc_ctx *ctx,
 				vb2_buffer_done(&src_buf->b->vb2_buf,
 						VB2_BUF_STATE_DONE);
 			}
-			spin_unlock_irqrestore(&dev->irqlock, flags);
 		} else {
 			ctx->dpb_flush_flag = 0;
 		}
@@ -563,7 +589,7 @@ static void s5p_mfc_handle_init_buffers(struct s5p_mfc_ctx *ctx,
 		s5p_mfc_clock_off();
 
 		wake_up(&ctx->queue);
-		s5p_mfc_hw_call_void(dev->mfc_ops, try_run, dev);
+		s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
 	} else {
 		WARN_ON(test_and_clear_bit(0, &dev->hw_lock) == 0);
 
@@ -582,7 +608,6 @@ static void s5p_mfc_handle_stream_complete(struct s5p_mfc_ctx *ctx)
 
 	ctx->state = MFCINST_FINISHED;
 
-	spin_lock(&dev->irqlock);
 	if (!list_empty(&ctx->dst_queue)) {
 		mb_entry = list_entry(ctx->dst_queue.next, struct s5p_mfc_buf,
 									list);
@@ -591,7 +616,6 @@ static void s5p_mfc_handle_stream_complete(struct s5p_mfc_ctx *ctx)
 		vb2_set_plane_payload(&mb_entry->b->vb2_buf, 0, 0);
 		vb2_buffer_done(&mb_entry->b->vb2_buf, VB2_BUF_STATE_DONE);
 	}
-	spin_unlock(&dev->irqlock);
 
 	clear_work_bit(ctx);
 
@@ -599,7 +623,7 @@ static void s5p_mfc_handle_stream_complete(struct s5p_mfc_ctx *ctx)
 
 	s5p_mfc_clock_off();
 	wake_up(&ctx->queue);
-	s5p_mfc_hw_call_void(dev->mfc_ops, try_run, dev);
+	s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
 }
 
 /* Interrupt processing */
@@ -613,6 +637,7 @@ static irqreturn_t s5p_mfc_irq(int irq, void *priv)
 	mfc_debug_enter();
 	/* Reset the timeout watchdog */
 	atomic_set(&dev->watchdog_cnt, 0);
+	spin_lock(&dev->irqlock);
 	ctx = dev->ctx[dev->curr_ctx];
 	/* Get the reason of interrupt and the error code */
 	reason = s5p_mfc_hw_call(dev->mfc_ops, get_int_reason, dev);
@@ -622,8 +647,11 @@ static irqreturn_t s5p_mfc_irq(int irq, void *priv)
 	case S5P_MFC_R2H_CMD_ERR_RET:
 		/* An error has occurred */
 		if (ctx->state == MFCINST_RUNNING &&
-			s5p_mfc_hw_call(dev->mfc_ops, err_dec, err) >=
-				dev->warn_start)
+			(s5p_mfc_hw_call(dev->mfc_ops, err_dec, err) >=
+				dev->warn_start ||
+				err == S5P_FIMV_ERR_NO_VALID_SEQ_HDR ||
+				err == S5P_FIMV_ERR_INCOMPLETE_FRAME ||
+				err == S5P_FIMV_ERR_TIMEOUT))
 			s5p_mfc_handle_frame(ctx, reason, err);
 		else
 			s5p_mfc_handle_error(dev, ctx, reason, err);
@@ -639,15 +667,15 @@ static irqreturn_t s5p_mfc_irq(int irq, void *priv)
 
 			if (ctx->state == MFCINST_FINISHING &&
 						list_empty(&ctx->ref_queue)) {
-				s5p_mfc_hw_call_void(dev->mfc_ops, clear_int_flags, dev);
+				s5p_mfc_hw_call(dev->mfc_ops, clear_int_flags, dev);
 				s5p_mfc_handle_stream_complete(ctx);
 				break;
 			}
-			s5p_mfc_hw_call_void(dev->mfc_ops, clear_int_flags, dev);
-			wake_up_ctx(ctx, reason, err);
+			s5p_mfc_hw_call(dev->mfc_ops, clear_int_flags, dev);
 			WARN_ON(test_and_clear_bit(0, &dev->hw_lock) == 0);
 			s5p_mfc_clock_off();
-			s5p_mfc_hw_call_void(dev->mfc_ops, try_run, dev);
+			wake_up_ctx(ctx, reason, err);
+			s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
 		} else {
 			s5p_mfc_handle_frame(ctx, reason, err);
 		}
@@ -660,15 +688,11 @@ static irqreturn_t s5p_mfc_irq(int irq, void *priv)
 	case S5P_MFC_R2H_CMD_OPEN_INSTANCE_RET:
 		ctx->inst_no = s5p_mfc_hw_call(dev->mfc_ops, get_inst_no, dev);
 		ctx->state = MFCINST_GOT_INST;
-		clear_work_bit(ctx);
-		wake_up(&ctx->queue);
 		goto irq_cleanup_hw;
 
 	case S5P_MFC_R2H_CMD_CLOSE_INSTANCE_RET:
-		clear_work_bit(ctx);
 		ctx->inst_no = MFC_NO_INSTANCE_SET;
 		ctx->state = MFCINST_FREE;
-		wake_up(&ctx->queue);
 		goto irq_cleanup_hw;
 
 	case S5P_MFC_R2H_CMD_SYS_INIT_RET:
@@ -677,10 +701,10 @@ static irqreturn_t s5p_mfc_irq(int irq, void *priv)
 	case S5P_MFC_R2H_CMD_WAKEUP_RET:
 		if (ctx)
 			clear_work_bit(ctx);
-		s5p_mfc_hw_call_void(dev->mfc_ops, clear_int_flags, dev);
-		wake_up_dev(dev, reason, err);
+		s5p_mfc_hw_call(dev->mfc_ops, clear_int_flags, dev);
 		clear_bit(0, &dev->hw_lock);
 		clear_bit(0, &dev->enter_suspend);
+		wake_up_dev(dev, reason, err);
 		break;
 
 	case S5P_MFC_R2H_CMD_INIT_BUFFERS_RET:
@@ -688,26 +712,25 @@ static irqreturn_t s5p_mfc_irq(int irq, void *priv)
 		break;
 
 	case S5P_MFC_R2H_CMD_COMPLETE_SEQ_RET:
-		s5p_mfc_hw_call_void(dev->mfc_ops, clear_int_flags, dev);
+		s5p_mfc_hw_call(dev->mfc_ops, clear_int_flags, dev);
 		ctx->int_type = reason;
 		ctx->int_err = err;
 		s5p_mfc_handle_stream_complete(ctx);
 		break;
 
 	case S5P_MFC_R2H_CMD_DPB_FLUSH_RET:
-		clear_work_bit(ctx);
 		ctx->state = MFCINST_RUNNING;
-		wake_up(&ctx->queue);
 		goto irq_cleanup_hw;
 
 	default:
 		mfc_debug(2, "Unknown int reason\n");
-		s5p_mfc_hw_call_void(dev->mfc_ops, clear_int_flags, dev);
+		s5p_mfc_hw_call(dev->mfc_ops, clear_int_flags, dev);
 	}
+	spin_unlock(&dev->irqlock);
 	mfc_debug_leave();
 	return IRQ_HANDLED;
 irq_cleanup_hw:
-	s5p_mfc_hw_call_void(dev->mfc_ops, clear_int_flags, dev);
+	s5p_mfc_hw_call(dev->mfc_ops, clear_int_flags, dev);
 	ctx->int_type = reason;
 	ctx->int_err = err;
 	ctx->int_cond = 1;
@@ -715,8 +738,11 @@ irq_cleanup_hw:
 		mfc_err("Failed to unlock hw\n");
 
 	s5p_mfc_clock_off();
+	clear_work_bit(ctx);
+	wake_up(&ctx->queue);
 
-	s5p_mfc_hw_call_void(dev->mfc_ops, try_run, dev);
+	s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
+	spin_unlock(&dev->irqlock);
 	mfc_debug(2, "Exit via irq_cleanup_hw\n");
 	return IRQ_HANDLED;
 }
@@ -737,10 +763,10 @@ static int s5p_mfc_open(struct file *file)
 	/* Allocate memory for context */
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
-		mfc_err("Not enough memory\n");
 		ret = -ENOMEM;
 		goto err_alloc;
 	}
+	init_waitqueue_head(&ctx->queue);
 	v4l2_fh_init(&ctx->fh, vdev);
 	file->private_data = &ctx->fh;
 	v4l2_fh_add(&ctx->fh);
@@ -754,7 +780,7 @@ static int s5p_mfc_open(struct file *file)
 	while (dev->ctx[ctx->num]) {
 		ctx->num++;
 		if (ctx->num >= MFC_NUM_CONTEXTS) {
-			mfc_err("Too many open contexts\n");
+			mfc_debug(2, "Too many open contexts\n");
 			ret = -EBUSY;
 			goto err_no_ctx;
 		}
@@ -828,6 +854,11 @@ static int s5p_mfc_open(struct file *file)
 		ret = -ENOENT;
 		goto err_queue_init;
 	}
+	/*
+	 * We'll do mostly sequential access, so sacrifice TLB efficiency for
+	 * faster allocation.
+	 */
+	q->dma_attrs = DMA_ATTR_ALLOC_SINGLE_PAGES;
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	ret = vb2_queue_init(q);
@@ -838,7 +869,6 @@ static int s5p_mfc_open(struct file *file)
 	/* Init videobuf2 queue for OUTPUT */
 	q = &ctx->vq_src;
 	q->type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
-	q->io_modes = VB2_MMAP;
 	q->drv_priv = &ctx->fh;
 	q->lock = &dev->mfc_mutex;
 	if (vdev == dev->vfd_dec) {
@@ -858,6 +888,12 @@ static int s5p_mfc_open(struct file *file)
 	 * will keep the value of bytesused intact.
 	 */
 	q->allow_zero_bytesused = 1;
+
+	/*
+	 * We'll do mostly sequential access, so sacrifice TLB efficiency for
+	 * faster allocation.
+	 */
+	q->dma_attrs = DMA_ATTR_ALLOC_SINGLE_PAGES;
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	ret = vb2_queue_init(q);
@@ -865,7 +901,6 @@ static int s5p_mfc_open(struct file *file)
 		mfc_err("Failed to initialize videobuf2 queue(output)\n");
 		goto err_queue_init;
 	}
-	init_waitqueue_head(&ctx->queue);
 	mutex_unlock(&dev->mfc_mutex);
 	mfc_debug_leave();
 	return ret;
@@ -902,39 +937,53 @@ static int s5p_mfc_release(struct file *file)
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(file->private_data);
 	struct s5p_mfc_dev *dev = ctx->dev;
 
+	/* if dev is null, do cleanup that doesn't need dev */
 	mfc_debug_enter();
-	mutex_lock(&dev->mfc_mutex);
-	s5p_mfc_clock_on();
+	if (dev)
+		mutex_lock(&dev->mfc_mutex);
 	vb2_queue_release(&ctx->vq_src);
 	vb2_queue_release(&ctx->vq_dst);
-	/* Mark context as idle */
-	clear_work_bit_irqsave(ctx);
-	/* If instance was initialised and not yet freed,
-	 * return instance and free resources */
-	if (ctx->state != MFCINST_FREE && ctx->state != MFCINST_INIT) {
-		mfc_debug(2, "Has to free instance\n");
-		s5p_mfc_close_mfc_inst(dev, ctx);
+	if (dev) {
+		s5p_mfc_clock_on();
+
+		/* Mark context as idle */
+		clear_work_bit_irqsave(ctx);
+		/*
+		 * If instance was initialised and not yet freed,
+		 * return instance and free resources
+		*/
+		if (ctx->state != MFCINST_FREE && ctx->state != MFCINST_INIT) {
+			mfc_debug(2, "Has to free instance\n");
+			s5p_mfc_close_mfc_inst(dev, ctx);
+		}
+		/* hardware locking scheme */
+		if (dev->curr_ctx == ctx->num)
+			clear_bit(0, &dev->hw_lock);
+		dev->num_inst--;
+		if (dev->num_inst == 0) {
+			mfc_debug(2, "Last instance\n");
+			s5p_mfc_deinit_hw(dev);
+			del_timer_sync(&dev->watchdog_timer);
+			s5p_mfc_clock_off();
+			if (s5p_mfc_power_off() < 0)
+				mfc_err("Power off failed\n");
+		} else {
+			mfc_debug(2, "Shutting down clock\n");
+			s5p_mfc_clock_off();
+		}
 	}
-	/* hardware locking scheme */
-	if (dev->curr_ctx == ctx->num)
-		clear_bit(0, &dev->hw_lock);
-	dev->num_inst--;
-	if (dev->num_inst == 0) {
-		mfc_debug(2, "Last instance\n");
-		s5p_mfc_deinit_hw(dev);
-		del_timer_sync(&dev->watchdog_timer);
-		if (s5p_mfc_power_off() < 0)
-			mfc_err("Power off failed\n");
-	}
-	mfc_debug(2, "Shutting down clock\n");
-	s5p_mfc_clock_off();
-	dev->ctx[ctx->num] = NULL;
+	if (dev)
+		dev->ctx[ctx->num] = NULL;
 	s5p_mfc_dec_ctrls_delete(ctx);
 	v4l2_fh_del(&ctx->fh);
-	v4l2_fh_exit(&ctx->fh);
+	/* vdev is gone if dev is null */
+	if (dev)
+		v4l2_fh_exit(&ctx->fh);
 	kfree(ctx);
 	mfc_debug_leave();
-	mutex_unlock(&dev->mfc_mutex);
+	if (dev)
+		mutex_unlock(&dev->mfc_mutex);
+
 	return 0;
 }
 
@@ -1022,53 +1071,193 @@ static const struct v4l2_file_operations s5p_mfc_fops = {
 	.mmap = s5p_mfc_mmap,
 };
 
-static int match_child(struct device *dev, void *data)
+/* DMA memory related helper functions */
+static void s5p_mfc_memdev_release(struct device *dev)
 {
-	if (!dev_name(dev))
-		return 0;
-	return !strcmp(dev_name(dev), (char *)data);
+	of_reserved_mem_device_release(dev);
 }
 
-static void *mfc_get_drv_data(struct platform_device *pdev);
-
-static int s5p_mfc_alloc_memdevs(struct s5p_mfc_dev *dev)
+static struct device *s5p_mfc_alloc_memdev(struct device *dev,
+					   const char *name, unsigned int idx)
 {
-	unsigned int mem_info[2] = { };
+	struct device *child;
+	int ret;
 
-	dev->mem_dev_l = devm_kzalloc(&dev->plat_dev->dev,
-			sizeof(struct device), GFP_KERNEL);
-	if (!dev->mem_dev_l) {
-		mfc_err("Not enough memory\n");
-		return -ENOMEM;
+	child = devm_kzalloc(dev, sizeof(struct device), GFP_KERNEL);
+	if (!child)
+		return NULL;
+
+	device_initialize(child);
+	dev_set_name(child, "%s:%s", dev_name(dev), name);
+	child->parent = dev;
+	child->bus = dev->bus;
+	child->coherent_dma_mask = dev->coherent_dma_mask;
+	child->dma_mask = dev->dma_mask;
+	child->release = s5p_mfc_memdev_release;
+
+	if (device_add(child) == 0) {
+		ret = of_reserved_mem_device_init_by_idx(child, dev->of_node,
+							 idx);
+		if (ret == 0)
+			return child;
+		device_del(child);
 	}
-	device_initialize(dev->mem_dev_l);
-	of_property_read_u32_array(dev->plat_dev->dev.of_node,
-			"samsung,mfc-l", mem_info, 2);
-	if (dma_declare_coherent_memory(dev->mem_dev_l, mem_info[0],
-				mem_info[0], mem_info[1],
-				DMA_MEMORY_MAP | DMA_MEMORY_EXCLUSIVE) == 0) {
-		mfc_err("Failed to declare coherent memory for\n"
-		"MFC device\n");
+
+	put_device(child);
+	return NULL;
+}
+
+static int s5p_mfc_configure_2port_memory(struct s5p_mfc_dev *mfc_dev)
+{
+	struct device *dev = &mfc_dev->plat_dev->dev;
+	void *bank2_virt;
+	dma_addr_t bank2_dma_addr;
+	unsigned long align_size = 1 << MFC_BASE_ALIGN_ORDER;
+	int ret;
+
+	/*
+	 * Create and initialize virtual devices for accessing
+	 * reserved memory regions.
+	 */
+	mfc_dev->mem_dev[BANK_L_CTX] = s5p_mfc_alloc_memdev(dev, "left",
+							   BANK_L_CTX);
+	if (!mfc_dev->mem_dev[BANK_L_CTX])
+		return -ENODEV;
+	mfc_dev->mem_dev[BANK_R_CTX] = s5p_mfc_alloc_memdev(dev, "right",
+							   BANK_R_CTX);
+	if (!mfc_dev->mem_dev[BANK_R_CTX]) {
+		device_unregister(mfc_dev->mem_dev[BANK_L_CTX]);
+		return -ENODEV;
+	}
+
+	/* Allocate memory for firmware and initialize both banks addresses */
+	ret = s5p_mfc_alloc_firmware(mfc_dev);
+	if (ret) {
+		device_unregister(mfc_dev->mem_dev[BANK_R_CTX]);
+		device_unregister(mfc_dev->mem_dev[BANK_L_CTX]);
+		return ret;
+	}
+
+	mfc_dev->dma_base[BANK_L_CTX] = mfc_dev->fw_buf.dma;
+
+	bank2_virt = dma_alloc_coherent(mfc_dev->mem_dev[BANK_R_CTX],
+				       align_size, &bank2_dma_addr, GFP_KERNEL);
+	if (!bank2_virt) {
+		mfc_err("Allocating bank2 base failed\n");
+		s5p_mfc_release_firmware(mfc_dev);
+		device_unregister(mfc_dev->mem_dev[BANK_R_CTX]);
+		device_unregister(mfc_dev->mem_dev[BANK_L_CTX]);
 		return -ENOMEM;
 	}
 
-	dev->mem_dev_r = devm_kzalloc(&dev->plat_dev->dev,
-			sizeof(struct device), GFP_KERNEL);
-	if (!dev->mem_dev_r) {
-		mfc_err("Not enough memory\n");
-		return -ENOMEM;
-	}
-	device_initialize(dev->mem_dev_r);
-	of_property_read_u32_array(dev->plat_dev->dev.of_node,
-			"samsung,mfc-r", mem_info, 2);
-	if (dma_declare_coherent_memory(dev->mem_dev_r, mem_info[0],
-				mem_info[0], mem_info[1],
-				DMA_MEMORY_MAP | DMA_MEMORY_EXCLUSIVE) == 0) {
-		pr_err("Failed to declare coherent memory for\n"
-		"MFC device\n");
-		return -ENOMEM;
-	}
+	/* Valid buffers passed to MFC encoder with LAST_FRAME command
+	 * should not have address of bank2 - MFC will treat it as a null frame.
+	 * To avoid such situation we set bank2 address below the pool address.
+	 */
+	mfc_dev->dma_base[BANK_R_CTX] = bank2_dma_addr - align_size;
+
+	dma_free_coherent(mfc_dev->mem_dev[BANK_R_CTX], align_size, bank2_virt,
+			  bank2_dma_addr);
+
+	vb2_dma_contig_set_max_seg_size(mfc_dev->mem_dev[BANK_L_CTX],
+					DMA_BIT_MASK(32));
+	vb2_dma_contig_set_max_seg_size(mfc_dev->mem_dev[BANK_R_CTX],
+					DMA_BIT_MASK(32));
+
 	return 0;
+}
+
+static void s5p_mfc_unconfigure_2port_memory(struct s5p_mfc_dev *mfc_dev)
+{
+	device_unregister(mfc_dev->mem_dev[BANK_L_CTX]);
+	device_unregister(mfc_dev->mem_dev[BANK_R_CTX]);
+	vb2_dma_contig_clear_max_seg_size(mfc_dev->mem_dev[BANK_L_CTX]);
+	vb2_dma_contig_clear_max_seg_size(mfc_dev->mem_dev[BANK_R_CTX]);
+}
+
+static int s5p_mfc_configure_common_memory(struct s5p_mfc_dev *mfc_dev)
+{
+	struct device *dev = &mfc_dev->plat_dev->dev;
+	unsigned long mem_size = SZ_4M;
+	unsigned int bitmap_size;
+
+	if (IS_ENABLED(CONFIG_DMA_CMA) || exynos_is_iommu_available(dev))
+		mem_size = SZ_8M;
+
+	if (mfc_mem_size)
+		mem_size = memparse(mfc_mem_size, NULL);
+
+	bitmap_size = BITS_TO_LONGS(mem_size >> PAGE_SHIFT) * sizeof(long);
+
+	mfc_dev->mem_bitmap = kzalloc(bitmap_size, GFP_KERNEL);
+	if (!mfc_dev->mem_bitmap)
+		return -ENOMEM;
+
+	mfc_dev->mem_virt = dma_alloc_coherent(dev, mem_size,
+					       &mfc_dev->mem_base, GFP_KERNEL);
+	if (!mfc_dev->mem_virt) {
+		kfree(mfc_dev->mem_bitmap);
+		dev_err(dev, "failed to preallocate %ld MiB for the firmware and context buffers\n",
+			(mem_size / SZ_1M));
+		return -ENOMEM;
+	}
+	mfc_dev->mem_size = mem_size;
+	mfc_dev->dma_base[BANK_L_CTX] = mfc_dev->mem_base;
+	mfc_dev->dma_base[BANK_R_CTX] = mfc_dev->mem_base;
+
+	/*
+	 * MFC hardware cannot handle 0 as a base address, so mark first 128K
+	 * as used (to keep required base alignment) and adjust base address
+	 */
+	if (mfc_dev->mem_base == (dma_addr_t)0) {
+		unsigned int offset = 1 << MFC_BASE_ALIGN_ORDER;
+
+		bitmap_set(mfc_dev->mem_bitmap, 0, offset >> PAGE_SHIFT);
+		mfc_dev->dma_base[BANK_L_CTX] += offset;
+		mfc_dev->dma_base[BANK_R_CTX] += offset;
+	}
+
+	/* Firmware allocation cannot fail in this case */
+	s5p_mfc_alloc_firmware(mfc_dev);
+
+	mfc_dev->mem_dev[BANK_L_CTX] = mfc_dev->mem_dev[BANK_R_CTX] = dev;
+	vb2_dma_contig_set_max_seg_size(dev, DMA_BIT_MASK(32));
+
+	dev_info(dev, "preallocated %ld MiB buffer for the firmware and context buffers\n",
+		 (mem_size / SZ_1M));
+
+	return 0;
+}
+
+static void s5p_mfc_unconfigure_common_memory(struct s5p_mfc_dev *mfc_dev)
+{
+	struct device *dev = &mfc_dev->plat_dev->dev;
+
+	dma_free_coherent(dev, mfc_dev->mem_size, mfc_dev->mem_virt,
+			  mfc_dev->mem_base);
+	kfree(mfc_dev->mem_bitmap);
+	vb2_dma_contig_clear_max_seg_size(dev);
+}
+
+static int s5p_mfc_configure_dma_memory(struct s5p_mfc_dev *mfc_dev)
+{
+	struct device *dev = &mfc_dev->plat_dev->dev;
+
+	if (exynos_is_iommu_available(dev) || !IS_TWOPORT(mfc_dev))
+		return s5p_mfc_configure_common_memory(mfc_dev);
+	else
+		return s5p_mfc_configure_2port_memory(mfc_dev);
+}
+
+static void s5p_mfc_unconfigure_dma_memory(struct s5p_mfc_dev *mfc_dev)
+{
+	struct device *dev = &mfc_dev->plat_dev->dev;
+
+	s5p_mfc_release_firmware(mfc_dev);
+	if (exynos_is_iommu_available(dev) || !IS_TWOPORT(mfc_dev))
+		s5p_mfc_unconfigure_common_memory(mfc_dev);
+	else
+		s5p_mfc_unconfigure_2port_memory(mfc_dev);
 }
 
 /* MFC probe function */
@@ -1094,16 +1283,9 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	dev->variant = mfc_get_drv_data(pdev);
-
-	ret = s5p_mfc_init_pm(dev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to get mfc clock source\n");
-		return ret;
-	}
+	dev->variant = of_device_get_match_data(&pdev->dev);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
 	dev->regs_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(dev->regs_base))
 		return PTR_ERR(dev->regs_base);
@@ -1111,59 +1293,40 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (res == NULL) {
 		dev_err(&pdev->dev, "failed to get irq resource\n");
-		ret = -ENOENT;
-		goto err_res;
+		return -ENOENT;
 	}
 	dev->irq = res->start;
 	ret = devm_request_irq(&pdev->dev, dev->irq, s5p_mfc_irq,
 					0, pdev->name, dev);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to install irq (%d)\n", ret);
-		goto err_res;
+		return ret;
 	}
 
-	if (pdev->dev.of_node) {
-		ret = s5p_mfc_alloc_memdevs(dev);
-		if (ret < 0)
-			goto err_res;
-	} else {
-		dev->mem_dev_l = device_find_child(&dev->plat_dev->dev,
-				"s5p-mfc-l", match_child);
-		if (!dev->mem_dev_l) {
-			mfc_err("Mem child (L) device get failed\n");
-			ret = -ENODEV;
-			goto err_res;
-		}
-		dev->mem_dev_r = device_find_child(&dev->plat_dev->dev,
-				"s5p-mfc-r", match_child);
-		if (!dev->mem_dev_r) {
-			mfc_err("Mem child (R) device get failed\n");
-			ret = -ENODEV;
-			goto err_res;
-		}
+	ret = s5p_mfc_configure_dma_memory(dev);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to configure DMA memory\n");
+		return ret;
 	}
 
-	dev->alloc_ctx[0] = vb2_dma_contig_init_ctx(dev->mem_dev_l);
-	if (IS_ERR(dev->alloc_ctx[0])) {
-		ret = PTR_ERR(dev->alloc_ctx[0]);
-		goto err_res;
-	}
-	dev->alloc_ctx[1] = vb2_dma_contig_init_ctx(dev->mem_dev_r);
-	if (IS_ERR(dev->alloc_ctx[1])) {
-		ret = PTR_ERR(dev->alloc_ctx[1]);
-		goto err_mem_init_ctx_1;
+	ret = s5p_mfc_init_pm(dev);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to get mfc clock source\n");
+		goto err_dma;
 	}
 
 	mutex_init(&dev->mfc_mutex);
-
-	ret = s5p_mfc_alloc_firmware(dev);
-	if (ret)
-		goto err_alloc_fw;
+	init_waitqueue_head(&dev->queue);
+	dev->hw_lock = 0;
+	INIT_WORK(&dev->watchdog_work, s5p_mfc_watchdog_worker);
+	atomic_set(&dev->watchdog_cnt, 0);
+	init_timer(&dev->watchdog_timer);
+	dev->watchdog_timer.data = (unsigned long)dev;
+	dev->watchdog_timer.function = s5p_mfc_watchdog;
 
 	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
 	if (ret)
 		goto err_v4l2_dev_reg;
-	init_waitqueue_head(&dev->queue);
 
 	/* decoder */
 	vfd = video_device_alloc();
@@ -1180,14 +1343,6 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	vfd->vfl_dir	= VFL_DIR_M2M;
 	snprintf(vfd->name, sizeof(vfd->name), "%s", S5P_MFC_DEC_NAME);
 	dev->vfd_dec	= vfd;
-	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
-	if (ret) {
-		v4l2_err(&dev->v4l2_dev, "Failed to register video device\n");
-		video_device_release(vfd);
-		goto err_dec_reg;
-	}
-	v4l2_info(&dev->v4l2_dev,
-		  "decoder registered as /dev/video%d\n", vfd->num);
 	video_set_drvdata(vfd, dev);
 
 	/* encoder */
@@ -1205,50 +1360,47 @@ static int s5p_mfc_probe(struct platform_device *pdev)
 	vfd->vfl_dir	= VFL_DIR_M2M;
 	snprintf(vfd->name, sizeof(vfd->name), "%s", S5P_MFC_ENC_NAME);
 	dev->vfd_enc	= vfd;
-	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
-	if (ret) {
-		v4l2_err(&dev->v4l2_dev, "Failed to register video device\n");
-		video_device_release(vfd);
-		goto err_enc_reg;
-	}
-	v4l2_info(&dev->v4l2_dev,
-		  "encoder registered as /dev/video%d\n", vfd->num);
 	video_set_drvdata(vfd, dev);
 	platform_set_drvdata(pdev, dev);
-
-	dev->hw_lock = 0;
-	dev->watchdog_workqueue = create_singlethread_workqueue(S5P_MFC_NAME);
-	INIT_WORK(&dev->watchdog_work, s5p_mfc_watchdog_worker);
-	atomic_set(&dev->watchdog_cnt, 0);
-	init_timer(&dev->watchdog_timer);
-	dev->watchdog_timer.data = (unsigned long)dev;
-	dev->watchdog_timer.function = s5p_mfc_watchdog;
 
 	/* Initialize HW ops and commands based on MFC version */
 	s5p_mfc_init_hw_ops(dev);
 	s5p_mfc_init_hw_cmds(dev);
 	s5p_mfc_init_regs(dev);
 
+	/* Register decoder and encoder */
+	ret = video_register_device(dev->vfd_dec, VFL_TYPE_GRABBER, 0);
+	if (ret) {
+		v4l2_err(&dev->v4l2_dev, "Failed to register video device\n");
+		goto err_dec_reg;
+	}
+	v4l2_info(&dev->v4l2_dev,
+		  "decoder registered as /dev/video%d\n", dev->vfd_dec->num);
+
+	ret = video_register_device(dev->vfd_enc, VFL_TYPE_GRABBER, 0);
+	if (ret) {
+		v4l2_err(&dev->v4l2_dev, "Failed to register video device\n");
+		goto err_enc_reg;
+	}
+	v4l2_info(&dev->v4l2_dev,
+		  "encoder registered as /dev/video%d\n", dev->vfd_enc->num);
+
 	pr_debug("%s--\n", __func__);
 	return 0;
 
 /* Deinit MFC if probe had failed */
 err_enc_reg:
-	video_device_release(dev->vfd_enc);
-err_enc_alloc:
 	video_unregister_device(dev->vfd_dec);
 err_dec_reg:
+	video_device_release(dev->vfd_enc);
+err_enc_alloc:
 	video_device_release(dev->vfd_dec);
 err_dec_alloc:
 	v4l2_device_unregister(&dev->v4l2_dev);
 err_v4l2_dev_reg:
-	s5p_mfc_release_firmware(dev);
-err_alloc_fw:
-	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx[1]);
-err_mem_init_ctx_1:
-	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx[0]);
-err_res:
 	s5p_mfc_final_pm(dev);
+err_dma:
+	s5p_mfc_unconfigure_dma_memory(dev);
 
 	pr_debug("%s-- with error\n", __func__);
 	return ret;
@@ -1259,23 +1411,35 @@ err_res:
 static int s5p_mfc_remove(struct platform_device *pdev)
 {
 	struct s5p_mfc_dev *dev = platform_get_drvdata(pdev);
+	struct s5p_mfc_ctx *ctx;
+	int i;
 
 	v4l2_info(&dev->v4l2_dev, "Removing %s\n", pdev->name);
 
+	/*
+	 * Clear ctx dev pointer to avoid races between s5p_mfc_remove()
+	 * and s5p_mfc_release() and s5p_mfc_release() accessing ctx->dev
+	 * after s5p_mfc_remove() is run during unbind.
+	*/
+	mutex_lock(&dev->mfc_mutex);
+	for (i = 0; i < MFC_NUM_CONTEXTS; i++) {
+		ctx = dev->ctx[i];
+		if (!ctx)
+			continue;
+		/* clear ctx->dev */
+		ctx->dev = NULL;
+	}
+	mutex_unlock(&dev->mfc_mutex);
+
 	del_timer_sync(&dev->watchdog_timer);
-	flush_workqueue(dev->watchdog_workqueue);
-	destroy_workqueue(dev->watchdog_workqueue);
+	flush_work(&dev->watchdog_work);
 
 	video_unregister_device(dev->vfd_enc);
 	video_unregister_device(dev->vfd_dec);
+	video_device_release(dev->vfd_enc);
+	video_device_release(dev->vfd_dec);
 	v4l2_device_unregister(&dev->v4l2_dev);
-	s5p_mfc_release_firmware(dev);
-	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx[0]);
-	vb2_dma_contig_cleanup_ctx(dev->alloc_ctx[1]);
-	if (pdev->dev.of_node) {
-		put_device(dev->mem_dev_l);
-		put_device(dev->mem_dev_r);
-	}
+	s5p_mfc_unconfigure_dma_memory(dev);
 
 	s5p_mfc_final_pm(dev);
 	return 0;
@@ -1329,31 +1493,9 @@ static int s5p_mfc_resume(struct device *dev)
 }
 #endif
 
-#ifdef CONFIG_PM
-static int s5p_mfc_runtime_suspend(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct s5p_mfc_dev *m_dev = platform_get_drvdata(pdev);
-
-	atomic_set(&m_dev->pm.power, 0);
-	return 0;
-}
-
-static int s5p_mfc_runtime_resume(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct s5p_mfc_dev *m_dev = platform_get_drvdata(pdev);
-
-	atomic_set(&m_dev->pm.power, 1);
-	return 0;
-}
-#endif
-
 /* Power management */
 static const struct dev_pm_ops s5p_mfc_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(s5p_mfc_suspend, s5p_mfc_resume)
-	SET_RUNTIME_PM_OPS(s5p_mfc_runtime_suspend, s5p_mfc_runtime_resume,
-			   NULL)
 };
 
 static struct s5p_mfc_buf_size_v5 mfc_buf_size_v5 = {
@@ -1369,17 +1511,15 @@ static struct s5p_mfc_buf_size buf_size_v5 = {
 	.priv	= &mfc_buf_size_v5,
 };
 
-static struct s5p_mfc_buf_align mfc_buf_align_v5 = {
-	.base = MFC_BASE_ALIGN_ORDER,
-};
-
 static struct s5p_mfc_variant mfc_drvdata_v5 = {
 	.version	= MFC_VERSION,
 	.version_bit	= MFC_V5_BIT,
 	.port_num	= MFC_NUM_PORTS,
 	.buf_size	= &buf_size_v5,
-	.buf_align	= &mfc_buf_align_v5,
 	.fw_name[0]	= "s5p-mfc.fw",
+	.clk_names	= {"mfc", "sclk_mfc"},
+	.num_clocks	= 2,
+	.use_clock_gating = true,
 };
 
 static struct s5p_mfc_buf_size_v6 mfc_buf_size_v6 = {
@@ -1396,22 +1536,19 @@ static struct s5p_mfc_buf_size buf_size_v6 = {
 	.priv	= &mfc_buf_size_v6,
 };
 
-static struct s5p_mfc_buf_align mfc_buf_align_v6 = {
-	.base = 0,
-};
-
 static struct s5p_mfc_variant mfc_drvdata_v6 = {
 	.version	= MFC_VERSION_V6,
 	.version_bit	= MFC_V6_BIT,
 	.port_num	= MFC_NUM_PORTS_V6,
 	.buf_size	= &buf_size_v6,
-	.buf_align	= &mfc_buf_align_v6,
 	.fw_name[0]     = "s5p-mfc-v6.fw",
 	/*
 	 * v6-v2 firmware contains bug fixes and interface change
 	 * for init buffer command
 	 */
 	.fw_name[1]     = "s5p-mfc-v6-v2.fw",
+	.clk_names	= {"mfc"},
+	.num_clocks	= 1,
 };
 
 static struct s5p_mfc_buf_size_v6 mfc_buf_size_v7 = {
@@ -1428,17 +1565,14 @@ static struct s5p_mfc_buf_size buf_size_v7 = {
 	.priv	= &mfc_buf_size_v7,
 };
 
-static struct s5p_mfc_buf_align mfc_buf_align_v7 = {
-	.base = 0,
-};
-
 static struct s5p_mfc_variant mfc_drvdata_v7 = {
 	.version	= MFC_VERSION_V7,
 	.version_bit	= MFC_V7_BIT,
 	.port_num	= MFC_NUM_PORTS_V7,
 	.buf_size	= &buf_size_v7,
-	.buf_align	= &mfc_buf_align_v7,
 	.fw_name[0]     = "s5p-mfc-v7.fw",
+	.clk_names	= {"mfc", "sclk_mfc"},
+	.num_clocks	= 2,
 };
 
 static struct s5p_mfc_buf_size_v6 mfc_buf_size_v8 = {
@@ -1455,39 +1589,25 @@ static struct s5p_mfc_buf_size buf_size_v8 = {
 	.priv	= &mfc_buf_size_v8,
 };
 
-static struct s5p_mfc_buf_align mfc_buf_align_v8 = {
-	.base = 0,
-};
-
 static struct s5p_mfc_variant mfc_drvdata_v8 = {
 	.version	= MFC_VERSION_V8,
 	.version_bit	= MFC_V8_BIT,
 	.port_num	= MFC_NUM_PORTS_V8,
 	.buf_size	= &buf_size_v8,
-	.buf_align	= &mfc_buf_align_v8,
 	.fw_name[0]     = "s5p-mfc-v8.fw",
+	.clk_names	= {"mfc"},
+	.num_clocks	= 1,
 };
 
-static const struct platform_device_id mfc_driver_ids[] = {
-	{
-		.name = "s5p-mfc",
-		.driver_data = (unsigned long)&mfc_drvdata_v5,
-	}, {
-		.name = "s5p-mfc-v5",
-		.driver_data = (unsigned long)&mfc_drvdata_v5,
-	}, {
-		.name = "s5p-mfc-v6",
-		.driver_data = (unsigned long)&mfc_drvdata_v6,
-	}, {
-		.name = "s5p-mfc-v7",
-		.driver_data = (unsigned long)&mfc_drvdata_v7,
-	}, {
-		.name = "s5p-mfc-v8",
-		.driver_data = (unsigned long)&mfc_drvdata_v8,
-	},
-	{},
+static struct s5p_mfc_variant mfc_drvdata_v8_5433 = {
+	.version	= MFC_VERSION_V8,
+	.version_bit	= MFC_V8_BIT,
+	.port_num	= MFC_NUM_PORTS_V8,
+	.buf_size	= &buf_size_v8,
+	.fw_name[0]     = "s5p-mfc-v8.fw",
+	.clk_names	= {"pclk", "aclk", "aclk_xiu"},
+	.num_clocks	= 3,
 };
-MODULE_DEVICE_TABLE(platform, mfc_driver_ids);
 
 static const struct of_device_id exynos_mfc_match[] = {
 	{
@@ -1502,32 +1622,17 @@ static const struct of_device_id exynos_mfc_match[] = {
 	}, {
 		.compatible = "samsung,mfc-v8",
 		.data = &mfc_drvdata_v8,
+	}, {
+		.compatible = "samsung,exynos5433-mfc",
+		.data = &mfc_drvdata_v8_5433,
 	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, exynos_mfc_match);
 
-static void *mfc_get_drv_data(struct platform_device *pdev)
-{
-	struct s5p_mfc_variant *driver_data = NULL;
-
-	if (pdev->dev.of_node) {
-		const struct of_device_id *match;
-		match = of_match_node(exynos_mfc_match,
-				pdev->dev.of_node);
-		if (match)
-			driver_data = (struct s5p_mfc_variant *)match->data;
-	} else {
-		driver_data = (struct s5p_mfc_variant *)
-			platform_get_device_id(pdev)->driver_data;
-	}
-	return driver_data;
-}
-
 static struct platform_driver s5p_mfc_driver = {
 	.probe		= s5p_mfc_probe,
 	.remove		= s5p_mfc_remove,
-	.id_table	= mfc_driver_ids,
 	.driver	= {
 		.name	= S5P_MFC_NAME,
 		.pm	= &s5p_mfc_pm_ops,

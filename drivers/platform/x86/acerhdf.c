@@ -405,7 +405,7 @@ static inline void acerhdf_enable_kernelmode(void)
 	kernelmode = 1;
 
 	thz_dev->polling_delay = interval*1000;
-	thermal_zone_device_update(thz_dev);
+	thermal_zone_device_update(thz_dev, THERMAL_EVENT_UNSPECIFIED);
 	pr_notice("kernel mode fan control ON\n");
 }
 
@@ -557,7 +557,7 @@ err_out:
 }
 
 /* bind fan callbacks to fan device */
-static struct thermal_cooling_device_ops acerhdf_cooling_ops = {
+static const struct thermal_cooling_device_ops acerhdf_cooling_ops = {
 	.get_max_state = acerhdf_get_max_state,
 	.get_cur_state = acerhdf_get_cur_state,
 	.set_cur_state = acerhdf_set_cur_state,

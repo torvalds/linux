@@ -52,22 +52,56 @@
 
 / {
 	model = "NextThing C.H.I.P.";
-	compatible = "nextthing,chip", "allwinner,sun5i-r8";
+	compatible = "nextthing,chip", "allwinner,sun5i-r8", "allwinner,sun5i-a13";
 
 	aliases {
 		i2c0 = &i2c0;
+		i2c1 = &i2c1;
 		i2c2 = &i2c2;
 		serial0 = &uart1;
 		serial1 = &uart3;
+		spi0 = &spi2;
 	};
 
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		status {
+			label = "chip:white:status";
+			gpios = <&axp_gpio 2 GPIO_ACTIVE_HIGH>;
+			default-state = "on";
+		};
+	};
+
+	mmc0_pwrseq: mmc0_pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		pinctrl-names = "default";
+		pinctrl-0 = <&chip_wifi_reg_on_pin>;
+		reset-gpios = <&pio 2 19 GPIO_ACTIVE_LOW>; /* PC19 */
+	};
+
+	onewire {
+		compatible = "w1-gpio";
+		gpios = <&pio 3 2 GPIO_ACTIVE_HIGH>; /* PD2 */
+		pinctrl-names = "default";
+		pinctrl-0 = <&chip_w1_pin>;
+	};
+};
+
+&be0 {
+	status = "okay";
 };
 
 &codec {
 	status = "okay";
+};
+
+&cpu0 {
+	cpu-supply = <&reg_dcdc2>;
 };
 
 &ehci0 {
@@ -94,6 +128,20 @@
 
 #include "axp209.dtsi"
 
+&ac_power_supply {
+	status = "okay";
+};
+
+&battery_power_supply {
+	status = "okay";
+};
+
+&i2c1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c1_pins_a>;
+	status = "disabled";
+};
+
 &i2c2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c2_pins_a>;
@@ -113,10 +161,15 @@
 	};
 };
 
+&mmc0_pins_a {
+	bias-pull-up;
+};
+
 &mmc0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc0_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
+	mmc-pwrseq = <&mmc0_pwrseq>;
 	bus-width = <4>;
 	non-removable;
 	status = "okay";
@@ -132,17 +185,24 @@
 
 &pio {
 	chip_vbus_pin: chip_vbus_pin@0 {
-		allwinner,pins = "PB10";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PB10";
+		function = "gpio_out";
+	};
+
+	chip_wifi_reg_on_pin: chip_wifi_reg_on_pin@0 {
+	        pins = "PC19";
+	        function = "gpio_out";
 	};
 
 	chip_id_det_pin: chip_id_det_pin@0 {
-		allwinner,pins = "PG2";
-		allwinner,function = "gpio_in";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PG2";
+		function = "gpio_in";
+	};
+
+	chip_w1_pin: chip_w1_pin@0 {
+		pins = "PD2";
+		function = "gpio_in";
+	        bias-pull-up;
 	};
 };
 
@@ -171,6 +231,28 @@
 	regulator-always-on;
 };
 
+/*
+ * Both LDO3 and LDO4 are used in parallel to power up the WiFi/BT
+ * Chip.
+ *
+ * If those are not enabled, the SDIO part will not enumerate, and
+ * since there's no way currently to pass DT infos to an SDIO device,
+ * we cannot really do better than this ugly hack for now.
+ */
+&reg_ldo3 {
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+	regulator-name = "vcc-wifi-1";
+	regulator-always-on;
+};
+
+&reg_ldo4 {
+	regulator-min-microvolt = <3300000>;
+	regulator-max-microvolt = <3300000>;
+	regulator-name = "vcc-wifi-2";
+	regulator-always-on;
+};
+
 &reg_ldo5 {
 	regulator-min-microvolt = <1800000>;
 	regulator-max-microvolt = <1800000>;
@@ -184,6 +266,20 @@
 	status = "okay";
 };
 
+&spi2 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spi2_pins_a>;
+	status = "disabled";
+};
+
+&tcon0 {
+	status = "okay";
+};
+
+&tve0 {
+	status = "okay";
+};
+
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart1_pins_b>;
@@ -193,7 +289,7 @@
 &uart3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart3_pins_a>,
-		    <&uart3_pins_cts_rts_a>;
+		    <&uart3_cts_rts_pins_a>;
 	status = "okay";
 };
 

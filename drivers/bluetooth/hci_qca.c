@@ -215,7 +215,7 @@ static int send_hci_ibs_cmd(u8 cmd, struct hci_uart *hu)
 	}
 
 	/* Assign HCI_IBS type */
-	*skb_put(skb, 1) = cmd;
+	skb_put_u8(skb, cmd);
 
 	skb_queue_tail(&qca->txq, skb);
 
@@ -335,7 +335,7 @@ static void hci_ibs_tx_idle_timeout(unsigned long arg)
 		/* Fall through */
 
 	default:
-		BT_ERR("Spurrious timeout tx state %d", qca->tx_ibs_state);
+		BT_ERR("Spurious timeout tx state %d", qca->tx_ibs_state);
 		break;
 	}
 
@@ -373,7 +373,7 @@ static void hci_ibs_wake_retrans_timeout(unsigned long arg)
 		/* Fall through */
 
 	default:
-		BT_ERR("Spurrious timeout tx state %d", qca->tx_ibs_state);
+		BT_ERR("Spurious timeout tx state %d", qca->tx_ibs_state);
 		break;
 	}
 
@@ -397,7 +397,7 @@ static int qca_open(struct hci_uart *hu)
 	skb_queue_head_init(&qca->txq);
 	skb_queue_head_init(&qca->tx_wait_q);
 	spin_lock_init(&qca->hci_ibs_lock);
-	qca->workqueue = create_singlethread_workqueue("qca_wq");
+	qca->workqueue = alloc_ordered_workqueue("qca_wq", 0);
 	if (!qca->workqueue) {
 		BT_ERR("QCA Workqueue not initialized properly");
 		kfree(qca);
@@ -438,14 +438,11 @@ static int qca_open(struct hci_uart *hu)
 
 	hu->priv = qca;
 
-	init_timer(&qca->wake_retrans_timer);
-	qca->wake_retrans_timer.function = hci_ibs_wake_retrans_timeout;
-	qca->wake_retrans_timer.data = (u_long)hu;
+	setup_timer(&qca->wake_retrans_timer, hci_ibs_wake_retrans_timeout,
+		    (u_long)hu);
 	qca->wake_retrans = IBS_WAKE_RETRANS_TIMEOUT_MS;
 
-	init_timer(&qca->tx_idle_timer);
-	qca->tx_idle_timer.function = hci_ibs_tx_idle_timeout;
-	qca->tx_idle_timer.data = (u_long)hu;
+	setup_timer(&qca->tx_idle_timer, hci_ibs_tx_idle_timeout, (u_long)hu);
 	qca->tx_idle_delay = IBS_TX_IDLE_TIMEOUT_MS;
 
 	BT_DBG("HCI_UART_QCA open, tx_idle_delay=%u, wake_retrans=%u",
@@ -678,7 +675,7 @@ static int qca_enqueue(struct hci_uart *hu, struct sk_buff *skb)
 	       qca->tx_ibs_state);
 
 	/* Prepend skb with frame type */
-	memcpy(skb_push(skb, 1), &bt_cb(skb)->pkt_type, 1);
+	memcpy(skb_push(skb, 1), &hci_skb_pkt_type(skb), 1);
 
 	/* Don't go to sleep in middle of patch download or
 	 * Out-Of-Band(GPIOs control) sleep is selected.
@@ -872,8 +869,8 @@ static int qca_set_baudrate(struct hci_dev *hdev, uint8_t baudrate)
 	}
 
 	/* Assign commands to change baudrate and packet type. */
-	memcpy(skb_put(skb, sizeof(cmd)), cmd, sizeof(cmd));
-	bt_cb(skb)->pkt_type = HCI_COMMAND_PKT;
+	skb_put_data(skb, cmd, sizeof(cmd));
+	hci_skb_pkt_type(skb) = HCI_COMMAND_PKT;
 
 	skb_queue_tail(&qca->txq, skb);
 	hci_uart_tx_wakeup(hu);

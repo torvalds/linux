@@ -594,7 +594,8 @@ static int ignore_undef_symbol(struct elf_info *info, const char *symname)
 		if (strncmp(symname, "_restgpr0_", sizeof("_restgpr0_") - 1) == 0 ||
 		    strncmp(symname, "_savegpr0_", sizeof("_savegpr0_") - 1) == 0 ||
 		    strncmp(symname, "_restvr_", sizeof("_restvr_") - 1) == 0 ||
-		    strncmp(symname, "_savevr_", sizeof("_savevr_") - 1) == 0)
+		    strncmp(symname, "_savevr_", sizeof("_savevr_") - 1) == 0 ||
+		    strcmp(symname, ".TOC.") == 0)
 			return 1;
 	/* Do not ignore this symbol */
 	return 0;
@@ -608,6 +609,7 @@ static void handle_modversions(struct module *mod, struct elf_info *info,
 {
 	unsigned int crc;
 	enum export export;
+	bool is_crc = false;
 
 	if ((!is_vmlinux(mod->name) || mod->is_dot_o) &&
 	    strncmp(symname, "__ksymtab", 9) == 0)
@@ -617,7 +619,18 @@ static void handle_modversions(struct module *mod, struct elf_info *info,
 
 	/* CRC'd symbol */
 	if (strncmp(symname, CRC_PFX, strlen(CRC_PFX)) == 0) {
+		is_crc = true;
 		crc = (unsigned int) sym->st_value;
+		if (sym->st_shndx != SHN_UNDEF && sym->st_shndx != SHN_ABS) {
+			unsigned int *crcp;
+
+			/* symbol points to the CRC in the ELF object */
+			crcp = (void *)info->hdr + sym->st_value +
+			       info->sechdrs[sym->st_shndx].sh_offset -
+			       (info->hdr->e_type != ET_REL ?
+				info->sechdrs[sym->st_shndx].sh_addr : 0);
+			crc = *crcp;
+		}
 		sym_update_crc(symname + strlen(CRC_PFX), mod, crc,
 				export);
 	}
@@ -662,6 +675,10 @@ static void handle_modversions(struct module *mod, struct elf_info *info,
 		else
 			symname++;
 #endif
+		if (is_crc) {
+			const char *e = is_vmlinux(mod->name) ?"":".ko";
+			warn("EXPORT symbol \"%s\" [%s%s] version generation failed, symbol will not be versioned.\n", symname + strlen(CRC_PFX), mod->name, e);
+		}
 		mod->unres = alloc_symbol(symname,
 					  ELF_ST_BIND(sym->st_info) == STB_WEAK,
 					  mod->unres);
@@ -837,6 +854,7 @@ static const char *const section_white_list[] =
 	".cmem*",			/* EZchip */
 	".fmt_slot*",			/* EZchip */
 	".gnu.lto*",
+	".discard.*",
 	NULL
 };
 
@@ -887,7 +905,7 @@ static void check_section(const char *modname, struct elf_info *elf,
 
 #define DATA_SECTIONS ".data", ".data.rel"
 #define TEXT_SECTIONS ".text", ".text.unlikely", ".sched.text", \
-		".kprobes.text"
+		".kprobes.text", ".cpuidle.text"
 #define OTHER_TEXT_SECTIONS ".ref.text", ".head.text", ".spinlock.text", \
 		".fixup", ".entry.text", ".exception.text", ".text.*", \
 		".coldtext"
@@ -2108,6 +2126,7 @@ static void add_header(struct buffer *b, struct module *mod)
 	buf_printf(b, "#include <linux/compiler.h>\n");
 	buf_printf(b, "\n");
 	buf_printf(b, "MODULE_INFO(vermagic, VERMAGIC_STRING);\n");
+	buf_printf(b, "MODULE_INFO(name, KBUILD_MODNAME);\n");
 	buf_printf(b, "\n");
 	buf_printf(b, "__visible struct module __this_module\n");
 	buf_printf(b, "__attribute__((section(\".gnu.linkonce.this_module\"))) = {\n");
@@ -2370,6 +2389,7 @@ static void write_dump(const char *fname)
 		}
 	}
 	write_if_changed(&buf, fname);
+	free(buf.p);
 }
 
 struct ext_sym_list {
@@ -2495,6 +2515,7 @@ int main(int argc, char **argv)
 			      "Set CONFIG_SECTION_MISMATCH_WARN_ONLY=y to allow them.\n");
 		}
 	}
+	free(buf.p);
 
 	return err;
 }

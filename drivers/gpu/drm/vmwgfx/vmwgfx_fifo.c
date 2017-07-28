@@ -368,6 +368,8 @@ static void *vmw_local_fifo_reserve(struct vmw_private *dev_priv,
 				return fifo_state->static_buffer;
 			else {
 				fifo_state->dynamic_buffer = vmalloc(bytes);
+				if (!fifo_state->dynamic_buffer)
+					goto out_err;
 				return fifo_state->dynamic_buffer;
 			}
 		}
@@ -390,7 +392,7 @@ void *vmw_fifo_reserve_dx(struct vmw_private *dev_priv, uint32_t bytes,
 	else if (ctx_id == SVGA3D_INVALID_ID)
 		ret = vmw_local_fifo_reserve(dev_priv, bytes);
 	else {
-		WARN_ON("Command buffer has not been allocated.\n");
+		WARN(1, "Command buffer has not been allocated.\n");
 		ret = NULL;
 	}
 	if (IS_ERR_OR_NULL(ret)) {

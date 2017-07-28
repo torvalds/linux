@@ -162,6 +162,8 @@ static ssize_t cachefiles_daemon_read(struct file *file, char __user *_buffer,
 				      size_t buflen, loff_t *pos)
 {
 	struct cachefiles_cache *cache = file->private_data;
+	unsigned long long b_released;
+	unsigned f_released;
 	char buffer[256];
 	int n;
 
@@ -174,6 +176,8 @@ static ssize_t cachefiles_daemon_read(struct file *file, char __user *_buffer,
 	cachefiles_has_space(cache, 0, 0);
 
 	/* summarise */
+	f_released = atomic_xchg(&cache->f_released, 0);
+	b_released = atomic_long_xchg(&cache->b_released, 0);
 	clear_bit(CACHEFILES_STATE_CHANGED, &cache->flags);
 
 	n = snprintf(buffer, sizeof(buffer),
@@ -183,15 +187,18 @@ static ssize_t cachefiles_daemon_read(struct file *file, char __user *_buffer,
 		     " fstop=%llx"
 		     " brun=%llx"
 		     " bcull=%llx"
-		     " bstop=%llx",
+		     " bstop=%llx"
+		     " freleased=%x"
+		     " breleased=%llx",
 		     test_bit(CACHEFILES_CULLING, &cache->flags) ? '1' : '0',
 		     (unsigned long long) cache->frun,
 		     (unsigned long long) cache->fcull,
 		     (unsigned long long) cache->fstop,
 		     (unsigned long long) cache->brun,
 		     (unsigned long long) cache->bcull,
-		     (unsigned long long) cache->bstop
-		     );
+		     (unsigned long long) cache->bstop,
+		     f_released,
+		     b_released);
 
 	if (n > buflen)
 		return -EMSGSIZE;
@@ -226,15 +233,9 @@ static ssize_t cachefiles_daemon_write(struct file *file,
 		return -EOPNOTSUPP;
 
 	/* drag the command string into the kernel so we can parse it */
-	data = kmalloc(datalen + 1, GFP_KERNEL);
-	if (!data)
-		return -ENOMEM;
-
-	ret = -EFAULT;
-	if (copy_from_user(data, _data, datalen) != 0)
-		goto error;
-
-	data[datalen] = '\0';
+	data = memdup_user_nul(_data, datalen);
+	if (IS_ERR(data))
+		return PTR_ERR(data);
 
 	ret = -EINVAL;
 	if (memchr(data, '\0', datalen))

@@ -4,6 +4,7 @@
 #include "cpumap.h"
 #include "tests.h"
 
+#include <errno.h>
 #include <signal.h>
 
 static int exited;
@@ -31,7 +32,7 @@ static void workload_exec_failed_signal(int signo __maybe_unused,
  * if the number of exit event reported by the kernel is 1 or not
  * in order to check the kernel returns correct number of event.
  */
-int test__task_exit(void)
+int test__task_exit(int subtest __maybe_unused)
 {
 	int err = -1;
 	union perf_event *event;
@@ -82,7 +83,7 @@ int test__task_exit(void)
 
 	evsel = perf_evlist__first(evlist);
 	evsel->attr.task = 1;
-	evsel->attr.sample_freq = 0;
+	evsel->attr.sample_freq = 1;
 	evsel->attr.inherit = 0;
 	evsel->attr.watermark = 0;
 	evsel->attr.wakeup_events = 1;
@@ -91,13 +92,13 @@ int test__task_exit(void)
 	err = perf_evlist__open(evlist);
 	if (err < 0) {
 		pr_debug("Couldn't open the evlist: %s\n",
-			 strerror_r(-err, sbuf, sizeof(sbuf)));
+			 str_error_r(-err, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 
 	if (perf_evlist__mmap(evlist, 128, true) < 0) {
 		pr_debug("failed to mmap events: %d (%s)\n", errno,
-			 strerror_r(errno, sbuf, sizeof(sbuf)));
+			 str_error_r(errno, sbuf, sizeof(sbuf)));
 		goto out_delete_evlist;
 	}
 

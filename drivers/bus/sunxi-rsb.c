@@ -330,7 +330,7 @@ static int sunxi_rsb_read(struct sunxi_rsb *rsb, u8 rtaddr, u8 addr,
 		cmd = RSB_CMD_RD32;
 		break;
 	default:
-		dev_err(rsb->dev, "Invalid access width: %d\n", len);
+		dev_err(rsb->dev, "Invalid access width: %zd\n", len);
 		return -EINVAL;
 	}
 
@@ -342,13 +342,13 @@ static int sunxi_rsb_read(struct sunxi_rsb *rsb, u8 rtaddr, u8 addr,
 
 	ret = _sunxi_rsb_run_xfer(rsb);
 	if (ret)
-		goto out;
+		goto unlock;
 
 	*buf = readl(rsb->regs + RSB_DATA);
 
+unlock:
 	mutex_unlock(&rsb->lock);
 
-out:
 	return ret;
 }
 
@@ -372,7 +372,7 @@ static int sunxi_rsb_write(struct sunxi_rsb *rsb, u8 rtaddr, u8 addr,
 		cmd = RSB_CMD_WR32;
 		break;
 	default:
-		dev_err(rsb->dev, "Invalid access width: %d\n", len);
+		dev_err(rsb->dev, "Invalid access width: %zd\n", len);
 		return -EINVAL;
 	}
 
@@ -527,9 +527,9 @@ static int sunxi_rsb_init_device_mode(struct sunxi_rsb *rsb)
  */
 
 static const struct sunxi_rsb_addr_map sunxi_rsb_addr_maps[] = {
-	{ 0x3e3, 0x2d }, /* Primary PMIC: AXP223, AXP809, AXP81X, ... */
+	{ 0x3a3, 0x2d }, /* Primary PMIC: AXP223, AXP809, AXP81X, ... */
 	{ 0x745, 0x3a }, /* Secondary PMIC: AXP806, ... */
-	{ 0xe89, 0x45 }, /* Peripheral IC: AC100, ... */
+	{ 0xe89, 0x4e }, /* Peripheral IC: AC100, ... */
 };
 
 static u8 sunxi_rsb_get_rtaddr(u16 hwaddr)

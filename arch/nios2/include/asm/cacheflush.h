@@ -46,7 +46,9 @@ extern void copy_from_user_page(struct vm_area_struct *vma, struct page *page,
 extern void flush_dcache_range(unsigned long start, unsigned long end);
 extern void invalidate_dcache_range(unsigned long start, unsigned long end);
 
-#define flush_dcache_mmap_lock(mapping)		do { } while (0)
-#define flush_dcache_mmap_unlock(mapping)	do { } while (0)
+#define flush_dcache_mmap_lock(mapping) \
+	spin_lock_irq(&(mapping)->tree_lock)
+#define flush_dcache_mmap_unlock(mapping) \
+	spin_unlock_irq(&(mapping)->tree_lock)
 
 #endif /* _ASM_NIOS2_CACHEFLUSH_H */

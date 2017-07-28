@@ -43,13 +43,13 @@ static int udelay_test_single(struct seq_file *s, int usecs, uint32_t iters)
 	int allowed_error_ns = usecs * 5;
 
 	for (i = 0; i < iters; ++i) {
-		struct timespec ts1, ts2;
+		s64 kt1, kt2;
 		int time_passed;
 
-		ktime_get_ts(&ts1);
+		kt1 = ktime_get_ns();
 		udelay(usecs);
-		ktime_get_ts(&ts2);
-		time_passed = timespec_to_ns(&ts2) - timespec_to_ns(&ts1);
+		kt2 = ktime_get_ns();
+		time_passed = kt2 - kt1;
 
 		if (i == 0 || time_passed < min)
 			min = time_passed;
@@ -87,11 +87,11 @@ static int udelay_test_show(struct seq_file *s, void *v)
 	if (usecs > 0 && iters > 0) {
 		return udelay_test_single(s, usecs, iters);
 	} else if (usecs == 0) {
-		struct timespec ts;
+		struct timespec64 ts;
 
-		ktime_get_ts(&ts);
-		seq_printf(s, "udelay() test (lpj=%ld kt=%ld.%09ld)\n",
-				loops_per_jiffy, ts.tv_sec, ts.tv_nsec);
+		ktime_get_ts64(&ts);
+		seq_printf(s, "udelay() test (lpj=%ld kt=%lld.%09ld)\n",
+				loops_per_jiffy, (s64)ts.tv_sec, ts.tv_nsec);
 		seq_puts(s, "usage:\n");
 		seq_puts(s, "echo USECS [ITERS] > " DEBUGFS_FILENAME "\n");
 		seq_puts(s, "cat " DEBUGFS_FILENAME "\n");

@@ -12,9 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * File: dpc.h
  *
@@ -31,7 +28,7 @@
 
 #include "device.h"
 
-int vnt_rx_data(struct vnt_private *, struct vnt_rcb *,
-	unsigned long bytes_received);
+int vnt_rx_data(struct vnt_private *priv, struct vnt_rcb *ptr_rcb,
+		unsigned long bytes_received);
 
 #endif /* __RXTX_H__ */

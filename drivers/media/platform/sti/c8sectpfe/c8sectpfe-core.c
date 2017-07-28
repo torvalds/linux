@@ -49,7 +49,7 @@ MODULE_FIRMWARE(FIRMWARE_MEMDMA);
 #define PID_TABLE_SIZE 1024
 #define POLL_MSECS 50
 
-static int load_c8sectpfe_fw_step1(struct c8sectpfei *fei);
+static int load_c8sectpfe_fw(struct c8sectpfei *fei);
 
 #define TS_PKT_SIZE 188
 #define HEADER_SIZE (4)
@@ -112,8 +112,7 @@ static void channel_swdemux_tsklet(unsigned long data)
 	buf = (u8 *) channel->back_buffer_aligned;
 
 	dev_dbg(fei->dev,
-		"chan=%d channel=%p num_packets = %d, buf = %p, pos = 0x%x\n\t"
-		"rp=0x%lx, wp=0x%lx\n",
+		"chan=%d channel=%p num_packets = %d, buf = %p, pos = 0x%x\n\trp=0x%lx, wp=0x%lx\n",
 		channel->tsin_id, channel, num_packets, buf, pos, rp, wp);
 
 	for (n = 0; n < num_packets; n++) {
@@ -130,7 +129,7 @@ static void channel_swdemux_tsklet(unsigned long data)
 		writel(channel->back_buffer_busaddr, channel->irec +
 			DMA_PRDS_BUSRP_TP(0));
 	else
-		writel(wp, channel->irec + DMA_PRDS_BUSWP_TP(0));
+		writel(wp, channel->irec + DMA_PRDS_BUSRP_TP(0));
 }
 
 static int c8sectpfe_start_feed(struct dvb_demux_feed *dvbdmxfeed)
@@ -141,6 +140,7 @@ static int c8sectpfe_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	struct channel_info *channel;
 	u32 tmp;
 	unsigned long *bitmap;
+	int ret;
 
 	switch (dvbdmxfeed->type) {
 	case DMX_TYPE_TS:
@@ -169,8 +169,9 @@ static int c8sectpfe_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	}
 
 	if (!atomic_read(&fei->fw_loaded)) {
-		dev_err(fei->dev, "%s: c8sectpfe fw not loaded\n", __func__);
-		return -EINVAL;
+		ret = load_c8sectpfe_fw(fei);
+		if (ret)
+			return ret;
 	}
 
 	mutex_lock(&fei->lock);
@@ -265,8 +266,9 @@ static int c8sectpfe_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	unsigned long *bitmap;
 
 	if (!atomic_read(&fei->fw_loaded)) {
-		dev_err(fei->dev, "%s: c8sectpfe fw not loaded\n", __func__);
-		return -EINVAL;
+		ret = load_c8sectpfe_fw(fei);
+		if (ret)
+			return ret;
 	}
 
 	mutex_lock(&fei->lock);
@@ -585,7 +587,7 @@ static int configure_memdma_and_inputblock(struct c8sectpfei *fei,
 	writel(tsin->pid_buffer_busaddr,
 		fei->io + PIDF_BASE(tsin->tsin_id));
 
-	dev_info(fei->dev, "chan=%d PIDF_BASE=0x%x pid_bus_addr=%pad\n",
+	dev_dbg(fei->dev, "chan=%d PIDF_BASE=0x%x pid_bus_addr=%pad\n",
 		tsin->tsin_id, readl(fei->io + PIDF_BASE(tsin->tsin_id)),
 		&tsin->pid_buffer_busaddr);
 
@@ -786,8 +788,7 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 		/* sanity check value */
 		if (tsin->tsin_id > fei->hw_stats.num_ib) {
 			dev_err(&pdev->dev,
-				"tsin-num %d specified greater than number\n\t"
-				"of input block hw in SoC! (%d)",
+				"tsin-num %d specified greater than number\n\tof input block hw in SoC! (%d)",
 				tsin->tsin_id, fei->hw_stats.num_ib);
 			ret = -EINVAL;
 			goto err_clk_disable;
@@ -812,6 +813,7 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 		i2c_bus = of_parse_phandle(child, "i2c-bus", 0);
 		if (!i2c_bus) {
 			dev_err(&pdev->dev, "No i2c-bus found\n");
+			ret = -ENODEV;
 			goto err_clk_disable;
 		}
 		tsin->i2c_adapter =
@@ -819,11 +821,12 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 		if (!tsin->i2c_adapter) {
 			dev_err(&pdev->dev, "No i2c adapter found\n");
 			of_node_put(i2c_bus);
+			ret = -ENODEV;
 			goto err_clk_disable;
 		}
 		of_node_put(i2c_bus);
 
-		tsin->rst_gpio = of_get_named_gpio(child, "rst-gpio", 0);
+		tsin->rst_gpio = of_get_named_gpio(child, "reset-gpios", 0);
 
 		ret = gpio_is_valid(tsin->rst_gpio);
 		if (!ret) {
@@ -852,8 +855,7 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 		tsin->demux_mapping = index;
 
 		dev_dbg(fei->dev,
-			"channel=%p n=%d tsin_num=%d, invert-ts-clk=%d\n\t"
-			"serial-not-parallel=%d pkt-clk-valid=%d dvb-card=%d\n",
+			"channel=%p n=%d tsin_num=%d, invert-ts-clk=%d\n\tserial-not-parallel=%d pkt-clk-valid=%d dvb-card=%d\n",
 			fei->channel_data[index], index,
 			tsin->tsin_id, tsin->invert_ts_clk,
 			tsin->serial_not_parallel, tsin->async_not_sync,
@@ -863,9 +865,8 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 	}
 
 	/* Setup timer interrupt */
-	init_timer(&fei->timer);
-	fei->timer.function = c8sectpfe_timer_interrupt;
-	fei->timer.data = (unsigned long)fei;
+	setup_timer(&fei->timer, c8sectpfe_timer_interrupt,
+		    (unsigned long)fei);
 
 	mutex_init(&fei->lock);
 
@@ -880,20 +881,12 @@ static int c8sectpfe_probe(struct platform_device *pdev)
 		goto err_clk_disable;
 	}
 
-	/* ensure all other init has been done before requesting firmware */
-	ret = load_c8sectpfe_fw_step1(fei);
-	if (ret) {
-		dev_err(dev, "Couldn't load slim core firmware\n");
-		goto err_clk_disable;
-	}
-
 	c8sectpfe_debugfs_init(fei);
 
 	return 0;
 
 err_clk_disable:
-	/* TODO uncomment when upstream has taken a reference on this clk */
-	/*clk_disable_unprepare(fei->c8sectpfeclk);*/
+	clk_disable_unprepare(fei->c8sectpfeclk);
 	return ret;
 }
 
@@ -928,11 +921,8 @@ static int c8sectpfe_remove(struct platform_device *pdev)
 	if (readl(fei->io + SYS_OTHER_CLKEN))
 		writel(0, fei->io + SYS_OTHER_CLKEN);
 
-	/* TODO uncomment when upstream has taken a reference on this clk */
-	/*
 	if (fei->c8sectpfeclk)
 		clk_disable_unprepare(fei->c8sectpfeclk);
-	*/
 
 	return 0;
 }
@@ -1049,8 +1039,8 @@ static void load_imem_segment(struct c8sectpfei *fei, Elf32_Phdr *phdr,
 	 */
 
 	dev_dbg(fei->dev,
-		"Loading IMEM segment %d 0x%08x\n\t"
-		" (0x%x bytes) -> 0x%p (0x%x bytes)\n", seg_num,
+		"Loading IMEM segment %d 0x%08x\n\t (0x%x bytes) -> 0x%p (0x%x bytes)\n",
+seg_num,
 		phdr->p_paddr, phdr->p_filesz,
 		dest, phdr->p_memsz + phdr->p_memsz / 3);
 
@@ -1079,8 +1069,7 @@ static void load_dmem_segment(struct c8sectpfei *fei, Elf32_Phdr *phdr,
 	 */
 
 	dev_dbg(fei->dev,
-		"Loading DMEM segment %d 0x%08x\n\t"
-		"(0x%x bytes) -> 0x%p (0x%x bytes)\n",
+		"Loading DMEM segment %d 0x%08x\n\t(0x%x bytes) -> 0x%p (0x%x bytes)\n",
 		seg_num, phdr->p_paddr, phdr->p_filesz,
 		dst, phdr->p_memsz);
 
@@ -1091,15 +1080,14 @@ static void load_dmem_segment(struct c8sectpfei *fei, Elf32_Phdr *phdr,
 		phdr->p_memsz - phdr->p_filesz);
 }
 
-static int load_slim_core_fw(const struct firmware *fw, void *context)
+static int load_slim_core_fw(const struct firmware *fw, struct c8sectpfei *fei)
 {
-	struct c8sectpfei *fei = context;
 	Elf32_Ehdr *ehdr;
 	Elf32_Phdr *phdr;
 	u8 __iomem *dst;
 	int err = 0, i;
 
-	if (!fw || !context)
+	if (!fw || !fei)
 		return -EINVAL;
 
 	ehdr = (Elf32_Ehdr *)fw->data;
@@ -1151,29 +1139,36 @@ static int load_slim_core_fw(const struct firmware *fw, void *context)
 	return err;
 }
 
-static void load_c8sectpfe_fw_cb(const struct firmware *fw, void *context)
+static int load_c8sectpfe_fw(struct c8sectpfei *fei)
 {
-	struct c8sectpfei *fei = context;
+	const struct firmware *fw;
 	int err;
+
+	dev_info(fei->dev, "Loading firmware: %s\n", FIRMWARE_MEMDMA);
+
+	err = request_firmware(&fw, FIRMWARE_MEMDMA, fei->dev);
+	if (err)
+		return err;
 
 	err = c8sectpfe_elf_sanity_check(fei, fw);
 	if (err) {
 		dev_err(fei->dev, "c8sectpfe_elf_sanity_check failed err=(%d)\n"
 			, err);
-		goto err;
+		release_firmware(fw);
+		return err;
 	}
 
-	err = load_slim_core_fw(fw, context);
+	err = load_slim_core_fw(fw, fei);
 	if (err) {
 		dev_err(fei->dev, "load_slim_core_fw failed err=(%d)\n", err);
-		goto err;
+		return err;
 	}
 
 	/* now the firmware is loaded configure the input blocks */
 	err = configure_channels(fei);
 	if (err) {
 		dev_err(fei->dev, "configure_channels failed err=(%d)\n", err);
-		goto err;
+		return err;
 	}
 
 	/*
@@ -1186,28 +1181,6 @@ static void load_c8sectpfe_fw_cb(const struct firmware *fw, void *context)
 	writel(0x1,  fei->io + DMA_CPU_RUN);
 
 	atomic_set(&fei->fw_loaded, 1);
-err:
-	complete_all(&fei->fw_ack);
-}
-
-static int load_c8sectpfe_fw_step1(struct c8sectpfei *fei)
-{
-	int err;
-
-	dev_info(fei->dev, "Loading firmware: %s\n", FIRMWARE_MEMDMA);
-
-	init_completion(&fei->fw_ack);
-	atomic_set(&fei->fw_loaded, 0);
-
-	err = request_firmware_nowait(THIS_MODULE, FW_ACTION_HOTPLUG,
-				FIRMWARE_MEMDMA, fei->dev, GFP_KERNEL, fei,
-				load_c8sectpfe_fw_cb);
-
-	if (err) {
-		dev_err(fei->dev, "request_firmware_nowait err: %d.\n", err);
-		complete_all(&fei->fw_ack);
-		return err;
-	}
 
 	return 0;
 }

@@ -49,6 +49,7 @@ Optional port properties:
 and
 
  - phy-handle: See ethernet.txt file in the same directory.
+ - phy-mode: See ethernet.txt file in the same directory.
 
 or
 

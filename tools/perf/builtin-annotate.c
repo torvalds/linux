@@ -21,7 +21,7 @@
 #include "util/evsel.h"
 #include "util/annotate.h"
 #include "util/event.h"
-#include "util/parse-options.h"
+#include <subcmd/parse-options.h>
 #include "util/parse-events.h"
 #include "util/thread.h"
 #include "util/sort.h"
@@ -30,8 +30,10 @@
 #include "util/tool.h"
 #include "util/data.h"
 #include "arch/common.h"
+#include "util/block-range.h"
 
 #include <dlfcn.h>
+#include <errno.h>
 #include <linux/bitmap.h>
 
 struct perf_annotate {
@@ -46,8 +48,105 @@ struct perf_annotate {
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
 };
 
+/*
+ * Given one basic block:
+ *
+ *	from	to		branch_i
+ *	* ----> *
+ *		|
+ *		| block
+ *		v
+ *		* ----> *
+ *		from	to	branch_i+1
+ *
+ * where the horizontal are the branches and the vertical is the executed
+ * block of instructions.
+ *
+ * We count, for each 'instruction', the number of blocks that covered it as
+ * well as count the ratio each branch is taken.
+ *
+ * We can do this without knowing the actual instruction stream by keeping
+ * track of the address ranges. We break down ranges such that there is no
+ * overlap and iterate from the start until the end.
+ *
+ * @acme: once we parse the objdump output _before_ processing the samples,
+ * we can easily fold the branch.cycles IPC bits in.
+ */
+static void process_basic_block(struct addr_map_symbol *start,
+				struct addr_map_symbol *end,
+				struct branch_flags *flags)
+{
+	struct symbol *sym = start->sym;
+	struct annotation *notes = sym ? symbol__annotation(sym) : NULL;
+	struct block_range_iter iter;
+	struct block_range *entry;
+
+	/*
+	 * Sanity; NULL isn't executable and the CPU cannot execute backwards
+	 */
+	if (!start->addr || start->addr > end->addr)
+		return;
+
+	iter = block_range__create(start->addr, end->addr);
+	if (!block_range_iter__valid(&iter))
+		return;
+
+	/*
+	 * First block in range is a branch target.
+	 */
+	entry = block_range_iter(&iter);
+	assert(entry->is_target);
+	entry->entry++;
+
+	do {
+		entry = block_range_iter(&iter);
+
+		entry->coverage++;
+		entry->sym = sym;
+
+		if (notes)
+			notes->max_coverage = max(notes->max_coverage, entry->coverage);
+
+	} while (block_range_iter__next(&iter));
+
+	/*
+	 * Last block in rage is a branch.
+	 */
+	entry = block_range_iter(&iter);
+	assert(entry->is_branch);
+	entry->taken++;
+	if (flags->predicted)
+		entry->pred++;
+}
+
+static void process_branch_stack(struct branch_stack *bs, struct addr_location *al,
+				 struct perf_sample *sample)
+{
+	struct addr_map_symbol *prev = NULL;
+	struct branch_info *bi;
+	int i;
+
+	if (!bs || !bs->nr)
+		return;
+
+	bi = sample__resolve_bstack(sample, al);
+	if (!bi)
+		return;
+
+	for (i = bs->nr - 1; i >= 0; i--) {
+		/*
+		 * XXX filter against symbol
+		 */
+		if (prev)
+			process_basic_block(prev, &bi[i].from, &bi[i].flags);
+		prev = &bi[i].to;
+	}
+
+	free(bi);
+}
+
 static int perf_evsel__add_sample(struct perf_evsel *evsel,
-				  struct perf_sample *sample __maybe_unused,
+				  struct perf_sample *sample,
 				  struct addr_location *al,
 				  struct perf_annotate *ann)
 {
@@ -72,7 +171,16 @@ static int perf_evsel__add_sample(struct perf_evsel *evsel,
 		return 0;
 	}
 
-	he = __hists__add_entry(hists, al, NULL, NULL, NULL, 1, 1, 0, true);
+	/*
+	 * XXX filtered samples can still have branch entires pointing into our
+	 * symbol and are missed.
+	 */
+	process_branch_stack(sample->branch_stack, al, sample);
+
+	sample->period = 1;
+	sample->weight = 1;
+
+	he = hists__add_entry(hists, al, NULL, NULL, NULL, sample, true);
 	if (he == NULL)
 		return -ENOMEM;
 
@@ -91,7 +199,7 @@ static int process_sample_event(struct perf_tool *tool,
 	struct addr_location al;
 	int ret = 0;
 
-	if (perf_event__preprocess_sample(event, machine, &al, sample) < 0) {
+	if (machine__resolve(machine, &al, sample) < 0) {
 		pr_warning("problem processing %d event, skipping it.\n",
 			   event->header.type);
 		return -1;
@@ -201,8 +309,6 @@ static int __cmd_annotate(struct perf_annotate *ann)
 	struct perf_evsel *pos;
 	u64 total_nr_samples;
 
-	machines__set_symbol_filter(&session->machines, symbol__annotate_init);
-
 	if (ann->cpu_list) {
 		ret = perf_session__cpu_bitmap(session, ann->cpu_list,
 					       ann->cpu_bitmap);
@@ -233,7 +339,7 @@ static int __cmd_annotate(struct perf_annotate *ann)
 		perf_session__fprintf_dsos(session, stdout);
 
 	total_nr_samples = 0;
-	evlist__for_each(session->evlist, pos) {
+	evlist__for_each_entry(session->evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
 		u32 nr_samples = hists->stats.nr_events[PERF_RECORD_SAMPLE];
 
@@ -242,7 +348,7 @@ static int __cmd_annotate(struct perf_annotate *ann)
 			hists__collapse_resort(hists, NULL);
 			/* Don't sort callchain */
 			perf_evsel__reset_sample_bit(pos, CALLCHAIN);
-			hists__output_resort(hists, NULL);
+			perf_evsel__output_resort(pos, NULL);
 
 			if (symbol_conf.event_group &&
 			    !perf_evsel__is_group_leader(pos))
@@ -278,7 +384,7 @@ static const char * const annotate_usage[] = {
 	NULL
 };
 
-int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_annotate(int argc, const char **argv)
 {
 	struct perf_annotate annotate = {
 		.tool = {
@@ -288,6 +394,9 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 			.comm	= perf_event__process_comm,
 			.exit	= perf_event__process_exit,
 			.fork	= perf_event__process_fork,
+			.namespaces = perf_event__process_namespaces,
+			.attr	= perf_event__process_attr,
+			.build_id = perf_event__process_build_id,
 			.ordered_events = true,
 			.ordering_requires_timestamps = true,
 		},
@@ -305,6 +414,7 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_BOOLEAN('f', "force", &file.force, "don't complain, do it"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
+	OPT_BOOLEAN('q', "quiet", &quiet, "do now show any message"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
 	OPT_BOOLEAN(0, "gtk", &annotate.use_gtk, "Use the GTK interface"),
@@ -321,8 +431,9 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_BOOLEAN(0, "skip-missing", &annotate.skip_missing,
 		    "Skip symbols that cannot be annotated"),
 	OPT_STRING('C', "cpu", &annotate.cpu_list, "cpu", "list of cpus to profile"),
-	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
-		   "Look for files with symbols relative to this directory"),
+	OPT_CALLBACK(0, "symfs", NULL, "directory",
+		     "Look for files with symbols relative to this directory",
+		     symbol__config_symfs),
 	OPT_BOOLEAN(0, "source", &symbol_conf.annotate_src,
 		    "Interleave source code with assembly code (default)"),
 	OPT_BOOLEAN(0, "asm-raw", &symbol_conf.annotate_asm_raw,
@@ -335,6 +446,9 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 		    "Show event group information together"),
 	OPT_BOOLEAN(0, "show-total-period", &symbol_conf.show_total_period,
 		    "Show a column with the sum of periods"),
+	OPT_CALLBACK_DEFAULT(0, "stdio-color", NULL, "mode",
+			     "'always' (default), 'never' or 'auto' only applicable to --stdio mode",
+			     stdio__config_color, "always"),
 	OPT_END()
 	};
 	int ret = hists__init();
@@ -343,32 +457,6 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 		return ret;
 
 	argc = parse_options(argc, argv, options, annotate_usage, 0);
-
-	if (annotate.use_stdio)
-		use_browser = 0;
-	else if (annotate.use_tui)
-		use_browser = 1;
-	else if (annotate.use_gtk)
-		use_browser = 2;
-
-	file.path  = input_name;
-
-	setup_browser(true);
-
-	annotate.session = perf_session__new(&file, false, &annotate.tool);
-	if (annotate.session == NULL)
-		return -1;
-
-	symbol_conf.priv_size = sizeof(struct annotation);
-	symbol_conf.try_vmlinux_path = true;
-
-	ret = symbol__init(&annotate.session->header.env);
-	if (ret < 0)
-		goto out_delete;
-
-	if (setup_sorting() < 0)
-		usage_with_options(annotate_usage, options);
-
 	if (argc) {
 		/*
 		 * Special case: if there's an argument left then assume that
@@ -379,6 +467,37 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __maybe_unused)
 
 		annotate.sym_hist_filter = argv[0];
 	}
+
+	if (quiet)
+		perf_quiet_option();
+
+	file.path  = input_name;
+
+	annotate.session = perf_session__new(&file, false, &annotate.tool);
+	if (annotate.session == NULL)
+		return -1;
+
+	ret = symbol__annotation_init();
+	if (ret < 0)
+		goto out_delete;
+
+	symbol_conf.try_vmlinux_path = true;
+
+	ret = symbol__init(&annotate.session->header.env);
+	if (ret < 0)
+		goto out_delete;
+
+	if (setup_sorting(NULL) < 0)
+		usage_with_options(annotate_usage, options);
+
+	if (annotate.use_stdio)
+		use_browser = 0;
+	else if (annotate.use_tui)
+		use_browser = 1;
+	else if (annotate.use_gtk)
+		use_browser = 2;
+
+	setup_browser(true);
 
 	ret = __cmd_annotate(&annotate);
 

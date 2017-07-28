@@ -638,7 +638,6 @@ static int clk_rcg_pixel_set_rate(struct clk_hw *hw, unsigned long rate,
 		return ret;
 
 	src = ns_to_src(&rcg->s, ns);
-	f.pre_div = ns_to_pre_div(&rcg->p, ns) + 1;
 
 	for (i = 0; i < num_parents; i++) {
 		if (src == rcg->s.parent_map[i].cfg) {
@@ -646,6 +645,9 @@ static int clk_rcg_pixel_set_rate(struct clk_hw *hw, unsigned long rate,
 			break;
 		}
 	}
+
+	/* bypass the pre divider */
+	f.pre_div = 1;
 
 	/* let us find appropriate m/n values for this */
 	for (; frac->num; frac++) {

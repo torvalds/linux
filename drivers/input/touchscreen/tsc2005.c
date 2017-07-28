@@ -18,11 +18,17 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/module.h>
 #include <linux/input.h>
+#include <linux/module.h>
+#include <linux/of.h>
 #include <linux/spi/spi.h>
 #include <linux/regmap.h>
 #include "tsc200x-core.h"
+
+static const struct input_id tsc2005_input_id = {
+	.bustype = BUS_SPI,
+	.product = 2005,
+};
 
 static int tsc2005_cmd(struct device *dev, u8 cmd)
 {
@@ -62,7 +68,7 @@ static int tsc2005_probe(struct spi_device *spi)
 	if (error)
 		return error;
 
-	return tsc200x_probe(&spi->dev, spi->irq, BUS_SPI,
+	return tsc200x_probe(&spi->dev, spi->irq, &tsc2005_input_id,
 			     devm_regmap_init_spi(spi, &tsc200x_regmap_config),
 			     tsc2005_cmd);
 }
@@ -72,9 +78,18 @@ static int tsc2005_remove(struct spi_device *spi)
 	return tsc200x_remove(&spi->dev);
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id tsc2005_of_match[] = {
+	{ .compatible = "ti,tsc2005" },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, tsc2005_of_match);
+#endif
+
 static struct spi_driver tsc2005_driver = {
 	.driver	= {
 		.name	= "tsc2005",
+		.of_match_table = of_match_ptr(tsc2005_of_match),
 		.pm	= &tsc200x_pm_ops,
 	},
 	.probe	= tsc2005_probe,

@@ -13,6 +13,7 @@
 #ifdef CONFIG_BLK_DEV_INITRD
 #include <linux/initrd.h>
 #endif
+#include <linux/of_fdt.h>
 #include <linux/swap.h>
 #include <linux/module.h>
 #include <linux/highmem.h>
@@ -29,10 +30,20 @@ static const unsigned long low_mem_start = CONFIG_LINUX_LINK_BASE;
 static unsigned long low_mem_sz;
 
 #ifdef CONFIG_HIGHMEM
-static unsigned long min_high_pfn;
+static unsigned long min_high_pfn, max_high_pfn;
 static u64 high_mem_start;
 static u64 high_mem_sz;
 #endif
+
+#ifdef CONFIG_DISCONTIGMEM
+struct pglist_data node_data[MAX_NUMNODES] __read_mostly;
+EXPORT_SYMBOL(node_data);
+#endif
+
+long __init arc_get_mem_sz(void)
+{
+	return low_mem_sz;
+}
 
 /* User can over-ride above with "mem=nnn[KkMm]" in cmdline */
 static int __init setup_mem_sz(char *str)
@@ -51,7 +62,9 @@ void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 	int in_use = 0;
 
 	if (!low_mem_sz) {
-		BUG_ON(base != low_mem_start);
+		if (base != low_mem_start)
+			panic("CONFIG_LINUX_LINK_BASE != DT memory { }");
+
 		low_mem_sz = size;
 		in_use = 1;
 	} else {
@@ -106,12 +119,10 @@ void __init setup_arch_memory(void)
 	/* Last usable page of low mem */
 	max_low_pfn = max_pfn = PFN_DOWN(low_mem_start + low_mem_sz);
 
-#ifdef CONFIG_HIGHMEM
-	min_high_pfn = PFN_DOWN(high_mem_start);
-	max_pfn = PFN_DOWN(high_mem_start + high_mem_sz);
+#ifdef CONFIG_FLATMEM
+	/* pfn_valid() uses this */
+	max_mapnr = max_low_pfn - min_low_pfn;
 #endif
-
-	max_mapnr = max_pfn - min_low_pfn;
 
 	/*------------- bootmem allocator setup -----------------------*/
 
@@ -126,13 +137,16 @@ void __init setup_arch_memory(void)
 	 * the crash
 	 */
 
-	memblock_add(low_mem_start, low_mem_sz);
+	memblock_add_node(low_mem_start, low_mem_sz, 0);
 	memblock_reserve(low_mem_start, __pa(_end) - low_mem_start);
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (initrd_start)
 		memblock_reserve(__pa(initrd_start), initrd_end - initrd_start);
 #endif
+
+	early_init_fdt_reserve_self();
+	early_init_fdt_scan_reserved_mem();
 
 	memblock_dump_all();
 
@@ -142,13 +156,6 @@ void __init setup_arch_memory(void)
 
 	zones_size[ZONE_NORMAL] = max_low_pfn - min_low_pfn;
 	zones_holes[ZONE_NORMAL] = 0;
-
-#ifdef CONFIG_HIGHMEM
-	zones_size[ZONE_HIGHMEM] = max_pfn - max_low_pfn;
-
-	/* This handles the peripheral address space hole */
-	zones_holes[ZONE_HIGHMEM] = min_high_pfn - max_low_pfn;
-#endif
 
 	/*
 	 * We can't use the helper free_area_init(zones[]) because it uses
@@ -162,6 +169,34 @@ void __init setup_arch_memory(void)
 			    zones_holes);	/* holes */
 
 #ifdef CONFIG_HIGHMEM
+	/*
+	 * Populate a new node with highmem
+	 *
+	 * On ARC (w/o PAE) HIGHMEM addresses are actually smaller (0 based)
+	 * than addresses in normal ala low memory (0x8000_0000 based).
+	 * Even with PAE, the huge peripheral space hole would waste a lot of
+	 * mem with single mem_map[]. This warrants a mem_map per region design.
+	 * Thus HIGHMEM on ARC is imlemented with DISCONTIGMEM.
+	 *
+	 * DISCONTIGMEM in turns requires multiple nodes. node 0 above is
+	 * populated with normal memory zone while node 1 only has highmem
+	 */
+	node_set_online(1);
+
+	min_high_pfn = PFN_DOWN(high_mem_start);
+	max_high_pfn = PFN_DOWN(high_mem_start + high_mem_sz);
+
+	zones_size[ZONE_NORMAL] = 0;
+	zones_holes[ZONE_NORMAL] = 0;
+
+	zones_size[ZONE_HIGHMEM] = max_high_pfn - min_high_pfn;
+	zones_holes[ZONE_HIGHMEM] = 0;
+
+	free_area_init_node(1,			/* node-id */
+			    zones_size,		/* num pages per zone */
+			    min_high_pfn,	/* first pfn of node */
+			    zones_holes);	/* holes */
+
 	high_memory = (void *)(min_high_pfn << PAGE_SHIFT);
 	kmap_init();
 #endif
@@ -179,7 +214,7 @@ void __init mem_init(void)
 	unsigned long tmp;
 
 	reset_all_zones_managed_pages();
-	for (tmp = min_high_pfn; tmp < max_pfn; tmp++)
+	for (tmp = min_high_pfn; tmp < max_high_pfn; tmp++)
 		free_highmem_page(pfn_to_page(tmp));
 #endif
 
@@ -190,7 +225,7 @@ void __init mem_init(void)
 /*
  * free_initmem: Free all the __init memory.
  */
-void __init_refok free_initmem(void)
+void __ref free_initmem(void)
 {
 	free_initmem_default(-1);
 }

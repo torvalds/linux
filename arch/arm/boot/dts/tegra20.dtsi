@@ -145,7 +145,7 @@
 		interrupt-parent = <&intc>;
 		reg = <0x50040600 0x20>;
 		interrupts = <GIC_PPI 13
-			(GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>;
+			(GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_EDGE_RISING)>;
 		clocks = <&tegra_car TEGRA20_CLK_TWD>;
 	};
 
@@ -309,7 +309,7 @@
 	 * driver and APB DMA based serial driver for higher baudrate
 	 * and performace. To enable the 8250 based driver, the compatible
 	 * is "nvidia,tegra20-uart" and to enable the APB DMA based serial
-	 * driver, the comptible is "nvidia,tegra20-hsuart".
+	 * driver, the compatible is "nvidia,tegra20-hsuart".
 	 */
 	uarta: serial@70006000 {
 		compatible = "nvidia,tegra20-uart";
@@ -373,6 +373,19 @@
 		reset-names = "serial";
 		dmas = <&apbdma 20>, <&apbdma 20>;
 		dma-names = "rx", "tx";
+		status = "disabled";
+	};
+
+	gmi@70009000 {
+		compatible = "nvidia,tegra20-gmi";
+		reg = <0x70009000 0x1000>;
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges = <0 0 0xd0000000 0xfffffff>;
+		clocks = <&tegra_car TEGRA20_CLK_NOR>;
+		clock-names = "gmi";
+		resets = <&tegra_car 42>;
+		reset-names = "gmi";
 		status = "disabled";
 	};
 
@@ -573,7 +586,7 @@
 		reset-names = "fuse";
 	};
 
-	pcie-controller@80003000 {
+	pcie@80003000 {
 		compatible = "nvidia,tegra20-pcie";
 		device_type = "pci";
 		reg = <0x80003000 0x00000800   /* PADS registers */
@@ -612,6 +625,7 @@
 			device_type = "pci";
 			assigned-addresses = <0x82000800 0 0x80000000 0 0x1000>;
 			reg = <0x000800 0 0 0 0>;
+			bus-range = <0x00 0xff>;
 			status = "disabled";
 
 			#address-cells = <3>;
@@ -625,6 +639,7 @@
 			device_type = "pci";
 			assigned-addresses = <0x82001000 0 0x80001000 0 0x1000>;
 			reg = <0x001000 0 0 0 0>;
+			bus-range = <0x00 0xff>;
 			status = "disabled";
 
 			#address-cells = <3>;

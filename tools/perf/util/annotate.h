@@ -11,7 +11,12 @@
 #include <linux/rbtree.h>
 #include <pthread.h>
 
-struct ins;
+struct ins_ops;
+
+struct ins {
+	const char     *name;
+	struct ins_ops *ops;
+};
 
 struct ins_operands {
 	char	*raw;
@@ -19,7 +24,8 @@ struct ins_operands {
 		char	*raw;
 		char	*name;
 		u64	addr;
-		u64	offset;
+		s64	offset;
+		bool	offset_avail;
 	} target;
 	union {
 		struct {
@@ -28,26 +34,24 @@ struct ins_operands {
 			u64	addr;
 		} source;
 		struct {
-			struct ins *ins;
+			struct ins	    ins;
 			struct ins_operands *ops;
 		} locked;
 	};
 };
 
+struct arch;
+
 struct ins_ops {
 	void (*free)(struct ins_operands *ops);
-	int (*parse)(struct ins_operands *ops);
+	int (*parse)(struct arch *arch, struct ins_operands *ops, struct map *map);
 	int (*scnprintf)(struct ins *ins, char *bf, size_t size,
 			 struct ins_operands *ops);
 };
 
-struct ins {
-	const char     *name;
-	struct ins_ops *ops;
-};
-
 bool ins__is_jump(const struct ins *ins);
 bool ins__is_call(const struct ins *ins);
+bool ins__is_ret(const struct ins *ins);
 int ins__scnprintf(struct ins *ins, char *bf, size_t size, struct ins_operands *ops);
 
 struct annotation;
@@ -56,8 +60,7 @@ struct disasm_line {
 	struct list_head    node;
 	s64		    offset;
 	char		    *line;
-	char		    *name;
-	struct ins	    *ins;
+	struct ins	    ins;
 	int		    line_nr;
 	float		    ipc;
 	u64		    cycles;
@@ -66,7 +69,7 @@ struct disasm_line {
 
 static inline bool disasm_line__has_offset(const struct disasm_line *dl)
 {
-	return dl->ops.target.offset != UINT64_MAX;
+	return dl->ops.target.offset_avail;
 }
 
 void disasm_line__free(struct disasm_line *dl);
@@ -95,7 +98,7 @@ struct cyc_hist {
 struct source_line_samples {
 	double		percent;
 	double		percent_sum;
-	double          nr;
+	u64		nr;
 };
 
 struct source_line {
@@ -129,6 +132,7 @@ struct annotated_source {
 
 struct annotation {
 	pthread_mutex_t		lock;
+	u64			max_coverage;
 	struct annotated_source *src;
 };
 
@@ -154,11 +158,30 @@ int hist_entry__inc_addr_samples(struct hist_entry *he, int evidx, u64 addr);
 int symbol__alloc_hist(struct symbol *sym);
 void symbol__annotate_zero_histograms(struct symbol *sym);
 
-int symbol__annotate(struct symbol *sym, struct map *map, size_t privsize);
+int symbol__disassemble(struct symbol *sym, struct map *map,
+			const char *arch_name, size_t privsize,
+			struct arch **parch);
 
-int hist_entry__annotate(struct hist_entry *he, size_t privsize);
+enum symbol_disassemble_errno {
+	SYMBOL_ANNOTATE_ERRNO__SUCCESS		= 0,
 
-int symbol__annotate_init(struct map *map __maybe_unused, struct symbol *sym);
+	/*
+	 * Choose an arbitrary negative big number not to clash with standard
+	 * errno since SUS requires the errno has distinct positive values.
+	 * See 'Issue 6' in the link below.
+	 *
+	 * http://pubs.opengroup.org/onlinepubs/9699919799/basedefs/errno.h.html
+	 */
+	__SYMBOL_ANNOTATE_ERRNO__START		= -10000,
+
+	SYMBOL_ANNOTATE_ERRNO__NO_VMLINUX	= __SYMBOL_ANNOTATE_ERRNO__START,
+
+	__SYMBOL_ANNOTATE_ERRNO__END,
+};
+
+int symbol__strerror_disassemble(struct symbol *sym, struct map *map,
+				 int errnum, char *buf, size_t buflen);
+
 int symbol__annotate_printf(struct symbol *sym, struct map *map,
 			    struct perf_evsel *evsel, bool full_paths,
 			    int min_pcnt, int max_lines, int context);

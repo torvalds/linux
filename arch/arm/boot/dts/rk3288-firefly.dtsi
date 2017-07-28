@@ -40,12 +40,26 @@
  *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <dt-bindings/input/input.h>
 #include "rk3288.dtsi"
 
 / {
-	memory {
+	memory@0 {
 		device_type = "memory";
 		reg = <0 0x80000000>;
+	};
+
+	adc-keys {
+		compatible = "adc-keys";
+		io-channels = <&saradc 1>;
+		io-channel-names = "buttons";
+		keyup-threshold-microvolt = <1800000>;
+
+		button-recovery {
+			label = "Recovery";
+			linux,code = <KEY_VENDOR>;
+			press-threshold-microvolt = <0>;
+		};
 	};
 
 	dovdd_1v8: dovdd-1v8-regulator {
@@ -63,22 +77,6 @@
 		clock-output-names = "ext_gmac";
 	};
 
-	io_domains: io-domains {
-		compatible = "rockchip,rk3288-io-voltage-domain";
-		rockchip,grf = <&grf>;
-
-		audio-supply = <&vcca_33>;
-		bb-supply = <&vcc_io>;
-		dvp-supply = <&dovdd_1v8>;
-		flash0-supply = <&vcc_flash>;
-		flash1-supply = <&vcc_lan>;
-		gpio30-supply = <&vcc_io>;
-		gpio1830-supply = <&vcc_io>;
-		lcdc-supply = <&vcc_io>;
-		sdcard-supply = <&vccio_sd>;
-		wifi-supply = <&vccio_wl>;
-	};
-
 	ir: ir-receiver {
 		compatible = "gpio-ir-receiver";
 		pinctrl-names = "default";
@@ -87,14 +85,12 @@
 
 	keys: gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		button@0 {
-			gpio-key,wakeup = <1>;
-			gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
+		power {
+			wakeup-source;
+			gpios = <&gpio0 RK_PA5 GPIO_ACTIVE_LOW>;
 			label = "GPIO Power";
-			linux,code = <116>;
+			linux,code = <KEY_POWER>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pwr_key>;
 		};
@@ -104,7 +100,7 @@
 		compatible = "gpio-leds";
 
 		work {
-			gpios = <&gpio8 1 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio8 RK_PA1 GPIO_ACTIVE_LOW>;
 			label = "firefly:blue:user";
 			linux,default-trigger = "rc-feedback";
 			pinctrl-names = "default";
@@ -112,7 +108,7 @@
 		};
 
 		power {
-			gpios = <&gpio8 2 GPIO_ACTIVE_LOW>;
+			gpios = <&gpio8 RK_PA2 GPIO_ACTIVE_LOW>;
 			label = "firefly:green:power";
 			linux,default-trigger = "default-on";
 			pinctrl-names = "default";
@@ -131,7 +127,7 @@
 
 	vcc_sd: sdmmc-regulator {
 		compatible = "regulator-fixed";
-		gpio = <&gpio7 11 GPIO_ACTIVE_LOW>;
+		gpio = <&gpio7 RK_PB3 GPIO_ACTIVE_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&sdmmc_pwr>;
 		regulator-name = "vcc_sd";
@@ -162,7 +158,7 @@
 	vcc_host_5v: usb-host-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio0 14 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 RK_PB6 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&host_vbus_drv>;
 		regulator-name = "vcc_host_5v";
@@ -175,7 +171,7 @@
 	vcc_otg_5v: usb-otg-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio0 12 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&otg_vbus_drv>;
 		regulator-name = "vcc_otg_5v";
@@ -192,7 +188,7 @@
 	vcc28_dvp: vcc28-dvp-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio0 11 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&dvp_pwr>;
 		regulator-name = "vcc28_dvp";
@@ -208,7 +204,6 @@
 };
 
 &emmc {
-	broken-cd;
 	bus-width = <8>;
 	cap-mmc-highspeed;
 	disable-wp;
@@ -231,10 +226,15 @@
 	phy-mode = "rgmii";
 	snps,reset-active-low;
 	snps,reset-delays-us = <0 10000 1000000>;
-	snps,reset-gpio = <&gpio4 8 GPIO_ACTIVE_LOW>;
+	snps,reset-gpio = <&gpio4 RK_PB0 GPIO_ACTIVE_LOW>;
 	tx_delay = <0x30>;
 	rx_delay = <0x10>;
 	status = "ok";
+};
+
+&gpu {
+	mali-supply = <&vdd_gpu>;
+	status = "okay";
 };
 
 &hdmi {
@@ -278,7 +278,7 @@
 		clock-frequency = <32768>;
 		clock-output-names = "xin32k";
 		interrupt-parent = <&gpio7>;
-		interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
+		interrupts = <RK_PA4 IRQ_TYPE_EDGE_FALLING>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&rtc_int>;
 	};
@@ -399,6 +399,21 @@
 	status = "okay";
 };
 
+&io_domains {
+	status = "okay";
+
+	audio-supply = <&vcca_33>;
+	bb-supply = <&vcc_io>;
+	dvp-supply = <&dovdd_1v8>;
+	flash0-supply = <&vcc_flash>;
+	flash1-supply = <&vcc_lan>;
+	gpio30-supply = <&vcc_io>;
+	gpio1830-supply = <&vcc_io>;
+	lcdc-supply = <&vcc_io>;
+	sdcard-supply = <&vccio_sd>;
+	wifi-supply = <&vccio_wl>;
+};
+
 &pinctrl {
 	pcfg_output_high: pcfg-output-high {
 		output-high;
@@ -406,6 +421,11 @@
 
 	pcfg_output_low: pcfg-output-low {
 		output-low;
+	};
+
+	pcfg_pull_up_drv_12ma: pcfg-pull-up-drv-12ma {
+		bias-pull-up;
+		drive-strength = <12>;
 	};
 
 	act8846 {
@@ -457,6 +477,25 @@
 	};
 
 	sdmmc {
+		/*
+		 * Default drive strength isn't enough to achieve even
+		 * high-speed mode on firefly board so bump up to 12ma.
+		 */
+		sdmmc_bus4: sdmmc-bus4 {
+			rockchip,pins = <6 16 RK_FUNC_1 &pcfg_pull_up_drv_12ma>,
+					<6 17 RK_FUNC_1 &pcfg_pull_up_drv_12ma>,
+					<6 18 RK_FUNC_1 &pcfg_pull_up_drv_12ma>,
+					<6 19 RK_FUNC_1 &pcfg_pull_up_drv_12ma>;
+		};
+
+		sdmmc_clk: sdmmc-clk {
+			rockchip,pins = <6 20 RK_FUNC_1 &pcfg_pull_none_12ma>;
+		};
+
+		sdmmc_cmd: sdmmc-cmd {
+			rockchip,pins = <6 21 RK_FUNC_1 &pcfg_pull_up_drv_12ma>;
+		};
+
 		sdmmc_pwr: sdmmc-pwr {
 			rockchip,pins = <7 11 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
@@ -485,7 +524,6 @@
 };
 
 &sdio0 {
-	broken-cd;
 	bus-width = <4>;
 	disable-wp;
 	non-removable;

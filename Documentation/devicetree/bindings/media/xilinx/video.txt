@@ -20,7 +20,7 @@ The following properties are common to all Xilinx video IP cores.
 - xlnx,video-format: This property represents a video format transmitted on an
   AXI bus between video IP cores, using its VF code as defined in "AXI4-Stream
   Video IP and System Design Guide" [UG934]. How the format relates to the IP
-  core is decribed in the IP core bindings documentation.
+  core is described in the IP core bindings documentation.
 
 - xlnx,video-width: This property qualifies the video format with the sample
   width expressed as a number of bits per pixel component. All components must

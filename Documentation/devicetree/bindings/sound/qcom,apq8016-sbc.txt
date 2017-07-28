@@ -16,6 +16,24 @@ Required properties:
 				* "spkr-iomux"
 - qcom,model		: Name of the sound card.
 
+- qcom,audio-routing	: A list of the connections between audio components.
+			  Each entry is a pair of strings, the first being the
+			  connection's sink, the second being the connection's
+			  source. Valid names could be power supplies, MicBias
+			  of msm8x16_wcd codec and the jacks on the board:
+
+			  Power supplies:
+			  * MIC BIAS External1
+			  * MIC BIAS External2
+			  * MIC BIAS Internal1
+			  * MIC BIAS Internal2
+
+			  Board connectors:
+			  * Headset Mic
+			  * Secondary Mic",
+			  * DMIC
+			  * Ext Spk
+
 Dai-link subnode properties and subnodes:
 
 Required dai-link subnodes:
@@ -26,8 +44,7 @@ Required dai-link subnodes:
 Required CPU/CODEC subnodes properties:
 
 -link-name		: Name of the dai link.
--sound-dai		: phandle and port of CPU/CODEC
--capture-dai		: phandle and port of CPU/CODEC
+-sound-dai		: phandle/s and port of CPU/CODEC
 
 Example:
 
@@ -37,13 +54,25 @@ sound: sound {
 	reg-names = "mic-iomux", "spkr-iomux";
 	qcom,model = "DB410c";
 
+	qcom,audio-routing =
+		"MIC BIAS External1", "Handset Mic",
+		"MIC BIAS Internal2", "Headset Mic",
+		"MIC BIAS External1", "Secondary Mic",
+		"AMIC1", "MIC BIAS External1",
+		"AMIC2", "MIC BIAS Internal2",
+		"AMIC3", "MIC BIAS External1",
+		"DMIC1", "MIC BIAS Internal1",
+		"MIC BIAS Internal1", "Digital Mic1",
+		"DMIC2", "MIC BIAS Internal1",
+		"MIC BIAS Internal1", "Digital Mic2";
+
 	/* I2S - Internal codec */
 	internal-dai-link@0 {
 		cpu { /* PRIMARY */
 			sound-dai = <&lpass MI2S_PRIMARY>;
 		};
 		codec {
-			sound-dai = <&wcd_codec 0>;
+			sound-dai = <&lpass_codec 0>, <&wcd_codec 0>;
 		};
 	};
 

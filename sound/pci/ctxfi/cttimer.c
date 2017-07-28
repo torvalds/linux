@@ -49,7 +49,7 @@ struct ct_timer {
 	spinlock_t lock;		/* global timer lock (for xfitimer) */
 	spinlock_t list_lock;		/* lock for instance list */
 	struct ct_atc *atc;
-	struct ct_timer_ops *ops;
+	const struct ct_timer_ops *ops;
 	struct list_head instance_head;
 	struct list_head running_head;
 	unsigned int wc;		/* current wallclock */
@@ -128,7 +128,7 @@ static void ct_systimer_prepare(struct ct_timer_instance *ti)
 
 #define ct_systimer_free	ct_systimer_prepare
 
-static struct ct_timer_ops ct_systimer_ops = {
+static const struct ct_timer_ops ct_systimer_ops = {
 	.init = ct_systimer_init,
 	.free_instance = ct_systimer_free,
 	.prepare = ct_systimer_prepare,
@@ -322,7 +322,7 @@ static void ct_xfitimer_free_global(struct ct_timer *atimer)
 	ct_xfitimer_irq_stop(atimer);
 }
 
-static struct ct_timer_ops ct_xfitimer_ops = {
+static const struct ct_timer_ops ct_xfitimer_ops = {
 	.prepare = ct_xfitimer_prepare,
 	.start = ct_xfitimer_start,
 	.stop = ct_xfitimer_stop,

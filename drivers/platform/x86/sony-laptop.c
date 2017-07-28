@@ -68,7 +68,7 @@
 #include <linux/poll.h>
 #include <linux/miscdevice.h>
 #endif
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <acpi/video.h>
 
 #define dprintk(fmt, ...)			\
@@ -222,7 +222,7 @@ struct sony_laptop_keypress {
 /* Correspondance table between sonypi events
  * and input layer indexes in the keymap
  */
-static int sony_laptop_input_index[] = {
+static const int sony_laptop_input_index[] = {
 	-1,	/*  0 no event */
 	-1,	/*  1 SONYPI_EVENT_JOGDIAL_DOWN */
 	-1,	/*  2 SONYPI_EVENT_JOGDIAL_UP */
@@ -1393,6 +1393,7 @@ static void sony_nc_function_setup(struct acpi_device *device,
 		case 0x0143:
 		case 0x014b:
 		case 0x014c:
+		case 0x0153:
 		case 0x0163:
 			result = sony_nc_kbd_backlight_setup(pf_device, handle);
 			if (result)
@@ -1445,6 +1446,9 @@ static void sony_nc_function_cleanup(struct platform_device *pd)
 {
 	unsigned int i, result, bitmask, handle;
 
+	if (!handles)
+		return;
+
 	/* get enabled events and disable them */
 	sony_nc_int_call(sony_nc_acpi_handle, "SN01", NULL, &bitmask);
 	sony_nc_int_call(sony_nc_acpi_handle, "SN03", &bitmask, &result);
@@ -1490,6 +1494,7 @@ static void sony_nc_function_cleanup(struct platform_device *pd)
 		case 0x0143:
 		case 0x014b:
 		case 0x014c:
+		case 0x0153:
 		case 0x0163:
 			sony_nc_kbd_backlight_cleanup(pd, handle);
 			break;
@@ -1773,6 +1778,7 @@ struct kbd_backlight {
 	unsigned int base;
 	unsigned int mode;
 	unsigned int timeout;
+	unsigned int has_timeout;
 	struct device_attribute mode_attr;
 	struct device_attribute timeout_attr;
 };
@@ -1877,6 +1883,8 @@ static int sony_nc_kbd_backlight_setup(struct platform_device *pd,
 		unsigned int handle)
 {
 	int result;
+	int probe_base = 0;
+	int ctl_base = 0;
 	int ret = 0;
 
 	if (kbdbl_ctl) {
@@ -1885,11 +1893,25 @@ static int sony_nc_kbd_backlight_setup(struct platform_device *pd,
 		return -EBUSY;
 	}
 
-	/* verify the kbd backlight presence, these handles are not used for
-	 * keyboard backlight only
+	/* verify the kbd backlight presence, some of these handles are not used
+	 * for keyboard backlight only
 	 */
-	ret = sony_call_snc_handle(handle, handle == 0x0137 ? 0x0B00 : 0x0100,
-			&result);
+	switch (handle) {
+	case 0x0153:
+		probe_base = 0x0;
+		ctl_base = 0x0;
+		break;
+	case 0x0137:
+		probe_base = 0x0B00;
+		ctl_base = 0x0C00;
+		break;
+	default:
+		probe_base = 0x0100;
+		ctl_base = 0x4000;
+		break;
+	}
+
+	ret = sony_call_snc_handle(handle, probe_base, &result);
 	if (ret)
 		return ret;
 
@@ -1906,10 +1928,9 @@ static int sony_nc_kbd_backlight_setup(struct platform_device *pd,
 	kbdbl_ctl->mode = kbd_backlight;
 	kbdbl_ctl->timeout = kbd_backlight_timeout;
 	kbdbl_ctl->handle = handle;
-	if (handle == 0x0137)
-		kbdbl_ctl->base = 0x0C00;
-	else
-		kbdbl_ctl->base = 0x4000;
+	kbdbl_ctl->base = ctl_base;
+	/* Some models do not allow timeout control */
+	kbdbl_ctl->has_timeout = handle != 0x0153;
 
 	sysfs_attr_init(&kbdbl_ctl->mode_attr.attr);
 	kbdbl_ctl->mode_attr.attr.name = "kbd_backlight";
@@ -1917,22 +1938,28 @@ static int sony_nc_kbd_backlight_setup(struct platform_device *pd,
 	kbdbl_ctl->mode_attr.show = sony_nc_kbd_backlight_mode_show;
 	kbdbl_ctl->mode_attr.store = sony_nc_kbd_backlight_mode_store;
 
-	sysfs_attr_init(&kbdbl_ctl->timeout_attr.attr);
-	kbdbl_ctl->timeout_attr.attr.name = "kbd_backlight_timeout";
-	kbdbl_ctl->timeout_attr.attr.mode = S_IRUGO | S_IWUSR;
-	kbdbl_ctl->timeout_attr.show = sony_nc_kbd_backlight_timeout_show;
-	kbdbl_ctl->timeout_attr.store = sony_nc_kbd_backlight_timeout_store;
-
 	ret = device_create_file(&pd->dev, &kbdbl_ctl->mode_attr);
 	if (ret)
 		goto outkzalloc;
 
-	ret = device_create_file(&pd->dev, &kbdbl_ctl->timeout_attr);
-	if (ret)
-		goto outmode;
-
 	__sony_nc_kbd_backlight_mode_set(kbdbl_ctl->mode);
-	__sony_nc_kbd_backlight_timeout_set(kbdbl_ctl->timeout);
+
+	if (kbdbl_ctl->has_timeout) {
+		sysfs_attr_init(&kbdbl_ctl->timeout_attr.attr);
+		kbdbl_ctl->timeout_attr.attr.name = "kbd_backlight_timeout";
+		kbdbl_ctl->timeout_attr.attr.mode = S_IRUGO | S_IWUSR;
+		kbdbl_ctl->timeout_attr.show =
+			sony_nc_kbd_backlight_timeout_show;
+		kbdbl_ctl->timeout_attr.store =
+			sony_nc_kbd_backlight_timeout_store;
+
+		ret = device_create_file(&pd->dev, &kbdbl_ctl->timeout_attr);
+		if (ret)
+			goto outmode;
+
+		__sony_nc_kbd_backlight_timeout_set(kbdbl_ctl->timeout);
+	}
+
 
 	return 0;
 
@@ -1949,7 +1976,8 @@ static void sony_nc_kbd_backlight_cleanup(struct platform_device *pd,
 {
 	if (kbdbl_ctl && handle == kbdbl_ctl->handle) {
 		device_remove_file(&pd->dev, &kbdbl_ctl->mode_attr);
-		device_remove_file(&pd->dev, &kbdbl_ctl->timeout_attr);
+		if (kbdbl_ctl->has_timeout)
+			device_remove_file(&pd->dev, &kbdbl_ctl->timeout_attr);
 		kfree(kbdbl_ctl);
 		kbdbl_ctl = NULL;
 	}
@@ -4004,7 +4032,7 @@ static struct attribute *spic_attributes[] = {
 	NULL
 };
 
-static struct attribute_group spic_attribute_group = {
+static const struct attribute_group spic_attribute_group = {
 	.attrs = spic_attributes
 };
 
@@ -4088,7 +4116,7 @@ static ssize_t sonypi_misc_read(struct file *file, char __user *buf,
 
 	if (ret > 0) {
 		struct inode *inode = file_inode(file);
-		inode->i_atime = current_fs_time(inode->i_sb);
+		inode->i_atime = current_time(inode);
 	}
 
 	return ret;

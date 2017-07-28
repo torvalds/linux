@@ -20,7 +20,7 @@
 #include <linux/capability.h>
 #include <linux/compiler.h>
 
-#include <linux/rcupdate.h>	/* rcu_expedited */
+#include <linux/rcupdate.h>	/* rcu_expedited and rcu_normal */
 
 #define KERNEL_ATTR_RO(_name) \
 static struct kobj_attribute _name##_attr = __ATTR_RO(_name)
@@ -101,7 +101,7 @@ KERNEL_ATTR_RO(kexec_loaded);
 static ssize_t kexec_crash_loaded_show(struct kobject *kobj,
 				       struct kobj_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", !!kexec_crash_image);
+	return sprintf(buf, "%d\n", kexec_crash_loaded());
 }
 KERNEL_ATTR_RO(kexec_crash_loaded);
 
@@ -125,16 +125,20 @@ static ssize_t kexec_crash_size_store(struct kobject *kobj,
 }
 KERNEL_ATTR_RW(kexec_crash_size);
 
+#endif /* CONFIG_KEXEC_CORE */
+
+#ifdef CONFIG_CRASH_CORE
+
 static ssize_t vmcoreinfo_show(struct kobject *kobj,
 			       struct kobj_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%lx %x\n",
-		       paddr_vmcoreinfo_note(),
-		       (unsigned int)sizeof(vmcoreinfo_note));
+	phys_addr_t vmcore_base = paddr_vmcoreinfo_note();
+	return sprintf(buf, "%pa %x\n", &vmcore_base,
+			(unsigned int)VMCOREINFO_NOTE_SIZE);
 }
 KERNEL_ATTR_RO(vmcoreinfo);
 
-#endif /* CONFIG_KEXEC_CORE */
+#endif /* CONFIG_CRASH_CORE */
 
 /* whether file capabilities are enabled */
 static ssize_t fscaps_show(struct kobject *kobj,
@@ -144,11 +148,12 @@ static ssize_t fscaps_show(struct kobject *kobj,
 }
 KERNEL_ATTR_RO(fscaps);
 
+#ifndef CONFIG_TINY_RCU
 int rcu_expedited;
 static ssize_t rcu_expedited_show(struct kobject *kobj,
 				  struct kobj_attribute *attr, char *buf)
 {
-	return sprintf(buf, "%d\n", rcu_expedited);
+	return sprintf(buf, "%d\n", READ_ONCE(rcu_expedited));
 }
 static ssize_t rcu_expedited_store(struct kobject *kobj,
 				   struct kobj_attribute *attr,
@@ -160,6 +165,24 @@ static ssize_t rcu_expedited_store(struct kobject *kobj,
 	return count;
 }
 KERNEL_ATTR_RW(rcu_expedited);
+
+int rcu_normal;
+static ssize_t rcu_normal_show(struct kobject *kobj,
+			       struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", READ_ONCE(rcu_normal));
+}
+static ssize_t rcu_normal_store(struct kobject *kobj,
+				struct kobj_attribute *attr,
+				const char *buf, size_t count)
+{
+	if (kstrtoint(buf, 0, &rcu_normal))
+		return -EINVAL;
+
+	return count;
+}
+KERNEL_ATTR_RW(rcu_normal);
+#endif /* #ifndef CONFIG_TINY_RCU */
 
 /*
  * Make /sys/kernel/notes give the raw contents of our kernel .notes section.
@@ -176,7 +199,7 @@ static ssize_t notes_read(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static struct bin_attribute notes_attr = {
+static struct bin_attribute notes_attr __ro_after_init  = {
 	.attr = {
 		.name = "notes",
 		.mode = S_IRUGO,
@@ -200,13 +223,18 @@ static struct attribute * kernel_attrs[] = {
 	&kexec_loaded_attr.attr,
 	&kexec_crash_loaded_attr.attr,
 	&kexec_crash_size_attr.attr,
+#endif
+#ifdef CONFIG_CRASH_CORE
 	&vmcoreinfo_attr.attr,
 #endif
+#ifndef CONFIG_TINY_RCU
 	&rcu_expedited_attr.attr,
+	&rcu_normal_attr.attr,
+#endif
 	NULL
 };
 
-static struct attribute_group kernel_attr_group = {
+static const struct attribute_group kernel_attr_group = {
 	.attrs = kernel_attrs,
 };
 

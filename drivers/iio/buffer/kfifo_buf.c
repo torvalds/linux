@@ -5,7 +5,10 @@
 #include <linux/workqueue.h>
 #include <linux/kfifo.h>
 #include <linux/mutex.h>
+#include <linux/iio/iio.h>
+#include <linux/iio/buffer.h>
 #include <linux/iio/kfifo_buf.h>
+#include <linux/iio/buffer_impl.h>
 #include <linux/sched.h>
 #include <linux/poll.h>
 

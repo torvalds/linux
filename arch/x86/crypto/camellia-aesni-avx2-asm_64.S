@@ -11,6 +11,7 @@
  */
 
 #include <linux/linkage.h>
+#include <asm/frame.h>
 
 #define CAMELLIA_TABLE_BYTE_LEN 272
 
@@ -609,19 +610,24 @@ ENDPROC(roundsm32_x4_x5_x6_x7_x0_x1_x2_x3_y4_y5_y6_y7_y0_y1_y2_y3_ab)
 	vmovdqu y6, 14 * 32(rio); \
 	vmovdqu y7, 15 * 32(rio);
 
-.data
-.align 32
 
+.section	.rodata.cst32.shufb_16x16b, "aM", @progbits, 32
+.align 32
 #define SHUFB_BYTES(idx) \
 	0 + (idx), 4 + (idx), 8 + (idx), 12 + (idx)
-
 .Lshufb_16x16b:
 	.byte SHUFB_BYTES(0), SHUFB_BYTES(1), SHUFB_BYTES(2), SHUFB_BYTES(3)
 	.byte SHUFB_BYTES(0), SHUFB_BYTES(1), SHUFB_BYTES(2), SHUFB_BYTES(3)
 
+.section	.rodata.cst32.pack_bswap, "aM", @progbits, 32
+.align 32
 .Lpack_bswap:
 	.long 0x00010203, 0x04050607, 0x80808080, 0x80808080
 	.long 0x00010203, 0x04050607, 0x80808080, 0x80808080
+
+/* NB: section is mergeable, all elements must be aligned 16-byte blocks */
+.section	.rodata.cst16, "aM", @progbits, 16
+.align 16
 
 /* For CTR-mode IV byteswap */
 .Lbswap128_mask:
@@ -749,6 +755,7 @@ ENDPROC(roundsm32_x4_x5_x6_x7_x0_x1_x2_x3_y4_y5_y6_y7_y0_y1_y2_y3_ab)
 	.byte 0x00, 0x0d, 0x0a, 0x07, 0x04, 0x01, 0x0e, 0x0b
 	.byte 0x08, 0x05, 0x02, 0x0f, 0x0c, 0x09, 0x06, 0x03
 
+.section	.rodata.cst4.L0f0f0f0f, "aM", @progbits, 4
 .align 4
 /* 4-bit mask */
 .L0f0f0f0f:
@@ -766,6 +773,7 @@ __camellia_enc_blk32:
 	 *	%ymm0..%ymm15: 32 encrypted blocks, order swapped:
 	 *       7, 8, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8
 	 */
+	FRAME_BEGIN
 
 	leaq 8 * 32(%rax), %rcx;
 
@@ -820,6 +828,7 @@ __camellia_enc_blk32:
 		    %ymm8, %ymm9, %ymm10, %ymm11, %ymm12, %ymm13, %ymm14,
 		    %ymm15, (key_table)(CTX, %r8, 8), (%rax), 1 * 32(%rax));
 
+	FRAME_END
 	ret;
 
 .align 8
@@ -852,6 +861,7 @@ __camellia_dec_blk32:
 	 *	%ymm0..%ymm15: 16 plaintext blocks, order swapped:
 	 *       7, 8, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8
 	 */
+	FRAME_BEGIN
 
 	leaq 8 * 32(%rax), %rcx;
 
@@ -905,6 +915,7 @@ __camellia_dec_blk32:
 		    %ymm8, %ymm9, %ymm10, %ymm11, %ymm12, %ymm13, %ymm14,
 		    %ymm15, (key_table)(CTX), (%rax), 1 * 32(%rax));
 
+	FRAME_END
 	ret;
 
 .align 8
@@ -930,6 +941,7 @@ ENTRY(camellia_ecb_enc_32way)
 	 *	%rsi: dst (32 blocks)
 	 *	%rdx: src (32 blocks)
 	 */
+	FRAME_BEGIN
 
 	vzeroupper;
 
@@ -948,6 +960,7 @@ ENTRY(camellia_ecb_enc_32way)
 
 	vzeroupper;
 
+	FRAME_END
 	ret;
 ENDPROC(camellia_ecb_enc_32way)
 
@@ -957,6 +970,7 @@ ENTRY(camellia_ecb_dec_32way)
 	 *	%rsi: dst (32 blocks)
 	 *	%rdx: src (32 blocks)
 	 */
+	FRAME_BEGIN
 
 	vzeroupper;
 
@@ -980,6 +994,7 @@ ENTRY(camellia_ecb_dec_32way)
 
 	vzeroupper;
 
+	FRAME_END
 	ret;
 ENDPROC(camellia_ecb_dec_32way)
 
@@ -989,6 +1004,7 @@ ENTRY(camellia_cbc_dec_32way)
 	 *	%rsi: dst (32 blocks)
 	 *	%rdx: src (32 blocks)
 	 */
+	FRAME_BEGIN
 
 	vzeroupper;
 
@@ -1046,6 +1062,7 @@ ENTRY(camellia_cbc_dec_32way)
 
 	vzeroupper;
 
+	FRAME_END
 	ret;
 ENDPROC(camellia_cbc_dec_32way)
 
@@ -1070,6 +1087,7 @@ ENTRY(camellia_ctr_32way)
 	 *	%rdx: src (32 blocks)
 	 *	%rcx: iv (little endian, 128bit)
 	 */
+	FRAME_BEGIN
 
 	vzeroupper;
 
@@ -1184,6 +1202,7 @@ ENTRY(camellia_ctr_32way)
 
 	vzeroupper;
 
+	FRAME_END
 	ret;
 ENDPROC(camellia_ctr_32way)
 
@@ -1216,6 +1235,7 @@ camellia_xts_crypt_32way:
 	 *	%r8: index for input whitening key
 	 *	%r9: pointer to  __camellia_enc_blk32 or __camellia_dec_blk32
 	 */
+	FRAME_BEGIN
 
 	vzeroupper;
 
@@ -1349,6 +1369,7 @@ camellia_xts_crypt_32way:
 
 	vzeroupper;
 
+	FRAME_END
 	ret;
 ENDPROC(camellia_xts_crypt_32way)
 

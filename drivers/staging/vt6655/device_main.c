@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  * File: device_main.c
  *
  * Purpose: driver entry for initial, open, close, tx and rx.
@@ -113,10 +109,10 @@ DEVICE_PARAM(ShortRetryLimit, "Short frame retry limits");
 DEVICE_PARAM(LongRetryLimit, "long frame retry limits");
 
 /* BasebandType[] baseband type selected
-   0: indicate 802.11a type
-   1: indicate 802.11b type
-   2: indicate 802.11g type
-*/
+ * 0: indicate 802.11a type
+ * 1: indicate 802.11b type
+ * 2: indicate 802.11g type
+ */
 #define BBP_TYPE_MIN     0
 #define BBP_TYPE_MAX     2
 #define BBP_TYPE_DEF     2
@@ -161,7 +157,7 @@ static void vt6655_remove(struct pci_dev *pcid)
 {
 	struct vnt_private *priv = pci_get_drvdata(pcid);
 
-	if (priv == NULL)
+	if (!priv)
 		return;
 	device_free_info(priv);
 }
@@ -211,11 +207,11 @@ static void device_init_registers(struct vnt_private *priv)
 	unsigned char byCCKPwrdBm = 0;
 	unsigned char byOFDMPwrdBm = 0;
 
-	MACbShutdown(priv->PortOffset);
+	MACbShutdown(priv);
 	BBvSoftwareReset(priv);
 
 	/* Do MACbSoftwareReset in MACvInitialize */
-	MACbSoftwareReset(priv->PortOffset);
+	MACbSoftwareReset(priv);
 
 	priv->bAES = false;
 
@@ -229,7 +225,7 @@ static void device_init_registers(struct vnt_private *priv)
 	priv->byTopCCKBasicRate = RATE_1M;
 
 	/* init MAC */
-	MACvInitialize(priv->PortOffset);
+	MACvInitialize(priv);
 
 	/* Get Local ID */
 	VNSvInPortB(priv->PortOffset + MAC_REG_LOCALID, &priv->byLocalID);
@@ -314,7 +310,7 @@ static void device_init_registers(struct vnt_private *priv)
 			SROMbyReadEmbedded(priv->PortOffset,
 					   (unsigned char)(ii + EEP_OFS_CCK_PWR_TBL));
 		if (priv->abyCCKPwrTbl[ii + 1] == 0)
-			priv->abyCCKPwrTbl[ii+1] = priv->byCCKPwr;
+			priv->abyCCKPwrTbl[ii + 1] = priv->byCCKPwr;
 
 		priv->abyOFDMPwrTbl[ii + 1] =
 			SROMbyReadEmbedded(priv->PortOffset,
@@ -357,8 +353,8 @@ static void device_init_registers(struct vnt_private *priv)
 			  MAC_REG_CFG, (CFG_TKIPOPT | CFG_NOTXTIMEOUT));
 
 	/* set performance parameter by registry */
-	MACvSetShortRetryLimit(priv->PortOffset, priv->byShortRetryLimit);
-	MACvSetLongRetryLimit(priv->PortOffset, priv->byLongRetryLimit);
+	MACvSetShortRetryLimit(priv, priv->byShortRetryLimit);
+	MACvSetLongRetryLimit(priv, priv->byLongRetryLimit);
 
 	/* reset TSF counter */
 	VNSvOutPortB(priv->PortOffset + MAC_REG_TFTCTL, TFTCTL_TSFCNTRST);
@@ -457,7 +453,7 @@ static bool device_init_rings(struct vnt_private *priv)
 				       priv->opts.tx_descs[0] * sizeof(struct vnt_tx_desc) +
 				       priv->opts.tx_descs[1] * sizeof(struct vnt_tx_desc),
 				       &priv->pool_dma, GFP_ATOMIC);
-	if (vir_pool == NULL) {
+	if (!vir_pool) {
 		dev_err(&priv->pcid->dev, "allocate desc dma memory failed\n");
 		return false;
 	}
@@ -477,7 +473,7 @@ static bool device_init_rings(struct vnt_private *priv)
 					     CB_MAX_BUF_SIZE,
 					     &priv->tx_bufs_dma0,
 					     GFP_ATOMIC);
-	if (priv->tx0_bufs == NULL) {
+	if (!priv->tx0_bufs) {
 		dev_err(&priv->pcid->dev, "allocate buf dma memory failed\n");
 
 		dma_free_coherent(&priv->pcid->dev,
@@ -556,7 +552,7 @@ static void device_init_rd0_ring(struct vnt_private *priv)
 		if (!device_alloc_rx_buf(priv, desc))
 			dev_err(&priv->pcid->dev, "can not alloc rx bufs\n");
 
-		desc->next = &(priv->aRD0Ring[(i+1) % priv->opts.rx_descs0]);
+		desc->next = &(priv->aRD0Ring[(i + 1) % priv->opts.rx_descs0]);
 		desc->next_desc = cpu_to_le32(curr + sizeof(struct vnt_rx_desc));
 	}
 
@@ -735,13 +731,18 @@ static bool device_alloc_rx_buf(struct vnt_private *priv,
 	struct vnt_rd_info *rd_info = rd->rd_info;
 
 	rd_info->skb = dev_alloc_skb((int)priv->rx_buf_sz);
-	if (rd_info->skb == NULL)
+	if (!rd_info->skb)
 		return false;
 
 	rd_info->skb_dma =
 		dma_map_single(&priv->pcid->dev,
 			       skb_put(rd_info->skb, skb_tailroom(rd_info->skb)),
 			       priv->rx_buf_sz, DMA_FROM_DEVICE);
+	if (dma_mapping_error(&priv->pcid->dev, rd_info->skb_dma)) {
+		dev_kfree_skb(rd_info->skb);
+		rd_info->skb = NULL;
+		return false;
+	}
 
 	*((unsigned int *)&rd->rd0) = 0; /* FIX cast */
 
@@ -807,7 +808,7 @@ static int vnt_int_report_rate(struct vnt_private *priv,
 		else if (fb_option & FIFOCTL_AUTO_FB_1)
 			tx_rate = fallback_rate1[tx_rate][retry];
 
-		if (info->band == IEEE80211_BAND_5GHZ)
+		if (info->band == NL80211_BAND_5GHZ)
 			idx = tx_rate - RATE_6M;
 		else
 			idx = tx_rate;
@@ -884,7 +885,7 @@ static void device_error(struct vnt_private *priv, unsigned short status)
 	if (status & ISR_FETALERR) {
 		dev_err(&priv->pcid->dev, "Hardware fatal error\n");
 
-		MACbShutdown(priv->PortOffset);
+		MACbShutdown(priv);
 		return;
 	}
 }
@@ -1012,12 +1013,11 @@ static void vnt_interrupt_process(struct vnt_private *priv)
 			if ((priv->op_mode == NL80211_IFTYPE_AP ||
 			    priv->op_mode == NL80211_IFTYPE_ADHOC) &&
 			    priv->vif->bss_conf.enable_beacon) {
-				MACvOneShotTimer1MicroSec(priv->PortOffset,
+				MACvOneShotTimer1MicroSec(priv,
 							  (priv->vif->bss_conf.beacon_int - MAKE_BEACON_RESERVED) << 10);
 			}
 
 			/* TODO: adhoc PS mode */
-
 		}
 
 		if (isr & ISR_BNTX) {
@@ -1166,7 +1166,7 @@ static int vnt_start(struct ieee80211_hw *hw)
 	if (!device_init_rings(priv))
 		return -ENOMEM;
 
-	ret = request_irq(priv->pcid->irq, &vnt_interrupt,
+	ret = request_irq(priv->pcid->irq, vnt_interrupt,
 			  IRQF_SHARED, "vt6655", priv);
 	if (ret) {
 		dev_dbg(&priv->pcid->dev, "failed to start irq\n");
@@ -1197,8 +1197,8 @@ static void vnt_stop(struct ieee80211_hw *hw)
 
 	cancel_work_sync(&priv->interrupt_work);
 
-	MACbShutdown(priv->PortOffset);
-	MACbSoftwareReset(priv->PortOffset);
+	MACbShutdown(priv);
+	MACbSoftwareReset(priv);
 	CARDbRadioPowerOff(priv);
 
 	device_free_td0_ring(priv);
@@ -1267,7 +1267,6 @@ static void vnt_remove_interface(struct ieee80211_hw *hw,
 	priv->op_mode = NL80211_IFTYPE_UNSPECIFIED;
 }
 
-
 static int vnt_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct vnt_private *priv = hw->priv;
@@ -1285,7 +1284,7 @@ static int vnt_config(struct ieee80211_hw *hw, u32 changed)
 	    (conf->flags & IEEE80211_CONF_OFFCHANNEL)) {
 		set_channel(priv, conf->chandef.chan);
 
-		if (conf->chandef.chan->band == IEEE80211_BAND_5GHZ)
+		if (conf->chandef.chan->band == NL80211_BAND_5GHZ)
 			bb_type = BB_TYPE_11A;
 		else
 			bb_type = BB_TYPE_11G;
@@ -1311,8 +1310,8 @@ static int vnt_config(struct ieee80211_hw *hw, u32 changed)
 }
 
 static void vnt_bss_info_changed(struct ieee80211_hw *hw,
-		struct ieee80211_vif *vif, struct ieee80211_bss_conf *conf,
-		u32 changed)
+				 struct ieee80211_vif *vif,
+				 struct ieee80211_bss_conf *conf, u32 changed)
 {
 	struct vnt_private *priv = hw->priv;
 
@@ -1402,7 +1401,7 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 }
 
 static u64 vnt_prepare_multicast(struct ieee80211_hw *hw,
-	struct netdev_hw_addr_list *mc_list)
+				 struct netdev_hw_addr_list *mc_list)
 {
 	struct vnt_private *priv = hw->priv;
 	struct netdev_hw_addr *ha;
@@ -1421,7 +1420,8 @@ static u64 vnt_prepare_multicast(struct ieee80211_hw *hw,
 }
 
 static void vnt_configure(struct ieee80211_hw *hw,
-	unsigned int changed_flags, unsigned int *total_flags, u64 multicast)
+			  unsigned int changed_flags,
+			  unsigned int *total_flags, u64 multicast)
 {
 	struct vnt_private *priv = hw->priv;
 	u8 rx_mode = 0;
@@ -1482,8 +1482,8 @@ static void vnt_configure(struct ieee80211_hw *hw,
 }
 
 static int vnt_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
-	struct ieee80211_vif *vif, struct ieee80211_sta *sta,
-		struct ieee80211_key_conf *key)
+		       struct ieee80211_vif *vif, struct ieee80211_sta *sta,
+		       struct ieee80211_key_conf *key)
 {
 	struct vnt_private *priv = hw->priv;
 
@@ -1636,13 +1636,13 @@ vt6655_probe(struct pci_dev *pcid, const struct pci_device_id *ent)
 	INIT_WORK(&priv->interrupt_work, vnt_interrupt_work);
 
 	/* do reset */
-	if (!MACbSoftwareReset(priv->PortOffset)) {
+	if (!MACbSoftwareReset(priv)) {
 		dev_err(&pcid->dev, ": Failed to access MAC hardware..\n");
 		device_free_info(priv);
 		return -ENODEV;
 	}
 	/* initial to reload eeprom */
-	MACvInitialize(priv->PortOffset);
+	MACvInitialize(priv);
 	MACvReadEtherAddress(priv->PortOffset, priv->abyCurrentNetAddr);
 
 	/* Get RFType */
@@ -1690,7 +1690,7 @@ static int vt6655_suspend(struct pci_dev *pcid, pm_message_t state)
 
 	pci_save_state(pcid);
 
-	MACbShutdown(priv->PortOffset);
+	MACbShutdown(priv);
 
 	pci_disable_device(pcid);
 	pci_set_power_state(pcid, pci_choose_state(pcid, state));
@@ -1702,7 +1702,6 @@ static int vt6655_suspend(struct pci_dev *pcid, pm_message_t state)
 
 static int vt6655_resume(struct pci_dev *pcid)
 {
-
 	pci_set_power_state(pcid, PCI_D0);
 	pci_enable_wake(pcid, PCI_D0, 0);
 	pci_restore_state(pcid);

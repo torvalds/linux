@@ -18,7 +18,7 @@
 #include <linux/debug_locks.h>
 #include <linux/vmalloc.h>
 #include <linux/sort.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/div64.h>
 
 #include "lockdep_internals.h"
@@ -141,6 +141,8 @@ static int lc_show(struct seq_file *m, void *v)
 	int i;
 
 	if (v == SEQ_START_TOKEN) {
+		if (nr_chain_hlocks > MAX_LOCKDEP_CHAIN_HLOCKS)
+			seq_printf(m, "(buggered) ");
 		seq_printf(m, "all lock chains:\n");
 		return 0;
 	}

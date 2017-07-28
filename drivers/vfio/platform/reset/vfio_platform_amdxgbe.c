@@ -56,7 +56,7 @@ static void xmdio_write(void *ioaddr, unsigned int mmd,
 	iowrite32(value, ioaddr + ((mmd_address & 0xff) << 2));
 }
 
-int vfio_platform_amdxgbe_reset(struct vfio_platform_device *vdev)
+static int vfio_platform_amdxgbe_reset(struct vfio_platform_device *vdev)
 {
 	struct vfio_platform_region *xgmac_regs = &vdev->regions[0];
 	struct vfio_platform_region *xpcs_regs = &vdev->regions[1];
@@ -110,7 +110,7 @@ int vfio_platform_amdxgbe_reset(struct vfio_platform_device *vdev)
 	usleep_range(10, 15);
 
 	count = 2000;
-	while (count-- && (ioread32(xgmac_regs->ioaddr + DMA_MR) & 1))
+	while (--count && (ioread32(xgmac_regs->ioaddr + DMA_MR) & 1))
 		usleep_range(500, 600);
 
 	if (!count)

@@ -11,10 +11,6 @@
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
  * more details.
  *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
  *******************************************************************************/
 #ifndef __RTL8188E_SPEC_H__
 #define __RTL8188E_SPEC_H__
@@ -1354,7 +1350,7 @@ Current IOREG MAP
 #define EEPROM_Default_CrystalCap_88E		0x20
 #define	EEPROM_Default_ThermalMeter_88E		0x18
 
-/* New EFUSE deafult value */
+/* New EFUSE default value */
 #define		EEPROM_DEFAULT_24G_INDEX	0x2D
 #define		EEPROM_DEFAULT_24G_HT20_DIFF	0X02
 #define		EEPROM_DEFAULT_24G_OFDM_DIFF	0X04

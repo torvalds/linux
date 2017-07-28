@@ -18,6 +18,7 @@
 #include <linux/regmap.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
+#include <linux/acpi.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -585,44 +586,6 @@ static const struct snd_kcontrol_new hpo_r_mute_control =
 	SOC_DAPM_SINGLE_AUTODISABLE("Switch", RT5651_HP_VOL,
 				    RT5651_R_MUTE_SFT, 1, 1);
 
-/* INL/R source */
-static const char * const rt5651_inl_src[] = {"IN2P", "HPOVOLLP"};
-
-static SOC_ENUM_SINGLE_DECL(
-	rt5651_inl_enum, RT5651_INL1_INR1_VOL,
-	RT5651_INL_SEL_SFT, rt5651_inl_src);
-
-static const struct snd_kcontrol_new rt5651_inl1_mux =
-	SOC_DAPM_ENUM("INL1 source", rt5651_inl_enum);
-
-static const char * const rt5651_inr1_src[] = {"IN2N", "HPOVOLRP"};
-
-static SOC_ENUM_SINGLE_DECL(
-	rt5651_inr1_enum, RT5651_INL1_INR1_VOL,
-	RT5651_INR_SEL_SFT, rt5651_inr1_src);
-
-static const struct snd_kcontrol_new rt5651_inr1_mux =
-	SOC_DAPM_ENUM("INR1 source", rt5651_inr1_enum);
-
-static const char * const rt5651_inl2_src[] = {"IN3P", "OUTVOLLP"};
-
-static SOC_ENUM_SINGLE_DECL(
-	rt5651_inl2_enum, RT5651_INL2_INR2_VOL,
-	RT5651_INL_SEL_SFT, rt5651_inl2_src);
-
-static const struct snd_kcontrol_new rt5651_inl2_mux =
-	SOC_DAPM_ENUM("INL2 source", rt5651_inl2_enum);
-
-static const char * const rt5651_inr2_src[] = {"IN3N", "OUTVOLRP"};
-
-static SOC_ENUM_SINGLE_DECL(
-	rt5651_inr2_enum, RT5651_INL2_INR2_VOL,
-	RT5651_INR_SEL_SFT, rt5651_inr2_src);
-
-static const struct snd_kcontrol_new rt5651_inr2_mux =
-	SOC_DAPM_ENUM("INR2 source", rt5651_inr2_enum);
-
-
 /* Stereo ADC source */
 static const char * const rt5651_stereo1_adc1_src[] = {"DD MIX", "ADC"};
 
@@ -954,11 +917,7 @@ static const struct snd_soc_dapm_widget rt5651_dapm_widgets[] = {
 			 RT5651_PWR_IN2_L_BIT, 0, NULL, 0),
 	SND_SOC_DAPM_PGA("INR2 VOL", RT5651_PWR_VOL,
 			 RT5651_PWR_IN2_R_BIT, 0, NULL, 0),
-	/* IN Mux */
-	SND_SOC_DAPM_MUX("INL1 Mux", SND_SOC_NOPM, 0, 0, &rt5651_inl1_mux),
-	SND_SOC_DAPM_MUX("INR1 Mux", SND_SOC_NOPM, 0, 0, &rt5651_inr1_mux),
-	SND_SOC_DAPM_MUX("INL2 Mux", SND_SOC_NOPM, 0, 0, &rt5651_inl2_mux),
-	SND_SOC_DAPM_MUX("INR2 Mux", SND_SOC_NOPM, 0, 0, &rt5651_inr2_mux),
+
 	/* REC Mixer */
 	SND_SOC_DAPM_MIXER("RECMIXL", RT5651_PWR_MIXER, RT5651_PWR_RM_L_BIT, 0,
 			   rt5651_rec_l_mix, ARRAY_SIZE(rt5651_rec_l_mix)),
@@ -1711,12 +1670,14 @@ static struct snd_soc_codec_driver soc_codec_dev_rt5651 = {
 	.resume = rt5651_resume,
 	.set_bias_level = rt5651_set_bias_level,
 	.idle_bias_off = true,
-	.controls = rt5651_snd_controls,
-	.num_controls = ARRAY_SIZE(rt5651_snd_controls),
-	.dapm_widgets = rt5651_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(rt5651_dapm_widgets),
-	.dapm_routes = rt5651_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(rt5651_dapm_routes),
+	.component_driver = {
+		.controls		= rt5651_snd_controls,
+		.num_controls		= ARRAY_SIZE(rt5651_snd_controls),
+		.dapm_widgets		= rt5651_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(rt5651_dapm_widgets),
+		.dapm_routes		= rt5651_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(rt5651_dapm_routes),
+	},
 };
 
 static const struct regmap_config rt5651_regmap = {
@@ -1735,11 +1696,37 @@ static const struct regmap_config rt5651_regmap = {
 	.num_ranges = ARRAY_SIZE(rt5651_ranges),
 };
 
+#if defined(CONFIG_OF)
+static const struct of_device_id rt5651_of_match[] = {
+	{ .compatible = "realtek,rt5651", },
+	{},
+};
+MODULE_DEVICE_TABLE(of, rt5651_of_match);
+#endif
+
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id rt5651_acpi_match[] = {
+	{ "10EC5651", 0 },
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, rt5651_acpi_match);
+#endif
+
 static const struct i2c_device_id rt5651_i2c_id[] = {
 	{ "rt5651", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, rt5651_i2c_id);
+
+static int rt5651_parse_dt(struct rt5651_priv *rt5651, struct device_node *np)
+{
+	rt5651->pdata.in2_diff = of_property_read_bool(np,
+		"realtek,in2-differential");
+	rt5651->pdata.dmic_en = of_property_read_bool(np,
+		"realtek,dmic-en");
+
+	return 0;
+}
 
 static int rt5651_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)
@@ -1757,6 +1744,8 @@ static int rt5651_i2c_probe(struct i2c_client *i2c,
 
 	if (pdata)
 		rt5651->pdata = *pdata;
+	else if (i2c->dev.of_node)
+		rt5651_parse_dt(rt5651, i2c->dev.of_node);
 
 	rt5651->regmap = devm_regmap_init_i2c(i2c, &rt5651_regmap);
 	if (IS_ERR(rt5651->regmap)) {
@@ -1806,6 +1795,8 @@ static int rt5651_i2c_remove(struct i2c_client *i2c)
 static struct i2c_driver rt5651_i2c_driver = {
 	.driver = {
 		.name = "rt5651",
+		.acpi_match_table = ACPI_PTR(rt5651_acpi_match),
+		.of_match_table = of_match_ptr(rt5651_of_match),
 	},
 	.probe = rt5651_i2c_probe,
 	.remove   = rt5651_i2c_remove,

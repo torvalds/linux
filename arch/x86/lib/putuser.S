@@ -15,6 +15,7 @@
 #include <asm/errno.h>
 #include <asm/asm.h>
 #include <asm/smap.h>
+#include <asm/export.h>
 
 
 /*
@@ -29,24 +30,25 @@
  * as they get called from within inline assembly.
  */
 
-#define ENTER	GET_THREAD_INFO(%_ASM_BX)
+#define ENTER	mov PER_CPU_VAR(current_task), %_ASM_BX
 #define EXIT	ASM_CLAC ;	\
 		ret
 
 .text
 ENTRY(__put_user_1)
 	ENTER
-	cmp TI_addr_limit(%_ASM_BX),%_ASM_CX
+	cmp TASK_addr_limit(%_ASM_BX),%_ASM_CX
 	jae bad_put_user
 	ASM_STAC
 1:	movb %al,(%_ASM_CX)
 	xor %eax,%eax
 	EXIT
 ENDPROC(__put_user_1)
+EXPORT_SYMBOL(__put_user_1)
 
 ENTRY(__put_user_2)
 	ENTER
-	mov TI_addr_limit(%_ASM_BX),%_ASM_BX
+	mov TASK_addr_limit(%_ASM_BX),%_ASM_BX
 	sub $1,%_ASM_BX
 	cmp %_ASM_BX,%_ASM_CX
 	jae bad_put_user
@@ -55,10 +57,11 @@ ENTRY(__put_user_2)
 	xor %eax,%eax
 	EXIT
 ENDPROC(__put_user_2)
+EXPORT_SYMBOL(__put_user_2)
 
 ENTRY(__put_user_4)
 	ENTER
-	mov TI_addr_limit(%_ASM_BX),%_ASM_BX
+	mov TASK_addr_limit(%_ASM_BX),%_ASM_BX
 	sub $3,%_ASM_BX
 	cmp %_ASM_BX,%_ASM_CX
 	jae bad_put_user
@@ -67,10 +70,11 @@ ENTRY(__put_user_4)
 	xor %eax,%eax
 	EXIT
 ENDPROC(__put_user_4)
+EXPORT_SYMBOL(__put_user_4)
 
 ENTRY(__put_user_8)
 	ENTER
-	mov TI_addr_limit(%_ASM_BX),%_ASM_BX
+	mov TASK_addr_limit(%_ASM_BX),%_ASM_BX
 	sub $7,%_ASM_BX
 	cmp %_ASM_BX,%_ASM_CX
 	jae bad_put_user
@@ -82,6 +86,7 @@ ENTRY(__put_user_8)
 	xor %eax,%eax
 	EXIT
 ENDPROC(__put_user_8)
+EXPORT_SYMBOL(__put_user_8)
 
 bad_put_user:
 	movl $-EFAULT,%eax

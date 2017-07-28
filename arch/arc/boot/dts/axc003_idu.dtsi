@@ -10,9 +10,10 @@
  * Device tree for AXC003 CPU card: HS38x2 (Dual Core) with IDU intc
  */
 
+/include/ "skeleton_hs_idu.dtsi"
+
 / {
 	compatible = "snps,arc";
-	clock-frequency = <90000000>;
 	#address-cells = <1>;
 	#size-cells = <1>;
 
@@ -23,7 +24,13 @@
 
 		ranges = <0x00000000 0xf0000000 0x10000000>;
 
-		cpu_intc: archs-intc@cpu {
+		core_clk: core_clk {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <100000000>;
+		};
+
+		core_intc: archs-intc@cpu {
 			compatible = "snps,archs-intc";
 			interrupt-controller;
 			#interrupt-cells = <1>;
@@ -32,19 +39,8 @@
 		idu_intc: idu-interrupt-controller {
 			compatible = "snps,archs-idu-intc";
 			interrupt-controller;
-			interrupt-parent = <&cpu_intc>;
-
-			/*
-			 * <hwirq  distribution>
-			 * distribution: 0=RR; 1=cpu0, 2=cpu1, 4=cpu2, 8=cpu3
-			 */
-			#interrupt-cells = <2>;
-
-			/*
-			 * upstream irqs to core intc - downstream these are
-			 * "COMMON" irq 0,1..
-			 */
-			interrupts = <24 25>;
+			interrupt-parent = <&core_intc>;
+			#interrupt-cells = <1>;
 		};
 
 		/*
@@ -66,12 +62,7 @@
 				interrupt-controller;
 				#interrupt-cells = <2>;
 				interrupt-parent = <&idu_intc>;
-
-				/*
-				 * cmn irq 1 -> cpu irq 25
-				 * Distribute to cpu0 only
-				 */
-				interrupts = <1 1>;
+				interrupts = <1>;
 			};
 		};
 
@@ -89,7 +80,7 @@
 		arcpct0: pct {
 			compatible = "snps,archs-pct";
 			#interrupt-cells = <1>;
-			interrupt-parent = <&cpu_intc>;
+			interrupt-parent = <&core_intc>;
 			interrupts = <20>;
 		};
 	};
@@ -112,8 +103,7 @@
 		reg = < 0xe0012000 0x200 >;
 		interrupt-controller;
 		interrupt-parent = <&idu_intc>;
-		interrupts = <0 1>;	/* cmn irq 0 -> cpu irq 24
-					   distribute to cpu0 only */
+		interrupts = <0>;
 	};
 
 	memory {
@@ -122,5 +112,19 @@
 		ranges = <0x00000000 0x80000000 0x40000000>;
 		device_type = "memory";
 		reg = <0x80000000 0x20000000>;	/* 512MiB */
+	};
+
+	reserved-memory {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		/*
+		 * Move frame buffer out of IOC aperture (0x8z-0xAz).
+		 */
+		frame_buffer: frame_buffer@be000000 {
+			compatible = "shared-dma-pool";
+			reg = <0xbe000000 0x2000000>;
+			no-map;
+		};
 	};
 };

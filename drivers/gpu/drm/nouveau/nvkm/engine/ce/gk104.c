@@ -22,8 +22,38 @@
  * Authors: Ben Skeggs
  */
 #include "priv.h"
+#include <core/enum.h>
 
 #include <nvif/class.h>
+
+static const struct nvkm_enum
+gk104_ce_launcherr_report[] = {
+	{ 0x0, "NO_ERR" },
+	{ 0x1, "2D_LAYER_EXCEEDS_DEPTH" },
+	{ 0x2, "INVALID_ARGUMENT" },
+	{ 0x3, "MEM2MEM_RECT_OUT_OF_BOUNDS" },
+	{ 0x4, "SRC_LINE_EXCEEDS_PITCH" },
+	{ 0x5, "SRC_LINE_EXCEEDS_NEG_PITCH" },
+	{ 0x6, "DST_LINE_EXCEEDS_PITCH" },
+	{ 0x7, "DST_LINE_EXCEEDS_NEG_PITCH" },
+	{ 0x8, "BAD_SRC_PIXEL_COMP_REF" },
+	{ 0x9, "INVALID_VALUE" },
+	{ 0xa, "UNUSED_FIELD" },
+	{ 0xb, "INVALID_OPERATION" },
+	{}
+};
+
+static void
+gk104_ce_intr_launcherr(struct nvkm_engine *ce, const u32 base)
+{
+	struct nvkm_subdev *subdev = &ce->subdev;
+	struct nvkm_device *device = subdev->device;
+	u32 stat = nvkm_rd32(device, 0x104f14 + base);
+	const struct nvkm_enum *en =
+		nvkm_enum_find(gk104_ce_launcherr_report, stat & 0x0000000f);
+	nvkm_warn(subdev, "LAUNCHERR %08x [%s]\n", stat, en ? en->name : "");
+	nvkm_wr32(device, 0x104f14 + base, 0x00000000);
+}
 
 void
 gk104_ce_intr(struct nvkm_engine *ce)
@@ -31,10 +61,26 @@ gk104_ce_intr(struct nvkm_engine *ce)
 	const u32 base = (ce->subdev.index - NVKM_ENGINE_CE0) * 0x1000;
 	struct nvkm_subdev *subdev = &ce->subdev;
 	struct nvkm_device *device = subdev->device;
-	u32 stat = nvkm_rd32(device, 0x104908 + base);
-	if (stat) {
-		nvkm_warn(subdev, "intr %08x\n", stat);
-		nvkm_wr32(device, 0x104908 + base, stat);
+	u32 mask = nvkm_rd32(device, 0x104904 + base);
+	u32 intr = nvkm_rd32(device, 0x104908 + base) & mask;
+	if (intr & 0x00000001) {
+		nvkm_warn(subdev, "BLOCKPIPE\n");
+		nvkm_wr32(device, 0x104908 + base, 0x00000001);
+		intr &= ~0x00000001;
+	}
+	if (intr & 0x00000002) {
+		nvkm_warn(subdev, "NONBLOCKPIPE\n");
+		nvkm_wr32(device, 0x104908 + base, 0x00000002);
+		intr &= ~0x00000002;
+	}
+	if (intr & 0x00000004) {
+		gk104_ce_intr_launcherr(ce, base);
+		nvkm_wr32(device, 0x104908 + base, 0x00000004);
+		intr &= ~0x00000004;
+	}
+	if (intr) {
+		nvkm_warn(subdev, "intr %08x\n", intr);
+		nvkm_wr32(device, 0x104908 + base, intr);
 	}
 }
 
@@ -51,17 +97,5 @@ int
 gk104_ce_new(struct nvkm_device *device, int index,
 	     struct nvkm_engine **pengine)
 {
-	if (index == NVKM_ENGINE_CE0) {
-		return nvkm_engine_new_(&gk104_ce, device, index,
-					0x00000040, true, pengine);
-	} else
-	if (index == NVKM_ENGINE_CE1) {
-		return nvkm_engine_new_(&gk104_ce, device, index,
-					0x00000080, true, pengine);
-	} else
-	if (index == NVKM_ENGINE_CE2) {
-		return nvkm_engine_new_(&gk104_ce, device, index,
-					0x00200000, true, pengine);
-	}
-	return -ENODEV;
+	return nvkm_engine_new_(&gk104_ce, device, index, true, pengine);
 }

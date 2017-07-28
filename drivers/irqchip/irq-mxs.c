@@ -131,12 +131,16 @@ static struct irq_chip mxs_icoll_chip = {
 	.irq_ack = icoll_ack_irq,
 	.irq_mask = icoll_mask_irq,
 	.irq_unmask = icoll_unmask_irq,
+	.flags = IRQCHIP_MASK_ON_SUSPEND |
+		 IRQCHIP_SKIP_SET_WAKE,
 };
 
 static struct irq_chip asm9260_icoll_chip = {
 	.irq_ack = icoll_ack_irq,
 	.irq_mask = asm9260_mask_irq,
 	.irq_unmask = asm9260_unmask_irq,
+	.flags = IRQCHIP_MASK_ON_SUSPEND |
+		 IRQCHIP_SKIP_SET_WAKE,
 };
 
 asmlinkage void __exception_irq_entry icoll_handle_irq(struct pt_regs *regs)
@@ -183,7 +187,7 @@ static void __iomem * __init icoll_init_iobase(struct device_node *np)
 	void __iomem *icoll_base;
 
 	icoll_base = of_io_request_and_map(np, 0, np->name);
-	if (!icoll_base)
+	if (IS_ERR(icoll_base))
 		panic("%s: unable to map resource", np->full_name);
 	return icoll_base;
 }
@@ -241,6 +245,7 @@ static int __init asm9260_of_init(struct device_node *np,
 		writel(0, icoll_priv.intr + i);
 
 	icoll_add_domain(np, ASM9260_NUM_IRQS);
+	set_handle_irq(icoll_handle_irq);
 
 	return 0;
 }

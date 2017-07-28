@@ -81,7 +81,7 @@ static void ep_bd_list_free(struct bdc_ep *ep, u32 num_tabs)
 			continue;
 		}
 		if (!bd_table->start_bd) {
-			dev_dbg(bdc->dev, "bd dma pool not allocted\n");
+			dev_dbg(bdc->dev, "bd dma pool not allocated\n");
 			continue;
 		}
 
@@ -446,7 +446,7 @@ static int setup_bd_list_xfr(struct bdc *bdc, struct bdc_req *req, int num_bds)
 	bd_xfr->start_bdi = bd_list->eqp_bdi;
 	bd = bdi_to_bd(ep, bd_list->eqp_bdi);
 	req_len = req->usb_req.length;
-	maxp = usb_endpoint_maxp(ep->desc) & 0x7ff;
+	maxp = usb_endpoint_maxp(ep->desc);
 	tfs = roundup(req->usb_req.length, maxp);
 	tfs = tfs/maxp;
 	dev_vdbg(bdc->dev, "%s ep:%s num_bds:%d tfs:%d r_len:%d bd:%p\n",
@@ -702,11 +702,9 @@ static int ep0_queue(struct bdc_ep *ep, struct bdc_req *req)
 /* Queue data stage */
 static int ep0_queue_data_stage(struct bdc *bdc)
 {
-	struct usb_request *ep0_usb_req;
 	struct bdc_ep *ep;
 
 	dev_dbg(bdc->dev, "%s\n", __func__);
-	ep0_usb_req = &bdc->ep0_req.usb_req;
 	ep = bdc->bdc_ep_array[1];
 	bdc->ep0_req.ep = ep;
 	bdc->ep0_req.usb_req.complete = NULL;
@@ -1393,10 +1391,8 @@ static int ep0_set_sel(struct bdc *bdc,
 {
 	struct bdc_ep	*ep;
 	u16	wLength;
-	u16	wValue;
 
 	dev_dbg(bdc->dev, "%s\n", __func__);
-	wValue = le16_to_cpu(setup_pkt->wValue);
 	wLength = le16_to_cpu(setup_pkt->wLength);
 	if (unlikely(wLength != 6)) {
 		dev_err(bdc->dev, "%s Wrong wLength:%d\n", __func__, wLength);

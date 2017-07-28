@@ -4,6 +4,8 @@
  *	(c) 1999 Martin Mares <mj@ucw.cz>
  */
 
+#include <linux/ioport.h>
+
 #undef DEBUG
 
 #ifdef DEBUG
@@ -93,6 +95,8 @@ extern raw_spinlock_t pci_config_lock;
 extern int (*pcibios_enable_irq)(struct pci_dev *dev);
 extern void (*pcibios_disable_irq)(struct pci_dev *dev);
 
+extern bool mp_should_keep_irq(struct device *dev);
+
 struct pci_raw_ops {
 	int (*read)(unsigned int domain, unsigned int bus, unsigned int devfn,
 						int reg, int len, u32 *val);
@@ -151,11 +155,11 @@ extern struct list_head pci_mmcfg_list;
 #define PCI_MMCFG_BUS_OFFSET(bus)      ((bus) << 20)
 
 /*
- * AMD Fam10h CPUs are buggy, and cannot access MMIO config space
- * on their northbrige except through the * %eax register. As such, you MUST
- * NOT use normal IOMEM accesses, you need to only use the magic mmio-config
- * accessor functions.
- * In fact just use pci_config_*, nothing else please.
+ * On AMD Fam10h CPUs, all PCI MMIO configuration space accesses must use
+ * %eax.  No other source or target registers may be used.  The following
+ * mmio_config_* accessors enforce this.  See "BIOS and Kernel Developer's
+ * Guide (BKDG) For AMD Family 10h Processors", rev. 3.48, sec 2.11.1,
+ * "MMIO Configuration Coding Requirements".
  */
 static inline unsigned char mmio_config_readb(void __iomem *pos)
 {

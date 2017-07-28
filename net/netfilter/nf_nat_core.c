@@ -30,14 +30,19 @@
 #include <net/netfilter/nf_conntrack_zones.h>
 #include <linux/netfilter/nf_nat.h>
 
-static DEFINE_SPINLOCK(nf_nat_lock);
-
 static DEFINE_MUTEX(nf_nat_proto_mutex);
 static const struct nf_nat_l3proto __rcu *nf_nat_l3protos[NFPROTO_NUMPROTO]
 						__read_mostly;
 static const struct nf_nat_l4proto __rcu **nf_nat_l4protos[NFPROTO_NUMPROTO]
 						__read_mostly;
 
+struct nf_nat_conn_key {
+	const struct net *net;
+	const struct nf_conntrack_tuple *tuple;
+	const struct nf_conntrack_zone *zone;
+};
+
+static struct rhltable nf_nat_bysource_table;
 
 inline const struct nf_nat_l3proto *
 __nf_nat_l3proto_find(u8 family)
@@ -66,11 +71,10 @@ static void __nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl)
 	if (ct == NULL)
 		return;
 
-	family = ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple.src.l3num;
-	rcu_read_lock();
+	family = nf_ct_l3num(ct);
 	l3proto = __nf_nat_l3proto_find(family);
 	if (l3proto == NULL)
-		goto out;
+		return;
 
 	dir = CTINFO2DIR(ctinfo);
 	if (dir == IP_CT_DIR_ORIGINAL)
@@ -79,8 +83,6 @@ static void __nf_nat_decode_session(struct sk_buff *skb, struct flowi *fl)
 		statusbit = IPS_SRC_NAT;
 
 	l3proto->decode_session(skb, ct, dir, statusbit, fl);
-out:
-	rcu_read_unlock();
 }
 
 int nf_xfrm_me_harder(struct net *net, struct sk_buff *skb, unsigned int family)
@@ -116,17 +118,17 @@ int nf_xfrm_me_harder(struct net *net, struct sk_buff *skb, unsigned int family)
 EXPORT_SYMBOL(nf_xfrm_me_harder);
 #endif /* CONFIG_XFRM */
 
-/* We keep an extra hash for each conntrack, for fast searching. */
-static inline unsigned int
-hash_by_src(const struct net *net, const struct nf_conntrack_tuple *tuple)
+static u32 nf_nat_bysource_hash(const void *data, u32 len, u32 seed)
 {
-	unsigned int hash;
+	const struct nf_conntrack_tuple *t;
+	const struct nf_conn *ct = data;
 
+	t = &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple;
 	/* Original src, to ensure we map it consistently if poss. */
-	hash = jhash2((u32 *)&tuple->src, sizeof(tuple->src) / sizeof(u32),
-		      tuple->dst.protonum ^ nf_conntrack_hash_rnd);
 
-	return reciprocal_scale(hash, net->ct.nat_htable_size);
+	seed ^= net_hash_mix(nf_ct_net(ct));
+	return jhash2((const u32 *)&t->src, sizeof(t->src) / sizeof(u32),
+		      t->dst.protonum ^ seed);
 }
 
 /* Is this tuple already taken? (not by us) */
@@ -182,6 +184,28 @@ same_src(const struct nf_conn *ct,
 		t->src.u.all == tuple->src.u.all);
 }
 
+static int nf_nat_bysource_cmp(struct rhashtable_compare_arg *arg,
+			       const void *obj)
+{
+	const struct nf_nat_conn_key *key = arg->key;
+	const struct nf_conn *ct = obj;
+
+	if (!same_src(ct, key->tuple) ||
+	    !net_eq(nf_ct_net(ct), key->net) ||
+	    !nf_ct_zone_equal(ct, key->zone, IP_CT_DIR_ORIGINAL))
+		return 1;
+
+	return 0;
+}
+
+static struct rhashtable_params nf_nat_bysource_params = {
+	.head_offset = offsetof(struct nf_conn, nat_bysource),
+	.obj_hashfn = nf_nat_bysource_hash,
+	.obj_cmpfn = nf_nat_bysource_cmp,
+	.nelem_hint = 256,
+	.min_size = 1024,
+};
+
 /* Only called for SRC manip */
 static int
 find_appropriate_src(struct net *net,
@@ -192,23 +216,26 @@ find_appropriate_src(struct net *net,
 		     struct nf_conntrack_tuple *result,
 		     const struct nf_nat_range *range)
 {
-	unsigned int h = hash_by_src(net, tuple);
-	const struct nf_conn_nat *nat;
 	const struct nf_conn *ct;
+	struct nf_nat_conn_key key = {
+		.net = net,
+		.tuple = tuple,
+		.zone = zone
+	};
+	struct rhlist_head *hl, *h;
 
-	hlist_for_each_entry_rcu(nat, &net->ct.nat_bysource[h], bysource) {
-		ct = nat->ct;
-		if (same_src(ct, tuple) &&
-		    nf_ct_zone_equal(ct, zone, IP_CT_DIR_ORIGINAL)) {
-			/* Copy source part from reply tuple. */
-			nf_ct_invert_tuplepr(result,
-				       &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
-			result->dst = tuple->dst;
+	hl = rhltable_lookup(&nf_nat_bysource_table, &key,
+			     nf_nat_bysource_params);
 
-			if (in_range(l3proto, l4proto, result, range))
-				return 1;
-		}
+	rhl_for_each_entry_rcu(ct, h, hl, nat_bysource) {
+		nf_ct_invert_tuplepr(result,
+				     &ct->tuplehash[IP_CT_DIR_REPLY].tuple);
+		result->dst = tuple->dst;
+
+		if (in_range(l3proto, l4proto, result, range))
+			return 1;
 	}
+
 	return 0;
 }
 
@@ -381,13 +408,10 @@ nf_nat_setup_info(struct nf_conn *ct,
 		  const struct nf_nat_range *range,
 		  enum nf_nat_manip_type maniptype)
 {
-	struct net *net = nf_ct_net(ct);
 	struct nf_conntrack_tuple curr_tuple, new_tuple;
-	struct nf_conn_nat *nat;
 
-	/* nat helper or nfctnetlink also setup binding */
-	nat = nf_ct_nat_ext_add(ct);
-	if (nat == NULL)
+	/* Can't setup nat info for confirmed ct. */
+	if (nf_ct_is_confirmed(ct))
 		return NF_ACCEPT;
 
 	NF_CT_ASSERT(maniptype == NF_NAT_MANIP_SRC ||
@@ -418,21 +442,24 @@ nf_nat_setup_info(struct nf_conn *ct,
 			ct->status |= IPS_DST_NAT;
 
 		if (nfct_help(ct))
-			nfct_seqadj_ext_add(ct);
+			if (!nfct_seqadj_ext_add(ct))
+				return NF_DROP;
 	}
 
 	if (maniptype == NF_NAT_MANIP_SRC) {
-		unsigned int srchash;
+		struct nf_nat_conn_key key = {
+			.net = nf_ct_net(ct),
+			.tuple = &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple,
+			.zone = nf_ct_zone(ct),
+		};
+		int err;
 
-		srchash = hash_by_src(net,
-				      &ct->tuplehash[IP_CT_DIR_ORIGINAL].tuple);
-		spin_lock_bh(&nf_nat_lock);
-		/* nf_conntrack_alter_reply might re-allocate extension aera */
-		nat = nfct_nat(ct);
-		nat->ct = ct;
-		hlist_add_head_rcu(&nat->bysource,
-				   &net->ct.nat_bysource[srchash]);
-		spin_unlock_bh(&nf_nat_lock);
+		err = rhltable_insert_key(&nf_nat_bysource_table,
+					  &key,
+					  &ct->nat_bysource,
+					  nf_nat_bysource_params);
+		if (err)
+			return NF_DROP;
 	}
 
 	/* It's done. */
@@ -518,10 +545,6 @@ struct nf_nat_proto_clean {
 static int nf_nat_proto_remove(struct nf_conn *i, void *data)
 {
 	const struct nf_nat_proto_clean *clean = data;
-	struct nf_conn_nat *nat = nfct_nat(i);
-
-	if (!nat)
-		return 0;
 
 	if ((clean->l3proto && nf_ct_l3num(i) != clean->l3proto) ||
 	    (clean->l4proto && nf_ct_protonum(i) != clean->l4proto))
@@ -532,12 +555,10 @@ static int nf_nat_proto_remove(struct nf_conn *i, void *data)
 
 static int nf_nat_proto_clean(struct nf_conn *ct, void *data)
 {
-	struct nf_conn_nat *nat = nfct_nat(ct);
-
 	if (nf_nat_proto_remove(ct, data))
 		return 1;
 
-	if (!nat || !nat->ct)
+	if ((ct->status & IPS_SRC_NAT_DONE) == 0)
 		return 0;
 
 	/* This netns is being destroyed, and conntrack has nat null binding.
@@ -546,16 +567,9 @@ static int nf_nat_proto_clean(struct nf_conn *ct, void *data)
 	 * Else, when the conntrack is destoyed, nf_nat_cleanup_conntrack()
 	 * will delete entry from already-freed table.
 	 */
-	if (!del_timer(&ct->timeout))
-		return 1;
-
-	spin_lock_bh(&nf_nat_lock);
-	hlist_del_rcu(&nat->bysource);
-	ct->status &= ~IPS_NAT_DONE_MASK;
-	nat->ct = NULL;
-	spin_unlock_bh(&nf_nat_lock);
-
-	add_timer(&ct->timeout);
+	clear_bit(IPS_SRC_NAT_DONE_BIT, &ct->status);
+	rhltable_remove(&nf_nat_bysource_table, &ct->nat_bysource,
+			nf_nat_bysource_params);
 
 	/* don't delete conntrack.  Although that would make things a lot
 	 * simpler, we'd end up flushing all conntracks on nat rmmod.
@@ -569,12 +583,8 @@ static void nf_nat_l4proto_clean(u8 l3proto, u8 l4proto)
 		.l3proto = l3proto,
 		.l4proto = l4proto,
 	};
-	struct net *net;
 
-	rtnl_lock();
-	for_each_net(net)
-		nf_ct_iterate_cleanup(net, nf_nat_proto_remove, &clean, 0, 0);
-	rtnl_unlock();
+	nf_ct_iterate_destroy(nf_nat_proto_remove, &clean);
 }
 
 static void nf_nat_l3proto_clean(u8 l3proto)
@@ -582,13 +592,8 @@ static void nf_nat_l3proto_clean(u8 l3proto)
 	struct nf_nat_proto_clean clean = {
 		.l3proto = l3proto,
 	};
-	struct net *net;
 
-	rtnl_lock();
-
-	for_each_net(net)
-		nf_ct_iterate_cleanup(net, nf_nat_proto_remove, &clean, 0, 0);
-	rtnl_unlock();
+	nf_ct_iterate_destroy(nf_nat_proto_remove, &clean);
 }
 
 /* Protocol registration. */
@@ -658,6 +663,18 @@ int nf_nat_l3proto_register(const struct nf_nat_l3proto *l3proto)
 			 &nf_nat_l4proto_tcp);
 	RCU_INIT_POINTER(nf_nat_l4protos[l3proto->l3proto][IPPROTO_UDP],
 			 &nf_nat_l4proto_udp);
+#ifdef CONFIG_NF_NAT_PROTO_DCCP
+	RCU_INIT_POINTER(nf_nat_l4protos[l3proto->l3proto][IPPROTO_DCCP],
+			 &nf_nat_l4proto_dccp);
+#endif
+#ifdef CONFIG_NF_NAT_PROTO_SCTP
+	RCU_INIT_POINTER(nf_nat_l4protos[l3proto->l3proto][IPPROTO_SCTP],
+			 &nf_nat_l4proto_sctp);
+#endif
+#ifdef CONFIG_NF_NAT_PROTO_UDPLITE
+	RCU_INIT_POINTER(nf_nat_l4protos[l3proto->l3proto][IPPROTO_UDPLITE],
+			 &nf_nat_l4proto_udplite);
+#endif
 	mutex_unlock(&nf_nat_proto_mutex);
 
 	RCU_INIT_POINTER(nf_nat_l3protos[l3proto->l3proto], l3proto);
@@ -680,39 +697,16 @@ EXPORT_SYMBOL_GPL(nf_nat_l3proto_unregister);
 /* No one using conntrack by the time this called. */
 static void nf_nat_cleanup_conntrack(struct nf_conn *ct)
 {
-	struct nf_conn_nat *nat = nf_ct_ext_find(ct, NF_CT_EXT_NAT);
-
-	if (nat == NULL || nat->ct == NULL)
-		return;
-
-	NF_CT_ASSERT(nat->ct->status & IPS_SRC_NAT_DONE);
-
-	spin_lock_bh(&nf_nat_lock);
-	hlist_del_rcu(&nat->bysource);
-	spin_unlock_bh(&nf_nat_lock);
-}
-
-static void nf_nat_move_storage(void *new, void *old)
-{
-	struct nf_conn_nat *new_nat = new;
-	struct nf_conn_nat *old_nat = old;
-	struct nf_conn *ct = old_nat->ct;
-
-	if (!ct || !(ct->status & IPS_SRC_NAT_DONE))
-		return;
-
-	spin_lock_bh(&nf_nat_lock);
-	hlist_replace_rcu(&old_nat->bysource, &new_nat->bysource);
-	spin_unlock_bh(&nf_nat_lock);
+	if (ct->status & IPS_SRC_NAT_DONE)
+		rhltable_remove(&nf_nat_bysource_table, &ct->nat_bysource,
+				nf_nat_bysource_params);
 }
 
 static struct nf_ct_ext_type nat_extend __read_mostly = {
 	.len		= sizeof(struct nf_conn_nat),
 	.align		= __alignof__(struct nf_conn_nat),
 	.destroy	= nf_nat_cleanup_conntrack,
-	.move		= nf_nat_move_storage,
 	.id		= NF_CT_EXT_NAT,
-	.flags		= NF_CT_EXT_F_PREALLOC,
 };
 
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
@@ -733,7 +727,8 @@ static int nfnetlink_parse_nat_proto(struct nlattr *attr,
 	const struct nf_nat_l4proto *l4proto;
 	int err;
 
-	err = nla_parse_nested(tb, CTA_PROTONAT_MAX, attr, protonat_nla_policy);
+	err = nla_parse_nested(tb, CTA_PROTONAT_MAX, attr,
+			       protonat_nla_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -762,7 +757,7 @@ nfnetlink_parse_nat(const struct nlattr *nat,
 
 	memset(range, 0, sizeof(*range));
 
-	err = nla_parse_nested(tb, CTA_NAT_MAX, nat, nat_nla_policy);
+	err = nla_parse_nested(tb, CTA_NAT_MAX, nat, nat_nla_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -801,13 +796,13 @@ nfnetlink_parse_nat_setup(struct nf_conn *ct,
 
 	/* No NAT information has been passed, allocate the null-binding */
 	if (attr == NULL)
-		return __nf_nat_alloc_null_binding(ct, manip);
+		return __nf_nat_alloc_null_binding(ct, manip) == NF_DROP ? -ENOMEM : 0;
 
 	err = nfnetlink_parse_nat(attr, ct, &range, l3proto);
 	if (err < 0)
 		return err;
 
-	return nf_nat_setup_info(ct, &range, manip);
+	return nf_nat_setup_info(ct, &range, manip) == NF_DROP ? -ENOMEM : 0;
 }
 #else
 static int
@@ -819,30 +814,6 @@ nfnetlink_parse_nat_setup(struct nf_conn *ct,
 }
 #endif
 
-static int __net_init nf_nat_net_init(struct net *net)
-{
-	/* Leave them the same for the moment. */
-	net->ct.nat_htable_size = net->ct.htable_size;
-	net->ct.nat_bysource = nf_ct_alloc_hashtable(&net->ct.nat_htable_size, 0);
-	if (!net->ct.nat_bysource)
-		return -ENOMEM;
-	return 0;
-}
-
-static void __net_exit nf_nat_net_exit(struct net *net)
-{
-	struct nf_nat_proto_clean clean = {};
-
-	nf_ct_iterate_cleanup(net, nf_nat_proto_clean, &clean, 0, 0);
-	synchronize_rcu();
-	nf_ct_free_hashtable(net->ct.nat_bysource, net->ct.nat_htable_size);
-}
-
-static struct pernet_operations nf_nat_net_ops = {
-	.init = nf_nat_net_init,
-	.exit = nf_nat_net_exit,
-};
-
 static struct nf_ct_helper_expectfn follow_master_nat = {
 	.name		= "nat-follow-master",
 	.expectfn	= nf_nat_follow_master,
@@ -852,20 +823,18 @@ static int __init nf_nat_init(void)
 {
 	int ret;
 
+	ret = rhltable_init(&nf_nat_bysource_table, &nf_nat_bysource_params);
+	if (ret)
+		return ret;
+
 	ret = nf_ct_extend_register(&nat_extend);
 	if (ret < 0) {
+		rhltable_destroy(&nf_nat_bysource_table);
 		printk(KERN_ERR "nf_nat_core: Unable to register extension\n");
 		return ret;
 	}
 
-	ret = register_pernet_subsys(&nf_nat_net_ops);
-	if (ret < 0)
-		goto cleanup_extend;
-
 	nf_ct_helper_expectfn_register(&follow_master_nat);
-
-	/* Initialize fake conntrack so that NAT will skip it */
-	nf_ct_untracked_status_or(IPS_NAT_DONE_MASK);
 
 	BUG_ON(nfnetlink_parse_nat_setup_hook != NULL);
 	RCU_INIT_POINTER(nfnetlink_parse_nat_setup_hook,
@@ -875,26 +844,27 @@ static int __init nf_nat_init(void)
 	RCU_INIT_POINTER(nf_nat_decode_session_hook, __nf_nat_decode_session);
 #endif
 	return 0;
-
- cleanup_extend:
-	nf_ct_extend_unregister(&nat_extend);
-	return ret;
 }
 
 static void __exit nf_nat_cleanup(void)
 {
+	struct nf_nat_proto_clean clean = {};
 	unsigned int i;
 
-	unregister_pernet_subsys(&nf_nat_net_ops);
+	nf_ct_iterate_destroy(nf_nat_proto_clean, &clean);
+
 	nf_ct_extend_unregister(&nat_extend);
 	nf_ct_helper_expectfn_unregister(&follow_master_nat);
 	RCU_INIT_POINTER(nfnetlink_parse_nat_setup_hook, NULL);
 #ifdef CONFIG_XFRM
 	RCU_INIT_POINTER(nf_nat_decode_session_hook, NULL);
 #endif
+	synchronize_rcu();
+
 	for (i = 0; i < NFPROTO_NUMPROTO; i++)
 		kfree(nf_nat_l4protos[i]);
-	synchronize_net();
+
+	rhltable_destroy(&nf_nat_bysource_table);
 }
 
 MODULE_LICENSE("GPL");

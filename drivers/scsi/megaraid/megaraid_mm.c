@@ -179,8 +179,12 @@ mraid_mm_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 
 	/*
 	 * The following call will block till a kioc is available
+	 * or return NULL if the list head is empty for the pointer
+	 * of type mraid_mmapt passed to mraid_mm_alloc_kioc
 	 */
 	kioc = mraid_mm_alloc_kioc(adp);
+	if (!kioc)
+		return -ENXIO;
 
 	/*
 	 * User sent the old mimd_t ioctl packet. Convert it to uioc_t.
@@ -570,7 +574,7 @@ mraid_mm_attach_buf(mraid_mmadp_t *adp, uioc_t *kioc, int xferlen)
 
 	kioc->pool_index	= right_pool;
 	kioc->free_buf		= 1;
-	kioc->buf_vaddr 	= pci_pool_alloc(pool->handle, GFP_KERNEL,
+	kioc->buf_vaddr		= pci_pool_alloc(pool->handle, GFP_ATOMIC,
 							&kioc->buf_paddr);
 	spin_unlock_irqrestore(&pool->lock, flags);
 

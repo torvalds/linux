@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -196,7 +196,8 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 
 				if ((walk_state->opcode ==
 				     AML_INT_METHODCALL_OP)
-				    || (walk_state->opcode == AML_COPY_OP)) {
+				    || (walk_state->opcode ==
+					AML_COPY_OBJECT_OP)) {
 					break;
 				}
 
@@ -217,7 +218,8 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 					 * the package, can't dereference it
 					 */
 					ACPI_ERROR((AE_INFO,
-						    "Attempt to dereference an Index to NULL package element Idx=%p",
+						    "Attempt to dereference an Index to "
+						    "NULL package element Idx=%p",
 						    stack_desc));
 					status = AE_AML_UNINITIALIZED_ELEMENT;
 				}
@@ -333,7 +335,7 @@ acpi_ex_resolve_object_to_value(union acpi_operand_object **stack_ptr,
 acpi_status
 acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 			 union acpi_operand_object *operand,
-			 acpi_object_type * return_type,
+			 acpi_object_type *return_type,
 			 union acpi_operand_object **return_desc)
 {
 	union acpi_operand_object *obj_desc = ACPI_CAST_PTR(void, operand);
@@ -361,17 +363,29 @@ acpi_ex_resolve_multiple(struct acpi_walk_state *walk_state,
 
 		if (type == ACPI_TYPE_LOCAL_ALIAS) {
 			type = ((struct acpi_namespace_node *)obj_desc)->type;
-			obj_desc =
-			    acpi_ns_get_attached_object((struct
-							 acpi_namespace_node *)
-							obj_desc);
+			obj_desc = acpi_ns_get_attached_object((struct
+								acpi_namespace_node
+								*)obj_desc);
 		}
 
-		if (!obj_desc) {
-			ACPI_ERROR((AE_INFO,
-				    "[%4.4s] Node is unresolved or uninitialized",
-				    acpi_ut_get_node_name(node)));
-			return_ACPI_STATUS(AE_AML_UNINITIALIZED_NODE);
+		switch (type) {
+		case ACPI_TYPE_DEVICE:
+		case ACPI_TYPE_THERMAL:
+
+			/* These types have no attached subobject */
+			break;
+
+		default:
+
+			/* All other types require a subobject */
+
+			if (!obj_desc) {
+				ACPI_ERROR((AE_INFO,
+					    "[%4.4s] Node is unresolved or uninitialized",
+					    acpi_ut_get_node_name(node)));
+				return_ACPI_STATUS(AE_AML_UNINITIALIZED_NODE);
+			}
+			break;
 		}
 		break;
 

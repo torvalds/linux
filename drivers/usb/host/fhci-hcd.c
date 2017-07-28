@@ -31,7 +31,7 @@
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
 #include <linux/slab.h>
-#include <asm/qe.h>
+#include <soc/fsl/qe/qe.h>
 #include <asm/fsl_gtm.h>
 #include "fhci.h"
 
@@ -310,10 +310,8 @@ static struct fhci_usb *fhci_create_lld(struct fhci_hcd *fhci)
 
 	/* allocate memory for SCC data structure */
 	usb = kzalloc(sizeof(*usb), GFP_KERNEL);
-	if (!usb) {
-		fhci_err(fhci, "no memory for SCC data struct\n");
+	if (!usb)
 		return NULL;
-	}
 
 	usb->fhci = fhci;
 	usb->hc_list = fhci->hc_list;

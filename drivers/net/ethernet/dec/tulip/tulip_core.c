@@ -31,7 +31,7 @@
 #include <linux/mii.h>
 #include <linux/crc32.h>
 #include <asm/unaligned.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #ifdef CONFIG_SPARC
 #include <asm/prom.h>
@@ -505,9 +505,7 @@ media_picked:
 	tp->timer.expires = RUN_AT(next_tick);
 	add_timer(&tp->timer);
 #ifdef CONFIG_TULIP_NAPI
-	init_timer(&tp->oom_timer);
-        tp->oom_timer.data = (unsigned long)dev;
-        tp->oom_timer.function = oom_timer;
+	setup_timer(&tp->oom_timer, oom_timer, (unsigned long)dev);
 #endif
 }
 
@@ -607,7 +605,7 @@ static void tulip_tx_timeout(struct net_device *dev)
 
 out_unlock:
 	spin_unlock_irqrestore (&tp->lock, flags);
-	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_trans_update(dev); /* prevent tx timeout */
 	netif_wake_queue (dev);
 }
 
@@ -782,9 +780,8 @@ static void tulip_down (struct net_device *dev)
 
 	spin_unlock_irqrestore (&tp->lock, flags);
 
-	init_timer(&tp->timer);
-	tp->timer.data = (unsigned long)dev;
-	tp->timer.function = tulip_tbl[tp->chip_id].media_timer;
+	setup_timer(&tp->timer, tulip_tbl[tp->chip_id].media_timer,
+		    (unsigned long)dev);
 
 	dev->if_port = tp->saved_if_port;
 
@@ -1285,7 +1282,6 @@ static const struct net_device_ops tulip_netdev_ops = {
 	.ndo_get_stats		= tulip_get_stats,
 	.ndo_do_ioctl 		= private_ioctl,
 	.ndo_set_rx_mode	= set_rx_mode,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -1475,9 +1471,8 @@ static int tulip_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	tp->csr0 = csr0;
 	spin_lock_init(&tp->lock);
 	spin_lock_init(&tp->mii_lock);
-	init_timer(&tp->timer);
-	tp->timer.data = (unsigned long)dev;
-	tp->timer.function = tulip_tbl[tp->chip_id].media_timer;
+	setup_timer(&tp->timer, tulip_tbl[tp->chip_id].media_timer,
+		    (unsigned long)dev);
 
 	INIT_WORK(&tp->media_work, tulip_tbl[tp->chip_id].media_task);
 

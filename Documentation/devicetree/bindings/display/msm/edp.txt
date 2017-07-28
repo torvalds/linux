@@ -10,7 +10,7 @@ Required properties:
 - interrupts: The interrupt signal from the eDP block.
 - power-domains: Should be <&mmcc MDSS_GDSC>.
 - clocks: device clocks
-  See Documentation/devicetree/bindings/clocks/clock-bindings.txt for details.
+  See Documentation/devicetree/bindings/clock/clock-bindings.txt for details.
 - clock-names: the following clocks are required:
   * "core_clk"
   * "iface_clk"

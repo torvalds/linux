@@ -592,6 +592,7 @@ static void db9_attach(struct parport *pp)
 		return;
 	}
 
+	memset(&db9_parport_cb, 0, sizeof(db9_parport_cb));
 	db9_parport_cb.flags = PARPORT_FLAG_EXCL;
 
 	pd = parport_register_dev_model(pp, "db9", &db9_parport_cb, port_idx);
@@ -608,9 +609,7 @@ static void db9_attach(struct parport *pp)
 	db9->pd = pd;
 	db9->mode = mode;
 	db9->parportno = pp->number;
-	init_timer(&db9->timer);
-	db9->timer.data = (long) db9;
-	db9->timer.function = db9_timer;
+	setup_timer(&db9->timer, db9_timer, (long)db9);
 
 	for (i = 0; i < (min(db9_mode->n_pads, DB9_MAX_DEVICES)); i++) {
 

@@ -13,12 +13,11 @@
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <asm/tm.h>
-#include <asm/cputable.h>
-#include <linux/auxvec.h>
 #include <sys/time.h>
 #include <stdlib.h>
 
 #include "utils.h"
+#include "tm.h"
 
 extern int getppid_tm_active(void);
 extern int getppid_tm_suspended(void);
@@ -27,21 +26,6 @@ unsigned retries = 0;
 
 #define TEST_DURATION 10 /* seconds */
 #define TM_RETRIES 100
-
-long failure_code(void)
-{
-	return __builtin_get_texasru() >> 24;
-}
-
-bool failure_is_persistent(void)
-{
-	return (failure_code() & TM_CAUSE_PERSISTENT) == TM_CAUSE_PERSISTENT;
-}
-
-bool failure_is_syscall(void)
-{
-	return (failure_code() & TM_CAUSE_SYSCALL) == TM_CAUSE_SYSCALL;
-}
 
 pid_t getppid_tm(bool suspend)
 {
@@ -75,16 +59,6 @@ pid_t getppid_tm(bool suspend)
 	       __builtin_get_texasr(), __builtin_get_tfiar());
 
 	exit(-1);
-}
-
-static inline bool have_htm_nosc(void)
-{
-#ifdef PPC_FEATURE2_HTM_NOSC
-	return ((long)get_auxv_entry(AT_HWCAP2) & PPC_FEATURE2_HTM_NOSC);
-#else
-	printf("PPC_FEATURE2_HTM_NOSC not defined, can't check AT_HWCAP2\n");
-	return false;
-#endif
 }
 
 int tm_syscall(void)

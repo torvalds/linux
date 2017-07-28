@@ -1,11 +1,7 @@
 config DRM_BOCHS
 	tristate "DRM Support for bochs dispi vga interface (qemu stdvga)"
-	depends on DRM && PCI
+	depends on DRM && PCI && MMU
 	select DRM_KMS_HELPER
-	select DRM_KMS_FB_HELPER
-	select FB_SYS_FILLRECT
-	select FB_SYS_COPYAREA
-	select FB_SYS_IMAGEBLIT
 	select DRM_TTM
 	help
 	  Choose this option for qemu.

@@ -219,8 +219,21 @@ struct wpan_phy {
 
 	struct device dev;
 
+	/* the network namespace this phy lives in currently */
+	possible_net_t _net;
+
 	char priv[0] __aligned(NETDEV_ALIGN);
 };
+
+static inline struct net *wpan_phy_net(struct wpan_phy *wpan_phy)
+{
+	return read_pnet(&wpan_phy->_net);
+}
+
+static inline void wpan_phy_net_set(struct wpan_phy *wpan_phy, struct net *net)
+{
+	write_pnet(&wpan_phy->_net, net);
+}
 
 struct ieee802154_addr {
 	u8 mode;

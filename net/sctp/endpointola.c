@@ -42,7 +42,6 @@
 #include <linux/slab.h>
 #include <linux/in.h>
 #include <linux/random.h>	/* get_random_bytes() */
-#include <linux/crypto.h>
 #include <net/sock.h>
 #include <net/ipv6.h>
 #include <net/sctp/sctp.h>
@@ -91,12 +90,13 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 		 */
 		auth_hmacs->param_hdr.type = SCTP_PARAM_HMAC_ALGO;
 		auth_hmacs->param_hdr.length =
-					htons(sizeof(sctp_paramhdr_t) + 2);
+					htons(sizeof(struct sctp_paramhdr) + 2);
 		auth_hmacs->hmac_ids[0] = htons(SCTP_AUTH_HMAC_ID_SHA1);
 
 		/* Initialize the CHUNKS parameter */
 		auth_chunks->param_hdr.type = SCTP_PARAM_CHUNKS;
-		auth_chunks->param_hdr.length = htons(sizeof(sctp_paramhdr_t));
+		auth_chunks->param_hdr.length =
+					htons(sizeof(struct sctp_paramhdr));
 
 		/* If the Add-IP functionality is enabled, we must
 		 * authenticate, ASCONF and ASCONF-ACK chunks
@@ -105,7 +105,7 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 			auth_chunks->chunks[0] = SCTP_CID_ASCONF;
 			auth_chunks->chunks[1] = SCTP_CID_ASCONF_ACK;
 			auth_chunks->param_hdr.length =
-					htons(sizeof(sctp_paramhdr_t) + 2);
+					htons(sizeof(struct sctp_paramhdr) + 2);
 		}
 	}
 
@@ -114,7 +114,7 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 	ep->base.type = SCTP_EP_TYPE_SOCKET;
 
 	/* Initialize the basic object fields. */
-	atomic_set(&ep->base.refcnt, 1);
+	refcount_set(&ep->base.refcnt, 1);
 	ep->base.dead = false;
 
 	/* Create an input queue.  */
@@ -164,6 +164,8 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 	 */
 	ep->auth_hmacs_list = auth_hmacs;
 	ep->auth_chunk_list = auth_chunks;
+	ep->prsctp_enable = net->sctp.prsctp_enable;
+	ep->reconf_enable = net->sctp.reconf_enable;
 
 	return ep;
 
@@ -267,15 +269,14 @@ static void sctp_endpoint_destroy(struct sctp_endpoint *ep)
 
 	memset(ep->secret_key, 0, sizeof(ep->secret_key));
 
-	/* Give up our hold on the sock. */
 	sk = ep->base.sk;
-	if (sk != NULL) {
-		/* Remove and free the port */
-		if (sctp_sk(sk)->bind_hash)
-			sctp_put_port(sk);
+	/* Remove and free the port */
+	if (sctp_sk(sk)->bind_hash)
+		sctp_put_port(sk);
 
-		sock_put(sk);
-	}
+	sctp_sk(sk)->ep = NULL;
+	/* Give up our hold on the sock */
+	sock_put(sk);
 
 	kfree(ep);
 	SCTP_DBG_OBJCNT_DEC(ep);
@@ -284,7 +285,7 @@ static void sctp_endpoint_destroy(struct sctp_endpoint *ep)
 /* Hold a reference to an endpoint. */
 void sctp_endpoint_hold(struct sctp_endpoint *ep)
 {
-	atomic_inc(&ep->base.refcnt);
+	refcount_inc(&ep->base.refcnt);
 }
 
 /* Release a reference to an endpoint and clean up if there are
@@ -292,7 +293,7 @@ void sctp_endpoint_hold(struct sctp_endpoint *ep)
  */
 void sctp_endpoint_put(struct sctp_endpoint *ep)
 {
-	if (atomic_dec_and_test(&ep->base.refcnt))
+	if (refcount_dec_and_test(&ep->base.refcnt))
 		sctp_endpoint_destroy(ep);
 }
 
@@ -314,21 +315,16 @@ struct sctp_endpoint *sctp_endpoint_is_match(struct sctp_endpoint *ep,
 }
 
 /* Find the association that goes with this chunk.
- * We do a linear search of the associations for this endpoint.
- * We return the matching transport address too.
+ * We lookup the transport from hashtable at first, then get association
+ * through t->assoc.
  */
-static struct sctp_association *__sctp_endpoint_lookup_assoc(
+struct sctp_association *sctp_endpoint_lookup_assoc(
 	const struct sctp_endpoint *ep,
 	const union sctp_addr *paddr,
 	struct sctp_transport **transport)
 {
 	struct sctp_association *asoc = NULL;
-	struct sctp_association *tmp;
-	struct sctp_transport *t = NULL;
-	struct sctp_hashbucket *head;
-	struct sctp_ep_common *epb;
-	int hash;
-	int rport;
+	struct sctp_transport *t;
 
 	*transport = NULL;
 
@@ -336,43 +332,17 @@ static struct sctp_association *__sctp_endpoint_lookup_assoc(
 	 * on this endpoint.
 	 */
 	if (!ep->base.bind_addr.port)
+		return NULL;
+
+	rcu_read_lock();
+	t = sctp_epaddr_lookup_transport(ep, paddr);
+	if (!t)
 		goto out;
 
-	rport = ntohs(paddr->v4.sin_port);
-
-	hash = sctp_assoc_hashfn(sock_net(ep->base.sk), ep->base.bind_addr.port,
-				 rport);
-	head = &sctp_assoc_hashtable[hash];
-	read_lock(&head->lock);
-	sctp_for_each_hentry(epb, &head->chain) {
-		tmp = sctp_assoc(epb);
-		if (tmp->ep != ep || rport != tmp->peer.port)
-			continue;
-
-		t = sctp_assoc_lookup_paddr(tmp, paddr);
-		if (t) {
-			asoc = tmp;
-			*transport = t;
-			break;
-		}
-	}
-	read_unlock(&head->lock);
+	*transport = t;
+	asoc = t->asoc;
 out:
-	return asoc;
-}
-
-/* Lookup association on an endpoint based on a peer address.  BH-safe.  */
-struct sctp_association *sctp_endpoint_lookup_assoc(
-	const struct sctp_endpoint *ep,
-	const union sctp_addr *paddr,
-	struct sctp_transport **transport)
-{
-	struct sctp_association *asoc;
-
-	local_bh_disable();
-	asoc = __sctp_endpoint_lookup_assoc(ep, paddr, transport);
-	local_bh_enable();
-
+	rcu_read_unlock();
 	return asoc;
 }
 

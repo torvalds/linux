@@ -3,6 +3,8 @@
  *
  * Written 2013 by Werner Almesberger <werner@almesberger.net>
  *
+ * Copyright (c) 2015 - 2016 Stefan Schmidt <stefan@datenfreihafen.org>
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as
  * published by the Free Software Foundation, version 2
@@ -56,6 +58,11 @@ struct atusb {
 	struct urb *tx_urb;
 	struct sk_buff *tx_skb;
 	uint8_t tx_ack_seq;		/* current TX ACK sequence number */
+
+	/* Firmware variable */
+	unsigned char fw_ver_maj;	/* Firmware major version number */
+	unsigned char fw_ver_min;	/* Firmware minor version number */
+	unsigned char fw_hw_type;	/* Firmware hardware type */
 };
 
 /* ----- USB commands without data ----------------------------------------- */
@@ -110,13 +117,26 @@ static int atusb_read_reg(struct atusb *atusb, uint8_t reg)
 {
 	struct usb_device *usb_dev = atusb->usb_dev;
 	int ret;
+	uint8_t *buffer;
 	uint8_t value;
+
+	buffer = kmalloc(1, GFP_KERNEL);
+	if (!buffer)
+		return -ENOMEM;
 
 	dev_dbg(&usb_dev->dev, "atusb: reg = 0x%x\n", reg);
 	ret = atusb_control_msg(atusb, usb_rcvctrlpipe(usb_dev, 0),
 				ATUSB_REG_READ, ATUSB_REQ_FROM_DEV,
-				0, reg, &value, 1, 1000);
-	return ret >= 0 ? value : ret;
+				0, reg, buffer, 1, 1000);
+
+	if (ret >= 0) {
+		value = buffer[0];
+		kfree(buffer);
+		return value;
+	} else {
+		kfree(buffer);
+		return ret;
+	}
 }
 
 static int atusb_write_subreg(struct atusb *atusb, uint8_t reg, uint8_t mask,
@@ -310,8 +330,7 @@ static void atusb_free_urbs(struct atusb *atusb)
 		urb = usb_get_from_anchor(&atusb->idle_urbs);
 		if (!urb)
 			break;
-		if (urb->context)
-			kfree_skb(urb->context);
+		kfree_skb(urb->context);
 		usb_free_urb(urb);
 	}
 }
@@ -365,11 +384,7 @@ static int atusb_channel(struct ieee802154_hw *hw, u8 page, u8 channel)
 	struct atusb *atusb = hw->priv;
 	int ret;
 
-	/* This implicitly sets the CCA (Clear Channel Assessment) mode to 0,
-	 * "Mode 3a, Carrier sense OR energy above threshold".
-	 * We should probably make this configurable. @@@
-	 */
-	ret = atusb_write_reg(atusb, RG_PHY_CC_CCA, channel);
+	ret = atusb_write_subreg(atusb, SR_CHANNEL, channel);
 	if (ret < 0)
 		return ret;
 	msleep(1);	/* @@@ ugly synchronization */
@@ -473,6 +488,84 @@ atusb_set_txpower(struct ieee802154_hw *hw, s32 mbm)
 	return -EINVAL;
 }
 
+#define ATUSB_MAX_ED_LEVELS 0xF
+static const s32 atusb_ed_levels[ATUSB_MAX_ED_LEVELS + 1] = {
+	-9100, -8900, -8700, -8500, -8300, -8100, -7900, -7700, -7500, -7300,
+	-7100, -6900, -6700, -6500, -6300, -6100,
+};
+
+static int
+atusb_set_cca_mode(struct ieee802154_hw *hw, const struct wpan_phy_cca *cca)
+{
+	struct atusb *atusb = hw->priv;
+	u8 val;
+
+	/* mapping 802.15.4 to driver spec */
+	switch (cca->mode) {
+	case NL802154_CCA_ENERGY:
+		val = 1;
+		break;
+	case NL802154_CCA_CARRIER:
+		val = 2;
+		break;
+	case NL802154_CCA_ENERGY_CARRIER:
+		switch (cca->opt) {
+		case NL802154_CCA_OPT_ENERGY_CARRIER_AND:
+			val = 3;
+			break;
+		case NL802154_CCA_OPT_ENERGY_CARRIER_OR:
+			val = 0;
+			break;
+		default:
+			return -EINVAL;
+		}
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return atusb_write_subreg(atusb, SR_CCA_MODE, val);
+}
+
+static int
+atusb_set_cca_ed_level(struct ieee802154_hw *hw, s32 mbm)
+{
+	struct atusb *atusb = hw->priv;
+	u32 i;
+
+	for (i = 0; i < hw->phy->supported.cca_ed_levels_size; i++) {
+		if (hw->phy->supported.cca_ed_levels[i] == mbm)
+			return atusb_write_subreg(atusb, SR_CCA_ED_THRES, i);
+	}
+
+	return -EINVAL;
+}
+
+static int
+atusb_set_csma_params(struct ieee802154_hw *hw, u8 min_be, u8 max_be, u8 retries)
+{
+	struct atusb *atusb = hw->priv;
+	int ret;
+
+	ret = atusb_write_subreg(atusb, SR_MIN_BE, min_be);
+	if (ret)
+		return ret;
+
+	ret = atusb_write_subreg(atusb, SR_MAX_BE, max_be);
+	if (ret)
+		return ret;
+
+	return atusb_write_subreg(atusb, SR_MAX_CSMA_RETRIES, retries);
+}
+
+static int
+atusb_set_frame_retries(struct ieee802154_hw *hw, s8 retries)
+{
+	struct atusb *atusb = hw->priv;
+
+	return atusb_write_subreg(atusb, SR_MAX_FRAME_RETRIES, retries);
+}
+
 static int
 atusb_set_promiscuous_mode(struct ieee802154_hw *hw, const bool on)
 {
@@ -500,7 +593,7 @@ atusb_set_promiscuous_mode(struct ieee802154_hw *hw, const bool on)
 	return 0;
 }
 
-static struct ieee802154_ops atusb_ops = {
+static const struct ieee802154_ops atusb_ops = {
 	.owner			= THIS_MODULE,
 	.xmit_async		= atusb_xmit,
 	.ed			= atusb_ed,
@@ -509,6 +602,10 @@ static struct ieee802154_ops atusb_ops = {
 	.stop			= atusb_stop,
 	.set_hw_addr_filt	= atusb_set_hw_addr_filt,
 	.set_txpower		= atusb_set_txpower,
+	.set_cca_mode		= atusb_set_cca_mode,
+	.set_cca_ed_level	= atusb_set_cca_ed_level,
+	.set_csma_params	= atusb_set_csma_params,
+	.set_frame_retries	= atusb_set_frame_retries,
 	.set_promiscuous_mode	= atusb_set_promiscuous_mode,
 };
 
@@ -517,32 +614,46 @@ static struct ieee802154_ops atusb_ops = {
 static int atusb_get_and_show_revision(struct atusb *atusb)
 {
 	struct usb_device *usb_dev = atusb->usb_dev;
-	unsigned char buffer[3];
+	unsigned char *buffer;
 	int ret;
+
+	buffer = kmalloc(3, GFP_KERNEL);
+	if (!buffer)
+		return -ENOMEM;
 
 	/* Get a couple of the ATMega Firmware values */
 	ret = atusb_control_msg(atusb, usb_rcvctrlpipe(usb_dev, 0),
 				ATUSB_ID, ATUSB_REQ_FROM_DEV, 0, 0,
 				buffer, 3, 1000);
-	if (ret >= 0)
+	if (ret >= 0) {
+		atusb->fw_ver_maj = buffer[0];
+		atusb->fw_ver_min = buffer[1];
+		atusb->fw_hw_type = buffer[2];
+
 		dev_info(&usb_dev->dev,
 			 "Firmware: major: %u, minor: %u, hardware type: %u\n",
-			 buffer[0], buffer[1], buffer[2]);
-	if (buffer[0] == 0 && buffer[1] < 2) {
+			 atusb->fw_ver_maj, atusb->fw_ver_min, atusb->fw_hw_type);
+	}
+	if (atusb->fw_ver_maj == 0 && atusb->fw_ver_min < 2) {
 		dev_info(&usb_dev->dev,
-			 "Firmware version (%u.%u) is predates our first public release.",
-			 buffer[0], buffer[1]);
+			 "Firmware version (%u.%u) predates our first public release.",
+			 atusb->fw_ver_maj, atusb->fw_ver_min);
 		dev_info(&usb_dev->dev, "Please update to version 0.2 or newer");
 	}
 
+	kfree(buffer);
 	return ret;
 }
 
 static int atusb_get_and_show_build(struct atusb *atusb)
 {
 	struct usb_device *usb_dev = atusb->usb_dev;
-	char build[ATUSB_BUILD_SIZE + 1];
+	char *build;
 	int ret;
+
+	build = kmalloc(ATUSB_BUILD_SIZE + 1, GFP_KERNEL);
+	if (!build)
+		return -ENOMEM;
 
 	ret = atusb_control_msg(atusb, usb_rcvctrlpipe(usb_dev, 0),
 				ATUSB_BUILD, ATUSB_REQ_FROM_DEV, 0, 0,
@@ -552,6 +663,7 @@ static int atusb_get_and_show_build(struct atusb *atusb)
 		dev_info(&usb_dev->dev, "Firmware: build %s\n", build);
 	}
 
+	kfree(build);
 	return ret;
 }
 
@@ -599,6 +711,52 @@ fail:
 	return -ENODEV;
 }
 
+static int atusb_set_extended_addr(struct atusb *atusb)
+{
+	struct usb_device *usb_dev = atusb->usb_dev;
+	unsigned char *buffer;
+	__le64 extended_addr;
+	u64 addr;
+	int ret;
+
+	/* Firmware versions before 0.3 do not support the EUI64_READ command.
+	 * Just use a random address and be done */
+	if (atusb->fw_ver_maj == 0 && atusb->fw_ver_min < 3) {
+		ieee802154_random_extended_addr(&atusb->hw->phy->perm_extended_addr);
+		return 0;
+	}
+
+	buffer = kmalloc(IEEE802154_EXTENDED_ADDR_LEN, GFP_KERNEL);
+	if (!buffer)
+		return -ENOMEM;
+
+	/* Firmware is new enough so we fetch the address from EEPROM */
+	ret = atusb_control_msg(atusb, usb_rcvctrlpipe(usb_dev, 0),
+				ATUSB_EUI64_READ, ATUSB_REQ_FROM_DEV, 0, 0,
+				buffer, IEEE802154_EXTENDED_ADDR_LEN, 1000);
+	if (ret < 0) {
+		dev_err(&usb_dev->dev, "failed to fetch extended address, random address set\n");
+		ieee802154_random_extended_addr(&atusb->hw->phy->perm_extended_addr);
+		kfree(buffer);
+		return ret;
+	}
+
+	memcpy(&extended_addr, buffer, IEEE802154_EXTENDED_ADDR_LEN);
+	/* Check if read address is not empty and the unicast bit is set correctly */
+	if (!ieee802154_is_valid_extended_unicast_addr(extended_addr)) {
+		dev_info(&usb_dev->dev, "no permanent extended address found, random address set\n");
+		ieee802154_random_extended_addr(&atusb->hw->phy->perm_extended_addr);
+	} else {
+		atusb->hw->phy->perm_extended_addr = extended_addr;
+		addr = swab64((__force u64)atusb->hw->phy->perm_extended_addr);
+		dev_info(&usb_dev->dev, "Read permanent extended address %8phC from device\n",
+			&addr);
+	}
+
+	kfree(buffer);
+	return ret;
+}
+
 /* ----- Setup ------------------------------------------------------------- */
 
 static int atusb_probe(struct usb_interface *interface,
@@ -637,9 +795,20 @@ static int atusb_probe(struct usb_interface *interface,
 
 	hw->parent = &usb_dev->dev;
 	hw->flags = IEEE802154_HW_TX_OMIT_CKSUM | IEEE802154_HW_AFILT |
-		    IEEE802154_HW_PROMISCUOUS;
+		    IEEE802154_HW_PROMISCUOUS | IEEE802154_HW_CSMA_PARAMS;
 
-	hw->phy->flags = WPAN_PHY_FLAG_TXPOWER;
+	hw->phy->flags = WPAN_PHY_FLAG_TXPOWER | WPAN_PHY_FLAG_CCA_ED_LEVEL |
+			 WPAN_PHY_FLAG_CCA_MODE;
+
+	hw->phy->supported.cca_modes = BIT(NL802154_CCA_ENERGY) |
+		BIT(NL802154_CCA_CARRIER) | BIT(NL802154_CCA_ENERGY_CARRIER);
+	hw->phy->supported.cca_opts = BIT(NL802154_CCA_OPT_ENERGY_CARRIER_AND) |
+		BIT(NL802154_CCA_OPT_ENERGY_CARRIER_OR);
+
+	hw->phy->supported.cca_ed_levels = atusb_ed_levels;
+	hw->phy->supported.cca_ed_levels_size = ARRAY_SIZE(atusb_ed_levels);
+
+	hw->phy->cca.mode = NL802154_CCA_ENERGY;
 
 	hw->phy->current_page = 0;
 	hw->phy->current_channel = 11;	/* reset default */
@@ -647,12 +816,17 @@ static int atusb_probe(struct usb_interface *interface,
 	hw->phy->supported.tx_powers = atusb_powers;
 	hw->phy->supported.tx_powers_size = ARRAY_SIZE(atusb_powers);
 	hw->phy->transmit_power = hw->phy->supported.tx_powers[0];
-	ieee802154_random_extended_addr(&hw->phy->perm_extended_addr);
+	hw->phy->cca_ed_level = hw->phy->supported.cca_ed_levels[7];
 
 	atusb_command(atusb, ATUSB_RF_RESET, 0);
 	atusb_get_and_show_chip(atusb);
 	atusb_get_and_show_revision(atusb);
 	atusb_get_and_show_build(atusb);
+	atusb_set_extended_addr(atusb);
+
+	if (atusb->fw_ver_maj >= 0 && atusb->fw_ver_min >= 3)
+		hw->flags |= IEEE802154_HW_FRAME_RETRIES;
+
 	ret = atusb_get_and_clear_error(atusb);
 	if (ret) {
 		dev_err(&atusb->usb_dev->dev,

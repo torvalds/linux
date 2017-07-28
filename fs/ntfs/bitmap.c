@@ -67,8 +67,8 @@ int __ntfs_bitmap_set_bits_in_run(struct inode *vi, const s64 start_bit,
 	 * Calculate the indices for the pages containing the first and last
 	 * bits, i.e. @start_bit and @start_bit + @cnt - 1, respectively.
 	 */
-	index = start_bit >> (3 + PAGE_CACHE_SHIFT);
-	end_index = (start_bit + cnt - 1) >> (3 + PAGE_CACHE_SHIFT);
+	index = start_bit >> (3 + PAGE_SHIFT);
+	end_index = (start_bit + cnt - 1) >> (3 + PAGE_SHIFT);
 
 	/* Get the page containing the first bit (@start_bit). */
 	mapping = vi->i_mapping;
@@ -82,7 +82,7 @@ int __ntfs_bitmap_set_bits_in_run(struct inode *vi, const s64 start_bit,
 	kaddr = page_address(page);
 
 	/* Set @pos to the position of the byte containing @start_bit. */
-	pos = (start_bit >> 3) & ~PAGE_CACHE_MASK;
+	pos = (start_bit >> 3) & ~PAGE_MASK;
 
 	/* Calculate the position of @start_bit in the first byte. */
 	bit = start_bit & 7;
@@ -108,7 +108,7 @@ int __ntfs_bitmap_set_bits_in_run(struct inode *vi, const s64 start_bit,
 	 * Depending on @value, modify all remaining whole bytes in the page up
 	 * to @cnt.
 	 */
-	len = min_t(s64, cnt >> 3, PAGE_CACHE_SIZE - pos);
+	len = min_t(s64, cnt >> 3, PAGE_SIZE - pos);
 	memset(kaddr + pos, value ? 0xff : 0, len);
 	cnt -= len << 3;
 
@@ -132,7 +132,7 @@ int __ntfs_bitmap_set_bits_in_run(struct inode *vi, const s64 start_bit,
 		 * Depending on @value, modify all remaining whole bytes in the
 		 * page up to @cnt.
 		 */
-		len = min_t(s64, cnt >> 3, PAGE_CACHE_SIZE);
+		len = min_t(s64, cnt >> 3, PAGE_SIZE);
 		memset(kaddr, value ? 0xff : 0, len);
 		cnt -= len << 3;
 	}

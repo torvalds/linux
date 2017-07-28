@@ -15,7 +15,7 @@
 #include <asm/irq.h>
 #include <asm/mach/pci.h>
 #include <plat/pcie.h>
-#include <mach/mv78xx0.h>
+#include "mv78xx0.h"
 #include "common.h"
 
 #define MV78XX0_MBUS_PCIE_MEM_TARGET(port, lane) ((port) ? 8 : 4)
@@ -29,7 +29,7 @@ struct pcie_port {
 	u8			root_bus_nr;
 	void __iomem		*base;
 	spinlock_t		conf_lock;
-	char			mem_space_name[16];
+	char			mem_space_name[20];
 	struct resource		res;
 };
 
@@ -194,16 +194,22 @@ static void rc_pci_fixup(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MARVELL, PCI_ANY_ID, rc_pci_fixup);
 
-static struct pci_bus __init *
-mv78xx0_pcie_scan_bus(int nr, struct pci_sys_data *sys)
+static int __init mv78xx0_pcie_scan_bus(int nr, struct pci_host_bridge *bridge)
 {
+	struct pci_sys_data *sys = pci_host_bridge_priv(bridge);
+
 	if (nr >= num_pcie_ports) {
 		BUG();
-		return NULL;
+		return -EINVAL;
 	}
 
-	return pci_scan_root_bus(NULL, sys->busnr, &pcie_ops, sys,
-				 &sys->resources);
+	list_splice_init(&sys->resources, &bridge->windows);
+	bridge->dev.parent = NULL;
+	bridge->sysdata = sys;
+	bridge->busnr = sys->busnr;
+	bridge->ops = &pcie_ops;
+
+	return pci_scan_root_bus_bridge(bridge);
 }
 
 static int __init mv78xx0_pcie_map_irq(const struct pci_dev *dev, u8 slot,

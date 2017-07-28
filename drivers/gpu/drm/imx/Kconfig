@@ -1,23 +1,13 @@
 config DRM_IMX
 	tristate "DRM Support for Freescale i.MX"
 	select DRM_KMS_HELPER
-	select DRM_KMS_FB_HELPER
 	select VIDEOMODE_HELPERS
 	select DRM_GEM_CMA_HELPER
 	select DRM_KMS_CMA_HELPER
-	depends on DRM && (ARCH_MXC || ARCH_MULTIPLATFORM) && HAVE_DMA_ATTRS
+	depends on DRM && (ARCH_MXC || ARCH_MULTIPLATFORM)
 	depends on IMX_IPUV3_CORE
 	help
 	  enable i.MX graphics support
-
-config DRM_IMX_FB_HELPER
-	tristate "provide legacy framebuffer /dev/fb0"
-	select DRM_KMS_CMA_HELPER
-	depends on DRM_IMX
-	help
-	  The DRM framework can provide a legacy /dev/fb0 framebuffer
-	  for your device. This is necessary to get a framebuffer console
-	  and also for applications using the legacy framebuffer API
 
 config DRM_IMX_PARALLEL_DISPLAY
 	tristate "Support for parallel displays"
@@ -40,13 +30,6 @@ config DRM_IMX_LDB
 	help
 	  Choose this to enable the internal LVDS Display Bridge (LDB)
 	  found on i.MX53 and i.MX6 processors.
-
-config DRM_IMX_IPUV3
-	tristate
-	depends on DRM_IMX
-	depends on IMX_IPUV3_CORE
-	default y if DRM_IMX=y
-	default m if DRM_IMX=m
 
 config DRM_IMX_HDMI
 	tristate "Freescale i.MX DRM HDMI"

@@ -22,6 +22,8 @@ Optional properties:
 					  headphones are attached.
 - simple-audio-card,mic-det-gpio	: Reference to GPIO that signals when
 					  a microphone is attached.
+- simple-audio-card,aux-devs		: List of phandles pointing to auxiliary devices, such
+					  as amplifiers, to be added to the sound card.
 
 Optional subnodes:
 
@@ -30,7 +32,7 @@ Optional subnodes:
 					  sub-nodes. This container may be
 					  omitted when the card has only one
 					  DAI link. See the examples and the
-					  section bellow.
+					  section below.
 
 Dai-link subnode properties and subnodes:
 
@@ -160,5 +162,40 @@ sound {
 		codec {
 			sound-dai = <&spdif_codec>;
 		};
+	};
+};
+
+Example 3 - route audio from IMX6 SSI2 through TLV320DAC3100 codec
+through TPA6130A2 amplifier to headphones:
+
+&i2c0 {
+	codec: tlv320dac3100@18 {
+		compatible = "ti,tlv320dac3100";
+		...
+	}
+
+	amp: tpa6130a2@60 {
+		compatible = "ti,tpa6130a2";
+		...
+	}
+}
+
+sound {
+	compatible = "simple-audio-card";
+	...
+	simple-audio-card,widgets =
+		"Headphone", "Headphone Jack";
+	simple-audio-card,routing =
+		"Headphone Jack", "HPLEFT",
+		"Headphone Jack", "HPRIGHT",
+		"LEFTIN", "HPL",
+		"RIGHTIN", "HPR";
+	simple-audio-card,aux-devs = <&amp>;
+	simple-audio-card,cpu {
+		sound-dai = <&ssi2>;
+	};
+	simple-audio-card,codec {
+		sound-dai = <&codec>;
+		clocks = ...
 	};
 };

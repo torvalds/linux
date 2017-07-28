@@ -185,9 +185,9 @@ static void write_reg8_bus8(struct fbtft_par *par, int len, ...)
 			buf[i] = (u8)va_arg(args, unsigned int);
 
 		va_end(args);
-		fbtft_par_dbg_hex(DEBUG_WRITE_REGISTER, par,
-			par->info->device, u8, buf, len, "%s: ", __func__);
-	}
+		fbtft_par_dbg_hex(DEBUG_WRITE_REGISTER, par, par->info->device,
+				  u8, buf, len, "%s: ", __func__);
+}
 
 	va_start(args, len);
 
@@ -246,7 +246,7 @@ static void set_addr_win(struct fbtft_par *par, int xs, int ys, int xe, int ye)
 
 static void
 construct_line_bitmap(struct fbtft_par *par, u8 *dest, signed short *src,
-						int xs, int xe, int y)
+		      int xs, int xe, int y)
 {
 	int x, i;
 
@@ -264,6 +264,39 @@ construct_line_bitmap(struct fbtft_par *par, u8 *dest, signed short *src,
 	}
 }
 
+static void iterate_diffusion_matrix(u32 xres, u32 yres, int x,
+				     int y, signed short *convert_buf,
+				     signed short pixel, signed short error)
+{
+	u16 i, j;
+
+	/* diffusion matrix row */
+	for (i = 0; i < DIFFUSING_MATRIX_WIDTH; ++i)
+		/* diffusion matrix column */
+		for (j = 0; j < DIFFUSING_MATRIX_HEIGHT; ++j) {
+			signed short *write_pos;
+			signed char coeff;
+
+			/* skip pixels out of zone */
+			if (x + i < 0 || x + i >= xres || y + j >= yres)
+				continue;
+			write_pos = &convert_buf[(y + j) * xres + x + i];
+			coeff = diffusing_matrix[i][j];
+			if (-1 == coeff) {
+				/* pixel itself */
+				*write_pos = pixel;
+			} else {
+				signed short p = *write_pos + error * coeff;
+
+				if (p > WHITE)
+					p = WHITE;
+				if (p < BLACK)
+					p = BLACK;
+				*write_pos = p;
+			}
+		}
+}
+
 static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 {
 	u16 *vmem16 = (u16 *)par->info->screen_buffer;
@@ -272,8 +305,8 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 	int ret = 0;
 
 	/* buffer to convert RGB565 -> grayscale16 -> Dithered image 1bpp */
-	signed short *convert_buf = kmalloc(par->info->var.xres *
-		par->info->var.yres * sizeof(signed short), GFP_NOIO);
+	signed short *convert_buf = kmalloc_array(par->info->var.xres *
+		par->info->var.yres, sizeof(signed short), GFP_NOIO);
 
 	if (!convert_buf)
 		return -ENOMEM;
@@ -303,7 +336,6 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 			signed short error_b = pixel - BLACK;
 			signed short error_w = pixel - WHITE;
 			signed short error;
-			u16 i, j;
 
 			/* what color close? */
 			if (abs(error_b) >= abs(error_w)) {
@@ -318,51 +350,26 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 
 			error /= 8;
 
-			/* diffusion matrix row */
-			for (i = 0; i < DIFFUSING_MATRIX_WIDTH; ++i)
-				/* diffusion matrix column */
-				for (j = 0; j < DIFFUSING_MATRIX_HEIGHT; ++j) {
-					signed short *write_pos;
-					signed char coeff;
-
-					/* skip pixels out of zone */
-					if (x + i < 0 ||
-						x + i >= par->info->var.xres
-						|| y + j >= par->info->var.yres)
-						continue;
-					write_pos = &convert_buf[
-						(y + j) * par->info->var.xres +
-						x + i];
-					coeff = diffusing_matrix[i][j];
-					if (coeff == -1)
-						/* pixel itself */
-						*write_pos = pixel;
-					else {
-						signed short p = *write_pos +
-							error * coeff;
-
-						if (p > WHITE)
-							p = WHITE;
-						if (p < BLACK)
-							p = BLACK;
-						*write_pos = p;
-					}
-				}
+			iterate_diffusion_matrix(par->info->var.xres,
+						 par->info->var.yres,
+						 x, y, convert_buf,
+						 pixel, error);
 		}
 
-	 /* 1 string = 2 pages */
-	 for (y = addr_win.ys_page; y <= addr_win.ye_page; ++y) {
+	/* 1 string = 2 pages */
+	for (y = addr_win.ys_page; y <= addr_win.ye_page; ++y) {
 		/* left half of display */
 		if (addr_win.xs < par->info->var.xres / 2) {
 			construct_line_bitmap(par, buf, convert_buf,
-				addr_win.xs, par->info->var.xres / 2, y);
+					      addr_win.xs,
+					      par->info->var.xres / 2, y);
 
 			len = par->info->var.xres / 2 - addr_win.xs;
 
 			/* select left side (sc0)
 			 * set addr
 			 */
-			write_reg(par, 0x00, (1 << 6) | (u8)addr_win.xs);
+			write_reg(par, 0x00, BIT(6) | (u8)addr_win.xs);
 			write_reg(par, 0x00, (0x17 << 3) | (u8)y);
 
 			/* write bitmap */
@@ -376,8 +383,9 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 		/* right half of display */
 		if (addr_win.xe >= par->info->var.xres / 2) {
 			construct_line_bitmap(par, buf,
-				convert_buf, par->info->var.xres / 2,
-				addr_win.xe + 1, y);
+					      convert_buf,
+					      par->info->var.xres / 2,
+					      addr_win.xe + 1, y);
 
 			len = addr_win.xe + 1 - par->info->var.xres / 2;
 
@@ -407,14 +415,14 @@ static int write_vmem(struct fbtft_par *par, size_t offset, size_t len)
 static int write(struct fbtft_par *par, void *buf, size_t len)
 {
 	fbtft_par_dbg_hex(DEBUG_WRITE, par, par->info->device, u8, buf, len,
-		"%s(len=%d): ", __func__, len);
+			  "%s(len=%d): ", __func__, len);
 
 	gpio_set_value(par->RW, 0); /* set write mode */
 
 	while (len--) {
 		u8 i, data;
 
-		data = *(u8 *) buf++;
+		data = *(u8 *)buf++;
 
 		/* set data bus */
 		for (i = 0; i < 8; ++i)

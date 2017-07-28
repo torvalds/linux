@@ -23,21 +23,17 @@
 #include <linux/mm.h>
 #include <linux/ctype.h>
 #include <linux/slab.h>
+#include <linux/filter.h>
 #include <linux/compiler.h>
 
 #include <asm/sections.h>
-
-#ifdef CONFIG_KALLSYMS_ALL
-#define all_var 1
-#else
-#define all_var 0
-#endif
 
 /*
  * These will be re-linked against their real values
  * during the second link stage.
  */
 extern const unsigned long kallsyms_addresses[] __weak;
+extern const int kallsyms_offsets[] __weak;
 extern const u8 kallsyms_names[] __weak;
 
 /*
@@ -45,6 +41,9 @@ extern const u8 kallsyms_names[] __weak;
  * has one (eg: FRV).
  */
 extern const unsigned long kallsyms_num_syms
+__attribute__((weak, section(".rodata")));
+
+extern const unsigned long kallsyms_relative_base
 __attribute__((weak, section(".rodata")));
 
 extern const u8 kallsyms_token_table[] __weak;
@@ -77,7 +76,7 @@ static inline int is_kernel(unsigned long addr)
 
 static int is_ksym_addr(unsigned long addr)
 {
-	if (all_var)
+	if (IS_ENABLED(CONFIG_KALLSYMS_ALL))
 		return is_kernel(addr);
 
 	return is_kernel_text(addr) || is_kernel_inittext(addr);
@@ -176,6 +175,23 @@ static unsigned int get_symbol_offset(unsigned long pos)
 	return name - kallsyms_names;
 }
 
+static unsigned long kallsyms_sym_address(int idx)
+{
+	if (!IS_ENABLED(CONFIG_KALLSYMS_BASE_RELATIVE))
+		return kallsyms_addresses[idx];
+
+	/* values are unsigned offsets if --absolute-percpu is not in effect */
+	if (!IS_ENABLED(CONFIG_KALLSYMS_ABSOLUTE_PERCPU))
+		return kallsyms_relative_base + (u32)kallsyms_offsets[idx];
+
+	/* ...otherwise, positive offsets are absolute values */
+	if (kallsyms_offsets[idx] >= 0)
+		return kallsyms_offsets[idx];
+
+	/* ...and negative offsets are relative to kallsyms_relative_base - 1 */
+	return kallsyms_relative_base - 1 - kallsyms_offsets[idx];
+}
+
 /* Lookup the address for this symbol. Returns 0 if not found. */
 unsigned long kallsyms_lookup_name(const char *name)
 {
@@ -187,7 +203,7 @@ unsigned long kallsyms_lookup_name(const char *name)
 		off = kallsyms_expand_symbol(off, namebuf, ARRAY_SIZE(namebuf));
 
 		if (strcmp(namebuf, name) == 0)
-			return kallsyms_addresses[i];
+			return kallsyms_sym_address(i);
 	}
 	return module_kallsyms_lookup_name(name);
 }
@@ -204,7 +220,7 @@ int kallsyms_on_each_symbol(int (*fn)(void *, const char *, struct module *,
 
 	for (i = 0, off = 0; i < kallsyms_num_syms; i++) {
 		off = kallsyms_expand_symbol(off, namebuf, ARRAY_SIZE(namebuf));
-		ret = fn(data, namebuf, NULL, kallsyms_addresses[i]);
+		ret = fn(data, namebuf, NULL, kallsyms_sym_address(i));
 		if (ret != 0)
 			return ret;
 	}
@@ -220,7 +236,10 @@ static unsigned long get_symbol_pos(unsigned long addr,
 	unsigned long i, low, high, mid;
 
 	/* This kernel should never had been booted. */
-	BUG_ON(!kallsyms_addresses);
+	if (!IS_ENABLED(CONFIG_KALLSYMS_BASE_RELATIVE))
+		BUG_ON(!kallsyms_addresses);
+	else
+		BUG_ON(!kallsyms_offsets);
 
 	/* Do a binary search on the sorted kallsyms_addresses array. */
 	low = 0;
@@ -228,7 +247,7 @@ static unsigned long get_symbol_pos(unsigned long addr,
 
 	while (high - low > 1) {
 		mid = low + (high - low) / 2;
-		if (kallsyms_addresses[mid] <= addr)
+		if (kallsyms_sym_address(mid) <= addr)
 			low = mid;
 		else
 			high = mid;
@@ -238,15 +257,15 @@ static unsigned long get_symbol_pos(unsigned long addr,
 	 * Search for the first aliased symbol. Aliased
 	 * symbols are symbols with the same address.
 	 */
-	while (low && kallsyms_addresses[low-1] == kallsyms_addresses[low])
+	while (low && kallsyms_sym_address(low-1) == kallsyms_sym_address(low))
 		--low;
 
-	symbol_start = kallsyms_addresses[low];
+	symbol_start = kallsyms_sym_address(low);
 
 	/* Search for next non-aliased symbol. */
 	for (i = low + 1; i < kallsyms_num_syms; i++) {
-		if (kallsyms_addresses[i] > symbol_start) {
-			symbol_end = kallsyms_addresses[i];
+		if (kallsyms_sym_address(i) > symbol_start) {
+			symbol_end = kallsyms_sym_address(i);
 			break;
 		}
 	}
@@ -255,7 +274,7 @@ static unsigned long get_symbol_pos(unsigned long addr,
 	if (!symbol_end) {
 		if (is_kernel_inittext(addr))
 			symbol_end = (unsigned long)_einittext;
-		else if (all_var)
+		else if (IS_ENABLED(CONFIG_KALLSYMS_ALL))
 			symbol_end = (unsigned long)_end;
 		else
 			symbol_end = (unsigned long)_etext;
@@ -276,10 +295,11 @@ int kallsyms_lookup_size_offset(unsigned long addr, unsigned long *symbolsize,
 				unsigned long *offset)
 {
 	char namebuf[KSYM_NAME_LEN];
+
 	if (is_ksym_addr(addr))
 		return !!get_symbol_pos(addr, symbolsize, offset);
-
-	return !!module_address_lookup(addr, symbolsize, offset, NULL, namebuf);
+	return !!module_address_lookup(addr, symbolsize, offset, NULL, namebuf) ||
+	       !!__bpf_address_lookup(addr, symbolsize, offset, namebuf);
 }
 
 /*
@@ -294,6 +314,8 @@ const char *kallsyms_lookup(unsigned long addr,
 			    unsigned long *offset,
 			    char **modname, char *namebuf)
 {
+	const char *ret;
+
 	namebuf[KSYM_NAME_LEN - 1] = 0;
 	namebuf[0] = 0;
 
@@ -309,9 +331,13 @@ const char *kallsyms_lookup(unsigned long addr,
 		return namebuf;
 	}
 
-	/* See if it's in a module. */
-	return module_address_lookup(addr, symbolsize, offset, modname,
-				     namebuf);
+	/* See if it's in a module or a BPF JITed image. */
+	ret = module_address_lookup(addr, symbolsize, offset,
+				    modname, namebuf);
+	if (!ret)
+		ret = bpf_address_lookup(addr, symbolsize,
+					 offset, modname, namebuf);
+	return ret;
 }
 
 int lookup_symbol_name(unsigned long addr, char *symname)
@@ -447,6 +473,7 @@ EXPORT_SYMBOL(__print_symbol);
 /* To avoid using get_symbol_offset for every symbol, we carry prefix along. */
 struct kallsym_iter {
 	loff_t pos;
+	loff_t pos_mod_end;
 	unsigned long value;
 	unsigned int nameoff; /* If iterating in core kernel symbols. */
 	char type;
@@ -457,11 +484,25 @@ struct kallsym_iter {
 
 static int get_ksymbol_mod(struct kallsym_iter *iter)
 {
-	if (module_get_kallsym(iter->pos - kallsyms_num_syms, &iter->value,
-				&iter->type, iter->name, iter->module_name,
-				&iter->exported) < 0)
+	int ret = module_get_kallsym(iter->pos - kallsyms_num_syms,
+				     &iter->value, &iter->type,
+				     iter->name, iter->module_name,
+				     &iter->exported);
+	if (ret < 0) {
+		iter->pos_mod_end = iter->pos;
 		return 0;
+	}
+
 	return 1;
+}
+
+static int get_ksymbol_bpf(struct kallsym_iter *iter)
+{
+	iter->module_name[0] = '\0';
+	iter->exported = 0;
+	return bpf_get_kallsym(iter->pos - iter->pos_mod_end,
+			       &iter->value, &iter->type,
+			       iter->name) < 0 ? 0 : 1;
 }
 
 /* Returns space to next name. */
@@ -470,7 +511,7 @@ static unsigned long get_ksymbol_core(struct kallsym_iter *iter)
 	unsigned off = iter->nameoff;
 
 	iter->module_name[0] = '\0';
-	iter->value = kallsyms_addresses[iter->pos];
+	iter->value = kallsyms_sym_address(iter->pos);
 
 	iter->type = kallsyms_get_symbol_type(off);
 
@@ -484,16 +525,30 @@ static void reset_iter(struct kallsym_iter *iter, loff_t new_pos)
 	iter->name[0] = '\0';
 	iter->nameoff = get_symbol_offset(new_pos);
 	iter->pos = new_pos;
+	if (new_pos == 0)
+		iter->pos_mod_end = 0;
+}
+
+static int update_iter_mod(struct kallsym_iter *iter, loff_t pos)
+{
+	iter->pos = pos;
+
+	if (iter->pos_mod_end > 0 &&
+	    iter->pos_mod_end < iter->pos)
+		return get_ksymbol_bpf(iter);
+
+	if (!get_ksymbol_mod(iter))
+		return get_ksymbol_bpf(iter);
+
+	return 1;
 }
 
 /* Returns false if pos at or past end of file. */
 static int update_iter(struct kallsym_iter *iter, loff_t pos)
 {
 	/* Module symbols can be accessed randomly. */
-	if (pos >= kallsyms_num_syms) {
-		iter->pos = pos;
-		return get_ksymbol_mod(iter);
-	}
+	if (pos >= kallsyms_num_syms)
+		return update_iter_mod(iter, pos);
 
 	/* If we're not on the desired position, reset to new position. */
 	if (pos != iter->pos)

@@ -226,7 +226,7 @@
 217	i386	pivot_root		sys_pivot_root
 218	i386	mincore			sys_mincore
 219	i386	madvise			sys_madvise
-220	i386	getdents64		sys_getdents64			compat_sys_getdents64
+220	i386	getdents64		sys_getdents64
 221	i386	fcntl64			sys_fcntl64			compat_sys_fcntl64
 # 222 is unused
 # 223 is unused
@@ -294,7 +294,7 @@
 # 285 sys_setaltroot
 286	i386	add_key			sys_add_key
 287	i386	request_key		sys_request_key
-288	i386	keyctl			sys_keyctl
+288	i386	keyctl			sys_keyctl			compat_sys_keyctl
 289	i386	ioprio_set		sys_ioprio_set
 290	i386	ioprio_get		sys_ioprio_get
 291	i386	inotify_init		sys_inotify_init
@@ -383,3 +383,11 @@
 374	i386	userfaultfd		sys_userfaultfd
 375	i386	membarrier		sys_membarrier
 376	i386	mlock2			sys_mlock2
+377	i386	copy_file_range		sys_copy_file_range
+378	i386	preadv2			sys_preadv2			compat_sys_preadv2
+379	i386	pwritev2		sys_pwritev2			compat_sys_pwritev2
+380	i386	pkey_mprotect		sys_pkey_mprotect
+381	i386	pkey_alloc		sys_pkey_alloc
+382	i386	pkey_free		sys_pkey_free
+383	i386	statx			sys_statx
+384	i386	arch_prctl		sys_arch_prctl			compat_sys_arch_prctl

@@ -26,6 +26,22 @@
 #define EPOLL_CTL_DEL 2
 #define EPOLL_CTL_MOD 3
 
+/* Epoll event masks */
+#define EPOLLIN		0x00000001
+#define EPOLLPRI	0x00000002
+#define EPOLLOUT	0x00000004
+#define EPOLLERR	0x00000008
+#define EPOLLHUP	0x00000010
+#define EPOLLRDNORM	0x00000040
+#define EPOLLRDBAND	0x00000080
+#define EPOLLWRNORM	0x00000100
+#define EPOLLWRBAND	0x00000200
+#define EPOLLMSG	0x00000400
+#define EPOLLRDHUP	0x00002000
+
+/* Set exclusive wakeup mode for the target file descriptor */
+#define EPOLLEXCLUSIVE (1U << 28)
+
 /*
  * Request the handling of system wakeup events so as to prevent system suspends
  * from happening while those events are being processed.
@@ -36,13 +52,13 @@
  *
  * Requires CAP_BLOCK_SUSPEND
  */
-#define EPOLLWAKEUP (1 << 29)
+#define EPOLLWAKEUP (1U << 29)
 
 /* Set the One Shot behaviour for the target file descriptor */
-#define EPOLLONESHOT (1 << 30)
+#define EPOLLONESHOT (1U << 30)
 
 /* Set the Edge Triggered behaviour for the target file descriptor */
-#define EPOLLET (1 << 31)
+#define EPOLLET (1U << 31)
 
 /* 
  * On x86-64 make the 64bit structure have the same alignment as the

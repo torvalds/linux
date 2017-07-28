@@ -4,7 +4,7 @@ Krisztian <hidden@balabit.hu> and others and additional patches
 from Jamal <hadi@cyberus.ca>.
 
 The end goal for syncing is to be able to insert attributes + generate
-events so that the an SA can be safely moved from one machine to another
+events so that the SA can be safely moved from one machine to another
 for HA purposes.
 The idea is to synchronize the SA so that the takeover machine can do
 the processing of the SA as accurate as possible if it has access to it.
@@ -13,7 +13,7 @@ We already have the ability to generate SA add/del/upd events.
 These patches add ability to sync and have accurate lifetime byte (to
 ensure proper decay of SAs) and replay counters to avoid replay attacks
 with as minimal loss at failover time.
-This way a backup stays as closely uptodate as an active member.
+This way a backup stays as closely up-to-date as an active member.
 
 Because the above items change for every packet the SA receives,
 it is possible for a lot of the events to be generated.
@@ -163,7 +163,7 @@ If you have an SA that is getting hit by traffic in bursts such that
 there is a period where the timer threshold expires with no packets
 seen, then an odd behavior is seen as follows:
 The first packet arrival after a timer expiry will trigger a timeout
-aevent; i.e we dont wait for a timeout period or a packet threshold
+event; i.e we don't wait for a timeout period or a packet threshold
 to be reached. This is done for simplicity and efficiency reasons.
 
 -JHS

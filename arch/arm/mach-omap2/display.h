@@ -31,6 +31,4 @@ int omap_init_vrfb(void);
 int omap_init_fb(void);
 int omap_init_vout(void);
 
-struct device_node * __init omapdss_find_dss_of_node(void);
-
 #endif

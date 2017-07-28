@@ -52,27 +52,6 @@ struct st_wdog {
 	bool warm_reset;
 };
 
-static struct st_wdog_syscfg stid127_syscfg = {
-	.reset_type_reg		= 0x004,
-	.reset_type_mask	= BIT(2),
-	.enable_reg		= 0x000,
-	.enable_mask		= BIT(2),
-};
-
-static struct st_wdog_syscfg stih415_syscfg = {
-	.reset_type_reg		= 0x0B8,
-	.reset_type_mask	= BIT(6),
-	.enable_reg		= 0x0B4,
-	.enable_mask		= BIT(7),
-};
-
-static struct st_wdog_syscfg stih416_syscfg = {
-	.reset_type_reg		= 0x88C,
-	.reset_type_mask	= BIT(6),
-	.enable_reg		= 0x888,
-	.enable_mask		= BIT(7),
-};
-
 static struct st_wdog_syscfg stih407_syscfg = {
 	.enable_reg		= 0x204,
 	.enable_mask		= BIT(19),
@@ -82,18 +61,6 @@ static const struct of_device_id st_wdog_match[] = {
 	{
 		.compatible = "st,stih407-lpc",
 		.data = &stih407_syscfg,
-	},
-	{
-		.compatible = "st,stih416-lpc",
-		.data = &stih416_syscfg,
-	},
-	{
-		.compatible = "st,stih415-lpc",
-		.data = &stih415_syscfg,
-	},
-	{
-		.compatible = "st,stid127-lpc",
-		.data = &stid127_syscfg,
 	},
 	{},
 };

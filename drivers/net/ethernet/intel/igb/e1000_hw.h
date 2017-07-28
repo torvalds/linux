@@ -325,7 +325,7 @@ struct e1000_mac_operations {
 	s32 (*get_thermal_sensor_data)(struct e1000_hw *);
 	s32 (*init_thermal_sensor_thresh)(struct e1000_hw *);
 #endif
-
+	void (*write_vfta)(struct e1000_hw *, u32, u32);
 };
 
 struct e1000_phy_operations {
@@ -372,7 +372,7 @@ struct e1000_thermal_sensor_data {
 struct e1000_info {
 	s32 (*get_invariants)(struct e1000_hw *);
 	struct e1000_mac_operations *mac_ops;
-	struct e1000_phy_operations *phy_ops;
+	const struct e1000_phy_operations *phy_ops;
 	struct e1000_nvm_operations *nvm_ops;
 };
 
@@ -441,6 +441,7 @@ struct e1000_phy_info {
 	u16 cable_length;
 	u16 max_cable_length;
 	u16 min_cable_length;
+	u16 pair_length[4];
 
 	u8 mdix;
 

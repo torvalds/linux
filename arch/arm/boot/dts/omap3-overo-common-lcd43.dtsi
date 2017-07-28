@@ -96,7 +96,7 @@
 		display0 = &lcd0;
 	};
 
-	lcd0: display@0 {
+	lcd0: display {
 		compatible = "samsung,lte430wq-f0c", "panel-dpi";
 		label = "lcd43";
 
@@ -172,7 +172,7 @@
 		ti,x-plate-ohms = /bits/ 16 <180>;
 		ti,pressure-max = /bits/ 16 <255>;
 
-		linux,wakeup;
+		wakeup-source;
 	};
 };
 

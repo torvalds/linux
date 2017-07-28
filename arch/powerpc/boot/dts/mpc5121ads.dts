@@ -9,7 +9,7 @@
  * option) any later version.
  */
 
-#include <mpc5121.dtsi>
+#include "mpc5121.dtsi"
 
 / {
 	model = "mpc5121ads";
@@ -94,12 +94,12 @@
 			};
 
 			eeprom@50 {
-				compatible = "at,24c32";
+				compatible = "atmel,24c32";
 				reg = <0x50>;
 			};
 
 			rtc@68 {
-				compatible = "stm,m41t62";
+				compatible = "st,m41t62";
 				reg = <0x68>;
 			};
 		};

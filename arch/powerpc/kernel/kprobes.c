@@ -29,20 +29,106 @@
 #include <linux/kprobes.h>
 #include <linux/ptrace.h>
 #include <linux/preempt.h>
-#include <linux/module.h>
+#include <linux/extable.h>
 #include <linux/kdebug.h>
 #include <linux/slab.h>
 #include <asm/code-patching.h>
 #include <asm/cacheflush.h>
 #include <asm/sstep.h>
-#include <asm/uaccess.h>
+#include <asm/sections.h>
+#include <linux/uaccess.h>
 
 DEFINE_PER_CPU(struct kprobe *, current_kprobe) = NULL;
 DEFINE_PER_CPU(struct kprobe_ctlblk, kprobe_ctlblk);
 
 struct kretprobe_blackpoint kretprobe_blacklist[] = {{NULL, NULL}};
 
-int __kprobes arch_prepare_kprobe(struct kprobe *p)
+int is_current_kprobe_addr(unsigned long addr)
+{
+	struct kprobe *p = kprobe_running();
+	return (p && (unsigned long)p->addr == addr) ? 1 : 0;
+}
+
+bool arch_within_kprobe_blacklist(unsigned long addr)
+{
+	return  (addr >= (unsigned long)__kprobes_text_start &&
+		 addr < (unsigned long)__kprobes_text_end) ||
+		(addr >= (unsigned long)_stext &&
+		 addr < (unsigned long)__head_end);
+}
+
+kprobe_opcode_t *kprobe_lookup_name(const char *name, unsigned int offset)
+{
+	kprobe_opcode_t *addr;
+
+#ifdef PPC64_ELF_ABI_v2
+	/* PPC64 ABIv2 needs local entry point */
+	addr = (kprobe_opcode_t *)kallsyms_lookup_name(name);
+	if (addr && !offset) {
+#ifdef CONFIG_KPROBES_ON_FTRACE
+		unsigned long faddr;
+		/*
+		 * Per livepatch.h, ftrace location is always within the first
+		 * 16 bytes of a function on powerpc with -mprofile-kernel.
+		 */
+		faddr = ftrace_location_range((unsigned long)addr,
+					      (unsigned long)addr + 16);
+		if (faddr)
+			addr = (kprobe_opcode_t *)faddr;
+		else
+#endif
+			addr = (kprobe_opcode_t *)ppc_function_entry(addr);
+	}
+#elif defined(PPC64_ELF_ABI_v1)
+	/*
+	 * 64bit powerpc ABIv1 uses function descriptors:
+	 * - Check for the dot variant of the symbol first.
+	 * - If that fails, try looking up the symbol provided.
+	 *
+	 * This ensures we always get to the actual symbol and not
+	 * the descriptor.
+	 *
+	 * Also handle <module:symbol> format.
+	 */
+	char dot_name[MODULE_NAME_LEN + 1 + KSYM_NAME_LEN];
+	const char *modsym;
+	bool dot_appended = false;
+	if ((modsym = strchr(name, ':')) != NULL) {
+		modsym++;
+		if (*modsym != '\0' && *modsym != '.') {
+			/* Convert to <module:.symbol> */
+			strncpy(dot_name, name, modsym - name);
+			dot_name[modsym - name] = '.';
+			dot_name[modsym - name + 1] = '\0';
+			strncat(dot_name, modsym,
+				sizeof(dot_name) - (modsym - name) - 2);
+			dot_appended = true;
+		} else {
+			dot_name[0] = '\0';
+			strncat(dot_name, name, sizeof(dot_name) - 1);
+		}
+	} else if (name[0] != '.') {
+		dot_name[0] = '.';
+		dot_name[1] = '\0';
+		strncat(dot_name, name, KSYM_NAME_LEN - 2);
+		dot_appended = true;
+	} else {
+		dot_name[0] = '\0';
+		strncat(dot_name, name, KSYM_NAME_LEN - 1);
+	}
+	addr = (kprobe_opcode_t *)kallsyms_lookup_name(dot_name);
+	if (!addr && dot_appended) {
+		/* Let's try the original non-dot symbol lookup	*/
+		addr = (kprobe_opcode_t *)kallsyms_lookup_name(name);
+	}
+#else
+	addr = (kprobe_opcode_t *)kallsyms_lookup_name(name);
+#endif
+
+	return addr;
+}
+
+int arch_prepare_kprobe(struct kprobe *p)
 {
 	int ret = 0;
 	kprobe_opcode_t insn = *p->addr;
@@ -74,30 +160,30 @@ int __kprobes arch_prepare_kprobe(struct kprobe *p)
 	p->ainsn.boostable = 0;
 	return ret;
 }
+NOKPROBE_SYMBOL(arch_prepare_kprobe);
 
-void __kprobes arch_arm_kprobe(struct kprobe *p)
+void arch_arm_kprobe(struct kprobe *p)
 {
-	*p->addr = BREAKPOINT_INSTRUCTION;
-	flush_icache_range((unsigned long) p->addr,
-			   (unsigned long) p->addr + sizeof(kprobe_opcode_t));
+	patch_instruction(p->addr, BREAKPOINT_INSTRUCTION);
 }
+NOKPROBE_SYMBOL(arch_arm_kprobe);
 
-void __kprobes arch_disarm_kprobe(struct kprobe *p)
+void arch_disarm_kprobe(struct kprobe *p)
 {
-	*p->addr = p->opcode;
-	flush_icache_range((unsigned long) p->addr,
-			   (unsigned long) p->addr + sizeof(kprobe_opcode_t));
+	patch_instruction(p->addr, p->opcode);
 }
+NOKPROBE_SYMBOL(arch_disarm_kprobe);
 
-void __kprobes arch_remove_kprobe(struct kprobe *p)
+void arch_remove_kprobe(struct kprobe *p)
 {
 	if (p->ainsn.insn) {
 		free_insn_slot(p->ainsn.insn, 0);
 		p->ainsn.insn = NULL;
 	}
 }
+NOKPROBE_SYMBOL(arch_remove_kprobe);
 
-static void __kprobes prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
+static nokprobe_inline void prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 {
 	enable_single_step(regs);
 
@@ -110,42 +196,88 @@ static void __kprobes prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 	regs->nip = (unsigned long)p->ainsn.insn;
 }
 
-static void __kprobes save_previous_kprobe(struct kprobe_ctlblk *kcb)
+static nokprobe_inline void save_previous_kprobe(struct kprobe_ctlblk *kcb)
 {
 	kcb->prev_kprobe.kp = kprobe_running();
 	kcb->prev_kprobe.status = kcb->kprobe_status;
 	kcb->prev_kprobe.saved_msr = kcb->kprobe_saved_msr;
 }
 
-static void __kprobes restore_previous_kprobe(struct kprobe_ctlblk *kcb)
+static nokprobe_inline void restore_previous_kprobe(struct kprobe_ctlblk *kcb)
 {
 	__this_cpu_write(current_kprobe, kcb->prev_kprobe.kp);
 	kcb->kprobe_status = kcb->prev_kprobe.status;
 	kcb->kprobe_saved_msr = kcb->prev_kprobe.saved_msr;
 }
 
-static void __kprobes set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
+static nokprobe_inline void set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
 				struct kprobe_ctlblk *kcb)
 {
 	__this_cpu_write(current_kprobe, p);
 	kcb->kprobe_saved_msr = regs->msr;
 }
 
-void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
-				      struct pt_regs *regs)
+bool arch_kprobe_on_func_entry(unsigned long offset)
+{
+#ifdef PPC64_ELF_ABI_v2
+#ifdef CONFIG_KPROBES_ON_FTRACE
+	return offset <= 16;
+#else
+	return offset <= 8;
+#endif
+#else
+	return !offset;
+#endif
+}
+
+void arch_prepare_kretprobe(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
 	ri->ret_addr = (kprobe_opcode_t *)regs->link;
 
 	/* Replace the return addr with trampoline addr */
 	regs->link = (unsigned long)kretprobe_trampoline;
 }
+NOKPROBE_SYMBOL(arch_prepare_kretprobe);
 
-static int __kprobes kprobe_handler(struct pt_regs *regs)
+int try_to_emulate(struct kprobe *p, struct pt_regs *regs)
+{
+	int ret;
+	unsigned int insn = *p->ainsn.insn;
+
+	/* regs->nip is also adjusted if emulate_step returns 1 */
+	ret = emulate_step(regs, insn);
+	if (ret > 0) {
+		/*
+		 * Once this instruction has been boosted
+		 * successfully, set the boostable flag
+		 */
+		if (unlikely(p->ainsn.boostable == 0))
+			p->ainsn.boostable = 1;
+	} else if (ret < 0) {
+		/*
+		 * We don't allow kprobes on mtmsr(d)/rfi(d), etc.
+		 * So, we should never get here... but, its still
+		 * good to catch them, just in case...
+		 */
+		printk("Can't step on instruction %x\n", insn);
+		BUG();
+	} else if (ret == 0)
+		/* This instruction can't be boosted */
+		p->ainsn.boostable = -1;
+
+	return ret;
+}
+NOKPROBE_SYMBOL(try_to_emulate);
+
+int kprobe_handler(struct pt_regs *regs)
 {
 	struct kprobe *p;
 	int ret = 0;
 	unsigned int *addr = (unsigned int *)regs->nip;
 	struct kprobe_ctlblk *kcb;
+
+	if (user_mode(regs))
+		return 0;
 
 	/*
 	 * We don't want to be preempted for the entire
@@ -174,10 +306,18 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 			 */
 			save_previous_kprobe(kcb);
 			set_current_kprobe(p, regs, kcb);
-			kcb->kprobe_saved_msr = regs->msr;
 			kprobes_inc_nmissed_count(p);
-			prepare_singlestep(p, regs);
 			kcb->kprobe_status = KPROBE_REENTER;
+			if (p->ainsn.boostable >= 0) {
+				ret = try_to_emulate(p, regs);
+
+				if (ret > 0) {
+					restore_previous_kprobe(kcb);
+					preempt_enable_no_resched();
+					return 1;
+				}
+			}
+			prepare_singlestep(p, regs);
 			return 1;
 		} else {
 			if (*addr != BREAKPOINT_INSTRUCTION) {
@@ -194,7 +334,9 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 			}
 			p = __this_cpu_read(current_kprobe);
 			if (p->break_handler && p->break_handler(p, regs)) {
-				goto ss_probe;
+				if (!skip_singlestep(p, regs, kcb))
+					goto ss_probe;
+				ret = 1;
 			}
 		}
 		goto no_kprobe;
@@ -232,18 +374,9 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 
 ss_probe:
 	if (p->ainsn.boostable >= 0) {
-		unsigned int insn = *p->ainsn.insn;
+		ret = try_to_emulate(p, regs);
 
-		/* regs->nip is also adjusted if emulate_step returns 1 */
-		ret = emulate_step(regs, insn);
 		if (ret > 0) {
-			/*
-			 * Once this instruction has been boosted
-			 * successfully, set the boostable flag
-			 */
-			if (unlikely(p->ainsn.boostable == 0))
-				p->ainsn.boostable = 1;
-
 			if (p->post_handler)
 				p->post_handler(p, regs, 0);
 
@@ -251,17 +384,7 @@ ss_probe:
 			reset_current_kprobe();
 			preempt_enable_no_resched();
 			return 1;
-		} else if (ret < 0) {
-			/*
-			 * We don't allow kprobes on mtmsr(d)/rfi(d), etc.
-			 * So, we should never get here... but, its still
-			 * good to catch them, just in case...
-			 */
-			printk("Can't step on instruction %x\n", insn);
-			BUG();
-		} else if (ret == 0)
-			/* This instruction can't be boosted */
-			p->ainsn.boostable = -1;
+		}
 	}
 	prepare_singlestep(p, regs);
 	kcb->kprobe_status = KPROBE_HIT_SS;
@@ -271,6 +394,7 @@ no_kprobe:
 	preempt_enable_no_resched();
 	return ret;
 }
+NOKPROBE_SYMBOL(kprobe_handler);
 
 /*
  * Function return probe trampoline:
@@ -278,18 +402,17 @@ no_kprobe:
  * 	- When the probed function returns, this probe
  * 		causes the handlers to fire
  */
-static void __used kretprobe_trampoline_holder(void)
-{
-	asm volatile(".global kretprobe_trampoline\n"
-			"kretprobe_trampoline:\n"
-			"nop\n");
-}
+asm(".global kretprobe_trampoline\n"
+	".type kretprobe_trampoline, @function\n"
+	"kretprobe_trampoline:\n"
+	"nop\n"
+	"blr\n"
+	".size kretprobe_trampoline, .-kretprobe_trampoline\n");
 
 /*
  * Called when the probe at kretprobe trampoline is hit
  */
-static int __kprobes trampoline_probe_handler(struct kprobe *p,
-						struct pt_regs *regs)
+static int trampoline_probe_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	struct kretprobe_instance *ri = NULL;
 	struct hlist_head *head, empty_rp;
@@ -335,6 +458,13 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 
 	kretprobe_assert(ri, orig_ret_address, trampoline_address);
 	regs->nip = orig_ret_address;
+	/*
+	 * Make LR point to the orig_ret_address.
+	 * When the 'nop' inside the kretprobe_trampoline
+	 * is optimized, we can do a 'blr' after executing the
+	 * detour buffer code.
+	 */
+	regs->link = orig_ret_address;
 
 	reset_current_kprobe();
 	kretprobe_hash_unlock(current, &flags);
@@ -351,6 +481,7 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
 	 */
 	return 1;
 }
+NOKPROBE_SYMBOL(trampoline_probe_handler);
 
 /*
  * Called after single-stepping.  p->addr is the address of the
@@ -360,12 +491,12 @@ static int __kprobes trampoline_probe_handler(struct kprobe *p,
  * single-stepped a copy of the instruction.  The address of this
  * copy is p->ainsn.insn.
  */
-static int __kprobes post_kprobe_handler(struct pt_regs *regs)
+int kprobe_post_handler(struct pt_regs *regs)
 {
 	struct kprobe *cur = kprobe_running();
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 
-	if (!cur)
+	if (!cur || user_mode(regs))
 		return 0;
 
 	/* make sure we got here for instruction we have a kprobe on */
@@ -400,8 +531,9 @@ out:
 
 	return 1;
 }
+NOKPROBE_SYMBOL(kprobe_post_handler);
 
-int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
+int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 {
 	struct kprobe *cur = kprobe_running();
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
@@ -450,7 +582,7 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 		 * zero, try to fix up.
 		 */
 		if ((entry = search_exception_tables(regs->nip)) != NULL) {
-			regs->nip = entry->fixup;
+			regs->nip = extable_fixup(entry);
 			return 1;
 		}
 
@@ -464,40 +596,15 @@ int __kprobes kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 	}
 	return 0;
 }
-
-/*
- * Wrapper routine to for handling exceptions.
- */
-int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
-				       unsigned long val, void *data)
-{
-	struct die_args *args = (struct die_args *)data;
-	int ret = NOTIFY_DONE;
-
-	if (args->regs && user_mode(args->regs))
-		return ret;
-
-	switch (val) {
-	case DIE_BPT:
-		if (kprobe_handler(args->regs))
-			ret = NOTIFY_STOP;
-		break;
-	case DIE_SSTEP:
-		if (post_kprobe_handler(args->regs))
-			ret = NOTIFY_STOP;
-		break;
-	default:
-		break;
-	}
-	return ret;
-}
+NOKPROBE_SYMBOL(kprobe_fault_handler);
 
 unsigned long arch_deref_entry_point(void *entry)
 {
 	return ppc_global_function_entry(entry);
 }
+NOKPROBE_SYMBOL(arch_deref_entry_point);
 
-int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
+int setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	struct jprobe *jp = container_of(p, struct jprobe, kp);
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
@@ -506,27 +613,37 @@ int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 
 	/* setup return addr to the jprobe handler routine */
 	regs->nip = arch_deref_entry_point(jp->entry);
-#ifdef CONFIG_PPC64
-#if defined(_CALL_ELF) && _CALL_ELF == 2
+#ifdef PPC64_ELF_ABI_v2
 	regs->gpr[12] = (unsigned long)jp->entry;
-#else
+#elif defined(PPC64_ELF_ABI_v1)
 	regs->gpr[2] = (unsigned long)(((func_descr_t *)jp->entry)->toc);
 #endif
-#endif
+
+	/*
+	 * jprobes use jprobe_return() which skips the normal return
+	 * path of the function, and this messes up the accounting of the
+	 * function graph tracer.
+	 *
+	 * Pause function graph tracing while performing the jprobe function.
+	 */
+	pause_graph_tracing();
 
 	return 1;
 }
+NOKPROBE_SYMBOL(setjmp_pre_handler);
 
-void __used __kprobes jprobe_return(void)
+void __used jprobe_return(void)
 {
 	asm volatile("trap" ::: "memory");
 }
+NOKPROBE_SYMBOL(jprobe_return);
 
-static void __used __kprobes jprobe_return_end(void)
+static void __used jprobe_return_end(void)
 {
-};
+}
+NOKPROBE_SYMBOL(jprobe_return_end);
 
-int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
+int longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 {
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 
@@ -536,9 +653,12 @@ int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 	 * saved regs...
 	 */
 	memcpy(regs, &kcb->jprobe_saved_regs, sizeof(struct pt_regs));
+	/* It's OK to start function graph tracing again */
+	unpause_graph_tracing();
 	preempt_enable_no_resched();
 	return 1;
 }
+NOKPROBE_SYMBOL(longjmp_break_handler);
 
 static struct kprobe trampoline_p = {
 	.addr = (kprobe_opcode_t *) &kretprobe_trampoline,
@@ -550,10 +670,11 @@ int __init arch_init_kprobes(void)
 	return register_kprobe(&trampoline_p);
 }
 
-int __kprobes arch_trampoline_kprobe(struct kprobe *p)
+int arch_trampoline_kprobe(struct kprobe *p)
 {
 	if (p->addr == (kprobe_opcode_t *)&kretprobe_trampoline)
 		return 1;
 
 	return 0;
 }
+NOKPROBE_SYMBOL(arch_trampoline_kprobe);

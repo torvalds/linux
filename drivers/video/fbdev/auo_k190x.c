@@ -9,6 +9,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/sched/mm.h>
 #include <linux/kernel.h>
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
@@ -773,9 +774,7 @@ static void auok190x_recover(struct auok190xfb_par *par)
 /*
  * Power-management
  */
-
-#ifdef CONFIG_PM
-static int auok190x_runtime_suspend(struct device *dev)
+static int __maybe_unused auok190x_runtime_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct fb_info *info = platform_get_drvdata(pdev);
@@ -822,7 +821,7 @@ finish:
 	return 0;
 }
 
-static int auok190x_runtime_resume(struct device *dev)
+static int __maybe_unused auok190x_runtime_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct fb_info *info = platform_get_drvdata(pdev);
@@ -856,7 +855,7 @@ static int auok190x_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static int auok190x_suspend(struct device *dev)
+static int __maybe_unused auok190x_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct fb_info *info = platform_get_drvdata(pdev);
@@ -896,7 +895,7 @@ static int auok190x_suspend(struct device *dev)
 	return 0;
 }
 
-static int auok190x_resume(struct device *dev)
+static int __maybe_unused auok190x_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct fb_info *info = platform_get_drvdata(pdev);
@@ -933,7 +932,6 @@ static int auok190x_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 const struct dev_pm_ops auok190x_pm = {
 	SET_RUNTIME_PM_OPS(auok190x_runtime_suspend, auok190x_runtime_resume,

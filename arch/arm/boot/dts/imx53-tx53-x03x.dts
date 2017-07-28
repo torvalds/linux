@@ -231,7 +231,7 @@
 		interrupts = <26 0>;
 		gpios = <&gpio3 26 GPIO_ACTIVE_LOW>;
 		ti,x-plate-ohms = <660>;
-		linux,wakeup;
+		wakeup-source;
 	};
 };
 

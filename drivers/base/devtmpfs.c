@@ -215,9 +215,9 @@ static int handle_create(const char *nodename, umode_t mode, kuid_t uid,
 		newattrs.ia_uid = uid;
 		newattrs.ia_gid = gid;
 		newattrs.ia_valid = ATTR_MODE|ATTR_UID|ATTR_GID;
-		mutex_lock(&d_inode(dentry)->i_mutex);
+		inode_lock(d_inode(dentry));
 		notify_change(dentry, &newattrs, NULL);
-		mutex_unlock(&d_inode(dentry)->i_mutex);
+		inode_unlock(d_inode(dentry));
 
 		/* mark as kernel-created inode */
 		d_inode(dentry)->i_private = &thread;
@@ -244,7 +244,7 @@ static int dev_rmdir(const char *name)
 		err = -ENOENT;
 	}
 	dput(dentry);
-	mutex_unlock(&d_inode(parent.dentry)->i_mutex);
+	inode_unlock(d_inode(parent.dentry));
 	path_put(&parent);
 	return err;
 }
@@ -309,7 +309,8 @@ static int handle_remove(const char *nodename, struct device *dev)
 	if (d_really_is_positive(dentry)) {
 		struct kstat stat;
 		struct path p = {.mnt = parent.mnt, .dentry = dentry};
-		err = vfs_getattr(&p, &stat);
+		err = vfs_getattr(&p, &stat, STATX_TYPE | STATX_MODE,
+				  AT_STATX_SYNC_AS_STAT);
 		if (!err && dev_mynode(dev, d_inode(dentry), &stat)) {
 			struct iattr newattrs;
 			/*
@@ -321,9 +322,9 @@ static int handle_remove(const char *nodename, struct device *dev)
 			newattrs.ia_mode = stat.mode & ~0777;
 			newattrs.ia_valid =
 				ATTR_UID|ATTR_GID|ATTR_MODE;
-			mutex_lock(&d_inode(dentry)->i_mutex);
+			inode_lock(d_inode(dentry));
 			notify_change(dentry, &newattrs, NULL);
-			mutex_unlock(&d_inode(dentry)->i_mutex);
+			inode_unlock(d_inode(dentry));
 			err = vfs_unlink(d_inode(parent.dentry), dentry, NULL);
 			if (!err || err == -ENOENT)
 				deleted = 1;
@@ -332,7 +333,7 @@ static int handle_remove(const char *nodename, struct device *dev)
 		err = -ENOENT;
 	}
 	dput(dentry);
-	mutex_unlock(&d_inode(parent.dentry)->i_mutex);
+	inode_unlock(d_inode(parent.dentry));
 
 	path_put(&parent);
 	if (deleted && strchr(nodename, '/'))

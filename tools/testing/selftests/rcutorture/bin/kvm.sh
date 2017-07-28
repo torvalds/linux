@@ -34,7 +34,7 @@ T=/tmp/kvm.sh.$$
 trap 'rm -rf $T' 0
 mkdir $T
 
-dur=30
+dur=$((30*60))
 dryrun=""
 KVM="`pwd`/tools/testing/selftests/rcutorture"; export KVM
 PATH=${KVM}/bin:$PATH; export PATH
@@ -42,11 +42,13 @@ TORTURE_DEFCONFIG=defconfig
 TORTURE_BOOT_IMAGE=""
 TORTURE_INITRD="$KVM/initrd"; export TORTURE_INITRD
 TORTURE_KMAKE_ARG=""
+TORTURE_SHUTDOWN_GRACE=180
 TORTURE_SUITE=rcu
 resdir=""
 configs=""
 cpus=0
 ds=`date +%Y.%m.%d-%H:%M:%S`
+jitter="-1"
 
 . functions.sh
 
@@ -62,6 +64,7 @@ usage () {
 	echo "       --dryrun sched|script"
 	echo "       --duration minutes"
 	echo "       --interactive"
+	echo "       --jitter N [ maxsleep (us) [ maxspin (us) ] ]"
 	echo "       --kmake-arg kernel-make-arguments"
 	echo "       --mac nn:nn:nn:nn:nn:nn"
 	echo "       --no-initrd"
@@ -115,11 +118,16 @@ do
 		;;
 	--duration)
 		checkarg --duration "(minutes)" $# "$2" '^[0-9]*$' '^error'
-		dur=$2
+		dur=$(($2*60))
 		shift
 		;;
 	--interactive)
 		TORTURE_QEMU_INTERACTIVE=1; export TORTURE_QEMU_INTERACTIVE
+		;;
+	--jitter)
+		checkarg --jitter "(# threads [ sleep [ spin ] ])" $# "$2" '^-\{,1\}[0-9]\+\( \+[0-9]\+\)\{,2\} *$' '^error$'
+		jitter="$2"
+		shift
 		;;
 	--kmake-arg)
 		checkarg --kmake-arg "(kernel make arguments)" $# "$2" '.*' '^error$'
@@ -149,8 +157,13 @@ do
 		resdir=$2
 		shift
 		;;
+	--shutdown-grace)
+		checkarg --shutdown-grace "(seconds)" "$#" "$2" '^[0-9]*$' '^error'
+		TORTURE_SHUTDOWN_GRACE=$2
+		shift
+		;;
 	--torture)
-		checkarg --torture "(suite name)" "$#" "$2" '^\(lock\|rcu\)$' '^--'
+		checkarg --torture "(suite name)" "$#" "$2" '^\(lock\|rcu\|rcuperf\)$' '^--'
 		TORTURE_SUITE=$2
 		shift
 		;;
@@ -266,6 +279,7 @@ TORTURE_KMAKE_ARG="$TORTURE_KMAKE_ARG"; export TORTURE_KMAKE_ARG
 TORTURE_QEMU_CMD="$TORTURE_QEMU_CMD"; export TORTURE_QEMU_CMD
 TORTURE_QEMU_INTERACTIVE="$TORTURE_QEMU_INTERACTIVE"; export TORTURE_QEMU_INTERACTIVE
 TORTURE_QEMU_MAC="$TORTURE_QEMU_MAC"; export TORTURE_QEMU_MAC
+TORTURE_SHUTDOWN_GRACE="$TORTURE_SHUTDOWN_GRACE"; export TORTURE_SHUTDOWN_GRACE
 TORTURE_SUITE="$TORTURE_SUITE"; export TORTURE_SUITE
 if ! test -e $resdir
 then
@@ -282,16 +296,15 @@ if test -d .git
 then
 	git status >> $resdir/$ds/testid.txt
 	git rev-parse HEAD >> $resdir/$ds/testid.txt
-	if ! git diff HEAD > $T/git-diff 2>&1
-	then
-		cp $T/git-diff $resdir/$ds
-	fi
+	git diff HEAD >> $resdir/$ds/testid.txt
 fi
 ___EOF___
 awk < $T/cfgcpu.pack \
+	-v TORTURE_BUILDONLY="$TORTURE_BUILDONLY" \
 	-v CONFIGDIR="$CONFIGFRAG/" \
 	-v KVM="$KVM" \
 	-v ncpus=$cpus \
+	-v jitter="$jitter" \
 	-v rd=$resdir/$ds/ \
 	-v dur=$dur \
 	-v TORTURE_QEMU_ARG="$TORTURE_QEMU_ARG" \
@@ -307,10 +320,10 @@ awk < $T/cfgcpu.pack \
 }
 
 # Dump out the scripting required to run one test batch.
-function dump(first, pastlast)
+function dump(first, pastlast, batchnum)
 {
-	print "echo ----Start batch: `date`";
-	print "echo ----Start batch: `date` >> " rd "/log";
+	print "echo ----Start batch " batchnum ": `date`";
+	print "echo ----Start batch " batchnum ": `date` >> " rd "/log";
 	jn=1
 	for (j = first; j < pastlast; j++) {
 		builddir=KVM "/b" jn
@@ -352,6 +365,20 @@ function dump(first, pastlast)
 		print "\techo ----", cfr[j], cpusr[j] ovf ": Starting kernel. `date` >> " rd "/log";
 		print "fi"
 	}
+	njitter = 0;
+	split(jitter, ja);
+	if (ja[1] == -1 && ncpus == 0)
+		njitter = 1;
+	else if (ja[1] == -1)
+		njitter = ncpus;
+	else
+		njitter = ja[1];
+	if (TORTURE_BUILDONLY && njitter != 0) {
+		njitter = 0;
+		print "echo Build-only run, so suppressing jitter >> " rd "/log"
+	}
+	for (j = 0; j < njitter; j++)
+		print "jitter.sh " j " " dur " " ja[2] " " ja[3] "&"
 	print "wait"
 	print "if test -z \"$TORTURE_BUILDONLY\""
 	print "then"
@@ -371,25 +398,28 @@ END {
 	njobs = i;
 	nc = ncpus;
 	first = 0;
+	batchnum = 1;
 
 	# Each pass through the following loop considers one test.
 	for (i = 0; i < njobs; i++) {
 		if (ncpus == 0) {
 			# Sequential test specified, each test its own batch.
-			dump(i, i + 1);
+			dump(i, i + 1, batchnum);
 			first = i;
+			batchnum++;
 		} else if (nc < cpus[i] && i != 0) {
 			# Out of CPUs, dump out a batch.
-			dump(first, i);
+			dump(first, i, batchnum);
 			first = i;
 			nc = ncpus;
+			batchnum++;
 		}
 		# Account for the CPUs needed by the current test.
 		nc -= cpus[i];
 	}
 	# Dump the last batch.
 	if (ncpus != 0)
-		dump(first, i);
+		dump(first, i, batchnum);
 }' >> $T/script
 
 cat << ___EOF___ >> $T/script

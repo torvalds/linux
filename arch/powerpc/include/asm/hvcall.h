@@ -94,6 +94,7 @@
 #define H_SG_LIST	-72
 #define H_OP_MODE	-73
 #define H_COP_HW	-74
+#define H_STATE		-75
 #define H_UNSUPPORTED_FLAG_START	-256
 #define H_UNSUPPORTED_FLAG_END		-511
 #define H_MULTI_THREADS_ACTIVE	-9005
@@ -258,18 +259,45 @@
 #define H_DEL_CONN		0x288
 #define H_JOIN			0x298
 #define H_VASI_STATE            0x2A4
+#define H_VIOCTL		0x2A8
 #define H_ENABLE_CRQ		0x2B0
 #define H_GET_EM_PARMS		0x2B8
 #define H_SET_MPP		0x2D0
 #define H_GET_MPP		0x2D4
+#define H_REG_SUB_CRQ		0x2DC
 #define H_HOME_NODE_ASSOCIATIVITY 0x2EC
+#define H_FREE_SUB_CRQ		0x2E0
+#define H_SEND_SUB_CRQ		0x2E4
+#define H_SEND_SUB_CRQ_INDIRECT	0x2E8
 #define H_BEST_ENERGY		0x2F4
 #define H_XIRR_X		0x2FC
 #define H_RANDOM		0x300
 #define H_COP			0x304
 #define H_GET_MPP_X		0x314
 #define H_SET_MODE		0x31C
-#define MAX_HCALL_OPCODE	H_SET_MODE
+#define H_CLEAR_HPT		0x358
+#define H_RESIZE_HPT_PREPARE	0x36C
+#define H_RESIZE_HPT_COMMIT	0x370
+#define H_REGISTER_PROC_TBL	0x37C
+#define H_SIGNAL_SYS_RESET	0x380
+#define MAX_HCALL_OPCODE	H_SIGNAL_SYS_RESET
+
+/* H_VIOCTL functions */
+#define H_GET_VIOA_DUMP_SIZE	0x01
+#define H_GET_VIOA_DUMP		0x02
+#define H_GET_ILLAN_NUM_VLAN_IDS 0x03
+#define H_GET_ILLAN_VLAN_ID_LIST 0x04
+#define H_GET_ILLAN_SWITCH_ID	0x05
+#define H_DISABLE_MIGRATION	0x06
+#define H_ENABLE_MIGRATION	0x07
+#define H_GET_PARTNER_INFO	0x08
+#define H_GET_PARTNER_WWPN_LIST	0x09
+#define H_DISABLE_ALL_VIO_INTS	0x0A
+#define H_DISABLE_VIO_INTERRUPT	0x0B
+#define H_ENABLE_VIO_INTERRUPT	0x0C
+#define H_GET_SESSION_TOKEN	0x19
+#define H_SESSION_ERR_DETECTED	0x1A
+
 
 /* Platform specific hcalls, used by KVM */
 #define H_RTAS			0xf000
@@ -284,6 +312,21 @@
 #define H_SET_MODE_RESOURCE_SET_DAWR		2
 #define H_SET_MODE_RESOURCE_ADDR_TRANS_MODE	3
 #define H_SET_MODE_RESOURCE_LE			4
+
+/* Values for argument to H_SIGNAL_SYS_RESET */
+#define H_SIGNAL_SYS_RESET_ALL			-1
+#define H_SIGNAL_SYS_RESET_ALL_OTHERS		-2
+/* >= 0 values are CPU number */
+
+/* Flag values used in H_REGISTER_PROC_TBL hcall */
+#define PROC_TABLE_OP_MASK	0x18
+#define PROC_TABLE_DEREG	0x10
+#define PROC_TABLE_NEW		0x18
+#define PROC_TABLE_TYPE_MASK	0x06
+#define PROC_TABLE_HPT_SLB	0x00
+#define PROC_TABLE_HPT_PT	0x02
+#define PROC_TABLE_RADIX	0x04
+#define PROC_TABLE_GTSE		0x01
 
 #ifndef __ASSEMBLY__
 
@@ -336,16 +379,6 @@ long plpar_hcall_raw(unsigned long opcode, unsigned long *retbuf, ...);
 long plpar_hcall9(unsigned long opcode, unsigned long *retbuf, ...);
 long plpar_hcall9_raw(unsigned long opcode, unsigned long *retbuf, ...);
 
-/* For hcall instrumentation.  One structure per-hcall, per-CPU */
-struct hcall_stats {
-	unsigned long	num_calls;	/* number of calls (on this CPU) */
-	unsigned long	tb_total;	/* total wall time (mftb) of calls. */
-	unsigned long	purr_total;	/* total cpu time (PURR) of calls. */
-	unsigned long	tb_start;
-	unsigned long	purr_start;
-};
-#define HCALL_STAT_ARRAY_SIZE	((MAX_HCALL_OPCODE >> 2) + 1)
-
 struct hvcall_mpp_data {
 	unsigned long entitled_mem;
 	unsigned long mapped_mem;
@@ -390,38 +423,6 @@ static inline unsigned int get_longbusy_msecs(int longbusy_rc)
 		return 1;
 	}
 }
-
-#ifdef CONFIG_PPC_PSERIES
-extern int CMO_PrPSP;
-extern int CMO_SecPSP;
-extern unsigned long CMO_PageSize;
-
-static inline int cmo_get_primary_psp(void)
-{
-	return CMO_PrPSP;
-}
-
-static inline int cmo_get_secondary_psp(void)
-{
-	return CMO_SecPSP;
-}
-
-static inline unsigned long cmo_get_page_size(void)
-{
-	return CMO_PageSize;
-}
-
-extern long pSeries_enable_reloc_on_exc(void);
-extern long pSeries_disable_reloc_on_exc(void);
-
-extern long pseries_big_endian_exceptions(void);
-
-#else
-
-#define pSeries_enable_reloc_on_exc()  do {} while (0)
-#define pSeries_disable_reloc_on_exc() do {} while (0)
-
-#endif /* CONFIG_PPC_PSERIES */
 
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */

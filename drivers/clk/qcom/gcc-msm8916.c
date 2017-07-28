@@ -1107,7 +1107,7 @@ static struct clk_rcg2 sdcc1_apps_clk_src = {
 		.name = "sdcc1_apps_clk_src",
 		.parent_names = gcc_xo_gpll0,
 		.num_parents = 2,
-		.ops = &clk_rcg2_ops,
+		.ops = &clk_rcg2_floor_ops,
 	},
 };
 
@@ -1132,7 +1132,7 @@ static struct clk_rcg2 sdcc2_apps_clk_src = {
 		.name = "sdcc2_apps_clk_src",
 		.parent_names = gcc_xo_gpll0,
 		.num_parents = 2,
-		.ops = &clk_rcg2_ops,
+		.ops = &clk_rcg2_floor_ops,
 	},
 };
 
@@ -1430,6 +1430,7 @@ static struct clk_branch gcc_ultaudio_stc_xo_clk = {
 };
 
 static const struct freq_tbl ftbl_codec_clk[] = {
+	F(9600000, P_XO, 2, 0, 0),
 	F(19200000, P_XO, 1, 0, 0),
 	F(11289600, P_EXT_MCLK, 1, 0, 0),
 	{ }
@@ -2346,6 +2347,7 @@ static struct clk_branch gcc_crypto_ahb_clk = {
 				"pcnoc_bfdcd_clk_src",
 			},
 			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2381,6 +2383,7 @@ static struct clk_branch gcc_crypto_clk = {
 				"crypto_clk_src",
 			},
 			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
 			.ops = &clk_branch2_ops,
 		},
 	},
@@ -2582,6 +2585,23 @@ static struct clk_branch gcc_mss_cfg_ahb_clk = {
 			.name = "gcc_mss_cfg_ahb_clk",
 			.parent_names = (const char *[]){
 				"pcnoc_bfdcd_clk_src",
+			},
+			.num_parents = 1,
+			.flags = CLK_SET_RATE_PARENT,
+			.ops = &clk_branch2_ops,
+		},
+	},
+};
+
+static struct clk_branch gcc_mss_q6_bimc_axi_clk = {
+	.halt_reg = 0x49004,
+	.clkr = {
+		.enable_reg = 0x49004,
+		.enable_mask = BIT(0),
+		.hw.init = &(struct clk_init_data){
+			.name = "gcc_mss_q6_bimc_axi_clk",
+			.parent_names = (const char *[]){
+				"bimc_ddr_clk_src",
 			},
 			.num_parents = 1,
 			.flags = CLK_SET_RATE_PARENT,
@@ -3227,6 +3247,7 @@ static struct clk_regmap *gcc_msm8916_clocks[] = {
 	[GCC_ULTAUDIO_LPAIF_SEC_I2S_CLK] = &gcc_ultaudio_lpaif_sec_i2s_clk.clkr,
 	[GCC_ULTAUDIO_LPAIF_AUX_I2S_CLK] = &gcc_ultaudio_lpaif_aux_i2s_clk.clkr,
 	[GCC_CODEC_DIGCODEC_CLK] = &gcc_codec_digcodec_clk.clkr,
+	[GCC_MSS_Q6_BIMC_AXI_CLK] = &gcc_mss_q6_bimc_axi_clk.clkr,
 };
 
 static struct gdsc *gcc_msm8916_gdscs[] = {
@@ -3356,18 +3377,16 @@ MODULE_DEVICE_TABLE(of, gcc_msm8916_match_table);
 
 static int gcc_msm8916_probe(struct platform_device *pdev)
 {
-	struct clk *clk;
+	int ret;
 	struct device *dev = &pdev->dev;
 
-	/* Temporary until RPM clocks supported */
-	clk = clk_register_fixed_rate(dev, "xo", NULL, CLK_IS_ROOT, 19200000);
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
+	ret = qcom_cc_register_board_clk(dev, "xo_board", "xo", 19200000);
+	if (ret)
+		return ret;
 
-	clk = clk_register_fixed_rate(dev, "sleep_clk_src", NULL,
-				      CLK_IS_ROOT, 32768);
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
+	ret = qcom_cc_register_sleep_clk(dev);
+	if (ret)
+		return ret;
 
 	return qcom_cc_probe(pdev, &gcc_msm8916_desc);
 }

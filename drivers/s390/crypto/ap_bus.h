@@ -27,7 +27,6 @@
 #define _AP_BUS_H_
 
 #include <linux/device.h>
-#include <linux/mod_devicetable.h>
 #include <linux/types.h>
 
 #define AP_DEVICES 64		/* Number of AP devices. */
@@ -38,14 +37,17 @@
 
 extern int ap_domain_index;
 
+extern spinlock_t ap_list_lock;
+extern struct list_head ap_card_list;
+
 /**
  * The ap_qid_t identifier of an ap queue. It contains a
- * 6 bit device index and a 4 bit queue index (domain).
+ * 6 bit card index and a 4 bit queue index (domain).
  */
 typedef unsigned int ap_qid_t;
 
-#define AP_MKQID(_device, _queue) (((_device) & 63) << 8 | ((_queue) & 255))
-#define AP_QID_DEVICE(_qid) (((_qid) >> 8) & 63)
+#define AP_MKQID(_card, _queue) (((_card) & 63) << 8 | ((_queue) & 255))
+#define AP_QID_CARD(_qid) (((_qid) >> 8) & 63)
 #define AP_QID_QUEUE(_qid) ((_qid) & 255)
 
 /**
@@ -55,7 +57,7 @@ typedef unsigned int ap_qid_t;
  * @queue_full: Is 1 if the queue is full
  * @pad: A 4 bit pad
  * @int_enabled: Shows if interrupts are enabled for the AP
- * @response_conde: Holds the 8 bit response code
+ * @response_code: Holds the 8 bit response code
  * @pad2: A 16 bit pad
  *
  * The ap queue status word is returned by all three AP functions
@@ -105,6 +107,7 @@ static inline int ap_test_bit(unsigned int *ptr, unsigned int nr)
 #define AP_DEVICE_TYPE_CEX3C	9
 #define AP_DEVICE_TYPE_CEX4	10
 #define AP_DEVICE_TYPE_CEX5	11
+#define AP_DEVICE_TYPE_CEX6	12
 
 /*
  * Known function facilities
@@ -166,7 +169,8 @@ struct ap_driver {
 
 	int (*probe)(struct ap_device *);
 	void (*remove)(struct ap_device *);
-	int request_timeout;		/* request timeout in jiffies */
+	void (*suspend)(struct ap_device *);
+	void (*resume)(struct ap_device *);
 };
 
 #define to_ap_drv(x) container_of((x), struct ap_driver, driver)
@@ -174,38 +178,51 @@ struct ap_driver {
 int ap_driver_register(struct ap_driver *, struct module *, char *);
 void ap_driver_unregister(struct ap_driver *);
 
-typedef enum ap_wait (ap_func_t)(struct ap_device *ap_dev);
-
 struct ap_device {
 	struct device device;
 	struct ap_driver *drv;		/* Pointer to AP device driver. */
-	spinlock_t lock;		/* Per device lock. */
-	struct list_head list;		/* private list of all AP devices. */
-
-	enum ap_state state;		/* State of the AP device. */
-
-	ap_qid_t qid;			/* AP queue id. */
-	int queue_depth;		/* AP queue depth.*/
 	int device_type;		/* AP device type. */
-	int raw_hwtype;			/* AP raw hardware type. */
-	unsigned int functions;		/* AP device function bitfield. */
-	struct timer_list timeout;	/* Timer for request timeouts. */
-
-	int interrupt;			/* indicate if interrupts are enabled */
-	int queue_count;		/* # messages currently on AP queue. */
-
-	struct list_head pendingq;	/* List of message sent to AP queue. */
-	int pendingq_count;		/* # requests on pendingq list. */
-	struct list_head requestq;	/* List of message yet to be sent. */
-	int requestq_count;		/* # requests on requestq list. */
-	int total_request_count;	/* # requests ever for this AP device. */
-
-	struct ap_message *reply;	/* Per device reply message. */
-
-	void *private;			/* ap driver private pointer. */
 };
 
 #define to_ap_dev(x) container_of((x), struct ap_device, device)
+
+struct ap_card {
+	struct ap_device ap_dev;
+	struct list_head list;		/* Private list of AP cards. */
+	struct list_head queues;	/* List of assoc. AP queues */
+	void *private;			/* ap driver private pointer. */
+	int raw_hwtype;			/* AP raw hardware type. */
+	unsigned int functions;		/* AP device function bitfield. */
+	int queue_depth;		/* AP queue depth.*/
+	int id;				/* AP card number. */
+	atomic_t total_request_count;	/* # requests ever for this AP device.*/
+};
+
+#define to_ap_card(x) container_of((x), struct ap_card, ap_dev.device)
+
+struct ap_queue {
+	struct ap_device ap_dev;
+	struct list_head list;		/* Private list of AP queues. */
+	struct ap_card *card;		/* Ptr to assoc. AP card. */
+	spinlock_t lock;		/* Per device lock. */
+	void *private;			/* ap driver private pointer. */
+	ap_qid_t qid;			/* AP queue id. */
+	int interrupt;			/* indicate if interrupts are enabled */
+	int queue_count;		/* # messages currently on AP queue. */
+	enum ap_state state;		/* State of the AP device. */
+	int pendingq_count;		/* # requests on pendingq list. */
+	int requestq_count;		/* # requests on requestq list. */
+	int total_request_count;	/* # requests ever for this AP device.*/
+	int request_timeout;		/* Request timout in jiffies. */
+	struct timer_list timeout;	/* Timer for request timeouts. */
+	struct list_head pendingq;	/* List of message sent to AP queue. */
+	struct list_head requestq;	/* List of message yet to be sent. */
+	struct ap_message *reply;	/* Per device reply message. */
+};
+
+#define to_ap_queue(x) container_of((x), struct ap_queue, ap_dev.device)
+
+typedef enum ap_wait (ap_func_t)(struct ap_queue *queue);
 
 struct ap_message {
 	struct list_head list;		/* Request queueing. */
@@ -217,7 +234,7 @@ struct ap_message {
 	void *private;			/* ap driver private pointer. */
 	unsigned int special:1;		/* Used for special commands. */
 	/* receive is called from tasklet context */
-	void (*receive)(struct ap_device *, struct ap_message *,
+	void (*receive)(struct ap_queue *, struct ap_message *,
 			struct ap_message *);
 };
 
@@ -231,10 +248,6 @@ struct ap_config_info {
 	unsigned int adm[8];		/* AP domain mask */
 	unsigned char reserved4[16];
 } __packed;
-
-#define AP_DEVICE(dt)					\
-	.dev_type=(dt),					\
-	.match_flags=AP_DEVICE_ID_MATCH_DEVICE_TYPE,
 
 /**
  * ap_init_message() - Initialize ap_message.
@@ -250,6 +263,12 @@ static inline void ap_init_message(struct ap_message *ap_msg)
 	ap_msg->receive = NULL;
 }
 
+#define for_each_ap_card(_ac) \
+	list_for_each_entry(_ac, &ap_card_list, list)
+
+#define for_each_ap_queue(_aq, _ac) \
+	list_for_each_entry(_aq, &(_ac)->queues, list)
+
 /*
  * Note: don't use ap_send/ap_recv after using ap_queue_message
  * for the first time. Otherwise the ap message queue will get
@@ -258,10 +277,26 @@ static inline void ap_init_message(struct ap_message *ap_msg)
 int ap_send(ap_qid_t, unsigned long long, void *, size_t);
 int ap_recv(ap_qid_t, unsigned long long *, void *, size_t);
 
-void ap_queue_message(struct ap_device *ap_dev, struct ap_message *ap_msg);
-void ap_cancel_message(struct ap_device *ap_dev, struct ap_message *ap_msg);
-void ap_flush_queue(struct ap_device *ap_dev);
+enum ap_wait ap_sm_event(struct ap_queue *aq, enum ap_event event);
+enum ap_wait ap_sm_event_loop(struct ap_queue *aq, enum ap_event event);
+
+void ap_queue_message(struct ap_queue *aq, struct ap_message *ap_msg);
+void ap_cancel_message(struct ap_queue *aq, struct ap_message *ap_msg);
+void ap_flush_queue(struct ap_queue *aq);
+
+void *ap_airq_ptr(void);
+void ap_wait(enum ap_wait wait);
+void ap_request_timeout(unsigned long data);
 void ap_bus_force_rescan(void);
+
+void ap_queue_init_reply(struct ap_queue *aq, struct ap_message *ap_msg);
+struct ap_queue *ap_queue_create(ap_qid_t qid, int device_type);
+void ap_queue_remove(struct ap_queue *aq);
+void ap_queue_suspend(struct ap_device *ap_dev);
+void ap_queue_resume(struct ap_device *ap_dev);
+
+struct ap_card *ap_card_create(int id, int queue_depth, int device_type,
+			       unsigned int device_functions);
 
 int ap_module_init(void);
 void ap_module_exit(void);

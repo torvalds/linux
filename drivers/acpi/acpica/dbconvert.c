@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -194,7 +194,7 @@ acpi_db_convert_to_buffer(char *string, union acpi_object *object)
  *
  ******************************************************************************/
 
-acpi_status acpi_db_convert_to_package(char *string, union acpi_object * object)
+acpi_status acpi_db_convert_to_package(char *string, union acpi_object *object)
 {
 	char *this;
 	char *next;
@@ -242,7 +242,7 @@ acpi_status acpi_db_convert_to_package(char *string, union acpi_object * object)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Convert a typed and tokenized string to an union acpi_object. Typing:
+ * DESCRIPTION: Convert a typed and tokenized string to a union acpi_object. Typing:
  *              1) String objects were surrounded by quotes.
  *              2) Buffer objects were surrounded by parentheses.
  *              3) Package objects were surrounded by brackets "[]".
@@ -252,7 +252,7 @@ acpi_status acpi_db_convert_to_package(char *string, union acpi_object * object)
 
 acpi_status
 acpi_db_convert_to_object(acpi_object_type type,
-			  char *string, union acpi_object * object)
+			  char *string, union acpi_object *object)
 {
 	acpi_status status = AE_OK;
 
@@ -277,7 +277,10 @@ acpi_db_convert_to_object(acpi_object_type type,
 	default:
 
 		object->type = ACPI_TYPE_INTEGER;
-		status = acpi_ut_strtoul64(string, 16, &object->integer.value);
+		status = acpi_ut_strtoul64(string,
+					   (acpi_gbl_integer_byte_width |
+					    ACPI_STRTOUL_BASE16),
+					   &object->integer.value);
 		break;
 	}
 
@@ -408,7 +411,7 @@ void acpi_db_dump_pld_buffer(union acpi_object *obj_desc)
 
 	new_buffer = acpi_db_encode_pld_buffer(pld_info);
 	if (!new_buffer) {
-		return;
+		goto exit;
 	}
 
 	/* The two bit-packed buffers should match */
@@ -479,6 +482,7 @@ void acpi_db_dump_pld_buffer(union acpi_object *obj_desc)
 			       pld_info->horizontal_offset);
 	}
 
-	ACPI_FREE(pld_info);
 	ACPI_FREE(new_buffer);
+exit:
+	ACPI_FREE(pld_info);
 }

@@ -12,10 +12,6 @@
  *    but WITHOUT ANY WARRANTY; without even the implied warranty of
  *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "dvb_usb.h"
@@ -847,10 +843,21 @@ static const struct usb_device_id dvbsky_id_table[] = {
 		USB_PID_TECHNOTREND_CONNECT_CT2_4650_CI,
 		&dvbsky_t680c_props, "TechnoTrend TT-connect CT2-4650 CI",
 		RC_MAP_TT_1500) },
+	{ DVB_USB_DEVICE(USB_VID_TECHNOTREND,
+		USB_PID_TECHNOTREND_CONNECT_CT2_4650_CI_2,
+		&dvbsky_t680c_props, "TechnoTrend TT-connect CT2-4650 CI v1.1",
+		RC_MAP_TT_1500) },
+	{ DVB_USB_DEVICE(USB_VID_TECHNOTREND,
+		USB_PID_TECHNOTREND_CONNECT_S2_4650_CI,
+		&dvbsky_s960c_props, "TechnoTrend TT-connect S2-4650 CI",
+		RC_MAP_TT_1500) },
 	{ DVB_USB_DEVICE(USB_VID_TERRATEC,
 		USB_PID_TERRATEC_H7_3,
 		&dvbsky_t680c_props, "Terratec H7 Rev.4",
 		RC_MAP_TT_1500) },
+	{ DVB_USB_DEVICE(USB_VID_TERRATEC, USB_PID_TERRATEC_CINERGY_S2_R4,
+		&dvbsky_s960_props, "Terratec Cinergy S2 Rev.4",
+		RC_MAP_DVBSKY) },
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, dvbsky_id_table);

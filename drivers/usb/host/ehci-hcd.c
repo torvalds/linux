@@ -98,7 +98,7 @@ module_param (park, uint, S_IRUGO);
 MODULE_PARM_DESC (park, "park setting; 1-3 back-to-back async packets");
 
 /* for flakey hardware, ignore overcurrent indicators */
-static bool ignore_oc = 0;
+static bool ignore_oc;
 module_param (ignore_oc, bool, S_IRUGO);
 MODULE_PARM_DESC (ignore_oc, "ignore bogus hardware overcurrent indications");
 
@@ -306,9 +306,9 @@ static void ehci_quiesce (struct ehci_hcd *ehci)
 
 /*-------------------------------------------------------------------------*/
 
+static void end_iaa_cycle(struct ehci_hcd *ehci);
 static void end_unlink_async(struct ehci_hcd *ehci);
 static void unlink_empty_async(struct ehci_hcd *ehci);
-static void unlink_empty_async_suspended(struct ehci_hcd *ehci);
 static void ehci_work(struct ehci_hcd *ehci);
 static void start_unlink_intr(struct ehci_hcd *ehci, struct ehci_qh *qh);
 static void end_unlink_intr(struct ehci_hcd *ehci, struct ehci_qh *qh);
@@ -332,11 +332,11 @@ static void ehci_turn_off_all_ports(struct ehci_hcd *ehci)
 	int	port = HCS_N_PORTS(ehci->hcs_params);
 
 	while (port--) {
-		ehci_writel(ehci, PORT_RWC_BITS,
-				&ehci->regs->port_status[port]);
 		spin_unlock_irq(&ehci->lock);
 		ehci_port_power(ehci, port, false);
 		spin_lock_irq(&ehci->lock);
+		ehci_writel(ehci, PORT_RWC_BITS,
+				&ehci->regs->port_status[port]);
 	}
 }
 
@@ -367,6 +367,15 @@ static void ehci_silence_controller(struct ehci_hcd *ehci)
 static void ehci_shutdown(struct usb_hcd *hcd)
 {
 	struct ehci_hcd	*ehci = hcd_to_ehci(hcd);
+
+	/**
+	 * Protect the system from crashing at system shutdown in cases where
+	 * usb host is not added yet from OTG controller driver.
+	 * As ehci_setup() not done yet, so stop accessing registers or
+	 * variables initialized in ehci_setup()
+	 */
+	if (!ehci->sbrn)
+		return;
 
 	spin_lock_irq(&ehci->lock);
 	ehci->shutdown = true;
@@ -565,6 +574,9 @@ static int ehci_init(struct usb_hcd *hcd)
 	/* Accept arbitrarily long scatter-gather lists */
 	if (!(hcd->driver->flags & HCD_LOCAL_MEM))
 		hcd->self.sg_tablesize = ~0;
+
+	/* Prepare for unlinking active QHs */
+	ehci->old_current = ~0;
 	return 0;
 }
 
@@ -585,7 +597,7 @@ static int ehci_run (struct usb_hcd *hcd)
 	/*
 	 * hcc_params controls whether ehci->regs->segment must (!!!)
 	 * be used; it constrains QH/ITD/SITD and QTD locations.
-	 * pci_pool consistent memory always uses segment zero.
+	 * dma_pool consistent memory always uses segment zero.
 	 * streaming mappings for I/O buffers, like pci_map_single(),
 	 * can return segments above 4GB, if the device allows.
 	 *
@@ -675,8 +687,10 @@ int ehci_setup(struct usb_hcd *hcd)
 		return retval;
 
 	retval = ehci_halt(ehci);
-	if (retval)
+	if (retval) {
+		ehci_mem_cleanup(ehci);
 		return retval;
+	}
 
 	ehci_reset(ehci);
 
@@ -756,7 +770,7 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 			ehci_dbg(ehci, "IAA with IAAD still set?\n");
 		if (ehci->iaa_in_progress)
 			COUNT(ehci->stats.iaa);
-		end_unlink_async(ehci);
+		end_iaa_cycle(ehci);
 	}
 
 	/* remote wakeup [4.3.1] */
@@ -909,7 +923,7 @@ static int ehci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 		 */
 	} else {
 		qh = (struct ehci_qh *) urb->hcpriv;
-		qh->exception = 1;
+		qh->unlink_reason |= QH_UNLINK_REQUESTED;
 		switch (qh->qh_state) {
 		case QH_STATE_LINKED:
 			if (usb_pipetype(urb->pipe) == PIPE_INTERRUPT)
@@ -970,10 +984,13 @@ rescan:
 		goto done;
 	}
 
-	qh->exception = 1;
+	qh->unlink_reason |= QH_UNLINK_REQUESTED;
 	switch (qh->qh_state) {
 	case QH_STATE_LINKED:
-		WARN_ON(!list_empty(&qh->qtd_list));
+		if (list_empty(&qh->qtd_list))
+			qh->unlink_reason |= QH_UNLINK_QUEUE_EMPTY;
+		else
+			WARN_ON(1);
 		if (usb_endpoint_type(&ep->desc) != USB_ENDPOINT_XFER_INT)
 			start_unlink_async(ehci, qh);
 		else
@@ -1040,7 +1057,7 @@ ehci_endpoint_reset(struct usb_hcd *hcd, struct usb_host_endpoint *ep)
 			 * re-linking will call qh_refresh().
 			 */
 			usb_settoggle(qh->ps.udev, epnum, is_out, 0);
-			qh->exception = 1;
+			qh->unlink_reason |= QH_UNLINK_REQUESTED;
 			if (eptype == USB_ENDPOINT_XFER_BULK)
 				start_unlink_async(ehci, qh);
 			else
@@ -1291,11 +1308,6 @@ MODULE_LICENSE ("GPL");
 #define        PLATFORM_DRIVER         ehci_mv_driver
 #endif
 
-#ifdef CONFIG_MIPS_SEAD3
-#include "ehci-sead3.c"
-#define	PLATFORM_DRIVER		ehci_hcd_sead3_driver
-#endif
-
 static int __init ehci_hcd_init(void)
 {
 	int retval = 0;
@@ -1310,7 +1322,7 @@ static int __init ehci_hcd_init(void)
 		printk(KERN_WARNING "Warning! ehci_hcd should always be loaded"
 				" before uhci_hcd and ohci_hcd, not after\n");
 
-	pr_debug("%s: block sizes: qh %Zd qtd %Zd itd %Zd sitd %Zd\n",
+	pr_debug("%s: block sizes: qh %zd qtd %zd itd %zd sitd %zd\n",
 		 hcd_name,
 		 sizeof(struct ehci_qh), sizeof(struct ehci_qtd),
 		 sizeof(struct ehci_itd), sizeof(struct ehci_sitd));

@@ -19,12 +19,8 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
- * Or, point your browser to http://www.gnu.org/copyleft/gpl.html
+ * To obtain the license, point your browser to
+ * http://www.gnu.org/copyleft/gpl.html
  */
 
 #include <linux/module.h>
@@ -1513,7 +1509,7 @@ static int init_channel(struct ngene_channel *chan)
 		set_transfer(&chan->dev->channel[2], 1);
 		dvb_register_device(adapter, &chan->ci_dev,
 				    &ngene_dvbdev_ci, (void *) chan,
-				    DVB_DEVICE_SEC);
+				    DVB_DEVICE_SEC, 0);
 		if (!chan->ci_dev)
 			goto err;
 	}

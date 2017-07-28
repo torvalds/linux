@@ -166,7 +166,7 @@ static struct shash_alg sha1_avx_alg = {
 static bool avx_usable(void)
 {
 	if (!cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM, NULL)) {
-		if (cpu_has_avx)
+		if (boot_cpu_has(X86_FEATURE_AVX))
 			pr_info("AVX detected but unusable.\n");
 		return false;
 	}
@@ -201,7 +201,7 @@ asmlinkage void sha1_transform_avx2(u32 *digest, const char *data,
 
 static bool avx2_usable(void)
 {
-	if (avx_usable() && boot_cpu_has(X86_FEATURE_AVX2)
+	if (false && avx_usable() && boot_cpu_has(X86_FEATURE_AVX2)
 		&& boot_cpu_has(X86_FEATURE_BMI1)
 		&& boot_cpu_has(X86_FEATURE_BMI2))
 		return true;
@@ -374,3 +374,9 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("SHA1 Secure Hash Algorithm, Supplemental SSE3 accelerated");
 
 MODULE_ALIAS_CRYPTO("sha1");
+MODULE_ALIAS_CRYPTO("sha1-ssse3");
+MODULE_ALIAS_CRYPTO("sha1-avx");
+MODULE_ALIAS_CRYPTO("sha1-avx2");
+#ifdef CONFIG_AS_SHA1_NI
+MODULE_ALIAS_CRYPTO("sha1-ni");
+#endif

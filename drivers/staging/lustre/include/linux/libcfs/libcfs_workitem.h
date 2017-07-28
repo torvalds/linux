@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -66,14 +62,14 @@
 
 struct cfs_wi_sched;
 
-void cfs_wi_sched_destroy(struct cfs_wi_sched *);
+void cfs_wi_sched_destroy(struct cfs_wi_sched *sched);
 int cfs_wi_sched_create(char *name, struct cfs_cpt_table *cptab, int cpt,
-			int nthrs, struct cfs_wi_sched **);
+			int nthrs, struct cfs_wi_sched **sched_pp);
 
 struct cfs_workitem;
 
 typedef int (*cfs_wi_action_t) (struct cfs_workitem *);
-typedef struct cfs_workitem {
+struct cfs_workitem {
 	/** chain on runq or rerunq */
 	struct list_head       wi_list;
 	/** working function */
@@ -84,10 +80,10 @@ typedef struct cfs_workitem {
 	unsigned short   wi_running:1;
 	/** scheduled */
 	unsigned short   wi_scheduled:1;
-} cfs_workitem_t;
+};
 
 static inline void
-cfs_wi_init(cfs_workitem_t *wi, void *data, cfs_wi_action_t action)
+cfs_wi_init(struct cfs_workitem *wi, void *data, cfs_wi_action_t action)
 {
 	INIT_LIST_HEAD(&wi->wi_list);
 
@@ -97,9 +93,9 @@ cfs_wi_init(cfs_workitem_t *wi, void *data, cfs_wi_action_t action)
 	wi->wi_action    = action;
 }
 
-void cfs_wi_schedule(struct cfs_wi_sched *sched, cfs_workitem_t *wi);
-int  cfs_wi_deschedule(struct cfs_wi_sched *sched, cfs_workitem_t *wi);
-void cfs_wi_exit(struct cfs_wi_sched *sched, cfs_workitem_t *wi);
+void cfs_wi_schedule(struct cfs_wi_sched *sched, struct cfs_workitem *wi);
+int  cfs_wi_deschedule(struct cfs_wi_sched *sched, struct cfs_workitem *wi);
+void cfs_wi_exit(struct cfs_wi_sched *sched, struct cfs_workitem *wi);
 
 int  cfs_wi_startup(void);
 void cfs_wi_shutdown(void);

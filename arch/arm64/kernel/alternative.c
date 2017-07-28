@@ -25,13 +25,12 @@
 #include <asm/alternative.h>
 #include <asm/cpufeature.h>
 #include <asm/insn.h>
+#include <asm/sections.h>
 #include <linux/stop_machine.h>
 
-#define __ALT_PTR(a,f)		(u32 *)((void *)&(a)->f + (a)->f)
+#define __ALT_PTR(a,f)		((void *)&(a)->f + (a)->f)
 #define ALT_ORIG_PTR(a)		__ALT_PTR(a, orig_offset)
 #define ALT_REPL_PTR(a)		__ALT_PTR(a, alt_offset)
-
-extern struct alt_instr __alt_instructions[], __alt_instructions_end[];
 
 struct alt_region {
 	struct alt_instr *begin;
@@ -59,7 +58,9 @@ static bool branch_insn_requires_update(struct alt_instr *alt, unsigned long pc)
 	BUG();
 }
 
-static u32 get_alt_insn(struct alt_instr *alt, u32 *insnptr, u32 *altinsnptr)
+#define align_down(x, a)	((unsigned long)(x) & ~(((unsigned long)(a)) - 1))
+
+static u32 get_alt_insn(struct alt_instr *alt, __le32 *insnptr, __le32 *altinsnptr)
 {
 	u32 insn;
 
@@ -80,16 +81,35 @@ static u32 get_alt_insn(struct alt_instr *alt, u32 *insnptr, u32 *altinsnptr)
 			offset = target - (unsigned long)insnptr;
 			insn = aarch64_set_branch_offset(insn, offset);
 		}
+	} else if (aarch64_insn_is_adrp(insn)) {
+		s32 orig_offset, new_offset;
+		unsigned long target;
+
+		/*
+		 * If we're replacing an adrp instruction, which uses PC-relative
+		 * immediate addressing, adjust the offset to reflect the new
+		 * PC. adrp operates on 4K aligned addresses.
+		 */
+		orig_offset  = aarch64_insn_adrp_get_offset(insn);
+		target = align_down(altinsnptr, SZ_4K) + orig_offset;
+		new_offset = target - align_down(insnptr, SZ_4K);
+		insn = aarch64_insn_adrp_set_offset(insn, new_offset);
+	} else if (aarch64_insn_uses_literal(insn)) {
+		/*
+		 * Disallow patching unhandled instructions using PC relative
+		 * literal addresses
+		 */
+		BUG();
 	}
 
 	return insn;
 }
 
-static void __apply_alternatives(void *alt_region)
+static void __apply_alternatives(void *alt_region, bool use_linear_alias)
 {
 	struct alt_instr *alt;
 	struct alt_region *region = alt_region;
-	u32 *origptr, *replptr;
+	__le32 *origptr, *replptr, *updptr;
 
 	for (alt = region->begin; alt < region->end; alt++) {
 		u32 insn;
@@ -104,11 +124,12 @@ static void __apply_alternatives(void *alt_region)
 
 		origptr = ALT_ORIG_PTR(alt);
 		replptr = ALT_REPL_PTR(alt);
+		updptr = use_linear_alias ? lm_alias(origptr) : origptr;
 		nr_inst = alt->alt_len / sizeof(insn);
 
 		for (i = 0; i < nr_inst; i++) {
 			insn = get_alt_insn(alt, origptr + i, replptr + i);
-			*(origptr + i) = cpu_to_le32(insn);
+			updptr[i] = cpu_to_le32(insn);
 		}
 
 		flush_icache_range((uintptr_t)origptr,
@@ -124,8 +145,8 @@ static int __apply_alternatives_multi_stop(void *unused)
 {
 	static int patched = 0;
 	struct alt_region region = {
-		.begin	= __alt_instructions,
-		.end	= __alt_instructions_end,
+		.begin	= (struct alt_instr *)__alt_instructions,
+		.end	= (struct alt_instr *)__alt_instructions_end,
 	};
 
 	/* We always have a CPU 0 at this point (__init) */
@@ -135,7 +156,7 @@ static int __apply_alternatives_multi_stop(void *unused)
 		isb();
 	} else {
 		BUG_ON(patched);
-		__apply_alternatives(&region);
+		__apply_alternatives(&region, true);
 		/* Barriers provided by the cache flushing */
 		WRITE_ONCE(patched, 1);
 	}
@@ -156,11 +177,5 @@ void apply_alternatives(void *start, size_t length)
 		.end	= start + length,
 	};
 
-	__apply_alternatives(&region);
-}
-
-void free_alternatives_memory(void)
-{
-	free_reserved_area(__alt_instructions, __alt_instructions_end,
-			   0, "alternatives");
+	__apply_alternatives(&region, false);
 }

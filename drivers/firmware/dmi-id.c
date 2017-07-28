@@ -47,6 +47,7 @@ DEFINE_DMI_ATTR_WITH_SHOW(product_name,		0444, DMI_PRODUCT_NAME);
 DEFINE_DMI_ATTR_WITH_SHOW(product_version,	0444, DMI_PRODUCT_VERSION);
 DEFINE_DMI_ATTR_WITH_SHOW(product_serial,	0400, DMI_PRODUCT_SERIAL);
 DEFINE_DMI_ATTR_WITH_SHOW(product_uuid,		0400, DMI_PRODUCT_UUID);
+DEFINE_DMI_ATTR_WITH_SHOW(product_family,	0444, DMI_PRODUCT_FAMILY);
 DEFINE_DMI_ATTR_WITH_SHOW(board_vendor,		0444, DMI_BOARD_VENDOR);
 DEFINE_DMI_ATTR_WITH_SHOW(board_name,		0444, DMI_BOARD_NAME);
 DEFINE_DMI_ATTR_WITH_SHOW(board_version,	0444, DMI_BOARD_VERSION);
@@ -191,6 +192,7 @@ static void __init dmi_id_init_attr_table(void)
 	ADD_DMI_ATTR(product_version,   DMI_PRODUCT_VERSION);
 	ADD_DMI_ATTR(product_serial,    DMI_PRODUCT_SERIAL);
 	ADD_DMI_ATTR(product_uuid,      DMI_PRODUCT_UUID);
+	ADD_DMI_ATTR(product_family,    DMI_PRODUCT_FAMILY);
 	ADD_DMI_ATTR(board_vendor,      DMI_BOARD_VENDOR);
 	ADD_DMI_ATTR(board_name,        DMI_BOARD_NAME);
 	ADD_DMI_ATTR(board_version,     DMI_BOARD_VERSION);
@@ -229,14 +231,14 @@ static int __init dmi_id_init(void)
 
 	ret = device_register(dmi_dev);
 	if (ret)
-		goto fail_free_dmi_dev;
+		goto fail_put_dmi_dev;
 
 	return 0;
 
-fail_free_dmi_dev:
-	kfree(dmi_dev);
-fail_class_unregister:
+fail_put_dmi_dev:
+	put_device(dmi_dev);
 
+fail_class_unregister:
 	class_unregister(&dmi_class);
 
 	return ret;

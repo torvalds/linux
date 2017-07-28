@@ -27,6 +27,7 @@
 #include "nvsw.h"
 
 #include <nvif/class.h>
+#include <nvif/if0004.h>
 #include <nvif/ioctl.h>
 #include <nvif/unpack.h>
 
@@ -46,9 +47,9 @@ nv04_nvsw_mthd_get_ref(struct nvkm_nvsw *nvsw, void *data, u32 size)
 	union {
 		struct nv04_nvsw_get_ref_v0 v0;
 	} *args = data;
-	int ret;
+	int ret = -ENOSYS;
 
-	if (nvif_unpack(args->v0, 0, 0, false)) {
+	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 		args->v0.ref = atomic_read(&chan->ref);
 	}
 
@@ -126,7 +127,7 @@ static const struct nvkm_sw_func
 nv04_sw = {
 	.chan_new = nv04_sw_chan_new,
 	.sclass = {
-		{ nv04_nvsw_new, { -1, -1, NVIF_IOCTL_NEW_V0_SW_NV04 } },
+		{ nv04_nvsw_new, { -1, -1, NVIF_CLASS_SW_NV04 } },
 		{}
 	}
 };

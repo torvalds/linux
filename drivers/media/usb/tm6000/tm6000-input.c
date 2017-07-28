@@ -11,10 +11,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -39,7 +35,7 @@ MODULE_PARM_DESC(enable_ir, "enable ir (default is enable)");
 
 static unsigned int ir_clock_mhz = 12;
 module_param(ir_clock_mhz, int, 0644);
-MODULE_PARM_DESC(enable_ir, "ir clock, in MHz");
+MODULE_PARM_DESC(ir_clock_mhz, "ir clock, in MHz");
 
 #define URB_SUBMIT_DELAY	100	/* ms - Delay to submit an URB request on retrial and init */
 #define URB_INT_LED_DELAY	100	/* ms - Delay to turn led on again on int mode */
@@ -67,7 +63,6 @@ struct tm6000_IR {
 	u8			wait:1;
 	u8			pwled:2;
 	u8			submit_urb:1;
-	u16			key_addr;
 	struct urb		*int_urb;
 
 	/* IR device properties */
@@ -325,9 +320,6 @@ static int tm6000_ir_change_protocol(struct rc_dev *rc, u64 *rc_type)
 
 	dprintk(2, "%s\n",__func__);
 
-	if ((rc->rc_map.scan) && (*rc_type == RC_BIT_NEC))
-		ir->key_addr = ((rc->rc_map.scan[0].scancode >> 8) & 0xffff);
-
 	ir->rc_type = *rc_type;
 
 	tm6000_ir_config(ir);
@@ -429,7 +421,7 @@ int tm6000_ir_init(struct tm6000_core *dev)
 		return 0;
 
 	ir = kzalloc(sizeof(*ir), GFP_ATOMIC);
-	rc = rc_allocate_device();
+	rc = rc_allocate_device(RC_DRIVER_SCANCODE);
 	if (!ir || !rc)
 		goto out;
 
@@ -442,7 +434,7 @@ int tm6000_ir_init(struct tm6000_core *dev)
 
 	/* input setup */
 	rc->allowed_protocols = RC_BIT_RC5 | RC_BIT_NEC;
-	/* Neded, in order to support NEC remotes with 24 or 32 bits */
+	/* Needed, in order to support NEC remotes with 24 or 32 bits */
 	rc->scancode_mask = 0xffff;
 	rc->priv = ir;
 	rc->change_protocol = tm6000_ir_change_protocol;
@@ -456,7 +448,6 @@ int tm6000_ir_init(struct tm6000_core *dev)
 		ir->polling = 50;
 		INIT_DELAYED_WORK(&ir->work, tm6000_ir_handle_key);
 	}
-	rc->driver_type = RC_DRIVER_SCANCODE;
 
 	snprintf(ir->name, sizeof(ir->name), "tm5600/60x0 IR (%s)",
 						dev->name);

@@ -16,6 +16,7 @@
 #include <linux/mod_devicetable.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/sched/signal.h>
 
 #include <sound/core.h>
 #include <sound/initval.h>
@@ -37,6 +38,9 @@ struct snd_dg00x {
 	struct mutex mutex;
 	spinlock_t lock;
 
+	bool registered;
+	struct delayed_work dwork;
+
 	struct amdtp_stream tx_stream;
 	struct fw_iso_resources tx_resources;
 
@@ -54,16 +58,15 @@ struct snd_dg00x {
 	struct fw_address_handler async_handler;
 	u32 msg;
 
-	/* For asynchronous MIDI controls. */
-	struct snd_rawmidi_substream *in_control;
-	struct snd_fw_async_midi_port out_control;
+	/* Console models have additional MIDI ports for control surface. */
+	bool is_console;
 };
 
 #define DG00X_ADDR_BASE		0xffffe0000000ull
 
 #define DG00X_OFFSET_STREAMING_STATE	0x0000
 #define DG00X_OFFSET_STREAMING_SET	0x0004
-#define DG00X_OFFSET_MIDI_CTL_ADDR	0x0008
+/* unknown but address in host space	0x0008 */
 /* For LSB of the address		0x000c */
 /* unknown				0x0010 */
 #define DG00X_OFFSET_MESSAGE_ADDR	0x0014
@@ -118,7 +121,6 @@ int amdtp_dot_set_parameters(struct amdtp_stream *s, unsigned int rate,
 void amdtp_dot_reset(struct amdtp_stream *s);
 int amdtp_dot_add_pcm_hw_constraints(struct amdtp_stream *s,
 				     struct snd_pcm_runtime *runtime);
-void amdtp_dot_set_pcm_format(struct amdtp_stream *s, snd_pcm_format_t format);
 void amdtp_dot_midi_trigger(struct amdtp_stream *s, unsigned int port,
 			  struct snd_rawmidi_substream *midi);
 

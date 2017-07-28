@@ -1,56 +1,56 @@
 /*
-    comedi/drivers/das800.c
-    Driver for Keitley das800 series boards and compatibles
-    Copyright (C) 2000 Frank Mori Hess <fmhess@users.sourceforge.net>
-
-    COMEDI - Linux Control and Measurement Device Interface
-    Copyright (C) 2000 David A. Schleef <ds@schleef.org>
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-*/
+ * comedi/drivers/das800.c
+ * Driver for Keitley das800 series boards and compatibles
+ * Copyright (C) 2000 Frank Mori Hess <fmhess@users.sourceforge.net>
+ *
+ * COMEDI - Linux Control and Measurement Device Interface
+ * Copyright (C) 2000 David A. Schleef <ds@schleef.org>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
 /*
-Driver: das800
-Description: Keithley Metrabyte DAS800 (& compatibles)
-Author: Frank Mori Hess <fmhess@users.sourceforge.net>
-Devices: [Keithley Metrabyte] DAS-800 (das-800), DAS-801 (das-801),
-  DAS-802 (das-802),
-  [Measurement Computing] CIO-DAS800 (cio-das800),
-  CIO-DAS801 (cio-das801), CIO-DAS802 (cio-das802),
-  CIO-DAS802/16 (cio-das802/16)
-Status: works, cio-das802/16 untested - email me if you have tested it
-
-Configuration options:
-  [0] - I/O port base address
-  [1] - IRQ (optional, required for timed or externally triggered conversions)
-
-Notes:
-	IRQ can be omitted, although the cmd interface will not work without it.
-
-	All entries in the channel/gain list must use the same gain and be
-	consecutive channels counting upwards in channel number (these are
-	hardware limitations.)
-
-	I've never tested the gain setting stuff since I only have a
-	DAS-800 board with fixed gain.
-
-	The cio-das802/16 does not have a fifo-empty status bit!  Therefore
-	only fifo-half-full transfers are possible with this card.
-
-cmd triggers supported:
-	start_src:      TRIG_NOW | TRIG_EXT
-	scan_begin_src: TRIG_FOLLOW
-	scan_end_src:   TRIG_COUNT
-	convert_src:    TRIG_TIMER | TRIG_EXT
-	stop_src:       TRIG_NONE | TRIG_COUNT
-*/
+ * Driver: das800
+ * Description: Keithley Metrabyte DAS800 (& compatibles)
+ * Author: Frank Mori Hess <fmhess@users.sourceforge.net>
+ * Devices: [Keithley Metrabyte] DAS-800 (das-800), DAS-801 (das-801),
+ * DAS-802 (das-802),
+ * [Measurement Computing] CIO-DAS800 (cio-das800),
+ * CIO-DAS801 (cio-das801), CIO-DAS802 (cio-das802),
+ * CIO-DAS802/16 (cio-das802/16)
+ * Status: works, cio-das802/16 untested - email me if you have tested it
+ *
+ * Configuration options:
+ * [0] - I/O port base address
+ * [1] - IRQ (optional, required for timed or externally triggered conversions)
+ *
+ * Notes:
+ *	IRQ can be omitted, although the cmd interface will not work without it.
+ *
+ *	All entries in the channel/gain list must use the same gain and be
+ *	consecutive channels counting upwards in channel number (these are
+ *	hardware limitations.)
+ *
+ *	I've never tested the gain setting stuff since I only have a
+ *	DAS-800 board with fixed gain.
+ *
+ *	The cio-das802/16 does not have a fifo-empty status bit!  Therefore
+ *	only fifo-half-full transfers are possible with this card.
+ *
+ * cmd triggers supported:
+ *	start_src:      TRIG_NOW | TRIG_EXT
+ *	scan_begin_src: TRIG_FOLLOW
+ *	scan_end_src:   TRIG_COUNT
+ *	convert_src:    TRIG_TIMER | TRIG_EXT
+ *	stop_src:       TRIG_NONE | TRIG_COUNT
+ */
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -218,7 +218,7 @@ struct das800_private {
 };
 
 static void das800_ind_write(struct comedi_device *dev,
-			     unsigned val, unsigned reg)
+			     unsigned int val, unsigned int reg)
 {
 	/*
 	 * Select dev->iobase + 2 to be desired register
@@ -228,7 +228,7 @@ static void das800_ind_write(struct comedi_device *dev,
 	outb(val, dev->iobase + 2);
 }
 
-static unsigned das800_ind_read(struct comedi_device *dev, unsigned reg)
+static unsigned int das800_ind_read(struct comedi_device *dev, unsigned int reg)
 {
 	/*
 	 * Select dev->iobase + 7 to be desired register

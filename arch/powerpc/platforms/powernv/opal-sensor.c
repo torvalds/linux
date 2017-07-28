@@ -55,13 +55,17 @@ int opal_get_sensor_data(u32 sensor_hndl, u32 *sensor_data)
 			goto out_token;
 		}
 
-		ret = opal_error_code(be64_to_cpu(msg.params[1]));
+		ret = opal_error_code(opal_get_async_rc(msg));
 		*sensor_data = be32_to_cpu(data);
 		break;
 
 	case OPAL_SUCCESS:
 		ret = 0;
 		*sensor_data = be32_to_cpu(data);
+		break;
+
+	case OPAL_WRONG_STATE:
+		ret = -EIO;
 		break;
 
 	default:

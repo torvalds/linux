@@ -23,6 +23,7 @@
 #include <linux/quotaops.h>
 #include <linux/lockdep.h>
 #include <linux/module.h>
+#include <linux/backing-dev.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -58,7 +59,7 @@ static void gfs2_tune_init(struct gfs2_tune *gt)
 	gt->gt_quota_scale_num = 1;
 	gt->gt_quota_scale_den = 1;
 	gt->gt_new_files_jdata = 0;
-	gt->gt_max_readahead = 1 << 18;
+	gt->gt_max_readahead = BIT(18);
 	gt->gt_complain_secs = 10;
 }
 
@@ -175,10 +176,10 @@ static void end_bio_io_page(struct bio *bio)
 {
 	struct page *page = bio->bi_private;
 
-	if (!bio->bi_error)
+	if (!bio->bi_status)
 		SetPageUptodate(page);
 	else
-		pr_warn("error %d reading superblock\n", bio->bi_error);
+		pr_warn("error %d reading superblock\n", bio->bi_status);
 	unlock_page(page);
 }
 
@@ -202,7 +203,7 @@ static void gfs2_sb_in(struct gfs2_sbd *sdp, const void *buf)
 
 	memcpy(sb->sb_lockproto, str->sb_lockproto, GFS2_LOCKNAME_LEN);
 	memcpy(sb->sb_locktable, str->sb_locktable, GFS2_LOCKNAME_LEN);
-	memcpy(s->s_uuid, str->sb_uuid, 16);
+	memcpy(&s->s_uuid, str->sb_uuid, 16);
 }
 
 /**
@@ -246,7 +247,8 @@ static int gfs2_read_super(struct gfs2_sbd *sdp, sector_t sector, int silent)
 
 	bio->bi_end_io = end_bio_io_page;
 	bio->bi_private = page;
-	submit_bio(READ_SYNC | REQ_META, bio);
+	bio_set_op_attrs(bio, REQ_OP_READ, REQ_META);
+	submit_bio(bio);
 	wait_on_page_locked(page);
 	bio_put(bio);
 	if (!PageUptodate(page)) {
@@ -283,7 +285,7 @@ static int gfs2_read_sb(struct gfs2_sbd *sdp, int silent)
 
 	sdp->sd_fsb2bb_shift = sdp->sd_sb.sb_bsize_shift -
 			       GFS2_BASIC_BLOCK_SHIFT;
-	sdp->sd_fsb2bb = 1 << sdp->sd_fsb2bb_shift;
+	sdp->sd_fsb2bb = BIT(sdp->sd_fsb2bb_shift);
 	sdp->sd_diptrs = (sdp->sd_sb.sb_bsize -
 			  sizeof(struct gfs2_dinode)) / sizeof(u64);
 	sdp->sd_inptrs = (sdp->sd_sb.sb_bsize -
@@ -301,7 +303,7 @@ static int gfs2_read_sb(struct gfs2_sbd *sdp, int silent)
 
 	/* Compute maximum reservation required to add a entry to a directory */
 
-	hash_blocks = DIV_ROUND_UP(sizeof(u64) * (1 << GFS2_DIR_MAX_DEPTH),
+	hash_blocks = DIV_ROUND_UP(sizeof(u64) * BIT(GFS2_DIR_MAX_DEPTH),
 			     sdp->sd_jbsize);
 
 	ind_blocks = 0;
@@ -352,6 +354,9 @@ static int gfs2_read_sb(struct gfs2_sbd *sdp, int silent)
 	sdp->sd_jheightsize[x] = ~0;
 	gfs2_assert(sdp, sdp->sd_max_jheight <= GFS2_MAX_META_HEIGHT);
 
+	sdp->sd_max_dents_per_leaf = (sdp->sd_sb.sb_bsize -
+				      sizeof(struct gfs2_leaf)) /
+				     GFS2_MIN_DIRENT_SIZE;
 	return 0;
 }
 
@@ -451,7 +456,8 @@ static int gfs2_lookup_root(struct super_block *sb, struct dentry **dptr,
 	struct dentry *dentry;
 	struct inode *inode;
 
-	inode = gfs2_inode_lookup(sb, DT_DIR, no_addr, 0, 0);
+	inode = gfs2_inode_lookup(sb, DT_DIR, no_addr, 0,
+				  GFS2_BLKST_FREE /* ignore */);
 	if (IS_ERR(inode)) {
 		fs_err(sdp, "can't read in %s inode: %ld\n", name, PTR_ERR(inode));
 		return PTR_ERR(inode);
@@ -678,6 +684,7 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 		goto fail_jindex;
 	}
 
+	atomic_set(&sdp->sd_log_blks_needed, 0);
 	if (sdp->sd_args.ar_spectator) {
 		sdp->sd_jdesc = gfs2_jdesc_find(sdp, 0);
 		atomic_set(&sdp->sd_log_blks_free, sdp->sd_jdesc->jd_blocks);
@@ -821,7 +828,7 @@ static int init_inodes(struct gfs2_sbd *sdp, int undo)
 	 * i_mutex on quota files is special. Since this inode is hidden system
 	 * file, we are safe to define locking ourselves.
 	 */
-	lockdep_set_class(&sdp->sd_quota_inode->i_mutex,
+	lockdep_set_class(&sdp->sd_quota_inode->i_rwsem,
 			  &gfs2_quota_imutex_key);
 
 	error = gfs2_rindex_update(sdp);
@@ -910,8 +917,7 @@ fail_qc_i:
 fail_ut_i:
 	iput(sdp->sd_sc_inode);
 fail:
-	if (pn)
-		iput(pn);
+	iput(pn);
 	return error;
 }
 
@@ -1085,7 +1091,7 @@ static int fill_super(struct super_block *sb, struct gfs2_args *args, int silent
 	sdp->sd_sb.sb_bsize_shift = sb->s_blocksize_bits;
 	sdp->sd_fsb2bb_shift = sdp->sd_sb.sb_bsize_shift -
                                GFS2_BASIC_BLOCK_SHIFT;
-	sdp->sd_fsb2bb = 1 << sdp->sd_fsb2bb_shift;
+	sdp->sd_fsb2bb = BIT(sdp->sd_fsb2bb_shift);
 
 	sdp->sd_tune.gt_logd_secs = sdp->sd_args.ar_commit;
 	sdp->sd_tune.gt_quota_quantum = sdp->sd_args.ar_quota_quantum;
@@ -1217,12 +1223,7 @@ static int set_gfs2_super(struct super_block *s, void *data)
 {
 	s->s_bdev = data;
 	s->s_dev = s->s_bdev->bd_dev;
-
-	/*
-	 * We set the bdi here to the queue backing, file systems can
-	 * overwrite this in ->fill_super()
-	 */
-	s->s_bdi = &bdev_get_queue(s->s_bdev)->backing_dev_info;
+	s->s_bdi = bdi_get(s->s_bdev->bd_bdi);
 	return 0;
 }
 
@@ -1315,9 +1316,7 @@ static struct dentry *gfs2_mount(struct file_system_type *fs_type, int flags,
 		if ((flags ^ s->s_flags) & MS_RDONLY)
 			goto error_super;
 	} else {
-		char b[BDEVNAME_SIZE];
-
-		strlcpy(s->s_id, bdevname(bdev, b), sizeof(s->s_id));
+		snprintf(s->s_id, sizeof(s->s_id), "%pg", bdev);
 		sb_set_blocksize(s, block_size(bdev));
 		error = fill_super(s, &args, flags & MS_SILENT ? 1 : 0);
 		if (error)
@@ -1360,7 +1359,7 @@ static struct dentry *gfs2_mount_meta(struct file_system_type *fs_type,
 		return ERR_PTR(error);
 	}
 	s = sget(&gfs2_fs_type, test_gfs2_super, set_meta_super, flags,
-		 d_inode(path.dentry)->i_sb->s_bdev);
+		 path.dentry->d_sb->s_bdev);
 	path_put(&path);
 	if (IS_ERR(s)) {
 		pr_warn("gfs2 mount does not exist\n");

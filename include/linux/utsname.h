@@ -24,8 +24,9 @@ struct uts_namespace {
 	struct kref kref;
 	struct new_utsname name;
 	struct user_namespace *user_ns;
+	struct ucounts *ucounts;
 	struct ns_common ns;
-};
+} __randomize_layout;
 extern struct uts_namespace init_uts_ns;
 
 #ifdef CONFIG_UTS_NS

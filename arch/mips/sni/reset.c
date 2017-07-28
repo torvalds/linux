@@ -26,7 +26,7 @@ static inline void kb_wait(void)
 /* XXX This ends up at the ARC firmware prompt ...  */
 void sni_machine_restart(char *command)
 {
-	int i, j;
+	int i;
 
 	/* This does a normal via the keyboard controller like a PC.
 	   We can do that easier ...  */

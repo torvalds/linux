@@ -113,6 +113,19 @@ config HOTPLUG_PCI_SHPC
 
 	  When in doubt, say N.
 
+config HOTPLUG_PCI_POWERNV
+	tristate "PowerPC PowerNV PCI Hotplug driver"
+	depends on PPC_POWERNV && EEH
+	select OF_DYNAMIC
+	help
+	  Say Y here if you run PowerPC PowerNV platform that supports
+	  PCI Hotplug
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pnv-php.
+
+	  When in doubt, say N.
+
 config HOTPLUG_PCI_RPA
 	tristate "RPA PCI Hotplug driver"
 	depends on PPC_PSERIES && EEH

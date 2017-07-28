@@ -167,12 +167,12 @@ static struct xor_block_template xor_block_avx = {
 
 #define AVX_XOR_SPEED \
 do { \
-	if (cpu_has_avx && cpu_has_osxsave) \
+	if (boot_cpu_has(X86_FEATURE_AVX) && boot_cpu_has(X86_FEATURE_OSXSAVE)) \
 		xor_speed(&xor_block_avx); \
 } while (0)
 
 #define AVX_SELECT(FASTEST) \
-	(cpu_has_avx && cpu_has_osxsave ? &xor_block_avx : FASTEST)
+	(boot_cpu_has(X86_FEATURE_AVX) && boot_cpu_has(X86_FEATURE_OSXSAVE) ? &xor_block_avx : FASTEST)
 
 #else
 

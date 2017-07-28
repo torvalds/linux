@@ -4,7 +4,7 @@
 
 extra-y			:= head.o vmlinux.lds
 
-obj-y	     	:= cache.o pacache.o setup.o traps.o time.o irq.o \
+obj-y	     	:= cache.o pacache.o setup.o pdt.o traps.o time.o irq.o \
 		   pa7300lc.o syscall.o entry.o sys_parisc.o firmware.o \
 		   ptrace.o hardware.o inventory.o drivers.o \
 		   signal.o hpmc.o real2.o parisc_ksyms.o unaligned.o \
@@ -15,11 +15,7 @@ ifdef CONFIG_FUNCTION_TRACER
 # Do not profile debug and lowlevel utilities
 CFLAGS_REMOVE_ftrace.o = -pg
 CFLAGS_REMOVE_cache.o = -pg
-CFLAGS_REMOVE_irq.o = -pg
-CFLAGS_REMOVE_pacache.o = -pg
 CFLAGS_REMOVE_perf.o = -pg
-CFLAGS_REMOVE_traps.o = -pg
-CFLAGS_REMOVE_unaligned.o = -pg
 CFLAGS_REMOVE_unwind.o = -pg
 endif
 

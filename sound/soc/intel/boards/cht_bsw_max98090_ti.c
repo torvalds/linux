@@ -39,21 +39,6 @@ struct cht_mc_private {
 	bool ts3a227e_present;
 };
 
-static inline struct snd_soc_dai *cht_get_codec_dai(struct snd_soc_card *card)
-{
-	int i;
-
-	for (i = 0; i < card->num_rtd; i++) {
-		struct snd_soc_pcm_runtime *rtd;
-
-		rtd = card->rtd + i;
-		if (!strncmp(rtd->codec_dai->name, CHT_CODEC_DAI,
-			     strlen(CHT_CODEC_DAI)))
-			return rtd->codec_dai;
-	}
-	return NULL;
-}
-
 static const struct snd_soc_dapm_widget cht_dapm_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
@@ -207,11 +192,11 @@ static int cht_max98090_headset_init(struct snd_soc_component *component)
 	return ts3a227e_enable_jack_detect(component, &ctx->jack);
 }
 
-static struct snd_soc_ops cht_aif1_ops = {
+static const struct snd_soc_ops cht_aif1_ops = {
 	.startup = cht_aif1_startup,
 };
 
-static struct snd_soc_ops cht_be_ssp2_ops = {
+static const struct snd_soc_ops cht_be_ssp2_ops = {
 	.hw_params = cht_aif1_hw_params,
 };
 
@@ -235,6 +220,18 @@ static struct snd_soc_dai_link cht_dailink[] = {
 		.dpcm_capture = 1,
 		.ops = &cht_aif1_ops,
 	},
+	[MERR_DPCM_DEEP_BUFFER] = {
+		.name = "Deep-Buffer Audio Port",
+		.stream_name = "Deep-Buffer Audio",
+		.cpu_dai_name = "deepbuffer-cpu-dai",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+		.platform_name = "sst-mfld-platform",
+		.nonatomic = true,
+		.dynamic = 1,
+		.dpcm_playback = 1,
+		.ops = &cht_aif1_ops,
+	},
 	[MERR_DPCM_COMPR] = {
 		.name = "Compressed Port",
 		.stream_name = "Compress",
@@ -246,7 +243,7 @@ static struct snd_soc_dai_link cht_dailink[] = {
 	/* back ends */
 	{
 		.name = "SSP2-Codec",
-		.be_id = 1,
+		.id = 1,
 		.cpu_dai_name = "ssp2-port",
 		.platform_name = "sst-mfld-platform",
 		.no_pcm = 1,
@@ -278,33 +275,20 @@ static struct snd_soc_card snd_soc_card_cht = {
 	.num_controls = ARRAY_SIZE(cht_mc_controls),
 };
 
-static acpi_status snd_acpi_codec_match(acpi_handle handle, u32 level,
-						void *context, void **ret)
-{
-	*(bool *)context = true;
-	return AE_OK;
-}
-
 static int snd_cht_mc_probe(struct platform_device *pdev)
 {
 	int ret_val = 0;
-	bool found = false;
 	struct cht_mc_private *drv;
 
 	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_ATOMIC);
 	if (!drv)
 		return -ENOMEM;
 
-	if (ACPI_SUCCESS(acpi_get_devices(
-					"104C227E",
-					snd_acpi_codec_match,
-					&found, NULL)) && found) {
-		drv->ts3a227e_present = true;
-	} else {
+	drv->ts3a227e_present = acpi_dev_found("104C227E");
+	if (!drv->ts3a227e_present) {
 		/* no need probe TI jack detection chip */
 		snd_soc_card_cht.aux_dev = NULL;
 		snd_soc_card_cht.num_aux_devs = 0;
-		drv->ts3a227e_present = false;
 	}
 
 	/* register the soc card */

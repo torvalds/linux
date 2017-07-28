@@ -211,7 +211,7 @@ net2280_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 		goto print_err;
 	}
 
-	if (dev->quirks & PLX_SUPERSPEED) {
+	if (dev->quirks & PLX_PCIE) {
 		if ((desc->bEndpointAddress & 0x0f) >= 0x0c) {
 			ret = -EDOM;
 			goto print_err;
@@ -224,14 +224,14 @@ net2280_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	}
 
 	/* sanity check ep-e/ep-f since their fifos are small */
-	max = usb_endpoint_maxp(desc) & 0x1fff;
+	max = usb_endpoint_maxp(desc);
 	if (ep->num > 4 && max > 64 && (dev->quirks & PLX_LEGACY)) {
 		ret = -ERANGE;
 		goto print_err;
 	}
 
 	spin_lock_irqsave(&dev->lock, flags);
-	_ep->maxpacket = max & 0x7ff;
+	_ep->maxpacket = max;
 	ep->desc = desc;
 
 	/* ep_reset() has already been called */
@@ -245,7 +245,7 @@ net2280_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 	/* set type, direction, address; reset fifo counters */
 	writel(BIT(FIFO_FLUSH), &ep->regs->ep_stat);
 
-	if ((dev->quirks & PLX_SUPERSPEED) && dev->enhanced_mode) {
+	if ((dev->quirks & PLX_PCIE) && dev->enhanced_mode) {
 		tmp = readl(&ep->cfg->ep_cfg);
 		/* If USB ep number doesn't match hardware ep number */
 		if ((tmp & 0xf) != usb_endpoint_num(desc)) {
@@ -316,7 +316,7 @@ net2280_enable(struct usb_ep *_ep, const struct usb_endpoint_descriptor *desc)
 			BIT(CLEAR_NAK_OUT_PACKETS_MODE), &ep->regs->ep_rsp);
 	}
 
-	if (dev->quirks & PLX_SUPERSPEED)
+	if (dev->quirks & PLX_PCIE)
 		ep_clear_seqnum(ep);
 	writel(tmp, &ep->cfg->ep_cfg);
 
@@ -527,7 +527,7 @@ static int net2280_disable(struct usb_ep *_ep)
 	spin_lock_irqsave(&ep->dev->lock, flags);
 	nuke(ep);
 
-	if (ep->dev->quirks & PLX_SUPERSPEED)
+	if (ep->dev->quirks & PLX_PCIE)
 		ep_reset_338x(ep->dev->regs, ep);
 	else
 		ep_reset_228x(ep->dev->regs, ep);
@@ -569,7 +569,7 @@ static struct usb_request
 	if (ep->dma) {
 		struct net2280_dma	*td;
 
-		td = pci_pool_alloc(ep->dev->requests, gfp_flags,
+		td = dma_pool_alloc(ep->dev->requests, gfp_flags,
 				&req->td_dma);
 		if (!td) {
 			kfree(req);
@@ -589,7 +589,7 @@ static void net2280_free_request(struct usb_ep *_ep, struct usb_request *_req)
 
 	ep = container_of(_ep, struct net2280_ep, ep);
 	if (!_ep || !_req) {
-		dev_err(&ep->dev->pdev->dev, "%s: Inavlid ep=%p or req=%p\n",
+		dev_err(&ep->dev->pdev->dev, "%s: Invalid ep=%p or req=%p\n",
 							__func__, _ep, _req);
 		return;
 	}
@@ -597,7 +597,7 @@ static void net2280_free_request(struct usb_ep *_ep, struct usb_request *_req)
 	req = container_of(_req, struct net2280_request, req);
 	WARN_ON(!list_empty(&req->queue));
 	if (req->td)
-		pci_pool_free(ep->dev->requests, req->td, req->td_dma);
+		dma_pool_free(ep->dev->requests, req->td, req->td_dma);
 	kfree(req);
 }
 
@@ -862,7 +862,7 @@ static void start_queue(struct net2280_ep *ep, u32 dmactl, u32 td_dma)
 	writel(readl(&dma->dmastat), &dma->dmastat);
 
 	writel(td_dma, &dma->dmadesc);
-	if (ep->dev->quirks & PLX_SUPERSPEED)
+	if (ep->dev->quirks & PLX_PCIE)
 		dmactl |= BIT(DMA_REQUEST_OUTSTANDING);
 	writel(dmactl, &dma->dmactl);
 
@@ -1046,7 +1046,7 @@ net2280_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 
 	/* kickstart this i/o queue? */
 	if  (list_empty(&ep->queue) && !ep->stopped &&
-		!((dev->quirks & PLX_SUPERSPEED) && ep->dma &&
+		!((dev->quirks & PLX_PCIE) && ep->dma &&
 		  (readl(&ep->regs->ep_rsp) & BIT(CLEAR_ENDPOINT_HALT)))) {
 
 		/* use DMA if the endpoint supports it, else pio */
@@ -1137,22 +1137,24 @@ dma_done(struct net2280_ep *ep,	struct net2280_request *req, u32 dmacount,
 	done(ep, req, status);
 }
 
-static void scan_dma_completions(struct net2280_ep *ep)
+static int scan_dma_completions(struct net2280_ep *ep)
 {
+	int num_completed = 0;
+
 	/* only look at descriptors that were "naturally" retired,
 	 * so fifo and list head state won't matter
 	 */
 	while (!list_empty(&ep->queue)) {
 		struct net2280_request	*req;
-		u32			tmp;
+		u32 req_dma_count;
 
 		req = list_entry(ep->queue.next,
 				struct net2280_request, queue);
 		if (!req->valid)
 			break;
 		rmb();
-		tmp = le32_to_cpup(&req->td->dmacount);
-		if ((tmp & BIT(VALID_BIT)) != 0)
+		req_dma_count = le32_to_cpup(&req->td->dmacount);
+		if ((req_dma_count & BIT(VALID_BIT)) != 0)
 			break;
 
 		/* SHORT_PACKET_TRANSFERRED_INTERRUPT handles "usb-short"
@@ -1161,40 +1163,45 @@ static void scan_dma_completions(struct net2280_ep *ep)
 		 */
 		if (unlikely(req->td->dmadesc == 0)) {
 			/* paranoia */
-			tmp = readl(&ep->dma->dmacount);
-			if (tmp & DMA_BYTE_COUNT_MASK)
+			u32 const ep_dmacount = readl(&ep->dma->dmacount);
+
+			if (ep_dmacount & DMA_BYTE_COUNT_MASK)
 				break;
 			/* single transfer mode */
-			dma_done(ep, req, tmp, 0);
+			dma_done(ep, req, req_dma_count, 0);
+			num_completed++;
 			break;
 		} else if (!ep->is_in &&
 			   (req->req.length % ep->ep.maxpacket) &&
-			   !(ep->dev->quirks & PLX_SUPERSPEED)) {
+			   !(ep->dev->quirks & PLX_PCIE)) {
 
-			tmp = readl(&ep->regs->ep_stat);
+			u32 const ep_stat = readl(&ep->regs->ep_stat);
 			/* AVOID TROUBLE HERE by not issuing short reads from
 			 * your gadget driver.  That helps avoids errata 0121,
 			 * 0122, and 0124; not all cases trigger the warning.
 			 */
-			if ((tmp & BIT(NAK_OUT_PACKETS)) == 0) {
+			if ((ep_stat & BIT(NAK_OUT_PACKETS)) == 0) {
 				ep_warn(ep->dev, "%s lost packet sync!\n",
 						ep->ep.name);
 				req->req.status = -EOVERFLOW;
 			} else {
-				tmp = readl(&ep->regs->ep_avail);
-				if (tmp) {
+				u32 const ep_avail = readl(&ep->regs->ep_avail);
+				if (ep_avail) {
 					/* fifo gets flushed later */
 					ep->out_overflow = 1;
 					ep_dbg(ep->dev,
 						"%s dma, discard %d len %d\n",
-						ep->ep.name, tmp,
+						ep->ep.name, ep_avail,
 						req->req.length);
 					req->req.status = -EOVERFLOW;
 				}
 			}
 		}
-		dma_done(ep, req, tmp, 0);
+		dma_done(ep, req, req_dma_count, 0);
+		num_completed++;
 	}
+
+	return num_completed;
 }
 
 static void restart_dma(struct net2280_ep *ep)
@@ -1367,7 +1374,7 @@ net2280_set_halt_and_wedge(struct usb_ep *_ep, int value, int wedged)
 				ep->wedged = 1;
 		} else {
 			clear_halt(ep);
-			if (ep->dev->quirks & PLX_SUPERSPEED &&
+			if (ep->dev->quirks & PLX_PCIE &&
 				!list_empty(&ep->queue) && ep->td_dma)
 					restart_dma(ep);
 			ep->wedged = 0;
@@ -1563,6 +1570,44 @@ static struct usb_ep *net2280_match_ep(struct usb_gadget *_gadget,
 		if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
 			return ep;
 		ep = gadget_find_ep_by_name(_gadget, "ep-f");
+		if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
+			return ep;
+	}
+
+	/* USB3380: Only first four endpoints have DMA channels. Allocate
+	 * slower interrupt endpoints from PIO hw endpoints, to allow bulk/isoc
+	 * endpoints use DMA hw endpoints.
+	 */
+	if (usb_endpoint_type(desc) == USB_ENDPOINT_XFER_INT &&
+	    usb_endpoint_dir_in(desc)) {
+		ep = gadget_find_ep_by_name(_gadget, "ep2in");
+		if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
+			return ep;
+		ep = gadget_find_ep_by_name(_gadget, "ep4in");
+		if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
+			return ep;
+	} else if (usb_endpoint_type(desc) == USB_ENDPOINT_XFER_INT &&
+		   !usb_endpoint_dir_in(desc)) {
+		ep = gadget_find_ep_by_name(_gadget, "ep1out");
+		if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
+			return ep;
+		ep = gadget_find_ep_by_name(_gadget, "ep3out");
+		if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
+			return ep;
+	} else if (usb_endpoint_type(desc) != USB_ENDPOINT_XFER_BULK &&
+		   usb_endpoint_dir_in(desc)) {
+		ep = gadget_find_ep_by_name(_gadget, "ep1in");
+		if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
+			return ep;
+		ep = gadget_find_ep_by_name(_gadget, "ep3in");
+		if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
+			return ep;
+	} else if (usb_endpoint_type(desc) != USB_ENDPOINT_XFER_BULK &&
+		   !usb_endpoint_dir_in(desc)) {
+		ep = gadget_find_ep_by_name(_gadget, "ep2out");
+		if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
+			return ep;
+		ep = gadget_find_ep_by_name(_gadget, "ep4out");
 		if (ep && usb_gadget_ep_match_desc(_gadget, ep, desc, ep_comp))
 			return ep;
 	}
@@ -1795,7 +1840,7 @@ static ssize_t queues_show(struct device *_dev, struct device_attribute *attr,
 				ep->ep.name, t & USB_ENDPOINT_NUMBER_MASK,
 				(t & USB_DIR_IN) ? "in" : "out",
 				type_string(d->bmAttributes),
-				usb_endpoint_maxp(d) & 0x1fff,
+				usb_endpoint_maxp(d),
 				ep->dma ? "dma" : "pio", ep->fifo_size
 				);
 		} else /* ep0 should only have one transfer queued */
@@ -2394,7 +2439,7 @@ static int net2280_start(struct usb_gadget *_gadget,
 	 */
 	net2280_led_active(dev, 1);
 
-	if ((dev->quirks & PLX_SUPERSPEED) && !dev->bug7734_patched)
+	if ((dev->quirks & PLX_PCIE) && !dev->bug7734_patched)
 		defect7374_enable_data_eps_zero(dev);
 
 	ep0_start(dev);
@@ -2425,11 +2470,8 @@ static void stop_activity(struct net2280 *dev, struct usb_gadget_driver *driver)
 		nuke(&dev->ep[i]);
 
 	/* report disconnect; the driver is already quiesced */
-	if (driver) {
-		spin_unlock(&dev->lock);
+	if (driver)
 		driver->disconnect(&dev->gadget);
-		spin_lock(&dev->lock);
-	}
 
 	usb_reinit(dev);
 }
@@ -2547,8 +2589,11 @@ static void handle_ep_small(struct net2280_ep *ep)
 	/* manual DMA queue advance after short OUT */
 	if (likely(ep->dma)) {
 		if (t & BIT(SHORT_PACKET_TRANSFERRED_INTERRUPT)) {
-			u32	count;
+			struct net2280_request *stuck_req = NULL;
 			int	stopped = ep->stopped;
+			int	num_completed;
+			int	stuck = 0;
+			u32	count;
 
 			/* TRANSFERRED works around OUT_DONE erratum 0112.
 			 * we expect (N <= maxpacket) bytes; host wrote M.
@@ -2560,7 +2605,7 @@ static void handle_ep_small(struct net2280_ep *ep)
 				/* any preceding dma transfers must finish.
 				 * dma handles (M >= N), may empty the queue
 				 */
-				scan_dma_completions(ep);
+				num_completed = scan_dma_completions(ep);
 				if (unlikely(list_empty(&ep->queue) ||
 						ep->out_overflow)) {
 					req = NULL;
@@ -2580,6 +2625,31 @@ static void handle_ep_small(struct net2280_ep *ep)
 						req = NULL;
 					break;
 				}
+
+				/* Escape loop if no dma transfers completed
+				 * after few retries.
+				 */
+				if (num_completed == 0) {
+					if (stuck_req == req &&
+					    readl(&ep->dma->dmadesc) !=
+						  req->td_dma && stuck++ > 5) {
+						count = readl(
+							&ep->dma->dmacount);
+						count &= DMA_BYTE_COUNT_MASK;
+						req = NULL;
+						ep_dbg(ep->dev, "%s escape stuck %d, count %u\n",
+							ep->ep.name, stuck,
+							count);
+						break;
+					} else if (stuck_req != req) {
+						stuck_req = req;
+						stuck = 0;
+					}
+				} else {
+					stuck_req = NULL;
+					stuck = 0;
+				}
+
 				udelay(1);
 			}
 
@@ -3063,7 +3133,7 @@ static void handle_stat0_irqs(struct net2280 *dev, u32 stat)
 		}
 		ep->stopped = 0;
 		dev->protocol_stall = 0;
-		if (!(dev->quirks & PLX_SUPERSPEED)) {
+		if (!(dev->quirks & PLX_PCIE)) {
 			if (ep->dev->quirks & PLX_2280)
 				tmp = BIT(FIFO_OVERFLOW) |
 				    BIT(FIFO_UNDERFLOW);
@@ -3090,7 +3160,7 @@ static void handle_stat0_irqs(struct net2280 *dev, u32 stat)
 		cpu_to_le32s(&u.raw[0]);
 		cpu_to_le32s(&u.raw[1]);
 
-		if ((dev->quirks & PLX_SUPERSPEED) && !dev->bug7734_patched)
+		if ((dev->quirks & PLX_PCIE) && !dev->bug7734_patched)
 			defect7374_workaround(dev, u.r);
 
 		tmp = 0;
@@ -3173,7 +3243,7 @@ static void handle_stat0_irqs(struct net2280 *dev, u32 stat)
 			} else {
 				ep_vdbg(dev, "%s clear halt\n", e->ep.name);
 				clear_halt(e);
-				if ((ep->dev->quirks & PLX_SUPERSPEED) &&
+				if ((ep->dev->quirks & PLX_PCIE) &&
 					!list_empty(&e->queue) && e->td_dma)
 						restart_dma(e);
 			}
@@ -3195,7 +3265,7 @@ static void handle_stat0_irqs(struct net2280 *dev, u32 stat)
 			if (e->ep.name == ep0name)
 				goto do_stall;
 			set_halt(e);
-			if ((dev->quirks & PLX_SUPERSPEED) && e->dma)
+			if ((dev->quirks & PLX_PCIE) && e->dma)
 				abort_dma(e);
 			allow_status(ep);
 			ep_vdbg(dev, "%s set halt\n", ep->ep.name);
@@ -3234,7 +3304,7 @@ do_stall:
 #undef	w_length
 
 next_endpoints:
-	if ((dev->quirks & PLX_SUPERSPEED) && dev->enhanced_mode) {
+	if ((dev->quirks & PLX_PCIE) && dev->enhanced_mode) {
 		u32 mask = (BIT(ENDPOINT_0_INTERRUPT) |
 			USB3380_IRQSTAT0_EP_INTR_MASK_IN |
 			USB3380_IRQSTAT0_EP_INTR_MASK_OUT);
@@ -3275,8 +3345,6 @@ next_endpoints:
 		BIT(PCI_RETRY_ABORT_INTERRUPT))
 
 static void handle_stat1_irqs(struct net2280 *dev, u32 stat)
-__releases(dev->lock)
-__acquires(dev->lock)
 {
 	struct net2280_ep	*ep;
 	u32			tmp, num, mask, scratch;
@@ -3317,14 +3385,12 @@ __acquires(dev->lock)
 			if (disconnect || reset) {
 				stop_activity(dev, dev->driver);
 				ep0_start(dev);
-				spin_unlock(&dev->lock);
 				if (reset)
 					usb_gadget_udc_reset
 						(&dev->gadget, dev->driver);
 				else
 					(dev->driver->disconnect)
 						(&dev->gadget);
-				spin_lock(&dev->lock);
 				return;
 			}
 		}
@@ -3399,7 +3465,7 @@ __acquires(dev->lock)
 		writel(tmp, &dma->dmastat);
 
 		/* dma sync*/
-		if (dev->quirks & PLX_SUPERSPEED) {
+		if (dev->quirks & PLX_PCIE) {
 			u32 r_dmacount = readl(&dma->dmacount);
 			if (!ep->is_in &&  (r_dmacount & 0x00FFFFFF) &&
 			    (tmp & BIT(DMA_TRANSACTION_DONE_INTERRUPT)))
@@ -3468,7 +3534,7 @@ static irqreturn_t net2280_irq(int irq, void *_dev)
 	/* control requests and PIO */
 	handle_stat0_irqs(dev, readl(&dev->regs->irqstat0));
 
-	if (dev->quirks & PLX_SUPERSPEED) {
+	if (dev->quirks & PLX_PCIE) {
 		/* re-enable interrupt to trigger any possible new interrupt */
 		u32 pciirqenb1 = readl(&dev->regs->pciirqenb1);
 		writel(pciirqenb1 & 0x7FFFFFFF, &dev->regs->pciirqenb1);
@@ -3500,23 +3566,24 @@ static void net2280_remove(struct pci_dev *pdev)
 	BUG_ON(dev->driver);
 
 	/* then clean up the resources we allocated during probe() */
-	net2280_led_shutdown(dev);
 	if (dev->requests) {
 		int		i;
 		for (i = 1; i < 5; i++) {
 			if (!dev->ep[i].dummy)
 				continue;
-			pci_pool_free(dev->requests, dev->ep[i].dummy,
+			dma_pool_free(dev->requests, dev->ep[i].dummy,
 					dev->ep[i].td_dma);
 		}
-		pci_pool_destroy(dev->requests);
+		dma_pool_destroy(dev->requests);
 	}
 	if (dev->got_irq)
 		free_irq(pdev->irq, dev);
-	if (dev->quirks & PLX_SUPERSPEED)
+	if (dev->quirks & PLX_PCIE)
 		pci_disable_msi(pdev);
-	if (dev->regs)
+	if (dev->regs) {
+		net2280_led_shutdown(dev);
 		iounmap(dev->regs);
+	}
 	if (dev->region)
 		release_mem_region(pci_resource_start(pdev, 0),
 				pci_resource_len(pdev, 0));
@@ -3593,7 +3660,7 @@ static int net2280_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	dev->dep = (struct net2280_dep_regs __iomem *) (base + 0x0200);
 	dev->epregs = (struct net2280_ep_regs __iomem *) (base + 0x0300);
 
-	if (dev->quirks & PLX_SUPERSPEED) {
+	if (dev->quirks & PLX_PCIE) {
 		u32 fsmvalue;
 		u32 usbstat;
 		dev->usb_ext = (struct usb338x_usb_ext_regs __iomem *)
@@ -3637,7 +3704,7 @@ static int net2280_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto done;
 	}
 
-	if (dev->quirks & PLX_SUPERSPEED)
+	if (dev->quirks & PLX_PCIE)
 		if (pci_enable_msi(pdev))
 			ep_err(dev, "Failed to enable MSI mode\n");
 
@@ -3651,7 +3718,7 @@ static int net2280_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	/* DMA setup */
 	/* NOTE:  we know only the 32 LSBs of dma addresses may be nonzero */
-	dev->requests = pci_pool_create("requests", pdev,
+	dev->requests = dma_pool_create("requests", &pdev->dev,
 		sizeof(struct net2280_dma),
 		0 /* no alignment requirements */,
 		0 /* or page-crossing issues */);
@@ -3663,7 +3730,7 @@ static int net2280_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	for (i = 1; i < 5; i++) {
 		struct net2280_dma	*td;
 
-		td = pci_pool_alloc(dev->requests, GFP_KERNEL,
+		td = dma_pool_alloc(dev->requests, GFP_KERNEL,
 				&dev->ep[i].td_dma);
 		if (!td) {
 			ep_dbg(dev, "can't get dummy %d\n", i);
@@ -3735,7 +3802,7 @@ static void net2280_shutdown(struct pci_dev *pdev)
 /*-------------------------------------------------------------------------*/
 
 static const struct pci_device_id pci_ids[] = { {
-	.class =	((PCI_CLASS_SERIAL_USB << 8) | 0xfe),
+	.class =	PCI_CLASS_SERIAL_USB_DEVICE,
 	.class_mask =	~0,
 	.vendor =	PCI_VENDOR_ID_PLX_LEGACY,
 	.device =	0x2280,
@@ -3743,7 +3810,7 @@ static const struct pci_device_id pci_ids[] = { {
 	.subdevice =	PCI_ANY_ID,
 	.driver_data =	PLX_LEGACY | PLX_2280,
 	}, {
-	.class =	((PCI_CLASS_SERIAL_USB << 8) | 0xfe),
+	.class =	PCI_CLASS_SERIAL_USB_DEVICE,
 	.class_mask =	~0,
 	.vendor =	PCI_VENDOR_ID_PLX_LEGACY,
 	.device =	0x2282,
@@ -3752,22 +3819,31 @@ static const struct pci_device_id pci_ids[] = { {
 	.driver_data =	PLX_LEGACY,
 	},
 	{
+	.class =	PCI_CLASS_SERIAL_USB_DEVICE,
+	.class_mask =	~0,
+	.vendor =	PCI_VENDOR_ID_PLX,
+	.device =	0x2380,
+	.subvendor =	PCI_ANY_ID,
+	.subdevice =	PCI_ANY_ID,
+	.driver_data =	PLX_PCIE,
+	 },
+	{
 	.class =	((PCI_CLASS_SERIAL_USB << 8) | 0xfe),
 	.class_mask =	~0,
 	.vendor =	PCI_VENDOR_ID_PLX,
 	.device =	0x3380,
 	.subvendor =	PCI_ANY_ID,
 	.subdevice =	PCI_ANY_ID,
-	.driver_data =	PLX_SUPERSPEED,
+	.driver_data =	PLX_PCIE | PLX_SUPERSPEED,
 	 },
 	{
-	.class =	((PCI_CLASS_SERIAL_USB << 8) | 0xfe),
+	.class =	PCI_CLASS_SERIAL_USB_DEVICE,
 	.class_mask =	~0,
 	.vendor =	PCI_VENDOR_ID_PLX,
 	.device =	0x3382,
 	.subvendor =	PCI_ANY_ID,
 	.subdevice =	PCI_ANY_ID,
-	.driver_data =	PLX_SUPERSPEED,
+	.driver_data =	PLX_PCIE | PLX_SUPERSPEED,
 	 },
 { /* end: all zeroes */ }
 };

@@ -118,11 +118,20 @@ void v4l2_device_unregister(struct v4l2_device *v4l2_dev)
 		if (sd->flags & V4L2_SUBDEV_FL_IS_I2C) {
 			struct i2c_client *client = v4l2_get_subdevdata(sd);
 
-			/* We need to unregister the i2c client explicitly.
-			   We cannot rely on i2c_del_adapter to always
-			   unregister clients for us, since if the i2c bus
-			   is a platform bus, then it is never deleted. */
-			if (client)
+			/*
+			 * We need to unregister the i2c client
+			 * explicitly. We cannot rely on
+			 * i2c_del_adapter to always unregister
+			 * clients for us, since if the i2c bus is a
+			 * platform bus, then it is never deleted.
+			 *
+			 * Device tree or ACPI based devices must not
+			 * be unregistered as they have not been
+			 * registered by us, and would not be
+			 * re-created by just probing the V4L2 driver.
+			 */
+			if (client &&
+			    !client->dev.of_node && !client->dev.fwnode)
 				i2c_unregister_device(client);
 			continue;
 		}
@@ -131,7 +140,7 @@ void v4l2_device_unregister(struct v4l2_device *v4l2_dev)
 		if (sd->flags & V4L2_SUBDEV_FL_IS_SPI) {
 			struct spi_device *spi = v4l2_get_subdevdata(sd);
 
-			if (spi)
+			if (spi && !spi->dev.of_node && !spi->dev.fwnode)
 				spi_unregister_device(spi);
 			continue;
 		}
@@ -151,11 +160,8 @@ int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
 	int err;
 
 	/* Check for valid input */
-	if (v4l2_dev == NULL || sd == NULL || !sd->name[0])
+	if (!v4l2_dev || !sd || sd->v4l2_dev || !sd->name[0])
 		return -EINVAL;
-
-	/* Warn if we apparently re-register a subdev */
-	WARN_ON(sd->v4l2_dev != NULL);
 
 	/*
 	 * The reason to acquire the module here is to avoid unloading
@@ -171,25 +177,25 @@ int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
 		return -ENODEV;
 
 	sd->v4l2_dev = v4l2_dev;
-	if (sd->internal_ops && sd->internal_ops->registered) {
-		err = sd->internal_ops->registered(sd);
-		if (err)
-			goto error_module;
-	}
-
 	/* This just returns 0 if either of the two args is NULL */
 	err = v4l2_ctrl_add_handler(v4l2_dev->ctrl_handler, sd->ctrl_handler, NULL);
 	if (err)
-		goto error_unregister;
+		goto error_module;
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	/* Register the entity. */
 	if (v4l2_dev->mdev) {
 		err = media_device_register_entity(v4l2_dev->mdev, entity);
 		if (err < 0)
-			goto error_unregister;
+			goto error_module;
 	}
 #endif
+
+	if (sd->internal_ops && sd->internal_ops->registered) {
+		err = sd->internal_ops->registered(sd);
+		if (err)
+			goto error_unregister;
+	}
 
 	spin_lock(&v4l2_dev->lock);
 	list_add_tail(&sd->list, &v4l2_dev->subdevs);
@@ -198,8 +204,9 @@ int v4l2_device_register_subdev(struct v4l2_device *v4l2_dev,
 	return 0;
 
 error_unregister:
-	if (sd->internal_ops && sd->internal_ops->unregistered)
-		sd->internal_ops->unregistered(sd);
+#if defined(CONFIG_MEDIA_CONTROLLER)
+	media_device_unregister_entity(entity);
+#endif
 error_module:
 	if (!sd->owner_v4l2_dev)
 		module_put(sd->owner);
@@ -228,6 +235,9 @@ int v4l2_device_register_subdev_nodes(struct v4l2_device *v4l2_dev)
 		if (!(sd->flags & V4L2_SUBDEV_FL_HAS_DEVNODE))
 			continue;
 
+		if (sd->devnode)
+			continue;
+
 		vdev = kzalloc(sizeof(*vdev), GFP_KERNEL);
 		if (!vdev) {
 			err = -ENOMEM;
@@ -246,11 +256,24 @@ int v4l2_device_register_subdev_nodes(struct v4l2_device *v4l2_dev)
 			kfree(vdev);
 			goto clean_up;
 		}
+		sd->devnode = vdev;
 #if defined(CONFIG_MEDIA_CONTROLLER)
 		sd->entity.info.dev.major = VIDEO_MAJOR;
 		sd->entity.info.dev.minor = vdev->minor;
+
+		/* Interface is created by __video_register_device() */
+		if (vdev->v4l2_dev->mdev) {
+			struct media_link *link;
+
+			link = media_create_intf_link(&sd->entity,
+						      &vdev->intf_devnode->intf,
+						      MEDIA_LNK_FL_ENABLED);
+			if (!link) {
+				err = -ENOMEM;
+				goto clean_up;
+			}
+		}
 #endif
-		sd->devnode = vdev;
 	}
 	return 0;
 
@@ -285,7 +308,10 @@ void v4l2_device_unregister_subdev(struct v4l2_subdev *sd)
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	if (v4l2_dev->mdev) {
-		media_entity_remove_links(&sd->entity);
+		/*
+		 * No need to explicitly remove links, as both pads and
+		 * links are removed by the function below, in the right order
+		 */
 		media_device_unregister_entity(&sd->entity);
 	}
 #endif

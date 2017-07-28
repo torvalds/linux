@@ -28,8 +28,8 @@ index, like the ASL example below shows:
           ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
           Package ()
 	  {
-              Package () {"reset-gpio", Package() {^BTH, 1, 1, 0 }},
-              Package () {"shutdown-gpio", Package() {^BTH, 0, 0, 0 }},
+              Package () {"reset-gpios", Package() {^BTH, 1, 1, 0 }},
+              Package () {"shutdown-gpios", Package() {^BTH, 0, 0, 0 }},
           }
       })
   }
@@ -48,8 +48,70 @@ Since ACPI GpioIo() resource does not have a field saying whether it is
 active low or high, the "active_low" argument can be used here.  Setting
 it to 1 marks the GPIO as active low.
 
-In our Bluetooth example the "reset-gpio" refers to the second GpioIo()
+In our Bluetooth example the "reset-gpios" refers to the second GpioIo()
 resource, second pin in that resource with the GPIO number of 31.
+
+It is possible to leave holes in the array of GPIOs. This is useful in
+cases like with SPI host controllers where some chip selects may be
+implemented as GPIOs and some as native signals. For example a SPI host
+controller can have chip selects 0 and 2 implemented as GPIOs and 1 as
+native:
+
+  Package () {
+      "cs-gpios",
+      Package () {
+          ^GPIO, 19, 0, 0, // chip select 0: GPIO
+          0,               // chip select 1: native signal
+          ^GPIO, 20, 0, 0, // chip select 2: GPIO
+      }
+  }
+
+Other supported properties
+--------------------------
+
+Following Device Tree compatible device properties are also supported by
+_DSD device properties for GPIO controllers:
+
+- gpio-hog
+- output-high
+- output-low
+- input
+- line-name
+
+Example:
+
+  Name (_DSD, Package () {
+      // _DSD Hierarchical Properties Extension UUID
+      ToUUID("dbb8e3e6-5886-4ba6-8795-1319f52a966b"),
+      Package () {
+          Package () {"hog-gpio8", "G8PU"}
+      }
+  })
+
+  Name (G8PU, Package () {
+      ToUUID("daffd814-6eba-4d8c-8a91-bc9bbf4aa301"),
+      Package () {
+          Package () {"gpio-hog", 1},
+          Package () {"gpios", Package () {8, 0}},
+          Package () {"output-high", 1},
+          Package () {"line-name", "gpio8-pullup"},
+      }
+  })
+
+- gpio-line-names
+
+Example:
+
+  Package () {
+      "gpio-line-names",
+      Package () {
+          "SPI0_CS_N", "EXP2_INT", "MUX6_IO", "UART0_RXD", "MUX7_IO",
+          "LVL_C_A1", "MUX0_IO", "SPI1_MISO"
+      }
+  }
+
+See Documentation/devicetree/bindings/gpio/gpio.txt for more information
+about these properties.
 
 ACPI GPIO Mappings Provided by Drivers
 --------------------------------------
@@ -83,8 +145,8 @@ static const struct acpi_gpio_params reset_gpio = { 1, 1, false };
 static const struct acpi_gpio_params shutdown_gpio = { 0, 0, false };
 
 static const struct acpi_gpio_mapping bluetooth_acpi_gpios[] = {
-  { "reset-gpio", &reset_gpio, 1 },
-  { "shutdown-gpio", &shutdown_gpio, 1 },
+  { "reset-gpios", &reset_gpio, 1 },
+  { "shutdown-gpios", &shutdown_gpio, 1 },
   { },
 };
 
@@ -94,3 +156,68 @@ pointed to by its first argument.  That should be done in the driver's .probe()
 routine.  On removal, the driver should unregister its GPIO mapping table by
 calling acpi_dev_remove_driver_gpios() on the ACPI device object where that
 table was previously registered.
+
+Using the _CRS fallback
+-----------------------
+
+If a device does not have _DSD or the driver does not create ACPI GPIO
+mapping, the Linux GPIO framework refuses to return any GPIOs. This is
+because the driver does not know what it actually gets. For example if we
+have a device like below:
+
+  Device (BTH)
+  {
+      Name (_HID, ...)
+
+      Name (_CRS, ResourceTemplate () {
+          GpioIo (Exclusive, PullNone, 0, 0, IoRestrictionNone,
+                  "\\_SB.GPO0", 0, ResourceConsumer) {15}
+          GpioIo (Exclusive, PullNone, 0, 0, IoRestrictionNone,
+                  "\\_SB.GPO0", 0, ResourceConsumer) {27}
+      })
+  }
+
+The driver might expect to get the right GPIO when it does:
+
+  desc = gpiod_get(dev, "reset", GPIOD_OUT_LOW);
+
+but since there is no way to know the mapping between "reset" and
+the GpioIo() in _CRS desc will hold ERR_PTR(-ENOENT).
+
+The driver author can solve this by passing the mapping explictly
+(the recommended way and documented in the above chapter).
+
+The ACPI GPIO mapping tables should not contaminate drivers that are not
+knowing about which exact device they are servicing on. It implies that
+the ACPI GPIO mapping tables are hardly linked to ACPI ID and certain
+objects, as listed in the above chapter, of the device in question.
+
+Getting GPIO descriptor
+-----------------------
+
+There are two main approaches to get GPIO resource from ACPI:
+	desc = gpiod_get(dev, connection_id, flags);
+	desc = gpiod_get_index(dev, connection_id, index, flags);
+
+We may consider two different cases here, i.e. when connection ID is
+provided and otherwise.
+
+Case 1:
+	desc = gpiod_get(dev, "non-null-connection-id", flags);
+	desc = gpiod_get_index(dev, "non-null-connection-id", index, flags);
+
+Case 2:
+	desc = gpiod_get(dev, NULL, flags);
+	desc = gpiod_get_index(dev, NULL, index, flags);
+
+Case 1 assumes that corresponding ACPI device description must have
+defined device properties and will prevent to getting any GPIO resources
+otherwise.
+
+Case 2 explicitly tells GPIO core to look for resources in _CRS.
+
+Be aware that gpiod_get_index() in cases 1 and 2, assuming that there
+are two versions of ACPI device description provided and no mapping is
+present in the driver, will return different resources. That's why a
+certain driver has to handle them carefully as explained in previous
+chapter.

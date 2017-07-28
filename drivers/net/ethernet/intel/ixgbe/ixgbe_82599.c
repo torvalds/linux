@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2015 Intel Corporation.
+  Copyright(c) 1999 - 2016 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -331,8 +331,6 @@ static s32 ixgbe_init_phy_ops_82599(struct ixgbe_hw *hw)
 	case ixgbe_phy_tn:
 		phy->ops.check_link = &ixgbe_check_phy_link_tnx;
 		phy->ops.setup_link = &ixgbe_setup_phy_link_tnx;
-		phy->ops.get_firmware_version =
-			     &ixgbe_get_phy_firmware_version_tnx;
 		break;
 	default:
 		break;
@@ -990,13 +988,14 @@ mac_reset_top:
 	ctrl |= IXGBE_READ_REG(hw, IXGBE_CTRL);
 	IXGBE_WRITE_REG(hw, IXGBE_CTRL, ctrl);
 	IXGBE_WRITE_FLUSH(hw);
+	usleep_range(1000, 1200);
 
 	/* Poll for reset bit to self-clear indicating reset is complete */
 	for (i = 0; i < 10; i++) {
-		udelay(1);
 		ctrl = IXGBE_READ_REG(hw, IXGBE_CTRL);
 		if (!(ctrl & IXGBE_CTRL_RST_MASK))
 			break;
+		udelay(1);
 	}
 
 	if (ctrl & IXGBE_CTRL_RST_MASK) {
@@ -1082,11 +1081,15 @@ mac_reset_top:
 
 	/* Add the SAN MAC address to the RAR only if it's a valid address */
 	if (is_valid_ether_addr(hw->mac.san_addr)) {
-		hw->mac.ops.set_rar(hw, hw->mac.num_rar_entries - 1,
-				    hw->mac.san_addr, 0, IXGBE_RAH_AV);
-
 		/* Save the SAN MAC RAR index */
 		hw->mac.san_mac_rar_index = hw->mac.num_rar_entries - 1;
+
+		hw->mac.ops.set_rar(hw, hw->mac.san_mac_rar_index,
+				    hw->mac.san_addr, 0, IXGBE_RAH_AV);
+
+		/* clear VMDq pool/queue selection for this RAR */
+		hw->mac.ops.clear_vmdq(hw, hw->mac.san_mac_rar_index,
+				       IXGBE_CLEAR_VMDQ_ALL);
 
 		/* Reserve the last RAR for the SAN MAC address */
 		hw->mac.num_rar_entries--;
@@ -1291,17 +1294,17 @@ s32 ixgbe_init_fdir_perfect_82599(struct ixgbe_hw *hw, u32 fdirctrl)
 #define IXGBE_COMPUTE_SIG_HASH_ITERATION(_n) \
 do { \
 	u32 n = (_n); \
-	if (IXGBE_ATR_COMMON_HASH_KEY & (0x01 << n)) \
+	if (IXGBE_ATR_COMMON_HASH_KEY & BIT(n)) \
 		common_hash ^= lo_hash_dword >> n; \
-	else if (IXGBE_ATR_BUCKET_HASH_KEY & (0x01 << n)) \
+	else if (IXGBE_ATR_BUCKET_HASH_KEY & BIT(n)) \
 		bucket_hash ^= lo_hash_dword >> n; \
-	else if (IXGBE_ATR_SIGNATURE_HASH_KEY & (0x01 << n)) \
+	else if (IXGBE_ATR_SIGNATURE_HASH_KEY & BIT(n)) \
 		sig_hash ^= lo_hash_dword << (16 - n); \
-	if (IXGBE_ATR_COMMON_HASH_KEY & (0x01 << (n + 16))) \
+	if (IXGBE_ATR_COMMON_HASH_KEY & BIT(n + 16)) \
 		common_hash ^= hi_hash_dword >> n; \
-	else if (IXGBE_ATR_BUCKET_HASH_KEY & (0x01 << (n + 16))) \
+	else if (IXGBE_ATR_BUCKET_HASH_KEY & BIT(n + 16)) \
 		bucket_hash ^= hi_hash_dword >> n; \
-	else if (IXGBE_ATR_SIGNATURE_HASH_KEY & (0x01 << (n + 16))) \
+	else if (IXGBE_ATR_SIGNATURE_HASH_KEY & BIT(n + 16)) \
 		sig_hash ^= hi_hash_dword << (16 - n); \
 } while (0)
 
@@ -1435,9 +1438,9 @@ s32 ixgbe_fdir_add_signature_filter_82599(struct ixgbe_hw *hw,
 #define IXGBE_COMPUTE_BKT_HASH_ITERATION(_n) \
 do { \
 	u32 n = (_n); \
-	if (IXGBE_ATR_BUCKET_HASH_KEY & (0x01 << n)) \
+	if (IXGBE_ATR_BUCKET_HASH_KEY & BIT(n)) \
 		bucket_hash ^= lo_hash_dword >> n; \
-	if (IXGBE_ATR_BUCKET_HASH_KEY & (0x01 << (n + 16))) \
+	if (IXGBE_ATR_BUCKET_HASH_KEY & BIT(n + 16)) \
 		bucket_hash ^= hi_hash_dword >> n; \
 } while (0)
 
@@ -1446,7 +1449,7 @@ do { \
  *  @atr_input: input bitstream to compute the hash on
  *  @input_mask: mask for the input bitstream
  *
- *  This function serves two main purposes.  First it applys the input_mask
+ *  This function serves two main purposes.  First it applies the input_mask
  *  to the atr_input resulting in a cleaned up atr_input data stream.
  *  Secondly it computes the hash and stores it in the bkt_hash field at
  *  the end of the input byte stream.  This way it will be available for
@@ -1586,15 +1589,17 @@ s32 ixgbe_fdir_set_input_mask_82599(struct ixgbe_hw *hw,
 
 	switch (ntohs(input_mask->formatted.vlan_id) & 0xEFFF) {
 	case 0x0000:
-		/* mask VLAN ID, fall through to mask VLAN priority */
+		/* mask VLAN ID */
 		fdirm |= IXGBE_FDIRM_VLANID;
+		/* fall through */
 	case 0x0FFF:
 		/* mask VLAN priority */
 		fdirm |= IXGBE_FDIRM_VLANP;
 		break;
 	case 0xE000:
-		/* mask VLAN ID only, fall through */
+		/* mask VLAN ID only */
 		fdirm |= IXGBE_FDIRM_VLANID;
+		/* fall through */
 	case 0xEFFF:
 		/* no VLAN fields masked */
 		break;
@@ -1605,8 +1610,9 @@ s32 ixgbe_fdir_set_input_mask_82599(struct ixgbe_hw *hw,
 
 	switch (input_mask->formatted.flex_bytes & 0xFFFF) {
 	case 0x0000:
-		/* Mask Flex Bytes, fall through */
+		/* Mask Flex Bytes */
 		fdirm |= IXGBE_FDIRM_FLEX;
+		/* fall through */
 	case 0xFFFF:
 		break;
 	default:
@@ -1628,6 +1634,7 @@ s32 ixgbe_fdir_set_input_mask_82599(struct ixgbe_hw *hw,
 	switch (hw->mac.type) {
 	case ixgbe_mac_X550:
 	case ixgbe_mac_X550EM_x:
+	case ixgbe_mac_x550em_a:
 		IXGBE_WRITE_REG(hw, IXGBE_FDIRSCTPM, ~fdirtcpm);
 		break;
 	default:
@@ -1806,9 +1813,6 @@ static s32 ixgbe_start_hw_82599(struct ixgbe_hw *hw)
 
 	/* We need to run link autotry after the driver loads */
 	hw->mac.autotry_restart = true;
-
-	if (ret_val)
-		return ret_val;
 
 	return ixgbe_verify_fw_version_82599(hw);
 }
@@ -2176,7 +2180,7 @@ release_i2c_access:
 	return status;
 }
 
-static struct ixgbe_mac_operations mac_ops_82599 = {
+static const struct ixgbe_mac_operations mac_ops_82599 = {
 	.init_hw                = &ixgbe_init_hw_generic,
 	.reset_hw               = &ixgbe_reset_hw_82599,
 	.start_hw               = &ixgbe_start_hw_82599,
@@ -2201,6 +2205,7 @@ static struct ixgbe_mac_operations mac_ops_82599 = {
 	.get_link_capabilities  = &ixgbe_get_link_capabilities_82599,
 	.led_on                 = &ixgbe_led_on_generic,
 	.led_off                = &ixgbe_led_off_generic,
+	.init_led_link_act	= ixgbe_init_led_link_act_generic,
 	.blink_led_start        = &ixgbe_blink_led_start_generic,
 	.blink_led_stop         = &ixgbe_blink_led_stop_generic,
 	.set_rar                = &ixgbe_set_rar_generic,
@@ -2215,6 +2220,8 @@ static struct ixgbe_mac_operations mac_ops_82599 = {
 	.clear_vfta             = &ixgbe_clear_vfta_generic,
 	.set_vfta               = &ixgbe_set_vfta_generic,
 	.fc_enable              = &ixgbe_fc_enable_generic,
+	.setup_fc		= ixgbe_setup_fc_generic,
+	.fc_autoneg		= ixgbe_fc_autoneg,
 	.set_fw_drv_ver         = &ixgbe_set_fw_drv_ver_generic,
 	.init_uta_tables        = &ixgbe_init_uta_tables_generic,
 	.setup_sfp              = &ixgbe_setup_sfp_modules_82599,
@@ -2222,6 +2229,7 @@ static struct ixgbe_mac_operations mac_ops_82599 = {
 	.set_vlan_anti_spoofing = &ixgbe_set_vlan_anti_spoofing,
 	.acquire_swfw_sync      = &ixgbe_acquire_swfw_sync,
 	.release_swfw_sync      = &ixgbe_release_swfw_sync,
+	.init_swfw_sync		= NULL,
 	.get_thermal_sensor_data = &ixgbe_get_thermal_sensor_data_generic,
 	.init_thermal_sensor_thresh = &ixgbe_init_thermal_sensor_thresh_generic,
 	.prot_autoc_read	= &prot_autoc_read_82599,
@@ -2230,7 +2238,7 @@ static struct ixgbe_mac_operations mac_ops_82599 = {
 	.disable_rx		= &ixgbe_disable_rx_generic,
 };
 
-static struct ixgbe_eeprom_operations eeprom_ops_82599 = {
+static const struct ixgbe_eeprom_operations eeprom_ops_82599 = {
 	.init_params		= &ixgbe_init_eeprom_params_generic,
 	.read			= &ixgbe_read_eeprom_82599,
 	.read_buffer		= &ixgbe_read_eeprom_buffer_82599,
@@ -2241,7 +2249,7 @@ static struct ixgbe_eeprom_operations eeprom_ops_82599 = {
 	.update_checksum	= &ixgbe_update_eeprom_checksum_generic,
 };
 
-static struct ixgbe_phy_operations phy_ops_82599 = {
+static const struct ixgbe_phy_operations phy_ops_82599 = {
 	.identify		= &ixgbe_identify_phy_82599,
 	.identify_sfp		= &ixgbe_identify_module_generic,
 	.init			= &ixgbe_init_phy_ops_82599,
@@ -2258,7 +2266,7 @@ static struct ixgbe_phy_operations phy_ops_82599 = {
 	.check_overtemp		= &ixgbe_tn_check_overtemp,
 };
 
-struct ixgbe_info ixgbe_82599_info = {
+const struct ixgbe_info ixgbe_82599_info = {
 	.mac                    = ixgbe_mac_82599EB,
 	.get_invariants         = &ixgbe_get_invariants_82599,
 	.mac_ops                = &mac_ops_82599,

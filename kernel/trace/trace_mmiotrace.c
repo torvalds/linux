@@ -68,19 +68,15 @@ static void mmio_print_pcidev(struct trace_seq *s, const struct pci_dev *dev)
 	trace_seq_printf(s, "PCIDEV %02x%02x %04x%04x %x",
 			 dev->bus->number, dev->devfn,
 			 dev->vendor, dev->device, dev->irq);
-	/*
-	 * XXX: is pci_resource_to_user() appropriate, since we are
-	 * supposed to interpret the __ioremap() phys_addr argument based on
-	 * these printed values?
-	 */
 	for (i = 0; i < 7; i++) {
-		pci_resource_to_user(dev, i, &dev->resource[i], &start, &end);
+		start = dev->resource[i].start;
 		trace_seq_printf(s, " %llx",
 			(unsigned long long)(start |
 			(dev->resource[i].flags & PCI_REGION_FLAG_MASK)));
 	}
 	for (i = 0; i < 7; i++) {
-		pci_resource_to_user(dev, i, &dev->resource[i], &start, &end);
+		start = dev->resource[i].start;
+		end = dev->resource[i].end;
 		trace_seq_printf(s, " %llx",
 			dev->resource[i].start < dev->resource[i].end ?
 			(unsigned long long)(end - start) + 1 : 0);
@@ -146,7 +142,7 @@ static ssize_t mmio_read(struct trace_iterator *iter, struct file *filp,
 		/* XXX: This is later than where events were lost. */
 		trace_seq_printf(s, "MARK 0.000000 Lost %lu events.\n", n);
 		if (!overrun_detected)
-			pr_warning("mmiotrace has lost events.\n");
+			pr_warn("mmiotrace has lost events\n");
 		overrun_detected = true;
 		goto print_out;
 	}

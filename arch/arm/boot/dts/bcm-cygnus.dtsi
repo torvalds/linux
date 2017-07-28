@@ -91,18 +91,104 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		pinctrl: pinctrl@0x0301d0c8 {
+		otp: otp@0301c800 {
+			compatible = "brcm,ocotp";
+			reg = <0x0301c800 0x2c>;
+			brcm,ocotp-size = <2048>;
+			status = "disabled";
+		};
+
+		pcie_phy: phy@0301d0a0 {
+			compatible = "brcm,cygnus-pcie-phy";
+			reg = <0x0301d0a0 0x14>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			pcie0_phy: phy@0 {
+				reg = <0>;
+				#phy-cells = <0>;
+			};
+
+			pcie1_phy: phy@1 {
+				reg = <1>;
+				#phy-cells = <0>;
+			};
+		};
+
+		pinctrl: pinctrl@0301d0c8 {
 			compatible = "brcm,cygnus-pinmux";
 			reg = <0x0301d0c8 0x30>,
 			      <0x0301d24c 0x2c>;
+		};
+
+		mailbox: mailbox@03024024 {
+			compatible = "brcm,iproc-mailbox";
+			reg = <0x03024024 0x40>;
+			interrupts = <GIC_SPI 138 IRQ_TYPE_LEVEL_HIGH>;
+			#interrupt-cells = <1>;
+			interrupt-controller;
+			#mbox-cells = <1>;
 		};
 
 		gpio_crmu: gpio@03024800 {
 			compatible = "brcm,cygnus-crmu-gpio";
 			reg = <0x03024800 0x50>,
 			      <0x03024008 0x18>;
+			ngpios = <6>;
 			#gpio-cells = <2>;
 			gpio-controller;
+			interrupt-controller;
+			interrupt-parent = <&mailbox>;
+			interrupts = <0>;
+		};
+
+		mdio: mdio@18002000 {
+			compatible = "brcm,iproc-mdio";
+			reg = <0x18002000 0x8>;
+			#size-cells = <1>;
+			#address-cells = <0>;
+			status = "disabled";
+
+			gphy0: ethernet-phy@0 {
+				reg = <0>;
+			};
+
+			gphy1: ethernet-phy@1 {
+				reg = <1>;
+			};
+		};
+
+		switch: switch@18007000 {
+			compatible = "brcm,bcm11360-srab", "brcm,cygnus-srab";
+			reg = <0x18007000 0x1000>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				port@0 {
+					reg = <0>;
+					phy-handle = <&gphy0>;
+					phy-mode = "rgmii";
+				};
+
+				port@1 {
+					reg = <1>;
+					phy-handle = <&gphy1>;
+					phy-mode = "rgmii";
+				};
+
+				port@8 {
+					reg = <8>;
+					label = "cpu";
+					ethernet = <&eth0>;
+					fixed-link {
+						speed = <1000>;
+						full-duplex;
+					};
+				};
+			};
 		};
 
 		i2c0: i2c@18008000 {
@@ -127,6 +213,7 @@
 			compatible = "brcm,cygnus-ccm-gpio";
 			reg = <0x1800a000 0x50>,
 			      <0x0301d164 0x20>;
+			ngpios = <24>;
 			#gpio-cells = <2>;
 			gpio-controller;
 			interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
@@ -161,7 +248,21 @@
 			ranges = <0x81000000 0 0	  0x28000000 0 0x00010000
 				  0x82000000 0 0x20000000 0x20000000 0 0x04000000>;
 
+			phys = <&pcie0_phy>;
+			phy-names = "pcie-phy";
+
 			status = "disabled";
+
+			msi-parent = <&msi0>;
+			msi0: msi-controller {
+				compatible = "brcm,iproc-msi";
+				msi-controller;
+				interrupt-parent = <&gic>;
+				interrupts = <GIC_SPI 96 IRQ_TYPE_NONE>,
+					     <GIC_SPI 97 IRQ_TYPE_NONE>,
+					     <GIC_SPI 98 IRQ_TYPE_NONE>,
+					     <GIC_SPI 99 IRQ_TYPE_NONE>;
+			};
 		};
 
 		pcie1: pcie@18013000 {
@@ -182,7 +283,21 @@
 			ranges = <0x81000000 0 0	  0x48000000 0 0x00010000
 				  0x82000000 0 0x40000000 0x40000000 0 0x04000000>;
 
+			phys = <&pcie1_phy>;
+			phy-names = "pcie-phy";
+
 			status = "disabled";
+
+			msi-parent = <&msi1>;
+			msi1: msi-controller {
+				compatible = "brcm,iproc-msi";
+				msi-controller;
+				interrupt-parent = <&gic>;
+				interrupts = <GIC_SPI 102 IRQ_TYPE_NONE>,
+					     <GIC_SPI 103 IRQ_TYPE_NONE>,
+					     <GIC_SPI 104 IRQ_TYPE_NONE>,
+					     <GIC_SPI 105 IRQ_TYPE_NONE>;
+			};
 		};
 
 		uart0: serial@18020000 {
@@ -229,6 +344,15 @@
 			status = "disabled";
 		};
 
+		eth0: ethernet@18042000 {
+			compatible = "brcm,amac";
+			reg = <0x18042000 0x1000>,
+			      <0x18110000 0x1000>;
+			reg-names = "amac_base", "idm_base";
+			interrupts = <GIC_SPI 110 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
 		nand: nand@18046000 {
 			compatible = "brcm,nand-iproc", "brcm,brcmnand-v6.1";
 			reg = <0x18046000 0x600>, <0xf8105408 0x600>,
@@ -245,18 +369,99 @@
 		gpio_asiu: gpio@180a5000 {
 			compatible = "brcm,cygnus-asiu-gpio";
 			reg = <0x180a5000 0x668>;
+			ngpios = <146>;
 			#gpio-cells = <2>;
 			gpio-controller;
 
-			pinmux = <&pinctrl>;
-
 			interrupt-controller;
 			interrupts = <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
+			gpio-ranges = <&pinctrl 0 42 1>,
+					<&pinctrl 1 44 3>,
+					<&pinctrl 4 48 1>,
+					<&pinctrl 5 50 3>,
+					<&pinctrl 8 126 1>,
+					<&pinctrl 9 155 1>,
+					<&pinctrl 10 152 1>,
+					<&pinctrl 11 154 1>,
+					<&pinctrl 12 153 1>,
+					<&pinctrl 13 127 3>,
+					<&pinctrl 16 140 1>,
+					<&pinctrl 17 145 7>,
+					<&pinctrl 24 130 10>,
+					<&pinctrl 34 141 4>,
+					<&pinctrl 38 54 1>,
+					<&pinctrl 39 56 3>,
+					<&pinctrl 42 60 3>,
+					<&pinctrl 45 64 3>,
+					<&pinctrl 48 68 2>,
+					<&pinctrl 50 84 6>,
+					<&pinctrl 56 94 6>,
+					<&pinctrl 62 72 1>,
+					<&pinctrl 63 70 1>,
+					<&pinctrl 64 80 1>,
+					<&pinctrl 65 74 3>,
+					<&pinctrl 68 78 1>,
+					<&pinctrl 69 82 1>,
+					<&pinctrl 70 156 17>,
+					<&pinctrl 87 104 12>,
+					<&pinctrl 99 102 2>,
+					<&pinctrl 101 90 4>,
+					<&pinctrl 105 116 6>,
+					<&pinctrl 111 100 2>,
+					<&pinctrl 113 122 4>,
+					<&pinctrl 123 11 1>,
+					<&pinctrl 124 38 4>,
+					<&pinctrl 128 43 1>,
+					<&pinctrl 129 47 1>,
+					<&pinctrl 130 49 1>,
+					<&pinctrl 131 53 1>,
+					<&pinctrl 132 55 1>,
+					<&pinctrl 133 59 1>,
+					<&pinctrl 134 63 1>,
+					<&pinctrl 135 67 1>,
+					<&pinctrl 136 71 1>,
+					<&pinctrl 137 73 1>,
+					<&pinctrl 138 77 1>,
+					<&pinctrl 139 79 1>,
+					<&pinctrl 140 81 1>,
+					<&pinctrl 141 83 1>,
+					<&pinctrl 142 10 1>;
 		};
 
-		touchscreen: tsc@180a6000 {
+		ts_adc_syscon: ts_adc_syscon@180a6000 {
+			compatible = "brcm,iproc-ts-adc-syscon", "syscon";
+			reg = <0x180a6000 0xc30>;
+		};
+
+		touchscreen: touchscreen@180a6000 {
 			compatible = "brcm,iproc-touchscreen";
-			reg = <0x180a6000 0x40>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ts_syscon = <&ts_adc_syscon>;
+			clocks = <&asiu_clks BCM_CYGNUS_ASIU_ADC_CLK>;
+			clock-names = "tsc_clk";
+			interrupts = <GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
+		v3d: v3d@180a2000 {
+			compatible = "brcm,cygnus-v3d";
+			reg = <0x180a2000 0x1000>;
+			clocks = <&mipipll BCM_CYGNUS_MIPIPLL_CH2_V3D>;
+			clock-names = "v3d_clk";
+			interrupts = <GIC_SPI 182 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
+		vc4: gpu {
+			compatible = "brcm,cygnus-vc4";
+		};
+
+		adc: adc@180a6000 {
+			compatible = "brcm,iproc-static-adc";
+			#io-channel-cells = <1>;
+			io-channel-ranges;
+			adc-syscon = <&ts_adc_syscon>;
 			clocks = <&asiu_clks BCM_CYGNUS_ASIU_ADC_CLK>;
 			clock-names = "tsc_clk";
 			interrupts = <GIC_SPI 164 IRQ_TYPE_LEVEL_HIGH>;

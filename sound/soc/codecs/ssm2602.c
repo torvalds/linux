@@ -597,12 +597,14 @@ static struct snd_soc_codec_driver soc_codec_dev_ssm2602 = {
 	.set_bias_level = ssm2602_set_bias_level,
 	.suspend_bias_off = true,
 
-	.controls = ssm260x_snd_controls,
-	.num_controls = ARRAY_SIZE(ssm260x_snd_controls),
-	.dapm_widgets = ssm260x_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(ssm260x_dapm_widgets),
-	.dapm_routes = ssm260x_routes,
-	.num_dapm_routes = ARRAY_SIZE(ssm260x_routes),
+	.component_driver = {
+		.controls		= ssm260x_snd_controls,
+		.num_controls		= ARRAY_SIZE(ssm260x_snd_controls),
+		.dapm_widgets		= ssm260x_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(ssm260x_dapm_widgets),
+		.dapm_routes		= ssm260x_routes,
+		.num_dapm_routes	= ARRAY_SIZE(ssm260x_routes),
+	},
 };
 
 static bool ssm2602_register_volatile(struct device *dev, unsigned int reg)

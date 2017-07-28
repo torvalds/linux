@@ -6,6 +6,7 @@
  * warranty of any kind, whether express or implied.
  */
 
+#include <linux/acpi.h>
 #include <linux/completion.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
@@ -333,7 +334,7 @@ static u32 xlp9xx_i2c_functionality(struct i2c_adapter *adapter)
 		I2C_FUNC_10BIT_ADDR;
 }
 
-static struct i2c_algorithm xlp9xx_i2c_algo = {
+static const struct i2c_algorithm xlp9xx_i2c_algo = {
 	.master_xfer = xlp9xx_i2c_xfer,
 	.functionality = xlp9xx_i2c_functionality,
 };
@@ -341,11 +342,10 @@ static struct i2c_algorithm xlp9xx_i2c_algo = {
 static int xlp9xx_i2c_get_frequency(struct platform_device *pdev,
 				    struct xlp9xx_i2c_dev *priv)
 {
-	struct device_node *np = pdev->dev.of_node;
 	u32 freq;
 	int err;
 
-	err = of_property_read_u32(np, "clock-frequency", &freq);
+	err = device_property_read_u32(&pdev->dev, "clock-frequency", &freq);
 	if (err) {
 		freq = XLP9XX_I2C_DEFAULT_FREQ;
 		dev_dbg(&pdev->dev, "using default frequency %u\n", freq);
@@ -393,6 +393,8 @@ static int xlp9xx_i2c_probe(struct platform_device *pdev)
 	init_completion(&priv->msg_complete);
 	priv->adapter.dev.parent = &pdev->dev;
 	priv->adapter.algo = &xlp9xx_i2c_algo;
+	priv->adapter.class = I2C_CLASS_HWMON;
+	ACPI_COMPANION_SET(&priv->adapter.dev, ACPI_COMPANION(&pdev->dev));
 	priv->adapter.dev.of_node = pdev->dev.of_node;
 	priv->dev = &pdev->dev;
 
@@ -400,10 +402,8 @@ static int xlp9xx_i2c_probe(struct platform_device *pdev)
 	i2c_set_adapdata(&priv->adapter, priv);
 
 	err = i2c_add_adapter(&priv->adapter);
-	if (err) {
-		dev_err(&pdev->dev, "failed to add I2C adapter!\n");
+	if (err)
 		return err;
-	}
 
 	platform_set_drvdata(pdev, priv);
 	dev_dbg(&pdev->dev, "I2C bus:%d added\n", priv->adapter.nr);
@@ -428,6 +428,16 @@ static const struct of_device_id xlp9xx_i2c_of_match[] = {
 	{ .compatible = "netlogic,xlp980-i2c", },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, xlp9xx_i2c_of_match);
+
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id xlp9xx_i2c_acpi_ids[] = {
+	{"BRCM9007", 0},
+	{"CAV9007",  0},
+	{}
+};
+MODULE_DEVICE_TABLE(acpi, xlp9xx_i2c_acpi_ids);
+#endif
 
 static struct platform_driver xlp9xx_i2c_driver = {
 	.probe = xlp9xx_i2c_probe,
@@ -435,6 +445,7 @@ static struct platform_driver xlp9xx_i2c_driver = {
 	.driver = {
 		.name = "xlp9xx-i2c",
 		.of_match_table = xlp9xx_i2c_of_match,
+		.acpi_match_table = ACPI_PTR(xlp9xx_i2c_acpi_ids),
 	},
 };
 

@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2005-2010 Brocade Communications Systems, Inc.
+ * Copyright (c) 2005-2014 Brocade Communications Systems, Inc.
+ * Copyright (c) 2014- QLogic Corporation.
  * All rights reserved
- * www.brocade.com
+ * www.qlogic.com
  *
- * Linux driver for Brocade Fibre Channel Host Bus Adapter.
+ * Linux driver for QLogic BR-series Fibre Channel Host Bus Adapter.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License (GPL) Version 2 as
@@ -107,44 +108,11 @@ bfa_trc_stop(struct bfa_trc_mod_s *trcm)
 	trcm->stopped = 1;
 }
 
-static inline void
-__bfa_trc(struct bfa_trc_mod_s *trcm, int fileno, int line, u64 data)
-{
-	int		tail = trcm->tail;
-	struct bfa_trc_s	*trc = &trcm->trc[tail];
+void
+__bfa_trc(struct bfa_trc_mod_s *trcm, int fileno, int line, u64 data);
 
-	if (trcm->stopped)
-		return;
-
-	trc->fileno = (u16) fileno;
-	trc->line = (u16) line;
-	trc->data.u64 = data;
-	trc->timestamp = BFA_TRC_TS(trcm);
-
-	trcm->tail = (trcm->tail + 1) & (BFA_TRC_MAX - 1);
-	if (trcm->tail == trcm->head)
-		trcm->head = (trcm->head + 1) & (BFA_TRC_MAX - 1);
-}
-
-
-static inline void
-__bfa_trc32(struct bfa_trc_mod_s *trcm, int fileno, int line, u32 data)
-{
-	int		tail = trcm->tail;
-	struct bfa_trc_s *trc = &trcm->trc[tail];
-
-	if (trcm->stopped)
-		return;
-
-	trc->fileno = (u16) fileno;
-	trc->line = (u16) line;
-	trc->data.u32.u32 = data;
-	trc->timestamp = BFA_TRC_TS(trcm);
-
-	trcm->tail = (trcm->tail + 1) & (BFA_TRC_MAX - 1);
-	if (trcm->tail == trcm->head)
-		trcm->head = (trcm->head + 1) & (BFA_TRC_MAX - 1);
-}
+void
+__bfa_trc32(struct bfa_trc_mod_s *trcm, int fileno, int line, u32 data);
 
 #define bfa_sm_fault(__mod, __event)	do {				\
 	bfa_trc(__mod, (((u32)0xDEAD << 16) | __event));		\

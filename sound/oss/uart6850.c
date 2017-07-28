@@ -315,8 +315,8 @@ static struct address_info cfg_mpu;
 static int __initdata io = -1;
 static int __initdata irq = -1;
 
-module_param(io, int, 0);
-module_param(irq, int, 0);
+module_param_hw(io, int, ioport, 0);
+module_param_hw(irq, int, irq, 0);
 
 static int __init init_uart6850(void)
 {

@@ -52,6 +52,14 @@ config NIOS2_DTB_SOURCE
 
 comment "Nios II instructions"
 
+config NIOS2_ARCH_REVISION
+	int "Select Nios II architecture revision"
+	range 1 2
+	default 1
+	help
+	  Select between Nios II R1 and Nios II R2 . The architectures
+	  are binary incompatible. Default is R1 .
+
 config NIOS2_HW_MUL_SUPPORT
 	bool "Enable MUL instruction"
 	default n
@@ -72,6 +80,24 @@ config NIOS2_HW_DIV_SUPPORT
 	help
 	  Set to true if you configured the Nios II to include the DIV
 	  instruction.  Enables the -mhw-div compiler flag.
+
+config NIOS2_BMX_SUPPORT
+	bool "Enable BMX instructions"
+	depends on NIOS2_ARCH_REVISION = 2
+	default n
+	help
+	  Set to true if you configured the Nios II R2 to include
+	  the BMX Bit Manipulation Extension instructions. Enables
+	  the -mbmx compiler flag.
+
+config NIOS2_CDX_SUPPORT
+	bool "Enable CDX instructions"
+	depends on NIOS2_ARCH_REVISION = 2
+	default n
+	help
+	  Set to true if you configured the Nios II R2 to include
+	  the CDX Bit Manipulation Extension instructions. Enables
+	  the -mcdx compiler flag.
 
 config NIOS2_FPU_SUPPORT
 	bool "Custom floating point instr support"

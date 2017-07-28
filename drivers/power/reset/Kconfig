@@ -30,6 +30,14 @@ config POWER_RESET_AT91_RESET
 	  This driver supports restart for Atmel AT91SAM9 and SAMA5
 	  SoCs
 
+config POWER_RESET_AT91_SAMA5D2_SHDWC
+	tristate "Atmel AT91 SAMA5D2-Compatible shutdown controller driver"
+	depends on ARCH_AT91
+	default SOC_SAMA5
+	help
+	  This driver supports the alternate shutdown controller for some Atmel
+	  SAMA5 SoCs. It is present for example on SAMA5D2 SoC.
+
 config POWER_RESET_AXXIA
 	bool "LSI Axxia reset driver"
 	depends on ARCH_AXXIA
@@ -38,16 +46,35 @@ config POWER_RESET_AXXIA
 
 	  Say Y if you have an Axxia family SoC.
 
+config POWER_RESET_BRCMKONA
+	bool "Broadcom Kona reset driver"
+	depends on ARM || COMPILE_TEST
+	default ARCH_BCM_MOBILE
+	help
+	  This driver provides restart support for Broadcom Kona chips.
+
+	  Say Y here if you have a Broadcom Kona-based board and you wish
+	  to have restart support.
+
 config POWER_RESET_BRCMSTB
 	bool "Broadcom STB reset driver"
-	depends on ARM || MIPS || COMPILE_TEST
+	depends on ARM || ARM64 || MIPS || COMPILE_TEST
 	depends on MFD_SYSCON
-	default ARCH_BRCMSTB
+	default ARCH_BRCMSTB || BMIPS_GENERIC
 	help
 	  This driver provides restart support for Broadcom STB boards.
 
 	  Say Y here if you have a Broadcom STB board and you wish
 	  to have restart support.
+
+config POWER_RESET_GEMINI_POWEROFF
+	bool "Cortina Gemini power-off driver"
+	depends on ARCH_GEMINI || COMPILE_TEST
+	depends on OF && HAS_IOMEM
+	default ARCH_GEMINI
+	help
+	  This driver supports turning off the Cortina Gemini SoC.
+	  Select this if you're building a kernel with Gemini SoC support.
 
 config POWER_RESET_GPIO
 	bool "GPIO power-off driver"
@@ -85,6 +112,16 @@ config POWER_RESET_MSM
 	depends on ARCH_QCOM
 	help
 	  Power off and restart support for Qualcomm boards.
+
+config POWER_RESET_PIIX4_POWEROFF
+	tristate "Intel PIIX4 power-off driver"
+	depends on PCI
+	depends on MIPS || COMPILE_TEST
+	help
+	  This driver supports powering off a system using the Intel PIIX4
+	  southbridge, for example the MIPS Malta development board. The
+	  southbridge SOff state is entered in response to a request to
+	  power off the system.
 
 config POWER_RESET_LTC2952
 	bool "LTC2952 PowerPath power-off driver"
@@ -140,7 +177,8 @@ config POWER_RESET_XGENE
 
 config POWER_RESET_KEYSTONE
 	bool "Keystone reset driver"
-	depends on ARCH_KEYSTONE
+	depends on ARCH_KEYSTONE || COMPILE_TEST
+	depends on HAS_IOMEM
 	select MFD_SYSCON
 	help
 	  Reboot support for the KEYSTONE SoCs.
@@ -148,6 +186,7 @@ config POWER_RESET_KEYSTONE
 config POWER_RESET_SYSCON
 	bool "Generic SYSCON regmap reset driver"
 	depends on OF
+	depends on HAS_IOMEM
 	select MFD_SYSCON
 	help
 	  Reboot support for generic SYSCON mapped register reset.
@@ -155,6 +194,7 @@ config POWER_RESET_SYSCON
 config POWER_RESET_SYSCON_POWEROFF
 	bool "Generic SYSCON regmap poweroff driver"
 	depends on OF
+	depends on HAS_IOMEM
 	select MFD_SYSCON
 	help
 	  Poweroff support for generic SYSCON mapped register poweroff.
@@ -172,6 +212,20 @@ config POWER_RESET_ZX
 	depends on HAS_IOMEM
 	help
 	  Reboot support for ZTE SoCs.
+
+config REBOOT_MODE
+	tristate
+
+config SYSCON_REBOOT_MODE
+	tristate "Generic SYSCON regmap reboot mode driver"
+	depends on OF
+	depends on MFD_SYSCON
+	select REBOOT_MODE
+	help
+	  Say y here will enable reboot mode driver. This will
+	  get reboot mode arguments and store it in SYSCON mapped
+	  register, then the bootloader can read it to take different
+	  action according to the mode.
 
 endif
 

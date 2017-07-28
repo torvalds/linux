@@ -25,13 +25,13 @@ static int __init check_tmpfs(const char *dir)
 {
 	struct statfs st;
 
-	printf("Checking if %s is on tmpfs...", dir);
+	os_info("Checking if %s is on tmpfs...", dir);
 	if (statfs(dir, &st) < 0) {
-		printf("%s\n", strerror(errno));
+		os_info("%s\n", strerror(errno));
 	} else if (st.f_type != TMPFS_MAGIC) {
-		printf("no\n");
+		os_info("no\n");
 	} else {
-		printf("OK\n");
+		os_info("OK\n");
 		return 0;
 	}
 	return -1;
@@ -61,18 +61,18 @@ static char * __init choose_tempdir(void)
 	int i;
 	const char *dir;
 
-	printf("Checking environment variables for a tempdir...");
+	os_info("Checking environment variables for a tempdir...");
 	for (i = 0; vars[i]; i++) {
 		dir = getenv(vars[i]);
 		if ((dir != NULL) && (*dir != '\0')) {
-			printf("%s\n", dir);
+			os_info("%s\n", dir);
 			if (check_tmpfs(dir) >= 0)
 				goto done;
 			else
 				goto warn;
 		}
 	}
-	printf("none found\n");
+	os_info("none found\n");
 
 	for (i = 0; tmpfs_dirs[i]; i++) {
 		dir = tmpfs_dirs[i];
@@ -82,7 +82,7 @@ static char * __init choose_tempdir(void)
 
 	dir = fallback_dir;
 warn:
-	printf("Warning: tempdir %s is not on tmpfs\n", dir);
+	os_warn("Warning: tempdir %s is not on tmpfs\n", dir);
 done:
 	/* Make a copy since getenv results may not remain valid forever. */
 	return strdup(dir);
@@ -100,11 +100,22 @@ static int __init make_tempfile(const char *template)
 	if (tempdir == NULL) {
 		tempdir = choose_tempdir();
 		if (tempdir == NULL) {
-			fprintf(stderr, "Failed to choose tempdir: %s\n",
+			os_warn("Failed to choose tempdir: %s\n",
 				strerror(errno));
 			return -1;
 		}
 	}
+
+#ifdef O_TMPFILE
+	fd = open(tempdir, O_CLOEXEC | O_RDWR | O_EXCL | O_TMPFILE, 0700);
+	/*
+	 * If the running system does not support O_TMPFILE flag then retry
+	 * without it.
+	 */
+	if (fd != -1 || (errno != EINVAL && errno != EISDIR &&
+			errno != EOPNOTSUPP))
+		return fd;
+#endif
 
 	tempname = malloc(strlen(tempdir) + strlen(template) + 1);
 	if (tempname == NULL)
@@ -114,7 +125,7 @@ static int __init make_tempfile(const char *template)
 	strcat(tempname, template);
 	fd = mkstemp(tempname);
 	if (fd < 0) {
-		fprintf(stderr, "open - cannot create %s: %s\n", tempname,
+		os_warn("open - cannot create %s: %s\n", tempname,
 			strerror(errno));
 		goto out;
 	}
@@ -141,12 +152,6 @@ static int __init create_tmp_file(unsigned long long len)
 	fd = make_tempfile(TEMPNAME_TEMPLATE);
 	if (fd < 0)
 		exit(1);
-
-	err = fchmod(fd, 0777);
-	if (err < 0) {
-		perror("fchmod");
-		exit(1);
-	}
 
 	/*
 	 * Seek to len - 1 because writing a character there will
@@ -189,16 +194,16 @@ void __init check_tmpexec(void)
 
 	addr = mmap(NULL, UM_KERN_PAGE_SIZE,
 		    PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE, fd, 0);
-	printf("Checking PROT_EXEC mmap in %s...", tempdir);
+	os_info("Checking PROT_EXEC mmap in %s...", tempdir);
 	if (addr == MAP_FAILED) {
 		err = errno;
-		printf("%s\n", strerror(err));
+		os_warn("%s\n", strerror(err));
 		close(fd);
 		if (err == EPERM)
-			printf("%s must be not mounted noexec\n", tempdir);
+			os_warn("%s must be not mounted noexec\n", tempdir);
 		exit(1);
 	}
-	printf("OK\n");
+	os_info("OK\n");
 	munmap(addr, UM_KERN_PAGE_SIZE);
 
 	close(fd);

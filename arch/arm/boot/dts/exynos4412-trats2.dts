@@ -14,6 +14,7 @@
 
 /dts-v1/;
 #include "exynos4412.dtsi"
+#include "exynos4412-ppmu-common.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/clock/maxim,max77686.h>
@@ -29,7 +30,8 @@
 		i2c12 = &i2c_max77693_fuel;
 	};
 
-	memory {
+	memory@40000000 {
+		device_type = "memory";
 		reg =  <0x40000000 0x40000000>;
 	};
 
@@ -119,7 +121,7 @@
 			linux,code = <116>;
 			label = "power";
 			debounce-interval = <10>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 
 		key-ok {
@@ -127,7 +129,7 @@
 			linux,code = <139>;
 			label = "ok";
 			debounce-inteval = <10>;
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 
@@ -142,17 +144,17 @@
 		max77693@66 {
 			compatible = "maxim,max77693";
 			interrupt-parent = <&gpx1>;
-			interrupts = <5 2>;
+			interrupts = <5 IRQ_TYPE_EDGE_FALLING>;
 			reg = <0x66>;
 
 			regulators {
-				esafeout1_reg: ESAFEOUT1@1 {
+				esafeout1_reg: ESAFEOUT1 {
 					regulator-name = "ESAFEOUT1";
 				};
-				esafeout2_reg: ESAFEOUT2@2 {
+				esafeout2_reg: ESAFEOUT2 {
 					regulator-name = "ESAFEOUT2";
 				};
-				charger_reg: CHARGER@0 {
+				charger_reg: CHARGER {
 					regulator-name = "CHARGER";
 					regulator-min-microamp = <60000>;
 					regulator-max-microamp = <2580000>;
@@ -222,7 +224,7 @@
 			compatible = "capella,cm36651";
 			reg = <0x18>;
 			interrupt-parent = <&gpx0>;
-			interrupts = <2 2>;
+			interrupts = <2 IRQ_TYPE_EDGE_FALLING>;
 			vled-supply = <&ps_als_reg>;
 		};
 	};
@@ -251,16 +253,16 @@
 			"SPK", "SPKOUTRP";
 	};
 
-	thermistor-ap@0 {
-		compatible = "ntc,ncp15wb473";
+	thermistor-ap {
+		compatible = "murata,ncp15wb473";
 		pullup-uv = <1800000>;	 /* VCC_1.8V_AP */
 		pullup-ohm = <100000>;	 /* 100K */
 		pulldown-ohm = <100000>; /* 100K */
 		io-channels = <&adc 1>;  /* AP temperature */
 	};
 
-	thermistor-battery@1 {
-		compatible = "ntc,ncp15wb473";
+	thermistor-battery {
+		compatible = "murata,ncp15wb473";
 		pullup-uv = <1800000>;	 /* VCC_1.8V_AP */
 		pullup-ohm = <100000>;	 /* 100K */
 		pulldown-ohm = <100000>; /* 100K */
@@ -285,6 +287,53 @@
 
 &adc {
 	vdd-supply = <&ldo3_reg>;
+	status = "okay";
+};
+
+&bus_dmc {
+	devfreq-events = <&ppmu_dmc0_3>, <&ppmu_dmc1_3>;
+	vdd-supply = <&buck1_reg>;
+	status = "okay";
+};
+
+&bus_acp {
+	devfreq = <&bus_dmc>;
+	status = "okay";
+};
+
+&bus_c2c {
+	devfreq = <&bus_dmc>;
+	status = "okay";
+};
+
+&bus_leftbus {
+	devfreq-events = <&ppmu_leftbus_3>, <&ppmu_rightbus_3>;
+	vdd-supply = <&buck3_reg>;
+	status = "okay";
+};
+
+&bus_rightbus {
+	devfreq = <&bus_leftbus>;
+	status = "okay";
+};
+
+&bus_display {
+	devfreq = <&bus_leftbus>;
+	status = "okay";
+};
+
+&bus_fsys {
+	devfreq = <&bus_leftbus>;
+	status = "okay";
+};
+
+&bus_peri {
+	devfreq = <&bus_leftbus>;
+	status = "okay";
+};
+
+&bus_mfc {
+	devfreq = <&bus_leftbus>;
 	status = "okay";
 };
 
@@ -336,6 +385,8 @@
 &dsi_0 {
 	vddcore-supply = <&ldo8_reg>;
 	vddio-supply = <&ldo10_reg>;
+	samsung,burst-clock-frequency = <500000000>;
+	samsung,esc-clock-frequency = <20000000>;
 	samsung,pll-clock-frequency = <24000000>;
 	status = "okay";
 
@@ -522,7 +573,7 @@
 		compatible = "melfas,mms114";
 		reg = <0x48>;
 		interrupt-parent = <&gpm2>;
-		interrupts = <3 2>;
+		interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
 		x-size = <720>;
 		y-size = <1280>;
 		avdd-supply = <&ldo23_reg>;
@@ -560,7 +611,7 @@
 	max77686: max77686_pmic@09 {
 		compatible = "maxim,max77686";
 		interrupt-parent = <&gpx0>;
-		interrupts = <7 0>;
+		interrupts = <7 IRQ_TYPE_NONE>;
 		reg = <0x09>;
 		#clock-cells = <1>;
 
@@ -869,46 +920,6 @@
 &pmu_system_controller {
 	assigned-clocks = <&pmu_system_controller 0>;
 	assigned-clock-parents =  <&clock CLK_XUSBXTI>;
-};
-
-&ppmu_dmc0 {
-	status = "okay";
-
-	events {
-		ppmu_dmc0_3: ppmu-event3-dmc0 {
-			event-name = "ppmu-event3-dmc0";
-		};
-	};
-};
-
-&ppmu_dmc1 {
-	status = "okay";
-
-	events {
-		ppmu_dmc1_3: ppmu-event3-dmc1 {
-			event-name = "ppmu-event3-dmc1";
-		};
-	};
-};
-
-&ppmu_leftbus {
-	status = "okay";
-
-	events {
-		ppmu_leftbus_3: ppmu-event3-leftbus {
-			event-name = "ppmu-event3-leftbus";
-		};
-	};
-};
-
-&ppmu_rightbus {
-	status = "okay";
-
-	events {
-		ppmu_rightbus_3: ppmu-event3-rightbus {
-			event-name = "ppmu-event3-rightbus";
-		};
-	};
 };
 
 &pinctrl_0 {
@@ -1272,7 +1283,7 @@
 	cs-gpios = <&gpb 5 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 
-	s5c73m3_spi: s5c73m3 {
+	s5c73m3_spi: s5c73m3@0 {
 		compatible = "samsung,s5c73m3";
 		spi-max-frequency = <50000000>;
 		reg = <0>;

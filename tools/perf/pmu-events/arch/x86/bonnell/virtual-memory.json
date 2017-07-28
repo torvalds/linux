@@ -1,0 +1,124 @@
+[
+    {
+        "EventCode": "0x8",
+        "Counter": "0,1",
+        "UMask": "0x7",
+        "EventName": "DATA_TLB_MISSES.DTLB_MISS",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Memory accesses that missed the DTLB."
+    },
+    {
+        "EventCode": "0x8",
+        "Counter": "0,1",
+        "UMask": "0x5",
+        "EventName": "DATA_TLB_MISSES.DTLB_MISS_LD",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "DTLB misses due to load operations."
+    },
+    {
+        "EventCode": "0x8",
+        "Counter": "0,1",
+        "UMask": "0x9",
+        "EventName": "DATA_TLB_MISSES.L0_DTLB_MISS_LD",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "L0 DTLB misses due to load operations."
+    },
+    {
+        "EventCode": "0x8",
+        "Counter": "0,1",
+        "UMask": "0x6",
+        "EventName": "DATA_TLB_MISSES.DTLB_MISS_ST",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "DTLB misses due to store operations."
+    },
+    {
+        "EventCode": "0x8",
+        "Counter": "0,1",
+        "UMask": "0xa",
+        "EventName": "DATA_TLB_MISSES.L0_DTLB_MISS_ST",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "L0 DTLB misses due to store operations"
+    },
+    {
+        "EventCode": "0xC",
+        "Counter": "0,1",
+        "UMask": "0x3",
+        "EventName": "PAGE_WALKS.WALKS",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Number of page-walks executed."
+    },
+    {
+        "EventCode": "0xC",
+        "Counter": "0,1",
+        "UMask": "0x3",
+        "EventName": "PAGE_WALKS.CYCLES",
+        "SampleAfterValue": "2000000",
+        "BriefDescription": "Duration of page-walks in core cycles"
+    },
+    {
+        "EventCode": "0xC",
+        "Counter": "0,1",
+        "UMask": "0x1",
+        "EventName": "PAGE_WALKS.D_SIDE_WALKS",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Number of D-side only page walks"
+    },
+    {
+        "EventCode": "0xC",
+        "Counter": "0,1",
+        "UMask": "0x1",
+        "EventName": "PAGE_WALKS.D_SIDE_CYCLES",
+        "SampleAfterValue": "2000000",
+        "BriefDescription": "Duration of D-side only page walks"
+    },
+    {
+        "EventCode": "0xC",
+        "Counter": "0,1",
+        "UMask": "0x2",
+        "EventName": "PAGE_WALKS.I_SIDE_WALKS",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Number of I-Side page walks"
+    },
+    {
+        "EventCode": "0xC",
+        "Counter": "0,1",
+        "UMask": "0x2",
+        "EventName": "PAGE_WALKS.I_SIDE_CYCLES",
+        "SampleAfterValue": "2000000",
+        "BriefDescription": "Duration of I-Side page walks"
+    },
+    {
+        "EventCode": "0x82",
+        "Counter": "0,1",
+        "UMask": "0x1",
+        "EventName": "ITLB.HIT",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "ITLB hits."
+    },
+    {
+        "EventCode": "0x82",
+        "Counter": "0,1",
+        "UMask": "0x4",
+        "EventName": "ITLB.FLUSH",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "ITLB flushes."
+    },
+    {
+        "PEBS": "2",
+        "EventCode": "0x82",
+        "Counter": "0,1",
+        "UMask": "0x2",
+        "EventName": "ITLB.MISSES",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "ITLB misses."
+    },
+    {
+        "PEBS": "1",
+        "EventCode": "0xCB",
+        "Counter": "0,1",
+        "UMask": "0x4",
+        "EventName": "MEM_LOAD_RETIRED.DTLB_MISS",
+        "SampleAfterValue": "200000",
+        "BriefDescription": "Retired loads that miss the DTLB (precise event)."
+    }
+]

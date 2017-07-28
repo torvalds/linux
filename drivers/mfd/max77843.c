@@ -15,7 +15,7 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/max77693-common.h>
 #include <linux/mfd/max77843-private.h>
@@ -171,19 +171,6 @@ err_pmic_id:
 	return ret;
 }
 
-static int max77843_remove(struct i2c_client *i2c)
-{
-	struct max77693_dev *max77843 = i2c_get_clientdata(i2c);
-
-	mfd_remove_devices(max77843->dev);
-
-	regmap_del_irq_chip(max77843->irq, max77843->irq_data_topsys);
-
-	i2c_unregister_device(max77843->i2c_chg);
-
-	return 0;
-}
-
 static const struct of_device_id max77843_dt_match[] = {
 	{ .compatible = "maxim,max77843", },
 	{ },
@@ -193,11 +180,10 @@ static const struct i2c_device_id max77843_id[] = {
 	{ "max77843", TYPE_MAX77843, },
 	{ },
 };
-MODULE_DEVICE_TABLE(i2c, max77843_id);
 
 static int __maybe_unused max77843_suspend(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct max77693_dev *max77843 = i2c_get_clientdata(i2c);
 
 	disable_irq(max77843->irq);
@@ -209,7 +195,7 @@ static int __maybe_unused max77843_suspend(struct device *dev)
 
 static int __maybe_unused max77843_resume(struct device *dev)
 {
-	struct i2c_client *i2c = container_of(dev, struct i2c_client, dev);
+	struct i2c_client *i2c = to_i2c_client(dev);
 	struct max77693_dev *max77843 = i2c_get_clientdata(i2c);
 
 	if (device_may_wakeup(dev))
@@ -226,9 +212,9 @@ static struct i2c_driver max77843_i2c_driver = {
 		.name = "max77843",
 		.pm = &max77843_pm,
 		.of_match_table = max77843_dt_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe = max77843_probe,
-	.remove = max77843_remove,
 	.id_table = max77843_id,
 };
 
@@ -237,9 +223,3 @@ static int __init max77843_i2c_init(void)
 	return i2c_add_driver(&max77843_i2c_driver);
 }
 subsys_initcall(max77843_i2c_init);
-
-static void __exit max77843_i2c_exit(void)
-{
-	i2c_del_driver(&max77843_i2c_driver);
-}
-module_exit(max77843_i2c_exit);

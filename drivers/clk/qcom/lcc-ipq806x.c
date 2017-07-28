@@ -443,7 +443,7 @@ static int lcc_ipq806x_probe(struct platform_device *pdev)
 		return PTR_ERR(regmap);
 
 	/* Configure the rate of PLL4 if the bootloader hasn't already */
-	val = regmap_read(regmap, 0x0, &val);
+	regmap_read(regmap, 0x0, &val);
 	if (!val)
 		clk_pll_configure_sr(&pll4, regmap, &pll4_config, true);
 	/* Enable PLL4 source on the LPASS Primary PLL Mux */

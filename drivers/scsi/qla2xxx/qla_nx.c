@@ -42,6 +42,11 @@ static int qla82xx_crb_table_initialized;
 	(crb_addr_xform[QLA82XX_HW_PX_MAP_CRB_##name] = \
 	QLA82XX_HW_CRB_HUB_AGT_ADR_##name << 20)
 
+const int MD_MIU_TEST_AGT_RDDATA[] = {
+	0x410000A8, 0x410000AC,
+	0x410000B8, 0x410000BC
+};
+
 static void qla82xx_crb_addr_transform_setup(void)
 {
 	qla82xx_crb_addr_transform(XDMA);
@@ -777,7 +782,7 @@ qla82xx_pci_mem_write_direct(struct qla_hw_data *ha,
 		(qla82xx_pci_is_same_window(ha, off + size - 1) == 0)) {
 		write_unlock_irqrestore(&ha->hw_lock, flags);
 		ql_log(ql_log_fatal, vha, 0xb009,
-		    "%s out of bount memory "
+		    "%s out of bound memory "
 		    "access, offset is 0x%llx.\n",
 		    QLA2XXX_DRIVER_NAME, off);
 		return -1;
@@ -1229,7 +1234,7 @@ qla82xx_pinit_from_rom(scsi_qla_host_t *vha)
 	if (buf == NULL) {
 		ql_log(ql_log_fatal, vha, 0x010c,
 		    "Unable to allocate memory.\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	for (i = 0; i < n; i++) {
@@ -4245,7 +4250,7 @@ qla82xx_md_collect(scsi_qla_host_t *vha)
 
 		ql_dbg(ql_dbg_p3p, vha, 0xb040,
 		    "[%s]: data ptr[%d]: %p, entry_hdr: %p\n"
-		    "entry_type: 0x%x, captrue_mask: 0x%x\n",
+		    "entry_type: 0x%x, capture_mask: 0x%x\n",
 		    __func__, i, data_ptr, entry_hdr,
 		    entry_hdr->entry_type,
 		    entry_hdr->d_ctrl.entry_capture_mask);

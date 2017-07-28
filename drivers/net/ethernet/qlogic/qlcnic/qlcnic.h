@@ -37,8 +37,8 @@
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 3
-#define _QLCNIC_LINUX_SUBVERSION 63
-#define QLCNIC_LINUX_VERSIONID  "5.3.63"
+#define _QLCNIC_LINUX_SUBVERSION 66
+#define QLCNIC_LINUX_VERSIONID  "5.3.66"
 #define QLCNIC_DRV_IDC_VER  0x01
 #define QLCNIC_DRIVER_VERSION  ((_QLCNIC_LINUX_MAJOR << 16) |\
 		 (_QLCNIC_LINUX_MINOR << 8) | (_QLCNIC_LINUX_SUBVERSION))
@@ -566,6 +566,7 @@ struct qlcnic_adapter_stats {
 	u64  tx_dma_map_error;
 	u64  spurious_intr;
 	u64  mac_filter_limit_overrun;
+	u64  mbx_spurious_intr;
 };
 
 /*
@@ -1025,10 +1026,8 @@ struct qlcnic_ipaddr {
 #define QLCNIC_HAS_PHYS_PORT_ID		0x40000
 #define QLCNIC_TSS_RSS			0x80000
 
-#ifdef CONFIG_QLCNIC_VXLAN
 #define QLCNIC_ADD_VXLAN_PORT		0x100000
 #define QLCNIC_DEL_VXLAN_PORT		0x200000
-#endif
 
 #define QLCNIC_VLAN_FILTERING		0x800000
 
@@ -1099,7 +1098,7 @@ struct qlcnic_mailbox {
 	unsigned long		status;
 	spinlock_t		queue_lock;	/* Mailbox queue lock */
 	spinlock_t		aen_lock;	/* Mailbox response/AEN lock */
-	atomic_t		rsp_status;
+	u32			rsp_status;
 	u32			num_cmds;
 };
 
@@ -1825,20 +1824,42 @@ struct qlcnic_hardware_ops {
 	u32 (*get_cap_size)(void *, int);
 	void (*set_sys_info)(void *, int, u32);
 	void (*store_cap_mask)(void *, u32);
+	bool (*encap_rx_offload) (struct qlcnic_adapter *adapter);
+	bool (*encap_tx_offload) (struct qlcnic_adapter *adapter);
 };
 
 extern struct qlcnic_nic_template qlcnic_vf_ops;
 
-static inline bool qlcnic_encap_tx_offload(struct qlcnic_adapter *adapter)
+static inline bool qlcnic_83xx_encap_tx_offload(struct qlcnic_adapter *adapter)
 {
 	return adapter->ahw->extra_capability[0] &
 	       QLCNIC_83XX_FW_CAPAB_ENCAP_TX_OFFLOAD;
 }
 
-static inline bool qlcnic_encap_rx_offload(struct qlcnic_adapter *adapter)
+static inline bool qlcnic_83xx_encap_rx_offload(struct qlcnic_adapter *adapter)
 {
 	return adapter->ahw->extra_capability[0] &
 	       QLCNIC_83XX_FW_CAPAB_ENCAP_RX_OFFLOAD;
+}
+
+static inline bool qlcnic_82xx_encap_tx_offload(struct qlcnic_adapter *adapter)
+{
+	return false;
+}
+
+static inline bool qlcnic_82xx_encap_rx_offload(struct qlcnic_adapter *adapter)
+{
+        return false;
+}
+
+static inline bool qlcnic_encap_rx_offload(struct qlcnic_adapter *adapter)
+{
+        return adapter->ahw->hw_ops->encap_rx_offload(adapter);
+}
+
+static inline bool qlcnic_encap_tx_offload(struct qlcnic_adapter *adapter)
+{
+        return adapter->ahw->hw_ops->encap_tx_offload(adapter);
 }
 
 static inline int qlcnic_start_firmware(struct qlcnic_adapter *adapter)

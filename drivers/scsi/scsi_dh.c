@@ -36,9 +36,9 @@ struct scsi_dh_blist {
 };
 
 static const struct scsi_dh_blist scsi_dh_blist[] = {
-	{"DGC", "RAID",			"clariion" },
-	{"DGC", "DISK",			"clariion" },
-	{"DGC", "VRAID",		"clariion" },
+	{"DGC", "RAID",			"emc" },
+	{"DGC", "DISK",			"emc" },
+	{"DGC", "VRAID",		"emc" },
 
 	{"COMPAQ", "MSA1000 VOLUME",	"hp_sw" },
 	{"COMPAQ", "HSV110",		"hp_sw" },
@@ -153,76 +153,11 @@ static void scsi_dh_handler_detach(struct scsi_device *sdev)
 	module_put(sdev->handler->module);
 }
 
-/*
- * Functions for sysfs attribute 'dh_state'
- */
-static ssize_t
-store_dh_state(struct device *dev, struct device_attribute *attr,
-	       const char *buf, size_t count)
-{
-	struct scsi_device *sdev = to_scsi_device(dev);
-	struct scsi_device_handler *scsi_dh;
-	int err = -EINVAL;
-
-	if (sdev->sdev_state == SDEV_CANCEL ||
-	    sdev->sdev_state == SDEV_DEL)
-		return -ENODEV;
-
-	if (!sdev->handler) {
-		/*
-		 * Attach to a device handler
-		 */
-		scsi_dh = scsi_dh_lookup(buf);
-		if (!scsi_dh)
-			return err;
-		err = scsi_dh_handler_attach(sdev, scsi_dh);
-	} else {
-		if (!strncmp(buf, "detach", 6)) {
-			/*
-			 * Detach from a device handler
-			 */
-			sdev_printk(KERN_WARNING, sdev,
-				    "can't detach handler %s.\n",
-				    sdev->handler->name);
-			err = -EINVAL;
-		} else if (!strncmp(buf, "activate", 8)) {
-			/*
-			 * Activate a device handler
-			 */
-			if (sdev->handler->activate)
-				err = sdev->handler->activate(sdev, NULL, NULL);
-			else
-				err = 0;
-		}
-	}
-
-	return err<0?err:count;
-}
-
-static ssize_t
-show_dh_state(struct device *dev, struct device_attribute *attr, char *buf)
-{
-	struct scsi_device *sdev = to_scsi_device(dev);
-
-	if (!sdev->handler)
-		return snprintf(buf, 20, "detached\n");
-
-	return snprintf(buf, 20, "%s\n", sdev->handler->name);
-}
-
-static struct device_attribute scsi_dh_state_attr =
-	__ATTR(dh_state, S_IRUGO | S_IWUSR, show_dh_state,
-	       store_dh_state);
-
 int scsi_dh_add_device(struct scsi_device *sdev)
 {
 	struct scsi_device_handler *devinfo = NULL;
 	const char *drv;
-	int err;
-
-	err = device_create_file(&sdev->sdev_gendev, &scsi_dh_state_attr);
-	if (err)
-		return err;
+	int err = 0;
 
 	drv = scsi_dh_find_driver(sdev);
 	if (drv)
@@ -236,11 +171,6 @@ void scsi_dh_release_device(struct scsi_device *sdev)
 {
 	if (sdev->handler)
 		scsi_dh_handler_detach(sdev);
-}
-
-void scsi_dh_remove_device(struct scsi_device *sdev)
-{
-	device_remove_file(&sdev->sdev_gendev, &scsi_dh_state_attr);
 }
 
 /*
@@ -289,20 +219,6 @@ int scsi_unregister_device_handler(struct scsi_device_handler *scsi_dh)
 }
 EXPORT_SYMBOL_GPL(scsi_unregister_device_handler);
 
-static struct scsi_device *get_sdev_from_queue(struct request_queue *q)
-{
-	struct scsi_device *sdev;
-	unsigned long flags;
-
-	spin_lock_irqsave(q->queue_lock, flags);
-	sdev = q->queuedata;
-	if (!sdev || !get_device(&sdev->sdev_gendev))
-		sdev = NULL;
-	spin_unlock_irqrestore(q->queue_lock, flags);
-
-	return sdev;
-}
-
 /*
  * scsi_dh_activate - activate the path associated with the scsi_device
  *      corresponding to the given request queue.
@@ -321,7 +237,7 @@ int scsi_dh_activate(struct request_queue *q, activate_complete fn, void *data)
 	struct scsi_device *sdev;
 	int err = SCSI_DH_NOSYS;
 
-	sdev = get_sdev_from_queue(q);
+	sdev = scsi_device_from_queue(q);
 	if (!sdev) {
 		if (fn)
 			fn(data, err);
@@ -368,7 +284,7 @@ int scsi_dh_set_params(struct request_queue *q, const char *params)
 	struct scsi_device *sdev;
 	int err = -SCSI_DH_NOSYS;
 
-	sdev = get_sdev_from_queue(q);
+	sdev = scsi_device_from_queue(q);
 	if (!sdev)
 		return err;
 
@@ -391,7 +307,7 @@ int scsi_dh_attach(struct request_queue *q, const char *name)
 	struct scsi_device_handler *scsi_dh;
 	int err = 0;
 
-	sdev = get_sdev_from_queue(q);
+	sdev = scsi_device_from_queue(q);
 	if (!sdev)
 		return -ENODEV;
 
@@ -429,7 +345,7 @@ const char *scsi_dh_attached_handler_name(struct request_queue *q, gfp_t gfp)
 	struct scsi_device *sdev;
 	const char *handler_name = NULL;
 
-	sdev = get_sdev_from_queue(q);
+	sdev = scsi_device_from_queue(q);
 	if (!sdev)
 		return NULL;
 

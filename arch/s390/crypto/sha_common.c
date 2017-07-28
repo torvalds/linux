@@ -15,15 +15,14 @@
 
 #include <crypto/internal/hash.h>
 #include <linux/module.h>
+#include <asm/cpacf.h>
 #include "sha.h"
-#include "crypt_s390.h"
 
 int s390_sha_update(struct shash_desc *desc, const u8 *data, unsigned int len)
 {
 	struct s390_sha_ctx *ctx = shash_desc_ctx(desc);
 	unsigned int bsize = crypto_shash_blocksize(desc->tfm);
-	unsigned int index;
-	int ret;
+	unsigned int index, n;
 
 	/* how much is already in the buffer? */
 	index = ctx->count & (bsize - 1);
@@ -35,9 +34,7 @@ int s390_sha_update(struct shash_desc *desc, const u8 *data, unsigned int len)
 	/* process one stored block */
 	if (index) {
 		memcpy(ctx->buf + index, data, bsize - index);
-		ret = crypt_s390_kimd(ctx->func, ctx->state, ctx->buf, bsize);
-		if (ret != bsize)
-			return -EIO;
+		cpacf_kimd(ctx->func, ctx->state, ctx->buf, bsize);
 		data += bsize - index;
 		len -= bsize - index;
 		index = 0;
@@ -45,12 +42,10 @@ int s390_sha_update(struct shash_desc *desc, const u8 *data, unsigned int len)
 
 	/* process as many blocks as possible */
 	if (len >= bsize) {
-		ret = crypt_s390_kimd(ctx->func, ctx->state, data,
-				      len & ~(bsize - 1));
-		if (ret != (len & ~(bsize - 1)))
-			return -EIO;
-		data += ret;
-		len -= ret;
+		n = len & ~(bsize - 1);
+		cpacf_kimd(ctx->func, ctx->state, data, n);
+		data += n;
+		len -= n;
 	}
 store:
 	if (len)
@@ -66,7 +61,6 @@ int s390_sha_final(struct shash_desc *desc, u8 *out)
 	unsigned int bsize = crypto_shash_blocksize(desc->tfm);
 	u64 bits;
 	unsigned int index, end, plen;
-	int ret;
 
 	/* SHA-512 uses 128 bit padding length */
 	plen = (bsize > SHA256_BLOCK_SIZE) ? 16 : 8;
@@ -88,10 +82,7 @@ int s390_sha_final(struct shash_desc *desc, u8 *out)
 	 */
 	bits = ctx->count * 8;
 	memcpy(ctx->buf + end - 8, &bits, sizeof(bits));
-
-	ret = crypt_s390_kimd(ctx->func, ctx->state, ctx->buf, end);
-	if (ret != end)
-		return -EIO;
+	cpacf_kimd(ctx->func, ctx->state, ctx->buf, end);
 
 	/* copy digest to out */
 	memcpy(out, ctx->state, crypto_shash_digestsize(desc->tfm));

@@ -215,12 +215,13 @@ static ssize_t set_in(struct device *dev, struct device_attribute *devattr,
 	if (err < 0)
 		return err;
 
-	val = DIV_ROUND_CLOSEST(val * 0xC0, nominal_mv[nr]);
+	val = clamp_val(val, 0, 255 * nominal_mv[nr] / 192);
+	val = DIV_ROUND_CLOSEST(val * 192, nominal_mv[nr]);
 	reg = (sf == min) ? EMC6W201_REG_IN_LOW(nr)
 			  : EMC6W201_REG_IN_HIGH(nr);
 
 	mutex_lock(&data->update_lock);
-	data->in[sf][nr] = clamp_val(val, 0, 255);
+	data->in[sf][nr] = val;
 	err = emc6w201_write8(client, reg, data->in[sf][nr]);
 	mutex_unlock(&data->update_lock);
 
@@ -252,12 +253,13 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *devattr,
 	if (err < 0)
 		return err;
 
+	val = clamp_val(val, -127000, 127000);
 	val = DIV_ROUND_CLOSEST(val, 1000);
 	reg = (sf == min) ? EMC6W201_REG_TEMP_LOW(nr)
 			  : EMC6W201_REG_TEMP_HIGH(nr);
 
 	mutex_lock(&data->update_lock);
-	data->temp[sf][nr] = clamp_val(val, -127, 127);
+	data->temp[sf][nr] = val;
 	err = emc6w201_write8(client, reg, data->temp[sf][nr]);
 	mutex_unlock(&data->update_lock);
 
@@ -464,7 +466,7 @@ static int emc6w201_detect(struct i2c_client *client,
 	if (verstep < 0 || (verstep & 0xF0) != 0xB0)
 		return -ENODEV;
 	if ((verstep & 0x0F) > 2) {
-		dev_dbg(&client->dev, "Unknwown EMC6W201 stepping %d\n",
+		dev_dbg(&client->dev, "Unknown EMC6W201 stepping %d\n",
 			verstep & 0x0F);
 		return -ENODEV;
 	}

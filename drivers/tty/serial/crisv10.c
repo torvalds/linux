@@ -12,7 +12,7 @@ static char *serial_version = "$Revision: 1.25 $";
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/signal.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/timer.h>
 #include <linux/interrupt.h>
 #include <linux/tty.h>
@@ -28,7 +28,6 @@ static char *serial_version = "$Revision: 1.25 $";
 #include <linux/bitops.h>
 #include <linux/seq_file.h>
 #include <linux/delay.h>
-#include <linux/module.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
 
@@ -1413,9 +1412,8 @@ rs_stop(struct tty_struct *tty)
 		xoff = IO_FIELD(R_SERIAL0_XOFF, xoff_char,
 				STOP_CHAR(info->port.tty));
 		xoff |= IO_STATE(R_SERIAL0_XOFF, tx_stop, stop);
-		if (tty->termios.c_iflag & IXON ) {
+		if (I_IXON(tty))
 			xoff |= IO_STATE(R_SERIAL0_XOFF, auto_xoff, enable);
-		}
 
 		*((unsigned long *)&info->ioport[REG_XOFF]) = xoff;
 		local_irq_restore(flags);
@@ -1436,9 +1434,8 @@ rs_start(struct tty_struct *tty)
 					 info->xmit.tail,SERIAL_XMIT_SIZE)));
 		xoff = IO_FIELD(R_SERIAL0_XOFF, xoff_char, STOP_CHAR(tty));
 		xoff |= IO_STATE(R_SERIAL0_XOFF, tx_stop, enable);
-		if (tty->termios.c_iflag & IXON ) {
+		if (I_IXON(tty))
 			xoff |= IO_STATE(R_SERIAL0_XOFF, auto_xoff, enable);
-		}
 
 		*((unsigned long *)&info->ioport[REG_XOFF]) = xoff;
 		if (!info->uses_dma_out &&
@@ -2601,7 +2598,7 @@ startup(struct e100_serial * info)
 
 	/* if it was already initialized, skip this */
 
-	if (info->port.flags & ASYNC_INITIALIZED) {
+	if (tty_port_initialized(&info->port)) {
 		local_irq_restore(flags);
 		free_page(xmit_page);
 		return 0;
@@ -2705,7 +2702,7 @@ startup(struct e100_serial * info)
 	e100_rts(info, 1);
 	e100_dtr(info, 1);
 
-	info->port.flags |= ASYNC_INITIALIZED;
+	tty_port_set_initialized(&info->port, 1);
 
 	local_irq_restore(flags);
 	return 0;
@@ -2747,7 +2744,7 @@ shutdown(struct e100_serial * info)
 		info->tr_running = 0;
 	}
 
-	if (!(info->port.flags & ASYNC_INITIALIZED))
+	if (!tty_port_initialized(&info->port))
 		return;
 
 #ifdef SERIAL_DEBUG_OPEN
@@ -2778,7 +2775,7 @@ shutdown(struct e100_serial * info)
 	if (info->port.tty)
 		set_bit(TTY_IO_ERROR, &info->port.tty->flags);
 
-	info->port.flags &= ~ASYNC_INITIALIZED;
+	tty_port_set_initialized(&info->port, 0);
 	local_irq_restore(flags);
 }
 
@@ -2968,7 +2965,7 @@ static int rs_raw_write(struct tty_struct *tty,
 
 	local_save_flags(flags);
 	DFLOW(DEBUG_LOG(info->line, "write count %i ", count));
-	DFLOW(DEBUG_LOG(info->line, "ldisc %i\n", tty->ldisc.chars_in_buffer(tty)));
+	DFLOW(DEBUG_LOG(info->line, "ldisc\n"));
 
 
 	/* The local_irq_disable/restore_flags pairs below are needed
@@ -3161,13 +3158,12 @@ rs_throttle(struct tty_struct * tty)
 {
 	struct e100_serial *info = (struct e100_serial *)tty->driver_data;
 #ifdef SERIAL_DEBUG_THROTTLE
-	printk("throttle %s: %lu....\n", tty_name(tty),
-	       (unsigned long)tty->ldisc.chars_in_buffer(tty));
+	printk("throttle %s ....\n", tty_name(tty));
 #endif
-	DFLOW(DEBUG_LOG(info->line,"rs_throttle %lu\n", tty->ldisc.chars_in_buffer(tty)));
+	DFLOW(DEBUG_LOG(info->line,"rs_throttle\n"));
 
 	/* Do RTS before XOFF since XOFF might take some time */
-	if (tty->termios.c_cflag & CRTSCTS) {
+	if (C_CRTSCTS(tty)) {
 		/* Turn off RTS line */
 		e100_rts(info, 0);
 	}
@@ -3181,13 +3177,12 @@ rs_unthrottle(struct tty_struct * tty)
 {
 	struct e100_serial *info = (struct e100_serial *)tty->driver_data;
 #ifdef SERIAL_DEBUG_THROTTLE
-	printk("unthrottle %s: %lu....\n", tty_name(tty),
-	       (unsigned long)tty->ldisc.chars_in_buffer(tty));
+	printk("unthrottle %s ....\n", tty_name(tty));
 #endif
-	DFLOW(DEBUG_LOG(info->line,"rs_unthrottle ldisc %d\n", tty->ldisc.chars_in_buffer(tty)));
+	DFLOW(DEBUG_LOG(info->line,"rs_unthrottle ldisc\n"));
 	DFLOW(DEBUG_LOG(info->line,"rs_unthrottle flip.count: %i\n", tty->flip.count));
 	/* Do RTS before XOFF since XOFF might take some time */
-	if (tty->termios.c_cflag & CRTSCTS) {
+	if (C_CRTSCTS(tty)) {
 		/* Assert RTS line  */
 		e100_rts(info, 1);
 	}
@@ -3218,8 +3213,6 @@ get_serial_info(struct e100_serial * info,
 	 * should set them to something else than 0.
 	 */
 
-	if (!retinfo)
-		return -EFAULT;
 	memset(&tmp, 0, sizeof(tmp));
 	tmp.type = info->type;
 	tmp.line = info->line;
@@ -3277,9 +3270,9 @@ set_serial_info(struct e100_serial *info,
 	info->port.low_latency = (info->port.flags & ASYNC_LOW_LATENCY) ? 1 : 0;
 
  check_and_exit:
-	if (info->port.flags & ASYNC_INITIALIZED) {
+	if (tty_port_initialized(&info->port))
 		change_speed(info);
-	} else
+	else
 		retval = startup(info);
 	return retval;
 }
@@ -3449,7 +3442,7 @@ rs_ioctl(struct tty_struct *tty,
 	if ((cmd != TIOCGSERIAL) && (cmd != TIOCSSERIAL) &&
 	    (cmd != TIOCSERCONFIG) && (cmd != TIOCSERGWILD)  &&
 	    (cmd != TIOCSERSWILD) && (cmd != TIOCSERGSTRUCT)) {
-		if (tty->flags & (1 << TTY_IO_ERROR))
+		if (tty_io_error(tty))
 			return -EIO;
 	}
 
@@ -3555,8 +3548,7 @@ rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	change_speed(info);
 
 	/* Handle turning off CRTSCTS */
-	if ((old_termios->c_cflag & CRTSCTS) &&
-	    !(tty->termios.c_cflag & CRTSCTS))
+	if ((old_termios->c_cflag & CRTSCTS) && !C_CRTSCTS(tty))
 		rs_start(tty);
 
 }
@@ -3615,7 +3607,6 @@ rs_close(struct tty_struct *tty, struct file * filp)
 		local_irq_restore(flags);
 		return;
 	}
-	info->port.flags |= ASYNC_CLOSING;
 	/*
 	 * Now we wait for the transmit buffer to clear; and we notify
 	 * the line discipline to only process XON/XOFF characters.
@@ -3634,7 +3625,7 @@ rs_close(struct tty_struct *tty, struct file * filp)
 	e100_disable_rx(info);
 	e100_disable_rx_irq(info);
 
-	if (info->port.flags & ASYNC_INITIALIZED) {
+	if (tty_port_initialized(&info->port)) {
 		/*
 		 * Before we drop DTR, make sure the UART transmitter
 		 * has completely drained; this is especially
@@ -3654,8 +3645,8 @@ rs_close(struct tty_struct *tty, struct file * filp)
 			schedule_timeout_interruptible(info->port.close_delay);
 		wake_up_interruptible(&info->port.open_wait);
 	}
-	info->port.flags &= ~(ASYNC_NORMAL_ACTIVE|ASYNC_CLOSING);
 	local_irq_restore(flags);
+	tty_port_set_active(&info->port, 0);
 
 	/* port closed */
 
@@ -3738,7 +3729,7 @@ rs_hangup(struct tty_struct *tty)
 	shutdown(info);
 	info->event = 0;
 	info->port.count = 0;
-	info->port.flags &= ~ASYNC_NORMAL_ACTIVE;
+	tty_port_set_active(&info->port, 0);
 	info->port.tty = NULL;
 	wake_up_interruptible(&info->port.open_wait);
 }
@@ -3761,15 +3752,13 @@ block_til_ready(struct tty_struct *tty, struct file * filp,
 	 * If non-blocking mode is set, or the port is not enabled,
 	 * then make the check up front and then exit.
 	 */
-	if ((filp->f_flags & O_NONBLOCK) ||
-	    (tty->flags & (1 << TTY_IO_ERROR))) {
-		info->port.flags |= ASYNC_NORMAL_ACTIVE;
+	if ((filp->f_flags & O_NONBLOCK) || tty_io_error(tty)) {
+		tty_port_set_active(&info->port, 1);
 		return 0;
 	}
 
-	if (tty->termios.c_cflag & CLOCAL) {
-			do_clocal = 1;
-	}
+	if (C_CLOCAL(tty))
+		do_clocal = 1;
 
 	/*
 	 * Block waiting for the carrier detect and the line to become
@@ -3795,8 +3784,7 @@ block_til_ready(struct tty_struct *tty, struct file * filp,
 		e100_dtr(info, 1);
 		local_irq_restore(flags);
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (tty_hung_up_p(filp) ||
-		    !(info->port.flags & ASYNC_INITIALIZED)) {
+		if (tty_hung_up_p(filp) || !tty_port_initialized(&info->port)) {
 #ifdef SERIAL_DO_RESTART
 			if (info->port.flags & ASYNC_HUP_NOTIFY)
 				retval = -EAGAIN;
@@ -3833,7 +3821,7 @@ block_til_ready(struct tty_struct *tty, struct file * filp,
 #endif
 	if (retval)
 		return retval;
-	info->port.flags |= ASYNC_NORMAL_ACTIVE;
+	tty_port_set_active(&info->port, 1);
 	return 0;
 }
 
@@ -4107,7 +4095,7 @@ static void show_serial_version(void)
 	       &serial_version[11]); /* "$Revision: x.yy" */
 }
 
-/* rs_init inits the driver at boot (using the module_init chain) */
+/* rs_init inits the driver at boot (using the initcall chain) */
 
 static const struct tty_operations rs_ops = {
 	.open = rs_open,
@@ -4256,5 +4244,4 @@ static int __init rs_init(void)
 }
 
 /* this makes sure that rs_init is called during kernel boot */
-
-module_init(rs_init);
+device_initcall(rs_init);

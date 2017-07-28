@@ -15,7 +15,7 @@
  * FIXME: Accessing the desc_struct through its fields is more elegant,
  * and should be the one valid thing to do. However, a lot of open code
  * still touches the a and b accessors, and doing this allow us to do it
- * incrementally. We keep the signature as a struct, rather than an union,
+ * incrementally. We keep the signature as a struct, rather than a union,
  * so we can get rid of it transparently in the future -- glommer
  */
 /* 8 byte segment descriptor */
@@ -97,5 +97,28 @@ struct desc_ptr {
 } __attribute__((packed)) ;
 
 #endif /* !__ASSEMBLY__ */
+
+/* Access rights as returned by LAR */
+#define AR_TYPE_RODATA		(0 * (1 << 9))
+#define AR_TYPE_RWDATA		(1 * (1 << 9))
+#define AR_TYPE_RODATA_EXPDOWN	(2 * (1 << 9))
+#define AR_TYPE_RWDATA_EXPDOWN	(3 * (1 << 9))
+#define AR_TYPE_XOCODE		(4 * (1 << 9))
+#define AR_TYPE_XRCODE		(5 * (1 << 9))
+#define AR_TYPE_XOCODE_CONF	(6 * (1 << 9))
+#define AR_TYPE_XRCODE_CONF	(7 * (1 << 9))
+#define AR_TYPE_MASK		(7 * (1 << 9))
+
+#define AR_DPL0			(0 * (1 << 13))
+#define AR_DPL3			(3 * (1 << 13))
+#define AR_DPL_MASK		(3 * (1 << 13))
+
+#define AR_A			(1 << 8)   /* "Accessed" */
+#define AR_S			(1 << 12)  /* If clear, "System" segment */
+#define AR_P			(1 << 15)  /* "Present" */
+#define AR_AVL			(1 << 20)  /* "AVaiLable" (no HW effect) */
+#define AR_L			(1 << 21)  /* "Long mode" for code segments */
+#define AR_DB			(1 << 22)  /* D/B, effect depends on type */
+#define AR_G			(1 << 23)  /* "Granularity" (limit in pages) */
 
 #endif /* _ASM_X86_DESC_DEFS_H */

@@ -28,7 +28,6 @@
 #include <linux/shm.h>
 #include <linux/uio.h>
 #include <linux/quota.h>
-#include <linux/module.h>
 #include <linux/poll.h>
 #include <linux/personality.h>
 #include <linux/stat.h>
@@ -51,7 +50,7 @@
 #include <linux/slab.h>
 
 #include <asm/types.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <net/scm.h>
 #include <net/sock.h>
@@ -189,7 +188,7 @@ static int groups16_to_user(u16 __user *grouplist, struct group_info *group_info
 	kgid_t kgid;
 
 	for (i = 0; i < group_info->ngroups; i++) {
-		kgid = GROUP_AT(group_info, i);
+		kgid = group_info->gid[i];
 		group = (u16)from_kgid_munged(user_ns, kgid);
 		if (put_user(group, grouplist+i))
 			return -EFAULT;
@@ -213,7 +212,7 @@ static int groups16_from_user(struct group_info *group_info, u16 __user *groupli
 		if (!gid_valid(kgid))
 			return -EINVAL;
 
-		GROUP_AT(group_info, i) = kgid;
+		group_info->gid[i] = kgid;
 	}
 
 	return 0;

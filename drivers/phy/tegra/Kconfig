@@ -1,0 +1,8 @@
+config PHY_TEGRA_XUSB
+	tristate "NVIDIA Tegra XUSB pad controller driver"
+	depends on ARCH_TEGRA
+	help
+	  Choose this option if you have an NVIDIA Tegra SoC.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called phy-tegra-xusb.

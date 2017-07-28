@@ -9,7 +9,7 @@
  * as published by the Free Software Foundation.
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
@@ -50,6 +50,56 @@ static struct page **vdso64_pagelist;
  */
 unsigned int __read_mostly vdso_enabled = 1;
 
+static int vdso_fault(const struct vm_special_mapping *sm,
+		      struct vm_area_struct *vma, struct vm_fault *vmf)
+{
+	struct page **vdso_pagelist;
+	unsigned long vdso_pages;
+
+	vdso_pagelist = vdso64_pagelist;
+	vdso_pages = vdso64_pages;
+#ifdef CONFIG_COMPAT
+	if (is_compat_task()) {
+		vdso_pagelist = vdso32_pagelist;
+		vdso_pages = vdso32_pages;
+	}
+#endif
+
+	if (vmf->pgoff >= vdso_pages)
+		return VM_FAULT_SIGBUS;
+
+	vmf->page = vdso_pagelist[vmf->pgoff];
+	get_page(vmf->page);
+	return 0;
+}
+
+static int vdso_mremap(const struct vm_special_mapping *sm,
+		       struct vm_area_struct *vma)
+{
+	unsigned long vdso_pages;
+
+	vdso_pages = vdso64_pages;
+#ifdef CONFIG_COMPAT
+	if (is_compat_task())
+		vdso_pages = vdso32_pages;
+#endif
+
+	if ((vdso_pages << PAGE_SHIFT) != vma->vm_end - vma->vm_start)
+		return -EINVAL;
+
+	if (WARN_ON_ONCE(current->mm != vma->vm_mm))
+		return -EFAULT;
+
+	current->mm->context.vdso_base = vma->vm_start;
+	return 0;
+}
+
+static const struct vm_special_mapping vdso_mapping = {
+	.name = "[vdso]",
+	.fault = vdso_fault,
+	.mremap = vdso_mremap,
+};
+
 static int __init vdso_setup(char *s)
 {
 	unsigned long val;
@@ -80,7 +130,7 @@ struct vdso_data *vdso_data = &vdso_data_store.data;
 /*
  * Setup vdso data page.
  */
-static void vdso_init_data(struct vdso_data *vd)
+static void __init vdso_init_data(struct vdso_data *vd)
 {
 	vd->ectg_available = test_facility(31);
 }
@@ -90,9 +140,10 @@ static void vdso_init_data(struct vdso_data *vd)
  */
 #define SEGMENT_ORDER	2
 
-int vdso_alloc_per_cpu(struct _lowcore *lowcore)
+int vdso_alloc_per_cpu(struct lowcore *lowcore)
 {
 	unsigned long segment_table, page_table, page_frame;
+	struct vdso_per_cpu_data *vd;
 	u32 *psal, *aste;
 	int i;
 
@@ -107,6 +158,12 @@ int vdso_alloc_per_cpu(struct _lowcore *lowcore)
 	if (!segment_table || !page_table || !page_frame)
 		goto out;
 
+	/* Initialize per-cpu vdso data page */
+	vd = (struct vdso_per_cpu_data *) page_frame;
+	vd->cpu_nr = lowcore->cpu_nr;
+	vd->node_id = cpu_to_node(vd->cpu_nr);
+
+	/* Set up access register mode page table */
 	clear_table((unsigned long *) segment_table, _SEGMENT_ENTRY_EMPTY,
 		    PAGE_SIZE << SEGMENT_ORDER);
 	clear_table((unsigned long *) page_table, _PAGE_INVALID,
@@ -138,7 +195,7 @@ out:
 	return -ENOMEM;
 }
 
-void vdso_free_per_cpu(struct _lowcore *lowcore)
+void vdso_free_per_cpu(struct lowcore *lowcore)
 {
 	unsigned long segment_table, page_table, page_frame;
 	u32 *psal, *aste;
@@ -163,7 +220,7 @@ static void vdso_init_cr5(void)
 
 	if (!vdso_enabled)
 		return;
-	cr5 = offsetof(struct _lowcore, paste);
+	cr5 = offsetof(struct lowcore, paste);
 	__ctl_load(cr5, 5, 5);
 }
 
@@ -174,7 +231,7 @@ static void vdso_init_cr5(void)
 int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 {
 	struct mm_struct *mm = current->mm;
-	struct page **vdso_pagelist;
+	struct vm_area_struct *vma;
 	unsigned long vdso_pages;
 	unsigned long vdso_base;
 	int rc;
@@ -187,13 +244,10 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	if (!uses_interp)
 		return 0;
 
-	vdso_pagelist = vdso64_pagelist;
 	vdso_pages = vdso64_pages;
 #ifdef CONFIG_COMPAT
-	if (is_compat_task()) {
-		vdso_pagelist = vdso32_pagelist;
+	if (is_compat_task())
 		vdso_pages = vdso32_pages;
-	}
 #endif
 	/*
 	 * vDSO has a problem and was disabled, just don't "enable" it for
@@ -202,26 +256,18 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	if (vdso_pages == 0)
 		return 0;
 
-	current->mm->context.vdso_base = 0;
-
 	/*
 	 * pick a base address for the vDSO in process space. We try to put
 	 * it at vdso_base which is the "natural" base for it, but we might
 	 * fail and end up putting it elsewhere.
 	 */
-	down_write(&mm->mmap_sem);
+	if (down_write_killable(&mm->mmap_sem))
+		return -EINTR;
 	vdso_base = get_unmapped_area(NULL, 0, vdso_pages << PAGE_SHIFT, 0, 0);
 	if (IS_ERR_VALUE(vdso_base)) {
 		rc = vdso_base;
 		goto out_up;
 	}
-
-	/*
-	 * Put vDSO base into mm struct. We need to do this before calling
-	 * install_special_mapping or the perf counter mmap tracking code
-	 * will fail to recognise it as a vDSO (since arch_vma_name fails).
-	 */
-	current->mm->context.vdso_base = vdso_base;
 
 	/*
 	 * our vma flags don't have VM_WRITE so by default, the process
@@ -233,22 +279,21 @@ int arch_setup_additional_pages(struct linux_binprm *bprm, int uses_interp)
 	 * It's fine to use that for setting breakpoints in the vDSO code
 	 * pages though.
 	 */
-	rc = install_special_mapping(mm, vdso_base, vdso_pages << PAGE_SHIFT,
-				     VM_READ|VM_EXEC|
-				     VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
-				     vdso_pagelist);
-	if (rc)
-		current->mm->context.vdso_base = 0;
+	vma = _install_special_mapping(mm, vdso_base, vdso_pages << PAGE_SHIFT,
+				       VM_READ|VM_EXEC|
+				       VM_MAYREAD|VM_MAYWRITE|VM_MAYEXEC,
+				       &vdso_mapping);
+	if (IS_ERR(vma)) {
+		rc = PTR_ERR(vma);
+		goto out_up;
+	}
+
+	current->mm->context.vdso_base = vdso_base;
+	rc = 0;
+
 out_up:
 	up_write(&mm->mmap_sem);
 	return rc;
-}
-
-const char *arch_vma_name(struct vm_area_struct *vma)
-{
-	if (vma->vm_mm && vma->vm_start == vma->vm_mm->context.vdso_base)
-		return "[vdso]";
-	return NULL;
 }
 
 static int __init vdso_init(void)
@@ -298,8 +343,6 @@ static int __init vdso_init(void)
 	vdso_init_cr5();
 
 	get_page(virt_to_page(vdso_data));
-
-	smp_mb();
 
 	return 0;
 }

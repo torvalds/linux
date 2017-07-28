@@ -321,7 +321,9 @@ static int usnic_port_immutable(struct ib_device *ibdev, u8 port_num,
 	struct ib_port_attr attr;
 	int err;
 
-	err = usnic_ib_query_port(ibdev, port_num, &attr);
+	immutable->core_cap_flags = RDMA_CORE_PORT_USNIC;
+
+	err = ib_query_port(ibdev, port_num, &attr);
 	if (err)
 		return err;
 
@@ -329,6 +331,21 @@ static int usnic_port_immutable(struct ib_device *ibdev, u8 port_num,
 	immutable->gid_tbl_len = attr.gid_tbl_len;
 
 	return 0;
+}
+
+static void usnic_get_dev_fw_str(struct ib_device *device,
+				 char *str,
+				 size_t str_len)
+{
+	struct usnic_ib_dev *us_ibdev =
+		container_of(device, struct usnic_ib_dev, ib_dev);
+	struct ethtool_drvinfo info;
+
+	mutex_lock(&us_ibdev->usdev_lock);
+	us_ibdev->netdev->ethtool_ops->get_drvinfo(us_ibdev->netdev, &info);
+	mutex_unlock(&us_ibdev->usdev_lock);
+
+	snprintf(str, str_len, "%s", info.fw_version);
 }
 
 /* Start of PF discovery section */
@@ -365,7 +382,7 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 	us_ibdev->ib_dev.node_type = RDMA_NODE_USNIC_UDP;
 	us_ibdev->ib_dev.phys_port_cnt = USNIC_IB_PORT_CNT;
 	us_ibdev->ib_dev.num_comp_vectors = USNIC_IB_NUM_COMP_VECTORS;
-	us_ibdev->ib_dev.dma_device = &dev->dev;
+	us_ibdev->ib_dev.dev.parent = &dev->dev;
 	us_ibdev->ib_dev.uverbs_abi_ver = USNIC_UVERBS_ABI_VERSION;
 	strlcpy(us_ibdev->ib_dev.name, "usnic_%d", IB_DEVICE_NAME_MAX);
 
@@ -414,6 +431,7 @@ static void *usnic_ib_device_add(struct pci_dev *dev)
 	us_ibdev->ib_dev.req_notify_cq = usnic_ib_req_notify_cq;
 	us_ibdev->ib_dev.get_dma_mr = usnic_ib_get_dma_mr;
 	us_ibdev->ib_dev.get_port_immutable = usnic_port_immutable;
+	us_ibdev->ib_dev.get_dev_fw_str     = usnic_get_dev_fw_str;
 
 
 	if (ib_register_device(&us_ibdev->ib_dev, NULL))
@@ -648,7 +666,8 @@ static int __init usnic_ib_init(void)
 		return err;
 	}
 
-	if (pci_register_driver(&usnic_ib_pci_driver)) {
+	err = pci_register_driver(&usnic_ib_pci_driver);
+	if (err) {
 		usnic_err("Unable to register with PCI\n");
 		goto out_umem_fini;
 	}

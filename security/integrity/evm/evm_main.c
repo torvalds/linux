@@ -22,7 +22,10 @@
 #include <linux/xattr.h>
 #include <linux/integrity.h>
 #include <linux/evm.h>
+#include <linux/magic.h>
+
 #include <crypto/hash.h>
+#include <crypto/algapi.h>
 #include "evm.h"
 
 int evm_initialized;
@@ -77,11 +80,11 @@ static int evm_find_protected_xattrs(struct dentry *dentry)
 	int error;
 	int count = 0;
 
-	if (!inode->i_op->getxattr)
+	if (!(inode->i_opflags & IOP_XATTR))
 		return -EOPNOTSUPP;
 
 	for (xattr = evm_config_xattrnames; *xattr != NULL; xattr++) {
-		error = inode->i_op->getxattr(dentry, *xattr, NULL, 0);
+		error = __vfs_getxattr(dentry, inode, *xattr, NULL, 0);
 		if (error < 0) {
 			if (error == -ENODATA)
 				continue;
@@ -144,11 +147,15 @@ static enum integrity_status evm_verify_hmac(struct dentry *dentry,
 	/* check value type */
 	switch (xattr_data->type) {
 	case EVM_XATTR_HMAC:
+		if (xattr_len != sizeof(struct evm_ima_xattr_data)) {
+			evm_status = INTEGRITY_FAIL;
+			goto out;
+		}
 		rc = evm_calc_hmac(dentry, xattr_name, xattr_value,
 				   xattr_value_len, calc.digest);
 		if (rc)
 			break;
-		rc = memcmp(xattr_data->digest, calc.digest,
+		rc = crypto_memneq(xattr_data->digest, calc.digest,
 			    sizeof(calc.digest));
 		if (rc)
 			rc = -EINVAL;
@@ -298,8 +305,8 @@ static int evm_protect_xattr(struct dentry *dentry, const char *xattr_name,
 			return 0;
 
 		/* exception for pseudo filesystems */
-		if (dentry->d_inode->i_sb->s_magic == TMPFS_MAGIC
-		    || dentry->d_inode->i_sb->s_magic == SYSFS_MAGIC)
+		if (dentry->d_sb->s_magic == TMPFS_MAGIC
+		    || dentry->d_sb->s_magic == SYSFS_MAGIC)
 			return 0;
 
 		integrity_audit_msg(AUDIT_INTEGRITY_METADATA,
@@ -358,6 +365,15 @@ int evm_inode_removexattr(struct dentry *dentry, const char *xattr_name)
 	return evm_protect_xattr(dentry, xattr_name, NULL, 0);
 }
 
+static void evm_reset_status(struct inode *inode)
+{
+	struct integrity_iint_cache *iint;
+
+	iint = integrity_iint_find(inode);
+	if (iint)
+		iint->evm_status = INTEGRITY_UNKNOWN;
+}
+
 /**
  * evm_inode_post_setxattr - update 'security.evm' to reflect the changes
  * @dentry: pointer to the affected dentry
@@ -378,6 +394,8 @@ void evm_inode_post_setxattr(struct dentry *dentry, const char *xattr_name,
 				 && !posix_xattr_acl(xattr_name)))
 		return;
 
+	evm_reset_status(dentry->d_inode);
+
 	evm_update_evmxattr(dentry, xattr_name, xattr_value, xattr_value_len);
 }
 
@@ -395,6 +413,8 @@ void evm_inode_post_removexattr(struct dentry *dentry, const char *xattr_name)
 {
 	if (!evm_initialized || !evm_protected_xattr(xattr_name))
 		return;
+
+	evm_reset_status(dentry->d_inode);
 
 	evm_update_evmxattr(dentry, xattr_name, NULL, 0);
 }
@@ -472,21 +492,34 @@ out:
 }
 EXPORT_SYMBOL_GPL(evm_inode_init_security);
 
+#ifdef CONFIG_EVM_LOAD_X509
+void __init evm_load_x509(void)
+{
+	int rc;
+
+	rc = integrity_load_x509(INTEGRITY_KEYRING_EVM, CONFIG_EVM_X509_PATH);
+	if (!rc)
+		evm_initialized |= EVM_INIT_X509;
+}
+#endif
+
 static int __init init_evm(void)
 {
 	int error;
 
 	evm_init_config();
 
+	error = integrity_init_keyring(INTEGRITY_KEYRING_EVM);
+	if (error)
+		return error;
+
 	error = evm_init_secfs();
 	if (error < 0) {
 		pr_info("Error registering secfs\n");
-		goto err;
+		return error;
 	}
 
 	return 0;
-err:
-	return error;
 }
 
 /*

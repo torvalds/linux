@@ -1,5 +1,8 @@
 #ifndef _ASM_POWERPC_KPROBES_H
 #define _ASM_POWERPC_KPROBES_H
+
+#include <asm-generic/kprobes.h>
+
 #ifdef __KERNEL__
 /*
  *  Kernel Probes (KProbes)
@@ -29,71 +32,34 @@
 #include <linux/types.h>
 #include <linux/ptrace.h>
 #include <linux/percpu.h>
+#include <linux/module.h>
 #include <asm/probes.h>
 #include <asm/code-patching.h>
 
+#ifdef CONFIG_KPROBES
 #define  __ARCH_WANT_KPROBES_INSN_SLOT
 
 struct pt_regs;
 struct kprobe;
 
 typedef ppc_opcode_t kprobe_opcode_t;
-#define MAX_INSN_SIZE 1
 
-#ifdef CONFIG_PPC64
-#if defined(_CALL_ELF) && _CALL_ELF == 2
-/* PPC64 ABIv2 needs local entry point */
-#define kprobe_lookup_name(name, addr)					\
-{									\
-	addr = (kprobe_opcode_t *)kallsyms_lookup_name(name);		\
-	if (addr)							\
-		addr = (kprobe_opcode_t *)ppc_function_entry(addr);	\
-}
-#else
-/*
- * 64bit powerpc ABIv1 uses function descriptors:
- * - Check for the dot variant of the symbol first.
- * - If that fails, try looking up the symbol provided.
- *
- * This ensures we always get to the actual symbol and not the descriptor.
- * Also handle <module:symbol> format.
- */
-#define kprobe_lookup_name(name, addr)					\
-{									\
-	char dot_name[MODULE_NAME_LEN + 1 + KSYM_NAME_LEN];		\
-	char *modsym;							\
-	bool dot_appended = false;					\
-	if ((modsym = strchr(name, ':')) != NULL) {			\
-		modsym++;						\
-		if (*modsym != '\0' && *modsym != '.') {		\
-			/* Convert to <module:.symbol> */		\
-			strncpy(dot_name, name, modsym - name);		\
-			dot_name[modsym - name] = '.';			\
-			dot_name[modsym - name + 1] = '\0';		\
-			strncat(dot_name, modsym,			\
-				sizeof(dot_name) - (modsym - name) - 2);\
-			dot_appended = true;				\
-		} else {						\
-			dot_name[0] = '\0';				\
-			strncat(dot_name, name, sizeof(dot_name) - 1);	\
-		}							\
-	} else if (name[0] != '.') {					\
-		dot_name[0] = '.';					\
-		dot_name[1] = '\0';					\
-		strncat(dot_name, name, KSYM_NAME_LEN - 2);		\
-		dot_appended = true;					\
-	} else {							\
-		dot_name[0] = '\0';					\
-		strncat(dot_name, name, KSYM_NAME_LEN - 1);		\
-	}								\
-	addr = (kprobe_opcode_t *)kallsyms_lookup_name(dot_name);	\
-	if (!addr && dot_appended) {					\
-		/* Let's try the original non-dot symbol lookup	*/	\
-		addr = (kprobe_opcode_t *)kallsyms_lookup_name(name);	\
-	}								\
-}
-#endif /* defined(_CALL_ELF) && _CALL_ELF == 2 */
-#endif /* CONFIG_PPC64 */
+extern kprobe_opcode_t optinsn_slot;
+
+/* Optinsn template address */
+extern kprobe_opcode_t optprobe_template_entry[];
+extern kprobe_opcode_t optprobe_template_op_address[];
+extern kprobe_opcode_t optprobe_template_call_handler[];
+extern kprobe_opcode_t optprobe_template_insn[];
+extern kprobe_opcode_t optprobe_template_call_emulate[];
+extern kprobe_opcode_t optprobe_template_ret[];
+extern kprobe_opcode_t optprobe_template_end[];
+
+/* Fixed instruction size for powerpc */
+#define MAX_INSN_SIZE		1
+#define MAX_OPTIMIZED_LENGTH	sizeof(kprobe_opcode_t)	/* 4 bytes */
+#define MAX_OPTINSN_SIZE	(optprobe_template_end - optprobe_template_entry)
+#define RELATIVEJUMP_SIZE	sizeof(kprobe_opcode_t)	/* 4 bytes */
 
 #define flush_insn_slot(p)	do { } while (0)
 #define kretprobe_blacklist_size 0
@@ -126,8 +92,31 @@ struct kprobe_ctlblk {
 	struct prev_kprobe prev_kprobe;
 };
 
+struct arch_optimized_insn {
+	kprobe_opcode_t copied_insn[1];
+	/* detour buffer */
+	kprobe_opcode_t *insn;
+};
+
 extern int kprobe_exceptions_notify(struct notifier_block *self,
 					unsigned long val, void *data);
 extern int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
+extern int kprobe_handler(struct pt_regs *regs);
+extern int kprobe_post_handler(struct pt_regs *regs);
+extern int is_current_kprobe_addr(unsigned long addr);
+#ifdef CONFIG_KPROBES_ON_FTRACE
+extern int skip_singlestep(struct kprobe *p, struct pt_regs *regs,
+			   struct kprobe_ctlblk *kcb);
+#else
+static inline int skip_singlestep(struct kprobe *p, struct pt_regs *regs,
+				  struct kprobe_ctlblk *kcb)
+{
+	return 0;
+}
+#endif
+#else
+static inline int kprobe_handler(struct pt_regs *regs) { return 0; }
+static inline int kprobe_post_handler(struct pt_regs *regs) { return 0; }
+#endif /* CONFIG_KPROBES */
 #endif /* __KERNEL__ */
 #endif	/* _ASM_POWERPC_KPROBES_H */

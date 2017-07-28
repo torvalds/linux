@@ -3390,7 +3390,7 @@ qla1280_isp_cmd(struct scsi_qla_host *ha)
 	 *    On PCI bus, order reverses and write of 6 posts, then index 5,
 	 *       causing chip to issue full queue of stale commands
 	 * The mmiowb() prevents future writes from crossing the barrier.
-	 * See Documentation/DocBook/deviceiobook.tmpl for more information.
+	 * See Documentation/driver-api/device-io.rst for more information.
 	 */
 	WRT_REG_WORD(&reg->mailbox4, ha->req_ring_index);
 	mmiowb();
@@ -4214,7 +4214,7 @@ static struct scsi_host_template qla1280_driver_template = {
 	.eh_bus_reset_handler	= qla1280_eh_bus_reset,
 	.eh_host_reset_handler	= qla1280_eh_adapter_reset,
 	.bios_param		= qla1280_biosparam,
-	.can_queue		= 0xfffff,
+	.can_queue		= MAX_OUTSTANDING_COMMANDS,
 	.this_id		= -1,
 	.sg_tablesize		= SG_ALL,
 	.use_clustering		= ENABLE_CLUSTERING,

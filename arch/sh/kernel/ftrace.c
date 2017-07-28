@@ -96,19 +96,6 @@ static int mod_code_status;		/* holds return value of text write */
 static void *mod_code_ip;		/* holds the IP to write to */
 static void *mod_code_newcode;		/* holds the text to write to the IP */
 
-static unsigned nmi_wait_count;
-static atomic_t nmi_update_count = ATOMIC_INIT(0);
-
-int ftrace_arch_read_dyn_info(char *buf, int size)
-{
-	int r;
-
-	r = snprintf(buf, size, "%u %u",
-		     nmi_wait_count,
-		     atomic_read(&nmi_update_count));
-	return r;
-}
-
 static void clear_mod_flag(void)
 {
 	int old = atomic_read(&nmi_running);
@@ -139,18 +126,17 @@ static void ftrace_mod_code(void)
 		clear_mod_flag();
 }
 
-void ftrace_nmi_enter(void)
+void arch_ftrace_nmi_enter(void)
 {
 	if (atomic_inc_return(&nmi_running) & MOD_CODE_WRITE_FLAG) {
 		smp_rmb();
 		ftrace_mod_code();
-		atomic_inc(&nmi_update_count);
 	}
 	/* Must have previous changes seen before executions */
 	smp_mb();
 }
 
-void ftrace_nmi_exit(void)
+void arch_ftrace_nmi_exit(void)
 {
 	/* Finish all executions before clearing nmi_running */
 	smp_mb();
@@ -165,8 +151,6 @@ static void wait_for_nmi_and_set_mod_flag(void)
 	do {
 		cpu_relax();
 	} while (atomic_cmpxchg(&nmi_running, 0, MOD_CODE_WRITE_FLAG));
-
-	nmi_wait_count++;
 }
 
 static void wait_for_nmi(void)
@@ -177,8 +161,6 @@ static void wait_for_nmi(void)
 	do {
 		cpu_relax();
 	} while (atomic_read(&nmi_running));
-
-	nmi_wait_count++;
 }
 
 static int
@@ -212,13 +194,11 @@ static int ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 	unsigned char replaced[MCOUNT_INSN_SIZE];
 
 	/*
-	 * Note: Due to modules and __init, code can
-	 *  disappear and change, we need to protect against faulting
-	 *  as well as code changing. We do this by using the
-	 *  probe_kernel_* functions.
-	 *
-	 * No real locking needed, this code is run through
-	 * kstop_machine, or before SMP starts.
+	 * Note:
+	 * We are paranoid about modifying text, as if a bug was to happen, it
+	 * could cause us to read or write to someplace that could cause harm.
+	 * Carefully read and modify the code with probe_kernel_*(), and make
+	 * sure what we read is what we expected it to be before modifying it.
 	 */
 
 	/* read the text we want to modify */
@@ -384,7 +364,7 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 		return;
 	}
 
-	err = ftrace_push_return_trace(old, self_addr, &trace.depth, 0);
+	err = ftrace_push_return_trace(old, self_addr, &trace.depth, 0, NULL);
 	if (err == -EBUSY) {
 		__raw_writel(old, parent);
 		return;

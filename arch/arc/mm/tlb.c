@@ -45,7 +45,7 @@
  *       in interrupt-safe region.
  *
  * Vineetg: April 23rd Bug #93131
- *    Problem: tlb_flush_kernel_range() doesnt do anything if the range to
+ *    Problem: tlb_flush_kernel_range() doesn't do anything if the range to
  *              flush is more than the size of TLB itself.
  *
  * Rahul Trivedi : Codito Technologies 2004
@@ -53,6 +53,8 @@
 
 #include <linux/module.h>
 #include <linux/bug.h>
+#include <linux/mm_types.h>
+
 #include <asm/arcregs.h>
 #include <asm/setup.h>
 #include <asm/mmu_context.h>
@@ -167,7 +169,7 @@ static void utlb_invalidate(void)
 	/* MMU v2 introduced the uTLB Flush command.
 	 * There was however an obscure hardware bug, where uTLB flush would
 	 * fail when a prior probe for J-TLB (both totally unrelated) would
-	 * return lkup err - because the entry didnt exist in MMU.
+	 * return lkup err - because the entry didn't exist in MMU.
 	 * The Workround was to set Index reg with some valid value, prior to
 	 * flush. This was fixed in MMU v3 hence not needed any more
 	 */
@@ -210,7 +212,7 @@ static void tlb_entry_insert(unsigned int pd0, pte_t pd1)
 
 	/*
 	 * Commit the Entry to MMU
-	 * It doesnt sound safe to use the TLBWriteNI cmd here
+	 * It doesn't sound safe to use the TLBWriteNI cmd here
 	 * which doesn't flush uTLBs. I'd rather be safe than sorry.
 	 */
 	write_aux_reg(ARC_REG_TLBCOMMAND, TLBWrite);
@@ -636,7 +638,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr_unaligned,
  * support.
  *
  * Normal and Super pages can co-exist (ofcourse not overlap) in TLB with a
- * new bit "SZ" in TLB page desciptor to distinguish between them.
+ * new bit "SZ" in TLB page descriptor to distinguish between them.
  * Super Page size is configurable in hardware (4K to 16M), but fixed once
  * RTL builds.
  *
@@ -793,16 +795,16 @@ char *arc_mmu_mumbojumbo(int cpu_id, char *buf, int len)
 	char super_pg[64] = "";
 
 	if (p_mmu->s_pg_sz_m)
-		scnprintf(super_pg, 64, "%dM Super Page%s, ",
+		scnprintf(super_pg, 64, "%dM Super Page %s",
 			  p_mmu->s_pg_sz_m,
 			  IS_USED_CFG(CONFIG_TRANSPARENT_HUGEPAGE));
 
 	n += scnprintf(buf + n, len - n,
-		      "MMU [v%x]\t: %dk PAGE, %sJTLB %d (%dx%d), uDTLB %d, uITLB %d %s%s\n",
+		      "MMU [v%x]\t: %dk PAGE, %sJTLB %d (%dx%d), uDTLB %d, uITLB %d%s%s\n",
 		       p_mmu->ver, p_mmu->pg_sz_k, super_pg,
 		       p_mmu->sets * p_mmu->ways, p_mmu->sets, p_mmu->ways,
 		       p_mmu->u_dtlb, p_mmu->u_itlb,
-		       IS_AVAIL2(p_mmu->pae, "PAE40 ", CONFIG_ARC_HAS_PAE40));
+		       IS_AVAIL2(p_mmu->pae, ", PAE40 ", CONFIG_ARC_HAS_PAE40));
 
 	return buf;
 }
@@ -813,6 +815,17 @@ void arc_mmu_init(void)
 	struct cpuinfo_arc_mmu *mmu = &cpuinfo_arc700[smp_processor_id()].mmu;
 
 	printk(arc_mmu_mumbojumbo(0, str, sizeof(str)));
+
+	/*
+	 * Can't be done in processor.h due to header include depenedencies
+	 */
+	BUILD_BUG_ON(!IS_ALIGNED((CONFIG_ARC_KVADDR_SIZE << 20), PMD_SIZE));
+
+	/*
+	 * stack top size sanity check,
+	 * Can't be done in processor.h due to header include depenedencies
+	 */
+	BUILD_BUG_ON(!IS_ALIGNED(STACK_TOP, PMD_SIZE));
 
 	/* For efficiency sake, kernel is compile time built for a MMU ver
 	 * This must match the hardware it is running on.

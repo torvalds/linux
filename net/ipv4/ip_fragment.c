@@ -54,8 +54,6 @@
  * code now. If you change something here, _PLEASE_ update ipv6/reassembly.c
  * as well. Or notify me, at least. --ANK
  */
-
-static int sysctl_ipfrag_max_dist __read_mostly = 64;
 static const char ip_frag_cache_name[] = "ip4-frags";
 
 struct ipfrag_skb_cb
@@ -150,7 +148,7 @@ static void ip4_frag_init(struct inet_frag_queue *q, const void *a)
 	qp->daddr = arg->iph->daddr;
 	qp->vif = arg->vif;
 	qp->user = arg->user;
-	qp->peer = sysctl_ipfrag_max_dist ?
+	qp->peer = q->net->max_dist ?
 		inet_getpeer_v4(net->ipv4.peers, arg->iph->saddr, arg->vif, 1) :
 		NULL;
 }
@@ -200,50 +198,59 @@ static void ip_expire(unsigned long arg)
 	qp = container_of((struct inet_frag_queue *) arg, struct ipq, q);
 	net = container_of(qp->q.net, struct net, ipv4.frags);
 
+	rcu_read_lock();
 	spin_lock(&qp->q.lock);
 
 	if (qp->q.flags & INET_FRAG_COMPLETE)
 		goto out;
 
 	ipq_kill(qp);
-	IP_INC_STATS_BH(net, IPSTATS_MIB_REASMFAILS);
+	__IP_INC_STATS(net, IPSTATS_MIB_REASMFAILS);
 
 	if (!inet_frag_evicting(&qp->q)) {
-		struct sk_buff *head = qp->q.fragments;
+		struct sk_buff *clone, *head = qp->q.fragments;
 		const struct iphdr *iph;
 		int err;
 
-		IP_INC_STATS_BH(net, IPSTATS_MIB_REASMTIMEOUT);
+		__IP_INC_STATS(net, IPSTATS_MIB_REASMTIMEOUT);
 
 		if (!(qp->q.flags & INET_FRAG_FIRST_IN) || !qp->q.fragments)
 			goto out;
 
-		rcu_read_lock();
 		head->dev = dev_get_by_index_rcu(net, qp->iif);
 		if (!head->dev)
-			goto out_rcu_unlock;
+			goto out;
+
 
 		/* skb has no dst, perform route lookup again */
 		iph = ip_hdr(head);
 		err = ip_route_input_noref(head, iph->daddr, iph->saddr,
 					   iph->tos, head->dev);
 		if (err)
-			goto out_rcu_unlock;
+			goto out;
 
 		/* Only an end host needs to send an ICMP
 		 * "Fragment Reassembly Timeout" message, per RFC792.
 		 */
 		if (frag_expire_skip_icmp(qp->user) &&
 		    (skb_rtable(head)->rt_type != RTN_LOCAL))
-			goto out_rcu_unlock;
+			goto out;
+
+		clone = skb_clone(head, GFP_ATOMIC);
 
 		/* Send an ICMP "Fragment Reassembly Timeout" message. */
-		icmp_send(head, ICMP_TIME_EXCEEDED, ICMP_EXC_FRAGTIME, 0);
-out_rcu_unlock:
-		rcu_read_unlock();
+		if (clone) {
+			spin_unlock(&qp->q.lock);
+			icmp_send(clone, ICMP_TIME_EXCEEDED,
+				  ICMP_EXC_FRAGTIME, 0);
+			consume_skb(clone);
+			goto out_rcu_unlock;
+		}
 	}
 out:
 	spin_unlock(&qp->q.lock);
+out_rcu_unlock:
+	rcu_read_unlock();
 	ipq_put(qp);
 }
 
@@ -275,7 +282,7 @@ static struct ipq *ip_find(struct net *net, struct iphdr *iph,
 static int ip_frag_too_far(struct ipq *qp)
 {
 	struct inet_peer *peer = qp->peer;
-	unsigned int max = sysctl_ipfrag_max_dist;
+	unsigned int max = qp->q.net->max_dist;
 	unsigned int start, end;
 
 	int rc;
@@ -293,7 +300,7 @@ static int ip_frag_too_far(struct ipq *qp)
 		struct net *net;
 
 		net = container_of(qp->q.net, struct net, ipv4.frags);
-		IP_INC_STATS_BH(net, IPSTATS_MIB_REASMFAILS);
+		__IP_INC_STATS(net, IPSTATS_MIB_REASMFAILS);
 	}
 
 	return rc;
@@ -305,7 +312,7 @@ static int ip_frag_reinit(struct ipq *qp)
 	unsigned int sum_truesize = 0;
 
 	if (!mod_timer(&qp->q.timer, jiffies + qp->q.net->timeout)) {
-		atomic_inc(&qp->q.refcnt);
+		refcount_inc(&qp->q.refcnt);
 		return -ETIMEDOUT;
 	}
 
@@ -637,7 +644,7 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 
 	ip_send_check(iph);
 
-	IP_INC_STATS_BH(net, IPSTATS_MIB_REASMOKS);
+	__IP_INC_STATS(net, IPSTATS_MIB_REASMOKS);
 	qp->q.fragments = NULL;
 	qp->q.fragments_tail = NULL;
 	return 0;
@@ -649,7 +656,7 @@ out_nomem:
 out_oversize:
 	net_info_ratelimited("Oversized IP packet from %pI4\n", &qp->saddr);
 out_fail:
-	IP_INC_STATS_BH(net, IPSTATS_MIB_REASMFAILS);
+	__IP_INC_STATS(net, IPSTATS_MIB_REASMFAILS);
 	return err;
 }
 
@@ -660,7 +667,8 @@ int ip_defrag(struct net *net, struct sk_buff *skb, u32 user)
 	int vif = l3mdev_master_ifindex_rcu(dev);
 	struct ipq *qp;
 
-	IP_INC_STATS_BH(net, IPSTATS_MIB_REASMREQDS);
+	__IP_INC_STATS(net, IPSTATS_MIB_REASMREQDS);
+	skb_orphan(skb);
 
 	/* Lookup (or create) queue header */
 	qp = ip_find(net, ip_hdr(skb), user, vif);
@@ -676,7 +684,7 @@ int ip_defrag(struct net *net, struct sk_buff *skb, u32 user)
 		return ret;
 	}
 
-	IP_INC_STATS_BH(net, IPSTATS_MIB_REASMFAILS);
+	__IP_INC_STATS(net, IPSTATS_MIB_REASMFAILS);
 	kfree_skb(skb);
 	return -ENOMEM;
 }
@@ -748,6 +756,14 @@ static struct ctl_table ip4_frags_ns_ctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
 	},
+	{
+		.procname	= "ipfrag_max_dist",
+		.data		= &init_net.ipv4.frags.max_dist,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= &zero
+	},
 	{ }
 };
 
@@ -760,14 +776,6 @@ static struct ctl_table ip4_frags_ctl_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "ipfrag_max_dist",
-		.data		= &sysctl_ipfrag_max_dist,
-		.maxlen		= sizeof(int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &zero
 	},
 	{ }
 };
@@ -789,10 +797,7 @@ static int __net_init ip4_frags_ns_ctl_register(struct net *net)
 		table[1].data = &net->ipv4.frags.low_thresh;
 		table[1].extra2 = &net->ipv4.frags.high_thresh;
 		table[2].data = &net->ipv4.frags.timeout;
-
-		/* Don't export sysctls to unprivileged users */
-		if (net->user_ns != &init_user_ns)
-			table[0].procname = NULL;
+		table[3].data = &net->ipv4.frags.max_dist;
 	}
 
 	hdr = register_net_sysctl(net, "net/ipv4", table);
@@ -864,6 +869,8 @@ static int __net_init ipv4_frags_init_net(struct net *net)
 	 */
 	net->ipv4.frags.timeout = IP_FRAG_TIME;
 
+	net->ipv4.frags.max_dist = 64;
+
 	res = inet_frags_init_net(&net->ipv4.frags);
 	if (res)
 		return res;
@@ -891,7 +898,6 @@ void __init ipfrag_init(void)
 	ip4_frags.hashfn = ip4_hashfn;
 	ip4_frags.constructor = ip4_frag_init;
 	ip4_frags.destructor = ip4_frag_free;
-	ip4_frags.skb_free = NULL;
 	ip4_frags.qsize = sizeof(struct ipq);
 	ip4_frags.match = ip4_frag_match;
 	ip4_frags.frag_expire = ip_expire;

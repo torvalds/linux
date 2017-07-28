@@ -81,7 +81,6 @@
 
 &cspi1 {
 	pinctrl-0 = <&pinctrl_cspi1>;
-	fsl,spi-num-chipselects = <1>;
 	cs-gpios = <&gpio4 28 GPIO_ACTIVE_LOW>;
 	status = "okay";
 
@@ -140,21 +139,21 @@
 };
 
 &uart1 {
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
 	status = "okay";
 };
 
 &uart2 {
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;
 	status = "okay";
 };
 
 &uart3 {
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart3>;
 	status = "okay";

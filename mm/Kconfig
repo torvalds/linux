@@ -137,7 +137,7 @@ config HAVE_MEMBLOCK_NODE_MAP
 config HAVE_MEMBLOCK_PHYS_MAP
 	bool
 
-config HAVE_GENERIC_RCU_GUP
+config HAVE_GENERIC_GUP
 	bool
 
 config ARCH_DISCARD_MEMBLOCK
@@ -148,32 +148,6 @@ config NO_BOOTMEM
 
 config MEMORY_ISOLATION
 	bool
-
-config MOVABLE_NODE
-	bool "Enable to assign a node which has only movable memory"
-	depends on HAVE_MEMBLOCK
-	depends on NO_BOOTMEM
-	depends on X86_64
-	depends on NUMA
-	default n
-	help
-	  Allow a node to have only movable memory.  Pages used by the kernel,
-	  such as direct mapping pages cannot be migrated.  So the corresponding
-	  memory device cannot be hotplugged.  This option allows the following
-	  two things:
-	  - When the system is booting, node full of hotpluggable memory can
-	  be arranged to have only movable memory so that the whole node can
-	  be hot-removed. (need movable_node boot option specified).
-	  - After the system is up, the option allows users to online all the
-	  memory of a node as movable memory so that the whole node can be
-	  hot-removed.
-
-	  Users who don't use the memory hotplug feature are fine with this
-	  option on since they don't specify movable_node boot option or they
-	  don't online memory as movable.
-
-	  Say Y here if you want to hotplug a whole node.
-	  Say N here if you want kernel to use memory on all nodes evenly.
 
 #
 # Only be set on architectures that have completely implemented memory hotplug
@@ -187,11 +161,26 @@ config MEMORY_HOTPLUG
 	bool "Allow for memory hot-add"
 	depends on SPARSEMEM || X86_64_ACPI_NUMA
 	depends on ARCH_ENABLE_MEMORY_HOTPLUG
-	depends on (IA64 || X86 || PPC_BOOK3S_64 || SUPERH || S390)
 
 config MEMORY_HOTPLUG_SPARSE
 	def_bool y
 	depends on SPARSEMEM && MEMORY_HOTPLUG
+
+config MEMORY_HOTPLUG_DEFAULT_ONLINE
+        bool "Online the newly added memory blocks by default"
+        default n
+        depends on MEMORY_HOTPLUG
+        help
+	  This option sets the default policy setting for memory hotplug
+	  onlining policy (/sys/devices/system/memory/auto_online_blocks) which
+	  determines what happens to newly added memory regions. Policy setting
+	  can always be changed at runtime.
+	  See Documentation/memory-hotplug.txt for more information.
+
+	  Say Y here if you want all hot-plugged memory blocks to appear in
+	  'online' state by default.
+	  Say N here if you want the default policy to keep all hot-plugged
+	  memory blocks in 'offline' state.
 
 config MEMORY_HOTREMOVE
 	bool "Allow for memory hot remove"
@@ -246,7 +235,14 @@ config COMPACTION
 	select MIGRATION
 	depends on MMU
 	help
-	  Allows the compaction of memory for the allocation of huge pages.
+          Compaction is the only memory management component to form
+          high order (larger physically contiguous) memory blocks
+          reliably. The page allocator relies on compaction heavily and
+          the lack of the feature can lead to unexpected OOM killer
+          invocations for high order memory requests. You shouldn't
+          disable this option unless there really is a strong reason for
+          it and then we would be really interested to hear about that at
+          linux-mm@kvack.org.
 
 #
 # support for page migration
@@ -269,11 +265,6 @@ config ARCH_ENABLE_HUGEPAGE_MIGRATION
 config PHYS_ADDR_T_64BIT
 	def_bool 64BIT || ARCH_PHYS_ADDR_T_64BIT
 
-config ZONE_DMA_FLAG
-	int
-	default "0" if !ZONE_DMA
-	default "1"
-
 config BOUNCE
 	bool "Enable bounce buffers"
 	default y
@@ -294,7 +285,6 @@ config NEED_BOUNCE_POOL
 config NR_QUICK
 	int
 	depends on QUICKLIST
-	default "2" if AVR32
 	default "1"
 
 config VIRT_TO_BUS
@@ -394,6 +384,7 @@ config TRANSPARENT_HUGEPAGE
 	bool "Transparent Hugepage Support"
 	depends on HAVE_ARCH_TRANSPARENT_HUGEPAGE
 	select COMPACTION
+	select RADIX_TREE_MULTIORDER
 	help
 	  Transparent Hugepages allows the kernel to use huge pages and
 	  huge tlb transparently to the applications whenever possible.
@@ -427,6 +418,22 @@ choice
 	  memory footprint of applications without a guaranteed
 	  benefit.
 endchoice
+
+config ARCH_WANTS_THP_SWAP
+       def_bool n
+
+config THP_SWAP
+	def_bool y
+	depends on TRANSPARENT_HUGEPAGE && ARCH_WANTS_THP_SWAP
+	help
+	  Swap transparent huge pages in one piece, without splitting.
+	  XXX: For now this only does clustered swap space allocation.
+
+	  For selection by architectures with reasonable THP sizes.
+
+config	TRANSPARENT_HUGE_PAGECACHE
+	def_bool y
+	depends on TRANSPARENT_HUGEPAGE
 
 #
 # UP and nommu archs use km based percpu allocator
@@ -557,7 +564,7 @@ config ZPOOL
 	  zsmalloc.
 
 config ZBUD
-	tristate "Low density storage for compressed pages"
+	tristate "Low (Up to 2x) density storage for compressed pages"
 	default n
 	help
 	  A special purpose allocator for storing compressed pages.
@@ -565,6 +572,16 @@ config ZBUD
 	  page.  While this design limits storage density, it has simple and
 	  deterministic reclaim properties that make it preferable to a higher
 	  density approach when reclaim will be used.
+
+config Z3FOLD
+	tristate "Up to 3x density storage for compressed pages"
+	depends on ZPOOL
+	default n
+	help
+	  A special purpose allocator for storing compressed pages.
+	  It is designed to store up to three compressed pages per physical
+	  page. It is a ZBUD derivative so the simplicity and determinism are
+	  still there.
 
 config ZSMALLOC
 	tristate "Memory allocator for compressed pages"
@@ -624,18 +641,20 @@ config ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
 	bool
 
 config DEFERRED_STRUCT_PAGE_INIT
-	bool "Defer initialisation of struct pages to kswapd"
+	bool "Defer initialisation of struct pages to kthreads"
 	default n
 	depends on ARCH_SUPPORTS_DEFERRED_STRUCT_PAGE_INIT
-	depends on MEMORY_HOTPLUG
+	depends on NO_BOOTMEM && MEMORY_HOTPLUG
+	depends on !FLATMEM
 	help
 	  Ordinarily all struct pages are initialised during early boot in a
 	  single thread. On very large machines this can take a considerable
 	  amount of time. If this option is set, large machines will bring up
 	  a subset of memmap at boot and then initialise the rest in parallel
-	  when kswapd starts. This has a potential performance impact on
-	  processes running early in the lifetime of the systemm until kswapd
-	  finishes the initialisation.
+	  by starting one-off "pgdatinitX" kernel thread for each node X. This
+	  has a potential performance impact on processes running early in the
+	  lifetime of the system until these kthreads finish the
+	  initialisation.
 
 config IDLE_PAGE_TRACKING
 	bool "Enable idle page tracking"
@@ -649,13 +668,16 @@ config IDLE_PAGE_TRACKING
 
 	  See Documentation/vm/idle_page_tracking.txt for more details.
 
+# arch_add_memory() comprehends device memory
+config ARCH_HAS_ZONE_DEVICE
+	bool
+
 config ZONE_DEVICE
-	bool "Device memory (pmem, etc...) hotplug support" if EXPERT
-	default !ZONE_DMA
-	depends on !ZONE_DMA
+	bool "Device memory (pmem, etc...) hotplug support"
 	depends on MEMORY_HOTPLUG
 	depends on MEMORY_HOTREMOVE
-	depends on X86_64 #arch_add_memory() comprehends device memory
+	depends on SPARSEMEM_VMEMMAP
+	depends on ARCH_HAS_ZONE_DEVICE
 
 	help
 	  Device memory hotplug support allows for establishing pmem,
@@ -668,3 +690,16 @@ config ZONE_DEVICE
 
 config FRAME_VECTOR
 	bool
+
+config ARCH_USES_HIGH_VMA_FLAGS
+	bool
+config ARCH_HAS_PKEYS
+	bool
+
+config PERCPU_STATS
+	bool "Collect percpu memory statistics"
+	default n
+	help
+	  This feature collects and exposes statistics via debugfs. The
+	  information includes global and per chunk statistics, which can
+	  be used to help understand percpu memory usage.

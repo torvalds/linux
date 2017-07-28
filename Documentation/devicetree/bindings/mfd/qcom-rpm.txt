@@ -13,6 +13,7 @@ frequencies.
 		    "qcom,rpm-msm8660"
 		    "qcom,rpm-msm8960"
 		    "qcom,rpm-ipq8064"
+		    "qcom,rpm-mdm9615"
 
 - reg:
 	Usage: required
@@ -59,6 +60,7 @@ Regulator nodes are identified by their compatible:
 		    "qcom,rpm-pm8058-regulators"
 		    "qcom,rpm-pm8901-regulators"
 		    "qcom,rpm-pm8921-regulators"
+		    "qcom,rpm-pm8018-regulators"
 
 - vdd_l0_l1_lvs-supply:
 - vdd_l2_l11_l12-supply:
@@ -137,6 +139,15 @@ Regulator nodes are identified by their compatible:
 	Definition: reference to regulator supplying the input pin, as
 		    described in the data sheet
 
+- vin_lvs1-supply:
+- vdd_l7-supply:
+- vdd_l8-supply:
+- vdd_l9_l10_l11_l12-supply:
+	Usage: optional (pm8018 only)
+	Value type: <phandle>
+	Definition: reference to regulator supplying the input pin, as
+		    described in the data sheet
+
 The regulator node houses sub-nodes for each regulator within the device. Each
 sub-node is identified using the node's name, with valid values listed for each
 of the pmics below.
@@ -155,6 +166,10 @@ pm8921:
 	l12, l14, l15, l16, l17, l18, l21, l22, l23, l24, l25, l26, l27, l28,
 	l29, lvs1, lvs2, lvs3, lvs4, lvs5, lvs6, lvs7, usb-switch, hdmi-switch,
 	ncp
+
+pm8018:
+	s1, s2, s3, s4, s5, , l1, l2, l3, l4, l5, l6, l7, l8, l9, l10, l11,
+	l12, l14, lvs1
 
 The content of each sub-node is defined by the standard binding for regulators -
 see regulator.txt - with additional custom properties described below:
@@ -178,7 +193,7 @@ see regulator.txt - with additional custom properties described below:
 - qcom,force-mode:
 	Usage: optional (default if no other qcom,force-mode is specified)
 	Value type: <u32>
-	Defintion: indicates that the regulator should be forced to a
+	Definition: indicates that the regulator should be forced to a
 		   particular mode, valid values are:
 		   QCOM_RPM_FORCE_MODE_NONE - do not force any mode
 		   QCOM_RPM_FORCE_MODE_LPM - force into low power mode
@@ -204,7 +219,7 @@ see regulator.txt - with additional custom properties described below:
 - qcom,force-mode:
 	Usage: optional
 	Value type: <u32>
-	Defintion: indicates that the regulator should not be forced to any
+	Definition: indicates that the regulator should not be forced to any
 		   particular mode, valid values are:
 		   QCOM_RPM_FORCE_MODE_NONE - do not force any mode
 		   QCOM_RPM_FORCE_MODE_LPM - force into low power mode
@@ -219,7 +234,7 @@ see regulator.txt - with additional custom properties described below:
 - qcom,switch-mode-frequency:
 	Usage: required
 	Value type: <u32>
-	Definition: Frequency (Hz) of the swith mode power supply;
+	Definition: Frequency (Hz) of the switch mode power supply;
 		    must be one of:
 		    19200000, 9600000, 6400000, 4800000, 3840000, 3200000,
 		    2740000, 2400000, 2130000, 1920000, 1750000, 1600000,

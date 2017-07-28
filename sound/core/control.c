@@ -25,6 +25,7 @@
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/time.h>
+#include <linux/sched/signal.h>
 #include <sound/core.h>
 #include <sound/minors.h>
 #include <sound/info.h>
@@ -159,6 +160,8 @@ void snd_ctl_notify(struct snd_card *card, unsigned int mask,
 	struct snd_kctl_event *ev;
 	
 	if (snd_BUG_ON(!card || !id))
+		return;
+	if (card->shutdown)
 		return;
 	read_lock(&card->ctl_files_rwlock);
 #if IS_ENABLED(CONFIG_SND_MIXER_OSS)
@@ -744,65 +747,75 @@ static int snd_ctl_card_info(struct snd_card *card, struct snd_ctl_file * ctl,
 static int snd_ctl_elem_list(struct snd_card *card,
 			     struct snd_ctl_elem_list __user *_list)
 {
-	struct list_head *plist;
 	struct snd_ctl_elem_list list;
 	struct snd_kcontrol *kctl;
-	struct snd_ctl_elem_id *dst, *id;
+	struct snd_ctl_elem_id id;
 	unsigned int offset, space, jidx;
+	int err = 0;
 	
 	if (copy_from_user(&list, _list, sizeof(list)))
 		return -EFAULT;
 	offset = list.offset;
 	space = list.space;
-	/* try limit maximum space */
-	if (space > 16384)
-		return -ENOMEM;
+
+	down_read(&card->controls_rwsem);
+	list.count = card->controls_count;
+	list.used = 0;
 	if (space > 0) {
-		/* allocate temporary buffer for atomic operation */
-		dst = vmalloc(space * sizeof(struct snd_ctl_elem_id));
-		if (dst == NULL)
-			return -ENOMEM;
-		down_read(&card->controls_rwsem);
-		list.count = card->controls_count;
-		plist = card->controls.next;
-		while (plist != &card->controls) {
-			if (offset == 0)
-				break;
-			kctl = snd_kcontrol(plist);
-			if (offset < kctl->count)
-				break;
-			offset -= kctl->count;
-			plist = plist->next;
-		}
-		list.used = 0;
-		id = dst;
-		while (space > 0 && plist != &card->controls) {
-			kctl = snd_kcontrol(plist);
-			for (jidx = offset; space > 0 && jidx < kctl->count; jidx++) {
-				snd_ctl_build_ioff(id, kctl, jidx);
-				id++;
-				space--;
-				list.used++;
+		list_for_each_entry(kctl, &card->controls, list) {
+			if (offset >= kctl->count) {
+				offset -= kctl->count;
+				continue;
 			}
-			plist = plist->next;
+			for (jidx = offset; jidx < kctl->count; jidx++) {
+				snd_ctl_build_ioff(&id, kctl, jidx);
+				if (copy_to_user(list.pids + list.used, &id,
+						 sizeof(id))) {
+					err = -EFAULT;
+					goto out;
+				}
+				list.used++;
+				if (!--space)
+					goto out;
+			}
 			offset = 0;
 		}
-		up_read(&card->controls_rwsem);
-		if (list.used > 0 &&
-		    copy_to_user(list.pids, dst,
-				 list.used * sizeof(struct snd_ctl_elem_id))) {
-			vfree(dst);
-			return -EFAULT;
-		}
-		vfree(dst);
-	} else {
-		down_read(&card->controls_rwsem);
-		list.count = card->controls_count;
-		up_read(&card->controls_rwsem);
 	}
-	if (copy_to_user(_list, &list, sizeof(list)))
-		return -EFAULT;
-	return 0;
+ out:
+	up_read(&card->controls_rwsem);
+	if (!err && copy_to_user(_list, &list, sizeof(list)))
+		err = -EFAULT;
+	return err;
+}
+
+static bool validate_element_member_dimension(struct snd_ctl_elem_info *info)
+{
+	unsigned int members;
+	unsigned int i;
+
+	if (info->dimen.d[0] == 0)
+		return true;
+
+	members = 1;
+	for (i = 0; i < ARRAY_SIZE(info->dimen.d); ++i) {
+		if (info->dimen.d[i] == 0)
+			break;
+		members *= info->dimen.d[i];
+
+		/*
+		 * info->count should be validated in advance, to guarantee
+		 * calculation soundness.
+		 */
+		if (members > info->count)
+			return false;
+	}
+
+	for (++i; i < ARRAY_SIZE(info->dimen.d); ++i) {
+		if (info->dimen.d[i] > 0)
+			return false;
+	}
+
+	return members == info->count;
 }
 
 static int snd_ctl_elem_info(struct snd_ctl_file *ctl,
@@ -1272,6 +1285,8 @@ static int snd_ctl_elem_add(struct snd_ctl_file *file,
 	if (info->count < 1 ||
 	    info->count > max_value_counts[info->type])
 		return -EINVAL;
+	if (!validate_element_member_dimension(info))
+		return -EINVAL;
 	private_size = value_sizes[info->type] * info->count;
 
 	/*
@@ -1404,6 +1419,8 @@ static int snd_ctl_tlv_ioctl(struct snd_ctl_file *file,
 	if (copy_from_user(&tlv, _tlv, sizeof(tlv)))
 		return -EFAULT;
 	if (tlv.length < sizeof(unsigned int) * 2)
+		return -EINVAL;
+	if (!tlv.numid)
 		return -EINVAL;
 	down_read(&card->controls_rwsem);
 	kctl = snd_ctl_find_numid(card, tlv.numid);
@@ -1540,7 +1557,7 @@ static ssize_t snd_ctl_read(struct file *file, char __user *buffer,
 		struct snd_ctl_event ev;
 		struct snd_kctl_event *kev;
 		while (list_empty(&ctl->events)) {
-			wait_queue_t wait;
+			wait_queue_entry_t wait;
 			if ((file->f_flags & O_NONBLOCK) != 0 || result > 0) {
 				err = -EAGAIN;
 				goto __end_lock;

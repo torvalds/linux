@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -133,7 +133,8 @@ acpi_ds_get_predicate_value(struct acpi_walk_state *walk_state,
 	 * Result of predicate evaluation must be an Integer
 	 * object. Implicitly convert the argument if necessary.
 	 */
-	status = acpi_ex_convert_to_integer(obj_desc, &local_obj_desc, 16);
+	status = acpi_ex_convert_to_integer(obj_desc, &local_obj_desc,
+					    ACPI_STRTOUL_BASE16);
 	if (ACPI_FAILURE(status)) {
 		goto cleanup;
 	}
@@ -172,14 +173,14 @@ acpi_ds_get_predicate_value(struct acpi_walk_state *walk_state,
 
 cleanup:
 
-	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "Completed a predicate eval=%X Op=%p\n",
+	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
+			  "Completed a predicate eval=%X Op=%p\n",
 			  walk_state->control_state->common.value,
 			  walk_state->op));
 
 	/* Break to debugger to display result */
 
-	ACPI_DEBUGGER_EXEC(acpi_db_display_result_object
-			   (local_obj_desc, walk_state));
+	acpi_db_display_result_object(local_obj_desc, walk_state);
 
 	/*
 	 * Delete the predicate result object (we know that
@@ -264,8 +265,8 @@ acpi_ds_exec_begin_op(struct acpi_walk_state *walk_state,
 	    (walk_state->control_state->common.state ==
 	     ACPI_CONTROL_CONDITIONAL_EXECUTING)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-				  "Exec predicate Op=%p State=%p\n", op,
-				  walk_state));
+				  "Exec predicate Op=%p State=%p\n",
+				  op, walk_state));
 
 		walk_state->control_state->common.state =
 		    ACPI_CONTROL_PREDICATE_EXECUTING;
@@ -386,11 +387,10 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 
 	/* Call debugger for single step support (DEBUG build only) */
 
-	ACPI_DEBUGGER_EXEC(status =
-			   acpi_db_single_step(walk_state, op, op_class));
-	ACPI_DEBUGGER_EXEC(if (ACPI_FAILURE(status)) {
-			   return_ACPI_STATUS(status);}
-	) ;
+	status = acpi_db_single_step(walk_state, op, op_class);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
 
 	/* Decode the Opcode Class */
 
@@ -497,14 +497,13 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 			if ((op->asl.parent) &&
 			    ((op->asl.parent->asl.aml_opcode == AML_PACKAGE_OP)
 			     || (op->asl.parent->asl.aml_opcode ==
-				 AML_VAR_PACKAGE_OP))) {
+				 AML_VARIABLE_PACKAGE_OP))) {
 				ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
 						  "Method Reference in a Package, Op=%p\n",
 						  op));
 
-				op->common.node =
-				    (struct acpi_namespace_node *)op->asl.value.
-				    arg->asl.node;
+				op->common.node = (struct acpi_namespace_node *)
+				    op->asl.value.arg->asl.node;
 				acpi_ut_add_reference(op->asl.value.arg->asl.
 						      node->object);
 				return_ACPI_STATUS(AE_OK);
@@ -577,8 +576,8 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 		case AML_TYPE_CREATE_OBJECT:
 
 			ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-					  "Executing CreateObject (Buffer/Package) Op=%p\n",
-					  op));
+					  "Executing CreateObject (Buffer/Package) Op=%p AMLPtr=%p\n",
+					  op, op->named.data));
 
 			switch (op->common.parent->common.aml_opcode) {
 			case AML_NAME_OP:
@@ -586,8 +585,8 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 				 * Put the Node on the object stack (Contains the ACPI Name
 				 * of this object)
 				 */
-				walk_state->operands[0] =
-				    (void *)op->common.parent->common.node;
+				walk_state->operands[0] = (void *)
+				    op->common.parent->common.node;
 				walk_state->num_operands = 1;
 
 				status = acpi_ds_create_node(walk_state,
@@ -692,7 +691,8 @@ acpi_status acpi_ds_exec_end_op(struct acpi_walk_state *walk_state)
 		default:
 
 			ACPI_ERROR((AE_INFO,
-				    "Unimplemented opcode, class=0x%X type=0x%X Opcode=0x%X Op=%p",
+				    "Unimplemented opcode, class=0x%X "
+				    "type=0x%X Opcode=0x%X Op=%p",
 				    op_class, op_type, op->common.aml_opcode,
 				    op));
 
@@ -728,8 +728,8 @@ cleanup:
 
 		/* Break to debugger to display result */
 
-		ACPI_DEBUGGER_EXEC(acpi_db_display_result_object
-				   (walk_state->result_obj, walk_state));
+		acpi_db_display_result_object(walk_state->result_obj,
+					      walk_state);
 
 		/*
 		 * Delete the result op if and only if:

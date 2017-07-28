@@ -175,6 +175,7 @@ void plist_requeue(struct plist_node *node, struct plist_head *head)
 
 #ifdef CONFIG_DEBUG_PI_LIST
 #include <linux/sched.h>
+#include <linux/sched/clock.h>
 #include <linux/module.h>
 #include <linux/init.h>
 

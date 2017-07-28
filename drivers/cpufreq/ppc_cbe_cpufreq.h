@@ -17,7 +17,7 @@ int cbe_cpufreq_get_pmode(int cpu);
 
 int cbe_cpufreq_set_pmode_pmi(int cpu, unsigned int pmode);
 
-#if defined(CONFIG_CPU_FREQ_CBE_PMI) || defined(CONFIG_CPU_FREQ_CBE_PMI_MODULE)
+#if IS_ENABLED(CONFIG_CPU_FREQ_CBE_PMI)
 extern bool cbe_cpufreq_has_pmi;
 #else
 #define cbe_cpufreq_has_pmi (0)

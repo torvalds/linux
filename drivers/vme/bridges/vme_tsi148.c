@@ -50,6 +50,8 @@ static const struct pci_device_id tsi148_ids[] = {
 	{ },
 };
 
+MODULE_DEVICE_TABLE(pci, tsi148_ids);
+
 static struct pci_driver tsi148_driver = {
 	.name = driver_name,
 	.id_table = tsi148_ids,
@@ -102,7 +104,7 @@ static u32 tsi148_LM_irqhandler(struct tsi148_driver *bridge, u32 stat)
 	for (i = 0; i < 4; i++) {
 		if (stat & TSI148_LCSR_INTS_LMS[i]) {
 			/* We only enable interrupts if the callback is set */
-			bridge->lm_callback[i](i);
+			bridge->lm_callback[i](bridge->lm_data[i]);
 			serviced |= TSI148_LCSR_INTC_LMC[i];
 		}
 	}
@@ -313,10 +315,6 @@ static int tsi148_irq_init(struct vme_bridge *tsi148_bridge)
 	pdev = to_pci_dev(tsi148_bridge->parent);
 
 	bridge = tsi148_bridge->driver_priv;
-
-	INIT_LIST_HEAD(&tsi148_bridge->vme_error_handlers);
-
-	mutex_init(&tsi148_bridge->irq_mtx);
 
 	result = request_irq(pdev->irq,
 			     tsi148_irqhandler,
@@ -2051,7 +2049,7 @@ static int tsi148_lm_get(struct vme_lm_resource *lm,
  * Callback will be passed the monitor triggered.
  */
 static int tsi148_lm_attach(struct vme_lm_resource *lm, int monitor,
-	void (*callback)(int))
+	void (*callback)(void *), void *data)
 {
 	u32 lm_ctl, tmp;
 	struct vme_bridge *tsi148_bridge;
@@ -2081,6 +2079,7 @@ static int tsi148_lm_attach(struct vme_lm_resource *lm, int monitor,
 
 	/* Attach callback */
 	bridge->lm_callback[monitor] = callback;
+	bridge->lm_data[monitor] = data;
 
 	/* Enable Location Monitor interrupt */
 	tmp = ioread32be(bridge->base + TSI148_LCSR_INTEN);
@@ -2128,6 +2127,7 @@ static int tsi148_lm_detach(struct vme_lm_resource *lm, int monitor)
 
 	/* Detach callback */
 	bridge->lm_callback[monitor] = NULL;
+	bridge->lm_data[monitor] = NULL;
 
 	/* If all location monitors disabled, disable global Location Monitor */
 	if ((lm_en & (TSI148_LCSR_INTS_LM0S | TSI148_LCSR_INTS_LM1S |
@@ -2301,6 +2301,7 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		retval = -ENOMEM;
 		goto err_struct;
 	}
+	vme_init_bridge(tsi148_bridge);
 
 	tsi148_device = kzalloc(sizeof(struct tsi148_driver), GFP_KERNEL);
 	if (tsi148_device == NULL) {
@@ -2387,7 +2388,6 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* Add master windows to list */
-	INIT_LIST_HEAD(&tsi148_bridge->master_resources);
 	for (i = 0; i < master_num; i++) {
 		master_image = kmalloc(sizeof(struct vme_master_resource),
 			GFP_KERNEL);
@@ -2417,7 +2417,6 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* Add slave windows to list */
-	INIT_LIST_HEAD(&tsi148_bridge->slave_resources);
 	for (i = 0; i < TSI148_MAX_SLAVE; i++) {
 		slave_image = kmalloc(sizeof(struct vme_slave_resource),
 			GFP_KERNEL);
@@ -2442,7 +2441,6 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* Add dma engines to list */
-	INIT_LIST_HEAD(&tsi148_bridge->dma_resources);
 	for (i = 0; i < TSI148_MAX_DMA; i++) {
 		dma_ctrlr = kmalloc(sizeof(struct vme_dma_resource),
 			GFP_KERNEL);
@@ -2467,7 +2465,6 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* Add location monitor to list */
-	INIT_LIST_HEAD(&tsi148_bridge->lm_resources);
 	lm = kmalloc(sizeof(struct vme_lm_resource), GFP_KERNEL);
 	if (lm == NULL) {
 		dev_err(&pdev->dev, "Failed to allocate memory for "

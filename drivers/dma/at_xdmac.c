@@ -156,7 +156,7 @@
 #define		AT_XDMAC_CC_WRIP	(0x1 << 23)	/* Write in Progress (read only) */
 #define			AT_XDMAC_CC_WRIP_DONE		(0x0 << 23)
 #define			AT_XDMAC_CC_WRIP_IN_PROGRESS	(0x1 << 23)
-#define		AT_XDMAC_CC_PERID(i)	(0x7f & (h) << 24)	/* Channel Peripheral Identifier */
+#define		AT_XDMAC_CC_PERID(i)	(0x7f & (i) << 24)	/* Channel Peripheral Identifier */
 #define AT_XDMAC_CDS_MSP	0x2C	/* Channel Data Stride Memory Set Pattern */
 #define AT_XDMAC_CSUS		0x30	/* Channel Source Microblock Stride */
 #define AT_XDMAC_CDUS		0x34	/* Channel Destination Microblock Stride */
@@ -176,6 +176,7 @@
 #define AT_XDMAC_MAX_CHAN	0x20
 #define AT_XDMAC_MAX_CSIZE	16	/* 16 data */
 #define AT_XDMAC_MAX_DWIDTH	8	/* 64 bits */
+#define AT_XDMAC_RESIDUE_MAX_RETRIES	5
 
 #define AT_XDMAC_DMA_BUSWIDTHS\
 	(BIT(DMA_SLAVE_BUSWIDTH_UNDEFINED) |\
@@ -220,7 +221,6 @@ struct at_xdmac {
 	int			irq;
 	struct clk		*clk;
 	u32			save_gim;
-	u32			save_gs;
 	struct dma_pool		*at_xdmac_desc_pool;
 	struct at_xdmac_chan	chan[0];
 };
@@ -241,7 +241,7 @@ struct at_xdmac_lld {
 	u32		mbr_dus;	/* Destination Microblock Stride Register */
 };
 
-
+/* 64-bit alignment needed to update CNDA and CUBC registers in an atomic way. */
 struct at_xdmac_desc {
 	struct at_xdmac_lld		lld;
 	enum dma_transfer_direction	direction;
@@ -252,7 +252,7 @@ struct at_xdmac_desc {
 	unsigned int			xfer_size;
 	struct list_head		descs_list;
 	struct list_head		xfer_node;
-};
+} __aligned(sizeof(u64));
 
 static inline void __iomem *at_xdmac_chan_reg_base(struct at_xdmac *atxdmac, unsigned int chan_nb)
 {
@@ -443,9 +443,8 @@ static struct at_xdmac_desc *at_xdmac_alloc_desc(struct dma_chan *chan,
 	struct at_xdmac		*atxdmac = to_at_xdmac(chan->device);
 	dma_addr_t		phys;
 
-	desc = dma_pool_alloc(atxdmac->at_xdmac_desc_pool, gfp_flags, &phys);
+	desc = dma_pool_zalloc(atxdmac->at_xdmac_desc_pool, gfp_flags, &phys);
 	if (desc) {
-		memset(desc, 0, sizeof(*desc));
 		INIT_LIST_HEAD(&desc->descs_list);
 		dma_async_tx_descriptor_init(&desc->tx_dma_desc, chan);
 		desc->tx_dma_desc.tx_submit = at_xdmac_tx_submit;
@@ -455,7 +454,7 @@ static struct at_xdmac_desc *at_xdmac_alloc_desc(struct dma_chan *chan,
 	return desc;
 }
 
-void at_xdmac_init_used_desc(struct at_xdmac_desc *desc)
+static void at_xdmac_init_used_desc(struct at_xdmac_desc *desc)
 {
 	memset(&desc->lld, 0, sizeof(desc->lld));
 	INIT_LIST_HEAD(&desc->descs_list);
@@ -863,8 +862,12 @@ at_xdmac_interleaved_queue_desc(struct dma_chan *chan,
 	 * access. Hopefully we can access DDR through both ports (at least on
 	 * SAMA5D4x), so we can use the same interface for source and dest,
 	 * that solves the fact we don't know the direction.
+	 * ERRATA: Even if useless for memory transfers, the PERID has to not
+	 * match the one of another channel. If not, it could lead to spurious
+	 * flag status.
 	 */
-	u32			chan_cc = AT_XDMAC_CC_DIF(0)
+	u32			chan_cc = AT_XDMAC_CC_PERID(0x3f)
+					| AT_XDMAC_CC_DIF(0)
 					| AT_XDMAC_CC_SIF(0)
 					| AT_XDMAC_CC_MBSIZE_SIXTEEN
 					| AT_XDMAC_CC_TYPE_MEM_TRAN;
@@ -965,7 +968,9 @@ at_xdmac_prep_interleaved(struct dma_chan *chan,
 							NULL,
 							src_addr, dst_addr,
 							xt, xt->sgl);
-		for (i = 0; i < xt->numf; i++)
+
+		/* Length of the block is (BLEN+1) microblocks. */
+		for (i = 0; i < xt->numf - 1; i++)
 			at_xdmac_increment_block_count(chan, first);
 
 		dev_dbg(chan2dev(chan), "%s: add desc 0x%p to descs_list 0x%p\n",
@@ -1039,8 +1044,12 @@ at_xdmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	 * access DDR through both ports (at least on SAMA5D4x), so we can use
 	 * the same interface for source and dest, that solves the fact we
 	 * don't know the direction.
+	 * ERRATA: Even if useless for memory transfers, the PERID has to not
+	 * match the one of another channel. If not, it could lead to spurious
+	 * flag status.
 	 */
-	u32			chan_cc = AT_XDMAC_CC_DAM_INCREMENTED_AM
+	u32			chan_cc = AT_XDMAC_CC_PERID(0x3f)
+					| AT_XDMAC_CC_DAM_INCREMENTED_AM
 					| AT_XDMAC_CC_SAM_INCREMENTED_AM
 					| AT_XDMAC_CC_DIF(0)
 					| AT_XDMAC_CC_SIF(0)
@@ -1086,6 +1095,7 @@ at_xdmac_prep_dma_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 		/* Check remaining length and change data width if needed. */
 		dwidth = at_xdmac_align_width(chan,
 					      src_addr | dst_addr | xfer_size);
+		chan_cc &= ~AT_XDMAC_CC_DWIDTH_MASK;
 		chan_cc |= AT_XDMAC_CC_DWIDTH(dwidth);
 
 		ublen = xfer_size >> dwidth;
@@ -1140,8 +1150,12 @@ static struct at_xdmac_desc *at_xdmac_memset_create_desc(struct dma_chan *chan,
 	 * access. Hopefully we can access DDR through both ports (at least on
 	 * SAMA5D4x), so we can use the same interface for source and dest,
 	 * that solves the fact we don't know the direction.
+	 * ERRATA: Even if useless for memory transfers, the PERID has to not
+	 * match the one of another channel. If not, it could lead to spurious
+	 * flag status.
 	 */
-	u32			chan_cc = AT_XDMAC_CC_DAM_UBS_AM
+	u32			chan_cc = AT_XDMAC_CC_PERID(0x3f)
+					| AT_XDMAC_CC_DAM_UBS_AM
 					| AT_XDMAC_CC_SAM_INCREMENTED_AM
 					| AT_XDMAC_CC_DIF(0)
 					| AT_XDMAC_CC_SIF(0)
@@ -1179,14 +1193,14 @@ static struct at_xdmac_desc *at_xdmac_memset_create_desc(struct dma_chan *chan,
 	desc->lld.mbr_cfg = chan_cc;
 
 	dev_dbg(chan2dev(chan),
-		"%s: lld: mbr_da=%pad, mbr_ds=%pad, mbr_ubc=0x%08x, mbr_cfg=0x%08x\n",
-		__func__, &desc->lld.mbr_da, &desc->lld.mbr_ds, desc->lld.mbr_ubc,
+		"%s: lld: mbr_da=%pad, mbr_ds=0x%08x, mbr_ubc=0x%08x, mbr_cfg=0x%08x\n",
+		__func__, &desc->lld.mbr_da, desc->lld.mbr_ds, desc->lld.mbr_ubc,
 		desc->lld.mbr_cfg);
 
 	return desc;
 }
 
-struct dma_async_tx_descriptor *
+static struct dma_async_tx_descriptor *
 at_xdmac_prep_dma_memset(struct dma_chan *chan, dma_addr_t dest, int value,
 			 size_t len, unsigned long flags)
 {
@@ -1333,7 +1347,7 @@ at_xdmac_prep_dma_memset_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		 * since we don't care about the stride anymore.
 		 */
 		if ((i == (sg_len - 1)) &&
-		    sg_dma_len(ppsg) == sg_dma_len(psg)) {
+		    sg_dma_len(psg) == sg_dma_len(sg)) {
 			dev_dbg(chan2dev(chan),
 				"%s: desc 0x%p can be merged with desc 0x%p\n",
 				__func__, desc, pdesc);
@@ -1380,10 +1394,11 @@ at_xdmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	struct at_xdmac_desc	*desc, *_desc;
 	struct list_head	*descs_list;
 	enum dma_status		ret;
-	int			residue;
-	u32			cur_nda, mask, value;
+	int			residue, retry;
+	u32			cur_nda, check_nda, cur_ubc, mask, value;
 	u8			dwidth = 0;
 	unsigned long		flags;
+	bool			initd;
 
 	ret = dma_cookie_status(chan, cookie, txstate);
 	if (ret == DMA_COMPLETE)
@@ -1408,7 +1423,16 @@ at_xdmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	residue = desc->xfer_size;
 	/*
 	 * Flush FIFO: only relevant when the transfer is source peripheral
-	 * synchronized.
+	 * synchronized. Flush is needed before reading CUBC because data in
+	 * the FIFO are not reported by CUBC. Reporting a residue of the
+	 * transfer length while we have data in FIFO can cause issue.
+	 * Usecase: atmel USART has a timeout which means I have received
+	 * characters but there is no more character received for a while. On
+	 * timeout, it requests the residue. If the data are in the DMA FIFO,
+	 * we will return a residue of the transfer length. It means no data
+	 * received. If an application is waiting for these data, it will hang
+	 * since we won't have another USART timeout without receiving new
+	 * data.
 	 */
 	mask = AT_XDMAC_CC_TYPE | AT_XDMAC_CC_DSYNC;
 	value = AT_XDMAC_CC_TYPE_PER_TRAN | AT_XDMAC_CC_DSYNC_PER2MEM;
@@ -1418,7 +1442,64 @@ at_xdmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 			cpu_relax();
 	}
 
-	cur_nda = at_xdmac_chan_read(atchan, AT_XDMAC_CNDA) & 0xfffffffc;
+	/*
+	 * The easiest way to compute the residue should be to pause the DMA
+	 * but doing this can lead to miss some data as some devices don't
+	 * have FIFO.
+	 * We need to read several registers because:
+	 * - DMA is running therefore a descriptor change is possible while
+	 * reading these registers
+	 * - When the block transfer is done, the value of the CUBC register
+	 * is set to its initial value until the fetch of the next descriptor.
+	 * This value will corrupt the residue calculation so we have to skip
+	 * it.
+	 *
+	 * INITD --------                    ------------
+	 *              |____________________|
+	 *       _______________________  _______________
+	 * NDA       @desc2             \/   @desc3
+	 *       _______________________/\_______________
+	 *       __________  ___________  _______________
+	 * CUBC       0    \/ MAX desc1 \/  MAX desc2
+	 *       __________/\___________/\_______________
+	 *
+	 * Since descriptors are aligned on 64 bits, we can assume that
+	 * the update of NDA and CUBC is atomic.
+	 * Memory barriers are used to ensure the read order of the registers.
+	 * A max number of retries is set because unlikely it could never ends.
+	 */
+	for (retry = 0; retry < AT_XDMAC_RESIDUE_MAX_RETRIES; retry++) {
+		check_nda = at_xdmac_chan_read(atchan, AT_XDMAC_CNDA) & 0xfffffffc;
+		rmb();
+		initd = !!(at_xdmac_chan_read(atchan, AT_XDMAC_CC) & AT_XDMAC_CC_INITD);
+		rmb();
+		cur_ubc = at_xdmac_chan_read(atchan, AT_XDMAC_CUBC);
+		rmb();
+		cur_nda = at_xdmac_chan_read(atchan, AT_XDMAC_CNDA) & 0xfffffffc;
+		rmb();
+
+		if ((check_nda == cur_nda) && initd)
+			break;
+	}
+
+	if (unlikely(retry >= AT_XDMAC_RESIDUE_MAX_RETRIES)) {
+		ret = DMA_ERROR;
+		goto spin_unlock;
+	}
+
+	/*
+	 * Flush FIFO: only relevant when the transfer is source peripheral
+	 * synchronized. Another flush is needed here because CUBC is updated
+	 * when the controller sends the data write command. It can lead to
+	 * report data that are not written in the memory or the device. The
+	 * FIFO flush ensures that data are really written.
+	 */
+	if ((desc->lld.mbr_cfg & mask) == value) {
+		at_xdmac_write(atxdmac, AT_XDMAC_GSWF, atchan->mask);
+		while (!(at_xdmac_chan_read(atchan, AT_XDMAC_CIS) & AT_XDMAC_CIS_FIS))
+			cpu_relax();
+	}
+
 	/*
 	 * Remove size of all microblocks already transferred and the current
 	 * one. Then add the remaining size to transfer of the current
@@ -1431,7 +1512,7 @@ at_xdmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 		if ((desc->lld.mbr_nda & 0xfffffffc) == cur_nda)
 			break;
 	}
-	residue += at_xdmac_chan_read(atchan, AT_XDMAC_CUBC) << dwidth;
+	residue += cur_ubc << dwidth;
 
 	dma_set_residue(txstate, residue);
 
@@ -1489,8 +1570,8 @@ static void at_xdmac_handle_cyclic(struct at_xdmac_chan *atchan)
 	desc = list_first_entry(&atchan->xfers_list, struct at_xdmac_desc, xfer_node);
 	txd = &desc->tx_dma_desc;
 
-	if (txd->callback && (txd->flags & DMA_PREP_INTERRUPT))
-		txd->callback(txd->callback_param);
+	if (txd->flags & DMA_PREP_INTERRUPT)
+		dmaengine_desc_get_callback_invoke(txd, NULL);
 }
 
 static void at_xdmac_tasklet(unsigned long data)
@@ -1533,8 +1614,8 @@ static void at_xdmac_tasklet(unsigned long data)
 
 		if (!at_xdmac_chan_is_cyclic(atchan)) {
 			dma_cookie_complete(txd);
-			if (txd->callback && (txd->flags & DMA_PREP_INTERRUPT))
-				txd->callback(txd->callback_param);
+			if (txd->flags & DMA_PREP_INTERRUPT)
+				dmaengine_desc_get_callback_invoke(txd, NULL);
 		}
 
 		dma_run_dependencies(txd);
@@ -1685,6 +1766,7 @@ static int at_xdmac_device_terminate_all(struct dma_chan *chan)
 	list_for_each_entry_safe(desc, _desc, &atchan->xfers_list, xfer_node)
 		at_xdmac_remove_xfer(atchan, desc);
 
+	clear_bit(AT_XDMAC_CHAN_IS_PAUSED, &atchan->status);
 	clear_bit(AT_XDMAC_CHAN_IS_CYCLIC, &atchan->status);
 	spin_unlock_irqrestore(&atchan->lock, flags);
 
@@ -1812,11 +1894,12 @@ static int atmel_xdmac_resume(struct device *dev)
 	}
 
 	at_xdmac_write(atxdmac, AT_XDMAC_GIE, atxdmac->save_gim);
-	at_xdmac_write(atxdmac, AT_XDMAC_GE, atxdmac->save_gs);
 	list_for_each_entry_safe(chan, _chan, &atxdmac->dma.channels, device_node) {
 		atchan = to_at_xdmac_chan(chan);
 		at_xdmac_chan_write(atchan, AT_XDMAC_CC, atchan->save_cc);
 		if (at_xdmac_chan_is_cyclic(atchan)) {
+			if (at_xdmac_chan_is_paused(atchan))
+				at_xdmac_device_resume(chan);
 			at_xdmac_chan_write(atchan, AT_XDMAC_CNDA, atchan->save_cnda);
 			at_xdmac_chan_write(atchan, AT_XDMAC_CNDC, atchan->save_cndc);
 			at_xdmac_chan_write(atchan, AT_XDMAC_CIE, atchan->save_cim);
@@ -1981,7 +2064,7 @@ err_dma_unregister:
 err_clk_disable:
 	clk_disable_unprepare(atxdmac->clk);
 err_free_irq:
-	free_irq(atxdmac->irq, atxdmac->dma.dev);
+	free_irq(atxdmac->irq, atxdmac);
 	return ret;
 }
 
@@ -1995,9 +2078,7 @@ static int at_xdmac_remove(struct platform_device *pdev)
 	dma_async_device_unregister(&atxdmac->dma);
 	clk_disable_unprepare(atxdmac->clk);
 
-	synchronize_irq(atxdmac->irq);
-
-	free_irq(atxdmac->irq, atxdmac->dma.dev);
+	free_irq(atxdmac->irq, atxdmac);
 
 	for (i = 0; i < atxdmac->dma.chancnt; i++) {
 		struct at_xdmac_chan *atchan = &atxdmac->chan[i];

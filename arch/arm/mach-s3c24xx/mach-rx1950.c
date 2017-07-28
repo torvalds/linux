@@ -496,6 +496,12 @@ static int rx1950_backlight_init(struct device *dev)
 		return PTR_ERR(lcd_pwm);
 	}
 
+	/*
+	 * FIXME: pwm_apply_args() should be removed when switching to
+	 * the atomic PWM API.
+	 */
+	pwm_apply_args(lcd_pwm);
+
 	rx1950_lcd_power(1);
 	rx1950_bl_power(1);
 
@@ -605,6 +611,7 @@ static struct s3c2410_platform_nand rx1950_nand_info = {
 	.twrph1 = 15,
 	.nr_sets = ARRAY_SIZE(rx1950_nand_sets),
 	.sets = rx1950_nand_sets,
+	.ecc_mode = NAND_ECC_SOFT,
 };
 
 static struct s3c2410_udc_mach_info rx1950_udc_cfg __initdata = {

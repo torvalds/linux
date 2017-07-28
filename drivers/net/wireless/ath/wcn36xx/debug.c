@@ -33,9 +33,7 @@ static ssize_t read_file_bool_bmps(struct file *file, char __user *user_buf,
 	char buf[3];
 
 	list_for_each_entry(vif_priv, &wcn->vif_list, list) {
-			vif = container_of((void *)vif_priv,
-				   struct ieee80211_vif,
-				   drv_priv);
+			vif = wcn36xx_priv_to_vif(vif_priv);
 			if (NL80211_IFTYPE_STATION == vif->type) {
 				if (vif_priv->pw_state == WCN36XX_BMPS)
 					buf[0] = '1';
@@ -70,9 +68,7 @@ static ssize_t write_file_bool_bmps(struct file *file,
 	case 'Y':
 	case '1':
 		list_for_each_entry(vif_priv, &wcn->vif_list, list) {
-			vif = container_of((void *)vif_priv,
-				   struct ieee80211_vif,
-				   drv_priv);
+			vif = wcn36xx_priv_to_vif(vif_priv);
 			if (NL80211_IFTYPE_STATION == vif->type) {
 				wcn36xx_enable_keep_alive_null_packet(wcn, vif);
 				wcn36xx_pmc_enter_bmps_state(wcn, vif);
@@ -83,9 +79,7 @@ static ssize_t write_file_bool_bmps(struct file *file,
 	case 'N':
 	case '0':
 		list_for_each_entry(vif_priv, &wcn->vif_list, list) {
-			vif = container_of((void *)vif_priv,
-				   struct ieee80211_vif,
-				   drv_priv);
+			vif = wcn36xx_priv_to_vif(vif_priv);
 			if (NL80211_IFTYPE_STATION == vif->type)
 				wcn36xx_pmc_exit_bmps_state(wcn, vif);
 		}

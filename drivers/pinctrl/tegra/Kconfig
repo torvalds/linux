@@ -1,0 +1,30 @@
+config PINCTRL_TEGRA
+	bool
+	select PINMUX
+	select PINCONF
+
+config PINCTRL_TEGRA20
+	bool
+	select PINCTRL_TEGRA
+
+config PINCTRL_TEGRA30
+	bool
+	select PINCTRL_TEGRA
+
+config PINCTRL_TEGRA114
+	bool
+	select PINCTRL_TEGRA
+
+config PINCTRL_TEGRA124
+	bool
+	select PINCTRL_TEGRA
+
+config PINCTRL_TEGRA210
+	bool
+	select PINCTRL_TEGRA
+
+config PINCTRL_TEGRA_XUSB
+	def_bool y if ARCH_TEGRA
+	select GENERIC_PHY
+	select PINCONF
+	select PINMUX

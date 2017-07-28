@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2015, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -206,8 +206,7 @@ acpi_status acpi_ut_init_globals(void)
 	acpi_gbl_next_owner_id_offset = 0;
 	acpi_gbl_debugger_configuration = DEBUGGER_THREADING;
 	acpi_gbl_osi_mutex = NULL;
-	acpi_gbl_reg_methods_executed = FALSE;
-	acpi_gbl_max_loop_iterations = 0xFFFF;
+	acpi_gbl_max_loop_iterations = ACPI_MAX_LOOP_COUNT;
 
 	/* Hardware oriented */
 

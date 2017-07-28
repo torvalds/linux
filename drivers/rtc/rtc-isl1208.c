@@ -15,8 +15,6 @@
 #include <linux/bcd.h>
 #include <linux/rtc.h>
 
-#define DRV_VERSION "0.3"
-
 /* Register map */
 /* rtc section */
 #define ISL1208_REG_SC  0x00
@@ -632,9 +630,6 @@ isl1208_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (isl1208_i2c_validate_client(client) < 0)
 		return -ENODEV;
 
-	dev_info(&client->dev,
-		 "chip found, driver version " DRV_VERSION "\n");
-
 	if (client->irq > 0) {
 		rc = devm_request_threaded_irq(&client->dev, client->irq, NULL,
 					       isl1208_rtc_interrupt,
@@ -692,10 +687,18 @@ static const struct i2c_device_id isl1208_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, isl1208_id);
 
+static const struct of_device_id isl1208_of_match[] = {
+	{ .compatible = "isil,isl1208" },
+	{ .compatible = "isil,isl1218" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, isl1208_of_match);
+
 static struct i2c_driver isl1208_driver = {
 	.driver = {
-		   .name = "rtc-isl1208",
-		   },
+		.name = "rtc-isl1208",
+		.of_match_table = of_match_ptr(isl1208_of_match),
+	},
 	.probe = isl1208_probe,
 	.remove = isl1208_remove,
 	.id_table = isl1208_id,
@@ -706,4 +709,3 @@ module_i2c_driver(isl1208_driver);
 MODULE_AUTHOR("Herbert Valerio Riedel <hvr@gnu.org>");
 MODULE_DESCRIPTION("Intersil ISL1208 RTC driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(DRV_VERSION);

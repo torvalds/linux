@@ -29,7 +29,7 @@
 #include <asm/dpmc.h>
 
 #if IS_ENABLED(CONFIG_TOUCHSCREEN_AD7879)
-#include <linux/spi/ad7879.h>
+#include <linux/platform_data/ad7879.h>
 #define LCD_BACKLIGHT_GPIO 0x40
 /* TLL6527M uses TLL7UIQ35 / ADI LCD EZ Extender. AD7879 AUX GPIO is used for
  * LCD Backlight Enable
@@ -348,14 +348,14 @@ static struct platform_device bfin_i2s = {
 };
 #endif
 
-#if IS_ENABLED(CONFIG_GPIO_MCP23S08)
+#if IS_ENABLED(CONFIG_PINCTRL_MCP23S08)
 #include <linux/spi/mcp23s08.h>
 static const struct mcp23s08_platform_data bfin_mcp23s08_sys_gpio_info = {
-	.chip[0].is_present = true,
+	.spi_present_mask = BIT(0),
 	.base = 0x30,
 };
 static const struct mcp23s08_platform_data bfin_mcp23s08_usr_gpio_info = {
-	.chip[2].is_present = true,
+	.spi_present_mask = BIT(2),
 	.base = 0x38,
 };
 #endif
@@ -423,7 +423,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.mode = SPI_CPHA | SPI_CPOL,
 	},
 #endif
-#if IS_ENABLED(CONFIG_GPIO_MCP23S08)
+#if IS_ENABLED(CONFIG_PINCTRL_MCP23S08)
 	{
 		.modalias = "mcp23s08",
 		.platform_data = &bfin_mcp23s08_sys_gpio_info,

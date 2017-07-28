@@ -8,7 +8,7 @@
  * published by the Free Software Foundation.
  */
 &scm_clocks {
-	emac_ick: emac_ick {
+	emac_ick: emac_ick@32c {
 		#clock-cells = <0>;
 		compatible = "ti,am35xx-gate-clock";
 		clocks = <&ipss_ick>;
@@ -16,7 +16,7 @@
 		ti,bit-shift = <1>;
 	};
 
-	emac_fck: emac_fck {
+	emac_fck: emac_fck@32c {
 		#clock-cells = <0>;
 		compatible = "ti,gate-clock";
 		clocks = <&rmii_ck>;
@@ -24,7 +24,7 @@
 		ti,bit-shift = <9>;
 	};
 
-	vpfe_ick: vpfe_ick {
+	vpfe_ick: vpfe_ick@32c {
 		#clock-cells = <0>;
 		compatible = "ti,am35xx-gate-clock";
 		clocks = <&ipss_ick>;
@@ -32,7 +32,7 @@
 		ti,bit-shift = <2>;
 	};
 
-	vpfe_fck: vpfe_fck {
+	vpfe_fck: vpfe_fck@32c {
 		#clock-cells = <0>;
 		compatible = "ti,gate-clock";
 		clocks = <&pclk_ck>;
@@ -40,7 +40,7 @@
 		ti,bit-shift = <10>;
 	};
 
-	hsotgusb_ick_am35xx: hsotgusb_ick_am35xx {
+	hsotgusb_ick_am35xx: hsotgusb_ick_am35xx@32c {
 		#clock-cells = <0>;
 		compatible = "ti,am35xx-gate-clock";
 		clocks = <&ipss_ick>;
@@ -48,7 +48,7 @@
 		ti,bit-shift = <0>;
 	};
 
-	hsotgusb_fck_am35xx: hsotgusb_fck_am35xx {
+	hsotgusb_fck_am35xx: hsotgusb_fck_am35xx@32c {
 		#clock-cells = <0>;
 		compatible = "ti,gate-clock";
 		clocks = <&sys_ck>;
@@ -56,7 +56,7 @@
 		ti,bit-shift = <8>;
 	};
 
-	hecc_ck: hecc_ck {
+	hecc_ck: hecc_ck@32c {
 		#clock-cells = <0>;
 		compatible = "ti,am35xx-gate-clock";
 		clocks = <&sys_ck>;
@@ -65,7 +65,7 @@
 	};
 };
 &cm_clocks {
-	ipss_ick: ipss_ick {
+	ipss_ick: ipss_ick@a10 {
 		#clock-cells = <0>;
 		compatible = "ti,am35xx-interface-clock";
 		clocks = <&core_l3_ick>;
@@ -85,7 +85,7 @@
 		clock-frequency = <27000000>;
 	};
 
-	uart4_ick_am35xx: uart4_ick_am35xx {
+	uart4_ick_am35xx: uart4_ick_am35xx@a10 {
 		#clock-cells = <0>;
 		compatible = "ti,omap3-interface-clock";
 		clocks = <&core_l4_ick>;
@@ -93,7 +93,7 @@
 		ti,bit-shift = <23>;
 	};
 
-	uart4_fck_am35xx: uart4_fck_am35xx {
+	uart4_fck_am35xx: uart4_fck_am35xx@a00 {
 		#clock-cells = <0>;
 		compatible = "ti,wait-gate-clock";
 		clocks = <&core_48m_fck>;

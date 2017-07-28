@@ -37,7 +37,7 @@
 			compatible = "fixed-clock";
 			reg = <0>;
 			#clock-cells = <0>;
-			clock-frequency = <27000000>;
+			clock-frequency = <26000000>;
 		};
 	};
 
@@ -50,7 +50,7 @@
 			label = "Power Button";
 			gpios = <&gpio5 2 GPIO_ACTIVE_HIGH>;
 			linux,code = <116>; /* KEY_POWER */
-			gpio-key,wakeup;
+			wakeup-source;
 		};
 	};
 
@@ -161,7 +161,6 @@
 &ecspi1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_ecspi1>;
-	fsl,spi-num-chipselects = <2>;
 	status = "okay";
 
 	cs-gpios = <
@@ -202,7 +201,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec>;
 	phy-mode = "rmii";
-	phy-reset-gpios = <&gpio7 6 GPIO_ACTIVE_HIGH>;
+	phy-reset-gpios = <&gpio7 6 GPIO_ACTIVE_LOW>;
 	phy-handle = <&phy0>;
 	mac-address = [000000000000]; /* placeholder; will be overwritten by bootloader */
 	status = "okay";
@@ -513,21 +512,21 @@
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>;
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	status = "okay";
 };
 
 &uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	status = "okay";
 };
 
 &uart3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart3>;
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	status = "okay";
 };
 

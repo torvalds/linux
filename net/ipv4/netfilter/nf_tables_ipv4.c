@@ -78,7 +78,7 @@ err:
 
 static void nf_tables_ipv4_exit_net(struct net *net)
 {
-	nft_unregister_afinfo(net->nft.ipv4);
+	nft_unregister_afinfo(net, net->nft.ipv4);
 	kfree(net->nft.ipv4);
 }
 
@@ -103,7 +103,10 @@ static int __init nf_tables_ipv4_init(void)
 {
 	int ret;
 
-	nft_register_chain_type(&filter_ipv4);
+	ret = nft_register_chain_type(&filter_ipv4);
+	if (ret < 0)
+		return ret;
+
 	ret = register_pernet_subsys(&nf_tables_ipv4_net_ops);
 	if (ret < 0)
 		nft_unregister_chain_type(&filter_ipv4);

@@ -15,11 +15,7 @@
  *
  * You should have received a copy of the GNU General Public License
  * version 2 along with this program; If not, see
- * http://www.sun.com/software/products/lustre/docs/GPLv2.pdf
- *
- * Please contact Sun Microsystems, Inc., 4150 Network Circle, Santa Clara,
- * CA 95054 USA or visit www.sun.com if you need additional information or
- * have any questions.
+ * http://www.gnu.org/licenses/gpl-2.0.html
  *
  * GPL HEADER END
  */
@@ -39,7 +35,6 @@
 #include <linux/stat.h>
 #define DEBUG_SUBSYSTEM S_LLITE
 
-#include "../include/lustre_lite.h"
 #include "llite_internal.h"
 
 static int ll_readlink_internal(struct inode *inode,
@@ -59,7 +54,8 @@ static int ll_readlink_internal(struct inode *inode,
 		*symname = lli->lli_symlink_name;
 		/* If the total CDEBUG() size is larger than a page, it
 		 * will print a warning to the console, avoid this by
-		 * printing just the last part of the symlink. */
+		 * printing just the last part of the symlink.
+		 */
 		CDEBUG(D_INODE, "using cached symlink %s%.*s, len = %d\n",
 		       print_limit < symlen ? "..." : "", print_limit,
 		       (*symname) + symlen - print_limit, symlen);
@@ -76,28 +72,31 @@ static int ll_readlink_internal(struct inode *inode,
 	ll_finish_md_op_data(op_data);
 	if (rc) {
 		if (rc != -ENOENT)
-			CERROR("inode %lu: rc = %d\n", inode->i_ino, rc);
+			CERROR("%s: inode " DFID ": rc = %d\n",
+			       ll_get_fsname(inode->i_sb, NULL, 0),
+			       PFID(ll_inode2fid(inode)), rc);
 		goto failed;
 	}
 
 	body = req_capsule_server_get(&(*request)->rq_pill, &RMF_MDT_BODY);
-	LASSERT(body != NULL);
-	if ((body->valid & OBD_MD_LINKNAME) == 0) {
+	if ((body->mbo_valid & OBD_MD_LINKNAME) == 0) {
 		CERROR("OBD_MD_LINKNAME not set on reply\n");
 		rc = -EPROTO;
 		goto failed;
 	}
 
 	LASSERT(symlen != 0);
-	if (body->eadatasize != symlen) {
-		CERROR("inode %lu: symlink length %d not expected %d\n",
-			inode->i_ino, body->eadatasize - 1, symlen - 1);
+	if (body->mbo_eadatasize != symlen) {
+		CERROR("%s: inode " DFID ": symlink length %d not expected %d\n",
+		       ll_get_fsname(inode->i_sb, NULL, 0),
+		       PFID(ll_inode2fid(inode)), body->mbo_eadatasize - 1,
+		       symlen - 1);
 		rc = -EPROTO;
 		goto failed;
 	}
 
 	*symname = req_capsule_server_get(&(*request)->rq_pill, &RMF_MDT_MD);
-	if (*symname == NULL ||
+	if (!*symname ||
 	    strnlen(*symname, symlen) != symlen - 1) {
 		/* not full/NULL terminated */
 		CERROR("inode %lu: symlink not NULL terminated string of length %d\n",
@@ -118,12 +117,21 @@ failed:
 	return rc;
 }
 
-static const char *ll_follow_link(struct dentry *dentry, void **cookie)
+static void ll_put_link(void *p)
 {
-	struct inode *inode = d_inode(dentry);
+	ptlrpc_req_finished(p);
+}
+
+static const char *ll_get_link(struct dentry *dentry,
+			       struct inode *inode,
+			       struct delayed_call *done)
+{
 	struct ptlrpc_request *request = NULL;
 	int rc;
 	char *symname = NULL;
+
+	if (!dentry)
+		return ERR_PTR(-ECHILD);
 
 	CDEBUG(D_VFSTRACE, "VFS Op\n");
 	ll_inode_size_lock(inode);
@@ -135,26 +143,16 @@ static const char *ll_follow_link(struct dentry *dentry, void **cookie)
 	}
 
 	/* symname may contain a pointer to the request message buffer,
-	 * we delay request releasing until ll_put_link then.
+	 * we delay request releasing then.
 	 */
-	*cookie = request;
+	set_delayed_call(done, ll_put_link, request);
 	return symname;
 }
 
-static void ll_put_link(struct inode *unused, void *cookie)
-{
-	ptlrpc_req_finished(cookie);
-}
-
-struct inode_operations ll_fast_symlink_inode_operations = {
-	.readlink	= generic_readlink,
+const struct inode_operations ll_fast_symlink_inode_operations = {
 	.setattr	= ll_setattr,
-	.follow_link	= ll_follow_link,
-	.put_link	= ll_put_link,
+	.get_link	= ll_get_link,
 	.getattr	= ll_getattr,
 	.permission	= ll_inode_permission,
-	.setxattr	= ll_setxattr,
-	.getxattr	= ll_getxattr,
 	.listxattr	= ll_listxattr,
-	.removexattr	= ll_removexattr,
 };

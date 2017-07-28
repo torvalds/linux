@@ -1153,7 +1153,7 @@ static struct jffs2_sb_info *work_to_sb(struct work_struct *work)
 {
 	struct delayed_work *dwork;
 
-	dwork = container_of(work, struct delayed_work, work);
+	dwork = to_delayed_work(work);
 	return container_of(dwork, struct jffs2_sb_info, wbuf_dwork);
 }
 
@@ -1183,22 +1183,20 @@ void jffs2_dirty_trigger(struct jffs2_sb_info *c)
 
 int jffs2_nand_flash_setup(struct jffs2_sb_info *c)
 {
-	struct nand_ecclayout *oinfo = c->mtd->ecclayout;
-
 	if (!c->mtd->oobsize)
 		return 0;
 
 	/* Cleanmarker is out-of-band, so inline size zero */
 	c->cleanmarker_size = 0;
 
-	if (!oinfo || oinfo->oobavail == 0) {
+	if (c->mtd->oobavail == 0) {
 		pr_err("inconsistent device description\n");
 		return -EINVAL;
 	}
 
 	jffs2_dbg(1, "using OOB on NAND\n");
 
-	c->oobavail = oinfo->oobavail;
+	c->oobavail = c->mtd->oobavail;
 
 	/* Initialise write buffer */
 	init_rwsem(&c->wbuf_sem);

@@ -188,7 +188,7 @@ static int p1022_rdk_machine_remove(struct snd_soc_card *card)
 /**
  * p1022_rdk_ops: ASoC machine driver operations
  */
-static struct snd_soc_ops p1022_rdk_ops = {
+static const struct snd_soc_ops p1022_rdk_ops = {
 	.startup = p1022_rdk_startup,
 };
 
@@ -203,8 +203,7 @@ static int p1022_rdk_probe(struct platform_device *pdev)
 {
 	struct device *dev = pdev->dev.parent;
 	/* ssi_pdev is the platform device for the SSI node that probed us */
-	struct platform_device *ssi_pdev =
-		container_of(dev, struct platform_device, dev);
+	struct platform_device *ssi_pdev = to_platform_device(dev);
 	struct device_node *np = ssi_pdev->dev.of_node;
 	struct device_node *codec_np = NULL;
 	struct machine_data *mdata;

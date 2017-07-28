@@ -20,7 +20,6 @@
 #include <net/nfc/nci_core.h>
 
 #include "st-nci.h"
-#include "ndlc.h"
 
 #define NDLC_TIMER_T1		100
 #define NDLC_TIMER_T1_WAIT	400
@@ -88,7 +87,7 @@ int ndlc_send(struct llt_ndlc *ndlc, struct sk_buff *skb)
 	u8 pcb = PCB_TYPE_DATAFRAME | PCB_DATAFRAME_RETRANSMIT_NO |
 		PCB_FRAME_CRC_INFO_NOTPRESENT;
 
-	*skb_push(skb, 1) = pcb;
+	*(u8 *)skb_push(skb, 1) = pcb;
 	skb_queue_tail(&ndlc->send_q, skb);
 
 	schedule_work(&ndlc->sm_work);

@@ -36,11 +36,11 @@ struct nicvf_stat {
 
 static const struct nicvf_stat nicvf_hw_stats[] = {
 	NICVF_HW_STAT(rx_bytes),
+	NICVF_HW_STAT(rx_frames),
 	NICVF_HW_STAT(rx_ucast_frames),
 	NICVF_HW_STAT(rx_bcast_frames),
 	NICVF_HW_STAT(rx_mcast_frames),
-	NICVF_HW_STAT(rx_fcs_errors),
-	NICVF_HW_STAT(rx_l2_errors),
+	NICVF_HW_STAT(rx_drops),
 	NICVF_HW_STAT(rx_drop_red),
 	NICVF_HW_STAT(rx_drop_red_bytes),
 	NICVF_HW_STAT(rx_drop_overrun),
@@ -49,51 +49,63 @@ static const struct nicvf_stat nicvf_hw_stats[] = {
 	NICVF_HW_STAT(rx_drop_mcast),
 	NICVF_HW_STAT(rx_drop_l3_bcast),
 	NICVF_HW_STAT(rx_drop_l3_mcast),
-	NICVF_HW_STAT(rx_bgx_truncated_pkts),
-	NICVF_HW_STAT(rx_jabber_errs),
-	NICVF_HW_STAT(rx_fcs_errs),
-	NICVF_HW_STAT(rx_bgx_errs),
-	NICVF_HW_STAT(rx_prel2_errs),
-	NICVF_HW_STAT(rx_l2_hdr_malformed),
-	NICVF_HW_STAT(rx_oversize),
-	NICVF_HW_STAT(rx_undersize),
-	NICVF_HW_STAT(rx_l2_len_mismatch),
-	NICVF_HW_STAT(rx_l2_pclp),
-	NICVF_HW_STAT(rx_ip_ver_errs),
-	NICVF_HW_STAT(rx_ip_csum_errs),
-	NICVF_HW_STAT(rx_ip_hdr_malformed),
-	NICVF_HW_STAT(rx_ip_payload_malformed),
-	NICVF_HW_STAT(rx_ip_ttl_errs),
-	NICVF_HW_STAT(rx_l3_pclp),
-	NICVF_HW_STAT(rx_l4_malformed),
-	NICVF_HW_STAT(rx_l4_csum_errs),
-	NICVF_HW_STAT(rx_udp_len_errs),
-	NICVF_HW_STAT(rx_l4_port_errs),
-	NICVF_HW_STAT(rx_tcp_flag_errs),
-	NICVF_HW_STAT(rx_tcp_offset_errs),
-	NICVF_HW_STAT(rx_l4_pclp),
-	NICVF_HW_STAT(rx_truncated_pkts),
-	NICVF_HW_STAT(tx_bytes_ok),
-	NICVF_HW_STAT(tx_ucast_frames_ok),
-	NICVF_HW_STAT(tx_bcast_frames_ok),
-	NICVF_HW_STAT(tx_mcast_frames_ok),
+	NICVF_HW_STAT(rx_fcs_errors),
+	NICVF_HW_STAT(rx_l2_errors),
+	NICVF_HW_STAT(tx_bytes),
+	NICVF_HW_STAT(tx_frames),
+	NICVF_HW_STAT(tx_ucast_frames),
+	NICVF_HW_STAT(tx_bcast_frames),
+	NICVF_HW_STAT(tx_mcast_frames),
+	NICVF_HW_STAT(tx_drops),
 };
 
 static const struct nicvf_stat nicvf_drv_stats[] = {
-	NICVF_DRV_STAT(rx_frames_ok),
-	NICVF_DRV_STAT(rx_frames_64),
-	NICVF_DRV_STAT(rx_frames_127),
-	NICVF_DRV_STAT(rx_frames_255),
-	NICVF_DRV_STAT(rx_frames_511),
-	NICVF_DRV_STAT(rx_frames_1023),
-	NICVF_DRV_STAT(rx_frames_1518),
-	NICVF_DRV_STAT(rx_frames_jumbo),
-	NICVF_DRV_STAT(rx_drops),
-	NICVF_DRV_STAT(tx_frames_ok),
+	NICVF_DRV_STAT(rx_bgx_truncated_pkts),
+	NICVF_DRV_STAT(rx_jabber_errs),
+	NICVF_DRV_STAT(rx_fcs_errs),
+	NICVF_DRV_STAT(rx_bgx_errs),
+	NICVF_DRV_STAT(rx_prel2_errs),
+	NICVF_DRV_STAT(rx_l2_hdr_malformed),
+	NICVF_DRV_STAT(rx_oversize),
+	NICVF_DRV_STAT(rx_undersize),
+	NICVF_DRV_STAT(rx_l2_len_mismatch),
+	NICVF_DRV_STAT(rx_l2_pclp),
+	NICVF_DRV_STAT(rx_ip_ver_errs),
+	NICVF_DRV_STAT(rx_ip_csum_errs),
+	NICVF_DRV_STAT(rx_ip_hdr_malformed),
+	NICVF_DRV_STAT(rx_ip_payload_malformed),
+	NICVF_DRV_STAT(rx_ip_ttl_errs),
+	NICVF_DRV_STAT(rx_l3_pclp),
+	NICVF_DRV_STAT(rx_l4_malformed),
+	NICVF_DRV_STAT(rx_l4_csum_errs),
+	NICVF_DRV_STAT(rx_udp_len_errs),
+	NICVF_DRV_STAT(rx_l4_port_errs),
+	NICVF_DRV_STAT(rx_tcp_flag_errs),
+	NICVF_DRV_STAT(rx_tcp_offset_errs),
+	NICVF_DRV_STAT(rx_l4_pclp),
+	NICVF_DRV_STAT(rx_truncated_pkts),
+
+	NICVF_DRV_STAT(tx_desc_fault),
+	NICVF_DRV_STAT(tx_hdr_cons_err),
+	NICVF_DRV_STAT(tx_subdesc_err),
+	NICVF_DRV_STAT(tx_max_size_exceeded),
+	NICVF_DRV_STAT(tx_imm_size_oflow),
+	NICVF_DRV_STAT(tx_data_seq_err),
+	NICVF_DRV_STAT(tx_mem_seq_err),
+	NICVF_DRV_STAT(tx_lock_viol),
+	NICVF_DRV_STAT(tx_data_fault),
+	NICVF_DRV_STAT(tx_tstmp_conflict),
+	NICVF_DRV_STAT(tx_tstmp_timeout),
+	NICVF_DRV_STAT(tx_mem_fault),
+	NICVF_DRV_STAT(tx_csum_overlap),
+	NICVF_DRV_STAT(tx_csum_overflow),
+
 	NICVF_DRV_STAT(tx_tso),
-	NICVF_DRV_STAT(tx_drops),
+	NICVF_DRV_STAT(tx_timeout),
 	NICVF_DRV_STAT(txq_stop),
 	NICVF_DRV_STAT(txq_wake),
+	NICVF_DRV_STAT(rcv_buffer_alloc_failures),
+	NICVF_DRV_STAT(page_alloc),
 };
 
 static const struct nicvf_stat nicvf_queue_stats[] = {
@@ -105,29 +117,65 @@ static const unsigned int nicvf_n_hw_stats = ARRAY_SIZE(nicvf_hw_stats);
 static const unsigned int nicvf_n_drv_stats = ARRAY_SIZE(nicvf_drv_stats);
 static const unsigned int nicvf_n_queue_stats = ARRAY_SIZE(nicvf_queue_stats);
 
-static int nicvf_get_settings(struct net_device *netdev,
-			      struct ethtool_cmd *cmd)
+static int nicvf_get_link_ksettings(struct net_device *netdev,
+				    struct ethtool_link_ksettings *cmd)
 {
 	struct nicvf *nic = netdev_priv(netdev);
+	u32 supported, advertising;
 
-	cmd->supported = 0;
-	cmd->transceiver = XCVR_EXTERNAL;
+	supported = 0;
+	advertising = 0;
 
 	if (!nic->link_up) {
-		cmd->duplex = DUPLEX_UNKNOWN;
-		ethtool_cmd_speed_set(cmd, SPEED_UNKNOWN);
+		cmd->base.duplex = DUPLEX_UNKNOWN;
+		cmd->base.speed = SPEED_UNKNOWN;
 		return 0;
 	}
 
-	if (nic->speed <= 1000) {
-		cmd->port = PORT_MII;
-		cmd->autoneg = AUTONEG_ENABLE;
-	} else {
-		cmd->port = PORT_FIBRE;
-		cmd->autoneg = AUTONEG_DISABLE;
+	switch (nic->speed) {
+	case SPEED_1000:
+		cmd->base.port = PORT_MII | PORT_TP;
+		cmd->base.autoneg = AUTONEG_ENABLE;
+		supported |= SUPPORTED_MII | SUPPORTED_TP;
+		supported |= SUPPORTED_1000baseT_Full |
+				  SUPPORTED_1000baseT_Half |
+				  SUPPORTED_100baseT_Full  |
+				  SUPPORTED_100baseT_Half  |
+				  SUPPORTED_10baseT_Full   |
+				  SUPPORTED_10baseT_Half;
+		supported |= SUPPORTED_Autoneg;
+		advertising |= ADVERTISED_1000baseT_Full |
+				    ADVERTISED_1000baseT_Half |
+				    ADVERTISED_100baseT_Full  |
+				    ADVERTISED_100baseT_Half  |
+				    ADVERTISED_10baseT_Full   |
+				    ADVERTISED_10baseT_Half;
+		break;
+	case SPEED_10000:
+		if (nic->mac_type == BGX_MODE_RXAUI) {
+			cmd->base.port = PORT_TP;
+			supported |= SUPPORTED_TP;
+		} else {
+			cmd->base.port = PORT_FIBRE;
+			supported |= SUPPORTED_FIBRE;
+		}
+		cmd->base.autoneg = AUTONEG_DISABLE;
+		supported |= SUPPORTED_10000baseT_Full;
+		break;
+	case SPEED_40000:
+		cmd->base.port = PORT_FIBRE;
+		cmd->base.autoneg = AUTONEG_DISABLE;
+		supported |= SUPPORTED_FIBRE;
+		supported |= SUPPORTED_40000baseCR4_Full;
+		break;
 	}
-	cmd->duplex = nic->duplex;
-	ethtool_cmd_speed_set(cmd, nic->speed);
+	cmd->base.duplex = nic->duplex;
+	cmd->base.speed = nic->speed;
+
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
+						supported);
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.advertising,
+						advertising);
 
 	return 0;
 }
@@ -276,8 +324,8 @@ static void nicvf_get_ethtool_stats(struct net_device *netdev,
 				    struct ethtool_stats *stats, u64 *data)
 {
 	struct nicvf *nic = netdev_priv(netdev);
-	int stat;
-	int sqs;
+	int stat, tmp_stats;
+	int sqs, cpu;
 
 	nicvf_update_stats(nic);
 
@@ -287,9 +335,13 @@ static void nicvf_get_ethtool_stats(struct net_device *netdev,
 	for (stat = 0; stat < nicvf_n_hw_stats; stat++)
 		*(data++) = ((u64 *)&nic->hw_stats)
 				[nicvf_hw_stats[stat].index];
-	for (stat = 0; stat < nicvf_n_drv_stats; stat++)
-		*(data++) = ((u64 *)&nic->drv_stats)
-				[nicvf_drv_stats[stat].index];
+	for (stat = 0; stat < nicvf_n_drv_stats; stat++) {
+		tmp_stats = 0;
+		for_each_possible_cpu(cpu)
+			tmp_stats += ((u64 *)per_cpu_ptr(nic->drv_stats, cpu))
+				     [nicvf_drv_stats[stat].index];
+		*(data++) = tmp_stats;
+	}
 
 	nicvf_get_qset_stats(nic, stats, &data);
 
@@ -380,7 +432,10 @@ static void nicvf_get_regs(struct net_device *dev,
 		p[i++] = nicvf_queue_reg_read(nic, NIC_QSET_SQ_0_7_DOOR, q);
 		p[i++] = nicvf_queue_reg_read(nic, NIC_QSET_SQ_0_7_STATUS, q);
 		p[i++] = nicvf_queue_reg_read(nic, NIC_QSET_SQ_0_7_DEBUG, q);
-		p[i++] = nicvf_queue_reg_read(nic, NIC_QSET_SQ_0_7_CNM_CHG, q);
+		/* Padding, was NIC_QSET_SQ_0_7_CNM_CHG, which
+		 * produces bus errors when read
+		 */
+		p[i++] = 0;
 		p[i++] = nicvf_queue_reg_read(nic, NIC_QSET_SQ_0_7_STAT_0_1, q);
 		reg_offset = NIC_QSET_SQ_0_7_STAT_0_1 | (1 << 3);
 		p[i++] = nicvf_queue_reg_read(nic, reg_offset, q);
@@ -417,10 +472,44 @@ static void nicvf_get_ringparam(struct net_device *netdev,
 	struct nicvf *nic = netdev_priv(netdev);
 	struct queue_set *qs = nic->qs;
 
-	ring->rx_max_pending = MAX_RCV_BUF_COUNT;
-	ring->rx_pending = qs->rbdr_len;
+	ring->rx_max_pending = MAX_CMP_QUEUE_LEN;
+	ring->rx_pending = qs->cq_len;
 	ring->tx_max_pending = MAX_SND_QUEUE_LEN;
 	ring->tx_pending = qs->sq_len;
+}
+
+static int nicvf_set_ringparam(struct net_device *netdev,
+			       struct ethtool_ringparam *ring)
+{
+	struct nicvf *nic = netdev_priv(netdev);
+	struct queue_set *qs = nic->qs;
+	u32 rx_count, tx_count;
+
+	/* Due to HW errata this is not supported on T88 pass 1.x silicon */
+	if (pass1_silicon(nic->pdev))
+		return -EINVAL;
+
+	if ((ring->rx_mini_pending) || (ring->rx_jumbo_pending))
+		return -EINVAL;
+
+	tx_count = clamp_t(u32, ring->tx_pending,
+			   MIN_SND_QUEUE_LEN, MAX_SND_QUEUE_LEN);
+	rx_count = clamp_t(u32, ring->rx_pending,
+			   MIN_CMP_QUEUE_LEN, MAX_CMP_QUEUE_LEN);
+
+	if ((tx_count == qs->sq_len) && (rx_count == qs->cq_len))
+		return 0;
+
+	/* Permitted lengths are 1K, 2K, 4K, 8K, 16K, 32K, 64K */
+	qs->sq_len = rounddown_pow_of_two(tx_count);
+	qs->cq_len = rounddown_pow_of_two(rx_count);
+
+	if (netif_running(netdev)) {
+		nicvf_stop(netdev);
+		nicvf_open(netdev);
+	}
+
+	return 0;
 }
 
 static int nicvf_get_rss_hash_opts(struct nicvf *nic,
@@ -581,7 +670,7 @@ static int nicvf_get_rxfh(struct net_device *dev, u32 *indir, u8 *hkey,
 }
 
 static int nicvf_set_rxfh(struct net_device *dev, const u32 *indir,
-			  const u8 *hkey, u8 hfunc)
+			  const u8 *hkey, const u8 hfunc)
 {
 	struct nicvf *nic = netdev_priv(dev);
 	struct nicvf_rss_info *rss = &nic->rss_info;
@@ -632,7 +721,7 @@ static int nicvf_set_channels(struct net_device *dev,
 	struct nicvf *nic = netdev_priv(dev);
 	int err = 0;
 	bool if_up = netif_running(dev);
-	int cqcount;
+	u8 cqcount, txq_count;
 
 	if (!channel->rx_count || !channel->tx_count)
 		return -EINVAL;
@@ -641,10 +730,26 @@ static int nicvf_set_channels(struct net_device *dev,
 	if (channel->tx_count > nic->max_queues)
 		return -EINVAL;
 
+	if (nic->xdp_prog &&
+	    ((channel->tx_count + channel->rx_count) > nic->max_queues)) {
+		netdev_err(nic->netdev,
+			   "XDP mode, RXQs + TXQs > Max %d\n",
+			   nic->max_queues);
+		return -EINVAL;
+	}
+
 	if (if_up)
 		nicvf_stop(dev);
 
-	cqcount = max(channel->rx_count, channel->tx_count);
+	nic->rx_queues = channel->rx_count;
+	nic->tx_queues = channel->tx_count;
+	if (!nic->xdp_prog)
+		nic->xdp_tx_queues = 0;
+	else
+		nic->xdp_tx_queues = channel->rx_count;
+
+	txq_count = nic->xdp_tx_queues + nic->tx_queues;
+	cqcount = max(nic->rx_queues, txq_count);
 
 	if (cqcount > MAX_CMP_QUEUES_PER_QS) {
 		nic->sqs_count = roundup(cqcount, MAX_CMP_QUEUES_PER_QS);
@@ -653,12 +758,10 @@ static int nicvf_set_channels(struct net_device *dev,
 		nic->sqs_count = 0;
 	}
 
-	nic->qs->rq_cnt = min_t(u32, channel->rx_count, MAX_RCV_QUEUES_PER_QS);
-	nic->qs->sq_cnt = min_t(u32, channel->tx_count, MAX_SND_QUEUES_PER_QS);
+	nic->qs->rq_cnt = min_t(u8, nic->rx_queues, MAX_RCV_QUEUES_PER_QS);
+	nic->qs->sq_cnt = min_t(u8, txq_count, MAX_SND_QUEUES_PER_QS);
 	nic->qs->cq_cnt = max(nic->qs->rq_cnt, nic->qs->sq_cnt);
 
-	nic->rx_queues = channel->rx_count;
-	nic->tx_queues = channel->tx_count;
 	err = nicvf_set_real_num_queues(dev, nic->tx_queues, nic->rx_queues);
 	if (err)
 		return err;
@@ -672,8 +775,56 @@ static int nicvf_set_channels(struct net_device *dev,
 	return err;
 }
 
+static void nicvf_get_pauseparam(struct net_device *dev,
+				 struct ethtool_pauseparam *pause)
+{
+	struct nicvf *nic = netdev_priv(dev);
+	union nic_mbx mbx = {};
+
+	/* Supported only for 10G/40G interfaces */
+	if ((nic->mac_type == BGX_MODE_SGMII) ||
+	    (nic->mac_type == BGX_MODE_QSGMII) ||
+	    (nic->mac_type == BGX_MODE_RGMII))
+		return;
+
+	mbx.pfc.msg = NIC_MBOX_MSG_PFC;
+	mbx.pfc.get = 1;
+	if (!nicvf_send_msg_to_pf(nic, &mbx)) {
+		pause->autoneg = nic->pfc.autoneg;
+		pause->rx_pause = nic->pfc.fc_rx;
+		pause->tx_pause = nic->pfc.fc_tx;
+	}
+}
+
+static int nicvf_set_pauseparam(struct net_device *dev,
+				struct ethtool_pauseparam *pause)
+{
+	struct nicvf *nic = netdev_priv(dev);
+	union nic_mbx mbx = {};
+
+	/* Supported only for 10G/40G interfaces */
+	if ((nic->mac_type == BGX_MODE_SGMII) ||
+	    (nic->mac_type == BGX_MODE_QSGMII) ||
+	    (nic->mac_type == BGX_MODE_RGMII))
+		return -EOPNOTSUPP;
+
+	if (pause->autoneg)
+		return -EOPNOTSUPP;
+
+	mbx.pfc.msg = NIC_MBOX_MSG_PFC;
+	mbx.pfc.get = 0;
+	mbx.pfc.fc_rx = pause->rx_pause;
+	mbx.pfc.fc_tx = pause->tx_pause;
+	if (nicvf_send_msg_to_pf(nic, &mbx))
+		return -EAGAIN;
+
+	nic->pfc.fc_rx = pause->rx_pause;
+	nic->pfc.fc_tx = pause->tx_pause;
+
+	return 0;
+}
+
 static const struct ethtool_ops nicvf_ethtool_ops = {
-	.get_settings		= nicvf_get_settings,
 	.get_link		= nicvf_get_link,
 	.get_drvinfo		= nicvf_get_drvinfo,
 	.get_msglevel		= nicvf_get_msglevel,
@@ -685,6 +836,7 @@ static const struct ethtool_ops nicvf_ethtool_ops = {
 	.get_regs		= nicvf_get_regs,
 	.get_coalesce		= nicvf_get_coalesce,
 	.get_ringparam		= nicvf_get_ringparam,
+	.set_ringparam		= nicvf_set_ringparam,
 	.get_rxnfc		= nicvf_get_rxnfc,
 	.set_rxnfc		= nicvf_set_rxnfc,
 	.get_rxfh_key_size	= nicvf_get_rxfh_key_size,
@@ -693,7 +845,10 @@ static const struct ethtool_ops nicvf_ethtool_ops = {
 	.set_rxfh		= nicvf_set_rxfh,
 	.get_channels		= nicvf_get_channels,
 	.set_channels		= nicvf_set_channels,
+	.get_pauseparam         = nicvf_get_pauseparam,
+	.set_pauseparam         = nicvf_set_pauseparam,
 	.get_ts_info		= ethtool_op_get_ts_info,
+	.get_link_ksettings	= nicvf_get_link_ksettings,
 };
 
 void nicvf_set_ethtool_ops(struct net_device *netdev)
