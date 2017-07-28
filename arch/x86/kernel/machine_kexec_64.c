@@ -335,7 +335,8 @@ void machine_kexec(struct kimage *image)
 	image->start = relocate_kernel((unsigned long)image->head,
 				       (unsigned long)page_list,
 				       image->start,
-				       image->preserve_context);
+				       image->preserve_context,
+				       sme_active());
 
 #ifdef CONFIG_KEXEC_JUMP
 	if (image->preserve_context)
