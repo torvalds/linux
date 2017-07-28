@@ -23,6 +23,7 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/firmware.h>
+#include <asm/unaligned.h>
 
 #include "gs_fpgaboot.h"
 #include "io.h"
@@ -47,7 +48,7 @@ static void read_bitstream(char *bitdata, char *buf, int *offset, int rdsize)
 	*offset += rdsize;
 }
 
-static void readinfo_bitstream(char *bitdata, char *buf, int *offset)
+static int readinfo_bitstream(char *bitdata, char *buf, int size, int *offset)
 {
 	char tbuf[64];
 	s32 len;
@@ -58,10 +59,16 @@ static void readinfo_bitstream(char *bitdata, char *buf, int *offset)
 	/* read length */
 	read_bitstream(bitdata, tbuf, offset, 2);
 
-	len = tbuf[0] << 8 | tbuf[1];
+	len = get_unaligned_be16(tbuf);
+	if (len >= size) {
+		pr_err("error: readinfo buffer too small\n");
+		return -EINVAL;
+	}
 
 	read_bitstream(bitdata, buf, offset, len);
 	buf[len] = '\0';
+
+	return 0;
 }
 
 /*
@@ -83,8 +90,7 @@ static int readlength_bitstream(char *bitdata, int *lendata, int *offset)
 	/* read 4bytes length */
 	read_bitstream(bitdata, tbuf, offset, 4);
 
-	*lendata = tbuf[0] << 24 | tbuf[1] << 16 |
-		tbuf[2] << 8 | tbuf[3];
+	*lendata = get_unaligned_be32(tbuf);
 
 	return 0;
 }
@@ -113,7 +119,7 @@ static int readmagic_bitstream(char *bitdata, int *offset)
 /*
  * NOTE: supports only bitstream format
  */
-static enum fmt_image get_imageformat(struct fpgaimage *fimage)
+static enum fmt_image get_imageformat(void)
 {
 	return f_bit;
 }
@@ -127,34 +133,54 @@ static void gs_print_header(struct fpgaimage *fimage)
 	pr_info("lendata: %d\n", fimage->lendata);
 }
 
-static void gs_read_bitstream(struct fpgaimage *fimage)
+static int gs_read_bitstream(struct fpgaimage *fimage)
 {
 	char *bitdata;
 	int offset;
+	int err;
 
 	offset = 0;
 	bitdata = (char *)fimage->fw_entry->data;
 
-	readmagic_bitstream(bitdata, &offset);
-	readinfo_bitstream(bitdata, fimage->filename, &offset);
-	readinfo_bitstream(bitdata, fimage->part, &offset);
-	readinfo_bitstream(bitdata, fimage->date, &offset);
-	readinfo_bitstream(bitdata, fimage->time, &offset);
-	readlength_bitstream(bitdata, &fimage->lendata, &offset);
+	err = readmagic_bitstream(bitdata, &offset);
+	if (err)
+		return err;
+
+	err = readinfo_bitstream(bitdata, fimage->filename, MAX_STR, &offset);
+	if (err)
+		return err;
+	err = readinfo_bitstream(bitdata, fimage->part, MAX_STR, &offset);
+	if (err)
+		return err;
+	err = readinfo_bitstream(bitdata, fimage->date, MAX_STR, &offset);
+	if (err)
+		return err;
+	err = readinfo_bitstream(bitdata, fimage->time, MAX_STR, &offset);
+	if (err)
+		return err;
+
+	err = readlength_bitstream(bitdata, &fimage->lendata, &offset);
+	if (err)
+		return err;
 
 	fimage->fpgadata = bitdata + offset;
+
+	return 0;
 }
 
 static int gs_read_image(struct fpgaimage *fimage)
 {
 	int img_fmt;
+	int err;
 
-	img_fmt = get_imageformat(fimage);
+	img_fmt = get_imageformat();
 
 	switch (img_fmt) {
 	case f_bit:
 		pr_info("image is bitstream format\n");
-		gs_read_bitstream(fimage);
+		err = gs_read_bitstream(fimage);
+		if (err)
+			return err;
 		break;
 	default:
 		pr_err("unsupported fpga image format\n");
