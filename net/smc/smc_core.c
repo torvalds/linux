@@ -487,6 +487,64 @@ static inline int smc_rmb_wnd_update_limit(int rmbe_size)
 	return min_t(int, rmbe_size / 10, SOCK_MIN_SNDBUF / 2);
 }
 
+static struct smc_buf_desc *smc_new_buf_create(struct smc_link_group *lgr,
+					       bool is_rmb, int bufsize)
+{
+	struct smc_buf_desc *buf_desc;
+	struct smc_link *lnk;
+	int rc;
+
+	/* try to alloc a new buffer */
+	buf_desc = kzalloc(sizeof(*buf_desc), GFP_KERNEL);
+	if (!buf_desc)
+		return ERR_PTR(-ENOMEM);
+
+	buf_desc->cpu_addr =
+		(void *)__get_free_pages(GFP_KERNEL | __GFP_NOWARN |
+					 __GFP_NOMEMALLOC |
+					 __GFP_NORETRY | __GFP_ZERO,
+					 get_order(bufsize));
+	if (!buf_desc->cpu_addr) {
+		kfree(buf_desc);
+		return ERR_PTR(-EAGAIN);
+	}
+	buf_desc->order = get_order(bufsize);
+
+	/* build the sg table from the pages */
+	lnk = &lgr->lnk[SMC_SINGLE_LINK];
+	rc = sg_alloc_table(&buf_desc->sgt[SMC_SINGLE_LINK], 1,
+			    GFP_KERNEL);
+	if (rc) {
+		smc_buf_free(buf_desc, lnk, is_rmb);
+		return ERR_PTR(rc);
+	}
+	sg_set_buf(buf_desc->sgt[SMC_SINGLE_LINK].sgl,
+		   buf_desc->cpu_addr, bufsize);
+
+	/* map sg table to DMA address */
+	rc = smc_ib_buf_map_sg(lnk->smcibdev, buf_desc,
+			       is_rmb ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
+	/* SMC protocol depends on mapping to one DMA address only */
+	if (rc != 1)  {
+		smc_buf_free(buf_desc, lnk, is_rmb);
+		return ERR_PTR(-EAGAIN);
+	}
+
+	/* create a new memory region for the RMB */
+	if (is_rmb) {
+		rc = smc_ib_get_memory_region(lnk->roce_pd,
+					      IB_ACCESS_REMOTE_WRITE |
+					      IB_ACCESS_LOCAL_WRITE,
+					      buf_desc);
+		if (rc) {
+			smc_buf_free(buf_desc, lnk, is_rmb);
+			return ERR_PTR(rc);
+		}
+	}
+
+	return buf_desc;
+}
+
 static int __smc_buf_create(struct smc_sock *smc, bool is_rmb)
 {
 	struct smc_connection *conn = &smc->conn;
@@ -494,12 +552,9 @@ static int __smc_buf_create(struct smc_sock *smc, bool is_rmb)
 	struct smc_buf_desc *buf_desc = NULL;
 	struct list_head *buf_list;
 	int bufsize, bufsize_short;
-	struct smc_link *lnk;
 	int sk_buf_size;
 	rwlock_t *lock;
-	int rc;
 
-	lnk = &lgr->lnk[SMC_SINGLE_LINK];
 	if (is_rmb)
 		/* use socket recv buffer size (w/o overhead) as start value */
 		sk_buf_size = smc->sk.sk_rcvbuf / 2;
@@ -528,54 +583,11 @@ static int __smc_buf_create(struct smc_sock *smc, bool is_rmb)
 			break; /* found reusable slot */
 		}
 
-		/* try to allocate the determined number of pages */
-		buf_desc = kzalloc(sizeof(*buf_desc), GFP_KERNEL);
-		if (!buf_desc)
-			break; /* give up with -ENOMEM */
-
-		buf_desc->cpu_addr =
-			(void *)__get_free_pages(GFP_KERNEL | __GFP_NOWARN |
-						 __GFP_NOMEMALLOC |
-						 __GFP_NORETRY | __GFP_ZERO,
-						 get_order(bufsize));
-		if (!buf_desc->cpu_addr) {
-			kfree(buf_desc);
-			buf_desc = NULL;
+		buf_desc = smc_new_buf_create(lgr, is_rmb, bufsize);
+		if (PTR_ERR(buf_desc) == -ENOMEM)
+			break;
+		if (IS_ERR(buf_desc))
 			continue;
-		}
-
-		rc = sg_alloc_table(&buf_desc->sgt[SMC_SINGLE_LINK], 1,
-				    GFP_KERNEL);
-		if (rc) {
-			smc_buf_free(buf_desc, lnk, is_rmb);
-			buf_desc = NULL;
-			continue;
-		}
-		sg_set_buf(buf_desc->sgt[SMC_SINGLE_LINK].sgl,
-			   buf_desc->cpu_addr, bufsize);
-
-		/* map sg table to DMA address */
-		rc = smc_ib_buf_map_sg(lnk->smcibdev, buf_desc, is_rmb ?
-				       DMA_FROM_DEVICE : DMA_TO_DEVICE);
-		/* SMC protocol depends on mapping to one DMA address only */
-		if (rc != 1)  {
-			smc_buf_free(buf_desc, lnk, is_rmb);
-			buf_desc = NULL;
-		continue; /* if mapping failed, try smaller one */
-		}
-
-		/* create a new memory region for the RMB */
-		if (is_rmb) {
-			rc = smc_ib_get_memory_region(lnk->roce_pd,
-						      IB_ACCESS_REMOTE_WRITE |
-						      IB_ACCESS_LOCAL_WRITE,
-						      buf_desc);
-			if (rc) {
-				smc_buf_free(buf_desc, lnk, is_rmb);
-				buf_desc = NULL;
-				continue;
-			}
-		}
 
 		buf_desc->used = 1;
 		write_lock_bh(lock);
@@ -584,7 +596,7 @@ static int __smc_buf_create(struct smc_sock *smc, bool is_rmb)
 		break; /* found */
 	}
 
-	if (!buf_desc || !buf_desc->cpu_addr)
+	if (IS_ERR(buf_desc))
 		return -ENOMEM;
 
 	if (is_rmb) {
