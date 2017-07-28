@@ -805,8 +805,10 @@ static inline int netvsc_send_pkt(
 			ret = -ENOSPC;
 		}
 	} else {
-		netdev_err(ndev, "Unable to send packet %p ret %d\n",
-			   packet, ret);
+		netdev_err(ndev,
+			   "Unable to send packet pages %u len %u, ret %d\n",
+			   packet->page_buf_cnt, packet->total_data_buflen,
+			   ret);
 	}
 
 	return ret;
