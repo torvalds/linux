@@ -69,9 +69,9 @@ static int media_device_get_info(struct media_device *dev,
 	strlcpy(info->serial, dev->serial, sizeof(info->serial));
 	strlcpy(info->bus_info, dev->bus_info, sizeof(info->bus_info));
 
-	info->media_version = MEDIA_API_VERSION;
+	info->media_version = LINUX_VERSION_CODE;
+	info->driver_version = info->media_version;
 	info->hw_revision = dev->hw_revision;
-	info->driver_version = LINUX_VERSION_CODE;
 
 	return 0;
 }
