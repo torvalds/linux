@@ -229,9 +229,9 @@ static void mpc10_mpcc_add(struct mpc *mpc, struct mpcc_cfg *cfg)
 	mpc10_set_bg_color(mpc10, &cfg->black_color, mpcc_id);
 
 	mpc10->mpcc_in_use_mask |= 1 << mpcc_id;
-	for (z_idx = cfg->z_index; z_idx < cfg->opp->mpc_tree.num_pipes; z_idx++) {
-		cfg->opp->mpc_tree.dpp[z_idx + 1] = cfg->opp->mpc_tree.dpp[z_idx];
-		cfg->opp->mpc_tree.mpcc[z_idx + 1] = cfg->opp->mpc_tree.mpcc[z_idx];
+	for (z_idx = cfg->opp->mpc_tree.num_pipes; z_idx > cfg->z_index; z_idx--) {
+		cfg->opp->mpc_tree.dpp[z_idx] = cfg->opp->mpc_tree.dpp[z_idx - 1];
+		cfg->opp->mpc_tree.mpcc[z_idx] = cfg->opp->mpc_tree.mpcc[z_idx - 1];
 	}
 	cfg->opp->mpc_tree.dpp[cfg->z_index] = cfg->mi->inst;
 	cfg->opp->mpc_tree.mpcc[cfg->z_index] = mpcc_id;
