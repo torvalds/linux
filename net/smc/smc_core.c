@@ -266,17 +266,16 @@ static void smc_lgr_free_sndbufs(struct smc_link_group *lgr)
 
 static void smc_lgr_free_rmbs(struct smc_link_group *lgr)
 {
-	struct smc_buf_desc *rmb_desc, *bf_desc;
 	struct smc_link *lnk = &lgr->lnk[SMC_SINGLE_LINK];
+	struct smc_buf_desc *rmb_desc, *bf_desc;
 	int i;
 
 	for (i = 0; i < SMC_RMBE_SIZES; i++) {
 		list_for_each_entry_safe(rmb_desc, bf_desc, &lgr->rmbs[i],
 					 list) {
 			list_del(&rmb_desc->list);
-			smc_ib_buf_unmap(lnk->smcibdev,
-					 smc_uncompress_bufsize(i),
-					 rmb_desc, DMA_FROM_DEVICE);
+			smc_ib_buf_unmap_sg(lnk->smcibdev, rmb_desc,
+					    DMA_FROM_DEVICE);
 			kfree(rmb_desc->cpu_addr);
 			kfree(rmb_desc);
 		}
@@ -580,38 +579,54 @@ int smc_rmb_create(struct smc_sock *smc)
 	for (bufsize_short = smc_compress_bufsize(smc->sk.sk_rcvbuf / 2);
 	     bufsize_short >= 0; bufsize_short--) {
 		bufsize = smc_uncompress_bufsize(bufsize_short);
+		if ((1 << get_order(bufsize)) > SG_MAX_SINGLE_ALLOC)
+			continue;
+
 		/* check for reusable rmb_slot in the link group */
 		rmb_desc = smc_rmb_get_slot(lgr, bufsize_short);
 		if (rmb_desc) {
 			memset(rmb_desc->cpu_addr, 0, bufsize);
 			break; /* found reusable slot */
 		}
+
 		/* try to alloc a new RMB */
 		rmb_desc = kzalloc(sizeof(*rmb_desc), GFP_KERNEL);
 		if (!rmb_desc)
 			break; /* give up with -ENOMEM */
-		rmb_desc->cpu_addr = kzalloc(bufsize,
-					     GFP_KERNEL | __GFP_NOWARN |
-					     __GFP_NOMEMALLOC |
-					     __GFP_NORETRY);
+		rmb_desc->cpu_addr =
+			(void *)__get_free_pages(GFP_KERNEL | __GFP_NOWARN |
+						 __GFP_NOMEMALLOC |
+						 __GFP_NORETRY | __GFP_ZERO,
+						 get_order(bufsize));
 		if (!rmb_desc->cpu_addr) {
 			kfree(rmb_desc);
 			rmb_desc = NULL;
-			/* if RMB allocation has failed,
-			 * try a smaller one
-			 */
 			continue;
 		}
-		rc = smc_ib_buf_map(lgr->lnk[SMC_SINGLE_LINK].smcibdev,
-				    bufsize, rmb_desc, DMA_FROM_DEVICE);
+		rmb_desc->order = get_order(bufsize);
+
+		rc = sg_alloc_table(&rmb_desc->sgt[SMC_SINGLE_LINK], 1,
+				    GFP_KERNEL);
 		if (rc) {
-			kfree(rmb_desc->cpu_addr);
+			free_pages((unsigned long)rmb_desc->cpu_addr,
+				   rmb_desc->order);
+			kfree(rmb_desc);
+			rmb_desc = NULL;
+			continue;
+		}
+		sg_set_buf(rmb_desc->sgt[SMC_SINGLE_LINK].sgl,
+			   rmb_desc->cpu_addr, bufsize);
+
+		rc = smc_ib_buf_map_sg(lgr->lnk[SMC_SINGLE_LINK].smcibdev,
+				       rmb_desc, DMA_FROM_DEVICE);
+		if (rc != 1)  {
+			sg_free_table(&rmb_desc->sgt[SMC_SINGLE_LINK]);
+			free_pages((unsigned long)rmb_desc->cpu_addr,
+				   rmb_desc->order);
 			kfree(rmb_desc);
 			rmb_desc = NULL;
 			continue; /* if mapping failed, try smaller one */
 		}
-		rmb_desc->rkey[SMC_SINGLE_LINK] =
-			lgr->lnk[SMC_SINGLE_LINK].roce_pd->unsafe_global_rkey;
 		rmb_desc->used = 1;
 		write_lock_bh(&lgr->rmbs_lock);
 		list_add(&rmb_desc->list, &lgr->rmbs[bufsize_short]);

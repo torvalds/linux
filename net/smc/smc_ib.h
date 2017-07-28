@@ -57,6 +57,12 @@ int smc_ib_buf_map(struct smc_ib_device *smcibdev, int buf_size,
 void smc_ib_buf_unmap(struct smc_ib_device *smcibdev, int bufsize,
 		      struct smc_buf_desc *buf_slot,
 		      enum dma_data_direction data_direction);
+int smc_ib_buf_map_sg(struct smc_ib_device *smcibdev,
+		      struct smc_buf_desc *buf_slot,
+		      enum dma_data_direction data_direction);
+void smc_ib_buf_unmap_sg(struct smc_ib_device *smcibdev,
+			 struct smc_buf_desc *buf_slot,
+			 enum dma_data_direction data_direction);
 void smc_ib_dealloc_protection_domain(struct smc_link *lnk);
 int smc_ib_create_protection_domain(struct smc_link *lnk);
 void smc_ib_destroy_queue_pair(struct smc_link *lnk);

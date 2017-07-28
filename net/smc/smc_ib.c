@@ -283,6 +283,37 @@ void smc_ib_buf_unmap(struct smc_ib_device *smcibdev, int buf_size,
 	buf_slot->dma_addr[SMC_SINGLE_LINK] = 0;
 }
 
+/* Map a new TX or RX buffer SG-table to DMA */
+int smc_ib_buf_map_sg(struct smc_ib_device *smcibdev,
+		      struct smc_buf_desc *buf_slot,
+		      enum dma_data_direction data_direction)
+{
+	int mapped_nents;
+
+	mapped_nents = ib_dma_map_sg(smcibdev->ibdev,
+				     buf_slot->sgt[SMC_SINGLE_LINK].sgl,
+				     buf_slot->sgt[SMC_SINGLE_LINK].orig_nents,
+				     data_direction);
+	if (!mapped_nents)
+		return -ENOMEM;
+
+	return mapped_nents;
+}
+
+void smc_ib_buf_unmap_sg(struct smc_ib_device *smcibdev,
+			 struct smc_buf_desc *buf_slot,
+			 enum dma_data_direction data_direction)
+{
+	if (!buf_slot->sgt[SMC_SINGLE_LINK].sgl->dma_address)
+		return; /* already unmapped */
+
+	ib_dma_unmap_sg(smcibdev->ibdev,
+			buf_slot->sgt[SMC_SINGLE_LINK].sgl,
+			buf_slot->sgt[SMC_SINGLE_LINK].orig_nents,
+			data_direction);
+	buf_slot->sgt[SMC_SINGLE_LINK].sgl->dma_address = 0;
+}
+
 static int smc_ib_fill_gid_and_mac(struct smc_ib_device *smcibdev, u8 ibport)
 {
 	struct net_device *ndev;
