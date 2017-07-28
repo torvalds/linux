@@ -475,9 +475,27 @@ static const struct spi_device_id ti_ads7950_id[] = {
 };
 MODULE_DEVICE_TABLE(spi, ti_ads7950_id);
 
+static const struct of_device_id ads7950_of_table[] = {
+	{ .compatible = "ti,ads7950", .data = &ti_ads7950_chip_info[TI_ADS7950] },
+	{ .compatible = "ti,ads7951", .data = &ti_ads7950_chip_info[TI_ADS7951] },
+	{ .compatible = "ti,ads7952", .data = &ti_ads7950_chip_info[TI_ADS7952] },
+	{ .compatible = "ti,ads7953", .data = &ti_ads7950_chip_info[TI_ADS7953] },
+	{ .compatible = "ti,ads7954", .data = &ti_ads7950_chip_info[TI_ADS7954] },
+	{ .compatible = "ti,ads7955", .data = &ti_ads7950_chip_info[TI_ADS7955] },
+	{ .compatible = "ti,ads7956", .data = &ti_ads7950_chip_info[TI_ADS7956] },
+	{ .compatible = "ti,ads7957", .data = &ti_ads7950_chip_info[TI_ADS7957] },
+	{ .compatible = "ti,ads7958", .data = &ti_ads7950_chip_info[TI_ADS7958] },
+	{ .compatible = "ti,ads7959", .data = &ti_ads7950_chip_info[TI_ADS7959] },
+	{ .compatible = "ti,ads7960", .data = &ti_ads7950_chip_info[TI_ADS7960] },
+	{ .compatible = "ti,ads7961", .data = &ti_ads7950_chip_info[TI_ADS7961] },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, ads7950_of_table);
+
 static struct spi_driver ti_ads7950_driver = {
 	.driver = {
 		.name	= "ads7950",
+		.of_match_table = ads7950_of_table,
 	},
 	.probe		= ti_ads7950_probe,
 	.remove		= ti_ads7950_remove,
