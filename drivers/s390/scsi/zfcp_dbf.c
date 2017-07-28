@@ -573,8 +573,7 @@ void zfcp_dbf_scsi(char *tag, int level, struct scsi_cmnd *sc,
 	if (fsf) {
 		rec->fsf_req_id = fsf->req_id;
 		rec->pl_len = FCP_RESP_WITH_EXT;
-		fcp_rsp = (struct fcp_resp_with_ext *)
-				&(fsf->qtcb->bottom.io.fcp_rsp);
+		fcp_rsp = &(fsf->qtcb->bottom.io.fcp_rsp.iu);
 		/* mandatory parts of FCP_RSP IU in this SCSI record */
 		memcpy(&rec->fcp_rsp, fcp_rsp, FCP_RESP_WITH_EXT);
 		if (fcp_rsp->resp.fr_flags & FCP_RSP_LEN_VAL) {

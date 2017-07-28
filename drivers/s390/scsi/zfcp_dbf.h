@@ -301,7 +301,7 @@ bool zfcp_dbf_hba_fsf_resp_suppress(struct zfcp_fsf_req *req)
 
 	if (qtcb->prefix.qtcb_type != FSF_IO_COMMAND)
 		return false; /* not an FCP response */
-	fcp_rsp = (struct fcp_resp *)&qtcb->bottom.io.fcp_rsp;
+	fcp_rsp = &qtcb->bottom.io.fcp_rsp.iu.resp;
 	rsp_flags = fcp_rsp->fr_flags;
 	fr_status = fcp_rsp->fr_status;
 	return (fsf_stat == FSF_FCP_RSP_AVAILABLE) &&
