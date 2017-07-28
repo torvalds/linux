@@ -156,6 +156,8 @@ struct spi_qup {
 	struct dma_slave_config	tx_conf;
 };
 
+static int spi_qup_io_config(struct spi_device *spi, struct spi_transfer *xfer);
+
 static inline bool spi_qup_is_flag_set(struct spi_qup *controller, u32 flag)
 {
 	u32 opflag = readl_relaxed(controller->base + QUP_OPERATIONAL);
@@ -417,17 +419,22 @@ static void spi_qup_dma_terminate(struct spi_master *master,
 		dmaengine_terminate_all(master->dma_rx);
 }
 
-static int spi_qup_do_dma(struct spi_master *master, struct spi_transfer *xfer,
+static int spi_qup_do_dma(struct spi_device *spi, struct spi_transfer *xfer,
 			  unsigned long timeout)
 {
-	struct spi_qup *qup = spi_master_get_devdata(master);
 	dma_async_tx_callback rx_done = NULL, tx_done = NULL;
+	struct spi_master *master = spi->master;
+	struct spi_qup *qup = spi_master_get_devdata(master);
 	int ret;
 
 	if (xfer->rx_buf)
 		rx_done = spi_qup_dma_done;
 	else if (xfer->tx_buf)
 		tx_done = spi_qup_dma_done;
+
+	ret = spi_qup_io_config(spi, xfer);
+	if (ret)
+		return ret;
 
 	/* before issuing the descriptors, set the QUP to run */
 	ret = spi_qup_set_state(qup, QUP_STATE_RUN);
@@ -459,11 +466,16 @@ static int spi_qup_do_dma(struct spi_master *master, struct spi_transfer *xfer,
 	return 0;
 }
 
-static int spi_qup_do_pio(struct spi_master *master, struct spi_transfer *xfer,
+static int spi_qup_do_pio(struct spi_device *spi, struct spi_transfer *xfer,
 			  unsigned long timeout)
 {
+	struct spi_master *master = spi->master;
 	struct spi_qup *qup = spi_master_get_devdata(master);
 	int ret;
+
+	ret = spi_qup_io_config(spi, xfer);
+	if (ret)
+		return ret;
 
 	ret = spi_qup_set_state(qup, QUP_STATE_RUN);
 	if (ret) {
@@ -742,10 +754,6 @@ static int spi_qup_transfer_one(struct spi_master *master,
 	if (ret)
 		return ret;
 
-	ret = spi_qup_io_config(spi, xfer);
-	if (ret)
-		return ret;
-
 	timeout = DIV_ROUND_UP(xfer->speed_hz, MSEC_PER_SEC);
 	timeout = DIV_ROUND_UP(xfer->len * 8, timeout);
 	timeout = 100 * msecs_to_jiffies(timeout);
@@ -760,9 +768,9 @@ static int spi_qup_transfer_one(struct spi_master *master,
 	spin_unlock_irqrestore(&controller->lock, flags);
 
 	if (spi_qup_is_dma_xfer(controller->mode))
-		ret = spi_qup_do_dma(master, xfer, timeout);
+		ret = spi_qup_do_dma(spi, xfer, timeout);
 	else
-		ret = spi_qup_do_pio(master, xfer, timeout);
+		ret = spi_qup_do_pio(spi, xfer, timeout);
 
 	if (ret)
 		goto exit;
