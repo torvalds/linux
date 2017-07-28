@@ -1079,7 +1079,7 @@ static int rockchip_drm_create_properties(struct drm_device *dev)
 		return -ENOMEM;
 	private->cabc_calc_pixel_num_property = prop;
 
-	return 0;
+	return drm_mode_create_tv_properties(dev, 0, NULL);
 }
 
 static int rockchip_gem_pool_init(struct drm_device *drm)

@@ -2811,9 +2811,6 @@ static int vop_create_crtc(struct vop *vop)
 	crtc->port = port;
 	rockchip_register_crtc_funcs(crtc, &private_crtc_funcs);
 
-	ret = drm_mode_create_tv_properties(drm_dev, 0, NULL);
-	if (ret)
-		goto err_unregister_crtc_funcs;
 #define VOP_ATTACH_MODE_CONFIG_PROP(prop, v) \
 	drm_object_attach_property(&crtc->base, drm_dev->mode_config.prop, v)
 
