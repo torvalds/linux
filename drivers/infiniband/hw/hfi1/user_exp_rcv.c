@@ -104,9 +104,9 @@ static struct mmu_rb_ops tid_rb_ops = {
  * receive caching. This needs to be done after the context has
  * been configured with the eager/expected RcvEntry counts.
  */
-int hfi1_user_exp_rcv_init(struct hfi1_filedata *fd)
+int hfi1_user_exp_rcv_init(struct hfi1_filedata *fd,
+			   struct hfi1_ctxtdata *uctxt)
 {
-	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct hfi1_devdata *dd = uctxt->dd;
 	int ret = 0;
 

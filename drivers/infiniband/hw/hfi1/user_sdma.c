@@ -437,9 +437,9 @@ pq_reqs_nomem:
 	return ret;
 }
 
-int hfi1_user_sdma_free_queues(struct hfi1_filedata *fd)
+int hfi1_user_sdma_free_queues(struct hfi1_filedata *fd,
+			       struct hfi1_ctxtdata *uctxt)
 {
-	struct hfi1_ctxtdata *uctxt = fd->uctxt;
 	struct hfi1_user_sdma_pkt_q *pq;
 
 	hfi1_cdbg(SDMA, "[%u:%u:%u] Freeing user SDMA queues", uctxt->dd->unit,

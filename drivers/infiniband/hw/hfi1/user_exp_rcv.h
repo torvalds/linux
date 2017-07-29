@@ -51,7 +51,8 @@
 
 #include "exp_rcv.h"
 
-int hfi1_user_exp_rcv_init(struct hfi1_filedata *fd);
+int hfi1_user_exp_rcv_init(struct hfi1_filedata *fd,
+			   struct hfi1_ctxtdata *uctxt);
 void hfi1_user_exp_rcv_free(struct hfi1_filedata *fd);
 int hfi1_user_exp_rcv_setup(struct hfi1_filedata *fd,
 			    struct hfi1_tid_info *tinfo);
