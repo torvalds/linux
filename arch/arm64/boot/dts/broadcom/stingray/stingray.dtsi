@@ -275,6 +275,37 @@
 
 		#include "stingray-pinctrl.dtsi"
 
+		mdio_mux_iproc: mdio-mux@0002023c {
+			compatible = "brcm,mdio-mux-iproc";
+			reg = <0x0002023c 0x14>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mdio@0 { /* PCIe serdes */
+				reg = <0x0>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			mdio@2 { /* SATA */
+				reg = <0x2>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			mdio@3 { /* USB */
+				reg = <0x3>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+
+			mdio@10 { /* RGMII */
+				reg = <0x10>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+			};
+		};
+
 		pwm: pwm@00010000 {
 			compatible = "brcm,iproc-pwm";
 			reg = <0x00010000 0x1000>;
