@@ -881,12 +881,6 @@ static const struct cl_io_operations lov_empty_io_ops = {
 	.op = {
 		[CIT_READ] = {
 			.cio_fini       = lov_empty_io_fini,
-#if 0
-			.cio_iter_init  = LOV_EMPTY_IMPOSSIBLE,
-			.cio_lock       = LOV_EMPTY_IMPOSSIBLE,
-			.cio_start      = LOV_EMPTY_IMPOSSIBLE,
-			.cio_end	= LOV_EMPTY_IMPOSSIBLE
-#endif
 		},
 		[CIT_WRITE] = {
 			.cio_fini      = lov_empty_io_fini,
