@@ -188,21 +188,23 @@ static bool bfq_update_parent_budget(struct bfq_entity *next_in_service)
 
 /*
  * This function tells whether entity stops being a candidate for next
- * service, according to the following logic.
+ * service, according to the restrictive definition of the field
+ * next_in_service. In particular, this function is invoked for an
+ * entity that is about to be set in service.
  *
- * This function is invoked for an entity that is about to be set in
- * service. If such an entity is a queue, then the entity is no longer
- * a candidate for next service (i.e, a candidate entity to serve
- * after the in-service entity is expired). The function then returns
- * true.
+ * If entity is a queue, then the entity is no longer a candidate for
+ * next service according to the that definition, because entity is
+ * about to become the in-service queue. This function then returns
+ * true if entity is a queue.
  *
- * In contrast, the entity could stil be a candidate for next service
- * if it is not a queue, and has more than one child. In fact, even if
- * one of its children is about to be set in service, other children
- * may still be the next to serve. As a consequence, a non-queue
- * entity is not a candidate for next-service only if it has only one
- * child. And only if this condition holds, then the function returns
- * true for a non-queue entity.
+ * In contrast, entity could still be a candidate for next service if
+ * it is not a queue, and has more than one active child. In fact,
+ * even if one of its children is about to be set in service, other
+ * active children may still be the next to serve, for the parent
+ * entity, even according to the above definition. As a consequence, a
+ * non-queue entity is not a candidate for next-service only if it has
+ * only one active child. And only if this condition holds, then this
+ * function returns true for a non-queue entity.
  */
 static bool bfq_no_longer_next_in_service(struct bfq_entity *entity)
 {
@@ -213,6 +215,18 @@ static bool bfq_no_longer_next_in_service(struct bfq_entity *entity)
 
 	bfqg = container_of(entity, struct bfq_group, entity);
 
+	/*
+	 * The field active_entities does not always contain the
+	 * actual number of active children entities: it happens to
+	 * not account for the in-service entity in case the latter is
+	 * removed from its active tree (which may get done after
+	 * invoking the function bfq_no_longer_next_in_service in
+	 * bfq_get_next_queue). Fortunately, here, i.e., while
+	 * bfq_no_longer_next_in_service is not yet completed in
+	 * bfq_get_next_queue, bfq_active_extract has not yet been
+	 * invoked, and thus active_entities still coincides with the
+	 * actual number of active entities.
+	 */
 	if (bfqg->active_entities == 1)
 		return true;
 
@@ -954,7 +968,7 @@ static void bfq_update_fin_time_enqueue(struct bfq_entity *entity,
  * one of its children receives a new request.
  *
  * Basically, this function updates the timestamps of entity and
- * inserts entity into its active tree, ater possible extracting it
+ * inserts entity into its active tree, ater possibly extracting it
  * from its idle tree.
  */
 static void __bfq_activate_entity(struct bfq_entity *entity,
@@ -1048,7 +1062,7 @@ static void __bfq_requeue_entity(struct bfq_entity *entity)
 		entity->start = entity->finish;
 		/*
 		 * In addition, if the entity had more than one child
-		 * when set in service, then was not extracted from
+		 * when set in service, then it was not extracted from
 		 * the active tree. This implies that the position of
 		 * the entity in the active tree may need to be
 		 * changed now, because we have just updated the start
@@ -1056,9 +1070,8 @@ static void __bfq_requeue_entity(struct bfq_entity *entity)
 		 * time in a moment (the requeueing is then, more
 		 * precisely, a repositioning in this case). To
 		 * implement this repositioning, we: 1) dequeue the
-		 * entity here, 2) update the finish time and
-		 * requeue the entity according to the new
-		 * timestamps below.
+		 * entity here, 2) update the finish time and requeue
+		 * the entity according to the new timestamps below.
 		 */
 		if (entity->tree)
 			bfq_active_extract(st, entity);
@@ -1105,9 +1118,10 @@ static void __bfq_activate_requeue_entity(struct bfq_entity *entity,
 
 
 /**
- * bfq_activate_entity - activate or requeue an entity representing a bfq_queue,
- *			 and activate, requeue or reposition all ancestors
- *			 for which such an update becomes necessary.
+ * bfq_activate_requeue_entity - activate or requeue an entity representing a
+ *				 bfq_queue, and activate, requeue or reposition
+ *				 all ancestors for which such an update becomes
+ *				 necessary.
  * @entity: the entity to activate.
  * @non_blocking_wait_rq: true if this entity was waiting for a request
  * @requeue: true if this is a requeue, which implies that bfqq is
@@ -1135,9 +1149,9 @@ static void bfq_activate_requeue_entity(struct bfq_entity *entity,
  * @ins_into_idle_tree: if false, the entity will not be put into the
  *			idle tree.
  *
- * Deactivates an entity, independently from its previous state.  Must
+ * Deactivates an entity, independently of its previous state.  Must
  * be invoked only if entity is on a service tree. Extracts the entity
- * from that tree, and if necessary and allowed, puts it on the idle
+ * from that tree, and if necessary and allowed, puts it into the idle
  * tree.
  */
 bool __bfq_deactivate_entity(struct bfq_entity *entity, bool ins_into_idle_tree)
@@ -1179,7 +1193,7 @@ bool __bfq_deactivate_entity(struct bfq_entity *entity, bool ins_into_idle_tree)
 /**
  * bfq_deactivate_entity - deactivate an entity representing a bfq_queue.
  * @entity: the entity to deactivate.
- * @ins_into_idle_tree: true if the entity can be put on the idle tree
+ * @ins_into_idle_tree: true if the entity can be put into the idle tree
  */
 static void bfq_deactivate_entity(struct bfq_entity *entity,
 				  bool ins_into_idle_tree,
@@ -1210,16 +1224,29 @@ static void bfq_deactivate_entity(struct bfq_entity *entity,
 			 */
 			bfq_update_next_in_service(sd, NULL);
 
-		if (sd->next_in_service)
+		if (sd->next_in_service || sd->in_service_entity) {
 			/*
-			 * The parent entity is still backlogged,
-			 * because next_in_service is not NULL. So, no
-			 * further upwards deactivation must be
-			 * performed.  Yet, next_in_service has
-			 * changed.  Then the schedule does need to be
-			 * updated upwards.
+			 * The parent entity is still active, because
+			 * either next_in_service or in_service_entity
+			 * is not NULL. So, no further upwards
+			 * deactivation must be performed.  Yet,
+			 * next_in_service has changed.	Then the
+			 * schedule does need to be updated upwards.
+			 *
+			 * NOTE If in_service_entity is not NULL, then
+			 * next_in_service may happen to be NULL,
+			 * although the parent entity is evidently
+			 * active. This happens if 1) the entity
+			 * pointed by in_service_entity is the only
+			 * active entity in the parent entity, and 2)
+			 * according to the definition of
+			 * next_in_service, the in_service_entity
+			 * cannot be considered as
+			 * next_in_service. See the comments on the
+			 * definition of next_in_service for details.
 			 */
 			break;
+		}
 
 		/*
 		 * If we get here, then the parent is no more
@@ -1496,47 +1523,34 @@ struct bfq_queue *bfq_get_next_queue(struct bfq_data *bfqd)
 
 		/*
 		 * If entity is no longer a candidate for next
-		 * service, then we extract it from its active tree,
-		 * for the following reason. To further boost the
-		 * throughput in some special case, BFQ needs to know
-		 * which is the next candidate entity to serve, while
-		 * there is already an entity in service. In this
-		 * respect, to make it easy to compute/update the next
-		 * candidate entity to serve after the current
-		 * candidate has been set in service, there is a case
-		 * where it is necessary to extract the current
-		 * candidate from its service tree. Such a case is
-		 * when the entity just set in service cannot be also
-		 * a candidate for next service. Details about when
-		 * this conditions holds are reported in the comments
-		 * on the function bfq_no_longer_next_in_service()
-		 * invoked below.
+		 * service, then it must be extracted from its active
+		 * tree, so as to make sure that it won't be
+		 * considered when computing next_in_service. See the
+		 * comments on the function
+		 * bfq_no_longer_next_in_service() for details.
 		 */
 		if (bfq_no_longer_next_in_service(entity))
 			bfq_active_extract(bfq_entity_service_tree(entity),
 					   entity);
 
 		/*
-		 * For the same reason why we may have just extracted
-		 * entity from its active tree, we may need to update
-		 * next_in_service for the sched_data of entity too,
-		 * regardless of whether entity has been extracted.
-		 * In fact, even if entity has not been extracted, a
-		 * descendant entity may get extracted. Such an event
-		 * would cause a change in next_in_service for the
-		 * level of the descendant entity, and thus possibly
-		 * back to upper levels.
+		 * Even if entity is not to be extracted according to
+		 * the above check, a descendant entity may get
+		 * extracted in one of the next iterations of this
+		 * loop. Such an event could cause a change in
+		 * next_in_service for the level of the descendant
+		 * entity, and thus possibly back to this level.
 		 *
-		 * We cannot perform the resulting needed update
-		 * before the end of this loop, because, to know which
-		 * is the correct next-to-serve candidate entity for
-		 * each level, we need first to find the leaf entity
-		 * to set in service. In fact, only after we know
-		 * which is the next-to-serve leaf entity, we can
-		 * discover whether the parent entity of the leaf
-		 * entity becomes the next-to-serve, and so on.
+		 * However, we cannot perform the resulting needed
+		 * update of next_in_service for this level before the
+		 * end of the whole loop, because, to know which is
+		 * the correct next-to-serve candidate entity for each
+		 * level, we need first to find the leaf entity to set
+		 * in service. In fact, only after we know which is
+		 * the next-to-serve leaf entity, we can discover
+		 * whether the parent entity of the leaf entity
+		 * becomes the next-to-serve, and so on.
 		 */
-
 	}
 
 	bfqq = bfq_entity_to_bfqq(entity);
