@@ -494,7 +494,7 @@ static int moxart_mac_probe(struct platform_device *pdev)
 	priv->tx_desc_base = dma_alloc_coherent(NULL, TX_REG_DESC_SIZE *
 						TX_DESC_NUM, &priv->tx_base,
 						GFP_DMA | GFP_KERNEL);
-	if (priv->tx_desc_base == NULL) {
+	if (!priv->tx_desc_base) {
 		ret = -ENOMEM;
 		goto init_fail;
 	}
@@ -502,7 +502,7 @@ static int moxart_mac_probe(struct platform_device *pdev)
 	priv->rx_desc_base = dma_alloc_coherent(NULL, RX_REG_DESC_SIZE *
 						RX_DESC_NUM, &priv->rx_base,
 						GFP_DMA | GFP_KERNEL);
-	if (priv->rx_desc_base == NULL) {
+	if (!priv->rx_desc_base) {
 		ret = -ENOMEM;
 		goto init_fail;
 	}
