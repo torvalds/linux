@@ -325,7 +325,7 @@ static void sdma_wait_for_packet_egress(struct sdma_engine *sde,
 			/* timed out - bounce the link */
 			dd_dev_err(dd, "%s: engine %u timeout waiting for packets to egress, remaining count %u, bouncing link\n",
 				   __func__, sde->this_idx, (u32)reg);
-			queue_work(dd->pport->hfi1_wq,
+			queue_work(dd->pport->link_wq,
 				   &dd->pport->link_bounce_work);
 			break;
 		}

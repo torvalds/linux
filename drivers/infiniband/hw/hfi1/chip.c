@@ -5545,7 +5545,7 @@ static void update_rcverr_timer(unsigned long opaque)
 		set_link_down_reason(
 		ppd, OPA_LINKDOWN_REASON_EXCESSIVE_BUFFER_OVERRUN, 0,
 		OPA_LINKDOWN_REASON_EXCESSIVE_BUFFER_OVERRUN);
-		queue_work(ppd->hfi1_wq, &ppd->link_bounce_work);
+		queue_work(ppd->link_wq, &ppd->link_bounce_work);
 	}
 	dd->rcv_ovfl_cnt = (u32)cur_ovfl_cnt;
 
@@ -6100,7 +6100,7 @@ static void handle_qsfp_int(struct hfi1_devdata *dd, u32 src_ctx, u64 reg)
 				 * will not happen. We have to do it here
 				 * before turning the DC off.
 				 */
-				queue_work(ppd->hfi1_wq, &ppd->link_down_work);
+				queue_work(ppd->link_wq, &ppd->link_down_work);
 			}
 		} else {
 			dd_dev_info(dd, "%s: QSFP module inserted\n",
@@ -6135,7 +6135,7 @@ static void handle_qsfp_int(struct hfi1_devdata *dd, u32 src_ctx, u64 reg)
 
 	/* Schedule the QSFP work only if there is a cable attached. */
 	if (qsfp_mod_present(ppd))
-		queue_work(ppd->hfi1_wq, &ppd->qsfp_info.qsfp_work);
+		queue_work(ppd->link_wq, &ppd->qsfp_info.qsfp_work);
 }
 
 static int request_host_lcb_access(struct hfi1_devdata *dd)
@@ -7738,12 +7738,12 @@ static void handle_8051_interrupt(struct hfi1_devdata *dd, u32 unused, u64 reg)
 			host_msg &= ~(u64)HOST_REQ_DONE;
 		}
 		if (host_msg & BC_SMA_MSG) {
-			queue_work(ppd->hfi1_wq, &ppd->sma_message_work);
+			queue_work(ppd->link_wq, &ppd->sma_message_work);
 			host_msg &= ~(u64)BC_SMA_MSG;
 		}
 		if (host_msg & LINKUP_ACHIEVED) {
 			dd_dev_info(dd, "8051: Link up\n");
-			queue_work(ppd->hfi1_wq, &ppd->link_up_work);
+			queue_work(ppd->link_wq, &ppd->link_up_work);
 			host_msg &= ~(u64)LINKUP_ACHIEVED;
 		}
 		if (host_msg & EXT_DEVICE_CFG_REQ) {
@@ -7751,7 +7751,7 @@ static void handle_8051_interrupt(struct hfi1_devdata *dd, u32 unused, u64 reg)
 			host_msg &= ~(u64)EXT_DEVICE_CFG_REQ;
 		}
 		if (host_msg & VERIFY_CAP_FRAME) {
-			queue_work(ppd->hfi1_wq, &ppd->link_vc_work);
+			queue_work(ppd->link_wq, &ppd->link_vc_work);
 			host_msg &= ~(u64)VERIFY_CAP_FRAME;
 		}
 		if (host_msg & LINK_GOING_DOWN) {
@@ -7766,7 +7766,7 @@ static void handle_8051_interrupt(struct hfi1_devdata *dd, u32 unused, u64 reg)
 			host_msg &= ~(u64)LINK_GOING_DOWN;
 		}
 		if (host_msg & LINK_WIDTH_DOWNGRADED) {
-			queue_work(ppd->hfi1_wq, &ppd->link_downgrade_work);
+			queue_work(ppd->link_wq, &ppd->link_downgrade_work);
 			host_msg &= ~(u64)LINK_WIDTH_DOWNGRADED;
 		}
 		if (host_msg) {
@@ -7809,7 +7809,7 @@ static void handle_8051_interrupt(struct hfi1_devdata *dd, u32 unused, u64 reg)
 			dd_dev_info(dd, "%s: not queuing link down\n",
 				    __func__);
 		} else {
-			queue_work(ppd->hfi1_wq, &ppd->link_down_work);
+			queue_work(ppd->link_wq, &ppd->link_down_work);
 		}
 	}
 }
@@ -8017,7 +8017,7 @@ static void handle_dcc_err(struct hfi1_devdata *dd, u32 unused, u64 reg)
 		dd_dev_info_ratelimited(dd, "%s: PortErrorAction bounce\n",
 					__func__);
 		set_link_down_reason(ppd, lcl_reason, 0, lcl_reason);
-		queue_work(ppd->hfi1_wq, &ppd->link_bounce_work);
+		queue_work(ppd->link_wq, &ppd->link_bounce_work);
 	}
 }
 
@@ -9685,7 +9685,7 @@ static void try_start_link(struct hfi1_pportdata *ppd)
 			    "QSFP not responding, waiting and retrying %d\n",
 			    (int)ppd->qsfp_retry_count);
 		ppd->qsfp_retry_count++;
-		queue_delayed_work(ppd->hfi1_wq, &ppd->start_link_work,
+		queue_delayed_work(ppd->link_wq, &ppd->start_link_work,
 				   msecs_to_jiffies(QSFP_RETRY_WAIT));
 		return;
 	}

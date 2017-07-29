@@ -914,7 +914,7 @@ static inline int set_armed_to_active(struct hfi1_ctxtdata *rcd,
 			return 0;
 		}
 
-		queue_work(rcd->ppd->hfi1_wq, lsaw);
+		queue_work(rcd->ppd->link_wq, lsaw);
 		return 1;
 	}
 	return 0;

@@ -660,6 +660,20 @@ static int create_workqueues(struct hfi1_devdata *dd)
 			if (!ppd->hfi1_wq)
 				goto wq_error;
 		}
+		if (!ppd->link_wq) {
+			/*
+			 * Make the link workqueue single-threaded to enforce
+			 * serialization.
+			 */
+			ppd->link_wq =
+				alloc_workqueue(
+				    "hfi_link_%d_%d",
+				    WQ_SYSFS | WQ_MEM_RECLAIM | WQ_UNBOUND,
+				    1, /* max_active */
+				    dd->unit, pidx);
+			if (!ppd->link_wq)
+				goto wq_error;
+		}
 	}
 	return 0;
 wq_error:
@@ -669,6 +683,10 @@ wq_error:
 		if (ppd->hfi1_wq) {
 			destroy_workqueue(ppd->hfi1_wq);
 			ppd->hfi1_wq = NULL;
+		}
+		if (ppd->link_wq) {
+			destroy_workqueue(ppd->link_wq);
+			ppd->link_wq = NULL;
 		}
 	}
 	return -ENOMEM;
@@ -953,6 +971,10 @@ static void shutdown_device(struct hfi1_devdata *dd)
 		if (ppd->hfi1_wq) {
 			destroy_workqueue(ppd->hfi1_wq);
 			ppd->hfi1_wq = NULL;
+		}
+		if (ppd->link_wq) {
+			destroy_workqueue(ppd->link_wq);
+			ppd->link_wq = NULL;
 		}
 	}
 	sdma_exit(dd);
@@ -1574,6 +1596,10 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			if (ppd->hfi1_wq) {
 				destroy_workqueue(ppd->hfi1_wq);
 				ppd->hfi1_wq = NULL;
+			}
+			if (ppd->link_wq) {
+				destroy_workqueue(ppd->link_wq);
+				ppd->link_wq = NULL;
 			}
 		}
 		if (!j)

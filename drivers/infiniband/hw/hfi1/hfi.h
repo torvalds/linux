@@ -576,6 +576,7 @@ struct hfi1_pportdata {
 	/* SendDMA related entries */
 
 	struct workqueue_struct *hfi1_wq;
+	struct workqueue_struct *link_wq;
 
 	/* move out of interrupt context */
 	struct work_struct link_vc_work;
