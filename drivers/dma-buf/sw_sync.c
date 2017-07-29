@@ -213,11 +213,21 @@ static void sync_timeline_signal(struct sync_timeline *obj, unsigned int inc)
 	obj->value += inc;
 
 	list_for_each_entry_safe(pt, next, &obj->pt_list, link) {
-		if (!dma_fence_is_signaled_locked(&pt->base))
+		if (!timeline_fence_signaled(&pt->base))
 			break;
 
 		list_del_init(&pt->link);
 		rb_erase(&pt->node, &obj->pt_tree);
+
+		/*
+		 * A signal callback may release the last reference to this
+		 * fence, causing it to be freed. That operation has to be
+		 * last to avoid a use after free inside this loop, and must
+		 * be after we remove the fence from the timeline in order to
+		 * prevent deadlocking on timeline->lock inside
+		 * timeline_fence_release().
+		 */
+		dma_fence_signal_locked(&pt->base);
 	}
 
 	spin_unlock_irq(&obj->lock);
