@@ -125,6 +125,75 @@ static void sync_timeline_put(struct sync_timeline *obj)
 	kref_put(&obj->kref, sync_timeline_free);
 }
 
+static const char *timeline_fence_get_driver_name(struct dma_fence *fence)
+{
+	return "sw_sync";
+}
+
+static const char *timeline_fence_get_timeline_name(struct dma_fence *fence)
+{
+	struct sync_timeline *parent = dma_fence_parent(fence);
+
+	return parent->name;
+}
+
+static void timeline_fence_release(struct dma_fence *fence)
+{
+	struct sync_pt *pt = dma_fence_to_sync_pt(fence);
+	struct sync_timeline *parent = dma_fence_parent(fence);
+
+	if (!list_empty(&pt->link)) {
+		unsigned long flags;
+
+		spin_lock_irqsave(fence->lock, flags);
+		if (!list_empty(&pt->link)) {
+			list_del(&pt->link);
+			rb_erase(&pt->node, &parent->pt_tree);
+		}
+		spin_unlock_irqrestore(fence->lock, flags);
+	}
+
+	sync_timeline_put(parent);
+	dma_fence_free(fence);
+}
+
+static bool timeline_fence_signaled(struct dma_fence *fence)
+{
+	struct sync_timeline *parent = dma_fence_parent(fence);
+
+	return !__dma_fence_is_later(fence->seqno, parent->value);
+}
+
+static bool timeline_fence_enable_signaling(struct dma_fence *fence)
+{
+	return true;
+}
+
+static void timeline_fence_value_str(struct dma_fence *fence,
+				    char *str, int size)
+{
+	snprintf(str, size, "%d", fence->seqno);
+}
+
+static void timeline_fence_timeline_value_str(struct dma_fence *fence,
+					     char *str, int size)
+{
+	struct sync_timeline *parent = dma_fence_parent(fence);
+
+	snprintf(str, size, "%d", parent->value);
+}
+
+static const struct dma_fence_ops timeline_fence_ops = {
+	.get_driver_name = timeline_fence_get_driver_name,
+	.get_timeline_name = timeline_fence_get_timeline_name,
+	.enable_signaling = timeline_fence_enable_signaling,
+	.signaled = timeline_fence_signaled,
+	.wait = dma_fence_default_wait,
+	.release = timeline_fence_release,
+	.fence_value_str = timeline_fence_value_str,
+	.timeline_value_str = timeline_fence_timeline_value_str,
+};
+
 /**
  * sync_timeline_signal() - signal a status change on a sync_timeline
  * @obj:	sync_timeline to signal
@@ -215,75 +284,6 @@ unlock:
 
 	return pt;
 }
-
-static const char *timeline_fence_get_driver_name(struct dma_fence *fence)
-{
-	return "sw_sync";
-}
-
-static const char *timeline_fence_get_timeline_name(struct dma_fence *fence)
-{
-	struct sync_timeline *parent = dma_fence_parent(fence);
-
-	return parent->name;
-}
-
-static void timeline_fence_release(struct dma_fence *fence)
-{
-	struct sync_pt *pt = dma_fence_to_sync_pt(fence);
-	struct sync_timeline *parent = dma_fence_parent(fence);
-
-	if (!list_empty(&pt->link)) {
-		unsigned long flags;
-
-		spin_lock_irqsave(fence->lock, flags);
-		if (!list_empty(&pt->link)) {
-			list_del(&pt->link);
-			rb_erase(&pt->node, &parent->pt_tree);
-		}
-		spin_unlock_irqrestore(fence->lock, flags);
-	}
-
-	sync_timeline_put(parent);
-	dma_fence_free(fence);
-}
-
-static bool timeline_fence_signaled(struct dma_fence *fence)
-{
-	struct sync_timeline *parent = dma_fence_parent(fence);
-
-	return !__dma_fence_is_later(fence->seqno, parent->value);
-}
-
-static bool timeline_fence_enable_signaling(struct dma_fence *fence)
-{
-	return true;
-}
-
-static void timeline_fence_value_str(struct dma_fence *fence,
-				    char *str, int size)
-{
-	snprintf(str, size, "%d", fence->seqno);
-}
-
-static void timeline_fence_timeline_value_str(struct dma_fence *fence,
-					     char *str, int size)
-{
-	struct sync_timeline *parent = dma_fence_parent(fence);
-
-	snprintf(str, size, "%d", parent->value);
-}
-
-static const struct dma_fence_ops timeline_fence_ops = {
-	.get_driver_name = timeline_fence_get_driver_name,
-	.get_timeline_name = timeline_fence_get_timeline_name,
-	.enable_signaling = timeline_fence_enable_signaling,
-	.signaled = timeline_fence_signaled,
-	.wait = dma_fence_default_wait,
-	.release = timeline_fence_release,
-	.fence_value_str = timeline_fence_value_str,
-	.timeline_value_str = timeline_fence_timeline_value_str,
-};
 
 /*
  * *WARNING*
