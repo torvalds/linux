@@ -1769,7 +1769,7 @@ static inline int scrub_check_fsid(u8 fsid[],
 	struct btrfs_fs_devices *fs_devices = spage->dev->fs_devices;
 	int ret;
 
-	ret = memcmp(fsid, fs_devices->fsid, BTRFS_UUID_SIZE);
+	ret = memcmp(fsid, fs_devices->fsid, BTRFS_FSID_SIZE);
 	return !ret;
 }
 
