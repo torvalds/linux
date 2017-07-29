@@ -288,8 +288,8 @@ static int moxart_tx_queue_space(struct net_device *ndev)
 static void moxart_tx_finished(struct net_device *ndev)
 {
 	struct moxart_mac_priv_t *priv = netdev_priv(ndev);
-	unsigned tx_head = priv->tx_head;
-	unsigned tx_tail = priv->tx_tail;
+	unsigned int tx_head = priv->tx_head;
+	unsigned int tx_tail = priv->tx_tail;
 
 	while (tx_tail != tx_head) {
 		dma_unmap_single(&ndev->dev, priv->tx_mapping[tx_tail],
