@@ -1065,6 +1065,21 @@ config GPIO_TPS65912
 	help
 	  This driver supports TPS65912 gpio chip
 
+config GPIO_TPS68470
+	bool "TPS68470 GPIO"
+	depends on MFD_TPS68470
+	help
+	  Select this option to enable GPIO driver for the TPS68470
+	  chip family.
+	  There are 7 GPIOs and few sensor related GPIOs supported
+	  by the TPS68470. While the 7 GPIOs can be configured as
+	  input or output as appropriate, the sensor related GPIOs
+	  are "output only" GPIOs.
+
+	  This driver config is bool, as the GPIO functionality
+	  of the TPS68470 must be available before dependent
+	  drivers are loaded.
+
 config GPIO_TWL4030
 	tristate "TWL4030, TWL5030, and TPS659x0 GPIOs"
 	depends on TWL4030_CORE
