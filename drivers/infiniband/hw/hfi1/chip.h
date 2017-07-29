@@ -384,6 +384,7 @@
 #define VERIFY_CAP_LOCAL_FABRIC	     0x08
 #define VERIFY_CAP_LOCAL_LINK_WIDTH  0x09
 #define LOCAL_DEVICE_ID		     0x0a
+#define RESERVED_REGISTERS	     0x0b
 #define LOCAL_LNI_INFO		     0x0c
 #define REMOTE_LNI_INFO              0x0d
 #define MISC_STATUS		     0x0e
@@ -505,6 +506,9 @@
  */
 #define DOWN_REMOTE_REASON_SHIFT 16
 #define DOWN_REMOTE_REASON_MASK  0xff
+
+#define HOST_INTERFACE_VERSION_SHIFT 16
+#define HOST_INTERFACE_VERSION_MASK  0xff
 
 /* verify capability PHY power management bits */
 #define PWRM_BER_CONTROL	0x1
@@ -704,6 +708,7 @@ int read_8051_data(struct hfi1_devdata *dd, u32 addr, u32 len, u64 *result);
 /* chip.c */
 void read_misc_status(struct hfi1_devdata *dd, u8 *ver_major, u8 *ver_minor,
 		      u8 *ver_patch);
+int write_host_interface_version(struct hfi1_devdata *dd, u8 version);
 void read_guid(struct hfi1_devdata *dd);
 int wait_fm_ready(struct hfi1_devdata *dd, u32 mstimeout);
 void set_link_down_reason(struct hfi1_pportdata *ppd, u8 lcl_reason,

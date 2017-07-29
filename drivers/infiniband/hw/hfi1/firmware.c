@@ -69,6 +69,7 @@
 #define ALT_FW_FABRIC_NAME "hfi1_fabric_d.fw"
 #define ALT_FW_SBUS_NAME "hfi1_sbus_d.fw"
 #define ALT_FW_PCIE_NAME "hfi1_pcie_d.fw"
+#define HOST_INTERFACE_VERSION 1
 
 static uint fw_8051_load = 1;
 static uint fw_fabric_serdes_load = 1;
@@ -1087,6 +1088,13 @@ static int load_8051_firmware(struct hfi1_devdata *dd,
 	dd_dev_info(dd, "8051 firmware version %d.%d.%d\n",
 		    (int)ver_major, (int)ver_minor, (int)ver_patch);
 	dd->dc8051_ver = dc8051_ver(ver_major, ver_minor, ver_patch);
+	ret = write_host_interface_version(dd, HOST_INTERFACE_VERSION);
+	if (ret != HCMD_SUCCESS) {
+		dd_dev_err(dd,
+			   "Failed to set host interface version, return 0x%x\n",
+			   ret);
+		return -EIO;
+	}
 
 	return 0;
 }

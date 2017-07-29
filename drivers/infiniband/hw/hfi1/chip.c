@@ -8832,6 +8832,20 @@ static void read_remote_device_id(struct hfi1_devdata *dd, u16 *device_id,
 			& REMOTE_DEVICE_REV_MASK;
 }
 
+int write_host_interface_version(struct hfi1_devdata *dd, u8 version)
+{
+	u32 frame;
+	u32 mask;
+
+	mask = (HOST_INTERFACE_VERSION_MASK << HOST_INTERFACE_VERSION_SHIFT);
+	read_8051_config(dd, RESERVED_REGISTERS, GENERAL_CONFIG, &frame);
+	/* Clear, then set field */
+	frame &= ~mask;
+	frame |= ((u32)version << HOST_INTERFACE_VERSION_SHIFT);
+	return load_8051_config(dd, RESERVED_REGISTERS, GENERAL_CONFIG,
+				frame);
+}
+
 void read_misc_status(struct hfi1_devdata *dd, u8 *ver_major, u8 *ver_minor,
 		      u8 *ver_patch)
 {
@@ -10262,49 +10276,35 @@ static void force_logical_link_state_down(struct hfi1_pportdata *ppd)
 static int goto_offline(struct hfi1_pportdata *ppd, u8 rem_reason)
 {
 	struct hfi1_devdata *dd = ppd->dd;
-	u32 pstate, previous_state;
+	u32 previous_state;
 	int ret;
-	int do_transition;
-	int do_wait;
 
 	update_lcb_cache(dd);
 
 	previous_state = ppd->host_link_state;
 	ppd->host_link_state = HLS_GOING_OFFLINE;
-	pstate = read_physical_state(dd);
-	if (pstate == PLS_OFFLINE) {
-		do_transition = 0;	/* in right state */
-		do_wait = 0;		/* ...no need to wait */
-	} else if ((pstate & 0xf0) == PLS_OFFLINE) {
-		do_transition = 0;	/* in an offline transient state */
-		do_wait = 1;		/* ...wait for it to settle */
-	} else {
-		do_transition = 1;	/* need to move to offline */
-		do_wait = 1;		/* ...will need to wait */
-	}
 
-	if (do_transition) {
-		ret = set_physical_link_state(dd,
-					      (rem_reason << 8) | PLS_OFFLINE);
+	/* start offline transition */
+	ret = set_physical_link_state(dd, (rem_reason << 8) | PLS_OFFLINE);
 
-		if (ret != HCMD_SUCCESS) {
-			dd_dev_err(dd,
-				   "Failed to transition to Offline link state, return %d\n",
-				   ret);
-			return -EINVAL;
-		}
-		if (ppd->offline_disabled_reason ==
-				HFI1_ODR_MASK(OPA_LINKDOWN_REASON_NONE))
-			ppd->offline_disabled_reason =
-			HFI1_ODR_MASK(OPA_LINKDOWN_REASON_TRANSIENT);
+	if (ret != HCMD_SUCCESS) {
+		dd_dev_err(dd,
+			   "Failed to transition to Offline link state, return %d\n",
+			   ret);
+		return -EINVAL;
 	}
+	if (ppd->offline_disabled_reason ==
+			HFI1_ODR_MASK(OPA_LINKDOWN_REASON_NONE))
+		ppd->offline_disabled_reason =
+		HFI1_ODR_MASK(OPA_LINKDOWN_REASON_TRANSIENT);
 
-	if (do_wait) {
-		/* it can take a while for the link to go down */
-		ret = wait_physical_linkstate(ppd, PLS_OFFLINE, 10000);
-		if (ret < 0)
-			return ret;
-	}
+	/*
+	 * Wait for offline transition. It can take a while for
+	 * the link to go down.
+	 */
+	ret = wait_physical_linkstate(ppd, PLS_OFFLINE, 10000);
+	if (ret < 0)
+		return ret;
 
 	/*
 	 * Now in charge of LCB - must be after the physical state is
