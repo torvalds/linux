@@ -1048,7 +1048,7 @@ static int sunxi_mmc_card_busy(struct mmc_host *mmc)
 	return !!(mmc_readl(host, REG_STAS) & SDXC_CARD_DATA_BUSY);
 }
 
-static struct mmc_host_ops sunxi_mmc_ops = {
+static const struct mmc_host_ops sunxi_mmc_ops = {
 	.request	 = sunxi_mmc_request,
 	.set_ios	 = sunxi_mmc_set_ios,
 	.get_ro		 = mmc_gpio_get_ro,
