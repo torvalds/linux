@@ -89,8 +89,7 @@
 
 		uart0: serial@98007800 {
 			compatible = "snps,dw-apb-uart";
-			reg = <0x98007800 0x400>,
-			      <0x98007000 0x100>;
+			reg = <0x98007800 0x400>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clock-frequency = <27000000>;
@@ -99,8 +98,7 @@
 
 		uart1: serial@9801b200 {
 			compatible = "snps,dw-apb-uart";
-			reg = <0x9801b200 0x100>,
-			      <0x9801b00c 0x100>;
+			reg = <0x9801b200 0x100>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clock-frequency = <432000000>;
@@ -109,8 +107,7 @@
 
 		uart2: serial@9801b400 {
 			compatible = "snps,dw-apb-uart";
-			reg = <0x9801b400 0x100>,
-			      <0x9801b00c 0x100>;
+			reg = <0x9801b400 0x100>;
 			reg-shift = <2>;
 			reg-io-width = <4>;
 			clock-frequency = <432000000>;
