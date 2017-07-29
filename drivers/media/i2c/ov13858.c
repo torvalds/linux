@@ -60,8 +60,8 @@
 #define OV13858_VBLANK_MIN		56
 
 /* HBLANK control - read only */
-#define OV13858_PPL_540MHZ		2244
-#define OV13858_PPL_1080MHZ		4488
+#define OV13858_PPL_270MHZ		2244
+#define OV13858_PPL_540MHZ		4488
 
 /* Exposure control */
 #define OV13858_REG_EXPOSURE		0x3500
@@ -943,31 +943,33 @@ static const char * const ov13858_test_pattern_menu[] = {
 
 /* Configurations for supported link frequencies */
 #define OV13858_NUM_OF_LINK_FREQS	2
-#define OV13858_LINK_FREQ_1080MBPS	1080000000
-#define OV13858_LINK_FREQ_540MBPS	540000000
+#define OV13858_LINK_FREQ_540MHZ	540000000ULL
+#define OV13858_LINK_FREQ_270MHZ	270000000ULL
 #define OV13858_LINK_FREQ_INDEX_0	0
 #define OV13858_LINK_FREQ_INDEX_1	1
 
 /* Menu items for LINK_FREQ V4L2 control */
 static const s64 link_freq_menu_items[OV13858_NUM_OF_LINK_FREQS] = {
-	OV13858_LINK_FREQ_1080MBPS,
-	OV13858_LINK_FREQ_540MBPS
+	OV13858_LINK_FREQ_540MHZ,
+	OV13858_LINK_FREQ_270MHZ
 };
 
 /* Link frequency configs */
 static const struct ov13858_link_freq_config
 			link_freq_configs[OV13858_NUM_OF_LINK_FREQS] = {
 	{
-		.pixel_rate = 864000000,
-		.pixels_per_line = OV13858_PPL_1080MHZ,
+		/* pixel_rate = link_freq * 2 * nr_of_lanes / bits_per_sample */
+		.pixel_rate = (OV13858_LINK_FREQ_540MHZ * 2 * 4) / 10,
+		.pixels_per_line = OV13858_PPL_540MHZ,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mipi_data_rate_1080mbps),
 			.regs = mipi_data_rate_1080mbps,
 		}
 	},
 	{
-		.pixel_rate = 432000000,
-		.pixels_per_line = OV13858_PPL_540MHZ,
+		/* pixel_rate = link_freq * 2 * nr_of_lanes / bits_per_sample */
+		.pixel_rate = (OV13858_LINK_FREQ_270MHZ * 2 * 4) / 10,
+		.pixels_per_line = OV13858_PPL_270MHZ,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mipi_data_rate_540mbps),
 			.regs = mipi_data_rate_540mbps,
@@ -1637,10 +1639,10 @@ static int ov13858_init_controls(struct ov13858 *ov13858)
 
 	ov13858->hblank = v4l2_ctrl_new_std(
 				ctrl_hdlr, &ov13858_ctrl_ops, V4L2_CID_HBLANK,
-				OV13858_PPL_1080MHZ - ov13858->cur_mode->width,
-				OV13858_PPL_1080MHZ - ov13858->cur_mode->width,
+				OV13858_PPL_540MHZ - ov13858->cur_mode->width,
+				OV13858_PPL_540MHZ - ov13858->cur_mode->width,
 				1,
-				OV13858_PPL_1080MHZ - ov13858->cur_mode->width);
+				OV13858_PPL_540MHZ - ov13858->cur_mode->width);
 	ov13858->hblank->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
 	exposure_max = ov13858->cur_mode->vts - 8;
