@@ -875,9 +875,14 @@ static int can_pernet_init(struct net *net)
 	spin_lock_init(&net->can.can_rcvlists_lock);
 	net->can.can_rx_alldev_list =
 		kzalloc(sizeof(struct dev_rcv_lists), GFP_KERNEL);
-
+	if (!net->can.can_rx_alldev_list)
+		goto out;
 	net->can.can_stats = kzalloc(sizeof(struct s_stats), GFP_KERNEL);
+	if (!net->can.can_stats)
+		goto out_free_alldev_list;
 	net->can.can_pstats = kzalloc(sizeof(struct s_pstats), GFP_KERNEL);
+	if (!net->can.can_pstats)
+		goto out_free_can_stats;
 
 	if (IS_ENABLED(CONFIG_PROC_FS)) {
 		/* the statistics are updated every second (timer triggered) */
@@ -892,6 +897,13 @@ static int can_pernet_init(struct net *net)
 	}
 
 	return 0;
+
+ out_free_can_stats:
+	kfree(net->can.can_stats);
+ out_free_alldev_list:
+	kfree(net->can.can_rx_alldev_list);
+ out:
+	return -ENOMEM;
 }
 
 static void can_pernet_exit(struct net *net)
