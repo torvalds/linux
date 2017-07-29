@@ -90,6 +90,15 @@
 #define SUN4I_I2S_RX_CHAN_SEL_REG	0x38
 #define SUN4I_I2S_RX_CHAN_MAP_REG	0x3c
 
+/**
+ * struct sun4i_i2s_quirks - Differences between SoC variants.
+ *
+ * @has_reset: SoC needs reset deasserted.
+ */
+struct sun4i_i2s_quirks {
+	bool				has_reset;
+};
+
 struct sun4i_i2s {
 	struct clk	*bus_clk;
 	struct clk	*mod_clk;
@@ -100,6 +109,8 @@ struct sun4i_i2s {
 
 	struct snd_dmaengine_dai_dma_data	capture_dma_data;
 	struct snd_dmaengine_dai_dma_data	playback_dma_data;
+
+	const struct sun4i_i2s_quirks	*variant;
 };
 
 struct sun4i_i2s_clk_div {
@@ -654,10 +665,6 @@ static int sun4i_i2s_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-struct sun4i_i2s_quirks {
-	bool has_reset;
-};
-
 static const struct sun4i_i2s_quirks sun4i_a10_i2s_quirks = {
 	.has_reset	= false,
 };
@@ -669,7 +676,6 @@ static const struct sun4i_i2s_quirks sun6i_a31_i2s_quirks = {
 static int sun4i_i2s_probe(struct platform_device *pdev)
 {
 	struct sun4i_i2s *i2s;
-	const struct sun4i_i2s_quirks *quirks;
 	struct resource *res;
 	void __iomem *regs;
 	int irq, ret;
@@ -690,8 +696,8 @@ static int sun4i_i2s_probe(struct platform_device *pdev)
 		return irq;
 	}
 
-	quirks = of_device_get_match_data(&pdev->dev);
-	if (!quirks) {
+	i2s->variant = of_device_get_match_data(&pdev->dev);
+	if (!i2s->variant) {
 		dev_err(&pdev->dev, "Failed to determine the quirks to use\n");
 		return -ENODEV;
 	}
@@ -715,7 +721,7 @@ static int sun4i_i2s_probe(struct platform_device *pdev)
 		return PTR_ERR(i2s->mod_clk);
 	}
 
-	if (quirks->has_reset) {
+	if (i2s->variant->has_reset) {
 		i2s->rst = devm_reset_control_get_exclusive(&pdev->dev, NULL);
 		if (IS_ERR(i2s->rst)) {
 			dev_err(&pdev->dev, "Failed to get reset control\n");
