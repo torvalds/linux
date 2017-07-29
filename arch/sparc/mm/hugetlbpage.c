@@ -143,6 +143,10 @@ static pte_t sun4v_hugepage_shift_to_tte(pte_t entry, unsigned int shift)
 	pte_val(entry) = pte_val(entry) & ~_PAGE_SZALL_4V;
 
 	switch (shift) {
+	case HPAGE_16GB_SHIFT:
+		hugepage_size = _PAGE_SZ16GB_4V;
+		pte_val(entry) |= _PAGE_PUD_HUGE;
+		break;
 	case HPAGE_2GB_SHIFT:
 		hugepage_size = _PAGE_SZ2GB_4V;
 		pte_val(entry) |= _PAGE_PMD_HUGE;
@@ -187,6 +191,9 @@ static unsigned int sun4v_huge_tte_to_shift(pte_t entry)
 	unsigned int shift;
 
 	switch (tte_szbits) {
+	case _PAGE_SZ16GB_4V:
+		shift = HPAGE_16GB_SHIFT;
+		break;
 	case _PAGE_SZ2GB_4V:
 		shift = HPAGE_2GB_SHIFT;
 		break;
@@ -263,7 +270,12 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
 
 	pgd = pgd_offset(mm, addr);
 	pud = pud_alloc(mm, pgd, addr);
-	if (pud) {
+	if (!pud)
+		return NULL;
+
+	if (sz >= PUD_SIZE)
+		pte = (pte_t *)pud;
+	else {
 		pmd = pmd_alloc(mm, pud, addr);
 		if (!pmd)
 			return NULL;
@@ -289,12 +301,16 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
 	if (!pgd_none(*pgd)) {
 		pud = pud_offset(pgd, addr);
 		if (!pud_none(*pud)) {
-			pmd = pmd_offset(pud, addr);
-			if (!pmd_none(*pmd)) {
-				if (is_hugetlb_pmd(*pmd))
-					pte = (pte_t *)pmd;
-				else
-					pte = pte_offset_map(pmd, addr);
+			if (is_hugetlb_pud(*pud))
+				pte = (pte_t *)pud;
+			else {
+				pmd = pmd_offset(pud, addr);
+				if (!pmd_none(*pmd)) {
+					if (is_hugetlb_pmd(*pmd))
+						pte = (pte_t *)pmd;
+					else
+						pte = pte_offset_map(pmd, addr);
+				}
 			}
 		}
 	}
@@ -305,12 +321,20 @@ pte_t *huge_pte_offset(struct mm_struct *mm,
 void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 		     pte_t *ptep, pte_t entry)
 {
-	unsigned int i, nptes, orig_shift, shift;
-	unsigned long size;
+	unsigned int nptes, orig_shift, shift;
+	unsigned long i, size;
 	pte_t orig;
 
 	size = huge_tte_to_size(entry);
-	shift = size >= HPAGE_SIZE ? PMD_SHIFT : PAGE_SHIFT;
+
+	shift = PAGE_SHIFT;
+	if (size >= PUD_SIZE)
+		shift = PUD_SHIFT;
+	else if (size >= PMD_SIZE)
+		shift = PMD_SHIFT;
+	else
+		shift = PAGE_SHIFT;
+
 	nptes = size >> shift;
 
 	if (!pte_present(*ptep) && pte_present(entry))
@@ -333,19 +357,23 @@ void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
 pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 			      pte_t *ptep)
 {
-	unsigned int i, nptes, hugepage_shift;
+	unsigned int i, nptes, orig_shift, shift;
 	unsigned long size;
 	pte_t entry;
 
 	entry = *ptep;
 	size = huge_tte_to_size(entry);
-	if (size >= HPAGE_SIZE)
-		nptes = size >> PMD_SHIFT;
-	else
-		nptes = size >> PAGE_SHIFT;
 
-	hugepage_shift = pte_none(entry) ? PAGE_SHIFT :
-		huge_tte_to_shift(entry);
+	shift = PAGE_SHIFT;
+	if (size >= PUD_SIZE)
+		shift = PUD_SHIFT;
+	else if (size >= PMD_SIZE)
+		shift = PMD_SHIFT;
+	else
+		shift = PAGE_SHIFT;
+
+	nptes = size >> shift;
+	orig_shift = pte_none(entry) ? PAGE_SHIFT : huge_tte_to_shift(entry);
 
 	if (pte_present(entry))
 		mm->context.hugetlb_pte_count -= nptes;
@@ -354,11 +382,11 @@ pte_t huge_ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 	for (i = 0; i < nptes; i++)
 		ptep[i] = __pte(0UL);
 
-	maybe_tlb_batch_add(mm, addr, ptep, entry, 0, hugepage_shift);
+	maybe_tlb_batch_add(mm, addr, ptep, entry, 0, orig_shift);
 	/* An HPAGE_SIZE'ed page is composed of two REAL_HPAGE_SIZE'ed pages */
 	if (size == HPAGE_SIZE)
 		maybe_tlb_batch_add(mm, addr + REAL_HPAGE_SIZE, ptep, entry, 0,
-				    hugepage_shift);
+				    orig_shift);
 
 	return entry;
 }
@@ -371,7 +399,8 @@ int pmd_huge(pmd_t pmd)
 
 int pud_huge(pud_t pud)
 {
-	return 0;
+	return !pud_none(pud) &&
+		(pud_val(pud) & (_PAGE_VALID|_PAGE_PUD_HUGE)) != _PAGE_VALID;
 }
 
 static void hugetlb_free_pte_range(struct mmu_gather *tlb, pmd_t *pmd,
@@ -435,8 +464,11 @@ static void hugetlb_free_pud_range(struct mmu_gather *tlb, pgd_t *pgd,
 		next = pud_addr_end(addr, end);
 		if (pud_none_or_clear_bad(pud))
 			continue;
-		hugetlb_free_pmd_range(tlb, pud, addr, next, floor,
-				       ceiling);
+		if (is_hugetlb_pud(*pud))
+			pud_clear(pud);
+		else
+			hugetlb_free_pmd_range(tlb, pud, addr, next, floor,
+					       ceiling);
 	} while (pud++, addr = next, addr != end);
 
 	start &= PGDIR_MASK;
