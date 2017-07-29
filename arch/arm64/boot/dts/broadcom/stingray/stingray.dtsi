@@ -267,6 +267,7 @@
 		};
 	};
 
+	#include "stingray-fs4.dtsi"
 	#include "stingray-sata.dtsi"
 
 	hsls {
