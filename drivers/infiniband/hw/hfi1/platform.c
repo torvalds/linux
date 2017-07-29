@@ -58,8 +58,13 @@ static int validate_scratch_checksum(struct hfi1_devdata *dd)
 	version = (temp_scratch & BITMAP_VERSION_SMASK) >> BITMAP_VERSION_SHIFT;
 
 	/* Prevent power on default of all zeroes from passing checksum */
-	if (!version)
+	if (!version) {
+		dd_dev_err(dd, "%s: Config bitmap uninitialized\n", __func__);
+		dd_dev_err(dd,
+			   "%s: Please update your BIOS to support active channels\n",
+			   __func__);
 		return 0;
+	}
 
 	/*
 	 * ASIC scratch 0 only contains the checksum and bitmap version as
@@ -84,6 +89,8 @@ static int validate_scratch_checksum(struct hfi1_devdata *dd)
 
 	if (checksum + temp_scratch == 0xFFFF)
 		return 1;
+
+	dd_dev_err(dd, "%s: Configuration bitmap corrupted\n", __func__);
 	return 0;
 }
 
@@ -144,11 +151,6 @@ void get_platform_config(struct hfi1_devdata *dd)
 			save_platform_config_fields(dd);
 			return;
 		}
-		dd_dev_err(dd, "%s: Config bitmap corrupted/uninitialized\n",
-			   __func__);
-		dd_dev_err(dd,
-			   "%s: Please update your BIOS to support active channels\n",
-			   __func__);
 	} else {
 		ret = eprom_read_platform_config(dd,
 						 (void **)&temp_platform_config,
