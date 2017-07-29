@@ -120,10 +120,6 @@ void copy_user_highpage(struct page *dst, struct page *src,
 	preempt_enable();
 }
 
-#endif /* DCACHE_WAY_SIZE > PAGE_SIZE */
-
-#if (DCACHE_WAY_SIZE > PAGE_SIZE) && XCHAL_DCACHE_IS_WRITEBACK
-
 /*
  * Any time the kernel writes to a user page cache page, or it is about to
  * read from a page cache page this routine is called.
@@ -208,7 +204,7 @@ void local_flush_cache_page(struct vm_area_struct *vma, unsigned long address,
 	__invalidate_icache_page_alias(virt, phys);
 }
 
-#endif
+#endif /* DCACHE_WAY_SIZE > PAGE_SIZE */
 
 void
 update_mmu_cache(struct vm_area_struct * vma, unsigned long addr, pte_t *ptep)
@@ -225,7 +221,7 @@ update_mmu_cache(struct vm_area_struct * vma, unsigned long addr, pte_t *ptep)
 
 	flush_tlb_page(vma, addr);
 
-#if (DCACHE_WAY_SIZE > PAGE_SIZE) && XCHAL_DCACHE_IS_WRITEBACK
+#if (DCACHE_WAY_SIZE > PAGE_SIZE)
 
 	if (!PageReserved(page) && test_bit(PG_arch_1, &page->flags)) {
 		unsigned long phys = page_to_phys(page);
@@ -256,7 +252,7 @@ update_mmu_cache(struct vm_area_struct * vma, unsigned long addr, pte_t *ptep)
  * flush_dcache_page() on the page.
  */
 
-#if (DCACHE_WAY_SIZE > PAGE_SIZE) && XCHAL_DCACHE_IS_WRITEBACK
+#if (DCACHE_WAY_SIZE > PAGE_SIZE)
 
 void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
 		unsigned long vaddr, void *dst, const void *src,
