@@ -269,9 +269,8 @@ rx_next:
 		priv->rx_head = rx_head;
 	}
 
-	if (rx < budget) {
+	if (rx < budget)
 		napi_complete_done(napi, rx);
-	}
 
 	priv->reg_imr |= RPKT_FINISH_M;
 	writel(priv->reg_imr, priv->base + REG_INTERRUPT_MASK);
