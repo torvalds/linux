@@ -72,6 +72,14 @@
 	      <0x00000008 0x80000000 0x1 0x80000000>; /* 6G @ 34G */
 };
 
+&mdio_mux_iproc {
+	mdio@10 {
+		gphy0: eth-phy@10 {
+			reg = <0x10>;
+		};
+	};
+};
+
 &uart1 {
 	status = "okay";
 };
@@ -100,6 +108,12 @@
 		#gpio-cells = <2>;
 		reg = <0x27>;
 	};
+};
+
+&enet {
+	phy-mode = "rgmii-id";
+	phy-handle = <&gphy0>;
+	status = "okay";
 };
 
 &nand {

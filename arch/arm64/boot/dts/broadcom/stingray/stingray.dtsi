@@ -548,6 +548,15 @@
 			iommus = <&smmu 0x6000 0x0000>;
 		};
 
+		enet: ethernet@00340000{
+			compatible = "brcm,amac";
+			reg = <0x00340000 0x1000>;
+			reg-names = "amac_base";
+			dma-coherent;
+			interrupts = <GIC_SPI 213 IRQ_TYPE_LEVEL_HIGH>;
+			status= "disabled";
+		};
+
 		nand: nand@00360000 {
 			compatible = "brcm,nand-iproc", "brcm,brcmnand-v6.1";
 			reg = <0x00360000 0x600>,
