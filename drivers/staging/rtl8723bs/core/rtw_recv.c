@@ -1005,7 +1005,7 @@ sint ap2sta_data_frame(
 			if (*psta == NULL) {
 
 				/* for AP multicast issue , modify by yiwei */
-				static unsigned long send_issue_deauth_time = 0;
+				static unsigned long send_issue_deauth_time;
 
 				/* DBG_871X("After send deauth , %u ms has elapsed.\n", jiffies_to_msecs(jiffies - send_issue_deauth_time)); */
 
