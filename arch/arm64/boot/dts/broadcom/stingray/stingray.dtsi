@@ -152,6 +152,12 @@
 		#size-cells = <1>;
 		ranges = <0x0 0x0 0x61000000 0x05000000>;
 
+		ccn: ccn@00000000 {
+			compatible = "arm,ccn-502";
+			reg = <0x00000000 0x900000>;
+			interrupts = <GIC_SPI 799 IRQ_TYPE_LEVEL_HIGH>;
+		};
+
 		gic: interrupt-controller@02c00000 {
 			compatible = "arm,gic-v3";
 			#interrupt-cells = <3>;
