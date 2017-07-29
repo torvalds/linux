@@ -9306,12 +9306,6 @@ int start_link(struct hfi1_pportdata *ppd)
 	 */
 	tune_serdes(ppd);
 
-	if (!ppd->link_enabled) {
-		dd_dev_info(ppd->dd,
-			    "%s: stopping link start because link is disabled\n",
-			    __func__);
-		return 0;
-	}
 	if (!ppd->driver_link_ready) {
 		dd_dev_info(ppd->dd,
 			    "%s: stopping link start because driver is not ready\n",
@@ -9528,6 +9522,13 @@ void qsfp_event(struct work_struct *work)
 	/* Sanity check */
 	if (!qsfp_mod_present(ppd))
 		return;
+
+	if (ppd->host_link_state == HLS_DN_DISABLE) {
+		dd_dev_info(ppd->dd,
+			    "%s: stopping link start because link is disabled\n",
+			    __func__);
+		return;
+	}
 
 	/*
 	 * Turn DC back on after cable has been re-inserted. Up until
