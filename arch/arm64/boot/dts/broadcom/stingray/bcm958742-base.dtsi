@@ -72,6 +72,70 @@
 	      <0x00000008 0x80000000 0x1 0x80000000>; /* 6G @ 34G */
 };
 
+&sata0 {
+	status = "okay";
+};
+
+&sata_phy0{
+	status = "okay";
+};
+
+&sata1 {
+	status = "okay";
+};
+
+&sata_phy1{
+	status = "okay";
+};
+
+&sata2 {
+	status = "okay";
+};
+
+&sata_phy2{
+	status = "okay";
+};
+
+&sata3 {
+	status = "okay";
+};
+
+&sata_phy3{
+	status = "okay";
+};
+
+&sata4 {
+	status = "okay";
+};
+
+&sata_phy4{
+	status = "okay";
+};
+
+&sata5 {
+	status = "okay";
+};
+
+&sata_phy5{
+	status = "okay";
+};
+
+&sata6 {
+	status = "okay";
+};
+
+&sata_phy6{
+	status = "okay";
+};
+
+&sata7 {
+	status = "okay";
+};
+
+&sata_phy7{
+	status = "okay";
+};
+
 &mdio_mux_iproc {
 	mdio@10 {
 		gphy0: eth-phy@10 {

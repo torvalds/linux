@@ -267,6 +267,8 @@
 		};
 	};
 
+	#include "stingray-sata.dtsi"
+
 	hsls {
 		compatible = "simple-bus";
 		#address-cells = <1>;
