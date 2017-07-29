@@ -27,8 +27,11 @@
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
+#include <linux/list_lru.h>
 #include "binder_alloc.h"
 #include "binder_trace.h"
+
+struct list_lru binder_alloc_lru;
 
 static DEFINE_MUTEX(binder_alloc_mmap_lock);
 
@@ -188,8 +191,9 @@ static int binder_update_page_range(struct binder_alloc *alloc, int allocate,
 {
 	void *page_addr;
 	unsigned long user_page_addr;
-	struct page **page;
-	struct mm_struct *mm;
+	struct binder_lru_page *page;
+	struct mm_struct *mm = NULL;
+	bool need_mm = false;
 
 	binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
 		     "%d: %s pages %pK-%pK\n", alloc->pid,
@@ -200,9 +204,18 @@ static int binder_update_page_range(struct binder_alloc *alloc, int allocate,
 
 	trace_binder_update_page_range(alloc, allocate, start, end);
 
-	if (vma)
-		mm = NULL;
-	else
+	if (allocate == 0)
+		goto free_range;
+
+	for (page_addr = start; page_addr < end; page_addr += PAGE_SIZE) {
+		page = &alloc->pages[(page_addr - alloc->buffer) / PAGE_SIZE];
+		if (!page->page_ptr) {
+			need_mm = true;
+			break;
+		}
+	}
+
+	if (!vma && need_mm)
 		mm = get_task_mm(alloc->tsk);
 
 	if (mm) {
@@ -215,10 +228,7 @@ static int binder_update_page_range(struct binder_alloc *alloc, int allocate,
 		}
 	}
 
-	if (allocate == 0)
-		goto free_range;
-
-	if (vma == NULL) {
+	if (!vma && need_mm) {
 		pr_err("%d: binder_alloc_buf failed to map pages in userspace, no vma\n",
 			alloc->pid);
 		goto err_no_vma;
@@ -226,18 +236,33 @@ static int binder_update_page_range(struct binder_alloc *alloc, int allocate,
 
 	for (page_addr = start; page_addr < end; page_addr += PAGE_SIZE) {
 		int ret;
+		bool on_lru;
 
 		page = &alloc->pages[(page_addr - alloc->buffer) / PAGE_SIZE];
 
-		BUG_ON(*page);
-		*page = alloc_page(GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO);
-		if (*page == NULL) {
+		if (page->page_ptr) {
+			on_lru = list_lru_del(&binder_alloc_lru, &page->lru);
+			WARN_ON(!on_lru);
+			continue;
+		}
+
+		if (WARN_ON(!vma))
+			goto err_page_ptr_cleared;
+
+		page->page_ptr = alloc_page(GFP_KERNEL |
+					    __GFP_HIGHMEM |
+					    __GFP_ZERO);
+		if (!page->page_ptr) {
 			pr_err("%d: binder_alloc_buf failed for page at %pK\n",
 				alloc->pid, page_addr);
 			goto err_alloc_page_failed;
 		}
+		page->alloc = alloc;
+		INIT_LIST_HEAD(&page->lru);
+
 		ret = map_kernel_range_noflush((unsigned long)page_addr,
-					PAGE_SIZE, PAGE_KERNEL, page);
+					       PAGE_SIZE, PAGE_KERNEL,
+					       &page->page_ptr);
 		flush_cache_vmap((unsigned long)page_addr,
 				(unsigned long)page_addr + PAGE_SIZE);
 		if (ret != 1) {
@@ -247,7 +272,7 @@ static int binder_update_page_range(struct binder_alloc *alloc, int allocate,
 		}
 		user_page_addr =
 			(uintptr_t)page_addr + alloc->user_buffer_offset;
-		ret = vm_insert_page(vma, user_page_addr, page[0]);
+		ret = vm_insert_page(vma, user_page_addr, page[0].page_ptr);
 		if (ret) {
 			pr_err("%d: binder_alloc_buf failed to map page at %lx in userspace\n",
 			       alloc->pid, user_page_addr);
@@ -264,16 +289,21 @@ static int binder_update_page_range(struct binder_alloc *alloc, int allocate,
 free_range:
 	for (page_addr = end - PAGE_SIZE; page_addr >= start;
 	     page_addr -= PAGE_SIZE) {
+		bool ret;
+
 		page = &alloc->pages[(page_addr - alloc->buffer) / PAGE_SIZE];
-		if (vma)
-			zap_page_range(vma, (uintptr_t)page_addr +
-				alloc->user_buffer_offset, PAGE_SIZE, NULL);
+
+		ret = list_lru_add(&binder_alloc_lru, &page->lru);
+		WARN_ON(!ret);
+		continue;
+
 err_vm_insert_page_failed:
 		unmap_kernel_range((unsigned long)page_addr, PAGE_SIZE);
 err_map_kernel_failed:
-		__free_page(*page);
-		*page = NULL;
+		__free_page(page->page_ptr);
+		page->page_ptr = NULL;
 err_alloc_page_failed:
+err_page_ptr_cleared:
 		;
 	}
 err_no_vma:
@@ -730,16 +760,20 @@ void binder_alloc_deferred_release(struct binder_alloc *alloc)
 
 		for (i = 0; i < alloc->buffer_size / PAGE_SIZE; i++) {
 			void *page_addr;
+			bool on_lru;
 
-			if (!alloc->pages[i])
+			if (!alloc->pages[i].page_ptr)
 				continue;
 
+			on_lru = list_lru_del(&binder_alloc_lru,
+					      &alloc->pages[i].lru);
 			page_addr = alloc->buffer + i * PAGE_SIZE;
 			binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
-				     "%s: %d: page %d at %pK not freed\n",
-				     __func__, alloc->pid, i, page_addr);
+				     "%s: %d: page %d at %pK %s\n",
+				     __func__, alloc->pid, i, page_addr,
+				     on_lru ? "on lru" : "active");
 			unmap_kernel_range((unsigned long)page_addr, PAGE_SIZE);
-			__free_page(alloc->pages[i]);
+			__free_page(alloc->pages[i].page_ptr);
 			page_count++;
 		}
 		kfree(alloc->pages);
@@ -816,6 +850,94 @@ void binder_alloc_vma_close(struct binder_alloc *alloc)
 }
 
 /**
+ * binder_alloc_free_page() - shrinker callback to free pages
+ * @item:   item to free
+ * @lock:   lock protecting the item
+ * @cb_arg: callback argument
+ *
+ * Called from list_lru_walk() in binder_shrink_scan() to free
+ * up pages when the system is under memory pressure.
+ */
+enum lru_status binder_alloc_free_page(struct list_head *item,
+				       struct list_lru_one *lru,
+				       spinlock_t *lock,
+				       void *cb_arg)
+{
+	struct mm_struct *mm = NULL;
+	struct binder_lru_page *page = container_of(item,
+						    struct binder_lru_page,
+						    lru);
+	struct binder_alloc *alloc;
+	uintptr_t page_addr;
+	size_t index;
+
+	alloc = page->alloc;
+	if (!mutex_trylock(&alloc->mutex))
+		goto err_get_alloc_mutex_failed;
+
+	if (!page->page_ptr)
+		goto err_page_already_freed;
+
+	index = page - alloc->pages;
+	page_addr = (uintptr_t)alloc->buffer + index * PAGE_SIZE;
+	if (alloc->vma) {
+		mm = get_task_mm(alloc->tsk);
+		if (!mm)
+			goto err_get_task_mm_failed;
+		if (!down_write_trylock(&mm->mmap_sem))
+			goto err_down_write_mmap_sem_failed;
+
+		zap_page_range(alloc->vma,
+			       page_addr +
+			       alloc->user_buffer_offset,
+			       PAGE_SIZE, NULL);
+
+		up_write(&mm->mmap_sem);
+		mmput(mm);
+	}
+
+	unmap_kernel_range(page_addr, PAGE_SIZE);
+	__free_page(page->page_ptr);
+	page->page_ptr = NULL;
+
+	list_lru_isolate(lru, item);
+
+	mutex_unlock(&alloc->mutex);
+	return LRU_REMOVED;
+
+err_down_write_mmap_sem_failed:
+	mmput(mm);
+err_get_task_mm_failed:
+err_page_already_freed:
+	mutex_unlock(&alloc->mutex);
+err_get_alloc_mutex_failed:
+	return LRU_SKIP;
+}
+
+static unsigned long
+binder_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
+{
+	unsigned long ret = list_lru_count(&binder_alloc_lru);
+	return ret;
+}
+
+static unsigned long
+binder_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
+{
+	unsigned long ret;
+
+	ret = list_lru_walk(&binder_alloc_lru, binder_alloc_free_page,
+			    NULL, sc->nr_to_scan);
+	return ret;
+}
+
+struct shrinker binder_shrinker = {
+	.count_objects = binder_shrink_count,
+	.scan_objects = binder_shrink_scan,
+	.seeks = DEFAULT_SEEKS,
+};
+
+/**
  * binder_alloc_init() - called by binder_open() for per-proc initialization
  * @alloc: binder_alloc for this proc
  *
@@ -830,3 +952,8 @@ void binder_alloc_init(struct binder_alloc *alloc)
 	INIT_LIST_HEAD(&alloc->buffers);
 }
 
+void binder_alloc_shrinker_init(void)
+{
+	list_lru_init(&binder_alloc_lru);
+	register_shrinker(&binder_shrinker);
+}
