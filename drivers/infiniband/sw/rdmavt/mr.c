@@ -779,7 +779,6 @@ out:
 
 /**
  * rvt_sge_adjacent - is isge compressible
- * @isge: outgoing internal SGE
  * @last_sge: last outgoing SGE written
  * @sge: SGE to check
  *
@@ -787,8 +786,7 @@ out:
  *
  * Return: true if isge is adjacent to last sge
  */
-static inline bool rvt_sge_adjacent(struct rvt_sge *isge,
-				    struct rvt_sge *last_sge,
+static inline bool rvt_sge_adjacent(struct rvt_sge *last_sge,
 				    struct ib_sge *sge)
 {
 	if (last_sge && sge->lkey == last_sge->mr->lkey &&
@@ -840,7 +838,7 @@ int rvt_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,
 
 		if (pd->user)
 			return -EINVAL;
-		if (rvt_sge_adjacent(isge, last_sge, sge))
+		if (rvt_sge_adjacent(last_sge, sge))
 			return 0;
 		rcu_read_lock();
 		mr = rcu_dereference(dev->dma_mr);
@@ -857,7 +855,7 @@ int rvt_lkey_ok(struct rvt_lkey_table *rkt, struct rvt_pd *pd,
 		isge->n = 0;
 		goto ok;
 	}
-	if (rvt_sge_adjacent(isge, last_sge, sge))
+	if (rvt_sge_adjacent(last_sge, sge))
 		return 0;
 	rcu_read_lock();
 	mr = rcu_dereference(rkt->table[sge->lkey >> rkt->shift]);

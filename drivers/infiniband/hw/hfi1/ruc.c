@@ -74,8 +74,10 @@ static int init_sge(struct rvt_qp *qp, struct rvt_rwqe *wqe)
 		if (wqe->sg_list[i].length == 0)
 			continue;
 		/* Check LKEY */
-		if (!rvt_lkey_ok(rkt, pd, j ? &ss->sg_list[j - 1] : &ss->sge,
-				 NULL, &wqe->sg_list[i], IB_ACCESS_LOCAL_WRITE))
+		ret = rvt_lkey_ok(rkt, pd, j ? &ss->sg_list[j - 1] : &ss->sge,
+				  NULL, &wqe->sg_list[i],
+				  IB_ACCESS_LOCAL_WRITE);
+		if (unlikely(ret <= 0))
 			goto bad_lkey;
 		qp->r_len += wqe->sg_list[i].length;
 		j++;

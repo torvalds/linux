@@ -1613,7 +1613,7 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 	struct rvt_pd *pd;
 	struct rvt_dev_info *rdi = ib_to_rvt(qp->ibqp.device);
 	u8 log_pmtu;
-	int ret, incr;
+	int ret;
 	size_t cplen;
 	bool reserved_op;
 	int local_ops_delayed = 0;
@@ -1695,14 +1695,14 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 
 			if (length == 0)
 				continue;
-			incr = rvt_lkey_ok(rkt, pd, &wqe->sg_list[j], last_sge,
-					   &wr->sg_list[i], acc);
-			if (unlikely(incr < 0))
-				goto bail_lkey_error;
+			ret = rvt_lkey_ok(rkt, pd, &wqe->sg_list[j], last_sge,
+					  &wr->sg_list[i], acc);
+			if (unlikely(ret < 0))
+				goto bail_inval_free;
 			wqe->length += length;
-			if (incr)
+			if (ret)
 				last_sge = &wqe->sg_list[j];
-			j += incr;
+			j += ret;
 		}
 		wqe->wr.num_sge = j;
 	}
@@ -1755,8 +1755,6 @@ static int rvt_post_one_wr(struct rvt_qp *qp,
 
 	return 0;
 
-bail_lkey_error:
-	ret = incr;
 bail_inval_free:
 	/* release mr holds */
 	while (j) {
