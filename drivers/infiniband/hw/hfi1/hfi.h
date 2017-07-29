@@ -644,6 +644,7 @@ struct hfi1_pportdata {
 	/* placeholders for IB MAD packet settings */
 	u8 overrun_threshold;
 	u8 phy_error_threshold;
+	unsigned int is_link_down_queued;
 
 	/* Used to override LED behavior for things like maintenance beaconing*/
 	/*

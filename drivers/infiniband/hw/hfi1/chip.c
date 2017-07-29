@@ -7045,6 +7045,7 @@ void handle_link_down(struct work_struct *work)
 	/* Go offline first, then deal with reading/writing through 8051 */
 	was_up = !!(ppd->host_link_state & HLS_UP);
 	set_link_state(ppd, HLS_DN_OFFLINE);
+	xchg(&ppd->is_link_down_queued, 0);
 
 	if (was_up) {
 		lcl_reason = 0;
@@ -7805,10 +7806,11 @@ static void handle_8051_interrupt(struct hfi1_devdata *dd, u32 unused, u64 reg)
 		 */
 		if ((ppd->host_link_state &
 		    (HLS_GOING_OFFLINE | HLS_LINK_COOLDOWN)) ||
-		    ppd->link_enabled == 0) {
+		    ppd->link_enabled == 0 || ppd->is_link_down_queued) {
 			dd_dev_info(dd, "%s: not queuing link down\n",
 				    __func__);
 		} else {
+			xchg(&ppd->is_link_down_queued, 1);
 			queue_work(ppd->link_wq, &ppd->link_down_work);
 		}
 	}
