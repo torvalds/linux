@@ -314,6 +314,93 @@
 			status = "disabled";
 		};
 
+		timer0: timer@00030000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x00030000 0x1000>;
+			interrupts = <GIC_SPI 179 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&hsls_25m_div2_clk>,
+				 <&hsls_25m_div2_clk>,
+				 <&hsls_div4_clk>;
+			clock-names = "timer1", "timer2", "apb_pclk";
+			status = "disabled";
+		};
+
+		timer1: timer@00040000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x00040000 0x1000>;
+			interrupts = <GIC_SPI 180 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&hsls_25m_div2_clk>,
+				 <&hsls_25m_div2_clk>,
+				 <&hsls_div4_clk>;
+			clock-names = "timer1", "timer2", "apb_pclk";
+		};
+
+		timer2: timer@00050000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x00050000 0x1000>;
+			interrupts = <GIC_SPI 181 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&hsls_25m_div2_clk>,
+				 <&hsls_25m_div2_clk>,
+				 <&hsls_div4_clk>;
+			clock-names = "timer1", "timer2", "apb_pclk";
+			status = "disabled";
+		};
+
+		timer3: timer@00060000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x00060000 0x1000>;
+			interrupts = <GIC_SPI 182 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&hsls_25m_div2_clk>,
+				 <&hsls_25m_div2_clk>,
+				 <&hsls_div4_clk>;
+			clock-names = "timer1", "timer2", "apb_pclk";
+			status = "disabled";
+		};
+
+		timer4: timer@00070000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x00070000 0x1000>;
+			interrupts = <GIC_SPI 207 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&hsls_25m_div2_clk>,
+				 <&hsls_25m_div2_clk>,
+				 <&hsls_div4_clk>;
+			clock-names = "timer1", "timer2", "apb_pclk";
+			status = "disabled";
+		};
+
+		timer5: timer@00080000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x00080000 0x1000>;
+			interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&hsls_25m_div2_clk>,
+				 <&hsls_25m_div2_clk>,
+				 <&hsls_div4_clk>;
+			clock-names = "timer1", "timer2", "apb_pclk";
+			status = "disabled";
+		};
+
+		timer6: timer@00090000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x00090000 0x1000>;
+			interrupts = <GIC_SPI 209 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&hsls_25m_div2_clk>,
+				 <&hsls_25m_div2_clk>,
+				 <&hsls_div4_clk>;
+			clock-names = "timer1", "timer2", "apb_pclk";
+			status = "disabled";
+		};
+
+		timer7: timer@000a0000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x000a0000 0x1000>;
+			interrupts = <GIC_SPI 210 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&hsls_25m_div2_clk>,
+				 <&hsls_25m_div2_clk>,
+				 <&hsls_div4_clk>;
+			clock-names = "timer1", "timer2", "apb_pclk";
+			status = "disabled";
+		};
+
 		i2c0: i2c@000b0000 {
 			compatible = "brcm,iproc-i2c";
 			reg = <0x000b0000 0x100>;
