@@ -186,11 +186,12 @@ struct net_device_context;
 
 struct netvsc_device *netvsc_device_add(struct hv_device *device,
 					const struct netvsc_device_info *info);
+int netvsc_alloc_recv_comp_ring(struct netvsc_device *net_device, u32 q_idx);
 void netvsc_device_remove(struct hv_device *device);
 int netvsc_send(struct net_device_context *ndc,
 		struct hv_netvsc_packet *packet,
 		struct rndis_message *rndis_msg,
-		struct hv_page_buffer **page_buffer,
+		struct hv_page_buffer *page_buffer,
 		struct sk_buff *skb);
 void netvsc_linkstatus_callback(struct hv_device *device_obj,
 				struct rndis_message *resp);
@@ -217,7 +218,8 @@ int rndis_filter_receive(struct net_device *ndev,
 			 struct vmbus_channel *channel,
 			 void *data, u32 buflen);
 
-int rndis_filter_set_device_mac(struct net_device *ndev, char *mac);
+int rndis_filter_set_device_mac(struct netvsc_device *ndev,
+				const char *mac);
 
 void netvsc_switch_datapath(struct net_device *nv_dev, bool vf);
 
@@ -656,13 +658,10 @@ struct recv_comp_data {
 	u32 status;
 };
 
-/* Netvsc Receive Slots Max */
-#define NETVSC_RECVSLOT_MAX (NETVSC_RECEIVE_BUFFER_SIZE / ETH_DATA_LEN + 1)
-
 struct multi_recv_comp {
-	void *buf; /* queued receive completions */
-	u32 first; /* first data entry */
-	u32 next; /* next entry for writing */
+	struct recv_comp_data *slots;
+	u32 first;	/* first data entry */
+	u32 next;	/* next entry for writing */
 };
 
 struct netvsc_stats {
@@ -749,7 +748,7 @@ struct netvsc_device {
 	u32 recv_buf_size;
 	u32 recv_buf_gpadl_handle;
 	u32 recv_section_cnt;
-	struct nvsp_1_receive_buffer_section *recv_section;
+	u32 recv_completion_cnt;
 
 	/* Send buffer allocated by us */
 	void *send_buf;
@@ -776,8 +775,6 @@ struct netvsc_device {
 
 	u32 max_pkt; /* max number of pkt in one send, e.g. 8 */
 	u32 pkt_align; /* alignment bytes, e.g. 8 */
-
-	atomic_t num_outstanding_recvs;
 
 	atomic_t open_cnt;
 

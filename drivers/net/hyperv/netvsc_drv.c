@@ -282,9 +282,8 @@ static u32 fill_pg_buf(struct page *page, u32 offset, u32 len,
 
 static u32 init_page_array(void *hdr, u32 len, struct sk_buff *skb,
 			   struct hv_netvsc_packet *packet,
-			   struct hv_page_buffer **page_buf)
+			   struct hv_page_buffer *pb)
 {
-	struct hv_page_buffer *pb = *page_buf;
 	u32 slots_used = 0;
 	char *data = skb->data;
 	int frags = skb_shinfo(skb)->nr_frags;
@@ -359,8 +358,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	u32 rndis_msg_size;
 	struct rndis_per_packet_info *ppi;
 	u32 hash;
-	struct hv_page_buffer page_buf[MAX_PAGE_BUFFER_COUNT];
-	struct hv_page_buffer *pb = page_buf;
+	struct hv_page_buffer pb[MAX_PAGE_BUFFER_COUNT];
 
 	/* We can only transmit MAX_PAGE_BUFFER_COUNT number
 	 * of pages in a single packet. If skb is scattered around
@@ -503,12 +501,12 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	rndis_msg->msg_len += rndis_msg_size;
 	packet->total_data_buflen = rndis_msg->msg_len;
 	packet->page_buf_cnt = init_page_array(rndis_msg, rndis_msg_size,
-					       skb, packet, &pb);
+					       skb, packet, pb);
 
 	/* timestamp packet in software */
 	skb_tx_timestamp(skb);
 
-	ret = netvsc_send(net_device_ctx, packet, rndis_msg, &pb, skb);
+	ret = netvsc_send(net_device_ctx, packet, rndis_msg, pb, skb);
 	if (likely(ret == 0))
 		return NETDEV_TX_OK;
 
@@ -758,8 +756,8 @@ static int netvsc_set_channels(struct net_device *net,
 	if (!IS_ERR(nvdev)) {
 		netif_set_real_num_tx_queues(net, nvdev->num_chn);
 		netif_set_real_num_rx_queues(net, nvdev->num_chn);
-		ret = PTR_ERR(nvdev);
 	} else {
+		ret = PTR_ERR(nvdev);
 		device_info.num_chn = orig;
 		rndis_filter_device_add(dev, &device_info);
 	}
@@ -923,6 +921,8 @@ static void netvsc_get_stats64(struct net_device *net,
 
 static int netvsc_set_mac_addr(struct net_device *ndev, void *p)
 {
+	struct net_device_context *ndc = netdev_priv(ndev);
+	struct netvsc_device *nvdev = rtnl_dereference(ndc->nvdev);
 	struct sockaddr *addr = p;
 	char save_adr[ETH_ALEN];
 	unsigned char save_aatype;
@@ -935,7 +935,10 @@ static int netvsc_set_mac_addr(struct net_device *ndev, void *p)
 	if (err != 0)
 		return err;
 
-	err = rndis_filter_set_device_mac(ndev, addr->sa_data);
+	if (!nvdev)
+		return -ENODEV;
+
+	err = rndis_filter_set_device_mac(nvdev, addr->sa_data);
 	if (err != 0) {
 		/* roll back to saved MAC */
 		memcpy(ndev->dev_addr, save_adr, ETH_ALEN);
@@ -981,7 +984,7 @@ static void netvsc_get_ethtool_stats(struct net_device *dev,
 				     struct ethtool_stats *stats, u64 *data)
 {
 	struct net_device_context *ndc = netdev_priv(dev);
-	struct netvsc_device *nvdev = rcu_dereference(ndc->nvdev);
+	struct netvsc_device *nvdev = rtnl_dereference(ndc->nvdev);
 	const void *nds = &ndc->eth_stats;
 	const struct netvsc_stats *qstats;
 	unsigned int start;
@@ -1019,7 +1022,7 @@ static void netvsc_get_ethtool_stats(struct net_device *dev,
 static void netvsc_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 {
 	struct net_device_context *ndc = netdev_priv(dev);
-	struct netvsc_device *nvdev = rcu_dereference(ndc->nvdev);
+	struct netvsc_device *nvdev = rtnl_dereference(ndc->nvdev);
 	u8 *p = data;
 	int i;
 
@@ -1077,7 +1080,7 @@ netvsc_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info,
 		 u32 *rules)
 {
 	struct net_device_context *ndc = netdev_priv(dev);
-	struct netvsc_device *nvdev = rcu_dereference(ndc->nvdev);
+	struct netvsc_device *nvdev = rtnl_dereference(ndc->nvdev);
 
 	if (!nvdev)
 		return -ENODEV;
@@ -1127,7 +1130,7 @@ static int netvsc_get_rxfh(struct net_device *dev, u32 *indir, u8 *key,
 			   u8 *hfunc)
 {
 	struct net_device_context *ndc = netdev_priv(dev);
-	struct netvsc_device *ndev = rcu_dereference(ndc->nvdev);
+	struct netvsc_device *ndev = rtnl_dereference(ndc->nvdev);
 	struct rndis_device *rndis_dev;
 	int i;
 
