@@ -550,7 +550,7 @@ static int toshsd_get_cd(struct mmc_host *mmc)
 	return !!(ioread16(host->ioaddr + SD_CARDSTATUS) & SD_CARD_PRESENT_0);
 }
 
-static struct mmc_host_ops toshsd_ops = {
+static const struct mmc_host_ops toshsd_ops = {
 	.request = toshsd_request,
 	.set_ios = toshsd_set_ios,
 	.get_ro = toshsd_get_ro,
