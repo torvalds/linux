@@ -1080,7 +1080,7 @@ static void ip6gre_fb_tunnel_init(struct net_device *dev)
 }
 
 
-static struct inet6_protocol ip6gre_protocol __read_mostly = {
+static const struct inet6_protocol ip6gre_protocol = {
 	.handler     = gre_rcv,
 	.err_handler = ip6gre_err,
 	.flags       = INET6_PROTO_NOPOLICY|INET6_PROTO_FINAL,
