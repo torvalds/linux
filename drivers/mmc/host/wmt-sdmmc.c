@@ -726,7 +726,7 @@ static int wmt_mci_get_cd(struct mmc_host *mmc)
 	return !(cd ^ priv->cd_inverted);
 }
 
-static struct mmc_host_ops wmt_mci_ops = {
+static const struct mmc_host_ops wmt_mci_ops = {
 	.request = wmt_mci_request,
 	.set_ios = wmt_mci_set_ios,
 	.get_ro = wmt_mci_get_ro,
