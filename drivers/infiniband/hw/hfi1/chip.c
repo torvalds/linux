@@ -10602,16 +10602,15 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 			break;
 		}
 
-		ppd->host_link_state = HLS_UP_ARMED;
 		set_logical_state(dd, LSTATE_ARMED);
 		ret = wait_logical_linkstate(ppd, IB_PORT_ARMED, 1000);
 		if (ret) {
-			/* logical state didn't change, stay at init */
-			ppd->host_link_state = HLS_UP_INIT;
 			dd_dev_err(dd,
 				   "%s: logical state did not change to ARMED\n",
 				   __func__);
+			break;
 		}
+		ppd->host_link_state = HLS_UP_ARMED;
 		/*
 		 * The simulator does not currently implement SMA messages,
 		 * so neighbor_normal is not set.  Set it here when we first
@@ -10624,18 +10623,16 @@ int set_link_state(struct hfi1_pportdata *ppd, u32 state)
 		if (ppd->host_link_state != HLS_UP_ARMED)
 			goto unexpected;
 
-		ppd->host_link_state = HLS_UP_ACTIVE;
 		set_logical_state(dd, LSTATE_ACTIVE);
 		ret = wait_logical_linkstate(ppd, IB_PORT_ACTIVE, 1000);
 		if (ret) {
-			/* logical state didn't change, stay at armed */
-			ppd->host_link_state = HLS_UP_ARMED;
 			dd_dev_err(dd,
 				   "%s: logical state did not change to ACTIVE\n",
 				   __func__);
 		} else {
 			/* tell all engines to go running */
 			sdma_all_running(dd);
+			ppd->host_link_state = HLS_UP_ACTIVE;
 
 			/* Signal the IB layer that the port has went active */
 			event.device = &dd->verbs_dev.rdi.ibdev;
