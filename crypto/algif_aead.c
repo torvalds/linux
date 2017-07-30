@@ -791,9 +791,11 @@ static int aead_recvmsg(struct socket *sock, struct msghdr *msg,
 		 * only handle one AIO request. If the caller wants to have
 		 * multiple AIO requests in parallel, he must make multiple
 		 * separate AIO calls.
+		 *
+		 * Also return the error if no data has been processed so far.
 		 */
 		if (err <= 0) {
-			if (err == -EIOCBQUEUED || err == -EBADMSG)
+			if (err == -EIOCBQUEUED || err == -EBADMSG || !ret)
 				ret = err;
 			goto out;
 		}
