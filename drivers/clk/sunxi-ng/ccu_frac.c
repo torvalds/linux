@@ -85,7 +85,7 @@ unsigned long ccu_frac_helper_read_rate(struct ccu_common *common,
 
 int ccu_frac_helper_set_rate(struct ccu_common *common,
 			     struct ccu_frac_internal *cf,
-			     unsigned long rate)
+			     unsigned long rate, u32 lock)
 {
 	unsigned long flags;
 	u32 reg, sel;
@@ -105,6 +105,8 @@ int ccu_frac_helper_set_rate(struct ccu_common *common,
 	reg &= ~cf->select;
 	writel(reg | sel, common->base + common->reg);
 	spin_unlock_irqrestore(common->lock, flags);
+
+	ccu_helper_wait_for_lock(common, lock);
 
 	return 0;
 }

@@ -129,7 +129,8 @@ static int ccu_nm_set_rate(struct clk_hw *hw, unsigned long rate,
 
 		ccu_frac_helper_enable(&nm->common, &nm->frac);
 
-		return ccu_frac_helper_set_rate(&nm->common, &nm->frac, rate);
+		return ccu_frac_helper_set_rate(&nm->common, &nm->frac,
+						rate, nm->lock);
 	} else {
 		ccu_frac_helper_disable(&nm->common, &nm->frac);
 	}
