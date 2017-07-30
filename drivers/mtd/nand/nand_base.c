@@ -2747,7 +2747,6 @@ static int nand_write_page_syndrome(struct mtd_info *mtd,
  * @buf: the data to write
  * @oob_required: must write chip->oob_poi to OOB
  * @page: page number to write
- * @cached: cached programming
  * @raw: use _raw version of write_page
  */
 static int nand_write_page(struct mtd_info *mtd, struct nand_chip *chip,
