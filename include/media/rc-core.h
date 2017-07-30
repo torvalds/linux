@@ -340,4 +340,35 @@ static inline u32 ir_extract_bits(u32 data, u32 mask)
 	return value;
 }
 
+/* Get NEC scancode and protocol type from address and command bytes */
+static inline u32 ir_nec_bytes_to_scancode(u8 address, u8 not_address,
+					   u8 command, u8 not_command,
+					   enum rc_type *protocol)
+{
+	u32 scancode;
+
+	if ((command ^ not_command) != 0xff) {
+		/* NEC transport, but modified protocol, used by at
+		 * least Apple and TiVo remotes
+		 */
+		scancode = not_address << 24 |
+			address     << 16 |
+			not_command <<  8 |
+			command;
+		*protocol = RC_TYPE_NEC32;
+	} else if ((address ^ not_address) != 0xff) {
+		/* Extended NEC */
+		scancode = address     << 16 |
+			   not_address <<  8 |
+			   command;
+		*protocol = RC_TYPE_NECX;
+	} else {
+		/* Normal NEC */
+		scancode = address << 8 | command;
+		*protocol = RC_TYPE_NEC;
+	}
+
+	return scancode;
+}
+
 #endif /* _RC_CORE */
