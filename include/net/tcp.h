@@ -880,9 +880,8 @@ enum tcp_ca_event {
 
 /* Information about inbound ACK, passed to cong_ops->in_ack_event() */
 enum tcp_ca_ack_event_flags {
-	CA_ACK_SLOWPATH		= (1 << 0),	/* In slow path processing */
-	CA_ACK_WIN_UPDATE	= (1 << 1),	/* ACK updated window */
-	CA_ACK_ECE		= (1 << 2),	/* ECE bit is set on ack */
+	CA_ACK_WIN_UPDATE	= (1 << 0),	/* ACK updated window */
+	CA_ACK_ECE		= (1 << 1),	/* ECE bit is set on ack */
 };
 
 /*
