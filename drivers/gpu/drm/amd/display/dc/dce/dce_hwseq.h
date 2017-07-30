@@ -130,7 +130,6 @@
 	HWSEQ_PIXEL_RATE_REG_LIST(CRTC), \
 	HWSEQ_PHYPLL_REG_LIST(CRTC)
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 #define HWSEQ_DCN_REG_LIST()\
 	HWSEQ_PIXEL_RATE_REG_LIST(OTG), \
 	HWSEQ_PHYPLL_REG_LIST(OTG), \
@@ -208,9 +207,7 @@
 	SR(D2VGA_CONTROL), \
 	SR(D3VGA_CONTROL), \
 	SR(D4VGA_CONTROL)
-#endif
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 #define HWSEQ_DCN1_REG_LIST()\
 	HWSEQ_DCN_REG_LIST(), \
 	SR(DCHUBBUB_SDPIF_FB_TOP),\
@@ -219,7 +216,6 @@
 	SR(DCHUBBUB_SDPIF_AGP_BASE),\
 	SR(DCHUBBUB_SDPIF_AGP_BOT),\
 	SR(DCHUBBUB_SDPIF_AGP_TOP)
-#endif
 
 
 struct dce_hwseq_registers {
@@ -238,7 +234,6 @@ struct dce_hwseq_registers {
 	uint32_t DCHUB_AGP_BOT;
 	uint32_t DCHUB_AGP_TOP;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	uint32_t OTG_GLOBAL_SYNC_STATUS[4];
 	uint32_t DCHUBP_CNTL[4];
 	uint32_t HUBP_CLK_CNTL[4];
@@ -317,7 +312,6 @@ struct dce_hwseq_registers {
 	uint32_t D2VGA_CONTROL;
 	uint32_t D3VGA_CONTROL;
 	uint32_t D4VGA_CONTROL;
-#endif
 };
  /* set field name */
 #define HWS_SF(blk_name, reg_name, field_name, post_fix)\
@@ -386,7 +380,6 @@ struct dce_hwseq_registers {
 	HWSEQ_PHYPLL_MASK_SH_LIST(mask_sh, CRTC0_),\
 	HWSEQ_GFX9_DCHUB_MASK_SH_LIST(mask_sh)
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 #define HWSEQ_DCN_MASK_SH_LIST(mask_sh)\
 	HWSEQ_PIXEL_RATE_MASK_SH_LIST(mask_sh, OTG0_),\
 	HWS_SF1(OTG0_, PHYPLL_PIXEL_RATE_CNTL, PHYPLL_PIXEL_RATE_SOURCE, mask_sh), \
@@ -429,9 +422,7 @@ struct dce_hwseq_registers {
 	HWS_SF(, DCHUBBUB_ARB_SAT_LEVEL, DCHUBBUB_ARB_SAT_LEVEL, mask_sh), \
 	HWS_SF(, DCHUBBUB_ARB_DF_REQ_OUTSTAND, DCHUBBUB_ARB_MIN_REQ_OUTSTAND, mask_sh), \
 	HWS_SF(, DCFCLK_CNTL, DCFCLK_GATE_DIS, mask_sh)
-#endif
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 #define HWSEQ_DCN1_MASK_SH_LIST(mask_sh)\
 	HWSEQ_DCN_MASK_SH_LIST(mask_sh), \
 	HWS_SF1(OTG0_, PHYPLL_PIXEL_RATE_CNTL, PIXEL_RATE_PLL_SOURCE, mask_sh), \
@@ -442,7 +433,6 @@ struct dce_hwseq_registers {
 	HWS_SF(, DCHUBBUB_SDPIF_AGP_BOT, SDPIF_AGP_BOT, mask_sh), \
 	HWS_SF(, DCHUBBUB_SDPIF_AGP_TOP, SDPIF_AGP_TOP, mask_sh), \
 	HWS_SF(DPP_TOP0_, DPP_CONTROL, DPPCLK_RATE_CONTROL, mask_sh)
-#endif
 
 #define HWSEQ_REG_FIELD_LIST(type) \
 	type DCFE_CLOCK_ENABLE; \
