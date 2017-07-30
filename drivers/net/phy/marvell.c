@@ -108,24 +108,24 @@
 #define MII_88E1318S_PHY_MSCR1_PAD_ODD	BIT(6)
 
 /* Copper Specific Interrupt Enable Register */
-#define MII_88E1318S_PHY_CSIER                              0x12
+#define MII_88E1318S_PHY_CSIER				0x12
 /* WOL Event Interrupt Enable */
-#define MII_88E1318S_PHY_CSIER_WOL_EIE                      BIT(7)
+#define MII_88E1318S_PHY_CSIER_WOL_EIE			BIT(7)
 
 /* LED Timer Control Register */
-#define MII_88E1318S_PHY_LED_TCR                            0x12
-#define MII_88E1318S_PHY_LED_TCR_FORCE_INT                  BIT(15)
-#define MII_88E1318S_PHY_LED_TCR_INTn_ENABLE                BIT(7)
-#define MII_88E1318S_PHY_LED_TCR_INT_ACTIVE_LOW             BIT(11)
+#define MII_88E1318S_PHY_LED_TCR			0x12
+#define MII_88E1318S_PHY_LED_TCR_FORCE_INT		BIT(15)
+#define MII_88E1318S_PHY_LED_TCR_INTn_ENABLE		BIT(7)
+#define MII_88E1318S_PHY_LED_TCR_INT_ACTIVE_LOW		BIT(11)
 
 /* Magic Packet MAC address registers */
-#define MII_88E1318S_PHY_MAGIC_PACKET_WORD2                 0x17
-#define MII_88E1318S_PHY_MAGIC_PACKET_WORD1                 0x18
-#define MII_88E1318S_PHY_MAGIC_PACKET_WORD0                 0x19
+#define MII_88E1318S_PHY_MAGIC_PACKET_WORD2		0x17
+#define MII_88E1318S_PHY_MAGIC_PACKET_WORD1		0x18
+#define MII_88E1318S_PHY_MAGIC_PACKET_WORD0		0x19
 
-#define MII_88E1318S_PHY_WOL_CTRL                           0x10
-#define MII_88E1318S_PHY_WOL_CTRL_CLEAR_WOL_STATUS          BIT(12)
-#define MII_88E1318S_PHY_WOL_CTRL_MAGIC_PACKET_MATCH_ENABLE BIT(14)
+#define MII_88E1318S_PHY_WOL_CTRL				0x10
+#define MII_88E1318S_PHY_WOL_CTRL_CLEAR_WOL_STATUS		BIT(12)
+#define MII_88E1318S_PHY_WOL_CTRL_MAGIC_PACKET_MATCH_ENABLE	BIT(14)
 
 #define MII_88E1121_PHY_LED_CTRL	16
 #define MII_88E1121_PHY_LED_DEF		0x0030
@@ -152,7 +152,7 @@
 #define LPA_FIBER_1000HALF	0x40
 #define LPA_FIBER_1000FULL	0x20
 
-#define LPA_PAUSE_FIBER	0x180
+#define LPA_PAUSE_FIBER		0x180
 #define LPA_PAUSE_ASYM_FIBER	0x100
 
 #define ADVERTISE_FIBER_1000HALF	0x40
@@ -596,7 +596,7 @@ static int marvell_config_aneg_fiber(struct phy_device *phydev)
 
 	if (changed == 0) {
 		/* Advertisement hasn't changed, but maybe aneg was never on to
-		 * begin with?  Or maybe phy was isolated?
+		 * begin with?	Or maybe phy was isolated?
 		 */
 		int ctl = phy_read(phydev, MII_BMCR);
 
@@ -1515,7 +1515,7 @@ static void marvell_get_strings(struct phy_device *phydev, u8 *data)
 }
 
 #ifndef UINT64_MAX
-#define UINT64_MAX              (u64)(~((u64)0))
+#define UINT64_MAX		(u64)(~((u64)0))
 #endif
 static u64 marvell_get_stat(struct phy_device *phydev, int i)
 {
