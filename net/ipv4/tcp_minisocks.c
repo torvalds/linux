@@ -436,8 +436,6 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 		struct tcp_sock *newtp = tcp_sk(newsk);
 
 		/* Now setup tcp_sock */
-		newtp->pred_flags = 0;
-
 		newtp->rcv_wup = newtp->copied_seq =
 		newtp->rcv_nxt = treq->rcv_isn + 1;
 		newtp->segs_in = 1;

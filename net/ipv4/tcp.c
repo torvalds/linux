@@ -1848,10 +1848,8 @@ int tcp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int nonblock,
 		tcp_rcv_space_adjust(sk);
 
 skip_copy:
-		if (tp->urg_data && after(tp->copied_seq, tp->urg_seq)) {
+		if (tp->urg_data && after(tp->copied_seq, tp->urg_seq))
 			tp->urg_data = 0;
-			tcp_fast_path_check(sk);
-		}
 		if (used + offset < skb->len)
 			continue;
 
