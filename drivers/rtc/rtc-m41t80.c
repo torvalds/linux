@@ -927,6 +927,7 @@ static int m41t80_probe(struct i2c_client *client,
 	struct rtc_device *rtc = NULL;
 	struct rtc_time tm;
 	struct m41t80_data *m41t80_data = NULL;
+	bool wakeup_source = false;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_I2C_BLOCK |
 				     I2C_FUNC_SMBUS_BYTE_DATA)) {
@@ -947,6 +948,10 @@ static int m41t80_probe(struct i2c_client *client,
 		m41t80_data->features = id->driver_data;
 	i2c_set_clientdata(client, m41t80_data);
 
+#ifdef CONFIG_OF
+	wakeup_source = of_property_read_bool(client->dev.of_node,
+					      "wakeup-source");
+#endif
 	if (client->irq > 0) {
 		rc = devm_request_threaded_irq(&client->dev, client->irq,
 					       NULL, m41t80_handle_irq,
@@ -955,13 +960,15 @@ static int m41t80_probe(struct i2c_client *client,
 		if (rc) {
 			dev_warn(&client->dev, "unable to request IRQ, alarms disabled\n");
 			client->irq = 0;
-		} else {
-			m41t80_rtc_ops.read_alarm = m41t80_read_alarm;
-			m41t80_rtc_ops.set_alarm = m41t80_set_alarm;
-			m41t80_rtc_ops.alarm_irq_enable = m41t80_alarm_irq_enable;
-			/* Enable the wakealarm */
-			device_init_wakeup(&client->dev, true);
+			wakeup_source = false;
 		}
+	}
+	if (client->irq > 0 || wakeup_source) {
+		m41t80_rtc_ops.read_alarm = m41t80_read_alarm;
+		m41t80_rtc_ops.set_alarm = m41t80_set_alarm;
+		m41t80_rtc_ops.alarm_irq_enable = m41t80_alarm_irq_enable;
+		/* Enable the wakealarm */
+		device_init_wakeup(&client->dev, true);
 	}
 
 	rtc = devm_rtc_device_register(&client->dev, client->name,
@@ -970,6 +977,10 @@ static int m41t80_probe(struct i2c_client *client,
 		return PTR_ERR(rtc);
 
 	m41t80_data->rtc = rtc;
+	if (client->irq <= 0) {
+		/* We cannot support UIE mode if we do not have an IRQ line */
+		rtc->uie_unsupported = 1;
+	}
 
 	/* Make sure HT (Halt Update) bit is cleared */
 	rc = i2c_smbus_read_byte_data(client, M41T80_REG_ALARM_HOUR);
