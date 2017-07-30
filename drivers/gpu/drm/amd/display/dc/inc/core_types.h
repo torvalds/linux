@@ -157,6 +157,8 @@ struct stream_resource {
 	struct timing_generator *tg;
 	struct stream_encoder *stream_enc;
 	struct audio *audio;
+
+	struct pixel_clk_params pix_clk_params;
 };
 
 struct plane_resource {
@@ -177,7 +179,6 @@ struct pipe_ctx {
 	struct display_clock *dis_clk;
 	struct clock_source *clock_source;
 
-	struct pixel_clk_params pix_clk_params;
 	struct pll_settings pll_settings;
 
 	/*fmt*/

@@ -703,7 +703,7 @@ static enum dc_status dcn10_prog_pixclk_crtc_otg(
 
 	if (false == pipe_ctx->clock_source->funcs->program_pix_clk(
 			pipe_ctx->clock_source,
-			&pipe_ctx->pix_clk_params,
+			&pipe_ctx->stream_res.pix_clk_params,
 			&pipe_ctx->pll_settings)) {
 		BREAK_TO_DEBUGGER();
 		return DC_ERROR_UNEXPECTED;
@@ -1910,7 +1910,7 @@ static void update_dchubp_dpp(
 	enable_dppclk(
 		dc->hwseq,
 		pipe_ctx->pipe_idx,
-		pipe_ctx->pix_clk_params.requested_pix_clk,
+		pipe_ctx->stream_res.pix_clk_params.requested_pix_clk,
 		context->bw.dcn.calc_clk.dppclk_div);
 	dc->current_context->bw.dcn.cur_clk.dppclk_div =
 			context->bw.dcn.calc_clk.dppclk_div;

@@ -870,20 +870,20 @@ static void build_audio_output(
 		stream->timing.display_color_depth;
 
 	audio_output->crtc_info.requested_pixel_clock =
-			pipe_ctx->pix_clk_params.requested_pix_clk;
+			pipe_ctx->stream_res.pix_clk_params.requested_pix_clk;
 
 	audio_output->crtc_info.calculated_pixel_clock =
-			pipe_ctx->pix_clk_params.requested_pix_clk;
+			pipe_ctx->stream_res.pix_clk_params.requested_pix_clk;
 
 /*for HDMI, audio ACR is with deep color ratio factor*/
 	if (dc_is_hdmi_signal(pipe_ctx->stream->signal) &&
 		audio_output->crtc_info.requested_pixel_clock ==
 				stream->timing.pix_clk_khz) {
-		if (pipe_ctx->pix_clk_params.pixel_encoding == PIXEL_ENCODING_YCBCR420) {
+		if (pipe_ctx->stream_res.pix_clk_params.pixel_encoding == PIXEL_ENCODING_YCBCR420) {
 			audio_output->crtc_info.requested_pixel_clock =
 					audio_output->crtc_info.requested_pixel_clock/2;
 			audio_output->crtc_info.calculated_pixel_clock =
-					pipe_ctx->pix_clk_params.requested_pix_clk/2;
+					pipe_ctx->stream_res.pix_clk_params.requested_pix_clk/2;
 
 		}
 	}
@@ -1003,7 +1003,7 @@ static enum dc_status dce110_prog_pixclk_crtc_otg(
 
 		if (false == pipe_ctx->clock_source->funcs->program_pix_clk(
 				pipe_ctx->clock_source,
-				&pipe_ctx->pix_clk_params,
+				&pipe_ctx->stream_res.pix_clk_params,
 				&pipe_ctx->pll_settings)) {
 			BREAK_TO_DEBUGGER();
 			return DC_ERROR_UNEXPECTED;
@@ -1425,9 +1425,9 @@ static uint32_t get_max_pixel_clock_for_all_paths(
 		if (pipe_ctx->top_pipe)
 			continue;
 
-		if (pipe_ctx->pix_clk_params.requested_pix_clk > max_pix_clk)
+		if (pipe_ctx->stream_res.pix_clk_params.requested_pix_clk > max_pix_clk)
 			max_pix_clk =
-				pipe_ctx->pix_clk_params.requested_pix_clk;
+				pipe_ctx->stream_res.pix_clk_params.requested_pix_clk;
 	}
 
 	if (max_pix_clk == 0)

@@ -1620,8 +1620,8 @@ static struct fixed31_32 get_pbn_from_timing(struct pipe_ctx *pipe_ctx)
 	uint32_t numerator;
 	uint32_t denominator;
 
-	bpc = get_color_depth(pipe_ctx->pix_clk_params.color_depth);
-	kbps = pipe_ctx->pix_clk_params.requested_pix_clk * bpc * 3;
+	bpc = get_color_depth(pipe_ctx->stream_res.pix_clk_params.color_depth);
+	kbps = pipe_ctx->stream_res.pix_clk_params.requested_pix_clk * bpc * 3;
 
 	/*
 	 * margin 5300ppm + 300ppm ~ 0.6% as per spec, factor is 1.006
