@@ -47,7 +47,7 @@ check () {
   cmd="diff $opts ../$file ../../$file > /dev/null"
 
   test -f ../../$file &&
-  eval $cmd || echo "Warning: $file differs from kernel" >&2
+  eval $cmd || echo "Warning: Kernel ABI header at 'tools/$file' differs from latest version at '$file'" >&2
 }
 
 
