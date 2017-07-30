@@ -427,6 +427,7 @@ static int lan9303_detect_phy_setup(struct lan9303 *chip)
 	 * Special reg 18 of phy 3 reads as 0x0000, if 'phy_addr_sel_strap' is 0
 	 * and the IDs are 0-1-2, else it contains something different from
 	 * 0x0000, which means 'phy_addr_sel_strap' is 1 and the IDs are 1-2-3.
+	 * 0xffff is returned on MDIO read with no response.
 	 */
 	reg = lan9303_port_phy_reg_read(chip, 3, MII_LAN911X_SPECIAL_MODES);
 	if (reg < 0) {
@@ -434,7 +435,7 @@ static int lan9303_detect_phy_setup(struct lan9303 *chip)
 		return reg;
 	}
 
-	if (reg != 0)
+	if ((reg != 0) && (reg != 0xffff))
 		chip->phy_addr_sel_strap = 1;
 	else
 		chip->phy_addr_sel_strap = 0;
