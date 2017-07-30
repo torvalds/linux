@@ -289,7 +289,7 @@ out:
  * handles it.
  * Returns NOTIFY code
  */
-int amdgpu_atif_handler(struct amdgpu_device *adev,
+static int amdgpu_atif_handler(struct amdgpu_device *adev,
 			struct acpi_bus_event *event)
 {
 	struct amdgpu_atif *atif = &adev->atif;
