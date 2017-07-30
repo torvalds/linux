@@ -1070,8 +1070,8 @@ static void update_plane_addr(const struct core_dc *dc, struct pipe_ctx *pipe_ct
 	if (plane_state == NULL)
 		return;
 	addr_patched = patch_address_for_sbs_tb_stereo(pipe_ctx, &addr);
-	pipe_ctx->mi->funcs->mem_input_program_surface_flip_and_addr(
-			pipe_ctx->mi,
+	pipe_ctx->plane_res.mi->funcs->mem_input_program_surface_flip_and_addr(
+			pipe_ctx->plane_res.mi,
 			&plane_state->address,
 			plane_state->flip_immediate);
 	plane_state->status.requested_address = plane_state->address;
@@ -1082,7 +1082,7 @@ static void update_plane_addr(const struct core_dc *dc, struct pipe_ctx *pipe_ct
 static bool dcn10_set_input_transfer_func(
 	struct pipe_ctx *pipe_ctx, const struct dc_plane_state *plane_state)
 {
-	struct input_pixel_processor *ipp = pipe_ctx->ipp;
+	struct input_pixel_processor *ipp = pipe_ctx->plane_res.ipp;
 	const struct dc_transfer_func *tf = NULL;
 	bool result = true;
 
@@ -1447,7 +1447,7 @@ static bool dcn10_set_output_transfer_func(
 	struct pipe_ctx *pipe_ctx,
 	const struct dc_stream_state *stream)
 {
-	struct transform *xfm = pipe_ctx->xfm;
+	struct transform *xfm = pipe_ctx->plane_res.xfm;
 
 	if (xfm == NULL)
 		return false;
@@ -1778,7 +1778,7 @@ static void program_gamut_remap(struct pipe_ctx *pipe_ctx)
 				gamut_remap_matrix.matrix[10];
 	}
 
-	pipe_ctx->xfm->funcs->transform_set_gamut_remap(pipe_ctx->xfm, &adjust);
+	pipe_ctx->plane_res.xfm->funcs->transform_set_gamut_remap(pipe_ctx->plane_res.xfm, &adjust);
 }
 
 
@@ -1800,7 +1800,7 @@ static void program_csc_matrix(struct pipe_ctx *pipe_ctx,
 
 			tbl_entry.color_space = color_space;
 			//tbl_entry.regval = matrix;
-			pipe_ctx->xfm->funcs->opp_set_csc_adjustment(pipe_ctx->xfm, &tbl_entry);
+			pipe_ctx->plane_res.xfm->funcs->opp_set_csc_adjustment(pipe_ctx->plane_res.xfm, &tbl_entry);
 	}
 }
 static bool is_lower_pipe_tree_visible(struct pipe_ctx *pipe_ctx)
@@ -1896,8 +1896,8 @@ static void update_dchubp_dpp(
 	struct validate_context *context)
 {
 	struct dce_hwseq *hws = dc->hwseq;
-	struct mem_input *mi = pipe_ctx->mi;
-	struct input_pixel_processor *ipp = pipe_ctx->ipp;
+	struct mem_input *mi = pipe_ctx->plane_res.mi;
+	struct input_pixel_processor *ipp = pipe_ctx->plane_res.ipp;
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	union plane_size size = plane_state->plane_size;
 	struct default_adjustment ocsc = {0};
@@ -1935,7 +1935,7 @@ static void update_dchubp_dpp(
 
 	if (dc->public.config.gpu_vm_support)
 		mi->funcs->mem_input_program_pte_vm(
-				pipe_ctx->mi,
+				pipe_ctx->plane_res.mi,
 				plane_state->format,
 				&plane_state->tiling_info,
 				plane_state->rotation);
@@ -1968,8 +1968,8 @@ static void update_dchubp_dpp(
 	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = per_pixel_alpha;
 	pipe_ctx->plane_res.scl_data.lb_params.depth = LB_PIXEL_DEPTH_30BPP;
 	/* scaler configuration */
-	pipe_ctx->xfm->funcs->transform_set_scaler(
-			pipe_ctx->xfm, &pipe_ctx->plane_res.scl_data);
+	pipe_ctx->plane_res.xfm->funcs->transform_set_scaler(
+			pipe_ctx->plane_res.xfm, &pipe_ctx->plane_res.scl_data);
 	mi->funcs->mem_program_viewport(mi,
 			&pipe_ctx->plane_res.scl_data.viewport, &pipe_ctx->plane_res.scl_data.viewport_c);
 
@@ -1978,7 +1978,7 @@ static void update_dchubp_dpp(
 
 	/*TODO add adjustments parameters*/
 	ocsc.out_color_space = pipe_ctx->stream->output_color_space;
-	pipe_ctx->xfm->funcs->opp_set_csc_default(pipe_ctx->xfm, &ocsc);
+	pipe_ctx->plane_res.xfm->funcs->opp_set_csc_default(pipe_ctx->plane_res.xfm, &ocsc);
 
 	mi->funcs->mem_input_program_surface_config(
 		mi,
@@ -2098,7 +2098,7 @@ static void dcn10_apply_ctx_for_surface(
 		 */
 
 		if (pipe_ctx->plane_state && !old_pipe_ctx->plane_state) {
-			if (pipe_ctx->mi->opp_id != 0xf && pipe_ctx->tg->inst == be_idx) {
+			if (pipe_ctx->plane_res.mi->opp_id != 0xf && pipe_ctx->tg->inst == be_idx) {
 				dcn10_power_down_fe(dc, pipe_ctx->pipe_idx);
 				/*
 				 * power down fe will unlock when calling reset, need
@@ -2124,7 +2124,7 @@ static void dcn10_apply_ctx_for_surface(
 					dc->res_pool->mpc,
 					old_pipe_ctx->opp,
 					old_pipe_ctx->pipe_idx);
-			old_pipe_ctx->opp->mpcc_disconnect_pending[old_pipe_ctx->mi->mpcc_id] = true;
+			old_pipe_ctx->opp->mpcc_disconnect_pending[old_pipe_ctx->plane_res.mi->mpcc_id] = true;
 
 			/*dm_logger_write(dc->ctx->logger, LOG_ERROR,
 					"[debug_mpo: apply_ctx disconnect pending on mpcc %d]\n",
@@ -2481,19 +2481,19 @@ void dcn10_update_pending_status(struct pipe_ctx *pipe_ctx)
 		return;
 
 	plane_state->status.is_flip_pending =
-			pipe_ctx->mi->funcs->mem_input_is_flip_pending(
-					pipe_ctx->mi);
+			pipe_ctx->plane_res.mi->funcs->mem_input_is_flip_pending(
+					pipe_ctx->plane_res.mi);
 
 	/* DCN we read INUSE address in MI, do we still need this wa? */
 	if (plane_state->status.is_flip_pending &&
 			!plane_state->visible) {
-		pipe_ctx->mi->current_address =
-				pipe_ctx->mi->request_address;
+		pipe_ctx->plane_res.mi->current_address =
+				pipe_ctx->plane_res.mi->request_address;
 		BREAK_TO_DEBUGGER();
 	}
 
-	plane_state->status.current_address = pipe_ctx->mi->current_address;
-	if (pipe_ctx->mi->current_address.type == PLN_ADDR_TYPE_GRPH_STEREO &&
+	plane_state->status.current_address = pipe_ctx->plane_res.mi->current_address;
+	if (pipe_ctx->plane_res.mi->current_address.type == PLN_ADDR_TYPE_GRPH_STEREO &&
 			tg->funcs->is_stereo_left_eye) {
 		plane_state->status.is_right_eye =
 				!tg->funcs->is_stereo_left_eye(pipe_ctx->tg);

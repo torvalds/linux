@@ -1017,9 +1017,9 @@ static struct pipe_ctx *dce110_acquire_underlay(
 		return NULL;
 
 	pipe_ctx->tg = pool->timing_generators[underlay_idx];
-	pipe_ctx->mi = pool->mis[underlay_idx];
-	/*pipe_ctx->ipp = res_ctx->pool->ipps[underlay_idx];*/
-	pipe_ctx->xfm = pool->transforms[underlay_idx];
+	pipe_ctx->plane_res.mi = pool->mis[underlay_idx];
+	/*pipe_ctx->plane_res.ipp = res_ctx->pool->ipps[underlay_idx];*/
+	pipe_ctx->plane_res.xfm = pool->transforms[underlay_idx];
 	pipe_ctx->opp = pool->opps[underlay_idx];
 	pipe_ctx->dis_clk = pool->display_clock;
 	pipe_ctx->pipe_idx = underlay_idx;
@@ -1049,7 +1049,7 @@ static struct pipe_ctx *dce110_acquire_underlay(
 				true,
 				&stream->timing);
 
-		pipe_ctx->mi->funcs->allocate_mem_input(pipe_ctx->mi,
+		pipe_ctx->plane_res.mi->funcs->allocate_mem_input(pipe_ctx->plane_res.mi,
 				stream->timing.h_total,
 				stream->timing.v_total,
 				stream->timing.pix_clk_khz,

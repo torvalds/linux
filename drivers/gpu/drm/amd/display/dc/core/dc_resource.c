@@ -845,15 +845,15 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	pipe_ctx->plane_res.scl_data.v_active = timing->v_addressable;
 
 	/* Taps calculations */
-	res = pipe_ctx->xfm->funcs->transform_get_optimal_number_of_taps(
-		pipe_ctx->xfm, &pipe_ctx->plane_res.scl_data, &plane_state->scaling_quality);
+	res = pipe_ctx->plane_res.xfm->funcs->transform_get_optimal_number_of_taps(
+		pipe_ctx->plane_res.xfm, &pipe_ctx->plane_res.scl_data, &plane_state->scaling_quality);
 
 	if (!res) {
 		/* Try 24 bpp linebuffer */
 		pipe_ctx->plane_res.scl_data.lb_params.depth = LB_PIXEL_DEPTH_24BPP;
 
-		res = pipe_ctx->xfm->funcs->transform_get_optimal_number_of_taps(
-			pipe_ctx->xfm, &pipe_ctx->plane_res.scl_data, &plane_state->scaling_quality);
+		res = pipe_ctx->plane_res.xfm->funcs->transform_get_optimal_number_of_taps(
+			pipe_ctx->plane_res.xfm, &pipe_ctx->plane_res.scl_data, &plane_state->scaling_quality);
 	}
 
 	if (res)
@@ -1012,9 +1012,9 @@ static int acquire_first_split_pipe(
 
 			memset(pipe_ctx, 0, sizeof(*pipe_ctx));
 			pipe_ctx->tg = pool->timing_generators[i];
-			pipe_ctx->mi = pool->mis[i];
-			pipe_ctx->ipp = pool->ipps[i];
-			pipe_ctx->xfm = pool->transforms[i];
+			pipe_ctx->plane_res.mi = pool->mis[i];
+			pipe_ctx->plane_res.ipp = pool->ipps[i];
+			pipe_ctx->plane_res.xfm = pool->transforms[i];
 			pipe_ctx->opp = pool->opps[i];
 			pipe_ctx->dis_clk = pool->display_clock;
 			pipe_ctx->pipe_idx = i;
@@ -1242,9 +1242,9 @@ static int acquire_first_free_pipe(
 			struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
 
 			pipe_ctx->tg = pool->timing_generators[i];
-			pipe_ctx->mi = pool->mis[i];
-			pipe_ctx->ipp = pool->ipps[i];
-			pipe_ctx->xfm = pool->transforms[i];
+			pipe_ctx->plane_res.mi = pool->mis[i];
+			pipe_ctx->plane_res.ipp = pool->ipps[i];
+			pipe_ctx->plane_res.xfm = pool->transforms[i];
 			pipe_ctx->opp = pool->opps[i];
 			pipe_ctx->dis_clk = pool->display_clock;
 			pipe_ctx->pipe_idx = i;

@@ -242,7 +242,7 @@ static bool dce110_set_input_transfer_func(
 	struct pipe_ctx *pipe_ctx,
 	const struct dc_plane_state *plane_state)
 {
-	struct input_pixel_processor *ipp = pipe_ctx->ipp;
+	struct input_pixel_processor *ipp = pipe_ctx->plane_res.ipp;
 	const struct dc_transfer_func *tf = NULL;
 	struct ipp_prescale_params prescale_params = { 0 };
 	bool result = true;
@@ -625,7 +625,7 @@ static bool dce110_set_output_transfer_func(
 	struct pipe_ctx *pipe_ctx,
 	const struct dc_stream_state *stream)
 {
-	struct transform *xfm = pipe_ctx->xfm;
+	struct transform *xfm = pipe_ctx->plane_res.xfm;
 
 	xfm->funcs->opp_power_on_regamma_lut(xfm, true);
 	xfm->regamma_params.hw_points_num = GAMMA_HW_POINTS_NUM;
@@ -951,7 +951,7 @@ static void program_scaler(const struct core_dc *dc,
 
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	/* TOFPGA */
-	if (pipe_ctx->xfm->funcs->transform_set_pixel_storage_depth == NULL)
+	if (pipe_ctx->plane_res.xfm->funcs->transform_set_pixel_storage_depth == NULL)
 		return;
 #endif
 
@@ -962,8 +962,8 @@ static void program_scaler(const struct core_dc *dc,
 				pipe_ctx->stream->output_color_space,
 				&color);
 
-	pipe_ctx->xfm->funcs->transform_set_pixel_storage_depth(
-		pipe_ctx->xfm,
+	pipe_ctx->plane_res.xfm->funcs->transform_set_pixel_storage_depth(
+		pipe_ctx->plane_res.xfm,
 		pipe_ctx->plane_res.scl_data.lb_params.depth,
 		&pipe_ctx->stream->bit_depth_params);
 
@@ -972,7 +972,7 @@ static void program_scaler(const struct core_dc *dc,
 				pipe_ctx->tg,
 				&color);
 
-	pipe_ctx->xfm->funcs->transform_set_scaler(pipe_ctx->xfm,
+	pipe_ctx->plane_res.xfm->funcs->transform_set_scaler(pipe_ctx->plane_res.xfm,
 		&pipe_ctx->plane_res.scl_data);
 }
 
@@ -1125,10 +1125,10 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 
 	/* mst support - use total stream count */
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-	if (pipe_ctx->mi->funcs->allocate_mem_input != NULL)
+	if (pipe_ctx->plane_res.mi->funcs->allocate_mem_input != NULL)
 #endif
-		pipe_ctx->mi->funcs->allocate_mem_input(
-					pipe_ctx->mi,
+		pipe_ctx->plane_res.mi->funcs->allocate_mem_input(
+					pipe_ctx->plane_res.mi,
 					stream->timing.h_total,
 					stream->timing.v_total,
 					stream->timing.pix_clk_khz,
@@ -1260,16 +1260,16 @@ void dce110_set_displaymarks(
 
 		total_dest_line_time_ns = compute_pstate_blackout_duration(
 			dc->bw_vbios.blackout_duration, pipe_ctx->stream);
-		pipe_ctx->mi->funcs->mem_input_program_display_marks(
-			pipe_ctx->mi,
+		pipe_ctx->plane_res.mi->funcs->mem_input_program_display_marks(
+			pipe_ctx->plane_res.mi,
 			context->bw.dce.nbp_state_change_wm_ns[num_pipes],
 			context->bw.dce.stutter_exit_wm_ns[num_pipes],
 			context->bw.dce.urgent_wm_ns[num_pipes],
 			total_dest_line_time_ns);
 		if (i == underlay_idx) {
 			num_pipes++;
-			pipe_ctx->mi->funcs->mem_input_program_chroma_display_marks(
-				pipe_ctx->mi,
+			pipe_ctx->plane_res.mi->funcs->mem_input_program_chroma_display_marks(
+				pipe_ctx->plane_res.mi,
 				context->bw.dce.nbp_state_change_wm_ns[num_pipes],
 				context->bw.dce.stutter_exit_wm_ns[num_pipes],
 				context->bw.dce.urgent_wm_ns[num_pipes],
@@ -1294,15 +1294,15 @@ static void set_safe_displaymarks(
 		if (res_ctx->pipe_ctx[i].stream == NULL)
 			continue;
 
-		res_ctx->pipe_ctx[i].mi->funcs->mem_input_program_display_marks(
-				res_ctx->pipe_ctx[i].mi,
+		res_ctx->pipe_ctx[i].plane_res.mi->funcs->mem_input_program_display_marks(
+				res_ctx->pipe_ctx[i].plane_res.mi,
 				nbp_marks,
 				max_marks,
 				max_marks,
 				MAX_WATERMARK);
 		if (i == underlay_idx)
-			res_ctx->pipe_ctx[i].mi->funcs->mem_input_program_chroma_display_marks(
-				res_ctx->pipe_ctx[i].mi,
+			res_ctx->pipe_ctx[i].plane_res.mi->funcs->mem_input_program_chroma_display_marks(
+				res_ctx->pipe_ctx[i].plane_res.mi,
 				nbp_marks,
 				max_marks,
 				max_marks,
@@ -1652,8 +1652,8 @@ static void dce110_reset_hw_ctx_wrap(
 				BREAK_TO_DEBUGGER();
 			}
 			pipe_ctx_old->tg->funcs->disable_crtc(pipe_ctx_old->tg);
-			pipe_ctx_old->mi->funcs->free_mem_input(
-					pipe_ctx_old->mi, dc->current_context->stream_count);
+			pipe_ctx_old->plane_res.mi->funcs->free_mem_input(
+					pipe_ctx_old->plane_res.mi, dc->current_context->stream_count);
 			resource_unreference_clock_source(
 					&dc->current_context->res_ctx, dc->res_pool,
 					&pipe_ctx_old->clock_source);
@@ -1936,8 +1936,8 @@ static void set_default_colors(struct pipe_ctx *pipe_ctx)
 	/* Lb color depth */
 	default_adjust.lb_color_depth = pipe_ctx->plane_res.scl_data.lb_params.depth;
 
-	pipe_ctx->xfm->funcs->opp_set_csc_default(
-					pipe_ctx->xfm, &default_adjust);
+	pipe_ctx->plane_res.xfm->funcs->opp_set_csc_default(
+					pipe_ctx->plane_res.xfm, &default_adjust);
 }
 
 
@@ -2026,7 +2026,7 @@ static void program_gamut_remap(struct pipe_ctx *pipe_ctx)
 				gamut_remap_matrix.matrix[10];
 	}
 
-	pipe_ctx->xfm->funcs->transform_set_gamut_remap(pipe_ctx->xfm, &adjust);
+	pipe_ctx->plane_res.xfm->funcs->transform_set_gamut_remap(pipe_ctx->plane_res.xfm, &adjust);
 }
 
 /**
@@ -2037,7 +2037,7 @@ static void set_plane_config(
 	struct pipe_ctx *pipe_ctx,
 	struct resource_context *res_ctx)
 {
-	struct mem_input *mi = pipe_ctx->mi;
+	struct mem_input *mi = pipe_ctx->plane_res.mi;
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	struct xfm_grph_csc_adjustment adjust;
 	struct out_csc_color_matrix tbl_entry;
@@ -2059,8 +2059,8 @@ static void set_plane_config(
 			tbl_entry.regval[i] =
 			pipe_ctx->stream->csc_color_matrix.matrix[i];
 
-		pipe_ctx->xfm->funcs->opp_set_csc_adjustment
-				(pipe_ctx->xfm, &tbl_entry);
+		pipe_ctx->plane_res.xfm->funcs->opp_set_csc_adjustment
+				(pipe_ctx->plane_res.xfm, &tbl_entry);
 	}
 
 	if (pipe_ctx->stream->gamut_remap_matrix.enable_remap == true) {
@@ -2094,7 +2094,7 @@ static void set_plane_config(
 				gamut_remap_matrix.matrix[10];
 	}
 
-	pipe_ctx->xfm->funcs->transform_set_gamut_remap(pipe_ctx->xfm, &adjust);
+	pipe_ctx->plane_res.xfm->funcs->transform_set_gamut_remap(pipe_ctx->plane_res.xfm, &adjust);
 
 	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != 0;
 	program_scaler(dc, pipe_ctx);
@@ -2114,7 +2114,7 @@ static void set_plane_config(
 
 	if (dc->public.config.gpu_vm_support)
 		mi->funcs->mem_input_program_pte_vm(
-				pipe_ctx->mi,
+				pipe_ctx->plane_res.mi,
 				plane_state->format,
 				&plane_state->tiling_info,
 				plane_state->rotation);
@@ -2128,8 +2128,8 @@ static void update_plane_addr(const struct core_dc *dc,
 	if (plane_state == NULL)
 		return;
 
-	pipe_ctx->mi->funcs->mem_input_program_surface_flip_and_addr(
-			pipe_ctx->mi,
+	pipe_ctx->plane_res.mi->funcs->mem_input_program_surface_flip_and_addr(
+			pipe_ctx->plane_res.mi,
 			&plane_state->address,
 			plane_state->flip_immediate);
 
@@ -2144,14 +2144,14 @@ void dce110_update_pending_status(struct pipe_ctx *pipe_ctx)
 		return;
 
 	plane_state->status.is_flip_pending =
-			pipe_ctx->mi->funcs->mem_input_is_flip_pending(
-					pipe_ctx->mi);
+			pipe_ctx->plane_res.mi->funcs->mem_input_is_flip_pending(
+					pipe_ctx->plane_res.mi);
 
 	if (plane_state->status.is_flip_pending && !plane_state->visible)
-		pipe_ctx->mi->current_address = pipe_ctx->mi->request_address;
+		pipe_ctx->plane_res.mi->current_address = pipe_ctx->plane_res.mi->request_address;
 
-	plane_state->status.current_address = pipe_ctx->mi->current_address;
-	if (pipe_ctx->mi->current_address.type == PLN_ADDR_TYPE_GRPH_STEREO &&
+	plane_state->status.current_address = pipe_ctx->plane_res.mi->current_address;
+	if (pipe_ctx->plane_res.mi->current_address.type == PLN_ADDR_TYPE_GRPH_STEREO &&
 			pipe_ctx->tg->funcs->is_stereo_left_eye) {
 		plane_state->status.is_right_eye =\
 				!pipe_ctx->tg->funcs->is_stereo_left_eye(pipe_ctx->tg);
@@ -2488,7 +2488,7 @@ static void dce110_set_bandwidth(
 static void dce110_program_front_end_for_pipe(
 		struct core_dc *dc, struct pipe_ctx *pipe_ctx)
 {
-	struct mem_input *mi = pipe_ctx->mi;
+	struct mem_input *mi = pipe_ctx->plane_res.mi;
 	struct pipe_ctx *old_pipe = NULL;
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	struct xfm_grph_csc_adjustment adjust;
@@ -2515,8 +2515,8 @@ static void dce110_program_front_end_for_pipe(
 			tbl_entry.regval[i] =
 			pipe_ctx->stream->csc_color_matrix.matrix[i];
 
-		pipe_ctx->xfm->funcs->opp_set_csc_adjustment
-				(pipe_ctx->xfm, &tbl_entry);
+		pipe_ctx->plane_res.xfm->funcs->opp_set_csc_adjustment
+				(pipe_ctx->plane_res.xfm, &tbl_entry);
 	}
 
 	if (pipe_ctx->stream->gamut_remap_matrix.enable_remap == true) {
@@ -2550,7 +2550,7 @@ static void dce110_program_front_end_for_pipe(
 				gamut_remap_matrix.matrix[10];
 	}
 
-	pipe_ctx->xfm->funcs->transform_set_gamut_remap(pipe_ctx->xfm, &adjust);
+	pipe_ctx->plane_res.xfm->funcs->transform_set_gamut_remap(pipe_ctx->plane_res.xfm, &adjust);
 
 	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != 0;
 
@@ -2569,7 +2569,7 @@ static void dce110_program_front_end_for_pipe(
 
 	if (dc->public.config.gpu_vm_support)
 		mi->funcs->mem_input_program_pte_vm(
-				pipe_ctx->mi,
+				pipe_ctx->plane_res.mi,
 				plane_state->format,
 				&plane_state->tiling_info,
 				plane_state->rotation);
@@ -2673,7 +2673,7 @@ static void program_csc_matrix(struct pipe_ctx *pipe_ctx,
 
 			tbl_entry.color_space = color_space;
 			//tbl_entry.regval = matrix;
-			pipe_ctx->xfm->funcs->opp_set_csc_adjustment(pipe_ctx->xfm, &tbl_entry);
+			pipe_ctx->plane_res.xfm->funcs->opp_set_csc_adjustment(pipe_ctx->plane_res.xfm, &tbl_entry);
 	}
 }
 

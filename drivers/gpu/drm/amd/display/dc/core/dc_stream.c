@@ -183,13 +183,13 @@ bool dc_stream_set_cursor_attributes(
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
 
-		if (pipe_ctx->stream != stream || !pipe_ctx->ipp)
+		if (pipe_ctx->stream != stream || !pipe_ctx->plane_res.ipp)
 			continue;
 		if (pipe_ctx->top_pipe && pipe_ctx->plane_state != pipe_ctx->top_pipe->plane_state)
 			continue;
 
-		pipe_ctx->ipp->funcs->ipp_cursor_set_attributes(
-				pipe_ctx->ipp, attributes);
+		pipe_ctx->plane_res.ipp->funcs->ipp_cursor_set_attributes(
+				pipe_ctx->plane_res.ipp, attributes);
 	}
 
 	return true;
@@ -218,7 +218,7 @@ bool dc_stream_set_cursor_position(
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
-		struct input_pixel_processor *ipp = pipe_ctx->ipp;
+		struct input_pixel_processor *ipp = pipe_ctx->plane_res.ipp;
 		struct dc_cursor_position pos_cpy = *position;
 		struct dc_cursor_mi_param param = {
 			.pixel_clk_khz = stream->timing.pix_clk_khz,
@@ -229,7 +229,7 @@ bool dc_stream_set_cursor_position(
 		};
 
 		if (pipe_ctx->stream != stream ||
-				!pipe_ctx->ipp || !pipe_ctx->plane_state)
+				!pipe_ctx->plane_res.ipp || !pipe_ctx->plane_state)
 			continue;
 
 		if (pipe_ctx->plane_state->address.type
