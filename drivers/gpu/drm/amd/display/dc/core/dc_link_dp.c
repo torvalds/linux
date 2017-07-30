@@ -2464,7 +2464,7 @@ bool dc_link_dp_set_test_pattern(
 			 * MuteAudioEndpoint(pPathMode->pDisplayPath, true);
 			 */
 			/* Blank stream */
-			pipes->stream_enc->funcs->dp_blank(pipe_ctx->stream_enc);
+			pipes->stream_res.stream_enc->funcs->dp_blank(pipe_ctx->stream_res.stream_enc);
 		}
 
 		dp_set_hw_test_pattern(link, test_pattern,

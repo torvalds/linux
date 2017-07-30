@@ -161,7 +161,7 @@ static bool stream_adjust_vmin_vmax(struct dc *dc,
 	for (i = 0; i < MAX_PIPES; i++) {
 		struct pipe_ctx *pipe = &core_dc->current_context->res_ctx.pipe_ctx[i];
 
-		if (pipe->stream == stream && pipe->stream_enc) {
+		if (pipe->stream == stream && pipe->stream_res.stream_enc) {
 			core_dc->hwss.set_drr(&pipe, 1, vmin, vmax);
 
 			/* build and update the info frame */
@@ -189,7 +189,7 @@ static bool stream_get_crtc_position(struct dc *dc,
 		struct pipe_ctx *pipe =
 				&core_dc->current_context->res_ctx.pipe_ctx[i];
 
-		if (pipe->stream == stream && pipe->stream_enc) {
+		if (pipe->stream == stream && pipe->stream_res.stream_enc) {
 			core_dc->hwss.get_position(&pipe, 1, &position);
 
 			*v_pos = position.vertical_count;

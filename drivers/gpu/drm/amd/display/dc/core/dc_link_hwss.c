@@ -243,12 +243,12 @@ void dp_retrain_link_dp_test(struct dc_link *link,
 		if (pipes[i].stream != NULL &&
 			pipes[i].stream->sink != NULL &&
 			pipes[i].stream->sink->link != NULL &&
-			pipes[i].stream_enc != NULL &&
+			pipes[i].stream_res.stream_enc != NULL &&
 			pipes[i].stream->sink->link == link) {
 			dm_delay_in_microseconds(link->ctx, 100);
 
-			pipes[i].stream_enc->funcs->dp_blank(
-					pipes[i].stream_enc);
+			pipes[i].stream_res.stream_enc->funcs->dp_blank(
+					pipes[i].stream_res.stream_enc);
 
 			/* disable any test pattern that might be active */
 			dp_set_hw_test_pattern(link,

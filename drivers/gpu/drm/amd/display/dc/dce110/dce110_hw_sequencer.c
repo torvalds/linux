@@ -659,7 +659,7 @@ static enum dc_status bios_parser_crtc_source_select(
 	struct bp_crtc_source_select crtc_source_select = {0};
 	const struct dc_sink *sink = pipe_ctx->stream->sink;
 
-	crtc_source_select.engine_id = pipe_ctx->stream_enc->id;
+	crtc_source_select.engine_id = pipe_ctx->stream_res.stream_enc->id;
 	crtc_source_select.controller_id = pipe_ctx->pipe_idx + 1;
 	/*TODO: Need to un-hardcode color depth, dp_audio and account for
 	 * the case where signal and sink signal is different (translator
@@ -684,16 +684,16 @@ void dce110_update_info_frame(struct pipe_ctx *pipe_ctx)
 {
 	ASSERT(pipe_ctx->stream);
 
-	if (pipe_ctx->stream_enc == NULL)
+	if (pipe_ctx->stream_res.stream_enc == NULL)
 		return;  /* this is not root pipe */
 
 	if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
-		pipe_ctx->stream_enc->funcs->update_hdmi_info_packets(
-			pipe_ctx->stream_enc,
+		pipe_ctx->stream_res.stream_enc->funcs->update_hdmi_info_packets(
+			pipe_ctx->stream_res.stream_enc,
 			&pipe_ctx->encoder_info_frame);
 	else if (dc_is_dp_signal(pipe_ctx->stream->signal))
-		pipe_ctx->stream_enc->funcs->update_dp_info_packets(
-			pipe_ctx->stream_enc,
+		pipe_ctx->stream_res.stream_enc->funcs->update_dp_info_packets(
+			pipe_ctx->stream_res.stream_enc,
 			&pipe_ctx->encoder_info_frame);
 }
 
@@ -731,7 +731,7 @@ void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 	/* enable audio only within mode set */
 	if (pipe_ctx->audio != NULL) {
 		if (dc_is_dp_signal(pipe_ctx->stream->signal))
-			pipe_ctx->stream_enc->funcs->dp_audio_enable(pipe_ctx->stream_enc);
+			pipe_ctx->stream_res.stream_enc->funcs->dp_audio_enable(pipe_ctx->stream_res.stream_enc);
 	}
 
 	/* For MST, there are multiply stream go to only one link.
@@ -739,7 +739,7 @@ void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 	 * disconnect them during disable_stream
 	 * BY this, it is logic clean to separate stream and link */
 	 link->link_enc->funcs->connect_dig_be_to_fe(link->link_enc,
-			pipe_ctx->stream_enc->id, true);
+			pipe_ctx->stream_res.stream_enc->id, true);
 
 }
 
@@ -752,11 +752,11 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 		pipe_ctx->audio->funcs->az_disable(pipe_ctx->audio);
 
 		if (dc_is_dp_signal(pipe_ctx->stream->signal))
-			pipe_ctx->stream_enc->funcs->dp_audio_disable(
-					pipe_ctx->stream_enc);
+			pipe_ctx->stream_res.stream_enc->funcs->dp_audio_disable(
+					pipe_ctx->stream_res.stream_enc);
 		else
-			pipe_ctx->stream_enc->funcs->hdmi_audio_disable(
-					pipe_ctx->stream_enc);
+			pipe_ctx->stream_res.stream_enc->funcs->hdmi_audio_disable(
+					pipe_ctx->stream_res.stream_enc);
 
 		pipe_ctx->audio = NULL;
 
@@ -768,24 +768,24 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 	}
 
 	if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
-		pipe_ctx->stream_enc->funcs->stop_hdmi_info_packets(
-			pipe_ctx->stream_enc);
+		pipe_ctx->stream_res.stream_enc->funcs->stop_hdmi_info_packets(
+			pipe_ctx->stream_res.stream_enc);
 
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
-		pipe_ctx->stream_enc->funcs->stop_dp_info_packets(
-			pipe_ctx->stream_enc);
+		pipe_ctx->stream_res.stream_enc->funcs->stop_dp_info_packets(
+			pipe_ctx->stream_res.stream_enc);
 
-	pipe_ctx->stream_enc->funcs->audio_mute_control(
-			pipe_ctx->stream_enc, true);
+	pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
+			pipe_ctx->stream_res.stream_enc, true);
 
 
 	/* blank at encoder level */
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
-		pipe_ctx->stream_enc->funcs->dp_blank(pipe_ctx->stream_enc);
+		pipe_ctx->stream_res.stream_enc->funcs->dp_blank(pipe_ctx->stream_res.stream_enc);
 
 	link->link_enc->funcs->connect_dig_be_to_fe(
 			link->link_enc,
-			pipe_ctx->stream_enc->id,
+			pipe_ctx->stream_res.stream_enc->id,
 			false);
 
 }
@@ -799,14 +799,14 @@ void dce110_unblank_stream(struct pipe_ctx *pipe_ctx,
 	params.pixel_clk_khz =
 		pipe_ctx->stream->timing.pix_clk_khz;
 	params.link_settings.link_rate = link_settings->link_rate;
-	pipe_ctx->stream_enc->funcs->dp_unblank(pipe_ctx->stream_enc, &params);
+	pipe_ctx->stream_res.stream_enc->funcs->dp_unblank(pipe_ctx->stream_res.stream_enc, &params);
 }
 
 
 void dce110_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
 {
-	if (pipe_ctx != NULL && pipe_ctx->stream_enc != NULL)
-		pipe_ctx->stream_enc->funcs->set_avmute(pipe_ctx->stream_enc, enable);
+	if (pipe_ctx != NULL && pipe_ctx->stream_res.stream_enc != NULL)
+		pipe_ctx->stream_res.stream_enc->funcs->set_avmute(pipe_ctx->stream_res.stream_enc, enable);
 }
 
 static enum audio_dto_source translate_to_dto_source(enum controller_id crtc_id)
@@ -834,7 +834,7 @@ static void build_audio_output(
 	struct audio_output *audio_output)
 {
 	const struct dc_stream_state *stream = pipe_ctx->stream;
-	audio_output->engine_id = pipe_ctx->stream_enc->id;
+	audio_output->engine_id = pipe_ctx->stream_res.stream_enc->id;
 
 	audio_output->signal = pipe_ctx->stream->signal;
 
@@ -1071,8 +1071,8 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 			pipe_ctx->stream->signal);
 
 	if (pipe_ctx->stream->signal != SIGNAL_TYPE_VIRTUAL)
-		pipe_ctx->stream_enc->funcs->setup_stereo_sync(
-		pipe_ctx->stream_enc,
+		pipe_ctx->stream_res.stream_enc->funcs->setup_stereo_sync(
+		pipe_ctx->stream_res.stream_enc,
 		pipe_ctx->stream_res.tg->inst,
 		stream->timing.timing_3d_format != TIMING_3D_FORMAT_NONE);
 
@@ -1084,21 +1084,21 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 			&stream->clamping);
 
 	if (dc_is_dp_signal(pipe_ctx->stream->signal))
-		pipe_ctx->stream_enc->funcs->dp_set_stream_attribute(
-			pipe_ctx->stream_enc,
+		pipe_ctx->stream_res.stream_enc->funcs->dp_set_stream_attribute(
+			pipe_ctx->stream_res.stream_enc,
 			&stream->timing,
 			stream->output_color_space);
 
 	if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
-		pipe_ctx->stream_enc->funcs->hdmi_set_stream_attribute(
-			pipe_ctx->stream_enc,
+		pipe_ctx->stream_res.stream_enc->funcs->hdmi_set_stream_attribute(
+			pipe_ctx->stream_res.stream_enc,
 			&stream->timing,
 			stream->phy_pix_clk,
 			pipe_ctx->audio != NULL);
 
 	if (dc_is_dvi_signal(pipe_ctx->stream->signal))
-		pipe_ctx->stream_enc->funcs->dvi_set_stream_attribute(
-			pipe_ctx->stream_enc,
+		pipe_ctx->stream_res.stream_enc->funcs->dvi_set_stream_attribute(
+			pipe_ctx->stream_res.stream_enc,
 			&stream->timing,
 			(pipe_ctx->stream->signal == SIGNAL_TYPE_DVI_DUAL_LINK) ?
 			true : false);
@@ -1860,13 +1860,13 @@ enum dc_status dce110_apply_ctx_to_hw(
 			build_audio_output(pipe_ctx, &audio_output);
 
 			if (dc_is_dp_signal(pipe_ctx->stream->signal))
-				pipe_ctx->stream_enc->funcs->dp_audio_setup(
-						pipe_ctx->stream_enc,
+				pipe_ctx->stream_res.stream_enc->funcs->dp_audio_setup(
+						pipe_ctx->stream_res.stream_enc,
 						pipe_ctx->audio->inst,
 						&pipe_ctx->stream->audio_info);
 			else
-				pipe_ctx->stream_enc->funcs->hdmi_audio_setup(
-						pipe_ctx->stream_enc,
+				pipe_ctx->stream_res.stream_enc->funcs->hdmi_audio_setup(
+						pipe_ctx->stream_res.stream_enc,
 						pipe_ctx->audio->inst,
 						&pipe_ctx->stream->audio_info,
 						&audio_output.crtc_info);

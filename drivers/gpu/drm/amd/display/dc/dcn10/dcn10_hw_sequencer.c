@@ -770,7 +770,7 @@ static void reset_back_end_for_pipe(
 {
 	int i;
 
-	if (pipe_ctx->stream_enc == NULL) {
+	if (pipe_ctx->stream_res.stream_enc == NULL) {
 		pipe_ctx->stream = NULL;
 		return;
 	}

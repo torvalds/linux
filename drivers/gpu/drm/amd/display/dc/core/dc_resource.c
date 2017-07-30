@@ -925,7 +925,7 @@ struct pipe_ctx *resource_get_head_pipe_for_stream(
 	int i;
 	for (i = 0; i < MAX_PIPES; i++) {
 		if (res_ctx->pipe_ctx[i].stream == stream &&
-				res_ctx->pipe_ctx[i].stream_enc) {
+				res_ctx->pipe_ctx[i].stream_res.stream_enc) {
 			return &res_ctx->pipe_ctx[i];
 			break;
 		}
@@ -1096,7 +1096,7 @@ bool resource_attach_surfaces_to_context(
 		if (tail_pipe) {
 			free_pipe->stream_res.tg = tail_pipe->stream_res.tg;
 			free_pipe->stream_res.opp = tail_pipe->stream_res.opp;
-			free_pipe->stream_enc = tail_pipe->stream_enc;
+			free_pipe->stream_res.stream_enc = tail_pipe->stream_res.stream_enc;
 			free_pipe->audio = tail_pipe->audio;
 			free_pipe->clock_source = tail_pipe->clock_source;
 			free_pipe->top_pipe = tail_pipe;
@@ -1461,12 +1461,12 @@ enum dc_status resource_map_pool_resources(
 			copy_pipe_ctx(old_pipe_ctx, pipe_ctx);
 
 			/* Split pipe resource, do not acquire back end */
-			if (!pipe_ctx->stream_enc)
+			if (!pipe_ctx->stream_res.stream_enc)
 				continue;
 
 			set_stream_engine_in_use(
 				&context->res_ctx, pool,
-				pipe_ctx->stream_enc);
+				pipe_ctx->stream_res.stream_enc);
 
 			/* Switch to dp clock source only if there is
 			 * no non dp stream that shares the same timing
@@ -1503,16 +1503,16 @@ enum dc_status resource_map_pool_resources(
 
 		pipe_ctx = &context->res_ctx.pipe_ctx[pipe_idx];
 
-		pipe_ctx->stream_enc =
+		pipe_ctx->stream_res.stream_enc =
 			find_first_free_match_stream_enc_for_link(
 				&context->res_ctx, pool, stream);
 
-		if (!pipe_ctx->stream_enc)
+		if (!pipe_ctx->stream_res.stream_enc)
 			return DC_NO_STREAM_ENG_RESOURCE;
 
 		set_stream_engine_in_use(
 			&context->res_ctx, pool,
-			pipe_ctx->stream_enc);
+			pipe_ctx->stream_res.stream_enc);
 
 		/* TODO: Add check if ASIC support and EDID audio */
 		if (!stream->sink->converter_disable_audio &&
@@ -2382,7 +2382,7 @@ bool pipe_need_reprogram(
 			&& pipe_ctx_old->stream != pipe_ctx->stream)
 		return true;
 
-	if (pipe_ctx_old->stream_enc != pipe_ctx->stream_enc)
+	if (pipe_ctx_old->stream_res.stream_enc != pipe_ctx->stream_res.stream_enc)
 		return true;
 
 	if (is_timing_changed(pipe_ctx_old->stream, pipe_ctx->stream))

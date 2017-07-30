@@ -1311,8 +1311,8 @@ static enum dc_status enable_link(struct pipe_ctx *pipe_ctx)
 
 		/* un-mute audio */
 		/* TODO: audio should be per stream rather than per link */
-		pipe_ctx->stream_enc->funcs->audio_mute_control(
-			pipe_ctx->stream_enc, false);
+		pipe_ctx->stream_res.stream_enc->funcs->audio_mute_control(
+			pipe_ctx->stream_res.stream_enc, false);
 	}
 
 	return status;
@@ -1699,7 +1699,7 @@ static enum dc_status allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->sink->link;
 	struct link_encoder *link_encoder = link->link_enc;
-	struct stream_encoder *stream_encoder = pipe_ctx->stream_enc;
+	struct stream_encoder *stream_encoder = pipe_ctx->stream_res.stream_enc;
 	struct dp_mst_stream_allocation_table proposed_table = {0};
 	struct fixed31_32 avg_time_slots_per_mtp;
 	struct fixed31_32 pbn;
@@ -1718,7 +1718,7 @@ static enum dc_status allocate_mst_payload(struct pipe_ctx *pipe_ctx)
 		&proposed_table,
 		true)) {
 		update_mst_stream_alloc_table(
-					link, pipe_ctx->stream_enc, &proposed_table);
+					link, pipe_ctx->stream_res.stream_enc, &proposed_table);
 	}
 	else
 		dm_logger_write(link->ctx->logger, LOG_WARNING,
@@ -1781,7 +1781,7 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->sink->link;
 	struct link_encoder *link_encoder = link->link_enc;
-	struct stream_encoder *stream_encoder = pipe_ctx->stream_enc;
+	struct stream_encoder *stream_encoder = pipe_ctx->stream_res.stream_enc;
 	struct dp_mst_stream_allocation_table proposed_table = {0};
 	struct fixed31_32 avg_time_slots_per_mtp = dal_fixed31_32_from_int(0);
 	uint8_t i;
@@ -1808,7 +1808,7 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 				false)) {
 
 			update_mst_stream_alloc_table(
-				link, pipe_ctx->stream_enc, &proposed_table);
+				link, pipe_ctx->stream_res.stream_enc, &proposed_table);
 		}
 		else {
 				dm_logger_write(link->ctx->logger, LOG_WARNING,
