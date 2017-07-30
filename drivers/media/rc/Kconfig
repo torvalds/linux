@@ -469,6 +469,17 @@ config IR_SIR
 	   To compile this driver as a module, choose M here: the module will
 	   be called sir-ir.
 
+config IR_ZX
+	tristate "ZTE ZX IR remote control"
+	depends on RC_CORE
+	depends on ARCH_ZX || COMPILE_TEST
+	---help---
+	   Say Y if you want to use the IR remote control available
+	   on ZTE ZX family SoCs.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called zx-irdec.
+
 endif #RC_DEVICES
 
 endif #RC_CORE
