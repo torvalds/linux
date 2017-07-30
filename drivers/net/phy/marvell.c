@@ -55,10 +55,12 @@
 #define MII_M1011_IMASK_INIT		0x6400
 #define MII_M1011_IMASK_CLEAR		0x0000
 
-#define MII_M1011_PHY_SCR		0x10
-#define MII_M1011_PHY_SCR_MDI		0x0000
-#define MII_M1011_PHY_SCR_MDI_X		0x0020
-#define MII_M1011_PHY_SCR_AUTO_CROSS	0x0060
+#define MII_M1011_PHY_SCR			0x10
+#define MII_M1011_PHY_SCR_DOWNSHIFT_EN		BIT(11)
+#define MII_M1011_PHY_SCR_DOWNSHIFT_SHIFT	12
+#define MII_M1011_PHY_SCR_MDI			(0x0 << 5)
+#define MII_M1011_PHY_SCR_MDI_X			(0x1 << 5)
+#define MII_M1011_PHY_SCR_AUTO_CROSS		(0x3 << 5)
 
 #define MII_M1111_PHY_LED_CONTROL	0x18
 #define MII_M1111_PHY_LED_DIRECT	0x4100
@@ -486,8 +488,7 @@ static int m88e1121_config_aneg(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
-	err = phy_write(phydev, MII_M1011_PHY_SCR,
-			MII_M1011_PHY_SCR_AUTO_CROSS);
+	err = marvell_set_polarity(phydev, phydev->mdix_ctrl);
 	if (err < 0)
 		return err;
 
@@ -655,10 +656,13 @@ static int m88e1116r_config_init(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
+	err = marvell_set_polarity(phydev, phydev->mdix_ctrl);
+	if (err < 0)
+		return err;
+
 	temp = phy_read(phydev, MII_M1011_PHY_SCR);
-	temp |= (7 << 12);	/* max number of gigabit attempts */
-	temp |= (1 << 11);	/* enable downshift */
-	temp |= MII_M1011_PHY_SCR_AUTO_CROSS;
+	temp |= (7 << MII_M1011_PHY_SCR_DOWNSHIFT_SHIFT);
+	temp |= MII_M1011_PHY_SCR_DOWNSHIFT_EN;
 	err = phy_write(phydev, MII_M1011_PHY_SCR, temp);
 	if (err < 0)
 		return err;
@@ -891,8 +895,7 @@ static int m88e1118_config_aneg(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
-	err = phy_write(phydev, MII_M1011_PHY_SCR,
-			MII_M1011_PHY_SCR_AUTO_CROSS);
+	err = marvell_set_polarity(phydev, phydev->mdix_ctrl);
 	if (err < 0)
 		return err;
 
