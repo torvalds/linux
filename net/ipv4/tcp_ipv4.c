@@ -85,8 +85,6 @@
 #include <crypto/hash.h>
 #include <linux/scatterlist.h>
 
-int sysctl_tcp_low_latency __read_mostly;
-
 #ifdef CONFIG_TCP_MD5SIG
 static int tcp_v4_md5_hash_hdr(char *md5_hash, const struct tcp_md5sig_key *key,
 			       __be32 daddr, __be32 saddr, const struct tcphdr *th);
