@@ -88,6 +88,8 @@
 				interrupts = <31 2>;
 
 				adi,dsi-lanes = <4>;
+				clocks = <&rpmcc RPM_SMD_BB_CLK2>;
+				clock-names = "cec";
 
 				pd-gpios = <&msmgpio 32 0>;
 
