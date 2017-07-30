@@ -1571,7 +1571,7 @@ static sector_t __rdev_sectors(struct raid_set *rs)
 			return rdev->sectors;
 	}
 
-	BUG(); /* Constructor ensures we got some. */
+	return 0;
 }
 
 /* Calculate the sectors per device and per array used for @rs */
@@ -2941,7 +2941,7 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	bool resize;
 	struct raid_type *rt;
 	unsigned int num_raid_params, num_raid_devs;
-	sector_t calculated_dev_sectors;
+	sector_t calculated_dev_sectors, rdev_sectors;
 	struct raid_set *rs = NULL;
 	const char *arg;
 	struct rs_layout rs_layout;
@@ -3017,7 +3017,14 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	if (r)
 		goto bad;
 
-	resize = calculated_dev_sectors != __rdev_sectors(rs);
+	rdev_sectors = __rdev_sectors(rs);
+	if (!rdev_sectors) {
+		ti->error = "Invalid rdev size";
+		r = -EINVAL;
+		goto bad;
+	}
+
+	resize = calculated_dev_sectors != rdev_sectors;
 
 	INIT_WORK(&rs->md.event_work, do_table_event);
 	ti->private = rs;

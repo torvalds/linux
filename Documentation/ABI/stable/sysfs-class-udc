@@ -55,14 +55,6 @@ Description:
 		Indicates the maximum USB speed supported by this port.
 Users:
 
-What:		/sys/class/udc/<udc>/maximum_speed
-Date:		June 2011
-KernelVersion:	3.1
-Contact:	Felipe Balbi <balbi@kernel.org>
-Description:
-		Indicates the maximum USB speed supported by this port.
-Users:
-
 What:		/sys/class/udc/<udc>/soft_connect
 Date:		June 2011
 KernelVersion:	3.1
@@ -90,4 +82,12 @@ Description:
 		'reconnecting', 'unauthenticated', 'default', 'addressed',
 		'configured', and 'suspended'; however not all USB Device
 		Controllers support reporting all states.
+Users:
+
+What:		/sys/class/udc/<udc>/function
+Date:		June 2017
+KernelVersion:	4.13
+Contact:	Felipe Balbi <balbi@kernel.org>
+Description:
+		Prints out name of currently running USB Gadget Driver.
 Users:

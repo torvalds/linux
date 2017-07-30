@@ -27,7 +27,9 @@
 
 #include <linux/list.h>
 
+#include "i915_utils.h"
 #include "i915_gem_request.h"
+#include "i915_syncmap.h"
 
 struct i915_gem_timeline;
 
@@ -55,7 +57,25 @@ struct intel_timeline {
 	 * struct_mutex.
 	 */
 	struct i915_gem_active last_request;
-	u32 sync_seqno[I915_NUM_ENGINES];
+
+	/**
+	 * We track the most recent seqno that we wait on in every context so
+	 * that we only have to emit a new await and dependency on a more
+	 * recent sync point. As the contexts may be executed out-of-order, we
+	 * have to track each individually and can not rely on an absolute
+	 * global_seqno. When we know that all tracked fences are completed
+	 * (i.e. when the driver is idle), we know that the syncmap is
+	 * redundant and we can discard it without loss of generality.
+	 */
+	struct i915_syncmap *sync;
+	/**
+	 * Separately to the inter-context seqno map above, we track the last
+	 * barrier (e.g. semaphore wait) to the global engine timelines. Note
+	 * that this tracks global_seqno rather than the context.seqno, and
+	 * so it is subject to the limitations of hw wraparound and that we
+	 * may need to revoke global_seqno (on pre-emption).
+	 */
+	u32 global_sync[I915_NUM_ENGINES];
 
 	struct i915_gem_timeline *common;
 };
@@ -73,6 +93,31 @@ int i915_gem_timeline_init(struct drm_i915_private *i915,
 			   struct i915_gem_timeline *tl,
 			   const char *name);
 int i915_gem_timeline_init__global(struct drm_i915_private *i915);
+void i915_gem_timelines_mark_idle(struct drm_i915_private *i915);
 void i915_gem_timeline_fini(struct i915_gem_timeline *tl);
+
+static inline int __intel_timeline_sync_set(struct intel_timeline *tl,
+					    u64 context, u32 seqno)
+{
+	return i915_syncmap_set(&tl->sync, context, seqno);
+}
+
+static inline int intel_timeline_sync_set(struct intel_timeline *tl,
+					  const struct dma_fence *fence)
+{
+	return __intel_timeline_sync_set(tl, fence->context, fence->seqno);
+}
+
+static inline bool __intel_timeline_sync_is_later(struct intel_timeline *tl,
+						  u64 context, u32 seqno)
+{
+	return i915_syncmap_is_later(&tl->sync, context, seqno);
+}
+
+static inline bool intel_timeline_sync_is_later(struct intel_timeline *tl,
+						const struct dma_fence *fence)
+{
+	return __intel_timeline_sync_is_later(tl, fence->context, fence->seqno);
+}
 
 #endif

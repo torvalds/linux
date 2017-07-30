@@ -647,6 +647,20 @@ static inline u32 rvt_div_mtu(struct rvt_qp *qp, u32 len)
 	return len >> qp->log_pmtu;
 }
 
+/**
+ * rvt_timeout_to_jiffies - Convert a ULP timeout input into jiffies
+ * @timeout - timeout input(0 - 31).
+ *
+ * Return a timeout value in jiffies.
+ */
+static inline unsigned long rvt_timeout_to_jiffies(u8 timeout)
+{
+	if (timeout > 31)
+		timeout = 31;
+
+	return usecs_to_jiffies(1U << timeout) * 4096UL / 1000UL;
+}
+
 extern const int  ib_rvt_state_ops[];
 
 struct rvt_dev_info;

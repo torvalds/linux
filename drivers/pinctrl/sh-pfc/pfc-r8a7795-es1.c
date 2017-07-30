@@ -192,8 +192,8 @@
 #define GPSR6_9		F_(SSI_WS4,		IP14_27_24)
 #define GPSR6_8		F_(SSI_SCK4,		IP14_23_20)
 #define GPSR6_7		F_(SSI_SDATA3,		IP14_19_16)
-#define GPSR6_6		F_(SSI_WS34,		IP14_15_12)
-#define GPSR6_5		F_(SSI_SCK34,		IP14_11_8)
+#define GPSR6_6		F_(SSI_WS349,		IP14_15_12)
+#define GPSR6_5		F_(SSI_SCK349,		IP14_11_8)
 #define GPSR6_4		F_(SSI_SDATA2_A,	IP14_7_4)
 #define GPSR6_3		F_(SSI_SDATA1_A,	IP14_3_0)
 #define GPSR6_2		F_(SSI_SDATA0,		IP13_31_28)
@@ -328,8 +328,8 @@
 #define IP13_31_28	FM(SSI_SDATA0)		F_(0, 0)	FM(MSIOF1_SS2_F)	F_(0, 0)			F_(0, 0)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP14_3_0	FM(SSI_SDATA1_A)	F_(0, 0)	F_(0, 0)		F_(0, 0)			F_(0, 0)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP14_7_4	FM(SSI_SDATA2_A)	F_(0, 0)	F_(0, 0)		F_(0, 0)			FM(SSI_SCK1_B)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
-#define IP14_11_8	FM(SSI_SCK34)		F_(0, 0)	FM(MSIOF1_SS1_A)	F_(0, 0)			F_(0, 0)	F_(0, 0)	FM(STP_OPWM_0_A)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
-#define IP14_15_12	FM(SSI_WS34)		FM(HCTS2_N_A)	FM(MSIOF1_SS2_A)	F_(0, 0)			F_(0, 0)	F_(0, 0)	FM(STP_IVCXO27_0_A)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
+#define IP14_11_8	FM(SSI_SCK349)		F_(0, 0)	FM(MSIOF1_SS1_A)	F_(0, 0)			F_(0, 0)	F_(0, 0)	FM(STP_OPWM_0_A)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
+#define IP14_15_12	FM(SSI_WS349)		FM(HCTS2_N_A)	FM(MSIOF1_SS2_A)	F_(0, 0)			F_(0, 0)	F_(0, 0)	FM(STP_IVCXO27_0_A)	F_(0, 0)	F_(0, 0)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP14_19_16	FM(SSI_SDATA3)		FM(HRTS2_N_A)	FM(MSIOF1_TXD_A)	F_(0, 0)			F_(0, 0)	FM(TS_SCK0_A)	FM(STP_ISCLK_0_A)	FM(RIF0_D1_A)	FM(RIF2_D0_A)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP14_23_20	FM(SSI_SCK4)		FM(HRX2_A)	FM(MSIOF1_SCK_A)	F_(0, 0)			F_(0, 0)	FM(TS_SDAT0_A)	FM(STP_ISD_0_A)		FM(RIF0_CLK_A)	FM(RIF2_CLK_A)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
 #define IP14_27_24	FM(SSI_WS4)		FM(HTX2_A)	FM(MSIOF1_SYNC_A)	F_(0, 0)			F_(0, 0)	FM(TS_SDEN0_A)	FM(STP_ISEN_0_A)	FM(RIF0_SYNC_A)	FM(RIF2_SYNC_A)		F_(0, 0)	F_(0, 0)	F_(0, 0)	F_(0, 0) F_(0, 0) F_(0, 0) F_(0, 0)
@@ -1256,11 +1256,11 @@ static const u16 pinmux_data[] = {
 	PINMUX_IPSR_MSEL(IP14_7_4,	SSI_SDATA2_A,		SEL_SSI_0),
 	PINMUX_IPSR_MSEL(IP14_7_4,	SSI_SCK1_B,		SEL_SSI_1),
 
-	PINMUX_IPSR_GPSR(IP14_11_8,	SSI_SCK34),
+	PINMUX_IPSR_GPSR(IP14_11_8,	SSI_SCK349),
 	PINMUX_IPSR_MSEL(IP14_11_8,	MSIOF1_SS1_A,		SEL_MSIOF1_0),
 	PINMUX_IPSR_MSEL(IP14_11_8,	STP_OPWM_0_A,		SEL_SSP1_0_0),
 
-	PINMUX_IPSR_GPSR(IP14_15_12,	SSI_WS34),
+	PINMUX_IPSR_GPSR(IP14_15_12,	SSI_WS349),
 	PINMUX_IPSR_MSEL(IP14_15_12,	HCTS2_N_A,		SEL_HSCIF2_0),
 	PINMUX_IPSR_MSEL(IP14_15_12,	MSIOF1_SS2_A,		SEL_MSIOF1_0),
 	PINMUX_IPSR_MSEL(IP14_15_12,	STP_IVCXO27_0_A,	SEL_SSP1_0_0),
@@ -3650,12 +3650,12 @@ static const unsigned int ssi3_data_pins[] = {
 static const unsigned int ssi3_data_mux[] = {
 	SSI_SDATA3_MARK,
 };
-static const unsigned int ssi34_ctrl_pins[] = {
+static const unsigned int ssi349_ctrl_pins[] = {
 	/* SCK, WS */
 	RCAR_GP_PIN(6, 5), RCAR_GP_PIN(6, 6),
 };
-static const unsigned int ssi34_ctrl_mux[] = {
-	SSI_SCK34_MARK, SSI_WS34_MARK,
+static const unsigned int ssi349_ctrl_mux[] = {
+	SSI_SCK349_MARK, SSI_WS349_MARK,
 };
 static const unsigned int ssi4_data_pins[] = {
 	/* SDATA */
@@ -4063,7 +4063,7 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(ssi2_ctrl_a),
 	SH_PFC_PIN_GROUP(ssi2_ctrl_b),
 	SH_PFC_PIN_GROUP(ssi3_data),
-	SH_PFC_PIN_GROUP(ssi34_ctrl),
+	SH_PFC_PIN_GROUP(ssi349_ctrl),
 	SH_PFC_PIN_GROUP(ssi4_data),
 	SH_PFC_PIN_GROUP(ssi4_ctrl),
 	SH_PFC_PIN_GROUP(ssi5_data),
@@ -4509,7 +4509,7 @@ static const char * const ssi_groups[] = {
 	"ssi2_ctrl_a",
 	"ssi2_ctrl_b",
 	"ssi3_data",
-	"ssi34_ctrl",
+	"ssi349_ctrl",
 	"ssi4_data",
 	"ssi4_ctrl",
 	"ssi5_data",
@@ -5356,8 +5356,8 @@ static const struct pinmux_drive_reg pinmux_drive_regs[] = {
 		{ RCAR_GP_PIN(6,  2), 24, 3 },	/* SSI_SDATA0 */
 		{ RCAR_GP_PIN(6,  3), 20, 3 },	/* SSI_SDATA1 */
 		{ RCAR_GP_PIN(6,  4), 16, 3 },	/* SSI_SDATA2 */
-		{ RCAR_GP_PIN(6,  5), 12, 3 },	/* SSI_SCK34 */
-		{ RCAR_GP_PIN(6,  6),  8, 3 },	/* SSI_WS34 */
+		{ RCAR_GP_PIN(6,  5), 12, 3 },	/* SSI_SCK349 */
+		{ RCAR_GP_PIN(6,  6),  8, 3 },	/* SSI_WS349 */
 		{ RCAR_GP_PIN(6,  7),  4, 3 },	/* SSI_SDATA3 */
 		{ RCAR_GP_PIN(6,  8),  0, 3 },	/* SSI_SCK4 */
 	} },
@@ -5604,8 +5604,8 @@ static const struct sh_pfc_bias_info bias_info[] = {
 	{ RCAR_GP_PIN(6,  9),    PU5, 16 },	/* SSI_WS4 */
 	{ RCAR_GP_PIN(6,  8),    PU5, 15 },	/* SSI_SCK4 */
 	{ RCAR_GP_PIN(6,  7),    PU5, 14 },	/* SSI_SDATA3 */
-	{ RCAR_GP_PIN(6,  6),    PU5, 13 },	/* SSI_WS34 */
-	{ RCAR_GP_PIN(6,  5),    PU5, 12 },	/* SSI_SCK34 */
+	{ RCAR_GP_PIN(6,  6),    PU5, 13 },	/* SSI_WS349 */
+	{ RCAR_GP_PIN(6,  5),    PU5, 12 },	/* SSI_SCK349 */
 	{ RCAR_GP_PIN(6,  4),    PU5, 11 },	/* SSI_SDATA2_A */
 	{ RCAR_GP_PIN(6,  3),    PU5, 10 },	/* SSI_SDATA1_A */
 	{ RCAR_GP_PIN(6,  2),    PU5,  9 },	/* SSI_SDATA0 */

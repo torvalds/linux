@@ -116,7 +116,7 @@ static int rpmsg_ept_cb(struct rpmsg_device *rpdev, void *buf, int len,
 	if (!skb)
 		return -ENOMEM;
 
-	memcpy(skb_put(skb, len), buf, len);
+	skb_put_data(skb, buf, len);
 
 	spin_lock(&eptdev->queue_lock);
 	skb_queue_tail(&eptdev->queue, skb);
@@ -390,7 +390,7 @@ static int rpmsg_eptdev_create(struct rpmsg_ctrldev *ctrldev,
 
 	ret = device_add(dev);
 	if (ret) {
-		dev_err(dev, "device_register failed: %d\n", ret);
+		dev_err(dev, "device_add failed: %d\n", ret);
 		put_device(dev);
 	}
 
@@ -505,7 +505,7 @@ static int rpmsg_chrdev_probe(struct rpmsg_device *rpdev)
 
 	ret = device_add(dev);
 	if (ret) {
-		dev_err(&rpdev->dev, "device_register failed: %d\n", ret);
+		dev_err(&rpdev->dev, "device_add failed: %d\n", ret);
 		put_device(dev);
 	}
 

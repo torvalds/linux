@@ -616,26 +616,6 @@ err:
 	return r;
 }
 
-static void venc_set_type(struct omap_dss_device *dssdev,
-		enum omap_dss_venc_type type)
-{
-	mutex_lock(&venc.venc_lock);
-
-	venc.type = type;
-
-	mutex_unlock(&venc.venc_lock);
-}
-
-static void venc_invert_vid_out_polarity(struct omap_dss_device *dssdev,
-		bool invert_polarity)
-{
-	mutex_lock(&venc.venc_lock);
-
-	venc.invert_polarity = invert_polarity;
-
-	mutex_unlock(&venc.venc_lock);
-}
-
 static int venc_init_regulator(void)
 {
 	struct regulator *vdda_dac;
@@ -643,11 +623,7 @@ static int venc_init_regulator(void)
 	if (venc.vdda_dac_reg != NULL)
 		return 0;
 
-	if (venc.pdev->dev.of_node)
-		vdda_dac = devm_regulator_get(&venc.pdev->dev, "vdda");
-	else
-		vdda_dac = devm_regulator_get(&venc.pdev->dev, "vdda_dac");
-
+	vdda_dac = devm_regulator_get(&venc.pdev->dev, "vdda");
 	if (IS_ERR(vdda_dac)) {
 		if (PTR_ERR(vdda_dac) != -EPROBE_DEFER)
 			DSSERR("can't get VDDA_DAC regulator\n");
@@ -783,9 +759,6 @@ static const struct omapdss_atv_ops venc_ops = {
 	.set_timings = venc_set_timings,
 	.get_timings = venc_get_timings,
 
-	.set_type = venc_set_type,
-	.invert_vid_out_polarity = venc_invert_vid_out_polarity,
-
 	.set_wss = venc_set_wss,
 	.get_wss = venc_get_wss,
 };
@@ -869,17 +842,9 @@ static int venc_bind(struct device *dev, struct device *master, void *data)
 	venc.wss_data = 0;
 
 	venc_mem = platform_get_resource(venc.pdev, IORESOURCE_MEM, 0);
-	if (!venc_mem) {
-		DSSERR("can't get IORESOURCE_MEM VENC\n");
-		return -EINVAL;
-	}
-
-	venc.base = devm_ioremap(&pdev->dev, venc_mem->start,
-				 resource_size(venc_mem));
-	if (!venc.base) {
-		DSSERR("can't ioremap VENC\n");
-		return -ENOMEM;
-	}
+	venc.base = devm_ioremap_resource(&pdev->dev, venc_mem);
+	if (IS_ERR(venc.base))
+		return PTR_ERR(venc.base);
 
 	r = venc_get_clocks(pdev);
 	if (r)
@@ -896,12 +861,10 @@ static int venc_bind(struct device *dev, struct device *master, void *data)
 
 	venc_runtime_put();
 
-	if (pdev->dev.of_node) {
-		r = venc_probe_of(pdev);
-		if (r) {
-			DSSERR("Invalid DT data\n");
-			goto err_probe_of;
-		}
+	r = venc_probe_of(pdev);
+	if (r) {
+		DSSERR("Invalid DT data\n");
+		goto err_probe_of;
 	}
 
 	dss_debugfs_create_file("venc", venc_dump_regs);

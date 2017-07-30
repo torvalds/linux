@@ -3397,10 +3397,8 @@ static void intel_pmu_cpu_dying(int cpu)
 static void intel_pmu_sched_task(struct perf_event_context *ctx,
 				 bool sched_in)
 {
-	if (x86_pmu.pebs_active)
-		intel_pmu_pebs_sched_task(ctx, sched_in);
-	if (x86_pmu.lbr_nr)
-		intel_pmu_lbr_sched_task(ctx, sched_in);
+	intel_pmu_pebs_sched_task(ctx, sched_in);
+	intel_pmu_lbr_sched_task(ctx, sched_in);
 }
 
 PMU_FORMAT_ATTR(offcore_rsp, "config1:0-63");

@@ -205,6 +205,8 @@ void cobalt_pcie_status_show(struct cobalt *cobalt)
 
 	offset = pci_find_capability(pci_dev, PCI_CAP_ID_EXP);
 	bus_offset = pci_find_capability(pci_bus_dev, PCI_CAP_ID_EXP);
+	if (!offset || !bus_offset)
+		return;
 
 	/* Device */
 	pci_read_config_dword(pci_dev, offset + PCI_EXP_DEVCAP, &capa);

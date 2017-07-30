@@ -165,7 +165,6 @@ struct intel_vgpu {
 	struct list_head workload_q_head[I915_NUM_ENGINES];
 	struct kmem_cache *workloads;
 	atomic_t running_workload_num;
-	ktime_t last_ctx_submit_time;
 	DECLARE_BITMAP(tlb_handle_pending, I915_NUM_ENGINES);
 	struct i915_gem_context *shadow_ctx;
 
@@ -196,11 +195,27 @@ struct intel_gvt_fence {
 	unsigned long vgpu_allocated_fence_num;
 };
 
-#define INTEL_GVT_MMIO_HASH_BITS 9
+#define INTEL_GVT_MMIO_HASH_BITS 11
 
 struct intel_gvt_mmio {
-	u32 *mmio_attribute;
+	u8 *mmio_attribute;
+/* Register contains RO bits */
+#define F_RO		(1 << 0)
+/* Register contains graphics address */
+#define F_GMADR		(1 << 1)
+/* Mode mask registers with high 16 bits as the mask bits */
+#define F_MODE_MASK	(1 << 2)
+/* This reg can be accessed by GPU commands */
+#define F_CMD_ACCESS	(1 << 3)
+/* This reg has been accessed by a VM */
+#define F_ACCESSED	(1 << 4)
+/* This reg has been accessed through GPU commands */
+#define F_CMD_ACCESSED	(1 << 5)
+/* This reg could be accessed by unaligned address */
+#define F_UNALIGN	(1 << 6)
+
 	DECLARE_HASHTABLE(mmio_info_table, INTEL_GVT_MMIO_HASH_BITS);
+	unsigned int num_tracked_mmio;
 };
 
 struct intel_gvt_firmware {
@@ -257,7 +272,12 @@ static inline struct intel_gvt *to_gvt(struct drm_i915_private *i915)
 
 enum {
 	INTEL_GVT_REQUEST_EMULATE_VBLANK = 0,
+
+	/* Scheduling trigger by timer */
 	INTEL_GVT_REQUEST_SCHED = 1,
+
+	/* Scheduling trigger by event */
+	INTEL_GVT_REQUEST_EVENT_SCHED = 2,
 };
 
 static inline void intel_gvt_request_service(struct intel_gvt *gvt,
@@ -473,6 +493,80 @@ enum {
 	GVT_FAILSAFE_INSUFFICIENT_RESOURCE,
 };
 
+static inline void mmio_hw_access_pre(struct drm_i915_private *dev_priv)
+{
+	intel_runtime_pm_get(dev_priv);
+}
+
+static inline void mmio_hw_access_post(struct drm_i915_private *dev_priv)
+{
+	intel_runtime_pm_put(dev_priv);
+}
+
+/**
+ * intel_gvt_mmio_set_accessed - mark a MMIO has been accessed
+ * @gvt: a GVT device
+ * @offset: register offset
+ *
+ */
+static inline void intel_gvt_mmio_set_accessed(
+			struct intel_gvt *gvt, unsigned int offset)
+{
+	gvt->mmio.mmio_attribute[offset >> 2] |= F_ACCESSED;
+}
+
+/**
+ * intel_gvt_mmio_is_cmd_accessed - mark a MMIO could be accessed by command
+ * @gvt: a GVT device
+ * @offset: register offset
+ *
+ */
+static inline bool intel_gvt_mmio_is_cmd_access(
+			struct intel_gvt *gvt, unsigned int offset)
+{
+	return gvt->mmio.mmio_attribute[offset >> 2] & F_CMD_ACCESS;
+}
+
+/**
+ * intel_gvt_mmio_is_unalign - mark a MMIO could be accessed unaligned
+ * @gvt: a GVT device
+ * @offset: register offset
+ *
+ */
+static inline bool intel_gvt_mmio_is_unalign(
+			struct intel_gvt *gvt, unsigned int offset)
+{
+	return gvt->mmio.mmio_attribute[offset >> 2] & F_UNALIGN;
+}
+
+/**
+ * intel_gvt_mmio_set_cmd_accessed - mark a MMIO has been accessed by command
+ * @gvt: a GVT device
+ * @offset: register offset
+ *
+ */
+static inline void intel_gvt_mmio_set_cmd_accessed(
+			struct intel_gvt *gvt, unsigned int offset)
+{
+	gvt->mmio.mmio_attribute[offset >> 2] |= F_CMD_ACCESSED;
+}
+
+/**
+ * intel_gvt_mmio_has_mode_mask - if a MMIO has a mode mask
+ * @gvt: a GVT device
+ * @offset: register offset
+ *
+ * Returns:
+ * True if a MMIO has a mode mask in its higher 16 bits, false if it isn't.
+ *
+ */
+static inline bool intel_gvt_mmio_has_mode_mask(
+			struct intel_gvt *gvt, unsigned int offset)
+{
+	return gvt->mmio.mmio_attribute[offset >> 2] & F_MODE_MASK;
+}
+
+#include "trace.h"
 #include "mpt.h"
 
 #endif

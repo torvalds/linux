@@ -60,6 +60,7 @@
 
 extern const char driver_version[];
 extern bool mfg_mode;
+extern bool aggr_ctrl;
 
 struct mwifiex_adapter;
 struct mwifiex_private;
@@ -628,7 +629,7 @@ struct mwifiex_private {
 	struct dentry *dfs_dev_dir;
 #endif
 	u16 current_key_index;
-	struct semaphore async_sem;
+	struct mutex async_mutex;
 	struct cfg80211_scan_request *scan_request;
 	u8 cfg_bssid[6];
 	struct wps wps;
@@ -798,6 +799,18 @@ struct mwifiex_auto_tdls_peer {
 	u8 do_setup;
 };
 
+#define MWIFIEX_TYPE_AGGR_DATA_V2 11
+#define MWIFIEX_BUS_AGGR_MODE_LEN_V2 (2)
+#define MWIFIEX_BUS_AGGR_MAX_LEN 16000
+#define MWIFIEX_BUS_AGGR_MAX_NUM 10
+struct bus_aggr_params {
+	u16 enable;
+	u16 mode;
+	u16 tx_aggr_max_size;
+	u16 tx_aggr_max_num;
+	u16 tx_aggr_align;
+};
+
 struct mwifiex_if_ops {
 	int (*init_if) (struct mwifiex_adapter *);
 	void (*cleanup_if) (struct mwifiex_adapter *);
@@ -849,6 +862,7 @@ struct mwifiex_adapter {
 	u8 perm_addr[ETH_ALEN];
 	bool surprise_removed;
 	u32 fw_release_number;
+	u8 intf_hdr_len;
 	u16 init_wait_q_woken;
 	wait_queue_head_t init_wait_q;
 	void *card;
@@ -870,8 +884,6 @@ struct mwifiex_adapter {
 	bool rx_locked;
 	bool main_locked;
 	struct mwifiex_bss_prio_tbl bss_prio_tbl[MWIFIEX_MAX_BSS_NUM];
-	/* spin lock for init/shutdown */
-	spinlock_t mwifiex_lock;
 	/* spin lock for main process */
 	spinlock_t main_proc_lock;
 	u32 mwifiex_processing;
@@ -1017,6 +1029,8 @@ struct mwifiex_adapter {
 	/* Wake-on-WLAN (WoWLAN) */
 	int irq_wakeup;
 	bool wake_by_wifi;
+	/* Aggregation parameters*/
+	struct bus_aggr_params bus_aggr;
 };
 
 void mwifiex_process_tx_queue(struct mwifiex_adapter *adapter);
@@ -1235,7 +1249,8 @@ mwifiex_queuing_ra_based(struct mwifiex_private *priv)
 	 * Currently we assume if we are in Infra, then DA=RA. This might not be
 	 * true in the future
 	 */
-	if ((priv->bss_mode == NL80211_IFTYPE_STATION) &&
+	if ((priv->bss_mode == NL80211_IFTYPE_STATION ||
+	     priv->bss_mode == NL80211_IFTYPE_P2P_CLIENT) &&
 	    (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA))
 		return false;
 

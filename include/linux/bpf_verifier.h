@@ -43,6 +43,7 @@ struct bpf_reg_state {
 	u32 min_align;
 	u32 aux_off;
 	u32 aux_off_align;
+	bool value_from_signed;
 };
 
 enum bpf_stack_slot_type {
@@ -73,6 +74,8 @@ struct bpf_insn_aux_data {
 		enum bpf_reg_type ptr_type;	/* pointer type for load/store insns */
 		struct bpf_map *map_ptr;	/* pointer for call insn into lookup_elem */
 	};
+	int ctx_field_size; /* the ctx field size for load insn, maybe 0 */
+	int converted_op_size; /* the valid value width after perceived conversion */
 };
 
 #define MAX_USED_MAPS 64 /* max number of maps accessed by one eBPF program */

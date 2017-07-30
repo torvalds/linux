@@ -227,6 +227,16 @@ static inline bool irqd_has_set(struct irq_data *d, unsigned int mask)
 	return __irqd_to_state(d) & mask;
 }
 
+static inline void irq_state_set_disabled(struct irq_desc *desc)
+{
+	irqd_set(&desc->irq_data, IRQD_IRQ_DISABLED);
+}
+
+static inline void irq_state_set_masked(struct irq_desc *desc)
+{
+	irqd_set(&desc->irq_data, IRQD_IRQ_MASKED);
+}
+
 #undef __irqd_to_state
 
 static inline void kstat_incr_irqs_this_cpu(struct irq_desc *desc)
@@ -437,7 +447,9 @@ static inline void irq_remove_debugfs_entry(struct irq_desc *desc)
 # ifdef CONFIG_IRQ_DOMAIN
 void irq_domain_debugfs_init(struct dentry *root);
 # else
-static inline void irq_domain_debugfs_init(struct dentry *root);
+static inline void irq_domain_debugfs_init(struct dentry *root)
+{
+}
 # endif
 #else /* CONFIG_GENERIC_IRQ_DEBUGFS */
 static inline void irq_add_debugfs_entry(unsigned int irq, struct irq_desc *d)

@@ -2467,6 +2467,10 @@ static int smsc911x_drv_probe(struct platform_device *pdev)
 	pdata = netdev_priv(dev);
 	dev->irq = irq;
 	pdata->ioaddr = ioremap_nocache(res->start, res_size);
+	if (!pdata->ioaddr) {
+		retval = -ENOMEM;
+		goto out_ioremap_fail;
+	}
 
 	pdata->dev = dev;
 	pdata->msg_enable = ((1 << debug) - 1);
@@ -2572,6 +2576,7 @@ out_enable_resources_fail:
 	smsc911x_free_resources(pdev);
 out_request_resources_fail:
 	iounmap(pdata->ioaddr);
+out_ioremap_fail:
 	free_netdev(dev);
 out_release_io_1:
 	release_mem_region(res->start, resource_size(res));

@@ -514,11 +514,12 @@ static int crb_map_io(struct acpi_device *device, struct crb_priv *priv,
 		goto out;
 	}
 
-	priv->cmd_size = cmd_size;
-
 	priv->rsp = priv->cmd;
 
 out:
+	if (!ret)
+		priv->cmd_size = cmd_size;
+
 	crb_go_idle(dev, priv);
 
 	return ret;
@@ -563,12 +564,12 @@ static int crb_acpi_add(struct acpi_device *device)
 	    sm == ACPI_TPM2_COMMAND_BUFFER_WITH_START_METHOD)
 		priv->flags |= CRB_FL_ACPI_START;
 
-	if (sm == ACPI_TPM2_COMMAND_BUFFER_WITH_SMC) {
+	if (sm == ACPI_TPM2_COMMAND_BUFFER_WITH_ARM_SMC) {
 		if (buf->header.length < (sizeof(*buf) + sizeof(*crb_smc))) {
 			dev_err(dev,
 				FW_BUG "TPM2 ACPI table has wrong size %u for start method type %d\n",
 				buf->header.length,
-				ACPI_TPM2_COMMAND_BUFFER_WITH_SMC);
+				ACPI_TPM2_COMMAND_BUFFER_WITH_ARM_SMC);
 			return -EINVAL;
 		}
 		crb_smc = ACPI_ADD_PTR(struct tpm2_crb_smc, buf, sizeof(*buf));

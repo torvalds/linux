@@ -34,7 +34,7 @@
 #ifndef __NFP_ASM_H__
 #define __NFP_ASM_H__ 1
 
-#include "nfp_bpf.h"
+#include <linux/types.h>
 
 #define REG_NONE	0
 

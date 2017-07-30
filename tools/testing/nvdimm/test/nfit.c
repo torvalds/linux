@@ -1943,7 +1943,7 @@ static __init int nfit_test_init(void)
 			nfit_test->setup = nfit_test0_setup;
 			break;
 		case 1:
-			nfit_test->num_pm = 1;
+			nfit_test->num_pm = 2;
 			nfit_test->dcr_idx = NUM_DCR;
 			nfit_test->num_dcr = 2;
 			nfit_test->alloc = nfit_test1_alloc;

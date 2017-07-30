@@ -321,6 +321,7 @@ struct lpfc_sli {
 #define LPFC_MENLO_MAINT          0x1000 /* need for menl fw download */
 #define LPFC_SLI_ASYNC_MBX_BLK    0x2000 /* Async mailbox is blocked */
 #define LPFC_SLI_SUPPRESS_RSP     0x4000 /* Suppress RSP feature is supported */
+#define LPFC_SLI_USE_EQDR         0x8000 /* EQ Delay Register is supported */
 
 	struct lpfc_sli_ring *sli3_ring;
 

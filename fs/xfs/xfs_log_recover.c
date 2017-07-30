@@ -2230,9 +2230,9 @@ xlog_recover_get_buf_lsn(
 	struct xfs_mount	*mp,
 	struct xfs_buf		*bp)
 {
-	__uint32_t		magic32;
-	__uint16_t		magic16;
-	__uint16_t		magicda;
+	uint32_t		magic32;
+	uint16_t		magic16;
+	uint16_t		magicda;
 	void			*blk = bp->b_addr;
 	uuid_t			*uuid;
 	xfs_lsn_t		lsn = -1;
@@ -2381,9 +2381,9 @@ xlog_recover_validate_buf_type(
 	xfs_lsn_t		current_lsn)
 {
 	struct xfs_da_blkinfo	*info = bp->b_addr;
-	__uint32_t		magic32;
-	__uint16_t		magic16;
-	__uint16_t		magicda;
+	uint32_t		magic32;
+	uint16_t		magic16;
+	uint16_t		magicda;
 	char			*warnmsg = NULL;
 
 	/*
@@ -2852,7 +2852,7 @@ xlog_recover_buffer_pass2(
 	if (XFS_DINODE_MAGIC ==
 	    be16_to_cpu(*((__be16 *)xfs_buf_offset(bp, 0))) &&
 	    (BBTOB(bp->b_io_length) != MAX(log->l_mp->m_sb.sb_blocksize,
-			(__uint32_t)log->l_mp->m_inode_cluster_size))) {
+			(uint32_t)log->l_mp->m_inode_cluster_size))) {
 		xfs_buf_stale(bp);
 		error = xfs_bwrite(bp);
 	} else {
@@ -3423,7 +3423,7 @@ xlog_recover_efd_pass2(
 	xfs_efd_log_format_t	*efd_formatp;
 	xfs_efi_log_item_t	*efip = NULL;
 	xfs_log_item_t		*lip;
-	__uint64_t		efi_id;
+	uint64_t		efi_id;
 	struct xfs_ail_cursor	cur;
 	struct xfs_ail		*ailp = log->l_ailp;
 
@@ -3519,7 +3519,7 @@ xlog_recover_rud_pass2(
 	struct xfs_rud_log_format	*rud_formatp;
 	struct xfs_rui_log_item		*ruip = NULL;
 	struct xfs_log_item		*lip;
-	__uint64_t			rui_id;
+	uint64_t			rui_id;
 	struct xfs_ail_cursor		cur;
 	struct xfs_ail			*ailp = log->l_ailp;
 
@@ -3635,7 +3635,7 @@ xlog_recover_cud_pass2(
 	struct xfs_cud_log_format	*cud_formatp;
 	struct xfs_cui_log_item		*cuip = NULL;
 	struct xfs_log_item		*lip;
-	__uint64_t			cui_id;
+	uint64_t			cui_id;
 	struct xfs_ail_cursor		cur;
 	struct xfs_ail			*ailp = log->l_ailp;
 
@@ -3754,7 +3754,7 @@ xlog_recover_bud_pass2(
 	struct xfs_bud_log_format	*bud_formatp;
 	struct xfs_bui_log_item		*buip = NULL;
 	struct xfs_log_item		*lip;
-	__uint64_t			bui_id;
+	uint64_t			bui_id;
 	struct xfs_ail_cursor		cur;
 	struct xfs_ail			*ailp = log->l_ailp;
 
@@ -4152,7 +4152,7 @@ xlog_recover_commit_trans(
 
 	#define XLOG_RECOVER_COMMIT_QUEUE_MAX 100
 
-	hlist_del(&trans->r_list);
+	hlist_del_init(&trans->r_list);
 
 	error = xlog_recover_reorder_trans(log, trans, pass);
 	if (error)
@@ -4353,6 +4353,8 @@ xlog_recover_free_trans(
 {
 	xlog_recover_item_t	*item, *n;
 	int			i;
+
+	hlist_del_init(&trans->r_list);
 
 	list_for_each_entry_safe(item, n, &trans->r_itemq, ri_list) {
 		/* Free the regions in the item. */
@@ -5224,11 +5226,15 @@ xlog_do_recovery_pass(
 	int			error2 = 0;
 	int			bblks, split_bblks;
 	int			hblks, split_hblks, wrapped_hblks;
+	int			i;
 	struct hlist_head	rhash[XLOG_RHASH_SIZE];
 	LIST_HEAD		(buffer_list);
 
 	ASSERT(head_blk != tail_blk);
 	rhead_blk = 0;
+
+	for (i = 0; i < XLOG_RHASH_SIZE; i++)
+		INIT_HLIST_HEAD(&rhash[i]);
 
 	/*
 	 * Read the header of the tail block and get the iclog buffer size from
@@ -5465,6 +5471,19 @@ xlog_do_recovery_pass(
 
 	if (error && first_bad)
 		*first_bad = rhead_blk;
+
+	/*
+	 * Transactions are freed at commit time but transactions without commit
+	 * records on disk are never committed. Free any that may be left in the
+	 * hash table.
+	 */
+	for (i = 0; i < XLOG_RHASH_SIZE; i++) {
+		struct hlist_node	*tmp;
+		struct xlog_recover	*trans;
+
+		hlist_for_each_entry_safe(trans, tmp, &rhash[i], r_list)
+			xlog_recover_free_trans(trans);
+	}
 
 	return error ? error : error2;
 }
@@ -5772,9 +5791,9 @@ xlog_recover_check_summary(
 	xfs_buf_t	*agfbp;
 	xfs_buf_t	*agibp;
 	xfs_agnumber_t	agno;
-	__uint64_t	freeblks;
-	__uint64_t	itotal;
-	__uint64_t	ifree;
+	uint64_t	freeblks;
+	uint64_t	itotal;
+	uint64_t	ifree;
 	int		error;
 
 	mp = log->l_mp;

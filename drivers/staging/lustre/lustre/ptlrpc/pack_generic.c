@@ -2089,7 +2089,7 @@ static void dump_obdo(struct obdo *oa)
 
 	CDEBUG(D_RPCTRACE, "obdo: o_valid = %08x\n", valid);
 	if (valid & OBD_MD_FLID)
-		CDEBUG(D_RPCTRACE, "obdo: id = "DOSTID"\n", POSTID(&oa->o_oi));
+		CDEBUG(D_RPCTRACE, "obdo: id = " DOSTID "\n", POSTID(&oa->o_oi));
 	if (valid & OBD_MD_FLFID)
 		CDEBUG(D_RPCTRACE, "obdo: o_parent_seq = %#llx\n",
 		       oa->o_parent_seq);

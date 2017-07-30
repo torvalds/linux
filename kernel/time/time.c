@@ -890,3 +890,61 @@ struct timespec64 timespec64_add_safe(const struct timespec64 lhs,
 
 	return res;
 }
+
+int get_timespec64(struct timespec64 *ts,
+		   const struct timespec __user *uts)
+{
+	struct timespec kts;
+	int ret;
+
+	ret = copy_from_user(&kts, uts, sizeof(kts));
+	if (ret)
+		return -EFAULT;
+
+	ts->tv_sec = kts.tv_sec;
+	ts->tv_nsec = kts.tv_nsec;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(get_timespec64);
+
+int put_timespec64(const struct timespec64 *ts,
+		   struct timespec __user *uts)
+{
+	struct timespec kts = {
+		.tv_sec = ts->tv_sec,
+		.tv_nsec = ts->tv_nsec
+	};
+	return copy_to_user(uts, &kts, sizeof(kts)) ? -EFAULT : 0;
+}
+EXPORT_SYMBOL_GPL(put_timespec64);
+
+int get_itimerspec64(struct itimerspec64 *it,
+			const struct itimerspec __user *uit)
+{
+	int ret;
+
+	ret = get_timespec64(&it->it_interval, &uit->it_interval);
+	if (ret)
+		return ret;
+
+	ret = get_timespec64(&it->it_value, &uit->it_value);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(get_itimerspec64);
+
+int put_itimerspec64(const struct itimerspec64 *it,
+			struct itimerspec __user *uit)
+{
+	int ret;
+
+	ret = put_timespec64(&it->it_interval, &uit->it_interval);
+	if (ret)
+		return ret;
+
+	ret = put_timespec64(&it->it_value, &uit->it_value);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(put_itimerspec64);

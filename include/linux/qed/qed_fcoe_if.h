@@ -24,6 +24,11 @@ struct qed_dev_fcoe_info {
 
 	void __iomem *primary_dbq_rq_addr;
 	void __iomem *secondary_bdq_rq_addr;
+
+	u64 wwpn;
+	u64 wwnn;
+
+	u8 num_cqs;
 };
 
 struct qed_fcoe_params_offload {

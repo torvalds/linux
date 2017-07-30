@@ -731,6 +731,11 @@ extern int afs_writeback_all(struct afs_vnode *);
 extern int afs_flush(struct file *, fl_owner_t);
 extern int afs_fsync(struct file *, loff_t, loff_t, int);
 
+/*
+ * xattr.c
+ */
+extern const struct xattr_handler *afs_xattr_handlers[];
+extern ssize_t afs_listxattr(struct dentry *, char *, size_t);
 
 /*****************************************************************************/
 /*

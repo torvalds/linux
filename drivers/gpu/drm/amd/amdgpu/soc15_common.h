@@ -63,12 +63,26 @@ struct nbio_pcie_index_data {
 		(3 == reg##_BASE_IDX ? ip##_BASE__INST##inst##_SEG3 + reg : \
 		(ip##_BASE__INST##inst##_SEG4 + reg))))))
 
+#define RREG32_SOC15_OFFSET(ip, inst, reg, offset) \
+	RREG32( (0 == reg##_BASE_IDX ? ip##_BASE__INST##inst##_SEG0 + reg : \
+		(1 == reg##_BASE_IDX ? ip##_BASE__INST##inst##_SEG1 + reg : \
+		(2 == reg##_BASE_IDX ? ip##_BASE__INST##inst##_SEG2 + reg : \
+		(3 == reg##_BASE_IDX ? ip##_BASE__INST##inst##_SEG3 + reg : \
+		(ip##_BASE__INST##inst##_SEG4 + reg))))) + offset)
+
 #define WREG32_SOC15(ip, inst, reg, value) \
 	WREG32( (0 == reg##_BASE_IDX ? ip##_BASE__INST##inst##_SEG0 + reg : \
 		(1 == reg##_BASE_IDX ? ip##_BASE__INST##inst##_SEG1 + reg : \
 		(2 == reg##_BASE_IDX ? ip##_BASE__INST##inst##_SEG2 + reg : \
 		(3 == reg##_BASE_IDX ? ip##_BASE__INST##inst##_SEG3 + reg : \
 		(ip##_BASE__INST##inst##_SEG4 + reg))))), value)
+
+#define WREG32_SOC15_OFFSET(ip, inst, reg, offset, value) \
+	WREG32( (0 == reg##_BASE_IDX ? ip##_BASE__INST##inst##_SEG0 + reg : \
+		(1 == reg##_BASE_IDX ? ip##_BASE__INST##inst##_SEG1 + reg : \
+		(2 == reg##_BASE_IDX ? ip##_BASE__INST##inst##_SEG2 + reg : \
+		(3 == reg##_BASE_IDX ? ip##_BASE__INST##inst##_SEG3 + reg : \
+		(ip##_BASE__INST##inst##_SEG4 + reg))))) + offset, value)
 
 #endif
 

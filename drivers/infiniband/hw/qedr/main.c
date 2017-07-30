@@ -37,7 +37,7 @@
 #include <linux/iommu.h>
 #include <linux/pci.h>
 #include <net/addrconf.h>
-#include <linux/qed/qede_roce.h>
+
 #include <linux/qed/qed_chain.h>
 #include <linux/qed/qed_if.h>
 #include "qedr.h"
@@ -276,7 +276,7 @@ static int qedr_alloc_resources(struct qedr_dev *dev)
 						   QED_CHAIN_CNT_TYPE_U16,
 						   n_entries,
 						   sizeof(struct regpair *),
-						   &cnq->pbl);
+						   &cnq->pbl, NULL);
 		if (rc)
 			goto err4;
 
@@ -886,9 +886,9 @@ static void qedr_mac_address_change(struct qedr_dev *dev)
 	memcpy(&sgid->raw[8], guid, sizeof(guid));
 
 	/* Update LL2 */
-	rc = dev->ops->roce_ll2_set_mac_filter(dev->cdev,
-					       dev->gsi_ll2_mac_address,
-					       dev->ndev->dev_addr);
+	rc = dev->ops->ll2_set_mac_filter(dev->cdev,
+					  dev->gsi_ll2_mac_address,
+					  dev->ndev->dev_addr);
 
 	ether_addr_copy(dev->gsi_ll2_mac_address, dev->ndev->dev_addr);
 
@@ -902,7 +902,7 @@ static void qedr_mac_address_change(struct qedr_dev *dev)
  * initialization done before RoCE driver notifies
  * event to stack.
  */
-static void qedr_notify(struct qedr_dev *dev, enum qede_roce_event event)
+static void qedr_notify(struct qedr_dev *dev, enum qede_rdma_event event)
 {
 	switch (event) {
 	case QEDE_UP:
@@ -931,12 +931,12 @@ static struct qedr_driver qedr_drv = {
 
 static int __init qedr_init_module(void)
 {
-	return qede_roce_register_driver(&qedr_drv);
+	return qede_rdma_register_driver(&qedr_drv);
 }
 
 static void __exit qedr_exit_module(void)
 {
-	qede_roce_unregister_driver(&qedr_drv);
+	qede_rdma_unregister_driver(&qedr_drv);
 }
 
 module_init(qedr_init_module);

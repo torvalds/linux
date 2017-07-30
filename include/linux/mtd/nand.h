@@ -107,6 +107,8 @@ int nand_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
 #define NAND_STATUS_READY	0x40
 #define NAND_STATUS_WP		0x80
 
+#define NAND_DATA_IFACE_CHECK_ONLY	-1
+
 /*
  * Constants for ECC_MODES
  */
@@ -116,6 +118,7 @@ typedef enum {
 	NAND_ECC_HW,
 	NAND_ECC_HW_SYNDROME,
 	NAND_ECC_HW_OOB_FIRST,
+	NAND_ECC_ON_DIE,
 } nand_ecc_modes_t;
 
 enum nand_ecc_algo {
@@ -257,6 +260,8 @@ struct nand_chip;
 
 /* Vendor-specific feature address (Micron) */
 #define ONFI_FEATURE_ADDR_READ_RETRY	0x89
+#define ONFI_FEATURE_ON_DIE_ECC		0x90
+#define   ONFI_FEATURE_ON_DIE_ECC_EN	BIT(3)
 
 /* ONFI subfeature parameters length */
 #define ONFI_SUBFEATURE_PARAM_LEN	4
@@ -474,6 +479,44 @@ static inline void nand_hw_control_init(struct nand_hw_control *nfc)
 	nfc->active = NULL;
 	spin_lock_init(&nfc->lock);
 	init_waitqueue_head(&nfc->wq);
+}
+
+/**
+ * struct nand_ecc_step_info - ECC step information of ECC engine
+ * @stepsize: data bytes per ECC step
+ * @strengths: array of supported strengths
+ * @nstrengths: number of supported strengths
+ */
+struct nand_ecc_step_info {
+	int stepsize;
+	const int *strengths;
+	int nstrengths;
+};
+
+/**
+ * struct nand_ecc_caps - capability of ECC engine
+ * @stepinfos: array of ECC step information
+ * @nstepinfos: number of ECC step information
+ * @calc_ecc_bytes: driver's hook to calculate ECC bytes per step
+ */
+struct nand_ecc_caps {
+	const struct nand_ecc_step_info *stepinfos;
+	int nstepinfos;
+	int (*calc_ecc_bytes)(int step_size, int strength);
+};
+
+/* a shorthand to generate struct nand_ecc_caps with only one ECC stepsize */
+#define NAND_ECC_CAPS_SINGLE(__name, __calc, __step, ...)	\
+static const int __name##_strengths[] = { __VA_ARGS__ };	\
+static const struct nand_ecc_step_info __name##_stepinfo = {	\
+	.stepsize = __step,					\
+	.strengths = __name##_strengths,			\
+	.nstrengths = ARRAY_SIZE(__name##_strengths),		\
+};								\
+static const struct nand_ecc_caps __name = {			\
+	.stepinfos = &__name##_stepinfo,			\
+	.nstepinfos = 1,					\
+	.calc_ecc_bytes = __calc,				\
 }
 
 /**
@@ -785,7 +828,7 @@ struct nand_manufacturer_ops {
  *			Minimum amount of bit errors per @ecc_step_ds guaranteed
  *			to be correctable. If unknown, set to zero.
  * @ecc_step_ds:	[INTERN] ECC step required by the @ecc_strength_ds,
- *                      also from the datasheet. It is the recommended ECC step
+ *			also from the datasheet. It is the recommended ECC step
  *			size, if known; if unknown, set to zero.
  * @onfi_timing_mode_default: [INTERN] default ONFI timing mode. This field is
  *			      set to the actually used ONFI mode if the chip is
@@ -815,7 +858,10 @@ struct nand_manufacturer_ops {
  * @read_retries:	[INTERN] the number of read retry modes supported
  * @onfi_set_features:	[REPLACEABLE] set the features for ONFI nand
  * @onfi_get_features:	[REPLACEABLE] get the features for ONFI nand
- * @setup_data_interface: [OPTIONAL] setup the data interface and timing
+ * @setup_data_interface: [OPTIONAL] setup the data interface and timing. If
+ *			  chipnr is set to %NAND_DATA_IFACE_CHECK_ONLY this
+ *			  means the configuration should not be applied but
+ *			  only checked.
  * @bbt:		[INTERN] bad block table pointer
  * @bbt_td:		[REPLACEABLE] bad block table descriptor for flash
  *			lookup.
@@ -826,9 +872,6 @@ struct nand_manufacturer_ops {
  *			structure which is shared among multiple independent
  *			devices.
  * @priv:		[OPTIONAL] pointer to private chip data
- * @errstat:		[OPTIONAL] hardware specific function to perform
- *			additional error status checks (determine if errors are
- *			correctable).
  * @manufacturer:	[INTERN] Contains manufacturer information
  */
 
@@ -852,16 +895,13 @@ struct nand_chip {
 	int(*waitfunc)(struct mtd_info *mtd, struct nand_chip *this);
 	int (*erase)(struct mtd_info *mtd, int page);
 	int (*scan_bbt)(struct mtd_info *mtd);
-	int (*errstat)(struct mtd_info *mtd, struct nand_chip *this, int state,
-			int status, int page);
 	int (*onfi_set_features)(struct mtd_info *mtd, struct nand_chip *chip,
 			int feature_addr, uint8_t *subfeature_para);
 	int (*onfi_get_features)(struct mtd_info *mtd, struct nand_chip *chip,
 			int feature_addr, uint8_t *subfeature_para);
 	int (*setup_read_retry)(struct mtd_info *mtd, int retry_mode);
-	int (*setup_data_interface)(struct mtd_info *mtd,
-				    const struct nand_data_interface *conf,
-				    bool check_only);
+	int (*setup_data_interface)(struct mtd_info *mtd, int chipnr,
+				    const struct nand_data_interface *conf);
 
 
 	int chip_delay;
@@ -1244,6 +1284,15 @@ int nand_check_erased_ecc_chunk(void *data, int datalen,
 				void *extraoob, int extraooblen,
 				int threshold);
 
+int nand_check_ecc_caps(struct nand_chip *chip,
+			const struct nand_ecc_caps *caps, int oobavail);
+
+int nand_match_ecc_req(struct nand_chip *chip,
+		       const struct nand_ecc_caps *caps,  int oobavail);
+
+int nand_maximize_ecc(struct nand_chip *chip,
+		      const struct nand_ecc_caps *caps, int oobavail);
+
 /* Default write_oob implementation */
 int nand_write_oob_std(struct mtd_info *mtd, struct nand_chip *chip, int page);
 
@@ -1257,6 +1306,19 @@ int nand_read_oob_std(struct mtd_info *mtd, struct nand_chip *chip, int page);
 /* Default read_oob syndrome implementation */
 int nand_read_oob_syndrome(struct mtd_info *mtd, struct nand_chip *chip,
 			   int page);
+
+/* Stub used by drivers that do not support GET/SET FEATURES operations */
+int nand_onfi_get_set_features_notsupp(struct mtd_info *mtd,
+				       struct nand_chip *chip, int addr,
+				       u8 *subfeature_param);
+
+/* Default read_page_raw implementation */
+int nand_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
+		       uint8_t *buf, int oob_required, int page);
+
+/* Default write_page_raw implementation */
+int nand_write_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
+			const uint8_t *buf, int oob_required, int page);
 
 /* Reset and initialize a NAND device */
 int nand_reset(struct nand_chip *chip, int chipnr);

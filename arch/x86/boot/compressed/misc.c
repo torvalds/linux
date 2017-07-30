@@ -411,3 +411,8 @@ asmlinkage __visible void *extract_kernel(void *rmode, memptr heap,
 	debug_putstr("done.\nBooting the kernel.\n");
 	return output;
 }
+
+void fortify_panic(const char *name)
+{
+	error("detected buffer overflow");
+}

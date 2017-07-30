@@ -147,8 +147,9 @@ static const struct drm_encoder_funcs dw_hdmi_imx_encoder_funcs = {
 	.destroy = drm_encoder_cleanup,
 };
 
-static enum drm_mode_status imx6q_hdmi_mode_valid(struct drm_connector *con,
-						  struct drm_display_mode *mode)
+static enum drm_mode_status
+imx6q_hdmi_mode_valid(struct drm_connector *con,
+		      const struct drm_display_mode *mode)
 {
 	if (mode->clock < 13500)
 		return MODE_CLOCK_LOW;
@@ -159,8 +160,9 @@ static enum drm_mode_status imx6q_hdmi_mode_valid(struct drm_connector *con,
 	return MODE_OK;
 }
 
-static enum drm_mode_status imx6dl_hdmi_mode_valid(struct drm_connector *con,
-						   struct drm_display_mode *mode)
+static enum drm_mode_status
+imx6dl_hdmi_mode_valid(struct drm_connector *con,
+		       const struct drm_display_mode *mode)
 {
 	if (mode->clock < 13500)
 		return MODE_CLOCK_LOW;

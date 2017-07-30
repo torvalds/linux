@@ -89,7 +89,7 @@ acpi_ns_print_node_pathname(struct acpi_namespace_node *node,
 			acpi_os_printf("%s ", message);
 		}
 
-		acpi_os_printf("[%s] (Node %p)", (char *)buffer.pointer, node);
+		acpi_os_printf("%s", (char *)buffer.pointer);
 		ACPI_FREE(buffer.pointer);
 	}
 }

@@ -840,7 +840,7 @@ static int virtblk_freeze(struct virtio_device *vdev)
 	/* Make sure no work handler is accessing the device. */
 	flush_work(&vblk->config_work);
 
-	blk_mq_stop_hw_queues(vblk->disk->queue);
+	blk_mq_quiesce_queue(vblk->disk->queue);
 
 	vdev->config->del_vqs(vdev);
 	return 0;
@@ -857,7 +857,7 @@ static int virtblk_restore(struct virtio_device *vdev)
 
 	virtio_device_ready(vdev);
 
-	blk_mq_start_stopped_hw_queues(vblk->disk->queue, true);
+	blk_mq_unquiesce_queue(vblk->disk->queue);
 	return 0;
 }
 #endif

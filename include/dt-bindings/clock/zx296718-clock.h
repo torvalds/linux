@@ -157,7 +157,11 @@
 #define AUDIO_TDM_WCLK		17
 #define AUDIO_TDM_PCLK		18
 #define AUDIO_TS_PCLK		19
+#define I2S0_WCLK_MUX		20
+#define I2S1_WCLK_MUX		21
+#define I2S2_WCLK_MUX		22
+#define I2S3_WCLK_MUX		23
 
-#define AUDIO_NR_CLKS		20
+#define AUDIO_NR_CLKS		24
 
 #endif

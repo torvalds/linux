@@ -1944,6 +1944,13 @@ static void cciss_get_serial_no(ctlr_info_t *h, int logvol,
 	return;
 }
 
+static void cciss_initialize_rq(struct request *rq)
+{
+	struct scsi_request *sreq = blk_mq_rq_to_pdu(rq);
+
+	scsi_req_init(sreq);
+}
+
 /*
  * cciss_add_disk sets up the block device queue for a logical drive
  */
@@ -1956,6 +1963,7 @@ static int cciss_add_disk(ctlr_info_t *h, struct gendisk *disk,
 
 	disk->queue->cmd_size = sizeof(struct scsi_request);
 	disk->queue->request_fn = do_cciss_request;
+	disk->queue->initialize_rq_fn = cciss_initialize_rq;
 	disk->queue->queue_lock = &h->lock;
 	queue_flag_set_unlocked(QUEUE_FLAG_SCSI_PASSTHROUGH, disk->queue);
 	if (blk_init_allocated_queue(disk->queue) < 0)

@@ -7,7 +7,7 @@
  * This file contains the core interrupt handling code, for irq-chip
  * based architectures.
  *
- * Detailed information is available in Documentation/DocBook/genericirq
+ * Detailed information is available in Documentation/core-api/genericirq.rst
  */
 
 #include <linux/irq.h>
@@ -170,19 +170,9 @@ static void irq_state_clr_disabled(struct irq_desc *desc)
 	irqd_clear(&desc->irq_data, IRQD_IRQ_DISABLED);
 }
 
-static void irq_state_set_disabled(struct irq_desc *desc)
-{
-	irqd_set(&desc->irq_data, IRQD_IRQ_DISABLED);
-}
-
 static void irq_state_clr_masked(struct irq_desc *desc)
 {
 	irqd_clear(&desc->irq_data, IRQD_IRQ_MASKED);
-}
-
-static void irq_state_set_masked(struct irq_desc *desc)
-{
-	irqd_set(&desc->irq_data, IRQD_IRQ_MASKED);
 }
 
 static void irq_state_clr_started(struct irq_desc *desc)
@@ -234,7 +224,7 @@ __irq_startup_managed(struct irq_desc *desc, struct cpumask *aff, bool force)
 	return IRQ_STARTUP_MANAGED;
 }
 #else
-static int
+static __always_inline int
 __irq_startup_managed(struct irq_desc *desc, struct cpumask *aff, bool force)
 {
 	return IRQ_STARTUP_NORMAL;

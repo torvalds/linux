@@ -40,7 +40,6 @@ static int timeout_base_ns[] = {
 static int timeout_us;
 static bool nobau = true;
 static int nobau_perm;
-static cycles_t congested_cycles;
 
 /* tunables: */
 static int max_concurr		= MAX_BAU_CONCURRENT;
@@ -588,31 +587,11 @@ static unsigned long uv2_3_read_status(unsigned long offset, int rshft, int desc
 }
 
 /*
- * Return whether the status of the descriptor that is normally used for this
- * cpu (the one indexed by its hub-relative cpu number) is busy.
- * The status of the original 32 descriptors is always reflected in the 64
- * bits of UVH_LB_BAU_SB_ACTIVATION_STATUS_0.
- * The bit provided by the activation_status_2 register is irrelevant to
- * the status if it is only being tested for busy or not busy.
- */
-int normal_busy(struct bau_control *bcp)
-{
-	int cpu = bcp->uvhub_cpu;
-	int mmr_offset;
-	int right_shift;
-
-	mmr_offset = UVH_LB_BAU_SB_ACTIVATION_STATUS_0;
-	right_shift = cpu * UV_ACT_STATUS_SIZE;
-	return (((((read_lmmr(mmr_offset) >> right_shift) &
-				UV_ACT_STATUS_MASK)) << 1) == UV2H_DESC_BUSY);
-}
-
-/*
  * Entered when a bau descriptor has gone into a permanent busy wait because
  * of a hardware bug.
  * Workaround the bug.
  */
-int handle_uv2_busy(struct bau_control *bcp)
+static int handle_uv2_busy(struct bau_control *bcp)
 {
 	struct ptc_stats *stat = bcp->statp;
 
@@ -849,10 +828,10 @@ static void record_send_stats(cycles_t time1, cycles_t time2,
 		if ((completion_status == FLUSH_COMPLETE) && (try == 1)) {
 			bcp->period_requests++;
 			bcp->period_time += elapsed;
-			if ((elapsed > congested_cycles) &&
+			if ((elapsed > usec_2_cycles(bcp->cong_response_us)) &&
 			    (bcp->period_requests > bcp->cong_reps) &&
 			    ((bcp->period_time / bcp->period_requests) >
-							congested_cycles)) {
+					usec_2_cycles(bcp->cong_response_us))) {
 				stat->s_congested++;
 				disable_for_period(bcp, stat);
 			}
@@ -917,8 +896,9 @@ static void handle_cmplt(int completion_status, struct bau_desc *bau_desc,
  * Returns 1 if it gives up entirely and the original cpu mask is to be
  * returned to the kernel.
  */
-int uv_flush_send_and_wait(struct cpumask *flush_mask, struct bau_control *bcp,
-	struct bau_desc *bau_desc)
+static int uv_flush_send_and_wait(struct cpumask *flush_mask,
+				  struct bau_control *bcp,
+				  struct bau_desc *bau_desc)
 {
 	int seq_number = 0;
 	int completion_stat = 0;
@@ -1212,8 +1192,8 @@ const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,
  * Search the message queue for any 'other' unprocessed message with the
  * same software acknowledge resource bit vector as the 'msg' message.
  */
-struct bau_pq_entry *find_another_by_swack(struct bau_pq_entry *msg,
-					   struct bau_control *bcp)
+static struct bau_pq_entry *find_another_by_swack(struct bau_pq_entry *msg,
+						  struct bau_control *bcp)
 {
 	struct bau_pq_entry *msg_next = msg + 1;
 	unsigned char swack_vec = msg->swack_vec;
@@ -2241,13 +2221,16 @@ static int __init uv_bau_init(void)
 	else if (is_uv1_hub())
 		ops = uv1_bau_ops;
 
+	nuvhubs = uv_num_possible_blades();
+	if (nuvhubs < 2) {
+		pr_crit("UV: BAU disabled - insufficient hub count\n");
+		goto err_bau_disable;
+	}
+
 	for_each_possible_cpu(cur_cpu) {
 		mask = &per_cpu(uv_flush_tlb_mask, cur_cpu);
 		zalloc_cpumask_var_node(mask, GFP_KERNEL, cpu_to_node(cur_cpu));
 	}
-
-	nuvhubs = uv_num_possible_blades();
-	congested_cycles = usec_2_cycles(congested_respns_us);
 
 	uv_base_pnode = 0x7fffffff;
 	for (uvhub = 0; uvhub < nuvhubs; uvhub++) {
@@ -2261,9 +2244,8 @@ static int __init uv_bau_init(void)
 		enable_timeouts();
 
 	if (init_per_cpu(nuvhubs, uv_base_pnode)) {
-		set_bau_off();
-		nobau_perm = 1;
-		return 0;
+		pr_crit("UV: BAU disabled - per CPU init failed\n");
+		goto err_bau_disable;
 	}
 
 	vector = UV_BAU_MESSAGE;
@@ -2289,6 +2271,16 @@ static int __init uv_bau_init(void)
 	}
 
 	return 0;
+
+err_bau_disable:
+
+	for_each_possible_cpu(cur_cpu)
+		free_cpumask_var(per_cpu(uv_flush_tlb_mask, cur_cpu));
+
+	set_bau_off();
+	nobau_perm = 1;
+
+	return -EINVAL;
 }
 core_initcall(uv_bau_init);
 fs_initcall(uv_ptc_init);

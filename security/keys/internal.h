@@ -198,7 +198,7 @@ struct request_key_auth {
 	void			*callout_info;
 	size_t			callout_len;
 	pid_t			pid;
-};
+} __randomize_layout;
 
 extern struct key_type key_type_request_key_auth;
 extern struct key *request_key_auth_new(struct key *target,

@@ -14,23 +14,28 @@
 #define	flat_argvp_envp_on_stack()		0
 #define	flat_old_ram_flag(flags)		(flags)
 
-extern unsigned long bfin_get_addr_from_rp (unsigned long *ptr,
-					unsigned long relval,
-					unsigned long flags,
-					unsigned long *persistent);
+extern unsigned long bfin_get_addr_from_rp (u32 *ptr, u32 relval,
+					u32 flags, u32 *persistent);
 
-extern void bfin_put_addr_at_rp(unsigned long *ptr, unsigned long addr,
-		                unsigned long relval);
+extern void bfin_put_addr_at_rp(u32 *ptr, u32 addr, u32 relval);
 
 /* The amount by which a relocation can exceed the program image limits
    without being regarded as an error.  */
 
 #define	flat_reloc_valid(reloc, size)	((reloc) <= (size))
 
-#define	flat_get_addr_from_rp(rp, relval, flags, persistent)	\
-	bfin_get_addr_from_rp(rp, relval, flags, persistent)
-#define	flat_put_addr_at_rp(rp, val, relval)	\
-	bfin_put_addr_at_rp(rp, val, relval)
+static inline int flat_get_addr_from_rp(u32 __user *rp, u32 relval, u32 flags,
+					u32 *addr, u32 *persistent)
+{
+	*addr = bfin_get_addr_from_rp(rp, relval, flags, persistent);
+	return 0;
+}
+
+static inline int flat_put_addr_at_rp(u32 __user *rp, u32 val, u32 relval)
+{
+	bfin_put_addr_at_rp(rp, val, relval);
+	return 0;
+}
 
 /* Convert a relocation entry into an address.  */
 static inline unsigned long
@@ -39,8 +44,7 @@ flat_get_relocate_addr (unsigned long relval)
 	return relval & 0x03ffffff; /* Mask out top 6 bits */
 }
 
-static inline int flat_set_persistent(unsigned long relval,
-				      unsigned long *persistent)
+static inline int flat_set_persistent(u32 relval, u32 *persistent)
 {
 	int type = (relval >> 26) & 7;
 	if (type == 3) {

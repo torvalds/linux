@@ -180,7 +180,8 @@ pte_t *huge_pte_alloc(struct mm_struct *mm,
 	return (pte_t *) pmdp;
 }
 
-pte_t *huge_pte_offset(struct mm_struct *mm, unsigned long addr)
+pte_t *huge_pte_offset(struct mm_struct *mm,
+		       unsigned long addr, unsigned long sz)
 {
 	pgd_t *pgdp;
 	p4d_t *p4dp;

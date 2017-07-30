@@ -246,7 +246,7 @@ static int st33zp24_spi_acpi_request_resources(struct spi_device *spi_dev)
 	struct device *dev = &spi_dev->dev;
 	int ret;
 
-	ret = acpi_dev_add_driver_gpios(ACPI_COMPANION(dev), acpi_st33zp24_gpios);
+	ret = devm_acpi_dev_add_driver_gpios(dev, acpi_st33zp24_gpios);
 	if (ret)
 		return ret;
 
@@ -402,7 +402,6 @@ static int st33zp24_spi_remove(struct spi_device *dev)
 	if (ret)
 		return ret;
 
-	acpi_dev_remove_driver_gpios(ACPI_COMPANION(&dev->dev));
 	return 0;
 }
 

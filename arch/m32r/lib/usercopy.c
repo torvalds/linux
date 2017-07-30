@@ -89,14 +89,6 @@ do {									\
 #endif /* CONFIG_ISA_DUAL_ISSUE */
 
 long
-__strncpy_from_user(char *dst, const char __user *src, long count)
-{
-	long res;
-	__do_strncpy_from_user(dst, src, count, res);
-	return res;
-}
-
-long
 strncpy_from_user(char *dst, const char __user *src, long count)
 {
 	long res = -EFAULT;

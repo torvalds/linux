@@ -210,7 +210,6 @@ static int msg_bind(struct usb_composite_dev *cdev)
 	usb_composite_overwrite_options(cdev, &coverwrite);
 	dev_info(&cdev->gadget->dev,
 		 DRIVER_DESC ", version: " DRIVER_VERSION "\n");
-	set_bit(0, &msg_registered);
 	return 0;
 
 fail_otg_desc:
@@ -257,7 +256,12 @@ MODULE_LICENSE("GPL");
 
 static int __init msg_init(void)
 {
-	return usb_composite_probe(&msg_driver);
+	int ret;
+
+	ret = usb_composite_probe(&msg_driver);
+	set_bit(0, &msg_registered);
+
+	return ret;
 }
 module_init(msg_init);
 

@@ -552,7 +552,7 @@ static int armv6mpcore_pmu_init(struct arm_pmu *cpu_pmu)
 	return 0;
 }
 
-static struct of_device_id armv6_pmu_of_device_ids[] = {
+static const struct of_device_id armv6_pmu_of_device_ids[] = {
 	{.compatible = "arm,arm11mpcore-pmu",	.data = armv6mpcore_pmu_init},
 	{.compatible = "arm,arm1176-pmu",	.data = armv6_1176_pmu_init},
 	{.compatible = "arm,arm1136-pmu",	.data = armv6_1136_pmu_init},

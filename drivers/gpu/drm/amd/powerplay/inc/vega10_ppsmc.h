@@ -124,7 +124,8 @@ typedef uint16_t PPSMC_Result;
 #define PPSMC_MSG_NumOfDisplays                  0x56
 #define PPSMC_MSG_ReadSerialNumTop32             0x58
 #define PPSMC_MSG_ReadSerialNumBottom32          0x59
-#define PPSMC_Message_Count                      0x5A
+#define PPSMC_MSG_GetCurrPkgPwr                  0x61
+#define PPSMC_Message_Count                      0x62
 
 
 typedef int PPSMC_Msg;

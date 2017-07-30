@@ -11,12 +11,74 @@
  *
  */
 
+#include <linux/types.h>
+#include <linux/cpumask.h>
+#include <linux/qcom_scm.h>
+#include <linux/dma-mapping.h>
+#include <linux/of_reserved_mem.h>
+#include <linux/soc/qcom/mdt_loader.h>
 #include "msm_gem.h"
 #include "msm_mmu.h"
 #include "a5xx_gpu.h"
 
 extern bool hang_debug;
 static void a5xx_dump(struct msm_gpu *gpu);
+
+#define GPU_PAS_ID 13
+
+#if IS_ENABLED(CONFIG_QCOM_MDT_LOADER)
+
+static int zap_shader_load_mdt(struct device *dev, const char *fwname)
+{
+	const struct firmware *fw;
+	phys_addr_t mem_phys;
+	ssize_t mem_size;
+	void *mem_region = NULL;
+	int ret;
+
+	/* Request the MDT file for the firmware */
+	ret = request_firmware(&fw, fwname, dev);
+	if (ret) {
+		DRM_DEV_ERROR(dev, "Unable to load %s\n", fwname);
+		return ret;
+	}
+
+	/* Figure out how much memory we need */
+	mem_size = qcom_mdt_get_size(fw);
+	if (mem_size < 0) {
+		ret = mem_size;
+		goto out;
+	}
+
+	/* Allocate memory for the firmware image */
+	mem_region = dmam_alloc_coherent(dev, mem_size, &mem_phys, GFP_KERNEL);
+	if (!mem_region) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	/* Load the rest of the MDT */
+	ret = qcom_mdt_load(dev, fw, fwname, GPU_PAS_ID, mem_region, mem_phys,
+		mem_size);
+	if (ret)
+		goto out;
+
+	/* Send the image to the secure world */
+	ret = qcom_scm_pas_auth_and_reset(GPU_PAS_ID);
+	if (ret)
+		DRM_DEV_ERROR(dev, "Unable to authorize the image\n");
+
+out:
+	release_firmware(fw);
+
+	return ret;
+}
+#else
+static int zap_shader_load_mdt(struct device *dev, const char *fwname)
+{
+	return -ENODEV;
+}
+#endif
 
 static void a5xx_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 	struct msm_file_private *ctx)
@@ -225,7 +287,7 @@ static int a5xx_me_init(struct msm_gpu *gpu)
 
 	gpu->funcs->flush(gpu);
 
-	return gpu->funcs->idle(gpu) ? 0 : -EINVAL;
+	return a5xx_idle(gpu) ? 0 : -EINVAL;
 }
 
 static struct drm_gem_object *a5xx_ucode_load_bo(struct msm_gpu *gpu,
@@ -235,24 +297,21 @@ static struct drm_gem_object *a5xx_ucode_load_bo(struct msm_gpu *gpu,
 	struct drm_gem_object *bo;
 	void *ptr;
 
-	mutex_lock(&drm->struct_mutex);
-	bo = msm_gem_new(drm, fw->size - 4, MSM_BO_UNCACHED);
-	mutex_unlock(&drm->struct_mutex);
-
+	bo = msm_gem_new_locked(drm, fw->size - 4, MSM_BO_UNCACHED);
 	if (IS_ERR(bo))
 		return bo;
 
 	ptr = msm_gem_get_vaddr(bo);
 	if (!ptr) {
-		drm_gem_object_unreference_unlocked(bo);
+		drm_gem_object_unreference(bo);
 		return ERR_PTR(-ENOMEM);
 	}
 
 	if (iova) {
-		int ret = msm_gem_get_iova(bo, gpu->id, iova);
+		int ret = msm_gem_get_iova(bo, gpu->aspace, iova);
 
 		if (ret) {
-			drm_gem_object_unreference_unlocked(bo);
+			drm_gem_object_unreference(bo);
 			return ERR_PTR(ret);
 		}
 	}
@@ -302,6 +361,98 @@ static int a5xx_ucode_init(struct msm_gpu *gpu)
 		REG_A5XX_CP_PFP_INSTR_BASE_HI, a5xx_gpu->pfp_iova);
 
 	return 0;
+}
+
+#define SCM_GPU_ZAP_SHADER_RESUME 0
+
+static int a5xx_zap_shader_resume(struct msm_gpu *gpu)
+{
+	int ret;
+
+	ret = qcom_scm_set_remote_state(SCM_GPU_ZAP_SHADER_RESUME, GPU_PAS_ID);
+	if (ret)
+		DRM_ERROR("%s: zap-shader resume failed: %d\n",
+			gpu->name, ret);
+
+	return ret;
+}
+
+/* Set up a child device to "own" the zap shader */
+static int a5xx_zap_shader_dev_init(struct device *parent, struct device *dev)
+{
+	struct device_node *node;
+	int ret;
+
+	if (dev->parent)
+		return 0;
+
+	/* Find the sub-node for the zap shader */
+	node = of_get_child_by_name(parent->of_node, "zap-shader");
+	if (!node) {
+		DRM_DEV_ERROR(parent, "zap-shader not found in device tree\n");
+		return -ENODEV;
+	}
+
+	dev->parent = parent;
+	dev->of_node = node;
+	dev_set_name(dev, "adreno_zap_shader");
+
+	ret = device_register(dev);
+	if (ret) {
+		DRM_DEV_ERROR(parent, "Couldn't register zap shader device\n");
+		goto out;
+	}
+
+	ret = of_reserved_mem_device_init(dev);
+	if (ret) {
+		DRM_DEV_ERROR(parent, "Unable to set up the reserved memory\n");
+		device_unregister(dev);
+	}
+
+out:
+	if (ret)
+		dev->parent = NULL;
+
+	return ret;
+}
+
+static int a5xx_zap_shader_init(struct msm_gpu *gpu)
+{
+	static bool loaded;
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
+	struct platform_device *pdev = a5xx_gpu->pdev;
+	int ret;
+
+	/*
+	 * If the zap shader is already loaded into memory we just need to kick
+	 * the remote processor to reinitialize it
+	 */
+	if (loaded)
+		return a5xx_zap_shader_resume(gpu);
+
+	/* We need SCM to be able to load the firmware */
+	if (!qcom_scm_is_available()) {
+		DRM_DEV_ERROR(&pdev->dev, "SCM is not available\n");
+		return -EPROBE_DEFER;
+	}
+
+	/* Each GPU has a target specific zap shader firmware name to use */
+	if (!adreno_gpu->info->zapfw) {
+		DRM_DEV_ERROR(&pdev->dev,
+			"Zap shader firmware file not specified for this target\n");
+		return -ENODEV;
+	}
+
+	ret = a5xx_zap_shader_dev_init(&pdev->dev, &a5xx_gpu->zap_dev);
+
+	if (!ret)
+		ret = zap_shader_load_mdt(&a5xx_gpu->zap_dev,
+			adreno_gpu->info->zapfw);
+
+	loaded = !ret;
+
+	return ret;
 }
 
 #define A5XX_INT_MASK (A5XX_RBBM_INT_0_MASK_RBBM_AHB_ERROR | \
@@ -484,12 +635,31 @@ static int a5xx_hw_init(struct msm_gpu *gpu)
 		OUT_RING(gpu->rb, 0x0F);
 
 		gpu->funcs->flush(gpu);
-		if (!gpu->funcs->idle(gpu))
+		if (!a5xx_idle(gpu))
 			return -EINVAL;
 	}
 
-	/* Put the GPU into unsecure mode */
-	gpu_write(gpu, REG_A5XX_RBBM_SECVID_TRUST_CNTL, 0x0);
+	/*
+	 * Try to load a zap shader into the secure world. If successful
+	 * we can use the CP to switch out of secure mode. If not then we
+	 * have no resource but to try to switch ourselves out manually. If we
+	 * guessed wrong then access to the RBBM_SECVID_TRUST_CNTL register will
+	 * be blocked and a permissions violation will soon follow.
+	 */
+	ret = a5xx_zap_shader_init(gpu);
+	if (!ret) {
+		OUT_PKT7(gpu->rb, CP_SET_SECURE_MODE, 1);
+		OUT_RING(gpu->rb, 0x00000000);
+
+		gpu->funcs->flush(gpu);
+		if (!a5xx_idle(gpu))
+			return -EINVAL;
+	} else {
+		/* Print a warning so if we die, we know why */
+		dev_warn_once(gpu->dev->dev,
+			"Zap shader not enabled - using SECVID_TRUST_CNTL instead\n");
+		gpu_write(gpu, REG_A5XX_RBBM_SECVID_TRUST_CNTL, 0x0);
+	}
 
 	return 0;
 }
@@ -521,21 +691,24 @@ static void a5xx_destroy(struct msm_gpu *gpu)
 
 	DBG("%s", gpu->name);
 
+	if (a5xx_gpu->zap_dev.parent)
+		device_unregister(&a5xx_gpu->zap_dev);
+
 	if (a5xx_gpu->pm4_bo) {
 		if (a5xx_gpu->pm4_iova)
-			msm_gem_put_iova(a5xx_gpu->pm4_bo, gpu->id);
+			msm_gem_put_iova(a5xx_gpu->pm4_bo, gpu->aspace);
 		drm_gem_object_unreference_unlocked(a5xx_gpu->pm4_bo);
 	}
 
 	if (a5xx_gpu->pfp_bo) {
 		if (a5xx_gpu->pfp_iova)
-			msm_gem_put_iova(a5xx_gpu->pfp_bo, gpu->id);
+			msm_gem_put_iova(a5xx_gpu->pfp_bo, gpu->aspace);
 		drm_gem_object_unreference_unlocked(a5xx_gpu->pfp_bo);
 	}
 
 	if (a5xx_gpu->gpmu_bo) {
 		if (a5xx_gpu->gpmu_iova)
-			msm_gem_put_iova(a5xx_gpu->gpmu_bo, gpu->id);
+			msm_gem_put_iova(a5xx_gpu->gpmu_bo, gpu->aspace);
 		drm_gem_object_unreference_unlocked(a5xx_gpu->gpmu_bo);
 	}
 
@@ -556,7 +729,7 @@ static inline bool _a5xx_check_idle(struct msm_gpu *gpu)
 		A5XX_RBBM_INT_0_MASK_MISC_HANG_DETECT);
 }
 
-static bool a5xx_idle(struct msm_gpu *gpu)
+bool a5xx_idle(struct msm_gpu *gpu)
 {
 	/* wait for CP to drain ringbuffer: */
 	if (!adreno_idle(gpu))
@@ -861,7 +1034,6 @@ static const struct adreno_gpu_funcs funcs = {
 		.last_fence = adreno_last_fence,
 		.submit = a5xx_submit,
 		.flush = adreno_flush,
-		.idle = a5xx_idle,
 		.irq = a5xx_irq,
 		.destroy = a5xx_destroy,
 #ifdef CONFIG_DEBUG_FS

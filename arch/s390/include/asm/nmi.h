@@ -26,6 +26,12 @@
 #define MCCK_CODE_PSW_MWP_VALID		_BITUL(63 - 20)
 #define MCCK_CODE_PSW_IA_VALID		_BITUL(63 - 23)
 
+#define MCCK_CR14_CR_PENDING_SUB_MASK	(1 << 28)
+#define MCCK_CR14_RECOVERY_SUB_MASK	(1 << 27)
+#define MCCK_CR14_DEGRAD_SUB_MASK	(1 << 26)
+#define MCCK_CR14_EXT_DAMAGE_SUB_MASK	(1 << 25)
+#define MCCK_CR14_WARN_SUB_MASK		(1 << 24)
+
 #ifndef __ASSEMBLY__
 
 union mci {

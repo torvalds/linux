@@ -739,23 +739,22 @@ static int do_i2c_smbus_ioctl(struct file *file,
 		unsigned int cmd, struct i2c_smbus_ioctl_data32   __user *udata)
 {
 	struct i2c_smbus_ioctl_data	__user *tdata;
-	compat_caddr_t			datap;
+	union {
+		/* beginnings of those have identical layouts */
+		struct i2c_smbus_ioctl_data32	data32;
+		struct i2c_smbus_ioctl_data	data;
+	} v;
 
 	tdata = compat_alloc_user_space(sizeof(*tdata));
 	if (tdata == NULL)
 		return -ENOMEM;
-	if (!access_ok(VERIFY_WRITE, tdata, sizeof(*tdata)))
-		return -EFAULT;
 
-	if (!access_ok(VERIFY_READ, udata, sizeof(*udata)))
+	memset(&v, 0, sizeof(v));
+	if (copy_from_user(&v.data32, udata, sizeof(v.data32)))
 		return -EFAULT;
+	v.data.data = compat_ptr(v.data32.data);
 
-	if (__copy_in_user(&tdata->read_write, &udata->read_write, 2 * sizeof(u8)))
-		return -EFAULT;
-	if (__copy_in_user(&tdata->size, &udata->size, 2 * sizeof(u32)))
-		return -EFAULT;
-	if (__get_user(datap, &udata->data) ||
-	    __put_user(compat_ptr(datap), &tdata->data))
+	if (copy_to_user(tdata, &v.data, sizeof(v.data)))
 		return -EFAULT;
 
 	return do_ioctl(file, cmd, (unsigned long)tdata);
@@ -866,8 +865,6 @@ COMPATIBLE_IOCTL(TIOCGDEV)
 COMPATIBLE_IOCTL(TIOCCBRK)
 COMPATIBLE_IOCTL(TIOCGSID)
 COMPATIBLE_IOCTL(TIOCGICOUNT)
-COMPATIBLE_IOCTL(TIOCGPKT)
-COMPATIBLE_IOCTL(TIOCGPTLCK)
 COMPATIBLE_IOCTL(TIOCGEXCL)
 /* Little t */
 COMPATIBLE_IOCTL(TIOCGETD)
@@ -883,16 +880,12 @@ COMPATIBLE_IOCTL(TIOCMGET)
 COMPATIBLE_IOCTL(TIOCMBIC)
 COMPATIBLE_IOCTL(TIOCMBIS)
 COMPATIBLE_IOCTL(TIOCMSET)
-COMPATIBLE_IOCTL(TIOCPKT)
 COMPATIBLE_IOCTL(TIOCNOTTY)
 COMPATIBLE_IOCTL(TIOCSTI)
 COMPATIBLE_IOCTL(TIOCOUTQ)
 COMPATIBLE_IOCTL(TIOCSPGRP)
 COMPATIBLE_IOCTL(TIOCGPGRP)
-COMPATIBLE_IOCTL(TIOCGPTN)
-COMPATIBLE_IOCTL(TIOCSPTLCK)
 COMPATIBLE_IOCTL(TIOCSERGETLSR)
-COMPATIBLE_IOCTL(TIOCSIG)
 #ifdef TIOCSRS485
 COMPATIBLE_IOCTL(TIOCSRS485)
 #endif

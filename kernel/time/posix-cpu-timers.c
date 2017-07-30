@@ -1318,12 +1318,8 @@ static int do_cpu_nanosleep(const clockid_t which_clock, int flags,
 		 */
 		restart = &current->restart_block;
 		restart->nanosleep.expires = expires;
-		if (restart->nanosleep.type != TT_NONE) {
-			struct timespec ts;
-
-			ts = timespec64_to_timespec(it.it_value);
-			error = nanosleep_copyout(restart, &ts);
-		}
+		if (restart->nanosleep.type != TT_NONE)
+			error = nanosleep_copyout(restart, &it.it_value);
 	}
 
 	return error;

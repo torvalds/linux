@@ -1741,7 +1741,8 @@ static u8 hal_EfusePgPacketWrite2ByteHeader(
 
 	efuse_addr = *pAddr;
 	if (efuse_addr >= efuse_max_available_len) {
-		DBG_8192C("%s: addr(%d) over avaliable(%d)!!\n", __func__, efuse_addr, efuse_max_available_len);
+		DBG_8192C("%s: addr(%d) over available (%d)!!\n", __func__,
+			  efuse_addr, efuse_max_available_len);
 		return false;
 	}
 

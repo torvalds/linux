@@ -823,7 +823,7 @@ static int create_user_qp(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 
 	*inlen = MLX5_ST_SZ_BYTES(create_qp_in) +
 		 MLX5_FLD_SZ_BYTES(create_qp_in, pas[0]) * ncont;
-	*in = mlx5_vzalloc(*inlen);
+	*in = kvzalloc(*inlen, GFP_KERNEL);
 	if (!*in) {
 		err = -ENOMEM;
 		goto err_umem;
@@ -931,7 +931,7 @@ static int create_kernel_qp(struct mlx5_ib_dev *dev,
 	qp->sq.qend = mlx5_get_send_wqe(qp, qp->sq.wqe_cnt);
 	*inlen = MLX5_ST_SZ_BYTES(create_qp_in) +
 		 MLX5_FLD_SZ_BYTES(create_qp_in, pas[0]) * qp->buf.npages;
-	*in = mlx5_vzalloc(*inlen);
+	*in = kvzalloc(*inlen, GFP_KERNEL);
 	if (!*in) {
 		err = -ENOMEM;
 		goto err_buf;
@@ -1060,7 +1060,7 @@ static int create_raw_packet_qp_sq(struct mlx5_ib_dev *dev,
 		return err;
 
 	inlen = MLX5_ST_SZ_BYTES(create_sq_in) + sizeof(u64) * ncont;
-	in = mlx5_vzalloc(inlen);
+	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in) {
 		err = -ENOMEM;
 		goto err_umem;
@@ -1140,7 +1140,7 @@ static int create_raw_packet_qp_rq(struct mlx5_ib_dev *dev,
 	u32 rq_pas_size = get_rq_pas_size(qpc);
 
 	inlen = MLX5_ST_SZ_BYTES(create_rq_in) + rq_pas_size;
-	in = mlx5_vzalloc(inlen);
+	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
 		return -ENOMEM;
 
@@ -1193,7 +1193,7 @@ static int create_raw_packet_qp_tir(struct mlx5_ib_dev *dev,
 	int err;
 
 	inlen = MLX5_ST_SZ_BYTES(create_tir_in);
-	in = mlx5_vzalloc(inlen);
+	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
 		return -ENOMEM;
 
@@ -1372,7 +1372,7 @@ static int create_rss_raw_qp_tir(struct mlx5_ib_dev *dev, struct mlx5_ib_qp *qp,
 	}
 
 	inlen = MLX5_ST_SZ_BYTES(create_tir_in);
-	in = mlx5_vzalloc(inlen);
+	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
 		return -ENOMEM;
 
@@ -1633,7 +1633,7 @@ static int create_qp_common(struct mlx5_ib_dev *dev, struct ib_pd *pd,
 		if (err)
 			return err;
 	} else {
-		in = mlx5_vzalloc(inlen);
+		in = kvzalloc(inlen, GFP_KERNEL);
 		if (!in)
 			return -ENOMEM;
 
@@ -2164,7 +2164,7 @@ static int modify_raw_packet_eth_prio(struct mlx5_core_dev *dev,
 	int err;
 
 	inlen = MLX5_ST_SZ_BYTES(modify_tis_in);
-	in = mlx5_vzalloc(inlen);
+	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
 		return -ENOMEM;
 
@@ -2189,7 +2189,7 @@ static int modify_raw_packet_tx_affinity(struct mlx5_core_dev *dev,
 	int err;
 
 	inlen = MLX5_ST_SZ_BYTES(modify_tis_in);
-	in = mlx5_vzalloc(inlen);
+	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
 		return -ENOMEM;
 
@@ -2434,7 +2434,7 @@ static int modify_raw_packet_qp_rq(struct mlx5_ib_dev *dev,
 	int err;
 
 	inlen = MLX5_ST_SZ_BYTES(modify_rq_in);
-	in = mlx5_vzalloc(inlen);
+	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
 		return -ENOMEM;
 
@@ -2479,7 +2479,7 @@ static int modify_raw_packet_qp_sq(struct mlx5_core_dev *dev,
 	int err;
 
 	inlen = MLX5_ST_SZ_BYTES(modify_sq_in);
-	in = mlx5_vzalloc(inlen);
+	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
 		return -ENOMEM;
 
@@ -4281,7 +4281,7 @@ static int query_raw_packet_qp_sq_state(struct mlx5_ib_dev *dev,
 	int err;
 
 	inlen = MLX5_ST_SZ_BYTES(query_sq_out);
-	out = mlx5_vzalloc(inlen);
+	out = kvzalloc(inlen, GFP_KERNEL);
 	if (!out)
 		return -ENOMEM;
 
@@ -4308,7 +4308,7 @@ static int query_raw_packet_qp_rq_state(struct mlx5_ib_dev *dev,
 	int err;
 
 	inlen = MLX5_ST_SZ_BYTES(query_rq_out);
-	out = mlx5_vzalloc(inlen);
+	out = kvzalloc(inlen, GFP_KERNEL);
 	if (!out)
 		return -ENOMEM;
 
@@ -4612,7 +4612,7 @@ static int  create_rq(struct mlx5_ib_rwq *rwq, struct ib_pd *pd,
 	dev = to_mdev(pd->device);
 
 	inlen = MLX5_ST_SZ_BYTES(create_rq_in) + sizeof(u64) * rwq->rq_num_pas;
-	in = mlx5_vzalloc(inlen);
+	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
 		return -ENOMEM;
 
@@ -4842,7 +4842,7 @@ struct ib_rwq_ind_table *mlx5_ib_create_rwq_ind_table(struct ib_device *device,
 		return ERR_PTR(-ENOMEM);
 
 	inlen = MLX5_ST_SZ_BYTES(create_rqt_in) + sizeof(u32) * sz;
-	in = mlx5_vzalloc(inlen);
+	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in) {
 		err = -ENOMEM;
 		goto err;
@@ -4921,7 +4921,7 @@ int mlx5_ib_modify_wq(struct ib_wq *wq, struct ib_wq_attr *wq_attr,
 		return -EOPNOTSUPP;
 
 	inlen = MLX5_ST_SZ_BYTES(modify_rq_in);
-	in = mlx5_vzalloc(inlen);
+	in = kvzalloc(inlen, GFP_KERNEL);
 	if (!in)
 		return -ENOMEM;
 

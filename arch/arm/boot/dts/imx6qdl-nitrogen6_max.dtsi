@@ -408,7 +408,7 @@
 	};
 
 	rtc: rtc@68 {
-		compatible = "st,rv4162";
+		compatible = "microcrystal,rv4162";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_rv4162>;
 		reg = <0x68>;

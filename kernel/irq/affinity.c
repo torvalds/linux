@@ -110,6 +110,13 @@ irq_create_affinity_masks(int nvecs, const struct irq_affinity *affd)
 	struct cpumask *masks;
 	cpumask_var_t nmsk, *node_to_present_cpumask;
 
+	/*
+	 * If there aren't any vectors left after applying the pre/post
+	 * vectors don't bother with assigning affinity.
+	 */
+	if (!affv)
+		return NULL;
+
 	if (!zalloc_cpumask_var(&nmsk, GFP_KERNEL))
 		return NULL;
 
@@ -192,14 +199,18 @@ out:
 
 /**
  * irq_calc_affinity_vectors - Calculate the optimal number of vectors
+ * @minvec:	The minimum number of vectors available
  * @maxvec:	The maximum number of vectors available
  * @affd:	Description of the affinity requirements
  */
-int irq_calc_affinity_vectors(int maxvec, const struct irq_affinity *affd)
+int irq_calc_affinity_vectors(int minvec, int maxvec, const struct irq_affinity *affd)
 {
 	int resv = affd->pre_vectors + affd->post_vectors;
 	int vecs = maxvec - resv;
 	int ret;
+
+	if (resv > minvec)
+		return 0;
 
 	get_online_cpus();
 	ret = min_t(int, cpumask_weight(cpu_present_mask), vecs) + resv;

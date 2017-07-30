@@ -1091,7 +1091,7 @@ static void phy_iq_calibrate(struct adapter *adapt, s32 result[][8],
 		}
 	}
 
-	if (0x00 == path_a_ok) {
+	if (path_a_ok == 0x00) {
 		ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,
 			     ("Path A IQK failed!!\n"));
 	}
@@ -1122,7 +1122,7 @@ static void phy_iq_calibrate(struct adapter *adapt, s32 result[][8],
 			}
 		}
 
-		if (0x00 == path_b_ok) {
+		if (path_b_ok == 0x00) {
 			ODM_RT_TRACE(dm_odm, ODM_COMP_CALIBRATION, ODM_DBG_LOUD,
 				     ("Path B IQK failed!!\n"));
 		}

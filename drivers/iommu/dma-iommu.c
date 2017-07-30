@@ -31,6 +31,8 @@
 #include <linux/scatterlist.h>
 #include <linux/vmalloc.h>
 
+#define IOMMU_MAPPING_ERROR	0
+
 struct iommu_dma_msi_page {
 	struct list_head	list;
 	dma_addr_t		iova;
@@ -314,7 +316,7 @@ int iommu_dma_init_domain(struct iommu_domain *domain, dma_addr_t base,
 		 * If we have devices with different DMA masks, move the free
 		 * area cache limit down for the benefit of the smaller one.
 		 */
-		iovad->dma_32bit_pfn = min(end_pfn, iovad->dma_32bit_pfn);
+		iovad->dma_32bit_pfn = min(end_pfn + 1, iovad->dma_32bit_pfn);
 
 		return 0;
 	}
@@ -500,7 +502,7 @@ void iommu_dma_free(struct device *dev, struct page **pages, size_t size,
 {
 	__iommu_dma_unmap(iommu_get_domain_for_dev(dev), *handle, size);
 	__iommu_dma_free_pages(pages, PAGE_ALIGN(size) >> PAGE_SHIFT);
-	*handle = DMA_ERROR_CODE;
+	*handle = IOMMU_MAPPING_ERROR;
 }
 
 /**
@@ -533,7 +535,7 @@ struct page **iommu_dma_alloc(struct device *dev, size_t size, gfp_t gfp,
 	dma_addr_t iova;
 	unsigned int count, min_size, alloc_sizes = domain->pgsize_bitmap;
 
-	*handle = DMA_ERROR_CODE;
+	*handle = IOMMU_MAPPING_ERROR;
 
 	min_size = alloc_sizes & -alloc_sizes;
 	if (min_size < PAGE_SIZE) {
@@ -627,11 +629,11 @@ static dma_addr_t __iommu_dma_map(struct device *dev, phys_addr_t phys,
 
 	iova = iommu_dma_alloc_iova(domain, size, dma_get_mask(dev), dev);
 	if (!iova)
-		return DMA_ERROR_CODE;
+		return IOMMU_MAPPING_ERROR;
 
 	if (iommu_map(domain, iova, phys - iova_off, size, prot)) {
 		iommu_dma_free_iova(cookie, iova, size);
-		return DMA_ERROR_CODE;
+		return IOMMU_MAPPING_ERROR;
 	}
 	return iova + iova_off;
 }
@@ -671,7 +673,7 @@ static int __finalise_sg(struct device *dev, struct scatterlist *sg, int nents,
 
 		s->offset += s_iova_off;
 		s->length = s_length;
-		sg_dma_address(s) = DMA_ERROR_CODE;
+		sg_dma_address(s) = IOMMU_MAPPING_ERROR;
 		sg_dma_len(s) = 0;
 
 		/*
@@ -714,11 +716,11 @@ static void __invalidate_sg(struct scatterlist *sg, int nents)
 	int i;
 
 	for_each_sg(sg, s, nents, i) {
-		if (sg_dma_address(s) != DMA_ERROR_CODE)
+		if (sg_dma_address(s) != IOMMU_MAPPING_ERROR)
 			s->offset += sg_dma_address(s);
 		if (sg_dma_len(s))
 			s->length = sg_dma_len(s);
-		sg_dma_address(s) = DMA_ERROR_CODE;
+		sg_dma_address(s) = IOMMU_MAPPING_ERROR;
 		sg_dma_len(s) = 0;
 	}
 }
@@ -836,7 +838,7 @@ void iommu_dma_unmap_resource(struct device *dev, dma_addr_t handle,
 
 int iommu_dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
-	return dma_addr == DMA_ERROR_CODE;
+	return dma_addr == IOMMU_MAPPING_ERROR;
 }
 
 static struct iommu_dma_msi_page *iommu_dma_get_msi_page(struct device *dev,

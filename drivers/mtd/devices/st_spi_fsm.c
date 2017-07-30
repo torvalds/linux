@@ -1445,7 +1445,7 @@ static int stfsm_s25fl_config(struct stfsm *fsm)
 	}
 
 	/* Check status of 'QE' bit, update if required. */
-	stfsm_read_status(fsm, SPINOR_OP_RDSR2, &cr1, 1);
+	stfsm_read_status(fsm, SPINOR_OP_RDCR, &cr1, 1);
 	data_pads = ((fsm->stfsm_seq_read.seq_cfg >> 16) & 0x3) + 1;
 	if (data_pads == 4) {
 		if (!(cr1 & STFSM_S25FL_CONFIG_QE)) {
@@ -1490,7 +1490,7 @@ static int stfsm_w25q_config(struct stfsm *fsm)
 		return ret;
 
 	/* Check status of 'QE' bit, update if required. */
-	stfsm_read_status(fsm, SPINOR_OP_RDSR2, &sr2, 1);
+	stfsm_read_status(fsm, SPINOR_OP_RDCR, &sr2, 1);
 	data_pads = ((fsm->stfsm_seq_read.seq_cfg >> 16) & 0x3) + 1;
 	if (data_pads == 4) {
 		if (!(sr2 & W25Q_STATUS_QE)) {

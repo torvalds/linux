@@ -608,8 +608,7 @@ static int acpi_pci_root_add(struct acpi_device *device,
 		pcie_no_aspm();
 
 	pci_acpi_add_bus_pm_notifier(device);
-	if (device->wakeup.flags.run_wake)
-		device_set_run_wake(root->bus->bridge, true);
+	device_set_wakeup_capable(root->bus->bridge, device->wakeup.flags.valid);
 
 	if (hotadd) {
 		pcibios_resource_survey_bus(root->bus);
@@ -649,7 +648,7 @@ static void acpi_pci_root_remove(struct acpi_device *device)
 	pci_stop_root_bus(root->bus);
 
 	pci_ioapic_remove(root);
-	device_set_run_wake(root->bus->bridge, false);
+	device_set_wakeup_capable(root->bus->bridge, false);
 	pci_acpi_remove_bus_pm_notifier(device);
 
 	pci_remove_root_bus(root->bus);

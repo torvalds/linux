@@ -78,7 +78,25 @@ lprocfs_wr_dump_ns(struct file *file, const char __user *buffer,
 
 LPROC_SEQ_FOPS_WR_ONLY(ldlm, dump_ns);
 
-LPROC_SEQ_FOPS_RW_TYPE(ldlm_rw, uint);
+static int ldlm_rw_uint_seq_show(struct seq_file *m, void *v)
+{
+	seq_printf(m, "%u\n", *(unsigned int *)m->private);
+	return 0;
+}
+
+static ssize_t
+ldlm_rw_uint_seq_write(struct file *file, const char __user *buffer,
+		       size_t count, loff_t *off)
+{
+	struct seq_file *seq = file->private_data;
+
+	if (count == 0)
+		return 0;
+	return kstrtouint_from_user(buffer, count, 0,
+				    (unsigned int *)seq->private);
+}
+
+LPROC_SEQ_FOPS(ldlm_rw_uint);
 
 static struct lprocfs_vars ldlm_debugfs_list[] = {
 	{ "dump_namespaces", &ldlm_dump_ns_fops, NULL, 0222 },
@@ -831,7 +849,7 @@ static int ldlm_resource_complain(struct cfs_hash *hs, struct cfs_hash_bd *bd,
 	struct ldlm_resource  *res = cfs_hash_object(hs, hnode);
 
 	lock_res(res);
-	CERROR("%s: namespace resource "DLDLMRES
+	CERROR("%s: namespace resource " DLDLMRES
 	       " (%p) refcount nonzero (%d) after lock cleanup; forcing cleanup.\n",
 	       ldlm_ns_name(ldlm_res_to_ns(res)), PLDLMRES(res), res,
 	       atomic_read(&res->lr_refcount) - 1);
@@ -1373,7 +1391,7 @@ void ldlm_resource_dump(int level, struct ldlm_resource *res)
 	if (!((libcfs_debug | D_ERROR) & level))
 		return;
 
-	CDEBUG(level, "--- Resource: "DLDLMRES" (%p) refcount = %d\n",
+	CDEBUG(level, "--- Resource: " DLDLMRES " (%p) refcount = %d\n",
 	       PLDLMRES(res), res, atomic_read(&res->lr_refcount));
 
 	if (!list_empty(&res->lr_granted)) {

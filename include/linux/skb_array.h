@@ -97,9 +97,21 @@ static inline struct sk_buff *skb_array_consume(struct skb_array *a)
 	return ptr_ring_consume(&a->ring);
 }
 
+static inline int skb_array_consume_batched(struct skb_array *a,
+					    struct sk_buff **array, int n)
+{
+	return ptr_ring_consume_batched(&a->ring, (void **)array, n);
+}
+
 static inline struct sk_buff *skb_array_consume_irq(struct skb_array *a)
 {
 	return ptr_ring_consume_irq(&a->ring);
+}
+
+static inline int skb_array_consume_batched_irq(struct skb_array *a,
+						struct sk_buff **array, int n)
+{
+	return ptr_ring_consume_batched_irq(&a->ring, (void **)array, n);
 }
 
 static inline struct sk_buff *skb_array_consume_any(struct skb_array *a)
@@ -107,9 +119,22 @@ static inline struct sk_buff *skb_array_consume_any(struct skb_array *a)
 	return ptr_ring_consume_any(&a->ring);
 }
 
+static inline int skb_array_consume_batched_any(struct skb_array *a,
+						struct sk_buff **array, int n)
+{
+	return ptr_ring_consume_batched_any(&a->ring, (void **)array, n);
+}
+
+
 static inline struct sk_buff *skb_array_consume_bh(struct skb_array *a)
 {
 	return ptr_ring_consume_bh(&a->ring);
+}
+
+static inline int skb_array_consume_batched_bh(struct skb_array *a,
+					       struct sk_buff **array, int n)
+{
+	return ptr_ring_consume_batched_bh(&a->ring, (void **)array, n);
 }
 
 static inline int __skb_array_len_with_tag(struct sk_buff *skb)
@@ -154,6 +179,12 @@ static inline int skb_array_init(struct skb_array *a, int size, gfp_t gfp)
 static void __skb_array_destroy_skb(void *ptr)
 {
 	kfree_skb(ptr);
+}
+
+static inline void skb_array_unconsume(struct skb_array *a,
+				       struct sk_buff **skbs, int n)
+{
+	ptr_ring_unconsume(&a->ring, (void **)skbs, n, __skb_array_destroy_skb);
 }
 
 static inline int skb_array_resize(struct skb_array *a, int size, gfp_t gfp)

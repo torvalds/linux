@@ -327,6 +327,15 @@ config HW_RANDOM_PPC4XX
 	 This option provides the kernel-side support for the TRNG hardware
 	 found in the security function of some PowerPC 4xx SoCs.
 
+config CRYPTO_DEV_OMAP
+	tristate "Support for OMAP crypto HW accelerators"
+	depends on ARCH_OMAP2PLUS
+	help
+	  OMAP processors have various crypto HW accelerators. Select this if
+          you want to use the OMAP modules for any of the crypto algorithms.
+
+if CRYPTO_DEV_OMAP
+
 config CRYPTO_DEV_OMAP_SHAM
 	tristate "Support for OMAP MD5/SHA1/SHA2 hw accelerator"
 	depends on ARCH_OMAP2PLUS
@@ -348,6 +357,7 @@ config CRYPTO_DEV_OMAP_AES
 	select CRYPTO_CBC
 	select CRYPTO_ECB
 	select CRYPTO_CTR
+	select CRYPTO_AEAD
 	help
 	  OMAP processors have AES module accelerator. Select this if you
 	  want to use the OMAP module for AES algorithms.
@@ -363,6 +373,8 @@ config CRYPTO_DEV_OMAP_DES
 	  want to use the OMAP module for DES and 3DES algorithms. Currently
 	  the ECB and CBC modes of operation are supported by the driver. Also
 	  accesses made on unaligned boundaries are supported.
+
+endif # CRYPTO_DEV_OMAP
 
 config CRYPTO_DEV_PICOXCELL
 	tristate "Support for picoXcell IPSEC and Layer2 crypto engines"
@@ -542,6 +554,7 @@ config CRYPTO_DEV_MXS_DCP
 
 source "drivers/crypto/qat/Kconfig"
 source "drivers/crypto/cavium/cpt/Kconfig"
+source "drivers/crypto/cavium/nitrox/Kconfig"
 
 config CRYPTO_DEV_CAVIUM_ZIP
 	tristate "Cavium ZIP driver"
@@ -655,5 +668,22 @@ config CRYPTO_DEV_BCM_SPU
 	  ahash, and aead algorithms with the kernel cryptographic API.
 
 source "drivers/crypto/stm32/Kconfig"
+
+config CRYPTO_DEV_SAFEXCEL
+	tristate "Inside Secure's SafeXcel cryptographic engine driver"
+	depends on HAS_DMA && OF
+	depends on (ARM64 && ARCH_MVEBU) || (COMPILE_TEST && 64BIT)
+	select CRYPTO_AES
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_HASH
+	select CRYPTO_HMAC
+	select CRYPTO_SHA1
+	select CRYPTO_SHA256
+	select CRYPTO_SHA512
+	help
+	  This driver interfaces with the SafeXcel EIP-197 cryptographic engine
+	  designed by Inside Secure. Select this if you want to use CBC/ECB
+	  chain mode, AES cipher mode and SHA1/SHA224/SHA256/SHA512 hash
+	  algorithms.
 
 endif # CRYPTO_HW

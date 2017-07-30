@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 - 2015 Intel Corporation.
+ * Copyright(c) 2013 - 2017 Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -273,8 +273,8 @@ int i40e_vf_client_capable(struct i40e_pf *pf, u32 vf_id)
 	if (!cdev || !cdev->client)
 		goto out;
 	if (!cdev->client->ops || !cdev->client->ops->vf_capable) {
-		dev_info(&pf->pdev->dev,
-			 "Cannot locate client instance VF capability routine\n");
+		dev_dbg(&pf->pdev->dev,
+			"Cannot locate client instance VF capability routine\n");
 		goto out;
 	}
 	if (!test_bit(__I40E_CLIENT_INSTANCE_OPENED, &cdev->state))
@@ -565,7 +565,7 @@ static int i40e_client_virtchnl_send(struct i40e_info *ldev,
 	struct i40e_hw *hw = &pf->hw;
 	i40e_status err;
 
-	err = i40e_aq_send_msg_to_vf(hw, vf_id, I40E_VIRTCHNL_OP_IWARP,
+	err = i40e_aq_send_msg_to_vf(hw, vf_id, VIRTCHNL_OP_IWARP,
 				     0, msg, len, NULL);
 	if (err)
 		dev_err(&pf->pdev->dev, "Unable to send iWarp message to VF, error %d, aq status %d\n",
@@ -595,6 +595,8 @@ static int i40e_client_setup_qvlist(struct i40e_info *ldev,
 	size = sizeof(struct i40e_qvlist_info) +
 	       (sizeof(struct i40e_qv_info) * (qvlist_info->num_vectors - 1));
 	ldev->qvlist_info = kzalloc(size, GFP_KERNEL);
+	if (!ldev->qvlist_info)
+		return -ENOMEM;
 	ldev->qvlist_info->num_vectors = qvlist_info->num_vectors;
 
 	for (i = 0; i < qvlist_info->num_vectors; i++) {

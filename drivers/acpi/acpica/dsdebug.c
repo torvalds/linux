@@ -196,6 +196,7 @@ acpi_ds_dump_method_stack(acpi_status status,
 				op->common.next = NULL;
 
 #ifdef ACPI_DISASSEMBLER
+				acpi_os_printf("Failed at ");
 				acpi_dm_disassemble(next_walk_state, op,
 						    ACPI_UINT32_MAX);
 #endif

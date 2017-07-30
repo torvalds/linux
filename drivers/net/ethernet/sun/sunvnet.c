@@ -312,7 +312,7 @@ static struct vnet *vnet_new(const u64 *local_mac,
 	dev->watchdog_timeo = VNET_TX_TIMEOUT;
 
 	dev->hw_features = NETIF_F_TSO | NETIF_F_GSO | NETIF_F_GSO_SOFTWARE |
-			   NETIF_F_HW_CSUM | NETIF_F_SG;
+			   NETIF_F_IP_CSUM | NETIF_F_SG;
 	dev->features = dev->hw_features;
 
 	/* MTU range: 68 - 65535 */

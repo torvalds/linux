@@ -1440,17 +1440,17 @@ void hrtimer_init_sleeper(struct hrtimer_sleeper *sl, struct task_struct *task)
 }
 EXPORT_SYMBOL_GPL(hrtimer_init_sleeper);
 
-int nanosleep_copyout(struct restart_block *restart, struct timespec *ts)
+int nanosleep_copyout(struct restart_block *restart, struct timespec64 *ts)
 {
 	switch(restart->nanosleep.type) {
 #ifdef CONFIG_COMPAT
 	case TT_COMPAT:
-		if (compat_put_timespec(ts, restart->nanosleep.compat_rmtp))
+		if (compat_put_timespec64(ts, restart->nanosleep.compat_rmtp))
 			return -EFAULT;
 		break;
 #endif
 	case TT_NATIVE:
-		if (copy_to_user(restart->nanosleep.rmtp, ts, sizeof(struct timespec)))
+		if (put_timespec64(ts, restart->nanosleep.rmtp))
 			return -EFAULT;
 		break;
 	default:
@@ -1485,11 +1485,11 @@ static int __sched do_nanosleep(struct hrtimer_sleeper *t, enum hrtimer_mode mod
 	restart = &current->restart_block;
 	if (restart->nanosleep.type != TT_NONE) {
 		ktime_t rem = hrtimer_expires_remaining(&t->timer);
-		struct timespec rmt;
+		struct timespec64 rmt;
 
 		if (rem <= 0)
 			return 0;
-		rmt = ktime_to_timespec(rem);
+		rmt = ktime_to_timespec64(rem);
 
 		return nanosleep_copyout(restart, &rmt);
 	}
@@ -1546,19 +1546,17 @@ out:
 SYSCALL_DEFINE2(nanosleep, struct timespec __user *, rqtp,
 		struct timespec __user *, rmtp)
 {
-	struct timespec64 tu64;
-	struct timespec tu;
+	struct timespec64 tu;
 
-	if (copy_from_user(&tu, rqtp, sizeof(tu)))
+	if (get_timespec64(&tu, rqtp))
 		return -EFAULT;
 
-	tu64 = timespec_to_timespec64(tu);
-	if (!timespec64_valid(&tu64))
+	if (!timespec64_valid(&tu))
 		return -EINVAL;
 
 	current->restart_block.nanosleep.type = rmtp ? TT_NATIVE : TT_NONE;
 	current->restart_block.nanosleep.rmtp = rmtp;
-	return hrtimer_nanosleep(&tu64, HRTIMER_MODE_REL, CLOCK_MONOTONIC);
+	return hrtimer_nanosleep(&tu, HRTIMER_MODE_REL, CLOCK_MONOTONIC);
 }
 
 #ifdef CONFIG_COMPAT
@@ -1566,19 +1564,17 @@ SYSCALL_DEFINE2(nanosleep, struct timespec __user *, rqtp,
 COMPAT_SYSCALL_DEFINE2(nanosleep, struct compat_timespec __user *, rqtp,
 		       struct compat_timespec __user *, rmtp)
 {
-	struct timespec64 tu64;
-	struct timespec tu;
+	struct timespec64 tu;
 
-	if (compat_get_timespec(&tu, rqtp))
+	if (compat_get_timespec64(&tu, rqtp))
 		return -EFAULT;
 
-	tu64 = timespec_to_timespec64(tu);
-	if (!timespec64_valid(&tu64))
+	if (!timespec64_valid(&tu))
 		return -EINVAL;
 
 	current->restart_block.nanosleep.type = rmtp ? TT_COMPAT : TT_NONE;
 	current->restart_block.nanosleep.compat_rmtp = rmtp;
-	return hrtimer_nanosleep(&tu64, HRTIMER_MODE_REL, CLOCK_MONOTONIC);
+	return hrtimer_nanosleep(&tu, HRTIMER_MODE_REL, CLOCK_MONOTONIC);
 }
 #endif
 
