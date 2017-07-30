@@ -1301,6 +1301,7 @@ static void si_init_golden_registers(struct amdgpu_device *adev)
 		amdgpu_program_register_sequence(adev,
 						 pitcairn_mgcg_cgcg_init,
 						 (const u32)ARRAY_SIZE(pitcairn_mgcg_cgcg_init));
+		break;
 	case CHIP_VERDE:
 		amdgpu_program_register_sequence(adev,
 						 verde_golden_registers,
@@ -1325,6 +1326,7 @@ static void si_init_golden_registers(struct amdgpu_device *adev)
 		amdgpu_program_register_sequence(adev,
 						 oland_mgcg_cgcg_init,
 						 (const u32)ARRAY_SIZE(oland_mgcg_cgcg_init));
+		break;
 	case CHIP_HAINAN:
 		amdgpu_program_register_sequence(adev,
 						 hainan_golden_registers,
