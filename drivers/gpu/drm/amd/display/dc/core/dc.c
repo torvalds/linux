@@ -365,8 +365,8 @@ void set_dither_option(struct dc_stream_state *stream,
 	resource_build_bit_depth_reduction_params(stream,
 				&params);
 	stream->bit_depth_params = params;
-	pipes->opp->funcs->
-		opp_program_bit_depth_reduction(pipes->opp, &params);
+	pipes->stream_res.opp->funcs->
+		opp_program_bit_depth_reduction(pipes->stream_res.opp, &params);
 }
 
 static void allocate_dc_stream_funcs(struct core_dc *core_dc)

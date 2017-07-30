@@ -1044,16 +1044,16 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	/*  */
 	dc->hwss.prog_pixclk_crtc_otg(pipe_ctx, context, dc);
 
-	pipe_ctx->opp->funcs->opp_set_dyn_expansion(
-			pipe_ctx->opp,
+	pipe_ctx->stream_res.opp->funcs->opp_set_dyn_expansion(
+			pipe_ctx->stream_res.opp,
 			COLOR_SPACE_YCBCR601,
 			stream->timing.display_color_depth,
 			pipe_ctx->stream->signal);
 
 	/* FPGA does not program backend */
 	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
-	pipe_ctx->opp->funcs->opp_program_fmt(
-			pipe_ctx->opp,
+	pipe_ctx->stream_res.opp->funcs->opp_program_fmt(
+			pipe_ctx->stream_res.opp,
 			&stream->bit_depth_params,
 			&stream->clamping);
 		return DC_OK;
@@ -1078,8 +1078,8 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 
 
 /*vbios crtc_source_selection and encoder_setup will override fmt_C*/
-	pipe_ctx->opp->funcs->opp_program_fmt(
-			pipe_ctx->opp,
+	pipe_ctx->stream_res.opp->funcs->opp_program_fmt(
+			pipe_ctx->stream_res.opp,
 			&stream->bit_depth_params,
 			&stream->clamping);
 

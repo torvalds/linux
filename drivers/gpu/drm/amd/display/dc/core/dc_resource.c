@@ -1015,7 +1015,7 @@ static int acquire_first_split_pipe(
 			pipe_ctx->plane_res.mi = pool->mis[i];
 			pipe_ctx->plane_res.ipp = pool->ipps[i];
 			pipe_ctx->plane_res.xfm = pool->transforms[i];
-			pipe_ctx->opp = pool->opps[i];
+			pipe_ctx->stream_res.opp = pool->opps[i];
 			pipe_ctx->dis_clk = pool->display_clock;
 			pipe_ctx->pipe_idx = i;
 
@@ -1095,7 +1095,7 @@ bool resource_attach_surfaces_to_context(
 
 		if (tail_pipe) {
 			free_pipe->tg = tail_pipe->tg;
-			free_pipe->opp = tail_pipe->opp;
+			free_pipe->stream_res.opp = tail_pipe->stream_res.opp;
 			free_pipe->stream_enc = tail_pipe->stream_enc;
 			free_pipe->audio = tail_pipe->audio;
 			free_pipe->clock_source = tail_pipe->clock_source;
@@ -1245,7 +1245,7 @@ static int acquire_first_free_pipe(
 			pipe_ctx->plane_res.mi = pool->mis[i];
 			pipe_ctx->plane_res.ipp = pool->ipps[i];
 			pipe_ctx->plane_res.xfm = pool->transforms[i];
-			pipe_ctx->opp = pool->opps[i];
+			pipe_ctx->stream_res.opp = pool->opps[i];
 			pipe_ctx->dis_clk = pool->display_clock;
 			pipe_ctx->pipe_idx = i;
 

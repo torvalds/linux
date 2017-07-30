@@ -2372,8 +2372,8 @@ static void set_crtc_test_pattern(struct dc_link *link,
 	{
 		/* disable bit depth reduction */
 		pipe_ctx->stream->bit_depth_params = params;
-		pipe_ctx->opp->funcs->
-			opp_program_bit_depth_reduction(pipe_ctx->opp, &params);
+		pipe_ctx->stream_res.opp->funcs->
+			opp_program_bit_depth_reduction(pipe_ctx->stream_res.opp, &params);
 
 		pipe_ctx->tg->funcs->set_test_pattern(pipe_ctx->tg,
 				controller_test_pattern, color_depth);
@@ -2385,8 +2385,8 @@ static void set_crtc_test_pattern(struct dc_link *link,
 		resource_build_bit_depth_reduction_params(pipe_ctx->stream,
 					&params);
 		pipe_ctx->stream->bit_depth_params = params;
-		pipe_ctx->opp->funcs->
-			opp_program_bit_depth_reduction(pipe_ctx->opp, &params);
+		pipe_ctx->stream_res.opp->funcs->
+			opp_program_bit_depth_reduction(pipe_ctx->stream_res.opp, &params);
 
 		pipe_ctx->tg->funcs->set_test_pattern(pipe_ctx->tg,
 				CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,

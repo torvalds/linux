@@ -720,8 +720,8 @@ static enum dc_status dcn10_prog_pixclk_crtc_otg(
 			&stream->timing,
 			true);
 
-	pipe_ctx->opp->funcs->opp_set_stereo_polarity(
-				pipe_ctx->opp,
+	pipe_ctx->stream_res.opp->funcs->opp_set_stereo_polarity(
+				pipe_ctx->stream_res.opp,
 				enableStereo,
 				rightEyePolarity);
 
@@ -731,8 +731,8 @@ static enum dc_status dcn10_prog_pixclk_crtc_otg(
 
 	inst_offset = reg_offsets[pipe_ctx->tg->inst].fmt;
 
-	pipe_ctx->opp->funcs->opp_program_fmt(
-				pipe_ctx->opp,
+	pipe_ctx->stream_res.opp->funcs->opp_program_fmt(
+				pipe_ctx->stream_res.opp,
 				&stream->bit_depth_params,
 				&stream->clamping);
 #endif
@@ -1946,7 +1946,7 @@ static void update_dchubp_dpp(
 			IPP_OUTPUT_FORMAT_12_BIT_FIX);
 
 	mpcc_cfg.mi = mi;
-	mpcc_cfg.opp = pipe_ctx->opp;
+	mpcc_cfg.opp = pipe_ctx->stream_res.opp;
 	for (top_pipe = pipe_ctx->top_pipe; top_pipe; top_pipe = top_pipe->top_pipe)
 		mpcc_cfg.z_index++;
 	if (dc->public.debug.surface_visual_confirm)
@@ -2122,9 +2122,9 @@ static void dcn10_apply_ctx_for_surface(
 			/* reset mpc */
 			dc->res_pool->mpc->funcs->remove(
 					dc->res_pool->mpc,
-					old_pipe_ctx->opp,
+					old_pipe_ctx->stream_res.opp,
 					old_pipe_ctx->pipe_idx);
-			old_pipe_ctx->opp->mpcc_disconnect_pending[old_pipe_ctx->plane_res.mi->mpcc_id] = true;
+			old_pipe_ctx->stream_res.opp->mpcc_disconnect_pending[old_pipe_ctx->plane_res.mi->mpcc_id] = true;
 
 			/*dm_logger_write(dc->ctx->logger, LOG_ERROR,
 					"[debug_mpo: apply_ctx disconnect pending on mpcc %d]\n",
@@ -2364,8 +2364,8 @@ static void dcn10_setup_stereo(struct pipe_ctx *pipe_ctx, struct core_dc *dc)
 
 	dcn10_config_stereo_parameters(stream, &flags);
 
-	pipe_ctx->opp->funcs->opp_set_stereo_polarity(
-		pipe_ctx->opp,
+	pipe_ctx->stream_res.opp->funcs->opp_set_stereo_polarity(
+		pipe_ctx->stream_res.opp,
 		flags.PROGRAM_STEREO == 1 ? true:false,
 		stream->timing.flags.RIGHT_EYE_3D_POLARITY == 1 ? true:false);
 
@@ -2441,13 +2441,13 @@ static void dcn10_wait_for_mpcc_disconnect(
 {
 	int i;
 
-	if (!pipe_ctx->opp)
+	if (!pipe_ctx->stream_res.opp)
 		return;
 
 	for (i = 0; i < MAX_PIPES; i++) {
-		if (pipe_ctx->opp->mpcc_disconnect_pending[i]) {
+		if (pipe_ctx->stream_res.opp->mpcc_disconnect_pending[i]) {
 			res_pool->mpc->funcs->wait_for_idle(res_pool->mpc, i);
-			pipe_ctx->opp->mpcc_disconnect_pending[i] = false;
+			pipe_ctx->stream_res.opp->mpcc_disconnect_pending[i] = false;
 			res_pool->mis[i]->funcs->set_blank(res_pool->mis[i], true);
 			/*dm_logger_write(dc->ctx->logger, LOG_ERROR,
 					"[debug_mpo: wait_for_mpcc finished waiting on mpcc %d]\n",

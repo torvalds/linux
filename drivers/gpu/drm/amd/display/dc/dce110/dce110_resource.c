@@ -1020,7 +1020,7 @@ static struct pipe_ctx *dce110_acquire_underlay(
 	pipe_ctx->plane_res.mi = pool->mis[underlay_idx];
 	/*pipe_ctx->plane_res.ipp = res_ctx->pool->ipps[underlay_idx];*/
 	pipe_ctx->plane_res.xfm = pool->transforms[underlay_idx];
-	pipe_ctx->opp = pool->opps[underlay_idx];
+	pipe_ctx->stream_res.opp = pool->opps[underlay_idx];
 	pipe_ctx->dis_clk = pool->display_clock;
 	pipe_ctx->pipe_idx = underlay_idx;
 

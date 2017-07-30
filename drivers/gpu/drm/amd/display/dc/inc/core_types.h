@@ -153,7 +153,7 @@ struct resource_pool {
 };
 
 struct stream_resource {
-	int stub;
+	struct output_pixel_processor *opp;
 };
 
 struct plane_resource {
@@ -171,7 +171,6 @@ struct pipe_ctx {
 	struct plane_resource plane_res;
 	struct stream_resource stream_res;
 
-	struct output_pixel_processor *opp;
 	struct timing_generator *tg;
 
 	struct stream_encoder *stream_enc;
