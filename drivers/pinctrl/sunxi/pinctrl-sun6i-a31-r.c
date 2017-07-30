@@ -25,12 +25,12 @@ static const struct sunxi_desc_pin sun6i_a31_r_pins[] = {
 	SUNXI_PIN(SUNXI_PINCTRL_PIN(L, 0),
 		  SUNXI_FUNCTION(0x0, "gpio_in"),
 		  SUNXI_FUNCTION(0x1, "gpio_out"),
-		  SUNXI_FUNCTION(0x2, "s_twi"),		/* SCK */
+		  SUNXI_FUNCTION(0x2, "s_i2c"),		/* SCK */
 		  SUNXI_FUNCTION(0x3, "s_p2wi")),	/* SCK */
 	SUNXI_PIN(SUNXI_PINCTRL_PIN(L, 1),
 		  SUNXI_FUNCTION(0x0, "gpio_in"),
 		  SUNXI_FUNCTION(0x1, "gpio_out"),
-		  SUNXI_FUNCTION(0x2, "s_twi"),		/* SDA */
+		  SUNXI_FUNCTION(0x2, "s_i2c"),		/* SDA */
 		  SUNXI_FUNCTION(0x3, "s_p2wi")),	/* SDA */
 	SUNXI_PIN(SUNXI_PINCTRL_PIN(L, 2),
 		  SUNXI_FUNCTION(0x0, "gpio_in"),
