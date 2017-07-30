@@ -191,10 +191,11 @@ int ssi_ivgen_init(struct ssi_drvdata *drvdata)
 	int rc;
 
 	/* Allocate "this" context */
-	drvdata->ivgen_handle = kzalloc(sizeof(struct ssi_ivgen_ctx), GFP_KERNEL);
+	drvdata->ivgen_handle = kzalloc(sizeof(*drvdata->ivgen_handle),
+					GFP_KERNEL);
 	if (!drvdata->ivgen_handle) {
 		SSI_LOG_ERR("Not enough memory to allocate IVGEN context "
-			   "(%zu B)\n", sizeof(struct ssi_ivgen_ctx));
+			   "(%zu B)\n", sizeof(*drvdata->ivgen_handle));
 		rc = -ENOMEM;
 		goto out;
 	}

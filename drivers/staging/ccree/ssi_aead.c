@@ -2659,7 +2659,7 @@ static struct ssi_crypto_alg *ssi_aead_create_alg(struct ssi_alg_template *templ
 	struct ssi_crypto_alg *t_alg;
 	struct aead_alg *alg;
 
-	t_alg = kzalloc(sizeof(struct ssi_crypto_alg), GFP_KERNEL);
+	t_alg = kzalloc(sizeof(*t_alg), GFP_KERNEL);
 	if (!t_alg) {
 		SSI_LOG_ERR("failed to allocate t_alg\n");
 		return ERR_PTR(-ENOMEM);
@@ -2714,7 +2714,7 @@ int ssi_aead_alloc(struct ssi_drvdata *drvdata)
 	int rc = -ENOMEM;
 	int alg;
 
-	aead_handle = kmalloc(sizeof(struct ssi_aead_handle), GFP_KERNEL);
+	aead_handle = kmalloc(sizeof(*aead_handle), GFP_KERNEL);
 	if (!aead_handle) {
 		rc = -ENOMEM;
 		goto fail0;

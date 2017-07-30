@@ -2060,9 +2060,9 @@ ssi_hash_create_alg(struct ssi_hash_template *template, bool keyed)
 	struct crypto_alg *alg;
 	struct ahash_alg *halg;
 
-	t_crypto_alg = kzalloc(sizeof(struct ssi_hash_alg), GFP_KERNEL);
+	t_crypto_alg = kzalloc(sizeof(*t_crypto_alg), GFP_KERNEL);
 	if (!t_crypto_alg) {
-		SSI_LOG_ERR("failed to allocate t_alg\n");
+		SSI_LOG_ERR("failed to allocate t_crypto_alg\n");
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -2226,10 +2226,10 @@ int ssi_hash_alloc(struct ssi_drvdata *drvdata)
 	int rc = 0;
 	int alg;
 
-	hash_handle = kzalloc(sizeof(struct ssi_hash_handle), GFP_KERNEL);
+	hash_handle = kzalloc(sizeof(*hash_handle), GFP_KERNEL);
 	if (!hash_handle) {
 		SSI_LOG_ERR("kzalloc failed to allocate %zu B\n",
-			    sizeof(struct ssi_hash_handle));
+			    sizeof(*hash_handle));
 		rc = -ENOMEM;
 		goto fail;
 	}

@@ -1218,7 +1218,7 @@ struct ssi_crypto_alg *ssi_ablkcipher_create_alg(struct ssi_alg_template *templa
 	struct ssi_crypto_alg *t_alg;
 	struct crypto_alg *alg;
 
-	t_alg = kzalloc(sizeof(struct ssi_crypto_alg), GFP_KERNEL);
+	t_alg = kzalloc(sizeof(*t_alg), GFP_KERNEL);
 	if (!t_alg) {
 		SSI_LOG_ERR("failed to allocate t_alg\n");
 		return ERR_PTR(-ENOMEM);
@@ -1279,8 +1279,7 @@ int ssi_ablkcipher_alloc(struct ssi_drvdata *drvdata)
 	int rc = -ENOMEM;
 	int alg;
 
-	ablkcipher_handle = kmalloc(sizeof(struct ssi_blkcipher_handle),
-				    GFP_KERNEL);
+	ablkcipher_handle = kmalloc(sizeof(*ablkcipher_handle), GFP_KERNEL);
 	if (!ablkcipher_handle)
 		return -ENOMEM;
 
