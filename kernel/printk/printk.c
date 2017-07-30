@@ -1435,7 +1435,7 @@ int do_syslog(int type, char __user *buf, int len, int source)
 
 	error = check_syslog_permissions(type, source);
 	if (error)
-		goto out;
+		return error;
 
 	switch (type) {
 	case SYSLOG_ACTION_CLOSE:	/* Close log */
@@ -1443,20 +1443,16 @@ int do_syslog(int type, char __user *buf, int len, int source)
 	case SYSLOG_ACTION_OPEN:	/* Open log */
 		break;
 	case SYSLOG_ACTION_READ:	/* Read from log */
-		error = -EINVAL;
 		if (!buf || len < 0)
-			goto out;
-		error = 0;
+			return -EINVAL;
 		if (!len)
-			goto out;
-		if (!access_ok(VERIFY_WRITE, buf, len)) {
-			error = -EFAULT;
-			goto out;
-		}
+			return 0;
+		if (!access_ok(VERIFY_WRITE, buf, len))
+			return -EFAULT;
 		error = wait_event_interruptible(log_wait,
 						 syslog_seq != log_next_seq);
 		if (error)
-			goto out;
+			return error;
 		error = syslog_print(buf, len);
 		break;
 	/* Read/clear last kernel messages */
@@ -1465,16 +1461,12 @@ int do_syslog(int type, char __user *buf, int len, int source)
 		/* FALL THRU */
 	/* Read last kernel messages */
 	case SYSLOG_ACTION_READ_ALL:
-		error = -EINVAL;
 		if (!buf || len < 0)
-			goto out;
-		error = 0;
+			return -EINVAL;
 		if (!len)
-			goto out;
-		if (!access_ok(VERIFY_WRITE, buf, len)) {
-			error = -EFAULT;
-			goto out;
-		}
+			return 0;
+		if (!access_ok(VERIFY_WRITE, buf, len))
+			return -EFAULT;
 		error = syslog_print_all(buf, len, clear);
 		break;
 	/* Clear ring buffer */
@@ -1496,15 +1488,13 @@ int do_syslog(int type, char __user *buf, int len, int source)
 		break;
 	/* Set level of messages printed to console */
 	case SYSLOG_ACTION_CONSOLE_LEVEL:
-		error = -EINVAL;
 		if (len < 1 || len > 8)
-			goto out;
+			return -EINVAL;
 		if (len < minimum_console_loglevel)
 			len = minimum_console_loglevel;
 		console_loglevel = len;
 		/* Implicitly re-enable logging to console */
 		saved_console_loglevel = LOGLEVEL_DEFAULT;
-		error = 0;
 		break;
 	/* Number of chars in the log buffer */
 	case SYSLOG_ACTION_SIZE_UNREAD:
@@ -1526,7 +1516,6 @@ int do_syslog(int type, char __user *buf, int len, int source)
 			u64 seq = syslog_seq;
 			u32 idx = syslog_idx;
 
-			error = 0;
 			while (seq < log_next_seq) {
 				struct printk_log *msg = log_from_idx(idx);
 
@@ -1546,7 +1535,7 @@ int do_syslog(int type, char __user *buf, int len, int source)
 		error = -EINVAL;
 		break;
 	}
-out:
+
 	return error;
 }
 
