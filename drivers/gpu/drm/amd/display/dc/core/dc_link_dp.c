@@ -2407,7 +2407,7 @@ bool dc_link_dp_set_test_pattern(
 	unsigned int cust_pattern_size)
 {
 	struct pipe_ctx *pipes = link->dc->current_context->res_ctx.pipe_ctx;
-	struct pipe_ctx pipe_ctx = pipes[0];
+	struct pipe_ctx *pipe_ctx = &pipes[0];
 	unsigned int lane;
 	unsigned int i;
 	unsigned char link_qual_pattern[LANE_COUNT_DP_MAX] = {0};
@@ -2418,7 +2418,7 @@ bool dc_link_dp_set_test_pattern(
 
 	for (i = 0; i < MAX_PIPES; i++) {
 		if (pipes[i].stream->sink->link == link) {
-			pipe_ctx = pipes[i];
+			pipe_ctx = &pipes[i];
 			break;
 		}
 	}
@@ -2430,14 +2430,14 @@ bool dc_link_dp_set_test_pattern(
 	if (link->test_pattern_enabled && test_pattern ==
 			DP_TEST_PATTERN_VIDEO_MODE) {
 		/* Set CRTC Test Pattern */
-		set_crtc_test_pattern(link, &pipe_ctx, test_pattern);
+		set_crtc_test_pattern(link, pipe_ctx, test_pattern);
 		dp_set_hw_test_pattern(link, test_pattern,
 				(uint8_t *)p_custom_pattern,
 				(uint32_t)cust_pattern_size);
 
 		/* Unblank Stream */
 		link->dc->hwss.unblank_stream(
-			&pipe_ctx,
+			pipe_ctx,
 			&link->verified_link_cap);
 		/* TODO:m_pHwss->MuteAudioEndpoint
 		 * (pPathMode->pDisplayPath, false);
@@ -2464,7 +2464,7 @@ bool dc_link_dp_set_test_pattern(
 			 * MuteAudioEndpoint(pPathMode->pDisplayPath, true);
 			 */
 			/* Blank stream */
-			pipes->stream_enc->funcs->dp_blank(pipe_ctx.stream_enc);
+			pipes->stream_enc->funcs->dp_blank(pipe_ctx->stream_enc);
 		}
 
 		dp_set_hw_test_pattern(link, test_pattern,
@@ -2545,7 +2545,7 @@ bool dc_link_dp_set_test_pattern(
 		}
 	} else {
 	/* CRTC Patterns */
-		set_crtc_test_pattern(link, &pipe_ctx, test_pattern);
+		set_crtc_test_pattern(link, pipe_ctx, test_pattern);
 		/* Set Test Pattern state */
 		link->test_pattern_enabled = true;
 	}
