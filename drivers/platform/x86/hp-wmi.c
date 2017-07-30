@@ -107,13 +107,6 @@ enum hp_wmi_hardware_mask {
 	HPWMI_TABLET_MASK	= 0x04,
 };
 
-#define BIOS_ARGS_INIT(write, ctype, size)				\
-	(struct bios_args)	{	.signature = 0x55434553,	\
-					.command = (write) ? 0x2 : 0x1,	\
-					.commandtype = (ctype),		\
-					.datasize = (size),		\
-					.data = 0 }
-
 struct bios_return {
 	u32 sigpass;
 	u32 return_code;
