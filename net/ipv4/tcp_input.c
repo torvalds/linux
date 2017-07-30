@@ -4611,16 +4611,14 @@ static void tcp_data_queue(struct sock *sk, struct sk_buff *skb)
 			goto out_of_window;
 
 		/* Ok. In sequence. In window. */
-		if (eaten <= 0) {
 queue_and_out:
-			if (eaten < 0) {
-				if (skb_queue_len(&sk->sk_receive_queue) == 0)
-					sk_forced_mem_schedule(sk, skb->truesize);
-				else if (tcp_try_rmem_schedule(sk, skb, skb->truesize))
-					goto drop;
-			}
-			eaten = tcp_queue_rcv(sk, skb, 0, &fragstolen);
+		if (eaten < 0) {
+			if (skb_queue_len(&sk->sk_receive_queue) == 0)
+				sk_forced_mem_schedule(sk, skb->truesize);
+			else if (tcp_try_rmem_schedule(sk, skb, skb->truesize))
+				goto drop;
 		}
+		eaten = tcp_queue_rcv(sk, skb, 0, &fragstolen);
 		tcp_rcv_nxt_update(tp, TCP_SKB_CB(skb)->end_seq);
 		if (skb->len)
 			tcp_event_data_recv(sk, skb);
@@ -5410,30 +5408,28 @@ void tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 			int eaten = 0;
 			bool fragstolen = false;
 
-			if (!eaten) {
-				if (tcp_checksum_complete(skb))
-					goto csum_error;
+			if (tcp_checksum_complete(skb))
+				goto csum_error;
 
-				if ((int)skb->truesize > sk->sk_forward_alloc)
-					goto step5;
+			if ((int)skb->truesize > sk->sk_forward_alloc)
+				goto step5;
 
-				/* Predicted packet is in window by definition.
-				 * seq == rcv_nxt and rcv_wup <= rcv_nxt.
-				 * Hence, check seq<=rcv_wup reduces to:
-				 */
-				if (tcp_header_len ==
-				    (sizeof(struct tcphdr) + TCPOLEN_TSTAMP_ALIGNED) &&
-				    tp->rcv_nxt == tp->rcv_wup)
-					tcp_store_ts_recent(tp);
+			/* Predicted packet is in window by definition.
+			 * seq == rcv_nxt and rcv_wup <= rcv_nxt.
+			 * Hence, check seq<=rcv_wup reduces to:
+			 */
+			if (tcp_header_len ==
+			    (sizeof(struct tcphdr) + TCPOLEN_TSTAMP_ALIGNED) &&
+			    tp->rcv_nxt == tp->rcv_wup)
+				tcp_store_ts_recent(tp);
 
-				tcp_rcv_rtt_measure_ts(sk, skb);
+			tcp_rcv_rtt_measure_ts(sk, skb);
 
-				NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPHPHITS);
+			NET_INC_STATS(sock_net(sk), LINUX_MIB_TCPHPHITS);
 
-				/* Bulk data transfer: receiver */
-				eaten = tcp_queue_rcv(sk, skb, tcp_header_len,
-						      &fragstolen);
-			}
+			/* Bulk data transfer: receiver */
+			eaten = tcp_queue_rcv(sk, skb, tcp_header_len,
+					      &fragstolen);
 
 			tcp_event_data_recv(sk, skb);
 
