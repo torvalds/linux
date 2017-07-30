@@ -58,6 +58,7 @@
 #define MII_M1011_PHY_SCR			0x10
 #define MII_M1011_PHY_SCR_DOWNSHIFT_EN		BIT(11)
 #define MII_M1011_PHY_SCR_DOWNSHIFT_SHIFT	12
+#define MII_M1011_PHY_SRC_DOWNSHIFT_MASK	0x7800
 #define MII_M1011_PHY_SCR_MDI			(0x0 << 5)
 #define MII_M1011_PHY_SCR_MDI_X			(0x1 << 5)
 #define MII_M1011_PHY_SCR_AUTO_CROSS		(0x3 << 5)
@@ -261,6 +262,23 @@ static int marvell_set_polarity(struct phy_device *phydev, int polarity)
 	}
 
 	return 0;
+}
+
+static int marvell_set_downshift(struct phy_device *phydev, bool enable,
+				 u8 retries)
+{
+	int reg;
+
+	reg = phy_read(phydev, MII_M1011_PHY_SCR);
+	if (reg < 0)
+		return reg;
+
+	reg &= MII_M1011_PHY_SRC_DOWNSHIFT_MASK;
+	reg |= ((retries - 1) << MII_M1011_PHY_SCR_DOWNSHIFT_SHIFT);
+	if (enable)
+		reg |= MII_M1011_PHY_SCR_DOWNSHIFT_EN;
+
+	return phy_write(phydev, MII_M1011_PHY_SCR, reg);
 }
 
 static int marvell_config_aneg(struct phy_device *phydev)
@@ -643,7 +661,6 @@ static int marvell_config_init(struct phy_device *phydev)
 
 static int m88e1116r_config_init(struct phy_device *phydev)
 {
-	int temp;
 	int err;
 
 	err = genphy_soft_reset(phydev);
@@ -660,10 +677,7 @@ static int m88e1116r_config_init(struct phy_device *phydev)
 	if (err < 0)
 		return err;
 
-	temp = phy_read(phydev, MII_M1011_PHY_SCR);
-	temp |= (7 << MII_M1011_PHY_SCR_DOWNSHIFT_SHIFT);
-	temp |= MII_M1011_PHY_SCR_DOWNSHIFT_EN;
-	err = phy_write(phydev, MII_M1011_PHY_SCR, temp);
+	err = marvell_set_downshift(phydev, true, 8);
 	if (err < 0)
 		return err;
 
