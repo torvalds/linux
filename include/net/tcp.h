@@ -1244,17 +1244,6 @@ static inline bool tcp_checksum_complete(struct sk_buff *skb)
 		__tcp_checksum_complete(skb);
 }
 
-/* Prequeue for VJ style copy to user, combined with checksumming. */
-
-static inline void tcp_prequeue_init(struct tcp_sock *tp)
-{
-	tp->ucopy.task = NULL;
-	tp->ucopy.len = 0;
-	tp->ucopy.memory = 0;
-	skb_queue_head_init(&tp->ucopy.prequeue);
-}
-
-bool tcp_prequeue(struct sock *sk, struct sk_buff *skb);
 bool tcp_add_backlog(struct sock *sk, struct sk_buff *skb);
 int tcp_filter(struct sock *sk, struct sk_buff *skb);
 

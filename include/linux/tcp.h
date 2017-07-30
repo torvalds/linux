@@ -192,15 +192,6 @@ struct tcp_sock {
 
 	struct list_head tsq_node; /* anchor in tsq_tasklet.head list */
 
-	/* Data for direct copy to user */
-	struct {
-		struct sk_buff_head	prequeue;
-		struct task_struct	*task;
-		struct msghdr		*msg;
-		int			memory;
-		int			len;
-	} ucopy;
-
 	u32	snd_wl1;	/* Sequence for window update		*/
 	u32	snd_wnd;	/* The window we expect to receive	*/
 	u32	max_window;	/* Maximal window ever seen from peer	*/
