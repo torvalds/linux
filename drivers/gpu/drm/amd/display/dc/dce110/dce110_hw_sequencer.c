@@ -729,7 +729,7 @@ void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 	tg->funcs->set_early_control(tg, early_control);
 
 	/* enable audio only within mode set */
-	if (pipe_ctx->audio != NULL) {
+	if (pipe_ctx->stream_res.audio != NULL) {
 		if (dc_is_dp_signal(pipe_ctx->stream->signal))
 			pipe_ctx->stream_res.stream_enc->funcs->dp_audio_enable(pipe_ctx->stream_res.stream_enc);
 	}
@@ -748,8 +748,8 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->sink->link;
 
-	if (pipe_ctx->audio) {
-		pipe_ctx->audio->funcs->az_disable(pipe_ctx->audio);
+	if (pipe_ctx->stream_res.audio) {
+		pipe_ctx->stream_res.audio->funcs->az_disable(pipe_ctx->stream_res.audio);
 
 		if (dc_is_dp_signal(pipe_ctx->stream->signal))
 			pipe_ctx->stream_res.stream_enc->funcs->dp_audio_disable(
@@ -758,7 +758,7 @@ void dce110_disable_stream(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->stream_res.stream_enc->funcs->hdmi_audio_disable(
 					pipe_ctx->stream_res.stream_enc);
 
-		pipe_ctx->audio = NULL;
+		pipe_ctx->stream_res.audio = NULL;
 
 		/* TODO: notify audio driver for if audio modes list changed
 		 * add audio mode list change flag */
@@ -1094,7 +1094,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 			pipe_ctx->stream_res.stream_enc,
 			&stream->timing,
 			stream->phy_pix_clk,
-			pipe_ctx->audio != NULL);
+			pipe_ctx->stream_res.audio != NULL);
 
 	if (dc_is_dvi_signal(pipe_ctx->stream->signal))
 		pipe_ctx->stream_res.stream_enc->funcs->dvi_set_stream_attribute(
@@ -1792,13 +1792,13 @@ enum dc_status dce110_apply_ctx_to_hw(
 		if (pipe_ctx->stream->signal != SIGNAL_TYPE_HDMI_TYPE_A)
 			continue;
 
-		if (pipe_ctx->audio != NULL) {
+		if (pipe_ctx->stream_res.audio != NULL) {
 			struct audio_output audio_output;
 
 			build_audio_output(pipe_ctx, &audio_output);
 
-			pipe_ctx->audio->funcs->wall_dto_setup(
-				pipe_ctx->audio,
+			pipe_ctx->stream_res.audio->funcs->wall_dto_setup(
+				pipe_ctx->stream_res.audio,
 				pipe_ctx->stream->signal,
 				&audio_output.crtc_info,
 				&audio_output.pll_info);
@@ -1820,13 +1820,13 @@ enum dc_status dce110_apply_ctx_to_hw(
 			if (!dc_is_dp_signal(pipe_ctx->stream->signal))
 				continue;
 
-			if (pipe_ctx->audio != NULL) {
+			if (pipe_ctx->stream_res.audio != NULL) {
 				struct audio_output audio_output;
 
 				build_audio_output(pipe_ctx, &audio_output);
 
-				pipe_ctx->audio->funcs->wall_dto_setup(
-					pipe_ctx->audio,
+				pipe_ctx->stream_res.audio->funcs->wall_dto_setup(
+					pipe_ctx->stream_res.audio,
 					pipe_ctx->stream->signal,
 					&audio_output.crtc_info,
 					&audio_output.pll_info);
@@ -1853,7 +1853,7 @@ enum dc_status dce110_apply_ctx_to_hw(
 		if (pipe_ctx->top_pipe)
 			continue;
 
-		if (context->res_ctx.pipe_ctx[i].audio != NULL) {
+		if (context->res_ctx.pipe_ctx[i].stream_res.audio != NULL) {
 
 			struct audio_output audio_output;
 
@@ -1862,17 +1862,17 @@ enum dc_status dce110_apply_ctx_to_hw(
 			if (dc_is_dp_signal(pipe_ctx->stream->signal))
 				pipe_ctx->stream_res.stream_enc->funcs->dp_audio_setup(
 						pipe_ctx->stream_res.stream_enc,
-						pipe_ctx->audio->inst,
+						pipe_ctx->stream_res.audio->inst,
 						&pipe_ctx->stream->audio_info);
 			else
 				pipe_ctx->stream_res.stream_enc->funcs->hdmi_audio_setup(
 						pipe_ctx->stream_res.stream_enc,
-						pipe_ctx->audio->inst,
+						pipe_ctx->stream_res.audio->inst,
 						&pipe_ctx->stream->audio_info,
 						&audio_output.crtc_info);
 
-			pipe_ctx->audio->funcs->az_configure(
-					pipe_ctx->audio,
+			pipe_ctx->stream_res.audio->funcs->az_configure(
+					pipe_ctx->stream_res.audio,
 					pipe_ctx->stream->signal,
 					&audio_output.crtc_info,
 					&pipe_ctx->stream->audio_info);

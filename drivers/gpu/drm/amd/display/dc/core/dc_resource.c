@@ -1097,7 +1097,7 @@ bool resource_attach_surfaces_to_context(
 			free_pipe->stream_res.tg = tail_pipe->stream_res.tg;
 			free_pipe->stream_res.opp = tail_pipe->stream_res.opp;
 			free_pipe->stream_res.stream_enc = tail_pipe->stream_res.stream_enc;
-			free_pipe->audio = tail_pipe->audio;
+			free_pipe->stream_res.audio = tail_pipe->stream_res.audio;
 			free_pipe->clock_source = tail_pipe->clock_source;
 			free_pipe->top_pipe = tail_pipe;
 			tail_pipe->bottom_pipe = free_pipe;
@@ -1481,7 +1481,7 @@ enum dc_status resource_map_pool_resources(
 				pipe_ctx->clock_source);
 
 			set_audio_in_use(&context->res_ctx, pool,
-					pipe_ctx->audio);
+					pipe_ctx->stream_res.audio);
 		}
 	}
 
@@ -1518,7 +1518,7 @@ enum dc_status resource_map_pool_resources(
 		if (!stream->sink->converter_disable_audio &&
 			dc_is_audio_capable_signal(pipe_ctx->stream->signal) &&
 			stream->audio_info.mode_count) {
-			pipe_ctx->audio = find_first_free_audio(
+			pipe_ctx->stream_res.audio = find_first_free_audio(
 				&context->res_ctx, pool);
 
 			/*
@@ -1526,10 +1526,10 @@ enum dc_status resource_map_pool_resources(
 			 * There are asics which has number of audio
 			 * resources less then number of pipes
 			 */
-			if (pipe_ctx->audio)
+			if (pipe_ctx->stream_res.audio)
 				set_audio_in_use(
 					&context->res_ctx, pool,
-					pipe_ctx->audio);
+					pipe_ctx->stream_res.audio);
 		}
 
 		context->stream_status[i].primary_otg_inst = pipe_ctx->stream_res.tg->inst;
@@ -2375,7 +2375,7 @@ bool pipe_need_reprogram(
 	if (pipe_ctx_old->stream->signal != pipe_ctx->stream->signal)
 		return true;
 
-	if (pipe_ctx_old->audio != pipe_ctx->audio)
+	if (pipe_ctx_old->stream_res.audio != pipe_ctx->stream_res.audio)
 		return true;
 
 	if (pipe_ctx_old->clock_source != pipe_ctx->clock_source

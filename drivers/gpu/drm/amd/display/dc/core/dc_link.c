@@ -1305,9 +1305,9 @@ static enum dc_status enable_link(struct pipe_ctx *pipe_ctx)
 		break;
 	}
 
-	if (pipe_ctx->audio && status == DC_OK) {
+	if (pipe_ctx->stream_res.audio && status == DC_OK) {
 		/* notify audio driver for audio modes of monitor */
-		pipe_ctx->audio->funcs->az_enable(pipe_ctx->audio);
+		pipe_ctx->stream_res.audio->funcs->az_enable(pipe_ctx->stream_res.audio);
 
 		/* un-mute audio */
 		/* TODO: audio should be per stream rather than per link */
