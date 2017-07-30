@@ -6082,9 +6082,11 @@ static int atlas7_gpio_probe(struct platform_device *pdev)
 
 		/* Get interrupt number from DTS */
 		ret = of_irq_get(np, idx);
-		if (ret == -EPROBE_DEFER) {
+		if (ret <= 0) {
 			dev_err(&pdev->dev,
 				"Unable to find IRQ number. ret=%d\n", ret);
+			if (!ret)
+				ret = -ENXIO;
 			goto failed;
 		}
 		bank->irq = ret;
