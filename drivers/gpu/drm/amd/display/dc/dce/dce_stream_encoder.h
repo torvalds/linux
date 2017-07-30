@@ -97,7 +97,6 @@
 	SE_COMMON_REG_LIST_DCE_BASE(id), \
 	SRI(AFMT_CNTL, DIG, id)
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 #define SE_DCN_REG_LIST(id)\
 	SE_COMMON_REG_LIST_BASE(id),\
 	SRI(AFMT_CNTL, DIG, id),\
@@ -112,7 +111,6 @@
 	SRI(DP_MSA_TIMING_PARAM3, DP, id), \
 	SRI(DP_MSA_TIMING_PARAM4, DP, id), \
 	SRI(HDMI_DB_CONTROL, DIG, id)
-#endif
 
 #define SE_SF(reg_name, field_name, post_fix)\
 	.field_name = reg_name ## __ ## field_name ## post_fix
@@ -328,7 +326,6 @@
 	SE_SF(DIG0_AFMT_AVI_INFO3, AFMT_AVI_INFO_VERSION, mask_sh),\
 	SE_SF(DP0_DP_VID_TIMING, DP_VID_M_DOUBLE_VALUE_EN, mask_sh)
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 #define SE_COMMON_MASK_SH_LIST_DCN10(mask_sh)\
 	SE_COMMON_MASK_SH_LIST_SOC(mask_sh),\
 	SE_SF(DIG0_AFMT_VBI_PACKET_CONTROL, AFMT_GENERIC_LOCK_STATUS, mask_sh),\
@@ -368,7 +365,6 @@
 	SE_SF(DP0_DP_MSA_TIMING_PARAM4, DP_MSA_VHEIGHT, mask_sh),\
 	SE_SF(DIG0_HDMI_DB_CONTROL, HDMI_DB_DISABLE, mask_sh),\
 	SE_SF(DP0_DP_VID_TIMING, DP_VID_N_MUL, mask_sh)
-#endif
 
 struct dce_stream_encoder_shift {
 	uint8_t AFMT_GENERIC_INDEX;
@@ -684,7 +680,6 @@ struct dce110_stream_enc_registers {
 	uint32_t HDMI_ACR_48_0;
 	uint32_t HDMI_ACR_48_1;
 	uint32_t TMDS_CNTL;
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	uint32_t DP_DB_CNTL;
 	uint32_t DP_MSA_MISC;
 	uint32_t DP_MSA_COLORIMETRY;
@@ -693,7 +688,6 @@ struct dce110_stream_enc_registers {
 	uint32_t DP_MSA_TIMING_PARAM3;
 	uint32_t DP_MSA_TIMING_PARAM4;
 	uint32_t HDMI_DB_CONTROL;
-#endif
 };
 
 struct dce110_stream_encoder {

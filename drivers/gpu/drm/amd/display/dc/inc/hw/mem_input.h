@@ -28,7 +28,6 @@
 #include "dc.h"
 #include "include/grph_object_id.h"
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 #include "dml/display_mode_structs.h"
 
 struct cstate_pstate_watermarks_st {
@@ -49,7 +48,6 @@ struct dcn_watermark_set {
 	struct dcn_watermarks c;
 	struct dcn_watermarks d;
 };
-#endif
 
 struct dce_watermarks {
 	int a_mark;
@@ -76,7 +74,6 @@ struct mem_input {
 };
 
 struct mem_input_funcs {
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	void (*mem_input_setup)(
 			struct mem_input *mem_input,
 			struct _vcs_dpi_display_dlg_regs_st *dlg_regs,
@@ -90,7 +87,6 @@ struct mem_input_funcs {
 			struct mem_input *mem_input,
 			const struct rect *viewport,
 			const struct rect *viewport_c);
-#endif
 
 	void (*mem_input_program_display_marks)(
 		struct mem_input *mem_input,

@@ -32,9 +32,7 @@
 #include "ddc_service_types.h"
 #include "dc_bios_types.h"
 #include "mem_input.h"
-#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 #include "mpc.h"
-#endif
 
 #define MAX_CLOCK_SOURCES 7
 
