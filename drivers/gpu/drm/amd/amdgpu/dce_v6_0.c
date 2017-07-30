@@ -42,6 +42,7 @@
 #include "dce/dce_6_0_d.h"
 #include "dce/dce_6_0_sh_mask.h"
 #include "gca/gfx_7_2_enum.h"
+#include "dce_v6_0.h"
 #include "si_enums.h"
 
 static void dce_v6_0_set_display_funcs(struct amdgpu_device *adev);
