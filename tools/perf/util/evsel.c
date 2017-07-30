@@ -49,6 +49,7 @@ static struct {
 	bool clockid_wrong;
 	bool lbr_flags;
 	bool write_backward;
+	bool group_read;
 } perf_missing_features;
 
 static clockid_t clockid;
@@ -1261,18 +1262,146 @@ void perf_counts_values__scale(struct perf_counts_values *count,
 		*pscaled = scaled;
 }
 
+static int perf_evsel__read_size(struct perf_evsel *evsel)
+{
+	u64 read_format = evsel->attr.read_format;
+	int entry = sizeof(u64); /* value */
+	int size = 0;
+	int nr = 1;
+
+	if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED)
+		size += sizeof(u64);
+
+	if (read_format & PERF_FORMAT_TOTAL_TIME_RUNNING)
+		size += sizeof(u64);
+
+	if (read_format & PERF_FORMAT_ID)
+		entry += sizeof(u64);
+
+	if (read_format & PERF_FORMAT_GROUP) {
+		nr = evsel->nr_members;
+		size += sizeof(u64);
+	}
+
+	size += entry * nr;
+	return size;
+}
+
 int perf_evsel__read(struct perf_evsel *evsel, int cpu, int thread,
 		     struct perf_counts_values *count)
 {
+	size_t size = perf_evsel__read_size(evsel);
+
 	memset(count, 0, sizeof(*count));
 
 	if (FD(evsel, cpu, thread) < 0)
 		return -EINVAL;
 
-	if (readn(FD(evsel, cpu, thread), count, sizeof(*count)) <= 0)
+	if (readn(FD(evsel, cpu, thread), count->values, size) <= 0)
 		return -errno;
 
 	return 0;
+}
+
+static int
+perf_evsel__read_one(struct perf_evsel *evsel, int cpu, int thread)
+{
+	struct perf_counts_values *count = perf_counts(evsel->counts, cpu, thread);
+
+	return perf_evsel__read(evsel, cpu, thread, count);
+}
+
+static void
+perf_evsel__set_count(struct perf_evsel *counter, int cpu, int thread,
+		      u64 val, u64 ena, u64 run)
+{
+	struct perf_counts_values *count;
+
+	count = perf_counts(counter->counts, cpu, thread);
+
+	count->val    = val;
+	count->ena    = ena;
+	count->run    = run;
+	count->loaded = true;
+}
+
+static int
+perf_evsel__process_group_data(struct perf_evsel *leader,
+			       int cpu, int thread, u64 *data)
+{
+	u64 read_format = leader->attr.read_format;
+	struct sample_read_value *v;
+	u64 nr, ena = 0, run = 0, i;
+
+	nr = *data++;
+
+	if (nr != (u64) leader->nr_members)
+		return -EINVAL;
+
+	if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED)
+		ena = *data++;
+
+	if (read_format & PERF_FORMAT_TOTAL_TIME_RUNNING)
+		run = *data++;
+
+	v = (struct sample_read_value *) data;
+
+	perf_evsel__set_count(leader, cpu, thread,
+			      v[0].value, ena, run);
+
+	for (i = 1; i < nr; i++) {
+		struct perf_evsel *counter;
+
+		counter = perf_evlist__id2evsel(leader->evlist, v[i].id);
+		if (!counter)
+			return -EINVAL;
+
+		perf_evsel__set_count(counter, cpu, thread,
+				      v[i].value, ena, run);
+	}
+
+	return 0;
+}
+
+static int
+perf_evsel__read_group(struct perf_evsel *leader, int cpu, int thread)
+{
+	struct perf_stat_evsel *ps = leader->priv;
+	u64 read_format = leader->attr.read_format;
+	int size = perf_evsel__read_size(leader);
+	u64 *data = ps->group_data;
+
+	if (!(read_format & PERF_FORMAT_ID))
+		return -EINVAL;
+
+	if (!perf_evsel__is_group_leader(leader))
+		return -EINVAL;
+
+	if (!data) {
+		data = zalloc(size);
+		if (!data)
+			return -ENOMEM;
+
+		ps->group_data = data;
+	}
+
+	if (FD(leader, cpu, thread) < 0)
+		return -EINVAL;
+
+	if (readn(FD(leader, cpu, thread), data, size) <= 0)
+		return -errno;
+
+	return perf_evsel__process_group_data(leader, cpu, thread, data);
+}
+
+int perf_evsel__read_counter(struct perf_evsel *evsel, int cpu, int thread)
+{
+	u64 read_format = evsel->attr.read_format;
+
+	if (read_format & PERF_FORMAT_GROUP)
+		return perf_evsel__read_group(evsel, cpu, thread);
+	else
+		return perf_evsel__read_one(evsel, cpu, thread);
 }
 
 int __perf_evsel__read_on_cpu(struct perf_evsel *evsel,
@@ -1550,6 +1679,8 @@ fallback_missing_features:
 	if (perf_missing_features.lbr_flags)
 		evsel->attr.branch_sample_type &= ~(PERF_SAMPLE_BRANCH_NO_FLAGS |
 				     PERF_SAMPLE_BRANCH_NO_CYCLES);
+	if (perf_missing_features.group_read && evsel->attr.inherit)
+		evsel->attr.read_format &= ~(PERF_FORMAT_GROUP|PERF_FORMAT_ID);
 retry_sample_id:
 	if (perf_missing_features.sample_id_all)
 		evsel->attr.sample_id_all = 0;
@@ -1704,6 +1835,12 @@ try_fallback:
 			  PERF_SAMPLE_BRANCH_NO_FLAGS))) {
 		perf_missing_features.lbr_flags = true;
 		pr_debug2("switching off branch sample type no (cycles/flags)\n");
+		goto fallback_missing_features;
+	} else if (!perf_missing_features.group_read &&
+		    evsel->attr.inherit &&
+		   (evsel->attr.read_format & PERF_FORMAT_GROUP)) {
+		perf_missing_features.group_read = true;
+		pr_debug2("switching off group read\n");
 		goto fallback_missing_features;
 	}
 out_close:
