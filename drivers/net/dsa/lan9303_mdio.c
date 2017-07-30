@@ -67,6 +67,25 @@ static int lan9303_mdio_read(void *ctx, uint32_t reg, uint32_t *val)
 	return 0;
 }
 
+int lan9303_mdio_phy_write(struct lan9303 *chip, int phy, int reg, u16 val)
+{
+	struct lan9303_mdio *sw_dev = dev_get_drvdata(chip->dev);
+
+	return mdiobus_write_nested(sw_dev->device->bus, phy, reg, val);
+}
+
+int lan9303_mdio_phy_read(struct lan9303 *chip, int phy,  int reg)
+{
+	struct lan9303_mdio *sw_dev = dev_get_drvdata(chip->dev);
+
+	return mdiobus_read_nested(sw_dev->device->bus, phy, reg);
+}
+
+static const struct lan9303_phy_ops lan9303_mdio_phy_ops = {
+	.phy_read = lan9303_mdio_phy_read,
+	.phy_write = lan9303_mdio_phy_write,
+};
+
 static const struct regmap_config lan9303_mdio_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 32,
@@ -107,6 +126,8 @@ static int lan9303_mdio_probe(struct mdio_device *mdiodev)
 	sw_dev->device = mdiodev;
 	dev_set_drvdata(&mdiodev->dev, sw_dev);
 	sw_dev->chip.dev = &mdiodev->dev;
+
+	sw_dev->chip.ops = &lan9303_mdio_phy_ops;
 
 	ret = lan9303_probe(&sw_dev->chip, mdiodev->dev.of_node);
 	if (ret != 0)

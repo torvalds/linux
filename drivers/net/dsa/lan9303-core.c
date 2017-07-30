@@ -334,6 +334,12 @@ on_error:
 	return ret;
 }
 
+const struct lan9303_phy_ops lan9303_indirect_phy_ops = {
+	.phy_read = lan9303_indirect_phy_read,
+	.phy_write = lan9303_indirect_phy_write,
+};
+EXPORT_SYMBOL_GPL(lan9303_indirect_phy_ops);
+
 static int lan9303_switch_wait_for_completion(struct lan9303 *chip)
 {
 	int ret, i;
@@ -435,7 +441,7 @@ static int lan9303_detect_phy_setup(struct lan9303 *chip)
 	 * 0x0000, which means 'phy_addr_sel_strap' is 1 and the IDs are 1-2-3.
 	 * 0xffff is returned on MDIO read with no response.
 	 */
-	reg = lan9303_indirect_phy_read(chip, 3, MII_LAN911X_SPECIAL_MODES);
+	reg = chip->ops->phy_read(chip, 3, MII_LAN911X_SPECIAL_MODES);
 	if (reg < 0) {
 		dev_err(chip->dev, "Failed to detect phy config: %d\n", reg);
 		return reg;
@@ -726,7 +732,7 @@ static int lan9303_phy_read(struct dsa_switch *ds, int phy, int regnum)
 	if (phy > phy_base + 2)
 		return -ENODEV;
 
-	return lan9303_indirect_phy_read(chip, phy, regnum);
+	return chip->ops->phy_read(chip, phy, regnum);
 }
 
 static int lan9303_phy_write(struct dsa_switch *ds, int phy, int regnum,
@@ -740,7 +746,7 @@ static int lan9303_phy_write(struct dsa_switch *ds, int phy, int regnum,
 	if (phy > phy_base + 2)
 		return -ENODEV;
 
-	return lan9303_indirect_phy_write(chip, phy, regnum, val);
+	return chip->ops->phy_write(chip, phy, regnum, val);
 }
 
 static int lan9303_port_enable(struct dsa_switch *ds, int port,
@@ -773,13 +779,13 @@ static void lan9303_port_disable(struct dsa_switch *ds, int port,
 	switch (port) {
 	case 1:
 		lan9303_disable_packet_processing(chip, LAN9303_PORT_1_OFFSET);
-		lan9303_indirect_phy_write(chip, chip->phy_addr_sel_strap + 1,
-					   MII_BMCR, BMCR_PDOWN);
+		lan9303_phy_write(ds, chip->phy_addr_sel_strap + 1,
+				  MII_BMCR, BMCR_PDOWN);
 		break;
 	case 2:
 		lan9303_disable_packet_processing(chip, LAN9303_PORT_2_OFFSET);
-		lan9303_indirect_phy_write(chip, chip->phy_addr_sel_strap + 2,
-					   MII_BMCR, BMCR_PDOWN);
+		lan9303_phy_write(ds, chip->phy_addr_sel_strap + 2,
+				  MII_BMCR, BMCR_PDOWN);
 		break;
 	default:
 		dev_dbg(chip->dev,
