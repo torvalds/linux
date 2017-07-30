@@ -604,12 +604,11 @@ void flush_cache_range(struct vm_area_struct *vma,
 	if (parisc_requires_coherency())
 		flush_tlb_range(vma, start, end);
 
-	if ((end - start) >= parisc_cache_flush_threshold) {
+	if ((end - start) >= parisc_cache_flush_threshold
+	    || vma->vm_mm->context != mfsp(3)) {
 		flush_cache_all();
 		return;
 	}
-
-	BUG_ON(vma->vm_mm->context != mfsp(3));
 
 	flush_user_dcache_range_asm(start, end);
 	if (vma->vm_flags & VM_EXEC)
