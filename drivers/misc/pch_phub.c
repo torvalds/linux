@@ -891,7 +891,7 @@ static int pch_phub_resume(struct pci_dev *pdev)
 #define pch_phub_resume NULL
 #endif /* CONFIG_PM */
 
-static struct pci_device_id pch_phub_pcidev_id[] = {
+static const struct pci_device_id pch_phub_pcidev_id[] = {
 	{ PCI_VDEVICE(INTEL, PCI_DEVICE_ID_PCH1_PHUB),       1,  },
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ROHM_ML7213_PHUB), 2,  },
 	{ PCI_VDEVICE(ROHM, PCI_DEVICE_ID_ROHM_ML7223_mPHUB), 3,  },
