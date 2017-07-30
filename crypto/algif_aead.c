@@ -30,6 +30,8 @@
 #include <crypto/internal/aead.h>
 #include <crypto/scatterwalk.h>
 #include <crypto/if_alg.h>
+#include <crypto/skcipher.h>
+#include <crypto/null.h>
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/kernel.h>
@@ -70,6 +72,7 @@ struct aead_async_req {
 struct aead_tfm {
 	struct crypto_aead *aead;
 	bool has_key;
+	struct crypto_skcipher *null_tfm;
 };
 
 struct aead_ctx {
@@ -168,7 +171,12 @@ static int aead_alloc_tsgl(struct sock *sk)
 	return 0;
 }
 
-static unsigned int aead_count_tsgl(struct sock *sk, size_t bytes)
+/**
+ * Count number of SG entries from the beginning of the SGL to @bytes. If
+ * an offset is provided, the counting of the SG entries starts at the offset.
+ */
+static unsigned int aead_count_tsgl(struct sock *sk, size_t bytes,
+				    size_t offset)
 {
 	struct alg_sock *ask = alg_sk(sk);
 	struct aead_ctx *ctx = ask->private;
@@ -183,32 +191,55 @@ static unsigned int aead_count_tsgl(struct sock *sk, size_t bytes)
 		struct scatterlist *sg = sgl->sg;
 
 		for (i = 0; i < sgl->cur; i++) {
+			size_t bytes_count;
+
+			/* Skip offset */
+			if (offset >= sg[i].length) {
+				offset -= sg[i].length;
+				bytes -= sg[i].length;
+				continue;
+			}
+
+			bytes_count = sg[i].length - offset;
+
+			offset = 0;
 			sgl_count++;
-			if (sg[i].length >= bytes)
+
+			/* If we have seen requested number of bytes, stop */
+			if (bytes_count >= bytes)
 				return sgl_count;
 
-			bytes -= sg[i].length;
+			bytes -= bytes_count;
 		}
 	}
 
 	return sgl_count;
 }
 
+/**
+ * Release the specified buffers from TX SGL pointed to by ctx->tsgl_list for
+ * @used bytes.
+ *
+ * If @dst is non-null, reassign the pages to dst. The caller must release
+ * the pages. If @dst_offset is given only reassign the pages to @dst starting
+ * at the @dst_offset (byte). The caller must ensure that @dst is large
+ * enough (e.g. by using aead_count_tsgl with the same offset).
+ */
 static void aead_pull_tsgl(struct sock *sk, size_t used,
-			   struct scatterlist *dst)
+			   struct scatterlist *dst, size_t dst_offset)
 {
 	struct alg_sock *ask = alg_sk(sk);
 	struct aead_ctx *ctx = ask->private;
 	struct aead_tsgl *sgl;
 	struct scatterlist *sg;
-	unsigned int i;
+	unsigned int i, j;
 
 	while (!list_empty(&ctx->tsgl_list)) {
 		sgl = list_first_entry(&ctx->tsgl_list, struct aead_tsgl,
 				       list);
 		sg = sgl->sg;
 
-		for (i = 0; i < sgl->cur; i++) {
+		for (i = 0, j = 0; i < sgl->cur; i++) {
 			size_t plen = min_t(size_t, used, sg[i].length);
 			struct page *page = sg_page(sg + i);
 
@@ -219,8 +250,20 @@ static void aead_pull_tsgl(struct sock *sk, size_t used,
 			 * Assumption: caller created aead_count_tsgl(len)
 			 * SG entries in dst.
 			 */
-			if (dst)
-				sg_set_page(dst + i, page, plen, sg[i].offset);
+			if (dst) {
+				if (dst_offset >= plen) {
+					/* discard page before offset */
+					dst_offset -= plen;
+					put_page(page);
+				} else {
+					/* reassign page to dst after offset */
+					sg_set_page(dst + j, page,
+						    plen - dst_offset,
+						    sg[i].offset + dst_offset);
+					dst_offset = 0;
+					j++;
+				}
+			}
 
 			sg[i].length -= plen;
 			sg[i].offset += plen;
@@ -233,6 +276,7 @@ static void aead_pull_tsgl(struct sock *sk, size_t used,
 
 			if (!dst)
 				put_page(page);
+
 			sg_assign_page(sg + i, NULL);
 		}
 
@@ -583,6 +627,20 @@ static void aead_async_cb(struct crypto_async_request *_req, int err)
 	release_sock(sk);
 }
 
+static int crypto_aead_copy_sgl(struct crypto_skcipher *null_tfm,
+				struct scatterlist *src,
+				struct scatterlist *dst, unsigned int len)
+{
+	SKCIPHER_REQUEST_ON_STACK(skreq, null_tfm);
+
+	skcipher_request_set_tfm(skreq, null_tfm);
+	skcipher_request_set_callback(skreq, CRYPTO_TFM_REQ_MAY_BACKLOG,
+				      NULL, NULL);
+	skcipher_request_set_crypt(skreq, src, dst, len, NULL);
+
+	return crypto_skcipher_encrypt(skreq);
+}
+
 static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 			 size_t ignored, int flags)
 {
@@ -593,11 +651,14 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 	struct aead_ctx *ctx = ask->private;
 	struct aead_tfm *aeadc = pask->private;
 	struct crypto_aead *tfm = aeadc->aead;
+	struct crypto_skcipher *null_tfm = aeadc->null_tfm;
 	unsigned int as = crypto_aead_authsize(tfm);
 	unsigned int areqlen =
 		sizeof(struct aead_async_req) + crypto_aead_reqsize(tfm);
 	struct aead_async_req *areq;
 	struct aead_rsgl *last_rsgl = NULL;
+	struct aead_tsgl *tsgl;
+	struct scatterlist *src;
 	int err = 0;
 	size_t used = 0;		/* [in]  TX bufs to be en/decrypted */
 	size_t outlen = 0;		/* [out] RX bufs produced by kernel */
@@ -716,25 +777,91 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 		outlen -= less;
 	}
 
-	/*
-	 * Create a per request TX SGL for this request which tracks the
-	 * SG entries from the global TX SGL.
-	 */
 	processed = used + ctx->aead_assoclen;
-	areq->tsgl_entries = aead_count_tsgl(sk, processed);
-	if (!areq->tsgl_entries)
-		areq->tsgl_entries = 1;
-	areq->tsgl = sock_kmalloc(sk, sizeof(*areq->tsgl) * areq->tsgl_entries,
-				  GFP_KERNEL);
-	if (!areq->tsgl) {
-		err = -ENOMEM;
-		goto free;
+	tsgl = list_first_entry(&ctx->tsgl_list, struct aead_tsgl, list);
+
+	/*
+	 * Copy of AAD from source to destination
+	 *
+	 * The AAD is copied to the destination buffer without change. Even
+	 * when user space uses an in-place cipher operation, the kernel
+	 * will copy the data as it does not see whether such in-place operation
+	 * is initiated.
+	 *
+	 * To ensure efficiency, the following implementation ensure that the
+	 * ciphers are invoked to perform a crypto operation in-place. This
+	 * is achieved by memory management specified as follows.
+	 */
+
+	/* Use the RX SGL as source (and destination) for crypto op. */
+	src = areq->first_rsgl.sgl.sg;
+
+	if (ctx->enc) {
+		/*
+		 * Encryption operation - The in-place cipher operation is
+		 * achieved by the following operation:
+		 *
+		 * TX SGL: AAD || PT || Tag
+		 *	    |	   |
+		 *	    | copy |
+		 *	    v	   v
+		 * RX SGL: AAD || PT
+		 */
+		err = crypto_aead_copy_sgl(null_tfm, tsgl->sg,
+					   areq->first_rsgl.sgl.sg, processed);
+		if (err)
+			goto free;
+		aead_pull_tsgl(sk, processed, NULL, 0);
+	} else {
+		/*
+		 * Decryption operation - To achieve an in-place cipher
+		 * operation, the following  SGL structure is used:
+		 *
+		 * TX SGL: AAD || CT || Tag
+		 *	    |	   |	 ^
+		 *	    | copy |	 | Create SGL link.
+		 *	    v	   v	 |
+		 * RX SGL: AAD || CT ----+
+		 */
+
+		 /* Copy AAD || CT to RX SGL buffer for in-place operation. */
+		err = crypto_aead_copy_sgl(null_tfm, tsgl->sg,
+					   areq->first_rsgl.sgl.sg, outlen);
+		if (err)
+			goto free;
+
+		/* Create TX SGL for tag and chain it to RX SGL. */
+		areq->tsgl_entries = aead_count_tsgl(sk, processed,
+						     processed - as);
+		if (!areq->tsgl_entries)
+			areq->tsgl_entries = 1;
+		areq->tsgl = sock_kmalloc(sk, sizeof(*areq->tsgl) *
+					      areq->tsgl_entries,
+					  GFP_KERNEL);
+		if (!areq->tsgl) {
+			err = -ENOMEM;
+			goto free;
+		}
+		sg_init_table(areq->tsgl, areq->tsgl_entries);
+
+		/* Release TX SGL, except for tag data and reassign tag data. */
+		aead_pull_tsgl(sk, processed, areq->tsgl, processed - as);
+
+		/* chain the areq TX SGL holding the tag with RX SGL */
+		if (last_rsgl) {
+			/* RX SGL present */
+			struct af_alg_sgl *sgl_prev = &last_rsgl->sgl;
+
+			sg_unmark_end(sgl_prev->sg + sgl_prev->npages - 1);
+			sg_chain(sgl_prev->sg, sgl_prev->npages + 1,
+				 areq->tsgl);
+		} else
+			/* no RX SGL present (e.g. authentication only) */
+			src = areq->tsgl;
 	}
-	sg_init_table(areq->tsgl, areq->tsgl_entries);
-	aead_pull_tsgl(sk, processed, areq->tsgl);
 
 	/* Initialize the crypto operation */
-	aead_request_set_crypt(&areq->aead_req, areq->tsgl,
+	aead_request_set_crypt(&areq->aead_req, src,
 			       areq->first_rsgl.sgl.sg, used, ctx->iv);
 	aead_request_set_ad(&areq->aead_req, ctx->aead_assoclen);
 	aead_request_set_tfm(&areq->aead_req, tfm);
@@ -951,6 +1078,7 @@ static void *aead_bind(const char *name, u32 type, u32 mask)
 {
 	struct aead_tfm *tfm;
 	struct crypto_aead *aead;
+	struct crypto_skcipher *null_tfm;
 
 	tfm = kzalloc(sizeof(*tfm), GFP_KERNEL);
 	if (!tfm)
@@ -962,7 +1090,15 @@ static void *aead_bind(const char *name, u32 type, u32 mask)
 		return ERR_CAST(aead);
 	}
 
+	null_tfm = crypto_get_default_null_skcipher2();
+	if (IS_ERR(null_tfm)) {
+		crypto_free_aead(aead);
+		kfree(tfm);
+		return ERR_CAST(null_tfm);
+	}
+
 	tfm->aead = aead;
+	tfm->null_tfm = null_tfm;
 
 	return tfm;
 }
@@ -1003,7 +1139,8 @@ static void aead_sock_destruct(struct sock *sk)
 	struct crypto_aead *tfm = aeadc->aead;
 	unsigned int ivlen = crypto_aead_ivsize(tfm);
 
-	aead_pull_tsgl(sk, ctx->used, NULL);
+	aead_pull_tsgl(sk, ctx->used, NULL, 0);
+	crypto_put_default_null_skcipher2();
 	sock_kzfree_s(sk, ctx->iv, ivlen);
 	sock_kfree_s(sk, ctx, ctx->len);
 	af_alg_release_parent(sk);
