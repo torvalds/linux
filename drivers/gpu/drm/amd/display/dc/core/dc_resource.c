@@ -2267,7 +2267,7 @@ struct clock_source *dc_resource_find_first_free_pll(
 void resource_build_info_frame(struct pipe_ctx *pipe_ctx)
 {
 	enum signal_type signal = SIGNAL_TYPE_NONE;
-	struct encoder_info_frame *info = &pipe_ctx->encoder_info_frame;
+	struct encoder_info_frame *info = &pipe_ctx->stream_res.encoder_info_frame;
 
 	/* default all packets to invalid */
 	info->avi.valid = false;

@@ -159,6 +159,7 @@ struct stream_resource {
 	struct audio *audio;
 
 	struct pixel_clk_params pix_clk_params;
+	struct encoder_info_frame encoder_info_frame;
 };
 
 struct plane_resource {
@@ -180,9 +181,6 @@ struct pipe_ctx {
 	struct clock_source *clock_source;
 
 	struct pll_settings pll_settings;
-
-	/*fmt*/
-	struct encoder_info_frame encoder_info_frame;
 
 	uint8_t pipe_idx;
 
