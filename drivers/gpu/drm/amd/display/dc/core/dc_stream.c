@@ -223,9 +223,9 @@ bool dc_stream_set_cursor_position(
 		struct dc_cursor_mi_param param = {
 			.pixel_clk_khz = stream->timing.pix_clk_khz,
 			.ref_clk_khz = core_dc->res_pool->ref_clock_inKhz,
-			.viewport_x_start = pipe_ctx->scl_data.viewport.x,
-			.viewport_width = pipe_ctx->scl_data.viewport.width,
-			.h_scale_ratio = pipe_ctx->scl_data.ratios.horz
+			.viewport_x_start = pipe_ctx->plane_res.scl_data.viewport.x,
+			.viewport_width = pipe_ctx->plane_res.scl_data.viewport.width,
+			.h_scale_ratio = pipe_ctx->plane_res.scl_data.ratios.horz
 		};
 
 		if (pipe_ctx->stream != stream ||

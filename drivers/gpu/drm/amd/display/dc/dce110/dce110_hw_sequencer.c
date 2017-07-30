@@ -914,7 +914,7 @@ static void get_surface_visual_confirm_color(const struct pipe_ctx *pipe_ctx,
 {
 	uint32_t color_value = MAX_TG_COLOR_VALUE * (4 - pipe_ctx->pipe_idx) / 4;
 
-	switch (pipe_ctx->scl_data.format) {
+	switch (pipe_ctx->plane_res.scl_data.format) {
 	case PIXEL_FORMAT_ARGB8888:
 		/* set boarder color to red */
 		color->color_r_cr = color_value;
@@ -964,7 +964,7 @@ static void program_scaler(const struct core_dc *dc,
 
 	pipe_ctx->xfm->funcs->transform_set_pixel_storage_depth(
 		pipe_ctx->xfm,
-		pipe_ctx->scl_data.lb_params.depth,
+		pipe_ctx->plane_res.scl_data.lb_params.depth,
 		&pipe_ctx->stream->bit_depth_params);
 
 	if (pipe_ctx->tg->funcs->set_overscan_blank_color)
@@ -973,7 +973,7 @@ static void program_scaler(const struct core_dc *dc,
 				&color);
 
 	pipe_ctx->xfm->funcs->transform_set_scaler(pipe_ctx->xfm,
-		&pipe_ctx->scl_data);
+		&pipe_ctx->plane_res.scl_data);
 }
 
 static enum dc_status dce110_prog_pixclk_crtc_otg(
@@ -1114,10 +1114,10 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 				&stream->sink->link->cur_link_settings);
 	}
 
-	pipe_ctx->scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != 0;
+	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != 0;
 	/* program_scaler and allocate_mem_input are not new asic */
 	if ((!pipe_ctx_old ||
-	     memcmp(&pipe_ctx_old->scl_data, &pipe_ctx->scl_data,
+	     memcmp(&pipe_ctx_old->plane_res.scl_data, &pipe_ctx->plane_res.scl_data,
 		    sizeof(struct scaler_data)) != 0) &&
 	     pipe_ctx->plane_state) {
 		program_scaler(dc, pipe_ctx);
@@ -1927,14 +1927,14 @@ static void set_default_colors(struct pipe_ctx *pipe_ctx)
 		default_adjust.out_color_space =
 				pipe_ctx->stream->output_color_space;
 	default_adjust.csc_adjust_type = GRAPHICS_CSC_ADJUST_TYPE_SW;
-	default_adjust.surface_pixel_format = pipe_ctx->scl_data.format;
+	default_adjust.surface_pixel_format = pipe_ctx->plane_res.scl_data.format;
 
 	/* display color depth */
 	default_adjust.color_depth =
 		pipe_ctx->stream->timing.display_color_depth;
 
 	/* Lb color depth */
-	default_adjust.lb_color_depth = pipe_ctx->scl_data.lb_params.depth;
+	default_adjust.lb_color_depth = pipe_ctx->plane_res.scl_data.lb_params.depth;
 
 	pipe_ctx->xfm->funcs->opp_set_csc_default(
 					pipe_ctx->xfm, &default_adjust);
@@ -2096,7 +2096,7 @@ static void set_plane_config(
 
 	pipe_ctx->xfm->funcs->transform_set_gamut_remap(pipe_ctx->xfm, &adjust);
 
-	pipe_ctx->scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != 0;
+	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != 0;
 	program_scaler(dc, pipe_ctx);
 
 	program_surface_visibility(dc, pipe_ctx);
@@ -2552,7 +2552,7 @@ static void dce110_program_front_end_for_pipe(
 
 	pipe_ctx->xfm->funcs->transform_set_gamut_remap(pipe_ctx->xfm, &adjust);
 
-	pipe_ctx->scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != 0;
+	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = pipe_ctx->bottom_pipe != 0;
 
 	program_scaler(dc, pipe_ctx);
 
@@ -2602,14 +2602,14 @@ static void dce110_program_front_end_for_pipe(
 			"viewport:%d, %d, %d, %d\n"
 			"recout:  %d, %d, %d, %d\n",
 			pipe_ctx->pipe_idx,
-			pipe_ctx->scl_data.viewport.width,
-			pipe_ctx->scl_data.viewport.height,
-			pipe_ctx->scl_data.viewport.x,
-			pipe_ctx->scl_data.viewport.y,
-			pipe_ctx->scl_data.recout.width,
-			pipe_ctx->scl_data.recout.height,
-			pipe_ctx->scl_data.recout.x,
-			pipe_ctx->scl_data.recout.y);
+			pipe_ctx->plane_res.scl_data.viewport.width,
+			pipe_ctx->plane_res.scl_data.viewport.height,
+			pipe_ctx->plane_res.scl_data.viewport.x,
+			pipe_ctx->plane_res.scl_data.viewport.y,
+			pipe_ctx->plane_res.scl_data.recout.width,
+			pipe_ctx->plane_res.scl_data.recout.height,
+			pipe_ctx->plane_res.scl_data.recout.x,
+			pipe_ctx->plane_res.scl_data.recout.y);
 }
 
 static void dce110_apply_ctx_for_surface(

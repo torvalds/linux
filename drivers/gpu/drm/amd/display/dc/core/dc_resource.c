@@ -432,7 +432,7 @@ static void calculate_viewport(struct pipe_ctx *pipe_ctx)
 {
 	const struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	const struct dc_stream_state *stream = pipe_ctx->stream;
-	struct scaler_data *data = &pipe_ctx->scl_data;
+	struct scaler_data *data = &pipe_ctx->plane_res.scl_data;
 	struct rect surf_src = plane_state->src_rect;
 	struct rect clip = { 0 };
 	int vpc_div = (data->format == PIXEL_FORMAT_420BPP8
@@ -539,53 +539,53 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip
 			pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270)
 		rect_swap_helper(&surf_src);
 
-	pipe_ctx->scl_data.recout.x = stream->dst.x;
+	pipe_ctx->plane_res.scl_data.recout.x = stream->dst.x;
 	if (stream->src.x < surf_clip.x)
-		pipe_ctx->scl_data.recout.x += (surf_clip.x
+		pipe_ctx->plane_res.scl_data.recout.x += (surf_clip.x
 			- stream->src.x) * stream->dst.width
 						/ stream->src.width;
 
-	pipe_ctx->scl_data.recout.width = surf_clip.width *
+	pipe_ctx->plane_res.scl_data.recout.width = surf_clip.width *
 			stream->dst.width / stream->src.width;
-	if (pipe_ctx->scl_data.recout.width + pipe_ctx->scl_data.recout.x >
+	if (pipe_ctx->plane_res.scl_data.recout.width + pipe_ctx->plane_res.scl_data.recout.x >
 			stream->dst.x + stream->dst.width)
-		pipe_ctx->scl_data.recout.width =
+		pipe_ctx->plane_res.scl_data.recout.width =
 			stream->dst.x + stream->dst.width
-						- pipe_ctx->scl_data.recout.x;
+						- pipe_ctx->plane_res.scl_data.recout.x;
 
-	pipe_ctx->scl_data.recout.y = stream->dst.y;
+	pipe_ctx->plane_res.scl_data.recout.y = stream->dst.y;
 	if (stream->src.y < surf_clip.y)
-		pipe_ctx->scl_data.recout.y += (surf_clip.y
+		pipe_ctx->plane_res.scl_data.recout.y += (surf_clip.y
 			- stream->src.y) * stream->dst.height
 						/ stream->src.height;
 
-	pipe_ctx->scl_data.recout.height = surf_clip.height *
+	pipe_ctx->plane_res.scl_data.recout.height = surf_clip.height *
 			stream->dst.height / stream->src.height;
-	if (pipe_ctx->scl_data.recout.height + pipe_ctx->scl_data.recout.y >
+	if (pipe_ctx->plane_res.scl_data.recout.height + pipe_ctx->plane_res.scl_data.recout.y >
 			stream->dst.y + stream->dst.height)
-		pipe_ctx->scl_data.recout.height =
+		pipe_ctx->plane_res.scl_data.recout.height =
 			stream->dst.y + stream->dst.height
-						- pipe_ctx->scl_data.recout.y;
+						- pipe_ctx->plane_res.scl_data.recout.y;
 
 	/* Handle h & vsplit */
 	if (pipe_ctx->top_pipe && pipe_ctx->top_pipe->plane_state ==
 		pipe_ctx->plane_state) {
 		if (stream->view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM) {
-			pipe_ctx->scl_data.recout.height /= 2;
-			pipe_ctx->scl_data.recout.y += pipe_ctx->scl_data.recout.height;
+			pipe_ctx->plane_res.scl_data.recout.height /= 2;
+			pipe_ctx->plane_res.scl_data.recout.y += pipe_ctx->plane_res.scl_data.recout.height;
 			/* Floor primary pipe, ceil 2ndary pipe */
-			pipe_ctx->scl_data.recout.height += pipe_ctx->scl_data.recout.height % 2;
+			pipe_ctx->plane_res.scl_data.recout.height += pipe_ctx->plane_res.scl_data.recout.height % 2;
 		} else {
-			pipe_ctx->scl_data.recout.width /= 2;
-			pipe_ctx->scl_data.recout.x += pipe_ctx->scl_data.recout.width;
-			pipe_ctx->scl_data.recout.width += pipe_ctx->scl_data.recout.width % 2;
+			pipe_ctx->plane_res.scl_data.recout.width /= 2;
+			pipe_ctx->plane_res.scl_data.recout.x += pipe_ctx->plane_res.scl_data.recout.width;
+			pipe_ctx->plane_res.scl_data.recout.width += pipe_ctx->plane_res.scl_data.recout.width % 2;
 		}
 	} else if (pipe_ctx->bottom_pipe &&
 			pipe_ctx->bottom_pipe->plane_state == pipe_ctx->plane_state) {
 		if (stream->view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM)
-			pipe_ctx->scl_data.recout.height /= 2;
+			pipe_ctx->plane_res.scl_data.recout.height /= 2;
 		else
-			pipe_ctx->scl_data.recout.width /= 2;
+			pipe_ctx->plane_res.scl_data.recout.width /= 2;
 	}
 
 	/* Unclipped recout offset = stream dst offset + ((surf dst offset - stream surf_src offset)
@@ -601,8 +601,8 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx, struct view *recout_skip
 			surf_src.y * plane_state->dst_rect.height / surf_src.height
 					* stream->dst.height / stream->src.height;
 
-	recout_skip->width = pipe_ctx->scl_data.recout.x - recout_full_x;
-	recout_skip->height = pipe_ctx->scl_data.recout.y - recout_full_y;
+	recout_skip->width = pipe_ctx->plane_res.scl_data.recout.x - recout_full_x;
+	recout_skip->height = pipe_ctx->plane_res.scl_data.recout.y - recout_full_y;
 }
 
 static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
@@ -619,36 +619,36 @@ static void calculate_scaling_ratios(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->plane_state->rotation == ROTATION_ANGLE_270)
 		rect_swap_helper(&surf_src);
 
-	pipe_ctx->scl_data.ratios.horz = dal_fixed31_32_from_fraction(
+	pipe_ctx->plane_res.scl_data.ratios.horz = dal_fixed31_32_from_fraction(
 					surf_src.width,
 					plane_state->dst_rect.width);
-	pipe_ctx->scl_data.ratios.vert = dal_fixed31_32_from_fraction(
+	pipe_ctx->plane_res.scl_data.ratios.vert = dal_fixed31_32_from_fraction(
 					surf_src.height,
 					plane_state->dst_rect.height);
 
 	if (stream->view_format == VIEW_3D_FORMAT_SIDE_BY_SIDE)
-		pipe_ctx->scl_data.ratios.horz.value *= 2;
+		pipe_ctx->plane_res.scl_data.ratios.horz.value *= 2;
 	else if (stream->view_format == VIEW_3D_FORMAT_TOP_AND_BOTTOM)
-		pipe_ctx->scl_data.ratios.vert.value *= 2;
+		pipe_ctx->plane_res.scl_data.ratios.vert.value *= 2;
 
-	pipe_ctx->scl_data.ratios.vert.value = div64_s64(
-		pipe_ctx->scl_data.ratios.vert.value * in_h, out_h);
-	pipe_ctx->scl_data.ratios.horz.value = div64_s64(
-		pipe_ctx->scl_data.ratios.horz.value * in_w, out_w);
+	pipe_ctx->plane_res.scl_data.ratios.vert.value = div64_s64(
+		pipe_ctx->plane_res.scl_data.ratios.vert.value * in_h, out_h);
+	pipe_ctx->plane_res.scl_data.ratios.horz.value = div64_s64(
+		pipe_ctx->plane_res.scl_data.ratios.horz.value * in_w, out_w);
 
-	pipe_ctx->scl_data.ratios.horz_c = pipe_ctx->scl_data.ratios.horz;
-	pipe_ctx->scl_data.ratios.vert_c = pipe_ctx->scl_data.ratios.vert;
+	pipe_ctx->plane_res.scl_data.ratios.horz_c = pipe_ctx->plane_res.scl_data.ratios.horz;
+	pipe_ctx->plane_res.scl_data.ratios.vert_c = pipe_ctx->plane_res.scl_data.ratios.vert;
 
-	if (pipe_ctx->scl_data.format == PIXEL_FORMAT_420BPP8
-			|| pipe_ctx->scl_data.format == PIXEL_FORMAT_420BPP10) {
-		pipe_ctx->scl_data.ratios.horz_c.value /= 2;
-		pipe_ctx->scl_data.ratios.vert_c.value /= 2;
+	if (pipe_ctx->plane_res.scl_data.format == PIXEL_FORMAT_420BPP8
+			|| pipe_ctx->plane_res.scl_data.format == PIXEL_FORMAT_420BPP10) {
+		pipe_ctx->plane_res.scl_data.ratios.horz_c.value /= 2;
+		pipe_ctx->plane_res.scl_data.ratios.vert_c.value /= 2;
 	}
 }
 
 static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx, struct view *recout_skip)
 {
-	struct scaler_data *data = &pipe_ctx->scl_data;
+	struct scaler_data *data = &pipe_ctx->plane_res.scl_data;
 	struct rect src = pipe_ctx->plane_state->src_rect;
 	int vpc_div = (data->format == PIXEL_FORMAT_420BPP8
 			|| data->format == PIXEL_FORMAT_420BPP10) ? 2 : 1;
@@ -823,14 +823,14 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	 * lb depth calculation requires recout and taps require scaling ratios.
 	 * Inits require viewport, taps, ratios and recout of split pipe
 	 */
-	pipe_ctx->scl_data.format = convert_pixel_format_to_dalsurface(
+	pipe_ctx->plane_res.scl_data.format = convert_pixel_format_to_dalsurface(
 			pipe_ctx->plane_state->format);
 
 	calculate_scaling_ratios(pipe_ctx);
 
 	calculate_viewport(pipe_ctx);
 
-	if (pipe_ctx->scl_data.viewport.height < 16 || pipe_ctx->scl_data.viewport.width < 16)
+	if (pipe_ctx->plane_res.scl_data.viewport.height < 16 || pipe_ctx->plane_res.scl_data.viewport.width < 16)
 		return false;
 
 	calculate_recout(pipe_ctx, &recout_skip);
@@ -839,21 +839,21 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	 * Setting line buffer pixel depth to 24bpp yields banding
 	 * on certain displays, such as the Sharp 4k
 	 */
-	pipe_ctx->scl_data.lb_params.depth = LB_PIXEL_DEPTH_30BPP;
+	pipe_ctx->plane_res.scl_data.lb_params.depth = LB_PIXEL_DEPTH_30BPP;
 
-	pipe_ctx->scl_data.h_active = timing->h_addressable;
-	pipe_ctx->scl_data.v_active = timing->v_addressable;
+	pipe_ctx->plane_res.scl_data.h_active = timing->h_addressable;
+	pipe_ctx->plane_res.scl_data.v_active = timing->v_addressable;
 
 	/* Taps calculations */
 	res = pipe_ctx->xfm->funcs->transform_get_optimal_number_of_taps(
-		pipe_ctx->xfm, &pipe_ctx->scl_data, &plane_state->scaling_quality);
+		pipe_ctx->xfm, &pipe_ctx->plane_res.scl_data, &plane_state->scaling_quality);
 
 	if (!res) {
 		/* Try 24 bpp linebuffer */
-		pipe_ctx->scl_data.lb_params.depth = LB_PIXEL_DEPTH_24BPP;
+		pipe_ctx->plane_res.scl_data.lb_params.depth = LB_PIXEL_DEPTH_24BPP;
 
 		res = pipe_ctx->xfm->funcs->transform_get_optimal_number_of_taps(
-			pipe_ctx->xfm, &pipe_ctx->scl_data, &plane_state->scaling_quality);
+			pipe_ctx->xfm, &pipe_ctx->plane_res.scl_data, &plane_state->scaling_quality);
 	}
 
 	if (res)
@@ -865,10 +865,10 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 				"y:%d\n dst_rect:\nheight:%d width:%d x:%d "
 				"y:%d\n",
 				__func__,
-				pipe_ctx->scl_data.viewport.height,
-				pipe_ctx->scl_data.viewport.width,
-				pipe_ctx->scl_data.viewport.x,
-				pipe_ctx->scl_data.viewport.y,
+				pipe_ctx->plane_res.scl_data.viewport.height,
+				pipe_ctx->plane_res.scl_data.viewport.width,
+				pipe_ctx->plane_res.scl_data.viewport.x,
+				pipe_ctx->plane_res.scl_data.viewport.y,
 				plane_state->dst_rect.height,
 				plane_state->dst_rect.width,
 				plane_state->dst_rect.x,

@@ -2613,13 +2613,13 @@ static void populate_initial_data(
 		data->h_total[num_displays + 4] = bw_int_to_fixed(pipe[i].stream->timing.h_total);
 		data->v_total[num_displays + 4] = bw_int_to_fixed(pipe[i].stream->timing.v_total);
 		data->pixel_rate[num_displays + 4] = bw_frc_to_fixed(pipe[i].stream->timing.pix_clk_khz, 1000);
-		data->src_width[num_displays + 4] = bw_int_to_fixed(pipe[i].scl_data.viewport.width);
+		data->src_width[num_displays + 4] = bw_int_to_fixed(pipe[i].plane_res.scl_data.viewport.width);
 		data->pitch_in_pixels[num_displays + 4] = data->src_width[num_displays + 4];
-		data->src_height[num_displays + 4] = bw_int_to_fixed(pipe[i].scl_data.viewport.height);
-		data->h_taps[num_displays + 4] = bw_int_to_fixed(pipe[i].scl_data.taps.h_taps);
-		data->v_taps[num_displays + 4] = bw_int_to_fixed(pipe[i].scl_data.taps.v_taps);
-		data->h_scale_ratio[num_displays + 4] = fixed31_32_to_bw_fixed(pipe[i].scl_data.ratios.horz.value);
-		data->v_scale_ratio[num_displays + 4] = fixed31_32_to_bw_fixed(pipe[i].scl_data.ratios.vert.value);
+		data->src_height[num_displays + 4] = bw_int_to_fixed(pipe[i].plane_res.scl_data.viewport.height);
+		data->h_taps[num_displays + 4] = bw_int_to_fixed(pipe[i].plane_res.scl_data.taps.h_taps);
+		data->v_taps[num_displays + 4] = bw_int_to_fixed(pipe[i].plane_res.scl_data.taps.v_taps);
+		data->h_scale_ratio[num_displays + 4] = fixed31_32_to_bw_fixed(pipe[i].plane_res.scl_data.ratios.horz.value);
+		data->v_scale_ratio[num_displays + 4] = fixed31_32_to_bw_fixed(pipe[i].plane_res.scl_data.ratios.vert.value);
 		switch (pipe[i].plane_state->rotation) {
 		case ROTATION_ANGLE_0:
 			data->rotation_angle[num_displays + 4] = bw_int_to_fixed(0);
@@ -2667,16 +2667,16 @@ static void populate_initial_data(
 			data->fbc_en[num_displays * 2 + j] = false;
 			data->lpt_en[num_displays * 2 + j] = false;
 
-			data->src_height[num_displays * 2 + j] = bw_int_to_fixed(pipe[i].bottom_pipe->scl_data.viewport.height);
-			data->src_width[num_displays * 2 + j] = bw_int_to_fixed(pipe[i].bottom_pipe->scl_data.viewport.width);
+			data->src_height[num_displays * 2 + j] = bw_int_to_fixed(pipe[i].bottom_pipe->plane_res.scl_data.viewport.height);
+			data->src_width[num_displays * 2 + j] = bw_int_to_fixed(pipe[i].bottom_pipe->plane_res.scl_data.viewport.width);
 			data->pitch_in_pixels[num_displays * 2 + j] = bw_int_to_fixed(
 					pipe[i].bottom_pipe->plane_state->plane_size.grph.surface_pitch);
-			data->h_taps[num_displays * 2 + j] = bw_int_to_fixed(pipe[i].bottom_pipe->scl_data.taps.h_taps);
-			data->v_taps[num_displays * 2 + j] = bw_int_to_fixed(pipe[i].bottom_pipe->scl_data.taps.v_taps);
+			data->h_taps[num_displays * 2 + j] = bw_int_to_fixed(pipe[i].bottom_pipe->plane_res.scl_data.taps.h_taps);
+			data->v_taps[num_displays * 2 + j] = bw_int_to_fixed(pipe[i].bottom_pipe->plane_res.scl_data.taps.v_taps);
 			data->h_scale_ratio[num_displays * 2 + j] = fixed31_32_to_bw_fixed(
-					pipe[i].bottom_pipe->scl_data.ratios.horz.value);
+					pipe[i].bottom_pipe->plane_res.scl_data.ratios.horz.value);
 			data->v_scale_ratio[num_displays * 2 + j] = fixed31_32_to_bw_fixed(
-					pipe[i].bottom_pipe->scl_data.ratios.vert.value);
+					pipe[i].bottom_pipe->plane_res.scl_data.ratios.vert.value);
 			switch (pipe[i].bottom_pipe->plane_state->rotation) {
 			case ROTATION_ANGLE_0:
 				data->rotation_angle[num_displays * 2 + j] = bw_int_to_fixed(0);
@@ -2711,13 +2711,13 @@ static void populate_initial_data(
 		data->v_total[num_displays + 4] = bw_int_to_fixed(pipe[i].stream->timing.v_total);
 		data->pixel_rate[num_displays + 4] = bw_frc_to_fixed(pipe[i].stream->timing.pix_clk_khz, 1000);
 		if (pipe[i].plane_state) {
-			data->src_width[num_displays + 4] = bw_int_to_fixed(pipe[i].scl_data.viewport.width);
+			data->src_width[num_displays + 4] = bw_int_to_fixed(pipe[i].plane_res.scl_data.viewport.width);
 			data->pitch_in_pixels[num_displays + 4] = data->src_width[num_displays + 4];
-			data->src_height[num_displays + 4] = bw_int_to_fixed(pipe[i].scl_data.viewport.height);
-			data->h_taps[num_displays + 4] = bw_int_to_fixed(pipe[i].scl_data.taps.h_taps);
-			data->v_taps[num_displays + 4] = bw_int_to_fixed(pipe[i].scl_data.taps.v_taps);
-			data->h_scale_ratio[num_displays + 4] = fixed31_32_to_bw_fixed(pipe[i].scl_data.ratios.horz.value);
-			data->v_scale_ratio[num_displays + 4] = fixed31_32_to_bw_fixed(pipe[i].scl_data.ratios.vert.value);
+			data->src_height[num_displays + 4] = bw_int_to_fixed(pipe[i].plane_res.scl_data.viewport.height);
+			data->h_taps[num_displays + 4] = bw_int_to_fixed(pipe[i].plane_res.scl_data.taps.h_taps);
+			data->v_taps[num_displays + 4] = bw_int_to_fixed(pipe[i].plane_res.scl_data.taps.v_taps);
+			data->h_scale_ratio[num_displays + 4] = fixed31_32_to_bw_fixed(pipe[i].plane_res.scl_data.ratios.horz.value);
+			data->v_scale_ratio[num_displays + 4] = fixed31_32_to_bw_fixed(pipe[i].plane_res.scl_data.ratios.vert.value);
 			switch (pipe[i].plane_state->rotation) {
 			case ROTATION_ANGLE_0:
 				data->rotation_angle[num_displays + 4] = bw_int_to_fixed(0);

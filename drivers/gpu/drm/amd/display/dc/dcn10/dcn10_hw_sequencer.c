@@ -1728,14 +1728,14 @@ static void dcn10_power_on_fe(
 				"viewport:%d, %d, %d, %d\n"
 				"recout:  %d, %d, %d, %d\n",
 				pipe_ctx->pipe_idx,
-				pipe_ctx->scl_data.viewport.width,
-				pipe_ctx->scl_data.viewport.height,
-				pipe_ctx->scl_data.viewport.x,
-				pipe_ctx->scl_data.viewport.y,
-				pipe_ctx->scl_data.recout.width,
-				pipe_ctx->scl_data.recout.height,
-				pipe_ctx->scl_data.recout.x,
-				pipe_ctx->scl_data.recout.y);
+				pipe_ctx->plane_res.scl_data.viewport.width,
+				pipe_ctx->plane_res.scl_data.viewport.height,
+				pipe_ctx->plane_res.scl_data.viewport.x,
+				pipe_ctx->plane_res.scl_data.viewport.y,
+				pipe_ctx->plane_res.scl_data.recout.width,
+				pipe_ctx->plane_res.scl_data.recout.height,
+				pipe_ctx->plane_res.scl_data.recout.x,
+				pipe_ctx->plane_res.scl_data.recout.y);
 		print_rq_dlg_ttu(dc, pipe_ctx);
 	}
 }
@@ -1860,7 +1860,7 @@ static void dcn10_get_surface_visual_confirm_color(
 {
 	uint32_t color_value = MAX_TG_COLOR_VALUE;
 
-	switch (pipe_ctx->scl_data.format) {
+	switch (pipe_ctx->plane_res.scl_data.format) {
 	case PIXEL_FORMAT_ARGB8888:
 		/* set boarder color to red */
 		color->color_r_cr = color_value;
@@ -1931,7 +1931,7 @@ static void update_dchubp_dpp(
 		&pipe_ctx->rq_regs,
 		&pipe_ctx->pipe_dlg_param);
 
-	size.grph.surface_size = pipe_ctx->scl_data.viewport;
+	size.grph.surface_size = pipe_ctx->plane_res.scl_data.viewport;
 
 	if (dc->public.config.gpu_vm_support)
 		mi->funcs->mem_input_program_pte_vm(
@@ -1965,13 +1965,13 @@ static void update_dchubp_dpp(
 					&& per_pixel_alpha;
 	dc->res_pool->mpc->funcs->add(dc->res_pool->mpc, &mpcc_cfg);
 
-	pipe_ctx->scl_data.lb_params.alpha_en = per_pixel_alpha;
-	pipe_ctx->scl_data.lb_params.depth = LB_PIXEL_DEPTH_30BPP;
+	pipe_ctx->plane_res.scl_data.lb_params.alpha_en = per_pixel_alpha;
+	pipe_ctx->plane_res.scl_data.lb_params.depth = LB_PIXEL_DEPTH_30BPP;
 	/* scaler configuration */
 	pipe_ctx->xfm->funcs->transform_set_scaler(
-			pipe_ctx->xfm, &pipe_ctx->scl_data);
+			pipe_ctx->xfm, &pipe_ctx->plane_res.scl_data);
 	mi->funcs->mem_program_viewport(mi,
-			&pipe_ctx->scl_data.viewport, &pipe_ctx->scl_data.viewport_c);
+			&pipe_ctx->plane_res.scl_data.viewport, &pipe_ctx->plane_res.scl_data.viewport_c);
 
 	/*gamut remap*/
 	program_gamut_remap(pipe_ctx);

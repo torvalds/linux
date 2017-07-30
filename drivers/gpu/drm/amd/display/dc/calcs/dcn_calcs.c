@@ -244,10 +244,10 @@ static void pipe_ctx_to_e2e_pipe_params (
 	input->src.source_scan         = dm_horz;
 	input->src.sw_mode             = pipe->plane_state->tiling_info.gfx9.swizzle;
 
-	input->src.viewport_width      = pipe->scl_data.viewport.width;
-	input->src.viewport_height     = pipe->scl_data.viewport.height;
-	input->src.data_pitch          = pipe->scl_data.viewport.width;
-	input->src.data_pitch_c        = pipe->scl_data.viewport.width;
+	input->src.viewport_width      = pipe->plane_res.scl_data.viewport.width;
+	input->src.viewport_height     = pipe->plane_res.scl_data.viewport.height;
+	input->src.data_pitch          = pipe->plane_res.scl_data.viewport.width;
+	input->src.data_pitch_c        = pipe->plane_res.scl_data.viewport.width;
 	input->src.cur0_src_width      = 128; /* TODO: Cursor calcs, not curently stored */
 	input->src.cur0_bpp            = 32;
 
@@ -341,21 +341,21 @@ static void pipe_ctx_to_e2e_pipe_params (
 		break;
 	}
 
-	input->scale_taps.htaps                = pipe->scl_data.taps.h_taps;
-	input->scale_ratio_depth.hscl_ratio    = pipe->scl_data.ratios.horz.value/4294967296.0;
-	input->scale_ratio_depth.vscl_ratio    = pipe->scl_data.ratios.vert.value/4294967296.0;
-	input->scale_ratio_depth.vinit =  pipe->scl_data.inits.v.value/4294967296.0;
+	input->scale_taps.htaps                = pipe->plane_res.scl_data.taps.h_taps;
+	input->scale_ratio_depth.hscl_ratio    = pipe->plane_res.scl_data.ratios.horz.value/4294967296.0;
+	input->scale_ratio_depth.vscl_ratio    = pipe->plane_res.scl_data.ratios.vert.value/4294967296.0;
+	input->scale_ratio_depth.vinit =  pipe->plane_res.scl_data.inits.v.value/4294967296.0;
 	if (input->scale_ratio_depth.vinit < 1.0)
 			input->scale_ratio_depth.vinit = 1;
-	input->scale_taps.vtaps = pipe->scl_data.taps.v_taps;
-	input->scale_taps.vtaps_c = pipe->scl_data.taps.v_taps_c;
-	input->scale_taps.htaps_c              = pipe->scl_data.taps.h_taps_c;
-	input->scale_ratio_depth.hscl_ratio_c  = pipe->scl_data.ratios.horz_c.value/4294967296.0;
-	input->scale_ratio_depth.vscl_ratio_c  = pipe->scl_data.ratios.vert_c.value/4294967296.0;
-	input->scale_ratio_depth.vinit_c       = pipe->scl_data.inits.v_c.value/4294967296.0;
+	input->scale_taps.vtaps = pipe->plane_res.scl_data.taps.v_taps;
+	input->scale_taps.vtaps_c = pipe->plane_res.scl_data.taps.v_taps_c;
+	input->scale_taps.htaps_c              = pipe->plane_res.scl_data.taps.h_taps_c;
+	input->scale_ratio_depth.hscl_ratio_c  = pipe->plane_res.scl_data.ratios.horz_c.value/4294967296.0;
+	input->scale_ratio_depth.vscl_ratio_c  = pipe->plane_res.scl_data.ratios.vert_c.value/4294967296.0;
+	input->scale_ratio_depth.vinit_c       = pipe->plane_res.scl_data.inits.v_c.value/4294967296.0;
 	if (input->scale_ratio_depth.vinit_c < 1.0)
 			input->scale_ratio_depth.vinit_c = 1;
-	switch (pipe->scl_data.lb_params.depth) {
+	switch (pipe->plane_res.scl_data.lb_params.depth) {
 	case LB_PIXEL_DEPTH_30BPP:
 		input->scale_ratio_depth.lb_depth = 30; break;
 	case LB_PIXEL_DEPTH_36BPP:
@@ -367,11 +367,11 @@ static void pipe_ctx_to_e2e_pipe_params (
 
 	input->dest.vactive        = pipe->stream->timing.v_addressable;
 
-	input->dest.recout_width   = pipe->scl_data.recout.width;
-	input->dest.recout_height  = pipe->scl_data.recout.height;
+	input->dest.recout_width   = pipe->plane_res.scl_data.recout.width;
+	input->dest.recout_height  = pipe->plane_res.scl_data.recout.height;
 
-	input->dest.full_recout_width   = pipe->scl_data.recout.width;
-	input->dest.full_recout_height  = pipe->scl_data.recout.height;
+	input->dest.full_recout_width   = pipe->plane_res.scl_data.recout.width;
+	input->dest.full_recout_height  = pipe->plane_res.scl_data.recout.height;
 
 	input->dest.htotal         = pipe->stream->timing.h_total;
 	input->dest.hblank_start   = input->dest.htotal - pipe->stream->timing.h_front_porch;
@@ -885,38 +885,38 @@ bool dcn_validate_bandwidth(
 			v->source_scan[input_idx] = dcn_bw_hor;
 
 		} else {
-			v->viewport_height[input_idx] =  pipe->scl_data.viewport.height;
-			v->viewport_width[input_idx] = pipe->scl_data.viewport.width;
-			v->scaler_rec_out_width[input_idx] = pipe->scl_data.recout.width;
-			v->scaler_recout_height[input_idx] = pipe->scl_data.recout.height;
+			v->viewport_height[input_idx] =  pipe->plane_res.scl_data.viewport.height;
+			v->viewport_width[input_idx] = pipe->plane_res.scl_data.viewport.width;
+			v->scaler_rec_out_width[input_idx] = pipe->plane_res.scl_data.recout.width;
+			v->scaler_recout_height[input_idx] = pipe->plane_res.scl_data.recout.height;
 			if (pipe->bottom_pipe && pipe->bottom_pipe->plane_state == pipe->plane_state) {
 				if (pipe->plane_state->rotation % 2 == 0) {
-					int viewport_end = pipe->scl_data.viewport.width
-							+ pipe->scl_data.viewport.x;
-					int viewport_b_end = pipe->bottom_pipe->scl_data.viewport.width
-							+ pipe->bottom_pipe->scl_data.viewport.x;
+					int viewport_end = pipe->plane_res.scl_data.viewport.width
+							+ pipe->plane_res.scl_data.viewport.x;
+					int viewport_b_end = pipe->bottom_pipe->plane_res.scl_data.viewport.width
+							+ pipe->bottom_pipe->plane_res.scl_data.viewport.x;
 
 					if (viewport_end > viewport_b_end)
 						v->viewport_width[input_idx] = viewport_end
-							- pipe->bottom_pipe->scl_data.viewport.x;
+							- pipe->bottom_pipe->plane_res.scl_data.viewport.x;
 					else
 						v->viewport_width[input_idx] = viewport_b_end
-									- pipe->scl_data.viewport.x;
+									- pipe->plane_res.scl_data.viewport.x;
 				} else  {
-					int viewport_end = pipe->scl_data.viewport.height
-						+ pipe->scl_data.viewport.y;
-					int viewport_b_end = pipe->bottom_pipe->scl_data.viewport.height
-						+ pipe->bottom_pipe->scl_data.viewport.y;
+					int viewport_end = pipe->plane_res.scl_data.viewport.height
+						+ pipe->plane_res.scl_data.viewport.y;
+					int viewport_b_end = pipe->bottom_pipe->plane_res.scl_data.viewport.height
+						+ pipe->bottom_pipe->plane_res.scl_data.viewport.y;
 
 					if (viewport_end > viewport_b_end)
 						v->viewport_height[input_idx] = viewport_end
-							- pipe->bottom_pipe->scl_data.viewport.y;
+							- pipe->bottom_pipe->plane_res.scl_data.viewport.y;
 					else
 						v->viewport_height[input_idx] = viewport_b_end
-									- pipe->scl_data.viewport.y;
+									- pipe->plane_res.scl_data.viewport.y;
 				}
-				v->scaler_rec_out_width[input_idx] = pipe->scl_data.recout.width
-						+ pipe->bottom_pipe->scl_data.recout.width;
+				v->scaler_rec_out_width[input_idx] = pipe->plane_res.scl_data.recout.width
+						+ pipe->bottom_pipe->plane_res.scl_data.recout.width;
 			}
 
 			v->dcc_enable[input_idx] = pipe->plane_state->dcc.enable ? dcn_bw_yes : dcn_bw_no;
@@ -924,11 +924,11 @@ bool dcn_validate_bandwidth(
 					pipe->plane_state->format);
 			v->source_surface_mode[input_idx] = tl_sw_mode_to_bw_defs(
 					pipe->plane_state->tiling_info.gfx9.swizzle);
-			v->lb_bit_per_pixel[input_idx] = tl_lb_bpp_to_int(pipe->scl_data.lb_params.depth);
-			v->override_hta_ps[input_idx] = pipe->scl_data.taps.h_taps;
-			v->override_vta_ps[input_idx] = pipe->scl_data.taps.v_taps;
-			v->override_hta_pschroma[input_idx] = pipe->scl_data.taps.h_taps_c;
-			v->override_vta_pschroma[input_idx] = pipe->scl_data.taps.v_taps_c;
+			v->lb_bit_per_pixel[input_idx] = tl_lb_bpp_to_int(pipe->plane_res.scl_data.lb_params.depth);
+			v->override_hta_ps[input_idx] = pipe->plane_res.scl_data.taps.h_taps;
+			v->override_vta_ps[input_idx] = pipe->plane_res.scl_data.taps.v_taps;
+			v->override_hta_pschroma[input_idx] = pipe->plane_res.scl_data.taps.h_taps_c;
+			v->override_vta_pschroma[input_idx] = pipe->plane_res.scl_data.taps.v_taps_c;
 			v->source_scan[input_idx] = (pipe->plane_state->rotation % 2) ? dcn_bw_vert : dcn_bw_hor;
 		}
 		if (v->is_line_buffer_bpp_fixed == dcn_bw_yes)

@@ -157,7 +157,7 @@ struct stream_resource {
 };
 
 struct plane_resource {
-	int stub;
+	struct scaler_data scl_data;
 };
 
 struct pipe_ctx {
@@ -172,8 +172,6 @@ struct pipe_ctx {
 	struct transform *xfm;
 	struct output_pixel_processor *opp;
 	struct timing_generator *tg;
-
-	struct scaler_data scl_data;
 
 	struct stream_encoder *stream_enc;
 	struct display_clock *dis_clk;
