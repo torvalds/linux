@@ -40,6 +40,7 @@ static int lan9303_mdio_write(void *ctx, uint32_t reg, uint32_t val)
 {
 	struct lan9303_mdio *sw_dev = (struct lan9303_mdio *)ctx;
 
+	reg <<= 2; /* reg num to offset */
 	mutex_lock(&sw_dev->device->bus->mdio_lock);
 	lan9303_mdio_real_write(sw_dev->device, reg, val & 0xffff);
 	lan9303_mdio_real_write(sw_dev->device, reg + 2, (val >> 16) & 0xffff);
@@ -57,6 +58,7 @@ static int lan9303_mdio_read(void *ctx, uint32_t reg, uint32_t *val)
 {
 	struct lan9303_mdio *sw_dev = (struct lan9303_mdio *)ctx;
 
+	reg <<= 2; /* reg num to offset */
 	mutex_lock(&sw_dev->device->bus->mdio_lock);
 	*val = lan9303_mdio_real_read(sw_dev->device, reg);
 	*val |= (lan9303_mdio_real_read(sw_dev->device, reg + 2) << 16);

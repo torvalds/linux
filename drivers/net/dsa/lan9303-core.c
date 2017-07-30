@@ -20,6 +20,9 @@
 
 #include "lan9303.h"
 
+/* 13.2 System Control and Status Registers
+ * Multiply register number by 4 to get address offset.
+ */
 #define LAN9303_CHIP_REV 0x14
 # define LAN9303_CHIP_ID 0x9303
 #define LAN9303_IRQ_CFG 0x15
@@ -53,6 +56,9 @@
 #define LAN9303_VIRT_PHY_BASE 0x70
 #define LAN9303_VIRT_SPECIAL_CTRL 0x77
 
+/*13.4 Switch Fabric Control and Status Registers
+ * Accessed indirectly via SWITCH_CSR_CMD, SWITCH_CSR_DATA.
+ */
 #define LAN9303_SW_DEV_ID 0x0000
 #define LAN9303_SW_RESET 0x0001
 #define LAN9303_SW_RESET_RESET BIT(0)
