@@ -2248,6 +2248,8 @@ static int irda_getsockopt(struct socket *sock, int level, int optname,
 			err = -EINVAL;
 			goto out;
 		}
+			
+		memset( &list, 0, sizeof(struct irda_device_list) );
 
 		/* Ask lmp for the current discovery log */
 		discoveries = irlmp_get_discoveries(&list.len, self->mask.word,
