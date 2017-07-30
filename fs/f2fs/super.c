@@ -1122,7 +1122,7 @@ static ssize_t f2fs_quota_write(struct super_block *sb, int type,
 	}
 
 	if (len == towrite)
-		return err;
+		return 0;
 	inode->i_version++;
 	inode->i_mtime = inode->i_ctime = current_time(inode);
 	f2fs_mark_inode_dirty_sync(inode, false);
