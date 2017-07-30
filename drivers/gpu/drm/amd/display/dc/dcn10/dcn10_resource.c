@@ -960,7 +960,7 @@ static struct pipe_ctx *dcn10_acquire_idle_pipe_for_layer(
 		return false;
 
 	idle_pipe->stream = head_pipe->stream;
-	idle_pipe->tg = head_pipe->tg;
+	idle_pipe->stream_res.tg = head_pipe->stream_res.tg;
 	idle_pipe->stream_res.opp = head_pipe->stream_res.opp;
 
 	idle_pipe->plane_res.mi = pool->mis[idle_pipe->pipe_idx];

@@ -710,7 +710,7 @@ void dce110_enable_stream(struct pipe_ctx *pipe_ctx)
 	*/
 	uint32_t active_total_with_borders;
 	uint32_t early_control = 0;
-	struct timing_generator *tg = pipe_ctx->tg;
+	struct timing_generator *tg = pipe_ctx->stream_res.tg;
 
 	/* TODOFPGA may change to hwss.update_info_frame */
 	dce110_update_info_frame(pipe_ctx);
@@ -967,9 +967,9 @@ static void program_scaler(const struct core_dc *dc,
 		pipe_ctx->plane_res.scl_data.lb_params.depth,
 		&pipe_ctx->stream->bit_depth_params);
 
-	if (pipe_ctx->tg->funcs->set_overscan_blank_color)
-		pipe_ctx->tg->funcs->set_overscan_blank_color(
-				pipe_ctx->tg,
+	if (pipe_ctx->stream_res.tg->funcs->set_overscan_blank_color)
+		pipe_ctx->stream_res.tg->funcs->set_overscan_blank_color(
+				pipe_ctx->stream_res.tg,
 				&color);
 
 	pipe_ctx->plane_res.xfm->funcs->transform_set_scaler(pipe_ctx->plane_res.xfm,
@@ -991,15 +991,15 @@ static enum dc_status dce110_prog_pixclk_crtc_otg(
 		/* program blank color */
 		color_space_to_black_color(dc,
 				stream->output_color_space, &black_color);
-		pipe_ctx->tg->funcs->set_blank_color(
-				pipe_ctx->tg,
+		pipe_ctx->stream_res.tg->funcs->set_blank_color(
+				pipe_ctx->stream_res.tg,
 				&black_color);
 
 		/*
 		 * Must blank CRTC after disabling power gating and before any
 		 * programming, otherwise CRTC will be hung in bad state
 		 */
-		pipe_ctx->tg->funcs->set_blank(pipe_ctx->tg, true);
+		pipe_ctx->stream_res.tg->funcs->set_blank(pipe_ctx->stream_res.tg, true);
 
 		if (false == pipe_ctx->clock_source->funcs->program_pix_clk(
 				pipe_ctx->clock_source,
@@ -1009,19 +1009,19 @@ static enum dc_status dce110_prog_pixclk_crtc_otg(
 			return DC_ERROR_UNEXPECTED;
 		}
 
-		pipe_ctx->tg->funcs->program_timing(
-				pipe_ctx->tg,
+		pipe_ctx->stream_res.tg->funcs->program_timing(
+				pipe_ctx->stream_res.tg,
 				&stream->timing,
 				true);
 
-		pipe_ctx->tg->funcs->set_static_screen_control(
-				pipe_ctx->tg,
+		pipe_ctx->stream_res.tg->funcs->set_static_screen_control(
+				pipe_ctx->stream_res.tg,
 				0x182);
 	}
 
 	if (!pipe_ctx_old->stream) {
-		if (false == pipe_ctx->tg->funcs->enable_crtc(
-				pipe_ctx->tg)) {
+		if (false == pipe_ctx->stream_res.tg->funcs->enable_crtc(
+				pipe_ctx->stream_res.tg)) {
 			BREAK_TO_DEBUGGER();
 			return DC_ERROR_UNEXPECTED;
 		}
@@ -1073,7 +1073,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	if (pipe_ctx->stream->signal != SIGNAL_TYPE_VIRTUAL)
 		pipe_ctx->stream_enc->funcs->setup_stereo_sync(
 		pipe_ctx->stream_enc,
-		pipe_ctx->tg->inst,
+		pipe_ctx->stream_res.tg->inst,
 		stream->timing.timing_3d_format != TIMING_3D_FORMAT_NONE);
 
 
@@ -1359,7 +1359,7 @@ static void set_drr(struct pipe_ctx **pipe_ctx,
 	 */
 
 	for (i = 0; i < num_pipes; i++) {
-		pipe_ctx[i]->tg->funcs->set_drr(pipe_ctx[i]->tg, &params);
+		pipe_ctx[i]->stream_res.tg->funcs->set_drr(pipe_ctx[i]->stream_res.tg, &params);
 	}
 }
 
@@ -1372,7 +1372,7 @@ static void get_position(struct pipe_ctx **pipe_ctx,
 	/* TODO: handle pipes > 1
 	 */
 	for (i = 0; i < num_pipes; i++)
-		pipe_ctx[i]->tg->funcs->get_position(pipe_ctx[i]->tg, position);
+		pipe_ctx[i]->stream_res.tg->funcs->get_position(pipe_ctx[i]->stream_res.tg, position);
 }
 
 static void set_static_screen_control(struct pipe_ctx **pipe_ctx,
@@ -1393,8 +1393,8 @@ static void set_static_screen_control(struct pipe_ctx **pipe_ctx,
 #endif
 
 	for (i = 0; i < num_pipes; i++)
-		pipe_ctx[i]->tg->funcs->
-			set_static_screen_control(pipe_ctx[i]->tg, value);
+		pipe_ctx[i]->stream_res.tg->funcs->
+			set_static_screen_control(pipe_ctx[i]->stream_res.tg, value);
 }
 
 /* unit: in_khz before mode set, get pixel clock from context. ASIC register
@@ -1646,12 +1646,12 @@ static void dce110_reset_hw_ctx_wrap(
 		if (!pipe_ctx->stream ||
 				pipe_need_reprogram(pipe_ctx_old, pipe_ctx)) {
 			core_link_disable_stream(pipe_ctx_old);
-			pipe_ctx_old->tg->funcs->set_blank(pipe_ctx_old->tg, true);
-			if (!hwss_wait_for_blank_complete(pipe_ctx_old->tg)) {
+			pipe_ctx_old->stream_res.tg->funcs->set_blank(pipe_ctx_old->stream_res.tg, true);
+			if (!hwss_wait_for_blank_complete(pipe_ctx_old->stream_res.tg)) {
 				dm_error("DC: failed to blank crtc!\n");
 				BREAK_TO_DEBUGGER();
 			}
-			pipe_ctx_old->tg->funcs->disable_crtc(pipe_ctx_old->tg);
+			pipe_ctx_old->stream_res.tg->funcs->disable_crtc(pipe_ctx_old->stream_res.tg);
 			pipe_ctx_old->plane_res.mi->funcs->free_mem_input(
 					pipe_ctx_old->plane_res.mi, dc->current_context->stream_count);
 			resource_unreference_clock_source(
@@ -1984,7 +1984,7 @@ static void program_surface_visibility(const struct core_dc *dc,
 		blank_target = true;
 
 	dce_set_blender_mode(dc->hwseq, pipe_ctx->pipe_idx, blender_mode);
-	pipe_ctx->tg->funcs->set_blank(pipe_ctx->tg, blank_target);
+	pipe_ctx->stream_res.tg->funcs->set_blank(pipe_ctx->stream_res.tg, blank_target);
 
 }
 
@@ -2152,9 +2152,9 @@ void dce110_update_pending_status(struct pipe_ctx *pipe_ctx)
 
 	plane_state->status.current_address = pipe_ctx->plane_res.mi->current_address;
 	if (pipe_ctx->plane_res.mi->current_address.type == PLN_ADDR_TYPE_GRPH_STEREO &&
-			pipe_ctx->tg->funcs->is_stereo_left_eye) {
+			pipe_ctx->stream_res.tg->funcs->is_stereo_left_eye) {
 		plane_state->status.is_right_eye =\
-				!pipe_ctx->tg->funcs->is_stereo_left_eye(pipe_ctx->tg);
+				!pipe_ctx->stream_res.tg->funcs->is_stereo_left_eye(pipe_ctx->stream_res.tg);
 	}
 }
 
@@ -2218,28 +2218,28 @@ static void dce110_enable_timing_synchronization(
 	 * Since HW doesn't care which one, we always assign
 	 * the 1st one in the group. */
 	gsl_params.gsl_group = 0;
-	gsl_params.gsl_master = grouped_pipes[0]->tg->inst;
+	gsl_params.gsl_master = grouped_pipes[0]->stream_res.tg->inst;
 
 	for (i = 0; i < group_size; i++)
-		grouped_pipes[i]->tg->funcs->setup_global_swap_lock(
-					grouped_pipes[i]->tg, &gsl_params);
+		grouped_pipes[i]->stream_res.tg->funcs->setup_global_swap_lock(
+					grouped_pipes[i]->stream_res.tg, &gsl_params);
 
 	/* Reset slave controllers on master VSync */
 	DC_SYNC_INFO("GSL: enabling trigger-reset\n");
 
 	for (i = 1 /* skip the master */; i < group_size; i++)
-		grouped_pipes[i]->tg->funcs->enable_reset_trigger(
-					grouped_pipes[i]->tg, gsl_params.gsl_group);
+		grouped_pipes[i]->stream_res.tg->funcs->enable_reset_trigger(
+					grouped_pipes[i]->stream_res.tg, gsl_params.gsl_group);
 
 
 
 	for (i = 1 /* skip the master */; i < group_size; i++) {
 		DC_SYNC_INFO("GSL: waiting for reset to occur.\n");
-		wait_for_reset_trigger_to_occur(dc_ctx, grouped_pipes[i]->tg);
+		wait_for_reset_trigger_to_occur(dc_ctx, grouped_pipes[i]->stream_res.tg);
 		/* Regardless of success of the wait above, remove the reset or
 		 * the driver will start timing out on Display requests. */
 		DC_SYNC_INFO("GSL: disabling trigger-reset.\n");
-		grouped_pipes[i]->tg->funcs->disable_reset_trigger(grouped_pipes[i]->tg);
+		grouped_pipes[i]->stream_res.tg->funcs->disable_reset_trigger(grouped_pipes[i]->stream_res.tg);
 	}
 
 
@@ -2247,7 +2247,7 @@ static void dce110_enable_timing_synchronization(
 	 * is that the sync'ed displays will not drift out of sync over time*/
 	DC_SYNC_INFO("GSL: Restoring register states.\n");
 	for (i = 0; i < group_size; i++)
-		grouped_pipes[i]->tg->funcs->tear_down_global_swap_lock(grouped_pipes[i]->tg);
+		grouped_pipes[i]->stream_res.tg->funcs->tear_down_global_swap_lock(grouped_pipes[i]->stream_res.tg);
 
 	DC_SYNC_INFO("GSL: Set-up complete.\n");
 }

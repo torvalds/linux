@@ -699,7 +699,7 @@ static enum dc_status dcn10_prog_pixclk_crtc_otg(
 	/* HW program guide assume display already disable
 	 * by unplug sequence. OTG assume stop.
 	 */
-	pipe_ctx->tg->funcs->enable_optc_clock(pipe_ctx->tg, true);
+	pipe_ctx->stream_res.tg->funcs->enable_optc_clock(pipe_ctx->stream_res.tg, true);
 
 	if (false == pipe_ctx->clock_source->funcs->program_pix_clk(
 			pipe_ctx->clock_source,
@@ -708,15 +708,15 @@ static enum dc_status dcn10_prog_pixclk_crtc_otg(
 		BREAK_TO_DEBUGGER();
 		return DC_ERROR_UNEXPECTED;
 	}
-	pipe_ctx->tg->dlg_otg_param.vready_offset = pipe_ctx->pipe_dlg_param.vready_offset;
-	pipe_ctx->tg->dlg_otg_param.vstartup_start = pipe_ctx->pipe_dlg_param.vstartup_start;
-	pipe_ctx->tg->dlg_otg_param.vupdate_offset = pipe_ctx->pipe_dlg_param.vupdate_offset;
-	pipe_ctx->tg->dlg_otg_param.vupdate_width = pipe_ctx->pipe_dlg_param.vupdate_width;
+	pipe_ctx->stream_res.tg->dlg_otg_param.vready_offset = pipe_ctx->pipe_dlg_param.vready_offset;
+	pipe_ctx->stream_res.tg->dlg_otg_param.vstartup_start = pipe_ctx->pipe_dlg_param.vstartup_start;
+	pipe_ctx->stream_res.tg->dlg_otg_param.vupdate_offset = pipe_ctx->pipe_dlg_param.vupdate_offset;
+	pipe_ctx->stream_res.tg->dlg_otg_param.vupdate_width = pipe_ctx->pipe_dlg_param.vupdate_width;
 
-	pipe_ctx->tg->dlg_otg_param.signal =  pipe_ctx->stream->signal;
+	pipe_ctx->stream_res.tg->dlg_otg_param.signal =  pipe_ctx->stream->signal;
 
-	pipe_ctx->tg->funcs->program_timing(
-			pipe_ctx->tg,
+	pipe_ctx->stream_res.tg->funcs->program_timing(
+			pipe_ctx->stream_res.tg,
 			&stream->timing,
 			true);
 
@@ -729,7 +729,7 @@ static enum dc_status dcn10_prog_pixclk_crtc_otg(
 	/* TODO: OPP FMT, ABM. etc. should be done here. */
 	/* or FPGA now. instance 0 only. TODO: move to opp.c */
 
-	inst_offset = reg_offsets[pipe_ctx->tg->inst].fmt;
+	inst_offset = reg_offsets[pipe_ctx->stream_res.tg->inst].fmt;
 
 	pipe_ctx->stream_res.opp->funcs->opp_program_fmt(
 				pipe_ctx->stream_res.opp,
@@ -739,15 +739,15 @@ static enum dc_status dcn10_prog_pixclk_crtc_otg(
 	/* program otg blank color */
 	color_space = stream->output_color_space;
 	color_space_to_black_color(dc, color_space, &black_color);
-	pipe_ctx->tg->funcs->set_blank_color(
-			pipe_ctx->tg,
+	pipe_ctx->stream_res.tg->funcs->set_blank_color(
+			pipe_ctx->stream_res.tg,
 			&black_color);
 
-	pipe_ctx->tg->funcs->set_blank(pipe_ctx->tg, true);
-	hwss_wait_for_blank_complete(pipe_ctx->tg);
+	pipe_ctx->stream_res.tg->funcs->set_blank(pipe_ctx->stream_res.tg, true);
+	hwss_wait_for_blank_complete(pipe_ctx->stream_res.tg);
 
 	/* VTG is  within DCHUB command block. DCFCLK is always on */
-	if (false == pipe_ctx->tg->funcs->enable_crtc(pipe_ctx->tg)) {
+	if (false == pipe_ctx->stream_res.tg->funcs->enable_crtc(pipe_ctx->stream_res.tg)) {
 		BREAK_TO_DEBUGGER();
 		return DC_ERROR_UNEXPECTED;
 	}
@@ -787,9 +787,9 @@ static void reset_back_end_for_pipe(
 	 * parent pipe.
 	 */
 	if (pipe_ctx->top_pipe == NULL) {
-		pipe_ctx->tg->funcs->disable_crtc(pipe_ctx->tg);
+		pipe_ctx->stream_res.tg->funcs->disable_crtc(pipe_ctx->stream_res.tg);
 
-		pipe_ctx->tg->funcs->enable_optc_clock(pipe_ctx->tg, false);
+		pipe_ctx->stream_res.tg->funcs->enable_optc_clock(pipe_ctx->stream_res.tg, false);
 	}
 
 	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
@@ -807,7 +807,7 @@ static void reset_back_end_for_pipe(
 	pipe_ctx->stream = NULL;
 	dm_logger_write(dc->ctx->logger, LOG_DC,
 					"Reset back end for pipe %d, tg:%d\n",
-					pipe_ctx->pipe_idx, pipe_ctx->tg->inst);
+					pipe_ctx->pipe_idx, pipe_ctx->stream_res.tg->inst);
 }
 
 /* trigger HW to start disconnect plane from stream on the next vsync */
@@ -974,7 +974,7 @@ static void reset_hw_ctx_wrap(
 	/* Lock*/
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *cur_pipe_ctx = &dc->current_context->res_ctx.pipe_ctx[i];
-		struct timing_generator *tg = cur_pipe_ctx->tg;
+		struct timing_generator *tg = cur_pipe_ctx->stream_res.tg;
 
 		if (cur_pipe_ctx->stream)
 			tg->funcs->lock(tg);
@@ -995,7 +995,7 @@ static void reset_hw_ctx_wrap(
 	/* Unlock*/
 	for (i = dc->res_pool->pipe_count - 1; i >= 0; i--) {
 		struct pipe_ctx *cur_pipe_ctx = &dc->current_context->res_ctx.pipe_ctx[i];
-		struct timing_generator *tg = cur_pipe_ctx->tg;
+		struct timing_generator *tg = cur_pipe_ctx->stream_res.tg;
 
 		if (cur_pipe_ctx->stream)
 			tg->funcs->unlock(tg);
@@ -1488,9 +1488,9 @@ static void dcn10_pipe_control_lock(
 		verify_allow_pstate_change_high(dc->hwseq);
 
 	if (lock)
-		pipe->tg->funcs->lock(pipe->tg);
+		pipe->stream_res.tg->funcs->lock(pipe->stream_res.tg);
 	else
-		pipe->tg->funcs->unlock(pipe->tg);
+		pipe->stream_res.tg->funcs->unlock(pipe->stream_res.tg);
 
 	if (dc->public.debug.sanity_checks)
 		verify_allow_pstate_change_high(dc->hwseq);
@@ -1545,8 +1545,8 @@ static void dcn10_enable_timing_synchronization(
 	DC_SYNC_INFO("Setting up OTG reset trigger\n");
 
 	for (i = 1; i < group_size; i++)
-		grouped_pipes[i]->tg->funcs->enable_reset_trigger(
-				grouped_pipes[i]->tg, grouped_pipes[0]->tg->inst);
+		grouped_pipes[i]->stream_res.tg->funcs->enable_reset_trigger(
+				grouped_pipes[i]->stream_res.tg, grouped_pipes[0]->stream_res.tg->inst);
 
 
 	DC_SYNC_INFO("Waiting for trigger\n");
@@ -1554,10 +1554,10 @@ static void dcn10_enable_timing_synchronization(
 	/* Need to get only check 1 pipe for having reset as all the others are
 	 * synchronized. Look at last pipe programmed to reset.
 	 */
-	wait_for_reset_trigger_to_occur(dc_ctx, grouped_pipes[1]->tg);
+	wait_for_reset_trigger_to_occur(dc_ctx, grouped_pipes[1]->stream_res.tg);
 	for (i = 1; i < group_size; i++)
-		grouped_pipes[i]->tg->funcs->disable_reset_trigger(
-				grouped_pipes[i]->tg);
+		grouped_pipes[i]->stream_res.tg->funcs->disable_reset_trigger(
+				grouped_pipes[i]->stream_res.tg);
 
 	DC_SYNC_INFO("Sync complete\n");
 }
@@ -1700,7 +1700,7 @@ static void dcn10_power_on_fe(
 			HUBP_CLOCK_ENABLE, 1);
 
 	/* make sure OPP_PIPE_CLOCK_EN = 1 */
-	REG_UPDATE(OPP_PIPE_CONTROL[pipe_ctx->tg->inst],
+	REG_UPDATE(OPP_PIPE_CONTROL[pipe_ctx->stream_res.tg->inst],
 			OPP_PIPE_CLOCK_EN, 1);
 	/*TODO: REG_UPDATE(DENTIST_DISPCLK_CNTL, DENTIST_DPPCLK_WDIVIDER, 0x1f);*/
 
@@ -1920,7 +1920,7 @@ static void update_dchubp_dpp(
 	 * VTG is within DCHUBBUB which is commond block share by each pipe HUBP.
 	 * VTG is 1:1 mapping with OTG. Each pipe HUBP will select which VTG
 	 */
-	REG_UPDATE(DCHUBP_CNTL[pipe_ctx->pipe_idx], HUBP_VTG_SEL, pipe_ctx->tg->inst);
+	REG_UPDATE(DCHUBP_CNTL[pipe_ctx->pipe_idx], HUBP_VTG_SEL, pipe_ctx->stream_res.tg->inst);
 
 	update_plane_addr(dc, pipe_ctx);
 
@@ -2012,17 +2012,17 @@ static void program_all_pipe_in_tree(
 			verify_allow_pstate_change_high(dc->hwseq);
 		}
 
-		pipe_ctx->tg->funcs->lock(pipe_ctx->tg);
+		pipe_ctx->stream_res.tg->funcs->lock(pipe_ctx->stream_res.tg);
 
-		pipe_ctx->tg->dlg_otg_param.vready_offset = pipe_ctx->pipe_dlg_param.vready_offset;
-		pipe_ctx->tg->dlg_otg_param.vstartup_start = pipe_ctx->pipe_dlg_param.vstartup_start;
-		pipe_ctx->tg->dlg_otg_param.vupdate_offset = pipe_ctx->pipe_dlg_param.vupdate_offset;
-		pipe_ctx->tg->dlg_otg_param.vupdate_width = pipe_ctx->pipe_dlg_param.vupdate_width;
-		pipe_ctx->tg->dlg_otg_param.signal =  pipe_ctx->stream->signal;
+		pipe_ctx->stream_res.tg->dlg_otg_param.vready_offset = pipe_ctx->pipe_dlg_param.vready_offset;
+		pipe_ctx->stream_res.tg->dlg_otg_param.vstartup_start = pipe_ctx->pipe_dlg_param.vstartup_start;
+		pipe_ctx->stream_res.tg->dlg_otg_param.vupdate_offset = pipe_ctx->pipe_dlg_param.vupdate_offset;
+		pipe_ctx->stream_res.tg->dlg_otg_param.vupdate_width = pipe_ctx->pipe_dlg_param.vupdate_width;
+		pipe_ctx->stream_res.tg->dlg_otg_param.signal =  pipe_ctx->stream->signal;
 
-		pipe_ctx->tg->funcs->program_global_sync(
-				pipe_ctx->tg);
-		pipe_ctx->tg->funcs->set_blank(pipe_ctx->tg, !is_pipe_tree_visible(pipe_ctx));
+		pipe_ctx->stream_res.tg->funcs->program_global_sync(
+				pipe_ctx->stream_res.tg);
+		pipe_ctx->stream_res.tg->funcs->set_blank(pipe_ctx->stream_res.tg, !is_pipe_tree_visible(pipe_ctx));
 	}
 
 	if (pipe_ctx->plane_state != NULL) {
@@ -2098,20 +2098,20 @@ static void dcn10_apply_ctx_for_surface(
 		 */
 
 		if (pipe_ctx->plane_state && !old_pipe_ctx->plane_state) {
-			if (pipe_ctx->plane_res.mi->opp_id != 0xf && pipe_ctx->tg->inst == be_idx) {
+			if (pipe_ctx->plane_res.mi->opp_id != 0xf && pipe_ctx->stream_res.tg->inst == be_idx) {
 				dcn10_power_down_fe(dc, pipe_ctx->pipe_idx);
 				/*
 				 * power down fe will unlock when calling reset, need
 				 * to lock it back here. Messy, need rework.
 				 */
-				pipe_ctx->tg->funcs->lock(pipe_ctx->tg);
+				pipe_ctx->stream_res.tg->funcs->lock(pipe_ctx->stream_res.tg);
 			}
 		}
 
 
 		if ((!pipe_ctx->plane_state && old_pipe_ctx->plane_state)
 				|| (!pipe_ctx->stream && old_pipe_ctx->stream)) {
-			if (old_pipe_ctx->tg->inst != be_idx)
+			if (old_pipe_ctx->stream_res.tg->inst != be_idx)
 				continue;
 
 			if (!old_pipe_ctx->top_pipe) {
@@ -2279,7 +2279,7 @@ static void set_drr(struct pipe_ctx **pipe_ctx,
 	 * some GSL stuff
 	 */
 	for (i = 0; i < num_pipes; i++) {
-		pipe_ctx[i]->tg->funcs->set_drr(pipe_ctx[i]->tg, &params);
+		pipe_ctx[i]->stream_res.tg->funcs->set_drr(pipe_ctx[i]->stream_res.tg, &params);
 	}
 }
 
@@ -2292,7 +2292,7 @@ static void get_position(struct pipe_ctx **pipe_ctx,
 	/* TODO: handle pipes > 1
 	 */
 	for (i = 0; i < num_pipes; i++)
-		pipe_ctx[i]->tg->funcs->get_position(pipe_ctx[i]->tg, position);
+		pipe_ctx[i]->stream_res.tg->funcs->get_position(pipe_ctx[i]->stream_res.tg, position);
 }
 
 static void set_static_screen_control(struct pipe_ctx **pipe_ctx,
@@ -2307,8 +2307,8 @@ static void set_static_screen_control(struct pipe_ctx **pipe_ctx,
 		value |= 0x2;
 
 	for (i = 0; i < num_pipes; i++)
-		pipe_ctx[i]->tg->funcs->
-			set_static_screen_control(pipe_ctx[i]->tg, value);
+		pipe_ctx[i]->stream_res.tg->funcs->
+			set_static_screen_control(pipe_ctx[i]->stream_res.tg, value);
 }
 
 static void set_plane_config(
@@ -2369,8 +2369,8 @@ static void dcn10_setup_stereo(struct pipe_ctx *pipe_ctx, struct core_dc *dc)
 		flags.PROGRAM_STEREO == 1 ? true:false,
 		stream->timing.flags.RIGHT_EYE_3D_POLARITY == 1 ? true:false);
 
-	pipe_ctx->tg->funcs->program_stereo(
-		pipe_ctx->tg,
+	pipe_ctx->stream_res.tg->funcs->program_stereo(
+		pipe_ctx->stream_res.tg,
 		&stream->timing,
 		&flags);
 
@@ -2469,7 +2469,7 @@ static bool dcn10_dummy_display_power_gating(
 void dcn10_update_pending_status(struct pipe_ctx *pipe_ctx)
 {
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
-	struct timing_generator *tg = pipe_ctx->tg;
+	struct timing_generator *tg = pipe_ctx->stream_res.tg;
 
 	if (plane_state->ctx->dc->debug.sanity_checks) {
 		struct core_dc *dc = DC_TO_CORE(plane_state->ctx->dc);
@@ -2496,7 +2496,7 @@ void dcn10_update_pending_status(struct pipe_ctx *pipe_ctx)
 	if (pipe_ctx->plane_res.mi->current_address.type == PLN_ADDR_TYPE_GRPH_STEREO &&
 			tg->funcs->is_stereo_left_eye) {
 		plane_state->status.is_right_eye =
-				!tg->funcs->is_stereo_left_eye(pipe_ctx->tg);
+				!tg->funcs->is_stereo_left_eye(pipe_ctx->stream_res.tg);
 	}
 }
 

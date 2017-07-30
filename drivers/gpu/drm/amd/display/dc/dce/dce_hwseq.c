@@ -53,7 +53,7 @@ void dce_pipe_control_lock(struct core_dc *dc,
 	struct dce_hwseq *hws = dc->hwseq;
 
 	/* Not lock pipe when blank */
-	if (lock && pipe->tg->funcs->is_blanked(pipe->tg))
+	if (lock && pipe->stream_res.tg->funcs->is_blanked(pipe->stream_res.tg))
 		return;
 
 	val = REG_GET_4(BLND_V_UPDATE_LOCK[pipe->pipe_idx],

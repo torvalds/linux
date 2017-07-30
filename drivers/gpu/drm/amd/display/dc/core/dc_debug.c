@@ -309,7 +309,7 @@ void context_timing_trace(
 				 || pipe_ctx->pipe_idx == underlay_idx)
 			continue;
 
-		pipe_ctx->tg->funcs->get_position(pipe_ctx->tg, &position);
+		pipe_ctx->stream_res.tg->funcs->get_position(pipe_ctx->stream_res.tg, &position);
 		h_pos[i] = position.horizontal_count;
 		v_pos[i] = position.vertical_count;
 	}
@@ -320,7 +320,7 @@ void context_timing_trace(
 			continue;
 
 		TIMING_TRACE("OTG_%d   H_tot:%d  V_tot:%d   H_pos:%d  V_pos:%d\n",
-				pipe_ctx->tg->inst,
+				pipe_ctx->stream_res.tg->inst,
 				pipe_ctx->stream->timing.h_total,
 				pipe_ctx->stream->timing.v_total,
 				h_pos[i], v_pos[i]);

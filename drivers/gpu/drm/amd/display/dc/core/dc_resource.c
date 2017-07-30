@@ -1011,7 +1011,7 @@ static int acquire_first_split_pipe(
 				pipe_ctx->bottom_pipe->top_pipe = pipe_ctx->top_pipe;
 
 			memset(pipe_ctx, 0, sizeof(*pipe_ctx));
-			pipe_ctx->tg = pool->timing_generators[i];
+			pipe_ctx->stream_res.tg = pool->timing_generators[i];
 			pipe_ctx->plane_res.mi = pool->mis[i];
 			pipe_ctx->plane_res.ipp = pool->ipps[i];
 			pipe_ctx->plane_res.xfm = pool->transforms[i];
@@ -1094,7 +1094,7 @@ bool resource_attach_surfaces_to_context(
 		free_pipe->plane_state = plane_state;
 
 		if (tail_pipe) {
-			free_pipe->tg = tail_pipe->tg;
+			free_pipe->stream_res.tg = tail_pipe->stream_res.tg;
 			free_pipe->stream_res.opp = tail_pipe->stream_res.opp;
 			free_pipe->stream_enc = tail_pipe->stream_enc;
 			free_pipe->audio = tail_pipe->audio;
@@ -1241,7 +1241,7 @@ static int acquire_first_free_pipe(
 		if (!res_ctx->pipe_ctx[i].stream) {
 			struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[i];
 
-			pipe_ctx->tg = pool->timing_generators[i];
+			pipe_ctx->stream_res.tg = pool->timing_generators[i];
 			pipe_ctx->plane_res.mi = pool->mis[i];
 			pipe_ctx->plane_res.ipp = pool->ipps[i];
 			pipe_ctx->plane_res.xfm = pool->transforms[i];
@@ -1532,7 +1532,7 @@ enum dc_status resource_map_pool_resources(
 					pipe_ctx->audio);
 		}
 
-		context->stream_status[i].primary_otg_inst = pipe_ctx->tg->inst;
+		context->stream_status[i].primary_otg_inst = pipe_ctx->stream_res.tg->inst;
 	}
 
 	return DC_OK;

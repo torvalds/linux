@@ -1016,7 +1016,7 @@ static struct pipe_ctx *dce110_acquire_underlay(
 	if (res_ctx->pipe_ctx[underlay_idx].stream)
 		return NULL;
 
-	pipe_ctx->tg = pool->timing_generators[underlay_idx];
+	pipe_ctx->stream_res.tg = pool->timing_generators[underlay_idx];
 	pipe_ctx->plane_res.mi = pool->mis[underlay_idx];
 	/*pipe_ctx->plane_res.ipp = res_ctx->pool->ipps[underlay_idx];*/
 	pipe_ctx->plane_res.xfm = pool->transforms[underlay_idx];
@@ -1040,12 +1040,12 @@ static struct pipe_ctx *dce110_acquire_underlay(
 		 * need to be enabled
 		 */
 
-		pipe_ctx->tg->funcs->program_timing(pipe_ctx->tg,
+		pipe_ctx->stream_res.tg->funcs->program_timing(pipe_ctx->stream_res.tg,
 				&stream->timing,
 				false);
 
-		pipe_ctx->tg->funcs->enable_advanced_request(
-				pipe_ctx->tg,
+		pipe_ctx->stream_res.tg->funcs->enable_advanced_request(
+				pipe_ctx->stream_res.tg,
 				true,
 				&stream->timing);
 
@@ -1057,8 +1057,8 @@ static struct pipe_ctx *dce110_acquire_underlay(
 
 		color_space_to_black_color(dc,
 				COLOR_SPACE_YCBCR601, &black_color);
-		pipe_ctx->tg->funcs->set_blank_color(
-				pipe_ctx->tg,
+		pipe_ctx->stream_res.tg->funcs->set_blank_color(
+				pipe_ctx->stream_res.tg,
 				&black_color);
 	}
 

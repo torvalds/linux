@@ -1398,7 +1398,7 @@ bool dc_link_set_backlight_level(const struct dc_link *link, uint32_t level,
 					 */
 					controller_id =
 						core_dc->current_context->
-						res_ctx.pipe_ctx[i].tg->inst +
+						res_ctx.pipe_ctx[i].stream_res.tg->inst +
 						1;
 			}
 		}
@@ -1504,7 +1504,7 @@ bool dc_link_setup_psr(struct dc_link *link,
 				 */
 				psr_context->controllerId =
 					core_dc->current_context->res_ctx.
-					pipe_ctx[i].tg->inst + 1;
+					pipe_ctx[i].stream_res.tg->inst + 1;
 				break;
 			}
 		}
@@ -1879,7 +1879,7 @@ void core_link_enable_stream(struct pipe_ctx *pipe_ctx)
 	}
 
 	/* turn off otg test pattern if enable */
-	pipe_ctx->tg->funcs->set_test_pattern(pipe_ctx->tg,
+	pipe_ctx->stream_res.tg->funcs->set_test_pattern(pipe_ctx->stream_res.tg,
 			CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
 			COLOR_DEPTH_UNDEFINED);
 

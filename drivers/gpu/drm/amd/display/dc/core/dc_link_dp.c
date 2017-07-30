@@ -2375,7 +2375,7 @@ static void set_crtc_test_pattern(struct dc_link *link,
 		pipe_ctx->stream_res.opp->funcs->
 			opp_program_bit_depth_reduction(pipe_ctx->stream_res.opp, &params);
 
-		pipe_ctx->tg->funcs->set_test_pattern(pipe_ctx->tg,
+		pipe_ctx->stream_res.tg->funcs->set_test_pattern(pipe_ctx->stream_res.tg,
 				controller_test_pattern, color_depth);
 	}
 	break;
@@ -2388,7 +2388,7 @@ static void set_crtc_test_pattern(struct dc_link *link,
 		pipe_ctx->stream_res.opp->funcs->
 			opp_program_bit_depth_reduction(pipe_ctx->stream_res.opp, &params);
 
-		pipe_ctx->tg->funcs->set_test_pattern(pipe_ctx->tg,
+		pipe_ctx->stream_res.tg->funcs->set_test_pattern(pipe_ctx->stream_res.tg,
 				CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
 				color_depth);
 	}
