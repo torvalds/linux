@@ -1160,6 +1160,8 @@ int iwl_pcie_gen2_tx_init(struct iwl_trans *trans)
 	struct iwl_txq *cmd_queue;
 	int txq_id = trans_pcie->cmd_queue, ret;
 
+	iwl_pcie_set_tx_cmd_queue_size(trans);
+
 	/* alloc and init the command queue */
 	if (!trans_pcie->txq[txq_id]) {
 		cmd_queue = kzalloc(sizeof(*cmd_queue), GFP_KERNEL);
@@ -1168,7 +1170,8 @@ int iwl_pcie_gen2_tx_init(struct iwl_trans *trans)
 			return -ENOMEM;
 		}
 		trans_pcie->txq[txq_id] = cmd_queue;
-		ret = iwl_pcie_txq_alloc(trans, cmd_queue, TFD_CMD_SLOTS, true);
+		ret = iwl_pcie_txq_alloc(trans, cmd_queue,
+					 trans_pcie->tx_cmd_queue_size, true);
 		if (ret) {
 			IWL_ERR(trans, "Tx %d queue init failed\n", txq_id);
 			goto error;
@@ -1177,7 +1180,8 @@ int iwl_pcie_gen2_tx_init(struct iwl_trans *trans)
 		cmd_queue = trans_pcie->txq[txq_id];
 	}
 
-	ret = iwl_pcie_txq_init(trans, cmd_queue, TFD_CMD_SLOTS, true);
+	ret = iwl_pcie_txq_init(trans, cmd_queue,
+				trans_pcie->tx_cmd_queue_size, true);
 	if (ret) {
 		IWL_ERR(trans, "Tx %d queue alloc failed\n", txq_id);
 		goto error;
