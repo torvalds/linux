@@ -152,9 +152,20 @@ struct resource_pool {
 	const struct resource_caps *res_cap;
 };
 
+struct stream_resource {
+	int stub;
+};
+
+struct plane_resource {
+	int stub;
+};
+
 struct pipe_ctx {
 	struct dc_plane_state *plane_state;
 	struct dc_stream_state *stream;
+
+	struct plane_resource plane_res;
+	struct stream_resource stream_res;
 
 	struct mem_input *mi;
 	struct input_pixel_processor *ipp;
