@@ -1255,6 +1255,14 @@ int analyse_instr(struct instruction_op *op, struct pt_regs *regs,
 /*
  * Logical instructions
  */
+		case 15:	/* isel */
+			mb = (instr >> 6) & 0x1f; /* bc */
+			val = (regs->ccr >> (31 - mb)) & 1;
+			val2 = (ra) ? regs->gpr[ra] : 0;
+
+			regs->gpr[rd] = (val) ? val2 : regs->gpr[rb];
+			goto logical_done;
+
 		case 26:	/* cntlzw */
 			asm("cntlzw %0,%1" : "=r" (regs->gpr[ra]) :
 			    "r" (regs->gpr[rd]));
