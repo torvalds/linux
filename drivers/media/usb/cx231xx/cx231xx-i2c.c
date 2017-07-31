@@ -551,10 +551,9 @@ int cx231xx_i2c_register(struct cx231xx_i2c *bus)
  * cx231xx_i2c_unregister()
  * unregister i2c_bus
  */
-int cx231xx_i2c_unregister(struct cx231xx_i2c *bus)
+void cx231xx_i2c_unregister(struct cx231xx_i2c *bus)
 {
 	i2c_del_adapter(&bus->i2c_adap);
-	return 0;
 }
 
 /*
