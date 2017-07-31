@@ -154,8 +154,10 @@ static int unimac_mdio_reset(struct mii_bus *bus)
 	}
 
 	for (addr = 0; addr < PHY_MAX_ADDR; addr++) {
-		if (read_mask & 1 << addr)
+		if (read_mask & 1 << addr) {
+			dev_dbg(&bus->dev, "Workaround for PHY @ %d\n", addr);
 			mdiobus_read(bus, addr, MII_BMSR);
+		}
 	}
 
 	return 0;
