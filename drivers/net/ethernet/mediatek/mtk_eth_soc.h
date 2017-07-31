@@ -443,6 +443,9 @@ enum mtk_clks_map {
 	MTK_CLK_MAX
 };
 
+#define MT7623_CLKS_BITMAP	(BIT(MTK_CLK_ETHIF) | BIT(MTK_CLK_ESW) |  \
+				 BIT(MTK_CLK_GP1) | BIT(MTK_CLK_GP2) | \
+				 BIT(MTK_CLK_TRGPLL))
 enum mtk_dev_state {
 	MTK_HW_INIT,
 	MTK_RESETTING
@@ -511,6 +514,21 @@ struct mtk_rx_ring {
 	u32 crx_idx_reg;
 };
 
+#define MTK_TRGMII			BIT(0)
+#define MTK_GMAC1_TRGMII		(BIT(1) | MTK_TRGMII)
+#define MTK_HAS_CAPS(caps, _x)		(((caps) & (_x)) == (_x))
+
+/* struct mtk_soc_data -	This is the structure holding all differences
+ *				among various plaforms
+ * @caps			Flags shown the extra capability for the SoC
+ * @required_clks		Flags shown the bitmap for required clocks on
+ *				the target SoC
+ */
+struct mtk_soc_data {
+	u32		caps;
+	u32		required_clks;
+};
+
 /* currently no SoC has more than 2 macs */
 #define MTK_MAX_DEVS			2
 
@@ -542,7 +560,8 @@ struct mtk_rx_ring {
  * @clks:		clock array for all clocks required
  * @mii_bus:		If there is a bus we need to create an instance for it
  * @pending_work:	The workqueue used to reset the dma ring
- * @state               Initialization and runtime state of the device.
+ * @state		Initialization and runtime state of the device
+ * @soc:		Holding specific data among vaious SoCs
  */
 
 struct mtk_eth {
@@ -574,6 +593,8 @@ struct mtk_eth {
 	struct mii_bus			*mii_bus;
 	struct work_struct		pending_work;
 	unsigned long			state;
+
+	const struct mtk_soc_data	*soc;
 };
 
 /* struct mtk_mac -	the structure that holds the info about the MACs of the
