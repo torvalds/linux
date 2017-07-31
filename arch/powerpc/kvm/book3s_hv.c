@@ -2711,10 +2711,11 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			run->fail_entry.hardware_entry_failure_reason = 0;
 			return -EINVAL;
 		}
+		/* Enable TM so we can read the TM SPRs */
+		mtmsr(mfmsr() | MSR_TM);
 		current->thread.tm_tfhar = mfspr(SPRN_TFHAR);
 		current->thread.tm_tfiar = mfspr(SPRN_TFIAR);
 		current->thread.tm_texasr = mfspr(SPRN_TEXASR);
-		current->thread.regs->msr &= ~MSR_TM;
 	}
 #endif
 
@@ -2781,6 +2782,19 @@ static int kvmppc_vcpu_run_hv(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		mtspr(SPRN_FSCR, proc_fscr);
 	}
 	mtspr(SPRN_VRSAVE, user_vrsave);
+
+	/*
+	 * Since we don't do lazy TM reload, we need to reload
+	 * the TM registers here.
+	 */
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	if (cpu_has_feature(CPU_FTR_TM) && current->thread.regs &&
+	    (current->thread.regs->msr & MSR_TM)) {
+		mtspr(SPRN_TFHAR, current->thread.tm_tfhar);
+		mtspr(SPRN_TFIAR, current->thread.tm_tfiar);
+		mtspr(SPRN_TEXASR, current->thread.tm_texasr);
+	}
+#endif
 
  out:
 	vcpu->arch.state = KVMPPC_VCPU_NOTREADY;
