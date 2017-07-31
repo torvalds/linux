@@ -276,7 +276,7 @@ alternative_else_nop_endif
 	and	x25, x25, #~(THREAD_SIZE - 1)
 	cbnz	x25, 9998f
 
-	adr_this_cpu x25, irq_stack, x26
+	ldr_this_cpu x25, irq_stack_ptr, x26
 	mov	x26, #IRQ_STACK_SIZE
 	add	x26, x25, x26
 
