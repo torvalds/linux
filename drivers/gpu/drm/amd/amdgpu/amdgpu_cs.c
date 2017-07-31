@@ -787,7 +787,8 @@ static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p)
 
 	if (amdgpu_sriov_vf(adev)) {
 		struct dma_fence *f;
-		bo_va = vm->csa_bo_va;
+
+		bo_va = fpriv->csa_va;
 		BUG_ON(!bo_va);
 		r = amdgpu_vm_bo_update(adev, bo_va, false);
 		if (r)

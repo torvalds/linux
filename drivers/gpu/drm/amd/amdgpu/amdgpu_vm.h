@@ -141,8 +141,6 @@ struct amdgpu_vm {
 	u64                     client_id;
 	/* dedicated to vm */
 	struct amdgpu_vm_id	*reserved_vmid[AMDGPU_MAX_VMHUBS];
-	/* each VM will map on CSA */
-	struct amdgpu_bo_va *csa_bo_va;
 
 	/* Flag to indicate if VM tables are updated by CPU or GPU (SDMA) */
 	bool                    use_cpu_for_update;

@@ -748,6 +748,7 @@ void amdgpu_ctx_mgr_fini(struct amdgpu_ctx_mgr *mgr);
 struct amdgpu_fpriv {
 	struct amdgpu_vm	vm;
 	struct amdgpu_bo_va	*prt_va;
+	struct amdgpu_bo_va	*csa_va;
 	struct mutex		bo_list_lock;
 	struct idr		bo_list_handles;
 	struct amdgpu_ctx_mgr	ctx_mgr;
