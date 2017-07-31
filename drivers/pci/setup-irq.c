@@ -67,27 +67,3 @@ void pci_assign_irq(struct pci_dev *dev)
 	   the real IRQ to use; the device does not use it. */
 	pcibios_update_irq(dev, irq);
 }
-
-void pci_fixup_irqs(u8 (*swizzle)(struct pci_dev *, u8 *),
-		    int (*map_irq)(const struct pci_dev *, u8, u8))
-{
-	/*
-	 * Implement pci_fixup_irqs() through pci_assign_irq().
-	 * This code should be remove eventually, it is a wrapper
-	 * around pci_assign_irq() interface to keep current
-	 * pci_fixup_irqs() behaviour unchanged on architecture
-	 * code still relying on its interface.
-	 */
-	struct pci_dev *dev = NULL;
-	struct pci_host_bridge *hbrg = NULL;
-
-	for_each_pci_dev(dev) {
-		hbrg = pci_find_host_bridge(dev->bus);
-		hbrg->swizzle_irq = swizzle;
-		hbrg->map_irq = map_irq;
-		pci_assign_irq(dev);
-		hbrg->swizzle_irq = NULL;
-		hbrg->map_irq = NULL;
-	}
-}
-EXPORT_SYMBOL_GPL(pci_fixup_irqs);
