@@ -538,7 +538,7 @@ int cx231xx_i2c_register(struct cx231xx_i2c *bus)
 
 	bus->i2c_adap.algo_data = bus;
 	i2c_set_adapdata(&bus->i2c_adap, &dev->v4l2_dev);
-	i2c_add_adapter(&bus->i2c_adap);
+	bus->i2c_rc = i2c_add_adapter(&bus->i2c_adap);
 
 	if (0 != bus->i2c_rc)
 		dev_warn(dev->dev,

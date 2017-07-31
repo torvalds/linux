@@ -476,7 +476,7 @@ struct cx231xx_i2c {
 
 	/* i2c i/o */
 	struct i2c_adapter i2c_adap;
-	u32 i2c_rc;
+	int i2c_rc;
 
 	/* different settings for each bus */
 	u8 i2c_period;
