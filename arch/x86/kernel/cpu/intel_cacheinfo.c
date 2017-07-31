@@ -811,7 +811,24 @@ static int __cache_amd_cpumap_setup(unsigned int cpu, int index,
 	struct cacheinfo *this_leaf;
 	int i, sibling;
 
-	if (boot_cpu_has(X86_FEATURE_TOPOEXT)) {
+	/*
+	 * For L3, always use the pre-calculated cpu_llc_shared_mask
+	 * to derive shared_cpu_map.
+	 */
+	if (index == 3) {
+		for_each_cpu(i, cpu_llc_shared_mask(cpu)) {
+			this_cpu_ci = get_cpu_cacheinfo(i);
+			if (!this_cpu_ci->info_list)
+				continue;
+			this_leaf = this_cpu_ci->info_list + index;
+			for_each_cpu(sibling, cpu_llc_shared_mask(cpu)) {
+				if (!cpu_online(sibling))
+					continue;
+				cpumask_set_cpu(sibling,
+						&this_leaf->shared_cpu_map);
+			}
+		}
+	} else if (boot_cpu_has(X86_FEATURE_TOPOEXT)) {
 		unsigned int apicid, nshared, first, last;
 
 		this_leaf = this_cpu_ci->info_list + index;
@@ -834,19 +851,6 @@ static int __cache_amd_cpumap_setup(unsigned int cpu, int index,
 			for_each_online_cpu(sibling) {
 				apicid = cpu_data(sibling).apicid;
 				if ((apicid < first) || (apicid > last))
-					continue;
-				cpumask_set_cpu(sibling,
-						&this_leaf->shared_cpu_map);
-			}
-		}
-	} else if (index == 3) {
-		for_each_cpu(i, cpu_llc_shared_mask(cpu)) {
-			this_cpu_ci = get_cpu_cacheinfo(i);
-			if (!this_cpu_ci->info_list)
-				continue;
-			this_leaf = this_cpu_ci->info_list + index;
-			for_each_cpu(sibling, cpu_llc_shared_mask(cpu)) {
-				if (!cpu_online(sibling))
 					continue;
 				cpumask_set_cpu(sibling,
 						&this_leaf->shared_cpu_map);
