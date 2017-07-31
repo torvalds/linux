@@ -227,11 +227,13 @@ static int host1x_probe(struct platform_device *pdev)
 			return -ENOMEM;
 
 		err = iommu_attach_device(host->domain, &pdev->dev);
-		if (err == -ENODEV) {
-			iommu_domain_free(host->domain);
-			host->domain = NULL;
-			goto skip_iommu;
-		} else if (err) {
+		if (err) {
+			if (err == -ENODEV) {
+				iommu_domain_free(host->domain);
+				host->domain = NULL;
+				goto skip_iommu;
+			}
+
 			goto fail_free_domain;
 		}
 
