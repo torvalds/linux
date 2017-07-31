@@ -44,6 +44,17 @@ static size_t ioctl__scnprintf_tty_cmd(int nr, char *bf, size_t size)
 	return scnprintf(bf, size, "(%#x, %#x)", 'T', nr);
 }
 
+static size_t ioctl__scnprintf_drm_cmd(int nr, char *bf, size_t size)
+{
+#include "trace/beauty/generated/ioctl/drm_ioctl_array.c"
+	static DEFINE_STRARRAY(drm_ioctl_cmds);
+
+	if (nr < strarray__drm_ioctl_cmds.nr_entries && strarray__drm_ioctl_cmds.entries[nr] != NULL)
+		return scnprintf(bf, size, "DRM_%s", strarray__drm_ioctl_cmds.entries[nr]);
+
+	return scnprintf(bf, size, "(%#x, %#x)", 'd', nr);
+}
+
 static size_t ioctl__scnprintf_cmd(unsigned long cmd, char *bf, size_t size)
 {
 	int dir	 = _IOC_DIR(cmd),
@@ -55,7 +66,8 @@ static size_t ioctl__scnprintf_cmd(unsigned long cmd, char *bf, size_t size)
 		int	type;
 		size_t	(*scnprintf)(int nr, char *bf, size_t size);
 	} ioctl_types[] = { /* Must be ordered by type */
-		{ .type	= 'T', .scnprintf = ioctl__scnprintf_tty_cmd, }
+			      { .type	= 'T', .scnprintf = ioctl__scnprintf_tty_cmd, },
+		['d' - 'T'] = { .type	= 'd', .scnprintf = ioctl__scnprintf_drm_cmd, }
 	};
 	const int nr_types = ARRAY_SIZE(ioctl_types);
 
