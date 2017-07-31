@@ -88,6 +88,14 @@
 			cd-gpios = <&msmgpio 38 0x1>;
 			status = "okay";
 		};
+
+		phy@7411000 {
+			status = "okay";
+		};
+
+		phy@7412000 {
+			status = "okay";
+		};
 	};
 
 
