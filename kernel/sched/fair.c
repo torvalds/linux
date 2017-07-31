@@ -2658,59 +2658,6 @@ void task_tick_numa(struct rq *rq, struct task_struct *curr)
 	}
 }
 
-/*
- * Can a task be moved from prev_cpu to this_cpu without causing a load
- * imbalance that would trigger the load balancer?
- */
-static inline bool numa_wake_affine(struct sched_domain *sd,
-				    struct task_struct *p, int this_cpu,
-				    int prev_cpu, int sync)
-{
-	struct numa_stats prev_load, this_load;
-	s64 this_eff_load, prev_eff_load;
-
-	update_numa_stats(&prev_load, cpu_to_node(prev_cpu));
-	update_numa_stats(&this_load, cpu_to_node(this_cpu));
-
-	/*
-	 * If sync wakeup then subtract the (maximum possible)
-	 * effect of the currently running task from the load
-	 * of the current CPU:
-	 */
-	if (sync) {
-		unsigned long current_load = task_h_load(current);
-
-		if (this_load.load > current_load)
-			this_load.load -= current_load;
-		else
-			this_load.load = 0;
-	}
-
-	/*
-	 * In low-load situations, where this_cpu's node is idle due to the
-	 * sync cause above having dropped this_load.load to 0, move the task.
-	 * Moving to an idle socket will not create a bad imbalance.
-	 *
-	 * Otherwise check if the nodes are near enough in load to allow this
-	 * task to be woken on this_cpu's node.
-	 */
-	if (this_load.load > 0) {
-		unsigned long task_load = task_h_load(p);
-
-		this_eff_load = 100;
-		this_eff_load *= prev_load.compute_capacity;
-
-		prev_eff_load = 100 + (sd->imbalance_pct - 100) / 2;
-		prev_eff_load *= this_load.compute_capacity;
-
-		this_eff_load *= this_load.load + task_load;
-		prev_eff_load *= prev_load.load - task_load;
-
-		return this_eff_load <= prev_eff_load;
-	}
-
-	return true;
-}
 #else
 static void task_tick_numa(struct rq *rq, struct task_struct *curr)
 {
@@ -2724,14 +2671,6 @@ static inline void account_numa_dequeue(struct rq *rq, struct task_struct *p)
 {
 }
 
-#ifdef CONFIG_SMP
-static inline bool numa_wake_affine(struct sched_domain *sd,
-				    struct task_struct *p, int this_cpu,
-				    int prev_cpu, int sync)
-{
-	return true;
-}
-#endif /* !SMP */
 #endif /* CONFIG_NUMA_BALANCING */
 
 static void
@@ -5428,20 +5367,115 @@ static int wake_wide(struct task_struct *p)
 	return 1;
 }
 
+struct llc_stats {
+	unsigned long	nr_running;
+	unsigned long	load;
+	unsigned long	capacity;
+	int		has_capacity;
+};
+
+static bool get_llc_stats(struct llc_stats *stats, int cpu)
+{
+	struct sched_domain_shared *sds = rcu_dereference(per_cpu(sd_llc_shared, cpu));
+
+	if (!sds)
+		return false;
+
+	stats->nr_running	= READ_ONCE(sds->nr_running);
+	stats->load		= READ_ONCE(sds->load);
+	stats->capacity		= READ_ONCE(sds->capacity);
+	stats->has_capacity	= stats->nr_running < per_cpu(sd_llc_size, cpu);
+
+	return true;
+}
+
+/*
+ * Can a task be moved from prev_cpu to this_cpu without causing a load
+ * imbalance that would trigger the load balancer?
+ *
+ * Since we're running on 'stale' values, we might in fact create an imbalance
+ * but recomputing these values is expensive, as that'd mean iteration 2 cache
+ * domains worth of CPUs.
+ */
+static bool
+wake_affine_llc(struct sched_domain *sd, struct task_struct *p,
+		int this_cpu, int prev_cpu, int sync)
+{
+	struct llc_stats prev_stats, this_stats;
+	s64 this_eff_load, prev_eff_load;
+	unsigned long task_load;
+
+	if (!get_llc_stats(&prev_stats, prev_cpu) ||
+	    !get_llc_stats(&this_stats, this_cpu))
+		return false;
+
+	/*
+	 * If sync wakeup then subtract the (maximum possible)
+	 * effect of the currently running task from the load
+	 * of the current LLC.
+	 */
+	if (sync) {
+		unsigned long current_load = task_h_load(current);
+
+		/* in this case load hits 0 and this LLC is considered 'idle' */
+		if (current_load > this_stats.load)
+			return true;
+
+		this_stats.load -= current_load;
+	}
+
+	/*
+	 * The has_capacity stuff is not SMT aware, but by trying to balance
+	 * the nr_running on both ends we try and fill the domain at equal
+	 * rates, thereby first consuming cores before siblings.
+	 */
+
+	/* if the old cache has capacity, stay there */
+	if (prev_stats.has_capacity && prev_stats.nr_running < this_stats.nr_running+1)
+		return false;
+
+	/* if this cache has capacity, come here */
+	if (this_stats.has_capacity && this_stats.nr_running < prev_stats.nr_running+1)
+		return true;
+
+	/*
+	 * Check to see if we can move the load without causing too much
+	 * imbalance.
+	 */
+	task_load = task_h_load(p);
+
+	this_eff_load = 100;
+	this_eff_load *= prev_stats.capacity;
+
+	prev_eff_load = 100 + (sd->imbalance_pct - 100) / 2;
+	prev_eff_load *= this_stats.capacity;
+
+	this_eff_load *= this_stats.load + task_load;
+	prev_eff_load *= prev_stats.load - task_load;
+
+	return this_eff_load <= prev_eff_load;
+}
+
 static int wake_affine(struct sched_domain *sd, struct task_struct *p,
 		       int prev_cpu, int sync)
 {
 	int this_cpu = smp_processor_id();
-	bool affine = false;
+	bool affine;
 
 	/*
-	 * Common case: CPUs are in the same socket, and select_idle_sibling()
-	 * will do its thing regardless of what we return:
+	 * Default to no affine wakeups; wake_affine() should not effect a task
+	 * placement the load-balancer feels inclined to undo. The conservative
+	 * option is therefore to not move tasks when they wake up.
 	 */
-	if (cpus_share_cache(prev_cpu, this_cpu))
-		affine = true;
-	else
-		affine = numa_wake_affine(sd, p, this_cpu, prev_cpu, sync);
+	affine = false;
+
+	/*
+	 * If the wakeup is across cache domains, try to evaluate if movement
+	 * makes sense, otherwise rely on select_idle_siblings() to do
+	 * placement inside the cache domain.
+	 */
+	if (!cpus_share_cache(prev_cpu, this_cpu))
+		affine = wake_affine_llc(sd, p, this_cpu, prev_cpu, sync);
 
 	schedstat_inc(p->se.statistics.nr_wakeups_affine_attempts);
 	if (affine) {
@@ -7121,6 +7155,7 @@ struct sg_lb_stats {
 struct sd_lb_stats {
 	struct sched_group *busiest;	/* Busiest group in this sd */
 	struct sched_group *local;	/* Local group in this sd */
+	unsigned long total_running;
 	unsigned long total_load;	/* Total load of all groups in sd */
 	unsigned long total_capacity;	/* Total capacity of all groups in sd */
 	unsigned long avg_load;	/* Average load across all groups in sd */
@@ -7140,6 +7175,7 @@ static inline void init_sd_lb_stats(struct sd_lb_stats *sds)
 	*sds = (struct sd_lb_stats){
 		.busiest = NULL,
 		.local = NULL,
+		.total_running = 0UL,
 		.total_load = 0UL,
 		.total_capacity = 0UL,
 		.busiest_stat = {
@@ -7575,6 +7611,7 @@ static inline enum fbq_type fbq_classify_rq(struct rq *rq)
  */
 static inline void update_sd_lb_stats(struct lb_env *env, struct sd_lb_stats *sds)
 {
+	struct sched_domain_shared *shared = env->sd->shared;
 	struct sched_domain *child = env->sd->child;
 	struct sched_group *sg = env->sd->groups;
 	struct sg_lb_stats *local = &sds->local_stat;
@@ -7631,6 +7668,7 @@ static inline void update_sd_lb_stats(struct lb_env *env, struct sd_lb_stats *sd
 
 next_group:
 		/* Now, start updating sd_lb_stats */
+		sds->total_running += sgs->sum_nr_running;
 		sds->total_load += sgs->group_load;
 		sds->total_capacity += sgs->group_capacity;
 
@@ -7646,6 +7684,21 @@ next_group:
 			env->dst_rq->rd->overload = overload;
 	}
 
+	if (!shared)
+		return;
+
+	/*
+	 * Since these are sums over groups they can contain some CPUs
+	 * multiple times for the NUMA domains.
+	 *
+	 * Currently only wake_affine_llc() and find_busiest_group()
+	 * uses these numbers, only the last is affected by this problem.
+	 *
+	 * XXX fix that.
+	 */
+	WRITE_ONCE(shared->nr_running,	sds->total_running);
+	WRITE_ONCE(shared->load,	sds->total_load);
+	WRITE_ONCE(shared->capacity,	sds->total_capacity);
 }
 
 /**
@@ -7875,6 +7928,7 @@ static struct sched_group *find_busiest_group(struct lb_env *env)
 	if (!sds.busiest || busiest->sum_nr_running == 0)
 		goto out_balanced;
 
+	/* XXX broken for overlapping NUMA groups */
 	sds.avg_load = (SCHED_CAPACITY_SCALE * sds.total_load)
 						/ sds.total_capacity;
 
