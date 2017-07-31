@@ -2504,12 +2504,43 @@ static void its_vpe_unmask_irq(struct irq_data *d)
 	its_vpe_send_inv(d);
 }
 
+static int its_vpe_set_irqchip_state(struct irq_data *d,
+				     enum irqchip_irq_state which,
+				     bool state)
+{
+	struct its_vpe *vpe = irq_data_get_irq_chip_data(d);
+
+	if (which != IRQCHIP_STATE_PENDING)
+		return -EINVAL;
+
+	if (gic_rdists->has_direct_lpi) {
+		void __iomem *rdbase;
+
+		rdbase = per_cpu_ptr(gic_rdists->rdist, vpe->col_idx)->rd_base;
+		if (state) {
+			gic_write_lpir(vpe->vpe_db_lpi, rdbase + GICR_SETLPIR);
+		} else {
+			gic_write_lpir(vpe->vpe_db_lpi, rdbase + GICR_CLRLPIR);
+			while (gic_read_lpir(rdbase + GICR_SYNCR) & 1)
+				cpu_relax();
+		}
+	} else {
+		if (state)
+			its_vpe_send_cmd(vpe, its_send_int);
+		else
+			its_vpe_send_cmd(vpe, its_send_clear);
+	}
+
+	return 0;
+}
+
 static struct irq_chip its_vpe_irq_chip = {
 	.name			= "GICv4-vpe",
 	.irq_mask		= its_vpe_mask_irq,
 	.irq_unmask		= its_vpe_unmask_irq,
 	.irq_eoi		= irq_chip_eoi_parent,
 	.irq_set_affinity	= its_vpe_set_affinity,
+	.irq_set_irqchip_state	= its_vpe_set_irqchip_state,
 	.irq_set_vcpu_affinity	= its_vpe_set_vcpu_affinity,
 };
 
