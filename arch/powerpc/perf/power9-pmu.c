@@ -115,8 +115,9 @@ static int power9_get_alternatives(u64 event, unsigned int flags, u64 alt[])
 {
 	int num_alt = 0;
 
-	num_alt = isa207_get_alternatives(event, alt, power9_event_alternatives,
-				(int)ARRAY_SIZE(power9_event_alternatives));
+	num_alt = isa207_get_alternatives(event, alt,
+					  ARRAY_SIZE(power9_event_alternatives), flags,
+					  power9_event_alternatives);
 
 	return num_alt;
 }

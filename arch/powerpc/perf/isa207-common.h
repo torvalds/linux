@@ -288,8 +288,8 @@ int isa207_compute_mmcr(u64 event[], int n_ev,
 				unsigned int hwc[], unsigned long mmcr[],
 				struct perf_event *pevents[]);
 void isa207_disable_pmc(unsigned int pmc, unsigned long mmcr[]);
-int isa207_get_alternatives(u64 event, u64 alt[],
-				const unsigned int ev_alt[][MAX_ALT], int size);
+int isa207_get_alternatives(u64 event, u64 alt[], int size, unsigned int flags,
+					const unsigned int ev_alt[][MAX_ALT]);
 void isa207_get_mem_data_src(union perf_mem_data_src *dsrc, u32 flags,
 							struct pt_regs *regs);
 void isa207_get_mem_weight(u64 *weight);
