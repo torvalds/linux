@@ -612,6 +612,34 @@ static nokprobe_inline void do_cmpb(struct pt_regs *regs, unsigned long v1,
 	regs->gpr[rd] = out_val;
 }
 
+/*
+ * The size parameter is used to adjust the equivalent popcnt instruction.
+ * popcntb = 8, popcntw = 32, popcntd = 64
+ */
+static nokprobe_inline void do_popcnt(struct pt_regs *regs, unsigned long v1,
+				int size, int ra)
+{
+	unsigned long long out = v1;
+
+	out -= (out >> 1) & 0x5555555555555555;
+	out = (0x3333333333333333 & out) + (0x3333333333333333 & (out >> 2));
+	out = (out + (out >> 4)) & 0x0f0f0f0f0f0f0f0f;
+
+	if (size == 8) {	/* popcntb */
+		regs->gpr[ra] = out;
+		return;
+	}
+	out += out >> 8;
+	out += out >> 16;
+	if (size == 32) {	/* popcntw */
+		regs->gpr[ra] = out & 0x0000003f0000003f;
+		return;
+	}
+
+	out = (out + (out >> 32)) & 0x7f;
+	regs->gpr[ra] = out;	/* popcntd */
+}
+
 static nokprobe_inline int trap_compare(long v1, long v2)
 {
 	int ret = 0;
@@ -1209,6 +1237,10 @@ int analyse_instr(struct instruction_op *op, struct pt_regs *regs,
 			regs->gpr[ra] = regs->gpr[rd] & ~regs->gpr[rb];
 			goto logical_done;
 
+		case 122:	/* popcntb */
+			do_popcnt(regs, regs->gpr[rd], 8, ra);
+			goto logical_done;
+
 		case 124:	/* nor */
 			regs->gpr[ra] = ~(regs->gpr[rd] | regs->gpr[rb]);
 			goto logical_done;
@@ -1219,6 +1251,10 @@ int analyse_instr(struct instruction_op *op, struct pt_regs *regs,
 
 		case 316:	/* xor */
 			regs->gpr[ra] = regs->gpr[rd] ^ regs->gpr[rb];
+			goto logical_done;
+
+		case 378:	/* popcntw */
+			do_popcnt(regs, regs->gpr[rd], 32, ra);
 			goto logical_done;
 
 		case 412:	/* orc */
@@ -1232,7 +1268,11 @@ int analyse_instr(struct instruction_op *op, struct pt_regs *regs,
 		case 476:	/* nand */
 			regs->gpr[ra] = ~(regs->gpr[rd] & regs->gpr[rb]);
 			goto logical_done;
-
+#ifdef CONFIG_PPC64
+		case 506:	/* popcntd */
+			do_popcnt(regs, regs->gpr[rd], 64, ra);
+			goto logical_done;
+#endif
 		case 922:	/* extsh */
 			regs->gpr[ra] = (signed short) regs->gpr[rd];
 			goto logical_done;
