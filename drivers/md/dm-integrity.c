@@ -1702,7 +1702,11 @@ sleep:
 
 	if (need_sync_io) {
 		wait_for_completion_io(&read_comp);
-		integrity_metadata(&dio->work);
+		if (likely(!bio->bi_status))
+			integrity_metadata(&dio->work);
+		else
+			dec_in_flight(dio);
+
 	} else {
 		INIT_WORK(&dio->work, integrity_metadata);
 		queue_work(ic->metadata_wq, &dio->work);
