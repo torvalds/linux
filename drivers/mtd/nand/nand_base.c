@@ -1131,7 +1131,9 @@ static int nand_setup_data_interface(struct nand_chip *chip, int chipnr)
 	 * Ensure the timing mode has been changed on the chip side
 	 * before changing timings on the controller side.
 	 */
-	if (chip->onfi_version) {
+	if (chip->onfi_version &&
+	    (le16_to_cpu(chip->onfi_params.opt_cmd) &
+	     ONFI_OPT_CMD_SET_GET_FEATURES)) {
 		u8 tmode_param[ONFI_SUBFEATURE_PARAM_LEN] = {
 			chip->onfi_timing_mode_default,
 		};
