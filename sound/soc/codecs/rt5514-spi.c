@@ -173,9 +173,14 @@ static irqreturn_t rt5514_spi_irq(int irq, void *data)
 	rt5514_dsp->buf_rp = buf[0] | buf[1] << 8 | buf[2] << 16 |
 				buf[3] << 24;
 
+	if (rt5514_dsp->buf_rp % 8)
+		rt5514_dsp->buf_rp = (rt5514_dsp->buf_rp / 8) * 8;
+
 	rt5514_dsp->buf_size = rt5514_dsp->buf_limit - rt5514_dsp->buf_base;
 
-	schedule_delayed_work(&rt5514_dsp->copy_work, 0);
+	if (rt5514_dsp->buf_base && rt5514_dsp->buf_limit &&
+		rt5514_dsp->buf_rp && rt5514_dsp->buf_size)
+		schedule_delayed_work(&rt5514_dsp->copy_work, 0);
 
 	return IRQ_HANDLED;
 }
