@@ -32,7 +32,7 @@
 #define UNIPHIER_PINCTRL_DRV2CTRL_BASE	0x1900
 #define UNIPHIER_PINCTRL_DRV3CTRL_BASE	0x1980
 #define UNIPHIER_PINCTRL_PUPDCTRL_BASE	0x1a00
-#define UNIPHIER_PINCTRL_IECTRL		0x1d00
+#define UNIPHIER_PINCTRL_IECTRL_BASE	0x1d00
 
 struct uniphier_pinctrl_priv {
 	struct pinctrl_desc pctldesc;
@@ -252,18 +252,21 @@ static int uniphier_conf_pin_input_enable_get(struct pinctrl_dev *pctldev,
 {
 	struct uniphier_pinctrl_priv *priv = pinctrl_dev_get_drvdata(pctldev);
 	unsigned int iectrl = uniphier_pin_get_iectrl(desc->drv_data);
-	unsigned int val;
+	unsigned int reg, mask, val;
 	int ret;
 
 	if (iectrl == UNIPHIER_PIN_IECTRL_NONE)
 		/* This pin is always input-enabled. */
 		return 0;
 
-	ret = regmap_read(priv->regmap, UNIPHIER_PINCTRL_IECTRL, &val);
+	reg = UNIPHIER_PINCTRL_IECTRL_BASE + iectrl / 32 * 4;
+	mask = BIT(iectrl % 32);
+
+	ret = regmap_read(priv->regmap, reg, &val);
 	if (ret)
 		return ret;
 
-	return val & BIT(iectrl) ? 0 : -EINVAL;
+	return val & mask ? 0 : -EINVAL;
 }
 
 static int uniphier_conf_pin_config_get(struct pinctrl_dev *pctldev,
@@ -456,7 +459,7 @@ static int uniphier_conf_pin_input_enable(struct pinctrl_dev *pctldev,
 	if (iectrl == UNIPHIER_PIN_IECTRL_NONE)
 		return enable ? 0 : -EINVAL;
 
-	reg = UNIPHIER_PINCTRL_IECTRL + iectrl / 32 * 4;
+	reg = UNIPHIER_PINCTRL_IECTRL_BASE + iectrl / 32 * 4;
 	mask = BIT(iectrl % 32);
 
 	return regmap_update_bits(priv->regmap, reg, mask, enable ? mask : 0);
