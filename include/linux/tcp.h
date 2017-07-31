@@ -148,12 +148,6 @@ struct tcp_sock {
 	u16	gso_segs;	/* Max number of segs per GSO packet	*/
 
 /*
- *	Header prediction flags
- *	0x5?10 << 16 + snd_wnd in net byte order
- */
-	__be32	pred_flags;
-
-/*
  *	RFC793 variables by their proper names. This means you can
  *	read the code and the spec side by side (and laugh ...)
  *	See RFC793 and RFC1122. The RFC writes these in capitals.
@@ -191,15 +185,6 @@ struct tcp_sock {
 	u32	tsoffset;	/* timestamp offset */
 
 	struct list_head tsq_node; /* anchor in tsq_tasklet.head list */
-
-	/* Data for direct copy to user */
-	struct {
-		struct sk_buff_head	prequeue;
-		struct task_struct	*task;
-		struct msghdr		*msg;
-		int			memory;
-		int			len;
-	} ucopy;
 
 	u32	snd_wl1;	/* Sequence for window update		*/
 	u32	snd_wnd;	/* The window we expect to receive	*/

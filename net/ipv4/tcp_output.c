@@ -295,9 +295,7 @@ static u16 tcp_select_window(struct sock *sk)
 	/* RFC1323 scaling applied */
 	new_win >>= tp->rx_opt.rcv_wscale;
 
-	/* If we advertise zero window, disable fast path. */
 	if (new_win == 0) {
-		tp->pred_flags = 0;
 		if (old_win)
 			NET_INC_STATS(sock_net(sk),
 				      LINUX_MIB_TCPTOZEROWINDOWADV);

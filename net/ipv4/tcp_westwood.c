@@ -154,24 +154,6 @@ static inline void update_rtt_min(struct westwood *w)
 }
 
 /*
- * @westwood_fast_bw
- * It is called when we are in fast path. In particular it is called when
- * header prediction is successful. In such case in fact update is
- * straight forward and doesn't need any particular care.
- */
-static inline void westwood_fast_bw(struct sock *sk)
-{
-	const struct tcp_sock *tp = tcp_sk(sk);
-	struct westwood *w = inet_csk_ca(sk);
-
-	westwood_update_window(sk);
-
-	w->bk += tp->snd_una - w->snd_una;
-	w->snd_una = tp->snd_una;
-	update_rtt_min(w);
-}
-
-/*
  * @westwood_acked_count
  * This function evaluates cumul_ack for evaluating bk in case of
  * delayed or partial acks.
@@ -223,17 +205,12 @@ static u32 tcp_westwood_bw_rttmin(const struct sock *sk)
 
 static void tcp_westwood_ack(struct sock *sk, u32 ack_flags)
 {
-	if (ack_flags & CA_ACK_SLOWPATH) {
-		struct westwood *w = inet_csk_ca(sk);
+	struct westwood *w = inet_csk_ca(sk);
 
-		westwood_update_window(sk);
-		w->bk += westwood_acked_count(sk);
+	westwood_update_window(sk);
+	w->bk += westwood_acked_count(sk);
 
-		update_rtt_min(w);
-		return;
-	}
-
-	westwood_fast_bw(sk);
+	update_rtt_min(w);
 }
 
 static void tcp_westwood_event(struct sock *sk, enum tcp_ca_event event)
