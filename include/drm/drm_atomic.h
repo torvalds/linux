@@ -883,7 +883,7 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
  *
  * To give drivers flexibility &struct drm_crtc_state has 3 booleans to track
  * whether the state CRTC changed enough to need a full modeset cycle:
- * planes_changed, mode_changed and active_changed. This helper simply
+ * mode_changed, active_changed and connectors_changed. This helper simply
  * combines these three to compute the overall need for a modeset for @state.
  *
  * The atomic helper code sets these booleans, but drivers can and should
