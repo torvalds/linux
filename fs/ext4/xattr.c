@@ -451,6 +451,7 @@ ext4_xattr_inode_get(struct inode *inode, struct ext4_xattr_entry *entry,
 		}
 		/* Do not add ea_inode to the cache. */
 		ea_inode_cache = NULL;
+		err = 0;
 	} else if (err)
 		goto out;
 
