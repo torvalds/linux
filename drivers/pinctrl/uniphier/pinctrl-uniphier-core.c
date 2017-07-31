@@ -651,30 +651,27 @@ static int uniphier_pmx_gpio_request_enable(struct pinctrl_dev *pctldev,
 					    unsigned offset)
 {
 	struct uniphier_pinctrl_priv *priv = pinctrl_dev_get_drvdata(pctldev);
-	const struct uniphier_pinctrl_group *groups = priv->socdata->groups;
-	int groups_count = priv->socdata->groups_count;
-	enum uniphier_pinmux_gpio_range_type range_type;
-	int i, j;
+	unsigned int gpio_offset;
+	int muxval, i;
 
-	if (strstr(range->name, "irq"))
-		range_type = UNIPHIER_PINMUX_GPIO_RANGE_IRQ;
-	else
-		range_type = UNIPHIER_PINMUX_GPIO_RANGE_PORT;
+	if (range->pins) {
+		for (i = 0; i < range->npins; i++)
+			if (range->pins[i] == offset)
+				break;
 
-	for (i = 0; i < groups_count; i++) {
-		if (groups[i].range_type != range_type)
-			continue;
+		if (WARN_ON(i == range->npins))
+			return -EINVAL;
 
-		for (j = 0; j < groups[i].num_pins; j++)
-			if (groups[i].pins[j] == offset)
-				goto found;
+		gpio_offset = i;
+	} else {
+		gpio_offset = offset - range->pin_base;
 	}
 
-	dev_err(pctldev->dev, "pin %u does not support GPIO\n", offset);
-	return -EINVAL;
+	gpio_offset += range->id;
 
-found:
-	return uniphier_pmx_set_one_mux(pctldev, offset, groups[i].muxvals[j]);
+	muxval = priv->socdata->get_gpio_muxval(offset, gpio_offset);
+
+	return uniphier_pmx_set_one_mux(pctldev, offset, muxval);
 }
 
 static const struct pinmux_ops uniphier_pmxops = {
