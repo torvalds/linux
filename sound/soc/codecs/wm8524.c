@@ -206,13 +206,11 @@ static const struct snd_soc_codec_driver soc_codec_dev_wm8524 = {
 	},
 };
 
-#ifdef CONFIG_OF
 static const struct of_device_id wm8524_of_match[] = {
 	{ .compatible = "wlf,wm8524" },
 	{ /* sentinel*/ }
 };
 MODULE_DEVICE_TABLE(of, wm8524_of_match);
-#endif
 
 static int wm8524_codec_probe(struct platform_device *pdev)
 {
