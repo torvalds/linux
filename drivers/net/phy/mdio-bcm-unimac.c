@@ -57,10 +57,26 @@ static inline unsigned int unimac_mdio_busy(struct unimac_mdio_priv *priv)
 	return __raw_readl(priv->base + MDIO_CMD) & MDIO_START_BUSY;
 }
 
+static int unimac_mdio_poll(struct unimac_mdio_priv *priv)
+{
+	unsigned int timeout = 1000;
+
+	do {
+		if (!unimac_mdio_busy(priv))
+			return 0;
+
+		usleep_range(1000, 2000);
+	} while (timeout--);
+
+	if (!timeout)
+		return -ETIMEDOUT;
+
+	return 0;
+}
+
 static int unimac_mdio_read(struct mii_bus *bus, int phy_id, int reg)
 {
 	struct unimac_mdio_priv *priv = bus->priv;
-	unsigned int timeout = 1000;
 	u32 cmd;
 
 	/* Prepare the read operation */
@@ -70,15 +86,9 @@ static int unimac_mdio_read(struct mii_bus *bus, int phy_id, int reg)
 	/* Start MDIO transaction */
 	unimac_mdio_start(priv);
 
-	do {
-		if (!unimac_mdio_busy(priv))
-			break;
-
-		usleep_range(1000, 2000);
-	} while (timeout--);
-
-	if (!timeout)
-		return -ETIMEDOUT;
+	ret = unimac_mdio_poll(priv);
+	if (ret)
+		return ret;
 
 	cmd = __raw_readl(priv->base + MDIO_CMD);
 
@@ -97,7 +107,6 @@ static int unimac_mdio_write(struct mii_bus *bus, int phy_id,
 			     int reg, u16 val)
 {
 	struct unimac_mdio_priv *priv = bus->priv;
-	unsigned int timeout = 1000;
 	u32 cmd;
 
 	/* Prepare the write operation */
@@ -107,17 +116,7 @@ static int unimac_mdio_write(struct mii_bus *bus, int phy_id,
 
 	unimac_mdio_start(priv);
 
-	do {
-		if (!unimac_mdio_busy(priv))
-			break;
-
-		usleep_range(1000, 2000);
-	} while (timeout--);
-
-	if (!timeout)
-		return -ETIMEDOUT;
-
-	return 0;
+	return unimac_mdio_poll(priv);
 }
 
 /* Workaround for integrated BCM7xxx Gigabit PHYs which have a problem with
