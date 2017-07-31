@@ -505,6 +505,7 @@ static const struct of_device_id keystone_rproc_of_match[] = {
 	{ .compatible = "ti,k2hk-dsp", },
 	{ .compatible = "ti,k2l-dsp", },
 	{ .compatible = "ti,k2e-dsp", },
+	{ .compatible = "ti,k2g-dsp", },
 	{ /* sentinel */ },
 };
 MODULE_DEVICE_TABLE(of, keystone_rproc_of_match);
