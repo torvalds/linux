@@ -47,18 +47,21 @@ static void chap_binaryhex_to_asciihex(char *dst, char *src, int src_len)
 	}
 }
 
-static void chap_gen_challenge(
+static int chap_gen_challenge(
 	struct iscsi_conn *conn,
 	int caller,
 	char *c_str,
 	unsigned int *c_len)
 {
+	int ret;
 	unsigned char challenge_asciihex[CHAP_CHALLENGE_LENGTH * 2 + 1];
 	struct iscsi_chap *chap = conn->auth_protocol;
 
 	memset(challenge_asciihex, 0, CHAP_CHALLENGE_LENGTH * 2 + 1);
 
-	get_random_bytes(chap->challenge, CHAP_CHALLENGE_LENGTH);
+	ret = get_random_bytes_wait(chap->challenge, CHAP_CHALLENGE_LENGTH);
+	if (unlikely(ret))
+		return ret;
 	chap_binaryhex_to_asciihex(challenge_asciihex, chap->challenge,
 				CHAP_CHALLENGE_LENGTH);
 	/*
@@ -69,6 +72,7 @@ static void chap_gen_challenge(
 
 	pr_debug("[%s] Sending CHAP_C=0x%s\n\n", (caller) ? "server" : "client",
 			challenge_asciihex);
+	return 0;
 }
 
 static int chap_check_algorithm(const char *a_str)
@@ -143,6 +147,7 @@ static struct iscsi_chap *chap_server_open(
 	case CHAP_DIGEST_UNKNOWN:
 	default:
 		pr_err("Unsupported CHAP_A value\n");
+		kfree(conn->auth_protocol);
 		return NULL;
 	}
 
@@ -156,7 +161,10 @@ static struct iscsi_chap *chap_server_open(
 	/*
 	 * Generate Challenge.
 	 */
-	chap_gen_challenge(conn, 1, aic_str, aic_len);
+	if (chap_gen_challenge(conn, 1, aic_str, aic_len) < 0) {
+		kfree(conn->auth_protocol);
+		return NULL;
+	}
 
 	return chap;
 }

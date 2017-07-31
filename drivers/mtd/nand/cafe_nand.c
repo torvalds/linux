@@ -654,6 +654,8 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 	cafe->nand.read_buf = cafe_read_buf;
 	cafe->nand.write_buf = cafe_write_buf;
 	cafe->nand.select_chip = cafe_select_chip;
+	cafe->nand.onfi_set_features = nand_onfi_get_set_features_notsupp;
+	cafe->nand.onfi_get_features = nand_onfi_get_set_features_notsupp;
 
 	cafe->nand.chip_delay = 0;
 

@@ -637,6 +637,9 @@ static int mmc_blk_ioctl_multi_cmd(struct block_device *bdev,
 			   sizeof(num_of_cmds)))
 		return -EFAULT;
 
+	if (!num_of_cmds)
+		return 0;
+
 	if (num_of_cmds > MMC_IOC_MAX_CMDS)
 		return -EINVAL;
 
@@ -1182,7 +1185,7 @@ static void mmc_blk_issue_drv_op(struct mmc_queue *mq, struct request *req)
 
 	switch (mq_rq->drv_op) {
 	case MMC_DRV_OP_IOCTL:
-		for (i = 0; i < mq_rq->ioc_count; i++) {
+		for (i = 0, ret = 0; i < mq_rq->ioc_count; i++) {
 			ret = __mmc_blk_ioctl_cmd(card, md, mq_rq->idata[i]);
 			if (ret)
 				break;
@@ -2167,6 +2170,7 @@ static void mmc_blk_remove_req(struct mmc_blk_data *md)
 		 * from being accepted.
 		 */
 		card = md->queue.card;
+		blk_set_queue_dying(md->queue.queue);
 		mmc_cleanup_queue(&md->queue);
 		if (md->disk->flags & GENHD_FL_UP) {
 			device_remove_file(disk_to_dev(md->disk), &md->force_ro);

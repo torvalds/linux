@@ -242,7 +242,7 @@ static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe,
 	 * Otherwise reinitialize delayed at next vblank interrupt and assign 0
 	 * for now, to mark the vblanktimestamp as invalid.
 	 */
-	if (!rc && in_vblank_irq)
+	if (!rc && !in_vblank_irq)
 		t_vblank = (struct timeval) {0, 0};
 
 	store_vblank(dev, pipe, diff, &t_vblank, cur_vblank);

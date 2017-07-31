@@ -44,8 +44,7 @@ timeval of SO_TIMESTAMP (ms).
 Supports multiple types of timestamp requests. As a result, this
 socket option takes a bitmap of flags, not a boolean. In
 
-  err = setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING, (void *) val,
-                   sizeof(val));
+  err = setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING, &val, sizeof(val));
 
 val is an integer with any of the following bits set. Setting other
 bit returns EINVAL and does not change the current state.
@@ -249,8 +248,7 @@ setsockopt to receive timestamps:
 
   __u32 val = SOF_TIMESTAMPING_SOFTWARE |
 	      SOF_TIMESTAMPING_OPT_ID /* or any other flag */;
-  err = setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING, (void *) val,
-                   sizeof(val));
+  err = setsockopt(fd, SOL_SOCKET, SO_TIMESTAMPING, &val, sizeof(val));
 
 
 1.4 Bytestream Timestamps

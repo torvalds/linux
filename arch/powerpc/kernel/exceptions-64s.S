@@ -1314,6 +1314,31 @@ EXC_REAL_NONE(0x1800, 0x100)
 EXC_VIRT_NONE(0x5800, 0x100)
 #endif
 
+#if defined(CONFIG_HARDLOCKUP_DETECTOR) && defined(CONFIG_HAVE_HARDLOCKUP_DETECTOR_ARCH)
+
+#define MASKED_DEC_HANDLER_LABEL 3f
+
+#define MASKED_DEC_HANDLER(_H)				\
+3: /* soft-nmi */					\
+	std	r12,PACA_EXGEN+EX_R12(r13);		\
+	GET_SCRATCH0(r10);				\
+	std	r10,PACA_EXGEN+EX_R13(r13);		\
+	EXCEPTION_PROLOG_PSERIES_1(soft_nmi_common, _H)
+
+EXC_COMMON_BEGIN(soft_nmi_common)
+	mr	r10,r1
+	ld	r1,PACAEMERGSP(r13)
+	ld	r1,PACA_NMI_EMERG_SP(r13)
+	subi	r1,r1,INT_FRAME_SIZE
+	EXCEPTION_COMMON_NORET_STACK(PACA_EXGEN, 0x900,
+			system_reset, soft_nmi_interrupt,
+			ADD_NVGPRS;ADD_RECONCILE)
+	b	ret_from_except
+
+#else
+#define MASKED_DEC_HANDLER_LABEL 2f /* normal return */
+#define MASKED_DEC_HANDLER(_H)
+#endif
 
 /*
  * An interrupt came in while soft-disabled. We set paca->irq_happened, then:
@@ -1336,7 +1361,7 @@ masked_##_H##interrupt:					\
 	lis	r10,0x7fff;				\
 	ori	r10,r10,0xffff;				\
 	mtspr	SPRN_DEC,r10;				\
-	b	2f;					\
+	b	MASKED_DEC_HANDLER_LABEL;		\
 1:	cmpwi	r10,PACA_IRQ_DBELL;			\
 	beq	2f;					\
 	cmpwi	r10,PACA_IRQ_HMI;			\
@@ -1351,7 +1376,8 @@ masked_##_H##interrupt:					\
 	ld	r11,PACA_EXGEN+EX_R11(r13);		\
 	GET_SCRATCH0(r13);				\
 	##_H##rfid;					\
-	b	.
+	b	.;					\
+	MASKED_DEC_HANDLER(_H)
 
 /*
  * Real mode exceptions actually use this too, but alternate

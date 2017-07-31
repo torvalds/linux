@@ -87,42 +87,6 @@ static inline int __access_ok(const void __user *p, unsigned long size)
 #define __put_user(x, ptr)	__put_user_nocheck((__typeof__(*(ptr))) (x), (ptr), sizeof(*(ptr)))
 #define __get_user(x, ptr)	__get_user_nocheck((x), (ptr), sizeof(*(ptr)))
 
-extern long __put_user_unaligned_unknown (void);
-
-#define __put_user_unaligned(x, ptr)								\
-({												\
-	long __ret;										\
-	switch (sizeof(*(ptr))) {								\
-		case 1: __ret = __put_user((x), (ptr)); break;					\
-		case 2: __ret = (__put_user((x), (u8 __user *)(ptr)))				\
-			| (__put_user((x) >> 8, ((u8 __user *)(ptr) + 1))); break;		\
-		case 4: __ret = (__put_user((x), (u16 __user *)(ptr)))				\
-			| (__put_user((x) >> 16, ((u16 __user *)(ptr) + 1))); break;		\
-		case 8: __ret = (__put_user((x), (u32 __user *)(ptr)))				\
-			| (__put_user((x) >> 32, ((u32 __user *)(ptr) + 1))); break;		\
-		default: __ret = __put_user_unaligned_unknown();				\
-	}											\
-	__ret;											\
-})
-
-extern long __get_user_unaligned_unknown (void);
-
-#define __get_user_unaligned(x, ptr)								\
-({												\
-	long __ret;										\
-	switch (sizeof(*(ptr))) {								\
-		case 1: __ret = __get_user((x), (ptr)); break;					\
-		case 2: __ret = (__get_user((x), (u8 __user *)(ptr)))				\
-			| (__get_user((x) >> 8, ((u8 __user *)(ptr) + 1))); break;		\
-		case 4: __ret = (__get_user((x), (u16 __user *)(ptr)))				\
-			| (__get_user((x) >> 16, ((u16 __user *)(ptr) + 1))); break;		\
-		case 8: __ret = (__get_user((x), (u32 __user *)(ptr)))				\
-			| (__get_user((x) >> 32, ((u32 __user *)(ptr) + 1))); break;		\
-		default: __ret = __get_user_unaligned_unknown();				\
-	}											\
-	__ret;											\
-})
-
 #ifdef ASM_SUPPORTED
   struct __large_struct { unsigned long buf[100]; };
 # define __m(x) (*(struct __large_struct __user *)(x))

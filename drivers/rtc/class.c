@@ -150,59 +150,19 @@ static SIMPLE_DEV_PM_OPS(rtc_class_dev_pm_ops, rtc_suspend, rtc_resume);
 #define RTC_CLASS_DEV_PM_OPS	NULL
 #endif
 
-
-/**
- * rtc_device_register - register w/ RTC class
- * @dev: the device to register
- *
- * rtc_device_unregister() must be called when the class device is no
- * longer needed.
- *
- * Returns the pointer to the new struct class device.
- */
-struct rtc_device *rtc_device_register(const char *name, struct device *dev,
-					const struct rtc_class_ops *ops,
-					struct module *owner)
+/* Ensure the caller will set the id before releasing the device */
+static struct rtc_device *rtc_allocate_device(void)
 {
 	struct rtc_device *rtc;
-	struct rtc_wkalrm alrm;
-	int of_id = -1, id = -1, err;
 
-	if (dev->of_node)
-		of_id = of_alias_get_id(dev->of_node, "rtc");
-	else if (dev->parent && dev->parent->of_node)
-		of_id = of_alias_get_id(dev->parent->of_node, "rtc");
-
-	if (of_id >= 0) {
-		id = ida_simple_get(&rtc_ida, of_id, of_id + 1,
-				    GFP_KERNEL);
-		if (id < 0)
-			dev_warn(dev, "/aliases ID %d not available\n",
-				    of_id);
-	}
-
-	if (id < 0) {
-		id = ida_simple_get(&rtc_ida, 0, 0, GFP_KERNEL);
-		if (id < 0) {
-			err = id;
-			goto exit;
-		}
-	}
-
-	rtc = kzalloc(sizeof(struct rtc_device), GFP_KERNEL);
-	if (rtc == NULL) {
-		err = -ENOMEM;
-		goto exit_ida;
-	}
+	rtc = kzalloc(sizeof(*rtc), GFP_KERNEL);
+	if (!rtc)
+		return NULL;
 
 	device_initialize(&rtc->dev);
 
-	rtc->id = id;
-	rtc->ops = ops;
-	rtc->owner = owner;
 	rtc->irq_freq = 1;
 	rtc->max_user_freq = 64;
-	rtc->dev.parent = dev;
 	rtc->dev.class = rtc_class;
 	rtc->dev.groups = rtc_get_dev_attribute_groups();
 	rtc->dev.release = rtc_device_release;
@@ -224,7 +184,64 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 	rtc->pie_timer.function = rtc_pie_update_irq;
 	rtc->pie_enabled = 0;
 
-	strlcpy(rtc->name, name, RTC_DEVICE_NAME_SIZE);
+	return rtc;
+}
+
+static int rtc_device_get_id(struct device *dev)
+{
+	int of_id = -1, id = -1;
+
+	if (dev->of_node)
+		of_id = of_alias_get_id(dev->of_node, "rtc");
+	else if (dev->parent && dev->parent->of_node)
+		of_id = of_alias_get_id(dev->parent->of_node, "rtc");
+
+	if (of_id >= 0) {
+		id = ida_simple_get(&rtc_ida, of_id, of_id + 1, GFP_KERNEL);
+		if (id < 0)
+			dev_warn(dev, "/aliases ID %d not available\n", of_id);
+	}
+
+	if (id < 0)
+		id = ida_simple_get(&rtc_ida, 0, 0, GFP_KERNEL);
+
+	return id;
+}
+
+/**
+ * rtc_device_register - register w/ RTC class
+ * @dev: the device to register
+ *
+ * rtc_device_unregister() must be called when the class device is no
+ * longer needed.
+ *
+ * Returns the pointer to the new struct class device.
+ */
+struct rtc_device *rtc_device_register(const char *name, struct device *dev,
+					const struct rtc_class_ops *ops,
+					struct module *owner)
+{
+	struct rtc_device *rtc;
+	struct rtc_wkalrm alrm;
+	int id, err;
+
+	id = rtc_device_get_id(dev);
+	if (id < 0) {
+		err = id;
+		goto exit;
+	}
+
+	rtc = rtc_allocate_device();
+	if (!rtc) {
+		err = -ENOMEM;
+		goto exit_ida;
+	}
+
+	rtc->id = id;
+	rtc->ops = ops;
+	rtc->owner = owner;
+	rtc->dev.parent = dev;
+
 	dev_set_name(&rtc->dev, "rtc%d", id);
 
 	/* Check to see if there is an ALARM already set in hw */
@@ -238,20 +255,20 @@ struct rtc_device *rtc_device_register(const char *name, struct device *dev,
 	err = cdev_device_add(&rtc->char_dev, &rtc->dev);
 	if (err) {
 		dev_warn(&rtc->dev, "%s: failed to add char device %d:%d\n",
-			 rtc->name, MAJOR(rtc->dev.devt), rtc->id);
+			 name, MAJOR(rtc->dev.devt), rtc->id);
 
 		/* This will free both memory and the ID */
 		put_device(&rtc->dev);
 		goto exit;
 	} else {
-		dev_dbg(&rtc->dev, "%s: dev (%d:%d)\n", rtc->name,
+		dev_dbg(&rtc->dev, "%s: dev (%d:%d)\n", name,
 			MAJOR(rtc->dev.devt), rtc->id);
 	}
 
 	rtc_proc_add_device(rtc);
 
 	dev_info(dev, "rtc core: registered %s as %s\n",
-			rtc->name, dev_name(&rtc->dev));
+			name, dev_name(&rtc->dev));
 
 	return rtc;
 
@@ -273,6 +290,8 @@ EXPORT_SYMBOL_GPL(rtc_device_register);
  */
 void rtc_device_unregister(struct rtc_device *rtc)
 {
+	rtc_nvmem_unregister(rtc);
+
 	mutex_lock(&rtc->ops_lock);
 	/*
 	 * Remove innards of this RTC, then disable it, before
@@ -355,6 +374,91 @@ void devm_rtc_device_unregister(struct device *dev, struct rtc_device *rtc)
 	WARN_ON(rc);
 }
 EXPORT_SYMBOL_GPL(devm_rtc_device_unregister);
+
+static void devm_rtc_release_device(struct device *dev, void *res)
+{
+	struct rtc_device *rtc = *(struct rtc_device **)res;
+
+	if (rtc->registered)
+		rtc_device_unregister(rtc);
+	else
+		put_device(&rtc->dev);
+}
+
+struct rtc_device *devm_rtc_allocate_device(struct device *dev)
+{
+	struct rtc_device **ptr, *rtc;
+	int id, err;
+
+	id = rtc_device_get_id(dev);
+	if (id < 0)
+		return ERR_PTR(id);
+
+	ptr = devres_alloc(devm_rtc_release_device, sizeof(*ptr), GFP_KERNEL);
+	if (!ptr) {
+		err = -ENOMEM;
+		goto exit_ida;
+	}
+
+	rtc = rtc_allocate_device();
+	if (!rtc) {
+		err = -ENOMEM;
+		goto exit_devres;
+	}
+
+	*ptr = rtc;
+	devres_add(dev, ptr);
+
+	rtc->id = id;
+	rtc->dev.parent = dev;
+	dev_set_name(&rtc->dev, "rtc%d", id);
+
+	return rtc;
+
+exit_devres:
+	devres_free(ptr);
+exit_ida:
+	ida_simple_remove(&rtc_ida, id);
+	return ERR_PTR(err);
+}
+EXPORT_SYMBOL_GPL(devm_rtc_allocate_device);
+
+int __rtc_register_device(struct module *owner, struct rtc_device *rtc)
+{
+	struct rtc_wkalrm alrm;
+	int err;
+
+	if (!rtc->ops)
+		return -EINVAL;
+
+	rtc->owner = owner;
+
+	/* Check to see if there is an ALARM already set in hw */
+	err = __rtc_read_alarm(rtc, &alrm);
+	if (!err && !rtc_valid_tm(&alrm.time))
+		rtc_initialize_alarm(rtc, &alrm);
+
+	rtc_dev_prepare(rtc);
+
+	err = cdev_device_add(&rtc->char_dev, &rtc->dev);
+	if (err)
+		dev_warn(rtc->dev.parent, "failed to add char device %d:%d\n",
+			 MAJOR(rtc->dev.devt), rtc->id);
+	else
+		dev_dbg(rtc->dev.parent, "char device (%d:%d)\n",
+			MAJOR(rtc->dev.devt), rtc->id);
+
+	rtc_proc_add_device(rtc);
+
+	rtc_nvmem_register(rtc);
+
+	rtc->registered = true;
+	dev_info(rtc->dev.parent, "registered as %s\n",
+		 dev_name(&rtc->dev));
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(__rtc_register_device);
 
 static int __init rtc_init(void)
 {

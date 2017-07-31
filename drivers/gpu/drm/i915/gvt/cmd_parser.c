@@ -2536,6 +2536,11 @@ static int scan_workload(struct intel_vgpu_workload *workload)
 		gma_head == gma_tail)
 		return 0;
 
+	if (!intel_gvt_ggtt_validate_range(s.vgpu, s.ring_start, s.ring_size)) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	ret = ip_gma_set(&s, gma_head);
 	if (ret)
 		goto out;
@@ -2578,6 +2583,11 @@ static int scan_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 	s.ring_tail = gma_tail;
 	s.rb_va = wa_ctx->indirect_ctx.shadow_va;
 	s.workload = workload;
+
+	if (!intel_gvt_ggtt_validate_range(s.vgpu, s.ring_start, s.ring_size)) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	ret = ip_gma_set(&s, gma_head);
 	if (ret)

@@ -302,10 +302,10 @@ typedef struct xfs_bstat {
  * and using two 16bit values to hold new 32bit projid was choosen
  * to retain compatibility with "old" filesystems).
  */
-static inline __uint32_t
+static inline uint32_t
 bstat_get_projid(struct xfs_bstat *bs)
 {
-	return (__uint32_t)bs->bs_projid_hi << 16 | bs->bs_projid_lo;
+	return (uint32_t)bs->bs_projid_hi << 16 | bs->bs_projid_lo;
 }
 
 /*
@@ -446,19 +446,15 @@ typedef struct xfs_handle {
 } xfs_handle_t;
 #define ha_fsid ha_u._ha_fsid
 
-#define XFS_HSIZE(handle)	(((char *) &(handle).ha_fid.fid_pad	 \
-				 - (char *) &(handle))			  \
-				 + (handle).ha_fid.fid_len)
-
 /*
  * Structure passed to XFS_IOC_SWAPEXT
  */
 typedef struct xfs_swapext
 {
-	__int64_t	sx_version;	/* version */
+	int64_t		sx_version;	/* version */
 #define XFS_SX_VERSION		0
-	__int64_t	sx_fdtarget;	/* fd of target file */
-	__int64_t	sx_fdtmp;	/* fd of tmp file */
+	int64_t		sx_fdtarget;	/* fd of target file */
+	int64_t		sx_fdtmp;	/* fd of tmp file */
 	xfs_off_t	sx_offset;	/* offset into file */
 	xfs_off_t	sx_length;	/* leng from offset */
 	char		sx_pad[16];	/* pad space, unused */
@@ -546,7 +542,7 @@ typedef struct xfs_swapext
 #define XFS_IOC_ATTRLIST_BY_HANDLE   _IOW ('X', 122, struct xfs_fsop_attrlist_handlereq)
 #define XFS_IOC_ATTRMULTI_BY_HANDLE  _IOW ('X', 123, struct xfs_fsop_attrmulti_handlereq)
 #define XFS_IOC_FSGEOMETRY	     _IOR ('X', 124, struct xfs_fsop_geom)
-#define XFS_IOC_GOINGDOWN	     _IOR ('X', 125, __uint32_t)
+#define XFS_IOC_GOINGDOWN	     _IOR ('X', 125, uint32_t)
 /*	XFS_IOC_GETFSUUID ---------- deprecated 140	 */
 
 

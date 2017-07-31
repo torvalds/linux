@@ -1881,16 +1881,25 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 	ssize_t num_written = 0;
 	bool sync = (file->f_flags & O_DSYNC) || IS_SYNC(file->f_mapping->host);
 	ssize_t err;
-	loff_t pos = iocb->ki_pos;
+	loff_t pos;
 	size_t count = iov_iter_count(from);
 	loff_t oldsize;
 	int clean_page = 0;
 
-	if ((iocb->ki_flags & IOCB_NOWAIT) &&
-			(iocb->ki_flags & IOCB_DIRECT)) {
-		/* Don't sleep on inode rwsem */
-		if (!inode_trylock(inode))
+	if (!inode_trylock(inode)) {
+		if (iocb->ki_flags & IOCB_NOWAIT)
 			return -EAGAIN;
+		inode_lock(inode);
+	}
+
+	err = generic_write_checks(iocb, from);
+	if (err <= 0) {
+		inode_unlock(inode);
+		return err;
+	}
+
+	pos = iocb->ki_pos;
+	if (iocb->ki_flags & IOCB_NOWAIT) {
 		/*
 		 * We will allocate space in case nodatacow is not set,
 		 * so bail
@@ -1901,13 +1910,6 @@ static ssize_t btrfs_file_write_iter(struct kiocb *iocb,
 			inode_unlock(inode);
 			return -EAGAIN;
 		}
-	} else
-		inode_lock(inode);
-
-	err = generic_write_checks(iocb, from);
-	if (err <= 0) {
-		inode_unlock(inode);
-		return err;
 	}
 
 	current->backing_dev_info = inode_to_bdi(inode);

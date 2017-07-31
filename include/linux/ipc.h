@@ -20,6 +20,9 @@ struct kern_ipc_perm {
 	umode_t		mode;
 	unsigned long	seq;
 	void		*security;
+
+	struct rcu_head rcu;
+	atomic_t refcount;
 } ____cacheline_aligned_in_smp;
 
 #endif /* _LINUX_IPC_H */

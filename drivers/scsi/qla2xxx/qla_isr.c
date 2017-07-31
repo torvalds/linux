@@ -2040,9 +2040,9 @@ qla2x00_handle_dif_error(srb_t *sp, struct sts_entry_24xx *sts24)
 	 * For type     3: ref & app tag is all 'f's
 	 * For type 0,1,2: app tag is all 'f's
 	 */
-	if ((a_app_tag == 0xffff) &&
+	if ((a_app_tag == T10_PI_APP_ESCAPE) &&
 	    ((scsi_get_prot_type(cmd) != SCSI_PROT_DIF_TYPE3) ||
-	     (a_ref_tag == 0xffffffff))) {
+	     (a_ref_tag == T10_PI_REF_ESCAPE))) {
 		uint32_t blocks_done, resid;
 		sector_t lba_s = scsi_get_lba(cmd);
 
@@ -2084,9 +2084,9 @@ qla2x00_handle_dif_error(srb_t *sp, struct sts_entry_24xx *sts24)
 			spt = page_address(sg_page(sg)) + sg->offset;
 			spt += j;
 
-			spt->app_tag = 0xffff;
+			spt->app_tag = T10_PI_APP_ESCAPE;
 			if (scsi_get_prot_type(cmd) == SCSI_PROT_DIF_TYPE3)
-				spt->ref_tag = 0xffffffff;
+				spt->ref_tag = T10_PI_REF_ESCAPE;
 		}
 
 		return 0;

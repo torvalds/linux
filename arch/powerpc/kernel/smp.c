@@ -435,13 +435,31 @@ static void do_smp_send_nmi_ipi(int cpu)
 	}
 }
 
+void smp_flush_nmi_ipi(u64 delay_us)
+{
+	unsigned long flags;
+
+	nmi_ipi_lock_start(&flags);
+	while (nmi_ipi_busy_count) {
+		nmi_ipi_unlock_end(&flags);
+		udelay(1);
+		if (delay_us) {
+			delay_us--;
+			if (!delay_us)
+				return;
+		}
+		nmi_ipi_lock_start(&flags);
+	}
+	nmi_ipi_unlock_end(&flags);
+}
+
 /*
  * - cpu is the target CPU (must not be this CPU), or NMI_IPI_ALL_OTHERS.
  * - fn is the target callback function.
  * - delay_us > 0 is the delay before giving up waiting for targets to
  *   enter the handler, == 0 specifies indefinite delay.
  */
-static int smp_send_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us)
+int smp_send_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us)
 {
 	unsigned long flags;
 	int me = raw_smp_processor_id();

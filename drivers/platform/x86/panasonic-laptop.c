@@ -437,7 +437,7 @@ static struct attribute *pcc_sysfs_entries[] = {
 	NULL,
 };
 
-static struct attribute_group pcc_attr_group = {
+static const struct attribute_group pcc_attr_group = {
 	.name	= NULL,		/* put in device directory */
 	.attrs	= pcc_sysfs_entries,
 };
