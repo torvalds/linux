@@ -192,4 +192,6 @@ struct uniphier_pinctrl_socdata {
 int uniphier_pinctrl_probe(struct platform_device *pdev,
 			   struct uniphier_pinctrl_socdata *socdata);
 
+extern const struct dev_pm_ops uniphier_pinctrl_pm_ops;
+
 #endif /* __PINCTRL_UNIPHIER_H__ */

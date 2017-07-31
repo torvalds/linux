@@ -740,6 +740,7 @@ static struct platform_driver uniphier_ld4_pinctrl_driver = {
 	.driver = {
 		.name = "uniphier-ld4-pinctrl",
 		.of_match_table = uniphier_ld4_pinctrl_match,
+		.pm = &uniphier_pinctrl_pm_ops,
 	},
 };
 builtin_platform_driver(uniphier_ld4_pinctrl_driver);
