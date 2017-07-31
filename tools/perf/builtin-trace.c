@@ -338,20 +338,6 @@ size_t syscall_arg__scnprintf_strarrays(char *bf, size_t size,
 	return scnprintf(bf, size, "%d", arg->val);
 }
 
-#if defined(__i386__) || defined(__x86_64__)
-/*
- * FIXME: Make this available to all arches as soon as the ioctl beautifier
- * 	  gets rewritten to support all arches.
- */
-static size_t syscall_arg__scnprintf_strhexarray(char *bf, size_t size,
-						 struct syscall_arg *arg)
-{
-	return __syscall_arg__scnprintf_strarray(bf, size, "%#x", arg);
-}
-
-#define SCA_STRHEXARRAY syscall_arg__scnprintf_strhexarray
-#endif /* defined(__i386__) || defined(__x86_64__) */
-
 #ifndef AT_FDCWD
 #define AT_FDCWD	-100
 #endif
@@ -525,33 +511,6 @@ static size_t syscall_arg__scnprintf_pipe_flags(char *bf, size_t size,
 
 #define SCA_PIPE_FLAGS syscall_arg__scnprintf_pipe_flags
 
-#if defined(__i386__) || defined(__x86_64__)
-/*
- * FIXME: Make this available to all arches.
- */
-#define TCGETS		0x5401
-
-static const char *tioctls[] = {
-	"TCGETS", "TCSETS", "TCSETSW", "TCSETSF", "TCGETA", "TCSETA", "TCSETAW",
-	"TCSETAF", "TCSBRK", "TCXONC", "TCFLSH", "TIOCEXCL", "TIOCNXCL",
-	"TIOCSCTTY", "TIOCGPGRP", "TIOCSPGRP", "TIOCOUTQ", "TIOCSTI",
-	"TIOCGWINSZ", "TIOCSWINSZ", "TIOCMGET", "TIOCMBIS", "TIOCMBIC",
-	"TIOCMSET", "TIOCGSOFTCAR", "TIOCSSOFTCAR", "FIONREAD", "TIOCLINUX",
-	"TIOCCONS", "TIOCGSERIAL", "TIOCSSERIAL", "TIOCPKT", "FIONBIO",
-	"TIOCNOTTY", "TIOCSETD", "TIOCGETD", "TCSBRKP", [0x27] = "TIOCSBRK",
-	"TIOCCBRK", "TIOCGSID", "TCGETS2", "TCSETS2", "TCSETSW2", "TCSETSF2",
-	"TIOCGRS485", "TIOCSRS485", "TIOCGPTN", "TIOCSPTLCK",
-	"TIOCGDEV||TCGETX", "TCSETX", "TCSETXF", "TCSETXW", "TIOCSIG",
-	"TIOCVHANGUP", "TIOCGPKT", "TIOCGPTLCK", "TIOCGEXCL",
-	[0x50] = "FIONCLEX", "FIOCLEX", "FIOASYNC", "TIOCSERCONFIG",
-	"TIOCSERGWILD", "TIOCSERSWILD", "TIOCGLCKTRMIOS", "TIOCSLCKTRMIOS",
-	"TIOCSERGSTRUCT", "TIOCSERGETLSR", "TIOCSERGETMULTI", "TIOCSERSETMULTI",
-	"TIOCMIWAIT", "TIOCGICOUNT", [0x60] = "FIOQSIZE",
-};
-
-static DEFINE_STRARRAY_OFFSET(tioctls, 0x5401);
-#endif /* defined(__i386__) || defined(__x86_64__) */
-
 #ifndef GRND_NONBLOCK
 #define GRND_NONBLOCK	0x0001
 #endif
@@ -670,8 +629,7 @@ static struct syscall_fmt {
 /*
  * FIXME: Make this available to all arches.
  */
-		   [1] = { .scnprintf = SCA_STRHEXARRAY, /* cmd */
-			   .parm      = &strarray__tioctls, },
+		   [1] = { .scnprintf = SCA_IOCTL_CMD, /* cmd */ },
 		   [2] = { .scnprintf = SCA_HEX, /* arg */ }, }, },
 #else
 		   [2] = { .scnprintf = SCA_HEX, /* arg */ }, }, },
