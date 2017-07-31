@@ -563,7 +563,6 @@ static int bcmgenet_mii_bus_init(struct bcmgenet_priv *priv)
 int bcmgenet_mii_init(struct net_device *dev)
 {
 	struct bcmgenet_priv *priv = netdev_priv(dev);
-	struct device_node *dn = priv->pdev->dev.of_node;
 	int ret;
 
 	ret = bcmgenet_mii_register(priv);
@@ -577,11 +576,7 @@ int bcmgenet_mii_init(struct net_device *dev)
 	return 0;
 
 out:
-	if (of_phy_is_fixed_link(dn))
-		of_phy_deregister_fixed_link(dn);
-	of_node_put(priv->phy_dn);
-	platform_device_unregister(priv->mii_pdev);
-	platform_device_put(priv->mii_pdev);
+	bcmgenet_mii_exit(dev);
 	return ret;
 }
 
