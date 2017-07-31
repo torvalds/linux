@@ -237,17 +237,17 @@ static void intel_detect_pch(struct drm_i915_private *dev_priv)
 					!IS_KABYLAKE(dev_priv));
 			} else if (id == INTEL_PCH_KBP_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_KBP;
-				DRM_DEBUG_KMS("Found KabyPoint PCH\n");
+				DRM_DEBUG_KMS("Found Kaby Lake PCH (KBP)\n");
 				WARN_ON(!IS_SKYLAKE(dev_priv) &&
 					!IS_KABYLAKE(dev_priv));
 			} else if (id == INTEL_PCH_CNP_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_CNP;
-				DRM_DEBUG_KMS("Found CannonPoint PCH\n");
+				DRM_DEBUG_KMS("Found Cannon Lake PCH (CNP)\n");
 				WARN_ON(!IS_CANNONLAKE(dev_priv) &&
 					!IS_COFFEELAKE(dev_priv));
 			} else if (id == INTEL_PCH_CNP_LP_DEVICE_ID_TYPE) {
 				dev_priv->pch_type = PCH_CNP;
-				DRM_DEBUG_KMS("Found CannonPoint LP PCH\n");
+				DRM_DEBUG_KMS("Found Cannon Lake LP PCH (CNP-LP)\n");
 				WARN_ON(!IS_CANNONLAKE(dev_priv) &&
 					!IS_COFFEELAKE(dev_priv));
 			} else if (id == INTEL_PCH_P2X_DEVICE_ID_TYPE ||
