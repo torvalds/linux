@@ -1,5 +1,6 @@
 #include <linux/compiler.h>
 #include <linux/types.h>
+#include <inttypes.h>
 #include <unistd.h>
 #include "tests.h"
 #include "debug.h"
@@ -11,7 +12,7 @@
 #include "thread.h"
 #include "callchain.h"
 
-#if defined (__x86_64__) || defined (__i386__)
+#if defined (__x86_64__) || defined (__i386__) || defined (__powerpc__)
 #include "arch-tests.h"
 #endif
 

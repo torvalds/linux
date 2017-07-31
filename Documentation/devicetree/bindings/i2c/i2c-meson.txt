@@ -1,7 +1,7 @@
 Amlogic Meson I2C controller
 
 Required properties:
- - compatible: must be "amlogic,meson6-i2c"
+ - compatible: must be "amlogic,meson6-i2c" or "amlogic,meson-gxbb-i2c"
  - reg: physical address and length of the device registers
  - interrupts: a single interrupt specifier
  - clocks: clock for the device

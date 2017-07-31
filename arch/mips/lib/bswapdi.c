@@ -1,4 +1,5 @@
-#include <linux/module.h>
+#include <linux/export.h>
+#include <linux/compiler.h>
 
 unsigned long long notrace __bswapdi2(unsigned long long u)
 {

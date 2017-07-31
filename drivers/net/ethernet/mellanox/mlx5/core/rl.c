@@ -36,6 +36,71 @@
 #include <linux/mlx5/cmd.h>
 #include "mlx5_core.h"
 
+/* Scheduling element fw management */
+int mlx5_create_scheduling_element_cmd(struct mlx5_core_dev *dev, u8 hierarchy,
+				       void *ctx, u32 *element_id)
+{
+	u32 in[MLX5_ST_SZ_DW(create_scheduling_element_in)]  = {0};
+	u32 out[MLX5_ST_SZ_DW(create_scheduling_element_in)] = {0};
+	void *schedc;
+	int err;
+
+	schedc = MLX5_ADDR_OF(create_scheduling_element_in, in,
+			      scheduling_context);
+	MLX5_SET(create_scheduling_element_in, in, opcode,
+		 MLX5_CMD_OP_CREATE_SCHEDULING_ELEMENT);
+	MLX5_SET(create_scheduling_element_in, in, scheduling_hierarchy,
+		 hierarchy);
+	memcpy(schedc, ctx, MLX5_ST_SZ_BYTES(scheduling_context));
+
+	err = mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+	if (err)
+		return err;
+
+	*element_id = MLX5_GET(create_scheduling_element_out, out,
+			       scheduling_element_id);
+	return 0;
+}
+
+int mlx5_modify_scheduling_element_cmd(struct mlx5_core_dev *dev, u8 hierarchy,
+				       void *ctx, u32 element_id,
+				       u32 modify_bitmask)
+{
+	u32 in[MLX5_ST_SZ_DW(modify_scheduling_element_in)]  = {0};
+	u32 out[MLX5_ST_SZ_DW(modify_scheduling_element_in)] = {0};
+	void *schedc;
+
+	schedc = MLX5_ADDR_OF(modify_scheduling_element_in, in,
+			      scheduling_context);
+	MLX5_SET(modify_scheduling_element_in, in, opcode,
+		 MLX5_CMD_OP_MODIFY_SCHEDULING_ELEMENT);
+	MLX5_SET(modify_scheduling_element_in, in, scheduling_element_id,
+		 element_id);
+	MLX5_SET(modify_scheduling_element_in, in, modify_bitmask,
+		 modify_bitmask);
+	MLX5_SET(modify_scheduling_element_in, in, scheduling_hierarchy,
+		 hierarchy);
+	memcpy(schedc, ctx, MLX5_ST_SZ_BYTES(scheduling_context));
+
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+}
+
+int mlx5_destroy_scheduling_element_cmd(struct mlx5_core_dev *dev, u8 hierarchy,
+					u32 element_id)
+{
+	u32 in[MLX5_ST_SZ_DW(destroy_scheduling_element_in)]  = {0};
+	u32 out[MLX5_ST_SZ_DW(destroy_scheduling_element_in)] = {0};
+
+	MLX5_SET(destroy_scheduling_element_in, in, opcode,
+		 MLX5_CMD_OP_DESTROY_SCHEDULING_ELEMENT);
+	MLX5_SET(destroy_scheduling_element_in, in, scheduling_element_id,
+		 element_id);
+	MLX5_SET(destroy_scheduling_element_in, in, scheduling_hierarchy,
+		 hierarchy);
+
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
+}
+
 /* Finds an entry where we can register the given rate
  * If the rate already exists, return the entry where it is registered,
  * otherwise return the first available entry.
@@ -63,19 +128,14 @@ static struct mlx5_rl_entry *find_rl_entry(struct mlx5_rl_table *table,
 static int mlx5_set_rate_limit_cmd(struct mlx5_core_dev *dev,
 				   u32 rate, u16 index)
 {
-	u32 in[MLX5_ST_SZ_DW(set_rate_limit_in)];
-	u32 out[MLX5_ST_SZ_DW(set_rate_limit_out)];
-
-	memset(in, 0, sizeof(in));
-	memset(out, 0, sizeof(out));
+	u32 in[MLX5_ST_SZ_DW(set_rate_limit_in)]   = {0};
+	u32 out[MLX5_ST_SZ_DW(set_rate_limit_out)] = {0};
 
 	MLX5_SET(set_rate_limit_in, in, opcode,
 		 MLX5_CMD_OP_SET_RATE_LIMIT);
 	MLX5_SET(set_rate_limit_in, in, rate_limit_index, index);
 	MLX5_SET(set_rate_limit_in, in, rate_limit, rate);
-
-	return mlx5_cmd_exec_check_status(dev, in, sizeof(in),
-					  out, sizeof(out));
+	return mlx5_cmd_exec(dev, in, sizeof(in), out, sizeof(out));
 }
 
 bool mlx5_rl_is_in_range(struct mlx5_core_dev *dev, u32 rate)

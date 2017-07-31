@@ -3,7 +3,7 @@
 
 /*
  * This file has definitions for major device numbers.
- * For the device number assignments, see Documentation/devices.txt.
+ * For the device number assignments, see Documentation/admin-guide/devices.rst.
  */
 
 #define UNNAMED_MAJOR		0

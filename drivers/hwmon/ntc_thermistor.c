@@ -253,12 +253,9 @@ static const struct ntc_compensation b57330v2103[] = {
 };
 
 struct ntc_data {
-	struct device *hwmon_dev;
 	struct ntc_thermistor_platform_data *pdata;
 	const struct ntc_compensation *comp;
-	struct device *dev;
 	int n_comp;
-	char name[PLATFORM_NAME_SIZE];
 };
 
 #if defined(CONFIG_OF) && IS_ENABLED(CONFIG_IIO)
@@ -316,22 +313,22 @@ static const struct of_device_id ntc_match[] = {
 MODULE_DEVICE_TABLE(of, ntc_match);
 
 static struct ntc_thermistor_platform_data *
-ntc_thermistor_parse_dt(struct platform_device *pdev)
+ntc_thermistor_parse_dt(struct device *dev)
 {
 	struct iio_channel *chan;
 	enum iio_chan_type type;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_node *np = dev->of_node;
 	struct ntc_thermistor_platform_data *pdata;
 	int ret;
 
 	if (!np)
 		return NULL;
 
-	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
-	chan = iio_channel_get(&pdev->dev, NULL);
+	chan = devm_iio_channel_get(dev, NULL);
 	if (IS_ERR(chan))
 		return ERR_CAST(chan);
 
@@ -359,22 +356,15 @@ ntc_thermistor_parse_dt(struct platform_device *pdev)
 
 	return pdata;
 }
-static void ntc_iio_channel_release(struct ntc_thermistor_platform_data *pdata)
-{
-	if (pdata->chan)
-		iio_channel_release(pdata->chan);
-}
 #else
 static struct ntc_thermistor_platform_data *
-ntc_thermistor_parse_dt(struct platform_device *pdev)
+ntc_thermistor_parse_dt(struct device *dev)
 {
 	return NULL;
 }
 
 #define ntc_match	NULL
 
-static void ntc_iio_channel_release(struct ntc_thermistor_platform_data *pdata)
-{ }
 #endif
 
 static inline u64 div64_u64_safe(u64 dividend, u64 divisor)
@@ -516,9 +506,8 @@ static int ntc_thermistor_get_ohm(struct ntc_data *data)
 	return -EINVAL;
 }
 
-static int ntc_read_temp(void *dev, int *temp)
+static int ntc_read_temp(void *data, int *temp)
 {
-	struct ntc_data *data = dev_get_drvdata(dev);
 	int ohm;
 
 	ohm = ntc_thermistor_get_ohm(data);
@@ -528,14 +517,6 @@ static int ntc_read_temp(void *dev, int *temp)
 	*temp = get_temp_mc(data, ohm);
 
 	return 0;
-}
-
-static ssize_t ntc_show_name(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	struct ntc_data *data = dev_get_drvdata(dev);
-
-	return sprintf(buf, "%s\n", data->name);
 }
 
 static ssize_t ntc_show_type(struct device *dev,
@@ -559,18 +540,13 @@ static ssize_t ntc_show_temp(struct device *dev,
 
 static SENSOR_DEVICE_ATTR(temp1_type, S_IRUGO, ntc_show_type, NULL, 0);
 static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, ntc_show_temp, NULL, 0);
-static DEVICE_ATTR(name, S_IRUGO, ntc_show_name, NULL);
 
-static struct attribute *ntc_attributes[] = {
-	&dev_attr_name.attr,
+static struct attribute *ntc_attrs[] = {
 	&sensor_dev_attr_temp1_type.dev_attr.attr,
 	&sensor_dev_attr_temp1_input.dev_attr.attr,
 	NULL,
 };
-
-static const struct attribute_group ntc_attr_group = {
-	.attrs = ntc_attributes,
-};
+ATTRIBUTE_GROUPS(ntc);
 
 static const struct thermal_zone_of_device_ops ntc_of_thermal_ops = {
 	.get_temp = ntc_read_temp,
@@ -579,33 +555,34 @@ static const struct thermal_zone_of_device_ops ntc_of_thermal_ops = {
 static int ntc_thermistor_probe(struct platform_device *pdev)
 {
 	struct thermal_zone_device *tz;
+	struct device *dev = &pdev->dev;
 	const struct of_device_id *of_id =
-			of_match_device(of_match_ptr(ntc_match), &pdev->dev);
+			of_match_device(of_match_ptr(ntc_match), dev);
 	const struct platform_device_id *pdev_id;
 	struct ntc_thermistor_platform_data *pdata;
+	struct device *hwmon_dev;
 	struct ntc_data *data;
-	int ret;
 
-	pdata = ntc_thermistor_parse_dt(pdev);
+	pdata = ntc_thermistor_parse_dt(dev);
 	if (IS_ERR(pdata))
 		return PTR_ERR(pdata);
 	else if (pdata == NULL)
-		pdata = dev_get_platdata(&pdev->dev);
+		pdata = dev_get_platdata(dev);
 
 	if (!pdata) {
-		dev_err(&pdev->dev, "No platform init data supplied.\n");
+		dev_err(dev, "No platform init data supplied.\n");
 		return -ENODEV;
 	}
 
 	/* Either one of the two is required. */
 	if (!pdata->read_uv && !pdata->read_ohm) {
-		dev_err(&pdev->dev,
+		dev_err(dev,
 			"Both read_uv and read_ohm missing. Need either one of the two.\n");
 		return -EINVAL;
 	}
 
 	if (pdata->read_uv && pdata->read_ohm) {
-		dev_warn(&pdev->dev,
+		dev_warn(dev,
 			 "Only one of read_uv and read_ohm is needed; ignoring read_uv.\n");
 		pdata->read_uv = NULL;
 	}
@@ -617,20 +594,17 @@ static int ntc_thermistor_probe(struct platform_device *pdev)
 				 NTC_CONNECTED_POSITIVE) ||
 				(pdata->connect != NTC_CONNECTED_POSITIVE &&
 				 pdata->connect != NTC_CONNECTED_GROUND))) {
-		dev_err(&pdev->dev,
-			"Required data to use read_uv not supplied.\n");
+		dev_err(dev, "Required data to use read_uv not supplied.\n");
 		return -EINVAL;
 	}
 
-	data = devm_kzalloc(&pdev->dev, sizeof(struct ntc_data), GFP_KERNEL);
+	data = devm_kzalloc(dev, sizeof(struct ntc_data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
 	pdev_id = of_id ? of_id->data : platform_get_device_id(pdev);
 
-	data->dev = &pdev->dev;
 	data->pdata = pdata;
-	strlcpy(data->name, pdev_id->name, sizeof(data->name));
 
 	switch (pdev_id->driver_data) {
 	case TYPE_NCPXXWB473:
@@ -654,49 +628,25 @@ static int ntc_thermistor_probe(struct platform_device *pdev)
 		data->n_comp = ARRAY_SIZE(ncpXXxh103);
 		break;
 	default:
-		dev_err(&pdev->dev, "Unknown device type: %lu(%s)\n",
+		dev_err(dev, "Unknown device type: %lu(%s)\n",
 				pdev_id->driver_data, pdev_id->name);
 		return -EINVAL;
 	}
 
-	platform_set_drvdata(pdev, data);
-
-	ret = sysfs_create_group(&data->dev->kobj, &ntc_attr_group);
-	if (ret) {
-		dev_err(data->dev, "unable to create sysfs files\n");
-		return ret;
+	hwmon_dev = devm_hwmon_device_register_with_groups(dev, pdev_id->name,
+							   data, ntc_groups);
+	if (IS_ERR(hwmon_dev)) {
+		dev_err(dev, "unable to register as hwmon device.\n");
+		return PTR_ERR(hwmon_dev);
 	}
 
-	data->hwmon_dev = hwmon_device_register(data->dev);
-	if (IS_ERR(data->hwmon_dev)) {
-		dev_err(data->dev, "unable to register as hwmon device.\n");
-		ret = PTR_ERR(data->hwmon_dev);
-		goto err_after_sysfs;
-	}
+	dev_info(dev, "Thermistor type: %s successfully probed.\n",
+		 pdev_id->name);
 
-	dev_info(&pdev->dev, "Thermistor type: %s successfully probed.\n",
-								pdev_id->name);
-
-	tz = devm_thermal_zone_of_sensor_register(data->dev, 0, data->dev,
+	tz = devm_thermal_zone_of_sensor_register(dev, 0, data,
 						  &ntc_of_thermal_ops);
 	if (IS_ERR(tz))
-		dev_dbg(&pdev->dev, "Failed to register to thermal fw.\n");
-
-	return 0;
-err_after_sysfs:
-	sysfs_remove_group(&data->dev->kobj, &ntc_attr_group);
-	ntc_iio_channel_release(pdata);
-	return ret;
-}
-
-static int ntc_thermistor_remove(struct platform_device *pdev)
-{
-	struct ntc_data *data = platform_get_drvdata(pdev);
-	struct ntc_thermistor_platform_data *pdata = data->pdata;
-
-	hwmon_device_unregister(data->hwmon_dev);
-	sysfs_remove_group(&data->dev->kobj, &ntc_attr_group);
-	ntc_iio_channel_release(pdata);
+		dev_dbg(dev, "Failed to register to thermal fw.\n");
 
 	return 0;
 }
@@ -707,7 +657,6 @@ static struct platform_driver ntc_thermistor_driver = {
 		.of_match_table = of_match_ptr(ntc_match),
 	},
 	.probe = ntc_thermistor_probe,
-	.remove = ntc_thermistor_remove,
 	.id_table = ntc_thermistor_id,
 };
 

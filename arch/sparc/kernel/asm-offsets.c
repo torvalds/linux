@@ -11,6 +11,7 @@
  */
 
 #include <linux/sched.h>
+#include <linux/mm_types.h>
 // #include <linux/mm.h>
 #include <linux/kbuild.h>
 

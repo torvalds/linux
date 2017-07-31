@@ -1274,7 +1274,7 @@ static int wm9081_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_wm9081 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm9081 = {
 	.probe = 	wm9081_probe,
 
 	.set_sysclk = wm9081_set_sysclk,
@@ -1282,12 +1282,14 @@ static struct snd_soc_codec_driver soc_codec_dev_wm9081 = {
 
 	.idle_bias_off = true,
 
-	.controls         = wm9081_snd_controls,
-	.num_controls     = ARRAY_SIZE(wm9081_snd_controls),
-	.dapm_widgets	  = wm9081_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm9081_dapm_widgets),
-	.dapm_routes     = wm9081_audio_paths,
-	.num_dapm_routes = ARRAY_SIZE(wm9081_audio_paths),
+	.component_driver = {
+		.controls		= wm9081_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm9081_snd_controls),
+		.dapm_widgets		= wm9081_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm9081_dapm_widgets),
+		.dapm_routes		= wm9081_audio_paths,
+		.num_dapm_routes	= ARRAY_SIZE(wm9081_audio_paths),
+	},
 };
 
 static const struct regmap_config wm9081_regmap = {
@@ -1302,7 +1304,6 @@ static const struct regmap_config wm9081_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-#if IS_ENABLED(CONFIG_I2C)
 static int wm9081_i2c_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
@@ -1382,7 +1383,6 @@ static struct i2c_driver wm9081_i2c_driver = {
 	.remove =   wm9081_i2c_remove,
 	.id_table = wm9081_i2c_id,
 };
-#endif
 
 module_i2c_driver(wm9081_i2c_driver);
 

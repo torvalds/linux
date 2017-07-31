@@ -278,7 +278,7 @@ static const DECLARE_TLV_DB_RANGE(bst_tlv,
 	8, 8, TLV_DB_SCALE_ITEM(1700, 0, 0)
 );
 
-static const DECLARE_TLV_DB_SCALE(adc_vol_tlv, -17625, 375, 0);
+static const DECLARE_TLV_DB_SCALE(adc_vol_tlv, -1725, 75, 0);
 
 static int rt5514_dsp_voice_wake_up_get(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
@@ -352,10 +352,10 @@ static const struct snd_kcontrol_new rt5514_snd_controls[] = {
 	SOC_DOUBLE_TLV("MIC Boost Volume", RT5514_ANA_CTRL_MICBST,
 		RT5514_SEL_BSTL_SFT, RT5514_SEL_BSTR_SFT, 8, 0, bst_tlv),
 	SOC_DOUBLE_R_TLV("ADC1 Capture Volume", RT5514_DOWNFILTER0_CTRL1,
-		RT5514_DOWNFILTER0_CTRL2, RT5514_AD_GAIN_SFT, 127, 0,
+		RT5514_DOWNFILTER0_CTRL2, RT5514_AD_GAIN_SFT, 63, 0,
 		adc_vol_tlv),
 	SOC_DOUBLE_R_TLV("ADC2 Capture Volume", RT5514_DOWNFILTER1_CTRL1,
-		RT5514_DOWNFILTER1_CTRL2, RT5514_AD_GAIN_SFT, 127, 0,
+		RT5514_DOWNFILTER1_CTRL2, RT5514_AD_GAIN_SFT, 63, 0,
 		adc_vol_tlv),
 	SOC_SINGLE_EXT("DSP Voice Wake Up", SND_SOC_NOPM, 0, 1, 0,
 		rt5514_dsp_voice_wake_up_get, rt5514_dsp_voice_wake_up_put),
@@ -451,6 +451,9 @@ static int rt5514_set_dmic_clk(struct snd_soc_dapm_widget *w,
 		regmap_update_bits(rt5514->regmap, RT5514_CLK_CTRL1,
 			RT5514_CLK_DMIC_OUT_SEL_MASK,
 			idx << RT5514_CLK_DMIC_OUT_SEL_SFT);
+
+	if (rt5514->pdata.dmic_init_delay)
+		msleep(rt5514->pdata.dmic_init_delay);
 
 	return idx;
 }
@@ -1023,12 +1026,14 @@ static struct snd_soc_codec_driver soc_codec_dev_rt5514 = {
 	.probe = rt5514_probe,
 	.idle_bias_off = true,
 	.set_bias_level = rt5514_set_bias_level,
-	.controls = rt5514_snd_controls,
-	.num_controls = ARRAY_SIZE(rt5514_snd_controls),
-	.dapm_widgets = rt5514_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(rt5514_dapm_widgets),
-	.dapm_routes = rt5514_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(rt5514_dapm_routes),
+	.component_driver = {
+		.controls		= rt5514_snd_controls,
+		.num_controls		= ARRAY_SIZE(rt5514_snd_controls),
+		.dapm_widgets		= rt5514_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(rt5514_dapm_widgets),
+		.dapm_routes		= rt5514_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(rt5514_dapm_routes),
+	},
 };
 
 static const struct regmap_config rt5514_i2c_regmap = {
@@ -1071,9 +1076,18 @@ static const struct of_device_id rt5514_of_match[] = {
 MODULE_DEVICE_TABLE(of, rt5514_of_match);
 #endif
 
+static int rt5514_parse_dt(struct rt5514_priv *rt5514, struct device *dev)
+{
+	device_property_read_u32(dev, "realtek,dmic-init-delay-ms",
+		&rt5514->pdata.dmic_init_delay);
+
+	return 0;
+}
+
 static int rt5514_i2c_probe(struct i2c_client *i2c,
 		    const struct i2c_device_id *id)
 {
+	struct rt5514_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct rt5514_priv *rt5514;
 	int ret;
 	unsigned int val;
@@ -1084,6 +1098,11 @@ static int rt5514_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, rt5514);
+
+	if (pdata)
+		rt5514->pdata = *pdata;
+	else if (i2c->dev.of_node)
+		rt5514_parse_dt(rt5514, &i2c->dev);
 
 	rt5514->i2c_regmap = devm_regmap_init_i2c(i2c, &rt5514_i2c_regmap);
 	if (IS_ERR(rt5514->i2c_regmap)) {

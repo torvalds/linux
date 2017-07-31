@@ -16,9 +16,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
+#define pr_fmt(fmt)	"trace_kprobe: " fmt
 
 #include <linux/module.h>
 #include <linux/uaccess.h>
+#include <linux/rculist.h>
 
 #include "trace_probe.h"
 
@@ -71,6 +73,17 @@ static nokprobe_inline bool trace_kprobe_within_module(struct trace_kprobe *tk,
 static nokprobe_inline bool trace_kprobe_is_on_module(struct trace_kprobe *tk)
 {
 	return !!strchr(trace_kprobe_symbol(tk), ':');
+}
+
+static nokprobe_inline unsigned long trace_kprobe_nhit(struct trace_kprobe *tk)
+{
+	unsigned long nhit = 0;
+	int cpu;
+
+	for_each_possible_cpu(cpu)
+		nhit += *per_cpu_ptr(tk->nhit, cpu);
+
+	return nhit;
 }
 
 static int register_kprobe_event(struct trace_kprobe *tk);
@@ -253,6 +266,10 @@ static const struct fetch_type kprobes_fetch_type_table[] = {
 	ASSIGN_FETCH_TYPE(s16, u16, 1),
 	ASSIGN_FETCH_TYPE(s32, u32, 1),
 	ASSIGN_FETCH_TYPE(s64, u64, 1),
+	ASSIGN_FETCH_TYPE_ALIAS(x8,  u8,  u8,  0),
+	ASSIGN_FETCH_TYPE_ALIAS(x16, u16, u16, 0),
+	ASSIGN_FETCH_TYPE_ALIAS(x32, u32, u32, 0),
+	ASSIGN_FETCH_TYPE_ALIAS(x64, u64, u64, 0),
 
 	ASSIGN_FETCH_TYPE_END
 };
@@ -664,10 +681,6 @@ static int create_trace_kprobe(int argc, char **argv)
 		return -EINVAL;
 	}
 	if (isdigit(argv[1][0])) {
-		if (is_return) {
-			pr_info("Return probe point must be a symbol.\n");
-			return -EINVAL;
-		}
 		/* an address specified */
 		ret = kstrtoul(&argv[1][0], 0, (unsigned long *)&addr);
 		if (ret) {
@@ -683,8 +696,9 @@ static int create_trace_kprobe(int argc, char **argv)
 			pr_info("Failed to parse symbol.\n");
 			return ret;
 		}
-		if (offset && is_return) {
-			pr_info("Return probe must be used without offset.\n");
+		if (offset && is_return &&
+		    !function_offset_within_entry(NULL, symbol, offset)) {
+			pr_info("Given offset is not valid for return probe.\n");
 			return -EINVAL;
 		}
 	}
@@ -878,14 +892,10 @@ static const struct file_operations kprobe_events_ops = {
 static int probes_profile_seq_show(struct seq_file *m, void *v)
 {
 	struct trace_kprobe *tk = v;
-	unsigned long nhit = 0;
-	int cpu;
-
-	for_each_possible_cpu(cpu)
-		nhit += *per_cpu_ptr(tk->nhit, cpu);
 
 	seq_printf(m, "  %-44s %15lu %15lu\n",
-		   trace_event_name(&tk->tp.call), nhit,
+		   trace_event_name(&tk->tp.call),
+		   trace_kprobe_nhit(tk),
 		   tk->rp.kp.nmissed);
 
 	return 0;
@@ -1350,18 +1360,18 @@ fs_initcall(init_kprobe_trace);
 
 
 #ifdef CONFIG_FTRACE_STARTUP_TEST
-
 /*
  * The "__used" keeps gcc from removing the function symbol
- * from the kallsyms table.
+ * from the kallsyms table. 'noinline' makes sure that there
+ * isn't an inlined version used by the test method below
  */
-static __used int kprobe_trace_selftest_target(int a1, int a2, int a3,
-					       int a4, int a5, int a6)
+static __used __init noinline int
+kprobe_trace_selftest_target(int a1, int a2, int a3, int a4, int a5, int a6)
 {
 	return a1 + a2 + a3 + a4 + a5 + a6;
 }
 
-static struct trace_event_file *
+static __init struct trace_event_file *
 find_trace_probe_file(struct trace_kprobe *tk, struct trace_array *tr)
 {
 	struct trace_event_file *file;
@@ -1439,12 +1449,25 @@ static __init int kprobe_trace_self_tests_init(void)
 
 	ret = target(1, 2, 3, 4, 5, 6);
 
+	/*
+	 * Not expecting an error here, the check is only to prevent the
+	 * optimizer from removing the call to target() as otherwise there
+	 * are no side-effects and the call is never performed.
+	 */
+	if (ret != 21)
+		warn++;
+
 	/* Disable trace points before removing it */
 	tk = find_trace_kprobe("testprobe", KPROBE_EVENT_SYSTEM);
 	if (WARN_ON_ONCE(tk == NULL)) {
 		pr_warn("error on getting test probe.\n");
 		warn++;
 	} else {
+		if (trace_kprobe_nhit(tk) != 1) {
+			pr_warn("incorrect number of testprobe hits\n");
+			warn++;
+		}
+
 		file = find_trace_probe_file(tk, top_trace_array());
 		if (WARN_ON_ONCE(file == NULL)) {
 			pr_warn("error on getting probe file.\n");
@@ -1458,6 +1481,11 @@ static __init int kprobe_trace_self_tests_init(void)
 		pr_warn("error on getting 2nd test probe.\n");
 		warn++;
 	} else {
+		if (trace_kprobe_nhit(tk) != 1) {
+			pr_warn("incorrect number of testprobe2 hits\n");
+			warn++;
+		}
+
 		file = find_trace_probe_file(tk, top_trace_array());
 		if (WARN_ON_ONCE(file == NULL)) {
 			pr_warn("error on getting probe file.\n");

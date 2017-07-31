@@ -17,7 +17,7 @@
 #include <linux/blkdev.h>
 #include <linux/bio.h>
 #include <linux/proc_fs.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <platform/simcall.h>
 
 #define SIMDISK_MAJOR 240
@@ -86,6 +86,7 @@ static void simdisk_transfer(struct simdisk *dev, unsigned long sector,
 		unsigned long io;
 
 		simc_lseek(dev->fd, offset, SEEK_SET);
+		READ_ONCE(*buffer);
 		if (write)
 			io = simc_write(dev->fd, buffer, nbytes);
 		else

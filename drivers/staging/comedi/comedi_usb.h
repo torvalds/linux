@@ -23,15 +23,17 @@
 
 #include "comedidev.h"
 
-struct usb_interface *comedi_to_usb_interface(struct comedi_device *);
-struct usb_device *comedi_to_usb_dev(struct comedi_device *);
+struct usb_interface *comedi_to_usb_interface(struct comedi_device *dev);
+struct usb_device *comedi_to_usb_dev(struct comedi_device *dev);
 
-int comedi_usb_auto_config(struct usb_interface *, struct comedi_driver *,
-			   unsigned long context);
-void comedi_usb_auto_unconfig(struct usb_interface *);
+int comedi_usb_auto_config(struct usb_interface *intf,
+			   struct comedi_driver *driver, unsigned long context);
+void comedi_usb_auto_unconfig(struct usb_interface *intf);
 
-int comedi_usb_driver_register(struct comedi_driver *, struct usb_driver *);
-void comedi_usb_driver_unregister(struct comedi_driver *, struct usb_driver *);
+int comedi_usb_driver_register(struct comedi_driver *comedi_driver,
+			       struct usb_driver *usb_driver);
+void comedi_usb_driver_unregister(struct comedi_driver *comedi_driver,
+				  struct usb_driver *usb_driver);
 
 /**
  * module_comedi_usb_driver() - Helper macro for registering a comedi USB driver

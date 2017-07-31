@@ -15,7 +15,7 @@
 #include <linux/hugetlb.h>
 
 #include <asm/pgtable.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/tlbflush.h>
 
 /*
@@ -248,9 +248,8 @@ long sys_subpage_prot(unsigned long addr, unsigned long len, u32 __user *map)
 			nw = (next - addr) >> PAGE_SHIFT;
 
 		up_write(&mm->mmap_sem);
-		err = -EFAULT;
 		if (__copy_from_user(spp, map, nw * sizeof(u32)))
-			goto out2;
+			return -EFAULT;
 		map += nw;
 		down_write(&mm->mmap_sem);
 
@@ -262,6 +261,5 @@ long sys_subpage_prot(unsigned long addr, unsigned long len, u32 __user *map)
 	err = 0;
  out:
 	up_write(&mm->mmap_sem);
- out2:
 	return err;
 }

@@ -253,6 +253,13 @@ void ipu_cpmem_set_buffer(struct ipuv3_channel *ch, int bufnum, dma_addr_t buf)
 }
 EXPORT_SYMBOL_GPL(ipu_cpmem_set_buffer);
 
+void ipu_cpmem_set_uv_offset(struct ipuv3_channel *ch, u32 u_off, u32 v_off)
+{
+	ipu_ch_param_write_field(ch, IPU_FIELD_UBO, u_off / 8);
+	ipu_ch_param_write_field(ch, IPU_FIELD_VBO, v_off / 8);
+}
+EXPORT_SYMBOL_GPL(ipu_cpmem_set_uv_offset);
+
 void ipu_cpmem_interlaced_scan(struct ipuv3_channel *ch, int stride)
 {
 	ipu_ch_param_write_field(ch, IPU_FIELD_SO, 1);
@@ -267,6 +274,12 @@ void ipu_cpmem_set_axi_id(struct ipuv3_channel *ch, u32 id)
 	ipu_ch_param_write_field(ch, IPU_FIELD_ID, id);
 }
 EXPORT_SYMBOL_GPL(ipu_cpmem_set_axi_id);
+
+int ipu_cpmem_get_burstsize(struct ipuv3_channel *ch)
+{
+	return ipu_ch_param_read_field(ch, IPU_FIELD_NPB) + 1;
+}
+EXPORT_SYMBOL_GPL(ipu_cpmem_get_burstsize);
 
 void ipu_cpmem_set_burstsize(struct ipuv3_channel *ch, int burstsize)
 {
@@ -404,42 +417,6 @@ void ipu_cpmem_set_yuv_planar_full(struct ipuv3_channel *ch,
 }
 EXPORT_SYMBOL_GPL(ipu_cpmem_set_yuv_planar_full);
 
-void ipu_cpmem_set_yuv_planar(struct ipuv3_channel *ch,
-			      u32 pixel_format, int stride, int height)
-{
-	int fourcc, u_offset, v_offset;
-	int uv_stride = 0;
-
-	fourcc = v4l2_pix_fmt_to_drm_fourcc(pixel_format);
-	switch (fourcc) {
-	case DRM_FORMAT_YUV420:
-		uv_stride = stride / 2;
-		u_offset = stride * height;
-		v_offset = u_offset + (uv_stride * height / 2);
-		break;
-	case DRM_FORMAT_YVU420:
-		uv_stride = stride / 2;
-		v_offset = stride * height;
-		u_offset = v_offset + (uv_stride * height / 2);
-		break;
-	case DRM_FORMAT_YUV422:
-		uv_stride = stride / 2;
-		u_offset = stride * height;
-		v_offset = u_offset + (uv_stride * height);
-		break;
-	case DRM_FORMAT_NV12:
-	case DRM_FORMAT_NV16:
-		uv_stride = stride;
-		u_offset = stride * height;
-		v_offset = 0;
-		break;
-	default:
-		return;
-	}
-	ipu_cpmem_set_yuv_planar_full(ch, uv_stride, u_offset, v_offset);
-}
-EXPORT_SYMBOL_GPL(ipu_cpmem_set_yuv_planar);
-
 static const struct ipu_rgb def_xrgb_32 = {
 	.red	= { .offset = 16, .length = 8, },
 	.green	= { .offset =  8, .length = 8, },
@@ -574,6 +551,13 @@ int ipu_cpmem_set_fmt(struct ipuv3_channel *ch, u32 drm_fourcc)
 	case DRM_FORMAT_YVU422:
 		/* pix format */
 		ipu_ch_param_write_field(ch, IPU_FIELD_PFS, 1);
+		/* burst size */
+		ipu_ch_param_write_field(ch, IPU_FIELD_NPB, 31);
+		break;
+	case DRM_FORMAT_YUV444:
+	case DRM_FORMAT_YVU444:
+		/* pix format */
+		ipu_ch_param_write_field(ch, IPU_FIELD_PFS, 0);
 		/* burst size */
 		ipu_ch_param_write_field(ch, IPU_FIELD_NPB, 31);
 		break;

@@ -34,7 +34,8 @@ static void ath10k_report_offchan_tx(struct ath10k *ar, struct sk_buff *skb)
 	/* If the original wait_for_completion() timed out before
 	 * {data,mgmt}_tx_completed() was called then we could complete
 	 * offchan_tx_completed for a different skb. Prevent this by using
-	 * offchan_tx_skb. */
+	 * offchan_tx_skb.
+	 */
 	spin_lock_bh(&ar->data_lock);
 	if (ar->offchan_tx_skb != skb) {
 		ath10k_warn(ar, "completed old offchannel frame\n");
@@ -44,7 +45,7 @@ static void ath10k_report_offchan_tx(struct ath10k *ar, struct sk_buff *skb)
 	complete(&ar->offchan_tx_completed);
 	ar->offchan_tx_skb = NULL; /* just for sanity */
 
-	ath10k_dbg(ar, ATH10K_DBG_HTT, "completed offchannel skb %p\n", skb);
+	ath10k_dbg(ar, ATH10K_DBG_HTT, "completed offchannel skb %pK\n", skb);
 out:
 	spin_unlock_bh(&ar->data_lock);
 }
@@ -118,8 +119,6 @@ int ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 
 	ieee80211_tx_status(htt->ar->hw, msdu);
 	/* we do not own the msdu anymore */
-
-	ath10k_mac_tx_push_pending(ar);
 
 	return 0;
 }

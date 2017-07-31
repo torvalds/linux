@@ -31,6 +31,7 @@
 #include <linux/sched.h>       /* need_resched() */
 #include <linux/tick.h>
 #include <linux/cpuidle.h>
+#include <linux/cpu.h>
 #include <acpi/processor.h>
 
 /*
@@ -115,7 +116,7 @@ static const struct dmi_system_id processor_power_dmi_table[] = {
  * Callers should disable interrupts before the call and enable
  * interrupts after return.
  */
-static void acpi_safe_halt(void)
+static void __cpuidle acpi_safe_halt(void)
 {
 	if (!tif_need_resched()) {
 		safe_halt();
@@ -140,7 +141,7 @@ static void lapic_timer_check_state(int state, struct acpi_processor *pr,
 	if (cpu_has(&cpu_data(pr->id), X86_FEATURE_ARAT))
 		return;
 
-	if (amd_e400_c1e_detected)
+	if (boot_cpu_has_bug(X86_BUG_AMD_APIC_C1E))
 		type = ACPI_STATE_C1;
 
 	/*
@@ -645,7 +646,7 @@ static int acpi_idle_bm_check(void)
  *
  * Caller disables interrupt before call and enables interrupt after return.
  */
-static void acpi_idle_do_entry(struct acpi_processor_cx *cx)
+static void __cpuidle acpi_idle_do_entry(struct acpi_processor_cx *cx)
 {
 	if (cx->entry_method == ACPI_CSTATE_FFH) {
 		/* Call into architectural FFH based C-state */

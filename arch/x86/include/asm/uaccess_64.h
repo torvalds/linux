@@ -5,7 +5,6 @@
  * User space memory access functions
  */
 #include <linux/compiler.h>
-#include <linux/errno.h>
 #include <linux/lockdep.h>
 #include <linux/kasan-checks.h>
 #include <asm/alternative.h>
@@ -46,58 +45,54 @@ copy_user_generic(void *to, const void *from, unsigned len)
 	return ret;
 }
 
-__must_check unsigned long
-copy_in_user(void __user *to, const void __user *from, unsigned len);
-
-static __always_inline __must_check
-int __copy_from_user_nocheck(void *dst, const void __user *src, unsigned size)
+static __always_inline __must_check unsigned long
+raw_copy_from_user(void *dst, const void __user *src, unsigned long size)
 {
 	int ret = 0;
 
-	check_object_size(dst, size, false);
 	if (!__builtin_constant_p(size))
 		return copy_user_generic(dst, (__force void *)src, size);
 	switch (size) {
 	case 1:
 		__uaccess_begin();
-		__get_user_asm(*(u8 *)dst, (u8 __user *)src,
+		__get_user_asm_nozero(*(u8 *)dst, (u8 __user *)src,
 			      ret, "b", "b", "=q", 1);
 		__uaccess_end();
 		return ret;
 	case 2:
 		__uaccess_begin();
-		__get_user_asm(*(u16 *)dst, (u16 __user *)src,
+		__get_user_asm_nozero(*(u16 *)dst, (u16 __user *)src,
 			      ret, "w", "w", "=r", 2);
 		__uaccess_end();
 		return ret;
 	case 4:
 		__uaccess_begin();
-		__get_user_asm(*(u32 *)dst, (u32 __user *)src,
+		__get_user_asm_nozero(*(u32 *)dst, (u32 __user *)src,
 			      ret, "l", "k", "=r", 4);
 		__uaccess_end();
 		return ret;
 	case 8:
 		__uaccess_begin();
-		__get_user_asm(*(u64 *)dst, (u64 __user *)src,
+		__get_user_asm_nozero(*(u64 *)dst, (u64 __user *)src,
 			      ret, "q", "", "=r", 8);
 		__uaccess_end();
 		return ret;
 	case 10:
 		__uaccess_begin();
-		__get_user_asm(*(u64 *)dst, (u64 __user *)src,
+		__get_user_asm_nozero(*(u64 *)dst, (u64 __user *)src,
 			       ret, "q", "", "=r", 10);
 		if (likely(!ret))
-			__get_user_asm(*(u16 *)(8 + (char *)dst),
+			__get_user_asm_nozero(*(u16 *)(8 + (char *)dst),
 				       (u16 __user *)(8 + (char __user *)src),
 				       ret, "w", "w", "=r", 2);
 		__uaccess_end();
 		return ret;
 	case 16:
 		__uaccess_begin();
-		__get_user_asm(*(u64 *)dst, (u64 __user *)src,
+		__get_user_asm_nozero(*(u64 *)dst, (u64 __user *)src,
 			       ret, "q", "", "=r", 16);
 		if (likely(!ret))
-			__get_user_asm(*(u64 *)(8 + (char *)dst),
+			__get_user_asm_nozero(*(u64 *)(8 + (char *)dst),
 				       (u64 __user *)(8 + (char __user *)src),
 				       ret, "q", "", "=r", 8);
 		__uaccess_end();
@@ -107,20 +102,11 @@ int __copy_from_user_nocheck(void *dst, const void __user *src, unsigned size)
 	}
 }
 
-static __always_inline __must_check
-int __copy_from_user(void *dst, const void __user *src, unsigned size)
-{
-	might_fault();
-	kasan_check_write(dst, size);
-	return __copy_from_user_nocheck(dst, src, size);
-}
-
-static __always_inline __must_check
-int __copy_to_user_nocheck(void __user *dst, const void *src, unsigned size)
+static __always_inline __must_check unsigned long
+raw_copy_to_user(void __user *dst, const void *src, unsigned long size)
 {
 	int ret = 0;
 
-	check_object_size(src, size, true);
 	if (!__builtin_constant_p(size))
 		return copy_user_generic((__force void *)dst, src, size);
 	switch (size) {
@@ -176,98 +162,14 @@ int __copy_to_user_nocheck(void __user *dst, const void *src, unsigned size)
 }
 
 static __always_inline __must_check
-int __copy_to_user(void __user *dst, const void *src, unsigned size)
+unsigned long raw_copy_in_user(void __user *dst, const void __user *src, unsigned long size)
 {
-	might_fault();
-	kasan_check_read(src, size);
-	return __copy_to_user_nocheck(dst, src, size);
-}
-
-static __always_inline __must_check
-int __copy_in_user(void __user *dst, const void __user *src, unsigned size)
-{
-	int ret = 0;
-
-	might_fault();
-	if (!__builtin_constant_p(size))
-		return copy_user_generic((__force void *)dst,
-					 (__force void *)src, size);
-	switch (size) {
-	case 1: {
-		u8 tmp;
-		__uaccess_begin();
-		__get_user_asm(tmp, (u8 __user *)src,
-			       ret, "b", "b", "=q", 1);
-		if (likely(!ret))
-			__put_user_asm(tmp, (u8 __user *)dst,
-				       ret, "b", "b", "iq", 1);
-		__uaccess_end();
-		return ret;
-	}
-	case 2: {
-		u16 tmp;
-		__uaccess_begin();
-		__get_user_asm(tmp, (u16 __user *)src,
-			       ret, "w", "w", "=r", 2);
-		if (likely(!ret))
-			__put_user_asm(tmp, (u16 __user *)dst,
-				       ret, "w", "w", "ir", 2);
-		__uaccess_end();
-		return ret;
-	}
-
-	case 4: {
-		u32 tmp;
-		__uaccess_begin();
-		__get_user_asm(tmp, (u32 __user *)src,
-			       ret, "l", "k", "=r", 4);
-		if (likely(!ret))
-			__put_user_asm(tmp, (u32 __user *)dst,
-				       ret, "l", "k", "ir", 4);
-		__uaccess_end();
-		return ret;
-	}
-	case 8: {
-		u64 tmp;
-		__uaccess_begin();
-		__get_user_asm(tmp, (u64 __user *)src,
-			       ret, "q", "", "=r", 8);
-		if (likely(!ret))
-			__put_user_asm(tmp, (u64 __user *)dst,
-				       ret, "q", "", "er", 8);
-		__uaccess_end();
-		return ret;
-	}
-	default:
-		return copy_user_generic((__force void *)dst,
-					 (__force void *)src, size);
-	}
-}
-
-static __must_check __always_inline int
-__copy_from_user_inatomic(void *dst, const void __user *src, unsigned size)
-{
-	kasan_check_write(dst, size);
-	return __copy_from_user_nocheck(dst, src, size);
-}
-
-static __must_check __always_inline int
-__copy_to_user_inatomic(void __user *dst, const void *src, unsigned size)
-{
-	kasan_check_read(src, size);
-	return __copy_to_user_nocheck(dst, src, size);
+	return copy_user_generic((__force void *)dst,
+				 (__force void *)src, size);
 }
 
 extern long __copy_user_nocache(void *dst, const void __user *src,
 				unsigned size, int zerorest);
-
-static inline int
-__copy_from_user_nocache(void *dst, const void __user *src, unsigned size)
-{
-	might_fault();
-	kasan_check_write(dst, size);
-	return __copy_user_nocache(dst, src, size, 1);
-}
 
 static inline int
 __copy_from_user_inatomic_nocache(void *dst, const void __user *src,

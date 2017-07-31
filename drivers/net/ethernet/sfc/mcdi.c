@@ -15,7 +15,6 @@
 #include "io.h"
 #include "farch_regs.h"
 #include "mcdi_pcol.h"
-#include "phy.h"
 
 /**************************************************************************
  *
@@ -129,7 +128,7 @@ fail:
 	return rc;
 }
 
-void efx_mcdi_fini(struct efx_nic *efx)
+void efx_mcdi_detach(struct efx_nic *efx)
 {
 	if (!efx->mcdi)
 		return;
@@ -138,6 +137,12 @@ void efx_mcdi_fini(struct efx_nic *efx)
 
 	/* Relinquish the device (back to the BMC, if this is a LOM) */
 	efx_mcdi_drv_attach(efx, false, NULL);
+}
+
+void efx_mcdi_fini(struct efx_nic *efx)
+{
+	if (!efx->mcdi)
+		return;
 
 #ifdef CONFIG_SFC_MCDI_LOGGING
 	free_page((unsigned long)efx->mcdi->iface.logging_buffer);
@@ -548,7 +553,10 @@ static bool efx_mcdi_complete_async(struct efx_mcdi_iface *mcdi, bool timeout)
 		efx_mcdi_display_error(efx, async->cmd, async->inlen, errbuf,
 				       err_len, rc);
 	}
-	async->complete(efx, async->cookie, rc, outbuf, data_len);
+
+	if (async->complete)
+		async->complete(efx, async->cookie, rc, outbuf,
+				min(async->outlen, data_len));
 	kfree(async);
 
 	efx_mcdi_release(mcdi);
@@ -714,8 +722,11 @@ static int _efx_mcdi_rpc_finish(struct efx_nic *efx, unsigned int cmd,
 		if (cmd == MC_CMD_REBOOT && rc == -EIO) {
 			/* Don't reset if MC_CMD_REBOOT returns EIO */
 		} else if (rc == -EIO || rc == -EINTR) {
-			netif_err(efx, hw, efx->net_dev, "MC fatal error %d\n",
-				  -rc);
+			netif_err(efx, hw, efx->net_dev, "MC reboot detected\n");
+			netif_dbg(efx, hw, efx->net_dev, "MC rebooted during command %d rc %d\n",
+				  cmd, -rc);
+			if (efx->type->mcdi_reboot_detected)
+				efx->type->mcdi_reboot_detected(efx);
 			efx_schedule_reset(efx, RESET_TYPE_MC_FAILURE);
 		} else if (proxy_handle && (rc == -EPROTO) &&
 			   efx_mcdi_get_proxy_handle(efx, hdr_len, data_len,
@@ -835,11 +846,9 @@ static int _efx_mcdi_rpc(struct efx_nic *efx, unsigned int cmd,
 						  outbuf, outlen, outlen_actual,
 						  quiet, NULL, raw_rc);
 		} else {
-			netif_printk(efx, hw,
-				     rc == -EPERM ? KERN_DEBUG : KERN_ERR,
-				     efx->net_dev,
-				     "MC command 0x%x failed after proxy auth rc=%d\n",
-				     cmd, rc);
+			netif_cond_dbg(efx, hw, efx->net_dev, rc == -EPERM, err,
+				       "MC command 0x%x failed after proxy auth rc=%d\n",
+				       cmd, rc);
 
 			if (rc == -EINTR || rc == -EIO)
 				efx_schedule_reset(efx, RESET_TYPE_MC_FAILURE);
@@ -1082,10 +1091,9 @@ void efx_mcdi_display_error(struct efx_nic *efx, unsigned cmd,
 		code = MCDI_DWORD(outbuf, ERR_CODE);
 	if (outlen >= MC_CMD_ERR_ARG_OFST + 4)
 		err_arg = MCDI_DWORD(outbuf, ERR_ARG);
-	netif_printk(efx, hw, rc == -EPERM ? KERN_DEBUG : KERN_ERR,
-		     efx->net_dev,
-		     "MC command 0x%x inlen %zu failed rc=%d (raw=%d) arg=%d\n",
-		     cmd, inlen, rc, code, err_arg);
+	netif_cond_dbg(efx, hw, efx->net_dev, rc == -EPERM, err,
+		       "MC command 0x%x inlen %zu failed rc=%d (raw=%d) arg=%d\n",
+		       cmd, inlen, rc, code, err_arg);
 }
 
 /* Switch to polled MCDI completions.  This can be called in various
@@ -1153,7 +1161,8 @@ void efx_mcdi_flush_async(struct efx_nic *efx)
 	 * acquired locks in the wrong order.
 	 */
 	list_for_each_entry_safe(async, next, &mcdi->async_list, list) {
-		async->complete(efx, async->cookie, -ENETDOWN, NULL, 0);
+		if (async->complete)
+			async->complete(efx, async->cookie, -ENETDOWN, NULL, 0);
 		list_del(&async->list);
 		kfree(async);
 	}
@@ -2054,8 +2063,8 @@ fail:
 	/* Older firmware lacks GET_WORKAROUNDS and this isn't especially
 	 * terrifying.  The call site will have to deal with it though.
 	 */
-	netif_printk(efx, hw, rc == -ENOSYS ? KERN_DEBUG : KERN_ERR,
-		     efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
+	netif_cond_dbg(efx, hw, efx->net_dev, rc == -ENOSYS, err,
+		       "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 

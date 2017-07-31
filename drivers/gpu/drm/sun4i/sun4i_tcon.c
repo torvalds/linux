@@ -20,6 +20,7 @@
 #include <linux/component.h>
 #include <linux/ioport.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/of_irq.h>
 #include <linux/regmap.h>
@@ -59,11 +60,13 @@ void sun4i_tcon_channel_disable(struct sun4i_tcon *tcon, int channel)
 		regmap_update_bits(tcon->regs, SUN4I_TCON0_CTL_REG,
 				   SUN4I_TCON0_CTL_TCON_ENABLE, 0);
 		clk_disable_unprepare(tcon->dclk);
-	} else if (channel == 1) {
-		regmap_update_bits(tcon->regs, SUN4I_TCON1_CTL_REG,
-				   SUN4I_TCON1_CTL_TCON_ENABLE, 0);
-		clk_disable_unprepare(tcon->sclk1);
+		return;
 	}
+
+	WARN_ON(!tcon->quirks->has_channel_1);
+	regmap_update_bits(tcon->regs, SUN4I_TCON1_CTL_REG,
+			   SUN4I_TCON1_CTL_TCON_ENABLE, 0);
+	clk_disable_unprepare(tcon->sclk1);
 }
 EXPORT_SYMBOL(sun4i_tcon_channel_disable);
 
@@ -75,12 +78,14 @@ void sun4i_tcon_channel_enable(struct sun4i_tcon *tcon, int channel)
 				   SUN4I_TCON0_CTL_TCON_ENABLE,
 				   SUN4I_TCON0_CTL_TCON_ENABLE);
 		clk_prepare_enable(tcon->dclk);
-	} else if (channel == 1) {
-		regmap_update_bits(tcon->regs, SUN4I_TCON1_CTL_REG,
-				   SUN4I_TCON1_CTL_TCON_ENABLE,
-				   SUN4I_TCON1_CTL_TCON_ENABLE);
-		clk_prepare_enable(tcon->sclk1);
+		return;
 	}
+
+	WARN_ON(!tcon->quirks->has_channel_1);
+	regmap_update_bits(tcon->regs, SUN4I_TCON1_CTL_REG,
+			   SUN4I_TCON1_CTL_TCON_ENABLE,
+			   SUN4I_TCON1_CTL_TCON_ENABLE);
+	clk_prepare_enable(tcon->sclk1);
 }
 EXPORT_SYMBOL(sun4i_tcon_channel_enable);
 
@@ -198,6 +203,8 @@ void sun4i_tcon1_mode_set(struct sun4i_tcon *tcon,
 	u8 clk_delay;
 	u32 val;
 
+	WARN_ON(!tcon->quirks->has_channel_1);
+
 	/* Adjust clock delay */
 	clk_delay = sun4i_tcon_get_clk_delay(mode, 1);
 	regmap_update_bits(tcon->regs, SUN4I_TCON1_CTL_REG,
@@ -260,7 +267,7 @@ void sun4i_tcon1_mode_set(struct sun4i_tcon *tcon,
 	/*
 	 * FIXME: Undocumented bits
 	 */
-	if (tcon->has_mux)
+	if (tcon->quirks->has_unknown_mux)
 		regmap_write(tcon->regs, SUN4I_TCON_MUX_CTRL_REG, 1);
 }
 EXPORT_SYMBOL(sun4i_tcon1_mode_set);
@@ -321,10 +328,12 @@ static int sun4i_tcon_init_clocks(struct device *dev,
 		return PTR_ERR(tcon->sclk0);
 	}
 
-	tcon->sclk1 = devm_clk_get(dev, "tcon-ch1");
-	if (IS_ERR(tcon->sclk1)) {
-		dev_err(dev, "Couldn't get the TCON channel 1 clock\n");
-		return PTR_ERR(tcon->sclk1);
+	if (tcon->quirks->has_channel_1) {
+		tcon->sclk1 = devm_clk_get(dev, "tcon-ch1");
+		if (IS_ERR(tcon->sclk1)) {
+			dev_err(dev, "Couldn't get the TCON channel 1 clock\n");
+			return PTR_ERR(tcon->sclk1);
+		}
 	}
 
 	return sun4i_dclk_create(dev, tcon);
@@ -374,10 +383,8 @@ static int sun4i_tcon_init_regmap(struct device *dev,
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	regs = devm_ioremap_resource(dev, res);
-	if (IS_ERR(regs)) {
-		dev_err(dev, "Couldn't map the TCON registers\n");
+	if (IS_ERR(regs))
 		return PTR_ERR(regs);
-	}
 
 	tcon->regs = devm_regmap_init_mmio(dev, regs,
 					   &sun4i_tcon_regmap_config);
@@ -398,7 +405,7 @@ static int sun4i_tcon_init_regmap(struct device *dev,
 	return 0;
 }
 
-static struct drm_panel *sun4i_tcon_find_panel(struct device_node *node)
+struct drm_panel *sun4i_tcon_find_panel(struct device_node *node)
 {
 	struct device_node *port, *remote, *child;
 	struct device_node *end_node = NULL;
@@ -432,6 +439,40 @@ static struct drm_panel *sun4i_tcon_find_panel(struct device_node *node)
 	return of_drm_find_panel(remote) ?: ERR_PTR(-EPROBE_DEFER);
 }
 
+struct drm_bridge *sun4i_tcon_find_bridge(struct device_node *node)
+{
+	struct device_node *port, *remote, *child;
+	struct device_node *end_node = NULL;
+
+	/* Inputs are listed first, then outputs */
+	port = of_graph_get_port_by_id(node, 1);
+
+	/*
+	 * Our first output is the RGB interface where the panel will
+	 * be connected.
+	 */
+	for_each_child_of_node(port, child) {
+		u32 reg;
+
+		of_property_read_u32(child, "reg", &reg);
+		if (reg == 0)
+			end_node = child;
+	}
+
+	if (!end_node) {
+		DRM_DEBUG_DRIVER("Missing bridge endpoint\n");
+		return ERR_PTR(-ENODEV);
+	}
+
+	remote = of_graph_get_remote_port_parent(end_node);
+	if (!remote) {
+		DRM_DEBUG_DRIVER("Enable to parse remote node\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	return of_drm_find_bridge(remote) ?: ERR_PTR(-EPROBE_DEFER);
+}
+
 static int sun4i_tcon_bind(struct device *dev, struct device *master,
 			   void *data)
 {
@@ -446,9 +487,8 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 	dev_set_drvdata(dev, tcon);
 	drv->tcon = tcon;
 	tcon->drm = drm;
-
-	if (of_device_is_compatible(dev->of_node, "allwinner,sun5i-a13-tcon"))
-		tcon->has_mux = true;
+	tcon->dev = dev;
+	tcon->quirks = of_device_get_match_data(dev);
 
 	tcon->lcd_rst = devm_reset_control_get(dev, "lcd");
 	if (IS_ERR(tcon->lcd_rst)) {
@@ -484,12 +524,6 @@ static int sun4i_tcon_bind(struct device *dev, struct device *master,
 		goto err_free_clocks;
 	}
 
-	tcon->panel = sun4i_tcon_find_panel(dev->of_node);
-	if (IS_ERR(tcon->panel)) {
-		dev_info(dev, "No panel found... RGB output disabled\n");
-		return 0;
-	}
-
 	ret = sun4i_rgb_init(drm);
 	if (ret < 0)
 		goto err_free_clocks;
@@ -511,7 +545,7 @@ static void sun4i_tcon_unbind(struct device *dev, struct device *master,
 	sun4i_tcon_free_clocks(tcon);
 }
 
-static struct component_ops sun4i_tcon_ops = {
+static const struct component_ops sun4i_tcon_ops = {
 	.bind	= sun4i_tcon_bind,
 	.unbind	= sun4i_tcon_unbind,
 };
@@ -519,19 +553,22 @@ static struct component_ops sun4i_tcon_ops = {
 static int sun4i_tcon_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
+	struct drm_bridge *bridge;
 	struct drm_panel *panel;
 
 	/*
-	 * The panel is not ready.
+	 * Neither the bridge or the panel is ready.
 	 * Defer the probe.
 	 */
 	panel = sun4i_tcon_find_panel(node);
+	bridge = sun4i_tcon_find_bridge(node);
 
 	/*
 	 * If we don't have a panel endpoint, just go on
 	 */
-	if (PTR_ERR(panel) == -EPROBE_DEFER) {
-		DRM_DEBUG_DRIVER("Still waiting for our panel. Deferring...\n");
+	if ((PTR_ERR(panel) == -EPROBE_DEFER) &&
+	    (PTR_ERR(bridge) == -EPROBE_DEFER)) {
+		DRM_DEBUG_DRIVER("Still waiting for our panel/bridge. Deferring...\n");
 		return -EPROBE_DEFER;
 	}
 
@@ -545,8 +582,28 @@ static int sun4i_tcon_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct sun4i_tcon_quirks sun5i_a13_quirks = {
+	.has_unknown_mux = true,
+	.has_channel_1	= true,
+};
+
+static const struct sun4i_tcon_quirks sun6i_a31_quirks = {
+	.has_channel_1	= true,
+};
+
+static const struct sun4i_tcon_quirks sun6i_a31s_quirks = {
+	.has_channel_1	= true,
+};
+
+static const struct sun4i_tcon_quirks sun8i_a33_quirks = {
+	/* nothing is supported */
+};
+
 static const struct of_device_id sun4i_tcon_of_table[] = {
-	{ .compatible = "allwinner,sun5i-a13-tcon" },
+	{ .compatible = "allwinner,sun5i-a13-tcon", .data = &sun5i_a13_quirks },
+	{ .compatible = "allwinner,sun6i-a31-tcon", .data = &sun6i_a31_quirks },
+	{ .compatible = "allwinner,sun6i-a31s-tcon", .data = &sun6i_a31s_quirks },
+	{ .compatible = "allwinner,sun8i-a33-tcon", .data = &sun8i_a33_quirks },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, sun4i_tcon_of_table);

@@ -12,7 +12,7 @@
 #include <linux/phy.h>
 #include <linux/of.h>
 
-#ifdef CONFIG_OF
+#if IS_ENABLED(CONFIG_OF_MDIO)
 extern int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np);
 extern struct phy_device *of_phy_find_device(struct device_node *phy_np);
 extern struct phy_device *of_phy_connect(struct net_device *dev,
@@ -29,9 +29,10 @@ struct phy_device *of_phy_attach(struct net_device *dev,
 extern struct mii_bus *of_mdio_find_bus(struct device_node *mdio_np);
 extern int of_mdio_parse_addr(struct device *dev, const struct device_node *np);
 extern int of_phy_register_fixed_link(struct device_node *np);
+extern void of_phy_deregister_fixed_link(struct device_node *np);
 extern bool of_phy_is_fixed_link(struct device_node *np);
 
-#else /* CONFIG_OF */
+#else /* CONFIG_OF_MDIO */
 static inline int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 {
 	/*
@@ -82,6 +83,9 @@ static inline int of_mdio_parse_addr(struct device *dev,
 static inline int of_phy_register_fixed_link(struct device_node *np)
 {
 	return -ENOSYS;
+}
+static inline void of_phy_deregister_fixed_link(struct device_node *np)
+{
 }
 static inline bool of_phy_is_fixed_link(struct device_node *np)
 {

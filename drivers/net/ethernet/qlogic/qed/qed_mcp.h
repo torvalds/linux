@@ -1,9 +1,33 @@
 /* QLogic qed NIC Driver
- * Copyright (c) 2015 QLogic Corporation
+ * Copyright (c) 2015-2017  QLogic Corporation
  *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
+ * This software is available to you under a choice of one of two
+ * licenses.  You may choose to be licensed under the terms of the GNU
+ * General Public License (GPL) Version 2, available from the file
+ * COPYING in the main directory of this source tree, or the
+ * OpenIB.org BSD license below:
+ *
+ *     Redistribution and use in source and binary forms, with or
+ *     without modification, are permitted provided that the following
+ *     conditions are met:
+ *
+ *      - Redistributions of source code must retain the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer.
+ *
+ *      - Redistributions in binary form must reproduce the above
+ *        copyright notice, this list of conditions and the following
+ *        disclaimer in the documentation and /or other materials
+ *        provided with the distribution.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
+ * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+ * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
  */
 
 #ifndef _QED_MCP_H
@@ -13,7 +37,9 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/qed/qed_fcoe_if.h>
 #include "qed_hsi.h"
+#include "qed_dev_api.h"
 
 struct qed_mcp_link_speed_params {
 	bool    autoneg;
@@ -60,9 +86,10 @@ struct qed_mcp_link_state {
 #define QED_LINK_PARTNER_SPEED_1G_FD    BIT(1)
 #define QED_LINK_PARTNER_SPEED_10G      BIT(2)
 #define QED_LINK_PARTNER_SPEED_20G      BIT(3)
-#define QED_LINK_PARTNER_SPEED_40G      BIT(4)
-#define QED_LINK_PARTNER_SPEED_50G      BIT(5)
-#define QED_LINK_PARTNER_SPEED_100G     BIT(6)
+#define QED_LINK_PARTNER_SPEED_25G      BIT(4)
+#define QED_LINK_PARTNER_SPEED_40G      BIT(5)
+#define QED_LINK_PARTNER_SPEED_50G      BIT(6)
+#define QED_LINK_PARTNER_SPEED_100G     BIT(7)
 	u32     partner_adv_speed;
 
 	bool    partner_tx_flow_ctrl_en;
@@ -91,6 +118,8 @@ struct qed_mcp_function_info {
 
 #define QED_MCP_VLAN_UNSET              (0xffff)
 	u16				ovlan;
+
+	u16				mtu;
 };
 
 struct qed_mcp_nvm_common {
@@ -103,6 +132,71 @@ struct qed_mcp_nvm_common {
 struct qed_mcp_drv_version {
 	u32	version;
 	u8	name[MCP_DRV_VER_STR_SIZE - 4];
+};
+
+struct qed_mcp_lan_stats {
+	u64 ucast_rx_pkts;
+	u64 ucast_tx_pkts;
+	u32 fcs_err;
+};
+
+struct qed_mcp_fcoe_stats {
+	u64 rx_pkts;
+	u64 tx_pkts;
+	u32 fcs_err;
+	u32 login_failure;
+};
+
+struct qed_mcp_iscsi_stats {
+	u64 rx_pdus;
+	u64 tx_pdus;
+	u64 rx_bytes;
+	u64 tx_bytes;
+};
+
+struct qed_mcp_rdma_stats {
+	u64 rx_pkts;
+	u64 tx_pkts;
+	u64 rx_bytes;
+	u64 tx_byts;
+};
+
+enum qed_mcp_protocol_type {
+	QED_MCP_LAN_STATS,
+	QED_MCP_FCOE_STATS,
+	QED_MCP_ISCSI_STATS,
+	QED_MCP_RDMA_STATS
+};
+
+union qed_mcp_protocol_stats {
+	struct qed_mcp_lan_stats lan_stats;
+	struct qed_mcp_fcoe_stats fcoe_stats;
+	struct qed_mcp_iscsi_stats iscsi_stats;
+	struct qed_mcp_rdma_stats rdma_stats;
+};
+
+enum qed_ov_eswitch {
+	QED_OV_ESWITCH_NONE,
+	QED_OV_ESWITCH_VEB,
+	QED_OV_ESWITCH_VEPA
+};
+
+enum qed_ov_client {
+	QED_OV_CLIENT_DRV,
+	QED_OV_CLIENT_USER,
+	QED_OV_CLIENT_VENDOR_SPEC
+};
+
+enum qed_ov_driver_state {
+	QED_OV_DRIVER_STATE_NOT_LOADED,
+	QED_OV_DRIVER_STATE_DISABLED,
+	QED_OV_DRIVER_STATE_ACTIVE
+};
+
+enum qed_ov_wol {
+	QED_OV_WOL_DEFAULT,
+	QED_OV_WOL_DISABLED,
+	QED_OV_WOL_ENABLED
 };
 
 /**
@@ -236,6 +330,69 @@ qed_mcp_send_drv_version(struct qed_hwfn *p_hwfn,
 			 struct qed_mcp_drv_version *p_ver);
 
 /**
+ * @brief Notify MFW about the change in base device properties
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *  @param client - qed client type
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_ov_update_current_config(struct qed_hwfn *p_hwfn,
+				     struct qed_ptt *p_ptt,
+				     enum qed_ov_client client);
+
+/**
+ * @brief Notify MFW about the driver state
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *  @param drv_state - Driver state
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_ov_update_driver_state(struct qed_hwfn *p_hwfn,
+				   struct qed_ptt *p_ptt,
+				   enum qed_ov_driver_state drv_state);
+
+/**
+ * @brief Send MTU size to MFW
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *  @param mtu - MTU size
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_ov_update_mtu(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, u16 mtu);
+
+/**
+ * @brief Send MAC address to MFW
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *  @param mac - MAC address
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_ov_update_mac(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, u8 *mac);
+
+/**
+ * @brief Send WOL mode to MFW
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *  @param wol - WOL mode
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_ov_update_wol(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt,
+			  enum qed_ov_wol wol);
+
+/**
  * @brief Set LED status
  *
  *  @param p_hwfn
@@ -247,6 +404,18 @@ qed_mcp_send_drv_version(struct qed_hwfn *p_hwfn,
 int qed_mcp_set_led(struct qed_hwfn *p_hwfn,
 		    struct qed_ptt *p_ptt,
 		    enum qed_led_mode mode);
+
+/**
+ * @brief Read from nvm
+ *
+ *  @param cdev
+ *  @param addr - nvm offset
+ *  @param p_buf - nvm read buffer
+ *  @param len - buffer len
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_nvm_read(struct qed_dev *cdev, u32 addr, u8 *p_buf, u32 len);
 
 /**
  * @brief Bist register test
@@ -270,6 +439,35 @@ int qed_mcp_bist_register_test(struct qed_hwfn *p_hwfn,
 int qed_mcp_bist_clock_test(struct qed_hwfn *p_hwfn,
 			    struct qed_ptt *p_ptt);
 
+/**
+ * @brief Bist nvm test - get number of images
+ *
+ *  @param p_hwfn       - hw function
+ *  @param p_ptt        - PTT required for register access
+ *  @param num_images   - number of images if operation was
+ *			  successful. 0 if not.
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_bist_nvm_test_get_num_images(struct qed_hwfn *p_hwfn,
+					 struct qed_ptt *p_ptt,
+					 u32 *num_images);
+
+/**
+ * @brief Bist nvm test - get image attributes by index
+ *
+ *  @param p_hwfn      - hw function
+ *  @param p_ptt       - PTT required for register access
+ *  @param p_image_att - Attributes of image
+ *  @param image_index - Index of image to get information for
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_bist_nvm_test_get_image_att(struct qed_hwfn *p_hwfn,
+					struct qed_ptt *p_ptt,
+					struct bist_nvm_image_att *p_image_att,
+					u32 image_index);
+
 /* Using hwfn number (and not pf_num) is required since in CMT mode,
  * same pf_num may be used by two different hwfn
  * TODO - this shouldn't really be in .h file, but until all fields
@@ -282,13 +480,23 @@ int qed_mcp_bist_clock_test(struct qed_hwfn *p_hwfn,
 					    rel_pfid)
 #define MCP_PF_ID(p_hwfn) MCP_PF_ID_BY_REL(p_hwfn, (p_hwfn)->rel_pf_id)
 
-/* TODO - this is only correct as long as only BB is supported, and
- * no port-swapping is implemented; Afterwards we'll need to fix it.
- */
-#define MFW_PORT(_p_hwfn)       ((_p_hwfn)->abs_pf_id %	\
-				 ((_p_hwfn)->cdev->num_ports_in_engines * 2))
+#define MFW_PORT(_p_hwfn)       ((_p_hwfn)->abs_pf_id %			  \
+				 ((_p_hwfn)->cdev->num_ports_in_engines * \
+				  qed_device_num_engines((_p_hwfn)->cdev)))
+
 struct qed_mcp_info {
-	spinlock_t				lock;
+	/* List for mailbox commands which were sent and wait for a response */
+	struct list_head			cmd_list;
+
+	/* Spinlock used for protecting the access to the mailbox commands list
+	 * and the sending of the commands.
+	 */
+	spinlock_t				cmd_lock;
+
+	/* Spinlock used for syncing SW link-changes and link-changes
+	 * originating from attention context.
+	 */
+	spinlock_t				link_lock;
 	bool					block_mb_sending;
 	u32					public_base;
 	u32					drv_mb_addr;
@@ -303,14 +511,16 @@ struct qed_mcp_info {
 	u8					*mfw_mb_cur;
 	u8					*mfw_mb_shadow;
 	u16					mfw_mb_length;
-	u16					mcp_hist;
+	u32					mcp_hist;
 };
 
 struct qed_mcp_mb_params {
 	u32			cmd;
 	u32			param;
-	union drv_union_data	*p_data_src;
-	union drv_union_data	*p_data_dst;
+	void			*p_data_src;
+	u8			data_src_size;
+	void			*p_data_dst;
+	u8			data_dst_size;
 	u32			mcp_resp;
 	u32			mcp_param;
 };
@@ -361,27 +571,55 @@ int qed_mcp_free(struct qed_hwfn *p_hwfn);
 int qed_mcp_handle_events(struct qed_hwfn *p_hwfn,
 			  struct qed_ptt *p_ptt);
 
+enum qed_drv_role {
+	QED_DRV_ROLE_OS,
+	QED_DRV_ROLE_KDUMP,
+};
+
+struct qed_load_req_params {
+	/* Input params */
+	enum qed_drv_role drv_role;
+	u8 timeout_val;
+	bool avoid_eng_reset;
+	enum qed_override_force_load override_force_load;
+
+	/* Output params */
+	u32 load_code;
+};
+
 /**
- * @brief Sends a LOAD_REQ to the MFW, and in case operation
- *        succeed, returns whether this PF is the first on the
- *        chip/engine/port or function. This function should be
- *        called when driver is ready to accept MFW events after
- *        Storms initializations are done.
+ * @brief Sends a LOAD_REQ to the MFW, and in case the operation succeeds,
+ *        returns whether this PF is the first on the engine/port or function.
  *
- * @param p_hwfn       - hw function
- * @param p_ptt        - PTT required for register access
- * @param p_load_code  - The MCP response param containing one
- *      of the following:
- *      FW_MSG_CODE_DRV_LOAD_ENGINE
- *      FW_MSG_CODE_DRV_LOAD_PORT
- *      FW_MSG_CODE_DRV_LOAD_FUNCTION
- * @return int -
- *      0 - Operation was successul.
- *      -EBUSY - Operation failed
+ * @param p_hwfn
+ * @param p_ptt
+ * @param p_params
+ *
+ * @return int - 0 - Operation was successful.
  */
 int qed_mcp_load_req(struct qed_hwfn *p_hwfn,
 		     struct qed_ptt *p_ptt,
-		     u32 *p_load_code);
+		     struct qed_load_req_params *p_params);
+
+/**
+ * @brief Sends a UNLOAD_REQ message to the MFW
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ *
+ * @return int - 0 - Operation was successful.
+ */
+int qed_mcp_unload_req(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+
+/**
+ * @brief Sends a UNLOAD_DONE message to the MFW
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ *
+ * @return int - 0 - Operation was successful.
+ */
+int qed_mcp_unload_done(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 
 /**
  * @brief Read the MFW mailbox into Current buffer.
@@ -426,6 +664,29 @@ int qed_mcp_reset(struct qed_hwfn *p_hwfn,
 		  struct qed_ptt *p_ptt);
 
 /**
+ * @brief - Sends an NVM read command request to the MFW to get
+ *        a buffer.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param cmd - Command: DRV_MSG_CODE_NVM_GET_FILE_DATA or
+ *            DRV_MSG_CODE_NVM_READ_NVRAM commands
+ * @param param - [0:23] - Offset [24:31] - Size
+ * @param o_mcp_resp - MCP response
+ * @param o_mcp_param - MCP response param
+ * @param o_txn_size -  Buffer size output
+ * @param o_buf - Pointer to the buffer returned by the MFW.
+ *
+ * @param return 0 upon success.
+ */
+int qed_mcp_nvm_rd_cmd(struct qed_hwfn *p_hwfn,
+		       struct qed_ptt *p_ptt,
+		       u32 cmd,
+		       u32 param,
+		       u32 *o_mcp_resp,
+		       u32 *o_mcp_param, u32 *o_txn_size, u32 *o_buf);
+
+/**
  * @brief indicates whether the MFW objects [under mcp_info] are accessible
  *
  * @param p_hwfn
@@ -447,6 +708,26 @@ bool qed_mcp_is_init(struct qed_hwfn *p_hwfn);
 int qed_mcp_config_vf_msix(struct qed_hwfn *p_hwfn,
 			   struct qed_ptt *p_ptt, u8 vf_id, u8 num);
 
+/**
+ * @brief - Halt the MCP.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ *
+ * @param return 0 upon success.
+ */
+int qed_mcp_halt(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+
+/**
+ * @brief - Wake up the MCP.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ *
+ * @param return 0 upon success.
+ */
+int qed_mcp_resume(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+
 int qed_configure_pf_min_bandwidth(struct qed_dev *cdev, u8 min_bw);
 int qed_configure_pf_max_bandwidth(struct qed_dev *cdev, u8 max_bw);
 int __qed_configure_pf_max_bandwidth(struct qed_hwfn *p_hwfn,
@@ -458,6 +739,157 @@ int __qed_configure_pf_min_bandwidth(struct qed_hwfn *p_hwfn,
 				     struct qed_mcp_link_state *p_link,
 				     u8 min_bw);
 
-int qed_hw_init_first_eth(struct qed_hwfn *p_hwfn,
-			  struct qed_ptt *p_ptt, u8 *p_pf);
+int qed_mcp_mask_parities(struct qed_hwfn *p_hwfn,
+			  struct qed_ptt *p_ptt, u32 mask_parities);
+
+/**
+ * @brief - Sets the MFW's max value for the given resource
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *  @param res_id
+ *  @param resc_max_val
+ *  @param p_mcp_resp
+ *
+ * @return int - 0 - operation was successful.
+ */
+int
+qed_mcp_set_resc_max_val(struct qed_hwfn *p_hwfn,
+			 struct qed_ptt *p_ptt,
+			 enum qed_resources res_id,
+			 u32 resc_max_val, u32 *p_mcp_resp);
+
+/**
+ * @brief - Gets the MFW allocation info for the given resource
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *  @param res_id
+ *  @param p_mcp_resp
+ *  @param p_resc_num
+ *  @param p_resc_start
+ *
+ * @return int - 0 - operation was successful.
+ */
+int
+qed_mcp_get_resc_info(struct qed_hwfn *p_hwfn,
+		      struct qed_ptt *p_ptt,
+		      enum qed_resources res_id,
+		      u32 *p_mcp_resp, u32 *p_resc_num, u32 *p_resc_start);
+
+/**
+ * @brief Send eswitch mode to MFW
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *  @param eswitch - eswitch mode
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_ov_update_eswitch(struct qed_hwfn *p_hwfn,
+			      struct qed_ptt *p_ptt,
+			      enum qed_ov_eswitch eswitch);
+
+#define QED_MCP_RESC_LOCK_MIN_VAL       RESOURCE_DUMP
+#define QED_MCP_RESC_LOCK_MAX_VAL       31
+
+enum qed_resc_lock {
+	QED_RESC_LOCK_DBG_DUMP = QED_MCP_RESC_LOCK_MIN_VAL,
+	QED_RESC_LOCK_PTP_PORT0,
+	QED_RESC_LOCK_PTP_PORT1,
+	QED_RESC_LOCK_PTP_PORT2,
+	QED_RESC_LOCK_PTP_PORT3,
+	QED_RESC_LOCK_RESC_ALLOC = QED_MCP_RESC_LOCK_MAX_VAL,
+	QED_RESC_LOCK_RESC_INVALID
+};
+
+/**
+ * @brief - Initiates PF FLR
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_initiate_pf_flr(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+struct qed_resc_lock_params {
+	/* Resource number [valid values are 0..31] */
+	u8 resource;
+
+	/* Lock timeout value in seconds [default, none or 1..254] */
+	u8 timeout;
+#define QED_MCP_RESC_LOCK_TO_DEFAULT    0
+#define QED_MCP_RESC_LOCK_TO_NONE       255
+
+	/* Number of times to retry locking */
+	u8 retry_num;
+#define QED_MCP_RESC_LOCK_RETRY_CNT_DFLT        10
+
+	/* The interval in usec between retries */
+	u16 retry_interval;
+#define QED_MCP_RESC_LOCK_RETRY_VAL_DFLT        10000
+
+	/* Use sleep or delay between retries */
+	bool sleep_b4_retry;
+
+	/* Will be set as true if the resource is free and granted */
+	bool b_granted;
+
+	/* Will be filled with the resource owner.
+	 * [0..15 = PF0-15, 16 = MFW]
+	 */
+	u8 owner;
+};
+
+/**
+ * @brief Acquires MFW generic resource lock
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *  @param p_params
+ *
+ * @return int - 0 - operation was successful.
+ */
+int
+qed_mcp_resc_lock(struct qed_hwfn *p_hwfn,
+		  struct qed_ptt *p_ptt, struct qed_resc_lock_params *p_params);
+
+struct qed_resc_unlock_params {
+	/* Resource number [valid values are 0..31] */
+	u8 resource;
+
+	/* Allow to release a resource even if belongs to another PF */
+	bool b_force;
+
+	/* Will be set as true if the resource is released */
+	bool b_released;
+};
+
+/**
+ * @brief Releases MFW generic resource lock
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *  @param p_params
+ *
+ * @return int - 0 - operation was successful.
+ */
+int
+qed_mcp_resc_unlock(struct qed_hwfn *p_hwfn,
+		    struct qed_ptt *p_ptt,
+		    struct qed_resc_unlock_params *p_params);
+
+/**
+ * @brief - default initialization for lock/unlock resource structs
+ *
+ * @param p_lock - lock params struct to be initialized; Can be NULL
+ * @param p_unlock - unlock params struct to be initialized; Can be NULL
+ * @param resource - the requested resource
+ * @paral b_is_permanent - disable retries & aging when set
+ */
+void qed_mcp_resc_lock_default_init(struct qed_resc_lock_params *p_lock,
+				    struct qed_resc_unlock_params *p_unlock,
+				    enum qed_resc_lock
+				    resource, bool b_is_permanent);
+
 #endif

@@ -27,7 +27,6 @@ struct xfs_eofblocks {
 	kgid_t		eof_gid;
 	prid_t		eof_prid;
 	__u64		eof_min_file_size;
-	xfs_ino_t	eof_scan_owner;
 };
 
 #define SYNC_WAIT		0x0001	/* wait for i/o to complete */
@@ -40,6 +39,7 @@ struct xfs_eofblocks {
 					   in xfs_inode_ag_iterator */
 #define XFS_ICI_RECLAIM_TAG	0	/* inode is to be reclaimed */
 #define XFS_ICI_EOFBLOCKS_TAG	1	/* inode has blocks beyond EOF */
+#define XFS_ICI_COWBLOCKS_TAG	2	/* inode can have cow blocks to gc */
 
 /*
  * Flags for xfs_iget()
@@ -70,6 +70,12 @@ int xfs_inode_free_quota_eofblocks(struct xfs_inode *ip);
 void xfs_eofblocks_worker(struct work_struct *);
 void xfs_queue_eofblocks(struct xfs_mount *);
 
+void xfs_inode_set_cowblocks_tag(struct xfs_inode *ip);
+void xfs_inode_clear_cowblocks_tag(struct xfs_inode *ip);
+int xfs_icache_free_cowblocks(struct xfs_mount *, struct xfs_eofblocks *);
+int xfs_inode_free_quota_cowblocks(struct xfs_inode *ip);
+void xfs_cowblocks_worker(struct work_struct *);
+
 int xfs_inode_ag_iterator(struct xfs_mount *mp,
 	int (*execute)(struct xfs_inode *ip, int flags, void *args),
 	int flags, void *args);
@@ -95,7 +101,6 @@ xfs_fs_eofblocks_from_user(
 	dst->eof_flags = src->eof_flags;
 	dst->eof_prid = src->eof_prid;
 	dst->eof_min_file_size = src->eof_min_file_size;
-	dst->eof_scan_owner = NULLFSINO;
 
 	dst->eof_uid = INVALID_UID;
 	if (src->eof_flags & XFS_EOF_FLAGS_UID) {

@@ -344,7 +344,6 @@ struct rockchip_clk_provider * __init rockchip_clk_init(struct device_node *np,
 	ctx->clk_data.clks = clk_table;
 	ctx->clk_data.clk_num = nr_clks;
 	ctx->cru_node = np;
-	ctx->grf = ERR_PTR(-EPROBE_DEFER);
 	spin_lock_init(&ctx->lock);
 
 	ctx->grf = syscon_regmap_lookup_by_phandle(ctx->cru_node,
@@ -385,7 +384,7 @@ void __init rockchip_clk_register_plls(struct rockchip_clk_provider *ctx,
 				list->con_offset, grf_lock_offset,
 				list->lock_shift, list->mode_offset,
 				list->mode_shift, list->rate_table,
-				list->pll_flags);
+				list->flags, list->pll_flags);
 		if (IS_ERR(clk)) {
 			pr_err("%s: failed to register clock %s\n", __func__,
 				list->name);
@@ -416,6 +415,13 @@ void __init rockchip_clk_register_branches(
 				flags, ctx->reg_base + list->muxdiv_offset,
 				list->mux_shift, list->mux_width,
 				list->mux_flags, &ctx->lock);
+			break;
+		case branch_muxgrf:
+			clk = rockchip_clk_register_muxgrf(list->name,
+				list->parent_names, list->num_parents,
+				flags, ctx->grf, list->muxdiv_offset,
+				list->mux_shift, list->mux_width,
+				list->mux_flags);
 			break;
 		case branch_divider:
 			if (list->div_table)
@@ -483,6 +489,15 @@ void __init rockchip_clk_register_branches(
 				list->div_shift, list->div_width,
 				list->gate_offset, list->gate_shift,
 				list->gate_flags, flags, &ctx->lock);
+			break;
+		case branch_ddrclk:
+			clk = rockchip_clk_register_ddrclk(
+				list->name, list->flags,
+				list->parent_names, list->num_parents,
+				list->muxdiv_offset, list->mux_shift,
+				list->mux_width, list->div_shift,
+				list->div_width, list->div_flags,
+				ctx->reg_base, &ctx->lock);
 			break;
 		}
 

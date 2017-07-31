@@ -1,7 +1,7 @@
 menu "SOC (System On Chip) specific Drivers"
 
 source "drivers/soc/bcm/Kconfig"
-source "drivers/soc/fsl/qe/Kconfig"
+source "drivers/soc/fsl/Kconfig"
 source "drivers/soc/mediatek/Kconfig"
 source "drivers/soc/qcom/Kconfig"
 source "drivers/soc/rockchip/Kconfig"
@@ -11,5 +11,6 @@ source "drivers/soc/tegra/Kconfig"
 source "drivers/soc/ti/Kconfig"
 source "drivers/soc/ux500/Kconfig"
 source "drivers/soc/versatile/Kconfig"
+source "drivers/soc/zte/Kconfig"
 
 endmenu

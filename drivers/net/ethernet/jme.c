@@ -1879,7 +1879,7 @@ jme_open(struct net_device *netdev)
 
 	jme_phy_on(jme);
 	if (test_bit(JME_FLAG_SSET, &jme->flags))
-		jme_set_settings(netdev, &jme->old_ecmd);
+		jme_set_link_ksettings(netdev, &jme->old_cmd);
 	else
 		jme_reset_phy_processor(jme);
 	jme_phy_calibration(jme);
@@ -2357,14 +2357,6 @@ jme_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct jme_adapter *jme = netdev_priv(netdev);
 
-	if (new_mtu == jme->old_mtu)
-		return 0;
-
-	if (((new_mtu + ETH_HLEN) > MAX_ETHERNET_JUMBO_PACKET_SIZE) ||
-		((new_mtu) < IPV6_MIN_MTU))
-		return -EINVAL;
-
-
 	netdev->mtu = new_mtu;
 	netdev_update_features(netdev);
 
@@ -2382,7 +2374,7 @@ jme_tx_timeout(struct net_device *netdev)
 	jme->phylink = 0;
 	jme_reset_phy_processor(jme);
 	if (test_bit(JME_FLAG_SSET, &jme->flags))
-		jme_set_settings(netdev, &jme->old_ecmd);
+		jme_set_link_ksettings(netdev, &jme->old_cmd);
 
 	/*
 	 * Force to Reset the link again
@@ -2656,27 +2648,27 @@ jme_set_wol(struct net_device *netdev,
 }
 
 static int
-jme_get_settings(struct net_device *netdev,
-		     struct ethtool_cmd *ecmd)
+jme_get_link_ksettings(struct net_device *netdev,
+		       struct ethtool_link_ksettings *cmd)
 {
 	struct jme_adapter *jme = netdev_priv(netdev);
 	int rc;
 
 	spin_lock_bh(&jme->phy_lock);
-	rc = mii_ethtool_gset(&(jme->mii_if), ecmd);
+	rc = mii_ethtool_get_link_ksettings(&jme->mii_if, cmd);
 	spin_unlock_bh(&jme->phy_lock);
 	return rc;
 }
 
 static int
-jme_set_settings(struct net_device *netdev,
-		     struct ethtool_cmd *ecmd)
+jme_set_link_ksettings(struct net_device *netdev,
+		       const struct ethtool_link_ksettings *cmd)
 {
 	struct jme_adapter *jme = netdev_priv(netdev);
 	int rc, fdc = 0;
 
-	if (ethtool_cmd_speed(ecmd) == SPEED_1000
-	    && ecmd->autoneg != AUTONEG_ENABLE)
+	if (cmd->base.speed == SPEED_1000 &&
+	    cmd->base.autoneg != AUTONEG_ENABLE)
 		return -EINVAL;
 
 	/*
@@ -2684,18 +2676,18 @@ jme_set_settings(struct net_device *netdev,
 	 * Hardware would not generate link change interrupt.
 	 */
 	if (jme->mii_if.force_media &&
-	ecmd->autoneg != AUTONEG_ENABLE &&
-	(jme->mii_if.full_duplex != ecmd->duplex))
+	    cmd->base.autoneg != AUTONEG_ENABLE &&
+	    (jme->mii_if.full_duplex != cmd->base.duplex))
 		fdc = 1;
 
 	spin_lock_bh(&jme->phy_lock);
-	rc = mii_ethtool_sset(&(jme->mii_if), ecmd);
+	rc = mii_ethtool_set_link_ksettings(&jme->mii_if, cmd);
 	spin_unlock_bh(&jme->phy_lock);
 
 	if (!rc) {
 		if (fdc)
 			jme_reset_link(jme);
-		jme->old_ecmd = *ecmd;
+		jme->old_cmd = *cmd;
 		set_bit(JME_FLAG_SSET, &jme->flags);
 	}
 
@@ -2724,7 +2716,7 @@ jme_ioctl(struct net_device *netdev, struct ifreq *rq, int cmd)
 	if (!rc && (cmd == SIOCSMIIREG)) {
 		if (duplex_chg)
 			jme_reset_link(jme);
-		jme_get_settings(netdev, &jme->old_ecmd);
+		jme_get_link_ksettings(netdev, &jme->old_cmd);
 		set_bit(JME_FLAG_SSET, &jme->flags);
 	}
 
@@ -2923,8 +2915,6 @@ static const struct ethtool_ops jme_ethtool_ops = {
 	.set_pauseparam		= jme_set_pauseparam,
 	.get_wol		= jme_get_wol,
 	.set_wol		= jme_set_wol,
-	.get_settings		= jme_get_settings,
-	.set_settings		= jme_set_settings,
 	.get_link		= jme_get_link,
 	.get_msglevel           = jme_get_msglevel,
 	.set_msglevel           = jme_set_msglevel,
@@ -2932,6 +2922,8 @@ static const struct ethtool_ops jme_ethtool_ops = {
 	.get_eeprom_len		= jme_get_eeprom_len,
 	.get_eeprom		= jme_get_eeprom,
 	.set_eeprom		= jme_set_eeprom,
+	.get_link_ksettings	= jme_get_link_ksettings,
+	.set_link_ksettings	= jme_set_link_ksettings,
 };
 
 static int
@@ -3062,6 +3054,10 @@ jme_init_one(struct pci_dev *pdev,
 						NETIF_F_HW_VLAN_CTAG_RX;
 	if (using_dac)
 		netdev->features	|=	NETIF_F_HIGHDMA;
+
+	/* MTU range: 1280 - 9202*/
+	netdev->min_mtu = IPV6_MIN_MTU;
+	netdev->max_mtu = MAX_ETHERNET_JUMBO_PACKET_SIZE - ETH_HLEN;
 
 	SET_NETDEV_DEV(netdev, &pdev->dev);
 	pci_set_drvdata(pdev, netdev);
@@ -3310,7 +3306,7 @@ jme_resume(struct device *dev)
 	jme_clear_pm_disable_wol(jme);
 	jme_phy_on(jme);
 	if (test_bit(JME_FLAG_SSET, &jme->flags))
-		jme_set_settings(netdev, &jme->old_ecmd);
+		jme_set_link_ksettings(netdev, &jme->old_cmd);
 	else
 		jme_reset_phy_processor(jme);
 	jme_phy_calibration(jme);

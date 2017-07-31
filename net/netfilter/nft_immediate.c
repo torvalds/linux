@@ -53,6 +53,7 @@ static int nft_immediate_init(const struct nft_ctx *ctx,
 			    tb[NFTA_IMMEDIATE_DATA]);
 	if (err < 0)
 		return err;
+
 	priv->dlen = desc.len;
 
 	priv->dreg = nft_parse_register(tb[NFTA_IMMEDIATE_DREG]);
@@ -101,7 +102,6 @@ static int nft_immediate_validate(const struct nft_ctx *ctx,
 	return 0;
 }
 
-static struct nft_expr_type nft_imm_type;
 static const struct nft_expr_ops nft_imm_ops = {
 	.type		= &nft_imm_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_immediate_expr)),
@@ -112,20 +112,10 @@ static const struct nft_expr_ops nft_imm_ops = {
 	.validate	= nft_immediate_validate,
 };
 
-static struct nft_expr_type nft_imm_type __read_mostly = {
+struct nft_expr_type nft_imm_type __read_mostly = {
 	.name		= "immediate",
 	.ops		= &nft_imm_ops,
 	.policy		= nft_immediate_policy,
 	.maxattr	= NFTA_IMMEDIATE_MAX,
 	.owner		= THIS_MODULE,
 };
-
-int __init nft_immediate_module_init(void)
-{
-	return nft_register_expr(&nft_imm_type);
-}
-
-void nft_immediate_module_exit(void)
-{
-	nft_unregister_expr(&nft_imm_type);
-}

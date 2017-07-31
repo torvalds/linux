@@ -16,12 +16,6 @@ static unsigned int bkg_color = 0x000000;
 MODULE_PARM_DESC(bkgcolor, "Value of the background color 0xRRGGBB");
 module_param_named(bkgcolor, bkg_color, int, 0644);
 
-/* Identity: G=Y , B=Cb , R=Cr */
-static const u32 mixerColorSpaceMatIdentity[] = {
-	0x10000000, 0x00000000, 0x10000000, 0x00001000,
-	0x00000000, 0x00000000, 0x00000000, 0x00000000
-};
-
 /* regs offset */
 #define GAM_MIXER_CTL      0x00
 #define GAM_MIXER_BKC      0x04
@@ -358,22 +352,12 @@ int sti_mixer_set_plane_status(struct sti_mixer *mixer,
 	return 0;
 }
 
-void sti_mixer_set_matrix(struct sti_mixer *mixer)
-{
-	unsigned int i;
-
-	for (i = 0; i < ARRAY_SIZE(mixerColorSpaceMatIdentity); i++)
-		sti_mixer_reg_write(mixer, GAM_MIXER_MX0 + (i * 4),
-				    mixerColorSpaceMatIdentity[i]);
-}
-
 struct sti_mixer *sti_mixer_create(struct device *dev,
 				   struct drm_device *drm_dev,
 				   int id,
 				   void __iomem *baseaddr)
 {
 	struct sti_mixer *mixer = devm_kzalloc(dev, sizeof(*mixer), GFP_KERNEL);
-	struct device_node *np = dev->of_node;
 
 	dev_dbg(dev, "%s\n", __func__);
 	if (!mixer) {
@@ -383,9 +367,6 @@ struct sti_mixer *sti_mixer_create(struct device *dev,
 	mixer->regs = baseaddr;
 	mixer->dev = dev;
 	mixer->id = id;
-
-	if (of_device_is_compatible(np, "st,stih416-compositor"))
-		sti_mixer_set_matrix(mixer);
 
 	DRM_DEBUG_DRIVER("%s created. Regs=%p\n",
 			 sti_mixer_to_str(mixer), mixer->regs);

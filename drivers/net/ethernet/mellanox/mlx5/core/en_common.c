@@ -60,24 +60,27 @@ void mlx5e_destroy_tir(struct mlx5_core_dev *mdev,
 static int mlx5e_create_mkey(struct mlx5_core_dev *mdev, u32 pdn,
 			     struct mlx5_core_mkey *mkey)
 {
-	struct mlx5_create_mkey_mbox_in *in;
+	int inlen = MLX5_ST_SZ_BYTES(create_mkey_in);
+	void *mkc;
+	u32 *in;
 	int err;
 
-	in = mlx5_vzalloc(sizeof(*in));
+	in = mlx5_vzalloc(inlen);
 	if (!in)
 		return -ENOMEM;
 
-	in->seg.flags = MLX5_PERM_LOCAL_WRITE |
-			MLX5_PERM_LOCAL_READ  |
-			MLX5_ACCESS_MODE_PA;
-	in->seg.flags_pd = cpu_to_be32(pdn | MLX5_MKEY_LEN64);
-	in->seg.qpn_mkey7_0 = cpu_to_be32(0xffffff << 8);
+	mkc = MLX5_ADDR_OF(create_mkey_in, in, memory_key_mkey_entry);
+	MLX5_SET(mkc, mkc, access_mode, MLX5_MKC_ACCESS_MODE_PA);
+	MLX5_SET(mkc, mkc, lw, 1);
+	MLX5_SET(mkc, mkc, lr, 1);
 
-	err = mlx5_core_create_mkey(mdev, mkey, in, sizeof(*in), NULL, NULL,
-				    NULL);
+	MLX5_SET(mkc, mkc, pd, pdn);
+	MLX5_SET(mkc, mkc, length64, 1);
+	MLX5_SET(mkc, mkc, qpn, 0xffffff);
+
+	err = mlx5_core_create_mkey(mdev, mkey, in, inlen);
 
 	kvfree(in);
-
 	return err;
 }
 
@@ -86,16 +89,10 @@ int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev)
 	struct mlx5e_resources *res = &mdev->mlx5e_res;
 	int err;
 
-	err = mlx5_alloc_map_uar(mdev, &res->cq_uar, false);
-	if (err) {
-		mlx5_core_err(mdev, "alloc_map uar failed, %d\n", err);
-		return err;
-	}
-
 	err = mlx5_core_alloc_pd(mdev, &res->pdn);
 	if (err) {
 		mlx5_core_err(mdev, "alloc pd failed, %d\n", err);
-		goto err_unmap_free_uar;
+		return err;
 	}
 
 	err = mlx5_core_alloc_transport_domain(mdev, &res->td.tdn);
@@ -110,17 +107,22 @@ int mlx5e_create_mdev_resources(struct mlx5_core_dev *mdev)
 		goto err_dealloc_transport_domain;
 	}
 
+	err = mlx5_alloc_bfreg(mdev, &res->bfreg, false, false);
+	if (err) {
+		mlx5_core_err(mdev, "alloc bfreg failed, %d\n", err);
+		goto err_destroy_mkey;
+	}
+
 	INIT_LIST_HEAD(&mdev->mlx5e_res.td.tirs_list);
 
 	return 0;
 
+err_destroy_mkey:
+	mlx5_core_destroy_mkey(mdev, &res->mkey);
 err_dealloc_transport_domain:
 	mlx5_core_dealloc_transport_domain(mdev, res->td.tdn);
 err_dealloc_pd:
 	mlx5_core_dealloc_pd(mdev, res->pdn);
-err_unmap_free_uar:
-	mlx5_unmap_free_uar(mdev, &res->cq_uar);
-
 	return err;
 }
 
@@ -128,34 +130,44 @@ void mlx5e_destroy_mdev_resources(struct mlx5_core_dev *mdev)
 {
 	struct mlx5e_resources *res = &mdev->mlx5e_res;
 
+	mlx5_free_bfreg(mdev, &res->bfreg);
 	mlx5_core_destroy_mkey(mdev, &res->mkey);
 	mlx5_core_dealloc_transport_domain(mdev, res->td.tdn);
 	mlx5_core_dealloc_pd(mdev, res->pdn);
-	mlx5_unmap_free_uar(mdev, &res->cq_uar);
 }
 
-int mlx5e_refresh_tirs_self_loopback_enable(struct mlx5_core_dev *mdev)
+int mlx5e_refresh_tirs(struct mlx5e_priv *priv, bool enable_uc_lb)
 {
+	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5e_tir *tir;
-	void *in;
+	int err  = -ENOMEM;
+	u32 tirn = 0;
 	int inlen;
-	int err = 0;
+	void *in;
+
 
 	inlen = MLX5_ST_SZ_BYTES(modify_tir_in);
 	in = mlx5_vzalloc(inlen);
 	if (!in)
-		return -ENOMEM;
+		goto out;
+
+	if (enable_uc_lb)
+		MLX5_SET(modify_tir_in, in, ctx.self_lb_block,
+			 MLX5_TIRC_SELF_LB_BLOCK_BLOCK_UNICAST_);
 
 	MLX5_SET(modify_tir_in, in, bitmask.self_lb_en, 1);
 
 	list_for_each_entry(tir, &mdev->mlx5e_res.td.tirs_list, list) {
-		err = mlx5_core_modify_tir(mdev, tir->tirn, in, inlen);
+		tirn = tir->tirn;
+		err = mlx5_core_modify_tir(mdev, tirn, in, inlen);
 		if (err)
 			goto out;
 	}
 
 out:
 	kvfree(in);
+	if (err)
+		netdev_err(priv->netdev, "refresh tir(0x%x) failed, %d\n", tirn, err);
 
 	return err;
 }

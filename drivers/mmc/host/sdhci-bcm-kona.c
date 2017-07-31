@@ -253,12 +253,14 @@ static int sdhci_bcm_kona_probe(struct platform_device *pdev)
 		goto err_pltfm_free;
 	}
 
-	if (clk_set_rate(pltfm_priv->clk, host->mmc->f_max) != 0) {
+	ret = clk_set_rate(pltfm_priv->clk, host->mmc->f_max);
+	if (ret) {
 		dev_err(dev, "Failed to set rate core clock\n");
 		goto err_pltfm_free;
 	}
 
-	if (clk_prepare_enable(pltfm_priv->clk) != 0) {
+	ret = clk_prepare_enable(pltfm_priv->clk);
+	if (ret) {
 		dev_err(dev, "Failed to enable core clock\n");
 		goto err_pltfm_free;
 	}

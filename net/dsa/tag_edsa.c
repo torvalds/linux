@@ -11,6 +11,7 @@
 #include <linux/etherdevice.h>
 #include <linux/list.h>
 #include <linux/slab.h>
+#include <net/dsa.h>
 #include "dsa_priv.h"
 
 #define DSA_HLEN	4
@@ -42,8 +43,8 @@ static struct sk_buff *edsa_xmit(struct sk_buff *skb, struct net_device *dev)
 		edsa_header[1] = ETH_P_EDSA & 0xff;
 		edsa_header[2] = 0x00;
 		edsa_header[3] = 0x00;
-		edsa_header[4] = 0x60 | p->parent->index;
-		edsa_header[5] = p->port << 3;
+		edsa_header[4] = 0x60 | p->dp->ds->index;
+		edsa_header[5] = p->dp->index << 3;
 
 		/*
 		 * Move CFI field from byte 6 to byte 5.
@@ -67,8 +68,8 @@ static struct sk_buff *edsa_xmit(struct sk_buff *skb, struct net_device *dev)
 		edsa_header[1] = ETH_P_EDSA & 0xff;
 		edsa_header[2] = 0x00;
 		edsa_header[3] = 0x00;
-		edsa_header[4] = 0x40 | p->parent->index;
-		edsa_header[5] = p->port << 3;
+		edsa_header[4] = 0x40 | p->dp->ds->index;
+		edsa_header[5] = p->dp->index << 3;
 		edsa_header[6] = 0x00;
 		edsa_header[7] = 0x00;
 	}
@@ -80,21 +81,15 @@ out_free:
 	return NULL;
 }
 
-static int edsa_rcv(struct sk_buff *skb, struct net_device *dev,
-		    struct packet_type *pt, struct net_device *orig_dev)
+static struct sk_buff *edsa_rcv(struct sk_buff *skb, struct net_device *dev,
+				struct packet_type *pt,
+				struct net_device *orig_dev)
 {
 	struct dsa_switch_tree *dst = dev->dsa_ptr;
 	struct dsa_switch *ds;
 	u8 *edsa_header;
 	int source_device;
 	int source_port;
-
-	if (unlikely(dst == NULL))
-		goto out_drop;
-
-	skb = skb_unshare(skb, GFP_ATOMIC);
-	if (skb == NULL)
-		goto out;
 
 	if (unlikely(!pskb_may_pull(skb, EDSA_HLEN)))
 		goto out_drop;
@@ -127,7 +122,7 @@ static int edsa_rcv(struct sk_buff *skb, struct net_device *dev,
 	if (!ds)
 		goto out_drop;
 
-	if (source_port >= DSA_MAX_PORTS || !ds->ports[source_port].netdev)
+	if (source_port >= ds->num_ports || !ds->ports[source_port].netdev)
 		goto out_drop;
 
 	/*
@@ -183,21 +178,11 @@ static int edsa_rcv(struct sk_buff *skb, struct net_device *dev,
 	}
 
 	skb->dev = ds->ports[source_port].netdev;
-	skb_push(skb, ETH_HLEN);
-	skb->pkt_type = PACKET_HOST;
-	skb->protocol = eth_type_trans(skb, skb->dev);
 
-	skb->dev->stats.rx_packets++;
-	skb->dev->stats.rx_bytes += skb->len;
-
-	netif_receive_skb(skb);
-
-	return 0;
+	return skb;
 
 out_drop:
-	kfree_skb(skb);
-out:
-	return 0;
+	return NULL;
 }
 
 const struct dsa_device_ops edsa_netdev_ops = {

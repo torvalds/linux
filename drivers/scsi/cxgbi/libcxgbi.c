@@ -223,7 +223,7 @@ struct cxgbi_device *cxgbi_device_find_by_netdev(struct net_device *ndev,
 	struct cxgbi_device *cdev, *tmp;
 	int i;
 
-	if (ndev->priv_flags & IFF_802_1Q_VLAN) {
+	if (is_vlan_dev(ndev)) {
 		vdev = ndev;
 		ndev = vlan_dev_real_dev(ndev);
 		log_debug(1 << CXGBI_DBG_DEV,
@@ -256,7 +256,7 @@ struct cxgbi_device *cxgbi_device_find_by_netdev_rcu(struct net_device *ndev,
 	struct cxgbi_device *cdev;
 	int i;
 
-	if (ndev->priv_flags & IFF_802_1Q_VLAN) {
+	if (is_vlan_dev(ndev)) {
 		vdev = ndev;
 		ndev = vlan_dev_real_dev(ndev);
 		pr_info("vlan dev %s -> %s.\n", vdev->name, ndev->name);
@@ -290,7 +290,7 @@ static struct cxgbi_device *cxgbi_device_find_by_mac(struct net_device *ndev,
 	struct cxgbi_device *cdev, *tmp;
 	int i;
 
-	if (ndev->priv_flags & IFF_802_1Q_VLAN) {
+	if (is_vlan_dev(ndev)) {
 		vdev = ndev;
 		ndev = vlan_dev_real_dev(ndev);
 		pr_info("vlan dev %s -> %s.\n", vdev->name, ndev->name);
@@ -642,6 +642,12 @@ static struct cxgbi_sock *cxgbi_check_route(struct sockaddr *dst_addr)
 			n->dev->name, ndev->name, mtu);
 	}
 
+	if (!(ndev->flags & IFF_UP) || !netif_carrier_ok(ndev)) {
+		pr_info("%s interface not up.\n", ndev->name);
+		err = -ENETDOWN;
+		goto rel_neigh;
+	}
+
 	cdev = cxgbi_device_find_by_netdev(ndev, &port);
 	if (!cdev) {
 		pr_info("dst %pI4, %s, NOT cxgbi device.\n",
@@ -735,6 +741,12 @@ static struct cxgbi_sock *cxgbi_check_route6(struct sockaddr *dst_addr)
 		goto rel_rt;
 	}
 	ndev = n->dev;
+
+	if (!(ndev->flags & IFF_UP) || !netif_carrier_ok(ndev)) {
+		pr_info("%s interface not up.\n", ndev->name);
+		err = -ENETDOWN;
+		goto rel_rt;
+	}
 
 	if (ipv6_addr_is_multicast(&daddr6->sin6_addr)) {
 		pr_info("multi-cast route %pI6 port %u, dev %s.\n",
@@ -896,6 +908,7 @@ EXPORT_SYMBOL_GPL(cxgbi_sock_fail_act_open);
 void cxgbi_sock_act_open_req_arp_failure(void *handle, struct sk_buff *skb)
 {
 	struct cxgbi_sock *csk = (struct cxgbi_sock *)skb->sk;
+	struct module *owner = csk->cdev->owner;
 
 	log_debug(1 << CXGBI_DBG_SOCK, "csk 0x%p,%u,0x%lx,%u.\n",
 		csk, (csk)->state, (csk)->flags, (csk)->tid);
@@ -906,6 +919,8 @@ void cxgbi_sock_act_open_req_arp_failure(void *handle, struct sk_buff *skb)
 	spin_unlock_bh(&csk->lock);
 	cxgbi_sock_put(csk);
 	__kfree_skb(skb);
+
+	module_put(owner);
 }
 EXPORT_SYMBOL_GPL(cxgbi_sock_act_open_req_arp_failure);
 
@@ -1574,6 +1589,25 @@ static int skb_read_pdu_bhs(struct iscsi_conn *conn, struct sk_buff *skb)
 		return -EIO;
 	}
 
+	if (cxgbi_skcb_test_flag(skb, SKCBF_RX_ISCSI_COMPL) &&
+	    cxgbi_skcb_test_flag(skb, SKCBF_RX_DATA_DDPD)) {
+		/* If completion flag is set and data is directly
+		 * placed in to the host memory then update
+		 * task->exp_datasn to the datasn in completion
+		 * iSCSI hdr as T6 adapter generates completion only
+		 * for the last pdu of a sequence.
+		 */
+		itt_t itt = ((struct iscsi_data *)skb->data)->itt;
+		struct iscsi_task *task = iscsi_itt_to_ctask(conn, itt);
+		u32 data_sn = be32_to_cpu(((struct iscsi_data *)
+							skb->data)->datasn);
+		if (task && task->sc) {
+			struct iscsi_tcp_task *tcp_task = task->dd_data;
+
+			tcp_task->exp_datasn = data_sn;
+		}
+	}
+
 	return read_pdu_skb(conn, skb, 0, 0);
 }
 
@@ -1627,15 +1661,15 @@ static void csk_return_rx_credits(struct cxgbi_sock *csk, int copied)
 		csk->rcv_wup, cdev->rx_credit_thres,
 		csk->rcv_win);
 
+	if (!cdev->rx_credit_thres)
+		return;
+
 	if (csk->state != CTP_ESTABLISHED)
 		return;
 
 	credits = csk->copied_seq - csk->rcv_wup;
 	if (unlikely(!credits))
 		return;
-	if (unlikely(cdev->rx_credit_thres == 0))
-		return;
-
 	must_send = credits + 16384 >= csk->rcv_win;
 	if (must_send || credits >= cdev->rx_credit_thres)
 		csk->rcv_wup += cdev->csk_send_rx_credits(csk, credits);
@@ -2081,9 +2115,10 @@ void cxgbi_cleanup_task(struct iscsi_task *task)
 	/*  never reached the xmit task callout */
 	if (tdata->skb)
 		__kfree_skb(tdata->skb);
-	memset(tdata, 0, sizeof(*tdata));
 
 	task_release_itt(task, task->hdr_itt);
+	memset(tdata, 0, sizeof(*tdata));
+
 	iscsi_tcp_cleanup_task(task);
 }
 EXPORT_SYMBOL_GPL(cxgbi_cleanup_task);

@@ -30,7 +30,16 @@ int quiet;		/* Level of quietness */
 int reservenum;		/* Number of memory reservation slots */
 int minsize;		/* Minimum blob size */
 int padsize;		/* Additional padding to blob */
+int alignsize;		/* Additional padding to blob accroding to the alignsize */
 int phandle_format = PHANDLE_BOTH;	/* Use linux,phandle or phandle properties */
+int generate_symbols;	/* enable symbols & fixup support */
+int generate_fixups;		/* suppress generation of fixups on symbol support */
+int auto_label_aliases;		/* auto generate labels -> aliases */
+
+static int is_power_of_2(int x)
+{
+	return (x > 0) && ((x & (x - 1)) == 0);
+}
 
 static void fill_fullpaths(struct node *tree, const char *prefix)
 {
@@ -53,7 +62,7 @@ static void fill_fullpaths(struct node *tree, const char *prefix)
 #define FDT_VERSION(version)	_FDT_VERSION(version)
 #define _FDT_VERSION(version)	#version
 static const char usage_synopsis[] = "dtc [options] <input file>";
-static const char usage_short_opts[] = "qI:O:o:V:d:R:S:p:fb:i:H:sW:E:hv";
+static const char usage_short_opts[] = "qI:O:o:V:d:R:S:p:a:fb:i:H:sW:E:@Ahv";
 static struct option const usage_long_opts[] = {
 	{"quiet",            no_argument, NULL, 'q'},
 	{"in-format",         a_argument, NULL, 'I'},
@@ -64,6 +73,7 @@ static struct option const usage_long_opts[] = {
 	{"reserve",           a_argument, NULL, 'R'},
 	{"space",             a_argument, NULL, 'S'},
 	{"pad",               a_argument, NULL, 'p'},
+	{"align",             a_argument, NULL, 'a'},
 	{"boot-cpu",          a_argument, NULL, 'b'},
 	{"force",            no_argument, NULL, 'f'},
 	{"include",           a_argument, NULL, 'i'},
@@ -71,6 +81,8 @@ static struct option const usage_long_opts[] = {
 	{"phandle",           a_argument, NULL, 'H'},
 	{"warning",           a_argument, NULL, 'W'},
 	{"error",             a_argument, NULL, 'E'},
+	{"symbols",	     no_argument, NULL, '@'},
+	{"auto-alias",       no_argument, NULL, 'A'},
 	{"help",             no_argument, NULL, 'h'},
 	{"version",          no_argument, NULL, 'v'},
 	{NULL,               no_argument, NULL, 0x0},
@@ -91,6 +103,7 @@ static const char * const usage_opts_help[] = {
 	"\n\tMake space for <number> reserve map entries (for dtb and asm output)",
 	"\n\tMake the blob at least <bytes> long (extra space)",
 	"\n\tAdd padding to the blob of <bytes> long (extra space)",
+	"\n\tMake the blob align to the <bytes> (extra space)",
 	"\n\tSet the physical boot cpu",
 	"\n\tTry to produce output even if the input tree has errors",
 	"\n\tAdd a path to search for include files",
@@ -101,6 +114,8 @@ static const char * const usage_opts_help[] = {
 	 "\t\tboth   - Both \"linux,phandle\" and \"phandle\" properties",
 	"\n\tEnable/disable warnings (prefix with \"no-\")",
 	"\n\tEnable/disable errors (prefix with \"no-\")",
+	"\n\tEnable generation of symbols",
+	"\n\tEnable auto-alias of labels",
 	"\n\tPrint this help and exit",
 	"\n\tPrint version and exit",
 	NULL,
@@ -153,7 +168,7 @@ static const char *guess_input_format(const char *fname, const char *fallback)
 
 int main(int argc, char *argv[])
 {
-	struct boot_info *bi;
+	struct dt_info *dti;
 	const char *inform = NULL;
 	const char *outform = NULL;
 	const char *outname = "-";
@@ -169,6 +184,7 @@ int main(int argc, char *argv[])
 	reservenum = 0;
 	minsize    = 0;
 	padsize    = 0;
+	alignsize  = 0;
 
 	while ((opt = util_getopt_long()) != EOF) {
 		switch (opt) {
@@ -195,6 +211,12 @@ int main(int argc, char *argv[])
 			break;
 		case 'p':
 			padsize = strtol(optarg, NULL, 0);
+			break;
+		case 'a':
+			alignsize = strtol(optarg, NULL, 0);
+			if (!is_power_of_2(alignsize))
+				die("Invalid argument \"%d\" to -a option\n",
+				    optarg);
 			break;
 		case 'f':
 			force = true;
@@ -232,6 +254,13 @@ int main(int argc, char *argv[])
 
 		case 'E':
 			parse_checks_option(false, true, optarg);
+			break;
+
+		case '@':
+			generate_symbols = 1;
+			break;
+		case 'A':
+			auto_label_aliases = 1;
 			break;
 
 		case 'h':
@@ -272,11 +301,11 @@ int main(int argc, char *argv[])
 		}
 	}
 	if (streq(inform, "dts"))
-		bi = dt_from_source(arg);
+		dti = dt_from_source(arg);
 	else if (streq(inform, "fs"))
-		bi = dt_from_fs(arg);
+		dti = dt_from_fs(arg);
 	else if(streq(inform, "dtb"))
-		bi = dt_from_blob(arg);
+		dti = dt_from_blob(arg);
 	else
 		die("Unknown input format \"%s\"\n", inform);
 
@@ -286,13 +315,29 @@ int main(int argc, char *argv[])
 	}
 
 	if (cmdline_boot_cpuid != -1)
-		bi->boot_cpuid_phys = cmdline_boot_cpuid;
+		dti->boot_cpuid_phys = cmdline_boot_cpuid;
 
-	fill_fullpaths(bi->dt, "");
-	process_checks(force, bi);
+	fill_fullpaths(dti->dt, "");
+	process_checks(force, dti);
+
+	/* on a plugin, generate by default */
+	if (dti->dtsflags & DTSF_PLUGIN) {
+		generate_fixups = 1;
+	}
+
+	if (auto_label_aliases)
+		generate_label_tree(dti, "aliases", false);
+
+	if (generate_symbols)
+		generate_label_tree(dti, "__symbols__", true);
+
+	if (generate_fixups) {
+		generate_fixups_tree(dti, "__fixups__");
+		generate_local_fixups_tree(dti, "__local_fixups__");
+	}
 
 	if (sort)
-		sort_tree(bi);
+		sort_tree(dti);
 
 	if (streq(outname, "-")) {
 		outf = stdout;
@@ -304,11 +349,11 @@ int main(int argc, char *argv[])
 	}
 
 	if (streq(outform, "dts")) {
-		dt_to_source(outf, bi);
+		dt_to_source(outf, dti);
 	} else if (streq(outform, "dtb")) {
-		dt_to_blob(outf, bi, outversion);
+		dt_to_blob(outf, dti, outversion);
 	} else if (streq(outform, "asm")) {
-		dt_to_asm(outf, bi, outversion);
+		dt_to_asm(outf, dti, outversion);
 	} else if (streq(outform, "null")) {
 		/* do nothing */
 	} else {

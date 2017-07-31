@@ -25,7 +25,7 @@ EXPORT_SYMBOL(i8253_lock);
  * to just read by itself. So use jiffies to emulate a free
  * running counter:
  */
-static cycle_t i8253_read(struct clocksource *cs)
+static u64 i8253_read(struct clocksource *cs)
 {
 	static int old_count;
 	static u32 old_jifs;
@@ -83,7 +83,7 @@ static cycle_t i8253_read(struct clocksource *cs)
 
 	count = (PIT_LATCH - 1) - count;
 
-	return (cycle_t)(jifs * PIT_LATCH) + count;
+	return (u64)(jifs * PIT_LATCH) + count;
 }
 
 static struct clocksource i8253_cs = {

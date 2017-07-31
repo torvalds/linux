@@ -93,6 +93,9 @@
 #define		NFI_FSM_MASK		(0xf << 16)
 #define NFI_ADDRCNTR		(0x70)
 #define		CNTR_MASK		GENMASK(16, 12)
+#define		ADDRCNTR_SEC_SHIFT	(12)
+#define		ADDRCNTR_SEC(val) \
+		(((val) & CNTR_MASK) >> ADDRCNTR_SEC_SHIFT)
 #define NFI_STRADDR		(0x80)
 #define NFI_BYTELEN		(0x84)
 #define NFI_CSEL		(0x90)
@@ -699,7 +702,7 @@ static int mtk_nfc_do_write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	}
 
 	ret = readl_poll_timeout_atomic(nfc->regs + NFI_ADDRCNTR, reg,
-					(reg & CNTR_MASK) >= chip->ecc.steps,
+					ADDRCNTR_SEC(reg) >= chip->ecc.steps,
 					10, MTK_TIMEOUT);
 	if (ret)
 		dev_err(dev, "hwecc write timeout\n");
@@ -902,7 +905,7 @@ static int mtk_nfc_read_subpage(struct mtd_info *mtd, struct nand_chip *chip,
 		dev_warn(nfc->dev, "read ahb/dma done timeout\n");
 
 	rc = readl_poll_timeout_atomic(nfc->regs + NFI_BYTELEN, reg,
-				       (reg & CNTR_MASK) >= sectors, 10,
+				       ADDRCNTR_SEC(reg) >= sectors, 10,
 				       MTK_TIMEOUT);
 	if (rc < 0) {
 		dev_err(nfc->dev, "subpage done timeout\n");
@@ -1294,7 +1297,7 @@ static int mtk_nfc_nand_chip_init(struct device *dev, struct mtk_nfc *nfc,
 
 	ret = nand_scan_ident(mtd, nsels, NULL);
 	if (ret)
-		return -ENODEV;
+		return ret;
 
 	/* store bbt magic in page, cause OOB is not protected */
 	if (nand->bbt_options & NAND_BBT_USE_FLASH)
@@ -1320,7 +1323,7 @@ static int mtk_nfc_nand_chip_init(struct device *dev, struct mtk_nfc *nfc,
 
 	ret = nand_scan_tail(mtd);
 	if (ret)
-		return -ENODEV;
+		return ret;
 
 	ret = mtd_device_parse_register(mtd, NULL, NULL, NULL, 0);
 	if (ret) {
@@ -1380,7 +1383,6 @@ static int mtk_nfc_probe(struct platform_device *pdev)
 	nfc->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(nfc->regs)) {
 		ret = PTR_ERR(nfc->regs);
-		dev_err(dev, "no nfi base\n");
 		goto release_ecc;
 	}
 

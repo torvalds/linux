@@ -489,12 +489,14 @@ static struct snd_soc_codec_driver soc_codec_dev_tas5720 = {
 	.suspend = tas5720_suspend,
 	.resume = tas5720_resume,
 
-	.controls = tas5720_snd_controls,
-	.num_controls = ARRAY_SIZE(tas5720_snd_controls),
-	.dapm_widgets = tas5720_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(tas5720_dapm_widgets),
-	.dapm_routes = tas5720_audio_map,
-	.num_dapm_routes = ARRAY_SIZE(tas5720_audio_map),
+	.component_driver = {
+		.controls		= tas5720_snd_controls,
+		.num_controls		= ARRAY_SIZE(tas5720_snd_controls),
+		.dapm_widgets		= tas5720_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(tas5720_dapm_widgets),
+		.dapm_routes		= tas5720_audio_map,
+		.num_dapm_routes	= ARRAY_SIZE(tas5720_audio_map),
+	},
 };
 
 /* PCM rates supported by the TAS5720 driver */

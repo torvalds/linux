@@ -51,9 +51,9 @@
 			compatible = "allwinner,simple-framebuffer",
 				     "simple-framebuffer";
 			allwinner,pipeline = "de_be0-lcd0-tve0";
-			clocks = <&ahb_gates 34>, <&ahb_gates 36>,
-				 <&ahb_gates 44>, <&de_be_clk>,
-				 <&tcon_ch1_clk>, <&dram_gates 26>;
+			clocks = <&ccu CLK_AHB_TVE>, <&ccu CLK_AHB_LCD>,
+				 <&ccu CLK_AHB_DE_BE>, <&ccu CLK_DE_BE>,
+				 <&ccu CLK_TCON_CH1>, <&ccu CLK_DRAM_DE_BE>;
 			status = "disabled";
 		};
 	};
@@ -62,8 +62,8 @@
 		tve0: tv-encoder@01c0a000 {
 			compatible = "allwinner,sun4i-a10-tv-encoder";
 			reg = <0x01c0a000 0x1000>;
-			clocks = <&ahb_gates 34>;
-			resets = <&tcon_ch0_clk 0>;
+			clocks = <&ccu CLK_AHB_TVE>;
+			resets = <&ccu RST_TVE>;
 			status = "disabled";
 
 			port {

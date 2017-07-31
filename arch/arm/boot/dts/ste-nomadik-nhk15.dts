@@ -140,6 +140,10 @@
 						0x03020067 // Up
 						0x0303006c>; // Down
 			};
+			stmpe0_pwm: stmpe_pwm {
+				compatible = "st,stmpe-pwm";
+				#pwm-cells = <2>;
+			};
 		};
 		stmpe1: stmpe2401@44 {
 			compatible = "st,stmpe2401";
@@ -172,6 +176,50 @@
 	};
 
 	amba {
+		clcd@10120000 {
+			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&clcd_24bit_mux>;
+			port {
+				nomadik_clcd_pads: endpoint {
+					remote-endpoint = <&nomadik_clcd_panel>;
+					arm,pl11x,tft-r0g0b0-pads = <16 8 0>;
+				};
+			};
+
+			/*
+			 * WVGA connector 21
+			 * WVGA (800x480): 4.3" TPG110 TDO43MTEA2 24-bit RGB
+			 * with TPO touch screen.
+			 */
+			panel {
+				compatible = "tpo,tpg110", "panel-dpi";
+				grestb-gpios = <&stmpe_gpio44 5 GPIO_ACTIVE_LOW>;
+				scen-gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
+				scl-gpios = <&gpio0 5 GPIO_ACTIVE_HIGH>;
+				sda-gpios = <&gpio0 4 GPIO_ACTIVE_HIGH>;
+				backlight = <&bl>;
+
+				port {
+					nomadik_clcd_panel: endpoint {
+						remote-endpoint = <&nomadik_clcd_pads>;
+					};
+				};
+
+				panel-timing {
+					clock-frequency = <33200000>;
+					hactive = <800>;
+					hback-porch = <216>;
+					hfront-porch = <40>;
+					hsync-len = <1>;
+					vactive = <480>;
+					vback-porch = <35>;
+					vfront-porch = <10>;
+					vsync-len = <1>;
+				};
+			};
+		};
+
 		/* Activate RX/TX and CTS/RTS on UART 0 */
 		uart0: uart@101fd000 {
 			pinctrl-names = "default";
@@ -182,5 +230,25 @@
 			cd-gpios = <&stmpe_gpio44 7 GPIO_ACTIVE_LOW>;
 			wp-gpios = <&stmpe_gpio44 18 GPIO_ACTIVE_HIGH>;
 		};
+	};
+
+	bl: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&stmpe0_pwm 0 500000>;
+		pwm-names = "backlight";
+		brightness-levels = <
+			0  1  2  3  4  5  6  7  8  9
+			10 11 12 13 14 15 16 17 18 19
+			20 21 22 23 24 25 26 27 28 29
+			30 31 32 33 34 35 36 37 38 39
+			40 41 42 43 44 45 46 47 48 49
+			50 51 52 53 54 55 56 57 58 59
+			60 61 62 63 64 65 66 67 68 69
+			70 71 72 73 74 75 76 77 78 79
+			80 81 82 83 84 85 86 87 88 89
+			90 91 92 93 94 95 96 97 98 99
+			100
+		>;
+		default-brightness-level = <100>;
 	};
 };

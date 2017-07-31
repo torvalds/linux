@@ -23,20 +23,16 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/fcntl.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <linux/kmod.h>
 #include <linux/poll.h>
-#include <linux/init.h>
 #include <linux/device.h>
-#include <linux/vmalloc.h>
 #include <linux/fs.h>
 #include "comedidev.h"
 #include <linux/cdev.h>
-#include <linux/stat.h>
 
 #include <linux/io.h>
 #include <linux/uaccess.h>
@@ -81,20 +77,20 @@ struct comedi_file {
 	(COMEDI_NUM_MINORS - COMEDI_NUM_BOARD_MINORS)
 
 static int comedi_num_legacy_minors;
-module_param(comedi_num_legacy_minors, int, S_IRUGO);
+module_param(comedi_num_legacy_minors, int, 0444);
 MODULE_PARM_DESC(comedi_num_legacy_minors,
 		 "number of comedi minor devices to reserve for non-auto-configured devices (default 0)"
 		);
 
 unsigned int comedi_default_buf_size_kb = CONFIG_COMEDI_DEFAULT_BUF_SIZE_KB;
-module_param(comedi_default_buf_size_kb, uint, S_IRUGO | S_IWUSR);
+module_param(comedi_default_buf_size_kb, uint, 0644);
 MODULE_PARM_DESC(comedi_default_buf_size_kb,
 		 "default asynchronous buffer size in KiB (default "
 		 __MODULE_STRING(CONFIG_COMEDI_DEFAULT_BUF_SIZE_KB) ")");
 
 unsigned int comedi_default_buf_maxsize_kb
 	= CONFIG_COMEDI_DEFAULT_BUF_MAXSIZE_KB;
-module_param(comedi_default_buf_maxsize_kb, uint, S_IRUGO | S_IWUSR);
+module_param(comedi_default_buf_maxsize_kb, uint, 0644);
 MODULE_PARM_DESC(comedi_default_buf_maxsize_kb,
 		 "default maximum size of asynchronous buffer in KiB (default "
 		 __MODULE_STRING(CONFIG_COMEDI_DEFAULT_BUF_MAXSIZE_KB) ")");
@@ -2233,7 +2229,7 @@ static int comedi_mmap(struct file *file, struct vm_area_struct *vma)
 		goto done;
 	}
 
-	n_pages = size >> PAGE_SHIFT;
+	n_pages = vma_pages(vma);
 
 	/* get reference to current buf map (if any) */
 	bm = comedi_buf_map_from_subdev_get(s);
@@ -2898,9 +2894,6 @@ static int __init comedi_init(void)
 
 	comedi_class->dev_groups = comedi_dev_groups;
 
-	/* XXX requires /proc interface */
-	comedi_proc_init();
-
 	/* create devices files for legacy/manual use */
 	for (i = 0; i < comedi_num_legacy_minors; i++) {
 		struct comedi_device *dev;
@@ -2916,6 +2909,9 @@ static int __init comedi_init(void)
 		/* comedi_alloc_board_minor() locked the mutex */
 		mutex_unlock(&dev->mutex);
 	}
+
+	/* XXX requires /proc interface */
+	comedi_proc_init();
 
 	return 0;
 }

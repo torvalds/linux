@@ -21,13 +21,16 @@ Required properties:
 - interrupt-parent: phandle of irq parent for sysirq. The parent must
   use the same interrupt-cells format as GIC.
 - reg: Physical base address of the intpol registers and length of memory
-  mapped region.
+  mapped region. Could be multiple bases here. Ex: mt6797 needs 2 reg, others
+  need 1.
 
 Example:
-	sysirq: interrupt-controller@10200100 {
-		compatible = "mediatek,mt6589-sysirq", "mediatek,mt6577-sysirq";
+	sysirq: intpol-controller@10200620 {
+		compatible = "mediatek,mt6797-sysirq",
+			     "mediatek,mt6577-sysirq";
 		interrupt-controller;
 		#interrupt-cells = <3>;
 		interrupt-parent = <&gic>;
-		reg = <0 0x10200100 0 0x1c>;
+		reg = <0 0x10220620 0 0x20>,
+		      <0 0x10220690 0 0x10>;
 	};

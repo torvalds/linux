@@ -67,13 +67,14 @@ Note that DSA does not currently create network interfaces for the "cpu" and
 Switch tagging protocols
 ------------------------
 
-DSA currently supports 4 different tagging protocols, and a tag-less mode as
+DSA currently supports 5 different tagging protocols, and a tag-less mode as
 well. The different protocols are implemented in:
 
 net/dsa/tag_trailer.c: Marvell's 4 trailer tag mode (legacy)
 net/dsa/tag_dsa.c: Marvell's original DSA tag
 net/dsa/tag_edsa.c: Marvell's enhanced DSA tag
 net/dsa/tag_brcm.c: Broadcom's 4 bytes tag
+net/dsa/tag_qca.c: Qualcomm's 2 bytes tag
 
 The exact format of the tag protocol is vendor specific, but in general, they
 all contain something which:
@@ -227,9 +228,9 @@ to address individual switches in the tree.
 
 dsa_switch: structure describing a switch device in the tree, referencing a
 dsa_switch_tree as a backpointer, slave network devices, master network device,
-and a reference to the backing dsa_switch_driver
+and a reference to the backing dsa_switch_ops
 
-dsa_switch_driver: structure referencing function pointers, see below for a full
+dsa_switch_ops: structure referencing function pointers, see below for a full
 description.
 
 Design limitations
@@ -294,7 +295,6 @@ DSA currently leverages the following subsystems:
 - MDIO/PHY library: drivers/net/phy/phy.c, mdio_bus.c
 - Switchdev: net/switchdev/*
 - Device Tree for various of_* functions
-- HWMON: drivers/hwmon/*
 
 MDIO/PHY library
 ----------------
@@ -348,19 +348,13 @@ Documentation/devicetree/bindings/net/dsa/dsa.txt. PHY/MDIO library helper
 functions such as of_get_phy_mode(), of_phy_connect() are also used to query
 per-port PHY specific details: interface connection, MDIO bus location etc..
 
-HWMON
------
-
-Some switch drivers feature internal temperature sensors which are exposed as
-regular HWMON devices in /sys/class/hwmon/.
-
 Driver development
 ==================
 
-DSA switch drivers need to implement a dsa_switch_driver structure which will
+DSA switch drivers need to implement a dsa_switch_ops structure which will
 contain the various members described below.
 
-register_switch_driver() registers this dsa_switch_driver in its internal list
+register_switch_driver() registers this dsa_switch_ops in its internal list
 of drivers to probe for. unregister_switch_driver() does the exact opposite.
 
 Unless requested differently by setting the priv_size member accordingly, DSA
@@ -379,7 +373,7 @@ Switch configuration
   buses, return a non-NULL string
 
 - setup: setup function for the switch, this function is responsible for setting
-  up the dsa_switch_driver private structure with all it needs: register maps,
+  up the dsa_switch_ops private structure with all it needs: register maps,
   interrupts, mutexes, locks etc.. This function is also expected to properly
   configure the switch to separate all network interfaces from each other, that
   is, they should be isolated by the switch hardware itself, typically by creating
@@ -494,23 +488,6 @@ Power management
   BR_STATE_DISABLED and propagating changes to the hardware if this port is
   disabled while being a bridge member
 
-Hardware monitoring
--------------------
-
-These callbacks are only available if CONFIG_NET_DSA_HWMON is enabled:
-
-- get_temp: this function queries the given switch for its temperature
-
-- get_temp_limit: this function returns the switch current maximum temperature
-  limit
-
-- set_temp_limit: this function configures the maximum temperature limit allowed
-
-- get_temp_alarm: this function returns the critical temperature threshold
-  returning an alarm notification
-
-See Documentation/hwmon/sysfs-interface for details.
-
 Bridge layer
 ------------
 
@@ -583,6 +560,29 @@ of DSA, would be the its port-based VLAN, used by the associated bridge device.
 - port_fdb_dump: bridge layer function invoked with a switchdev callback
   function that the driver has to call for each MAC address known to be behind
   the given port. A switchdev object is used to carry the VID and FDB info.
+
+- port_mdb_prepare: bridge layer function invoked when the bridge prepares the
+  installation of a multicast database entry. If the operation is not supported,
+  this function should return -EOPNOTSUPP to inform the bridge code to fallback
+  to a software implementation. No hardware setup must be done in this function.
+  See port_fdb_add for this and details.
+
+- port_mdb_add: bridge layer function invoked when the bridge wants to install
+  a multicast database entry, the switch hardware should be programmed with the
+  specified address in the specified VLAN ID in the forwarding database
+  associated with this VLAN ID.
+
+Note: VLAN ID 0 corresponds to the port private database, which, in the context
+of DSA, would be the its port-based VLAN, used by the associated bridge device.
+
+- port_mdb_del: bridge layer function invoked when the bridge wants to remove a
+  multicast database entry, the switch hardware should be programmed to delete
+  the specified MAC address from the specified VLAN ID if it was mapped into
+  this port forwarding database.
+
+- port_mdb_dump: bridge layer function invoked with a switchdev callback
+  function that the driver has to call for each MAC address known to be behind
+  the given port. A switchdev object is used to carry the VID and MDB info.
 
 TODO
 ====

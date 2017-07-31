@@ -731,7 +731,7 @@ u32 ar9003_get_pll_sqsum_dvc(struct ath_hw *ah)
 		udelay(100);
 
 		if (WARN_ON_ONCE(i >= 100)) {
-			ath_err(common, "PLL4 meaurement not done\n");
+			ath_err(common, "PLL4 measurement not done\n");
 			break;
 		}
 
@@ -1602,6 +1602,10 @@ bool ath9k_hw_check_alive(struct ath_hw *ah)
 {
 	int count = 50;
 	u32 reg, last_val;
+
+	/* Check if chip failed to wake up */
+	if (REG_READ(ah, AR_CFG) == 0xdeadbeef)
+		return false;
 
 	if (AR_SREV_9300(ah))
 		return !ath9k_hw_detect_mac_hang(ah);
@@ -2482,6 +2486,8 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		return -EINVAL;
 	}
 
+	ath9k_gpio_cap_init(ah);
+
 	if (AR_SREV_9485(ah) ||
 	    AR_SREV_9285(ah) ||
 	    AR_SREV_9330(ah) ||
@@ -2530,8 +2536,6 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		pCap->hw_caps |= ATH9K_HW_CAP_HT;
 	else
 		pCap->hw_caps &= ~ATH9K_HW_CAP_HT;
-
-	ath9k_gpio_cap_init(ah);
 
 	if (AR_SREV_9160_10_OR_LATER(ah) || AR_SREV_9100(ah))
 		pCap->rts_aggr_limit = ATH_AMPDU_LIMIT_MAX;
@@ -2792,7 +2796,7 @@ u32 ath9k_hw_gpio_get(struct ath_hw *ah, u32 gpio)
 		WARN_ON(1);
 	}
 
-	return val;
+	return !!val;
 }
 EXPORT_SYMBOL(ath9k_hw_gpio_get);
 

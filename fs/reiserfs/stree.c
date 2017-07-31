@@ -11,6 +11,7 @@
 #include <linux/time.h>
 #include <linux/string.h>
 #include <linux/pagemap.h>
+#include <linux/bio.h>
 #include "reiserfs.h"
 #include <linux/buffer_head.h>
 #include <linux/quotaops.h>
@@ -1987,8 +1988,8 @@ int reiserfs_do_truncate(struct reiserfs_transaction_handle *th,
 			pathrelse(&s_search_path);
 
 			if (update_timestamps) {
-				inode->i_mtime = CURRENT_TIME_SEC;
-				inode->i_ctime = CURRENT_TIME_SEC;
+				inode->i_mtime = current_time(inode);
+				inode->i_ctime = current_time(inode);
 			}
 			reiserfs_update_sd(th, inode);
 
@@ -2012,8 +2013,8 @@ int reiserfs_do_truncate(struct reiserfs_transaction_handle *th,
 update_and_out:
 	if (update_timestamps) {
 		/* this is truncate, not file closing */
-		inode->i_mtime = CURRENT_TIME_SEC;
-		inode->i_ctime = CURRENT_TIME_SEC;
+		inode->i_mtime = current_time(inode);
+		inode->i_ctime = current_time(inode);
 	}
 	reiserfs_update_sd(th, inode);
 

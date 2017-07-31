@@ -20,7 +20,7 @@
 #include <net/inet_sock.h>
 #include "smack.h"
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 
 static unsigned int smack_ipv6_output(void *priv,
 					struct sk_buff *skb,
@@ -64,7 +64,7 @@ static struct nf_hook_ops smack_nf_ops[] = {
 		.hooknum =	NF_INET_LOCAL_OUT,
 		.priority =	NF_IP_PRI_SELINUX_FIRST,
 	},
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+#if IS_ENABLED(CONFIG_IPV6)
 	{
 		.hook =		smack_ipv6_output,
 		.pf =		NFPROTO_IPV6,

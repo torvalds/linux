@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2015 Emulex
+ * Copyright (C) 2005 - 2016 Broadcom
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -8,7 +8,7 @@
  * Public License is included in this distribution in the file called COPYING.
  *
  * Contact Information:
- * linux-drivers@avagotech.com
+ * linux-drivers@broadcom.com
  *
  * Emulex
  * 3333 Susan Street
@@ -21,110 +21,77 @@
 #include "be.h"
 #include "be_mgmt.h"
 
-int beiscsi_pci_soft_reset(struct beiscsi_hba *phba)
-{
-	u32 sreset;
-	u8 *pci_reset_offset = 0;
-	u8 *pci_online0_offset = 0;
-	u8 *pci_online1_offset = 0;
-	u32 pconline0 = 0;
-	u32 pconline1 = 0;
-	u32 i;
+/* UE Status Low CSR */
+static const char * const desc_ue_status_low[] = {
+	"CEV",
+	"CTX",
+	"DBUF",
+	"ERX",
+	"Host",
+	"MPU",
+	"NDMA",
+	"PTC ",
+	"RDMA ",
+	"RXF ",
+	"RXIPS ",
+	"RXULP0 ",
+	"RXULP1 ",
+	"RXULP2 ",
+	"TIM ",
+	"TPOST ",
+	"TPRE ",
+	"TXIPS ",
+	"TXULP0 ",
+	"TXULP1 ",
+	"UC ",
+	"WDMA ",
+	"TXULP2 ",
+	"HOST1 ",
+	"P0_OB_LINK ",
+	"P1_OB_LINK ",
+	"HOST_GPIO ",
+	"MBOX ",
+	"AXGMAC0",
+	"AXGMAC1",
+	"JTAG",
+	"MPU_INTPEND"
+};
 
-	pci_reset_offset = (u8 *)phba->pci_va + BE2_SOFT_RESET;
-	pci_online0_offset = (u8 *)phba->pci_va + BE2_PCI_ONLINE0;
-	pci_online1_offset = (u8 *)phba->pci_va + BE2_PCI_ONLINE1;
-	sreset = readl((void *)pci_reset_offset);
-	sreset |= BE2_SET_RESET;
-	writel(sreset, (void *)pci_reset_offset);
-
-	i = 0;
-	while (sreset & BE2_SET_RESET) {
-		if (i > 64)
-			break;
-		msleep(100);
-		sreset = readl((void *)pci_reset_offset);
-		i++;
-	}
-
-	if (sreset & BE2_SET_RESET) {
-		printk(KERN_ERR DRV_NAME
-		       " Soft Reset  did not deassert\n");
-		return -EIO;
-	}
-	pconline1 = BE2_MPU_IRAM_ONLINE;
-	writel(pconline0, (void *)pci_online0_offset);
-	writel(pconline1, (void *)pci_online1_offset);
-
-	sreset |= BE2_SET_RESET;
-	writel(sreset, (void *)pci_reset_offset);
-
-	i = 0;
-	while (sreset & BE2_SET_RESET) {
-		if (i > 64)
-			break;
-		msleep(1);
-		sreset = readl((void *)pci_reset_offset);
-		i++;
-	}
-	if (sreset & BE2_SET_RESET) {
-		printk(KERN_ERR DRV_NAME
-		       " MPU Online Soft Reset did not deassert\n");
-		return -EIO;
-	}
-	return 0;
-}
-
-int be_chk_reset_complete(struct beiscsi_hba *phba)
-{
-	unsigned int num_loop;
-	u8 *mpu_sem = 0;
-	u32 status;
-
-	num_loop = 1000;
-	mpu_sem = (u8 *)phba->csr_va + MPU_EP_SEMAPHORE;
-	msleep(5000);
-
-	while (num_loop) {
-		status = readl((void *)mpu_sem);
-
-		if ((status & 0x80000000) || (status & 0x0000FFFF) == 0xC000)
-			break;
-		msleep(60);
-		num_loop--;
-	}
-
-	if ((status & 0x80000000) || (!num_loop)) {
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
-			    "BC_%d : Failed in be_chk_reset_complete"
-			    "status = 0x%x\n", status);
-		return -EIO;
-	}
-
-	return 0;
-}
-
-unsigned int alloc_mcc_tag(struct beiscsi_hba *phba)
-{
-	unsigned int tag = 0;
-
-	spin_lock(&phba->ctrl.mcc_lock);
-	if (phba->ctrl.mcc_tag_available) {
-		tag = phba->ctrl.mcc_tag[phba->ctrl.mcc_alloc_index];
-		phba->ctrl.mcc_tag[phba->ctrl.mcc_alloc_index] = 0;
-		phba->ctrl.mcc_tag_status[tag] = 0;
-		phba->ctrl.ptag_state[tag].tag_state = 0;
-	}
-	if (tag) {
-		phba->ctrl.mcc_tag_available--;
-		if (phba->ctrl.mcc_alloc_index == (MAX_MCC_CMD - 1))
-			phba->ctrl.mcc_alloc_index = 0;
-		else
-			phba->ctrl.mcc_alloc_index++;
-	}
-	spin_unlock(&phba->ctrl.mcc_lock);
-	return tag;
-}
+/* UE Status High CSR */
+static const char * const desc_ue_status_hi[] = {
+	"LPCMEMHOST",
+	"MGMT_MAC",
+	"PCS0ONLINE",
+	"MPU_IRAM",
+	"PCS1ONLINE",
+	"PCTL0",
+	"PCTL1",
+	"PMEM",
+	"RR",
+	"TXPB",
+	"RXPP",
+	"XAUI",
+	"TXP",
+	"ARM",
+	"IPC",
+	"HOST2",
+	"HOST3",
+	"HOST4",
+	"HOST5",
+	"HOST6",
+	"HOST7",
+	"HOST8",
+	"HOST9",
+	"NETC",
+	"Unknown",
+	"Unknown",
+	"Unknown",
+	"Unknown",
+	"Unknown",
+	"Unknown",
+	"Unknown",
+	"Unknown"
+};
 
 struct be_mcc_wrb *alloc_mcc_wrb(struct beiscsi_hba *phba,
 				 unsigned int *ref_tag)
@@ -133,7 +100,7 @@ struct be_mcc_wrb *alloc_mcc_wrb(struct beiscsi_hba *phba,
 	struct be_mcc_wrb *wrb = NULL;
 	unsigned int tag;
 
-	spin_lock_bh(&phba->ctrl.mcc_lock);
+	spin_lock(&phba->ctrl.mcc_lock);
 	if (mccq->used == mccq->len) {
 		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT |
 			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
@@ -160,6 +127,7 @@ struct be_mcc_wrb *alloc_mcc_wrb(struct beiscsi_hba *phba,
 	phba->ctrl.mcc_tag[phba->ctrl.mcc_alloc_index] = 0;
 	phba->ctrl.mcc_tag_status[tag] = 0;
 	phba->ctrl.ptag_state[tag].tag_state = 0;
+	phba->ctrl.ptag_state[tag].cbfn = NULL;
 	phba->ctrl.mcc_tag_available--;
 	if (phba->ctrl.mcc_alloc_index == (MAX_MCC_CMD - 1))
 		phba->ctrl.mcc_alloc_index = 0;
@@ -174,7 +142,7 @@ struct be_mcc_wrb *alloc_mcc_wrb(struct beiscsi_hba *phba,
 	mccq->used++;
 
 alloc_failed:
-	spin_unlock_bh(&phba->ctrl.mcc_lock);
+	spin_unlock(&phba->ctrl.mcc_lock);
 	return wrb;
 }
 
@@ -182,7 +150,7 @@ void free_mcc_wrb(struct be_ctrl_info *ctrl, unsigned int tag)
 {
 	struct be_queue_info *mccq = &ctrl->mcc_obj.q;
 
-	spin_lock_bh(&ctrl->mcc_lock);
+	spin_lock(&ctrl->mcc_lock);
 	tag = tag & MCC_Q_CMD_TAG_MASK;
 	ctrl->mcc_tag[ctrl->mcc_free_index] = tag;
 	if (ctrl->mcc_free_index == (MAX_MCC_CMD - 1))
@@ -191,16 +159,71 @@ void free_mcc_wrb(struct be_ctrl_info *ctrl, unsigned int tag)
 		ctrl->mcc_free_index++;
 	ctrl->mcc_tag_available++;
 	mccq->used--;
-	spin_unlock_bh(&ctrl->mcc_lock);
+	spin_unlock(&ctrl->mcc_lock);
 }
 
-/**
- * beiscsi_fail_session(): Closing session with appropriate error
- * @cls_session: ptr to session
- **/
-void beiscsi_fail_session(struct iscsi_cls_session *cls_session)
+/*
+ * beiscsi_mcc_compl_status - Return the status of MCC completion
+ * @phba: Driver private structure
+ * @tag: Tag for the MBX Command
+ * @wrb: the WRB used for the MBX Command
+ * @mbx_cmd_mem: ptr to memory allocated for MBX Cmd
+ *
+ * return
+ * Success: 0
+ * Failure: Non-Zero
+ */
+int __beiscsi_mcc_compl_status(struct beiscsi_hba *phba,
+			       unsigned int tag,
+			       struct be_mcc_wrb **wrb,
+			       struct be_dma_mem *mbx_cmd_mem)
 {
-	iscsi_session_failure(cls_session->dd_data, ISCSI_ERR_CONN_FAILED);
+	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
+	uint16_t status = 0, addl_status = 0, wrb_num = 0;
+	struct be_cmd_resp_hdr *mbx_resp_hdr;
+	struct be_cmd_req_hdr *mbx_hdr;
+	struct be_mcc_wrb *temp_wrb;
+	uint32_t mcc_tag_status;
+	int rc = 0;
+
+	mcc_tag_status = phba->ctrl.mcc_tag_status[tag];
+	status = (mcc_tag_status & CQE_STATUS_MASK);
+	addl_status = ((mcc_tag_status & CQE_STATUS_ADDL_MASK) >>
+			CQE_STATUS_ADDL_SHIFT);
+
+	if (mbx_cmd_mem) {
+		mbx_hdr = (struct be_cmd_req_hdr *)mbx_cmd_mem->va;
+	} else {
+		wrb_num = (mcc_tag_status & CQE_STATUS_WRB_MASK) >>
+			  CQE_STATUS_WRB_SHIFT;
+		temp_wrb = (struct be_mcc_wrb *)queue_get_wrb(mccq, wrb_num);
+		mbx_hdr = embedded_payload(temp_wrb);
+
+		if (wrb)
+			*wrb = temp_wrb;
+	}
+
+	if (status || addl_status) {
+		beiscsi_log(phba, KERN_WARNING,
+			    BEISCSI_LOG_INIT | BEISCSI_LOG_EH |
+			    BEISCSI_LOG_CONFIG,
+			    "BC_%d : MBX Cmd Failed for Subsys : %d Opcode : %d with Status : %d and Extd_Status : %d\n",
+			    mbx_hdr->subsystem, mbx_hdr->opcode,
+			    status, addl_status);
+		rc = -EIO;
+		if (status == MCC_STATUS_INSUFFICIENT_BUFFER) {
+			mbx_resp_hdr = (struct be_cmd_resp_hdr *)mbx_hdr;
+			beiscsi_log(phba, KERN_WARNING,
+				    BEISCSI_LOG_INIT | BEISCSI_LOG_EH |
+				    BEISCSI_LOG_CONFIG,
+				    "BC_%d : Insufficient Buffer Error Resp_Len : %d Actual_Resp_Len : %d\n",
+				    mbx_resp_hdr->response_length,
+				    mbx_resp_hdr->actual_resp_len);
+			rc = -EAGAIN;
+		}
+	}
+
+	return rc;
 }
 
 /*
@@ -217,26 +240,34 @@ void beiscsi_fail_session(struct iscsi_cls_session *cls_session)
  * Failure: Non-Zero
  **/
 int beiscsi_mccq_compl_wait(struct beiscsi_hba *phba,
-			    uint32_t tag, struct be_mcc_wrb **wrb,
+			    unsigned int tag,
+			    struct be_mcc_wrb **wrb,
 			    struct be_dma_mem *mbx_cmd_mem)
 {
 	int rc = 0;
-	uint32_t mcc_tag_status;
-	uint16_t status = 0, addl_status = 0, wrb_num = 0;
-	struct be_mcc_wrb *temp_wrb;
-	struct be_cmd_req_hdr *mbx_hdr;
-	struct be_cmd_resp_hdr *mbx_resp_hdr;
-	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
 
-	if (beiscsi_error(phba))
-		return -EPERM;
+	if (beiscsi_hba_in_error(phba)) {
+		clear_bit(MCC_TAG_STATE_RUNNING,
+			  &phba->ctrl.ptag_state[tag].tag_state);
+		return -EIO;
+	}
 
 	/* wait for the mccq completion */
-	rc = wait_event_interruptible_timeout(
-				phba->ctrl.mcc_wait[tag],
-				phba->ctrl.mcc_tag_status[tag],
-				msecs_to_jiffies(
-				BEISCSI_HOST_MBX_TIMEOUT));
+	rc = wait_event_interruptible_timeout(phba->ctrl.mcc_wait[tag],
+					      phba->ctrl.mcc_tag_status[tag],
+					      msecs_to_jiffies(
+						BEISCSI_HOST_MBX_TIMEOUT));
+	/**
+	 * Return EIO if port is being disabled. Associated DMA memory, if any,
+	 * is freed by the caller. When port goes offline, MCCQ is cleaned up
+	 * so does WRB.
+	 */
+	if (!test_bit(BEISCSI_HBA_ONLINE, &phba->state)) {
+		clear_bit(MCC_TAG_STATE_RUNNING,
+			  &phba->ctrl.ptag_state[tag].tag_state);
+		return -EIO;
+	}
+
 	/**
 	 * If MBOX cmd timeout expired, tag and resource allocated
 	 * for cmd is not freed until FW returns completion.
@@ -270,47 +301,7 @@ int beiscsi_mccq_compl_wait(struct beiscsi_hba *phba,
 		return -EBUSY;
 	}
 
-	rc = 0;
-	mcc_tag_status = phba->ctrl.mcc_tag_status[tag];
-	status = (mcc_tag_status & CQE_STATUS_MASK);
-	addl_status = ((mcc_tag_status & CQE_STATUS_ADDL_MASK) >>
-			CQE_STATUS_ADDL_SHIFT);
-
-	if (mbx_cmd_mem) {
-		mbx_hdr = (struct be_cmd_req_hdr *)mbx_cmd_mem->va;
-	} else {
-		wrb_num = (mcc_tag_status & CQE_STATUS_WRB_MASK) >>
-			   CQE_STATUS_WRB_SHIFT;
-		temp_wrb = (struct be_mcc_wrb *)queue_get_wrb(mccq, wrb_num);
-		mbx_hdr = embedded_payload(temp_wrb);
-
-		if (wrb)
-			*wrb = temp_wrb;
-	}
-
-	if (status || addl_status) {
-		beiscsi_log(phba, KERN_WARNING,
-			    BEISCSI_LOG_INIT | BEISCSI_LOG_EH |
-			    BEISCSI_LOG_CONFIG,
-			    "BC_%d : MBX Cmd Failed for "
-			    "Subsys : %d Opcode : %d with "
-			    "Status : %d and Extd_Status : %d\n",
-			    mbx_hdr->subsystem,
-			    mbx_hdr->opcode,
-			    status, addl_status);
-		rc = -EIO;
-		if (status == MCC_STATUS_INSUFFICIENT_BUFFER) {
-			mbx_resp_hdr = (struct be_cmd_resp_hdr *) mbx_hdr;
-			beiscsi_log(phba, KERN_WARNING,
-				    BEISCSI_LOG_INIT | BEISCSI_LOG_EH |
-				    BEISCSI_LOG_CONFIG,
-				    "BC_%d : Insufficient Buffer Error "
-				    "Resp_Len : %d Actual_Resp_Len : %d\n",
-				    mbx_resp_hdr->response_length,
-				    mbx_resp_hdr->actual_resp_len);
-			rc = -EAGAIN;
-		}
-	}
+	rc = __beiscsi_mcc_compl_status(phba, tag, wrb, mbx_cmd_mem);
 
 	free_mcc_wrb(&phba->ctrl, tag);
 	return rc;
@@ -330,11 +321,10 @@ int beiscsi_mccq_compl_wait(struct beiscsi_hba *phba,
 static int beiscsi_process_mbox_compl(struct be_ctrl_info *ctrl,
 				      struct be_mcc_compl *compl)
 {
-	u16 compl_status, extd_status;
 	struct be_mcc_wrb *wrb = wrb_from_mbox(&ctrl->mbox_mem);
 	struct beiscsi_hba *phba = pci_get_drvdata(ctrl->pdev);
 	struct be_cmd_req_hdr *hdr = embedded_payload(wrb);
-	struct be_cmd_resp_hdr *resp_hdr;
+	u16 compl_status, extd_status;
 
 	/**
 	 * To check if valid bit is set, check the entire word as we don't know
@@ -368,14 +358,7 @@ static int beiscsi_process_mbox_compl(struct be_ctrl_info *ctrl,
 	beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
 		    "BC_%d : error in cmd completion: Subsystem : %d Opcode : %d status(compl/extd)=%d/%d\n",
 		    hdr->subsystem, hdr->opcode, compl_status, extd_status);
-
-	if (compl_status == MCC_STATUS_INSUFFICIENT_BUFFER) {
-		/* if status is insufficient buffer, check the length */
-		resp_hdr = (struct be_cmd_resp_hdr *) hdr;
-		if (resp_hdr->response_length)
-			return 0;
-	}
-	return -EINVAL;
+	return compl_status;
 }
 
 static void beiscsi_process_async_link(struct beiscsi_hba *phba,
@@ -391,18 +374,19 @@ static void beiscsi_process_async_link(struct beiscsi_hba *phba,
 	 * This has been newly introduced in SKH-R Firmware 10.0.338.45.
 	 **/
 	if (evt->port_link_status & BE_ASYNC_LINK_UP_MASK) {
-		phba->state = BE_ADAPTER_LINK_UP | BE_ADAPTER_CHECK_BOOT;
-		phba->get_boot = BE_GET_BOOT_RETRIES;
+		set_bit(BEISCSI_HBA_LINK_UP, &phba->state);
+		if (test_bit(BEISCSI_HBA_BOOT_FOUND, &phba->state))
+			beiscsi_start_boot_work(phba, BE_BOOT_INVALID_SHANDLE);
 		__beiscsi_log(phba, KERN_ERR,
 			      "BC_%d : Link Up on Port %d tag 0x%x\n",
 			      evt->physical_port, evt->event_tag);
 	} else {
-		phba->state = BE_ADAPTER_LINK_DOWN;
+		clear_bit(BEISCSI_HBA_LINK_UP, &phba->state);
 		__beiscsi_log(phba, KERN_ERR,
 			      "BC_%d : Link Down on Port %d tag 0x%x\n",
 			      evt->physical_port, evt->event_tag);
 		iscsi_host_for_each_session(phba->shost,
-					    beiscsi_fail_session);
+					    beiscsi_session_fail);
 	}
 }
 
@@ -482,8 +466,8 @@ void beiscsi_process_async_event(struct beiscsi_hba *phba,
 		beiscsi_process_async_link(phba, compl);
 		break;
 	case ASYNC_EVENT_CODE_ISCSI:
-		phba->state |= BE_ADAPTER_CHECK_BOOT;
-		phba->get_boot = BE_GET_BOOT_RETRIES;
+		if (test_bit(BEISCSI_HBA_BOOT_FOUND, &phba->state))
+			beiscsi_start_boot_work(phba, BE_BOOT_INVALID_SHANDLE);
 		sev = KERN_ERR;
 		break;
 	case ASYNC_EVENT_CODE_SLI:
@@ -519,6 +503,9 @@ int beiscsi_process_mcc_compl(struct be_ctrl_info *ctrl,
 		return 0;
 	}
 
+	/* end MCC with this tag */
+	clear_bit(MCC_TAG_STATE_RUNNING, &ctrl->ptag_state[tag].tag_state);
+
 	if (test_bit(MCC_TAG_STATE_TIMEOUT, &ctrl->ptag_state[tag].tag_state)) {
 		beiscsi_log(phba, KERN_WARNING,
 			    BEISCSI_LOG_MBOX | BEISCSI_LOG_INIT |
@@ -529,9 +516,11 @@ int beiscsi_process_mcc_compl(struct be_ctrl_info *ctrl,
 		 * Only for non-embedded cmd, PCI resource is allocated.
 		 **/
 		tag_mem = &ctrl->ptag_state[tag].tag_mem_state;
-		if (tag_mem->size)
+		if (tag_mem->size) {
 			pci_free_consistent(ctrl->pdev, tag_mem->size,
 					tag_mem->va, tag_mem->dma);
+			tag_mem->size = 0;
+		}
 		free_mcc_wrb(ctrl, tag);
 		return 0;
 	}
@@ -550,57 +539,25 @@ int beiscsi_process_mcc_compl(struct be_ctrl_info *ctrl,
 				     CQE_STATUS_ADDL_MASK;
 	ctrl->mcc_tag_status[tag] |= (compl_status & CQE_STATUS_MASK);
 
-	/* write ordering forced in wake_up_interruptible */
-	clear_bit(MCC_TAG_STATE_RUNNING, &ctrl->ptag_state[tag].tag_state);
+	if (test_bit(MCC_TAG_STATE_ASYNC, &ctrl->ptag_state[tag].tag_state)) {
+		if (ctrl->ptag_state[tag].cbfn)
+			ctrl->ptag_state[tag].cbfn(phba, tag);
+		else
+			__beiscsi_log(phba, KERN_ERR,
+				      "BC_%d : MBX ASYNC command with no callback\n");
+		free_mcc_wrb(ctrl, tag);
+		return 0;
+	}
+
+	if (test_bit(MCC_TAG_STATE_IGNORE, &ctrl->ptag_state[tag].tag_state)) {
+		/* just check completion status and free wrb */
+		__beiscsi_mcc_compl_status(phba, tag, NULL, NULL);
+		free_mcc_wrb(ctrl, tag);
+		return 0;
+	}
+
 	wake_up_interruptible(&ctrl->mcc_wait[tag]);
 	return 0;
-}
-
-/*
- * be_mcc_compl_poll()- Wait for MBX completion
- * @phba: driver private structure
- *
- * Wait till no more pending mcc requests are present
- *
- * return
- * Success: 0
- * Failure: Non-Zero
- *
- **/
-int be_mcc_compl_poll(struct beiscsi_hba *phba, unsigned int tag)
-{
-	struct be_ctrl_info *ctrl = &phba->ctrl;
-	int i;
-
-	if (!test_bit(MCC_TAG_STATE_RUNNING,
-		      &ctrl->ptag_state[tag].tag_state)) {
-		beiscsi_log(phba, KERN_ERR,
-			    BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
-			    "BC_%d: tag %u state not running\n", tag);
-		return 0;
-	}
-	for (i = 0; i < mcc_timeout; i++) {
-		if (beiscsi_error(phba))
-			return -EIO;
-
-		beiscsi_process_mcc_cq(phba);
-		/* after polling, wrb and tag need to be released */
-		if (!test_bit(MCC_TAG_STATE_RUNNING,
-			      &ctrl->ptag_state[tag].tag_state)) {
-			free_mcc_wrb(ctrl, tag);
-			break;
-		}
-		udelay(100);
-	}
-
-	if (i < mcc_timeout)
-		return 0;
-
-	beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
-		    "BC_%d : FW Timed Out\n");
-	phba->fw_timeout = true;
-	beiscsi_ue_detect(phba);
-	return -EBUSY;
 }
 
 void be_mcc_notify(struct beiscsi_hba *phba, unsigned int tag)
@@ -642,7 +599,7 @@ static int be_mbox_db_ready_poll(struct be_ctrl_info *ctrl)
 	 */
 	timeout = jiffies + msecs_to_jiffies(BEISCSI_MBX_RDY_BIT_TIMEOUT);
 	do {
-		if (beiscsi_error(phba))
+		if (beiscsi_hba_in_error(phba))
 			return -EIO;
 
 		ready = ioread32(db);
@@ -655,16 +612,14 @@ static int be_mbox_db_ready_poll(struct be_ctrl_info *ctrl)
 
 		if (time_after(jiffies, timeout))
 			break;
-		msleep(20);
+		/* 1ms sleep is enough in most cases */
+		schedule_timeout_uninterruptible(msecs_to_jiffies(1));
 	} while (!ready);
 
 	beiscsi_log(phba, KERN_ERR,
 			BEISCSI_LOG_CONFIG | BEISCSI_LOG_MBOX,
 			"BC_%d : FW Timed Out\n");
-
-	phba->fw_timeout = true;
-	beiscsi_ue_detect(phba);
-
+	set_bit(BEISCSI_HBA_FW_TIMEOUT, &phba->state);
 	return -EBUSY;
 }
 
@@ -679,7 +634,7 @@ static int be_mbox_db_ready_poll(struct be_ctrl_info *ctrl)
  * Success: 0
  * Failure: Non-Zero
  **/
-int be_mbox_notify(struct be_ctrl_info *ctrl)
+static int be_mbox_notify(struct be_ctrl_info *ctrl)
 {
 	int status;
 	u32 val = 0;
@@ -721,10 +676,10 @@ void be_wrb_hdr_prepare(struct be_mcc_wrb *wrb, int payload_len,
 				bool embedded, u8 sge_cnt)
 {
 	if (embedded)
-		wrb->embedded |= MCC_WRB_EMBEDDED_MASK;
+		wrb->emb_sgecnt_special |= MCC_WRB_EMBEDDED_MASK;
 	else
-		wrb->embedded |= (sge_cnt & MCC_WRB_SGE_CNT_MASK) <<
-						MCC_WRB_SGE_CNT_SHIFT;
+		wrb->emb_sgecnt_special |= (sge_cnt & MCC_WRB_SGE_CNT_MASK) <<
+					   MCC_WRB_SGE_CNT_SHIFT;
 	wrb->payload_length = payload_len;
 	be_dws_cpu_to_le(wrb, 8);
 }
@@ -815,87 +770,6 @@ int beiscsi_cmd_eq_create(struct be_ctrl_info *ctrl,
 		eq->id = le16_to_cpu(resp->eq_id);
 		eq->created = true;
 	}
-	mutex_unlock(&ctrl->mbox_lock);
-	return status;
-}
-
-/**
- * be_cmd_fw_initialize()- Initialize FW
- * @ctrl: Pointer to function control structure
- *
- * Send FW initialize pattern for the function.
- *
- * return
- * Success: 0
- * Failure: Non-Zero value
- **/
-int be_cmd_fw_initialize(struct be_ctrl_info *ctrl)
-{
-	struct be_mcc_wrb *wrb = wrb_from_mbox(&ctrl->mbox_mem);
-	struct beiscsi_hba *phba = pci_get_drvdata(ctrl->pdev);
-	int status;
-	u8 *endian_check;
-
-	mutex_lock(&ctrl->mbox_lock);
-	memset(wrb, 0, sizeof(*wrb));
-
-	endian_check = (u8 *) wrb;
-	*endian_check++ = 0xFF;
-	*endian_check++ = 0x12;
-	*endian_check++ = 0x34;
-	*endian_check++ = 0xFF;
-	*endian_check++ = 0xFF;
-	*endian_check++ = 0x56;
-	*endian_check++ = 0x78;
-	*endian_check++ = 0xFF;
-	be_dws_cpu_to_le(wrb, sizeof(*wrb));
-
-	status = be_mbox_notify(ctrl);
-	if (status)
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
-			    "BC_%d : be_cmd_fw_initialize Failed\n");
-
-	mutex_unlock(&ctrl->mbox_lock);
-	return status;
-}
-
-/**
- * be_cmd_fw_uninit()- Uinitialize FW
- * @ctrl: Pointer to function control structure
- *
- * Send FW uninitialize pattern for the function
- *
- * return
- * Success: 0
- * Failure: Non-Zero value
- **/
-int be_cmd_fw_uninit(struct be_ctrl_info *ctrl)
-{
-	struct be_mcc_wrb *wrb = wrb_from_mbox(&ctrl->mbox_mem);
-	struct beiscsi_hba *phba = pci_get_drvdata(ctrl->pdev);
-	int status;
-	u8 *endian_check;
-
-	mutex_lock(&ctrl->mbox_lock);
-	memset(wrb, 0, sizeof(*wrb));
-
-	endian_check = (u8 *) wrb;
-	*endian_check++ = 0xFF;
-	*endian_check++ = 0xAA;
-	*endian_check++ = 0xBB;
-	*endian_check++ = 0xFF;
-	*endian_check++ = 0xFF;
-	*endian_check++ = 0xCC;
-	*endian_check++ = 0xDD;
-	*endian_check = 0xFF;
-
-	be_dws_cpu_to_le(wrb, sizeof(*wrb));
-
-	status = be_mbox_notify(ctrl);
-	if (status)
-		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
-			    "BC_%d : be_cmd_fw_uninit Failed\n");
-
 	mutex_unlock(&ctrl->mbox_lock);
 	return status;
 }
@@ -1343,25 +1217,6 @@ error:
 	return status;
 }
 
-int beiscsi_cmd_reset_function(struct beiscsi_hba  *phba)
-{
-	struct be_ctrl_info *ctrl = &phba->ctrl;
-	struct be_mcc_wrb *wrb = wrb_from_mbox(&ctrl->mbox_mem);
-	struct be_post_sgl_pages_req *req = embedded_payload(wrb);
-	int status;
-
-	mutex_lock(&ctrl->mbox_lock);
-
-	req = embedded_payload(wrb);
-	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
-	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
-			   OPCODE_COMMON_FUNCTION_RESET, sizeof(*req));
-	status = be_mbox_notify(ctrl);
-
-	mutex_unlock(&ctrl->mbox_lock);
-	return status;
-}
-
 /**
  * be_cmd_set_vlan()- Configure VLAN paramters on the adapter
  * @phba: device priv structure instance
@@ -1401,4 +1256,568 @@ int be_cmd_set_vlan(struct beiscsi_hba *phba,
 	mutex_unlock(&ctrl->mbox_lock);
 
 	return tag;
+}
+
+int beiscsi_check_supported_fw(struct be_ctrl_info *ctrl,
+			       struct beiscsi_hba *phba)
+{
+	struct be_dma_mem nonemb_cmd;
+	struct be_mcc_wrb *wrb = wrb_from_mbox(&ctrl->mbox_mem);
+	struct be_mgmt_controller_attributes *req;
+	struct be_sge *sge = nonembedded_sgl(wrb);
+	int status = 0;
+
+	nonemb_cmd.va = pci_alloc_consistent(ctrl->pdev,
+				sizeof(struct be_mgmt_controller_attributes),
+				&nonemb_cmd.dma);
+	if (nonemb_cmd.va == NULL) {
+		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
+			    "BG_%d : pci_alloc_consistent failed in %s\n",
+			    __func__);
+		return -ENOMEM;
+	}
+	nonemb_cmd.size = sizeof(struct be_mgmt_controller_attributes);
+	req = nonemb_cmd.va;
+	memset(req, 0, sizeof(*req));
+	mutex_lock(&ctrl->mbox_lock);
+	memset(wrb, 0, sizeof(*wrb));
+	be_wrb_hdr_prepare(wrb, sizeof(*req), false, 1);
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			   OPCODE_COMMON_GET_CNTL_ATTRIBUTES, sizeof(*req));
+	sge->pa_hi = cpu_to_le32(upper_32_bits(nonemb_cmd.dma));
+	sge->pa_lo = cpu_to_le32(nonemb_cmd.dma & 0xFFFFFFFF);
+	sge->len = cpu_to_le32(nonemb_cmd.size);
+	status = be_mbox_notify(ctrl);
+	if (!status) {
+		struct be_mgmt_controller_attributes_resp *resp = nonemb_cmd.va;
+
+		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_INIT,
+			    "BG_%d : Firmware Version of CMD : %s\n"
+			    "Firmware Version is : %s\n"
+			    "Developer Build, not performing version check...\n",
+			    resp->params.hba_attribs
+			    .flashrom_version_string,
+			    resp->params.hba_attribs.
+			    firmware_version_string);
+
+		phba->fw_config.iscsi_features =
+				resp->params.hba_attribs.iscsi_features;
+		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_INIT,
+			    "BM_%d : phba->fw_config.iscsi_features = %d\n",
+			    phba->fw_config.iscsi_features);
+		memcpy(phba->fw_ver_str, resp->params.hba_attribs.
+		       firmware_version_string, BEISCSI_VER_STRLEN);
+	} else
+		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
+			    "BG_%d :  Failed in beiscsi_check_supported_fw\n");
+	mutex_unlock(&ctrl->mbox_lock);
+	if (nonemb_cmd.va)
+		pci_free_consistent(ctrl->pdev, nonemb_cmd.size,
+				    nonemb_cmd.va, nonemb_cmd.dma);
+
+	return status;
+}
+
+/**
+ * beiscsi_get_fw_config()- Get the FW config for the function
+ * @ctrl: ptr to Ctrl Info
+ * @phba: ptr to the dev priv structure
+ *
+ * Get the FW config and resources available for the function.
+ * The resources are created based on the count received here.
+ *
+ * return
+ *	Success: 0
+ *	Failure: Non-Zero Value
+ **/
+int beiscsi_get_fw_config(struct be_ctrl_info *ctrl,
+			  struct beiscsi_hba *phba)
+{
+	struct be_mcc_wrb *wrb = wrb_from_mbox(&ctrl->mbox_mem);
+	struct be_fw_cfg *pfw_cfg = embedded_payload(wrb);
+	uint32_t cid_count, icd_count;
+	int status = -EINVAL;
+	uint8_t ulp_num = 0;
+
+	mutex_lock(&ctrl->mbox_lock);
+	memset(wrb, 0, sizeof(*wrb));
+	be_wrb_hdr_prepare(wrb, sizeof(*pfw_cfg), true, 0);
+
+	be_cmd_hdr_prepare(&pfw_cfg->hdr, CMD_SUBSYSTEM_COMMON,
+			   OPCODE_COMMON_QUERY_FIRMWARE_CONFIG,
+			   EMBED_MBX_MAX_PAYLOAD_SIZE);
+
+	if (be_mbox_notify(ctrl)) {
+		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
+			    "BG_%d : Failed in beiscsi_get_fw_config\n");
+		goto fail_init;
+	}
+
+	/* FW response formats depend on port id */
+	phba->fw_config.phys_port = pfw_cfg->phys_port;
+	if (phba->fw_config.phys_port >= BEISCSI_PHYS_PORT_MAX) {
+		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
+			    "BG_%d : invalid physical port id %d\n",
+			    phba->fw_config.phys_port);
+		goto fail_init;
+	}
+
+	/* populate and check FW config against min and max values */
+	if (!is_chip_be2_be3r(phba)) {
+		phba->fw_config.eqid_count = pfw_cfg->eqid_count;
+		phba->fw_config.cqid_count = pfw_cfg->cqid_count;
+		if (phba->fw_config.eqid_count == 0 ||
+		    phba->fw_config.eqid_count > 2048) {
+			beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
+				    "BG_%d : invalid EQ count %d\n",
+				    phba->fw_config.eqid_count);
+			goto fail_init;
+		}
+		if (phba->fw_config.cqid_count == 0 ||
+		    phba->fw_config.cqid_count > 4096) {
+			beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
+				    "BG_%d : invalid CQ count %d\n",
+				    phba->fw_config.cqid_count);
+			goto fail_init;
+		}
+		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_INIT,
+			    "BG_%d : EQ_Count : %d CQ_Count : %d\n",
+			    phba->fw_config.eqid_count,
+			    phba->fw_config.cqid_count);
+	}
+
+	/**
+	 * Check on which all ULP iSCSI Protocol is loaded.
+	 * Set the Bit for those ULP. This set flag is used
+	 * at all places in the code to check on which ULP
+	 * iSCSi Protocol is loaded
+	 **/
+	for (ulp_num = 0; ulp_num < BEISCSI_ULP_COUNT; ulp_num++) {
+		if (pfw_cfg->ulp[ulp_num].ulp_mode &
+		    BEISCSI_ULP_ISCSI_INI_MODE) {
+			set_bit(ulp_num, &phba->fw_config.ulp_supported);
+
+			/* Get the CID, ICD and Chain count for each ULP */
+			phba->fw_config.iscsi_cid_start[ulp_num] =
+				pfw_cfg->ulp[ulp_num].sq_base;
+			phba->fw_config.iscsi_cid_count[ulp_num] =
+				pfw_cfg->ulp[ulp_num].sq_count;
+
+			phba->fw_config.iscsi_icd_start[ulp_num] =
+				pfw_cfg->ulp[ulp_num].icd_base;
+			phba->fw_config.iscsi_icd_count[ulp_num] =
+				pfw_cfg->ulp[ulp_num].icd_count;
+
+			phba->fw_config.iscsi_chain_start[ulp_num] =
+				pfw_cfg->chain_icd[ulp_num].chain_base;
+			phba->fw_config.iscsi_chain_count[ulp_num] =
+				pfw_cfg->chain_icd[ulp_num].chain_count;
+
+			beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_INIT,
+				    "BG_%d : Function loaded on ULP : %d\n"
+				    "\tiscsi_cid_count : %d\n"
+				    "\tiscsi_cid_start : %d\n"
+				    "\t iscsi_icd_count : %d\n"
+				    "\t iscsi_icd_start : %d\n",
+				    ulp_num,
+				    phba->fw_config.
+				    iscsi_cid_count[ulp_num],
+				    phba->fw_config.
+				    iscsi_cid_start[ulp_num],
+				    phba->fw_config.
+				    iscsi_icd_count[ulp_num],
+				    phba->fw_config.
+				    iscsi_icd_start[ulp_num]);
+		}
+	}
+
+	if (phba->fw_config.ulp_supported == 0) {
+		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
+			    "BG_%d : iSCSI initiator mode not set: ULP0 %x ULP1 %x\n",
+			    pfw_cfg->ulp[BEISCSI_ULP0].ulp_mode,
+			    pfw_cfg->ulp[BEISCSI_ULP1].ulp_mode);
+		goto fail_init;
+	}
+
+	/**
+	 * ICD is shared among ULPs. Use icd_count of any one loaded ULP
+	 **/
+	for (ulp_num = 0; ulp_num < BEISCSI_ULP_COUNT; ulp_num++)
+		if (test_bit(ulp_num, &phba->fw_config.ulp_supported))
+			break;
+	icd_count = phba->fw_config.iscsi_icd_count[ulp_num];
+	if (icd_count == 0 || icd_count > 65536) {
+		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
+			    "BG_%d: invalid ICD count %d\n", icd_count);
+		goto fail_init;
+	}
+
+	cid_count = BEISCSI_GET_CID_COUNT(phba, BEISCSI_ULP0) +
+		    BEISCSI_GET_CID_COUNT(phba, BEISCSI_ULP1);
+	if (cid_count == 0 || cid_count > 4096) {
+		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
+			    "BG_%d: invalid CID count %d\n", cid_count);
+		goto fail_init;
+	}
+
+	/**
+	 * Check FW is dual ULP aware i.e. can handle either
+	 * of the protocols.
+	 */
+	phba->fw_config.dual_ulp_aware = (pfw_cfg->function_mode &
+					  BEISCSI_FUNC_DUA_MODE);
+
+	beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_INIT,
+		    "BG_%d : DUA Mode : 0x%x\n",
+		    phba->fw_config.dual_ulp_aware);
+
+	/* all set, continue using this FW config */
+	status = 0;
+fail_init:
+	mutex_unlock(&ctrl->mbox_lock);
+	return status;
+}
+
+/**
+ * beiscsi_get_port_name()- Get port name for the function
+ * @ctrl: ptr to Ctrl Info
+ * @phba: ptr to the dev priv structure
+ *
+ * Get the alphanumeric character for port
+ *
+ **/
+int beiscsi_get_port_name(struct be_ctrl_info *ctrl, struct beiscsi_hba *phba)
+{
+	int ret = 0;
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_get_port_name *ioctl;
+
+	mutex_lock(&ctrl->mbox_lock);
+	wrb = wrb_from_mbox(&ctrl->mbox_mem);
+	memset(wrb, 0, sizeof(*wrb));
+	ioctl = embedded_payload(wrb);
+
+	be_wrb_hdr_prepare(wrb, sizeof(*ioctl), true, 0);
+	be_cmd_hdr_prepare(&ioctl->h.req_hdr, CMD_SUBSYSTEM_COMMON,
+			   OPCODE_COMMON_GET_PORT_NAME,
+			   EMBED_MBX_MAX_PAYLOAD_SIZE);
+	ret = be_mbox_notify(ctrl);
+	phba->port_name = 0;
+	if (!ret) {
+		phba->port_name = ioctl->p.resp.port_names >>
+				  (phba->fw_config.phys_port * 8) & 0xff;
+	} else {
+		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_INIT,
+			    "BG_%d : GET_PORT_NAME ret 0x%x status 0x%x\n",
+			    ret, ioctl->h.resp_hdr.status);
+	}
+
+	if (phba->port_name == 0)
+		phba->port_name = '?';
+
+	mutex_unlock(&ctrl->mbox_lock);
+	return ret;
+}
+
+int beiscsi_set_uer_feature(struct beiscsi_hba *phba)
+{
+	struct be_ctrl_info *ctrl = &phba->ctrl;
+	struct be_cmd_set_features *ioctl;
+	struct be_mcc_wrb *wrb;
+	int ret = 0;
+
+	mutex_lock(&ctrl->mbox_lock);
+	wrb = wrb_from_mbox(&ctrl->mbox_mem);
+	memset(wrb, 0, sizeof(*wrb));
+	ioctl = embedded_payload(wrb);
+
+	be_wrb_hdr_prepare(wrb, sizeof(*ioctl), true, 0);
+	be_cmd_hdr_prepare(&ioctl->h.req_hdr, CMD_SUBSYSTEM_COMMON,
+			   OPCODE_COMMON_SET_FEATURES,
+			   EMBED_MBX_MAX_PAYLOAD_SIZE);
+	ioctl->feature = BE_CMD_SET_FEATURE_UER;
+	ioctl->param_len = sizeof(ioctl->param.req);
+	ioctl->param.req.uer = BE_CMD_UER_SUPP_BIT;
+	ret = be_mbox_notify(ctrl);
+	if (!ret) {
+		phba->ue2rp = ioctl->param.resp.ue2rp;
+		set_bit(BEISCSI_HBA_UER_SUPP, &phba->state);
+		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_INIT,
+			    "BG_%d : HBA error recovery supported\n");
+	} else {
+		/**
+		 * Check "MCC_STATUS_INVALID_LENGTH" for SKH.
+		 * Older FW versions return this error.
+		 */
+		if (ret == MCC_STATUS_ILLEGAL_REQUEST ||
+		    ret == MCC_STATUS_INVALID_LENGTH)
+			__beiscsi_log(phba, KERN_INFO,
+				      "BG_%d : HBA error recovery not supported\n");
+	}
+
+	mutex_unlock(&ctrl->mbox_lock);
+	return ret;
+}
+
+static u32 beiscsi_get_post_stage(struct beiscsi_hba *phba)
+{
+	u32 sem;
+
+	if (is_chip_be2_be3r(phba))
+		sem = ioread32(phba->csr_va + SLIPORT_SEMAPHORE_OFFSET_BEx);
+	else
+		pci_read_config_dword(phba->pcidev,
+				      SLIPORT_SEMAPHORE_OFFSET_SH, &sem);
+	return sem;
+}
+
+int beiscsi_check_fw_rdy(struct beiscsi_hba *phba)
+{
+	u32 loop, post, rdy = 0;
+
+	loop = 1000;
+	while (loop--) {
+		post = beiscsi_get_post_stage(phba);
+		if (post & POST_ERROR_BIT)
+			break;
+		if ((post & POST_STAGE_MASK) == POST_STAGE_ARMFW_RDY) {
+			rdy = 1;
+			break;
+		}
+		msleep(60);
+	}
+
+	if (!rdy) {
+		__beiscsi_log(phba, KERN_ERR,
+			      "BC_%d : FW not ready 0x%x\n", post);
+	}
+
+	return rdy;
+}
+
+int beiscsi_cmd_function_reset(struct beiscsi_hba *phba)
+{
+	struct be_ctrl_info *ctrl = &phba->ctrl;
+	struct be_mcc_wrb *wrb = wrb_from_mbox(&ctrl->mbox_mem);
+	struct be_post_sgl_pages_req *req;
+	int status;
+
+	mutex_lock(&ctrl->mbox_lock);
+
+	req = embedded_payload(wrb);
+	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			   OPCODE_COMMON_FUNCTION_RESET, sizeof(*req));
+	status = be_mbox_notify(ctrl);
+
+	mutex_unlock(&ctrl->mbox_lock);
+	return status;
+}
+
+int beiscsi_cmd_special_wrb(struct be_ctrl_info *ctrl, u32 load)
+{
+	struct be_mcc_wrb *wrb = wrb_from_mbox(&ctrl->mbox_mem);
+	struct beiscsi_hba *phba = pci_get_drvdata(ctrl->pdev);
+	u8 *endian_check;
+	int status;
+
+	mutex_lock(&ctrl->mbox_lock);
+	memset(wrb, 0, sizeof(*wrb));
+
+	endian_check = (u8 *) wrb;
+	if (load) {
+		/* to start communicating */
+		*endian_check++ = 0xFF;
+		*endian_check++ = 0x12;
+		*endian_check++ = 0x34;
+		*endian_check++ = 0xFF;
+		*endian_check++ = 0xFF;
+		*endian_check++ = 0x56;
+		*endian_check++ = 0x78;
+		*endian_check++ = 0xFF;
+	} else {
+		/* to stop communicating */
+		*endian_check++ = 0xFF;
+		*endian_check++ = 0xAA;
+		*endian_check++ = 0xBB;
+		*endian_check++ = 0xFF;
+		*endian_check++ = 0xFF;
+		*endian_check++ = 0xCC;
+		*endian_check++ = 0xDD;
+		*endian_check = 0xFF;
+	}
+	be_dws_cpu_to_le(wrb, sizeof(*wrb));
+
+	status = be_mbox_notify(ctrl);
+	if (status)
+		beiscsi_log(phba, KERN_INFO, BEISCSI_LOG_INIT,
+			    "BC_%d : special WRB message failed\n");
+	mutex_unlock(&ctrl->mbox_lock);
+	return status;
+}
+
+int beiscsi_init_sliport(struct beiscsi_hba *phba)
+{
+	int status;
+
+	/* check POST stage before talking to FW */
+	status = beiscsi_check_fw_rdy(phba);
+	if (!status)
+		return -EIO;
+
+	/* clear all error states after checking FW rdy */
+	phba->state &= ~BEISCSI_HBA_IN_ERR;
+
+	/* check again UER support */
+	phba->state &= ~BEISCSI_HBA_UER_SUPP;
+
+	/*
+	 * SLI COMMON_FUNCTION_RESET completion is indicated by BMBX RDY bit.
+	 * It should clean up any stale info in FW for this fn.
+	 */
+	status = beiscsi_cmd_function_reset(phba);
+	if (status) {
+		beiscsi_log(phba, KERN_ERR, BEISCSI_LOG_INIT,
+			    "BC_%d : SLI Function Reset failed\n");
+		return status;
+	}
+
+	/* indicate driver is loading */
+	return beiscsi_cmd_special_wrb(&phba->ctrl, 1);
+}
+
+/**
+ * beiscsi_cmd_iscsi_cleanup()- Inform FW to cleanup EP data structures.
+ * @phba: pointer to dev priv structure
+ * @ulp: ULP number.
+ *
+ * return
+ *	Success: 0
+ *	Failure: Non-Zero Value
+ **/
+int beiscsi_cmd_iscsi_cleanup(struct beiscsi_hba *phba, unsigned short ulp)
+{
+	struct be_ctrl_info *ctrl = &phba->ctrl;
+	struct iscsi_cleanup_req_v1 *req_v1;
+	struct iscsi_cleanup_req *req;
+	u16 hdr_ring_id, data_ring_id;
+	struct be_mcc_wrb *wrb;
+	int status;
+
+	mutex_lock(&ctrl->mbox_lock);
+	wrb = wrb_from_mbox(&ctrl->mbox_mem);
+
+	hdr_ring_id = HWI_GET_DEF_HDRQ_ID(phba, ulp);
+	data_ring_id = HWI_GET_DEF_BUFQ_ID(phba, ulp);
+	if (is_chip_be2_be3r(phba)) {
+		req = embedded_payload(wrb);
+		be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
+		be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI,
+				   OPCODE_COMMON_ISCSI_CLEANUP, sizeof(*req));
+		req->chute = (1 << ulp);
+		/* BE2/BE3 FW creates 8-bit ring id */
+		req->hdr_ring_id = hdr_ring_id;
+		req->data_ring_id = data_ring_id;
+	} else {
+		req_v1 = embedded_payload(wrb);
+		be_wrb_hdr_prepare(wrb, sizeof(*req_v1), true, 0);
+		be_cmd_hdr_prepare(&req_v1->hdr, CMD_SUBSYSTEM_ISCSI,
+				   OPCODE_COMMON_ISCSI_CLEANUP,
+				   sizeof(*req_v1));
+		req_v1->hdr.version = 1;
+		req_v1->chute = (1 << ulp);
+		req_v1->hdr_ring_id = cpu_to_le16(hdr_ring_id);
+		req_v1->data_ring_id = cpu_to_le16(data_ring_id);
+	}
+
+	status = be_mbox_notify(ctrl);
+	if (status)
+		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_INIT,
+			    "BG_%d : %s failed %d\n", __func__, ulp);
+	mutex_unlock(&ctrl->mbox_lock);
+	return status;
+}
+
+/*
+ * beiscsi_detect_ue()- Detect Unrecoverable Error on adapter
+ * @phba: Driver priv structure
+ *
+ * Read registers linked to UE and check for the UE status
+ **/
+int beiscsi_detect_ue(struct beiscsi_hba *phba)
+{
+	uint32_t ue_mask_hi = 0, ue_mask_lo = 0;
+	uint32_t ue_hi = 0, ue_lo = 0;
+	uint8_t i = 0;
+	int ret = 0;
+
+	pci_read_config_dword(phba->pcidev,
+			      PCICFG_UE_STATUS_LOW, &ue_lo);
+	pci_read_config_dword(phba->pcidev,
+			      PCICFG_UE_STATUS_MASK_LOW,
+			      &ue_mask_lo);
+	pci_read_config_dword(phba->pcidev,
+			      PCICFG_UE_STATUS_HIGH,
+			      &ue_hi);
+	pci_read_config_dword(phba->pcidev,
+			      PCICFG_UE_STATUS_MASK_HI,
+			      &ue_mask_hi);
+
+	ue_lo = (ue_lo & ~ue_mask_lo);
+	ue_hi = (ue_hi & ~ue_mask_hi);
+
+
+	if (ue_lo || ue_hi) {
+		set_bit(BEISCSI_HBA_IN_UE, &phba->state);
+		__beiscsi_log(phba, KERN_ERR,
+			      "BC_%d : HBA error detected\n");
+		ret = 1;
+	}
+
+	if (ue_lo) {
+		for (i = 0; ue_lo; ue_lo >>= 1, i++) {
+			if (ue_lo & 1)
+				__beiscsi_log(phba, KERN_ERR,
+					      "BC_%d : UE_LOW %s bit set\n",
+					      desc_ue_status_low[i]);
+		}
+	}
+
+	if (ue_hi) {
+		for (i = 0; ue_hi; ue_hi >>= 1, i++) {
+			if (ue_hi & 1)
+				__beiscsi_log(phba, KERN_ERR,
+					      "BC_%d : UE_HIGH %s bit set\n",
+					      desc_ue_status_hi[i]);
+		}
+	}
+	return ret;
+}
+
+/*
+ * beiscsi_detect_tpe()- Detect Transient Parity Error on adapter
+ * @phba: Driver priv structure
+ *
+ * Read SLIPORT SEMAPHORE register to check for UER
+ *
+ **/
+int beiscsi_detect_tpe(struct beiscsi_hba *phba)
+{
+	u32 post, status;
+	int ret = 0;
+
+	post = beiscsi_get_post_stage(phba);
+	status = post & POST_STAGE_MASK;
+	if ((status & POST_ERR_RECOVERY_CODE_MASK) ==
+	    POST_STAGE_RECOVERABLE_ERR) {
+		set_bit(BEISCSI_HBA_IN_TPE, &phba->state);
+		__beiscsi_log(phba, KERN_INFO,
+			      "BC_%d : HBA error recoverable: 0x%x\n", post);
+		ret = 1;
+	} else {
+		__beiscsi_log(phba, KERN_INFO,
+			      "BC_%d : HBA in UE: 0x%x\n", post);
+	}
+
+	return ret;
 }

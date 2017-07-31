@@ -1,7 +1,7 @@
 /*
  * Copyright 2002-2005, Devicescape Software, Inc.
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright(c) 2015-2016 Intel Deutschland GmbH
+ * Copyright(c) 2015-2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -16,6 +16,7 @@
 #include <linux/if_ether.h>
 #include <linux/workqueue.h>
 #include <linux/average.h>
+#include <linux/bitfield.h>
 #include <linux/etherdevice.h>
 #include <linux/rhashtable.h>
 #include <linux/u64_stats_sync.h>
@@ -184,12 +185,12 @@ struct tid_ampdu_tx {
  * @ssn: Starting Sequence Number expected to be aggregated.
  * @buf_size: buffer size for incoming A-MPDUs
  * @timeout: reset timer value (in TUs).
- * @dialog_token: dialog token for aggregation session
  * @rcu_head: RCU head used for freeing this struct
  * @reorder_lock: serializes access to reorder buffer, see below.
  * @auto_seq: used for offloaded BA sessions to automatically pick head_seq_and
  *	and ssn.
  * @removed: this session is removed (but might have been found due to RCU)
+ * @started: this session has started (head ssn or higher was received)
  *
  * This structure's lifetime is managed by RCU, assignments to
  * the array holding it must hold the aggregation mutex.
@@ -213,9 +214,9 @@ struct tid_ampdu_rx {
 	u16 ssn;
 	u16 buf_size;
 	u16 timeout;
-	u8 dialog_token;
-	bool auto_seq;
-	bool removed;
+	u8 auto_seq:1,
+	   removed:1,
+	   started:1;
 };
 
 /**
@@ -225,11 +226,14 @@ struct tid_ampdu_rx {
  *	to tid_tx[idx], which are protected by the sta spinlock)
  *	tid_start_tx is also protected by sta->lock.
  * @tid_rx: aggregation info for Rx per TID -- RCU protected
+ * @tid_rx_token: dialog tokens for valid aggregation sessions
  * @tid_rx_timer_expired: bitmap indicating on which TIDs the
  *	RX timer expired until the work for it runs
  * @tid_rx_stop_requested:  bitmap indicating which BA sessions per TID the
  *	driver requested to close until the work for it runs
  * @agg_session_valid: bitmap indicating which TID has a rx BA session open on
+ * @unexpected_agg: bitmap indicating which TID already sent a delBA due to
+ *	unexpected aggregation related frames outside a session
  * @work: work struct for starting/stopping aggregation
  * @tid_tx: aggregation info for Tx per TID
  * @tid_start_tx: sessions where start was requested
@@ -241,9 +245,11 @@ struct sta_ampdu_mlme {
 	struct mutex mtx;
 	/* rx */
 	struct tid_ampdu_rx __rcu *tid_rx[IEEE80211_NUM_TIDS];
+	u8 tid_rx_token[IEEE80211_NUM_TIDS];
 	unsigned long tid_rx_timer_expired[BITS_TO_LONGS(IEEE80211_NUM_TIDS)];
 	unsigned long tid_rx_stop_requested[BITS_TO_LONGS(IEEE80211_NUM_TIDS)];
 	unsigned long agg_session_valid[BITS_TO_LONGS(IEEE80211_NUM_TIDS)];
+	unsigned long unexpected_agg[BITS_TO_LONGS(IEEE80211_NUM_TIDS)];
 	/* tx */
 	struct work_struct work;
 	struct tid_ampdu_tx __rcu *tid_tx[IEEE80211_NUM_TIDS];
@@ -319,6 +325,9 @@ struct ieee80211_fast_rx {
 	struct rcu_head rcu_head;
 };
 
+/* we use only values in the range 0-100, so pick a large precision */
+DECLARE_EWMA(mesh_fail_avg, 20, 8)
+
 /**
  * struct mesh_sta - mesh STA information
  * @plink_lock: serialize access to plink fields
@@ -364,10 +373,10 @@ struct mesh_sta {
 	enum nl80211_mesh_power_mode nonpeer_pm;
 
 	/* moving percentage of failed MSDUs */
-	unsigned int fail_avg;
+	struct ewma_mesh_fail_avg fail_avg;
 };
 
-DECLARE_EWMA(signal, 1024, 8)
+DECLARE_EWMA(signal, 10, 8)
 
 struct ieee80211_sta_rx_stats {
 	unsigned long packets;
@@ -452,7 +461,7 @@ struct sta_info {
 	/* General information, mostly static */
 	struct list_head list, free_list;
 	struct rcu_head rcu_head;
-	struct rhash_head hash_node;
+	struct rhlist_head hash_node;
 	u8 addr[ETH_ALEN];
 	struct ieee80211_local *local;
 	struct ieee80211_sub_if_data *sdata;
@@ -635,6 +644,9 @@ rcu_dereference_protected_tid_tx(struct sta_info *sta, int tid)
  */
 #define STA_INFO_CLEANUP_INTERVAL (10 * HZ)
 
+struct rhlist_head *sta_info_hash_lookup(struct ieee80211_local *local,
+					 const u8 *addr);
+
 /*
  * Get a STA info, must be under RCU read lock.
  */
@@ -644,17 +656,9 @@ struct sta_info *sta_info_get(struct ieee80211_sub_if_data *sdata,
 struct sta_info *sta_info_get_bss(struct ieee80211_sub_if_data *sdata,
 				  const u8 *addr);
 
-u32 sta_addr_hash(const void *key, u32 length, u32 seed);
-
-#define _sta_bucket_idx(_tbl, _a)					\
-	rht_bucket_index(_tbl, sta_addr_hash(_a, ETH_ALEN, (_tbl)->hash_rnd))
-
-#define for_each_sta_info(local, tbl, _addr, _sta, _tmp)		\
-	rht_for_each_entry_rcu(_sta, _tmp, tbl, 			\
-			       _sta_bucket_idx(tbl, _addr),		\
-			       hash_node)				\
-	/* compare address and run code only if it matches */		\
-	if (ether_addr_equal(_sta->addr, (_addr)))
+#define for_each_sta_info(local, _addr, _sta, _tmp)			\
+	rhl_for_each_entry_rcu(_sta, _tmp,				\
+			       sta_info_hash_lookup(local, _addr), hash_node)
 
 /*
  * Get STA info by index, BROKEN!
@@ -712,6 +716,8 @@ void sta_set_rate_info_tx(struct sta_info *sta,
 			  struct rate_info *rinfo);
 void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo);
 
+u32 sta_get_expected_throughput(struct sta_info *sta);
+
 void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
 			  unsigned long exp_time);
 u8 sta_info_tx_streams(struct sta_info *sta);
@@ -722,40 +728,55 @@ void ieee80211_sta_ps_deliver_uapsd(struct sta_info *sta);
 
 unsigned long ieee80211_sta_last_active(struct sta_info *sta);
 
+enum sta_stats_type {
+	STA_STATS_RATE_TYPE_INVALID = 0,
+	STA_STATS_RATE_TYPE_LEGACY,
+	STA_STATS_RATE_TYPE_HT,
+	STA_STATS_RATE_TYPE_VHT,
+};
+
+#define STA_STATS_FIELD_HT_MCS		GENMASK( 7,  0)
+#define STA_STATS_FIELD_LEGACY_IDX	GENMASK( 3,  0)
+#define STA_STATS_FIELD_LEGACY_BAND	GENMASK( 7,  4)
+#define STA_STATS_FIELD_VHT_MCS		GENMASK( 3,  0)
+#define STA_STATS_FIELD_VHT_NSS		GENMASK( 7,  4)
+#define STA_STATS_FIELD_BW		GENMASK(11,  8)
+#define STA_STATS_FIELD_SGI		GENMASK(12, 12)
+#define STA_STATS_FIELD_TYPE		GENMASK(15, 13)
+
+#define STA_STATS_FIELD(_n, _v)		FIELD_PREP(STA_STATS_FIELD_ ## _n, _v)
+#define STA_STATS_GET(_n, _v)		FIELD_GET(STA_STATS_FIELD_ ## _n, _v)
+
 #define STA_STATS_RATE_INVALID		0
-#define STA_STATS_RATE_VHT		0x8000
-#define STA_STATS_RATE_HT		0x4000
-#define STA_STATS_RATE_LEGACY		0x2000
-#define STA_STATS_RATE_SGI		0x1000
-#define STA_STATS_RATE_BW_SHIFT		9
-#define STA_STATS_RATE_BW_MASK		(0x7 << STA_STATS_RATE_BW_SHIFT)
 
-static inline u16 sta_stats_encode_rate(struct ieee80211_rx_status *s)
+static inline u32 sta_stats_encode_rate(struct ieee80211_rx_status *s)
 {
-	u16 r = s->rate_idx;
+	u16 r;
 
-	if (s->vht_flag & RX_VHT_FLAG_80MHZ)
-		r |= RATE_INFO_BW_80 << STA_STATS_RATE_BW_SHIFT;
-	else if (s->vht_flag & RX_VHT_FLAG_160MHZ)
-		r |= RATE_INFO_BW_160 << STA_STATS_RATE_BW_SHIFT;
-	else if (s->flag & RX_FLAG_40MHZ)
-		r |= RATE_INFO_BW_40 << STA_STATS_RATE_BW_SHIFT;
-	else if (s->flag & RX_FLAG_10MHZ)
-		r |= RATE_INFO_BW_10 << STA_STATS_RATE_BW_SHIFT;
-	else if (s->flag & RX_FLAG_5MHZ)
-		r |= RATE_INFO_BW_5 << STA_STATS_RATE_BW_SHIFT;
-	else
-		r |= RATE_INFO_BW_20 << STA_STATS_RATE_BW_SHIFT;
+	r = STA_STATS_FIELD(BW, s->bw);
 
-	if (s->flag & RX_FLAG_SHORT_GI)
-		r |= STA_STATS_RATE_SGI;
+	if (s->enc_flags & RX_ENC_FLAG_SHORT_GI)
+		r |= STA_STATS_FIELD(SGI, 1);
 
-	if (s->flag & RX_FLAG_VHT)
-		r |= STA_STATS_RATE_VHT | (s->vht_nss << 4);
-	else if (s->flag & RX_FLAG_HT)
-		r |= STA_STATS_RATE_HT;
-	else
-		r |= STA_STATS_RATE_LEGACY | (s->band << 4);
+	switch (s->encoding) {
+	case RX_ENC_VHT:
+		r |= STA_STATS_FIELD(TYPE, STA_STATS_RATE_TYPE_VHT);
+		r |= STA_STATS_FIELD(VHT_NSS, s->nss);
+		r |= STA_STATS_FIELD(VHT_MCS, s->rate_idx);
+		break;
+	case RX_ENC_HT:
+		r |= STA_STATS_FIELD(TYPE, STA_STATS_RATE_TYPE_HT);
+		r |= STA_STATS_FIELD(HT_MCS, s->rate_idx);
+		break;
+	case RX_ENC_LEGACY:
+		r |= STA_STATS_FIELD(TYPE, STA_STATS_RATE_TYPE_LEGACY);
+		r |= STA_STATS_FIELD(LEGACY_BAND, s->band);
+		r |= STA_STATS_FIELD(LEGACY_IDX, s->rate_idx);
+		break;
+	default:
+		WARN_ON(1);
+		return STA_STATS_RATE_INVALID;
+	}
 
 	return r;
 }

@@ -51,6 +51,19 @@ static const char f_midi_longname[] = "MIDI Gadget";
  */
 #define MAX_PORTS 16
 
+/* MIDI message states */
+enum {
+	STATE_INITIAL = 0,	/* pseudo state */
+	STATE_1PARAM,
+	STATE_2PARAM_1,
+	STATE_2PARAM_2,
+	STATE_SYSEX_0,
+	STATE_SYSEX_1,
+	STATE_SYSEX_2,
+	STATE_REAL_TIME,
+	STATE_FINISHED,		/* pseudo state */
+};
+
 /*
  * This is a gadget, and the IN/OUT naming is from the host's perspective.
  * USB -> OUT endpoint -> rawmidi
@@ -61,13 +74,6 @@ struct gmidi_in_port {
 	int active;
 	uint8_t cable;
 	uint8_t state;
-#define STATE_UNKNOWN	0
-#define STATE_1PARAM	1
-#define STATE_2PARAM_1	2
-#define STATE_2PARAM_2	3
-#define STATE_SYSEX_0	4
-#define STATE_SYSEX_1	5
-#define STATE_SYSEX_2	6
 	uint8_t data[2];
 };
 
@@ -205,7 +211,7 @@ static struct usb_gadget_strings *midi_strings[] = {
 static inline struct usb_request *midi_alloc_ep_req(struct usb_ep *ep,
 						    unsigned length)
 {
-	return alloc_ep_req(ep, length, length);
+	return alloc_ep_req(ep, length);
 }
 
 static const uint8_t f_midi_cin_length[] = {
@@ -299,6 +305,19 @@ f_midi_complete(struct usb_ep *ep, struct usb_request *req)
 	}
 }
 
+static void f_midi_drop_out_substreams(struct f_midi *midi)
+{
+	unsigned int i;
+
+	for (i = 0; i < midi->in_ports; i++) {
+		struct gmidi_in_port *port = midi->in_ports_array + i;
+		struct snd_rawmidi_substream *substream = port->substream;
+
+		if (port->active && substream)
+			snd_rawmidi_drop_output(substream);
+	}
+}
+
 static int f_midi_start_ep(struct f_midi *midi,
 			   struct usb_function *f,
 			   struct usb_ep *ep)
@@ -360,9 +379,8 @@ static int f_midi_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 	/* allocate a bunch of read buffers and queue them all at once. */
 	for (i = 0; i < midi->qlen && err == 0; i++) {
 		struct usb_request *req =
-			midi_alloc_ep_req(midi->out_ep,
-				max_t(unsigned, midi->buflen,
-					bulk_out_desc.wMaxPacketSize));
+			midi_alloc_ep_req(midi->out_ep, midi->buflen);
+
 		if (req == NULL)
 			return -ENOMEM;
 
@@ -397,24 +415,13 @@ static void f_midi_disable(struct usb_function *f)
 	/* release IN requests */
 	while (kfifo_get(&midi->in_req_fifo, &req))
 		free_ep_req(midi->in_ep, req);
+
+	f_midi_drop_out_substreams(midi);
 }
 
 static int f_midi_snd_free(struct snd_device *device)
 {
 	return 0;
-}
-
-static void f_midi_transmit_packet(struct usb_request *req, uint8_t p0,
-					uint8_t p1, uint8_t p2, uint8_t p3)
-{
-	unsigned length = req->length;
-	u8 *buf = (u8 *)req->buf + length;
-
-	buf[0] = p0;
-	buf[1] = p1;
-	buf[2] = p2;
-	buf[3] = p3;
-	req->length = length + 4;
 }
 
 /*
@@ -423,111 +430,160 @@ static void f_midi_transmit_packet(struct usb_request *req, uint8_t p0,
 static void f_midi_transmit_byte(struct usb_request *req,
 				 struct gmidi_in_port *port, uint8_t b)
 {
-	uint8_t p0 = port->cable << 4;
+	uint8_t p[4] = { port->cable << 4, 0, 0, 0 };
+	uint8_t next_state = STATE_INITIAL;
 
-	if (b >= 0xf8) {
-		f_midi_transmit_packet(req, p0 | 0x0f, b, 0, 0);
-	} else if (b >= 0xf0) {
+	switch (b) {
+	case 0xf8 ... 0xff:
+		/* System Real-Time Messages */
+		p[0] |= 0x0f;
+		p[1] = b;
+		next_state = port->state;
+		port->state = STATE_REAL_TIME;
+		break;
+
+	case 0xf7:
+		/* End of SysEx */
+		switch (port->state) {
+		case STATE_SYSEX_0:
+			p[0] |= 0x05;
+			p[1] = 0xf7;
+			next_state = STATE_FINISHED;
+			break;
+		case STATE_SYSEX_1:
+			p[0] |= 0x06;
+			p[1] = port->data[0];
+			p[2] = 0xf7;
+			next_state = STATE_FINISHED;
+			break;
+		case STATE_SYSEX_2:
+			p[0] |= 0x07;
+			p[1] = port->data[0];
+			p[2] = port->data[1];
+			p[3] = 0xf7;
+			next_state = STATE_FINISHED;
+			break;
+		default:
+			/* Ignore byte */
+			next_state = port->state;
+			port->state = STATE_INITIAL;
+		}
+		break;
+
+	case 0xf0 ... 0xf6:
+		/* System Common Messages */
+		port->data[0] = port->data[1] = 0;
+		port->state = STATE_INITIAL;
 		switch (b) {
 		case 0xf0:
 			port->data[0] = b;
-			port->state = STATE_SYSEX_1;
+			port->data[1] = 0;
+			next_state = STATE_SYSEX_1;
 			break;
 		case 0xf1:
 		case 0xf3:
 			port->data[0] = b;
-			port->state = STATE_1PARAM;
+			next_state = STATE_1PARAM;
 			break;
 		case 0xf2:
 			port->data[0] = b;
-			port->state = STATE_2PARAM_1;
+			next_state = STATE_2PARAM_1;
 			break;
 		case 0xf4:
 		case 0xf5:
-			port->state = STATE_UNKNOWN;
+			next_state = STATE_INITIAL;
 			break;
 		case 0xf6:
-			f_midi_transmit_packet(req, p0 | 0x05, 0xf6, 0, 0);
-			port->state = STATE_UNKNOWN;
-			break;
-		case 0xf7:
-			switch (port->state) {
-			case STATE_SYSEX_0:
-				f_midi_transmit_packet(req,
-					p0 | 0x05, 0xf7, 0, 0);
-				break;
-			case STATE_SYSEX_1:
-				f_midi_transmit_packet(req,
-					p0 | 0x06, port->data[0], 0xf7, 0);
-				break;
-			case STATE_SYSEX_2:
-				f_midi_transmit_packet(req,
-					p0 | 0x07, port->data[0],
-					port->data[1], 0xf7);
-				break;
-			}
-			port->state = STATE_UNKNOWN;
+			p[0] |= 0x05;
+			p[1] = 0xf6;
+			next_state = STATE_FINISHED;
 			break;
 		}
-	} else if (b >= 0x80) {
+		break;
+
+	case 0x80 ... 0xef:
+		/*
+		 * Channel Voice Messages, Channel Mode Messages
+		 * and Control Change Messages.
+		 */
 		port->data[0] = b;
+		port->data[1] = 0;
+		port->state = STATE_INITIAL;
 		if (b >= 0xc0 && b <= 0xdf)
-			port->state = STATE_1PARAM;
+			next_state = STATE_1PARAM;
 		else
-			port->state = STATE_2PARAM_1;
-	} else { /* b < 0x80 */
+			next_state = STATE_2PARAM_1;
+		break;
+
+	case 0x00 ... 0x7f:
+		/* Message parameters */
 		switch (port->state) {
 		case STATE_1PARAM:
-			if (port->data[0] < 0xf0) {
-				p0 |= port->data[0] >> 4;
-			} else {
-				p0 |= 0x02;
-				port->state = STATE_UNKNOWN;
-			}
-			f_midi_transmit_packet(req, p0, port->data[0], b, 0);
+			if (port->data[0] < 0xf0)
+				p[0] |= port->data[0] >> 4;
+			else
+				p[0] |= 0x02;
+
+			p[1] = port->data[0];
+			p[2] = b;
+			/* This is to allow Running State Messages */
+			next_state = STATE_1PARAM;
 			break;
 		case STATE_2PARAM_1:
 			port->data[1] = b;
-			port->state = STATE_2PARAM_2;
+			next_state = STATE_2PARAM_2;
 			break;
 		case STATE_2PARAM_2:
-			if (port->data[0] < 0xf0) {
-				p0 |= port->data[0] >> 4;
-				port->state = STATE_2PARAM_1;
-			} else {
-				p0 |= 0x03;
-				port->state = STATE_UNKNOWN;
-			}
-			f_midi_transmit_packet(req,
-				p0, port->data[0], port->data[1], b);
+			if (port->data[0] < 0xf0)
+				p[0] |= port->data[0] >> 4;
+			else
+				p[0] |= 0x03;
+
+			p[1] = port->data[0];
+			p[2] = port->data[1];
+			p[3] = b;
+			/* This is to allow Running State Messages */
+			next_state = STATE_2PARAM_1;
 			break;
 		case STATE_SYSEX_0:
 			port->data[0] = b;
-			port->state = STATE_SYSEX_1;
+			next_state = STATE_SYSEX_1;
 			break;
 		case STATE_SYSEX_1:
 			port->data[1] = b;
-			port->state = STATE_SYSEX_2;
+			next_state = STATE_SYSEX_2;
 			break;
 		case STATE_SYSEX_2:
-			f_midi_transmit_packet(req,
-				p0 | 0x04, port->data[0], port->data[1], b);
-			port->state = STATE_SYSEX_0;
+			p[0] |= 0x04;
+			p[1] = port->data[0];
+			p[2] = port->data[1];
+			p[3] = b;
+			next_state = STATE_SYSEX_0;
 			break;
 		}
+		break;
 	}
-}
 
-static void f_midi_drop_out_substreams(struct f_midi *midi)
-{
-	unsigned int i;
+	/* States where we have to write into the USB request */
+	if (next_state == STATE_FINISHED ||
+	    port->state == STATE_SYSEX_2 ||
+	    port->state == STATE_1PARAM ||
+	    port->state == STATE_2PARAM_2 ||
+	    port->state == STATE_REAL_TIME) {
 
-	for (i = 0; i < midi->in_ports; i++) {
-		struct gmidi_in_port *port = midi->in_ports_array + i;
-		struct snd_rawmidi_substream *substream = port->substream;
-		if (port->active && substream)
-			snd_rawmidi_drop_output(substream);
+		unsigned int length = req->length;
+		u8 *buf = (u8 *)req->buf + length;
+
+		memcpy(buf, p, sizeof(p));
+		req->length = length + sizeof(p);
+
+		if (next_state == STATE_FINISHED) {
+			next_state = STATE_INITIAL;
+			port->data[0] = port->data[1] = 0;
+		}
 	}
+
+	port->state = next_state;
 }
 
 static int f_midi_do_transmit(struct f_midi *midi, struct usb_ep *ep)
@@ -642,7 +698,7 @@ static int f_midi_in_open(struct snd_rawmidi_substream *substream)
 	VDBG(midi, "%s()\n", __func__);
 	port = midi->in_ports_array + substream->number;
 	port->substream = substream;
-	port->state = STATE_UNKNOWN;
+	port->state = STATE_INITIAL;
 	return 0;
 }
 
@@ -1123,7 +1179,7 @@ static struct usb_function_instance *f_midi_alloc_inst(void)
 	opts->func_inst.free_func_inst = f_midi_free_inst;
 	opts->index = SNDRV_DEFAULT_IDX1;
 	opts->id = SNDRV_DEFAULT_STR1;
-	opts->buflen = 256;
+	opts->buflen = 512;
 	opts->qlen = 32;
 	opts->in_ports = 1;
 	opts->out_ports = 1;

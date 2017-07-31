@@ -507,21 +507,11 @@ do {									\
 
 #endif
 
-/* This is not atomic against other CPUs -- CPU preemption needs to be off */
-#define x86_test_and_clear_bit_percpu(bit, var)				\
-({									\
-	bool old__;							\
-	asm volatile("btr %2,"__percpu_arg(1)"\n\t"			\
-		     CC_SET(c)						\
-		     : CC_OUT(c) (old__), "+m" (var)			\
-		     : "dIr" (bit));					\
-	old__;								\
-})
-
 static __always_inline bool x86_this_cpu_constant_test_bit(unsigned int nr,
                         const unsigned long __percpu *addr)
 {
-	unsigned long __percpu *a = (unsigned long *)addr + nr / BITS_PER_LONG;
+	unsigned long __percpu *a =
+		(unsigned long __percpu *)addr + nr / BITS_PER_LONG;
 
 #ifdef CONFIG_X86_64
 	return ((1UL << (nr % BITS_PER_LONG)) & raw_cpu_read_8(*a)) != 0;
@@ -538,7 +528,7 @@ static inline bool x86_this_cpu_variable_test_bit(int nr,
 	asm volatile("bt "__percpu_arg(2)",%1\n\t"
 			CC_SET(c)
 			: CC_OUT(c) (oldbit)
-			: "m" (*(unsigned long *)addr), "Ir" (nr));
+			: "m" (*(unsigned long __percpu *)addr), "Ir" (nr));
 
 	return oldbit;
 }

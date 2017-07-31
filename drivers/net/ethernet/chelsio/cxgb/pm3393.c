@@ -47,9 +47,6 @@
 
 #define OFFSET(REG_ADDR)    ((REG_ADDR) << 2)
 
-/* Max frame size PM3393 can handle. Includes Ethernet header and CRC. */
-#define MAX_FRAME_SIZE  9600
-
 #define IPG 12
 #define TXXG_CONF1_VAL ((IPG << SUNI1x10GEXP_BITOFF_TXXG_IPGT) | \
 	SUNI1x10GEXP_BITMSK_TXXG_32BIT_ALIGN | SUNI1x10GEXP_BITMSK_TXXG_CRCEN | \
@@ -331,10 +328,7 @@ static int pm3393_set_mtu(struct cmac *cmac, int mtu)
 {
 	int enabled = cmac->instance->enabled;
 
-	/* MAX_FRAME_SIZE includes header + FCS, mtu doesn't */
-	mtu += 14 + 4;
-	if (mtu > MAX_FRAME_SIZE)
-		return -EINVAL;
+	mtu += ETH_HLEN + ETH_FCS_LEN;
 
 	/* Disable Rx/Tx MAC before configuring it. */
 	if (enabled)

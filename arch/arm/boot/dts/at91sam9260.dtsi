@@ -412,8 +412,8 @@
 				dbgu {
 					pinctrl_dbgu: dbgu-0 {
 						atmel,pins =
-							<AT91_PIOB 14 AT91_PERIPH_A AT91_PINCTRL_NONE	/* PB14 periph A */
-							 AT91_PIOB 15 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>;	/* PB15 periph with pullup */
+							<AT91_PIOB 14 AT91_PERIPH_A AT91_PINCTRL_PULL_UP
+							 AT91_PIOB 15 AT91_PERIPH_A AT91_PINCTRL_NONE>;
 					};
 				};
 

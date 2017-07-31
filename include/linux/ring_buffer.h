@@ -198,4 +198,10 @@ enum ring_buffer_flags {
 	RB_FL_OVERWRITE		= 1 << 0,
 };
 
+#ifdef CONFIG_RING_BUFFER
+int trace_rb_cpu_prepare(unsigned int cpu, struct hlist_node *node);
+#else
+#define trace_rb_cpu_prepare	NULL
+#endif
+
 #endif /* _LINUX_RING_BUFFER_H */

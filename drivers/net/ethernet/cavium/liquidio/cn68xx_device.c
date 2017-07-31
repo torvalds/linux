@@ -1,24 +1,20 @@
 /**********************************************************************
-* Author: Cavium, Inc.
-*
-* Contact: support@cavium.com
-*          Please include "LiquidIO" in the subject.
-*
-* Copyright (c) 2003-2015 Cavium, Inc.
-*
-* This file is free software; you can redistribute it and/or modify
-* it under the terms of the GNU General Public License, Version 2, as
-* published by the Free Software Foundation.
-*
-* This file is distributed in the hope that it will be useful, but
-* AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
-* of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
-* NONINFRINGEMENT.  See the GNU General Public License for more
-* details.
-*
-* This file may also be available under a different license from Cavium.
-* Contact Cavium, Inc. for more information
-**********************************************************************/
+ * Author: Cavium, Inc.
+ *
+ * Contact: support@cavium.com
+ *          Please include "LiquidIO" in the subject.
+ *
+ * Copyright (c) 2003-2016 Cavium, Inc.
+ *
+ * This file is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License, Version 2, as
+ * published by the Free Software Foundation.
+ *
+ * This file is distributed in the hope that it will be useful, but
+ * AS-IS and WITHOUT ANY WARRANTY; without even the implied warranty
+ * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE, TITLE, or
+ * NONINFRINGEMENT.  See the GNU General Public License for more details.
+ ***********************************************************************/
 #include <linux/pci.h>
 #include <linux/netdevice.h>
 #include "liquidio_common.h"
@@ -76,7 +72,7 @@ static void lio_cn68xx_setup_pkt_ctl_regs(struct octeon_device *oct)
 	pktctl = octeon_read_csr64(oct, CN6XXX_SLI_PKT_CTL);
 
 	/* 68XX specific */
-	max_oqs = CFG_GET_OQ_MAX_Q(CHIP_FIELD(oct, cn6xxx, conf));
+	max_oqs = CFG_GET_OQ_MAX_Q(CHIP_CONF(oct, cn6xxx));
 	tx_pipe  = octeon_read_csr64(oct, CN68XX_SLI_TX_PIPE);
 	tx_pipe &= 0xffffffffff00ffffULL; /* clear out NUMP field */
 	tx_pipe |= max_oqs << 16; /* put max_oqs in NUMP field */
@@ -148,7 +144,6 @@ int lio_setup_cn68xx_octeon_device(struct octeon_device *oct)
 	oct->fn_list.process_interrupt_regs = lio_cn6xxx_process_interrupt_regs;
 	oct->fn_list.soft_reset = lio_cn68xx_soft_reset;
 	oct->fn_list.setup_device_regs = lio_cn68xx_setup_device_regs;
-	oct->fn_list.reinit_regs = lio_cn6xxx_reinit_regs;
 	oct->fn_list.update_iq_read_idx = lio_cn6xxx_update_read_index;
 
 	oct->fn_list.bar1_idx_setup = lio_cn6xxx_bar1_idx_setup;

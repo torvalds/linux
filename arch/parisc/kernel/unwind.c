@@ -15,7 +15,7 @@
 #include <linux/kallsyms.h>
 #include <linux/sort.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/assembly.h>
 #include <asm/asm-offsets.h>
 #include <asm/ptrace.h>

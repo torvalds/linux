@@ -46,6 +46,8 @@ enum {
 	PERF_EVSEL__CONFIG_TERM_INHERIT,
 	PERF_EVSEL__CONFIG_TERM_MAX_STACK,
 	PERF_EVSEL__CONFIG_TERM_OVERWRITE,
+	PERF_EVSEL__CONFIG_TERM_DRV_CFG,
+	PERF_EVSEL__CONFIG_TERM_BRANCH,
 	PERF_EVSEL__CONFIG_TERM_MAX,
 };
 
@@ -57,10 +59,12 @@ struct perf_evsel_config_term {
 		u64	freq;
 		bool	time;
 		char	*callgraph;
+		char	*drv_cfg;
 		u64	stack_user;
 		int	max_stack;
 		bool	inherit;
 		bool	overwrite;
+		char	*branch;
 	} val;
 };
 
@@ -116,6 +120,7 @@ struct perf_evsel {
 	bool			tracking;
 	bool			per_pkg;
 	bool			precise_max;
+	bool			ignore_missing_thread;
 	/* parse modifier helper */
 	int			exclude_GH;
 	int			nr_members;
@@ -126,6 +131,11 @@ struct perf_evsel {
 	bool			cmdline_group_boundary;
 	struct list_head	config_terms;
 	int			bpf_fd;
+	bool			merged_stat;
+	const char *		metric_expr;
+	const char *		metric_name;
+	struct perf_evsel	**metric_events;
+	bool			collect_stat;
 };
 
 union u64_swap {
@@ -233,8 +243,9 @@ void perf_evsel__set_sample_id(struct perf_evsel *evsel,
 			       bool use_sample_identifier);
 
 int perf_evsel__set_filter(struct perf_evsel *evsel, const char *filter);
-int perf_evsel__append_filter(struct perf_evsel *evsel,
-			      const char *op, const char *filter);
+int perf_evsel__append_tp_filter(struct perf_evsel *evsel, const char *filter);
+int perf_evsel__append_addr_filter(struct perf_evsel *evsel,
+				   const char *filter);
 int perf_evsel__apply_filter(struct perf_evsel *evsel, int ncpus, int nthreads,
 			     const char *filter);
 int perf_evsel__enable(struct perf_evsel *evsel);
@@ -386,6 +397,8 @@ int perf_evsel__fprintf(struct perf_evsel *evsel,
 #define EVSEL__PRINT_ONELINE		(1<<4)
 #define EVSEL__PRINT_SRCLINE		(1<<5)
 #define EVSEL__PRINT_UNKNOWN_AS_ADDR	(1<<6)
+#define EVSEL__PRINT_CALLCHAIN_ARROW	(1<<7)
+#define EVSEL__PRINT_SKIP_IGNORED	(1<<8)
 
 struct callchain_cursor;
 

@@ -86,6 +86,20 @@ btrfs_work_owner(struct btrfs_work *work)
 	return work->wq->fs_info;
 }
 
+bool btrfs_workqueue_normal_congested(struct btrfs_workqueue *wq)
+{
+	/*
+	 * We could compare wq->normal->pending with num_online_cpus()
+	 * to support "thresh == NO_THRESHOLD" case, but it requires
+	 * moving up atomic_inc/dec in thresh_queue/exec_hook. Let's
+	 * postpone it until someone needs the support of that case.
+	 */
+	if (wq->normal->thresh == NO_THRESHOLD)
+		return false;
+
+	return atomic_read(&wq->normal->pending) > wq->normal->thresh * 2;
+}
+
 BTRFS_WORK_HELPER(worker_helper);
 BTRFS_WORK_HELPER(delalloc_helper);
 BTRFS_WORK_HELPER(flush_delalloc_helper);
@@ -259,6 +273,8 @@ static void run_ordered_work(struct __btrfs_workqueue *wq)
 	unsigned long flags;
 
 	while (1) {
+		void *wtag;
+
 		spin_lock_irqsave(lock, flags);
 		if (list_empty(list))
 			break;
@@ -285,11 +301,13 @@ static void run_ordered_work(struct __btrfs_workqueue *wq)
 		spin_unlock_irqrestore(lock, flags);
 
 		/*
-		 * we don't want to call the ordered free functions
-		 * with the lock held though
+		 * We don't want to call the ordered free functions with the
+		 * lock held though. Save the work as tag for the trace event,
+		 * because the callback could free the structure.
 		 */
+		wtag = work;
 		work->ordered_free(work);
-		trace_btrfs_all_work_done(work);
+		trace_btrfs_all_work_done(wq->fs_info, wtag);
 	}
 	spin_unlock_irqrestore(lock, flags);
 }
@@ -297,6 +315,7 @@ static void run_ordered_work(struct __btrfs_workqueue *wq)
 static void normal_work_helper(struct btrfs_work *work)
 {
 	struct __btrfs_workqueue *wq;
+	void *wtag;
 	int need_order = 0;
 
 	/*
@@ -310,6 +329,8 @@ static void normal_work_helper(struct btrfs_work *work)
 	if (work->ordered_func)
 		need_order = 1;
 	wq = work->wq;
+	/* Safe for tracepoints in case work gets freed by the callback */
+	wtag = work;
 
 	trace_btrfs_work_sched(work);
 	thresh_exec_hook(wq);
@@ -319,7 +340,7 @@ static void normal_work_helper(struct btrfs_work *work)
 		run_ordered_work(wq);
 	}
 	if (!need_order)
-		trace_btrfs_all_work_done(work);
+		trace_btrfs_all_work_done(wq->fs_info, wtag);
 }
 
 void btrfs_init_work(struct btrfs_work *work, btrfs_work_func_t uniq_func,

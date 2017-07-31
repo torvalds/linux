@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -201,7 +201,6 @@ acpi_ex_start_trace_method(struct acpi_namespace_node *method_node,
 			   union acpi_operand_object *obj_desc,
 			   struct acpi_walk_state *walk_state)
 {
-	acpi_status status;
 	char *pathname = NULL;
 	u8 enabled = FALSE;
 
@@ -209,11 +208,6 @@ acpi_ex_start_trace_method(struct acpi_namespace_node *method_node,
 
 	if (method_node) {
 		pathname = acpi_ns_get_normalized_pathname(method_node, TRUE);
-	}
-
-	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
-	if (ACPI_FAILURE(status)) {
-		goto exit;
 	}
 
 	enabled = acpi_ex_interpreter_trace_enabled(pathname);
@@ -233,9 +227,6 @@ acpi_ex_start_trace_method(struct acpi_namespace_node *method_node,
 		}
 	}
 
-	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
-
-exit:
 	if (enabled) {
 		ACPI_TRACE_POINT(ACPI_TRACE_AML_METHOD, TRUE,
 				 obj_desc ? obj_desc->method.aml_start : NULL,
@@ -267,7 +258,6 @@ acpi_ex_stop_trace_method(struct acpi_namespace_node *method_node,
 			  union acpi_operand_object *obj_desc,
 			  struct acpi_walk_state *walk_state)
 {
-	acpi_status status;
 	char *pathname = NULL;
 	u8 enabled;
 
@@ -277,24 +267,12 @@ acpi_ex_stop_trace_method(struct acpi_namespace_node *method_node,
 		pathname = acpi_ns_get_normalized_pathname(method_node, TRUE);
 	}
 
-	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
-	if (ACPI_FAILURE(status)) {
-		goto exit_path;
-	}
-
 	enabled = acpi_ex_interpreter_trace_enabled(NULL);
-
-	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
 
 	if (enabled) {
 		ACPI_TRACE_POINT(ACPI_TRACE_AML_METHOD, FALSE,
 				 obj_desc ? obj_desc->method.aml_start : NULL,
 				 pathname);
-	}
-
-	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
-	if (ACPI_FAILURE(status)) {
-		goto exit_path;
 	}
 
 	/* Check whether the tracer should be stopped */
@@ -312,9 +290,6 @@ acpi_ex_stop_trace_method(struct acpi_namespace_node *method_node,
 		acpi_gbl_trace_method_object = NULL;
 	}
 
-	(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
-
-exit_path:
 	if (pathname) {
 		ACPI_FREE(pathname);
 	}

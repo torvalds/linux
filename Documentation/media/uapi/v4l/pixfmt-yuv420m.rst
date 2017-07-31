@@ -7,7 +7,6 @@
 V4L2_PIX_FMT_YUV420M ('YM12'), V4L2_PIX_FMT_YVU420M ('YM21')
 ************************************************************
 
-*man V4L2_PIX_FMT_YUV420M(2)*
 
 V4L2_PIX_FMT_YVU420M
 Variation of ``V4L2_PIX_FMT_YUV420`` and ``V4L2_PIX_FMT_YVU420`` with
@@ -45,99 +44,45 @@ Each cell is one byte.
 
 
 
+
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-    :widths:       2 1 1 1 1
 
-
-    -  .. row 1
-
-       -  start0 + 0:
-
-       -  Y'\ :sub:`00`
-
-       -  Y'\ :sub:`01`
-
-       -  Y'\ :sub:`02`
-
-       -  Y'\ :sub:`03`
-
-    -  .. row 2
-
-       -  start0 + 4:
-
-       -  Y'\ :sub:`10`
-
-       -  Y'\ :sub:`11`
-
-       -  Y'\ :sub:`12`
-
-       -  Y'\ :sub:`13`
-
-    -  .. row 3
-
-       -  start0 + 8:
-
-       -  Y'\ :sub:`20`
-
-       -  Y'\ :sub:`21`
-
-       -  Y'\ :sub:`22`
-
-       -  Y'\ :sub:`23`
-
-    -  .. row 4
-
-       -  start0 + 12:
-
-       -  Y'\ :sub:`30`
-
-       -  Y'\ :sub:`31`
-
-       -  Y'\ :sub:`32`
-
-       -  Y'\ :sub:`33`
-
-    -  .. row 5
-
-       -
-
-    -  .. row 6
-
-       -  start1 + 0:
-
-       -  Cb\ :sub:`00`
-
-       -  Cb\ :sub:`01`
-
-    -  .. row 7
-
-       -  start1 + 2:
-
-       -  Cb\ :sub:`10`
-
-       -  Cb\ :sub:`11`
-
-    -  .. row 8
-
-       -
-
-    -  .. row 9
-
-       -  start2 + 0:
-
-       -  Cr\ :sub:`00`
-
-       -  Cr\ :sub:`01`
-
-    -  .. row 10
-
-       -  start2 + 2:
-
-       -  Cr\ :sub:`10`
-
-       -  Cr\ :sub:`11`
+    * - start0 + 0:
+      - Y'\ :sub:`00`
+      - Y'\ :sub:`01`
+      - Y'\ :sub:`02`
+      - Y'\ :sub:`03`
+    * - start0 + 4:
+      - Y'\ :sub:`10`
+      - Y'\ :sub:`11`
+      - Y'\ :sub:`12`
+      - Y'\ :sub:`13`
+    * - start0 + 8:
+      - Y'\ :sub:`20`
+      - Y'\ :sub:`21`
+      - Y'\ :sub:`22`
+      - Y'\ :sub:`23`
+    * - start0 + 12:
+      - Y'\ :sub:`30`
+      - Y'\ :sub:`31`
+      - Y'\ :sub:`32`
+      - Y'\ :sub:`33`
+    * -
+    * - start1 + 0:
+      - Cb\ :sub:`00`
+      - Cb\ :sub:`01`
+    * - start1 + 2:
+      - Cb\ :sub:`10`
+      - Cb\ :sub:`11`
+    * -
+    * - start2 + 0:
+      - Cr\ :sub:`00`
+      - Cr\ :sub:`01`
+    * - start2 + 2:
+      - Cr\ :sub:`10`
+      - Cr\ :sub:`11`
 
 
 **Color Sample Location..**
@@ -148,107 +93,60 @@ Each cell is one byte.
     :header-rows:  0
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -
-       -  0
-
-       -
-       -  1
-
-       -
-       -  2
-
-       -
-       -  3
-
-    -  .. row 2
-
-       -  0
-
-       -  Y
-
-       -
-       -  Y
-
-       -
-       -  Y
-
-       -
-       -  Y
-
-    -  .. row 3
-
-       -
-       -
-       -  C
-
-       -
-       -
-       -
-       -  C
-
-       -
-
-    -  .. row 4
-
-       -  1
-
-       -  Y
-
-       -
-       -  Y
-
-       -
-       -  Y
-
-       -
-       -  Y
-
-    -  .. row 5
-
-       -
-
-    -  .. row 6
-
-       -  2
-
-       -  Y
-
-       -
-       -  Y
-
-       -
-       -  Y
-
-       -
-       -  Y
-
-    -  .. row 7
-
-       -
-       -
-       -  C
-
-       -
-       -
-       -
-       -  C
-
-       -
-
-    -  .. row 8
-
-       -  3
-
-       -  Y
-
-       -
-       -  Y
-
-       -
-       -  Y
-
-       -
-       -  Y
+    * -
+      - 0
+      -
+      - 1
+      -
+      - 2
+      -
+      - 3
+    * - 0
+      - Y
+      -
+      - Y
+      -
+      - Y
+      -
+      - Y
+    * -
+      -
+      - C
+      -
+      -
+      -
+      - C
+      -
+    * - 1
+      - Y
+      -
+      - Y
+      -
+      - Y
+      -
+      - Y
+    * -
+    * - 2
+      - Y
+      -
+      - Y
+      -
+      - Y
+      -
+      - Y
+    * -
+      -
+      - C
+      -
+      -
+      -
+      - C
+      -
+    * - 3
+      - Y
+      -
+      - Y
+      -
+      - Y
+      -
+      - Y

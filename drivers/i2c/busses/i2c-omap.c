@@ -1425,10 +1425,8 @@ omap_i2c_probe(struct platform_device *pdev)
 	/* i2c device drivers may be active on return from add_adapter() */
 	adap->nr = pdev->id;
 	r = i2c_add_numbered_adapter(adap);
-	if (r) {
-		dev_err(omap->dev, "failure adding adapter\n");
+	if (r)
 		goto err_unuse_clocks;
-	}
 
 	dev_info(omap->dev, "bus %d rev%d.%d at %d kHz\n", adap->nr,
 		 major, minor, omap->speed);
@@ -1506,7 +1504,7 @@ static int omap_i2c_runtime_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops omap_i2c_pm_ops = {
+static const struct dev_pm_ops omap_i2c_pm_ops = {
 	SET_RUNTIME_PM_OPS(omap_i2c_runtime_suspend,
 			   omap_i2c_runtime_resume, NULL)
 };

@@ -1,0 +1,54 @@
+Bindings for ADC envelope detector using a DAC and a comparator
+
+The DAC is used to find the peak level of an alternating voltage input
+signal by a binary search using the output of a comparator wired to
+an interrupt pin. Like so:
+                          _
+                         | \
+    input +------>-------|+ \
+                         |   \
+           .-------.     |    }---.
+           |       |     |   /    |
+           |    dac|-->--|- /     |
+           |       |     |_/      |
+           |       |              |
+           |       |              |
+           |    irq|------<-------'
+           |       |
+           '-------'
+
+Required properties:
+- compatible: Should be "axentia,tse850-envelope-detector"
+- io-channels: Channel node of the dac to be used for comparator input.
+- io-channel-names: Should be "dac".
+- interrupt specification for one client interrupt,
+  see ../../interrupt-controller/interrupts.txt for details.
+- interrupt-names: Should be "comp".
+
+Example:
+
+	&i2c {
+		dpot: mcp4651-104@28 {
+			compatible = "microchip,mcp4651-104";
+			reg = <0x28>;
+			#io-channel-cells = <1>;
+		};
+	};
+
+	dac: dac {
+		compatible = "dpot-dac";
+		vref-supply = <&reg_3v3>;
+		io-channels = <&dpot 0>;
+		io-channel-names = "dpot";
+		#io-channel-cells = <1>;
+	};
+
+	envelope-detector {
+		compatible = "axentia,tse850-envelope-detector";
+		io-channels = <&dac 0>;
+		io-channel-names = "dac";
+
+		interrupt-parent = <&gpio>;
+		interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-names = "comp";
+	};

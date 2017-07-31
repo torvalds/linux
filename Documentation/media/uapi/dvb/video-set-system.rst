@@ -11,11 +11,13 @@ Name
 
 VIDEO_SET_SYSTEM
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. cpp:function:: int ioctl(fd, int request = VIDEO_SET_SYSTEM , video_system_t system)
+.. c:function:: int ioctl(fd, VIDEO_SET_SYSTEM , video_system_t system)
+    :name: VIDEO_SET_SYSTEM
 
 
 Arguments

@@ -21,17 +21,6 @@
 #include "drm_crtc.h"
 #include "drm_crtc_helper.h"
 
-struct mdp5_encoder {
-	struct drm_encoder base;
-	struct mdp5_interface intf;
-	spinlock_t intf_lock;	/* protect REG_MDP5_INTF_* registers */
-	bool enabled;
-	uint32_t bsc;
-
-	struct mdp5_ctl *ctl;
-};
-#define to_mdp5_encoder(x) container_of(x, struct mdp5_encoder, base)
-
 static struct mdp5_kms *get_kms(struct drm_encoder *encoder)
 {
 	struct msm_drm_private *priv = encoder->dev->dev_private;
@@ -112,9 +101,9 @@ static const struct drm_encoder_funcs mdp5_encoder_funcs = {
 	.destroy = mdp5_encoder_destroy,
 };
 
-static void mdp5_encoder_mode_set(struct drm_encoder *encoder,
-		struct drm_display_mode *mode,
-		struct drm_display_mode *adjusted_mode)
+static void mdp5_vid_encoder_mode_set(struct drm_encoder *encoder,
+				      struct drm_display_mode *mode,
+				      struct drm_display_mode *adjusted_mode)
 {
 	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
 	struct mdp5_kms *mdp5_kms = get_kms(encoder);
@@ -221,7 +210,7 @@ static void mdp5_encoder_mode_set(struct drm_encoder *encoder,
 				mdp5_encoder->ctl);
 }
 
-static void mdp5_encoder_disable(struct drm_encoder *encoder)
+static void mdp5_vid_encoder_disable(struct drm_encoder *encoder)
 {
 	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
 	struct mdp5_kms *mdp5_kms = get_kms(encoder);
@@ -256,7 +245,7 @@ static void mdp5_encoder_disable(struct drm_encoder *encoder)
 	mdp5_encoder->enabled = false;
 }
 
-static void mdp5_encoder_enable(struct drm_encoder *encoder)
+static void mdp5_vid_encoder_enable(struct drm_encoder *encoder)
 {
 	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
 	struct mdp5_kms *mdp5_kms = get_kms(encoder);
@@ -277,6 +266,41 @@ static void mdp5_encoder_enable(struct drm_encoder *encoder)
 	mdp5_ctl_set_encoder_state(ctl, true);
 
 	mdp5_encoder->enabled = true;
+}
+
+static void mdp5_encoder_mode_set(struct drm_encoder *encoder,
+				  struct drm_display_mode *mode,
+				  struct drm_display_mode *adjusted_mode)
+{
+	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
+	struct mdp5_interface *intf = &mdp5_encoder->intf;
+
+	if (intf->mode == MDP5_INTF_DSI_MODE_COMMAND)
+		mdp5_cmd_encoder_mode_set(encoder, mode, adjusted_mode);
+	else
+		mdp5_vid_encoder_mode_set(encoder, mode, adjusted_mode);
+}
+
+static void mdp5_encoder_disable(struct drm_encoder *encoder)
+{
+	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
+	struct mdp5_interface *intf = &mdp5_encoder->intf;
+
+	if (intf->mode == MDP5_INTF_DSI_MODE_COMMAND)
+		mdp5_cmd_encoder_disable(encoder);
+	else
+		mdp5_vid_encoder_disable(encoder);
+}
+
+static void mdp5_encoder_enable(struct drm_encoder *encoder)
+{
+	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
+	struct mdp5_interface *intf = &mdp5_encoder->intf;
+
+	if (intf->mode == MDP5_INTF_DSI_MODE_COMMAND)
+		mdp5_cmd_encoder_disable(encoder);
+	else
+		mdp5_vid_encoder_enable(encoder);
 }
 
 static const struct drm_encoder_helper_funcs mdp5_encoder_helper_funcs = {
@@ -303,8 +327,8 @@ u32 mdp5_encoder_get_framecount(struct drm_encoder *encoder)
 	return mdp5_read(mdp5_kms, REG_MDP5_INTF_FRAME_COUNT(intf));
 }
 
-int mdp5_encoder_set_split_display(struct drm_encoder *encoder,
-					struct drm_encoder *slave_encoder)
+int mdp5_vid_encoder_set_split_display(struct drm_encoder *encoder,
+				       struct drm_encoder *slave_encoder)
 {
 	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
 	struct mdp5_encoder *mdp5_slave_enc = to_mdp5_encoder(slave_encoder);
@@ -340,6 +364,23 @@ int mdp5_encoder_set_split_display(struct drm_encoder *encoder,
 	mdp5_disable(mdp5_kms);
 
 	return 0;
+}
+
+void mdp5_encoder_set_intf_mode(struct drm_encoder *encoder, bool cmd_mode)
+{
+	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
+	struct mdp5_interface *intf = &mdp5_encoder->intf;
+
+	/* TODO: Expand this to set writeback modes too */
+	if (cmd_mode) {
+		WARN_ON(intf->type != INTF_DSI);
+		intf->mode = MDP5_INTF_DSI_MODE_COMMAND;
+	} else {
+		if (intf->type == INTF_DSI)
+			intf->mode = MDP5_INTF_DSI_MODE_VIDEO;
+		else
+			intf->mode = MDP5_INTF_MODE_NONE;
+	}
 }
 
 /* initialize encoder */

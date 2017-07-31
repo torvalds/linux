@@ -191,7 +191,7 @@ static inline int mip6_report_rl_allow(ktime_t stamp,
 	int allow = 0;
 
 	spin_lock_bh(&mip6_report_rl.lock);
-	if (!ktime_equal(mip6_report_rl.stamp, stamp) ||
+	if (mip6_report_rl.stamp != stamp ||
 	    mip6_report_rl.iif != iif ||
 	    !ipv6_addr_equal(&mip6_report_rl.src, src) ||
 	    !ipv6_addr_equal(&mip6_report_rl.dst, dst)) {

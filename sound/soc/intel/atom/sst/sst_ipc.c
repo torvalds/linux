@@ -236,6 +236,17 @@ static void process_fw_init(struct intel_sst_drv *sst_drv_ctx,
 		retval = init->result;
 		goto ret;
 	}
+	dev_info(sst_drv_ctx->dev, "FW Version %02x.%02x.%02x.%02x\n",
+			init->fw_version.type, init->fw_version.major,
+			init->fw_version.minor, init->fw_version.build);
+	dev_dbg(sst_drv_ctx->dev, "Build date %s Time %s\n",
+			init->build_info.date, init->build_info.time);
+
+	/* Save FW version */
+	sst_drv_ctx->fw_version.type = init->fw_version.type;
+	sst_drv_ctx->fw_version.major = init->fw_version.major;
+	sst_drv_ctx->fw_version.minor = init->fw_version.minor;
+	sst_drv_ctx->fw_version.build = init->fw_version.build;
 
 ret:
 	sst_wake_up_block(sst_drv_ctx, retval, FW_DWNL_ID, 0 , NULL, 0);
@@ -249,10 +260,8 @@ static void process_fw_async_msg(struct intel_sst_drv *sst_drv_ctx,
 	u32 data_size, i;
 	void *data_offset;
 	struct stream_info *stream;
-	union ipc_header_high msg_high;
 	u32 msg_low, pipe_id;
 
-	msg_high = msg->mrfld_header.p.header_high;
 	msg_low = msg->mrfld_header.p.header_low_payload;
 	msg_id = ((struct ipc_dsp_hdr *)msg->mailbox_data)->cmd_id;
 	data_offset = (msg->mailbox_data + sizeof(struct ipc_dsp_hdr));
@@ -267,6 +276,9 @@ static void process_fw_async_msg(struct intel_sst_drv *sst_drv_ctx,
 				"Period elapsed rcvd for pipe id 0x%x\n",
 				pipe_id);
 			stream = &sst_drv_ctx->streams[str_id];
+			/* If stream is dropped, skip processing this message*/
+			if (stream->status == STREAM_INIT)
+				break;
 			if (stream->period_elapsed)
 				stream->period_elapsed(stream->pcm_substream);
 			if (stream->compr_cb)

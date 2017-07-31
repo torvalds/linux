@@ -1,5 +1,6 @@
 #ifndef _LINUX_EXPORT_H
 #define _LINUX_EXPORT_H
+
 /*
  * Export symbols from the kernel to modules.  Forked from module.h
  * to reduce the amount of pointless cruft we feed to gcc when only
@@ -42,27 +43,33 @@ extern struct module __this_module;
 #ifdef CONFIG_MODVERSIONS
 /* Mark the CRC weak since genksyms apparently decides not to
  * generate a checksums for some symbols */
-#define __CRC_SYMBOL(sym, sec)					\
-	extern __visible void *__crc_##sym __attribute__((weak));		\
-	static const unsigned long __kcrctab_##sym		\
-	__used							\
-	__attribute__((section("___kcrctab" sec "+" #sym), unused))	\
-	= (unsigned long) &__crc_##sym;
+#if defined(CONFIG_MODULE_REL_CRCS)
+#define __CRC_SYMBOL(sym, sec)						\
+	asm("	.section \"___kcrctab" sec "+" #sym "\", \"a\"	\n"	\
+	    "	.weak	" VMLINUX_SYMBOL_STR(__crc_##sym) "	\n"	\
+	    "	.long	" VMLINUX_SYMBOL_STR(__crc_##sym) " - .	\n"	\
+	    "	.previous					\n");
+#else
+#define __CRC_SYMBOL(sym, sec)						\
+	asm("	.section \"___kcrctab" sec "+" #sym "\", \"a\"	\n"	\
+	    "	.weak	" VMLINUX_SYMBOL_STR(__crc_##sym) "	\n"	\
+	    "	.long	" VMLINUX_SYMBOL_STR(__crc_##sym) "	\n"	\
+	    "	.previous					\n");
+#endif
 #else
 #define __CRC_SYMBOL(sym, sec)
 #endif
 
 /* For every exported symbol, place a struct in the __ksymtab section */
-#define ___EXPORT_SYMBOL(sym, sec)				\
-	extern typeof(sym) sym;					\
-	__CRC_SYMBOL(sym, sec)					\
-	static const char __kstrtab_##sym[]			\
-	__attribute__((section("__ksymtab_strings"), aligned(1))) \
-	= VMLINUX_SYMBOL_STR(sym);				\
-	extern const struct kernel_symbol __ksymtab_##sym;	\
-	__visible const struct kernel_symbol __ksymtab_##sym	\
-	__used							\
-	__attribute__((section("___ksymtab" sec "+" #sym), unused))	\
+#define ___EXPORT_SYMBOL(sym, sec)					\
+	extern typeof(sym) sym;						\
+	__CRC_SYMBOL(sym, sec)						\
+	static const char __kstrtab_##sym[]				\
+	__attribute__((section("__ksymtab_strings"), aligned(1)))	\
+	= VMLINUX_SYMBOL_STR(sym);					\
+	static const struct kernel_symbol __ksymtab_##sym		\
+	__used								\
+	__attribute__((section("___ksymtab" sec "+" #sym), used))	\
 	= { (unsigned long)&sym, __kstrtab_##sym }
 
 #if defined(__KSYM_DEPS__)
@@ -78,7 +85,6 @@ extern struct module __this_module;
 
 #elif defined(CONFIG_TRIM_UNUSED_KSYMS)
 
-#include <linux/kconfig.h>
 #include <generated/autoksyms.h>
 
 #define __EXPORT_SYMBOL(sym, sec)				\

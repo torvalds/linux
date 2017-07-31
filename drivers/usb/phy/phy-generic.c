@@ -59,6 +59,15 @@ EXPORT_SYMBOL_GPL(usb_phy_generic_unregister);
 
 static int nop_set_suspend(struct usb_phy *x, int suspend)
 {
+	struct usb_phy_generic *nop = dev_get_drvdata(x->dev);
+
+	if (!IS_ERR(nop->clk)) {
+		if (suspend)
+			clk_disable_unprepare(nop->clk);
+		else
+			clk_prepare_enable(nop->clk);
+	}
+
 	return 0;
 }
 
@@ -118,8 +127,6 @@ static irqreturn_t nop_gpio_vbus_thread(int irq, void *data)
 		status = USB_EVENT_VBUS;
 		otg->state = OTG_STATE_B_PERIPHERAL;
 		nop->phy.last_event = status;
-		if (otg->gadget)
-			usb_gadget_vbus_connect(otg->gadget);
 
 		/* drawing a "unit load" is *always* OK, except for OTG */
 		nop_set_vbus_draw(nop, 100);
@@ -129,8 +136,6 @@ static irqreturn_t nop_gpio_vbus_thread(int irq, void *data)
 	} else {
 		nop_set_vbus_draw(nop, 0);
 
-		if (otg->gadget)
-			usb_gadget_vbus_disconnect(otg->gadget);
 		status = USB_EVENT_NONE;
 		otg->state = OTG_STATE_B_IDLE;
 		nop->phy.last_event = status;
@@ -144,14 +149,18 @@ static irqreturn_t nop_gpio_vbus_thread(int irq, void *data)
 int usb_gen_phy_init(struct usb_phy *phy)
 {
 	struct usb_phy_generic *nop = dev_get_drvdata(phy->dev);
+	int ret;
 
 	if (!IS_ERR(nop->vcc)) {
 		if (regulator_enable(nop->vcc))
 			dev_err(phy->dev, "Failed to enable power\n");
 	}
 
-	if (!IS_ERR(nop->clk))
-		clk_prepare_enable(nop->clk);
+	if (!IS_ERR(nop->clk)) {
+		ret = clk_prepare_enable(nop->clk);
+		if (ret)
+			return ret;
+	}
 
 	nop_reset(nop);
 
@@ -187,7 +196,8 @@ static int nop_set_peripheral(struct usb_otg *otg, struct usb_gadget *gadget)
 
 	otg->gadget = gadget;
 	if (otg->state == OTG_STATE_B_PERIPHERAL)
-		usb_gadget_vbus_connect(gadget);
+		atomic_notifier_call_chain(&otg->usb_phy->notifier,
+					   USB_EVENT_VBUS, otg->gadget);
 	else
 		otg->state = OTG_STATE_B_IDLE;
 	return 0;
@@ -322,6 +332,8 @@ static int usb_phy_generic_probe(struct platform_device *pdev)
 				gpiod_to_irq(nop->gpiod_vbus), err);
 			return err;
 		}
+		nop->phy.otg->state = gpiod_get_value(nop->gpiod_vbus) ?
+			OTG_STATE_B_PERIPHERAL : OTG_STATE_B_IDLE;
 	}
 
 	nop->phy.init		= usb_gen_phy_init;

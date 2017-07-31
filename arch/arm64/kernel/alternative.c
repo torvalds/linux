@@ -25,13 +25,12 @@
 #include <asm/alternative.h>
 #include <asm/cpufeature.h>
 #include <asm/insn.h>
+#include <asm/sections.h>
 #include <linux/stop_machine.h>
 
 #define __ALT_PTR(a,f)		(u32 *)((void *)&(a)->f + (a)->f)
 #define ALT_ORIG_PTR(a)		__ALT_PTR(a, orig_offset)
 #define ALT_REPL_PTR(a)		__ALT_PTR(a, alt_offset)
-
-extern struct alt_instr __alt_instructions[], __alt_instructions_end[];
 
 struct alt_region {
 	struct alt_instr *begin;
@@ -59,6 +58,8 @@ static bool branch_insn_requires_update(struct alt_instr *alt, unsigned long pc)
 	BUG();
 }
 
+#define align_down(x, a)	((unsigned long)(x) & ~(((unsigned long)(a)) - 1))
+
 static u32 get_alt_insn(struct alt_instr *alt, u32 *insnptr, u32 *altinsnptr)
 {
 	u32 insn;
@@ -80,6 +81,25 @@ static u32 get_alt_insn(struct alt_instr *alt, u32 *insnptr, u32 *altinsnptr)
 			offset = target - (unsigned long)insnptr;
 			insn = aarch64_set_branch_offset(insn, offset);
 		}
+	} else if (aarch64_insn_is_adrp(insn)) {
+		s32 orig_offset, new_offset;
+		unsigned long target;
+
+		/*
+		 * If we're replacing an adrp instruction, which uses PC-relative
+		 * immediate addressing, adjust the offset to reflect the new
+		 * PC. adrp operates on 4K aligned addresses.
+		 */
+		orig_offset  = aarch64_insn_adrp_get_offset(insn);
+		target = align_down(altinsnptr, SZ_4K) + orig_offset;
+		new_offset = target - align_down(insnptr, SZ_4K);
+		insn = aarch64_insn_adrp_set_offset(insn, new_offset);
+	} else if (aarch64_insn_uses_literal(insn)) {
+		/*
+		 * Disallow patching unhandled instructions using PC relative
+		 * literal addresses
+		 */
+		BUG();
 	}
 
 	return insn;
@@ -124,8 +144,8 @@ static int __apply_alternatives_multi_stop(void *unused)
 {
 	static int patched = 0;
 	struct alt_region region = {
-		.begin	= __alt_instructions,
-		.end	= __alt_instructions_end,
+		.begin	= (struct alt_instr *)__alt_instructions,
+		.end	= (struct alt_instr *)__alt_instructions_end,
 	};
 
 	/* We always have a CPU 0 at this point (__init) */

@@ -4,6 +4,8 @@
 #include "../util/util.h"
 #include "../util/debug.h"
 
+#include "sane_ctype.h"
+
 const char *const arm_triplets[] = {
 	"arm-eabi-",
 	"arm-linux-androideabi-",

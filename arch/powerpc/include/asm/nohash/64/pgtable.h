@@ -26,15 +26,11 @@
 #else
 #define PMD_CACHE_INDEX	PMD_INDEX_SIZE
 #endif
+
 /*
  * Define the address range of the kernel non-linear virtual area
  */
-
-#ifdef CONFIG_PPC_BOOK3E
 #define KERN_VIRT_START ASM_CONST(0x8000000000000000)
-#else
-#define KERN_VIRT_START ASM_CONST(0xD000000000000000)
-#endif
 #define KERN_VIRT_SIZE	ASM_CONST(0x0000100000000000)
 
 /*
@@ -43,11 +39,7 @@
  * (we keep a quarter for the virtual memmap)
  */
 #define VMALLOC_START	KERN_VIRT_START
-#ifdef CONFIG_PPC_BOOK3E
 #define VMALLOC_SIZE	(KERN_VIRT_SIZE >> 2)
-#else
-#define VMALLOC_SIZE	(KERN_VIRT_SIZE >> 1)
-#endif
 #define VMALLOC_END	(VMALLOC_START + VMALLOC_SIZE)
 
 /*
@@ -85,12 +77,8 @@
  * Defines the address of the vmemap area, in its own region on
  * hash table CPUs and after the vmalloc space on Book3E
  */
-#ifdef CONFIG_PPC_BOOK3E
 #define VMEMMAP_BASE		VMALLOC_END
 #define VMEMMAP_END		KERN_IO_START
-#else
-#define VMEMMAP_BASE		(VMEMMAP_REGION_ID << REGION_SHIFT)
-#endif
 #define vmemmap			((struct page *)VMEMMAP_BASE)
 
 
@@ -300,7 +288,9 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr,
 /* Set the dirty and/or accessed bits atomically in a linux PTE, this
  * function doesn't need to flush the hash entry
  */
-static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry)
+static inline void __ptep_set_access_flags(struct mm_struct *mm,
+					   pte_t *ptep, pte_t entry,
+					   unsigned long address)
 {
 	unsigned long bits = pte_val(entry) &
 		(_PAGE_DIRTY | _PAGE_ACCESSED | _PAGE_RW | _PAGE_EXEC);
@@ -357,8 +347,6 @@ static inline void __ptep_set_access_flags(pte_t *ptep, pte_t entry)
 #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val((pte)) })
 #define __swp_entry_to_pte(x)		__pte((x).val)
 
-void pgtable_cache_add(unsigned shift, void (*ctor)(void *));
-void pgtable_cache_init(void);
 extern int map_kernel_page(unsigned long ea, unsigned long pa,
 			   unsigned long flags);
 extern int __meminit vmemmap_create_mapping(unsigned long start,

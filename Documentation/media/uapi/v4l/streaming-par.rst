@@ -25,7 +25,7 @@ section discussing the :ref:`read() <func-read>` function.
 To get and set the streaming parameters applications call the
 :ref:`VIDIOC_G_PARM <VIDIOC_G_PARM>` and
 :ref:`VIDIOC_S_PARM <VIDIOC_G_PARM>` ioctl, respectively. They take
-a pointer to a struct :ref:`v4l2_streamparm <v4l2-streamparm>`, which
+a pointer to a struct :c:type:`v4l2_streamparm`, which
 contains a union holding separate parameters for input and output
 devices.
 

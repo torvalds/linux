@@ -375,9 +375,14 @@ __acquires(&port->port_lock)
 */
 {
 	struct list_head	*pool = &port->write_pool;
-	struct usb_ep		*in = port->port_usb->in;
+	struct usb_ep		*in;
 	int			status = 0;
 	bool			do_tty_wake = false;
+
+	if (!port->port_usb)
+		return status;
+
+	in = port->port_usb->in;
 
 	while (!port->write_busy && !list_empty(pool)) {
 		struct usb_request	*req;
@@ -617,8 +622,8 @@ static void gs_write_complete(struct usb_ep *ep, struct usb_request *req)
 	switch (req->status) {
 	default:
 		/* presumably a transient fault */
-		pr_warning("%s: unexpected %s status %d\n",
-				__func__, ep->name, req->status);
+		pr_warn("%s: unexpected %s status %d\n",
+			__func__, ep->name, req->status);
 		/* FALL THROUGH */
 	case 0:
 		/* normal completion */
@@ -1251,7 +1256,8 @@ static void gserial_console_exit(void)
 	struct gscons_info *info = &gscons_info;
 
 	unregister_console(&gserial_cons);
-	kthread_stop(info->console_thread);
+	if (info->console_thread != NULL)
+		kthread_stop(info->console_thread);
 	gs_buf_free(&info->con_buf);
 }
 

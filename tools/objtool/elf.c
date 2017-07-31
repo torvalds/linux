@@ -85,6 +85,18 @@ struct symbol *find_symbol_by_offset(struct section *sec, unsigned long offset)
 	return NULL;
 }
 
+struct symbol *find_symbol_containing(struct section *sec, unsigned long offset)
+{
+	struct symbol *sym;
+
+	list_for_each_entry(sym, &sec->symbol_list, list)
+		if (sym->type != STT_SECTION &&
+		    offset >= sym->offset && offset < sym->offset + sym->len)
+			return sym;
+
+	return NULL;
+}
+
 struct rela *find_rela_by_dest_range(struct section *sec, unsigned long offset,
 				     unsigned int len)
 {

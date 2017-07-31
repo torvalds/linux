@@ -11,7 +11,7 @@
 #include <linux/sched.h>
 #include <linux/smp.h>
 #include <linux/mm.h>
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/cpumask.h>
 #include <asm/cpu.h>
 #include <asm/io.h>

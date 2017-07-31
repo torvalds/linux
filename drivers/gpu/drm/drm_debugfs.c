@@ -36,7 +36,9 @@
 #include <linux/export.h>
 #include <drm/drmP.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_atomic.h>
 #include "drm_internal.h"
+#include "drm_crtc_internal.h"
 
 #if defined(CONFIG_DEBUG_FS)
 
@@ -79,7 +81,8 @@ static const struct file_operations drm_debugfs_fops = {
  * \return Zero on success, non-zero on failure
  *
  * Create a given set of debugfs files represented by an array of
- * gdm_debugfs_lists in the given root directory.
+ * &drm_info_list in the given root directory. These files will be removed
+ * automatically on drm_debugfs_cleanup().
  */
 int drm_debugfs_create_files(const struct drm_info_list *files, int count,
 			     struct dentry *root, struct drm_minor *minor)
@@ -104,8 +107,8 @@ int drm_debugfs_create_files(const struct drm_info_list *files, int count,
 		ent = debugfs_create_file(files[i].name, S_IFREG | S_IRUGO,
 					  root, tmp, &drm_debugfs_fops);
 		if (!ent) {
-			DRM_ERROR("Cannot create /sys/kernel/debug/dri/%s/%s\n",
-				  root->d_name.name, files[i].name);
+			DRM_ERROR("Cannot create /sys/kernel/debug/dri/%pd/%s\n",
+				  root, files[i].name);
 			kfree(tmp);
 			ret = -1;
 			goto fail;
@@ -163,6 +166,14 @@ int drm_debugfs_init(struct drm_minor *minor, int minor_id,
 		return ret;
 	}
 
+	if (drm_core_check_feature(dev, DRIVER_ATOMIC)) {
+		ret = drm_atomic_debugfs_init(minor);
+		if (ret) {
+			DRM_ERROR("Failed to create atomic debugfs files\n");
+			return ret;
+		}
+	}
+
 	if (dev->driver->debugfs_init) {
 		ret = dev->driver->debugfs_init(minor);
 		if (ret) {
@@ -208,6 +219,19 @@ int drm_debugfs_remove_files(const struct drm_info_list *files, int count,
 }
 EXPORT_SYMBOL(drm_debugfs_remove_files);
 
+static void drm_debugfs_remove_all_files(struct drm_minor *minor)
+{
+	struct drm_info_node *node, *tmp;
+
+	mutex_lock(&minor->debugfs_lock);
+	list_for_each_entry_safe(node, tmp, &minor->debugfs_list, list) {
+		debugfs_remove(node->dent);
+		list_del(&node->list);
+		kfree(node);
+	}
+	mutex_unlock(&minor->debugfs_lock);
+}
+
 /**
  * Cleanup the debugfs filesystem resources.
  *
@@ -226,9 +250,9 @@ int drm_debugfs_cleanup(struct drm_minor *minor)
 	if (dev->driver->debugfs_cleanup)
 		dev->driver->debugfs_cleanup(minor);
 
-	drm_debugfs_remove_files(drm_debugfs_list, DRM_DEBUGFS_ENTRIES, minor);
+	drm_debugfs_remove_all_files(minor);
 
-	debugfs_remove(minor->debugfs_root);
+	debugfs_remove_recursive(minor->debugfs_root);
 	minor->debugfs_root = NULL;
 
 	return 0;
@@ -415,5 +439,37 @@ void drm_debugfs_connector_remove(struct drm_connector *connector)
 	connector->debugfs_entry = NULL;
 }
 
-#endif /* CONFIG_DEBUG_FS */
+int drm_debugfs_crtc_add(struct drm_crtc *crtc)
+{
+	struct drm_minor *minor = crtc->dev->primary;
+	struct dentry *root;
+	char *name;
 
+	name = kasprintf(GFP_KERNEL, "crtc-%d", crtc->index);
+	if (!name)
+		return -ENOMEM;
+
+	root = debugfs_create_dir(name, minor->debugfs_root);
+	kfree(name);
+	if (!root)
+		return -ENOMEM;
+
+	crtc->debugfs_entry = root;
+
+	if (drm_debugfs_crtc_crc_add(crtc))
+		goto error;
+
+	return 0;
+
+error:
+	drm_debugfs_crtc_remove(crtc);
+	return -ENOMEM;
+}
+
+void drm_debugfs_crtc_remove(struct drm_crtc *crtc)
+{
+	debugfs_remove_recursive(crtc->debugfs_entry);
+	crtc->debugfs_entry = NULL;
+}
+
+#endif /* CONFIG_DEBUG_FS */

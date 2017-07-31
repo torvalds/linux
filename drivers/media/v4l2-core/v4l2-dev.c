@@ -25,7 +25,7 @@
 #include <linux/init.h>
 #include <linux/kmod.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-device.h>
@@ -527,6 +527,7 @@ static void determine_valid_ioctls(struct video_device *vdev)
 	bool is_vbi = vdev->vfl_type == VFL_TYPE_VBI;
 	bool is_radio = vdev->vfl_type == VFL_TYPE_RADIO;
 	bool is_sdr = vdev->vfl_type == VFL_TYPE_SDR;
+	bool is_tch = vdev->vfl_type == VFL_TYPE_TOUCH;
 	bool is_rx = vdev->vfl_dir != VFL_DIR_TX;
 	bool is_tx = vdev->vfl_dir != VFL_DIR_RX;
 
@@ -573,7 +574,7 @@ static void determine_valid_ioctls(struct video_device *vdev)
 	if (ops->vidioc_enum_freq_bands || ops->vidioc_g_tuner || ops->vidioc_g_modulator)
 		set_bit(_IOC_NR(VIDIOC_ENUM_FREQ_BANDS), valid_ioctls);
 
-	if (is_vid) {
+	if (is_vid || is_tch) {
 		/* video specific ioctls */
 		if ((is_rx && (ops->vidioc_enum_fmt_vid_cap ||
 			       ops->vidioc_enum_fmt_vid_cap_mplane ||
@@ -662,7 +663,7 @@ static void determine_valid_ioctls(struct video_device *vdev)
 			set_bit(_IOC_NR(VIDIOC_TRY_FMT), valid_ioctls);
 	}
 
-	if (is_vid || is_vbi || is_sdr) {
+	if (is_vid || is_vbi || is_sdr || is_tch) {
 		/* ioctls valid for video, vbi or sdr */
 		SET_VALID_IOCTL(ops, VIDIOC_REQBUFS, vidioc_reqbufs);
 		SET_VALID_IOCTL(ops, VIDIOC_QUERYBUF, vidioc_querybuf);
@@ -675,7 +676,7 @@ static void determine_valid_ioctls(struct video_device *vdev)
 		SET_VALID_IOCTL(ops, VIDIOC_STREAMOFF, vidioc_streamoff);
 	}
 
-	if (is_vid || is_vbi) {
+	if (is_vid || is_vbi || is_tch) {
 		/* ioctls valid for video or vbi */
 		if (ops->vidioc_s_std)
 			set_bit(_IOC_NR(VIDIOC_ENUMSTD), valid_ioctls);
@@ -750,6 +751,10 @@ static int video_register_media_controller(struct video_device *vdev, int type)
 	case VFL_TYPE_SDR:
 		intf_type = MEDIA_INTF_T_V4L_SWRADIO;
 		vdev->entity.function = MEDIA_ENT_F_IO_SWRADIO;
+		break;
+	case VFL_TYPE_TOUCH:
+		intf_type = MEDIA_INTF_T_V4L_TOUCH;
+		vdev->entity.function = MEDIA_ENT_F_IO_V4L;
 		break;
 	case VFL_TYPE_RADIO:
 		intf_type = MEDIA_INTF_T_V4L_RADIO;
@@ -853,6 +858,9 @@ int __video_register_device(struct video_device *vdev, int type, int nr,
 	case VFL_TYPE_SDR:
 		/* Use device name 'swradio' because 'sdr' was already taken. */
 		name_base = "swradio";
+		break;
+	case VFL_TYPE_TOUCH:
+		name_base = "v4l-touch";
 		break;
 	default:
 		printk(KERN_ERR "%s called with unknown type: %d\n",

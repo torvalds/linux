@@ -809,7 +809,6 @@ static const struct net_device_ops smc_netdev_ops = {
 	.ndo_start_xmit    	= smc_wait_to_send_packet,
 	.ndo_tx_timeout	    	= smc_timeout,
 	.ndo_set_rx_mode	= smc_set_multicast_list,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };

@@ -116,6 +116,51 @@ static void flush_and_reload_slb(void)
 }
 #endif
 
+static void flush_erat(void)
+{
+	asm volatile(PPC_INVALIDATE_ERAT : : :"memory");
+}
+
+#define MCE_FLUSH_SLB 1
+#define MCE_FLUSH_TLB 2
+#define MCE_FLUSH_ERAT 3
+
+static int mce_flush(int what)
+{
+#ifdef CONFIG_PPC_STD_MMU_64
+	if (what == MCE_FLUSH_SLB) {
+		flush_and_reload_slb();
+		return 1;
+	}
+#endif
+	if (what == MCE_FLUSH_ERAT) {
+		flush_erat();
+		return 1;
+	}
+	if (what == MCE_FLUSH_TLB) {
+		if (cur_cpu_spec && cur_cpu_spec->flush_tlb) {
+			cur_cpu_spec->flush_tlb(TLB_INVAL_SCOPE_GLOBAL);
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+static int mce_handle_flush_derrors(uint64_t dsisr, uint64_t slb, uint64_t tlb, uint64_t erat)
+{
+	if ((dsisr & slb) && mce_flush(MCE_FLUSH_SLB))
+		dsisr &= ~slb;
+	if ((dsisr & erat) && mce_flush(MCE_FLUSH_ERAT))
+		dsisr &= ~erat;
+	if ((dsisr & tlb) && mce_flush(MCE_FLUSH_TLB))
+		dsisr &= ~tlb;
+	/* Any other errors we don't understand? */
+	if (dsisr)
+		return 0;
+	return 1;
+}
+
 static long mce_handle_derror(uint64_t dsisr, uint64_t slb_error_bits)
 {
 	long handled = 1;
@@ -281,6 +326,9 @@ long __machine_check_early_realmode_p7(struct pt_regs *regs)
 	long handled = 1;
 	struct mce_error_info mce_error_info = { 0 };
 
+	mce_error_info.severity = MCE_SEV_ERROR_SYNC;
+	mce_error_info.initiator = MCE_INITIATOR_CPU;
+
 	srr1 = regs->msr;
 	nip = regs->nip;
 
@@ -352,6 +400,9 @@ long __machine_check_early_realmode_p8(struct pt_regs *regs)
 	long handled = 1;
 	struct mce_error_info mce_error_info = { 0 };
 
+	mce_error_info.severity = MCE_SEV_ERROR_SYNC;
+	mce_error_info.initiator = MCE_INITIATOR_CPU;
+
 	srr1 = regs->msr;
 	nip = regs->nip;
 
@@ -363,6 +414,192 @@ long __machine_check_early_realmode_p8(struct pt_regs *regs)
 		handled = mce_handle_ierror_p8(srr1);
 		mce_get_ierror_p8(&mce_error_info, srr1);
 		addr = regs->nip;
+	}
+
+	/* Handle UE error. */
+	if (mce_error_info.error_type == MCE_ERROR_TYPE_UE)
+		handled = mce_handle_ue_error(regs);
+
+	save_mce_event(regs, handled, &mce_error_info, nip, addr);
+	return handled;
+}
+
+static int mce_handle_derror_p9(struct pt_regs *regs)
+{
+	uint64_t dsisr = regs->dsisr;
+
+	return mce_handle_flush_derrors(dsisr,
+			P9_DSISR_MC_SLB_PARITY_MFSLB |
+			P9_DSISR_MC_SLB_MULTIHIT_MFSLB,
+
+			P9_DSISR_MC_TLB_MULTIHIT_MFTLB,
+
+			P9_DSISR_MC_ERAT_MULTIHIT);
+}
+
+static int mce_handle_ierror_p9(struct pt_regs *regs)
+{
+	uint64_t srr1 = regs->msr;
+
+	switch (P9_SRR1_MC_IFETCH(srr1)) {
+	case P9_SRR1_MC_IFETCH_SLB_PARITY:
+	case P9_SRR1_MC_IFETCH_SLB_MULTIHIT:
+		return mce_flush(MCE_FLUSH_SLB);
+	case P9_SRR1_MC_IFETCH_TLB_MULTIHIT:
+		return mce_flush(MCE_FLUSH_TLB);
+	case P9_SRR1_MC_IFETCH_ERAT_MULTIHIT:
+		return mce_flush(MCE_FLUSH_ERAT);
+	default:
+		return 0;
+	}
+}
+
+static void mce_get_derror_p9(struct pt_regs *regs,
+		struct mce_error_info *mce_err, uint64_t *addr)
+{
+	uint64_t dsisr = regs->dsisr;
+
+	mce_err->severity = MCE_SEV_ERROR_SYNC;
+	mce_err->initiator = MCE_INITIATOR_CPU;
+
+	if (dsisr & P9_DSISR_MC_USER_TLBIE)
+		*addr = regs->nip;
+	else
+		*addr = regs->dar;
+
+	if (dsisr & P9_DSISR_MC_UE) {
+		mce_err->error_type = MCE_ERROR_TYPE_UE;
+		mce_err->u.ue_error_type = MCE_UE_ERROR_LOAD_STORE;
+	} else if (dsisr & P9_DSISR_MC_UE_TABLEWALK) {
+		mce_err->error_type = MCE_ERROR_TYPE_UE;
+		mce_err->u.ue_error_type = MCE_UE_ERROR_PAGE_TABLE_WALK_LOAD_STORE;
+	} else if (dsisr & P9_DSISR_MC_LINK_LOAD_TIMEOUT) {
+		mce_err->error_type = MCE_ERROR_TYPE_LINK;
+		mce_err->u.link_error_type = MCE_LINK_ERROR_LOAD_TIMEOUT;
+	} else if (dsisr & P9_DSISR_MC_LINK_TABLEWALK_TIMEOUT) {
+		mce_err->error_type = MCE_ERROR_TYPE_LINK;
+		mce_err->u.link_error_type = MCE_LINK_ERROR_PAGE_TABLE_WALK_LOAD_STORE_TIMEOUT;
+	} else if (dsisr & P9_DSISR_MC_ERAT_MULTIHIT) {
+		mce_err->error_type = MCE_ERROR_TYPE_ERAT;
+		mce_err->u.erat_error_type = MCE_ERAT_ERROR_MULTIHIT;
+	} else if (dsisr & P9_DSISR_MC_TLB_MULTIHIT_MFTLB) {
+		mce_err->error_type = MCE_ERROR_TYPE_TLB;
+		mce_err->u.tlb_error_type = MCE_TLB_ERROR_MULTIHIT;
+	} else if (dsisr & P9_DSISR_MC_USER_TLBIE) {
+		mce_err->error_type = MCE_ERROR_TYPE_USER;
+		mce_err->u.user_error_type = MCE_USER_ERROR_TLBIE;
+	} else if (dsisr & P9_DSISR_MC_SLB_PARITY_MFSLB) {
+		mce_err->error_type = MCE_ERROR_TYPE_SLB;
+		mce_err->u.slb_error_type = MCE_SLB_ERROR_PARITY;
+	} else if (dsisr & P9_DSISR_MC_SLB_MULTIHIT_MFSLB) {
+		mce_err->error_type = MCE_ERROR_TYPE_SLB;
+		mce_err->u.slb_error_type = MCE_SLB_ERROR_MULTIHIT;
+	} else if (dsisr & P9_DSISR_MC_RA_LOAD) {
+		mce_err->error_type = MCE_ERROR_TYPE_RA;
+		mce_err->u.ra_error_type = MCE_RA_ERROR_LOAD;
+	} else if (dsisr & P9_DSISR_MC_RA_TABLEWALK) {
+		mce_err->error_type = MCE_ERROR_TYPE_RA;
+		mce_err->u.ra_error_type = MCE_RA_ERROR_PAGE_TABLE_WALK_LOAD_STORE;
+	} else if (dsisr & P9_DSISR_MC_RA_TABLEWALK_FOREIGN) {
+		mce_err->error_type = MCE_ERROR_TYPE_RA;
+		mce_err->u.ra_error_type = MCE_RA_ERROR_PAGE_TABLE_WALK_LOAD_STORE_FOREIGN;
+	} else if (dsisr & P9_DSISR_MC_RA_FOREIGN) {
+		mce_err->error_type = MCE_ERROR_TYPE_RA;
+		mce_err->u.ra_error_type = MCE_RA_ERROR_LOAD_STORE_FOREIGN;
+	}
+}
+
+static void mce_get_ierror_p9(struct pt_regs *regs,
+		struct mce_error_info *mce_err, uint64_t *addr)
+{
+	uint64_t srr1 = regs->msr;
+
+	switch (P9_SRR1_MC_IFETCH(srr1)) {
+	case P9_SRR1_MC_IFETCH_RA_ASYNC_STORE:
+	case P9_SRR1_MC_IFETCH_LINK_ASYNC_STORE_TIMEOUT:
+		mce_err->severity = MCE_SEV_FATAL;
+		break;
+	default:
+		mce_err->severity = MCE_SEV_ERROR_SYNC;
+		break;
+	}
+
+	mce_err->initiator = MCE_INITIATOR_CPU;
+
+	*addr = regs->nip;
+
+	switch (P9_SRR1_MC_IFETCH(srr1)) {
+	case P9_SRR1_MC_IFETCH_UE:
+		mce_err->error_type = MCE_ERROR_TYPE_UE;
+		mce_err->u.ue_error_type = MCE_UE_ERROR_IFETCH;
+		break;
+	case P9_SRR1_MC_IFETCH_SLB_PARITY:
+		mce_err->error_type = MCE_ERROR_TYPE_SLB;
+		mce_err->u.slb_error_type = MCE_SLB_ERROR_PARITY;
+		break;
+	case P9_SRR1_MC_IFETCH_SLB_MULTIHIT:
+		mce_err->error_type = MCE_ERROR_TYPE_SLB;
+		mce_err->u.slb_error_type = MCE_SLB_ERROR_MULTIHIT;
+		break;
+	case P9_SRR1_MC_IFETCH_ERAT_MULTIHIT:
+		mce_err->error_type = MCE_ERROR_TYPE_ERAT;
+		mce_err->u.erat_error_type = MCE_ERAT_ERROR_MULTIHIT;
+		break;
+	case P9_SRR1_MC_IFETCH_TLB_MULTIHIT:
+		mce_err->error_type = MCE_ERROR_TYPE_TLB;
+		mce_err->u.tlb_error_type = MCE_TLB_ERROR_MULTIHIT;
+		break;
+	case P9_SRR1_MC_IFETCH_UE_TLB_RELOAD:
+		mce_err->error_type = MCE_ERROR_TYPE_UE;
+		mce_err->u.ue_error_type = MCE_UE_ERROR_PAGE_TABLE_WALK_IFETCH;
+		break;
+	case P9_SRR1_MC_IFETCH_LINK_TIMEOUT:
+		mce_err->error_type = MCE_ERROR_TYPE_LINK;
+		mce_err->u.link_error_type = MCE_LINK_ERROR_IFETCH_TIMEOUT;
+		break;
+	case P9_SRR1_MC_IFETCH_LINK_TABLEWALK_TIMEOUT:
+		mce_err->error_type = MCE_ERROR_TYPE_LINK;
+		mce_err->u.link_error_type = MCE_LINK_ERROR_PAGE_TABLE_WALK_IFETCH_TIMEOUT;
+		break;
+	case P9_SRR1_MC_IFETCH_RA:
+		mce_err->error_type = MCE_ERROR_TYPE_RA;
+		mce_err->u.ra_error_type = MCE_RA_ERROR_IFETCH;
+		break;
+	case P9_SRR1_MC_IFETCH_RA_TABLEWALK:
+		mce_err->error_type = MCE_ERROR_TYPE_RA;
+		mce_err->u.ra_error_type = MCE_RA_ERROR_PAGE_TABLE_WALK_IFETCH;
+		break;
+	case P9_SRR1_MC_IFETCH_RA_ASYNC_STORE:
+		mce_err->error_type = MCE_ERROR_TYPE_RA;
+		mce_err->u.ra_error_type = MCE_RA_ERROR_STORE;
+		break;
+	case P9_SRR1_MC_IFETCH_LINK_ASYNC_STORE_TIMEOUT:
+		mce_err->error_type = MCE_ERROR_TYPE_LINK;
+		mce_err->u.link_error_type = MCE_LINK_ERROR_STORE_TIMEOUT;
+		break;
+	case P9_SRR1_MC_IFETCH_RA_TABLEWALK_FOREIGN:
+		mce_err->error_type = MCE_ERROR_TYPE_RA;
+		mce_err->u.ra_error_type = MCE_RA_ERROR_PAGE_TABLE_WALK_IFETCH_FOREIGN;
+		break;
+	default:
+		break;
+	}
+}
+
+long __machine_check_early_realmode_p9(struct pt_regs *regs)
+{
+	uint64_t nip, addr;
+	long handled;
+	struct mce_error_info mce_error_info = { 0 };
+
+	nip = regs->nip;
+
+	if (P9_SRR1_MC_LOADSTORE(regs->msr)) {
+		handled = mce_handle_derror_p9(regs);
+		mce_get_derror_p9(regs, &mce_error_info, &addr);
+	} else {
+		handled = mce_handle_ierror_p9(regs);
+		mce_get_ierror_p9(regs, &mce_error_info, &addr);
 	}
 
 	/* Handle UE error. */

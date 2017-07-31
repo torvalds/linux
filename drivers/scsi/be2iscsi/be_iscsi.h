@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2015 Avago Technologies
+ * Copyright (C) 2005 - 2016 Broadcom
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -7,10 +7,10 @@
  * as published by the Free Software Foundation.  The full GNU General
  * Public License is included in this distribution in the file called COPYING.
  *
- * Written by: Jayamohan Kallickal (jayamohan.kallickal@avagotech.com)
+ * Written by: Jayamohan Kallickal (jayamohan.kallickal@broadcom.com)
  *
  * Contact Information:
- * linux-drivers@avagotech.com
+ * linux-drivers@broadcom.com
  *
  * Avago Technologies
  * 3333 Susan Street
@@ -23,25 +23,18 @@
 #include "be_main.h"
 #include "be_mgmt.h"
 
-#define BE2_IPV4  0x1
-#define BE2_IPV6  0x10
-#define BE2_DHCP_V4 0x05
+void beiscsi_iface_create_default(struct beiscsi_hba *phba);
 
-#define NON_BLOCKING 0x0
-#define BLOCKING 0x1
+void beiscsi_iface_destroy_default(struct beiscsi_hba *phba);
 
-void beiscsi_create_def_ifaces(struct beiscsi_hba *phba);
-
-void beiscsi_destroy_def_ifaces(struct beiscsi_hba *phba);
-
-int be2iscsi_iface_get_param(struct iscsi_iface *iface,
+int beiscsi_iface_get_param(struct iscsi_iface *iface,
 			     enum iscsi_param_type param_type,
 			     int param, char *buf);
 
-int be2iscsi_iface_set_param(struct Scsi_Host *shost,
+int beiscsi_iface_set_param(struct Scsi_Host *shost,
 			     void *data, uint32_t count);
 
-umode_t be2iscsi_attr_is_visible(int param_type, int param);
+umode_t beiscsi_attr_is_visible(int param_type, int param);
 
 void beiscsi_offload_connection(struct beiscsi_conn *beiscsi_conn,
 				struct beiscsi_offload_params *params);
@@ -56,6 +49,8 @@ struct iscsi_cls_session *beiscsi_session_create(struct iscsi_endpoint *ep,
 						 uint32_t initial_cmdsn);
 
 void beiscsi_session_destroy(struct iscsi_cls_session *cls_session);
+
+void beiscsi_session_fail(struct iscsi_cls_session *cls_session);
 
 struct iscsi_cls_conn *beiscsi_conn_create(struct iscsi_cls_session
 					   *cls_session, uint32_t cid);

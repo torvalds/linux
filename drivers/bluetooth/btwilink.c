@@ -245,6 +245,7 @@ static int ti_st_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct ti_st *hst;
 	long len;
+	int pkt_type;
 
 	hst = hci_get_drvdata(hdev);
 
@@ -258,6 +259,7 @@ static int ti_st_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	 * Freeing skb memory is taken care in shared transport layer,
 	 * so don't free skb memory here.
 	 */
+	pkt_type = hci_skb_pkt_type(skb);
 	len = hst->st_write(skb);
 	if (len < 0) {
 		kfree_skb(skb);
@@ -268,7 +270,7 @@ static int ti_st_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 
 	/* ST accepted our skb. So, Go ahead and do rest */
 	hdev->stat.byte_tx += len;
-	ti_st_tx_complete(hst, hci_skb_pkt_type(skb));
+	ti_st_tx_complete(hst, pkt_type);
 
 	return 0;
 }
@@ -308,7 +310,7 @@ static int bt_ti_probe(struct platform_device *pdev)
 	BT_DBG("HCI device registered (hdev %p)", hdev);
 
 	dev_set_drvdata(&pdev->dev, hst);
-	return err;
+	return 0;
 }
 
 static int bt_ti_remove(struct platform_device *pdev)

@@ -17,33 +17,30 @@ CEC_ADAP_G_LOG_ADDRS, CEC_ADAP_S_LOG_ADDRS - Get or set the logical addresses
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, struct cec_log_addrs *argp )
+.. c:function:: int ioctl( int fd, CEC_ADAP_G_LOG_ADDRS, struct cec_log_addrs *argp )
+   :name: CEC_ADAP_G_LOG_ADDRS
 
+.. c:function:: int ioctl( int fd, CEC_ADAP_S_LOG_ADDRS, struct cec_log_addrs *argp )
+   :name: CEC_ADAP_S_LOG_ADDRS
 
 Arguments
 =========
 
 ``fd``
-    File descriptor returned by :ref:`open() <cec-func-open>`.
-
-``request``
-    CEC_ADAP_G_LOG_ADDRS, CEC_ADAP_S_LOG_ADDRS
+    File descriptor returned by :c:func:`open() <cec-open>`.
 
 ``argp``
-
+    Pointer to struct :c:type:`cec_log_addrs`.
 
 Description
 ===========
 
-.. note:: This documents the proposed CEC API. This API is not yet finalized
-   and is currently only available as a staging kernel module.
-
 To query the current CEC logical addresses, applications call
 :ref:`ioctl CEC_ADAP_G_LOG_ADDRS <CEC_ADAP_G_LOG_ADDRS>` with a pointer to a
-:c:type:`struct cec_log_addrs` where the driver stores the logical addresses.
+struct :c:type:`cec_log_addrs` where the driver stores the logical addresses.
 
 To set new logical addresses, applications fill in
-:c:type:`struct cec_log_addrs` and call :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
+struct :c:type:`cec_log_addrs` and call :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
 with a pointer to this struct. The :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
 is only available if ``CEC_CAP_LOG_ADDRS`` is set (the ``ENOTTY`` error code is
 returned otherwise). The :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>`
@@ -64,142 +61,127 @@ logical addresses are claimed or cleared.
 Attempting to call :ref:`ioctl CEC_ADAP_S_LOG_ADDRS <CEC_ADAP_S_LOG_ADDRS>` when
 logical address types are already defined will return with error ``EBUSY``.
 
+.. c:type:: cec_log_addrs
 
-.. _cec-log-addrs:
+.. tabularcolumns:: |p{1.0cm}|p{7.5cm}|p{8.0cm}|
+
+.. cssclass:: longtable
 
 .. flat-table:: struct cec_log_addrs
     :header-rows:  0
     :stub-columns: 0
     :widths:       1 1 16
 
+    * - __u8
+      - ``log_addr[CEC_MAX_LOG_ADDRS]``
+      - The actual logical addresses that were claimed. This is set by the
+	driver. If no logical address could be claimed, then it is set to
+	``CEC_LOG_ADDR_INVALID``. If this adapter is Unregistered, then
+	``log_addr[0]`` is set to 0xf and all others to
+	``CEC_LOG_ADDR_INVALID``.
+    * - __u16
+      - ``log_addr_mask``
+      - The bitmask of all logical addresses this adapter has claimed. If
+	this adapter is Unregistered then ``log_addr_mask`` sets bit 15
+	and clears all other bits. If this adapter is not configured at
+	all, then ``log_addr_mask`` is set to 0. Set by the driver.
+    * - __u8
+      - ``cec_version``
+      - The CEC version that this adapter shall use. See
+	:ref:`cec-versions`. Used to implement the
+	``CEC_MSG_CEC_VERSION`` and ``CEC_MSG_REPORT_FEATURES`` messages.
+	Note that :ref:`CEC_OP_CEC_VERSION_1_3A <CEC-OP-CEC-VERSION-1-3A>` is not allowed by the CEC
+	framework.
+    * - __u8
+      - ``num_log_addrs``
+      - Number of logical addresses to set up. Must be ≤
+	``available_log_addrs`` as returned by
+	:ref:`CEC_ADAP_G_CAPS`. All arrays in
+	this structure are only filled up to index
+	``available_log_addrs``-1. The remaining array elements will be
+	ignored. Note that the CEC 2.0 standard allows for a maximum of 2
+	logical addresses, although some hardware has support for more.
+	``CEC_MAX_LOG_ADDRS`` is 4. The driver will return the actual
+	number of logical addresses it could claim, which may be less than
+	what was requested. If this field is set to 0, then the CEC
+	adapter shall clear all claimed logical addresses and all other
+	fields will be ignored.
+    * - __u32
+      - ``vendor_id``
+      - The vendor ID is a 24-bit number that identifies the specific
+	vendor or entity. Based on this ID vendor specific commands may be
+	defined. If you do not want a vendor ID then set it to
+	``CEC_VENDOR_ID_NONE``.
+    * - __u32
+      - ``flags``
+      - Flags. See :ref:`cec-log-addrs-flags` for a list of available flags.
+    * - char
+      - ``osd_name[15]``
+      - The On-Screen Display name as is returned by the
+	``CEC_MSG_SET_OSD_NAME`` message.
+    * - __u8
+      - ``primary_device_type[CEC_MAX_LOG_ADDRS]``
+      - Primary device type for each logical address. See
+	:ref:`cec-prim-dev-types` for possible types.
+    * - __u8
+      - ``log_addr_type[CEC_MAX_LOG_ADDRS]``
+      - Logical address types. See :ref:`cec-log-addr-types` for
+	possible types. The driver will update this with the actual
+	logical address type that it claimed (e.g. it may have to fallback
+	to :ref:`CEC_LOG_ADDR_TYPE_UNREGISTERED <CEC-LOG-ADDR-TYPE-UNREGISTERED>`).
+    * - __u8
+      - ``all_device_types[CEC_MAX_LOG_ADDRS]``
+      - CEC 2.0 specific: the bit mask of all device types. See
+	:ref:`cec-all-dev-types-flags`. It is used in the CEC 2.0
+	``CEC_MSG_REPORT_FEATURES`` message. For CEC 1.4 you can either leave
+	this field to 0, or fill it in according to the CEC 2.0 guidelines to
+	give the CEC framework more information about the device type, even
+	though the framework won't use it directly in the CEC message.
+    * - __u8
+      - ``features[CEC_MAX_LOG_ADDRS][12]``
+      - Features for each logical address. It is used in the CEC 2.0
+	``CEC_MSG_REPORT_FEATURES`` message. The 12 bytes include both the
+	RC Profile and the Device Features. For CEC 1.4 you can either leave
+        this field to all 0, or fill it in according to the CEC 2.0 guidelines to
+        give the CEC framework more information about the device type, even
+        though the framework won't use it directly in the CEC message.
 
-    -  .. row 1
+.. _cec-log-addrs-flags:
 
-       -  __u8
+.. flat-table:: Flags for struct cec_log_addrs
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       3 1 4
 
-       -  ``log_addr[CEC_MAX_LOG_ADDRS]``
+    * .. _`CEC-LOG-ADDRS-FL-ALLOW-UNREG-FALLBACK`:
 
-       -  The actual logical addresses that were claimed. This is set by the
-	  driver. If no logical address could be claimed, then it is set to
-	  ``CEC_LOG_ADDR_INVALID``. If this adapter is Unregistered, then
-	  ``log_addr[0]`` is set to 0xf and all others to
-	  ``CEC_LOG_ADDR_INVALID``.
+      - ``CEC_LOG_ADDRS_FL_ALLOW_UNREG_FALLBACK``
+      - 1
+      - By default if no logical address of the requested type can be claimed, then
+	it will go back to the unconfigured state. If this flag is set, then it will
+	fallback to the Unregistered logical address. Note that if the Unregistered
+	logical address was explicitly requested, then this flag has no effect.
+    * .. _`CEC-LOG-ADDRS-FL-ALLOW-RC-PASSTHRU`:
 
-    -  .. row 2
+      - ``CEC_LOG_ADDRS_FL_ALLOW_RC_PASSTHRU``
+      - 2
+      - By default the ``CEC_MSG_USER_CONTROL_PRESSED`` and ``CEC_MSG_USER_CONTROL_RELEASED``
+        messages are only passed on to the follower(s), if any. If this flag is set,
+	then these messages are also passed on to the remote control input subsystem
+	and will appear as keystrokes. This features needs to be enabled explicitly.
+	If CEC is used to enter e.g. passwords, then you may not want to enable this
+	to avoid trivial snooping of the keystrokes.
+    * .. _`CEC-LOG-ADDRS-FL-CDC-ONLY`:
 
-       -  __u16
+      - `CEC_LOG_ADDRS_FL_CDC_ONLY`
+      - 4
+      - If this flag is set, then the device is CDC-Only. CDC-Only CEC devices
+	are CEC devices that can only handle CDC messages.
 
-       -  ``log_addr_mask``
+	All other messages are ignored.
 
-       -  The bitmask of all logical addresses this adapter has claimed. If
-	  this adapter is Unregistered then ``log_addr_mask`` sets bit 15
-	  and clears all other bits. If this adapter is not configured at
-	  all, then ``log_addr_mask`` is set to 0. Set by the driver.
 
-    -  .. row 3
-
-       -  __u8
-
-       -  ``cec_version``
-
-       -  The CEC version that this adapter shall use. See
-	  :ref:`cec-versions`. Used to implement the
-	  ``CEC_MSG_CEC_VERSION`` and ``CEC_MSG_REPORT_FEATURES`` messages.
-	  Note that :ref:`CEC_OP_CEC_VERSION_1_3A <CEC-OP-CEC-VERSION-1-3A>` is not allowed by the CEC
-	  framework.
-
-    -  .. row 4
-
-       -  __u8
-
-       -  ``num_log_addrs``
-
-       -  Number of logical addresses to set up. Must be ≤
-	  ``available_log_addrs`` as returned by
-	  :ref:`CEC_ADAP_G_CAPS`. All arrays in
-	  this structure are only filled up to index
-	  ``available_log_addrs``-1. The remaining array elements will be
-	  ignored. Note that the CEC 2.0 standard allows for a maximum of 2
-	  logical addresses, although some hardware has support for more.
-	  ``CEC_MAX_LOG_ADDRS`` is 4. The driver will return the actual
-	  number of logical addresses it could claim, which may be less than
-	  what was requested. If this field is set to 0, then the CEC
-	  adapter shall clear all claimed logical addresses and all other
-	  fields will be ignored.
-
-    -  .. row 5
-
-       -  __u32
-
-       -  ``vendor_id``
-
-       -  The vendor ID is a 24-bit number that identifies the specific
-	  vendor or entity. Based on this ID vendor specific commands may be
-	  defined. If you do not want a vendor ID then set it to
-	  ``CEC_VENDOR_ID_NONE``.
-
-    -  .. row 6
-
-       -  __u32
-
-       -  ``flags``
-
-       -  Flags. No flags are defined yet, so set this to 0.
-
-    -  .. row 7
-
-       -  char
-
-       -  ``osd_name[15]``
-
-       -  The On-Screen Display name as is returned by the
-	  ``CEC_MSG_SET_OSD_NAME`` message.
-
-    -  .. row 8
-
-       -  __u8
-
-       -  ``primary_device_type[CEC_MAX_LOG_ADDRS]``
-
-       -  Primary device type for each logical address. See
-	  :ref:`cec-prim-dev-types` for possible types.
-
-    -  .. row 9
-
-       -  __u8
-
-       -  ``log_addr_type[CEC_MAX_LOG_ADDRS]``
-
-       -  Logical address types. See :ref:`cec-log-addr-types` for
-	  possible types. The driver will update this with the actual
-	  logical address type that it claimed (e.g. it may have to fallback
-	  to :ref:`CEC_LOG_ADDR_TYPE_UNREGISTERED <CEC-LOG-ADDR-TYPE-UNREGISTERED>`).
-
-    -  .. row 10
-
-       -  __u8
-
-       -  ``all_device_types[CEC_MAX_LOG_ADDRS]``
-
-       -  CEC 2.0 specific: the bit mask of all device types. See
-	  :ref:`cec-all-dev-types-flags`. It is used in the CEC 2.0
-	  ``CEC_MSG_REPORT_FEATURES`` message. For CEC 1.4 you can either leave
-	  this field to 0, or fill it in according to the CEC 2.0 guidelines to
-	  give the CEC framework more information about the device type, even
-	  though the framework won't use it directly in the CEC message.
-
-    -  .. row 11
-
-       -  __u8
-
-       -  ``features[CEC_MAX_LOG_ADDRS][12]``
-
-       -  Features for each logical address. It is used in the CEC 2.0
-	  ``CEC_MSG_REPORT_FEATURES`` message. The 12 bytes include both the
-	  RC Profile and the Device Features. For CEC 1.4 you can either leave
-          this field to all 0, or fill it in according to the CEC 2.0 guidelines to
-          give the CEC framework more information about the device type, even
-          though the framework won't use it directly in the CEC message.
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. _cec-versions:
 
@@ -208,32 +190,24 @@ logical address types are already defined will return with error ``EBUSY``.
     :stub-columns: 0
     :widths:       3 1 4
 
+    * .. _`CEC-OP-CEC-VERSION-1-3A`:
 
-    -  .. _`CEC-OP-CEC-VERSION-1-3A`:
+      - ``CEC_OP_CEC_VERSION_1_3A``
+      - 4
+      - CEC version according to the HDMI 1.3a standard.
+    * .. _`CEC-OP-CEC-VERSION-1-4B`:
 
-       -  ``CEC_OP_CEC_VERSION_1_3A``
+      - ``CEC_OP_CEC_VERSION_1_4B``
+      - 5
+      - CEC version according to the HDMI 1.4b standard.
+    * .. _`CEC-OP-CEC-VERSION-2-0`:
 
-       -  4
-
-       -  CEC version according to the HDMI 1.3a standard.
-
-    -  .. _`CEC-OP-CEC-VERSION-1-4B`:
-
-       -  ``CEC_OP_CEC_VERSION_1_4B``
-
-       -  5
-
-       -  CEC version according to the HDMI 1.4b standard.
-
-    -  .. _`CEC-OP-CEC-VERSION-2-0`:
-
-       -  ``CEC_OP_CEC_VERSION_2_0``
-
-       -  6
-
-       -  CEC version according to the HDMI 2.0 standard.
+      - ``CEC_OP_CEC_VERSION_2_0``
+      - 6
+      - CEC version according to the HDMI 2.0 standard.
 
 
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. _cec-prim-dev-types:
 
@@ -242,64 +216,44 @@ logical address types are already defined will return with error ``EBUSY``.
     :stub-columns: 0
     :widths:       3 1 4
 
+    * .. _`CEC-OP-PRIM-DEVTYPE-TV`:
 
-    -  .. _`CEC-OP-PRIM-DEVTYPE-TV`:
+      - ``CEC_OP_PRIM_DEVTYPE_TV``
+      - 0
+      - Use for a TV.
+    * .. _`CEC-OP-PRIM-DEVTYPE-RECORD`:
 
-       -  ``CEC_OP_PRIM_DEVTYPE_TV``
+      - ``CEC_OP_PRIM_DEVTYPE_RECORD``
+      - 1
+      - Use for a recording device.
+    * .. _`CEC-OP-PRIM-DEVTYPE-TUNER`:
 
-       -  0
+      - ``CEC_OP_PRIM_DEVTYPE_TUNER``
+      - 3
+      - Use for a device with a tuner.
+    * .. _`CEC-OP-PRIM-DEVTYPE-PLAYBACK`:
 
-       -  Use for a TV.
+      - ``CEC_OP_PRIM_DEVTYPE_PLAYBACK``
+      - 4
+      - Use for a playback device.
+    * .. _`CEC-OP-PRIM-DEVTYPE-AUDIOSYSTEM`:
 
-    -  .. _`CEC-OP-PRIM-DEVTYPE-RECORD`:
+      - ``CEC_OP_PRIM_DEVTYPE_AUDIOSYSTEM``
+      - 5
+      - Use for an audio system (e.g. an audio/video receiver).
+    * .. _`CEC-OP-PRIM-DEVTYPE-SWITCH`:
 
-       -  ``CEC_OP_PRIM_DEVTYPE_RECORD``
+      - ``CEC_OP_PRIM_DEVTYPE_SWITCH``
+      - 6
+      - Use for a CEC switch.
+    * .. _`CEC-OP-PRIM-DEVTYPE-VIDEOPROC`:
 
-       -  1
-
-       -  Use for a recording device.
-
-    -  .. _`CEC-OP-PRIM-DEVTYPE-TUNER`:
-
-       -  ``CEC_OP_PRIM_DEVTYPE_TUNER``
-
-       -  3
-
-       -  Use for a device with a tuner.
-
-    -  .. _`CEC-OP-PRIM-DEVTYPE-PLAYBACK`:
-
-       -  ``CEC_OP_PRIM_DEVTYPE_PLAYBACK``
-
-       -  4
-
-       -  Use for a playback device.
-
-    -  .. _`CEC-OP-PRIM-DEVTYPE-AUDIOSYSTEM`:
-
-       -  ``CEC_OP_PRIM_DEVTYPE_AUDIOSYSTEM``
-
-       -  5
-
-       -  Use for an audio system (e.g. an audio/video receiver).
-
-    -  .. _`CEC-OP-PRIM-DEVTYPE-SWITCH`:
-
-       -  ``CEC_OP_PRIM_DEVTYPE_SWITCH``
-
-       -  6
-
-       -  Use for a CEC switch.
-
-    -  .. _`CEC-OP-PRIM-DEVTYPE-VIDEOPROC`:
-
-       -  ``CEC_OP_PRIM_DEVTYPE_VIDEOPROC``
-
-       -  7
-
-       -  Use for a video processor device.
+      - ``CEC_OP_PRIM_DEVTYPE_VIDEOPROC``
+      - 7
+      - Use for a video processor device.
 
 
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. _cec-log-addr-types:
 
@@ -308,66 +262,47 @@ logical address types are already defined will return with error ``EBUSY``.
     :stub-columns: 0
     :widths:       3 1 16
 
+    * .. _`CEC-LOG-ADDR-TYPE-TV`:
 
-    -  .. _`CEC-LOG-ADDR-TYPE-TV`:
+      - ``CEC_LOG_ADDR_TYPE_TV``
+      - 0
+      - Use for a TV.
+    * .. _`CEC-LOG-ADDR-TYPE-RECORD`:
 
-       -  ``CEC_LOG_ADDR_TYPE_TV``
+      - ``CEC_LOG_ADDR_TYPE_RECORD``
+      - 1
+      - Use for a recording device.
+    * .. _`CEC-LOG-ADDR-TYPE-TUNER`:
 
-       -  0
+      - ``CEC_LOG_ADDR_TYPE_TUNER``
+      - 2
+      - Use for a tuner device.
+    * .. _`CEC-LOG-ADDR-TYPE-PLAYBACK`:
 
-       -  Use for a TV.
+      - ``CEC_LOG_ADDR_TYPE_PLAYBACK``
+      - 3
+      - Use for a playback device.
+    * .. _`CEC-LOG-ADDR-TYPE-AUDIOSYSTEM`:
 
-    -  .. _`CEC-LOG-ADDR-TYPE-RECORD`:
+      - ``CEC_LOG_ADDR_TYPE_AUDIOSYSTEM``
+      - 4
+      - Use for an audio system device.
+    * .. _`CEC-LOG-ADDR-TYPE-SPECIFIC`:
 
-       -  ``CEC_LOG_ADDR_TYPE_RECORD``
+      - ``CEC_LOG_ADDR_TYPE_SPECIFIC``
+      - 5
+      - Use for a second TV or for a video processor device.
+    * .. _`CEC-LOG-ADDR-TYPE-UNREGISTERED`:
 
-       -  1
-
-       -  Use for a recording device.
-
-    -  .. _`CEC-LOG-ADDR-TYPE-TUNER`:
-
-       -  ``CEC_LOG_ADDR_TYPE_TUNER``
-
-       -  2
-
-       -  Use for a tuner device.
-
-    -  .. _`CEC-LOG-ADDR-TYPE-PLAYBACK`:
-
-       -  ``CEC_LOG_ADDR_TYPE_PLAYBACK``
-
-       -  3
-
-       -  Use for a playback device.
-
-    -  .. _`CEC-LOG-ADDR-TYPE-AUDIOSYSTEM`:
-
-       -  ``CEC_LOG_ADDR_TYPE_AUDIOSYSTEM``
-
-       -  4
-
-       -  Use for an audio system device.
-
-    -  .. _`CEC-LOG-ADDR-TYPE-SPECIFIC`:
-
-       -  ``CEC_LOG_ADDR_TYPE_SPECIFIC``
-
-       -  5
-
-       -  Use for a second TV or for a video processor device.
-
-    -  .. _`CEC-LOG-ADDR-TYPE-UNREGISTERED`:
-
-       -  ``CEC_LOG_ADDR_TYPE_UNREGISTERED``
-
-       -  6
-
-       -  Use this if you just want to remain unregistered. Used for pure
-	  CEC switches or CDC-only devices (CDC: Capability Discovery and
-	  Control).
+      - ``CEC_LOG_ADDR_TYPE_UNREGISTERED``
+      - 6
+      - Use this if you just want to remain unregistered. Used for pure
+	CEC switches or CDC-only devices (CDC: Capability Discovery and
+	Control).
 
 
+
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. _cec-all-dev-types-flags:
 
@@ -376,54 +311,36 @@ logical address types are already defined will return with error ``EBUSY``.
     :stub-columns: 0
     :widths:       3 1 4
 
+    * .. _`CEC-OP-ALL-DEVTYPE-TV`:
 
-    -  .. _`CEC-OP-ALL-DEVTYPE-TV`:
+      - ``CEC_OP_ALL_DEVTYPE_TV``
+      - 0x80
+      - This supports the TV type.
+    * .. _`CEC-OP-ALL-DEVTYPE-RECORD`:
 
-       -  ``CEC_OP_ALL_DEVTYPE_TV``
+      - ``CEC_OP_ALL_DEVTYPE_RECORD``
+      - 0x40
+      - This supports the Recording type.
+    * .. _`CEC-OP-ALL-DEVTYPE-TUNER`:
 
-       -  0x80
+      - ``CEC_OP_ALL_DEVTYPE_TUNER``
+      - 0x20
+      - This supports the Tuner type.
+    * .. _`CEC-OP-ALL-DEVTYPE-PLAYBACK`:
 
-       -  This supports the TV type.
+      - ``CEC_OP_ALL_DEVTYPE_PLAYBACK``
+      - 0x10
+      - This supports the Playback type.
+    * .. _`CEC-OP-ALL-DEVTYPE-AUDIOSYSTEM`:
 
-    -  .. _`CEC-OP-ALL-DEVTYPE-RECORD`:
+      - ``CEC_OP_ALL_DEVTYPE_AUDIOSYSTEM``
+      - 0x08
+      - This supports the Audio System type.
+    * .. _`CEC-OP-ALL-DEVTYPE-SWITCH`:
 
-       -  ``CEC_OP_ALL_DEVTYPE_RECORD``
-
-       -  0x40
-
-       -  This supports the Recording type.
-
-    -  .. _`CEC-OP-ALL-DEVTYPE-TUNER`:
-
-       -  ``CEC_OP_ALL_DEVTYPE_TUNER``
-
-       -  0x20
-
-       -  This supports the Tuner type.
-
-    -  .. _`CEC-OP-ALL-DEVTYPE-PLAYBACK`:
-
-       -  ``CEC_OP_ALL_DEVTYPE_PLAYBACK``
-
-       -  0x10
-
-       -  This supports the Playback type.
-
-    -  .. _`CEC-OP-ALL-DEVTYPE-AUDIOSYSTEM`:
-
-       -  ``CEC_OP_ALL_DEVTYPE_AUDIOSYSTEM``
-
-       -  0x08
-
-       -  This supports the Audio System type.
-
-    -  .. _`CEC-OP-ALL-DEVTYPE-SWITCH`:
-
-       -  ``CEC_OP_ALL_DEVTYPE_SWITCH``
-
-       -  0x04
-
-       -  This supports the CEC Switch or Video Processing type.
+      - ``CEC_OP_ALL_DEVTYPE_SWITCH``
+      - 0x04
+      - This supports the CEC Switch or Video Processing type.
 
 
 

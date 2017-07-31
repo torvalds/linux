@@ -598,14 +598,14 @@ static const struct kvm_io_device_ops picdev_eclr_ops = {
 	.write    = picdev_eclr_write,
 };
 
-struct kvm_pic *kvm_create_pic(struct kvm *kvm)
+int kvm_pic_init(struct kvm *kvm)
 {
 	struct kvm_pic *s;
 	int ret;
 
 	s = kzalloc(sizeof(struct kvm_pic), GFP_KERNEL);
 	if (!s)
-		return NULL;
+		return -ENOMEM;
 	spin_lock_init(&s->lock);
 	s->kvm = kvm;
 	s->pics[0].elcr_mask = 0xf8;
@@ -635,7 +635,9 @@ struct kvm_pic *kvm_create_pic(struct kvm *kvm)
 
 	mutex_unlock(&kvm->slots_lock);
 
-	return s;
+	kvm->arch.vpic = s;
+
+	return 0;
 
 fail_unreg_1:
 	kvm_io_bus_unregister_dev(kvm, KVM_PIO_BUS, &s->dev_slave);
@@ -648,13 +650,20 @@ fail_unlock:
 
 	kfree(s);
 
-	return NULL;
+	return ret;
 }
 
-void kvm_destroy_pic(struct kvm_pic *vpic)
+void kvm_pic_destroy(struct kvm *kvm)
 {
+	struct kvm_pic *vpic = kvm->arch.vpic;
+
+	if (!vpic)
+		return;
+
 	kvm_io_bus_unregister_dev(vpic->kvm, KVM_PIO_BUS, &vpic->dev_master);
 	kvm_io_bus_unregister_dev(vpic->kvm, KVM_PIO_BUS, &vpic->dev_slave);
 	kvm_io_bus_unregister_dev(vpic->kvm, KVM_PIO_BUS, &vpic->dev_eclr);
+
+	kvm->arch.vpic = NULL;
 	kfree(vpic);
 }

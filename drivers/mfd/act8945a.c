@@ -23,6 +23,7 @@ static const struct mfd_cell act8945a_devs[] = {
 	},
 	{
 		.name = "act8945a-charger",
+		.of_compatible = "active-semi,act8945a-charger",
 	},
 };
 

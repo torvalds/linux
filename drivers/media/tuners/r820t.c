@@ -2286,7 +2286,7 @@ static int r820t_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 	return 0;
 }
 
-static int r820t_release(struct dvb_frontend *fe)
+static void r820t_release(struct dvb_frontend *fe)
 {
 	struct r820t_priv *priv = fe->tuner_priv;
 
@@ -2300,8 +2300,6 @@ static int r820t_release(struct dvb_frontend *fe)
 	mutex_unlock(&r820t_list_mutex);
 
 	fe->tuner_priv = NULL;
-
-	return 0;
 }
 
 static const struct dvb_tuner_ops r820t_tuner_ops = {

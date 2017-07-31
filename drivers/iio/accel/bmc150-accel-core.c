@@ -67,6 +67,9 @@
 #define BMC150_ACCEL_REG_PMU_BW		0x10
 #define BMC150_ACCEL_DEF_BW			125
 
+#define BMC150_ACCEL_REG_RESET			0x14
+#define BMC150_ACCEL_RESET_VAL			0xB6
+
 #define BMC150_ACCEL_REG_INT_MAP_0		0x19
 #define BMC150_ACCEL_INT_MAP_0_BIT_SLOPE	BIT(2)
 
@@ -1497,6 +1500,14 @@ static int bmc150_accel_chip_init(struct bmc150_accel_data *data)
 	int ret, i;
 	unsigned int val;
 
+	/*
+	 * Reset chip to get it in a known good state. A delay of 1.8ms after
+	 * reset is required according to the data sheets of supported chips.
+	 */
+	regmap_write(data->regmap, BMC150_ACCEL_REG_RESET,
+		     BMC150_ACCEL_RESET_VAL);
+	usleep_range(1800, 2500);
+
 	ret = regmap_read(data->regmap, BMC150_ACCEL_REG_CHIP_ID, &val);
 	if (ret < 0) {
 		dev_err(dev, "Error: Reading chip id\n");
@@ -1627,7 +1638,8 @@ int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 		if (block_supported) {
 			indio_dev->modes |= INDIO_BUFFER_SOFTWARE;
 			indio_dev->info = &bmc150_accel_info_fifo;
-			indio_dev->buffer->attrs = bmc150_accel_fifo_attributes;
+			iio_buffer_set_attrs(indio_dev->buffer,
+					     bmc150_accel_fifo_attributes);
 		}
 	}
 

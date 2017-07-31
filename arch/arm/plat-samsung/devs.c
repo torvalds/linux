@@ -77,15 +77,6 @@ static struct resource s3c_ac97_resource[] = {
 	[1] = DEFINE_RES_IRQ(IRQ_S3C244X_AC97),
 };
 
-static struct s3c_audio_pdata s3c_ac97_pdata = {
-#ifdef CONFIG_S3C24XX_DMAC
-	.dma_filter = s3c24xx_dma_filter,
-#endif
-	.dma_playback = (void *)DMACH_PCM_OUT,
-	.dma_capture = (void *)DMACH_PCM_IN,
-	.dma_capture_mic = (void *)DMACH_MIC_IN,
-};
-
 struct platform_device s3c_device_ac97 = {
 	.name		= "samsung-ac97",
 	.id		= -1,
@@ -94,7 +85,6 @@ struct platform_device s3c_device_ac97 = {
 	.dev		= {
 		.dma_mask		= &samsung_device_dma_mask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
-		.platform_data		= &s3c_ac97_pdata,
 	}
 };
 #endif /* CONFIG_CPU_S3C2440 */
@@ -574,14 +564,6 @@ static struct resource s3c_iis_resource[] = {
 	[0] = DEFINE_RES_MEM(S3C24XX_PA_IIS, S3C24XX_SZ_IIS),
 };
 
-static struct s3c_audio_pdata s3c_iis_platdata = {
-#ifdef CONFIG_S3C24XX_DMAC
-	.dma_filter = s3c24xx_dma_filter,
-#endif
-	.dma_playback = (void *)DMACH_I2S_OUT,
-	.dma_capture = (void *)DMACH_I2S_IN,
-};
-
 struct platform_device s3c_device_iis = {
 	.name		= "s3c24xx-iis",
 	.id		= -1,
@@ -590,7 +572,6 @@ struct platform_device s3c_device_iis = {
 	.dev		= {
 		.dma_mask		= &samsung_device_dma_mask,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
-		.platform_data		= &s3c_iis_platdata,
 	}
 };
 #endif /* CONFIG_PLAT_S3C24XX */
@@ -1124,15 +1105,6 @@ void __init s3c64xx_spi0_set_platdata(int (*cfg_gpio)(void), int src_clk_nr,
 	pd.num_cs = num_cs;
 	pd.src_clk_nr = src_clk_nr;
 	pd.cfg_gpio = (cfg_gpio) ? cfg_gpio : s3c64xx_spi0_cfg_gpio;
-	pd.dma_tx = (void *)DMACH_SPI0_TX;
-	pd.dma_rx = (void *)DMACH_SPI0_RX;
-#if defined(CONFIG_PL330_DMA)
-	pd.filter = pl330_filter;
-#elif defined(CONFIG_S3C64XX_PL080)
-	pd.filter = pl08x_filter_id;
-#elif defined(CONFIG_S3C24XX_DMAC)
-	pd.filter = s3c24xx_dma_filter;
-#endif
 
 	s3c_set_platdata(&pd, sizeof(pd), &s3c64xx_device_spi0);
 }
@@ -1169,14 +1141,6 @@ void __init s3c64xx_spi1_set_platdata(int (*cfg_gpio)(void), int src_clk_nr,
 	pd.num_cs = num_cs;
 	pd.src_clk_nr = src_clk_nr;
 	pd.cfg_gpio = (cfg_gpio) ? cfg_gpio : s3c64xx_spi1_cfg_gpio;
-	pd.dma_tx = (void *)DMACH_SPI1_TX;
-	pd.dma_rx = (void *)DMACH_SPI1_RX;
-#if defined(CONFIG_PL330_DMA)
-	pd.filter = pl330_filter;
-#elif defined(CONFIG_S3C64XX_PL080)
-	pd.filter = pl08x_filter_id;
-#endif
-
 
 	s3c_set_platdata(&pd, sizeof(pd), &s3c64xx_device_spi1);
 }
@@ -1213,13 +1177,6 @@ void __init s3c64xx_spi2_set_platdata(int (*cfg_gpio)(void), int src_clk_nr,
 	pd.num_cs = num_cs;
 	pd.src_clk_nr = src_clk_nr;
 	pd.cfg_gpio = (cfg_gpio) ? cfg_gpio : s3c64xx_spi2_cfg_gpio;
-	pd.dma_tx = (void *)DMACH_SPI2_TX;
-	pd.dma_rx = (void *)DMACH_SPI2_RX;
-#if defined(CONFIG_PL330_DMA)
-	pd.filter = pl330_filter;
-#elif defined(CONFIG_S3C64XX_PL080)
-	pd.filter = pl08x_filter_id;
-#endif
 
 	s3c_set_platdata(&pd, sizeof(pd), &s3c64xx_device_spi2);
 }

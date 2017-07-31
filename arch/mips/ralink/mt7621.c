@@ -9,7 +9,6 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/module.h>
 
 #include <asm/mipsregs.h>
 #include <asm/smp-ops.h>
@@ -181,7 +180,7 @@ void prom_soc_init(struct ralink_soc_info *soc_info)
 	} else {
 		panic("mt7621: unknown SoC, n0:%08x n1:%08x\n", n0, n1);
 	}
-
+	ralink_soc = MT762X_SOC_MT7621AT;
 	rev = __raw_readl(sysc + SYSC_REG_CHIP_REV);
 
 	snprintf(soc_info->sys_type, RAMIPS_SYS_TYPE_LEN,

@@ -6,7 +6,6 @@
 V4L2_SDR_FMT_CU16LE ('CU16')
 ****************************
 
-*man V4L2_SDR_FMT_CU16LE(2)*
 
 Complex unsigned 16-bit little endian IQ sample
 
@@ -23,25 +22,13 @@ comes first and Q value after that.
 Each cell is one byte.
 
 
-
 .. flat-table::
     :header-rows:  0
     :stub-columns: 0
-    :widths:       2 1 1
 
-
-    -  .. row 1
-
-       -  start + 0:
-
-       -  I'\ :sub:`0[7:0]`
-
-       -  I'\ :sub:`0[15:8]`
-
-    -  .. row 2
-
-       -  start + 2:
-
-       -  Q'\ :sub:`0[7:0]`
-
-       -  Q'\ :sub:`0[15:8]`
+    * - start + 0:
+      - I'\ :sub:`0[7:0]`
+      - I'\ :sub:`0[15:8]`
+    * - start + 2:
+      - Q'\ :sub:`0[7:0]`
+      - Q'\ :sub:`0[15:8]`

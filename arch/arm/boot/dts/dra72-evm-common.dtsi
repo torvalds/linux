@@ -18,11 +18,53 @@
 		display0 = &hdmi0;
 	};
 
+	chosen {
+		stdout-path = &uart1;
+	};
+
+	evm_12v0: fixedregulator-evm12v0 {
+		/* main supply */
+		compatible = "regulator-fixed";
+		regulator-name = "evm_12v0";
+		regulator-min-microvolt = <12000000>;
+		regulator-max-microvolt = <12000000>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	evm_5v0: fixedregulator-evm5v0 {
+		/* Output 1 of TPS43351QDAPRQ1 on dra72-evm */
+		/* Output 1 of LM5140QRWGTQ1 on dra71-evm */
+		compatible = "regulator-fixed";
+		regulator-name = "evm_5v0";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		vin-supply = <&evm_12v0>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
+	vsys_3v3: fixedregulator-vsys3v3 {
+		/* Output 2 of TPS43351QDAPRQ1 on dra72-evm */
+		/* Output 2 of LM5140QRWGTQ1 on dra71-evm */
+		compatible = "regulator-fixed";
+		regulator-name = "vsys_3v3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&evm_12v0>;
+		regulator-always-on;
+		regulator-boot-on;
+	};
+
 	evm_3v3_sw: fixedregulator-evm_3v3 {
+		/* TPS22965DSG */
 		compatible = "regulator-fixed";
 		regulator-name = "evm_3v3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vsys_3v3>;
+		regulator-always-on;
+		regulator-boot-on;
 	};
 
 	aic_dvdd: fixedregulator-aic_dvdd {
@@ -39,6 +81,7 @@
 		regulator-name = "evm_3v3_sd";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
+		vin-supply = <&evm_3v3_sw>;
 		enable-active-high;
 		gpio = <&pcf_gpio_21 5 GPIO_ACTIVE_HIGH>;
 	};
@@ -68,9 +111,6 @@
 
 	tpd12s015: encoder {
 		compatible = "ti,tpd12s015";
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&tpd12s015_pins>;
 
 		gpios = <&pcf_hdmi 4 GPIO_ACTIVE_HIGH>,	/* P4, CT CP HPD */
 			<&pcf_hdmi 5 GPIO_ACTIVE_HIGH>,	/* P5, LS OE */
@@ -134,72 +174,6 @@
 };
 
 &dra7_pmx_core {
-	i2c1_pins: pinmux_i2c1_pins {
-		pinctrl-single,pins = <
-			DRA7XX_CORE_IOPAD(0x3800, PIN_INPUT | MUX_MODE0) /* i2c1_sda.i2c1_sda */
-			DRA7XX_CORE_IOPAD(0x3804, PIN_INPUT | MUX_MODE0) /* i2c1_scl.i2c1_scl */
-		>;
-	};
-
-	i2c5_pins: pinmux_i2c5_pins {
-		pinctrl-single,pins = <
-			DRA7XX_CORE_IOPAD(0x36b4, PIN_INPUT | MUX_MODE10) /* mcasp1_axr0.i2c5_sda */
-			DRA7XX_CORE_IOPAD(0x36b8, PIN_INPUT | MUX_MODE10) /* mcasp1_axr1.i2c5_scl */
-		>;
-	};
-
-	i2c5_pins: pinmux_i2c5_pins {
-		pinctrl-single,pins = <
-			DRA7XX_CORE_IOPAD(0x36b4, PIN_INPUT | MUX_MODE10) /* mcasp1_axr0.i2c5_sda */
-			DRA7XX_CORE_IOPAD(0x36b8, PIN_INPUT | MUX_MODE10) /* mcasp1_axr1.i2c5_scl */
-		>;
-	};
-
-	nand_default: nand_default {
-		pinctrl-single,pins = <
-			DRA7XX_CORE_IOPAD(0x3400, PIN_INPUT  | MUX_MODE0) /* gpmc_ad0 */
-			DRA7XX_CORE_IOPAD(0x3404, PIN_INPUT  | MUX_MODE0) /* gpmc_ad1 */
-			DRA7XX_CORE_IOPAD(0x3408, PIN_INPUT  | MUX_MODE0) /* gpmc_ad2 */
-			DRA7XX_CORE_IOPAD(0x340c, PIN_INPUT  | MUX_MODE0) /* gpmc_ad3 */
-			DRA7XX_CORE_IOPAD(0x3410, PIN_INPUT  | MUX_MODE0) /* gpmc_ad4 */
-			DRA7XX_CORE_IOPAD(0x3414, PIN_INPUT  | MUX_MODE0) /* gpmc_ad5 */
-			DRA7XX_CORE_IOPAD(0x3418, PIN_INPUT  | MUX_MODE0) /* gpmc_ad6 */
-			DRA7XX_CORE_IOPAD(0x341c, PIN_INPUT  | MUX_MODE0) /* gpmc_ad7 */
-			DRA7XX_CORE_IOPAD(0x3420, PIN_INPUT  | MUX_MODE0) /* gpmc_ad8 */
-			DRA7XX_CORE_IOPAD(0x3424, PIN_INPUT  | MUX_MODE0) /* gpmc_ad9 */
-			DRA7XX_CORE_IOPAD(0x3428, PIN_INPUT  | MUX_MODE0) /* gpmc_ad10 */
-			DRA7XX_CORE_IOPAD(0x342c, PIN_INPUT  | MUX_MODE0) /* gpmc_ad11 */
-			DRA7XX_CORE_IOPAD(0x3430, PIN_INPUT  | MUX_MODE0) /* gpmc_ad12 */
-			DRA7XX_CORE_IOPAD(0x3434, PIN_INPUT  | MUX_MODE0) /* gpmc_ad13 */
-			DRA7XX_CORE_IOPAD(0x3438, PIN_INPUT  | MUX_MODE0) /* gpmc_ad14 */
-			DRA7XX_CORE_IOPAD(0x343c, PIN_INPUT  | MUX_MODE0) /* gpmc_ad15 */
-			DRA7XX_CORE_IOPAD(0x34b4, PIN_OUTPUT | MUX_MODE0) /* gpmc_cs0 */
-			DRA7XX_CORE_IOPAD(0x34c4, PIN_OUTPUT | MUX_MODE0) /* gpmc_advn_ale */
-			DRA7XX_CORE_IOPAD(0x34cc, PIN_OUTPUT | MUX_MODE0) /* gpmc_wen */
-			DRA7XX_CORE_IOPAD(0x34c8, PIN_OUTPUT | MUX_MODE0) /* gpmc_oen_ren */
-			DRA7XX_CORE_IOPAD(0x34d0, PIN_OUTPUT | MUX_MODE0) /* gpmc_ben0 */
-			DRA7XX_CORE_IOPAD(0x34d8, PIN_INPUT  | MUX_MODE0) /* gpmc_wait0 */
-		>;
-	};
-
-	usb1_pins: pinmux_usb1_pins {
-		pinctrl-single,pins = <
-			DRA7XX_CORE_IOPAD(0x3680, PIN_INPUT_SLEW | MUX_MODE0) /* usb1_drvvbus */
-		>;
-	};
-
-	usb2_pins: pinmux_usb2_pins {
-		pinctrl-single,pins = <
-			DRA7XX_CORE_IOPAD(0x3684, PIN_INPUT_SLEW | MUX_MODE0) /* usb2_drvvbus */
-		>;
-	};
-
-	tps65917_pins_default: tps65917_pins_default {
-		pinctrl-single,pins = <
-			DRA7XX_CORE_IOPAD(0x3824, PIN_INPUT_PULLUP | MUX_MODE1) /* wakeup3.sys_nirq1 */
-		>;
-	};
-
 	mmc1_pins_default: mmc1_pins_default {
 		pinctrl-single,pins = <
 			DRA7XX_CORE_IOPAD(0x376c, PIN_INPUT | MUX_MODE14)	/* mmc1sdcd.gpio219 */
@@ -240,159 +214,19 @@
 			DRA7XX_CORE_IOPAD(0x3818, MUX_MODE15 | PULL_UP)	/* wakeup0.off */
 		>;
 	};
-
-	hdmi_pins: pinmux_hdmi_pins {
-		pinctrl-single,pins = <
-			DRA7XX_CORE_IOPAD(0x3808, PIN_INPUT | MUX_MODE1) /* i2c2_sda.hdmi1_ddc_scl */
-			DRA7XX_CORE_IOPAD(0x380c, PIN_INPUT | MUX_MODE1) /* i2c2_scl.hdmi1_ddc_sda */
-		>;
-	};
-
-	tpd12s015_pins: pinmux_tpd12s015_pins {
-		pinctrl-single,pins = <
-			DRA7XX_CORE_IOPAD(0x37b8, PIN_INPUT_PULLDOWN | MUX_MODE14) /* gpio7_12 HPD */
-		>;
-	};
-
-	atl_pins: pinmux_atl_pins {
-		pinctrl-single,pins = <
-			DRA7XX_CORE_IOPAD(0x3698, PIN_OUTPUT | MUX_MODE5)	/* xref_clk1.atl_clk1 */
-			DRA7XX_CORE_IOPAD(0x369c, PIN_OUTPUT | MUX_MODE5)	/* xref_clk2.atl_clk2 */
-		>;
-	};
-
-	mcasp3_pins: pinmux_mcasp3_pins {
-		pinctrl-single,pins = <
-			DRA7XX_CORE_IOPAD(0x3724, PIN_OUTPUT_PULLDOWN | MUX_MODE0)	/* mcasp3_aclkx */
-			DRA7XX_CORE_IOPAD(0x3728, PIN_OUTPUT_PULLDOWN | MUX_MODE0)	/* mcasp3_fsx */
-			DRA7XX_CORE_IOPAD(0x372c, PIN_OUTPUT_PULLDOWN | MUX_MODE0)	/* mcasp3_axr0 */
-			DRA7XX_CORE_IOPAD(0x3730, PIN_INPUT_PULLDOWN | MUX_MODE0)	/* mcasp3_axr1 */
-		>;
-	};
-
-	mcasp3_sleep_pins: pinmux_mcasp3_sleep_pins {
-		pinctrl-single,pins = <
-			DRA7XX_CORE_IOPAD(0x3724, PIN_INPUT_PULLDOWN | MUX_MODE15)
-			DRA7XX_CORE_IOPAD(0x3728, PIN_INPUT_PULLDOWN | MUX_MODE15)
-			DRA7XX_CORE_IOPAD(0x372c, PIN_INPUT_PULLDOWN | MUX_MODE15)
-			DRA7XX_CORE_IOPAD(0x3730, PIN_INPUT_PULLDOWN | MUX_MODE15)
-		>;
-	};
 };
 
 &i2c1 {
 	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins>;
 	clock-frequency = <400000>;
 
-	tps65917: tps65917@58 {
-		compatible = "ti,tps65917";
-		reg = <0x58>;
-
-		pinctrl-names = "default";
-		pinctrl-0 = <&tps65917_pins_default>;
-
-		interrupts = <GIC_SPI 2 IRQ_TYPE_NONE>;  /* IRQ_SYS_1N */
+	pcf_lcd: gpio@20 {
+		compatible = "nxp,pcf8575";
+		reg = <0x20>;
+		gpio-controller;
+		#gpio-cells = <2>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
-
-		ti,system-power-controller;
-
-		tps65917_pmic {
-			compatible = "ti,tps65917-pmic";
-
-			tps65917_regulators: regulators {
-				smps1_reg: smps1 {
-					/* VDD_MPU */
-					regulator-name = "smps1";
-					regulator-min-microvolt = <850000>;
-					regulator-max-microvolt = <1250000>;
-					regulator-always-on;
-					regulator-boot-on;
-				};
-
-				smps2_reg: smps2 {
-					/* VDD_CORE */
-					regulator-name = "smps2";
-					regulator-min-microvolt = <850000>;
-					regulator-max-microvolt = <1150000>;
-					regulator-boot-on;
-					regulator-always-on;
-				};
-
-				smps3_reg: smps3 {
-					/* VDD_GPU IVA DSPEVE */
-					regulator-name = "smps3";
-					regulator-min-microvolt = <850000>;
-					regulator-max-microvolt = <1250000>;
-					regulator-boot-on;
-					regulator-always-on;
-				};
-
-				smps4_reg: smps4 {
-					/* VDDS1V8 */
-					regulator-name = "smps4";
-					regulator-min-microvolt = <1800000>;
-					regulator-max-microvolt = <1800000>;
-					regulator-always-on;
-					regulator-boot-on;
-				};
-
-				smps5_reg: smps5 {
-					/* VDD_DDR */
-					regulator-name = "smps5";
-					regulator-min-microvolt = <1350000>;
-					regulator-max-microvolt = <1350000>;
-					regulator-boot-on;
-					regulator-always-on;
-				};
-
-				ldo1_reg: ldo1 {
-					/* LDO1_OUT --> SDIO  */
-					regulator-name = "ldo1";
-					regulator-min-microvolt = <1800000>;
-					regulator-max-microvolt = <3300000>;
-					regulator-always-on;
-					regulator-boot-on;
-					regulator-allow-bypass;
-				};
-
-				ldo3_reg: ldo3 {
-					/* VDDA_1V8_PHY */
-					regulator-name = "ldo3";
-					regulator-min-microvolt = <1800000>;
-					regulator-max-microvolt = <1800000>;
-					regulator-boot-on;
-					regulator-always-on;
-				};
-
-				ldo5_reg: ldo5 {
-					/* VDDA_1V8_PLL */
-					regulator-name = "ldo5";
-					regulator-min-microvolt = <1800000>;
-					regulator-max-microvolt = <1800000>;
-					regulator-always-on;
-					regulator-boot-on;
-				};
-
-				ldo4_reg: ldo4 {
-					/* VDDA_3V_USB: VDDA_USBHS33 */
-					regulator-name = "ldo4";
-					regulator-min-microvolt = <3300000>;
-					regulator-max-microvolt = <3300000>;
-					regulator-boot-on;
-				};
-			};
-		};
-
-		tps65917_power_button {
-			compatible = "ti,palmas-pwrbutton";
-			interrupt-parent = <&tps65917>;
-			interrupts = <1 IRQ_TYPE_NONE>;
-			wakeup-source;
-			ti,palmas-long-press-seconds = <6>;
-		};
 	};
 
 	pcf_gpio_21: gpio@21 {
@@ -423,8 +257,6 @@
 
 &i2c5 {
 	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c5_pins>;
 	clock-frequency = <400000>;
 
 	pcf_hdmi: pcf8575@26 {
@@ -461,9 +293,12 @@
 };
 
 &gpmc {
-	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&nand_default>;
+	/*
+	 * For the existing IOdelay configuration via U-Boot we don't
+	 * support NAND on dra72-evm. Keep it disabled. Enabling it
+	 * requires a different configuration by U-Boot.
+	 */
+	status = "disabled";
 	ranges = <0 0 0x08000000 0x01000000>;	/* minimum GPMC partition = 16MB */
 	nand@0,0 {
 		/* To use NAND, DIP switch SW5 must be set like so:
@@ -548,14 +383,6 @@
 	};
 };
 
-&usb2_phy1 {
-	phy-supply = <&ldo4_reg>;
-};
-
-&usb2_phy2 {
-	phy-supply = <&ldo4_reg>;
-};
-
 &omap_dwc3_1 {
 	extcon = <&extcon_usb1>;
 };
@@ -566,14 +393,10 @@
 
 &usb1 {
 	dr_mode = "peripheral";
-	pinctrl-names = "default";
-	pinctrl-0 = <&usb1_pins>;
 };
 
 &usb2 {
 	dr_mode = "host";
-	pinctrl-names = "default";
-	pinctrl-0 = <&usb2_pins>;
 };
 
 &mmc1 {
@@ -581,7 +404,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins_default>;
 	vmmc-supply = <&evm_3v3_sd>;
-	vmmc_aux-supply = <&ldo1_reg>;
 	bus-width = <4>;
 	/*
 	 * SDCD signal is not being used here - using the fact that GPIO mode
@@ -603,71 +425,8 @@
 	max-frequency = <192000000>;
 };
 
-&dra7_pmx_core {
-	cpsw_default: cpsw_default {
-		pinctrl-single,pins = <
-			/* Slave 2 */
-			DRA7XX_CORE_IOPAD(0x3598, PIN_OUTPUT | MUX_MODE3)	/* vin2a_d12.rgmii1_txc */
-			DRA7XX_CORE_IOPAD(0x359c, PIN_OUTPUT | MUX_MODE3)	/* vin2a_d13.rgmii1_tctl */
-			DRA7XX_CORE_IOPAD(0x35a0, PIN_OUTPUT | MUX_MODE3)	/* vin2a_d14.rgmii1_td3 */
-			DRA7XX_CORE_IOPAD(0x35a4, PIN_OUTPUT | MUX_MODE3)	/* vin2a_d15.rgmii1_td2 */
-			DRA7XX_CORE_IOPAD(0x35a8, PIN_OUTPUT | MUX_MODE3)	/* vin2a_d16.rgmii1_td1 */
-			DRA7XX_CORE_IOPAD(0x35ac, PIN_OUTPUT | MUX_MODE3)	/* vin2a_d17.rgmii1_td0 */
-			DRA7XX_CORE_IOPAD(0x35b0, PIN_INPUT | MUX_MODE3)	/* vin2a_d18.rgmii1_rclk */
-			DRA7XX_CORE_IOPAD(0x35b4, PIN_INPUT | MUX_MODE3)	/* vin2a_d19.rgmii1_rctl */
-			DRA7XX_CORE_IOPAD(0x35b8, PIN_INPUT | MUX_MODE3)	/* vin2a_d20.rgmii1_rd3 */
-			DRA7XX_CORE_IOPAD(0x35bc, PIN_INPUT | MUX_MODE3)	/* vin2a_d21.rgmii1_rd2 */
-			DRA7XX_CORE_IOPAD(0x35c0, PIN_INPUT | MUX_MODE3)	/* vin2a_d22.rgmii1_rd1 */
-			DRA7XX_CORE_IOPAD(0x35c4, PIN_INPUT | MUX_MODE3)	/* vin2a_d23.rgmii1_rd0 */
-		>;
-
-	};
-
-	cpsw_sleep: cpsw_sleep {
-		pinctrl-single,pins = <
-			/* Slave 2 */
-			DRA7XX_CORE_IOPAD(0x3598, MUX_MODE15)
-			DRA7XX_CORE_IOPAD(0x359c, MUX_MODE15)
-			DRA7XX_CORE_IOPAD(0x35a0, MUX_MODE15)
-			DRA7XX_CORE_IOPAD(0x35a4, MUX_MODE15)
-			DRA7XX_CORE_IOPAD(0x35a8, MUX_MODE15)
-			DRA7XX_CORE_IOPAD(0x35ac, MUX_MODE15)
-			DRA7XX_CORE_IOPAD(0x35b0, MUX_MODE15)
-			DRA7XX_CORE_IOPAD(0x35b4, MUX_MODE15)
-			DRA7XX_CORE_IOPAD(0x35b8, MUX_MODE15)
-			DRA7XX_CORE_IOPAD(0x35bc, MUX_MODE15)
-			DRA7XX_CORE_IOPAD(0x35c0, MUX_MODE15)
-			DRA7XX_CORE_IOPAD(0x35c4, MUX_MODE15)
-		>;
-	};
-
-	davinci_mdio_default: davinci_mdio_default {
-		pinctrl-single,pins = <
-			/* MDIO */
-			DRA7XX_CORE_IOPAD(0x363c, PIN_OUTPUT_PULLUP | MUX_MODE0)	/* mdio_d.mdio_d */
-			DRA7XX_CORE_IOPAD(0x3640, PIN_INPUT_PULLUP | MUX_MODE0)	/* mdio_clk.mdio_clk */
-		>;
-	};
-
-	davinci_mdio_sleep: davinci_mdio_sleep {
-		pinctrl-single,pins = <
-			DRA7XX_CORE_IOPAD(0x363c, MUX_MODE15)
-			DRA7XX_CORE_IOPAD(0x3640, MUX_MODE15)
-		>;
-	};
-};
-
 &mac {
 	status = "okay";
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&cpsw_default>;
-	pinctrl-1 = <&cpsw_sleep>;
-};
-
-&davinci_mdio {
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&davinci_mdio_default>;
-	pinctrl-1 = <&davinci_mdio_sleep>;
 };
 
 &dcan1 {
@@ -681,10 +440,10 @@
 &qspi {
 	status = "okay";
 
-	spi-max-frequency = <64000000>;
+	spi-max-frequency = <76800000>;
 	m25p80@0 {
 		compatible = "s25fl256s1";
-		spi-max-frequency = <64000000>;
+		spi-max-frequency = <76800000>;
 		reg = <0>;
 		spi-tx-bus-width = <1>;
 		spi-rx-bus-width = <4>;
@@ -741,15 +500,10 @@
 
 &dss {
 	status = "ok";
-
-	vdda_video-supply = <&ldo5_reg>;
 };
 
 &hdmi {
 	status = "ok";
-
-	pinctrl-names = "default";
-	pinctrl-0 = <&hdmi_pins>;
 
 	port {
 		hdmi_out: endpoint {
@@ -759,9 +513,6 @@
 };
 
 &atl {
-	pinctrl-names = "default";
-	pinctrl-0 = <&atl_pins>;
-
 	assigned-clocks = <&abe_dpll_sys_clk_mux>,
 			  <&atl_gfclk_mux>,
 			  <&dpll_abe_ck>,
@@ -780,9 +531,6 @@
 
 &mcasp3 {
 	#sound-dai-cells = <0>;
-	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&mcasp3_pins>;
-	pinctrl-1 = <&mcasp3_sleep_pins>;
 
 	assigned-clocks = <&mcasp3_ahclkx_mux>;
 	assigned-clock-parents = <&atl_clkin2_ck>;

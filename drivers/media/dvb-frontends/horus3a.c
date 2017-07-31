@@ -151,14 +151,13 @@ static int horus3a_init(struct dvb_frontend *fe)
 	return 0;
 }
 
-static int horus3a_release(struct dvb_frontend *fe)
+static void horus3a_release(struct dvb_frontend *fe)
 {
 	struct horus3a_priv *priv = fe->tuner_priv;
 
 	dev_dbg(&priv->i2c->dev, "%s()\n", __func__);
 	kfree(fe->tuner_priv);
 	fe->tuner_priv = NULL;
-	return 0;
 }
 
 static int horus3a_sleep(struct dvb_frontend *fe)
@@ -326,7 +325,7 @@ static int horus3a_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 	return 0;
 }
 
-static struct dvb_tuner_ops horus3a_tuner_ops = {
+static const struct dvb_tuner_ops horus3a_tuner_ops = {
 	.info = {
 		.name = "Sony Horus3a",
 		.frequency_min = 950000,
@@ -405,6 +404,6 @@ struct dvb_frontend *horus3a_attach(struct dvb_frontend *fe,
 }
 EXPORT_SYMBOL(horus3a_attach);
 
-MODULE_DESCRIPTION("Sony HORUS3A sattelite tuner driver");
+MODULE_DESCRIPTION("Sony HORUS3A satellite tuner driver");
 MODULE_AUTHOR("Sergey Kozlov <serjk@netup.ru>");
 MODULE_LICENSE("GPL");

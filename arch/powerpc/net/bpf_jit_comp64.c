@@ -17,6 +17,7 @@
 #include <linux/filter.h>
 #include <linux/if_vlan.h>
 #include <asm/kprobes.h>
+#include <linux/bpf.h>
 
 #include "bpf_jit64.h"
 
@@ -58,6 +59,40 @@ static inline bool bpf_has_stack_frame(struct codegen_context *ctx)
 	return ctx->seen & SEEN_FUNC || bpf_is_seen_register(ctx, BPF_REG_FP);
 }
 
+/*
+ * When not setting up our own stackframe, the redzone usage is:
+ *
+ *		[	prev sp		] <-------------
+ *		[	  ...       	] 		|
+ * sp (r1) --->	[    stack pointer	] --------------
+ *		[   nv gpr save area	] 8*8
+ *		[    tail_call_cnt	] 8
+ *		[    local_tmp_var	] 8
+ *		[   unused red zone	] 208 bytes protected
+ */
+static int bpf_jit_stack_local(struct codegen_context *ctx)
+{
+	if (bpf_has_stack_frame(ctx))
+		return STACK_FRAME_MIN_SIZE + MAX_BPF_STACK;
+	else
+		return -(BPF_PPC_STACK_SAVE + 16);
+}
+
+static int bpf_jit_stack_tailcallcnt(struct codegen_context *ctx)
+{
+	return bpf_jit_stack_local(ctx) + 8;
+}
+
+static int bpf_jit_stack_offsetof(struct codegen_context *ctx, int reg)
+{
+	if (reg >= BPF_PPC_NVR_MIN && reg < 32)
+		return (bpf_has_stack_frame(ctx) ? BPF_PPC_STACKFRAME : 0)
+							- (8 * (32 - reg));
+
+	pr_err("BPF JIT is asking about unknown registers");
+	BUG();
+}
+
 static void bpf_jit_emit_skb_loads(u32 *image, struct codegen_context *ctx)
 {
 	/*
@@ -71,6 +106,103 @@ static void bpf_jit_emit_skb_loads(u32 *image, struct codegen_context *ctx)
 
 	/* skb->data pointer */
 	PPC_BPF_LL(b2p[SKB_DATA_REG], 3, offsetof(struct sk_buff, data));
+}
+
+static void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)
+{
+	int i;
+
+	/*
+	 * Initialize tail_call_cnt if we do tail calls.
+	 * Otherwise, put in NOPs so that it can be skipped when we are
+	 * invoked through a tail call.
+	 */
+	if (ctx->seen & SEEN_TAILCALL) {
+		PPC_LI(b2p[TMP_REG_1], 0);
+		/* this goes in the redzone */
+		PPC_BPF_STL(b2p[TMP_REG_1], 1, -(BPF_PPC_STACK_SAVE + 8));
+	} else {
+		PPC_NOP();
+		PPC_NOP();
+	}
+
+#define BPF_TAILCALL_PROLOGUE_SIZE	8
+
+	if (bpf_has_stack_frame(ctx)) {
+		/*
+		 * We need a stack frame, but we don't necessarily need to
+		 * save/restore LR unless we call other functions
+		 */
+		if (ctx->seen & SEEN_FUNC) {
+			EMIT(PPC_INST_MFLR | __PPC_RT(R0));
+			PPC_BPF_STL(0, 1, PPC_LR_STKOFF);
+		}
+
+		PPC_BPF_STLU(1, 1, -BPF_PPC_STACKFRAME);
+	}
+
+	/*
+	 * Back up non-volatile regs -- BPF registers 6-10
+	 * If we haven't created our own stack frame, we save these
+	 * in the protected zone below the previous stack frame
+	 */
+	for (i = BPF_REG_6; i <= BPF_REG_10; i++)
+		if (bpf_is_seen_register(ctx, i))
+			PPC_BPF_STL(b2p[i], 1, bpf_jit_stack_offsetof(ctx, b2p[i]));
+
+	/*
+	 * Save additional non-volatile regs if we cache skb
+	 * Also, setup skb data
+	 */
+	if (ctx->seen & SEEN_SKB) {
+		PPC_BPF_STL(b2p[SKB_HLEN_REG], 1,
+				bpf_jit_stack_offsetof(ctx, b2p[SKB_HLEN_REG]));
+		PPC_BPF_STL(b2p[SKB_DATA_REG], 1,
+				bpf_jit_stack_offsetof(ctx, b2p[SKB_DATA_REG]));
+		bpf_jit_emit_skb_loads(image, ctx);
+	}
+
+	/* Setup frame pointer to point to the bpf stack area */
+	if (bpf_is_seen_register(ctx, BPF_REG_FP))
+		PPC_ADDI(b2p[BPF_REG_FP], 1,
+				STACK_FRAME_MIN_SIZE + MAX_BPF_STACK);
+}
+
+static void bpf_jit_emit_common_epilogue(u32 *image, struct codegen_context *ctx)
+{
+	int i;
+
+	/* Restore NVRs */
+	for (i = BPF_REG_6; i <= BPF_REG_10; i++)
+		if (bpf_is_seen_register(ctx, i))
+			PPC_BPF_LL(b2p[i], 1, bpf_jit_stack_offsetof(ctx, b2p[i]));
+
+	/* Restore non-volatile registers used for skb cache */
+	if (ctx->seen & SEEN_SKB) {
+		PPC_BPF_LL(b2p[SKB_HLEN_REG], 1,
+				bpf_jit_stack_offsetof(ctx, b2p[SKB_HLEN_REG]));
+		PPC_BPF_LL(b2p[SKB_DATA_REG], 1,
+				bpf_jit_stack_offsetof(ctx, b2p[SKB_DATA_REG]));
+	}
+
+	/* Tear down our stack frame */
+	if (bpf_has_stack_frame(ctx)) {
+		PPC_ADDI(1, 1, BPF_PPC_STACKFRAME);
+		if (ctx->seen & SEEN_FUNC) {
+			PPC_BPF_LL(0, 1, PPC_LR_STKOFF);
+			PPC_MTLR(0);
+		}
+	}
+}
+
+static void bpf_jit_build_epilogue(u32 *image, struct codegen_context *ctx)
+{
+	bpf_jit_emit_common_epilogue(image, ctx);
+
+	/* Move result to r3 */
+	PPC_MR(3, b2p[BPF_REG_0]);
+
+	PPC_BLR();
 }
 
 static void bpf_jit_emit_func_call(u32 *image, struct codegen_context *ctx, u64 func)
@@ -97,86 +229,67 @@ static void bpf_jit_emit_func_call(u32 *image, struct codegen_context *ctx, u64 
 	PPC_BLRL();
 }
 
-static void bpf_jit_build_prologue(u32 *image, struct codegen_context *ctx)
+static void bpf_jit_emit_tail_call(u32 *image, struct codegen_context *ctx, u32 out)
 {
-	int i;
-	bool new_stack_frame = bpf_has_stack_frame(ctx);
-
-	if (new_stack_frame) {
-		/*
-		 * We need a stack frame, but we don't necessarily need to
-		 * save/restore LR unless we call other functions
-		 */
-		if (ctx->seen & SEEN_FUNC) {
-			EMIT(PPC_INST_MFLR | __PPC_RT(R0));
-			PPC_BPF_STL(0, 1, PPC_LR_STKOFF);
-		}
-
-		PPC_BPF_STLU(1, 1, -BPF_PPC_STACKFRAME);
-	}
+	/*
+	 * By now, the eBPF program has already setup parameters in r3, r4 and r5
+	 * r3/BPF_REG_1 - pointer to ctx -- passed as is to the next bpf program
+	 * r4/BPF_REG_2 - pointer to bpf_array
+	 * r5/BPF_REG_3 - index in bpf_array
+	 */
+	int b2p_bpf_array = b2p[BPF_REG_2];
+	int b2p_index = b2p[BPF_REG_3];
 
 	/*
-	 * Back up non-volatile regs -- BPF registers 6-10
-	 * If we haven't created our own stack frame, we save these
-	 * in the protected zone below the previous stack frame
+	 * if (index >= array->map.max_entries)
+	 *   goto out;
 	 */
-	for (i = BPF_REG_6; i <= BPF_REG_10; i++)
-		if (bpf_is_seen_register(ctx, i))
-			PPC_BPF_STL(b2p[i], 1,
-				(new_stack_frame ? BPF_PPC_STACKFRAME : 0) -
-					(8 * (32 - b2p[i])));
+	PPC_LWZ(b2p[TMP_REG_1], b2p_bpf_array, offsetof(struct bpf_array, map.max_entries));
+	PPC_CMPLW(b2p_index, b2p[TMP_REG_1]);
+	PPC_BCC(COND_GE, out);
 
 	/*
-	 * Save additional non-volatile regs if we cache skb
-	 * Also, setup skb data
+	 * if (tail_call_cnt > MAX_TAIL_CALL_CNT)
+	 *   goto out;
 	 */
-	if (ctx->seen & SEEN_SKB) {
-		PPC_BPF_STL(b2p[SKB_HLEN_REG], 1,
-			BPF_PPC_STACKFRAME - (8 * (32 - b2p[SKB_HLEN_REG])));
-		PPC_BPF_STL(b2p[SKB_DATA_REG], 1,
-			BPF_PPC_STACKFRAME - (8 * (32 - b2p[SKB_DATA_REG])));
-		bpf_jit_emit_skb_loads(image, ctx);
-	}
+	PPC_LD(b2p[TMP_REG_1], 1, bpf_jit_stack_tailcallcnt(ctx));
+	PPC_CMPLWI(b2p[TMP_REG_1], MAX_TAIL_CALL_CNT);
+	PPC_BCC(COND_GT, out);
 
-	/* Setup frame pointer to point to the bpf stack area */
-	if (bpf_is_seen_register(ctx, BPF_REG_FP))
-		PPC_ADDI(b2p[BPF_REG_FP], 1,
-				BPF_PPC_STACKFRAME - BPF_PPC_STACK_SAVE);
-}
+	/*
+	 * tail_call_cnt++;
+	 */
+	PPC_ADDI(b2p[TMP_REG_1], b2p[TMP_REG_1], 1);
+	PPC_BPF_STL(b2p[TMP_REG_1], 1, bpf_jit_stack_tailcallcnt(ctx));
 
-static void bpf_jit_build_epilogue(u32 *image, struct codegen_context *ctx)
-{
-	int i;
-	bool new_stack_frame = bpf_has_stack_frame(ctx);
+	/* prog = array->ptrs[index]; */
+	PPC_MULI(b2p[TMP_REG_1], b2p_index, 8);
+	PPC_ADD(b2p[TMP_REG_1], b2p[TMP_REG_1], b2p_bpf_array);
+	PPC_LD(b2p[TMP_REG_1], b2p[TMP_REG_1], offsetof(struct bpf_array, ptrs));
 
-	/* Move result to r3 */
-	PPC_MR(3, b2p[BPF_REG_0]);
+	/*
+	 * if (prog == NULL)
+	 *   goto out;
+	 */
+	PPC_CMPLDI(b2p[TMP_REG_1], 0);
+	PPC_BCC(COND_EQ, out);
 
-	/* Restore NVRs */
-	for (i = BPF_REG_6; i <= BPF_REG_10; i++)
-		if (bpf_is_seen_register(ctx, i))
-			PPC_BPF_LL(b2p[i], 1,
-				(new_stack_frame ? BPF_PPC_STACKFRAME : 0) -
-					(8 * (32 - b2p[i])));
+	/* goto *(prog->bpf_func + prologue_size); */
+	PPC_LD(b2p[TMP_REG_1], b2p[TMP_REG_1], offsetof(struct bpf_prog, bpf_func));
+#ifdef PPC64_ELF_ABI_v1
+	/* skip past the function descriptor */
+	PPC_ADDI(b2p[TMP_REG_1], b2p[TMP_REG_1],
+			FUNCTION_DESCR_SIZE + BPF_TAILCALL_PROLOGUE_SIZE);
+#else
+	PPC_ADDI(b2p[TMP_REG_1], b2p[TMP_REG_1], BPF_TAILCALL_PROLOGUE_SIZE);
+#endif
+	PPC_MTCTR(b2p[TMP_REG_1]);
 
-	/* Restore non-volatile registers used for skb cache */
-	if (ctx->seen & SEEN_SKB) {
-		PPC_BPF_LL(b2p[SKB_HLEN_REG], 1,
-			BPF_PPC_STACKFRAME - (8 * (32 - b2p[SKB_HLEN_REG])));
-		PPC_BPF_LL(b2p[SKB_DATA_REG], 1,
-			BPF_PPC_STACKFRAME - (8 * (32 - b2p[SKB_DATA_REG])));
-	}
+	/* tear down stack, restore NVRs, ... */
+	bpf_jit_emit_common_epilogue(image, ctx);
 
-	/* Tear down our stack frame */
-	if (new_stack_frame) {
-		PPC_ADDI(1, 1, BPF_PPC_STACKFRAME);
-		if (ctx->seen & SEEN_FUNC) {
-			PPC_BPF_LL(0, 1, PPC_LR_STKOFF);
-			PPC_MTLR(0);
-		}
-	}
-
-	PPC_BLR();
+	PPC_BCTR();
+	/* out: */
 }
 
 /* Assemble the body code between the prologue & epilogue */
@@ -200,7 +313,6 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 		u64 imm64;
 		u8 *func;
 		u32 true_cond;
-		int stack_local_off;
 
 		/*
 		 * addrs[] maps a BPF bytecode address into a real offset from
@@ -219,9 +331,9 @@ static int bpf_jit_build_body(struct bpf_prog *fp, u32 *image,
 		 * optimization but everything else should work without
 		 * any issues.
 		 */
-		if (dst_reg >= 24 && dst_reg <= 31)
+		if (dst_reg >= BPF_PPC_NVR_MIN && dst_reg < 32)
 			bpf_set_seen_register(ctx, insn[i].dst_reg);
-		if (src_reg >= 24 && src_reg <= 31)
+		if (src_reg >= BPF_PPC_NVR_MIN && src_reg < 32)
 			bpf_set_seen_register(ctx, insn[i].src_reg);
 
 		switch (code) {
@@ -490,25 +602,12 @@ bpf_alu32_trunc:
 				 * Way easier and faster(?) to store the value
 				 * into stack and then use ldbrx
 				 *
-				 * First, determine where in stack we can store
-				 * this:
-				 * - if we have allotted a stack frame, then we
-				 *   will utilize the area set aside by
-				 *   BPF_PPC_STACK_LOCALS
-				 * - else, we use the area beneath the NV GPR
-				 *   save area
-				 *
 				 * ctx->seen will be reliable in pass2, but
 				 * the instructions generated will remain the
 				 * same across all passes
 				 */
-				if (bpf_has_stack_frame(ctx))
-					stack_local_off = STACK_FRAME_MIN_SIZE;
-				else
-					stack_local_off = -(BPF_PPC_STACK_SAVE + 8);
-
-				PPC_STD(dst_reg, 1, stack_local_off);
-				PPC_ADDI(b2p[TMP_REG_1], 1, stack_local_off);
+				PPC_STD(dst_reg, 1, bpf_jit_stack_local(ctx));
+				PPC_ADDI(b2p[TMP_REG_1], 1, bpf_jit_stack_local(ctx));
 				PPC_LDBRX(dst_reg, 0, b2p[TMP_REG_1]);
 				break;
 			}
@@ -667,8 +766,8 @@ emit_clear:
 			func = (u8 *) __bpf_call_base + imm;
 
 			/* Save skb pointer if we need to re-cache skb data */
-			if (bpf_helper_changes_skb_data(func))
-				PPC_BPF_STL(3, 1, STACK_FRAME_MIN_SIZE);
+			if (bpf_helper_changes_pkt_data(func))
+				PPC_BPF_STL(3, 1, bpf_jit_stack_local(ctx));
 
 			bpf_jit_emit_func_call(image, ctx, (u64)func);
 
@@ -676,9 +775,9 @@ emit_clear:
 			PPC_MR(b2p[BPF_REG_0], 3);
 
 			/* refresh skb cache */
-			if (bpf_helper_changes_skb_data(func)) {
+			if (bpf_helper_changes_pkt_data(func)) {
 				/* reload skb pointer to r3 */
-				PPC_BPF_LL(3, 1, STACK_FRAME_MIN_SIZE);
+				PPC_BPF_LL(3, 1, bpf_jit_stack_local(ctx));
 				bpf_jit_emit_skb_loads(image, ctx);
 			}
 			break;
@@ -837,9 +936,12 @@ common_load:
 			break;
 
 		/*
-		 * TODO: Tail call
+		 * Tail call
 		 */
 		case BPF_JMP | BPF_CALL | BPF_X:
+			ctx->seen |= SEEN_TAILCALL;
+			bpf_jit_emit_tail_call(image, ctx, addrs[i + 1]);
+			break;
 
 		default:
 			/*
@@ -859,8 +961,6 @@ common_load:
 	return 0;
 }
 
-void bpf_jit_compile(struct bpf_prog *fp) { }
-
 struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 {
 	u32 proglen;
@@ -872,21 +972,37 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 	int pass;
 	int flen;
 	struct bpf_binary_header *bpf_hdr;
+	struct bpf_prog *org_fp = fp;
+	struct bpf_prog *tmp_fp;
+	bool bpf_blinded = false;
 
 	if (!bpf_jit_enable)
-		return fp;
+		return org_fp;
+
+	tmp_fp = bpf_jit_blind_constants(org_fp);
+	if (IS_ERR(tmp_fp))
+		return org_fp;
+
+	if (tmp_fp != org_fp) {
+		bpf_blinded = true;
+		fp = tmp_fp;
+	}
 
 	flen = fp->len;
 	addrs = kzalloc((flen+1) * sizeof(*addrs), GFP_KERNEL);
-	if (addrs == NULL)
-		return fp;
-
-	cgctx.idx = 0;
-	cgctx.seen = 0;
-	/* Scouting faux-generate pass 0 */
-	if (bpf_jit_build_body(fp, 0, &cgctx, addrs))
-		/* We hit something illegal or unsupported. */
+	if (addrs == NULL) {
+		fp = org_fp;
 		goto out;
+	}
+
+	memset(&cgctx, 0, sizeof(struct codegen_context));
+
+	/* Scouting faux-generate pass 0 */
+	if (bpf_jit_build_body(fp, 0, &cgctx, addrs)) {
+		/* We hit something illegal or unsupported. */
+		fp = org_fp;
+		goto out;
+	}
 
 	/*
 	 * Pretend to build prologue, given the features we've seen.  This will
@@ -901,8 +1017,10 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 
 	bpf_hdr = bpf_jit_binary_alloc(alloclen, &image, 4,
 			bpf_jit_fill_ill_insns);
-	if (!bpf_hdr)
+	if (!bpf_hdr) {
+		fp = org_fp;
 		goto out;
+	}
 
 	code_base = (u32 *)(image + FUNCTION_DESCR_SIZE);
 
@@ -926,22 +1044,27 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *fp)
 		 */
 		bpf_jit_dump(flen, proglen, pass, code_base);
 
-	if (image) {
-		bpf_flush_icache(bpf_hdr, image + alloclen);
 #ifdef PPC64_ELF_ABI_v1
-		/* Function descriptor nastiness: Address + TOC */
-		((u64 *)image)[0] = (u64)code_base;
-		((u64 *)image)[1] = local_paca->kernel_toc;
+	/* Function descriptor nastiness: Address + TOC */
+	((u64 *)image)[0] = (u64)code_base;
+	((u64 *)image)[1] = local_paca->kernel_toc;
 #endif
-		fp->bpf_func = (void *)image;
-		fp->jited = 1;
-	}
+
+	fp->bpf_func = (void *)image;
+	fp->jited = 1;
+
+	bpf_flush_icache(bpf_hdr, (u8 *)bpf_hdr + (bpf_hdr->pages * PAGE_SIZE));
 
 out:
 	kfree(addrs);
+
+	if (bpf_blinded)
+		bpf_jit_prog_release_other(fp, fp == org_fp ? tmp_fp : org_fp);
+
 	return fp;
 }
 
+/* Overriding bpf_jit_free() as we don't set images read-only. */
 void bpf_jit_free(struct bpf_prog *fp)
 {
 	unsigned long addr = (unsigned long)fp->bpf_func & PAGE_MASK;

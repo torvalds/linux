@@ -38,10 +38,10 @@
 #define AUX_IRQ_ACT_BIT_U	31
 
 /*
- * User space should be interruptable even by lowest prio interrupt
- * Safe even if actual interrupt priorities is fewer or even one
+ * Hardware supports 16 priorities (0 highest, 15 lowest)
+ * Linux by default runs at 1, priority 0 reserved for NMI style interrupts
  */
-#define ARCV2_IRQ_DEF_PRIO	15
+#define ARCV2_IRQ_DEF_PRIO	1
 
 /* seed value for status register */
 #define ISA_INIT_STATUS_BITS	(STATUS_IE_MASK | STATUS_AD_MASK | \
@@ -112,7 +112,7 @@ static inline long arch_local_save_flags(void)
 	 */
 	temp = (1 << 5) |
 		((!!(temp & STATUS_IE_MASK)) << CLRI_STATUS_IE_BIT) |
-		(temp & CLRI_STATUS_E_MASK);
+		((temp >> 1) & CLRI_STATUS_E_MASK);
 	return temp;
 }
 

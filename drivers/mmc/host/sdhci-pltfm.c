@@ -156,13 +156,6 @@ struct sdhci_host *sdhci_pltfm_init(struct platform_device *pdev,
 		host->quirks2 = pdata->quirks2;
 	}
 
-	/*
-	 * Some platforms need to probe the controller to be able to
-	 * determine which caps should be used.
-	 */
-	if (host->ops && host->ops->platform_init)
-		host->ops->platform_init(host);
-
 	platform_set_drvdata(pdev, host);
 
 	return host;
@@ -219,6 +212,9 @@ EXPORT_SYMBOL_GPL(sdhci_pltfm_unregister);
 static int sdhci_pltfm_suspend(struct device *dev)
 {
 	struct sdhci_host *host = dev_get_drvdata(dev);
+
+	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
+		mmc_retune_needed(host->mmc);
 
 	return sdhci_suspend_host(host);
 }

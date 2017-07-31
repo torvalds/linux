@@ -1793,6 +1793,13 @@ bool pl08x_filter_id(struct dma_chan *chan, void *chan_id)
 }
 EXPORT_SYMBOL_GPL(pl08x_filter_id);
 
+static bool pl08x_filter_fn(struct dma_chan *chan, void *chan_id)
+{
+	struct pl08x_dma_chan *plchan = to_pl08x_chan(chan);
+
+	return plchan->cd == chan_id;
+}
+
 /*
  * Just check that the device is there and active
  * TODO: turn this bit on/off depending on the number of physical channels
@@ -2307,6 +2314,10 @@ static int pl08x_probe(struct amba_device *adev, const struct amba_id *id)
 			ret = -EINVAL;
 			goto out_no_platdata;
 		}
+	} else {
+		pl08x->slave.filter.map = pl08x->pd->slave_map;
+		pl08x->slave.filter.mapcnt = pl08x->pd->slave_map_len;
+		pl08x->slave.filter.fn = pl08x_filter_fn;
 	}
 
 	/* By default, AHB1 only.  If dualmaster, from platform */

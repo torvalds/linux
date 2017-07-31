@@ -1,5 +1,5 @@
 #include <linux/tty.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include "dgnc_utils.h"
 
 /*

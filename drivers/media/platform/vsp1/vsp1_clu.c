@@ -148,10 +148,15 @@ static int clu_set_format(struct v4l2_subdev *subdev,
 	struct vsp1_clu *clu = to_clu(subdev);
 	struct v4l2_subdev_pad_config *config;
 	struct v4l2_mbus_framefmt *format;
+	int ret = 0;
+
+	mutex_lock(&clu->entity.lock);
 
 	config = vsp1_entity_get_pad_config(&clu->entity, cfg, fmt->which);
-	if (!config)
-		return -EINVAL;
+	if (!config) {
+		ret = -EINVAL;
+		goto done;
+	}
 
 	/* Default to YUV if the requested format is not supported. */
 	if (fmt->format.code != MEDIA_BUS_FMT_ARGB8888_1X32 &&
@@ -164,7 +169,7 @@ static int clu_set_format(struct v4l2_subdev *subdev,
 	if (fmt->pad == CLU_PAD_SOURCE) {
 		/* The CLU output format can't be modified. */
 		fmt->format = *format;
-		return 0;
+		goto done;
 	}
 
 	format->code = fmt->format.code;
@@ -182,7 +187,9 @@ static int clu_set_format(struct v4l2_subdev *subdev,
 					    CLU_PAD_SOURCE);
 	*format = fmt->format;
 
-	return 0;
+done:
+	mutex_unlock(&clu->entity.lock);
+	return ret;
 }
 
 /* -----------------------------------------------------------------------------
@@ -207,42 +214,51 @@ static const struct v4l2_subdev_ops clu_ops = {
 
 static void clu_configure(struct vsp1_entity *entity,
 			  struct vsp1_pipeline *pipe,
-			  struct vsp1_dl_list *dl, bool full)
+			  struct vsp1_dl_list *dl,
+			  enum vsp1_entity_params params)
 {
 	struct vsp1_clu *clu = to_clu(&entity->subdev);
 	struct vsp1_dl_body *dlb;
 	unsigned long flags;
 	u32 ctrl = VI6_CLU_CTRL_AAI | VI6_CLU_CTRL_MVS | VI6_CLU_CTRL_EN;
 
-	/* The format can't be changed during streaming, only verify it at
-	 * stream start and store the information internally for future partial
-	 * reconfiguration calls.
-	 */
-	if (full) {
+	switch (params) {
+	case VSP1_ENTITY_PARAMS_INIT: {
+		/*
+		 * The format can't be changed during streaming, only verify it
+		 * at setup time and store the information internally for future
+		 * runtime configuration calls.
+		 */
 		struct v4l2_mbus_framefmt *format;
 
 		format = vsp1_entity_get_pad_format(&clu->entity,
 						    clu->entity.config,
 						    CLU_PAD_SINK);
 		clu->yuv_mode = format->code == MEDIA_BUS_FMT_AYUV8_1X32;
-		return;
+		break;
 	}
 
-	/* 2D mode can only be used with the YCbCr pixel encoding. */
-	if (clu->mode == V4L2_CID_VSP1_CLU_MODE_2D && clu->yuv_mode)
-		ctrl |= VI6_CLU_CTRL_AX1I_2D | VI6_CLU_CTRL_AX2I_2D
-		     |  VI6_CLU_CTRL_OS0_2D | VI6_CLU_CTRL_OS1_2D
-		     |  VI6_CLU_CTRL_OS2_2D | VI6_CLU_CTRL_M2D;
+	case VSP1_ENTITY_PARAMS_PARTITION:
+		break;
 
-	vsp1_clu_write(clu, dl, VI6_CLU_CTRL, ctrl);
+	case VSP1_ENTITY_PARAMS_RUNTIME:
+		/* 2D mode can only be used with the YCbCr pixel encoding. */
+		if (clu->mode == V4L2_CID_VSP1_CLU_MODE_2D && clu->yuv_mode)
+			ctrl |= VI6_CLU_CTRL_AX1I_2D | VI6_CLU_CTRL_AX2I_2D
+			     |  VI6_CLU_CTRL_OS0_2D | VI6_CLU_CTRL_OS1_2D
+			     |  VI6_CLU_CTRL_OS2_2D | VI6_CLU_CTRL_M2D;
 
-	spin_lock_irqsave(&clu->lock, flags);
-	dlb = clu->clu;
-	clu->clu = NULL;
-	spin_unlock_irqrestore(&clu->lock, flags);
+		vsp1_clu_write(clu, dl, VI6_CLU_CTRL, ctrl);
 
-	if (dlb)
-		vsp1_dl_list_add_fragment(dl, dlb);
+		spin_lock_irqsave(&clu->lock, flags);
+		dlb = clu->clu;
+		clu->clu = NULL;
+		spin_unlock_irqrestore(&clu->lock, flags);
+
+		if (dlb)
+			vsp1_dl_list_add_fragment(dl, dlb);
+		break;
+	}
 }
 
 static const struct vsp1_entity_operations clu_entity_ops = {

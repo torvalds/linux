@@ -22,7 +22,9 @@
 	PORT_GP_32(3, fn, sfx),						\
 	PORT_GP_32(4, fn, sfx),						\
 	PORT_GP_28(5, fn, sfx),						\
-	PORT_GP_26(6, fn, sfx)
+	PORT_GP_CFG_24(6, fn, sfx, SH_PFC_PIN_CFG_IO_VOLTAGE),		\
+	PORT_GP_1(6, 24, fn, sfx),					\
+	PORT_GP_1(6, 25, fn, sfx)
 
 enum {
 	PINMUX_RESERVED = 0,
@@ -279,8 +281,8 @@ enum {
 	FN_AVB_AVTP_CAPTURE, FN_ETH_CRS_DV_B, FN_SSI_WS1, FN_SCIF1_TXD_B,
 	FN_IIC1_SDA_C, FN_VI1_DATA0, FN_CAN0_TX_D, FN_AVB_AVTP_MATCH,
 	FN_ETH_RX_ER_B, FN_SSI_SDATA1, FN_HSCIF1_HRX_B, FN_SDATA, FN_VI1_DATA1,
-	FN_ATAG0_N, FN_ETH_RXD0_B, FN_SSI_SCK2, FN_HSCIF1_HTX_B, FN_VI1_DATA2,
-	FN_MDATA, FN_ATAWR0_N, FN_ETH_RXD1_B,
+	FN_ATAWR0_N, FN_ETH_RXD0_B, FN_SSI_SCK2, FN_HSCIF1_HTX_B, FN_VI1_DATA2,
+	FN_MDATA, FN_ATAG0_N, FN_ETH_RXD1_B,
 
 	/* IPSR13 */
 	FN_SSI_WS2, FN_HSCIF1_HCTS_N_B, FN_SCIFA0_RXD_D, FN_VI1_DATA3, FN_SCKZ,
@@ -573,8 +575,8 @@ enum {
 	ETH_CRS_DV_B_MARK, SSI_WS1_MARK, SCIF1_TXD_B_MARK, IIC1_SDA_C_MARK,
 	VI1_DATA0_MARK, CAN0_TX_D_MARK, AVB_AVTP_MATCH_MARK, ETH_RX_ER_B_MARK,
 	SSI_SDATA1_MARK, HSCIF1_HRX_B_MARK, VI1_DATA1_MARK, SDATA_MARK,
-	ATAG0_N_MARK, ETH_RXD0_B_MARK, SSI_SCK2_MARK, HSCIF1_HTX_B_MARK,
-	VI1_DATA2_MARK, MDATA_MARK, ATAWR0_N_MARK, ETH_RXD1_B_MARK,
+	ATAWR0_N_MARK, ETH_RXD0_B_MARK, SSI_SCK2_MARK, HSCIF1_HTX_B_MARK,
+	VI1_DATA2_MARK, MDATA_MARK, ATAG0_N_MARK, ETH_RXD1_B_MARK,
 
 	/* IPSR13 */
 	SSI_WS2_MARK, HSCIF1_HCTS_N_B_MARK, SCIFA0_RXD_D_MARK, VI1_DATA3_MARK,
@@ -1411,13 +1413,13 @@ static const u16 pinmux_data[] = {
 	PINMUX_IPSR_MSEL(IP12_26_24, HSCIF1_HRX_B, SEL_HSCIF1_1),
 	PINMUX_IPSR_GPSR(IP12_26_24, VI1_DATA1),
 	PINMUX_IPSR_MSEL(IP12_26_24, SDATA, SEL_FSN_0),
-	PINMUX_IPSR_GPSR(IP12_26_24, ATAG0_N),
+	PINMUX_IPSR_GPSR(IP12_26_24, ATAWR0_N),
 	PINMUX_IPSR_MSEL(IP12_26_24, ETH_RXD0_B, SEL_ETH_1),
 	PINMUX_IPSR_MSEL(IP12_29_27, SSI_SCK2, SEL_SSI2_0),
 	PINMUX_IPSR_MSEL(IP12_29_27, HSCIF1_HTX_B, SEL_HSCIF1_1),
 	PINMUX_IPSR_GPSR(IP12_29_27, VI1_DATA2),
 	PINMUX_IPSR_MSEL(IP12_29_27, MDATA, SEL_FSN_0),
-	PINMUX_IPSR_GPSR(IP12_29_27, ATAWR0_N),
+	PINMUX_IPSR_GPSR(IP12_29_27, ATAG0_N),
 	PINMUX_IPSR_MSEL(IP12_29_27, ETH_RXD1_B, SEL_ETH_1),
 
 	/* IPSR13 */
@@ -4936,10 +4938,10 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		0, 0, 0, 0,
 		/* IP12_29_27 [3] */
 		FN_SSI_SCK2, FN_HSCIF1_HTX_B, FN_VI1_DATA2, FN_MDATA,
-		FN_ATAWR0_N, FN_ETH_RXD1_B, 0, 0,
+		FN_ATAG0_N, FN_ETH_RXD1_B, 0, 0,
 		/* IP12_26_24 [3] */
 		FN_SSI_SDATA1, FN_HSCIF1_HRX_B, FN_VI1_DATA1, FN_SDATA,
-		FN_ATAG0_N, FN_ETH_RXD0_B, 0, 0,
+		FN_ATAWR0_N, FN_ETH_RXD0_B, 0, 0,
 		/* IP12_23_21 [3] */
 		FN_SSI_WS1, FN_SCIF1_TXD_B, FN_IIC1_SDA_C, FN_VI1_DATA0,
 		FN_CAN0_TX_D, FN_AVB_AVTP_MATCH, FN_ETH_RX_ER_B, 0,
@@ -5160,8 +5162,32 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	{ },
 };
 
+static int r8a7794_pin_to_pocctrl(struct sh_pfc *pfc, unsigned int pin, u32 *pocctrl)
+{
+	*pocctrl = 0xe606006c;
+
+	switch (pin & 0x1f) {
+	case 6: return 23;
+	case 7: return 16;
+	case 14: return 15;
+	case 15: return 8;
+	case 0 ... 5:
+	case 8 ... 13:
+		return 22 - (pin & 0x1f);
+	case 16 ... 23:
+		return 47 - (pin & 0x1f);
+	}
+
+	return -EINVAL;
+}
+
+static const struct sh_pfc_soc_operations r8a7794_pinmux_ops = {
+	.pin_to_pocctrl = r8a7794_pin_to_pocctrl,
+};
+
 const struct sh_pfc_soc_info r8a7794_pinmux_info = {
 	.name = "r8a77940_pfc",
+	.ops = &r8a7794_pinmux_ops,
 	.unlock_reg = 0xe6060000, /* PMMR */
 
 	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },

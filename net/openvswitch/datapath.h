@@ -34,8 +34,6 @@
 #define DP_MAX_PORTS           USHRT_MAX
 #define DP_VPORT_HASH_BUCKETS  1024
 
-#define SAMPLE_ACTION_DEPTH 3
-
 /**
  * struct dp_stats_percpu - per-cpu packet processing statistics for a given
  * datapath.
@@ -144,7 +142,7 @@ struct ovs_net {
 	bool xt_label;
 };
 
-extern int ovs_net_id;
+extern unsigned int ovs_net_id;
 void ovs_lock(void);
 void ovs_unlock(void);
 

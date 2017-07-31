@@ -460,7 +460,7 @@ int cxl_of_probe(struct platform_device *pdev)
 	struct device_node *afu_np = NULL;
 	struct cxl *adapter = NULL;
 	int ret;
-	int slice, slice_ok;
+	int slice = 0, slice_ok = 0;
 
 	pr_devel("in %s\n", __func__);
 
@@ -476,13 +476,13 @@ int cxl_of_probe(struct platform_device *pdev)
 	}
 
 	/* init afu */
-	slice_ok = 0;
-	for (afu_np = NULL, slice = 0; (afu_np = of_get_next_child(np, afu_np)); slice++) {
+	for_each_child_of_node(np, afu_np) {
 		if ((ret = cxl_guest_init_afu(adapter, slice, afu_np)))
 			dev_err(&pdev->dev, "AFU %i failed to initialise: %i\n",
 				slice, ret);
 		else
 			slice_ok++;
+		slice++;
 	}
 
 	if (slice_ok == 0) {
@@ -490,8 +490,6 @@ int cxl_of_probe(struct platform_device *pdev)
 		adapter->slices = 0;
 	}
 
-	if (afu_np)
-		of_node_put(afu_np);
 	return 0;
 }
 

@@ -37,7 +37,7 @@
 #ifdef CONFIG_MMU
 #define TASK_SIZE	__XTENSA_UL_CONST(0x40000000)
 #else
-#define TASK_SIZE	(PLATFORM_DEFAULT_MEM_START + PLATFORM_DEFAULT_MEM_SIZE)
+#define TASK_SIZE	__XTENSA_UL_CONST(0xffffffff)
 #endif
 
 #define STACK_TOP	TASK_SIZE
@@ -206,7 +206,6 @@ extern unsigned long get_wchan(struct task_struct *p);
 #define KSTK_ESP(tsk)		(task_pt_regs(tsk)->areg[1])
 
 #define cpu_relax()  barrier()
-#define cpu_relax_lowlatency() cpu_relax()
 
 /* Special register access. */
 

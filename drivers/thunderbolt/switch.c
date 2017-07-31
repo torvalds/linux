@@ -372,7 +372,9 @@ struct tb_switch *tb_switch_alloc(struct tb *tb, u64 route)
 
 	if (sw->config.device_id != PCI_DEVICE_ID_INTEL_LIGHT_RIDGE &&
 	    sw->config.device_id != PCI_DEVICE_ID_INTEL_CACTUS_RIDGE_4C &&
-	    sw->config.device_id != PCI_DEVICE_ID_INTEL_PORT_RIDGE)
+	    sw->config.device_id != PCI_DEVICE_ID_INTEL_PORT_RIDGE &&
+	    sw->config.device_id != PCI_DEVICE_ID_INTEL_FALCON_RIDGE_2C_BRIDGE &&
+	    sw->config.device_id != PCI_DEVICE_ID_INTEL_FALCON_RIDGE_4C_BRIDGE)
 		tb_sw_warn(sw, "unsupported switch device id %#x\n",
 			   sw->config.device_id);
 
@@ -458,7 +460,7 @@ int tb_switch_resume(struct tb_switch *sw)
 		tb_sw_warn(sw, "uid read failed\n");
 		return err;
 	}
-	if (sw->uid != uid) {
+	if (sw != sw->tb->root_switch && sw->uid != uid) {
 		tb_sw_info(sw,
 			"changed while suspended (uid %#llx -> %#llx)\n",
 			sw->uid, uid);

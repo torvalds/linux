@@ -14,6 +14,7 @@
  * General Public License for more details.
  */
 
+#include <linux/mm.h>
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
 #include <linux/bug.h>
@@ -22,7 +23,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/percpu.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/string.h>
 #include <linux/spinlock.h>
 #include <linux/percpu_ida.h>

@@ -341,20 +341,9 @@ static int tas571x_set_bias_level(struct snd_soc_codec *codec,
 					return ret;
 				}
 			}
-
-			gpiod_set_value(priv->pdn_gpio, 0);
-			usleep_range(5000, 6000);
-
-			regcache_cache_only(priv->regmap, false);
-			ret = regcache_sync(priv->regmap);
-			if (ret)
-				return ret;
 		}
 		break;
 	case SND_SOC_BIAS_OFF:
-		regcache_cache_only(priv->regmap, true);
-		gpiod_set_value(priv->pdn_gpio, 1);
-
 		if (!IS_ERR(priv->mclk))
 			clk_disable_unprepare(priv->mclk);
 		break;
@@ -401,16 +390,6 @@ static const struct snd_kcontrol_new tas5711_controls[] = {
 		   TAS571X_SOFT_MUTE_REG,
 		   TAS571X_SOFT_MUTE_CH1_SHIFT, TAS571X_SOFT_MUTE_CH2_SHIFT,
 		   1, 1),
-
-	SOC_DOUBLE_R_RANGE("CH1 Mixer Volume",
-			   TAS5717_CH1_LEFT_CH_MIX_REG,
-			   TAS5717_CH1_RIGHT_CH_MIX_REG,
-			   16, 0, 0x80, 0),
-
-	SOC_DOUBLE_R_RANGE("CH2 Mixer Volume",
-			   TAS5717_CH2_LEFT_CH_MIX_REG,
-			   TAS5717_CH2_RIGHT_CH_MIX_REG,
-			   16, 0, 0x80, 0),
 };
 
 static const struct regmap_range tas571x_readonly_regs_range[] = {
@@ -487,6 +466,16 @@ static const struct snd_kcontrol_new tas5717_controls[] = {
 		   TAS571X_SOFT_MUTE_REG,
 		   TAS571X_SOFT_MUTE_CH1_SHIFT, TAS571X_SOFT_MUTE_CH2_SHIFT,
 		   1, 1),
+
+	SOC_DOUBLE_R_RANGE("CH1 Mixer Volume",
+			   TAS5717_CH1_LEFT_CH_MIX_REG,
+			   TAS5717_CH1_RIGHT_CH_MIX_REG,
+			   16, 0, 0x80, 0),
+
+	SOC_DOUBLE_R_RANGE("CH2 Mixer Volume",
+			   TAS5717_CH2_LEFT_CH_MIX_REG,
+			   TAS5717_CH2_RIGHT_CH_MIX_REG,
+			   16, 0, 0x80, 0),
 
 	/*
 	 * The biquads are named according to the register names.
@@ -658,10 +647,12 @@ static const struct snd_soc_codec_driver tas571x_codec = {
 	.set_bias_level = tas571x_set_bias_level,
 	.idle_bias_off = true,
 
-	.dapm_widgets = tas571x_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(tas571x_dapm_widgets),
-	.dapm_routes = tas571x_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(tas571x_dapm_routes),
+	.component_driver = {
+		.dapm_widgets		= tas571x_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(tas571x_dapm_widgets),
+		.dapm_routes		= tas571x_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(tas571x_dapm_routes),
+	},
 };
 
 static struct snd_soc_dai_driver tas571x_dai = {
@@ -745,17 +736,18 @@ static int tas571x_i2c_probe(struct i2c_client *client,
 		/* pulse the active low reset line for ~100us */
 		usleep_range(100, 200);
 		gpiod_set_value(priv->reset_gpio, 0);
-		usleep_range(12000, 20000);
+		usleep_range(13500, 20000);
 	}
 
 	ret = regmap_write(priv->regmap, TAS571X_OSC_TRIM_REG, 0);
 	if (ret)
 		return ret;
 
+	usleep_range(50000, 60000);
 
 	memcpy(&priv->codec_driver, &tas571x_codec, sizeof(priv->codec_driver));
-	priv->codec_driver.controls = priv->chip->controls;
-	priv->codec_driver.num_controls = priv->chip->num_controls;
+	priv->codec_driver.component_driver.controls = priv->chip->controls;
+	priv->codec_driver.component_driver.num_controls = priv->chip->num_controls;
 
 	if (priv->chip->vol_reg_size == 2) {
 		/*
@@ -767,9 +759,6 @@ static int tas571x_i2c_probe(struct i2c_client *client,
 		if (ret)
 			return ret;
 	}
-
-	regcache_cache_only(priv->regmap, true);
-	gpiod_set_value(priv->pdn_gpio, 1);
 
 	return snd_soc_register_codec(&client->dev, &priv->codec_driver,
 				      &tas571x_dai, 1);

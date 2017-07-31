@@ -47,6 +47,7 @@ struct nvmet_ns {
 	loff_t			size;
 	u8			nguid[16];
 
+	bool			enabled;
 	struct nvmet_subsys	*subsys;
 	const char		*device_path;
 
@@ -61,11 +62,6 @@ static inline struct nvmet_ns *to_nvmet_ns(struct config_item *item)
 	return container_of(to_config_group(item), struct nvmet_ns, group);
 }
 
-static inline bool nvmet_ns_enabled(struct nvmet_ns *ns)
-{
-	return !list_empty_careful(&ns->dev_link);
-}
-
 struct nvmet_cq {
 	u16			qid;
 	u16			size;
@@ -77,6 +73,7 @@ struct nvmet_sq {
 	u16			qid;
 	u16			size;
 	struct completion	free_done;
+	struct completion	confirm_done;
 };
 
 /**
@@ -146,7 +143,6 @@ struct nvmet_subsys {
 	unsigned int		max_nsid;
 
 	struct list_head	ctrls;
-	struct ida		cntlid_ida;
 
 	struct list_head	hosts;
 	bool			allow_any_host;
@@ -238,7 +234,7 @@ static inline void nvmet_set_status(struct nvmet_req *req, u16 status)
 
 static inline void nvmet_set_result(struct nvmet_req *req, u32 result)
 {
-	req->rsp->result = cpu_to_le32(result);
+	req->rsp->result.u32 = cpu_to_le32(result);
 }
 
 /*
@@ -257,11 +253,11 @@ struct nvmet_async_event {
 	u8			log_page;
 };
 
-int nvmet_parse_connect_cmd(struct nvmet_req *req);
-int nvmet_parse_io_cmd(struct nvmet_req *req);
-int nvmet_parse_admin_cmd(struct nvmet_req *req);
-int nvmet_parse_discovery_cmd(struct nvmet_req *req);
-int nvmet_parse_fabrics_cmd(struct nvmet_req *req);
+u16 nvmet_parse_connect_cmd(struct nvmet_req *req);
+u16 nvmet_parse_io_cmd(struct nvmet_req *req);
+u16 nvmet_parse_admin_cmd(struct nvmet_req *req);
+u16 nvmet_parse_discovery_cmd(struct nvmet_req *req);
+u16 nvmet_parse_fabrics_cmd(struct nvmet_req *req);
 
 bool nvmet_req_init(struct nvmet_req *req, struct nvmet_cq *cq,
 		struct nvmet_sq *sq, struct nvmet_fabrics_ops *ops);
@@ -282,10 +278,12 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 u16 nvmet_ctrl_find_get(const char *subsysnqn, const char *hostnqn, u16 cntlid,
 		struct nvmet_req *req, struct nvmet_ctrl **ret);
 void nvmet_ctrl_put(struct nvmet_ctrl *ctrl);
+u16 nvmet_check_ctrl_status(struct nvmet_req *req, struct nvme_command *cmd);
 
 struct nvmet_subsys *nvmet_subsys_alloc(const char *subsysnqn,
 		enum nvme_subsys_type type);
 void nvmet_subsys_put(struct nvmet_subsys *subsys);
+void nvmet_subsys_del_ctrls(struct nvmet_subsys *subsys);
 
 struct nvmet_ns *nvmet_find_namespace(struct nvmet_ctrl *ctrl, __le32 nsid);
 void nvmet_put_namespace(struct nvmet_ns *ns);

@@ -36,13 +36,13 @@ struct tc_action {
 	struct tcf_t			tcfa_tm;
 	struct gnet_stats_basic_packed	tcfa_bstats;
 	struct gnet_stats_queue		tcfa_qstats;
-	struct gnet_stats_rate_est64	tcfa_rate_est;
+	struct net_rate_estimator __rcu *tcfa_rate_est;
 	spinlock_t			tcfa_lock;
 	struct rcu_head			tcfa_rcu;
 	struct gnet_stats_basic_cpu __percpu *cpu_bstats;
 	struct gnet_stats_queue __percpu *cpu_qstats;
+	struct tc_cookie	*act_cookie;
 };
-#define tcf_act		common.tcfa_act
 #define tcf_head	common.tcfa_head
 #define tcf_index	common.tcfa_index
 #define tcf_refcnt	common.tcfa_refcnt
@@ -120,6 +120,8 @@ struct tc_action_ops {
 	int     (*walk)(struct net *, struct sk_buff *,
 			struct netlink_callback *, int, const struct tc_action_ops *);
 	void	(*stats_update)(struct tc_action *, u64, u32, u64);
+	int	(*get_dev)(const struct tc_action *a, struct net *net,
+			   struct net_device **mirred_dev);
 };
 
 struct tc_action_net {

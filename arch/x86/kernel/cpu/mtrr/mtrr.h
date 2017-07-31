@@ -54,7 +54,7 @@ void fill_mtrr_var_range(unsigned int index,
 bool get_mtrr_state(void);
 void mtrr_bp_pat_init(void);
 
-extern void set_mtrr_ops(const struct mtrr_ops *ops);
+extern void __init set_mtrr_ops(const struct mtrr_ops *ops);
 
 extern u64 size_or_mask, size_and_mask;
 extern const struct mtrr_ops *mtrr_if;

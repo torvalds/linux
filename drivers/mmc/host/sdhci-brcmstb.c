@@ -29,6 +29,9 @@ static int sdhci_brcmstb_suspend(struct device *dev)
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	int res;
 
+	if (host->tuning_mode != SDHCI_TUNING_MODE_3)
+		mmc_retune_needed(host->mmc);
+
 	res = sdhci_suspend_host(host);
 	if (res)
 		return res;
@@ -98,6 +101,8 @@ static int sdhci_brcmstb_probe(struct platform_device *pdev)
 	 * properties through mmc_of_parse().
 	 */
 	host->caps = sdhci_readl(host, SDHCI_CAPABILITIES);
+	if (of_device_is_compatible(pdev->dev.of_node, "brcm,bcm7425-sdhci"))
+		host->caps &= ~SDHCI_CAN_64BIT;
 	host->caps1 = sdhci_readl(host, SDHCI_CAPABILITIES_1);
 	host->caps1 &= ~(SDHCI_SUPPORT_SDR50 | SDHCI_SUPPORT_SDR104 |
 			SDHCI_SUPPORT_DDR50);
@@ -121,6 +126,7 @@ err_clk:
 
 static const struct of_device_id sdhci_brcm_of_match[] = {
 	{ .compatible = "brcm,bcm7425-sdhci" },
+	{ .compatible = "brcm,bcm7445-sdhci" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, sdhci_brcm_of_match);
@@ -128,7 +134,6 @@ MODULE_DEVICE_TABLE(of, sdhci_brcm_of_match);
 static struct platform_driver sdhci_brcmstb_driver = {
 	.driver		= {
 		.name	= "sdhci-brcmstb",
-		.owner	= THIS_MODULE,
 		.pm	= &sdhci_brcmstb_pmops,
 		.of_match_table = of_match_ptr(sdhci_brcm_of_match),
 	},

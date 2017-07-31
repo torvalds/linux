@@ -5,13 +5,8 @@
  * User space memory access functions
  */
 #include <linux/compiler.h>
-#include <linux/errno.h>
 #include <linux/types.h>
-#include <linux/sched.h>
 #include <asm/segment.h>
-
-#define VERIFY_READ	0
-#define VERIFY_WRITE	1
 
 /* We let the MMU do all checking */
 static inline int access_ok(int type, const void __user *addr,
@@ -35,24 +30,6 @@ static inline int access_ok(int type, const void __user *addr,
 #else
 #define	MOVES	"move"
 #endif
-
-/*
- * The exception table consists of pairs of addresses: the first is the
- * address of an instruction that is allowed to fault, and the second is
- * the address at which the program should continue.  No registers are
- * modified, so it is entirely up to the continuation code to figure out
- * what to do.
- *
- * All the routines below use bits of fixup code that are out of line
- * with the main instruction path.  This means when everything is well,
- * we don't even have to jump over them.  Further, they do not intrude
- * on our cache or tlb entries.
- */
-
-struct exception_table_entry
-{
-	unsigned long insn, fixup;
-};
 
 extern int __put_user_bad(void);
 extern int __get_user_bad(void);
@@ -202,38 +179,54 @@ asm volatile ("\n"					\
 unsigned long __generic_copy_from_user(void *to, const void __user *from, unsigned long n);
 unsigned long __generic_copy_to_user(void __user *to, const void *from, unsigned long n);
 
-#define __constant_copy_from_user_asm(res, to, from, tmp, n, s1, s2, s3)\
+#define __suffix0
+#define __suffix1 b
+#define __suffix2 w
+#define __suffix4 l
+
+#define ____constant_copy_from_user_asm(res, to, from, tmp, n1, n2, n3, s1, s2, s3)\
 	asm volatile ("\n"						\
 		"1:	"MOVES"."#s1"	(%2)+,%3\n"			\
 		"	move."#s1"	%3,(%1)+\n"			\
+		"	.ifnc	\""#s2"\",\"\"\n"			\
 		"2:	"MOVES"."#s2"	(%2)+,%3\n"			\
 		"	move."#s2"	%3,(%1)+\n"			\
 		"	.ifnc	\""#s3"\",\"\"\n"			\
 		"3:	"MOVES"."#s3"	(%2)+,%3\n"			\
 		"	move."#s3"	%3,(%1)+\n"			\
 		"	.endif\n"					\
+		"	.endif\n"					\
 		"4:\n"							\
 		"	.section __ex_table,\"a\"\n"			\
 		"	.align	4\n"					\
 		"	.long	1b,10f\n"				\
+		"	.ifnc	\""#s2"\",\"\"\n"			\
 		"	.long	2b,20f\n"				\
 		"	.ifnc	\""#s3"\",\"\"\n"			\
 		"	.long	3b,30f\n"				\
+		"	.endif\n"					\
 		"	.endif\n"					\
 		"	.previous\n"					\
 		"\n"							\
 		"	.section .fixup,\"ax\"\n"			\
 		"	.even\n"					\
-		"10:	clr."#s1"	(%1)+\n"			\
-		"20:	clr."#s2"	(%1)+\n"			\
+		"10:	addq.l #"#n1",%0\n"				\
+		"	.ifnc	\""#s2"\",\"\"\n"			\
+		"20:	addq.l #"#n2",%0\n"				\
 		"	.ifnc	\""#s3"\",\"\"\n"			\
-		"30:	clr."#s3"	(%1)+\n"			\
+		"30:	addq.l #"#n3",%0\n"				\
 		"	.endif\n"					\
-		"	moveq.l	#"#n",%0\n"				\
+		"	.endif\n"					\
 		"	jra	4b\n"					\
 		"	.previous\n"					\
 		: "+d" (res), "+&a" (to), "+a" (from), "=&d" (tmp)	\
 		: : "memory")
+
+#define ___constant_copy_from_user_asm(res, to, from, tmp, n1, n2, n3, s1, s2, s3)\
+	____constant_copy_from_user_asm(res, to, from, tmp, n1, n2, n3, s1, s2, s3)
+#define __constant_copy_from_user_asm(res, to, from, tmp, n1, n2, n3)	\
+	___constant_copy_from_user_asm(res, to, from, tmp, n1, n2, n3,  \
+					__suffix##n1, __suffix##n2, __suffix##n3)
 
 static __always_inline unsigned long
 __constant_copy_from_user(void *to, const void __user *from, unsigned long n)
@@ -242,37 +235,37 @@ __constant_copy_from_user(void *to, const void __user *from, unsigned long n)
 
 	switch (n) {
 	case 1:
-		__get_user_asm(res, *(u8 *)to, (u8 __user *)from, u8, b, d, 1);
+		__constant_copy_from_user_asm(res, to, from, tmp, 1, 0, 0);
 		break;
 	case 2:
-		__get_user_asm(res, *(u16 *)to, (u16 __user *)from, u16, w, r, 2);
+		__constant_copy_from_user_asm(res, to, from, tmp, 2, 0, 0);
 		break;
 	case 3:
-		__constant_copy_from_user_asm(res, to, from, tmp, 3, w, b,);
+		__constant_copy_from_user_asm(res, to, from, tmp, 2, 1, 0);
 		break;
 	case 4:
-		__get_user_asm(res, *(u32 *)to, (u32 __user *)from, u32, l, r, 4);
+		__constant_copy_from_user_asm(res, to, from, tmp, 4, 0, 0);
 		break;
 	case 5:
-		__constant_copy_from_user_asm(res, to, from, tmp, 5, l, b,);
+		__constant_copy_from_user_asm(res, to, from, tmp, 4, 1, 0);
 		break;
 	case 6:
-		__constant_copy_from_user_asm(res, to, from, tmp, 6, l, w,);
+		__constant_copy_from_user_asm(res, to, from, tmp, 4, 2, 0);
 		break;
 	case 7:
-		__constant_copy_from_user_asm(res, to, from, tmp, 7, l, w, b);
+		__constant_copy_from_user_asm(res, to, from, tmp, 4, 2, 1);
 		break;
 	case 8:
-		__constant_copy_from_user_asm(res, to, from, tmp, 8, l, l,);
+		__constant_copy_from_user_asm(res, to, from, tmp, 4, 4, 0);
 		break;
 	case 9:
-		__constant_copy_from_user_asm(res, to, from, tmp, 9, l, l, b);
+		__constant_copy_from_user_asm(res, to, from, tmp, 4, 4, 1);
 		break;
 	case 10:
-		__constant_copy_from_user_asm(res, to, from, tmp, 10, l, l, w);
+		__constant_copy_from_user_asm(res, to, from, tmp, 4, 4, 2);
 		break;
 	case 12:
-		__constant_copy_from_user_asm(res, to, from, tmp, 12, l, l, l);
+		__constant_copy_from_user_asm(res, to, from, tmp, 4, 4, 4);
 		break;
 	default:
 		/* we limit the inlined version to 3 moves */
@@ -363,24 +356,26 @@ __constant_copy_to_user(void __user *to, const void *from, unsigned long n)
 	return res;
 }
 
-#define __copy_from_user(to, from, n)		\
-(__builtin_constant_p(n) ?			\
- __constant_copy_from_user(to, from, n) :	\
- __generic_copy_from_user(to, from, n))
+static inline unsigned long
+raw_copy_from_user(void *to, const void __user *from, unsigned long n)
+{
+	if (__builtin_constant_p(n))
+		return __constant_copy_from_user(to, from, n);
+	return __generic_copy_from_user(to, from, n);
+}
 
-#define __copy_to_user(to, from, n)		\
-(__builtin_constant_p(n) ?			\
- __constant_copy_to_user(to, from, n) :		\
- __generic_copy_to_user(to, from, n))
-
-#define __copy_to_user_inatomic		__copy_to_user
-#define __copy_from_user_inatomic	__copy_from_user
-
-#define copy_from_user(to, from, n)	__copy_from_user(to, from, n)
-#define copy_to_user(to, from, n)	__copy_to_user(to, from, n)
+static inline unsigned long
+raw_copy_to_user(void __user *to, const void *from, unsigned long n)
+{
+	if (__builtin_constant_p(n))
+		return __constant_copy_to_user(to, from, n);
+	return __generic_copy_to_user(to, from, n);
+}
+#define INLINE_COPY_FROM_USER
+#define INLINE_COPY_TO_USER
 
 #define user_addr_max() \
-	(segment_eq(get_fs(), USER_DS) ? TASK_SIZE : ~0UL)
+	(uaccess_kernel() ? ~0UL : TASK_SIZE)
 
 extern long strncpy_from_user(char *dst, const char __user *src, long count);
 extern __must_check long strlen_user(const char __user *str);

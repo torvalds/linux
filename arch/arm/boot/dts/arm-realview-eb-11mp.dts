@@ -24,7 +24,7 @@
 #include "arm-realview-eb-mp.dtsi"
 
 / {
-	model = "ARM RealView Emulation Baseboard with ARM11MPCore Rev C";
+	model = "ARM RealView Emulation Baseboard with ARM11MPCore Rev C Core Tile";
 	arm,hbi = <0x146>;
 
 	/*

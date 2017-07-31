@@ -23,6 +23,8 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 
+#define PHY_INIT_BITS	(CFGCHIP2_SESENDEN | CFGCHIP2_VBDTCTEN)
+
 struct da8xx_usb_phy {
 	struct phy_provider	*phy_provider;
 	struct phy		*usb11_phy;
@@ -154,7 +156,7 @@ static int da8xx_usb_phy_probe(struct platform_device *pdev)
 		d_phy->regmap = syscon_regmap_lookup_by_compatible(
 							"ti,da830-cfgchip");
 	else
-		d_phy->regmap = syscon_regmap_lookup_by_pdevname("syscon.0");
+		d_phy->regmap = syscon_regmap_lookup_by_pdevname("syscon");
 	if (IS_ERR(d_phy->regmap)) {
 		dev_err(dev, "Failed to get syscon\n");
 		return PTR_ERR(d_phy->regmap);
@@ -198,7 +200,8 @@ static int da8xx_usb_phy_probe(struct platform_device *pdev)
 	} else {
 		int ret;
 
-		ret = phy_create_lookup(d_phy->usb11_phy, "usb-phy", "ohci.0");
+		ret = phy_create_lookup(d_phy->usb11_phy, "usb-phy",
+					"ohci-da8xx");
 		if (ret)
 			dev_warn(dev, "Failed to create usb11 phy lookup\n");
 		ret = phy_create_lookup(d_phy->usb20_phy, "usb-phy",
@@ -206,6 +209,9 @@ static int da8xx_usb_phy_probe(struct platform_device *pdev)
 		if (ret)
 			dev_warn(dev, "Failed to create usb20 phy lookup\n");
 	}
+
+	regmap_write_bits(d_phy->regmap, CFGCHIP(2),
+			  PHY_INIT_BITS, PHY_INIT_BITS);
 
 	return 0;
 }
@@ -216,7 +222,7 @@ static int da8xx_usb_phy_remove(struct platform_device *pdev)
 
 	if (!pdev->dev.of_node) {
 		phy_remove_lookup(d_phy->usb20_phy, "usb-phy", "musb-da8xx");
-		phy_remove_lookup(d_phy->usb11_phy, "usb-phy", "ohci.0");
+		phy_remove_lookup(d_phy->usb11_phy, "usb-phy", "ohci-da8xx");
 	}
 
 	return 0;

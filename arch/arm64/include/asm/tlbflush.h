@@ -25,6 +25,36 @@
 #include <asm/cputype.h>
 
 /*
+ * Raw TLBI operations.
+ *
+ * Where necessary, use the __tlbi() macro to avoid asm()
+ * boilerplate. Drivers and most kernel code should use the TLB
+ * management routines in preference to the macro below.
+ *
+ * The macro can be used as __tlbi(op) or __tlbi(op, arg), depending
+ * on whether a particular TLBI operation takes an argument or
+ * not. The macros handles invoking the asm with or without the
+ * register argument as appropriate.
+ */
+#define __TLBI_0(op, arg) asm ("tlbi " #op "\n"				       \
+		   ALTERNATIVE("nop\n			nop",		       \
+			       "dsb ish\n		tlbi " #op,	       \
+			       ARM64_WORKAROUND_REPEAT_TLBI,		       \
+			       CONFIG_QCOM_FALKOR_ERRATUM_1009)		       \
+			    : : )
+
+#define __TLBI_1(op, arg) asm ("tlbi " #op ", %0\n"			       \
+		   ALTERNATIVE("nop\n			nop",		       \
+			       "dsb ish\n		tlbi " #op ", %0",     \
+			       ARM64_WORKAROUND_REPEAT_TLBI,		       \
+			       CONFIG_QCOM_FALKOR_ERRATUM_1009)		       \
+			    : : "r" (arg))
+
+#define __TLBI_N(op, arg, n, ...) __TLBI_##n(op, arg)
+
+#define __tlbi(op, ...)		__TLBI_N(op, ##__VA_ARGS__, 1, 0)
+
+/*
  *	TLB Management
  *	==============
  *
@@ -66,7 +96,7 @@
 static inline void local_flush_tlb_all(void)
 {
 	dsb(nshst);
-	asm("tlbi	vmalle1");
+	__tlbi(vmalle1);
 	dsb(nsh);
 	isb();
 }
@@ -74,7 +104,7 @@ static inline void local_flush_tlb_all(void)
 static inline void flush_tlb_all(void)
 {
 	dsb(ishst);
-	asm("tlbi	vmalle1is");
+	__tlbi(vmalle1is);
 	dsb(ish);
 	isb();
 }
@@ -84,7 +114,7 @@ static inline void flush_tlb_mm(struct mm_struct *mm)
 	unsigned long asid = ASID(mm) << 48;
 
 	dsb(ishst);
-	asm("tlbi	aside1is, %0" : : "r" (asid));
+	__tlbi(aside1is, asid);
 	dsb(ish);
 }
 
@@ -94,7 +124,7 @@ static inline void flush_tlb_page(struct vm_area_struct *vma,
 	unsigned long addr = uaddr >> 12 | (ASID(vma->vm_mm) << 48);
 
 	dsb(ishst);
-	asm("tlbi	vale1is, %0" : : "r" (addr));
+	__tlbi(vale1is, addr);
 	dsb(ish);
 }
 
@@ -122,9 +152,9 @@ static inline void __flush_tlb_range(struct vm_area_struct *vma,
 	dsb(ishst);
 	for (addr = start; addr < end; addr += 1 << (PAGE_SHIFT - 12)) {
 		if (last_level)
-			asm("tlbi vale1is, %0" : : "r"(addr));
+			__tlbi(vale1is, addr);
 		else
-			asm("tlbi vae1is, %0" : : "r"(addr));
+			__tlbi(vae1is, addr);
 	}
 	dsb(ish);
 }
@@ -149,7 +179,7 @@ static inline void flush_tlb_kernel_range(unsigned long start, unsigned long end
 
 	dsb(ishst);
 	for (addr = start; addr < end; addr += 1 << (PAGE_SHIFT - 12))
-		asm("tlbi vaae1is, %0" : : "r"(addr));
+		__tlbi(vaae1is, addr);
 	dsb(ish);
 	isb();
 }
@@ -163,7 +193,7 @@ static inline void __flush_tlb_pgtable(struct mm_struct *mm,
 {
 	unsigned long addr = uaddr >> 12 | (ASID(mm) << 48);
 
-	asm("tlbi	vae1is, %0" : : "r" (addr));
+	__tlbi(vae1is, addr);
 	dsb(ish);
 }
 

@@ -711,7 +711,7 @@ static int __init einj_init(void)
 
 	rc = einj_check_table(einj_tab);
 	if (rc) {
-		pr_warn(FW_BUG "Invalid EINJ table.n");
+		pr_warn(FW_BUG "Invalid EINJ table.\n");
 		return -EINVAL;
 	}
 

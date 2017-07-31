@@ -22,9 +22,37 @@
 #include <linux/percpu.h>
 
 /*
+ * The btree stats arrays have fixed offsets for the different stats. We
+ * store the base index in the btree cursor via XFS_STATS_CALC_INDEX() and
+ * that allows us to use fixed offsets into the stats array for each btree
+ * stat. These index offsets are defined in the order they will be emitted
+ * in the stats files, so it is possible to add new btree stat types by
+ * appending to the enum list below.
+ */
+enum {
+	__XBTS_lookup = 0,
+	__XBTS_compare = 1,
+	__XBTS_insrec = 2,
+	__XBTS_delrec = 3,
+	__XBTS_newroot = 4,
+	__XBTS_killroot = 5,
+	__XBTS_increment = 6,
+	__XBTS_decrement = 7,
+	__XBTS_lshift = 8,
+	__XBTS_rshift = 9,
+	__XBTS_split = 10,
+	__XBTS_join = 11,
+	__XBTS_alloc = 12,
+	__XBTS_free = 13,
+	__XBTS_moves = 14,
+
+	__XBTS_MAX = 15,
+};
+
+/*
  * XFS global statistics
  */
-struct xfsstats {
+struct __xfsstats {
 # define XFSSTAT_END_EXTENT_ALLOC	4
 	__uint32_t		xs_allocx;
 	__uint32_t		xs_allocb;
@@ -117,103 +145,21 @@ struct xfsstats {
 	__uint32_t		xb_page_found;
 	__uint32_t		xb_get_read;
 /* Version 2 btree counters */
-#define XFSSTAT_END_ABTB_V2		(XFSSTAT_END_BUF+15)
-	__uint32_t		xs_abtb_2_lookup;
-	__uint32_t		xs_abtb_2_compare;
-	__uint32_t		xs_abtb_2_insrec;
-	__uint32_t		xs_abtb_2_delrec;
-	__uint32_t		xs_abtb_2_newroot;
-	__uint32_t		xs_abtb_2_killroot;
-	__uint32_t		xs_abtb_2_increment;
-	__uint32_t		xs_abtb_2_decrement;
-	__uint32_t		xs_abtb_2_lshift;
-	__uint32_t		xs_abtb_2_rshift;
-	__uint32_t		xs_abtb_2_split;
-	__uint32_t		xs_abtb_2_join;
-	__uint32_t		xs_abtb_2_alloc;
-	__uint32_t		xs_abtb_2_free;
-	__uint32_t		xs_abtb_2_moves;
-#define XFSSTAT_END_ABTC_V2		(XFSSTAT_END_ABTB_V2+15)
-	__uint32_t		xs_abtc_2_lookup;
-	__uint32_t		xs_abtc_2_compare;
-	__uint32_t		xs_abtc_2_insrec;
-	__uint32_t		xs_abtc_2_delrec;
-	__uint32_t		xs_abtc_2_newroot;
-	__uint32_t		xs_abtc_2_killroot;
-	__uint32_t		xs_abtc_2_increment;
-	__uint32_t		xs_abtc_2_decrement;
-	__uint32_t		xs_abtc_2_lshift;
-	__uint32_t		xs_abtc_2_rshift;
-	__uint32_t		xs_abtc_2_split;
-	__uint32_t		xs_abtc_2_join;
-	__uint32_t		xs_abtc_2_alloc;
-	__uint32_t		xs_abtc_2_free;
-	__uint32_t		xs_abtc_2_moves;
-#define XFSSTAT_END_BMBT_V2		(XFSSTAT_END_ABTC_V2+15)
-	__uint32_t		xs_bmbt_2_lookup;
-	__uint32_t		xs_bmbt_2_compare;
-	__uint32_t		xs_bmbt_2_insrec;
-	__uint32_t		xs_bmbt_2_delrec;
-	__uint32_t		xs_bmbt_2_newroot;
-	__uint32_t		xs_bmbt_2_killroot;
-	__uint32_t		xs_bmbt_2_increment;
-	__uint32_t		xs_bmbt_2_decrement;
-	__uint32_t		xs_bmbt_2_lshift;
-	__uint32_t		xs_bmbt_2_rshift;
-	__uint32_t		xs_bmbt_2_split;
-	__uint32_t		xs_bmbt_2_join;
-	__uint32_t		xs_bmbt_2_alloc;
-	__uint32_t		xs_bmbt_2_free;
-	__uint32_t		xs_bmbt_2_moves;
-#define XFSSTAT_END_IBT_V2		(XFSSTAT_END_BMBT_V2+15)
-	__uint32_t		xs_ibt_2_lookup;
-	__uint32_t		xs_ibt_2_compare;
-	__uint32_t		xs_ibt_2_insrec;
-	__uint32_t		xs_ibt_2_delrec;
-	__uint32_t		xs_ibt_2_newroot;
-	__uint32_t		xs_ibt_2_killroot;
-	__uint32_t		xs_ibt_2_increment;
-	__uint32_t		xs_ibt_2_decrement;
-	__uint32_t		xs_ibt_2_lshift;
-	__uint32_t		xs_ibt_2_rshift;
-	__uint32_t		xs_ibt_2_split;
-	__uint32_t		xs_ibt_2_join;
-	__uint32_t		xs_ibt_2_alloc;
-	__uint32_t		xs_ibt_2_free;
-	__uint32_t		xs_ibt_2_moves;
-#define XFSSTAT_END_FIBT_V2		(XFSSTAT_END_IBT_V2+15)
-	__uint32_t		xs_fibt_2_lookup;
-	__uint32_t		xs_fibt_2_compare;
-	__uint32_t		xs_fibt_2_insrec;
-	__uint32_t		xs_fibt_2_delrec;
-	__uint32_t		xs_fibt_2_newroot;
-	__uint32_t		xs_fibt_2_killroot;
-	__uint32_t		xs_fibt_2_increment;
-	__uint32_t		xs_fibt_2_decrement;
-	__uint32_t		xs_fibt_2_lshift;
-	__uint32_t		xs_fibt_2_rshift;
-	__uint32_t		xs_fibt_2_split;
-	__uint32_t		xs_fibt_2_join;
-	__uint32_t		xs_fibt_2_alloc;
-	__uint32_t		xs_fibt_2_free;
-	__uint32_t		xs_fibt_2_moves;
-#define XFSSTAT_END_RMAP_V2		(XFSSTAT_END_FIBT_V2+15)
-	__uint32_t		xs_rmap_2_lookup;
-	__uint32_t		xs_rmap_2_compare;
-	__uint32_t		xs_rmap_2_insrec;
-	__uint32_t		xs_rmap_2_delrec;
-	__uint32_t		xs_rmap_2_newroot;
-	__uint32_t		xs_rmap_2_killroot;
-	__uint32_t		xs_rmap_2_increment;
-	__uint32_t		xs_rmap_2_decrement;
-	__uint32_t		xs_rmap_2_lshift;
-	__uint32_t		xs_rmap_2_rshift;
-	__uint32_t		xs_rmap_2_split;
-	__uint32_t		xs_rmap_2_join;
-	__uint32_t		xs_rmap_2_alloc;
-	__uint32_t		xs_rmap_2_free;
-	__uint32_t		xs_rmap_2_moves;
-#define XFSSTAT_END_XQMSTAT		(XFSSTAT_END_RMAP_V2+6)
+#define XFSSTAT_END_ABTB_V2		(XFSSTAT_END_BUF + __XBTS_MAX)
+	__uint32_t		xs_abtb_2[__XBTS_MAX];
+#define XFSSTAT_END_ABTC_V2		(XFSSTAT_END_ABTB_V2 + __XBTS_MAX)
+	__uint32_t		xs_abtc_2[__XBTS_MAX];
+#define XFSSTAT_END_BMBT_V2		(XFSSTAT_END_ABTC_V2 + __XBTS_MAX)
+	__uint32_t		xs_bmbt_2[__XBTS_MAX];
+#define XFSSTAT_END_IBT_V2		(XFSSTAT_END_BMBT_V2 + __XBTS_MAX)
+	__uint32_t		xs_ibt_2[__XBTS_MAX];
+#define XFSSTAT_END_FIBT_V2		(XFSSTAT_END_IBT_V2 + __XBTS_MAX)
+	__uint32_t		xs_fibt_2[__XBTS_MAX];
+#define XFSSTAT_END_RMAP_V2		(XFSSTAT_END_FIBT_V2 + __XBTS_MAX)
+	__uint32_t		xs_rmap_2[__XBTS_MAX];
+#define XFSSTAT_END_REFCOUNT		(XFSSTAT_END_RMAP_V2 + __XBTS_MAX)
+	__uint32_t		xs_refcbt_2[__XBTS_MAX];
+#define XFSSTAT_END_XQMSTAT		(XFSSTAT_END_REFCOUNT + 6)
 	__uint32_t		xs_qm_dqreclaims;
 	__uint32_t		xs_qm_dqreclaim_misses;
 	__uint32_t		xs_qm_dquot_dups;
@@ -229,26 +175,58 @@ struct xfsstats {
 	__uint64_t		xs_read_bytes;
 };
 
+struct xfsstats {
+	union {
+		struct __xfsstats	s;
+		uint32_t		a[XFSSTAT_END_XQMSTAT];
+	};
+};
+
+/*
+ * simple wrapper for getting the array index of s struct member offset
+ */
+#define XFS_STATS_CALC_INDEX(member)	\
+	(offsetof(struct __xfsstats, member) / (int)sizeof(__uint32_t))
+
+
 int xfs_stats_format(struct xfsstats __percpu *stats, char *buf);
 void xfs_stats_clearall(struct xfsstats __percpu *stats);
 extern struct xstats xfsstats;
 
 #define XFS_STATS_INC(mp, v)					\
 do {								\
-	per_cpu_ptr(xfsstats.xs_stats, current_cpu())->v++;	\
-	per_cpu_ptr(mp->m_stats.xs_stats, current_cpu())->v++;	\
+	per_cpu_ptr(xfsstats.xs_stats, current_cpu())->s.v++;	\
+	per_cpu_ptr(mp->m_stats.xs_stats, current_cpu())->s.v++;	\
 } while (0)
 
 #define XFS_STATS_DEC(mp, v)					\
 do {								\
-	per_cpu_ptr(xfsstats.xs_stats, current_cpu())->v--;	\
-	per_cpu_ptr(mp->m_stats.xs_stats, current_cpu())->v--;	\
+	per_cpu_ptr(xfsstats.xs_stats, current_cpu())->s.v--;	\
+	per_cpu_ptr(mp->m_stats.xs_stats, current_cpu())->s.v--;	\
 } while (0)
 
 #define XFS_STATS_ADD(mp, v, inc)					\
 do {									\
-	per_cpu_ptr(xfsstats.xs_stats, current_cpu())->v += (inc);	\
-	per_cpu_ptr(mp->m_stats.xs_stats, current_cpu())->v += (inc);	\
+	per_cpu_ptr(xfsstats.xs_stats, current_cpu())->s.v += (inc);	\
+	per_cpu_ptr(mp->m_stats.xs_stats, current_cpu())->s.v += (inc);	\
+} while (0)
+
+#define XFS_STATS_INC_OFF(mp, off)				\
+do {								\
+	per_cpu_ptr(xfsstats.xs_stats, current_cpu())->a[off]++;	\
+	per_cpu_ptr(mp->m_stats.xs_stats, current_cpu())->a[off]++;	\
+} while (0)
+
+#define XFS_STATS_DEC_OFF(mp, off)					\
+do {								\
+	per_cpu_ptr(xfsstats.xs_stats, current_cpu())->a[off];	\
+	per_cpu_ptr(mp->m_stats.xs_stats, current_cpu())->a[off];	\
+} while (0)
+
+#define XFS_STATS_ADD_OFF(mp, off, inc)					\
+do {									\
+	per_cpu_ptr(xfsstats.xs_stats, current_cpu())->a[off] += (inc);	\
+	per_cpu_ptr(mp->m_stats.xs_stats, current_cpu())->a[off] += (inc);	\
 } while (0)
 
 #if defined(CONFIG_PROC_FS)

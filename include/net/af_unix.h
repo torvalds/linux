@@ -52,7 +52,7 @@ struct unix_sock {
 	struct sock		sk;
 	struct unix_address     *addr;
 	struct path		path;
-	struct mutex		readlock;
+	struct mutex		iolock, bindlock;
 	struct sock		*peer;
 	struct list_head	link;
 	atomic_long_t		inflight;

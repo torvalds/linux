@@ -287,6 +287,8 @@ struct brcmf_fweh_info {
 					 void *data);
 };
 
+const char *brcmf_fweh_event_name(enum brcmf_fweh_event_code code);
+
 void brcmf_fweh_attach(struct brcmf_pub *drvr);
 void brcmf_fweh_detach(struct brcmf_pub *drvr);
 int brcmf_fweh_register(struct brcmf_pub *drvr, enum brcmf_fweh_event_code code,

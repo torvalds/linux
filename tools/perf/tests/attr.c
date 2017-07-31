@@ -18,10 +18,16 @@
  * permissions. All the event text files are stored there.
  */
 
+#include <errno.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include "../perf.h"
 #include "util.h"
 #include <subcmd/exec-cmd.h>
@@ -144,7 +150,7 @@ static int run_dir(const char *d, const char *perf)
 	int vcnt = min(verbose, (int) sizeof(v) - 1);
 	char cmd[3*PATH_MAX];
 
-	if (verbose)
+	if (verbose > 0)
 		vcnt++;
 
 	snprintf(cmd, 3*PATH_MAX, PYTHON " %s/attr.py -d %s/attr/ -p %s %.*s",

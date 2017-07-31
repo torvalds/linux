@@ -3292,7 +3292,6 @@ static int octeon_usb_hub_status_data(struct usb_hcd *hcd, char *buf)
 	spin_lock_irqsave(&usb->lock, flags);
 	port_status = cvmx_usb_get_status(usb);
 	spin_unlock_irqrestore(&usb->lock, flags);
-	buf[0] = 0;
 	buf[0] = port_status.connect_change << 1;
 
 	return buf[0] != 0;

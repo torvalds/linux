@@ -156,7 +156,7 @@ void rds_connect_worker(struct work_struct *work)
 	struct rds_connection *conn = cp->cp_conn;
 	int ret;
 
-	if (cp->cp_index > 1 && cp->cp_conn->c_laddr > cp->cp_conn->c_faddr)
+	if (cp->cp_index > 0 && cp->cp_conn->c_laddr > cp->cp_conn->c_faddr)
 		return;
 	clear_bit(RDS_RECONNECT_PENDING, &cp->cp_flags);
 	ret = rds_conn_path_transition(cp, RDS_CONN_DOWN, RDS_CONN_CONNECTING);
@@ -171,8 +171,7 @@ void rds_connect_worker(struct work_struct *work)
 						     RDS_CONN_DOWN))
 				rds_queue_reconnect(cp);
 			else
-				rds_conn_path_error(cp,
-						    "RDS: connect failed\n");
+				rds_conn_path_error(cp, "connect failed\n");
 		}
 	}
 }

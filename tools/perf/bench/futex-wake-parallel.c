@@ -8,6 +8,7 @@
  */
 
 /* For the CLR_() macros */
+#include <string.h>
 #include <pthread.h>
 
 #include <signal.h>
@@ -15,6 +16,7 @@
 #include <subcmd/parse-options.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
+#include <linux/time64.h>
 #include <errno.h>
 #include "bench.h"
 #include "futex.h"
@@ -156,7 +158,7 @@ static void print_run(struct thread_data *waking_worker, unsigned int run_num)
 
 	printf("[Run %d]: Avg per-thread latency (waking %d/%d threads) "
 	       "in %.4f ms (+-%.2f%%)\n", run_num + 1, wakeup_avg,
-	       nblocked_threads, waketime_avg/1e3,
+	       nblocked_threads, waketime_avg / USEC_PER_MSEC,
 	       rel_stddev_stats(waketime_stddev, waketime_avg));
 }
 
@@ -172,7 +174,7 @@ static void print_summary(void)
 	printf("Avg per-thread latency (waking %d/%d threads) in %.4f ms (+-%.2f%%)\n",
 	       wakeup_avg,
 	       nblocked_threads,
-	       waketime_avg/1e3,
+	       waketime_avg / USEC_PER_MSEC,
 	       rel_stddev_stats(waketime_stddev, waketime_avg));
 }
 
@@ -195,8 +197,7 @@ static void toggle_done(int sig __maybe_unused,
 	done = true;
 }
 
-int bench_futex_wake_parallel(int argc, const char **argv,
-			      const char *prefix __maybe_unused)
+int bench_futex_wake_parallel(int argc, const char **argv)
 {
 	int ret = 0;
 	unsigned int i, j;

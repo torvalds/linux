@@ -272,7 +272,7 @@ int __init rd_load_image(char *from)
 		sys_write(out_fd, buf, BLOCK_SIZE);
 #if !defined(CONFIG_S390)
 		if (!(i % 16)) {
-			printk("%c\b", rotator[rotate & 0x3]);
+			pr_cont("%c\b", rotator[rotate & 0x3]);
 			rotate++;
 		}
 #endif

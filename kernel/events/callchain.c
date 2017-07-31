@@ -11,6 +11,8 @@
 
 #include <linux/perf_event.h>
 #include <linux/slab.h>
+#include <linux/sched/task_stack.h>
+
 #include "internal.h"
 
 struct callchain_cpus_entries {

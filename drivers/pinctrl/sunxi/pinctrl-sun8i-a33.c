@@ -12,7 +12,7 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -407,12 +407,12 @@ static const struct sunxi_desc_pin sun8i_a33_pins[] = {
 	SUNXI_PIN(SUNXI_PINCTRL_PIN(G, 8),
 		  SUNXI_FUNCTION(0x0, "gpio_in"),
 		  SUNXI_FUNCTION(0x1, "gpio_out"),
-		  SUNXI_FUNCTION(0x2, "uart2"),		/* RTS */
+		  SUNXI_FUNCTION(0x2, "uart1"),		/* RTS */
 		  SUNXI_FUNCTION_IRQ_BANK(0x4, 1, 8)),	/* PG_EINT8 */
 	SUNXI_PIN(SUNXI_PINCTRL_PIN(G, 9),
 		  SUNXI_FUNCTION(0x0, "gpio_in"),
 		  SUNXI_FUNCTION(0x1, "gpio_out"),
-		  SUNXI_FUNCTION(0x2, "uart2"),		/* CTS */
+		  SUNXI_FUNCTION(0x2, "uart1"),		/* CTS */
 		  SUNXI_FUNCTION_IRQ_BANK(0x4, 1, 9)),	/* PG_EINT9 */
 	SUNXI_PIN(SUNXI_PINCTRL_PIN(G, 10),
 		  SUNXI_FUNCTION(0x0, "gpio_in"),
@@ -498,7 +498,6 @@ static const struct of_device_id sun8i_a33_pinctrl_match[] = {
 	{ .compatible = "allwinner,sun8i-a33-pinctrl", },
 	{}
 };
-MODULE_DEVICE_TABLE(of, sun8i_a33_pinctrl_match);
 
 static struct platform_driver sun8i_a33_pinctrl_driver = {
 	.probe	= sun8i_a33_pinctrl_probe,
@@ -507,8 +506,4 @@ static struct platform_driver sun8i_a33_pinctrl_driver = {
 		.of_match_table	= sun8i_a33_pinctrl_match,
 	},
 };
-module_platform_driver(sun8i_a33_pinctrl_driver);
-
-MODULE_AUTHOR("Vishnu Patekar <vishnupatekar0510@gmail.com>");
-MODULE_DESCRIPTION("Allwinner a33 pinctrl driver");
-MODULE_LICENSE("GPL");
+builtin_platform_driver(sun8i_a33_pinctrl_driver);

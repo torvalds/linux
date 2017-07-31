@@ -44,8 +44,8 @@ static bool udp_pkt_to_tuple(const struct sk_buff *skb,
 	const struct udphdr *hp;
 	struct udphdr _hdr;
 
-	/* Actually only need first 8 bytes. */
-	hp = skb_header_pointer(skb, dataoff, sizeof(_hdr), &_hdr);
+	/* Actually only need first 4 bytes to get ports. */
+	hp = skb_header_pointer(skb, dataoff, 4, &_hdr);
 	if (hp == NULL)
 		return false;
 
@@ -108,8 +108,60 @@ static bool udp_new(struct nf_conn *ct, const struct sk_buff *skb,
 	return true;
 }
 
+#ifdef CONFIG_NF_CT_PROTO_UDPLITE
+static int udplite_error(struct net *net, struct nf_conn *tmpl,
+			 struct sk_buff *skb,
+			 unsigned int dataoff,
+			 u8 pf, unsigned int hooknum)
+{
+	unsigned int udplen = skb->len - dataoff;
+	const struct udphdr *hdr;
+	struct udphdr _hdr;
+	unsigned int cscov;
+
+	/* Header is too small? */
+	hdr = skb_header_pointer(skb, dataoff, sizeof(_hdr), &_hdr);
+	if (!hdr) {
+		if (LOG_INVALID(net, IPPROTO_UDPLITE))
+			nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL,
+				      "nf_ct_udplite: short packet ");
+		return -NF_ACCEPT;
+	}
+
+	cscov = ntohs(hdr->len);
+	if (cscov == 0) {
+		cscov = udplen;
+	} else if (cscov < sizeof(*hdr) || cscov > udplen) {
+		if (LOG_INVALID(net, IPPROTO_UDPLITE))
+			nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL,
+				      "nf_ct_udplite: invalid checksum coverage ");
+		return -NF_ACCEPT;
+	}
+
+	/* UDPLITE mandates checksums */
+	if (!hdr->check) {
+		if (LOG_INVALID(net, IPPROTO_UDPLITE))
+			nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL,
+				      "nf_ct_udplite: checksum missing ");
+		return -NF_ACCEPT;
+	}
+
+	/* Checksum invalid? Ignore. */
+	if (net->ct.sysctl_checksum && hooknum == NF_INET_PRE_ROUTING &&
+	    nf_checksum_partial(skb, hooknum, dataoff, cscov, IPPROTO_UDP,
+				pf)) {
+		if (LOG_INVALID(net, IPPROTO_UDPLITE))
+			nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL,
+				      "nf_ct_udplite: bad UDPLite checksum ");
+		return -NF_ACCEPT;
+	}
+
+	return NF_ACCEPT;
+}
+#endif
+
 static int udp_error(struct net *net, struct nf_conn *tmpl, struct sk_buff *skb,
-		     unsigned int dataoff, enum ip_conntrack_info *ctinfo,
+		     unsigned int dataoff,
 		     u_int8_t pf,
 		     unsigned int hooknum)
 {
@@ -218,23 +270,6 @@ static struct ctl_table udp_sysctl_table[] = {
 	},
 	{ }
 };
-#ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
-static struct ctl_table udp_compat_sysctl_table[] = {
-	{
-		.procname	= "ip_conntrack_udp_timeout",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{
-		.procname	= "ip_conntrack_udp_timeout_stream",
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-	},
-	{ }
-};
-#endif /* CONFIG_NF_CONNTRACK_PROC_COMPAT */
 #endif /* CONFIG_SYSCTL */
 
 static int udp_kmemdup_sysctl_table(struct nf_proto_net *pn,
@@ -254,27 +289,8 @@ static int udp_kmemdup_sysctl_table(struct nf_proto_net *pn,
 	return 0;
 }
 
-static int udp_kmemdup_compat_sysctl_table(struct nf_proto_net *pn,
-					   struct nf_udp_net *un)
-{
-#ifdef CONFIG_SYSCTL
-#ifdef CONFIG_NF_CONNTRACK_PROC_COMPAT
-	pn->ctl_compat_table = kmemdup(udp_compat_sysctl_table,
-				       sizeof(udp_compat_sysctl_table),
-				       GFP_KERNEL);
-	if (!pn->ctl_compat_table)
-		return -ENOMEM;
-
-	pn->ctl_compat_table[0].data = &un->timeouts[UDP_CT_UNREPLIED];
-	pn->ctl_compat_table[1].data = &un->timeouts[UDP_CT_REPLIED];
-#endif
-#endif
-	return 0;
-}
-
 static int udp_init_net(struct net *net, u_int16_t proto)
 {
-	int ret;
 	struct nf_udp_net *un = udp_pernet(net);
 	struct nf_proto_net *pn = &un->pn;
 
@@ -285,18 +301,7 @@ static int udp_init_net(struct net *net, u_int16_t proto)
 			un->timeouts[i] = udp_timeouts[i];
 	}
 
-	if (proto == AF_INET) {
-		ret = udp_kmemdup_compat_sysctl_table(pn, un);
-		if (ret < 0)
-			return ret;
-
-		ret = udp_kmemdup_sysctl_table(pn, un);
-		if (ret < 0)
-			nf_ct_kfree_compat_sysctl_table(pn);
-	} else
-		ret = udp_kmemdup_sysctl_table(pn, un);
-
-	return ret;
+	return udp_kmemdup_sysctl_table(pn, un);
 }
 
 static struct nf_proto_net *udp_get_net_proto(struct net *net)
@@ -337,6 +342,41 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_udp4 __read_mostly =
 };
 EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_udp4);
 
+#ifdef CONFIG_NF_CT_PROTO_UDPLITE
+struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite4 __read_mostly =
+{
+	.l3proto		= PF_INET,
+	.l4proto		= IPPROTO_UDPLITE,
+	.name			= "udplite",
+	.allow_clash		= true,
+	.pkt_to_tuple		= udp_pkt_to_tuple,
+	.invert_tuple		= udp_invert_tuple,
+	.print_tuple		= udp_print_tuple,
+	.packet			= udp_packet,
+	.get_timeouts		= udp_get_timeouts,
+	.new			= udp_new,
+	.error			= udplite_error,
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
+	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
+	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,
+	.nlattr_tuple_size	= nf_ct_port_nlattr_tuple_size,
+	.nla_policy		= nf_ct_port_nla_policy,
+#endif
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+	.ctnl_timeout		= {
+		.nlattr_to_obj	= udp_timeout_nlattr_to_obj,
+		.obj_to_nlattr	= udp_timeout_obj_to_nlattr,
+		.nlattr_max	= CTA_TIMEOUT_UDP_MAX,
+		.obj_size	= sizeof(unsigned int) * CTA_TIMEOUT_UDP_MAX,
+		.nla_policy	= udp_timeout_nla_policy,
+	},
+#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
+	.init_net		= udp_init_net,
+	.get_net_proto		= udp_get_net_proto,
+};
+EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_udplite4);
+#endif
+
 struct nf_conntrack_l4proto nf_conntrack_l4proto_udp6 __read_mostly =
 {
 	.l3proto		= PF_INET6,
@@ -369,3 +409,38 @@ struct nf_conntrack_l4proto nf_conntrack_l4proto_udp6 __read_mostly =
 	.get_net_proto		= udp_get_net_proto,
 };
 EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_udp6);
+
+#ifdef CONFIG_NF_CT_PROTO_UDPLITE
+struct nf_conntrack_l4proto nf_conntrack_l4proto_udplite6 __read_mostly =
+{
+	.l3proto		= PF_INET6,
+	.l4proto		= IPPROTO_UDPLITE,
+	.name			= "udplite",
+	.allow_clash		= true,
+	.pkt_to_tuple		= udp_pkt_to_tuple,
+	.invert_tuple		= udp_invert_tuple,
+	.print_tuple		= udp_print_tuple,
+	.packet			= udp_packet,
+	.get_timeouts		= udp_get_timeouts,
+	.new			= udp_new,
+	.error			= udplite_error,
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK)
+	.tuple_to_nlattr	= nf_ct_port_tuple_to_nlattr,
+	.nlattr_to_tuple	= nf_ct_port_nlattr_to_tuple,
+	.nlattr_tuple_size	= nf_ct_port_nlattr_tuple_size,
+	.nla_policy		= nf_ct_port_nla_policy,
+#endif
+#if IS_ENABLED(CONFIG_NF_CT_NETLINK_TIMEOUT)
+	.ctnl_timeout		= {
+		.nlattr_to_obj	= udp_timeout_nlattr_to_obj,
+		.obj_to_nlattr	= udp_timeout_obj_to_nlattr,
+		.nlattr_max	= CTA_TIMEOUT_UDP_MAX,
+		.obj_size	= sizeof(unsigned int) * CTA_TIMEOUT_UDP_MAX,
+		.nla_policy	= udp_timeout_nla_policy,
+	},
+#endif /* CONFIG_NF_CT_NETLINK_TIMEOUT */
+	.init_net		= udp_init_net,
+	.get_net_proto		= udp_get_net_proto,
+};
+EXPORT_SYMBOL_GPL(nf_conntrack_l4proto_udplite6);
+#endif

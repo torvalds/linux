@@ -9,7 +9,7 @@
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/list.h>
@@ -1107,10 +1107,7 @@ static struct net_proto_family caif_family_ops = {
 
 static int __init caif_sktinit_module(void)
 {
-	int err = sock_register(&caif_family_ops);
-	if (!err)
-		return err;
-	return 0;
+	return sock_register(&caif_family_ops);
 }
 
 static void __exit caif_sktexit_module(void)

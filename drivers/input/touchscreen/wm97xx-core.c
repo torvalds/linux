@@ -500,7 +500,7 @@ static int wm97xx_ts_input_open(struct input_dev *idev)
 {
 	struct wm97xx *wm = input_get_drvdata(idev);
 
-	wm->ts_workq = create_singlethread_workqueue("kwm97xx");
+	wm->ts_workq = alloc_ordered_workqueue("kwm97xx", 0);
 	if (wm->ts_workq == NULL) {
 		dev_err(wm->dev,
 			"Failed to create workqueue\n");
@@ -682,7 +682,7 @@ static int wm97xx_probe(struct device *dev)
 	}
 	platform_set_drvdata(wm->battery_dev, wm);
 	wm->battery_dev->dev.parent = dev;
-	wm->battery_dev->dev.platform_data = pdata;
+	wm->battery_dev->dev.platform_data = pdata ? pdata->batt_pdata : NULL;
 	ret = platform_device_add(wm->battery_dev);
 	if (ret < 0)
 		goto batt_reg_err;

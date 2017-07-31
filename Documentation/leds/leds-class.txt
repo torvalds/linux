@@ -65,6 +65,21 @@ LED subsystem core exposes following API for setting brightness:
 		blinking, returns -EBUSY if software blink fallback is enabled.
 
 
+LED registration API
+====================
+
+A driver wanting to register a LED classdev for use by other drivers /
+userspace needs to allocate and fill a led_classdev struct and then call
+[devm_]led_classdev_register. If the non devm version is used the driver
+must call led_classdev_unregister from its remove function before
+free-ing the led_classdev struct.
+
+If the driver can detect hardware initiated brightness changes and thus
+wants to have a brightness_hw_changed attribute then the LED_BRIGHT_HW_CHANGED
+flag must be set in flags before registering. Calling
+led_classdev_notify_brightness_hw_changed on a classdev not registered with
+the LED_BRIGHT_HW_CHANGED flag is a bug and will trigger a WARN_ON.
+
 Hardware accelerated blink of LEDs
 ==================================
 

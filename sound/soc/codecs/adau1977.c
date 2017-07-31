@@ -873,12 +873,14 @@ static struct snd_soc_codec_driver adau1977_codec_driver = {
 	.set_sysclk = adau1977_set_sysclk,
 	.idle_bias_off = true,
 
-	.controls = adau1977_snd_controls,
-	.num_controls = ARRAY_SIZE(adau1977_snd_controls),
-	.dapm_widgets = adau1977_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(adau1977_dapm_widgets),
-	.dapm_routes = adau1977_dapm_routes,
-	.num_dapm_routes = ARRAY_SIZE(adau1977_dapm_routes),
+	.component_driver = {
+		.controls		= adau1977_snd_controls,
+		.num_controls		= ARRAY_SIZE(adau1977_snd_controls),
+		.dapm_widgets		= adau1977_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(adau1977_dapm_widgets),
+		.dapm_routes		= adau1977_dapm_routes,
+		.num_dapm_routes	= ARRAY_SIZE(adau1977_dapm_routes),
+	},
 };
 
 static int adau1977_setup_micbias(struct adau1977 *adau1977)

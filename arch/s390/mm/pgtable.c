@@ -23,6 +23,7 @@
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
 #include <asm/mmu_context.h>
+#include <asm/page-states.h>
 
 static inline pte_t ptep_flush_direct(struct mm_struct *mm,
 				      unsigned long addr, pte_t *ptep)
@@ -35,9 +36,9 @@ static inline pte_t ptep_flush_direct(struct mm_struct *mm,
 	atomic_inc(&mm->context.flush_count);
 	if (MACHINE_HAS_TLB_LC &&
 	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id())))
-		__ptep_ipte_local(addr, ptep);
+		__ptep_ipte(addr, ptep, IPTE_LOCAL);
 	else
-		__ptep_ipte(addr, ptep);
+		__ptep_ipte(addr, ptep, IPTE_GLOBAL);
 	atomic_dec(&mm->context.flush_count);
 	return old;
 }
@@ -56,7 +57,7 @@ static inline pte_t ptep_flush_lazy(struct mm_struct *mm,
 		pte_val(*ptep) |= _PAGE_INVALID;
 		mm->context.flush_mm = 1;
 	} else
-		__ptep_ipte(addr, ptep);
+		__ptep_ipte(addr, ptep, IPTE_GLOBAL);
 	atomic_dec(&mm->context.flush_count);
 	return old;
 }
@@ -202,7 +203,7 @@ static inline pgste_t ptep_xchg_start(struct mm_struct *mm,
 	return pgste;
 }
 
-static inline void ptep_xchg_commit(struct mm_struct *mm,
+static inline pte_t ptep_xchg_commit(struct mm_struct *mm,
 				    unsigned long addr, pte_t *ptep,
 				    pgste_t pgste, pte_t old, pte_t new)
 {
@@ -220,6 +221,7 @@ static inline void ptep_xchg_commit(struct mm_struct *mm,
 	} else {
 		*ptep = new;
 	}
+	return old;
 }
 
 pte_t ptep_xchg_direct(struct mm_struct *mm, unsigned long addr,
@@ -231,7 +233,7 @@ pte_t ptep_xchg_direct(struct mm_struct *mm, unsigned long addr,
 	preempt_disable();
 	pgste = ptep_xchg_start(mm, addr, ptep);
 	old = ptep_flush_direct(mm, addr, ptep);
-	ptep_xchg_commit(mm, addr, ptep, pgste, old, new);
+	old = ptep_xchg_commit(mm, addr, ptep, pgste, old, new);
 	preempt_enable();
 	return old;
 }
@@ -246,7 +248,7 @@ pte_t ptep_xchg_lazy(struct mm_struct *mm, unsigned long addr,
 	preempt_disable();
 	pgste = ptep_xchg_start(mm, addr, ptep);
 	old = ptep_flush_lazy(mm, addr, ptep);
-	ptep_xchg_commit(mm, addr, ptep, pgste, old, new);
+	old = ptep_xchg_commit(mm, addr, ptep, pgste, old, new);
 	preempt_enable();
 	return old;
 }
@@ -274,6 +276,8 @@ void ptep_modify_prot_commit(struct mm_struct *mm, unsigned long addr,
 {
 	pgste_t pgste;
 
+	if (!MACHINE_HAS_NX)
+		pte_val(pte) &= ~_PAGE_NOEXEC;
 	if (mm_has_pgste(mm)) {
 		pgste = pgste_get(ptep);
 		pgste_set_key(ptep, pgste, pte, mm);
@@ -301,9 +305,9 @@ static inline pmd_t pmdp_flush_direct(struct mm_struct *mm,
 	atomic_inc(&mm->context.flush_count);
 	if (MACHINE_HAS_TLB_LC &&
 	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id())))
-		__pmdp_idte_local(addr, pmdp);
+		__pmdp_idte(addr, pmdp, IDTE_LOCAL);
 	else
-		__pmdp_idte(addr, pmdp);
+		__pmdp_idte(addr, pmdp, IDTE_GLOBAL);
 	atomic_dec(&mm->context.flush_count);
 	return old;
 }
@@ -322,7 +326,7 @@ static inline pmd_t pmdp_flush_lazy(struct mm_struct *mm,
 		pmd_val(*pmdp) |= _SEGMENT_ENTRY_INVALID;
 		mm->context.flush_mm = 1;
 	} else if (MACHINE_HAS_IDTE)
-		__pmdp_idte(addr, pmdp);
+		__pmdp_idte(addr, pmdp, IDTE_GLOBAL);
 	else
 		__pmdp_csp(pmdp);
 	atomic_dec(&mm->context.flush_count);
@@ -374,9 +378,9 @@ static inline pud_t pudp_flush_direct(struct mm_struct *mm,
 	atomic_inc(&mm->context.flush_count);
 	if (MACHINE_HAS_TLB_LC &&
 	    cpumask_equal(mm_cpumask(mm), cpumask_of(smp_processor_id())))
-		__pudp_idte_local(addr, pudp);
+		__pudp_idte(addr, pudp, IDTE_LOCAL);
 	else
-		__pudp_idte(addr, pudp);
+		__pudp_idte(addr, pudp, IDTE_GLOBAL);
 	atomic_dec(&mm->context.flush_count);
 	return old;
 }
@@ -605,12 +609,29 @@ void ptep_zap_key(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 bool test_and_clear_guest_dirty(struct mm_struct *mm, unsigned long addr)
 {
 	spinlock_t *ptl;
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
 	pgste_t pgste;
 	pte_t *ptep;
 	pte_t pte;
 	bool dirty;
 
-	ptep = get_locked_pte(mm, addr, &ptl);
+	pgd = pgd_offset(mm, addr);
+	pud = pud_alloc(mm, pgd, addr);
+	if (!pud)
+		return false;
+	pmd = pmd_alloc(mm, pud, addr);
+	if (!pmd)
+		return false;
+	/* We can't run guests backed by huge pages, but userspace can
+	 * still set them up and then try to migrate them without any
+	 * migration support.
+	 */
+	if (pmd_large(*pmd))
+		return true;
+
+	ptep = pte_alloc_map_lock(mm, pmd, addr, &ptl);
 	if (unlikely(!ptep))
 		return false;
 
@@ -620,7 +641,7 @@ bool test_and_clear_guest_dirty(struct mm_struct *mm, unsigned long addr)
 	pte = *ptep;
 	if (dirty && (pte_val(pte) & _PAGE_PRESENT)) {
 		pgste = pgste_pte_notify(mm, addr, ptep, pgste);
-		__ptep_ipte(addr, ptep);
+		__ptep_ipte(addr, ptep, IPTE_GLOBAL);
 		if (MACHINE_HAS_ESOP || !(pte_val(pte) & _PAGE_WRITE))
 			pte_val(pte) |= _PAGE_PROTECT;
 		else
@@ -741,7 +762,7 @@ int reset_guest_reference_bit(struct mm_struct *mm, unsigned long addr)
 
 	pgste_set_unlock(ptep, new);
 	pte_unmap_unlock(ptep, ptl);
-	return 0;
+	return cc;
 }
 EXPORT_SYMBOL(reset_guest_reference_bit);
 
@@ -767,4 +788,156 @@ int get_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 	return 0;
 }
 EXPORT_SYMBOL(get_guest_storage_key);
+
+/**
+ * pgste_perform_essa - perform ESSA actions on the PGSTE.
+ * @mm: the memory context. It must have PGSTEs, no check is performed here!
+ * @hva: the host virtual address of the page whose PGSTE is to be processed
+ * @orc: the specific action to perform, see the ESSA_SET_* macros.
+ * @oldpte: the PTE will be saved there if the pointer is not NULL.
+ * @oldpgste: the old PGSTE will be saved there if the pointer is not NULL.
+ *
+ * Return: 1 if the page is to be added to the CBRL, otherwise 0,
+ *	   or < 0 in case of error. -EINVAL is returned for invalid values
+ *	   of orc, -EFAULT for invalid addresses.
+ */
+int pgste_perform_essa(struct mm_struct *mm, unsigned long hva, int orc,
+			unsigned long *oldpte, unsigned long *oldpgste)
+{
+	unsigned long pgstev;
+	spinlock_t *ptl;
+	pgste_t pgste;
+	pte_t *ptep;
+	int res = 0;
+
+	WARN_ON_ONCE(orc > ESSA_MAX);
+	if (unlikely(orc > ESSA_MAX))
+		return -EINVAL;
+	ptep = get_locked_pte(mm, hva, &ptl);
+	if (unlikely(!ptep))
+		return -EFAULT;
+	pgste = pgste_get_lock(ptep);
+	pgstev = pgste_val(pgste);
+	if (oldpte)
+		*oldpte = pte_val(*ptep);
+	if (oldpgste)
+		*oldpgste = pgstev;
+
+	switch (orc) {
+	case ESSA_GET_STATE:
+		break;
+	case ESSA_SET_STABLE:
+		pgstev &= ~_PGSTE_GPS_USAGE_MASK;
+		pgstev |= _PGSTE_GPS_USAGE_STABLE;
+		break;
+	case ESSA_SET_UNUSED:
+		pgstev &= ~_PGSTE_GPS_USAGE_MASK;
+		pgstev |= _PGSTE_GPS_USAGE_UNUSED;
+		if (pte_val(*ptep) & _PAGE_INVALID)
+			res = 1;
+		break;
+	case ESSA_SET_VOLATILE:
+		pgstev &= ~_PGSTE_GPS_USAGE_MASK;
+		pgstev |= _PGSTE_GPS_USAGE_VOLATILE;
+		if (pte_val(*ptep) & _PAGE_INVALID)
+			res = 1;
+		break;
+	case ESSA_SET_POT_VOLATILE:
+		pgstev &= ~_PGSTE_GPS_USAGE_MASK;
+		if (!(pte_val(*ptep) & _PAGE_INVALID)) {
+			pgstev |= _PGSTE_GPS_USAGE_POT_VOLATILE;
+			break;
+		}
+		if (pgstev & _PGSTE_GPS_ZERO) {
+			pgstev |= _PGSTE_GPS_USAGE_VOLATILE;
+			break;
+		}
+		if (!(pgstev & PGSTE_GC_BIT)) {
+			pgstev |= _PGSTE_GPS_USAGE_VOLATILE;
+			res = 1;
+			break;
+		}
+		break;
+	case ESSA_SET_STABLE_RESIDENT:
+		pgstev &= ~_PGSTE_GPS_USAGE_MASK;
+		pgstev |= _PGSTE_GPS_USAGE_STABLE;
+		/*
+		 * Since the resident state can go away any time after this
+		 * call, we will not make this page resident. We can revisit
+		 * this decision if a guest will ever start using this.
+		 */
+		break;
+	case ESSA_SET_STABLE_IF_RESIDENT:
+		if (!(pte_val(*ptep) & _PAGE_INVALID)) {
+			pgstev &= ~_PGSTE_GPS_USAGE_MASK;
+			pgstev |= _PGSTE_GPS_USAGE_STABLE;
+		}
+		break;
+	default:
+		/* we should never get here! */
+		break;
+	}
+	/* If we are discarding a page, set it to logical zero */
+	if (res)
+		pgstev |= _PGSTE_GPS_ZERO;
+
+	pgste_val(pgste) = pgstev;
+	pgste_set_unlock(ptep, pgste);
+	pte_unmap_unlock(ptep, ptl);
+	return res;
+}
+EXPORT_SYMBOL(pgste_perform_essa);
+
+/**
+ * set_pgste_bits - set specific PGSTE bits.
+ * @mm: the memory context. It must have PGSTEs, no check is performed here!
+ * @hva: the host virtual address of the page whose PGSTE is to be processed
+ * @bits: a bitmask representing the bits that will be touched
+ * @value: the values of the bits to be written. Only the bits in the mask
+ *	   will be written.
+ *
+ * Return: 0 on success, < 0 in case of error.
+ */
+int set_pgste_bits(struct mm_struct *mm, unsigned long hva,
+			unsigned long bits, unsigned long value)
+{
+	spinlock_t *ptl;
+	pgste_t new;
+	pte_t *ptep;
+
+	ptep = get_locked_pte(mm, hva, &ptl);
+	if (unlikely(!ptep))
+		return -EFAULT;
+	new = pgste_get_lock(ptep);
+
+	pgste_val(new) &= ~bits;
+	pgste_val(new) |= value & bits;
+
+	pgste_set_unlock(ptep, new);
+	pte_unmap_unlock(ptep, ptl);
+	return 0;
+}
+EXPORT_SYMBOL(set_pgste_bits);
+
+/**
+ * get_pgste - get the current PGSTE for the given address.
+ * @mm: the memory context. It must have PGSTEs, no check is performed here!
+ * @hva: the host virtual address of the page whose PGSTE is to be processed
+ * @pgstep: will be written with the current PGSTE for the given address.
+ *
+ * Return: 0 on success, < 0 in case of error.
+ */
+int get_pgste(struct mm_struct *mm, unsigned long hva, unsigned long *pgstep)
+{
+	spinlock_t *ptl;
+	pte_t *ptep;
+
+	ptep = get_locked_pte(mm, hva, &ptl);
+	if (unlikely(!ptep))
+		return -EFAULT;
+	*pgstep = pgste_val(pgste_get(ptep));
+	pte_unmap_unlock(ptep, ptl);
+	return 0;
+}
+EXPORT_SYMBOL(get_pgste);
 #endif

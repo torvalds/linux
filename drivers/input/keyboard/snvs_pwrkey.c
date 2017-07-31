@@ -168,7 +168,6 @@ static int imx_snvs_pwrkey_probe(struct platform_device *pdev)
 	error = input_register_device(input);
 	if (error < 0) {
 		dev_err(&pdev->dev, "failed to register input device\n");
-		input_free_device(input);
 		return error;
 	}
 

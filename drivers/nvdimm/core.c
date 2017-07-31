@@ -99,8 +99,11 @@ static struct nvdimm_map *alloc_nvdimm_map(struct device *dev,
 	nvdimm_map->size = size;
 	kref_init(&nvdimm_map->kref);
 
-	if (!request_mem_region(offset, size, dev_name(&nvdimm_bus->dev)))
+	if (!request_mem_region(offset, size, dev_name(&nvdimm_bus->dev))) {
+		dev_err(&nvdimm_bus->dev, "failed to request %pa + %zd for %s\n",
+				&offset, size, dev_name(dev));
 		goto err_request_region;
+	}
 
 	if (flags)
 		nvdimm_map->mem = memremap(offset, size, flags);
@@ -170,6 +173,9 @@ void *devm_nvdimm_memremap(struct device *dev, resource_size_t offset,
 	else
 		kref_get(&nvdimm_map->kref);
 	nvdimm_bus_unlock(dev);
+
+	if (!nvdimm_map)
+		return NULL;
 
 	if (devm_add_action_or_reset(dev, nvdimm_map_put, nvdimm_map))
 		return NULL;
@@ -310,35 +316,6 @@ ssize_t nd_sector_size_store(struct device *dev, const char *buf,
 		return -EINVAL;
 	}
 }
-
-void __nd_iostat_start(struct bio *bio, unsigned long *start)
-{
-	struct gendisk *disk = bio->bi_bdev->bd_disk;
-	const int rw = bio_data_dir(bio);
-	int cpu = part_stat_lock();
-
-	*start = jiffies;
-	part_round_stats(cpu, &disk->part0);
-	part_stat_inc(cpu, &disk->part0, ios[rw]);
-	part_stat_add(cpu, &disk->part0, sectors[rw], bio_sectors(bio));
-	part_inc_in_flight(&disk->part0, rw);
-	part_stat_unlock();
-}
-EXPORT_SYMBOL(__nd_iostat_start);
-
-void nd_iostat_end(struct bio *bio, unsigned long start)
-{
-	struct gendisk *disk = bio->bi_bdev->bd_disk;
-	unsigned long duration = jiffies - start;
-	const int rw = bio_data_dir(bio);
-	int cpu = part_stat_lock();
-
-	part_stat_add(cpu, &disk->part0, ticks[rw], duration);
-	part_round_stats(cpu, &disk->part0);
-	part_dec_in_flight(&disk->part0, rw);
-	part_stat_unlock();
-}
-EXPORT_SYMBOL(nd_iostat_end);
 
 static ssize_t commands_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -541,11 +518,12 @@ void nvdimm_badblocks_populate(struct nd_region *nd_region,
 }
 EXPORT_SYMBOL_GPL(nvdimm_badblocks_populate);
 
-static int add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length)
+static int add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length,
+			gfp_t flags)
 {
 	struct nd_poison *pl;
 
-	pl = kzalloc(sizeof(*pl), GFP_KERNEL);
+	pl = kzalloc(sizeof(*pl), flags);
 	if (!pl)
 		return -ENOMEM;
 
@@ -561,7 +539,7 @@ static int bus_add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length)
 	struct nd_poison *pl;
 
 	if (list_empty(&nvdimm_bus->poison_list))
-		return add_poison(nvdimm_bus, addr, length);
+		return add_poison(nvdimm_bus, addr, length, GFP_KERNEL);
 
 	/*
 	 * There is a chance this is a duplicate, check for those first.
@@ -581,7 +559,7 @@ static int bus_add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length)
 	 * as any overlapping ranges will get resolved when the list is consumed
 	 * and converted to badblocks
 	 */
-	return add_poison(nvdimm_bus, addr, length);
+	return add_poison(nvdimm_bus, addr, length, GFP_KERNEL);
 }
 
 int nvdimm_bus_add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length)
@@ -595,6 +573,70 @@ int nvdimm_bus_add_poison(struct nvdimm_bus *nvdimm_bus, u64 addr, u64 length)
 	return rc;
 }
 EXPORT_SYMBOL_GPL(nvdimm_bus_add_poison);
+
+void nvdimm_clear_from_poison_list(struct nvdimm_bus *nvdimm_bus,
+		phys_addr_t start, unsigned int len)
+{
+	struct list_head *poison_list = &nvdimm_bus->poison_list;
+	u64 clr_end = start + len - 1;
+	struct nd_poison *pl, *next;
+
+	nvdimm_bus_lock(&nvdimm_bus->dev);
+	WARN_ON_ONCE(list_empty(poison_list));
+
+	/*
+	 * [start, clr_end] is the poison interval being cleared.
+	 * [pl->start, pl_end] is the poison_list entry we're comparing
+	 * the above interval against. The poison list entry may need
+	 * to be modified (update either start or length), deleted, or
+	 * split into two based on the overlap characteristics
+	 */
+
+	list_for_each_entry_safe(pl, next, poison_list, list) {
+		u64 pl_end = pl->start + pl->length - 1;
+
+		/* Skip intervals with no intersection */
+		if (pl_end < start)
+			continue;
+		if (pl->start >  clr_end)
+			continue;
+		/* Delete completely overlapped poison entries */
+		if ((pl->start >= start) && (pl_end <= clr_end)) {
+			list_del(&pl->list);
+			kfree(pl);
+			continue;
+		}
+		/* Adjust start point of partially cleared entries */
+		if ((start <= pl->start) && (clr_end > pl->start)) {
+			pl->length -= clr_end - pl->start + 1;
+			pl->start = clr_end + 1;
+			continue;
+		}
+		/* Adjust pl->length for partial clearing at the tail end */
+		if ((pl->start < start) && (pl_end <= clr_end)) {
+			/* pl->start remains the same */
+			pl->length = start - pl->start;
+			continue;
+		}
+		/*
+		 * If clearing in the middle of an entry, we split it into
+		 * two by modifying the current entry to represent one half of
+		 * the split, and adding a new entry for the second half.
+		 */
+		if ((pl->start < start) && (pl_end > clr_end)) {
+			u64 new_start = clr_end + 1;
+			u64 new_len = pl_end - new_start + 1;
+
+			/* Add new entry covering the right half */
+			add_poison(nvdimm_bus, new_start, new_len, GFP_NOIO);
+			/* Adjust this entry to cover the left half */
+			pl->length = start - pl->start;
+			continue;
+		}
+	}
+	nvdimm_bus_unlock(&nvdimm_bus->dev);
+}
+EXPORT_SYMBOL_GPL(nvdimm_clear_from_poison_list);
 
 #ifdef CONFIG_BLK_DEV_INTEGRITY
 int nd_integrity_init(struct gendisk *disk, unsigned long meta_size)

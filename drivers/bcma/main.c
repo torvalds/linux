@@ -136,17 +136,17 @@ static bool bcma_is_core_needed_early(u16 core_id)
 	return false;
 }
 
-static struct device_node *bcma_of_find_child_device(struct platform_device *parent,
+static struct device_node *bcma_of_find_child_device(struct device *parent,
 						     struct bcma_device *core)
 {
 	struct device_node *node;
 	u64 size;
 	const __be32 *reg;
 
-	if (!parent || !parent->dev.of_node)
+	if (!parent->of_node)
 		return NULL;
 
-	for_each_child_of_node(parent->dev.of_node, node) {
+	for_each_child_of_node(parent->of_node, node) {
 		reg = of_get_address(node, 0, &size, NULL);
 		if (!reg)
 			continue;
@@ -156,7 +156,7 @@ static struct device_node *bcma_of_find_child_device(struct platform_device *par
 	return NULL;
 }
 
-static int bcma_of_irq_parse(struct platform_device *parent,
+static int bcma_of_irq_parse(struct device *parent,
 			     struct bcma_device *core,
 			     struct of_phandle_args *out_irq, int num)
 {
@@ -169,7 +169,7 @@ static int bcma_of_irq_parse(struct platform_device *parent,
 			return rc;
 	}
 
-	out_irq->np = parent->dev.of_node;
+	out_irq->np = parent->of_node;
 	out_irq->args_count = 1;
 	out_irq->args[0] = num;
 
@@ -177,13 +177,13 @@ static int bcma_of_irq_parse(struct platform_device *parent,
 	return of_irq_parse_raw(laddr, out_irq);
 }
 
-static unsigned int bcma_of_get_irq(struct platform_device *parent,
+static unsigned int bcma_of_get_irq(struct device *parent,
 				    struct bcma_device *core, int num)
 {
 	struct of_phandle_args out_irq;
 	int ret;
 
-	if (!IS_ENABLED(CONFIG_OF_IRQ) || !parent || !parent->dev.of_node)
+	if (!IS_ENABLED(CONFIG_OF_IRQ) || !parent->of_node)
 		return 0;
 
 	ret = bcma_of_irq_parse(parent, core, &out_irq, num);
@@ -196,19 +196,18 @@ static unsigned int bcma_of_get_irq(struct platform_device *parent,
 	return irq_create_of_mapping(&out_irq);
 }
 
-static void bcma_of_fill_device(struct platform_device *parent,
+static void bcma_of_fill_device(struct device *parent,
 				struct bcma_device *core)
 {
 	struct device_node *node;
-
-	if (!IS_ENABLED(CONFIG_OF_IRQ))
-		return;
 
 	node = bcma_of_find_child_device(parent, core);
 	if (node)
 		core->dev.of_node = node;
 
 	core->irq = bcma_of_get_irq(parent, core, 0);
+
+	of_dma_configure(&core->dev, node);
 }
 
 unsigned int bcma_core_irq(struct bcma_device *core, int num)
@@ -225,7 +224,7 @@ unsigned int bcma_core_irq(struct bcma_device *core, int num)
 			return mips_irq <= 4 ? mips_irq + 2 : 0;
 		}
 		if (bus->host_pdev)
-			return bcma_of_get_irq(bus->host_pdev, core, num);
+			return bcma_of_get_irq(&bus->host_pdev->dev, core, num);
 		return 0;
 	case BCMA_HOSTTYPE_SDIO:
 		return 0;
@@ -240,20 +239,20 @@ void bcma_prepare_core(struct bcma_bus *bus, struct bcma_device *core)
 	core->dev.release = bcma_release_core_dev;
 	core->dev.bus = &bcma_bus_type;
 	dev_set_name(&core->dev, "bcma%d:%d", bus->num, core->core_index);
+	core->dev.parent = bcma_bus_get_host_dev(bus);
+	if (core->dev.parent)
+		bcma_of_fill_device(core->dev.parent, core);
 
 	switch (bus->hosttype) {
 	case BCMA_HOSTTYPE_PCI:
-		core->dev.parent = &bus->host_pci->dev;
 		core->dma_dev = &bus->host_pci->dev;
 		core->irq = bus->host_pci->irq;
 		break;
 	case BCMA_HOSTTYPE_SOC:
-		core->dev.dma_mask = &core->dev.coherent_dma_mask;
-		if (bus->host_pdev) {
+		if (IS_ENABLED(CONFIG_OF) && bus->host_pdev) {
 			core->dma_dev = &bus->host_pdev->dev;
-			core->dev.parent = &bus->host_pdev->dev;
-			bcma_of_fill_device(bus->host_pdev, core);
 		} else {
+			core->dev.dma_mask = &core->dev.coherent_dma_mask;
 			core->dma_dev = &core->dev;
 		}
 		break;
@@ -631,8 +630,11 @@ static int bcma_device_probe(struct device *dev)
 					       drv);
 	int err = 0;
 
+	get_device(dev);
 	if (adrv->probe)
 		err = adrv->probe(core);
+	if (err)
+		put_device(dev);
 
 	return err;
 }
@@ -645,6 +647,7 @@ static int bcma_device_remove(struct device *dev)
 
 	if (adrv->remove)
 		adrv->remove(core);
+	put_device(dev);
 
 	return 0;
 }

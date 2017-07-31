@@ -142,10 +142,15 @@ static int bru_set_format(struct v4l2_subdev *subdev,
 	struct vsp1_bru *bru = to_bru(subdev);
 	struct v4l2_subdev_pad_config *config;
 	struct v4l2_mbus_framefmt *format;
+	int ret = 0;
+
+	mutex_lock(&bru->entity.lock);
 
 	config = vsp1_entity_get_pad_config(&bru->entity, cfg, fmt->which);
-	if (!config)
-		return -EINVAL;
+	if (!config) {
+		ret = -EINVAL;
+		goto done;
+	}
 
 	bru_try_format(bru, config, fmt->pad, &fmt->format);
 
@@ -174,7 +179,9 @@ static int bru_set_format(struct v4l2_subdev *subdev,
 		}
 	}
 
-	return 0;
+done:
+	mutex_unlock(&bru->entity.lock);
+	return ret;
 }
 
 static int bru_get_selection(struct v4l2_subdev *subdev,
@@ -201,7 +208,9 @@ static int bru_get_selection(struct v4l2_subdev *subdev,
 		if (!config)
 			return -EINVAL;
 
+		mutex_lock(&bru->entity.lock);
 		sel->r = *bru_get_compose(bru, config, sel->pad);
+		mutex_unlock(&bru->entity.lock);
 		return 0;
 
 	default:
@@ -217,6 +226,7 @@ static int bru_set_selection(struct v4l2_subdev *subdev,
 	struct v4l2_subdev_pad_config *config;
 	struct v4l2_mbus_framefmt *format;
 	struct v4l2_rect *compose;
+	int ret = 0;
 
 	if (sel->pad == bru->entity.source_pad)
 		return -EINVAL;
@@ -224,11 +234,16 @@ static int bru_set_selection(struct v4l2_subdev *subdev,
 	if (sel->target != V4L2_SEL_TGT_COMPOSE)
 		return -EINVAL;
 
-	config = vsp1_entity_get_pad_config(&bru->entity, cfg, sel->which);
-	if (!config)
-		return -EINVAL;
+	mutex_lock(&bru->entity.lock);
 
-	/* The compose rectangle top left corner must be inside the output
+	config = vsp1_entity_get_pad_config(&bru->entity, cfg, sel->which);
+	if (!config) {
+		ret = -EINVAL;
+		goto done;
+	}
+
+	/*
+	 * The compose rectangle top left corner must be inside the output
 	 * frame.
 	 */
 	format = vsp1_entity_get_pad_format(&bru->entity, config,
@@ -246,7 +261,9 @@ static int bru_set_selection(struct v4l2_subdev *subdev,
 	compose = bru_get_compose(bru, config, sel->pad);
 	*compose = sel->r;
 
-	return 0;
+done:
+	mutex_unlock(&bru->entity.lock);
+	return ret;
 }
 
 static const struct v4l2_subdev_pad_ops bru_pad_ops = {
@@ -269,14 +286,15 @@ static const struct v4l2_subdev_ops bru_ops = {
 
 static void bru_configure(struct vsp1_entity *entity,
 			  struct vsp1_pipeline *pipe,
-			  struct vsp1_dl_list *dl, bool full)
+			  struct vsp1_dl_list *dl,
+			  enum vsp1_entity_params params)
 {
 	struct vsp1_bru *bru = to_bru(&entity->subdev);
 	struct v4l2_mbus_framefmt *format;
 	unsigned int flags;
 	unsigned int i;
 
-	if (!full)
+	if (params != VSP1_ENTITY_PARAMS_INIT)
 		return;
 
 	format = vsp1_entity_get_pad_format(&bru->entity, bru->entity.config,

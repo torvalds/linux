@@ -90,7 +90,6 @@ static const char *dac33_supply_names[DAC33_NUM_SUPPLIES] = {
 
 struct tlv320dac33_priv {
 	struct mutex mutex;
-	struct workqueue_struct *dac33_wq;
 	struct work_struct work;
 	struct snd_soc_codec *codec;
 	struct regulator_bulk_data supplies[DAC33_NUM_SUPPLIES];
@@ -771,7 +770,7 @@ static irqreturn_t dac33_interrupt_handler(int irq, void *dev)
 
 	/* Do not schedule the workqueue in Mode7 */
 	if (dac33->fifo_mode != DAC33_FIFO_MODE7)
-		queue_work(dac33->dac33_wq, &dac33->work);
+		schedule_work(&dac33->work);
 
 	return IRQ_HANDLED;
 }
@@ -1127,7 +1126,7 @@ static int dac33_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		if (dac33->fifo_mode) {
 			dac33->state = DAC33_PREFILL;
-			queue_work(dac33->dac33_wq, &dac33->work);
+			schedule_work(&dac33->work);
 		}
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
@@ -1135,7 +1134,7 @@ static int dac33_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		if (dac33->fifo_mode) {
 			dac33->state = DAC33_FLUSH;
-			queue_work(dac33->dac33_wq, &dac33->work);
+			schedule_work(&dac33->work);
 		}
 		break;
 	default:
@@ -1410,14 +1409,6 @@ static int dac33_soc_probe(struct snd_soc_codec *codec)
 			dac33->irq = -1;
 		}
 		if (dac33->irq != -1) {
-			/* Setup work queue */
-			dac33->dac33_wq =
-				create_singlethread_workqueue("tlv320dac33");
-			if (dac33->dac33_wq == NULL) {
-				free_irq(dac33->irq, codec);
-				return -ENOMEM;
-			}
-
 			INIT_WORK(&dac33->work, dac33_work);
 		}
 	}
@@ -1437,7 +1428,7 @@ static int dac33_soc_remove(struct snd_soc_codec *codec)
 
 	if (dac33->irq >= 0) {
 		free_irq(dac33->irq, dac33->codec);
-		destroy_workqueue(dac33->dac33_wq);
+		flush_work(&dac33->work);
 	}
 	return 0;
 }
@@ -1453,12 +1444,14 @@ static struct snd_soc_codec_driver soc_codec_dev_tlv320dac33 = {
 	.probe = dac33_soc_probe,
 	.remove = dac33_soc_remove,
 
-	.controls = dac33_snd_controls,
-	.num_controls = ARRAY_SIZE(dac33_snd_controls),
-	.dapm_widgets = dac33_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(dac33_dapm_widgets),
-	.dapm_routes = audio_map,
-	.num_dapm_routes = ARRAY_SIZE(audio_map),
+	.component_driver = {
+		.controls		= dac33_snd_controls,
+		.num_controls		= ARRAY_SIZE(dac33_snd_controls),
+		.dapm_widgets		= dac33_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(dac33_dapm_widgets),
+		.dapm_routes		= audio_map,
+		.num_dapm_routes	= ARRAY_SIZE(audio_map),
+	},
 };
 
 #define DAC33_RATES	(SNDRV_PCM_RATE_44100 | \

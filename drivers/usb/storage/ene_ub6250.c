@@ -1364,7 +1364,6 @@ static int ms_lib_read_extra(struct us_data *us, u32 PhyBlock,
 
 static int ms_libsearch_block_from_physical(struct us_data *us, u16 phyblk)
 {
-	u16 Newblk;
 	u16 blk;
 	struct ms_lib_type_extdat extdat; /* need check */
 	struct ene_ub6250_info *info = (struct ene_ub6250_info *) us->extra;
@@ -1377,7 +1376,6 @@ static int ms_libsearch_block_from_physical(struct us_data *us, u16 phyblk)
 		if ((blk & MS_PHYSICAL_BLOCKS_PER_SEGMENT_MASK) == 0)
 			blk -= MS_PHYSICAL_BLOCKS_PER_SEGMENT;
 
-		Newblk = info->MS_Lib.Phy2LogMap[blk];
 		if (info->MS_Lib.Phy2LogMap[blk] == MS_LB_NOT_USED_ERASED) {
 			return blk;
 		} else if (info->MS_Lib.Phy2LogMap[blk] == MS_LB_NOT_USED) {

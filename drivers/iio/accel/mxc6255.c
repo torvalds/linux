@@ -154,7 +154,7 @@ static int mxc6255_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	if (chip_id != MXC6255_CHIP_ID) {
+	if ((chip_id & 0x1f) != MXC6255_CHIP_ID) {
 		dev_err(&client->dev, "Invalid chip id %x\n", chip_id);
 		return -ENODEV;
 	}
@@ -171,12 +171,14 @@ static int mxc6255_probe(struct i2c_client *client,
 }
 
 static const struct acpi_device_id mxc6255_acpi_match[] = {
+	{"MXC6225",	0},
 	{"MXC6255",	0},
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, mxc6255_acpi_match);
 
 static const struct i2c_device_id mxc6255_id[] = {
+	{"mxc6225",	0},
 	{"mxc6255",	0},
 	{ }
 };

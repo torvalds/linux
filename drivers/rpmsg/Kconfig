@@ -3,6 +3,28 @@ menu "Rpmsg drivers"
 # RPMSG always gets selected by whoever wants it
 config RPMSG
 	tristate
+
+config RPMSG_CHAR
+	tristate "RPMSG device interface"
+	depends on RPMSG
+	depends on NET
+	help
+	  Say Y here to export rpmsg endpoints as device files, usually found
+	  in /dev. They make it possible for user-space programs to send and
+	  receive rpmsg packets.
+
+config RPMSG_QCOM_SMD
+	tristate "Qualcomm Shared Memory Driver (SMD)"
+	depends on QCOM_SMEM
+	select RPMSG
+	help
+	  Say y here to enable support for the Qualcomm Shared Memory Driver
+	  providing communication channels to remote processors in Qualcomm
+	  platforms.
+
+config RPMSG_VIRTIO
+	tristate
+	select RPMSG
 	select VIRTIO
 	select VIRTUALIZATION
 

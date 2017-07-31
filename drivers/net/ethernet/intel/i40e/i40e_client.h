@@ -36,9 +36,9 @@
 #define I40E_CLIENT_VERSION_MINOR 01
 #define I40E_CLIENT_VERSION_BUILD 00
 #define I40E_CLIENT_VERSION_STR     \
-	XSTRINGIFY(I40E_CLIENT_VERSION_MAJOR) "." \
-	XSTRINGIFY(I40E_CLIENT_VERSION_MINOR) "." \
-	XSTRINGIFY(I40E_CLIENT_VERSION_BUILD)
+	__stringify(I40E_CLIENT_VERSION_MAJOR) "." \
+	__stringify(I40E_CLIENT_VERSION_MINOR) "." \
+	__stringify(I40E_CLIENT_VERSION_BUILD)
 
 struct i40e_client_version {
 	u8 major;
@@ -55,11 +55,6 @@ enum i40e_client_state {
 enum i40e_client_instance_state {
 	__I40E_CLIENT_INSTANCE_NONE,
 	__I40E_CLIENT_INSTANCE_OPENED,
-};
-
-enum i40e_client_type {
-	I40E_CLIENT_IWARP,
-	I40E_CLIENT_VMDQ2
 };
 
 struct i40e_ops;
@@ -203,8 +198,6 @@ struct i40e_client_instance {
 	struct i40e_info lan_info;
 	struct i40e_client *client;
 	unsigned long  state;
-	/* A count of all the in-progress calls to the client */
-	atomic_t ref_cnt;
 };
 
 struct i40e_client {
@@ -216,7 +209,8 @@ struct i40e_client {
 	u32 flags;
 #define I40E_CLIENT_FLAGS_LAUNCH_ON_PROBE	BIT(0)
 #define I40E_TX_FLAGS_NOTIFY_OTHER_EVENTS	BIT(2)
-	enum i40e_client_type type;
+	u8 type;
+#define I40E_CLIENT_IWARP 0
 	const struct i40e_client_ops *ops; /* client ops provided by the client */
 };
 

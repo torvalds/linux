@@ -34,7 +34,7 @@ pad to a sink pad.
 Media device
 ^^^^^^^^^^^^
 
-A media device is represented by a :c:type:`struct media_device <media_device>`
+A media device is represented by a struct :c:type:`media_device`
 instance, defined in ``include/media/media-device.h``.
 Allocation of the structure is handled by the media device driver, usually by
 embedding the :c:type:`media_device` instance in a larger driver-specific
@@ -47,7 +47,7 @@ and unregistered by calling :c:func:`media_device_unregister()`.
 Entities
 ^^^^^^^^
 
-Entities are represented by a :c:type:`struct media_entity <media_entity>`
+Entities are represented by a struct :c:type:`media_entity`
 instance, defined in ``include/media/media-entity.h``. The structure is usually
 embedded into a higher-level structure, such as
 :c:type:`v4l2_subdev` or :c:type:`video_device`
@@ -65,10 +65,10 @@ Interfaces
 ^^^^^^^^^^
 
 Interfaces are represented by a
-:c:type:`struct media_interface <media_interface>` instance, defined in
+struct :c:type:`media_interface` instance, defined in
 ``include/media/media-entity.h``. Currently, only one type of interface is
 defined: a device node. Such interfaces are represented by a
-:c:type:`struct media_intf_devnode <media_intf_devnode>`.
+struct :c:type:`media_intf_devnode`.
 
 Drivers initialize and create device node interfaces by calling
 :c:func:`media_devnode_create()`
@@ -77,7 +77,7 @@ and remove them by calling:
 
 Pads
 ^^^^
-Pads are represented by a :c:type:`struct media_pad <media_pad>` instance,
+Pads are represented by a struct :c:type:`media_pad` instance,
 defined in ``include/media/media-entity.h``. Each entity stores its pads in
 a pads array managed by the entity driver. Drivers usually embed the array in
 a driver-specific structure.
@@ -85,8 +85,9 @@ a driver-specific structure.
 Pads are identified by their entity and their 0-based index in the pads
 array.
 
-Both information are stored in the :c:type:`struct media_pad`, making the
-:c:type:`media_pad` pointer the canonical way to store and pass link references.
+Both information are stored in the struct :c:type:`media_pad`,
+making the struct :c:type:`media_pad` pointer the canonical way
+to store and pass link references.
 
 Pads have flags that describe the pad capabilities and state.
 
@@ -101,7 +102,7 @@ Pads have flags that describe the pad capabilities and state.
 Links
 ^^^^^
 
-Links are represented by a :c:type:`struct media_link <media_link>` instance,
+Links are represented by a struct :c:type:`media_link` instance,
 defined in ``include/media/media-entity.h``. There are two types of links:
 
 **1. pad to pad links**:
@@ -161,13 +162,13 @@ framework provides a depth-first graph traversal API for that purpose.
    currently defined as 16.
 
 Drivers initiate a graph traversal by calling
-:c:func:`media_entity_graph_walk_start()`
+:c:func:`media_graph_walk_start()`
 
 The graph structure, provided by the caller, is initialized to start graph
 traversal at the given entity.
 
 Drivers can then retrieve the next entity by calling
-:c:func:`media_entity_graph_walk_next()`
+:c:func:`media_graph_walk_next()`
 
 When the graph traversal is complete the function will return ``NULL``.
 
@@ -184,7 +185,7 @@ Use count and power handling
 
 Due to the wide differences between drivers regarding power management
 needs, the media controller does not implement power management. However,
-the :c:type:`struct media_entity <media_entity>` includes a ``use_count``
+the struct :c:type:`media_entity` includes a ``use_count``
 field that media drivers
 can use to track the number of users of every entity for power management
 needs.
@@ -205,29 +206,29 @@ Pipelines and media streams
 
 When starting streaming, drivers must notify all entities in the pipeline to
 prevent link states from being modified during streaming by calling
-:c:func:`media_entity_pipeline_start()`.
+:c:func:`media_pipeline_start()`.
 
 The function will mark all entities connected to the given entity through
 enabled links, either directly or indirectly, as streaming.
 
-The :c:type:`struct media_pipeline <media_pipeline>` instance pointed to by
+The struct :c:type:`media_pipeline` instance pointed to by
 the pipe argument will be stored in every entity in the pipeline.
-Drivers should embed the :c:type:`struct media_pipeline <media_pipeline>`
+Drivers should embed the struct :c:type:`media_pipeline`
 in higher-level pipeline structures and can then access the
-pipeline through the :c:type:`struct media_entity <media_entity>`
+pipeline through the struct :c:type:`media_entity`
 pipe field.
 
-Calls to :c:func:`media_entity_pipeline_start()` can be nested.
+Calls to :c:func:`media_pipeline_start()` can be nested.
 The pipeline pointer must be identical for all nested calls to the function.
 
-:c:func:`media_entity_pipeline_start()` may return an error. In that case,
+:c:func:`media_pipeline_start()` may return an error. In that case,
 it will clean up any of the changes it did by itself.
 
 When stopping the stream, drivers must notify the entities with
-:c:func:`media_entity_pipeline_stop()`.
+:c:func:`media_pipeline_stop()`.
 
-If multiple calls to :c:func:`media_entity_pipeline_start()` have been
-made the same number of :c:func:`media_entity_pipeline_stop()` calls
+If multiple calls to :c:func:`media_pipeline_start()` have been
+made the same number of :c:func:`media_pipeline_stop()` calls
 are required to stop streaming.
 The :c:type:`media_entity`.\ ``pipe`` field is reset to ``NULL`` on the last
 nested stop call.
@@ -244,7 +245,7 @@ operation must be done with the media_device graph_mutex held.
 Link validation
 ^^^^^^^^^^^^^^^
 
-Link validation is performed by :c:func:`media_entity_pipeline_start()`
+Link validation is performed by :c:func:`media_pipeline_start()`
 for any entity which has sink pads in the pipeline. The
 :c:type:`media_entity`.\ ``link_validate()`` callback is used for that
 purpose. In ``link_validate()`` callback, entity driver should check

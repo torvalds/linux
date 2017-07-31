@@ -145,10 +145,8 @@
 
 &pio {
 	led_pins_m3: led_pins@0 {
-		allwinner,pins = "PH20";
-		allwinner,function = "gpio_out";
-		allwinner,drive = <SUN4I_PINCTRL_10_MA>;
-		allwinner,pull = <SUN4I_PINCTRL_NO_PULL>;
+		pins = "PH20";
+		function = "gpio_out";
 	};
 };
 

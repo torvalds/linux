@@ -67,6 +67,17 @@
 #define CNTL_LDMAFIFOTIME	(1 << 15)
 #define CNTL_WATERMARK		(1 << 16)
 
+/* ST Microelectronics variant bits */
+#define CNTL_ST_1XBPP_444	0x0
+#define CNTL_ST_1XBPP_5551	(1 << 17)
+#define CNTL_ST_1XBPP_565	(1 << 18)
+#define CNTL_ST_CDWID_12	0x0
+#define CNTL_ST_CDWID_16	(1 << 19)
+#define CNTL_ST_CDWID_18	(1 << 20)
+#define CNTL_ST_CDWID_24	((1 << 19)|(1 << 20))
+#define CNTL_ST_CEAEN		(1 << 21)
+#define CNTL_ST_LCDBPP24_PACKED	(6 << 1)
+
 enum {
 	/* individual formats */
 	CLCD_CAP_RGB444		= (1 << 0),
@@ -93,6 +104,8 @@ enum {
 	CLCD_CAP_ALL		= CLCD_CAP_BGR | CLCD_CAP_RGB,
 };
 
+struct backlight_device;
+
 struct clcd_panel {
 	struct fb_videomode	mode;
 	signed short		width;	/* width in mm */
@@ -105,6 +118,13 @@ struct clcd_panel {
 				fixedtimings:1,
 				grayscale:1;
 	unsigned int		connector;
+	struct backlight_device	*backlight;
+	/*
+	 * If the B/R lines are switched between the CLCD
+	 * and the panel we need to know this and not try to
+	 * compensate with the BGR bit in the control register.
+	 */
+	bool			bgr_connection;
 };
 
 struct clcd_regs {
@@ -170,11 +190,38 @@ struct clcd_board {
 struct amba_device;
 struct clk;
 
+/**
+ * struct clcd_vendor_data - holds hardware (IP-block) vendor-specific
+ * variant information
+ *
+ * @clock_timregs: the CLCD needs to be clocked when accessing the
+ * timer registers, or the hardware will hang.
+ * @packed_24_bit_pixels: this variant supports 24bit packed pixel data,
+ * so that RGB accesses 3 bytes at a time, not just on even 32bit
+ * boundaries, packing the pixel data in memory. ST Microelectronics
+ * have this.
+ * @st_bitmux_control: ST Microelectronics have implemented output
+ * bit line multiplexing into the CLCD control register. This indicates
+ * that we need to use this.
+ * @init_board: custom board init function for this variant
+ * @init_panel: custom panel init function for this variant
+ */
+struct clcd_vendor_data {
+	bool	clock_timregs;
+	bool	packed_24_bit_pixels;
+	bool	st_bitmux_control;
+	int	(*init_board)(struct amba_device *adev,
+			      struct clcd_board *board);
+	int	(*init_panel)(struct clcd_fb *fb,
+			      struct device_node *panel);
+};
+
 /* this data structure describes each frame buffer device we find */
 struct clcd_fb {
 	struct fb_info		fb;
 	struct amba_device	*dev;
 	struct clk		*clk;
+	struct clcd_vendor_data	*vendor;
 	struct clcd_panel	*panel;
 	struct clcd_board	*board;
 	void			*board_data;
@@ -231,16 +278,22 @@ static inline void clcdfb_decode(struct clcd_fb *fb, struct clcd_regs *regs)
 	if (var->grayscale)
 		val |= CNTL_LCDBW;
 
-	if (fb->panel->caps && fb->board->caps &&
-	    var->bits_per_pixel >= 16) {
+	if (fb->panel->caps && fb->board->caps && var->bits_per_pixel >= 16) {
 		/*
 		 * if board and panel supply capabilities, we can support
-		 * changing BGR/RGB depending on supplied parameters
+		 * changing BGR/RGB depending on supplied parameters. Here
+		 * we switch to what the framebuffer is providing if need
+		 * be, so if the framebuffer is BGR but the display connection
+		 * is RGB (first case) we switch it around. Vice versa mutatis
+		 * mutandis if the framebuffer is RGB but the display connection
+		 * is BGR, we flip it around.
 		 */
 		if (var->red.offset == 0)
 			val &= ~CNTL_BGR;
 		else
 			val |= CNTL_BGR;
+		if (fb->panel->bgr_connection)
+			val ^= CNTL_BGR;
 	}
 
 	switch (var->bits_per_pixel) {
@@ -269,6 +322,10 @@ static inline void clcdfb_decode(struct clcd_fb *fb, struct clcd_regs *regs)
 			val |= CNTL_LCDBPP16_565;
 		else
 			val |= CNTL_LCDBPP16_444;
+		break;
+	case 24:
+		/* Modified variant supporting 24 bit packed pixels */
+		val |= CNTL_ST_LCDBPP24_PACKED;
 		break;
 	case 32:
 		val |= CNTL_LCDBPP24;

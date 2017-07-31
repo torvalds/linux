@@ -15,7 +15,6 @@
  *
  */
 
-#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/pci-acpi.h>
 #include <linux/sched.h>
@@ -30,16 +29,6 @@
 
 #include "aerdrv.h"
 #include "../../pci.h"
-
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v1.0"
-#define DRIVER_AUTHOR "tom.l.nguyen@intel.com"
-#define DRIVER_DESC "Root Port Advanced Error Reporting Driver"
-MODULE_AUTHOR(DRIVER_AUTHOR);
-MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_LICENSE("GPL");
 
 static int aer_probe(struct pcie_device *dev);
 static void aer_remove(struct pcie_device *dev);
@@ -70,7 +59,7 @@ static int pcie_aer_disable;
 
 void pci_no_aer(void)
 {
-	pcie_aer_disable = 1;	/* has priority over 'forceload' */
+	pcie_aer_disable = 1;
 }
 
 bool pci_aer_available(void)
@@ -134,7 +123,7 @@ static void aer_enable_rootport(struct aer_rpc *rpc)
 	pcie_capability_clear_word(pdev, PCI_EXP_RTCTL,
 				   SYSTEM_ERROR_INTR_ON_MESG_MASK);
 
-	aer_pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_ERR);
+	aer_pos = pdev->aer_cap;
 	/* Clear error status */
 	pci_read_config_dword(pdev, aer_pos + PCI_ERR_ROOT_STATUS, &reg32);
 	pci_write_config_dword(pdev, aer_pos + PCI_ERR_ROOT_STATUS, reg32);
@@ -173,7 +162,7 @@ static void aer_disable_rootport(struct aer_rpc *rpc)
 	 */
 	set_downstream_devices_error_reporting(pdev, false);
 
-	pos = pci_find_ext_capability(pdev, PCI_EXT_CAP_ID_ERR);
+	pos = pdev->aer_cap;
 	/* Disable Root's interrupt in response to error messages */
 	pci_read_config_dword(pdev, pos + PCI_ERR_ROOT_COMMAND, &reg32);
 	reg32 &= ~ROOT_PORT_INTR_ON_MESG_MASK;
@@ -200,7 +189,7 @@ irqreturn_t aer_irq(int irq, void *context)
 	unsigned long flags;
 	int pos;
 
-	pos = pci_find_ext_capability(pdev->port, PCI_EXT_CAP_ID_ERR);
+	pos = pdev->port->aer_cap;
 	/*
 	 * Must lock access to Root Error Status Reg, Root Error ID Reg,
 	 * and Root error producer/consumer index
@@ -294,7 +283,6 @@ static void aer_remove(struct pcie_device *dev)
 /**
  * aer_probe - initialize resources
  * @dev: pointer to the pcie_dev data structure
- * @id: pointer to the service id data structure
  *
  * Invoked when PCI Express bus loads AER service driver.
  */
@@ -302,17 +290,12 @@ static int aer_probe(struct pcie_device *dev)
 {
 	int status;
 	struct aer_rpc *rpc;
-	struct device *device = &dev->device;
-
-	/* Init */
-	status = aer_init(dev);
-	if (status)
-		return status;
+	struct device *device = &dev->port->dev;
 
 	/* Alloc rpc data structure */
 	rpc = aer_alloc_rpc(dev);
 	if (!rpc) {
-		dev_printk(KERN_DEBUG, device, "alloc rpc failed\n");
+		dev_printk(KERN_DEBUG, device, "alloc AER rpc failed\n");
 		aer_remove(dev);
 		return -ENOMEM;
 	}
@@ -320,7 +303,8 @@ static int aer_probe(struct pcie_device *dev)
 	/* Request IRQ ISR */
 	status = request_irq(dev->irq, aer_irq, IRQF_SHARED, "aerdrv", dev);
 	if (status) {
-		dev_printk(KERN_DEBUG, device, "request IRQ failed\n");
+		dev_printk(KERN_DEBUG, device, "request AER IRQ %d failed\n",
+			   dev->irq);
 		aer_remove(dev);
 		return status;
 	}
@@ -328,8 +312,8 @@ static int aer_probe(struct pcie_device *dev)
 	rpc->isr = 1;
 
 	aer_enable_rootport(rpc);
-
-	return status;
+	dev_info(device, "AER enabled with IRQ %d\n", dev->irq);
+	return 0;
 }
 
 /**
@@ -343,7 +327,7 @@ static pci_ers_result_t aer_root_reset(struct pci_dev *dev)
 	u32 reg32;
 	int pos;
 
-	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
+	pos = dev->aer_cap;
 
 	/* Disable Root's interrupt in response to error messages */
 	pci_read_config_dword(dev, pos + PCI_ERR_ROOT_COMMAND, &reg32);
@@ -396,7 +380,7 @@ static void aer_error_resume(struct pci_dev *dev)
 	pcie_capability_write_word(dev, PCI_EXP_DEVSTA, reg16);
 
 	/* Clean AER Root Error Status */
-	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
+	pos = dev->aer_cap;
 	pci_read_config_dword(dev, pos + PCI_ERR_UNCOR_STATUS, &status);
 	pci_read_config_dword(dev, pos + PCI_ERR_UNCOR_SEVER, &mask);
 	if (dev->error_state == pci_channel_io_normal)
@@ -417,16 +401,4 @@ static int __init aer_service_init(void)
 		return -ENXIO;
 	return pcie_port_service_register(&aerdriver);
 }
-
-/**
- * aer_service_exit - unregister AER root service driver
- *
- * Invoked when AER root service driver is unloaded.
- */
-static void __exit aer_service_exit(void)
-{
-	pcie_port_service_unregister(&aerdriver);
-}
-
-module_init(aer_service_init);
-module_exit(aer_service_exit);
+device_initcall(aer_service_init);

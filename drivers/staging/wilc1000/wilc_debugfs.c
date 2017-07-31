@@ -17,7 +17,6 @@
 
 #include "wilc_wlan_if.h"
 
-
 static struct dentry *wilc_dir;
 
 /*
@@ -29,13 +28,12 @@ static struct dentry *wilc_dir;
 #define ERR             BIT(3)
 
 #define DBG_LEVEL_ALL	(DEBUG | INFO | WRN | ERR)
-atomic_t WILC_DEBUG_LEVEL = ATOMIC_INIT(ERR);
+static atomic_t WILC_DEBUG_LEVEL = ATOMIC_INIT(ERR);
 EXPORT_SYMBOL_GPL(WILC_DEBUG_LEVEL);
 
 /*
  * --------------------------------------------------------------------------------
  */
-
 
 static ssize_t wilc_debug_level_read(struct file *file, char __user *userbuf, size_t count, loff_t *ppos)
 {
@@ -52,7 +50,7 @@ static ssize_t wilc_debug_level_read(struct file *file, char __user *userbuf, si
 }
 
 static ssize_t wilc_debug_level_write(struct file *filp, const char __user *buf,
-					size_t count, loff_t *ppos)
+				      size_t count, loff_t *ppos)
 {
 	int flag = 0;
 	int ret;
@@ -62,16 +60,16 @@ static ssize_t wilc_debug_level_write(struct file *filp, const char __user *buf,
 		return ret;
 
 	if (flag > DBG_LEVEL_ALL) {
-		printk("%s, value (0x%08x) is out of range, stay previous flag (0x%08x)\n", __func__, flag, atomic_read(&WILC_DEBUG_LEVEL));
+		pr_info("%s, value (0x%08x) is out of range, stay previous flag (0x%08x)\n", __func__, flag, atomic_read(&WILC_DEBUG_LEVEL));
 		return -EINVAL;
 	}
 
 	atomic_set(&WILC_DEBUG_LEVEL, (int)flag);
 
 	if (flag == 0)
-		printk(KERN_INFO "Debug-level disabled\n");
+		pr_info("Debug-level disabled\n");
 	else
-		printk(KERN_INFO "Debug-level enabled\n");
+		pr_info("Debug-level enabled\n");
 
 	return count;
 }
@@ -102,35 +100,16 @@ static struct wilc_debugfs_info_t debugfs_info[] = {
 static int __init wilc_debugfs_init(void)
 {
 	int i;
-
-	struct dentry *debugfs_files;
 	struct wilc_debugfs_info_t *info;
 
 	wilc_dir = debugfs_create_dir("wilc_wifi", NULL);
-	if (wilc_dir ==  ERR_PTR(-ENODEV)) {
-		/* it's not error. the debugfs is just not being enabled. */
-		printk("ERR, kernel has built without debugfs support\n");
-		return 0;
-	}
-
-	if (!wilc_dir) {
-		printk("ERR, debugfs create dir\n");
-		return -1;
-	}
-
 	for (i = 0; i < ARRAY_SIZE(debugfs_info); i++) {
 		info = &debugfs_info[i];
-		debugfs_files = debugfs_create_file(info->name,
-						    info->perm,
-						    wilc_dir,
-						    &info->data,
-						    &info->fops);
-
-		if (!debugfs_files) {
-			printk("ERR fail to create the debugfs file, %s\n", info->name);
-			debugfs_remove_recursive(wilc_dir);
-			return -1;
-		}
+		debugfs_create_file(info->name,
+				    info->perm,
+				    wilc_dir,
+				    &info->data,
+				    &info->fops);
 	}
 	return 0;
 }

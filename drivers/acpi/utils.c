@@ -736,6 +736,72 @@ bool acpi_dev_found(const char *hid)
 }
 EXPORT_SYMBOL(acpi_dev_found);
 
+struct acpi_dev_present_info {
+	struct acpi_device_id hid[2];
+	const char *uid;
+	s64 hrv;
+};
+
+static int acpi_dev_present_cb(struct device *dev, void *data)
+{
+	struct acpi_device *adev = to_acpi_device(dev);
+	struct acpi_dev_present_info *match = data;
+	unsigned long long hrv;
+	acpi_status status;
+
+	if (acpi_match_device_ids(adev, match->hid))
+		return 0;
+
+	if (match->uid && (!adev->pnp.unique_id ||
+	    strcmp(adev->pnp.unique_id, match->uid)))
+		return 0;
+
+	if (match->hrv == -1)
+		return 1;
+
+	status = acpi_evaluate_integer(adev->handle, "_HRV", NULL, &hrv);
+	if (ACPI_FAILURE(status))
+		return 0;
+
+	return hrv == match->hrv;
+}
+
+/**
+ * acpi_dev_present - Detect that a given ACPI device is present
+ * @hid: Hardware ID of the device.
+ * @uid: Unique ID of the device, pass NULL to not check _UID
+ * @hrv: Hardware Revision of the device, pass -1 to not check _HRV
+ *
+ * Return %true if a matching device was present at the moment of invocation.
+ * Note that if the device is pluggable, it may since have disappeared.
+ *
+ * Note that unlike acpi_dev_found() this function checks the status
+ * of the device. So for devices which are present in the dsdt, but
+ * which are disabled (their _STA callback returns 0) this function
+ * will return false.
+ *
+ * For this function to work, acpi_bus_scan() must have been executed
+ * which happens in the subsys_initcall() subsection. Hence, do not
+ * call from a subsys_initcall() or earlier (use acpi_get_devices()
+ * instead). Calling from module_init() is fine (which is synonymous
+ * with device_initcall()).
+ */
+bool acpi_dev_present(const char *hid, const char *uid, s64 hrv)
+{
+	struct acpi_dev_present_info match = {};
+	struct device *dev;
+
+	strlcpy(match.hid[0].id, hid, sizeof(match.hid[0].id));
+	match.uid = uid;
+	match.hrv = hrv;
+
+	dev = bus_find_device(&acpi_bus_type, NULL, &match,
+			      acpi_dev_present_cb);
+
+	return !!dev;
+}
+EXPORT_SYMBOL(acpi_dev_present);
+
 /*
  * acpi_backlight= handling, this is done here rather then in video_detect.c
  * because __setup cannot be used in modules.

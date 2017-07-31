@@ -265,7 +265,9 @@ static arm_v7s_iopte arm_v7s_prot_to_pte(int prot, int lvl,
 	if (!(prot & IOMMU_MMIO))
 		pte |= ARM_V7S_ATTR_TEX(1);
 	if (ap) {
-		pte |= ARM_V7S_PTE_AF | ARM_V7S_PTE_AP_UNPRIV;
+		pte |= ARM_V7S_PTE_AF;
+		if (!(prot & IOMMU_PRIV))
+			pte |= ARM_V7S_PTE_AP_UNPRIV;
 		if (!(prot & IOMMU_WRITE))
 			pte |= ARM_V7S_PTE_AP_RDONLY;
 	}
@@ -288,6 +290,8 @@ static int arm_v7s_pte_to_prot(arm_v7s_iopte pte, int lvl)
 
 	if (!(attr & ARM_V7S_PTE_AP_RDONLY))
 		prot |= IOMMU_WRITE;
+	if (!(attr & ARM_V7S_PTE_AP_UNPRIV))
+		prot |= IOMMU_PRIV;
 	if ((attr & (ARM_V7S_TEX_MASK << ARM_V7S_TEX_SHIFT)) == 0)
 		prot |= IOMMU_MMIO;
 	else if (pte & ARM_V7S_ATTR_C)
@@ -418,8 +422,12 @@ static int __arm_v7s_map(struct arm_v7s_io_pgtable *data, unsigned long iova,
 			pte |= ARM_V7S_ATTR_NS_TABLE;
 
 		__arm_v7s_set_pte(ptep, pte, 1, cfg);
-	} else {
+	} else if (ARM_V7S_PTE_IS_TABLE(pte, lvl)) {
 		cptep = iopte_deref(pte, lvl);
+	} else {
+		/* We require an unmap first */
+		WARN_ON(!selftest_running);
+		return -EEXIST;
 	}
 
 	/* Rinse, repeat */
@@ -633,6 +641,10 @@ static struct io_pgtable *arm_v7s_alloc_pgtable(struct io_pgtable_cfg *cfg,
 {
 	struct arm_v7s_io_pgtable *data;
 
+#ifdef PHYS_OFFSET
+	if (upper_32_bits(PHYS_OFFSET))
+		return NULL;
+#endif
 	if (cfg->ias > ARM_V7S_ADDR_BITS || cfg->oas > ARM_V7S_ADDR_BITS)
 		return NULL;
 
@@ -789,8 +801,7 @@ static int __init arm_v7s_do_selftests(void)
 	 * Distinct mappings of different granule sizes.
 	 */
 	iova = 0;
-	i = find_first_bit(&cfg.pgsize_bitmap, BITS_PER_LONG);
-	while (i != BITS_PER_LONG) {
+	for_each_set_bit(i, &cfg.pgsize_bitmap, BITS_PER_LONG) {
 		size = 1UL << i;
 		if (ops->map(ops, iova, iova, size, IOMMU_READ |
 						    IOMMU_WRITE |
@@ -807,8 +818,6 @@ static int __init arm_v7s_do_selftests(void)
 			return __FAIL(ops);
 
 		iova += SZ_16M;
-		i++;
-		i = find_next_bit(&cfg.pgsize_bitmap, BITS_PER_LONG, i);
 		loopnr++;
 	}
 

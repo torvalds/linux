@@ -6,6 +6,9 @@
  * Based on the DaVinci "glue layer" code.
  * Copyright (C) 2005-2006 by Texas Instruments
  *
+ * DT support
+ * Copyright (c) 2016 Petr Kulhavy <petr@barix.com>
+ *
  * This file is part of the Inventra Controller Driver for Linux.
  *
  * The Inventra Controller Driver for Linux is free software; you
@@ -30,12 +33,10 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 #include <linux/usb/usb_phy_generic.h>
-
-#include <mach/da8xx.h>
-#include <linux/platform_data/usb-davinci.h>
 
 #include "musb_core.h"
 
@@ -80,59 +81,13 @@
 
 #define DA8XX_MENTOR_CORE_OFFSET 0x400
 
-#define CFGCHIP2	IO_ADDRESS(DA8XX_SYSCFG0_BASE + DA8XX_CFGCHIP2_REG)
-
 struct da8xx_glue {
 	struct device		*dev;
 	struct platform_device	*musb;
-	struct platform_device	*phy;
+	struct platform_device	*usb_phy;
 	struct clk		*clk;
+	struct phy		*phy;
 };
-
-/*
- * REVISIT (PM): we should be able to keep the PHY in low power mode most
- * of the time (24 MHz oscillator and PLL off, etc.) by setting POWER.D0
- * and, when in host mode, autosuspending idle root ports... PHY_PLLON
- * (overriding SUSPENDM?) then likely needs to stay off.
- */
-
-static inline void phy_on(void)
-{
-	u32 cfgchip2 = __raw_readl(CFGCHIP2);
-
-	/*
-	 * Start the on-chip PHY and its PLL.
-	 */
-	cfgchip2 &= ~(CFGCHIP2_RESET | CFGCHIP2_PHYPWRDN | CFGCHIP2_OTGPWRDN);
-	cfgchip2 |= CFGCHIP2_PHY_PLLON;
-	__raw_writel(cfgchip2, CFGCHIP2);
-
-	pr_info("Waiting for USB PHY clock good...\n");
-	while (!(__raw_readl(CFGCHIP2) & CFGCHIP2_PHYCLKGD))
-		cpu_relax();
-}
-
-static inline void phy_off(void)
-{
-	u32 cfgchip2 = __raw_readl(CFGCHIP2);
-
-	/*
-	 * Ensure that USB 1.1 reference clock is not being sourced from
-	 * USB 2.0 PHY.  Otherwise do not power down the PHY.
-	 */
-	if (!(cfgchip2 & CFGCHIP2_USB1PHYCLKMUX) &&
-	     (cfgchip2 & CFGCHIP2_USB1SUSPENDM)) {
-		pr_warning("USB 1.1 clocked from USB 2.0 PHY -- "
-			   "can't power it down\n");
-		return;
-	}
-
-	/*
-	 * Power down the on-chip PHY.
-	 */
-	cfgchip2 |= CFGCHIP2_PHYPWRDN | CFGCHIP2_OTGPWRDN;
-	__raw_writel(cfgchip2, CFGCHIP2);
-}
 
 /*
  * Because we don't set CTRL.UINT, it's "important" to:
@@ -170,7 +125,6 @@ static void da8xx_musb_disable(struct musb *musb)
 	musb_writel(reg_base, DA8XX_USB_INTR_MASK_CLEAR_REG,
 		    DA8XX_INTR_USB_MASK |
 		    DA8XX_INTR_TX_MASK | DA8XX_INTR_RX_MASK);
-	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 	musb_writel(reg_base, DA8XX_USB_END_OF_INTR_REG, 0);
 }
 
@@ -385,34 +339,47 @@ static irqreturn_t da8xx_musb_interrupt(int irq, void *hci)
 
 static int da8xx_musb_set_mode(struct musb *musb, u8 musb_mode)
 {
-	u32 cfgchip2 = __raw_readl(CFGCHIP2);
+	struct da8xx_glue *glue = dev_get_drvdata(musb->controller->parent);
+	enum phy_mode phy_mode;
 
-	cfgchip2 &= ~CFGCHIP2_OTGMODE;
+	/*
+	 * The PHY has some issues when it is forced in device or host mode.
+	 * Unless the user request another mode, configure the PHY in OTG mode.
+	 */
+	if (!musb->is_initialized)
+		return phy_set_mode(glue->phy, PHY_MODE_USB_OTG);
+
 	switch (musb_mode) {
 	case MUSB_HOST:		/* Force VBUS valid, ID = 0 */
-		cfgchip2 |= CFGCHIP2_FORCE_HOST;
+		phy_mode = PHY_MODE_USB_HOST;
 		break;
 	case MUSB_PERIPHERAL:	/* Force VBUS valid, ID = 1 */
-		cfgchip2 |= CFGCHIP2_FORCE_DEVICE;
+		phy_mode = PHY_MODE_USB_DEVICE;
 		break;
 	case MUSB_OTG:		/* Don't override the VBUS/ID comparators */
-		cfgchip2 |= CFGCHIP2_NO_OVERRIDE;
+		phy_mode = PHY_MODE_USB_OTG;
 		break;
 	default:
-		dev_dbg(musb->controller, "Trying to set unsupported mode %u\n", musb_mode);
+		return -EINVAL;
 	}
 
-	__raw_writel(cfgchip2, CFGCHIP2);
-	return 0;
+	return phy_set_mode(glue->phy, phy_mode);
 }
 
 static int da8xx_musb_init(struct musb *musb)
 {
+	struct da8xx_glue *glue = dev_get_drvdata(musb->controller->parent);
 	void __iomem *reg_base = musb->ctrl_base;
 	u32 rev;
 	int ret = -ENODEV;
 
 	musb->mregs += DA8XX_MENTOR_CORE_OFFSET;
+
+	ret = clk_prepare_enable(glue->clk);
+	if (ret) {
+		dev_err(glue->dev, "failed to enable clock\n");
+		return ret;
+	}
 
 	/* Returns zero if e.g. not clocked */
 	rev = musb_readl(reg_base, DA8XX_USB_REVISION_REG);
@@ -431,42 +398,70 @@ static int da8xx_musb_init(struct musb *musb)
 	musb_writel(reg_base, DA8XX_USB_CTRL_REG, DA8XX_SOFT_RESET_MASK);
 
 	/* Start the on-chip PHY and its PLL. */
-	phy_on();
+	ret = phy_init(glue->phy);
+	if (ret) {
+		dev_err(glue->dev, "Failed to init phy.\n");
+		goto fail;
+	}
+
+	ret = phy_power_on(glue->phy);
+	if (ret) {
+		dev_err(glue->dev, "Failed to power on phy.\n");
+		goto err_phy_power_on;
+	}
 
 	msleep(5);
 
 	/* NOTE: IRQs are in mixed mode, not bypass to pure MUSB */
-	pr_debug("DA8xx OTG revision %08x, PHY %03x, control %02x\n",
-		 rev, __raw_readl(CFGCHIP2),
+	pr_debug("DA8xx OTG revision %08x, control %02x\n", rev,
 		 musb_readb(reg_base, DA8XX_USB_CTRL_REG));
 
 	musb->isr = da8xx_musb_interrupt;
 	return 0;
+
+err_phy_power_on:
+	phy_exit(glue->phy);
 fail:
+	clk_disable_unprepare(glue->clk);
 	return ret;
 }
 
 static int da8xx_musb_exit(struct musb *musb)
 {
+	struct da8xx_glue *glue = dev_get_drvdata(musb->controller->parent);
+
 	del_timer_sync(&otg_workaround);
 
-	phy_off();
+	phy_power_off(glue->phy);
+	phy_exit(glue->phy);
+	clk_disable_unprepare(glue->clk);
 
 	usb_put_phy(musb->xceiv);
 
 	return 0;
 }
 
+static inline u8 get_vbus_power(struct device *dev)
+{
+	struct regulator *vbus_supply;
+	int current_uA;
+
+	vbus_supply = regulator_get_optional(dev, "vbus");
+	if (IS_ERR(vbus_supply))
+		return 255;
+	current_uA = regulator_get_current_limit(vbus_supply);
+	regulator_put(vbus_supply);
+	if (current_uA <= 0 || current_uA > 510000)
+		return 255;
+	return current_uA / 1000 / 2;
+}
+
 static const struct musb_platform_ops da8xx_ops = {
-	.quirks		= MUSB_DMA_CPPI | MUSB_INDEXED_EP,
+	.quirks		= MUSB_INDEXED_EP | MUSB_PRESERVE_SESSION,
 	.init		= da8xx_musb_init,
 	.exit		= da8xx_musb_exit,
 
 	.fifo_mode	= 2,
-#ifdef CONFIG_USB_TI_CPPI_DMA
-	.dma_init	= cppi_dma_controller_create,
-	.dma_exit	= cppi_dma_controller_destroy,
-#endif
 	.enable		= da8xx_musb_enable,
 	.disable	= da8xx_musb_disable,
 
@@ -482,45 +477,59 @@ static const struct platform_device_info da8xx_dev_info = {
 	.dma_mask	= DMA_BIT_MASK(32),
 };
 
+static const struct musb_hdrc_config da8xx_config = {
+	.ram_bits = 10,
+	.num_eps = 5,
+	.multipoint = 1,
+};
+
 static int da8xx_probe(struct platform_device *pdev)
 {
 	struct resource musb_resources[2];
 	struct musb_hdrc_platform_data	*pdata = dev_get_platdata(&pdev->dev);
-	struct platform_device		*musb;
 	struct da8xx_glue		*glue;
 	struct platform_device_info	pinfo;
 	struct clk			*clk;
+	struct device_node		*np = pdev->dev.of_node;
+	int				ret;
 
-	int				ret = -ENOMEM;
+	glue = devm_kzalloc(&pdev->dev, sizeof(*glue), GFP_KERNEL);
+	if (!glue)
+		return -ENOMEM;
 
-	glue = kzalloc(sizeof(*glue), GFP_KERNEL);
-	if (!glue) {
-		dev_err(&pdev->dev, "failed to allocate glue context\n");
-		goto err0;
-	}
-
-	clk = clk_get(&pdev->dev, "usb20");
+	clk = devm_clk_get(&pdev->dev, "usb20");
 	if (IS_ERR(clk)) {
 		dev_err(&pdev->dev, "failed to get clock\n");
-		ret = PTR_ERR(clk);
-		goto err3;
+		return PTR_ERR(clk);
 	}
 
-	ret = clk_enable(clk);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to enable clock\n");
-		goto err4;
+	glue->phy = devm_phy_get(&pdev->dev, "usb-phy");
+	if (IS_ERR(glue->phy)) {
+		if (PTR_ERR(glue->phy) != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "failed to get phy\n");
+		return PTR_ERR(glue->phy);
 	}
 
 	glue->dev			= &pdev->dev;
 	glue->clk			= clk;
 
+	if (IS_ENABLED(CONFIG_OF) && np) {
+		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+		if (!pdata)
+			return -ENOMEM;
+
+		pdata->config	= &da8xx_config;
+		pdata->mode	= musb_get_mode(&pdev->dev);
+		pdata->power	= get_vbus_power(&pdev->dev);
+	}
+
 	pdata->platform_ops		= &da8xx_ops;
 
-	glue->phy = usb_phy_generic_register();
-	if (IS_ERR(glue->phy)) {
-		ret = PTR_ERR(glue->phy);
-		goto err5;
+	glue->usb_phy = usb_phy_generic_register();
+	ret = PTR_ERR_OR_ZERO(glue->usb_phy);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to register usb_phy\n");
+		return ret;
 	}
 	platform_set_drvdata(pdev, glue);
 
@@ -544,28 +553,13 @@ static int da8xx_probe(struct platform_device *pdev)
 	pinfo.data = pdata;
 	pinfo.size_data = sizeof(*pdata);
 
-	glue->musb = musb = platform_device_register_full(&pinfo);
-	if (IS_ERR(musb)) {
-		ret = PTR_ERR(musb);
+	glue->musb = platform_device_register_full(&pinfo);
+	ret = PTR_ERR_OR_ZERO(glue->musb);
+	if (ret) {
 		dev_err(&pdev->dev, "failed to register musb device: %d\n", ret);
-		goto err6;
+		usb_phy_generic_unregister(glue->usb_phy);
 	}
 
-	return 0;
-
-err6:
-	usb_phy_generic_unregister(glue->phy);
-
-err5:
-	clk_disable(clk);
-
-err4:
-	clk_put(clk);
-
-err3:
-	kfree(glue);
-
-err0:
 	return ret;
 }
 
@@ -574,19 +568,56 @@ static int da8xx_remove(struct platform_device *pdev)
 	struct da8xx_glue		*glue = platform_get_drvdata(pdev);
 
 	platform_device_unregister(glue->musb);
-	usb_phy_generic_unregister(glue->phy);
-	clk_disable(glue->clk);
-	clk_put(glue->clk);
-	kfree(glue);
+	usb_phy_generic_unregister(glue->usb_phy);
 
 	return 0;
 }
+
+#ifdef CONFIG_PM_SLEEP
+static int da8xx_suspend(struct device *dev)
+{
+	int ret;
+	struct da8xx_glue *glue = dev_get_drvdata(dev);
+
+	ret = phy_power_off(glue->phy);
+	if (ret)
+		return ret;
+	clk_disable_unprepare(glue->clk);
+
+	return 0;
+}
+
+static int da8xx_resume(struct device *dev)
+{
+	int ret;
+	struct da8xx_glue *glue = dev_get_drvdata(dev);
+
+	ret = clk_prepare_enable(glue->clk);
+	if (ret)
+		return ret;
+	return phy_power_on(glue->phy);
+}
+#endif
+
+static SIMPLE_DEV_PM_OPS(da8xx_pm_ops, da8xx_suspend, da8xx_resume);
+
+#ifdef CONFIG_OF
+static const struct of_device_id da8xx_id_table[] = {
+	{
+		.compatible = "ti,da830-musb",
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, da8xx_id_table);
+#endif
 
 static struct platform_driver da8xx_driver = {
 	.probe		= da8xx_probe,
 	.remove		= da8xx_remove,
 	.driver		= {
 		.name	= "musb-da8xx",
+		.pm = &da8xx_pm_ops,
+		.of_match_table = of_match_ptr(da8xx_id_table),
 	},
 };
 

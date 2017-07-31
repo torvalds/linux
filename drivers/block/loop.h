@@ -70,6 +70,7 @@ struct loop_cmd {
 	struct request *rq;
 	struct list_head list;
 	bool use_aio;           /* use AIO interface to handle I/O */
+	long ret;
 	struct kiocb iocb;
 };
 

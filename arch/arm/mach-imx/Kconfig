@@ -64,13 +64,6 @@ config IMX_HAVE_IOMUX_V1
 config ARCH_MXC_IOMUX_V3
 	bool
 
-config SOC_IMX1
-	bool
-	select CPU_ARM920T
-	select IMX_HAVE_IOMUX_V1
-	select MXC_AVIC
-	select PINCTRL_IMX1
-
 config SOC_IMX21
 	bool
 	select CPU_ARM926T
@@ -88,7 +81,6 @@ config SOC_IMX31
 	bool
 	select CPU_V6
 	select MXC_AVIC
-	select SMP_ON_UP if SMP
 
 config SOC_IMX35
 	bool
@@ -96,35 +88,6 @@ config SOC_IMX35
 	select HAVE_EPIT
 	select MXC_AVIC
 	select PINCTRL_IMX35
-	select SMP_ON_UP if SMP
-
-if ARCH_MULTI_V4T
-
-comment "MX1 platforms:"
-
-config MACH_SCB9328
-	bool "Synertronixx scb9328"
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select SOC_IMX1
-	help
-	  Say Y here if you are using a Synertronixx scb9328 board
-
-config MACH_APF9328
-	bool "APF9328"
-	select IMX_HAVE_PLATFORM_IMX_I2C
-	select IMX_HAVE_PLATFORM_IMX_UART
-	select SOC_IMX1
-	help
-	  Say Yes here if you are using the Armadeus APF9328 development board
-
-config MACH_IMX1_DT
-	bool "Support i.MX1 platforms from device tree"
-	select SOC_IMX1
-	help
-	  Include support for Freescale i.MX1 based platforms
-	  using the device tree for discovery.
-
-endif
 
 if ARCH_MULTI_V5
 
@@ -461,6 +424,18 @@ endif
 
 comment "Device tree only"
 
+if ARCH_MULTI_V4T
+
+config SOC_IMX1
+	bool "i.MX1 support"
+	select CPU_ARM920T
+	select MXC_AVIC
+	select PINCTRL_IMX1
+	help
+	  This enables support for Freescale i.MX1 processor
+
+endif
+
 if ARCH_MULTI_V5
 
 config SOC_IMX25
@@ -523,7 +498,6 @@ config SOC_IMX6Q
 	select ARM_ERRATA_764369 if SMP
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD
-	select PCI_DOMAINS if PCI
 	select PINCTRL_IMX6Q
 	select SOC_IMX6
 
@@ -569,7 +543,6 @@ config SOC_LS1021A
 	bool "Freescale LS1021A support"
 	select ARM_GIC
 	select HAVE_ARM_ARCH_TIMER
-	select PCI_DOMAINS if PCI
 	select ZONE_DMA if ARM_LPAE
 	help
 	  This enables support for Freescale LS1021A processor.
@@ -584,8 +557,6 @@ config SOC_VF610
 	bool "Vybrid Family VF610 support"
 	select ARM_GIC if ARCH_MULTI_V7
 	select PINCTRL_VF610
-	select PL310_ERRATA_769419 if CACHE_L2X0
-	select SMP_ON_UP if SMP
 
 	help
 	  This enables support for Freescale Vybrid VF610 processor.

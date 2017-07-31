@@ -68,6 +68,8 @@ void rcu_sync_lockdep_assert(struct rcu_sync *rsp)
 	RCU_LOCKDEP_WARN(!gp_ops[rsp->gp_type].held(),
 			 "suspicious rcu_sync_is_idle() usage");
 }
+
+EXPORT_SYMBOL_GPL(rcu_sync_lockdep_assert);
 #endif
 
 /**
@@ -80,6 +82,18 @@ void rcu_sync_init(struct rcu_sync *rsp, enum rcu_sync_type type)
 	memset(rsp, 0, sizeof(*rsp));
 	init_waitqueue_head(&rsp->gp_wait);
 	rsp->gp_type = type;
+}
+
+/**
+ * Must be called after rcu_sync_init() and before first use.
+ *
+ * Ensures rcu_sync_is_idle() returns false and rcu_sync_{enter,exit}()
+ * pairs turn into NO-OPs.
+ */
+void rcu_sync_enter_start(struct rcu_sync *rsp)
+{
+	rsp->gp_count++;
+	rsp->gp_state = GP_PASSED;
 }
 
 /**

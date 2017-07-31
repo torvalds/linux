@@ -104,13 +104,14 @@ static const struct clk_ops peripheral_ops = {
 	.is_enabled = clk_peripheral_is_enabled,
 };
 
-static struct clk * __init
+static struct clk_hw * __init
 at91_clk_register_peripheral(struct regmap *regmap, const char *name,
 			     const char *parent_name, u32 id)
 {
 	struct clk_peripheral *periph;
-	struct clk *clk = NULL;
 	struct clk_init_data init;
+	struct clk_hw *hw;
+	int ret;
 
 	if (!name || !parent_name || id > PERIPHERAL_ID_MAX)
 		return ERR_PTR(-EINVAL);
@@ -129,11 +130,14 @@ at91_clk_register_peripheral(struct regmap *regmap, const char *name,
 	periph->hw.init = &init;
 	periph->regmap = regmap;
 
-	clk = clk_register(NULL, &periph->hw);
-	if (IS_ERR(clk))
+	hw = &periph->hw;
+	ret = clk_hw_register(NULL, &periph->hw);
+	if (ret) {
 		kfree(periph);
+		hw = ERR_PTR(ret);
+	}
 
-	return clk;
+	return hw;
 }
 
 static void clk_sam9x5_peripheral_autodiv(struct clk_sam9x5_peripheral *periph)
@@ -327,14 +331,15 @@ static const struct clk_ops sam9x5_peripheral_ops = {
 	.set_rate = clk_sam9x5_peripheral_set_rate,
 };
 
-static struct clk * __init
+static struct clk_hw * __init
 at91_clk_register_sam9x5_peripheral(struct regmap *regmap, spinlock_t *lock,
 				    const char *name, const char *parent_name,
 				    u32 id, const struct clk_range *range)
 {
 	struct clk_sam9x5_peripheral *periph;
-	struct clk *clk = NULL;
 	struct clk_init_data init;
+	struct clk_hw *hw;
+	int ret;
 
 	if (!name || !parent_name)
 		return ERR_PTR(-EINVAL);
@@ -357,13 +362,15 @@ at91_clk_register_sam9x5_peripheral(struct regmap *regmap, spinlock_t *lock,
 	periph->auto_div = true;
 	periph->range = *range;
 
-	clk = clk_register(NULL, &periph->hw);
-	if (IS_ERR(clk))
+	hw = &periph->hw;
+	ret = clk_hw_register(NULL, &periph->hw);
+	if (ret) {
 		kfree(periph);
-	else
+		hw = ERR_PTR(ret);
+	} else
 		clk_sam9x5_peripheral_autodiv(periph);
 
-	return clk;
+	return hw;
 }
 
 static void __init
@@ -371,7 +378,7 @@ of_at91_clk_periph_setup(struct device_node *np, u8 type)
 {
 	int num;
 	u32 id;
-	struct clk *clk;
+	struct clk_hw *hw;
 	const char *parent_name;
 	const char *name;
 	struct device_node *periphclknp;
@@ -400,7 +407,7 @@ of_at91_clk_periph_setup(struct device_node *np, u8 type)
 			name = periphclknp->name;
 
 		if (type == PERIPHERAL_AT91RM9200) {
-			clk = at91_clk_register_peripheral(regmap, name,
+			hw = at91_clk_register_peripheral(regmap, name,
 							   parent_name, id);
 		} else {
 			struct clk_range range = CLK_RANGE(0, 0);
@@ -409,17 +416,17 @@ of_at91_clk_periph_setup(struct device_node *np, u8 type)
 					      "atmel,clk-output-range",
 					      &range);
 
-			clk = at91_clk_register_sam9x5_peripheral(regmap,
+			hw = at91_clk_register_sam9x5_peripheral(regmap,
 								  &pmc_pcr_lock,
 								  name,
 								  parent_name,
 								  id, &range);
 		}
 
-		if (IS_ERR(clk))
+		if (IS_ERR(hw))
 			continue;
 
-		of_clk_add_provider(periphclknp, of_clk_src_simple_get, clk);
+		of_clk_add_hw_provider(periphclknp, of_clk_hw_simple_get, hw);
 	}
 }
 

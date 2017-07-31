@@ -7,11 +7,13 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/ptrace.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/slab.h>
 #include <asm/current.h>
 #include <asm/processor.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <as-layout.h>
 #include <mem_user.h>
 #include <skas.h>

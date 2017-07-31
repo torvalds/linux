@@ -81,6 +81,11 @@
 #define MALIDP_DE_SYNC_WIDTH		0x8
 #define MALIDP_DE_HV_ACTIVE		0xc
 
+/* Stride register offsets relative to Lx_BASE */
+#define MALIDP_DE_LG_STRIDE		0x18
+#define MALIDP_DE_LV_STRIDE0		0x18
+#define MALIDP550_DE_LS_R1_STRIDE	0x28
+
 /* macros to set values into registers */
 #define MALIDP_DE_H_FRONTPORCH(x)	(((x) & 0xfff) << 0)
 #define MALIDP_DE_H_BACKPORCH(x)	(((x) & 0x3ff) << 16)
@@ -92,7 +97,10 @@
 #define MALIDP_DE_H_ACTIVE(x)		(((x) & 0x1fff) << 0)
 #define MALIDP_DE_V_ACTIVE(x)		(((x) & 0x1fff) << 16)
 
+#define MALIDP_PRODUCT_ID(__core_id) ((u32)(__core_id) >> 16)
+
 /* register offsets and bits specific to DP500 */
+#define MALIDP500_ADDR_SPACE_SIZE	0x01000
 #define MALIDP500_DC_BASE		0x00000
 #define MALIDP500_DC_CONTROL		0x0000c
 #define   MALIDP500_DC_CONFIG_REQ	(1 << 17)
@@ -125,6 +133,7 @@
 #define MALIDP500_CONFIG_ID		0x00fd4
 
 /* register offsets and bits specific to DP550/DP650 */
+#define MALIDP550_ADDR_SPACE_SIZE	0x10000
 #define MALIDP550_DE_CONTROL		0x00010
 #define MALIDP550_DE_LINE_COUNTER	0x00014
 #define MALIDP550_DE_AXI_CONTROL	0x00018

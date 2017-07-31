@@ -87,8 +87,7 @@ static void vchan_complete(unsigned long arg)
 {
 	struct virt_dma_chan *vc = (struct virt_dma_chan *)arg;
 	struct virt_dma_desc *vd;
-	dma_async_tx_callback cb = NULL;
-	void *cb_data = NULL;
+	struct dmaengine_desc_callback cb;
 	LIST_HEAD(head);
 
 	spin_lock_irq(&vc->lock);
@@ -96,18 +95,17 @@ static void vchan_complete(unsigned long arg)
 	vd = vc->cyclic;
 	if (vd) {
 		vc->cyclic = NULL;
-		cb = vd->tx.callback;
-		cb_data = vd->tx.callback_param;
+		dmaengine_desc_get_callback(&vd->tx, &cb);
+	} else {
+		memset(&cb, 0, sizeof(cb));
 	}
 	spin_unlock_irq(&vc->lock);
 
-	if (cb)
-		cb(cb_data);
+	dmaengine_desc_callback_invoke(&cb, NULL);
 
 	while (!list_empty(&head)) {
 		vd = list_first_entry(&head, struct virt_dma_desc, node);
-		cb = vd->tx.callback;
-		cb_data = vd->tx.callback_param;
+		dmaengine_desc_get_callback(&vd->tx, &cb);
 
 		list_del(&vd->node);
 		if (dmaengine_desc_test_reuse(&vd->tx))
@@ -115,8 +113,7 @@ static void vchan_complete(unsigned long arg)
 		else
 			vc->desc_free(vd);
 
-		if (cb)
-			cb(cb_data);
+		dmaengine_desc_callback_invoke(&cb, NULL);
 	}
 }
 

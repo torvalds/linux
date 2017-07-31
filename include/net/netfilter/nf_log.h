@@ -2,15 +2,10 @@
 #define _NF_LOG_H
 
 #include <linux/netfilter.h>
+#include <linux/netfilter/nf_log.h>
 
-/* those NF_LOG_* defines and struct nf_loginfo are legacy definitios that will
- * disappear once iptables is replaced with pkttables.  Please DO NOT use them
- * for any new code! */
-#define NF_LOG_TCPSEQ		0x01	/* Log TCP sequence numbers */
-#define NF_LOG_TCPOPT		0x02	/* Log TCP options */
-#define NF_LOG_IPOPT		0x04	/* Log IP options */
-#define NF_LOG_UID		0x08	/* Log UID owning local socket */
-#define NF_LOG_MASK		0x0f
+/* Log tcp sequence, tcp options, ip options and uid owning local socket */
+#define NF_LOG_DEFAULT_MASK	0x0f
 
 /* This flag indicates that copy_len field in nf_loginfo is set */
 #define NF_LOG_F_COPY_LEN	0x1
@@ -56,12 +51,14 @@ struct nf_logger {
 	struct module		*me;
 };
 
+/* sysctl_nf_log_all_netns - allow LOG target in all network namespaces */
+extern int sysctl_nf_log_all_netns;
+
 /* Function to register/unregister log function. */
 int nf_log_register(u_int8_t pf, struct nf_logger *logger);
 void nf_log_unregister(struct nf_logger *logger);
 
-void nf_log_set(struct net *net, u_int8_t pf,
-		const struct nf_logger *logger);
+int nf_log_set(struct net *net, u_int8_t pf, const struct nf_logger *logger);
 void nf_log_unset(struct net *net, const struct nf_logger *logger);
 
 int nf_log_bind_pf(struct net *net, u_int8_t pf,
@@ -115,5 +112,12 @@ void nf_log_dump_packet_common(struct nf_log_buf *m, u_int8_t pf,
 			       const struct net_device *out,
 			       const struct nf_loginfo *loginfo,
 			       const char *prefix);
+void nf_log_l2packet(struct net *net, u_int8_t pf,
+		     __be16 protocol,
+		     unsigned int hooknum,
+		     const struct sk_buff *skb,
+		     const struct net_device *in,
+		     const struct net_device *out,
+		     const struct nf_loginfo *loginfo, const char *prefix);
 
 #endif /* _NF_LOG_H */

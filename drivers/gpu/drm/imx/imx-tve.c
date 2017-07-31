@@ -98,6 +98,8 @@
 /* TVE_TST_MODE_REG */
 #define TVE_TVDAC_TEST_MODE_MASK	(0x7 << 0)
 
+#define IMX_TVE_DAC_VOLTAGE	2750000
+
 enum {
 	TVE_MODE_TVOUT,
 	TVE_MODE_VGA,
@@ -150,13 +152,11 @@ __releases(&tve->lock)
 
 static void tve_enable(struct imx_tve *tve)
 {
-	int ret;
-
 	if (!tve->enabled) {
 		tve->enabled = true;
 		clk_prepare_enable(tve->clk);
-		ret = regmap_update_bits(tve->regmap, TVE_COM_CONF_REG,
-					 TVE_EN, TVE_EN);
+		regmap_update_bits(tve->regmap, TVE_COM_CONF_REG,
+				   TVE_EN, TVE_EN);
 	}
 
 	/* clear interrupt status register */
@@ -174,12 +174,9 @@ static void tve_enable(struct imx_tve *tve)
 
 static void tve_disable(struct imx_tve *tve)
 {
-	int ret;
-
 	if (tve->enabled) {
 		tve->enabled = false;
-		ret = regmap_update_bits(tve->regmap, TVE_COM_CONF_REG,
-					 TVE_EN, 0);
+		regmap_update_bits(tve->regmap, TVE_COM_CONF_REG, TVE_EN, 0);
 		clk_disable_unprepare(tve->clk);
 	}
 }
@@ -225,12 +222,6 @@ static int tve_setup_vga(struct imx_tve *tve)
 	/* set test mode (as documented) */
 	return regmap_update_bits(tve->regmap, TVE_TST_MODE_REG,
 				 TVE_TVDAC_TEST_MODE_MASK, 1);
-}
-
-static enum drm_connector_status imx_tve_connector_detect(
-				struct drm_connector *connector, bool force)
-{
-	return connector_status_connected;
 }
 
 static int imx_tve_connector_get_modes(struct drm_connector *connector)
@@ -352,7 +343,6 @@ static int imx_tve_atomic_check(struct drm_encoder *encoder,
 static const struct drm_connector_funcs imx_tve_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.detect = imx_tve_connector_detect,
 	.destroy = imx_drm_connector_destroy,
 	.reset = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
@@ -628,9 +618,8 @@ static int imx_tve_bind(struct device *dev, struct device *master, void *data)
 
 	tve->dac_reg = devm_regulator_get(dev, "dac");
 	if (!IS_ERR(tve->dac_reg)) {
-		ret = regulator_set_voltage(tve->dac_reg, 2750000, 2750000);
-		if (ret)
-			return ret;
+		if (regulator_get_voltage(tve->dac_reg) != IMX_TVE_DAC_VOLTAGE)
+			dev_warn(dev, "dac voltage is not %d uV\n", IMX_TVE_DAC_VOLTAGE);
 		ret = regulator_enable(tve->dac_reg);
 		if (ret)
 			return ret;
@@ -684,9 +673,6 @@ static void imx_tve_unbind(struct device *dev, struct device *master,
 	void *data)
 {
 	struct imx_tve *tve = dev_get_drvdata(dev);
-
-	tve->connector.funcs->destroy(&tve->connector);
-	tve->encoder.funcs->destroy(&tve->encoder);
 
 	if (!IS_ERR(tve->dac_reg))
 		regulator_disable(tve->dac_reg);

@@ -715,12 +715,14 @@ static struct snd_soc_codec_driver ssm2518_codec_driver = {
 	.set_sysclk = ssm2518_set_sysclk,
 	.idle_bias_off = true,
 
-	.controls = ssm2518_snd_controls,
-	.num_controls = ARRAY_SIZE(ssm2518_snd_controls),
-	.dapm_widgets = ssm2518_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(ssm2518_dapm_widgets),
-	.dapm_routes = ssm2518_routes,
-	.num_dapm_routes = ARRAY_SIZE(ssm2518_routes),
+	.component_driver = {
+		.controls		= ssm2518_snd_controls,
+		.num_controls		= ARRAY_SIZE(ssm2518_snd_controls),
+		.dapm_widgets		= ssm2518_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(ssm2518_dapm_widgets),
+		.dapm_routes		= ssm2518_routes,
+		.num_dapm_routes	= ARRAY_SIZE(ssm2518_routes),
+	},
 };
 
 static const struct regmap_config ssm2518_regmap_config = {

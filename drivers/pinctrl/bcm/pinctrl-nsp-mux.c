@@ -348,7 +348,7 @@ static void nsp_pin_dbg_show(struct pinctrl_dev *pctrl_dev,
 	seq_printf(s, " %s", dev_name(pctrl_dev->dev));
 }
 
-static struct pinctrl_ops nsp_pinctrl_ops = {
+static const struct pinctrl_ops nsp_pinctrl_ops = {
 	.get_groups_count = nsp_get_groups_count,
 	.get_group_name = nsp_get_group_name,
 	.get_group_pins = nsp_get_group_pins,
@@ -518,7 +518,7 @@ static void nsp_gpio_disable_free(struct pinctrl_dev *pctrl_dev,
 	spin_unlock_irqrestore(&pinctrl->lock, flags);
 }
 
-static struct pinmux_ops nsp_pinmux_ops = {
+static const struct pinmux_ops nsp_pinmux_ops = {
 	.get_functions_count = nsp_get_functions_count,
 	.get_function_name = nsp_get_function_name,
 	.get_function_groups = nsp_get_function_groups,

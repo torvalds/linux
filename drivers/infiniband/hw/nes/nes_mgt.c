@@ -320,8 +320,7 @@ static int get_fpdu_info(struct nes_device *nesdev, struct nes_qp *nesqp,
 
 	/* Found one */
 	fpdu_info = kzalloc(sizeof(*fpdu_info), GFP_ATOMIC);
-	if (fpdu_info == NULL) {
-		nes_debug(NES_DBG_PAU, "Failed to alloc a fpdu_info.\n");
+	if (!fpdu_info) {
 		rc = -ENOMEM;
 		goto out;
 	}
@@ -729,8 +728,7 @@ static int nes_change_quad_hash(struct nes_device *nesdev,
 	}
 
 	qh_chg = kmalloc(sizeof *qh_chg, GFP_ATOMIC);
-	if (qh_chg == NULL) {
-		nes_debug(NES_DBG_PAU, "Failed to get a cqp_request.\n");
+	if (!qh_chg) {
 		ret = -ENOMEM;
 		goto chg_qh_err;
 	}
@@ -880,10 +878,8 @@ int nes_init_mgt_qp(struct nes_device *nesdev, struct net_device *netdev, struct
 
 	/* Allocate space the all mgt QPs once */
 	mgtvnic = kzalloc(NES_MGT_QP_COUNT * sizeof(struct nes_vnic_mgt), GFP_KERNEL);
-	if (mgtvnic == NULL) {
-		nes_debug(NES_DBG_INIT, "Unable to allocate memory for mgt structure\n");
+	if (!mgtvnic)
 		return -ENOMEM;
-	}
 
 	/* Allocate fragment, RQ, and CQ; Reuse CEQ based on the PCI function */
 	/* We are not sending from this NIC so sq is not allocated */

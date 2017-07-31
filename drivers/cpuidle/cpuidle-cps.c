@@ -118,7 +118,7 @@ static void __init cps_cpuidle_unregister(void)
 
 static int __init cps_cpuidle_init(void)
 {
-	int err, cpu, core, i;
+	int err, cpu, i;
 	struct cpuidle_device *device;
 
 	/* Detect supported states */
@@ -160,10 +160,9 @@ static int __init cps_cpuidle_init(void)
 	}
 
 	for_each_possible_cpu(cpu) {
-		core = cpu_data[cpu].core;
 		device = &per_cpu(cpuidle_dev, cpu);
 		device->cpu = cpu;
-#ifdef CONFIG_MIPS_MT
+#ifdef CONFIG_ARCH_NEEDS_CPU_IDLE_COUPLED
 		cpumask_copy(&device->coupled_cpus, &cpu_sibling_map[cpu]);
 #endif
 

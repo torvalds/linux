@@ -74,7 +74,7 @@ nvkm_i2c_aux_i2c_func(struct i2c_adapter *adap)
 	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
-const struct i2c_algorithm
+static const struct i2c_algorithm
 nvkm_i2c_aux_i2c_algo = {
 	.master_xfer = nvkm_i2c_aux_i2c_xfer,
 	.functionality = nvkm_i2c_aux_i2c_func

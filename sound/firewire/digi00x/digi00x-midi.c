@@ -76,18 +76,6 @@ static void midi_phys_playback_trigger(struct snd_rawmidi_substream *substream,
 	spin_unlock_irqrestore(&dg00x->lock, flags);
 }
 
-static struct snd_rawmidi_ops midi_phys_capture_ops = {
-	.open		= midi_phys_open,
-	.close		= midi_phys_close,
-	.trigger	= midi_phys_capture_trigger,
-};
-
-static struct snd_rawmidi_ops midi_phys_playback_ops = {
-	.open		= midi_phys_open,
-	.close		= midi_phys_close,
-	.trigger	= midi_phys_playback_trigger,
-};
-
 static int midi_ctl_open(struct snd_rawmidi_substream *substream)
 {
 	/* Do nothing. */
@@ -139,18 +127,6 @@ static void midi_ctl_playback_trigger(struct snd_rawmidi_substream *substream,
 	spin_unlock_irqrestore(&dg00x->lock, flags);
 }
 
-static struct snd_rawmidi_ops midi_ctl_capture_ops = {
-	.open		= midi_ctl_open,
-	.close		= midi_ctl_capture_close,
-	.trigger	= midi_ctl_capture_trigger,
-};
-
-static struct snd_rawmidi_ops midi_ctl_playback_ops = {
-	.open		= midi_ctl_open,
-	.close		= midi_ctl_playback_close,
-	.trigger	= midi_ctl_playback_trigger,
-};
-
 static void set_midi_substream_names(struct snd_dg00x *dg00x,
 				     struct snd_rawmidi_str *str,
 				     bool is_ctl)
@@ -172,6 +148,26 @@ static void set_midi_substream_names(struct snd_dg00x *dg00x,
 
 int snd_dg00x_create_midi_devices(struct snd_dg00x *dg00x)
 {
+	static const struct snd_rawmidi_ops phys_capture_ops = {
+		.open		= midi_phys_open,
+		.close		= midi_phys_close,
+		.trigger	= midi_phys_capture_trigger,
+	};
+	static const struct snd_rawmidi_ops phys_playback_ops = {
+		.open		= midi_phys_open,
+		.close		= midi_phys_close,
+		.trigger	= midi_phys_playback_trigger,
+	};
+	static const struct snd_rawmidi_ops ctl_capture_ops = {
+		.open		= midi_ctl_open,
+		.close		= midi_ctl_capture_close,
+		.trigger	= midi_ctl_capture_trigger,
+	};
+	static const struct snd_rawmidi_ops ctl_playback_ops = {
+		.open		= midi_ctl_open,
+		.close		= midi_ctl_playback_close,
+		.trigger	= midi_ctl_playback_trigger,
+	};
 	struct snd_rawmidi *rmidi[2];
 	struct snd_rawmidi_str *str;
 	unsigned int i;
@@ -187,9 +183,9 @@ int snd_dg00x_create_midi_devices(struct snd_dg00x *dg00x)
 		 "%s MIDI", dg00x->card->shortname);
 
 	snd_rawmidi_set_ops(rmidi[0], SNDRV_RAWMIDI_STREAM_INPUT,
-			    &midi_phys_capture_ops);
+			    &phys_capture_ops);
 	snd_rawmidi_set_ops(rmidi[0], SNDRV_RAWMIDI_STREAM_OUTPUT,
-			    &midi_phys_playback_ops);
+			    &phys_playback_ops);
 
 	/* Add a pair of control midi ports. */
 	err = snd_rawmidi_new(dg00x->card, dg00x->card->driver, 1,
@@ -201,9 +197,9 @@ int snd_dg00x_create_midi_devices(struct snd_dg00x *dg00x)
 		 "%s control", dg00x->card->shortname);
 
 	snd_rawmidi_set_ops(rmidi[1], SNDRV_RAWMIDI_STREAM_INPUT,
-			    &midi_ctl_capture_ops);
+			    &ctl_capture_ops);
 	snd_rawmidi_set_ops(rmidi[1], SNDRV_RAWMIDI_STREAM_OUTPUT,
-			    &midi_ctl_playback_ops);
+			    &ctl_playback_ops);
 
 	for (i = 0; i < ARRAY_SIZE(rmidi); i++) {
 		rmidi[i]->private_data = dg00x;

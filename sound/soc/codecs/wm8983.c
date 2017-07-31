@@ -976,16 +976,18 @@ static struct snd_soc_dai_driver wm8983_dai = {
 	.symmetric_rates = 1
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_wm8983 = {
+static const struct snd_soc_codec_driver soc_codec_dev_wm8983 = {
 	.probe = wm8983_probe,
 	.set_bias_level = wm8983_set_bias_level,
 	.suspend_bias_off = true,
-	.controls = wm8983_snd_controls,
-	.num_controls = ARRAY_SIZE(wm8983_snd_controls),
-	.dapm_widgets = wm8983_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm8983_dapm_widgets),
-	.dapm_routes = wm8983_audio_map,
-	.num_dapm_routes = ARRAY_SIZE(wm8983_audio_map),
+	.component_driver = {
+		.controls		= wm8983_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm8983_snd_controls),
+		.dapm_widgets		= wm8983_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm8983_dapm_widgets),
+		.dapm_routes		= wm8983_audio_map,
+		.num_dapm_routes	= ARRAY_SIZE(wm8983_audio_map),
+	},
 };
 
 static const struct regmap_config wm8983_regmap = {

@@ -1060,7 +1060,7 @@ static void smi_remove(struct pci_dev *pdev)
 }
 
 /* DVBSky cards */
-static struct smi_cfg_info dvbsky_s950_cfg = {
+static const struct smi_cfg_info dvbsky_s950_cfg = {
 	.type = SMI_DVBSKY_S950,
 	.name = "DVBSky S950 V3",
 	.ts_0 = SMI_TS_NULL,
@@ -1070,7 +1070,7 @@ static struct smi_cfg_info dvbsky_s950_cfg = {
 	.rc_map = RC_MAP_DVBSKY,
 };
 
-static struct smi_cfg_info dvbsky_s952_cfg = {
+static const struct smi_cfg_info dvbsky_s952_cfg = {
 	.type = SMI_DVBSKY_S952,
 	.name = "DVBSky S952 V3",
 	.ts_0 = SMI_TS_DMA_BOTH,
@@ -1080,7 +1080,7 @@ static struct smi_cfg_info dvbsky_s952_cfg = {
 	.rc_map = RC_MAP_DVBSKY,
 };
 
-static struct smi_cfg_info dvbsky_t9580_cfg = {
+static const struct smi_cfg_info dvbsky_t9580_cfg = {
 	.type = SMI_DVBSKY_T9580,
 	.name = "DVBSky T9580 V3",
 	.ts_0 = SMI_TS_DMA_BOTH,
@@ -1090,7 +1090,7 @@ static struct smi_cfg_info dvbsky_t9580_cfg = {
 	.rc_map = RC_MAP_DVBSKY,
 };
 
-static struct smi_cfg_info technotrend_s2_4200_cfg = {
+static const struct smi_cfg_info technotrend_s2_4200_cfg = {
 	.type = SMI_TECHNOTREND_S2_4200,
 	.name = "TechnoTrend TT-budget S2-4200 Twin",
 	.ts_0 = SMI_TS_DMA_BOTH,

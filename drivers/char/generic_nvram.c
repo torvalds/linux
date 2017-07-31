@@ -21,7 +21,7 @@
 #include <linux/init.h>
 #include <linux/mutex.h>
 #include <linux/pagemap.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/nvram.h>
 #ifdef CONFIG_PPC_PMAC
 #include <asm/machdep.h>

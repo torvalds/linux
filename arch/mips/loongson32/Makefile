@@ -9,3 +9,9 @@ obj-$(CONFIG_MACH_LOONGSON32) += common/
 #
 
 obj-$(CONFIG_LOONGSON1_LS1B)  += ls1b/
+
+#
+# Loongson LS1C board
+#
+
+obj-$(CONFIG_LOONGSON1_LS1C)  += ls1c/

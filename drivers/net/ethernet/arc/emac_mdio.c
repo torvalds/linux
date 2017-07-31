@@ -104,7 +104,7 @@ static int arc_mdio_write(struct mii_bus *bus, int phy_addr,
  * @bus: points to the mii_bus structure
  * Description: reset the MII bus
  */
-int arc_mdio_reset(struct mii_bus *bus)
+static int arc_mdio_reset(struct mii_bus *bus)
 {
 	struct arc_emac_priv *priv = bus->priv;
 	struct arc_emac_mdio_bus_data *data = &priv->bus_data;

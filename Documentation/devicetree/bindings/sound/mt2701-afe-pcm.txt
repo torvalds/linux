@@ -4,6 +4,7 @@ Required properties:
 - compatible = "mediatek,mt2701-audio";
 - reg: register location and size
 - interrupts: Should contain AFE interrupt
+- power-domains: should define the power domain
 - clock-names: should have these clock names:
 		"infra_sys_audio_clk",
 		"top_audio_mux1_sel",
@@ -58,6 +59,7 @@ Example:
 		      <0 0x112A0000 0 0x20000>;
 		interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_LOW>,
 			     <GIC_SPI 132 IRQ_TYPE_LEVEL_LOW>;
+		power-domains = <&scpsys MT2701_POWER_DOMAIN_IFR_MSC>;
 		clocks = <&infracfg CLK_INFRA_AUDIO>,
 			 <&topckgen CLK_TOP_AUD_MUX1_SEL>,
 			 <&topckgen CLK_TOP_AUD_MUX2_SEL>,

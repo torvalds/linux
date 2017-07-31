@@ -21,6 +21,7 @@
  * Copyright (C) IBM Corporation, 2010-2011
  * Author:     Srikar Dronamraju
  */
+#define pr_fmt(fmt)	"trace_probe: " fmt
 
 #include "trace_probe.h"
 
@@ -36,24 +37,28 @@ const char *reserved_field_names[] = {
 };
 
 /* Printing  in basic type function template */
-#define DEFINE_BASIC_PRINT_TYPE_FUNC(type, fmt)				\
-int PRINT_TYPE_FUNC_NAME(type)(struct trace_seq *s, const char *name,	\
+#define DEFINE_BASIC_PRINT_TYPE_FUNC(tname, type, fmt)			\
+int PRINT_TYPE_FUNC_NAME(tname)(struct trace_seq *s, const char *name,	\
 				void *data, void *ent)			\
 {									\
 	trace_seq_printf(s, " %s=" fmt, name, *(type *)data);		\
 	return !trace_seq_has_overflowed(s);				\
 }									\
-const char PRINT_TYPE_FMT_NAME(type)[] = fmt;				\
-NOKPROBE_SYMBOL(PRINT_TYPE_FUNC_NAME(type));
+const char PRINT_TYPE_FMT_NAME(tname)[] = fmt;				\
+NOKPROBE_SYMBOL(PRINT_TYPE_FUNC_NAME(tname));
 
-DEFINE_BASIC_PRINT_TYPE_FUNC(u8 , "0x%x")
-DEFINE_BASIC_PRINT_TYPE_FUNC(u16, "0x%x")
-DEFINE_BASIC_PRINT_TYPE_FUNC(u32, "0x%x")
-DEFINE_BASIC_PRINT_TYPE_FUNC(u64, "0x%Lx")
-DEFINE_BASIC_PRINT_TYPE_FUNC(s8,  "%d")
-DEFINE_BASIC_PRINT_TYPE_FUNC(s16, "%d")
-DEFINE_BASIC_PRINT_TYPE_FUNC(s32, "%d")
-DEFINE_BASIC_PRINT_TYPE_FUNC(s64, "%Ld")
+DEFINE_BASIC_PRINT_TYPE_FUNC(u8,  u8,  "%u")
+DEFINE_BASIC_PRINT_TYPE_FUNC(u16, u16, "%u")
+DEFINE_BASIC_PRINT_TYPE_FUNC(u32, u32, "%u")
+DEFINE_BASIC_PRINT_TYPE_FUNC(u64, u64, "%Lu")
+DEFINE_BASIC_PRINT_TYPE_FUNC(s8,  s8,  "%d")
+DEFINE_BASIC_PRINT_TYPE_FUNC(s16, s16, "%d")
+DEFINE_BASIC_PRINT_TYPE_FUNC(s32, s32, "%d")
+DEFINE_BASIC_PRINT_TYPE_FUNC(s64, s64, "%Ld")
+DEFINE_BASIC_PRINT_TYPE_FUNC(x8,  u8,  "0x%x")
+DEFINE_BASIC_PRINT_TYPE_FUNC(x16, u16, "0x%x")
+DEFINE_BASIC_PRINT_TYPE_FUNC(x32, u32, "0x%x")
+DEFINE_BASIC_PRINT_TYPE_FUNC(x64, u64, "0x%Lx")
 
 /* Print type function for string type */
 int PRINT_TYPE_FUNC_NAME(string)(struct trace_seq *s, const char *name,
@@ -643,7 +648,7 @@ ssize_t traceprobe_probes_write(struct file *file, const char __user *buffer,
 				size_t count, loff_t *ppos,
 				int (*createfn)(int, char **))
 {
-	char *kbuf, *tmp;
+	char *kbuf, *buf, *tmp;
 	int ret = 0;
 	size_t done = 0;
 	size_t size;
@@ -663,27 +668,38 @@ ssize_t traceprobe_probes_write(struct file *file, const char __user *buffer,
 			goto out;
 		}
 		kbuf[size] = '\0';
-		tmp = strchr(kbuf, '\n');
+		buf = kbuf;
+		do {
+			tmp = strchr(buf, '\n');
+			if (tmp) {
+				*tmp = '\0';
+				size = tmp - buf + 1;
+			} else {
+				size = strlen(buf);
+				if (done + size < count) {
+					if (buf != kbuf)
+						break;
+					/* This can accept WRITE_BUFSIZE - 2 ('\n' + '\0') */
+					pr_warn("Line length is too long: Should be less than %d\n",
+						WRITE_BUFSIZE - 2);
+					ret = -EINVAL;
+					goto out;
+				}
+			}
+			done += size;
 
-		if (tmp) {
-			*tmp = '\0';
-			size = tmp - kbuf + 1;
-		} else if (done + size < count) {
-			pr_warn("Line length is too long: Should be less than %d\n",
-				WRITE_BUFSIZE);
-			ret = -EINVAL;
-			goto out;
-		}
-		done += size;
-		/* Remove comments */
-		tmp = strchr(kbuf, '#');
+			/* Remove comments */
+			tmp = strchr(buf, '#');
 
-		if (tmp)
-			*tmp = '\0';
+			if (tmp)
+				*tmp = '\0';
 
-		ret = traceprobe_command(kbuf, createfn);
-		if (ret)
-			goto out;
+			ret = traceprobe_command(buf, createfn);
+			if (ret)
+				goto out;
+			buf += size;
+
+		} while (done < count);
 	}
 	ret = done;
 

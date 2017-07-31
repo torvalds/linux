@@ -29,9 +29,12 @@
 #include <linux/bootmem.h>
 #include <linux/console.h>
 #include <linux/delay.h>
+#include <linux/cpu.h>
 #include <linux/kernel.h>
 #include <linux/reboot.h>
-#include <linux/sched.h>
+#include <linux/sched/mm.h>
+#include <linux/sched/clock.h>
+#include <linux/sched/task_stack.h>
 #include <linux/seq_file.h>
 #include <linux/string.h>
 #include <linux/threads.h>
@@ -71,7 +74,11 @@ EXPORT_SYMBOL(__per_cpu_offset);
 #endif
 
 DEFINE_PER_CPU(struct cpuinfo_ia64, ia64_cpu_info);
+EXPORT_SYMBOL(ia64_cpu_info);
 DEFINE_PER_CPU(unsigned long, local_per_cpu_offset);
+#ifdef CONFIG_SMP
+EXPORT_SYMBOL(local_per_cpu_offset);
+#endif
 unsigned long ia64_cycles_per_usec;
 struct ia64_boot_param *ia64_boot_param;
 struct screen_info screen_info;
@@ -615,6 +622,8 @@ setup_arch (char **cmdline_p)
 	check_sal_cache_flush();
 #endif
 	paging_init();
+
+	clear_sched_clock_stable();
 }
 
 /*
@@ -988,7 +997,7 @@ cpu_init (void)
 	 */
 	ia64_setreg(_IA64_REG_CR_DCR,  (  IA64_DCR_DP | IA64_DCR_DK | IA64_DCR_DX | IA64_DCR_DR
 					| IA64_DCR_DA | IA64_DCR_DD | IA64_DCR_LC));
-	atomic_inc(&init_mm.mm_count);
+	mmgrab(&init_mm);
 	current->active_mm = &init_mm;
 	BUG_ON(current->mm);
 

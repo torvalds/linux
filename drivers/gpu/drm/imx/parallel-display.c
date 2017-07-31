@@ -33,6 +33,7 @@ struct imx_parallel_display {
 	void *edid;
 	int edid_len;
 	u32 bus_format;
+	u32 bus_flags;
 	struct drm_display_mode mode;
 	struct drm_panel *panel;
 	struct drm_bridge *bridge;
@@ -46,12 +47,6 @@ static inline struct imx_parallel_display *con_to_imxpd(struct drm_connector *c)
 static inline struct imx_parallel_display *enc_to_imxpd(struct drm_encoder *e)
 {
 	return container_of(e, struct imx_parallel_display, encoder);
-}
-
-static enum drm_connector_status imx_pd_connector_detect(
-		struct drm_connector *connector, bool force)
-{
-	return connector_status_connected;
 }
 
 static int imx_pd_connector_get_modes(struct drm_connector *connector)
@@ -80,6 +75,7 @@ static int imx_pd_connector_get_modes(struct drm_connector *connector)
 			return -EINVAL;
 
 		ret = of_get_drm_display_mode(np, &imxpd->mode,
+					      &imxpd->bus_flags,
 					      OF_USE_NATIVE_MODE);
 		if (ret)
 			return ret;
@@ -125,11 +121,13 @@ static int imx_pd_encoder_atomic_check(struct drm_encoder *encoder,
 	struct drm_display_info *di = &conn_state->connector->display_info;
 	struct imx_parallel_display *imxpd = enc_to_imxpd(encoder);
 
-	imx_crtc_state->bus_flags = di->bus_flags;
-	if (!imxpd->bus_format && di->num_bus_formats)
+	if (!imxpd->bus_format && di->num_bus_formats) {
+		imx_crtc_state->bus_flags = di->bus_flags;
 		imx_crtc_state->bus_format = di->bus_formats[0];
-	else
+	} else {
+		imx_crtc_state->bus_flags = imxpd->bus_flags;
 		imx_crtc_state->bus_format = imxpd->bus_format;
+	}
 	imx_crtc_state->di_hsync_pin = 2;
 	imx_crtc_state->di_vsync_pin = 3;
 
@@ -139,7 +137,6 @@ static int imx_pd_encoder_atomic_check(struct drm_encoder *encoder,
 static const struct drm_connector_funcs imx_pd_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.detect = imx_pd_connector_detect,
 	.destroy = imx_drm_connector_destroy,
 	.reset = drm_atomic_helper_connector_reset,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
@@ -194,9 +191,7 @@ static int imx_pd_register(struct drm_device *drm,
 		drm_panel_attach(imxpd->panel, &imxpd->connector);
 
 	if (imxpd->bridge) {
-		imxpd->bridge->encoder = encoder;
-		encoder->bridge = imxpd->bridge;
-		ret = drm_bridge_attach(drm, imxpd->bridge);
+		ret = drm_bridge_attach(encoder, imxpd->bridge, NULL);
 		if (ret < 0) {
 			dev_err(imxpd->dev, "failed to attach bridge: %d\n",
 				ret);
@@ -289,8 +284,8 @@ static void imx_pd_unbind(struct device *dev, struct device *master,
 {
 	struct imx_parallel_display *imxpd = dev_get_drvdata(dev);
 
-	imxpd->encoder.funcs->destroy(&imxpd->encoder);
-	imxpd->connector.funcs->destroy(&imxpd->connector);
+	if (imxpd->panel)
+		drm_panel_detach(imxpd->panel);
 
 	kfree(imxpd->edid);
 }

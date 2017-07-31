@@ -22,7 +22,6 @@
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_of.h>
@@ -42,6 +41,7 @@ static int malidp_set_and_wait_config_valid(struct drm_device *drm)
 	struct malidp_hw_device *hwdev = malidp->dev;
 	int ret;
 
+	atomic_set(&malidp->config_valid, 0);
 	hwdev->set_config_valid(hwdev);
 	/* don't wait for config_valid flag if we are in config mode */
 	if (hwdev->in_config_mode(hwdev))
@@ -91,7 +91,7 @@ static void malidp_atomic_commit_tail(struct drm_atomic_state *state)
 
 	drm_atomic_helper_commit_modeset_disables(drm, state);
 	drm_atomic_helper_commit_modeset_enables(drm, state);
-	drm_atomic_helper_commit_planes(drm, state, true);
+	drm_atomic_helper_commit_planes(drm, state, 0);
 
 	malidp_atomic_commit_hw_done(state);
 
@@ -154,6 +154,12 @@ static int malidp_init(struct drm_device *drm)
 	return 0;
 }
 
+static void malidp_fini(struct drm_device *drm)
+{
+	malidp_de_planes_destroy(drm);
+	drm_mode_config_cleanup(drm);
+}
+
 static int malidp_irq_init(struct platform_device *pdev)
 {
 	int irq_de, irq_se, ret = 0;
@@ -196,9 +202,7 @@ static const struct file_operations fops = {
 	.open = drm_open,
 	.release = drm_release,
 	.unlocked_ioctl = drm_ioctl,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
-#endif
 	.poll = drm_poll,
 	.read = drm_read,
 	.llseek = noop_llseek,
@@ -251,6 +255,60 @@ static const struct of_device_id  malidp_drm_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, malidp_drm_of_match);
 
+static bool malidp_is_compatible_hw_id(struct malidp_hw_device *hwdev,
+				       const struct of_device_id *dev_id)
+{
+	u32 core_id;
+	const char *compatstr_dp500 = "arm,mali-dp500";
+	bool is_dp500;
+	bool dt_is_dp500;
+
+	/*
+	 * The DP500 CORE_ID register is in a different location, so check it
+	 * first. If the product id field matches, then this is DP500, otherwise
+	 * check the DP550/650 CORE_ID register.
+	 */
+	core_id = malidp_hw_read(hwdev, MALIDP500_DC_BASE + MALIDP_DE_CORE_ID);
+	/* Offset 0x18 will never read 0x500 on products other than DP500. */
+	is_dp500 = (MALIDP_PRODUCT_ID(core_id) == 0x500);
+	dt_is_dp500 = strnstr(dev_id->compatible, compatstr_dp500,
+			      sizeof(dev_id->compatible)) != NULL;
+	if (is_dp500 != dt_is_dp500) {
+		DRM_ERROR("Device-tree expects %s, but hardware %s DP500.\n",
+			  dev_id->compatible, is_dp500 ? "is" : "is not");
+		return false;
+	} else if (!dt_is_dp500) {
+		u16 product_id;
+		char buf[32];
+
+		core_id = malidp_hw_read(hwdev,
+					 MALIDP550_DC_BASE + MALIDP_DE_CORE_ID);
+		product_id = MALIDP_PRODUCT_ID(core_id);
+		snprintf(buf, sizeof(buf), "arm,mali-dp%X", product_id);
+		if (!strnstr(dev_id->compatible, buf,
+			     sizeof(dev_id->compatible))) {
+			DRM_ERROR("Device-tree expects %s, but hardware is DP%03X.\n",
+				  dev_id->compatible, product_id);
+			return false;
+		}
+	}
+	return true;
+}
+
+static bool malidp_has_sufficient_address_space(const struct resource *res,
+						const struct of_device_id *dev_id)
+{
+	resource_size_t res_size = resource_size(res);
+	const char *compatstr_dp500 = "arm,mali-dp500";
+
+	if (!strnstr(dev_id->compatible, compatstr_dp500,
+		     sizeof(dev_id->compatible)))
+		return res_size >= MALIDP550_ADDR_SPACE_SIZE;
+	else if (res_size < MALIDP500_ADDR_SPACE_SIZE)
+		return false;
+	return true;
+}
+
 #define MAX_OUTPUT_CHANNELS	3
 
 static int malidp_bind(struct device *dev)
@@ -261,6 +319,7 @@ static int malidp_bind(struct device *dev)
 	struct malidp_drm *malidp;
 	struct malidp_hw_device *hwdev;
 	struct platform_device *pdev = to_platform_device(dev);
+	struct of_device_id const *dev_id;
 	/* number of lines for the R, G and B output */
 	u8 output_width[MAX_OUTPUT_CHANNELS];
 	int ret = 0, i;
@@ -281,7 +340,6 @@ static int malidp_bind(struct device *dev)
 	memcpy(hwdev, of_device_get_match_data(dev), sizeof(*hwdev));
 	malidp->dev = hwdev;
 
-	INIT_LIST_HEAD(&malidp->event_list);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	hwdev->regs = devm_ioremap_resource(dev, res);
@@ -310,8 +368,8 @@ static int malidp_bind(struct device *dev)
 		return ret;
 
 	drm = drm_dev_alloc(&malidp_driver, dev);
-	if (!drm) {
-		ret = -ENOMEM;
+	if (IS_ERR(drm)) {
+		ret = PTR_ERR(drm);
 		goto alloc_fail;
 	}
 
@@ -323,6 +381,23 @@ static int malidp_bind(struct device *dev)
 	 */
 	clk_prepare_enable(hwdev->aclk);
 	clk_prepare_enable(hwdev->mclk);
+
+	dev_id = of_match_device(malidp_drm_of_match, dev);
+	if (!dev_id) {
+		ret = -EINVAL;
+		goto query_hw_fail;
+	}
+
+	if (!malidp_has_sufficient_address_space(res, dev_id)) {
+		DRM_ERROR("Insufficient address space in device-tree.\n");
+		ret = -EINVAL;
+		goto query_hw_fail;
+	}
+
+	if (!malidp_is_compatible_hw_id(hwdev, dev_id)) {
+		ret = -EINVAL;
+		goto query_hw_fail;
+	}
 
 	ret = hwdev->query_hw(hwdev);
 	if (ret) {
@@ -354,10 +429,6 @@ static int malidp_bind(struct device *dev)
 	if (ret < 0)
 		goto init_fail;
 
-	ret = drm_dev_register(drm, 0);
-	if (ret)
-		goto register_fail;
-
 	/* Set the CRTC's port so that the encoder component can find it */
 	ep = of_graph_get_next_endpoint(dev->of_node, NULL);
 	if (!ep) {
@@ -376,6 +447,8 @@ static int malidp_bind(struct device *dev)
 	if (ret < 0)
 		goto irq_init_fail;
 
+	drm->irq_enabled = true;
+
 	ret = drm_vblank_init(drm, drm->mode_config.num_crtc);
 	if (ret < 0) {
 		DRM_ERROR("failed to initialise vblank\n");
@@ -384,7 +457,7 @@ static int malidp_bind(struct device *dev)
 
 	drm_mode_config_reset(drm);
 
-	malidp->fbdev = drm_fbdev_cma_init(drm, 32, drm->mode_config.num_crtc,
+	malidp->fbdev = drm_fbdev_cma_init(drm, 32,
 					   drm->mode_config.num_connector);
 
 	if (IS_ERR(malidp->fbdev)) {
@@ -394,23 +467,31 @@ static int malidp_bind(struct device *dev)
 	}
 
 	drm_kms_helper_poll_init(drm);
+
+	ret = drm_dev_register(drm, 0);
+	if (ret)
+		goto register_fail;
+
 	return 0;
 
+register_fail:
+	if (malidp->fbdev) {
+		drm_fbdev_cma_fini(malidp->fbdev);
+		malidp->fbdev = NULL;
+	}
 fbdev_fail:
 	drm_vblank_cleanup(drm);
 vblank_fail:
 	malidp_se_irq_fini(drm);
 	malidp_de_irq_fini(drm);
+	drm->irq_enabled = false;
 irq_init_fail:
 	component_unbind_all(dev, drm);
 bind_fail:
 	of_node_put(malidp->crtc.port);
 	malidp->crtc.port = NULL;
 port_fail:
-	drm_dev_unregister(drm);
-register_fail:
-	malidp_de_planes_destroy(drm);
-	drm_mode_config_cleanup(drm);
+	malidp_fini(drm);
 init_fail:
 	drm->dev_private = NULL;
 	dev_set_drvdata(dev, NULL);
@@ -431,6 +512,7 @@ static void malidp_unbind(struct device *dev)
 	struct malidp_drm *malidp = drm->dev_private;
 	struct malidp_hw_device *hwdev = malidp->dev;
 
+	drm_dev_unregister(drm);
 	if (malidp->fbdev) {
 		drm_fbdev_cma_fini(malidp->fbdev);
 		malidp->fbdev = NULL;
@@ -442,9 +524,7 @@ static void malidp_unbind(struct device *dev)
 	component_unbind_all(dev, drm);
 	of_node_put(malidp->crtc.port);
 	malidp->crtc.port = NULL;
-	drm_dev_unregister(drm);
-	malidp_de_planes_destroy(drm);
-	drm_mode_config_cleanup(drm);
+	malidp_fini(drm);
 	drm->dev_private = NULL;
 	dev_set_drvdata(dev, NULL);
 	clk_disable_unprepare(hwdev->mclk);
@@ -492,7 +572,9 @@ static int malidp_platform_probe(struct platform_device *pdev)
 		return -EAGAIN;
 	}
 
-	component_match_add(&pdev->dev, &match, malidp_compare_dev, port);
+	drm_of_component_match_add(&pdev->dev, &match, malidp_compare_dev,
+				   port);
+	of_node_put(port);
 	return component_master_add_with_match(&pdev->dev, &malidp_master_ops,
 					       match);
 }

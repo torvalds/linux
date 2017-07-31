@@ -1,12 +1,14 @@
-DT bindings for the Renesas R-Car System Controller
+DT bindings for the Renesas R-Car (RZ/G) System Controller
 
 == System Controller Node ==
 
-The R-Car System Controller provides power management for the CPU cores and
-various coprocessors.
+The R-Car (RZ/G) System Controller provides power management for the CPU cores
+and various coprocessors.
 
 Required properties:
   - compatible: Must contain exactly one of the following:
+      - "renesas,r8a7743-sysc" (RZ/G1M)
+      - "renesas,r8a7745-sysc" (RZ/G1E)
       - "renesas,r8a7779-sysc" (R-Car H1)
       - "renesas,r8a7790-sysc" (R-Car H2)
       - "renesas,r8a7791-sysc" (R-Car M2-W)

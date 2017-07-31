@@ -9,7 +9,6 @@
 
 #include <linux/i2c.h>
 #include <linux/rmi.h>
-#include <linux/irq.h>
 #include <linux/of.h>
 #include <linux/delay.h>
 #include <linux/regulator/consumer.h>
@@ -34,8 +33,6 @@ struct rmi_i2c_xport {
 
 	struct mutex page_mutex;
 	int page;
-
-	int irq;
 
 	u8 *tx_buf;
 	size_t tx_buf_size;
@@ -177,42 +174,6 @@ static const struct rmi_transport_ops rmi_i2c_ops = {
 	.read_block	= rmi_i2c_read_block,
 };
 
-static irqreturn_t rmi_i2c_irq(int irq, void *dev_id)
-{
-	struct rmi_i2c_xport *rmi_i2c = dev_id;
-	struct rmi_device *rmi_dev = rmi_i2c->xport.rmi_dev;
-	int ret;
-
-	ret = rmi_process_interrupt_requests(rmi_dev);
-	if (ret)
-		rmi_dbg(RMI_DEBUG_XPORT, &rmi_dev->dev,
-			"Failed to process interrupt request: %d\n", ret);
-
-	return IRQ_HANDLED;
-}
-
-static int rmi_i2c_init_irq(struct i2c_client *client)
-{
-	struct rmi_i2c_xport *rmi_i2c = i2c_get_clientdata(client);
-	int irq_flags = irqd_get_trigger_type(irq_get_irq_data(rmi_i2c->irq));
-	int ret;
-
-	if (!irq_flags)
-		irq_flags = IRQF_TRIGGER_LOW;
-
-	ret = devm_request_threaded_irq(&client->dev, rmi_i2c->irq, NULL,
-			rmi_i2c_irq, irq_flags | IRQF_ONESHOT, client->name,
-			rmi_i2c);
-	if (ret < 0) {
-		dev_warn(&client->dev, "Failed to register interrupt %d\n",
-			rmi_i2c->irq);
-
-		return ret;
-	}
-
-	return 0;
-}
-
 #ifdef CONFIG_OF
 static const struct of_device_id rmi_i2c_of_match[] = {
 	{ .compatible = "syna,rmi4-i2c" },
@@ -220,6 +181,21 @@ static const struct of_device_id rmi_i2c_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, rmi_i2c_of_match);
 #endif
+
+static void rmi_i2c_regulator_bulk_disable(void *data)
+{
+	struct rmi_i2c_xport *rmi_i2c = data;
+
+	regulator_bulk_disable(ARRAY_SIZE(rmi_i2c->supplies),
+			       rmi_i2c->supplies);
+}
+
+static void rmi_i2c_unregister_transport(void *data)
+{
+	struct rmi_i2c_xport *rmi_i2c = data;
+
+	rmi_unregister_transport_device(&rmi_i2c->xport);
+}
 
 static int rmi_i2c_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
@@ -240,8 +216,7 @@ static int rmi_i2c_probe(struct i2c_client *client,
 	if (!client->dev.of_node && client_pdata)
 		*pdata = *client_pdata;
 
-	if (client->irq > 0)
-		rmi_i2c->irq = client->irq;
+	pdata->irq = client->irq;
 
 	rmi_dbg(RMI_DEBUG_XPORT, &client->dev, "Probing %s.\n",
 			dev_name(&client->dev));
@@ -262,6 +237,12 @@ static int rmi_i2c_probe(struct i2c_client *client,
 	retval = regulator_bulk_enable(ARRAY_SIZE(rmi_i2c->supplies),
 				       rmi_i2c->supplies);
 	if (retval < 0)
+		return retval;
+
+	retval = devm_add_action_or_reset(&client->dev,
+					  rmi_i2c_regulator_bulk_disable,
+					  rmi_i2c);
+	if (retval)
 		return retval;
 
 	of_property_read_u32(client->dev.of_node, "syna,startup-delay-ms",
@@ -294,24 +275,14 @@ static int rmi_i2c_probe(struct i2c_client *client,
 			client->addr);
 		return retval;
 	}
-
-	retval = rmi_i2c_init_irq(client);
-	if (retval < 0)
+	retval = devm_add_action_or_reset(&client->dev,
+					  rmi_i2c_unregister_transport,
+					  rmi_i2c);
+	if (retval)
 		return retval;
 
 	dev_info(&client->dev, "registered rmi i2c driver at %#04x.\n",
 			client->addr);
-	return 0;
-}
-
-static int rmi_i2c_remove(struct i2c_client *client)
-{
-	struct rmi_i2c_xport *rmi_i2c = i2c_get_clientdata(client);
-
-	rmi_unregister_transport_device(&rmi_i2c->xport);
-	regulator_bulk_disable(ARRAY_SIZE(rmi_i2c->supplies),
-			       rmi_i2c->supplies);
-
 	return 0;
 }
 
@@ -322,17 +293,9 @@ static int rmi_i2c_suspend(struct device *dev)
 	struct rmi_i2c_xport *rmi_i2c = i2c_get_clientdata(client);
 	int ret;
 
-	ret = rmi_driver_suspend(rmi_i2c->xport.rmi_dev);
+	ret = rmi_driver_suspend(rmi_i2c->xport.rmi_dev, true);
 	if (ret)
 		dev_warn(dev, "Failed to resume device: %d\n", ret);
-
-	disable_irq(rmi_i2c->irq);
-	if (device_may_wakeup(&client->dev)) {
-		ret = enable_irq_wake(rmi_i2c->irq);
-		if (!ret)
-			dev_warn(dev, "Failed to enable irq for wake: %d\n",
-				ret);
-	}
 
 	regulator_bulk_disable(ARRAY_SIZE(rmi_i2c->supplies),
 			       rmi_i2c->supplies);
@@ -353,15 +316,7 @@ static int rmi_i2c_resume(struct device *dev)
 
 	msleep(rmi_i2c->startup_delay);
 
-	enable_irq(rmi_i2c->irq);
-	if (device_may_wakeup(&client->dev)) {
-		ret = disable_irq_wake(rmi_i2c->irq);
-		if (!ret)
-			dev_warn(dev, "Failed to disable irq for wake: %d\n",
-				ret);
-	}
-
-	ret = rmi_driver_resume(rmi_i2c->xport.rmi_dev);
+	ret = rmi_driver_resume(rmi_i2c->xport.rmi_dev, true);
 	if (ret)
 		dev_warn(dev, "Failed to resume device: %d\n", ret);
 
@@ -376,11 +331,9 @@ static int rmi_i2c_runtime_suspend(struct device *dev)
 	struct rmi_i2c_xport *rmi_i2c = i2c_get_clientdata(client);
 	int ret;
 
-	ret = rmi_driver_suspend(rmi_i2c->xport.rmi_dev);
+	ret = rmi_driver_suspend(rmi_i2c->xport.rmi_dev, false);
 	if (ret)
 		dev_warn(dev, "Failed to resume device: %d\n", ret);
-
-	disable_irq(rmi_i2c->irq);
 
 	regulator_bulk_disable(ARRAY_SIZE(rmi_i2c->supplies),
 			       rmi_i2c->supplies);
@@ -401,9 +354,7 @@ static int rmi_i2c_runtime_resume(struct device *dev)
 
 	msleep(rmi_i2c->startup_delay);
 
-	enable_irq(rmi_i2c->irq);
-
-	ret = rmi_driver_resume(rmi_i2c->xport.rmi_dev);
+	ret = rmi_driver_resume(rmi_i2c->xport.rmi_dev, false);
 	if (ret)
 		dev_warn(dev, "Failed to resume device: %d\n", ret);
 
@@ -431,7 +382,6 @@ static struct i2c_driver rmi_i2c_driver = {
 	},
 	.id_table	= rmi_id,
 	.probe		= rmi_i2c_probe,
-	.remove		= rmi_i2c_remove,
 };
 
 module_i2c_driver(rmi_i2c_driver);

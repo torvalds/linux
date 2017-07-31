@@ -177,8 +177,8 @@ static int orangefs_readdir(struct file *file, struct dir_context *ctx)
 	}
 
 	gossip_debug(GOSSIP_DIR_DEBUG,
-		     "orangefs_readdir called on %s (pos=%llu)\n",
-		     dentry->d_name.name, llu(pos));
+		     "orangefs_readdir called on %pd (pos=%llu)\n",
+		     dentry, llu(pos));
 
 	memset(&readdir_response, 0, sizeof(readdir_response));
 

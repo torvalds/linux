@@ -33,7 +33,6 @@
 #include <linux/acpi.h>
 #include <linux/freezer.h>
 
-#include <linux/module.h>
 #include <linux/spi/spi.h>
 #include <linux/gpio.h>
 #include <linux/of_irq.h>

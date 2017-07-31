@@ -8,8 +8,13 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <drm/drm_fb_helper.h>
 
 #include "bochs.h"
+
+static int bochs_modeset = -1;
+module_param_named(modeset, bochs_modeset, int, 0444);
+MODULE_PARM_DESC(modeset, "enable/disable kernel modesetting");
 
 static bool enable_fbdev = true;
 module_param_named(fbdev, enable_fbdev, bool, 0444);
@@ -18,7 +23,7 @@ MODULE_PARM_DESC(fbdev, "register fbdev device");
 /* ---------------------------------------------------------------------- */
 /* drm interface                                                          */
 
-static int bochs_unload(struct drm_device *dev)
+static void bochs_unload(struct drm_device *dev)
 {
 	struct bochs_device *bochs = dev->dev_private;
 
@@ -28,7 +33,6 @@ static int bochs_unload(struct drm_device *dev)
 	bochs_hw_fini(dev);
 	kfree(bochs);
 	dev->dev_private = NULL;
-	return 0;
 }
 
 static int bochs_load(struct drm_device *dev, unsigned long flags)
@@ -69,9 +73,7 @@ static const struct file_operations bochs_fops = {
 	.open		= drm_open,
 	.release	= drm_release,
 	.unlocked_ioctl	= drm_ioctl,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl	= drm_compat_ioctl,
-#endif
 	.poll		= drm_poll,
 	.read		= drm_read,
 	.llseek		= no_llseek,
@@ -153,7 +155,7 @@ static int bochs_kick_out_firmware_fb(struct pci_dev *pdev)
 
 	ap->ranges[0].base = pci_resource_start(pdev, 0);
 	ap->ranges[0].size = pci_resource_len(pdev, 0);
-	remove_conflicting_framebuffers(ap, "bochsdrmfb", false);
+	drm_fb_helper_remove_conflicting_framebuffers(ap, "bochsdrmfb", false);
 	kfree(ap);
 
 	return 0;
@@ -162,7 +164,14 @@ static int bochs_kick_out_firmware_fb(struct pci_dev *pdev)
 static int bochs_pci_probe(struct pci_dev *pdev,
 			   const struct pci_device_id *ent)
 {
+	unsigned long fbsize;
 	int ret;
+
+	fbsize = pci_resource_len(pdev, 0);
+	if (fbsize < 4 * 1024 * 1024) {
+		DRM_ERROR("less than 4 MB video memory, ignoring device\n");
+		return -ENOMEM;
+	}
 
 	ret = bochs_kick_out_firmware_fb(pdev);
 	if (ret)
@@ -209,6 +218,12 @@ static struct pci_driver bochs_pci_driver = {
 
 static int __init bochs_init(void)
 {
+	if (vgacon_text_force() && bochs_modeset == -1)
+		return -EINVAL;
+
+	if (bochs_modeset == 0)
+		return -EINVAL;
+
 	return drm_pci_init(&bochs_driver, &bochs_pci_driver);
 }
 

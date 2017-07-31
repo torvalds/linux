@@ -308,9 +308,8 @@ static ssize_t goldfish_pipe_read_write(struct file *filp, char __user *buffer,
 		 * returns a small amount, then there's no need to pin that
 		 * much memory to the process.
 		 */
-		down_read(&current->mm->mmap_sem);
-		ret = get_user_pages(address, 1, !is_write, 0, &page, NULL);
-		up_read(&current->mm->mmap_sem);
+		ret = get_user_pages_unlocked(address, 1, &page,
+				is_write ? 0 : FOLL_WRITE);
 		if (ret < 0)
 			break;
 

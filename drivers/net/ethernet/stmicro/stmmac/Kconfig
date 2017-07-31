@@ -1,15 +1,14 @@
 config STMMAC_ETH
-	tristate "STMicroelectronics 10/100/1000 Ethernet driver"
+	tristate "STMicroelectronics 10/100/1000/EQOS Ethernet driver"
 	depends on HAS_IOMEM && HAS_DMA
 	select MII
 	select PHYLIB
 	select CRC32
-	select PTP_1588_CLOCK
+	imply PTP_1588_CLOCK
 	select RESET_CONTROLLER
 	---help---
-	  This is the driver for the Ethernet IPs are built around a
-	  Synopsys IP Core and only tested on the STMicroelectronics
-	  platforms.
+	  This is the driver for the Ethernet IPs built around a
+	  Synopsys IP Core.
 
 if STMMAC_ETH
 
@@ -28,6 +27,15 @@ config STMMAC_PLATFORM
 	  If unsure, say N.
 
 if STMMAC_PLATFORM
+
+config DWMAC_DWC_QOS_ETH
+	tristate "Support for snps,dwc-qos-ethernet.txt DT binding."
+	select PHYLIB
+	select CRC32
+	select MII
+	depends on OF && HAS_DMA
+	help
+	  Support for chips using the snps,dwc-qos-ethernet.txt DT binding.
 
 config DWMAC_GENERIC
 	tristate "Generic driver for DWMAC"
@@ -61,13 +69,24 @@ config DWMAC_LPC18XX
 config DWMAC_MESON
 	tristate "Amlogic Meson dwmac support"
 	default ARCH_MESON
-	depends on OF && (ARCH_MESON || COMPILE_TEST)
+	depends on OF && COMMON_CLK && (ARCH_MESON || COMPILE_TEST)
 	help
 	  Support for Ethernet controller on Amlogic Meson SoCs.
 
 	  This selects the Amlogic Meson SoC glue layer support for
-	  the stmmac device driver. This driver is used for Meson6 and
-	  Meson8 SoCs.
+	  the stmmac device driver. This driver is used for Meson6,
+	  Meson8, Meson8b and GXBB SoCs.
+
+config DWMAC_OXNAS
+	tristate "Oxford Semiconductor OXNAS dwmac support"
+	default ARCH_OXNAS
+	depends on OF && COMMON_CLK && (ARCH_OXNAS || COMPILE_TEST)
+	select MFD_SYSCON
+	help
+	  Support for Ethernet controller on Oxford Semiconductor OXNAS SoCs.
+
+	  This selects the Oxford Semiconductor OXNASSoC glue layer support for
+	  the stmmac device driver. This driver is used for OX820.
 
 config DWMAC_ROCKCHIP
 	tristate "Rockchip dwmac support"
@@ -104,6 +123,18 @@ config DWMAC_STI
 	  device driver. This driver is used on for the STi series
 	  SOCs GMAC ethernet controller.
 
+config DWMAC_STM32
+	tristate "STM32 DWMAC support"
+	default ARCH_STM32
+	depends on OF && HAS_IOMEM && (ARCH_STM32 || COMPILE_TEST)
+	select MFD_SYSCON
+	---help---
+	  Support for ethernet controller on STM32 SOCs.
+
+	  This selects STM32 SoC glue layer support for the stmmac
+	  device driver. This driver is used on for the STM32 series
+	  SOCs GMAC ethernet controller.
+
 config DWMAC_SUNXI
 	tristate "Allwinner GMAC support"
 	default ARCH_SUNXI
@@ -120,11 +151,11 @@ config STMMAC_PCI
 	tristate "STMMAC PCI bus support"
 	depends on STMMAC_ETH && PCI
 	---help---
-	  This is to select the Synopsys DWMAC available on PCI devices,
-	  if you have a controller with this interface, say Y or M here.
+	  This selects the platform specific bus support for the stmmac driver.
+	  This driver was tested on XLINX XC2V3000 FF1152AMT0221
+	  D1215994A VIRTEX FPGA board and SNPS QoS IPK Prototyping Kit.
 
-	  This PCI support is tested on XLINX XC2V3000 FF1152AMT0221
-	  D1215994A VIRTEX FPGA board.
+	  If you have a controller with this interface, say Y or M here.
 
 	  If unsure, say N.
 endif

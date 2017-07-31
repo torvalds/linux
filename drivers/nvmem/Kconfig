@@ -35,6 +35,16 @@ config NVMEM_LPC18XX_EEPROM
 	  To compile this driver as a module, choose M here: the module
 	  will be called nvmem_lpc18xx_eeprom.
 
+config NVMEM_LPC18XX_OTP
+	tristate "NXP LPC18XX OTP Memory Support"
+	depends on ARCH_LPC18XX || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Say Y here to include support for NXP LPC18xx OTP memory found on
+	  all LPC18xx and LPC43xx devices.
+	  To compile this driver as a module, choose M here: the module
+	  will be called nvmem_lpc18xx_otp.
+
 config NVMEM_MXS_OCOTP
 	tristate "Freescale MXS On-Chip OTP Memory Support"
 	depends on ARCH_MXS || COMPILE_TEST
@@ -80,6 +90,18 @@ config ROCKCHIP_EFUSE
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem_rockchip_efuse.
 
+config NVMEM_BCM_OCOTP
+	tristate "Broadcom On-Chip OTP Controller support"
+	depends on ARCH_BCM_IPROC || COMPILE_TEST
+	depends on HAS_IOMEM
+	default ARCH_BCM_IPROC
+	help
+	  Say y here to enable read/write access to the Broadcom OTP
+	  controller.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem-bcm-ocotp.
+
 config NVMEM_SUNXI_SID
 	tristate "Allwinner SoCs SID support"
 	depends on ARCH_SUNXI
@@ -100,5 +122,15 @@ config NVMEM_VF610_OCOTP
 
 	  This driver can also be build as a module. If so, the module will
 	  be called nvmem-vf610-ocotp.
+
+config MESON_EFUSE
+	tristate "Amlogic eFuse Support"
+	depends on (ARCH_MESON || COMPILE_TEST) && MESON_SM
+	help
+	  This is a driver to retrieve specific values from the eFuse found on
+	  the Amlogic Meson SoCs.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem_meson_efuse.
 
 endif

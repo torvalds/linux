@@ -70,7 +70,10 @@ static unsigned int cec_get_edid_spa_location(const u8 *edid, unsigned int size)
 				u8 tag = edid[i] >> 5;
 				u8 len = edid[i] & 0x1f;
 
-				if (tag == 3 && len >= 5 && i + len <= end)
+				if (tag == 3 && len >= 5 && i + len <= end &&
+				    edid[i + 1] == 0x03 &&
+				    edid[i + 2] == 0x0c &&
+				    edid[i + 3] == 0x00)
 					return i + 4;
 				i += len + 1;
 			} while (i < end);

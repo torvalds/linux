@@ -13,6 +13,11 @@
 		};
 	};
 
+	memory@80000000 {
+		device_type = "memory";
+		reg = <0x80000000 0>;
+	};
+
 	wl12xx_vmmc: wl12xx_vmmc {
 		compatible = "regulator-fixed";
 		regulator-name = "vwl1271";
@@ -35,10 +40,15 @@
 	ranges = <0 0 0x00000000 0x1000000>;	/* CS0: 16MB for NAND */
 
 	nand@0,0 {
-		linux,mtd-name = "micron,mt29f4g16abbda3w";
+		compatible = "ti,omap2-nand";
 		reg = <0 0 4>; /* CS0, offset 0, IO size 4 */
+		interrupt-parent = <&gpmc>;
+		interrupts = <0 IRQ_TYPE_NONE>, /* fifoevent */
+			     <1 IRQ_TYPE_NONE>;	/* termcount */
+		linux,mtd-name = "micron,mt29f4g16abbda3w";
 		nand-bus-width = <16>;
 		ti,nand-ecc-opt = "bch8";
+		rb-gpios = <&gpmc 0 GPIO_ACTIVE_HIGH>; /* gpmc_wait0 */
 		gpmc,sync-clk-ps = <0>;
 		gpmc,cs-on-ns = <0>;
 		gpmc,cs-rd-off-ns = <44>;
@@ -54,10 +64,6 @@
 		gpmc,wr-access-ns = <40>;
 		gpmc,wr-data-mux-bus-ns = <0>;
 		gpmc,device-width = <2>;
-
-		gpmc,page-burst-access-ns = <5>;
-		gpmc,cycle2cycle-delay-ns = <50>;
-
 		#address-cells = <1>;
 		#size-cells = <1>;
 

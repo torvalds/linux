@@ -1,6 +1,6 @@
 #define USE_HW_I2C
 #ifdef USE_HW_I2C
-#include "ddk750_help.h"
+#include "ddk750_chip.h"
 #include "ddk750_reg.h"
 #include "ddk750_hwi2c.h"
 #include "ddk750_power.h"
@@ -15,22 +15,23 @@ unsigned char bus_speed_mode
 	unsigned int value;
 
 	/* Enable GPIO 30 & 31 as IIC clock & data */
-	value = PEEK32(GPIO_MUX);
+	value = peek32(GPIO_MUX);
 
 	value |= (GPIO_MUX_30 | GPIO_MUX_31);
-	POKE32(GPIO_MUX, value);
+	poke32(GPIO_MUX, value);
 
-	/* Enable Hardware I2C power.
-	 TODO: Check if we need to enable GPIO power?
+	/*
+	 * Enable Hardware I2C power.
+	 * TODO: Check if we need to enable GPIO power?
 	 */
-	enableI2C(1);
+	sm750_enable_i2c(1);
 
 	/* Enable the I2C Controller and set the bus speed mode */
-	value = PEEK32(I2C_CTRL) & ~(I2C_CTRL_MODE | I2C_CTRL_EN);
+	value = peek32(I2C_CTRL) & ~(I2C_CTRL_MODE | I2C_CTRL_EN);
 	if (bus_speed_mode)
 		value |= I2C_CTRL_MODE;
 	value |= I2C_CTRL_EN;
-	POKE32(I2C_CTRL, value);
+	poke32(I2C_CTRL, value);
 
 	return 0;
 }
@@ -40,17 +41,17 @@ void sm750_hw_i2c_close(void)
 	unsigned int value;
 
 	/* Disable I2C controller */
-	value = PEEK32(I2C_CTRL) & ~I2C_CTRL_EN;
-	POKE32(I2C_CTRL, value);
+	value = peek32(I2C_CTRL) & ~I2C_CTRL_EN;
+	poke32(I2C_CTRL, value);
 
 	/* Disable I2C Power */
-	enableI2C(0);
+	sm750_enable_i2c(0);
 
 	/* Set GPIO 30 & 31 back as GPIO pins */
-	value = PEEK32(GPIO_MUX);
+	value = peek32(GPIO_MUX);
 	value &= ~GPIO_MUX_30;
 	value &= ~GPIO_MUX_31;
-	POKE32(GPIO_MUX, value);
+	poke32(GPIO_MUX, value);
 }
 
 static long hw_i2c_wait_tx_done(void)
@@ -59,7 +60,7 @@ static long hw_i2c_wait_tx_done(void)
 
 	/* Wait until the transfer is completed. */
 	timeout = HWI2C_WAIT_TIMEOUT;
-	while (!(PEEK32(I2C_STATUS) & I2C_STATUS_TX) && (timeout != 0))
+	while (!(peek32(I2C_STATUS) & I2C_STATUS_TX) && (timeout != 0))
 		timeout--;
 
 	if (timeout == 0)
@@ -90,9 +91,10 @@ static unsigned int hw_i2c_write_data(
 	unsigned int total_bytes = 0;
 
 	/* Set the Device Address */
-	POKE32(I2C_SLAVE_ADDRESS, addr & ~0x01);
+	poke32(I2C_SLAVE_ADDRESS, addr & ~0x01);
 
-	/* Write data.
+	/*
+	 * Write data.
 	 * Note:
 	 *      Only 16 byte can be accessed per i2c start instruction.
 	 */
@@ -101,21 +103,21 @@ static unsigned int hw_i2c_write_data(
 		 * Reset I2C by writing 0 to I2C_RESET register to
 		 * clear the previous status.
 		 */
-		POKE32(I2C_RESET, 0);
+		poke32(I2C_RESET, 0);
 
 		/* Set the number of bytes to be written */
 		if (length < MAX_HWI2C_FIFO)
 			count = length - 1;
 		else
 			count = MAX_HWI2C_FIFO - 1;
-		POKE32(I2C_BYTE_COUNT, count);
+		poke32(I2C_BYTE_COUNT, count);
 
 		/* Move the data to the I2C data register */
 		for (i = 0; i <= count; i++)
-			POKE32(I2C_DATA0 + i, *buf++);
+			poke32(I2C_DATA0 + i, *buf++);
 
 		/* Start the I2C */
-		POKE32(I2C_CTRL, PEEK32(I2C_CTRL) | I2C_CTRL_CTRL);
+		poke32(I2C_CTRL, peek32(I2C_CTRL) | I2C_CTRL_CTRL);
 
 		/* Wait until the transfer is completed. */
 		if (hw_i2c_wait_tx_done() != 0)
@@ -156,9 +158,10 @@ static unsigned int hw_i2c_read_data(
 	unsigned int total_bytes = 0;
 
 	/* Set the Device Address */
-	POKE32(I2C_SLAVE_ADDRESS, addr | 0x01);
+	poke32(I2C_SLAVE_ADDRESS, addr | 0x01);
 
-	/* Read data and save them to the buffer.
+	/*
+	 * Read data and save them to the buffer.
 	 * Note:
 	 *      Only 16 byte can be accessed per i2c start instruction.
 	 */
@@ -167,17 +170,17 @@ static unsigned int hw_i2c_read_data(
 		 * Reset I2C by writing 0 to I2C_RESET register to
 		 * clear all the status.
 		 */
-		POKE32(I2C_RESET, 0);
+		poke32(I2C_RESET, 0);
 
 		/* Set the number of bytes to be read */
 		if (length <= MAX_HWI2C_FIFO)
 			count = length - 1;
 		else
 			count = MAX_HWI2C_FIFO - 1;
-		POKE32(I2C_BYTE_COUNT, count);
+		poke32(I2C_BYTE_COUNT, count);
 
 		/* Start the I2C */
-		POKE32(I2C_CTRL, PEEK32(I2C_CTRL) | I2C_CTRL_CTRL);
+		poke32(I2C_CTRL, peek32(I2C_CTRL) | I2C_CTRL_CTRL);
 
 		/* Wait until transaction done. */
 		if (hw_i2c_wait_tx_done() != 0)
@@ -185,7 +188,7 @@ static unsigned int hw_i2c_read_data(
 
 		/* Save the data to the given buffer */
 		for (i = 0; i <= count; i++)
-			*buf++ = PEEK32(I2C_DATA0 + i);
+			*buf++ = peek32(I2C_DATA0 + i);
 
 		/* Subtract length by 16 */
 		length -= (count + 1);

@@ -14,11 +14,13 @@
  * This file is released under the GPLv2.
  */
 
+#define pr_fmt(fmt)	"efi: " fmt
+
 #include <linux/bug.h>
 #include <linux/efi.h>
 #include <linux/irqflags.h>
 #include <linux/mutex.h>
-#include <linux/spinlock.h>
+#include <linux/semaphore.h>
 #include <linux/stringify.h>
 #include <asm/efi.h>
 
@@ -81,20 +83,21 @@ void efi_call_virt_check_flags(unsigned long flags, const char *call)
  * +------------------------------------+-------------------------------+
  *
  * Due to the fact that the EFI pstore may write to the variable store in
- * interrupt context, we need to use a spinlock for at least the groups that
+ * interrupt context, we need to use a lock for at least the groups that
  * contain SetVariable() and QueryVariableInfo(). That leaves little else, as
  * none of the remaining functions are actually ever called at runtime.
- * So let's just use a single spinlock to serialize all Runtime Services calls.
+ * So let's just use a single lock to serialize all Runtime Services calls.
  */
-static DEFINE_SPINLOCK(efi_runtime_lock);
+static DEFINE_SEMAPHORE(efi_runtime_lock);
 
 static efi_status_t virt_efi_get_time(efi_time_t *tm, efi_time_cap_t *tc)
 {
 	efi_status_t status;
 
-	spin_lock(&efi_runtime_lock);
+	if (down_interruptible(&efi_runtime_lock))
+		return EFI_ABORTED;
 	status = efi_call_virt(get_time, tm, tc);
-	spin_unlock(&efi_runtime_lock);
+	up(&efi_runtime_lock);
 	return status;
 }
 
@@ -102,9 +105,10 @@ static efi_status_t virt_efi_set_time(efi_time_t *tm)
 {
 	efi_status_t status;
 
-	spin_lock(&efi_runtime_lock);
+	if (down_interruptible(&efi_runtime_lock))
+		return EFI_ABORTED;
 	status = efi_call_virt(set_time, tm);
-	spin_unlock(&efi_runtime_lock);
+	up(&efi_runtime_lock);
 	return status;
 }
 
@@ -114,9 +118,10 @@ static efi_status_t virt_efi_get_wakeup_time(efi_bool_t *enabled,
 {
 	efi_status_t status;
 
-	spin_lock(&efi_runtime_lock);
+	if (down_interruptible(&efi_runtime_lock))
+		return EFI_ABORTED;
 	status = efi_call_virt(get_wakeup_time, enabled, pending, tm);
-	spin_unlock(&efi_runtime_lock);
+	up(&efi_runtime_lock);
 	return status;
 }
 
@@ -124,9 +129,10 @@ static efi_status_t virt_efi_set_wakeup_time(efi_bool_t enabled, efi_time_t *tm)
 {
 	efi_status_t status;
 
-	spin_lock(&efi_runtime_lock);
+	if (down_interruptible(&efi_runtime_lock))
+		return EFI_ABORTED;
 	status = efi_call_virt(set_wakeup_time, enabled, tm);
-	spin_unlock(&efi_runtime_lock);
+	up(&efi_runtime_lock);
 	return status;
 }
 
@@ -138,10 +144,11 @@ static efi_status_t virt_efi_get_variable(efi_char16_t *name,
 {
 	efi_status_t status;
 
-	spin_lock(&efi_runtime_lock);
+	if (down_interruptible(&efi_runtime_lock))
+		return EFI_ABORTED;
 	status = efi_call_virt(get_variable, name, vendor, attr, data_size,
 			       data);
-	spin_unlock(&efi_runtime_lock);
+	up(&efi_runtime_lock);
 	return status;
 }
 
@@ -151,9 +158,10 @@ static efi_status_t virt_efi_get_next_variable(unsigned long *name_size,
 {
 	efi_status_t status;
 
-	spin_lock(&efi_runtime_lock);
+	if (down_interruptible(&efi_runtime_lock))
+		return EFI_ABORTED;
 	status = efi_call_virt(get_next_variable, name_size, name, vendor);
-	spin_unlock(&efi_runtime_lock);
+	up(&efi_runtime_lock);
 	return status;
 }
 
@@ -165,10 +173,11 @@ static efi_status_t virt_efi_set_variable(efi_char16_t *name,
 {
 	efi_status_t status;
 
-	spin_lock(&efi_runtime_lock);
+	if (down_interruptible(&efi_runtime_lock))
+		return EFI_ABORTED;
 	status = efi_call_virt(set_variable, name, vendor, attr, data_size,
 			       data);
-	spin_unlock(&efi_runtime_lock);
+	up(&efi_runtime_lock);
 	return status;
 }
 
@@ -179,12 +188,12 @@ virt_efi_set_variable_nonblocking(efi_char16_t *name, efi_guid_t *vendor,
 {
 	efi_status_t status;
 
-	if (!spin_trylock(&efi_runtime_lock))
+	if (down_trylock(&efi_runtime_lock))
 		return EFI_NOT_READY;
 
 	status = efi_call_virt(set_variable, name, vendor, attr, data_size,
 			       data);
-	spin_unlock(&efi_runtime_lock);
+	up(&efi_runtime_lock);
 	return status;
 }
 
@@ -199,10 +208,11 @@ static efi_status_t virt_efi_query_variable_info(u32 attr,
 	if (efi.runtime_version < EFI_2_00_SYSTEM_TABLE_REVISION)
 		return EFI_UNSUPPORTED;
 
-	spin_lock(&efi_runtime_lock);
+	if (down_interruptible(&efi_runtime_lock))
+		return EFI_ABORTED;
 	status = efi_call_virt(query_variable_info, attr, storage_space,
 			       remaining_space, max_variable_size);
-	spin_unlock(&efi_runtime_lock);
+	up(&efi_runtime_lock);
 	return status;
 }
 
@@ -217,12 +227,12 @@ virt_efi_query_variable_info_nonblocking(u32 attr,
 	if (efi.runtime_version < EFI_2_00_SYSTEM_TABLE_REVISION)
 		return EFI_UNSUPPORTED;
 
-	if (!spin_trylock(&efi_runtime_lock))
+	if (down_trylock(&efi_runtime_lock))
 		return EFI_NOT_READY;
 
 	status = efi_call_virt(query_variable_info, attr, storage_space,
 			       remaining_space, max_variable_size);
-	spin_unlock(&efi_runtime_lock);
+	up(&efi_runtime_lock);
 	return status;
 }
 
@@ -230,9 +240,10 @@ static efi_status_t virt_efi_get_next_high_mono_count(u32 *count)
 {
 	efi_status_t status;
 
-	spin_lock(&efi_runtime_lock);
+	if (down_interruptible(&efi_runtime_lock))
+		return EFI_ABORTED;
 	status = efi_call_virt(get_next_high_mono_count, count);
-	spin_unlock(&efi_runtime_lock);
+	up(&efi_runtime_lock);
 	return status;
 }
 
@@ -241,9 +252,13 @@ static void virt_efi_reset_system(int reset_type,
 				  unsigned long data_size,
 				  efi_char16_t *data)
 {
-	spin_lock(&efi_runtime_lock);
+	if (down_interruptible(&efi_runtime_lock)) {
+		pr_warn("failed to invoke the reset_system() runtime service:\n"
+			"could not get exclusive access to the firmware\n");
+		return;
+	}
 	__efi_call_virt(reset_system, reset_type, status, data_size, data);
-	spin_unlock(&efi_runtime_lock);
+	up(&efi_runtime_lock);
 }
 
 static efi_status_t virt_efi_update_capsule(efi_capsule_header_t **capsules,
@@ -255,9 +270,10 @@ static efi_status_t virt_efi_update_capsule(efi_capsule_header_t **capsules,
 	if (efi.runtime_version < EFI_2_00_SYSTEM_TABLE_REVISION)
 		return EFI_UNSUPPORTED;
 
-	spin_lock(&efi_runtime_lock);
+	if (down_interruptible(&efi_runtime_lock))
+		return EFI_ABORTED;
 	status = efi_call_virt(update_capsule, capsules, count, sg_list);
-	spin_unlock(&efi_runtime_lock);
+	up(&efi_runtime_lock);
 	return status;
 }
 
@@ -271,10 +287,11 @@ static efi_status_t virt_efi_query_capsule_caps(efi_capsule_header_t **capsules,
 	if (efi.runtime_version < EFI_2_00_SYSTEM_TABLE_REVISION)
 		return EFI_UNSUPPORTED;
 
-	spin_lock(&efi_runtime_lock);
+	if (down_interruptible(&efi_runtime_lock))
+		return EFI_ABORTED;
 	status = efi_call_virt(query_capsule_caps, capsules, count, max_size,
 			       reset_type);
-	spin_unlock(&efi_runtime_lock);
+	up(&efi_runtime_lock);
 	return status;
 }
 

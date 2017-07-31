@@ -8,28 +8,42 @@
 # as published by the Free Software Foundation; version 2
 # of the License.
 
-$(OUTPUT)$(TOOL): $(TOOL_OBJS) FORCE
-	$(ECHO) "  LD      " $@
-	$(QUIET) $(LD) $(CFLAGS) $(LDFLAGS) $(TOOL_OBJS) -L$(OUTPUT) -o $@
+objdir := $(OUTPUT)tools/$(TOOL)/
+toolobjs := $(addprefix $(objdir),$(TOOL_OBJS))
+$(OUTPUT)$(TOOL): $(toolobjs) FORCE
+	$(ECHO) "  LD      " $(subst $(OUTPUT),,$@)
+	$(QUIET) $(LD) $(CFLAGS) $(LDFLAGS) $(toolobjs) -L$(OUTPUT) -o $@
+	$(ECHO) "  STRIP   " $(subst $(OUTPUT),,$@)
 	$(QUIET) $(STRIPCMD) $@
 
-$(OUTPUT)%.o: %.c
-	$(ECHO) "  CC      " $@
+$(KERNEL_INCLUDE):
+	$(ECHO) "  MKDIR   " $(subst $(OUTPUT),,$@)
+	$(QUIET) mkdir -p $(KERNEL_INCLUDE)
+	$(ECHO) "  CP      " $(subst $(OUTPUT),,$@)
+	$(QUIET) cp -rf $(srctree)/../../../include/acpi $(KERNEL_INCLUDE)/
+
+$(objdir)%.o: %.c $(KERNEL_INCLUDE)
+	$(ECHO) "  CC      " $(subst $(OUTPUT),,$@)
 	$(QUIET) $(CC) -c $(CFLAGS) -o $@ $<
 
 all: $(OUTPUT)$(TOOL)
 clean:
-	-find $(OUTPUT) \( -not -type d \) \
-	-and \( -name '*~' -o -name '*.[oas]' \) \
-	-type f -print \
-	 | xargs rm -f
-	-rm -f $(OUTPUT)$(TOOL)
+	$(ECHO) "  RMOBJ   " $(subst $(OUTPUT),,$(objdir))
+	$(QUIET) find $(objdir) \( -not -type d \)\
+		 -and \( -name '*~' -o -name '*.[oas]' \)\
+		 -type f -print | xargs rm -f
+	$(ECHO) "  RM      " $(TOOL)
+	$(QUIET) rm -f $(OUTPUT)$(TOOL)
+	$(ECHO) "  RMINC   " $(subst $(OUTPUT),,$(KERNEL_INCLUDE))
+	$(QUIET) rm -rf $(KERNEL_INCLUDE)
 
 install-tools:
-	$(INSTALL) -d $(DESTDIR)${sbindir}
-	$(INSTALL_PROGRAM) $(OUTPUT)$(TOOL) $(DESTDIR)${sbindir}
+	$(ECHO) "  INST    " $(TOOL)
+	$(QUIET) $(INSTALL) -d $(DESTDIR)$(sbindir)
+	$(QUIET) $(INSTALL_PROGRAM) $(OUTPUT)$(TOOL) $(DESTDIR)$(sbindir)
 uninstall-tools:
-	- rm -f $(DESTDIR)${sbindir}/$(TOOL)
+	$(ECHO) "  UNINST  " $(TOOL)
+	$(QUIET) rm -f $(DESTDIR)$(sbindir)/$(TOOL)
 
 install: all install-tools $(EXTRA_INSTALL)
 uninstall: uninstall-tools $(EXTRA_UNINSTALL)

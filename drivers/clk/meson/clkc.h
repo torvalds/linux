@@ -98,7 +98,7 @@ struct meson_clk_mpll {
 };
 
 #define MESON_GATE(_name, _reg, _bit)					\
-struct clk_gate gxbb_##_name = { 						\
+struct clk_gate _name = { 						\
 	.reg = (void __iomem *) _reg, 					\
 	.bit_idx = (_bit), 						\
 	.lock = &clk_lock,						\

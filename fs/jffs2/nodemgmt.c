@@ -14,7 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/mtd/mtd.h>
 #include <linux/compiler.h>
-#include <linux/sched.h> /* For cond_resched() */
+#include <linux/sched/signal.h>
 #include "nodelist.h"
 #include "debug.h"
 

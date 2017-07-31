@@ -4,9 +4,11 @@
 #include "../util/cache.h"
 #include "../util/debug.h"
 #include "../util/hist.h"
+#include "../util/util.h"
 
 pthread_mutex_t ui__lock = PTHREAD_MUTEX_INITIALIZER;
 void *perf_gtk_handle;
+int use_browser = -1;
 
 #ifdef HAVE_GTK2_SUPPORT
 static int setup_gtk_browser(void)

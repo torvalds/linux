@@ -20,6 +20,7 @@ struct vdso_image {
 	long sym_vvar_page;
 	long sym_hpet_page;
 	long sym_pvclock_page;
+	long sym_hvclock_page;
 	long sym_VDSO32_NOTE_MASK;
 	long sym___kernel_sigreturn;
 	long sym___kernel_rt_sigreturn;
@@ -40,6 +41,8 @@ extern const struct vdso_image vdso_image_32;
 #endif
 
 extern void __init init_vdso_image(const struct vdso_image *image);
+
+extern int map_vdso_once(const struct vdso_image *image, unsigned long addr);
 
 #endif /* __ASSEMBLER__ */
 

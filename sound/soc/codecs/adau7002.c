@@ -39,10 +39,12 @@ static struct snd_soc_dai_driver adau7002_dai = {
 };
 
 static const struct snd_soc_codec_driver adau7002_codec_driver = {
-	.dapm_widgets = adau7002_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(adau7002_widgets),
-	.dapm_routes = adau7002_routes,
-	.num_dapm_routes = ARRAY_SIZE(adau7002_routes),
+	.component_driver = {
+		.dapm_widgets		= adau7002_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(adau7002_widgets),
+		.dapm_routes		= adau7002_routes,
+		.num_dapm_routes	= ARRAY_SIZE(adau7002_routes),
+	},
 };
 
 static int adau7002_probe(struct platform_device *pdev)

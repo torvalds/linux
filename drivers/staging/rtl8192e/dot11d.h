@@ -11,7 +11,7 @@
  *
  * Contact Information:
  * wlanfae <wlanfae@realtek.com>
-******************************************************************************/
+ ******************************************************************************/
 #ifndef __INC_DOT11D_H
 #define __INC_DOT11D_H
 
@@ -47,8 +47,8 @@ struct rt_dot11d_info {
 	u8  CountryIeSrcAddr[6];
 	u8  CountryIeWatchdog;
 
-	u8  channel_map[MAX_CHANNEL_NUMBER+1];
-	u8  MaxTxPwrDbmList[MAX_CHANNEL_NUMBER+1];
+	u8  channel_map[MAX_CHANNEL_NUMBER + 1];
+	u8  MaxTxPwrDbmList[MAX_CHANNEL_NUMBER + 1];
 
 	enum dot11d_state State;
 };
@@ -78,6 +78,7 @@ static inline void RESET_CIE_WATCHDOG(struct rtllib_device *__pIeeeDev)
 {
 	GET_CIE_WATCHDOG(__pIeeeDev) = 0;
 }
+
 #define UPDATE_CIE_WATCHDOG(__pIeeeDev) (++GET_CIE_WATCHDOG(__pIeeeDev))
 
 void dot11d_init(struct rtllib_device *dev);

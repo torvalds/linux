@@ -114,6 +114,7 @@
 #define DEVICE_SET_NMI_VAL_DRV BIT(7)
 #define DEVICE_SET_NMI_8000_REG 0x00a01c24
 #define DEVICE_SET_NMI_8000_VAL 0x1000000
+#define UREG_NIC_SET_NMI_DRIVER 0x00a05c10
 
 /* Shared registers (0x0..0x3ff, via target indirect or periphery */
 #define SHR_BASE	0x00a10000
@@ -294,32 +295,27 @@
 
 /*********************** END TX SCHEDULER *************************************/
 
-/* tcp checksum offload */
-#define RX_EN_CSUM		(0x00a00d88)
-
 /* Oscillator clock */
 #define OSC_CLK				(0xa04068)
 #define OSC_CLK_FORCE_CONTROL		(0x8)
 
 #define FH_UCODE_LOAD_STATUS		(0x1AF0)
-#define CSR_UCODE_LOAD_STATUS_ADDR	(0x1E70)
-enum secure_load_status_reg {
-	LMPM_CPU_UCODE_LOADING_STARTED			= 0x00000001,
-	LMPM_CPU_HDRS_LOADING_COMPLETED			= 0x00000003,
-	LMPM_CPU_UCODE_LOADING_COMPLETED		= 0x00000007,
-	LMPM_CPU_STATUS_NUM_OF_LAST_COMPLETED		= 0x000000F8,
-	LMPM_CPU_STATUS_NUM_OF_LAST_LOADED_BLOCK	= 0x0000FF00,
-};
 
-#define LMPM_SECURE_INSPECTOR_CODE_ADDR	(0x1E38)
-#define LMPM_SECURE_INSPECTOR_DATA_ADDR	(0x1E3C)
+/*
+ * Replacing FH_UCODE_LOAD_STATUS
+ * This register is writen by driver and is read by uCode during boot flow.
+ * Note this address is cleared after MAC reset.
+ */
+#define UREG_UCODE_LOAD_STATUS		(0xa05c40)
+#define UREG_CPU_INIT_RUN		(0xa05c44)
+
 #define LMPM_SECURE_UCODE_LOAD_CPU1_HDR_ADDR	(0x1E78)
 #define LMPM_SECURE_UCODE_LOAD_CPU2_HDR_ADDR	(0x1E7C)
 
-#define LMPM_SECURE_INSPECTOR_CODE_MEM_SPACE	(0x400000)
-#define LMPM_SECURE_INSPECTOR_DATA_MEM_SPACE	(0x402000)
 #define LMPM_SECURE_CPU1_HDR_MEM_SPACE		(0x420000)
 #define LMPM_SECURE_CPU2_HDR_MEM_SPACE		(0x420400)
+
+#define LMAC2_PRPH_OFFSET		(0x100000)
 
 /* Rx FIFO */
 #define RXF_SIZE_ADDR			(0xa00c88)
@@ -383,6 +379,7 @@ enum secure_load_status_reg {
 #define RADIO_REG_SYS_MANUAL_DFT_0	0xAD4078
 #define RFIC_REG_RD			0xAD0470
 #define WFPM_CTRL_REG			0xA03030
+#define WFPM_GP2			0xA030B4
 enum {
 	ENABLE_WFPM = BIT(31),
 	WFPM_AUX_CTL_AUX_IF_MAC_OWNER_MSK	= 0x80000000,
@@ -403,6 +400,8 @@ enum aux_misc_master1_en {
 #define PREG_AUX_BUS_WPROT_0		0xA04CC0
 #define SB_CPU_1_STATUS			0xA01E30
 #define SB_CPU_2_STATUS			0xA01E34
+#define UMAG_SB_CPU_1_STATUS		0xA038C0
+#define UMAG_SB_CPU_2_STATUS		0xA038C4
 
 /* FW chicken bits */
 #define LMPM_CHICK			0xA01FF8

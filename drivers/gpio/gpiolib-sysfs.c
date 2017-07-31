@@ -670,10 +670,10 @@ int gpiod_export_link(struct device *dev, const char *name,
 EXPORT_SYMBOL_GPL(gpiod_export_link);
 
 /**
- * gpiod_unexport - reverse effect of gpio_export()
+ * gpiod_unexport - reverse effect of gpiod_export()
  * @gpio: gpio to make unavailable
  *
- * This is implicit on gpio_free().
+ * This is implicit on gpiod_free().
  */
 void gpiod_unexport(struct gpio_desc *desc)
 {

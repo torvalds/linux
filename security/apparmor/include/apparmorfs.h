@@ -15,6 +15,8 @@
 #ifndef __AA_APPARMORFS_H
 #define __AA_APPARMORFS_H
 
+extern struct path aa_null;
+
 enum aa_fs_type {
 	AA_FS_TYPE_BOOLEAN,
 	AA_FS_TYPE_STRING,
@@ -62,12 +64,16 @@ extern const struct file_operations aa_fs_seq_file_ops;
 extern void __init aa_destroy_aafs(void);
 
 struct aa_profile;
-struct aa_namespace;
+struct aa_ns;
 
 enum aafs_ns_type {
 	AAFS_NS_DIR,
 	AAFS_NS_PROFS,
 	AAFS_NS_NS,
+	AAFS_NS_RAW_DATA,
+	AAFS_NS_LOAD,
+	AAFS_NS_REPLACE,
+	AAFS_NS_REMOVE,
 	AAFS_NS_COUNT,
 	AAFS_NS_MAX_COUNT,
 	AAFS_NS_SIZE,
@@ -83,12 +89,19 @@ enum aafs_prof_type {
 	AAFS_PROF_MODE,
 	AAFS_PROF_ATTACH,
 	AAFS_PROF_HASH,
+	AAFS_PROF_RAW_DATA,
+	AAFS_PROF_RAW_HASH,
+	AAFS_PROF_RAW_ABI,
 	AAFS_PROF_SIZEOF,
 };
 
 #define ns_dir(X) ((X)->dents[AAFS_NS_DIR])
 #define ns_subns_dir(X) ((X)->dents[AAFS_NS_NS])
 #define ns_subprofs_dir(X) ((X)->dents[AAFS_NS_PROFS])
+#define ns_subdata_dir(X) ((X)->dents[AAFS_NS_RAW_DATA])
+#define ns_subload(X) ((X)->dents[AAFS_NS_LOAD])
+#define ns_subreplace(X) ((X)->dents[AAFS_NS_REPLACE])
+#define ns_subremove(X) ((X)->dents[AAFS_NS_REMOVE])
 
 #define prof_dir(X) ((X)->dents[AAFS_PROF_DIR])
 #define prof_child_dir(X) ((X)->dents[AAFS_PROF_PROFS])
@@ -97,8 +110,8 @@ void __aa_fs_profile_rmdir(struct aa_profile *profile);
 void __aa_fs_profile_migrate_dents(struct aa_profile *old,
 				   struct aa_profile *new);
 int __aa_fs_profile_mkdir(struct aa_profile *profile, struct dentry *parent);
-void __aa_fs_namespace_rmdir(struct aa_namespace *ns);
-int __aa_fs_namespace_mkdir(struct aa_namespace *ns, struct dentry *parent,
-			    const char *name);
+void __aa_fs_ns_rmdir(struct aa_ns *ns);
+int __aa_fs_ns_mkdir(struct aa_ns *ns, struct dentry *parent,
+		     const char *name);
 
 #endif /* __AA_APPARMORFS_H */

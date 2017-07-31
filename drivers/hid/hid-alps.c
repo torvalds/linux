@@ -139,8 +139,8 @@ static int u1_read_write_register(struct hid_device *hdev, u32 address,
 	if (read_flag) {
 		readbuf = kzalloc(U1_FEATURE_REPORT_LEN, GFP_KERNEL);
 		if (!readbuf) {
-			kfree(input);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto exit;
 		}
 
 		ret = hid_hw_raw_request(hdev, U1_FEATURE_REPORT_ID, readbuf,
@@ -149,6 +149,7 @@ static int u1_read_write_register(struct hid_device *hdev, u32 address,
 
 		if (ret < 0) {
 			dev_err(&hdev->dev, "failed read register (%d)\n", ret);
+			kfree(readbuf);
 			goto exit;
 		}
 
@@ -190,16 +191,16 @@ static int alps_raw_event(struct hid_device *hdev,
 			if (z != 0) {
 				input_mt_report_slot_state(hdata->input,
 					MT_TOOL_FINGER, 1);
+				input_report_abs(hdata->input,
+					ABS_MT_POSITION_X, x);
+				input_report_abs(hdata->input,
+					ABS_MT_POSITION_Y, y);
+				input_report_abs(hdata->input,
+					ABS_MT_PRESSURE, z);
 			} else {
 				input_mt_report_slot_state(hdata->input,
 					MT_TOOL_FINGER, 0);
-				break;
 			}
-
-			input_report_abs(hdata->input, ABS_MT_POSITION_X, x);
-			input_report_abs(hdata->input, ABS_MT_POSITION_Y, y);
-			input_report_abs(hdata->input, ABS_MT_PRESSURE, z);
-
 		}
 
 		input_mt_sync_frame(hdata->input);
@@ -244,13 +245,13 @@ static int alps_raw_event(struct hid_device *hdev,
 static int alps_post_reset(struct hid_device *hdev)
 {
 	return u1_read_write_register(hdev, ADDRESS_U1_DEV_CTRL_1,
-				NULL, U1_TP_ABS_MODE, false);
+				NULL, U1_TP_ABS_MODE | U1_SP_ABS_MODE, false);
 }
 
 static int alps_post_resume(struct hid_device *hdev)
 {
 	return u1_read_write_register(hdev, ADDRESS_U1_DEV_CTRL_1,
-				NULL, U1_TP_ABS_MODE, false);
+				NULL, U1_TP_ABS_MODE | U1_SP_ABS_MODE, false);
 }
 #endif /* CONFIG_PM */
 
@@ -383,7 +384,7 @@ static int alps_input_configured(struct hid_device *hdev, struct hid_input *hi)
 
 		input2 = input_allocate_device();
 		if (!input2) {
-			input_free_device(input2);
+			ret = -ENOMEM;
 			goto exit;
 		}
 
@@ -425,7 +426,8 @@ static int alps_input_configured(struct hid_device *hdev, struct hid_input *hi)
 		__set_bit(INPUT_PROP_POINTER, input2->propbit);
 		__set_bit(INPUT_PROP_POINTING_STICK, input2->propbit);
 
-		if (input_register_device(data->input2)) {
+		ret = input_register_device(data->input2);
+		if (ret) {
 			input_free_device(input2);
 			goto exit;
 		}

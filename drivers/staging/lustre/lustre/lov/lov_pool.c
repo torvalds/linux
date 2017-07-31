@@ -61,7 +61,7 @@ void lov_pool_putref(struct pool_desc *pool)
 		LASSERT(hlist_unhashed(&pool->pool_hash));
 		LASSERT(list_empty(&pool->pool_list));
 		LASSERT(!pool->pool_debugfs_entry);
-		lov_ost_pool_free(&(pool->pool_obds));
+		lov_ost_pool_free(&pool->pool_obds);
 		kfree(pool);
 	}
 }
@@ -81,7 +81,8 @@ static void lov_pool_putref_locked(struct pool_desc *pool)
  * Chapter 6.4.
  * Addison Wesley, 1973
  */
-static __u32 pool_hashfn(struct cfs_hash *hash_body, const void *key, unsigned mask)
+static __u32 pool_hashfn(struct cfs_hash *hash_body, const void *key,
+			 unsigned int mask)
 {
 	int i;
 	__u32 result;
@@ -92,7 +93,7 @@ static __u32 pool_hashfn(struct cfs_hash *hash_body, const void *key, unsigned m
 	for (i = 0; i < LOV_MAXPOOLNAME; i++) {
 		if (poolname[i] == '\0')
 			break;
-		result = (result << 4)^(result >> 28) ^  poolname[i];
+		result = (result << 4) ^ (result >> 28) ^  poolname[i];
 	}
 	return (result % mask);
 }
@@ -260,7 +261,7 @@ static int pool_proc_show(struct seq_file *s, void *v)
 	tgt = pool_tgt(iter->pool, iter->idx);
 	up_read(&pool_tgt_rw_sem(iter->pool));
 	if (tgt)
-		seq_printf(s, "%s\n", obd_uuid2str(&(tgt->ltd_uuid)));
+		seq_printf(s, "%s\n", obd_uuid2str(&tgt->ltd_uuid));
 
 	return 0;
 }
@@ -400,7 +401,7 @@ int lov_pool_new(struct obd_device *obd, char *poolname)
 	struct pool_desc *new_pool;
 	int rc;
 
-	lov = &(obd->u.lov);
+	lov = &obd->u.lov;
 
 	if (strlen(poolname) > LOV_MAXPOOLNAME)
 		return -ENAMETOOLONG;
@@ -471,7 +472,7 @@ int lov_pool_del(struct obd_device *obd, char *poolname)
 	struct lov_obd *lov;
 	struct pool_desc *pool;
 
-	lov = &(obd->u.lov);
+	lov = &obd->u.lov;
 
 	/* lookup and kill hash reference */
 	pool = cfs_hash_del_key(lov->lov_pools_hash_body, poolname);
@@ -503,7 +504,7 @@ int lov_pool_add(struct obd_device *obd, char *poolname, char *ostname)
 	unsigned int lov_idx;
 	int rc;
 
-	lov = &(obd->u.lov);
+	lov = &obd->u.lov;
 
 	pool = cfs_hash_lookup(lov->lov_pools_hash_body, poolname);
 	if (!pool)
@@ -517,7 +518,7 @@ int lov_pool_add(struct obd_device *obd, char *poolname, char *ostname)
 		if (!lov->lov_tgts[lov_idx])
 			continue;
 		if (obd_uuid_equals(&ost_uuid,
-				    &(lov->lov_tgts[lov_idx]->ltd_uuid)))
+				    &lov->lov_tgts[lov_idx]->ltd_uuid))
 			break;
 	}
 	/* test if ost found in lov */
@@ -547,7 +548,7 @@ int lov_pool_remove(struct obd_device *obd, char *poolname, char *ostname)
 	unsigned int lov_idx;
 	int rc = 0;
 
-	lov = &(obd->u.lov);
+	lov = &obd->u.lov;
 
 	pool = cfs_hash_lookup(lov->lov_pools_hash_body, poolname);
 	if (!pool)
@@ -562,7 +563,7 @@ int lov_pool_remove(struct obd_device *obd, char *poolname, char *ostname)
 			continue;
 
 		if (obd_uuid_equals(&ost_uuid,
-				    &(lov->lov_tgts[lov_idx]->ltd_uuid)))
+				    &lov->lov_tgts[lov_idx]->ltd_uuid))
 			break;
 	}
 

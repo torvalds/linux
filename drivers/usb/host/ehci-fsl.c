@@ -286,6 +286,9 @@ static int ehci_fsl_usb_setup(struct ehci_hcd *ehci)
 	if (pdata->has_fsl_erratum_a005275 == 1)
 		ehci->has_fsl_hs_errata = 1;
 
+	if (pdata->has_fsl_erratum_a005697 == 1)
+		ehci->has_fsl_susp_errata = 1;
+
 	if ((pdata->operating_mode == FSL_USB2_DR_HOST) ||
 			(pdata->operating_mode == FSL_USB2_DR_OTG))
 		if (ehci_fsl_setup_phy(hcd, pdata->phy_mode, 0))
@@ -597,7 +600,7 @@ static int ehci_fsl_drv_restore(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops ehci_fsl_pm_ops = {
+static const struct dev_pm_ops ehci_fsl_pm_ops = {
 	.suspend = ehci_fsl_drv_suspend,
 	.resume = ehci_fsl_drv_resume,
 	.restore = ehci_fsl_drv_restore,

@@ -1,0 +1,18 @@
+What:		/sys/bus/iio/devices/iio:deviceX/calibrate
+Date:		July 2015
+KernelVersion:	4.7
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Writing '1' will perform a FOC (Fast Online Calibration). The
+                corresponding calibration offsets can be read from *_calibbias
+                entries.
+
+What:		/sys/bus/iio/devices/iio:deviceX/location
+Date:		July 2015
+KernelVersion:	4.7
+Contact:	linux-iio@vger.kernel.org
+Description:
+		This attribute returns a string with the physical location where
+                the motion sensor is placed. For example, in a laptop a motion
+                sensor can be located on the base or on the lid. Current valid
+		values are 'base' and 'lid'.

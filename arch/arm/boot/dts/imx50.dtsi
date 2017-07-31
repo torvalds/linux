@@ -11,11 +11,21 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-#include "skeleton.dtsi"
 #include "imx50-pinfunc.h"
 #include <dt-bindings/clock/imx5-clock.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	/*
+	 * The decompressor and also some bootloaders rely on a
+	 * pre-existing /chosen node to be available to insert the
+	 * command line and merge other ATAGS info.
+	 * Also for U-Boot there must be a pre-existing /memory node.
+	 */
+	chosen {};
+	memory { device_type = "memory"; reg = <0 0>; };
+
 	aliases {
 		ethernet0 = &fec;
 		gpio0 = &gpio1;
@@ -103,8 +113,8 @@
 					reg = <0x50004000 0x4000>;
 					interrupts = <1>;
 					clocks = <&clks IMX5_CLK_ESDHC1_IPG_GATE>,
-					         <&clks IMX5_CLK_DUMMY>,
-					         <&clks IMX5_CLK_ESDHC1_PER_GATE>;
+						 <&clks IMX5_CLK_DUMMY>,
+						 <&clks IMX5_CLK_ESDHC1_PER_GATE>;
 					clock-names = "ipg", "ahb", "per";
 					bus-width = <4>;
 					status = "disabled";
@@ -115,8 +125,8 @@
 					reg = <0x50008000 0x4000>;
 					interrupts = <2>;
 					clocks = <&clks IMX5_CLK_ESDHC2_IPG_GATE>,
-					         <&clks IMX5_CLK_DUMMY>,
-					         <&clks IMX5_CLK_ESDHC2_PER_GATE>;
+						 <&clks IMX5_CLK_DUMMY>,
+						 <&clks IMX5_CLK_ESDHC2_PER_GATE>;
 					clock-names = "ipg", "ahb", "per";
 					bus-width = <4>;
 					status = "disabled";
@@ -127,7 +137,7 @@
 					reg = <0x5000c000 0x4000>;
 					interrupts = <33>;
 					clocks = <&clks IMX5_CLK_UART3_IPG_GATE>,
-					         <&clks IMX5_CLK_UART3_PER_GATE>;
+						 <&clks IMX5_CLK_UART3_PER_GATE>;
 					clock-names = "ipg", "per";
 					status = "disabled";
 				};
@@ -139,7 +149,7 @@
 					reg = <0x50010000 0x4000>;
 					interrupts = <36>;
 					clocks = <&clks IMX5_CLK_ECSPI1_IPG_GATE>,
-					         <&clks IMX5_CLK_ECSPI1_PER_GATE>;
+						 <&clks IMX5_CLK_ECSPI1_PER_GATE>;
 					clock-names = "ipg", "per";
 					status = "disabled";
 				};
@@ -164,8 +174,8 @@
 					reg = <0x50020000 0x4000>;
 					interrupts = <3>;
 					clocks = <&clks IMX5_CLK_ESDHC3_IPG_GATE>,
-					         <&clks IMX5_CLK_DUMMY>,
-					         <&clks IMX5_CLK_ESDHC3_PER_GATE>;
+						 <&clks IMX5_CLK_DUMMY>,
+						 <&clks IMX5_CLK_ESDHC3_PER_GATE>;
 					clock-names = "ipg", "ahb", "per";
 					bus-width = <4>;
 					status = "disabled";
@@ -176,8 +186,8 @@
 					reg = <0x50024000 0x4000>;
 					interrupts = <4>;
 					clocks = <&clks IMX5_CLK_ESDHC4_IPG_GATE>,
-					         <&clks IMX5_CLK_DUMMY>,
-					         <&clks IMX5_CLK_ESDHC4_PER_GATE>;
+						 <&clks IMX5_CLK_DUMMY>,
+						 <&clks IMX5_CLK_ESDHC4_PER_GATE>;
 					clock-names = "ipg", "ahb", "per";
 					bus-width = <4>;
 					status = "disabled";
@@ -227,6 +237,7 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				gpio-ranges = <&iomuxc 0 151 28>;
 			};
 
 			gpio2: gpio@53f88000 {
@@ -237,6 +248,10 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				gpio-ranges = <&iomuxc  0 75 8>, <&iomuxc 8 100 8>,
+					      <&iomuxc 16 83 1>, <&iomuxc 17 85 1>,
+					      <&iomuxc 18 87 1>, <&iomuxc 19 84 1>,
+					      <&iomuxc 20 88 1>, <&iomuxc 21 86 1>;
 			};
 
 			gpio3: gpio@53f8c000 {
@@ -247,6 +262,7 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				gpio-ranges = <&iomuxc 0 108 32>;
 			};
 
 			gpio4: gpio@53f90000 {
@@ -257,6 +273,8 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				gpio-ranges = <&iomuxc  0   8  8>, <&iomuxc 8 45 12>,
+					      <&iomuxc 20 140 11>;
 			};
 
 			wdog1: wdog@53f98000 {
@@ -271,7 +289,7 @@
 				reg = <0x53fa0000 0x4000>;
 				interrupts = <39>;
 				clocks = <&clks IMX5_CLK_GPT_IPG_GATE>,
-				         <&clks IMX5_CLK_GPT_HF_GATE>;
+					 <&clks IMX5_CLK_GPT_HF_GATE>;
 				clock-names = "ipg", "per";
 			};
 
@@ -290,7 +308,7 @@
 				compatible = "fsl,imx50-pwm", "fsl,imx27-pwm";
 				reg = <0x53fb4000 0x4000>;
 				clocks = <&clks IMX5_CLK_PWM1_IPG_GATE>,
-				         <&clks IMX5_CLK_PWM1_HF_GATE>;
+					 <&clks IMX5_CLK_PWM1_HF_GATE>;
 				clock-names = "ipg", "per";
 				interrupts = <61>;
 			};
@@ -300,7 +318,7 @@
 				compatible = "fsl,imx50-pwm", "fsl,imx27-pwm";
 				reg = <0x53fb8000 0x4000>;
 				clocks = <&clks IMX5_CLK_PWM2_IPG_GATE>,
-				         <&clks IMX5_CLK_PWM2_HF_GATE>;
+					 <&clks IMX5_CLK_PWM2_HF_GATE>;
 				clock-names = "ipg", "per";
 				interrupts = <94>;
 			};
@@ -310,7 +328,7 @@
 				reg = <0x53fbc000 0x4000>;
 				interrupts = <31>;
 				clocks = <&clks IMX5_CLK_UART1_IPG_GATE>,
-				         <&clks IMX5_CLK_UART1_PER_GATE>;
+					 <&clks IMX5_CLK_UART1_PER_GATE>;
 				clock-names = "ipg", "per";
 				status = "disabled";
 			};
@@ -320,7 +338,7 @@
 				reg = <0x53fc0000 0x4000>;
 				interrupts = <32>;
 				clocks = <&clks IMX5_CLK_UART2_IPG_GATE>,
-				         <&clks IMX5_CLK_UART2_PER_GATE>;
+					 <&clks IMX5_CLK_UART2_PER_GATE>;
 				clock-names = "ipg", "per";
 				status = "disabled";
 			};
@@ -346,6 +364,7 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				gpio-ranges = <&iomuxc 0 57 18>, <&iomuxc 18 89 11>;
 			};
 
 			gpio6: gpio@53fe0000 {
@@ -356,6 +375,7 @@
 				#gpio-cells = <2>;
 				interrupt-controller;
 				#interrupt-cells = <2>;
+				gpio-ranges = <&iomuxc 0 27 18>, <&iomuxc 18 16 11>;
 			};
 
 			i2c3: i2c@53fec000 {
@@ -373,7 +393,7 @@
 				reg = <0x53ff0000 0x4000>;
 				interrupts = <13>;
 				clocks = <&clks IMX5_CLK_UART4_IPG_GATE>,
-				         <&clks IMX5_CLK_UART4_PER_GATE>;
+					 <&clks IMX5_CLK_UART4_PER_GATE>;
 				clock-names = "ipg", "per";
 				status = "disabled";
 			};
@@ -391,7 +411,7 @@
 				reg = <0x63f90000 0x4000>;
 				interrupts = <86>;
 				clocks = <&clks IMX5_CLK_UART5_IPG_GATE>,
-				         <&clks IMX5_CLK_UART5_PER_GATE>;
+					 <&clks IMX5_CLK_UART5_PER_GATE>;
 				clock-names = "ipg", "per";
 				status = "disabled";
 			};
@@ -410,7 +430,7 @@
 				reg = <0x63fac000 0x4000>;
 				interrupts = <37>;
 				clocks = <&clks IMX5_CLK_ECSPI2_IPG_GATE>,
-				         <&clks IMX5_CLK_ECSPI2_PER_GATE>;
+					 <&clks IMX5_CLK_ECSPI2_PER_GATE>;
 				clock-names = "ipg", "per";
 				status = "disabled";
 			};
@@ -420,7 +440,7 @@
 				reg = <0x63fb0000 0x4000>;
 				interrupts = <6>;
 				clocks = <&clks IMX5_CLK_SDMA_GATE>,
-				         <&clks IMX5_CLK_SDMA_GATE>;
+					 <&clks IMX5_CLK_SDMA_GATE>;
 				clock-names = "ipg", "ahb";
 				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx50.bin";
 			};
@@ -432,7 +452,7 @@
 				reg = <0x63fc0000 0x4000>;
 				interrupts = <38>;
 				clocks = <&clks IMX5_CLK_CSPI_IPG_GATE>,
-				         <&clks IMX5_CLK_CSPI_IPG_GATE>;
+					 <&clks IMX5_CLK_CSPI_IPG_GATE>;
 				clock-names = "ipg", "per";
 				status = "disabled";
 			};
@@ -482,8 +502,8 @@
 				reg = <0x63fec000 0x4000>;
 				interrupts = <87>;
 				clocks = <&clks IMX5_CLK_FEC_GATE>,
-				         <&clks IMX5_CLK_FEC_GATE>,
-				         <&clks IMX5_CLK_FEC_GATE>;
+					 <&clks IMX5_CLK_FEC_GATE>,
+					 <&clks IMX5_CLK_FEC_GATE>;
 				clock-names = "ipg", "ahb", "ptp";
 				status = "disabled";
 			};

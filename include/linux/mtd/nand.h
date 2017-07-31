@@ -29,26 +29,26 @@ struct nand_flash_dev;
 struct device_node;
 
 /* Scan and identify a NAND device */
-extern int nand_scan(struct mtd_info *mtd, int max_chips);
+int nand_scan(struct mtd_info *mtd, int max_chips);
 /*
  * Separate phases of nand_scan(), allowing board driver to intervene
  * and override command or ECC setup according to flash type.
  */
-extern int nand_scan_ident(struct mtd_info *mtd, int max_chips,
+int nand_scan_ident(struct mtd_info *mtd, int max_chips,
 			   struct nand_flash_dev *table);
-extern int nand_scan_tail(struct mtd_info *mtd);
+int nand_scan_tail(struct mtd_info *mtd);
 
-/* Free resources held by the NAND device */
-extern void nand_release(struct mtd_info *mtd);
+/* Unregister the MTD device and free resources held by the NAND device */
+void nand_release(struct mtd_info *mtd);
 
 /* Internal helper for board drivers which need to override command function */
-extern void nand_wait_ready(struct mtd_info *mtd);
+void nand_wait_ready(struct mtd_info *mtd);
 
 /* locks all blocks present in the device */
-extern int nand_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
+int nand_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
 
 /* unlocks specified locked blocks */
-extern int nand_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
+int nand_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len);
 
 /* The maximum number of NAND chips in an array */
 #define NAND_MAX_CHIPS		8
@@ -141,6 +141,13 @@ enum nand_ecc_algo {
  * pages and you want to rely on the default implementation.
  */
 #define NAND_ECC_GENERIC_ERASED_CHECK	BIT(0)
+#define NAND_ECC_MAXIMIZE		BIT(1)
+/*
+ * If your controller already sends the required NAND commands when
+ * reading or writing a page, then the framework is not supposed to
+ * send READ0 and SEQIN/PAGEPROG respectively.
+ */
+#define NAND_ECC_CUSTOM_PAGE_ACCESS	BIT(2)
 
 /* Bit mask for flags passed to do_nand_read_ecc */
 #define NAND_GET_DEVICE		0x80
@@ -185,6 +192,7 @@ enum nand_ecc_algo {
 /* Macros to identify the above */
 #define NAND_HAS_CACHEPROG(chip) ((chip->options & NAND_CACHEPRG))
 #define NAND_HAS_SUBPAGE_READ(chip) ((chip->options & NAND_SUBPAGE_READ))
+#define NAND_HAS_SUBPAGE_WRITE(chip) !((chip)->options & NAND_NO_SUBPAGE_WRITE)
 
 /* Non chip related options */
 /* This option skips the bbt scan during initialization. */
@@ -208,6 +216,16 @@ enum nand_ecc_algo {
  * kmap'ed, vmalloc'ed highmem buffers being passed from upper layers
  */
 #define NAND_USE_BOUNCE_BUFFER	0x00100000
+
+/*
+ * In case your controller is implementing ->cmd_ctrl() and is relying on the
+ * default ->cmdfunc() implementation, you may want to let the core handle the
+ * tCCS delay which is required when a column change (RNDIN or RNDOUT) is
+ * requested.
+ * If your controller already takes care of this delay, you don't need to set
+ * this flag.
+ */
+#define NAND_WAIT_TCCS		0x00200000
 
 /* Options set by nand scan */
 /* Nand scan has allocated controller struct */
@@ -460,6 +478,13 @@ struct nand_hw_control {
 	wait_queue_head_t wq;
 };
 
+static inline void nand_hw_control_init(struct nand_hw_control *nfc)
+{
+	nfc->active = NULL;
+	spin_lock_init(&nfc->lock);
+	init_waitqueue_head(&nfc->wq);
+}
+
 /**
  * struct nand_ecc_ctrl - Control structure for ECC
  * @mode:	ECC mode
@@ -550,6 +575,11 @@ struct nand_ecc_ctrl {
 			int page);
 };
 
+static inline int nand_standard_page_accessors(struct nand_ecc_ctrl *ecc)
+{
+	return !(ecc->options & NAND_ECC_CUSTOM_PAGE_ACCESS);
+}
+
 /**
  * struct nand_buffers - buffer structure for read/write
  * @ecccalc:	buffer pointer for calculated ECC, size is oobsize.
@@ -564,6 +594,131 @@ struct nand_buffers {
 	uint8_t	*ecccode;
 	uint8_t *databuf;
 };
+
+/**
+ * struct nand_sdr_timings - SDR NAND chip timings
+ *
+ * This struct defines the timing requirements of a SDR NAND chip.
+ * These information can be found in every NAND datasheets and the timings
+ * meaning are described in the ONFI specifications:
+ * www.onfi.org/~/media/ONFI/specs/onfi_3_1_spec.pdf (chapter 4.15 Timing
+ * Parameters)
+ *
+ * All these timings are expressed in picoseconds.
+ *
+ * @tBERS_max: Block erase time
+ * @tCCS_min: Change column setup time
+ * @tPROG_max: Page program time
+ * @tR_max: Page read time
+ * @tALH_min: ALE hold time
+ * @tADL_min: ALE to data loading time
+ * @tALS_min: ALE setup time
+ * @tAR_min: ALE to RE# delay
+ * @tCEA_max: CE# access time
+ * @tCEH_min: CE# high hold time
+ * @tCH_min:  CE# hold time
+ * @tCHZ_max: CE# high to output hi-Z
+ * @tCLH_min: CLE hold time
+ * @tCLR_min: CLE to RE# delay
+ * @tCLS_min: CLE setup time
+ * @tCOH_min: CE# high to output hold
+ * @tCS_min: CE# setup time
+ * @tDH_min: Data hold time
+ * @tDS_min: Data setup time
+ * @tFEAT_max: Busy time for Set Features and Get Features
+ * @tIR_min: Output hi-Z to RE# low
+ * @tITC_max: Interface and Timing Mode Change time
+ * @tRC_min: RE# cycle time
+ * @tREA_max: RE# access time
+ * @tREH_min: RE# high hold time
+ * @tRHOH_min: RE# high to output hold
+ * @tRHW_min: RE# high to WE# low
+ * @tRHZ_max: RE# high to output hi-Z
+ * @tRLOH_min: RE# low to output hold
+ * @tRP_min: RE# pulse width
+ * @tRR_min: Ready to RE# low (data only)
+ * @tRST_max: Device reset time, measured from the falling edge of R/B# to the
+ *	      rising edge of R/B#.
+ * @tWB_max: WE# high to SR[6] low
+ * @tWC_min: WE# cycle time
+ * @tWH_min: WE# high hold time
+ * @tWHR_min: WE# high to RE# low
+ * @tWP_min: WE# pulse width
+ * @tWW_min: WP# transition to WE# low
+ */
+struct nand_sdr_timings {
+	u32 tBERS_max;
+	u32 tCCS_min;
+	u32 tPROG_max;
+	u32 tR_max;
+	u32 tALH_min;
+	u32 tADL_min;
+	u32 tALS_min;
+	u32 tAR_min;
+	u32 tCEA_max;
+	u32 tCEH_min;
+	u32 tCH_min;
+	u32 tCHZ_max;
+	u32 tCLH_min;
+	u32 tCLR_min;
+	u32 tCLS_min;
+	u32 tCOH_min;
+	u32 tCS_min;
+	u32 tDH_min;
+	u32 tDS_min;
+	u32 tFEAT_max;
+	u32 tIR_min;
+	u32 tITC_max;
+	u32 tRC_min;
+	u32 tREA_max;
+	u32 tREH_min;
+	u32 tRHOH_min;
+	u32 tRHW_min;
+	u32 tRHZ_max;
+	u32 tRLOH_min;
+	u32 tRP_min;
+	u32 tRR_min;
+	u64 tRST_max;
+	u32 tWB_max;
+	u32 tWC_min;
+	u32 tWH_min;
+	u32 tWHR_min;
+	u32 tWP_min;
+	u32 tWW_min;
+};
+
+/**
+ * enum nand_data_interface_type - NAND interface timing type
+ * @NAND_SDR_IFACE:	Single Data Rate interface
+ */
+enum nand_data_interface_type {
+	NAND_SDR_IFACE,
+};
+
+/**
+ * struct nand_data_interface - NAND interface timing
+ * @type:	type of the timing
+ * @timings:	The timing, type according to @type
+ */
+struct nand_data_interface {
+	enum nand_data_interface_type type;
+	union {
+		struct nand_sdr_timings sdr;
+	} timings;
+};
+
+/**
+ * nand_get_sdr_timings - get SDR timing from data interface
+ * @conf:	The data interface
+ */
+static inline const struct nand_sdr_timings *
+nand_get_sdr_timings(const struct nand_data_interface *conf)
+{
+	if (conf->type != NAND_SDR_IFACE)
+		return ERR_PTR(-EINVAL);
+
+	return &conf->timings.sdr;
+}
 
 /**
  * struct nand_chip - NAND Private Flash Chip Data
@@ -627,10 +782,9 @@ struct nand_buffers {
  *                      also from the datasheet. It is the recommended ECC step
  *			size, if known; if unknown, set to zero.
  * @onfi_timing_mode_default: [INTERN] default ONFI timing mode. This field is
- *			      either deduced from the datasheet if the NAND
- *			      chip is not ONFI compliant or set to 0 if it is
- *			      (an ONFI chip is always configured in mode 0
- *			      after a NAND reset)
+ *			      set to the actually used ONFI mode if the chip is
+ *			      ONFI compliant or deduced from the datasheet if
+ *			      the NAND chip is not ONFI compliant.
  * @numchips:		[INTERN] number of physical chips
  * @chipsize:		[INTERN] the size of one chip for multichip arrays
  * @pagemask:		[INTERN] page number mask = number of (pages / chip) - 1
@@ -647,9 +801,14 @@ struct nand_buffers {
  *			supported, 0 otherwise.
  * @jedec_params:	[INTERN] holds the JEDEC parameter page when JEDEC is
  *			supported, 0 otherwise.
+ * @max_bb_per_die:	[INTERN] the max number of bad blocks each die of a
+ *			this nand device will encounter their life times.
+ * @blocks_per_die:	[INTERN] The number of PEBs in a die
+ * @data_interface:	[INTERN] NAND interface timing information
  * @read_retries:	[INTERN] the number of read retry modes supported
  * @onfi_set_features:	[REPLACEABLE] set the features for ONFI nand
  * @onfi_get_features:	[REPLACEABLE] get the features for ONFI nand
+ * @setup_data_interface: [OPTIONAL] setup the data interface and timing
  * @bbt:		[INTERN] bad block table pointer
  * @bbt_td:		[REPLACEABLE] bad block table descriptor for flash
  *			lookup.
@@ -696,6 +855,10 @@ struct nand_chip {
 	int (*onfi_get_features)(struct mtd_info *mtd, struct nand_chip *chip,
 			int feature_addr, uint8_t *subfeature_para);
 	int (*setup_read_retry)(struct mtd_info *mtd, int retry_mode);
+	int (*setup_data_interface)(struct mtd_info *mtd,
+				    const struct nand_data_interface *conf,
+				    bool check_only);
+
 
 	int chip_delay;
 	unsigned int options;
@@ -724,6 +887,10 @@ struct nand_chip {
 		struct nand_onfi_params	onfi_params;
 		struct nand_jedec_params jedec_params;
 	};
+	u16 max_bb_per_die;
+	u32 blocks_per_die;
+
+	struct nand_data_interface *data_interface;
 
 	int read_retries;
 
@@ -797,6 +964,7 @@ static inline void nand_set_controller_data(struct nand_chip *chip, void *priv)
 #define NAND_MFR_SANDISK	0x45
 #define NAND_MFR_INTEL		0x89
 #define NAND_MFR_ATO		0x9b
+#define NAND_MFR_WINBOND	0xef
 
 /* The maximum expected count of bytes in the NAND ID sequence */
 #define NAND_MAX_ID_LEN 8
@@ -893,14 +1061,14 @@ struct nand_manufacturers {
 extern struct nand_flash_dev nand_flash_ids[];
 extern struct nand_manufacturers nand_manuf_ids[];
 
-extern int nand_default_bbt(struct mtd_info *mtd);
-extern int nand_markbad_bbt(struct mtd_info *mtd, loff_t offs);
-extern int nand_isreserved_bbt(struct mtd_info *mtd, loff_t offs);
-extern int nand_isbad_bbt(struct mtd_info *mtd, loff_t offs, int allowbbt);
-extern int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
-			   int allowbbt);
-extern int nand_do_read(struct mtd_info *mtd, loff_t from, size_t len,
-			size_t *retlen, uint8_t *buf);
+int nand_default_bbt(struct mtd_info *mtd);
+int nand_markbad_bbt(struct mtd_info *mtd, loff_t offs);
+int nand_isreserved_bbt(struct mtd_info *mtd, loff_t offs);
+int nand_isbad_bbt(struct mtd_info *mtd, loff_t offs, int allowbbt);
+int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
+		    int allowbbt);
+int nand_do_read(struct mtd_info *mtd, loff_t from, size_t len,
+		 size_t *retlen, uint8_t *buf);
 
 /**
  * struct platform_nand_chip - chip level device structure
@@ -988,6 +1156,11 @@ static inline int onfi_get_sync_timing_mode(struct nand_chip *chip)
 	return le16_to_cpu(chip->onfi_params.src_sync_timing_mode);
 }
 
+int onfi_init_data_interface(struct nand_chip *chip,
+			     struct nand_data_interface *iface,
+			     enum nand_data_interface_type type,
+			     int timing_mode);
+
 /*
  * Check if it is a SLC nand.
  * The !nand_is_slc() can be used to check the MLC/TLC nand chips.
@@ -1023,57 +1196,10 @@ static inline int jedec_feature(struct nand_chip *chip)
 		: 0;
 }
 
-/*
- * struct nand_sdr_timings - SDR NAND chip timings
- *
- * This struct defines the timing requirements of a SDR NAND chip.
- * These informations can be found in every NAND datasheets and the timings
- * meaning are described in the ONFI specifications:
- * www.onfi.org/~/media/ONFI/specs/onfi_3_1_spec.pdf (chapter 4.15 Timing
- * Parameters)
- *
- * All these timings are expressed in picoseconds.
- */
-
-struct nand_sdr_timings {
-	u32 tALH_min;
-	u32 tADL_min;
-	u32 tALS_min;
-	u32 tAR_min;
-	u32 tCEA_max;
-	u32 tCEH_min;
-	u32 tCH_min;
-	u32 tCHZ_max;
-	u32 tCLH_min;
-	u32 tCLR_min;
-	u32 tCLS_min;
-	u32 tCOH_min;
-	u32 tCS_min;
-	u32 tDH_min;
-	u32 tDS_min;
-	u32 tFEAT_max;
-	u32 tIR_min;
-	u32 tITC_max;
-	u32 tRC_min;
-	u32 tREA_max;
-	u32 tREH_min;
-	u32 tRHOH_min;
-	u32 tRHW_min;
-	u32 tRHZ_max;
-	u32 tRLOH_min;
-	u32 tRP_min;
-	u32 tRR_min;
-	u64 tRST_max;
-	u32 tWB_max;
-	u32 tWC_min;
-	u32 tWH_min;
-	u32 tWHR_min;
-	u32 tWP_min;
-	u32 tWW_min;
-};
-
 /* get timing characteristics from ONFI timing mode. */
 const struct nand_sdr_timings *onfi_async_timing_mode_to_sdr_timings(int mode);
+/* get data interface from ONFI timing mode 0, used after reset. */
+const struct nand_data_interface *nand_get_default_data_interface(void);
 
 int nand_check_erased_ecc_chunk(void *data, int datalen,
 				void *ecc, int ecclen,
@@ -1093,4 +1219,11 @@ int nand_read_oob_std(struct mtd_info *mtd, struct nand_chip *chip, int page);
 /* Default read_oob syndrome implementation */
 int nand_read_oob_syndrome(struct mtd_info *mtd, struct nand_chip *chip,
 			   int page);
+
+/* Reset and initialize a NAND device */
+int nand_reset(struct nand_chip *chip, int chipnr);
+
+/* Free resources held by the NAND device */
+void nand_cleanup(struct nand_chip *chip);
+
 #endif /* __LINUX_MTD_NAND_H */

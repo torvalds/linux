@@ -29,7 +29,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/vmalloc.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include <linux/configfs.h>
 #include "configfs_internal.h"
@@ -333,6 +333,7 @@ configfs_write_bin_file(struct file *file, const char __user *buf,
 		if (bin_attr->cb_max_size &&
 			*ppos + count > bin_attr->cb_max_size) {
 			len = -EFBIG;
+			goto out;
 		}
 
 		tbuf = vmalloc(*ppos + count);

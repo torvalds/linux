@@ -11,6 +11,8 @@
 #include <linux/bootmem.h>
 #include <linux/acpi.h>
 #include <linux/dmi.h>
+
+#include <asm/e820/api.h>
 #include <asm/efi.h>
 #include <asm/uv/uv.h>
 
@@ -164,6 +166,79 @@ efi_status_t efi_query_variable_store(u32 attributes, unsigned long size,
 EXPORT_SYMBOL_GPL(efi_query_variable_store);
 
 /*
+ * The UEFI specification makes it clear that the operating system is
+ * free to do whatever it wants with boot services code after
+ * ExitBootServices() has been called. Ignoring this recommendation a
+ * significant bunch of EFI implementations continue calling into boot
+ * services code (SetVirtualAddressMap). In order to work around such
+ * buggy implementations we reserve boot services region during EFI
+ * init and make sure it stays executable. Then, after
+ * SetVirtualAddressMap(), it is discarded.
+ *
+ * However, some boot services regions contain data that is required
+ * by drivers, so we need to track which memory ranges can never be
+ * freed. This is done by tagging those regions with the
+ * EFI_MEMORY_RUNTIME attribute.
+ *
+ * Any driver that wants to mark a region as reserved must use
+ * efi_mem_reserve() which will insert a new EFI memory descriptor
+ * into efi.memmap (splitting existing regions if necessary) and tag
+ * it with EFI_MEMORY_RUNTIME.
+ */
+void __init efi_arch_mem_reserve(phys_addr_t addr, u64 size)
+{
+	phys_addr_t new_phys, new_size;
+	struct efi_mem_range mr;
+	efi_memory_desc_t md;
+	int num_entries;
+	void *new;
+
+	if (efi_mem_desc_lookup(addr, &md)) {
+		pr_err("Failed to lookup EFI memory descriptor for %pa\n", &addr);
+		return;
+	}
+
+	if (addr + size > md.phys_addr + (md.num_pages << EFI_PAGE_SHIFT)) {
+		pr_err("Region spans EFI memory descriptors, %pa\n", &addr);
+		return;
+	}
+
+	/* No need to reserve regions that will never be freed. */
+	if (md.attribute & EFI_MEMORY_RUNTIME)
+		return;
+
+	size += addr % EFI_PAGE_SIZE;
+	size = round_up(size, EFI_PAGE_SIZE);
+	addr = round_down(addr, EFI_PAGE_SIZE);
+
+	mr.range.start = addr;
+	mr.range.end = addr + size - 1;
+	mr.attribute = md.attribute | EFI_MEMORY_RUNTIME;
+
+	num_entries = efi_memmap_split_count(&md, &mr.range);
+	num_entries += efi.memmap.nr_map;
+
+	new_size = efi.memmap.desc_size * num_entries;
+
+	new_phys = efi_memmap_alloc(num_entries);
+	if (!new_phys) {
+		pr_err("Could not allocate boot services memmap\n");
+		return;
+	}
+
+	new = early_memremap(new_phys, new_size);
+	if (!new) {
+		pr_err("Failed to map new boot services memmap\n");
+		return;
+	}
+
+	efi_memmap_insert(&efi.memmap, new, &mr);
+	early_memunmap(new, new_size);
+
+	efi_memmap_install(new_phys, num_entries);
+}
+
+/*
  * Helper function for efi_reserve_boot_services() to figure out if we
  * can free regions in efi_free_boot_services().
  *
@@ -171,28 +246,19 @@ EXPORT_SYMBOL_GPL(efi_query_variable_store);
  * else. We must only reserve (and then free) regions:
  *
  * - Not within any part of the kernel
- * - Not the BIOS reserved area (E820_RESERVED, E820_NVS, etc)
+ * - Not the BIOS reserved area (E820_TYPE_RESERVED, E820_TYPE_NVS, etc)
  */
 static bool can_free_region(u64 start, u64 size)
 {
 	if (start + size > __pa_symbol(_text) && start <= __pa_symbol(_end))
 		return false;
 
-	if (!e820_all_mapped(start, start+size, E820_RAM))
+	if (!e820__mapped_all(start, start+size, E820_TYPE_RAM))
 		return false;
 
 	return true;
 }
 
-/*
- * The UEFI specification makes it clear that the operating system is free to do
- * whatever it wants with boot services code after ExitBootServices() has been
- * called. Ignoring this recommendation a significant bunch of EFI implementations 
- * continue calling into boot services code (SetVirtualAddressMap). In order to 
- * work around such buggy implementations we reserve boot services region during 
- * EFI init and make sure it stays executable. Then, after SetVirtualAddressMap(), it
-* is discarded.
-*/
 void __init efi_reserve_boot_services(void)
 {
 	efi_memory_desc_t *md;
@@ -220,7 +286,7 @@ void __init efi_reserve_boot_services(void)
 		 * A good example of a critical region that must not be
 		 * freed is page zero (first 4Kb of memory), which may
 		 * contain boot services code/data but is marked
-		 * E820_RESERVED by trim_bios_range().
+		 * E820_TYPE_RESERVED by trim_bios_range().
 		 */
 		if (!already_reserved) {
 			memblock_reserve(start, size);
@@ -249,7 +315,10 @@ void __init efi_reserve_boot_services(void)
 
 void __init efi_free_boot_services(void)
 {
+	phys_addr_t new_phys, new_size;
 	efi_memory_desc_t *md;
+	int num_entries = 0;
+	void *new, *new_md;
 
 	for_each_efi_memory_desc(md) {
 		unsigned long long start = md->phys_addr;
@@ -257,12 +326,16 @@ void __init efi_free_boot_services(void)
 		size_t rm_size;
 
 		if (md->type != EFI_BOOT_SERVICES_CODE &&
-		    md->type != EFI_BOOT_SERVICES_DATA)
+		    md->type != EFI_BOOT_SERVICES_DATA) {
+			num_entries++;
 			continue;
+		}
 
 		/* Do not free, someone else owns it: */
-		if (md->attribute & EFI_MEMORY_RUNTIME)
+		if (md->attribute & EFI_MEMORY_RUNTIME) {
+			num_entries++;
 			continue;
+		}
 
 		/*
 		 * Nasty quirk: if all sub-1MB memory is used for boot
@@ -287,7 +360,41 @@ void __init efi_free_boot_services(void)
 		free_bootmem_late(start, size);
 	}
 
-	efi_unmap_memmap();
+	new_size = efi.memmap.desc_size * num_entries;
+	new_phys = efi_memmap_alloc(num_entries);
+	if (!new_phys) {
+		pr_err("Failed to allocate new EFI memmap\n");
+		return;
+	}
+
+	new = memremap(new_phys, new_size, MEMREMAP_WB);
+	if (!new) {
+		pr_err("Failed to map new EFI memmap\n");
+		return;
+	}
+
+	/*
+	 * Build a new EFI memmap that excludes any boot services
+	 * regions that are not tagged EFI_MEMORY_RUNTIME, since those
+	 * regions have now been freed.
+	 */
+	new_md = new;
+	for_each_efi_memory_desc(md) {
+		if (!(md->attribute & EFI_MEMORY_RUNTIME) &&
+		    (md->type == EFI_BOOT_SERVICES_CODE ||
+		     md->type == EFI_BOOT_SERVICES_DATA))
+			continue;
+
+		memcpy(new_md, md, efi.memmap.desc_size);
+		new_md += efi.memmap.desc_size;
+	}
+
+	memunmap(new);
+
+	if (efi_memmap_install(new_phys, num_entries)) {
+		pr_err("Could not install new EFI memmap\n");
+		return;
+	}
 }
 
 /*
@@ -365,7 +472,7 @@ void __init efi_apply_memmap_quirks(void)
 	 */
 	if (!efi_runtime_supported()) {
 		pr_info("Setup done, disabling due to 32/64-bit mismatch\n");
-		efi_unmap_memmap();
+		efi_memmap_unmap();
 	}
 
 	/* UV2+ BIOS has a fix for this issue.  UV1 still needs the quirk. */

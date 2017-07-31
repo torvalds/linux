@@ -1,7 +1,5 @@
 .. -*- coding: utf-8; mode: rst -*-
 
-.. _fe-type-t:
-
 *************
 Frontend type
 *************
@@ -11,7 +9,9 @@ modulation used in transmission. The fontend types are given by
 fe_type_t type, defined as:
 
 
-.. _fe-type:
+.. c:type:: fe_type
+
+.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
 
 .. flat-table:: Frontend types
     :header-rows:  1
@@ -76,7 +76,7 @@ at the above, as they're supported via the new
 ioctl's, using the :ref:`DTV_DELIVERY_SYSTEM <DTV-DELIVERY-SYSTEM>`
 parameter.
 
-In the old days, struct :ref:`dvb_frontend_info <dvb-frontend-info>`
+In the old days, struct :c:type:`dvb_frontend_info`
 used to contain ``fe_type_t`` field to indicate the delivery systems,
 filled with either FE_QPSK, FE_QAM, FE_OFDM or FE_ATSC. While this
 is still filled to keep backward compatibility, the usage of this field
@@ -85,7 +85,7 @@ devices support multiple delivery systems. Please use
 :ref:`DTV_ENUM_DELSYS <DTV-ENUM-DELSYS>` instead.
 
 On devices that support multiple delivery systems, struct
-:ref:`dvb_frontend_info <dvb-frontend-info>`::``fe_type_t`` is
+:c:type:`dvb_frontend_info`::``fe_type_t`` is
 filled with the currently standard, as selected by the last call to
 :ref:`FE_SET_PROPERTY <FE_GET_PROPERTY>` using the
 :ref:`DTV_DELIVERY_SYSTEM <DTV-DELIVERY-SYSTEM>` property.

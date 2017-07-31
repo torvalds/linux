@@ -804,7 +804,7 @@ mac_ready:
 	return err;
 }
 
-static struct snd_pcm_ops lx_ops_playback = {
+static const struct snd_pcm_ops lx_ops_playback = {
 	.open      = lx_pcm_open,
 	.close     = lx_pcm_close,
 	.ioctl     = snd_pcm_lib_ioctl,
@@ -815,7 +815,7 @@ static struct snd_pcm_ops lx_ops_playback = {
 	.pointer   = lx_pcm_stream_pointer,
 };
 
-static struct snd_pcm_ops lx_ops_capture = {
+static const struct snd_pcm_ops lx_ops_capture = {
 	.open      = lx_pcm_open,
 	.close     = lx_pcm_close,
 	.ioctl     = snd_pcm_lib_ioctl,

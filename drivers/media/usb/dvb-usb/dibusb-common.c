@@ -9,7 +9,6 @@
  * see Documentation/dvb/README.dvb-usb for more information
  */
 
-#include <linux/kconfig.h>
 #include "dibusb.h"
 
 /* Max transfer size done by I2C transfer functions */
@@ -63,72 +62,117 @@ EXPORT_SYMBOL(dibusb_pid_filter_ctrl);
 
 int dibusb_power_ctrl(struct dvb_usb_device *d, int onoff)
 {
-	u8 b[3];
+	u8 *b;
 	int ret;
+
+	b = kmalloc(3, GFP_KERNEL);
+	if (!b)
+		return -ENOMEM;
+
 	b[0] = DIBUSB_REQ_SET_IOCTL;
 	b[1] = DIBUSB_IOCTL_CMD_POWER_MODE;
 	b[2] = onoff ? DIBUSB_IOCTL_POWER_WAKEUP : DIBUSB_IOCTL_POWER_SLEEP;
-	ret = dvb_usb_generic_write(d,b,3);
+
+	ret = dvb_usb_generic_write(d, b, 3);
+
+	kfree(b);
+
 	msleep(10);
+
 	return ret;
 }
 EXPORT_SYMBOL(dibusb_power_ctrl);
 
 int dibusb2_0_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 {
-	u8 b[3] = { 0 };
 	int ret;
+	u8 *b;
+
+	b = kmalloc(3, GFP_KERNEL);
+	if (!b)
+		return -ENOMEM;
 
 	if ((ret = dibusb_streaming_ctrl(adap,onoff)) < 0)
-		return ret;
+		goto ret;
 
 	if (onoff) {
 		b[0] = DIBUSB_REQ_SET_STREAMING_MODE;
 		b[1] = 0x00;
-		if ((ret = dvb_usb_generic_write(adap->dev,b,2)) < 0)
-			return ret;
+		ret = dvb_usb_generic_write(adap->dev, b, 2);
+		if (ret  < 0)
+			goto ret;
 	}
 
 	b[0] = DIBUSB_REQ_SET_IOCTL;
 	b[1] = onoff ? DIBUSB_IOCTL_CMD_ENABLE_STREAM : DIBUSB_IOCTL_CMD_DISABLE_STREAM;
-	return dvb_usb_generic_write(adap->dev,b,3);
+	ret = dvb_usb_generic_write(adap->dev, b, 3);
+
+ret:
+	kfree(b);
+	return ret;
 }
 EXPORT_SYMBOL(dibusb2_0_streaming_ctrl);
 
 int dibusb2_0_power_ctrl(struct dvb_usb_device *d, int onoff)
 {
-	if (onoff) {
-		u8 b[3] = { DIBUSB_REQ_SET_IOCTL, DIBUSB_IOCTL_CMD_POWER_MODE, DIBUSB_IOCTL_POWER_WAKEUP };
-		return dvb_usb_generic_write(d,b,3);
-	} else
+	u8 *b;
+	int ret;
+
+	if (!onoff)
 		return 0;
+
+	b = kmalloc(3, GFP_KERNEL);
+	if (!b)
+		return -ENOMEM;
+
+	b[0] = DIBUSB_REQ_SET_IOCTL;
+	b[1] = DIBUSB_IOCTL_CMD_POWER_MODE;
+	b[2] = DIBUSB_IOCTL_POWER_WAKEUP;
+
+	ret = dvb_usb_generic_write(d, b, 3);
+
+	kfree(b);
+
+	return ret;
 }
 EXPORT_SYMBOL(dibusb2_0_power_ctrl);
 
 static int dibusb_i2c_msg(struct dvb_usb_device *d, u8 addr,
 			  u8 *wbuf, u16 wlen, u8 *rbuf, u16 rlen)
 {
-	u8 sndbuf[MAX_XFER_SIZE]; /* lead(1) devaddr,direction(1) addr(2) data(wlen) (len(2) (when reading)) */
-	/* write only ? */
-	int wo = (rbuf == NULL || rlen == 0),
-		len = 2 + wlen + (wo ? 0 : 2);
+	u8 *sndbuf;
+	int ret, wo, len;
 
-	if (4 + wlen > sizeof(sndbuf)) {
+	/* write only ? */
+	wo = (rbuf == NULL || rlen == 0);
+
+	len = 2 + wlen + (wo ? 0 : 2);
+
+	sndbuf = kmalloc(MAX_XFER_SIZE, GFP_KERNEL);
+	if (!sndbuf)
+		return -ENOMEM;
+
+	if (4 + wlen > MAX_XFER_SIZE) {
 		warn("i2c wr: len=%d is too big!\n", wlen);
-		return -EOPNOTSUPP;
+		ret = -EOPNOTSUPP;
+		goto ret;
 	}
 
 	sndbuf[0] = wo ? DIBUSB_REQ_I2C_WRITE : DIBUSB_REQ_I2C_READ;
 	sndbuf[1] = (addr << 1) | (wo ? 0 : 1);
 
-	memcpy(&sndbuf[2],wbuf,wlen);
+	memcpy(&sndbuf[2], wbuf, wlen);
 
 	if (!wo) {
-		sndbuf[wlen+2] = (rlen >> 8) & 0xff;
-		sndbuf[wlen+3] = rlen & 0xff;
+		sndbuf[wlen + 2] = (rlen >> 8) & 0xff;
+		sndbuf[wlen + 3] = rlen & 0xff;
 	}
 
-	return dvb_usb_generic_rw(d,sndbuf,len,rbuf,rlen,0);
+	ret = dvb_usb_generic_rw(d, sndbuf, len, rbuf, rlen, 0);
+
+ret:
+	kfree(sndbuf);
+	return ret;
 }
 
 /*
@@ -183,164 +227,6 @@ int dibusb_read_eeprom_byte(struct dvb_usb_device *d, u8 offs, u8 *val)
 	return dibusb_i2c_msg(d, 0x50, wbuf, 1, val, 1);
 }
 EXPORT_SYMBOL(dibusb_read_eeprom_byte);
-
-#if IS_ENABLED(CONFIG_DVB_DIB3000MC)
-
-/* 3000MC/P stuff */
-// Config Adjacent channels  Perf -cal22
-static struct dibx000_agc_config dib3000p_mt2060_agc_config = {
-	.band_caps = BAND_VHF | BAND_UHF,
-	.setup     = (1 << 8) | (5 << 5) | (1 << 4) | (1 << 3) | (0 << 2) | (2 << 0),
-
-	.agc1_max = 48497,
-	.agc1_min = 23593,
-	.agc2_max = 46531,
-	.agc2_min = 24904,
-
-	.agc1_pt1 = 0x65,
-	.agc1_pt2 = 0x69,
-
-	.agc1_slope1 = 0x51,
-	.agc1_slope2 = 0x27,
-
-	.agc2_pt1 = 0,
-	.agc2_pt2 = 0x33,
-
-	.agc2_slope1 = 0x35,
-	.agc2_slope2 = 0x37,
-};
-
-static struct dib3000mc_config stk3000p_dib3000p_config = {
-	&dib3000p_mt2060_agc_config,
-
-	.max_time     = 0x196,
-	.ln_adc_level = 0x1cc7,
-
-	.output_mpeg2_in_188_bytes = 1,
-
-	.agc_command1 = 1,
-	.agc_command2 = 1,
-};
-
-static struct dibx000_agc_config dib3000p_panasonic_agc_config = {
-	.band_caps = BAND_VHF | BAND_UHF,
-	.setup     = (1 << 8) | (5 << 5) | (1 << 4) | (1 << 3) | (0 << 2) | (2 << 0),
-
-	.agc1_max = 56361,
-	.agc1_min = 22282,
-	.agc2_max = 47841,
-	.agc2_min = 36045,
-
-	.agc1_pt1 = 0x3b,
-	.agc1_pt2 = 0x6b,
-
-	.agc1_slope1 = 0x55,
-	.agc1_slope2 = 0x1d,
-
-	.agc2_pt1 = 0,
-	.agc2_pt2 = 0x0a,
-
-	.agc2_slope1 = 0x95,
-	.agc2_slope2 = 0x1e,
-};
-
-static struct dib3000mc_config mod3000p_dib3000p_config = {
-	&dib3000p_panasonic_agc_config,
-
-	.max_time     = 0x51,
-	.ln_adc_level = 0x1cc7,
-
-	.output_mpeg2_in_188_bytes = 1,
-
-	.agc_command1 = 1,
-	.agc_command2 = 1,
-};
-
-int dibusb_dib3000mc_frontend_attach(struct dvb_usb_adapter *adap)
-{
-	if (le16_to_cpu(adap->dev->udev->descriptor.idVendor) == USB_VID_LITEON &&
-	    le16_to_cpu(adap->dev->udev->descriptor.idProduct) ==
-			USB_PID_LITEON_DVB_T_WARM) {
-		msleep(1000);
-	}
-
-	adap->fe_adap[0].fe = dvb_attach(dib3000mc_attach,
-					 &adap->dev->i2c_adap,
-					 DEFAULT_DIB3000P_I2C_ADDRESS,
-					 &mod3000p_dib3000p_config);
-	if ((adap->fe_adap[0].fe) == NULL)
-		adap->fe_adap[0].fe = dvb_attach(dib3000mc_attach,
-						 &adap->dev->i2c_adap,
-						 DEFAULT_DIB3000MC_I2C_ADDRESS,
-						 &mod3000p_dib3000p_config);
-	if ((adap->fe_adap[0].fe) != NULL) {
-		if (adap->priv != NULL) {
-			struct dibusb_state *st = adap->priv;
-			st->ops.pid_parse = dib3000mc_pid_parse;
-			st->ops.pid_ctrl  = dib3000mc_pid_control;
-		}
-		return 0;
-	}
-	return -ENODEV;
-}
-EXPORT_SYMBOL(dibusb_dib3000mc_frontend_attach);
-
-static struct mt2060_config stk3000p_mt2060_config = {
-	0x60
-};
-
-int dibusb_dib3000mc_tuner_attach(struct dvb_usb_adapter *adap)
-{
-	struct dibusb_state *st = adap->priv;
-	u8 a,b;
-	u16 if1 = 1220;
-	struct i2c_adapter *tun_i2c;
-
-	// First IF calibration for Liteon Sticks
-	if (le16_to_cpu(adap->dev->udev->descriptor.idVendor) == USB_VID_LITEON &&
-	    le16_to_cpu(adap->dev->udev->descriptor.idProduct) == USB_PID_LITEON_DVB_T_WARM) {
-
-		dibusb_read_eeprom_byte(adap->dev,0x7E,&a);
-		dibusb_read_eeprom_byte(adap->dev,0x7F,&b);
-
-		if (a == 0x00)
-			if1 += b;
-		else if (a == 0x80)
-			if1 -= b;
-		else
-			warn("LITE-ON DVB-T: Strange IF1 calibration :%2X %2X\n", a, b);
-
-	} else if (le16_to_cpu(adap->dev->udev->descriptor.idVendor) == USB_VID_DIBCOM &&
-		   le16_to_cpu(adap->dev->udev->descriptor.idProduct) == USB_PID_DIBCOM_MOD3001_WARM) {
-		u8 desc;
-		dibusb_read_eeprom_byte(adap->dev, 7, &desc);
-		if (desc == 2) {
-			a = 127;
-			do {
-				dibusb_read_eeprom_byte(adap->dev, a, &desc);
-				a--;
-			} while (a > 7 && (desc == 0xff || desc == 0x00));
-			if (desc & 0x80)
-				if1 -= (0xff - desc);
-			else
-				if1 += desc;
-		}
-	}
-
-	tun_i2c = dib3000mc_get_tuner_i2c_master(adap->fe_adap[0].fe, 1);
-	if (dvb_attach(mt2060_attach, adap->fe_adap[0].fe, tun_i2c, &stk3000p_mt2060_config, if1) == NULL) {
-		/* not found - use panasonic pll parameters */
-		if (dvb_attach(dvb_pll_attach, adap->fe_adap[0].fe, 0x60, tun_i2c, DVB_PLL_ENV57H1XD5) == NULL)
-			return -ENOMEM;
-	} else {
-		st->mt2060_present = 1;
-		/* set the correct parameters for the dib3000p */
-		dib3000mc_set_config(adap->fe_adap[0].fe, &stk3000p_dib3000p_config);
-	}
-	return 0;
-}
-EXPORT_SYMBOL(dibusb_dib3000mc_tuner_attach);
-#endif
 
 /*
  * common remote control stuff
@@ -478,11 +364,27 @@ EXPORT_SYMBOL(rc_map_dibusb_table);
 
 int dibusb_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
-	u8 key[5],cmd = DIBUSB_REQ_POLL_REMOTE;
-	dvb_usb_generic_rw(d,&cmd,1,key,5,0);
-	dvb_usb_nec_rc_key_to_event(d,key,event,state);
-	if (key[0] != 0)
-		deb_info("key: %*ph\n", 5, key);
-	return 0;
+	u8 *buf;
+	int ret;
+
+	buf = kmalloc(5, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	buf[0] = DIBUSB_REQ_POLL_REMOTE;
+
+	ret = dvb_usb_generic_rw(d, buf, 1, buf, 5, 0);
+	if (ret < 0)
+		goto ret;
+
+	dvb_usb_nec_rc_key_to_event(d, buf, event, state);
+
+	if (buf[0] != 0)
+		deb_info("key: %*ph\n", 5, buf);
+
+ret:
+	kfree(buf);
+
+	return ret;
 }
 EXPORT_SYMBOL(dibusb_rc_query);

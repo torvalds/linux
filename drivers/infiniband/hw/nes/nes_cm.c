@@ -135,17 +135,17 @@ static void record_ird_ord(struct nes_cm_node *, u16, u16);
 /* instance of function pointers for client API */
 /* set address of this instance to cm_core->cm_ops at cm_core alloc */
 static const struct nes_cm_ops nes_cm_api = {
-	mini_cm_accelerated,
-	mini_cm_listen,
-	mini_cm_del_listen,
-	mini_cm_connect,
-	mini_cm_close,
-	mini_cm_accept,
-	mini_cm_reject,
-	mini_cm_recv_pkt,
-	mini_cm_dealloc_core,
-	mini_cm_get,
-	mini_cm_set
+	.accelerated = mini_cm_accelerated,
+	.listen = mini_cm_listen,
+	.stop_listener = mini_cm_del_listen,
+	.connect = mini_cm_connect,
+	.close = mini_cm_close,
+	.accept = mini_cm_accept,
+	.reject = mini_cm_reject,
+	.recv_pkt = mini_cm_recv_pkt,
+	.destroy_cm_core = mini_cm_dealloc_core,
+	.get = mini_cm_get,
+	.set = mini_cm_set
 };
 
 static struct nes_cm_core *g_cm_core;
@@ -2282,10 +2282,8 @@ static struct nes_cm_listener *mini_cm_listen(struct nes_cm_core *cm_core,
 	if (!listener) {
 		/* create a CM listen node (1/2 node to compare incoming traffic to) */
 		listener = kzalloc(sizeof(*listener), GFP_ATOMIC);
-		if (!listener) {
-			nes_debug(NES_DBG_CM, "Not creating listener memory allocation failed\n");
+		if (!listener)
 			return NULL;
-		}
 
 		listener->loc_addr = cm_info->loc_addr;
 		listener->loc_port = cm_info->loc_port;
@@ -2692,12 +2690,12 @@ static struct nes_cm_core *nes_cm_alloc_core(void)
 	nes_debug(NES_DBG_CM, "Init CM Core completed -- cm_core=%p\n", cm_core);
 
 	nes_debug(NES_DBG_CM, "Enable QUEUE EVENTS\n");
-	cm_core->event_wq = create_singlethread_workqueue("nesewq");
+	cm_core->event_wq = alloc_ordered_workqueue("nesewq", 0);
 	if (!cm_core->event_wq)
 		goto out_free_cmcore;
 	cm_core->post_event = nes_cm_post_event;
 	nes_debug(NES_DBG_CM, "Enable QUEUE DISCONNECTS\n");
-	cm_core->disconn_wq = create_singlethread_workqueue("nesdwq");
+	cm_core->disconn_wq = alloc_ordered_workqueue("nesdwq", 0);
 	if (!cm_core->disconn_wq)
 		goto out_free_wq;
 

@@ -124,6 +124,9 @@
 		 NFC_PROTO_ISO15693_MASK | NFC_PROTO_NFC_DEP_MASK)
 
 #define TRF7970A_AUTOSUSPEND_DELAY		30000 /* 30 seconds */
+#define TRF7970A_13MHZ_CLOCK_FREQUENCY		13560000
+#define TRF7970A_27MHZ_CLOCK_FREQUENCY		27120000
+
 
 #define TRF7970A_RX_SKB_ALLOC_SIZE		256
 
@@ -441,6 +444,7 @@ struct trf7970a {
 	u8				iso_ctrl_tech;
 	u8				modulator_sys_clk_ctrl;
 	u8				special_fcn_reg1;
+	u8				io_ctrl;
 	unsigned int			guard_time;
 	int				technology;
 	int				framing;
@@ -1048,6 +1052,11 @@ static int trf7970a_init(struct trf7970a *trf)
 	if (ret)
 		goto err_out;
 
+	ret = trf7970a_write(trf, TRF7970A_REG_IO_CTRL,
+			trf->io_ctrl | TRF7970A_REG_IO_CTRL_VRS(0x1));
+	if (ret)
+		goto err_out;
+
 	ret = trf7970a_write(trf, TRF7970A_NFC_TARGET_LEVEL, 0);
 	if (ret)
 		goto err_out;
@@ -1056,11 +1065,10 @@ static int trf7970a_init(struct trf7970a *trf)
 
 	trf->chip_status_ctrl &= ~TRF7970A_CHIP_STATUS_RF_ON;
 
-	ret = trf7970a_write(trf, TRF7970A_MODULATOR_SYS_CLK_CTRL, 0);
+	ret = trf7970a_write(trf, TRF7970A_MODULATOR_SYS_CLK_CTRL,
+			trf->modulator_sys_clk_ctrl);
 	if (ret)
 		goto err_out;
-
-	trf->modulator_sys_clk_ctrl = 0;
 
 	ret = trf7970a_write(trf, TRF7970A_ADJUTABLE_FIFO_IRQ_LEVELS,
 			TRF7970A_ADJUTABLE_FIFO_IRQ_LEVELS_WLH_96 |
@@ -1181,27 +1189,37 @@ static int trf7970a_in_config_rf_tech(struct trf7970a *trf, int tech)
 	switch (tech) {
 	case NFC_DIGITAL_RF_TECH_106A:
 		trf->iso_ctrl_tech = TRF7970A_ISO_CTRL_14443A_106;
-		trf->modulator_sys_clk_ctrl = TRF7970A_MODULATOR_DEPTH_OOK;
+		trf->modulator_sys_clk_ctrl =
+			(trf->modulator_sys_clk_ctrl & 0xf8) |
+			TRF7970A_MODULATOR_DEPTH_OOK;
 		trf->guard_time = TRF7970A_GUARD_TIME_NFCA;
 		break;
 	case NFC_DIGITAL_RF_TECH_106B:
 		trf->iso_ctrl_tech = TRF7970A_ISO_CTRL_14443B_106;
-		trf->modulator_sys_clk_ctrl = TRF7970A_MODULATOR_DEPTH_ASK10;
+		trf->modulator_sys_clk_ctrl =
+			(trf->modulator_sys_clk_ctrl & 0xf8) |
+			TRF7970A_MODULATOR_DEPTH_ASK10;
 		trf->guard_time = TRF7970A_GUARD_TIME_NFCB;
 		break;
 	case NFC_DIGITAL_RF_TECH_212F:
 		trf->iso_ctrl_tech = TRF7970A_ISO_CTRL_FELICA_212;
-		trf->modulator_sys_clk_ctrl = TRF7970A_MODULATOR_DEPTH_ASK10;
+		trf->modulator_sys_clk_ctrl =
+			(trf->modulator_sys_clk_ctrl & 0xf8) |
+			TRF7970A_MODULATOR_DEPTH_ASK10;
 		trf->guard_time = TRF7970A_GUARD_TIME_NFCF;
 		break;
 	case NFC_DIGITAL_RF_TECH_424F:
 		trf->iso_ctrl_tech = TRF7970A_ISO_CTRL_FELICA_424;
-		trf->modulator_sys_clk_ctrl = TRF7970A_MODULATOR_DEPTH_ASK10;
+		trf->modulator_sys_clk_ctrl =
+			(trf->modulator_sys_clk_ctrl & 0xf8) |
+			TRF7970A_MODULATOR_DEPTH_ASK10;
 		trf->guard_time = TRF7970A_GUARD_TIME_NFCF;
 		break;
 	case NFC_DIGITAL_RF_TECH_ISO15693:
 		trf->iso_ctrl_tech = TRF7970A_ISO_CTRL_15693_SGL_1OF4_2648;
-		trf->modulator_sys_clk_ctrl = TRF7970A_MODULATOR_DEPTH_OOK;
+		trf->modulator_sys_clk_ctrl =
+			(trf->modulator_sys_clk_ctrl & 0xf8) |
+			TRF7970A_MODULATOR_DEPTH_OOK;
 		trf->guard_time = TRF7970A_GUARD_TIME_15693;
 		break;
 	default:
@@ -1571,17 +1589,23 @@ static int trf7970a_tg_config_rf_tech(struct trf7970a *trf, int tech)
 		trf->iso_ctrl_tech = TRF7970A_ISO_CTRL_NFC_NFC_CE_MODE |
 			TRF7970A_ISO_CTRL_NFC_CE |
 			TRF7970A_ISO_CTRL_NFC_CE_14443A;
-		trf->modulator_sys_clk_ctrl = TRF7970A_MODULATOR_DEPTH_OOK;
+		trf->modulator_sys_clk_ctrl =
+			(trf->modulator_sys_clk_ctrl & 0xf8) |
+			TRF7970A_MODULATOR_DEPTH_OOK;
 		break;
 	case NFC_DIGITAL_RF_TECH_212F:
 		trf->iso_ctrl_tech = TRF7970A_ISO_CTRL_NFC_NFC_CE_MODE |
 			TRF7970A_ISO_CTRL_NFC_NFCF_212;
-		trf->modulator_sys_clk_ctrl = TRF7970A_MODULATOR_DEPTH_ASK10;
+		trf->modulator_sys_clk_ctrl =
+			(trf->modulator_sys_clk_ctrl & 0xf8) |
+			TRF7970A_MODULATOR_DEPTH_ASK10;
 		break;
 	case NFC_DIGITAL_RF_TECH_424F:
 		trf->iso_ctrl_tech = TRF7970A_ISO_CTRL_NFC_NFC_CE_MODE |
 			TRF7970A_ISO_CTRL_NFC_NFCF_424;
-		trf->modulator_sys_clk_ctrl = TRF7970A_MODULATOR_DEPTH_ASK10;
+		trf->modulator_sys_clk_ctrl =
+			(trf->modulator_sys_clk_ctrl & 0xf8) |
+			TRF7970A_MODULATOR_DEPTH_ASK10;
 		break;
 	default:
 		dev_dbg(trf->dev, "Unsupported rf technology: %d\n", tech);
@@ -1749,7 +1773,7 @@ static int _trf7970a_tg_listen(struct nfc_digital_dev *ddev, u16 timeout,
 		goto out_err;
 
 	ret = trf7970a_write(trf, TRF7970A_REG_IO_CTRL,
-			TRF7970A_REG_IO_CTRL_VRS(0x1));
+			trf->io_ctrl | TRF7970A_REG_IO_CTRL_VRS(0x1));
 	if (ret)
 		goto out_err;
 
@@ -1885,8 +1909,10 @@ static int trf7970a_power_up(struct trf7970a *trf)
 	usleep_range(5000, 6000);
 
 	if (!(trf->quirks & TRF7970A_QUIRK_EN2_MUST_STAY_LOW)) {
-		gpio_set_value(trf->en2_gpio, 1);
-		usleep_range(1000, 2000);
+		if (gpio_is_valid(trf->en2_gpio)) {
+			gpio_set_value(trf->en2_gpio, 1);
+			usleep_range(1000, 2000);
+		}
 	}
 
 	gpio_set_value(trf->en_gpio, 1);
@@ -1914,7 +1940,8 @@ static int trf7970a_power_down(struct trf7970a *trf)
 	}
 
 	gpio_set_value(trf->en_gpio, 0);
-	gpio_set_value(trf->en2_gpio, 0);
+	if (gpio_is_valid(trf->en2_gpio))
+		gpio_set_value(trf->en2_gpio, 0);
 
 	ret = regulator_disable(trf->regulator);
 	if (ret)
@@ -1987,6 +2014,7 @@ static int trf7970a_probe(struct spi_device *spi)
 	struct device_node *np = spi->dev.of_node;
 	struct trf7970a *trf;
 	int uvolts, autosuspend_delay, ret;
+	u32 clk_freq = TRF7970A_13MHZ_CLOCK_FREQUENCY;
 
 	if (!np) {
 		dev_err(&spi->dev, "No Device Tree entry\n");
@@ -2032,15 +2060,23 @@ static int trf7970a_probe(struct spi_device *spi)
 
 	trf->en2_gpio = of_get_named_gpio(np, "ti,enable-gpios", 1);
 	if (!gpio_is_valid(trf->en2_gpio)) {
-		dev_err(trf->dev, "No EN2 GPIO property\n");
-		return trf->en2_gpio;
+		dev_info(trf->dev, "No EN2 GPIO property\n");
+	} else {
+		ret = devm_gpio_request_one(trf->dev, trf->en2_gpio,
+				GPIOF_DIR_OUT | GPIOF_INIT_LOW, "trf7970a EN2");
+		if (ret) {
+			dev_err(trf->dev, "Can't request EN2 GPIO: %d\n", ret);
+			return ret;
+		}
 	}
 
-	ret = devm_gpio_request_one(trf->dev, trf->en2_gpio,
-			GPIOF_DIR_OUT | GPIOF_INIT_LOW, "trf7970a EN2");
-	if (ret) {
-		dev_err(trf->dev, "Can't request EN2 GPIO: %d\n", ret);
-		return ret;
+	of_property_read_u32(np, "clock-frequency", &clk_freq);
+	if ((clk_freq != TRF7970A_27MHZ_CLOCK_FREQUENCY) ||
+		(clk_freq != TRF7970A_13MHZ_CLOCK_FREQUENCY)) {
+		dev_err(trf->dev,
+			"clock-frequency (%u Hz) unsupported\n",
+			clk_freq);
+		return -EINVAL;
 	}
 
 	if (of_property_read_bool(np, "en2-rf-quirk"))
@@ -2076,6 +2112,24 @@ static int trf7970a_probe(struct spi_device *spi)
 
 	if (uvolts > 4000000)
 		trf->chip_status_ctrl = TRF7970A_CHIP_STATUS_VRS5_3;
+
+	trf->regulator = devm_regulator_get(&spi->dev, "vdd-io");
+	if (IS_ERR(trf->regulator)) {
+		ret = PTR_ERR(trf->regulator);
+		dev_err(trf->dev, "Can't get VDD_IO regulator: %d\n", ret);
+		goto err_destroy_lock;
+	}
+
+	ret = regulator_enable(trf->regulator);
+	if (ret) {
+		dev_err(trf->dev, "Can't enable VDD_IO: %d\n", ret);
+		goto err_destroy_lock;
+	}
+
+	if (regulator_get_voltage(trf->regulator) == 1800000) {
+		trf->io_ctrl = TRF7970A_REG_IO_CTRL_IO_LOW;
+		dev_dbg(trf->dev, "trf7970a config vdd_io to 1.8V\n");
+	}
 
 	trf->ddev = nfc_digital_allocate_device(&trf7970a_nfc_ops,
 			TRF7970A_SUPPORTED_PROTOCOLS,

@@ -8,7 +8,7 @@ obj-$(CONFIG_DVB_USB_VP7045) += dvb-usb-vp7045.o
 dvb-usb-vp702x-objs := vp702x.o vp702x-fe.o
 obj-$(CONFIG_DVB_USB_VP702X) += dvb-usb-vp702x.o
 
-dvb-usb-gp8psk-objs := gp8psk.o gp8psk-fe.o
+dvb-usb-gp8psk-objs := gp8psk.o
 obj-$(CONFIG_DVB_USB_GP8PSK) += dvb-usb-gp8psk.o
 
 dvb-usb-dtt200u-objs := dtt200u.o dtt200u-fe.o
@@ -16,20 +16,23 @@ obj-$(CONFIG_DVB_USB_DTT200U) += dvb-usb-dtt200u.o
 
 dvb-usb-dibusb-common-objs := dibusb-common.o
 
+dvb-usb-dibusb-mc-common-objs := dibusb-mc-common.o
+obj-$(CONFIG_DVB_USB_DIB3000MC)	+= dvb-usb-dibusb-common.o dvb-usb-dibusb-mc-common.o
+
 dvb-usb-a800-objs := a800.o
-obj-$(CONFIG_DVB_USB_A800) += dvb-usb-dibusb-common.o dvb-usb-a800.o
+obj-$(CONFIG_DVB_USB_A800) += dvb-usb-a800.o
 
 dvb-usb-dibusb-mb-objs := dibusb-mb.o
 obj-$(CONFIG_DVB_USB_DIBUSB_MB) += dvb-usb-dibusb-common.o dvb-usb-dibusb-mb.o
 
 dvb-usb-dibusb-mc-objs := dibusb-mc.o
-obj-$(CONFIG_DVB_USB_DIBUSB_MC) += dvb-usb-dibusb-common.o dvb-usb-dibusb-mc.o
+obj-$(CONFIG_DVB_USB_DIBUSB_MC) += dvb-usb-dibusb-mc.o
 
 dvb-usb-nova-t-usb2-objs := nova-t-usb2.o
-obj-$(CONFIG_DVB_USB_NOVA_T_USB2) += dvb-usb-dibusb-common.o dvb-usb-nova-t-usb2.o
+obj-$(CONFIG_DVB_USB_NOVA_T_USB2) += dvb-usb-nova-t-usb2.o
 
 dvb-usb-umt-010-objs := umt-010.o
-obj-$(CONFIG_DVB_USB_UMT_010) += dvb-usb-dibusb-common.o dvb-usb-umt-010.o
+obj-$(CONFIG_DVB_USB_UMT_010) += dvb-usb-umt-010.o
 
 dvb-usb-m920x-objs := m920x.o
 obj-$(CONFIG_DVB_USB_M920X) += dvb-usb-m920x.o

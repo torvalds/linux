@@ -7,9 +7,9 @@
 #include <linux/perf_event.h>
 #include <linux/slab.h>
 #include <asm/cpu_device_id.h>
+#include <asm/intel_rdt_common.h>
 #include "../perf_event.h"
 
-#define MSR_IA32_PQR_ASSOC	0x0c8f
 #define MSR_IA32_QM_CTR		0x0c8e
 #define MSR_IA32_QM_EVTSEL	0x0c8d
 
@@ -24,32 +24,13 @@ static unsigned int cqm_l3_scale; /* supposedly cacheline size */
 static bool cqm_enabled, mbm_enabled;
 unsigned int mbm_socket_max;
 
-/**
- * struct intel_pqr_state - State cache for the PQR MSR
- * @rmid:		The cached Resource Monitoring ID
- * @closid:		The cached Class Of Service ID
- * @rmid_usecnt:	The usage counter for rmid
- *
- * The upper 32 bits of MSR_IA32_PQR_ASSOC contain closid and the
- * lower 10 bits rmid. The update to MSR_IA32_PQR_ASSOC always
- * contains both parts, so we need to cache them.
- *
- * The cache also helps to avoid pointless updates if the value does
- * not change.
- */
-struct intel_pqr_state {
-	u32			rmid;
-	u32			closid;
-	int			rmid_usecnt;
-};
-
 /*
  * The cached intel_pqr_state is strictly per CPU and can never be
  * updated from a remote CPU. Both functions which modify the state
  * (intel_cqm_event_start and intel_cqm_event_stop) are called with
  * interrupts disabled, which is sufficient for the protection.
  */
-static DEFINE_PER_CPU(struct intel_pqr_state, pqr_state);
+DEFINE_PER_CPU(struct intel_pqr_state, pqr_state);
 static struct hrtimer *mbm_timers;
 /**
  * struct sample - mbm event's (local or total) data
@@ -457,6 +438,11 @@ struct rmid_read {
 static void __intel_cqm_event_count(void *info);
 static void init_mbm_sample(u32 rmid, u32 evt_type);
 static void __intel_mbm_event_count(void *info);
+
+static bool is_cqm_event(int e)
+{
+	return (e == QOS_L3_OCCUP_EVENT_ID);
+}
 
 static bool is_mbm_event(int e)
 {
@@ -1366,6 +1352,10 @@ static int intel_cqm_event_init(struct perf_event *event)
 	     (event->attr.config > QOS_MBM_LOCAL_EVENT_ID))
 		return -EINVAL;
 
+	if ((is_cqm_event(event->attr.config) && !cqm_enabled) ||
+	    (is_mbm_event(event->attr.config) && !mbm_enabled))
+		return -EINVAL;
+
 	/* unsupported modes and filters */
 	if (event->attr.exclude_user   ||
 	    event->attr.exclude_kernel ||
@@ -1757,9 +1747,9 @@ static int __init intel_cqm_init(void)
 	 * is enabled to avoid notifier leak.
 	 */
 	cpuhp_setup_state(CPUHP_AP_PERF_X86_CQM_STARTING,
-			  "AP_PERF_X86_CQM_STARTING",
+			  "perf/x86/cqm:starting",
 			  intel_cqm_cpu_starting, NULL);
-	cpuhp_setup_state(CPUHP_AP_PERF_X86_CQM_ONLINE, "AP_PERF_X86_CQM_ONLINE",
+	cpuhp_setup_state(CPUHP_AP_PERF_X86_CQM_ONLINE, "perf/x86/cqm:online",
 			  NULL, intel_cqm_cpu_exit);
 
 out:

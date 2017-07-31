@@ -12,10 +12,6 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "mxl111sf-i2c.h"
@@ -666,8 +662,8 @@ static int mxl111sf_i2c_hw_xfer_msg(struct mxl111sf_state *state,
 
 				if (rd_status[i] == 0x04) {
 					if (i < 7) {
-						mxl_i2c("i2c fifo empty!"
-							" @ %d", i);
+						mxl_i2c("i2c fifo empty! @ %d",
+							i);
 						msg->buf[(index*8)+i] =
 							i2c_r_data[(i*3)+1];
 						/* read again */
@@ -692,8 +688,7 @@ static int mxl111sf_i2c_hw_xfer_msg(struct mxl111sf_state *state,
 							}
 							goto stop_copy;
 						} else {
-							mxl_i2c("readagain "
-								"ERROR!");
+							mxl_i2c("readagain ERROR!");
 						}
 					} else {
 						msg->buf[(index*8)+i] =
@@ -827,9 +822,8 @@ int mxl111sf_i2c_xfer(struct i2c_adapter *adap,
 			mxl111sf_i2c_hw_xfer_msg(state, &msg[i]) :
 			mxl111sf_i2c_sw_xfer_msg(state, &msg[i]);
 		if (mxl_fail(ret)) {
-			mxl_debug_adv("failed with error %d on i2c "
-				      "transaction %d of %d, %sing %d bytes "
-				      "to/from 0x%02x", ret, i+1, num,
+			mxl_debug_adv("failed with error %d on i2c transaction %d of %d, %sing %d bytes to/from 0x%02x",
+				      ret, i+1, num,
 				      (msg[i].flags & I2C_M_RD) ?
 				      "read" : "writ",
 				      msg[i].len, msg[i].addr);

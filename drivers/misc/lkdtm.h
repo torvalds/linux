@@ -19,8 +19,14 @@ void lkdtm_SOFTLOCKUP(void);
 void lkdtm_HARDLOCKUP(void);
 void lkdtm_SPINLOCKUP(void);
 void lkdtm_HUNG_TASK(void);
-void lkdtm_ATOMIC_UNDERFLOW(void);
-void lkdtm_ATOMIC_OVERFLOW(void);
+void lkdtm_REFCOUNT_SATURATE_INC(void);
+void lkdtm_REFCOUNT_SATURATE_ADD(void);
+void lkdtm_REFCOUNT_ZERO_DEC(void);
+void lkdtm_REFCOUNT_ZERO_INC(void);
+void lkdtm_REFCOUNT_ZERO_SUB(void);
+void lkdtm_REFCOUNT_ZERO_ADD(void);
+void lkdtm_CORRUPT_LIST_ADD(void);
+void lkdtm_CORRUPT_LIST_DEL(void);
 
 /* lkdtm_heap.c */
 void lkdtm_OVERWRITE_ALLOCATION(void);

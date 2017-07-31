@@ -619,7 +619,7 @@ int kfd_init_apertures(struct kfd_process *process);
 /* Queue Context Management */
 struct cik_sdma_rlc_registers *get_sdma_mqd(void *mqd);
 
-int init_queue(struct queue **q, struct queue_properties properties);
+int init_queue(struct queue **q, const struct queue_properties *properties);
 void uninit_queue(struct queue *q);
 void print_queue_properties(struct queue_properties *q);
 void print_queue(struct queue *q);

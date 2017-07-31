@@ -14,6 +14,7 @@
  *
  */
 
+#include <linux/acpi.h>
 #include <linux/atomic.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
@@ -131,6 +132,10 @@
 
 /* Max timeout in ms for 32k bytes */
 #define TOUT_MAX			300
+
+/* Default values. Use these if FW query fails */
+#define DEFAULT_CLK_FREQ 100000
+#define DEFAULT_SRC_CLK 20000000
 
 struct qup_i2c_block {
 	int	count;
@@ -525,6 +530,33 @@ static int qup_i2c_get_data_len(struct qup_i2c_dev *qup)
 	return data_len;
 }
 
+static bool qup_i2c_check_msg_len(struct i2c_msg *msg)
+{
+	return ((msg->flags & I2C_M_RD) && (msg->flags & I2C_M_RECV_LEN));
+}
+
+static int qup_i2c_set_tags_smb(u16 addr, u8 *tags, struct qup_i2c_dev *qup,
+			struct i2c_msg *msg)
+{
+	int len = 0;
+
+	if (msg->len > 1) {
+		tags[len++] = QUP_TAG_V2_DATARD_STOP;
+		tags[len++] = qup_i2c_get_data_len(qup) - 1;
+	} else {
+		tags[len++] = QUP_TAG_V2_START;
+		tags[len++] = addr & 0xff;
+
+		if (msg->flags & I2C_M_TEN)
+			tags[len++] = addr >> 8;
+
+		tags[len++] = QUP_TAG_V2_DATARD;
+		/* Read 1 byte indicating the length of the SMBus message */
+		tags[len++] = 1;
+	}
+	return len;
+}
+
 static int qup_i2c_set_tags(u8 *tags, struct qup_i2c_dev *qup,
 			    struct i2c_msg *msg,  int is_dma)
 {
@@ -533,6 +565,10 @@ static int qup_i2c_set_tags(u8 *tags, struct qup_i2c_dev *qup,
 	int data_len;
 
 	int last = (qup->blk.pos == (qup->blk.count - 1)) && (qup->is_last);
+
+	/* Handle tags for SMBus block read */
+	if (qup_i2c_check_msg_len(msg))
+		return qup_i2c_set_tags_smb(addr, tags, qup, msg);
 
 	if (qup->blk.pos == 0) {
 		tags[len++] = QUP_TAG_V2_START;
@@ -1056,9 +1092,17 @@ static int qup_i2c_read_fifo_v2(struct qup_i2c_dev *qup,
 				struct i2c_msg *msg)
 {
 	u32 val;
-	int idx, pos = 0, ret = 0, total;
+	int idx, pos = 0, ret = 0, total, msg_offset = 0;
 
+	/*
+	 * If the message length is already read in
+	 * the first byte of the buffer, account for
+	 * that by setting the offset
+	 */
+	if (qup_i2c_check_msg_len(msg) && (msg->len > 1))
+		msg_offset = 1;
 	total = qup_i2c_get_data_len(qup);
+	total -= msg_offset;
 
 	/* 2 extra bytes for read tags */
 	while (pos < (total + 2)) {
@@ -1078,8 +1122,8 @@ static int qup_i2c_read_fifo_v2(struct qup_i2c_dev *qup,
 
 			if (pos >= (total + 2))
 				goto out;
-
-			msg->buf[qup->pos++] = val & 0xff;
+			msg->buf[qup->pos + msg_offset] = val & 0xff;
+			qup->pos++;
 		}
 	}
 
@@ -1119,6 +1163,20 @@ static int qup_i2c_read_one_v2(struct qup_i2c_dev *qup, struct i2c_msg *msg)
 			goto err;
 
 		qup->blk.pos++;
+
+		/* Handle SMBus block read length */
+		if (qup_i2c_check_msg_len(msg) && (msg->len == 1)) {
+			if (msg->buf[0] > I2C_SMBUS_BLOCK_MAX) {
+				ret = -EPROTO;
+				goto err;
+			}
+			msg->len += msg->buf[0];
+			qup->pos = 0;
+			qup_i2c_set_blk_data(qup, msg);
+			/* set tag length for block read */
+			qup->blk.tx_tag_len = 2;
+			qup_i2c_set_read_mode_v2(qup, msg->buf[0]);
+		}
 	} while (qup->blk.pos < qup->blk.count);
 
 err:
@@ -1201,6 +1259,11 @@ static int qup_i2c_xfer(struct i2c_adapter *adap,
 
 		if (qup_i2c_poll_state_i2c_master(qup)) {
 			ret = -EIO;
+			goto out;
+		}
+
+		if (qup_i2c_check_msg_len(&msgs[idx])) {
+			ret = -EINVAL;
 			goto out;
 		}
 
@@ -1358,14 +1421,13 @@ static void qup_i2c_disable_clocks(struct qup_i2c_dev *qup)
 static int qup_i2c_probe(struct platform_device *pdev)
 {
 	static const int blk_sizes[] = {4, 16, 32};
-	struct device_node *node = pdev->dev.of_node;
 	struct qup_i2c_dev *qup;
 	unsigned long one_bit_t;
 	struct resource *res;
 	u32 io_mode, hw_ver, size;
 	int ret, fs_div, hs_div;
-	int src_clk_freq;
-	u32 clk_freq = 100000;
+	u32 src_clk_freq = DEFAULT_SRC_CLK;
+	u32 clk_freq = DEFAULT_CLK_FREQ;
 	int blocks;
 
 	qup = devm_kzalloc(&pdev->dev, sizeof(*qup), GFP_KERNEL);
@@ -1376,7 +1438,11 @@ static int qup_i2c_probe(struct platform_device *pdev)
 	init_completion(&qup->xfer);
 	platform_set_drvdata(pdev, qup);
 
-	of_property_read_u32(node, "clock-frequency", &clk_freq);
+	ret = device_property_read_u32(qup->dev, "clock-frequency", &clk_freq);
+	if (ret) {
+		dev_notice(qup->dev, "using default clock-frequency %d",
+			DEFAULT_CLK_FREQ);
+	}
 
 	if (of_device_is_compatible(pdev->dev.of_node, "qcom,i2c-qup-v1.1.1")) {
 		qup->adap.algo = &qup_i2c_algo;
@@ -1452,19 +1518,29 @@ nodma:
 		return qup->irq;
 	}
 
-	qup->clk = devm_clk_get(qup->dev, "core");
-	if (IS_ERR(qup->clk)) {
-		dev_err(qup->dev, "Could not get core clock\n");
-		return PTR_ERR(qup->clk);
-	}
+	if (has_acpi_companion(qup->dev)) {
+		ret = device_property_read_u32(qup->dev,
+				"src-clock-hz", &src_clk_freq);
+		if (ret) {
+			dev_notice(qup->dev, "using default src-clock-hz %d",
+				DEFAULT_SRC_CLK);
+		}
+		ACPI_COMPANION_SET(&qup->adap.dev, ACPI_COMPANION(qup->dev));
+	} else {
+		qup->clk = devm_clk_get(qup->dev, "core");
+		if (IS_ERR(qup->clk)) {
+			dev_err(qup->dev, "Could not get core clock\n");
+			return PTR_ERR(qup->clk);
+		}
 
-	qup->pclk = devm_clk_get(qup->dev, "iface");
-	if (IS_ERR(qup->pclk)) {
-		dev_err(qup->dev, "Could not get iface clock\n");
-		return PTR_ERR(qup->pclk);
+		qup->pclk = devm_clk_get(qup->dev, "iface");
+		if (IS_ERR(qup->pclk)) {
+			dev_err(qup->dev, "Could not get iface clock\n");
+			return PTR_ERR(qup->pclk);
+		}
+		qup_i2c_enable_clocks(qup);
+		src_clk_freq = clk_get_rate(qup->clk);
 	}
-
-	qup_i2c_enable_clocks(qup);
 
 	/*
 	 * Bootloaders might leave a pending interrupt on certain QUP's,
@@ -1512,7 +1588,6 @@ nodma:
 	size = QUP_INPUT_FIFO_SIZE(io_mode);
 	qup->in_fifo_sz = qup->in_blk_sz * (2 << size);
 
-	src_clk_freq = clk_get_rate(qup->clk);
 	fs_div = ((src_clk_freq / clk_freq) / 2) - 3;
 	hs_div = 3;
 	qup->clk_ctl = (hs_div << 8) | (fs_div & 0xff);
@@ -1599,7 +1674,8 @@ static int qup_i2c_pm_resume_runtime(struct device *device)
 #ifdef CONFIG_PM_SLEEP
 static int qup_i2c_suspend(struct device *device)
 {
-	qup_i2c_pm_suspend_runtime(device);
+	if (!pm_runtime_suspended(device))
+		return qup_i2c_pm_suspend_runtime(device);
 	return 0;
 }
 
@@ -1630,6 +1706,14 @@ static const struct of_device_id qup_i2c_dt_match[] = {
 };
 MODULE_DEVICE_TABLE(of, qup_i2c_dt_match);
 
+#if IS_ENABLED(CONFIG_ACPI)
+static const struct acpi_device_id qup_i2c_acpi_match[] = {
+	{ "QCOM8010"},
+	{ },
+};
+MODULE_DEVICE_TABLE(acpi, qup_i2c_acpi_match);
+#endif
+
 static struct platform_driver qup_i2c_driver = {
 	.probe  = qup_i2c_probe,
 	.remove = qup_i2c_remove,
@@ -1637,6 +1721,7 @@ static struct platform_driver qup_i2c_driver = {
 		.name = "i2c_qup",
 		.pm = &qup_i2c_qup_pm_ops,
 		.of_match_table = qup_i2c_dt_match,
+		.acpi_match_table = ACPI_PTR(qup_i2c_acpi_match),
 	},
 };
 

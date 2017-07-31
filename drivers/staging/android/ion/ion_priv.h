@@ -26,10 +26,9 @@
 #include <linux/sched.h>
 #include <linux/shrinker.h>
 #include <linux/types.h>
+#include <linux/miscdevice.h>
 
 #include "ion.h"
-
-struct ion_buffer *ion_handle_buffer(struct ion_handle *handle);
 
 /**
  * struct ion_buffer - metadata for a particular buffer
@@ -42,8 +41,6 @@ struct ion_buffer *ion_handle_buffer(struct ion_handle *handle);
  * @size:		size of the buffer
  * @priv_virt:		private data to the buffer representable as
  *			a void *
- * @priv_phys:		private data to the buffer representable as
- *			an ion_phys_addr_t (and someday a phys_addr_t)
  * @lock:		protects the buffers cnt fields
  * @kmap_cnt:		number of times the buffer is mapped to the kernel
  * @vaddr:		the kernel mapping if kmap_cnt is not zero
@@ -57,7 +54,7 @@ struct ion_buffer *ion_handle_buffer(struct ion_handle *handle);
  *			handle, used for debugging
  * @pid:		pid of last client to reference this buffer in a
  *			handle, used for debugging
-*/
+ */
 struct ion_buffer {
 	struct kref ref;
 	union {
@@ -69,10 +66,7 @@ struct ion_buffer {
 	unsigned long flags;
 	unsigned long private_flags;
 	size_t size;
-	union {
-		void *priv_virt;
-		ion_phys_addr_t priv_phys;
-	};
+	void *priv_virt;
 	struct mutex lock;
 	int kmap_cnt;
 	void *vaddr;
@@ -88,13 +82,84 @@ struct ion_buffer {
 void ion_buffer_destroy(struct ion_buffer *buffer);
 
 /**
+ * struct ion_device - the metadata of the ion device node
+ * @dev:		the actual misc device
+ * @buffers:		an rb tree of all the existing buffers
+ * @buffer_lock:	lock protecting the tree of buffers
+ * @lock:		rwsem protecting the tree of heaps and clients
+ * @heaps:		list of all the heaps in the system
+ * @user_clients:	list of all the clients created from userspace
+ */
+struct ion_device {
+	struct miscdevice dev;
+	struct rb_root buffers;
+	struct mutex buffer_lock;
+	struct rw_semaphore lock;
+	struct plist_head heaps;
+	long (*custom_ioctl)(struct ion_client *client, unsigned int cmd,
+			     unsigned long arg);
+	struct rb_root clients;
+	struct dentry *debug_root;
+	struct dentry *heaps_debug_root;
+	struct dentry *clients_debug_root;
+	int heap_cnt;
+};
+
+/**
+ * struct ion_client - a process/hw block local address space
+ * @node:		node in the tree of all clients
+ * @dev:		backpointer to ion device
+ * @handles:		an rb tree of all the handles in this client
+ * @idr:		an idr space for allocating handle ids
+ * @lock:		lock protecting the tree of handles
+ * @name:		used for debugging
+ * @display_name:	used for debugging (unique version of @name)
+ * @display_serial:	used for debugging (to make display_name unique)
+ * @task:		used for debugging
+ *
+ * A client represents a list of buffers this client may access.
+ * The mutex stored here is used to protect both handles tree
+ * as well as the handles themselves, and should be held while modifying either.
+ */
+struct ion_client {
+	struct rb_node node;
+	struct ion_device *dev;
+	struct rb_root handles;
+	struct idr idr;
+	struct mutex lock;
+	const char *name;
+	char *display_name;
+	int display_serial;
+	struct task_struct *task;
+	pid_t pid;
+	struct dentry *debug_root;
+};
+
+/**
+ * ion_handle - a client local reference to a buffer
+ * @ref:		reference count
+ * @client:		back pointer to the client the buffer resides in
+ * @buffer:		pointer to the buffer
+ * @node:		node in the client's handle rbtree
+ * @kmap_cnt:		count of times this client has mapped to kernel
+ * @id:			client-unique id allocated by client->idr
+ *
+ * Modifications to node, map_cnt or mapping should be protected by the
+ * lock in the client.  Other fields are never changed after initialization.
+ */
+struct ion_handle {
+	struct kref ref;
+	struct ion_client *client;
+	struct ion_buffer *buffer;
+	struct rb_node node;
+	unsigned int kmap_cnt;
+	int id;
+};
+
+/**
  * struct ion_heap_ops - ops to operate on a given heap
  * @allocate:		allocate memory
  * @free:		free memory
- * @phys		get physical address of a buffer (only define on
- *			physically contiguous heaps)
- * @map_dma		map the memory for dma to a scatterlist
- * @unmap_dma		unmap the memory for dma
  * @map_kernel		map memory to the kernel
  * @unmap_kernel	unmap memory to the kernel
  * @map_user		map memory to userspace
@@ -111,11 +176,6 @@ struct ion_heap_ops {
 			struct ion_buffer *buffer, unsigned long len,
 			unsigned long align, unsigned long flags);
 	void (*free)(struct ion_buffer *buffer);
-	int (*phys)(struct ion_heap *heap, struct ion_buffer *buffer,
-		    ion_phys_addr_t *addr, size_t *len);
-	struct sg_table * (*map_dma)(struct ion_heap *heap,
-				     struct ion_buffer *buffer);
-	void (*unmap_dma)(struct ion_heap *heap, struct ion_buffer *buffer);
 	void * (*map_kernel)(struct ion_heap *heap, struct ion_buffer *buffer);
 	void (*unmap_kernel)(struct ion_heap *heap, struct ion_buffer *buffer);
 	int (*map_user)(struct ion_heap *mapper, struct ion_buffer *buffer,
@@ -227,10 +287,10 @@ void ion_device_add_heap(struct ion_device *dev, struct ion_heap *heap);
  * some helpers for common operations on buffers using the sg_table
  * and vaddr fields
  */
-void *ion_heap_map_kernel(struct ion_heap *, struct ion_buffer *);
-void ion_heap_unmap_kernel(struct ion_heap *, struct ion_buffer *);
-int ion_heap_map_user(struct ion_heap *, struct ion_buffer *,
-			struct vm_area_struct *);
+void *ion_heap_map_kernel(struct ion_heap *heap, struct ion_buffer *buffer);
+void ion_heap_unmap_kernel(struct ion_heap *heap, struct ion_buffer *buffer);
+int ion_heap_map_user(struct ion_heap *heap, struct ion_buffer *buffer,
+		      struct vm_area_struct *vma);
 int ion_heap_buffer_zero(struct ion_buffer *buffer);
 int ion_heap_pages_zero(struct page *page, size_t size, pgprot_t pgprot);
 
@@ -311,35 +371,21 @@ size_t ion_heap_freelist_size(struct ion_heap *heap);
  * heaps as appropriate.
  */
 
-struct ion_heap *ion_heap_create(struct ion_platform_heap *);
-void ion_heap_destroy(struct ion_heap *);
-struct ion_heap *ion_system_heap_create(struct ion_platform_heap *);
-void ion_system_heap_destroy(struct ion_heap *);
+struct ion_heap *ion_heap_create(struct ion_platform_heap *heap_data);
+void ion_heap_destroy(struct ion_heap *heap);
+struct ion_heap *ion_system_heap_create(struct ion_platform_heap *unused);
+void ion_system_heap_destroy(struct ion_heap *heap);
 
-struct ion_heap *ion_system_contig_heap_create(struct ion_platform_heap *);
-void ion_system_contig_heap_destroy(struct ion_heap *);
+struct ion_heap *ion_system_contig_heap_create(struct ion_platform_heap *heap);
+void ion_system_contig_heap_destroy(struct ion_heap *heap);
 
-struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *);
-void ion_carveout_heap_destroy(struct ion_heap *);
+struct ion_heap *ion_carveout_heap_create(struct ion_platform_heap *heap_data);
+void ion_carveout_heap_destroy(struct ion_heap *heap);
 
-struct ion_heap *ion_chunk_heap_create(struct ion_platform_heap *);
-void ion_chunk_heap_destroy(struct ion_heap *);
-struct ion_heap *ion_cma_heap_create(struct ion_platform_heap *);
-void ion_cma_heap_destroy(struct ion_heap *);
-
-/**
- * kernel api to allocate/free from carveout -- used when carveout is
- * used to back an architecture specific custom heap
- */
-ion_phys_addr_t ion_carveout_allocate(struct ion_heap *heap, unsigned long size,
-				      unsigned long align);
-void ion_carveout_free(struct ion_heap *heap, ion_phys_addr_t addr,
-		       unsigned long size);
-/**
- * The carveout heap returns physical addresses, since 0 may be a valid
- * physical address, this is used to indicate allocation failed
- */
-#define ION_CARVEOUT_ALLOCATE_FAIL -1
+struct ion_heap *ion_chunk_heap_create(struct ion_platform_heap *heap_data);
+void ion_chunk_heap_destroy(struct ion_heap *heap);
+struct ion_heap *ion_cma_heap_create(struct ion_platform_heap *data);
+void ion_cma_heap_destroy(struct ion_heap *heap);
 
 /**
  * functions for creating and destroying a heap pool -- allows you
@@ -360,6 +406,7 @@ void ion_carveout_free(struct ion_heap *heap, ion_phys_addr_t addr,
  * @gfp_mask:		gfp_mask to use from alloc
  * @order:		order of pages in the pool
  * @list:		plist node for list of pools
+ * @cached:		it's cached pool or not
  *
  * Allows you to keep a pool of pre allocated pages to use from your heap.
  * Keeping a pool of pages that is ready for dma, ie any cached mapping have
@@ -369,6 +416,7 @@ void ion_carveout_free(struct ion_heap *heap, ion_phys_addr_t addr,
 struct ion_page_pool {
 	int high_count;
 	int low_count;
+	bool cached;
 	struct list_head high_items;
 	struct list_head low_items;
 	struct mutex mutex;
@@ -377,10 +425,11 @@ struct ion_page_pool {
 	struct plist_node list;
 };
 
-struct ion_page_pool *ion_page_pool_create(gfp_t gfp_mask, unsigned int order);
-void ion_page_pool_destroy(struct ion_page_pool *);
-struct page *ion_page_pool_alloc(struct ion_page_pool *);
-void ion_page_pool_free(struct ion_page_pool *, struct page *);
+struct ion_page_pool *ion_page_pool_create(gfp_t gfp_mask, unsigned int order,
+					   bool cached);
+void ion_page_pool_destroy(struct ion_page_pool *pool);
+struct page *ion_page_pool_alloc(struct ion_page_pool *pool);
+void ion_page_pool_free(struct ion_page_pool *pool, struct page *page);
 
 /** ion_page_pool_shrink - shrinks the size of the memory cached in the pool
  * @pool:		the pool
@@ -402,5 +451,23 @@ int ion_page_pool_shrink(struct ion_page_pool *pool, gfp_t gfp_mask,
  */
 void ion_pages_sync_for_device(struct device *dev, struct page *page,
 		size_t size, enum dma_data_direction dir);
+
+long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
+
+int ion_sync_for_device(struct ion_client *client, int fd);
+
+struct ion_handle *ion_handle_get_by_id_nolock(struct ion_client *client,
+						int id);
+
+void ion_free_nolock(struct ion_client *client, struct ion_handle *handle);
+
+int ion_handle_put_nolock(struct ion_handle *handle);
+
+struct ion_handle *ion_handle_get_by_id(struct ion_client *client,
+						int id);
+
+int ion_handle_put(struct ion_handle *handle);
+
+int ion_query_heaps(struct ion_client *client, struct ion_heap_query *query);
 
 #endif /* _ION_PRIV_H */

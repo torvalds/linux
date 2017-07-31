@@ -265,7 +265,8 @@ static void __ieee80211_set_default_key(struct ieee80211_sub_if_data *sdata,
 	if (uni) {
 		rcu_assign_pointer(sdata->default_unicast_key, key);
 		ieee80211_check_fast_xmit_iface(sdata);
-		drv_set_default_unicast_key(sdata->local, sdata, idx);
+		if (sdata->vif.type != NL80211_IFTYPE_AP_VLAN)
+			drv_set_default_unicast_key(sdata->local, sdata, idx);
 	}
 
 	if (multi)

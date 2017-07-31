@@ -58,7 +58,7 @@ affs_insert_hash(struct inode *dir, struct buffer_head *bh)
 	mark_buffer_dirty_inode(dir_bh, dir);
 	affs_brelse(dir_bh);
 
-	dir->i_mtime = dir->i_ctime = CURRENT_TIME_SEC;
+	dir->i_mtime = dir->i_ctime = current_time(dir);
 	dir->i_version++;
 	mark_inode_dirty(dir);
 
@@ -112,7 +112,7 @@ affs_remove_hash(struct inode *dir, struct buffer_head *rem_bh)
 
 	affs_brelse(bh);
 
-	dir->i_mtime = dir->i_ctime = CURRENT_TIME_SEC;
+	dir->i_mtime = dir->i_ctime = current_time(dir);
 	dir->i_version++;
 	mark_inode_dirty(dir);
 
@@ -313,7 +313,7 @@ affs_remove_header(struct dentry *dentry)
 	else
 		clear_nlink(inode);
 	affs_unlock_link(inode);
-	inode->i_ctime = CURRENT_TIME_SEC;
+	inode->i_ctime = current_time(inode);
 	mark_inode_dirty(inode);
 
 done:
@@ -367,7 +367,7 @@ affs_fix_checksum(struct super_block *sb, struct buffer_head *bh)
 }
 
 void
-secs_to_datestamp(time64_t secs, struct affs_date *ds)
+affs_secs_to_datestamp(time64_t secs, struct affs_date *ds)
 {
 	u32	 days;
 	u32	 minute;
@@ -386,55 +386,55 @@ secs_to_datestamp(time64_t secs, struct affs_date *ds)
 }
 
 umode_t
-prot_to_mode(u32 prot)
+affs_prot_to_mode(u32 prot)
 {
 	umode_t mode = 0;
 
 	if (!(prot & FIBF_NOWRITE))
-		mode |= S_IWUSR;
+		mode |= 0200;
 	if (!(prot & FIBF_NOREAD))
-		mode |= S_IRUSR;
+		mode |= 0400;
 	if (!(prot & FIBF_NOEXECUTE))
-		mode |= S_IXUSR;
+		mode |= 0100;
 	if (prot & FIBF_GRP_WRITE)
-		mode |= S_IWGRP;
+		mode |= 0020;
 	if (prot & FIBF_GRP_READ)
-		mode |= S_IRGRP;
+		mode |= 0040;
 	if (prot & FIBF_GRP_EXECUTE)
-		mode |= S_IXGRP;
+		mode |= 0010;
 	if (prot & FIBF_OTR_WRITE)
-		mode |= S_IWOTH;
+		mode |= 0002;
 	if (prot & FIBF_OTR_READ)
-		mode |= S_IROTH;
+		mode |= 0004;
 	if (prot & FIBF_OTR_EXECUTE)
-		mode |= S_IXOTH;
+		mode |= 0001;
 
 	return mode;
 }
 
 void
-mode_to_prot(struct inode *inode)
+affs_mode_to_prot(struct inode *inode)
 {
 	u32 prot = AFFS_I(inode)->i_protect;
 	umode_t mode = inode->i_mode;
 
-	if (!(mode & S_IXUSR))
+	if (!(mode & 0100))
 		prot |= FIBF_NOEXECUTE;
-	if (!(mode & S_IRUSR))
+	if (!(mode & 0400))
 		prot |= FIBF_NOREAD;
-	if (!(mode & S_IWUSR))
+	if (!(mode & 0200))
 		prot |= FIBF_NOWRITE;
-	if (mode & S_IXGRP)
+	if (mode & 0010)
 		prot |= FIBF_GRP_EXECUTE;
-	if (mode & S_IRGRP)
+	if (mode & 0040)
 		prot |= FIBF_GRP_READ;
-	if (mode & S_IWGRP)
+	if (mode & 0020)
 		prot |= FIBF_GRP_WRITE;
-	if (mode & S_IXOTH)
+	if (mode & 0001)
 		prot |= FIBF_OTR_EXECUTE;
-	if (mode & S_IROTH)
+	if (mode & 0004)
 		prot |= FIBF_OTR_READ;
-	if (mode & S_IWOTH)
+	if (mode & 0002)
 		prot |= FIBF_OTR_WRITE;
 
 	AFFS_I(inode)->i_protect = prot;

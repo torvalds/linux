@@ -106,6 +106,7 @@
 
 /* DRD_CON */
 #define DRD_CON_PERI_CON	BIT(24)
+#define DRD_CON_VBOUT		BIT(0)
 
 /* USB_INT_ENA_1 and USB_INT_STA_1 */
 #define USB_INT_1_B3_PLLWKUP	BIT(31)
@@ -363,6 +364,7 @@ static void usb3_init_epc_registers(struct renesas_usb3 *usb3)
 {
 	/* FIXME: How to change host / peripheral mode as well? */
 	usb3_set_bit(usb3, DRD_CON_PERI_CON, USB3_DRD_CON);
+	usb3_clear_bit(usb3, DRD_CON_VBOUT, USB3_DRD_CON);
 
 	usb3_write(usb3, ~0, USB3_USB_INT_STA_1);
 	usb3_enable_irq_1(usb3, USB_INT_1_VBUS_CNG);
@@ -1789,7 +1791,7 @@ static int renesas_usb3_init_ep(struct renesas_usb3 *usb3, struct device *dev,
 
 	dev_dbg(dev, "%s: num_usb3_eps = %d\n", __func__, usb3->num_usb3_eps);
 	/*
-	 * This driver prepares pipes as the followings:
+	 * This driver prepares pipes as follows:
 	 *  - odd pipes = IN pipe
 	 *  - even pipes = OUT pipe (except pipe 0)
 	 */
@@ -1839,7 +1841,7 @@ static void renesas_usb3_init_ram(struct renesas_usb3 *usb3, struct device *dev,
 	memset(basead, 0, sizeof(basead));
 
 	/*
-	 * This driver prepares pipes as the followings:
+	 * This driver prepares pipes as follows:
 	 *  - all pipes = the same size as "ramsize_per_pipe"
 	 * Please refer to the "Method of Specifying RAM Mapping"
 	 */

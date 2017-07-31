@@ -15,6 +15,7 @@
 #include <linux/file.h>		/* for fput */
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
+#include <net/pkt_cls.h>
 
 /*
  * The ATM queuing discipline provides a framework for invoking classifiers
@@ -213,7 +214,7 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 	if (opt == NULL)
 		return -EINVAL;
 
-	error = nla_parse_nested(tb, TCA_ATM_MAX, opt, atm_policy);
+	error = nla_parse_nested(tb, TCA_ATM_MAX, opt, atm_policy, NULL);
 	if (error < 0)
 		return error;
 

@@ -12,10 +12,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
- *
  * File: channel.c
  *
  */
@@ -193,7 +189,8 @@ bool set_channel(struct vnt_private *priv, struct ieee80211_channel *ch)
 	MACvRegBitsOn(priv->PortOffset, MAC_REG_MACCR, MACCR_CLRNAV);
 
 	/* TX_PE will reserve 3 us for MAX2829 A mode only,
-	   it is for better TX throughput */
+	 * it is for better TX throughput
+	 */
 
 	if (priv->byRFType == RF_AIROHA7230)
 		RFbAL7230SelectChannelPostProcess(priv, priv->byCurrentCh,

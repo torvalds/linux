@@ -235,6 +235,17 @@ config IR_MESON
 	   To compile this driver as a module, choose M here: the
 	   module will be called meson-ir.
 
+config IR_MTK
+	tristate "Mediatek IR remote receiver"
+	depends on RC_CORE
+	depends on ARCH_MEDIATEK || COMPILE_TEST
+	---help---
+	   Say Y if you want to use the IR remote receiver available
+	   on Mediatek SoCs.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called mtk-cir.
+
 config IR_NUVOTON
 	tristate "Nuvoton w836x7hg Consumer Infrared Transceiver"
 	depends on PNP
@@ -260,6 +271,15 @@ config IR_REDRAT3
 
 	   To compile this driver as a module, choose M here: the
 	   module will be called redrat3.
+
+config IR_SPI
+	tristate "SPI connected IR LED"
+	depends on SPI && LIRC
+	---help---
+	  Say Y if you want to use an IR LED connected through SPI bus.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called ir-spi.
 
 config IR_STREAMZAP
 	tristate "Streamzap PC Remote IR Receiver"
@@ -336,7 +356,7 @@ config IR_TTUSBIR
 
 config IR_RX51
 	tristate "Nokia N900 IR transmitter diode"
-	depends on OMAP_DM_TIMER && PWM_OMAP_DMTIMER && ARCH_OMAP2PLUS && LIRC
+	depends on (OMAP_DM_TIMER && PWM_OMAP_DMTIMER && ARCH_OMAP2PLUS || COMPILE_TEST) && RC_CORE
 	---help---
 	   Say Y or M here if you want to enable support for the IR
 	   transmitter diode built in the Nokia N900 (RX51) device.
@@ -388,5 +408,22 @@ config IR_SUNXI
 
 	   To compile this driver as a module, choose M here: the module will
 	   be called sunxi-ir.
+
+config IR_SERIAL
+	tristate "Homebrew Serial Port Receiver"
+	depends on RC_CORE
+	---help---
+	   Say Y if you want to use Homebrew Serial Port Receivers and
+	   Transceivers.
+
+	   To compile this driver as a module, choose M here: the module will
+	   be called serial-ir.
+
+config IR_SERIAL_TRANSMITTER
+	bool "Serial Port Transmitter"
+	default y
+	depends on IR_SERIAL
+	---help---
+	   Serial Port Transmitter support
 
 endif #RC_DEVICES

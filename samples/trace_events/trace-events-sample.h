@@ -354,7 +354,7 @@ TRACE_EVENT_CONDITION(foo_bar_with_cond,
 	TP_printk("foo %s %d", __get_str(foo), __entry->bar)
 );
 
-void foo_bar_reg(void);
+int foo_bar_reg(void);
 void foo_bar_unreg(void);
 
 /*

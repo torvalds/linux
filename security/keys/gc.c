@@ -46,7 +46,7 @@ static unsigned long key_gc_flags;
  * immediately unlinked.
  */
 struct key_type key_type_dead = {
-	.name = "dead",
+	.name = ".dead",
 };
 
 /*

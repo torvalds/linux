@@ -39,7 +39,7 @@ int rxe_av_chk_attr(struct rxe_dev *rxe, struct ib_ah_attr *attr)
 	struct rxe_port *port;
 
 	if (attr->port_num != 1) {
-		pr_info("rxe: invalid port_num = %d\n", attr->port_num);
+		pr_info("invalid port_num = %d\n", attr->port_num);
 		return -EINVAL;
 	}
 
@@ -47,7 +47,7 @@ int rxe_av_chk_attr(struct rxe_dev *rxe, struct ib_ah_attr *attr)
 
 	if (attr->ah_flags & IB_AH_GRH) {
 		if (attr->grh.sgid_index > port->attr.gid_tbl_len) {
-			pr_info("rxe: invalid sgid index = %d\n",
+			pr_info("invalid sgid index = %d\n",
 				attr->grh.sgid_index);
 			return -EINVAL;
 		}

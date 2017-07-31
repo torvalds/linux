@@ -4,6 +4,7 @@
  * Copyright (C) 2013,2016 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
+ * Author: Gary R Hook <gary.hook@amd.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -18,6 +19,61 @@
 #include <linux/ccp.h>
 
 #include "ccp-dev.h"
+
+static u32 ccp_alloc_ksb(struct ccp_cmd_queue *cmd_q, unsigned int count)
+{
+	int start;
+	struct ccp_device *ccp = cmd_q->ccp;
+
+	for (;;) {
+		mutex_lock(&ccp->sb_mutex);
+
+		start = (u32)bitmap_find_next_zero_area(ccp->sb,
+							ccp->sb_count,
+							ccp->sb_start,
+							count, 0);
+		if (start <= ccp->sb_count) {
+			bitmap_set(ccp->sb, start, count);
+
+			mutex_unlock(&ccp->sb_mutex);
+			break;
+		}
+
+		ccp->sb_avail = 0;
+
+		mutex_unlock(&ccp->sb_mutex);
+
+		/* Wait for KSB entries to become available */
+		if (wait_event_interruptible(ccp->sb_queue, ccp->sb_avail))
+			return 0;
+	}
+
+	return KSB_START + start;
+}
+
+static void ccp_free_ksb(struct ccp_cmd_queue *cmd_q, unsigned int start,
+			 unsigned int count)
+{
+	struct ccp_device *ccp = cmd_q->ccp;
+
+	if (!start)
+		return;
+
+	mutex_lock(&ccp->sb_mutex);
+
+	bitmap_clear(ccp->sb, start - KSB_START, count);
+
+	ccp->sb_avail = 1;
+
+	mutex_unlock(&ccp->sb_mutex);
+
+	wake_up_interruptible_all(&ccp->sb_queue);
+}
+
+static unsigned int ccp_get_free_slots(struct ccp_cmd_queue *cmd_q)
+{
+	return CMD_Q_DEPTH(ioread32(cmd_q->reg_status));
+}
 
 static int ccp_do_cmd(struct ccp_op *op, u32 *cr, unsigned int cr_count)
 {
@@ -68,6 +124,9 @@ static int ccp_do_cmd(struct ccp_op *op, u32 *cr, unsigned int cr_count)
 			/* On error delete all related jobs from the queue */
 			cmd = (cmd_q->id << DEL_Q_ID_SHIFT)
 			      | op->jobid;
+			if (cmd_q->cmd_error)
+				ccp_log_error(cmd_q->ccp,
+					      cmd_q->cmd_error);
 
 			iowrite32(cmd, ccp->io_regs + DEL_CMD_Q_JOB);
 
@@ -99,10 +158,10 @@ static int ccp_perform_aes(struct ccp_op *op)
 		| (op->u.aes.type << REQ1_AES_TYPE_SHIFT)
 		| (op->u.aes.mode << REQ1_AES_MODE_SHIFT)
 		| (op->u.aes.action << REQ1_AES_ACTION_SHIFT)
-		| (op->ksb_key << REQ1_KEY_KSB_SHIFT);
+		| (op->sb_key << REQ1_KEY_KSB_SHIFT);
 	cr[1] = op->src.u.dma.length - 1;
 	cr[2] = ccp_addr_lo(&op->src.u.dma);
-	cr[3] = (op->ksb_ctx << REQ4_KSB_SHIFT)
+	cr[3] = (op->sb_ctx << REQ4_KSB_SHIFT)
 		| (CCP_MEMTYPE_SYSTEM << REQ4_MEMTYPE_SHIFT)
 		| ccp_addr_hi(&op->src.u.dma);
 	cr[4] = ccp_addr_lo(&op->dst.u.dma);
@@ -129,10 +188,10 @@ static int ccp_perform_xts_aes(struct ccp_op *op)
 	cr[0] = (CCP_ENGINE_XTS_AES_128 << REQ1_ENGINE_SHIFT)
 		| (op->u.xts.action << REQ1_AES_ACTION_SHIFT)
 		| (op->u.xts.unit_size << REQ1_XTS_AES_SIZE_SHIFT)
-		| (op->ksb_key << REQ1_KEY_KSB_SHIFT);
+		| (op->sb_key << REQ1_KEY_KSB_SHIFT);
 	cr[1] = op->src.u.dma.length - 1;
 	cr[2] = ccp_addr_lo(&op->src.u.dma);
-	cr[3] = (op->ksb_ctx << REQ4_KSB_SHIFT)
+	cr[3] = (op->sb_ctx << REQ4_KSB_SHIFT)
 		| (CCP_MEMTYPE_SYSTEM << REQ4_MEMTYPE_SHIFT)
 		| ccp_addr_hi(&op->src.u.dma);
 	cr[4] = ccp_addr_lo(&op->dst.u.dma);
@@ -158,7 +217,7 @@ static int ccp_perform_sha(struct ccp_op *op)
 		| REQ1_INIT;
 	cr[1] = op->src.u.dma.length - 1;
 	cr[2] = ccp_addr_lo(&op->src.u.dma);
-	cr[3] = (op->ksb_ctx << REQ4_KSB_SHIFT)
+	cr[3] = (op->sb_ctx << REQ4_KSB_SHIFT)
 		| (CCP_MEMTYPE_SYSTEM << REQ4_MEMTYPE_SHIFT)
 		| ccp_addr_hi(&op->src.u.dma);
 
@@ -181,11 +240,11 @@ static int ccp_perform_rsa(struct ccp_op *op)
 	/* Fill out the register contents for REQ1 through REQ6 */
 	cr[0] = (CCP_ENGINE_RSA << REQ1_ENGINE_SHIFT)
 		| (op->u.rsa.mod_size << REQ1_RSA_MOD_SIZE_SHIFT)
-		| (op->ksb_key << REQ1_KEY_KSB_SHIFT)
+		| (op->sb_key << REQ1_KEY_KSB_SHIFT)
 		| REQ1_EOM;
 	cr[1] = op->u.rsa.input_len - 1;
 	cr[2] = ccp_addr_lo(&op->src.u.dma);
-	cr[3] = (op->ksb_ctx << REQ4_KSB_SHIFT)
+	cr[3] = (op->sb_ctx << REQ4_KSB_SHIFT)
 		| (CCP_MEMTYPE_SYSTEM << REQ4_MEMTYPE_SHIFT)
 		| ccp_addr_hi(&op->src.u.dma);
 	cr[4] = ccp_addr_lo(&op->dst.u.dma);
@@ -215,10 +274,10 @@ static int ccp_perform_passthru(struct ccp_op *op)
 			| ccp_addr_hi(&op->src.u.dma);
 
 		if (op->u.passthru.bit_mod != CCP_PASSTHRU_BITWISE_NOOP)
-			cr[3] |= (op->ksb_key << REQ4_KSB_SHIFT);
+			cr[3] |= (op->sb_key << REQ4_KSB_SHIFT);
 	} else {
-		cr[2] = op->src.u.ksb * CCP_KSB_BYTES;
-		cr[3] = (CCP_MEMTYPE_KSB << REQ4_MEMTYPE_SHIFT);
+		cr[2] = op->src.u.sb * CCP_SB_BYTES;
+		cr[3] = (CCP_MEMTYPE_SB << REQ4_MEMTYPE_SHIFT);
 	}
 
 	if (op->dst.type == CCP_MEMTYPE_SYSTEM) {
@@ -226,8 +285,8 @@ static int ccp_perform_passthru(struct ccp_op *op)
 		cr[5] = (CCP_MEMTYPE_SYSTEM << REQ6_MEMTYPE_SHIFT)
 			| ccp_addr_hi(&op->dst.u.dma);
 	} else {
-		cr[4] = op->dst.u.ksb * CCP_KSB_BYTES;
-		cr[5] = (CCP_MEMTYPE_KSB << REQ6_MEMTYPE_SHIFT);
+		cr[4] = op->dst.u.sb * CCP_SB_BYTES;
+		cr[5] = (CCP_MEMTYPE_SB << REQ6_MEMTYPE_SHIFT);
 	}
 
 	if (op->eom)
@@ -256,246 +315,19 @@ static int ccp_perform_ecc(struct ccp_op *op)
 	return ccp_do_cmd(op, cr, ARRAY_SIZE(cr));
 }
 
-static int ccp_trng_read(struct hwrng *rng, void *data, size_t max, bool wait)
+static void ccp_disable_queue_interrupts(struct ccp_device *ccp)
 {
-	struct ccp_device *ccp = container_of(rng, struct ccp_device, hwrng);
-	u32 trng_value;
-	int len = min_t(int, sizeof(trng_value), max);
-
-	/*
-	 * Locking is provided by the caller so we can update device
-	 * hwrng-related fields safely
-	 */
-	trng_value = ioread32(ccp->io_regs + TRNG_OUT_REG);
-	if (!trng_value) {
-		/* Zero is returned if not data is available or if a
-		 * bad-entropy error is present. Assume an error if
-		 * we exceed TRNG_RETRIES reads of zero.
-		 */
-		if (ccp->hwrng_retries++ > TRNG_RETRIES)
-			return -EIO;
-
-		return 0;
-	}
-
-	/* Reset the counter and save the rng value */
-	ccp->hwrng_retries = 0;
-	memcpy(data, &trng_value, len);
-
-	return len;
-}
-
-static int ccp_init(struct ccp_device *ccp)
-{
-	struct device *dev = ccp->dev;
-	struct ccp_cmd_queue *cmd_q;
-	struct dma_pool *dma_pool;
-	char dma_pool_name[MAX_DMAPOOL_NAME_LEN];
-	unsigned int qmr, qim, i;
-	int ret;
-
-	/* Find available queues */
-	qim = 0;
-	qmr = ioread32(ccp->io_regs + Q_MASK_REG);
-	for (i = 0; i < MAX_HW_QUEUES; i++) {
-		if (!(qmr & (1 << i)))
-			continue;
-
-		/* Allocate a dma pool for this queue */
-		snprintf(dma_pool_name, sizeof(dma_pool_name), "%s_q%d",
-			 ccp->name, i);
-		dma_pool = dma_pool_create(dma_pool_name, dev,
-					   CCP_DMAPOOL_MAX_SIZE,
-					   CCP_DMAPOOL_ALIGN, 0);
-		if (!dma_pool) {
-			dev_err(dev, "unable to allocate dma pool\n");
-			ret = -ENOMEM;
-			goto e_pool;
-		}
-
-		cmd_q = &ccp->cmd_q[ccp->cmd_q_count];
-		ccp->cmd_q_count++;
-
-		cmd_q->ccp = ccp;
-		cmd_q->id = i;
-		cmd_q->dma_pool = dma_pool;
-
-		/* Reserve 2 KSB regions for the queue */
-		cmd_q->ksb_key = KSB_START + ccp->ksb_start++;
-		cmd_q->ksb_ctx = KSB_START + ccp->ksb_start++;
-		ccp->ksb_count -= 2;
-
-		/* Preset some register values and masks that are queue
-		 * number dependent
-		 */
-		cmd_q->reg_status = ccp->io_regs + CMD_Q_STATUS_BASE +
-				    (CMD_Q_STATUS_INCR * i);
-		cmd_q->reg_int_status = ccp->io_regs + CMD_Q_INT_STATUS_BASE +
-					(CMD_Q_STATUS_INCR * i);
-		cmd_q->int_ok = 1 << (i * 2);
-		cmd_q->int_err = 1 << ((i * 2) + 1);
-
-		cmd_q->free_slots = CMD_Q_DEPTH(ioread32(cmd_q->reg_status));
-
-		init_waitqueue_head(&cmd_q->int_queue);
-
-		/* Build queue interrupt mask (two interrupts per queue) */
-		qim |= cmd_q->int_ok | cmd_q->int_err;
-
-#ifdef CONFIG_ARM64
-		/* For arm64 set the recommended queue cache settings */
-		iowrite32(ccp->axcache, ccp->io_regs + CMD_Q_CACHE_BASE +
-			  (CMD_Q_CACHE_INC * i));
-#endif
-
-		dev_dbg(dev, "queue #%u available\n", i);
-	}
-	if (ccp->cmd_q_count == 0) {
-		dev_notice(dev, "no command queues available\n");
-		ret = -EIO;
-		goto e_pool;
-	}
-	dev_notice(dev, "%u command queues available\n", ccp->cmd_q_count);
-
-	/* Disable and clear interrupts until ready */
 	iowrite32(0x00, ccp->io_regs + IRQ_MASK_REG);
-	for (i = 0; i < ccp->cmd_q_count; i++) {
-		cmd_q = &ccp->cmd_q[i];
-
-		ioread32(cmd_q->reg_int_status);
-		ioread32(cmd_q->reg_status);
-	}
-	iowrite32(qim, ccp->io_regs + IRQ_STATUS_REG);
-
-	/* Request an irq */
-	ret = ccp->get_irq(ccp);
-	if (ret) {
-		dev_err(dev, "unable to allocate an IRQ\n");
-		goto e_pool;
-	}
-
-	/* Initialize the queues used to wait for KSB space and suspend */
-	init_waitqueue_head(&ccp->ksb_queue);
-	init_waitqueue_head(&ccp->suspend_queue);
-
-	/* Create a kthread for each queue */
-	for (i = 0; i < ccp->cmd_q_count; i++) {
-		struct task_struct *kthread;
-
-		cmd_q = &ccp->cmd_q[i];
-
-		kthread = kthread_create(ccp_cmd_queue_thread, cmd_q,
-					 "%s-q%u", ccp->name, cmd_q->id);
-		if (IS_ERR(kthread)) {
-			dev_err(dev, "error creating queue thread (%ld)\n",
-				PTR_ERR(kthread));
-			ret = PTR_ERR(kthread);
-			goto e_kthread;
-		}
-
-		cmd_q->kthread = kthread;
-		wake_up_process(kthread);
-	}
-
-	/* Register the RNG */
-	ccp->hwrng.name = ccp->rngname;
-	ccp->hwrng.read = ccp_trng_read;
-	ret = hwrng_register(&ccp->hwrng);
-	if (ret) {
-		dev_err(dev, "error registering hwrng (%d)\n", ret);
-		goto e_kthread;
-	}
-
-	/* Register the DMA engine support */
-	ret = ccp_dmaengine_register(ccp);
-	if (ret)
-		goto e_hwrng;
-
-	ccp_add_device(ccp);
-
-	/* Enable interrupts */
-	iowrite32(qim, ccp->io_regs + IRQ_MASK_REG);
-
-	return 0;
-
-e_hwrng:
-	hwrng_unregister(&ccp->hwrng);
-
-e_kthread:
-	for (i = 0; i < ccp->cmd_q_count; i++)
-		if (ccp->cmd_q[i].kthread)
-			kthread_stop(ccp->cmd_q[i].kthread);
-
-	ccp->free_irq(ccp);
-
-e_pool:
-	for (i = 0; i < ccp->cmd_q_count; i++)
-		dma_pool_destroy(ccp->cmd_q[i].dma_pool);
-
-	return ret;
 }
 
-static void ccp_destroy(struct ccp_device *ccp)
+static void ccp_enable_queue_interrupts(struct ccp_device *ccp)
 {
-	struct ccp_cmd_queue *cmd_q;
-	struct ccp_cmd *cmd;
-	unsigned int qim, i;
-
-	/* Remove this device from the list of available units first */
-	ccp_del_device(ccp);
-
-	/* Unregister the DMA engine */
-	ccp_dmaengine_unregister(ccp);
-
-	/* Unregister the RNG */
-	hwrng_unregister(&ccp->hwrng);
-
-	/* Stop the queue kthreads */
-	for (i = 0; i < ccp->cmd_q_count; i++)
-		if (ccp->cmd_q[i].kthread)
-			kthread_stop(ccp->cmd_q[i].kthread);
-
-	/* Build queue interrupt mask (two interrupt masks per queue) */
-	qim = 0;
-	for (i = 0; i < ccp->cmd_q_count; i++) {
-		cmd_q = &ccp->cmd_q[i];
-		qim |= cmd_q->int_ok | cmd_q->int_err;
-	}
-
-	/* Disable and clear interrupts */
-	iowrite32(0x00, ccp->io_regs + IRQ_MASK_REG);
-	for (i = 0; i < ccp->cmd_q_count; i++) {
-		cmd_q = &ccp->cmd_q[i];
-
-		ioread32(cmd_q->reg_int_status);
-		ioread32(cmd_q->reg_status);
-	}
-	iowrite32(qim, ccp->io_regs + IRQ_STATUS_REG);
-
-	ccp->free_irq(ccp);
-
-	for (i = 0; i < ccp->cmd_q_count; i++)
-		dma_pool_destroy(ccp->cmd_q[i].dma_pool);
-
-	/* Flush the cmd and backlog queue */
-	while (!list_empty(&ccp->cmd)) {
-		/* Invoke the callback directly with an error code */
-		cmd = list_first_entry(&ccp->cmd, struct ccp_cmd, entry);
-		list_del(&cmd->entry);
-		cmd->callback(cmd->data, -ENODEV);
-	}
-	while (!list_empty(&ccp->backlog)) {
-		/* Invoke the callback directly with an error code */
-		cmd = list_first_entry(&ccp->backlog, struct ccp_cmd, entry);
-		list_del(&cmd->entry);
-		cmd->callback(cmd->data, -ENODEV);
-	}
+	iowrite32(ccp->qim, ccp->io_regs + IRQ_MASK_REG);
 }
 
-static irqreturn_t ccp_irq_handler(int irq, void *data)
+static void ccp_irq_bh(unsigned long data)
 {
-	struct device *dev = data;
-	struct ccp_device *ccp = dev_get_drvdata(dev);
+	struct ccp_device *ccp = (struct ccp_device *)data;
 	struct ccp_cmd_queue *cmd_q;
 	u32 q_int, status;
 	unsigned int i;
@@ -522,23 +354,242 @@ static irqreturn_t ccp_irq_handler(int irq, void *data)
 			wake_up_interruptible(&cmd_q->int_queue);
 		}
 	}
+	ccp_enable_queue_interrupts(ccp);
+}
+
+static irqreturn_t ccp_irq_handler(int irq, void *data)
+{
+	struct device *dev = data;
+	struct ccp_device *ccp = dev_get_drvdata(dev);
+
+	ccp_disable_queue_interrupts(ccp);
+	if (ccp->use_tasklet)
+		tasklet_schedule(&ccp->irq_tasklet);
+	else
+		ccp_irq_bh((unsigned long)ccp);
 
 	return IRQ_HANDLED;
 }
 
+static int ccp_init(struct ccp_device *ccp)
+{
+	struct device *dev = ccp->dev;
+	struct ccp_cmd_queue *cmd_q;
+	struct dma_pool *dma_pool;
+	char dma_pool_name[MAX_DMAPOOL_NAME_LEN];
+	unsigned int qmr, i;
+	int ret;
+
+	/* Find available queues */
+	ccp->qim = 0;
+	qmr = ioread32(ccp->io_regs + Q_MASK_REG);
+	for (i = 0; i < MAX_HW_QUEUES; i++) {
+		if (!(qmr & (1 << i)))
+			continue;
+
+		/* Allocate a dma pool for this queue */
+		snprintf(dma_pool_name, sizeof(dma_pool_name), "%s_q%d",
+			 ccp->name, i);
+		dma_pool = dma_pool_create(dma_pool_name, dev,
+					   CCP_DMAPOOL_MAX_SIZE,
+					   CCP_DMAPOOL_ALIGN, 0);
+		if (!dma_pool) {
+			dev_err(dev, "unable to allocate dma pool\n");
+			ret = -ENOMEM;
+			goto e_pool;
+		}
+
+		cmd_q = &ccp->cmd_q[ccp->cmd_q_count];
+		ccp->cmd_q_count++;
+
+		cmd_q->ccp = ccp;
+		cmd_q->id = i;
+		cmd_q->dma_pool = dma_pool;
+
+		/* Reserve 2 KSB regions for the queue */
+		cmd_q->sb_key = KSB_START + ccp->sb_start++;
+		cmd_q->sb_ctx = KSB_START + ccp->sb_start++;
+		ccp->sb_count -= 2;
+
+		/* Preset some register values and masks that are queue
+		 * number dependent
+		 */
+		cmd_q->reg_status = ccp->io_regs + CMD_Q_STATUS_BASE +
+				    (CMD_Q_STATUS_INCR * i);
+		cmd_q->reg_int_status = ccp->io_regs + CMD_Q_INT_STATUS_BASE +
+					(CMD_Q_STATUS_INCR * i);
+		cmd_q->int_ok = 1 << (i * 2);
+		cmd_q->int_err = 1 << ((i * 2) + 1);
+
+		cmd_q->free_slots = ccp_get_free_slots(cmd_q);
+
+		init_waitqueue_head(&cmd_q->int_queue);
+
+		/* Build queue interrupt mask (two interrupts per queue) */
+		ccp->qim |= cmd_q->int_ok | cmd_q->int_err;
+
+#ifdef CONFIG_ARM64
+		/* For arm64 set the recommended queue cache settings */
+		iowrite32(ccp->axcache, ccp->io_regs + CMD_Q_CACHE_BASE +
+			  (CMD_Q_CACHE_INC * i));
+#endif
+
+		dev_dbg(dev, "queue #%u available\n", i);
+	}
+	if (ccp->cmd_q_count == 0) {
+		dev_notice(dev, "no command queues available\n");
+		ret = -EIO;
+		goto e_pool;
+	}
+	dev_notice(dev, "%u command queues available\n", ccp->cmd_q_count);
+
+	/* Disable and clear interrupts until ready */
+	ccp_disable_queue_interrupts(ccp);
+	for (i = 0; i < ccp->cmd_q_count; i++) {
+		cmd_q = &ccp->cmd_q[i];
+
+		ioread32(cmd_q->reg_int_status);
+		ioread32(cmd_q->reg_status);
+	}
+	iowrite32(ccp->qim, ccp->io_regs + IRQ_STATUS_REG);
+
+	/* Request an irq */
+	ret = ccp->get_irq(ccp);
+	if (ret) {
+		dev_err(dev, "unable to allocate an IRQ\n");
+		goto e_pool;
+	}
+
+	/* Initialize the ISR tasklet? */
+	if (ccp->use_tasklet)
+		tasklet_init(&ccp->irq_tasklet, ccp_irq_bh,
+			     (unsigned long)ccp);
+
+	dev_dbg(dev, "Starting threads...\n");
+	/* Create a kthread for each queue */
+	for (i = 0; i < ccp->cmd_q_count; i++) {
+		struct task_struct *kthread;
+
+		cmd_q = &ccp->cmd_q[i];
+
+		kthread = kthread_create(ccp_cmd_queue_thread, cmd_q,
+					 "%s-q%u", ccp->name, cmd_q->id);
+		if (IS_ERR(kthread)) {
+			dev_err(dev, "error creating queue thread (%ld)\n",
+				PTR_ERR(kthread));
+			ret = PTR_ERR(kthread);
+			goto e_kthread;
+		}
+
+		cmd_q->kthread = kthread;
+		wake_up_process(kthread);
+	}
+
+	dev_dbg(dev, "Enabling interrupts...\n");
+	/* Enable interrupts */
+	ccp_enable_queue_interrupts(ccp);
+
+	dev_dbg(dev, "Registering device...\n");
+	ccp_add_device(ccp);
+
+	ret = ccp_register_rng(ccp);
+	if (ret)
+		goto e_kthread;
+
+	/* Register the DMA engine support */
+	ret = ccp_dmaengine_register(ccp);
+	if (ret)
+		goto e_hwrng;
+
+	return 0;
+
+e_hwrng:
+	ccp_unregister_rng(ccp);
+
+e_kthread:
+	for (i = 0; i < ccp->cmd_q_count; i++)
+		if (ccp->cmd_q[i].kthread)
+			kthread_stop(ccp->cmd_q[i].kthread);
+
+	ccp->free_irq(ccp);
+
+e_pool:
+	for (i = 0; i < ccp->cmd_q_count; i++)
+		dma_pool_destroy(ccp->cmd_q[i].dma_pool);
+
+	return ret;
+}
+
+static void ccp_destroy(struct ccp_device *ccp)
+{
+	struct ccp_cmd_queue *cmd_q;
+	struct ccp_cmd *cmd;
+	unsigned int i;
+
+	/* Unregister the DMA engine */
+	ccp_dmaengine_unregister(ccp);
+
+	/* Unregister the RNG */
+	ccp_unregister_rng(ccp);
+
+	/* Remove this device from the list of available units */
+	ccp_del_device(ccp);
+
+	/* Disable and clear interrupts */
+	ccp_disable_queue_interrupts(ccp);
+	for (i = 0; i < ccp->cmd_q_count; i++) {
+		cmd_q = &ccp->cmd_q[i];
+
+		ioread32(cmd_q->reg_int_status);
+		ioread32(cmd_q->reg_status);
+	}
+	iowrite32(ccp->qim, ccp->io_regs + IRQ_STATUS_REG);
+
+	/* Stop the queue kthreads */
+	for (i = 0; i < ccp->cmd_q_count; i++)
+		if (ccp->cmd_q[i].kthread)
+			kthread_stop(ccp->cmd_q[i].kthread);
+
+	ccp->free_irq(ccp);
+
+	for (i = 0; i < ccp->cmd_q_count; i++)
+		dma_pool_destroy(ccp->cmd_q[i].dma_pool);
+
+	/* Flush the cmd and backlog queue */
+	while (!list_empty(&ccp->cmd)) {
+		/* Invoke the callback directly with an error code */
+		cmd = list_first_entry(&ccp->cmd, struct ccp_cmd, entry);
+		list_del(&cmd->entry);
+		cmd->callback(cmd->data, -ENODEV);
+	}
+	while (!list_empty(&ccp->backlog)) {
+		/* Invoke the callback directly with an error code */
+		cmd = list_first_entry(&ccp->backlog, struct ccp_cmd, entry);
+		list_del(&cmd->entry);
+		cmd->callback(cmd->data, -ENODEV);
+	}
+}
+
 static const struct ccp_actions ccp3_actions = {
-	.perform_aes = ccp_perform_aes,
-	.perform_xts_aes = ccp_perform_xts_aes,
-	.perform_sha = ccp_perform_sha,
-	.perform_rsa = ccp_perform_rsa,
-	.perform_passthru = ccp_perform_passthru,
-	.perform_ecc = ccp_perform_ecc,
+	.aes = ccp_perform_aes,
+	.xts_aes = ccp_perform_xts_aes,
+	.des3 = NULL,
+	.sha = ccp_perform_sha,
+	.rsa = ccp_perform_rsa,
+	.passthru = ccp_perform_passthru,
+	.ecc = ccp_perform_ecc,
+	.sballoc = ccp_alloc_ksb,
+	.sbfree = ccp_free_ksb,
 	.init = ccp_init,
 	.destroy = ccp_destroy,
+	.get_free_slots = ccp_get_free_slots,
 	.irqhandler = ccp_irq_handler,
 };
 
-struct ccp_vdata ccpv3 = {
+const struct ccp_vdata ccpv3 = {
 	.version = CCP_VERSION(3, 0),
+	.setup = NULL,
 	.perform = &ccp3_actions,
+	.bar = 2,
+	.offset = 0x20000,
 };

@@ -21,7 +21,10 @@ The 'SoC' element must be one of the following strings:
 	apq8096
 	msm8916
 	msm8974
+	msm8992
+	msm8994
 	msm8996
+	mdm9615
 
 The 'board' element must be one of the following strings:
 

@@ -12,10 +12,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
  *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 #include <linux/errno.h>
@@ -1371,8 +1367,7 @@ static int pvr2_locate_firmware(struct pvr2_hdw *hdw,
 				       fwnames[idx],
 				       &hdw->usb_dev->dev);
 		if (!ret) {
-			trace_firmware("Located %s firmware: %s;"
-				       " uploading...",
+			trace_firmware("Located %s firmware: %s; uploading...",
 				       fwtypename,
 				       fwnames[idx]);
 			return idx;
@@ -1383,21 +1378,17 @@ static int pvr2_locate_firmware(struct pvr2_hdw *hdw,
 		return ret;
 	}
 	pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-		   "***WARNING***"
-		   " Device %s firmware"
-		   " seems to be missing.",
+		   "***WARNING*** Device %s firmware seems to be missing.",
 		   fwtypename);
 	pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-		   "Did you install the pvrusb2 firmware files"
-		   " in their proper location?");
+		   "Did you install the pvrusb2 firmware files in their proper location?");
 	if (fwcount == 1) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
 			   "request_firmware unable to locate %s file %s",
 			   fwtypename,fwnames[0]);
 	} else {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "request_firmware unable to locate"
-			   " one of the following %s files:",
+			   "request_firmware unable to locate one of the following %s files:",
 			   fwtypename);
 		for (idx = 0; idx < fwcount; idx++) {
 			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
@@ -1431,8 +1422,7 @@ static int pvr2_upload_firmware1(struct pvr2_hdw *hdw)
 	if (!hdw->hdw_desc->fx2_firmware.cnt) {
 		hdw->fw1_state = FW1_STATE_OK;
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "Connected device type defines"
-			   " no firmware to upload; ignoring firmware");
+			   "Connected device type defines no firmware to upload; ignoring firmware");
 		return -ENOTTY;
 	}
 
@@ -1457,13 +1447,11 @@ static int pvr2_upload_firmware1(struct pvr2_hdw *hdw)
 	    (!(hdw->hdw_desc->flag_fx2_16kb && (fwsize == 0x4000)))) {
 		if (hdw->hdw_desc->flag_fx2_16kb) {
 			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-				   "Wrong fx2 firmware size"
-				   " (expected 8192 or 16384, got %u)",
+				   "Wrong fx2 firmware size (expected 8192 or 16384, got %u)",
 				   fwsize);
 		} else {
 			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-				   "Wrong fx2 firmware size"
-				   " (expected 8192, got %u)",
+				   "Wrong fx2 firmware size (expected 8192, got %u)",
 				   fwsize);
 		}
 		release_firmware(fw_entry);
@@ -1585,8 +1573,7 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 
 	if (fw_len % sizeof(u32)) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "size of %s firmware"
-			   " must be a multiple of %zu bytes",
+			   "size of %s firmware must be a multiple of %zu bytes",
 			   fw_files[fwidx],sizeof(u32));
 		release_firmware(fw_entry);
 		ret = -EINVAL;
@@ -1887,8 +1874,7 @@ static void pvr2_hdw_setup_std(struct pvr2_hdw *hdw)
 
 	bcnt = pvr2_std_id_to_str(buf,sizeof(buf),hdw->std_mask_eeprom);
 	pvr2_trace(PVR2_TRACE_STD,
-		   "Supported video standard(s) reported available"
-		   " in hardware: %.*s",
+		   "Supported video standard(s) reported available in hardware: %.*s",
 		   bcnt,buf);
 
 	hdw->std_mask_avail = hdw->std_mask_eeprom;
@@ -1897,8 +1883,7 @@ static void pvr2_hdw_setup_std(struct pvr2_hdw *hdw)
 	if (std2) {
 		bcnt = pvr2_std_id_to_str(buf,sizeof(buf),std2);
 		pvr2_trace(PVR2_TRACE_STD,
-			   "Expanding supported video standards"
-			   " to include: %.*s",
+			   "Expanding supported video standards to include: %.*s",
 			   bcnt,buf);
 		hdw->std_mask_avail |= std2;
 	}
@@ -1917,8 +1902,8 @@ static void pvr2_hdw_setup_std(struct pvr2_hdw *hdw)
 	if (std3) {
 		bcnt = pvr2_std_id_to_str(buf,sizeof(buf),std3);
 		pvr2_trace(PVR2_TRACE_STD,
-			   "Initial video standard"
-			   " (determined by device type): %.*s",bcnt,buf);
+			   "Initial video standard (determined by device type): %.*s",
+			   bcnt, buf);
 		hdw->std_mask_cur = std3;
 		hdw->std_dirty = !0;
 		return;
@@ -1980,8 +1965,7 @@ static void pvr2_hdw_cx25840_vbi_hack(struct pvr2_hdw *hdw)
 	}
 
 	pvr2_trace(PVR2_TRACE_INIT,
-		   "Module ID %u:"
-		   " Executing cx25840 VBI hack",
+		   "Module ID %u: Executing cx25840 VBI hack",
 		   hdw->decoder_client_id);
 	memset(&fmt, 0, sizeof(fmt));
 	fmt.type = V4L2_BUF_TYPE_SLICED_VBI_CAPTURE;
@@ -2007,8 +1991,7 @@ static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 	fname = (mid < ARRAY_SIZE(module_names)) ? module_names[mid] : NULL;
 	if (!fname) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "Module ID %u for device %s has no name?"
-			   "  The driver might have a configuration problem.",
+			   "Module ID %u for device %s has no name?  The driver might have a configuration problem.",
 			   mid,
 			   hdw->hdw_desc->description);
 		return -EINVAL;
@@ -2027,32 +2010,27 @@ static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 						 ARRAY_SIZE(i2caddr));
 		if (i2ccnt) {
 			pvr2_trace(PVR2_TRACE_INIT,
-				   "Module ID %u:"
-				   " Using default i2c address list",
+				   "Module ID %u: Using default i2c address list",
 				   mid);
 		}
 	}
 
 	if (!i2ccnt) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "Module ID %u (%s) for device %s:"
-			   " No i2c addresses."
-			   "  The driver might have a configuration problem.",
+			   "Module ID %u (%s) for device %s: No i2c addresses.	The driver might have a configuration problem.",
 			   mid, fname, hdw->hdw_desc->description);
 		return -EINVAL;
 	}
 
 	if (i2ccnt == 1) {
 		pvr2_trace(PVR2_TRACE_INIT,
-			   "Module ID %u:"
-			   " Setting up with specified i2c address 0x%x",
+			   "Module ID %u: Setting up with specified i2c address 0x%x",
 			   mid, i2caddr[0]);
 		sd = v4l2_i2c_new_subdev(&hdw->v4l2_dev, &hdw->i2c_adap,
 					 fname, i2caddr[0], NULL);
 	} else {
 		pvr2_trace(PVR2_TRACE_INIT,
-			   "Module ID %u:"
-			   " Setting up with address probe list",
+			   "Module ID %u: Setting up with address probe list",
 			   mid);
 		sd = v4l2_i2c_new_subdev(&hdw->v4l2_dev, &hdw->i2c_adap,
 					 fname, 0, i2caddr);
@@ -2060,9 +2038,7 @@ static int pvr2_hdw_load_subdev(struct pvr2_hdw *hdw,
 
 	if (!sd) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "Module ID %u (%s) for device %s failed to load."
-			   "  Possible missing sub-device kernel module or"
-			   " initialization failure within module.",
+			   "Module ID %u (%s) for device %s failed to load.  Possible missing sub-device kernel module or initialization failure within module.",
 			   mid, fname, hdw->hdw_desc->description);
 		return -EIO;
 	}
@@ -2124,18 +2100,14 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 				 == 0);
 			if (reloadFl) {
 				pvr2_trace(PVR2_TRACE_INIT,
-					   "USB endpoint config looks strange"
-					   "; possibly firmware needs to be"
-					   " loaded");
+					   "USB endpoint config looks strange; possibly firmware needs to be loaded");
 			}
 		}
 		if (!reloadFl) {
 			reloadFl = !pvr2_hdw_check_firmware(hdw);
 			if (reloadFl) {
 				pvr2_trace(PVR2_TRACE_INIT,
-					   "Check for FX2 firmware failed"
-					   "; possibly firmware needs to be"
-					   " loaded");
+					   "Check for FX2 firmware failed; possibly firmware needs to be loaded");
 			}
 		}
 		if (reloadFl) {
@@ -2200,8 +2172,7 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 		if (!pvr2_hdw_dev_ok(hdw)) return;
 		if (ret < 0) {
 			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-				   "Unable to determine location of eeprom,"
-				   " skipping");
+				   "Unable to determine location of eeprom, skipping");
 		} else {
 			hdw->eeprom_addr = ret;
 			pvr2_eeprom_analyze(hdw);
@@ -2254,8 +2225,7 @@ static void pvr2_hdw_setup_low(struct pvr2_hdw *hdw)
 		idx = get_default_error_tolerance(hdw);
 		if (idx) {
 			pvr2_trace(PVR2_TRACE_INIT,
-				   "pvr2_hdw_setup: video stream %p"
-				   " setting tolerance %u",
+				   "pvr2_hdw_setup: video stream %p setting tolerance %u",
 				   hdw->vid_stream,idx);
 		}
 		pvr2_stream_setup(hdw->vid_stream,hdw->usb_dev,
@@ -2285,16 +2255,13 @@ static void pvr2_hdw_setup(struct pvr2_hdw *hdw)
 			if (hdw->flag_init_ok) {
 				pvr2_trace(
 					PVR2_TRACE_INFO,
-					"Device initialization"
-					" completed successfully.");
+					"Device initialization completed successfully.");
 				break;
 			}
 			if (hdw->fw1_state == FW1_STATE_RELOAD) {
 				pvr2_trace(
 					PVR2_TRACE_INFO,
-					"Device microcontroller firmware"
-					" (re)loaded; it should now reset"
-					" and reconnect.");
+					"Device microcontroller firmware (re)loaded; it should now reset and reconnect.");
 				break;
 			}
 			pvr2_trace(
@@ -2303,48 +2270,35 @@ static void pvr2_hdw_setup(struct pvr2_hdw *hdw)
 			if (hdw->fw1_state == FW1_STATE_MISSING) {
 				pvr2_trace(
 					PVR2_TRACE_ERROR_LEGS,
-					"Giving up since device"
-					" microcontroller firmware"
-					" appears to be missing.");
+					"Giving up since device microcontroller firmware appears to be missing.");
 				break;
 			}
 		}
 		if (hdw->flag_modulefail) {
 			pvr2_trace(
 				PVR2_TRACE_ERROR_LEGS,
-				"***WARNING*** pvrusb2 driver initialization"
-				" failed due to the failure of one or more"
-				" sub-device kernel modules.");
+				"***WARNING*** pvrusb2 driver initialization failed due to the failure of one or more sub-device kernel modules.");
 			pvr2_trace(
 				PVR2_TRACE_ERROR_LEGS,
-				"You need to resolve the failing condition"
-				" before this driver can function.  There"
-				" should be some earlier messages giving more"
-				" information about the problem.");
+				"You need to resolve the failing condition before this driver can function.  There should be some earlier messages giving more information about the problem.");
 			break;
 		}
 		if (procreload) {
 			pvr2_trace(
 				PVR2_TRACE_ERROR_LEGS,
-				"Attempting pvrusb2 recovery by reloading"
-				" primary firmware.");
+				"Attempting pvrusb2 recovery by reloading primary firmware.");
 			pvr2_trace(
 				PVR2_TRACE_ERROR_LEGS,
-				"If this works, device should disconnect"
-				" and reconnect in a sane state.");
+				"If this works, device should disconnect and reconnect in a sane state.");
 			hdw->fw1_state = FW1_STATE_UNKNOWN;
 			pvr2_upload_firmware1(hdw);
 		} else {
 			pvr2_trace(
 				PVR2_TRACE_ERROR_LEGS,
-				"***WARNING*** pvrusb2 device hardware"
-				" appears to be jammed"
-				" and I can't clear it.");
+				"***WARNING*** pvrusb2 device hardware appears to be jammed and I can't clear it.");
 			pvr2_trace(
 				PVR2_TRACE_ERROR_LEGS,
-				"You might need to power cycle"
-				" the pvrusb2 device"
-				" in order to recover.");
+				"You might need to power cycle the pvrusb2 device in order to recover.");
 		}
 	} while (0);
 	pvr2_trace(PVR2_TRACE_INIT,"pvr2_hdw_setup(hdw=%p) end",hdw);
@@ -2396,12 +2350,8 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	hdw_desc = (const struct pvr2_device_desc *)(devid->driver_info);
 
 	if (hdw_desc == NULL) {
-		pvr2_trace(PVR2_TRACE_INIT, "pvr2_hdw_create:"
-			   " No device description pointer,"
-			   " unable to continue.");
-		pvr2_trace(PVR2_TRACE_INIT, "If you have a new device type,"
-			   " please contact Mike Isely <isely@pobox.com>"
-			   " to get it included in the driver\n");
+		pvr2_trace(PVR2_TRACE_INIT, "pvr2_hdw_create: No device description pointer, unable to continue.");
+		pvr2_trace(PVR2_TRACE_INIT, "If you have a new device type, please contact Mike Isely <isely@pobox.com> to get it included in the driver\n");
 		goto fail;
 	}
 
@@ -2413,14 +2363,12 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	if (hdw_desc->flag_is_experimental) {
 		pvr2_trace(PVR2_TRACE_INFO, "**********");
 		pvr2_trace(PVR2_TRACE_INFO,
-			   "WARNING: Support for this device (%s) is"
-			   " experimental.", hdw_desc->description);
+			   "WARNING: Support for this device (%s) is experimental.",
+							      hdw_desc->description);
 		pvr2_trace(PVR2_TRACE_INFO,
-			   "Important functionality might not be"
-			   " entirely working.");
+			   "Important functionality might not be entirely working.");
 		pvr2_trace(PVR2_TRACE_INFO,
-			   "Please consider contacting the driver author to"
-			   " help with further stabilization of the driver.");
+			   "Please consider contacting the driver author to help with further stabilization of the driver.");
 		pvr2_trace(PVR2_TRACE_INFO, "**********");
 	}
 	if (!hdw) goto fail;
@@ -2624,7 +2572,6 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	if (cnt1 >= sizeof(hdw->name)) cnt1 = sizeof(hdw->name)-1;
 	hdw->name[cnt1] = 0;
 
-	hdw->workqueue = create_singlethread_workqueue(hdw->name);
 	INIT_WORK(&hdw->workpoll,pvr2_hdw_worker_poll);
 
 	pvr2_trace(PVR2_TRACE_INIT,"Driver unit number is %d, name is %s",
@@ -2651,11 +2598,7 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 		del_timer_sync(&hdw->decoder_stabilization_timer);
 		del_timer_sync(&hdw->encoder_run_timer);
 		del_timer_sync(&hdw->encoder_wait_timer);
-		if (hdw->workqueue) {
-			flush_workqueue(hdw->workqueue);
-			destroy_workqueue(hdw->workqueue);
-			hdw->workqueue = NULL;
-		}
+		flush_work(&hdw->workpoll);
 		usb_free_urb(hdw->ctl_read_urb);
 		usb_free_urb(hdw->ctl_write_urb);
 		kfree(hdw->ctl_read_buffer);
@@ -2712,11 +2655,7 @@ void pvr2_hdw_destroy(struct pvr2_hdw *hdw)
 {
 	if (!hdw) return;
 	pvr2_trace(PVR2_TRACE_INIT,"pvr2_hdw_destroy: hdw=%p",hdw);
-	if (hdw->workqueue) {
-		flush_workqueue(hdw->workqueue);
-		destroy_workqueue(hdw->workqueue);
-		hdw->workqueue = NULL;
-	}
+	flush_work(&hdw->workpoll);
 	del_timer_sync(&hdw->quiescent_timer);
 	del_timer_sync(&hdw->decoder_stabilization_timer);
 	del_timer_sync(&hdw->encoder_run_timer);
@@ -3384,8 +3323,7 @@ static u8 *pvr2_full_eeprom_fetch(struct pvr2_hdw *hdw)
 	eeprom = kmalloc(EEPROM_SIZE,GFP_KERNEL);
 	if (!eeprom) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "Failed to allocate memory"
-			   " required to read eeprom");
+			   "Failed to allocate memory required to read eeprom");
 		return NULL;
 	}
 
@@ -3402,8 +3340,8 @@ static u8 *pvr2_full_eeprom_fetch(struct pvr2_hdw *hdw)
 	   strange but it's what they do) */
 	mode16 = (addr & 1);
 	eepromSize = (mode16 ? EEPROM_SIZE : 256);
-	trace_eeprom("Examining %d byte eeprom at location 0x%x"
-		     " using %d bit addressing",eepromSize,addr,
+	trace_eeprom("Examining %d byte eeprom at location 0x%x using %d bit addressing",
+		     eepromSize, addr,
 		     mode16 ? 16 : 8);
 
 	msg[0].addr = addr;
@@ -3470,8 +3408,8 @@ void pvr2_hdw_cpufw_set_enabled(struct pvr2_hdw *hdw,
 		if (hdw->fw_cpu_flag) {
 			hdw->fw_size = (mode == 1) ? 0x4000 : 0x2000;
 			pvr2_trace(PVR2_TRACE_FIRMWARE,
-				   "Preparing to suck out CPU firmware"
-				   " (size=%u)", hdw->fw_size);
+				   "Preparing to suck out CPU firmware (size=%u)",
+				   hdw->fw_size);
 			hdw->fw_buffer = kzalloc(hdw->fw_size,GFP_KERNEL);
 			if (!hdw->fw_buffer) {
 				hdw->fw_size = 0;
@@ -3629,21 +3567,18 @@ static int pvr2_send_request_ex(struct pvr2_hdw *hdw,
 	struct timer_list timer;
 	if (!hdw->ctl_lock_held) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "Attempted to execute control transfer"
-			   " without lock!!");
+			   "Attempted to execute control transfer without lock!!");
 		return -EDEADLK;
 	}
 	if (!hdw->flag_ok && !probe_fl) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "Attempted to execute control transfer"
-			   " when device not ok");
+			   "Attempted to execute control transfer when device not ok");
 		return -EIO;
 	}
 	if (!(hdw->ctl_read_urb && hdw->ctl_write_urb)) {
 		if (!probe_fl) {
 			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-				   "Attempted to execute control transfer"
-				   " when USB is disconnected");
+				   "Attempted to execute control transfer when USB is disconnected");
 		}
 		return -ENOTTY;
 	}
@@ -3654,16 +3589,14 @@ static int pvr2_send_request_ex(struct pvr2_hdw *hdw,
 	if (write_len > PVR2_CTL_BUFFSIZE) {
 		pvr2_trace(
 			PVR2_TRACE_ERROR_LEGS,
-			"Attempted to execute %d byte"
-			" control-write transfer (limit=%d)",
+			"Attempted to execute %d byte control-write transfer (limit=%d)",
 			write_len,PVR2_CTL_BUFFSIZE);
 		return -EINVAL;
 	}
 	if (read_len > PVR2_CTL_BUFFSIZE) {
 		pvr2_trace(
 			PVR2_TRACE_ERROR_LEGS,
-			"Attempted to execute %d byte"
-			" control-read transfer (limit=%d)",
+			"Attempted to execute %d byte control-read transfer (limit=%d)",
 			write_len,PVR2_CTL_BUFFSIZE);
 		return -EINVAL;
 	}
@@ -3712,8 +3645,8 @@ static int pvr2_send_request_ex(struct pvr2_hdw *hdw,
 		status = usb_submit_urb(hdw->ctl_write_urb,GFP_KERNEL);
 		if (status < 0) {
 			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-				   "Failed to submit write-control"
-				   " URB status=%d",status);
+				   "Failed to submit write-control URB status=%d",
+status);
 			hdw->ctl_write_pend_flag = 0;
 			goto done;
 		}
@@ -3736,8 +3669,8 @@ static int pvr2_send_request_ex(struct pvr2_hdw *hdw,
 		status = usb_submit_urb(hdw->ctl_read_urb,GFP_KERNEL);
 		if (status < 0) {
 			pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-				   "Failed to submit read-control"
-				   " URB status=%d",status);
+				   "Failed to submit read-control URB status=%d",
+status);
 			hdw->ctl_read_pend_flag = 0;
 			goto done;
 		}
@@ -3779,8 +3712,7 @@ static int pvr2_send_request_ex(struct pvr2_hdw *hdw,
 			status = hdw->ctl_write_urb->status;
 			if (!probe_fl) {
 				pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-					   "control-write URB failure,"
-					   " status=%d",
+					   "control-write URB failure, status=%d",
 					   status);
 			}
 			goto done;
@@ -3790,8 +3722,7 @@ static int pvr2_send_request_ex(struct pvr2_hdw *hdw,
 			status = -EIO;
 			if (!probe_fl) {
 				pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-					   "control-write URB short,"
-					   " expected=%d got=%d",
+					   "control-write URB short, expected=%d got=%d",
 					   write_len,
 					   hdw->ctl_write_urb->actual_length);
 			}
@@ -3809,8 +3740,7 @@ static int pvr2_send_request_ex(struct pvr2_hdw *hdw,
 			status = hdw->ctl_read_urb->status;
 			if (!probe_fl) {
 				pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-					   "control-read URB failure,"
-					   " status=%d",
+					   "control-read URB failure, status=%d",
 					   status);
 			}
 			goto done;
@@ -3820,8 +3750,7 @@ static int pvr2_send_request_ex(struct pvr2_hdw *hdw,
 			status = -EIO;
 			if (!probe_fl) {
 				pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-					   "control-read URB short,"
-					   " expected=%d got=%d",
+					   "control-read URB short, expected=%d got=%d",
 					   read_len,
 					   hdw->ctl_read_urb->actual_length);
 			}
@@ -4443,7 +4372,7 @@ static void pvr2_hdw_quiescent_timeout(unsigned long data)
 	hdw->state_decoder_quiescent = !0;
 	trace_stbit("state_decoder_quiescent",hdw->state_decoder_quiescent);
 	hdw->state_stale = !0;
-	queue_work(hdw->workqueue,&hdw->workpoll);
+	schedule_work(&hdw->workpoll);
 }
 
 
@@ -4454,7 +4383,7 @@ static void pvr2_hdw_decoder_stabilization_timeout(unsigned long data)
 	hdw->state_decoder_ready = !0;
 	trace_stbit("state_decoder_ready", hdw->state_decoder_ready);
 	hdw->state_stale = !0;
-	queue_work(hdw->workqueue, &hdw->workpoll);
+	schedule_work(&hdw->workpoll);
 }
 
 
@@ -4465,7 +4394,7 @@ static void pvr2_hdw_encoder_wait_timeout(unsigned long data)
 	hdw->state_encoder_waitok = !0;
 	trace_stbit("state_encoder_waitok",hdw->state_encoder_waitok);
 	hdw->state_stale = !0;
-	queue_work(hdw->workqueue,&hdw->workpoll);
+	schedule_work(&hdw->workpoll);
 }
 
 
@@ -4477,7 +4406,7 @@ static void pvr2_hdw_encoder_run_timeout(unsigned long data)
 		hdw->state_encoder_runok = !0;
 		trace_stbit("state_encoder_runok",hdw->state_encoder_runok);
 		hdw->state_stale = !0;
-		queue_work(hdw->workqueue,&hdw->workpoll);
+		schedule_work(&hdw->workpoll);
 	}
 }
 
@@ -4808,9 +4737,7 @@ static unsigned int pvr2_hdw_report_unlocked(struct pvr2_hdw *hdw,int which,
 				      0);
 		return scnprintf(
 			buf,acnt,
-			"Bytes streamed=%u"
-			" URBs: queued=%u idle=%u ready=%u"
-			" processed=%u failed=%u",
+			"Bytes streamed=%u URBs: queued=%u idle=%u ready=%u processed=%u failed=%u",
 			stats.bytes_processed,
 			stats.buffers_in_queue,
 			stats.buffers_in_idle,
@@ -4991,7 +4918,7 @@ static void pvr2_hdw_state_sched(struct pvr2_hdw *hdw)
 	if (hdw->state_stale) return;
 	hdw->state_stale = !0;
 	trace_stbit("state_stale",hdw->state_stale);
-	queue_work(hdw->workqueue,&hdw->workpoll);
+	schedule_work(&hdw->workpoll);
 }
 
 
@@ -5022,8 +4949,7 @@ int pvr2_hdw_gpio_chg_dir(struct pvr2_hdw *hdw,u32 msk,u32 val)
 		if (ret) return ret;
 		nval = (cval & ~msk) | (val & msk);
 		pvr2_trace(PVR2_TRACE_GPIO,
-			   "GPIO direction changing 0x%x:0x%x"
-			   " from 0x%x to 0x%x",
+			   "GPIO direction changing 0x%x:0x%x from 0x%x to 0x%x",
 			   msk,val,cval,nval);
 	} else {
 		nval = val;
@@ -5066,9 +4992,7 @@ void pvr2_hdw_status_poll(struct pvr2_hdw *hdw)
 	   now.  (Of course, no sub-drivers seem to implement it either.
 	   But now it's a a chicken and egg problem...) */
 	v4l2_device_call_all(&hdw->v4l2_dev, 0, tuner, g_tuner, vtp);
-	pvr2_trace(PVR2_TRACE_CHIPS, "subdev status poll"
-		   " type=%u strength=%u audio=0x%x cap=0x%x"
-		   " low=%u hi=%u",
+	pvr2_trace(PVR2_TRACE_CHIPS, "subdev status poll type=%u strength=%u audio=0x%x cap=0x%x low=%u hi=%u",
 		   vtp->type,
 		   vtp->signal, vtp->rxsubchans, vtp->capability,
 		   vtp->rangelow, vtp->rangehigh);

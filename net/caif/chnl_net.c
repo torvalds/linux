@@ -44,7 +44,6 @@ enum caif_states {
 
 struct chnl_net {
 	struct cflayer chnl;
-	struct net_device_stats stats;
 	struct caif_connect_request conn_req;
 	struct list_head list_field;
 	struct net_device *netdev;

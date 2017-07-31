@@ -92,7 +92,7 @@ static void __init of_sama5d4_clk_h32mx_setup(struct device_node *np)
 	struct clk_init_data init;
 	const char *parent_name;
 	struct regmap *regmap;
-	struct clk *clk;
+	int ret;
 
 	regmap = syscon_node_to_regmap(of_get_parent(np));
 	if (IS_ERR(regmap))
@@ -113,13 +113,13 @@ static void __init of_sama5d4_clk_h32mx_setup(struct device_node *np)
 	h32mxclk->hw.init = &init;
 	h32mxclk->regmap = regmap;
 
-	clk = clk_register(NULL, &h32mxclk->hw);
-	if (IS_ERR(clk)) {
+	ret = clk_hw_register(NULL, &h32mxclk->hw);
+	if (ret) {
 		kfree(h32mxclk);
 		return;
 	}
 
-	of_clk_add_provider(np, of_clk_src_simple_get, clk);
+	of_clk_add_hw_provider(np, of_clk_hw_simple_get, &h32mxclk->hw);
 }
 CLK_OF_DECLARE(of_sama5d4_clk_h32mx_setup, "atmel,sama5d4-clk-h32mx",
 	       of_sama5d4_clk_h32mx_setup);

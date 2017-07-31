@@ -573,6 +573,7 @@ static void __iomem *bgpio_map(struct platform_device *pdev,
 
 #ifdef CONFIG_OF
 static const struct of_device_id bgpio_of_match[] = {
+	{ .compatible = "brcm,bcm6345-gpio" },
 	{ .compatible = "wd,mbl-gpio" },
 	{ }
 };
@@ -592,6 +593,9 @@ static struct bgpio_pdata *bgpio_parse_dt(struct platform_device *pdev,
 		return ERR_PTR(-ENOMEM);
 
 	pdata->base = -1;
+
+	if (of_device_is_big_endian(pdev->dev.of_node))
+		*flags |= BGPIOF_BIG_ENDIAN_BYTE_ORDER;
 
 	if (of_property_read_bool(pdev->dev.of_node, "no-output"))
 		*flags |= BGPIOF_NO_OUTPUT;

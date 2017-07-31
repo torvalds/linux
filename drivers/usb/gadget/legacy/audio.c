@@ -229,6 +229,7 @@ static int audio_bind(struct usb_composite_dev *cdev)
 	uac2_opts->c_chmask = c_chmask;
 	uac2_opts->c_srate = c_srate;
 	uac2_opts->c_ssize = c_ssize;
+	uac2_opts->req_number = UAC2_DEF_REQ_NUM;
 #else
 	uac1_opts = container_of(fi_uac1, struct f_uac1_opts, func_inst);
 	uac1_opts->fn_play = fn_play;

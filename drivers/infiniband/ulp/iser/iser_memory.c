@@ -199,7 +199,11 @@ iser_reg_dma(struct iser_device *device, struct iser_data_buf *mem,
 	 * FIXME: rework the registration code path to differentiate
 	 * rkey/lkey use cases
 	 */
-	reg->rkey = device->mr ? device->mr->rkey : 0;
+
+	if (device->pd->flags & IB_PD_UNSAFE_GLOBAL_RKEY)
+		reg->rkey = device->pd->unsafe_global_rkey;
+	else
+		reg->rkey = 0;
 	reg->sge.addr = ib_sg_dma_address(device->ib_device, &sg[0]);
 	reg->sge.length = ib_sg_dma_len(device->ib_device, &sg[0]);
 

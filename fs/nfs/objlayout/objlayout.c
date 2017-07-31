@@ -291,7 +291,7 @@ objlayout_read_pagelist(struct nfs_pgio_header *hdr)
 			      &hdr->args.pgbase,
 			      hdr->args.offset, hdr->args.count);
 
-	dprintk("%s: inode(%lx) offset 0x%llx count 0x%Zx eof=%d\n",
+	dprintk("%s: inode(%lx) offset 0x%llx count 0x%zx eof=%d\n",
 		__func__, inode->i_ino, offset, count, hdr->res.eof);
 
 	err = objio_read_pagelist(hdr);
@@ -504,10 +504,10 @@ encode_accumulated_error(struct objlayout *objlay, __be32 *p)
 }
 
 void
-objlayout_encode_layoutreturn(struct pnfs_layout_hdr *pnfslay,
-			      struct xdr_stream *xdr,
+objlayout_encode_layoutreturn(struct xdr_stream *xdr,
 			      const struct nfs4_layoutreturn_args *args)
 {
+	struct pnfs_layout_hdr *pnfslay = args->layout;
 	struct objlayout *objlay = OBJLAYOUT(pnfslay);
 	struct objlayout_io_res *oir, *tmp;
 	__be32 *start;

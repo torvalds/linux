@@ -170,9 +170,6 @@ static int xen_starting_cpu(unsigned int cpu)
 	pr_info("Xen: initializing cpu%d\n", cpu);
 	vcpup = per_cpu_ptr(xen_vcpu_info, cpu);
 
-	/* Direct vCPU id mapping for ARM guests. */
-	per_cpu(xen_vcpu_id, cpu) = cpu;
-
 	info.mfn = virt_to_gfn(vcpup);
 	info.offset = xen_offset_in_page(vcpup);
 
@@ -330,6 +327,7 @@ static int __init xen_guest_init(void)
 {
 	struct xen_add_to_physmap xatp;
 	struct shared_info *shared_info_page = NULL;
+	int cpu;
 
 	if (!xen_domain())
 		return 0;
@@ -374,13 +372,13 @@ static int __init xen_guest_init(void)
 	 * for secondary CPUs as they are brought up.
 	 * For uniformity we use VCPUOP_register_vcpu_info even on cpu0.
 	 */
-	xen_vcpu_info = __alloc_percpu(sizeof(struct vcpu_info),
-			                       sizeof(struct vcpu_info));
+	xen_vcpu_info = alloc_percpu(struct vcpu_info);
 	if (xen_vcpu_info == NULL)
 		return -ENOMEM;
 
 	/* Direct vCPU id mapping for ARM guests. */
-	per_cpu(xen_vcpu_id, 0) = 0;
+	for_each_possible_cpu(cpu)
+		per_cpu(xen_vcpu_id, cpu) = cpu;
 
 	xen_auto_xlat_grant_frames.count = gnttab_max_grant_frames();
 	if (xen_xlate_map_ballooned_pages(&xen_auto_xlat_grant_frames.pfn,
@@ -414,7 +412,7 @@ static int __init xen_guest_init(void)
 		pvclock_gtod_register_notifier(&xen_pvclock_gtod_notifier);
 
 	return cpuhp_setup_state(CPUHP_AP_ARM_XEN_STARTING,
-				 "AP_ARM_XEN_STARTING", xen_starting_cpu,
+				 "arm/xen:starting", xen_starting_cpu,
 				 xen_dying_cpu);
 }
 early_initcall(xen_guest_init);
@@ -459,4 +457,5 @@ EXPORT_SYMBOL_GPL(HYPERVISOR_tmem_op);
 EXPORT_SYMBOL_GPL(HYPERVISOR_platform_op);
 EXPORT_SYMBOL_GPL(HYPERVISOR_multicall);
 EXPORT_SYMBOL_GPL(HYPERVISOR_vm_assist);
+EXPORT_SYMBOL_GPL(HYPERVISOR_dm_op);
 EXPORT_SYMBOL_GPL(privcmd_call);

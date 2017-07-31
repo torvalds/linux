@@ -37,10 +37,11 @@ enum hns_nic_state {
 struct hns_nic_ring_data {
 	struct hnae_ring *ring;
 	struct napi_struct napi;
+	cpumask_t mask; /* affinity mask */
 	int queue_index;
 	int (*poll_one)(struct hns_nic_ring_data *, int, void *);
 	void (*ex_process)(struct hns_nic_ring_data *, struct sk_buff *);
-	void (*fini_process)(struct hns_nic_ring_data *);
+	bool (*fini_process)(struct hns_nic_ring_data *);
 };
 
 /* compatible the difference between two versions */
@@ -59,7 +60,6 @@ struct hns_nic_priv {
 	u32 port_id;
 	int phy_mode;
 	int phy_led_val;
-	struct phy_device *phy;
 	struct net_device *netdev;
 	struct device *dev;
 	struct hnae_handle *ae_handle;

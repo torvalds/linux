@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2013-2015 Samsung Electronics
  * Jonghwa Lee <jonghwa3.lee@samsung.com>
- * Krzysztof Kozlowski <k.kozlowski.k@gmail.com>
+ * Krzysztof Kozlowski <krzk@kernel.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -141,7 +141,7 @@ static const unsigned int max77693_safeout_table[] = {
 	3300000,
 };
 
-static struct regulator_ops max77693_safeout_ops = {
+static const struct regulator_ops max77693_safeout_ops = {
 	.list_voltage		= regulator_list_voltage_table,
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
@@ -314,5 +314,5 @@ module_exit(max77693_pmic_cleanup);
 
 MODULE_DESCRIPTION("MAXIM 77693/77843 regulator driver");
 MODULE_AUTHOR("Jonghwa Lee <jonghwa3.lee@samsung.com>");
-MODULE_AUTHOR("Krzysztof Kozlowski <k.kozlowski.k@gmail.com>");
+MODULE_AUTHOR("Krzysztof Kozlowski <krzk@kernel.org>");
 MODULE_LICENSE("GPL");

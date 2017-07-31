@@ -26,11 +26,14 @@
 #define RTIT_CTL_CYCLEACC		BIT(1)
 #define RTIT_CTL_OS			BIT(2)
 #define RTIT_CTL_USR			BIT(3)
+#define RTIT_CTL_PWR_EVT_EN		BIT(4)
+#define RTIT_CTL_FUP_ON_PTW		BIT(5)
 #define RTIT_CTL_CR3EN			BIT(7)
 #define RTIT_CTL_TOPA			BIT(8)
 #define RTIT_CTL_MTC_EN			BIT(9)
 #define RTIT_CTL_TSC_EN			BIT(10)
 #define RTIT_CTL_DISRETC		BIT(11)
+#define RTIT_CTL_PTW_EN			BIT(12)
 #define RTIT_CTL_BRANCH_EN		BIT(13)
 #define RTIT_CTL_MTC_RANGE_OFFSET	14
 #define RTIT_CTL_MTC_RANGE		(0x0full << RTIT_CTL_MTC_RANGE_OFFSET)
@@ -91,6 +94,8 @@ enum pt_capabilities {
 	PT_CAP_psb_cyc,
 	PT_CAP_ip_filtering,
 	PT_CAP_mtc,
+	PT_CAP_ptwrite,
+	PT_CAP_power_event_trace,
 	PT_CAP_topa_output,
 	PT_CAP_topa_multiple_entries,
 	PT_CAP_single_range_output,
@@ -105,6 +110,7 @@ struct pt_pmu {
 	struct pmu		pmu;
 	u32			caps[PT_CPUID_REGS_NUM * PT_CPUID_LEAVES];
 	bool			vmx;
+	bool			branch_en_always_on;
 	unsigned long		max_nonturbo_ratio;
 	unsigned int		tsc_art_num;
 	unsigned int		tsc_art_den;
@@ -138,7 +144,6 @@ struct pt_buffer {
 	size_t			output_off;
 	unsigned long		nr_pages;
 	local_t			data_size;
-	local_t			lost;
 	local64_t		head;
 	bool			snapshot;
 	unsigned long		stop_pos, intr_pos;

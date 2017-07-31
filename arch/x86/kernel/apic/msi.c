@@ -82,7 +82,7 @@ int native_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	if (domain == NULL)
 		return -ENOSYS;
 
-	return pci_msi_domain_alloc_irqs(domain, dev, nvec, type);
+	return msi_domain_alloc_irqs(domain, &dev->dev, nvec);
 }
 
 void native_teardown_msi_irq(unsigned int irq)
@@ -269,7 +269,7 @@ static void hpet_msi_write_msg(struct irq_data *data, struct msi_msg *msg)
 	hpet_msi_write(irq_data_get_irq_handler_data(data), msg);
 }
 
-static struct irq_chip hpet_msi_controller = {
+static struct irq_chip hpet_msi_controller __ro_after_init = {
 	.name = "HPET-MSI",
 	.irq_unmask = hpet_msi_unmask,
 	.irq_mask = hpet_msi_mask,

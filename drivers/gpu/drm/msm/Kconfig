@@ -4,6 +4,7 @@ config DRM_MSM
 	depends on DRM
 	depends on ARCH_QCOM || (ARM && COMPILE_TEST)
 	depends on OF && COMMON_CLK
+	depends on MMU
 	select REGULATOR
 	select DRM_KMS_HELPER
 	select DRM_PANEL
@@ -11,6 +12,7 @@ config DRM_MSM
 	select TMPFS
 	select QCOM_SCM
 	select SND_SOC_HDMI_CODEC if SND_SOC
+	select SYNC_FILE
 	default y
 	help
 	  DRM/KMS driver for MSM/snapdragon.
@@ -70,3 +72,10 @@ config DRM_MSM_DSI_28NM_8960_PHY
 	help
 	  Choose this option if the 28nm DSI PHY 8960 variant is used on the
 	  platform.
+
+config DRM_MSM_DSI_14NM_PHY
+	bool "Enable DSI 14nm PHY driver in MSM DRM (used by MSM8996/APQ8096)"
+	depends on DRM_MSM_DSI
+	default y
+	help
+	  Choose this option if DSI PHY on 8996 is used on the platform.

@@ -63,6 +63,8 @@ static const char *const hwcap_str[] = {
 	"atomics",
 	"fphp",
 	"asimdhp",
+	"cpuid",
+	"asimdrdm",
 	NULL
 };
 
@@ -227,7 +229,7 @@ static struct attribute_group cpuregs_attr_group = {
 	.name = "identification"
 };
 
-static int cpuid_add_regs(int cpu)
+static int cpuid_cpu_online(unsigned int cpu)
 {
 	int rc;
 	struct device *dev;
@@ -248,7 +250,7 @@ out:
 	return rc;
 }
 
-static int cpuid_remove_regs(int cpu)
+static int cpuid_cpu_offline(unsigned int cpu)
 {
 	struct device *dev;
 	struct cpuinfo_arm64 *info = &per_cpu(cpu_data, cpu);
@@ -264,40 +266,22 @@ static int cpuid_remove_regs(int cpu)
 	return 0;
 }
 
-static int cpuid_callback(struct notifier_block *nb,
-			 unsigned long action, void *hcpu)
-{
-	int rc = 0;
-	unsigned long cpu = (unsigned long)hcpu;
-
-	switch (action & ~CPU_TASKS_FROZEN) {
-	case CPU_ONLINE:
-		rc = cpuid_add_regs(cpu);
-		break;
-	case CPU_DEAD:
-		rc = cpuid_remove_regs(cpu);
-		break;
-	}
-
-	return notifier_from_errno(rc);
-}
-
 static int __init cpuinfo_regs_init(void)
 {
-	int cpu;
-
-	cpu_notifier_register_begin();
+	int cpu, ret;
 
 	for_each_possible_cpu(cpu) {
 		struct cpuinfo_arm64 *info = &per_cpu(cpu_data, cpu);
 
 		kobject_init(&info->kobj, &cpuregs_kobj_type);
-		if (cpu_online(cpu))
-			cpuid_add_regs(cpu);
 	}
-	__hotcpu_notifier(cpuid_callback, 0);
 
-	cpu_notifier_register_done();
+	ret = cpuhp_setup_state(CPUHP_AP_ONLINE_DYN, "arm64/cpuinfo:online",
+				cpuid_cpu_online, cpuid_cpu_offline);
+	if (ret < 0) {
+		pr_err("cpuinfo: failed to register hotplug callbacks.\n");
+		return ret;
+	}
 	return 0;
 }
 static void cpuinfo_detect_icache_policy(struct cpuinfo_arm64 *info)
@@ -363,8 +347,6 @@ static void __cpuinfo_store_cpu(struct cpuinfo_arm64 *info)
 	}
 
 	cpuinfo_detect_icache_policy(info);
-
-	check_local_cpu_errata();
 }
 
 void cpuinfo_store_cpu(void)

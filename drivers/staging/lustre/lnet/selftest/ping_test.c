@@ -159,8 +159,8 @@ ping_client_done_rpc(struct sfw_test_unit *tsu, struct srpc_client_rpc *rpc)
 
 	ktime_get_real_ts64(&ts);
 	CDEBUG(D_NET, "%d reply in %u usec\n", reply->pnr_seq,
-	       (unsigned)((ts.tv_sec - reqst->pnr_time_sec) * 1000000 +
-			  (ts.tv_nsec / NSEC_PER_USEC - reqst->pnr_time_usec)));
+	       (unsigned int)((ts.tv_sec - reqst->pnr_time_sec) * 1000000 +
+			      (ts.tv_nsec / NSEC_PER_USEC - reqst->pnr_time_usec)));
 }
 
 static int

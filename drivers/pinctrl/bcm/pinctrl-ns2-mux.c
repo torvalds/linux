@@ -531,7 +531,7 @@ static void ns2_pin_dbg_show(struct pinctrl_dev *pctrl_dev,
 	seq_printf(s, " %s", dev_name(pctrl_dev->dev));
 }
 
-static struct pinctrl_ops ns2_pinctrl_ops = {
+static const struct pinctrl_ops ns2_pinctrl_ops = {
 	.get_groups_count = ns2_get_groups_count,
 	.get_group_name = ns2_get_group_name,
 	.get_group_pins = ns2_get_group_pins,
@@ -703,7 +703,7 @@ static int ns2_pin_get_enable(struct pinctrl_dev *pctrldev, unsigned int pin)
 }
 
 static int ns2_pin_set_slew(struct pinctrl_dev *pctrldev, unsigned int pin,
-			    u16 slew)
+			    u32 slew)
 {
 	struct ns2_pinctrl *pinctrl = pinctrl_dev_get_drvdata(pctrldev);
 	struct ns2_pin *pin_data = pctrldev->desc->pins[pin].drv_data;
@@ -793,7 +793,7 @@ static void ns2_pin_get_pull(struct pinctrl_dev *pctrldev,
 }
 
 static int ns2_pin_set_strength(struct pinctrl_dev *pctrldev, unsigned int pin,
-				u16 strength)
+				u32 strength)
 {
 	struct ns2_pinctrl *pinctrl = pinctrl_dev_get_drvdata(pctrldev);
 	struct ns2_pin *pin_data = pctrldev->desc->pins[pin].drv_data;
@@ -904,7 +904,7 @@ static int ns2_pin_config_set(struct pinctrl_dev *pctrldev, unsigned int pin,
 	struct ns2_pin *pin_data = pctrldev->desc->pins[pin].drv_data;
 	enum pin_config_param param;
 	unsigned int i;
-	u16 arg;
+	u32 arg;
 	int ret = -ENOTSUPP;
 
 	if (pin_data->pin_conf.base == -1)
@@ -959,7 +959,7 @@ static int ns2_pin_config_set(struct pinctrl_dev *pctrldev, unsigned int pin,
 out:
 	return ret;
 }
-static struct pinmux_ops ns2_pinmux_ops = {
+static const struct pinmux_ops ns2_pinmux_ops = {
 	.get_functions_count = ns2_get_functions_count,
 	.get_function_name = ns2_get_function_name,
 	.get_function_groups = ns2_get_function_groups,

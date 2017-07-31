@@ -283,8 +283,16 @@ TRACE_MAKE_SYSTEM_STR();
 		trace_print_symbols_seq(p, value, symbols);		\
 	})
 
+#undef __print_flags_u64
 #undef __print_symbolic_u64
 #if BITS_PER_LONG == 32
+#define __print_flags_u64(flag, delim, flag_array...)			\
+	({								\
+		static const struct trace_print_flags_u64 __flags[] =	\
+			{ flag_array, { -1, NULL } };			\
+		trace_print_flags_seq_u64(p, delim, flag, __flags);	\
+	})
+
 #define __print_symbolic_u64(value, symbol_array...)			\
 	({								\
 		static const struct trace_print_flags_u64 symbols[] =	\
@@ -292,12 +300,20 @@ TRACE_MAKE_SYSTEM_STR();
 		trace_print_symbols_seq_u64(p, value, symbols);	\
 	})
 #else
+#define __print_flags_u64(flag, delim, flag_array...)			\
+			__print_flags(flag, delim, flag_array)
+
 #define __print_symbolic_u64(value, symbol_array...)			\
 			__print_symbolic(value, symbol_array)
 #endif
 
 #undef __print_hex
-#define __print_hex(buf, buf_len) trace_print_hex_seq(p, buf, buf_len)
+#define __print_hex(buf, buf_len)					\
+	trace_print_hex_seq(p, buf, buf_len, false)
+
+#undef __print_hex_str
+#define __print_hex_str(buf, buf_len)					\
+	trace_print_hex_seq(p, buf, buf_len, true)
 
 #undef __print_array
 #define __print_array(array, count, el_size)				\
@@ -711,6 +727,7 @@ static inline void ftrace_test_probe_##call(void)			\
 #undef __print_flags
 #undef __print_symbolic
 #undef __print_hex
+#undef __print_hex_str
 #undef __get_dynamic_array
 #undef __get_dynamic_array_len
 #undef __get_str

@@ -33,6 +33,7 @@
 #include <linux/bsg.h>
 
 #include <scsi/scsi.h>
+#include <scsi/scsi_request.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport.h>
@@ -177,11 +178,15 @@ static void sas_smp_request(struct request_queue *q, struct Scsi_Host *shost,
 	while ((req = blk_fetch_request(q)) != NULL) {
 		spin_unlock_irq(q->queue_lock);
 
+		scsi_req(req)->resid_len = blk_rq_bytes(req);
+		if (req->next_rq)
+			scsi_req(req->next_rq)->resid_len =
+				blk_rq_bytes(req->next_rq);
 		handler = to_sas_internal(shost->transportt)->f->smp_handler;
 		ret = handler(shost, rphy, req);
-		req->errors = ret;
+		scsi_req(req)->result = ret;
 
-		blk_end_request_all(req, ret);
+		blk_end_request_all(req, 0);
 
 		spin_lock_irq(q->queue_lock);
 	}
@@ -222,27 +227,31 @@ static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy)
 		return 0;
 	}
 
+	q = blk_alloc_queue(GFP_KERNEL);
+	if (!q)
+		return -ENOMEM;
+	q->cmd_size = sizeof(struct scsi_request);
+
 	if (rphy) {
-		q = blk_init_queue(sas_non_host_smp_request, NULL);
+		q->request_fn = sas_non_host_smp_request;
 		dev = &rphy->dev;
 		name = dev_name(dev);
 		release = NULL;
 	} else {
-		q = blk_init_queue(sas_host_smp_request, NULL);
+		q->request_fn = sas_host_smp_request;
 		dev = &shost->shost_gendev;
 		snprintf(namebuf, sizeof(namebuf),
 			 "sas_host%d", shost->host_no);
 		name = namebuf;
 		release = sas_host_release;
 	}
-	if (!q)
-		return -ENOMEM;
+	error = blk_init_allocated_queue(q);
+	if (error)
+		goto out_cleanup_queue;
 
 	error = bsg_register_queue(q, dev, name, release);
-	if (error) {
-		blk_cleanup_queue(q);
-		return -ENOMEM;
-	}
+	if (error)
+		goto out_cleanup_queue;
 
 	if (rphy)
 		rphy->q = q;
@@ -256,6 +265,10 @@ static int sas_bsg_initialize(struct Scsi_Host *shost, struct sas_rphy *rphy)
 
 	queue_flag_set_unlocked(QUEUE_FLAG_BIDI, q);
 	return 0;
+
+out_cleanup_queue:
+	blk_cleanup_queue(q);
+	return error;
 }
 
 static void sas_bsg_remove(struct Scsi_Host *shost, struct sas_rphy *rphy)
@@ -339,22 +352,6 @@ static int do_sas_phy_delete(struct device *dev, void *data)
 		sas_phy_delete(dev_to_phy(dev));
 	return 0;
 }
-
-/**
- * is_sas_attached - check if device is SAS attached
- * @sdev: scsi device to check
- *
- * returns true if the device is SAS attached
- */
-int is_sas_attached(struct scsi_device *sdev)
-{
-	struct Scsi_Host *shost = sdev->host;
-
-	return shost->transportt->host_attrs.ac.class ==
-		&sas_host_class.class;
-}
-EXPORT_SYMBOL(is_sas_attached);
-
 
 /**
  * sas_remove_children  -  tear down a devices SAS data structures
@@ -1478,7 +1475,7 @@ static void sas_end_device_release(struct device *dev)
 }
 
 /**
- * sas_rphy_initialize - common rphy intialization
+ * sas_rphy_initialize - common rphy initialization
  * @rphy:	rphy to initialise
  *
  * Used by both sas_end_device_alloc() and sas_expander_alloc() to

@@ -9,6 +9,7 @@
  */
 
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/err.h>
 #include <linux/pm_clock.h>
 #include <linux/pm_domain.h>
@@ -18,6 +19,7 @@
 #include <linux/regmap.h>
 #include <linux/mfd/syscon.h>
 #include <dt-bindings/power/rk3288-power.h>
+#include <dt-bindings/power/rk3328-power.h>
 #include <dt-bindings/power/rk3368-power.h>
 #include <dt-bindings/power/rk3399-power.h>
 
@@ -27,6 +29,9 @@ struct rockchip_domain_info {
 	int req_mask;
 	int idle_mask;
 	int ack_mask;
+	bool active_wakeup;
+	int pwr_w_mask;
+	int req_w_mask;
 };
 
 struct rockchip_pmu_info {
@@ -75,23 +80,39 @@ struct rockchip_pmu {
 
 #define to_rockchip_pd(gpd) container_of(gpd, struct rockchip_pm_domain, genpd)
 
-#define DOMAIN(pwr, status, req, idle, ack)	\
+#define DOMAIN(pwr, status, req, idle, ack, wakeup)	\
 {						\
 	.pwr_mask = (pwr >= 0) ? BIT(pwr) : 0,		\
 	.status_mask = (status >= 0) ? BIT(status) : 0,	\
 	.req_mask = (req >= 0) ? BIT(req) : 0,		\
 	.idle_mask = (idle >= 0) ? BIT(idle) : 0,	\
 	.ack_mask = (ack >= 0) ? BIT(ack) : 0,		\
+	.active_wakeup = wakeup,			\
 }
 
-#define DOMAIN_RK3288(pwr, status, req)		\
-	DOMAIN(pwr, status, req, req, (req) + 16)
+#define DOMAIN_M(pwr, status, req, idle, ack, wakeup)	\
+{							\
+	.pwr_w_mask = (pwr >= 0) ? BIT(pwr + 16) : 0,	\
+	.pwr_mask = (pwr >= 0) ? BIT(pwr) : 0,		\
+	.status_mask = (status >= 0) ? BIT(status) : 0,	\
+	.req_w_mask = (req >= 0) ?  BIT(req + 16) : 0,	\
+	.req_mask = (req >= 0) ?  BIT(req) : 0,		\
+	.idle_mask = (idle >= 0) ? BIT(idle) : 0,	\
+	.ack_mask = (ack >= 0) ? BIT(ack) : 0,		\
+	.active_wakeup = wakeup,			\
+}
 
-#define DOMAIN_RK3368(pwr, status, req)		\
-	DOMAIN(pwr, status, req, (req) + 16, req)
+#define DOMAIN_RK3288(pwr, status, req, wakeup)		\
+	DOMAIN(pwr, status, req, req, (req) + 16, wakeup)
 
-#define DOMAIN_RK3399(pwr, status, req)                \
-	DOMAIN(pwr, status, req, req, req)
+#define DOMAIN_RK3328(pwr, status, req, wakeup)		\
+	DOMAIN_M(pwr, pwr, req, (req) + 10, req, wakeup)
+
+#define DOMAIN_RK3368(pwr, status, req, wakeup)		\
+	DOMAIN(pwr, status, req, (req) + 16, req, wakeup)
+
+#define DOMAIN_RK3399(pwr, status, req, wakeup)		\
+	DOMAIN(pwr, status, req, req, req, wakeup)
 
 static bool rockchip_pmu_domain_is_idle(struct rockchip_pm_domain *pd)
 {
@@ -103,27 +124,57 @@ static bool rockchip_pmu_domain_is_idle(struct rockchip_pm_domain *pd)
 	return (val & pd_info->idle_mask) == pd_info->idle_mask;
 }
 
+static unsigned int rockchip_pmu_read_ack(struct rockchip_pmu *pmu)
+{
+	unsigned int val;
+
+	regmap_read(pmu->regmap, pmu->info->ack_offset, &val);
+	return val;
+}
+
 static int rockchip_pmu_set_idle_request(struct rockchip_pm_domain *pd,
 					 bool idle)
 {
 	const struct rockchip_domain_info *pd_info = pd->info;
+	struct generic_pm_domain *genpd = &pd->genpd;
 	struct rockchip_pmu *pmu = pd->pmu;
+	unsigned int target_ack;
 	unsigned int val;
+	bool is_idle;
+	int ret;
 
 	if (pd_info->req_mask == 0)
 		return 0;
-
-	regmap_update_bits(pmu->regmap, pmu->info->req_offset,
-			   pd_info->req_mask, idle ? -1U : 0);
+	else if (pd_info->req_w_mask)
+		regmap_write(pmu->regmap, pmu->info->req_offset,
+			     idle ? (pd_info->req_mask | pd_info->req_w_mask) :
+			     pd_info->req_w_mask);
+	else
+		regmap_update_bits(pmu->regmap, pmu->info->req_offset,
+				   pd_info->req_mask, idle ? -1U : 0);
 
 	dsb(sy);
 
-	do {
-		regmap_read(pmu->regmap, pmu->info->ack_offset, &val);
-	} while ((val & pd_info->ack_mask) != (idle ? pd_info->ack_mask : 0));
+	/* Wait util idle_ack = 1 */
+	target_ack = idle ? pd_info->ack_mask : 0;
+	ret = readx_poll_timeout_atomic(rockchip_pmu_read_ack, pmu, val,
+					(val & pd_info->ack_mask) == target_ack,
+					0, 10000);
+	if (ret) {
+		dev_err(pmu->dev,
+			"failed to get ack on domain '%s', val=0x%x\n",
+			genpd->name, val);
+		return ret;
+	}
 
-	while (rockchip_pmu_domain_is_idle(pd) != idle)
-		cpu_relax();
+	ret = readx_poll_timeout_atomic(rockchip_pmu_domain_is_idle, pd,
+					is_idle, is_idle == idle, 0, 10000);
+	if (ret) {
+		dev_err(pmu->dev,
+			"failed to set idle on domain '%s', val=%d\n",
+			genpd->name, is_idle);
+		return ret;
+	}
 
 	return 0;
 }
@@ -196,17 +247,28 @@ static void rockchip_do_pmu_set_power_domain(struct rockchip_pm_domain *pd,
 					     bool on)
 {
 	struct rockchip_pmu *pmu = pd->pmu;
+	struct generic_pm_domain *genpd = &pd->genpd;
+	bool is_on;
 
 	if (pd->info->pwr_mask == 0)
 		return;
-
-	regmap_update_bits(pmu->regmap, pmu->info->pwr_offset,
-			   pd->info->pwr_mask, on ? 0 : -1U);
+	else if (pd->info->pwr_w_mask)
+		regmap_write(pmu->regmap, pmu->info->pwr_offset,
+			     on ? pd->info->pwr_mask :
+			     (pd->info->pwr_mask | pd->info->pwr_w_mask));
+	else
+		regmap_update_bits(pmu->regmap, pmu->info->pwr_offset,
+				   pd->info->pwr_mask, on ? 0 : -1U);
 
 	dsb(sy);
 
-	while (rockchip_pmu_domain_is_on(pd) != on)
-		cpu_relax();
+	if (readx_poll_timeout_atomic(rockchip_pmu_domain_is_on, pd, is_on,
+				      is_on == on, 0, 10000)) {
+		dev_err(pmu->dev,
+			"failed to set domain '%s', val=%d\n",
+			genpd->name, is_on);
+		return;
+	}
 }
 
 static int rockchip_pd_power(struct rockchip_pm_domain *pd, bool power_on)
@@ -293,6 +355,17 @@ static void rockchip_pd_detach_dev(struct generic_pm_domain *genpd,
 	dev_dbg(dev, "detaching from power domain '%s'\n", genpd->name);
 
 	pm_clk_destroy(dev);
+}
+
+static bool rockchip_active_wakeup(struct device *dev)
+{
+	struct generic_pm_domain *genpd;
+	struct rockchip_pm_domain *pd;
+
+	genpd = pd_to_genpd(dev->pm_domain);
+	pd = container_of(genpd, struct rockchip_pm_domain, genpd);
+
+	return pd->info->active_wakeup;
 }
 
 static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
@@ -415,6 +488,7 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 	pd->genpd.power_on = rockchip_pd_power_on;
 	pd->genpd.attach_dev = rockchip_pd_attach_dev;
 	pd->genpd.detach_dev = rockchip_pd_detach_dev;
+	pd->genpd.dev_ops.active_wakeup = rockchip_active_wakeup;
 	pd->genpd.flags = GENPD_FLAG_PM_CLK;
 	pm_genpd_init(&pd->genpd, NULL, false);
 
@@ -431,7 +505,16 @@ err_out:
 
 static void rockchip_pm_remove_one_domain(struct rockchip_pm_domain *pd)
 {
-	int i;
+	int i, ret;
+
+	/*
+	 * We're in the error cleanup already, so we only complain,
+	 * but won't emit another error on top of the original one.
+	 */
+	ret = pm_genpd_remove(&pd->genpd);
+	if (ret < 0)
+		dev_err(pd->pmu->dev, "failed to remove domain '%s' : %d - state may be inconsistent\n",
+			pd->genpd.name, ret);
 
 	for (i = 0; i < pd->num_clks; i++) {
 		clk_unprepare(pd->clks[i]);
@@ -583,10 +666,12 @@ static int rockchip_pm_domain_probe(struct platform_device *pdev)
 	 * Configure power up and down transition delays for CORE
 	 * and GPU domains.
 	 */
-	rockchip_configure_pd_cnt(pmu, pmu_info->core_pwrcnt_offset,
-				  pmu_info->core_power_transition_time);
-	rockchip_configure_pd_cnt(pmu, pmu_info->gpu_pwrcnt_offset,
-				  pmu_info->gpu_power_transition_time);
+	if (pmu_info->core_power_transition_time)
+		rockchip_configure_pd_cnt(pmu, pmu_info->core_pwrcnt_offset,
+					pmu_info->core_power_transition_time);
+	if (pmu_info->gpu_pwrcnt_offset)
+		rockchip_configure_pd_cnt(pmu, pmu_info->gpu_pwrcnt_offset,
+					pmu_info->gpu_power_transition_time);
 
 	error = -ENODEV;
 
@@ -613,7 +698,11 @@ static int rockchip_pm_domain_probe(struct platform_device *pdev)
 		goto err_out;
 	}
 
-	of_genpd_add_provider_onecell(np, &pmu->genpd_data);
+	error = of_genpd_add_provider_onecell(np, &pmu->genpd_data);
+	if (error) {
+		dev_err(dev, "failed to add provider: %d\n", error);
+		goto err_out;
+	}
 
 	return 0;
 
@@ -623,48 +712,60 @@ err_out:
 }
 
 static const struct rockchip_domain_info rk3288_pm_domains[] = {
-	[RK3288_PD_VIO]		= DOMAIN_RK3288(7, 7, 4),
-	[RK3288_PD_HEVC]	= DOMAIN_RK3288(14, 10, 9),
-	[RK3288_PD_VIDEO]	= DOMAIN_RK3288(8, 8, 3),
-	[RK3288_PD_GPU]		= DOMAIN_RK3288(9, 9, 2),
+	[RK3288_PD_VIO]		= DOMAIN_RK3288(7, 7, 4, false),
+	[RK3288_PD_HEVC]	= DOMAIN_RK3288(14, 10, 9, false),
+	[RK3288_PD_VIDEO]	= DOMAIN_RK3288(8, 8, 3, false),
+	[RK3288_PD_GPU]		= DOMAIN_RK3288(9, 9, 2, false),
+};
+
+static const struct rockchip_domain_info rk3328_pm_domains[] = {
+	[RK3328_PD_CORE]	= DOMAIN_RK3328(-1, 0, 0, false),
+	[RK3328_PD_GPU]		= DOMAIN_RK3328(-1, 1, 1, false),
+	[RK3328_PD_BUS]		= DOMAIN_RK3328(-1, 2, 2, true),
+	[RK3328_PD_MSCH]	= DOMAIN_RK3328(-1, 3, 3, true),
+	[RK3328_PD_PERI]	= DOMAIN_RK3328(-1, 4, 4, true),
+	[RK3328_PD_VIDEO]	= DOMAIN_RK3328(-1, 5, 5, false),
+	[RK3328_PD_HEVC]	= DOMAIN_RK3328(-1, 6, 6, false),
+	[RK3328_PD_VIO]		= DOMAIN_RK3328(-1, 8, 8, false),
+	[RK3328_PD_VPU]		= DOMAIN_RK3328(-1, 9, 9, false),
 };
 
 static const struct rockchip_domain_info rk3368_pm_domains[] = {
-	[RK3368_PD_PERI]	= DOMAIN_RK3368(13, 12, 6),
-	[RK3368_PD_VIO]		= DOMAIN_RK3368(15, 14, 8),
-	[RK3368_PD_VIDEO]	= DOMAIN_RK3368(14, 13, 7),
-	[RK3368_PD_GPU_0]	= DOMAIN_RK3368(16, 15, 2),
-	[RK3368_PD_GPU_1]	= DOMAIN_RK3368(17, 16, 2),
+	[RK3368_PD_PERI]	= DOMAIN_RK3368(13, 12, 6, true),
+	[RK3368_PD_VIO]		= DOMAIN_RK3368(15, 14, 8, false),
+	[RK3368_PD_VIDEO]	= DOMAIN_RK3368(14, 13, 7, false),
+	[RK3368_PD_GPU_0]	= DOMAIN_RK3368(16, 15, 2, false),
+	[RK3368_PD_GPU_1]	= DOMAIN_RK3368(17, 16, 2, false),
 };
 
 static const struct rockchip_domain_info rk3399_pm_domains[] = {
-	[RK3399_PD_TCPD0]	= DOMAIN_RK3399(8, 8, -1),
-	[RK3399_PD_TCPD1]	= DOMAIN_RK3399(9, 9, -1),
-	[RK3399_PD_CCI]		= DOMAIN_RK3399(10, 10, -1),
-	[RK3399_PD_CCI0]	= DOMAIN_RK3399(-1, -1, 15),
-	[RK3399_PD_CCI1]	= DOMAIN_RK3399(-1, -1, 16),
-	[RK3399_PD_PERILP]	= DOMAIN_RK3399(11, 11, 1),
-	[RK3399_PD_PERIHP]	= DOMAIN_RK3399(12, 12, 2),
-	[RK3399_PD_CENTER]	= DOMAIN_RK3399(13, 13, 14),
-	[RK3399_PD_VIO]		= DOMAIN_RK3399(14, 14, 17),
-	[RK3399_PD_GPU]		= DOMAIN_RK3399(15, 15, 0),
-	[RK3399_PD_VCODEC]	= DOMAIN_RK3399(16, 16, 3),
-	[RK3399_PD_VDU]		= DOMAIN_RK3399(17, 17, 4),
-	[RK3399_PD_RGA]		= DOMAIN_RK3399(18, 18, 5),
-	[RK3399_PD_IEP]		= DOMAIN_RK3399(19, 19, 6),
-	[RK3399_PD_VO]		= DOMAIN_RK3399(20, 20, -1),
-	[RK3399_PD_VOPB]	= DOMAIN_RK3399(-1, -1, 7),
-	[RK3399_PD_VOPL]	= DOMAIN_RK3399(-1, -1, 8),
-	[RK3399_PD_ISP0]	= DOMAIN_RK3399(22, 22, 9),
-	[RK3399_PD_ISP1]	= DOMAIN_RK3399(23, 23, 10),
-	[RK3399_PD_HDCP]	= DOMAIN_RK3399(24, 24, 11),
-	[RK3399_PD_GMAC]	= DOMAIN_RK3399(25, 25, 23),
-	[RK3399_PD_EMMC]	= DOMAIN_RK3399(26, 26, 24),
-	[RK3399_PD_USB3]	= DOMAIN_RK3399(27, 27, 12),
-	[RK3399_PD_EDP]		= DOMAIN_RK3399(28, 28, 22),
-	[RK3399_PD_GIC]		= DOMAIN_RK3399(29, 29, 27),
-	[RK3399_PD_SD]		= DOMAIN_RK3399(30, 30, 28),
-	[RK3399_PD_SDIOAUDIO]	= DOMAIN_RK3399(31, 31, 29),
+	[RK3399_PD_TCPD0]	= DOMAIN_RK3399(8, 8, -1, false),
+	[RK3399_PD_TCPD1]	= DOMAIN_RK3399(9, 9, -1, false),
+	[RK3399_PD_CCI]		= DOMAIN_RK3399(10, 10, -1, true),
+	[RK3399_PD_CCI0]	= DOMAIN_RK3399(-1, -1, 15, true),
+	[RK3399_PD_CCI1]	= DOMAIN_RK3399(-1, -1, 16, true),
+	[RK3399_PD_PERILP]	= DOMAIN_RK3399(11, 11, 1, true),
+	[RK3399_PD_PERIHP]	= DOMAIN_RK3399(12, 12, 2, true),
+	[RK3399_PD_CENTER]	= DOMAIN_RK3399(13, 13, 14, true),
+	[RK3399_PD_VIO]		= DOMAIN_RK3399(14, 14, 17, false),
+	[RK3399_PD_GPU]		= DOMAIN_RK3399(15, 15, 0, false),
+	[RK3399_PD_VCODEC]	= DOMAIN_RK3399(16, 16, 3, false),
+	[RK3399_PD_VDU]		= DOMAIN_RK3399(17, 17, 4, false),
+	[RK3399_PD_RGA]		= DOMAIN_RK3399(18, 18, 5, false),
+	[RK3399_PD_IEP]		= DOMAIN_RK3399(19, 19, 6, false),
+	[RK3399_PD_VO]		= DOMAIN_RK3399(20, 20, -1, false),
+	[RK3399_PD_VOPB]	= DOMAIN_RK3399(-1, -1, 7, false),
+	[RK3399_PD_VOPL]	= DOMAIN_RK3399(-1, -1, 8, false),
+	[RK3399_PD_ISP0]	= DOMAIN_RK3399(22, 22, 9, false),
+	[RK3399_PD_ISP1]	= DOMAIN_RK3399(23, 23, 10, false),
+	[RK3399_PD_HDCP]	= DOMAIN_RK3399(24, 24, 11, false),
+	[RK3399_PD_GMAC]	= DOMAIN_RK3399(25, 25, 23, true),
+	[RK3399_PD_EMMC]	= DOMAIN_RK3399(26, 26, 24, true),
+	[RK3399_PD_USB3]	= DOMAIN_RK3399(27, 27, 12, true),
+	[RK3399_PD_EDP]		= DOMAIN_RK3399(28, 28, 22, false),
+	[RK3399_PD_GIC]		= DOMAIN_RK3399(29, 29, 27, true),
+	[RK3399_PD_SD]		= DOMAIN_RK3399(30, 30, 28, true),
+	[RK3399_PD_SDIOAUDIO]	= DOMAIN_RK3399(31, 31, 29, true),
 };
 
 static const struct rockchip_pmu_info rk3288_pmu = {
@@ -682,6 +783,15 @@ static const struct rockchip_pmu_info rk3288_pmu = {
 
 	.num_domains = ARRAY_SIZE(rk3288_pm_domains),
 	.domain_info = rk3288_pm_domains,
+};
+
+static const struct rockchip_pmu_info rk3328_pmu = {
+	.req_offset = 0x414,
+	.idle_offset = 0x484,
+	.ack_offset = 0x484,
+
+	.num_domains = ARRAY_SIZE(rk3328_pm_domains),
+	.domain_info = rk3328_pm_domains,
 };
 
 static const struct rockchip_pmu_info rk3368_pmu = {
@@ -708,11 +818,7 @@ static const struct rockchip_pmu_info rk3399_pmu = {
 	.idle_offset = 0x64,
 	.ack_offset = 0x68,
 
-	.core_pwrcnt_offset = 0x9c,
-	.gpu_pwrcnt_offset = 0xa4,
-
-	.core_power_transition_time = 24,
-	.gpu_power_transition_time = 24,
+	/* ARM Trusted Firmware manages power transition times */
 
 	.num_domains = ARRAY_SIZE(rk3399_pm_domains),
 	.domain_info = rk3399_pm_domains,
@@ -722,6 +828,10 @@ static const struct of_device_id rockchip_pm_domain_dt_match[] = {
 	{
 		.compatible = "rockchip,rk3288-power-controller",
 		.data = (void *)&rk3288_pmu,
+	},
+	{
+		.compatible = "rockchip,rk3328-power-controller",
+		.data = (void *)&rk3328_pmu,
 	},
 	{
 		.compatible = "rockchip,rk3368-power-controller",

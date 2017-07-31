@@ -13,6 +13,11 @@
 #ifndef _CLK_PXA_
 #define _CLK_PXA_
 
+#define CLKCFG_TURBO		0x1
+#define CLKCFG_FCS		0x2
+#define CLKCFG_HALFTURBO	0x4
+#define CLKCFG_FASTBUS		0x8
+
 #define PARENTS(name) \
 	static const char *const name ## _parents[] __initconst
 #define MUX_RO_RATE_RO_OPS(name, clk_name)			\
@@ -35,9 +40,9 @@
 			NULL, NULL, CLK_GET_RATE_NOCACHE);	\
 	}
 
-#define RATE_RO_OPS(name, clk_name)			\
+#define RATE_RO_OPS(name, clk_name)				\
 	static struct clk_hw name ## _rate_hw;			\
-	static struct clk_ops name ## _rate_ops = {		\
+	static const struct clk_ops name ## _rate_ops = {		\
 		.recalc_rate = name ## _get_rate,		\
 	};							\
 	static struct clk * __init clk_register_ ## name(void)	\
@@ -48,6 +53,41 @@
 			NULL, NULL,				\
 			&name ## _rate_hw, &name ## _rate_ops,	\
 			NULL, NULL, CLK_GET_RATE_NOCACHE);	\
+	}
+
+#define RATE_OPS(name, clk_name)				\
+	static struct clk_hw name ## _rate_hw;			\
+	static struct clk_ops name ## _rate_ops = {		\
+		.recalc_rate = name ## _get_rate,		\
+		.set_rate = name ## _set_rate,			\
+		.determine_rate = name ## _determine_rate,	\
+	};							\
+	static struct clk * __init clk_register_ ## name(void)	\
+	{							\
+		return clk_register_composite(NULL, clk_name,	\
+			name ## _parents,			\
+			ARRAY_SIZE(name ## _parents),		\
+			NULL, NULL,				\
+			&name ## _rate_hw, &name ## _rate_ops,	\
+			NULL, NULL, CLK_GET_RATE_NOCACHE);	\
+	}
+
+#define MUX_OPS(name, clk_name, flags)				\
+	static struct clk_hw name ## _mux_hw;			\
+	static const struct clk_ops name ## _mux_ops = {	\
+		.get_parent = name ## _get_parent,		\
+		.set_parent = name ## _set_parent,		\
+		.determine_rate = name ## _determine_rate,	\
+	};							\
+	static struct clk * __init clk_register_ ## name(void)	\
+	{							\
+		return clk_register_composite(NULL, clk_name,	\
+			name ## _parents,			\
+			ARRAY_SIZE(name ## _parents),		\
+			&name ## _mux_hw, &name ## _mux_ops,	\
+			NULL, NULL,				\
+			NULL, NULL,				\
+			CLK_GET_RATE_NOCACHE | flags); \
 	}
 
 /*
@@ -95,7 +135,15 @@ struct desc_clk_cken {
 	PXA_CKEN(dev_id, con_id, name, parents, 1, 1, 1, 1,		\
 		 NULL, cken_reg, cken_bit, flag)
 
-static int dummy_clk_set_parent(struct clk_hw *hw, u8 index)
+struct pxa2xx_freq {
+	unsigned long cpll;
+	unsigned int membus_khz;
+	unsigned int cccr;
+	unsigned int div2;
+	unsigned int clkcfg;
+};
+
+static inline int dummy_clk_set_parent(struct clk_hw *hw, u8 index)
 {
 	return 0;
 }
@@ -104,5 +152,12 @@ extern void clkdev_pxa_register(int ckid, const char *con_id,
 				const char *dev_id, struct clk *clk);
 extern int clk_pxa_cken_init(const struct desc_clk_cken *clks, int nb_clks);
 void clk_pxa_dt_common_init(struct device_node *np);
+
+void pxa2xx_core_turbo_switch(bool on);
+void pxa2xx_cpll_change(struct pxa2xx_freq *freq,
+			u32 (*mdrefr_dri)(unsigned int), void __iomem *mdrefr,
+			void __iomem *cccr);
+int pxa2xx_determine_rate(struct clk_rate_request *req,
+			  struct pxa2xx_freq *freqs,  int nb_freqs);
 
 #endif

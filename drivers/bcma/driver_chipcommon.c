@@ -15,8 +15,6 @@
 #include <linux/platform_device.h>
 #include <linux/bcma/bcma.h>
 
-static void bcma_chipco_serial_init(struct bcma_drv_cc *cc);
-
 static inline u32 bcma_cc_write32_masked(struct bcma_drv_cc *cc, u16 offset,
 					 u32 mask, u32 value)
 {
@@ -36,12 +34,31 @@ u32 bcma_chipco_get_alp_clock(struct bcma_drv_cc *cc)
 }
 EXPORT_SYMBOL_GPL(bcma_chipco_get_alp_clock);
 
+static bool bcma_core_cc_has_pmu_watchdog(struct bcma_drv_cc *cc)
+{
+	struct bcma_bus *bus = cc->core->bus;
+
+	if (cc->capabilities & BCMA_CC_CAP_PMU) {
+		if (bus->chipinfo.id == BCMA_CHIP_ID_BCM53573) {
+			WARN(bus->chipinfo.rev <= 1, "No watchdog available\n");
+			/* 53573B0 and 53573B1 have bugged PMU watchdog. It can
+			 * be enabled but timer can't be bumped. Use CC one
+			 * instead.
+			 */
+			return false;
+		}
+		return true;
+	} else {
+		return false;
+	}
+}
+
 static u32 bcma_chipco_watchdog_get_max_timer(struct bcma_drv_cc *cc)
 {
 	struct bcma_bus *bus = cc->core->bus;
 	u32 nb;
 
-	if (cc->capabilities & BCMA_CC_CAP_PMU) {
+	if (bcma_core_cc_has_pmu_watchdog(cc)) {
 		if (bus->chipinfo.id == BCMA_CHIP_ID_BCM4706)
 			nb = 32;
 		else if (cc->core->id.rev < 26)
@@ -95,8 +112,15 @@ static int bcma_chipco_watchdog_ticks_per_ms(struct bcma_drv_cc *cc)
 
 int bcma_chipco_watchdog_register(struct bcma_drv_cc *cc)
 {
+	struct bcma_bus *bus = cc->core->bus;
 	struct bcm47xx_wdt wdt = {};
 	struct platform_device *pdev;
+
+	if (bus->chipinfo.id == BCMA_CHIP_ID_BCM53573 &&
+	    bus->chipinfo.rev <= 1) {
+		pr_debug("No watchdog on 53573A0 / 53573A1\n");
+		return 0;
+	}
 
 	wdt.driver_data = cc;
 	wdt.timer_set = bcma_chipco_watchdog_timer_set_wdt;
@@ -105,7 +129,7 @@ int bcma_chipco_watchdog_register(struct bcma_drv_cc *cc)
 		bcma_chipco_watchdog_get_max_timer(cc) / cc->ticks_per_ms;
 
 	pdev = platform_device_register_data(NULL, "bcm47xx-wdt",
-					     cc->core->bus->num, &wdt,
+					     bus->num, &wdt,
 					     sizeof(wdt));
 	if (IS_ERR(pdev))
 		return PTR_ERR(pdev);
@@ -159,9 +183,6 @@ void bcma_core_chipcommon_early_init(struct bcma_drv_cc *cc)
 
 	if (cc->capabilities & BCMA_CC_CAP_PMU)
 		bcma_pmu_early_init(cc);
-
-	if (IS_BUILTIN(CONFIG_BCM47XX) && bus->hosttype == BCMA_HOSTTYPE_SOC)
-		bcma_chipco_serial_init(cc);
 
 	if (bus->hosttype == BCMA_HOSTTYPE_SOC)
 		bcma_core_chipcommon_flash_detect(cc);
@@ -217,7 +238,7 @@ u32 bcma_chipco_watchdog_timer_set(struct bcma_drv_cc *cc, u32 ticks)
 	u32 maxt;
 
 	maxt = bcma_chipco_watchdog_get_max_timer(cc);
-	if (cc->capabilities & BCMA_CC_CAP_PMU) {
+	if (bcma_core_cc_has_pmu_watchdog(cc)) {
 		if (ticks == 1)
 			ticks = 2;
 		else if (ticks > maxt)
@@ -352,9 +373,9 @@ u32 bcma_chipco_gpio_pulldown(struct bcma_drv_cc *cc, u32 mask, u32 value)
 	return res;
 }
 
-static void bcma_chipco_serial_init(struct bcma_drv_cc *cc)
+#ifdef CONFIG_BCMA_DRIVER_MIPS
+void bcma_chipco_serial_init(struct bcma_drv_cc *cc)
 {
-#if IS_BUILTIN(CONFIG_BCM47XX)
 	unsigned int irq;
 	u32 baud_base;
 	u32 i;
@@ -396,5 +417,5 @@ static void bcma_chipco_serial_init(struct bcma_drv_cc *cc)
 		ports[i].baud_base = baud_base;
 		ports[i].reg_shift = 0;
 	}
-#endif /* CONFIG_BCM47XX */
 }
+#endif /* CONFIG_BCMA_DRIVER_MIPS */

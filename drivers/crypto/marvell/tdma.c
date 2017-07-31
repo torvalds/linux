@@ -69,9 +69,6 @@ void mv_cesa_dma_cleanup(struct mv_cesa_req *dreq)
 		if (type == CESA_TDMA_OP)
 			dma_pool_free(cesa_dev->dma->op_pool, tdma->op,
 				      le32_to_cpu(tdma->src));
-		else if (type == CESA_TDMA_IV)
-			dma_pool_free(cesa_dev->dma->iv_pool, tdma->data,
-				      le32_to_cpu(tdma->dst));
 
 		tdma = tdma->next;
 		dma_pool_free(cesa_dev->dma->tdma_desc_pool, old_tdma,
@@ -112,7 +109,14 @@ void mv_cesa_tdma_chain(struct mv_cesa_engine *engine,
 		last->next = dreq->chain.first;
 		engine->chain.last = dreq->chain.last;
 
-		if (!(last->flags & CESA_TDMA_BREAK_CHAIN))
+		/*
+		 * Break the DMA chain if the CESA_TDMA_BREAK_CHAIN is set on
+		 * the last element of the current chain, or if the request
+		 * being queued needs the IV regs to be set before lauching
+		 * the request.
+		 */
+		if (!(last->flags & CESA_TDMA_BREAK_CHAIN) &&
+		    !(dreq->chain.first->flags & CESA_TDMA_SET_STATE))
 			last->next_dma = dreq->chain.first->cur_dma;
 	}
 }
@@ -209,29 +213,37 @@ mv_cesa_dma_add_desc(struct mv_cesa_tdma_chain *chain, gfp_t flags)
 	return new_tdma;
 }
 
-int mv_cesa_dma_add_iv_op(struct mv_cesa_tdma_chain *chain, dma_addr_t src,
+int mv_cesa_dma_add_result_op(struct mv_cesa_tdma_chain *chain, dma_addr_t src,
 			  u32 size, u32 flags, gfp_t gfp_flags)
 {
-
-	struct mv_cesa_tdma_desc *tdma;
-	u8 *iv;
-	dma_addr_t dma_handle;
+	struct mv_cesa_tdma_desc *tdma, *op_desc;
 
 	tdma = mv_cesa_dma_add_desc(chain, gfp_flags);
 	if (IS_ERR(tdma))
 		return PTR_ERR(tdma);
 
-	iv = dma_pool_alloc(cesa_dev->dma->iv_pool, gfp_flags, &dma_handle);
-	if (!iv)
-		return -ENOMEM;
+	/* We re-use an existing op_desc object to retrieve the context
+	 * and result instead of allocating a new one.
+	 * There is at least one object of this type in a CESA crypto
+	 * req, just pick the first one in the chain.
+	 */
+	for (op_desc = chain->first; op_desc; op_desc = op_desc->next) {
+		u32 type = op_desc->flags & CESA_TDMA_TYPE_MSK;
+
+		if (type == CESA_TDMA_OP)
+			break;
+	}
+
+	if (!op_desc)
+		return -EIO;
 
 	tdma->byte_cnt = cpu_to_le32(size | BIT(31));
 	tdma->src = src;
-	tdma->dst = cpu_to_le32(dma_handle);
-	tdma->data = iv;
+	tdma->dst = op_desc->src;
+	tdma->op = op_desc->op;
 
 	flags &= (CESA_TDMA_DST_IN_SRAM | CESA_TDMA_SRC_IN_SRAM);
-	tdma->flags = flags | CESA_TDMA_IV;
+	tdma->flags = flags | CESA_TDMA_RESULT;
 	return 0;
 }
 
@@ -261,6 +273,7 @@ struct mv_cesa_op_ctx *mv_cesa_dma_add_op(struct mv_cesa_tdma_chain *chain,
 	tdma->op = op;
 	tdma->byte_cnt = cpu_to_le32(size | BIT(31));
 	tdma->src = cpu_to_le32(dma_handle);
+	tdma->dst = CESA_SA_CFG_SRAM_OFFSET;
 	tdma->flags = CESA_TDMA_DST_IN_SRAM | CESA_TDMA_OP;
 
 	return op;

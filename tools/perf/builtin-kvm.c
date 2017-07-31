@@ -3,6 +3,7 @@
 
 #include "util/evsel.h"
 #include "util/evlist.h"
+#include "util/term.h"
 #include "util/util.h"
 #include "util/cache.h"
 #include "util/symbol.h"
@@ -23,11 +24,32 @@
 #ifdef HAVE_TIMERFD_SUPPORT
 #include <sys/timerfd.h>
 #endif
+#include <sys/time.h>
 
+#include <linux/kernel.h>
+#include <linux/time64.h>
+#include <errno.h>
+#include <inttypes.h>
+#include <poll.h>
 #include <termios.h>
 #include <semaphore.h>
+#include <signal.h>
 #include <pthread.h>
 #include <math.h>
+
+static const char *get_filename_for_perf_kvm(void)
+{
+	const char *filename;
+
+	if (perf_host && !perf_guest)
+		filename = strdup("perf.data.host");
+	else if (!perf_host && perf_guest)
+		filename = strdup("perf.data.guest");
+	else
+		filename = strdup("perf.data.kvm");
+
+	return filename;
+}
 
 #ifdef HAVE_KVM_STAT_SUPPORT
 #include "util/kvm-stat.h"
@@ -362,7 +384,7 @@ static bool handle_end_event(struct perf_kvm_stat *kvm,
 		if (!skip_event(decode)) {
 			pr_info("%" PRIu64 " VM %d, vcpu %d: %s event took %" PRIu64 "usec\n",
 				 sample->time, sample->pid, vcpu_record->vcpu_id,
-				 decode, time_diff/1000);
+				 decode, time_diff / NSEC_PER_USEC);
 		}
 	}
 
@@ -608,15 +630,15 @@ static void print_result(struct perf_kvm_stat *kvm)
 		pr_info("%10llu ", (unsigned long long)ecount);
 		pr_info("%8.2f%% ", (double)ecount / kvm->total_count * 100);
 		pr_info("%8.2f%% ", (double)etime / kvm->total_time * 100);
-		pr_info("%9.2fus ", (double)min / 1e3);
-		pr_info("%9.2fus ", (double)max / 1e3);
-		pr_info("%9.2fus ( +-%7.2f%% )", (double)etime / ecount/1e3,
+		pr_info("%9.2fus ", (double)min / NSEC_PER_USEC);
+		pr_info("%9.2fus ", (double)max / NSEC_PER_USEC);
+		pr_info("%9.2fus ( +-%7.2f%% )", (double)etime / ecount / NSEC_PER_USEC,
 			kvm_event_rel_stddev(vcpu, event));
 		pr_info("\n");
 	}
 
 	pr_info("\nTotal Samples:%" PRIu64 ", Total events handled time:%.2fus.\n\n",
-		kvm->total_count, kvm->total_time / 1e3);
+		kvm->total_count, kvm->total_time / (double)NSEC_PER_USEC);
 
 	if (kvm->lost_events)
 		pr_info("\nLost events: %" PRIu64 "\n\n", kvm->lost_events);
@@ -1043,6 +1065,7 @@ static int read_events(struct perf_kvm_stat *kvm)
 	struct perf_tool eops = {
 		.sample			= process_sample_event,
 		.comm			= perf_event__process_comm,
+		.namespaces		= perf_event__process_namespaces,
 		.ordered_events		= true,
 	};
 	struct perf_data_file file = {
@@ -1207,7 +1230,7 @@ kvm_events_record(struct perf_kvm_stat *kvm, int argc, const char **argv)
 	set_option_flag(record_options, 0, "transaction", PARSE_OPT_DISABLED);
 
 	record_usage = kvm_stat_record_usage;
-	return cmd_record(i, rec_argv, NULL);
+	return cmd_record(i, rec_argv);
 }
 
 static int
@@ -1347,6 +1370,7 @@ static int kvm_events_live(struct perf_kvm_stat *kvm,
 	kvm->tool.exit   = perf_event__process_exit;
 	kvm->tool.fork   = perf_event__process_fork;
 	kvm->tool.lost   = process_lost_event;
+	kvm->tool.namespaces  = perf_event__process_namespaces;
 	kvm->tool.ordered_events = true;
 	perf_tool__fill_defaults(&kvm->tool);
 
@@ -1474,7 +1498,7 @@ static int kvm_cmd_stat(const char *file_name, int argc, const char **argv)
 #endif
 
 perf_stat:
-	return cmd_stat(argc, argv, NULL);
+	return cmd_stat(argc, argv);
 }
 #endif /* HAVE_KVM_STAT_SUPPORT */
 
@@ -1493,7 +1517,7 @@ static int __cmd_record(const char *file_name, int argc, const char **argv)
 
 	BUG_ON(i != rec_argc);
 
-	return cmd_record(i, rec_argv, NULL);
+	return cmd_record(i, rec_argv);
 }
 
 static int __cmd_report(const char *file_name, int argc, const char **argv)
@@ -1511,7 +1535,7 @@ static int __cmd_report(const char *file_name, int argc, const char **argv)
 
 	BUG_ON(i != rec_argc);
 
-	return cmd_report(i, rec_argv, NULL);
+	return cmd_report(i, rec_argv);
 }
 
 static int
@@ -1530,10 +1554,10 @@ __cmd_buildid_list(const char *file_name, int argc, const char **argv)
 
 	BUG_ON(i != rec_argc);
 
-	return cmd_buildid_list(i, rec_argv, NULL);
+	return cmd_buildid_list(i, rec_argv);
 }
 
-int cmd_kvm(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_kvm(int argc, const char **argv)
 {
 	const char *file_name = NULL;
 	const struct option kvm_options[] = {
@@ -1588,9 +1612,9 @@ int cmd_kvm(int argc, const char **argv, const char *prefix __maybe_unused)
 	else if (!strncmp(argv[0], "rep", 3))
 		return __cmd_report(file_name, argc, argv);
 	else if (!strncmp(argv[0], "diff", 4))
-		return cmd_diff(argc, argv, NULL);
+		return cmd_diff(argc, argv);
 	else if (!strncmp(argv[0], "top", 3))
-		return cmd_top(argc, argv, NULL);
+		return cmd_top(argc, argv);
 	else if (!strncmp(argv[0], "buildid-list", 12))
 		return __cmd_buildid_list(file_name, argc, argv);
 #ifdef HAVE_KVM_STAT_SUPPORT

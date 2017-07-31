@@ -74,7 +74,8 @@ static void hidma_ll_devstats(struct seq_file *s, void *llhndl)
 	seq_printf(s, "tre_ring_handle=%pap\n", &lldev->tre_dma);
 	seq_printf(s, "tre_ring_size = 0x%x\n", lldev->tre_ring_size);
 	seq_printf(s, "tre_processed_off = 0x%x\n", lldev->tre_processed_off);
-	seq_printf(s, "pending_tre_count=%d\n", lldev->pending_tre_count);
+	seq_printf(s, "pending_tre_count=%d\n",
+			atomic_read(&lldev->pending_tre_count));
 	seq_printf(s, "evca=%p\n", lldev->evca);
 	seq_printf(s, "evre_ring=%p\n", lldev->evre_ring);
 	seq_printf(s, "evre_ring_handle=%pap\n", &lldev->evre_dma);
@@ -164,7 +165,6 @@ static const struct file_operations hidma_dma_fops = {
 void hidma_debug_uninit(struct hidma_dev *dmadev)
 {
 	debugfs_remove_recursive(dmadev->debugfs);
-	debugfs_remove_recursive(dmadev->stats);
 }
 
 int hidma_debug_init(struct hidma_dev *dmadev)

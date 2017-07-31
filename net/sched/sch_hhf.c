@@ -529,7 +529,7 @@ static int hhf_change(struct Qdisc *sch, struct nlattr *opt)
 	if (!opt)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_HHF_MAX, opt, hhf_policy);
+	err = nla_parse_nested(tb, TCA_HHF_MAX, opt, hhf_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -627,7 +627,9 @@ static int hhf_init(struct Qdisc *sch, struct nlattr *opt)
 			q->hhf_arrays[i] = hhf_zalloc(HHF_ARRAYS_LEN *
 						      sizeof(u32));
 			if (!q->hhf_arrays[i]) {
-				hhf_destroy(sch);
+				/* Note: hhf_destroy() will be called
+				 * by our caller.
+				 */
 				return -ENOMEM;
 			}
 		}
@@ -638,7 +640,9 @@ static int hhf_init(struct Qdisc *sch, struct nlattr *opt)
 			q->hhf_valid_bits[i] = hhf_zalloc(HHF_ARRAYS_LEN /
 							  BITS_PER_BYTE);
 			if (!q->hhf_valid_bits[i]) {
-				hhf_destroy(sch);
+				/* Note: hhf_destroy() will be called
+				 * by our caller.
+				 */
 				return -ENOMEM;
 			}
 		}

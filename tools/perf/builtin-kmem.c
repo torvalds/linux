@@ -11,6 +11,7 @@
 #include "util/session.h"
 #include "util/tool.h"
 #include "util/callchain.h"
+#include "util/time-utils.h"
 
 #include <subcmd/parse-options.h>
 #include "util/trace-event.h"
@@ -19,10 +20,15 @@
 
 #include "util/debug.h"
 
+#include <linux/kernel.h>
 #include <linux/rbtree.h>
 #include <linux/string.h>
+#include <errno.h>
+#include <inttypes.h>
 #include <locale.h>
 #include <regex.h>
+
+#include "sane_ctype.h"
 
 static int	kmem_slab;
 static int	kmem_page;
@@ -49,6 +55,7 @@ struct alloc_stat {
 	u64	ptr;
 	u64	bytes_req;
 	u64	bytes_alloc;
+	u64	last_alloc;
 	u32	hit;
 	u32	pingpong;
 
@@ -62,8 +69,12 @@ static struct rb_root root_alloc_sorted;
 static struct rb_root root_caller_stat;
 static struct rb_root root_caller_sorted;
 
-static unsigned long total_requested, total_allocated;
+static unsigned long total_requested, total_allocated, total_freed;
 static unsigned long nr_allocs, nr_cross_allocs;
+
+/* filters for controlling start and stop of time of analysis */
+static struct perf_time_interval ptime;
+const char *time_str;
 
 static int insert_alloc_stat(unsigned long call_site, unsigned long ptr,
 			     int bytes_req, int bytes_alloc, int cpu)
@@ -105,6 +116,8 @@ static int insert_alloc_stat(unsigned long call_site, unsigned long ptr,
 	}
 	data->call_site = call_site;
 	data->alloc_cpu = cpu;
+	data->last_alloc = bytes_alloc;
+
 	return 0;
 }
 
@@ -223,6 +236,8 @@ static int perf_evsel__process_free_event(struct perf_evsel *evsel,
 	if (!s_alloc)
 		return 0;
 
+	total_freed += s_alloc->last_alloc;
+
 	if ((short)sample->cpu != s_alloc->alloc_cpu) {
 		s_alloc->pingpong++;
 
@@ -330,7 +345,7 @@ static int build_alloc_func_list(void)
 	}
 
 	kernel_map = machine__kernel_map(machine);
-	if (map__load(kernel_map, NULL) < 0) {
+	if (map__load(kernel_map) < 0) {
 		pr_err("cannot load kernel map\n");
 		return -ENOENT;
 	}
@@ -645,7 +660,6 @@ static const struct {
 	{ "__GFP_RECLAIM",		"R" },
 	{ "__GFP_DIRECT_RECLAIM",	"DR" },
 	{ "__GFP_KSWAPD_RECLAIM",	"KR" },
-	{ "__GFP_OTHER_NODE",		"ON" },
 };
 
 static size_t max_gfp_len;
@@ -907,6 +921,15 @@ static int perf_evsel__process_page_free_event(struct perf_evsel *evsel,
 	return 0;
 }
 
+static bool perf_kmem__skip_sample(struct perf_sample *sample)
+{
+	/* skip sample based on time? */
+	if (perf_time__skip_sample(&ptime, sample->time))
+		return true;
+
+	return false;
+}
+
 typedef int (*tracepoint_handler)(struct perf_evsel *evsel,
 				  struct perf_sample *sample);
 
@@ -926,6 +949,9 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 		return -1;
 	}
 
+	if (perf_kmem__skip_sample(sample))
+		return 0;
+
 	dump_printf(" ... thread: %s:%d\n", thread__comm_str(thread), thread->tid);
 
 	if (evsel->handler != NULL) {
@@ -943,6 +969,7 @@ static struct perf_tool perf_kmem = {
 	.comm		 = perf_event__process_comm,
 	.mmap		 = perf_event__process_mmap,
 	.mmap2		 = perf_event__process_mmap2,
+	.namespaces	 = perf_event__process_namespaces,
 	.ordered_events	 = true,
 };
 
@@ -979,7 +1006,7 @@ static void __print_slab_result(struct rb_root *root,
 		if (is_caller) {
 			addr = data->call_site;
 			if (!raw_ip)
-				sym = machine__find_kernel_function(machine, addr, &map, NULL);
+				sym = machine__find_kernel_function(machine, addr, &map);
 		} else
 			addr = data->ptr;
 
@@ -1043,9 +1070,8 @@ static void __print_page_alloc_result(struct perf_session *session, int n_lines)
 		char *caller = buf;
 
 		data = rb_entry(next, struct page_stat, node);
-		sym = machine__find_kernel_function(machine, data->callsite,
-						    &map, NULL);
-		if (sym && sym->name)
+		sym = machine__find_kernel_function(machine, data->callsite, &map);
+		if (sym)
 			caller = sym->name;
 		else
 			scnprintf(buf, sizeof(buf), "%"PRIx64, data->callsite);
@@ -1086,9 +1112,8 @@ static void __print_page_caller_result(struct perf_session *session, int n_lines
 		char *caller = buf;
 
 		data = rb_entry(next, struct page_stat, node);
-		sym = machine__find_kernel_function(machine, data->callsite,
-						    &map, NULL);
-		if (sym && sym->name)
+		sym = machine__find_kernel_function(machine, data->callsite, &map);
+		if (sym)
 			caller = sym->name;
 		else
 			scnprintf(buf, sizeof(buf), "%"PRIx64, data->callsite);
@@ -1130,6 +1155,11 @@ static void print_slab_summary(void)
 	printf("\n========================\n");
 	printf("Total bytes requested: %'lu\n", total_requested);
 	printf("Total bytes allocated: %'lu\n", total_allocated);
+	printf("Total bytes freed:     %'lu\n", total_freed);
+	if (total_allocated > total_freed) {
+		printf("Net total bytes allocated: %'lu\n",
+		total_allocated - total_freed);
+	}
 	printf("Total bytes wasted on internal fragmentation: %'lu\n",
 	       total_allocated - total_requested);
 	printf("Internal fragmentation: %f%%\n",
@@ -1841,7 +1871,7 @@ static int __cmd_record(int argc, const char **argv)
 	for (j = 1; j < (unsigned int)argc; j++, i++)
 		rec_argv[i] = argv[j];
 
-	return cmd_record(i, rec_argv, NULL);
+	return cmd_record(i, rec_argv);
 }
 
 static int kmem_config(const char *var, const char *value, void *cb __maybe_unused)
@@ -1860,7 +1890,7 @@ static int kmem_config(const char *var, const char *value, void *cb __maybe_unus
 	return 0;
 }
 
-int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
+int cmd_kmem(int argc, const char **argv)
 {
 	const char * const default_slab_sort = "frag,hit,bytes";
 	const char * const default_page_sort = "bytes,hit";
@@ -1886,6 +1916,8 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_CALLBACK_NOOPT(0, "page", NULL, NULL, "Analyze page allocator",
 			   parse_page_opt),
 	OPT_BOOLEAN(0, "live", &live_page, "Show live page stat"),
+	OPT_STRING(0, "time", &time_str, "str",
+		   "Time span of interest (start,stop)"),
 	OPT_END()
 	};
 	const char *const kmem_subcommands[] = { "record", "stat", NULL };
@@ -1894,10 +1926,12 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 		NULL
 	};
 	struct perf_session *session;
-	int ret = -1;
 	const char errmsg[] = "No %s allocation events found.  Have you run 'perf kmem record --%s'?\n";
+	int ret = perf_config(kmem_config, NULL);
 
-	perf_config(kmem_config, NULL);
+	if (ret)
+		return ret;
+
 	argc = parse_options_subcommand(argc, argv, kmem_options,
 					kmem_subcommands, kmem_usage, 0);
 
@@ -1922,6 +1956,8 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 	if (session == NULL)
 		return -1;
 
+	ret = -1;
+
 	if (kmem_slab) {
 		if (!perf_evlist__find_tracepoint_by_name(session->evlist,
 							  "kmem:kmalloc")) {
@@ -1945,6 +1981,11 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __maybe_unused)
 	}
 
 	symbol__init(&session->header.env);
+
+	if (perf_time__parse_str(&ptime, time_str) != 0) {
+		pr_err("Invalid time string\n");
+		return -EINVAL;
+	}
 
 	if (!strcmp(argv[0], "stat")) {
 		setlocale(LC_ALL, "");

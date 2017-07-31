@@ -46,6 +46,7 @@
 #define DECON_FRAMEFIFO_STATUS		0x0524
 #define DECON_CMU			0x1404
 #define DECON_UPDATE			0x1410
+#define DECON_CRFMID			0x1414
 #define DECON_UPDATE_SCHEME		0x1438
 #define DECON_VIDCON1			0x2000
 #define DECON_VIDCON2			0x2004
@@ -89,6 +90,8 @@
 #define VIDCON0_ENVID_F			(1 << 0)
 
 /* VIDOUTCON0 */
+#define VIDOUT_INTERLACE_FIELD_F	(1 << 29)
+#define VIDOUT_INTERLACE_EN_F		(1 << 28)
 #define VIDOUT_LCD_ON			(1 << 24)
 #define VIDOUT_IF_F_MASK		(0x3 << 20)
 #define VIDOUT_RGB_IF			(0x0 << 20)
@@ -124,6 +127,10 @@
 
 /* VIDINTCON0 */
 #define VIDINTCON0_FRAMEDONE		(1 << 17)
+#define VIDINTCON0_FRAMESEL_BP		(0 << 15)
+#define VIDINTCON0_FRAMESEL_VS		(1 << 15)
+#define VIDINTCON0_FRAMESEL_AC		(2 << 15)
+#define VIDINTCON0_FRAMESEL_FP		(3 << 15)
 #define VIDINTCON0_INTFRMEN		(1 << 12)
 #define VIDINTCON0_INTEN		(1 << 0)
 
@@ -140,6 +147,13 @@
 #define STANDALONE_UPDATE_F		(1 << 0)
 
 /* DECON_VIDCON1 */
+#define VIDCON1_LINECNT_MASK		(0x0fff << 16)
+#define VIDCON1_I80_ACTIVE		(1 << 15)
+#define VIDCON1_VSTATUS_MASK		(0x3 << 13)
+#define VIDCON1_VSTATUS_VS		(0 << 13)
+#define VIDCON1_VSTATUS_BP		(1 << 13)
+#define VIDCON1_VSTATUS_AC		(2 << 13)
+#define VIDCON1_VSTATUS_FP		(3 << 13)
 #define VIDCON1_VCLK_MASK		(0x3 << 9)
 #define VIDCON1_VCLK_RUN_VDEN_DISABLE	(0x3 << 9)
 #define VIDCON1_VCLK_HOLD		(0x0 << 9)

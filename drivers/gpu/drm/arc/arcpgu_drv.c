@@ -65,9 +65,7 @@ static const struct file_operations arcpgu_drm_ops = {
 	.open = drm_open,
 	.release = drm_release,
 	.unlocked_ioctl = drm_ioctl,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
-#endif
 	.poll = drm_poll,
 	.read = drm_read,
 	.llseek = no_llseek,
@@ -137,8 +135,7 @@ static int arcpgu_load(struct drm_device *drm)
 	drm_kms_helper_poll_init(drm);
 
 	arcpgu->fbdev = drm_fbdev_cma_init(drm, 16,
-					      drm->mode_config.num_crtc,
-					      drm->mode_config.num_connector);
+					   drm->mode_config.num_connector);
 	if (IS_ERR(arcpgu->fbdev)) {
 		ret = PTR_ERR(arcpgu->fbdev);
 		arcpgu->fbdev = NULL;
@@ -198,8 +195,8 @@ static int arcpgu_probe(struct platform_device *pdev)
 	int ret;
 
 	drm = drm_dev_alloc(&arcpgu_drm_driver, &pdev->dev);
-	if (!drm)
-		return -ENOMEM;
+	if (IS_ERR(drm))
+		return PTR_ERR(drm);
 
 	ret = arcpgu_load(drm);
 	if (ret)

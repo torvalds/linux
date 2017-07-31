@@ -103,6 +103,7 @@ static enum i40iw_status_code i40iw_cqp_poll_registers(
 		if (newtail != tail) {
 			/* SUCCESS */
 			I40IW_RING_MOVE_TAIL(cqp->sq_ring);
+			cqp->dev->cqp_cmd_stats[OP_COMPLETED_COMMANDS]++;
 			return 0;
 		}
 		udelay(I40IW_SLEEP_COUNT);
@@ -223,17 +224,150 @@ static enum i40iw_status_code i40iw_sc_parse_fpm_query_buf(
 }
 
 /**
+ * i40iw_fill_qos_list - Change all unknown qs handles to available ones
+ * @qs_list: list of qs_handles to be fixed with valid qs_handles
+ */
+static void i40iw_fill_qos_list(u16 *qs_list)
+{
+	u16 qshandle = qs_list[0];
+	int i;
+
+	for (i = 0; i < I40IW_MAX_USER_PRIORITY; i++) {
+		if (qs_list[i] == QS_HANDLE_UNKNOWN)
+			qs_list[i] = qshandle;
+		else
+			qshandle = qs_list[i];
+	}
+}
+
+/**
+ * i40iw_qp_from_entry - Given entry, get to the qp structure
+ * @entry: Points to list of qp structure
+ */
+static struct i40iw_sc_qp *i40iw_qp_from_entry(struct list_head *entry)
+{
+	if (!entry)
+		return NULL;
+
+	return (struct i40iw_sc_qp *)((char *)entry - offsetof(struct i40iw_sc_qp, list));
+}
+
+/**
+ * i40iw_get_qp - get the next qp from the list given current qp
+ * @head: Listhead of qp's
+ * @qp: current qp
+ */
+static struct i40iw_sc_qp *i40iw_get_qp(struct list_head *head, struct i40iw_sc_qp *qp)
+{
+	struct list_head *entry = NULL;
+	struct list_head *lastentry;
+
+	if (list_empty(head))
+		return NULL;
+
+	if (!qp) {
+		entry = head->next;
+	} else {
+		lastentry = &qp->list;
+		entry = (lastentry != head) ? lastentry->next : NULL;
+	}
+
+	return i40iw_qp_from_entry(entry);
+}
+
+/**
+ * i40iw_change_l2params - given the new l2 parameters, change all qp
+ * @vsi: pointer to the vsi structure
+ * @l2params: New paramaters from l2
+ */
+void i40iw_change_l2params(struct i40iw_sc_vsi *vsi, struct i40iw_l2params *l2params)
+{
+	struct i40iw_sc_dev *dev = vsi->dev;
+	struct i40iw_sc_qp *qp = NULL;
+	bool qs_handle_change = false;
+	bool mss_change = false;
+	unsigned long flags;
+	u16 qs_handle;
+	int i;
+
+	if (vsi->mss != l2params->mss) {
+		mss_change = true;
+		vsi->mss = l2params->mss;
+	}
+
+	i40iw_fill_qos_list(l2params->qs_handle_list);
+	for (i = 0; i < I40IW_MAX_USER_PRIORITY; i++) {
+		qs_handle = l2params->qs_handle_list[i];
+		if (vsi->qos[i].qs_handle != qs_handle)
+			qs_handle_change = true;
+		else if (!mss_change)
+			continue;       /* no MSS nor qs handle change */
+		spin_lock_irqsave(&vsi->qos[i].lock, flags);
+		qp = i40iw_get_qp(&vsi->qos[i].qplist, qp);
+		while (qp) {
+			if (mss_change)
+				i40iw_qp_mss_modify(dev, qp);
+			if (qs_handle_change) {
+				qp->qs_handle = qs_handle;
+				/* issue cqp suspend command */
+				i40iw_qp_suspend_resume(dev, qp, true);
+			}
+			qp = i40iw_get_qp(&vsi->qos[i].qplist, qp);
+		}
+		spin_unlock_irqrestore(&vsi->qos[i].lock, flags);
+		vsi->qos[i].qs_handle = qs_handle;
+	}
+}
+
+/**
+ * i40iw_qp_rem_qos - remove qp from qos lists during destroy qp
+ * @qp: qp to be removed from qos
+ */
+static void i40iw_qp_rem_qos(struct i40iw_sc_qp *qp)
+{
+	struct i40iw_sc_vsi *vsi = qp->vsi;
+	unsigned long flags;
+
+	if (!qp->on_qoslist)
+		return;
+	spin_lock_irqsave(&vsi->qos[qp->user_pri].lock, flags);
+	list_del(&qp->list);
+	spin_unlock_irqrestore(&vsi->qos[qp->user_pri].lock, flags);
+}
+
+/**
+ * i40iw_qp_add_qos - called during setctx fot qp to be added to qos
+ * @qp: qp to be added to qos
+ */
+void i40iw_qp_add_qos(struct i40iw_sc_qp *qp)
+{
+	struct i40iw_sc_vsi *vsi = qp->vsi;
+	unsigned long flags;
+
+	if (qp->on_qoslist)
+		return;
+	spin_lock_irqsave(&vsi->qos[qp->user_pri].lock, flags);
+	qp->qs_handle = vsi->qos[qp->user_pri].qs_handle;
+	list_add(&qp->list, &vsi->qos[qp->user_pri].qplist);
+	qp->on_qoslist = true;
+	spin_unlock_irqrestore(&vsi->qos[qp->user_pri].lock, flags);
+}
+
+/**
  * i40iw_sc_pd_init - initialize sc pd struct
  * @dev: sc device struct
  * @pd: sc pd ptr
  * @pd_id: pd_id for allocated pd
+ * @abi_ver: ABI version from user context, -1 if not valid
  */
 static void i40iw_sc_pd_init(struct i40iw_sc_dev *dev,
 			     struct i40iw_sc_pd *pd,
-			     u16 pd_id)
+			     u16 pd_id,
+			     int abi_ver)
 {
 	pd->size = sizeof(*pd);
 	pd->pd_id = pd_id;
+	pd->abi_ver = abi_ver;
 	pd->dev = dev;
 }
 
@@ -292,6 +426,9 @@ static enum i40iw_status_code i40iw_sc_cqp_init(struct i40iw_sc_cqp *cqp,
 	info->dev->cqp = cqp;
 
 	I40IW_RING_INIT(cqp->sq_ring, cqp->sq_size);
+	cqp->dev->cqp_cmd_stats[OP_REQUESTED_COMMANDS] = 0;
+	cqp->dev->cqp_cmd_stats[OP_COMPLETED_COMMANDS] = 0;
+
 	i40iw_debug(cqp->dev, I40IW_DEBUG_WQE,
 		    "%s: sq_size[%04d] hw_sq_size[%04d] sq_base[%p] sq_pa[%llxh] cqp[%p] polarity[x%04X]\n",
 		    __func__, cqp->sq_size, cqp->hw_sq_size,
@@ -302,18 +439,19 @@ static enum i40iw_status_code i40iw_sc_cqp_init(struct i40iw_sc_cqp *cqp,
 /**
  * i40iw_sc_cqp_create - create cqp during bringup
  * @cqp: struct for cqp hw
- * @disable_pfpdus: if pfpdu to be disabled
  * @maj_err: If error, major err number
  * @min_err: If error, minor err number
  */
 static enum i40iw_status_code i40iw_sc_cqp_create(struct i40iw_sc_cqp *cqp,
-						  bool disable_pfpdus,
 						  u16 *maj_err,
 						  u16 *min_err)
 {
 	u64 temp;
 	u32 cnt = 0, p1, p2, val = 0, err_code;
 	enum i40iw_status_code ret_code;
+
+	*maj_err = 0;
+	*min_err = 0;
 
 	ret_code = i40iw_allocate_dma_mem(cqp->dev->hw,
 					  &cqp->sdbuf,
@@ -325,9 +463,6 @@ static enum i40iw_status_code i40iw_sc_cqp_create(struct i40iw_sc_cqp *cqp,
 
 	temp = LS_64(cqp->hw_sq_size, I40IW_CQPHC_SQSIZE) |
 	       LS_64(cqp->struct_ver, I40IW_CQPHC_SVER);
-
-	if (disable_pfpdus)
-		temp |= LS_64(1, I40IW_CQPHC_DISABLE_PFPDUS);
 
 	set_64bit_val(cqp->host_ctx, 0, temp);
 	set_64bit_val(cqp->host_ctx, 8, cqp->sq_pa);
@@ -424,6 +559,7 @@ u64 *i40iw_sc_cqp_get_next_send_wqe(struct i40iw_sc_cqp *cqp, u64 scratch)
 		return NULL;
 	}
 	I40IW_ATOMIC_RING_MOVE_HEAD(cqp->sq_ring, wqe_idx, ret_code);
+	cqp->dev->cqp_cmd_stats[OP_REQUESTED_COMMANDS]++;
 	if (ret_code)
 		return NULL;
 	if (!wqe_idx)
@@ -559,6 +695,8 @@ static enum i40iw_status_code i40iw_sc_ccq_get_cqe_info(
 		      I40IW_RING_GETCURRENT_HEAD(ccq->cq_uk.cq_ring));
 	wmb(); /* write shadow area before tail */
 	I40IW_RING_MOVE_TAIL(cqp->sq_ring);
+	ccq->dev->cqp_cmd_stats[OP_COMPLETED_COMMANDS]++;
+
 	return ret_code;
 }
 
@@ -1051,6 +1189,7 @@ static enum i40iw_status_code i40iw_sc_manage_qhash_table_entry(
 	u64 qw1 = 0;
 	u64 qw2 = 0;
 	u64 temp;
+	struct i40iw_sc_vsi *vsi = info->vsi;
 
 	wqe = i40iw_sc_cqp_get_next_send_wqe(cqp, scratch);
 	if (!wqe)
@@ -1082,7 +1221,7 @@ static enum i40iw_status_code i40iw_sc_manage_qhash_table_entry(
 			      LS_64(info->dest_ip[2], I40IW_CQPSQ_QHASH_ADDR2) |
 			      LS_64(info->dest_ip[3], I40IW_CQPSQ_QHASH_ADDR3));
 	}
-	qw2 = LS_64(cqp->dev->qs_handle, I40IW_CQPSQ_QHASH_QS_HANDLE);
+	qw2 = LS_64(vsi->qos[info->user_pri].qs_handle, I40IW_CQPSQ_QHASH_QS_HANDLE);
 	if (info->vlan_valid)
 		qw2 |= LS_64(info->vlan_id, I40IW_CQPSQ_QHASH_VLANID);
 	set_64bit_val(wqe, 16, qw2);
@@ -2103,6 +2242,7 @@ static enum i40iw_status_code i40iw_sc_qp_init(struct i40iw_sc_qp *qp,
 	u32 offset;
 
 	qp->dev = info->pd->dev;
+	qp->vsi = info->vsi;
 	qp->sq_pa = info->sq_pa;
 	qp->rq_pa = info->rq_pa;
 	qp->hw_host_ctx_pa = info->host_ctx_pa;
@@ -2118,6 +2258,7 @@ static enum i40iw_status_code i40iw_sc_qp_init(struct i40iw_sc_qp *qp,
 					      offset);
 
 	info->qp_uk_init_info.wqe_alloc_reg = wqe_alloc_reg;
+	info->qp_uk_init_info.abi_ver = qp->pd->abi_ver;
 	ret_code = i40iw_qp_uk_init(&qp->qp_uk, &info->qp_uk_init_info);
 	if (ret_code)
 		return ret_code;
@@ -2136,10 +2277,21 @@ static enum i40iw_status_code i40iw_sc_qp_init(struct i40iw_sc_qp *qp,
 						    false);
 	i40iw_debug(qp->dev, I40IW_DEBUG_WQE, "%s: hw_sq_size[%04d] sq_ring.size[%04d]\n",
 		    __func__, qp->hw_sq_size, qp->qp_uk.sq_ring.size);
-	ret_code = i40iw_fragcnt_to_wqesize_rq(qp->qp_uk.max_rq_frag_cnt,
-					       &wqe_size);
-	if (ret_code)
-		return ret_code;
+
+	switch (qp->pd->abi_ver) {
+	case 4:
+		ret_code = i40iw_fragcnt_to_wqesize_rq(qp->qp_uk.max_rq_frag_cnt,
+						       &wqe_size);
+		if (ret_code)
+			return ret_code;
+		break;
+	case 5: /* fallthrough until next ABI version */
+	default:
+		if (qp->qp_uk.max_rq_frag_cnt > I40IW_MAX_WQ_FRAGMENT_COUNT)
+			return I40IW_ERR_INVALID_FRAG_COUNT;
+		wqe_size = I40IW_MAX_WQE_SIZE_RQ;
+		break;
+	}
 	qp->hw_rq_size = i40iw_get_encoded_wqe_size(qp->qp_uk.rq_size *
 				(wqe_size / I40IW_QP_WQE_MIN_SIZE), false);
 	i40iw_debug(qp->dev, I40IW_DEBUG_WQE,
@@ -2151,7 +2303,7 @@ static enum i40iw_status_code i40iw_sc_qp_init(struct i40iw_sc_qp *qp,
 	qp->rq_tph_en = info->rq_tph_en;
 	qp->rcv_tph_en = info->rcv_tph_en;
 	qp->xmit_tph_en = info->xmit_tph_en;
-	qp->qs_handle = qp->pd->dev->qs_handle;
+	qp->qs_handle = qp->vsi->qos[qp->user_pri].qs_handle;
 	qp->exception_lan_queue = qp->pd->dev->exception_lan_queue;
 
 	return 0;
@@ -2296,6 +2448,7 @@ static enum i40iw_status_code i40iw_sc_qp_destroy(
 	struct i40iw_sc_cqp *cqp;
 	u64 header;
 
+	i40iw_qp_rem_qos(qp);
 	cqp = qp->pd->dev->cqp;
 	wqe = i40iw_sc_cqp_get_next_send_wqe(cqp, scratch);
 	if (!wqe)
@@ -2443,10 +2596,20 @@ static enum i40iw_status_code i40iw_sc_qp_setctx(
 {
 	struct i40iwarp_offload_info *iw;
 	struct i40iw_tcp_offload_info *tcp;
+	struct i40iw_sc_vsi *vsi;
+	struct i40iw_sc_dev *dev;
 	u64 qw0, qw3, qw7 = 0;
 
 	iw = info->iwarp_info;
 	tcp = info->tcp_info;
+	vsi = qp->vsi;
+	dev = qp->dev;
+	if (info->add_to_qoslist) {
+		qp->user_pri = info->user_pri;
+		i40iw_qp_add_qos(qp);
+		i40iw_debug(qp->dev, I40IW_DEBUG_DCB, "%s qp[%d] UP[%d] qset[%d]\n",
+			    __func__, qp->qp_uk.qp_id, qp->user_pri, qp->qs_handle);
+	}
 	qw0 = LS_64(qp->qp_uk.rq_wqe_size, I40IWQPC_RQWQESIZE) |
 	      LS_64(info->err_rq_idx_valid, I40IWQPC_ERR_RQ_IDX_VALID) |
 	      LS_64(qp->rcv_tph_en, I40IWQPC_RCVTPHEN) |
@@ -2487,16 +2650,14 @@ static enum i40iw_status_code i40iw_sc_qp_setctx(
 		       LS_64(iw->rdmap_ver, I40IWQPC_RDMAP_VER);
 
 		qw7 |= LS_64(iw->pd_id, I40IWQPC_PDIDX);
-		set_64bit_val(qp_ctx, 144, qp->q2_pa);
+		set_64bit_val(qp_ctx,
+			      144,
+			      LS_64(qp->q2_pa, I40IWQPC_Q2ADDR) |
+			      LS_64(vsi->fcn_id, I40IWQPC_STAT_INDEX));
 		set_64bit_val(qp_ctx,
 			      152,
 			      LS_64(iw->last_byte_sent, I40IWQPC_LASTBYTESENT));
 
-		/*
-		* Hard-code IRD_SIZE to hw-limit, 128, in qpctx, i.e matching an
-		*advertisable IRD of 64
-		*/
-		iw->ird_size = I40IW_QPCTX_ENCD_MAXIRD;
 		set_64bit_val(qp_ctx,
 			      160,
 			      LS_64(iw->ord_size, I40IWQPC_ORDSIZE) |
@@ -2507,6 +2668,9 @@ static enum i40iw_status_code i40iw_sc_qp_setctx(
 			      LS_64(iw->bind_en, I40IWQPC_BINDEN) |
 			      LS_64(iw->fast_reg_en, I40IWQPC_FASTREGEN) |
 			      LS_64(iw->priv_mode_en, I40IWQPC_PRIVEN) |
+			      LS_64((((vsi->stats_fcn_id_alloc) &&
+				      (dev->is_pf) && (vsi->fcn_id >= I40IW_FIRST_NON_PF_STAT)) ? 1 : 0),
+				    I40IWQPC_USESTATSINSTANCE) |
 			      LS_64(1, I40IWQPC_IWARPMODE) |
 			      LS_64(iw->rcv_mark_en, I40IWQPC_RCVMARKERS) |
 			      LS_64(iw->align_hdrs, I40IWQPC_ALIGNHDRS) |
@@ -2623,7 +2787,9 @@ static enum i40iw_status_code i40iw_sc_alloc_stag(
 	u64 *wqe;
 	struct i40iw_sc_cqp *cqp;
 	u64 header;
+	enum i40iw_page_size page_size;
 
+	page_size = (info->page_size == 0x200000) ? I40IW_PAGE_SIZE_2M : I40IW_PAGE_SIZE_4K;
 	cqp = dev->cqp;
 	wqe = i40iw_sc_cqp_get_next_send_wqe(cqp, scratch);
 	if (!wqe)
@@ -2643,7 +2809,7 @@ static enum i40iw_status_code i40iw_sc_alloc_stag(
 		 LS_64(1, I40IW_CQPSQ_STAG_MR) |
 		 LS_64(info->access_rights, I40IW_CQPSQ_STAG_ARIGHTS) |
 		 LS_64(info->chunk_size, I40IW_CQPSQ_STAG_LPBLSIZE) |
-		 LS_64(info->page_size, I40IW_CQPSQ_STAG_HPAGESIZE) |
+		 LS_64(page_size, I40IW_CQPSQ_STAG_HPAGESIZE) |
 		 LS_64(info->remote_access, I40IW_CQPSQ_STAG_REMACCENABLED) |
 		 LS_64(info->use_hmc_fcn_index, I40IW_CQPSQ_STAG_USEHMCFNIDX) |
 		 LS_64(info->use_pf_rid, I40IW_CQPSQ_STAG_USEPFRID) |
@@ -2679,7 +2845,9 @@ static enum i40iw_status_code i40iw_sc_mr_reg_non_shared(
 	u32 pble_obj_cnt;
 	bool remote_access;
 	u8 addr_type;
+	enum i40iw_page_size page_size;
 
+	page_size = (info->page_size == 0x200000) ? I40IW_PAGE_SIZE_2M : I40IW_PAGE_SIZE_4K;
 	if (info->access_rights & (I40IW_ACCESS_FLAGS_REMOTEREAD_ONLY |
 				   I40IW_ACCESS_FLAGS_REMOTEWRITE_ONLY))
 		remote_access = true;
@@ -2722,7 +2890,7 @@ static enum i40iw_status_code i40iw_sc_mr_reg_non_shared(
 	header = LS_64(I40IW_CQP_OP_REG_MR, I40IW_CQPSQ_OPCODE) |
 		 LS_64(1, I40IW_CQPSQ_STAG_MR) |
 		 LS_64(info->chunk_size, I40IW_CQPSQ_STAG_LPBLSIZE) |
-		 LS_64(info->page_size, I40IW_CQPSQ_STAG_HPAGESIZE) |
+		 LS_64(page_size, I40IW_CQPSQ_STAG_HPAGESIZE) |
 		 LS_64(info->access_rights, I40IW_CQPSQ_STAG_ARIGHTS) |
 		 LS_64(remote_access, I40IW_CQPSQ_STAG_REMACCENABLED) |
 		 LS_64(addr_type, I40IW_CQPSQ_STAG_VABASEDTO) |
@@ -2937,7 +3105,9 @@ enum i40iw_status_code i40iw_sc_mr_fast_register(
 	u64 temp, header;
 	u64 *wqe;
 	u32 wqe_idx;
+	enum i40iw_page_size page_size;
 
+	page_size = (info->page_size == 0x200000) ? I40IW_PAGE_SIZE_2M : I40IW_PAGE_SIZE_4K;
 	wqe = i40iw_qp_get_next_send_wqe(&qp->qp_uk, &wqe_idx, I40IW_QP_WQE_MIN_SIZE,
 					 0, info->wr_id);
 	if (!wqe)
@@ -2964,7 +3134,7 @@ enum i40iw_status_code i40iw_sc_mr_fast_register(
 		 LS_64(info->stag_idx, I40IWQPSQ_STAGINDEX) |
 		 LS_64(I40IWQP_OP_FAST_REGISTER, I40IWQPSQ_OPCODE) |
 		 LS_64(info->chunk_size, I40IWQPSQ_LPBLSIZE) |
-		 LS_64(info->page_size, I40IWQPSQ_HPAGESIZE) |
+		 LS_64(page_size, I40IWQPSQ_HPAGESIZE) |
 		 LS_64(info->access_rights, I40IWQPSQ_STAGRIGHTS) |
 		 LS_64(info->addr_type, I40IWQPSQ_VABASEDTO) |
 		 LS_64(info->read_fence, I40IWQPSQ_READFENCE) |
@@ -3959,7 +4129,7 @@ enum i40iw_status_code i40iw_process_cqp_cmd(struct i40iw_sc_dev *dev,
 					     struct cqp_commands_info *pcmdinfo)
 {
 	enum i40iw_status_code status = 0;
-	unsigned long	flags;
+	unsigned long flags;
 
 	spin_lock_irqsave(&dev->cqp_lock, flags);
 	if (list_empty(&dev->cqp_cmd_head) && !i40iw_ring_full(dev->cqp))
@@ -3978,7 +4148,7 @@ enum i40iw_status_code i40iw_process_bh(struct i40iw_sc_dev *dev)
 {
 	enum i40iw_status_code status = 0;
 	struct cqp_commands_info *pcmdinfo;
-	unsigned long	flags;
+	unsigned long flags;
 
 	spin_lock_irqsave(&dev->cqp_lock, flags);
 	while (!list_empty(&dev->cqp_cmd_head) && !i40iw_ring_full(dev->cqp)) {
@@ -4055,7 +4225,6 @@ static int i40iw_bld_terminate_hdr(struct i40iw_sc_qp *qp,
 	u16 ddp_seg_len;
 	int copy_len = 0;
 	u8 is_tagged = 0;
-	enum i40iw_flush_opcode flush_code = FLUSH_INVALID;
 	u32 opcode;
 	struct i40iw_terminate_hdr *termhdr;
 
@@ -4228,9 +4397,6 @@ static int i40iw_bld_terminate_hdr(struct i40iw_sc_qp *qp,
 	if (copy_len)
 		memcpy(termhdr + 1, pkt, copy_len);
 
-	if (flush_code && !info->in_rdrsp_wr)
-		qp->sq_flush = (info->sq) ? true : false;
-
 	return sizeof(struct i40iw_terminate_hdr) + copy_len;
 }
 
@@ -4321,329 +4487,413 @@ void i40iw_terminate_received(struct i40iw_sc_qp *qp, struct i40iw_aeqe_info *in
 }
 
 /**
- * i40iw_hw_stat_init - Initiliaze HW stats table
- * @devstat: pestat struct
+ * i40iw_sc_vsi_init - Initialize virtual device
+ * @vsi: pointer to the vsi structure
+ * @info: parameters to initialize vsi
+ **/
+void i40iw_sc_vsi_init(struct i40iw_sc_vsi *vsi, struct i40iw_vsi_init_info *info)
+{
+	int i;
+
+	vsi->dev = info->dev;
+	vsi->back_vsi = info->back_vsi;
+	vsi->mss = info->params->mss;
+	i40iw_fill_qos_list(info->params->qs_handle_list);
+
+	for (i = 0; i < I40IW_MAX_USER_PRIORITY; i++) {
+		vsi->qos[i].qs_handle = info->params->qs_handle_list[i];
+		i40iw_debug(vsi->dev, I40IW_DEBUG_DCB, "qset[%d]: %d\n", i,
+			    vsi->qos[i].qs_handle);
+		spin_lock_init(&vsi->qos[i].lock);
+		INIT_LIST_HEAD(&vsi->qos[i].qplist);
+	}
+}
+
+/**
+ * i40iw_hw_stats_init - Initiliaze HW stats table
+ * @stats: pestat struct
  * @fcn_idx: PCI fn id
- * @hw: PF i40iw_hw structure.
  * @is_pf: Is it a PF?
  *
- * Populate the HW stat table with register offset addr for each
- * stat. And start the perioidic stats timer.
+ * Populate the HW stats table with register offset addr for each
+ * stats. And start the perioidic stats timer.
  */
-static void i40iw_hw_stat_init(struct i40iw_dev_pestat *devstat,
-			       u8 fcn_idx,
-			       struct i40iw_hw *hw, bool is_pf)
+void i40iw_hw_stats_init(struct i40iw_vsi_pestat *stats, u8 fcn_idx, bool is_pf)
 {
-	u32 stat_reg_offset;
-	u32 stat_index;
-	struct i40iw_dev_hw_stat_offsets *stat_table =
-		&devstat->hw_stat_offsets;
-	struct i40iw_dev_hw_stats *last_rd_stats = &devstat->last_read_hw_stats;
-
-	devstat->hw = hw;
+	u32 stats_reg_offset;
+	u32 stats_index;
+	struct i40iw_dev_hw_stats_offsets *stats_table =
+		&stats->hw_stats_offsets;
+	struct i40iw_dev_hw_stats *last_rd_stats = &stats->last_read_hw_stats;
 
 	if (is_pf) {
-		stat_table->stat_offset_32[I40IW_HW_STAT_INDEX_IP4RXDISCARD] =
+		stats_table->stats_offset_32[I40IW_HW_STAT_INDEX_IP4RXDISCARD] =
 				I40E_GLPES_PFIP4RXDISCARD(fcn_idx);
-		stat_table->stat_offset_32[I40IW_HW_STAT_INDEX_IP4RXTRUNC] =
+		stats_table->stats_offset_32[I40IW_HW_STAT_INDEX_IP4RXTRUNC] =
 				I40E_GLPES_PFIP4RXTRUNC(fcn_idx);
-		stat_table->stat_offset_32[I40IW_HW_STAT_INDEX_IP4TXNOROUTE] =
+		stats_table->stats_offset_32[I40IW_HW_STAT_INDEX_IP4TXNOROUTE] =
 				I40E_GLPES_PFIP4TXNOROUTE(fcn_idx);
-		stat_table->stat_offset_32[I40IW_HW_STAT_INDEX_IP6RXDISCARD] =
+		stats_table->stats_offset_32[I40IW_HW_STAT_INDEX_IP6RXDISCARD] =
 				I40E_GLPES_PFIP6RXDISCARD(fcn_idx);
-		stat_table->stat_offset_32[I40IW_HW_STAT_INDEX_IP6RXTRUNC] =
+		stats_table->stats_offset_32[I40IW_HW_STAT_INDEX_IP6RXTRUNC] =
 				I40E_GLPES_PFIP6RXTRUNC(fcn_idx);
-		stat_table->stat_offset_32[I40IW_HW_STAT_INDEX_IP6TXNOROUTE] =
+		stats_table->stats_offset_32[I40IW_HW_STAT_INDEX_IP6TXNOROUTE] =
 				I40E_GLPES_PFIP6TXNOROUTE(fcn_idx);
-		stat_table->stat_offset_32[I40IW_HW_STAT_INDEX_TCPRTXSEG] =
+		stats_table->stats_offset_32[I40IW_HW_STAT_INDEX_TCPRTXSEG] =
 				I40E_GLPES_PFTCPRTXSEG(fcn_idx);
-		stat_table->stat_offset_32[I40IW_HW_STAT_INDEX_TCPRXOPTERR] =
+		stats_table->stats_offset_32[I40IW_HW_STAT_INDEX_TCPRXOPTERR] =
 				I40E_GLPES_PFTCPRXOPTERR(fcn_idx);
-		stat_table->stat_offset_32[I40IW_HW_STAT_INDEX_TCPRXPROTOERR] =
+		stats_table->stats_offset_32[I40IW_HW_STAT_INDEX_TCPRXPROTOERR] =
 				I40E_GLPES_PFTCPRXPROTOERR(fcn_idx);
 
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP4RXOCTS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP4RXOCTS] =
 				I40E_GLPES_PFIP4RXOCTSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP4RXPKTS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP4RXPKTS] =
 				I40E_GLPES_PFIP4RXPKTSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP4RXFRAGS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP4RXFRAGS] =
 				I40E_GLPES_PFIP4RXFRAGSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP4RXMCPKTS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP4RXMCPKTS] =
 				I40E_GLPES_PFIP4RXMCPKTSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP4TXOCTS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP4TXOCTS] =
 				I40E_GLPES_PFIP4TXOCTSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP4TXPKTS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP4TXPKTS] =
 				I40E_GLPES_PFIP4TXPKTSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP4TXFRAGS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP4TXFRAGS] =
 				I40E_GLPES_PFIP4TXFRAGSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP4TXMCPKTS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP4TXMCPKTS] =
 				I40E_GLPES_PFIP4TXMCPKTSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP6RXOCTS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP6RXOCTS] =
 				I40E_GLPES_PFIP6RXOCTSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP6RXPKTS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP6RXPKTS] =
 				I40E_GLPES_PFIP6RXPKTSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP6RXFRAGS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP6RXFRAGS] =
 				I40E_GLPES_PFIP6RXFRAGSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP6RXMCPKTS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP6RXMCPKTS] =
 				I40E_GLPES_PFIP6RXMCPKTSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP6TXOCTS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP6TXOCTS] =
 				I40E_GLPES_PFIP6TXOCTSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP6TXPKTS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP6TXPKTS] =
 				I40E_GLPES_PFIP6TXPKTSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP6TXPKTS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP6TXPKTS] =
 				I40E_GLPES_PFIP6TXPKTSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP6TXFRAGS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP6TXFRAGS] =
 				I40E_GLPES_PFIP6TXFRAGSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_TCPRXSEGS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_TCPRXSEGS] =
 				I40E_GLPES_PFTCPRXSEGSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_TCPTXSEG] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_TCPTXSEG] =
 				I40E_GLPES_PFTCPTXSEGLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_RDMARXRDS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_RDMARXRDS] =
 				I40E_GLPES_PFRDMARXRDSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_RDMARXSNDS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_RDMARXSNDS] =
 				I40E_GLPES_PFRDMARXSNDSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_RDMARXWRS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_RDMARXWRS] =
 				I40E_GLPES_PFRDMARXWRSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_RDMATXRDS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_RDMATXRDS] =
 				I40E_GLPES_PFRDMATXRDSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_RDMATXSNDS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_RDMATXSNDS] =
 				I40E_GLPES_PFRDMATXSNDSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_RDMATXWRS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_RDMATXWRS] =
 				I40E_GLPES_PFRDMATXWRSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_RDMAVBND] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_RDMAVBND] =
 				I40E_GLPES_PFRDMAVBNDLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_RDMAVINV] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_RDMAVINV] =
 				I40E_GLPES_PFRDMAVINVLO(fcn_idx);
 	} else {
-		stat_table->stat_offset_32[I40IW_HW_STAT_INDEX_IP4RXDISCARD] =
+		stats_table->stats_offset_32[I40IW_HW_STAT_INDEX_IP4RXDISCARD] =
 				I40E_GLPES_VFIP4RXDISCARD(fcn_idx);
-		stat_table->stat_offset_32[I40IW_HW_STAT_INDEX_IP4RXTRUNC] =
+		stats_table->stats_offset_32[I40IW_HW_STAT_INDEX_IP4RXTRUNC] =
 				I40E_GLPES_VFIP4RXTRUNC(fcn_idx);
-		stat_table->stat_offset_32[I40IW_HW_STAT_INDEX_IP4TXNOROUTE] =
+		stats_table->stats_offset_32[I40IW_HW_STAT_INDEX_IP4TXNOROUTE] =
 				I40E_GLPES_VFIP4TXNOROUTE(fcn_idx);
-		stat_table->stat_offset_32[I40IW_HW_STAT_INDEX_IP6RXDISCARD] =
+		stats_table->stats_offset_32[I40IW_HW_STAT_INDEX_IP6RXDISCARD] =
 				I40E_GLPES_VFIP6RXDISCARD(fcn_idx);
-		stat_table->stat_offset_32[I40IW_HW_STAT_INDEX_IP6RXTRUNC] =
+		stats_table->stats_offset_32[I40IW_HW_STAT_INDEX_IP6RXTRUNC] =
 				I40E_GLPES_VFIP6RXTRUNC(fcn_idx);
-		stat_table->stat_offset_32[I40IW_HW_STAT_INDEX_IP6TXNOROUTE] =
+		stats_table->stats_offset_32[I40IW_HW_STAT_INDEX_IP6TXNOROUTE] =
 				I40E_GLPES_VFIP6TXNOROUTE(fcn_idx);
-		stat_table->stat_offset_32[I40IW_HW_STAT_INDEX_TCPRTXSEG] =
+		stats_table->stats_offset_32[I40IW_HW_STAT_INDEX_TCPRTXSEG] =
 				I40E_GLPES_VFTCPRTXSEG(fcn_idx);
-		stat_table->stat_offset_32[I40IW_HW_STAT_INDEX_TCPRXOPTERR] =
+		stats_table->stats_offset_32[I40IW_HW_STAT_INDEX_TCPRXOPTERR] =
 				I40E_GLPES_VFTCPRXOPTERR(fcn_idx);
-		stat_table->stat_offset_32[I40IW_HW_STAT_INDEX_TCPRXPROTOERR] =
+		stats_table->stats_offset_32[I40IW_HW_STAT_INDEX_TCPRXPROTOERR] =
 				I40E_GLPES_VFTCPRXPROTOERR(fcn_idx);
 
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP4RXOCTS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP4RXOCTS] =
 				I40E_GLPES_VFIP4RXOCTSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP4RXPKTS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP4RXPKTS] =
 				I40E_GLPES_VFIP4RXPKTSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP4RXFRAGS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP4RXFRAGS] =
 				I40E_GLPES_VFIP4RXFRAGSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP4RXMCPKTS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP4RXMCPKTS] =
 				I40E_GLPES_VFIP4RXMCPKTSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP4TXOCTS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP4TXOCTS] =
 				I40E_GLPES_VFIP4TXOCTSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP4TXPKTS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP4TXPKTS] =
 				I40E_GLPES_VFIP4TXPKTSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP4TXFRAGS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP4TXFRAGS] =
 				I40E_GLPES_VFIP4TXFRAGSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP4TXMCPKTS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP4TXMCPKTS] =
 				I40E_GLPES_VFIP4TXMCPKTSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP6RXOCTS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP6RXOCTS] =
 				I40E_GLPES_VFIP6RXOCTSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP6RXPKTS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP6RXPKTS] =
 				I40E_GLPES_VFIP6RXPKTSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP6RXFRAGS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP6RXFRAGS] =
 				I40E_GLPES_VFIP6RXFRAGSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP6RXMCPKTS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP6RXMCPKTS] =
 				I40E_GLPES_VFIP6RXMCPKTSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP6TXOCTS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP6TXOCTS] =
 				I40E_GLPES_VFIP6TXOCTSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP6TXPKTS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP6TXPKTS] =
 				I40E_GLPES_VFIP6TXPKTSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP6TXPKTS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP6TXPKTS] =
 				I40E_GLPES_VFIP6TXPKTSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_IP6TXFRAGS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_IP6TXFRAGS] =
 				I40E_GLPES_VFIP6TXFRAGSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_TCPRXSEGS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_TCPRXSEGS] =
 				I40E_GLPES_VFTCPRXSEGSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_TCPTXSEG] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_TCPTXSEG] =
 				I40E_GLPES_VFTCPTXSEGLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_RDMARXRDS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_RDMARXRDS] =
 				I40E_GLPES_VFRDMARXRDSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_RDMARXSNDS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_RDMARXSNDS] =
 				I40E_GLPES_VFRDMARXSNDSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_RDMARXWRS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_RDMARXWRS] =
 				I40E_GLPES_VFRDMARXWRSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_RDMATXRDS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_RDMATXRDS] =
 				I40E_GLPES_VFRDMATXRDSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_RDMATXSNDS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_RDMATXSNDS] =
 				I40E_GLPES_VFRDMATXSNDSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_RDMATXWRS] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_RDMATXWRS] =
 				I40E_GLPES_VFRDMATXWRSLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_RDMAVBND] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_RDMAVBND] =
 				I40E_GLPES_VFRDMAVBNDLO(fcn_idx);
-		stat_table->stat_offset_64[I40IW_HW_STAT_INDEX_RDMAVINV] =
+		stats_table->stats_offset_64[I40IW_HW_STAT_INDEX_RDMAVINV] =
 				I40E_GLPES_VFRDMAVINVLO(fcn_idx);
 	}
 
-	for (stat_index = 0; stat_index < I40IW_HW_STAT_INDEX_MAX_64;
-	     stat_index++) {
-		stat_reg_offset = stat_table->stat_offset_64[stat_index];
-		last_rd_stats->stat_value_64[stat_index] =
-			readq(devstat->hw->hw_addr + stat_reg_offset);
+	for (stats_index = 0; stats_index < I40IW_HW_STAT_INDEX_MAX_64;
+	     stats_index++) {
+		stats_reg_offset = stats_table->stats_offset_64[stats_index];
+		last_rd_stats->stats_value_64[stats_index] =
+			readq(stats->hw->hw_addr + stats_reg_offset);
 	}
 
-	for (stat_index = 0; stat_index < I40IW_HW_STAT_INDEX_MAX_32;
-	     stat_index++) {
-		stat_reg_offset = stat_table->stat_offset_32[stat_index];
-		last_rd_stats->stat_value_32[stat_index] =
-			i40iw_rd32(devstat->hw, stat_reg_offset);
+	for (stats_index = 0; stats_index < I40IW_HW_STAT_INDEX_MAX_32;
+	     stats_index++) {
+		stats_reg_offset = stats_table->stats_offset_32[stats_index];
+		last_rd_stats->stats_value_32[stats_index] =
+			i40iw_rd32(stats->hw, stats_reg_offset);
 	}
 }
 
 /**
- * i40iw_hw_stat_read_32 - Read 32-bit HW stat counters and accommodates for roll-overs.
- * @devstat: pestat struct
- * @index: index in HW stat table which contains offset reg-addr
- * @value: hw stat value
+ * i40iw_hw_stats_read_32 - Read 32-bit HW stats counters and accommodates for roll-overs.
+ * @stat: pestat struct
+ * @index: index in HW stats table which contains offset reg-addr
+ * @value: hw stats value
  */
-static void i40iw_hw_stat_read_32(struct i40iw_dev_pestat *devstat,
-				  enum i40iw_hw_stat_index_32b index,
-				  u64 *value)
+void i40iw_hw_stats_read_32(struct i40iw_vsi_pestat *stats,
+			    enum i40iw_hw_stats_index_32b index,
+			    u64 *value)
 {
-	struct i40iw_dev_hw_stat_offsets *stat_table =
-		&devstat->hw_stat_offsets;
-	struct i40iw_dev_hw_stats *last_rd_stats = &devstat->last_read_hw_stats;
-	struct i40iw_dev_hw_stats *hw_stats = &devstat->hw_stats;
-	u64 new_stat_value = 0;
-	u32 stat_reg_offset = stat_table->stat_offset_32[index];
+	struct i40iw_dev_hw_stats_offsets *stats_table =
+		&stats->hw_stats_offsets;
+	struct i40iw_dev_hw_stats *last_rd_stats = &stats->last_read_hw_stats;
+	struct i40iw_dev_hw_stats *hw_stats = &stats->hw_stats;
+	u64 new_stats_value = 0;
+	u32 stats_reg_offset = stats_table->stats_offset_32[index];
 
-	new_stat_value = i40iw_rd32(devstat->hw, stat_reg_offset);
+	new_stats_value = i40iw_rd32(stats->hw, stats_reg_offset);
 	/*roll-over case */
-	if (new_stat_value < last_rd_stats->stat_value_32[index])
-		hw_stats->stat_value_32[index] += new_stat_value;
+	if (new_stats_value < last_rd_stats->stats_value_32[index])
+		hw_stats->stats_value_32[index] += new_stats_value;
 	else
-		hw_stats->stat_value_32[index] +=
-			new_stat_value - last_rd_stats->stat_value_32[index];
-	last_rd_stats->stat_value_32[index] = new_stat_value;
-	*value = hw_stats->stat_value_32[index];
+		hw_stats->stats_value_32[index] +=
+			new_stats_value - last_rd_stats->stats_value_32[index];
+	last_rd_stats->stats_value_32[index] = new_stats_value;
+	*value = hw_stats->stats_value_32[index];
 }
 
 /**
- * i40iw_hw_stat_read_64 - Read HW stat counters (greater than 32-bit) and accommodates for roll-overs.
- * @devstat: pestat struct
- * @index: index in HW stat table which contains offset reg-addr
- * @value: hw stat value
+ * i40iw_hw_stats_read_64 - Read HW stats counters (greater than 32-bit) and accommodates for roll-overs.
+ * @stats: pestat struct
+ * @index: index in HW stats table which contains offset reg-addr
+ * @value: hw stats value
  */
-static void i40iw_hw_stat_read_64(struct i40iw_dev_pestat *devstat,
-				  enum i40iw_hw_stat_index_64b index,
-				  u64 *value)
+void i40iw_hw_stats_read_64(struct i40iw_vsi_pestat *stats,
+			    enum i40iw_hw_stats_index_64b index,
+			    u64 *value)
 {
-	struct i40iw_dev_hw_stat_offsets *stat_table =
-		&devstat->hw_stat_offsets;
-	struct i40iw_dev_hw_stats *last_rd_stats = &devstat->last_read_hw_stats;
-	struct i40iw_dev_hw_stats *hw_stats = &devstat->hw_stats;
-	u64 new_stat_value = 0;
-	u32 stat_reg_offset = stat_table->stat_offset_64[index];
+	struct i40iw_dev_hw_stats_offsets *stats_table =
+		&stats->hw_stats_offsets;
+	struct i40iw_dev_hw_stats *last_rd_stats = &stats->last_read_hw_stats;
+	struct i40iw_dev_hw_stats *hw_stats = &stats->hw_stats;
+	u64 new_stats_value = 0;
+	u32 stats_reg_offset = stats_table->stats_offset_64[index];
 
-	new_stat_value = readq(devstat->hw->hw_addr + stat_reg_offset);
+	new_stats_value = readq(stats->hw->hw_addr + stats_reg_offset);
 	/*roll-over case */
-	if (new_stat_value < last_rd_stats->stat_value_64[index])
-		hw_stats->stat_value_64[index] += new_stat_value;
+	if (new_stats_value < last_rd_stats->stats_value_64[index])
+		hw_stats->stats_value_64[index] += new_stats_value;
 	else
-		hw_stats->stat_value_64[index] +=
-			new_stat_value - last_rd_stats->stat_value_64[index];
-	last_rd_stats->stat_value_64[index] = new_stat_value;
-	*value = hw_stats->stat_value_64[index];
+		hw_stats->stats_value_64[index] +=
+			new_stats_value - last_rd_stats->stats_value_64[index];
+	last_rd_stats->stats_value_64[index] = new_stats_value;
+	*value = hw_stats->stats_value_64[index];
 }
 
 /**
- * i40iw_hw_stat_read_all - read all HW stat counters
- * @devstat: pestat struct
- * @stat_values: hw stats structure
+ * i40iw_hw_stats_read_all - read all HW stat counters
+ * @stats: pestat struct
+ * @stats_values: hw stats structure
  *
  * Read all the HW stat counters and populates hw_stats structure
- * of passed-in dev's pestat as well as copy created in stat_values.
+ * of passed-in vsi's pestat as well as copy created in stat_values.
  */
-static void i40iw_hw_stat_read_all(struct i40iw_dev_pestat *devstat,
-				   struct i40iw_dev_hw_stats *stat_values)
+void i40iw_hw_stats_read_all(struct i40iw_vsi_pestat *stats,
+			     struct i40iw_dev_hw_stats *stats_values)
 {
-	u32 stat_index;
+	u32 stats_index;
+	unsigned long flags;
 
-	for (stat_index = 0; stat_index < I40IW_HW_STAT_INDEX_MAX_32;
-	     stat_index++)
-		i40iw_hw_stat_read_32(devstat, stat_index,
-				      &stat_values->stat_value_32[stat_index]);
-	for (stat_index = 0; stat_index < I40IW_HW_STAT_INDEX_MAX_64;
-	     stat_index++)
-		i40iw_hw_stat_read_64(devstat, stat_index,
-				      &stat_values->stat_value_64[stat_index]);
+	spin_lock_irqsave(&stats->lock, flags);
+
+	for (stats_index = 0; stats_index < I40IW_HW_STAT_INDEX_MAX_32;
+	     stats_index++)
+		i40iw_hw_stats_read_32(stats, stats_index,
+				       &stats_values->stats_value_32[stats_index]);
+	for (stats_index = 0; stats_index < I40IW_HW_STAT_INDEX_MAX_64;
+	     stats_index++)
+		i40iw_hw_stats_read_64(stats, stats_index,
+				       &stats_values->stats_value_64[stats_index]);
+	spin_unlock_irqrestore(&stats->lock, flags);
 }
 
 /**
- * i40iw_hw_stat_refresh_all - Update all HW stat structs
- * @devstat: pestat struct
- * @stat_values: hw stats structure
+ * i40iw_hw_stats_refresh_all - Update all HW stats structs
+ * @stats: pestat struct
  *
- * Read all the HW stat counters to refresh values in hw_stats structure
+ * Read all the HW stats counters to refresh values in hw_stats structure
  * of passed-in dev's pestat
  */
-static void i40iw_hw_stat_refresh_all(struct i40iw_dev_pestat *devstat)
+void i40iw_hw_stats_refresh_all(struct i40iw_vsi_pestat *stats)
 {
-	u64 stat_value;
-	u32 stat_index;
+	u64 stats_value;
+	u32 stats_index;
+	unsigned long flags;
 
-	for (stat_index = 0; stat_index < I40IW_HW_STAT_INDEX_MAX_32;
-	     stat_index++)
-		i40iw_hw_stat_read_32(devstat, stat_index, &stat_value);
-	for (stat_index = 0; stat_index < I40IW_HW_STAT_INDEX_MAX_64;
-	     stat_index++)
-		i40iw_hw_stat_read_64(devstat, stat_index, &stat_value);
+	spin_lock_irqsave(&stats->lock, flags);
+
+	for (stats_index = 0; stats_index < I40IW_HW_STAT_INDEX_MAX_32;
+	     stats_index++)
+		i40iw_hw_stats_read_32(stats, stats_index, &stats_value);
+	for (stats_index = 0; stats_index < I40IW_HW_STAT_INDEX_MAX_64;
+	     stats_index++)
+		i40iw_hw_stats_read_64(stats, stats_index, &stats_value);
+	spin_unlock_irqrestore(&stats->lock, flags);
+}
+
+/**
+ * i40iw_get_fcn_id - Return the function id
+ * @dev: pointer to the device
+ */
+static u8 i40iw_get_fcn_id(struct i40iw_sc_dev *dev)
+{
+	u8 fcn_id = I40IW_INVALID_FCN_ID;
+	u8 i;
+
+	for (i = I40IW_FIRST_NON_PF_STAT; i < I40IW_MAX_STATS_COUNT; i++)
+		if (!dev->fcn_id_array[i]) {
+			fcn_id = i;
+			dev->fcn_id_array[i] = true;
+			break;
+		}
+	return fcn_id;
+}
+
+/**
+ * i40iw_vsi_stats_init - Initialize the vsi statistics
+ * @vsi: pointer to the vsi structure
+ * @info: The info structure used for initialization
+ */
+enum i40iw_status_code i40iw_vsi_stats_init(struct i40iw_sc_vsi *vsi, struct i40iw_vsi_stats_info *info)
+{
+	u8 fcn_id = info->fcn_id;
+
+	if (info->alloc_fcn_id)
+		fcn_id = i40iw_get_fcn_id(vsi->dev);
+
+	if (fcn_id == I40IW_INVALID_FCN_ID)
+		return I40IW_ERR_NOT_READY;
+
+	vsi->pestat = info->pestat;
+	vsi->pestat->hw = vsi->dev->hw;
+
+	if (info->stats_initialize) {
+		i40iw_hw_stats_init(vsi->pestat, fcn_id, true);
+		spin_lock_init(&vsi->pestat->lock);
+		i40iw_hw_stats_start_timer(vsi);
+	}
+	vsi->stats_fcn_id_alloc = info->alloc_fcn_id;
+	vsi->fcn_id = fcn_id;
+	return I40IW_SUCCESS;
+}
+
+/**
+ * i40iw_vsi_stats_free - Free the vsi stats
+ * @vsi: pointer to the vsi structure
+ */
+void i40iw_vsi_stats_free(struct i40iw_sc_vsi *vsi)
+{
+	u8 fcn_id = vsi->fcn_id;
+
+	if ((vsi->stats_fcn_id_alloc) && (fcn_id != I40IW_INVALID_FCN_ID))
+		vsi->dev->fcn_id_array[fcn_id] = false;
+	i40iw_hw_stats_stop_timer(vsi);
 }
 
 static struct i40iw_cqp_ops iw_cqp_ops = {
-	i40iw_sc_cqp_init,
-	i40iw_sc_cqp_create,
-	i40iw_sc_cqp_post_sq,
-	i40iw_sc_cqp_get_next_send_wqe,
-	i40iw_sc_cqp_destroy,
-	i40iw_sc_poll_for_cqp_op_done
+	.cqp_init = i40iw_sc_cqp_init,
+	.cqp_create = i40iw_sc_cqp_create,
+	.cqp_post_sq = i40iw_sc_cqp_post_sq,
+	.cqp_get_next_send_wqe = i40iw_sc_cqp_get_next_send_wqe,
+	.cqp_destroy = i40iw_sc_cqp_destroy,
+	.poll_for_cqp_op_done = i40iw_sc_poll_for_cqp_op_done
 };
 
 static struct i40iw_ccq_ops iw_ccq_ops = {
-	i40iw_sc_ccq_init,
-	i40iw_sc_ccq_create,
-	i40iw_sc_ccq_destroy,
-	i40iw_sc_ccq_create_done,
-	i40iw_sc_ccq_get_cqe_info,
-	i40iw_sc_ccq_arm
+	.ccq_init = i40iw_sc_ccq_init,
+	.ccq_create = i40iw_sc_ccq_create,
+	.ccq_destroy = i40iw_sc_ccq_destroy,
+	.ccq_create_done = i40iw_sc_ccq_create_done,
+	.ccq_get_cqe_info = i40iw_sc_ccq_get_cqe_info,
+	.ccq_arm = i40iw_sc_ccq_arm
 };
 
 static struct i40iw_ceq_ops iw_ceq_ops = {
-	i40iw_sc_ceq_init,
-	i40iw_sc_ceq_create,
-	i40iw_sc_cceq_create_done,
-	i40iw_sc_cceq_destroy_done,
-	i40iw_sc_cceq_create,
-	i40iw_sc_ceq_destroy,
-	i40iw_sc_process_ceq
+	.ceq_init = i40iw_sc_ceq_init,
+	.ceq_create = i40iw_sc_ceq_create,
+	.cceq_create_done = i40iw_sc_cceq_create_done,
+	.cceq_destroy_done = i40iw_sc_cceq_destroy_done,
+	.cceq_create = i40iw_sc_cceq_create,
+	.ceq_destroy = i40iw_sc_ceq_destroy,
+	.process_ceq = i40iw_sc_process_ceq
 };
 
 static struct i40iw_aeq_ops iw_aeq_ops = {
-	i40iw_sc_aeq_init,
-	i40iw_sc_aeq_create,
-	i40iw_sc_aeq_destroy,
-	i40iw_sc_get_next_aeqe,
-	i40iw_sc_repost_aeq_entries,
-	i40iw_sc_aeq_create_done,
-	i40iw_sc_aeq_destroy_done
+	.aeq_init = i40iw_sc_aeq_init,
+	.aeq_create = i40iw_sc_aeq_create,
+	.aeq_destroy = i40iw_sc_aeq_destroy,
+	.get_next_aeqe = i40iw_sc_get_next_aeqe,
+	.repost_aeq_entries = i40iw_sc_repost_aeq_entries,
+	.aeq_create_done = i40iw_sc_aeq_create_done,
+	.aeq_destroy_done = i40iw_sc_aeq_destroy_done
 };
 
 /* iwarp pd ops */
 static struct i40iw_pd_ops iw_pd_ops = {
-	i40iw_sc_pd_init,
+	.pd_init = i40iw_sc_pd_init,
 };
 
 static struct i40iw_priv_qp_ops iw_priv_qp_ops = {
@@ -4662,72 +4912,52 @@ static struct i40iw_priv_qp_ops iw_priv_qp_ops = {
 };
 
 static struct i40iw_priv_cq_ops iw_priv_cq_ops = {
-	i40iw_sc_cq_init,
-	i40iw_sc_cq_create,
-	i40iw_sc_cq_destroy,
-	i40iw_sc_cq_modify,
+	.cq_init = i40iw_sc_cq_init,
+	.cq_create = i40iw_sc_cq_create,
+	.cq_destroy = i40iw_sc_cq_destroy,
+	.cq_modify = i40iw_sc_cq_modify,
 };
 
 static struct i40iw_mr_ops iw_mr_ops = {
-	i40iw_sc_alloc_stag,
-	i40iw_sc_mr_reg_non_shared,
-	i40iw_sc_mr_reg_shared,
-	i40iw_sc_dealloc_stag,
-	i40iw_sc_query_stag,
-	i40iw_sc_mw_alloc
+	.alloc_stag = i40iw_sc_alloc_stag,
+	.mr_reg_non_shared = i40iw_sc_mr_reg_non_shared,
+	.mr_reg_shared = i40iw_sc_mr_reg_shared,
+	.dealloc_stag = i40iw_sc_dealloc_stag,
+	.query_stag = i40iw_sc_query_stag,
+	.mw_alloc = i40iw_sc_mw_alloc
 };
 
 static struct i40iw_cqp_misc_ops iw_cqp_misc_ops = {
-	i40iw_sc_manage_push_page,
-	i40iw_sc_manage_hmc_pm_func_table,
-	i40iw_sc_set_hmc_resource_profile,
-	i40iw_sc_commit_fpm_values,
-	i40iw_sc_query_fpm_values,
-	i40iw_sc_static_hmc_pages_allocated,
-	i40iw_sc_add_arp_cache_entry,
-	i40iw_sc_del_arp_cache_entry,
-	i40iw_sc_query_arp_cache_entry,
-	i40iw_sc_manage_apbvt_entry,
-	i40iw_sc_manage_qhash_table_entry,
-	i40iw_sc_alloc_local_mac_ipaddr_entry,
-	i40iw_sc_add_local_mac_ipaddr_entry,
-	i40iw_sc_del_local_mac_ipaddr_entry,
-	i40iw_sc_cqp_nop,
-	i40iw_sc_commit_fpm_values_done,
-	i40iw_sc_query_fpm_values_done,
-	i40iw_sc_manage_hmc_pm_func_table_done,
-	i40iw_sc_suspend_qp,
-	i40iw_sc_resume_qp
+	.manage_push_page = i40iw_sc_manage_push_page,
+	.manage_hmc_pm_func_table = i40iw_sc_manage_hmc_pm_func_table,
+	.set_hmc_resource_profile = i40iw_sc_set_hmc_resource_profile,
+	.commit_fpm_values = i40iw_sc_commit_fpm_values,
+	.query_fpm_values = i40iw_sc_query_fpm_values,
+	.static_hmc_pages_allocated = i40iw_sc_static_hmc_pages_allocated,
+	.add_arp_cache_entry = i40iw_sc_add_arp_cache_entry,
+	.del_arp_cache_entry = i40iw_sc_del_arp_cache_entry,
+	.query_arp_cache_entry = i40iw_sc_query_arp_cache_entry,
+	.manage_apbvt_entry = i40iw_sc_manage_apbvt_entry,
+	.manage_qhash_table_entry = i40iw_sc_manage_qhash_table_entry,
+	.alloc_local_mac_ipaddr_table_entry = i40iw_sc_alloc_local_mac_ipaddr_entry,
+	.add_local_mac_ipaddr_entry = i40iw_sc_add_local_mac_ipaddr_entry,
+	.del_local_mac_ipaddr_entry = i40iw_sc_del_local_mac_ipaddr_entry,
+	.cqp_nop = i40iw_sc_cqp_nop,
+	.commit_fpm_values_done = i40iw_sc_commit_fpm_values_done,
+	.query_fpm_values_done = i40iw_sc_query_fpm_values_done,
+	.manage_hmc_pm_func_table_done = i40iw_sc_manage_hmc_pm_func_table_done,
+	.update_suspend_qp = i40iw_sc_suspend_qp,
+	.update_resume_qp = i40iw_sc_resume_qp
 };
 
 static struct i40iw_hmc_ops iw_hmc_ops = {
-	i40iw_sc_init_iw_hmc,
-	i40iw_sc_parse_fpm_query_buf,
-	i40iw_sc_configure_iw_fpm,
-	i40iw_sc_parse_fpm_commit_buf,
-	i40iw_sc_create_hmc_obj,
-	i40iw_sc_del_hmc_obj,
-	NULL,
-	NULL
+	.init_iw_hmc = i40iw_sc_init_iw_hmc,
+	.parse_fpm_query_buf = i40iw_sc_parse_fpm_query_buf,
+	.configure_iw_fpm = i40iw_sc_configure_iw_fpm,
+	.parse_fpm_commit_buf = i40iw_sc_parse_fpm_commit_buf,
+	.create_hmc_object = i40iw_sc_create_hmc_obj,
+	.del_hmc_object = i40iw_sc_del_hmc_obj
 };
-
-static const struct i40iw_device_pestat_ops iw_device_pestat_ops = {
-	i40iw_hw_stat_init,
-	i40iw_hw_stat_read_32,
-	i40iw_hw_stat_read_64,
-	i40iw_hw_stat_read_all,
-	i40iw_hw_stat_refresh_all
-};
-
-/**
- * i40iw_device_init_pestat - Initialize the pestat structure
- * @dev: pestat struct
- */
-enum i40iw_status_code i40iw_device_init_pestat(struct i40iw_dev_pestat *devstat)
-{
-	devstat->ops = iw_device_pestat_ops;
-	return 0;
-}
 
 /**
  * i40iw_device_init - Initialize IWARP device
@@ -4750,14 +4980,7 @@ enum i40iw_status_code i40iw_device_init(struct i40iw_sc_dev *dev,
 
 	dev->debug_mask = info->debug_mask;
 
-	ret_code = i40iw_device_init_pestat(&dev->dev_pestat);
-	if (ret_code) {
-		i40iw_debug(dev, I40IW_DEBUG_DEV,
-			    "%s: i40iw_device_init_pestat failed\n", __func__);
-		return ret_code;
-	}
 	dev->hmc_fn_id = info->hmc_fn_id;
-	dev->qs_handle = info->qs_handle;
 	dev->exception_lan_queue = info->exception_lan_queue;
 	dev->is_pf = info->is_pf;
 
@@ -4770,15 +4993,10 @@ enum i40iw_status_code i40iw_device_init(struct i40iw_sc_dev *dev,
 	dev->hw = info->hw;
 	dev->hw->hw_addr = info->bar0;
 
-	val = i40iw_rd32(dev->hw, I40E_GLPCI_DREVID);
-	dev->hw_rev = (u8)RS_32(val, I40E_GLPCI_DREVID_DEFAULT_REVID);
-
 	if (dev->is_pf) {
-		dev->dev_pestat.ops.iw_hw_stat_init(&dev->dev_pestat,
-			dev->hmc_fn_id, dev->hw, true);
-		spin_lock_init(&dev->dev_pestat.stats_lock);
-		/*start the periodic stats_timer */
-		i40iw_hw_stats_start_timer(dev);
+		val = i40iw_rd32(dev->hw, I40E_GLPCI_DREVID);
+		dev->hw_rev = (u8)RS_32(val, I40E_GLPCI_DREVID_DEFAULT_REVID);
+
 		val = i40iw_rd32(dev->hw, I40E_GLPCI_LBARCTRL);
 		db_size = (u8)RS_32(val, I40E_GLPCI_LBARCTRL_PE_DB_SIZE);
 		if ((db_size != I40IW_PE_DB_SIZE_4M) &&

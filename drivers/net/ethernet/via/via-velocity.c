@@ -1724,24 +1724,21 @@ static void velocity_free_tx_buf(struct velocity_info *vptr,
 		struct velocity_td_info *tdinfo, struct tx_desc *td)
 {
 	struct sk_buff *skb = tdinfo->skb;
+	int i;
 
 	/*
 	 *	Don't unmap the pre-allocated tx_bufs
 	 */
-	if (tdinfo->skb_dma) {
-		int i;
+	for (i = 0; i < tdinfo->nskb_dma; i++) {
+		size_t pktlen = max_t(size_t, skb->len, ETH_ZLEN);
 
-		for (i = 0; i < tdinfo->nskb_dma; i++) {
-			size_t pktlen = max_t(size_t, skb->len, ETH_ZLEN);
+		/* For scatter-gather */
+		if (skb_shinfo(skb)->nr_frags > 0)
+			pktlen = max_t(size_t, pktlen,
+				       td->td_buf[i].size & ~TD_QUEUE);
 
-			/* For scatter-gather */
-			if (skb_shinfo(skb)->nr_frags > 0)
-				pktlen = max_t(size_t, pktlen,
-						td->td_buf[i].size & ~TD_QUEUE);
-
-			dma_unmap_single(vptr->dev, tdinfo->skb_dma[i],
-					le16_to_cpu(pktlen), DMA_TO_DEVICE);
-		}
+		dma_unmap_single(vptr->dev, tdinfo->skb_dma[i],
+				 le16_to_cpu(pktlen), DMA_TO_DEVICE);
 	}
 	dev_kfree_skb_irq(skb);
 	tdinfo->skb = NULL;
@@ -2163,7 +2160,7 @@ static int velocity_poll(struct napi_struct *napi, int budget)
 	velocity_tx_srv(vptr);
 	/* If budget not fully consumed, exit the polling mode */
 	if (rx_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, rx_done);
 		mac_enable_int(vptr->mac_regs);
 	}
 	spin_unlock_irqrestore(&vptr->lock, flags);
@@ -2286,13 +2283,6 @@ static int velocity_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
 	int ret = 0;
-
-	if ((new_mtu < VELOCITY_MIN_MTU) || new_mtu > (VELOCITY_MAX_MTU)) {
-		VELOCITY_PRT(MSG_LEVEL_ERR, KERN_NOTICE "%s: Invalid MTU.\n",
-				vptr->netdev->name);
-		ret = -EINVAL;
-		goto out_0;
-	}
 
 	if (!netif_running(dev)) {
 		dev->mtu = new_mtu;
@@ -2867,6 +2857,10 @@ static int velocity_probe(struct device *dev, int irq,
 			NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_HW_VLAN_CTAG_RX |
 			NETIF_F_IP_CSUM;
 
+	/* MTU range: 64 - 9000 */
+	netdev->min_mtu = VELOCITY_MIN_MTU;
+	netdev->max_mtu = VELOCITY_MAX_MTU;
+
 	ret = register_netdev(netdev);
 	if (ret < 0)
 		goto err_iounmap;
@@ -3297,15 +3291,17 @@ static void velocity_ethtool_down(struct net_device *dev)
 		velocity_set_power_state(vptr, PCI_D3hot);
 }
 
-static int velocity_get_settings(struct net_device *dev,
-				 struct ethtool_cmd *cmd)
+static int velocity_get_link_ksettings(struct net_device *dev,
+				       struct ethtool_link_ksettings *cmd)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
 	struct mac_regs __iomem *regs = vptr->mac_regs;
 	u32 status;
+	u32 supported, advertising;
+
 	status = check_connection_type(vptr->mac_regs);
 
-	cmd->supported = SUPPORTED_TP |
+	supported = SUPPORTED_TP |
 			SUPPORTED_Autoneg |
 			SUPPORTED_10baseT_Half |
 			SUPPORTED_10baseT_Full |
@@ -3314,9 +3310,9 @@ static int velocity_get_settings(struct net_device *dev,
 			SUPPORTED_1000baseT_Half |
 			SUPPORTED_1000baseT_Full;
 
-	cmd->advertising = ADVERTISED_TP | ADVERTISED_Autoneg;
+	advertising = ADVERTISED_TP | ADVERTISED_Autoneg;
 	if (vptr->options.spd_dpx == SPD_DPX_AUTO) {
-		cmd->advertising |=
+		advertising |=
 			ADVERTISED_10baseT_Half |
 			ADVERTISED_10baseT_Full |
 			ADVERTISED_100baseT_Half |
@@ -3326,19 +3322,19 @@ static int velocity_get_settings(struct net_device *dev,
 	} else {
 		switch (vptr->options.spd_dpx) {
 		case SPD_DPX_1000_FULL:
-			cmd->advertising |= ADVERTISED_1000baseT_Full;
+			advertising |= ADVERTISED_1000baseT_Full;
 			break;
 		case SPD_DPX_100_HALF:
-			cmd->advertising |= ADVERTISED_100baseT_Half;
+			advertising |= ADVERTISED_100baseT_Half;
 			break;
 		case SPD_DPX_100_FULL:
-			cmd->advertising |= ADVERTISED_100baseT_Full;
+			advertising |= ADVERTISED_100baseT_Full;
 			break;
 		case SPD_DPX_10_HALF:
-			cmd->advertising |= ADVERTISED_10baseT_Half;
+			advertising |= ADVERTISED_10baseT_Half;
 			break;
 		case SPD_DPX_10_FULL:
-			cmd->advertising |= ADVERTISED_10baseT_Full;
+			advertising |= ADVERTISED_10baseT_Full;
 			break;
 		default:
 			break;
@@ -3346,30 +3342,35 @@ static int velocity_get_settings(struct net_device *dev,
 	}
 
 	if (status & VELOCITY_SPEED_1000)
-		ethtool_cmd_speed_set(cmd, SPEED_1000);
+		cmd->base.speed = SPEED_1000;
 	else if (status & VELOCITY_SPEED_100)
-		ethtool_cmd_speed_set(cmd, SPEED_100);
+		cmd->base.speed = SPEED_100;
 	else
-		ethtool_cmd_speed_set(cmd, SPEED_10);
+		cmd->base.speed = SPEED_10;
 
-	cmd->autoneg = (status & VELOCITY_AUTONEG_ENABLE) ? AUTONEG_ENABLE : AUTONEG_DISABLE;
-	cmd->port = PORT_TP;
-	cmd->transceiver = XCVR_INTERNAL;
-	cmd->phy_address = readb(&regs->MIIADR) & 0x1F;
+	cmd->base.autoneg = (status & VELOCITY_AUTONEG_ENABLE) ?
+		AUTONEG_ENABLE : AUTONEG_DISABLE;
+	cmd->base.port = PORT_TP;
+	cmd->base.phy_address = readb(&regs->MIIADR) & 0x1F;
 
 	if (status & VELOCITY_DUPLEX_FULL)
-		cmd->duplex = DUPLEX_FULL;
+		cmd->base.duplex = DUPLEX_FULL;
 	else
-		cmd->duplex = DUPLEX_HALF;
+		cmd->base.duplex = DUPLEX_HALF;
+
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
+						supported);
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.advertising,
+						advertising);
 
 	return 0;
 }
 
-static int velocity_set_settings(struct net_device *dev,
-				 struct ethtool_cmd *cmd)
+static int velocity_set_link_ksettings(struct net_device *dev,
+				       const struct ethtool_link_ksettings *cmd)
 {
 	struct velocity_info *vptr = netdev_priv(dev);
-	u32 speed = ethtool_cmd_speed(cmd);
+	u32 speed = cmd->base.speed;
 	u32 curr_status;
 	u32 new_status = 0;
 	int ret = 0;
@@ -3377,11 +3378,12 @@ static int velocity_set_settings(struct net_device *dev,
 	curr_status = check_connection_type(vptr->mac_regs);
 	curr_status &= (~VELOCITY_LINK_FAIL);
 
-	new_status |= ((cmd->autoneg) ? VELOCITY_AUTONEG_ENABLE : 0);
+	new_status |= ((cmd->base.autoneg) ? VELOCITY_AUTONEG_ENABLE : 0);
 	new_status |= ((speed == SPEED_1000) ? VELOCITY_SPEED_1000 : 0);
 	new_status |= ((speed == SPEED_100) ? VELOCITY_SPEED_100 : 0);
 	new_status |= ((speed == SPEED_10) ? VELOCITY_SPEED_10 : 0);
-	new_status |= ((cmd->duplex == DUPLEX_FULL) ? VELOCITY_DUPLEX_FULL : 0);
+	new_status |= ((cmd->base.duplex == DUPLEX_FULL) ?
+		       VELOCITY_DUPLEX_FULL : 0);
 
 	if ((new_status & VELOCITY_AUTONEG_ENABLE) &&
 	    (new_status != (curr_status | VELOCITY_AUTONEG_ENABLE))) {
@@ -3650,8 +3652,6 @@ static void velocity_get_ethtool_stats(struct net_device *dev,
 }
 
 static const struct ethtool_ops velocity_ethtool_ops = {
-	.get_settings		= velocity_get_settings,
-	.set_settings		= velocity_set_settings,
 	.get_drvinfo		= velocity_get_drvinfo,
 	.get_wol		= velocity_ethtool_get_wol,
 	.set_wol		= velocity_ethtool_set_wol,
@@ -3664,7 +3664,9 @@ static const struct ethtool_ops velocity_ethtool_ops = {
 	.get_coalesce		= velocity_get_coalesce,
 	.set_coalesce		= velocity_set_coalesce,
 	.begin			= velocity_ethtool_up,
-	.complete		= velocity_ethtool_down
+	.complete		= velocity_ethtool_down,
+	.get_link_ksettings	= velocity_get_link_ksettings,
+	.set_link_ksettings	= velocity_set_link_ksettings,
 };
 
 #if defined(CONFIG_PM) && defined(CONFIG_INET)

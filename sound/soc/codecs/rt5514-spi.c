@@ -20,9 +20,7 @@
 #include <linux/slab.h>
 #include <linux/gpio.h>
 #include <linux/sched.h>
-#include <linux/kthread.h>
 #include <linux/uaccess.h>
-#include <linux/miscdevice.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pm_qos.h>
 #include <linux/sysfs.h>
@@ -236,7 +234,7 @@ static snd_pcm_uframes_t rt5514_spi_pcm_pointer(
 	return bytes_to_frames(runtime, rt5514_dsp->dma_offset);
 }
 
-static struct snd_pcm_ops rt5514_spi_pcm_ops = {
+static const struct snd_pcm_ops rt5514_spi_pcm_ops = {
 	.open		= rt5514_spi_pcm_open,
 	.hw_params	= rt5514_spi_hw_params,
 	.hw_free	= rt5514_spi_hw_free,

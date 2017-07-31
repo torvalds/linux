@@ -19,7 +19,7 @@ exporting V4L2 buffers as DMABUF file descriptors.
 
 Input and output devices support the streaming I/O method when the
 ``V4L2_CAP_STREAMING`` flag in the ``capabilities`` field of struct
-:ref:`v4l2_capability <v4l2-capability>` returned by the
+:c:type:`v4l2_capability` returned by the
 :ref:`VIDIOC_QUERYCAP <VIDIOC_QUERYCAP>` ioctl is set. Whether
 importing DMA buffers through DMABUF file descriptors is supported is
 determined by calling the :ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>`
@@ -31,8 +31,8 @@ DRM). Buffers (planes) are allocated by a driver on behalf of an
 application. Next, these buffers are exported to the application as file
 descriptors using an API which is specific for an allocator driver. Only
 such file descriptor are exchanged. The descriptors and meta-information
-are passed in struct :ref:`v4l2_buffer <v4l2-buffer>` (or in struct
-:ref:`v4l2_plane <v4l2-plane>` in the multi-planar API case). The
+are passed in struct :c:type:`v4l2_buffer` (or in struct
+:c:type:`v4l2_plane` in the multi-planar API case). The
 driver must be switched into DMABUF I/O mode by calling the
 :ref:`VIDIOC_REQBUFS <VIDIOC_REQBUFS>` with the desired buffer type.
 
@@ -151,7 +151,7 @@ To start and stop capturing or displaying applications call the
    both queues and unlocks all buffers as a side effect. Since there is no
    notion of doing anything "now" on a multitasking system, if an
    application needs to synchronize with another event it should examine
-   the struct :ref:`v4l2_buffer <v4l2-buffer>` ``timestamp`` of captured or
+   the struct :c:type:`v4l2_buffer` ``timestamp`` of captured or
    outputted buffers.
 
 Drivers implementing DMABUF importing I/O must support the

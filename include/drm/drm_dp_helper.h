@@ -194,7 +194,8 @@
 # define DP_PSR_SETUP_TIME_0                (6 << 1)
 # define DP_PSR_SETUP_TIME_MASK             (7 << 1)
 # define DP_PSR_SETUP_TIME_SHIFT            1
-
+# define DP_PSR2_SU_Y_COORDINATE_REQUIRED   (1 << 4)  /* eDP 1.4a */
+# define DP_PSR2_SU_GRANULARITY_REQUIRED    (1 << 5)  /* eDP 1.4b */
 /*
  * 0x80-0x8f describe downstream port capabilities, but there are two layouts
  * based on whether DP_DETAILED_CAP_INFO_AVAILABLE was set.  If it was not,
@@ -211,14 +212,16 @@
 # define DP_DS_PORT_TYPE_DVI		    2
 # define DP_DS_PORT_TYPE_HDMI		    3
 # define DP_DS_PORT_TYPE_NON_EDID	    4
+# define DP_DS_PORT_TYPE_DP_DUALMODE        5
+# define DP_DS_PORT_TYPE_WIRELESS           6
 # define DP_DS_PORT_HPD			    (1 << 3)
 /* offset 1 for VGA is maximum megapixels per second / 8 */
 /* offset 2 */
-# define DP_DS_VGA_MAX_BPC_MASK		    (3 << 0)
-# define DP_DS_VGA_8BPC			    0
-# define DP_DS_VGA_10BPC		    1
-# define DP_DS_VGA_12BPC		    2
-# define DP_DS_VGA_16BPC		    3
+# define DP_DS_MAX_BPC_MASK	            (3 << 0)
+# define DP_DS_8BPC		            0
+# define DP_DS_10BPC		            1
+# define DP_DS_12BPC		            2
+# define DP_DS_16BPC		            3
 
 /* link configuration */
 #define	DP_LINK_BW_SET		            0x100
@@ -443,6 +446,9 @@
 #define DP_SOURCE_OUI			    0x300
 #define DP_SINK_OUI			    0x400
 #define DP_BRANCH_OUI			    0x500
+#define DP_BRANCH_ID                        0x503
+#define DP_BRANCH_HW_REV                    0x509
+#define DP_BRANCH_SW_REV                    0x50A
 
 #define DP_SET_POWER                        0x600
 # define DP_SET_POWER_D0                    0x1
@@ -562,6 +568,16 @@
 
 #define DP_RECEIVER_ALPM_STATUS		    0x200b  /* eDP 1.4 */
 # define DP_ALPM_LOCK_TIMEOUT_ERROR	    (1 << 0)
+
+#define DP_DPRX_FEATURE_ENUMERATION_LIST    0x2210  /* DP 1.3 */
+# define DP_GTC_CAP					(1 << 0)  /* DP 1.3 */
+# define DP_SST_SPLIT_SDP_CAP				(1 << 1)  /* DP 1.4 */
+# define DP_AV_SYNC_CAP					(1 << 2)  /* DP 1.3 */
+# define DP_VSC_SDP_EXT_FOR_COLORIMETRY_SUPPORTED	(1 << 3)  /* DP 1.3 */
+# define DP_VSC_EXT_VESA_SDP_SUPPORTED			(1 << 4)  /* DP 1.4 */
+# define DP_VSC_EXT_VESA_SDP_CHAINING_SUPPORTED		(1 << 5)  /* DP 1.4 */
+# define DP_VSC_EXT_CEA_SDP_SUPPORTED			(1 << 6)  /* DP 1.4 */
+# define DP_VSC_EXT_CEA_SDP_CHAINING_SUPPORTED		(1 << 7)  /* DP 1.4 */
 
 /* DP 1.2 Sideband message defines */
 /* peer device type - DP 1.2a Table 2-92 */
@@ -683,6 +699,12 @@ drm_dp_tps3_supported(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 {
 	return dpcd[DP_DPCD_REV] >= 0x12 &&
 		dpcd[DP_MAX_LANE_COUNT] & DP_TPS3_SUPPORTED;
+}
+
+static inline bool
+drm_dp_is_branch(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	return dpcd[DP_DOWNSTREAMPORT_PRESENT] & DP_DWN_STRM_PORT_PRESENT;
 }
 
 /*
@@ -813,6 +835,13 @@ int drm_dp_link_probe(struct drm_dp_aux *aux, struct drm_dp_link *link);
 int drm_dp_link_power_up(struct drm_dp_aux *aux, struct drm_dp_link *link);
 int drm_dp_link_power_down(struct drm_dp_aux *aux, struct drm_dp_link *link);
 int drm_dp_link_configure(struct drm_dp_aux *aux, struct drm_dp_link *link);
+int drm_dp_downstream_max_clock(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+				const u8 port_cap[4]);
+int drm_dp_downstream_max_bpc(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+			      const u8 port_cap[4]);
+int drm_dp_downstream_id(struct drm_dp_aux *aux, char id[6]);
+void drm_dp_downstream_debug(struct seq_file *m, const u8 dpcd[DP_RECEIVER_CAP_SIZE],
+			     const u8 port_cap[4], struct drm_dp_aux *aux);
 
 void drm_dp_aux_init(struct drm_dp_aux *aux);
 int drm_dp_aux_register(struct drm_dp_aux *aux);

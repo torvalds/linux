@@ -277,10 +277,6 @@ IOMMU (input/output memory management unit)
     space might stop working. Use this option if you have devices that
     are accessed from userspace directly on some PCI host bridge.
 
-Debugging
-
-  kstack=N	Print N words from the kernel stack in oops dumps.
-
 Miscellaneous
 
 	nogbpages

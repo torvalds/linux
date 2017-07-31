@@ -352,8 +352,9 @@ static int hpet_resume(struct clock_event_device *evt, int timer)
 	} else {
 		struct hpet_dev *hdev = EVT_TO_HPET_DEV(evt);
 
+		irq_domain_deactivate_irq(irq_get_irq_data(hdev->irq));
 		irq_domain_activate_irq(irq_get_irq_data(hdev->irq));
-		disable_irq(hdev->irq);
+		disable_hardirq(hdev->irq);
 		irq_set_affinity(hdev->irq, cpumask_of(hdev->cpu));
 		enable_irq(hdev->irq);
 	}
@@ -756,10 +757,104 @@ static void hpet_reserve_msi_timers(struct hpet_data *hd)
 /*
  * Clock source related code
  */
-static cycle_t read_hpet(struct clocksource *cs)
+#if defined(CONFIG_SMP) && defined(CONFIG_64BIT)
+/*
+ * Reading the HPET counter is a very slow operation. If a large number of
+ * CPUs are trying to access the HPET counter simultaneously, it can cause
+ * massive delay and slow down system performance dramatically. This may
+ * happen when HPET is the default clock source instead of TSC. For a
+ * really large system with hundreds of CPUs, the slowdown may be so
+ * severe that it may actually crash the system because of a NMI watchdog
+ * soft lockup, for example.
+ *
+ * If multiple CPUs are trying to access the HPET counter at the same time,
+ * we don't actually need to read the counter multiple times. Instead, the
+ * other CPUs can use the counter value read by the first CPU in the group.
+ *
+ * This special feature is only enabled on x86-64 systems. It is unlikely
+ * that 32-bit x86 systems will have enough CPUs to require this feature
+ * with its associated locking overhead. And we also need 64-bit atomic
+ * read.
+ *
+ * The lock and the hpet value are stored together and can be read in a
+ * single atomic 64-bit read. It is explicitly assumed that arch_spinlock_t
+ * is 32 bits in size.
+ */
+union hpet_lock {
+	struct {
+		arch_spinlock_t lock;
+		u32 value;
+	};
+	u64 lockval;
+};
+
+static union hpet_lock hpet __cacheline_aligned = {
+	{ .lock = __ARCH_SPIN_LOCK_UNLOCKED, },
+};
+
+static u64 read_hpet(struct clocksource *cs)
 {
-	return (cycle_t)hpet_readl(HPET_COUNTER);
+	unsigned long flags;
+	union hpet_lock old, new;
+
+	BUILD_BUG_ON(sizeof(union hpet_lock) != 8);
+
+	/*
+	 * Read HPET directly if in NMI.
+	 */
+	if (in_nmi())
+		return (u64)hpet_readl(HPET_COUNTER);
+
+	/*
+	 * Read the current state of the lock and HPET value atomically.
+	 */
+	old.lockval = READ_ONCE(hpet.lockval);
+
+	if (arch_spin_is_locked(&old.lock))
+		goto contended;
+
+	local_irq_save(flags);
+	if (arch_spin_trylock(&hpet.lock)) {
+		new.value = hpet_readl(HPET_COUNTER);
+		/*
+		 * Use WRITE_ONCE() to prevent store tearing.
+		 */
+		WRITE_ONCE(hpet.value, new.value);
+		arch_spin_unlock(&hpet.lock);
+		local_irq_restore(flags);
+		return (u64)new.value;
+	}
+	local_irq_restore(flags);
+
+contended:
+	/*
+	 * Contended case
+	 * --------------
+	 * Wait until the HPET value change or the lock is free to indicate
+	 * its value is up-to-date.
+	 *
+	 * It is possible that old.value has already contained the latest
+	 * HPET value while the lock holder was in the process of releasing
+	 * the lock. Checking for lock state change will enable us to return
+	 * the value immediately instead of waiting for the next HPET reader
+	 * to come along.
+	 */
+	do {
+		cpu_relax();
+		new.lockval = READ_ONCE(hpet.lockval);
+	} while ((new.value == old.value) && arch_spin_is_locked(&new.lock));
+
+	return (u64)new.value;
 }
+#else
+/*
+ * For UP or 32-bit.
+ */
+static u64 read_hpet(struct clocksource *cs)
+{
+	return (u64)hpet_readl(HPET_COUNTER);
+}
+#endif
 
 static struct clocksource clocksource_hpet = {
 	.name		= "hpet",
@@ -773,7 +868,7 @@ static struct clocksource clocksource_hpet = {
 static int hpet_clocksource_register(void)
 {
 	u64 start, now;
-	cycle_t t1;
+	u64 t1;
 
 	/* Start the counter */
 	hpet_restart_counter();
@@ -957,11 +1052,11 @@ static __init int hpet_late_init(void)
 		return 0;
 
 	/* This notifier should be called after workqueue is ready */
-	ret = cpuhp_setup_state(CPUHP_AP_X86_HPET_ONLINE, "AP_X86_HPET_ONLINE",
+	ret = cpuhp_setup_state(CPUHP_AP_X86_HPET_ONLINE, "x86/hpet:online",
 				hpet_cpuhp_online, NULL);
 	if (ret)
 		return ret;
-	ret = cpuhp_setup_state(CPUHP_X86_HPET_DEAD, "X86_HPET_DEAD", NULL,
+	ret = cpuhp_setup_state(CPUHP_X86_HPET_DEAD, "x86/hpet:dead", NULL,
 				hpet_cpuhp_dead);
 	if (ret)
 		goto err_cpuhp;

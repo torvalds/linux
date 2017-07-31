@@ -53,7 +53,7 @@ struct igmpv3_grec {
 struct igmpv3_report {
 	__u8 type;
 	__u8 resv1;
-	__be16 csum;
+	__sum16 csum;
 	__be16 resv2;
 	__be16 ngrec;
 	struct igmpv3_grec grec[0];
@@ -62,7 +62,7 @@ struct igmpv3_report {
 struct igmpv3_query {
 	__u8 type;
 	__u8 code;
-	__be16 csum;
+	__sum16 csum;
 	__be32 group;
 #if defined(__LITTLE_ENDIAN_BITFIELD)
 	__u8 qrv:3,

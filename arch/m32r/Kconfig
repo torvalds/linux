@@ -18,6 +18,7 @@ config M32R
 	select MODULES_USE_ELF_RELA
 	select HAVE_DEBUG_STACKOVERFLOW
 	select CPU_NO_EFFICIENT_FFS
+	select DMA_NOOP_OPS
 
 config SBUS
 	bool
@@ -34,7 +35,7 @@ config NO_IOPORT_MAP
 	def_bool y
 
 config NO_DMA
-	def_bool y
+	def_bool n
 
 config HZ
 	int

@@ -60,9 +60,9 @@ struct plx_dma_desc {
 #define PLX_REG_LAS1RR		0x00f0
 
 #define PLX_LASRR_IO		BIT(0)		/* Map to: 1=I/O, 0=Mem */
-#define PLX_LASRR_ANY32		(BIT(1) * 0)	/* Locate anywhere in 32 bit */
-#define PLX_LASRR_LT1MB		(BIT(1) * 1)	/* Locate in 1st meg */
-#define PLX_LASRR_ANY64		(BIT(1) * 2)	/* Locate anywhere in 64 bit */
+#define PLX_LASRR_MLOC_ANY32	(BIT(1) * 0)	/* Locate anywhere in 32 bit */
+#define PLX_LASRR_MLOC_LT1MB	(BIT(1) * 1)	/* Locate in 1st meg */
+#define PLX_LASRR_MLOC_ANY64	(BIT(1) * 2)	/* Locate anywhere in 64 bit */
 #define PLX_LASRR_MLOC_MASK	GENMASK(2, 1)	/* Memory location bits */
 #define PLX_LASRR_PREFETCH	BIT(3)		/* Memory is prefetchable */
 /* bits that specify range for memory space decode bits */
@@ -89,11 +89,11 @@ struct plx_dma_desc {
 /* Local Bus Latency Timer */
 #define PLX_MARBR_LT(x)		(BIT(0) * ((x) & 0xff))
 #define PLX_MARBR_LT_MASK	GENMASK(7, 0)
-#define PLX_MARBR_LT_SHIFT	0
+#define PLX_MARBR_TO_LT(r)	((r) & PLX_MARBR_LT_MASK)
 /* Local Bus Pause Timer */
 #define PLX_MARBR_PT(x)		(BIT(8) * ((x) & 0xff))
 #define PLX_MARBR_PT_MASK	GENMASK(15, 8)
-#define PLX_MARBR_PT_SHIFT	8
+#define PLX_MARBR_TO_PT(r)	(((r) & PLX_MARBR_PT_MASK) >> 8)
 /* Local Bus Latency Timer Enable */
 #define PLX_MARBR_LTEN		BIT(16)
 /* Local Bus Pause Timer Enable */
@@ -166,16 +166,15 @@ struct plx_dma_desc {
 #define PLX_REG_LBRD1		0x00f8
 
 /* Memory Space Local Bus Width */
-#define PLX_LBRD_MSWIDTH8	(BIT(0) * 0)	/* 8 bits wide */
-#define PLX_LBRD_MSWIDTH16	(BIT(0) * 1)	/* 16 bits wide */
-#define PLX_LBRD_MSWIDTH32	(BIT(0) * 2)	/* 32 bits wide */
-#define PLX_LBRD_MSWIDTH32A	(BIT(0) * 3)	/* 32 bits wide */
+#define PLX_LBRD_MSWIDTH_8	(BIT(0) * 0)	/* 8 bits wide */
+#define PLX_LBRD_MSWIDTH_16	(BIT(0) * 1)	/* 16 bits wide */
+#define PLX_LBRD_MSWIDTH_32	(BIT(0) * 2)	/* 32 bits wide */
+#define PLX_LBRD_MSWIDTH_32A	(BIT(0) * 3)	/* 32 bits wide */
 #define PLX_LBRD_MSWIDTH_MASK	GENMASK(1, 0)
-#define PLX_LBRD_MSWIDTH_SHIFT	0
 /* Memory Space Internal Wait States */
 #define PLX_LBRD_MSIWS(x)	(BIT(2) * ((x) & 0xf))
 #define PLX_LBRD_MSIWS_MASK	GENMASK(5, 2)
-#define PLX_LBRD_MSIWS_SHIFT	2
+#define PLX_LBRD_TO_MSIWS(r)	(((r) & PLS_LBRD_MSIWS_MASK) >> 2)
 /* Memory Space Ready Input Enable */
 #define PLX_LBRD_MSREADYIEN	BIT(6)
 /* Memory Space BTERM# Input Enable */
@@ -193,18 +192,17 @@ struct plx_dma_desc {
 /* Prefetch Counter */
 #define PLX_LBRD_PFCOUNT(x)	(BIT(11) * ((x) & 0xf))
 #define PLX_LBRD_PFCOUNT_MASK	GENMASK(14, 11)
-#define PLX_LBRD_PFCOUNT_SHIFT	11
+#define PLX_LBRD_TO_PFCOUNT(r)	(((r) & PLX_LBRD_PFCOUNT_MASK) >> 11)
 /* Expansion ROM Space Local Bus Width (LBRD0 only) */
-#define PLX_LBRD0_EROMWIDTH8	(BIT(16) * 0)	/* 8 bits wide */
-#define PLX_LBRD0_EROMWIDTH16	(BIT(16) * 1)	/* 16 bits wide */
-#define PLX_LBRD0_EROMWIDTH32	(BIT(16) * 2)	/* 32 bits wide */
-#define PLX_LBRD0_EROMWIDTH32A	(BIT(16) * 3)	/* 32 bits wide */
+#define PLX_LBRD0_EROMWIDTH_8	(BIT(16) * 0)	/* 8 bits wide */
+#define PLX_LBRD0_EROMWIDTH_16	(BIT(16) * 1)	/* 16 bits wide */
+#define PLX_LBRD0_EROMWIDTH_32	(BIT(16) * 2)	/* 32 bits wide */
+#define PLX_LBRD0_EROMWIDTH_32A	(BIT(16) * 3)	/* 32 bits wide */
 #define PLX_LBRD0_EROMWIDTH_MASK	GENMASK(17, 16)
-#define PLX_LBRD0_EROMWIDTH_SHIFT	16
 /* Expansion ROM Space Internal Wait States (LBRD0 only) */
 #define PLX_LBRD0_EROMIWS(x)	(BIT(18) * ((x) & 0xf))
 #define PLX_LBRD0_EROMIWS_MASK	GENMASK(21, 18)
-#define PLX_LBRD0_EROMIWS_SHIFT	18
+#define PLX_LBRD0_TO_EROMIWS(r)	(((r) & PLX_LBRD0_EROMIWS_MASK) >> 18)
 /* Expansion ROM Space Ready Input Enable (LBDR0 only) */
 #define PLX_LBRD0_EROMREADYIEN	BIT(22)
 /* Expansion ROM Space BTERM# Input Enable (LBRD0 only) */
@@ -220,7 +218,7 @@ struct plx_dma_desc {
 /* PCI Target Retry Delay Clocks / 8 (LBRD0 only) */
 #define PLX_LBRD0_TRDELAY(x)	(BIT(28) * ((x) & 0xF))
 #define PLX_LBRD0_TRDELAY_MASK	GENMASK(31, 28)
-#define PLX_LBRD0_TRDELAY_SHIFT	28
+#define PLX_LBRD0_TO_TRDELAY(r)	(((r) & PLX_LBRD0_TRDELAY_MASK) >> 28)
 
 /* Local Range Register for Direct Master to PCI */
 #define PLX_REG_DMRR		0x001c
@@ -241,10 +239,10 @@ struct plx_dma_desc {
 /* LLOCK# Input Enable */
 #define PLX_DMPBAM_LLOCKIEN	BIT(2)
 /* Direct Master Read Prefetch Size Control (bits 12, 3) */
-#define PLX_DMPBAM_RPSIZECONT	((BIT(12) * 0) | (BIT(3) * 0))
-#define PLX_DMPBAM_RPSIZE4	((BIT(12) * 0) | (BIT(3) * 1))
-#define PLX_DMPBAM_RPSIZE8	((BIT(12) * 1) | (BIT(3) * 0))
-#define PLX_DMPBAM_RPSIZE16	((BIT(12) * 1) | (BIT(3) * 1))
+#define PLX_DMPBAM_RPSIZE_CONT	((BIT(12) * 0) | (BIT(3) * 0))
+#define PLX_DMPBAM_RPSIZE_4	((BIT(12) * 0) | (BIT(3) * 1))
+#define PLX_DMPBAM_RPSIZE_8	((BIT(12) * 1) | (BIT(3) * 0))
+#define PLX_DMPBAM_RPSIZE_16	((BIT(12) * 1) | (BIT(3) * 1))
 #define PLX_DMPBAM_RPSIZE_MASK	(BIT(12) | BIT(3))
 /* Direct Master PCI Read Mode - deassert IRDY when FIFO full */
 #define PLX_DMPBAM_RMIRDY	BIT(4)
@@ -261,10 +259,10 @@ struct plx_dma_desc {
 /* I/O Remap Select */
 #define PLX_DMPBAM_IOREMAPSEL	BIT(13)
 /* Direct Master Write Delay */
-#define PLX_DMPBAM_WDELAYNONE	(BIT(14) * 0)
-#define PLX_DMPBAM_WDELAY4	(BIT(14) * 1)
-#define PLX_DMPBAM_WDELAY8	(BIT(14) * 2)
-#define PLX_DMPBAM_WDELAY16	(BIT(14) * 3)
+#define PLX_DMPBAM_WDELAY_NONE	(BIT(14) * 0)
+#define PLX_DMPBAM_WDELAY_4	(BIT(14) * 1)
+#define PLX_DMPBAM_WDELAY_8	(BIT(14) * 2)
+#define PLX_DMPBAM_WDELAY_16	(BIT(14) * 3)
 #define PLX_DMPBAM_WDELAY_MASK	GENMASK(15, 14)
 /* Remap of Local-to-PCI Space Into PCI Address Space */
 #define PLX_DMPBAM_REMAP_MASK	GENMASK(31, 16)
@@ -279,19 +277,19 @@ struct plx_dma_desc {
 /* Register Number */
 #define PLX_DMCFGA_REGNUM(x)	(BIT(2) * ((x) & 0x3f))
 #define PLX_DMCFGA_REGNUM_MASK	GENMASK(7, 2)
-#define PLX_DMCFGA_REGNUM_SHIFT	2
+#define PLX_DMCFGA_TO_REGNUM(r)	(((r) & PLX_DMCFGA_REGNUM_MASK) >> 2)
 /* Function Number */
 #define PLX_DMCFGA_FUNCNUM(x)	(BIT(8) * ((x) & 0x7))
 #define PLX_DMCFGA_FUNCNUM_MASK	GENMASK(10, 8)
-#define PLX_DMCFGA_FUNCNUM_SHIFT 8
+#define PLX_DMCFGA_TO_FUNCNUM(r) (((r) & PLX_DMCFGA_FUNCNUM_MASK) >> 8)
 /* Device Number */
 #define PLX_DMCFGA_DEVNUM(x)	(BIT(11) * ((x) & 0x1f))
 #define PLX_DMCFGA_DEVNUM_MASK	GENMASK(15, 11)
-#define PLX_DMCFGA_DEVNUM_SHIFT	11
+#define PLX_DMCFGA_TO_DEVNUM(r)	(((r) & PLX_DMCFGA_DEVNUM_MASK) >> 11)
 /* Bus Number */
 #define PLX_DMCFGA_BUSNUM(x)	(BIT(16) * ((x) & 0xff))
 #define PLX_DMCFGA_BUSNUM_MASK	GENMASK(23, 16)
-#define PLX_DMCFGA_BUSNUM_SHIFT	16
+#define PLX_DMCFGA_TO_BUSNUM(r)	(((r) & PLX_DMCFGA_BUSNUM_MASK) >> 16)
 /* Configuration Enable */
 #define PLX_DMCFGA_CONFIGEN	BIT(31)
 
@@ -402,22 +400,22 @@ struct plx_dma_desc {
 /* PCI Read Command Code For DMA */
 #define PLX_CNTRL_CCRDMA(x)	(BIT(0) * ((x) & 0xf))
 #define PLX_CNTRL_CCRDMA_MASK	GENMASK(3, 0)
-#define PLX_CNTRL_CCRDMA_SHIFT	0
+#define PLX_CNTRL_TO_CCRDMA(r)	((r) & PLX_CNTRL_CCRDMA_MASK)
 #define PLX_CNTRL_CCRDMA_NORMAL	PLX_CNTRL_CCRDMA(14)	/* value after reset */
 /* PCI Write Command Code For DMA 0 */
 #define PLX_CNTRL_CCWDMA(x)	(BIT(4) * ((x) & 0xf))
 #define PLX_CNTRL_CCWDMA_MASK	GENMASK(7, 4)
-#define PLX_CNTRL_CCWDMA_SHIFT	4
+#define PLX_CNTRL_TO_CCWDMA(r)	(((r) & PLX_CNTRL_CCWDMA_MASK) >> 4)
 #define PLX_CNTRL_CCWDMA_NORMAL	PLX_CNTRL_CCWDMA(7)	/* value after reset */
 /* PCI Memory Read Command Code For Direct Master */
 #define PLX_CNTRL_CCRDM(x)	(BIT(8) * ((x) & 0xf))
 #define PLX_CNTRL_CCRDM_MASK	GENMASK(11, 8)
-#define PLX_CNTRL_CCRDM_SHIFT	8
+#define PLX_CNTRL_TO_CCRDM(r)	(((r) & PLX_CNTRL_CCRDM_MASK) >> 8)
 #define PLX_CNTRL_CCRDM_NORMAL	PLX_CNTRL_CCRDM(6)	/* value after reset */
 /* PCI Memory Write Command Code For Direct Master */
 #define PLX_CNTRL_CCWDM(x)	(BIT(12) * ((x) & 0xf))
 #define PLX_CNTRL_CCWDM_MASK	GENMASK(15, 12)
-#define PLX_CNTRL_CCWDM_SHIFT	12
+#define PLX_CNTRL_TO_CCWDM(r)	(((r) & PLX_CNTRL_CCWDM_MASK) >> 12)
 #define PLX_CNTRL_CCWDM_NORMAL	PLX_CNTRL_CCWDM(7)	/* value after reset */
 /* General Purpose Output (USERO) */
 #define PLX_CNTRL_USERO		BIT(16)
@@ -464,16 +462,15 @@ struct plx_dma_desc {
 #define PLX_REG_DMAMODE1	0x0094
 
 /* Local Bus Width */
-#define PLX_DMAMODE_WIDTH8	(BIT(0) * 0)	/* 8 bits wide */
-#define PLX_DMAMODE_WIDTH16	(BIT(0) * 1)	/* 16 bits wide */
-#define PLX_DMAMODE_WIDTH32	(BIT(0) * 2)	/* 32 bits wide */
-#define PLX_DMAMODE_WIDTH32A	(BIT(0) * 3)	/* 32 bits wide */
+#define PLX_DMAMODE_WIDTH_8	(BIT(0) * 0)	/* 8 bits wide */
+#define PLX_DMAMODE_WIDTH_16	(BIT(0) * 1)	/* 16 bits wide */
+#define PLX_DMAMODE_WIDTH_32	(BIT(0) * 2)	/* 32 bits wide */
+#define PLX_DMAMODE_WIDTH_32A	(BIT(0) * 3)	/* 32 bits wide */
 #define PLX_DMAMODE_WIDTH_MASK	GENMASK(1, 0)
-#define PLX_DMAMODE_WIDTH_SHIFT	0
 /* Internal Wait States */
 #define PLX_DMAMODE_IWS(x)	(BIT(2) * ((x) & 0xf))
 #define PLX_DMAMODE_IWS_MASK	GENMASK(5, 2)
-#define PLX_DMAMODE_SHIFT	2
+#define PLX_DMAMODE_TO_IWS(r)	(((r) & PLX_DMAMODE_IWS_MASK) >> 2)
 /* Ready Input Enable */
 #define PLX_DMAMODE_READYIEN	BIT(6)
 /* BTERM# Input Enable */
@@ -560,35 +557,35 @@ struct plx_dma_desc {
 /* DMA Channel 0 PCI-to-Local Almost Full (divided by 2, minus 1) */
 #define PLX_DMATHR_C0PLAF(x)	(BIT(0) * ((x) & 0xf))
 #define PLX_DMATHR_C0PLAF_MASK	GENMASK(3, 0)
-#define PLX_DMATHR_C0PLAF_SHIFT	0
+#define PLX_DMATHR_TO_C0PLAF(r)	((r) & PLX_DMATHR_C0PLAF_MASK)
 /* DMA Channel 0 Local-to-PCI Almost Empty (divided by 2, minus 1) */
 #define PLX_DMATHR_C0LPAE(x)	(BIT(4) * ((x) & 0xf))
 #define PLX_DMATHR_C0LPAE_MASK	GENMASK(7, 4)
-#define PLX_DMATHR_C0LPAE_SHIFT	4
+#define PLX_DMATHR_TO_C0LPAE(r)	(((r) & PLX_DMATHR_C0LPAE_MASK) >> 4)
 /* DMA Channel 0 Local-to-PCI Almost Full (divided by 2, minus 1) */
 #define PLX_DMATHR_C0LPAF(x)	(BIT(8) * ((x) & 0xf))
 #define PLX_DMATHR_C0LPAF_MASK	GENMASK(11, 8)
-#define PLX_DMATHR_C0LPAF_SHIFT	8
+#define PLX_DMATHR_TO_C0LPAF(r)	(((r) & PLX_DMATHR_C0LPAF_MASK) >> 8)
 /* DMA Channel 0 PCI-to-Local Almost Empty (divided by 2, minus 1) */
 #define PLX_DMATHR_C0PLAE(x)	(BIT(12) * ((x) & 0xf))
 #define PLX_DMATHR_C0PLAE_MASK	GENMASK(15, 12)
-#define PLX_DMATHR_C0PLAE_SHIFT	12
+#define PLX_DMATHR_TO_C0PLAE(r)	(((r) & PLX_DMATHR_C0PLAE_MASK) >> 12)
 /* DMA Channel 1 PCI-to-Local Almost Full (divided by 2, minus 1) */
 #define PLX_DMATHR_C1PLAF(x)	(BIT(16) * ((x) & 0xf))
 #define PLX_DMATHR_C1PLAF_MASK	GENMASK(19, 16)
-#define PLX_DMATHR_C1PLAF_SHIFT	16
+#define PLX_DMATHR_TO_C1PLAF(r)	(((r) & PLX_DMATHR_C1PLAF_MASK) >> 16)
 /* DMA Channel 1 Local-to-PCI Almost Empty (divided by 2, minus 1) */
 #define PLX_DMATHR_C1LPAE(x)	(BIT(20) * ((x) & 0xf))
 #define PLX_DMATHR_C1LPAE_MASK	GENMASK(23, 20)
-#define PLX_DMATHR_C1LPAE_SHIFT	20
+#define PLX_DMATHR_TO_C1LPAE(r)	(((r) & PLX_DMATHR_C1LPAE_MASK) >> 20)
 /* DMA Channel 1 Local-to-PCI Almost Full (divided by 2, minus 1) */
 #define PLX_DMATHR_C1LPAF(x)	(BIT(24) * ((x) & 0xf))
 #define PLX_DMATHR_C1LPAF_MASK	GENMASK(27, 24)
-#define PLX_DMATHR_C1LPAF_SHIFT	24
+#define PLX_DMATHR_TO_C1LPAF(r)	(((r) & PLX_DMATHR_C1LPAF_MASK) >> 24)
 /* DMA Channel 1 PCI-to-Local Almost Empty (divided by 2, minus 1) */
 #define PLX_DMATHR_C1PLAE(x)	(BIT(28) * ((x) & 0xf))
 #define PLX_DMATHR_C1PLAE_MASK	GENMASK(31, 28)
-#define PLX_DMATHR_C1PLAE_SHIFT	28
+#define PLX_DMATHR_TO_C1PLAE(r)	(((r) & PLX_DMATHR_C1PLAE_MASK) >> 28)
 
 /*
  * Messaging Queue Registers OPLFIS, OPLFIM, IQP, OQP, MQCR, QBAR, IFHPR,

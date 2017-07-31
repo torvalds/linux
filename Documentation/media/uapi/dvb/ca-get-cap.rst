@@ -15,40 +15,51 @@ CA_GET_CAP
 Synopsis
 --------
 
-.. cpp:function:: int  ioctl(fd, int request = CA_GET_CAP, ca_caps_t *)
+.. c:function:: int ioctl(fd, CA_GET_CAP, struct ca_caps *caps)
+    :name: CA_GET_CAP
 
 
 Arguments
 ---------
 
-.. flat-table::
-    :header-rows:  0
+``fd``
+  File descriptor returned by a previous call to :c:func:`open() <dvb-ca-open>`.
+
+``caps``
+  Pointer to struct :c:type:`ca_caps`.
+
+.. c:type:: struct ca_caps
+
+.. flat-table:: struct ca_caps
+    :header-rows:  1
     :stub-columns: 0
 
-
-    -  .. row 1
-
-       -  int fd
-
-       -  File descriptor returned by a previous call to open().
-
-    -  .. row 2
-
-       -  int request
-
-       -  Equals CA_GET_CAP for this command.
-
-    -  .. row 3
-
-       -  ca_caps_t *
-
-       -  Undocumented.
+    -
+      - type
+      - name
+      - description
+    -
+      -	unsigned int
+      - slot_num
+      - total number of CA card and module slots
+    -
+      - unsigned int
+      - slot_type
+      - bitmask with all supported slot types
+    -
+      - unsigned int
+      - descr_num
+      - total number of descrambler slots (keys)
+    -
+      - unsigned int
+      - descr_type
+      - bit mask with all supported descr types
 
 
 Description
 -----------
 
-This ioctl is undocumented. Documentation is welcome.
+.. note:: This ioctl is undocumented. Documentation is welcome.
 
 
 Return Value

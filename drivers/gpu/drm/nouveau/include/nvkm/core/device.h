@@ -175,6 +175,7 @@ struct nvkm_device_func {
 	void (*fini)(struct nvkm_device *, bool suspend);
 	resource_size_t (*resource_addr)(struct nvkm_device *, unsigned bar);
 	resource_size_t (*resource_size)(struct nvkm_device *, unsigned bar);
+	bool cpu_coherent;
 };
 
 struct nvkm_device_quirk {
@@ -261,7 +262,7 @@ extern const struct nvkm_sclass nvkm_udevice_sclass;
 
 /* device logging */
 #define nvdev_printk_(d,l,p,f,a...) do {                                       \
-	struct nvkm_device *_device = (d);                                     \
+	const struct nvkm_device *_device = (d);                               \
 	if (_device->debug >= (l))                                             \
 		dev_##p(_device->dev, f, ##a);                                 \
 } while(0)

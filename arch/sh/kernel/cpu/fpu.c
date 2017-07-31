@@ -1,8 +1,11 @@
-#include <linux/sched.h>
+#include <linux/sched/signal.h>
+#include <linux/sched/task.h>
+#include <linux/sched/task_stack.h>
 #include <linux/slab.h>
 #include <asm/processor.h>
 #include <asm/fpu.h>
 #include <asm/traps.h>
+#include <asm/ptrace.h>
 
 int init_fpu(struct task_struct *tsk)
 {

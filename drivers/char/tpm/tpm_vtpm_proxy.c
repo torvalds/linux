@@ -1,5 +1,6 @@
 /*
  * Copyright (C) 2015, 2016 IBM Corporation
+ * Copyright (C) 2016 Intel Corporation
  *
  * Author: Stefan Berger <stefanb@us.ibm.com>
  *
@@ -41,6 +42,7 @@ struct proxy_dev {
 	long state;                  /* internal state */
 #define STATE_OPENED_FLAG        BIT(0)
 #define STATE_WAIT_RESPONSE_FLAG BIT(1)  /* waiting for emulator response */
+#define STATE_REGISTERED_FLAG	 BIT(2)
 
 	size_t req_len;              /* length of queued TPM request */
 	size_t resp_len;             /* length of queued TPM response */
@@ -63,7 +65,12 @@ static void vtpm_proxy_delete_device(struct proxy_dev *proxy_dev);
 /**
  * vtpm_proxy_fops_read - Read TPM commands on 'server side'
  *
- * Return value:
+ * @filp: file pointer
+ * @buf: read buffer
+ * @count: number of bytes to read
+ * @off: offset
+ *
+ * Return:
  *	Number of bytes read or negative error code
  */
 static ssize_t vtpm_proxy_fops_read(struct file *filp, char __user *buf,
@@ -113,7 +120,12 @@ static ssize_t vtpm_proxy_fops_read(struct file *filp, char __user *buf,
 /**
  * vtpm_proxy_fops_write - Write TPM responses on 'server side'
  *
- * Return value:
+ * @filp: file pointer
+ * @buf: write buffer
+ * @count: number of bytes to write
+ * @off: offset
+ *
+ * Return:
  *	Number of bytes read or negative error value
  */
 static ssize_t vtpm_proxy_fops_write(struct file *filp, const char __user *buf,
@@ -153,10 +165,12 @@ static ssize_t vtpm_proxy_fops_write(struct file *filp, const char __user *buf,
 }
 
 /*
- * vtpm_proxy_fops_poll: Poll status on 'server side'
+ * vtpm_proxy_fops_poll - Poll status on 'server side'
  *
- * Return value:
- *      Poll flags
+ * @filp: file pointer
+ * @wait: poll table
+ *
+ * Return: Poll flags
  */
 static unsigned int vtpm_proxy_fops_poll(struct file *filp, poll_table *wait)
 {
@@ -183,6 +197,8 @@ static unsigned int vtpm_proxy_fops_poll(struct file *filp, poll_table *wait)
 /*
  * vtpm_proxy_fops_open - Open vTPM device on 'server side'
  *
+ * @filp: file pointer
+ *
  * Called when setting up the anonymous file descriptor
  */
 static void vtpm_proxy_fops_open(struct file *filp)
@@ -194,8 +210,9 @@ static void vtpm_proxy_fops_open(struct file *filp)
 
 /**
  * vtpm_proxy_fops_undo_open - counter-part to vtpm_fops_open
+ *       Call to undo vtpm_proxy_fops_open
  *
- * Call to undo vtpm_proxy_fops_open
+ *@proxy_dev: tpm proxy device
  */
 static void vtpm_proxy_fops_undo_open(struct proxy_dev *proxy_dev)
 {
@@ -210,9 +227,11 @@ static void vtpm_proxy_fops_undo_open(struct proxy_dev *proxy_dev)
 }
 
 /*
- * vtpm_proxy_fops_release: Close 'server side'
+ * vtpm_proxy_fops_release - Close 'server side'
  *
- * Return value:
+ * @inode: inode
+ * @filp: file pointer
+ * Return:
  *      Always returns 0.
  */
 static int vtpm_proxy_fops_release(struct inode *inode, struct file *filp)
@@ -243,7 +262,10 @@ static const struct file_operations vtpm_proxy_fops = {
 /*
  * Called when core TPM driver reads TPM responses from 'server side'
  *
- * Return value:
+ * @chip: tpm chip to use
+ * @buf: receive buffer
+ * @count: bytes to read
+ * Return:
  *      Number of TPM response bytes read, negative error value otherwise
  */
 static int vtpm_proxy_tpm_op_recv(struct tpm_chip *chip, u8 *buf, size_t count)
@@ -280,7 +302,11 @@ out:
 /*
  * Called when core TPM driver forwards TPM requests to 'server side'.
  *
- * Return value:
+ * @chip: tpm chip to use
+ * @buf: send buffer
+ * @count: bytes to send
+ *
+ * Return:
  *      0 in case of success, negative error value otherwise.
  */
 static int vtpm_proxy_tpm_op_send(struct tpm_chip *chip, u8 *buf, size_t count)
@@ -369,12 +395,9 @@ static void vtpm_proxy_work(struct work_struct *work)
 
 	rc = tpm_chip_register(proxy_dev->chip);
 	if (rc)
-		goto err;
-
-	return;
-
-err:
-	vtpm_proxy_fops_undo_open(proxy_dev);
+		vtpm_proxy_fops_undo_open(proxy_dev);
+	else
+		proxy_dev->state |= STATE_REGISTERED_FLAG;
 }
 
 /*
@@ -443,7 +466,7 @@ static inline void vtpm_proxy_delete_proxy_dev(struct proxy_dev *proxy_dev)
 /*
  * Create a /dev/tpm%d and 'server side' file descriptor pair
  *
- * Return value:
+ * Return:
  *      Returns file pointer on success, an error value otherwise
  */
 static struct file *vtpm_proxy_create_device(
@@ -515,7 +538,8 @@ static void vtpm_proxy_delete_device(struct proxy_dev *proxy_dev)
 	 */
 	vtpm_proxy_fops_undo_open(proxy_dev);
 
-	tpm_chip_unregister(proxy_dev->chip);
+	if (proxy_dev->state & STATE_REGISTERED_FLAG)
+		tpm_chip_unregister(proxy_dev->chip);
 
 	vtpm_proxy_delete_proxy_dev(proxy_dev);
 }
@@ -524,41 +548,62 @@ static void vtpm_proxy_delete_device(struct proxy_dev *proxy_dev)
  * Code related to the control device /dev/vtpmx
  */
 
-/*
- * vtpmx_fops_ioctl: ioctl on /dev/vtpmx
+/**
+ * vtpmx_ioc_new_dev - handler for the %VTPM_PROXY_IOC_NEW_DEV ioctl
+ * @file:	/dev/vtpmx
+ * @ioctl:	the ioctl number
+ * @arg:	pointer to the struct vtpmx_proxy_new_dev
  *
- * Return value:
- *      Returns 0 on success, a negative error code otherwise.
+ * Creates an anonymous file that is used by the process acting as a TPM to
+ * communicate with the client processes. The function will also add a new TPM
+ * device through which data is proxied to this TPM acting process. The caller
+ * will be provided with a file descriptor to communicate with the clients and
+ * major and minor numbers for the TPM device.
  */
-static long vtpmx_fops_ioctl(struct file *f, unsigned int ioctl,
-				   unsigned long arg)
+static long vtpmx_ioc_new_dev(struct file *file, unsigned int ioctl,
+			      unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 	struct vtpm_proxy_new_dev __user *vtpm_new_dev_p;
 	struct vtpm_proxy_new_dev vtpm_new_dev;
-	struct file *file;
+	struct file *vtpm_file;
 
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	vtpm_new_dev_p = argp;
+
+	if (copy_from_user(&vtpm_new_dev, vtpm_new_dev_p,
+			   sizeof(vtpm_new_dev)))
+		return -EFAULT;
+
+	vtpm_file = vtpm_proxy_create_device(&vtpm_new_dev);
+	if (IS_ERR(vtpm_file))
+		return PTR_ERR(vtpm_file);
+
+	if (copy_to_user(vtpm_new_dev_p, &vtpm_new_dev,
+			 sizeof(vtpm_new_dev))) {
+		put_unused_fd(vtpm_new_dev.fd);
+		fput(vtpm_file);
+		return -EFAULT;
+	}
+
+	fd_install(vtpm_new_dev.fd, vtpm_file);
+	return 0;
+}
+
+/*
+ * vtpmx_fops_ioctl: ioctl on /dev/vtpmx
+ *
+ * Return:
+ *      Returns 0 on success, a negative error code otherwise.
+ */
+static long vtpmx_fops_ioctl(struct file *f, unsigned int ioctl,
+			     unsigned long arg)
+{
 	switch (ioctl) {
 	case VTPM_PROXY_IOC_NEW_DEV:
-		if (!capable(CAP_SYS_ADMIN))
-			return -EPERM;
-		vtpm_new_dev_p = argp;
-		if (copy_from_user(&vtpm_new_dev, vtpm_new_dev_p,
-				   sizeof(vtpm_new_dev)))
-			return -EFAULT;
-		file = vtpm_proxy_create_device(&vtpm_new_dev);
-		if (IS_ERR(file))
-			return PTR_ERR(file);
-		if (copy_to_user(vtpm_new_dev_p, &vtpm_new_dev,
-				 sizeof(vtpm_new_dev))) {
-			put_unused_fd(vtpm_new_dev.fd);
-			fput(file);
-			return -EFAULT;
-		}
-
-		fd_install(vtpm_new_dev.fd, file);
-		return 0;
-
+		return vtpmx_ioc_new_dev(f, ioctl, arg);
 	default:
 		return -ENOIOCTLCMD;
 	}

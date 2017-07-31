@@ -49,9 +49,6 @@ dra752_core_temp_sensor_registers = {
 	.bgap_threshold = DRA752_BANDGAP_THRESHOLD_CORE_OFFSET,
 	.threshold_thot_mask = DRA752_BANDGAP_THRESHOLD_HOT_MASK,
 	.threshold_tcold_mask = DRA752_BANDGAP_THRESHOLD_COLD_MASK,
-	.tshut_threshold = DRA752_BANDGAP_TSHUT_CORE_OFFSET,
-	.tshut_hot_mask = DRA752_TSHUT_THRESHOLD_HOT_MASK,
-	.tshut_cold_mask = DRA752_TSHUT_THRESHOLD_COLD_MASK,
 	.bgap_status = DRA752_BANDGAP_STATUS_1_OFFSET,
 	.status_bgap_alert_mask = DRA752_BANDGAP_STATUS_1_ALERT_MASK,
 	.status_hot_mask = DRA752_BANDGAP_STATUS_1_HOT_CORE_MASK,
@@ -85,9 +82,6 @@ dra752_iva_temp_sensor_registers = {
 	.bgap_threshold = DRA752_BANDGAP_THRESHOLD_IVA_OFFSET,
 	.threshold_thot_mask = DRA752_BANDGAP_THRESHOLD_HOT_MASK,
 	.threshold_tcold_mask = DRA752_BANDGAP_THRESHOLD_COLD_MASK,
-	.tshut_threshold = DRA752_BANDGAP_TSHUT_IVA_OFFSET,
-	.tshut_hot_mask = DRA752_TSHUT_THRESHOLD_HOT_MASK,
-	.tshut_cold_mask = DRA752_TSHUT_THRESHOLD_COLD_MASK,
 	.bgap_status = DRA752_BANDGAP_STATUS_2_OFFSET,
 	.status_bgap_alert_mask = DRA752_BANDGAP_STATUS_1_ALERT_MASK,
 	.status_hot_mask = DRA752_BANDGAP_STATUS_2_HOT_IVA_MASK,
@@ -121,9 +115,6 @@ dra752_mpu_temp_sensor_registers = {
 	.bgap_threshold = DRA752_BANDGAP_THRESHOLD_MPU_OFFSET,
 	.threshold_thot_mask = DRA752_BANDGAP_THRESHOLD_HOT_MASK,
 	.threshold_tcold_mask = DRA752_BANDGAP_THRESHOLD_COLD_MASK,
-	.tshut_threshold = DRA752_BANDGAP_TSHUT_MPU_OFFSET,
-	.tshut_hot_mask = DRA752_TSHUT_THRESHOLD_HOT_MASK,
-	.tshut_cold_mask = DRA752_TSHUT_THRESHOLD_COLD_MASK,
 	.bgap_status = DRA752_BANDGAP_STATUS_1_OFFSET,
 	.status_bgap_alert_mask = DRA752_BANDGAP_STATUS_1_ALERT_MASK,
 	.status_hot_mask = DRA752_BANDGAP_STATUS_1_HOT_MPU_MASK,
@@ -157,9 +148,6 @@ dra752_dspeve_temp_sensor_registers = {
 	.bgap_threshold = DRA752_BANDGAP_THRESHOLD_DSPEVE_OFFSET,
 	.threshold_thot_mask = DRA752_BANDGAP_THRESHOLD_HOT_MASK,
 	.threshold_tcold_mask = DRA752_BANDGAP_THRESHOLD_COLD_MASK,
-	.tshut_threshold = DRA752_BANDGAP_TSHUT_DSPEVE_OFFSET,
-	.tshut_hot_mask = DRA752_TSHUT_THRESHOLD_HOT_MASK,
-	.tshut_cold_mask = DRA752_TSHUT_THRESHOLD_COLD_MASK,
 	.bgap_status = DRA752_BANDGAP_STATUS_2_OFFSET,
 	.status_bgap_alert_mask = DRA752_BANDGAP_STATUS_1_ALERT_MASK,
 	.status_hot_mask = DRA752_BANDGAP_STATUS_2_HOT_DSPEVE_MASK,
@@ -193,9 +181,6 @@ dra752_gpu_temp_sensor_registers = {
 	.bgap_threshold = DRA752_BANDGAP_THRESHOLD_GPU_OFFSET,
 	.threshold_thot_mask = DRA752_BANDGAP_THRESHOLD_HOT_MASK,
 	.threshold_tcold_mask = DRA752_BANDGAP_THRESHOLD_COLD_MASK,
-	.tshut_threshold = DRA752_BANDGAP_TSHUT_GPU_OFFSET,
-	.tshut_hot_mask = DRA752_TSHUT_THRESHOLD_HOT_MASK,
-	.tshut_cold_mask = DRA752_TSHUT_THRESHOLD_COLD_MASK,
 	.bgap_status = DRA752_BANDGAP_STATUS_1_OFFSET,
 	.status_bgap_alert_mask = DRA752_BANDGAP_STATUS_1_ALERT_MASK,
 	.status_hot_mask = DRA752_BANDGAP_STATUS_1_HOT_GPU_MASK,
@@ -211,8 +196,6 @@ dra752_gpu_temp_sensor_registers = {
 
 /* Thresholds and limits for DRA752 MPU temperature sensor */
 static struct temp_sensor_data dra752_mpu_temp_sensor_data = {
-	.tshut_hot = DRA752_MPU_TSHUT_HOT,
-	.tshut_cold = DRA752_MPU_TSHUT_COLD,
 	.t_hot = DRA752_MPU_T_HOT,
 	.t_cold = DRA752_MPU_T_COLD,
 	.min_freq = DRA752_MPU_MIN_FREQ,
@@ -226,8 +209,6 @@ static struct temp_sensor_data dra752_mpu_temp_sensor_data = {
 
 /* Thresholds and limits for DRA752 GPU temperature sensor */
 static struct temp_sensor_data dra752_gpu_temp_sensor_data = {
-	.tshut_hot = DRA752_GPU_TSHUT_HOT,
-	.tshut_cold = DRA752_GPU_TSHUT_COLD,
 	.t_hot = DRA752_GPU_T_HOT,
 	.t_cold = DRA752_GPU_T_COLD,
 	.min_freq = DRA752_GPU_MIN_FREQ,
@@ -241,8 +222,6 @@ static struct temp_sensor_data dra752_gpu_temp_sensor_data = {
 
 /* Thresholds and limits for DRA752 CORE temperature sensor */
 static struct temp_sensor_data dra752_core_temp_sensor_data = {
-	.tshut_hot = DRA752_CORE_TSHUT_HOT,
-	.tshut_cold = DRA752_CORE_TSHUT_COLD,
 	.t_hot = DRA752_CORE_T_HOT,
 	.t_cold = DRA752_CORE_T_COLD,
 	.min_freq = DRA752_CORE_MIN_FREQ,
@@ -256,8 +235,6 @@ static struct temp_sensor_data dra752_core_temp_sensor_data = {
 
 /* Thresholds and limits for DRA752 DSPEVE temperature sensor */
 static struct temp_sensor_data dra752_dspeve_temp_sensor_data = {
-	.tshut_hot = DRA752_DSPEVE_TSHUT_HOT,
-	.tshut_cold = DRA752_DSPEVE_TSHUT_COLD,
 	.t_hot = DRA752_DSPEVE_T_HOT,
 	.t_cold = DRA752_DSPEVE_T_COLD,
 	.min_freq = DRA752_DSPEVE_MIN_FREQ,
@@ -271,8 +248,6 @@ static struct temp_sensor_data dra752_dspeve_temp_sensor_data = {
 
 /* Thresholds and limits for DRA752 IVA temperature sensor */
 static struct temp_sensor_data dra752_iva_temp_sensor_data = {
-	.tshut_hot = DRA752_IVA_TSHUT_HOT,
-	.tshut_cold = DRA752_IVA_TSHUT_COLD,
 	.t_hot = DRA752_IVA_T_HOT,
 	.t_cold = DRA752_IVA_T_COLD,
 	.min_freq = DRA752_IVA_MIN_FREQ,
@@ -416,8 +391,7 @@ int dra752_adc_to_temp[DRA752_ADC_END_VALUE - DRA752_ADC_START_VALUE + 1] = {
 
 /* DRA752 data */
 const struct ti_bandgap_data dra752_data = {
-	.features = TI_BANDGAP_FEATURE_TSHUT_CONFIG |
-			TI_BANDGAP_FEATURE_FREEZE_BIT |
+	.features = TI_BANDGAP_FEATURE_FREEZE_BIT |
 			TI_BANDGAP_FEATURE_TALERT |
 			TI_BANDGAP_FEATURE_COUNTER_DELAY |
 			TI_BANDGAP_FEATURE_HISTORY_BUFFER |

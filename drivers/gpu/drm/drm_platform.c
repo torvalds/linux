@@ -48,18 +48,14 @@ static int drm_get_platform_dev(struct platform_device *platdev,
 	DRM_DEBUG("\n");
 
 	dev = drm_dev_alloc(driver, &platdev->dev);
-	if (!dev)
-		return -ENOMEM;
+	if (IS_ERR(dev))
+		return PTR_ERR(dev);
 
 	dev->platformdev = platdev;
 
 	ret = drm_dev_register(dev, 0);
 	if (ret)
 		goto err_free;
-
-	DRM_INFO("Initialized %s %d.%d.%d %s on minor %d\n",
-		 driver->name, driver->major, driver->minor, driver->patchlevel,
-		 driver->date, dev->primary->index);
 
 	return 0;
 
@@ -78,7 +74,7 @@ err_free:
  * .load() function.
  *
  * NOTE: This function is deprecated, please use drm_dev_alloc() and
- * drm_dev_register() instead and remove your ->load() callback.
+ * drm_dev_register() instead and remove your &drm_driver.load callback.
  *
  * Return: 0 on success or a negative error code on failure.
  */

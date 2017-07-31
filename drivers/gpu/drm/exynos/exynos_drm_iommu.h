@@ -66,7 +66,7 @@ static inline int __exynos_iommu_create_mapping(struct exynos_drm_private *priv,
 	if (ret)
 		goto free_domain;
 
-	ret = iommu_dma_init_domain(domain, start, size);
+	ret = iommu_dma_init_domain(domain, start, size, NULL);
 	if (ret)
 		goto put_cookie;
 

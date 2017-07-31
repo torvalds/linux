@@ -352,14 +352,20 @@ static void __init mx27ads_board_init(void)
 	i2c_register_board_info(1, mx27ads_i2c_devices,
 				ARRAY_SIZE(mx27ads_i2c_devices));
 	imx27_add_imx_i2c(1, &mx27ads_i2c1_data);
-	mx27ads_regulator_init();
 	imx27_add_imx_fb(&mx27ads_fb_data);
+
+	imx27_add_fec(NULL);
+	imx27_add_mxc_w1();
+}
+
+static void __init mx27ads_late_init(void)
+{
+	mx27ads_regulator_init();
+
 	imx27_add_mxc_mmc(0, &sdhc1_pdata);
 	imx27_add_mxc_mmc(1, &sdhc2_pdata);
 
-	imx27_add_fec(NULL);
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
-	imx27_add_mxc_w1();
 }
 
 static void __init mx27ads_timer_init(void)
@@ -395,5 +401,6 @@ MACHINE_START(MX27ADS, "Freescale i.MX27ADS")
 	.init_irq = mx27_init_irq,
 	.init_time	= mx27ads_timer_init,
 	.init_machine = mx27ads_board_init,
+	.init_late	= mx27ads_late_init,
 	.restart	= mxc_restart,
 MACHINE_END

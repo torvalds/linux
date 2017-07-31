@@ -330,10 +330,11 @@ static dma_async_tx_callback __ld_cleanup(struct shdma_chan *schan, bool all)
 	bool head_acked = false;
 	dma_cookie_t cookie = 0;
 	dma_async_tx_callback callback = NULL;
-	void *param = NULL;
+	struct dmaengine_desc_callback cb;
 	unsigned long flags;
 	LIST_HEAD(cyclic_list);
 
+	memset(&cb, 0, sizeof(cb));
 	spin_lock_irqsave(&schan->chan_lock, flags);
 	list_for_each_entry_safe(desc, _desc, &schan->ld_queue, node) {
 		struct dma_async_tx_descriptor *tx = &desc->async_tx;
@@ -367,8 +368,8 @@ static dma_async_tx_callback __ld_cleanup(struct shdma_chan *schan, bool all)
 		/* Call callback on the last chunk */
 		if (desc->mark == DESC_COMPLETED && tx->callback) {
 			desc->mark = DESC_WAITING;
+			dmaengine_desc_get_callback(tx, &cb);
 			callback = tx->callback;
-			param = tx->callback_param;
 			dev_dbg(schan->dev, "descriptor #%d@%p on %d callback\n",
 				tx->cookie, tx, schan->id);
 			BUG_ON(desc->chunks != 1);
@@ -430,8 +431,7 @@ static dma_async_tx_callback __ld_cleanup(struct shdma_chan *schan, bool all)
 
 	spin_unlock_irqrestore(&schan->chan_lock, flags);
 
-	if (callback)
-		callback(param);
+	dmaengine_desc_callback_invoke(&cb, NULL);
 
 	return callback;
 }
@@ -885,9 +885,9 @@ bool shdma_reset(struct shdma_dev *sdev)
 		/* Complete all  */
 		list_for_each_entry(sdesc, &dl, node) {
 			struct dma_async_tx_descriptor *tx = &sdesc->async_tx;
+
 			sdesc->mark = DESC_IDLE;
-			if (tx->callback)
-				tx->callback(tx->callback_param);
+			dmaengine_desc_get_callback_invoke(tx, NULL);
 		}
 
 		spin_lock(&schan->chan_lock);

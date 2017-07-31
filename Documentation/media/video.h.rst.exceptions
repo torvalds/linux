@@ -28,13 +28,13 @@ ignore define VIDEO_CAP_NAVI
 ignore define VIDEO_CAP_CSS
 
 # some typedefs should point to struct/enums
-replace typedef video_format_t video-format
-replace typedef video_system_t video-system
-replace typedef video_displayformat_t video-displayformat
-replace typedef video_size_t video-size
-replace typedef video_stream_source_t video-stream-source
-replace typedef video_play_state_t video-play-state
-replace typedef video_highlight_t video-highlight
-replace typedef video_spu_t video-spu
-replace typedef video_spu_palette_t video-spu-palette
-replace typedef video_navi_pack_t video-navi-pack
+replace typedef video_format_t :c:type:`video_format`
+replace typedef video_system_t :c:type:`video_system`
+replace typedef video_displayformat_t :c:type:`video_displayformat`
+replace typedef video_size_t :c:type:`video_size`
+replace typedef video_stream_source_t :c:type:`video_stream_source`
+replace typedef video_play_state_t :c:type:`video_play_state`
+replace typedef video_highlight_t :c:type:`video_highlight`
+replace typedef video_spu_t :c:type:`video_spu`
+replace typedef video_spu_palette_t :c:type:`video_spu_palette`
+replace typedef video_navi_pack_t :c:type:`video_navi_pack`

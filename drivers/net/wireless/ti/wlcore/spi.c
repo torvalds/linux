@@ -79,19 +79,19 @@
 #define WSPI_MAX_NUM_OF_CHUNKS \
 	((SPI_AGGR_BUFFER_SIZE / WSPI_MAX_CHUNK_SIZE) + 1)
 
-
-struct wilink_familiy_data {
-	char name[8];
+static const struct wilink_family_data wl127x_data = {
+	.name = "wl127x",
+	.nvs_name = "ti-connectivity/wl127x-nvs.bin",
 };
 
-const struct wilink_familiy_data *wilink_data;
+static const struct wilink_family_data wl128x_data = {
+	.name = "wl128x",
+	.nvs_name = "ti-connectivity/wl128x-nvs.bin",
+};
 
-static const struct wilink_familiy_data wl18xx_data = {
+static const struct wilink_family_data wl18xx_data = {
 	.name = "wl18xx",
-};
-
-static const struct wilink_familiy_data wl12xx_data = {
-	.name = "wl12xx",
+	.cfg_name = "ti-connectivity/wl18xx-conf.bin",
 };
 
 struct wl12xx_spi_glue {
@@ -429,10 +429,10 @@ static struct wl1271_if_operations spi_ops = {
 };
 
 static const struct of_device_id wlcore_spi_of_match_table[] = {
-	{ .compatible = "ti,wl1271", .data = &wl12xx_data},
-	{ .compatible = "ti,wl1273", .data = &wl12xx_data},
-	{ .compatible = "ti,wl1281", .data = &wl12xx_data},
-	{ .compatible = "ti,wl1283", .data = &wl12xx_data},
+	{ .compatible = "ti,wl1271", .data = &wl127x_data},
+	{ .compatible = "ti,wl1273", .data = &wl127x_data},
+	{ .compatible = "ti,wl1281", .data = &wl128x_data},
+	{ .compatible = "ti,wl1283", .data = &wl128x_data},
 	{ .compatible = "ti,wl1801", .data = &wl18xx_data},
 	{ .compatible = "ti,wl1805", .data = &wl18xx_data},
 	{ .compatible = "ti,wl1807", .data = &wl18xx_data},
@@ -460,9 +460,9 @@ static int wlcore_probe_of(struct spi_device *spi, struct wl12xx_spi_glue *glue,
 	if (!of_id)
 		return -ENODEV;
 
-	wilink_data = of_id->data;
-	dev_info(&spi->dev, "selected chip familiy is %s\n",
-		 wilink_data->name);
+	pdev_data->family = of_id->data;
+	dev_info(&spi->dev, "selected chip family is %s\n",
+		 pdev_data->family->name);
 
 	if (of_find_property(dt_node, "clock-xtal", NULL))
 		pdev_data->ref_clock_xtal = true;
@@ -479,13 +479,15 @@ static int wlcore_probe_of(struct spi_device *spi, struct wl12xx_spi_glue *glue,
 static int wl1271_probe(struct spi_device *spi)
 {
 	struct wl12xx_spi_glue *glue;
-	struct wlcore_platdev_data pdev_data;
+	struct wlcore_platdev_data *pdev_data;
 	struct resource res[1];
 	int ret;
 
-	memset(&pdev_data, 0x00, sizeof(pdev_data));
+	pdev_data = devm_kzalloc(&spi->dev, sizeof(*pdev_data), GFP_KERNEL);
+	if (!pdev_data)
+		return -ENOMEM;
 
-	pdev_data.if_ops = &spi_ops;
+	pdev_data->if_ops = &spi_ops;
 
 	glue = devm_kzalloc(&spi->dev, sizeof(*glue), GFP_KERNEL);
 	if (!glue) {
@@ -509,7 +511,7 @@ static int wl1271_probe(struct spi_device *spi)
 		return PTR_ERR(glue->reg);
 	}
 
-	ret = wlcore_probe_of(spi, glue, &pdev_data);
+	ret = wlcore_probe_of(spi, glue, pdev_data);
 	if (ret) {
 		dev_err(glue->dev,
 			"can't get device tree parameters (%d)\n", ret);
@@ -522,7 +524,7 @@ static int wl1271_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	glue->core = platform_device_alloc(wilink_data->name,
+	glue->core = platform_device_alloc(pdev_data->family->name,
 					   PLATFORM_DEVID_AUTO);
 	if (!glue->core) {
 		dev_err(glue->dev, "can't allocate platform_device\n");
@@ -543,8 +545,8 @@ static int wl1271_probe(struct spi_device *spi)
 		goto out_dev_put;
 	}
 
-	ret = platform_device_add_data(glue->core, &pdev_data,
-				       sizeof(pdev_data));
+	ret = platform_device_add_data(glue->core, pdev_data,
+				       sizeof(*pdev_data));
 	if (ret) {
 		dev_err(glue->dev, "can't add platform data\n");
 		goto out_dev_put;

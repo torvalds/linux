@@ -67,7 +67,7 @@ static inline bool nf_nat_oif_changed(unsigned int hooknum,
 {
 #if IS_ENABLED(CONFIG_NF_NAT_MASQUERADE_IPV4) || \
     IS_ENABLED(CONFIG_NF_NAT_MASQUERADE_IPV6)
-	return nat->masq_index && hooknum == NF_INET_POST_ROUTING &&
+	return nat && nat->masq_index && hooknum == NF_INET_POST_ROUTING &&
 	       CTINFO2DIR(ctinfo) == IP_CT_DIR_ORIGINAL &&
 	       nat->masq_index != out->ifindex;
 #else

@@ -45,7 +45,7 @@
 #include <asm/smp.h>
 #include <asm/sections.h>
 #include <asm/cpudata.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/irq_regs.h>
 
 #include "entry.h"
@@ -770,7 +770,7 @@ void udelay(unsigned long usecs)
 }
 EXPORT_SYMBOL(udelay);
 
-static cycle_t clocksource_tick_read(struct clocksource *cs)
+static u64 clocksource_tick_read(struct clocksource *cs)
 {
 	return tick_ops->get_tick();
 }
@@ -796,8 +796,10 @@ void __init time_init(void)
 
 	sparc64_clockevent.max_delta_ns =
 		clockevent_delta2ns(0x7fffffffffffffffUL, &sparc64_clockevent);
+	sparc64_clockevent.max_delta_ticks = 0x7fffffffffffffffUL;
 	sparc64_clockevent.min_delta_ns =
 		clockevent_delta2ns(0xF, &sparc64_clockevent);
+	sparc64_clockevent.min_delta_ticks = 0xF;
 
 	printk("clockevent: mult[%x] shift[%d]\n",
 	       sparc64_clockevent.mult, sparc64_clockevent.shift);

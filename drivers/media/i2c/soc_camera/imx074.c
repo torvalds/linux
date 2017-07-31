@@ -209,31 +209,26 @@ static int imx074_get_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int imx074_g_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
+static int imx074_get_selection(struct v4l2_subdev *sd,
+				struct v4l2_subdev_pad_config *cfg,
+				struct v4l2_subdev_selection *sel)
 {
-	struct v4l2_rect *rect = &a->c;
+	if (sel->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+		return -EINVAL;
 
-	a->type		= V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	rect->top	= 0;
-	rect->left	= 0;
-	rect->width	= IMX074_WIDTH;
-	rect->height	= IMX074_HEIGHT;
+	sel->r.left = 0;
+	sel->r.top = 0;
+	sel->r.width = IMX074_WIDTH;
+	sel->r.height = IMX074_HEIGHT;
 
-	return 0;
-}
-
-static int imx074_cropcap(struct v4l2_subdev *sd, struct v4l2_cropcap *a)
-{
-	a->bounds.left			= 0;
-	a->bounds.top			= 0;
-	a->bounds.width			= IMX074_WIDTH;
-	a->bounds.height		= IMX074_HEIGHT;
-	a->defrect			= a->bounds;
-	a->type				= V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	a->pixelaspect.numerator	= 1;
-	a->pixelaspect.denominator	= 1;
-
-	return 0;
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+	case V4L2_SEL_TGT_CROP:
+		return 0;
+	default:
+		return -EINVAL;
+	}
 }
 
 static int imx074_enum_mbus_code(struct v4l2_subdev *sd,
@@ -278,8 +273,6 @@ static int imx074_g_mbus_config(struct v4l2_subdev *sd,
 
 static struct v4l2_subdev_video_ops imx074_subdev_video_ops = {
 	.s_stream	= imx074_s_stream,
-	.g_crop		= imx074_g_crop,
-	.cropcap	= imx074_cropcap,
 	.g_mbus_config	= imx074_g_mbus_config,
 };
 
@@ -289,6 +282,7 @@ static struct v4l2_subdev_core_ops imx074_subdev_core_ops = {
 
 static const struct v4l2_subdev_pad_ops imx074_subdev_pad_ops = {
 	.enum_mbus_code = imx074_enum_mbus_code,
+	.get_selection	= imx074_get_selection,
 	.get_fmt	= imx074_get_fmt,
 	.set_fmt	= imx074_set_fmt,
 };

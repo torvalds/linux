@@ -1856,15 +1856,11 @@ max3421_probe(struct spi_device *spi)
 	INIT_LIST_HEAD(&max3421_hcd->ep_list);
 
 	max3421_hcd->tx = kmalloc(sizeof(*max3421_hcd->tx), GFP_KERNEL);
-	if (!max3421_hcd->tx) {
-		dev_err(&spi->dev, "failed to kmalloc tx buffer\n");
+	if (!max3421_hcd->tx)
 		goto error;
-	}
 	max3421_hcd->rx = kmalloc(sizeof(*max3421_hcd->rx), GFP_KERNEL);
-	if (!max3421_hcd->rx) {
-		dev_err(&spi->dev, "failed to kmalloc rx buffer\n");
+	if (!max3421_hcd->rx)
 		goto error;
-	}
 
 	max3421_hcd->spi_thread = kthread_run(max3421_spi_thread, hcd,
 					      "max3421_spi_thread");

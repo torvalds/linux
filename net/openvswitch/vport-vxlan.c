@@ -70,7 +70,8 @@ static int vxlan_configure_exts(struct vport *vport, struct nlattr *attr,
 	if (nla_len(attr) < sizeof(struct nlattr))
 		return -EINVAL;
 
-	err = nla_parse_nested(exts, OVS_VXLAN_EXT_MAX, attr, exts_policy);
+	err = nla_parse_nested(exts, OVS_VXLAN_EXT_MAX, attr, exts_policy,
+			       NULL);
 	if (err < 0)
 		return err;
 

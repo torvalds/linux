@@ -547,7 +547,7 @@ The <tt>rcu_access_pointer()</tt> on line&nbsp;6 is similar to
 	It could reuse a value formerly fetched from this same pointer.
 	It could also fetch the pointer from <tt>gp</tt> in a byte-at-a-time
 	manner, resulting in <i>load tearing</i>, in turn resulting a bytewise
-	mash-up of two distince pointer values.
+	mash-up of two distinct pointer values.
 	It might even use value-speculation optimizations, where it makes
 	a wrong guess, but by the time it gets around to checking the
 	value, an update has changed the pointer to match the wrong guess.
@@ -659,6 +659,29 @@ systems with more than one CPU:
 	In other words, a given instance of <tt>synchronize_rcu()</tt>
 	can avoid waiting on a given RCU read-side critical section only
 	if it can prove that <tt>synchronize_rcu()</tt> started first.
+
+	<p>
+	A related question is &ldquo;When <tt>rcu_read_lock()</tt>
+	doesn't generate any code, why does it matter how it relates
+	to a grace period?&rdquo;
+	The answer is that it is not the relationship of
+	<tt>rcu_read_lock()</tt> itself that is important, but rather
+	the relationship of the code within the enclosed RCU read-side
+	critical section to the code preceding and following the
+	grace period.
+	If we take this viewpoint, then a given RCU read-side critical
+	section begins before a given grace period when some access
+	preceding the grace period observes the effect of some access
+	within the critical section, in which case none of the accesses
+	within the critical section may observe the effects of any
+	access following the grace period.
+
+	<p>
+	As of late 2016, mathematical models of RCU take this
+	viewpoint, for example, see slides&nbsp;62 and&nbsp;63
+	of the
+	<a href="http://www2.rdrop.com/users/paulmck/scalability/paper/LinuxMM.2016.10.04c.LCE.pdf">2016 LinuxCon EU</a>
+	presentation.
 </font></td></tr>
 <tr><td>&nbsp;</td></tr>
 </table>
@@ -1457,7 +1480,7 @@ speed-of-light delays if nothing else.
 
 <p>
 Furthermore, uncertainty about external state is inherent in many cases.
-For example, a pair of veternarians might use heartbeat to determine
+For example, a pair of veterinarians might use heartbeat to determine
 whether or not a given cat was alive.
 But how long should they wait after the last heartbeat to decide that
 the cat is in fact dead?
@@ -1466,9 +1489,9 @@ mean that a relaxed cat would be considered to cycle between death
 and life more than 100 times per minute.
 Moreover, just as with human beings, a cat's heart might stop for
 some period of time, so the exact wait period is a judgment call.
-One of our pair of veternarians might wait 30 seconds before pronouncing
+One of our pair of veterinarians might wait 30 seconds before pronouncing
 the cat dead, while the other might insist on waiting a full minute.
-The two veternarians would then disagree on the state of the cat during
+The two veterinarians would then disagree on the state of the cat during
 the final 30 seconds of the minute following the last heartbeat.
 
 <p>
@@ -1922,7 +1945,7 @@ guard against mishaps and misuse:
 <ol>
 <li>	It is all too easy to forget to use <tt>rcu_read_lock()</tt>
 	everywhere that it is needed, so kernels built with
-	<tt>CONFIG_PROVE_RCU=y</tt> will spat if
+	<tt>CONFIG_PROVE_RCU=y</tt> will splat if
 	<tt>rcu_dereference()</tt> is used outside of an
 	RCU read-side critical section.
 	Update-side code can use <tt>rcu_dereference_protected()</tt>,
@@ -2398,7 +2421,7 @@ However, there are some restrictions on the code placed within
 <li>	Blocking is prohibited.
 	In practice, this is not a serious restriction given that idle
 	tasks are prohibited from blocking to begin with.
-<li>	Although nesting <tt>RCU_NONIDLE()</tt> is permited, they cannot
+<li>	Although nesting <tt>RCU_NONIDLE()</tt> is permitted, they cannot
 	nest indefinitely deeply.
 	However, given that they can be nested on the order of a million
 	deep, even on 32-bit systems, this should not be a serious
@@ -2492,6 +2515,28 @@ is used to post the callback, as opposed to <tt>kfree_rcu()</tt>
 or some future &ldquo;lazy&rdquo;
 variant of <tt>call_rcu()</tt> that might one day be created for
 energy-efficiency purposes.
+
+<p>
+That said, there are limits.
+RCU requires that the <tt>rcu_head</tt> structure be aligned to a
+two-byte boundary, and passing a misaligned <tt>rcu_head</tt>
+structure to one of the <tt>call_rcu()</tt> family of functions
+will result in a splat.
+It is therefore necessary to exercise caution when packing
+structures containing fields of type <tt>rcu_head</tt>.
+Why not a four-byte or even eight-byte alignment requirement?
+Because the m68k architecture provides only two-byte alignment,
+and thus acts as alignment's least common denominator.
+
+<p>
+The reason for reserving the bottom bit of pointers to
+<tt>rcu_head</tt> structures is to leave the door open to
+&ldquo;lazy&rdquo; callbacks whose invocations can safely be deferred.
+Deferring invocation could potentially have energy-efficiency
+benefits, but only if the rate of non-lazy callbacks decreases
+significantly for some important workload.
+In the meantime, reserving the bottom bit keeps this option open
+in case it one day becomes useful.
 
 <h3><a name="Performance, Scalability, Response Time, and Reliability">
 Performance, Scalability, Response Time, and Reliability</a></h3>
@@ -2840,7 +2885,7 @@ APIs for defining and initializing <tt>srcu_struct</tt> structures.
 <h3><a name="Tasks RCU">Tasks RCU</a></h3>
 
 <p>
-Some forms of tracing use &ldquo;tramopolines&rdquo; to handle the
+Some forms of tracing use &ldquo;trampolines&rdquo; to handle the
 binary rewriting required to install different types of probes.
 It would be good to be able to free old trampolines, which sounds
 like a job for some form of RCU.

@@ -6,6 +6,7 @@
 config VIDEO_V4L2
 	tristate
 	depends on (I2C || I2C=n) && VIDEO_DEV
+	select RATIONAL
 	default (I2C || I2C=n) && VIDEO_DEV
 
 config VIDEO_ADV_DEBUG
@@ -27,7 +28,7 @@ config VIDEO_FIXED_MINOR_RANGES
 
 config VIDEO_PCI_SKELETON
 	tristate "Skeleton PCI V4L2 driver"
-	depends on PCI && BUILD_DOCSRC
+	depends on PCI
 	depends on VIDEO_V4L2 && VIDEOBUF2_CORE
 	depends on VIDEOBUF2_MEMOPS && VIDEOBUF2_DMA_CONTIG
 	---help---

@@ -103,7 +103,7 @@ static void s5pv210_isol(struct samsung_usb2_phy_instance *inst, bool on)
 		break;
 	default:
 		return;
-	};
+	}
 
 	regmap_update_bits(drv->reg_pmu, S5PV210_USB_ISOL_OFFSET,
 							mask, on ? 0 : mask);
@@ -127,7 +127,7 @@ static void s5pv210_phy_pwr(struct samsung_usb2_phy_instance *inst, bool on)
 		rstbits =	S5PV210_URSTCON_PHY1_ALL |
 				S5PV210_URSTCON_HOST_LINK_ALL;
 		break;
-	};
+	}
 
 	if (on) {
 		writel(drv->ref_reg_val, drv->reg_phy + S5PV210_UPHYCLK);

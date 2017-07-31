@@ -15,8 +15,6 @@
 #include <linux/serial_reg.h>
 #include <linux/dmaengine.h>
 
-#include "../serial_mctrl_gpio.h"
-
 struct uart_8250_dma {
 	int (*tx_dma)(struct uart_8250_port *p);
 	int (*rx_dma)(struct uart_8250_port *p);
@@ -33,6 +31,11 @@ struct uart_8250_dma {
 	struct dma_chan		*rxchan;
 	struct dma_chan		*txchan;
 
+	/* Device address base for DMA operations */
+	phys_addr_t		rx_dma_addr;
+	phys_addr_t		tx_dma_addr;
+
+	/* DMA address of the buffer in memory */
 	dma_addr_t		rx_addr;
 	dma_addr_t		tx_addr;
 
@@ -77,6 +80,7 @@ struct serial8250_config {
 #define UART_CAP_RTOIE	(1 << 13)	/* UART needs IER bit 4 set (Xscale, Tegra) */
 #define UART_CAP_HFIFO	(1 << 14)	/* UART has a "hidden" FIFO */
 #define UART_CAP_RPM	(1 << 15)	/* Runtime PM is active while idle */
+#define UART_CAP_IRDA	(1 << 16)	/* UART supports IrDA line discipline */
 
 #define UART_BUG_QUOT	(1 << 0)	/* UART has buggy quot LSB */
 #define UART_BUG_TXEN	(1 << 1)	/* UART has buggy TX IIR status */
@@ -126,50 +130,24 @@ static inline void serial_dl_write(struct uart_8250_port *up, int value)
 }
 
 struct uart_8250_port *serial8250_get_port(int line);
+
 void serial8250_rpm_get(struct uart_8250_port *p);
 void serial8250_rpm_put(struct uart_8250_port *p);
+
+void serial8250_rpm_get_tx(struct uart_8250_port *p);
+void serial8250_rpm_put_tx(struct uart_8250_port *p);
+
 int serial8250_em485_init(struct uart_8250_port *p);
 void serial8250_em485_destroy(struct uart_8250_port *p);
 
 static inline void serial8250_out_MCR(struct uart_8250_port *up, int value)
 {
-	int mctrl_gpio = 0;
-
 	serial_out(up, UART_MCR, value);
-
-	if (value & UART_MCR_RTS)
-		mctrl_gpio |= TIOCM_RTS;
-	if (value & UART_MCR_DTR)
-		mctrl_gpio |= TIOCM_DTR;
-
-	mctrl_gpio_set(up->gpios, mctrl_gpio);
 }
 
 static inline int serial8250_in_MCR(struct uart_8250_port *up)
 {
-	int mctrl, mctrl_gpio = 0;
-
-	mctrl = serial_in(up, UART_MCR);
-
-	/* save current MCR values */
-	if (mctrl & UART_MCR_RTS)
-		mctrl_gpio |= TIOCM_RTS;
-	if (mctrl & UART_MCR_DTR)
-		mctrl_gpio |= TIOCM_DTR;
-
-	mctrl_gpio = mctrl_gpio_get_outputs(up->gpios, &mctrl_gpio);
-
-	if (mctrl_gpio & TIOCM_RTS)
-		mctrl |= UART_MCR_RTS;
-	else
-		mctrl &= ~UART_MCR_RTS;
-
-	if (mctrl_gpio & TIOCM_DTR)
-		mctrl |= UART_MCR_DTR;
-	else
-		mctrl &= ~UART_MCR_DTR;
-
-	return mctrl;
+	return serial_in(up, UART_MCR);
 }
 
 #if defined(__alpha__) && !defined(CONFIG_PCI)

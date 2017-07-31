@@ -6,6 +6,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/cache.h>
 #include <linux/crc32.h>
 #include <linux/init.h>
 #include <linux/libfdt.h>
@@ -20,7 +21,7 @@
 #include <asm/pgtable.h>
 #include <asm/sections.h>
 
-u64 __read_mostly module_alloc_base;
+u64 __ro_after_init module_alloc_base;
 u16 __initdata memstart_offset_seed;
 
 static __init u64 get_kaslr_seed(void *fdt)
@@ -130,11 +131,15 @@ u64 __init kaslr_early_init(u64 dt_phys, u64 modulo_offset)
 	/*
 	 * The kernel Image should not extend across a 1GB/32MB/512MB alignment
 	 * boundary (for 4KB/16KB/64KB granule kernels, respectively). If this
-	 * happens, increase the KASLR offset by the size of the kernel image.
+	 * happens, increase the KASLR offset by the size of the kernel image
+	 * rounded up by SWAPPER_BLOCK_SIZE.
 	 */
 	if ((((u64)_text + offset + modulo_offset) >> SWAPPER_TABLE_SHIFT) !=
-	    (((u64)_end + offset + modulo_offset) >> SWAPPER_TABLE_SHIFT))
-		offset = (offset + (u64)(_end - _text)) & mask;
+	    (((u64)_end + offset + modulo_offset) >> SWAPPER_TABLE_SHIFT)) {
+		u64 kimg_sz = _end - _text;
+		offset = (offset + round_up(kimg_sz, SWAPPER_BLOCK_SIZE))
+				& mask;
+	}
 
 	if (IS_ENABLED(CONFIG_KASAN))
 		/*

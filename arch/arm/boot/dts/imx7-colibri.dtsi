@@ -46,12 +46,18 @@
 		pwms = <&pwm1 0 5000000>;
 	};
 
-	reg_3p3v: regulator-3p3v {
+	reg_module_3v3: regulator-module-3v3 {
 		compatible = "regulator-fixed";
-		regulator-name = "3P3V";
+		regulator-name = "+V3.3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
-		regulator-always-on;
+	};
+
+	reg_module_3v3_avdd: regulator-module-3v3-avdd {
+		compatible = "regulator-fixed";
+		regulator-name = "+V3.3_AVDD_AUDIO";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
 	};
 
 	reg_vref_1v8: regulator-vref-1v8 {
@@ -59,6 +65,22 @@
 		regulator-name = "vref-1v8";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
+	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "imx7-sgtl5000";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,bitclock-master = <&dailink_master>;
+		simple-audio-card,frame-master = <&dailink_master>;
+		simple-audio-card,cpu {
+			sound-dai = <&sai1>;
+		};
+
+		dailink_master: simple-audio-card,codec {
+			sound-dai = <&codec>;
+			clocks = <&clks IMX7D_AUDIO_MCLK_ROOT_CLK>;
+		};
 	};
 };
 
@@ -96,6 +118,18 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_i2c1 &pinctrl_i2c1_int>;
 	status = "okay";
+
+	codec: sgtl5000@0a {
+		compatible = "fsl,sgtl5000";
+		#sound-dai-cells = <0>;
+		reg = <0x0a>;
+		clocks = <&clks IMX7D_AUDIO_MCLK_ROOT_CLK>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_sai1_mclk>;
+		VDDA-supply = <&reg_module_3v3_avdd>;
+		VDDIO-supply = <&reg_module_3v3>;
+		VDDD-supply = <&reg_DCDC3>;
+	};
 
 	ad7879@2c {
 		compatible = "adi,ad7879-1";
@@ -217,6 +251,12 @@
 	vin-supply = <&reg_DCDC3>;
 };
 
+&sai1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sai1>;
+	status = "okay";
+};
+
 &snvs_pwrkey {
 	status = "disabled";
 };
@@ -249,6 +289,14 @@
 
 &usbotg1 {
 	dr_mode = "host";
+};
+
+&usdhc1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc1 &pinctrl_cd_usdhc1>;
+	no-1-8-v;
+	cd-gpios = <&gpio1 0 GPIO_ACTIVE_LOW>;
+	disable-wp;
 };
 
 &iomuxc {
@@ -528,11 +576,16 @@
 
 	pinctrl_sai1: sai1-grp {
 		fsl,pins = <
-			MX7D_PAD_SAI1_MCLK__SAI1_MCLK           0x1f
 			MX7D_PAD_ENET1_RX_CLK__SAI1_TX_BCLK     0x1f
 			MX7D_PAD_SAI1_TX_SYNC__SAI1_TX_SYNC	0x1f
 			MX7D_PAD_ENET1_COL__SAI1_TX_DATA0	0x30
 			MX7D_PAD_ENET1_TX_CLK__SAI1_RX_DATA0	0x1f
+		>;
+	};
+
+	pinctrl_sai1_mclk: sai1grp_mclk {
+		fsl,pins = <
+			MX7D_PAD_SAI1_MCLK__SAI1_MCLK           0x1f
 		>;
 	};
 };
@@ -543,29 +596,29 @@
 
 	pinctrl_gpio_lpsr: gpio1-grp {
 		fsl,pins = <
-			MX7D_PAD_GPIO1_IO01__GPIO1_IO1	0x59
-			MX7D_PAD_GPIO1_IO02__GPIO1_IO2	0x59
-			MX7D_PAD_GPIO1_IO03__GPIO1_IO3	0x59
+			MX7D_PAD_LPSR_GPIO1_IO01__GPIO1_IO1	0x59
+			MX7D_PAD_LPSR_GPIO1_IO02__GPIO1_IO2	0x59
+			MX7D_PAD_LPSR_GPIO1_IO03__GPIO1_IO3	0x59
 		>;
 	};
 
 	pinctrl_i2c1: i2c1-grp {
 		fsl,pins = <
-			MX7D_PAD_GPIO1_IO05__I2C1_SDA	0x4000007f
-			MX7D_PAD_GPIO1_IO04__I2C1_SCL	0x4000007f
+			MX7D_PAD_LPSR_GPIO1_IO05__I2C1_SDA	0x4000007f
+			MX7D_PAD_LPSR_GPIO1_IO04__I2C1_SCL	0x4000007f
 		>;
 	};
 
 	pinctrl_cd_usdhc1: usdhc1-cd-grp {
 		fsl,pins = <
-			MX7D_PAD_GPIO1_IO00__GPIO1_IO0	0x59 /* CD */
+			MX7D_PAD_LPSR_GPIO1_IO00__GPIO1_IO0	0x59 /* CD */
 		>;
 	};
 
 	pinctrl_uart1_ctrl2: uart1-ctrl2-grp {
 		fsl,pins = <
-			MX7D_PAD_GPIO1_IO07__GPIO1_IO7	0x14 /* DSR */
-			MX7D_PAD_GPIO1_IO06__GPIO1_IO6	0x14 /* RI */
+			MX7D_PAD_LPSR_GPIO1_IO07__GPIO1_IO7	0x14 /* DSR */
+			MX7D_PAD_LPSR_GPIO1_IO06__GPIO1_IO6	0x14 /* RI */
 		>;
 	};
 };

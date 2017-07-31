@@ -21,28 +21,33 @@
 unsigned int rxrpc_max_backlog __read_mostly = 10;
 
 /*
+ * Maximum lifetime of a call (in mx).
+ */
+unsigned int rxrpc_max_call_lifetime = 60 * 1000;
+
+/*
  * How long to wait before scheduling ACK generation after seeing a
- * packet with RXRPC_REQUEST_ACK set (in jiffies).
+ * packet with RXRPC_REQUEST_ACK set (in ms).
  */
 unsigned int rxrpc_requested_ack_delay = 1;
 
 /*
- * How long to wait before scheduling an ACK with subtype DELAY (in jiffies).
+ * How long to wait before scheduling an ACK with subtype DELAY (in ms).
  *
  * We use this when we've received new data packets.  If those packets aren't
  * all consumed within this time we will send a DELAY ACK if an ACK was not
  * requested to let the sender know it doesn't need to resend.
  */
-unsigned int rxrpc_soft_ack_delay = 1 * HZ;
+unsigned int rxrpc_soft_ack_delay = 1 * 1000;
 
 /*
- * How long to wait before scheduling an ACK with subtype IDLE (in jiffies).
+ * How long to wait before scheduling an ACK with subtype IDLE (in ms).
  *
  * We use this when we've consumed some previously soft-ACK'd packets when
  * further packets aren't immediately received to decide when to send an IDLE
  * ACK let the other end know that it can free up its Tx buffer space.
  */
-unsigned int rxrpc_idle_ack_delay = 0.5 * HZ;
+unsigned int rxrpc_idle_ack_delay = 0.5 * 1000;
 
 /*
  * Receive window size in packets.  This indicates the maximum number of
@@ -50,7 +55,10 @@ unsigned int rxrpc_idle_ack_delay = 0.5 * HZ;
  * limit is hit, we should generate an EXCEEDS_WINDOW ACK and discard further
  * packets.
  */
-unsigned int rxrpc_rx_window_size = 32;
+unsigned int rxrpc_rx_window_size = RXRPC_INIT_RX_WINDOW_SIZE;
+#if (RXRPC_RXTX_BUFF_SIZE - 1) < RXRPC_INIT_RX_WINDOW_SIZE
+#error Need to reduce RXRPC_INIT_RX_WINDOW_SIZE
+#endif
 
 /*
  * Maximum Rx MTU size.  This indicates to the sender the size of jumbo packet
@@ -64,32 +72,19 @@ unsigned int rxrpc_rx_mtu = 5692;
  */
 unsigned int rxrpc_rx_jumbo_max = 4;
 
-const char *const rxrpc_pkts[] = {
-	"?00",
-	"DATA", "ACK", "BUSY", "ABORT", "ACKALL", "CHALL", "RESP", "DEBUG",
-	"?09", "?10", "?11", "?12", "VERSION", "?14", "?15"
-};
+/*
+ * Time till packet resend (in milliseconds).
+ */
+unsigned int rxrpc_resend_timeout = 4 * 1000;
 
 const s8 rxrpc_ack_priority[] = {
 	[0]				= 0,
 	[RXRPC_ACK_DELAY]		= 1,
 	[RXRPC_ACK_REQUESTED]		= 2,
 	[RXRPC_ACK_IDLE]		= 3,
-	[RXRPC_ACK_PING_RESPONSE]	= 4,
-	[RXRPC_ACK_DUPLICATE]		= 5,
-	[RXRPC_ACK_OUT_OF_SEQUENCE]	= 6,
-	[RXRPC_ACK_EXCEEDS_WINDOW]	= 7,
-	[RXRPC_ACK_NOSPACE]		= 8,
+	[RXRPC_ACK_DUPLICATE]		= 4,
+	[RXRPC_ACK_OUT_OF_SEQUENCE]	= 5,
+	[RXRPC_ACK_EXCEEDS_WINDOW]	= 6,
+	[RXRPC_ACK_NOSPACE]		= 7,
+	[RXRPC_ACK_PING_RESPONSE]	= 8,
 };
-
-const char *rxrpc_acks(u8 reason)
-{
-	static const char *const str[] = {
-		"---", "REQ", "DUP", "OOS", "WIN", "MEM", "PNG", "PNR", "DLY",
-		"IDL", "-?-"
-	};
-
-	if (reason >= ARRAY_SIZE(str))
-		reason = ARRAY_SIZE(str) - 1;
-	return str[reason];
-}

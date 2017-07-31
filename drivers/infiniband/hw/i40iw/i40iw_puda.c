@@ -42,12 +42,13 @@
 #include "i40iw_p.h"
 #include "i40iw_puda.h"
 
-static void i40iw_ieq_receive(struct i40iw_sc_dev *dev,
+static void i40iw_ieq_receive(struct i40iw_sc_vsi *vsi,
 			      struct i40iw_puda_buf *buf);
-static void i40iw_ieq_tx_compl(struct i40iw_sc_dev *dev, void *sqwrid);
+static void i40iw_ieq_tx_compl(struct i40iw_sc_vsi *vsi, void *sqwrid);
 static void i40iw_ilq_putback_rcvbuf(struct i40iw_sc_qp *qp, u32 wqe_idx);
 static enum i40iw_status_code i40iw_puda_replenish_rq(struct i40iw_puda_rsrc
 						      *rsrc, bool initial);
+static void i40iw_ieq_cleanup_qp(struct i40iw_puda_rsrc *ieq, struct i40iw_sc_qp *qp);
 /**
  * i40iw_puda_get_listbuf - get buffer from puda list
  * @list: list to use for buffers (ILQ or IEQ)
@@ -292,7 +293,7 @@ enum i40iw_status_code i40iw_puda_poll_completion(struct i40iw_sc_dev *dev,
 	unsigned long	flags;
 
 	if ((cq_type == I40IW_CQ_TYPE_ILQ) || (cq_type == I40IW_CQ_TYPE_IEQ)) {
-		rsrc = (cq_type == I40IW_CQ_TYPE_ILQ) ? dev->ilq : dev->ieq;
+		rsrc = (cq_type == I40IW_CQ_TYPE_ILQ) ? cq->vsi->ilq : cq->vsi->ieq;
 	} else {
 		i40iw_debug(dev, I40IW_DEBUG_PUDA, "%s qp_type error\n", __func__);
 		return I40IW_ERR_BAD_PTR;
@@ -335,7 +336,7 @@ enum i40iw_status_code i40iw_puda_poll_completion(struct i40iw_sc_dev *dev,
 		rsrc->stats_pkt_rcvd++;
 		rsrc->compl_rxwqe_idx = info.wqe_idx;
 		i40iw_debug(dev, I40IW_DEBUG_PUDA, "%s RQ completion\n", __func__);
-		rsrc->receive(rsrc->dev, buf);
+		rsrc->receive(rsrc->vsi, buf);
 		if (cq_type == I40IW_CQ_TYPE_ILQ)
 			i40iw_ilq_putback_rcvbuf(&rsrc->qp, info.wqe_idx);
 		else
@@ -345,12 +346,12 @@ enum i40iw_status_code i40iw_puda_poll_completion(struct i40iw_sc_dev *dev,
 		i40iw_debug(dev, I40IW_DEBUG_PUDA, "%s SQ completion\n", __func__);
 		sqwrid = (void *)(uintptr_t)qp->sq_wrtrk_array[info.wqe_idx].wrid;
 		I40IW_RING_SET_TAIL(qp->sq_ring, info.wqe_idx);
-		rsrc->xmit_complete(rsrc->dev, sqwrid);
+		rsrc->xmit_complete(rsrc->vsi, sqwrid);
 		spin_lock_irqsave(&rsrc->bufpool_lock, flags);
 		rsrc->tx_wqe_avail_cnt++;
 		spin_unlock_irqrestore(&rsrc->bufpool_lock, flags);
-		if (!list_empty(&dev->ilq->txpend))
-			i40iw_puda_send_buf(dev->ilq, NULL);
+		if (!list_empty(&rsrc->vsi->ilq->txpend))
+			i40iw_puda_send_buf(rsrc->vsi->ilq, NULL);
 	}
 
 done:
@@ -513,10 +514,8 @@ static void i40iw_puda_qp_setctx(struct i40iw_puda_rsrc *rsrc)
  * i40iw_puda_qp_wqe - setup wqe for qp create
  * @rsrc: resource for qp
  */
-static enum i40iw_status_code i40iw_puda_qp_wqe(struct i40iw_puda_rsrc *rsrc)
+static enum i40iw_status_code i40iw_puda_qp_wqe(struct i40iw_sc_dev *dev, struct i40iw_sc_qp *qp)
 {
-	struct i40iw_sc_qp *qp = &rsrc->qp;
-	struct i40iw_sc_dev *dev = rsrc->dev;
 	struct i40iw_sc_cqp *cqp;
 	u64 *wqe;
 	u64 header;
@@ -582,6 +581,7 @@ static enum i40iw_status_code i40iw_puda_qp_create(struct i40iw_puda_rsrc *rsrc)
 	qp->back_qp = (void *)rsrc;
 	qp->sq_pa = mem->pa;
 	qp->rq_pa = qp->sq_pa + sq_size;
+	qp->vsi = rsrc->vsi;
 	ukqp->sq_base = mem->va;
 	ukqp->rq_base = &ukqp->sq_base[rsrc->sq_size];
 	ukqp->shadow_area = ukqp->rq_base[rsrc->rq_size].elem;
@@ -608,12 +608,60 @@ static enum i40iw_status_code i40iw_puda_qp_create(struct i40iw_puda_rsrc *rsrc)
 		ukqp->wqe_alloc_reg = (u32 __iomem *)(i40iw_get_hw_addr(qp->pd->dev) +
 						    I40E_VFPE_WQEALLOC1);
 
-	qp->qs_handle = qp->dev->qs_handle;
+	qp->user_pri = 0;
+	i40iw_qp_add_qos(qp);
 	i40iw_puda_qp_setctx(rsrc);
-	ret = i40iw_puda_qp_wqe(rsrc);
+	if (rsrc->ceq_valid)
+		ret = i40iw_cqp_qp_create_cmd(rsrc->dev, qp);
+	else
+		ret = i40iw_puda_qp_wqe(rsrc->dev, qp);
 	if (ret)
 		i40iw_free_dma_mem(rsrc->dev->hw, &rsrc->qpmem);
 	return ret;
+}
+
+/**
+ * i40iw_puda_cq_wqe - setup wqe for cq create
+ * @rsrc: resource for cq
+ */
+static enum i40iw_status_code i40iw_puda_cq_wqe(struct i40iw_sc_dev *dev, struct i40iw_sc_cq *cq)
+{
+	u64 *wqe;
+	struct i40iw_sc_cqp *cqp;
+	u64 header;
+	struct i40iw_ccq_cqe_info compl_info;
+	enum i40iw_status_code status = 0;
+
+	cqp = dev->cqp;
+	wqe = i40iw_sc_cqp_get_next_send_wqe(cqp, 0);
+	if (!wqe)
+		return I40IW_ERR_RING_FULL;
+
+	set_64bit_val(wqe, 0, cq->cq_uk.cq_size);
+	set_64bit_val(wqe, 8, RS_64_1(cq, 1));
+	set_64bit_val(wqe, 16,
+		      LS_64(cq->shadow_read_threshold,
+			    I40IW_CQPSQ_CQ_SHADOW_READ_THRESHOLD));
+	set_64bit_val(wqe, 32, cq->cq_pa);
+
+	set_64bit_val(wqe, 40, cq->shadow_area_pa);
+
+	header = cq->cq_uk.cq_id |
+	    LS_64(I40IW_CQP_OP_CREATE_CQ, I40IW_CQPSQ_OPCODE) |
+	    LS_64(1, I40IW_CQPSQ_CQ_CHKOVERFLOW) |
+	    LS_64(1, I40IW_CQPSQ_CQ_ENCEQEMASK) |
+	    LS_64(1, I40IW_CQPSQ_CQ_CEQIDVALID) |
+	    LS_64(cqp->polarity, I40IW_CQPSQ_WQEVALID);
+	set_64bit_val(wqe, 24, header);
+
+	i40iw_debug_buf(dev, I40IW_DEBUG_PUDA, "PUDA CQE",
+			wqe, I40IW_CQP_WQE_SIZE * 8);
+
+	i40iw_sc_cqp_post_sq(dev->cqp);
+	status = dev->cqp_ops->poll_for_cqp_op_done(dev->cqp,
+						 I40IW_CQP_OP_CREATE_CQ,
+						 &compl_info);
+	return status;
 }
 
 /**
@@ -624,18 +672,13 @@ static enum i40iw_status_code i40iw_puda_cq_create(struct i40iw_puda_rsrc *rsrc)
 {
 	struct i40iw_sc_dev *dev = rsrc->dev;
 	struct i40iw_sc_cq *cq = &rsrc->cq;
-	u64 *wqe;
-	struct i40iw_sc_cqp *cqp;
-	u64 header;
 	enum i40iw_status_code ret = 0;
 	u32 tsize, cqsize;
-	u32 shadow_read_threshold = 128;
 	struct i40iw_dma_mem *mem;
-	struct i40iw_ccq_cqe_info compl_info;
 	struct i40iw_cq_init_info info;
 	struct i40iw_cq_uk_init_info *init_info = &info.cq_uk_init_info;
 
-	cq->back_cq = (void *)rsrc;
+	cq->vsi = rsrc->vsi;
 	cqsize = rsrc->cq_size * (sizeof(struct i40iw_cqe));
 	tsize = cqsize + sizeof(struct i40iw_cq_shadow_area);
 	ret = i40iw_allocate_dma_mem(dev->hw, &rsrc->cqmem, tsize,
@@ -656,43 +699,84 @@ static enum i40iw_status_code i40iw_puda_cq_create(struct i40iw_puda_rsrc *rsrc)
 	init_info->shadow_area = (u64 *)((u8 *)mem->va + cqsize);
 	init_info->cq_size = rsrc->cq_size;
 	init_info->cq_id = rsrc->cq_id;
+	info.ceqe_mask = true;
+	info.ceq_id_valid = true;
 	ret = dev->iw_priv_cq_ops->cq_init(cq, &info);
 	if (ret)
 		goto error;
-	cqp = dev->cqp;
-	wqe = i40iw_sc_cqp_get_next_send_wqe(cqp, 0);
-	if (!wqe) {
-		ret = I40IW_ERR_RING_FULL;
-		goto error;
-	}
-
-	set_64bit_val(wqe, 0, rsrc->cq_size);
-	set_64bit_val(wqe, 8, RS_64_1(cq, 1));
-	set_64bit_val(wqe, 16, LS_64(shadow_read_threshold, I40IW_CQPSQ_CQ_SHADOW_READ_THRESHOLD));
-	set_64bit_val(wqe, 32, cq->cq_pa);
-
-	set_64bit_val(wqe, 40, cq->shadow_area_pa);
-
-	header = rsrc->cq_id |
-	    LS_64(I40IW_CQP_OP_CREATE_CQ, I40IW_CQPSQ_OPCODE) |
-	    LS_64(1, I40IW_CQPSQ_CQ_CHKOVERFLOW) |
-	    LS_64(1, I40IW_CQPSQ_CQ_ENCEQEMASK) |
-	    LS_64(1, I40IW_CQPSQ_CQ_CEQIDVALID) |
-	    LS_64(cqp->polarity, I40IW_CQPSQ_WQEVALID);
-	set_64bit_val(wqe, 24, header);
-
-	i40iw_debug_buf(dev, I40IW_DEBUG_PUDA, "PUDA CQE",
-			wqe, I40IW_CQP_WQE_SIZE * 8);
-
-	i40iw_sc_cqp_post_sq(dev->cqp);
-	ret = dev->cqp_ops->poll_for_cqp_op_done(dev->cqp,
-						 I40IW_CQP_OP_CREATE_CQ,
-						 &compl_info);
-
+	if (rsrc->ceq_valid)
+		ret = i40iw_cqp_cq_create_cmd(dev, cq);
+	else
+		ret = i40iw_puda_cq_wqe(dev, cq);
 error:
 	if (ret)
 		i40iw_free_dma_mem(dev->hw, &rsrc->cqmem);
 	return ret;
+}
+
+/**
+ * i40iw_puda_free_qp - free qp for resource
+ * @rsrc: resource for which qp to free
+ */
+static void i40iw_puda_free_qp(struct i40iw_puda_rsrc *rsrc)
+{
+	enum i40iw_status_code ret;
+	struct i40iw_ccq_cqe_info compl_info;
+	struct i40iw_sc_dev *dev = rsrc->dev;
+
+	if (rsrc->ceq_valid) {
+		i40iw_cqp_qp_destroy_cmd(dev, &rsrc->qp);
+		return;
+	}
+
+	ret = dev->iw_priv_qp_ops->qp_destroy(&rsrc->qp,
+			0, false, true, true);
+	if (ret)
+		i40iw_debug(dev, I40IW_DEBUG_PUDA,
+			    "%s error puda qp destroy wqe\n",
+			    __func__);
+
+	if (!ret) {
+		ret = dev->cqp_ops->poll_for_cqp_op_done(dev->cqp,
+				I40IW_CQP_OP_DESTROY_QP,
+				&compl_info);
+		if (ret)
+			i40iw_debug(dev, I40IW_DEBUG_PUDA,
+				    "%s error puda qp destroy failed\n",
+				    __func__);
+	}
+}
+
+/**
+ * i40iw_puda_free_cq - free cq for resource
+ * @rsrc: resource for which cq to free
+ */
+static void i40iw_puda_free_cq(struct i40iw_puda_rsrc *rsrc)
+{
+	enum i40iw_status_code ret;
+	struct i40iw_ccq_cqe_info compl_info;
+	struct i40iw_sc_dev *dev = rsrc->dev;
+
+	if (rsrc->ceq_valid) {
+		i40iw_cqp_cq_destroy_cmd(dev, &rsrc->cq);
+		return;
+	}
+	ret = dev->iw_priv_cq_ops->cq_destroy(&rsrc->cq, 0, true);
+
+	if (ret)
+		i40iw_debug(dev, I40IW_DEBUG_PUDA,
+			    "%s error ieq cq destroy\n",
+			    __func__);
+
+	if (!ret) {
+		ret = dev->cqp_ops->poll_for_cqp_op_done(dev->cqp,
+				I40IW_CQP_OP_DESTROY_CQ,
+				&compl_info);
+		if (ret)
+			i40iw_debug(dev, I40IW_DEBUG_PUDA,
+				    "%s error ieq qp destroy done\n",
+				    __func__);
+	}
 }
 
 /**
@@ -701,25 +785,24 @@ error:
  * @type: type of resource to dele
  * @reset: true if reset chip
  */
-void i40iw_puda_dele_resources(struct i40iw_sc_dev *dev,
+void i40iw_puda_dele_resources(struct i40iw_sc_vsi *vsi,
 			       enum puda_resource_type type,
 			       bool reset)
 {
-	struct i40iw_ccq_cqe_info compl_info;
+	struct i40iw_sc_dev *dev = vsi->dev;
 	struct i40iw_puda_rsrc *rsrc;
 	struct i40iw_puda_buf *buf = NULL;
 	struct i40iw_puda_buf *nextbuf = NULL;
 	struct i40iw_virt_mem *vmem;
-	enum i40iw_status_code ret;
 
 	switch (type) {
 	case I40IW_PUDA_RSRC_TYPE_ILQ:
-		rsrc = dev->ilq;
-		vmem = &dev->ilq_mem;
+		rsrc = vsi->ilq;
+		vmem = &vsi->ilq_mem;
 		break;
 	case I40IW_PUDA_RSRC_TYPE_IEQ:
-		rsrc = dev->ieq;
-		vmem = &dev->ieq_mem;
+		rsrc = vsi->ieq;
+		vmem = &vsi->ieq_mem;
 		break;
 	default:
 		i40iw_debug(dev, I40IW_DEBUG_PUDA, "%s: error resource type = 0x%x\n",
@@ -731,45 +814,14 @@ void i40iw_puda_dele_resources(struct i40iw_sc_dev *dev,
 	case PUDA_HASH_CRC_COMPLETE:
 		i40iw_free_hash_desc(rsrc->hash_desc);
 	case PUDA_QP_CREATED:
-		do {
-			if (reset)
-				break;
-			ret = dev->iw_priv_qp_ops->qp_destroy(&rsrc->qp,
-							      0, false, true, true);
-			if (ret)
-				i40iw_debug(rsrc->dev, I40IW_DEBUG_PUDA,
-					    "%s error ieq qp destroy\n",
-					    __func__);
-
-			ret = dev->cqp_ops->poll_for_cqp_op_done(dev->cqp,
-								 I40IW_CQP_OP_DESTROY_QP,
-								 &compl_info);
-			if (ret)
-				i40iw_debug(rsrc->dev, I40IW_DEBUG_PUDA,
-					    "%s error ieq qp destroy done\n",
-					    __func__);
-		} while (0);
+		if (!reset)
+			i40iw_puda_free_qp(rsrc);
 
 		i40iw_free_dma_mem(dev->hw, &rsrc->qpmem);
 		/* fallthrough */
 	case PUDA_CQ_CREATED:
-		do {
-			if (reset)
-				break;
-			ret = dev->iw_priv_cq_ops->cq_destroy(&rsrc->cq, 0, true);
-			if (ret)
-				i40iw_debug(rsrc->dev, I40IW_DEBUG_PUDA,
-					    "%s error ieq cq destroy\n",
-					    __func__);
-
-			ret = dev->cqp_ops->poll_for_cqp_op_done(dev->cqp,
-								 I40IW_CQP_OP_DESTROY_CQ,
-								 &compl_info);
-			if (ret)
-				i40iw_debug(rsrc->dev, I40IW_DEBUG_PUDA,
-					    "%s error ieq qp destroy done\n",
-					    __func__);
-		} while (0);
+		if (!reset)
+			i40iw_puda_free_cq(rsrc);
 
 		i40iw_free_dma_mem(dev->hw, &rsrc->cqmem);
 		break;
@@ -825,9 +877,10 @@ static enum i40iw_status_code i40iw_puda_allocbufs(struct i40iw_puda_rsrc *rsrc,
  * @dev: iwarp device
  * @info: resource information
  */
-enum i40iw_status_code i40iw_puda_create_rsrc(struct i40iw_sc_dev *dev,
+enum i40iw_status_code i40iw_puda_create_rsrc(struct i40iw_sc_vsi *vsi,
 					      struct i40iw_puda_rsrc_info *info)
 {
+	struct i40iw_sc_dev *dev = vsi->dev;
 	enum i40iw_status_code ret = 0;
 	struct i40iw_puda_rsrc *rsrc;
 	u32 pudasize;
@@ -840,10 +893,10 @@ enum i40iw_status_code i40iw_puda_create_rsrc(struct i40iw_sc_dev *dev,
 	rqwridsize = info->rq_size * 8;
 	switch (info->type) {
 	case I40IW_PUDA_RSRC_TYPE_ILQ:
-		vmem = &dev->ilq_mem;
+		vmem = &vsi->ilq_mem;
 		break;
 	case I40IW_PUDA_RSRC_TYPE_IEQ:
-		vmem = &dev->ieq_mem;
+		vmem = &vsi->ieq_mem;
 		break;
 	default:
 		return I40IW_NOT_SUPPORTED;
@@ -856,28 +909,28 @@ enum i40iw_status_code i40iw_puda_create_rsrc(struct i40iw_sc_dev *dev,
 	rsrc = (struct i40iw_puda_rsrc *)vmem->va;
 	spin_lock_init(&rsrc->bufpool_lock);
 	if (info->type == I40IW_PUDA_RSRC_TYPE_ILQ) {
-		dev->ilq = (struct i40iw_puda_rsrc *)vmem->va;
-		dev->ilq_count = info->count;
+		vsi->ilq = (struct i40iw_puda_rsrc *)vmem->va;
+		vsi->ilq_count = info->count;
 		rsrc->receive = info->receive;
 		rsrc->xmit_complete = info->xmit_complete;
 	} else {
-		vmem = &dev->ieq_mem;
-		dev->ieq_count = info->count;
-		dev->ieq = (struct i40iw_puda_rsrc *)vmem->va;
+		vmem = &vsi->ieq_mem;
+		vsi->ieq_count = info->count;
+		vsi->ieq = (struct i40iw_puda_rsrc *)vmem->va;
 		rsrc->receive = i40iw_ieq_receive;
 		rsrc->xmit_complete = i40iw_ieq_tx_compl;
 	}
 
+	rsrc->ceq_valid = info->ceq_valid;
 	rsrc->type = info->type;
 	rsrc->sq_wrtrk_array = (struct i40iw_sq_uk_wr_trk_info *)((u8 *)vmem->va + pudasize);
 	rsrc->rq_wrid_array = (u64 *)((u8 *)vmem->va + pudasize + sqwridsize);
-	rsrc->mss = info->mss;
 	/* Initialize all ieq lists */
 	INIT_LIST_HEAD(&rsrc->bufpool);
 	INIT_LIST_HEAD(&rsrc->txpend);
 
 	rsrc->tx_wqe_avail_cnt = info->sq_size - 1;
-	dev->iw_pd_ops->pd_init(dev, &rsrc->sc_pd, info->pd_id);
+	dev->iw_pd_ops->pd_init(dev, &rsrc->sc_pd, info->pd_id, -1);
 	rsrc->qp_id = info->qp_id;
 	rsrc->cq_id = info->cq_id;
 	rsrc->sq_size = info->sq_size;
@@ -885,6 +938,7 @@ enum i40iw_status_code i40iw_puda_create_rsrc(struct i40iw_sc_dev *dev,
 	rsrc->cq_size = info->rq_size + info->sq_size;
 	rsrc->buf_size = info->buf_size;
 	rsrc->dev = dev;
+	rsrc->vsi = vsi;
 
 	ret = i40iw_puda_cq_create(rsrc);
 	if (!ret) {
@@ -919,7 +973,7 @@ enum i40iw_status_code i40iw_puda_create_rsrc(struct i40iw_sc_dev *dev,
 	dev->ccq_ops->ccq_arm(&rsrc->cq);
 	return ret;
  error:
-	i40iw_puda_dele_resources(dev, info->type, false);
+	i40iw_puda_dele_resources(vsi, info->type, false);
 
 	return ret;
 }
@@ -1131,7 +1185,7 @@ static enum i40iw_status_code i40iw_ieq_handle_partial(struct i40iw_puda_rsrc *i
 	list_add(&buf->list, &pbufl);
 
 	status = i40iw_ieq_create_pbufl(pfpdu, rxlist, &pbufl, buf, fpdu_len);
-	if (!status)
+	if (status)
 		goto error;
 
 	txbuf = i40iw_puda_get_bufpool(ieq);
@@ -1332,7 +1386,7 @@ static void i40iw_ieq_handle_exception(struct i40iw_puda_rsrc *ieq,
 	}
 	if (pfpdu->mode && (fps != pfpdu->fps)) {
 		/* clean up qp as it is new partial sequence */
-		i40iw_ieq_cleanup_qp(ieq->dev, qp);
+		i40iw_ieq_cleanup_qp(ieq, qp);
 		i40iw_debug(ieq->dev, I40IW_DEBUG_IEQ,
 			    "%s: restarting new partial\n", __func__);
 		pfpdu->mode = false;
@@ -1344,7 +1398,7 @@ static void i40iw_ieq_handle_exception(struct i40iw_puda_rsrc *ieq,
 		pfpdu->rcv_nxt = fps;
 		pfpdu->fps = fps;
 		pfpdu->mode = true;
-		pfpdu->max_fpdu_data = ieq->mss;
+		pfpdu->max_fpdu_data = ieq->vsi->mss;
 		pfpdu->pmode_count++;
 		INIT_LIST_HEAD(rxlist);
 		i40iw_ieq_check_first_buf(buf, fps);
@@ -1379,14 +1433,14 @@ static void i40iw_ieq_handle_exception(struct i40iw_puda_rsrc *ieq,
  * @dev: iwarp device
  * @buf: exception buffer received
  */
-static void i40iw_ieq_receive(struct i40iw_sc_dev *dev,
+static void i40iw_ieq_receive(struct i40iw_sc_vsi *vsi,
 			      struct i40iw_puda_buf *buf)
 {
-	struct i40iw_puda_rsrc *ieq = dev->ieq;
+	struct i40iw_puda_rsrc *ieq = vsi->ieq;
 	struct i40iw_sc_qp *qp = NULL;
 	u32 wqe_idx = ieq->compl_rxwqe_idx;
 
-	qp = i40iw_ieq_get_qp(dev, buf);
+	qp = i40iw_ieq_get_qp(vsi->dev, buf);
 	if (!qp) {
 		ieq->stats_bad_qp_id++;
 		i40iw_puda_ret_bufpool(ieq, buf);
@@ -1404,12 +1458,12 @@ static void i40iw_ieq_receive(struct i40iw_sc_dev *dev,
 
 /**
  * i40iw_ieq_tx_compl - put back after sending completed exception buffer
- * @dev: iwarp device
+ * @vsi: pointer to the vsi structure
  * @sqwrid: pointer to puda buffer
  */
-static void i40iw_ieq_tx_compl(struct i40iw_sc_dev *dev, void *sqwrid)
+static void i40iw_ieq_tx_compl(struct i40iw_sc_vsi *vsi, void *sqwrid)
 {
-	struct i40iw_puda_rsrc *ieq = dev->ieq;
+	struct i40iw_puda_rsrc *ieq = vsi->ieq;
 	struct i40iw_puda_buf *buf = (struct i40iw_puda_buf *)sqwrid;
 
 	i40iw_puda_ret_bufpool(ieq, buf);
@@ -1421,15 +1475,14 @@ static void i40iw_ieq_tx_compl(struct i40iw_sc_dev *dev, void *sqwrid)
 
 /**
  * i40iw_ieq_cleanup_qp - qp is being destroyed
- * @dev: iwarp device
+ * @ieq: ieq resource
  * @qp: all pending fpdu buffers
  */
-void i40iw_ieq_cleanup_qp(struct i40iw_sc_dev *dev, struct i40iw_sc_qp *qp)
+static void i40iw_ieq_cleanup_qp(struct i40iw_puda_rsrc *ieq, struct i40iw_sc_qp *qp)
 {
 	struct i40iw_puda_buf *buf;
 	struct i40iw_pfpdu *pfpdu = &qp->pfpdu;
 	struct list_head *rxlist = &pfpdu->rxlist;
-	struct i40iw_puda_rsrc *ieq = dev->ieq;
 
 	if (!pfpdu->mode)
 		return;

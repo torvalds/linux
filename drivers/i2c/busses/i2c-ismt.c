@@ -922,10 +922,8 @@ ismt_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return err;
 
 	err = i2c_add_adapter(&priv->adapter);
-	if (err) {
-		dev_err(&pdev->dev, "Failed to add SMBus iSMT adapter\n");
+	if (err)
 		return -ENODEV;
-	}
 	return 0;
 }
 

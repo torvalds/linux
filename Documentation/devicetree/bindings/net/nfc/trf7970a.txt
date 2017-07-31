@@ -5,8 +5,8 @@ Required properties:
 - spi-max-frequency: Maximum SPI frequency (<= 2000000).
 - interrupt-parent: phandle of parent interrupt handler.
 - interrupts: A single interrupt specifier.
-- ti,enable-gpios: Two GPIO entries used for 'EN' and 'EN2' pins on the
-  TRF7970A.
+- ti,enable-gpios: One or two GPIO entries used for 'EN' and 'EN2' pins on the
+  TRF7970A. EN2 is optional.
 - vin-supply: Regulator for supply voltage to VIN pin
 
 Optional SoC Specific Properties:
@@ -21,6 +21,8 @@ Optional SoC Specific Properties:
 - t5t-rmb-extra-byte-quirk: Specify that the trf7970a has the erratum
   where an extra byte is returned by Read Multiple Block commands issued
   to Type 5 tags.
+- vdd-io-supply: Regulator specifying voltage for vdd-io
+- clock-frequency: Set to specify that the input frequency to the trf7970a is 13560000Hz or 27120000Hz
 
 Example (for ARM-based BeagleBone with TRF7970A on SPI1):
 
@@ -39,10 +41,12 @@ Example (for ARM-based BeagleBone with TRF7970A on SPI1):
 				  <&gpio2 5 GPIO_ACTIVE_LOW>;
 		vin-supply = <&ldo3_reg>;
 		vin-voltage-override = <5000000>;
+		vdd-io-supply = <&ldo2_reg>;
 		autosuspend-delay = <30000>;
 		irq-status-read-quirk;
 		en2-rf-quirk;
 		t5t-rmb-extra-byte-quirk;
+		clock-frequency = <27120000>;
 		status = "okay";
 	};
 };

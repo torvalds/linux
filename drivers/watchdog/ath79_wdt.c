@@ -35,6 +35,7 @@
 #include <linux/err.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/uaccess.h>
 
 #define DRIVER_NAME	"ath79-wdt"
 

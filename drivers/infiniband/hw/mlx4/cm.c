@@ -247,10 +247,8 @@ id_map_alloc(struct ib_device *ibdev, int slave_id, u32 sl_cm_id)
 	struct mlx4_ib_sriov *sriov = &to_mdev(ibdev)->sriov;
 
 	ent = kmalloc(sizeof (struct id_map_entry), GFP_KERNEL);
-	if (!ent) {
-		mlx4_ib_warn(ibdev, "Couldn't allocate id cache entry - out of memory\n");
+	if (!ent)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	ent->sl_cm_id = sl_cm_id;
 	ent->slave_id = slave_id;

@@ -15,10 +15,6 @@
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef CX25821_H_
@@ -293,7 +289,6 @@ struct cx25821_dev {
 	u32 audio_upstream_riscbuf_size;
 	u32 audio_upstream_databuf_size;
 	int _audioframe_index;
-	struct workqueue_struct *_irq_audio_queues;
 	struct work_struct _audio_work_entry;
 	char *input_audiofilename;
 

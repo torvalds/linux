@@ -1,10 +1,19 @@
 = Rockchip eFuse device tree bindings =
 
 Required properties:
-- compatible: Should be "rockchip,rockchip-efuse"
+- compatible: Should be one of the following.
+  - "rockchip,rk3066a-efuse" - for RK3066a SoCs.
+  - "rockchip,rk3188-efuse" - for RK3188 SoCs.
+  - "rockchip,rk3288-efuse" - for RK3288 SoCs.
+  - "rockchip,rk3399-efuse" - for RK3399 SoCs.
 - reg: Should contain the registers location and exact eFuse size
 - clocks: Should be the clock id of eFuse
 - clock-names: Should be "pclk_efuse"
+
+Deprecated properties:
+- compatible: "rockchip,rockchip-efuse"
+  Old efuse compatible value compatible to rk3066a, rk3188 and rk3288
+  efuses
 
 = Data cells =
 Are child nodes of eFuse, bindings of which as described in
@@ -13,7 +22,7 @@ bindings/nvmem/nvmem.txt
 Example:
 
 	efuse: efuse@ffb40000 {
-		compatible = "rockchip,rockchip-efuse";
+		compatible = "rockchip,rk3288-efuse";
 		reg = <0xffb40000 0x20>;
 		#address-cells = <1>;
 		#size-cells = <1>;

@@ -215,19 +215,7 @@ static int chaoskey_probe(struct usb_interface *interface,
 
 	dev->hwrng.name = dev->name ? dev->name : chaoskey_driver.name;
 	dev->hwrng.read = chaoskey_rng_read;
-
-	/* Set the 'quality' metric.  Quality is measured in units of
-	 * 1/1024's of a bit ("mills"). This should be set to 1024,
-	 * but there is a bug in the hwrng core which masks it with
-	 * 1023.
-	 *
-	 * The patch that has been merged to the crypto development
-	 * tree for that bug limits the value to 1024 at most, so by
-	 * setting this to 1024 + 1023, we get 1023 before the fix is
-	 * merged and 1024 afterwards. We'll patch this driver once
-	 * both bits of code are in the same tree.
-	 */
-	dev->hwrng.quality = 1024 + 1023;
+	dev->hwrng.quality = 1024;
 
 	dev->hwrng_registered = (hwrng_register(&dev->hwrng) == 0);
 	if (!dev->hwrng_registered)

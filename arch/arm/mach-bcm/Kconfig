@@ -15,7 +15,6 @@ config ARCH_BCM_IPROC
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if SMP
 	select ARM_GLOBAL_TIMER
-	select COMMON_CLK_IPROC
 	select CLKSRC_MMIO
 	select GPIOLIB
 	select ARM_AMBA
@@ -158,6 +157,20 @@ config ARCH_BCM2835
 	help
 	  This enables support for the Broadcom BCM2835 and BCM2836 SoCs.
 	  This SoC is used in the Raspberry Pi and Roku 2 devices.
+
+config ARCH_BCM_53573
+	bool "Broadcom BCM53573 SoC series support"
+	depends on ARCH_MULTI_V7
+	select ARCH_BCM_IPROC
+	select HAVE_ARM_ARCH_TIMER
+	help
+	  BCM53573 series is set of SoCs using ARM Cortex-A7 CPUs with wireless
+	  embedded in the chipset.
+	  This SoC line is mostly used in home routers and is some cheaper
+	  alternative for Northstar family.
+
+	  The base chip is BCM53573 and there are some packaging modifications
+	  like BCM47189 and BCM47452.
 
 config ARCH_BCM_63XX
 	bool "Broadcom BCM63xx DSL SoC"

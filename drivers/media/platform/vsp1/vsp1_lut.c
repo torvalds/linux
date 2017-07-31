@@ -124,10 +124,15 @@ static int lut_set_format(struct v4l2_subdev *subdev,
 	struct vsp1_lut *lut = to_lut(subdev);
 	struct v4l2_subdev_pad_config *config;
 	struct v4l2_mbus_framefmt *format;
+	int ret = 0;
+
+	mutex_lock(&lut->entity.lock);
 
 	config = vsp1_entity_get_pad_config(&lut->entity, cfg, fmt->which);
-	if (!config)
-		return -EINVAL;
+	if (!config) {
+		ret = -EINVAL;
+		goto done;
+	}
 
 	/* Default to YUV if the requested format is not supported. */
 	if (fmt->format.code != MEDIA_BUS_FMT_ARGB8888_1X32 &&
@@ -140,7 +145,7 @@ static int lut_set_format(struct v4l2_subdev *subdev,
 	if (fmt->pad == LUT_PAD_SOURCE) {
 		/* The LUT output format can't be modified. */
 		fmt->format = *format;
-		return 0;
+		goto done;
 	}
 
 	format->code = fmt->format.code;
@@ -158,7 +163,9 @@ static int lut_set_format(struct v4l2_subdev *subdev,
 					    LUT_PAD_SOURCE);
 	*format = fmt->format;
 
-	return 0;
+done:
+	mutex_unlock(&lut->entity.lock);
+	return ret;
 }
 
 /* -----------------------------------------------------------------------------
@@ -183,24 +190,31 @@ static const struct v4l2_subdev_ops lut_ops = {
 
 static void lut_configure(struct vsp1_entity *entity,
 			  struct vsp1_pipeline *pipe,
-			  struct vsp1_dl_list *dl, bool full)
+			  struct vsp1_dl_list *dl,
+			  enum vsp1_entity_params params)
 {
 	struct vsp1_lut *lut = to_lut(&entity->subdev);
 	struct vsp1_dl_body *dlb;
 	unsigned long flags;
 
-	if (full) {
+	switch (params) {
+	case VSP1_ENTITY_PARAMS_INIT:
 		vsp1_lut_write(lut, dl, VI6_LUT_CTRL, VI6_LUT_CTRL_EN);
-		return;
+		break;
+
+	case VSP1_ENTITY_PARAMS_PARTITION:
+		break;
+
+	case VSP1_ENTITY_PARAMS_RUNTIME:
+		spin_lock_irqsave(&lut->lock, flags);
+		dlb = lut->lut;
+		lut->lut = NULL;
+		spin_unlock_irqrestore(&lut->lock, flags);
+
+		if (dlb)
+			vsp1_dl_list_add_fragment(dl, dlb);
+		break;
 	}
-
-	spin_lock_irqsave(&lut->lock, flags);
-	dlb = lut->lut;
-	lut->lut = NULL;
-	spin_unlock_irqrestore(&lut->lock, flags);
-
-	if (dlb)
-		vsp1_dl_list_add_fragment(dl, dlb);
 }
 
 static const struct vsp1_entity_operations lut_entity_ops = {

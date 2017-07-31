@@ -297,6 +297,19 @@ ring_buffer_init(struct ring_buffer *rb, long watermark, int flags)
 		rb->paused = 1;
 }
 
+void perf_aux_output_flag(struct perf_output_handle *handle, u64 flags)
+{
+	/*
+	 * OVERWRITE is determined by perf_aux_output_end() and can't
+	 * be passed in directly.
+	 */
+	if (WARN_ON_ONCE(flags & PERF_AUX_FLAG_OVERWRITE))
+		return;
+
+	handle->aux_flags |= flags;
+}
+EXPORT_SYMBOL_GPL(perf_aux_output_flag);
+
 /*
  * This is called before hardware starts writing to the AUX area to
  * obtain an output handle and make sure there's room in the buffer.
@@ -330,15 +343,22 @@ void *perf_aux_output_begin(struct perf_output_handle *handle,
 	if (!rb)
 		return NULL;
 
-	if (!rb_has_aux(rb) || !atomic_inc_not_zero(&rb->aux_refcount))
+	if (!rb_has_aux(rb))
 		goto err;
 
 	/*
-	 * If rb::aux_mmap_count is zero (and rb_has_aux() above went through),
-	 * the aux buffer is in perf_mmap_close(), about to get freed.
+	 * If aux_mmap_count is zero, the aux buffer is in perf_mmap_close(),
+	 * about to get freed, so we leave immediately.
+	 *
+	 * Checking rb::aux_mmap_count and rb::refcount has to be done in
+	 * the same order, see perf_mmap_close. Otherwise we end up freeing
+	 * aux pages in this path, which is a bug, because in_atomic().
 	 */
 	if (!atomic_read(&rb->aux_mmap_count))
-		goto err_put;
+		goto err;
+
+	if (!atomic_inc_not_zero(&rb->aux_refcount))
+		goto err;
 
 	/*
 	 * Nesting is not supported for AUX area, make sure nested
@@ -353,6 +373,7 @@ void *perf_aux_output_begin(struct perf_output_handle *handle,
 	handle->event = event;
 	handle->head = aux_head;
 	handle->size = 0;
+	handle->aux_flags = 0;
 
 	/*
 	 * In overwrite mode, AUX data stores do not depend on aux_tail,
@@ -401,34 +422,32 @@ err:
  * of the AUX buffer management code is that after pmu::stop(), the AUX
  * transaction must be stopped and therefore drop the AUX reference count.
  */
-void perf_aux_output_end(struct perf_output_handle *handle, unsigned long size,
-			 bool truncated)
+void perf_aux_output_end(struct perf_output_handle *handle, unsigned long size)
 {
+	bool wakeup = !!(handle->aux_flags & PERF_AUX_FLAG_TRUNCATED);
 	struct ring_buffer *rb = handle->rb;
-	bool wakeup = truncated;
 	unsigned long aux_head;
-	u64 flags = 0;
-
-	if (truncated)
-		flags |= PERF_AUX_FLAG_TRUNCATED;
 
 	/* in overwrite mode, driver provides aux_head via handle */
 	if (rb->aux_overwrite) {
-		flags |= PERF_AUX_FLAG_OVERWRITE;
+		handle->aux_flags |= PERF_AUX_FLAG_OVERWRITE;
 
 		aux_head = handle->head;
 		local_set(&rb->aux_head, aux_head);
 	} else {
+		handle->aux_flags &= ~PERF_AUX_FLAG_OVERWRITE;
+
 		aux_head = local_read(&rb->aux_head);
 		local_add(size, &rb->aux_head);
 	}
 
-	if (size || flags) {
+	if (size || handle->aux_flags) {
 		/*
 		 * Only send RECORD_AUX if we have something useful to communicate
 		 */
 
-		perf_event_aux_event(handle->event, aux_head, size, flags);
+		perf_event_aux_event(handle->event, aux_head, size,
+		                     handle->aux_flags);
 	}
 
 	aux_head = rb->user_page->aux_head = local_read(&rb->aux_head);
@@ -439,7 +458,7 @@ void perf_aux_output_end(struct perf_output_handle *handle, unsigned long size,
 	}
 
 	if (wakeup) {
-		if (truncated)
+		if (handle->aux_flags & PERF_AUX_FLAG_TRUNCATED)
 			handle->event->pending_disable = 1;
 		perf_output_wakeup(handle);
 	}

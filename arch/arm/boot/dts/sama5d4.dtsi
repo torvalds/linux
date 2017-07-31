@@ -854,10 +854,10 @@
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xf8004000 0x100>;
 				interrupts = <27 IRQ_TYPE_LEVEL_HIGH 5>;
-				dmas = <&dma1
+				dmas = <&dma0
 					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
 					| AT91_XDMAC_DT_PERID(22))>,
-				       <&dma1
+				       <&dma0
 					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
 					| AT91_XDMAC_DT_PERID(23))>;
 				dma-names = "tx", "rx";
@@ -938,10 +938,10 @@
 				compatible = "atmel,sama5d4-i2c";
 				reg = <0xf8018000 0x4000>;
 				interrupts = <33 IRQ_TYPE_LEVEL_HIGH 6>;
-				dmas = <&dma1
+				dmas = <&dma0
 					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
 					| AT91_XDMAC_DT_PERID(4))>,
-				       <&dma1
+				       <&dma0
 					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
 					| AT91_XDMAC_DT_PERID(5))>;
 				dma-names = "tx", "rx";
@@ -1055,10 +1055,10 @@
 				compatible = "atmel,at91sam9260-usart";
 				reg = <0xfc004000 0x100>;
 				interrupts = <28 IRQ_TYPE_LEVEL_HIGH 5>;
-				dmas = <&dma1
+				dmas = <&dma0
 					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
 					| AT91_XDMAC_DT_PERID(24))>,
-				       <&dma1
+				       <&dma0
 					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
 					| AT91_XDMAC_DT_PERID(25))>;
 				dma-names = "tx", "rx";
@@ -1167,10 +1167,10 @@
 				compatible = "atmel,at91rm9200-spi";
 				reg = <0xfc01c000 0x100>;
 				interrupts = <39 IRQ_TYPE_LEVEL_HIGH 3>;
-				dmas = <&dma1
+				dmas = <&dma0
 					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
 					| AT91_XDMAC_DT_PERID(14))>,
-				       <&dma1
+				       <&dma0
 					(AT91_XDMAC_DT_MEM_IF(0) | AT91_XDMAC_DT_PER_IF(1)
 					| AT91_XDMAC_DT_PERID(15))>;
 				dma-names = "tx", "rx";
@@ -1314,30 +1314,11 @@
 				status = "disabled";
 			};
 
-			sckc@fc068650 {
-				compatible = "atmel,at91sam9x5-sckc";
+			clk32k: sckc@fc068650 {
+				compatible = "atmel,sama5d4-sckc";
 				reg = <0xfc068650 0x4>;
-
-				slow_rc_osc: slow_rc_osc {
-					compatible = "atmel,at91sam9x5-clk-slow-rc-osc";
-					#clock-cells = <0>;
-					clock-frequency = <32768>;
-					clock-accuracy = <250000000>;
-					atmel,startup-time-usec = <75>;
-				};
-
-				slow_osc: slow_osc {
-					compatible = "atmel,at91sam9x5-clk-slow-osc";
-					#clock-cells = <0>;
-					clocks = <&slow_xtal>;
-					atmel,startup-time-usec = <1200000>;
-				};
-
-				clk32k: slowck {
-					compatible = "atmel,at91sam9x5-clk-slow";
-					#clock-cells = <0>;
-					clocks = <&slow_rc_osc &slow_osc>;
-				};
+				#clock-cells = <0>;
+				clocks = <&slow_xtal>;
 			};
 
 			rtc@fc0686b0 {
@@ -1461,8 +1442,8 @@
 				dbgu {
 					pinctrl_dbgu: dbgu-0 {
 						atmel,pins =
-							<AT91_PIOB 24 AT91_PERIPH_A AT91_PINCTRL_NONE>,     /* conflicts with D14 and TDI */
-							<AT91_PIOB 25 AT91_PERIPH_A AT91_PINCTRL_PULL_UP>;  /* conflicts with D15 and TDO */
+							<AT91_PIOB 24 AT91_PERIPH_A AT91_PINCTRL_PULL_UP	/* conflicts with D14 and TDI */
+							 AT91_PIOB 25 AT91_PERIPH_A AT91_PINCTRL_NONE>;		/* conflicts with D15 and TDO */
 					};
 				};
 

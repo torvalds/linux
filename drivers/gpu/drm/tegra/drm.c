@@ -57,12 +57,13 @@ static void tegra_atomic_complete(struct tegra_drm *tegra,
 
 	drm_atomic_helper_commit_modeset_disables(drm, state);
 	drm_atomic_helper_commit_modeset_enables(drm, state);
-	drm_atomic_helper_commit_planes(drm, state, true);
+	drm_atomic_helper_commit_planes(drm, state,
+					DRM_PLANE_COMMIT_ACTIVE_ONLY);
 
 	drm_atomic_helper_wait_for_vblanks(drm, state);
 
 	drm_atomic_helper_cleanup_planes(drm, state);
-	drm_atomic_state_free(state);
+	drm_atomic_state_put(state);
 }
 
 static void tegra_atomic_work(struct work_struct *work)
@@ -95,6 +96,7 @@ static int tegra_atomic_commit(struct drm_device *drm,
 
 	drm_atomic_helper_swap_state(state, true);
 
+	drm_atomic_state_get(state);
 	if (nonblock)
 		tegra_atomic_schedule(tegra, state);
 	else
@@ -212,7 +214,7 @@ free:
 	return err;
 }
 
-static int tegra_drm_unload(struct drm_device *drm)
+static void tegra_drm_unload(struct drm_device *drm)
 {
 	struct host1x_device *device = to_host1x_device(drm->dev);
 	struct tegra_drm *tegra = drm->dev_private;
@@ -225,7 +227,7 @@ static int tegra_drm_unload(struct drm_device *drm)
 
 	err = host1x_device_exit(device);
 	if (err < 0)
-		return err;
+		return;
 
 	if (tegra->domain) {
 		iommu_domain_free(tegra->domain);
@@ -233,8 +235,6 @@ static int tegra_drm_unload(struct drm_device *drm)
 	}
 
 	kfree(tegra);
-
-	return 0;
 }
 
 static int tegra_drm_open(struct drm_device *drm, struct drm_file *filp)
@@ -800,29 +800,14 @@ static const struct file_operations tegra_drm_fops = {
 	.mmap = tegra_drm_mmap,
 	.poll = drm_poll,
 	.read = drm_read,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
-#endif
 	.llseek = noop_llseek,
 };
-
-static struct drm_crtc *tegra_crtc_from_pipe(struct drm_device *drm,
-					     unsigned int pipe)
-{
-	struct drm_crtc *crtc;
-
-	list_for_each_entry(crtc, &drm->mode_config.crtc_list, head) {
-		if (pipe == drm_crtc_index(crtc))
-			return crtc;
-	}
-
-	return NULL;
-}
 
 static u32 tegra_drm_get_vblank_counter(struct drm_device *drm,
 					unsigned int pipe)
 {
-	struct drm_crtc *crtc = tegra_crtc_from_pipe(drm, pipe);
+	struct drm_crtc *crtc = drm_crtc_from_index(drm, pipe);
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 
 	if (!crtc)
@@ -833,7 +818,7 @@ static u32 tegra_drm_get_vblank_counter(struct drm_device *drm,
 
 static int tegra_drm_enable_vblank(struct drm_device *drm, unsigned int pipe)
 {
-	struct drm_crtc *crtc = tegra_crtc_from_pipe(drm, pipe);
+	struct drm_crtc *crtc = drm_crtc_from_index(drm, pipe);
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 
 	if (!crtc)
@@ -846,7 +831,7 @@ static int tegra_drm_enable_vblank(struct drm_device *drm, unsigned int pipe)
 
 static void tegra_drm_disable_vblank(struct drm_device *drm, unsigned int pipe)
 {
-	struct drm_crtc *crtc = tegra_crtc_from_pipe(drm, pipe);
+	struct drm_crtc *crtc = drm_crtc_from_index(drm, pipe);
 	struct tegra_dc *dc = to_tegra_dc(crtc);
 
 	if (crtc)
@@ -875,8 +860,9 @@ static int tegra_debugfs_framebuffers(struct seq_file *s, void *data)
 
 	list_for_each_entry(fb, &drm->mode_config.fb_list, head) {
 		seq_printf(s, "%3d: user size: %d x %d, depth %d, %d bpp, refcount %d\n",
-			   fb->base.id, fb->width, fb->height, fb->depth,
-			   fb->bits_per_pixel,
+			   fb->base.id, fb->width, fb->height,
+			   fb->format->depth,
+			   fb->format->cpp[0] * 8,
 			   drm_framebuffer_read_refcount(fb));
 	}
 
@@ -890,8 +876,11 @@ static int tegra_debugfs_iova(struct seq_file *s, void *data)
 	struct drm_info_node *node = (struct drm_info_node *)s->private;
 	struct drm_device *drm = node->minor->dev;
 	struct tegra_drm *tegra = drm->dev_private;
+	struct drm_printer p = drm_seq_file_printer(s);
 
-	return drm_mm_dump_table(s, &tegra->mm);
+	drm_mm_print(&tegra->mm, &p);
+
+	return 0;
 }
 
 static struct drm_info_list tegra_debugfs_list[] = {
@@ -904,12 +893,6 @@ static int tegra_debugfs_init(struct drm_minor *minor)
 	return drm_debugfs_create_files(tegra_debugfs_list,
 					ARRAY_SIZE(tegra_debugfs_list),
 					minor->debugfs_root, minor);
-}
-
-static void tegra_debugfs_cleanup(struct drm_minor *minor)
-{
-	drm_debugfs_remove_files(tegra_debugfs_list,
-				 ARRAY_SIZE(tegra_debugfs_list), minor);
 }
 #endif
 
@@ -928,7 +911,6 @@ static struct drm_driver tegra_drm_driver = {
 
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = tegra_debugfs_init,
-	.debugfs_cleanup = tegra_debugfs_cleanup,
 #endif
 
 	.gem_free_object_unlocked = tegra_bo_free_object,
@@ -982,18 +964,14 @@ static int host1x_drm_probe(struct host1x_device *dev)
 	int err;
 
 	drm = drm_dev_alloc(driver, &dev->dev);
-	if (!drm)
-		return -ENOMEM;
+	if (IS_ERR(drm))
+		return PTR_ERR(drm);
 
 	dev_set_drvdata(&dev->dev, drm);
 
 	err = drm_dev_register(drm, 0);
 	if (err < 0)
 		goto unref;
-
-	DRM_INFO("Initialized %s %d.%d.%d %s on minor %d\n", driver->name,
-		 driver->major, driver->minor, driver->patchlevel,
-		 driver->date, drm->primary->index);
 
 	return 0;
 

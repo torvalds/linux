@@ -373,7 +373,7 @@ static void sun4i_get_apb1_factors(struct factors_request *req)
 	else
 		calcp = 3;
 
-	calcm = (req->parent_rate >> calcp) - 1;
+	calcm = (div >> calcp) - 1;
 
 	req->rate = (req->parent_rate >> calcp) / (calcm + 1);
 	req->m = calcm;

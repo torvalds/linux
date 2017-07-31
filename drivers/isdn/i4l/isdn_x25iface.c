@@ -53,14 +53,14 @@ static int isdn_x25iface_disconn_ind(struct concap_proto *);
 
 
 static struct concap_proto_ops ix25_pops = {
-	&isdn_x25iface_proto_new,
-	&isdn_x25iface_proto_del,
-	&isdn_x25iface_proto_restart,
-	&isdn_x25iface_proto_close,
-	&isdn_x25iface_xmit,
-	&isdn_x25iface_receive,
-	&isdn_x25iface_connect_ind,
-	&isdn_x25iface_disconn_ind
+	.proto_new = &isdn_x25iface_proto_new,
+	.proto_del = &isdn_x25iface_proto_del,
+	.restart = &isdn_x25iface_proto_restart,
+	.close = &isdn_x25iface_proto_close,
+	.encap_and_xmit = &isdn_x25iface_xmit,
+	.data_ind = &isdn_x25iface_receive,
+	.connect_ind = &isdn_x25iface_connect_ind,
+	.disconn_ind = &isdn_x25iface_disconn_ind
 };
 
 /* error message helper function */

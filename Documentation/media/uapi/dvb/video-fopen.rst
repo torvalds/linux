@@ -11,11 +11,12 @@ Name
 
 dvb video open()
 
+.. attention:: This ioctl is deprecated.
 
 Synopsis
 --------
 
-.. cpp:function:: int open(const char *deviceName, int flags)
+.. c:function:: int open(const char *deviceName, int flags)
 
 
 Arguments
@@ -81,6 +82,8 @@ return an error code.
 
 Return Value
 ------------
+
+.. tabularcolumns:: |p{2.5cm}|p{15.0cm}|
 
 .. flat-table::
     :header-rows:  0

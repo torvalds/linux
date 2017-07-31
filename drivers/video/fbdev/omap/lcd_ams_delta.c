@@ -136,11 +136,6 @@ static void ams_delta_panel_disable(struct lcd_panel *panel)
 	gpio_set_value(AMS_DELTA_GPIO_PIN_LCD_NDISP, 0);
 }
 
-static unsigned long ams_delta_panel_get_caps(struct lcd_panel *panel)
-{
-	return 0;
-}
-
 static struct lcd_panel ams_delta_panel = {
 	.name		= "ams-delta",
 	.config		= 0,
@@ -163,7 +158,6 @@ static struct lcd_panel ams_delta_panel = {
 	.cleanup	= ams_delta_panel_cleanup,
 	.enable		= ams_delta_panel_enable,
 	.disable	= ams_delta_panel_disable,
-	.get_caps	= ams_delta_panel_get_caps,
 };
 
 
@@ -195,27 +189,8 @@ static int ams_delta_panel_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ams_delta_panel_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
-static int ams_delta_panel_suspend(struct platform_device *pdev,
-		pm_message_t mesg)
-{
-	return 0;
-}
-
-static int ams_delta_panel_resume(struct platform_device *pdev)
-{
-	return 0;
-}
-
 static struct platform_driver ams_delta_panel_driver = {
 	.probe		= ams_delta_panel_probe,
-	.remove		= ams_delta_panel_remove,
-	.suspend	= ams_delta_panel_suspend,
-	.resume		= ams_delta_panel_resume,
 	.driver		= {
 		.name	= "lcd_ams_delta",
 	},

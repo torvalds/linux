@@ -63,7 +63,7 @@ static const struct vivid_fmt formats_ovl[] = {
 };
 
 /* The number of discrete webcam framesizes */
-#define VIVID_WEBCAM_SIZES 4
+#define VIVID_WEBCAM_SIZES 5
 /* The number of discrete webcam frameintervals */
 #define VIVID_WEBCAM_IVALS (VIVID_WEBCAM_SIZES * 2)
 
@@ -73,6 +73,7 @@ static const struct v4l2_frmsize_discrete webcam_sizes[VIVID_WEBCAM_SIZES] = {
 	{  640, 360 },
 	{ 1280, 720 },
 	{ 1920, 1080 },
+	{ 3840, 2160 },
 };
 
 /*
@@ -80,7 +81,9 @@ static const struct v4l2_frmsize_discrete webcam_sizes[VIVID_WEBCAM_SIZES] = {
  * elements in this array as there are in webcam_sizes.
  */
 static const struct v4l2_fract webcam_intervals[VIVID_WEBCAM_IVALS] = {
+	{  1, 1 },
 	{  1, 2 },
+	{  1, 4 },
 	{  1, 5 },
 	{  1, 10 },
 	{  1, 15 },
@@ -510,6 +513,13 @@ static unsigned vivid_ycbcr_enc_cap(struct vivid_dev *dev)
 	return dev->ycbcr_enc_out;
 }
 
+static unsigned int vivid_hsv_enc_cap(struct vivid_dev *dev)
+{
+	if (!dev->loop_video || vivid_is_webcam(dev) || vivid_is_tv_cap(dev))
+		return tpg_g_hsv_enc(&dev->tpg);
+	return dev->hsv_enc_out;
+}
+
 static unsigned vivid_quantization_cap(struct vivid_dev *dev)
 {
 	if (!dev->loop_video || vivid_is_webcam(dev) || vivid_is_tv_cap(dev))
@@ -530,7 +540,10 @@ int vivid_g_fmt_vid_cap(struct file *file, void *priv,
 	mp->pixelformat  = dev->fmt_cap->fourcc;
 	mp->colorspace   = vivid_colorspace_cap(dev);
 	mp->xfer_func    = vivid_xfer_func_cap(dev);
-	mp->ycbcr_enc    = vivid_ycbcr_enc_cap(dev);
+	if (dev->fmt_cap->color_enc == TGP_COLOR_ENC_HSV)
+		mp->hsv_enc    = vivid_hsv_enc_cap(dev);
+	else
+		mp->ycbcr_enc    = vivid_ycbcr_enc_cap(dev);
 	mp->quantization = vivid_quantization_cap(dev);
 	mp->num_planes = dev->fmt_cap->buffers;
 	for (p = 0; p < mp->num_planes; p++) {
@@ -618,7 +631,10 @@ int vivid_try_fmt_vid_cap(struct file *file, void *priv,
 		memset(pfmt[p].reserved, 0, sizeof(pfmt[p].reserved));
 	}
 	mp->colorspace = vivid_colorspace_cap(dev);
-	mp->ycbcr_enc = vivid_ycbcr_enc_cap(dev);
+	if (fmt->color_enc == TGP_COLOR_ENC_HSV)
+		mp->hsv_enc = vivid_hsv_enc_cap(dev);
+	else
+		mp->ycbcr_enc = vivid_ycbcr_enc_cap(dev);
 	mp->xfer_func = vivid_xfer_func_cap(dev);
 	mp->quantization = vivid_quantization_cap(dev);
 	memset(mp->reserved, 0, sizeof(mp->reserved));
@@ -823,7 +839,7 @@ int vivid_vid_cap_g_selection(struct file *file, void *priv,
 	if (sel->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 	if (vivid_is_webcam(dev))
-		return -EINVAL;
+		return -ENODATA;
 
 	sel->r.left = sel->r.top = 0;
 	switch (sel->target) {
@@ -872,7 +888,7 @@ int vivid_vid_cap_s_selection(struct file *file, void *fh, struct v4l2_selection
 	if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 	if (vivid_is_webcam(dev))
-		return -EINVAL;
+		return -ENODATA;
 
 	switch (s->target) {
 	case V4L2_SEL_TGT_CROP:

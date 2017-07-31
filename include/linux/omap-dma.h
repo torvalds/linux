@@ -297,6 +297,7 @@ struct omap_system_dma_plat_info {
 #define dma_omap15xx()	__dma_omap15xx(d)
 #define dma_omap16xx()	__dma_omap16xx(d)
 
+#if defined(CONFIG_ARCH_OMAP)
 extern struct omap_system_dma_plat_info *omap_get_plat_info(void);
 
 extern void omap_set_dma_priority(int lch, int dst_port, int priority);
@@ -354,5 +355,23 @@ static inline int omap_lcd_dma_running(void)
 	return 0;
 }
 #endif
+
+#else /* CONFIG_ARCH_OMAP */
+
+static inline struct omap_system_dma_plat_info *omap_get_plat_info(void)
+{
+	return NULL;
+}
+
+static inline int omap_request_dma(int dev_id, const char *dev_name,
+			void (*callback)(int lch, u16 ch_status, void *data),
+			void *data, int *dma_ch)
+{
+	return -ENODEV;
+}
+
+static inline void omap_free_dma(int ch) { }
+
+#endif /* CONFIG_ARCH_OMAP */
 
 #endif /* __LINUX_OMAP_DMA_H */

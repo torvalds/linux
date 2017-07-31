@@ -64,7 +64,7 @@ static int qxl_map_ioctl(struct drm_device *dev, void *data,
 	struct qxl_device *qdev = dev->dev_private;
 	struct drm_qxl_map *qxl_map = data;
 
-	return qxl_mode_dumb_mmap(file_priv, qdev->ddev, qxl_map->handle,
+	return qxl_mode_dumb_mmap(file_priv, &qdev->ddev, qxl_map->handle,
 				  &qxl_map->offset);
 }
 
@@ -375,7 +375,7 @@ static int qxl_clientcap_ioctl(struct drm_device *dev, void *data,
 	byte = param->index / 8;
 	idx = param->index % 8;
 
-	if (qdev->pdev->revision < 4)
+	if (dev->pdev->revision < 4)
 		return -ENOSYS;
 
 	if (byte >= 58)

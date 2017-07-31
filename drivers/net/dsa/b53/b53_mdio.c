@@ -267,7 +267,7 @@ static int b53_mdio_phy_write16(struct b53_device *dev, int addr, int reg,
 	return mdiobus_write_nested(bus, addr, reg, value);
 }
 
-static struct b53_io_ops b53_mdio_ops = {
+static const struct b53_io_ops b53_mdio_ops = {
 	.read8 = b53_mdio_read8,
 	.read16 = b53_mdio_read16,
 	.read32 = b53_mdio_read32,
@@ -375,18 +375,7 @@ static struct mdio_driver b53_mdio_driver = {
 		.of_match_table = b53_of_match,
 	},
 };
-
-static int __init b53_mdio_driver_register(void)
-{
-	return mdio_driver_register(&b53_mdio_driver);
-}
-module_init(b53_mdio_driver_register);
-
-static void __exit b53_mdio_driver_unregister(void)
-{
-	mdio_driver_unregister(&b53_mdio_driver);
-}
-module_exit(b53_mdio_driver_unregister);
+mdio_module_driver(b53_mdio_driver);
 
 MODULE_DESCRIPTION("B53 MDIO access driver");
 MODULE_LICENSE("Dual BSD/GPL");

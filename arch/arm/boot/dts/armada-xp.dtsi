@@ -18,17 +18,17 @@
  *     published by the Free Software Foundation; either version 2 of the
  *     License, or (at your option) any later version.
  *
- *     This file is distributed in the hope that it will be useful
+ *     This file is distributed in the hope that it will be useful,
  *     but WITHOUT ANY WARRANTY; without even the implied warranty of
  *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *     GNU General Public License for more details.
  *
- * Or, alternatively
+ * Or, alternatively,
  *
  *  b) Permission is hereby granted, free of charge, to any person
  *     obtaining a copy of this software and associated documentation
  *     files (the "Software"), to deal in the Software without
- *     restriction, including without limitation the rights to use
+ *     restriction, including without limitation the rights to use,
  *     copy, modify, merge, publish, distribute, sublicense, and/or
  *     sell copies of the Software, and to permit persons to whom the
  *     Software is furnished to do so, subject to the following
@@ -37,11 +37,11 @@
  *     The above copyright notice and this permission notice shall be
  *     included in all copies or substantial portions of the Software.
  *
- *     THE SOFTWARE IS PROVIDED , WITHOUT WARRANTY OF ANY KIND
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
  *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
  *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
  *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
  *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  *     OTHER DEALINGS IN THE SOFTWARE.
@@ -53,6 +53,9 @@
 #include "armada-370-xp.dtsi"
 
 / {
+	#address-cells = <2>;
+	#size-cells = <2>;
+
 	model = "Marvell Armada XP family SoC";
 	compatible = "marvell,armadaxp", "marvell,armada-370-xp";
 
@@ -75,36 +78,13 @@
 				reg = <0x1400 0x500>;
 			};
 
-			L2: l2-cache {
+			L2: l2-cache@8000 {
 				compatible = "marvell,aurora-system-cache";
 				reg = <0x08000 0x1000>;
 				cache-id-part = <0x100>;
 				cache-level = <2>;
 				cache-unified;
 				wt-override;
-			};
-
-			spi0: spi@10600 {
-				compatible = "marvell,armada-xp-spi",
-						"marvell,orion-spi";
-				pinctrl-0 = <&spi0_pins>;
-				pinctrl-names = "default";
-			};
-
-			spi1: spi@10680 {
-				compatible = "marvell,armada-xp-spi",
-						"marvell,orion-spi";
-			};
-
-
-			i2c0: i2c@11000 {
-				compatible = "marvell,mv78230-i2c", "marvell,mv64xxx-i2c";
-				reg = <0x11000 0x100>;
-			};
-
-			i2c1: i2c@11100 {
-				compatible = "marvell,mv78230-i2c", "marvell,mv64xxx-i2c";
-				reg = <0x11100 0x100>;
 			};
 
 			uart2: serial@12200 {
@@ -131,7 +111,7 @@
 				status = "disabled";
 			};
 
-			system-controller@18200 {
+			systemc: system-controller@18200 {
 				compatible = "marvell,armada-370-xp-system-controller";
 				reg = <0x18200 0x500>;
 			};
@@ -149,7 +129,7 @@
 				#clock-cells = <1>;
 			};
 
-			thermal@182b0 {
+			thermal: thermal@182b0 {
 				compatible = "marvell,armadaxp-thermal";
 				reg = <0x182b0 0x4
 					0x184d0 0x4>;
@@ -161,27 +141,6 @@
 				compatible = "marvell,armada-xp-cpu-clock";
 				reg = <0x18700 0x24>, <0x1c054 0x10>;
 				clocks = <&coreclk 1>;
-			};
-
-			interrupt-controller@20a00 {
-			      reg = <0x20a00 0x2d0>, <0x21070 0x58>;
-			};
-
-			timer@20300 {
-				compatible = "marvell,armada-xp-timer";
-				clocks = <&coreclk 2>, <&refclk>;
-				clock-names = "nbclk", "fixed";
-			};
-
-			watchdog@20300 {
-				compatible = "marvell,armada-xp-wdt";
-				clocks = <&coreclk 2>, <&refclk>;
-				clock-names = "nbclk", "fixed";
-			};
-
-			cpurst@20800 {
-				compatible = "marvell,armada-370-cpu-reset";
-				reg = <0x20800 0x20>;
 			};
 
 			cpu-config@21000 {
@@ -197,15 +156,7 @@
 				status = "disabled";
 			};
 
-			usb@50000 {
-				clocks = <&gateclk 18>;
-			};
-
-			usb@51000 {
-				clocks = <&gateclk 19>;
-			};
-
-			usb@52000 {
+			usb2: usb@52000 {
 				compatible = "marvell,orion-ehci";
 				reg = <0x52000 0x500>;
 				interrupts = <47>;
@@ -213,7 +164,7 @@
 				status = "disabled";
 			};
 
-			xor@60900 {
+			xor1: xor@60900 {
 				compatible = "marvell,orion-xor";
 				reg = <0x60900 0x100
 				       0x60b00 0x100>;
@@ -241,7 +192,7 @@
 				compatible = "marvell,armada-xp-neta";
 			};
 
-			crypto@90000 {
+			cesa: crypto@90000 {
 				compatible = "marvell,armada-xp-crypto";
 				reg = <0x90000 0x10000>;
 				reg-names = "regs";
@@ -261,7 +212,7 @@
 				status = "disabled";
 			};
 
-			xor@f0900 {
+			xor0: xor@f0900 {
 				compatible = "marvell,orion-xor";
 				reg = <0xF0900 0x100
 				       0xF0B00 0x100>;
@@ -322,6 +273,44 @@
 	};
 };
 
+&i2c0 {
+	compatible = "marvell,mv78230-i2c", "marvell,mv64xxx-i2c";
+	reg = <0x11000 0x100>;
+};
+
+&i2c1 {
+	compatible = "marvell,mv78230-i2c", "marvell,mv64xxx-i2c";
+	reg = <0x11100 0x100>;
+};
+
+&mpic {
+	reg = <0x20a00 0x2d0>, <0x21070 0x58>;
+};
+
+&timer {
+	compatible = "marvell,armada-xp-timer";
+	clocks = <&coreclk 2>, <&refclk>;
+	clock-names = "nbclk", "fixed";
+};
+
+&watchdog {
+	compatible = "marvell,armada-xp-wdt";
+	clocks = <&coreclk 2>, <&refclk>;
+	clock-names = "nbclk", "fixed";
+};
+
+&cpurst {
+	reg = <0x20800 0x20>;
+};
+
+&usb0 {
+	clocks = <&gateclk 18>;
+};
+
+&usb1 {
+	clocks = <&gateclk 19>;
+};
+
 &pinctrl {
 	ge0_gmii_pins: ge0-gmii-pins {
 		marvell,pins =
@@ -362,6 +351,12 @@
 		marvell,function = "spi0";
 	};
 
+	spi1_pins: spi1-pins {
+		marvell,pins = "mpp13", "mpp14",
+			       "mpp16", "mpp17";
+		marvell,function = "spi1";
+	};
+
 	uart2_pins: uart2-pins {
 		marvell,pins = "mpp42", "mpp43";
 		marvell,function = "uart2";
@@ -371,4 +366,16 @@
 		marvell,pins = "mpp44", "mpp45";
 		marvell,function = "uart3";
 	};
+};
+
+&spi0 {
+	compatible = "marvell,armada-xp-spi", "marvell,orion-spi";
+	pinctrl-0 = <&spi0_pins>;
+	pinctrl-names = "default";
+};
+
+&spi1 {
+	compatible = "marvell,armada-xp-spi", "marvell,orion-spi";
+	pinctrl-0 = <&spi1_pins>;
+	pinctrl-names = "default";
 };

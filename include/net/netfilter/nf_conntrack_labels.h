@@ -30,8 +30,7 @@ static inline struct nf_conn_labels *nf_ct_labels_ext_add(struct nf_conn *ct)
 	if (net->ct.labels_used == 0)
 		return NULL;
 
-	return nf_ct_ext_add_length(ct, NF_CT_EXT_LABELS,
-				    sizeof(struct nf_conn_labels), GFP_ATOMIC);
+	return nf_ct_ext_add(ct, NF_CT_EXT_LABELS, GFP_ATOMIC);
 #else
 	return NULL;
 #endif

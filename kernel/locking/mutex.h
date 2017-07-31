@@ -9,38 +9,8 @@
  * !CONFIG_DEBUG_MUTEXES case. Most of them are NOPs:
  */
 
-#define spin_lock_mutex(lock, flags) \
-		do { spin_lock(lock); (void)(flags); } while (0)
-#define spin_unlock_mutex(lock, flags) \
-		do { spin_unlock(lock); (void)(flags); } while (0)
 #define mutex_remove_waiter(lock, waiter, task) \
 		__list_del((waiter)->list.prev, (waiter)->list.next)
-
-#ifdef CONFIG_MUTEX_SPIN_ON_OWNER
-/*
- * The mutex owner can get read and written to locklessly.
- * We should use WRITE_ONCE when writing the owner value to
- * avoid store tearing, otherwise, a thread could potentially
- * read a partially written and incomplete owner value.
- */
-static inline void mutex_set_owner(struct mutex *lock)
-{
-	WRITE_ONCE(lock->owner, current);
-}
-
-static inline void mutex_clear_owner(struct mutex *lock)
-{
-	WRITE_ONCE(lock->owner, NULL);
-}
-#else
-static inline void mutex_set_owner(struct mutex *lock)
-{
-}
-
-static inline void mutex_clear_owner(struct mutex *lock)
-{
-}
-#endif
 
 #define debug_mutex_wake_waiter(lock, waiter)		do { } while (0)
 #define debug_mutex_free_waiter(waiter)			do { } while (0)

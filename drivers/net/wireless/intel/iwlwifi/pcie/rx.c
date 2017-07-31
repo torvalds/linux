@@ -2,7 +2,7 @@
  *
  * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2016 Intel Deutschland GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
@@ -487,14 +487,12 @@ static void iwl_pcie_rx_allocator(struct iwl_trans *trans)
 
 	while (pending) {
 		int i;
-		struct list_head local_allocated;
+		LIST_HEAD(local_allocated);
 		gfp_t gfp_mask = GFP_KERNEL;
 
 		/* Do not post a warning if there are only a few requests */
 		if (pending < RX_PENDING_WATERMARK)
 			gfp_mask |= __GFP_NOWARN;
-
-		INIT_LIST_HEAD(&local_allocated);
 
 		for (i = 0; i < RX_CLAIM_REQ_ALLOC;) {
 			struct iwl_rx_mem_buffer *rxb;
@@ -882,7 +880,7 @@ static int iwl_pcie_dummy_napi_poll(struct napi_struct *napi, int budget)
 	return 0;
 }
 
-int iwl_pcie_rx_init(struct iwl_trans *trans)
+static int _iwl_pcie_rx_init(struct iwl_trans *trans)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_rxq *def_rxq;
@@ -960,18 +958,38 @@ int iwl_pcie_rx_init(struct iwl_trans *trans)
 
 	iwl_pcie_rxq_alloc_rbs(trans, GFP_KERNEL, def_rxq);
 
+	return 0;
+}
+
+int iwl_pcie_rx_init(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	int ret = _iwl_pcie_rx_init(trans);
+
+	if (ret)
+		return ret;
+
 	if (trans->cfg->mq_rx_supported)
 		iwl_pcie_rx_mq_hw_init(trans);
 	else
-		iwl_pcie_rx_hw_init(trans, def_rxq);
+		iwl_pcie_rx_hw_init(trans, trans_pcie->rxq);
 
-	iwl_pcie_rxq_restock(trans, def_rxq);
+	iwl_pcie_rxq_restock(trans, trans_pcie->rxq);
 
-	spin_lock(&def_rxq->lock);
-	iwl_pcie_rxq_inc_wr_ptr(trans, def_rxq);
-	spin_unlock(&def_rxq->lock);
+	spin_lock(&trans_pcie->rxq->lock);
+	iwl_pcie_rxq_inc_wr_ptr(trans, trans_pcie->rxq);
+	spin_unlock(&trans_pcie->rxq->lock);
 
 	return 0;
+}
+
+int iwl_pcie_gen2_rx_init(struct iwl_trans *trans)
+{
+	/*
+	 * We don't configure the RFH.
+	 * Restock will be done at alive, after firmware configured the RFH.
+	 */
+	return _iwl_pcie_rx_init(trans);
 }
 
 void iwl_pcie_rx_free(struct iwl_trans *trans)
@@ -1076,7 +1094,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 				bool emergency)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	struct iwl_txq *txq = &trans_pcie->txq[trans_pcie->cmd_queue];
+	struct iwl_txq *txq = trans_pcie->txq[trans_pcie->cmd_queue];
 	bool page_stolen = false;
 	int max_len = PAGE_SIZE << trans_pcie->rx_page_order;
 	u32 offset = 0;
@@ -1108,13 +1126,14 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 			FH_RSCSR_RXQ_POS != rxq->id);
 
 		IWL_DEBUG_RX(trans,
-			     "cmd at offset %d: %s (0x%.2x, seq 0x%x)\n",
+			     "cmd at offset %d: %s (%.2x.%2x, seq 0x%x)\n",
 			     rxcb._offset,
 			     iwl_get_cmd_string(trans,
 						iwl_cmd_id(pkt->hdr.cmd,
 							   pkt->hdr.group_id,
 							   0)),
-			     pkt->hdr.cmd, le16_to_cpu(pkt->hdr.sequence));
+			     pkt->hdr.group_id, pkt->hdr.cmd,
+			     le16_to_cpu(pkt->hdr.sequence));
 
 		len = iwl_rx_packet_len(pkt);
 		len += sizeof(u32); /* account for status word */
@@ -1128,7 +1147,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 		 * Ucode should set SEQ_RX_FRAME bit if ucode-originated,
 		 *   but apparently a few don't get set; catch them here. */
 		reclaim = !(pkt->hdr.sequence & SEQ_RX_FRAME);
-		if (reclaim) {
+		if (reclaim && !pkt->hdr.group_id) {
 			int i;
 
 			for (i = 0; i < trans_pcie->n_no_reclaim_cmds; i++) {
@@ -1142,7 +1161,7 @@ static void iwl_pcie_rx_handle_rb(struct iwl_trans *trans,
 
 		sequence = le16_to_cpu(pkt->hdr.sequence);
 		index = SEQ_TO_INDEX(sequence);
-		cmd_index = get_cmd_index(&txq->q, index);
+		cmd_index = get_cmd_index(txq, index);
 
 		if (rxq->id == 0)
 			iwl_op_mode_rx(trans->op_mode, &rxq->napi,
@@ -1394,17 +1413,17 @@ static void iwl_pcie_irq_handle_error(struct iwl_trans *trans)
 		return;
 	}
 
-	iwl_pcie_dump_csr(trans);
-	iwl_dump_fh(trans, NULL);
-
 	local_bh_disable();
 	/* The STATUS_FW_ERROR bit is set in this function. This must happen
 	 * before we wake up the command caller, to ensure a proper cleanup. */
 	iwl_trans_fw_error(trans);
 	local_bh_enable();
 
-	for (i = 0; i < trans->cfg->base_params->num_of_queues; i++)
-		del_timer(&trans_pcie->txq[i].stuck_timer);
+	for (i = 0; i < trans->cfg->base_params->num_of_queues; i++) {
+		if (!trans_pcie->txq[i])
+			continue;
+		del_timer(&trans_pcie->txq[i]->stuck_timer);
+	}
 
 	clear_bit(STATUS_SYNC_HCMD_ACTIVE, &trans->status);
 	wake_up(&trans_pcie->wait_command_queue);
@@ -1598,6 +1617,13 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 		if (inta & CSR_INT_BIT_ALIVE) {
 			IWL_DEBUG_ISR(trans, "Alive interrupt\n");
 			isr_stats->alive++;
+			if (trans->cfg->gen2) {
+				/*
+				 * We can restock, since firmware configured
+				 * the RFH
+				 */
+				iwl_pcie_rxmq_restock(trans, trans_pcie->rxq);
+			}
 		}
 	}
 
@@ -1608,17 +1634,19 @@ irqreturn_t iwl_pcie_irq_handler(int irq, void *dev_id)
 	if (inta & CSR_INT_BIT_RF_KILL) {
 		bool hw_rfkill;
 
+		mutex_lock(&trans_pcie->mutex);
 		hw_rfkill = iwl_is_rfkill_set(trans);
+		if (hw_rfkill)
+			set_bit(STATUS_RFKILL, &trans->status);
+
 		IWL_WARN(trans, "RF_KILL bit toggled to %s.\n",
 			 hw_rfkill ? "disable radio" : "enable radio");
 
 		isr_stats->rfkill++;
 
-		mutex_lock(&trans_pcie->mutex);
 		iwl_trans_pcie_rf_kill(trans, hw_rfkill);
 		mutex_unlock(&trans_pcie->mutex);
 		if (hw_rfkill) {
-			set_bit(STATUS_RFKILL, &trans->status);
 			if (test_and_clear_bit(STATUS_SYNC_HCMD_ACTIVE,
 					       &trans->status))
 				IWL_DEBUG_RF_KILL(trans,
@@ -1885,6 +1913,20 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 			      inta_fh,
 			      iwl_read32(trans, CSR_MSIX_FH_INT_MASK_AD));
 
+	if ((trans_pcie->shared_vec_mask & IWL_SHARED_IRQ_NON_RX) &&
+	    inta_fh & MSIX_FH_INT_CAUSES_Q0) {
+		local_bh_disable();
+		iwl_pcie_rx_handle(trans, 0);
+		local_bh_enable();
+	}
+
+	if ((trans_pcie->shared_vec_mask & IWL_SHARED_IRQ_FIRST_RSS) &&
+	    inta_fh & MSIX_FH_INT_CAUSES_Q1) {
+		local_bh_disable();
+		iwl_pcie_rx_handle(trans, 1);
+		local_bh_enable();
+	}
+
 	/* This "Tx" DMA channel is used only for loading uCode */
 	if (inta_fh & MSIX_FH_INT_CAUSES_D2S_CH0_NUM) {
 		IWL_DEBUG_ISR(trans, "uCode load interrupt\n");
@@ -1918,6 +1960,10 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 	if (inta_hw & MSIX_HW_INT_CAUSES_REG_ALIVE) {
 		IWL_DEBUG_ISR(trans, "Alive interrupt\n");
 		isr_stats->alive++;
+		if (trans->cfg->gen2) {
+			/* We can restock, since firmware configured the RFH */
+			iwl_pcie_rxmq_restock(trans, trans_pcie->rxq);
+		}
 	}
 
 	/* uCode wakes up after power-down sleep */
@@ -1939,17 +1985,19 @@ irqreturn_t iwl_pcie_irq_msix_handler(int irq, void *dev_id)
 	if (inta_hw & MSIX_HW_INT_CAUSES_REG_RF_KILL) {
 		bool hw_rfkill;
 
+		mutex_lock(&trans_pcie->mutex);
 		hw_rfkill = iwl_is_rfkill_set(trans);
+		if (hw_rfkill)
+			set_bit(STATUS_RFKILL, &trans->status);
+
 		IWL_WARN(trans, "RF_KILL bit toggled to %s.\n",
 			 hw_rfkill ? "disable radio" : "enable radio");
 
 		isr_stats->rfkill++;
 
-		mutex_lock(&trans_pcie->mutex);
 		iwl_trans_pcie_rf_kill(trans, hw_rfkill);
 		mutex_unlock(&trans_pcie->mutex);
 		if (hw_rfkill) {
-			set_bit(STATUS_RFKILL, &trans->status);
 			if (test_and_clear_bit(STATUS_SYNC_HCMD_ACTIVE,
 					       &trans->status))
 				IWL_DEBUG_RF_KILL(trans,

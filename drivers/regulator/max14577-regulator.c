@@ -2,7 +2,7 @@
  * max14577.c - Regulator driver for the Maxim 14577/77836
  *
  * Copyright (C) 2013,2014 Samsung Electronics
- * Krzysztof Kozlowski <k.kozlowski@samsung.com>
+ * Krzysztof Kozlowski <krzk@kernel.org>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -85,14 +85,14 @@ static int max14577_reg_set_current_limit(struct regulator_dev *rdev,
 			reg_data);
 }
 
-static struct regulator_ops max14577_safeout_ops = {
+static const struct regulator_ops max14577_safeout_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
 	.list_voltage		= regulator_list_voltage_linear,
 };
 
-static struct regulator_ops max14577_charger_ops = {
+static const struct regulator_ops max14577_charger_ops = {
 	.is_enabled		= max14577_reg_is_enabled,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -130,7 +130,7 @@ static const struct regulator_desc max14577_supported_regulators[] = {
 	[MAX14577_CHARGER] = MAX14577_CHARGER_REG,
 };
 
-static struct regulator_ops max77836_ldo_ops = {
+static const struct regulator_ops max77836_ldo_ops = {
 	.is_enabled		= regulator_is_enabled_regmap,
 	.enable			= regulator_enable_regmap,
 	.disable		= regulator_disable_regmap,
@@ -331,7 +331,7 @@ static void __exit max14577_regulator_exit(void)
 }
 module_exit(max14577_regulator_exit);
 
-MODULE_AUTHOR("Krzysztof Kozlowski <k.kozlowski@samsung.com>");
+MODULE_AUTHOR("Krzysztof Kozlowski <krzk@kernel.org>");
 MODULE_DESCRIPTION("Maxim 14577/77836 regulator driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:max14577-regulator");

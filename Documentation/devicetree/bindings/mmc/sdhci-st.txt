@@ -10,7 +10,7 @@ Required properties:
 			subsystem (mmcss) inside the FlashSS (available in STiH407 SoC
 			family).
 
-- clock-names:		Should be "mmc".
+- clock-names:		Should be "mmc" and "icn".  (NB: The latter is not compulsory)
 			See: Documentation/devicetree/bindings/resource-names.txt
 - clocks:		Phandle to the clock.
 			See: Documentation/devicetree/bindings/clock/clock-bindings.txt
@@ -38,7 +38,7 @@ Optional properties:
 - bus-width:		Number of data lines.
 			See:  Documentation/devicetree/bindings/mmc/mmc.txt.
 
-- max-frequency:	Can be 200MHz, 100Mz or 50MHz (default) and used for
+- max-frequency:	Can be 200MHz, 100MHz or 50MHz (default) and used for
 			configuring the CCONFIG3 in the mmcss.
 			See:  Documentation/devicetree/bindings/mmc/mmc.txt.
 

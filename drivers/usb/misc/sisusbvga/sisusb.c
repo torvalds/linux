@@ -1831,16 +1831,10 @@ static int sisusb_set_default_mode(struct sisusb_usb_data *sisusb,
 	SETIREGANDOR(SISCR, 0x09, 0x5f, ((crtcdata[16] & 0x01) << 5));
 	SETIREG(SISCR, 0x14, 0x4f);
 	du = (modex / 16) * (bpp * 2);	/* offset/pitch */
-	if (modex % 16)
-		du += bpp;
-
 	SETIREGANDOR(SISSR, 0x0e, 0xf0, ((du >> 8) & 0x0f));
 	SETIREG(SISCR, 0x13, (du & 0xff));
 	du <<= 5;
 	tmp8 = du >> 8;
-	if (du & 0xff)
-		tmp8++;
-
 	SETIREG(SISSR, 0x10, tmp8);
 	SETIREG(SISSR, 0x31, 0x00);	/* VCLK */
 	SETIREG(SISSR, 0x2b, 0x1b);
@@ -3084,7 +3078,6 @@ static int sisusb_probe(struct usb_interface *intf,
 	/* Allocate URBs */
 	sisusb->sisurbin = usb_alloc_urb(0, GFP_KERNEL);
 	if (!sisusb->sisurbin) {
-		dev_err(&sisusb->sisusb_dev->dev, "Failed to allocate URBs\n");
 		retval = -ENOMEM;
 		goto error_3;
 	}
@@ -3093,8 +3086,6 @@ static int sisusb_probe(struct usb_interface *intf,
 	for (i = 0; i < sisusb->numobufs; i++) {
 		sisusb->sisurbout[i] = usb_alloc_urb(0, GFP_KERNEL);
 		if (!sisusb->sisurbout[i]) {
-			dev_err(&sisusb->sisusb_dev->dev,
-					"Failed to allocate URBs\n");
 			retval = -ENOMEM;
 			goto error_4;
 		}

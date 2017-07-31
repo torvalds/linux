@@ -267,8 +267,8 @@ static const unsigned int nand_ale_pins[]	= { PIN(BOOT_11, 0) };
 static const unsigned int nand_cle_pins[]	= { PIN(BOOT_12, 0) };
 static const unsigned int nand_wen_clk_pins[]	= { PIN(BOOT_13, 0) };
 static const unsigned int nand_ren_clk_pins[]	= { PIN(BOOT_14, 0) };
-static const unsigned int nand_dqs_0_pins[]	= { PIN(BOOT_15, 0) };
-static const unsigned int nand_dqs_1_pins[]	= { PIN(BOOT_18, 0) };
+static const unsigned int nand_dqs_15_pins[]	= { PIN(BOOT_15, 0) };
+static const unsigned int nand_dqs_18_pins[]	= { PIN(BOOT_18, 0) };
 
 static const unsigned int sdxc_d0_c_pins[]	= { PIN(BOOT_0, 0)};
 static const unsigned int sdxc_d13_c_pins[]	= { PIN(BOOT_1, 0), PIN(BOOT_2, 0),
@@ -527,8 +527,8 @@ static struct meson_pmx_group meson8b_cbus_groups[] = {
 	GROUP(nand_cle,		2,	20),
 	GROUP(nand_wen_clk,	2,	19),
 	GROUP(nand_ren_clk,	2,	18),
-	GROUP(nand_dqs_0,	2,	27),
-	GROUP(nand_dqs_1,	2,	28),
+	GROUP(nand_dqs_15,	2,	27),
+	GROUP(nand_dqs_18,	2,	28),
 	GROUP(sdxc_d0_c,	4,	30),
 	GROUP(sdxc_d13_c,	4,	29),
 	GROUP(sdxc_d47_c,	4,	28),
@@ -739,8 +739,8 @@ static const char * const sdxc_c_groups[] = {
 static const char * const nand_groups[] = {
 	"nand_io", "nand_io_ce0", "nand_io_ce1",
 	"nand_io_rb0", "nand_ale", "nand_cle",
-	"nand_wen_clk", "nand_ren_clk", "nand_dqs0",
-	"nand_dqs1"
+	"nand_wen_clk", "nand_ren_clk", "nand_dqs_15",
+	"nand_dqs_18"
 };
 
 static const char * const nor_groups[] = {
@@ -896,38 +896,28 @@ static struct meson_bank meson8b_aobus_banks[] = {
 	BANK("AO",   PIN(GPIOAO_0, AO_OFF), PIN(GPIO_TEST_N, AO_OFF), 0,  0,  0, 16,  0,  0,  0, 16,  1,  0),
 };
 
-static struct meson_domain_data meson8b_cbus_domain_data = {
-	.name		= "cbus-banks",
-	.banks		= meson8b_cbus_banks,
-	.num_banks	= ARRAY_SIZE(meson8b_cbus_banks),
-	.pin_base	= 0,
-	.num_pins	= 130,
-};
-
-static struct meson_domain_data meson8b_aobus_domain_data = {
-	.name		= "aobus-banks",
-	.banks		= meson8b_aobus_banks,
-	.num_banks	= ARRAY_SIZE(meson8b_aobus_banks),
-	.pin_base	= 130,
-	.num_pins	= 16,
-};
-
 struct meson_pinctrl_data meson8b_cbus_pinctrl_data = {
+	.name		= "cbus-banks",
+	.pin_base	= 0,
 	.pins		= meson8b_cbus_pins,
 	.groups		= meson8b_cbus_groups,
 	.funcs		= meson8b_cbus_functions,
-	.domain_data	= &meson8b_cbus_domain_data,
+	.banks		= meson8b_cbus_banks,
 	.num_pins	= ARRAY_SIZE(meson8b_cbus_pins),
 	.num_groups	= ARRAY_SIZE(meson8b_cbus_groups),
 	.num_funcs	= ARRAY_SIZE(meson8b_cbus_functions),
+	.num_banks	= ARRAY_SIZE(meson8b_cbus_banks),
 };
 
 struct meson_pinctrl_data meson8b_aobus_pinctrl_data = {
+	.name		= "aobus-banks",
+	.pin_base	= 130,
 	.pins		= meson8b_aobus_pins,
 	.groups		= meson8b_aobus_groups,
 	.funcs		= meson8b_aobus_functions,
-	.domain_data	= &meson8b_aobus_domain_data,
+	.banks		= meson8b_aobus_banks,
 	.num_pins	= ARRAY_SIZE(meson8b_aobus_pins),
 	.num_groups	= ARRAY_SIZE(meson8b_aobus_groups),
 	.num_funcs	= ARRAY_SIZE(meson8b_aobus_functions),
+	.num_banks	= ARRAY_SIZE(meson8b_aobus_banks),
 };

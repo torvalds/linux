@@ -311,9 +311,10 @@ void etm_config_trace_mode(struct etm_config *config)
 #define ETM3X_SUPPORTED_OPTIONS (ETMCR_CYC_ACC | ETMCR_TIMESTAMP_EN)
 
 static int etm_parse_event_config(struct etm_drvdata *drvdata,
-				  struct perf_event_attr *attr)
+				  struct perf_event *event)
 {
 	struct etm_config *config = &drvdata->config;
+	struct perf_event_attr *attr = &event->attr;
 
 	if (!attr)
 		return -EINVAL;
@@ -459,7 +460,7 @@ static int etm_trace_id(struct coresight_device *csdev)
 }
 
 static int etm_enable_perf(struct coresight_device *csdev,
-			   struct perf_event_attr *attr)
+			   struct perf_event *event)
 {
 	struct etm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
 
@@ -467,7 +468,7 @@ static int etm_enable_perf(struct coresight_device *csdev,
 		return -EINVAL;
 
 	/* Configure the tracer based on the session's specifics */
-	etm_parse_event_config(drvdata, attr);
+	etm_parse_event_config(drvdata, event);
 	/* And enable it */
 	etm_enable_hw(drvdata);
 
@@ -504,7 +505,7 @@ err:
 }
 
 static int etm_enable(struct coresight_device *csdev,
-		      struct perf_event_attr *attr, u32 mode)
+		      struct perf_event *event, u32 mode)
 {
 	int ret;
 	u32 val;
@@ -521,7 +522,7 @@ static int etm_enable(struct coresight_device *csdev,
 		ret = etm_enable_sysfs(csdev);
 		break;
 	case CS_MODE_PERF:
-		ret = etm_enable_perf(csdev, attr);
+		ret = etm_enable_perf(csdev, event);
 		break;
 	default:
 		ret = -EINVAL;
@@ -601,7 +602,8 @@ static void etm_disable_sysfs(struct coresight_device *csdev)
 	dev_info(drvdata->dev, "ETM tracing disabled\n");
 }
 
-static void etm_disable(struct coresight_device *csdev)
+static void etm_disable(struct coresight_device *csdev,
+			struct perf_event *event)
 {
 	u32 mode;
 	struct etm_drvdata *drvdata = dev_get_drvdata(csdev->dev.parent);
@@ -756,12 +758,8 @@ static int etm_probe(struct amba_device *adev, const struct amba_id *id)
 	struct coresight_platform_data *pdata = NULL;
 	struct etm_drvdata *drvdata;
 	struct resource *res = &adev->res;
-	struct coresight_desc *desc;
+	struct coresight_desc desc = { 0 };
 	struct device_node *np = adev->dev.of_node;
-
-	desc = devm_kzalloc(dev, sizeof(*desc), GFP_KERNEL);
-	if (!desc)
-		return -ENOMEM;
 
 	drvdata = devm_kzalloc(dev, sizeof(*drvdata), GFP_KERNEL);
 	if (!drvdata)
@@ -806,10 +804,10 @@ static int etm_probe(struct amba_device *adev, const struct amba_id *id)
 
 	if (!etm_count++) {
 		cpuhp_setup_state_nocalls(CPUHP_AP_ARM_CORESIGHT_STARTING,
-					  "AP_ARM_CORESIGHT_STARTING",
+					  "arm/coresight:starting",
 					  etm_starting_cpu, etm_dying_cpu);
 		ret = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
-						"AP_ARM_CORESIGHT_ONLINE",
+						"arm/coresight:online",
 						etm_online_cpu, NULL);
 		if (ret < 0)
 			goto err_arch_supported;
@@ -825,13 +823,13 @@ static int etm_probe(struct amba_device *adev, const struct amba_id *id)
 	etm_init_trace_id(drvdata);
 	etm_set_default(&drvdata->config);
 
-	desc->type = CORESIGHT_DEV_TYPE_SOURCE;
-	desc->subtype.source_subtype = CORESIGHT_DEV_SUBTYPE_SOURCE_PROC;
-	desc->ops = &etm_cs_ops;
-	desc->pdata = pdata;
-	desc->dev = dev;
-	desc->groups = coresight_etm_groups;
-	drvdata->csdev = coresight_register(desc);
+	desc.type = CORESIGHT_DEV_TYPE_SOURCE;
+	desc.subtype.source_subtype = CORESIGHT_DEV_SUBTYPE_SOURCE_PROC;
+	desc.ops = &etm_cs_ops;
+	desc.pdata = pdata;
+	desc.dev = dev;
+	desc.groups = coresight_etm_groups;
+	drvdata->csdev = coresight_register(&desc);
 	if (IS_ERR(drvdata->csdev)) {
 		ret = PTR_ERR(drvdata->csdev);
 		goto err_arch_supported;
@@ -892,6 +890,11 @@ static struct amba_id etm_ids[] = {
 		.id	= 0x0003b921,
 		.mask	= 0x0003ffff,
 		.data	= "ETM 3.3",
+	},
+	{	/* ETM 3.5 - Cortex-A5 */
+		.id	= 0x0003b955,
+		.mask	= 0x0003ffff,
+		.data	= "ETM 3.5",
 	},
 	{	/* ETM 3.5 */
 		.id	= 0x0003b956,

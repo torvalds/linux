@@ -22,7 +22,6 @@
 #ifndef __AU8522_H__
 #define __AU8522_H__
 
-#include <linux/kconfig.h>
 #include <linux/dvb/frontend.h>
 
 enum au8522_if_freq {

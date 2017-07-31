@@ -123,20 +123,6 @@ int ipu_dmfc_enable_channel(struct dmfc_channel *dmfc)
 }
 EXPORT_SYMBOL_GPL(ipu_dmfc_enable_channel);
 
-static void ipu_dmfc_wait_fifos(struct ipu_dmfc_priv *priv)
-{
-	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
-
-	while ((readl(priv->base + DMFC_STAT) & 0x02fff000) != 0x02fff000) {
-		if (time_after(jiffies, timeout)) {
-			dev_warn(priv->dev,
-				 "Timeout waiting for DMFC FIFOs to clear\n");
-			break;
-		}
-		cpu_relax();
-	}
-}
-
 void ipu_dmfc_disable_channel(struct dmfc_channel *dmfc)
 {
 	struct ipu_dmfc_priv *priv = dmfc->priv;
@@ -145,10 +131,8 @@ void ipu_dmfc_disable_channel(struct dmfc_channel *dmfc)
 
 	priv->use_count--;
 
-	if (!priv->use_count) {
-		ipu_dmfc_wait_fifos(priv);
+	if (!priv->use_count)
 		ipu_module_disable(priv->ipu, IPU_CONF_DMFC_EN);
-	}
 
 	if (priv->use_count < 0)
 		priv->use_count = 0;

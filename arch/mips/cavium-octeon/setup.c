@@ -65,7 +65,8 @@ EXPORT_SYMBOL(octeon_should_swizzle_table);
 extern void pci_console_init(const char *arg);
 #endif
 
-static unsigned long long MAX_MEMORY = 512ull << 20;
+static unsigned long long max_memory = ULLONG_MAX;
+static unsigned long long reserve_low_mem;
 
 DEFINE_SEMAPHORE(octeon_bootbus_sem);
 EXPORT_SYMBOL(octeon_bootbus_sem);
@@ -75,7 +76,6 @@ struct octeon_boot_descriptor *octeon_boot_desc_ptr;
 struct cvmx_bootinfo *octeon_bootinfo;
 EXPORT_SYMBOL(octeon_bootinfo);
 
-static unsigned long long RESERVE_LOW_MEM = 0ull;
 #ifdef CONFIG_KEXEC
 #ifdef CONFIG_SMP
 /*
@@ -125,18 +125,18 @@ static void kexec_bootmem_init(uint64_t mem_size, uint32_t low_reserved_bytes)
 	bootmem_desc->major_version = CVMX_BOOTMEM_DESC_MAJ_VER;
 	bootmem_desc->minor_version = CVMX_BOOTMEM_DESC_MIN_VER;
 
-	addr = (OCTEON_DDR0_BASE + RESERVE_LOW_MEM + low_reserved_bytes);
+	addr = (OCTEON_DDR0_BASE + reserve_low_mem + low_reserved_bytes);
 	bootmem_desc->head_addr = 0;
 
 	if (mem_size <= OCTEON_DDR0_SIZE) {
 		__cvmx_bootmem_phy_free(addr,
-				mem_size - RESERVE_LOW_MEM -
+				mem_size - reserve_low_mem -
 				low_reserved_bytes, 0);
 		return;
 	}
 
 	__cvmx_bootmem_phy_free(addr,
-			OCTEON_DDR0_SIZE - RESERVE_LOW_MEM -
+			OCTEON_DDR0_SIZE - reserve_low_mem -
 			low_reserved_bytes, 0);
 
 	mem_size -= OCTEON_DDR0_SIZE;
@@ -266,6 +266,17 @@ static void octeon_crash_shutdown(struct pt_regs *regs)
 	octeon_generic_shutdown();
 	default_machine_crash_shutdown(regs);
 }
+
+#ifdef CONFIG_SMP
+void octeon_crash_smp_send_stop(void)
+{
+	int cpu;
+
+	/* disable watchdogs */
+	for_each_online_cpu(cpu)
+		cvmx_write_csr(CVMX_CIU_WDOGX(cpu_logical_map(cpu)), 0);
+}
+#endif
 
 #endif /* CONFIG_KEXEC */
 
@@ -846,15 +857,15 @@ void __init prom_init(void)
 
 	/* Default to 64MB in the simulator to speed things up */
 	if (octeon_is_simulation())
-		MAX_MEMORY = 64ull << 20;
+		max_memory = 64ull << 20;
 
 	arg = strstr(arcs_cmdline, "mem=");
 	if (arg) {
-		MAX_MEMORY = memparse(arg + 4, &p);
-		if (MAX_MEMORY == 0)
-			MAX_MEMORY = 32ull << 30;
+		max_memory = memparse(arg + 4, &p);
+		if (max_memory == 0)
+			max_memory = 32ull << 30;
 		if (*p == '@')
-			RESERVE_LOW_MEM = memparse(p + 1, &p);
+			reserve_low_mem = memparse(p + 1, &p);
 	}
 
 	arcs_cmdline[0] = 0;
@@ -864,11 +875,11 @@ void __init prom_init(void)
 			cvmx_phys_to_ptr(octeon_boot_desc_ptr->argv[i]);
 		if ((strncmp(arg, "MEM=", 4) == 0) ||
 		    (strncmp(arg, "mem=", 4) == 0)) {
-			MAX_MEMORY = memparse(arg + 4, &p);
-			if (MAX_MEMORY == 0)
-				MAX_MEMORY = 32ull << 30;
+			max_memory = memparse(arg + 4, &p);
+			if (max_memory == 0)
+				max_memory = 32ull << 30;
 			if (*p == '@')
-				RESERVE_LOW_MEM = memparse(p + 1, &p);
+				reserve_low_mem = memparse(p + 1, &p);
 #ifdef CONFIG_KEXEC
 		} else if (strncmp(arg, "crashkernel=", 12) == 0) {
 			crashk_size = memparse(arg+12, &p);
@@ -911,6 +922,9 @@ void __init prom_init(void)
 	_machine_kexec_shutdown = octeon_shutdown;
 	_machine_crash_shutdown = octeon_crash_shutdown;
 	_machine_kexec_prepare = octeon_kexec_prepare;
+#ifdef CONFIG_SMP
+	_crash_smp_send_stop = octeon_crash_smp_send_stop;
+#endif
 #endif
 
 	octeon_user_io_init();
@@ -935,6 +949,29 @@ static __init void memory_exclude_page(u64 addr, u64 *mem, u64 *size)
 }
 #endif /* CONFIG_CRASH_DUMP */
 
+void __init fw_init_cmdline(void)
+{
+	int i;
+
+	octeon_boot_desc_ptr = (struct octeon_boot_descriptor *)fw_arg3;
+	for (i = 0; i < octeon_boot_desc_ptr->argc; i++) {
+		const char *arg =
+			cvmx_phys_to_ptr(octeon_boot_desc_ptr->argv[i]);
+		if (strlen(arcs_cmdline) + strlen(arg) + 1 <
+			   sizeof(arcs_cmdline) - 1) {
+			strcat(arcs_cmdline, " ");
+			strcat(arcs_cmdline, arg);
+		}
+	}
+}
+
+void __init *plat_get_fdt(void)
+{
+	octeon_bootinfo =
+		cvmx_phys_to_ptr(octeon_boot_desc_ptr->cvmx_desc_vaddr);
+	return phys_to_virt(octeon_bootinfo->fdt_addr);
+}
+
 void __init plat_mem_setup(void)
 {
 	uint64_t mem_alloc_size;
@@ -957,13 +994,13 @@ void __init plat_mem_setup(void)
 	 * to consistently work.
 	 */
 	mem_alloc_size = 4 << 20;
-	if (mem_alloc_size > MAX_MEMORY)
-		mem_alloc_size = MAX_MEMORY;
+	if (mem_alloc_size > max_memory)
+		mem_alloc_size = max_memory;
 
 /* Crashkernel ignores bootmem list. It relies on mem=X@Y option */
 #ifdef CONFIG_CRASH_DUMP
-	add_memory_region(RESERVE_LOW_MEM, MAX_MEMORY, BOOT_MEM_RAM);
-	total += MAX_MEMORY;
+	add_memory_region(reserve_low_mem, max_memory, BOOT_MEM_RAM);
+	total += max_memory;
 #else
 #ifdef CONFIG_KEXEC
 	if (crashk_size > 0) {
@@ -978,7 +1015,7 @@ void __init plat_mem_setup(void)
 	 */
 	cvmx_bootmem_lock();
 	while ((boot_mem_map.nr_map < BOOT_MEM_MAP_MAX)
-		&& (total < MAX_MEMORY)) {
+		&& (total < max_memory)) {
 		memory = cvmx_bootmem_phy_alloc(mem_alloc_size,
 						__pa_symbol(&_end), -1,
 						0x100000,

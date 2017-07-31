@@ -217,7 +217,7 @@ struct lov_object {
 
 	union lov_layout_state {
 		struct lov_layout_raid0 {
-			unsigned	       lo_nr;
+			unsigned int	       lo_nr;
 			/**
 			 * When this is true, lov_object::lo_attr contains
 			 * valid up to date attributes for a top-level
@@ -289,8 +289,8 @@ struct lov_lock {
 };
 
 struct lov_page {
-	struct cl_page_slice lps_cl;
-	int		  lps_invalid;
+	struct cl_page_slice	lps_cl;
+	unsigned int		lps_stripe; /* stripe index */
 };
 
 /*
@@ -412,7 +412,6 @@ struct lov_io_sub {
 	int		  sub_refcheck;
 	int		  sub_refcheck2;
 	int		  sub_reenter;
-	void		*sub_cookie;
 };
 
 /**
@@ -473,20 +472,6 @@ struct lov_session {
 	struct lov_sublock_env ls_subenv;
 };
 
-/**
- * State of transfer for lov.
- */
-struct lov_req {
-	struct cl_req_slice lr_cl;
-};
-
-/**
- * State of transfer for lovsub.
- */
-struct lovsub_req {
-	struct cl_req_slice lsrq_cl;
-};
-
 extern struct lu_device_type lov_device_type;
 extern struct lu_device_type lovsub_device_type;
 
@@ -497,11 +482,9 @@ extern struct kmem_cache *lov_lock_kmem;
 extern struct kmem_cache *lov_object_kmem;
 extern struct kmem_cache *lov_thread_kmem;
 extern struct kmem_cache *lov_session_kmem;
-extern struct kmem_cache *lov_req_kmem;
 
 extern struct kmem_cache *lovsub_lock_kmem;
 extern struct kmem_cache *lovsub_object_kmem;
-extern struct kmem_cache *lovsub_req_kmem;
 
 extern struct kmem_cache *lov_lock_link_kmem;
 
@@ -556,6 +539,8 @@ struct lov_lock_link *lov_lock_link_find(const struct lu_env *env,
 					 struct lovsub_lock *sub);
 struct lov_io_sub *lov_page_subio(const struct lu_env *env, struct lov_io *lio,
 				  const struct cl_page_slice *slice);
+
+struct lov_stripe_md *lov_lsm_addref(struct lov_object *lov);
 int lov_page_stripe(const struct cl_page *page);
 
 #define lov_foreach_target(lov, var)		    \
@@ -698,21 +683,11 @@ static inline struct lov_page *cl2lov_page(const struct cl_page_slice *slice)
 	return container_of0(slice, struct lov_page, lps_cl);
 }
 
-static inline struct lov_req *cl2lov_req(const struct cl_req_slice *slice)
-{
-	return container_of0(slice, struct lov_req, lr_cl);
-}
-
 static inline struct lovsub_page *
 cl2lovsub_page(const struct cl_page_slice *slice)
 {
 	LINVRNT(lovsub_is_object(&slice->cpl_obj->co_lu));
 	return container_of0(slice, struct lovsub_page, lsb_cl);
-}
-
-static inline struct lovsub_req *cl2lovsub_req(const struct cl_req_slice *slice)
-{
-	return container_of0(slice, struct lovsub_req, lsrq_cl);
 }
 
 static inline struct lov_io *cl2lov_io(const struct lu_env *env,
@@ -742,10 +717,14 @@ static inline struct lov_thread_info *lov_env_info(const struct lu_env *env)
 static inline struct lov_layout_raid0 *lov_r0(struct lov_object *lov)
 {
 	LASSERT(lov->lo_type == LLT_RAID0);
-	LASSERT(lov->lo_lsm->lsm_wire.lw_magic == LOV_MAGIC ||
-		lov->lo_lsm->lsm_wire.lw_magic == LOV_MAGIC_V3);
+	LASSERT(lov->lo_lsm->lsm_magic == LOV_MAGIC ||
+		lov->lo_lsm->lsm_magic == LOV_MAGIC_V3);
 	return &lov->u.raid0;
 }
+
+/* lov_pack.c */
+int lov_getstripe(struct lov_object *obj, struct lov_stripe_md *lsm,
+		  struct lov_user_md __user *lump);
 
 /** @} lov */
 

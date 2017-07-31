@@ -160,6 +160,7 @@ struct mlx4_qp_path {
 
 enum { /* fl */
 	MLX4_FL_CV	= 1 << 6,
+	MLX4_FL_SV	= 1 << 5,
 	MLX4_FL_ETH_HIDE_CQE_VLAN	= 1 << 2,
 	MLX4_FL_ETH_SRC_CHECK_MC_LB	= 1 << 1,
 	MLX4_FL_ETH_SRC_CHECK_UC_LB	= 1 << 0,
@@ -267,6 +268,7 @@ enum {
 	MLX4_UPD_QP_PATH_MASK_FVL_RX			= 16 + 32,
 	MLX4_UPD_QP_PATH_MASK_ETH_SRC_CHECK_UC_LB	= 18 + 32,
 	MLX4_UPD_QP_PATH_MASK_ETH_SRC_CHECK_MC_LB	= 19 + 32,
+	MLX4_UPD_QP_PATH_MASK_SV			= 22 + 32,
 };
 
 enum { /* param3 */

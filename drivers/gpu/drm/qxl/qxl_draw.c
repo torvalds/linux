@@ -57,11 +57,8 @@ static struct qxl_rect *drawable_set_clipping(struct qxl_device *qdev,
 static int
 alloc_drawable(struct qxl_device *qdev, struct qxl_release **release)
 {
-	int ret;
-	ret = qxl_alloc_release_reserved(qdev, sizeof(struct qxl_drawable),
-					 QXL_RELEASE_DRAWABLE, release,
-					 NULL);
-	return ret;
+	return qxl_alloc_release_reserved(qdev, sizeof(struct qxl_drawable),
+					  QXL_RELEASE_DRAWABLE, release, NULL);
 }
 
 static void
@@ -286,7 +283,7 @@ void qxl_draw_dirty_fb(struct qxl_device *qdev,
 	struct qxl_rect *rects;
 	int stride = qxl_fb->base.pitches[0];
 	/* depth is not actually interesting, we don't mask with it */
-	int depth = qxl_fb->base.bits_per_pixel;
+	int depth = qxl_fb->base.format->cpp[0] * 8;
 	uint8_t *surface_base;
 	struct qxl_release *release;
 	struct qxl_bo *clips_bo;

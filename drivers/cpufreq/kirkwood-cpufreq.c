@@ -123,7 +123,7 @@ static int kirkwood_cpufreq_probe(struct platform_device *pdev)
 
 	priv.cpu_clk = of_clk_get_by_name(np, "cpu_clk");
 	if (IS_ERR(priv.cpu_clk)) {
-		dev_err(priv.dev, "Unable to get cpuclk");
+		dev_err(priv.dev, "Unable to get cpuclk\n");
 		return PTR_ERR(priv.cpu_clk);
 	}
 
@@ -132,7 +132,7 @@ static int kirkwood_cpufreq_probe(struct platform_device *pdev)
 
 	priv.ddr_clk = of_clk_get_by_name(np, "ddrclk");
 	if (IS_ERR(priv.ddr_clk)) {
-		dev_err(priv.dev, "Unable to get ddrclk");
+		dev_err(priv.dev, "Unable to get ddrclk\n");
 		err = PTR_ERR(priv.ddr_clk);
 		goto out_cpu;
 	}
@@ -142,7 +142,7 @@ static int kirkwood_cpufreq_probe(struct platform_device *pdev)
 
 	priv.powersave_clk = of_clk_get_by_name(np, "powersave");
 	if (IS_ERR(priv.powersave_clk)) {
-		dev_err(priv.dev, "Unable to get powersave");
+		dev_err(priv.dev, "Unable to get powersave\n");
 		err = PTR_ERR(priv.powersave_clk);
 		goto out_ddr;
 	}
@@ -155,7 +155,7 @@ static int kirkwood_cpufreq_probe(struct platform_device *pdev)
 	if (!err)
 		return 0;
 
-	dev_err(priv.dev, "Failed to register cpufreq driver");
+	dev_err(priv.dev, "Failed to register cpufreq driver\n");
 
 	clk_disable_unprepare(priv.powersave_clk);
 out_ddr:

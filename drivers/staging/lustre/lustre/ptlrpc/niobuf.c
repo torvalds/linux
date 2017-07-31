@@ -114,7 +114,7 @@ static int ptlrpc_register_bulk(struct ptlrpc_request *req)
 	int rc2;
 	int posted_md;
 	int total_md;
-	__u64 xid;
+	u64 mbits;
 	lnet_handle_me_t me_h;
 	lnet_md_t md;
 
@@ -127,8 +127,7 @@ static int ptlrpc_register_bulk(struct ptlrpc_request *req)
 	LASSERT(desc->bd_md_max_brw <= PTLRPC_BULK_OPS_COUNT);
 	LASSERT(desc->bd_iov_count <= PTLRPC_MAX_BRW_PAGES);
 	LASSERT(desc->bd_req);
-	LASSERT(desc->bd_type == BULK_PUT_SINK ||
-		desc->bd_type == BULK_GET_SOURCE);
+	LASSERT(ptlrpc_is_bulk_op_passive(desc->bd_type));
 
 	/* cleanup the state of the bulk for it will be reused */
 	if (req->rq_resend || req->rq_send_state == LUSTRE_IMP_REPLAY)
@@ -143,40 +142,37 @@ static int ptlrpc_register_bulk(struct ptlrpc_request *req)
 	LASSERT(desc->bd_cbid.cbid_fn == client_bulk_callback);
 	LASSERT(desc->bd_cbid.cbid_arg == desc);
 
-	/* An XID is only used for a single request from the client.
-	 * For retried bulk transfers, a new XID will be allocated in
-	 * in ptlrpc_check_set() if it needs to be resent, so it is not
-	 * using the same RDMA match bits after an error.
-	 *
-	 * For multi-bulk RPCs, rq_xid is the last XID needed for bulks. The
-	 * first bulk XID is power-of-two aligned before rq_xid. LU-1431
-	 */
-	xid = req->rq_xid & ~((__u64)desc->bd_md_max_brw - 1);
+	total_md = (desc->bd_iov_count + LNET_MAX_IOV - 1) / LNET_MAX_IOV;
+	/* rq_mbits is matchbits of the final bulk */
+	mbits = req->rq_mbits - total_md + 1;
+
+	LASSERTF(mbits == (req->rq_mbits & PTLRPC_BULK_OPS_MASK),
+		 "first mbits = x%llu, last mbits = x%llu\n",
+		 mbits, req->rq_mbits);
 	LASSERTF(!(desc->bd_registered &&
 		   req->rq_send_state != LUSTRE_IMP_REPLAY) ||
-		 xid != desc->bd_last_xid,
-		 "registered: %d  rq_xid: %llu bd_last_xid: %llu\n",
-		 desc->bd_registered, xid, desc->bd_last_xid);
+		 mbits != desc->bd_last_mbits,
+		 "registered: %d  rq_mbits: %llu bd_last_mbits: %llu\n",
+		 desc->bd_registered, mbits, desc->bd_last_mbits);
 
-	total_md = (desc->bd_iov_count + LNET_MAX_IOV - 1) / LNET_MAX_IOV;
 	desc->bd_registered = 1;
-	desc->bd_last_xid = xid;
+	desc->bd_last_mbits = mbits;
 	desc->bd_md_count = total_md;
 	md.user_ptr = &desc->bd_cbid;
 	md.eq_handle = ptlrpc_eq_h;
 	md.threshold = 1;		       /* PUT or GET */
 
-	for (posted_md = 0; posted_md < total_md; posted_md++, xid++) {
+	for (posted_md = 0; posted_md < total_md; posted_md++, mbits++) {
 		md.options = PTLRPC_MD_OPTIONS |
-			     ((desc->bd_type == BULK_GET_SOURCE) ?
+			     (ptlrpc_is_bulk_op_get(desc->bd_type) ?
 			      LNET_MD_OP_GET : LNET_MD_OP_PUT);
 		ptlrpc_fill_bulk_md(&md, desc, posted_md);
 
-		rc = LNetMEAttach(desc->bd_portal, peer, xid, 0,
+		rc = LNetMEAttach(desc->bd_portal, peer, mbits, 0,
 				  LNET_UNLINK, LNET_INS_AFTER, &me_h);
 		if (rc != 0) {
 			CERROR("%s: LNetMEAttach failed x%llu/%d: rc = %d\n",
-			       desc->bd_import->imp_obd->obd_name, xid,
+			       desc->bd_import->imp_obd->obd_name, mbits,
 			       posted_md, rc);
 			break;
 		}
@@ -186,7 +182,7 @@ static int ptlrpc_register_bulk(struct ptlrpc_request *req)
 				  &desc->bd_mds[posted_md]);
 		if (rc != 0) {
 			CERROR("%s: LNetMDAttach failed x%llu/%d: rc = %d\n",
-			       desc->bd_import->imp_obd->obd_name, xid,
+			       desc->bd_import->imp_obd->obd_name, mbits,
 			       posted_md, rc);
 			rc2 = LNetMEUnlink(me_h);
 			LASSERT(rc2 == 0);
@@ -205,27 +201,19 @@ static int ptlrpc_register_bulk(struct ptlrpc_request *req)
 		return -ENOMEM;
 	}
 
-	/* Set rq_xid to matchbits of the final bulk so that server can
-	 * infer the number of bulks that were prepared
-	 */
-	req->rq_xid = --xid;
-	LASSERTF(desc->bd_last_xid == (req->rq_xid & PTLRPC_BULK_OPS_MASK),
-		 "bd_last_xid = x%llu, rq_xid = x%llu\n",
-		 desc->bd_last_xid, req->rq_xid);
-
 	spin_lock(&desc->bd_lock);
-	/* Holler if peer manages to touch buffers before he knows the xid */
+	/* Holler if peer manages to touch buffers before he knows the mbits */
 	if (desc->bd_md_count != total_md)
 		CWARN("%s: Peer %s touched %d buffers while I registered\n",
 		      desc->bd_import->imp_obd->obd_name, libcfs_id2str(peer),
 		      total_md - desc->bd_md_count);
 	spin_unlock(&desc->bd_lock);
 
-	CDEBUG(D_NET, "Setup %u bulk %s buffers: %u pages %u bytes, xid x%#llx-%#llx, portal %u\n",
+	CDEBUG(D_NET, "Setup %u bulk %s buffers: %u pages %u bytes, mbits x%#llx-%#llx, portal %u\n",
 	       desc->bd_md_count,
-	       desc->bd_type == BULK_GET_SOURCE ? "get-source" : "put-sink",
+	       ptlrpc_is_bulk_op_get(desc->bd_type) ? "get-source" : "put-sink",
 	       desc->bd_iov_count, desc->bd_nob,
-	       desc->bd_last_xid, req->rq_xid, desc->bd_portal);
+	       desc->bd_last_mbits, req->rq_mbits, desc->bd_portal);
 
 	return 0;
 }
@@ -295,7 +283,6 @@ int ptlrpc_unregister_bulk(struct ptlrpc_request *req, int async)
 	}
 	return 0;
 }
-EXPORT_SYMBOL(ptlrpc_unregister_bulk);
 
 static void ptlrpc_at_set_reply(struct ptlrpc_request *req, int flags)
 {
@@ -398,7 +385,8 @@ int ptlrpc_send_reply(struct ptlrpc_request *req, int flags)
 	lustre_msg_set_status(req->rq_repmsg,
 			      ptlrpc_status_hton(req->rq_status));
 	lustre_msg_set_opc(req->rq_repmsg,
-		req->rq_reqmsg ? lustre_msg_get_opc(req->rq_reqmsg) : 0);
+			   req->rq_reqmsg ?
+			   lustre_msg_get_opc(req->rq_reqmsg) : 0);
 
 	target_pack_pool_reply(req);
 
@@ -433,7 +421,6 @@ out:
 	ptlrpc_connection_put(conn);
 	return rc;
 }
-EXPORT_SYMBOL(ptlrpc_send_reply);
 
 int ptlrpc_reply(struct ptlrpc_request *req)
 {
@@ -441,7 +428,6 @@ int ptlrpc_reply(struct ptlrpc_request *req)
 		return 0;
 	return ptlrpc_send_reply(req, 0);
 }
-EXPORT_SYMBOL(ptlrpc_reply);
 
 /**
  * For request \a req send an error reply back. Create empty
@@ -468,13 +454,11 @@ int ptlrpc_send_error(struct ptlrpc_request *req, int may_be_difficult)
 	rc = ptlrpc_send_reply(req, may_be_difficult);
 	return rc;
 }
-EXPORT_SYMBOL(ptlrpc_send_error);
 
 int ptlrpc_error(struct ptlrpc_request *req)
 {
 	return ptlrpc_send_error(req, 0);
 }
-EXPORT_SYMBOL(ptlrpc_error);
 
 /**
  * Send request \a request.
@@ -490,7 +474,8 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 	struct ptlrpc_connection *connection;
 	lnet_handle_me_t reply_me_h;
 	lnet_md_t reply_md;
-	struct obd_device *obd = request->rq_import->imp_obd;
+	struct obd_import *imp = request->rq_import;
+	struct obd_device *obd = imp->imp_obd;
 
 	if (OBD_FAIL_CHECK(OBD_FAIL_PTLRPC_DROP_RPC))
 		return 0;
@@ -503,7 +488,7 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 	 */
 	LASSERT(!request->rq_receiving_reply);
 	LASSERT(!((lustre_msg_get_flags(request->rq_reqmsg) & MSG_REPLAY) &&
-		  (request->rq_import->imp_state == LUSTRE_IMP_FULL)));
+		  (imp->imp_state == LUSTRE_IMP_FULL)));
 
 	if (unlikely(obd && obd->obd_fail)) {
 		CDEBUG(D_HA, "muting rpc for failed imp obd %s\n",
@@ -516,15 +501,56 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 		return -ENODEV;
 	}
 
-	connection = request->rq_import->imp_connection;
+	connection = imp->imp_connection;
 
 	lustre_msg_set_handle(request->rq_reqmsg,
-			      &request->rq_import->imp_remote_handle);
+			      &imp->imp_remote_handle);
 	lustre_msg_set_type(request->rq_reqmsg, PTL_RPC_MSG_REQUEST);
-	lustre_msg_set_conn_cnt(request->rq_reqmsg,
-				request->rq_import->imp_conn_cnt);
-	lustre_msghdr_set_flags(request->rq_reqmsg,
-				request->rq_import->imp_msghdr_flags);
+	lustre_msg_set_conn_cnt(request->rq_reqmsg, imp->imp_conn_cnt);
+	lustre_msghdr_set_flags(request->rq_reqmsg, imp->imp_msghdr_flags);
+
+	/*
+	 * If it's the first time to resend the request for EINPROGRESS,
+	 * we need to allocate a new XID (see after_reply()), it's different
+	 * from the resend for reply timeout.
+	 */
+	if (request->rq_nr_resend && list_empty(&request->rq_unreplied_list)) {
+		__u64 min_xid = 0;
+		/*
+		 * resend for EINPROGRESS, allocate new xid to avoid reply
+		 * reconstruction
+		 */
+		spin_lock(&imp->imp_lock);
+		ptlrpc_assign_next_xid_nolock(request);
+		min_xid = ptlrpc_known_replied_xid(imp);
+		spin_unlock(&imp->imp_lock);
+
+		lustre_msg_set_last_xid(request->rq_reqmsg, min_xid);
+		DEBUG_REQ(D_RPCTRACE, request, "Allocating new xid for resend on EINPROGRESS");
+	}
+
+	if (request->rq_bulk) {
+		ptlrpc_set_bulk_mbits(request);
+		lustre_msg_set_mbits(request->rq_reqmsg, request->rq_mbits);
+	}
+
+	if (list_empty(&request->rq_unreplied_list) ||
+	    request->rq_xid <= imp->imp_known_replied_xid) {
+		DEBUG_REQ(D_ERROR, request,
+			  "xid: %llu, replied: %llu, list_empty:%d\n",
+			  request->rq_xid, imp->imp_known_replied_xid,
+			  list_empty(&request->rq_unreplied_list));
+		LBUG();
+	}
+
+	/**
+	 * For enabled AT all request should have AT_SUPPORT in the
+	 * FULL import state when OBD_CONNECT_AT is set
+	 */
+	LASSERT(AT_OFF || imp->imp_state != LUSTRE_IMP_FULL ||
+		(imp->imp_msghdr_flags & MSGHDR_AT_SUPPORT) ||
+		!(imp->imp_connect_data.ocd_connect_flags &
+		OBD_CONNECT_AT));
 
 	if (request->rq_resend)
 		lustre_msg_add_flags(request->rq_reqmsg, MSG_RESENT);
@@ -533,8 +559,15 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 		mpflag = cfs_memory_pressure_get_and_set();
 
 	rc = sptlrpc_cli_wrap_request(request);
-	if (rc)
+	if (rc) {
+		/*
+		 * set rq_sent so that this request is treated
+		 * as a delayed send in the upper layers
+		 */
+		if (rc == -ENOMEM)
+			request->rq_sent = ktime_get_seconds();
 		goto out;
+	}
 
 	/* bulk register should be done after wrap_request() */
 	if (request->rq_bulk) {
@@ -628,7 +661,7 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 	ptlrpc_request_addref(request);
 	if (obd && obd->obd_svc_stats)
 		lprocfs_counter_add(obd->obd_svc_stats, PTLRPC_REQACTIVE_CNTR,
-			atomic_read(&request->rq_import->imp_inflight));
+			atomic_read(&imp->imp_inflight));
 
 	OBD_FAIL_TIMEOUT(OBD_FAIL_PTLRPC_DELAY_SEND, request->rq_timeout + 5);
 
@@ -640,7 +673,7 @@ int ptl_send_rpc(struct ptlrpc_request *request, int noreply)
 	request->rq_deadline = request->rq_sent + request->rq_timeout +
 		ptlrpc_at_get_net_latency(request);
 
-	ptlrpc_pinger_sending_on_import(request->rq_import);
+	ptlrpc_pinger_sending_on_import(imp);
 
 	DEBUG_REQ(D_INFO, request, "send flg=%x",
 		  lustre_msg_get_flags(request->rq_reqmsg));

@@ -225,7 +225,7 @@ struct dvb_tuner_ops {
 
 	struct dvb_tuner_info info;
 
-	int (*release)(struct dvb_frontend *fe);
+	void (*release)(struct dvb_frontend *fe);
 	int (*init)(struct dvb_frontend *fe);
 	int (*sleep)(struct dvb_frontend *fe);
 	int (*suspend)(struct dvb_frontend *fe);
@@ -323,7 +323,11 @@ struct dtv_frontend_properties;
  *
  * @info:		embedded struct dvb_tuner_info with tuner properties
  * @delsys:		Delivery systems supported by the frontend
- * @release:		callback function called when frontend is dettached.
+ * @detach:		callback function called when frontend is detached.
+ *			drivers should clean up, but not yet free the struct
+ *			dvb_frontend allocation.
+ * @release:		callback function called when frontend is ready to be
+ *			freed.
  *			drivers should free any allocated memory.
  * @release_sec:	callback function requesting that the Satelite Equipment
  *			Control (SEC) driver to release and free any memory
@@ -408,6 +412,7 @@ struct dvb_frontend_ops {
 
 	u8 delsys[MAX_DELSYS];
 
+	void (*detach)(struct dvb_frontend *fe);
 	void (*release)(struct dvb_frontend* fe);
 	void (*release_sec)(struct dvb_frontend* fe);
 
@@ -655,6 +660,7 @@ struct dtv_frontend_properties {
  */
 
 struct dvb_frontend {
+	struct kref refcount;
 	struct dvb_frontend_ops ops;
 	struct dvb_adapter *dvb;
 	void *demodulator_priv;

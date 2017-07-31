@@ -13,8 +13,9 @@
 #include <linux/mm.h>
 #include <linux/ptrace.h>
 #include <linux/sched.h>
+#include <linux/sched/debug.h>
 #include <linux/interrupt.h>
-#include <linux/module.h>
+#include <linux/extable.h>
 #include <linux/uaccess.h>
 
 #include <asm/traps.h>
@@ -149,6 +150,23 @@ int fixup_exception(struct pt_regs *regs)
 		d->fault_space = regs->isr;
 		d->fault_addr = regs->ior;
 
+		/*
+		 * Fix up get_user() and put_user().
+		 * ASM_EXCEPTIONTABLE_ENTRY_EFAULT() sets the least-significant
+		 * bit in the relative address of the fixup routine to indicate
+		 * that %r8 should be loaded with -EFAULT to report a userspace
+		 * access error.
+		 */
+		if (fix->fixup & 1) {
+			regs->gr[8] = -EFAULT;
+
+			/* zero target register for get_user() */
+			if (parisc_acctyp(0, regs->iir) == VM_READ) {
+				int treg = regs->iir & 0x1f;
+				regs->gr[treg] = 0;
+			}
+		}
+
 		regs->iaoq[0] = (unsigned long)&fix->fixup + fix->fixup;
 		regs->iaoq[0] &= ~3;
 		/*
@@ -165,6 +183,53 @@ int fixup_exception(struct pt_regs *regs)
 	}
 
 	return 0;
+}
+
+/*
+ * parisc hardware trap list
+ *
+ * Documented in section 3 "Addressing and Access Control" of the
+ * "PA-RISC 1.1 Architecture and Instruction Set Reference Manual"
+ * https://parisc.wiki.kernel.org/index.php/File:Pa11_acd.pdf
+ *
+ * For implementation see handle_interruption() in traps.c
+ */
+static const char * const trap_description[] = {
+	[1] "High-priority machine check (HPMC)",
+	[2] "Power failure interrupt",
+	[3] "Recovery counter trap",
+	[5] "Low-priority machine check",
+	[6] "Instruction TLB miss fault",
+	[7] "Instruction access rights / protection trap",
+	[8] "Illegal instruction trap",
+	[9] "Break instruction trap",
+	[10] "Privileged operation trap",
+	[11] "Privileged register trap",
+	[12] "Overflow trap",
+	[13] "Conditional trap",
+	[14] "FP Assist Exception trap",
+	[15] "Data TLB miss fault",
+	[16] "Non-access ITLB miss fault",
+	[17] "Non-access DTLB miss fault",
+	[18] "Data memory protection/unaligned access trap",
+	[19] "Data memory break trap",
+	[20] "TLB dirty bit trap",
+	[21] "Page reference trap",
+	[22] "Assist emulation trap",
+	[25] "Taken branch trap",
+	[26] "Data memory access rights trap",
+	[27] "Data memory protection ID trap",
+	[28] "Unaligned data reference trap",
+};
+
+const char *trap_name(unsigned long code)
+{
+	const char *t = NULL;
+
+	if (code < ARRAY_SIZE(trap_description))
+		t = trap_description[code];
+
+	return t ? t : "Unknown trap";
 }
 
 /*
@@ -186,9 +251,13 @@ show_signal_msg(struct pt_regs *regs, unsigned long code,
 	pr_warn("do_page_fault() command='%s' type=%lu address=0x%08lx",
 	    tsk->comm, code, address);
 	print_vma_addr(KERN_CONT " in ", regs->iaoq[0]);
+
+	pr_cont("\ntrap #%lu: %s%c", code, trap_name(code),
+		vma ? ',':'\n');
+
 	if (vma)
-		pr_warn(" vm_start = 0x%08lx, vm_end = 0x%08lx\n",
-				vma->vm_start, vma->vm_end);
+		pr_cont(" vm_start = 0x%08lx, vm_end = 0x%08lx\n",
+			vma->vm_start, vma->vm_end);
 
 	show_regs(regs);
 }

@@ -63,7 +63,7 @@ Example:
 --------
 The following example demonstrates a syscon node, the reset controller node
 using the syscon node, and a consumer (a DSP device) on the TI Keystone 2
-Edison SoC.
+66AK2E SoC.
 
 / {
 	soc {
@@ -71,13 +71,13 @@ Edison SoC.
 			compatible = "syscon", "simple-mfd";
 			reg = <0x02350000 0x1000>;
 
-			pscrst: psc-reset {
+			pscrst: reset-controller {
 				compatible = "ti,k2e-pscrst", "ti,syscon-reset";
 				#reset-cells = <1>;
 
 				ti,reset-bits = <
-					0xa3c 8 0xa3c 8 0x83c 8 (ASSERT_SET|DEASSERT_CLEAR|STATUS_SET)   /* 0: pcrst-dsp0 */
-					0xa40 5 0xa44 3 0     0 (ASSERT_SET|DEASSERT_CLEAR|STATUS_NONE)  /* 1: pcrst-example */
+					0xa3c 8 0xa3c 8 0x83c 8 (ASSERT_CLEAR | DEASSERT_SET   | STATUS_CLEAR) /* 0: dsp0 */
+					0xa40 5 0xa44 3 0     0 (ASSERT_SET   | DEASSERT_CLEAR | STATUS_NONE)  /* 1: example */
 				>;
 			};
 		};

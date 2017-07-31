@@ -159,25 +159,25 @@ static int __init sun4i_timer_init(struct device_node *node)
 
 	timer_base = of_iomap(node, 0);
 	if (!timer_base) {
-		pr_crit("Can't map registers");
+		pr_crit("Can't map registers\n");
 		return -ENXIO;
 	}
 
 	irq = irq_of_parse_and_map(node, 0);
 	if (irq <= 0) {
-		pr_crit("Can't parse IRQ");
+		pr_crit("Can't parse IRQ\n");
 		return -EINVAL;
 	}
 
 	clk = of_clk_get(node, 0);
 	if (IS_ERR(clk)) {
-		pr_crit("Can't get timer clock");
+		pr_crit("Can't get timer clock\n");
 		return PTR_ERR(clk);
 	}
 
 	ret = clk_prepare_enable(clk);
 	if (ret) {
-		pr_err("Failed to prepare clock");
+		pr_err("Failed to prepare clock\n");
 		return ret;
 	}
 
@@ -200,7 +200,7 @@ static int __init sun4i_timer_init(struct device_node *node)
 	ret = clocksource_mmio_init(timer_base + TIMER_CNTVAL_REG(1), node->name,
 				    rate, 350, 32, clocksource_mmio_readl_down);
 	if (ret) {
-		pr_err("Failed to register clocksource");
+		pr_err("Failed to register clocksource\n");
 		return ret;
 	}
 

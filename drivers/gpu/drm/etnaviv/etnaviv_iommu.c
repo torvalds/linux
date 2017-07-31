@@ -184,7 +184,7 @@ static void etnaviv_iommuv1_dump(struct iommu_domain *domain, void *buf)
 	memcpy(buf, etnaviv_domain->pgtable.pgtable, PT_SIZE);
 }
 
-static struct etnaviv_iommu_ops etnaviv_iommu_ops = {
+static const struct etnaviv_iommu_ops etnaviv_iommu_ops = {
 	.ops = {
 		.domain_free = etnaviv_domain_free,
 		.map = etnaviv_iommuv1_map,
@@ -196,11 +196,18 @@ static struct etnaviv_iommu_ops etnaviv_iommu_ops = {
 	.dump = etnaviv_iommuv1_dump,
 };
 
-void etnaviv_iommu_domain_restore(struct etnaviv_gpu *gpu,
-	struct iommu_domain *domain)
+void etnaviv_iommuv1_restore(struct etnaviv_gpu *gpu)
 {
-	struct etnaviv_iommu_domain *etnaviv_domain = to_etnaviv_domain(domain);
+	struct etnaviv_iommu_domain *etnaviv_domain =
+			to_etnaviv_domain(gpu->mmu->domain);
 	u32 pgtable;
+
+	/* set base addresses */
+	gpu_write(gpu, VIVS_MC_MEMORY_BASE_ADDR_RA, gpu->memory_base);
+	gpu_write(gpu, VIVS_MC_MEMORY_BASE_ADDR_FE, gpu->memory_base);
+	gpu_write(gpu, VIVS_MC_MEMORY_BASE_ADDR_TX, gpu->memory_base);
+	gpu_write(gpu, VIVS_MC_MEMORY_BASE_ADDR_PEZ, gpu->memory_base);
+	gpu_write(gpu, VIVS_MC_MEMORY_BASE_ADDR_PE, gpu->memory_base);
 
 	/* set page table address in MC */
 	pgtable = (u32)etnaviv_domain->pgtable.paddr;
@@ -212,7 +219,7 @@ void etnaviv_iommu_domain_restore(struct etnaviv_gpu *gpu,
 	gpu_write(gpu, VIVS_MC_MMU_RA_PAGE_TABLE, pgtable);
 }
 
-struct iommu_domain *etnaviv_iommu_domain_alloc(struct etnaviv_gpu *gpu)
+struct iommu_domain *etnaviv_iommuv1_domain_alloc(struct etnaviv_gpu *gpu)
 {
 	struct etnaviv_iommu_domain *etnaviv_domain;
 	int ret;

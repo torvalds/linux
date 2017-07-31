@@ -17,6 +17,19 @@ menuconfig WLAN
 
 if WLAN
 
+config WIRELESS_WDS
+	bool "mac80211-based legacy WDS support" if EXPERT
+	help
+	  This option enables the deprecated WDS support, the newer
+	  mac80211-based 4-addr AP/client support supersedes it with
+	  a much better feature set (HT, VHT, ...)
+
+	  We plan to remove this option and code, so if you find
+	  that you have to enable it, please let us know on the
+	  linux-wireless@vger.kernel.org mailing list, so we can
+	  help you migrate to 4-addr AP/client (or, if it's really
+	  necessary, give up on our plan of removing it).
+
 source "drivers/net/wireless/admtek/Kconfig"
 source "drivers/net/wireless/ath/Kconfig"
 source "drivers/net/wireless/atmel/Kconfig"

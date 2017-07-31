@@ -3,6 +3,8 @@
 
 #include <linux/notifier.h>
 
+#define IPCMSG_COLD_OFF		0x80	/* Only for Tangier */
+
 #define IPCMSG_WARM_RESET	0xF0
 #define IPCMSG_COLD_RESET	0xF1
 #define IPCMSG_SOFT_RESET	0xF2

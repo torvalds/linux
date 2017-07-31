@@ -28,22 +28,26 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 static int digitv_ctrl_msg(struct dvb_usb_device *d,
 		u8 cmd, u8 vv, u8 *wbuf, int wlen, u8 *rbuf, int rlen)
 {
-	int wo = (rbuf == NULL || rlen == 0); /* write-only */
-	u8 sndbuf[7],rcvbuf[7];
-	memset(sndbuf,0,7); memset(rcvbuf,0,7);
+	struct digitv_state *st = d->priv;
+	int ret, wo;
 
-	sndbuf[0] = cmd;
-	sndbuf[1] = vv;
-	sndbuf[2] = wo ? wlen : rlen;
+	wo = (rbuf == NULL || rlen == 0); /* write-only */
+
+	memset(st->sndbuf, 0, 7);
+	memset(st->rcvbuf, 0, 7);
+
+	st->sndbuf[0] = cmd;
+	st->sndbuf[1] = vv;
+	st->sndbuf[2] = wo ? wlen : rlen;
 
 	if (wo) {
-		memcpy(&sndbuf[3],wbuf,wlen);
-		dvb_usb_generic_write(d,sndbuf,7);
+		memcpy(&st->sndbuf[3], wbuf, wlen);
+		ret = dvb_usb_generic_write(d, st->sndbuf, 7);
 	} else {
-		dvb_usb_generic_rw(d,sndbuf,7,rcvbuf,7,10);
-		memcpy(rbuf,&rcvbuf[3],rlen);
+		ret = dvb_usb_generic_rw(d, st->sndbuf, 7, st->rcvbuf, 7, 10);
+		memcpy(rbuf, &st->rcvbuf[3], rlen);
 	}
-	return 0;
+	return ret;
 }
 
 /* I2C */

@@ -725,10 +725,9 @@ static int cafe_nand_probe(struct pci_dev *pdev,
 	usedma = 0;
 
 	/* Scan to find existence of the device */
-	if (nand_scan_ident(mtd, 2, NULL)) {
-		err = -ENXIO;
+	err = nand_scan_ident(mtd, 2, NULL);
+	if (err)
 		goto out_irq;
-	}
 
 	cafe->dmabuf = dma_alloc_coherent(&cafe->pdev->dev,
 				2112 + sizeof(struct nand_buffers) +

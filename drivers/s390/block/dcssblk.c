@@ -892,7 +892,7 @@ dcssblk_direct_access (struct block_device *bdev, sector_t secnum,
 	dev_info = bdev->bd_disk->private_data;
 	if (!dev_info)
 		return -ENODEV;
-	dev_sz = dev_info->end - dev_info->start;
+	dev_sz = dev_info->end - dev_info->start + 1;
 	offset = secnum * 512;
 	*kaddr = (void *) dev_info->start + offset;
 	*pfn = __pfn_to_pfn_t(PFN_DOWN(dev_info->start + offset), PFN_DEV);

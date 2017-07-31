@@ -17,6 +17,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_of.h>
 
 #include "sti_crtc.h"
 #include "sti_drv.h"
@@ -57,7 +58,9 @@ static int sti_drm_fps_set(void *data, u64 val)
 	list_for_each_entry(p, &drm_dev->mode_config.plane_list, head) {
 		struct sti_plane *plane = to_sti_plane(p);
 
+		memset(&plane->fps_info, 0, sizeof(plane->fps_info));
 		plane->fps_info.output = (val >> i) & 1;
+
 		i++;
 	}
 
@@ -88,38 +91,9 @@ static struct drm_info_list sti_drm_dbg_list[] = {
 	{"fps_get", sti_drm_fps_dbg_show, 0},
 };
 
-static int sti_drm_debugfs_create(struct dentry *root,
-				  struct drm_minor *minor,
-				  const char *name,
-				  const struct file_operations *fops)
-{
-	struct drm_device *dev = minor->dev;
-	struct drm_info_node *node;
-	struct dentry *ent;
-
-	ent = debugfs_create_file(name, S_IRUGO | S_IWUSR, root, dev, fops);
-	if (IS_ERR(ent))
-		return PTR_ERR(ent);
-
-	node = kmalloc(sizeof(*node), GFP_KERNEL);
-	if (!node) {
-		debugfs_remove(ent);
-		return -ENOMEM;
-	}
-
-	node->minor = minor;
-	node->dent = ent;
-	node->info_ent = (void *)fops;
-
-	mutex_lock(&minor->debugfs_lock);
-	list_add(&node->list, &minor->debugfs_list);
-	mutex_unlock(&minor->debugfs_lock);
-
-	return 0;
-}
-
 static int sti_drm_dbg_init(struct drm_minor *minor)
 {
+	struct dentry *dentry;
 	int ret;
 
 	ret = drm_debugfs_create_files(sti_drm_dbg_list,
@@ -128,10 +102,13 @@ static int sti_drm_dbg_init(struct drm_minor *minor)
 	if (ret)
 		goto err;
 
-	ret = sti_drm_debugfs_create(minor->debugfs_root, minor, "fps_show",
+	dentry = debugfs_create_file("fps_show", S_IRUGO | S_IWUSR,
+				     minor->debugfs_root, minor->dev,
 				     &sti_drm_fps_fops);
-	if (ret)
+	if (!dentry) {
+		ret = -ENOMEM;
 		goto err;
+	}
 
 	DRM_INFO("%s: debugfs installed\n", DRIVER_NAME);
 	return 0;
@@ -140,116 +117,38 @@ err:
 	return ret;
 }
 
-void sti_drm_dbg_cleanup(struct drm_minor *minor)
+static int sti_atomic_check(struct drm_device *dev,
+			    struct drm_atomic_state *state)
 {
-	drm_debugfs_remove_files(sti_drm_dbg_list,
-				 ARRAY_SIZE(sti_drm_dbg_list), minor);
+	int ret;
 
-	drm_debugfs_remove_files((struct drm_info_list *)&sti_drm_fps_fops,
-				 1, minor);
-}
+	ret = drm_atomic_helper_check_modeset(dev, state);
+	if (ret)
+		return ret;
 
-static void sti_atomic_schedule(struct sti_private *private,
-				struct drm_atomic_state *state)
-{
-	private->commit.state = state;
-	schedule_work(&private->commit.work);
-}
+	ret = drm_atomic_normalize_zpos(dev, state);
+	if (ret)
+		return ret;
 
-static void sti_atomic_complete(struct sti_private *private,
-				struct drm_atomic_state *state)
-{
-	struct drm_device *drm = private->drm_dev;
+	ret = drm_atomic_helper_check_planes(dev, state);
+	if (ret)
+		return ret;
 
-	/*
-	 * Everything below can be run asynchronously without the need to grab
-	 * any modeset locks at all under one condition: It must be guaranteed
-	 * that the asynchronous work has either been cancelled (if the driver
-	 * supports it, which at least requires that the framebuffers get
-	 * cleaned up with drm_atomic_helper_cleanup_planes()) or completed
-	 * before the new state gets committed on the software side with
-	 * drm_atomic_helper_swap_state().
-	 *
-	 * This scheme allows new atomic state updates to be prepared and
-	 * checked in parallel to the asynchronous completion of the previous
-	 * update. Which is important since compositors need to figure out the
-	 * composition of the next frame right after having submitted the
-	 * current layout.
-	 */
-
-	drm_atomic_helper_commit_modeset_disables(drm, state);
-	drm_atomic_helper_commit_planes(drm, state, false);
-	drm_atomic_helper_commit_modeset_enables(drm, state);
-
-	drm_atomic_helper_wait_for_vblanks(drm, state);
-
-	drm_atomic_helper_cleanup_planes(drm, state);
-	drm_atomic_state_free(state);
-}
-
-static void sti_atomic_work(struct work_struct *work)
-{
-	struct sti_private *private = container_of(work,
-			struct sti_private, commit.work);
-
-	sti_atomic_complete(private, private->commit.state);
-}
-
-static int sti_atomic_commit(struct drm_device *drm,
-			     struct drm_atomic_state *state, bool nonblock)
-{
-	struct sti_private *private = drm->dev_private;
-	int err;
-
-	err = drm_atomic_helper_prepare_planes(drm, state);
-	if (err)
-		return err;
-
-	/* serialize outstanding nonblocking commits */
-	mutex_lock(&private->commit.lock);
-	flush_work(&private->commit.work);
-
-	/*
-	 * This is the point of no return - everything below never fails except
-	 * when the hw goes bonghits. Which means we can commit the new state on
-	 * the software side now.
-	 */
-
-	drm_atomic_helper_swap_state(state, true);
-
-	if (nonblock)
-		sti_atomic_schedule(private, state);
-	else
-		sti_atomic_complete(private, state);
-
-	mutex_unlock(&private->commit.lock);
-	return 0;
+	return ret;
 }
 
 static void sti_output_poll_changed(struct drm_device *ddev)
 {
 	struct sti_private *private = ddev->dev_private;
 
-	if (!ddev->mode_config.num_connector)
-		return;
-
-	if (private->fbdev) {
-		drm_fbdev_cma_hotplug_event(private->fbdev);
-		return;
-	}
-
-	private->fbdev = drm_fbdev_cma_init(ddev, 32,
-					    ddev->mode_config.num_crtc,
-					    ddev->mode_config.num_connector);
-	if (IS_ERR(private->fbdev))
-		private->fbdev = NULL;
+	drm_fbdev_cma_hotplug_event(private->fbdev);
 }
 
 static const struct drm_mode_config_funcs sti_mode_config_funcs = {
 	.fb_create = drm_fb_cma_create,
 	.output_poll_changed = sti_output_poll_changed,
-	.atomic_check = drm_atomic_helper_check,
-	.atomic_commit = sti_atomic_commit,
+	.atomic_check = sti_atomic_check,
+	.atomic_commit = drm_atomic_helper_commit,
 };
 
 static void sti_mode_config_init(struct drm_device *dev)
@@ -275,14 +174,12 @@ static const struct file_operations sti_driver_fops = {
 	.poll = drm_poll,
 	.read = drm_read,
 	.unlocked_ioctl = drm_ioctl,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
-#endif
 	.release = drm_release,
 };
 
 static struct drm_driver sti_driver = {
-	.driver_features = DRIVER_HAVE_IRQ | DRIVER_MODESET |
+	.driver_features = DRIVER_MODESET |
 	    DRIVER_GEM | DRIVER_PRIME | DRIVER_ATOMIC,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
@@ -306,7 +203,6 @@ static struct drm_driver sti_driver = {
 	.gem_prime_mmap = drm_gem_cma_prime_mmap,
 
 	.debugfs_init = sti_drm_dbg_init,
-	.debugfs_cleanup = sti_drm_dbg_cleanup,
 
 	.name = DRIVER_NAME,
 	.desc = DRIVER_DESC,
@@ -332,9 +228,6 @@ static int sti_init(struct drm_device *ddev)
 	dev_set_drvdata(ddev->dev, ddev);
 	private->drm_dev = ddev;
 
-	mutex_init(&private->commit.lock);
-	INIT_WORK(&private->commit.work, sti_atomic_work);
-
 	drm_mode_config_init(ddev);
 
 	sti_mode_config_init(ddev);
@@ -355,6 +248,7 @@ static void sti_cleanup(struct drm_device *ddev)
 
 	drm_kms_helper_poll_fini(ddev);
 	drm_vblank_cleanup(ddev);
+	component_unbind_all(ddev->dev, ddev);
 	kfree(private);
 	ddev->dev_private = NULL;
 }
@@ -362,11 +256,13 @@ static void sti_cleanup(struct drm_device *ddev)
 static int sti_bind(struct device *dev)
 {
 	struct drm_device *ddev;
+	struct sti_private *private;
+	struct drm_fbdev_cma *fbdev;
 	int ret;
 
 	ddev = drm_dev_alloc(&sti_driver, dev);
-	if (!ddev)
-		return -ENOMEM;
+	if (IS_ERR(ddev))
+		return PTR_ERR(ddev);
 
 	ddev->platformdev = to_platform_device(dev);
 
@@ -383,6 +279,17 @@ static int sti_bind(struct device *dev)
 		goto err_register;
 
 	drm_mode_config_reset(ddev);
+
+	private = ddev->dev_private;
+	if (ddev->mode_config.num_connector) {
+		fbdev = drm_fbdev_cma_init(ddev, 32,
+					   ddev->mode_config.num_connector);
+		if (IS_ERR(fbdev)) {
+			DRM_DEBUG_DRIVER("Warning: fails to create fbdev\n");
+			fbdev = NULL;
+		}
+		private->fbdev = fbdev;
+	}
 
 	return 0;
 
@@ -423,8 +330,8 @@ static int sti_platform_probe(struct platform_device *pdev)
 	child_np = of_get_next_available_child(node, NULL);
 
 	while (child_np) {
-		component_match_add(dev, &match, compare_of, child_np);
-		of_node_put(child_np);
+		drm_of_component_match_add(dev, &match, compare_of,
+					   child_np);
 		child_np = of_get_next_available_child(node, child_np);
 	}
 
@@ -456,7 +363,6 @@ static struct platform_driver sti_platform_driver = {
 
 static struct platform_driver * const drivers[] = {
 	&sti_tvout_driver,
-	&sti_vtac_driver,
 	&sti_hqvdp_driver,
 	&sti_hdmi_driver,
 	&sti_hda_driver,

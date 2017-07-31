@@ -30,7 +30,7 @@ config NVME_FABRICS
 
 config NVME_RDMA
 	tristate "NVM Express over Fabrics RDMA host driver"
-	depends on INFINIBAND
+	depends on INFINIBAND && BLOCK
 	select NVME_CORE
 	select NVME_FABRICS
 	select SG_POOL
@@ -38,6 +38,23 @@ config NVME_RDMA
 	  This provides support for the NVMe over Fabrics protocol using
 	  the RDMA (Infiniband, RoCE, iWarp) transport.  This allows you
 	  to use remote block devices exported using the NVMe protocol set.
+
+	  To configure a NVMe over Fabrics controller use the nvme-cli tool
+	  from https://github.com/linux-nvme/nvme-cli.
+
+	  If unsure, say N.
+
+config NVME_FC
+	tristate "NVM Express over Fabrics FC host driver"
+	depends on BLOCK
+	depends on HAS_DMA
+	select NVME_CORE
+	select NVME_FABRICS
+	select SG_POOL
+	help
+	  This provides support for the NVMe over Fabrics protocol using
+	  the FC transport.  This allows you to use remote block devices
+	  exported using the NVMe protocol set.
 
 	  To configure a NVMe over Fabrics controller use the nvme-cli tool
 	  from https://github.com/linux-nvme/nvme-cli.

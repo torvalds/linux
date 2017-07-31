@@ -103,7 +103,7 @@ struct snd_rawmidi_substream {
 	struct snd_rawmidi_runtime *runtime;
 	struct pid *pid;
 	/* hardware layer */
-	struct snd_rawmidi_ops *ops;
+	const struct snd_rawmidi_ops *ops;
 };
 
 struct snd_rawmidi_file {
@@ -155,7 +155,7 @@ int snd_rawmidi_new(struct snd_card *card, char *id, int device,
 		    int output_count, int input_count,
 		    struct snd_rawmidi **rmidi);
 void snd_rawmidi_set_ops(struct snd_rawmidi *rmidi, int stream,
-			 struct snd_rawmidi_ops *ops);
+			 const struct snd_rawmidi_ops *ops);
 
 /* callbacks */
 

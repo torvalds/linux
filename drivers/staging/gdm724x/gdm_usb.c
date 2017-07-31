@@ -415,10 +415,10 @@ static void do_rx(struct work_struct *work)
 		switch (cmd_evt) {
 		case LTE_GET_INFORMATION_RESULT:
 			if (set_mac_address(hci->data, r->cb_data) == 0) {
-				ret = r->callback(r->cb_data,
-						  r->buf,
-						  r->urb->actual_length,
-						  KERNEL_THREAD);
+				r->callback(r->cb_data,
+					    r->buf,
+					    r->urb->actual_length,
+					    KERNEL_THREAD);
 			}
 			break;
 

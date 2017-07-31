@@ -343,7 +343,7 @@ static int dt2801_reset(struct comedi_device *dev)
 	outb_p(DT_C_STOP, dev->iobase + DT2801_CMD);
 
 	/* dt2801_wait_for_ready(dev); */
-	udelay(100);
+	usleep_range(100, 200);
 	timeout = 10000;
 	do {
 		stat = inb_p(dev->iobase + DT2801_STATUS);
@@ -358,7 +358,7 @@ static int dt2801_reset(struct comedi_device *dev)
 	outb_p(DT_C_RESET, dev->iobase + DT2801_CMD);
 	/* dt2801_writecmd(dev,DT_C_RESET); */
 
-	udelay(100);
+	usleep_range(100, 200);
 	timeout = 10000;
 	do {
 		stat = inb_p(dev->iobase + DT2801_STATUS);

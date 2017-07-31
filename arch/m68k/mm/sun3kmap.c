@@ -40,6 +40,7 @@ static inline void do_page_mapin(unsigned long phys, unsigned long virt,
 	sun3_put_pte(virt, pte);
 
 #ifdef SUN3_KMAP_DEBUG
+	pr_info("mapin:");
 	print_pte_vaddr(virt);
 #endif
 
@@ -80,8 +81,8 @@ void __iomem *sun3_ioremap(unsigned long phys, unsigned long size,
 		return NULL;
 
 #ifdef SUN3_KMAP_DEBUG
-	printk("ioremap: got virt %p size %lx(%lx)\n",
-	       area->addr, size, area->size);
+	pr_info("ioremap: got virt %p size %lx(%lx)\n", area->addr, size,
+		area->size);
 #endif
 
 	pages = size / PAGE_SIZE;

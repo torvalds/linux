@@ -33,7 +33,7 @@
 		stdout-path = &uart0;
 	};
 
-	memory {
+	memory@28000000 {
 		device_type = "memory";
 		reg = <0x28000000 0x800000>; /* 8 MB */
 	};
@@ -424,7 +424,7 @@
 
 	/* NXP SE97BTP with temperature sensor + eeprom */
 	sensor@18 {
-		compatible = "nxp,jc42";
+		compatible = "nxp,se97", "jedec,jc-42.4-temp";
 		reg = <0x18>;
 	};
 

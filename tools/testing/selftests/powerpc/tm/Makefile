@@ -1,17 +1,19 @@
-TEST_PROGS := tm-resched-dscr tm-syscall tm-signal-msr-resv tm-signal-stack \
-	tm-vmxcopy tm-fork tm-tar tm-tmspr tm-exec tm-execed
+SIGNAL_CONTEXT_CHK_TESTS := tm-signal-context-chk-gpr tm-signal-context-chk-fpu \
+	tm-signal-context-chk-vmx tm-signal-context-chk-vsx
 
-all: $(TEST_PROGS)
-
-$(TEST_PROGS): ../harness.c ../utils.c
-
-CFLAGS += -mhtm
-
-tm-syscall: tm-syscall-asm.S
-tm-syscall: CFLAGS += -I../../../../../usr/include
-tm-tmspr: CFLAGS += -pthread
+TEST_GEN_PROGS := tm-resched-dscr tm-syscall tm-signal-msr-resv tm-signal-stack \
+	tm-vmxcopy tm-fork tm-tar tm-tmspr $(SIGNAL_CONTEXT_CHK_TESTS)
 
 include ../../lib.mk
 
-clean:
-	rm -f $(TEST_PROGS) *.o
+$(TEST_GEN_PROGS): ../harness.c ../utils.c
+
+CFLAGS += -mhtm
+
+$(OUTPUT)/tm-syscall: tm-syscall-asm.S
+$(OUTPUT)/tm-syscall: CFLAGS += -I../../../../../usr/include
+$(OUTPUT)/tm-tmspr: CFLAGS += -pthread
+
+SIGNAL_CONTEXT_CHK_TESTS := $(patsubst %,$(OUTPUT)/%,$(SIGNAL_CONTEXT_CHK_TESTS))
+$(SIGNAL_CONTEXT_CHK_TESTS): tm-signal.S
+$(SIGNAL_CONTEXT_CHK_TESTS): CFLAGS += -mhtm -m64 -mvsx

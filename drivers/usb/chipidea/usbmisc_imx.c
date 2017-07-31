@@ -46,16 +46,29 @@
 
 #define MX53_USB_OTG_PHY_CTRL_0_OFFSET	0x08
 #define MX53_USB_OTG_PHY_CTRL_1_OFFSET	0x0c
+#define MX53_USB_CTRL_1_OFFSET	        0x10
+#define MX53_USB_CTRL_1_H2_XCVR_CLK_SEL_MASK (0x11 << 2)
+#define MX53_USB_CTRL_1_H2_XCVR_CLK_SEL_ULPI BIT(2)
+#define MX53_USB_CTRL_1_H3_XCVR_CLK_SEL_MASK (0x11 << 6)
+#define MX53_USB_CTRL_1_H3_XCVR_CLK_SEL_ULPI BIT(6)
 #define MX53_USB_UH2_CTRL_OFFSET	0x14
 #define MX53_USB_UH3_CTRL_OFFSET	0x18
+#define MX53_USB_CLKONOFF_CTRL_OFFSET	0x24
+#define MX53_USB_CLKONOFF_CTRL_H2_INT60CKOFF BIT(21)
+#define MX53_USB_CLKONOFF_CTRL_H3_INT60CKOFF BIT(22)
 #define MX53_BM_OVER_CUR_DIS_H1		BIT(5)
 #define MX53_BM_OVER_CUR_DIS_OTG	BIT(8)
 #define MX53_BM_OVER_CUR_DIS_UHx	BIT(30)
+#define MX53_USB_CTRL_1_UH2_ULPI_EN	BIT(26)
+#define MX53_USB_CTRL_1_UH3_ULPI_EN	BIT(27)
+#define MX53_USB_UHx_CTRL_WAKE_UP_EN	BIT(7)
+#define MX53_USB_UHx_CTRL_ULPI_INT_EN	BIT(8)
 #define MX53_USB_PHYCTRL1_PLLDIV_MASK	0x3
 #define MX53_USB_PLL_DIV_24_MHZ		0x01
 
 #define MX6_BM_NON_BURST_SETTING	BIT(1)
 #define MX6_BM_OVER_CUR_DIS		BIT(7)
+#define MX6_BM_OVER_CUR_POLARITY	BIT(8)
 #define MX6_BM_WAKEUP_ENABLE		BIT(10)
 #define MX6_BM_ID_WAKEUP		BIT(16)
 #define MX6_BM_VBUS_WAKEUP		BIT(17)
@@ -198,30 +211,76 @@ static int usbmisc_imx53_init(struct imx_usbmisc_data *data)
 	val |= MX53_USB_PLL_DIV_24_MHZ;
 	writel(val, usbmisc->base + MX53_USB_OTG_PHY_CTRL_1_OFFSET);
 
-	if (data->disable_oc) {
-		spin_lock_irqsave(&usbmisc->lock, flags);
-		switch (data->index) {
-		case 0:
+	spin_lock_irqsave(&usbmisc->lock, flags);
+
+	switch (data->index) {
+	case 0:
+		if (data->disable_oc) {
 			reg = usbmisc->base + MX53_USB_OTG_PHY_CTRL_0_OFFSET;
 			val = readl(reg) | MX53_BM_OVER_CUR_DIS_OTG;
-			break;
-		case 1:
+			writel(val, reg);
+		}
+		break;
+	case 1:
+		if (data->disable_oc) {
 			reg = usbmisc->base + MX53_USB_OTG_PHY_CTRL_0_OFFSET;
 			val = readl(reg) | MX53_BM_OVER_CUR_DIS_H1;
-			break;
-		case 2:
+			writel(val, reg);
+		}
+		break;
+	case 2:
+		if (data->ulpi) {
+			/* set USBH2 into ULPI-mode. */
+			reg = usbmisc->base + MX53_USB_CTRL_1_OFFSET;
+			val = readl(reg) | MX53_USB_CTRL_1_UH2_ULPI_EN;
+			/* select ULPI clock */
+			val &= ~MX53_USB_CTRL_1_H2_XCVR_CLK_SEL_MASK;
+			val |= MX53_USB_CTRL_1_H2_XCVR_CLK_SEL_ULPI;
+			writel(val, reg);
+			/* Set interrupt wake up enable */
+			reg = usbmisc->base + MX53_USB_UH2_CTRL_OFFSET;
+			val = readl(reg) | MX53_USB_UHx_CTRL_WAKE_UP_EN
+				| MX53_USB_UHx_CTRL_ULPI_INT_EN;
+			writel(val, reg);
+			/* Disable internal 60Mhz clock */
+			reg = usbmisc->base + MX53_USB_CLKONOFF_CTRL_OFFSET;
+			val = readl(reg) | MX53_USB_CLKONOFF_CTRL_H2_INT60CKOFF;
+			writel(val, reg);
+		}
+		if (data->disable_oc) {
 			reg = usbmisc->base + MX53_USB_UH2_CTRL_OFFSET;
 			val = readl(reg) | MX53_BM_OVER_CUR_DIS_UHx;
-			break;
-		case 3:
+			writel(val, reg);
+		}
+		break;
+	case 3:
+		if (data->ulpi) {
+			/* set USBH3 into ULPI-mode. */
+			reg = usbmisc->base + MX53_USB_CTRL_1_OFFSET;
+			val = readl(reg) | MX53_USB_CTRL_1_UH3_ULPI_EN;
+			/* select ULPI clock */
+			val &= ~MX53_USB_CTRL_1_H3_XCVR_CLK_SEL_MASK;
+			val |= MX53_USB_CTRL_1_H3_XCVR_CLK_SEL_ULPI;
+			writel(val, reg);
+			/* Set interrupt wake up enable */
+			reg = usbmisc->base + MX53_USB_UH3_CTRL_OFFSET;
+			val = readl(reg) | MX53_USB_UHx_CTRL_WAKE_UP_EN
+				| MX53_USB_UHx_CTRL_ULPI_INT_EN;
+			writel(val, reg);
+			/* Disable internal 60Mhz clock */
+			reg = usbmisc->base + MX53_USB_CLKONOFF_CTRL_OFFSET;
+			val = readl(reg) | MX53_USB_CLKONOFF_CTRL_H3_INT60CKOFF;
+			writel(val, reg);
+		}
+		if (data->disable_oc) {
 			reg = usbmisc->base + MX53_USB_UH3_CTRL_OFFSET;
 			val = readl(reg) | MX53_BM_OVER_CUR_DIS_UHx;
-			break;
-		}
-		if (reg && val)
 			writel(val, reg);
-		spin_unlock_irqrestore(&usbmisc->lock, flags);
+		}
+		break;
 	}
+
+	spin_unlock_irqrestore(&usbmisc->lock, flags);
 
 	return 0;
 }
@@ -266,11 +325,14 @@ static int usbmisc_imx6q_init(struct imx_usbmisc_data *data)
 
 	spin_lock_irqsave(&usbmisc->lock, flags);
 
+	reg = readl(usbmisc->base + data->index * 4);
 	if (data->disable_oc) {
-		reg = readl(usbmisc->base + data->index * 4);
-		writel(reg | MX6_BM_OVER_CUR_DIS,
-			usbmisc->base + data->index * 4);
+		reg |= MX6_BM_OVER_CUR_DIS;
+	} else if (data->oc_polarity == 1) {
+		/* High active */
+		reg &= ~(MX6_BM_OVER_CUR_DIS | MX6_BM_OVER_CUR_POLARITY);
 	}
+	writel(reg, usbmisc->base + data->index * 4);
 
 	/* SoC non-burst setting */
 	reg = readl(usbmisc->base + data->index * 4);
@@ -365,10 +427,14 @@ static int usbmisc_imx7d_init(struct imx_usbmisc_data *data)
 		return -EINVAL;
 
 	spin_lock_irqsave(&usbmisc->lock, flags);
+	reg = readl(usbmisc->base);
 	if (data->disable_oc) {
-		reg = readl(usbmisc->base);
-		writel(reg | MX6_BM_OVER_CUR_DIS, usbmisc->base);
+		reg |= MX6_BM_OVER_CUR_DIS;
+	} else if (data->oc_polarity == 1) {
+		/* High active */
+		reg &= ~(MX6_BM_OVER_CUR_DIS | MX6_BM_OVER_CUR_POLARITY);
 	}
+	writel(reg, usbmisc->base);
 
 	reg = readl(usbmisc->base + MX7D_USBNC_USB_CTRL2);
 	reg &= ~MX7D_USB_VBUS_WAKEUP_SOURCE_MASK;
@@ -491,6 +557,10 @@ static const struct of_device_id usbmisc_imx_dt_ids[] = {
 	{
 		.compatible = "fsl,imx6ul-usbmisc",
 		.data = &imx6sx_usbmisc_ops,
+	},
+	{
+		.compatible = "fsl,imx7d-usbmisc",
+		.data = &imx7d_usbmisc_ops,
 	},
 	{ /* sentinel */ }
 };

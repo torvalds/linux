@@ -26,9 +26,9 @@
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/err.h>
+#include <linux/of_device.h>
 #include <linux/of.h>
 #include <linux/regmap.h>
-#include <linux/thermal.h>
 #include "lm75.h"
 
 
@@ -88,56 +88,75 @@ static inline long lm75_reg_to_mc(s16 temp, u8 resolution)
 	return ((temp >> (16 - resolution)) * 1000) >> (resolution - 8);
 }
 
-/* sysfs attributes for hwmon */
-
-static int lm75_read_temp(void *dev, int *temp)
+static int lm75_read(struct device *dev, enum hwmon_sensor_types type,
+		     u32 attr, int channel, long *val)
 {
 	struct lm75_data *data = dev_get_drvdata(dev);
-	unsigned int _temp;
-	int err;
+	unsigned int regval;
+	int err, reg;
 
-	err = regmap_read(data->regmap, LM75_REG_TEMP, &_temp);
-	if (err < 0)
-		return err;
+	switch (type) {
+	case hwmon_chip:
+		switch (attr) {
+		case hwmon_chip_update_interval:
+			*val = data->sample_time;
+			break;;
+		default:
+			return -EINVAL;
+		}
+		break;
+	case hwmon_temp:
+		switch (attr) {
+		case hwmon_temp_input:
+			reg = LM75_REG_TEMP;
+			break;
+		case hwmon_temp_max:
+			reg = LM75_REG_MAX;
+			break;
+		case hwmon_temp_max_hyst:
+			reg = LM75_REG_HYST;
+			break;
+		default:
+			return -EINVAL;
+		}
+		err = regmap_read(data->regmap, reg, &regval);
+		if (err < 0)
+			return err;
 
-	*temp = lm75_reg_to_mc(_temp, data->resolution);
-
+		*val = lm75_reg_to_mc(regval, data->resolution);
+		break;
+	default:
+		return -EINVAL;
+	}
 	return 0;
 }
 
-static ssize_t show_temp(struct device *dev, struct device_attribute *da,
-			 char *buf)
+static int lm75_write(struct device *dev, enum hwmon_sensor_types type,
+		      u32 attr, int channel, long temp)
 {
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
 	struct lm75_data *data = dev_get_drvdata(dev);
-	unsigned int temp = 0;
-	int err;
-
-	err = regmap_read(data->regmap, attr->index, &temp);
-	if (err < 0)
-		return err;
-
-	return sprintf(buf, "%ld\n", lm75_reg_to_mc(temp, data->resolution));
-}
-
-static ssize_t set_temp(struct device *dev, struct device_attribute *da,
-			const char *buf, size_t count)
-{
-	struct sensor_device_attribute *attr = to_sensor_dev_attr(da);
-	struct lm75_data *data = dev_get_drvdata(dev);
-	long temp;
-	int error;
 	u8 resolution;
+	int reg;
 
-	error = kstrtol(buf, 10, &temp);
-	if (error)
-		return error;
+	if (type != hwmon_temp)
+		return -EINVAL;
+
+	switch (attr) {
+	case hwmon_temp_max:
+		reg = LM75_REG_MAX;
+		break;
+	case hwmon_temp_max_hyst:
+		reg = LM75_REG_HYST;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	/*
 	 * Resolution of limit registers is assumed to be the same as the
 	 * temperature input register resolution unless given explicitly.
 	 */
-	if (attr->index && data->resolution_limits)
+	if (data->resolution_limits)
 		resolution = data->resolution_limits;
 	else
 		resolution = data->resolution;
@@ -145,45 +164,77 @@ static ssize_t set_temp(struct device *dev, struct device_attribute *da,
 	temp = clamp_val(temp, LM75_TEMP_MIN, LM75_TEMP_MAX);
 	temp = DIV_ROUND_CLOSEST(temp  << (resolution - 8),
 				 1000) << (16 - resolution);
-	error = regmap_write(data->regmap, attr->index, temp);
-	if (error < 0)
-		return error;
 
-	return count;
+	return regmap_write(data->regmap, reg, temp);
 }
 
-static ssize_t show_update_interval(struct device *dev,
-				    struct device_attribute *da, char *buf)
+static umode_t lm75_is_visible(const void *data, enum hwmon_sensor_types type,
+			       u32 attr, int channel)
 {
-	struct lm75_data *data = dev_get_drvdata(dev);
-
-	return sprintf(buf, "%u\n", data->sample_time);
+	switch (type) {
+	case hwmon_chip:
+		switch (attr) {
+		case hwmon_chip_update_interval:
+			return S_IRUGO;
+		}
+		break;
+	case hwmon_temp:
+		switch (attr) {
+		case hwmon_temp_input:
+			return S_IRUGO;
+		case hwmon_temp_max:
+		case hwmon_temp_max_hyst:
+			return S_IRUGO | S_IWUSR;
+		}
+		break;
+	default:
+		break;
+	}
+	return 0;
 }
-
-static SENSOR_DEVICE_ATTR(temp1_max, S_IWUSR | S_IRUGO,
-			show_temp, set_temp, LM75_REG_MAX);
-static SENSOR_DEVICE_ATTR(temp1_max_hyst, S_IWUSR | S_IRUGO,
-			show_temp, set_temp, LM75_REG_HYST);
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL, LM75_REG_TEMP);
-static DEVICE_ATTR(update_interval, S_IRUGO, show_update_interval, NULL);
-
-static struct attribute *lm75_attrs[] = {
-	&sensor_dev_attr_temp1_input.dev_attr.attr,
-	&sensor_dev_attr_temp1_max.dev_attr.attr,
-	&sensor_dev_attr_temp1_max_hyst.dev_attr.attr,
-	&dev_attr_update_interval.attr,
-
-	NULL
-};
-ATTRIBUTE_GROUPS(lm75);
-
-static const struct thermal_zone_of_device_ops lm75_of_thermal_ops = {
-	.get_temp = lm75_read_temp,
-};
 
 /*-----------------------------------------------------------------------*/
 
 /* device probe and removal */
+
+/* chip configuration */
+
+static const u32 lm75_chip_config[] = {
+	HWMON_C_REGISTER_TZ | HWMON_C_UPDATE_INTERVAL,
+	0
+};
+
+static const struct hwmon_channel_info lm75_chip = {
+	.type = hwmon_chip,
+	.config = lm75_chip_config,
+};
+
+static const u32 lm75_temp_config[] = {
+	HWMON_T_INPUT | HWMON_T_MAX | HWMON_T_MAX_HYST,
+	0
+};
+
+static const struct hwmon_channel_info lm75_temp = {
+	.type = hwmon_temp,
+	.config = lm75_temp_config,
+};
+
+static const struct hwmon_channel_info *lm75_info[] = {
+	&lm75_chip,
+	&lm75_temp,
+	NULL
+};
+
+static const struct hwmon_ops lm75_hwmon_ops = {
+	.is_visible = lm75_is_visible,
+	.read = lm75_read,
+	.write = lm75_write,
+};
+
+static const struct hwmon_chip_info lm75_chip_info = {
+	.ops = &lm75_hwmon_ops,
+	.info = lm75_info,
+};
 
 static bool lm75_is_writeable_reg(struct device *dev, unsigned int reg)
 {
@@ -223,7 +274,12 @@ lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	int status, err;
 	u8 set_mask, clr_mask;
 	int new;
-	enum lm75_type kind = id->driver_data;
+	enum lm75_type kind;
+
+	if (client->dev.of_node)
+		kind = (enum lm75_type)of_device_get_match_data(&client->dev);
+	else
+		kind = id->driver_data;
 
 	if (!i2c_check_functionality(client->adapter,
 			I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA))
@@ -337,14 +393,11 @@ lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	dev_dbg(dev, "Config %02x\n", new);
 
-	hwmon_dev = devm_hwmon_device_register_with_groups(dev, client->name,
-							   data, lm75_groups);
+	hwmon_dev = devm_hwmon_device_register_with_info(dev, client->name,
+							 data, &lm75_chip_info,
+							 NULL);
 	if (IS_ERR(hwmon_dev))
 		return PTR_ERR(hwmon_dev);
-
-	devm_thermal_zone_of_sensor_register(hwmon_dev, 0,
-					     hwmon_dev,
-					     &lm75_of_thermal_ops);
 
 	dev_info(dev, "%s: sensor '%s'\n", dev_name(hwmon_dev), client->name);
 
@@ -376,6 +429,95 @@ static const struct i2c_device_id lm75_ids[] = {
 	{ /* LIST END */ }
 };
 MODULE_DEVICE_TABLE(i2c, lm75_ids);
+
+static const struct of_device_id lm75_of_match[] = {
+	{
+		.compatible = "adi,adt75",
+		.data = (void *)adt75
+	},
+	{
+		.compatible = "dallas,ds1775",
+		.data = (void *)ds1775
+	},
+	{
+		.compatible = "dallas,ds75",
+		.data = (void *)ds75
+	},
+	{
+		.compatible = "dallas,ds7505",
+		.data = (void *)ds7505
+	},
+	{
+		.compatible = "gmt,g751",
+		.data = (void *)g751
+	},
+	{
+		.compatible = "national,lm75",
+		.data = (void *)lm75
+	},
+	{
+		.compatible = "national,lm75a",
+		.data = (void *)lm75a
+	},
+	{
+		.compatible = "national,lm75b",
+		.data = (void *)lm75b
+	},
+	{
+		.compatible = "maxim,max6625",
+		.data = (void *)max6625
+	},
+	{
+		.compatible = "maxim,max6626",
+		.data = (void *)max6626
+	},
+	{
+		.compatible = "maxim,mcp980x",
+		.data = (void *)mcp980x
+	},
+	{
+		.compatible = "st,stds75",
+		.data = (void *)stds75
+	},
+	{
+		.compatible = "microchip,tcn75",
+		.data = (void *)tcn75
+	},
+	{
+		.compatible = "ti,tmp100",
+		.data = (void *)tmp100
+	},
+	{
+		.compatible = "ti,tmp101",
+		.data = (void *)tmp101
+	},
+	{
+		.compatible = "ti,tmp105",
+		.data = (void *)tmp105
+	},
+	{
+		.compatible = "ti,tmp112",
+		.data = (void *)tmp112
+	},
+	{
+		.compatible = "ti,tmp175",
+		.data = (void *)tmp175
+	},
+	{
+		.compatible = "ti,tmp275",
+		.data = (void *)tmp275
+	},
+	{
+		.compatible = "ti,tmp75",
+		.data = (void *)tmp75
+	},
+	{
+		.compatible = "ti,tmp75c",
+		.data = (void *)tmp75c
+	},
+	{ },
+};
+MODULE_DEVICE_TABLE(of, lm75_of_match);
 
 #define LM75A_ID 0xA1
 
@@ -513,6 +655,7 @@ static struct i2c_driver lm75_driver = {
 	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "lm75",
+		.of_match_table = of_match_ptr(lm75_of_match),
 		.pm	= LM75_DEV_PM_OPS,
 	},
 	.probe		= lm75_probe,

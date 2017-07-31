@@ -13,42 +13,11 @@
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
 #include <linux/clk/at91_pmc.h>
-#include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 
 #include "pmc.h"
-#include "sckc.h"
-
-#define SLOW_CLOCK_FREQ		32768
-#define SLOWCK_SW_CYCLES	5
-#define SLOWCK_SW_TIME_USEC	((SLOWCK_SW_CYCLES * USEC_PER_SEC) / \
-				 SLOW_CLOCK_FREQ)
-
-#define	AT91_SCKC_CR			0x00
-#define		AT91_SCKC_RCEN		(1 << 0)
-#define		AT91_SCKC_OSC32EN	(1 << 1)
-#define		AT91_SCKC_OSC32BYP	(1 << 2)
-#define		AT91_SCKC_OSCSEL	(1 << 3)
-
-struct clk_slow_osc {
-	struct clk_hw hw;
-	void __iomem *sckcr;
-	unsigned long startup_usec;
-};
-
-#define to_clk_slow_osc(hw) container_of(hw, struct clk_slow_osc, hw)
-
-struct clk_slow_rc_osc {
-	struct clk_hw hw;
-	void __iomem *sckcr;
-	unsigned long frequency;
-	unsigned long accuracy;
-	unsigned long startup_usec;
-};
-
-#define to_clk_slow_rc_osc(hw) container_of(hw, struct clk_slow_rc_osc, hw)
 
 struct clk_sam9260_slow {
 	struct clk_hw hw;
@@ -56,328 +25,6 @@ struct clk_sam9260_slow {
 };
 
 #define to_clk_sam9260_slow(hw) container_of(hw, struct clk_sam9260_slow, hw)
-
-struct clk_sam9x5_slow {
-	struct clk_hw hw;
-	void __iomem *sckcr;
-	u8 parent;
-};
-
-#define to_clk_sam9x5_slow(hw) container_of(hw, struct clk_sam9x5_slow, hw)
-
-static int clk_slow_osc_prepare(struct clk_hw *hw)
-{
-	struct clk_slow_osc *osc = to_clk_slow_osc(hw);
-	void __iomem *sckcr = osc->sckcr;
-	u32 tmp = readl(sckcr);
-
-	if (tmp & AT91_SCKC_OSC32BYP)
-		return 0;
-
-	writel(tmp | AT91_SCKC_OSC32EN, sckcr);
-
-	usleep_range(osc->startup_usec, osc->startup_usec + 1);
-
-	return 0;
-}
-
-static void clk_slow_osc_unprepare(struct clk_hw *hw)
-{
-	struct clk_slow_osc *osc = to_clk_slow_osc(hw);
-	void __iomem *sckcr = osc->sckcr;
-	u32 tmp = readl(sckcr);
-
-	if (tmp & AT91_SCKC_OSC32BYP)
-		return;
-
-	writel(tmp & ~AT91_SCKC_OSC32EN, sckcr);
-}
-
-static int clk_slow_osc_is_prepared(struct clk_hw *hw)
-{
-	struct clk_slow_osc *osc = to_clk_slow_osc(hw);
-	void __iomem *sckcr = osc->sckcr;
-	u32 tmp = readl(sckcr);
-
-	if (tmp & AT91_SCKC_OSC32BYP)
-		return 1;
-
-	return !!(tmp & AT91_SCKC_OSC32EN);
-}
-
-static const struct clk_ops slow_osc_ops = {
-	.prepare = clk_slow_osc_prepare,
-	.unprepare = clk_slow_osc_unprepare,
-	.is_prepared = clk_slow_osc_is_prepared,
-};
-
-static struct clk * __init
-at91_clk_register_slow_osc(void __iomem *sckcr,
-			   const char *name,
-			   const char *parent_name,
-			   unsigned long startup,
-			   bool bypass)
-{
-	struct clk_slow_osc *osc;
-	struct clk *clk = NULL;
-	struct clk_init_data init;
-
-	if (!sckcr || !name || !parent_name)
-		return ERR_PTR(-EINVAL);
-
-	osc = kzalloc(sizeof(*osc), GFP_KERNEL);
-	if (!osc)
-		return ERR_PTR(-ENOMEM);
-
-	init.name = name;
-	init.ops = &slow_osc_ops;
-	init.parent_names = &parent_name;
-	init.num_parents = 1;
-	init.flags = CLK_IGNORE_UNUSED;
-
-	osc->hw.init = &init;
-	osc->sckcr = sckcr;
-	osc->startup_usec = startup;
-
-	if (bypass)
-		writel((readl(sckcr) & ~AT91_SCKC_OSC32EN) | AT91_SCKC_OSC32BYP,
-		       sckcr);
-
-	clk = clk_register(NULL, &osc->hw);
-	if (IS_ERR(clk))
-		kfree(osc);
-
-	return clk;
-}
-
-void __init of_at91sam9x5_clk_slow_osc_setup(struct device_node *np,
-					     void __iomem *sckcr)
-{
-	struct clk *clk;
-	const char *parent_name;
-	const char *name = np->name;
-	u32 startup;
-	bool bypass;
-
-	parent_name = of_clk_get_parent_name(np, 0);
-	of_property_read_string(np, "clock-output-names", &name);
-	of_property_read_u32(np, "atmel,startup-time-usec", &startup);
-	bypass = of_property_read_bool(np, "atmel,osc-bypass");
-
-	clk = at91_clk_register_slow_osc(sckcr, name, parent_name, startup,
-					 bypass);
-	if (IS_ERR(clk))
-		return;
-
-	of_clk_add_provider(np, of_clk_src_simple_get, clk);
-}
-
-static unsigned long clk_slow_rc_osc_recalc_rate(struct clk_hw *hw,
-						 unsigned long parent_rate)
-{
-	struct clk_slow_rc_osc *osc = to_clk_slow_rc_osc(hw);
-
-	return osc->frequency;
-}
-
-static unsigned long clk_slow_rc_osc_recalc_accuracy(struct clk_hw *hw,
-						     unsigned long parent_acc)
-{
-	struct clk_slow_rc_osc *osc = to_clk_slow_rc_osc(hw);
-
-	return osc->accuracy;
-}
-
-static int clk_slow_rc_osc_prepare(struct clk_hw *hw)
-{
-	struct clk_slow_rc_osc *osc = to_clk_slow_rc_osc(hw);
-	void __iomem *sckcr = osc->sckcr;
-
-	writel(readl(sckcr) | AT91_SCKC_RCEN, sckcr);
-
-	usleep_range(osc->startup_usec, osc->startup_usec + 1);
-
-	return 0;
-}
-
-static void clk_slow_rc_osc_unprepare(struct clk_hw *hw)
-{
-	struct clk_slow_rc_osc *osc = to_clk_slow_rc_osc(hw);
-	void __iomem *sckcr = osc->sckcr;
-
-	writel(readl(sckcr) & ~AT91_SCKC_RCEN, sckcr);
-}
-
-static int clk_slow_rc_osc_is_prepared(struct clk_hw *hw)
-{
-	struct clk_slow_rc_osc *osc = to_clk_slow_rc_osc(hw);
-
-	return !!(readl(osc->sckcr) & AT91_SCKC_RCEN);
-}
-
-static const struct clk_ops slow_rc_osc_ops = {
-	.prepare = clk_slow_rc_osc_prepare,
-	.unprepare = clk_slow_rc_osc_unprepare,
-	.is_prepared = clk_slow_rc_osc_is_prepared,
-	.recalc_rate = clk_slow_rc_osc_recalc_rate,
-	.recalc_accuracy = clk_slow_rc_osc_recalc_accuracy,
-};
-
-static struct clk * __init
-at91_clk_register_slow_rc_osc(void __iomem *sckcr,
-			      const char *name,
-			      unsigned long frequency,
-			      unsigned long accuracy,
-			      unsigned long startup)
-{
-	struct clk_slow_rc_osc *osc;
-	struct clk *clk = NULL;
-	struct clk_init_data init;
-
-	if (!sckcr || !name)
-		return ERR_PTR(-EINVAL);
-
-	osc = kzalloc(sizeof(*osc), GFP_KERNEL);
-	if (!osc)
-		return ERR_PTR(-ENOMEM);
-
-	init.name = name;
-	init.ops = &slow_rc_osc_ops;
-	init.parent_names = NULL;
-	init.num_parents = 0;
-	init.flags = CLK_IGNORE_UNUSED;
-
-	osc->hw.init = &init;
-	osc->sckcr = sckcr;
-	osc->frequency = frequency;
-	osc->accuracy = accuracy;
-	osc->startup_usec = startup;
-
-	clk = clk_register(NULL, &osc->hw);
-	if (IS_ERR(clk))
-		kfree(osc);
-
-	return clk;
-}
-
-void __init of_at91sam9x5_clk_slow_rc_osc_setup(struct device_node *np,
-						void __iomem *sckcr)
-{
-	struct clk *clk;
-	u32 frequency = 0;
-	u32 accuracy = 0;
-	u32 startup = 0;
-	const char *name = np->name;
-
-	of_property_read_string(np, "clock-output-names", &name);
-	of_property_read_u32(np, "clock-frequency", &frequency);
-	of_property_read_u32(np, "clock-accuracy", &accuracy);
-	of_property_read_u32(np, "atmel,startup-time-usec", &startup);
-
-	clk = at91_clk_register_slow_rc_osc(sckcr, name, frequency, accuracy,
-					    startup);
-	if (IS_ERR(clk))
-		return;
-
-	of_clk_add_provider(np, of_clk_src_simple_get, clk);
-}
-
-static int clk_sam9x5_slow_set_parent(struct clk_hw *hw, u8 index)
-{
-	struct clk_sam9x5_slow *slowck = to_clk_sam9x5_slow(hw);
-	void __iomem *sckcr = slowck->sckcr;
-	u32 tmp;
-
-	if (index > 1)
-		return -EINVAL;
-
-	tmp = readl(sckcr);
-
-	if ((!index && !(tmp & AT91_SCKC_OSCSEL)) ||
-	    (index && (tmp & AT91_SCKC_OSCSEL)))
-		return 0;
-
-	if (index)
-		tmp |= AT91_SCKC_OSCSEL;
-	else
-		tmp &= ~AT91_SCKC_OSCSEL;
-
-	writel(tmp, sckcr);
-
-	usleep_range(SLOWCK_SW_TIME_USEC, SLOWCK_SW_TIME_USEC + 1);
-
-	return 0;
-}
-
-static u8 clk_sam9x5_slow_get_parent(struct clk_hw *hw)
-{
-	struct clk_sam9x5_slow *slowck = to_clk_sam9x5_slow(hw);
-
-	return !!(readl(slowck->sckcr) & AT91_SCKC_OSCSEL);
-}
-
-static const struct clk_ops sam9x5_slow_ops = {
-	.set_parent = clk_sam9x5_slow_set_parent,
-	.get_parent = clk_sam9x5_slow_get_parent,
-};
-
-static struct clk * __init
-at91_clk_register_sam9x5_slow(void __iomem *sckcr,
-			      const char *name,
-			      const char **parent_names,
-			      int num_parents)
-{
-	struct clk_sam9x5_slow *slowck;
-	struct clk *clk = NULL;
-	struct clk_init_data init;
-
-	if (!sckcr || !name || !parent_names || !num_parents)
-		return ERR_PTR(-EINVAL);
-
-	slowck = kzalloc(sizeof(*slowck), GFP_KERNEL);
-	if (!slowck)
-		return ERR_PTR(-ENOMEM);
-
-	init.name = name;
-	init.ops = &sam9x5_slow_ops;
-	init.parent_names = parent_names;
-	init.num_parents = num_parents;
-	init.flags = 0;
-
-	slowck->hw.init = &init;
-	slowck->sckcr = sckcr;
-	slowck->parent = !!(readl(sckcr) & AT91_SCKC_OSCSEL);
-
-	clk = clk_register(NULL, &slowck->hw);
-	if (IS_ERR(clk))
-		kfree(slowck);
-
-	return clk;
-}
-
-void __init of_at91sam9x5_clk_slow_setup(struct device_node *np,
-					 void __iomem *sckcr)
-{
-	struct clk *clk;
-	const char *parent_names[2];
-	unsigned int num_parents;
-	const char *name = np->name;
-
-	num_parents = of_clk_get_parent_count(np);
-	if (num_parents == 0 || num_parents > 2)
-		return;
-
-	of_clk_parent_fill(np, parent_names, num_parents);
-
-	of_property_read_string(np, "clock-output-names", &name);
-
-	clk = at91_clk_register_sam9x5_slow(sckcr, name, parent_names,
-					    num_parents);
-	if (IS_ERR(clk))
-		return;
-
-	of_clk_add_provider(np, of_clk_src_simple_get, clk);
-}
 
 static u8 clk_sam9260_slow_get_parent(struct clk_hw *hw)
 {
@@ -393,15 +40,16 @@ static const struct clk_ops sam9260_slow_ops = {
 	.get_parent = clk_sam9260_slow_get_parent,
 };
 
-static struct clk * __init
+static struct clk_hw * __init
 at91_clk_register_sam9260_slow(struct regmap *regmap,
 			       const char *name,
 			       const char **parent_names,
 			       int num_parents)
 {
 	struct clk_sam9260_slow *slowck;
-	struct clk *clk = NULL;
+	struct clk_hw *hw;
 	struct clk_init_data init;
+	int ret;
 
 	if (!name)
 		return ERR_PTR(-EINVAL);
@@ -422,16 +70,19 @@ at91_clk_register_sam9260_slow(struct regmap *regmap,
 	slowck->hw.init = &init;
 	slowck->regmap = regmap;
 
-	clk = clk_register(NULL, &slowck->hw);
-	if (IS_ERR(clk))
+	hw = &slowck->hw;
+	ret = clk_hw_register(NULL, &slowck->hw);
+	if (ret) {
 		kfree(slowck);
+		hw = ERR_PTR(ret);
+	}
 
-	return clk;
+	return hw;
 }
 
 static void __init of_at91sam9260_clk_slow_setup(struct device_node *np)
 {
-	struct clk *clk;
+	struct clk_hw *hw;
 	const char *parent_names[2];
 	unsigned int num_parents;
 	const char *name = np->name;
@@ -448,12 +99,12 @@ static void __init of_at91sam9260_clk_slow_setup(struct device_node *np)
 
 	of_property_read_string(np, "clock-output-names", &name);
 
-	clk = at91_clk_register_sam9260_slow(regmap, name, parent_names,
+	hw = at91_clk_register_sam9260_slow(regmap, name, parent_names,
 					     num_parents);
-	if (IS_ERR(clk))
+	if (IS_ERR(hw))
 		return;
 
-	of_clk_add_provider(np, of_clk_src_simple_get, clk);
+	of_clk_add_hw_provider(np, of_clk_hw_simple_get, hw);
 }
 
 CLK_OF_DECLARE(at91sam9260_clk_slow, "atmel,at91sam9260-clk-slow",

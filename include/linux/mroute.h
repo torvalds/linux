@@ -3,6 +3,7 @@
 
 #include <linux/in.h>
 #include <linux/pim.h>
+#include <linux/rhashtable.h>
 #include <net/sock.h>
 #include <uapi/linux/mroute.h>
 
@@ -60,7 +61,6 @@ struct vif_device {
 #define VIFF_STATIC 0x8000
 
 #define VIF_EXISTS(_mrt, _idx) ((_mrt)->vif_table[_idx].dev != NULL)
-#define MFC_LINES 64
 
 struct mr_table {
 	struct list_head	list;
@@ -69,8 +69,9 @@ struct mr_table {
 	struct sock __rcu	*mroute_sk;
 	struct timer_list	ipmr_expire_timer;
 	struct list_head	mfc_unres_queue;
-	struct list_head	mfc_cache_array[MFC_LINES];
 	struct vif_device	vif_table[MAXVIFS];
+	struct rhltable		mfc_hash;
+	struct list_head	mfc_cache_list;
 	int			maxvif;
 	atomic_t		cache_resolve_queue_len;
 	bool			mroute_do_assert;
@@ -85,17 +86,48 @@ enum {
 	MFC_STATIC = BIT(0),
 };
 
+struct mfc_cache_cmp_arg {
+	__be32 mfc_mcastgrp;
+	__be32 mfc_origin;
+};
+
+/**
+ * struct mfc_cache - multicast routing entries
+ * @mnode: rhashtable list
+ * @mfc_mcastgrp: destination multicast group address
+ * @mfc_origin: source address
+ * @cmparg: used for rhashtable comparisons
+ * @mfc_parent: source interface (iif)
+ * @mfc_flags: entry flags
+ * @expires: unresolved entry expire time
+ * @unresolved: unresolved cached skbs
+ * @last_assert: time of last assert
+ * @minvif: minimum VIF id
+ * @maxvif: maximum VIF id
+ * @bytes: bytes that have passed for this entry
+ * @pkt: packets that have passed for this entry
+ * @wrong_if: number of wrong source interface hits
+ * @lastuse: time of last use of the group (traffic or update)
+ * @ttls: OIF TTL threshold array
+ * @list: global entry list
+ * @rcu: used for entry destruction
+ */
 struct mfc_cache {
-	struct list_head list;
-	__be32 mfc_mcastgrp;			/* Group the entry belongs to 	*/
-	__be32 mfc_origin;			/* Source of packet 		*/
-	vifi_t mfc_parent;			/* Source interface		*/
-	int mfc_flags;				/* Flags on line		*/
+	struct rhlist_head mnode;
+	union {
+		struct {
+			__be32 mfc_mcastgrp;
+			__be32 mfc_origin;
+		};
+		struct mfc_cache_cmp_arg cmparg;
+	};
+	vifi_t mfc_parent;
+	int mfc_flags;
 
 	union {
 		struct {
 			unsigned long expires;
-			struct sk_buff_head unresolved;	/* Unresolved buffers		*/
+			struct sk_buff_head unresolved;
 		} unres;
 		struct {
 			unsigned long last_assert;
@@ -105,20 +137,15 @@ struct mfc_cache {
 			unsigned long pkt;
 			unsigned long wrong_if;
 			unsigned long lastuse;
-			unsigned char ttls[MAXVIFS];	/* TTL thresholds		*/
+			unsigned char ttls[MAXVIFS];
 		} res;
 	} mfc_un;
+	struct list_head list;
 	struct rcu_head	rcu;
 };
-
-#ifdef __BIG_ENDIAN
-#define MFC_HASH(a,b)	(((((__force u32)(__be32)a)>>24)^(((__force u32)(__be32)b)>>26))&(MFC_LINES-1))
-#else
-#define MFC_HASH(a,b)	((((__force u32)(__be32)a)^(((__force u32)(__be32)b)>>2))&(MFC_LINES-1))
-#endif
 
 struct rtmsg;
 int ipmr_get_route(struct net *net, struct sk_buff *skb,
 		   __be32 saddr, __be32 daddr,
-		   struct rtmsg *rtm, int nowait);
+		   struct rtmsg *rtm, u32 portid);
 #endif

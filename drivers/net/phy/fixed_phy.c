@@ -279,7 +279,7 @@ EXPORT_SYMBOL_GPL(fixed_phy_register);
 void fixed_phy_unregister(struct phy_device *phy)
 {
 	phy_device_remove(phy);
-
+	of_node_put(phy->mdio.dev.of_node);
 	fixed_phy_del(phy->mdio.addr);
 }
 EXPORT_SYMBOL_GPL(fixed_phy_unregister);

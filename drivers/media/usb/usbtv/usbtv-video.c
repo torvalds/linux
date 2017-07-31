@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013 Lubomir Rintel
+ * Copyright (c) 2013,2016 Lubomir Rintel
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -256,6 +256,10 @@ static int usbtv_setup_capture(struct usbtv *usbtv)
 		return ret;
 
 	ret = usbtv_select_input(usbtv, usbtv->input);
+	if (ret)
+		return ret;
+
+	ret = v4l2_ctrl_handler_setup(&usbtv->ctrl);
 	if (ret)
 		return ret;
 
@@ -689,11 +693,96 @@ static void usbtv_stop_streaming(struct vb2_queue *vq)
 		usbtv_stop(usbtv);
 }
 
-static struct vb2_ops usbtv_vb2_ops = {
+static const struct vb2_ops usbtv_vb2_ops = {
 	.queue_setup = usbtv_queue_setup,
 	.buf_queue = usbtv_buf_queue,
 	.start_streaming = usbtv_start_streaming,
 	.stop_streaming = usbtv_stop_streaming,
+};
+
+static int usbtv_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct usbtv *usbtv = container_of(ctrl->handler, struct usbtv,
+								ctrl);
+	u8 *data;
+	u16 index, size;
+	int ret;
+
+	data = kmalloc(3, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	/*
+	 * Read in the current brightness/contrast registers. We need them
+	 * both, because the values are for some reason interleaved.
+	 */
+	if (ctrl->id == V4L2_CID_BRIGHTNESS || ctrl->id == V4L2_CID_CONTRAST) {
+		ret = usb_control_msg(usbtv->udev,
+			usb_sndctrlpipe(usbtv->udev, 0), USBTV_CONTROL_REG,
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			0, USBTV_BASE + 0x0244, (void *)data, 3, 0);
+		if (ret < 0)
+			goto error;
+	}
+
+	switch (ctrl->id) {
+	case V4L2_CID_BRIGHTNESS:
+		index = USBTV_BASE + 0x0244;
+		size = 3;
+		data[0] &= 0xf0;
+		data[0] |= (ctrl->val >> 8) & 0xf;
+		data[2] = ctrl->val & 0xff;
+		break;
+	case V4L2_CID_CONTRAST:
+		index = USBTV_BASE + 0x0244;
+		size = 3;
+		data[0] &= 0x0f;
+		data[0] |= (ctrl->val >> 4) & 0xf0;
+		data[1] = ctrl->val & 0xff;
+		break;
+	case V4L2_CID_SATURATION:
+		index = USBTV_BASE + 0x0242;
+		data[0] = ctrl->val >> 8;
+		data[1] = ctrl->val & 0xff;
+		size = 2;
+		break;
+	case V4L2_CID_HUE:
+		index = USBTV_BASE + 0x0240;
+		size = 2;
+		if (ctrl->val > 0) {
+			data[0] = 0x92 + (ctrl->val >> 8);
+			data[1] = ctrl->val & 0xff;
+		} else {
+			data[0] = 0x82 + (-ctrl->val >> 8);
+			data[1] = -ctrl->val & 0xff;
+		}
+		break;
+	case V4L2_CID_SHARPNESS:
+		index = USBTV_BASE + 0x0239;
+		data[0] = 0;
+		data[1] = ctrl->val;
+		size = 2;
+		break;
+	default:
+		kfree(data);
+		return -EINVAL;
+	}
+
+	ret = usb_control_msg(usbtv->udev, usb_sndctrlpipe(usbtv->udev, 0),
+			USBTV_CONTROL_REG,
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			0, index, (void *)data, size, 0);
+
+error:
+	if (ret < 0)
+		dev_warn(usbtv->dev, "Failed to submit a control request.\n");
+
+	kfree(data);
+	return ret;
+}
+
+static const struct v4l2_ctrl_ops usbtv_ctrl_ops = {
+	.s_ctrl = usbtv_s_ctrl,
 };
 
 static void usbtv_release(struct v4l2_device *v4l2_dev)
@@ -701,6 +790,7 @@ static void usbtv_release(struct v4l2_device *v4l2_dev)
 	struct usbtv *usbtv = container_of(v4l2_dev, struct usbtv, v4l2_dev);
 
 	v4l2_device_unregister(&usbtv->v4l2_dev);
+	v4l2_ctrl_handler_free(&usbtv->ctrl);
 	vb2_queue_release(&usbtv->vb2q);
 	kfree(usbtv);
 }
@@ -731,7 +821,26 @@ int usbtv_video_init(struct usbtv *usbtv)
 		return ret;
 	}
 
+	/* controls */
+	v4l2_ctrl_handler_init(&usbtv->ctrl, 4);
+	v4l2_ctrl_new_std(&usbtv->ctrl, &usbtv_ctrl_ops,
+			V4L2_CID_CONTRAST, 0, 0x3ff, 1, 0x1d0);
+	v4l2_ctrl_new_std(&usbtv->ctrl, &usbtv_ctrl_ops,
+			V4L2_CID_BRIGHTNESS, 0, 0x3ff, 1, 0x1c0);
+	v4l2_ctrl_new_std(&usbtv->ctrl, &usbtv_ctrl_ops,
+			V4L2_CID_SATURATION, 0, 0x3ff, 1, 0x200);
+	v4l2_ctrl_new_std(&usbtv->ctrl, &usbtv_ctrl_ops,
+			V4L2_CID_HUE, -0xdff, 0xdff, 1, 0x000);
+	v4l2_ctrl_new_std(&usbtv->ctrl, &usbtv_ctrl_ops,
+			V4L2_CID_SHARPNESS, 0x0, 0xff, 1, 0x60);
+	ret = usbtv->ctrl.error;
+	if (ret < 0) {
+		dev_warn(usbtv->dev, "Could not initialize controls\n");
+		goto ctrl_fail;
+	}
+
 	/* v4l2 structure */
+	usbtv->v4l2_dev.ctrl_handler = &usbtv->ctrl;
 	usbtv->v4l2_dev.release = usbtv_release;
 	ret = v4l2_device_register(usbtv->dev, &usbtv->v4l2_dev);
 	if (ret < 0) {
@@ -760,6 +869,8 @@ int usbtv_video_init(struct usbtv *usbtv)
 vdev_fail:
 	v4l2_device_unregister(&usbtv->v4l2_dev);
 v4l2_fail:
+ctrl_fail:
+	v4l2_ctrl_handler_free(&usbtv->ctrl);
 	vb2_queue_release(&usbtv->vb2q);
 
 	return ret;

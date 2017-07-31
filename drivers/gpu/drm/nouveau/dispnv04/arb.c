@@ -198,7 +198,7 @@ nv04_update_arb(struct drm_device *dev, int VClk, int bpp,
 		int *burst, int *lwm)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
-	struct nvif_object *device = &nouveau_drm(dev)->device.object;
+	struct nvif_object *device = &nouveau_drm(dev)->client.device.object;
 	struct nv_fifo_info fifo_data;
 	struct nv_sim_state sim_data;
 	int MClk = nouveau_hw_get_clock(dev, PLL_MEMORY);
@@ -227,7 +227,7 @@ nv04_update_arb(struct drm_device *dev, int VClk, int bpp,
 		sim_data.mem_page_miss = ((cfg1 >> 4) & 0xf) + ((cfg1 >> 31) & 0x1);
 	}
 
-	if (drm->device.info.family == NV_DEVICE_INFO_V0_TNT)
+	if (drm->client.device.info.family == NV_DEVICE_INFO_V0_TNT)
 		nv04_calc_arb(&fifo_data, &sim_data);
 	else
 		nv10_calc_arb(&fifo_data, &sim_data);
@@ -254,7 +254,7 @@ nouveau_calc_arb(struct drm_device *dev, int vclk, int bpp, int *burst, int *lwm
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 
-	if (drm->device.info.family < NV_DEVICE_INFO_V0_KELVIN)
+	if (drm->client.device.info.family < NV_DEVICE_INFO_V0_KELVIN)
 		nv04_update_arb(dev, vclk, bpp, burst, lwm);
 	else if ((dev->pdev->device & 0xfff0) == 0x0240 /*CHIPSET_C51*/ ||
 		 (dev->pdev->device & 0xfff0) == 0x03d0 /*CHIPSET_C512*/) {

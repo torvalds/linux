@@ -91,13 +91,6 @@ struct xenvif_rx_meta {
  */
 #define MAX_XEN_SKB_FRAGS (65536 / XEN_PAGE_SIZE + 1)
 
-/* It's possible for an skb to have a maximal number of frags
- * but still be less than MAX_BUFFER_OFFSET in size. Thus the
- * worst-case number of copy operations is MAX_XEN_SKB_FRAGS per
- * ring slot.
- */
-#define MAX_GRANT_COPY_OPS (MAX_XEN_SKB_FRAGS * XEN_NETIF_RX_RING_SIZE)
-
 #define NETBACK_INVALID_HANDLE -1
 
 /* To avoid confusion, we define XEN_NETBK_LEGACY_SLOTS_MAX indicating
@@ -120,10 +113,10 @@ struct xenvif_stats {
 	 * A subset of struct net_device_stats that contains only the
 	 * fields that are updated in netback.c for each queue.
 	 */
-	unsigned int rx_bytes;
-	unsigned int rx_packets;
-	unsigned int tx_bytes;
-	unsigned int tx_packets;
+	u64 rx_bytes;
+	u64 rx_packets;
+	u64 tx_bytes;
+	u64 tx_packets;
 
 	/* Additional stats used by xenvif */
 	unsigned long rx_gso_checksum_fixup;
@@ -131,6 +124,15 @@ struct xenvif_stats {
 	unsigned long tx_zerocopy_success;
 	unsigned long tx_zerocopy_fail;
 	unsigned long tx_frag_overflow;
+};
+
+#define COPY_BATCH_SIZE 64
+
+struct xenvif_copy_state {
+	struct gnttab_copy op[COPY_BATCH_SIZE];
+	RING_IDX idx[COPY_BATCH_SIZE];
+	unsigned int num;
+	struct sk_buff_head *completed;
 };
 
 struct xenvif_queue { /* Per-queue data for xenvif */
@@ -189,12 +191,7 @@ struct xenvif_queue { /* Per-queue data for xenvif */
 	unsigned long last_rx_time;
 	bool stalled;
 
-	struct gnttab_copy grant_copy_op[MAX_GRANT_COPY_OPS];
-
-	/* We create one meta structure per ring request we consume, so
-	 * the maximum number is the same as the ring size.
-	 */
-	struct xenvif_rx_meta meta[XEN_NETIF_RX_RING_SIZE];
+	struct xenvif_copy_state rx_copy;
 
 	/* Transmit shaping: allow 'credit_bytes' every 'credit_usec'. */
 	unsigned long   credit_bytes;
@@ -260,7 +257,6 @@ struct xenvif {
 
 	/* Frontend feature information. */
 	int gso_mask;
-	int gso_prefix_mask;
 
 	u8 can_sg:1;
 	u8 ip_csum:1;
@@ -292,8 +288,6 @@ struct xenvif {
 #endif
 
 	struct xen_netif_ctrl_back_ring ctrl;
-	struct task_struct *ctrl_task;
-	wait_queue_head_t ctrl_wq;
 	unsigned int ctrl_irq;
 
 	/* Miscellaneous private stuff. */
@@ -359,8 +353,9 @@ void xenvif_kick_thread(struct xenvif_queue *queue);
 
 int xenvif_dealloc_kthread(void *data);
 
-int xenvif_ctrl_kthread(void *data);
+irqreturn_t xenvif_ctrl_irq_fn(int irq, void *data);
 
+void xenvif_rx_action(struct xenvif_queue *queue);
 void xenvif_rx_queue_tail(struct xenvif_queue *queue, struct sk_buff *skb);
 
 void xenvif_carrier_on(struct xenvif *vif);
@@ -411,5 +406,9 @@ u32 xenvif_set_hash_mapping(struct xenvif *vif, u32 gref, u32 len,
 			    u32 off);
 
 void xenvif_set_skb_hash(struct xenvif *vif, struct sk_buff *skb);
+
+#ifdef CONFIG_DEBUG_FS
+void xenvif_dump_hash_info(struct xenvif *vif, struct seq_file *m);
+#endif
 
 #endif /* __XEN_NETBACK__COMMON_H__ */

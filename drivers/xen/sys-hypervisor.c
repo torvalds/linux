@@ -215,7 +215,7 @@ static const struct attribute_group xen_compilation_group = {
 	.attrs = xen_compile_attrs,
 };
 
-static int __init xen_compilation_init(void)
+static int __init xen_sysfs_compilation_init(void)
 {
 	return sysfs_create_group(hypervisor_kobj, &xen_compilation_group);
 }
@@ -341,7 +341,7 @@ static const struct attribute_group xen_properties_group = {
 	.attrs = xen_properties_attrs,
 };
 
-static int __init xen_properties_init(void)
+static int __init xen_sysfs_properties_init(void)
 {
 	return sysfs_create_group(hypervisor_kobj, &xen_properties_group);
 }
@@ -455,7 +455,7 @@ static const struct attribute_group xen_pmu_group = {
 	.attrs = xen_pmu_attrs,
 };
 
-static int __init xen_pmu_init(void)
+static int __init xen_sysfs_pmu_init(void)
 {
 	return sysfs_create_group(hypervisor_kobj, &xen_pmu_group);
 }
@@ -474,18 +474,18 @@ static int __init hyper_sysfs_init(void)
 	ret = xen_sysfs_version_init();
 	if (ret)
 		goto version_out;
-	ret = xen_compilation_init();
+	ret = xen_sysfs_compilation_init();
 	if (ret)
 		goto comp_out;
 	ret = xen_sysfs_uuid_init();
 	if (ret)
 		goto uuid_out;
-	ret = xen_properties_init();
+	ret = xen_sysfs_properties_init();
 	if (ret)
 		goto prop_out;
 #ifdef CONFIG_XEN_HAVE_VPMU
 	if (xen_initial_domain()) {
-		ret = xen_pmu_init();
+		ret = xen_sysfs_pmu_init();
 		if (ret) {
 			sysfs_remove_group(hypervisor_kobj,
 					   &xen_properties_group);

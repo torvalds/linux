@@ -248,7 +248,7 @@ u8 r8712_efuse_pg_packet_read(struct _adapter *padapter, u8 offset, u8 *data)
 	u8 tmpdata[PGPKT_DATA_SIZE];
 	u8 ret = true;
 
-	if (data == NULL)
+	if (!data)
 		return false;
 	if (offset > 0x0f)
 		return false;

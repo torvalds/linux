@@ -31,13 +31,15 @@
 #include <nvif/event.h>
 
 int
-nvkm_output_dp_train(struct nvkm_output *base, u32 datarate, bool wait)
+nvkm_output_dp_train(struct nvkm_output *base, u32 datarate)
 {
 	struct nvkm_output_dp *outp = nvkm_output_dp(base);
 	bool retrain = true;
 	u8 link[2], stat[3];
 	u32 linkrate;
 	int ret, i;
+
+	mutex_lock(&outp->mutex);
 
 	/* check that the link is trained at a high enough rate */
 	ret = nvkm_rdaux(outp->aux, DPCD_LC00_LINK_BW_SET, link, 2);
@@ -88,19 +90,10 @@ done:
 			outp->dpcd[DPCD_RC02] =
 				outp->base.info.dpconf.link_nr;
 		}
-		atomic_set(&outp->lt.done, 0);
-		schedule_work(&outp->lt.work);
-	} else {
-		nvkm_notify_get(&outp->irq);
+		nvkm_dp_train(outp);
 	}
 
-	if (wait) {
-		if (!wait_event_timeout(outp->lt.wait,
-					atomic_read(&outp->lt.done),
-					msecs_to_jiffies(2000)))
-			ret = -ETIMEDOUT;
-	}
-
+	mutex_unlock(&outp->mutex);
 	return ret;
 }
 
@@ -118,7 +111,7 @@ nvkm_output_dp_enable(struct nvkm_output_dp *outp, bool enable)
 
 		if (!nvkm_rdaux(aux, DPCD_RC00_DPCD_REV, outp->dpcd,
 				sizeof(outp->dpcd))) {
-			nvkm_output_dp_train(&outp->base, 0, true);
+			nvkm_output_dp_train(&outp->base, 0);
 			return;
 		}
 	}
@@ -165,10 +158,10 @@ nvkm_output_dp_irq(struct nvkm_notify *notify)
 	};
 
 	OUTP_DBG(&outp->base, "IRQ: %d", line->mask);
-	nvkm_output_dp_train(&outp->base, 0, true);
+	nvkm_output_dp_train(&outp->base, 0);
 
 	nvkm_event_send(&disp->hpd, rep.mask, conn->index, &rep, sizeof(rep));
-	return NVKM_NOTIFY_DROP;
+	return NVKM_NOTIFY_KEEP;
 }
 
 static void
@@ -177,7 +170,6 @@ nvkm_output_dp_fini(struct nvkm_output *base)
 	struct nvkm_output_dp *outp = nvkm_output_dp(base);
 	nvkm_notify_put(&outp->hpd);
 	nvkm_notify_put(&outp->irq);
-	flush_work(&outp->lt.work);
 	nvkm_output_dp_enable(outp, false);
 }
 
@@ -187,6 +179,7 @@ nvkm_output_dp_init(struct nvkm_output *base)
 	struct nvkm_output_dp *outp = nvkm_output_dp(base);
 	nvkm_notify_put(&outp->base.conn->hpd);
 	nvkm_output_dp_enable(outp, true);
+	nvkm_notify_get(&outp->irq);
 	nvkm_notify_get(&outp->hpd);
 }
 
@@ -238,11 +231,6 @@ nvkm_output_dp_ctor(const struct nvkm_output_dp_func *func,
 	OUTP_DBG(&outp->base, "bios dp %02x %02x %02x %02x",
 		 outp->version, hdr, cnt, len);
 
-	/* link training */
-	INIT_WORK(&outp->lt.work, nvkm_dp_train);
-	init_waitqueue_head(&outp->lt.wait);
-	atomic_set(&outp->lt.done, 0);
-
 	/* link maintenance */
 	ret = nvkm_notify_init(NULL, &i2c->event, nvkm_output_dp_irq, true,
 			       &(struct nvkm_i2c_ntfy_req) {
@@ -256,6 +244,9 @@ nvkm_output_dp_ctor(const struct nvkm_output_dp_func *func,
 		OUTP_ERR(&outp->base, "error monitoring aux irq: %d", ret);
 		return ret;
 	}
+
+	mutex_init(&outp->mutex);
+	atomic_set(&outp->lt.done, 0);
 
 	/* hotplug detect, replaces gpio-based mechanism with aux events */
 	ret = nvkm_notify_init(NULL, &i2c->event, nvkm_output_dp_hpd, true,

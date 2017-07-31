@@ -77,13 +77,14 @@ static const struct clk_ops utmi_ops = {
 	.recalc_rate = clk_utmi_recalc_rate,
 };
 
-static struct clk * __init
+static struct clk_hw * __init
 at91_clk_register_utmi(struct regmap *regmap,
 		       const char *name, const char *parent_name)
 {
 	struct clk_utmi *utmi;
-	struct clk *clk = NULL;
+	struct clk_hw *hw;
 	struct clk_init_data init;
+	int ret;
 
 	utmi = kzalloc(sizeof(*utmi), GFP_KERNEL);
 	if (!utmi)
@@ -98,16 +99,19 @@ at91_clk_register_utmi(struct regmap *regmap,
 	utmi->hw.init = &init;
 	utmi->regmap = regmap;
 
-	clk = clk_register(NULL, &utmi->hw);
-	if (IS_ERR(clk))
+	hw = &utmi->hw;
+	ret = clk_hw_register(NULL, &utmi->hw);
+	if (ret) {
 		kfree(utmi);
+		hw = ERR_PTR(ret);
+	}
 
-	return clk;
+	return hw;
 }
 
 static void __init of_at91sam9x5_clk_utmi_setup(struct device_node *np)
 {
-	struct clk *clk;
+	struct clk_hw *hw;
 	const char *parent_name;
 	const char *name = np->name;
 	struct regmap *regmap;
@@ -120,11 +124,11 @@ static void __init of_at91sam9x5_clk_utmi_setup(struct device_node *np)
 	if (IS_ERR(regmap))
 		return;
 
-	clk = at91_clk_register_utmi(regmap, name, parent_name);
-	if (IS_ERR(clk))
+	hw = at91_clk_register_utmi(regmap, name, parent_name);
+	if (IS_ERR(hw))
 		return;
 
-	of_clk_add_provider(np, of_clk_src_simple_get, clk);
+	of_clk_add_hw_provider(np, of_clk_hw_simple_get, hw);
 	return;
 }
 CLK_OF_DECLARE(at91sam9x5_clk_utmi, "atmel,at91sam9x5-clk-utmi",

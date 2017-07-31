@@ -84,7 +84,7 @@ static int __init q40_debug_setup(char *arg)
 {
 	/* useful for early debugging stages - writes kernel messages into SRAM */
 	if (MACH_IS_Q40 && !strncmp(arg, "mem", 3)) {
-		/*printk("using NVRAM debug, q40_mem_cptr=%p\n",q40_mem_cptr);*/
+		/*pr_info("using NVRAM debug, q40_mem_cptr=%p\n",q40_mem_cptr);*/
 		_cpleft = 2000 - ((long)q40_mem_cptr-0xff020000) / 4;
 		register_console(&q40_console_driver);
 	}
@@ -124,8 +124,8 @@ static void q40_heartbeat(int on)
 
 static void q40_reset(void)
 {
-        halted = 1;
-        printk("\n\n*******************************************\n"
+	halted = 1;
+	pr_info("*******************************************\n"
 		"Called q40_reset : press the RESET button!!\n"
 		"*******************************************\n");
 	Q40_LED_ON();
@@ -135,10 +135,10 @@ static void q40_reset(void)
 
 static void q40_halt(void)
 {
-        halted = 1;
-        printk("\n\n*******************\n"
-		   "  Called q40_halt\n"
-		   "*******************\n");
+	halted = 1;
+	pr_info("*******************\n"
+		"  Called q40_halt\n"
+		"*******************\n");
 	Q40_LED_ON();
 	while (1)
 		;
@@ -180,7 +180,7 @@ void __init config_q40(void)
 	mach_reset = q40_reset;
 	mach_get_model = q40_get_model;
 
-#if defined(CONFIG_INPUT_M68K_BEEP) || defined(CONFIG_INPUT_M68K_BEEP_MODULE)
+#if IS_ENABLED(CONFIG_INPUT_M68K_BEEP)
 	mach_beep = q40_mksound;
 #endif
 #ifdef CONFIG_HEARTBEAT

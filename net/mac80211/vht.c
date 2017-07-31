@@ -270,6 +270,22 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 		vht_cap->vht_mcs.tx_mcs_map |= cpu_to_le16(peer_tx << i * 2);
 	}
 
+	/*
+	 * This is a workaround for VHT-enabled STAs which break the spec
+	 * and have the VHT-MCS Rx map filled in with value 3 for all eight
+	 * spacial streams, an example is AR9462.
+	 *
+	 * As per spec, in section 22.1.1 Introduction to the VHT PHY
+	 * A VHT STA shall support at least single spactial stream VHT-MCSs
+	 * 0 to 7 (transmit and receive) in all supported channel widths.
+	 */
+	if (vht_cap->vht_mcs.rx_mcs_map == cpu_to_le16(0xFFFF)) {
+		vht_cap->vht_supported = false;
+		sdata_info(sdata, "Ignoring VHT IE from %pM due to invalid rx_mcs_map\n",
+			   sta->addr);
+		return;
+	}
+
 	/* finally set up the bandwidth */
 	switch (vht_cap->cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK) {
 	case IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ:
@@ -420,13 +436,9 @@ u32 __ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 				  struct sta_info *sta, u8 opmode,
 				  enum nl80211_band band)
 {
-	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_supported_band *sband;
 	enum ieee80211_sta_rx_bandwidth new_bw;
 	u32 changed = 0;
 	u8 nss;
-
-	sband = local->hw.wiphy->bands[band];
 
 	/* ignore - no support for BF yet */
 	if (opmode & IEEE80211_OPMODE_NOTIF_RX_NSS_TYPE_BF)
@@ -511,8 +523,10 @@ void ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 
 	u32 changed = __ieee80211_vht_handle_opmode(sdata, sta, opmode, band);
 
-	if (changed > 0)
+	if (changed > 0) {
+		ieee80211_recalc_min_chandef(sdata);
 		rate_control_rate_update(local, sband, sta, changed);
+	}
 }
 
 void ieee80211_get_vht_mask_from_cap(__le16 vht_cap,

@@ -17,7 +17,6 @@
 #include <linux/edac.h>
 #include <linux/gfp.h>
 
-#include "edac_core.h"
 #include "edac_module.h"
 #include "mv64x60_edac.h"
 
@@ -118,7 +117,6 @@ static int mv64x60_pci_err_probe(struct platform_device *pdev)
 
 	pdata->pci_hose = pdev->id;
 	pdata->name = "mpc85xx_pci_err";
-	pdata->irq = NO_IRQ;
 	platform_set_drvdata(pdev, pci);
 	pci->dev = &pdev->dev;
 	pci->dev_name = dev_name(&pdev->dev);
@@ -291,7 +289,6 @@ static int mv64x60_sram_err_probe(struct platform_device *pdev)
 
 	pdata = edac_dev->pvt_info;
 	pdata->name = "mv64x60_sram_err";
-	pdata->irq = NO_IRQ;
 	edac_dev->dev = &pdev->dev;
 	platform_set_drvdata(pdev, edac_dev);
 	edac_dev->dev_name = dev_name(&pdev->dev);
@@ -459,7 +456,6 @@ static int mv64x60_cpu_err_probe(struct platform_device *pdev)
 
 	pdata = edac_dev->pvt_info;
 	pdata->name = "mv64x60_cpu_err";
-	pdata->irq = NO_IRQ;
 	edac_dev->dev = &pdev->dev;
 	platform_set_drvdata(pdev, edac_dev);
 	edac_dev->dev_name = dev_name(&pdev->dev);
@@ -727,7 +723,6 @@ static int mv64x60_mc_err_probe(struct platform_device *pdev)
 	mci->pdev = &pdev->dev;
 	platform_set_drvdata(pdev, mci);
 	pdata->name = "mv64x60_mc_err";
-	pdata->irq = NO_IRQ;
 	mci->dev_name = dev_name(&pdev->dev);
 	pdata->edac_idx = edac_mc_idx++;
 

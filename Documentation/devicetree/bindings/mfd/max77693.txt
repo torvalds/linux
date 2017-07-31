@@ -17,28 +17,28 @@ Required properties:
 - interrupt-parent :  The parent interrupt controller.
 
 Optional properties:
-- regulators : The regulators of max77693 have to be instantiated under subnod
+- regulators : The regulators of max77693 have to be instantiated under subnode
   named "regulators" using the following format.
 
 	regulators {
-		regualtor-compatible = ESAFEOUT1/ESAFEOUT2/CHARGER
-		standard regulator constratints[*].
+		regulator-compatible = ESAFEOUT1/ESAFEOUT2/CHARGER
+		standard regulator constraints[*].
 	};
 
 	[*] refer Documentation/devicetree/bindings/regulator/regulator.txt
 
 - haptic : The MAX77693 haptic device utilises a PWM controlled motor to provide
   users with tactile feedback. PWM period and duty-cycle are varied in
-  order to provide the approprite level of feedback.
+  order to provide the appropriate level of feedback.
 
  Required properties:
-	- compatible : Must be "maxim,max77693-hpatic"
+	- compatible : Must be "maxim,max77693-haptic"
 	- haptic-supply : power supply for the haptic motor
 	[*] refer Documentation/devicetree/bindings/regulator/regulator.txt
 	- pwms : phandle to the physical PWM(Pulse Width Modulation) device.
 	 PWM properties should be named "pwms". And number of cell is different
 	 for each pwm device.
-	 To get more informations, please refer to documentaion.
+	 To get more information, please refer to documentation.
 	[*] refer Documentation/devicetree/bindings/pwm/pwm.txt
 
 - charger : Node configuring the charger driver.

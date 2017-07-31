@@ -54,7 +54,7 @@
 #if defined(CONFIG_SPI)
 #include <linux/spi/spi.h>
 #endif
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
 #include <asm/div64.h>
@@ -291,7 +291,7 @@ struct v4l2_subdev *v4l2_spi_new_subdev(struct v4l2_device *v4l2_dev,
 error:
 	/* If we have a client but no subdev, then something went wrong and
 	   we must unregister the client. */
-	if (spi && sd == NULL)
+	if (!sd)
 		spi_unregister_device(spi);
 
 	return sd;

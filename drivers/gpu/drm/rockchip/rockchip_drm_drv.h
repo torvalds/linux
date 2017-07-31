@@ -30,6 +30,7 @@
 
 struct drm_device;
 struct drm_connector;
+struct iommu_domain;
 
 /*
  * Rockchip drm private crtc funcs.
@@ -39,7 +40,6 @@ struct drm_connector;
 struct rockchip_crtc_funcs {
 	int (*enable_vblank)(struct drm_crtc *crtc);
 	void (*disable_vblank)(struct drm_crtc *crtc);
-	void (*wait_for_update)(struct drm_crtc *crtc);
 };
 
 struct rockchip_crtc_state {
@@ -61,6 +61,12 @@ struct rockchip_drm_private {
 	struct drm_gem_object *fbdev_bo;
 	const struct rockchip_crtc_funcs *crtc_funcs[ROCKCHIP_MAX_CRTC];
 	struct drm_atomic_state *state;
+	struct iommu_domain *domain;
+	/* protect drm_mm on multi-threads */
+	struct mutex mm_lock;
+	struct drm_mm mm;
+	struct list_head psr_list;
+	spinlock_t psr_list_lock;
 };
 
 int rockchip_register_crtc_funcs(struct drm_crtc *crtc,
@@ -70,4 +76,7 @@ int rockchip_drm_dma_attach_device(struct drm_device *drm_dev,
 				   struct device *dev);
 void rockchip_drm_dma_detach_device(struct drm_device *drm_dev,
 				    struct device *dev);
+int rockchip_drm_wait_line_flag(struct drm_crtc *crtc, unsigned int line_num,
+				unsigned int mstimeout);
+
 #endif /* _ROCKCHIP_DRM_DRV_H_ */

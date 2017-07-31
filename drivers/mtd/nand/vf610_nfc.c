@@ -717,10 +717,9 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 	vf610_nfc_preinit_controller(nfc);
 
 	/* first scan to find the device and get the page size */
-	if (nand_scan_ident(mtd, 1, NULL)) {
-		err = -ENXIO;
+	err = nand_scan_ident(mtd, 1, NULL);
+	if (err)
 		goto error;
-	}
 
 	vf610_nfc_init_controller(nfc);
 
@@ -775,10 +774,9 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 	}
 
 	/* second phase scan */
-	if (nand_scan_tail(mtd)) {
-		err = -ENXIO;
+	err = nand_scan_tail(mtd);
+	if (err)
 		goto error;
-	}
 
 	platform_set_drvdata(pdev, mtd);
 

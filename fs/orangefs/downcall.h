@@ -83,7 +83,10 @@ struct orangefs_listxattr_response {
 };
 
 struct orangefs_param_response {
-	__s64 value;
+	union {
+		__s64 value64;
+		__s32 value32[2];
+	} u;
 };
 
 #define PERF_COUNT_BUF_SIZE 4096
@@ -96,6 +99,11 @@ struct orangefs_fs_key_response {
 	__s32 fs_keylen;
 	__s32 __pad1;
 	char fs_key[FS_KEY_BUF_SIZE];
+};
+
+/* 2.9.6 */
+struct orangefs_features_response {
+	__u64 features;
 };
 
 struct orangefs_downcall_s {
@@ -119,6 +127,7 @@ struct orangefs_downcall_s {
 		struct orangefs_param_response param;
 		struct orangefs_perf_count_response perf_count;
 		struct orangefs_fs_key_response fs_key;
+		struct orangefs_features_response features;
 	} resp;
 };
 

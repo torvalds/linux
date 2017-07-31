@@ -26,6 +26,7 @@
 
 #include "i40evf.h"
 #include "i40e_prototype.h"
+#include "i40evf_client.h"
 
 /* busy wait delay in msec */
 #define I40EVF_BUSY_WAIT_DELAY 10
@@ -158,7 +159,9 @@ int i40evf_send_vf_config_msg(struct i40evf_adapter *adapter)
 	       I40E_VIRTCHNL_VF_OFFLOAD_RSS_REG |
 	       I40E_VIRTCHNL_VF_OFFLOAD_VLAN |
 	       I40E_VIRTCHNL_VF_OFFLOAD_WB_ON_ITR |
-	       I40E_VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2;
+	       I40E_VIRTCHNL_VF_OFFLOAD_RSS_PCTYPE_V2 |
+	       I40E_VIRTCHNL_VF_OFFLOAD_ENCAP |
+	       I40E_VIRTCHNL_VF_OFFLOAD_ENCAP_CSUM;
 
 	adapter->current_op = I40E_VIRTCHNL_OP_GET_VF_RESOURCES;
 	adapter->aq_required &= ~I40EVF_FLAG_AQ_GET_CONFIG;
@@ -233,7 +236,7 @@ void i40evf_configure_queues(struct i40evf_adapter *adapter)
 	struct i40e_virtchnl_vsi_queue_config_info *vqci;
 	struct i40e_virtchnl_queue_pair_info *vqpi;
 	int pairs = adapter->num_active_queues;
-	int i, len;
+	int i, len, max_frame = I40E_MAX_RXBUFFER;
 
 	if (adapter->current_op != I40E_VIRTCHNL_OP_UNKNOWN) {
 		/* bail because we already have a command pending */
@@ -248,6 +251,11 @@ void i40evf_configure_queues(struct i40evf_adapter *adapter)
 	if (!vqci)
 		return;
 
+	/* Limit maximum frame size when jumbo frames is not enabled */
+	if (!(adapter->flags & I40EVF_FLAG_LEGACY_RX) &&
+	    (adapter->netdev->mtu <= ETH_DATA_LEN))
+		max_frame = I40E_RXBUFFER_1536 - NET_IP_ALIGN;
+
 	vqci->vsi_id = adapter->vsi_res->vsi_id;
 	vqci->num_queue_pairs = pairs;
 	vqpi = vqci->qpair;
@@ -259,17 +267,14 @@ void i40evf_configure_queues(struct i40evf_adapter *adapter)
 		vqpi->txq.queue_id = i;
 		vqpi->txq.ring_len = adapter->tx_rings[i].count;
 		vqpi->txq.dma_ring_addr = adapter->tx_rings[i].dma;
-		vqpi->txq.headwb_enabled = 1;
-		vqpi->txq.dma_headwb_addr = vqpi->txq.dma_ring_addr +
-		    (vqpi->txq.ring_len * sizeof(struct i40e_tx_desc));
-
 		vqpi->rxq.vsi_id = vqci->vsi_id;
 		vqpi->rxq.queue_id = i;
 		vqpi->rxq.ring_len = adapter->rx_rings[i].count;
 		vqpi->rxq.dma_ring_addr = adapter->rx_rings[i].dma;
-		vqpi->rxq.max_pkt_size = adapter->netdev->mtu
-					+ ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN;
-		vqpi->rxq.databuffer_size = adapter->rx_rings[i].rx_buf_len;
+		vqpi->rxq.max_pkt_size = max_frame;
+		vqpi->rxq.databuffer_size =
+			ALIGN(adapter->rx_rings[i].rx_buf_len,
+			      BIT_ULL(I40E_RXQ_CTX_DBUFF_SHIFT));
 		vqpi++;
 	}
 
@@ -817,6 +822,48 @@ void i40evf_set_rss_lut(struct i40evf_adapter *adapter)
 }
 
 /**
+ * i40evf_print_link_message - print link up or down
+ * @adapter: adapter structure
+ *
+ * Log a message telling the world of our wonderous link status
+ */
+static void i40evf_print_link_message(struct i40evf_adapter *adapter)
+{
+	struct net_device *netdev = adapter->netdev;
+	char *speed = "Unknown ";
+
+	if (!adapter->link_up) {
+		netdev_info(netdev, "NIC Link is Down\n");
+		return;
+	}
+
+	switch (adapter->link_speed) {
+	case I40E_LINK_SPEED_40GB:
+		speed = "40 G";
+		break;
+	case I40E_LINK_SPEED_25GB:
+		speed = "25 G";
+		break;
+	case I40E_LINK_SPEED_20GB:
+		speed = "20 G";
+		break;
+	case I40E_LINK_SPEED_10GB:
+		speed = "10 G";
+		break;
+	case I40E_LINK_SPEED_1GB:
+		speed = "1000 M";
+		break;
+	case I40E_LINK_SPEED_100MB:
+		speed = "100 M";
+		break;
+	default:
+		break;
+	}
+
+	netdev_info(netdev, "NIC Link is Up %sbps Full Duplex\n", speed);
+}
+
+/**
  * i40evf_request_reset
  * @adapter: adapter structure
  *
@@ -853,16 +900,20 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 			(struct i40e_virtchnl_pf_event *)msg;
 		switch (vpe->event) {
 		case I40E_VIRTCHNL_EVENT_LINK_CHANGE:
-			adapter->link_up =
-				vpe->event_data.link_event.link_status;
-			if (adapter->link_up && !netif_carrier_ok(netdev)) {
-				dev_info(&adapter->pdev->dev, "NIC Link is Up\n");
-				netif_carrier_on(netdev);
-				netif_tx_wake_all_queues(netdev);
-			} else if (!adapter->link_up) {
-				dev_info(&adapter->pdev->dev, "NIC Link is Down\n");
-				netif_carrier_off(netdev);
-				netif_tx_stop_all_queues(netdev);
+			adapter->link_speed =
+				vpe->event_data.link_event.link_speed;
+			if (adapter->link_up !=
+			    vpe->event_data.link_event.link_status) {
+				adapter->link_up =
+					vpe->event_data.link_event.link_status;
+				if (adapter->link_up) {
+					netif_tx_start_all_queues(netdev);
+					netif_carrier_on(netdev);
+				} else {
+					netif_tx_stop_all_queues(netdev);
+					netif_carrier_off(netdev);
+				}
+				i40evf_print_link_message(adapter);
 			}
 			break;
 		case I40E_VIRTCHNL_EVENT_RESET_IMPENDING:
@@ -909,17 +960,17 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 	case I40E_VIRTCHNL_OP_GET_STATS: {
 		struct i40e_eth_stats *stats =
 			(struct i40e_eth_stats *)msg;
-		adapter->net_stats.rx_packets = stats->rx_unicast +
-						 stats->rx_multicast +
-						 stats->rx_broadcast;
-		adapter->net_stats.tx_packets = stats->tx_unicast +
-						 stats->tx_multicast +
-						 stats->tx_broadcast;
-		adapter->net_stats.rx_bytes = stats->rx_bytes;
-		adapter->net_stats.tx_bytes = stats->tx_bytes;
-		adapter->net_stats.tx_errors = stats->tx_errors;
-		adapter->net_stats.rx_dropped = stats->rx_discards;
-		adapter->net_stats.tx_dropped = stats->tx_discards;
+		netdev->stats.rx_packets = stats->rx_unicast +
+					   stats->rx_multicast +
+					   stats->rx_broadcast;
+		netdev->stats.tx_packets = stats->tx_unicast +
+					   stats->tx_multicast +
+					   stats->tx_broadcast;
+		netdev->stats.rx_bytes = stats->rx_bytes;
+		netdev->stats.tx_bytes = stats->tx_bytes;
+		netdev->stats.tx_errors = stats->tx_errors;
+		netdev->stats.rx_dropped = stats->rx_discards;
+		netdev->stats.tx_dropped = stats->tx_discards;
 		adapter->current_stats = *stats;
 		}
 		break;
@@ -937,8 +988,6 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 	case I40E_VIRTCHNL_OP_ENABLE_QUEUES:
 		/* enable transmits */
 		i40evf_irq_enable(adapter, true);
-		netif_tx_start_all_queues(adapter->netdev);
-		netif_carrier_on(adapter->netdev);
 		break;
 	case I40E_VIRTCHNL_OP_DISABLE_QUEUES:
 		i40evf_free_all_tx_resources(adapter);
@@ -955,6 +1004,20 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 		if (v_opcode != adapter->current_op)
 			return;
 		break;
+	case I40E_VIRTCHNL_OP_IWARP:
+		/* Gobble zero-length replies from the PF. They indicate that
+		 * a previous message was received OK, and the client doesn't
+		 * care about that.
+		 */
+		if (msglen && CLIENT_ENABLED(adapter))
+			i40evf_notify_client_message(&adapter->vsi,
+						     msg, msglen);
+		break;
+
+	case I40E_VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP:
+		adapter->client_pending &=
+				~(BIT(I40E_VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP));
+		break;
 	case I40E_VIRTCHNL_OP_GET_RSS_HENA_CAPS: {
 		struct i40e_virtchnl_rss_hena *vrh =
 			(struct i40e_virtchnl_rss_hena *)msg;
@@ -966,7 +1029,7 @@ void i40evf_virtchnl_completion(struct i40evf_adapter *adapter,
 		}
 		break;
 	default:
-		if (v_opcode != adapter->current_op)
+		if (adapter->current_op && (v_opcode != adapter->current_op))
 			dev_warn(&adapter->pdev->dev, "Expected response %d from PF, received %d\n",
 				 adapter->current_op, v_opcode);
 		break;

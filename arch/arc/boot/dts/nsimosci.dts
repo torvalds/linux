@@ -10,6 +10,7 @@
 /include/ "skeleton.dtsi"
 
 / {
+	model = "snps,nsimosci";
 	compatible = "snps,nsimosci";
 	#address-cells = <1>;
 	#size-cells = <1>;
@@ -81,6 +82,10 @@
 			compatible = "ezchip,nps-mgt-enet";
 			reg = <0xf0003000 0x44>;
 			interrupts = <7>;
+		};
+
+		arcpct0: pct {
+			compatible = "snps,arc700-pct";
 		};
 	};
 };

@@ -527,6 +527,7 @@ static struct attribute_group ad799x_event_attrs_group = {
 static const struct iio_info ad7991_info = {
 	.read_raw = &ad799x_read_raw,
 	.driver_module = THIS_MODULE,
+	.update_scan_mode = ad799x_update_scan_mode,
 };
 
 static const struct iio_info ad7993_4_7_8_noirq_info = {

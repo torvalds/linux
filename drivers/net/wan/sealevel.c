@@ -174,7 +174,6 @@ static int sealevel_attach(struct net_device *dev, unsigned short encoding,
 static const struct net_device_ops sealevel_ops = {
 	.ndo_open       = sealevel_open,
 	.ndo_stop       = sealevel_close,
-	.ndo_change_mtu = hdlc_change_mtu,
 	.ndo_start_xmit = hdlc_start_xmit,
 	.ndo_do_ioctl   = sealevel_ioctl,
 };

@@ -44,6 +44,7 @@ struct intel_uncore_type {
 	unsigned perf_ctr;
 	unsigned event_ctl;
 	unsigned event_mask;
+	unsigned event_mask_ext;
 	unsigned fixed_ctr;
 	unsigned fixed_ctl;
 	unsigned box_ctl;
@@ -120,6 +121,7 @@ struct intel_uncore_box {
 };
 
 #define UNCORE_BOX_FLAG_INITIATED	0
+#define UNCORE_BOX_FLAG_CTL_OFFS8	1 /* event config registers are 8-byte apart */
 
 struct uncore_event_desc {
 	struct kobj_attribute attr;
@@ -172,6 +174,9 @@ static inline unsigned uncore_pci_fixed_ctr(struct intel_uncore_box *box)
 static inline
 unsigned uncore_pci_event_ctl(struct intel_uncore_box *box, int idx)
 {
+	if (test_bit(UNCORE_BOX_FLAG_CTL_OFFS8, &box->flags))
+		return idx * 8 + box->pmu->type->event_ctl;
+
 	return idx * 4 + box->pmu->type->event_ctl;
 }
 
@@ -355,7 +360,7 @@ extern struct list_head pci2phy_map_head;
 extern struct pci_extra_dev *uncore_extra_pci_dev;
 extern struct event_constraint uncore_constraint_empty;
 
-/* perf_event_intel_uncore_snb.c */
+/* uncore_snb.c */
 int snb_uncore_pci_init(void);
 int ivb_uncore_pci_init(void);
 int hsw_uncore_pci_init(void);
@@ -366,7 +371,7 @@ void nhm_uncore_cpu_init(void);
 void skl_uncore_cpu_init(void);
 int snb_pci2phy_map_init(int devid);
 
-/* perf_event_intel_uncore_snbep.c */
+/* uncore_snbep.c */
 int snbep_uncore_pci_init(void);
 void snbep_uncore_cpu_init(void);
 int ivbep_uncore_pci_init(void);
@@ -377,6 +382,8 @@ int bdx_uncore_pci_init(void);
 void bdx_uncore_cpu_init(void);
 int knl_uncore_pci_init(void);
 void knl_uncore_cpu_init(void);
+int skx_uncore_pci_init(void);
+void skx_uncore_cpu_init(void);
 
-/* perf_event_intel_uncore_nhmex.c */
+/* uncore_nhmex.c */
 void nhmex_uncore_cpu_init(void);

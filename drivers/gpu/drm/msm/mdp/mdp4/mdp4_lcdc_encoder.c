@@ -93,7 +93,7 @@ static const struct drm_encoder_funcs mdp4_lcdc_encoder_funcs = {
 };
 
 /* this should probably be a helper: */
-struct drm_connector *get_connector(struct drm_encoder *encoder)
+static struct drm_connector *get_connector(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_connector *connector;

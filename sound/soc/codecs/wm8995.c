@@ -2192,12 +2192,14 @@ static const struct snd_soc_codec_driver soc_codec_dev_wm8995 = {
 	.set_bias_level = wm8995_set_bias_level,
 	.idle_bias_off = true,
 
-	.controls = wm8995_snd_controls,
-	.num_controls = ARRAY_SIZE(wm8995_snd_controls),
-	.dapm_widgets = wm8995_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(wm8995_dapm_widgets),
-	.dapm_routes = wm8995_intercon,
-	.num_dapm_routes = ARRAY_SIZE(wm8995_intercon),
+	.component_driver = {
+		.controls		= wm8995_snd_controls,
+		.num_controls		= ARRAY_SIZE(wm8995_snd_controls),
+		.dapm_widgets		= wm8995_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(wm8995_dapm_widgets),
+		.dapm_routes		= wm8995_intercon,
+		.num_dapm_routes	= ARRAY_SIZE(wm8995_intercon),
+	},
 };
 
 static const struct regmap_config wm8995_regmap = {

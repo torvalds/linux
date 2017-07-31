@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2016, Intel Corp.
+ * Copyright (C) 2000 - 2017, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -108,9 +108,9 @@ acpi_status acpi_ns_root_initialize(void)
 		}
 
 		status =
-		    acpi_ns_lookup(NULL, (char *)init_val->name, init_val->type,
-				   ACPI_IMODE_LOAD_PASS2, ACPI_NS_NO_UPSEARCH,
-				   NULL, &new_node);
+		    acpi_ns_lookup(NULL, ACPI_CAST_PTR(char, init_val->name),
+				   init_val->type, ACPI_IMODE_LOAD_PASS2,
+				   ACPI_NS_NO_UPSEARCH, NULL, &new_node);
 		if (ACPI_FAILURE(status)) {
 			ACPI_EXCEPTION((AE_INFO, status,
 					"Could not create predefined name %s",

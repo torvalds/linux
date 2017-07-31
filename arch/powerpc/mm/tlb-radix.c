@@ -50,7 +50,7 @@ static inline void _tlbiel_pid(unsigned long pid, unsigned long ric)
 	for (set = 0; set < POWER9_TLB_SETS_RADIX ; set++) {
 		__tlbiel_pid(pid, set, ric);
 	}
-	return;
+	asm volatile(PPC_INVALIDATE_ERAT "; isync" : : :"memory");
 }
 
 static inline void _tlbie_pid(unsigned long pid, unsigned long ric)
@@ -175,7 +175,7 @@ void radix__flush_tlb_mm(struct mm_struct *mm)
 	if (unlikely(pid == MMU_NO_CONTEXT))
 		goto no_context;
 
-	if (!mm_is_core_local(mm)) {
+	if (!mm_is_thread_local(mm)) {
 		int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
 
 		if (lock_tlbie)
@@ -201,7 +201,7 @@ void radix__flush_tlb_pwc(struct mmu_gather *tlb, unsigned long addr)
 	if (unlikely(pid == MMU_NO_CONTEXT))
 		goto no_context;
 
-	if (!mm_is_core_local(mm)) {
+	if (!mm_is_thread_local(mm)) {
 		int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
 
 		if (lock_tlbie)
@@ -226,7 +226,7 @@ void radix__flush_tlb_page_psize(struct mm_struct *mm, unsigned long vmaddr,
 	pid = mm ? mm->context.id : 0;
 	if (unlikely(pid == MMU_NO_CONTEXT))
 		goto bail;
-	if (!mm_is_core_local(mm)) {
+	if (!mm_is_thread_local(mm)) {
 		int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
 
 		if (lock_tlbie)
@@ -321,7 +321,7 @@ void radix__flush_tlb_range_psize(struct mm_struct *mm, unsigned long start,
 {
 	unsigned long pid;
 	unsigned long addr;
-	int local = mm_is_core_local(mm);
+	int local = mm_is_thread_local(mm);
 	unsigned long ap = mmu_get_ap(psize);
 	int lock_tlbie = !mmu_has_feature(MMU_FTR_LOCKLESS_TLBIE);
 	unsigned long page_size = 1UL << mmu_psize_defs[psize].shift;
@@ -400,3 +400,45 @@ void radix__flush_pmd_tlb_range(struct vm_area_struct *vma,
 	radix__flush_tlb_range_psize(vma->vm_mm, start, end, MMU_PAGE_2M);
 }
 EXPORT_SYMBOL(radix__flush_pmd_tlb_range);
+
+void radix__flush_tlb_all(void)
+{
+	unsigned long rb,prs,r,rs;
+	unsigned long ric = RIC_FLUSH_ALL;
+
+	rb = 0x3 << PPC_BITLSHIFT(53); /* IS = 3 */
+	prs = 0; /* partition scoped */
+	r = 1;   /* raidx format */
+	rs = 1 & ((1UL << 32) - 1); /* any LPID value to flush guest mappings */
+
+	asm volatile("ptesync": : :"memory");
+	/*
+	 * now flush guest entries by passing PRS = 1 and LPID != 0
+	 */
+	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
+		     : : "r"(rb), "i"(r), "i"(1), "i"(ric), "r"(rs) : "memory");
+	/*
+	 * now flush host entires by passing PRS = 0 and LPID == 0
+	 */
+	asm volatile(PPC_TLBIE_5(%0, %4, %3, %2, %1)
+		     : : "r"(rb), "i"(r), "i"(prs), "i"(ric), "r"(0) : "memory");
+	asm volatile("eieio; tlbsync; ptesync": : :"memory");
+}
+
+void radix__flush_tlb_pte_p9_dd1(unsigned long old_pte, struct mm_struct *mm,
+				 unsigned long address)
+{
+	/*
+	 * We track page size in pte only for DD1, So we can
+	 * call this only on DD1.
+	 */
+	if (!cpu_has_feature(CPU_FTR_POWER9_DD1)) {
+		VM_WARN_ON(1);
+		return;
+	}
+
+	if (old_pte & _PAGE_LARGE)
+		radix__flush_tlb_page_psize(mm, address, MMU_PAGE_2M);
+	else
+		radix__flush_tlb_page_psize(mm, address, mmu_virtual_psize);
+}

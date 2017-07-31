@@ -55,7 +55,7 @@ _BUGVERBOSE_LOCATION(__FILE__, __LINE__)		\
 	unreachable();				\
 } while (0)
 
-#define __WARN_TAINT(taint) _BUG_FLAGS(BUGFLAG_TAINT(taint))
+#define __WARN_FLAGS(flags) _BUG_FLAGS(BUGFLAG_WARNING|(flags))
 
 #endif /* ! CONFIG_GENERIC_BUG */
 

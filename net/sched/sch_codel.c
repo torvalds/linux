@@ -69,7 +69,7 @@ struct codel_sched_data {
 static struct sk_buff *dequeue_func(struct codel_vars *vars, void *ctx)
 {
 	struct Qdisc *sch = ctx;
-	struct sk_buff *skb = __skb_dequeue(&sch->q);
+	struct sk_buff *skb = __qdisc_dequeue_head(&sch->q);
 
 	if (skb)
 		sch->qstats.backlog -= qdisc_pkt_len(skb);
@@ -140,7 +140,7 @@ static int codel_change(struct Qdisc *sch, struct nlattr *opt)
 	if (!opt)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_CODEL_MAX, opt, codel_policy);
+	err = nla_parse_nested(tb, TCA_CODEL_MAX, opt, codel_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -172,7 +172,7 @@ static int codel_change(struct Qdisc *sch, struct nlattr *opt)
 
 	qlen = sch->q.qlen;
 	while (sch->q.qlen > sch->limit) {
-		struct sk_buff *skb = __skb_dequeue(&sch->q);
+		struct sk_buff *skb = __qdisc_dequeue_head(&sch->q);
 
 		dropped += qdisc_pkt_len(skb);
 		qdisc_qstats_backlog_dec(sch, skb);

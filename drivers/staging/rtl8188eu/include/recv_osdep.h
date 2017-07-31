@@ -26,14 +26,8 @@ void _rtw_free_recv_priv(struct recv_priv *precvpriv);
 s32  rtw_recv_entry(struct recv_frame *precv_frame);
 int rtw_recv_indicatepkt(struct adapter *adapter,
 			 struct recv_frame *recv_frame);
-void rtw_recv_returnpacket(struct  net_device *cnxt, struct sk_buff *retpkt);
 
 void rtw_handle_tkip_mic_err(struct adapter *padapter, u8 bgroup);
-
-int rtw_init_recv_priv(struct recv_priv *precvpriv, struct adapter *padapter);
-void rtw_free_recv_priv(struct recv_priv *precvpriv);
-
-void rtw_os_recv_resource_alloc(struct recv_frame *recvfr);
 
 int rtw_os_recvbuf_resource_alloc(struct adapter *adapt, struct recv_buf *buf);
 

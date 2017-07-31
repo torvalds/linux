@@ -15,7 +15,11 @@ VIDIOC_G_INPUT - VIDIOC_S_INPUT - Query or select the current video input
 Synopsis
 ========
 
-.. cpp:function:: int ioctl( int fd, int request, int *argp )
+.. c:function:: int ioctl( int fd, VIDIOC_G_INPUT, int *argp )
+    :name: VIDIOC_G_INPUT
+
+.. c:function:: int ioctl( int fd, VIDIOC_S_INPUT, int *argp )
+    :name: VIDIOC_S_INPUT
 
 
 Arguments
@@ -23,9 +27,6 @@ Arguments
 
 ``fd``
     File descriptor returned by :ref:`open() <func-open>`.
-
-``request``
-    VIDIOC_G_INPUT, VIDIOC_S_INPUT
 
 ``argp``
 
@@ -36,7 +37,7 @@ Description
 To query the current video input applications call the
 :ref:`VIDIOC_G_INPUT <VIDIOC_G_INPUT>` ioctl with a pointer to an integer where the driver
 stores the number of the input, as in the struct
-:ref:`v4l2_input <v4l2-input>` ``index`` field. This ioctl will fail
+:c:type:`v4l2_input` ``index`` field. This ioctl will fail
 only when there are no video inputs, returning ``EINVAL``.
 
 To select a video input applications store the number of the desired

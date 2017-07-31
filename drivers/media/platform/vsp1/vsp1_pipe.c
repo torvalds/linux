@@ -78,6 +78,14 @@ static const struct vsp1_format_info vsp1_video_formats[] = {
 	  VI6_FMT_ARGB_8888, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
 	  VI6_RPF_DSWAP_P_WDS | VI6_RPF_DSWAP_P_BTS,
 	  1, { 32, 0, 0 }, false, false, 1, 1, false },
+	{ V4L2_PIX_FMT_HSV24, MEDIA_BUS_FMT_AHSV8888_1X32,
+	  VI6_FMT_RGB_888, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
+	  VI6_RPF_DSWAP_P_WDS | VI6_RPF_DSWAP_P_BTS,
+	  1, { 24, 0, 0 }, false, false, 1, 1, false },
+	{ V4L2_PIX_FMT_HSV32, MEDIA_BUS_FMT_AHSV8888_1X32,
+	  VI6_FMT_ARGB_8888, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
+	  VI6_RPF_DSWAP_P_WDS | VI6_RPF_DSWAP_P_BTS,
+	  1, { 32, 0, 0 }, false, false, 1, 1, false },
 	{ V4L2_PIX_FMT_UYVY, MEDIA_BUS_FMT_AYUV8_1X32,
 	  VI6_FMT_YUYV_422, VI6_RPF_DSWAP_P_LLS | VI6_RPF_DSWAP_P_LWS |
 	  VI6_RPF_DSWAP_P_WDS | VI6_RPF_DSWAP_P_BTS,
@@ -136,16 +144,22 @@ static const struct vsp1_format_info vsp1_video_formats[] = {
 	  3, { 8, 8, 8 }, false, true, 1, 1, false },
 };
 
-/*
+/**
  * vsp1_get_format_info - Retrieve format information for a 4CC
+ * @vsp1: the VSP1 device
  * @fourcc: the format 4CC
  *
  * Return a pointer to the format information structure corresponding to the
  * given V4L2 format 4CC, or NULL if no corresponding format can be found.
  */
-const struct vsp1_format_info *vsp1_get_format_info(u32 fourcc)
+const struct vsp1_format_info *vsp1_get_format_info(struct vsp1_device *vsp1,
+						    u32 fourcc)
 {
 	unsigned int i;
+
+	/* Special case, the VYUY format is supported on Gen2 only. */
+	if (vsp1->info->gen != 2 && fourcc == V4L2_PIX_FMT_VYUY)
+		return NULL;
 
 	for (i = 0; i < ARRAY_SIZE(vsp1_video_formats); ++i) {
 		const struct vsp1_format_info *info = &vsp1_video_formats[i];
@@ -365,6 +379,7 @@ void vsp1_pipelines_suspend(struct vsp1_device *vsp1)
 
 void vsp1_pipelines_resume(struct vsp1_device *vsp1)
 {
+	unsigned long flags;
 	unsigned int i;
 
 	/* Resume all running pipelines. */
@@ -379,7 +394,9 @@ void vsp1_pipelines_resume(struct vsp1_device *vsp1)
 		if (pipe == NULL)
 			continue;
 
+		spin_lock_irqsave(&pipe->irqlock, flags);
 		if (vsp1_pipeline_ready(pipe))
 			vsp1_pipeline_run(pipe);
+		spin_unlock_irqrestore(&pipe->irqlock, flags);
 	}
 }

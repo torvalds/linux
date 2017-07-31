@@ -612,12 +612,14 @@ static struct snd_soc_dai_driver ak4671_dai = {
 
 static struct snd_soc_codec_driver soc_codec_dev_ak4671 = {
 	.set_bias_level = ak4671_set_bias_level,
-	.controls = ak4671_snd_controls,
-	.num_controls = ARRAY_SIZE(ak4671_snd_controls),
-	.dapm_widgets = ak4671_dapm_widgets,
-	.num_dapm_widgets = ARRAY_SIZE(ak4671_dapm_widgets),
-	.dapm_routes = ak4671_intercon,
-	.num_dapm_routes = ARRAY_SIZE(ak4671_intercon),
+	.component_driver = {
+		.controls		= ak4671_snd_controls,
+		.num_controls		= ARRAY_SIZE(ak4671_snd_controls),
+		.dapm_widgets		= ak4671_dapm_widgets,
+		.num_dapm_widgets	= ARRAY_SIZE(ak4671_dapm_widgets),
+		.dapm_routes		= ak4671_intercon,
+		.num_dapm_routes	= ARRAY_SIZE(ak4671_intercon),
+	},
 };
 
 static const struct regmap_config ak4671_regmap = {

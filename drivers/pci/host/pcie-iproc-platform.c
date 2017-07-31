@@ -31,8 +31,14 @@ static const struct of_device_id iproc_pcie_of_match_table[] = {
 		.compatible = "brcm,iproc-pcie",
 		.data = (int *)IPROC_PCIE_PAXB,
 	}, {
+		.compatible = "brcm,iproc-pcie-paxb-v2",
+		.data = (int *)IPROC_PCIE_PAXB_V2,
+	}, {
 		.compatible = "brcm,iproc-pcie-paxc",
 		.data = (int *)IPROC_PCIE_PAXC,
+	}, {
+		.compatible = "brcm,iproc-pcie-paxc-v2",
+		.data = (int *)IPROC_PCIE_PAXC_V2,
 	},
 	{ /* sentinel */ }
 };
@@ -40,35 +46,30 @@ MODULE_DEVICE_TABLE(of, iproc_pcie_of_match_table);
 
 static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *of_id;
+	struct device *dev = &pdev->dev;
 	struct iproc_pcie *pcie;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_node *np = dev->of_node;
 	struct resource reg;
 	resource_size_t iobase = 0;
-	LIST_HEAD(res);
+	LIST_HEAD(resources);
 	int ret;
 
-	of_id = of_match_device(iproc_pcie_of_match_table, &pdev->dev);
-	if (!of_id)
-		return -EINVAL;
-
-	pcie = devm_kzalloc(&pdev->dev, sizeof(struct iproc_pcie), GFP_KERNEL);
+	pcie = devm_kzalloc(dev, sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
 		return -ENOMEM;
 
-	pcie->dev = &pdev->dev;
-	pcie->type = (enum iproc_pcie_type)of_id->data;
-	platform_set_drvdata(pdev, pcie);
+	pcie->dev = dev;
+	pcie->type = (enum iproc_pcie_type) of_device_get_match_data(dev);
 
 	ret = of_address_to_resource(np, 0, &reg);
 	if (ret < 0) {
-		dev_err(pcie->dev, "unable to obtain controller resources\n");
+		dev_err(dev, "unable to obtain controller resources\n");
 		return ret;
 	}
 
-	pcie->base = devm_ioremap(pcie->dev, reg.start, resource_size(&reg));
+	pcie->base = devm_ioremap(dev, reg.start, resource_size(&reg));
 	if (!pcie->base) {
-		dev_err(pcie->dev, "unable to map controller registers\n");
+		dev_err(dev, "unable to map controller registers\n");
 		return -ENOMEM;
 	}
 	pcie->base_addr = reg.start;
@@ -79,51 +80,47 @@ static int iproc_pcie_pltfm_probe(struct platform_device *pdev)
 		ret = of_property_read_u32(np, "brcm,pcie-ob-axi-offset",
 					   &val);
 		if (ret) {
-			dev_err(pcie->dev,
+			dev_err(dev,
 				"missing brcm,pcie-ob-axi-offset property\n");
 			return ret;
 		}
 		pcie->ob.axi_offset = val;
-
-		ret = of_property_read_u32(np, "brcm,pcie-ob-window-size",
-					   &val);
-		if (ret) {
-			dev_err(pcie->dev,
-				"missing brcm,pcie-ob-window-size property\n");
-			return ret;
-		}
-		pcie->ob.window_size = (resource_size_t)val * SZ_1M;
-
-		if (of_property_read_bool(np, "brcm,pcie-ob-oarr-size"))
-			pcie->ob.set_oarr_size = true;
-
 		pcie->need_ob_cfg = true;
 	}
 
 	/* PHY use is optional */
-	pcie->phy = devm_phy_get(&pdev->dev, "pcie-phy");
+	pcie->phy = devm_phy_get(dev, "pcie-phy");
 	if (IS_ERR(pcie->phy)) {
 		if (PTR_ERR(pcie->phy) == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
 		pcie->phy = NULL;
 	}
 
-	ret = of_pci_get_host_bridge_resources(np, 0, 0xff, &res, &iobase);
+	ret = of_pci_get_host_bridge_resources(np, 0, 0xff, &resources,
+					       &iobase);
 	if (ret) {
-		dev_err(pcie->dev,
-			"unable to get PCI host bridge resources\n");
+		dev_err(dev, "unable to get PCI host bridge resources\n");
 		return ret;
 	}
 
-	pcie->map_irq = of_irq_parse_and_map_pci;
+	/* PAXC doesn't support legacy IRQs, skip mapping */
+	switch (pcie->type) {
+	case IPROC_PCIE_PAXC:
+	case IPROC_PCIE_PAXC_V2:
+		break;
+	default:
+		pcie->map_irq = of_irq_parse_and_map_pci;
+	}
 
-	ret = iproc_pcie_setup(pcie, &res);
-	if (ret)
-		dev_err(pcie->dev, "PCIe controller setup failed\n");
+	ret = iproc_pcie_setup(pcie, &resources);
+	if (ret) {
+		dev_err(dev, "PCIe controller setup failed\n");
+		pci_free_resource_list(&resources);
+		return ret;
+	}
 
-	pci_free_resource_list(&res);
-
-	return ret;
+	platform_set_drvdata(pdev, pcie);
+	return 0;
 }
 
 static int iproc_pcie_pltfm_remove(struct platform_device *pdev)

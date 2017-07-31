@@ -141,7 +141,7 @@ static void set_transforms(struct jr3_channel __iomem *channel,
 {
 	int i;
 
-	num &= 0x000f;		/*  Make sure that 0 <= num <= 15 */
+	num &= 0x000f;		/* Make sure that 0 <= num <= 15 */
 	for (i = 0; i < 8; i++) {
 		set_u16(&channel->transforms[num].link[i].link_type,
 			transf.link[i].link_type);
@@ -323,10 +323,10 @@ static int read_idm_word(const u8 *data, size_t size, int *pos,
 	int value;
 
 	if (pos && val) {
-		/*  Skip over non hex */
+		/* Skip over non hex */
 		for (; *pos < size && !isxdigit(data[*pos]); (*pos)++)
 			;
-		/*  Collect value */
+		/* Collect value */
 		*val = 0;
 		for (; *pos < size; (*pos)++) {
 			value = hex_to_bin(data[*pos]);
@@ -448,7 +448,8 @@ static int jr3_download_firmware(struct comedi_device *dev,
 	return 0;
 }
 
-static struct jr3_pci_poll_delay jr3_pci_poll_subdevice(struct comedi_subdevice *s)
+static struct jr3_pci_poll_delay
+jr3_pci_poll_subdevice(struct comedi_subdevice *s)
 {
 	struct jr3_pci_subdev_private *spriv = s->private;
 	struct jr3_pci_poll_delay result = poll_delay_min_max(1000, 2000);
@@ -733,13 +734,13 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 		}
 	}
 
-	/*  Reset DSP card */
+	/* Reset DSP card */
 	writel(0, &devpriv->iobase->channel[0].reset);
 
 	ret = comedi_load_firmware(dev, &comedi_to_pci_dev(dev)->dev,
 				   "comedi/jr3pci.idm",
 				   jr3_download_firmware, 0);
-	dev_dbg(dev->class_dev, "Firmare load %d\n", ret);
+	dev_dbg(dev->class_dev, "Firmware load %d\n", ret);
 	if (ret < 0)
 		return ret;
 	/*
@@ -763,7 +764,7 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 				data.copyright[i]) >> 8);
 	}
 
-	/*  Start card timer */
+	/* Start card timer */
 	for (i = 0; i < dev->n_subdevices; i++) {
 		s = &dev->subdevices[i];
 		spriv = s->private;

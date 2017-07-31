@@ -20,7 +20,7 @@ static const unsigned int one = 1;
 static const unsigned int four = 4;
 static const unsigned int thirtytwo = 32;
 static const unsigned int n_65535 = 65535;
-static const unsigned int n_max_acks = RXRPC_MAXACKS;
+static const unsigned int n_max_acks = RXRPC_RXTX_BUFF_SIZE - 1;
 
 /*
  * RxRPC operating parameters.
@@ -35,7 +35,7 @@ static struct ctl_table rxrpc_sysctl_table[] = {
 		.data		= &rxrpc_requested_ack_delay,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_ms_jiffies,
+		.proc_handler	= proc_dointvec,
 		.extra1		= (void *)&zero,
 	},
 	{
@@ -43,7 +43,7 @@ static struct ctl_table rxrpc_sysctl_table[] = {
 		.data		= &rxrpc_soft_ack_delay,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_ms_jiffies,
+		.proc_handler	= proc_dointvec,
 		.extra1		= (void *)&one,
 	},
 	{
@@ -51,12 +51,28 @@ static struct ctl_table rxrpc_sysctl_table[] = {
 		.data		= &rxrpc_idle_ack_delay,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_ms_jiffies,
+		.proc_handler	= proc_dointvec,
 		.extra1		= (void *)&one,
 	},
 	{
 		.procname	= "resend_timeout",
 		.data		= &rxrpc_resend_timeout,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+		.extra1		= (void *)&one,
+	},
+	{
+		.procname	= "idle_conn_expiry",
+		.data		= &rxrpc_conn_idle_client_expiry,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_ms_jiffies,
+		.extra1		= (void *)&one,
+	},
+	{
+		.procname	= "idle_conn_fast_expiry",
+		.data		= &rxrpc_conn_idle_client_fast_expiry,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec_ms_jiffies,
@@ -69,29 +85,28 @@ static struct ctl_table rxrpc_sysctl_table[] = {
 		.data		= &rxrpc_max_call_lifetime,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-		.extra1		= (void *)&one,
-	},
-	{
-		.procname	= "dead_call_expiry",
-		.data		= &rxrpc_dead_call_expiry,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_jiffies,
-		.extra1		= (void *)&one,
-	},
-
-	/* Values measured in seconds */
-	{
-		.procname	= "connection_expiry",
-		.data		= &rxrpc_connection_expiry,
-		.maxlen		= sizeof(unsigned int),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
+		.proc_handler	= proc_dointvec,
 		.extra1		= (void *)&one,
 	},
 
 	/* Non-time values */
+	{
+		.procname	= "max_client_conns",
+		.data		= &rxrpc_max_client_connections,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= (void *)&rxrpc_reap_client_connections,
+	},
+	{
+		.procname	= "reap_client_conns",
+		.data		= &rxrpc_reap_client_connections,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= (void *)&one,
+		.extra2		= (void *)&rxrpc_max_client_connections,
+	},
 	{
 		.procname	= "max_backlog",
 		.data		= &rxrpc_max_backlog,

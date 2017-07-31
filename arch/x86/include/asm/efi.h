@@ -117,7 +117,6 @@ extern int __init efi_memblock_x86_reserve_range(void);
 extern pgd_t * __init efi_call_phys_prolog(void);
 extern void __init efi_call_phys_epilog(pgd_t *save_pgd);
 extern void __init efi_print_memmap(void);
-extern void __init efi_unmap_memmap(void);
 extern void __init efi_memory_uc(u64 addr, unsigned long size);
 extern void __init efi_map_region(efi_memory_desc_t *md);
 extern void __init efi_map_region_fixed(efi_memory_desc_t *md);
@@ -192,14 +191,8 @@ static inline efi_status_t efi_thunk_set_virtual_address_map(
 struct efi_config {
 	u64 image_handle;
 	u64 table;
-	u64 allocate_pool;
-	u64 allocate_pages;
-	u64 get_memory_map;
-	u64 free_pool;
-	u64 free_pages;
-	u64 locate_handle;
-	u64 handle_protocol;
-	u64 exit_boot_services;
+	u64 runtime_services;
+	u64 boot_services;
 	u64 text_output;
 	efi_status_t (*call)(unsigned long, ...);
 	bool is64;
@@ -207,13 +200,36 @@ struct efi_config {
 
 __pure const struct efi_config *__efi_early(void);
 
+static inline bool efi_is_64bit(void)
+{
+	if (!IS_ENABLED(CONFIG_X86_64))
+		return false;
+
+	if (!IS_ENABLED(CONFIG_EFI_MIXED))
+		return true;
+
+	return __efi_early()->is64;
+}
+
+#define efi_table_attr(table, attr, instance)				\
+	(efi_is_64bit() ?						\
+		((table##_64_t *)(unsigned long)instance)->attr :	\
+		((table##_32_t *)(unsigned long)instance)->attr)
+
+#define efi_call_proto(protocol, f, instance, ...)			\
+	__efi_early()->call(efi_table_attr(protocol, f, instance),	\
+		instance, ##__VA_ARGS__)
+
 #define efi_call_early(f, ...)						\
-	__efi_early()->call(__efi_early()->f, __VA_ARGS__);
+	__efi_early()->call(efi_table_attr(efi_boot_services, f,	\
+		__efi_early()->boot_services), __VA_ARGS__)
 
 #define __efi_call_early(f, ...)					\
 	__efi_early()->call((unsigned long)f, __VA_ARGS__);
 
-#define efi_is_64bit()		__efi_early()->is64
+#define efi_call_runtime(f, ...)					\
+	__efi_early()->call(efi_table_attr(efi_runtime_services, f,	\
+		__efi_early()->runtime_services), __VA_ARGS__)
 
 extern bool efi_reboot_required(void);
 

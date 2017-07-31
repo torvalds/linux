@@ -16,6 +16,20 @@ static int udl_driver_set_busid(struct drm_device *d, struct drm_master *m)
 	return 0;
 }
 
+static int udl_usb_suspend(struct usb_interface *interface,
+			   pm_message_t message)
+{
+	return 0;
+}
+
+static int udl_usb_resume(struct usb_interface *interface)
+{
+	struct drm_device *dev = usb_get_intfdata(interface);
+
+	udl_modeset_restore(dev);
+	return 0;
+}
+
 static const struct vm_operations_struct udl_gem_vm_ops = {
 	.fault = udl_gem_fault,
 	.open = drm_gem_vm_open,
@@ -30,9 +44,7 @@ static const struct file_operations udl_driver_fops = {
 	.read = drm_read,
 	.unlocked_ioctl	= drm_ioctl,
 	.release = drm_release,
-#ifdef CONFIG_COMPAT
 	.compat_ioctl = drm_compat_ioctl,
-#endif
 	.llseek = noop_llseek,
 };
 
@@ -72,8 +84,8 @@ static int udl_usb_probe(struct usb_interface *interface,
 	int r;
 
 	dev = drm_dev_alloc(&driver, &interface->dev);
-	if (!dev)
-		return -ENOMEM;
+	if (IS_ERR(dev))
+		return PTR_ERR(dev);
 
 	r = drm_dev_register(dev, (unsigned long)udev);
 	if (r)
@@ -122,6 +134,8 @@ static struct usb_driver udl_driver = {
 	.name = "udl",
 	.probe = udl_usb_probe,
 	.disconnect = udl_usb_disconnect,
+	.suspend = udl_usb_suspend,
+	.resume = udl_usb_resume,
 	.id_table = id_table,
 };
 module_usb_driver(udl_driver);

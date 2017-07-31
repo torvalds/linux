@@ -447,11 +447,11 @@ static void sata_rcar_exec_command(struct ata_port *ap,
 	ata_sff_pause(ap);
 }
 
-static unsigned int sata_rcar_data_xfer(struct ata_device *dev,
+static unsigned int sata_rcar_data_xfer(struct ata_queued_cmd *qc,
 					      unsigned char *buf,
 					      unsigned int buflen, int rw)
 {
-	struct ata_port *ap = dev->link->ap;
+	struct ata_port *ap = qc->dev->link->ap;
 	void __iomem *data_addr = ap->ioaddr.data_addr;
 	unsigned int words = buflen >> 1;
 

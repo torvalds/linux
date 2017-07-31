@@ -51,7 +51,7 @@
 #include <pcmcia/ds.h>
 
 #include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "wl3501.h"
 
@@ -1258,7 +1258,9 @@ static int wl3501_reset(struct net_device *dev)
 {
 	struct wl3501_card *this = netdev_priv(dev);
 	int rc = -ENODEV;
+	unsigned long flags;
 
+	spin_lock_irqsave(&this->lock, flags);
 	wl3501_block_interrupt(this);
 
 	if (wl3501_init_firmware(this)) {
@@ -1280,20 +1282,17 @@ static int wl3501_reset(struct net_device *dev)
 	pr_debug("%s: device reset", dev->name);
 	rc = 0;
 out:
+	spin_unlock_irqrestore(&this->lock, flags);
 	return rc;
 }
 
 static void wl3501_tx_timeout(struct net_device *dev)
 {
-	struct wl3501_card *this = netdev_priv(dev);
 	struct net_device_stats *stats = &dev->stats;
-	unsigned long flags;
 	int rc;
 
 	stats->tx_errors++;
-	spin_lock_irqsave(&this->lock, flags);
 	rc = wl3501_reset(dev);
-	spin_unlock_irqrestore(&this->lock, flags);
 	if (rc)
 		printk(KERN_ERR "%s: Error %d resetting card on Tx timeout!\n",
 		       dev->name, rc);
@@ -1854,7 +1853,6 @@ static const struct net_device_ops wl3501_netdev_ops = {
 	.ndo_stop		= wl3501_close,
 	.ndo_start_xmit		= wl3501_hard_start_xmit,
 	.ndo_tx_timeout		= wl3501_tx_timeout,
-	.ndo_change_mtu		= eth_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
 	.ndo_validate_addr	= eth_validate_addr,
 };

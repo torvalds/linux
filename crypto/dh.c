@@ -79,7 +79,8 @@ static int dh_set_params(struct dh_ctx *ctx, struct dh *params)
 	return 0;
 }
 
-static int dh_set_secret(struct crypto_kpp *tfm, void *buf, unsigned int len)
+static int dh_set_secret(struct crypto_kpp *tfm, const void *buf,
+			 unsigned int len)
 {
 	struct dh_ctx *ctx = dh_get_ctx(tfm);
 	struct dh params;
@@ -118,7 +119,7 @@ static int dh_compute_value(struct kpp_request *req)
 	if (req->src) {
 		base = mpi_read_raw_from_sgl(req->src, req->src_len);
 		if (!base) {
-			ret = EINVAL;
+			ret = -EINVAL;
 			goto err_free_val;
 		}
 	} else {

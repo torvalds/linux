@@ -16,30 +16,33 @@
 
 /*
  * Stack layout:
+ * Ensure the top half (upto local_tmp_var) stays consistent
+ * with our redzone usage.
  *
  *		[	prev sp		] <-------------
  *		[   nv gpr save area	] 8*8		|
+ *		[    tail_call_cnt	] 8		|
+ *		[    local_tmp_var	] 8		|
  * fp (r31) -->	[   ebpf stack space	] 512		|
- *		[  local/tmp var space	] 16		|
  *		[     frame header	] 32/112	|
  * sp (r1) --->	[    stack pointer	] --------------
  */
 
-/* for bpf JIT code internal usage */
-#define BPF_PPC_STACK_LOCALS	16
 /* for gpr non volatile registers BPG_REG_6 to 10, plus skb cache registers */
 #define BPF_PPC_STACK_SAVE	(8*8)
+/* for bpf JIT code internal usage */
+#define BPF_PPC_STACK_LOCALS	16
 /* Ensure this is quadword aligned */
-#define BPF_PPC_STACKFRAME	(STACK_FRAME_MIN_SIZE + BPF_PPC_STACK_LOCALS + \
-				 MAX_BPF_STACK + BPF_PPC_STACK_SAVE)
+#define BPF_PPC_STACKFRAME	(STACK_FRAME_MIN_SIZE + MAX_BPF_STACK + \
+				 BPF_PPC_STACK_LOCALS + BPF_PPC_STACK_SAVE)
 
 #ifndef __ASSEMBLY__
 
 /* BPF register usage */
-#define SKB_HLEN_REG	(MAX_BPF_REG + 0)
-#define SKB_DATA_REG	(MAX_BPF_REG + 1)
-#define TMP_REG_1	(MAX_BPF_REG + 2)
-#define TMP_REG_2	(MAX_BPF_REG + 3)
+#define SKB_HLEN_REG	(MAX_BPF_JIT_REG + 0)
+#define SKB_DATA_REG	(MAX_BPF_JIT_REG + 1)
+#define TMP_REG_1	(MAX_BPF_JIT_REG + 2)
+#define TMP_REG_2	(MAX_BPF_JIT_REG + 3)
 
 /* BPF to ppc register mappings */
 static const int b2p[] = {
@@ -59,11 +62,15 @@ static const int b2p[] = {
 	/* frame pointer aka BPF_REG_10 */
 	[BPF_REG_FP] = 31,
 	/* eBPF jit internal registers */
+	[BPF_REG_AX] = 2,
 	[SKB_HLEN_REG] = 25,
 	[SKB_DATA_REG] = 26,
 	[TMP_REG_1] = 9,
 	[TMP_REG_2] = 10
 };
+
+/* PPC NVR range -- update this if we ever use NVRs below r24 */
+#define BPF_PPC_NVR_MIN		24
 
 /* Assembly helpers */
 #define DECLARE_LOAD_FUNC(func)	u64 func(u64 r3, u64 r4);			\
@@ -82,6 +89,7 @@ DECLARE_LOAD_FUNC(sk_load_byte);
 #define SEEN_FUNC	0x1000 /* might call external helpers */
 #define SEEN_STACK	0x2000 /* uses BPF stack */
 #define SEEN_SKB	0x4000 /* uses sk_buff */
+#define SEEN_TAILCALL	0x8000 /* uses tail calls */
 
 struct codegen_context {
 	/*

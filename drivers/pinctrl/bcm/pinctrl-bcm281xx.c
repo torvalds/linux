@@ -1018,7 +1018,7 @@ static void bcm281xx_pinctrl_pin_dbg_show(struct pinctrl_dev *pctldev,
 	seq_printf(s, " %s", dev_name(pctldev->dev));
 }
 
-static struct pinctrl_ops bcm281xx_pinctrl_ops = {
+static const struct pinctrl_ops bcm281xx_pinctrl_ops = {
 	.get_groups_count = bcm281xx_pinctrl_get_groups_count,
 	.get_group_name = bcm281xx_pinctrl_get_group_name,
 	.get_group_pins = bcm281xx_pinctrl_get_group_pins,
@@ -1080,7 +1080,7 @@ static int bcm281xx_pinmux_set(struct pinctrl_dev *pctldev,
 	return rc;
 }
 
-static struct pinmux_ops bcm281xx_pinctrl_pinmux_ops = {
+static const struct pinmux_ops bcm281xx_pinctrl_pinmux_ops = {
 	.get_functions_count = bcm281xx_pinctrl_get_fcns_count,
 	.get_function_name = bcm281xx_pinctrl_get_fcn_name,
 	.get_function_groups = bcm281xx_pinctrl_get_fcn_groups,
@@ -1106,7 +1106,7 @@ static int bcm281xx_std_pin_update(struct pinctrl_dev *pctldev,
 	struct bcm281xx_pinctrl_data *pdata = pinctrl_dev_get_drvdata(pctldev);
 	int i;
 	enum pin_config_param param;
-	u16 arg;
+	u32 arg;
 
 	for (i = 0; i < num_configs; i++) {
 		param = pinconf_to_config_param(configs[i]);
@@ -1222,7 +1222,7 @@ static int bcm281xx_i2c_pin_update(struct pinctrl_dev *pctldev,
 	struct bcm281xx_pinctrl_data *pdata = pinctrl_dev_get_drvdata(pctldev);
 	int i, j;
 	enum pin_config_param param;
-	u16 arg;
+	u32 arg;
 
 	for (i = 0; i < num_configs; i++) {
 		param = pinconf_to_config_param(configs[i]);
@@ -1292,7 +1292,7 @@ static int bcm281xx_hdmi_pin_update(struct pinctrl_dev *pctldev,
 	struct bcm281xx_pinctrl_data *pdata = pinctrl_dev_get_drvdata(pctldev);
 	int i;
 	enum pin_config_param param;
-	u16 arg;
+	u32 arg;
 
 	for (i = 0; i < num_configs; i++) {
 		param = pinconf_to_config_param(configs[i]);

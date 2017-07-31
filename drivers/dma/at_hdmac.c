@@ -111,9 +111,8 @@ static struct at_desc *atc_alloc_descriptor(struct dma_chan *chan,
 	struct at_dma	*atdma = to_at_dma(chan->device);
 	dma_addr_t phys;
 
-	desc = dma_pool_alloc(atdma->dma_desc_pool, gfp_flags, &phys);
+	desc = dma_pool_zalloc(atdma->dma_desc_pool, gfp_flags, &phys);
 	if (desc) {
-		memset(desc, 0, sizeof(struct at_desc));
 		INIT_LIST_HEAD(&desc->tx_list);
 		dma_async_tx_descriptor_init(&desc->txd, chan);
 		/* txd.flags will be overwritten in prep functions */
@@ -473,15 +472,11 @@ atc_chain_complete(struct at_dma_chan *atchan, struct at_desc *desc)
 	/* for cyclic transfers,
 	 * no need to replay callback function while stopping */
 	if (!atc_chan_is_cyclic(atchan)) {
-		dma_async_tx_callback	callback = txd->callback;
-		void			*param = txd->callback_param;
-
 		/*
 		 * The API requires that no submissions are done from a
 		 * callback, so we don't need to drop the lock here
 		 */
-		if (callback)
-			callback(param);
+		dmaengine_desc_get_callback_invoke(txd, NULL);
 	}
 
 	dma_run_dependencies(txd);
@@ -598,15 +593,12 @@ static void atc_handle_cyclic(struct at_dma_chan *atchan)
 {
 	struct at_desc			*first = atc_first_active(atchan);
 	struct dma_async_tx_descriptor	*txd = &first->txd;
-	dma_async_tx_callback		callback = txd->callback;
-	void				*param = txd->callback_param;
 
 	dev_vdbg(chan2dev(&atchan->chan_common),
 			"new cyclic period llp 0x%08x\n",
 			channel_readl(atchan, DSCR));
 
-	if (callback)
-		callback(param);
+	dmaengine_desc_get_callback_invoke(txd, NULL);
 }
 
 /*--  IRQ & Tasklet  ---------------------------------------------------*/

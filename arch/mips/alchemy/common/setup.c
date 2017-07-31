@@ -48,17 +48,17 @@ void __init plat_mem_setup(void)
 		clear_c0_config(1 << 19); /* Clear Config[OD] */
 
 	hw_coherentio = 0;
-	coherentio = 1;
+	coherentio = IO_COHERENCE_ENABLED;
 	switch (alchemy_get_cputype()) {
 	case ALCHEMY_CPU_AU1000:
 	case ALCHEMY_CPU_AU1500:
 	case ALCHEMY_CPU_AU1100:
-		coherentio = 0;
+		coherentio = IO_COHERENCE_DISABLED;
 		break;
 	case ALCHEMY_CPU_AU1200:
 		/* Au1200 AB USB does not support coherent memory */
 		if (0 == (read_c0_prid() & PRID_REV_MASK))
-			coherentio = 0;
+			coherentio = IO_COHERENCE_DISABLED;
 		break;
 	}
 

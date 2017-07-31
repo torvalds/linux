@@ -40,10 +40,7 @@ static unsigned int numachip1_get_apic_id(unsigned long x)
 
 static unsigned long numachip1_set_apic_id(unsigned int id)
 {
-	unsigned long x;
-
-	x = ((id & 0xffU) << 24);
-	return x;
+	return (id & 0xff) << 24;
 }
 
 static unsigned int numachip2_get_apic_id(unsigned long x)

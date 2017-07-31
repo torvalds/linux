@@ -288,7 +288,6 @@ struct bnad_rx_unmap_q {
 struct bnad {
 	struct net_device	*netdev;
 	u32			id;
-	struct list_head	list_entry;
 
 	/* Data path */
 	struct bnad_tx_info tx_info[BNAD_MAX_TX];

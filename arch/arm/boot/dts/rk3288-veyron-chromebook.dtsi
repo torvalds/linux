@@ -91,7 +91,7 @@
 			240 241 242 243 244 245 246 247
 			248 249 250 251 252 253 254 255>;
 		default-brightness-level = <128>;
-		enable-gpios = <&gpio7 2 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&gpio7 RK_PA2 GPIO_ACTIVE_HIGH>;
 		backlight-boot-off;
 		pinctrl-names = "default";
 		pinctrl-0 = <&bl_en>;
@@ -102,7 +102,7 @@
 	gpio-charger {
 		compatible = "gpio-charger";
 		charger-type = "mains";
-		gpios = <&gpio0 8 GPIO_ACTIVE_HIGH>;
+		gpios = <&gpio0 RK_PB0 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&ac_present_ap>;
 	};
@@ -142,7 +142,7 @@
 	vcc5_host1: vcc5-host1-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio0 11 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 RK_PB3 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&host1_pwr_en>;
 		regulator-name = "vcc5_host1";
@@ -154,7 +154,7 @@
 	vcc5v_otg: vcc5v-otg-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
-		gpio = <&gpio0 12 GPIO_ACTIVE_HIGH>;
+		gpio = <&gpio0 RK_PB4 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usbotg_pwren_h>;
 		regulator-name = "vcc5_host2";
@@ -190,7 +190,7 @@
 	pinctrl-0 = <&pwr_key_l &ap_lid_int_l>;
 	lid {
 		label = "Lid";
-		gpios = <&gpio0 6 GPIO_ACTIVE_LOW>;
+		gpios = <&gpio0 RK_PA6 GPIO_ACTIVE_LOW>;
 		wakeup-source;
 		linux,code = <0>; /* SW_LID */
 		linux,input-type = <5>; /* EV_SW */
@@ -228,7 +228,7 @@
 		reg = <0>;
 		google,cros-ec-spi-pre-delay = <30>;
 		interrupt-parent = <&gpio7>;
-		interrupts = <7 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <RK_PA7 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&ec_int>;
 		spi-max-frequency = <3000000>;
@@ -247,7 +247,7 @@
 		compatible = "elan,ekth3000";
 		reg = <0x15>;
 		interrupt-parent = <&gpio7>;
-		interrupts = <3 IRQ_TYPE_EDGE_FALLING>;
+		interrupts = <RK_PA3 IRQ_TYPE_EDGE_FALLING>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&trackpad_int>;
 		vcc-supply = <&vcc33_io>;

@@ -24,6 +24,7 @@ static const char *simulation_compat[] __initconst = {
 	"snps,nsim_hs",
 	"snps,nsimosci",
 	"snps,nsimosci_hs",
+	"snps,zebu_hs",
 	NULL,
 };
 

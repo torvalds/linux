@@ -14,7 +14,7 @@
 
 #define DMA_ERROR_CODE 0
 
-extern struct dma_map_ops *dma_ops;
+extern const struct dma_map_ops *dma_ops;
 extern struct ia64_machine_vector ia64_mv;
 extern void set_iommu_machvec(void);
 
@@ -23,7 +23,10 @@ extern void machvec_dma_sync_single(struct device *, dma_addr_t, size_t,
 extern void machvec_dma_sync_sg(struct device *, struct scatterlist *, int,
 				enum dma_data_direction);
 
-#define get_dma_ops(dev) platform_dma_get_ops(dev)
+static inline const struct dma_map_ops *get_arch_dma_ops(struct bus_type *bus)
+{
+	return platform_dma_get_ops(NULL);
+}
 
 static inline bool dma_capable(struct device *dev, dma_addr_t addr, size_t size)
 {

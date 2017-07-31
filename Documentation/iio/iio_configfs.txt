@@ -82,8 +82,8 @@ users to create hrtimer triggers under /config/iio/triggers/hrtimer.
 
 e.g:
 
-$ mkdir /config/triggers/hrtimer/instance1
-$ rmdir /config/triggers/hrtimer/instance1
+$ mkdir /config/iio/triggers/hrtimer/instance1
+$ rmdir /config/iio/triggers/hrtimer/instance1
 
 Each trigger can have one or more attributes specific to the trigger type.
 

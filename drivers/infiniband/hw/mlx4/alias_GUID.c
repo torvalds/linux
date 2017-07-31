@@ -499,6 +499,7 @@ static int set_guid_rec(struct ib_device *ibdev,
 	struct list_head *head =
 		&dev->sriov.alias_guid.ports_guid[port - 1].cb_list;
 
+	memset(&attr, 0, sizeof(attr));
 	err = __mlx4_ib_query_port(ibdev, port, &attr, 1);
 	if (err) {
 		pr_debug("mlx4_ib_query_port failed (err: %d), port: %d\n",
@@ -755,10 +756,8 @@ static void alias_guid_work(struct work_struct *work)
 	struct mlx4_ib_dev *dev = container_of(ib_sriov, struct mlx4_ib_dev, sriov);
 
 	rec = kzalloc(sizeof *rec, GFP_KERNEL);
-	if (!rec) {
-		pr_err("alias_guid_work: No Memory\n");
+	if (!rec)
 		return;
-	}
 
 	pr_debug("starting [port: %d]...\n", sriov_alias_port->port + 1);
 	ret = get_next_record_to_update(dev, sriov_alias_port->port, rec);
@@ -881,7 +880,7 @@ int mlx4_ib_init_alias_guid_service(struct mlx4_ib_dev *dev)
 
 		snprintf(alias_wq_name, sizeof alias_wq_name, "alias_guid%d", i);
 		dev->sriov.alias_guid.ports_guid[i].wq =
-			create_singlethread_workqueue(alias_wq_name);
+			alloc_ordered_workqueue(alias_wq_name, WQ_MEM_RECLAIM);
 		if (!dev->sriov.alias_guid.ports_guid[i].wq) {
 			ret = -ENOMEM;
 			goto err_thread;

@@ -2424,6 +2424,7 @@
 #define	BMASKH4BITS			0xf0000000
 #define BMASKOFDM_D			0xffc00000
 #define	BMASKCCK			0x3f3f3f3f
+#define BMASKRFEINV			0x3ff00000
 
 #define BRFREGOFFSETMASK		0xfffff
 

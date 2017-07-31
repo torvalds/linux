@@ -49,8 +49,9 @@
 #include <linux/firmware.h>
 #include <linux/log2.h>
 #include <linux/aer.h>
+#include <linux/crash_dump.h>
 
-#if defined(CONFIG_CNIC) || defined(CONFIG_CNIC_MODULE)
+#if IS_ENABLED(CONFIG_CNIC)
 #define BCM_CNIC 1
 #include "cnic_if.h"
 #endif
@@ -253,13 +254,10 @@ static inline u32 bnx2_tx_avail(struct bnx2 *bp, struct bnx2_tx_ring_info *txr)
 {
 	u32 diff;
 
-	/* Tell compiler to fetch tx_prod and tx_cons from memory. */
-	barrier();
-
 	/* The ring uses 256 indices for 255 entries, one of them
 	 * needs to be skipped.
 	 */
-	diff = txr->tx_prod - txr->tx_cons;
+	diff = READ_ONCE(txr->tx_prod) - READ_ONCE(txr->tx_cons);
 	if (unlikely(diff >= BNX2_TX_DESC_CNT)) {
 		diff &= 0xffff;
 		if (diff == BNX2_TX_DESC_CNT)
@@ -271,22 +269,25 @@ static inline u32 bnx2_tx_avail(struct bnx2 *bp, struct bnx2_tx_ring_info *txr)
 static u32
 bnx2_reg_rd_ind(struct bnx2 *bp, u32 offset)
 {
+	unsigned long flags;
 	u32 val;
 
-	spin_lock_bh(&bp->indirect_lock);
+	spin_lock_irqsave(&bp->indirect_lock, flags);
 	BNX2_WR(bp, BNX2_PCICFG_REG_WINDOW_ADDRESS, offset);
 	val = BNX2_RD(bp, BNX2_PCICFG_REG_WINDOW);
-	spin_unlock_bh(&bp->indirect_lock);
+	spin_unlock_irqrestore(&bp->indirect_lock, flags);
 	return val;
 }
 
 static void
 bnx2_reg_wr_ind(struct bnx2 *bp, u32 offset, u32 val)
 {
-	spin_lock_bh(&bp->indirect_lock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&bp->indirect_lock, flags);
 	BNX2_WR(bp, BNX2_PCICFG_REG_WINDOW_ADDRESS, offset);
 	BNX2_WR(bp, BNX2_PCICFG_REG_WINDOW, val);
-	spin_unlock_bh(&bp->indirect_lock);
+	spin_unlock_irqrestore(&bp->indirect_lock, flags);
 }
 
 static void
@@ -304,8 +305,10 @@ bnx2_shmem_rd(struct bnx2 *bp, u32 offset)
 static void
 bnx2_ctx_wr(struct bnx2 *bp, u32 cid_addr, u32 offset, u32 val)
 {
+	unsigned long flags;
+
 	offset += cid_addr;
-	spin_lock_bh(&bp->indirect_lock);
+	spin_lock_irqsave(&bp->indirect_lock, flags);
 	if (BNX2_CHIP(bp) == BNX2_CHIP_5709) {
 		int i;
 
@@ -322,7 +325,7 @@ bnx2_ctx_wr(struct bnx2 *bp, u32 cid_addr, u32 offset, u32 val)
 		BNX2_WR(bp, BNX2_CTX_DATA_ADR, offset);
 		BNX2_WR(bp, BNX2_CTX_DATA, val);
 	}
-	spin_unlock_bh(&bp->indirect_lock);
+	spin_unlock_irqrestore(&bp->indirect_lock, flags);
 }
 
 #ifdef BCM_CNIC
@@ -2298,7 +2301,7 @@ bnx2_init_5706s_phy(struct bnx2 *bp, int reset_phy)
 	if (BNX2_CHIP(bp) == BNX2_CHIP_5706)
 		BNX2_WR(bp, BNX2_MISC_GP_HW_CTL0, 0x300);
 
-	if (bp->dev->mtu > 1500) {
+	if (bp->dev->mtu > ETH_DATA_LEN) {
 		u32 val;
 
 		/* Set extended packet length bit */
@@ -2352,7 +2355,7 @@ bnx2_init_copper_phy(struct bnx2 *bp, int reset_phy)
 		bnx2_write_phy(bp, MII_BNX2_DSP_RW_PORT, val);
 	}
 
-	if (bp->dev->mtu > 1500) {
+	if (bp->dev->mtu > ETH_DATA_LEN) {
 		/* Set extended packet length bit */
 		bnx2_write_phy(bp, 0x18, 0x7);
 		bnx2_read_phy(bp, 0x18, &val);
@@ -2833,10 +2836,8 @@ bnx2_get_hw_tx_cons(struct bnx2_napi *bnapi)
 {
 	u16 cons;
 
-	/* Tell compiler that status block fields can change. */
-	barrier();
-	cons = *bnapi->hw_tx_cons_ptr;
-	barrier();
+	cons = READ_ONCE(*bnapi->hw_tx_cons_ptr);
+
 	if (unlikely((cons & BNX2_MAX_TX_DESC_CNT) == BNX2_MAX_TX_DESC_CNT))
 		cons++;
 	return cons;
@@ -3135,10 +3136,8 @@ bnx2_get_hw_rx_cons(struct bnx2_napi *bnapi)
 {
 	u16 cons;
 
-	/* Tell compiler that status block fields can change. */
-	barrier();
-	cons = *bnapi->hw_rx_cons_ptr;
-	barrier();
+	cons = READ_ONCE(*bnapi->hw_rx_cons_ptr);
+
 	if (unlikely((cons & BNX2_MAX_RX_DESC_CNT) == BNX2_MAX_RX_DESC_CNT))
 		cons++;
 	return cons;
@@ -3516,7 +3515,7 @@ static int bnx2_poll_msix(struct napi_struct *napi, int budget)
 		rmb();
 		if (likely(!bnx2_has_fast_work(bnapi))) {
 
-			napi_complete(napi);
+			napi_complete_done(napi, work_done);
 			BNX2_WR(bp, BNX2_PCICFG_INT_ACK_CMD, bnapi->int_num |
 				BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID |
 				bnapi->last_status_idx);
@@ -3553,7 +3552,7 @@ static int bnx2_poll(struct napi_struct *napi, int budget)
 
 		rmb();
 		if (likely(!bnx2_has_work(bnapi))) {
-			napi_complete(napi);
+			napi_complete_done(napi, work_done);
 			if (likely(bp->flags & BNX2_FLAG_USING_MSI_OR_MSIX)) {
 				BNX2_WR(bp, BNX2_PCICFG_INT_ACK_CMD,
 					BNX2_PCICFG_INT_ACK_CMD_INDEX_VALID |
@@ -4759,15 +4758,16 @@ bnx2_setup_msix_tbl(struct bnx2 *bp)
 	BNX2_WR(bp, BNX2_PCI_GRC_WINDOW3_ADDR, BNX2_MSIX_PBA_ADDR);
 }
 
-static int
-bnx2_reset_chip(struct bnx2 *bp, u32 reset_code)
+static void
+bnx2_wait_dma_complete(struct bnx2 *bp)
 {
 	u32 val;
-	int i, rc = 0;
-	u8 old_port;
+	int i;
 
-	/* Wait for the current PCI transaction to complete before
-	 * issuing a reset. */
+	/*
+	 * Wait for the current PCI transaction to complete before
+	 * issuing a reset.
+	 */
 	if ((BNX2_CHIP(bp) == BNX2_CHIP_5706) ||
 	    (BNX2_CHIP(bp) == BNX2_CHIP_5708)) {
 		BNX2_WR(bp, BNX2_MISC_ENABLE_CLR_BITS,
@@ -4790,6 +4790,21 @@ bnx2_reset_chip(struct bnx2 *bp, u32 reset_code)
 				break;
 		}
 	}
+
+	return;
+}
+
+
+static int
+bnx2_reset_chip(struct bnx2 *bp, u32 reset_code)
+{
+	u32 val;
+	int i, rc = 0;
+	u8 old_port;
+
+	/* Wait for the current PCI transaction to complete before
+	 * issuing a reset. */
+	bnx2_wait_dma_complete(bp);
 
 	/* Wait for the firmware to tell us it is ok to issue a reset. */
 	bnx2_fw_sync(bp, BNX2_DRV_MSG_DATA_WAIT0 | reset_code, 1, 1);
@@ -4985,12 +5000,12 @@ bnx2_init_chip(struct bnx2 *bp)
 	/* Program the MTU.  Also include 4 bytes for CRC32. */
 	mtu = bp->dev->mtu;
 	val = mtu + ETH_HLEN + ETH_FCS_LEN;
-	if (val > (MAX_ETHERNET_PACKET_SIZE + 4))
+	if (val > (MAX_ETHERNET_PACKET_SIZE + ETH_HLEN + 4))
 		val |= BNX2_EMAC_RX_MTU_SIZE_JUMBO_ENA;
 	BNX2_WR(bp, BNX2_EMAC_RX_MTU_SIZE, val);
 
-	if (mtu < 1500)
-		mtu = 1500;
+	if (mtu < ETH_DATA_LEN)
+		mtu = ETH_DATA_LEN;
 
 	bnx2_reg_wr_ind(bp, BNX2_RBUF_CONFIG, BNX2_RBUF_CONFIG_VAL(mtu));
 	bnx2_reg_wr_ind(bp, BNX2_RBUF_CONFIG2, BNX2_RBUF_CONFIG2_VAL(mtu));
@@ -6806,13 +6821,13 @@ bnx2_save_stats(struct bnx2 *bp)
 	(unsigned long) (bp->stats_blk->ctr +			\
 			 bp->temp_stats_blk->ctr)
 
-static struct rtnl_link_stats64 *
+static void
 bnx2_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *net_stats)
 {
 	struct bnx2 *bp = netdev_priv(dev);
 
 	if (bp->stats_blk == NULL)
-		return net_stats;
+		return;
 
 	net_stats->rx_packets =
 		GET_64BIT_NET_STATS(stat_IfHCInUcastPkts) +
@@ -6876,18 +6891,19 @@ bnx2_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *net_stats)
 		GET_32BIT_NET_STATS(stat_IfInMBUFDiscards) +
 		GET_32BIT_NET_STATS(stat_FwRxDrop);
 
-	return net_stats;
 }
 
 /* All ethtool functions called with rtnl_lock */
 
 static int
-bnx2_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+bnx2_get_link_ksettings(struct net_device *dev,
+			struct ethtool_link_ksettings *cmd)
 {
 	struct bnx2 *bp = netdev_priv(dev);
 	int support_serdes = 0, support_copper = 0;
+	u32 supported, advertising;
 
-	cmd->supported = SUPPORTED_Autoneg;
+	supported = SUPPORTED_Autoneg;
 	if (bp->phy_flags & BNX2_PHY_FLAG_REMOTE_PHY_CAP) {
 		support_serdes = 1;
 		support_copper = 1;
@@ -6897,56 +6913,59 @@ bnx2_get_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		support_copper = 1;
 
 	if (support_serdes) {
-		cmd->supported |= SUPPORTED_1000baseT_Full |
+		supported |= SUPPORTED_1000baseT_Full |
 			SUPPORTED_FIBRE;
 		if (bp->phy_flags & BNX2_PHY_FLAG_2_5G_CAPABLE)
-			cmd->supported |= SUPPORTED_2500baseX_Full;
-
+			supported |= SUPPORTED_2500baseX_Full;
 	}
 	if (support_copper) {
-		cmd->supported |= SUPPORTED_10baseT_Half |
+		supported |= SUPPORTED_10baseT_Half |
 			SUPPORTED_10baseT_Full |
 			SUPPORTED_100baseT_Half |
 			SUPPORTED_100baseT_Full |
 			SUPPORTED_1000baseT_Full |
 			SUPPORTED_TP;
-
 	}
 
 	spin_lock_bh(&bp->phy_lock);
-	cmd->port = bp->phy_port;
-	cmd->advertising = bp->advertising;
+	cmd->base.port = bp->phy_port;
+	advertising = bp->advertising;
 
 	if (bp->autoneg & AUTONEG_SPEED) {
-		cmd->autoneg = AUTONEG_ENABLE;
+		cmd->base.autoneg = AUTONEG_ENABLE;
 	} else {
-		cmd->autoneg = AUTONEG_DISABLE;
+		cmd->base.autoneg = AUTONEG_DISABLE;
 	}
 
 	if (netif_carrier_ok(dev)) {
-		ethtool_cmd_speed_set(cmd, bp->line_speed);
-		cmd->duplex = bp->duplex;
+		cmd->base.speed = bp->line_speed;
+		cmd->base.duplex = bp->duplex;
 		if (!(bp->phy_flags & BNX2_PHY_FLAG_SERDES)) {
 			if (bp->phy_flags & BNX2_PHY_FLAG_MDIX)
-				cmd->eth_tp_mdix = ETH_TP_MDI_X;
+				cmd->base.eth_tp_mdix = ETH_TP_MDI_X;
 			else
-				cmd->eth_tp_mdix = ETH_TP_MDI;
+				cmd->base.eth_tp_mdix = ETH_TP_MDI;
 		}
 	}
 	else {
-		ethtool_cmd_speed_set(cmd, SPEED_UNKNOWN);
-		cmd->duplex = DUPLEX_UNKNOWN;
+		cmd->base.speed = SPEED_UNKNOWN;
+		cmd->base.duplex = DUPLEX_UNKNOWN;
 	}
 	spin_unlock_bh(&bp->phy_lock);
 
-	cmd->transceiver = XCVR_INTERNAL;
-	cmd->phy_address = bp->phy_addr;
+	cmd->base.phy_address = bp->phy_addr;
+
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.supported,
+						supported);
+	ethtool_convert_legacy_u32_to_link_mode(cmd->link_modes.advertising,
+						advertising);
 
 	return 0;
 }
 
 static int
-bnx2_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
+bnx2_set_link_ksettings(struct net_device *dev,
+			const struct ethtool_link_ksettings *cmd)
 {
 	struct bnx2 *bp = netdev_priv(dev);
 	u8 autoneg = bp->autoneg;
@@ -6957,24 +6976,26 @@ bnx2_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 	spin_lock_bh(&bp->phy_lock);
 
-	if (cmd->port != PORT_TP && cmd->port != PORT_FIBRE)
+	if (cmd->base.port != PORT_TP && cmd->base.port != PORT_FIBRE)
 		goto err_out_unlock;
 
-	if (cmd->port != bp->phy_port &&
+	if (cmd->base.port != bp->phy_port &&
 	    !(bp->phy_flags & BNX2_PHY_FLAG_REMOTE_PHY_CAP))
 		goto err_out_unlock;
 
 	/* If device is down, we can store the settings only if the user
 	 * is setting the currently active port.
 	 */
-	if (!netif_running(dev) && cmd->port != bp->phy_port)
+	if (!netif_running(dev) && cmd->base.port != bp->phy_port)
 		goto err_out_unlock;
 
-	if (cmd->autoneg == AUTONEG_ENABLE) {
+	if (cmd->base.autoneg == AUTONEG_ENABLE) {
 		autoneg |= AUTONEG_SPEED;
 
-		advertising = cmd->advertising;
-		if (cmd->port == PORT_TP) {
+		ethtool_convert_link_mode_to_legacy_u32(
+			&advertising, cmd->link_modes.advertising);
+
+		if (cmd->base.port == PORT_TP) {
 			advertising &= ETHTOOL_ALL_COPPER_SPEED;
 			if (!advertising)
 				advertising = ETHTOOL_ALL_COPPER_SPEED;
@@ -6986,11 +7007,12 @@ bnx2_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 		advertising |= ADVERTISED_Autoneg;
 	}
 	else {
-		u32 speed = ethtool_cmd_speed(cmd);
-		if (cmd->port == PORT_FIBRE) {
+		u32 speed = cmd->base.speed;
+
+		if (cmd->base.port == PORT_FIBRE) {
 			if ((speed != SPEED_1000 &&
 			     speed != SPEED_2500) ||
-			    (cmd->duplex != DUPLEX_FULL))
+			    (cmd->base.duplex != DUPLEX_FULL))
 				goto err_out_unlock;
 
 			if (speed == SPEED_2500 &&
@@ -7001,7 +7023,7 @@ bnx2_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 
 		autoneg &= ~AUTONEG_SPEED;
 		req_line_speed = speed;
-		req_duplex = cmd->duplex;
+		req_duplex = cmd->base.duplex;
 		advertising = 0;
 	}
 
@@ -7015,7 +7037,7 @@ bnx2_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 	 * brought up.
 	 */
 	if (netif_running(dev))
-		err = bnx2_setup_phy(bp, cmd->port);
+		err = bnx2_setup_phy(bp, cmd->base.port);
 
 err_out_unlock:
 	spin_unlock_bh(&bp->phy_lock);
@@ -7800,8 +7822,6 @@ static int bnx2_set_channels(struct net_device *dev,
 }
 
 static const struct ethtool_ops bnx2_ethtool_ops = {
-	.get_settings		= bnx2_get_settings,
-	.set_settings		= bnx2_set_settings,
 	.get_drvinfo		= bnx2_get_drvinfo,
 	.get_regs_len		= bnx2_get_regs_len,
 	.get_regs		= bnx2_get_regs,
@@ -7825,6 +7845,8 @@ static const struct ethtool_ops bnx2_ethtool_ops = {
 	.get_sset_count		= bnx2_get_sset_count,
 	.get_channels		= bnx2_get_channels,
 	.set_channels		= bnx2_set_channels,
+	.get_link_ksettings	= bnx2_get_link_ksettings,
+	.set_link_ksettings	= bnx2_set_link_ksettings,
 };
 
 /* Called with rtnl_lock */
@@ -7900,10 +7922,6 @@ static int
 bnx2_change_mtu(struct net_device *dev, int new_mtu)
 {
 	struct bnx2 *bp = netdev_priv(dev);
-
-	if (((new_mtu + ETH_HLEN) > MAX_ETHERNET_JUMBO_PACKET_SIZE) ||
-		((new_mtu + ETH_HLEN) < MIN_ETHERNET_PACKET_SIZE))
-		return -EINVAL;
 
 	dev->mtu = new_mtu;
 	return bnx2_change_ring_size(bp, bp->rx_ring_size, bp->tx_ring_size,
@@ -8575,6 +8593,15 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_drvdata(pdev, dev);
 
+	/*
+	 * In-flight DMA from 1st kernel could continue going in kdump kernel.
+	 * New io-page table has been created before bnx2 does reset at open stage.
+	 * We have to wait for the in-flight DMA to complete to avoid it look up
+	 * into the newly created io-page table.
+	 */
+	if (is_kdump_kernel())
+		bnx2_wait_dma_complete(bp);
+
 	memcpy(dev->dev_addr, bp->mac_addr, ETH_ALEN);
 
 	dev->hw_features = NETIF_F_IP_CSUM | NETIF_F_SG |
@@ -8588,6 +8615,8 @@ bnx2_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	dev->hw_features |= NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX;
 	dev->features |= dev->hw_features;
 	dev->priv_flags |= IFF_UNICAST_FLT;
+	dev->min_mtu = MIN_ETHERNET_PACKET_SIZE;
+	dev->max_mtu = MAX_ETHERNET_JUMBO_PACKET_SIZE;
 
 	if (!(bp->flags & BNX2_FLAG_CAN_KEEP_VLAN))
 		dev->hw_features &= ~NETIF_F_HW_VLAN_CTAG_RX;

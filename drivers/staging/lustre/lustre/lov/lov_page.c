@@ -49,44 +49,6 @@
  *
  */
 
-/**
- * Adjust the stripe index by layout of raid0. @max_index is the maximum
- * page index covered by an underlying DLM lock.
- * This function converts max_index from stripe level to file level, and make
- * sure it's not beyond one stripe.
- */
-static int lov_raid0_page_is_under_lock(const struct lu_env *env,
-					const struct cl_page_slice *slice,
-					struct cl_io *unused,
-					pgoff_t *max_index)
-{
-	struct lov_object *loo = cl2lov(slice->cpl_obj);
-	struct lov_layout_raid0 *r0 = lov_r0(loo);
-	pgoff_t index = *max_index;
-	unsigned int pps; /* pages per stripe */
-
-	CDEBUG(D_READA, "*max_index = %lu, nr = %d\n", index, r0->lo_nr);
-	if (index == 0) /* the page is not covered by any lock */
-		return 0;
-
-	if (r0->lo_nr == 1) /* single stripe file */
-		return 0;
-
-	/* max_index is stripe level, convert it into file level */
-	if (index != CL_PAGE_EOF) {
-		int stripeno = lov_page_stripe(slice->cpl_page);
-		*max_index = lov_stripe_pgoff(loo->lo_lsm, index, stripeno);
-	}
-
-	/* calculate the end of current stripe */
-	pps = loo->lo_lsm->lsm_stripe_size >> PAGE_SHIFT;
-	index = ((slice->cpl_index + pps) & ~(pps - 1)) - 1;
-
-	/* never exceed the end of the stripe */
-	*max_index = min_t(pgoff_t, *max_index, index);
-	return 0;
-}
-
 static int lov_raid0_page_print(const struct lu_env *env,
 				const struct cl_page_slice *slice,
 				void *cookie, lu_printer_t printer)
@@ -97,7 +59,6 @@ static int lov_raid0_page_print(const struct lu_env *env,
 }
 
 static const struct cl_page_operations lov_raid0_page_ops = {
-	.cpo_is_under_lock = lov_raid0_page_is_under_lock,
 	.cpo_print  = lov_raid0_page_print
 };
 
@@ -122,6 +83,7 @@ int lov_page_init_raid0(const struct lu_env *env, struct cl_object *obj,
 	rc = lov_stripe_offset(loo->lo_lsm, offset, stripe, &suboff);
 	LASSERT(rc == 0);
 
+	lpg->lps_stripe = stripe;
 	cl_page_slice_add(page, &lpg->lps_cl, obj, index, &lov_raid0_page_ops);
 
 	sub = lov_sub_get(env, lio, stripe);

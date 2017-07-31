@@ -16,21 +16,7 @@
  *  but WITHOUT ANY WARRANTY; without even the implied warranty of
  *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
- *  02111-1307  USA
  */
-
-#include <linux/init.h>
-#include <linux/kernel.h>
-#include <linux/vmalloc.h>
-
-#include <media/v4l2-device.h>
-
-#include <sound/core.h>
-#include <sound/pcm.h>
 
 #include "ivtv-driver.h"
 #include "ivtv-queue.h"
@@ -38,6 +24,12 @@
 #include "ivtv-fileops.h"
 #include "ivtv-alsa.h"
 #include "ivtv-alsa-pcm.h"
+
+#include <linux/vmalloc.h>
+
+#include <sound/core.h>
+#include <sound/pcm.h>
+
 
 static unsigned int pcm_debug;
 module_param(pcm_debug, int, 0644);
@@ -174,6 +166,7 @@ static int snd_ivtv_pcm_capture_open(struct snd_pcm_substream *substream)
 	/* See if the stream is available */
 	if (ivtv_claim_stream(&item, item.type)) {
 		/* No, it's already in use */
+		v4l2_fh_exit(&item.fh);
 		snd_ivtv_unlock(itvsc);
 		return -EBUSY;
 	}
@@ -318,7 +311,7 @@ static struct page *snd_pcm_get_vmalloc_page(struct snd_pcm_substream *subs,
 	return vmalloc_to_page(pageptr);
 }
 
-static struct snd_pcm_ops snd_ivtv_pcm_capture_ops = {
+static const struct snd_pcm_ops snd_ivtv_pcm_capture_ops = {
 	.open		= snd_ivtv_pcm_capture_open,
 	.close		= snd_ivtv_pcm_capture_close,
 	.ioctl		= snd_ivtv_pcm_ioctl,

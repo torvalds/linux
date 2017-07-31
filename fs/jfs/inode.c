@@ -403,7 +403,7 @@ void jfs_truncate_nolock(struct inode *ip, loff_t length)
 			break;
 		}
 
-		ip->i_mtime = ip->i_ctime = CURRENT_TIME;
+		ip->i_mtime = ip->i_ctime = current_time(ip);
 		mark_inode_dirty(ip);
 
 		txCommit(tid, 1, &ip, 0);

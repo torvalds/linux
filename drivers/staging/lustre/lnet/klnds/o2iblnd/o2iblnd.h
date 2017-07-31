@@ -113,8 +113,9 @@ extern struct kib_tunables  kiblnd_tunables;
 #define IBLND_OOB_CAPABLE(v)       ((v) != IBLND_MSG_VERSION_1)
 #define IBLND_OOB_MSGS(v)	   (IBLND_OOB_CAPABLE(v) ? 2 : 0)
 
-#define IBLND_MSG_SIZE		(4 << 10)	 /* max size of queued messages (inc hdr) */
-#define IBLND_MAX_RDMA_FRAGS	 LNET_MAX_IOV	   /* max # of fragments supported */
+#define IBLND_FRAG_SHIFT	(PAGE_SHIFT - 12)	/* frag size on wire is in 4K units */
+#define IBLND_MSG_SIZE		(4 << 10)		/* max size of queued messages (inc hdr) */
+#define IBLND_MAX_RDMA_FRAGS	(LNET_MAX_PAYLOAD >> 12)/* max # of fragments supported in 4K size */
 
 /************************/
 /* derived constants... */
@@ -133,8 +134,8 @@ extern struct kib_tunables  kiblnd_tunables;
 /* WRs and CQEs (per connection) */
 #define IBLND_RECV_WRS(c)	IBLND_RX_MSGS(c)
 #define IBLND_SEND_WRS(c)	\
-	((c->ibc_max_frags + 1) * kiblnd_concurrent_sends(c->ibc_version, \
-							  c->ibc_peer->ibp_ni))
+	(((c->ibc_max_frags + 1) << IBLND_FRAG_SHIFT) * \
+	  kiblnd_concurrent_sends(c->ibc_version, c->ibc_peer->ibp_ni))
 #define IBLND_CQ_ENTRIES(c)	(IBLND_RECV_WRS(c) + IBLND_SEND_WRS(c))
 
 struct kib_hca_dev;
@@ -363,7 +364,7 @@ struct kib_connparams {
 } WIRE_ATTR;
 
 struct kib_immediate_msg {
-	lnet_hdr_t   ibim_hdr;        /* portals header */
+	struct lnet_hdr	ibim_hdr;        /* portals header */
 	char         ibim_payload[0]; /* piggy-backed payload */
 } WIRE_ATTR;
 
@@ -379,7 +380,7 @@ struct kib_rdma_desc {
 } WIRE_ATTR;
 
 struct kib_putreq_msg {
-	lnet_hdr_t      ibprm_hdr;    /* portals header */
+	struct lnet_hdr	ibprm_hdr;    /* portals header */
 	__u64           ibprm_cookie; /* opaque completion cookie */
 } WIRE_ATTR;
 
@@ -390,7 +391,7 @@ struct kib_putack_msg {
 } WIRE_ATTR;
 
 struct kib_get_msg {
-	lnet_hdr_t      ibgm_hdr;     /* portals header */
+	struct lnet_hdr ibgm_hdr;     /* portals header */
 	__u64           ibgm_cookie;  /* opaque completion cookie */
 	struct kib_rdma_desc ibgm_rd;      /* rdma descriptor */
 } WIRE_ATTR;
@@ -582,6 +583,8 @@ struct kib_peer {
 	unsigned short		ibp_connecting;
 	/* reconnect this peer later */
 	unsigned short		ibp_reconnecting:1;
+	/* counter of how many times we triggered a conn race */
+	unsigned char		ibp_races;
 	/* # consecutive reconnection attempts to this peer */
 	unsigned int		ibp_reconnected;
 	/* errno on closing this peer */
@@ -607,14 +610,14 @@ kiblnd_cfg_rdma_frags(struct lnet_ni *ni)
 
 	tunables = &ni->ni_lnd_tunables->lt_tun_u.lt_o2ib;
 	mod = tunables->lnd_map_on_demand;
-	return mod ? mod : IBLND_MAX_RDMA_FRAGS;
+	return mod ? mod : IBLND_MAX_RDMA_FRAGS >> IBLND_FRAG_SHIFT;
 }
 
 static inline int
 kiblnd_rdma_frags(int version, struct lnet_ni *ni)
 {
 	return version == IBLND_MSG_VERSION_1 ?
-			  IBLND_MAX_RDMA_FRAGS :
+			  (IBLND_MAX_RDMA_FRAGS >> IBLND_FRAG_SHIFT) :
 			  kiblnd_cfg_rdma_frags(ni);
 }
 
@@ -1034,5 +1037,4 @@ int  kiblnd_post_rx(struct kib_rx *rx, int credit);
 
 int  kiblnd_send(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg);
 int  kiblnd_recv(lnet_ni_t *ni, void *private, lnet_msg_t *lntmsg, int delayed,
-		 unsigned int niov, struct kvec *iov, lnet_kiov_t *kiov,
-		 unsigned int offset, unsigned int mlen, unsigned int rlen);
+		 struct iov_iter *to, unsigned int rlen);

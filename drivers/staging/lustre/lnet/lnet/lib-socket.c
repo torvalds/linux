@@ -97,7 +97,7 @@ lnet_ipif_query(char *name, int *up, __u32 *ip, __u32 *mask)
 		return -EINVAL;
 	}
 
-	CLASSERT(sizeof(ifr.ifr_name) >= IFNAMSIZ);
+	BUILD_BUG_ON(sizeof(ifr.ifr_name) < IFNAMSIZ);
 
 	if (strlen(name) > sizeof(ifr.ifr_name) - 1)
 		return -E2BIG;
@@ -265,21 +265,17 @@ lnet_sock_write(struct socket *sock, void *buffer, int nob, int timeout)
 	long jiffies_left = timeout * msecs_to_jiffies(MSEC_PER_SEC);
 	unsigned long then;
 	struct timeval tv;
+	struct kvec  iov = { .iov_base = buffer, .iov_len  = nob };
+	struct msghdr msg = {NULL,};
 
 	LASSERT(nob > 0);
 	/*
 	 * Caller may pass a zero timeout if she thinks the socket buffer is
 	 * empty enough to take the whole message immediately
 	 */
+	iov_iter_kvec(&msg.msg_iter, WRITE | ITER_KVEC, &iov, 1, nob);
 	for (;;) {
-		struct kvec  iov = {
-			.iov_base = buffer,
-			.iov_len  = nob
-		};
-		struct msghdr msg = {
-			.msg_flags      = !timeout ? MSG_DONTWAIT : 0
-		};
-
+		msg.msg_flags = !timeout ? MSG_DONTWAIT : 0;
 		if (timeout) {
 			/* Set send timeout to remaining time */
 			jiffies_to_timeval(jiffies_left, &tv);
@@ -296,9 +292,6 @@ lnet_sock_write(struct socket *sock, void *buffer, int nob, int timeout)
 		rc = kernel_sendmsg(sock, &msg, &iov, 1, nob);
 		jiffies_left -= jiffies - then;
 
-		if (rc == nob)
-			return 0;
-
 		if (rc < 0)
 			return rc;
 
@@ -307,11 +300,11 @@ lnet_sock_write(struct socket *sock, void *buffer, int nob, int timeout)
 			return -ECONNABORTED;
 		}
 
+		if (!msg_data_left(&msg))
+			break;
+
 		if (jiffies_left <= 0)
 			return -EAGAIN;
-
-		buffer = ((char *)buffer) + rc;
-		nob -= rc;
 	}
 	return 0;
 }
@@ -400,8 +393,10 @@ lnet_sock_create(struct socket **sockp, int *fatal, __u32 local_ip,
 		memset(&locaddr, 0, sizeof(locaddr));
 		locaddr.sin_family = AF_INET;
 		locaddr.sin_port = htons(local_port);
-		locaddr.sin_addr.s_addr = !local_ip ?
-					  INADDR_ANY : htonl(local_ip);
+		if (!local_ip)
+			locaddr.sin_addr.s_addr = htonl(INADDR_ANY);
+		else
+			locaddr.sin_addr.s_addr = htonl(local_ip);
 
 		rc = kernel_bind(sock, (struct sockaddr *)&locaddr,
 				 sizeof(locaddr));
@@ -537,7 +532,7 @@ lnet_sock_accept(struct socket **newsockp, struct socket *sock)
 
 	newsock->ops = sock->ops;
 
-	rc = sock->ops->accept(sock, newsock, O_NONBLOCK);
+	rc = sock->ops->accept(sock, newsock, O_NONBLOCK, false);
 	if (rc == -EAGAIN) {
 		/* Nothing ready, so wait for activity */
 		init_waitqueue_entry(&wait, current);
@@ -545,7 +540,7 @@ lnet_sock_accept(struct socket **newsockp, struct socket *sock)
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule();
 		remove_wait_queue(sk_sleep(sock->sk), &wait);
-		rc = sock->ops->accept(sock, newsock, O_NONBLOCK);
+		rc = sock->ops->accept(sock, newsock, O_NONBLOCK, false);
 	}
 
 	if (rc)

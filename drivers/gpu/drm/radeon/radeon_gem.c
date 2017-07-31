@@ -220,8 +220,8 @@ int radeon_gem_info_ioctl(struct drm_device *dev, void *data,
 
 	man = &rdev->mman.bdev.man[TTM_PL_VRAM];
 
-	args->vram_size = rdev->mc.real_vram_size;
-	args->vram_visible = (u64)man->size << PAGE_SHIFT;
+	args->vram_size = (u64)man->size << PAGE_SHIFT;
+	args->vram_visible = rdev->mc.visible_vram_size;
 	args->vram_visible -= rdev->vram_pin_size;
 	args->gart_size = rdev->mc.gtt_size;
 	args->gart_size -= rdev->gart_pin_size;
@@ -745,7 +745,8 @@ int radeon_mode_dumb_create(struct drm_file *file_priv,
 	uint32_t handle;
 	int r;
 
-	args->pitch = radeon_align_pitch(rdev, args->width, args->bpp, 0) * ((args->bpp + 1) / 8);
+	args->pitch = radeon_align_pitch(rdev, args->width,
+					 DIV_ROUND_UP(args->bpp, 8), 0);
 	args->size = args->pitch * args->height;
 	args->size = ALIGN(args->size, PAGE_SIZE);
 

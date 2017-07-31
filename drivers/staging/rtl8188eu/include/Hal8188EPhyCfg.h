@@ -99,17 +99,6 @@ enum phy_rate_tx_offset_area {
 	RA_OFFSET_HT_CCK,
 };
 
-/* BB/RF related */
-enum RF_TYPE_8190P {
-	RF_TYPE_MIN,		/*  0 */
-	RF_8225 = 1,		/*  1 11b/g RF for verification only */
-	RF_8256 = 2,		/*  2 11b/g/n */
-	RF_8258 = 3,		/*  3 11a/b/g/n RF */
-	RF_6052 = 4,		/*  4 11b/g/n RF */
-	/*  TODO: We should remove this psudo PHY RF after we get new RF. */
-	RF_PSEUDO_11N = 5,	/*  5, It is a temporality RF. */
-};
-
 struct bb_reg_def {
 	u32 rfintfs;		/*  set software control: */
 				/*	0x870~0x877[8 bytes] */
@@ -156,24 +145,6 @@ struct bb_reg_def {
 				/*	0x8a0~0x8af [16 bytes] */
 	u32 rfLSSIReadBackPi;	/* LSSI RF readback data PI mode 0x8b8-8bc for
 				 * Path A and B */
-};
-
-struct ant_sel_ofdm {
-	u32 r_tx_antenna:4;
-	u32 r_ant_l:4;
-	u32 r_ant_non_ht:4;
-	u32 r_ant_ht1:4;
-	u32 r_ant_ht2:4;
-	u32 r_ant_ht_s1:4;
-	u32 r_ant_non_ht_s1:4;
-	u32 OFDM_TXSC:2;
-	u32 reserved:2;
-};
-
-struct ant_sel_cck {
-	u8 r_cckrx_enable_2:2;
-	u8 r_cckrx_enable:2;
-	u8 r_ccktx_enable:4;
 };
 
 /*------------------------------Define structure----------------------------*/

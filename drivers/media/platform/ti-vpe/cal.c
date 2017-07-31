@@ -483,11 +483,7 @@ static void cal_get_hwinfo(struct cal_dev *dev)
 
 static inline int cal_runtime_get(struct cal_dev *dev)
 {
-	int r;
-
-	r = pm_runtime_get_sync(&dev->pdev->dev);
-
-	return r;
+	return pm_runtime_get_sync(&dev->pdev->dev);
 }
 
 static inline void cal_runtime_put(struct cal_dev *dev)
@@ -1379,7 +1375,7 @@ static void cal_stop_streaming(struct vb2_queue *vq)
 	cal_runtime_put(ctx->dev);
 }
 
-static struct vb2_ops cal_video_qops = {
+static const struct vb2_ops cal_video_qops = {
 	.queue_setup		= cal_queue_setup,
 	.buf_prepare		= cal_buffer_prepare,
 	.buf_queue		= cal_buffer_queue,
@@ -1749,13 +1745,13 @@ static int of_cal_create_instance(struct cal_ctx *ctx, int inst)
 	}
 
 cleanup_exit:
-	if (!remote_ep)
+	if (remote_ep)
 		of_node_put(remote_ep);
-	if (!sensor_node)
+	if (sensor_node)
 		of_node_put(sensor_node);
-	if (!ep_node)
+	if (ep_node)
 		of_node_put(ep_node);
-	if (!port)
+	if (port)
 		of_node_put(port);
 
 	return ret;

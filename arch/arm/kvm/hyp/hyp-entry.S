@@ -81,7 +81,6 @@ __kvm_hyp_vector:
 	invalid_vector	hyp_undef	ARM_EXCEPTION_UNDEFINED
 	invalid_vector	hyp_svc		ARM_EXCEPTION_SOFTWARE
 	invalid_vector	hyp_pabt	ARM_EXCEPTION_PREF_ABORT
-	invalid_vector	hyp_dabt	ARM_EXCEPTION_DATA_ABORT
 	invalid_vector	hyp_fiq		ARM_EXCEPTION_FIQ
 
 ENTRY(__hyp_do_panic)
@@ -163,6 +162,21 @@ hyp_irq:
 	mov	r1, #ARM_EXCEPTION_IRQ
 	load_vcpu r0			@ Load VCPU pointer to r0
 	b	__guest_exit
+
+hyp_dabt:
+	push	{r0, r1}
+	mrs	r0, ELR_hyp
+	ldr	r1, =abort_guest_exit_start
+THUMB(	add	r1, r1, #1)
+	cmp	r0, r1
+	ldrne	r1, =abort_guest_exit_end
+THUMB(	addne	r1, r1, #1)
+	cmpne	r0, r1
+	pop	{r0, r1}
+	bne	__hyp_panic
+
+	orr	r0, r0, #(1 << ARM_EXIT_WITH_ABORT_BIT)
+	eret
 
 	.ltorg
 

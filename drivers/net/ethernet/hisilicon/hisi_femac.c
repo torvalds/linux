@@ -330,7 +330,7 @@ static int hisi_femac_poll(struct napi_struct *napi, int budget)
 	} while (ints & DEF_INT_MASK);
 
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		hisi_femac_irq_enable(priv, DEF_INT_MASK &
 					(~IRQ_INT_TX_PER_PACKET));
 	}
@@ -699,7 +699,7 @@ static int hisi_femac_net_ioctl(struct net_device *dev,
 	return phy_mii_ioctl(dev->phydev, ifreq, cmd);
 }
 
-static struct ethtool_ops hisi_femac_ethtools_ops = {
+static const struct ethtool_ops hisi_femac_ethtools_ops = {
 	.get_link		= ethtool_op_get_link,
 	.get_link_ksettings	= phy_ethtool_get_link_ksettings,
 	.set_link_ksettings	= phy_ethtool_set_link_ksettings,
@@ -712,7 +712,6 @@ static const struct net_device_ops hisi_femac_netdev_ops = {
 	.ndo_do_ioctl		= hisi_femac_net_ioctl,
 	.ndo_set_mac_address	= hisi_femac_set_mac_address,
 	.ndo_set_rx_mode	= hisi_femac_net_set_rx_mode,
-	.ndo_change_mtu		= eth_change_mtu,
 };
 
 static void hisi_femac_core_reset(struct hisi_femac_priv *priv)
@@ -806,6 +805,7 @@ static int hisi_femac_drv_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, ndev);
+	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	priv = netdev_priv(ndev);
 	priv->dev = dev;
@@ -883,7 +883,6 @@ static int hisi_femac_drv_probe(struct platform_device *pdev)
 	ndev->netdev_ops = &hisi_femac_netdev_ops;
 	ndev->ethtool_ops = &hisi_femac_ethtools_ops;
 	netif_napi_add(ndev, &priv->napi, hisi_femac_poll, FEMAC_POLL_WEIGHT);
-	SET_NETDEV_DEV(ndev, &pdev->dev);
 
 	hisi_femac_port_init(priv);
 
@@ -940,8 +939,8 @@ static int hisi_femac_drv_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-int hisi_femac_drv_suspend(struct platform_device *pdev,
-			   pm_message_t state)
+static int hisi_femac_drv_suspend(struct platform_device *pdev,
+				  pm_message_t state)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct hisi_femac_priv *priv = netdev_priv(ndev);
@@ -957,7 +956,7 @@ int hisi_femac_drv_suspend(struct platform_device *pdev,
 	return 0;
 }
 
-int hisi_femac_drv_resume(struct platform_device *pdev)
+static int hisi_femac_drv_resume(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct hisi_femac_priv *priv = netdev_priv(ndev);

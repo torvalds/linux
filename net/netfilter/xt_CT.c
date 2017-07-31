@@ -23,15 +23,15 @@
 static inline int xt_ct_target(struct sk_buff *skb, struct nf_conn *ct)
 {
 	/* Previously seen (loopback)? Ignore. */
-	if (skb->nfct != NULL)
+	if (skb->_nfct != 0)
 		return XT_CONTINUE;
 
-	/* special case the untracked ct : we want the percpu object */
-	if (!ct)
-		ct = nf_ct_untracked_get();
-	atomic_inc(&ct->ct_general.use);
-	skb->nfct = &ct->ct_general;
-	skb->nfctinfo = IP_CT_NEW;
+	if (ct) {
+		atomic_inc(&ct->ct_general.use);
+		nf_ct_set(skb, ct, IP_CT_NEW);
+	} else {
+		nf_ct_set(skb, ct, IP_CT_UNTRACKED);
+	}
 
 	return XT_CONTINUE;
 }
@@ -216,7 +216,7 @@ static int xt_ct_tg_check(const struct xt_tgchk_param *par,
 		goto err1;
 #endif
 
-	ret = nf_ct_l3proto_try_module_get(par->family);
+	ret = nf_ct_netns_get(par->net, par->family);
 	if (ret < 0)
 		goto err1;
 
@@ -260,7 +260,7 @@ out:
 err3:
 	nf_ct_tmpl_free(ct);
 err2:
-	nf_ct_l3proto_module_put(par->family);
+	nf_ct_netns_put(par->net, par->family);
 err1:
 	return ret;
 }
@@ -336,12 +336,12 @@ static void xt_ct_tg_destroy(const struct xt_tgdtor_param *par,
 	struct nf_conn *ct = info->ct;
 	struct nf_conn_help *help;
 
-	if (ct && !nf_ct_is_untracked(ct)) {
+	if (ct) {
 		help = nfct_help(ct);
 		if (help)
 			module_put(help->helper->me);
 
-		nf_ct_l3proto_module_put(par->family);
+		nf_ct_netns_put(par->net, par->family);
 
 		xt_ct_destroy_timeout(ct);
 		nf_ct_put(info->ct);
@@ -373,6 +373,7 @@ static struct xt_target xt_ct_tg_reg[] __read_mostly = {
 		.name		= "CT",
 		.family		= NFPROTO_UNSPEC,
 		.targetsize	= sizeof(struct xt_ct_target_info),
+		.usersize	= offsetof(struct xt_ct_target_info, ct),
 		.checkentry	= xt_ct_tg_check_v0,
 		.destroy	= xt_ct_tg_destroy_v0,
 		.target		= xt_ct_target_v0,
@@ -384,6 +385,7 @@ static struct xt_target xt_ct_tg_reg[] __read_mostly = {
 		.family		= NFPROTO_UNSPEC,
 		.revision	= 1,
 		.targetsize	= sizeof(struct xt_ct_target_info_v1),
+		.usersize	= offsetof(struct xt_ct_target_info, ct),
 		.checkentry	= xt_ct_tg_check_v1,
 		.destroy	= xt_ct_tg_destroy_v1,
 		.target		= xt_ct_target_v1,
@@ -395,6 +397,7 @@ static struct xt_target xt_ct_tg_reg[] __read_mostly = {
 		.family		= NFPROTO_UNSPEC,
 		.revision	= 2,
 		.targetsize	= sizeof(struct xt_ct_target_info_v1),
+		.usersize	= offsetof(struct xt_ct_target_info, ct),
 		.checkentry	= xt_ct_tg_check_v2,
 		.destroy	= xt_ct_tg_destroy_v1,
 		.target		= xt_ct_target_v1,
@@ -407,12 +410,10 @@ static unsigned int
 notrack_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	/* Previously seen (loopback)? Ignore. */
-	if (skb->nfct != NULL)
+	if (skb->_nfct != 0)
 		return XT_CONTINUE;
 
-	skb->nfct = &nf_ct_untracked_get()->ct_general;
-	skb->nfctinfo = IP_CT_NEW;
-	nf_conntrack_get(skb->nfct);
+	nf_ct_set(skb, NULL, IP_CT_UNTRACKED);
 
 	return XT_CONTINUE;
 }

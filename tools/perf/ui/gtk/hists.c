@@ -4,7 +4,9 @@
 #include "../sort.h"
 #include "../hist.h"
 #include "../helpline.h"
+#include "../string2.h"
 #include "gtk.h"
+#include <signal.h>
 
 #define MAX_COLUMNS			32
 
@@ -549,7 +551,7 @@ static void perf_gtk__show_hierarchy(GtkWidget *window, struct hists *hists,
 				strcat(buf, "+");
 			first_col = false;
 
-			fmt->header(fmt, &hpp, hists);
+			fmt->header(fmt, &hpp, hists, 0, NULL);
 			strcat(buf, ltrim(rtrim(hpp.buf)));
 		}
 	}

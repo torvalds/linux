@@ -36,19 +36,29 @@ config	THUNDER_NIC_BGX
 	depends on 64BIT
 	select PHYLIB
 	select MDIO_THUNDER
+	select THUNDER_NIC_RGX
 	---help---
 	  This driver supports programming and controlling of MAC
 	  interface from NIC physical function driver.
 
+config	THUNDER_NIC_RGX
+	tristate "Thunder MAC interface driver (RGX)"
+	depends on 64BIT
+	select PHYLIB
+	select MDIO_THUNDER
+	---help---
+	  This driver supports configuring XCV block of RGX interface
+	  present on CN81XX chip.
+
 config LIQUIDIO
 	tristate "Cavium LiquidIO support"
 	depends on 64BIT
-	select PTP_1588_CLOCK
+	imply PTP_1588_CLOCK
 	select FW_LOADER
 	select LIBCRC32C
 	---help---
 	  This driver supports Cavium LiquidIO Intelligent Server Adapters
-	  based on CN66XX and CN68XX chips.
+	  based on CN66XX, CN68XX and CN23XX chips.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called liquidio.  This is recommended.
@@ -63,5 +73,17 @@ config OCTEON_MGMT_ETHERNET
 	  Enable the ethernet driver for the management
 	  port on Cavium Networks' Octeon CN57XX, CN56XX, CN55XX,
 	  CN54XX, CN52XX, and CN6XXX chips.
+
+config LIQUIDIO_VF
+	tristate "Cavium LiquidIO VF support"
+	depends on 64BIT && PCI_MSI
+	imply PTP_1588_CLOCK
+	---help---
+	  This driver supports Cavium LiquidIO Intelligent Server Adapter
+	  based on CN23XX chips.
+
+	  To compile this driver as a module, choose M here: The module
+	  will be called liquidio_vf. MSI-X interrupt support is required
+	  for this driver to work correctly
 
 endif # NET_VENDOR_CAVIUM

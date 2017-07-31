@@ -137,8 +137,4 @@ value to host byte ordering.*/
 		((((u8)__val) & BIT_LEN_MASK_8(__bitlen)) << (__bitoffset)) \
 		)
 
-/*  Get the N-bytes aligment offset from the current length */
-#define	N_BYTE_ALIGMENT(__value, __aligment) ((__aligment == 1) ? \
-	(__value) : (((__value + __aligment - 1) / __aligment) * __aligment))
-
 #endif /* __BASIC_TYPES_H__ */

@@ -44,8 +44,6 @@
 #include <linux/page-flags.h>
 #include <linux/pagemap.h>
 
-#include "../include/lustre_lite.h"
-
 #include "llite_internal.h"
 #include "vvp_internal.h"
 
@@ -164,13 +162,10 @@ static void vvp_page_delete(const struct lu_env *env,
 	LASSERT((struct cl_page *)vmpage->private == page);
 	LASSERT(inode == vvp_object_inode(obj));
 
-	vvp_write_complete(cl2vvp(obj), cl2vvp_page(slice));
-
 	/* Drop the reference count held in vvp_page_init */
 	refc = atomic_dec_return(&page->cp_ref);
 	LASSERTF(refc >= 1, "page = %p, refc = %d\n", page, refc);
 
-	ClearPageUptodate(vmpage);
 	ClearPagePrivate(vmpage);
 	vmpage->private = 0;
 	/*
@@ -223,8 +218,6 @@ static int vvp_page_prep_write(const struct lu_env *env,
 	if (!pg->cp_sync_io)
 		set_page_writeback(vmpage);
 
-	vvp_write_pending(cl2vvp(slice->cpl_obj), cl2vvp_page(slice));
-
 	return 0;
 }
 
@@ -234,7 +227,8 @@ static int vvp_page_prep_write(const struct lu_env *env,
  * This takes inode as a separate argument, because inode on which error is to
  * be set can be different from \a vmpage inode in case of direct-io.
  */
-static void vvp_vmpage_error(struct inode *inode, struct page *vmpage, int ioret)
+static void vvp_vmpage_error(struct inode *inode, struct page *vmpage,
+			     int ioret)
 {
 	struct vvp_object *obj = cl_inode2vvp(inode);
 
@@ -243,13 +237,10 @@ static void vvp_vmpage_error(struct inode *inode, struct page *vmpage, int ioret
 		obj->vob_discard_page_warned = 0;
 	} else {
 		SetPageError(vmpage);
-		if (ioret == -ENOSPC)
-			set_bit(AS_ENOSPC, &inode->i_mapping->flags);
-		else
-			set_bit(AS_EIO, &inode->i_mapping->flags);
+		mapping_set_error(inode->i_mapping, ioret);
 
 		if ((ioret == -ESHUTDOWN || ioret == -EINTR) &&
-		     obj->vob_discard_page_warned == 0) {
+		    obj->vob_discard_page_warned == 0) {
 			obj->vob_discard_page_warned = 1;
 			ll_dirty_page_discard_warn(vmpage, ioret);
 		}
@@ -292,19 +283,6 @@ static void vvp_page_completion_write(const struct lu_env *env,
 
 	CL_PAGE_HEADER(D_PAGE, env, pg, "completing WRITE with %d\n", ioret);
 
-	/*
-	 * TODO: Actually it makes sense to add the page into oap pending
-	 * list again and so that we don't need to take the page out from
-	 * SoM write pending list, if we just meet a recoverable error,
-	 * -ENOMEM, etc.
-	 * To implement this, we just need to return a non zero value in
-	 * ->cpo_completion method. The underlying transfer should be notified
-	 * and then re-add the page into pending transfer queue.  -jay
-	 */
-
-	vpg->vpg_write_queued = 0;
-	vvp_write_complete(cl2vvp(slice->cpl_obj), vpg);
-
 	if (pg->cp_sync_io) {
 		LASSERT(PageLocked(vmpage));
 		LASSERT(!PageWriteback(vmpage));
@@ -346,7 +324,6 @@ static int vvp_page_make_ready(const struct lu_env *env,
 		LASSERT(pg->cp_state == CPS_CACHED);
 		/* This actually clears the dirty bit in the radix tree. */
 		set_page_writeback(vmpage);
-		vvp_write_pending(cl2vvp(slice->cpl_obj), cl2vvp_page(slice));
 		CL_PAGE_HEADER(D_PAGE, env, pg, "readied\n");
 	} else if (pg->cp_state == CPS_PAGEOUT) {
 		/* is it possible for osc_flush_async_page() to already
@@ -362,20 +339,6 @@ static int vvp_page_make_ready(const struct lu_env *env,
 	return result;
 }
 
-static int vvp_page_is_under_lock(const struct lu_env *env,
-				  const struct cl_page_slice *slice,
-				  struct cl_io *io, pgoff_t *max_index)
-{
-	if (io->ci_type == CIT_READ || io->ci_type == CIT_WRITE ||
-	    io->ci_type == CIT_FAULT) {
-		struct vvp_io *vio = vvp_env_io(env);
-
-		if (unlikely(vio->vui_fd->fd_flags & LL_FILE_GROUP_LOCKED))
-			*max_index = CL_PAGE_EOF;
-	}
-	return 0;
-}
-
 static int vvp_page_print(const struct lu_env *env,
 			  const struct cl_page_slice *slice,
 			  void *cookie, lu_printer_t printer)
@@ -383,9 +346,8 @@ static int vvp_page_print(const struct lu_env *env,
 	struct vvp_page *vpg = cl2vvp_page(slice);
 	struct page     *vmpage = vpg->vpg_page;
 
-	(*printer)(env, cookie, LUSTRE_VVP_NAME "-page@%p(%d:%d:%d) vm@%p ",
-		   vpg, vpg->vpg_defer_uptodate, vpg->vpg_ra_used,
-		   vpg->vpg_write_queued, vmpage);
+	(*printer)(env, cookie, LUSTRE_VVP_NAME "-page@%p(%d:%d) vm@%p ",
+		   vpg, vpg->vpg_defer_uptodate, vpg->vpg_ra_used, vmpage);
 	if (vmpage) {
 		(*printer)(env, cookie, "%lx %d:%d %lx %lu %slru",
 			   (long)vmpage->flags, page_count(vmpage),
@@ -421,7 +383,6 @@ static const struct cl_page_operations vvp_page_ops = {
 	.cpo_is_vmlocked   = vvp_page_is_vmlocked,
 	.cpo_fini	  = vvp_page_fini,
 	.cpo_print	 = vvp_page_print,
-	.cpo_is_under_lock = vvp_page_is_under_lock,
 	.io = {
 		[CRT_READ] = {
 			.cpo_prep	= vvp_page_prep_read,
@@ -444,18 +405,10 @@ static int vvp_transient_page_prep(const struct lu_env *env,
 	return 0;
 }
 
-static void vvp_transient_page_verify(const struct cl_page *page)
-{
-	struct inode *inode = vvp_object_inode(page->cp_obj);
-
-	LASSERT(!inode_trylock(inode));
-}
-
 static int vvp_transient_page_own(const struct lu_env *env,
 				  const struct cl_page_slice *slice,
 				  struct cl_io *unused, int nonblock)
 {
-	vvp_transient_page_verify(slice->cpl_page);
 	return 0;
 }
 
@@ -463,21 +416,18 @@ static void vvp_transient_page_assume(const struct lu_env *env,
 				      const struct cl_page_slice *slice,
 				      struct cl_io *unused)
 {
-	vvp_transient_page_verify(slice->cpl_page);
 }
 
 static void vvp_transient_page_unassume(const struct lu_env *env,
 					const struct cl_page_slice *slice,
 					struct cl_io *unused)
 {
-	vvp_transient_page_verify(slice->cpl_page);
 }
 
 static void vvp_transient_page_disown(const struct lu_env *env,
 				      const struct cl_page_slice *slice,
 				      struct cl_io *unused)
 {
-	vvp_transient_page_verify(slice->cpl_page);
 }
 
 static void vvp_transient_page_discard(const struct lu_env *env,
@@ -485,8 +435,6 @@ static void vvp_transient_page_discard(const struct lu_env *env,
 				       struct cl_io *unused)
 {
 	struct cl_page *page = slice->cpl_page;
-
-	vvp_transient_page_verify(slice->cpl_page);
 
 	/*
 	 * For transient pages, remove it from the radix tree.
@@ -511,7 +459,6 @@ vvp_transient_page_completion(const struct lu_env *env,
 			      const struct cl_page_slice *slice,
 			      int ioret)
 {
-	vvp_transient_page_verify(slice->cpl_page);
 }
 
 static void vvp_transient_page_fini(const struct lu_env *env,
@@ -522,8 +469,7 @@ static void vvp_transient_page_fini(const struct lu_env *env,
 	struct vvp_object *clobj = cl2vvp(clp->cp_obj);
 
 	vvp_page_fini_common(vpg);
-	LASSERT(!inode_trylock(clobj->vob_inode));
-	clobj->vob_transient_pages--;
+	atomic_dec(&clobj->vob_transient_pages);
 }
 
 static const struct cl_page_operations vvp_transient_page_ops = {
@@ -535,7 +481,6 @@ static const struct cl_page_operations vvp_transient_page_ops = {
 	.cpo_fini	  = vvp_transient_page_fini,
 	.cpo_is_vmlocked   = vvp_transient_page_is_vmlocked,
 	.cpo_print	 = vvp_page_print,
-	.cpo_is_under_lock	= vvp_page_is_under_lock,
 	.io = {
 		[CRT_READ] = {
 			.cpo_prep	= vvp_transient_page_prep,
@@ -549,7 +494,7 @@ static const struct cl_page_operations vvp_transient_page_ops = {
 };
 
 int vvp_page_init(const struct lu_env *env, struct cl_object *obj,
-		struct cl_page *page, pgoff_t index)
+		  struct cl_page *page, pgoff_t index)
 {
 	struct vvp_page *vpg = cl_object_page_slice(obj, page);
 	struct page     *vmpage = page->cp_vmpage;
@@ -559,7 +504,6 @@ int vvp_page_init(const struct lu_env *env, struct cl_object *obj,
 	vpg->vpg_page = vmpage;
 	get_page(vmpage);
 
-	INIT_LIST_HEAD(&vpg->vpg_pending_linkage);
 	if (page->cp_type == CPT_CACHEABLE) {
 		/* in cache, decref in vvp_page_delete */
 		atomic_inc(&page->cp_ref);
@@ -570,10 +514,9 @@ int vvp_page_init(const struct lu_env *env, struct cl_object *obj,
 	} else {
 		struct vvp_object *clobj = cl2vvp(obj);
 
-		LASSERT(!inode_trylock(clobj->vob_inode));
 		cl_page_slice_add(page, &vpg->vpg_cl, obj, index,
 				  &vvp_transient_page_ops);
-		clobj->vob_transient_pages++;
+		atomic_inc(&clobj->vob_transient_pages);
 	}
 	return 0;
 }

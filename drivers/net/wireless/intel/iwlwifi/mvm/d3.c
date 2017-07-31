@@ -91,7 +91,7 @@ void iwl_mvm_set_rekey_data(struct ieee80211_hw *hw,
 	memcpy(mvmvif->rekey_data.kek, data->kek, NL80211_KEK_LEN);
 	memcpy(mvmvif->rekey_data.kck, data->kck, NL80211_KCK_LEN);
 	mvmvif->rekey_data.replay_ctr =
-		cpu_to_le64(be64_to_cpup((__be64 *)&data->replay_ctr));
+		cpu_to_le64(be64_to_cpup((__be64 *)data->replay_ctr));
 	mvmvif->rekey_data.valid = true;
 
 	mutex_unlock(&mvm->mutex);
@@ -665,6 +665,19 @@ static int iwl_mvm_d3_reprogram(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	struct iwl_binding_cmd binding_cmd = {};
 	struct iwl_time_quota_cmd quota_cmd = {};
 	u32 status;
+	int size;
+
+	if (fw_has_capa(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_BINDING_CDB_SUPPORT)) {
+		size = sizeof(binding_cmd);
+		if (mvmvif->phy_ctxt->channel->band == NL80211_BAND_2GHZ ||
+		    !iwl_mvm_is_cdb_supported(mvm))
+			binding_cmd.lmac_id = cpu_to_le32(IWL_LMAC_24G_INDEX);
+		else
+			binding_cmd.lmac_id = cpu_to_le32(IWL_LMAC_5G_INDEX);
+	} else {
+		size = IWL_BINDING_CMD_SIZE_V1;
+	}
 
 	/* add back the PHY */
 	if (WARN_ON(!mvmvif->phy_ctxt))
@@ -711,8 +724,7 @@ static int iwl_mvm_d3_reprogram(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	status = 0;
 	ret = iwl_mvm_send_cmd_pdu_status(mvm, BINDING_CONTEXT_CMD,
-					  sizeof(binding_cmd), &binding_cmd,
-					  &status);
+					  size, &binding_cmd, &status);
 	if (ret) {
 		IWL_ERR(mvm, "Failed to add binding: %d\n", ret);
 		return ret;
@@ -986,7 +998,9 @@ int iwl_mvm_wowlan_config_key_params(struct iwl_mvm *mvm,
 			goto out;
 	}
 
-	if (key_data.use_tkip) {
+	if (key_data.use_tkip &&
+	    !fw_has_api(&mvm->fw->ucode_capa,
+			IWL_UCODE_TLV_API_TKIP_MIC_KEYS)) {
 		ret = iwl_mvm_send_cmd_pdu(mvm,
 					   WOWLAN_TKIP_PARAM,
 					   cmd_flags, sizeof(tkip_cmd),
@@ -1087,6 +1101,15 @@ iwl_mvm_netdetect_config(struct iwl_mvm *mvm,
 		ret = iwl_mvm_switch_to_d3(mvm);
 		if (ret)
 			return ret;
+	} else {
+		/* In theory, we wouldn't have to stop a running sched
+		 * scan in order to start another one (for
+		 * net-detect).  But in practice this doesn't seem to
+		 * work properly, so stop any running sched_scan now.
+		 */
+		ret = iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_SCHED, true);
+		if (ret)
+			return ret;
 	}
 
 	/* rfkill release can be either for wowlan or netdetect */
@@ -1185,7 +1208,7 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 
 	mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	if (mvmvif->ap_sta_id == IWL_MVM_STATION_COUNT) {
+	if (mvmvif->ap_sta_id == IWL_MVM_INVALID_STA) {
 		/* if we're not associated, this must be netdetect */
 		if (!wowlan->nd_config) {
 			ret = 1;
@@ -1253,9 +1276,15 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	iwl_trans_d3_suspend(mvm->trans, test, !unified_image);
  out:
 	if (ret < 0) {
-		iwl_mvm_ref(mvm, IWL_MVM_REF_UCODE_DOWN);
-		ieee80211_restart_hw(mvm->hw);
 		iwl_mvm_free_nd(mvm);
+
+		if (!unified_image) {
+			iwl_mvm_ref(mvm, IWL_MVM_REF_UCODE_DOWN);
+			if (mvm->restart_fw > 0) {
+				mvm->restart_fw--;
+				ieee80211_restart_hw(mvm->hw);
+			}
+		}
 	}
  out_noreset:
 	mutex_unlock(&mvm->mutex);
@@ -1726,7 +1755,7 @@ out:
 static struct iwl_wowlan_status *
 iwl_mvm_get_wakeup_status(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
-	u32 base = mvm->error_event_table;
+	u32 base = mvm->error_event_table[0];
 	struct error_table_start {
 		/* cf. struct iwl_error_event_table */
 		u32 valid;
@@ -2087,7 +2116,21 @@ static int __iwl_mvm_resume(struct iwl_mvm *mvm, bool test)
 	 */
 	iwl_mvm_update_changed_regdom(mvm);
 
+	if (!unified_image)
+		/*  Re-configure default SAR profile */
+		iwl_mvm_sar_select_profile(mvm, 1, 1);
+
 	if (mvm->net_detect) {
+		/* If this is a non-unified image, we restart the FW,
+		 * so no need to stop the netdetect scan.  If that
+		 * fails, continue and try to get the wake-up reasons,
+		 * but trigger a HW restart by keeping a failure code
+		 * in ret.
+		 */
+		if (unified_image)
+			ret = iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_NETDETECT,
+						false);
+
 		iwl_mvm_query_netdetect_reasons(mvm, vif);
 		/* has unlocked the mutex, so skip that */
 		goto out;
@@ -2271,7 +2314,8 @@ static void iwl_mvm_d3_test_disconn_work_iter(void *_data, u8 *mac,
 static int iwl_mvm_d3_test_release(struct inode *inode, struct file *file)
 {
 	struct iwl_mvm *mvm = inode->i_private;
-	int remaining_time = 10;
+	bool unified_image = fw_has_capa(&mvm->fw->ucode_capa,
+					 IWL_UCODE_TLV_CAPA_CNSLDTD_D3_D0_IMG);
 
 	mvm->d3_test_active = false;
 
@@ -2282,17 +2326,21 @@ static int iwl_mvm_d3_test_release(struct inode *inode, struct file *file)
 	mvm->trans->system_pm_mode = IWL_PLAT_PM_MODE_DISABLED;
 
 	iwl_abort_notification_waits(&mvm->notif_wait);
-	ieee80211_restart_hw(mvm->hw);
+	if (!unified_image) {
+		int remaining_time = 10;
 
-	/* wait for restart and disconnect all interfaces */
-	while (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status) &&
-	       remaining_time > 0) {
-		remaining_time--;
-		msleep(1000);
+		ieee80211_restart_hw(mvm->hw);
+
+		/* wait for restart and disconnect all interfaces */
+		while (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status) &&
+		       remaining_time > 0) {
+			remaining_time--;
+			msleep(1000);
+		}
+
+		if (remaining_time == 0)
+			IWL_ERR(mvm, "Timed out waiting for HW restart!\n");
 	}
-
-	if (remaining_time == 0)
-		IWL_ERR(mvm, "Timed out waiting for HW restart to finish!\n");
 
 	ieee80211_iterate_active_interfaces_atomic(
 		mvm->hw, IEEE80211_IFACE_ITER_NORMAL,

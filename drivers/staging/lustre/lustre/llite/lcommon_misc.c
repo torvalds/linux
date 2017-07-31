@@ -33,12 +33,12 @@
  * future).
  *
  */
+#define DEBUG_SUBSYSTEM S_LLITE
 #include "../include/obd_class.h"
 #include "../include/obd_support.h"
 #include "../include/obd.h"
 #include "../include/cl_object.h"
 
-#include "../include/lustre_lite.h"
 #include "llite_internal.h"
 
 /* Initialize the default and maximum LOV EA and cookie sizes.  This allows
@@ -48,36 +48,29 @@
  */
 int cl_init_ea_size(struct obd_export *md_exp, struct obd_export *dt_exp)
 {
-	struct lov_stripe_md lsm = { .lsm_magic = LOV_MAGIC_V3 };
-	__u32 valsize = sizeof(struct lov_desc);
-	int rc, easize, def_easize, cookiesize;
-	struct lov_desc desc;
-	__u16 stripes, def_stripes;
+	u32 val_size, max_easize, def_easize;
+	int rc;
 
-	rc = obd_get_info(NULL, dt_exp, sizeof(KEY_LOVDESC), KEY_LOVDESC,
-			  &valsize, &desc, NULL);
+	val_size = sizeof(max_easize);
+	rc = obd_get_info(NULL, dt_exp, sizeof(KEY_MAX_EASIZE), KEY_MAX_EASIZE,
+			  &val_size, &max_easize);
 	if (rc)
 		return rc;
 
-	stripes = min_t(__u32, desc.ld_tgt_count, LOV_MAX_STRIPE_COUNT);
-	lsm.lsm_stripe_count = stripes;
-	easize = obd_size_diskmd(dt_exp, &lsm);
+	val_size = sizeof(def_easize);
+	rc = obd_get_info(NULL, dt_exp, sizeof(KEY_DEFAULT_EASIZE),
+			  KEY_DEFAULT_EASIZE, &val_size, &def_easize);
+	if (rc)
+		return rc;
 
-	def_stripes = min_t(__u32, desc.ld_default_stripe_count,
-			    LOV_MAX_STRIPE_COUNT);
-	lsm.lsm_stripe_count = def_stripes;
-	def_easize = obd_size_diskmd(dt_exp, &lsm);
-
-	cookiesize = stripes * sizeof(struct llog_cookie);
-
-	/* default cookiesize is 0 because from 2.4 server doesn't send
+	/*
+	 * default cookiesize is 0 because from 2.4 server doesn't send
 	 * llog cookies to client.
 	 */
-	CDEBUG(D_HA,
-	       "updating def/max_easize: %d/%d def/max_cookiesize: 0/%d\n",
-	       def_easize, easize, cookiesize);
+	CDEBUG(D_HA, "updating def/max_easize: %d/%d\n",
+	       def_easize, max_easize);
 
-	rc = md_init_ea_size(md_exp, easize, def_easize, cookiesize, 0);
+	rc = md_init_ea_size(md_exp, max_easize, def_easize);
 	return rc;
 }
 
@@ -140,7 +133,6 @@ int cl_get_grouplock(struct cl_object *obj, unsigned long gid, int nonblock,
 
 	io = vvp_env_thread_io(env);
 	io->ci_obj = obj;
-	io->ci_ignore_layout = 1;
 
 	rc = cl_io_init(env, io, CIT_MISC, io->ci_obj);
 	if (rc != 0) {
@@ -170,13 +162,11 @@ int cl_get_grouplock(struct cl_object *obj, unsigned long gid, int nonblock,
 		return rc;
 	}
 
-	cg->lg_env  = cl_env_get(&refcheck);
+	cg->lg_env  = env;
 	cg->lg_io   = io;
 	cg->lg_lock = lock;
 	cg->lg_gid  = gid;
-	LASSERT(cg->lg_env == env);
 
-	cl_env_unplant(env, &refcheck);
 	return 0;
 }
 
@@ -185,13 +175,9 @@ void cl_put_grouplock(struct ll_grouplock *cg)
 	struct lu_env  *env  = cg->lg_env;
 	struct cl_io   *io   = cg->lg_io;
 	struct cl_lock *lock = cg->lg_lock;
-	int	     refcheck;
 
 	LASSERT(cg->lg_env);
 	LASSERT(cg->lg_gid);
-
-	cl_env_implant(env, &refcheck);
-	cl_env_put(env, &refcheck);
 
 	cl_lock_release(env, lock);
 	cl_io_fini(env, io);

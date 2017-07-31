@@ -29,6 +29,7 @@
 #include <linux/mm.h>
 #include <linux/i8042.h>
 #include <linux/debugfs.h>
+#include <linux/dell-led.h>
 #include <linux/seq_file.h>
 #include <acpi/video.h>
 #include "dell-rbtn.h"
@@ -42,6 +43,8 @@
 #define KBD_LED_AUTO_50_TOKEN 0x02EB
 #define KBD_LED_AUTO_75_TOKEN 0x02EC
 #define KBD_LED_AUTO_100_TOKEN 0x02F6
+#define GLOBAL_MIC_MUTE_ENABLE 0x0364
+#define GLOBAL_MIC_MUTE_DISABLE 0x0365
 
 struct quirk_entry {
 	u8 touchpad_led;
@@ -103,6 +106,12 @@ static const struct dmi_system_id dell_device_table[] __initconst = {
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 			DMI_MATCH(DMI_CHASSIS_TYPE, "9"), /*Laptop*/
+		},
+	},
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_MATCH(DMI_CHASSIS_TYPE, "10"), /*Notebook*/
 		},
 	},
 	{
@@ -1904,38 +1913,40 @@ static enum led_brightness kbd_led_level_get(struct led_classdev *led_cdev)
 	return 0;
 }
 
-static void kbd_led_level_set(struct led_classdev *led_cdev,
-			      enum led_brightness value)
+static int kbd_led_level_set(struct led_classdev *led_cdev,
+			     enum led_brightness value)
 {
 	struct kbd_state state;
 	struct kbd_state new_state;
 	u16 num;
+	int ret;
 
 	if (kbd_get_max_level()) {
-		if (kbd_get_state(&state))
-			return;
+		ret = kbd_get_state(&state);
+		if (ret)
+			return ret;
 		new_state = state;
-		if (kbd_set_level(&new_state, value))
-			return;
-		kbd_set_state_safe(&new_state, &state);
-		return;
+		ret = kbd_set_level(&new_state, value);
+		if (ret)
+			return ret;
+		return kbd_set_state_safe(&new_state, &state);
 	}
 
 	if (kbd_get_valid_token_counts()) {
 		for (num = kbd_token_bits; num != 0 && value > 0; --value)
 			num &= num - 1; /* clear the first bit set */
 		if (num == 0)
-			return;
-		kbd_set_token_bit(ffs(num) - 1);
-		return;
+			return 0;
+		return kbd_set_token_bit(ffs(num) - 1);
 	}
 
 	pr_warn("Keyboard brightness level control not supported\n");
+	return -ENXIO;
 }
 
 static struct led_classdev kbd_led = {
 	.name           = "dell::kbd_backlight",
-	.brightness_set = kbd_led_level_set,
+	.brightness_set_blocking = kbd_led_level_set,
 	.brightness_get = kbd_led_level_get,
 	.groups         = kbd_led_groups,
 };
@@ -1969,6 +1980,31 @@ static void kbd_led_exit(void)
 	kbd_led.brightness_set = brightness_set_exit;
 	led_classdev_unregister(&kbd_led);
 }
+
+int dell_micmute_led_set(int state)
+{
+	struct calling_interface_buffer *buffer;
+	struct calling_interface_token *token;
+
+	if (state == 0)
+		token = dell_smbios_find_token(GLOBAL_MIC_MUTE_DISABLE);
+	else if (state == 1)
+		token = dell_smbios_find_token(GLOBAL_MIC_MUTE_ENABLE);
+	else
+		return -EINVAL;
+
+	if (!token)
+		return -ENODEV;
+
+	buffer = dell_smbios_get_buffer();
+	buffer->input[0] = token->location;
+	buffer->input[1] = token->value;
+	dell_smbios_send_request(1, 0);
+	dell_smbios_release_buffer();
+
+	return state;
+}
+EXPORT_SYMBOL_GPL(dell_micmute_led_set);
 
 static int __init dell_init(void)
 {

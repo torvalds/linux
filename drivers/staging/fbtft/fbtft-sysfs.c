@@ -4,7 +4,6 @@
 static int get_next_ulong(char **str_p, unsigned long *val, char *sep, int base)
 {
 	char *p_val;
-	int ret;
 
 	if (!str_p || !(*str_p))
 		return -EINVAL;
@@ -14,14 +13,10 @@ static int get_next_ulong(char **str_p, unsigned long *val, char *sep, int base)
 	if (!p_val)
 		return -EINVAL;
 
-	ret = kstrtoul(p_val, base, val);
-	if (ret)
-		return -EINVAL;
-
-	return 0;
+	return kstrtoul(p_val, base, val);
 }
 
-int fbtft_gamma_parse_str(struct fbtft_par *par, unsigned long *curves,
+int fbtft_gamma_parse_str(struct fbtft_par *par, u32 *curves,
 						const char *str, int size)
 {
 	char *str_p, *curve_p = NULL;
@@ -94,7 +89,7 @@ out:
 }
 
 static ssize_t
-sprintf_gamma(struct fbtft_par *par, unsigned long *curves, char *buf)
+sprintf_gamma(struct fbtft_par *par, u32 *curves, char *buf)
 {
 	ssize_t len = 0;
 	unsigned int i, j;
@@ -103,7 +98,7 @@ sprintf_gamma(struct fbtft_par *par, unsigned long *curves, char *buf)
 	for (i = 0; i < par->gamma.num_curves; i++) {
 		for (j = 0; j < par->gamma.num_values; j++)
 			len += scnprintf(&buf[len], PAGE_SIZE,
-			     "%04lx ", curves[i * par->gamma.num_values + j]);
+			     "%04x ", curves[i * par->gamma.num_values + j]);
 		buf[len - 1] = '\n';
 	}
 	mutex_unlock(&par->gamma.lock);
@@ -117,7 +112,7 @@ static ssize_t store_gamma_curve(struct device *device,
 {
 	struct fb_info *fb_info = dev_get_drvdata(device);
 	struct fbtft_par *par = fb_info->par;
-	unsigned long tmp_curves[FBTFT_GAMMA_MAX_VALUES_TOTAL];
+	u32 tmp_curves[FBTFT_GAMMA_MAX_VALUES_TOTAL];
 	int ret;
 
 	ret = fbtft_gamma_parse_str(par, tmp_curves, buf, count);

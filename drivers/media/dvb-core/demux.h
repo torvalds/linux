@@ -21,10 +21,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU Lesser General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
- *
  */
 
 #ifndef __DEMUX_H
@@ -103,7 +99,6 @@ struct dmx_ts_feed {
 		   u16 pid,
 		   int type,
 		   enum dmx_ts_pes pes_type,
-		   size_t circular_buffer_size,
 		   ktime_t timeout);
 	int (*start_filtering)(struct dmx_ts_feed *feed);
 	int (*stop_filtering)(struct dmx_ts_feed *feed);
@@ -181,7 +176,6 @@ struct dmx_section_feed {
 	/* public: */
 	int (*set)(struct dmx_section_feed *feed,
 		   u16 pid,
-		   size_t circular_buffer_size,
 		   int check_crc);
 	int (*allocate_filter)(struct dmx_section_feed *feed,
 			       struct dmx_section_filter **filter);
@@ -202,12 +196,11 @@ struct dmx_section_feed {
  *
  * This function callback prototype, provided by the client of the demux API,
  * is called from the demux code. The function is only called when filtering
- * on ae TS feed has been enabled using the start_filtering() function at
+ * on a TS feed has been enabled using the start_filtering\(\) function at
  * the &dmx_demux.
  * Any TS packets that match the filter settings are copied to a circular
  * buffer. The filtered TS packets are delivered to the client using this
- * callback function. The size of the circular buffer is controlled by the
- * circular_buffer_size parameter of the &dmx_ts_feed.@set function.
+ * callback function.
  * It is expected that the @buffer1 and @buffer2 callback parameters point to
  * addresses within the circular buffer, but other implementations are also
  * possible. Note that the called party should not try to free the memory
@@ -243,8 +236,10 @@ struct dmx_section_feed {
  * will also be sent to the hardware MPEG decoder.
  *
  * Return:
- * 	0, on success;
- * 	-EOVERFLOW, on buffer overflow.
+ *
+ * - 0, on success;
+ *
+ * - -EOVERFLOW, on buffer overflow.
  */
 typedef int (*dmx_ts_cb)(const u8 *buffer1,
 			 size_t buffer1_length,
@@ -293,9 +288,9 @@ typedef int (*dmx_section_cb)(const u8 *buffer1,
 			      size_t buffer2_len,
 			      struct dmx_section_filter *source);
 
-/*--------------------------------------------------------------------------*/
-/* DVB Front-End */
-/*--------------------------------------------------------------------------*/
+/*
+ * DVB Front-End
+ */
 
 /**
  * enum dmx_frontend_source - Used to identify the type of frontend
@@ -349,15 +344,15 @@ enum dmx_demux_caps {
 
 /*
  * Demux resource type identifier.
-*/
+ */
 
-/*
- * DMX_FE_ENTRY(): Casts elements in the list of registered
- * front-ends from the generic type struct list_head
- * to the type * struct dmx_frontend
- *.
-*/
-
+/**
+ * DMX_FE_ENTRY - Casts elements in the list of registered
+ *		  front-ends from the generic type struct list_head
+ *		  to the type * struct dmx_frontend
+ *
+ * @list: list of struct dmx_frontend
+ */
 #define DMX_FE_ENTRY(list) \
 	list_entry(list, struct dmx_frontend, connectivity_list)
 
@@ -551,7 +546,6 @@ enum dmx_demux_caps {
  *	0 on success;
  *	-EINVAL on bad parameter.
  */
-
 struct dmx_demux {
 	enum dmx_demux_caps capabilities;
 	struct dmx_frontend *frontend;
@@ -581,15 +575,12 @@ struct dmx_demux {
 
 	int (*get_pes_pids)(struct dmx_demux *demux, u16 *pids);
 
-	/* private: Not used upstream and never documented */
-#if 0
-	int (*get_caps)(struct dmx_demux *demux, struct dmx_caps *caps);
-	int (*set_source)(struct dmx_demux *demux, const dmx_source_t *src);
-#endif
+	/* private: */
+
 	/*
-	 * private: Only used at av7110, to read some data from firmware.
-	 *	As this was never documented, we have no clue about what's
-	 *	there, and its usage on other drivers aren't encouraged.
+	 * Only used at av7110, to read some data from firmware.
+	 * As this was never documented, we have no clue about what's
+	 * there, and its usage on other drivers aren't encouraged.
 	 */
 	int (*get_stc)(struct dmx_demux *demux, unsigned int num,
 		       u64 *stc, unsigned int *base);

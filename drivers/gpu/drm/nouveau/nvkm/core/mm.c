@@ -147,6 +147,7 @@ nvkm_mm_head(struct nvkm_mm *mm, u8 heap, u8 type, u32 size_max, u32 size_min,
 		if (!this)
 			return -ENOMEM;
 
+		this->next = NULL;
 		this->type = type;
 		list_del(&this->fl_entry);
 		*pnode = this;
@@ -225,6 +226,7 @@ nvkm_mm_tail(struct nvkm_mm *mm, u8 heap, u8 type, u32 size_max, u32 size_min,
 		if (!this)
 			return -ENOMEM;
 
+		this->next = NULL;
 		this->type = type;
 		list_del(&this->fl_entry);
 		*pnode = this;

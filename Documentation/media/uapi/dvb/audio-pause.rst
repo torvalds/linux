@@ -11,12 +11,13 @@ Name
 
 AUDIO_PAUSE
 
+.. attention:: This ioctl is deprecated
 
 Synopsis
 --------
 
-.. cpp:function:: int  ioctl(int fd, int request = AUDIO_PAUSE)
-
+.. c:function:: int  ioctl(int fd, AUDIO_PAUSE)
+    :name: AUDIO_PAUSE
 
 Arguments
 ---------
@@ -31,12 +32,6 @@ Arguments
        -  int fd
 
        -  File descriptor returned by a previous call to open().
-
-    -  .. row 2
-
-       -  int request
-
-       -  Equals AUDIO_PAUSE for this command.
 
 
 Description

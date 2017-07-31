@@ -20,15 +20,4 @@ static inline int xen_irqs_disabled(struct pt_regs *regs)
 /* No need for a barrier -- XCHG is a barrier on x86. */
 #define xchg_xen_ulong(ptr, val) xchg((ptr), (val))
 
-extern int xen_have_vector_callback;
-
-/*
- * Events delivered via platform PCI interrupts are always
- * routed to vcpu 0 and hence cannot be rebound.
- */
-static inline bool xen_support_evtchn_rebind(void)
-{
-	return (!xen_hvm_domain() || xen_have_vector_callback);
-}
-
 #endif /* _ASM_X86_XEN_EVENTS_H */

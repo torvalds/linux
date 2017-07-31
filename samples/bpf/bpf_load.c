@@ -12,20 +12,27 @@
 #include <linux/bpf.h>
 #include <linux/filter.h>
 #include <linux/perf_event.h>
+#include <linux/netlink.h>
+#include <linux/rtnetlink.h>
+#include <linux/types.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 #include <sys/syscall.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <poll.h>
 #include <ctype.h>
+#include <assert.h>
 #include "libbpf.h"
-#include "bpf_helpers.h"
 #include "bpf_load.h"
+#include "perf-sys.h"
 
 #define DEBUGFS "/sys/kernel/debug/tracing/"
 
 static char license[128];
 static int kern_version;
 static bool processed_sec[128];
+char bpf_log_buf[BPF_LOG_BUF_SIZE];
 int map_fd[MAX_MAPS];
 int prog_fd[MAX_PROGS];
 int event_fd[MAX_PROGS];
@@ -36,7 +43,7 @@ static int populate_prog_array(const char *event, int prog_fd)
 {
 	int ind = atoi(event), err;
 
-	err = bpf_update_elem(prog_array_fd, &ind, &prog_fd, BPF_ANY);
+	err = bpf_map_update_elem(prog_array_fd, &ind, &prog_fd, BPF_ANY);
 	if (err < 0) {
 		printf("failed to store prog_fd in prog_array\n");
 		return -1;
@@ -51,6 +58,10 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 	bool is_kretprobe = strncmp(event, "kretprobe/", 10) == 0;
 	bool is_tracepoint = strncmp(event, "tracepoint/", 11) == 0;
 	bool is_xdp = strncmp(event, "xdp", 3) == 0;
+	bool is_perf_event = strncmp(event, "perf_event", 10) == 0;
+	bool is_cgroup_skb = strncmp(event, "cgroup/skb", 10) == 0;
+	bool is_cgroup_sk = strncmp(event, "cgroup/sock", 11) == 0;
+	size_t insns_cnt = size / sizeof(struct bpf_insn);
 	enum bpf_prog_type prog_type;
 	char buf[256];
 	int fd, efd, err, id;
@@ -69,20 +80,27 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 		prog_type = BPF_PROG_TYPE_TRACEPOINT;
 	} else if (is_xdp) {
 		prog_type = BPF_PROG_TYPE_XDP;
+	} else if (is_perf_event) {
+		prog_type = BPF_PROG_TYPE_PERF_EVENT;
+	} else if (is_cgroup_skb) {
+		prog_type = BPF_PROG_TYPE_CGROUP_SKB;
+	} else if (is_cgroup_sk) {
+		prog_type = BPF_PROG_TYPE_CGROUP_SOCK;
 	} else {
 		printf("Unknown event '%s'\n", event);
 		return -1;
 	}
 
-	fd = bpf_prog_load(prog_type, prog, size, license, kern_version);
+	fd = bpf_load_program(prog_type, prog, insns_cnt, license, kern_version,
+			      bpf_log_buf, BPF_LOG_BUF_SIZE);
 	if (fd < 0) {
-		printf("bpf_prog_load() err=%d\n%s", errno, bpf_log_buf);
+		printf("bpf_load_program() err=%d\n%s", errno, bpf_log_buf);
 		return -1;
 	}
 
 	prog_fd[prog_cnt++] = fd;
 
-	if (is_xdp)
+	if (is_xdp || is_perf_event || is_cgroup_skb || is_cgroup_sk)
 		return 0;
 
 	if (is_socket) {
@@ -156,7 +174,7 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 	id = atoi(buf);
 	attr.config = id;
 
-	efd = perf_event_open(&attr, -1/*pid*/, 0/*cpu*/, -1/*group_fd*/, 0);
+	efd = sys_perf_event_open(&attr, -1/*pid*/, 0/*cpu*/, -1/*group_fd*/, 0);
 	if (efd < 0) {
 		printf("event %d fd %d err %s\n", id, efd, strerror(errno));
 		return -1;
@@ -168,17 +186,35 @@ static int load_and_attach(const char *event, struct bpf_insn *prog, int size)
 	return 0;
 }
 
-static int load_maps(struct bpf_map_def *maps, int len)
+static int load_maps(struct bpf_map_def *maps, int nr_maps,
+		     const char **map_names, fixup_map_cb fixup_map)
 {
 	int i;
+	/*
+	 * Warning: Using "maps" pointing to ELF data_maps->d_buf as
+	 * an array of struct bpf_map_def is a wrong assumption about
+	 * the ELF maps section format.
+	 */
+	for (i = 0; i < nr_maps; i++) {
+		if (fixup_map)
+			fixup_map(&maps[i], map_names[i], i);
 
-	for (i = 0; i < len / sizeof(struct bpf_map_def); i++) {
+		if (maps[i].type == BPF_MAP_TYPE_ARRAY_OF_MAPS ||
+		    maps[i].type == BPF_MAP_TYPE_HASH_OF_MAPS) {
+			int inner_map_fd = map_fd[maps[i].inner_map_idx];
 
-		map_fd[i] = bpf_create_map(maps[i].type,
-					   maps[i].key_size,
-					   maps[i].value_size,
-					   maps[i].max_entries,
-					   maps[i].map_flags);
+			map_fd[i] = bpf_create_map_in_map(maps[i].type,
+							  maps[i].key_size,
+							  inner_map_fd,
+							  maps[i].max_entries,
+							  maps[i].map_flags);
+		} else {
+			map_fd[i] = bpf_create_map(maps[i].type,
+						   maps[i].key_size,
+						   maps[i].value_size,
+						   maps[i].max_entries,
+						   maps[i].map_flags);
+		}
 		if (map_fd[i] < 0) {
 			printf("failed to create a map: %d %s\n",
 			       errno, strerror(errno));
@@ -238,20 +274,79 @@ static int parse_relo_and_apply(Elf_Data *data, Elf_Data *symbols,
 			return 1;
 		}
 		insn[insn_idx].src_reg = BPF_PSEUDO_MAP_FD;
+		/*
+		 * Warning: Using sizeof(struct bpf_map_def) here is a
+		 * wrong assumption about ELF maps section format
+		 */
 		insn[insn_idx].imm = map_fd[sym.st_value / sizeof(struct bpf_map_def)];
 	}
 
 	return 0;
 }
 
-int load_bpf_file(char *path)
+static int cmp_symbols(const void *l, const void *r)
 {
-	int fd, i;
+	const GElf_Sym *lsym = (const GElf_Sym *)l;
+	const GElf_Sym *rsym = (const GElf_Sym *)r;
+
+	if (lsym->st_value < rsym->st_value)
+		return -1;
+	else if (lsym->st_value > rsym->st_value)
+		return 1;
+	else
+		return 0;
+}
+
+static int get_sorted_map_names(Elf *elf, Elf_Data *symbols, int maps_shndx,
+				int strtabidx, char **map_names)
+{
+	GElf_Sym map_symbols[MAX_MAPS];
+	int i, nr_maps = 0;
+
+	for (i = 0; i < symbols->d_size / sizeof(GElf_Sym); i++) {
+		assert(nr_maps < MAX_MAPS);
+		if (!gelf_getsym(symbols, i, &map_symbols[nr_maps]))
+			continue;
+		if (map_symbols[nr_maps].st_shndx != maps_shndx)
+			continue;
+		nr_maps++;
+	}
+
+	qsort(map_symbols, nr_maps, sizeof(GElf_Sym), cmp_symbols);
+
+	for (i = 0; i < nr_maps; i++) {
+		char *map_name;
+
+		map_name = elf_strptr(elf, strtabidx, map_symbols[i].st_name);
+		if (!map_name) {
+			printf("cannot get map symbol\n");
+			return -1;
+		}
+
+		map_names[i] = strdup(map_name);
+		if (!map_names[i]) {
+			printf("strdup(%s): %s(%d)\n", map_name,
+			       strerror(errno), errno);
+			return -1;
+		}
+	}
+
+	return nr_maps;
+}
+
+static int do_load_bpf_file(const char *path, fixup_map_cb fixup_map)
+{
+	int fd, i, ret, maps_shndx = -1, strtabidx = -1;
 	Elf *elf;
 	GElf_Ehdr ehdr;
 	GElf_Shdr shdr, shdr_prog;
-	Elf_Data *data, *data_prog, *symbols = NULL;
-	char *shname, *shname_prog;
+	Elf_Data *data, *data_prog, *data_maps = NULL, *symbols = NULL;
+	char *shname, *shname_prog, *map_names[MAX_MAPS] = { NULL };
+
+	/* reset global variables */
+	kern_version = 0;
+	memset(license, 0, sizeof(license));
+	memset(processed_sec, 0, sizeof(processed_sec));
 
 	if (elf_version(EV_CURRENT) == EV_NONE)
 		return 1;
@@ -294,16 +389,51 @@ int load_bpf_file(char *path)
 			}
 			memcpy(&kern_version, data->d_buf, sizeof(int));
 		} else if (strcmp(shname, "maps") == 0) {
-			processed_sec[i] = true;
-			if (load_maps(data->d_buf, data->d_size))
-				return 1;
+			maps_shndx = i;
+			data_maps = data;
 		} else if (shdr.sh_type == SHT_SYMTAB) {
+			strtabidx = shdr.sh_link;
 			symbols = data;
 		}
 	}
 
+	ret = 1;
+
+	if (!symbols) {
+		printf("missing SHT_SYMTAB section\n");
+		goto done;
+	}
+
+	if (data_maps) {
+		int nr_maps;
+		int prog_elf_map_sz;
+
+		nr_maps = get_sorted_map_names(elf, symbols, maps_shndx,
+					       strtabidx, map_names);
+		if (nr_maps < 0)
+			goto done;
+
+		/* Deduce map struct size stored in ELF maps section */
+		prog_elf_map_sz = data_maps->d_size / nr_maps;
+		if (prog_elf_map_sz != sizeof(struct bpf_map_def)) {
+			printf("Error: ELF maps sec wrong size (%d/%lu),"
+			       " old kern.o file?\n",
+			       prog_elf_map_sz, sizeof(struct bpf_map_def));
+			ret = 1;
+			goto done;
+		}
+
+		if (load_maps(data_maps->d_buf, nr_maps,
+			      (const char **)map_names, fixup_map))
+			goto done;
+
+		processed_sec[maps_shndx] = true;
+	}
+
 	/* load programs that need map fixup (relocations) */
 	for (i = 1; i < ehdr.e_shnum; i++) {
+		if (processed_sec[i])
+			continue;
 
 		if (get_sec(elf, i, &ehdr, &shname, &shdr, &data))
 			continue;
@@ -312,6 +442,10 @@ int load_bpf_file(char *path)
 
 			if (get_sec(elf, shdr.sh_info, &ehdr, &shname_prog,
 				    &shdr_prog, &data_prog))
+				continue;
+
+			if (shdr_prog.sh_type != SHT_PROGBITS ||
+			    !(shdr_prog.sh_flags & SHF_EXECINSTR))
 				continue;
 
 			insns = (struct bpf_insn *) data_prog->d_buf;
@@ -326,7 +460,9 @@ int load_bpf_file(char *path)
 			    memcmp(shname_prog, "kretprobe/", 10) == 0 ||
 			    memcmp(shname_prog, "tracepoint/", 11) == 0 ||
 			    memcmp(shname_prog, "xdp", 3) == 0 ||
-			    memcmp(shname_prog, "socket", 6) == 0)
+			    memcmp(shname_prog, "perf_event", 10) == 0 ||
+			    memcmp(shname_prog, "socket", 6) == 0 ||
+			    memcmp(shname_prog, "cgroup/", 7) == 0)
 				load_and_attach(shname_prog, insns, data_prog->d_size);
 		}
 	}
@@ -344,12 +480,28 @@ int load_bpf_file(char *path)
 		    memcmp(shname, "kretprobe/", 10) == 0 ||
 		    memcmp(shname, "tracepoint/", 11) == 0 ||
 		    memcmp(shname, "xdp", 3) == 0 ||
-		    memcmp(shname, "socket", 6) == 0)
+		    memcmp(shname, "perf_event", 10) == 0 ||
+		    memcmp(shname, "socket", 6) == 0 ||
+		    memcmp(shname, "cgroup/", 7) == 0)
 			load_and_attach(shname, data->d_buf, data->d_size);
 	}
 
+	ret = 0;
+done:
+	for (i = 0; i < MAX_MAPS; i++)
+		free(map_names[i]);
 	close(fd);
-	return 0;
+	return ret;
+}
+
+int load_bpf_file(char *path)
+{
+	return do_load_bpf_file(path, NULL);
+}
+
+int load_bpf_file_fixup_map(const char *path, fixup_map_cb fixup_map)
+{
+	return do_load_bpf_file(path, fixup_map);
 }
 
 void read_trace_pipe(void)
@@ -432,4 +584,107 @@ struct ksym *ksym_search(long key)
 
 	/* out of range. return _stext */
 	return &syms[0];
+}
+
+int set_link_xdp_fd(int ifindex, int fd, __u32 flags)
+{
+	struct sockaddr_nl sa;
+	int sock, seq = 0, len, ret = -1;
+	char buf[4096];
+	struct nlattr *nla, *nla_xdp;
+	struct {
+		struct nlmsghdr  nh;
+		struct ifinfomsg ifinfo;
+		char             attrbuf[64];
+	} req;
+	struct nlmsghdr *nh;
+	struct nlmsgerr *err;
+
+	memset(&sa, 0, sizeof(sa));
+	sa.nl_family = AF_NETLINK;
+
+	sock = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
+	if (sock < 0) {
+		printf("open netlink socket: %s\n", strerror(errno));
+		return -1;
+	}
+
+	if (bind(sock, (struct sockaddr *)&sa, sizeof(sa)) < 0) {
+		printf("bind to netlink: %s\n", strerror(errno));
+		goto cleanup;
+	}
+
+	memset(&req, 0, sizeof(req));
+	req.nh.nlmsg_len = NLMSG_LENGTH(sizeof(struct ifinfomsg));
+	req.nh.nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK;
+	req.nh.nlmsg_type = RTM_SETLINK;
+	req.nh.nlmsg_pid = 0;
+	req.nh.nlmsg_seq = ++seq;
+	req.ifinfo.ifi_family = AF_UNSPEC;
+	req.ifinfo.ifi_index = ifindex;
+
+	/* started nested attribute for XDP */
+	nla = (struct nlattr *)(((char *)&req)
+				+ NLMSG_ALIGN(req.nh.nlmsg_len));
+	nla->nla_type = NLA_F_NESTED | 43/*IFLA_XDP*/;
+	nla->nla_len = NLA_HDRLEN;
+
+	/* add XDP fd */
+	nla_xdp = (struct nlattr *)((char *)nla + nla->nla_len);
+	nla_xdp->nla_type = 1/*IFLA_XDP_FD*/;
+	nla_xdp->nla_len = NLA_HDRLEN + sizeof(int);
+	memcpy((char *)nla_xdp + NLA_HDRLEN, &fd, sizeof(fd));
+	nla->nla_len += nla_xdp->nla_len;
+
+	/* if user passed in any flags, add those too */
+	if (flags) {
+		nla_xdp = (struct nlattr *)((char *)nla + nla->nla_len);
+		nla_xdp->nla_type = 3/*IFLA_XDP_FLAGS*/;
+		nla_xdp->nla_len = NLA_HDRLEN + sizeof(flags);
+		memcpy((char *)nla_xdp + NLA_HDRLEN, &flags, sizeof(flags));
+		nla->nla_len += nla_xdp->nla_len;
+	}
+
+	req.nh.nlmsg_len += NLA_ALIGN(nla->nla_len);
+
+	if (send(sock, &req, req.nh.nlmsg_len, 0) < 0) {
+		printf("send to netlink: %s\n", strerror(errno));
+		goto cleanup;
+	}
+
+	len = recv(sock, buf, sizeof(buf), 0);
+	if (len < 0) {
+		printf("recv from netlink: %s\n", strerror(errno));
+		goto cleanup;
+	}
+
+	for (nh = (struct nlmsghdr *)buf; NLMSG_OK(nh, len);
+	     nh = NLMSG_NEXT(nh, len)) {
+		if (nh->nlmsg_pid != getpid()) {
+			printf("Wrong pid %d, expected %d\n",
+			       nh->nlmsg_pid, getpid());
+			goto cleanup;
+		}
+		if (nh->nlmsg_seq != seq) {
+			printf("Wrong seq %d, expected %d\n",
+			       nh->nlmsg_seq, seq);
+			goto cleanup;
+		}
+		switch (nh->nlmsg_type) {
+		case NLMSG_ERROR:
+			err = (struct nlmsgerr *)NLMSG_DATA(nh);
+			if (!err->error)
+				continue;
+			printf("nlmsg error %s\n", strerror(-err->error));
+			goto cleanup;
+		case NLMSG_DONE:
+			break;
+		}
+	}
+
+	ret = 0;
+
+cleanup:
+	close(sock);
+	return ret;
 }

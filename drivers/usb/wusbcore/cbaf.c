@@ -610,8 +610,7 @@ static int cbaf_probe(struct usb_interface *iface,
 	cbaf->usb_iface = usb_get_intf(iface);
 	result = cbaf_check(cbaf);
 	if (result < 0) {
-		dev_err(dev, "This device is not WUSB-CBAF compliant"
-			"and is not supported yet.\n");
+		dev_err(dev, "This device is not WUSB-CBAF compliant and is not supported yet.\n");
 		goto error_check;
 	}
 

@@ -84,8 +84,9 @@ static int mc13xxx_led_set(struct led_classdev *led_cdev,
 	case MC13892_LED_MD:
 	case MC13892_LED_AD:
 	case MC13892_LED_KP:
-		reg = (led->id - MC13892_LED_MD) / 2;
-		shift = 3 + (led->id - MC13892_LED_MD) * 12;
+		off = led->id - MC13892_LED_MD;
+		reg = off / 2;
+		shift = 3 + (off - reg * 2) * 12;
 		break;
 	case MC13892_LED_R:
 	case MC13892_LED_G:

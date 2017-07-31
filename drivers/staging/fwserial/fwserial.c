@@ -39,9 +39,9 @@ static int num_ttys = 4;	    /* # of std ttys to create per fw_card    */
 static bool auto_connect = true;    /* try to VIRT_CABLE to every peer        */
 static bool create_loop_dev = true; /* create a loopback device for each card */
 
-module_param_named(ttys, num_ttys, int, S_IRUGO | S_IWUSR);
-module_param_named(auto, auto_connect, bool, S_IRUGO | S_IWUSR);
-module_param_named(loop, create_loop_dev, bool, S_IRUGO | S_IWUSR);
+module_param_named(ttys, num_ttys, int, 0644);
+module_param_named(auto, auto_connect, bool, 0644);
+module_param_named(loop, create_loop_dev, bool, 0644);
 
 /*
  * Threshold below which the tty is woken for writing
@@ -1664,12 +1664,6 @@ static inline void fill_plug_rsp_ok(struct fwserial_mgmt_pkt *pkt,
 static inline void fill_plug_rsp_nack(struct fwserial_mgmt_pkt *pkt)
 {
 	pkt->hdr.code = cpu_to_be16(FWSC_VIRT_CABLE_PLUG_RSP | FWSC_RSP_NACK);
-	pkt->hdr.len = cpu_to_be16(mgmt_pkt_expected_len(pkt->hdr.code));
-}
-
-static inline void fill_unplug_req(struct fwserial_mgmt_pkt *pkt)
-{
-	pkt->hdr.code = cpu_to_be16(FWSC_VIRT_CABLE_UNPLUG);
 	pkt->hdr.len = cpu_to_be16(mgmt_pkt_expected_len(pkt->hdr.code));
 }
 

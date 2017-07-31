@@ -207,7 +207,7 @@ handle_errors:
 void rtsx_add_cmd(struct rtsx_chip *chip,
 		  u8 cmd_type, u16 reg_addr, u8 mask, u8 data)
 {
-	u32 *cb = (u32 *)(chip->host_cmds_ptr);
+	__le32 *cb = (__le32 *)(chip->host_cmds_ptr);
 	u32 val = 0;
 
 	val |= (u32)(cmd_type & 0x03) << 30;
@@ -300,7 +300,7 @@ finish_send_cmd:
 static inline void rtsx_add_sg_tbl(
 	struct rtsx_chip *chip, u32 addr, u32 len, u8 option)
 {
-	u64 *sgb = (u64 *)(chip->host_sg_tbl_ptr);
+	__le64 *sgb = (__le64 *)(chip->host_sg_tbl_ptr);
 	u64 val = 0;
 	u32 temp_len = 0;
 	u8  temp_opt = 0;

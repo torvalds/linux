@@ -17,6 +17,7 @@
 #include <asm/cache.h>
 #include <asm/errno.h>
 #include <asm/ppc_asm.h>
+#include <asm/export.h>
 
 	.text
 
@@ -68,6 +69,7 @@ _GLOBAL(__csum_partial)
 	adde	r5,r5,r0
 5:	addze	r3,r5		/* add in final carry */
 	blr
+EXPORT_SYMBOL(__csum_partial)
 
 /*
  * Computes the checksum of a memory block at src, length len,
@@ -101,17 +103,14 @@ _GLOBAL(__csum_partial)
 	adde	r12,r12,r10
 
 #define CSUM_COPY_16_BYTES_EXCODE(n)		\
-.section __ex_table,"a";		\
-	.align	2;			\
-	.long	8 ## n ## 0b,src_error;	\
-	.long	8 ## n ## 1b,src_error;	\
-	.long	8 ## n ## 2b,src_error;	\
-	.long	8 ## n ## 3b,src_error;	\
-	.long	8 ## n ## 4b,dst_error;	\
-	.long	8 ## n ## 5b,dst_error;	\
-	.long	8 ## n ## 6b,dst_error;	\
-	.long	8 ## n ## 7b,dst_error;	\
-	.text
+	EX_TABLE(8 ## n ## 0b, src_error);	\
+	EX_TABLE(8 ## n ## 1b, src_error);	\
+	EX_TABLE(8 ## n ## 2b, src_error);	\
+	EX_TABLE(8 ## n ## 3b, src_error);	\
+	EX_TABLE(8 ## n ## 4b, dst_error);	\
+	EX_TABLE(8 ## n ## 5b, dst_error);	\
+	EX_TABLE(8 ## n ## 6b, dst_error);	\
+	EX_TABLE(8 ## n ## 7b, dst_error);
 
 	.text
 	.stabs	"arch/powerpc/lib/",N_SO,0,0,0f
@@ -127,18 +126,19 @@ _GLOBAL(csum_partial_copy_generic)
 	stw	r7,12(r1)
 	stw	r8,8(r1)
 
-	rlwinm	r0,r4,3,0x8
-	rlwnm	r6,r6,r0,0,31	/* odd destination address: rotate one byte */
-	cmplwi	cr7,r0,0	/* is destination address even ? */
 	addic	r12,r6,0
 	addi	r6,r4,-4
 	neg	r0,r4
 	addi	r4,r3,-4
 	andi.	r0,r0,CACHELINE_MASK	/* # bytes to start of cache line */
+	crset	4*cr7+eq
 	beq	58f
 
 	cmplw	0,r5,r0			/* is this more than total to do? */
 	blt	63f			/* if not much to do */
+	rlwinm	r7,r6,3,0x8
+	rlwnm	r12,r12,r7,0,31	/* odd destination address: rotate one byte */
+	cmplwi	cr7,r7,0	/* is destination address even ? */
 	andi.	r8,r0,3			/* get it word-aligned first */
 	mtctr	r8
 	beq+	61f
@@ -260,14 +260,11 @@ dst_error:
 	stw	r0,0(r8)
 	blr
 
-	.section __ex_table,"a"
-	.align	2
-	.long	70b,src_error
-	.long	71b,dst_error
-	.long	72b,src_error
-	.long	73b,dst_error
-	.long	54b,dst_error
-	.text
+	EX_TABLE(70b, src_error);
+	EX_TABLE(71b, dst_error);
+	EX_TABLE(72b, src_error);
+	EX_TABLE(73b, dst_error);
+	EX_TABLE(54b, dst_error);
 
 /*
  * this stuff handles faults in the cacheline loop and branches to either
@@ -288,11 +285,11 @@ dst_error:
 #endif
 #endif
 
-	.section __ex_table,"a"
-	.align	2
-	.long	30b,src_error
-	.long	31b,dst_error
-	.long	40b,src_error
-	.long	41b,dst_error
-	.long	50b,src_error
-	.long	51b,dst_error
+	EX_TABLE(30b, src_error);
+	EX_TABLE(31b, dst_error);
+	EX_TABLE(40b, src_error);
+	EX_TABLE(41b, dst_error);
+	EX_TABLE(50b, src_error);
+	EX_TABLE(51b, dst_error);
+
+EXPORT_SYMBOL(csum_partial_copy_generic)

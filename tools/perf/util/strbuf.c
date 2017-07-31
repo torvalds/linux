@@ -1,6 +1,7 @@
 #include "debug.h"
 #include "util.h"
 #include <linux/kernel.h>
+#include <errno.h>
 
 int prefixcmp(const char *str, const char *prefix)
 {

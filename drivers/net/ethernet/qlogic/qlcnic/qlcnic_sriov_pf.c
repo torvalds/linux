@@ -1915,7 +1915,7 @@ int qlcnic_sriov_set_vf_tx_rate(struct net_device *netdev, int vf,
 }
 
 int qlcnic_sriov_set_vf_vlan(struct net_device *netdev, int vf,
-			     u16 vlan, u8 qos)
+			     u16 vlan, u8 qos, __be16 vlan_proto)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_sriov *sriov = adapter->ahw->sriov;
@@ -1927,6 +1927,9 @@ int qlcnic_sriov_set_vf_vlan(struct net_device *netdev, int vf,
 
 	if (vf >= sriov->num_vfs || qos > 7)
 		return -EINVAL;
+
+	if (vlan_proto != htons(ETH_P_8021Q))
+		return -EPROTONOSUPPORT;
 
 	if (vlan > MAX_VLAN_ID) {
 		netdev_err(netdev,

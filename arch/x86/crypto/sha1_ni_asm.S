@@ -293,10 +293,12 @@ ENTRY(sha1_ni_transform)
 	ret
 ENDPROC(sha1_ni_transform)
 
-.data
-
-.align 64
+.section	.rodata.cst16.PSHUFFLE_BYTE_FLIP_MASK, "aM", @progbits, 16
+.align 16
 PSHUFFLE_BYTE_FLIP_MASK:
 	.octa 0x000102030405060708090a0b0c0d0e0f
+
+.section	.rodata.cst16.UPPER_WORD_MASK, "aM", @progbits, 16
+.align 16
 UPPER_WORD_MASK:
 	.octa 0xFFFFFFFF000000000000000000000000

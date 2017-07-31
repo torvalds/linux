@@ -17,7 +17,7 @@
 	model = "CompuLab CM-T335";
 	compatible = "compulab,cm-t335", "ti,am33xx";
 
-	memory {
+	memory@80000000 {
 		device_type = "memory";
 		reg = <0x80000000 0x8000000>;	/* 128 MB */
 	};
@@ -26,7 +26,7 @@
 		compatible = "gpio-leds";
 		pinctrl-names = "default";
 		pinctrl-0 = <&gpio_led_pins>;
-		led@0 {
+		led0 {
 			label = "cm_t335:green";
 			gpios = <&gpio2 0 GPIO_ACTIVE_LOW>;	/* gpio2_0 */
 			linux,default-trigger = "heartbeat";
@@ -34,7 +34,7 @@
 	};
 
 	/* regulator for mmc */
-	vmmc_fixed: fixedregulator@0 {
+	vmmc_fixed: fixedregulator0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vmmc_fixed";
 		regulator-min-microvolt = <3300000>;
@@ -42,7 +42,7 @@
 	};
 
 	/* Regulator for WiFi */
-	vwlan_fixed: fixedregulator@2 {
+	vwlan_fixed: fixedregulator2 {
 		compatible = "regulator-fixed";
 		regulator-name = "vwlan_fixed";
 		gpio = <&gpio0 20 GPIO_ACTIVE_HIGH>; /* gpio0_20 */

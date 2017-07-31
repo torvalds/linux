@@ -25,7 +25,7 @@ struct drr_class {
 
 	struct gnet_stats_basic_packed		bstats;
 	struct gnet_stats_queue		qstats;
-	struct gnet_stats_rate_est64	rate_est;
+	struct net_rate_estimator __rcu *rate_est;
 	struct list_head		alist;
 	struct Qdisc			*qdisc;
 
@@ -76,7 +76,7 @@ static int drr_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 	if (!opt)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_DRR_MAX, opt, drr_policy);
+	err = nla_parse_nested(tb, TCA_DRR_MAX, opt, drr_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -117,6 +117,8 @@ static int drr_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 					       &pfifo_qdisc_ops, classid);
 	if (cl->qdisc == NULL)
 		cl->qdisc = &noop_qdisc;
+	else
+		qdisc_hash_add(cl->qdisc, true);
 
 	if (tca[TCA_RATE]) {
 		err = gen_replace_estimator(&cl->bstats, NULL, &cl->rate_est,
@@ -142,7 +144,7 @@ static int drr_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 
 static void drr_destroy_class(struct Qdisc *sch, struct drr_class *cl)
 {
-	gen_kill_estimator(&cl->bstats, &cl->rate_est);
+	gen_kill_estimator(&cl->rate_est);
 	qdisc_destroy(cl->qdisc);
 	kfree(cl);
 }
@@ -283,7 +285,7 @@ static int drr_dump_class_stats(struct Qdisc *sch, unsigned long arg,
 
 	if (gnet_stats_copy_basic(qdisc_root_sleeping_running(sch),
 				  d, NULL, &cl->bstats) < 0 ||
-	    gnet_stats_copy_rate_est(d, &cl->bstats, &cl->rate_est) < 0 ||
+	    gnet_stats_copy_rate_est(d, &cl->rate_est) < 0 ||
 	    gnet_stats_copy_queue(d, NULL, &cl->qdisc->qstats, qlen) < 0)
 		return -1;
 

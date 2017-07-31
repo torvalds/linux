@@ -38,13 +38,18 @@
 # include <linux/init.h>
 # include <linux/utsname.h>
 
-#include "../include/lustre_acl.h"
-#include "../include/obd_class.h"
-#include "../include/lustre_fid.h"
+#include "../include/cl_object.h"
+#include "../include/llog_swab.h"
 #include "../include/lprocfs_status.h"
-#include "../include/lustre_param.h"
-#include "../include/lustre_log.h"
+#include "../include/lustre_acl.h"
+#include "../include/lustre_fid.h"
+#include "../include/lustre/lustre_ioctl.h"
 #include "../include/lustre_kernelcomm.h"
+#include "../include/lustre_lmv.h"
+#include "../include/lustre_log.h"
+#include "../include/lustre_param.h"
+#include "../include/lustre_swab.h"
+#include "../include/obd_class.h"
 
 #include "mdc_internal.h"
 
@@ -57,16 +62,16 @@ static inline int mdc_queue_wait(struct ptlrpc_request *req)
 	struct client_obd *cli = &req->rq_import->imp_obd->u.cli;
 	int rc;
 
-	/* mdc_enter_request() ensures that this client has no more
+	/* obd_get_request_slot() ensures that this client has no more
 	 * than cl_max_rpcs_in_flight RPCs simultaneously inf light
 	 * against an MDT.
 	 */
-	rc = mdc_enter_request(cli);
+	rc = obd_get_request_slot(cli);
 	if (rc != 0)
 		return rc;
 
 	rc = ptlrpc_queue_wait(req);
-	mdc_exit_request(cli);
+	obd_put_request_slot(cli);
 
 	return rc;
 }
@@ -98,7 +103,7 @@ static int mdc_getstatus(struct obd_export *exp, struct lu_fid *rootfid)
 		goto out;
 	}
 
-	*rootfid = body->fid1;
+	*rootfid = body->mbo_fid1;
 	CDEBUG(D_NET,
 	       "root fid="DFID", last_committed=%llu\n",
 	       PFID(rootfid),
@@ -136,12 +141,12 @@ static int mdc_getattr_common(struct obd_export *exp,
 	if (!body)
 		return -EPROTO;
 
-	CDEBUG(D_NET, "mode: %o\n", body->mode);
+	CDEBUG(D_NET, "mode: %o\n", body->mbo_mode);
 
 	mdc_update_max_ea_from_body(exp, body);
-	if (body->eadatasize != 0) {
+	if (body->mbo_eadatasize != 0) {
 		eadata = req_capsule_server_sized_get(pill, &RMF_MDT_MD,
-						      body->eadatasize);
+						      body->mbo_eadatasize);
 		if (!eadata)
 			return -EPROTO;
 	}
@@ -230,32 +235,6 @@ static int mdc_getattr_name(struct obd_export *exp, struct md_op_data *op_data,
 	return rc;
 }
 
-static int mdc_is_subdir(struct obd_export *exp,
-			 const struct lu_fid *pfid,
-			 const struct lu_fid *cfid,
-			 struct ptlrpc_request **request)
-{
-	struct ptlrpc_request  *req;
-	int		     rc;
-
-	*request = NULL;
-	req = ptlrpc_request_alloc_pack(class_exp2cliimp(exp),
-					&RQF_MDS_IS_SUBDIR, LUSTRE_MDS_VERSION,
-					MDS_IS_SUBDIR);
-	if (!req)
-		return -ENOMEM;
-
-	mdc_is_subdir_pack(req, pfid, cfid, 0);
-	ptlrpc_request_set_replen(req);
-
-	rc = ptlrpc_queue_wait(req);
-	if (rc && rc != -EREMOTE)
-		ptlrpc_req_finished(req);
-	else
-		*request = req;
-	return rc;
-}
-
 static int mdc_xattr_common(struct obd_export *exp,
 			    const struct req_format *fmt,
 			    const struct lu_fid *fid,
@@ -316,7 +295,7 @@ static int mdc_xattr_common(struct obd_export *exp,
 	if (opcode == MDS_REINT) {
 		struct mdt_rec_setxattr *rec;
 
-		CLASSERT(sizeof(struct mdt_rec_setxattr) ==
+		BUILD_BUG_ON(sizeof(struct mdt_rec_setxattr) !=
 			 sizeof(struct mdt_rec_reint));
 		rec = req_capsule_client_get(&req->rq_pill, &RMF_REC_REINT);
 		rec->sx_opcode = REINT_SETXATTR;
@@ -351,12 +330,12 @@ static int mdc_xattr_common(struct obd_export *exp,
 
 	/* make rpc */
 	if (opcode == MDS_REINT)
-		mdc_get_rpc_lock(exp->exp_obd->u.cli.cl_rpc_lock, NULL);
+		mdc_get_mod_rpc_slot(req, NULL);
 
 	rc = ptlrpc_queue_wait(req);
 
 	if (opcode == MDS_REINT)
-		mdc_put_rpc_lock(exp->exp_obd->u.cli.cl_rpc_lock, NULL);
+		mdc_put_mod_rpc_slot(req, NULL);
 
 	if (rc)
 		ptlrpc_req_finished(req);
@@ -397,15 +376,15 @@ static int mdc_unpack_acl(struct ptlrpc_request *req, struct lustre_md *md)
 	void		   *buf;
 	int		     rc;
 
-	if (!body->aclsize)
+	if (!body->mbo_aclsize)
 		return 0;
 
-	buf = req_capsule_server_sized_get(pill, &RMF_ACL, body->aclsize);
+	buf = req_capsule_server_sized_get(pill, &RMF_ACL, body->mbo_aclsize);
 
 	if (!buf)
 		return -EPROTO;
 
-	acl = posix_acl_from_xattr(&init_user_ns, buf, body->aclsize);
+	acl = posix_acl_from_xattr(&init_user_ns, buf, body->mbo_aclsize);
 	if (!acl)
 		return 0;
 
@@ -443,76 +422,62 @@ static int mdc_get_lustre_md(struct obd_export *exp,
 
 	md->body = req_capsule_server_get(pill, &RMF_MDT_BODY);
 
-	if (md->body->valid & OBD_MD_FLEASIZE) {
-		int lmmsize;
-		struct lov_mds_md *lmm;
-
-		if (!S_ISREG(md->body->mode)) {
+	if (md->body->mbo_valid & OBD_MD_FLEASIZE) {
+		if (!S_ISREG(md->body->mbo_mode)) {
 			CDEBUG(D_INFO,
 			       "OBD_MD_FLEASIZE set, should be a regular file, but is not\n");
 			rc = -EPROTO;
 			goto out;
 		}
 
-		if (md->body->eadatasize == 0) {
+		if (md->body->mbo_eadatasize == 0) {
 			CDEBUG(D_INFO,
 			       "OBD_MD_FLEASIZE set, but eadatasize 0\n");
 			rc = -EPROTO;
 			goto out;
 		}
-		lmmsize = md->body->eadatasize;
-		lmm = req_capsule_server_sized_get(pill, &RMF_MDT_MD, lmmsize);
-		if (!lmm) {
+
+		md->layout.lb_len = md->body->mbo_eadatasize;
+		md->layout.lb_buf = req_capsule_server_sized_get(pill,
+								 &RMF_MDT_MD,
+								 md->layout.lb_len);
+		if (!md->layout.lb_buf) {
 			rc = -EPROTO;
 			goto out;
 		}
+	} else if (md->body->mbo_valid & OBD_MD_FLDIREA) {
+		const union lmv_mds_md *lmv;
+		size_t lmv_size;
 
-		rc = obd_unpackmd(dt_exp, &md->lsm, lmm, lmmsize);
-		if (rc < 0)
-			goto out;
-
-		if (rc < sizeof(*md->lsm)) {
-			CDEBUG(D_INFO,
-			       "lsm size too small: rc < sizeof (*md->lsm) (%d < %d)\n",
-			       rc, (int)sizeof(*md->lsm));
-			rc = -EPROTO;
-			goto out;
-		}
-
-	} else if (md->body->valid & OBD_MD_FLDIREA) {
-		int lmvsize;
-		struct lov_mds_md *lmv;
-
-		if (!S_ISDIR(md->body->mode)) {
+		if (!S_ISDIR(md->body->mbo_mode)) {
 			CDEBUG(D_INFO,
 			       "OBD_MD_FLDIREA set, should be a directory, but is not\n");
 			rc = -EPROTO;
 			goto out;
 		}
 
-		if (md->body->eadatasize == 0) {
+		lmv_size = md->body->mbo_eadatasize;
+		if (!lmv_size) {
 			CDEBUG(D_INFO,
 			       "OBD_MD_FLDIREA is set, but eadatasize 0\n");
 			return -EPROTO;
 		}
-		if (md->body->valid & OBD_MD_MEA) {
-			lmvsize = md->body->eadatasize;
+		if (md->body->mbo_valid & OBD_MD_MEA) {
 			lmv = req_capsule_server_sized_get(pill, &RMF_MDT_MD,
-							   lmvsize);
+							   lmv_size);
 			if (!lmv) {
 				rc = -EPROTO;
 				goto out;
 			}
 
-			rc = obd_unpackmd(md_exp, (void *)&md->mea, lmv,
-					  lmvsize);
+			rc = md_unpackmd(md_exp, &md->lmv, lmv, lmv_size);
 			if (rc < 0)
 				goto out;
 
-			if (rc < sizeof(*md->mea)) {
+			if (rc < (typeof(rc))sizeof(*md->lmv)) {
 				CDEBUG(D_INFO,
-				       "size too small: rc < sizeof(*md->mea) (%d < %d)\n",
-					rc, (int)sizeof(*md->mea));
+				       "size too small: rc < sizeof(*md->lmv) (%d < %d)\n",
+					rc, (int)sizeof(*md->lmv));
 				rc = -EPROTO;
 				goto out;
 			}
@@ -520,12 +485,12 @@ static int mdc_get_lustre_md(struct obd_export *exp,
 	}
 	rc = 0;
 
-	if (md->body->valid & OBD_MD_FLACL) {
+	if (md->body->mbo_valid & OBD_MD_FLACL) {
 		/* for ACL, it's possible that FLACL is set but aclsize is zero.
 		 * only when aclsize != 0 there's an actual segment for ACL
 		 * in reply buffer.
 		 */
-		if (md->body->aclsize) {
+		if (md->body->mbo_aclsize) {
 			rc = mdc_unpack_acl(req, md);
 			if (rc)
 				goto out;
@@ -541,8 +506,6 @@ out:
 #ifdef CONFIG_FS_POSIX_ACL
 		posix_acl_release(md->posix_acl);
 #endif
-		if (md->lsm)
-			obd_free_memmd(dt_exp, &md->lsm);
 	}
 	return rc;
 }
@@ -552,10 +515,6 @@ static int mdc_free_lustre_md(struct obd_export *exp, struct lustre_md *md)
 	return 0;
 }
 
-/**
- * Handles both OPEN and SETATTR RPCs for OPEN-CLOSE and SETATTR-DONE_WRITING
- * RPC chains.
- */
 void mdc_replay_open(struct ptlrpc_request *req)
 {
 	struct md_open_data *mod = req->rq_cb_data;
@@ -580,24 +539,24 @@ void mdc_replay_open(struct ptlrpc_request *req)
 
 		file_fh = &och->och_fh;
 		CDEBUG(D_HA, "updating handle from %#llx to %#llx\n",
-		       file_fh->cookie, body->handle.cookie);
+		       file_fh->cookie, body->mbo_handle.cookie);
 		old = *file_fh;
-		*file_fh = body->handle;
+		*file_fh = body->mbo_handle;
 	}
 	close_req = mod->mod_close_req;
 	if (close_req) {
 		__u32 opc = lustre_msg_get_opc(close_req->rq_reqmsg);
 		struct mdt_ioepoch *epoch;
 
-		LASSERT(opc == MDS_CLOSE || opc == MDS_DONE_WRITING);
+		LASSERT(opc == MDS_CLOSE);
 		epoch = req_capsule_client_get(&close_req->rq_pill,
 					       &RMF_MDT_EPOCH);
 		LASSERT(epoch);
 
 		if (och)
-			LASSERT(!memcmp(&old, &epoch->handle, sizeof(old)));
+			LASSERT(!memcmp(&old, &epoch->mio_handle, sizeof(old)));
 		DEBUG_REQ(D_HA, close_req, "updating close body with new fh");
-		epoch->handle = body->handle;
+		epoch->mio_handle = body->mbo_handle;
 	}
 }
 
@@ -679,11 +638,11 @@ int mdc_set_open_replay_data(struct obd_export *exp,
 		spin_unlock(&open_req->rq_lock);
 	}
 
-	rec->cr_fid2 = body->fid1;
-	rec->cr_ioepoch = body->ioepoch;
-	rec->cr_old_handle.cookie = body->handle.cookie;
+	rec->cr_fid2 = body->mbo_fid1;
+	rec->cr_ioepoch = body->mbo_ioepoch;
+	rec->cr_old_handle.cookie = body->mbo_handle.cookie;
 	open_req->rq_replay_cb = mdc_replay_open;
-	if (!fid_is_sane(&body->fid1)) {
+	if (!fid_is_sane(&body->mbo_fid1)) {
 		DEBUG_REQ(D_ERROR, open_req,
 			  "Saving replay request with insane fid");
 		LBUG();
@@ -701,9 +660,15 @@ static void mdc_free_open(struct md_open_data *mod)
 	    imp_connect_disp_stripe(mod->mod_open_req->rq_import))
 		committed = 1;
 
-	LASSERT(mod->mod_open_req->rq_replay == 0);
-
-	DEBUG_REQ(D_RPCTRACE, mod->mod_open_req, "free open request\n");
+	/*
+	 * No reason to asssert here if the open request has
+	 * rq_replay == 1. It means that mdc_close failed, and
+	 * close request wasn`t sent. It is not fatal to client.
+	 * The worst thing is eviction if the client gets open lock
+	 */
+	DEBUG_REQ(D_RPCTRACE, mod->mod_open_req,
+		  "free open request rq_replay = %d\n",
+		   mod->mod_open_req->rq_replay);
 
 	ptlrpc_request_committed(mod->mod_open_req, committed);
 	if (mod->mod_close_req)
@@ -733,22 +698,6 @@ static int mdc_clear_open_replay_data(struct obd_export *exp,
 	return 0;
 }
 
-/* Prepares the request for the replay by the given reply */
-static void mdc_close_handle_reply(struct ptlrpc_request *req,
-				   struct md_op_data *op_data, int rc) {
-	struct mdt_body  *repbody;
-	struct mdt_ioepoch *epoch;
-
-	if (req && rc == -EAGAIN) {
-		repbody = req_capsule_server_get(&req->rq_pill, &RMF_MDT_BODY);
-		epoch = req_capsule_client_get(&req->rq_pill, &RMF_MDT_EPOCH);
-
-		epoch->flags |= MF_SOM_AU;
-		if (repbody->valid & OBD_MD_FLGETATTRLOCK)
-			op_data->op_flags |= MF_GETATTR_LOCK;
-	}
-}
-
 static int mdc_close(struct obd_export *exp, struct md_op_data *op_data,
 		     struct md_open_data *mod, struct ptlrpc_request **request)
 {
@@ -758,37 +707,28 @@ static int mdc_close(struct obd_export *exp, struct md_op_data *op_data,
 	int                    rc;
 	int		       saved_rc = 0;
 
-	req_fmt = &RQF_MDS_CLOSE;
 	if (op_data->op_bias & MDS_HSM_RELEASE) {
-		req_fmt = &RQF_MDS_RELEASE_CLOSE;
+		req_fmt = &RQF_MDS_INTENT_CLOSE;
 
 		/* allocate a FID for volatile file */
-		rc = mdc_fid_alloc(exp, &op_data->op_fid2, op_data);
+		rc = mdc_fid_alloc(NULL, exp, &op_data->op_fid2, op_data);
 		if (rc < 0) {
 			CERROR("%s: "DFID" failed to allocate FID: %d\n",
 			       obd->obd_name, PFID(&op_data->op_fid1), rc);
 			/* save the errcode and proceed to close */
 			saved_rc = rc;
 		}
+	} else if (op_data->op_bias & MDS_CLOSE_LAYOUT_SWAP) {
+		req_fmt = &RQF_MDS_INTENT_CLOSE;
+	} else {
+		req_fmt = &RQF_MDS_CLOSE;
 	}
 
 	*request = NULL;
-	req = ptlrpc_request_alloc(class_exp2cliimp(exp), req_fmt);
-	if (!req)
-		return -ENOMEM;
-
-	rc = ptlrpc_request_pack(req, LUSTRE_MDS_VERSION, MDS_CLOSE);
-	if (rc) {
-		ptlrpc_request_free(req);
-		return rc;
-	}
-
-	/* To avoid a livelock (bug 7034), we need to send CLOSE RPCs to a
-	 * portal whose threads are not taking any DLM locks and are therefore
-	 * always progressing
-	 */
-	req->rq_request_portal = MDS_READPAGE_PORTAL;
-	ptlrpc_at_set_req_timeout(req);
+	if (OBD_FAIL_CHECK(OBD_FAIL_MDC_CLOSE))
+		req = NULL;
+	else
+		req = ptlrpc_request_alloc(class_exp2cliimp(exp), req_fmt);
 
 	/* Ensure that this close's handle is fixed up during replay. */
 	if (likely(mod)) {
@@ -809,19 +749,41 @@ static int mdc_close(struct obd_export *exp, struct md_op_data *op_data,
 		 CDEBUG(D_HA,
 			"couldn't find open req; expecting close error\n");
 	}
+	if (!req) {
+		/*
+		 * TODO: repeat close after errors
+		 */
+		CWARN("%s: close of FID "DFID" failed, file reference will be dropped when this client unmounts or is evicted\n",
+		      obd->obd_name, PFID(&op_data->op_fid1));
+		rc = -ENOMEM;
+		goto out;
+	}
+
+	rc = ptlrpc_request_pack(req, LUSTRE_MDS_VERSION, MDS_CLOSE);
+	if (rc) {
+		ptlrpc_request_free(req);
+		req = NULL;
+		goto out;
+	}
+
+	/*
+	 * To avoid a livelock (bug 7034), we need to send CLOSE RPCs to a
+	 * portal whose threads are not taking any DLM locks and are therefore
+	 * always progressing
+	 */
+	req->rq_request_portal = MDS_READPAGE_PORTAL;
+	ptlrpc_at_set_req_timeout(req);
 
 	mdc_close_pack(req, op_data);
 
 	req_capsule_set_size(&req->rq_pill, &RMF_MDT_MD, RCL_SERVER,
 			     obd->u.cli.cl_default_mds_easize);
-	req_capsule_set_size(&req->rq_pill, &RMF_LOGCOOKIES, RCL_SERVER,
-			     obd->u.cli.cl_default_mds_cookiesize);
 
 	ptlrpc_request_set_replen(req);
 
-	mdc_get_rpc_lock(obd->u.cli.cl_close_lock, NULL);
+	mdc_get_mod_rpc_slot(req, NULL);
 	rc = ptlrpc_queue_wait(req);
-	mdc_put_rpc_lock(obd->u.cli.cl_close_lock, NULL);
+	mdc_put_mod_rpc_slot(req, NULL);
 
 	if (!req->rq_repmsg) {
 		CDEBUG(D_RPCTRACE, "request failed to send: %p, %d\n", req,
@@ -854,6 +816,7 @@ static int mdc_close(struct obd_export *exp, struct md_op_data *op_data,
 		}
 	}
 
+out:
 	if (mod) {
 		if (rc != 0)
 			mod->mod_close_req = NULL;
@@ -863,89 +826,20 @@ static int mdc_close(struct obd_export *exp, struct md_op_data *op_data,
 		obd_mod_put(mod);
 	}
 	*request = req;
-	mdc_close_handle_reply(req, op_data, rc);
 	return rc < 0 ? rc : saved_rc;
 }
 
-static int mdc_done_writing(struct obd_export *exp, struct md_op_data *op_data,
-			    struct md_open_data *mod)
+static int mdc_getpage(struct obd_export *exp, const struct lu_fid *fid,
+		       u64 offset, struct page **pages, int npages,
+		       struct ptlrpc_request **request)
 {
-	struct obd_device     *obd = class_exp2obd(exp);
-	struct ptlrpc_request *req;
-	int		    rc;
-
-	req = ptlrpc_request_alloc(class_exp2cliimp(exp),
-				   &RQF_MDS_DONE_WRITING);
-	if (!req)
-		return -ENOMEM;
-
-	rc = ptlrpc_request_pack(req, LUSTRE_MDS_VERSION, MDS_DONE_WRITING);
-	if (rc) {
-		ptlrpc_request_free(req);
-		return rc;
-	}
-
-	if (mod) {
-		LASSERTF(mod->mod_open_req &&
-			 mod->mod_open_req->rq_type != LI_POISON,
-			 "POISONED setattr %p!\n", mod->mod_open_req);
-
-		mod->mod_close_req = req;
-		DEBUG_REQ(D_HA, mod->mod_open_req, "matched setattr");
-		/* We no longer want to preserve this setattr for replay even
-		 * though the open was committed. b=3632, b=3633
-		 */
-		spin_lock(&mod->mod_open_req->rq_lock);
-		mod->mod_open_req->rq_replay = 0;
-		spin_unlock(&mod->mod_open_req->rq_lock);
-	}
-
-	mdc_close_pack(req, op_data);
-	ptlrpc_request_set_replen(req);
-
-	mdc_get_rpc_lock(obd->u.cli.cl_close_lock, NULL);
-	rc = ptlrpc_queue_wait(req);
-	mdc_put_rpc_lock(obd->u.cli.cl_close_lock, NULL);
-
-	if (rc == -ESTALE) {
-		/**
-		 * it can be allowed error after 3633 if open or setattr were
-		 * committed and server failed before close was sent.
-		 * Let's check if mod exists and return no error in that case
-		 */
-		if (mod) {
-			if (mod->mod_open_req->rq_committed)
-				rc = 0;
-		}
-	}
-
-	if (mod) {
-		if (rc != 0)
-			mod->mod_close_req = NULL;
-		LASSERT(mod->mod_open_req);
-		mdc_free_open(mod);
-
-		/* Since now, mod is accessed through setattr req only,
-		 * thus DW req does not keep a reference on mod anymore.
-		 */
-		obd_mod_put(mod);
-	}
-
-	mdc_close_handle_reply(req, op_data, rc);
-	ptlrpc_req_finished(req);
-	return rc;
-}
-
-static int mdc_readpage(struct obd_export *exp, struct md_op_data *op_data,
-			struct page **pages, struct ptlrpc_request **request)
-{
-	struct ptlrpc_request   *req;
 	struct ptlrpc_bulk_desc *desc;
-	int		      i;
-	wait_queue_head_t	      waitq;
-	int		      resends = 0;
-	struct l_wait_info       lwi;
-	int		      rc;
+	struct ptlrpc_request *req;
+	wait_queue_head_t waitq;
+	struct l_wait_info lwi;
+	int resends = 0;
+	int rc;
+	int i;
 
 	*request = NULL;
 	init_waitqueue_head(&waitq);
@@ -964,20 +858,20 @@ restart_bulk:
 	req->rq_request_portal = MDS_READPAGE_PORTAL;
 	ptlrpc_at_set_req_timeout(req);
 
-	desc = ptlrpc_prep_bulk_imp(req, op_data->op_npages, 1, BULK_PUT_SINK,
-				    MDS_BULK_PORTAL);
+	desc = ptlrpc_prep_bulk_imp(req, npages, 1,
+				    PTLRPC_BULK_PUT_SINK | PTLRPC_BULK_BUF_KIOV,
+				    MDS_BULK_PORTAL,
+				    &ptlrpc_bulk_kiov_pin_ops);
 	if (!desc) {
 		ptlrpc_request_free(req);
 		return -ENOMEM;
 	}
 
 	/* NB req now owns desc and will free it when it gets freed */
-	for (i = 0; i < op_data->op_npages; i++)
-		ptlrpc_prep_bulk_page_pin(desc, pages[i], 0, PAGE_SIZE);
+	for (i = 0; i < npages; i++)
+		desc->bd_frag_ops->add_kiov_frag(desc, pages[i], 0, PAGE_SIZE);
 
-	mdc_readdir_pack(req, op_data->op_offset,
-			 PAGE_SIZE * op_data->op_npages,
-			 &op_data->op_fid1);
+	mdc_readdir_pack(req, offset, PAGE_SIZE * npages, fid);
 
 	ptlrpc_request_set_replen(req);
 	rc = ptlrpc_queue_wait(req);
@@ -988,11 +882,12 @@ restart_bulk:
 
 		resends++;
 		if (!client_should_resend(resends, &exp->exp_obd->u.cli)) {
-			CERROR("too many resend retries, returning error\n");
+			CERROR("%s: too many resend retries: rc = %d\n",
+			       exp->exp_obd->obd_name, -EIO);
 			return -EIO;
 		}
-		lwi = LWI_TIMEOUT_INTR(cfs_time_seconds(resends),
-				       NULL, NULL, NULL);
+		lwi = LWI_TIMEOUT_INTR(cfs_time_seconds(resends), NULL, NULL,
+				       NULL);
 		l_wait_event(waitq, 0, &lwi);
 
 		goto restart_bulk;
@@ -1006,15 +901,462 @@ restart_bulk:
 	}
 
 	if (req->rq_bulk->bd_nob_transferred & ~LU_PAGE_MASK) {
-		CERROR("Unexpected # bytes transferred: %d (%ld expected)\n",
-		       req->rq_bulk->bd_nob_transferred,
-		       PAGE_SIZE * op_data->op_npages);
+		CERROR("%s: unexpected bytes transferred: %d (%ld expected)\n",
+		       exp->exp_obd->obd_name, req->rq_bulk->bd_nob_transferred,
+		       PAGE_SIZE * npages);
 		ptlrpc_req_finished(req);
 		return -EPROTO;
 	}
 
 	*request = req;
 	return 0;
+}
+
+static void mdc_release_page(struct page *page, int remove)
+{
+	if (remove) {
+		lock_page(page);
+		if (likely(page->mapping))
+			truncate_complete_page(page->mapping, page);
+		unlock_page(page);
+	}
+	put_page(page);
+}
+
+static struct page *mdc_page_locate(struct address_space *mapping, __u64 *hash,
+				    __u64 *start, __u64 *end, int hash64)
+{
+	/*
+	 * Complement of hash is used as an index so that
+	 * radix_tree_gang_lookup() can be used to find a page with starting
+	 * hash _smaller_ than one we are looking for.
+	 */
+	unsigned long offset = hash_x_index(*hash, hash64);
+	struct page *page;
+	int found;
+
+	spin_lock_irq(&mapping->tree_lock);
+	found = radix_tree_gang_lookup(&mapping->page_tree,
+				       (void **)&page, offset, 1);
+	if (found > 0 && !radix_tree_exceptional_entry(page)) {
+		struct lu_dirpage *dp;
+
+		get_page(page);
+		spin_unlock_irq(&mapping->tree_lock);
+		/*
+		 * In contrast to find_lock_page() we are sure that directory
+		 * page cannot be truncated (while DLM lock is held) and,
+		 * hence, can avoid restart.
+		 *
+		 * In fact, page cannot be locked here at all, because
+		 * mdc_read_page_remote does synchronous io.
+		 */
+		wait_on_page_locked(page);
+		if (PageUptodate(page)) {
+			dp = kmap(page);
+			if (BITS_PER_LONG == 32 && hash64) {
+				*start = le64_to_cpu(dp->ldp_hash_start) >> 32;
+				*end   = le64_to_cpu(dp->ldp_hash_end) >> 32;
+				*hash  = *hash >> 32;
+			} else {
+				*start = le64_to_cpu(dp->ldp_hash_start);
+				*end   = le64_to_cpu(dp->ldp_hash_end);
+			}
+			if (unlikely(*start == 1 && *hash == 0))
+				*hash = *start;
+			else
+				LASSERTF(*start <= *hash, "start = %#llx,end = %#llx,hash = %#llx\n",
+					 *start, *end, *hash);
+			CDEBUG(D_VFSTRACE, "offset %lx [%#llx %#llx], hash %#llx\n",
+			       offset, *start, *end, *hash);
+			if (*hash > *end) {
+				kunmap(page);
+				mdc_release_page(page, 0);
+				page = NULL;
+			} else if (*end != *start && *hash == *end) {
+				/*
+				 * upon hash collision, remove this page,
+				 * otherwise put page reference, and
+				 * mdc_read_page_remote() will issue RPC to
+				 * fetch the page we want.
+				 */
+				kunmap(page);
+				mdc_release_page(page,
+						 le32_to_cpu(dp->ldp_flags) & LDF_COLLIDE);
+				page = NULL;
+			}
+		} else {
+			put_page(page);
+			page = ERR_PTR(-EIO);
+		}
+	} else {
+		spin_unlock_irq(&mapping->tree_lock);
+		page = NULL;
+	}
+	return page;
+}
+
+/*
+ * Adjust a set of pages, each page containing an array of lu_dirpages,
+ * so that each page can be used as a single logical lu_dirpage.
+ *
+ * A lu_dirpage is laid out as follows, where s = ldp_hash_start,
+ * e = ldp_hash_end, f = ldp_flags, p = padding, and each "ent" is a
+ * struct lu_dirent.  It has size up to LU_PAGE_SIZE. The ldp_hash_end
+ * value is used as a cookie to request the next lu_dirpage in a
+ * directory listing that spans multiple pages (two in this example):
+ *   ________
+ *  |        |
+ * .|--------v-------   -----.
+ * |s|e|f|p|ent|ent| ... |ent|
+ * '--|--------------   -----'   Each PAGE contains a single
+ *    '------.                   lu_dirpage.
+ * .---------v-------   -----.
+ * |s|e|f|p|ent| 0 | ... | 0 |
+ * '-----------------   -----'
+ *
+ * However, on hosts where the native VM page size (PAGE_SIZE) is
+ * larger than LU_PAGE_SIZE, a single host page may contain multiple
+ * lu_dirpages. After reading the lu_dirpages from the MDS, the
+ * ldp_hash_end of the first lu_dirpage refers to the one immediately
+ * after it in the same PAGE (arrows simplified for brevity, but
+ * in general e0==s1, e1==s2, etc.):
+ *
+ * .--------------------   -----.
+ * |s0|e0|f0|p|ent|ent| ... |ent|
+ * |---v----------------   -----|
+ * |s1|e1|f1|p|ent|ent| ... |ent|
+ * |---v----------------   -----|  Here, each PAGE contains
+ *             ...                 multiple lu_dirpages.
+ * |---v----------------   -----|
+ * |s'|e'|f'|p|ent|ent| ... |ent|
+ * '---|----------------   -----'
+ *     v
+ * .----------------------------.
+ * |        next PAGE           |
+ *
+ * This structure is transformed into a single logical lu_dirpage as follows:
+ *
+ * - Replace e0 with e' so the request for the next lu_dirpage gets the page
+ *   labeled 'next PAGE'.
+ *
+ * - Copy the LDF_COLLIDE flag from f' to f0 to correctly reflect whether
+ *   a hash collision with the next page exists.
+ *
+ * - Adjust the lde_reclen of the ending entry of each lu_dirpage to span
+ *   to the first entry of the next lu_dirpage.
+ */
+#if PAGE_SIZE > LU_PAGE_SIZE
+static void mdc_adjust_dirpages(struct page **pages, int cfs_pgs, int lu_pgs)
+{
+	int i;
+
+	for (i = 0; i < cfs_pgs; i++) {
+		struct lu_dirpage *dp = kmap(pages[i]);
+		__u64 hash_end = le64_to_cpu(dp->ldp_hash_end);
+		__u32 flags = le32_to_cpu(dp->ldp_flags);
+		struct lu_dirpage *first = dp;
+		struct lu_dirent *end_dirent = NULL;
+		struct lu_dirent *ent;
+
+		while (--lu_pgs > 0) {
+			ent = lu_dirent_start(dp);
+			for (end_dirent = ent; ent;
+			     end_dirent = ent, ent = lu_dirent_next(ent));
+
+			/* Advance dp to next lu_dirpage. */
+			dp = (struct lu_dirpage *)((char *)dp + LU_PAGE_SIZE);
+
+			/* Check if we've reached the end of the CFS_PAGE. */
+			if (!((unsigned long)dp & ~PAGE_MASK))
+				break;
+
+			/* Save the hash and flags of this lu_dirpage. */
+			hash_end = le64_to_cpu(dp->ldp_hash_end);
+			flags = le32_to_cpu(dp->ldp_flags);
+
+			/* Check if lu_dirpage contains no entries. */
+			if (!end_dirent)
+				break;
+
+			/*
+			 * Enlarge the end entry lde_reclen from 0 to
+			 * first entry of next lu_dirpage.
+			 */
+			LASSERT(!le16_to_cpu(end_dirent->lde_reclen));
+			end_dirent->lde_reclen =
+				cpu_to_le16((char *)(dp->ldp_entries) -
+					    (char *)end_dirent);
+		}
+
+		first->ldp_hash_end = hash_end;
+		first->ldp_flags &= ~cpu_to_le32(LDF_COLLIDE);
+		first->ldp_flags |= flags & cpu_to_le32(LDF_COLLIDE);
+
+		kunmap(pages[i]);
+	}
+	LASSERTF(lu_pgs == 0, "left = %d", lu_pgs);
+}
+#else
+#define mdc_adjust_dirpages(pages, cfs_pgs, lu_pgs) do {} while (0)
+#endif  /* PAGE_SIZE > LU_PAGE_SIZE */
+
+/* parameters for readdir page */
+struct readpage_param {
+	struct md_op_data	*rp_mod;
+	__u64			rp_off;
+	int			rp_hash64;
+	struct obd_export	*rp_exp;
+	struct md_callback	*rp_cb;
+};
+
+/**
+ * Read pages from server.
+ *
+ * Page in MDS_READPAGE RPC is packed in LU_PAGE_SIZE, and each page contains
+ * a header lu_dirpage which describes the start/end hash, and whether this
+ * page is empty (contains no dir entry) or hash collide with next page.
+ * After client receives reply, several pages will be integrated into dir page
+ * in PAGE_SIZE (if PAGE_SIZE greater than LU_PAGE_SIZE), and the
+ * lu_dirpage for this integrated page will be adjusted.
+ **/
+static int mdc_read_page_remote(void *data, struct page *page0)
+{
+	struct readpage_param *rp = data;
+	struct page **page_pool;
+	struct page *page;
+	struct lu_dirpage *dp;
+	int rd_pgs = 0; /* number of pages read actually */
+	int npages;
+	struct md_op_data *op_data = rp->rp_mod;
+	struct ptlrpc_request *req;
+	int max_pages = op_data->op_max_pages;
+	struct inode *inode;
+	struct lu_fid *fid;
+	int i;
+	int rc;
+
+	LASSERT(max_pages > 0 && max_pages <= PTLRPC_MAX_BRW_PAGES);
+	inode = op_data->op_data;
+	fid = &op_data->op_fid1;
+	LASSERT(inode);
+
+	page_pool = kcalloc(max_pages, sizeof(page), GFP_NOFS);
+	if (page_pool) {
+		page_pool[0] = page0;
+	} else {
+		page_pool = &page0;
+		max_pages = 1;
+	}
+
+	for (npages = 1; npages < max_pages; npages++) {
+		page = page_cache_alloc_cold(inode->i_mapping);
+		if (!page)
+			break;
+		page_pool[npages] = page;
+	}
+
+	rc = mdc_getpage(rp->rp_exp, fid, rp->rp_off, page_pool, npages, &req);
+	if (!rc) {
+		int lu_pgs = req->rq_bulk->bd_nob_transferred;
+
+		rd_pgs = (req->rq_bulk->bd_nob_transferred +
+			  PAGE_SIZE - 1) >> PAGE_SHIFT;
+		lu_pgs >>= LU_PAGE_SHIFT;
+		LASSERT(!(req->rq_bulk->bd_nob_transferred & ~LU_PAGE_MASK));
+
+		CDEBUG(D_INODE, "read %d(%d) pages\n", rd_pgs, lu_pgs);
+
+		mdc_adjust_dirpages(page_pool, rd_pgs, lu_pgs);
+
+		SetPageUptodate(page0);
+	}
+
+	unlock_page(page0);
+	ptlrpc_req_finished(req);
+	CDEBUG(D_CACHE, "read %d/%d pages\n", rd_pgs, npages);
+	for (i = 1; i < npages; i++) {
+		unsigned long offset;
+		__u64 hash;
+		int ret;
+
+		page = page_pool[i];
+
+		if (rc < 0 || i >= rd_pgs) {
+			put_page(page);
+			continue;
+		}
+
+		SetPageUptodate(page);
+
+		dp = kmap(page);
+		hash = le64_to_cpu(dp->ldp_hash_start);
+		kunmap(page);
+
+		offset = hash_x_index(hash, rp->rp_hash64);
+
+		prefetchw(&page->flags);
+		ret = add_to_page_cache_lru(page, inode->i_mapping, offset,
+					    GFP_KERNEL);
+		if (!ret)
+			unlock_page(page);
+		else
+			CDEBUG(D_VFSTRACE, "page %lu add to page cache failed: rc = %d\n",
+			       offset, ret);
+		put_page(page);
+	}
+
+	if (page_pool != &page0)
+		kfree(page_pool);
+
+	return rc;
+}
+
+/**
+ * Read dir page from cache first, if it can not find it, read it from
+ * server and add into the cache.
+ *
+ * \param[in] exp	MDC export
+ * \param[in] op_data	client MD stack parameters, transferring parameters
+ *			between different layers on client MD stack.
+ * \param[in] cb_op	callback required for ldlm lock enqueue during
+ *			read page
+ * \param[in] hash_offset the hash offset of the page to be read
+ * \param[in] ppage	the page to be read
+ *
+ * retval		= 0 get the page successfully
+ *			errno(<0) get the page failed
+ */
+static int mdc_read_page(struct obd_export *exp, struct md_op_data *op_data,
+			 struct md_callback *cb_op, __u64 hash_offset,
+			 struct page **ppage)
+{
+	struct lookup_intent it = { .it_op = IT_READDIR };
+	struct page *page;
+	struct inode *dir = op_data->op_data;
+	struct address_space *mapping;
+	struct lu_dirpage *dp;
+	__u64 start = 0;
+	__u64 end = 0;
+	struct lustre_handle lockh;
+	struct ptlrpc_request *enq_req = NULL;
+	struct readpage_param rp_param;
+	int rc;
+
+	*ppage = NULL;
+
+	LASSERT(dir);
+	mapping = dir->i_mapping;
+
+	rc = mdc_intent_lock(exp, op_data, &it, &enq_req,
+			     cb_op->md_blocking_ast, 0);
+	if (enq_req)
+		ptlrpc_req_finished(enq_req);
+
+	if (rc < 0) {
+		CERROR("%s: "DFID" lock enqueue fails: rc = %d\n",
+		       exp->exp_obd->obd_name, PFID(&op_data->op_fid1), rc);
+		return rc;
+	}
+
+	rc = 0;
+	lockh.cookie = it.it_lock_handle;
+	mdc_set_lock_data(exp, &lockh, dir, NULL);
+
+	rp_param.rp_off = hash_offset;
+	rp_param.rp_hash64 = op_data->op_cli_flags & CLI_HASH64;
+	page = mdc_page_locate(mapping, &rp_param.rp_off, &start, &end,
+			       rp_param.rp_hash64);
+	if (IS_ERR(page)) {
+		CDEBUG(D_INFO, "%s: dir page locate: " DFID " at %llu: rc %ld\n",
+		       exp->exp_obd->obd_name, PFID(&op_data->op_fid1),
+		       rp_param.rp_off, PTR_ERR(page));
+		rc = PTR_ERR(page);
+		goto out_unlock;
+	} else if (page) {
+		/*
+		 * XXX nikita: not entirely correct handling of a corner case:
+		 * suppose hash chain of entries with hash value HASH crosses
+		 * border between pages P0 and P1. First both P0 and P1 are
+		 * cached, seekdir() is called for some entry from the P0 part
+		 * of the chain. Later P0 goes out of cache. telldir(HASH)
+		 * happens and finds P1, as it starts with matching hash
+		 * value. Remaining entries from P0 part of the chain are
+		 * skipped. (Is that really a bug?)
+		 *
+		 * Possible solutions: 0. don't cache P1 is such case, handle
+		 * it as an "overflow" page. 1. invalidate all pages at
+		 * once. 2. use HASH|1 as an index for P1.
+		 */
+		goto hash_collision;
+	}
+
+	rp_param.rp_exp = exp;
+	rp_param.rp_mod = op_data;
+	page = read_cache_page(mapping,
+			       hash_x_index(rp_param.rp_off,
+					    rp_param.rp_hash64),
+			       mdc_read_page_remote, &rp_param);
+	if (IS_ERR(page)) {
+		CERROR("%s: read cache page: "DFID" at %llu: rc %ld\n",
+		       exp->exp_obd->obd_name, PFID(&op_data->op_fid1),
+		       rp_param.rp_off, PTR_ERR(page));
+		rc = PTR_ERR(page);
+		goto out_unlock;
+	}
+
+	wait_on_page_locked(page);
+	(void)kmap(page);
+	if (!PageUptodate(page)) {
+		CERROR("%s: page not updated: "DFID" at %llu: rc %d\n",
+		       exp->exp_obd->obd_name, PFID(&op_data->op_fid1),
+		       rp_param.rp_off, -5);
+		goto fail;
+	}
+	if (!PageChecked(page))
+		SetPageChecked(page);
+	if (PageError(page)) {
+		CERROR("%s: page error: "DFID" at %llu: rc %d\n",
+		       exp->exp_obd->obd_name, PFID(&op_data->op_fid1),
+		       rp_param.rp_off, -5);
+		goto fail;
+	}
+
+hash_collision:
+	dp = page_address(page);
+	if (BITS_PER_LONG == 32 && rp_param.rp_hash64) {
+		start = le64_to_cpu(dp->ldp_hash_start) >> 32;
+		end = le64_to_cpu(dp->ldp_hash_end) >> 32;
+		rp_param.rp_off = hash_offset >> 32;
+	} else {
+		start = le64_to_cpu(dp->ldp_hash_start);
+		end = le64_to_cpu(dp->ldp_hash_end);
+		rp_param.rp_off = hash_offset;
+	}
+	if (end == start) {
+		LASSERT(start == rp_param.rp_off);
+		CWARN("Page-wide hash collision: %#lx\n", (unsigned long)end);
+#if BITS_PER_LONG == 32
+		CWARN("Real page-wide hash collision at [%llu %llu] with hash %llu\n",
+		      le64_to_cpu(dp->ldp_hash_start),
+		      le64_to_cpu(dp->ldp_hash_end), hash_offset);
+#endif
+		/*
+		 * Fetch whole overflow chain...
+		 *
+		 * XXX not yet.
+		 */
+		goto fail;
+	}
+	*ppage = page;
+out_unlock:
+	ldlm_lock_decref(&lockh, it.it_lock_mode);
+	return rc;
+fail:
+	kunmap(page);
+	mdc_release_page(page, 1);
+	rc = -EIO;
+	goto out_unlock;
 }
 
 static int mdc_statfs(const struct lu_env *env,
@@ -1105,7 +1447,7 @@ static int mdc_ioc_fid2path(struct obd_export *exp, struct getinfo_fid2path *gf)
 	/* Val is struct getinfo_fid2path result plus path */
 	vallen = sizeof(*gf) + gf->gf_pathlen;
 
-	rc = obd_get_info(NULL, exp, keylen, key, &vallen, gf, NULL);
+	rc = obd_get_info(NULL, exp, keylen, key, &vallen, gf);
 	if (rc != 0 && rc != -EREMOTE)
 		goto out;
 
@@ -1117,8 +1459,11 @@ static int mdc_ioc_fid2path(struct obd_export *exp, struct getinfo_fid2path *gf)
 		goto out;
 	}
 
-	CDEBUG(D_IOCTL, "path get "DFID" from %llu #%d\n%s\n",
-	       PFID(&gf->gf_fid), gf->gf_recno, gf->gf_linkno, gf->gf_path);
+	CDEBUG(D_IOCTL, "path got " DFID " from %llu #%d: %s\n",
+	       PFID(&gf->gf_fid), gf->gf_recno, gf->gf_linkno,
+	       gf->gf_pathlen < 512 ? gf->gf_path :
+	       /* only log the last 512 characters of the path */
+	       gf->gf_path + gf->gf_pathlen - 512);
 
 out:
 	kfree(key);
@@ -1154,7 +1499,9 @@ static int mdc_ioc_hsm_progress(struct obd_export *exp,
 
 	ptlrpc_request_set_replen(req);
 
-	rc = mdc_queue_wait(req);
+	mdc_get_mod_rpc_slot(req, NULL);
+	rc = ptlrpc_queue_wait(req);
+	mdc_put_mod_rpc_slot(req, NULL);
 out:
 	ptlrpc_req_finished(req);
 	return rc;
@@ -1332,7 +1679,9 @@ static int mdc_ioc_hsm_state_set(struct obd_export *exp,
 
 	ptlrpc_request_set_replen(req);
 
-	rc = mdc_queue_wait(req);
+	mdc_get_mod_rpc_slot(req, NULL);
+	rc = ptlrpc_queue_wait(req);
+	mdc_put_mod_rpc_slot(req, NULL);
 out:
 	ptlrpc_req_finished(req);
 	return rc;
@@ -1395,13 +1744,15 @@ static int mdc_ioc_hsm_request(struct obd_export *exp,
 
 	ptlrpc_request_set_replen(req);
 
-	rc = mdc_queue_wait(req);
+	mdc_get_mod_rpc_slot(req, NULL);
+	rc = ptlrpc_queue_wait(req);
+	mdc_put_mod_rpc_slot(req, NULL);
 out:
 	ptlrpc_req_finished(req);
 	return rc;
 }
 
-static struct kuc_hdr *changelog_kuc_hdr(char *buf, int len, int flags)
+static struct kuc_hdr *changelog_kuc_hdr(char *buf, size_t len, u32 flags)
 {
 	struct kuc_hdr *lh = (struct kuc_hdr *)buf;
 
@@ -1415,15 +1766,18 @@ static struct kuc_hdr *changelog_kuc_hdr(char *buf, int len, int flags)
 	return lh;
 }
 
-#define D_CHANGELOG 0
-
 struct changelog_show {
 	__u64		cs_startrec;
-	__u32		cs_flags;
+	enum changelog_send_flag	cs_flags;
 	struct file	*cs_fp;
 	char		*cs_buf;
 	struct obd_device *cs_obd;
 };
+
+static inline char *cs_obd_name(struct changelog_show *cs)
+{
+	return cs->cs_obd->obd_name;
+}
 
 static int changelog_kkuc_cb(const struct lu_env *env, struct llog_handle *llh,
 			     struct llog_rec_hdr *hdr, void *data)
@@ -1431,24 +1785,25 @@ static int changelog_kkuc_cb(const struct lu_env *env, struct llog_handle *llh,
 	struct changelog_show *cs = data;
 	struct llog_changelog_rec *rec = (struct llog_changelog_rec *)hdr;
 	struct kuc_hdr *lh;
-	int len, rc;
+	size_t len;
+	int rc;
 
 	if (rec->cr_hdr.lrh_type != CHANGELOG_REC) {
 		rc = -EINVAL;
 		CERROR("%s: not a changelog rec %x/%d: rc = %d\n",
-		       cs->cs_obd->obd_name, rec->cr_hdr.lrh_type,
+		       cs_obd_name(cs), rec->cr_hdr.lrh_type,
 		       rec->cr.cr_type, rc);
 		return rc;
 	}
 
 	if (rec->cr.cr_index < cs->cs_startrec) {
 		/* Skip entries earlier than what we are interested in */
-		CDEBUG(D_CHANGELOG, "rec=%llu start=%llu\n",
+		CDEBUG(D_HSM, "rec=%llu start=%llu\n",
 		       rec->cr.cr_index, cs->cs_startrec);
 		return 0;
 	}
 
-	CDEBUG(D_CHANGELOG, "%llu %02d%-5s %llu 0x%x t="DFID" p="DFID
+	CDEBUG(D_HSM, "%llu %02d%-5s %llu 0x%x t=" DFID " p=" DFID
 		" %.*s\n", rec->cr.cr_index, rec->cr.cr_type,
 		changelog_type2str(rec->cr.cr_type), rec->cr.cr_time,
 		rec->cr.cr_flags & CLF_FLAGMASK,
@@ -1462,20 +1817,21 @@ static int changelog_kkuc_cb(const struct lu_env *env, struct llog_handle *llh,
 	memcpy(lh + 1, &rec->cr, len - sizeof(*lh));
 
 	rc = libcfs_kkuc_msg_put(cs->cs_fp, lh);
-	CDEBUG(D_CHANGELOG, "kucmsg fp %p len %d rc %d\n", cs->cs_fp, len, rc);
+	CDEBUG(D_HSM, "kucmsg fp %p len %zu rc %d\n", cs->cs_fp, len, rc);
 
 	return rc;
 }
 
 static int mdc_changelog_send_thread(void *csdata)
 {
+	enum llog_flag flags = LLOG_F_IS_CAT;
 	struct changelog_show *cs = csdata;
 	struct llog_ctxt *ctxt = NULL;
 	struct llog_handle *llh = NULL;
 	struct kuc_hdr *kuch;
 	int rc;
 
-	CDEBUG(D_CHANGELOG, "changelog to fp=%p start %llu\n",
+	CDEBUG(D_HSM, "changelog to fp=%p start %llu\n",
 	       cs->cs_fp, cs->cs_startrec);
 
 	cs->cs_buf = kzalloc(KUC_CHANGELOG_MSG_MAXSIZE, GFP_NOFS);
@@ -1494,10 +1850,14 @@ static int mdc_changelog_send_thread(void *csdata)
 		       LLOG_OPEN_EXISTS);
 	if (rc) {
 		CERROR("%s: fail to open changelog catalog: rc = %d\n",
-		       cs->cs_obd->obd_name, rc);
+		       cs_obd_name(cs), rc);
 		goto out;
 	}
-	rc = llog_init_handle(NULL, llh, LLOG_F_IS_CAT, NULL);
+
+	if (cs->cs_flags & CHANGELOG_FLAG_JOBID)
+		flags |= LLOG_F_EXT_JOBID;
+
+	rc = llog_init_handle(NULL, llh, flags, NULL);
 	if (rc) {
 		CERROR("llog_init_handle failed %d\n", rc);
 		goto out;
@@ -1507,10 +1867,8 @@ static int mdc_changelog_send_thread(void *csdata)
 
 	/* Send EOF no matter what our result */
 	kuch = changelog_kuc_hdr(cs->cs_buf, sizeof(*kuch), cs->cs_flags);
-	if (kuch) {
-		kuch->kuc_msgtype = CL_EOF;
-		libcfs_kkuc_msg_put(cs->cs_fp, kuch);
-	}
+	kuch->kuc_msgtype = CL_EOF;
+	libcfs_kkuc_msg_put(cs->cs_fp, kuch);
 
 out:
 	fput(cs->cs_fp);
@@ -1550,12 +1908,12 @@ static int mdc_ioc_changelog_send(struct obd_device *obd,
 	if (IS_ERR(task)) {
 		rc = PTR_ERR(task);
 		CERROR("%s: can't start changelog thread: rc = %d\n",
-		       obd->obd_name, rc);
+		       cs_obd_name(cs), rc);
 		kfree(cs);
 	} else {
 		rc = 0;
-		CDEBUG(D_CHANGELOG, "%s: started changelog thread\n",
-		       obd->obd_name);
+		CDEBUG(D_HSM, "%s: started changelog thread\n",
+		       cs_obd_name(cs));
 	}
 
 	CERROR("Failed to start changelog thread: %d\n", rc);
@@ -1564,52 +1922,6 @@ static int mdc_ioc_changelog_send(struct obd_device *obd,
 
 static int mdc_ioc_hsm_ct_start(struct obd_export *exp,
 				struct lustre_kernelcomm *lk);
-
-static int mdc_quotacheck(struct obd_device *unused, struct obd_export *exp,
-			  struct obd_quotactl *oqctl)
-{
-	struct client_obd       *cli = &exp->exp_obd->u.cli;
-	struct ptlrpc_request   *req;
-	struct obd_quotactl     *body;
-	int		      rc;
-
-	req = ptlrpc_request_alloc_pack(class_exp2cliimp(exp),
-					&RQF_MDS_QUOTACHECK, LUSTRE_MDS_VERSION,
-					MDS_QUOTACHECK);
-	if (!req)
-		return -ENOMEM;
-
-	body = req_capsule_client_get(&req->rq_pill, &RMF_OBD_QUOTACTL);
-	*body = *oqctl;
-
-	ptlrpc_request_set_replen(req);
-
-	/* the next poll will find -ENODATA, that means quotacheck is
-	 * going on
-	 */
-	cli->cl_qchk_stat = -ENODATA;
-	rc = ptlrpc_queue_wait(req);
-	if (rc)
-		cli->cl_qchk_stat = rc;
-	ptlrpc_req_finished(req);
-	return rc;
-}
-
-static int mdc_quota_poll_check(struct obd_export *exp,
-				struct if_quotacheck *qchk)
-{
-	struct client_obd *cli = &exp->exp_obd->u.cli;
-	int rc;
-
-	qchk->obd_uuid = cli->cl_target_uuid;
-	memcpy(qchk->obd_type, LUSTRE_MDS_NAME, strlen(LUSTRE_MDS_NAME));
-
-	rc = cli->cl_qchk_stat;
-	/* the client is not the previous one */
-	if (rc == CL_NOT_QUOTACHECKED)
-		rc = -EINTR;
-	return rc;
-}
 
 static int mdc_quotactl(struct obd_device *unused, struct obd_export *exp,
 			struct obd_quotactl *oqctl)
@@ -1669,9 +1981,11 @@ static int mdc_ioc_swap_layouts(struct obd_export *exp,
 	 * with the request RPC to avoid extra RPC round trips
 	 */
 	count = mdc_resource_get_unused(exp, &op_data->op_fid1, &cancels,
-					LCK_CR, MDS_INODELOCK_LAYOUT);
+					LCK_CR, MDS_INODELOCK_LAYOUT |
+					MDS_INODELOCK_XATTR);
 	count += mdc_resource_get_unused(exp, &op_data->op_fid2, &cancels,
-					 LCK_CR, MDS_INODELOCK_LAYOUT);
+					 LCK_CR, MDS_INODELOCK_LAYOUT |
+					 MDS_INODELOCK_XATTR);
 
 	req = ptlrpc_request_alloc(class_exp2cliimp(exp),
 				   &RQF_MDS_SWAP_LAYOUTS);
@@ -1762,9 +2076,6 @@ static int mdc_iocontrol(unsigned int cmd, struct obd_export *exp, int len,
 		goto out;
 	case IOC_OSC_SET_ACTIVE:
 		rc = ptlrpc_set_import_active(imp, data->ioc_offset);
-		goto out;
-	case OBD_IOC_POLL_QUOTACHECK:
-		rc = mdc_quota_poll_check(exp, (struct if_quotacheck *)karg);
 		goto out;
 	case OBD_IOC_PING_TARGET:
 		rc = ptlrpc_obd_ping(obd);
@@ -1917,7 +2228,7 @@ static void lustre_swab_hai(struct hsm_action_item *h)
 static void lustre_swab_hal(struct hsm_action_list *h)
 {
 	struct hsm_action_item	*hai;
-	int			 i;
+	u32 i;
 
 	__swab32s(&h->hal_version);
 	__swab32s(&h->hal_count);
@@ -1966,14 +2277,14 @@ static int mdc_ioc_hsm_ct_start(struct obd_export *exp,
  * @param val KUC message (kuc_hdr + hsm_action_list)
  * @param len total length of message
  */
-static int mdc_hsm_copytool_send(int len, void *val)
+static int mdc_hsm_copytool_send(size_t len, void *val)
 {
 	struct kuc_hdr		*lh = (struct kuc_hdr *)val;
 	struct hsm_action_list	*hal = (struct hsm_action_list *)(lh + 1);
 
 	if (len < sizeof(*lh) + sizeof(*hal)) {
-		CERROR("Short HSM message %d < %d\n", len,
-		       (int)(sizeof(*lh) + sizeof(*hal)));
+		CERROR("Short HSM message %zu < %zu\n", len,
+		       sizeof(*lh) + sizeof(*hal));
 		return -EPROTO;
 	}
 	if (lh->kuc_magic == __swab16(KUC_MAGIC)) {
@@ -2044,9 +2355,8 @@ static int mdc_set_info_async(const struct lu_env *env,
 		}
 		spin_unlock(&imp->imp_lock);
 
-		rc = do_set_info_async(imp, MDS_SET_INFO, LUSTRE_MDS_VERSION,
-				       keylen, key, vallen, val, set);
-		return rc;
+		return do_set_info_async(imp, MDS_SET_INFO, LUSTRE_MDS_VERSION,
+					 keylen, key, vallen, val, set);
 	}
 	if (KEY_IS(KEY_SPTLRPC_CONF)) {
 		sptlrpc_conf_client_adapt(exp->exp_obd);
@@ -2065,30 +2375,35 @@ static int mdc_set_info_async(const struct lu_env *env,
 		rc = mdc_hsm_copytool_send(vallen, val);
 		return rc;
 	}
+	if (KEY_IS(KEY_DEFAULT_EASIZE)) {
+		u32 *default_easize = val;
+
+		exp->exp_obd->u.cli.cl_default_mds_easize = *default_easize;
+		return 0;
+	}
 
 	CERROR("Unknown key %s\n", (char *)key);
 	return -EINVAL;
 }
 
 static int mdc_get_info(const struct lu_env *env, struct obd_export *exp,
-			__u32 keylen, void *key, __u32 *vallen, void *val,
-			struct lov_stripe_md *lsm)
+			__u32 keylen, void *key, __u32 *vallen, void *val)
 {
 	int rc = -EINVAL;
 
 	if (KEY_IS(KEY_MAX_EASIZE)) {
-		int mdsize, *max_easize;
+		u32 mdsize, *max_easize;
 
 		if (*vallen != sizeof(int))
 			return -EINVAL;
-		mdsize = *(int *)val;
+		mdsize = *(u32 *)val;
 		if (mdsize > exp->exp_obd->u.cli.cl_max_mds_easize)
 			exp->exp_obd->u.cli.cl_max_mds_easize = mdsize;
 		max_easize = val;
 		*max_easize = exp->exp_obd->u.cli.cl_max_mds_easize;
 		return 0;
 	} else if (KEY_IS(KEY_DEFAULT_EASIZE)) {
-		int *default_easize;
+		u32 *default_easize;
 
 		if (*vallen != sizeof(int))
 			return -EINVAL;
@@ -2105,7 +2420,7 @@ static int mdc_get_info(const struct lu_env *env, struct obd_export *exp,
 		*data = imp->imp_connect_data;
 		return 0;
 	} else if (KEY_IS(KEY_TGT_COUNT)) {
-		*((int *)val) = 1;
+		*((u32 *)val) = 1;
 		return 0;
 	}
 
@@ -2151,13 +2466,6 @@ static int mdc_import_event(struct obd_device *obd, struct obd_import *imp,
 	LASSERT(imp->imp_obd == obd);
 
 	switch (event) {
-	case IMP_EVENT_DISCON: {
-#if 0
-		/* XXX Pass event up to OBDs stack. used only for FLD now */
-		rc = obd_notify_observer(obd, obd, OBD_NOTIFY_DISCON, NULL);
-#endif
-		break;
-	}
 	case IMP_EVENT_INACTIVE: {
 		struct client_obd *cli = &obd->u.cli;
 		/*
@@ -2189,6 +2497,7 @@ static int mdc_import_event(struct obd_device *obd, struct obd_import *imp,
 	case IMP_EVENT_OCD:
 		rc = obd_notify_observer(obd, obd, OBD_NOTIFY_OCD, NULL);
 		break;
+	case IMP_EVENT_DISCON:
 	case IMP_EVENT_DEACTIVATE:
 	case IMP_EVENT_ACTIVATE:
 		break;
@@ -2199,13 +2508,13 @@ static int mdc_import_event(struct obd_device *obd, struct obd_import *imp,
 	return rc;
 }
 
-int mdc_fid_alloc(struct obd_export *exp, struct lu_fid *fid,
-		  struct md_op_data *op_data)
+int mdc_fid_alloc(const struct lu_env *env, struct obd_export *exp,
+		  struct lu_fid *fid, struct md_op_data *op_data)
 {
 	struct client_obd *cli = &exp->exp_obd->u.cli;
 	struct lu_client_seq *seq = cli->cl_seq;
 
-	return seq_client_alloc_fid(NULL, seq, fid);
+	return seq_client_alloc_fid(env, seq, fid);
 }
 
 static struct obd_uuid *mdc_get_uuid(struct obd_export *exp)
@@ -2276,29 +2585,17 @@ static void mdc_llog_finish(struct obd_device *obd)
 
 static int mdc_setup(struct obd_device *obd, struct lustre_cfg *cfg)
 {
-	struct client_obd *cli = &obd->u.cli;
 	struct lprocfs_static_vars lvars = { NULL };
 	int rc;
 
-	cli->cl_rpc_lock = kzalloc(sizeof(*cli->cl_rpc_lock), GFP_NOFS);
-	if (!cli->cl_rpc_lock)
-		return -ENOMEM;
-	mdc_init_rpc_lock(cli->cl_rpc_lock);
-
 	rc = ptlrpcd_addref();
 	if (rc < 0)
-		goto err_rpc_lock;
-
-	cli->cl_close_lock = kzalloc(sizeof(*cli->cl_close_lock), GFP_NOFS);
-	if (!cli->cl_close_lock) {
-		rc = -ENOMEM;
-		goto err_ptlrpcd_decref;
-	}
-	mdc_init_rpc_lock(cli->cl_close_lock);
+		return rc;
 
 	rc = client_obd_setup(obd, cfg);
 	if (rc)
-		goto err_close_lock;
+		goto err_ptlrpcd_decref;
+
 	lprocfs_mdc_init_vars(&lvars);
 	lprocfs_obd_setup(obd, lvars.obd_vars, lvars.sysfs_vars);
 	sptlrpc_lprocfs_cliobd_attach(obd);
@@ -2312,29 +2609,25 @@ static int mdc_setup(struct obd_device *obd, struct lustre_cfg *cfg)
 	if (rc) {
 		mdc_cleanup(obd);
 		CERROR("failed to setup llogging subsystems\n");
+		return rc;
 	}
 
 	return rc;
 
-err_close_lock:
-	kfree(cli->cl_close_lock);
 err_ptlrpcd_decref:
 	ptlrpcd_decref();
-err_rpc_lock:
-	kfree(cli->cl_rpc_lock);
 	return rc;
 }
 
-/* Initialize the default and maximum LOV EA and cookie sizes.  This allows
+/* Initialize the default and maximum LOV EA sizes. This allows
  * us to make MDS RPCs with large enough reply buffers to hold a default
- * sized EA and cookie without having to calculate this (via a call into the
+ * sized EA without having to calculate this (via a call into the
  * LOV + OSCs) each time we make an RPC.  The maximum size is also tracked
  * but not used to avoid wastefully vmalloc()'ing large reply buffers when
  * a large number of stripes is possible.  If a larger reply buffer is
  * required it will be reallocated in the ptlrpc layer due to overflow.
  */
-static int mdc_init_ea_size(struct obd_export *exp, int easize,
-			    int def_easize, int cookiesize, int def_cookiesize)
+static int mdc_init_ea_size(struct obd_export *exp, u32 easize, u32 def_easize)
 {
 	struct obd_device *obd = exp->exp_obd;
 	struct client_obd *cli = &obd->u.cli;
@@ -2345,42 +2638,24 @@ static int mdc_init_ea_size(struct obd_export *exp, int easize,
 	if (cli->cl_default_mds_easize < def_easize)
 		cli->cl_default_mds_easize = def_easize;
 
-	if (cli->cl_max_mds_cookiesize < cookiesize)
-		cli->cl_max_mds_cookiesize = cookiesize;
-
-	if (cli->cl_default_mds_cookiesize < def_cookiesize)
-		cli->cl_default_mds_cookiesize = def_cookiesize;
-
 	return 0;
 }
 
-static int mdc_precleanup(struct obd_device *obd, enum obd_cleanup_stage stage)
+static int mdc_precleanup(struct obd_device *obd)
 {
-	switch (stage) {
-	case OBD_CLEANUP_EARLY:
-		break;
-	case OBD_CLEANUP_EXPORTS:
-		/* Failsafe, ok if racy */
-		if (obd->obd_type->typ_refcnt <= 1)
-			libcfs_kkuc_group_rem(0, KUC_GRP_HSM);
+	/* Failsafe, ok if racy */
+	if (obd->obd_type->typ_refcnt <= 1)
+		libcfs_kkuc_group_rem(0, KUC_GRP_HSM);
 
-		obd_cleanup_client_import(obd);
-		ptlrpc_lprocfs_unregister_obd(obd);
-		lprocfs_obd_cleanup(obd);
-
-		mdc_llog_finish(obd);
-		break;
-	}
+	obd_cleanup_client_import(obd);
+	ptlrpc_lprocfs_unregister_obd(obd);
+	lprocfs_obd_cleanup(obd);
+	mdc_llog_finish(obd);
 	return 0;
 }
 
 static int mdc_cleanup(struct obd_device *obd)
 {
-	struct client_obd *cli = &obd->u.cli;
-
-	kfree(cli->cl_rpc_lock);
-	kfree(cli->cl_close_lock);
-
 	ptlrpcd_decref();
 
 	return client_obd_cleanup(obd);
@@ -2424,28 +2699,24 @@ static struct obd_ops mdc_obd_ops = {
 	.process_config = mdc_process_config,
 	.get_uuid       = mdc_get_uuid,
 	.quotactl       = mdc_quotactl,
-	.quotacheck     = mdc_quotacheck
 };
 
 static struct md_ops mdc_md_ops = {
 	.getstatus		= mdc_getstatus,
 	.null_inode		= mdc_null_inode,
-	.find_cbdata		= mdc_find_cbdata,
 	.close			= mdc_close,
 	.create			= mdc_create,
-	.done_writing		= mdc_done_writing,
 	.enqueue		= mdc_enqueue,
 	.getattr		= mdc_getattr,
 	.getattr_name		= mdc_getattr_name,
 	.intent_lock		= mdc_intent_lock,
 	.link			= mdc_link,
-	.is_subdir		= mdc_is_subdir,
 	.rename			= mdc_rename,
 	.setattr		= mdc_setattr,
 	.setxattr		= mdc_setxattr,
 	.getxattr		= mdc_getxattr,
 	.sync			= mdc_sync,
-	.readpage		= mdc_readpage,
+	.read_page		= mdc_read_page,
 	.unlink			= mdc_unlink,
 	.cancel_unused		= mdc_cancel_unused,
 	.init_ea_size		= mdc_init_ea_size,

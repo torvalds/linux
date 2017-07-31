@@ -79,43 +79,6 @@ static inline unsigned mk_qpn(struct rvt_qpn_table *qpt,
 	return (map - qpt->map) * RVT_BITS_PER_PAGE + off;
 }
 
-/*
- * Convert the AETH credit code into the number of credits.
- */
-static const u16 credit_table[31] = {
-	0,                      /* 0 */
-	1,                      /* 1 */
-	2,                      /* 2 */
-	3,                      /* 3 */
-	4,                      /* 4 */
-	6,                      /* 5 */
-	8,                      /* 6 */
-	12,                     /* 7 */
-	16,                     /* 8 */
-	24,                     /* 9 */
-	32,                     /* A */
-	48,                     /* B */
-	64,                     /* C */
-	96,                     /* D */
-	128,                    /* E */
-	192,                    /* F */
-	256,                    /* 10 */
-	384,                    /* 11 */
-	512,                    /* 12 */
-	768,                    /* 13 */
-	1024,                   /* 14 */
-	1536,                   /* 15 */
-	2048,                   /* 16 */
-	3072,                   /* 17 */
-	4096,                   /* 18 */
-	6144,                   /* 19 */
-	8192,                   /* 1A */
-	12288,                  /* 1B */
-	16384,                  /* 1C */
-	24576,                  /* 1D */
-	32768                   /* 1E */
-};
-
 const struct rvt_operation_params hfi1_post_parms[RVT_OPERATION_MAX] = {
 [IB_WR_RDMA_WRITE] = {
 	.length = sizeof(struct ib_rdma_wr),
@@ -196,16 +159,18 @@ static void flush_tx_list(struct rvt_qp *qp)
 static void flush_iowait(struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
-	struct hfi1_ibdev *dev = to_idev(qp->ibqp.device);
 	unsigned long flags;
+	seqlock_t *lock = priv->s_iowait.lock;
 
-	write_seqlock_irqsave(&dev->iowait_lock, flags);
+	if (!lock)
+		return;
+	write_seqlock_irqsave(lock, flags);
 	if (!list_empty(&priv->s_iowait.list)) {
 		list_del_init(&priv->s_iowait.list);
-		if (atomic_dec_and_test(&qp->refcount))
-			wake_up(&qp->wait);
+		priv->s_iowait.lock = NULL;
+		rvt_put_qp(qp);
 	}
-	write_sequnlock_irqrestore(&dev->iowait_lock, flags);
+	write_sequnlock_irqrestore(lock, flags);
 }
 
 static inline int opa_mtu_enum_to_int(int mtu)
@@ -338,68 +303,6 @@ int hfi1_check_send_wqe(struct rvt_qp *qp,
 }
 
 /**
- * hfi1_compute_aeth - compute the AETH (syndrome + MSN)
- * @qp: the queue pair to compute the AETH for
- *
- * Returns the AETH.
- */
-__be32 hfi1_compute_aeth(struct rvt_qp *qp)
-{
-	u32 aeth = qp->r_msn & HFI1_MSN_MASK;
-
-	if (qp->ibqp.srq) {
-		/*
-		 * Shared receive queues don't generate credits.
-		 * Set the credit field to the invalid value.
-		 */
-		aeth |= HFI1_AETH_CREDIT_INVAL << HFI1_AETH_CREDIT_SHIFT;
-	} else {
-		u32 min, max, x;
-		u32 credits;
-		struct rvt_rwq *wq = qp->r_rq.wq;
-		u32 head;
-		u32 tail;
-
-		/* sanity check pointers before trusting them */
-		head = wq->head;
-		if (head >= qp->r_rq.size)
-			head = 0;
-		tail = wq->tail;
-		if (tail >= qp->r_rq.size)
-			tail = 0;
-		/*
-		 * Compute the number of credits available (RWQEs).
-		 * There is a small chance that the pair of reads are
-		 * not atomic, which is OK, since the fuzziness is
-		 * resolved as further ACKs go out.
-		 */
-		credits = head - tail;
-		if ((int)credits < 0)
-			credits += qp->r_rq.size;
-		/*
-		 * Binary search the credit table to find the code to
-		 * use.
-		 */
-		min = 0;
-		max = 31;
-		for (;;) {
-			x = (min + max) / 2;
-			if (credit_table[x] == credits)
-				break;
-			if (credit_table[x] > credits) {
-				max = x;
-			} else {
-				if (min == x)
-					break;
-				min = x;
-			}
-		}
-		aeth |= x << HFI1_AETH_CREDIT_SHIFT;
-	}
-	return cpu_to_be32(aeth);
-}
-
-/**
  * _hfi1_schedule_send - schedule progress
  * @qp: the QP
  *
@@ -450,45 +353,9 @@ static void qp_pio_drain(struct rvt_qp *qp)
  */
 void hfi1_schedule_send(struct rvt_qp *qp)
 {
+	lockdep_assert_held(&qp->s_lock);
 	if (hfi1_send_ok(qp))
 		_hfi1_schedule_send(qp);
-}
-
-/**
- * hfi1_get_credit - flush the send work queue of a QP
- * @qp: the qp who's send work queue to flush
- * @aeth: the Acknowledge Extended Transport Header
- *
- * The QP s_lock should be held.
- */
-void hfi1_get_credit(struct rvt_qp *qp, u32 aeth)
-{
-	u32 credit = (aeth >> HFI1_AETH_CREDIT_SHIFT) & HFI1_AETH_CREDIT_MASK;
-
-	/*
-	 * If the credit is invalid, we can send
-	 * as many packets as we like.  Otherwise, we have to
-	 * honor the credit field.
-	 */
-	if (credit == HFI1_AETH_CREDIT_INVAL) {
-		if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT)) {
-			qp->s_flags |= RVT_S_UNLIMITED_CREDIT;
-			if (qp->s_flags & RVT_S_WAIT_SSN_CREDIT) {
-				qp->s_flags &= ~RVT_S_WAIT_SSN_CREDIT;
-				hfi1_schedule_send(qp);
-			}
-		}
-	} else if (!(qp->s_flags & RVT_S_UNLIMITED_CREDIT)) {
-		/* Compute new LSN (i.e., MSN + credit) */
-		credit = (aeth + credit_table[credit]) & HFI1_MSN_MASK;
-		if (cmp_msn(credit, qp->s_lsn) > 0) {
-			qp->s_lsn = credit;
-			if (qp->s_flags & RVT_S_WAIT_SSN_CREDIT) {
-				qp->s_flags &= ~RVT_S_WAIT_SSN_CREDIT;
-				hfi1_schedule_send(qp);
-			}
-		}
-	}
 }
 
 void hfi1_qp_wakeup(struct rvt_qp *qp, u32 flag)
@@ -503,8 +370,7 @@ void hfi1_qp_wakeup(struct rvt_qp *qp, u32 flag)
 	}
 	spin_unlock_irqrestore(&qp->s_lock, flags);
 	/* Notify hfi1_destroy_qp() if it is waiting. */
-	if (atomic_dec_and_test(&qp->refcount))
-		wake_up(&qp->wait);
+	rvt_put_qp(qp);
 }
 
 static int iowait_sleep(
@@ -543,8 +409,9 @@ static int iowait_sleep(
 			ibp->rvp.n_dmawait++;
 			qp->s_flags |= RVT_S_WAIT_DMA_DESC;
 			list_add_tail(&priv->s_iowait.list, &sde->dmawait);
+			priv->s_iowait.lock = &dev->iowait_lock;
 			trace_hfi1_qpsleep(qp, RVT_S_WAIT_DMA_DESC);
-			atomic_inc(&qp->refcount);
+			rvt_get_qp(qp);
 		}
 		write_sequnlock(&dev->iowait_lock);
 		qp->s_flags &= ~RVT_S_BUSY;
@@ -740,7 +607,7 @@ void qp_iter_print(struct seq_file *s, struct qp_iter *iter)
 	wqe = rvt_get_swqe_ptr(qp, qp->s_last);
 	send_context = qp_to_send_context(qp, priv->s_sc);
 	seq_printf(s,
-		   "N %d %s QP %x R %u %s %u %u %u f=%x %u %u %u %u %u %u PSN %x %x %x %x %x (%u %u %u %u %u %u %u) RQP %x LID %x SL %u MTU %u %u %u %u SDE %p,%u SC %p,%u SCQ %u %u PID %d\n",
+		   "N %d %s QP %x R %u %s %u %u %u f=%x %u %u %u %u %u %u SPSN %x %x %x %x %x RPSN %x (%u %u %u %u %u %u %u) RQP %x LID %x SL %u MTU %u %u %u %u %u SDE %p,%u SC %p,%u SCQ %u %u PID %d\n",
 		   iter->n,
 		   qp_idle(qp) ? "I" : "B",
 		   qp->ibqp.qp_num,
@@ -759,6 +626,7 @@ void qp_iter_print(struct seq_file *s, struct qp_iter *iter)
 		   qp->s_last_psn,
 		   qp->s_psn, qp->s_next_psn,
 		   qp->s_sending_psn, qp->s_sending_hpsn,
+		   qp->r_psn,
 		   qp->s_last, qp->s_acked, qp->s_cur,
 		   qp->s_tail, qp->s_head, qp->s_size,
 		   qp->s_avail,
@@ -769,6 +637,7 @@ void qp_iter_print(struct seq_file *s, struct qp_iter *iter)
 		   qp->s_retry,
 		   qp->s_retry_cnt,
 		   qp->s_rnr_retry_cnt,
+		   qp->s_rnr_retry,
 		   sde,
 		   sde ? sde->this_idx : 0,
 		   send_context,
@@ -776,19 +645,6 @@ void qp_iter_print(struct seq_file *s, struct qp_iter *iter)
 		   ibcq_to_rvtcq(qp->ibqp.send_cq)->queue->head,
 		   ibcq_to_rvtcq(qp->ibqp.send_cq)->queue->tail,
 		   qp->pid);
-}
-
-void qp_comm_est(struct rvt_qp *qp)
-{
-	qp->r_flags |= RVT_R_COMM_EST;
-	if (qp->ibqp.event_handler) {
-		struct ib_event ev;
-
-		ev.device = qp->ibqp.device;
-		ev.element.qp = &qp->ibqp;
-		ev.event = IB_EVENT_COMM_EST;
-		qp->ibqp.event_handler(&ev, qp->ibqp.qp_context);
-	}
 }
 
 void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp,
@@ -808,8 +664,13 @@ void *qp_priv_alloc(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 		kfree(priv);
 		return ERR_PTR(-ENOMEM);
 	}
-	setup_timer(&priv->s_rnr_timer, hfi1_rc_rnr_retry, (unsigned long)qp);
-	qp->s_timer.function = hfi1_rc_timeout;
+	iowait_init(
+		&priv->s_iowait,
+		1,
+		_hfi1_do_send,
+		iowait_sleep,
+		iowait_wakeup,
+		iowait_sdma_drained);
 	return priv;
 }
 
@@ -848,8 +709,8 @@ unsigned free_all_qps(struct rvt_dev_info *rdi)
 
 void flush_qp_waiters(struct rvt_qp *qp)
 {
+	lockdep_assert_held(&qp->s_lock);
 	flush_iowait(qp);
-	hfi1_stop_rc_timers(qp);
 }
 
 void stop_send_queue(struct rvt_qp *qp)
@@ -857,7 +718,6 @@ void stop_send_queue(struct rvt_qp *qp)
 	struct hfi1_qp_priv *priv = qp->priv;
 
 	cancel_work_sync(&priv->s_iowait.iowork);
-	hfi1_del_timers_sync(qp);
 }
 
 void quiesce_qp(struct rvt_qp *qp)
@@ -873,13 +733,6 @@ void notify_qp_reset(struct rvt_qp *qp)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
 
-	iowait_init(
-		&priv->s_iowait,
-		1,
-		_hfi1_do_send,
-		iowait_sleep,
-		iowait_wakeup,
-		iowait_sdma_drained);
 	priv->r_adefered = 0;
 	clear_ahg(qp);
 }
@@ -956,17 +809,20 @@ int get_pmtu_from_attr(struct rvt_dev_info *rdi, struct rvt_qp *qp,
 
 void notify_error_qp(struct rvt_qp *qp)
 {
-	struct hfi1_ibdev *dev = to_idev(qp->ibqp.device);
 	struct hfi1_qp_priv *priv = qp->priv;
+	seqlock_t *lock = priv->s_iowait.lock;
 
-	write_seqlock(&dev->iowait_lock);
-	if (!list_empty(&priv->s_iowait.list) && !(qp->s_flags & RVT_S_BUSY)) {
-		qp->s_flags &= ~RVT_S_ANY_WAIT_IO;
-		list_del_init(&priv->s_iowait.list);
-		if (atomic_dec_and_test(&qp->refcount))
-			wake_up(&qp->wait);
+	if (lock) {
+		write_seqlock(lock);
+		if (!list_empty(&priv->s_iowait.list) &&
+		    !(qp->s_flags & RVT_S_BUSY)) {
+			qp->s_flags &= ~RVT_S_ANY_WAIT_IO;
+			list_del_init(&priv->s_iowait.list);
+			priv->s_iowait.lock = NULL;
+			rvt_put_qp(qp);
+		}
+		write_sequnlock(lock);
 	}
-	write_sequnlock(&dev->iowait_lock);
 
 	if (!(qp->s_flags & RVT_S_BUSY)) {
 		qp->s_hdrwords = 0;

@@ -17,7 +17,6 @@ config PPC_PSERIES
 	select PPC_UDBG_16550
 	select PPC_NATIVE
 	select PPC_DOORBELL
-	select HAVE_CONTEXT_TRACKING
 	select HOTPLUG_CPU if SMP
 	select ARCH_RANDOM
 	select PPC_DOORBELL
@@ -127,3 +126,14 @@ config HV_PERF_CTRS
 	  systems. 24x7 is available on Power 8 systems.
 
           If unsure, select Y.
+
+config IBMVIO
+	depends on PPC_PSERIES
+	bool
+	default y
+
+config IBMEBUS
+	depends on PPC_PSERIES && !CPU_LITTLE_ENDIAN
+	bool "Support for GX bus based adapters"
+	help
+	  Bus device driver for GX bus based adapters.

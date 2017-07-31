@@ -13,7 +13,7 @@
 #include <linux/err.h>
 #include <linux/highmem.h>
 #include <linux/kvm_host.h>
-#include <linux/module.h>
+#include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
 #include <linux/bootmem.h>
@@ -30,28 +30,37 @@
 static int kvm_mips_trans_replace(struct kvm_vcpu *vcpu, u32 *opc,
 				  union mips_instruction replace)
 {
-	unsigned long paddr, flags;
-	void *vaddr;
+	unsigned long vaddr = (unsigned long)opc;
+	int err;
 
-	if (KVM_GUEST_KSEGX((unsigned long)opc) == KVM_GUEST_KSEG0) {
-		paddr = kvm_mips_translate_guest_kseg0_to_hpa(vcpu,
-							    (unsigned long)opc);
-		vaddr = kmap_atomic(pfn_to_page(PHYS_PFN(paddr)));
-		vaddr += paddr & ~PAGE_MASK;
-		memcpy(vaddr, (void *)&replace, sizeof(u32));
-		local_flush_icache_range((unsigned long)vaddr,
-					 (unsigned long)vaddr + 32);
-		kunmap_atomic(vaddr);
-	} else if (KVM_GUEST_KSEGX((unsigned long) opc) == KVM_GUEST_KSEG23) {
-		local_irq_save(flags);
-		memcpy((void *)opc, (void *)&replace, sizeof(u32));
-		local_flush_icache_range((unsigned long)opc,
-					 (unsigned long)opc + 32);
-		local_irq_restore(flags);
-	} else {
-		kvm_err("%s: Invalid address: %p\n", __func__, opc);
-		return -EFAULT;
+retry:
+	/* The GVA page table is still active so use the Linux TLB handlers */
+	kvm_trap_emul_gva_lockless_begin(vcpu);
+	err = put_user(replace.word, opc);
+	kvm_trap_emul_gva_lockless_end(vcpu);
+
+	if (unlikely(err)) {
+		/*
+		 * We write protect clean pages in GVA page table so normal
+		 * Linux TLB mod handler doesn't silently dirty the page.
+		 * Its also possible we raced with a GVA invalidation.
+		 * Try to force the page to become dirty.
+		 */
+		err = kvm_trap_emul_gva_fault(vcpu, vaddr, true);
+		if (unlikely(err)) {
+			kvm_info("%s: Address unwriteable: %p\n",
+				 __func__, opc);
+			return -EFAULT;
+		}
+
+		/*
+		 * Try again. This will likely trigger a TLB refill, which will
+		 * fetch the new dirty entry from the GVA page table, which
+		 * should then succeed.
+		 */
+		goto retry;
 	}
+	__local_flush_icache_user_range(vaddr, vaddr + 4);
 
 	return 0;
 }

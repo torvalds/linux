@@ -2334,7 +2334,7 @@ static int ql_napi_poll_msix(struct napi_struct *napi, int budget)
 	}
 
 	if (work_done < budget) {
-		napi_complete(napi);
+		napi_complete_done(napi, work_done);
 		ql_enable_completion_interrupt(qdev, rx_ring->irq);
 	}
 	return work_done;
@@ -4686,7 +4686,8 @@ static int ql_init_device(struct pci_dev *pdev, struct net_device *ndev,
 	/*
 	 * Set up the operating parameters.
 	 */
-	qdev->workqueue = alloc_ordered_workqueue(ndev->name, WQ_MEM_RECLAIM);
+	qdev->workqueue = alloc_ordered_workqueue("%s", WQ_MEM_RECLAIM,
+						  ndev->name);
 	INIT_DELAYED_WORK(&qdev->asic_reset_work, ql_asic_reset_work);
 	INIT_DELAYED_WORK(&qdev->mpi_reset_work, ql_mpi_reset_work);
 	INIT_DELAYED_WORK(&qdev->mpi_work, ql_mpi_work);
@@ -4787,6 +4788,13 @@ static int qlge_probe(struct pci_dev *pdev,
 	ndev->netdev_ops = &qlge_netdev_ops;
 	ndev->ethtool_ops = &qlge_ethtool_ops;
 	ndev->watchdog_timeo = 10 * HZ;
+
+	/* MTU range: this driver only supports 1500 or 9000, so this only
+	 * filters out values above or below, and we'll rely on
+	 * qlge_change_mtu to make sure only 1500 or 9000 are allowed
+	 */
+	ndev->min_mtu = ETH_DATA_LEN;
+	ndev->max_mtu = 9000;
 
 	err = register_netdev(ndev);
 	if (err) {

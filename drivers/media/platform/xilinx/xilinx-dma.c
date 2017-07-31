@@ -177,7 +177,7 @@ done:
 static int xvip_pipeline_validate(struct xvip_pipeline *pipe,
 				  struct xvip_dma *start)
 {
-	struct media_entity_graph graph;
+	struct media_graph graph;
 	struct media_entity *entity = &start->video.entity;
 	struct media_device *mdev = entity->graph_obj.mdev;
 	unsigned int num_inputs = 0;
@@ -187,15 +187,15 @@ static int xvip_pipeline_validate(struct xvip_pipeline *pipe,
 	mutex_lock(&mdev->graph_mutex);
 
 	/* Walk the graph to locate the video nodes. */
-	ret = media_entity_graph_walk_init(&graph, entity->graph_obj.mdev);
+	ret = media_graph_walk_init(&graph, mdev);
 	if (ret) {
 		mutex_unlock(&mdev->graph_mutex);
 		return ret;
 	}
 
-	media_entity_graph_walk_start(&graph, entity);
+	media_graph_walk_start(&graph, entity);
 
-	while ((entity = media_entity_graph_walk_next(&graph))) {
+	while ((entity = media_graph_walk_next(&graph))) {
 		struct xvip_dma *dma;
 
 		if (entity->function != MEDIA_ENT_F_IO_V4L)
@@ -213,7 +213,7 @@ static int xvip_pipeline_validate(struct xvip_pipeline *pipe,
 
 	mutex_unlock(&mdev->graph_mutex);
 
-	media_entity_graph_walk_cleanup(&graph);
+	media_graph_walk_cleanup(&graph);
 
 	/* We need exactly one output and zero or one input. */
 	if (num_outputs != 1 || num_inputs > 1)
@@ -409,7 +409,7 @@ static int xvip_dma_start_streaming(struct vb2_queue *vq, unsigned int count)
 	pipe = dma->video.entity.pipe
 	     ? to_xvip_pipeline(&dma->video.entity) : &dma->pipe;
 
-	ret = media_entity_pipeline_start(&dma->video.entity, &pipe->pipe);
+	ret = media_pipeline_start(&dma->video.entity, &pipe->pipe);
 	if (ret < 0)
 		goto error;
 
@@ -435,7 +435,7 @@ static int xvip_dma_start_streaming(struct vb2_queue *vq, unsigned int count)
 	return 0;
 
 error_stop:
-	media_entity_pipeline_stop(&dma->video.entity);
+	media_pipeline_stop(&dma->video.entity);
 
 error:
 	/* Give back all queued buffers to videobuf2. */
@@ -463,7 +463,7 @@ static void xvip_dma_stop_streaming(struct vb2_queue *vq)
 
 	/* Cleanup the pipeline and mark it as being stopped. */
 	xvip_pipeline_cleanup(pipe);
-	media_entity_pipeline_stop(&dma->video.entity);
+	media_pipeline_stop(&dma->video.entity);
 
 	/* Give back all queued buffers to videobuf2. */
 	spin_lock_irq(&dma->queued_lock);
@@ -474,7 +474,7 @@ static void xvip_dma_stop_streaming(struct vb2_queue *vq)
 	spin_unlock_irq(&dma->queued_lock);
 }
 
-static struct vb2_ops xvip_dma_queue_qops = {
+static const struct vb2_ops xvip_dma_queue_qops = {
 	.queue_setup = xvip_dma_queue_setup,
 	.buf_prepare = xvip_dma_buffer_prepare,
 	.buf_queue = xvip_dma_buffer_queue,

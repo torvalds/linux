@@ -1,2 +1,3 @@
 # UAPI Header export list
 header-y += hfi1_user.h
+header-y += hfi1_ioctl.h

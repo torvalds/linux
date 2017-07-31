@@ -113,6 +113,34 @@ applicable everywhere (see syntax).
 	That will limit the usefulness but on the other hand avoid
 	the illegal configurations all over.
 
+- weak reverse dependencies: "imply" <symbol> ["if" <expr>]
+  This is similar to "select" as it enforces a lower limit on another
+  symbol except that the "implied" symbol's value may still be set to n
+  from a direct dependency or with a visible prompt.
+
+  Given the following example:
+
+  config FOO
+	tristate
+	imply BAZ
+
+  config BAZ
+	tristate
+	depends on BAR
+
+  The following values are possible:
+
+	FOO		BAR		BAZ's default	choice for BAZ
+	---		---		-------------	--------------
+	n		y		n		N/m/y
+	m		y		m		M/y/n
+	y		y		y		Y/n
+	y		n		*		N
+
+  This is useful e.g. with multiple drivers that want to indicate their
+  ability to hook into a secondary subsystem while allowing the user to
+  configure that subsystem out without also having to unset these drivers.
+
 - limiting menu display: "visible if" <expr>
   This attribute is only applicable to menu blocks, if the condition is
   false, the menu block is not displayed to the user (the symbols
@@ -274,7 +302,44 @@ menuconfig:
 
 This is similar to the simple config entry above, but it also gives a
 hint to front ends, that all suboptions should be displayed as a
-separate list of options.
+separate list of options. To make sure all the suboptions will really
+show up under the menuconfig entry and not outside of it, every item
+from the <config options> list must depend on the menuconfig symbol.
+In practice, this is achieved by using one of the next two constructs:
+
+(1):
+menuconfig M
+if M
+    config C1
+    config C2
+endif
+
+(2):
+menuconfig M
+config C1
+    depends on M
+config C2
+    depends on M
+
+In the following examples (3) and (4), C1 and C2 still have the M
+dependency, but will not appear under menuconfig M anymore, because
+of C0, which doesn't depend on M:
+
+(3):
+menuconfig M
+    config C0
+if M
+    config C1
+    config C2
+endif
+
+(4):
+menuconfig M
+config C0
+config C1
+    depends on M
+config C2
+    depends on M
 
 choices:
 
@@ -444,6 +509,7 @@ historical issues resolved through these different solutions.
   b) Match dependency semantics:
 	b1) Swap all "select FOO" to "depends on FOO" or,
 	b2) Swap all "depends on FOO" to "select FOO"
+  c) Consider the use of "imply" instead of "select"
 
 The resolution to a) can be tested with the sample Kconfig file
 Documentation/kbuild/Kconfig.recursion-issue-01 through the removal

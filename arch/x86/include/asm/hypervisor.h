@@ -43,6 +43,9 @@ struct hypervisor_x86 {
 
 	/* X2APIC detection (run once per boot) */
 	bool		(*x2apic_available)(void);
+
+	/* pin current vcpu to specified physical cpu (run rarely) */
+	void		(*pin_vcpu)(int);
 };
 
 extern const struct hypervisor_x86 *x86_hyper;
@@ -56,6 +59,7 @@ extern const struct hypervisor_x86 x86_hyper_kvm;
 extern void init_hypervisor(struct cpuinfo_x86 *c);
 extern void init_hypervisor_platform(void);
 extern bool hypervisor_x2apic_available(void);
+extern void hypervisor_pin_vcpu(int cpu);
 #else
 static inline void init_hypervisor(struct cpuinfo_x86 *c) { }
 static inline void init_hypervisor_platform(void) { }

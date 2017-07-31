@@ -70,7 +70,9 @@
 
 #define HPTE_V_SSIZE_SHIFT	62
 #define HPTE_V_AVPN_SHIFT	7
+#define HPTE_V_COMMON_BITS	ASM_CONST(0x000fffffffffffff)
 #define HPTE_V_AVPN		ASM_CONST(0x3fffffffffffff80)
+#define HPTE_V_AVPN_3_0		ASM_CONST(0x000fffffffffff80)
 #define HPTE_V_AVPN_VAL(x)	(((x) & HPTE_V_AVPN) >> HPTE_V_AVPN_SHIFT)
 #define HPTE_V_COMPARE(x,y)	(!(((x) ^ (y)) & 0xffffffffffffff80UL))
 #define HPTE_V_BOLTED		ASM_CONST(0x0000000000000010)
@@ -80,14 +82,16 @@
 #define HPTE_V_VALID		ASM_CONST(0x0000000000000001)
 
 /*
- * ISA 3.0 have a different HPTE format.
+ * ISA 3.0 has a different HPTE format.
  */
 #define HPTE_R_3_0_SSIZE_SHIFT	58
+#define HPTE_R_3_0_SSIZE_MASK	(3ull << HPTE_R_3_0_SSIZE_SHIFT)
 #define HPTE_R_PP0		ASM_CONST(0x8000000000000000)
 #define HPTE_R_TS		ASM_CONST(0x4000000000000000)
 #define HPTE_R_KEY_HI		ASM_CONST(0x3000000000000000)
 #define HPTE_R_RPN_SHIFT	12
 #define HPTE_R_RPN		ASM_CONST(0x0ffffffffffff000)
+#define HPTE_R_RPN_3_0		ASM_CONST(0x01fffffffffff000)
 #define HPTE_R_PP		ASM_CONST(0x0000000000000003)
 #define HPTE_R_PPP		ASM_CONST(0x8000000000000003)
 #define HPTE_R_N		ASM_CONST(0x0000000000000004)
@@ -153,6 +157,7 @@ struct mmu_hash_ops {
 					       unsigned long addr,
 					       unsigned char *hpte_slot_array,
 					       int psize, int ssize, int local);
+	int		(*resize_hpt)(unsigned long shift);
 	/*
 	 * Special for kexec.
 	 * To be called in real mode with interrupts disabled. No locks are
@@ -245,6 +250,43 @@ static inline int segment_shift(int ssize)
 }
 
 /*
+ * This array is indexed by the LP field of the HPTE second dword.
+ * Since this field may contain some RPN bits, some entries are
+ * replicated so that we get the same value irrespective of RPN.
+ * The top 4 bits are the page size index (MMU_PAGE_*) for the
+ * actual page size, the bottom 4 bits are the base page size.
+ */
+extern u8 hpte_page_sizes[1 << LP_BITS];
+
+static inline unsigned long __hpte_page_size(unsigned long h, unsigned long l,
+					     bool is_base_size)
+{
+	unsigned int i, lp;
+
+	if (!(h & HPTE_V_LARGE))
+		return 1ul << 12;
+
+	/* Look at the 8 bit LP value */
+	lp = (l >> LP_SHIFT) & ((1 << LP_BITS) - 1);
+	i = hpte_page_sizes[lp];
+	if (!i)
+		return 0;
+	if (!is_base_size)
+		i >>= 4;
+	return 1ul << mmu_psize_defs[i & 0xf].shift;
+}
+
+static inline unsigned long hpte_page_size(unsigned long h, unsigned long l)
+{
+	return __hpte_page_size(h, l, 0);
+}
+
+static inline unsigned long hpte_base_page_size(unsigned long h, unsigned long l)
+{
+	return __hpte_page_size(h, l, 1);
+}
+
+/*
  * The current system page and segment sizes
  */
 extern int mmu_kernel_ssize;
@@ -279,9 +321,40 @@ static inline unsigned long hpte_encode_avpn(unsigned long vpn, int psize,
 	 */
 	v = (vpn >> (23 - VPN_SHIFT)) & ~(mmu_psize_defs[psize].avpnm);
 	v <<= HPTE_V_AVPN_SHIFT;
-	if (!cpu_has_feature(CPU_FTR_ARCH_300))
-		v |= ((unsigned long) ssize) << HPTE_V_SSIZE_SHIFT;
+	v |= ((unsigned long) ssize) << HPTE_V_SSIZE_SHIFT;
 	return v;
+}
+
+/*
+ * ISA v3.0 defines a new HPTE format, which differs from the old
+ * format in having smaller AVPN and ARPN fields, and the B field
+ * in the second dword instead of the first.
+ */
+static inline unsigned long hpte_old_to_new_v(unsigned long v)
+{
+	/* trim AVPN, drop B */
+	return v & HPTE_V_COMMON_BITS;
+}
+
+static inline unsigned long hpte_old_to_new_r(unsigned long v, unsigned long r)
+{
+	/* move B field from 1st to 2nd dword, trim ARPN */
+	return (r & ~HPTE_R_3_0_SSIZE_MASK) |
+		(((v) >> HPTE_V_SSIZE_SHIFT) << HPTE_R_3_0_SSIZE_SHIFT);
+}
+
+static inline unsigned long hpte_new_to_old_v(unsigned long v, unsigned long r)
+{
+	/* insert B field */
+	return (v & HPTE_V_COMMON_BITS) |
+		((r & HPTE_R_3_0_SSIZE_MASK) <<
+		 (HPTE_V_SSIZE_SHIFT - HPTE_R_3_0_SSIZE_SHIFT));
+}
+
+static inline unsigned long hpte_new_to_old_r(unsigned long r)
+{
+	/* clear out B field */
+	return r & ~HPTE_R_3_0_SSIZE_MASK;
 }
 
 /*
@@ -304,12 +377,8 @@ static inline unsigned long hpte_encode_v(unsigned long vpn, int base_psize,
  * aligned for the requested page size
  */
 static inline unsigned long hpte_encode_r(unsigned long pa, int base_psize,
-					  int actual_psize, int ssize)
+					  int actual_psize)
 {
-
-	if (cpu_has_feature(CPU_FTR_ARCH_300))
-		pa |= ((unsigned long) ssize) << HPTE_R_3_0_SSIZE_SHIFT;
-
 	/* A 4K page needs no special encoding */
 	if (actual_psize == MMU_PAGE_4K)
 		return pa & HPTE_R_RPN;
@@ -457,6 +526,9 @@ extern void slb_set_size(u16 size);
 #define ESID_BITS		18
 #define ESID_BITS_1T		6
 
+#define ESID_BITS_MASK		((1 << ESID_BITS) - 1)
+#define ESID_BITS_1T_MASK	((1 << ESID_BITS_1T) - 1)
+
 /*
  * 256MB segment
  * The proto-VSID space has 2^(CONTEX_BITS + ESID_BITS) - 1 segments
@@ -592,9 +664,9 @@ static inline unsigned long get_vsid(unsigned long context, unsigned long ea,
 
 	if (ssize == MMU_SEGSIZE_256M)
 		return vsid_scramble((context << ESID_BITS)
-				     | (ea >> SID_SHIFT), 256M);
+				     | ((ea >> SID_SHIFT) & ESID_BITS_MASK), 256M);
 	return vsid_scramble((context << ESID_BITS_1T)
-			     | (ea >> SID_SHIFT_1T), 1T);
+			     | ((ea >> SID_SHIFT_1T) & ESID_BITS_1T_MASK), 1T);
 }
 
 /*

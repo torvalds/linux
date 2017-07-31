@@ -74,6 +74,7 @@
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
 #include <linux/uaccess.h>
+#include <linux/major.h>
 #include "internal.h"
 
 static struct kmem_cache *romfs_inode_cachep;
@@ -416,7 +417,22 @@ static void romfs_destroy_inode(struct inode *inode)
 static int romfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct super_block *sb = dentry->d_sb;
-	u64 id = huge_encode_dev(sb->s_bdev->bd_dev);
+	u64 id = 0;
+
+	/* When calling huge_encode_dev(),
+	 * use sb->s_bdev->bd_dev when,
+	 *   - CONFIG_ROMFS_ON_BLOCK defined
+	 * use sb->s_dev when,
+	 *   - CONFIG_ROMFS_ON_BLOCK undefined and
+	 *   - CONFIG_ROMFS_ON_MTD defined
+	 * leave id as 0 when,
+	 *   - CONFIG_ROMFS_ON_BLOCK undefined and
+	 *   - CONFIG_ROMFS_ON_MTD undefined
+	 */
+	if (sb->s_bdev)
+		id = huge_encode_dev(sb->s_bdev->bd_dev);
+	else if (sb->s_dev)
+		id = huge_encode_dev(sb->s_dev);
 
 	buf->f_type = ROMFS_MAGIC;
 	buf->f_namelen = ROMFS_MAXFN;
@@ -489,6 +505,11 @@ static int romfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_flags |= MS_RDONLY | MS_NOATIME;
 	sb->s_op = &romfs_super_ops;
 
+#ifdef CONFIG_ROMFS_ON_MTD
+	/* Use same dev ID from the underlying mtdblock device */
+	if (sb->s_mtd)
+		sb->s_dev = MKDEV(MTD_BLOCK_MAJOR, sb->s_mtd->index);
+#endif
 	/* read the image superblock and check it */
 	rsb = kmalloc(512, GFP_KERNEL);
 	if (!rsb)

@@ -1,0 +1,14 @@
+* Cortina Systems Gemini RTC
+
+Gemini SoC real-time clock.
+
+Required properties:
+- compatible : Should be "cortina,gemini-rtc"
+
+Examples:
+
+rtc@45000000 {
+	compatible = "cortina,gemini-rtc";
+	reg = <0x45000000 0x100>;
+	interrupts = <17 IRQ_TYPE_LEVEL_HIGH>;
+};
