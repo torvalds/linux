@@ -203,7 +203,7 @@ static void stm32_transmit_chars_pio(struct uart_port *port)
 	ret = readl_relaxed_poll_timeout_atomic(port->membase + ofs->isr,
 						isr,
 						(isr & USART_SR_TXE),
-						10, 100);
+						10, 100000);
 
 	if (ret)
 		dev_err(port->dev, "tx empty not set\n");
