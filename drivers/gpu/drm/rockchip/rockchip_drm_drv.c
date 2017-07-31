@@ -40,7 +40,6 @@
 #include "rockchip_drm_fb.h"
 #include "rockchip_drm_fbdev.h"
 #include "rockchip_drm_gem.h"
-#include "rockchip_drm_rga.h"
 
 #define DRIVER_NAME	"rockchip"
 #define DRIVER_DESC	"RockChip Soc DRM"
@@ -1351,13 +1350,6 @@ static const struct drm_ioctl_desc rockchip_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(ROCKCHIP_GEM_CPU_RELEASE,
 			  rockchip_gem_cpu_release_ioctl,
 			  DRM_UNLOCKED | DRM_AUTH | DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(ROCKCHIP_RGA_GET_VER, rockchip_rga_get_ver_ioctl,
-			  DRM_AUTH | DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(ROCKCHIP_RGA_SET_CMDLIST,
-			  rockchip_rga_set_cmdlist_ioctl,
-			  DRM_AUTH | DRM_RENDER_ALLOW),
-	DRM_IOCTL_DEF_DRV(ROCKCHIP_RGA_EXEC, rockchip_rga_exec_ioctl,
-			  DRM_AUTH | DRM_RENDER_ALLOW),
 };
 
 static const struct file_operations rockchip_drm_driver_fops = {
