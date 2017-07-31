@@ -243,6 +243,13 @@ static struct resource mcf_pci_io = {
 	.flags	= IORESOURCE_IO,
 };
 
+static struct resource busn_resource = {
+	.name	= "PCI busn",
+	.start	= 0,
+	.end	= 255,
+	.flags	= IORESOURCE_BUS,
+};
+
 /*
  * Interrupt mapping and setting.
  */
@@ -258,6 +265,13 @@ static int mcf_pci_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 
 static int __init mcf_pci_init(void)
 {
+	struct pci_host_bridge *bridge;
+	int ret;
+
+	bridge = pci_alloc_host_bridge(0);
+	if (!bridge)
+		return -ENOMEM;
+
 	pr_info("ColdFire: PCI bus initialization...\n");
 
 	/* Reset the external PCI bus */
@@ -312,14 +326,28 @@ static int __init mcf_pci_init(void)
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	schedule_timeout(msecs_to_jiffies(200));
 
-	rootbus = pci_scan_bus(0, &mcf_pci_ops, NULL);
-	if (!rootbus)
-		return -ENODEV;
+
+	pci_add_resource(&bridge->windows, &ioport_resource);
+	pci_add_resource(&bridge->windows, &iomem_resource);
+	pci_add_resource(&bridge->windows, &busn_resource);
+	bridge->dev.parent = NULL;
+	bridge->sysdata = NULL;
+	bridge->busnr = 0;
+	bridge->ops = &mcf_pci_ops;
+	bridge->swizzle_irq = pci_common_swizzle;
+	bridge->map_irq = mcf_pci_map_irq;
+
+	ret = pci_scan_root_bus_bridge(bridge);
+	if (ret) {
+		pci_free_host_bridge(bridge);
+		return ret;
+	}
+
+	rootbus = bridge->bus;
 
 	rootbus->resource[0] = &mcf_pci_io;
 	rootbus->resource[1] = &mcf_pci_mem;
 
-	pci_fixup_irqs(pci_common_swizzle, mcf_pci_map_irq);
 	pci_bus_size_bridges(rootbus);
 	pci_bus_assign_resources(rootbus);
 	pci_bus_add_devices(rootbus);
