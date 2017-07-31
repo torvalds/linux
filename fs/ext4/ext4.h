@@ -961,7 +961,7 @@ struct ext4_inode_info {
 	/*
 	 * i_block_group is the number of the block group which contains
 	 * this file's inode.  Constant across the lifetime of the inode,
-	 * it is ued for making block allocation decisions - we try to
+	 * it is used for making block allocation decisions - we try to
 	 * place a file's data blocks near its inode block, and new inodes
 	 * near to their parent directory's inode.
 	 */
@@ -1049,10 +1049,8 @@ struct ext4_inode_info {
 	ext4_group_t	i_last_alloc_group;
 
 	/* allocation reservation info for delalloc */
-	/* In case of bigalloc, these refer to clusters rather than blocks */
+	/* In case of bigalloc, this refer to clusters rather than blocks */
 	unsigned int i_reserved_data_blocks;
-	unsigned int i_reserved_meta_blocks;
-	unsigned int i_allocated_meta_blocks;
 	ext4_lblk_t i_da_metadata_calc_last_lblock;
 	int i_da_metadata_calc_len;
 
