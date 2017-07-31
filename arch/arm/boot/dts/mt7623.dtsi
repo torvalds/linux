@@ -89,24 +89,28 @@
 			#cooling-cells = <2>;
 			cooling-min-level = <0>;
 			cooling-max-level = <7>;
+			clock-frequency = <1300000000>;
 		};
 		cpu1: cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x1>;
 			operating-points-v2 = <&cpu_opp_table>;
+			clock-frequency = <1300000000>;
 		};
 		cpu2: cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x2>;
 			operating-points-v2 = <&cpu_opp_table>;
+			clock-frequency = <1300000000>;
 		};
 		cpu3: cpu@3 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x3>;
 			operating-points-v2 = <&cpu_opp_table>;
+			clock-frequency = <1300000000>;
 		};
 	};
 
