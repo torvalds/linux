@@ -469,7 +469,21 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		"Region Grid",
 		NULL,
 	};
-
+	static const char * const porter_duff_modes[] = {
+		"Source",
+		"Source Top",
+		"Source In",
+		"Source Out",
+		"Source Over",
+		"Destination",
+		"Destination Top",
+		"Destination In",
+		"Destination Out",
+		"Destination Over",
+		"Add",
+		"Clear",
+		NULL
+	};
 
 	switch (id) {
 	case V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ:
@@ -555,6 +569,8 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		return vpx_golden_frame_sel;
 	case V4L2_CID_JPEG_CHROMA_SUBSAMPLING:
 		return jpeg_chroma_subsampling;
+	case V4L2_CID_PORTER_DUFF_MODE:
+		return porter_duff_modes;
 	case V4L2_CID_DV_TX_MODE:
 		return dv_tx_mode;
 	case V4L2_CID_DV_TX_RGB_RANGE:
@@ -880,6 +896,7 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_LINK_FREQ:		return "Link Frequency";
 	case V4L2_CID_PIXEL_RATE:		return "Pixel Rate";
 	case V4L2_CID_TEST_PATTERN:		return "Test Pattern";
+	case V4L2_CID_PORTER_DUFF_MODE:		return "PorterDuff Blend Modes";
 
 	/* DV controls */
 	/* Keep the order of the 'case's the same as in v4l2-controls.h! */
@@ -1049,6 +1066,7 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_DV_TX_RGB_RANGE:
 	case V4L2_CID_DV_RX_RGB_RANGE:
 	case V4L2_CID_TEST_PATTERN:
+	case V4L2_CID_PORTER_DUFF_MODE:
 	case V4L2_CID_TUNE_DEEMPHASIS:
 	case V4L2_CID_MPEG_VIDEO_VPX_GOLDEN_FRAME_SEL:
 	case V4L2_CID_DETECT_MD_MODE:
