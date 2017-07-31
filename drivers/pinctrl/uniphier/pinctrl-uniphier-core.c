@@ -138,10 +138,11 @@ static const struct pinctrl_ops uniphier_pctlops = {
 };
 
 static int uniphier_conf_pin_bias_get(struct pinctrl_dev *pctldev,
-				      const struct pin_desc *desc,
+				      unsigned int pin,
 				      enum pin_config_param param)
 {
 	struct uniphier_pinctrl_priv *priv = pinctrl_dev_get_drvdata(pctldev);
+	const struct pin_desc *desc = pin_desc_get(pctldev, pin);
 	enum uniphier_pin_pull_dir pull_dir =
 				uniphier_pin_get_pull_dir(desc->drv_data);
 	unsigned int pupdctrl, reg, shift, val;
@@ -188,10 +189,10 @@ static int uniphier_conf_pin_bias_get(struct pinctrl_dev *pctldev,
 }
 
 static int uniphier_conf_pin_drive_get(struct pinctrl_dev *pctldev,
-				       const struct pin_desc *desc,
-				       u16 *strength)
+				       unsigned int pin, u16 *strength)
 {
 	struct uniphier_pinctrl_priv *priv = pinctrl_dev_get_drvdata(pctldev);
+	const struct pin_desc *desc = pin_desc_get(pctldev, pin);
 	enum uniphier_pin_drv_type type =
 				uniphier_pin_get_drv_type(desc->drv_data);
 	const unsigned int strength_1bit[] = {4, 8};
@@ -248,9 +249,10 @@ static int uniphier_conf_pin_drive_get(struct pinctrl_dev *pctldev,
 }
 
 static int uniphier_conf_pin_input_enable_get(struct pinctrl_dev *pctldev,
-					      const struct pin_desc *desc)
+					      unsigned int pin)
 {
 	struct uniphier_pinctrl_priv *priv = pinctrl_dev_get_drvdata(pctldev);
+	const struct pin_desc *desc = pin_desc_get(pctldev, pin);
 	unsigned int iectrl = uniphier_pin_get_iectrl(desc->drv_data);
 	unsigned int reg, mask, val;
 	int ret;
@@ -258,6 +260,9 @@ static int uniphier_conf_pin_input_enable_get(struct pinctrl_dev *pctldev,
 	if (iectrl == UNIPHIER_PIN_IECTRL_NONE)
 		/* This pin is always input-enabled. */
 		return 0;
+
+	if (priv->socdata->caps & UNIPHIER_PINCTRL_CAPS_PERPIN_IECTRL)
+		iectrl = pin;
 
 	reg = UNIPHIER_PINCTRL_IECTRL_BASE + iectrl / 32 * 4;
 	mask = BIT(iectrl % 32);
@@ -273,7 +278,6 @@ static int uniphier_conf_pin_config_get(struct pinctrl_dev *pctldev,
 					unsigned pin,
 					unsigned long *configs)
 {
-	const struct pin_desc *desc = pin_desc_get(pctldev, pin);
 	enum pin_config_param param = pinconf_to_config_param(*configs);
 	bool has_arg = false;
 	u16 arg;
@@ -283,14 +287,14 @@ static int uniphier_conf_pin_config_get(struct pinctrl_dev *pctldev,
 	case PIN_CONFIG_BIAS_DISABLE:
 	case PIN_CONFIG_BIAS_PULL_UP:
 	case PIN_CONFIG_BIAS_PULL_DOWN:
-		ret = uniphier_conf_pin_bias_get(pctldev, desc, param);
+		ret = uniphier_conf_pin_bias_get(pctldev, pin, param);
 		break;
 	case PIN_CONFIG_DRIVE_STRENGTH:
-		ret = uniphier_conf_pin_drive_get(pctldev, desc, &arg);
+		ret = uniphier_conf_pin_drive_get(pctldev, pin, &arg);
 		has_arg = true;
 		break;
 	case PIN_CONFIG_INPUT_ENABLE:
-		ret = uniphier_conf_pin_input_enable_get(pctldev, desc);
+		ret = uniphier_conf_pin_input_enable_get(pctldev, pin);
 		break;
 	default:
 		/* unsupported parameter */
@@ -305,10 +309,11 @@ static int uniphier_conf_pin_config_get(struct pinctrl_dev *pctldev,
 }
 
 static int uniphier_conf_pin_bias_set(struct pinctrl_dev *pctldev,
-				      const struct pin_desc *desc,
+				      unsigned int pin,
 				      enum pin_config_param param, u32 arg)
 {
 	struct uniphier_pinctrl_priv *priv = pinctrl_dev_get_drvdata(pctldev);
+	const struct pin_desc *desc = pin_desc_get(pctldev, pin);
 	enum uniphier_pin_pull_dir pull_dir =
 				uniphier_pin_get_pull_dir(desc->drv_data);
 	unsigned int pupdctrl, reg, shift;
@@ -379,10 +384,10 @@ static int uniphier_conf_pin_bias_set(struct pinctrl_dev *pctldev,
 }
 
 static int uniphier_conf_pin_drive_set(struct pinctrl_dev *pctldev,
-				       const struct pin_desc *desc,
-				       u16 strength)
+				       unsigned int pin, u16 strength)
 {
 	struct uniphier_pinctrl_priv *priv = pinctrl_dev_get_drvdata(pctldev);
+	const struct pin_desc *desc = pin_desc_get(pctldev, pin);
 	enum uniphier_pin_drv_type type =
 				uniphier_pin_get_drv_type(desc->drv_data);
 	const unsigned int strength_1bit[] = {4, 8, -1};
@@ -440,10 +445,10 @@ static int uniphier_conf_pin_drive_set(struct pinctrl_dev *pctldev,
 }
 
 static int uniphier_conf_pin_input_enable(struct pinctrl_dev *pctldev,
-					  const struct pin_desc *desc,
-					  u16 enable)
+					  unsigned int pin, u16 enable)
 {
 	struct uniphier_pinctrl_priv *priv = pinctrl_dev_get_drvdata(pctldev);
+	const struct pin_desc *desc = pin_desc_get(pctldev, pin);
 	unsigned int iectrl = uniphier_pin_get_iectrl(desc->drv_data);
 	unsigned int reg, mask;
 
@@ -459,6 +464,9 @@ static int uniphier_conf_pin_input_enable(struct pinctrl_dev *pctldev,
 	if (iectrl == UNIPHIER_PIN_IECTRL_NONE)
 		return enable ? 0 : -EINVAL;
 
+	if (priv->socdata->caps & UNIPHIER_PINCTRL_CAPS_PERPIN_IECTRL)
+		iectrl = pin;
+
 	reg = UNIPHIER_PINCTRL_IECTRL_BASE + iectrl / 32 * 4;
 	mask = BIT(iectrl % 32);
 
@@ -470,7 +478,6 @@ static int uniphier_conf_pin_config_set(struct pinctrl_dev *pctldev,
 					unsigned long *configs,
 					unsigned num_configs)
 {
-	const struct pin_desc *desc = pin_desc_get(pctldev, pin);
 	int i, ret;
 
 	for (i = 0; i < num_configs; i++) {
@@ -483,15 +490,14 @@ static int uniphier_conf_pin_config_set(struct pinctrl_dev *pctldev,
 		case PIN_CONFIG_BIAS_PULL_UP:
 		case PIN_CONFIG_BIAS_PULL_DOWN:
 		case PIN_CONFIG_BIAS_PULL_PIN_DEFAULT:
-			ret = uniphier_conf_pin_bias_set(pctldev, desc,
+			ret = uniphier_conf_pin_bias_set(pctldev, pin,
 							 param, arg);
 			break;
 		case PIN_CONFIG_DRIVE_STRENGTH:
-			ret = uniphier_conf_pin_drive_set(pctldev, desc, arg);
+			ret = uniphier_conf_pin_drive_set(pctldev, pin, arg);
 			break;
 		case PIN_CONFIG_INPUT_ENABLE:
-			ret = uniphier_conf_pin_input_enable(pctldev, desc,
-							     arg);
+			ret = uniphier_conf_pin_input_enable(pctldev, pin, arg);
 			break;
 		default:
 			dev_err(pctldev->dev,
@@ -571,8 +577,7 @@ static int uniphier_pmx_set_one_mux(struct pinctrl_dev *pctldev, unsigned pin,
 	int ret;
 
 	/* some pins need input-enabling */
-	ret = uniphier_conf_pin_input_enable(pctldev,
-					     pin_desc_get(pctldev, pin), 1);
+	ret = uniphier_conf_pin_input_enable(pctldev, pin, 1);
 	if (ret)
 		return ret;
 

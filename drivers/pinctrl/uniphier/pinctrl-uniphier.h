@@ -25,7 +25,7 @@ struct platform_device;
 
 /* input enable control register bit */
 #define UNIPHIER_PIN_IECTRL_SHIFT	0
-#define UNIPHIER_PIN_IECTRL_BITS	8
+#define UNIPHIER_PIN_IECTRL_BITS	3
 #define UNIPHIER_PIN_IECTRL_MASK	((1UL << (UNIPHIER_PIN_IECTRL_BITS)) \
 					 - 1)
 
@@ -62,6 +62,7 @@ struct platform_device;
 #endif
 
 #define UNIPHIER_PIN_IECTRL_NONE	(UNIPHIER_PIN_IECTRL_MASK)
+#define UNIPHIER_PIN_IECTRL_EXIST	0
 
 /* drive control type */
 enum uniphier_pin_drv_type {
