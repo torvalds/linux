@@ -60,6 +60,8 @@ Required properties for child node:
 	   one for each entry in clock-names.
  - clock-names: Must contain following for pcie and usb qmp phys:
 		 "pipe<lane-number>" for pipe clock specific to each lane.
+ - clock-output-names: Name of the PHY clock that will be the parent for
+		       the above pipe clock.
 
  - resets: a list of phandles and reset controller specifier pairs,
 	   one for each entry in reset-names.
@@ -96,6 +98,7 @@ Example:
 
 			clocks = <&gcc GCC_PCIE_0_PIPE_CLK>;
 			clock-names = "pipe0";
+			clock-output-names = "pcie_0_pipe_clk_src";
 			resets = <&gcc GCC_PCIE_0_PHY_BCR>;
 			reset-names = "lane0";
 		};
