@@ -1478,6 +1478,10 @@
 				remote-endpoint = <&edp_in_vopl>;
 			};
 
+			vopl_out_hdmi: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&hdmi_in_vopl>;
+			};
 		};
 	};
 
@@ -1519,6 +1523,10 @@
 				remote-endpoint = <&mipi_in_vopb>;
 			};
 
+			vopb_out_hdmi: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&hdmi_in_vopb>;
+			};
 		};
 	};
 
@@ -1532,6 +1540,34 @@
 		power-domains = <&power RK3399_PD_VOPB>;
 		#iommu-cells = <0>;
 		status = "disabled";
+	};
+
+	hdmi: hdmi@ff940000 {
+		compatible = "rockchip,rk3399-dw-hdmi";
+		reg = <0x0 0xff940000 0x0 0x20000>;
+		interrupts = <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH 0>;
+		clocks = <&cru PCLK_HDMI_CTRL>, <&cru SCLK_HDMI_SFR>, <&cru PLL_VPLL>, <&cru PCLK_VIO_GRF>;
+		clock-names = "iahb", "isfr", "vpll", "grf";
+		power-domains = <&power RK3399_PD_HDCP>;
+		reg-io-width = <4>;
+		rockchip,grf = <&grf>;
+		status = "disabled";
+
+		ports {
+			hdmi_in: port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				hdmi_in_vopb: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vopb_out_hdmi>;
+				};
+				hdmi_in_vopl: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&vopl_out_hdmi>;
+				};
+			};
+		};
 	};
 
 	mipi_dsi: mipi@ff960000 {
