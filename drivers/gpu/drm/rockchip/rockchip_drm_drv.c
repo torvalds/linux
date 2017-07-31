@@ -106,6 +106,74 @@ static struct drm_connector *find_connector_by_node(struct drm_device *drm_dev,
 	return NULL;
 }
 
+static
+struct drm_connector *find_connector_by_bridge(struct drm_device *drm_dev,
+					       struct device_node *node)
+{
+	struct device_node *np_encoder, *np_connector;
+	struct drm_encoder *encoder;
+	struct drm_connector *connector = NULL;
+	struct device_node *port, *endpoint;
+	bool encoder_bridge = false;
+	bool found_connector = false;
+
+	np_encoder = of_graph_get_remote_port_parent(node);
+	if (!np_encoder || !of_device_is_available(np_encoder))
+		goto err_put_encoder;
+	drm_for_each_encoder(encoder, drm_dev) {
+		if (encoder->port == np_encoder && encoder->bridge) {
+			encoder_bridge = true;
+			break;
+		}
+	}
+	if (!encoder_bridge) {
+		dev_err(drm_dev->dev, "can't found encoder bridge!\n");
+		goto err_put_encoder;
+	}
+	port = of_graph_get_port_by_id(np_encoder, 1);
+	if (!port) {
+		dev_err(drm_dev->dev, "can't found port point!\n");
+		goto err_put_encoder;
+	}
+	for_each_child_of_node(port, endpoint) {
+		np_connector = of_graph_get_remote_port_parent(endpoint);
+		if (!np_connector) {
+			dev_err(drm_dev->dev,
+				"can't found connector node, please init!\n");
+			goto err_put_port;
+		}
+		if (!of_device_is_available(np_connector)) {
+			of_node_put(np_connector);
+			np_connector = NULL;
+			continue;
+		} else {
+			break;
+		}
+	}
+	if (!np_connector) {
+		dev_err(drm_dev->dev, "can't found available connector node!\n");
+		goto err_put_port;
+	}
+
+	drm_for_each_connector(connector, drm_dev) {
+		if (connector->port == np_connector) {
+			found_connector = true;
+			break;
+		}
+	}
+
+	if (!found_connector)
+		connector = NULL;
+
+	of_node_put(np_connector);
+err_put_port:
+	of_node_put(port);
+err_put_encoder:
+	of_node_put(np_encoder);
+
+	return connector;
+}
+
 void rockchip_free_loader_memory(struct drm_device *drm)
 {
 	struct rockchip_drm_private *private = drm->dev_private;
@@ -298,6 +366,8 @@ of_parse_display_resource(struct drm_device *drm_dev, struct device_node *route)
 
 	crtc = find_crtc_by_node(drm_dev, connect);
 	connector = find_connector_by_node(drm_dev, connect);
+	if (!connector)
+		connector = find_connector_by_bridge(drm_dev, connect);
 	if (!crtc || !connector) {
 		dev_warn(drm_dev->dev,
 			 "No available crtc or connector for display");

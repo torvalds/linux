@@ -821,6 +821,7 @@ static int rockchip_lvds_bind(struct device *dev, struct device *master,
 	}
 
 	drm_encoder_helper_add(encoder, &rockchip_lvds_encoder_helper_funcs);
+	encoder->port = dev->of_node;
 
 	if (lvds->panel) {
 		connector = &lvds->connector;

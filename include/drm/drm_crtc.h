@@ -722,6 +722,7 @@ struct drm_encoder_funcs {
 /**
  * struct drm_encoder - central DRM encoder structure
  * @dev: parent DRM device
+ * @port: OF node used by find encoder by node
  * @head: list management
  * @base: base KMS object
  * @name: encoder name
@@ -738,6 +739,7 @@ struct drm_encoder_funcs {
  */
 struct drm_encoder {
 	struct drm_device *dev;
+	struct device_node *port;
 	struct list_head head;
 
 	struct drm_mode_object base;
