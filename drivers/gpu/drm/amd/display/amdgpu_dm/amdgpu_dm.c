@@ -4603,6 +4603,13 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 								    &crtc_state->mode,
 								    dm_conn_state);
 
+				/*
+				 * we can have no stream on ACTION_SET if a display
+				 * was disconnected during S3, in this case it not and
+				 * error, the OS will be updated after detection, and
+				 * do the right thing on next atomic commit
+				 */
+
 				if (!new_stream) {
 					DRM_DEBUG_KMS("%s: Failed to create new stream for crtc %d\n",
 							__func__, acrtc->base.base.id);
@@ -4614,14 +4621,6 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 
 			if (modeset_required(crtc_state, new_stream,
 					     old_acrtc_state->stream)) {
-
-
-			/*
-			 * we can have no stream on ACTION_SET if a display
-			 * was disconnected during S3, in this case it not and
-			 * error, the OS will be updated after detection, and
-			 * do the right thing on next atomic commit
-			 */
 
 				if (new_acrtc_state->stream)
 					dc_stream_release(new_acrtc_state->stream);
