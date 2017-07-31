@@ -277,7 +277,7 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 			default:
 				break;
 			}
-			v->required_phyclk[k] = v->required_output_bw / 3.0;
+			v->required_phyclk[k] = v->required_phyclk[k] / 3.0;
 		}
 		else if (v->output[k] == dcn_bw_dp) {
 			v->required_phyclk[k] = v->required_output_bw / 4.0;
