@@ -405,6 +405,8 @@ struct vpu_service_info {
 	struct reset_control *rst_a;
 	struct reset_control *rst_h;
 	struct reset_control *rst_v;
+	struct reset_control *rst_core;
+	struct reset_control *rst_cabac;
 	struct reset_control *rst_niu_a;
 	struct reset_control *rst_niu_h;
 #endif
@@ -699,13 +701,17 @@ static void _vpu_reset(struct vpu_subdev_data *data)
 	try_reset_assert(pservice->rst_v);
 	try_reset_assert(pservice->rst_a);
 	try_reset_assert(pservice->rst_h);
+	try_reset_assert(pservice->rst_core);
+	try_reset_assert(pservice->rst_cabac);
 	udelay(5);
 
-	try_reset_deassert(pservice->rst_h);
-	try_reset_deassert(pservice->rst_a);
-	try_reset_deassert(pservice->rst_v);
 	try_reset_deassert(pservice->rst_niu_h);
 	try_reset_deassert(pservice->rst_niu_a);
+	try_reset_deassert(pservice->rst_v);
+	try_reset_deassert(pservice->rst_h);
+	try_reset_deassert(pservice->rst_a);
+	try_reset_deassert(pservice->rst_core);
+	try_reset_deassert(pservice->rst_cabac);
 
 	rockchip_pmu_idle_request(pservice->dev, false);
 	clk_set_rate(pservice->aclk_vcodec, rate);
@@ -2551,6 +2557,10 @@ static void vcodec_read_property(struct device_node *np,
 	pservice->rst_v = devm_reset_control_get(pservice->dev, "video");
 	pservice->rst_niu_a = devm_reset_control_get(pservice->dev, "niu_a");
 	pservice->rst_niu_h = devm_reset_control_get(pservice->dev, "niu_h");
+	pservice->rst_core = devm_reset_control_get(pservice->dev,
+						    "video_core");
+	pservice->rst_cabac = devm_reset_control_get(pservice->dev,
+						     "video_cabac");
 
 	if (IS_ERR_OR_NULL(pservice->rst_a)) {
 		dev_dbg(pservice->dev, "No aclk reset resource define\n");
@@ -2563,7 +2573,7 @@ static void vcodec_read_property(struct device_node *np,
 	}
 
 	if (IS_ERR_OR_NULL(pservice->rst_v)) {
-		dev_dbg(pservice->dev, "No core reset resource define\n");
+		dev_dbg(pservice->dev, "No core rst_v reset resource define\n");
 		pservice->rst_v = NULL;
 	}
 
@@ -2575,6 +2585,16 @@ static void vcodec_read_property(struct device_node *np,
 	if (IS_ERR_OR_NULL(pservice->rst_niu_h)) {
 		dev_dbg(pservice->dev, "No NIU hclk reset resource define\n");
 		pservice->rst_niu_h = NULL;
+	}
+
+	if (IS_ERR_OR_NULL(pservice->rst_core)) {
+		dev_dbg(pservice->dev, "No core reset resource define\n");
+		pservice->rst_core = NULL;
+	}
+
+	if (IS_ERR_OR_NULL(pservice->rst_cabac)) {
+		dev_dbg(pservice->dev, "No cabac reset resource define\n");
+		pservice->rst_cabac = NULL;
 	}
 #endif
 

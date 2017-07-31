@@ -1333,8 +1333,11 @@
 			 <&cru SCLK_VDU_CA>, <&cru SCLK_VDU_CORE>;
 		clock-names = "aclk_vcodec", "hclk_vcodec",
 			      "clk_cabac", "clk_core";
-		resets = <&cru SRST_H_VDU>, <&cru SRST_A_VDU>;
-		reset-names = "video_h", "video_a";
+		resets = <&cru SRST_H_VDU>, <&cru SRST_A_VDU>,
+			<&cru SRST_VDU_CORE>, <&cru SRST_VDU_CA>,
+			<&cru SRST_A_VDU_NOC>, <&cru SRST_H_VDU_NOC>;
+		reset-names = "video_h", "video_a", "video_core", "video_cabac",
+				"niu_a", "niu_h";
 		power-domains = <&power RK3399_PD_VDU>;
 		dev_mode = <2>;
 		name = "rkvdec";
