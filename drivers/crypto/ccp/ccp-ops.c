@@ -1785,6 +1785,7 @@ static int ccp_run_rsa_cmd(struct ccp_cmd_queue *cmd_q, struct ccp_cmd *cmd)
 	o_len = 32 * ((rsa->key_size + 255) / 256);
 	i_len = o_len * 2;
 
+	sb_count = 0;
 	if (cmd_q->ccp->vdata->version < CCP_VERSION(5, 0)) {
 		/* sb_count is the number of storage block slots required
 		 * for the modulus.
@@ -1879,7 +1880,7 @@ e_exp:
 	ccp_dm_free(&exp);
 
 e_sb:
-	if (cmd_q->ccp->vdata->version < CCP_VERSION(5, 0))
+	if (sb_count)
 		cmd_q->ccp->vdata->perform->sbfree(cmd_q, op.sb_key, sb_count);
 
 	return ret;
