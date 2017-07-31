@@ -556,6 +556,39 @@
 			};
 		};
 
+		phy@7410000 {
+			compatible = "qcom,msm8996-qmp-usb3-phy";
+			reg = <0x7410000 0x1c4>;
+			#clock-cells = <1>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			clocks = <&gcc GCC_USB3_PHY_AUX_CLK>,
+				<&gcc GCC_USB_PHY_CFG_AHB2PHY_CLK>,
+				<&gcc GCC_USB3_CLKREF_CLK>;
+			clock-names = "aux", "cfg_ahb", "ref";
+
+			vdda-phy-supply = <&pm8994_l28>;
+			vdda-pll-supply = <&pm8994_l12>;
+
+			resets = <&gcc GCC_USB3_PHY_BCR>,
+				<&gcc GCC_USB3PHY_PHY_BCR>;
+			reset-names = "phy", "common";
+			status = "disabled";
+
+			ssusb_phy_0: lane@7410200 {
+				reg = <0x7410200 0x200>,
+					<0x7410400 0x130>,
+					<0x7410600 0x1a8>;
+				#phy-cells = <0>;
+
+				clock-output-names = "usb3_phy_pipe_clk_src";
+				clocks = <&gcc GCC_USB3_PHY_PIPE_CLK>;
+				clock-names = "pipe0";
+			};
+		};
+
 		hsusb_phy1: phy@7411000 {
 			compatible = "qcom,msm8996-qusb2-phy";
 			reg = <0x7411000 0x180>;
