@@ -369,7 +369,7 @@ int mlxsw_sp_acl_rulei_act_fwd(struct mlxsw_sp *mlxsw_sp,
 		local_port = mlxsw_sp_port->local_port;
 		in_port = false;
 	} else {
-		/* If out_dev is NULL, the called wants to
+		/* If out_dev is NULL, the caller wants to
 		 * set forward to ingress port.
 		 */
 		local_port = 0;
