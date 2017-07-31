@@ -596,6 +596,22 @@ static nokprobe_inline void do_cmp_unsigned(struct pt_regs *regs, unsigned long 
 	regs->ccr = (regs->ccr & ~(0xf << shift)) | (crval << shift);
 }
 
+static nokprobe_inline void do_cmpb(struct pt_regs *regs, unsigned long v1,
+				unsigned long v2, int rd)
+{
+	unsigned long long out_val, mask;
+	int i;
+
+	out_val = 0;
+	for (i = 0; i < 8; i++) {
+		mask = 0xffUL << (i * 8);
+		if ((v1 & mask) == (v2 & mask))
+			out_val |= mask;
+	}
+
+	regs->gpr[rd] = out_val;
+}
+
 static nokprobe_inline int trap_compare(long v1, long v2)
 {
 	int ret = 0;
@@ -1062,6 +1078,10 @@ int analyse_instr(struct instruction_op *op, struct pt_regs *regs,
 			}
 #endif
 			do_cmp_unsigned(regs, val, val2, rd >> 2);
+			goto instr_done;
+
+		case 508: /* cmpb */
+			do_cmpb(regs, regs->gpr[rd], regs->gpr[rb], ra);
 			goto instr_done;
 
 /*
