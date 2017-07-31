@@ -1668,7 +1668,7 @@ mlxsw_sp_nexthop_group_refresh(struct mlxsw_sp *mlxsw_sp,
 	for (i = 0; i < nh_grp->count; i++) {
 		nh = &nh_grp->nexthops[i];
 
-		if (nh->should_offload ^ nh->offloaded) {
+		if (nh->should_offload != nh->offloaded) {
 			offload_change = true;
 			if (nh->should_offload)
 				nh->update = 1;
