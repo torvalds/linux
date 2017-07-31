@@ -64,18 +64,16 @@ static void swap_inode_data(struct inode *inode1, struct inode *inode2)
 	ei1 = EXT4_I(inode1);
 	ei2 = EXT4_I(inode2);
 
-	memswap(&inode1->i_flags, &inode2->i_flags, sizeof(inode1->i_flags));
-	memswap(&inode1->i_version, &inode2->i_version,
-		  sizeof(inode1->i_version));
-	memswap(&inode1->i_blocks, &inode2->i_blocks,
-		  sizeof(inode1->i_blocks));
-	memswap(&inode1->i_bytes, &inode2->i_bytes, sizeof(inode1->i_bytes));
-	memswap(&inode1->i_atime, &inode2->i_atime, sizeof(inode1->i_atime));
-	memswap(&inode1->i_mtime, &inode2->i_mtime, sizeof(inode1->i_mtime));
+	swap(inode1->i_flags, inode2->i_flags);
+	swap(inode1->i_version, inode2->i_version);
+	swap(inode1->i_blocks, inode2->i_blocks);
+	swap(inode1->i_bytes, inode2->i_bytes);
+	swap(inode1->i_atime, inode2->i_atime);
+	swap(inode1->i_mtime, inode2->i_mtime);
 
 	memswap(ei1->i_data, ei2->i_data, sizeof(ei1->i_data));
-	memswap(&ei1->i_flags, &ei2->i_flags, sizeof(ei1->i_flags));
-	memswap(&ei1->i_disksize, &ei2->i_disksize, sizeof(ei1->i_disksize));
+	swap(ei1->i_flags, ei2->i_flags);
+	swap(ei1->i_disksize, ei2->i_disksize);
 	ext4_es_remove_extent(inode1, 0, EXT_MAX_BLOCKS);
 	ext4_es_remove_extent(inode2, 0, EXT_MAX_BLOCKS);
 
