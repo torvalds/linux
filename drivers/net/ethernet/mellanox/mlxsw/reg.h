@@ -4718,7 +4718,7 @@ MLXSW_ITEM32(reg, ralue, prefix_len, 0x08, 0, 8);
 /* reg_ralue_dip*
  * The prefix of the route or of the marker that the object of the LPM
  * is compared with. The most significant bits of the dip are the prefix.
- * The list significant bits must be '0' if the prefix_len is smaller
+ * The least significant bits must be '0' if the prefix_len is smaller
  * than 128 for IPv6 or smaller than 32 for IPv4.
  * IPv4 address uses bits dip[31:0] and bits dip[127:32] are reserved.
  * Access: Index
