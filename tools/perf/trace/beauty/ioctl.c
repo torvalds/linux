@@ -55,6 +55,28 @@ static size_t ioctl__scnprintf_drm_cmd(int nr, char *bf, size_t size)
 	return scnprintf(bf, size, "(%#x, %#x)", 'd', nr);
 }
 
+static size_t ioctl__scnprintf_sndrv_pcm_cmd(int nr, char *bf, size_t size)
+{
+#include "trace/beauty/generated/ioctl/sndrv_pcm_ioctl_array.c"
+	static DEFINE_STRARRAY(sndrv_pcm_ioctl_cmds);
+
+	if (nr < strarray__sndrv_pcm_ioctl_cmds.nr_entries && strarray__sndrv_pcm_ioctl_cmds.entries[nr] != NULL)
+		return scnprintf(bf, size, "SNDRV_PCM_%s", strarray__sndrv_pcm_ioctl_cmds.entries[nr]);
+
+	return scnprintf(bf, size, "(%#x, %#x)", 'A', nr);
+}
+
+static size_t ioctl__scnprintf_sndrv_ctl_cmd(int nr, char *bf, size_t size)
+{
+#include "trace/beauty/generated/ioctl/sndrv_ctl_ioctl_array.c"
+	static DEFINE_STRARRAY(sndrv_ctl_ioctl_cmds);
+
+	if (nr < strarray__sndrv_ctl_ioctl_cmds.nr_entries && strarray__sndrv_ctl_ioctl_cmds.entries[nr] != NULL)
+		return scnprintf(bf, size, "SNDRV_CTL_%s", strarray__sndrv_ctl_ioctl_cmds.entries[nr]);
+
+	return scnprintf(bf, size, "(%#x, %#x)", 'U', nr);
+}
+
 static size_t ioctl__scnprintf_cmd(unsigned long cmd, char *bf, size_t size)
 {
 	int dir	 = _IOC_DIR(cmd),
@@ -66,8 +88,10 @@ static size_t ioctl__scnprintf_cmd(unsigned long cmd, char *bf, size_t size)
 		int	type;
 		size_t	(*scnprintf)(int nr, char *bf, size_t size);
 	} ioctl_types[] = { /* Must be ordered by type */
-			      { .type	= 'T', .scnprintf = ioctl__scnprintf_tty_cmd, },
-		['d' - 'T'] = { .type	= 'd', .scnprintf = ioctl__scnprintf_drm_cmd, }
+			      { .type	= 'A', .scnprintf = ioctl__scnprintf_sndrv_pcm_cmd, },
+		['T' - 'A']=  { .type	= 'T', .scnprintf = ioctl__scnprintf_tty_cmd, },
+		['U' - 'A']=  { .type	= 'U', .scnprintf = ioctl__scnprintf_sndrv_ctl_cmd, },
+		['d' - 'A'] = { .type	= 'd', .scnprintf = ioctl__scnprintf_drm_cmd, }
 	};
 	const int nr_types = ARRAY_SIZE(ioctl_types);
 
