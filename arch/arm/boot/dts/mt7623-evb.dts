@@ -14,6 +14,7 @@
 
 /dts-v1/;
 #include "mt7623.dtsi"
+#include "mt6323.dtsi"
 
 / {
 	model = "MediaTek MT7623 evaluation board";
@@ -23,6 +24,24 @@
 		stdout-path = &uart2;
 	};
 
+	cpus {
+		cpu0 {
+			proc-supply = <&mt6323_vproc_reg>;
+		};
+
+		cpu1 {
+			proc-supply = <&mt6323_vproc_reg>;
+		};
+
+		cpu2 {
+			proc-supply = <&mt6323_vproc_reg>;
+		};
+
+		cpu3 {
+			proc-supply = <&mt6323_vproc_reg>;
+		};
+	};
+
 	memory {
 		reg = <0 0x80000000 0 0x40000000>;
 	};
@@ -30,4 +49,14 @@
 
 &uart2 {
 	status = "okay";
+};
+
+&mmc0 {
+	vmmc-supply = <&mt6323_vemc3v3_reg>;
+	vqmmc-supply = <&mt6323_vio18_reg>;
+};
+
+&mmc1 {
+	vmmc-supply = <&mt6323_vmch_reg>;
+	vqmmc-supply = <&mt6323_vmc_reg>;
 };
