@@ -108,6 +108,76 @@ static void __recover_inline_status(struct inode *inode, struct page *ipage)
 	return;
 }
 
+static bool f2fs_enable_inode_chksum(struct f2fs_sb_info *sbi, struct page *page)
+{
+	struct f2fs_inode *ri = &F2FS_NODE(page)->i;
+	int extra_isize = le32_to_cpu(ri->i_extra_isize);
+
+	if (!f2fs_sb_has_inode_chksum(sbi->sb))
+		return false;
+
+	if (!RAW_IS_INODE(F2FS_NODE(page)) || !(ri->i_inline & F2FS_EXTRA_ATTR))
+		return false;
+
+	if (!F2FS_FITS_IN_INODE(ri, extra_isize, i_inode_checksum))
+		return false;
+
+	return true;
+}
+
+static __u32 f2fs_inode_chksum(struct f2fs_sb_info *sbi, struct page *page)
+{
+	struct f2fs_node *node = F2FS_NODE(page);
+	struct f2fs_inode *ri = &node->i;
+	__le32 ino = node->footer.ino;
+	__le32 gen = ri->i_generation;
+	__u32 chksum, chksum_seed;
+	__u32 dummy_cs = 0;
+	unsigned int offset = offsetof(struct f2fs_inode, i_inode_checksum);
+	unsigned int cs_size = sizeof(dummy_cs);
+
+	chksum = f2fs_chksum(sbi, sbi->s_chksum_seed, (__u8 *)&ino,
+							sizeof(ino));
+	chksum_seed = f2fs_chksum(sbi, chksum, (__u8 *)&gen, sizeof(gen));
+
+	chksum = f2fs_chksum(sbi, chksum_seed, (__u8 *)ri, offset);
+	chksum = f2fs_chksum(sbi, chksum, (__u8 *)&dummy_cs, cs_size);
+	offset += cs_size;
+	chksum = f2fs_chksum(sbi, chksum, (__u8 *)ri + offset,
+						F2FS_BLKSIZE - offset);
+	return chksum;
+}
+
+bool f2fs_inode_chksum_verify(struct f2fs_sb_info *sbi, struct page *page)
+{
+	struct f2fs_inode *ri;
+	__u32 provided, calculated;
+
+	if (!f2fs_enable_inode_chksum(sbi, page))
+		return true;
+
+	ri = &F2FS_NODE(page)->i;
+	provided = le32_to_cpu(ri->i_inode_checksum);
+	calculated = f2fs_inode_chksum(sbi, page);
+
+	if (provided != calculated)
+		f2fs_msg(sbi->sb, KERN_WARNING,
+			"checksum invalid, ino = %x, %x vs. %x",
+			ino_of_node(page), provided, calculated);
+
+	return provided == calculated;
+}
+
+void f2fs_inode_chksum_set(struct f2fs_sb_info *sbi, struct page *page)
+{
+	struct f2fs_inode *ri = &F2FS_NODE(page)->i;
+
+	if (!f2fs_enable_inode_chksum(sbi, page))
+		return;
+
+	ri->i_inode_checksum = cpu_to_le32(f2fs_inode_chksum(sbi, page));
+}
+
 static int do_read_inode(struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);

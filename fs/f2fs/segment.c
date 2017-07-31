@@ -2294,8 +2294,11 @@ void allocate_data_block(struct f2fs_sb_info *sbi, struct page *page,
 
 	mutex_unlock(&sit_i->sentry_lock);
 
-	if (page && IS_NODESEG(type))
+	if (page && IS_NODESEG(type)) {
 		fill_node_footer_blkaddr(page, NEXT_FREE_BLKADDR(sbi, curseg));
+
+		f2fs_inode_chksum_set(sbi, page);
+	}
 
 	if (add_list) {
 		struct f2fs_bio_info *io;
