@@ -80,6 +80,7 @@ tools/include/uapi/linux/bpf.h
 tools/include/uapi/linux/bpf_common.h
 tools/include/uapi/linux/fcntl.h
 tools/include/uapi/linux/hw_breakpoint.h
+tools/include/uapi/linux/kvm.h
 tools/include/uapi/linux/mman.h
 tools/include/uapi/linux/perf_event.h
 tools/include/uapi/linux/sched.h
