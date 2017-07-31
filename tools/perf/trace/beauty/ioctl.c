@@ -101,6 +101,17 @@ static size_t ioctl__scnprintf_vhost_virtio_cmd(int nr, int dir, char *bf, size_
 	return scnprintf(bf, size, "(%#x, %#x, %#x)", 0xAF, nr, dir);
 }
 
+static size_t ioctl__scnprintf_perf_cmd(int nr, int dir, char *bf, size_t size)
+{
+#include "trace/beauty/generated/ioctl/perf_ioctl_array.c"
+	static DEFINE_STRARRAY(perf_ioctl_cmds);
+
+	if (nr < strarray__perf_ioctl_cmds.nr_entries && strarray__perf_ioctl_cmds.entries[nr] != NULL)
+		return scnprintf(bf, size, "PERF_%s", strarray__perf_ioctl_cmds.entries[nr]);
+
+	return scnprintf(bf, size, "(%#x, %#x, %#x)", 0xAE, nr, dir);
+}
+
 static size_t ioctl__scnprintf_cmd(unsigned long cmd, char *bf, size_t size)
 {
 	int dir	 = _IOC_DIR(cmd),
@@ -112,12 +123,13 @@ static size_t ioctl__scnprintf_cmd(unsigned long cmd, char *bf, size_t size)
 		int	type;
 		size_t	(*scnprintf)(int nr, int dir, char *bf, size_t size);
 	} ioctl_types[] = { /* Must be ordered by type */
-			      { .type	= 'A', .scnprintf = ioctl__scnprintf_sndrv_pcm_cmd, },
-		['T' - 'A']=  { .type	= 'T', .scnprintf = ioctl__scnprintf_tty_cmd, },
-		['U' - 'A']=  { .type	= 'U', .scnprintf = ioctl__scnprintf_sndrv_ctl_cmd, },
-		['d' - 'A'] = { .type	= 'd', .scnprintf = ioctl__scnprintf_drm_cmd, },
-		[0xAE - 'A'] = { .type	= 0xAE, .scnprintf = ioctl__scnprintf_kvm_cmd, },
-		[0xAF - 'A'] = { .type	= 0xAF, .scnprintf = ioctl__scnprintf_vhost_virtio_cmd, },
+			      { .type	= '$', .scnprintf = ioctl__scnprintf_perf_cmd, },
+		['A' - '$'] = { .type	= 'A', .scnprintf = ioctl__scnprintf_sndrv_pcm_cmd, },
+		['T' - '$'] = { .type	= 'T', .scnprintf = ioctl__scnprintf_tty_cmd, },
+		['U' - '$'] = { .type	= 'U', .scnprintf = ioctl__scnprintf_sndrv_ctl_cmd, },
+		['d' - '$'] = { .type	= 'd', .scnprintf = ioctl__scnprintf_drm_cmd, },
+		[0xAE - '$'] = { .type	= 0xAE, .scnprintf = ioctl__scnprintf_kvm_cmd, },
+		[0xAF - '$'] = { .type	= 0xAF, .scnprintf = ioctl__scnprintf_vhost_virtio_cmd, },
 	};
 	const int nr_types = ARRAY_SIZE(ioctl_types);
 
