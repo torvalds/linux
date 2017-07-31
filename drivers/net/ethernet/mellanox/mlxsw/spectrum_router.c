@@ -1804,7 +1804,7 @@ static int mlxsw_sp_nexthop_neigh_init(struct mlxsw_sp *mlxsw_sp,
 		return 0;
 
 	/* Take a reference of neigh here ensuring that neigh would
-	 * not be detructed before the nexthop entry is finished.
+	 * not be destructed before the nexthop entry is finished.
 	 * The reference is taken either in neigh_lookup() or
 	 * in neigh_create() in case n is not found.
 	 */
