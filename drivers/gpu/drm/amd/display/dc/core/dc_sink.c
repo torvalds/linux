@@ -63,16 +63,16 @@ static bool construct(struct dc_sink *sink, const struct dc_sink_init_data *init
 
 void dc_sink_retain(struct dc_sink *sink)
 {
-	ASSERT(sink->ref_count > 0);
-	++sink->ref_count;
+	ASSERT(atomic_read(&sink->ref_count) > 0);
+	atomic_inc(&sink->ref_count);
 }
 
 void dc_sink_release(struct dc_sink *sink)
 {
-	ASSERT(sink->ref_count > 0);
-	--sink->ref_count;
+	ASSERT(atomic_read(&sink->ref_count) > 0);
+	atomic_dec(&sink->ref_count);
 
-	if (sink->ref_count == 0) {
+	if (atomic_read(&sink->ref_count) == 0) {
 		destruct(sink);
 		dm_free(sink);
 	}
@@ -88,7 +88,7 @@ struct dc_sink *dc_sink_create(const struct dc_sink_init_data *init_params)
 	if (false == construct(sink, init_params))
 		goto construct_fail;
 
-	++sink->ref_count;
+	atomic_inc(&sink->ref_count);
 
 	return sink;
 

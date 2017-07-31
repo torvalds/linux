@@ -96,19 +96,17 @@ static void destruct(struct dc_stream_state *stream)
 
 void dc_stream_retain(struct dc_stream_state *stream)
 {
-
-	ASSERT(stream->ref_count > 0);
-	stream->ref_count++;
+	ASSERT(atomic_read(&stream->ref_count) > 0);
+	atomic_inc(&stream->ref_count);
 }
 
 void dc_stream_release(struct dc_stream_state *stream)
 {
-
 	if (stream != NULL) {
-		ASSERT(stream->ref_count > 0);
-		stream->ref_count--;
+		ASSERT(atomic_read(&stream->ref_count) > 0);
+		atomic_dec(&stream->ref_count);
 
-		if (stream->ref_count == 0) {
+		if (atomic_read(&stream->ref_count) == 0) {
 			destruct(stream);
 			dm_free(stream);
 		}
@@ -131,7 +129,7 @@ struct dc_stream_state *dc_create_stream_for_sink(
 	if (false == construct(stream, sink))
 			goto construct_fail;
 
-	stream->ref_count++;
+	atomic_inc(&stream->ref_count);
 
 	return stream;
 

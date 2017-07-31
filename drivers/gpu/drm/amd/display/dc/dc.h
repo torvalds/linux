@@ -295,7 +295,7 @@ struct dc_transfer_func {
 	enum dc_transfer_func_type type;
 	enum dc_transfer_func_predefined tf;
 	struct dc_context *ctx;
-	int ref_count;
+	atomic_t ref_count;
 };
 
 /*
@@ -342,7 +342,7 @@ struct dc_plane_state {
 
 	/* private to dc_surface.c */
 	enum dc_irq_source irq_source;
-	int ref_count;
+	atomic_t ref_count;
 };
 
 struct dc_plane_info {
@@ -518,7 +518,7 @@ struct dc_stream_state {
 	struct dc_stream_status status;
 
 	/* from stream struct */
-	int ref_count;
+	atomic_t ref_count;
 };
 
 struct dc_stream_update {
@@ -902,7 +902,7 @@ struct dc_sink {
 	struct dc_context *ctx;
 
 	/* private to dc_sink.c */
-	int ref_count;
+	atomic_t ref_count;
 };
 
 void dc_sink_retain(struct dc_sink *sink);

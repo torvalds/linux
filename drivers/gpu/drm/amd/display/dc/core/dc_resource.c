@@ -2238,7 +2238,7 @@ void dc_resource_validate_ctx_copy_construct(
 		struct validate_context *dst_ctx)
 {
 	int i, j;
-	int ref_count = dst_ctx->ref_count;
+	atomic_t ref_count = dst_ctx->ref_count;
 
 	*dst_ctx = *src_ctx;
 

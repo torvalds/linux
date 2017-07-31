@@ -76,7 +76,7 @@ struct dc_plane_state *dc_create_plane_state(const struct dc *dc)
 	if (false == construct(core_dc->ctx, plane_state))
 		goto construct_fail;
 
-	++plane_state->ref_count;
+	atomic_inc(&plane_state->ref_count);
 
 	return plane_state;
 
@@ -122,16 +122,16 @@ const struct dc_plane_status *dc_plane_get_status(
 
 void dc_plane_state_retain(struct dc_plane_state *plane_state)
 {
-	ASSERT(plane_state->ref_count > 0);
-	++plane_state->ref_count;
+	ASSERT(atomic_read(&plane_state->ref_count) > 0);
+	atomic_inc(&plane_state->ref_count);
 }
 
 void dc_plane_state_release(struct dc_plane_state *plane_state)
 {
-	ASSERT(plane_state->ref_count > 0);
-	--plane_state->ref_count;
+	ASSERT(atomic_read(&plane_state->ref_count) > 0);
+	atomic_dec(&plane_state->ref_count);
 
-	if (plane_state->ref_count == 0) {
+	if (atomic_read(&plane_state->ref_count) == 0) {
 		destruct(plane_state);
 		dm_free(plane_state);
 	}
@@ -139,16 +139,16 @@ void dc_plane_state_release(struct dc_plane_state *plane_state)
 
 void dc_gamma_retain(struct dc_gamma *gamma)
 {
-	ASSERT(gamma->ref_count > 0);
-	++gamma->ref_count;
+	ASSERT(atomic_read(&gamma->ref_count) > 0);
+	atomic_inc(&gamma->ref_count);
 }
 
 void dc_gamma_release(struct dc_gamma **gamma)
 {
-	ASSERT((*gamma)->ref_count > 0);
-	--(*gamma)->ref_count;
+	ASSERT(atomic_read(&(*gamma)->ref_count) > 0);
+	atomic_dec(&(*gamma)->ref_count);
 
-	if ((*gamma)->ref_count == 0)
+	if (atomic_read(&(*gamma)->ref_count) == 0)
 		dm_free((*gamma));
 
 	*gamma = NULL;
@@ -161,7 +161,7 @@ struct dc_gamma *dc_create_gamma()
 	if (gamma == NULL)
 		goto alloc_fail;
 
-	++gamma->ref_count;
+	atomic_inc(&gamma->ref_count);
 
 	return gamma;
 
@@ -171,16 +171,16 @@ alloc_fail:
 
 void dc_transfer_func_retain(struct dc_transfer_func *tf)
 {
-	ASSERT(tf->ref_count > 0);
-	++tf->ref_count;
+	ASSERT(atomic_read(&tf->ref_count) > 0);
+	atomic_inc(&tf->ref_count);
 }
 
 void dc_transfer_func_release(struct dc_transfer_func *tf)
 {
-	ASSERT(tf->ref_count > 0);
-	--tf->ref_count;
+	ASSERT(atomic_read(&tf->ref_count) > 0);
+	atomic_dec(&tf->ref_count);
 
-	if (tf->ref_count == 0)
+	if (atomic_read(&tf->ref_count) == 0)
 		dm_free(tf);
 }
 
@@ -191,7 +191,7 @@ struct dc_transfer_func *dc_create_transfer_func()
 	if (tf == NULL)
 		goto alloc_fail;
 
-	++tf->ref_count;
+	atomic_inc(&tf->ref_count);
 
 	return tf;
 

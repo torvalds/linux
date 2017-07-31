@@ -454,7 +454,7 @@ static bool construct(struct core_dc *dc,
 		goto val_ctx_fail;
 	}
 
-	dc->current_context->ref_count++;
+	atomic_inc(&dc->current_context->ref_count);
 
 	dc_ctx->cgs_device = init_params->cgs_device;
 	dc_ctx->driver_context = init_params->driver;
@@ -704,7 +704,7 @@ struct validate_context *dc_get_validate_context(
 	if (context == NULL)
 		goto context_alloc_fail;
 
-	++context->ref_count;
+	atomic_inc(&context->ref_count);
 
 	if (!is_validation_required(core_dc, set, set_count)) {
 		dc_resource_validate_ctx_copy_construct(core_dc->current_context, context);
@@ -748,7 +748,7 @@ bool dc_validate_resources(
 	if (context == NULL)
 		goto context_alloc_fail;
 
-	++context->ref_count;
+	atomic_inc(&context->ref_count);
 
 	result = core_dc->res_pool->funcs->validate_with_context(
 				core_dc, set, set_count, context, NULL);
@@ -782,7 +782,7 @@ bool dc_validate_guaranteed(
 	if (context == NULL)
 		goto context_alloc_fail;
 
-	++context->ref_count;
+	atomic_inc(&context->ref_count);
 
 	result = core_dc->res_pool->funcs->validate_guaranteed(
 					core_dc, stream, context);
@@ -1090,7 +1090,7 @@ bool dc_commit_streams(
 	if (context == NULL)
 		goto context_alloc_fail;
 
-	++context->ref_count;
+	atomic_inc(&context->ref_count);
 
 	result = core_dc->res_pool->funcs->validate_with_context(
 			core_dc, set, stream_count, context, core_dc->current_context);
@@ -1203,16 +1203,16 @@ bool dc_commit_planes_to_stream(
 
 void dc_retain_validate_context(struct validate_context *context)
 {
-	ASSERT(context->ref_count > 0);
-	++context->ref_count;
+	ASSERT(atomic_read(&context->ref_count) > 0);
+	atomic_inc(&context->ref_count);
 }
 
 void dc_release_validate_context(struct validate_context *context)
 {
-	ASSERT(context->ref_count > 0);
-	--context->ref_count;
+	ASSERT(atomic_read(&context->ref_count) > 0);
+	atomic_dec(&context->ref_count);
 
-	if (context->ref_count == 0) {
+	if (atomic_read(&context->ref_count) == 0) {
 		dc_resource_validate_ctx_destruct(context);
 		dm_free(context);
 	}
@@ -1485,7 +1485,7 @@ void dc_update_planes_and_stream(struct dc *dc,
 		if (context == NULL)
 				goto context_alloc_fail;
 
-		++context->ref_count;
+		atomic_inc(&context->ref_count);
 
 		dc_resource_validate_ctx_copy_construct(
 				core_dc->current_context, context);
@@ -1800,7 +1800,7 @@ void dc_set_power_state(
 	enum dc_acpi_cm_power_state power_state)
 {
 	struct core_dc *core_dc = DC_TO_CORE(dc);
-	int ref_count;
+	atomic_t ref_count;
 
 	switch (power_state) {
 	case DC_ACPI_CM_POWER_STATE_D0:

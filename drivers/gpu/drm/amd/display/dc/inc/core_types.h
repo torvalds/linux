@@ -260,7 +260,7 @@ struct validate_context {
 	struct dcn_bw_internal_vars dcn_bw_vars;
 #endif
 
-	int ref_count;
+	atomic_t ref_count;
 };
 
 #endif /* _CORE_TYPES_H_ */
