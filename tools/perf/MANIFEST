@@ -85,6 +85,7 @@ tools/include/uapi/linux/mman.h
 tools/include/uapi/linux/perf_event.h
 tools/include/uapi/linux/sched.h
 tools/include/uapi/linux/stat.h
+tools/include/uapi/linux/vhost.h
 tools/include/uapi/sound/asound.h
 tools/include/linux/poison.h
 tools/include/linux/rbtree.h
