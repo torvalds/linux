@@ -2540,23 +2540,32 @@ static ssize_t r5c_journal_mode_show(struct mddev *mddev, char *page)
  */
 int r5c_journal_mode_set(struct mddev *mddev, int mode)
 {
-	struct r5conf *conf = mddev->private;
-	struct r5l_log *log = conf->log;
-
-	if (!log)
-		return -ENODEV;
+	struct r5conf *conf;
+	int err;
 
 	if (mode < R5C_JOURNAL_MODE_WRITE_THROUGH ||
 	    mode > R5C_JOURNAL_MODE_WRITE_BACK)
 		return -EINVAL;
 
+	err = mddev_lock(mddev);
+	if (err)
+		return err;
+	conf = mddev->private;
+	if (!conf || !conf->log) {
+		mddev_unlock(mddev);
+		return -ENODEV;
+	}
+
 	if (raid5_calc_degraded(conf) > 0 &&
-	    mode == R5C_JOURNAL_MODE_WRITE_BACK)
+	    mode == R5C_JOURNAL_MODE_WRITE_BACK) {
+		mddev_unlock(mddev);
 		return -EINVAL;
+	}
 
 	mddev_suspend(mddev);
 	conf->log->r5c_journal_mode = mode;
 	mddev_resume(mddev);
+	mddev_unlock(mddev);
 
 	pr_debug("md/raid:%s: setting r5c cache mode to %d: %s\n",
 		 mdname(mddev), mode, r5c_journal_mode_str[mode]);
