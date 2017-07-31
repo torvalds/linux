@@ -118,9 +118,8 @@ static int gc0310_write_reg(struct i2c_client *client, u16 data_length,
 	/* high byte goes out first */
 	*wreg = (u8)(reg & 0xff);
 
-	if (data_length == GC0310_8BIT) {
+	if (data_length == GC0310_8BIT)
 		data[1] = (u8)(val);
-	}
 
 	ret = gc0310_i2c_write(client, len, data);
 	if (ret)
