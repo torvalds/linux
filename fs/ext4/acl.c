@@ -189,18 +189,10 @@ __ext4_set_acl(handle_t *handle, struct inode *inode, int type,
 	void *value = NULL;
 	size_t size = 0;
 	int error;
-	int update_mode = 0;
-	umode_t mode = inode->i_mode;
 
 	switch (type) {
 	case ACL_TYPE_ACCESS:
 		name_index = EXT4_XATTR_INDEX_POSIX_ACL_ACCESS;
-		if (acl) {
-			error = posix_acl_update_mode(inode, &mode, &acl);
-			if (error)
-				return error;
-			update_mode = 1;
-		}
 		break;
 
 	case ACL_TYPE_DEFAULT:
@@ -224,11 +216,6 @@ __ext4_set_acl(handle_t *handle, struct inode *inode, int type,
 	kfree(value);
 	if (!error) {
 		set_cached_acl(inode, type, acl);
-		if (update_mode) {
-			inode->i_mode = mode;
-			inode->i_ctime = current_time(inode);
-			ext4_mark_inode_dirty(handle, inode);
-		}
 	}
 
 	return error;
@@ -240,6 +227,8 @@ ext4_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 	handle_t *handle;
 	int error, credits, retries = 0;
 	size_t acl_size = acl ? ext4_acl_size(acl->a_count) : 0;
+	umode_t mode = inode->i_mode;
+	int update_mode = 0;
 
 	error = dquot_initialize(inode);
 	if (error)
@@ -254,7 +243,20 @@ retry:
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
+	if ((type == ACL_TYPE_ACCESS) && acl) {
+		error = posix_acl_update_mode(inode, &mode, &acl);
+		if (error)
+			goto out_stop;
+		update_mode = 1;
+	}
+
 	error = __ext4_set_acl(handle, inode, type, acl, 0 /* xattr_flags */);
+	if (!error && update_mode) {
+		inode->i_mode = mode;
+		inode->i_ctime = current_time(inode);
+		ext4_mark_inode_dirty(handle, inode);
+	}
+out_stop:
 	ext4_journal_stop(handle);
 	if (error == -ENOSPC && ext4_should_retry_alloc(inode->i_sb, &retries))
 		goto retry;
