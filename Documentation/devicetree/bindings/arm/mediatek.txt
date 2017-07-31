@@ -14,6 +14,7 @@ compatible: Must contain one of
    "mediatek,mt6797"
    "mediatek,mt7622"
    "mediatek,mt7623" which is referred to MT7623N SoC
+   "mediatek,mt7623a"
    "mediatek,mt8127"
    "mediatek,mt8135"
    "mediatek,mt8173"
