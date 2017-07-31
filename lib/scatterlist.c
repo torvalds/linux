@@ -391,7 +391,7 @@ EXPORT_SYMBOL(sg_alloc_table);
  */
 int sg_alloc_table_from_pages(struct sg_table *sgt,
 	struct page **pages, unsigned int n_pages,
-	unsigned long offset, unsigned long size,
+	unsigned int offset, unsigned long size,
 	gfp_t gfp_mask)
 {
 	unsigned int chunks;
