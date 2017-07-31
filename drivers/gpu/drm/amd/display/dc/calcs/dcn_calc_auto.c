@@ -266,6 +266,17 @@ void mode_support_and_system_configuration(struct dcn_bw_internal_vars *v)
 			v->required_output_bw = v->pixel_clock[k] * 3.0;
 		}
 		if (v->output[k] == dcn_bw_hdmi) {
+			v->required_phyclk[k] = v->required_output_bw;
+			switch (v->output_deep_color[k]) {
+			case dcn_bw_encoder_10bpc:
+				v->required_phyclk[k] =  v->required_phyclk[k] * 5.0 / 4;
+			break;
+			case dcn_bw_encoder_12bpc:
+				v->required_phyclk[k] =  v->required_phyclk[k] * 3.0 / 2;
+				break;
+			default:
+				break;
+			}
 			v->required_phyclk[k] = v->required_output_bw / 3.0;
 		}
 		else if (v->output[k] == dcn_bw_dp) {

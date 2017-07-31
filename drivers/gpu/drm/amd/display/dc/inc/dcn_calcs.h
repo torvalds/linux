@@ -89,6 +89,10 @@ enum dcn_bw_defs {
 	dcn_bw_supported_in_v_blank,
 	dcn_bw_not_supported,
 	dcn_bw_na,
+	dcn_bw_encoder_8bpc,
+	dcn_bw_encoder_10bpc,
+	dcn_bw_encoder_12bpc,
+	dcn_bw_encoder_16bpc,
 };
 
 /*bounding box parameters*/
@@ -182,6 +186,7 @@ struct dcn_bw_internal_vars {
 	enum dcn_bw_defs source_pixel_format[number_of_planes_minus_one + 1];
 	enum dcn_bw_defs source_surface_mode[number_of_planes_minus_one + 1];
 	enum dcn_bw_defs output_format[number_of_planes_minus_one + 1];
+	enum dcn_bw_defs output_deep_color[number_of_planes_minus_one + 1];
 	enum dcn_bw_defs output[number_of_planes_minus_one + 1];
 	float scaler_rec_out_width[number_of_planes_minus_one + 1];
 	float scaler_recout_height[number_of_planes_minus_one + 1];
