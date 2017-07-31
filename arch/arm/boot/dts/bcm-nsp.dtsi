@@ -215,6 +215,7 @@
 			interrupts = <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>;
 			sdhci,auto-cmd12;
 			clocks = <&lcpll0 BCM_NSP_LCPLL0_SDIO_CLK>;
+			dma-coherent;
 			status = "disabled";
 		};
 
@@ -224,6 +225,7 @@
 			      <0x110000 0x1000>;
 			reg-names = "amac_base", "idm_base";
 			interrupts = <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>;
+			dma-coherent;
 			status = "disabled";
 		};
 
@@ -233,6 +235,7 @@
 			      <0x111000 0x1000>;
 			reg-names = "amac_base", "idm_base";
 			interrupts = <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
+			dma-coherent;
 			status = "disabled";
 		};
 
@@ -242,6 +245,7 @@
 			      <0x112000 0x1000>;
 			reg-names = "amac_base", "idm_base";
 			interrupts = <GIC_SPI 149 IRQ_TYPE_LEVEL_HIGH>;
+			dma-coherent;
 			status = "disabled";
 		};
 
@@ -252,6 +256,7 @@
 			#mbox-cells = <1>;
 			brcm,rx-status-len = <32>;
 			brcm,use-bcm-hdr;
+			dma-coherent;
 		};
 
 		nand: nand@26000 {
@@ -325,6 +330,7 @@
 			compatible = "generic-ehci";
 			reg = <0x2a000 0x100>;
 			interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
+			dma-coherent;
 			status = "disabled";
 		};
 
@@ -332,6 +338,7 @@
 			compatible = "generic-ohci";
 			reg = <0x2b000 0x100>;
 			interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
+			dma-coherent;
 			status = "disabled";
 		};
 
@@ -376,6 +383,7 @@
 			#size-cells = <0>;
 			interrupts = <GIC_SPI 89 IRQ_TYPE_NONE>;
 			clock-frequency = <100000>;
+			dma-coherent;
 			status = "disabled";
 		};
 
@@ -446,6 +454,7 @@
 			interrupts = <GIC_SPI 159 IRQ_TYPE_LEVEL_HIGH>;
 			#address-cells = <1>;
 			#size-cells = <0>;
+			dma-coherent;
 			status = "disabled";
 
 			sata0: sata-port@0 {
@@ -483,6 +492,7 @@
 		 */
 		ranges = <0x82000000 0 0x08000000 0x08000000 0 0x8000000>;
 
+		dma-coherent;
 		status = "disabled";
 
 		msi-parent = <&msi0>;
@@ -519,6 +529,7 @@
 		 */
 		ranges = <0x82000000 0 0x40000000 0x40000000 0 0x8000000>;
 
+		dma-coherent;
 		status = "disabled";
 
 		msi-parent = <&msi1>;
@@ -555,6 +566,7 @@
 		 */
 		ranges = <0x82000000 0 0x48000000 0x48000000 0 0x8000000>;
 
+		dma-coherent;
 		status = "disabled";
 
 		msi-parent = <&msi2>;
