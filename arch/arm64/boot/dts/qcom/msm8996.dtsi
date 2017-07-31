@@ -684,6 +684,63 @@
 			nvmem-cells = <&qusb2s_hstx_trim>;
 			status = "disabled";
 		};
+
+		usb2: usb@7600000 {
+			compatible = "qcom,dwc3";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			clocks = <&gcc GCC_PERIPH_NOC_USB20_AHB_CLK>,
+				<&gcc GCC_USB20_MASTER_CLK>,
+				<&gcc GCC_USB20_MOCK_UTMI_CLK>,
+				<&gcc GCC_USB20_SLEEP_CLK>,
+				<&gcc GCC_USB_PHY_CFG_AHB2PHY_CLK>;
+
+			assigned-clocks = <&gcc GCC_USB20_MOCK_UTMI_CLK>,
+					  <&gcc GCC_USB20_MASTER_CLK>;
+			assigned-clock-rates = <19200000>, <60000000>;
+
+			power-domains = <&gcc USB30_GDSC>;
+			status = "disabled";
+
+			dwc3@7600000 {
+				compatible = "snps,dwc3";
+				reg = <0x7600000 0xcc00>;
+				interrupts = <0 138 0>;
+				phys = <&hsusb_phy2>;
+				phy-names = "usb2-phy";
+			};
+		};
+
+		usb3: usb@6a00000 {
+			compatible = "qcom,dwc3";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			clocks = <&gcc GCC_SYS_NOC_USB3_AXI_CLK>,
+				<&gcc GCC_USB30_MASTER_CLK>,
+				<&gcc GCC_AGGRE2_USB3_AXI_CLK>,
+				<&gcc GCC_USB30_MOCK_UTMI_CLK>,
+				<&gcc GCC_USB30_SLEEP_CLK>,
+				<&gcc GCC_USB_PHY_CFG_AHB2PHY_CLK>;
+
+			assigned-clocks = <&gcc GCC_USB30_MOCK_UTMI_CLK>,
+					  <&gcc GCC_USB30_MASTER_CLK>;
+			assigned-clock-rates = <19200000>, <120000000>;
+
+			power-domains = <&gcc USB30_GDSC>;
+			status = "disabled";
+
+			dwc3@6a00000 {
+				compatible = "snps,dwc3";
+				reg = <0x6a00000 0xcc00>;
+				interrupts = <0 131 0>;
+				phys = <&hsusb_phy1>, <&ssusb_phy_0>;
+				phy-names = "usb2-phy", "usb3-phy";
+			};
+		};
 	};
 
 	adsp-pil {

@@ -13,6 +13,7 @@
 
 #include "msm8996.dtsi"
 #include "pm8994.dtsi"
+#include "pmi8994.dtsi"
 #include "apq8096-db820c-pins.dtsi"
 #include "apq8096-db820c-pmic-pins.dtsi"
 #include <dt-bindings/input/input.h>
@@ -103,6 +104,39 @@
 
 		phy@7412000 {
 			status = "okay";
+		};
+
+		usb@6a00000 {
+			status = "okay";
+
+			dwc3@6a00000 {
+				extcon = <&usb3_id>;
+				dr_mode = "otg";
+			};
+		};
+
+		usb3_id: usb3-id {
+			compatible = "linux,extcon-usb-gpio";
+			id-gpio = <&pm8994_gpios 22 GPIO_ACTIVE_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&usb3_vbus_det_gpio>;
+		};
+
+		usb@7600000 {
+			status = "okay";
+
+			dwc3@7600000 {
+				extcon = <&usb2_id>;
+				dr_mode = "otg";
+				maximum-speed = "high-speed";
+			};
+		};
+
+		usb2_id: usb2-id {
+			compatible = "linux,extcon-usb-gpio";
+			id-gpio = <&pmi8994_gpios 6 GPIO_ACTIVE_HIGH>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&usb2_vbus_det_gpio>;
 		};
 	};
 
