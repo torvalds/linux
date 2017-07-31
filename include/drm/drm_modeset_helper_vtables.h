@@ -1179,9 +1179,9 @@ struct drm_plane_helper_funcs {
 	 *  - It only works for single plane updates
 	 *  - Async Pageflips are not supported yet
 	 *  - Some hw might still scan out the old buffer until the next
-	 *  vblank, however we let go of the fb references as soon as
-	 *  we run this hook. For now drivers must implement their own workers
-	 *  for deferring if needed, until a common solution is created.
+	 *    vblank, however we let go of the fb references as soon as
+	 *    we run this hook. For now drivers must implement their own workers
+	 *    for deferring if needed, until a common solution is created.
 	 */
 	void (*atomic_async_update)(struct drm_plane *plane,
 				    struct drm_plane_state *new_state);
