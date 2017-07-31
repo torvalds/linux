@@ -1668,7 +1668,7 @@ mlxsw_sp_nexthop_group_refresh(struct mlxsw_sp *mlxsw_sp,
 	for (i = 0; i < nh_grp->count; i++) {
 		nh = &nh_grp->nexthops[i];
 
-		if (nh->should_offload ^ nh->offloaded) {
+		if (nh->should_offload != nh->offloaded) {
 			offload_change = true;
 			if (nh->should_offload)
 				nh->update = 1;
@@ -1752,9 +1752,9 @@ set_trap:
 static void __mlxsw_sp_nexthop_neigh_update(struct mlxsw_sp_nexthop *nh,
 					    bool removing)
 {
-	if (!removing && !nh->should_offload)
+	if (!removing)
 		nh->should_offload = 1;
-	else if (removing && nh->offloaded)
+	else if (nh->offloaded)
 		nh->should_offload = 0;
 	nh->update = 1;
 }
@@ -1804,7 +1804,7 @@ static int mlxsw_sp_nexthop_neigh_init(struct mlxsw_sp *mlxsw_sp,
 		return 0;
 
 	/* Take a reference of neigh here ensuring that neigh would
-	 * not be detructed before the nexthop entry is finished.
+	 * not be destructed before the nexthop entry is finished.
 	 * The reference is taken either in neigh_lookup() or
 	 * in neigh_create() in case n is not found.
 	 */
@@ -3124,9 +3124,7 @@ mlxsw_sp_rif_should_config(struct mlxsw_sp_rif *rif, struct net_device *dev,
 
 	switch (event) {
 	case NETDEV_UP:
-		if (!rif)
-			return true;
-		return false;
+		return rif == NULL;
 	case NETDEV_DOWN:
 		idev = __in_dev_get_rtnl(dev);
 		if (idev && idev->ifa_list)
