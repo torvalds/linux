@@ -5140,6 +5140,7 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	include/linux/phy.h
 F:	include/linux/phy_fixed.h
+F:	include/linux/platform_data/mdio-bcm-unimac.h
 F:	drivers/net/phy/
 F:	Documentation/networking/phy.txt
 F:	drivers/of/of_mdio.c

@@ -65,6 +65,7 @@ config BCMGENET
 	select PHYLIB
 	select FIXED_PHY
 	select BCM7XXX_PHY
+	select MDIO_BCM_UNIMAC
 	help
 	  This driver supports the built-in Ethernet MACs found in the
 	  Broadcom BCM7xxx Set Top Box family chipset.

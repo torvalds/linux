@@ -657,6 +657,7 @@ struct bcmgenet_priv {
 
 	struct clk *clk;
 	struct platform_device *pdev;
+	struct platform_device *mii_pdev;
 
 	/* WOL */
 	struct clk *clk_wol;
