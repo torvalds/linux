@@ -187,18 +187,10 @@ int rtl8723be_init_sw_vars(struct ieee80211_hw *hw)
 				      rtlpriv->io.dev, GFP_KERNEL, hw,
 				      rtl_fw_cb);
 	if (err) {
-		/* Failed to get firmware. Check if old version available */
-		fw_name = "rtlwifi/rtl8723befw.bin";
-		pr_info("Using firmware %s\n", fw_name);
-		err = request_firmware_nowait(THIS_MODULE, 1, fw_name,
-					      rtlpriv->io.dev, GFP_KERNEL, hw,
-					      rtl_fw_cb);
-		if (err) {
-			pr_err("Failed to request firmware!\n");
-			vfree(rtlpriv->rtlhal.pfirmware);
-			rtlpriv->rtlhal.pfirmware = NULL;
-			return 1;
-		}
+		pr_err("Failed to request firmware!\n");
+		vfree(rtlpriv->rtlhal.pfirmware);
+		rtlpriv->rtlhal.pfirmware = NULL;
+		return 1;
 	}
 	return 0;
 }
@@ -289,6 +281,7 @@ static const struct rtl_hal_cfg rtl8723be_hal_cfg = {
 	.bar_id = 2,
 	.write_readback = true,
 	.name = "rtl8723be_pci",
+	.alt_fw_name = "rtlwifi/rtl8723befw.bin",
 	.ops = &rtl8723be_hal_ops,
 	.mod_params = &rtl8723be_mod_params,
 	.maps[SYS_ISO_CTRL] = REG_SYS_ISO_CTRL,
