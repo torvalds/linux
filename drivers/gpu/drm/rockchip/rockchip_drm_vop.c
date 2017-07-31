@@ -43,6 +43,8 @@
 #include "rockchip_drm_vop.h"
 #include "rockchip_drm_backlight.h"
 
+#define MAX_VOPS	2
+
 #define VOP_REG_SUPPORT(vop, reg) \
 		(!reg.major || (reg.major == VOP_MAJOR(vop->data->version) && \
 		reg.begin_minor <= VOP_MINOR(vop->data->version) && \
@@ -231,7 +233,6 @@ struct vop {
 	/* vop dclk reset */
 	struct reset_control *dclk_rst;
 
-	struct devfreq *devfreq;
 	struct notifier_block dmc_nb;
 
 	struct rockchip_dclk_pll *pll;
@@ -239,7 +240,9 @@ struct vop {
 	struct vop_win win[];
 };
 
-struct vop *dmc_vop;
+static struct vop *dmc_vop[MAX_VOPS];
+static struct devfreq *devfreq_vop;
+static DEFINE_MUTEX(register_devfreq_lock);
 
 static inline void vop_writel(struct vop *vop, uint32_t offset, uint32_t v)
 {
@@ -3033,23 +3036,38 @@ EXPORT_SYMBOL(rockchip_drm_wait_line_flag);
 static int dmc_notifier_call(struct notifier_block *nb, unsigned long event,
 			     void *data)
 {
+	struct vop *vop = container_of(nb, struct vop, dmc_nb);
+
 	if (event == DEVFREQ_PRECHANGE)
-		mutex_lock(&dmc_vop->vop_lock);
+		mutex_lock(&vop->vop_lock);
 	else if (event == DEVFREQ_POSTCHANGE)
-		mutex_unlock(&dmc_vop->vop_lock);
+		mutex_unlock(&vop->vop_lock);
 
 	return NOTIFY_OK;
 }
 
 int rockchip_drm_register_notifier_to_dmc(struct devfreq *devfreq)
 {
-	if (!dmc_vop)
+	int i, j = 0;
+
+	mutex_lock(&register_devfreq_lock);
+
+	devfreq_vop = devfreq;
+
+	for (i = 0; i < ARRAY_SIZE(dmc_vop); i++) {
+		if (!dmc_vop[i])
+			continue;
+		dmc_vop[i]->dmc_nb.notifier_call = dmc_notifier_call;
+		devfreq_register_notifier(devfreq_vop, &dmc_vop[i]->dmc_nb,
+					  DEVFREQ_TRANSITION_NOTIFIER);
+		j++;
+	}
+
+	mutex_unlock(&register_devfreq_lock);
+
+	if (j == 0)
 		return -ENOMEM;
 
-	dmc_vop->devfreq = devfreq;
-	dmc_vop->dmc_nb.notifier_call = dmc_notifier_call;
-	devfreq_register_notifier(dmc_vop->devfreq, &dmc_vop->dmc_nb,
-				  DEVFREQ_TRANSITION_NOTIFIER);
 	return 0;
 }
 EXPORT_SYMBOL(rockchip_drm_register_notifier_to_dmc);
@@ -3213,7 +3231,22 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 	of_rockchip_drm_sub_backlight_register(dev, &vop->crtc,
 					       &rockchip_sub_backlight_ops);
 
-	dmc_vop = vop;
+	mutex_lock(&register_devfreq_lock);
+
+	for (i = 0; i < ARRAY_SIZE(dmc_vop); i++) {
+		if (dmc_vop[i])
+			continue;
+		dmc_vop[i] = vop;
+		if (devfreq_vop) {
+			dmc_vop[i]->dmc_nb.notifier_call = dmc_notifier_call;
+			devfreq_register_notifier(devfreq_vop,
+						  &dmc_vop[i]->dmc_nb,
+						  DEVFREQ_TRANSITION_NOTIFIER);
+		}
+		break;
+	}
+
+	mutex_unlock(&register_devfreq_lock);
 
 	return 0;
 }
@@ -3221,6 +3254,23 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 static void vop_unbind(struct device *dev, struct device *master, void *data)
 {
 	struct vop *vop = dev_get_drvdata(dev);
+	int i;
+
+	mutex_lock(&register_devfreq_lock);
+
+	for (i = 0; i < ARRAY_SIZE(dmc_vop); i++) {
+		if (dmc_vop[i] != vop)
+			continue;
+		dmc_vop[i] = NULL;
+
+		if (!devfreq_vop)
+			break;
+		devfreq_unregister_notifier(devfreq_vop, &dmc_vop[i]->dmc_nb,
+					    DEVFREQ_TRANSITION_NOTIFIER);
+		break;
+	}
+
+	mutex_unlock(&register_devfreq_lock);
 
 	pm_runtime_disable(dev);
 	vop_destroy_crtc(vop);
