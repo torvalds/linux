@@ -345,6 +345,42 @@ static inline void skb_frag_size_sub(skb_frag_t *frag, int delta)
 	frag->size -= delta;
 }
 
+static inline bool skb_frag_must_loop(struct page *p)
+{
+#if defined(CONFIG_HIGHMEM)
+	if (PageHighMem(p))
+		return true;
+#endif
+	return false;
+}
+
+/**
+ *	skb_frag_foreach_page - loop over pages in a fragment
+ *
+ *	@f:		skb frag to operate on
+ *	@f_off:		offset from start of f->page.p
+ *	@f_len:		length from f_off to loop over
+ *	@p:		(temp var) current page
+ *	@p_off:		(temp var) offset from start of current page,
+ *	                           non-zero only on first page.
+ *	@p_len:		(temp var) length in current page,
+ *				   < PAGE_SIZE only on first and last page.
+ *	@copied:	(temp var) length so far, excluding current p_len.
+ *
+ *	A fragment can hold a compound page, in which case per-page
+ *	operations, notably kmap_atomic, must be called for each
+ *	regular page.
+ */
+#define skb_frag_foreach_page(f, f_off, f_len, p, p_off, p_len, copied)	\
+	for (p = skb_frag_page(f) + ((f_off) >> PAGE_SHIFT),		\
+	     p_off = (f_off) & (PAGE_SIZE - 1),				\
+	     p_len = skb_frag_must_loop(p) ?				\
+	     min_t(u32, f_len, PAGE_SIZE - p_off) : f_len,		\
+	     copied = 0;						\
+	     copied < f_len;						\
+	     copied += p_len, p++, p_off = 0,				\
+	     p_len = min_t(u32, f_len - copied, PAGE_SIZE))		\
+
 #define HAVE_HW_TIME_STAMP
 
 /**

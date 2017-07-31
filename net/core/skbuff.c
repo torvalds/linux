@@ -938,8 +938,10 @@ int skb_copy_ubufs(struct sk_buff *skb, gfp_t gfp_mask)
 	struct ubuf_info *uarg = skb_shinfo(skb)->destructor_arg;
 
 	for (i = 0; i < num_frags; i++) {
-		u8 *vaddr;
 		skb_frag_t *f = &skb_shinfo(skb)->frags[i];
+		u32 p_off, p_len, copied;
+		struct page *p;
+		u8 *vaddr;
 
 		page = alloc_page(gfp_mask);
 		if (!page) {
@@ -950,10 +952,15 @@ int skb_copy_ubufs(struct sk_buff *skb, gfp_t gfp_mask)
 			}
 			return -ENOMEM;
 		}
-		vaddr = kmap_atomic(skb_frag_page(f));
-		memcpy(page_address(page),
-		       vaddr + f->page_offset, skb_frag_size(f));
-		kunmap_atomic(vaddr);
+
+		skb_frag_foreach_page(f, f->page_offset, skb_frag_size(f),
+				      p, p_off, p_len, copied) {
+			vaddr = kmap_atomic(p);
+			memcpy(page_address(page) + copied, vaddr + p_off,
+			       p_len);
+			kunmap_atomic(vaddr);
+		}
+
 		set_page_private(page, (unsigned long)head);
 		head = page;
 	}
@@ -1753,16 +1760,20 @@ int skb_copy_bits(const struct sk_buff *skb, int offset, void *to, int len)
 
 		end = start + skb_frag_size(f);
 		if ((copy = end - offset) > 0) {
+			u32 p_off, p_len, copied;
+			struct page *p;
 			u8 *vaddr;
 
 			if (copy > len)
 				copy = len;
 
-			vaddr = kmap_atomic(skb_frag_page(f));
-			memcpy(to,
-			       vaddr + f->page_offset + offset - start,
-			       copy);
-			kunmap_atomic(vaddr);
+			skb_frag_foreach_page(f,
+					      f->page_offset + offset - start,
+					      copy, p, p_off, p_len, copied) {
+				vaddr = kmap_atomic(p);
+				memcpy(to + copied, vaddr + p_off, p_len);
+				kunmap_atomic(vaddr);
+			}
 
 			if ((len -= copy) == 0)
 				return 0;
@@ -2122,15 +2133,20 @@ int skb_store_bits(struct sk_buff *skb, int offset, const void *from, int len)
 
 		end = start + skb_frag_size(frag);
 		if ((copy = end - offset) > 0) {
+			u32 p_off, p_len, copied;
+			struct page *p;
 			u8 *vaddr;
 
 			if (copy > len)
 				copy = len;
 
-			vaddr = kmap_atomic(skb_frag_page(frag));
-			memcpy(vaddr + frag->page_offset + offset - start,
-			       from, copy);
-			kunmap_atomic(vaddr);
+			skb_frag_foreach_page(frag,
+					      frag->page_offset + offset - start,
+					      copy, p, p_off, p_len, copied) {
+				vaddr = kmap_atomic(p);
+				memcpy(vaddr + p_off, from + copied, p_len);
+				kunmap_atomic(vaddr);
+			}
 
 			if ((len -= copy) == 0)
 				return 0;
@@ -2195,20 +2211,27 @@ __wsum __skb_checksum(const struct sk_buff *skb, int offset, int len,
 
 		end = start + skb_frag_size(frag);
 		if ((copy = end - offset) > 0) {
+			u32 p_off, p_len, copied;
+			struct page *p;
 			__wsum csum2;
 			u8 *vaddr;
 
 			if (copy > len)
 				copy = len;
-			vaddr = kmap_atomic(skb_frag_page(frag));
-			csum2 = ops->update(vaddr + frag->page_offset +
-					    offset - start, copy, 0);
-			kunmap_atomic(vaddr);
-			csum = ops->combine(csum, csum2, pos, copy);
+
+			skb_frag_foreach_page(frag,
+					      frag->page_offset + offset - start,
+					      copy, p, p_off, p_len, copied) {
+				vaddr = kmap_atomic(p);
+				csum2 = ops->update(vaddr + p_off, p_len, 0);
+				kunmap_atomic(vaddr);
+				csum = ops->combine(csum, csum2, pos, p_len);
+				pos += p_len;
+			}
+
 			if (!(len -= copy))
 				return csum;
 			offset += copy;
-			pos    += copy;
 		}
 		start = end;
 	}
@@ -2281,24 +2304,31 @@ __wsum skb_copy_and_csum_bits(const struct sk_buff *skb, int offset,
 
 		end = start + skb_frag_size(&skb_shinfo(skb)->frags[i]);
 		if ((copy = end - offset) > 0) {
+			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
+			u32 p_off, p_len, copied;
+			struct page *p;
 			__wsum csum2;
 			u8 *vaddr;
-			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
 			if (copy > len)
 				copy = len;
-			vaddr = kmap_atomic(skb_frag_page(frag));
-			csum2 = csum_partial_copy_nocheck(vaddr +
-							  frag->page_offset +
-							  offset - start, to,
-							  copy, 0);
-			kunmap_atomic(vaddr);
-			csum = csum_block_add(csum, csum2, pos);
+
+			skb_frag_foreach_page(frag,
+					      frag->page_offset + offset - start,
+					      copy, p, p_off, p_len, copied) {
+				vaddr = kmap_atomic(p);
+				csum2 = csum_partial_copy_nocheck(vaddr + p_off,
+								  to + copied,
+								  p_len, 0);
+				kunmap_atomic(vaddr);
+				csum = csum_block_add(csum, csum2, pos);
+				pos += p_len;
+			}
+
 			if (!(len -= copy))
 				return csum;
 			offset += copy;
 			to     += copy;
-			pos    += copy;
 		}
 		start = end;
 	}
