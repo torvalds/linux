@@ -11,76 +11,9 @@
 
 #define __ARCH_SI_PREAMBLE_SIZE	(4 * sizeof(int))
 
-#define HAVE_ARCH_SIGINFO_T
 #define HAVE_ARCH_COPY_SIGINFO_TO_USER
 
 #include <asm-generic/siginfo.h>
-
-typedef struct siginfo {
-	int si_signo;
-	int si_errno;
-	int si_code;
-	int __pad0;
-
-	union {
-		int _pad[SI_PAD_SIZE];
-
-		/* kill() */
-		struct {
-			pid_t _pid;		/* sender's pid */
-			uid_t _uid;		/* sender's uid */
-		} _kill;
-
-		/* POSIX.1b timers */
-		struct {
-			timer_t _tid;		/* timer id */
-			int _overrun;		/* overrun count */
-			char _pad[sizeof(__ARCH_SI_UID_T) - sizeof(int)];
-			sigval_t _sigval;	/* must overlay ._rt._sigval! */
-			int _sys_private;	/* not to be passed to user */
-		} _timer;
-
-		/* POSIX.1b signals */
-		struct {
-			pid_t _pid;		/* sender's pid */
-			uid_t _uid;		/* sender's uid */
-			sigval_t _sigval;
-		} _rt;
-
-		/* SIGCHLD */
-		struct {
-			pid_t _pid;		/* which child */
-			uid_t _uid;		/* sender's uid */
-			int _status;		/* exit code */
-			clock_t _utime;
-			clock_t _stime;
-		} _sigchld;
-
-		/* SIGILL, SIGFPE, SIGSEGV, SIGBUS */
-		struct {
-			void __user *_addr;	/* faulting insn/memory ref. */
-			int _imm;		/* immediate value for "break" */
-			unsigned int _flags;	/* see below */
-			unsigned long _isr;	/* isr */
-			short _addr_lsb;	/* lsb of faulting address */
-			union {
-				/* used when si_code=SEGV_BNDERR */
-				struct {
-					void __user *_lower;
-					void __user *_upper;
-				} _addr_bnd;
-				/* used when si_code=SEGV_PKUERR */
-				__u32 _pkey;
-			};
-		} _sigfault;
-
-		/* SIGPOLL */
-		struct {
-			long _band;	/* POLL_IN, POLL_OUT, POLL_MSG (XPG requires a "long") */
-			int _fd;
-		} _sigpoll;
-	} _sifields;
-} siginfo_t;
 
 #define si_imm		_sifields._sigfault._imm	/* as per UNIX SysV ABI spec */
 #define si_flags	_sifields._sigfault._flags

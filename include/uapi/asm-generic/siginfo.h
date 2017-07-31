@@ -91,6 +91,11 @@ typedef struct siginfo {
 #ifdef __ARCH_SI_TRAPNO
 			int _trapno;	/* TRAP # which caused the signal */
 #endif
+#ifdef __ia64__
+			int _imm;		/* immediate value for "break" */
+			unsigned int _flags;	/* see ia64 si_flags */
+			unsigned long _isr;	/* isr */
+#endif
 			short _addr_lsb; /* LSB of the reported address */
 			union {
 				/* used when si_code=SEGV_BNDERR */
