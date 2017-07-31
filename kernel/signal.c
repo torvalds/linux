@@ -2814,6 +2814,87 @@ int copy_siginfo_to_user(siginfo_t __user *to, const siginfo_t *from)
 	return err;
 }
 
+#ifdef CONFIG_COMPAT
+int copy_siginfo_from_user32(struct siginfo *to,
+			     const struct compat_siginfo __user *ufrom)
+{
+	struct compat_siginfo from;
+
+	if (copy_from_user(&from, ufrom, sizeof(struct compat_siginfo)))
+		return -EFAULT;
+
+	clear_siginfo(to);
+	to->si_signo = from.si_signo;
+	to->si_errno = from.si_errno;
+	to->si_code  = from.si_code;
+	switch(siginfo_layout(from.si_signo, from.si_code)) {
+	case SIL_KILL:
+		to->si_pid = from.si_pid;
+		to->si_uid = from.si_uid;
+		break;
+	case SIL_TIMER:
+		to->si_tid     = from.si_tid;
+		to->si_overrun = from.si_overrun;
+		to->si_int     = from.si_int;
+		break;
+	case SIL_POLL:
+		to->si_band = from.si_band;
+		to->si_fd   = from.si_fd;
+		break;
+	case SIL_FAULT:
+		to->si_addr = compat_ptr(from.si_addr);
+#ifdef __ARCH_SI_TRAPNO
+		to->si_trapno = from.si_trapno;
+#endif
+#ifdef BUS_MCEERR_AR
+		if ((from.si_signo == SIGBUS) && (from.si_code == BUS_MCEERR_AR))
+			to->si_addr_lsb = from.si_addr_lsb;
+#endif
+#ifdef BUS_MCEER_AO
+		if ((from.si_signo == SIGBUS) && (from.si_code == BUS_MCEERR_AO))
+			to->si_addr_lsb = from.si_addr_lsb;
+#endif
+#ifdef SEGV_BNDERR
+		if ((from.si_signo == SIGSEGV) && (from.si_code == SEGV_BNDERR)) {
+			to->si_lower = compat_ptr(from.si_lower);
+			to->si_upper = compat_ptr(from.si_upper);
+		}
+#endif
+#ifdef SEGV_PKUERR
+		if ((from.si_signo == SIGSEGV) && (from.si_code == SEGV_PKUERR))
+			to->si_pkey = from.si_pkey;
+#endif
+		break;
+	case SIL_CHLD:
+		to->si_pid    = from.si_pid;
+		to->si_uid    = from.si_uid;
+		to->si_status = from.si_status;
+#ifdef CONFIG_X86_X32_ABI
+		if (in_x32_syscall()) {
+			to->si_utime = from._sifields._sigchld_x32._utime;
+			to->si_stime = from._sifields._sigchld_x32._stime;
+		} else
+#endif
+		{
+			to->si_utime = from.si_utime;
+			to->si_stime = from.si_stime;
+		}
+		break;
+	case SIL_RT:
+		to->si_pid = from.si_pid;
+		to->si_uid = from.si_uid;
+		to->si_int = from.si_int;
+		break;
+	case SIL_SYS:
+		to->si_call_addr = compat_ptr(from.si_call_addr);
+		to->si_syscall   = from.si_syscall;
+		to->si_arch      = from.si_arch;
+		break;
+	}
+	return 0;
+}
+#endif /* CONFIG_COMPAT */
+
 /**
  *  do_sigtimedwait - wait for queued signals specified in @which
  *  @which: queued signals to wait for

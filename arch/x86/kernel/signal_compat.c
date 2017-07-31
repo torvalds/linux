@@ -207,24 +207,3 @@ int copy_siginfo_to_user32(compat_siginfo_t __user *to, const siginfo_t *from)
 	return __copy_siginfo_to_user32(to, from, in_x32_syscall());
 }
 
-int copy_siginfo_from_user32(siginfo_t *to, compat_siginfo_t __user *from)
-{
-	int err = 0;
-	u32 ptr32;
-
-	if (!access_ok(VERIFY_READ, from, sizeof(compat_siginfo_t)))
-		return -EFAULT;
-
-	get_user_try {
-		get_user_ex(to->si_signo, &from->si_signo);
-		get_user_ex(to->si_errno, &from->si_errno);
-		get_user_ex(to->si_code, &from->si_code);
-
-		get_user_ex(to->si_pid, &from->si_pid);
-		get_user_ex(to->si_uid, &from->si_uid);
-		get_user_ex(ptr32, &from->si_ptr);
-		to->si_ptr = compat_ptr(ptr32);
-	} get_user_catch(err);
-
-	return err;
-}

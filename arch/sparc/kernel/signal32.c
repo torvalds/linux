@@ -123,22 +123,6 @@ int copy_siginfo_to_user32(compat_siginfo_t __user *to, const siginfo_t *from)
 	return err;
 }
 
-/* CAUTION: This is just a very minimalist implementation for the
- *          sake of compat_sys_rt_sigqueueinfo()
- */
-int copy_siginfo_from_user32(siginfo_t *to, compat_siginfo_t __user *from)
-{
-	if (!access_ok(VERIFY_WRITE, from, sizeof(compat_siginfo_t)))
-		return -EFAULT;
-
-	if (copy_from_user(to, from, 3*sizeof(int)) ||
-	    copy_from_user(to->_sifields._pad, from->_sifields._pad,
-			   SI_PAD_SIZE))
-		return -EFAULT;
-
-	return 0;
-}
-
 /* Checks if the fp is valid.  We always build signal frames which are
  * 16-byte aligned, therefore we can always enforce that the restore
  * frame has that property as well.

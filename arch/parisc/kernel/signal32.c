@@ -262,50 +262,6 @@ setup_sigcontext32(struct compat_sigcontext __user *sc, struct compat_regfile __
 }
 
 int
-copy_siginfo_from_user32 (siginfo_t *to, compat_siginfo_t __user *from)
-{
-	compat_uptr_t addr;
-	int err;
-
-	if (!access_ok(VERIFY_READ, from, sizeof(compat_siginfo_t)))
-		return -EFAULT;
-
-	err = __get_user(to->si_signo, &from->si_signo);
-	err |= __get_user(to->si_errno, &from->si_errno);
-	err |= __get_user(to->si_code, &from->si_code);
-
-	if (to->si_code < 0)
-		err |= __copy_from_user(&to->_sifields._pad, &from->_sifields._pad, SI_PAD_SIZE);
-	else {
-		switch (siginfo_layout(to->si_signo, to->si_code)) {
-		      case SIL_CHLD:
-			err |= __get_user(to->si_utime, &from->si_utime);
-			err |= __get_user(to->si_stime, &from->si_stime);
-			err |= __get_user(to->si_status, &from->si_status);
-		      default:
-		      case SIL_KILL:
-			err |= __get_user(to->si_pid, &from->si_pid);
-			err |= __get_user(to->si_uid, &from->si_uid);
-			break;
-		      case SIL_FAULT:
-			err |= __get_user(addr, &from->si_addr);
-			to->si_addr = compat_ptr(addr);
-			break;
-		      case SIL_POLL:
-			err |= __get_user(to->si_band, &from->si_band);
-			err |= __get_user(to->si_fd, &from->si_fd);
-			break;
-		      case SIL_RT:
-			err |= __get_user(to->si_pid, &from->si_pid);
-			err |= __get_user(to->si_uid, &from->si_uid);
-			err |= __get_user(to->si_int, &from->si_int);
-			break;
-		}
-	}
-	return err;
-}
-
-int
 copy_siginfo_to_user32 (compat_siginfo_t __user *to, const siginfo_t *from)
 {
 	compat_uptr_t addr;
