@@ -302,6 +302,9 @@
 #define PHY_IAC_REG_SHIFT	25
 #define PHY_IAC_TIMEOUT		HZ
 
+#define MTK_MAC_MISC		0x1000c
+#define MTK_MUX_TO_ESW		BIT(0)
+
 /* Mac control registers */
 #define MTK_MAC_MCR(x)		(0x10100 + (x * 0x100))
 #define MAC_MCR_MAX_RX_1536	BIT(24)
@@ -357,11 +360,15 @@
 #define ETHSYS_CHIPID0_3	0x0
 #define ETHSYS_CHIPID4_7	0x4
 #define MT7623_ETH		7623
+#define MT7622_ETH		7622
 
 /* ethernet subsystem config register */
 #define ETHSYS_SYSCFG0		0x14
 #define SYSCFG0_GE_MASK		0x3
 #define SYSCFG0_GE_MODE(x, y)	(x << (12 + (y * 2)))
+#define SYSCFG0_SGMII_MASK	(3 << 8)
+#define SYSCFG0_SGMII_GMAC1	((2 << 8) & GENMASK(9, 8))
+#define SYSCFG0_SGMII_GMAC2	((3 << 8) & GENMASK(9, 8))
 
 /* ethernet subsystem clock register */
 #define ETHSYS_CLKCFG0		0x2c
@@ -371,6 +378,23 @@
 #define ETHSYS_RSTCTRL		0x34
 #define RSTCTRL_FE		BIT(6)
 #define RSTCTRL_PPE		BIT(31)
+
+/* SGMII subsystem config registers */
+/* Register to auto-negotiation restart */
+#define SGMSYS_PCS_CONTROL_1	0x0
+#define SGMII_AN_RESTART	BIT(9)
+
+/* Register to programmable link timer, the unit in 2 * 8ns */
+#define SGMSYS_PCS_LINK_TIMER	0x18
+#define SGMII_LINK_TIMER_DEFAULT	(0x186a0 & GENMASK(19, 0))
+
+/* Register to control remote fault */
+#define SGMSYS_SGMII_MODE	0x20
+#define SGMII_REMOTE_FAULT_DIS	BIT(8)
+
+/* Register to power up QPHY */
+#define SGMSYS_QPHY_PWR_STATE_CTRL 0xe8
+#define	SGMII_PHYA_PWD		BIT(4)
 
 struct mtk_rx_dma {
 	unsigned int rxd1;
@@ -437,15 +461,31 @@ enum mtk_tx_flags {
 enum mtk_clks_map {
 	MTK_CLK_ETHIF,
 	MTK_CLK_ESW,
+	MTK_CLK_GP0,
 	MTK_CLK_GP1,
 	MTK_CLK_GP2,
 	MTK_CLK_TRGPLL,
+	MTK_CLK_SGMII_TX_250M,
+	MTK_CLK_SGMII_RX_250M,
+	MTK_CLK_SGMII_CDR_REF,
+	MTK_CLK_SGMII_CDR_FB,
+	MTK_CLK_SGMII_CK,
+	MTK_CLK_ETH2PLL,
 	MTK_CLK_MAX
 };
 
 #define MT7623_CLKS_BITMAP	(BIT(MTK_CLK_ETHIF) | BIT(MTK_CLK_ESW) |  \
 				 BIT(MTK_CLK_GP1) | BIT(MTK_CLK_GP2) | \
 				 BIT(MTK_CLK_TRGPLL))
+#define MT7622_CLKS_BITMAP	(BIT(MTK_CLK_ETHIF) | BIT(MTK_CLK_ESW) |  \
+				 BIT(MTK_CLK_GP0) | BIT(MTK_CLK_GP1) | \
+				 BIT(MTK_CLK_GP2) | \
+				 BIT(MTK_CLK_SGMII_TX_250M) | \
+				 BIT(MTK_CLK_SGMII_RX_250M) | \
+				 BIT(MTK_CLK_SGMII_CDR_REF) | \
+				 BIT(MTK_CLK_SGMII_CDR_FB) | \
+				 BIT(MTK_CLK_SGMII_CK) | \
+				 BIT(MTK_CLK_ETH2PLL))
 enum mtk_dev_state {
 	MTK_HW_INIT,
 	MTK_RESETTING
@@ -516,9 +556,16 @@ struct mtk_rx_ring {
 
 #define MTK_TRGMII			BIT(0)
 #define MTK_GMAC1_TRGMII		(BIT(1) | MTK_TRGMII)
+#define MTK_ESW				BIT(4)
+#define MTK_GMAC1_ESW			(BIT(5) | MTK_ESW)
+#define MTK_SGMII			BIT(8)
+#define MTK_GMAC1_SGMII			(BIT(9) | MTK_SGMII)
+#define MTK_GMAC2_SGMII			(BIT(10) | MTK_SGMII)
+#define MTK_DUAL_GMAC_SHARED_SGMII	(BIT(11) | MTK_GMAC1_SGMII | \
+					 MTK_GMAC2_SGMII)
 #define MTK_HAS_CAPS(caps, _x)		(((caps) & (_x)) == (_x))
 
-/* struct mtk_soc_data -	This is the structure holding all differences
+/* struct mtk_eth_data -	This is the structure holding all differences
  *				among various plaforms
  * @caps			Flags shown the extra capability for the SoC
  * @required_clks		Flags shown the bitmap for required clocks on
@@ -547,6 +594,8 @@ struct mtk_soc_data {
  * @msg_enable:		Ethtool msg level
  * @ethsys:		The register map pointing at the range used to setup
  *			MII modes
+ * @sgmiisys:		The register map pointing at the range used to setup
+ *			SGMII modes
  * @pctl:		The register map pointing at the range used to setup
  *			GMAC port drive/slew values
  * @dma_refcnt:		track how many netdevs are using the DMA engine
@@ -560,7 +609,7 @@ struct mtk_soc_data {
  * @clks:		clock array for all clocks required
  * @mii_bus:		If there is a bus we need to create an instance for it
  * @pending_work:	The workqueue used to reset the dma ring
- * @state		Initialization and runtime state of the device
+ * @state:		Initialization and runtime state of the device
  * @soc:		Holding specific data among vaious SoCs
  */
 
@@ -577,6 +626,7 @@ struct mtk_eth {
 	u32				msg_enable;
 	unsigned long			sysclk;
 	struct regmap			*ethsys;
+	struct regmap			*sgmiisys;
 	struct regmap			*pctl;
 	u32				chip_id;
 	bool				hwlro;
