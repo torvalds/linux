@@ -611,7 +611,7 @@ static void msm_hc_select_hs400(struct sdhci_host *host)
  * HS400 - divided clock (free running MCLK/2)
  * All other modes - default (free running MCLK)
  */
-void sdhci_msm_hc_select_mode(struct sdhci_host *host)
+static void sdhci_msm_hc_select_mode(struct sdhci_host *host)
 {
 	struct mmc_ios ios = host->mmc->ios;
 
@@ -1049,7 +1049,7 @@ static unsigned int sdhci_msm_get_min_clock(struct sdhci_host *host)
  * instead directly control the GCC clock as per
  * HW recommendation.
  **/
-void __sdhci_msm_set_clock(struct sdhci_host *host, unsigned int clock)
+static void __sdhci_msm_set_clock(struct sdhci_host *host, unsigned int clock)
 {
 	u16 clk;
 	/*
