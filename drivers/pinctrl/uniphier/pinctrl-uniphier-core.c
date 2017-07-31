@@ -13,7 +13,6 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/export.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of.h>
 #include <linux/pinctrl/pinconf.h>
@@ -731,4 +730,3 @@ int uniphier_pinctrl_probe(struct platform_device *pdev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(uniphier_pinctrl_probe);
