@@ -82,7 +82,7 @@ void dc_destroy_resource_pool(struct dc *dc);
 enum dc_status resource_map_pool_resources(
 		const struct dc *dc,
 		struct validate_context *context,
-		struct validate_context *old_context);
+		struct dc_stream_state *stream);
 
 bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx);
 
@@ -150,12 +150,12 @@ void resource_validate_ctx_update_pointer_after_copy(
 enum dc_status resource_map_clock_resources(
 		const struct dc *dc,
 		struct validate_context *context,
-		struct validate_context *old_context);
+		struct dc_stream_state *stream);
 
 enum dc_status resource_map_phy_clock_resources(
 		const struct dc *dc,
 		struct validate_context *context,
-		struct validate_context *old_context);
+		struct dc_stream_state *stream);
 
 bool pipe_need_reprogram(
 		struct pipe_ctx *pipe_ctx_old,

@@ -25,6 +25,7 @@
 
 #include "dm_services_types.h"
 #include "dc.h"
+#include "dc/inc/core_types.h"
 
 #include "vid.h"
 #include "amdgpu.h"
@@ -690,13 +691,33 @@ struct drm_atomic_state *
 dm_atomic_state_alloc(struct drm_device *dev)
 {
 	struct dm_atomic_state *state = kzalloc(sizeof(*state), GFP_KERNEL);
+	struct validate_context *new_ctx;
+	struct amdgpu_device *adev = dev->dev_private;
+	struct dc *dc = adev->dm.dc;
 
-	if (!state || drm_atomic_state_init(dev, &state->base) < 0) {
-		kfree(state);
+	if (!state)
 		return NULL;
-	}
+
+	if (drm_atomic_state_init(dev, &state->base) < 0)
+		goto fail;
+
+	/* copy existing configuration */
+	new_ctx = dm_alloc(sizeof(*new_ctx));
+
+	if (!new_ctx)
+		goto fail;
+
+	atomic_inc(&new_ctx->ref_count);
+
+	dc_resource_validate_ctx_copy_construct_current(dc, new_ctx);
+
+	state->context = new_ctx;
 
 	return &state->base;
+
+fail:
+	kfree(state);
+	return NULL;
 }
 
 static void
@@ -4418,7 +4439,6 @@ static int do_aquire_global_lock(
 int amdgpu_dm_atomic_check(struct drm_device *dev,
 			struct drm_atomic_state *state)
 {
-	struct dm_atomic_state *dm_state;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
 	struct drm_plane *plane;
@@ -4432,6 +4452,7 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 	int set_count;
 	struct dc_validation_set set[MAX_STREAMS] = { { 0 } };
 	struct dm_crtc_state *old_acrtc_state, *new_acrtc_state;
+	struct dm_atomic_state *dm_state = to_dm_atomic_state(state);
 
 	/*
 	 * This bool will be set for true for any modeset/reset
@@ -4445,8 +4466,6 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 		DRM_ERROR("Atomic state validation failed with error :%d !\n", ret);
 		return ret;
 	}
-
-	dm_state = to_dm_atomic_state(state);
 
 	/* copy existing configuration */
 	set_count = 0;
@@ -4490,8 +4509,17 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 
 		if (modereset_required(crtc_state)) {
 
-					/* i.e. reset mode */
+			/* i.e. reset mode */
 			if (new_acrtc_state->stream) {
+
+				if (!dc_remove_stream_from_ctx(
+						dc,
+						dm_state->context,
+						new_acrtc_state->stream)) {
+					ret = -EINVAL;
+					goto fail;
+				}
+
 				set_count = remove_from_val_sets(
 						set,
 						set_count,
@@ -4539,8 +4567,19 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 			if (modeset_required(crtc_state, new_stream,
 					     old_acrtc_state->stream)) {
 
-				if (new_acrtc_state->stream)
+				if (new_acrtc_state->stream) {
+
+					if (!dc_remove_stream_from_ctx(
+							dc,
+							dm_state->context,
+							new_acrtc_state->stream)) {
+						ret = -EINVAL;
+						goto fail;
+					}
+
+
 					dc_stream_release(new_acrtc_state->stream);
+				}
 
 				new_acrtc_state->stream = new_stream;
 
@@ -4550,6 +4589,14 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 						old_acrtc_state->stream,
 						new_acrtc_state->stream,
 						crtc);
+
+				if (!dc_add_stream_to_ctx(
+						dc,
+						dm_state->context,
+						new_acrtc_state->stream)) {
+					ret = -EINVAL;
+					goto fail;
+				}
 
 				lock_and_validation_needed = true;
 			} else {
@@ -4667,9 +4714,8 @@ int amdgpu_dm_atomic_check(struct drm_device *dev,
 		ret = do_aquire_global_lock(dev, state);
 		if (ret)
 			goto fail;
-		WARN_ON(dm_state->context);
-		dm_state->context = dc_get_validate_context(dc, set, set_count);
-		if (!dm_state->context) {
+
+		if (!dc_validate_global_state(dc, set, set_count, dm_state->context)) {
 			ret = -EINVAL;
 			goto fail;
 		}

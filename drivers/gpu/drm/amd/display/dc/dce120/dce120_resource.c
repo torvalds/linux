@@ -698,10 +698,10 @@ static void dce120_destroy_resource_pool(struct resource_pool **pool)
 static const struct resource_funcs dce120_res_pool_funcs = {
 	.destroy = dce120_destroy_resource_pool,
 	.link_enc_create = dce120_link_encoder_create,
-	.validate_with_context = dce112_validate_with_context,
 	.validate_guaranteed = dce112_validate_guaranteed,
 	.validate_bandwidth = dce112_validate_bandwidth,
-	.validate_plane = dce100_validate_plane
+	.validate_plane = dce100_validate_plane,
+	.add_stream_to_ctx = dce112_add_stream_to_ctx
 };
 
 static void bw_calcs_data_update_from_pplib(struct dc *dc)

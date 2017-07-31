@@ -51,6 +51,11 @@ bool dce112_validate_bandwidth(
 	struct dc *dc,
 	struct validate_context *context);
 
+enum dc_status dce112_add_stream_to_ctx(
+		struct dc *dc,
+		struct validate_context *new_ctx,
+		struct dc_stream_state *dc_stream);
+
 
 #endif /* __DC_RESOURCE_DCE112_H__ */
 

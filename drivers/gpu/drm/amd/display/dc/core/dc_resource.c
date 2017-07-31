@@ -938,7 +938,7 @@ struct pipe_ctx *resource_get_head_pipe_for_stream(
 	int i;
 	for (i = 0; i < MAX_PIPES; i++) {
 		if (res_ctx->pipe_ctx[i].stream == stream &&
-				res_ctx->pipe_ctx[i].stream_res.stream_enc) {
+				!res_ctx->pipe_ctx[i].top_pipe) {
 			return &res_ctx->pipe_ctx[i];
 			break;
 		}
@@ -1217,29 +1217,31 @@ bool resource_validate_attach_surfaces(
 #define TMDS_MAX_PIXEL_CLOCK_IN_KHZ 165000
 #define TMDS_MAX_PIXEL_CLOCK_IN_KHZ_UPMOST 297000
 
-static void set_stream_engine_in_use(
+static void update_stream_engine_usage(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
-		struct stream_encoder *stream_enc)
+		struct stream_encoder *stream_enc,
+		bool acquired)
 {
 	int i;
 
 	for (i = 0; i < pool->stream_enc_count; i++) {
 		if (pool->stream_enc[i] == stream_enc)
-			res_ctx->is_stream_enc_acquired[i] = true;
+			res_ctx->is_stream_enc_acquired[i] = acquired;
 	}
 }
 
 /* TODO: release audio object */
-static void set_audio_in_use(
+static void update_audio_usage(
 		struct resource_context *res_ctx,
 		const struct resource_pool *pool,
-		struct audio *audio)
+		struct audio *audio,
+		bool acquired)
 {
 	int i;
 	for (i = 0; i < pool->audio_count; i++) {
 		if (pool->audios[i] == audio)
-			res_ctx->is_audio_acquired[i] = true;
+			res_ctx->is_audio_acquired[i] = acquired;
 	}
 }
 
@@ -1361,6 +1363,100 @@ bool resource_is_stream_unchanged(
 	return false;
 }
 
+bool dc_add_stream_to_ctx(
+		struct dc *dc,
+		struct validate_context *new_ctx,
+		struct dc_stream_state *stream)
+{
+	struct dc_context *dc_ctx = dc->ctx;
+	enum dc_status res;
+
+	if (new_ctx->stream_count >= dc->res_pool->pipe_count) {
+		DC_ERROR("Max streams reached, can add stream %p !\n", stream);
+		return DC_ERROR_UNEXPECTED;
+	}
+
+	new_ctx->streams[new_ctx->stream_count] = stream;
+	dc_stream_retain(stream);
+	new_ctx->stream_count++;
+
+	res = dc->res_pool->funcs->add_stream_to_ctx(dc, new_ctx, stream);
+	if (res != DC_OK)
+		DC_ERROR("Adding stream %p to context failed with err %d!\n", stream, res);
+
+	return res == DC_OK;
+}
+
+bool dc_remove_stream_from_ctx(
+			struct dc *dc,
+			struct validate_context *new_ctx,
+			struct dc_stream_state *stream)
+{
+	int i, j;
+	struct dc_context *dc_ctx = dc->ctx;
+	struct pipe_ctx *del_pipe = NULL;
+
+	/*TODO MPO to remove extra pipe or in surface remove ?*/
+
+	/* Release primary and secondary pipe (if exsist) */
+	for (i = 0; i < MAX_PIPES; i++) {
+		if (new_ctx->res_ctx.pipe_ctx[i].stream == stream) {
+			del_pipe = &new_ctx->res_ctx.pipe_ctx[i];
+
+			if (del_pipe->stream_res.stream_enc)
+				update_stream_engine_usage(
+						&new_ctx->res_ctx,
+						dc->res_pool,
+						del_pipe->stream_res.stream_enc,
+						false);
+
+			if (del_pipe->stream_res.audio)
+				update_audio_usage(
+					&new_ctx->res_ctx,
+					dc->res_pool,
+					del_pipe->stream_res.audio,
+					false);
+
+			memset(del_pipe, 0, sizeof(*del_pipe));
+		}
+	}
+
+	if (!del_pipe) {
+		DC_ERROR("Pipe not found for stream %p !\n", stream);
+		return DC_ERROR_UNEXPECTED;
+	}
+
+	for (i = 0; i < new_ctx->stream_count; i++)
+		if (new_ctx->streams[i] == stream)
+			break;
+
+	if (new_ctx->streams[i] != stream) {
+		DC_ERROR("Context doesn't have stream %p !\n", stream);
+		return DC_ERROR_UNEXPECTED;
+	}
+
+	dc_stream_release(new_ctx->streams[i]);
+	new_ctx->stream_count--;
+
+	/*TODO move into dc_remove_surface_from_ctx	?*/
+	for (j = 0; j < new_ctx->stream_status[i].plane_count; j++)
+		dc_plane_state_release(new_ctx->stream_status[i].plane_states[j]);
+
+	/* Trim back arrays */
+	for (; i < new_ctx->stream_count; i++) {
+		new_ctx->streams[i] = new_ctx->streams[i + 1];
+		new_ctx->stream_status[i] = new_ctx->stream_status[i + 1];
+	}
+
+	new_ctx->streams[new_ctx->stream_count] = NULL;
+	memset(
+			&new_ctx->stream_status[new_ctx->stream_count],
+			0,
+			sizeof(new_ctx->stream_status[0]));
+
+	return DC_OK;
+}
+
 static void copy_pipe_ctx(
 	const struct pipe_ctx *from_pipe_ctx, struct pipe_ctx *to_pipe_ctx)
 {
@@ -1440,15 +1536,16 @@ static void calculate_phy_pix_clks(struct dc_stream_state *stream)
 enum dc_status resource_map_pool_resources(
 		const struct dc  *dc,
 		struct validate_context *context,
-		struct validate_context *old_context)
+		struct dc_stream_state *stream)
 {
 	const struct resource_pool *pool = dc->res_pool;
-	int i, j;
+	int i;
+	struct dc_context *dc_ctx = dc->ctx;
+	struct pipe_ctx *pipe_ctx = NULL;
+	int pipe_idx = -1;
 
-	for (i = 0; old_context && i < context->stream_count; i++) {
-		struct dc_stream_state *stream = context->streams[i];
-
-		if (!resource_is_stream_unchanged(old_context, stream)) {
+	/* TODO Check if this is needed */
+	/*if (!resource_is_stream_unchanged(old_context, stream)) {
 			if (stream != NULL && old_context->streams[i] != NULL) {
 				stream->bit_depth_params =
 						old_context->streams[i]->bit_depth_params;
@@ -1456,99 +1553,57 @@ enum dc_status resource_map_pool_resources(
 				continue;
 			}
 		}
+	*/
 
-		/* mark resources used for stream that is already active */
-		for (j = 0; j < pool->pipe_count; j++) {
-			struct pipe_ctx *pipe_ctx =
-				&context->res_ctx.pipe_ctx[j];
-			const struct pipe_ctx *old_pipe_ctx =
-					&old_context->res_ctx.pipe_ctx[j];
+	/* acquire new resources */
+	pipe_idx = acquire_first_free_pipe(&context->res_ctx, pool, stream);
 
-			if (!are_stream_backends_same(old_pipe_ctx->stream, stream))
-				continue;
-
-			if (old_pipe_ctx->top_pipe)
-				continue;
-
-			pipe_ctx->stream = stream;
-			copy_pipe_ctx(old_pipe_ctx, pipe_ctx);
-
-			/* Split pipe resource, do not acquire back end */
-			if (!pipe_ctx->stream_res.stream_enc)
-				continue;
-
-			set_stream_engine_in_use(
-				&context->res_ctx, pool,
-				pipe_ctx->stream_res.stream_enc);
-
-			/* Switch to dp clock source only if there is
-			 * no non dp stream that shares the same timing
-			 * with the dp stream.
-			 */
-			if (dc_is_dp_signal(pipe_ctx->stream->signal) &&
-				!find_pll_sharable_stream(stream, context))
-				pipe_ctx->clock_source = pool->dp_clock_source;
-
-			resource_reference_clock_source(
-				&context->res_ctx, pool,
-				pipe_ctx->clock_source);
-
-			set_audio_in_use(&context->res_ctx, pool,
-					pipe_ctx->stream_res.audio);
-		}
-	}
-
-	for (i = 0; i < context->stream_count; i++) {
-		struct dc_stream_state *stream = context->streams[i];
-		struct pipe_ctx *pipe_ctx = NULL;
-		int pipe_idx = -1;
-
-		if (old_context && resource_is_stream_unchanged(old_context, stream))
-			continue;
-		/* acquire new resources */
-		pipe_idx = acquire_first_free_pipe(&context->res_ctx, pool, stream);
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-		if (pipe_idx < 0)
-			acquire_first_split_pipe(&context->res_ctx, pool, stream);
+	if (pipe_idx < 0)
+		acquire_first_split_pipe(&context->res_ctx, pool, stream);
 #endif
-		if (pipe_idx < 0)
-			return DC_NO_CONTROLLER_RESOURCE;
+	if (pipe_idx < 0)
+		return DC_NO_CONTROLLER_RESOURCE;
 
-		pipe_ctx = &context->res_ctx.pipe_ctx[pipe_idx];
+	pipe_ctx = &context->res_ctx.pipe_ctx[pipe_idx];
 
-		pipe_ctx->stream_res.stream_enc =
-			find_first_free_match_stream_enc_for_link(
-				&context->res_ctx, pool, stream);
+	pipe_ctx->stream_res.stream_enc =
+		find_first_free_match_stream_enc_for_link(
+			&context->res_ctx, pool, stream);
 
-		if (!pipe_ctx->stream_res.stream_enc)
-			return DC_NO_STREAM_ENG_RESOURCE;
+	if (!pipe_ctx->stream_res.stream_enc)
+		return DC_NO_STREAM_ENG_RESOURCE;
 
-		set_stream_engine_in_use(
-			&context->res_ctx, pool,
-			pipe_ctx->stream_res.stream_enc);
+	update_stream_engine_usage(
+		&context->res_ctx, pool,
+		pipe_ctx->stream_res.stream_enc,
+		true);
 
-		/* TODO: Add check if ASIC support and EDID audio */
-		if (!stream->sink->converter_disable_audio &&
-			dc_is_audio_capable_signal(pipe_ctx->stream->signal) &&
-			stream->audio_info.mode_count) {
-			pipe_ctx->stream_res.audio = find_first_free_audio(
-				&context->res_ctx, pool);
+	/* TODO: Add check if ASIC support and EDID audio */
+	if (!stream->sink->converter_disable_audio &&
+	    dc_is_audio_capable_signal(pipe_ctx->stream->signal) &&
+	    stream->audio_info.mode_count) {
+		pipe_ctx->stream_res.audio = find_first_free_audio(
+		&context->res_ctx, pool);
 
-			/*
-			 * Audio assigned in order first come first get.
-			 * There are asics which has number of audio
-			 * resources less then number of pipes
-			 */
-			if (pipe_ctx->stream_res.audio)
-				set_audio_in_use(
-					&context->res_ctx, pool,
-					pipe_ctx->stream_res.audio);
-		}
-
-		context->stream_status[i].primary_otg_inst = pipe_ctx->stream_res.tg->inst;
+		/*
+		 * Audio assigned in order first come first get.
+		 * There are asics which has number of audio
+		 * resources less then number of pipes
+		 */
+		if (pipe_ctx->stream_res.audio)
+			update_audio_usage(&context->res_ctx, pool,
+					   pipe_ctx->stream_res.audio, true);
 	}
 
-	return DC_OK;
+	for (i = 0; i < context->stream_count; i++)
+		if (context->streams[i] == stream) {
+			context->stream_status[i].primary_otg_inst = pipe_ctx->stream_res.tg->inst;
+			return DC_OK;
+		}
+
+	DC_ERROR("Stream %p not found in new ctx!\n", stream);
+	return DC_ERROR_UNEXPECTED;
 }
 
 /* first stream in the context is used to populate the rest */
@@ -1569,6 +1624,157 @@ void validate_guaranteed_copy_streams(
 		dc_stream_retain(context->streams[i]);
 		context->stream_count++;
 	}
+}
+
+void dc_resource_validate_ctx_copy_construct_current(
+		const struct dc *dc,
+		struct validate_context *dst_ctx)
+{
+	dc_resource_validate_ctx_copy_construct(dc->current_context, dst_ctx);
+}
+
+bool dc_validate_with_context(
+		struct dc *dc,
+		const struct dc_validation_set set[],
+		int set_count,
+		struct validate_context *context)
+{
+	int i, j;
+	enum dc_status res = DC_ERROR_UNEXPECTED;
+	bool found = false;
+	int old_stream_count = context->stream_count;
+	struct dc_stream_state *del_streams[MAX_PIPES] = { 0 };
+	struct dc_stream_state *add_streams[MAX_PIPES] = { 0 };
+	int del_streams_count = 0;
+	int add_streams_count = 0;
+
+
+	/* First remove from context all deleted streams */
+	for (i = 0; i < old_stream_count; i++) {
+		struct dc_stream_state *stream = context->streams[i];
+
+		for (j = 0; j < set_count; j++) {
+			if (stream == set[j].stream) {
+				found = true;
+				break;
+			}
+		}
+
+		if (!found)
+			del_streams[del_streams_count++] = stream;
+
+		found = false;
+	}
+
+	/* Now add new ones */
+	for (i = 0; i < set_count; i++) {
+		struct dc_stream_state *stream = set[i].stream;
+
+		for (j = 0; j < old_stream_count; j++) {
+			if (stream == context->streams[j]) {
+				found = true;
+				break;
+			}
+		}
+
+		if (!found)
+			add_streams[add_streams_count++] = stream;
+
+		found = false;
+	}
+
+	for (i = 0; i < del_streams_count; i++)
+		if (!dc_remove_stream_from_ctx(dc, context, del_streams[i]))
+			goto fail;
+
+	for (i = 0; i < add_streams_count; i++)
+		if (!dc_add_stream_to_ctx(dc, context, add_streams[i]))
+			goto fail;
+
+	if (!dc_validate_global_state(dc, set, set_count, context))
+		goto fail;
+
+	res = DC_OK;
+
+fail:
+	if (res != DC_OK) {
+		dm_logger_write(dc->ctx->logger, LOG_WARNING,
+				"%s:resource validation failed, dc_status:%d\n",
+				__func__,
+				res);
+}
+	return res == DC_OK;
+}
+
+bool dc_validate_global_state(
+		struct dc *dc,
+		const struct dc_validation_set set[],
+		int set_count,
+		struct validate_context *new_ctx)
+{
+	enum dc_status result = DC_ERROR_UNEXPECTED;
+	struct dc_context *dc_ctx = dc->ctx;
+	struct validate_context *old_context = dc->current_context;
+	int i, j;
+
+	if (dc->res_pool->funcs->validate_global &&
+	    dc->res_pool->funcs->validate_global(dc, set, set_count,
+						 old_context, new_ctx) != DC_OK)
+		return false;
+
+	/* TODO without this SWDEV-114774 brakes */
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe_ctx = &new_ctx->res_ctx.pipe_ctx[i];
+
+		if (pipe_ctx->top_pipe)
+			memset(pipe_ctx, 0, sizeof(*pipe_ctx));
+	}
+
+	for (i = 0; new_ctx && i < new_ctx->stream_count; i++) {
+		struct dc_stream_state *stream = new_ctx->streams[i];
+
+		for (j = 0; j < dc->res_pool->pipe_count; j++) {
+			struct pipe_ctx *pipe_ctx = &new_ctx->res_ctx.pipe_ctx[j];
+
+			if (pipe_ctx->stream != stream)
+				continue;
+
+			/* Switch to dp clock source only if there is
+			 * no non dp stream that shares the same timing
+			 * with the dp stream.
+			 */
+			if (dc_is_dp_signal(pipe_ctx->stream->signal) &&
+				!find_pll_sharable_stream(stream, new_ctx)) {
+
+				resource_unreference_clock_source(
+						&new_ctx->res_ctx,
+						dc->res_pool,
+						&pipe_ctx->clock_source);
+				pipe_ctx->clock_source = dc->res_pool->dp_clock_source;
+				resource_reference_clock_source(
+						&new_ctx->res_ctx,
+						dc->res_pool,
+						 pipe_ctx->clock_source);
+			}
+		}
+	}
+
+	/*TODO This should be ok */
+	/* Split pipe resource, do not acquire back end */
+
+	if (!resource_validate_attach_surfaces(
+			set, set_count, old_context, new_ctx, dc->res_pool)) {
+		DC_ERROR("Failed to attach surface to stream!\n");
+		return DC_FAIL_ATTACH_SURFACES;
+	}
+
+	result = resource_build_scaling_params_for_context(dc, new_ctx);
+
+	if (result == DC_OK)
+		if (!dc->res_pool->funcs->validate_bandwidth(dc, new_ctx))
+			result = DC_FAIL_BANDWIDTH_VALIDATE;
+
+	return result;
 }
 
 static void patch_gamut_packet_checksum(
@@ -2318,54 +2524,40 @@ void resource_build_info_frame(struct pipe_ctx *pipe_ctx)
 enum dc_status resource_map_clock_resources(
 		const struct dc  *dc,
 		struct validate_context *context,
-		struct validate_context *old_context)
+		struct dc_stream_state *stream)
 {
-	int i, j;
-	const struct resource_pool *pool = dc->res_pool;
-
 	/* acquire new resources */
-	for (i = 0; i < context->stream_count; i++) {
-		struct dc_stream_state *stream = context->streams[i];
+	const struct resource_pool *pool = dc->res_pool;
+	struct pipe_ctx *pipe_ctx = resource_get_head_pipe_for_stream(
+				&context->res_ctx, stream);
 
-		if (old_context && resource_is_stream_unchanged(old_context, stream))
-			continue;
+	if (!pipe_ctx)
+		return DC_ERROR_UNEXPECTED;
 
-		for (j = 0; j < MAX_PIPES; j++) {
-			struct pipe_ctx *pipe_ctx =
-				&context->res_ctx.pipe_ctx[j];
+	if (dc_is_dp_signal(pipe_ctx->stream->signal)
+		|| pipe_ctx->stream->signal == SIGNAL_TYPE_VIRTUAL)
+		pipe_ctx->clock_source = pool->dp_clock_source;
+	else {
+		pipe_ctx->clock_source = NULL;
 
-			if (context->res_ctx.pipe_ctx[j].stream != stream)
-				continue;
+		if (!dc->config.disable_disp_pll_sharing)
+			resource_find_used_clk_src_for_sharing(
+				&context->res_ctx,
+				pipe_ctx);
 
-			if (dc_is_dp_signal(pipe_ctx->stream->signal)
-				|| pipe_ctx->stream->signal == SIGNAL_TYPE_VIRTUAL)
-				pipe_ctx->clock_source = pool->dp_clock_source;
-			else {
-				pipe_ctx->clock_source = NULL;
-
-				if (!dc->config.disable_disp_pll_sharing)
-					resource_find_used_clk_src_for_sharing(
-						&context->res_ctx,
-						pipe_ctx);
-
-				if (pipe_ctx->clock_source == NULL)
-					pipe_ctx->clock_source =
-						dc_resource_find_first_free_pll(
-							&context->res_ctx,
-							pool);
-			}
-
-			if (pipe_ctx->clock_source == NULL)
-				return DC_NO_CLOCK_SOURCE_RESOURCE;
-
-			resource_reference_clock_source(
-				&context->res_ctx, pool,
-				pipe_ctx->clock_source);
-
-			/* only one cs per stream regardless of mpo */
-			break;
-		}
+		if (pipe_ctx->clock_source == NULL)
+			pipe_ctx->clock_source =
+				dc_resource_find_first_free_pll(
+					&context->res_ctx,
+					pool);
 	}
+
+	if (pipe_ctx->clock_source == NULL)
+		return DC_NO_CLOCK_SOURCE_RESOURCE;
+
+	resource_reference_clock_source(
+		&context->res_ctx, pool,
+		pipe_ctx->clock_source);
 
 	return DC_OK;
 }

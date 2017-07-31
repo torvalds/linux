@@ -669,41 +669,6 @@ void dc_destroy(struct dc **dc)
 	*dc = NULL;
 }
 
-static bool is_validation_required(
-		const struct dc *dc,
-		const struct dc_validation_set set[],
-		int set_count)
-{
-	const struct validate_context *context = dc->current_context;
-	int i, j;
-
-	if (context->stream_count != set_count)
-		return true;
-
-	for (i = 0; i < set_count; i++) {
-
-		if (set[i].plane_count != context->stream_status[i].plane_count)
-			return true;
-		if (!dc_is_stream_unchanged(set[i].stream, context->streams[i]))
-			return true;
-
-		for (j = 0; j < set[i].plane_count; j++) {
-			struct dc_plane_state temp_plane;
-			memset(&temp_plane, 0, sizeof(temp_plane));
-
-			temp_plane = *context->stream_status[i].plane_states[j];
-			temp_plane.clip_rect = set[i].plane_states[j]->clip_rect;
-			temp_plane.dst_rect.x = set[i].plane_states[j]->dst_rect.x;
-			temp_plane.dst_rect.y = set[i].plane_states[j]->dst_rect.y;
-
-			if (memcmp(&temp_plane, set[i].plane_states[j], sizeof(temp_plane)) != 0)
-				return true;
-		}
-	}
-
-	return false;
-}
-
 static bool validate_streams (
 		struct dc *dc,
 		const struct dc_validation_set set[],
@@ -733,52 +698,12 @@ static bool validate_surfaces(
 	return true;
 }
 
-struct validate_context *dc_get_validate_context(
-		struct dc *dc,
-		const struct dc_validation_set set[],
-		uint8_t set_count)
-{
-	struct dc *core_dc = dc;
-	enum dc_status result = DC_ERROR_UNEXPECTED;
-	struct validate_context *context;
-
-
-	context = dm_alloc(sizeof(struct validate_context));
-	if (context == NULL)
-		goto context_alloc_fail;
-
-	atomic_inc(&context->ref_count);
-
-	if (!is_validation_required(core_dc, set, set_count)) {
-		dc_resource_validate_ctx_copy_construct(core_dc->current_context, context);
-		return context;
-	}
-
-	result = core_dc->res_pool->funcs->validate_with_context(
-			core_dc, set, set_count, context, core_dc->current_context);
-
-context_alloc_fail:
-	if (result != DC_OK) {
-		dm_logger_write(core_dc->ctx->logger, LOG_WARNING,
-				"%s:resource validation failed, dc_status:%d\n",
-				__func__,
-				result);
-
-		dc_release_validate_context(context);
-		context = NULL;
-	}
-
-	return context;
-
-}
-
 bool dc_validate_resources(
 		struct dc *dc,
 		const struct dc_validation_set set[],
 		uint8_t set_count)
 {
-	struct dc  *core_dc = dc;
-	enum dc_status result = DC_ERROR_UNEXPECTED;
+	bool result = false;
 	struct validate_context *context;
 
 	if (!validate_streams(dc, set, set_count))
@@ -793,21 +718,16 @@ bool dc_validate_resources(
 
 	atomic_inc(&context->ref_count);
 
-	result = core_dc->res_pool->funcs->validate_with_context(
-				core_dc, set, set_count, context, NULL);
+	dc_resource_validate_ctx_copy_construct_current(dc, context);
+
+	result = dc_validate_with_context(
+				dc, set, set_count, context);
 
 context_alloc_fail:
-	if (result != DC_OK) {
-		dm_logger_write(core_dc->ctx->logger, LOG_WARNING,
-				"%s:resource validation failed, dc_status:%d\n",
-				__func__,
-				result);
-	}
-
 	dc_release_validate_context(context);
 	context = NULL;
 
-	return result == DC_OK;
+	return result;
 }
 
 bool dc_validate_guaranteed(
@@ -1093,7 +1013,7 @@ bool dc_commit_streams(
 	uint8_t stream_count)
 {
 	struct dc  *core_dc = dc;
-	enum dc_status result = DC_ERROR_UNEXPECTED;
+	bool result = false;
 	struct validate_context *context;
 	struct dc_validation_set set[MAX_STREAMS] = { {0, {0} } };
 	int i;
@@ -1135,13 +1055,11 @@ bool dc_commit_streams(
 
 	atomic_inc(&context->ref_count);
 
-	result = core_dc->res_pool->funcs->validate_with_context(
-			core_dc, set, stream_count, context, core_dc->current_context);
-	if (result != DC_OK){
-		dm_logger_write(core_dc->ctx->logger, LOG_ERROR,
-					"%s: Context validation failed! dc_status:%d\n",
-					__func__,
-					result);
+	dc_resource_validate_ctx_copy_construct_current(dc, context);
+
+	result = dc_validate_with_context(
+			dc, set, stream_count, context);
+	if (!result) {
 		BREAK_TO_DEBUGGER();
 		goto fail;
 	}
@@ -1152,7 +1070,7 @@ fail:
 	dc_release_validate_context(context);
 
 context_alloc_fail:
-	return (result == DC_OK);
+	return result;
 }
 
 bool dc_post_update_surfaces_to_stream(struct dc *dc)

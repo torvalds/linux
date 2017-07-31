@@ -618,6 +618,16 @@ bool dc_stream_get_scanoutpos(const struct dc_stream_state *stream,
 				  uint32_t *h_position,
 				  uint32_t *v_position);
 
+bool dc_remove_stream_from_ctx(
+			struct dc *dc,
+			struct validate_context *new_ctx,
+			struct dc_stream_state *stream);
+
+bool dc_add_stream_to_ctx(
+		struct dc *dc,
+		struct validate_context *new_ctx,
+		struct dc_stream_state *stream);
+
 /*
  * Structure to store surface/stream associations for validation
  */
@@ -630,16 +640,18 @@ struct dc_validation_set {
 bool dc_validate_stream(struct dc *dc, struct dc_stream_state *stream);
 
 bool dc_validate_plane(struct dc *dc, const struct dc_plane_state *plane_state);
-/*
- * This function takes a set of resources and checks that they are cofunctional.
- *
- * After this call:
- *   No hardware is programmed for call.  Only validation is done.
- */
-struct validate_context *dc_get_validate_context(
+
+bool dc_validate_with_context(
 		struct dc *dc,
 		const struct dc_validation_set set[],
-		uint8_t set_count);
+		int set_count,
+		struct validate_context *context);
+
+bool dc_validate_global_state(
+		struct dc *dc,
+		const struct dc_validation_set set[],
+		int set_count,
+		struct validate_context *new_ctx);
 
 bool dc_validate_resources(
 		struct dc *dc,
@@ -660,6 +672,10 @@ bool dc_validate_guaranteed(
 
 void dc_resource_validate_ctx_copy_construct(
 		const struct validate_context *src_ctx,
+		struct validate_context *dst_ctx);
+
+void dc_resource_validate_ctx_copy_construct_current(
+		const struct dc *dc,
 		struct validate_context *dst_ctx);
 
 void dc_resource_validate_ctx_destruct(struct validate_context *context);

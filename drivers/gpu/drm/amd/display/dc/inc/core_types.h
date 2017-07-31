@@ -87,12 +87,6 @@ struct resource_funcs {
 	void (*destroy)(struct resource_pool **pool);
 	struct link_encoder *(*link_enc_create)(
 			const struct encoder_init_data *init);
-	enum dc_status (*validate_with_context)(
-					struct dc *dc,
-					const struct dc_validation_set set[],
-					int set_count,
-					struct validate_context *context,
-					struct validate_context *old_context);
 
 	enum dc_status (*validate_guaranteed)(
 					struct dc *dc,
@@ -103,11 +97,24 @@ struct resource_funcs {
 					struct dc *dc,
 					struct validate_context *context);
 
+	enum dc_status (*validate_global)(
+		struct dc *dc,
+		const struct dc_validation_set set[],
+		int set_count,
+		struct validate_context *old_context,
+		struct validate_context *context);
+
 	struct pipe_ctx *(*acquire_idle_pipe_for_layer)(
 			struct validate_context *context,
 			const struct resource_pool *pool,
 			struct dc_stream_state *stream);
+
 	enum dc_status (*validate_plane)(const struct dc_plane_state *plane_state);
+
+	enum dc_status (*add_stream_to_ctx)(
+			struct dc *dc,
+			struct validate_context *new_ctx,
+			struct dc_stream_state *dc_stream);
 };
 
 struct audio_support{

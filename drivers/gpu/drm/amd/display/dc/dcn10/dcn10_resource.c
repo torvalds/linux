@@ -48,6 +48,7 @@
 #include "dce/dce_hwseq.h"
 #include "../virtual/virtual_stream_encoder.h"
 #include "dce110/dce110_resource.h"
+#include "dce112/dce112_resource.h"
 
 #include "vega10/soc15ip.h"
 
@@ -840,17 +841,15 @@ static enum dc_status build_pipe_hw_param(struct pipe_ctx *pipe_ctx)
 static enum dc_status build_mapped_resource(
 		const struct dc *dc,
 		struct validate_context *context,
-		struct validate_context *old_context)
+		struct dc_stream_state *stream)
 {
 	enum dc_status status = DC_OK;
-	uint8_t i, j;
+	struct pipe_ctx *pipe_ctx = resource_get_head_pipe_for_stream(&context->res_ctx, stream);
 
-	for (i = 0; i < context->stream_count; i++) {
-		struct dc_stream_state *stream = context->streams[i];
-
-		if (old_context && resource_is_stream_unchanged(old_context, stream)) {
+	/*TODO Seems unneeded anymore */
+	/*	if (old_context && resource_is_stream_unchanged(old_context, stream)) {
 			if (stream != NULL && old_context->streams[i] != NULL) {
-				/* todo: shouldn't have to copy missing parameter here */
+				 todo: shouldn't have to copy missing parameter here
 				resource_build_bit_depth_reduction_params(stream,
 						&stream->bit_depth_params);
 				stream->clamping.pixel_encoding =
@@ -863,68 +862,34 @@ static enum dc_status build_mapped_resource(
 				continue;
 			}
 		}
+	*/
 
-		for (j = 0; j < dc->res_pool->pipe_count ; j++) {
-			struct pipe_ctx *pipe_ctx =
-				&context->res_ctx.pipe_ctx[j];
+	if (!pipe_ctx)
+		return DC_ERROR_UNEXPECTED;
 
-			if (context->res_ctx.pipe_ctx[j].stream != stream)
-				continue;
+	status = build_pipe_hw_param(pipe_ctx);
 
-			status = build_pipe_hw_param(pipe_ctx);
-
-			if (status != DC_OK)
-				return status;
-
-			/* do not need to validate non root pipes */
-			break;
-		}
-	}
+	if (status != DC_OK)
+		return status;
 
 	return DC_OK;
 }
 
-enum dc_status dcn10_validate_with_context(
+enum dc_status dcn10_add_stream_to_ctx(
 		struct dc *dc,
-		const struct dc_validation_set set[],
-		int set_count,
-		struct validate_context *context,
-		struct validate_context *old_context)
+		struct validate_context *new_ctx,
+		struct dc_stream_state *dc_stream)
 {
-	enum dc_status result = DC_OK;
-	int i;
+	enum dc_status result = DC_ERROR_UNEXPECTED;
 
-	if (set_count == 0)
-		return result;
+	result = resource_map_pool_resources(dc, new_ctx, dc_stream);
 
-	for (i = 0; i < set_count; i++) {
-		context->streams[i] = set[i].stream;
-		dc_stream_retain(context->streams[i]);
-		context->stream_count++;
-	}
+	if (result == DC_OK)
+		result = resource_map_phy_clock_resources(dc, new_ctx, dc_stream);
 
-	result = resource_map_pool_resources(dc, context, old_context);
-	if (result != DC_OK)
-		return result;
 
-	result = resource_map_phy_clock_resources(dc, context, old_context);
-	if (result != DC_OK)
-		return result;
-
-	result = build_mapped_resource(dc, context, old_context);
-	if (result != DC_OK)
-		return result;
-
-	if (!resource_validate_attach_surfaces(set, set_count,
-			old_context, context, dc->res_pool))
-		return DC_FAIL_ATTACH_SURFACES;
-
-	result = resource_build_scaling_params_for_context(dc, context);
-	if (result != DC_OK)
-		return result;
-
-	if (!dcn_validate_bandwidth(dc, context))
-		return DC_FAIL_BANDWIDTH_VALIDATE;
+	if (result == DC_OK)
+		result = build_mapped_resource(dc, new_ctx, dc_stream);
 
 	return result;
 }
@@ -940,13 +905,13 @@ enum dc_status dcn10_validate_guaranteed(
 	dc_stream_retain(context->streams[0]);
 	context->stream_count++;
 
-	result = resource_map_pool_resources(dc, context, NULL);
+	result = resource_map_pool_resources(dc, context, dc_stream);
 
 	if (result == DC_OK)
-		result = resource_map_phy_clock_resources(dc, context, NULL);
+		result = resource_map_phy_clock_resources(dc, context, dc_stream);
 
 	if (result == DC_OK)
-		result = build_mapped_resource(dc, context, NULL);
+		result = build_mapped_resource(dc, context, dc_stream);
 
 	if (result == DC_OK) {
 		validate_guaranteed_copy_streams(
@@ -1226,10 +1191,10 @@ static struct dc_cap_funcs cap_funcs = {
 static struct resource_funcs dcn10_res_pool_funcs = {
 	.destroy = dcn10_destroy_resource_pool,
 	.link_enc_create = dcn10_link_encoder_create,
-	.validate_with_context = dcn10_validate_with_context,
 	.validate_guaranteed = dcn10_validate_guaranteed,
 	.validate_bandwidth = dcn_validate_bandwidth,
 	.acquire_idle_pipe_for_layer = dcn10_acquire_idle_pipe_for_layer,
+	.add_stream_to_ctx = dcn10_add_stream_to_ctx
 };
 
 static bool construct(
