@@ -302,6 +302,22 @@
 			#size-cells = <0>;
 		};
 
+		ehci0: usb@2a000 {
+			compatible = "generic-ehci";
+			reg = <0x2a000 0x100>;
+			interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
+			dma-coherent;
+			status = "disabled";
+		};
+
+		ohci0: usb@2b000 {
+			compatible = "generic-ohci";
+			reg = <0x2b000 0x100>;
+			interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
+			dma-coherent;
+			status = "disabled";
+		};
+
 		crypto@2f000 {
 			compatible = "brcm,spum-nsp-crypto";
 			reg = <0x2f000 0x900>;
@@ -323,22 +339,6 @@
 			reg = <0x31000 0x28>;
 			clocks = <&osc>;
 			#pwm-cells = <3>;
-			status = "disabled";
-		};
-
-		ehci0: usb@2a000 {
-			compatible = "generic-ehci";
-			reg = <0x2a000 0x100>;
-			interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
-			dma-coherent;
-			status = "disabled";
-		};
-
-		ohci0: usb@2b000 {
-			compatible = "generic-ohci";
-			reg = <0x2b000 0x100>;
-			interrupts = <GIC_SPI 79 IRQ_TYPE_LEVEL_HIGH>;
-			dma-coherent;
 			status = "disabled";
 		};
 
