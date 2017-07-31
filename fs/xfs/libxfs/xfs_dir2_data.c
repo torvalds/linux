@@ -136,6 +136,8 @@ __xfs_dir3_data_check(
 		 */
 		if (be16_to_cpu(dup->freetag) == XFS_DIR2_DATA_FREE_TAG) {
 			XFS_WANT_CORRUPTED_RETURN(mp, lastfree == 0);
+			XFS_WANT_CORRUPTED_RETURN(mp, endp >=
+					p + be16_to_cpu(dup->length));
 			XFS_WANT_CORRUPTED_RETURN(mp,
 				be16_to_cpu(*xfs_dir2_data_unused_tag_p(dup)) ==
 					       (char *)dup - (char *)hdr);
@@ -164,6 +166,8 @@ __xfs_dir3_data_check(
 		XFS_WANT_CORRUPTED_RETURN(mp, dep->namelen != 0);
 		XFS_WANT_CORRUPTED_RETURN(mp,
 			!xfs_dir_ino_validate(mp, be64_to_cpu(dep->inumber)));
+		XFS_WANT_CORRUPTED_RETURN(mp, endp >=
+				p + ops->data_entsize(dep->namelen));
 		XFS_WANT_CORRUPTED_RETURN(mp,
 			be16_to_cpu(*ops->data_entry_tag_p(dep)) ==
 					       (char *)dep - (char *)hdr);
