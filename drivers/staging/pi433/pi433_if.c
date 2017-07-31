@@ -92,6 +92,7 @@ struct pi433_device {
 	struct task_struct	*tx_task_struct;
 	wait_queue_head_t	tx_wait_queue;
 	u8			free_in_fifo;
+	char			buffer[MAX_MSG_SIZE];
 
 	/* rx related values */
 	struct pi433_rx_cfg	rx_cfg;
@@ -490,7 +491,7 @@ pi433_tx_thread(void *data)
 	struct pi433_device *device = data;
 	struct spi_device *spi = device->spi; /* needed for SET_CHECKED */
 	struct pi433_tx_cfg tx_cfg;
-	u8     buffer[MAX_MSG_SIZE];
+	u8     *buffer = device->buffer;
 	size_t size;
 	bool   rx_interrupted = false;
 	int    position, repetitions;
