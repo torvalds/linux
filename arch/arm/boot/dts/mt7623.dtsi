@@ -21,11 +21,57 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/phy/phy.h>
 #include <dt-bindings/reset/mt2701-resets.h>
+#include <dt-bindings/thermal/thermal.h>
 #include "skeleton64.dtsi"
 
 / {
 	compatible = "mediatek,mt7623";
 	interrupt-parent = <&sysirq>;
+
+	cpu_opp_table: opp_table {
+		compatible = "operating-points-v2";
+		opp-shared;
+
+		opp-98000000 {
+			opp-hz = /bits/ 64 <98000000>;
+			opp-microvolt = <1050000>;
+		};
+
+		opp-198000000 {
+			opp-hz = /bits/ 64 <198000000>;
+			opp-microvolt = <1050000>;
+		};
+
+		opp-398000000 {
+			opp-hz = /bits/ 64 <398000000>;
+			opp-microvolt = <1050000>;
+		};
+
+		opp-598000000 {
+			opp-hz = /bits/ 64 <598000000>;
+			opp-microvolt = <1050000>;
+		};
+
+		opp-747500000 {
+			opp-hz = /bits/ 64 <747500000>;
+			opp-microvolt = <1050000>;
+		};
+
+		opp-1040000000 {
+			opp-hz = /bits/ 64 <1040000000>;
+			opp-microvolt = <1150000>;
+		};
+
+		opp-1196000000 {
+			opp-hz = /bits/ 64 <1196000000>;
+			opp-microvolt = <1200000>;
+		};
+
+		opp-1300000000 {
+			opp-hz = /bits/ 64 <1300000000>;
+			opp-microvolt = <1300000>;
+		};
+	};
 
 	cpus {
 		#address-cells = <1>;
@@ -36,21 +82,31 @@
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x0>;
+			clocks = <&infracfg CLK_INFRA_CPUSEL>,
+				 <&apmixedsys CLK_APMIXED_MAINPLL>;
+			clock-names = "cpu", "intermediate";
+			operating-points-v2 = <&cpu_opp_table>;
+			#cooling-cells = <2>;
+			cooling-min-level = <0>;
+			cooling-max-level = <7>;
 		};
 		cpu1: cpu@1 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x1>;
+			operating-points-v2 = <&cpu_opp_table>;
 		};
 		cpu2: cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x2>;
+			operating-points-v2 = <&cpu_opp_table>;
 		};
 		cpu3: cpu@3 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
 			reg = <0x3>;
+			operating-points-v2 = <&cpu_opp_table>;
 		};
 	};
 
@@ -72,6 +128,56 @@
 		#clock-cells = <0>;
 		clock-frequency = <26000000>;
 		clock-output-names = "clk26m";
+	};
+
+	thermal-zones {
+			cpu_thermal: cpu_thermal {
+				polling-delay-passive = <1000>;
+				polling-delay = <1000>;
+
+				thermal-sensors = <&thermal 0>;
+
+				trips {
+					cpu_passive: cpu_passive {
+						temperature = <47000>;
+						hysteresis = <2000>;
+						type = "passive";
+					};
+
+					cpu_active: cpu_active {
+						temperature = <67000>;
+						hysteresis = <2000>;
+						type = "active";
+					};
+
+					cpu_hot: cpu_hot {
+						temperature = <87000>;
+						hysteresis = <2000>;
+						type = "hot";
+					};
+
+					cpu_crit {
+						temperature = <107000>;
+						hysteresis = <2000>;
+						type = "critical";
+					};
+				};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu_passive>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+				map1 {
+					trip = <&cpu_active>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+				map2 {
+					trip = <&cpu_hot>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
+		};
 	};
 
 	timer {
@@ -172,7 +278,7 @@
 		clock-names = "spi", "wrap";
 	};
 
-	cir: cir@0x10013000 {
+	cir: cir@10013000 {
 		compatible = "mediatek,mt7623-cir";
 		reg = <0 0x10013000 0 0x1000>;
 		interrupts = <GIC_SPI 87 IRQ_TYPE_LEVEL_LOW>;
@@ -193,7 +299,7 @@
 	efuse: efuse@10206000 {
 		compatible = "mediatek,mt7623-efuse",
 			     "mediatek,mt8173-efuse";
-		reg	   = <0 0x10206000 0 0x1000>;
+		reg = <0 0x10206000 0 0x1000>;
 		#address-cells = <1>;
 		#size-cells = <1>;
 		thermal_calibration_data: calib@424 {
@@ -561,7 +667,8 @@
 	};
 
 	u3phy1: usb-phy@1a1c4000 {
-		compatible = "mediatek,mt7623-u3phy", "mediatek,mt2701-u3phy";
+		compatible = "mediatek,mt7623-u3phy",
+			     "mediatek,mt2701-u3phy";
 		reg = <0 0x1a1c4000 0 0x0700>;
 		clocks = <&clk26m>;
 		clock-names = "u3phya_ref";
@@ -599,7 +706,8 @@
 	};
 
 	u3phy2: usb-phy@1a244000 {
-		compatible = "mediatek,mt7623-u3phy", "mediatek,mt2701-u3phy";
+		compatible = "mediatek,mt7623-u3phy",
+			     "mediatek,mt2701-u3phy";
 		reg = <0 0x1a244000 0 0x0700>;
 		clocks = <&clk26m>;
 		clock-names = "u3phya_ref";
@@ -639,7 +747,9 @@
 	};
 
 	eth: ethernet@1b100000 {
-		compatible = "mediatek,mt2701-eth", "syscon";
+		compatible = "mediatek,mt7623-eth",
+			     "mediatek,mt2701-eth",
+			     "syscon";
 		reg = <0 0x1b100000 0 0x20000>;
 		interrupts = <GIC_SPI 200 IRQ_TYPE_LEVEL_LOW>,
 			     <GIC_SPI 199 IRQ_TYPE_LEVEL_LOW>,
