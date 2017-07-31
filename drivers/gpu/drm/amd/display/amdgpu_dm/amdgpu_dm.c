@@ -3160,7 +3160,7 @@ int dm_plane_atomic_check(struct drm_plane *plane,
 	struct dm_plane_state *dm_plane_state = to_dm_plane_state(state);
 
 	if (!dm_plane_state->dc_state)
-		return true;
+		return 0;
 
 	if (dc_validate_plane(dc, dm_plane_state->dc_state))
 		return 0;
