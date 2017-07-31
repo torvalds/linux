@@ -3124,9 +3124,7 @@ mlxsw_sp_rif_should_config(struct mlxsw_sp_rif *rif, struct net_device *dev,
 
 	switch (event) {
 	case NETDEV_UP:
-		if (!rif)
-			return true;
-		return false;
+		return rif == NULL;
 	case NETDEV_DOWN:
 		idev = __in_dev_get_rtnl(dev);
 		if (idev && idev->ifa_list)
