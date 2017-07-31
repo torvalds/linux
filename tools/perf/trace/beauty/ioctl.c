@@ -88,6 +88,19 @@ static size_t ioctl__scnprintf_kvm_cmd(int nr, int dir, char *bf, size_t size)
 	return scnprintf(bf, size, "(%#x, %#x, %#x)", 0xAE, nr, dir);
 }
 
+static size_t ioctl__scnprintf_vhost_virtio_cmd(int nr, int dir, char *bf, size_t size)
+{
+#include "trace/beauty/generated/ioctl/vhost_virtio_ioctl_array.c"
+	static DEFINE_STRARRAY(vhost_virtio_ioctl_cmds);
+	static DEFINE_STRARRAY(vhost_virtio_ioctl_read_cmds);
+	struct strarray *s = (dir & _IOC_READ) ? &strarray__vhost_virtio_ioctl_read_cmds : &strarray__vhost_virtio_ioctl_cmds;
+
+	if (nr < s->nr_entries && s->entries[nr] != NULL)
+		return scnprintf(bf, size, "VHOST_%s", s->entries[nr]);
+
+	return scnprintf(bf, size, "(%#x, %#x, %#x)", 0xAF, nr, dir);
+}
+
 static size_t ioctl__scnprintf_cmd(unsigned long cmd, char *bf, size_t size)
 {
 	int dir	 = _IOC_DIR(cmd),
@@ -104,6 +117,7 @@ static size_t ioctl__scnprintf_cmd(unsigned long cmd, char *bf, size_t size)
 		['U' - 'A']=  { .type	= 'U', .scnprintf = ioctl__scnprintf_sndrv_ctl_cmd, },
 		['d' - 'A'] = { .type	= 'd', .scnprintf = ioctl__scnprintf_drm_cmd, },
 		[0xAE - 'A'] = { .type	= 0xAE, .scnprintf = ioctl__scnprintf_kvm_cmd, },
+		[0xAF - 'A'] = { .type	= 0xAF, .scnprintf = ioctl__scnprintf_vhost_virtio_cmd, },
 	};
 	const int nr_types = ARRAY_SIZE(ioctl_types);
 
