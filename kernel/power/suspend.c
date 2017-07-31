@@ -48,7 +48,7 @@ static const char * const mem_sleep_labels[] = {
 const char *mem_sleep_states[PM_SUSPEND_MAX];
 
 suspend_state_t mem_sleep_current = PM_SUSPEND_FREEZE;
-static suspend_state_t mem_sleep_default = PM_SUSPEND_MEM;
+suspend_state_t mem_sleep_default = PM_SUSPEND_MAX;
 suspend_state_t pm_suspend_target_state;
 EXPORT_SYMBOL_GPL(pm_suspend_target_state);
 
@@ -216,7 +216,7 @@ void suspend_set_ops(const struct platform_suspend_ops *ops)
 	}
 	if (valid_state(PM_SUSPEND_MEM)) {
 		mem_sleep_states[PM_SUSPEND_MEM] = mem_sleep_labels[PM_SUSPEND_MEM];
-		if (mem_sleep_default == PM_SUSPEND_MEM)
+		if (mem_sleep_default >= PM_SUSPEND_MEM)
 			mem_sleep_current = PM_SUSPEND_MEM;
 	}
 

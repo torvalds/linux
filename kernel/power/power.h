@@ -192,7 +192,6 @@ extern void swsusp_show_speed(ktime_t, ktime_t, unsigned int, char *);
 extern const char * const pm_labels[];
 extern const char *pm_states[];
 extern const char *mem_sleep_states[];
-extern suspend_state_t mem_sleep_current;
 
 extern int suspend_devices_and_enter(suspend_state_t state);
 #else /* !CONFIG_SUSPEND */

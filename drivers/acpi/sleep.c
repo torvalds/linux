@@ -714,6 +714,12 @@ static int lps0_device_attach(struct acpi_device *adev,
 		if ((bitmask & ACPI_S2IDLE_FUNC_MASK) == ACPI_S2IDLE_FUNC_MASK) {
 			lps0_dsm_func_mask = bitmask;
 			lps0_device_handle = adev->handle;
+			/*
+			 * Use suspend-to-idle by default if the default
+			 * suspend mode was not set from the command line.
+			 */
+			if (mem_sleep_default > PM_SUSPEND_MEM)
+				mem_sleep_current = PM_SUSPEND_FREEZE;
 		}
 
 		acpi_handle_debug(adev->handle, "_DSM function mask: 0x%x\n",
