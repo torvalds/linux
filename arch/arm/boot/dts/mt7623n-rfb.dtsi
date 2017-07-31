@@ -1,6 +1,7 @@
 /*
- * Copyright (c) 2016 MediaTek Inc.
+ * Copyright (c) 2017 MediaTek Inc.
  * Author: John Crispin <john@phrozen.org>
+ *	   Sean Wang <sean.wang@mediatek.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -17,9 +18,6 @@
 #include "mt6323.dtsi"
 
 / {
-	model = "MediaTek MT7623 evaluation board";
-	compatible = "mediatek,mt7623-evb", "mediatek,mt7623";
-
 	chosen {
 		stdout-path = &uart2;
 	};
@@ -42,7 +40,7 @@
 		};
 	};
 
-	memory {
+	memory@80000000 {
 		reg = <0 0x80000000 0 0x40000000>;
 	};
 };
