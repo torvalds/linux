@@ -1647,178 +1647,6 @@ static const struct drm_encoder_funcs amdgpu_dm_encoder_funcs = {
 	.destroy = amdgpu_dm_encoder_destroy,
 };
 
-static void dm_set_cursor(
-	struct amdgpu_crtc *amdgpu_crtc,
-	uint64_t gpu_addr,
-	uint32_t width,
-	uint32_t height)
-{
-	struct dc_cursor_attributes attributes;
-	struct dc_cursor_position position;
-	struct drm_crtc *crtc = &amdgpu_crtc->base;
-	int x, y;
-	int xorigin = 0, yorigin = 0;
-	struct dm_crtc_state *acrtc_state = to_dm_crtc_state(crtc->state);
-
-	amdgpu_crtc->cursor_width = width;
-	amdgpu_crtc->cursor_height = height;
-
-	attributes.address.high_part = upper_32_bits(gpu_addr);
-	attributes.address.low_part  = lower_32_bits(gpu_addr);
-	attributes.width             = width;
-	attributes.height            = height;
-	attributes.color_format      = CURSOR_MODE_COLOR_PRE_MULTIPLIED_ALPHA;
-	attributes.rotation_angle    = 0;
-	attributes.attribute_flags.value = 0;
-
-	attributes.pitch = attributes.width;
-
-	x = amdgpu_crtc->cursor_x;
-	y = amdgpu_crtc->cursor_y;
-
-	/* avivo cursor are offset into the total surface */
-	x += crtc->primary->state->src_x >> 16;
-	y += crtc->primary->state->src_y >> 16;
-
-	if (x < 0) {
-		xorigin = min(-x, amdgpu_crtc->max_cursor_width - 1);
-		x = 0;
-	}
-	if (y < 0) {
-		yorigin = min(-y, amdgpu_crtc->max_cursor_height - 1);
-		y = 0;
-	}
-
-	position.enable = true;
-	position.x = x;
-	position.y = y;
-
-	position.x_hotspot = xorigin;
-	position.y_hotspot = yorigin;
-
-	if (!dc_stream_set_cursor_attributes(
-				acrtc_state->stream,
-				&attributes)) {
-		DRM_ERROR("DC failed to set cursor attributes\n");
-	}
-
-	if (!dc_stream_set_cursor_position(
-				acrtc_state->stream,
-				&position)) {
-		DRM_ERROR("DC failed to set cursor position\n");
-	}
-}
-
-static int dm_crtc_cursor_set(
-	struct drm_crtc *crtc,
-	uint64_t address,
-	uint32_t width,
-	uint32_t height)
-{
-	struct dc_cursor_position position;
-	struct dm_crtc_state *acrtc_state = to_dm_crtc_state(crtc->state);
-
-	int ret;
-
-	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
-	ret = EINVAL;
-
-	DRM_DEBUG_KMS("%s: crtc_id=%d with size %d to %d \n",
-		      __func__,
-		      amdgpu_crtc->crtc_id,
-		      width,
-		      height);
-
-	if (!address) {
-		/* turn off cursor */
-		position.enable = false;
-		position.x = 0;
-		position.y = 0;
-
-		if (acrtc_state->stream) {
-			/*set cursor visible false*/
-			dc_stream_set_cursor_position(
-				acrtc_state->stream,
-				&position);
-		}
-		goto release;
-
-	}
-
-	if ((width > amdgpu_crtc->max_cursor_width) ||
-		(height > amdgpu_crtc->max_cursor_height)) {
-		DRM_ERROR(
-			"%s: bad cursor width or height %d x %d\n",
-			__func__,
-			width,
-			height);
-		goto release;
-	}
-
-	/*program new cursor bo to hardware*/
-	dm_set_cursor(amdgpu_crtc, address, width, height);
-
-release:
-	return ret;
-
-}
-
-static int dm_crtc_cursor_move(struct drm_crtc *crtc,
-				     int x, int y)
-{
-	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
-	int xorigin = 0, yorigin = 0;
-	struct dc_cursor_position position;
-	struct dm_crtc_state *acrtc_state = to_dm_crtc_state(crtc->state);
-
-	amdgpu_crtc->cursor_x = x;
-	amdgpu_crtc->cursor_y = y;
-
-	/* avivo cursor are offset into the total surface */
-	x += crtc->primary->state->src_x >> 16;
-	y += crtc->primary->state->src_y >> 16;
-
-	/*
-	 * TODO: for cursor debugging unguard the following
-	 */
-#if 0
-	DRM_DEBUG_KMS(
-		"%s: x %d y %d c->x %d c->y %d\n",
-		__func__,
-		x,
-		y,
-		crtc->x,
-		crtc->y);
-#endif
-
-	if (x < 0) {
-		xorigin = min(-x, amdgpu_crtc->max_cursor_width - 1);
-		x = 0;
-	}
-	if (y < 0) {
-		yorigin = min(-y, amdgpu_crtc->max_cursor_height - 1);
-		y = 0;
-	}
-
-	position.enable = true;
-	position.x = x;
-	position.y = y;
-
-	position.x_hotspot = xorigin;
-	position.y_hotspot = yorigin;
-
-	if (acrtc_state->stream) {
-		if (!dc_stream_set_cursor_position(
-					acrtc_state->stream,
-					&position)) {
-			DRM_ERROR("DC failed to set cursor position\n");
-			return -EINVAL;
-		}
-	}
-
-	return 0;
-}
-
 static bool fill_rects_from_plane_state(
 	const struct drm_plane_state *state,
 	struct dc_plane_state *plane_state)
@@ -3782,34 +3610,107 @@ static void remove_stream(
 	acrtc->enabled = false;
 }
 
+int get_cursor_position(struct drm_plane *plane, struct drm_crtc *crtc,
+			 struct dc_cursor_position *position)
+{
+	struct amdgpu_crtc *amdgpu_crtc = amdgpu_crtc = to_amdgpu_crtc(crtc);
+	int x, y;
+	int xorigin = 0, yorigin = 0;
+
+	if (!crtc || !plane->state->fb) {
+		position->enable = false;
+		position->x = 0;
+		position->y = 0;
+		return 0;
+	}
+
+	if ((plane->state->crtc_w > amdgpu_crtc->max_cursor_width) ||
+	    (plane->state->crtc_h > amdgpu_crtc->max_cursor_height)) {
+		DRM_ERROR("%s: bad cursor width or height %d x %d\n",
+			  __func__,
+			  plane->state->crtc_w,
+			  plane->state->crtc_h);
+		return -EINVAL;
+	}
+
+	x = plane->state->crtc_x;
+	y = plane->state->crtc_y;
+	/* avivo cursor are offset into the total surface */
+	x += crtc->primary->state->src_x >> 16;
+	y += crtc->primary->state->src_y >> 16;
+	if (x < 0) {
+		xorigin = min(-x, amdgpu_crtc->max_cursor_width - 1);
+		x = 0;
+	}
+	if (y < 0) {
+		yorigin = min(-y, amdgpu_crtc->max_cursor_height - 1);
+		y = 0;
+	}
+	position->enable = true;
+	position->x = x;
+	position->y = y;
+	position->x_hotspot = xorigin;
+	position->y_hotspot = yorigin;
+
+	return 0;
+}
+
 static void handle_cursor_update(
 		struct drm_plane *plane,
 		struct drm_plane_state *old_plane_state)
 {
+	struct amdgpu_framebuffer *afb = to_amdgpu_framebuffer(plane->state->fb);
+	struct drm_crtc *crtc = afb ? plane->state->crtc : old_plane_state->crtc;
+	struct dm_crtc_state *crtc_state = crtc ? to_dm_crtc_state(crtc->state) : NULL;
+	struct amdgpu_crtc *amdgpu_crtc = to_amdgpu_crtc(crtc);
+	uint64_t address = afb ? afb->address : 0;
+	struct dc_cursor_position position;
+	struct dc_cursor_attributes attributes;
+	int ret;
+
 	if (!plane->state->fb && !old_plane_state->fb)
 		return;
 
-	/* Check if it's a cursor on/off update or just cursor move*/
-	if (plane->state->fb == old_plane_state->fb)
-		dm_crtc_cursor_move(
-				plane->state->crtc,
-				plane->state->crtc_x,
-				plane->state->crtc_y);
-	else {
-		struct amdgpu_framebuffer *afb =
-				to_amdgpu_framebuffer(plane->state->fb);
-		dm_crtc_cursor_set(
-				(!!plane->state->fb) ?
-						plane->state->crtc :
-						old_plane_state->crtc,
-				(!!plane->state->fb) ?
-						afb->address :
-						0,
-				plane->state->crtc_w,
-				plane->state->crtc_h);
-	}
-}
+	DRM_DEBUG_KMS("%s: crtc_id=%d with size %d to %d\n",
+		      __func__,
+		      amdgpu_crtc->crtc_id,
+		      plane->state->crtc_w,
+		      plane->state->crtc_h);
 
+	ret = get_cursor_position(plane, crtc, &position);
+	if (ret)
+		return;
+
+	if (!position.enable) {
+		/* turn off cursor */
+		if (crtc_state && crtc_state->stream)
+			dc_stream_set_cursor_position(crtc_state->stream,
+						      &position);
+		return;
+	}
+
+	amdgpu_crtc->cursor_width = plane->state->crtc_w;
+	amdgpu_crtc->cursor_height = plane->state->crtc_h;
+
+	attributes.address.high_part = upper_32_bits(address);
+	attributes.address.low_part  = lower_32_bits(address);
+	attributes.width             = plane->state->crtc_w;
+	attributes.height            = plane->state->crtc_h;
+	attributes.color_format      = CURSOR_MODE_COLOR_PRE_MULTIPLIED_ALPHA;
+	attributes.rotation_angle    = 0;
+	attributes.attribute_flags.value = 0;
+
+	attributes.pitch = attributes.width;
+
+	if (!dc_stream_set_cursor_attributes(crtc_state->stream,
+					     &attributes))
+		DRM_ERROR("DC failed to set cursor attributes\n");
+
+	if (crtc_state->stream)
+		if (!dc_stream_set_cursor_position(crtc_state->stream,
+						   &position))
+			DRM_ERROR("DC failed to set cursor position\n");
+}
 
 static void prepare_flip_isr(struct amdgpu_crtc *acrtc)
 {
