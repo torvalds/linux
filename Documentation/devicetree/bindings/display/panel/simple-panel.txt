@@ -21,6 +21,11 @@ Optional properties when compatible is a dsi devices:
 - dsi,lanes: number of active data lanes
 - reset-gpios: GPIO pin to reset the panel
 - reset-delay-ms: reset pulse width
+- init-delay-ms: take for send command to panel
+- enable-delay-ms: takes for the panel to display
+- prepare-delay-ms: take for the panel to receive video data
+- disable-delay-ms: takes for the panel to power off
+- unprepare-delay-ms: take for the panel to display off
 - panel-init-sequence: A byte stream formed by simple multiple dcs packets.
 	byte 0: dcs data type
 	byte 1: wait number of specified ms after dcs command transmitted
@@ -53,7 +58,13 @@ Or:
 		enable-gpios = <&gpio 90 0>;
 
 		reset-gpios = <&gpio 91 0>;
+
 		reset-delay-ms = <20>;
+		init-delay-ms = <20>;
+		enable-delay-ms = <20>;
+		prepare-delay-ms = <20>;
+		disable-delay-ms = <20>;
+		unprepare-delay-ms = <20>;
 
 		backlight = <&backlight>;
 
