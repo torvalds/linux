@@ -8293,6 +8293,7 @@ __init static int tracer_alloc_buffers(void)
 	if (ret < 0)
 		goto out_free_cpumask;
 	/* Used for event triggers */
+	ret = -ENOMEM;
 	temp_buffer = ring_buffer_alloc(PAGE_SIZE, RB_FL_OVERWRITE);
 	if (!temp_buffer)
 		goto out_rm_hp_state;
