@@ -434,9 +434,7 @@ nfs_destroy_unlinked_subrequests(struct nfs_page *destroy_list,
 
 		if (test_and_clear_bit(PG_INODE_REF, &subreq->wb_flags)) {
 			nfs_release_request(subreq);
-			spin_lock(&inode->i_lock);
-			NFS_I(inode)->nrequests--;
-			spin_unlock(&inode->i_lock);
+			atomic_long_dec(&NFS_I(inode)->nrequests);
 		}
 
 		/* subreq is now totally disconnected from page group or any
@@ -567,9 +565,7 @@ try_again:
 	if (test_and_clear_bit(PG_REMOVE, &head->wb_flags)) {
 		set_bit(PG_INODE_REF, &head->wb_flags);
 		kref_get(&head->wb_kref);
-		spin_lock(&inode->i_lock);
-		NFS_I(inode)->nrequests++;
-		spin_unlock(&inode->i_lock);
+		atomic_long_inc(&NFS_I(inode)->nrequests);
 	}
 
 	nfs_page_group_unlock(head);
@@ -755,7 +751,7 @@ static void nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
 	nfs_lock_request(req);
 
 	spin_lock(&inode->i_lock);
-	if (!nfsi->nrequests &&
+	if (!nfs_have_writebacks(inode) &&
 	    NFS_PROTO(inode)->have_delegation(inode, FMODE_WRITE))
 		inode->i_version++;
 	/*
@@ -767,7 +763,7 @@ static void nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
 		SetPagePrivate(req->wb_page);
 		set_page_private(req->wb_page, (unsigned long)req);
 	}
-	nfsi->nrequests++;
+	atomic_long_inc(&nfsi->nrequests);
 	/* this a head request for a page group - mark it as having an
 	 * extra reference so sub groups can follow suit.
 	 * This flag also informs pgio layer when to bump nrequests when
@@ -786,6 +782,7 @@ static void nfs_inode_remove_request(struct nfs_page *req)
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_page *head;
 
+	atomic_long_dec(&nfsi->nrequests);
 	if (nfs_page_group_sync_on_bit(req, PG_REMOVE)) {
 		head = req->wb_head;
 
@@ -795,11 +792,6 @@ static void nfs_inode_remove_request(struct nfs_page *req)
 			ClearPagePrivate(head->wb_page);
 			clear_bit(PG_MAPPED, &head->wb_flags);
 		}
-		nfsi->nrequests--;
-		spin_unlock(&inode->i_lock);
-	} else {
-		spin_lock(&inode->i_lock);
-		nfsi->nrequests--;
 		spin_unlock(&inode->i_lock);
 	}
 
