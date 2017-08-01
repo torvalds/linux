@@ -41,7 +41,8 @@ static inline void *get_grf_base(struct device_node *np)
 
 	if (of_machine_is_compatible("rockchip,rk3188"))
 		grf_base -= 0xac;
-	else if (of_machine_is_compatible("rockchip,rk3288"))
+	else if (of_machine_is_compatible("rockchip,rk3288") ||
+		 of_machine_is_compatible("rockchip,rk3288w"))
 		grf_base -= 0x284;
 
 	return grf_base;
