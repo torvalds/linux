@@ -1536,7 +1536,7 @@ u64 get_next_timer_interrupt(unsigned long basej, u64 basem)
 		base->is_idle = false;
 	} else {
 		if (!is_max_delta)
-			expires = basem + (nextevt - basej) * TICK_NSEC;
+			expires = basem + (u64)(nextevt - basej) * TICK_NSEC;
 		/*
 		 * If we expect to sleep more than a tick, mark the base idle:
 		 */
