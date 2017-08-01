@@ -46,6 +46,8 @@
 #define same_context(a, b) (((a)->context_id == (b)->context_id) && \
 		((a)->lrca == (b)->lrca))
 
+static void clean_workloads(struct intel_vgpu *vgpu, unsigned long engine_mask);
+
 static int context_switch_events[] = {
 	[RCS] = RCS_AS_CONTEXT_SWITCH,
 	[BCS] = BCS_AS_CONTEXT_SWITCH,
@@ -512,8 +514,23 @@ static int complete_execlist_workload(struct intel_vgpu_workload *workload)
 	release_shadow_batch_buffer(workload);
 	release_shadow_wa_ctx(&workload->wa_ctx);
 
-	if (workload->status || (vgpu->resetting_eng & ENGINE_MASK(ring_id)))
+	if (workload->status || (vgpu->resetting_eng & ENGINE_MASK(ring_id))) {
+		/* if workload->status is not successful means HW GPU
+		 * has occurred GPU hang or something wrong with i915/GVT,
+		 * and GVT won't inject context switch interrupt to guest.
+		 * So this error is a vGPU hang actually to the guest.
+		 * According to this we should emunlate a vGPU hang. If
+		 * there are pending workloads which are already submitted
+		 * from guest, we should clean them up like HW GPU does.
+		 *
+		 * if it is in middle of engine resetting, the pending
+		 * workloads won't be submitted to HW GPU and will be
+		 * cleaned up during the resetting process later, so doing
+		 * the workload clean up here doesn't have any impact.
+		 **/
+		clean_workloads(vgpu, ENGINE_MASK(ring_id));
 		goto out;
+	}
 
 	if (!list_empty(workload_q_head(vgpu, ring_id))) {
 		struct execlist_ctx_descriptor_format *this_desc, *next_desc;
