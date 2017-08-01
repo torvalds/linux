@@ -7473,10 +7473,6 @@ static void nfs4_exchange_id_release(void *data)
 	struct nfs41_exchange_id_data *cdata =
 					(struct nfs41_exchange_id_data *)data;
 
-	if (cdata->xprt) {
-		xprt_put(cdata->xprt);
-		rpc_clnt_xprt_switch_put(cdata->args.client->cl_rpcclient);
-	}
 	nfs_put_client(cdata->args.client);
 	kfree(cdata->res.impl_id);
 	kfree(cdata->res.server_scope);
@@ -7505,7 +7501,7 @@ static int _nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred,
 		.rpc_client = clp->cl_rpcclient,
 		.callback_ops = &nfs4_exchange_id_call_ops,
 		.rpc_message = &msg,
-		.flags = RPC_TASK_ASYNC | RPC_TASK_TIMEOUT,
+		.flags = RPC_TASK_TIMEOUT,
 	};
 	struct nfs41_exchange_id_data *calldata;
 	struct rpc_task *task;
@@ -7559,8 +7555,7 @@ static int _nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred,
 	if (xprt) {
 		calldata->xprt = xprt;
 		task_setup_data.rpc_xprt = xprt;
-		task_setup_data.flags =
-				RPC_TASK_SOFT|RPC_TASK_SOFTCONN|RPC_TASK_ASYNC;
+		task_setup_data.flags |= RPC_TASK_SOFTCONN;
 		memcpy(calldata->args.verifier.data, clp->cl_confirm.data,
 				sizeof(calldata->args.verifier.data));
 	}
@@ -7581,12 +7576,7 @@ static int _nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred,
 	if (IS_ERR(task))
 		return PTR_ERR(task);
 
-	if (!xprt) {
-		status = rpc_wait_for_completion_task(task);
-		if (!status)
-			status = calldata->rpc_status;
-	} else	/* session trunking test */
-		status = calldata->rpc_status;
+	status = calldata->rpc_status;
 
 	rpc_put_task(task);
 out:
