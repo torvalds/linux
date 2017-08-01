@@ -855,12 +855,6 @@ static int mv88e6xxx_set_eee(struct dsa_switch *ds, int port,
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
 
-	if (e->eee_enabled) {
-		err = phy_init_eee(phydev, 0);
-		if (err)
-			return err;
-	}
-
 	mutex_lock(&chip->reg_lock);
 	err = mv88e6xxx_energy_detect_write(chip, port, e);
 	mutex_unlock(&chip->reg_lock);

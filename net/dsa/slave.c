@@ -659,6 +659,12 @@ static int dsa_slave_set_eee(struct net_device *dev, struct ethtool_eee *e)
 	if (ret)
 		return ret;
 
+	if (e->eee_enabled) {
+		ret = phy_init_eee(p->phy, 0);
+		if (ret)
+			return ret;
+	}
+
 	return phy_ethtool_set_eee(p->phy, e);
 }
 

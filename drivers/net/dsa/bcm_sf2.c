@@ -360,14 +360,7 @@ static int bcm_sf2_sw_set_eee(struct dsa_switch *ds, int port,
 	struct ethtool_eee *p = &priv->port_sts[port].eee;
 
 	p->eee_enabled = e->eee_enabled;
-
-	if (!p->eee_enabled) {
-		bcm_sf2_eee_enable_set(ds, port, false);
-	} else {
-		p->eee_enabled = bcm_sf2_eee_init(ds, port, phydev);
-		if (!p->eee_enabled)
-			return -EOPNOTSUPP;
-	}
+	bcm_sf2_eee_enable_set(ds, port, e->eee_enabled);
 
 	return 0;
 }
