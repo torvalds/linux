@@ -103,6 +103,7 @@ void clear_user_highpage(struct page *page, unsigned long vaddr)
 	clear_page_alias(kvaddr, paddr);
 	preempt_enable();
 }
+EXPORT_SYMBOL(clear_user_highpage);
 
 void copy_user_highpage(struct page *dst, struct page *src,
 			unsigned long vaddr, struct vm_area_struct *vma)
@@ -119,6 +120,7 @@ void copy_user_highpage(struct page *dst, struct page *src,
 	copy_page_alias(dst_vaddr, src_vaddr, dst_paddr, src_paddr);
 	preempt_enable();
 }
+EXPORT_SYMBOL(copy_user_highpage);
 
 /*
  * Any time the kernel writes to a user page cache page, or it is about to
@@ -172,7 +174,7 @@ void flush_dcache_page(struct page *page)
 
 	/* There shouldn't be an entry in the cache for this page anymore. */
 }
-
+EXPORT_SYMBOL(flush_dcache_page);
 
 /*
  * For now, flush the whole cache. FIXME??
@@ -184,6 +186,7 @@ void local_flush_cache_range(struct vm_area_struct *vma,
 	__flush_invalidate_dcache_all();
 	__invalidate_icache_all();
 }
+EXPORT_SYMBOL(local_flush_cache_range);
 
 /* 
  * Remove any entry in the cache for this page. 
@@ -203,6 +206,7 @@ void local_flush_cache_page(struct vm_area_struct *vma, unsigned long address,
 	__flush_invalidate_dcache_page_alias(virt, phys);
 	__invalidate_icache_page_alias(virt, phys);
 }
+EXPORT_SYMBOL(local_flush_cache_page);
 
 #endif /* DCACHE_WAY_SIZE > PAGE_SIZE */
 
