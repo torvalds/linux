@@ -228,10 +228,19 @@ start_thread_common(struct pt_regs *regs, unsigned long new_ip,
 		    unsigned long new_sp,
 		    unsigned int _cs, unsigned int _ss, unsigned int _ds)
 {
+	WARN_ON_ONCE(regs != current_pt_regs());
+
+	if (static_cpu_has(X86_BUG_NULL_SEG)) {
+		/* Loading zero below won't clear the base. */
+		loadsegment(fs, __USER_DS);
+		load_gs_index(__USER_DS);
+	}
+
 	loadsegment(fs, 0);
 	loadsegment(es, _ds);
 	loadsegment(ds, _ds);
 	load_gs_index(0);
+
 	regs->ip		= new_ip;
 	regs->sp		= new_sp;
 	regs->cs		= _cs;
