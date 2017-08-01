@@ -1318,6 +1318,23 @@ static int gfs2_drop_inode(struct inode *inode)
 		if (test_bit(GLF_DEMOTE, &gl->gl_flags))
 			clear_nlink(inode);
 	}
+
+	/*
+	 * When under memory pressure when an inode's link count has dropped to
+	 * zero, defer deleting the inode to the delete workqueue.  This avoids
+	 * calling into DLM under memory pressure, which can deadlock.
+	 */
+	if (!inode->i_nlink &&
+	    unlikely(current->flags & PF_MEMALLOC) &&
+	    gfs2_holder_initialized(&ip->i_iopen_gh)) {
+		struct gfs2_glock *gl = ip->i_iopen_gh.gh_gl;
+
+		gfs2_glock_hold(gl);
+		if (queue_work(gfs2_delete_workqueue, &gl->gl_delete) == 0)
+			gfs2_glock_queue_put(gl);
+		return false;
+	}
+
 	return generic_drop_inode(inode);
 }
 
@@ -1560,6 +1577,10 @@ static void gfs2_evict_inode(struct inode *inode)
 		gfs2_holder_mark_uninitialized(&gh);
 		goto alloc_failed;
 	}
+
+	/* Deletes should never happen under memory pressure anymore.  */
+	if (WARN_ON_ONCE(current->flags & PF_MEMALLOC))
+		goto out;
 
 	/* Must not read inode block until block type has been verified */
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, GL_SKIP, &gh);
