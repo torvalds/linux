@@ -612,7 +612,7 @@ static int cafe_pci_resume(struct pci_dev *pdev)
 
 #endif  /* CONFIG_PM */
 
-static struct pci_device_id cafe_ids[] = {
+static const struct pci_device_id cafe_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_MARVELL,
 		     PCI_DEVICE_ID_MARVELL_88ALP01_CCIC) },
 	{ 0, }
