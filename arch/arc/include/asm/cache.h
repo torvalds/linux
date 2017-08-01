@@ -96,7 +96,9 @@ extern unsigned long perip_base, perip_end;
 #define ARC_REG_SLC_FLUSH	0x904
 #define ARC_REG_SLC_INVALIDATE	0x905
 #define ARC_REG_SLC_RGN_START	0x914
+#define ARC_REG_SLC_RGN_START1	0x915
 #define ARC_REG_SLC_RGN_END	0x916
+#define ARC_REG_SLC_RGN_END1	0x917
 
 /* Bit val in SLC_CONTROL */
 #define SLC_CTRL_DIS		0x001

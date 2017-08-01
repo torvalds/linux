@@ -665,6 +665,7 @@ noinline void slc_op(phys_addr_t paddr, unsigned long sz, const int op)
 	static DEFINE_SPINLOCK(lock);
 	unsigned long flags;
 	unsigned int ctrl;
+	phys_addr_t end;
 
 	spin_lock_irqsave(&lock, flags);
 
@@ -694,8 +695,16 @@ noinline void slc_op(phys_addr_t paddr, unsigned long sz, const int op)
 	 * END needs to be setup before START (latter triggers the operation)
 	 * END can't be same as START, so add (l2_line_sz - 1) to sz
 	 */
-	write_aux_reg(ARC_REG_SLC_RGN_END, (paddr + sz + l2_line_sz - 1));
-	write_aux_reg(ARC_REG_SLC_RGN_START, paddr);
+	end = paddr + sz + l2_line_sz - 1;
+	if (is_pae40_enabled())
+		write_aux_reg(ARC_REG_SLC_RGN_END1, upper_32_bits(end));
+
+	write_aux_reg(ARC_REG_SLC_RGN_END, lower_32_bits(end));
+
+	if (is_pae40_enabled())
+		write_aux_reg(ARC_REG_SLC_RGN_START1, upper_32_bits(paddr));
+
+	write_aux_reg(ARC_REG_SLC_RGN_START, lower_32_bits(paddr));
 
 	/* Make sure "busy" bit reports correct stataus, see STAR 9001165532 */
 	read_aux_reg(ARC_REG_SLC_CTRL);
