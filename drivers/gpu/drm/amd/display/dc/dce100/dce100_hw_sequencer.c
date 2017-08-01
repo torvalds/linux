@@ -24,7 +24,6 @@
  */
 #include "dm_services.h"
 #include "dc.h"
-#include "core_dc.h"
 #include "core_types.h"
 #include "hw_sequencer.h"
 #include "dce100_hw_sequencer.h"
@@ -71,7 +70,7 @@ static const struct dce100_hw_seq_reg_offsets reg_offsets[] = {
 /***************************PIPE_CONTROL***********************************/
 
 static bool dce100_enable_display_power_gating(
-	struct core_dc *dc,
+	struct dc *dc,
 	uint8_t controller_id,
 	struct dc_bios *dcb,
 	enum pipe_gating_control power_gating)
@@ -107,7 +106,7 @@ static bool dce100_enable_display_power_gating(
 }
 
 static void dce100_pplib_apply_display_requirements(
-	struct core_dc *dc,
+	struct dc *dc,
 	struct validate_context *context)
 {
 	struct dm_pp_display_configuration *pp_display_cfg = &context->pp_display_cfg;
@@ -127,7 +126,7 @@ static void dce100_pplib_apply_display_requirements(
 }
 
 void dce100_set_bandwidth(
-		struct core_dc *dc,
+		struct dc *dc,
 		struct validate_context *context,
 		bool decrease_allowed)
 {
@@ -143,7 +142,7 @@ void dce100_set_bandwidth(
 
 /**************************************************************************/
 
-bool dce100_hw_sequencer_construct(struct core_dc *dc)
+bool dce100_hw_sequencer_construct(struct dc *dc)
 {
 	dce110_hw_sequencer_construct(dc);
 

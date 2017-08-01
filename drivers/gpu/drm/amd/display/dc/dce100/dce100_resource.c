@@ -652,7 +652,7 @@ static void destruct(struct dce110_resource_pool *pool)
 }
 
 static enum dc_status build_mapped_resource(
-		const struct core_dc *dc,
+		const struct dc  *dc,
 		struct validate_context *context,
 		struct validate_context *old_context)
 {
@@ -688,7 +688,7 @@ static enum dc_status build_mapped_resource(
 }
 
 bool dce100_validate_bandwidth(
-	const struct core_dc *dc,
+	struct dc  *dc,
 	struct validate_context *context)
 {
 	/* TODO implement when needed but for now hardcode max value*/
@@ -720,7 +720,7 @@ static bool dce100_validate_surface_sets(
 }
 
 enum dc_status dce100_validate_with_context(
-		const struct core_dc *dc,
+		struct dc  *dc,
 		const struct dc_validation_set set[],
 		int set_count,
 		struct validate_context *context,
@@ -764,7 +764,7 @@ enum dc_status dce100_validate_with_context(
 }
 
 enum dc_status dce100_validate_guaranteed(
-		const struct core_dc *dc,
+		struct dc  *dc,
 		struct dc_stream_state *dc_stream,
 		struct validate_context *context)
 {
@@ -784,7 +784,7 @@ enum dc_status dce100_validate_guaranteed(
 
 	if (result == DC_OK) {
 		validate_guaranteed_copy_streams(
-				context, dc->public.caps.max_streams);
+				context, dc->caps.max_streams);
 		result = resource_build_scaling_params_for_context(dc, context);
 	}
 
@@ -824,7 +824,7 @@ static const struct resource_funcs dce100_res_pool_funcs = {
 
 static bool construct(
 	uint8_t num_virtual_links,
-	struct core_dc *dc,
+	struct dc  *dc,
 	struct dce110_resource_pool *pool)
 {
 	unsigned int i;
@@ -909,9 +909,9 @@ static bool construct(
 	*************************************************/
 	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
 	pool->base.pipe_count = res_cap.num_timing_generator;
-	dc->public.caps.max_downscale_ratio = 200;
-	dc->public.caps.i2c_speed_in_khz = 40;
-	dc->public.caps.max_cursor_size = 128;
+	dc->caps.max_downscale_ratio = 200;
+	dc->caps.i2c_speed_in_khz = 40;
+	dc->caps.max_cursor_size = 128;
 
 	for (i = 0; i < pool->base.pipe_count; i++) {
 		pool->base.timing_generators[i] =
@@ -958,7 +958,7 @@ static bool construct(
 		}
 	}
 
-	dc->public.caps.max_planes =  pool->base.pipe_count;
+	dc->caps.max_planes =  pool->base.pipe_count;
 
 	if (!resource_construct(num_virtual_links, dc, &pool->base,
 			&res_create_funcs))
@@ -978,7 +978,7 @@ res_create_fail:
 
 struct resource_pool *dce100_create_resource_pool(
 	uint8_t num_virtual_links,
-	struct core_dc *dc)
+	struct dc  *dc)
 {
 	struct dce110_resource_pool *pool =
 		dm_alloc(sizeof(struct dce110_resource_pool));

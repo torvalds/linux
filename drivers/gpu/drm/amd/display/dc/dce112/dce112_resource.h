@@ -28,27 +28,27 @@
 
 #include "core_types.h"
 
-struct core_dc;
+struct dc;
 struct resource_pool;
 
 struct resource_pool *dce112_create_resource_pool(
 	uint8_t num_virtual_links,
-	struct core_dc *dc);
+	struct dc *dc);
 
 enum dc_status dce112_validate_with_context(
-		const struct core_dc *dc,
+		struct dc *dc,
 		const struct dc_validation_set set[],
 		int set_count,
 		struct validate_context *context,
 		struct validate_context *old_context);
 
 enum dc_status dce112_validate_guaranteed(
-		const struct core_dc *dc,
+		struct dc *dc,
 		struct dc_stream_state *dc_stream,
 		struct validate_context *context);
 
 bool dce112_validate_bandwidth(
-	const struct core_dc *dc,
+	struct dc *dc,
 	struct validate_context *context);
 
 

@@ -52,7 +52,7 @@ void enable_surface_flip_reporting(struct dc_plane_state *plane_state,
 
 /************ link *****************/
 struct link_init_data {
-	const struct core_dc *dc;
+	const struct dc *dc;
 	struct dc_context *ctx; /* TODO: remove 'dal' when DC is complete. */
 	uint32_t connector_index; /* this will be mapped to the HPD pins */
 	uint32_t link_index; /* this is mapped to DAL display_index
@@ -87,19 +87,19 @@ struct resource_funcs {
 	struct link_encoder *(*link_enc_create)(
 			const struct encoder_init_data *init);
 	enum dc_status (*validate_with_context)(
-					const struct core_dc *dc,
+					struct dc *dc,
 					const struct dc_validation_set set[],
 					int set_count,
 					struct validate_context *context,
 					struct validate_context *old_context);
 
 	enum dc_status (*validate_guaranteed)(
-					const struct core_dc *dc,
+					struct dc *dc,
 					struct dc_stream_state *stream,
 					struct validate_context *context);
 
 	bool (*validate_bandwidth)(
-					const struct core_dc *dc,
+					struct dc *dc,
 					struct validate_context *context);
 
 	struct pipe_ctx *(*acquire_idle_pipe_for_layer)(

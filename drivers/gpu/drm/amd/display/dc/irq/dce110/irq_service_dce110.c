@@ -34,8 +34,8 @@
 
 #include "ivsrcid/ivsrcid_vislands30.h"
 
-#include "core_dc.h"
-
+#include "dc.h"
+#include "core_types.h"
 static bool hpd_ack(
 	struct irq_service *irq_service,
 	const struct irq_source_info *info)
@@ -206,7 +206,7 @@ bool dce110_vblank_set(
 		bool enable)
 {
 	struct dc_context *dc_ctx = irq_service->ctx;
-	struct core_dc *core_dc = DC_TO_CORE(irq_service->ctx->dc);
+	struct dc *core_dc = irq_service->ctx->dc;
 	enum dc_irq_source dal_irq_src = dc_interrupt_to_irq_source(
 										irq_service->ctx->dc,
 										info->src_id,

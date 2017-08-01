@@ -28,7 +28,7 @@
 #include "dc.h"
 
 /* DC core (private) */
-#include "core_dc.h"
+#include "core_types.h"
 #include "transform.h"
 
 /*******************************************************************************
@@ -64,9 +64,9 @@ void enable_surface_flip_reporting(struct dc_plane_state *plane_state,
 	/*register_flip_interrupt(surface);*/
 }
 
-struct dc_plane_state *dc_create_plane_state(const struct dc *dc)
+struct dc_plane_state *dc_create_plane_state(struct dc *dc)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc *core_dc = dc;
 
 	struct dc_plane_state *plane_state = dm_alloc(sizeof(*plane_state));
 
@@ -91,7 +91,7 @@ const struct dc_plane_status *dc_plane_get_status(
 		const struct dc_plane_state *plane_state)
 {
 	const struct dc_plane_status *plane_status;
-	struct core_dc *core_dc;
+	struct dc  *core_dc;
 	int i;
 
 	if (!plane_state ||
@@ -102,7 +102,7 @@ const struct dc_plane_status *dc_plane_get_status(
 	}
 
 	plane_status = &plane_state->status;
-	core_dc = DC_TO_CORE(plane_state->ctx->dc);
+	core_dc = plane_state->ctx->dc;
 
 	if (core_dc->current_context == NULL)
 		return NULL;

@@ -3,7 +3,7 @@
 
 #include "dm_services.h"
 #include "dc.h"
-#include "inc/core_dc.h"
+#include "inc/core_types.h"
 #include "include/ddc_service_types.h"
 #include "include/i2caux_interface.h"
 #include "link_hwss.h"

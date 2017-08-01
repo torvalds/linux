@@ -27,7 +27,6 @@
 #include "dc.h"
 #include "mod_freesync.h"
 #include "core_types.h"
-#include "core_dc.h"
 
 #define MOD_FREESYNC_MAX_CONCURRENT_STREAMS  32
 
@@ -146,7 +145,7 @@ struct mod_freesync *mod_freesync_create(struct dc *dc)
 	struct core_freesync *core_freesync =
 			dm_alloc(sizeof(struct core_freesync));
 
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 
 	struct persistent_data_flag flag;
 
@@ -246,7 +245,7 @@ static unsigned int map_index_from_stream(struct core_freesync *core_freesync,
 bool mod_freesync_add_stream(struct mod_freesync *mod_freesync,
 		struct dc_stream_state *stream, struct mod_freesync_caps *caps)
 {
-	struct core_dc *core_dc = NULL;
+	struct dc  *core_dc = NULL;
 	struct core_freesync *core_freesync = NULL;
 	int persistent_freesync_enable = 0;
 	struct persistent_data_flag flag;
@@ -257,7 +256,7 @@ bool mod_freesync_add_stream(struct mod_freesync *mod_freesync,
 		return false;
 
 	core_freesync = MOD_FREESYNC_TO_CORE(mod_freesync);
-	core_dc = DC_TO_CORE(core_freesync->dc);
+	core_dc = core_freesync->dc;
 
 	flag.save_per_edid = true;
 	flag.save_per_link = false;
@@ -971,14 +970,14 @@ bool mod_freesync_set_user_enable(struct mod_freesync *mod_freesync,
 	unsigned int stream_index, map_index;
 	int persistent_data = 0;
 	struct persistent_data_flag flag;
-	struct core_dc *core_dc = NULL;
+	struct dc  *core_dc = NULL;
 	struct core_freesync *core_freesync = NULL;
 
 	if (mod_freesync == NULL)
 		return false;
 
 	core_freesync = MOD_FREESYNC_TO_CORE(mod_freesync);
-	core_dc = DC_TO_CORE(core_freesync->dc);
+	core_dc = core_freesync->dc;
 
 	flag.save_per_edid = true;
 	flag.save_per_link = false;

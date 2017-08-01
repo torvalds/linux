@@ -26,14 +26,13 @@
 #include "dm_services.h"
 #include "dm_helpers.h"
 #include "dc.h"
-#include "core_dc.h"
 #include "grph_object_id.h"
 #include "gpio_service_interface.h"
 #include "core_status.h"
 #include "dc_link_dp.h"
 #include "dc_link_ddc.h"
 #include "link_hwss.h"
-#include "stream_encoder.h"
+
 #include "link_encoder.h"
 #include "hw_sequencer.h"
 #include "resource.h"
@@ -1392,7 +1391,7 @@ enum dc_status dc_link_validate_mode_timing(
 bool dc_link_set_backlight_level(const struct dc_link *link, uint32_t level,
 		uint32_t frame_ramp, const struct dc_stream_state *stream)
 {
-	struct core_dc *core_dc = DC_TO_CORE(link->ctx->dc);
+	struct dc  *core_dc = link->ctx->dc;
 	struct abm *abm = core_dc->res_pool->abm;
 	unsigned int controller_id = 0;
 	int i;
@@ -1431,7 +1430,7 @@ bool dc_link_set_backlight_level(const struct dc_link *link, uint32_t level,
 
 bool dc_link_set_abm_disable(const struct dc_link *link)
 {
-	struct core_dc *core_dc = DC_TO_CORE(link->ctx->dc);
+	struct dc  *core_dc = link->ctx->dc;
 	struct abm *abm = core_dc->res_pool->abm;
 
 	if ((abm == NULL) || (abm->funcs->set_backlight_level == NULL))
@@ -1445,7 +1444,7 @@ bool dc_link_set_abm_disable(const struct dc_link *link)
 
 bool dc_link_set_psr_enable(const struct dc_link *link, bool enable)
 {
-	struct core_dc *core_dc = DC_TO_CORE(link->ctx->dc);
+	struct dc  *core_dc = link->ctx->dc;
 	struct dmcu *dmcu = core_dc->res_pool->dmcu;
 
 	if (dmcu != NULL && link->psr_enabled)
@@ -1456,7 +1455,7 @@ bool dc_link_set_psr_enable(const struct dc_link *link, bool enable)
 
 bool dc_link_get_psr_state(const struct dc_link *link, uint32_t *psr_state)
 {
-	struct core_dc *core_dc = DC_TO_CORE(link->ctx->dc);
+	struct dc  *core_dc = link->ctx->dc;
 	struct dmcu *dmcu = core_dc->res_pool->dmcu;
 
 	if (dmcu != NULL && link->psr_enabled)
@@ -1469,7 +1468,7 @@ bool dc_link_setup_psr(struct dc_link *link,
 		const struct dc_stream_state *stream, struct psr_config *psr_config,
 		struct psr_context *psr_context)
 {
-	struct core_dc *core_dc = DC_TO_CORE(link->ctx->dc);
+	struct dc  *core_dc = link->ctx->dc;
 	struct dmcu *dmcu = core_dc->res_pool->dmcu;
 	int i;
 
@@ -1874,7 +1873,7 @@ static enum dc_status deallocate_mst_payload(struct pipe_ctx *pipe_ctx)
 
 void core_link_enable_stream(struct pipe_ctx *pipe_ctx)
 {
-	struct core_dc *core_dc = DC_TO_CORE(pipe_ctx->stream->ctx->dc);
+	struct dc  *core_dc = pipe_ctx->stream->ctx->dc;
 
 	enum dc_status status = enable_link(pipe_ctx);
 
@@ -1907,7 +1906,7 @@ void core_link_enable_stream(struct pipe_ctx *pipe_ctx)
 
 void core_link_disable_stream(struct pipe_ctx *pipe_ctx)
 {
-	struct core_dc *core_dc = DC_TO_CORE(pipe_ctx->stream->ctx->dc);
+	struct dc  *core_dc = pipe_ctx->stream->ctx->dc;
 
 	if (pipe_ctx->stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST)
 		deallocate_mst_payload(pipe_ctx);
@@ -1919,7 +1918,7 @@ void core_link_disable_stream(struct pipe_ctx *pipe_ctx)
 
 void core_link_set_avmute(struct pipe_ctx *pipe_ctx, bool enable)
 {
-	struct core_dc *core_dc = DC_TO_CORE(pipe_ctx->stream->ctx->dc);
+	struct dc  *core_dc = pipe_ctx->stream->ctx->dc;
 
 	if (pipe_ctx->stream->signal != SIGNAL_TYPE_HDMI_TYPE_A)
 		return;

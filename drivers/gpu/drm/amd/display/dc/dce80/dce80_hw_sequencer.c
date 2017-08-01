@@ -25,7 +25,6 @@
 
 #include "dm_services.h"
 #include "dc.h"
-#include "core_dc.h"
 #include "core_types.h"
 #include "dce80_hw_sequencer.h"
 
@@ -72,7 +71,7 @@ static const struct dce80_hw_seq_reg_offsets reg_offsets[] = {
 /***************************PIPE_CONTROL***********************************/
 
 static bool dce80_enable_display_power_gating(
-	struct core_dc *dc,
+	struct dc *dc,
 	uint8_t controller_id,
 	struct dc_bios *dcb,
 	enum pipe_gating_control power_gating)
@@ -107,7 +106,7 @@ static bool dce80_enable_display_power_gating(
 		return false;
 }
 
-bool dce80_hw_sequencer_construct(struct core_dc *dc)
+bool dce80_hw_sequencer_construct(struct dc *dc)
 {
 	dce110_hw_sequencer_construct(dc);
 

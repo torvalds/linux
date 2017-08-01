@@ -164,7 +164,7 @@ static void enable_display_pipe_clock_gating(
 }
 
 static bool dce110_enable_display_power_gating(
-	struct core_dc *dc,
+	struct dc *dc,
 	uint8_t controller_id,
 	struct dc_bios *dcb,
 	enum pipe_gating_control power_gating)
@@ -944,7 +944,7 @@ static void get_surface_visual_confirm_color(const struct pipe_ctx *pipe_ctx,
 	}
 }
 
-static void program_scaler(const struct core_dc *dc,
+static void program_scaler(const struct dc *dc,
 		const struct pipe_ctx *pipe_ctx)
 {
 	struct tg_color color = {0};
@@ -955,7 +955,7 @@ static void program_scaler(const struct core_dc *dc,
 		return;
 #endif
 
-	if (dc->public.debug.surface_visual_confirm)
+	if (dc->debug.surface_visual_confirm)
 		get_surface_visual_confirm_color(pipe_ctx, &color);
 	else
 		color_space_to_black_color(dc,
@@ -979,7 +979,7 @@ static void program_scaler(const struct core_dc *dc,
 static enum dc_status dce110_prog_pixclk_crtc_otg(
 		struct pipe_ctx *pipe_ctx,
 		struct validate_context *context,
-		struct core_dc *dc)
+		struct dc *dc)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct pipe_ctx *pipe_ctx_old = &dc->current_context->res_ctx.
@@ -1035,7 +1035,7 @@ static enum dc_status dce110_prog_pixclk_crtc_otg(
 static enum dc_status apply_single_controller_ctx_to_hw(
 		struct pipe_ctx *pipe_ctx,
 		struct validate_context *context,
-		struct core_dc *dc)
+		struct dc *dc)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct pipe_ctx *pipe_ctx_old = &dc->current_context->res_ctx.
@@ -1146,7 +1146,7 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 
 /******************************************************************************/
 
-static void power_down_encoders(struct core_dc *dc)
+static void power_down_encoders(struct dc *dc)
 {
 	int i;
 
@@ -1156,7 +1156,7 @@ static void power_down_encoders(struct core_dc *dc)
 	}
 }
 
-static void power_down_controllers(struct core_dc *dc)
+static void power_down_controllers(struct dc *dc)
 {
 	int i;
 
@@ -1166,7 +1166,7 @@ static void power_down_controllers(struct core_dc *dc)
 	}
 }
 
-static void power_down_clock_sources(struct core_dc *dc)
+static void power_down_clock_sources(struct dc *dc)
 {
 	int i;
 
@@ -1181,7 +1181,7 @@ static void power_down_clock_sources(struct core_dc *dc)
 	}
 }
 
-static void power_down_all_hw_blocks(struct core_dc *dc)
+static void power_down_all_hw_blocks(struct dc *dc)
 {
 	power_down_encoders(dc);
 
@@ -1196,7 +1196,7 @@ static void power_down_all_hw_blocks(struct core_dc *dc)
 }
 
 static void disable_vga_and_power_gate_all_controllers(
-		struct core_dc *dc)
+		struct dc *dc)
 {
 	int i;
 	struct timing_generator *tg;
@@ -1224,7 +1224,7 @@ static void disable_vga_and_power_gate_all_controllers(
  *  3. Enable power gating for controller
  *  4. Set acc_mode_change bit (VBIOS will clear this bit when going to FSDOS)
  */
-void dce110_enable_accelerated_mode(struct core_dc *dc)
+void dce110_enable_accelerated_mode(struct dc *dc)
 {
 	power_down_all_hw_blocks(dc);
 
@@ -1250,7 +1250,7 @@ static uint32_t compute_pstate_blackout_duration(
 }
 
 void dce110_set_displaymarks(
-	const struct core_dc *dc,
+	const struct dc *dc,
 	struct validate_context *context)
 {
 	uint8_t i, num_pipes;
@@ -1316,7 +1316,7 @@ static void set_safe_displaymarks(
 }
 
 static void switch_dp_clock_sources(
-	const struct core_dc *dc,
+	const struct dc *dc,
 	struct resource_context *res_ctx)
 {
 	uint8_t i;
@@ -1408,7 +1408,7 @@ static void set_static_screen_control(struct pipe_ctx **pipe_ctx,
  * may read PLL register to get pixel clock
  */
 static uint32_t get_max_pixel_clock_for_all_paths(
-	struct core_dc *dc,
+	struct dc *dc,
 	struct validate_context *context,
 	bool pre_mode_set)
 {
@@ -1449,7 +1449,7 @@ static uint32_t get_max_pixel_clock_for_all_paths(
  * etc support for dcn1.0
  */
 static void apply_min_clocks(
-	struct core_dc *dc,
+	struct dc *dc,
 	struct validate_context *context,
 	enum dm_pp_clocks_state *clocks_state,
 	bool pre_mode_set)
@@ -1538,7 +1538,7 @@ static void apply_min_clocks(
 /*
  *  Check if FBC can be enabled
  */
-static enum dc_status validate_fbc(struct core_dc *dc,
+static enum dc_status validate_fbc(struct dc *dc,
 		struct validate_context *context)
 {
 	struct pipe_ctx *pipe_ctx =
@@ -1568,7 +1568,7 @@ static enum dc_status validate_fbc(struct core_dc *dc,
 /*
  *  Enable FBC
  */
-static enum dc_status enable_fbc(struct core_dc *dc,
+static enum dc_status enable_fbc(struct dc *dc,
 		struct validate_context *context)
 {
 	enum dc_status status = validate_fbc(dc, context);
@@ -1597,7 +1597,7 @@ static enum dc_status enable_fbc(struct core_dc *dc,
 #endif
 
 static enum dc_status apply_ctx_to_hw_fpga(
-		struct core_dc *dc,
+		struct dc *dc,
 		struct validate_context *context)
 {
 	enum dc_status status = DC_ERROR_UNEXPECTED;
@@ -1627,7 +1627,7 @@ static enum dc_status apply_ctx_to_hw_fpga(
 }
 
 static void dce110_reset_hw_ctx_wrap(
-		struct core_dc *dc,
+		struct dc *dc,
 		struct validate_context *context)
 {
 	int i;
@@ -1672,7 +1672,7 @@ static void dce110_reset_hw_ctx_wrap(
 
 
 enum dc_status dce110_apply_ctx_to_hw(
-		struct core_dc *dc,
+		struct dc *dc,
 		struct validate_context *context)
 {
 	struct dc_bios *dcb = dc->ctx->dc_bios;
@@ -1965,7 +1965,7 @@ static void set_default_colors(struct pipe_ctx *pipe_ctx)
  * -------------------------------------------------|
  *
  ******************************************************************************/
-static void program_surface_visibility(const struct core_dc *dc,
+static void program_surface_visibility(const struct dc *dc,
 		struct pipe_ctx *pipe_ctx)
 {
 	enum blnd_mode blender_mode = BLND_MODE_CURRENT_PIPE;
@@ -2038,7 +2038,7 @@ static void program_gamut_remap(struct pipe_ctx *pipe_ctx)
  * TODO REMOVE, USE UPDATE INSTEAD
  */
 static void set_plane_config(
-	const struct core_dc *dc,
+	const struct dc *dc,
 	struct pipe_ctx *pipe_ctx,
 	struct resource_context *res_ctx)
 {
@@ -2117,7 +2117,7 @@ static void set_plane_config(
 	if (mi->funcs->set_blank)
 		mi->funcs->set_blank(mi, pipe_ctx->plane_state->visible);
 
-	if (dc->public.config.gpu_vm_support)
+	if (dc->config.gpu_vm_support)
 		mi->funcs->mem_input_program_pte_vm(
 				pipe_ctx->plane_res.mi,
 				plane_state->format,
@@ -2125,7 +2125,7 @@ static void set_plane_config(
 				plane_state->rotation);
 }
 
-static void update_plane_addr(const struct core_dc *dc,
+static void update_plane_addr(const struct dc *dc,
 		struct pipe_ctx *pipe_ctx)
 {
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
@@ -2163,7 +2163,7 @@ void dce110_update_pending_status(struct pipe_ctx *pipe_ctx)
 	}
 }
 
-void dce110_power_down(struct core_dc *dc)
+void dce110_power_down(struct dc *dc)
 {
 	power_down_all_hw_blocks(dc);
 	disable_vga_and_power_gate_all_controllers(dc);
@@ -2208,7 +2208,7 @@ static bool wait_for_reset_trigger_to_occur(
 
 /* Enable timing synchronization for a group of Timing Generators. */
 static void dce110_enable_timing_synchronization(
-		struct core_dc *dc,
+		struct dc *dc,
 		int group_index,
 		int group_size,
 		struct pipe_ctx *grouped_pipes[])
@@ -2257,7 +2257,7 @@ static void dce110_enable_timing_synchronization(
 	DC_SYNC_INFO("GSL: Set-up complete.\n");
 }
 
-static void init_hw(struct core_dc *dc)
+static void init_hw(struct dc *dc)
 {
 	int i;
 	struct dc_bios *bp;
@@ -2394,7 +2394,7 @@ uint32_t dce110_get_min_vblank_time_us(const struct validate_context *context)
 }
 
 static int determine_sclk_from_bounding_box(
-		const struct core_dc *dc,
+		const struct dc *dc,
 		int required_sclk)
 {
 	int i;
@@ -2420,7 +2420,7 @@ static int determine_sclk_from_bounding_box(
 }
 
 static void pplib_apply_display_requirements(
-	struct core_dc *dc,
+	struct dc *dc,
 	struct validate_context *context)
 {
 	struct dm_pp_display_configuration *pp_display_cfg = &context->pp_display_cfg;
@@ -2474,7 +2474,7 @@ static void pplib_apply_display_requirements(
 }
 
 static void dce110_set_bandwidth(
-		struct core_dc *dc,
+		struct dc *dc,
 		struct validate_context *context,
 		bool decrease_allowed)
 {
@@ -2491,7 +2491,7 @@ static void dce110_set_bandwidth(
 }
 
 static void dce110_program_front_end_for_pipe(
-		struct core_dc *dc, struct pipe_ctx *pipe_ctx)
+		struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
 	struct mem_input *mi = pipe_ctx->plane_res.mi;
 	struct pipe_ctx *old_pipe = NULL;
@@ -2572,7 +2572,7 @@ static void dce110_program_front_end_for_pipe(
 	if (mi->funcs->set_blank)
 		mi->funcs->set_blank(mi, pipe_ctx->plane_state->visible);
 
-	if (dc->public.config.gpu_vm_support)
+	if (dc->config.gpu_vm_support)
 		mi->funcs->mem_input_program_pte_vm(
 				pipe_ctx->plane_res.mi,
 				plane_state->format,
@@ -2618,7 +2618,7 @@ static void dce110_program_front_end_for_pipe(
 }
 
 static void dce110_apply_ctx_for_surface(
-		struct core_dc *dc,
+		struct dc *dc,
 		const struct dc_stream_state *stream,
 		int num_planes,
 		struct validate_context *context)
@@ -2648,7 +2648,7 @@ static void dce110_apply_ctx_for_surface(
 	}
 }
 
-static void dce110_power_down_fe(struct core_dc *dc, int fe_idx)
+static void dce110_power_down_fe(struct dc *dc, int fe_idx)
 {
 	/* Do not power down fe when stream is active on dce*/
 	if (dc->current_context->res_ctx.pipe_ctx[fe_idx].stream)
@@ -2662,7 +2662,7 @@ static void dce110_power_down_fe(struct core_dc *dc, int fe_idx)
 }
 
 static void dce110_wait_for_mpcc_disconnect(
-		struct core_dc *dc,
+		struct dc *dc,
 		struct resource_pool *res_pool,
 		struct pipe_ctx *pipe_ctx)
 {
@@ -2724,7 +2724,7 @@ static const struct hw_sequencer_funcs dce110_funcs = {
 	.wait_for_mpcc_disconnect = dce110_wait_for_mpcc_disconnect
 };
 
-bool dce110_hw_sequencer_construct(struct core_dc *dc)
+bool dce110_hw_sequencer_construct(struct dc *dc)
 {
 	dc->hwss = dce110_funcs;
 

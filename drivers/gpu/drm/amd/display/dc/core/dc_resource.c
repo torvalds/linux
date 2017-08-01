@@ -92,7 +92,7 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 }
 
 struct resource_pool *dc_create_resource_pool(
-				struct core_dc *dc,
+				struct dc  *dc,
 				int num_virtual_links,
 				enum dce_version dc_version,
 				struct hw_asic_id asic_id)
@@ -153,7 +153,7 @@ struct resource_pool *dc_create_resource_pool(
 	return res_pool;
 }
 
-void dc_destroy_resource_pool(struct core_dc *dc)
+void dc_destroy_resource_pool(struct dc  *dc)
 {
 	if (dc) {
 		if (dc->res_pool)
@@ -193,7 +193,7 @@ static void update_num_audio(
 
 bool resource_construct(
 	unsigned int num_virtual_links,
-	struct core_dc *dc,
+	struct dc  *dc,
 	struct resource_pool *pool,
 	const struct resource_create_funcs *create_funcs)
 {
@@ -892,7 +892,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 
 
 enum dc_status resource_build_scaling_params_for_context(
-	const struct core_dc *dc,
+	const struct dc  *dc,
 	struct validate_context *context)
 {
 	int i;
@@ -1438,7 +1438,7 @@ static void calculate_phy_pix_clks(struct dc_stream_state *stream)
 }
 
 enum dc_status resource_map_pool_resources(
-		const struct core_dc *dc,
+		const struct dc  *dc,
 		struct validate_context *context,
 		struct validate_context *old_context)
 {
@@ -2316,7 +2316,7 @@ void resource_build_info_frame(struct pipe_ctx *pipe_ctx)
 }
 
 enum dc_status resource_map_clock_resources(
-		const struct core_dc *dc,
+		const struct dc  *dc,
 		struct validate_context *context,
 		struct validate_context *old_context)
 {
@@ -2343,7 +2343,7 @@ enum dc_status resource_map_clock_resources(
 			else {
 				pipe_ctx->clock_source = NULL;
 
-				if (!dc->public.config.disable_disp_pll_sharing)
+				if (!dc->config.disable_disp_pll_sharing)
 					resource_find_used_clk_src_for_sharing(
 						&context->res_ctx,
 						pipe_ctx);
@@ -2515,9 +2515,9 @@ void resource_build_bit_depth_reduction_params(struct dc_stream_state *stream,
 	fmt_bit_depth->pixel_encoding = pixel_encoding;
 }
 
-bool dc_validate_stream(const struct dc *dc, struct dc_stream_state *stream)
+bool dc_validate_stream(struct dc *dc, struct dc_stream_state *stream)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 	struct dc_context *dc_ctx = core_dc->ctx;
 	struct dc_link *link = stream->sink->link;
 	struct timing_generator *tg = core_dc->res_pool->timing_generators[0];
@@ -2547,9 +2547,9 @@ bool dc_validate_stream(const struct dc *dc, struct dc_stream_state *stream)
 	return res == DC_OK;
 }
 
-bool dc_validate_plane(const struct dc *dc, const struct dc_plane_state *plane_state)
+bool dc_validate_plane(struct dc *dc, const struct dc_plane_state *plane_state)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc *core_dc = dc;
 
 	/* TODO For now validates pixel format only */
 	if (core_dc->res_pool->funcs->validate_plane)

@@ -34,7 +34,6 @@
 
 #include "dce_clock_source.h"
 
-#include "core_dc.h"
 #include "reg_helper.h"
 
 #define REG(reg)\
@@ -609,7 +608,7 @@ static uint32_t dce110_get_pll_pixel_rate_in_hz(
 	struct pll_settings *pll_settings)
 {
 	uint32_t inst = pix_clk_params->controller_id - CONTROLLER_ID_D0;
-	struct core_dc *dc_core = DC_TO_CORE(cs->ctx->dc);
+	struct dc *dc_core = cs->ctx->dc;
 	struct validate_context *context = dc_core->current_context;
 	struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[inst];
 
@@ -624,7 +623,7 @@ static uint32_t dce110_get_dp_pixel_rate_from_combo_phy_pll(
 	struct pll_settings *pll_settings)
 {
 	uint32_t inst = pix_clk_params->controller_id - CONTROLLER_ID_D0;
-	struct core_dc *dc_core = DC_TO_CORE(cs->ctx->dc);
+	struct dc *dc_core = cs->ctx->dc;
 	struct validate_context *context = dc_core->current_context;
 	struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[inst];
 

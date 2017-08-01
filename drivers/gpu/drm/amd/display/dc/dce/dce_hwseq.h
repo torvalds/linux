@@ -528,7 +528,7 @@ enum blnd_mode {
 void dce_enable_fe_clock(struct dce_hwseq *hwss,
 		unsigned int inst, bool enable);
 
-void dce_pipe_control_lock(struct core_dc *dc,
+void dce_pipe_control_lock(struct dc *dc,
 		struct pipe_ctx *pipe,
 		bool lock);
 

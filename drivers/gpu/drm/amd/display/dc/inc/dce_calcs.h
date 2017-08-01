@@ -33,7 +33,7 @@
 #include "bw_fixed.h"
 
 struct pipe_ctx;
-struct core_dc;
+struct dc;
 struct validate_context;
 struct dce_bw_output;
 

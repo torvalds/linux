@@ -144,7 +144,7 @@ struct dc_stream_status *dc_stream_get_status(
 	struct dc_stream_state *stream)
 {
 	uint8_t i;
-	struct core_dc *dc = DC_TO_CORE(stream->ctx->dc);
+	struct dc  *dc = stream->ctx->dc;
 
 	for (i = 0; i < dc->current_context->stream_count; i++) {
 		if (stream == dc->current_context->streams[i]) {
@@ -163,7 +163,7 @@ bool dc_stream_set_cursor_attributes(
 	const struct dc_cursor_attributes *attributes)
 {
 	int i;
-	struct core_dc *core_dc;
+	struct dc  *core_dc;
 	struct resource_context *res_ctx;
 
 	if (NULL == stream) {
@@ -175,7 +175,7 @@ bool dc_stream_set_cursor_attributes(
 			return false;
 	}
 
-	core_dc = DC_TO_CORE(stream->ctx->dc);
+	core_dc = stream->ctx->dc;
 	res_ctx = &core_dc->current_context->res_ctx;
 
 	for (i = 0; i < MAX_PIPES; i++) {
@@ -198,7 +198,7 @@ bool dc_stream_set_cursor_position(
 	const struct dc_cursor_position *position)
 {
 	int i;
-	struct core_dc *core_dc;
+	struct dc  *core_dc;
 	struct resource_context *res_ctx;
 
 	if (NULL == stream) {
@@ -211,7 +211,7 @@ bool dc_stream_set_cursor_position(
 		return false;
 	}
 
-	core_dc = DC_TO_CORE(stream->ctx->dc);
+	core_dc = stream->ctx->dc;
 	res_ctx = &core_dc->current_context->res_ctx;
 
 	for (i = 0; i < MAX_PIPES; i++) {
@@ -246,7 +246,7 @@ bool dc_stream_set_cursor_position(
 uint32_t dc_stream_get_vblank_counter(const struct dc_stream_state *stream)
 {
 	uint8_t i;
-	struct core_dc *core_dc = DC_TO_CORE(stream->ctx->dc);
+	struct dc  *core_dc = stream->ctx->dc;
 	struct resource_context *res_ctx =
 		&core_dc->current_context->res_ctx;
 
@@ -270,7 +270,7 @@ bool dc_stream_get_scanoutpos(const struct dc_stream_state *stream,
 {
 	uint8_t i;
 	bool ret = false;
-	struct core_dc *core_dc = DC_TO_CORE(stream->ctx->dc);
+	struct dc  *core_dc = stream->ctx->dc;
 	struct resource_context *res_ctx =
 		&core_dc->current_context->res_ctx;
 

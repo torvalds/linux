@@ -772,7 +772,7 @@ static bool is_surface_pixel_format_supported(struct pipe_ctx *pipe_ctx, unsigne
 }
 
 static enum dc_status build_mapped_resource(
-		const struct core_dc *dc,
+		const struct dc *dc,
 		struct validate_context *context,
 		struct validate_context *old_context)
 {
@@ -814,7 +814,7 @@ static enum dc_status build_mapped_resource(
 }
 
 static bool dce110_validate_bandwidth(
-	const struct core_dc *dc,
+	struct dc *dc,
 	struct validate_context *context)
 {
 	bool result = false;
@@ -928,7 +928,7 @@ static bool dce110_validate_surface_sets(
 }
 
 static enum dc_status dce110_validate_with_context(
-		const struct core_dc *dc,
+		struct dc *dc,
 		const struct dc_validation_set set[],
 		int set_count,
 		struct validate_context *context,
@@ -972,7 +972,7 @@ static enum dc_status dce110_validate_with_context(
 }
 
 static enum dc_status dce110_validate_guaranteed(
-		const struct core_dc *dc,
+		struct dc *dc,
 		struct dc_stream_state *dc_stream,
 		struct validate_context *context)
 {
@@ -992,7 +992,7 @@ static enum dc_status dce110_validate_guaranteed(
 
 	if (result == DC_OK) {
 		validate_guaranteed_copy_streams(
-				context, dc->public.caps.max_streams);
+				context, dc->caps.max_streams);
 		result = resource_build_scaling_params_for_context(dc, context);
 	}
 
@@ -1008,7 +1008,7 @@ static struct pipe_ctx *dce110_acquire_underlay(
 		const struct resource_pool *pool,
 		struct dc_stream_state *stream)
 {
-	struct core_dc *dc = DC_TO_CORE(stream->ctx->dc);
+	struct dc *dc = stream->ctx->dc;
 	struct resource_context *res_ctx = &context->res_ctx;
 	unsigned int underlay_idx = pool->underlay_pipe_index;
 	struct pipe_ctx *pipe_ctx = &res_ctx->pipe_ctx[underlay_idx];
@@ -1117,7 +1117,7 @@ static bool underlay_create(struct dc_context *ctx, struct resource_pool *pool)
 	return true;
 }
 
-static void bw_calcs_data_update_from_pplib(struct core_dc *dc)
+static void bw_calcs_data_update_from_pplib(struct dc *dc)
 {
 	struct dm_pp_clock_levels clks = {0};
 
@@ -1184,7 +1184,7 @@ const struct resource_caps *dce110_resource_cap(
 
 static bool construct(
 	uint8_t num_virtual_links,
-	struct core_dc *dc,
+	struct dc *dc,
 	struct dce110_resource_pool *pool,
 	struct hw_asic_id asic_id)
 {
@@ -1206,9 +1206,9 @@ static bool construct(
 	pool->base.pipe_count = pool->base.res_cap->num_timing_generator;
 	pool->base.underlay_pipe_index = pool->base.pipe_count;
 
-	dc->public.caps.max_downscale_ratio = 150;
-	dc->public.caps.i2c_speed_in_khz = 100;
-	dc->public.caps.max_cursor_size = 128;
+	dc->caps.max_downscale_ratio = 150;
+	dc->caps.i2c_speed_in_khz = 100;
+	dc->caps.max_cursor_size = 128;
 
 	/*************************************************
 	 *  Create resources                             *
@@ -1351,7 +1351,7 @@ static bool construct(
 	if (!dce110_hw_sequencer_construct(dc))
 		goto res_create_fail;
 
-	dc->public.caps.max_planes =  pool->base.pipe_count;
+	dc->caps.max_planes =  pool->base.pipe_count;
 
 	bw_calcs_init(dc->bw_dceip, dc->bw_vbios, dc->ctx->asic_id);
 
@@ -1366,7 +1366,7 @@ res_create_fail:
 
 struct resource_pool *dce110_create_resource_pool(
 	uint8_t num_virtual_links,
-	struct core_dc *dc,
+	struct dc *dc,
 	struct hw_asic_id asic_id)
 {
 	struct dce110_resource_pool *pool =

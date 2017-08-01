@@ -410,7 +410,7 @@ void dce120_clock_source_destroy(struct clock_source **clk_src)
 }
 
 
-bool dce120_hw_sequencer_create(struct core_dc *dc)
+bool dce120_hw_sequencer_create(struct dc *dc)
 {
 	/* All registers used by dce11.2 match those in dce11 in offset and
 	 * structure
@@ -704,7 +704,7 @@ static const struct resource_funcs dce120_res_pool_funcs = {
 	.validate_plane = dce100_validate_plane
 };
 
-static void bw_calcs_data_update_from_pplib(struct core_dc *dc)
+static void bw_calcs_data_update_from_pplib(struct dc *dc)
 {
 	struct dm_pp_clock_levels_with_latency eng_clks = {0};
 	struct dm_pp_clock_levels_with_latency mem_clks = {0};
@@ -831,7 +831,7 @@ static void bw_calcs_data_update_from_pplib(struct core_dc *dc)
 
 static bool construct(
 	uint8_t num_virtual_links,
-	struct core_dc *dc,
+	struct dc *dc,
 	struct dce110_resource_pool *pool)
 {
 	unsigned int i;
@@ -847,10 +847,10 @@ static bool construct(
 	pool->base.pipe_count = res_cap.num_timing_generator;
 	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
 
-	dc->public.caps.max_downscale_ratio = 200;
-	dc->public.caps.i2c_speed_in_khz = 100;
-	dc->public.caps.max_cursor_size = 128;
-	dc->public.debug = debug_defaults;
+	dc->caps.max_downscale_ratio = 200;
+	dc->caps.i2c_speed_in_khz = 100;
+	dc->caps.max_cursor_size = 128;
+	dc->debug = debug_defaults;
 
 	/*************************************************
 	 *  Create resources                             *
@@ -982,7 +982,7 @@ static bool construct(
 	if (!dce120_hw_sequencer_create(dc))
 		goto controller_create_fail;
 
-	dc->public.caps.max_planes =  pool->base.pipe_count;
+	dc->caps.max_planes =  pool->base.pipe_count;
 
 	bw_calcs_init(dc->bw_dceip, dc->bw_vbios, dc->ctx->asic_id);
 
@@ -1003,7 +1003,7 @@ res_create_fail:
 
 struct resource_pool *dce120_create_resource_pool(
 	uint8_t num_virtual_links,
-	struct core_dc *dc)
+	struct dc *dc)
 {
 	struct dce110_resource_pool *pool =
 		dm_alloc(sizeof(struct dce110_resource_pool));

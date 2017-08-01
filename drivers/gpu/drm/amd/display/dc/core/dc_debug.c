@@ -37,12 +37,12 @@
 } while (0)
 
 void pre_surface_trace(
-		const struct dc *dc,
+		struct dc *dc,
 		const struct dc_plane_state *const *plane_states,
 		int surface_count)
 {
 	int i;
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 	struct dal_logger *logger =  core_dc->ctx->logger;
 
 	for (i = 0; i < surface_count; i++) {
@@ -158,12 +158,12 @@ void pre_surface_trace(
 }
 
 void update_surface_trace(
-		const struct dc *dc,
+		struct dc *dc,
 		const struct dc_surface_update *updates,
 		int surface_count)
 {
 	int i;
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 	struct dal_logger *logger =  core_dc->ctx->logger;
 
 	for (i = 0; i < surface_count; i++) {
@@ -279,9 +279,9 @@ void update_surface_trace(
 	SURFACE_TRACE("\n");
 }
 
-void post_surface_trace(const struct dc *dc)
+void post_surface_trace(struct dc *dc)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 	struct dal_logger *logger =  core_dc->ctx->logger;
 
 	SURFACE_TRACE("post surface process.\n");
@@ -289,11 +289,11 @@ void post_surface_trace(const struct dc *dc)
 }
 
 void context_timing_trace(
-		const struct dc *dc,
+		struct dc *dc,
 		struct resource_context *res_ctx)
 {
 	int i;
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 	struct dal_logger *logger =  core_dc->ctx->logger;
 	int h_pos[MAX_PIPES], v_pos[MAX_PIPES];
 	struct crtc_position position;
@@ -328,11 +328,11 @@ void context_timing_trace(
 }
 
 void context_clock_trace(
-		const struct dc *dc,
+		struct dc *dc,
 		struct validate_context *context)
 {
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 	struct dal_logger *logger =  core_dc->ctx->logger;
 
 	CLOCK_TRACE("Current: dispclk_khz:%d  dppclk_div:%d  dcfclk_khz:%d\n"

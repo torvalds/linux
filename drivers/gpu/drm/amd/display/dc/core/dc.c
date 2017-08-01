@@ -35,7 +35,6 @@
 #include "clock_source.h"
 #include "dc_bios_types.h"
 
-#include "dce_calcs.h"
 #include "bios_parser_interface.h"
 #include "include/irq_service_interface.h"
 #include "transform.h"
@@ -52,7 +51,7 @@
 /*******************************************************************************
  * Private functions
  ******************************************************************************/
-static void destroy_links(struct core_dc *dc)
+static void destroy_links(struct dc *dc)
 {
 	uint32_t i;
 
@@ -63,7 +62,7 @@ static void destroy_links(struct core_dc *dc)
 }
 
 static bool create_links(
-		struct core_dc *dc,
+		struct dc *dc,
 		uint32_t num_virtual_links)
 {
 	int i;
@@ -153,7 +152,7 @@ static bool stream_adjust_vmin_vmax(struct dc *dc,
 		int vmin, int vmax)
 {
 	/* TODO: Support multiple streams */
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 	struct dc_stream_state *stream = streams[0];
 	int i = 0;
 	bool ret = false;
@@ -179,7 +178,7 @@ static bool stream_get_crtc_position(struct dc *dc,
 		unsigned int *v_pos, unsigned int *nom_v_pos)
 {
 	/* TODO: Support multiple streams */
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc *core_dc = dc;
 	struct dc_stream_state *stream = streams[0];
 	int i = 0;
 	bool ret = false;
@@ -202,7 +201,7 @@ static bool stream_get_crtc_position(struct dc *dc,
 
 static bool set_gamut_remap(struct dc *dc, const struct dc_stream_state *stream)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 	int i = 0;
 	bool ret = false;
 	struct pipe_ctx *pipes;
@@ -220,7 +219,7 @@ static bool set_gamut_remap(struct dc *dc, const struct dc_stream_state *stream)
 
 static bool program_csc_matrix(struct dc *dc, struct dc_stream_state *stream)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 	int i = 0;
 	bool ret = false;
 	struct pipe_ctx *pipes;
@@ -245,7 +244,7 @@ static void set_static_screen_events(struct dc *dc,
 		int num_streams,
 		const struct dc_static_screen_events *events)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 	int i = 0;
 	int j = 0;
 	struct pipe_ctx *pipes_affected[MAX_PIPES];
@@ -270,7 +269,7 @@ static void set_drive_settings(struct dc *dc,
 		struct link_training_settings *lt_settings,
 		const struct dc_link *link)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 	int i;
 
 	for (i = 0; i < core_dc->link_count; i++) {
@@ -288,7 +287,7 @@ static void perform_link_training(struct dc *dc,
 		struct dc_link_settings *link_setting,
 		bool skip_video_pattern)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 	int i;
 
 	for (i = 0; i < core_dc->link_count; i++)
@@ -369,48 +368,48 @@ void set_dither_option(struct dc_stream_state *stream,
 		opp_program_bit_depth_reduction(pipes->stream_res.opp, &params);
 }
 
-static void allocate_dc_stream_funcs(struct core_dc *core_dc)
+static void allocate_dc_stream_funcs(struct dc  *core_dc)
 {
 	if (core_dc->hwss.set_drr != NULL) {
-		core_dc->public.stream_funcs.adjust_vmin_vmax =
+		core_dc->stream_funcs.adjust_vmin_vmax =
 				stream_adjust_vmin_vmax;
 	}
 
-	core_dc->public.stream_funcs.set_static_screen_events =
+	core_dc->stream_funcs.set_static_screen_events =
 			set_static_screen_events;
 
-	core_dc->public.stream_funcs.get_crtc_position =
+	core_dc->stream_funcs.get_crtc_position =
 			stream_get_crtc_position;
 
-	core_dc->public.stream_funcs.set_gamut_remap =
+	core_dc->stream_funcs.set_gamut_remap =
 			set_gamut_remap;
 
-	core_dc->public.stream_funcs.program_csc_matrix =
+	core_dc->stream_funcs.program_csc_matrix =
 			program_csc_matrix;
 
-	core_dc->public.stream_funcs.set_dither_option =
+	core_dc->stream_funcs.set_dither_option =
 			set_dither_option;
 
-	core_dc->public.link_funcs.set_drive_settings =
+	core_dc->link_funcs.set_drive_settings =
 			set_drive_settings;
 
-	core_dc->public.link_funcs.perform_link_training =
+	core_dc->link_funcs.perform_link_training =
 			perform_link_training;
 
-	core_dc->public.link_funcs.set_preferred_link_settings =
+	core_dc->link_funcs.set_preferred_link_settings =
 			set_preferred_link_settings;
 
-	core_dc->public.link_funcs.enable_hpd =
+	core_dc->link_funcs.enable_hpd =
 			enable_hpd;
 
-	core_dc->public.link_funcs.disable_hpd =
+	core_dc->link_funcs.disable_hpd =
 			disable_hpd;
 
-	core_dc->public.link_funcs.set_test_pattern =
+	core_dc->link_funcs.set_test_pattern =
 			set_test_pattern;
 }
 
-static void destruct(struct core_dc *dc)
+static void destruct(struct dc *dc)
 {
 	dc_release_validate_context(dc->current_context);
 	dc->current_context = NULL;
@@ -446,10 +445,11 @@ static void destruct(struct core_dc *dc)
 
 	dm_free(dc->dcn_ip);
 	dc->dcn_ip = NULL;
+
 #endif
 }
 
-static bool construct(struct core_dc *dc,
+static bool construct(struct dc *dc,
 		const struct dc_init_data *init_params)
 {
 	struct dal_logger *logger;
@@ -508,7 +508,7 @@ static bool construct(struct core_dc *dc,
 
 	dc_ctx->cgs_device = init_params->cgs_device;
 	dc_ctx->driver_context = init_params->driver;
-	dc_ctx->dc = &dc->public;
+	dc_ctx->dc = dc;
 	dc_ctx->asic_id = init_params->asic_id;
 
 	/* Create logger */
@@ -621,7 +621,7 @@ void ProgramPixelDurationV(unsigned int pixelClockInKHz )
 
 struct dc *dc_create(const struct dc_init_data *init_params)
  {
-	struct core_dc *core_dc = dm_alloc(sizeof(*core_dc));
+	struct dc *core_dc = dm_alloc(sizeof(*core_dc));
 	unsigned int full_pipe_count;
 
 	if (NULL == core_dc)
@@ -636,23 +636,23 @@ struct dc *dc_create(const struct dc_init_data *init_params)
 	full_pipe_count = core_dc->res_pool->pipe_count;
 	if (core_dc->res_pool->underlay_pipe_index != NO_UNDERLAY_PIPE)
 		full_pipe_count--;
-	core_dc->public.caps.max_streams = min(
+	core_dc->caps.max_streams = min(
 			full_pipe_count,
 			core_dc->res_pool->stream_enc_count);
 
-	core_dc->public.caps.max_links = core_dc->link_count;
-	core_dc->public.caps.max_audios = core_dc->res_pool->audio_count;
+	core_dc->caps.max_links = core_dc->link_count;
+	core_dc->caps.max_audios = core_dc->res_pool->audio_count;
 
-	core_dc->public.config = init_params->flags;
+	core_dc->config = init_params->flags;
 
 	dm_logger_write(core_dc->ctx->logger, LOG_DC,
 			"Display Core initialized\n");
 
 
 	/* TODO: missing feature to be enabled */
-	core_dc->public.debug.disable_dfs_bypass = true;
+	core_dc->debug.disable_dfs_bypass = true;
 
-	return &core_dc->public;
+	return core_dc;
 
 construct_fail:
 	dm_free(core_dc);
@@ -663,14 +663,14 @@ alloc_fail:
 
 void dc_destroy(struct dc **dc)
 {
-	struct core_dc *core_dc = DC_TO_CORE(*dc);
+	struct dc  *core_dc = *dc;
 	destruct(core_dc);
 	dm_free(core_dc);
 	*dc = NULL;
 }
 
 static bool is_validation_required(
-		const struct core_dc *dc,
+		const struct dc *dc,
 		const struct dc_validation_set set[],
 		int set_count)
 {
@@ -705,7 +705,7 @@ static bool is_validation_required(
 }
 
 static bool validate_streams (
-		const struct dc *dc,
+		struct dc *dc,
 		const struct dc_validation_set set[],
 		int set_count)
 {
@@ -719,7 +719,7 @@ static bool validate_streams (
 }
 
 static bool validate_surfaces(
-		const struct dc *dc,
+		struct dc *dc,
 		const struct dc_validation_set set[],
 		int set_count)
 {
@@ -734,11 +734,11 @@ static bool validate_surfaces(
 }
 
 struct validate_context *dc_get_validate_context(
-		const struct dc *dc,
+		struct dc *dc,
 		const struct dc_validation_set set[],
 		uint8_t set_count)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc *core_dc = dc;
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	struct validate_context *context;
 
@@ -773,11 +773,11 @@ context_alloc_fail:
 }
 
 bool dc_validate_resources(
-		const struct dc *dc,
+		struct dc *dc,
 		const struct dc_validation_set set[],
 		uint8_t set_count)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	struct validate_context *context;
 
@@ -811,10 +811,10 @@ context_alloc_fail:
 }
 
 bool dc_validate_guaranteed(
-		const struct dc *dc,
+		struct dc *dc,
 		struct dc_stream_state *stream)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	struct validate_context *context;
 
@@ -844,7 +844,7 @@ context_alloc_fail:
 }
 
 static void program_timing_sync(
-		struct core_dc *core_dc,
+		struct dc *core_dc,
 		struct validate_context *ctx)
 {
 	int i, j;
@@ -918,7 +918,7 @@ static void program_timing_sync(
 }
 
 static bool context_changed(
-		struct core_dc *dc,
+		struct dc *dc,
 		struct validate_context *context)
 {
 	uint8_t i;
@@ -935,7 +935,7 @@ static bool context_changed(
 }
 
 static bool streams_changed(
-		struct core_dc *dc,
+		struct dc *dc,
 		struct dc_stream_state *streams[],
 		uint8_t stream_count)
 {
@@ -961,7 +961,7 @@ bool dc_enable_stereo(
 	bool ret = true;
 	int i, j;
 	struct pipe_ctx *pipe;
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 
 #ifdef ENABLE_FBC
 	struct compressor *fbc_compressor = core_dc->fbc_compressor;
@@ -996,7 +996,7 @@ bool dc_enable_stereo(
  */
 static bool dc_commit_context_no_check(struct dc *dc, struct validate_context *context)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc *core_dc = dc;
 	struct dc_bios *dcb = core_dc->ctx->dc_bios;
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	struct pipe_ctx *pipe;
@@ -1064,7 +1064,7 @@ static bool dc_commit_context_no_check(struct dc *dc, struct validate_context *c
 bool dc_commit_context(struct dc *dc, struct validate_context *context)
 {
 	enum dc_status result = DC_ERROR_UNEXPECTED;
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 	int i;
 
 	if (false == context_changed(core_dc, context))
@@ -1092,7 +1092,7 @@ bool dc_commit_streams(
 	struct dc_stream_state *streams[],
 	uint8_t stream_count)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 	enum dc_status result = DC_ERROR_UNEXPECTED;
 	struct validate_context *context;
 	struct dc_validation_set set[MAX_STREAMS] = { {0, {0} } };
@@ -1158,7 +1158,7 @@ context_alloc_fail:
 bool dc_post_update_surfaces_to_stream(struct dc *dc)
 {
 	int i;
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 	struct validate_context *context = core_dc->current_context;
 
 	post_surface_trace(dc);
@@ -1375,7 +1375,7 @@ static enum surface_update_type  get_scaling_info_update_type(
 }
 
 static enum surface_update_type det_surface_update(
-		const struct core_dc *dc,
+		const struct dc *dc,
 		const struct dc_surface_update *u,
 		int surface_index)
 {
@@ -1410,7 +1410,7 @@ enum surface_update_type dc_check_update_surfaces_for_stream(
 		struct dc_stream_update *stream_update,
 		const struct dc_stream_status *stream_status)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 	int i;
 	enum surface_update_type overall_type = UPDATE_TYPE_FAST;
 
@@ -1456,7 +1456,7 @@ void dc_update_planes_and_stream(struct dc *dc,
 		struct dc_stream_state *stream,
 		struct dc_stream_update *stream_update)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 	struct validate_context *context;
 	int i, j;
 	enum surface_update_type update_type;
@@ -1781,29 +1781,29 @@ context_alloc_fail:
 	DC_ERROR("Failed to allocate new validate context!\n");
 }
 
-uint8_t dc_get_current_stream_count(const struct dc *dc)
+uint8_t dc_get_current_stream_count(struct dc *dc)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc *core_dc = dc;
 	return core_dc->current_context->stream_count;
 }
 
-struct dc_stream_state *dc_get_stream_at_index(const struct dc *dc, uint8_t i)
+struct dc_stream_state *dc_get_stream_at_index(struct dc *dc, uint8_t i)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc *core_dc = dc;
 	if (i < core_dc->current_context->stream_count)
 		return core_dc->current_context->streams[i];
 	return NULL;
 }
 
-struct dc_link *dc_get_link_at_index(const struct dc *dc, uint32_t link_index)
+struct dc_link *dc_get_link_at_index(struct dc *dc, uint32_t link_index)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 	return core_dc->links[link_index];
 }
 
-struct dwbc *dc_get_dwb_at_pipe(const struct dc *dc, uint32_t pipe)
+struct dwbc *dc_get_dwb_at_pipe(struct dc *dc, uint32_t pipe)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc *core_dc = dc;
 	if ((pipe >= dwb_pipe0) && (pipe < dwb_pipe_max_num)) {
 		return core_dc->res_pool->dwbc[(int)pipe];
 	} else {
@@ -1814,20 +1814,20 @@ struct dwbc *dc_get_dwb_at_pipe(const struct dc *dc, uint32_t pipe)
 const struct graphics_object_id dc_get_link_id_at_index(
 	struct dc *dc, uint32_t link_index)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc *core_dc = dc;
 	return core_dc->links[link_index]->link_id;
 }
 
 enum dc_irq_source dc_get_hpd_irq_source_at_index(
 	struct dc *dc, uint32_t link_index)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc *core_dc = dc;
 	return core_dc->links[link_index]->irq_source_hpd;
 }
 
 const struct audio **dc_get_audios(struct dc *dc)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc *core_dc = dc;
 	return (const struct audio **)core_dc->res_pool->audios;
 }
 
@@ -1836,24 +1836,24 @@ enum dc_irq_source dc_interrupt_to_irq_source(
 		uint32_t src_id,
 		uint32_t ext_id)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc *core_dc = dc;
 	return dal_irq_service_to_irq_source(core_dc->res_pool->irqs, src_id, ext_id);
 }
 
-void dc_interrupt_set(const struct dc *dc, enum dc_irq_source src, bool enable)
+void dc_interrupt_set(struct dc *dc, enum dc_irq_source src, bool enable)
 {
-	struct core_dc *core_dc;
+	struct dc *core_dc;
 
 	if (dc == NULL)
 		return;
-	core_dc = DC_TO_CORE(dc);
+	core_dc = dc;
 
 	dal_irq_service_set(core_dc->res_pool->irqs, src, enable);
 }
 
 void dc_interrupt_ack(struct dc *dc, enum dc_irq_source src)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 	dal_irq_service_ack(core_dc->res_pool->irqs, src);
 }
 
@@ -1861,7 +1861,7 @@ void dc_set_power_state(
 	struct dc *dc,
 	enum dc_acpi_cm_power_state power_state)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 	atomic_t ref_count;
 
 	switch (power_state) {
@@ -1889,9 +1889,9 @@ void dc_set_power_state(
 
 }
 
-void dc_resume(const struct dc *dc)
+void dc_resume(struct dc *dc)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 
 	uint32_t i;
 
@@ -1906,7 +1906,7 @@ bool dc_read_aux_dpcd(
 		uint8_t *data,
 		uint32_t size)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 
 	struct dc_link *link = core_dc->links[link_index];
 	enum ddc_result r = dal_ddc_service_read_dpcd_data(
@@ -1926,7 +1926,7 @@ bool dc_write_aux_dpcd(
 		const uint8_t *data,
 		uint32_t size)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 	struct dc_link *link = core_dc->links[link_index];
 
 	enum ddc_result r = dal_ddc_service_write_dpcd_data(
@@ -1947,7 +1947,7 @@ bool dc_read_aux_i2c(
 		uint8_t *data,
 		uint32_t size)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 
 		struct dc_link *link = core_dc->links[link_index];
 		enum ddc_result r = dal_ddc_service_read_dpcd_data(
@@ -1968,7 +1968,7 @@ bool dc_write_aux_i2c(
 		const uint8_t *data,
 		uint32_t size)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 	struct dc_link *link = core_dc->links[link_index];
 
 	enum ddc_result r = dal_ddc_service_write_dpcd_data(
@@ -1990,7 +1990,7 @@ bool dc_query_ddc_data(
 		uint8_t *read_buf,
 		uint32_t read_size) {
 
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 
 	struct dc_link *link = core_dc->links[link_index];
 
@@ -2010,7 +2010,7 @@ bool dc_submit_i2c(
 		uint32_t link_index,
 		struct i2c_command *cmd)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 
 	struct dc_link *link = core_dc->links[link_index];
 	struct ddc_service *ddc = link->ddc;
@@ -2129,7 +2129,7 @@ void dc_link_remove_remote_sink(struct dc_link *link, struct dc_sink *sink)
 bool dc_init_dchub(struct dc *dc, struct dchub_init_data *dh_data)
 {
 	int i;
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc  *core_dc = dc;
 	struct mem_input *mi = NULL;
 
 	for (i = 0; i < core_dc->res_pool->pipe_count; i++) {
@@ -2155,7 +2155,7 @@ bool dc_init_dchub(struct dc *dc, struct dchub_init_data *dh_data)
 
 void dc_log_hw_state(struct dc *dc)
 {
-	struct core_dc *core_dc = DC_TO_CORE(dc);
+	struct dc *core_dc = dc;
 
 	if (core_dc->hwss.log_hw_state)
 		core_dc->hwss.log_hw_state(core_dc);

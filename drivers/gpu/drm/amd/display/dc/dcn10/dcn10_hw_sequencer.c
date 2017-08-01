@@ -52,7 +52,7 @@
 #define FN(reg_name, field_name) \
 	hws->shifts->field_name, hws->masks->field_name
 
-static void log_mpc_crc(struct core_dc *dc)
+static void log_mpc_crc(struct dc *dc)
 {
 	struct dc_context *dc_ctx = dc->ctx;
 	struct dce_hwseq *hws = dc->hwseq;
@@ -130,7 +130,7 @@ static void dcn10_hubbub_wm_read_state(struct dce_hwseq *hws,
 	s->dram_clk_chanage = REG_READ(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_D);
 }
 
-static void dcn10_log_hubbub_state(struct core_dc *dc)
+static void dcn10_log_hubbub_state(struct dc *dc)
 {
 	struct dc_context *dc_ctx = dc->ctx;
 	struct dcn_hubbub_wm wm;
@@ -157,7 +157,7 @@ static void dcn10_log_hubbub_state(struct core_dc *dc)
 	DTN_INFO("\n");
 }
 
-static void dcn10_log_hw_state(struct core_dc *dc)
+static void dcn10_log_hw_state(struct dc *dc)
 {
 	struct dc_context *dc_ctx = dc->ctx;
 	struct resource_pool *pool = dc->res_pool;
@@ -273,7 +273,7 @@ static void verify_allow_pstate_change_high(
 	forced_pstate_allow = true;
 
 	if (should_log_hw_state) {
-		dcn10_log_hw_state(DC_TO_CORE(hws->ctx->dc));
+		dcn10_log_hw_state(hws->ctx->dc);
 	}
 
 	BREAK_TO_DEBUGGER();
@@ -746,7 +746,7 @@ static void power_on_plane(
 			"Un-gated front end for pipe %d\n", plane_id);
 }
 
-static void bios_golden_init(struct core_dc *dc)
+static void bios_golden_init(struct dc *dc)
 {
 	struct dc_bios *bp = dc->ctx->dc_bios;
 	int i;
@@ -762,7 +762,7 @@ static void bios_golden_init(struct core_dc *dc)
 	}
 }
 
-static void dcn10_init_hw(struct core_dc *dc)
+static void dcn10_init_hw(struct dc *dc)
 {
 	int i;
 	struct abm *abm = dc->res_pool->abm;
@@ -773,7 +773,7 @@ static void dcn10_init_hw(struct core_dc *dc)
 		REG_UPDATE(DCHUBBUB_GLOBAL_TIMER_CNTL, DCHUBBUB_GLOBAL_TIMER_ENABLE, 1);
 		REG_WRITE(DIO_MEM_PWR_CTRL, 0);
 
-		if (!dc->public.debug.disable_clock_gate) {
+		if (!dc->debug.disable_clock_gate) {
 			/* enable all DCN clock gating */
 			REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
 
@@ -830,7 +830,7 @@ static void dcn10_init_hw(struct core_dc *dc)
 	/* power AFMT HDMI memory TODO: may move to dis/en output save power*/
 	REG_WRITE(DIO_MEM_PWR_CTRL, 0);
 
-	if (!dc->public.debug.disable_clock_gate) {
+	if (!dc->debug.disable_clock_gate) {
 		/* enable all DCN clock gating */
 		REG_WRITE(DCCG_GATE_DISABLE_CNTL, 0);
 
@@ -845,7 +845,7 @@ static void dcn10_init_hw(struct core_dc *dc)
 static enum dc_status dcn10_prog_pixclk_crtc_otg(
 		struct pipe_ctx *pipe_ctx,
 		struct validate_context *context,
-		struct core_dc *dc)
+		struct dc *dc)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	enum dc_color_space color_space;
@@ -932,7 +932,7 @@ static enum dc_status dcn10_prog_pixclk_crtc_otg(
 }
 
 static void reset_back_end_for_pipe(
-		struct core_dc *dc,
+		struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
 		struct validate_context *context)
 {
@@ -979,7 +979,7 @@ static void reset_back_end_for_pipe(
 }
 
 /* trigger HW to start disconnect plane from stream on the next vsync */
-static void plane_atomic_disconnect(struct core_dc *dc,
+static void plane_atomic_disconnect(struct dc *dc,
 		int fe_idx)
 {
 	struct mem_input *mi = dc->res_pool->mis[fe_idx];
@@ -1004,10 +1004,10 @@ static void plane_atomic_disconnect(struct core_dc *dc,
 	if (opp_id == dc->res_pool->pipe_count)
 		return;
 
-	if (dc->public.debug.sanity_checks)
+	if (dc->debug.sanity_checks)
 		verify_allow_pstate_change_high(dc->hwseq);
 	mi->funcs->dcc_control(mi, false, false);
-	if (dc->public.debug.sanity_checks)
+	if (dc->debug.sanity_checks)
 		verify_allow_pstate_change_high(dc->hwseq);
 
 	mpc->funcs->remove(mpc, dc->res_pool->opps[opp_id], fe_idx);
@@ -1015,7 +1015,7 @@ static void plane_atomic_disconnect(struct core_dc *dc,
 
 /* disable HW used by plane.
  * note:  cannot disable until disconnect is complete */
-static void plane_atomic_disable(struct core_dc *dc,
+static void plane_atomic_disable(struct dc *dc,
 		int fe_idx)
 {
 	struct dce_hwseq *hws = dc->hwseq;
@@ -1037,7 +1037,7 @@ static void plane_atomic_disable(struct core_dc *dc,
 	mi->opp_id = 0xf;
 	mi->mpcc_id = 0xf;
 
-	if (dc->public.debug.sanity_checks)
+	if (dc->debug.sanity_checks)
 		verify_allow_pstate_change_high(dc->hwseq);
 
 	REG_UPDATE(HUBP_CLK_CNTL[fe_idx],
@@ -1049,7 +1049,7 @@ static void plane_atomic_disable(struct core_dc *dc,
 		REG_UPDATE(OPP_PIPE_CONTROL[opp_id],
 				OPP_PIPE_CLOCK_EN, 0);
 
-	if (dc->public.debug.sanity_checks)
+	if (dc->debug.sanity_checks)
 		verify_allow_pstate_change_high(dc->hwseq);
 }
 
@@ -1057,7 +1057,7 @@ static void plane_atomic_disable(struct core_dc *dc,
  * kill power to plane hw
  * note: cannot power down until plane is disable
  */
-static void plane_atomic_power_down(struct core_dc *dc, int fe_idx)
+static void plane_atomic_power_down(struct dc *dc, int fe_idx)
 {
 	struct dce_hwseq *hws = dc->hwseq;
 	struct transform *xfm = dc->res_pool->transforms[fe_idx];
@@ -1072,13 +1072,13 @@ static void plane_atomic_power_down(struct core_dc *dc, int fe_idx)
 	dm_logger_write(dc->ctx->logger, LOG_DC,
 			"Power gated front end %d\n", fe_idx);
 
-	if (dc->public.debug.sanity_checks)
+	if (dc->debug.sanity_checks)
 		verify_allow_pstate_change_high(dc->hwseq);
 }
 
 
 static void reset_front_end(
-		struct core_dc *dc,
+		struct dc *dc,
 		int fe_idx)
 {
 	struct dce_hwseq *hws = dc->hwseq;
@@ -1097,7 +1097,7 @@ static void reset_front_end(
 	REG_UPDATE(OTG_GLOBAL_SYNC_STATUS[tg->inst], VUPDATE_NO_LOCK_EVENT_CLEAR, 1);
 	tg->funcs->unlock(tg);
 
-	if (dc->public.debug.sanity_checks)
+	if (dc->debug.sanity_checks)
 		verify_allow_pstate_change_high(hws);
 
 	if (tg->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS)
@@ -1112,7 +1112,7 @@ static void reset_front_end(
 					fe_idx);
 }
 
-static void dcn10_power_down_fe(struct core_dc *dc, int fe_idx)
+static void dcn10_power_down_fe(struct dc *dc, int fe_idx)
 {
 	struct dce_hwseq *hws = dc->hwseq;
 	struct transform *xfm = dc->res_pool->transforms[fe_idx];
@@ -1129,12 +1129,12 @@ static void dcn10_power_down_fe(struct core_dc *dc, int fe_idx)
 	dm_logger_write(dc->ctx->logger, LOG_DC,
 			"Power gated front end %d\n", fe_idx);
 
-	if (dc->public.debug.sanity_checks)
+	if (dc->debug.sanity_checks)
 		verify_allow_pstate_change_high(dc->hwseq);
 }
 
 static void reset_hw_ctx_wrap(
-		struct core_dc *dc,
+		struct dc *dc,
 		struct validate_context *context)
 {
 	int i;
@@ -1246,7 +1246,7 @@ static void toggle_watermark_change_req(struct dce_hwseq *hws)
 			DCHUBBUB_ARB_WATERMARK_CHANGE_REQUEST, watermark_change_req);
 }
 
-static void dcn10_update_plane_addr(const struct core_dc *dc, struct pipe_ctx *pipe_ctx)
+static void dcn10_update_plane_addr(const struct dc *dc, struct pipe_ctx *pipe_ctx)
 {
 	bool addr_patched = false;
 	PHYSICAL_ADDRESS_LOC addr;
@@ -1657,7 +1657,7 @@ static bool dcn10_set_output_transfer_func(
 }
 
 static void dcn10_pipe_control_lock(
-	struct core_dc *dc,
+	struct dc *dc,
 	struct pipe_ctx *pipe,
 	bool lock)
 {
@@ -1669,7 +1669,7 @@ static void dcn10_pipe_control_lock(
 	if (pipe->top_pipe)
 		return;
 
-	if (dc->public.debug.sanity_checks)
+	if (dc->debug.sanity_checks)
 		verify_allow_pstate_change_high(dc->hwseq);
 
 	if (lock)
@@ -1677,7 +1677,7 @@ static void dcn10_pipe_control_lock(
 	else
 		pipe->stream_res.tg->funcs->unlock(pipe->stream_res.tg);
 
-	if (dc->public.debug.sanity_checks)
+	if (dc->debug.sanity_checks)
 		verify_allow_pstate_change_high(dc->hwseq);
 }
 
@@ -1719,7 +1719,7 @@ static bool wait_for_reset_trigger_to_occur(
 }
 
 static void dcn10_enable_timing_synchronization(
-	struct core_dc *dc,
+	struct dc *dc,
 	int group_index,
 	int group_size,
 	struct pipe_ctx *grouped_pipes[])
@@ -1748,7 +1748,7 @@ static void dcn10_enable_timing_synchronization(
 }
 
 static void print_rq_dlg_ttu(
-		struct core_dc *core_dc,
+		struct dc *core_dc,
 		struct pipe_ctx *pipe_ctx)
 {
 	dm_logger_write(core_dc->ctx->logger, LOG_BANDWIDTH_CALCS,
@@ -1870,14 +1870,14 @@ static void print_rq_dlg_ttu(
 }
 
 static void dcn10_power_on_fe(
-	struct core_dc *dc,
+	struct dc *dc,
 	struct pipe_ctx *pipe_ctx,
 	struct validate_context *context)
 {
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	struct dce_hwseq *hws = dc->hwseq;
 
-	if (dc->public.debug.sanity_checks) {
+	if (dc->debug.sanity_checks) {
 		verify_allow_pstate_change_high(dc->hwseq);
 	}
 
@@ -1928,7 +1928,7 @@ static void dcn10_power_on_fe(
 		print_rq_dlg_ttu(dc, pipe_ctx);
 	}
 
-	if (dc->public.debug.sanity_checks) {
+	if (dc->debug.sanity_checks) {
 		verify_allow_pstate_change_high(dc->hwseq);
 	}
 }
@@ -2084,7 +2084,7 @@ static void dcn10_get_surface_visual_confirm_color(
 }
 
 static void update_dchubp_dpp(
-	struct core_dc *dc,
+	struct dc *dc,
 	struct pipe_ctx *pipe_ctx,
 	struct validate_context *context)
 {
@@ -2126,7 +2126,7 @@ static void update_dchubp_dpp(
 
 	size.grph.surface_size = pipe_ctx->plane_res.scl_data.viewport;
 
-	if (dc->public.config.gpu_vm_support)
+	if (dc->config.gpu_vm_support)
 		mi->funcs->mem_input_program_pte_vm(
 				pipe_ctx->plane_res.mi,
 				plane_state->format,
@@ -2142,7 +2142,7 @@ static void update_dchubp_dpp(
 	mpcc_cfg.opp = pipe_ctx->stream_res.opp;
 	for (top_pipe = pipe_ctx->top_pipe; top_pipe; top_pipe = top_pipe->top_pipe)
 		mpcc_cfg.z_index++;
-	if (dc->public.debug.surface_visual_confirm)
+	if (dc->debug.surface_visual_confirm)
 		dcn10_get_surface_visual_confirm_color(
 				pipe_ctx, &mpcc_cfg.black_color);
 	else
@@ -2187,7 +2187,7 @@ static void update_dchubp_dpp(
 
 
 static void program_all_pipe_in_tree(
-		struct core_dc *dc,
+		struct dc *dc,
 		struct pipe_ctx *pipe_ctx,
 		struct validate_context *context)
 {
@@ -2201,7 +2201,7 @@ static void program_all_pipe_in_tree(
 		/* watermark is for all pipes */
 		program_watermarks(dc->hwseq, &context->bw.dcn.watermarks, ref_clk_mhz);
 
-		if (dc->public.debug.sanity_checks) {
+		if (dc->debug.sanity_checks) {
 			/* pstate stuck check after watermark update */
 			verify_allow_pstate_change_high(dc->hwseq);
 		}
@@ -2236,7 +2236,7 @@ static void program_all_pipe_in_tree(
 		update_dchubp_dpp(dc, pipe_ctx, context);
 	}
 
-	if (dc->public.debug.sanity_checks) {
+	if (dc->debug.sanity_checks) {
 		/* pstate stuck check after each pipe is programmed */
 		verify_allow_pstate_change_high(dc->hwseq);
 	}
@@ -2246,7 +2246,7 @@ static void program_all_pipe_in_tree(
 }
 
 static void dcn10_pplib_apply_display_requirements(
-	struct core_dc *dc,
+	struct dc *dc,
 	struct validate_context *context)
 {
 	struct dm_pp_display_configuration *pp_display_cfg = &context->pp_display_cfg;
@@ -2273,14 +2273,14 @@ static void dcn10_pplib_apply_display_requirements(
 }
 
 static void dcn10_apply_ctx_for_surface(
-		struct core_dc *dc,
+		struct dc *dc,
 		const struct dc_stream_state *stream,
 		int num_planes,
 		struct validate_context *context)
 {
 	int i, be_idx;
 
-	if (dc->public.debug.sanity_checks)
+	if (dc->debug.sanity_checks)
 		verify_allow_pstate_change_high(dc->hwseq);
 
 	be_idx = -1;
@@ -2351,7 +2351,7 @@ static void dcn10_apply_ctx_for_surface(
 					"[debug_mpo: apply_ctx disconnect pending on mpcc %d]\n",
 					old_pipe_ctx->mpcc->inst);*/
 
-			if (dc->public.debug.sanity_checks)
+			if (dc->debug.sanity_checks)
 				verify_allow_pstate_change_high(dc->hwseq);
 
 			old_pipe_ctx->top_pipe = NULL;
@@ -2422,18 +2422,18 @@ static void dcn10_apply_ctx_for_surface(
 			context->bw.dcn.watermarks.d.pte_meta_urgent_ns
 			);
 
-	if (dc->public.debug.sanity_checks)
+	if (dc->debug.sanity_checks)
 		verify_allow_pstate_change_high(dc->hwseq);
 }
 
 static void dcn10_set_bandwidth(
-		struct core_dc *dc,
+		struct dc *dc,
 		struct validate_context *context,
 		bool decrease_allowed)
 {
 	struct dm_pp_clock_for_voltage_req clock;
 
-	if (dc->public.debug.sanity_checks) {
+	if (dc->debug.sanity_checks) {
 		verify_allow_pstate_change_high(dc->hwseq);
 	}
 
@@ -2488,7 +2488,7 @@ static void dcn10_set_bandwidth(
 	}
 	dcn10_pplib_apply_display_requirements(dc, context);
 
-	if (dc->public.debug.sanity_checks) {
+	if (dc->debug.sanity_checks) {
 		verify_allow_pstate_change_high(dc->hwseq);
 	}
 
@@ -2541,7 +2541,7 @@ static void set_static_screen_control(struct pipe_ctx **pipe_ctx,
 }
 
 static void set_plane_config(
-	const struct core_dc *dc,
+	const struct dc *dc,
 	struct pipe_ctx *pipe_ctx,
 	struct resource_context *res_ctx)
 {
@@ -2586,7 +2586,7 @@ static void dcn10_config_stereo_parameters(
 	return;
 }
 
-static void dcn10_setup_stereo(struct pipe_ctx *pipe_ctx, struct core_dc *dc)
+static void dcn10_setup_stereo(struct pipe_ctx *pipe_ctx, struct dc *dc)
 {
 	struct crtc_stereo_flags flags = { 0 };
 	struct dc_stream_state *stream = pipe_ctx->stream;
@@ -2607,13 +2607,13 @@ static void dcn10_setup_stereo(struct pipe_ctx *pipe_ctx, struct core_dc *dc)
 }
 
 static void dcn10_wait_for_mpcc_disconnect(
-		struct core_dc *dc,
+		struct dc *dc,
 		struct resource_pool *res_pool,
 		struct pipe_ctx *pipe_ctx)
 {
 	int i;
 
-	if (dc->public.debug.sanity_checks) {
+	if (dc->debug.sanity_checks) {
 		verify_allow_pstate_change_high(dc->hwseq);
 	}
 
@@ -2631,14 +2631,14 @@ static void dcn10_wait_for_mpcc_disconnect(
 		}
 	}
 
-	if (dc->public.debug.sanity_checks) {
+	if (dc->debug.sanity_checks) {
 		verify_allow_pstate_change_high(dc->hwseq);
 	}
 
 }
 
 static bool dcn10_dummy_display_power_gating(
-	struct core_dc *dc,
+	struct dc *dc,
 	uint8_t controller_id,
 	struct dc_bios *dcb,
 	enum pipe_gating_control power_gating)
@@ -2652,7 +2652,7 @@ void dcn10_update_pending_status(struct pipe_ctx *pipe_ctx)
 	struct timing_generator *tg = pipe_ctx->stream_res.tg;
 
 	if (plane_state->ctx->dc->debug.sanity_checks) {
-		struct core_dc *dc = DC_TO_CORE(plane_state->ctx->dc);
+		struct dc *dc = plane_state->ctx->dc;
 
 		verify_allow_pstate_change_high(dc->hwseq);
 	}
@@ -2716,7 +2716,7 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 };
 
 
-void dcn10_hw_sequencer_construct(struct core_dc *dc)
+void dcn10_hw_sequencer_construct(struct dc *dc)
 {
 	dc->hwss = dcn10_funcs;
 }

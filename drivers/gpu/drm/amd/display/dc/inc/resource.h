@@ -27,7 +27,6 @@
 
 #include "core_types.h"
 #include "core_status.h"
-#include "core_dc.h"
 #include "dal_asic_id.h"
 
 /* TODO unhardcode, 4 for CZ*/
@@ -67,27 +66,27 @@ struct resource_create_funcs {
 
 bool resource_construct(
 	unsigned int num_virtual_links,
-	struct core_dc *dc,
+	struct dc *dc,
 	struct resource_pool *pool,
 	const struct resource_create_funcs *create_funcs);
 
 struct resource_pool *dc_create_resource_pool(
-				struct core_dc *dc,
+				struct dc *dc,
 				int num_virtual_links,
 				enum dce_version dc_version,
 				struct hw_asic_id asic_id);
 
-void dc_destroy_resource_pool(struct core_dc *dc);
+void dc_destroy_resource_pool(struct dc *dc);
 
 enum dc_status resource_map_pool_resources(
-		const struct core_dc *dc,
+		const struct dc *dc,
 		struct validate_context *context,
 		struct validate_context *old_context);
 
 bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx);
 
 enum dc_status resource_build_scaling_params_for_context(
-		const struct core_dc *dc,
+		const struct dc *dc,
 		struct validate_context *context);
 
 void resource_build_info_frame(struct pipe_ctx *pipe_ctx);
@@ -148,12 +147,12 @@ void resource_validate_ctx_update_pointer_after_copy(
 		struct validate_context *dst_ctx);
 
 enum dc_status resource_map_clock_resources(
-		const struct core_dc *dc,
+		const struct dc *dc,
 		struct validate_context *context,
 		struct validate_context *old_context);
 
 enum dc_status resource_map_phy_clock_resources(
-		const struct core_dc *dc,
+		const struct dc *dc,
 		struct validate_context *context,
 		struct validate_context *old_context);
 

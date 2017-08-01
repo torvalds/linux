@@ -31,7 +31,7 @@
 #define TO_DCN10_RES_POOL(pool)\
 	container_of(pool, struct dcn10_resource_pool, base)
 
-struct core_dc;
+struct dc;
 struct resource_pool;
 struct _vcs_dpi_display_pipe_params_st;
 
@@ -40,7 +40,7 @@ struct dcn10_resource_pool {
 };
 struct resource_pool *dcn10_create_resource_pool(
 		uint8_t num_virtual_links,
-		struct core_dc *dc);
+		struct dc *dc);
 
 
 #endif /* __DC_RESOURCE_DCN10_H__ */

@@ -28,7 +28,7 @@
 
 #include "core_types.h"
 
-struct core_dc;
+struct dc;
 struct resource_pool;
 
 #define TO_DCE110_RES_POOL(pool)\
@@ -42,7 +42,7 @@ enum dc_status dce110_resource_build_pipe_hw_param(struct pipe_ctx *pipe_ctx);
 
 struct resource_pool *dce110_create_resource_pool(
 	uint8_t num_virtual_links,
-	struct core_dc *dc,
+	struct dc *dc,
 	struct hw_asic_id asic_id);
 
 #endif /* __DC_RESOURCE_DCE110_H__ */

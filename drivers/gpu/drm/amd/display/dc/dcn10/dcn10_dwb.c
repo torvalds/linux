@@ -26,7 +26,6 @@
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 
 #include "reg_helper.h"
-#include "core_dc.h"
 #include "resource.h"
 #include "dwb.h"
 #include "dcn10_dwb.h"

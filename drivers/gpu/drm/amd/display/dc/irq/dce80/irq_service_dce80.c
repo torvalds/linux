@@ -36,7 +36,6 @@
 #include "ivsrcid/ivsrcid_vislands30.h"
 
 #include "dc_types.h"
-#include "inc/core_dc.h"
 
 static bool hpd_ack(
 	struct irq_service *irq_service,

@@ -10,7 +10,6 @@
 #include "core_status.h"
 #include "dpcd_defs.h"
 
-#include "core_dc.h"
 #include "resource.h"
 
 /* maximum pre emphasis level allowed for each voltage swing level*/

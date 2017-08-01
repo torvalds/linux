@@ -27,7 +27,6 @@
 #include "dcn_calcs.h"
 #include "dcn_calc_auto.h"
 #include "dc.h"
-#include "core_dc.h"
 #include "dal_asic_id.h"
 
 #include "resource.h"
@@ -399,7 +398,7 @@ static void pipe_ctx_to_e2e_pipe_params (
 }
 
 static void dcn_bw_calc_rq_dlg_ttu(
-		const struct core_dc *dc,
+		const struct dc *dc,
 		const struct dcn_bw_internal_vars *v,
 		struct pipe_ctx *pipe,
 		int in_idx)
@@ -674,45 +673,45 @@ static void calc_wm_sets_and_perf_params(
 		context->bw.dcn.watermarks.d = context->bw.dcn.watermarks.a;
 }
 
-static bool dcn_bw_apply_registry_override(struct core_dc *dc)
+static bool dcn_bw_apply_registry_override(struct dc *dc)
 {
 	bool updated = false;
 
 	kernel_fpu_begin();
-	if ((int)(dc->dcn_soc->sr_exit_time * 1000) != dc->public.debug.sr_exit_time_ns
-			&& dc->public.debug.sr_exit_time_ns) {
+	if ((int)(dc->dcn_soc->sr_exit_time * 1000) != dc->debug.sr_exit_time_ns
+			&& dc->debug.sr_exit_time_ns) {
 		updated = true;
-		dc->dcn_soc->sr_exit_time = dc->public.debug.sr_exit_time_ns / 1000.0;
+		dc->dcn_soc->sr_exit_time = dc->debug.sr_exit_time_ns / 1000.0;
 	}
 
 	if ((int)(dc->dcn_soc->sr_enter_plus_exit_time * 1000)
-				!= dc->public.debug.sr_enter_plus_exit_time_ns
-			&& dc->public.debug.sr_enter_plus_exit_time_ns) {
+				!= dc->debug.sr_enter_plus_exit_time_ns
+			&& dc->debug.sr_enter_plus_exit_time_ns) {
 		updated = true;
 		dc->dcn_soc->sr_enter_plus_exit_time =
-				dc->public.debug.sr_enter_plus_exit_time_ns / 1000.0;
+				dc->debug.sr_enter_plus_exit_time_ns / 1000.0;
 	}
 
-	if ((int)(dc->dcn_soc->urgent_latency * 1000) != dc->public.debug.urgent_latency_ns
-			&& dc->public.debug.urgent_latency_ns) {
+	if ((int)(dc->dcn_soc->urgent_latency * 1000) != dc->debug.urgent_latency_ns
+			&& dc->debug.urgent_latency_ns) {
 		updated = true;
-		dc->dcn_soc->urgent_latency = dc->public.debug.urgent_latency_ns / 1000.0;
+		dc->dcn_soc->urgent_latency = dc->debug.urgent_latency_ns / 1000.0;
 	}
 
 	if ((int)(dc->dcn_soc->percent_of_ideal_drambw_received_after_urg_latency * 1000)
-				!= dc->public.debug.percent_of_ideal_drambw
-			&& dc->public.debug.percent_of_ideal_drambw) {
+				!= dc->debug.percent_of_ideal_drambw
+			&& dc->debug.percent_of_ideal_drambw) {
 		updated = true;
 		dc->dcn_soc->percent_of_ideal_drambw_received_after_urg_latency =
-				dc->public.debug.percent_of_ideal_drambw;
+				dc->debug.percent_of_ideal_drambw;
 	}
 
 	if ((int)(dc->dcn_soc->dram_clock_change_latency * 1000)
-				!= dc->public.debug.dram_clock_change_latency_ns
-			&& dc->public.debug.dram_clock_change_latency_ns) {
+				!= dc->debug.dram_clock_change_latency_ns
+			&& dc->debug.dram_clock_change_latency_ns) {
 		updated = true;
 		dc->dcn_soc->dram_clock_change_latency =
-				dc->public.debug.dram_clock_change_latency_ns / 1000.0;
+				dc->debug.dram_clock_change_latency_ns / 1000.0;
 	}
 	kernel_fpu_end();
 
@@ -720,7 +719,7 @@ static bool dcn_bw_apply_registry_override(struct core_dc *dc)
 }
 
 bool dcn_validate_bandwidth(
-		const struct core_dc *dc,
+		struct dc *dc,
 		struct validate_context *context)
 {
 	const struct resource_pool *pool = dc->res_pool;
@@ -730,8 +729,8 @@ bool dcn_validate_bandwidth(
 	bool bw_limit_pass;
 	float bw_limit;
 
-	if (dcn_bw_apply_registry_override(DC_TO_CORE(&dc->public)))
-		dcn_bw_sync_calcs_and_dml(DC_TO_CORE(&dc->public));
+	if (dcn_bw_apply_registry_override(dc))
+		dcn_bw_sync_calcs_and_dml(dc);
 
 	memset(v, 0, sizeof(*v));
 	kernel_fpu_begin();
@@ -850,7 +849,7 @@ bool dcn_validate_bandwidth(
 	v->phyclk_per_state[1] = v->phyclkv_mid0p72;
 	v->phyclk_per_state[0] = v->phyclkv_min0p65;
 
-	if (dc->public.debug.disable_pipe_split) {
+	if (dc->debug.disable_pipe_split) {
 		v->max_dispclk[0] = v->max_dppclk_vmin0p65;
 	}
 
@@ -982,15 +981,15 @@ bool dcn_validate_bandwidth(
 	mode_support_and_system_configuration(v);
 
 	if (v->voltage_level == 0 &&
-			(dc->public.debug.sr_exit_time_dpm0_ns
-				|| dc->public.debug.sr_enter_plus_exit_time_dpm0_ns)) {
-		struct core_dc *dc_core = DC_TO_CORE(&dc->public);
+			(dc->debug.sr_exit_time_dpm0_ns
+				|| dc->debug.sr_enter_plus_exit_time_dpm0_ns)) {
+		struct dc *dc_core = dc;
 
-		if (dc->public.debug.sr_enter_plus_exit_time_dpm0_ns)
+		if (dc->debug.sr_enter_plus_exit_time_dpm0_ns)
 			v->sr_enter_plus_exit_time =
-				dc->public.debug.sr_enter_plus_exit_time_dpm0_ns / 1000.0f;
-		if (dc->public.debug.sr_exit_time_dpm0_ns)
-			v->sr_exit_time =  dc->public.debug.sr_exit_time_dpm0_ns / 1000.0f;
+				dc->debug.sr_enter_plus_exit_time_dpm0_ns / 1000.0f;
+		if (dc->debug.sr_exit_time_dpm0_ns)
+			v->sr_exit_time =  dc->debug.sr_exit_time_dpm0_ns / 1000.0f;
 		dc_core->dml.soc.sr_enter_plus_exit_time_us = v->sr_enter_plus_exit_time;
 		dc_core->dml.soc.sr_exit_time_us = v->sr_exit_time;
 		mode_support_and_system_configuration(v);
@@ -1020,7 +1019,7 @@ bool dcn_validate_bandwidth(
 		context->bw.dcn.calc_clk.dcfclk_deep_sleep_khz = (int)(v->dcf_clk_deep_sleep * 1000);
 		context->bw.dcn.calc_clk.dcfclk_khz = (int)(v->dcfclk * 1000);
 		context->bw.dcn.calc_clk.dispclk_khz = (int)(v->dispclk * 1000);
-		if (dc->public.debug.max_disp_clk == true)
+		if (dc->debug.max_disp_clk == true)
 			context->bw.dcn.calc_clk.dispclk_khz = (int)(dc->dcn_soc->max_dispclk_vmax0p9 * 1000);
 		context->bw.dcn.calc_clk.dppclk_div = (int)(v->dispclk_dppclk_ratio) == 2;
 
@@ -1109,13 +1108,13 @@ bool dcn_validate_bandwidth(
 
 			input_idx++;
 		}
-		if (dc->public.debug.use_dml_wm)
+		if (dc->debug.use_dml_wm)
 			dcn_dml_wm_override(v, (struct display_mode_lib *)
 					&dc->dml, context, pool);
 	}
 
 	if (v->voltage_level == 0) {
-		struct core_dc *dc_core = DC_TO_CORE(&dc->public);
+		struct dc *dc_core = dc;
 
 		dc_core->dml.soc.sr_enter_plus_exit_time_us =
 				dc_core->dcn_soc->sr_enter_plus_exit_time;
@@ -1138,7 +1137,7 @@ bool dcn_validate_bandwidth(
 }
 
 unsigned int dcn_find_normalized_clock_vdd_Level(
-	const struct core_dc *dc,
+	const struct dc *dc,
 	enum dm_pp_clock_type clocks_type,
 	int clocks_in_khz)
 {
@@ -1228,7 +1227,7 @@ unsigned int dcn_find_normalized_clock_vdd_Level(
 }
 
 unsigned int dcn_find_dcfclk_suits_all(
-	const struct core_dc *dc,
+	const struct dc *dc,
 	struct clocks_value *clocks)
 {
 	unsigned vdd_level, vdd_level_temp;
@@ -1270,7 +1269,7 @@ unsigned int dcn_find_dcfclk_suits_all(
 	return dcf_clk;
 }
 
-void dcn_bw_update_from_pplib(struct core_dc *dc)
+void dcn_bw_update_from_pplib(struct dc *dc)
 {
 	struct dc_context *ctx = dc->ctx;
 	struct dm_pp_clock_levels_with_voltage clks = {0};
@@ -1310,7 +1309,7 @@ void dcn_bw_update_from_pplib(struct core_dc *dc)
 	kernel_fpu_end();
 }
 
-void dcn_bw_notify_pplib_of_wm_ranges(struct core_dc *dc)
+void dcn_bw_notify_pplib_of_wm_ranges(struct dc *dc)
 {
 	struct dm_pp_wm_sets_with_clock_ranges_soc15 clk_ranges = {0};
 	int max_fclk_khz, nom_fclk_khz, min_fclk_khz, max_dcfclk_khz,
@@ -1388,7 +1387,7 @@ void dcn_bw_notify_pplib_of_wm_ranges(struct core_dc *dc)
 	dm_pp_notify_wm_clock_changes_soc15(dc->ctx, &clk_ranges);
 }
 
-void dcn_bw_sync_calcs_and_dml(struct core_dc *dc)
+void dcn_bw_sync_calcs_and_dml(struct dc *dc)
 {
 	kernel_fpu_begin();
 	dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_CALCS,

@@ -26,7 +26,7 @@
 #include "dce_hwseq.h"
 #include "reg_helper.h"
 #include "hw_sequencer.h"
-#include "core_dc.h"
+#include "core_types.h"
 
 #define CTX \
 	hws->ctx
@@ -44,7 +44,7 @@ void dce_enable_fe_clock(struct dce_hwseq *hws,
 			DCFE_CLOCK_ENABLE, enable);
 }
 
-void dce_pipe_control_lock(struct core_dc *dc,
+void dce_pipe_control_lock(struct dc *dc,
 		struct pipe_ctx *pipe,
 		bool lock)
 {

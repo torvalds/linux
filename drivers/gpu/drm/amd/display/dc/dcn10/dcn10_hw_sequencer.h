@@ -28,9 +28,9 @@
 
 #include "core_types.h"
 
-struct core_dc;
+struct dc;
 
-void dcn10_hw_sequencer_construct(struct core_dc *dc);
+void dcn10_hw_sequencer_construct(struct dc *dc);
 extern void fill_display_configs(
 	const struct validate_context *context,
 	struct dm_pp_display_configuration *pp_display_cfg);
