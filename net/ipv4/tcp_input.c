@@ -4564,8 +4564,8 @@ err:
 static void tcp_data_queue(struct sock *sk, struct sk_buff *skb)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
-	bool fragstolen = false;
-	int eaten = -1;
+	bool fragstolen;
+	int eaten;
 
 	if (TCP_SKB_CB(skb)->seq == TCP_SKB_CB(skb)->end_seq) {
 		__kfree_skb(skb);
@@ -4588,12 +4588,11 @@ static void tcp_data_queue(struct sock *sk, struct sk_buff *skb)
 
 		/* Ok. In sequence. In window. */
 queue_and_out:
-		if (eaten < 0) {
-			if (skb_queue_len(&sk->sk_receive_queue) == 0)
-				sk_forced_mem_schedule(sk, skb->truesize);
-			else if (tcp_try_rmem_schedule(sk, skb, skb->truesize))
-				goto drop;
-		}
+		if (skb_queue_len(&sk->sk_receive_queue) == 0)
+			sk_forced_mem_schedule(sk, skb->truesize);
+		else if (tcp_try_rmem_schedule(sk, skb, skb->truesize))
+			goto drop;
+
 		eaten = tcp_queue_rcv(sk, skb, 0, &fragstolen);
 		tcp_rcv_nxt_update(tp, TCP_SKB_CB(skb)->end_seq);
 		if (skb->len)
