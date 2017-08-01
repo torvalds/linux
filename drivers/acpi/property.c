@@ -376,6 +376,9 @@ void acpi_init_properties(struct acpi_device *adev)
 	if (acpi_of && !adev->flags.of_compatible_ok)
 		acpi_handle_info(adev->handle,
 			 ACPI_DT_NAMESPACE_HID " requires 'compatible' property\n");
+
+	if (!adev->data.pointer)
+		acpi_extract_apple_properties(adev);
 }
 
 static void acpi_destroy_nondev_subnodes(struct list_head *list)
