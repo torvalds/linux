@@ -266,6 +266,9 @@ static bool min10_program_surface_flip_and_addr(
 		if (address->grph.addr.quad_part == 0)
 			break;
 
+		REG_UPDATE(DCSURF_SURFACE_CONTROL,
+				PRIMARY_SURFACE_TMZ, address->tmz_surface);
+
 		if (address->grph.meta_addr.quad_part != 0) {
 			REG_SET(DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH, 0,
 					PRIMARY_META_SURFACE_ADDRESS_HIGH,
@@ -288,6 +291,9 @@ static bool min10_program_surface_flip_and_addr(
 		if (address->video_progressive.luma_addr.quad_part == 0
 			|| address->video_progressive.chroma_addr.quad_part == 0)
 			break;
+
+		REG_UPDATE(DCSURF_SURFACE_CONTROL,
+				PRIMARY_SURFACE_TMZ, address->tmz_surface);
 
 		if (address->video_progressive.luma_meta_addr.quad_part != 0) {
 			REG_SET(DCSURF_PRIMARY_META_SURFACE_ADDRESS_HIGH_C, 0,
@@ -328,6 +334,10 @@ static bool min10_program_surface_flip_and_addr(
 			break;
 		if (address->grph_stereo.right_addr.quad_part == 0)
 			break;
+
+		REG_UPDATE(DCSURF_SURFACE_CONTROL,
+				PRIMARY_SURFACE_TMZ, address->tmz_surface);
+
 		if (address->grph_stereo.right_meta_addr.quad_part != 0) {
 
 			REG_SET(DCSURF_SECONDARY_META_SURFACE_ADDRESS_HIGH, 0,
