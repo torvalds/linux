@@ -85,6 +85,17 @@ config NMI_IPI
 	depends on SMP && (DEBUGGER || KEXEC_CORE || HARDLOCKUP_DETECTOR)
 	default y
 
+config PPC_WATCHDOG
+	bool
+	depends on HARDLOCKUP_DETECTOR
+	depends on HAVE_HARDLOCKUP_DETECTOR_ARCH
+	default y
+	help
+	  This is a placeholder when the powerpc hardlockup detector
+	  watchdog is selected (arch/powerpc/kernel/watchdog.c). It is
+	  seleted via the generic lockup detector menu which is why we
+	  have no standalone config option for it here.
+
 config STACKTRACE_SUPPORT
 	bool
 	default y

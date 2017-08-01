@@ -1314,7 +1314,7 @@ EXC_REAL_NONE(0x1800, 0x100)
 EXC_VIRT_NONE(0x5800, 0x100)
 #endif
 
-#if defined(CONFIG_HARDLOCKUP_DETECTOR) && defined(CONFIG_HAVE_HARDLOCKUP_DETECTOR_ARCH)
+#ifdef CONFIG_PPC_WATCHDOG
 
 #define MASKED_DEC_HANDLER_LABEL 3f
 
@@ -1335,10 +1335,10 @@ EXC_COMMON_BEGIN(soft_nmi_common)
 			ADD_NVGPRS;ADD_RECONCILE)
 	b	ret_from_except
 
-#else
+#else /* CONFIG_PPC_WATCHDOG */
 #define MASKED_DEC_HANDLER_LABEL 2f /* normal return */
 #define MASKED_DEC_HANDLER(_H)
-#endif
+#endif /* CONFIG_PPC_WATCHDOG */
 
 /*
  * An interrupt came in while soft-disabled. We set paca->irq_happened, then:
