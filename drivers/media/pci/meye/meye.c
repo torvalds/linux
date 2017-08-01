@@ -1801,7 +1801,7 @@ static void meye_remove(struct pci_dev *pcidev)
 	printk(KERN_INFO "meye: removed\n");
 }
 
-static struct pci_device_id meye_pci_tbl[] = {
+static const struct pci_device_id meye_pci_tbl[] = {
 	{ PCI_VDEVICE(KAWASAKI, PCI_DEVICE_ID_MCHIP_KL5A72002), 0 },
 	{ }
 };
