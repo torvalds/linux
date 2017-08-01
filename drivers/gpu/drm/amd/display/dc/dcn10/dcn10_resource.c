@@ -1323,6 +1323,13 @@ static bool construct(
 	dc->dcn_ip = dcn10_ip_defaults;
 	dc->dcn_soc = dcn10_soc_defaults;
 
+	if (ASICREV_IS_RV1_F0(dc->ctx->asic_id.hw_internal_rev)) {
+		dc->dcn_soc.urgent_latency = 3;
+		dc->public.debug.disable_dmcu = true;
+		dc->dcn_soc.fabric_and_dram_bandwidth_vmax0p9 = 41.60f;
+	}
+
+
 	dc->dcn_soc.number_of_channels = dc->ctx->asic_id.vram_width / ddr4_dram_width;
 	ASSERT(dc->dcn_soc.number_of_channels < 3);
 	if (dc->dcn_soc.number_of_channels == 0)/*old sbios bug*/
@@ -1333,6 +1340,9 @@ static bool construct(
 		dc->dcn_soc.fabric_and_dram_bandwidth_vnom0p8 = 17.066f;
 		dc->dcn_soc.fabric_and_dram_bandwidth_vmid0p72 = 14.933f;
 		dc->dcn_soc.fabric_and_dram_bandwidth_vmin0p65 = 12.8f;
+		if (ASICREV_IS_RV1_F0(dc->ctx->asic_id.hw_internal_rev)) {
+			dc->dcn_soc.fabric_and_dram_bandwidth_vmax0p9 = 20.80f;
+		}
 	}
 
 	if (!dc->public.debug.disable_pplib_clock_request)
