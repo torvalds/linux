@@ -416,7 +416,3 @@ void fbcon_set_bitops(struct fbcon_ops *ops)
 
 EXPORT_SYMBOL(fbcon_set_bitops);
 
-MODULE_AUTHOR("Antonino Daplas <adaplas@pol.net>");
-MODULE_DESCRIPTION("Bit Blitting Operation");
-MODULE_LICENSE("GPL");
-

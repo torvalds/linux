@@ -68,6 +68,7 @@
 #include <linux/kd.h>
 #include <linux/slab.h>
 #include <linux/fb.h>
+#include <linux/fbcon.h>
 #include <linux/vt_kern.h>
 #include <linux/selection.h>
 #include <linux/font.h>
@@ -3606,7 +3607,7 @@ static void fbcon_exit(void)
 	fbcon_has_exited = 1;
 }
 
-static int __init fb_console_init(void)
+void __init fb_console_init(void)
 {
 	int i;
 
@@ -3628,10 +3629,7 @@ static int __init fb_console_init(void)
 
 	console_unlock();
 	fbcon_start();
-	return 0;
 }
-
-fs_initcall(fb_console_init);
 
 #ifdef MODULE
 
@@ -3647,7 +3645,7 @@ static void __exit fbcon_deinit_device(void)
 	}
 }
 
-static void __exit fb_console_exit(void)
+void __exit fb_console_exit(void)
 {
 	console_lock();
 	fb_unregister_client(&fbcon_event_notifier);
@@ -3657,9 +3655,4 @@ static void __exit fb_console_exit(void)
 	do_unregister_con_driver(&fb_con);
 	console_unlock();
 }	
-
-module_exit(fb_console_exit);
-
 #endif
-
-MODULE_LICENSE("GPL");

@@ -4,6 +4,17 @@ obj-$(CONFIG_FB)                  += fb.o
 fb-y                              := fbmem.o fbmon.o fbcmap.o fbsysfs.o \
                                      modedb.o fbcvt.o
 fb-$(CONFIG_FB_DEFERRED_IO)       += fb_defio.o
+
+ifeq ($(CONFIG_FRAMEBUFFER_CONSOLE),y)
+fb-y				  += fbcon.o bitblit.o softcursor.o
+ifeq ($(CONFIG_FB_TILEBLITTING),y)
+fb-y				  += tileblit.o
+endif
+ifeq ($(CONFIG_FRAMEBUFFER_CONSOLE_ROTATION),y)
+fb-y				  += fbcon_rotate.o fbcon_cw.o fbcon_ud.o \
+				     fbcon_ccw.o
+endif
+endif
 fb-objs                           := $(fb-y)
 
 obj-$(CONFIG_FB_CFB_FILLRECT)  += cfbfillrect.o
