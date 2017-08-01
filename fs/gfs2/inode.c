@@ -109,7 +109,7 @@ static void gfs2_set_iop(struct inode *inode)
  * @no_addr: The inode number
  * @no_formal_ino: The inode generation number
  * @blktype: Requested block type (GFS2_BLKST_DINODE or GFS2_BLKST_UNLINKED;
- *           GFS2_BLKST_FREE do indicate not to verify)
+ *           GFS2_BLKST_FREE to indicate not to verify)
  *
  * If @type is DT_UNKNOWN, the inode type is fetched from disk.
  *

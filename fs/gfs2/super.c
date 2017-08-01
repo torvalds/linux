@@ -1296,7 +1296,7 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
  * gfs2_drop_inode - Drop an inode (test for remote unlink)
  * @inode: The inode to drop
  *
- * If we've received a callback on an iopen lock then its because a
+ * If we've received a callback on an iopen lock then it's because a
  * remote node tried to deallocate the inode but failed due to this node
  * still having the inode open. Here we mark the link count zero
  * since we know that it must have reached zero if the GLF_DEMOTE flag
