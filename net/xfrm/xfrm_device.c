@@ -63,7 +63,7 @@ int xfrm_dev_state_add(struct net *net, struct xfrm_state *x,
 	xfrm_address_t *daddr;
 
 	if (!x->type_offload)
-		return 0;
+		return -EINVAL;
 
 	/* We don't yet support UDP encapsulation, TFC padding and ESN. */
 	if (x->encap || x->tfcpad || (x->props.flags & XFRM_STATE_ESN))
