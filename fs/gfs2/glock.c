@@ -171,7 +171,7 @@ void gfs2_glock_free(struct gfs2_glock *gl)
  *
  */
 
-static void gfs2_glock_hold(struct gfs2_glock *gl)
+void gfs2_glock_hold(struct gfs2_glock *gl)
 {
 	GLOCK_BUG_ON(gl, __lockref_is_dead(&gl->gl_lockref));
 	lockref_get(&gl->gl_lockref);
@@ -262,6 +262,14 @@ static void __gfs2_glock_put(struct gfs2_glock *gl)
 	GLOCK_BUG_ON(gl, mapping && mapping->nrpages);
 	trace_gfs2_glock_put(gl);
 	sdp->sd_lockstruct.ls_ops->lm_put_lock(gl);
+}
+
+/*
+ * Cause the glock to be put in work queue context.
+ */
+void gfs2_glock_queue_put(struct gfs2_glock *gl)
+{
+	gfs2_glock_queue_work(gl, 0);
 }
 
 /**
