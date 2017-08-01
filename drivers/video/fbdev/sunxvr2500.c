@@ -220,7 +220,7 @@ err_out:
 	return err;
 }
 
-static struct pci_device_id s3d_pci_table[] = {
+static const struct pci_device_id s3d_pci_table[] = {
 	{	PCI_DEVICE(PCI_VENDOR_ID_3DLABS, 0x002c),	},
 	{	PCI_DEVICE(PCI_VENDOR_ID_3DLABS, 0x002d),	},
 	{	PCI_DEVICE(PCI_VENDOR_ID_3DLABS, 0x002e),	},
