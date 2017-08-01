@@ -470,7 +470,8 @@ int esp6_input_done2(struct sk_buff *skb, int err)
 	int hlen = sizeof(struct ip_esp_hdr) + crypto_aead_ivsize(aead);
 	int elen = skb->len - hlen;
 	int hdr_len = skb_network_header_len(skb);
-	int padlen;
+	int padlen, trimlen;
+	__wsum csumdiff;
 	u8 nexthdr[2];
 
 	if (!xo || (xo && !(xo->flags & CRYPTO_DONE)))
@@ -492,8 +493,15 @@ int esp6_input_done2(struct sk_buff *skb, int err)
 
 	/* ... check padding bits here. Silly. :-) */
 
-	pskb_trim(skb, skb->len - alen - padlen - 2);
-	__skb_pull(skb, hlen);
+	trimlen = alen + padlen + 2;
+	if (skb->ip_summed == CHECKSUM_COMPLETE) {
+		csumdiff = skb_checksum(skb, skb->len - trimlen, trimlen, 0);
+		skb->csum = csum_block_sub(skb->csum, csumdiff,
+					   skb->len - trimlen);
+	}
+	pskb_trim(skb, skb->len - trimlen);
+
+	skb_pull_rcsum(skb, hlen);
 	if (x->props.mode == XFRM_MODE_TUNNEL)
 		skb_reset_transport_header(skb);
 	else
