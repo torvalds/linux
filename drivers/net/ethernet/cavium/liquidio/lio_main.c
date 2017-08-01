@@ -1825,6 +1825,11 @@ static int octeon_chip_specific_setup(struct octeon_device *oct)
 	case OCTEON_CN23XX_PCIID_PF:
 		oct->chip_id = OCTEON_CN23XX_PF_VID;
 		ret = setup_cn23xx_octeon_pf_device(oct);
+#ifdef CONFIG_PCI_IOV
+		if (!ret)
+			pci_sriov_set_totalvfs(oct->pci_dev,
+					       oct->sriov_info.max_vfs);
+#endif
 		s = "CN23XX";
 		break;
 
