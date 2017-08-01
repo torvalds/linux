@@ -7410,7 +7410,7 @@ static void nfs4_exchange_id_done(struct rpc_task *task, void *data)
 			cdata->res.server_scope = NULL;
 		}
 		/* Save the EXCHANGE_ID verifier session trunk tests */
-		memcpy(clp->cl_confirm.data, cdata->args.verifier->data,
+		memcpy(clp->cl_confirm.data, cdata->args.verifier.data,
 		       sizeof(clp->cl_confirm.data));
 	}
 out:
@@ -7447,7 +7447,6 @@ static const struct rpc_call_ops nfs4_exchange_id_call_ops = {
 static int _nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred,
 			u32 sp4_how, struct rpc_xprt *xprt)
 {
-	nfs4_verifier verifier;
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_EXCHANGE_ID],
 		.rpc_cred = cred,
@@ -7470,8 +7469,7 @@ static int _nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred,
 	if (!calldata)
 		goto out;
 
-	if (!xprt)
-		nfs4_init_boot_verifier(clp, &verifier);
+	nfs4_init_boot_verifier(clp, &calldata->args.verifier);
 
 	status = nfs4_init_uniform_client_string(clp);
 	if (status)
@@ -7516,9 +7514,8 @@ static int _nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred,
 		task_setup_data.rpc_xprt = xprt;
 		task_setup_data.flags =
 				RPC_TASK_SOFT|RPC_TASK_SOFTCONN|RPC_TASK_ASYNC;
-		calldata->args.verifier = &clp->cl_confirm;
-	} else {
-		calldata->args.verifier = &verifier;
+		memcpy(calldata->args.verifier.data, clp->cl_confirm.data,
+				sizeof(calldata->args.verifier.data));
 	}
 	calldata->args.client = clp;
 #ifdef CONFIG_NFS_V4_1_MIGRATION
