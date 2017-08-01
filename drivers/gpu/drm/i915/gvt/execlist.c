@@ -499,10 +499,10 @@ static void release_shadow_wa_ctx(struct intel_shadow_wa_ctx *wa_ctx)
 static int complete_execlist_workload(struct intel_vgpu_workload *workload)
 {
 	struct intel_vgpu *vgpu = workload->vgpu;
-	struct intel_vgpu_execlist *execlist =
-		&vgpu->execlist[workload->ring_id];
+	int ring_id = workload->ring_id;
+	struct intel_vgpu_execlist *execlist = &vgpu->execlist[ring_id];
 	struct intel_vgpu_workload *next_workload;
-	struct list_head *next = workload_q_head(vgpu, workload->ring_id)->next;
+	struct list_head *next = workload_q_head(vgpu, ring_id)->next;
 	bool lite_restore = false;
 	int ret;
 
@@ -512,10 +512,10 @@ static int complete_execlist_workload(struct intel_vgpu_workload *workload)
 	release_shadow_batch_buffer(workload);
 	release_shadow_wa_ctx(&workload->wa_ctx);
 
-	if (workload->status || vgpu->resetting)
+	if (workload->status || (vgpu->resetting_eng & ENGINE_MASK(ring_id)))
 		goto out;
 
-	if (!list_empty(workload_q_head(vgpu, workload->ring_id))) {
+	if (!list_empty(workload_q_head(vgpu, ring_id))) {
 		struct execlist_ctx_descriptor_format *this_desc, *next_desc;
 
 		next_workload = container_of(next,

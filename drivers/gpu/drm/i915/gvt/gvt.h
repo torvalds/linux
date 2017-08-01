@@ -149,7 +149,7 @@ struct intel_vgpu {
 	bool active;
 	bool pv_notified;
 	bool failsafe;
-	bool resetting;
+	unsigned int resetting_eng;
 	void *sched_data;
 	struct vgpu_sched_ctl sched_ctl;
 
