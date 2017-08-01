@@ -29,7 +29,7 @@ static const char *const comments[__NFT_TRACETYPE_MAX] = {
 	[NFT_TRACETYPE_RULE]	= "rule",
 };
 
-static struct nf_loginfo trace_loginfo = {
+static const struct nf_loginfo trace_loginfo = {
 	.type = NF_LOG_TYPE_LOG,
 	.u = {
 		.log = {
