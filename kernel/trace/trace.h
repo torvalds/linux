@@ -1210,9 +1210,9 @@ struct ftrace_event_field {
 struct event_filter {
 	int			n_preds;	/* Number assigned */
 	int			a_preds;	/* allocated */
-	struct filter_pred	*preds;
-	struct filter_pred	*root;
-	char			*filter_string;
+	struct filter_pred __rcu	*preds;
+	struct filter_pred __rcu	*root;
+	char				*filter_string;
 };
 
 struct event_subsystem {

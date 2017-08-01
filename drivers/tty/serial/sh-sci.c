@@ -1085,10 +1085,12 @@ static ssize_t rx_trigger_store(struct device *dev,
 {
 	struct uart_port *port = dev_get_drvdata(dev);
 	struct sci_port *sci = to_sci_port(port);
+	int ret;
 	long r;
 
-	if (kstrtol(buf, 0, &r) == -EINVAL)
-		return -EINVAL;
+	ret = kstrtol(buf, 0, &r);
+	if (ret)
+		return ret;
 
 	sci->rx_trigger = scif_set_rtrg(port, r);
 	if (port->type == PORT_SCIFA || port->type == PORT_SCIFB)
@@ -1116,10 +1118,12 @@ static ssize_t rx_fifo_timeout_store(struct device *dev,
 {
 	struct uart_port *port = dev_get_drvdata(dev);
 	struct sci_port *sci = to_sci_port(port);
+	int ret;
 	long r;
 
-	if (kstrtol(buf, 0, &r) == -EINVAL)
-		return -EINVAL;
+	ret = kstrtol(buf, 0, &r);
+	if (ret)
+		return ret;
 	sci->rx_fifo_timeout = r;
 	scif_set_rtrg(port, 1);
 	if (r > 0)

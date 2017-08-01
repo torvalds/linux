@@ -314,7 +314,6 @@ int bpf_obj_get_info_by_fd(int prog_fd, void *info, __u32 *info_len)
 	int err;
 
 	bzero(&attr, sizeof(attr));
-	bzero(info, *info_len);
 	attr.info.bpf_fd = prog_fd;
 	attr.info.info_len = *info_len;
 	attr.info.info = ptr_to_u64(info);

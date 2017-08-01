@@ -125,7 +125,7 @@ static int ftgmac100_reset_mac(struct ftgmac100 *priv, u32 maccr)
 	iowrite32(maccr, priv->base + FTGMAC100_OFFSET_MACCR);
 	iowrite32(maccr | FTGMAC100_MACCR_SW_RST,
 		  priv->base + FTGMAC100_OFFSET_MACCR);
-	for (i = 0; i < 50; i++) {
+	for (i = 0; i < 200; i++) {
 		unsigned int maccr;
 
 		maccr = ioread32(priv->base + FTGMAC100_OFFSET_MACCR);
@@ -392,7 +392,7 @@ static int ftgmac100_alloc_rx_buf(struct ftgmac100 *priv, unsigned int entry,
 	struct net_device *netdev = priv->netdev;
 	struct sk_buff *skb;
 	dma_addr_t map;
-	int err;
+	int err = 0;
 
 	skb = netdev_alloc_skb_ip_align(netdev, RX_BUF_SIZE);
 	if (unlikely(!skb)) {
@@ -428,7 +428,7 @@ static int ftgmac100_alloc_rx_buf(struct ftgmac100 *priv, unsigned int entry,
 	else
 		rxdes->rxdes0 = 0;
 
-	return 0;
+	return err;
 }
 
 static unsigned int ftgmac100_next_rx_pointer(struct ftgmac100 *priv,
@@ -1682,6 +1682,7 @@ static int ftgmac100_setup_mdio(struct net_device *netdev)
 	priv->mii_bus->name = "ftgmac100_mdio";
 	snprintf(priv->mii_bus->id, MII_BUS_ID_SIZE, "%s-%d",
 		 pdev->name, pdev->id);
+	priv->mii_bus->parent = priv->dev;
 	priv->mii_bus->priv = priv->netdev;
 	priv->mii_bus->read = ftgmac100_mdiobus_read;
 	priv->mii_bus->write = ftgmac100_mdiobus_write;

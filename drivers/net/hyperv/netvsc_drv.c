@@ -316,14 +316,34 @@ static u32 init_page_array(void *hdr, u32 len, struct sk_buff *skb,
 	return slots_used;
 }
 
-/* Estimate number of page buffers neede to transmit
- * Need at most 2 for RNDIS header plus skb body and fragments.
- */
-static unsigned int netvsc_get_slots(const struct sk_buff *skb)
+static int count_skb_frag_slots(struct sk_buff *skb)
 {
-	return PFN_UP(offset_in_page(skb->data) + skb_headlen(skb))
-		+ skb_shinfo(skb)->nr_frags
-		+ 2;
+	int i, frags = skb_shinfo(skb)->nr_frags;
+	int pages = 0;
+
+	for (i = 0; i < frags; i++) {
+		skb_frag_t *frag = skb_shinfo(skb)->frags + i;
+		unsigned long size = skb_frag_size(frag);
+		unsigned long offset = frag->page_offset;
+
+		/* Skip unused frames from start of page */
+		offset &= ~PAGE_MASK;
+		pages += PFN_UP(offset + size);
+	}
+	return pages;
+}
+
+static int netvsc_get_slots(struct sk_buff *skb)
+{
+	char *data = skb->data;
+	unsigned int offset = offset_in_page(data);
+	unsigned int len = skb_headlen(skb);
+	int slots;
+	int frag_slots;
+
+	slots = DIV_ROUND_UP(offset + len, PAGE_SIZE);
+	frag_slots = count_skb_frag_slots(skb);
+	return slots + frag_slots;
 }
 
 static u32 net_checksum_info(struct sk_buff *skb)
@@ -360,18 +380,21 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 	u32 hash;
 	struct hv_page_buffer pb[MAX_PAGE_BUFFER_COUNT];
 
-	/* We can only transmit MAX_PAGE_BUFFER_COUNT number
+	/* We will atmost need two pages to describe the rndis
+	 * header. We can only transmit MAX_PAGE_BUFFER_COUNT number
 	 * of pages in a single packet. If skb is scattered around
 	 * more pages we try linearizing it.
 	 */
-	num_data_pgs = netvsc_get_slots(skb);
+
+	num_data_pgs = netvsc_get_slots(skb) + 2;
+
 	if (unlikely(num_data_pgs > MAX_PAGE_BUFFER_COUNT)) {
 		++net_device_ctx->eth_stats.tx_scattered;
 
 		if (skb_linearize(skb))
 			goto no_memory;
 
-		num_data_pgs = netvsc_get_slots(skb);
+		num_data_pgs = netvsc_get_slots(skb) + 2;
 		if (num_data_pgs > MAX_PAGE_BUFFER_COUNT) {
 			++net_device_ctx->eth_stats.tx_too_big;
 			goto drop;

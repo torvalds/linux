@@ -2200,9 +2200,10 @@ static bool tcp_small_queue_check(struct sock *sk, const struct sk_buff *skb,
 static void tcp_chrono_set(struct tcp_sock *tp, const enum tcp_chrono new)
 {
 	const u32 now = tcp_jiffies32;
+	enum tcp_chrono old = tp->chrono_type;
 
-	if (tp->chrono_type > TCP_CHRONO_UNSPEC)
-		tp->chrono_stat[tp->chrono_type - 1] += now - tp->chrono_start;
+	if (old > TCP_CHRONO_UNSPEC)
+		tp->chrono_stat[old - 1] += now - tp->chrono_start;
 	tp->chrono_start = now;
 	tp->chrono_type = new;
 }
