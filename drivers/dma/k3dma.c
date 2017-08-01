@@ -275,12 +275,14 @@ static int k3_dma_start_txd(struct k3_dma_chan *c)
 		list_del(&ds->vd.node);
 
 		WARN_ON_ONCE(c->phy->ds_run);
-		WARN_ON_ONCE(c->phy->ds_done);
 		c->phy->ds_run = ds;
+		c->phy->ds_done = NULL;
 		/* start dma */
 		k3_dma_set_desc(c->phy, &ds->desc_hw[0]);
 		return 0;
 	}
+	c->phy->ds_run = NULL;
+	c->phy->ds_done = NULL;
 	return -EAGAIN;
 }
 
