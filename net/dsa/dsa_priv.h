@@ -77,6 +77,8 @@ struct dsa_slave_priv {
 	struct sk_buff *	(*xmit)(struct sk_buff *skb,
 					struct net_device *dev);
 
+	struct pcpu_sw_netstats	stats64;
+
 	/* DSA port data, such as switch, port index, etc. */
 	struct dsa_port		*dp;
 

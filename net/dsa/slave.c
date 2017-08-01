@@ -354,8 +354,10 @@ static netdev_tx_t dsa_slave_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct sk_buff *nskb;
 
-	dev->stats.tx_packets++;
-	dev->stats.tx_bytes += skb->len;
+	u64_stats_update_begin(&p->stats64.syncp);
+	p->stats64.tx_packets++;
+	p->stats64.tx_bytes += skb->len;
+	u64_stats_update_end(&p->stats64.syncp);
 
 	/* Transmit function may have to reallocate the original SKB,
 	 * in which case it must have freed it. Only free it here on error.
@@ -594,11 +596,15 @@ static void dsa_slave_get_ethtool_stats(struct net_device *dev,
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_switch *ds = p->dp->ds;
+	unsigned int start;
 
-	data[0] = dev->stats.tx_packets;
-	data[1] = dev->stats.tx_bytes;
-	data[2] = dev->stats.rx_packets;
-	data[3] = dev->stats.rx_bytes;
+	do {
+		start = u64_stats_fetch_begin_irq(&p->stats64.syncp);
+		data[0] = p->stats64.tx_packets;
+		data[1] = p->stats64.tx_bytes;
+		data[2] = p->stats64.rx_packets;
+		data[3] = p->stats64.rx_bytes;
+	} while (u64_stats_fetch_retry_irq(&p->stats64.syncp, start));
 	if (ds->ops->get_ethtool_stats)
 		ds->ops->get_ethtool_stats(ds, p->dp->index, data + 4);
 }
@@ -869,6 +875,22 @@ static int dsa_slave_setup_tc(struct net_device *dev, u32 handle,
 	}
 }
 
+static void dsa_slave_get_stats64(struct net_device *dev,
+				  struct rtnl_link_stats64 *stats)
+{
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	unsigned int start;
+
+	netdev_stats_to_stats64(stats, &dev->stats);
+	do {
+		start = u64_stats_fetch_begin_irq(&p->stats64.syncp);
+		stats->tx_packets = p->stats64.tx_packets;
+		stats->tx_bytes = p->stats64.tx_bytes;
+		stats->rx_packets = p->stats64.rx_packets;
+		stats->rx_bytes = p->stats64.rx_bytes;
+	} while (u64_stats_fetch_retry_irq(&p->stats64.syncp, start));
+}
+
 void dsa_cpu_port_ethtool_init(struct ethtool_ops *ops)
 {
 	ops->get_sset_count = dsa_cpu_port_get_sset_count;
@@ -944,6 +966,7 @@ static const struct net_device_ops dsa_slave_netdev_ops = {
 	.ndo_bridge_dellink	= switchdev_port_bridge_dellink,
 	.ndo_get_phys_port_name	= dsa_slave_get_phys_port_name,
 	.ndo_setup_tc		= dsa_slave_setup_tc,
+	.ndo_get_stats64	= dsa_slave_get_stats64,
 };
 
 static const struct switchdev_ops dsa_slave_switchdev_ops = {
@@ -1179,6 +1202,7 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	slave_dev->vlan_features = master->vlan_features;
 
 	p = netdev_priv(slave_dev);
+	u64_stats_init(&p->stats64.syncp);
 	p->dp = &ds->ports[port];
 	INIT_LIST_HEAD(&p->mall_tc_list);
 	p->xmit = dst->tag_ops->xmit;
