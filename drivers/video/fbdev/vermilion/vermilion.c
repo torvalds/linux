@@ -1044,7 +1044,7 @@ static struct fb_ops vmlfb_ops = {
 	.fb_setcolreg = vmlfb_setcolreg
 };
 
-static struct pci_device_id vml_ids[] = {
+static const struct pci_device_id vml_ids[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, VML_DEVICE_VDC)},
 	{0}
 };
