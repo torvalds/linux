@@ -327,11 +327,7 @@ static void bcm_sf2_port_disable(struct dsa_switch *ds, int port,
 static int bcm_sf2_eee_init(struct dsa_switch *ds, int port,
 			    struct phy_device *phy)
 {
-	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	struct ethtool_eee *p = &priv->port_sts[port].eee;
 	int ret;
-
-	p->supported = (SUPPORTED_1000baseT_Full | SUPPORTED_100baseT_Full);
 
 	ret = phy_init_eee(phy, 0);
 	if (ret)
