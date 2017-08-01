@@ -3,6 +3,7 @@
  * Author: Hanyi Wu <hanyi.wu@mediatek.com>
  *         Sascha Hauer <s.hauer@pengutronix.de>
  *         Dawei Chien <dawei.chien@mediatek.com>
+ *         Louis Yu <louis.yu@mediatek.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -111,9 +112,10 @@
 
 /*
  * Layout of the fuses providing the calibration data
- * These macros could be used for both MT8173 and MT2701.
+ * These macros could be used for both MT8173, MT2701, and MT2712.
  * MT8173 has five sensors and need five VTS calibration data,
- * and MT2701 has three sensors and need three VTS calibration data.
+ * and MT2701 has three sensors and need three VTS calibration data,
+ * and MT2712 has four sensors and need four VTS calibration data.
  */
 #define MT8173_CALIB_BUF0_VALID		BIT(0)
 #define MT8173_CALIB_BUF1_ADC_GE(x)	(((x) >> 22) & 0x3ff)
@@ -136,10 +138,25 @@
 /* The total number of temperature sensors in the MT2701 */
 #define MT2701_NUM_SENSORS	3
 
-#define THERMAL_NAME    "mtk-thermal"
-
 /* The number of sensing points per bank */
 #define MT2701_NUM_SENSORS_PER_ZONE	3
+
+/* MT2712 thermal sensors */
+#define MT2712_TS1	0
+#define MT2712_TS2	1
+#define MT2712_TS3	2
+#define MT2712_TS4	3
+
+/* AUXADC channel 11 is used for the temperature sensors */
+#define MT2712_TEMP_AUXADC_CHANNEL	11
+
+/* The total number of temperature sensors in the MT2712 */
+#define MT2712_NUM_SENSORS	4
+
+/* The number of sensing points per bank */
+#define MT2712_NUM_SENSORS_PER_ZONE	4
+
+#define THERMAL_NAME    "mtk-thermal"
 
 struct mtk_thermal;
 
@@ -215,6 +232,21 @@ static const int mt2701_adcpnp[MT2701_NUM_SENSORS_PER_ZONE] = {
 
 static const int mt2701_mux_values[MT2701_NUM_SENSORS] = { 0, 1, 16 };
 
+/* MT2712 thermal sensor data */
+static const int mt2712_bank_data[MT2712_NUM_SENSORS] = {
+	MT2712_TS1, MT2712_TS2, MT2712_TS3, MT2712_TS4
+};
+
+static const int mt2712_msr[MT2712_NUM_SENSORS_PER_ZONE] = {
+	TEMP_MSR0, TEMP_MSR1, TEMP_MSR2, TEMP_MSR3
+};
+
+static const int mt2712_adcpnp[MT2712_NUM_SENSORS_PER_ZONE] = {
+	TEMP_ADCPNP0, TEMP_ADCPNP1, TEMP_ADCPNP2, TEMP_ADCPNP3
+};
+
+static const int mt2712_mux_values[MT2712_NUM_SENSORS] = { 0, 1, 2, 3 };
+
 /**
  * The MT8173 thermal controller has four banks. Each bank can read up to
  * four temperature sensors simultaneously. The MT8173 has a total of 5
@@ -275,6 +307,31 @@ static const struct mtk_thermal_data mt2701_thermal_data = {
 	.msr = mt2701_msr,
 	.adcpnp = mt2701_adcpnp,
 	.sensor_mux_values = mt2701_mux_values,
+};
+
+/**
+ * The MT2712 thermal controller has one bank, which can read up to
+ * four temperature sensors simultaneously. The MT2712 has a total of 4
+ * temperature sensors.
+ *
+ * The thermal core only gets the maximum temperature of this one bank,
+ * so the bank concept wouldn't be necessary here. However, the SVS (Smart
+ * Voltage Scaling) unit makes its decisions based on the same bank
+ * data.
+ */
+static const struct mtk_thermal_data mt2712_thermal_data = {
+	.auxadc_channel = MT2712_TEMP_AUXADC_CHANNEL,
+	.num_banks = 1,
+	.num_sensors = MT2712_NUM_SENSORS,
+	.bank_data = {
+		{
+			.num_sensors = 4,
+			.sensors = mt2712_bank_data,
+		},
+	},
+	.msr = mt2712_msr,
+	.adcpnp = mt2712_adcpnp,
+	.sensor_mux_values = mt2712_mux_values,
 };
 
 /**
@@ -571,6 +628,10 @@ static const struct of_device_id mtk_thermal_of_match[] = {
 	{
 		.compatible = "mediatek,mt2701-thermal",
 		.data = (void *)&mt2701_thermal_data,
+	},
+	{
+		.compatible = "mediatek,mt2712-thermal",
+		.data = (void *)&mt2712_thermal_data,
 	}, {
 	},
 };
@@ -705,6 +766,7 @@ static struct platform_driver mtk_thermal_driver = {
 
 module_platform_driver(mtk_thermal_driver);
 
+MODULE_AUTHOR("Louis Yu <louis.yu@mediatek.com>");
 MODULE_AUTHOR("Dawei Chien <dawei.chien@mediatek.com>");
 MODULE_AUTHOR("Sascha Hauer <s.hauer@pengutronix.de>");
 MODULE_AUTHOR("Hanyi Wu <hanyi.wu@mediatek.com>");
