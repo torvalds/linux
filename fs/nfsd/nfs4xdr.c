@@ -1780,7 +1780,7 @@ nfsd4_decode_notsupp(struct nfsd4_compoundargs *argp, void *p)
 
 typedef __be32(*nfsd4_dec)(struct nfsd4_compoundargs *argp, void *);
 
-static nfsd4_dec nfsd4_dec_ops[] = {
+static const nfsd4_dec nfsd4_dec_ops[] = {
 	[OP_ACCESS]		= (nfsd4_dec)nfsd4_decode_access,
 	[OP_CLOSE]		= (nfsd4_dec)nfsd4_decode_close,
 	[OP_COMMIT]		= (nfsd4_dec)nfsd4_decode_commit,
@@ -4224,7 +4224,7 @@ typedef __be32(* nfsd4_enc)(struct nfsd4_compoundres *, __be32, void *);
  * since we don't need to filter out obsolete ops as this is
  * done in the decoding phase.
  */
-static nfsd4_enc nfsd4_enc_ops[] = {
+static const nfsd4_enc nfsd4_enc_ops[] = {
 	[OP_ACCESS]		= (nfsd4_enc)nfsd4_encode_access,
 	[OP_CLOSE]		= (nfsd4_enc)nfsd4_encode_close,
 	[OP_COMMIT]		= (nfsd4_enc)nfsd4_encode_commit,
