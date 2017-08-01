@@ -99,6 +99,18 @@ struct amdgpu_bo_list_entry;
 #define AMDGPU_VM_USE_CPU_FOR_GFX (1 << 0)
 #define AMDGPU_VM_USE_CPU_FOR_COMPUTE (1 << 1)
 
+/* base structure for tracking BO usage in a VM */
+struct amdgpu_vm_bo_base {
+	/* constant after initialization */
+	struct amdgpu_vm		*vm;
+	struct amdgpu_bo		*bo;
+
+	/* protected by bo being reserved */
+	struct list_head		bo_list;
+
+	/* protected by spinlock */
+	struct list_head		vm_status;
+};
 
 struct amdgpu_vm_pt {
 	struct amdgpu_bo	*bo;

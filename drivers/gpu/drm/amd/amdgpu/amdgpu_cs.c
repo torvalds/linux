@@ -1487,7 +1487,7 @@ amdgpu_cs_find_mapping(struct amdgpu_cs_parser *parser,
 			    addr > mapping->last)
 				continue;
 
-			*bo = lobj->bo_va->bo;
+			*bo = lobj->bo_va->base.bo;
 			return mapping;
 		}
 
@@ -1496,7 +1496,7 @@ amdgpu_cs_find_mapping(struct amdgpu_cs_parser *parser,
 			    addr > mapping->last)
 				continue;
 
-			*bo = lobj->bo_va->bo;
+			*bo = lobj->bo_va->base.bo;
 			return mapping;
 		}
 	}

@@ -76,7 +76,7 @@ int amdgpu_map_static_csa(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		return -ENOMEM;
 	}
 
-	r = amdgpu_vm_alloc_pts(adev, (*bo_va)->vm, AMDGPU_CSA_VADDR,
+	r = amdgpu_vm_alloc_pts(adev, (*bo_va)->base.vm, AMDGPU_CSA_VADDR,
 				AMDGPU_CSA_SIZE);
 	if (r) {
 		DRM_ERROR("failed to allocate pts for static CSA, err=%d\n", r);

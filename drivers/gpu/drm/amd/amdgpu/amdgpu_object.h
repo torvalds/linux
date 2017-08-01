@@ -33,6 +33,7 @@
 
 #define AMDGPU_BO_INVALID_OFFSET	LONG_MAX
 
+/* bo virtual addresses in a vm */
 struct amdgpu_bo_va_mapping {
 	struct list_head		list;
 	struct rb_node			rb;
@@ -43,25 +44,18 @@ struct amdgpu_bo_va_mapping {
 	uint64_t			flags;
 };
 
-/* bo virtual addresses in a specific vm */
+/* User space allocated BO in a VM */
 struct amdgpu_bo_va {
+	struct amdgpu_vm_bo_base	base;
+
 	/* protected by bo being reserved */
-	struct list_head		bo_list;
 	struct dma_fence	        *last_pt_update;
 	unsigned			ref_count;
-
-	/* protected by vm mutex and spinlock */
-	struct list_head		vm_status;
 
 	/* mappings for this bo_va */
 	struct list_head		invalids;
 	struct list_head		valids;
-
-	/* constant after initialization */
-	struct amdgpu_vm		*vm;
-	struct amdgpu_bo		*bo;
 };
-
 
 struct amdgpu_bo {
 	/* Protected by tbo.reserved */
