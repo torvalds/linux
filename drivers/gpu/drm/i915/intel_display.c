@@ -2428,6 +2428,41 @@ static unsigned int intel_fb_modifier_to_tiling(uint64_t fb_modifier)
 	}
 }
 
+static const struct drm_format_info ccs_formats[] = {
+	{ .format = DRM_FORMAT_XRGB8888, .depth = 24, .num_planes = 2, .cpp = { 4, 1, }, .hsub = 8, .vsub = 16, },
+	{ .format = DRM_FORMAT_XBGR8888, .depth = 24, .num_planes = 2, .cpp = { 4, 1, }, .hsub = 8, .vsub = 16, },
+	{ .format = DRM_FORMAT_ARGB8888, .depth = 32, .num_planes = 2, .cpp = { 4, 1, }, .hsub = 8, .vsub = 16, },
+	{ .format = DRM_FORMAT_ABGR8888, .depth = 32, .num_planes = 2, .cpp = { 4, 1, }, .hsub = 8, .vsub = 16, },
+};
+
+static const struct drm_format_info *
+lookup_format_info(const struct drm_format_info formats[],
+		   int num_formats, u32 format)
+{
+	int i;
+
+	for (i = 0; i < num_formats; i++) {
+		if (formats[i].format == format)
+			return &formats[i];
+	}
+
+	return NULL;
+}
+
+static const struct drm_format_info *
+intel_get_format_info(const struct drm_mode_fb_cmd2 *cmd)
+{
+	switch (cmd->modifier[0]) {
+	case I915_FORMAT_MOD_Y_TILED_CCS:
+	case I915_FORMAT_MOD_Yf_TILED_CCS:
+		return lookup_format_info(ccs_formats,
+					  ARRAY_SIZE(ccs_formats),
+					  cmd->pixel_format);
+	default:
+		return NULL;
+	}
+}
+
 static int
 intel_fill_fb_info(struct drm_i915_private *dev_priv,
 		   struct drm_framebuffer *fb)
@@ -13673,6 +13708,7 @@ static void intel_atomic_state_free(struct drm_atomic_state *state)
 
 static const struct drm_mode_config_funcs intel_mode_funcs = {
 	.fb_create = intel_user_framebuffer_create,
+	.get_format_info = intel_get_format_info,
 	.output_poll_changed = intel_fbdev_output_poll_changed,
 	.atomic_check = intel_atomic_check,
 	.atomic_commit = intel_atomic_commit,
