@@ -1208,7 +1208,7 @@ static void dm1105_remove(struct pci_dev *pdev)
 	kfree(dev);
 }
 
-static struct pci_device_id dm1105_id_table[] = {
+static const struct pci_device_id dm1105_id_table[] = {
 	{
 		.vendor = PCI_VENDOR_ID_TRIGEM,
 		.device = PCI_DEVICE_ID_DM1105,
