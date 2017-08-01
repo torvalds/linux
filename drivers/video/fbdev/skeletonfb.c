@@ -866,7 +866,7 @@ static int xxxfb_resume(struct pci_dev *dev)
 #define xxxfb_resume NULL
 #endif /* CONFIG_PM */
 
-static struct pci_device_id xxxfb_id_table[] = {
+static const struct pci_device_id xxxfb_id_table[] = {
 	{ PCI_VENDOR_ID_XXX, PCI_DEVICE_ID_XXX,
 	  PCI_ANY_ID, PCI_ANY_ID, PCI_BASE_CLASS_DISPLAY << 16,
 	  PCI_CLASS_MASK, 0 },
