@@ -70,7 +70,7 @@ static int svc_rdma_has_wspace(struct svc_xprt *xprt);
 static int svc_rdma_secure_port(struct svc_rqst *);
 static void svc_rdma_kill_temp_xprt(struct svc_xprt *);
 
-static struct svc_xprt_ops svc_rdma_ops = {
+static const struct svc_xprt_ops svc_rdma_ops = {
 	.xpo_create = svc_rdma_create,
 	.xpo_recvfrom = svc_rdma_recvfrom,
 	.xpo_sendto = svc_rdma_sendto,
@@ -98,7 +98,7 @@ static struct svc_xprt *svc_rdma_bc_create(struct svc_serv *, struct net *,
 static void svc_rdma_bc_detach(struct svc_xprt *);
 static void svc_rdma_bc_free(struct svc_xprt *);
 
-static struct svc_xprt_ops svc_rdma_bc_ops = {
+static const struct svc_xprt_ops svc_rdma_bc_ops = {
 	.xpo_create = svc_rdma_bc_create,
 	.xpo_detach = svc_rdma_bc_detach,
 	.xpo_free = svc_rdma_bc_free,
