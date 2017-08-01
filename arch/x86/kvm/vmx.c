@@ -419,7 +419,7 @@ struct nested_vmx {
 	/*
 	 * Cache of the guest's VMCS, existing outside of guest memory.
 	 * Loaded from guest memory during VMPTRLD. Flushed to guest
-	 * memory during VMXOFF, VMCLEAR, VMPTRLD.
+	 * memory during VMCLEAR and VMPTRLD.
 	 */
 	struct vmcs12 *cached_vmcs12;
 	/*
@@ -7174,6 +7174,12 @@ static int nested_vmx_check_permission(struct kvm_vcpu *vcpu)
 	return 1;
 }
 
+static void vmx_disable_shadow_vmcs(struct vcpu_vmx *vmx)
+{
+	vmcs_clear_bits(SECONDARY_VM_EXEC_CONTROL, SECONDARY_EXEC_SHADOW_VMCS);
+	vmcs_write64(VMCS_LINK_POINTER, -1ull);
+}
+
 static inline void nested_release_vmcs12(struct vcpu_vmx *vmx)
 {
 	if (vmx->nested.current_vmptr == -1ull)
@@ -7184,9 +7190,7 @@ static inline void nested_release_vmcs12(struct vcpu_vmx *vmx)
 		   they were modified */
 		copy_shadow_to_vmcs12(vmx);
 		vmx->nested.sync_shadow_vmcs = false;
-		vmcs_clear_bits(SECONDARY_VM_EXEC_CONTROL,
-				SECONDARY_EXEC_SHADOW_VMCS);
-		vmcs_write64(VMCS_LINK_POINTER, -1ull);
+		vmx_disable_shadow_vmcs(vmx);
 	}
 	vmx->nested.posted_intr_nv = -1;
 
@@ -7209,12 +7213,14 @@ static void free_nested(struct vcpu_vmx *vmx)
 
 	vmx->nested.vmxon = false;
 	free_vpid(vmx->nested.vpid02);
-	nested_release_vmcs12(vmx);
+	vmx->nested.posted_intr_nv = -1;
+	vmx->nested.current_vmptr = -1ull;
 	if (vmx->nested.msr_bitmap) {
 		free_page((unsigned long)vmx->nested.msr_bitmap);
 		vmx->nested.msr_bitmap = NULL;
 	}
 	if (enable_shadow_vmcs) {
+		vmx_disable_shadow_vmcs(vmx);
 		vmcs_clear(vmx->vmcs01.shadow_vmcs);
 		free_vmcs(vmx->vmcs01.shadow_vmcs);
 		vmx->vmcs01.shadow_vmcs = NULL;
