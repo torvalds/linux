@@ -8,7 +8,7 @@ menu "Multiplexer I2C Chip support"
 config I2C_ARB_GPIO_CHALLENGE
 	tristate "GPIO-based I2C arbitration"
 	depends on GPIOLIB || COMPILE_TEST
-	depends on OF
+	depends on OF || COMPILE_TEST
 	help
 	  If you say yes to this option, support will be included for an
 	  I2C multimaster arbitration scheme using GPIOs and a challenge &
