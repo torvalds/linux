@@ -344,10 +344,10 @@
 		dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST)>;
 		dsi,format = <MIPI_DSI_FMT_RGB888>;
 		dsi,lanes = <4>;
-		delay,prepare = <120>;
-		delay,enable = <120>;
-		delay,reset = <20>;
-		delay,init = <20>;
+		reset-delay-ms = <20>;
+		init-delay-ms = <20>;
+		enable-delay-ms = <120>;
+		prepare-delay-ms = <120>;
 		status = "okay";
 
 		disp_timings: display-timings {

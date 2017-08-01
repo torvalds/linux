@@ -328,9 +328,10 @@
 		dsi,format = <MIPI_DSI_FMT_RGB888>;
 		dsi,lanes = <8>;
 
-		delay,reset = <120>;
-		delay,init = <120>;
-		delay,prepare = <120>;
+		reset-delay-ms = <120>;
+		init-delay-ms = <120>;
+		enable-delay-ms = <120>;
+		prepare-delay-ms = <120>;
 
 		panel-init-sequence = [
 			05 64 01 11
