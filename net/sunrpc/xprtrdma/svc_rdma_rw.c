@@ -660,19 +660,21 @@ out_initerr:
 	return -EIO;
 }
 
+/* Walk the segments in the Read chunk starting at @p and construct
+ * RDMA Read operations to pull the chunk to the server.
+ */
 static int svc_rdma_build_read_chunk(struct svc_rqst *rqstp,
 				     struct svc_rdma_read_info *info,
 				     __be32 *p)
 {
 	int ret;
 
+	ret = -EINVAL;
 	info->ri_chunklen = 0;
-	while (*p++ != xdr_zero) {
+	while (*p++ != xdr_zero && be32_to_cpup(p++) == info->ri_position) {
 		u32 rs_handle, rs_length;
 		u64 rs_offset;
 
-		if (be32_to_cpup(p++) != info->ri_position)
-			break;
 		rs_handle = be32_to_cpup(p++);
 		rs_length = be32_to_cpup(p++);
 		p = xdr_decode_hyper(p, &rs_offset);
