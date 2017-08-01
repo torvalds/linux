@@ -652,7 +652,7 @@ static void __ic_line_inv_vaddr(phys_addr_t paddr, unsigned long vaddr,
 
 #endif /* CONFIG_ARC_HAS_ICACHE */
 
-noinline void slc_op(phys_addr_t paddr, unsigned long sz, const int op)
+noinline void slc_op_rgn(phys_addr_t paddr, unsigned long sz, const int op)
 {
 #ifdef CONFIG_ISA_ARCV2
 	/*
@@ -714,6 +714,58 @@ noinline void slc_op(phys_addr_t paddr, unsigned long sz, const int op)
 	spin_unlock_irqrestore(&lock, flags);
 #endif
 }
+
+noinline void slc_op_line(phys_addr_t paddr, unsigned long sz, const int op)
+{
+#ifdef CONFIG_ISA_ARCV2
+	/*
+	 * SLC is shared between all cores and concurrent aux operations from
+	 * multiple cores need to be serialized using a spinlock
+	 * A concurrent operation can be silently ignored and/or the old/new
+	 * operation can remain incomplete forever (lockup in SLC_CTRL_BUSY loop
+	 * below)
+	 */
+	static DEFINE_SPINLOCK(lock);
+
+	const unsigned long SLC_LINE_MASK = ~(l2_line_sz - 1);
+	unsigned int ctrl, cmd;
+	unsigned long flags;
+	int num_lines;
+
+	spin_lock_irqsave(&lock, flags);
+
+	ctrl = read_aux_reg(ARC_REG_SLC_CTRL);
+
+	/* Don't rely on default value of IM bit */
+	if (!(op & OP_FLUSH))		/* i.e. OP_INV */
+		ctrl &= ~SLC_CTRL_IM;	/* clear IM: Disable flush before Inv */
+	else
+		ctrl |= SLC_CTRL_IM;
+
+	write_aux_reg(ARC_REG_SLC_CTRL, ctrl);
+
+	cmd = op & OP_INV ? ARC_AUX_SLC_IVDL : ARC_AUX_SLC_FLDL;
+
+	sz += paddr & ~SLC_LINE_MASK;
+	paddr &= SLC_LINE_MASK;
+
+	num_lines = DIV_ROUND_UP(sz, l2_line_sz);
+
+	while (num_lines-- > 0) {
+		write_aux_reg(cmd, paddr);
+		paddr += l2_line_sz;
+	}
+
+	/* Make sure "busy" bit reports correct stataus, see STAR 9001165532 */
+	read_aux_reg(ARC_REG_SLC_CTRL);
+
+	while (read_aux_reg(ARC_REG_SLC_CTRL) & SLC_CTRL_BUSY);
+
+	spin_unlock_irqrestore(&lock, flags);
+#endif
+}
+
+#define slc_op(paddr, sz, op)	slc_op_rgn(paddr, sz, op)
 
 noinline static void slc_entire_op(const int op)
 {
