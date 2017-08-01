@@ -648,7 +648,7 @@
 		compatible = "mediatek,mt7623-mmc",
 			     "mediatek,mt8135-mmc";
 		reg = <0 0x11240000 0 0x1000>;
-		interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_LOW>;
+		interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_LOW>;
 		clocks = <&pericfg CLK_PERI_MSDC30_1>,
 			 <&topckgen CLK_TOP_MSDC30_1_SEL>;
 		clock-names = "source", "hclk";
