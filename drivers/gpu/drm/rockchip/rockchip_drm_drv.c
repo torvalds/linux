@@ -161,22 +161,21 @@ static int rockchip_drm_bind(struct device *dev)
 	 */
 	drm_dev->irq_enabled = true;
 
+	ret = rockchip_drm_fbdev_init(drm_dev);
+	if (ret)
+		goto err_unbind_all;
+
 	/* init kms poll for handling hpd */
 	drm_kms_helper_poll_init(drm_dev);
 
-	ret = rockchip_drm_fbdev_init(drm_dev);
+	ret = drm_dev_register(drm_dev, 0);
 	if (ret)
 		goto err_kms_helper_poll_fini;
 
-	ret = drm_dev_register(drm_dev, 0);
-	if (ret)
-		goto err_fbdev_fini;
-
 	return 0;
-err_fbdev_fini:
-	rockchip_drm_fbdev_fini(drm_dev);
 err_kms_helper_poll_fini:
 	drm_kms_helper_poll_fini(drm_dev);
+	rockchip_drm_fbdev_fini(drm_dev);
 err_unbind_all:
 	component_unbind_all(dev, drm_dev);
 err_mode_config_cleanup:
