@@ -121,12 +121,13 @@ slb_miss_kernel_load_vmemmap:
 1:
 #endif /* CONFIG_SPARSEMEM_VMEMMAP */
 
-	/* vmalloc mapping gets the encoding from the PACA as the mapping
-	 * can be demoted from 64K -> 4K dynamically on some machines
-	 */
 	clrldi	r11,r10,48
 	cmpldi	r11,(H_VMALLOC_SIZE >> 28) - 1
 	bgt	5f
+	/*
+	 * vmalloc mapping gets the encoding from the PACA as the mapping
+	 * can be demoted from 64K -> 4K dynamically on some machines.
+	 */
 	lhz	r11,PACAVMALLOCSLLP(r13)
 	b	6f
 5:
