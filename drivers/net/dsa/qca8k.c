@@ -658,11 +658,7 @@ static int
 qca8k_eee_init(struct dsa_switch *ds, int port,
 	       struct phy_device *phy)
 {
-	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
-	struct ethtool_eee *p = &priv->port_sts[port].eee;
 	int ret;
-
-	p->supported = (SUPPORTED_1000baseT_Full | SUPPORTED_100baseT_Full);
 
 	ret = phy_init_eee(phy, 0);
 	if (ret)
@@ -705,12 +701,7 @@ qca8k_get_eee(struct dsa_switch *ds, int port,
 	int ret;
 
 	ret = phy_ethtool_get_eee(netdev->phydev, p);
-	if (!ret)
-		e->eee_active =
-			!!(p->supported & p->advertised & p->lp_advertised);
-	else
-		e->eee_active = 0;
-
+	e->eee_active = p->eee_active;
 	e->eee_enabled = p->eee_enabled;
 
 	return ret;
