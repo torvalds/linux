@@ -51,6 +51,8 @@
 #define H_VMALLOC_SIZE	(H_KERN_VIRT_SIZE >> 1)
 #define H_VMALLOC_END	(H_VMALLOC_START + H_VMALLOC_SIZE)
 
+#define H_KERN_IO_START	H_VMALLOC_END
+
 /*
  * Region IDs
  */
