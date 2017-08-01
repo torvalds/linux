@@ -40,6 +40,9 @@ struct rt_mutex_waiter {
 /*
  * Various helpers to access the waiters-tree:
  */
+
+#ifdef CONFIG_RT_MUTEXES
+
 static inline int rt_mutex_has_waiters(struct rt_mutex *lock)
 {
 	return !RB_EMPTY_ROOT(&lock->waiters);
@@ -68,6 +71,32 @@ task_top_pi_waiter(struct task_struct *p)
 	return rb_entry(p->pi_waiters_leftmost, struct rt_mutex_waiter,
 			pi_tree_entry);
 }
+
+#else
+
+static inline int rt_mutex_has_waiters(struct rt_mutex *lock)
+{
+	return false;
+}
+
+static inline struct rt_mutex_waiter *
+rt_mutex_top_waiter(struct rt_mutex *lock)
+{
+	return NULL;
+}
+
+static inline int task_has_pi_waiters(struct task_struct *p)
+{
+	return false;
+}
+
+static inline struct rt_mutex_waiter *
+task_top_pi_waiter(struct task_struct *p)
+{
+	return NULL;
+}
+
+#endif
 
 /*
  * lock->owner state tracking:

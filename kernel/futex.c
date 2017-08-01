@@ -875,6 +875,8 @@ static struct task_struct *futex_find_get_task(pid_t pid)
 	return p;
 }
 
+#ifdef CONFIG_FUTEX_PI
+
 /*
  * This task is holding PI mutexes at exit time => bad.
  * Kernel cleans up PI-state, but userspace is likely hosed.
@@ -931,6 +933,8 @@ void exit_pi_state_list(struct task_struct *curr)
 	}
 	raw_spin_unlock_irq(&curr->pi_lock);
 }
+
+#endif
 
 /*
  * We need to check the following states:
@@ -1799,6 +1803,15 @@ static int futex_requeue(u32 __user *uaddr1, unsigned int flags,
 	struct futex_q *this, *next;
 	DEFINE_WAKE_Q(wake_q);
 
+	/*
+	 * When PI not supported: return -ENOSYS if requeue_pi is true,
+	 * consequently the compiler knows requeue_pi is always false past
+	 * this point which will optimize away all the conditional code
+	 * further down.
+	 */
+	if (!IS_ENABLED(CONFIG_FUTEX_PI) && requeue_pi)
+		return -ENOSYS;
+
 	if (requeue_pi) {
 		/*
 		 * Requeue PI only works on two distinct uaddrs. This
@@ -2594,6 +2607,9 @@ static int futex_lock_pi(u32 __user *uaddr, unsigned int flags,
 	struct futex_q q = futex_q_init;
 	int res, ret;
 
+	if (!IS_ENABLED(CONFIG_FUTEX_PI))
+		return -ENOSYS;
+
 	if (refill_pi_state_cache())
 		return -ENOMEM;
 
@@ -2772,6 +2788,9 @@ static int futex_unlock_pi(u32 __user *uaddr, unsigned int flags)
 	struct futex_hash_bucket *hb;
 	struct futex_q *top_waiter;
 	int ret;
+
+	if (!IS_ENABLED(CONFIG_FUTEX_PI))
+		return -ENOSYS;
 
 retry:
 	if (get_user(uval, uaddr))
@@ -2982,6 +3001,9 @@ static int futex_wait_requeue_pi(u32 __user *uaddr, unsigned int flags,
 	union futex_key key2 = FUTEX_KEY_INIT;
 	struct futex_q q = futex_q_init;
 	int res, ret;
+
+	if (!IS_ENABLED(CONFIG_FUTEX_PI))
+		return -ENOSYS;
 
 	if (uaddr == uaddr2)
 		return -EINVAL;
