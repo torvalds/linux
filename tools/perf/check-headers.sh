@@ -31,6 +31,7 @@ include/asm-generic/bitops/__fls.h
 include/asm-generic/bitops/fls.h
 include/asm-generic/bitops/fls64.h
 include/linux/coresight-pmu.h
+include/uapi/asm-generic/ioctls.h
 include/uapi/asm-generic/mman-common.h
 '
 
