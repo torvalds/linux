@@ -79,28 +79,6 @@ int static_key_count(struct static_key *key)
 }
 EXPORT_SYMBOL_GPL(static_key_count);
 
-void static_key_enable(struct static_key *key)
-{
-	int count = static_key_count(key);
-
-	WARN_ON_ONCE(count < 0 || count > 1);
-
-	if (!count)
-		static_key_slow_inc(key);
-}
-EXPORT_SYMBOL_GPL(static_key_enable);
-
-void static_key_disable(struct static_key *key)
-{
-	int count = static_key_count(key);
-
-	WARN_ON_ONCE(count < 0 || count > 1);
-
-	if (count)
-		static_key_slow_dec(key);
-}
-EXPORT_SYMBOL_GPL(static_key_disable);
-
 void static_key_slow_inc(struct static_key *key)
 {
 	int v, v1;
@@ -138,6 +116,43 @@ void static_key_slow_inc(struct static_key *key)
 	cpus_read_unlock();
 }
 EXPORT_SYMBOL_GPL(static_key_slow_inc);
+
+void static_key_enable(struct static_key *key)
+{
+	STATIC_KEY_CHECK_USE();
+	if (atomic_read(&key->enabled) > 0) {
+		WARN_ON_ONCE(atomic_read(&key->enabled) != 1);
+		return;
+	}
+
+	cpus_read_lock();
+	jump_label_lock();
+	if (atomic_read(&key->enabled) == 0) {
+		atomic_set(&key->enabled, -1);
+		jump_label_update(key);
+		atomic_set(&key->enabled, 1);
+	}
+	jump_label_unlock();
+	cpus_read_unlock();
+}
+EXPORT_SYMBOL_GPL(static_key_enable);
+
+void static_key_disable(struct static_key *key)
+{
+	STATIC_KEY_CHECK_USE();
+	if (atomic_read(&key->enabled) != 1) {
+		WARN_ON_ONCE(atomic_read(&key->enabled) != 0);
+		return;
+	}
+
+	cpus_read_lock();
+	jump_label_lock();
+	if (atomic_cmpxchg(&key->enabled, 1, 0))
+		jump_label_update(key);
+	jump_label_unlock();
+	cpus_read_unlock();
+}
+EXPORT_SYMBOL_GPL(static_key_disable);
 
 static void __static_key_slow_dec(struct static_key *key,
 		unsigned long rate_limit, struct delayed_work *work)
