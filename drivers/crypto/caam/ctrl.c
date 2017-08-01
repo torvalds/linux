@@ -747,59 +747,38 @@ static int caam_probe(struct platform_device *pdev)
 		 caam_dpaa2 ? "yes" : "no");
 
 #ifdef CONFIG_DEBUG_FS
-
-	ctrlpriv->ctl_rq_dequeued =
-		debugfs_create_file("rq_dequeued",
-				    S_IRUSR | S_IRGRP | S_IROTH,
-				    ctrlpriv->ctl, &perfmon->req_dequeued,
-				    &caam_fops_u64_ro);
-	ctrlpriv->ctl_ob_enc_req =
-		debugfs_create_file("ob_rq_encrypted",
-				    S_IRUSR | S_IRGRP | S_IROTH,
-				    ctrlpriv->ctl, &perfmon->ob_enc_req,
-				    &caam_fops_u64_ro);
-	ctrlpriv->ctl_ib_dec_req =
-		debugfs_create_file("ib_rq_decrypted",
-				    S_IRUSR | S_IRGRP | S_IROTH,
-				    ctrlpriv->ctl, &perfmon->ib_dec_req,
-				    &caam_fops_u64_ro);
-	ctrlpriv->ctl_ob_enc_bytes =
-		debugfs_create_file("ob_bytes_encrypted",
-				    S_IRUSR | S_IRGRP | S_IROTH,
-				    ctrlpriv->ctl, &perfmon->ob_enc_bytes,
-				    &caam_fops_u64_ro);
-	ctrlpriv->ctl_ob_prot_bytes =
-		debugfs_create_file("ob_bytes_protected",
-				    S_IRUSR | S_IRGRP | S_IROTH,
-				    ctrlpriv->ctl, &perfmon->ob_prot_bytes,
-				    &caam_fops_u64_ro);
-	ctrlpriv->ctl_ib_dec_bytes =
-		debugfs_create_file("ib_bytes_decrypted",
-				    S_IRUSR | S_IRGRP | S_IROTH,
-				    ctrlpriv->ctl, &perfmon->ib_dec_bytes,
-				    &caam_fops_u64_ro);
-	ctrlpriv->ctl_ib_valid_bytes =
-		debugfs_create_file("ib_bytes_validated",
-				    S_IRUSR | S_IRGRP | S_IROTH,
-				    ctrlpriv->ctl, &perfmon->ib_valid_bytes,
-				    &caam_fops_u64_ro);
+	debugfs_create_file("rq_dequeued", S_IRUSR | S_IRGRP | S_IROTH,
+			    ctrlpriv->ctl, &perfmon->req_dequeued,
+			    &caam_fops_u64_ro);
+	debugfs_create_file("ob_rq_encrypted", S_IRUSR | S_IRGRP | S_IROTH,
+			    ctrlpriv->ctl, &perfmon->ob_enc_req,
+			    &caam_fops_u64_ro);
+	debugfs_create_file("ib_rq_decrypted", S_IRUSR | S_IRGRP | S_IROTH,
+			    ctrlpriv->ctl, &perfmon->ib_dec_req,
+			    &caam_fops_u64_ro);
+	debugfs_create_file("ob_bytes_encrypted", S_IRUSR | S_IRGRP | S_IROTH,
+			    ctrlpriv->ctl, &perfmon->ob_enc_bytes,
+			    &caam_fops_u64_ro);
+	debugfs_create_file("ob_bytes_protected", S_IRUSR | S_IRGRP | S_IROTH,
+			    ctrlpriv->ctl, &perfmon->ob_prot_bytes,
+			    &caam_fops_u64_ro);
+	debugfs_create_file("ib_bytes_decrypted", S_IRUSR | S_IRGRP | S_IROTH,
+			    ctrlpriv->ctl, &perfmon->ib_dec_bytes,
+			    &caam_fops_u64_ro);
+	debugfs_create_file("ib_bytes_validated", S_IRUSR | S_IRGRP | S_IROTH,
+			    ctrlpriv->ctl, &perfmon->ib_valid_bytes,
+			    &caam_fops_u64_ro);
 
 	/* Controller level - global status values */
-	ctrlpriv->ctl_faultaddr =
-		debugfs_create_file("fault_addr",
-				    S_IRUSR | S_IRGRP | S_IROTH,
-				    ctrlpriv->ctl, &perfmon->faultaddr,
-				    &caam_fops_u32_ro);
-	ctrlpriv->ctl_faultdetail =
-		debugfs_create_file("fault_detail",
-				    S_IRUSR | S_IRGRP | S_IROTH,
-				    ctrlpriv->ctl, &perfmon->faultdetail,
-				    &caam_fops_u32_ro);
-	ctrlpriv->ctl_faultstatus =
-		debugfs_create_file("fault_status",
-				    S_IRUSR | S_IRGRP | S_IROTH,
-				    ctrlpriv->ctl, &perfmon->status,
-				    &caam_fops_u32_ro);
+	debugfs_create_file("fault_addr", S_IRUSR | S_IRGRP | S_IROTH,
+			    ctrlpriv->ctl, &perfmon->faultaddr,
+			    &caam_fops_u32_ro);
+	debugfs_create_file("fault_detail", S_IRUSR | S_IRGRP | S_IROTH,
+			    ctrlpriv->ctl, &perfmon->faultdetail,
+			    &caam_fops_u32_ro);
+	debugfs_create_file("fault_status", S_IRUSR | S_IRGRP | S_IROTH,
+			    ctrlpriv->ctl, &perfmon->status,
+			    &caam_fops_u32_ro);
 
 	/* Internal covering keys (useful in non-secure mode only) */
 	ctrlpriv->ctl_kek_wrap.data = (__force void *)&ctrlpriv->ctrl->kek[0];

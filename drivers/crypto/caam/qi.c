@@ -791,10 +791,8 @@ int caam_qi_init(struct platform_device *caam_pdev)
 	/* Done with the CGRs; restore the cpus allowed mask */
 	set_cpus_allowed_ptr(current, &old_cpumask);
 #ifdef CONFIG_DEBUG_FS
-	ctrlpriv->qi_congested = debugfs_create_file("qi_congested", 0444,
-						     ctrlpriv->ctl,
-						     &times_congested,
-						     &caam_fops_u64_ro);
+	debugfs_create_file("qi_congested", 0444, ctrlpriv->ctl,
+			    &times_congested, &caam_fops_u64_ro);
 #endif
 	dev_info(qidev, "Linux CAAM Queue I/F driver initialised\n");
 	return 0;
