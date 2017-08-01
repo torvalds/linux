@@ -91,13 +91,23 @@ static int
 pnfs_generic_transfer_commit_list(struct list_head *src, struct list_head *dst,
 				  struct nfs_commit_info *cinfo, int max)
 {
-	struct nfs_page *req, *tmp;
+	struct nfs_page *req;
 	int ret = 0;
 
-	list_for_each_entry_safe(req, tmp, src, wb_list) {
-		if (!nfs_lock_request(req))
-			continue;
+	while(!list_empty(src)) {
+		req = list_first_entry(src, struct nfs_page, wb_list);
+
 		kref_get(&req->wb_kref);
+		if (!nfs_lock_request(req)) {
+			int status;
+			mutex_unlock(&NFS_I(cinfo->inode)->commit_mutex);
+			status = nfs_wait_on_request(req);
+			nfs_release_request(req);
+			mutex_lock(&NFS_I(cinfo->inode)->commit_mutex);
+			if (status < 0)
+				break;
+			continue;
+		}
 		nfs_request_remove_commit_list(req, cinfo);
 		clear_bit(PG_COMMIT_TO_DS, &req->wb_flags);
 		nfs_list_add_request(req, dst);

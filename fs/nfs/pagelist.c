@@ -434,6 +434,7 @@ void nfs_release_request(struct nfs_page *req)
 {
 	kref_put(&req->wb_kref, nfs_page_group_destroy);
 }
+EXPORT_SYMBOL_GPL(nfs_release_request);
 
 /**
  * nfs_wait_on_request - Wait for a request to complete.
@@ -452,6 +453,7 @@ nfs_wait_on_request(struct nfs_page *req)
 	return wait_on_bit_io(&req->wb_flags, PG_BUSY,
 			      TASK_UNINTERRUPTIBLE);
 }
+EXPORT_SYMBOL_GPL(nfs_wait_on_request);
 
 /*
  * nfs_generic_pg_test - determine if requests can be coalesced
