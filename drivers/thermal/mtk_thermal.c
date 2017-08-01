@@ -712,15 +712,15 @@ static int mtk_thermal_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
+	ret = device_reset(&pdev->dev);
+	if (ret)
+		return ret;
+
 	ret = clk_prepare_enable(mt->clk_auxadc);
 	if (ret) {
 		dev_err(&pdev->dev, "Can't enable auxadc clk: %d\n", ret);
 		return ret;
 	}
-
-	ret = device_reset(&pdev->dev);
-	if (ret)
-		goto err_disable_clk_auxadc;
 
 	ret = clk_prepare_enable(mt->clk_peri_therm);
 	if (ret) {
