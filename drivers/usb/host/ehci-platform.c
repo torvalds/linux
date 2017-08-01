@@ -214,7 +214,8 @@ static int ehci_platform_probe(struct platform_device *dev)
 					  "has-transaction-translator"))
 			hcd->has_tt = 1;
 
-		if (of_property_read_bool(dev->dev.of_node,
+		if (of_machine_is_compatible("rockchip,rk3288") &&
+		    of_property_read_bool(dev->dev.of_node,
 					  "rockchip-relinquish-port"))
 			ehci_platform_hc_driver.relinquish_port =
 					  ehci_rockchip_relinquish_port;
