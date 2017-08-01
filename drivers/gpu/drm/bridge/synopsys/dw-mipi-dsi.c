@@ -885,15 +885,14 @@ __dw_mipi_dsi_probe(struct platform_device *pdev,
 	 * Note that the reset was not defined in the initial device tree, so
 	 * we have to be prepared for it not being found.
 	 */
-	apb_rst = devm_reset_control_get(dev, "apb");
+	apb_rst = devm_reset_control_get_optional_exclusive(dev, "apb");
 	if (IS_ERR(apb_rst)) {
 		ret = PTR_ERR(apb_rst);
-		if (ret == -ENOENT) {
-			apb_rst = NULL;
-		} else {
+
+		if (ret != -EPROBE_DEFER)
 			dev_err(dev, "Unable to get reset control: %d\n", ret);
-			return ERR_PTR(ret);
-		}
+
+		return ERR_PTR(ret);
 	}
 
 	if (apb_rst) {
