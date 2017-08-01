@@ -260,6 +260,7 @@ struct flexrm_ring {
 	void __iomem *regs;
 	bool irq_requested;
 	unsigned int irq;
+	cpumask_t irq_aff_hint;
 	unsigned int msi_timer_val;
 	unsigned int msi_count_threshold;
 	struct ida requests_ida;
@@ -1217,6 +1218,18 @@ static int flexrm_startup(struct mbox_chan *chan)
 	}
 	ring->irq_requested = true;
 
+	/* Set IRQ affinity hint */
+	ring->irq_aff_hint = CPU_MASK_NONE;
+	val = ring->mbox->num_rings;
+	val = (num_online_cpus() < val) ? val / num_online_cpus() : 1;
+	cpumask_set_cpu((ring->num / val) % num_online_cpus(),
+			&ring->irq_aff_hint);
+	ret = irq_set_affinity_hint(ring->irq, &ring->irq_aff_hint);
+	if (ret) {
+		dev_err(ring->mbox->dev, "failed to set IRQ affinity hint\n");
+		goto fail_free_irq;
+	}
+
 	/* Disable/inactivate ring */
 	writel_relaxed(0x0, ring->regs + RING_CONTROL);
 
@@ -1261,6 +1274,9 @@ static int flexrm_startup(struct mbox_chan *chan)
 
 	return 0;
 
+fail_free_irq:
+	free_irq(ring->irq, ring);
+	ring->irq_requested = false;
 fail_free_cmpl_memory:
 	dma_pool_free(ring->mbox->cmpl_pool,
 		      ring->cmpl_base, ring->cmpl_dma_base);
@@ -1314,6 +1330,7 @@ static void flexrm_shutdown(struct mbox_chan *chan)
 
 	/* Release IRQ */
 	if (ring->irq_requested) {
+		irq_set_affinity_hint(ring->irq, NULL);
 		free_irq(ring->irq, ring);
 		ring->irq_requested = false;
 	}
