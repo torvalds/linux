@@ -666,11 +666,11 @@ qca8k_eee_init(struct dsa_switch *ds, int port,
 
 	ret = phy_init_eee(phy, 0);
 	if (ret)
-		return ret;
+		return 0;
 
 	qca8k_eee_enable_set(ds, port, true);
 
-	return 0;
+	return 1;
 }
 
 static int
