@@ -1100,7 +1100,7 @@ static __init int svm_hardware_setup(void)
 
 	if (vls) {
 		if (!npt_enabled ||
-		    !boot_cpu_has(X86_FEATURE_VIRTUAL_VMLOAD_VMSAVE) ||
+		    !boot_cpu_has(X86_FEATURE_V_VMSAVE_VMLOAD) ||
 		    !IS_ENABLED(CONFIG_X86_64)) {
 			vls = false;
 		} else {
