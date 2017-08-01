@@ -198,7 +198,7 @@ const struct armada_37xx_pin_data armada_37xx_pin_nb = {
 };
 
 const struct armada_37xx_pin_data armada_37xx_pin_sb = {
-	.nr_pins = 29,
+	.nr_pins = 30,
 	.name = "GPIO2",
 	.groups = armada_37xx_sb_groups,
 	.ngroups = ARRAY_SIZE(armada_37xx_sb_groups),
