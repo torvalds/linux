@@ -611,7 +611,7 @@ static struct attribute *solos_attrs[] = {
 	NULL
 };
 
-static struct attribute_group solos_attr_group = {
+static const struct attribute_group solos_attr_group = {
 	.attrs = solos_attrs,
 	.name = "parameters",
 };
@@ -628,7 +628,7 @@ static struct attribute *gpio_attrs[] = {
 	NULL
 };
 
-static struct attribute_group gpio_attr_group = {
+static const struct attribute_group gpio_attr_group = {
 	.attrs = gpio_attrs,
 	.name = "gpio",
 };
