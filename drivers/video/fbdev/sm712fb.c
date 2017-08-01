@@ -1478,7 +1478,7 @@ static int smtcfb_pci_probe(struct pci_dev *pdev,
 	}
 
 	/* can support 32 bpp */
-	if (15 == sfb->fb->var.bits_per_pixel)
+	if (sfb->fb->var.bits_per_pixel == 15)
 		sfb->fb->var.bits_per_pixel = 16;
 
 	sfb->fb->var.xres_virtual = sfb->fb->var.xres;
