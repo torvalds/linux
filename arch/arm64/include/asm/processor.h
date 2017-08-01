@@ -112,7 +112,7 @@ void tls_preserve_current_state(void);
 static inline void start_thread_common(struct pt_regs *regs, unsigned long pc)
 {
 	memset(regs, 0, sizeof(*regs));
-	regs->syscallno = ~0UL;
+	regs->syscallno = ~0;
 	regs->pc = pc;
 }
 

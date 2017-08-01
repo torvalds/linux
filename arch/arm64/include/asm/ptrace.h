@@ -116,7 +116,14 @@ struct pt_regs {
 		};
 	};
 	u64 orig_x0;
-	u64 syscallno;
+#ifdef __AARCH64EB__
+	u32 unused2;
+	s32 syscallno;
+#else
+	s32 syscallno;
+	u32 unused2;
+#endif
+
 	u64 orig_addr_limit;
 	u64 unused;	// maintain 16 byte alignment
 };
