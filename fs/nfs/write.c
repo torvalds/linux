@@ -170,20 +170,41 @@ nfs_page_private_request(struct page *page)
  * returns matching head request with reference held, or NULL if not found.
  */
 static struct nfs_page *
-nfs_page_find_head_request_locked(struct nfs_inode *nfsi, struct page *page)
+nfs_page_find_private_request(struct page *page)
 {
+	struct inode *inode = page_file_mapping(page)->host;
 	struct nfs_page *req;
 
+	if (!PagePrivate(page))
+		return NULL;
+	spin_lock(&inode->i_lock);
 	req = nfs_page_private_request(page);
-	if (!req && unlikely(PageSwapCache(page)))
-		req = nfs_page_search_commits_for_head_request_locked(nfsi,
-			page);
-
 	if (req) {
 		WARN_ON_ONCE(req->wb_head != req);
 		kref_get(&req->wb_kref);
 	}
+	spin_unlock(&inode->i_lock);
+	return req;
+}
 
+static struct nfs_page *
+nfs_page_find_swap_request(struct page *page)
+{
+	struct inode *inode = page_file_mapping(page)->host;
+	struct nfs_inode *nfsi = NFS_I(inode);
+	struct nfs_page *req = NULL;
+	if (!PageSwapCache(page))
+		return NULL;
+	spin_lock(&inode->i_lock);
+	if (PageSwapCache(page)) {
+		req = nfs_page_search_commits_for_head_request_locked(nfsi,
+			page);
+		if (req) {
+			WARN_ON_ONCE(req->wb_head != req);
+			kref_get(&req->wb_kref);
+		}
+	}
+	spin_unlock(&inode->i_lock);
 	return req;
 }
 
@@ -194,14 +215,11 @@ nfs_page_find_head_request_locked(struct nfs_inode *nfsi, struct page *page)
  */
 static struct nfs_page *nfs_page_find_head_request(struct page *page)
 {
-	struct inode *inode = page_file_mapping(page)->host;
-	struct nfs_page *req = NULL;
+	struct nfs_page *req;
 
-	if (PagePrivate(page) || PageSwapCache(page)) {
-		spin_lock(&inode->i_lock);
-		req = nfs_page_find_head_request_locked(NFS_I(inode), page);
-		spin_unlock(&inode->i_lock);
-	}
+	req = nfs_page_find_private_request(page);
+	if (!req)
+		req = nfs_page_find_swap_request(page);
 	return req;
 }
 
