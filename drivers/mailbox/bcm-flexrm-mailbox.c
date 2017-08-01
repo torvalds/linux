@@ -97,7 +97,7 @@
 
 /* Register RING_CMPL_START_ADDR fields */
 #define CMPL_START_ADDR_VALUE(pa)			\
-	((u32)((((u64)(pa)) >> RING_CMPL_ALIGN_ORDER) & 0x03ffffff))
+	((u32)((((u64)(pa)) >> RING_CMPL_ALIGN_ORDER) & 0x07ffffff))
 
 /* Register RING_CONTROL fields */
 #define CONTROL_MASK_DISABLE_CONTROL			12
