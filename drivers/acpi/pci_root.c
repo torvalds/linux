@@ -33,6 +33,7 @@
 #include <linux/acpi.h>
 #include <linux/slab.h>
 #include <linux/dmi.h>
+#include <linux/platform_data/x86/apple.h>
 #include <acpi/apei.h>	/* for acpi_hest_init() */
 
 #include "internal.h"
@@ -431,8 +432,7 @@ static void negotiate_os_control(struct acpi_pci_root *root, int *no_aspm)
 	 * been called successfully. We know the feature set supported by the
 	 * platform, so avoid calling _OSC at all
 	 */
-
-	if (dmi_match(DMI_SYS_VENDOR, "Apple Inc.")) {
+	if (x86_apple_machine) {
 		root->osc_control_set = ~OSC_PCI_EXPRESS_PME_CONTROL;
 		decode_osc_control(root, "OS assumes control of",
 				   root->osc_control_set);
