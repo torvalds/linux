@@ -129,7 +129,7 @@ struct amdgpu_vm {
 	spinlock_t		status_lock;
 
 	/* BOs moved, but not yet updated in the PT */
-	struct list_head	invalidated;
+	struct list_head	moved;
 
 	/* BOs cleared in the PT because of a move */
 	struct list_head	cleared;
@@ -247,8 +247,8 @@ int amdgpu_vm_update_directories(struct amdgpu_device *adev,
 int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
 			  struct amdgpu_vm *vm,
 			  struct dma_fence **fence);
-int amdgpu_vm_clear_invalids(struct amdgpu_device *adev, struct amdgpu_vm *vm,
-			     struct amdgpu_sync *sync);
+int amdgpu_vm_clear_moved(struct amdgpu_device *adev, struct amdgpu_vm *vm,
+			  struct amdgpu_sync *sync);
 int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 			struct amdgpu_bo_va *bo_va,
 			bool clear);

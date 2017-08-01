@@ -1983,25 +1983,25 @@ int amdgpu_vm_clear_freed(struct amdgpu_device *adev,
 }
 
 /**
- * amdgpu_vm_clear_invalids - clear invalidated BOs in the PT
+ * amdgpu_vm_clear_moved - clear moved BOs in the PT
  *
  * @adev: amdgpu_device pointer
  * @vm: requested vm
  *
- * Make sure all invalidated BOs are cleared in the PT.
+ * Make sure all moved BOs are cleared in the PT.
  * Returns 0 for success.
  *
  * PTs have to be reserved and mutex must be locked!
  */
-int amdgpu_vm_clear_invalids(struct amdgpu_device *adev,
-			     struct amdgpu_vm *vm, struct amdgpu_sync *sync)
+int amdgpu_vm_clear_moved(struct amdgpu_device *adev, struct amdgpu_vm *vm,
+			    struct amdgpu_sync *sync)
 {
 	struct amdgpu_bo_va *bo_va = NULL;
 	int r = 0;
 
 	spin_lock(&vm->status_lock);
-	while (!list_empty(&vm->invalidated)) {
-		bo_va = list_first_entry(&vm->invalidated,
+	while (!list_empty(&vm->moved)) {
+		bo_va = list_first_entry(&vm->moved,
 			struct amdgpu_bo_va, base.vm_status);
 		spin_unlock(&vm->status_lock);
 
@@ -2396,7 +2396,7 @@ void amdgpu_vm_bo_invalidate(struct amdgpu_device *adev,
 		spin_lock(&bo_base->vm->status_lock);
 		if (list_empty(&bo_base->vm_status))
 			list_add(&bo_base->vm_status,
-				 &bo_base->vm->invalidated);
+				 &bo_base->vm->moved);
 		spin_unlock(&bo_base->vm->status_lock);
 	}
 }
@@ -2465,7 +2465,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 	for (i = 0; i < AMDGPU_MAX_VMHUBS; i++)
 		vm->reserved_vmid[i] = NULL;
 	spin_lock_init(&vm->status_lock);
-	INIT_LIST_HEAD(&vm->invalidated);
+	INIT_LIST_HEAD(&vm->moved);
 	INIT_LIST_HEAD(&vm->cleared);
 	INIT_LIST_HEAD(&vm->freed);
 
