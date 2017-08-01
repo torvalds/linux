@@ -239,12 +239,6 @@ struct mv88e6xxx_ops {
 			 struct mii_bus *bus,
 			 int addr, int reg, u16 val);
 
-	/* Copper Energy Detect operations */
-	int (*phy_energy_detect_read)(struct mv88e6xxx_chip *chip, int phy,
-				      struct ethtool_eee *eee);
-	int (*phy_energy_detect_write)(struct mv88e6xxx_chip *chip, int phy,
-				       struct ethtool_eee *eee);
-
 	/* Priority Override Table operations */
 	int (*pot_clear)(struct mv88e6xxx_chip *chip);
 
