@@ -695,16 +695,8 @@ static int
 qca8k_get_eee(struct dsa_switch *ds, int port,
 	      struct ethtool_eee *e)
 {
-	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
-	struct ethtool_eee *p = &priv->port_sts[port].eee;
-	struct net_device *netdev = ds->ports[port].netdev;
-	int ret;
-
-	ret = phy_ethtool_get_eee(netdev->phydev, p);
-	e->eee_active = p->eee_active;
-	e->eee_enabled = p->eee_enabled;
-
-	return ret;
+	/* Nothing to do on the port's MAC */
+	return 0;
 }
 
 static void
