@@ -71,7 +71,7 @@ static struct attribute *adummy_attrs[] = {
 	NULL
 };
 
-static struct attribute_group adummy_group_attrs = {
+static const struct attribute_group adummy_group_attrs = {
 	.name = NULL, /* We want them in dev's root folder */
 	.attrs = adummy_attrs
 };
