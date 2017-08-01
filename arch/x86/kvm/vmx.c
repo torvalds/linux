@@ -11131,8 +11131,15 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 
 	vmx_switch_vmcs(vcpu, &vmx->vmcs01);
 
-	if ((exit_reason == EXIT_REASON_EXTERNAL_INTERRUPT)
-	    && nested_exit_intr_ack_set(vcpu)) {
+	/*
+	 * TODO: SDM says that with acknowledge interrupt on exit, bit 31 of
+	 * the VM-exit interrupt information (valid interrupt) is always set to
+	 * 1 on EXIT_REASON_EXTERNAL_INTERRUPT, so we shouldn't need
+	 * kvm_cpu_has_interrupt().  See the commit message for details.
+	 */
+	if (nested_exit_intr_ack_set(vcpu) &&
+	    exit_reason == EXIT_REASON_EXTERNAL_INTERRUPT &&
+	    kvm_cpu_has_interrupt(vcpu)) {
 		int irq = kvm_cpu_get_interrupt(vcpu);
 		WARN_ON(irq < 0);
 		vmcs12->vm_exit_intr_info = irq |
