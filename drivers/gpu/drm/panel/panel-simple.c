@@ -540,17 +540,17 @@ static int panel_simple_probe(struct device *dev, const struct panel_desc *desc)
 
 	if (!of_property_read_u32(dev->of_node, "bus-format", &val))
 		of_desc->bus_format = val;
-	if (!of_property_read_u32(dev->of_node, "delay,prepare", &val))
+	if (!of_property_read_u32(dev->of_node, "prepare-delay-ms", &val))
 		of_desc->delay.prepare = val;
-	if (!of_property_read_u32(dev->of_node, "delay,enable", &val))
+	if (!of_property_read_u32(dev->of_node, "enable-delay-ms", &val))
 		of_desc->delay.enable = val;
-	if (!of_property_read_u32(dev->of_node, "delay,disable", &val))
+	if (!of_property_read_u32(dev->of_node, "disable-delay-ms", &val))
 		of_desc->delay.disable = val;
-	if (!of_property_read_u32(dev->of_node, "delay,unprepare", &val))
+	if (!of_property_read_u32(dev->of_node, "unprepare-delay-ms", &val))
 		of_desc->delay.unprepare = val;
-	if (!of_property_read_u32(dev->of_node, "delay,reset", &val))
+	if (!of_property_read_u32(dev->of_node, "reset-delay-ms", &val))
 		of_desc->delay.reset = val;
-	if (!of_property_read_u32(dev->of_node, "delay,init", &val))
+	if (!of_property_read_u32(dev->of_node, "init-delay-ms", &val))
 		of_desc->delay.init = val;
 
 	panel->enabled = false;
