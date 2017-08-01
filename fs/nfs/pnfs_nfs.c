@@ -83,7 +83,7 @@ pnfs_generic_clear_request_commit(struct nfs_page *req,
 	}
 out:
 	nfs_request_remove_commit_list(req, cinfo);
-	pnfs_put_lseg_locked(freeme);
+	pnfs_put_lseg(freeme);
 }
 EXPORT_SYMBOL_GPL(pnfs_generic_clear_request_commit);
 
@@ -126,7 +126,7 @@ pnfs_generic_scan_ds_commit_list(struct pnfs_commit_bucket *bucket,
 		if (bucket->clseg == NULL)
 			bucket->clseg = pnfs_get_lseg(bucket->wlseg);
 		if (list_empty(src)) {
-			pnfs_put_lseg_locked(bucket->wlseg);
+			pnfs_put_lseg(bucket->wlseg);
 			bucket->wlseg = NULL;
 		}
 	}
