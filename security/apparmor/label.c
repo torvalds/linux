@@ -1495,7 +1495,7 @@ static int aa_profile_snxprint(char *str, size_t size, struct aa_ns *view,
 		view = profiles_ns(profile);
 
 	if (view != profile->ns &&
-	    (!prev_ns || (prev_ns && *prev_ns != profile->ns))) {
+	    (!prev_ns || (*prev_ns != profile->ns))) {
 		if (prev_ns)
 			*prev_ns = profile->ns;
 		ns_name = aa_ns_name(view, profile->ns,
