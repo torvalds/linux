@@ -57,4 +57,20 @@ static inline bool on_task_stack(struct task_struct *tsk, unsigned long sp)
 	return (low <= sp && sp < high);
 }
 
+/*
+ * We can only safely access per-cpu stacks from current in a non-preemptible
+ * context.
+ */
+static inline bool on_accessible_stack(struct task_struct *tsk, unsigned long sp)
+{
+	if (on_task_stack(tsk, sp))
+		return true;
+	if (tsk != current || preemptible())
+		return false;
+	if (on_irq_stack(sp))
+		return true;
+
+	return false;
+}
+
 #endif	/* __ASM_STACKTRACE_H */

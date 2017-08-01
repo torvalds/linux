@@ -193,8 +193,7 @@ void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 		if (in_entry_text(frame.pc)) {
 			stack = frame.fp - offsetof(struct pt_regs, stackframe);
 
-			if (on_task_stack(tsk, stack) ||
-			    (tsk == current && !preemptible() && on_irq_stack(stack)))
+			if (on_accessible_stack(tsk, stack))
 				dump_mem("", "Exception stack", stack,
 					 stack + sizeof(struct pt_regs));
 		}

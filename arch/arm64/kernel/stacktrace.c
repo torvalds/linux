@@ -50,12 +50,7 @@ int notrace unwind_frame(struct task_struct *tsk, struct stackframe *frame)
 	if (!tsk)
 		tsk = current;
 
-	/*
-	 * Switching between stacks is valid when tracing current and in
-	 * non-preemptible context.
-	 */
-	if (!(tsk == current && !preemptible() && on_irq_stack(fp)) &&
-	    !on_task_stack(tsk, fp))
+	if (!on_accessible_stack(tsk, fp))
 		return -EINVAL;
 
 	frame->fp = READ_ONCE_NOCHECK(*(unsigned long *)(fp));
