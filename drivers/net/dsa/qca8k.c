@@ -638,7 +638,7 @@ qca8k_get_sset_count(struct dsa_switch *ds)
 }
 
 static int
-qca8k_set_eee(struct dsa_switch *ds, int port, struct ethtool_eee *eee)
+qca8k_set_mac_eee(struct dsa_switch *ds, int port, struct ethtool_eee *eee)
 {
 	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
 	u32 lpi_en = QCA8K_REG_EEE_CTRL_LPI_EN(port);
@@ -657,8 +657,7 @@ qca8k_set_eee(struct dsa_switch *ds, int port, struct ethtool_eee *eee)
 }
 
 static int
-qca8k_get_eee(struct dsa_switch *ds, int port,
-	      struct ethtool_eee *e)
+qca8k_get_mac_eee(struct dsa_switch *ds, int port, struct ethtool_eee *e)
 {
 	/* Nothing to do on the port's MAC */
 	return 0;
@@ -863,8 +862,8 @@ static const struct dsa_switch_ops qca8k_switch_ops = {
 	.phy_write		= qca8k_phy_write,
 	.get_ethtool_stats	= qca8k_get_ethtool_stats,
 	.get_sset_count		= qca8k_get_sset_count,
-	.get_eee		= qca8k_get_eee,
-	.set_eee		= qca8k_set_eee,
+	.get_mac_eee		= qca8k_get_mac_eee,
+	.set_mac_eee		= qca8k_set_mac_eee,
 	.port_enable		= qca8k_port_enable,
 	.port_disable		= qca8k_port_disable,
 	.port_stp_state_set	= qca8k_port_stp_state_set,

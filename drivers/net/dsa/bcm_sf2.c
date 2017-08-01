@@ -338,8 +338,8 @@ static int bcm_sf2_eee_init(struct dsa_switch *ds, int port,
 	return 1;
 }
 
-static int bcm_sf2_sw_get_eee(struct dsa_switch *ds, int port,
-			      struct ethtool_eee *e)
+static int bcm_sf2_sw_get_mac_eee(struct dsa_switch *ds, int port,
+				  struct ethtool_eee *e)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	struct ethtool_eee *p = &priv->port_sts[port].eee;
@@ -352,8 +352,8 @@ static int bcm_sf2_sw_get_eee(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static int bcm_sf2_sw_set_eee(struct dsa_switch *ds, int port,
-			      struct ethtool_eee *e)
+static int bcm_sf2_sw_set_mac_eee(struct dsa_switch *ds, int port,
+				  struct ethtool_eee *e)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	struct ethtool_eee *p = &priv->port_sts[port].eee;
@@ -1011,8 +1011,8 @@ static const struct dsa_switch_ops bcm_sf2_ops = {
 	.set_wol		= bcm_sf2_sw_set_wol,
 	.port_enable		= bcm_sf2_port_setup,
 	.port_disable		= bcm_sf2_port_disable,
-	.get_eee		= bcm_sf2_sw_get_eee,
-	.set_eee		= bcm_sf2_sw_set_eee,
+	.get_mac_eee		= bcm_sf2_sw_get_mac_eee,
+	.set_mac_eee		= bcm_sf2_sw_set_mac_eee,
 	.port_bridge_join	= b53_br_join,
 	.port_bridge_leave	= b53_br_leave,
 	.port_stp_state_set	= b53_br_set_stp_state,

@@ -332,12 +332,12 @@ struct dsa_switch_ops {
 				struct phy_device *phy);
 
 	/*
-	 * EEE setttings
+	 * Port's MAC EEE settings
 	 */
-	int	(*set_eee)(struct dsa_switch *ds, int port,
-			   struct ethtool_eee *e);
-	int	(*get_eee)(struct dsa_switch *ds, int port,
-			   struct ethtool_eee *e);
+	int	(*set_mac_eee)(struct dsa_switch *ds, int port,
+			       struct ethtool_eee *e);
+	int	(*get_mac_eee)(struct dsa_switch *ds, int port,
+			       struct ethtool_eee *e);
 
 	/* EEPROM access */
 	int	(*get_eeprom_len)(struct dsa_switch *ds);

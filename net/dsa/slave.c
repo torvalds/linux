@@ -652,10 +652,10 @@ static int dsa_slave_set_eee(struct net_device *dev, struct ethtool_eee *e)
 	if (!p->phy)
 		return -ENODEV;
 
-	if (!ds->ops->set_eee)
+	if (!ds->ops->set_mac_eee)
 		return -EOPNOTSUPP;
 
-	ret = ds->ops->set_eee(ds, p->dp->index, e);
+	ret = ds->ops->set_mac_eee(ds, p->dp->index, e);
 	if (ret)
 		return ret;
 
@@ -678,10 +678,10 @@ static int dsa_slave_get_eee(struct net_device *dev, struct ethtool_eee *e)
 	if (!p->phy)
 		return -ENODEV;
 
-	if (!ds->ops->get_eee)
+	if (!ds->ops->get_mac_eee)
 		return -EOPNOTSUPP;
 
-	ret = ds->ops->get_eee(ds, p->dp->index, e);
+	ret = ds->ops->get_mac_eee(ds, p->dp->index, e);
 	if (ret)
 		return ret;
 
