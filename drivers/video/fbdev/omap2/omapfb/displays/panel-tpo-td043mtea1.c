@@ -282,7 +282,7 @@ static struct attribute *tpo_td043_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group tpo_td043_attr_group = {
+static const struct attribute_group tpo_td043_attr_group = {
 	.attrs = tpo_td043_attrs,
 };
 
