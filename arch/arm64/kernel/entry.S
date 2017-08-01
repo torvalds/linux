@@ -138,11 +138,9 @@ alternative_else_nop_endif
 
 	stp	x22, x23, [sp, #S_PC]
 
-	/*
-	 * Set syscallno to -1 by default (overridden later if real syscall).
-	 */
+	/* Not in a syscall by default (el0_svc overwrites for real syscall) */
 	.if	\el == 0
-	mvn	w21, wzr
+	mov	w21, #NO_SYSCALL
 	str	w21, [sp, #S_SYSCALLNO]
 	.endif
 
@@ -825,13 +823,13 @@ ENDPROC(el0_svc)
 	 * switches, and waiting for our parent to respond.
 	 */
 __sys_trace:
-	cmp     wscno, #-1			// user-issued syscall(-1)?
+	cmp     wscno, #NO_SYSCALL		// user-issued syscall(-1)?
 	b.ne	1f
 	mov	x0, #-ENOSYS			// set default errno if so
 	str	x0, [sp, #S_X0]
 1:	mov	x0, sp
 	bl	syscall_trace_enter
-	cmp	w0, #-1				// skip the syscall?
+	cmp	w0, #NO_SYSCALL			// skip the syscall?
 	b.eq	__sys_trace_return_skipped
 	mov	wscno, w0			// syscall number (possibly new)
 	mov	x1, sp				// pointer to regs
