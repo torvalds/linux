@@ -68,7 +68,7 @@ struct nf_conn_timeout *nf_ct_timeout_ext_add(struct nf_conn *ct,
 
 static inline unsigned int *
 nf_ct_timeout_lookup(struct net *net, struct nf_conn *ct,
-		     struct nf_conntrack_l4proto *l4proto)
+		     const struct nf_conntrack_l4proto *l4proto)
 {
 #ifdef CONFIG_NF_CONNTRACK_TIMEOUT
 	struct nf_conn_timeout *timeout_ext;

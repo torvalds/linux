@@ -61,8 +61,8 @@ MODULE_LICENSE("GPL");
 static char __initdata version[] = "0.93";
 
 static int ctnetlink_dump_tuples_proto(struct sk_buff *skb,
-				       const struct nf_conntrack_tuple *tuple,
-				       struct nf_conntrack_l4proto *l4proto)
+				const struct nf_conntrack_tuple *tuple,
+				const struct nf_conntrack_l4proto *l4proto)
 {
 	int ret = 0;
 	struct nlattr *nest_parms;
@@ -86,7 +86,7 @@ nla_put_failure:
 
 static int ctnetlink_dump_tuples_ip(struct sk_buff *skb,
 				    const struct nf_conntrack_tuple *tuple,
-				    struct nf_conntrack_l3proto *l3proto)
+				    const struct nf_conntrack_l3proto *l3proto)
 {
 	int ret = 0;
 	struct nlattr *nest_parms;

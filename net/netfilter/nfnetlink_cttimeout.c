@@ -47,7 +47,8 @@ static const struct nla_policy cttimeout_nla_policy[CTA_TIMEOUT_MAX+1] = {
 };
 
 static int
-ctnl_timeout_parse_policy(void *timeouts, struct nf_conntrack_l4proto *l4proto,
+ctnl_timeout_parse_policy(void *timeouts,
+			  const struct nf_conntrack_l4proto *l4proto,
 			  struct net *net, const struct nlattr *attr)
 {
 	int ret = 0;
@@ -401,7 +402,7 @@ err:
 static int
 cttimeout_default_fill_info(struct net *net, struct sk_buff *skb, u32 portid,
 			    u32 seq, u32 type, int event,
-			    struct nf_conntrack_l4proto *l4proto)
+			    const struct nf_conntrack_l4proto *l4proto)
 {
 	struct nlmsghdr *nlh;
 	struct nfgenmsg *nfmsg;
