@@ -1,0 +1,4 @@
+config RTL8723DS
+	tristate "Realtek 8723D SDIO or SPI WiFi"
+	---help---
+	  Help message of RTL8723DS
