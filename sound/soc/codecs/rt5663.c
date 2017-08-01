@@ -3058,6 +3058,7 @@ static void rt5663_calibrate(struct rt5663_priv *rt5663)
 	regmap_write(rt5663->regmap, RT5663_PWR_ANLG_3, 0x018c);
 	regmap_write(rt5663->regmap, RT5663_HP_CHARGE_PUMP_1, 0x1e32);
 	regmap_write(rt5663->regmap, RT5663_DACREF_LDO, 0x3b0b);
+	msleep(40);
 	regmap_write(rt5663->regmap, RT5663_STO_DAC_MIXER, 0x0000);
 	regmap_write(rt5663->regmap, RT5663_BYPASS_STO_DAC, 0x000c);
 	regmap_write(rt5663->regmap, RT5663_HP_BIAS, 0xafaa);
