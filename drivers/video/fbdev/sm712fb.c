@@ -33,8 +33,8 @@
 #include "sm712.h"
 
 /*
-* Private structure
-*/
+ * Private structure
+ */
 struct smtcfb_info {
 	struct pci_dev *pdev;
 	struct fb_info *fb;
