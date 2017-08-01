@@ -724,11 +724,7 @@ static int k3_dma_terminate_all(struct dma_chan *chan)
 			k3_dma_free_desc(&p->ds_run->vd);
 			p->ds_run = NULL;
 		}
-		if (p->ds_done) {
-			k3_dma_free_desc(&p->ds_done->vd);
-			p->ds_done = NULL;
-		}
-
+		p->ds_done = NULL;
 	}
 	spin_unlock_irqrestore(&c->vc.lock, flags);
 	vchan_dma_desc_free_list(&c->vc, &head);
