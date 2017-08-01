@@ -637,8 +637,8 @@ qca8k_get_sset_count(struct dsa_switch *ds)
 	return ARRAY_SIZE(ar8327_mib);
 }
 
-static void
-qca8k_eee_enable_set(struct dsa_switch *ds, int port, bool enable)
+static int
+qca8k_set_eee(struct dsa_switch *ds, int port, struct ethtool_eee *eee)
 {
 	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
 	u32 lpi_en = QCA8K_REG_EEE_CTRL_LPI_EN(port);
@@ -646,20 +646,12 @@ qca8k_eee_enable_set(struct dsa_switch *ds, int port, bool enable)
 
 	mutex_lock(&priv->reg_mutex);
 	reg = qca8k_read(priv, QCA8K_REG_EEE_CTRL);
-	if (enable)
+	if (eee->eee_enabled)
 		reg |= lpi_en;
 	else
 		reg &= ~lpi_en;
 	qca8k_write(priv, QCA8K_REG_EEE_CTRL, reg);
 	mutex_unlock(&priv->reg_mutex);
-}
-
-static int
-qca8k_set_eee(struct dsa_switch *ds, int port,
-	      struct phy_device *phydev,
-	      struct ethtool_eee *e)
-{
-	qca8k_eee_enable_set(ds, port, e->eee_enabled);
 
 	return 0;
 }

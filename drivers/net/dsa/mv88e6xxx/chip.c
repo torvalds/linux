@@ -850,7 +850,7 @@ static int mv88e6xxx_get_eee(struct dsa_switch *ds, int port,
 }
 
 static int mv88e6xxx_set_eee(struct dsa_switch *ds, int port,
-			     struct phy_device *phydev, struct ethtool_eee *e)
+			     struct ethtool_eee *e)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;

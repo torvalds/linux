@@ -655,7 +655,7 @@ static int dsa_slave_set_eee(struct net_device *dev, struct ethtool_eee *e)
 	if (!ds->ops->set_eee)
 		return -EOPNOTSUPP;
 
-	ret = ds->ops->set_eee(ds, p->dp->index, p->phy, e);
+	ret = ds->ops->set_eee(ds, p->dp->index, e);
 	if (ret)
 		return ret;
 

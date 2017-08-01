@@ -335,7 +335,6 @@ struct dsa_switch_ops {
 	 * EEE setttings
 	 */
 	int	(*set_eee)(struct dsa_switch *ds, int port,
-			   struct phy_device *phydev,
 			   struct ethtool_eee *e);
 	int	(*get_eee)(struct dsa_switch *ds, int port,
 			   struct ethtool_eee *e);

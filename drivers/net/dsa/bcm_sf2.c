@@ -353,7 +353,6 @@ static int bcm_sf2_sw_get_eee(struct dsa_switch *ds, int port,
 }
 
 static int bcm_sf2_sw_set_eee(struct dsa_switch *ds, int port,
-			      struct phy_device *phydev,
 			      struct ethtool_eee *e)
 {
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
