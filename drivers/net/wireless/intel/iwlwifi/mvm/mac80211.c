@@ -1084,7 +1084,13 @@ int __iwl_mvm_mac_start(struct iwl_mvm *mvm)
 
 	lockdep_assert_held(&mvm->mutex);
 
-	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
+	if (test_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED, &mvm->status)) {
+		/*
+		 * Now convert the HW_RESTART_REQUESTED flag to IN_HW_RESTART
+		 * so later code will - from now on - see that we're doing it.
+		 */
+		set_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status);
+		clear_bit(IWL_MVM_STATUS_HW_RESTART_REQUESTED, &mvm->status);
 		/* Clean up some internal and mac80211 state on restart */
 		iwl_mvm_restart_cleanup(mvm);
 	} else {
