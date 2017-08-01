@@ -19,7 +19,7 @@
  */
 #include <uapi/asm-generic/ioctls.h>
 
-static size_t ioctl__scnprintf_tty_cmd(int nr, char *bf, size_t size)
+static size_t ioctl__scnprintf_tty_cmd(int nr, int dir, char *bf, size_t size)
 {
 	static const char *ioctl_tty_cmd[] = {
 	"TCGETS", "TCSETS", "TCSETSW", "TCSETSF", "TCGETA", "TCSETA", "TCSETAW",
@@ -41,10 +41,10 @@ static size_t ioctl__scnprintf_tty_cmd(int nr, char *bf, size_t size)
 	if (nr < strarray__ioctl_tty_cmd.nr_entries && strarray__ioctl_tty_cmd.entries[nr] != NULL)
 		return scnprintf(bf, size, "%s", strarray__ioctl_tty_cmd.entries[nr]);
 
-	return scnprintf(bf, size, "(%#x, %#x)", 'T', nr);
+	return scnprintf(bf, size, "(%#x, %#x, %#x)", 'T', nr, dir);
 }
 
-static size_t ioctl__scnprintf_drm_cmd(int nr, char *bf, size_t size)
+static size_t ioctl__scnprintf_drm_cmd(int nr, int dir, char *bf, size_t size)
 {
 #include "trace/beauty/generated/ioctl/drm_ioctl_array.c"
 	static DEFINE_STRARRAY(drm_ioctl_cmds);
@@ -52,10 +52,10 @@ static size_t ioctl__scnprintf_drm_cmd(int nr, char *bf, size_t size)
 	if (nr < strarray__drm_ioctl_cmds.nr_entries && strarray__drm_ioctl_cmds.entries[nr] != NULL)
 		return scnprintf(bf, size, "DRM_%s", strarray__drm_ioctl_cmds.entries[nr]);
 
-	return scnprintf(bf, size, "(%#x, %#x)", 'd', nr);
+	return scnprintf(bf, size, "(%#x, %#x, %#x)", 'd', nr, dir);
 }
 
-static size_t ioctl__scnprintf_sndrv_pcm_cmd(int nr, char *bf, size_t size)
+static size_t ioctl__scnprintf_sndrv_pcm_cmd(int nr, int dir, char *bf, size_t size)
 {
 #include "trace/beauty/generated/ioctl/sndrv_pcm_ioctl_array.c"
 	static DEFINE_STRARRAY(sndrv_pcm_ioctl_cmds);
@@ -63,10 +63,10 @@ static size_t ioctl__scnprintf_sndrv_pcm_cmd(int nr, char *bf, size_t size)
 	if (nr < strarray__sndrv_pcm_ioctl_cmds.nr_entries && strarray__sndrv_pcm_ioctl_cmds.entries[nr] != NULL)
 		return scnprintf(bf, size, "SNDRV_PCM_%s", strarray__sndrv_pcm_ioctl_cmds.entries[nr]);
 
-	return scnprintf(bf, size, "(%#x, %#x)", 'A', nr);
+	return scnprintf(bf, size, "(%#x, %#x, %#x)", 'A', nr, dir);
 }
 
-static size_t ioctl__scnprintf_sndrv_ctl_cmd(int nr, char *bf, size_t size)
+static size_t ioctl__scnprintf_sndrv_ctl_cmd(int nr, int dir, char *bf, size_t size)
 {
 #include "trace/beauty/generated/ioctl/sndrv_ctl_ioctl_array.c"
 	static DEFINE_STRARRAY(sndrv_ctl_ioctl_cmds);
@@ -74,10 +74,10 @@ static size_t ioctl__scnprintf_sndrv_ctl_cmd(int nr, char *bf, size_t size)
 	if (nr < strarray__sndrv_ctl_ioctl_cmds.nr_entries && strarray__sndrv_ctl_ioctl_cmds.entries[nr] != NULL)
 		return scnprintf(bf, size, "SNDRV_CTL_%s", strarray__sndrv_ctl_ioctl_cmds.entries[nr]);
 
-	return scnprintf(bf, size, "(%#x, %#x)", 'U', nr);
+	return scnprintf(bf, size, "(%#x, %#x, %#x)", 'U', nr, dir);
 }
 
-static size_t ioctl__scnprintf_kvm_cmd(int nr, char *bf, size_t size)
+static size_t ioctl__scnprintf_kvm_cmd(int nr, int dir, char *bf, size_t size)
 {
 #include "trace/beauty/generated/ioctl/kvm_ioctl_array.c"
 	static DEFINE_STRARRAY(kvm_ioctl_cmds);
@@ -85,7 +85,7 @@ static size_t ioctl__scnprintf_kvm_cmd(int nr, char *bf, size_t size)
 	if (nr < strarray__kvm_ioctl_cmds.nr_entries && strarray__kvm_ioctl_cmds.entries[nr] != NULL)
 		return scnprintf(bf, size, "KVM_%s", strarray__kvm_ioctl_cmds.entries[nr]);
 
-	return scnprintf(bf, size, "(%#x, %#x)", 0xAE, nr);
+	return scnprintf(bf, size, "(%#x, %#x, %#x)", 0xAE, nr, dir);
 }
 
 static size_t ioctl__scnprintf_cmd(unsigned long cmd, char *bf, size_t size)
@@ -97,7 +97,7 @@ static size_t ioctl__scnprintf_cmd(unsigned long cmd, char *bf, size_t size)
 	int printed = 0;
 	static const struct ioctl_type {
 		int	type;
-		size_t	(*scnprintf)(int nr, char *bf, size_t size);
+		size_t	(*scnprintf)(int nr, int dir, char *bf, size_t size);
 	} ioctl_types[] = { /* Must be ordered by type */
 			      { .type	= 'A', .scnprintf = ioctl__scnprintf_sndrv_pcm_cmd, },
 		['T' - 'A']=  { .type	= 'T', .scnprintf = ioctl__scnprintf_tty_cmd, },
@@ -111,7 +111,7 @@ static size_t ioctl__scnprintf_cmd(unsigned long cmd, char *bf, size_t size)
 		const int index = type - ioctl_types[0].type;
 
 		if (ioctl_types[index].scnprintf != NULL)
-			return ioctl_types[index].scnprintf(nr, bf, size);
+			return ioctl_types[index].scnprintf(nr, dir, bf, size);
 	}
 
 	printed += scnprintf(bf + printed, size - printed, "%c", '(');
