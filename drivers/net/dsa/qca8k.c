@@ -684,12 +684,13 @@ qca8k_set_eee(struct dsa_switch *ds, int port,
 
 	p->eee_enabled = e->eee_enabled;
 
-	if (e->eee_enabled) {
+	if (!p->eee_enabled) {
+		qca8k_eee_enable_set(ds, port, false);
+	} else {
 		p->eee_enabled = qca8k_eee_init(ds, port, phydev);
 		if (!p->eee_enabled)
 			ret = -EOPNOTSUPP;
 	}
-	qca8k_eee_enable_set(ds, port, p->eee_enabled);
 
 	return ret;
 }
