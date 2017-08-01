@@ -119,7 +119,7 @@ static int ohci_platform_probe(struct platform_device *dev)
 	struct ohci_hcd *ohci;
 	int err, irq, phy_num, clk = 0;
 
-	if (usb_disabled())
+	if (usb_disabled() || of_machine_is_compatible("rockchip,rk3288"))
 		return -ENODEV;
 
 	/*
