@@ -1858,6 +1858,20 @@ int xfrm_dev_state_add(struct net *net, struct xfrm_state *x,
 		       struct xfrm_user_offload *xuo);
 bool xfrm_dev_offload_ok(struct sk_buff *skb, struct xfrm_state *x);
 
+static inline bool xfrm_dst_offload_ok(struct dst_entry *dst)
+{
+	struct xfrm_state *x = dst->xfrm;
+
+	if (!x || !x->type_offload)
+		return false;
+
+	if (x->xso.offload_handle && (x->xso.dev == dst->path->dev) &&
+	    !dst->child->xfrm)
+		return true;
+
+	return false;
+}
+
 static inline void xfrm_dev_state_delete(struct xfrm_state *x)
 {
 	struct xfrm_state_offload *xso = &x->xso;
@@ -1897,6 +1911,11 @@ static inline void xfrm_dev_state_free(struct xfrm_state *x)
 }
 
 static inline bool xfrm_dev_offload_ok(struct sk_buff *skb, struct xfrm_state *x)
+{
+	return false;
+}
+
+static inline bool xfrm_dst_offload_ok(struct dst_entry *dst)
 {
 	return false;
 }
