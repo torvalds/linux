@@ -172,18 +172,18 @@ nfs_page_private_request(struct page *page)
 static struct nfs_page *
 nfs_page_find_private_request(struct page *page)
 {
-	struct inode *inode = page_file_mapping(page)->host;
+	struct address_space *mapping = page_file_mapping(page);
 	struct nfs_page *req;
 
 	if (!PagePrivate(page))
 		return NULL;
-	spin_lock(&inode->i_lock);
+	spin_lock(&mapping->private_lock);
 	req = nfs_page_private_request(page);
 	if (req) {
 		WARN_ON_ONCE(req->wb_head != req);
 		kref_get(&req->wb_kref);
 	}
-	spin_unlock(&inode->i_lock);
+	spin_unlock(&mapping->private_lock);
 	return req;
 }
 
@@ -743,6 +743,7 @@ out_err:
  */
 static void nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
 {
+	struct address_space *mapping = page_file_mapping(req->wb_page);
 	struct nfs_inode *nfsi = NFS_I(inode);
 
 	WARN_ON_ONCE(req->wb_this_page != req);
@@ -750,19 +751,23 @@ static void nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
 	/* Lock the request! */
 	nfs_lock_request(req);
 
-	spin_lock(&inode->i_lock);
-	if (!nfs_have_writebacks(inode) &&
-	    NFS_PROTO(inode)->have_delegation(inode, FMODE_WRITE))
-		inode->i_version++;
 	/*
 	 * Swap-space should not get truncated. Hence no need to plug the race
 	 * with invalidate/truncate.
 	 */
+	spin_lock(&mapping->private_lock);
+	if (!nfs_have_writebacks(inode) &&
+	    NFS_PROTO(inode)->have_delegation(inode, FMODE_WRITE)) {
+		spin_lock(&inode->i_lock);
+		inode->i_version++;
+		spin_unlock(&inode->i_lock);
+	}
 	if (likely(!PageSwapCache(req->wb_page))) {
 		set_bit(PG_MAPPED, &req->wb_flags);
 		SetPagePrivate(req->wb_page);
 		set_page_private(req->wb_page, (unsigned long)req);
 	}
+	spin_unlock(&mapping->private_lock);
 	atomic_long_inc(&nfsi->nrequests);
 	/* this a head request for a page group - mark it as having an
 	 * extra reference so sub groups can follow suit.
@@ -770,7 +775,6 @@ static void nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
 	 * adding subrequests. */
 	WARN_ON(test_and_set_bit(PG_INODE_REF, &req->wb_flags));
 	kref_get(&req->wb_kref);
-	spin_unlock(&inode->i_lock);
 }
 
 /*
@@ -778,7 +782,8 @@ static void nfs_inode_add_request(struct inode *inode, struct nfs_page *req)
  */
 static void nfs_inode_remove_request(struct nfs_page *req)
 {
-	struct inode *inode = d_inode(req->wb_context->dentry);
+	struct address_space *mapping = page_file_mapping(req->wb_page);
+	struct inode *inode = mapping->host;
 	struct nfs_inode *nfsi = NFS_I(inode);
 	struct nfs_page *head;
 
@@ -786,13 +791,13 @@ static void nfs_inode_remove_request(struct nfs_page *req)
 	if (nfs_page_group_sync_on_bit(req, PG_REMOVE)) {
 		head = req->wb_head;
 
-		spin_lock(&inode->i_lock);
+		spin_lock(&mapping->private_lock);
 		if (likely(head->wb_page && !PageSwapCache(head->wb_page))) {
 			set_page_private(head->wb_page, 0);
 			ClearPagePrivate(head->wb_page);
 			clear_bit(PG_MAPPED, &head->wb_flags);
 		}
-		spin_unlock(&inode->i_lock);
+		spin_unlock(&mapping->private_lock);
 	}
 
 	if (test_and_clear_bit(PG_INODE_REF, &req->wb_flags))
