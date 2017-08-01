@@ -61,6 +61,7 @@ config BCM63XX_ENET
 
 config BCMGENET
 	tristate "Broadcom GENET internal MAC support"
+	depends on (OF && HAS_IOMEM) || COMPILE_TEST
 	select MII
 	select PHYLIB
 	select FIXED_PHY
