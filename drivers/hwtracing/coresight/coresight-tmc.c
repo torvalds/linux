@@ -303,16 +303,36 @@ const struct attribute_group *coresight_tmc_groups[] = {
 static int tmc_etr_setup_caps(struct tmc_drvdata *drvdata,
 			     u32 devid, void *dev_caps)
 {
+	u32 dma_mask = 0;
+
 	/* Set the unadvertised capabilities */
 	tmc_etr_init_caps(drvdata, (u32)(unsigned long)dev_caps);
 
 	if (!(devid & TMC_DEVID_NOSCAT))
 		tmc_etr_set_cap(drvdata, TMC_ETR_SG);
+
+	/* Check if the AXI address width is available */
+	if (devid & TMC_DEVID_AXIAW_VALID)
+		dma_mask = ((devid >> TMC_DEVID_AXIAW_SHIFT) &
+				TMC_DEVID_AXIAW_MASK);
+
 	/*
-	 * ETR configuration uses a 40-bit AXI master in place of
-	 * the embedded SRAM of ETB/ETF.
+	 * Unless specified in the device configuration, ETR uses a 40-bit
+	 * AXI master in place of the embedded SRAM of ETB/ETF.
 	 */
-	return dma_set_mask_and_coherent(drvdata->dev, DMA_BIT_MASK(40));
+	switch (dma_mask) {
+	case 32:
+	case 40:
+	case 44:
+	case 48:
+	case 52:
+		dev_info(drvdata->dev, "Detected dma mask %dbits\n", dma_mask);
+		break;
+	default:
+		dma_mask = 40;
+	}
+
+	return dma_set_mask_and_coherent(drvdata->dev, DMA_BIT_MASK(dma_mask));
 }
 
 static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
