@@ -299,7 +299,6 @@ struct dquot {
 	struct list_head dq_dirty;	/* List of dirty dquots */
 	struct mutex dq_lock;		/* dquot IO lock */
 	atomic_t dq_count;		/* Use count */
-	wait_queue_head_t dq_wait_unused;	/* Wait queue for dquot to become unused */
 	struct super_block *dq_sb;	/* superblock this applies to */
 	struct kqid dq_id;		/* ID this applies to (uid, gid, projid) */
 	loff_t dq_off;			/* Offset of dquot on disk */

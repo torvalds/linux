@@ -126,6 +126,8 @@ __cacheline_aligned_in_smp DEFINE_SPINLOCK(dq_data_lock);
 EXPORT_SYMBOL(dq_data_lock);
 DEFINE_STATIC_SRCU(dquot_srcu);
 
+static DECLARE_WAIT_QUEUE_HEAD(dquot_ref_wq);
+
 void __quota_error(struct super_block *sb, const char *func,
 		   const char *fmt, ...)
 {
@@ -527,22 +529,18 @@ restart:
 			continue;
 		/* Wait for dquot users */
 		if (atomic_read(&dquot->dq_count)) {
-			DEFINE_WAIT(wait);
-
 			dqgrab(dquot);
-			prepare_to_wait(&dquot->dq_wait_unused, &wait,
-					TASK_UNINTERRUPTIBLE);
 			spin_unlock(&dq_list_lock);
-			/* Once dqput() wakes us up, we know it's time to free
+			/*
+			 * Once dqput() wakes us up, we know it's time to free
 			 * the dquot.
 			 * IMPORTANT: we rely on the fact that there is always
 			 * at most one process waiting for dquot to free.
 			 * Otherwise dq_count would be > 1 and we would never
 			 * wake up.
 			 */
-			if (atomic_read(&dquot->dq_count) > 1)
-				schedule();
-			finish_wait(&dquot->dq_wait_unused, &wait);
+			wait_event(dquot_ref_wq,
+				   atomic_read(&dquot->dq_count) == 1);
 			dqput(dquot);
 			/* At this moment dquot() need not exist (it could be
 			 * reclaimed by prune_dqcache(). Hence we must
@@ -754,7 +752,7 @@ we_slept:
 		/* Releasing dquot during quotaoff phase? */
 		if (!sb_has_quota_active(dquot->dq_sb, dquot->dq_id.type) &&
 		    atomic_read(&dquot->dq_count) == 1)
-			wake_up(&dquot->dq_wait_unused);
+			wake_up(&dquot_ref_wq);
 		spin_unlock(&dq_list_lock);
 		return;
 	}
@@ -809,7 +807,6 @@ static struct dquot *get_empty_dquot(struct super_block *sb, int type)
 	INIT_LIST_HEAD(&dquot->dq_inuse);
 	INIT_HLIST_NODE(&dquot->dq_hash);
 	INIT_LIST_HEAD(&dquot->dq_dirty);
-	init_waitqueue_head(&dquot->dq_wait_unused);
 	dquot->dq_sb = sb;
 	dquot->dq_id = make_kqid_invalid(type);
 	atomic_set(&dquot->dq_count, 1);
