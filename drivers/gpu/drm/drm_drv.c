@@ -381,21 +381,12 @@ static void drm_device_set_unplugged(struct drm_device *dev)
  */
 void drm_dev_unplug(struct drm_device *dev)
 {
-	/* for a USB device */
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		drm_modeset_unregister_all(dev);
-
-	drm_minor_unregister(dev, DRM_MINOR_PRIMARY);
-	drm_minor_unregister(dev, DRM_MINOR_RENDER);
-	drm_minor_unregister(dev, DRM_MINOR_CONTROL);
+	drm_dev_unregister(dev);
 
 	mutex_lock(&drm_global_mutex);
-
 	drm_device_set_unplugged(dev);
-
-	if (dev->open_count == 0) {
-		drm_put_dev(dev);
-	}
+	if (dev->open_count == 0)
+		drm_dev_unref(dev);
 	mutex_unlock(&drm_global_mutex);
 }
 EXPORT_SYMBOL(drm_dev_unplug);
