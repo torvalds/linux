@@ -127,6 +127,14 @@ coresight_read_reg_pair(void __iomem *addr, s32 lo_offset, s32 hi_offset)
 	return val;
 }
 
+static inline void coresight_write_reg_pair(void __iomem *addr, u64 val,
+						 s32 lo_offset, s32 hi_offset)
+{
+	writel_relaxed((u32)val, addr + lo_offset);
+	if (hi_offset >= 0)
+		writel_relaxed((u32)(val >> 32), addr + hi_offset);
+}
+
 void coresight_disable_path(struct list_head *path);
 int coresight_enable_path(struct list_head *path, u32 mode);
 struct coresight_device *coresight_get_sink(struct list_head *path);

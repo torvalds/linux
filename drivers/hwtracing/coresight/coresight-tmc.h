@@ -139,4 +139,22 @@ extern const struct coresight_ops tmc_etf_cs_ops;
 int tmc_read_prepare_etr(struct tmc_drvdata *drvdata);
 int tmc_read_unprepare_etr(struct tmc_drvdata *drvdata);
 extern const struct coresight_ops tmc_etr_cs_ops;
+
+
+#define TMC_REG_PAIR(name, lo_off, hi_off)				\
+static inline u64							\
+tmc_read_##name(struct tmc_drvdata *drvdata)				\
+{									\
+	return coresight_read_reg_pair(drvdata->base, lo_off, hi_off);	\
+}									\
+static inline void							\
+tmc_write_##name(struct tmc_drvdata *drvdata, u64 val)			\
+{									\
+	coresight_write_reg_pair(drvdata->base, val, lo_off, hi_off);	\
+}
+
+TMC_REG_PAIR(rrp, TMC_RRP, TMC_RRPHI)
+TMC_REG_PAIR(rwp, TMC_RWP, TMC_RWPHI)
+TMC_REG_PAIR(dba, TMC_DBALO, TMC_DBAHI)
+
 #endif
