@@ -104,6 +104,8 @@ enum tmc_mem_intf_width {
  * @config_type: TMC variant, must be of type @tmc_config_type.
  * @memwidth:	width of the memory interface databus, in bytes.
  * @trigger_cntr: amount of words to store after a trigger.
+ * @etr_caps:	Bitmask of capabilities of the TMC ETR, inferred from the
+ *		device configuration register (DEVID)
  */
 struct tmc_drvdata {
 	void __iomem		*base;
@@ -121,6 +123,7 @@ struct tmc_drvdata {
 	enum tmc_config_type	config_type;
 	enum tmc_mem_intf_width	memwidth;
 	u32			trigger_cntr;
+	u32			etr_caps;
 };
 
 /* Generic functions */
@@ -156,5 +159,22 @@ tmc_write_##name(struct tmc_drvdata *drvdata, u64 val)			\
 TMC_REG_PAIR(rrp, TMC_RRP, TMC_RRPHI)
 TMC_REG_PAIR(rwp, TMC_RWP, TMC_RWPHI)
 TMC_REG_PAIR(dba, TMC_DBALO, TMC_DBAHI)
+
+/* Initialise the caps from unadvertised static capabilities of the device */
+static inline void tmc_etr_init_caps(struct tmc_drvdata *drvdata, u32 dev_caps)
+{
+	WARN_ON(drvdata->etr_caps);
+	drvdata->etr_caps = dev_caps;
+}
+
+static inline void tmc_etr_set_cap(struct tmc_drvdata *drvdata, u32 cap)
+{
+	drvdata->etr_caps |= cap;
+}
+
+static inline bool tmc_etr_has_cap(struct tmc_drvdata *drvdata, u32 cap)
+{
+	return !!(drvdata->etr_caps & cap);
+}
 
 #endif

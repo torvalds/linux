@@ -299,6 +299,20 @@ const struct attribute_group *coresight_tmc_groups[] = {
 	NULL,
 };
 
+/* Detect and initialise the capabilities of a TMC ETR */
+static int tmc_etr_setup_caps(struct tmc_drvdata *drvdata,
+			     u32 devid, void *dev_caps)
+{
+	/* Set the unadvertised capabilities */
+	tmc_etr_init_caps(drvdata, (u32)(unsigned long)dev_caps);
+
+	/*
+	 * ETR configuration uses a 40-bit AXI master in place of
+	 * the embedded SRAM of ETB/ETF.
+	 */
+	return dma_set_mask_and_coherent(drvdata->dev, DMA_BIT_MASK(40));
+}
+
 static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	int ret = 0;
@@ -370,11 +384,7 @@ static int tmc_probe(struct amba_device *adev, const struct amba_id *id)
 		desc.type = CORESIGHT_DEV_TYPE_SINK;
 		desc.subtype.sink_subtype = CORESIGHT_DEV_SUBTYPE_SINK_BUFFER;
 		desc.ops = &tmc_etr_cs_ops;
-		/*
-		 * ETR configuration uses a 40-bit AXI master in place of
-		 * the embedded SRAM of ETB/ETF.
-		 */
-		ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(40));
+		ret = tmc_etr_setup_caps(drvdata, devid, id->data);
 		if (ret)
 			goto out;
 		break;
