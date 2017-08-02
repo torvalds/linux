@@ -237,18 +237,25 @@ static int binder_update_page_range(struct binder_alloc *alloc, int allocate,
 	for (page_addr = start; page_addr < end; page_addr += PAGE_SIZE) {
 		int ret;
 		bool on_lru;
+		size_t index;
 
-		page = &alloc->pages[(page_addr - alloc->buffer) / PAGE_SIZE];
+		index = (page_addr - alloc->buffer) / PAGE_SIZE;
+		page = &alloc->pages[index];
 
 		if (page->page_ptr) {
+			trace_binder_alloc_lru_start(alloc, index);
+
 			on_lru = list_lru_del(&binder_alloc_lru, &page->lru);
 			WARN_ON(!on_lru);
+
+			trace_binder_alloc_lru_end(alloc, index);
 			continue;
 		}
 
 		if (WARN_ON(!vma))
 			goto err_page_ptr_cleared;
 
+		trace_binder_alloc_page_start(alloc, index);
 		page->page_ptr = alloc_page(GFP_KERNEL |
 					    __GFP_HIGHMEM |
 					    __GFP_ZERO);
@@ -278,6 +285,8 @@ static int binder_update_page_range(struct binder_alloc *alloc, int allocate,
 			       alloc->pid, user_page_addr);
 			goto err_vm_insert_page_failed;
 		}
+
+		trace_binder_alloc_page_end(alloc, index);
 		/* vm_insert_page does not seem to increment the refcount */
 	}
 	if (mm) {
@@ -290,11 +299,17 @@ free_range:
 	for (page_addr = end - PAGE_SIZE; page_addr >= start;
 	     page_addr -= PAGE_SIZE) {
 		bool ret;
+		size_t index;
 
-		page = &alloc->pages[(page_addr - alloc->buffer) / PAGE_SIZE];
+		index = (page_addr - alloc->buffer) / PAGE_SIZE;
+		page = &alloc->pages[index];
+
+		trace_binder_free_lru_start(alloc, index);
 
 		ret = list_lru_add(&binder_alloc_lru, &page->lru);
 		WARN_ON(!ret);
+
+		trace_binder_free_lru_end(alloc, index);
 		continue;
 
 err_vm_insert_page_failed:
@@ -887,18 +902,26 @@ enum lru_status binder_alloc_free_page(struct list_head *item,
 		if (!down_write_trylock(&mm->mmap_sem))
 			goto err_down_write_mmap_sem_failed;
 
+		trace_binder_unmap_user_start(alloc, index);
+
 		zap_page_range(alloc->vma,
 			       page_addr +
 			       alloc->user_buffer_offset,
 			       PAGE_SIZE, NULL);
 
+		trace_binder_unmap_user_end(alloc, index);
+
 		up_write(&mm->mmap_sem);
 		mmput(mm);
 	}
 
+	trace_binder_unmap_kernel_start(alloc, index);
+
 	unmap_kernel_range(page_addr, PAGE_SIZE);
 	__free_page(page->page_ptr);
 	page->page_ptr = NULL;
+
+	trace_binder_unmap_kernel_end(alloc, index);
 
 	list_lru_isolate(lru, item);
 

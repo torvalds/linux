@@ -291,6 +291,61 @@ TRACE_EVENT(binder_update_page_range,
 		  __entry->offset, __entry->size)
 );
 
+DECLARE_EVENT_CLASS(binder_lru_page_class,
+	TP_PROTO(const struct binder_alloc *alloc, size_t page_index),
+	TP_ARGS(alloc, page_index),
+	TP_STRUCT__entry(
+		__field(int, proc)
+		__field(size_t, page_index)
+	),
+	TP_fast_assign(
+		__entry->proc = alloc->pid;
+		__entry->page_index = page_index;
+	),
+	TP_printk("proc=%d page_index=%zu",
+		  __entry->proc, __entry->page_index)
+);
+
+DEFINE_EVENT(binder_lru_page_class, binder_alloc_lru_start,
+	TP_PROTO(const struct binder_alloc *alloc, size_t page_index),
+	TP_ARGS(alloc, page_index));
+
+DEFINE_EVENT(binder_lru_page_class, binder_alloc_lru_end,
+	TP_PROTO(const struct binder_alloc *alloc, size_t page_index),
+	TP_ARGS(alloc, page_index));
+
+DEFINE_EVENT(binder_lru_page_class, binder_free_lru_start,
+	TP_PROTO(const struct binder_alloc *alloc, size_t page_index),
+	TP_ARGS(alloc, page_index));
+
+DEFINE_EVENT(binder_lru_page_class, binder_free_lru_end,
+	TP_PROTO(const struct binder_alloc *alloc, size_t page_index),
+	TP_ARGS(alloc, page_index));
+
+DEFINE_EVENT(binder_lru_page_class, binder_alloc_page_start,
+	TP_PROTO(const struct binder_alloc *alloc, size_t page_index),
+	TP_ARGS(alloc, page_index));
+
+DEFINE_EVENT(binder_lru_page_class, binder_alloc_page_end,
+	TP_PROTO(const struct binder_alloc *alloc, size_t page_index),
+	TP_ARGS(alloc, page_index));
+
+DEFINE_EVENT(binder_lru_page_class, binder_unmap_user_start,
+	TP_PROTO(const struct binder_alloc *alloc, size_t page_index),
+	TP_ARGS(alloc, page_index));
+
+DEFINE_EVENT(binder_lru_page_class, binder_unmap_user_end,
+	TP_PROTO(const struct binder_alloc *alloc, size_t page_index),
+	TP_ARGS(alloc, page_index));
+
+DEFINE_EVENT(binder_lru_page_class, binder_unmap_kernel_start,
+	TP_PROTO(const struct binder_alloc *alloc, size_t page_index),
+	TP_ARGS(alloc, page_index));
+
+DEFINE_EVENT(binder_lru_page_class, binder_unmap_kernel_end,
+	TP_PROTO(const struct binder_alloc *alloc, size_t page_index),
+	TP_ARGS(alloc, page_index));
+
 TRACE_EVENT(binder_command,
 	TP_PROTO(uint32_t cmd),
 	TP_ARGS(cmd),
