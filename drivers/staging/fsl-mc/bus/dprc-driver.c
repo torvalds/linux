@@ -617,8 +617,7 @@ static int dprc_probe(struct fsl_mc_device *mc_dev)
 		if (WARN_ON(mc_dev->obj_desc.region_count == 0))
 			return -EINVAL;
 
-		region_size = mc_dev->regions[0].end -
-			      mc_dev->regions[0].start + 1;
+		region_size = resource_size(mc_dev->regions);
 
 		error = fsl_create_mc_io(&mc_dev->dev,
 					 mc_dev->regions[0].start,
