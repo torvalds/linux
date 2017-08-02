@@ -2522,6 +2522,9 @@ static int vega10_init_smc_table(struct pp_hwmgr *hwmgr)
 	pp_table->DisplayDpmVoltageMode =
 			(uint8_t)(table_info->uc_dcef_dpm_voltage_mode);
 
+	data->vddc_voltage_table.psi0_enable = voltage_table.psi0_enable;
+	data->vddc_voltage_table.psi1_enable = voltage_table.psi1_enable;
+
 	if (data->registry_data.ulv_support &&
 			table_info->us_ulv_voltage_offset) {
 		result = vega10_populate_ulv_state(hwmgr);
