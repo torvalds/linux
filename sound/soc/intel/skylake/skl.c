@@ -996,6 +996,14 @@ static struct sst_acpi_mach sst_glk_devdata[] = {
 	},
 };
 
+static const struct sst_acpi_mach sst_cnl_devdata[] = {
+	{
+		.id = "INT34C2",
+		.drv_name = "cnl_rt274",
+		.fw_filename = "intel/dsp_fw_cnl.bin",
+	},
+};
+
 /* PCI IDs */
 static const struct pci_device_id skl_ids[] = {
 	/* Sunrise Point-LP */
@@ -1010,6 +1018,9 @@ static const struct pci_device_id skl_ids[] = {
 	/* GLK */
 	{ PCI_DEVICE(0x8086, 0x3198),
 		.driver_data = (unsigned long)&sst_glk_devdata},
+	/* CNL */
+	{ PCI_DEVICE(0x8086, 0x9dc8),
+		.driver_data = (unsigned long)&sst_cnl_devdata},
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, skl_ids);
