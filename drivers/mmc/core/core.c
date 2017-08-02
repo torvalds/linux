@@ -733,8 +733,8 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card)
 	if (data->flags & MMC_DATA_WRITE)
 		mult <<= card->csd.r2w_factor;
 
-	data->timeout_ns = card->csd.tacc_ns * mult;
-	data->timeout_clks = card->csd.tacc_clks * mult;
+	data->timeout_ns = card->csd.taac_ns * mult;
+	data->timeout_clks = card->csd.taac_clks * mult;
 
 	/*
 	 * SD cards also have an upper limit on the timeout.
@@ -1859,14 +1859,14 @@ static unsigned int mmc_mmc_erase_timeout(struct mmc_card *card,
 	} else {
 		/* CSD Erase Group Size uses write timeout */
 		unsigned int mult = (10 << card->csd.r2w_factor);
-		unsigned int timeout_clks = card->csd.tacc_clks * mult;
+		unsigned int timeout_clks = card->csd.taac_clks * mult;
 		unsigned int timeout_us;
 
-		/* Avoid overflow: e.g. tacc_ns=80000000 mult=1280 */
-		if (card->csd.tacc_ns < 1000000)
-			timeout_us = (card->csd.tacc_ns * mult) / 1000;
+		/* Avoid overflow: e.g. taac_ns=80000000 mult=1280 */
+		if (card->csd.taac_ns < 1000000)
+			timeout_us = (card->csd.taac_ns * mult) / 1000;
 		else
-			timeout_us = (card->csd.tacc_ns / 1000) * mult;
+			timeout_us = (card->csd.taac_ns / 1000) * mult;
 
 		/*
 		 * ios.clock is only a target.  The real clock rate might be
