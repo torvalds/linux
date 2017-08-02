@@ -1729,12 +1729,14 @@ static u32 ibmvnic_get_link(struct net_device *netdev)
 static void ibmvnic_get_ringparam(struct net_device *netdev,
 				  struct ethtool_ringparam *ring)
 {
-	ring->rx_max_pending = 0;
-	ring->tx_max_pending = 0;
+	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
+
+	ring->rx_max_pending = adapter->max_rx_add_entries_per_subcrq;
+	ring->tx_max_pending = adapter->max_tx_entries_per_subcrq;
 	ring->rx_mini_max_pending = 0;
 	ring->rx_jumbo_max_pending = 0;
-	ring->rx_pending = 0;
-	ring->tx_pending = 0;
+	ring->rx_pending = adapter->req_rx_add_entries_per_subcrq;
+	ring->tx_pending = adapter->req_tx_entries_per_subcrq;
 	ring->rx_mini_pending = 0;
 	ring->rx_jumbo_pending = 0;
 }
