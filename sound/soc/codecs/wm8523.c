@@ -116,7 +116,7 @@ static struct {
 static struct {
 	int value;
 	int ratio;
-} bclk_ratios[WM8523_NUM_RATES] = {
+} bclk_ratios[] = {
 	{ 2, 32 },
 	{ 3, 64 },
 	{ 4, 128 },
