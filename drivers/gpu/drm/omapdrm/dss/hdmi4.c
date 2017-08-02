@@ -70,7 +70,8 @@ static void hdmi_runtime_put(void)
 
 static irqreturn_t hdmi_irq_handler(int irq, void *data)
 {
-	struct hdmi_wp_data *wp = data;
+	struct omap_hdmi *hdmi = data;
+	struct hdmi_wp_data *wp = &hdmi->wp;
 	u32 irqstatus;
 
 	irqstatus = hdmi_wp_get_irqstatus(wp);
@@ -166,8 +167,8 @@ static int hdmi_power_on_full(struct omap_dss_device *dssdev)
 		return r;
 
 	/* disable and clear irqs */
-	hdmi_wp_clear_irqenable(wp, 0xffffffff);
-	hdmi_wp_set_irqstatus(wp, 0xffffffff);
+	hdmi_wp_clear_irqenable(wp, ~HDMI_IRQ_CORE);
+	hdmi_wp_set_irqstatus(wp, ~HDMI_IRQ_CORE);
 
 	vm = &hdmi.cfg.vm;
 
@@ -242,7 +243,7 @@ static void hdmi_power_off_full(struct omap_dss_device *dssdev)
 {
 	enum omap_channel channel = dssdev->dispc_channel;
 
-	hdmi_wp_clear_irqenable(&hdmi.wp, 0xffffffff);
+	hdmi_wp_clear_irqenable(&hdmi.wp, ~HDMI_IRQ_CORE);
 
 	hdmi_wp_video_stop(&hdmi.wp);
 
@@ -724,7 +725,7 @@ static int hdmi4_bind(struct device *dev, struct device *master, void *data)
 
 	r = devm_request_threaded_irq(&pdev->dev, irq,
 			NULL, hdmi_irq_handler,
-			IRQF_ONESHOT, "OMAP HDMI", &hdmi.wp);
+			IRQF_ONESHOT, "OMAP HDMI", &hdmi);
 	if (r) {
 		DSSERR("HDMI IRQ request failed\n");
 		goto err;
