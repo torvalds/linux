@@ -140,6 +140,8 @@ void hyperv_init(void)
 	hypercall_msr.guest_physical_address = vmalloc_to_pfn(hv_hypercall_pg);
 	wrmsrl(HV_X64_MSR_HYPERCALL, hypercall_msr.as_uint64);
 
+	hyper_alloc_mmu();
+
 	/*
 	 * Register Hyper-V specific clocksource.
 	 */
