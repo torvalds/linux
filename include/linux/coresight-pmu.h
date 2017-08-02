@@ -24,6 +24,7 @@
 /* ETMv3.5/PTM's ETMCR config bit */
 #define ETM_OPT_CYCACC  12
 #define ETM_OPT_TS      28
+#define ETM_OPT_RETSTK	29
 
 static inline int coresight_get_trace_id(int cpu)
 {
