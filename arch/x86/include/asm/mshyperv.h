@@ -282,6 +282,30 @@ static inline u64 hv_do_rep_hypercall(u16 code, u16 rep_count, u16 varhead_size,
 	return status;
 }
 
+/*
+ * Hypervisor's notion of virtual processor ID is different from
+ * Linux' notion of CPU ID. This information can only be retrieved
+ * in the context of the calling CPU. Setup a map for easy access
+ * to this information.
+ */
+extern u32 *hv_vp_index;
+
+/**
+ * hv_cpu_number_to_vp_number() - Map CPU to VP.
+ * @cpu_number: CPU number in Linux terms
+ *
+ * This function returns the mapping between the Linux processor
+ * number and the hypervisor's virtual processor number, useful
+ * in making hypercalls and such that talk about specific
+ * processors.
+ *
+ * Return: Virtual processor number in Hyper-V terms
+ */
+static inline int hv_cpu_number_to_vp_number(int cpu_number)
+{
+	return hv_vp_index[cpu_number];
+}
+
 void hyperv_init(void);
 void hyperv_report_panic(struct pt_regs *regs);
 bool hv_is_hypercall_page_setup(void);

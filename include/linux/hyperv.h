@@ -1173,7 +1173,6 @@ int vmbus_allocate_mmio(struct resource **new, struct hv_device *device_obj,
 			resource_size_t size, resource_size_t align,
 			bool fb_overlap_ok);
 void vmbus_free_mmio(resource_size_t start, resource_size_t size);
-int vmbus_cpu_number_to_vp_number(int cpu_number);
 
 /*
  * GUID definitions of various offer types - services offered to the guest.

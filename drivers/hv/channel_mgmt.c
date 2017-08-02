@@ -599,7 +599,7 @@ static void init_vp_index(struct vmbus_channel *channel, u16 dev_type)
 		 */
 		channel->numa_node = 0;
 		channel->target_cpu = 0;
-		channel->target_vp = hv_context.vp_index[0];
+		channel->target_vp = hv_cpu_number_to_vp_number(0);
 		return;
 	}
 
@@ -683,7 +683,7 @@ static void init_vp_index(struct vmbus_channel *channel, u16 dev_type)
 	}
 
 	channel->target_cpu = cur_cpu;
-	channel->target_vp = hv_context.vp_index[cur_cpu];
+	channel->target_vp = hv_cpu_number_to_vp_number(cur_cpu);
 }
 
 static void vmbus_wait_for_unload(void)
@@ -1219,8 +1219,7 @@ struct vmbus_channel *vmbus_get_outgoing_channel(struct vmbus_channel *primary)
 		return outgoing_channel;
 	}
 
-	cur_cpu = hv_context.vp_index[get_cpu()];
-	put_cpu();
+	cur_cpu = hv_cpu_number_to_vp_number(smp_processor_id());
 	list_for_each_safe(cur, tmp, &primary->sc_list) {
 		cur_channel = list_entry(cur, struct vmbus_channel, sc_list);
 		if (cur_channel->state != CHANNEL_OPENED_STATE)
