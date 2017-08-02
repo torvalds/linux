@@ -1939,6 +1939,7 @@ void *sh_css_calloc(size_t N, size_t size)
 		p = sh_css_malloc(N*size);
 		if (p)
 			memset(p, 0, size);
+		return p;
 	}
 	return NULL;
 }
