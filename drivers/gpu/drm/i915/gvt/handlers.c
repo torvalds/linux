@@ -3028,7 +3028,7 @@ int intel_vgpu_mmio_reg_rw(struct intel_vgpu *vgpu, unsigned int offset,
 	gvt_mmio_func func;
 	int ret;
 
-	if (WARN_ON(bytes > 4))
+	if (WARN_ON(bytes > 8))
 		return -EINVAL;
 
 	/*
