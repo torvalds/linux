@@ -69,6 +69,8 @@
 #define TMC_FFCR_STOP_ON_FLUSH	BIT(12)
 
 
+#define TMC_DEVID_NOSCAT	BIT(24)
+
 enum tmc_config_type {
 	TMC_CONFIG_TYPE_ETB,
 	TMC_CONFIG_TYPE_ETR,
@@ -87,6 +89,9 @@ enum tmc_mem_intf_width {
 	TMC_MEM_INTF_WIDTH_128BITS	= 4,
 	TMC_MEM_INTF_WIDTH_256BITS	= 8,
 };
+
+/* TMC ETR Capability bit definitions */
+#define TMC_ETR_SG			(0x1U << 0)
 
 /**
  * struct tmc_drvdata - specifics associated to an TMC component

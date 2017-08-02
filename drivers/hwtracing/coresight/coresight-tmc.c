@@ -306,6 +306,8 @@ static int tmc_etr_setup_caps(struct tmc_drvdata *drvdata,
 	/* Set the unadvertised capabilities */
 	tmc_etr_init_caps(drvdata, (u32)(unsigned long)dev_caps);
 
+	if (!(devid & TMC_DEVID_NOSCAT))
+		tmc_etr_set_cap(drvdata, TMC_ETR_SG);
 	/*
 	 * ETR configuration uses a 40-bit AXI master in place of
 	 * the embedded SRAM of ETB/ETF.
