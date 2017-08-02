@@ -685,21 +685,32 @@ static struct renesas_usb3_request *usb3_get_request(struct renesas_usb3_ep
 	return usb3_req;
 }
 
+static void __usb3_request_done(struct renesas_usb3_ep *usb3_ep,
+				struct renesas_usb3_request *usb3_req,
+				int status)
+{
+	struct renesas_usb3 *usb3 = usb3_ep_to_usb3(usb3_ep);
+
+	dev_dbg(usb3_to_dev(usb3), "giveback: ep%2d, %u, %u, %d\n",
+		usb3_ep->num, usb3_req->req.length, usb3_req->req.actual,
+		status);
+	usb3_req->req.status = status;
+	usb3_ep->started = false;
+	list_del_init(&usb3_req->queue);
+	spin_unlock(&usb3->lock);
+	usb_gadget_giveback_request(&usb3_ep->ep, &usb3_req->req);
+	spin_lock(&usb3->lock);
+}
+
 static void usb3_request_done(struct renesas_usb3_ep *usb3_ep,
 			      struct renesas_usb3_request *usb3_req, int status)
 {
 	struct renesas_usb3 *usb3 = usb3_ep_to_usb3(usb3_ep);
 	unsigned long flags;
 
-	dev_dbg(usb3_to_dev(usb3), "giveback: ep%2d, %u, %u, %d\n",
-		usb3_ep->num, usb3_req->req.length, usb3_req->req.actual,
-		status);
-	usb3_req->req.status = status;
 	spin_lock_irqsave(&usb3->lock, flags);
-	usb3_ep->started = false;
-	list_del_init(&usb3_req->queue);
+	__usb3_request_done(usb3_ep, usb3_req, status);
 	spin_unlock_irqrestore(&usb3->lock, flags);
-	usb_gadget_giveback_request(&usb3_ep->ep, &usb3_req->req);
 }
 
 static void usb3_irq_epc_pipe0_status_end(struct renesas_usb3 *usb3)
