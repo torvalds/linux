@@ -1636,7 +1636,6 @@ static void vc4_dsi_unbind(struct device *dev, struct device *master,
 
 	pm_runtime_disable(dev);
 
-	drm_bridge_remove(dsi->bridge);
 	vc4_dsi_encoder_destroy(dsi->encoder);
 
 	mipi_dsi_host_unregister(&dsi->dsi_host);
