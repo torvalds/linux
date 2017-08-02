@@ -339,6 +339,9 @@ int dquot_mark_dquot_dirty(struct dquot *dquot)
 {
 	int ret = 1;
 
+	if (!test_bit(DQ_ACTIVE_B, &dquot->dq_flags))
+		return 0;
+
 	/* If quota is dirty already, we don't have to acquire dq_list_lock */
 	if (test_bit(DQ_MOD_B, &dquot->dq_flags))
 		return 1;
@@ -624,11 +627,9 @@ int dquot_writeback_dquots(struct super_block *sb, int type)
 		while (!list_empty(dirty)) {
 			dquot = list_first_entry(dirty, struct dquot,
 						 dq_dirty);
-			/* Dirty and inactive can be only bad dquot... */
-			if (!test_bit(DQ_ACTIVE_B, &dquot->dq_flags)) {
-				clear_dquot_dirty(dquot);
-				continue;
-			}
+
+			WARN_ON(!test_bit(DQ_ACTIVE_B, &dquot->dq_flags));
+
 			/* Now we have active dquot from which someone is
  			 * holding reference so we can safely just increase
 			 * use count */
@@ -759,7 +760,7 @@ we_slept:
 		return;
 	}
 	/* Need to release dquot? */
-	if (test_bit(DQ_ACTIVE_B, &dquot->dq_flags) && dquot_dirty(dquot)) {
+	if (dquot_dirty(dquot)) {
 		spin_unlock(&dq_list_lock);
 		/* Commit dquot before releasing */
 		ret = dquot->dq_sb->dq_op->write_dquot(dquot);
@@ -777,8 +778,6 @@ we_slept:
 		}
 		goto we_slept;
 	}
-	/* Clear flag in case dquot was inactive (something bad happened) */
-	clear_dquot_dirty(dquot);
 	if (test_bit(DQ_ACTIVE_B, &dquot->dq_flags)) {
 		spin_unlock(&dq_list_lock);
 		dquot->dq_sb->dq_op->release_dquot(dquot);
