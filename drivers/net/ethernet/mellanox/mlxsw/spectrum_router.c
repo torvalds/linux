@@ -394,7 +394,6 @@ struct mlxsw_sp_fib_entry {
 	enum mlxsw_sp_fib_entry_type type;
 	struct list_head nexthop_group_node;
 	struct mlxsw_sp_nexthop_group *nh_group;
-	bool offloaded;
 };
 
 struct mlxsw_sp_fib4_entry {
@@ -2139,8 +2138,6 @@ mlxsw_sp_fib4_entry_offload_unset(struct mlxsw_sp_fib_entry *fib_entry)
 
 static void mlxsw_sp_fib_entry_offload_set(struct mlxsw_sp_fib_entry *fib_entry)
 {
-	fib_entry->offloaded = true;
-
 	switch (fib_entry->fib_node->fib->proto) {
 	case MLXSW_SP_L3_PROTO_IPV4:
 		mlxsw_sp_fib4_entry_offload_set(fib_entry);
@@ -2160,8 +2157,6 @@ mlxsw_sp_fib_entry_offload_unset(struct mlxsw_sp_fib_entry *fib_entry)
 	case MLXSW_SP_L3_PROTO_IPV6:
 		WARN_ON_ONCE(1);
 	}
-
-	fib_entry->offloaded = false;
 }
 
 static void
@@ -2170,17 +2165,13 @@ mlxsw_sp_fib_entry_offload_refresh(struct mlxsw_sp_fib_entry *fib_entry,
 {
 	switch (op) {
 	case MLXSW_REG_RALUE_OP_WRITE_DELETE:
-		if (!fib_entry->offloaded)
-			return;
 		return mlxsw_sp_fib_entry_offload_unset(fib_entry);
 	case MLXSW_REG_RALUE_OP_WRITE_WRITE:
 		if (err)
 			return;
-		if (mlxsw_sp_fib_entry_should_offload(fib_entry) &&
-		    !fib_entry->offloaded)
+		if (mlxsw_sp_fib_entry_should_offload(fib_entry))
 			mlxsw_sp_fib_entry_offload_set(fib_entry);
-		else if (!mlxsw_sp_fib_entry_should_offload(fib_entry) &&
-			 fib_entry->offloaded)
+		else if (!mlxsw_sp_fib_entry_should_offload(fib_entry))
 			mlxsw_sp_fib_entry_offload_unset(fib_entry);
 		return;
 	default:
