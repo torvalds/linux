@@ -209,6 +209,40 @@ static inline u64 hv_do_hypercall(u64 control, void *input, void *output)
 	return hv_status;
 }
 
+#define HV_HYPERCALL_FAST_BIT		BIT(16)
+
+/* Fast hypercall with 8 bytes of input and no output */
+static inline u64 hv_do_fast_hypercall8(u16 code, u64 input1)
+{
+	u64 hv_status, control = (u64)code | HV_HYPERCALL_FAST_BIT;
+	register void *__sp asm(_ASM_SP);
+
+#ifdef CONFIG_X86_64
+	{
+		__asm__ __volatile__("call *%4"
+				     : "=a" (hv_status), "+r" (__sp),
+				       "+c" (control), "+d" (input1)
+				     : "m" (hv_hypercall_pg)
+				     : "cc", "r8", "r9", "r10", "r11");
+	}
+#else
+	{
+		u32 input1_hi = upper_32_bits(input1);
+		u32 input1_lo = lower_32_bits(input1);
+
+		__asm__ __volatile__ ("call *%5"
+				      : "=A"(hv_status),
+					"+c"(input1_lo),
+					"+r"(__sp)
+				      :	"A" (control),
+					"b" (input1_hi),
+					"m" (hv_hypercall_pg)
+				      : "cc", "edi", "esi");
+	}
+#endif
+		return hv_status;
+}
+
 void hyperv_init(void);
 void hyperv_report_panic(struct pt_regs *regs);
 bool hv_is_hypercall_page_setup(void);
