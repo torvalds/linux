@@ -243,7 +243,7 @@ int map_kernel_page(unsigned long va, phys_addr_t pa, int flags)
 /*
  * Map in a chunk of physical memory starting at start.
  */
-void __init __mapin_ram_chunk(unsigned long offset, unsigned long top)
+static void __init __mapin_ram_chunk(unsigned long offset, unsigned long top)
 {
 	unsigned long v, s, f;
 	phys_addr_t p;
@@ -295,7 +295,7 @@ void __init mapin_ram(void)
  * Returns true (1) if PTE was found, zero otherwise.  The pointer to
  * the PTE pointer is unmodified if PTE is not found.
  */
-int
+static int
 get_pteptr(struct mm_struct *mm, unsigned long addr, pte_t **ptep, pmd_t **pmdp)
 {
         pgd_t	*pgd;
