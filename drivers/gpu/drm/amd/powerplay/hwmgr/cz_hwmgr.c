@@ -1240,13 +1240,18 @@ static int cz_phm_force_dpm_highest(struct pp_hwmgr *hwmgr)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 
-	if (cz_hwmgr->sclk_dpm.soft_min_clk !=
-				cz_hwmgr->sclk_dpm.soft_max_clk)
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
-						PPSMC_MSG_SetSclkSoftMin,
-						cz_get_sclk_level(hwmgr,
-						cz_hwmgr->sclk_dpm.soft_max_clk,
-						PPSMC_MSG_SetSclkSoftMin));
+	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+					PPSMC_MSG_SetSclkSoftMin,
+					cz_get_sclk_level(hwmgr,
+					cz_hwmgr->sclk_dpm.soft_max_clk,
+					PPSMC_MSG_SetSclkSoftMin));
+
+	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+				PPSMC_MSG_SetSclkSoftMax,
+				cz_get_sclk_level(hwmgr,
+				cz_hwmgr->sclk_dpm.soft_max_clk,
+				PPSMC_MSG_SetSclkSoftMax));
+
 	return 0;
 }
 
@@ -1292,17 +1297,17 @@ static int cz_phm_force_dpm_lowest(struct pp_hwmgr *hwmgr)
 {
 	struct cz_hwmgr *cz_hwmgr = (struct cz_hwmgr *)(hwmgr->backend);
 
-	if (cz_hwmgr->sclk_dpm.soft_min_clk !=
-				cz_hwmgr->sclk_dpm.soft_max_clk) {
-		cz_hwmgr->sclk_dpm.soft_max_clk =
-			cz_hwmgr->sclk_dpm.soft_min_clk;
+	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+			PPSMC_MSG_SetSclkSoftMax,
+			cz_get_sclk_level(hwmgr,
+			cz_hwmgr->sclk_dpm.soft_min_clk,
+			PPSMC_MSG_SetSclkSoftMax));
 
-		smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
-				PPSMC_MSG_SetSclkSoftMax,
+	smum_send_msg_to_smc_with_parameter(hwmgr->smumgr,
+				PPSMC_MSG_SetSclkSoftMin,
 				cz_get_sclk_level(hwmgr,
-				cz_hwmgr->sclk_dpm.soft_max_clk,
-				PPSMC_MSG_SetSclkSoftMax));
-	}
+				cz_hwmgr->sclk_dpm.soft_min_clk,
+				PPSMC_MSG_SetSclkSoftMin));
 
 	return 0;
 }
