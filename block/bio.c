@@ -936,6 +936,10 @@ static void submit_bio_wait_endio(struct bio *bio)
  *
  * Simple wrapper around submit_bio(). Returns 0 on success, or the error from
  * bio_endio() on failure.
+ *
+ * WARNING: Unlike to how submit_bio() is usually used, this function does not
+ * result in bio reference to be consumed. The caller must drop the reference
+ * on his own.
  */
 int submit_bio_wait(struct bio *bio)
 {
