@@ -61,6 +61,7 @@
 #include <linux/cgroup.h>
 #include <linux/wait.h>
 
+DEFINE_STATIC_KEY_FALSE(cpusets_pre_enable_key);
 DEFINE_STATIC_KEY_FALSE(cpusets_enabled_key);
 
 /* See "Frequency meter" comments, below. */
