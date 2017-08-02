@@ -89,6 +89,7 @@ static unsigned long nidump = 16;
 static unsigned long ncsum = 4096;
 static int termch;
 static char tmpstr[128];
+static int tracing_enabled;
 
 static long bus_error_jmp[JMP_BUF_LEN];
 static int catch_memory_errors;
@@ -461,6 +462,9 @@ static int xmon_core(struct pt_regs *regs, int fromipi)
 
 	local_irq_save(flags);
 	hard_irq_disable();
+
+	tracing_enabled = tracing_is_on();
+	tracing_off();
 
 	bp = in_breakpoint_table(regs->nip, &offset);
 	if (bp != NULL) {
@@ -982,6 +986,8 @@ cmds(struct pt_regs *excp)
 			break;
 		case 'x':
 		case 'X':
+			if (tracing_enabled)
+				tracing_on();
 			return cmd;
 		case EOF:
 			printf(" <no input ...>\n");
@@ -2241,8 +2247,6 @@ static void dump_tracing(void)
 		ftrace_dump(DUMP_ORIG);
 	else
 		ftrace_dump(DUMP_ALL);
-
-	tracing_on();
 }
 
 #ifdef CONFIG_PPC64
