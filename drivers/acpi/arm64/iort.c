@@ -915,6 +915,27 @@ static bool __init arm_smmu_v3_is_coherent(struct acpi_iort_node *node)
 	return smmu->flags & ACPI_IORT_SMMU_V3_COHACC_OVERRIDE;
 }
 
+#if defined(CONFIG_ACPI_NUMA) && defined(ACPI_IORT_SMMU_V3_PXM_VALID)
+/*
+ * set numa proximity domain for smmuv3 device
+ */
+static void  __init arm_smmu_v3_set_proximity(struct device *dev,
+					      struct acpi_iort_node *node)
+{
+	struct acpi_iort_smmu_v3 *smmu;
+
+	smmu = (struct acpi_iort_smmu_v3 *)node->node_data;
+	if (smmu->flags & ACPI_IORT_SMMU_V3_PXM_VALID) {
+		set_dev_node(dev, acpi_map_pxm_to_node(smmu->pxm));
+		pr_info("SMMU-v3[%llx] Mapped to Proximity domain %d\n",
+			smmu->base_address,
+			smmu->pxm);
+	}
+}
+#else
+#define arm_smmu_v3_set_proximity NULL
+#endif
+
 static int __init arm_smmu_count_resources(struct acpi_iort_node *node)
 {
 	struct acpi_iort_smmu *smmu;
@@ -984,13 +1005,16 @@ struct iort_iommu_config {
 	int (*iommu_count_resources)(struct acpi_iort_node *node);
 	void (*iommu_init_resources)(struct resource *res,
 				     struct acpi_iort_node *node);
+	void (*iommu_set_proximity)(struct device *dev,
+				    struct acpi_iort_node *node);
 };
 
 static const struct iort_iommu_config iort_arm_smmu_v3_cfg __initconst = {
 	.name = "arm-smmu-v3",
 	.iommu_is_coherent = arm_smmu_v3_is_coherent,
 	.iommu_count_resources = arm_smmu_v3_count_resources,
-	.iommu_init_resources = arm_smmu_v3_init_resources
+	.iommu_init_resources = arm_smmu_v3_init_resources,
+	.iommu_set_proximity = arm_smmu_v3_set_proximity,
 };
 
 static const struct iort_iommu_config iort_arm_smmu_cfg __initconst = {
@@ -1034,6 +1058,9 @@ static int __init iort_add_smmu_platform_device(struct acpi_iort_node *node)
 	pdev = platform_device_alloc(ops->name, PLATFORM_DEVID_AUTO);
 	if (!pdev)
 		return -ENOMEM;
+
+	if (ops->iommu_set_proximity)
+		ops->iommu_set_proximity(&pdev->dev, node);
 
 	count = ops->iommu_count_resources(node);
 
