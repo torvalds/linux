@@ -408,6 +408,6 @@ void vmbus_set_event(struct vmbus_channel *channel)
 	if (!channel->is_dedicated_interrupt)
 		vmbus_send_interrupt(child_relid);
 
-	hv_do_hypercall(HVCALL_SIGNAL_EVENT, channel->sig_event, NULL);
+	hv_do_fast_hypercall8(HVCALL_SIGNAL_EVENT, channel->sig_event);
 }
 EXPORT_SYMBOL_GPL(vmbus_set_event);
