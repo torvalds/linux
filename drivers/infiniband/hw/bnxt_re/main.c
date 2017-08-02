@@ -64,6 +64,8 @@
 #include "ib_verbs.h"
 #include <rdma/bnxt_re-abi.h>
 #include "bnxt.h"
+#include "hw_counters.h"
+
 static char version[] =
 		BNXT_RE_DESC " v" ROCE_DRV_MODULE_VERSION "\n";
 
@@ -513,6 +515,8 @@ static int bnxt_re_register_ib(struct bnxt_re_dev *rdev)
 	ibdev->alloc_ucontext		= bnxt_re_alloc_ucontext;
 	ibdev->dealloc_ucontext		= bnxt_re_dealloc_ucontext;
 	ibdev->mmap			= bnxt_re_mmap;
+	ibdev->get_hw_stats             = bnxt_re_ib_get_hw_stats;
+	ibdev->alloc_hw_stats           = bnxt_re_ib_alloc_hw_stats;
 
 	return ib_register_device(ibdev, NULL);
 }
