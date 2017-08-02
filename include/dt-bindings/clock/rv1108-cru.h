@@ -144,7 +144,7 @@
 
 /* hclk gates */
 #define HCLK_I2S0_8CH			320
-#define HCLK_I2S1_8CH			321
+#define HCLK_I2S1_2CH			321
 #define HCLK_I2S2_2CH			322
 #define HCLK_NANDC			323
 #define HCLK_SDMMC			324
