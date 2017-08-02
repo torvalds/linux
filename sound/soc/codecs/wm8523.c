@@ -100,7 +100,7 @@ static const struct snd_soc_dapm_route wm8523_dapm_routes[] = {
 	{ "LINEVOUTR", NULL, "DAC" },
 };
 
-static struct {
+static const struct {
 	int value;
 	int ratio;
 } lrclk_ratios[WM8523_NUM_RATES] = {
@@ -113,7 +113,7 @@ static struct {
 	{ 7, 1152 },
 };
 
-static struct {
+static const struct {
 	int value;
 	int ratio;
 } bclk_ratios[] = {
