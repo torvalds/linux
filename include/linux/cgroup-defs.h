@@ -274,6 +274,14 @@ struct cgroup {
 	int level;
 
 	/*
+	 * Keep track of total numbers of visible and dying descent cgroups.
+	 * Dying cgroups are cgroups which were deleted by a user,
+	 * but are still existing because someone else is holding a reference.
+	 */
+	int nr_descendants;
+	int nr_dying_descendants;
+
+	/*
 	 * Each non-empty css_set associated with this cgroup contributes
 	 * one to nr_populated_csets.  The counter is zero iff this cgroup
 	 * doesn't have any tasks.
