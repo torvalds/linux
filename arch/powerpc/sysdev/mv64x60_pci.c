@@ -70,7 +70,7 @@ static ssize_t mv64x60_hs_reg_write(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static struct bin_attribute mv64x60_hs_reg_attr = { /* Hotswap register */
+static const struct bin_attribute mv64x60_hs_reg_attr = { /* Hotswap register */
 	.attr = {
 		.name = "hs_reg",
 		.mode = S_IRUGO | S_IWUSR,
