@@ -154,7 +154,7 @@ struct rds_connection {
 	struct list_head	c_map_item;
 	unsigned long		c_map_queued;
 
-	struct rds_conn_path	c_path[RDS_MPATH_WORKERS];
+	struct rds_conn_path	*c_path;
 	wait_queue_head_t	c_hs_waitq; /* handshake waitq */
 
 	u32			c_my_gen_num;
