@@ -234,6 +234,7 @@ Commands:\n\
   "\
   dr	dump stream of raw bytes\n\
   dt	dump the tracing buffers (uses printk)\n\
+  dtc	dump the tracing buffers for current CPU (uses printk)\n\
 "
 #ifdef CONFIG_PPC_POWERNV
 "  dx#   dump xive on CPU #\n\
@@ -2231,6 +2232,19 @@ static void xmon_rawdump (unsigned long adrs, long ndump)
 	printf("\n");
 }
 
+static void dump_tracing(void)
+{
+	int c;
+
+	c = inchar();
+	if (c == 'c')
+		ftrace_dump(DUMP_ORIG);
+	else
+		ftrace_dump(DUMP_ALL);
+
+	tracing_on();
+}
+
 #ifdef CONFIG_PPC64
 static void dump_one_paca(int cpu)
 {
@@ -2507,6 +2521,11 @@ dump(void)
 	}
 #endif
 
+	if (c == 't') {
+		dump_tracing();
+		return;
+	}
+
 	if (c == '\n')
 		termch = c;
 
@@ -2525,9 +2544,6 @@ dump(void)
 		dump_log_buf();
 	} else if (c == 'o') {
 		dump_opal_msglog();
-	} else if (c == 't') {
-		ftrace_dump(DUMP_ALL);
-		tracing_on();
 	} else if (c == 'r') {
 		scanhex(&ndump);
 		if (ndump == 0)
