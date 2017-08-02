@@ -376,8 +376,8 @@ static void etb_update_buffer(struct coresight_device *csdev,
 
 	capacity = drvdata->buffer_depth * ETB_FRAME_SIZE_WORDS;
 
-	CS_UNLOCK(drvdata->base);
 	etb_disable_hw(drvdata);
+	CS_UNLOCK(drvdata->base);
 
 	/* unit is in words, not bytes */
 	read_ptr = readl_relaxed(drvdata->base + ETB_RAM_READ_POINTER);
