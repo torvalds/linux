@@ -1570,9 +1570,43 @@ static int rt5663_jack_detect(struct snd_soc_codec *codec, int jack_insert)
 		case 2:
 			rt5663->jack_type = SND_JACK_HEADSET;
 			rt5663_enable_push_button_irq(codec, true);
+
+			if (rt5663->pdata.dc_offset_l_manual_mic) {
+				regmap_write(rt5663->regmap, RT5663_MIC_DECRO_2,
+					rt5663->pdata.dc_offset_l_manual_mic >>
+					16);
+				regmap_write(rt5663->regmap, RT5663_MIC_DECRO_3,
+					rt5663->pdata.dc_offset_l_manual_mic &
+					0xffff);
+			}
+
+			if (rt5663->pdata.dc_offset_r_manual_mic) {
+				regmap_write(rt5663->regmap, RT5663_MIC_DECRO_5,
+					rt5663->pdata.dc_offset_r_manual_mic >>
+					16);
+				regmap_write(rt5663->regmap, RT5663_MIC_DECRO_6,
+					rt5663->pdata.dc_offset_r_manual_mic &
+					0xffff);
+			}
 			break;
 		default:
 			rt5663->jack_type = SND_JACK_HEADPHONE;
+
+			if (rt5663->pdata.dc_offset_l_manual) {
+				regmap_write(rt5663->regmap, RT5663_MIC_DECRO_2,
+					rt5663->pdata.dc_offset_l_manual >> 16);
+				regmap_write(rt5663->regmap, RT5663_MIC_DECRO_3,
+					rt5663->pdata.dc_offset_l_manual &
+					0xffff);
+			}
+
+			if (rt5663->pdata.dc_offset_r_manual) {
+				regmap_write(rt5663->regmap, RT5663_MIC_DECRO_5,
+					rt5663->pdata.dc_offset_r_manual >> 16);
+				regmap_write(rt5663->regmap, RT5663_MIC_DECRO_6,
+					rt5663->pdata.dc_offset_r_manual &
+					0xffff);
+			}
 			break;
 		}
 	} else {
@@ -3133,6 +3167,10 @@ static int rt5663_parse_dp(struct rt5663_priv *rt5663, struct device *dev)
 		&rt5663->pdata.dc_offset_l_manual);
 	device_property_read_u32(dev, "realtek,dc_offset_r_manual",
 		&rt5663->pdata.dc_offset_r_manual);
+	device_property_read_u32(dev, "realtek,dc_offset_l_manual_mic",
+		&rt5663->pdata.dc_offset_l_manual_mic);
+	device_property_read_u32(dev, "realtek,dc_offset_r_manual_mic",
+		&rt5663->pdata.dc_offset_r_manual_mic);
 
 	return 0;
 }
@@ -3219,20 +3257,6 @@ static int rt5663_i2c_probe(struct i2c_client *i2c,
 		break;
 	default:
 		dev_err(&i2c->dev, "%s:Unknown codec type\n", __func__);
-	}
-
-	if (rt5663->pdata.dc_offset_l_manual) {
-		regmap_write(rt5663->regmap, RT5663_MIC_DECRO_2,
-			rt5663->pdata.dc_offset_l_manual >> 16);
-		regmap_write(rt5663->regmap, RT5663_MIC_DECRO_3,
-			rt5663->pdata.dc_offset_l_manual & 0xffff);
-	}
-
-	if (rt5663->pdata.dc_offset_r_manual) {
-		regmap_write(rt5663->regmap, RT5663_MIC_DECRO_5,
-			rt5663->pdata.dc_offset_r_manual >> 16);
-		regmap_write(rt5663->regmap, RT5663_MIC_DECRO_6,
-			rt5663->pdata.dc_offset_r_manual & 0xffff);
 	}
 
 	/* GPIO1 as IRQ */
