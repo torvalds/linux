@@ -310,7 +310,9 @@ void etm_config_trace_mode(struct etm_config *config)
 	config->addr_type[1] = ETM_ADDR_TYPE_RANGE;
 }
 
-#define ETM3X_SUPPORTED_OPTIONS (ETMCR_CYC_ACC | ETMCR_TIMESTAMP_EN)
+#define ETM3X_SUPPORTED_OPTIONS (ETMCR_CYC_ACC | \
+				 ETMCR_TIMESTAMP_EN | \
+				 ETMCR_RETURN_STACK)
 
 static int etm_parse_event_config(struct etm_drvdata *drvdata,
 				  struct perf_event *event)
@@ -341,13 +343,23 @@ static int etm_parse_event_config(struct etm_drvdata *drvdata,
 		etm_config_trace_mode(config);
 
 	/*
-	 * At this time only cycle accurate and timestamp options are
-	 * available.
+	 * At this time only cycle accurate, return stack  and timestamp
+	 * options are available.
 	 */
 	if (attr->config & ~ETM3X_SUPPORTED_OPTIONS)
 		return -EINVAL;
 
 	config->ctrl = attr->config;
+
+	/*
+	 * Possible to have cores with PTM (supports ret stack) and ETM
+	 * (never has ret stack) on the same SoC. So if we have a request
+	 * for return stack that can't be honoured on this core then
+	 * clear the bit - trace will still continue normally
+	 */
+	if ((config->ctrl & ETMCR_RETURN_STACK) &&
+	    !(drvdata->etmccer & ETMCCER_RETSTACK))
+		config->ctrl &= ~ETMCR_RETURN_STACK;
 
 	return 0;
 }
