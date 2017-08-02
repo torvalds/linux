@@ -408,18 +408,3 @@ void __kernel_map_pages(struct page *page, int numpages, int enable)
 	change_page_attr(page, numpages, enable ? PAGE_KERNEL : __pgprot(0));
 }
 #endif /* CONFIG_DEBUG_PAGEALLOC */
-
-static int fixmaps;
-
-void __set_fixmap (enum fixed_addresses idx, phys_addr_t phys, pgprot_t flags)
-{
-	unsigned long address = __fix_to_virt(idx);
-
-	if (idx >= __end_of_fixed_addresses) {
-		BUG();
-		return;
-	}
-
-	map_kernel_page(address, phys, pgprot_val(flags));
-	fixmaps++;
-}
