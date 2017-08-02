@@ -143,6 +143,11 @@ static int alt_fpga_bridge_probe(struct platform_device *pdev)
 	int ret;
 
 	of_id = of_match_device(altera_fpga_of_match, dev);
+	if (!of_id) {
+		dev_err(dev, "failed to match device\n");
+		return -ENODEV;
+	}
+
 	priv = (struct altera_hps2fpga_data *)of_id->data;
 
 	priv->bridge_reset = of_reset_control_get_exclusive_by_index(dev->of_node,
