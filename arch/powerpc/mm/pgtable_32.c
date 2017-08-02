@@ -325,7 +325,7 @@ get_pteptr(struct mm_struct *mm, unsigned long addr, pte_t **ptep, pmd_t **pmdp)
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
 
-static int __change_page_attr(struct page *page, pgprot_t prot)
+static int __change_page_attr_noflush(struct page *page, pgprot_t prot)
 {
 	pte_t *kpte;
 	pmd_t *kpmd;
@@ -339,8 +339,6 @@ static int __change_page_attr(struct page *page, pgprot_t prot)
 	if (!get_pteptr(&init_mm, address, &kpte, &kpmd))
 		return -EINVAL;
 	__set_pte_at(&init_mm, address, kpte, mk_pte(page, prot), 0);
-	wmb();
-	flush_tlb_page(NULL, address);
 	pte_unmap(kpte);
 
 	return 0;
@@ -355,13 +353,17 @@ static int change_page_attr(struct page *page, int numpages, pgprot_t prot)
 {
 	int i, err = 0;
 	unsigned long flags;
+	struct page *start = page;
 
 	local_irq_save(flags);
 	for (i = 0; i < numpages; i++, page++) {
-		err = __change_page_attr(page, prot);
+		err = __change_page_attr_noflush(page, prot);
 		if (err)
 			break;
 	}
+	wmb();
+	flush_tlb_kernel_range((unsigned long)page_address(start),
+			       (unsigned long)page_address(page));
 	local_irq_restore(flags);
 	return err;
 }
