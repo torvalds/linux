@@ -3701,10 +3701,22 @@ static void vega10_apply_dal_minimum_voltage_request(
 	return;
 }
 
+static int vega10_get_soc_index_for_max_uclk(struct pp_hwmgr *hwmgr)
+{
+	struct phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_table_on_mclk;
+	struct phm_ppt_v2_information *table_info =
+			(struct phm_ppt_v2_information *)(hwmgr->pptable);
+
+	vdd_dep_table_on_mclk  = table_info->vdd_dep_on_mclk;
+
+	return vdd_dep_table_on_mclk->entries[NUM_UCLK_DPM_LEVELS - 1].vddInd + 1;
+}
+
 static int vega10_upload_dpm_bootup_level(struct pp_hwmgr *hwmgr)
 {
 	struct vega10_hwmgr *data =
 			(struct vega10_hwmgr *)(hwmgr->backend);
+	uint32_t socclk_idx;
 
 	vega10_apply_dal_minimum_voltage_request(hwmgr);
 
@@ -3725,13 +3737,22 @@ static int vega10_upload_dpm_bootup_level(struct pp_hwmgr *hwmgr)
 	if (!data->registry_data.mclk_dpm_key_disabled) {
 		if (data->smc_state_table.mem_boot_level !=
 				data->dpm_table.mem_table.dpm_state.soft_min_level) {
+			if (data->smc_state_table.mem_boot_level == NUM_UCLK_DPM_LEVELS - 1) {
+				socclk_idx = vega10_get_soc_index_for_max_uclk(hwmgr);
 				PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc_with_parameter(
-				hwmgr->smumgr,
-				 PPSMC_MSG_SetSoftMinUclkByIndex,
-				data->smc_state_table.mem_boot_level),
-				"Failed to set soft min mclk index!",
-				return -EINVAL);
-
+							hwmgr->smumgr,
+						PPSMC_MSG_SetSoftMinSocclkByIndex,
+						socclk_idx),
+						"Failed to set soft min uclk index!",
+						return -EINVAL);
+			} else {
+				PP_ASSERT_WITH_CODE(!smum_send_msg_to_smc_with_parameter(
+						hwmgr->smumgr,
+						PPSMC_MSG_SetSoftMinUclkByIndex,
+						data->smc_state_table.mem_boot_level),
+						"Failed to set soft min uclk index!",
+						return -EINVAL);
+			}
 			data->dpm_table.mem_table.dpm_state.soft_min_level =
 					data->smc_state_table.mem_boot_level;
 		}
