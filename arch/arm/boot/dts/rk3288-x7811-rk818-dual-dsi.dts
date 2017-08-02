@@ -317,6 +317,10 @@
 };
 
 &dsi0 {
+	status = "okay";
+	rockchip,dual-channel = <&dsi1>;
+	rockchip,lane-rate = <900>;
+
 	panel: panel@0 {
 		compatible = "simple-panel-dsi";
 		reg = <0>;
@@ -365,32 +369,8 @@
 	};
 };
 
-&dsi0 {
-	status = "okay";
-	rockchip,dual-channel = <&dsi1>;
-	rockchip,lane-rate = <900>;
-
-	ports {
-		port@1 {
-			reg = <1>;
-
-			dsi0_out: endpoint {
-				remote-endpoint = <&panel_in>;
-			};
-		};
-	};
-};
-
 &dsi1 {
 	status = "okay";
-};
-
-&panel {
-	port {
-		panel_in: endpoint {
-			remote-endpoint = <&dsi0_out>;
-		};
-	};
 };
 
 &hdmi {
