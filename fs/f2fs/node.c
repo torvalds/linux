@@ -1332,7 +1332,8 @@ continue_unlock:
 }
 
 static int __write_node_page(struct page *page, bool atomic, bool *submitted,
-				struct writeback_control *wbc, bool do_balance)
+				struct writeback_control *wbc, bool do_balance,
+				enum iostat_type io_type)
 {
 	struct f2fs_sb_info *sbi = F2FS_P_SB(page);
 	nid_t nid;
@@ -1345,6 +1346,7 @@ static int __write_node_page(struct page *page, bool atomic, bool *submitted,
 		.page = page,
 		.encrypted_page = NULL,
 		.submitted = false,
+		.io_type = io_type,
 	};
 
 	trace_f2fs_writepage(page, NODE);
@@ -1413,7 +1415,7 @@ redirty_out:
 static int f2fs_write_node_page(struct page *page,
 				struct writeback_control *wbc)
 {
-	return __write_node_page(page, false, NULL, wbc, false);
+	return __write_node_page(page, false, NULL, wbc, false, FS_NODE_IO);
 }
 
 int fsync_node_pages(struct f2fs_sb_info *sbi, struct inode *inode,
@@ -1501,7 +1503,8 @@ continue_unlock:
 
 			ret = __write_node_page(page, atomic &&
 						page == last_page,
-						&submitted, wbc, true);
+						&submitted, wbc, true,
+						FS_NODE_IO);
 			if (ret) {
 				unlock_page(page);
 				f2fs_put_page(last_page, 0);
@@ -1539,7 +1542,7 @@ out:
 }
 
 int sync_node_pages(struct f2fs_sb_info *sbi, struct writeback_control *wbc,
-							bool do_balance)
+				bool do_balance, enum iostat_type io_type)
 {
 	pgoff_t index, end;
 	struct pagevec pvec;
@@ -1618,7 +1621,7 @@ continue_unlock:
 			set_dentry_mark(page, 0);
 
 			ret = __write_node_page(page, false, &submitted,
-							wbc, do_balance);
+						wbc, do_balance, io_type);
 			if (ret)
 				unlock_page(page);
 			else if (submitted)
@@ -1707,7 +1710,7 @@ static int f2fs_write_node_pages(struct address_space *mapping,
 	diff = nr_pages_to_write(sbi, NODE, wbc);
 	wbc->sync_mode = WB_SYNC_NONE;
 	blk_start_plug(&plug);
-	sync_node_pages(sbi, wbc, true);
+	sync_node_pages(sbi, wbc, true, FS_NODE_IO);
 	blk_finish_plug(&plug);
 	wbc->nr_to_write = max((long)0, wbc->nr_to_write - diff);
 	return 0;

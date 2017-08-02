@@ -153,6 +153,10 @@ static ssize_t f2fs_sbi_store(struct f2fs_attr *a,
 		return count;
 	}
 	*ui = t;
+
+	if (!strcmp(a->attr.name, "iostat_enable") && *ui == 0)
+		f2fs_reset_iostat(sbi);
+
 	return count;
 }
 
@@ -250,6 +254,7 @@ F2FS_RW_ATTR(F2FS_SBI, f2fs_sb_info, max_victim_search, max_victim_search);
 F2FS_RW_ATTR(F2FS_SBI, f2fs_sb_info, dir_level, dir_level);
 F2FS_RW_ATTR(F2FS_SBI, f2fs_sb_info, cp_interval, interval_time[CP_TIME]);
 F2FS_RW_ATTR(F2FS_SBI, f2fs_sb_info, idle_interval, interval_time[REQ_TIME]);
+F2FS_RW_ATTR(F2FS_SBI, f2fs_sb_info, iostat_enable, iostat_enable);
 #ifdef CONFIG_F2FS_FAULT_INJECTION
 F2FS_RW_ATTR(FAULT_INFO_RATE, f2fs_fault_info, inject_rate, inject_rate);
 F2FS_RW_ATTR(FAULT_INFO_TYPE, f2fs_fault_info, inject_type, inject_type);
@@ -288,6 +293,7 @@ static struct attribute *f2fs_attrs[] = {
 	ATTR_LIST(dirty_nats_ratio),
 	ATTR_LIST(cp_interval),
 	ATTR_LIST(idle_interval),
+	ATTR_LIST(iostat_enable),
 #ifdef CONFIG_F2FS_FAULT_INJECTION
 	ATTR_LIST(inject_rate),
 	ATTR_LIST(inject_type),
@@ -391,6 +397,48 @@ static int segment_bits_seq_show(struct seq_file *seq, void *offset)
 	return 0;
 }
 
+static int iostat_info_seq_show(struct seq_file *seq, void *offset)
+{
+	struct super_block *sb = seq->private;
+	struct f2fs_sb_info *sbi = F2FS_SB(sb);
+	time64_t now = ktime_get_real_seconds();
+
+	if (!sbi->iostat_enable)
+		return 0;
+
+	seq_printf(seq, "time:		%-16llu\n", now);
+
+	/* print app IOs */
+	seq_printf(seq, "app buffered:	%-16llu\n",
+				sbi->write_iostat[APP_BUFFERED_IO]);
+	seq_printf(seq, "app direct:	%-16llu\n",
+				sbi->write_iostat[APP_DIRECT_IO]);
+	seq_printf(seq, "app mapped:	%-16llu\n",
+				sbi->write_iostat[APP_MAPPED_IO]);
+
+	/* print fs IOs */
+	seq_printf(seq, "fs data:	%-16llu\n",
+				sbi->write_iostat[FS_DATA_IO]);
+	seq_printf(seq, "fs node:	%-16llu\n",
+				sbi->write_iostat[FS_NODE_IO]);
+	seq_printf(seq, "fs meta:	%-16llu\n",
+				sbi->write_iostat[FS_META_IO]);
+	seq_printf(seq, "fs gc data:	%-16llu\n",
+				sbi->write_iostat[FS_GC_DATA_IO]);
+	seq_printf(seq, "fs gc node:	%-16llu\n",
+				sbi->write_iostat[FS_GC_NODE_IO]);
+	seq_printf(seq, "fs cp data:	%-16llu\n",
+				sbi->write_iostat[FS_CP_DATA_IO]);
+	seq_printf(seq, "fs cp node:	%-16llu\n",
+				sbi->write_iostat[FS_CP_NODE_IO]);
+	seq_printf(seq, "fs cp meta:	%-16llu\n",
+				sbi->write_iostat[FS_CP_META_IO]);
+	seq_printf(seq, "fs discard:	%-16llu\n",
+				sbi->write_iostat[FS_DISCARD]);
+
+	return 0;
+}
+
 #define F2FS_PROC_FILE_DEF(_name)					\
 static int _name##_open_fs(struct inode *inode, struct file *file)	\
 {									\
@@ -406,6 +454,7 @@ static const struct file_operations f2fs_seq_##_name##_fops = {		\
 
 F2FS_PROC_FILE_DEF(segment_info);
 F2FS_PROC_FILE_DEF(segment_bits);
+F2FS_PROC_FILE_DEF(iostat_info);
 
 int __init f2fs_init_sysfs(void)
 {
@@ -454,6 +503,8 @@ int f2fs_register_sysfs(struct f2fs_sb_info *sbi)
 				 &f2fs_seq_segment_info_fops, sb);
 		proc_create_data("segment_bits", S_IRUGO, sbi->s_proc,
 				 &f2fs_seq_segment_bits_fops, sb);
+		proc_create_data("iostat_info", S_IRUGO, sbi->s_proc,
+				&f2fs_seq_iostat_info_fops, sb);
 	}
 	return 0;
 }
@@ -461,6 +512,7 @@ int f2fs_register_sysfs(struct f2fs_sb_info *sbi)
 void f2fs_unregister_sysfs(struct f2fs_sb_info *sbi)
 {
 	if (sbi->s_proc) {
+		remove_proc_entry("iostat_info", sbi->s_proc);
 		remove_proc_entry("segment_info", sbi->s_proc);
 		remove_proc_entry("segment_bits", sbi->s_proc);
 		remove_proc_entry(sbi->sb->s_id, f2fs_proc_root);

@@ -117,6 +117,7 @@ int f2fs_convert_inline_page(struct dnode_of_data *dn, struct page *page)
 		.op_flags = REQ_SYNC | REQ_PRIO,
 		.page = page,
 		.encrypted_page = NULL,
+		.io_type = FS_DATA_IO,
 	};
 	int dirty, err;
 

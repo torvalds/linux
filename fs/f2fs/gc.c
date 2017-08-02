@@ -689,6 +689,8 @@ static void move_encrypted_block(struct inode *inode, block_t bidx,
 	fio.new_blkaddr = newaddr;
 	f2fs_submit_page_write(&fio);
 
+	f2fs_update_iostat(fio.sbi, FS_GC_DATA_IO, F2FS_BLKSIZE);
+
 	f2fs_update_data_blkaddr(&dn, newaddr);
 	set_inode_flag(inode, FI_APPEND_WRITE);
 	if (page->index == 0)
@@ -736,6 +738,7 @@ static void move_data_page(struct inode *inode, block_t bidx, int gc_type,
 			.page = page,
 			.encrypted_page = NULL,
 			.need_lock = LOCK_REQ,
+			.io_type = FS_GC_DATA_IO,
 		};
 		bool is_dirty = PageDirty(page);
 		int err;
