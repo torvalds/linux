@@ -2103,13 +2103,47 @@ mlxsw_sp_fib_entry_should_offload(const struct mlxsw_sp_fib_entry *fib_entry)
 	}
 }
 
+static void
+mlxsw_sp_fib4_entry_offload_set(struct mlxsw_sp_fib_entry *fib_entry)
+{
+	struct mlxsw_sp_nexthop_group *nh_grp = fib_entry->nh_group;
+	int i;
+
+	if (fib_entry->type == MLXSW_SP_FIB_ENTRY_TYPE_LOCAL) {
+		nh_grp->nexthops->key.fib_nh->nh_flags |= RTNH_F_OFFLOAD;
+		return;
+	}
+
+	for (i = 0; i < nh_grp->count; i++) {
+		struct mlxsw_sp_nexthop *nh = &nh_grp->nexthops[i];
+
+		if (nh->offloaded)
+			nh->key.fib_nh->nh_flags |= RTNH_F_OFFLOAD;
+		else
+			nh->key.fib_nh->nh_flags &= ~RTNH_F_OFFLOAD;
+	}
+}
+
+static void
+mlxsw_sp_fib4_entry_offload_unset(struct mlxsw_sp_fib_entry *fib_entry)
+{
+	struct mlxsw_sp_nexthop_group *nh_grp = fib_entry->nh_group;
+	int i;
+
+	for (i = 0; i < nh_grp->count; i++) {
+		struct mlxsw_sp_nexthop *nh = &nh_grp->nexthops[i];
+
+		nh->key.fib_nh->nh_flags &= ~RTNH_F_OFFLOAD;
+	}
+}
+
 static void mlxsw_sp_fib_entry_offload_set(struct mlxsw_sp_fib_entry *fib_entry)
 {
 	fib_entry->offloaded = true;
 
 	switch (fib_entry->fib_node->fib->proto) {
 	case MLXSW_SP_L3_PROTO_IPV4:
-		fib_info_offload_inc(fib_entry->nh_group->key.fi);
+		mlxsw_sp_fib4_entry_offload_set(fib_entry);
 		break;
 	case MLXSW_SP_L3_PROTO_IPV6:
 		WARN_ON_ONCE(1);
@@ -2121,7 +2155,7 @@ mlxsw_sp_fib_entry_offload_unset(struct mlxsw_sp_fib_entry *fib_entry)
 {
 	switch (fib_entry->fib_node->fib->proto) {
 	case MLXSW_SP_L3_PROTO_IPV4:
-		fib_info_offload_dec(fib_entry->nh_group->key.fi);
+		mlxsw_sp_fib4_entry_offload_unset(fib_entry);
 		break;
 	case MLXSW_SP_L3_PROTO_IPV6:
 		WARN_ON_ONCE(1);
