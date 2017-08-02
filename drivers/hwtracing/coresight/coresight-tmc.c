@@ -442,6 +442,22 @@ static struct amba_id tmc_ids[] = {
 		.id     = 0x0003b961,
 		.mask   = 0x0003ffff,
 	},
+	{
+		/* Coresight SoC 600 TMC-ETR/ETS */
+		.id	= 0x000bb9e8,
+		.mask	= 0x000fffff,
+		.data	= (void *)(unsigned long)CORESIGHT_SOC_600_ETR_CAPS,
+	},
+	{
+		/* Coresight SoC 600 TMC-ETB */
+		.id	= 0x000bb9e9,
+		.mask	= 0x000fffff,
+	},
+	{
+		/* Coresight SoC 600 TMC-ETF */
+		.id	= 0x000bb9ea,
+		.mask	= 0x000fffff,
+	},
 	{ 0, 0},
 };
 

@@ -129,6 +129,10 @@ enum tmc_mem_intf_width {
  */
 #define TMC_ETR_SAVE_RESTORE		(0x1U << 2)
 
+/* Coresight SoC-600 TMC-ETR unadvertised capabilities */
+#define CORESIGHT_SOC_600_ETR_CAPS	\
+	(TMC_ETR_SAVE_RESTORE | TMC_ETR_AXI_ARCACHE)
+
 /**
  * struct tmc_drvdata - specifics associated to an TMC component
  * @base:	memory mapped base address for this component.
