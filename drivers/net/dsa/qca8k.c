@@ -637,8 +637,8 @@ qca8k_get_sset_count(struct dsa_switch *ds)
 	return ARRAY_SIZE(ar8327_mib);
 }
 
-static void
-qca8k_eee_enable_set(struct dsa_switch *ds, int port, bool enable)
+static int
+qca8k_set_mac_eee(struct dsa_switch *ds, int port, struct ethtool_eee *eee)
 {
 	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
 	u32 lpi_en = QCA8K_REG_EEE_CTRL_LPI_EN(port);
@@ -646,73 +646,21 @@ qca8k_eee_enable_set(struct dsa_switch *ds, int port, bool enable)
 
 	mutex_lock(&priv->reg_mutex);
 	reg = qca8k_read(priv, QCA8K_REG_EEE_CTRL);
-	if (enable)
+	if (eee->eee_enabled)
 		reg |= lpi_en;
 	else
 		reg &= ~lpi_en;
 	qca8k_write(priv, QCA8K_REG_EEE_CTRL, reg);
 	mutex_unlock(&priv->reg_mutex);
-}
-
-static int
-qca8k_eee_init(struct dsa_switch *ds, int port,
-	       struct phy_device *phy)
-{
-	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
-	struct ethtool_eee *p = &priv->port_sts[port].eee;
-	int ret;
-
-	p->supported = (SUPPORTED_1000baseT_Full | SUPPORTED_100baseT_Full);
-
-	ret = phy_init_eee(phy, 0);
-	if (ret)
-		return ret;
-
-	qca8k_eee_enable_set(ds, port, true);
 
 	return 0;
 }
 
 static int
-qca8k_set_eee(struct dsa_switch *ds, int port,
-	      struct phy_device *phydev,
-	      struct ethtool_eee *e)
+qca8k_get_mac_eee(struct dsa_switch *ds, int port, struct ethtool_eee *e)
 {
-	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
-	struct ethtool_eee *p = &priv->port_sts[port].eee;
-	int ret = 0;
-
-	p->eee_enabled = e->eee_enabled;
-
-	if (e->eee_enabled) {
-		p->eee_enabled = qca8k_eee_init(ds, port, phydev);
-		if (!p->eee_enabled)
-			ret = -EOPNOTSUPP;
-	}
-	qca8k_eee_enable_set(ds, port, p->eee_enabled);
-
-	return ret;
-}
-
-static int
-qca8k_get_eee(struct dsa_switch *ds, int port,
-	      struct ethtool_eee *e)
-{
-	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
-	struct ethtool_eee *p = &priv->port_sts[port].eee;
-	struct net_device *netdev = ds->ports[port].netdev;
-	int ret;
-
-	ret = phy_ethtool_get_eee(netdev->phydev, p);
-	if (!ret)
-		e->eee_active =
-			!!(p->supported & p->advertised & p->lp_advertised);
-	else
-		e->eee_active = 0;
-
-	e->eee_enabled = p->eee_enabled;
-
-	return ret;
+	/* Nothing to do on the port's MAC */
+	return 0;
 }
 
 static void
@@ -914,8 +862,8 @@ static const struct dsa_switch_ops qca8k_switch_ops = {
 	.phy_write		= qca8k_phy_write,
 	.get_ethtool_stats	= qca8k_get_ethtool_stats,
 	.get_sset_count		= qca8k_get_sset_count,
-	.get_eee		= qca8k_get_eee,
-	.set_eee		= qca8k_set_eee,
+	.get_mac_eee		= qca8k_get_mac_eee,
+	.set_mac_eee		= qca8k_set_mac_eee,
 	.port_enable		= qca8k_port_enable,
 	.port_disable		= qca8k_port_disable,
 	.port_stp_state_set	= qca8k_port_stp_state_set,
