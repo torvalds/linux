@@ -90,6 +90,7 @@ struct skl_machine_pdata {
 
 struct skl_dsp_ops {
 	int id;
+	unsigned int num_cores;
 	struct skl_dsp_loader_ops (*loader_ops)(void);
 	int (*init)(struct device *dev, void __iomem *mmio_base,
 			int irq, const char *fw_name,

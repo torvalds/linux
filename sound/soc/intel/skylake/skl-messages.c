@@ -201,6 +201,7 @@ static struct skl_dsp_loader_ops bxt_get_loader_ops(void)
 static const struct skl_dsp_ops dsp_ops[] = {
 	{
 		.id = 0x9d70,
+		.num_cores = 2,
 		.loader_ops = skl_get_loader_ops,
 		.init = skl_sst_dsp_init,
 		.init_fw = skl_sst_init_fw,
@@ -208,6 +209,7 @@ static const struct skl_dsp_ops dsp_ops[] = {
 	},
 	{
 		.id = 0x9d71,
+		.num_cores = 2,
 		.loader_ops = skl_get_loader_ops,
 		.init = kbl_sst_dsp_init,
 		.init_fw = skl_sst_init_fw,
@@ -215,6 +217,7 @@ static const struct skl_dsp_ops dsp_ops[] = {
 	},
 	{
 		.id = 0x5a98,
+		.num_cores = 2,
 		.loader_ops = bxt_get_loader_ops,
 		.init = bxt_sst_dsp_init,
 		.init_fw = bxt_sst_init_fw,
@@ -222,6 +225,7 @@ static const struct skl_dsp_ops dsp_ops[] = {
 	},
 	{
 		.id = 0x3198,
+		.num_cores = 2,
 		.loader_ops = bxt_get_loader_ops,
 		.init = bxt_sst_dsp_init,
 		.init_fw = bxt_sst_init_fw,
@@ -275,6 +279,8 @@ int skl_init_dsp(struct skl *skl)
 		return ret;
 
 	skl->skl_sst->dsp_ops = ops;
+	skl->skl_sst->cores.count = ops->num_cores;
+
 	dev_dbg(bus->dev, "dsp registration status=%d\n", ret);
 
 	return ret;

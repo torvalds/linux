@@ -563,8 +563,6 @@ int skl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 
 	sst->fw_ops = skl_fw_ops;
 
-	skl->cores.count = 2;
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(skl_sst_dsp_init);
