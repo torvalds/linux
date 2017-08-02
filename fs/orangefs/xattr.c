@@ -442,7 +442,7 @@ static int orangefs_xattr_get_default(const struct xattr_handler *handler,
 
 }
 
-static struct xattr_handler orangefs_xattr_default_handler = {
+static const struct xattr_handler orangefs_xattr_default_handler = {
 	.prefix = "",  /* match any name => handlers called with full name */
 	.get = orangefs_xattr_get_default,
 	.set = orangefs_xattr_set_default,
