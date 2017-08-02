@@ -1248,7 +1248,7 @@ static const struct bin_attribute bin_attr_pm_config = {
 	.write = qlcnic_sysfs_write_pm_config,
 };
 
-static struct bin_attribute bin_attr_flash = {
+static const struct bin_attribute bin_attr_flash = {
 	.attr = {.name = "flash", .mode = (S_IRUGO | S_IWUSR)},
 	.size = 0,
 	.read = qlcnic_83xx_sysfs_flash_read_handler,
