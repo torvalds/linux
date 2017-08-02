@@ -224,6 +224,10 @@ static int etm4_parse_event_config(struct etmv4_drvdata *drvdata,
 	if (attr->config & BIT(ETM_OPT_TS))
 		/* bit[11], Global timestamp tracing bit */
 		config->cfg |= BIT(11);
+	/* return stack - enable if selected and supported */
+	if ((attr->config & BIT(ETM_OPT_RETSTK)) && drvdata->retstack)
+		/* bit[12], Return stack enable bit */
+		config->cfg |= BIT(12);
 
 out:
 	return ret;
