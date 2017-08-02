@@ -124,9 +124,12 @@ static int hdmi_power_on_core(struct omap_dss_device *dssdev)
 {
 	int r;
 
+	if (hdmi.core.core_pwr_cnt++)
+		return 0;
+
 	r = regulator_enable(hdmi.vdda_reg);
 	if (r)
-		return r;
+		goto err_reg_enable;
 
 	r = hdmi_runtime_get();
 	if (r)
@@ -143,12 +146,17 @@ static int hdmi_power_on_core(struct omap_dss_device *dssdev)
 
 err_runtime_get:
 	regulator_disable(hdmi.vdda_reg);
+err_reg_enable:
+	hdmi.core.core_pwr_cnt--;
 
 	return r;
 }
 
 static void hdmi_power_off_core(struct omap_dss_device *dssdev)
 {
+	if (--hdmi.core.core_pwr_cnt)
+		return;
+
 	hdmi.core_enabled = false;
 
 	hdmi_runtime_put();
