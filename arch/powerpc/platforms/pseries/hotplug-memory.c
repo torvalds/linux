@@ -336,7 +336,38 @@ static struct memory_block *lmb_to_memblock(struct of_drconf_cell *lmb)
 	return mem_block;
 }
 
+static int dlpar_change_lmb_state(struct of_drconf_cell *lmb, bool online)
+{
+	struct memory_block *mem_block;
+	int rc;
+
+	mem_block = lmb_to_memblock(lmb);
+	if (!mem_block)
+		return -EINVAL;
+
+	if (online && mem_block->dev.offline)
+		rc = device_online(&mem_block->dev);
+	else if (!online && !mem_block->dev.offline)
+		rc = device_offline(&mem_block->dev);
+	else
+		rc = 0;
+
+	put_device(&mem_block->dev);
+
+	return rc;
+}
+
+static int dlpar_online_lmb(struct of_drconf_cell *lmb)
+{
+	return dlpar_change_lmb_state(lmb, true);
+}
+
 #ifdef CONFIG_MEMORY_HOTREMOVE
+static int dlpar_offline_lmb(struct of_drconf_cell *lmb)
+{
+	return dlpar_change_lmb_state(lmb, false);
+}
+
 static int pseries_remove_memblock(unsigned long base, unsigned int memblock_size)
 {
 	unsigned long block_sz, start_pfn;
@@ -431,19 +462,13 @@ static int dlpar_add_lmb(struct of_drconf_cell *);
 
 static int dlpar_remove_lmb(struct of_drconf_cell *lmb)
 {
-	struct memory_block *mem_block;
 	unsigned long block_sz;
 	int nid, rc;
 
 	if (!lmb_is_removable(lmb))
 		return -EINVAL;
 
-	mem_block = lmb_to_memblock(lmb);
-	if (!mem_block)
-		return -EINVAL;
-
-	rc = device_offline(&mem_block->dev);
-	put_device(&mem_block->dev);
+	rc = dlpar_offline_lmb(lmb);
 	if (rc)
 		return rc;
 
@@ -736,20 +761,6 @@ static int dlpar_memory_remove_by_ic(u32 lmbs_to_remove, u32 drc_index,
 	return -EOPNOTSUPP;
 }
 #endif /* CONFIG_MEMORY_HOTREMOVE */
-
-static int dlpar_online_lmb(struct of_drconf_cell *lmb)
-{
-	struct memory_block *mem_block;
-	int rc;
-
-	mem_block = lmb_to_memblock(lmb);
-	if (!mem_block)
-		return -EINVAL;
-
-	rc = device_online(&mem_block->dev);
-	put_device(&mem_block->dev);
-	return rc;
-}
 
 static int dlpar_add_lmb(struct of_drconf_cell *lmb)
 {
