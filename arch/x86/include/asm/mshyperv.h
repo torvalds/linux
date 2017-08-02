@@ -3,6 +3,7 @@
 
 #include <linux/types.h>
 #include <linux/atomic.h>
+#include <linux/nmi.h>
 #include <asm/io.h>
 #include <asm/hyperv.h>
 
@@ -209,7 +210,13 @@ static inline u64 hv_do_hypercall(u64 control, void *input, void *output)
 	return hv_status;
 }
 
+#define HV_HYPERCALL_RESULT_MASK	GENMASK_ULL(15, 0)
 #define HV_HYPERCALL_FAST_BIT		BIT(16)
+#define HV_HYPERCALL_VARHEAD_OFFSET	17
+#define HV_HYPERCALL_REP_COMP_OFFSET	32
+#define HV_HYPERCALL_REP_COMP_MASK	GENMASK_ULL(43, 32)
+#define HV_HYPERCALL_REP_START_OFFSET	48
+#define HV_HYPERCALL_REP_START_MASK	GENMASK_ULL(59, 48)
 
 /* Fast hypercall with 8 bytes of input and no output */
 static inline u64 hv_do_fast_hypercall8(u16 code, u64 input1)
@@ -241,6 +248,38 @@ static inline u64 hv_do_fast_hypercall8(u16 code, u64 input1)
 	}
 #endif
 		return hv_status;
+}
+
+/*
+ * Rep hypercalls. Callers of this functions are supposed to ensure that
+ * rep_count and varhead_size comply with Hyper-V hypercall definition.
+ */
+static inline u64 hv_do_rep_hypercall(u16 code, u16 rep_count, u16 varhead_size,
+				      void *input, void *output)
+{
+	u64 control = code;
+	u64 status;
+	u16 rep_comp;
+
+	control |= (u64)varhead_size << HV_HYPERCALL_VARHEAD_OFFSET;
+	control |= (u64)rep_count << HV_HYPERCALL_REP_COMP_OFFSET;
+
+	do {
+		status = hv_do_hypercall(control, input, output);
+		if ((status & HV_HYPERCALL_RESULT_MASK) != HV_STATUS_SUCCESS)
+			return status;
+
+		/* Bits 32-43 of status have 'Reps completed' data. */
+		rep_comp = (status & HV_HYPERCALL_REP_COMP_MASK) >>
+			HV_HYPERCALL_REP_COMP_OFFSET;
+
+		control &= ~HV_HYPERCALL_REP_START_MASK;
+		control |= (u64)rep_comp << HV_HYPERCALL_REP_START_OFFSET;
+
+		touch_nmi_watchdog();
+	} while (rep_comp < rep_count);
+
+	return status;
 }
 
 void hyperv_init(void);
