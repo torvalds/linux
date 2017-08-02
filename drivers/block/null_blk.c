@@ -65,7 +65,7 @@ enum {
 	NULL_Q_MQ		= 2,
 };
 
-static int submit_queues;
+static int submit_queues = 1;
 module_param(submit_queues, int, S_IRUGO);
 MODULE_PARM_DESC(submit_queues, "Number of submission queues");
 
@@ -849,7 +849,7 @@ static int __init null_init(void)
 		}
 	} else if (submit_queues > nr_cpu_ids)
 		submit_queues = nr_cpu_ids;
-	else if (!submit_queues)
+	else if (submit_queues <= 0)
 		submit_queues = 1;
 
 	if (queue_mode == NULL_Q_MQ && shared_tags) {
