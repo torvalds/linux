@@ -5022,7 +5022,7 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 		tcgrp->nr_dying_descendants++;
 	}
 
-	cgroup1_check_for_release(cgroup_parent(cgrp));
+	cgroup1_check_for_release(parent);
 
 	/* put the base reference */
 	percpu_ref_kill(&cgrp->self.refcnt);
