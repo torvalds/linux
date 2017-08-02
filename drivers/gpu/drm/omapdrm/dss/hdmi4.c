@@ -36,9 +36,11 @@
 #include <linux/of.h>
 #include <linux/of_graph.h>
 #include <sound/omap-hdmi-audio.h>
+#include <media/cec.h>
 
 #include "omapdss.h"
 #include "hdmi4_core.h"
+#include "hdmi4_cec.h"
 #include "dss.h"
 #include "hdmi.h"
 
@@ -95,6 +97,13 @@ static irqreturn_t hdmi_irq_handler(int irq, void *data)
 		hdmi_wp_set_phy_pwr(wp, HDMI_PHYPWRCMD_TXON);
 	} else if (irqstatus & HDMI_IRQ_LINK_DISCONNECT) {
 		hdmi_wp_set_phy_pwr(wp, HDMI_PHYPWRCMD_LDOON);
+	}
+	if (irqstatus & HDMI_IRQ_CORE) {
+		u32 intr4 = hdmi_read_reg(hdmi->core.base, HDMI_CORE_SYS_INTR4);
+
+		hdmi_write_reg(hdmi->core.base, HDMI_CORE_SYS_INTR4, intr4);
+		if (intr4 & 8)
+			hdmi4_cec_irq(&hdmi->core);
 	}
 
 	return IRQ_HANDLED;
@@ -392,6 +401,8 @@ static void hdmi_display_disable(struct omap_dss_device *dssdev)
 
 	DSSDBG("Enter hdmi_display_disable\n");
 
+	hdmi4_cec_set_phys_addr(&hdmi.core, CEC_PHYS_ADDR_INVALID);
+
 	mutex_lock(&hdmi.lock);
 
 	spin_lock_irqsave(&hdmi.audio_playing_lock, flags);
@@ -492,7 +503,11 @@ static int hdmi_read_edid(struct omap_dss_device *dssdev,
 	}
 
 	r = read_edid(edid, len);
-
+	if (r >= 256)
+		hdmi4_cec_set_phys_addr(&hdmi.core,
+					cec_get_edid_phys_addr(edid, r, NULL));
+	else
+		hdmi4_cec_set_phys_addr(&hdmi.core, CEC_PHYS_ADDR_INVALID);
 	if (need_enable)
 		hdmi4_core_disable(dssdev);
 
@@ -726,6 +741,10 @@ static int hdmi4_bind(struct device *dev, struct device *master, void *data)
 	if (r)
 		goto err;
 
+	r = hdmi4_cec_init(pdev, &hdmi.core, &hdmi.wp);
+	if (r)
+		goto err;
+
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		DSSERR("platform_get_irq failed\n");
@@ -769,6 +788,8 @@ static void hdmi4_unbind(struct device *dev, struct device *master, void *data)
 		platform_device_unregister(hdmi.audio_pdev);
 
 	hdmi_uninit_output(pdev);
+
+	hdmi4_cec_uninit(&hdmi.core);
 
 	hdmi_pll_uninit(&hdmi.pll);
 
