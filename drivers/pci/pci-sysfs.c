@@ -1431,7 +1431,7 @@ static ssize_t pci_read_rom(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static struct bin_attribute pci_config_attr = {
+static const struct bin_attribute pci_config_attr = {
 	.attr =	{
 		.name = "config",
 		.mode = S_IRUGO | S_IWUSR,
@@ -1441,7 +1441,7 @@ static struct bin_attribute pci_config_attr = {
 	.write = pci_write_config,
 };
 
-static struct bin_attribute pcie_config_attr = {
+static const struct bin_attribute pcie_config_attr = {
 	.attr =	{
 		.name = "config",
 		.mode = S_IRUGO | S_IWUSR,
