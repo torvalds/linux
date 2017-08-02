@@ -34,6 +34,7 @@
 #include <asm/fixmap.h>
 #include <asm/io.h>
 #include <asm/setup.h>
+#include <asm/sections.h>
 
 #include "mmu_decl.h"
 
@@ -374,6 +375,29 @@ void mark_initmem_nx(void)
 
 	change_page_attr(page, numpages, PAGE_KERNEL);
 }
+
+#ifdef CONFIG_STRICT_KERNEL_RWX
+void mark_rodata_ro(void)
+{
+	struct page *page;
+	unsigned long numpages;
+
+	page = virt_to_page(_stext);
+	numpages = PFN_UP((unsigned long)_etext) -
+		   PFN_DOWN((unsigned long)_stext);
+
+	change_page_attr(page, numpages, PAGE_KERNEL_ROX);
+	/*
+	 * mark .rodata as read only. Use __init_begin rather than __end_rodata
+	 * to cover NOTES and EXCEPTION_TABLE.
+	 */
+	page = virt_to_page(__start_rodata);
+	numpages = PFN_UP((unsigned long)__init_begin) -
+		   PFN_DOWN((unsigned long)__start_rodata);
+
+	change_page_attr(page, numpages, PAGE_KERNEL_RO);
+}
+#endif
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
 void __kernel_map_pages(struct page *page, int numpages, int enable)
