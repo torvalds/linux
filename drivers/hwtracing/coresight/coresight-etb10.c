@@ -353,6 +353,7 @@ static void etb_update_buffer(struct coresight_device *csdev,
 			      struct perf_output_handle *handle,
 			      void *sink_config)
 {
+	bool lost = false;
 	int i, cur;
 	u8 *buf_ptr;
 	u32 read_ptr, write_ptr, capacity;
@@ -384,7 +385,7 @@ static void etb_update_buffer(struct coresight_device *csdev,
 			(unsigned long)write_ptr);
 
 		write_ptr &= ~(ETB_FRAME_SIZE_WORDS - 1);
-		perf_aux_output_flag(handle, PERF_AUX_FLAG_TRUNCATED);
+		lost = true;
 	}
 
 	/*
@@ -395,7 +396,7 @@ static void etb_update_buffer(struct coresight_device *csdev,
 	 */
 	status = readl_relaxed(drvdata->base + ETB_STATUS_REG);
 	if (status & ETB_STATUS_RAM_FULL) {
-		perf_aux_output_flag(handle, PERF_AUX_FLAG_TRUNCATED);
+		lost = true;
 		to_read = capacity;
 		read_ptr = write_ptr;
 	} else {
@@ -428,8 +429,11 @@ static void etb_update_buffer(struct coresight_device *csdev,
 		if (read_ptr > (drvdata->buffer_depth - 1))
 			read_ptr -= drvdata->buffer_depth;
 		/* let the decoder know we've skipped ahead */
-		perf_aux_output_flag(handle, PERF_AUX_FLAG_TRUNCATED);
+		lost = true;
 	}
+
+	if (lost)
+		perf_aux_output_flag(handle, PERF_AUX_FLAG_TRUNCATED);
 
 	/* finally tell HW where we want to start reading from */
 	writel_relaxed(read_ptr, drvdata->base + ETB_RAM_READ_POINTER);
