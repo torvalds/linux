@@ -59,13 +59,18 @@
  *
  * TMC AXICTL format for SoC-400
  *	Bits [0-1]	: ProtCtrlBit0-1
- *	Bits [2-5]	: CacheCtrlBits 0-3 (AxCACHE)
+ *	Bits [2-5]	: CacheCtrlBits 0-3 (AXCACHE)
  *	Bit  6		: Reserved
  *	Bit  7		: ScatterGatherMode
  *	Bits [8-11]	: WrBurstLen
  *	Bits [12-31]	: Reserved.
+ * TMC AXICTL format for SoC-600, as above except:
+ *	Bits [2-5]	: AXI WCACHE
+ *	Bits [16-19]	: AXI RCACHE
+ *	Bits [20-31]	: Reserved
  */
 #define TMC_AXICTL_CLEAR_MASK 0xfbf
+#define TMC_AXICTL_ARCACHE_MASK (0xf << 16)
 
 #define TMC_AXICTL_PROT_CTL_B0	BIT(0)
 #define TMC_AXICTL_PROT_CTL_B1	BIT(1)
@@ -73,6 +78,7 @@
 #define TMC_AXICTL_WR_BURST_16	0xF00
 /* Write-back Read and Write-allocate */
 #define TMC_AXICTL_AXCACHE_OS	(0xf << 2)
+#define TMC_AXICTL_ARCACHE_OS	(0xf << 16)
 
 /* TMC_FFCR - 0x304 */
 #define TMC_FFCR_FLUSHMAN_BIT	6
@@ -111,6 +117,8 @@ enum tmc_mem_intf_width {
 
 /* TMC ETR Capability bit definitions */
 #define TMC_ETR_SG			(0x1U << 0)
+/* ETR has separate read/write cache encodings */
+#define TMC_ETR_AXI_ARCACHE		(0x1U << 1)
 
 /**
  * struct tmc_drvdata - specifics associated to an TMC component
