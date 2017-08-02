@@ -2410,9 +2410,9 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper,
 		struct drm_display_mode *mode = modes[i];
 		struct drm_fb_helper_crtc *fb_crtc = crtcs[i];
 		struct drm_fb_offset *offset = &offsets[i];
-		struct drm_mode_set *modeset = &fb_crtc->mode_set;
 
 		if (mode && fb_crtc) {
+			struct drm_mode_set *modeset = &fb_crtc->mode_set;
 			struct drm_connector *connector =
 				fb_helper->connector_info[i]->connector;
 
