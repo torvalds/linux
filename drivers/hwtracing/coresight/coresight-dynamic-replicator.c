@@ -95,6 +95,28 @@ static const struct coresight_ops replicator_cs_ops = {
 	.link_ops	= &replicator_link_ops,
 };
 
+#define coresight_replicator_reg(name, offset) \
+	coresight_simple_reg32(struct replicator_state, name, offset)
+
+coresight_replicator_reg(idfilter0, REPLICATOR_IDFILTER0);
+coresight_replicator_reg(idfilter1, REPLICATOR_IDFILTER1);
+
+static struct attribute *replicator_mgmt_attrs[] = {
+	&dev_attr_idfilter0.attr,
+	&dev_attr_idfilter1.attr,
+	NULL,
+};
+
+static const struct attribute_group replicator_mgmt_group = {
+	.attrs = replicator_mgmt_attrs,
+	.name = "mgmt",
+};
+
+static const struct attribute_group *replicator_groups[] = {
+	&replicator_mgmt_group,
+	NULL,
+};
+
 static int replicator_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	int ret;
@@ -139,6 +161,7 @@ static int replicator_probe(struct amba_device *adev, const struct amba_id *id)
 	desc.ops = &replicator_cs_ops;
 	desc.pdata = adev->dev.platform_data;
 	desc.dev = &adev->dev;
+	desc.groups = replicator_groups;
 	drvdata->csdev = coresight_register(&desc);
 	if (IS_ERR(drvdata->csdev))
 		return PTR_ERR(drvdata->csdev);
