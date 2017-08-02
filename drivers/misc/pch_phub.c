@@ -659,7 +659,7 @@ static ssize_t store_pch_mac(struct device *dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(pch_mac, S_IRUGO | S_IWUSR, show_pch_mac, store_pch_mac);
 
-static struct bin_attribute pch_bin_attr = {
+static const struct bin_attribute pch_bin_attr = {
 	.attr = {
 		.name = "pch_firmware",
 		.mode = S_IRUGO | S_IWUSR,
