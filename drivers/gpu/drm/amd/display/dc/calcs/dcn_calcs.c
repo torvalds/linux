@@ -401,7 +401,8 @@ static void pipe_ctx_to_e2e_pipe_params (
 static void dcn_bw_calc_rq_dlg_ttu(
 		const struct core_dc *dc,
 		const struct dcn_bw_internal_vars *v,
-		struct pipe_ctx *pipe)
+		struct pipe_ctx *pipe,
+		int in_idx)
 {
 	struct display_mode_lib *dml = (struct display_mode_lib *)(&dc->dml);
 	struct _vcs_dpi_display_dlg_regs_st *dlg_regs = &pipe->dlg_regs;
@@ -439,6 +440,21 @@ static void dcn_bw_calc_rq_dlg_ttu(
 	input.clks_cfg.socclk_mhz = v->socclk;
 	input.clks_cfg.voltage = v->voltage_level;
 //	dc->dml.logger = pool->base.logger;
+	input.dout.output_format = (v->output_format[in_idx] == dcn_bw_420) ? dm_420 : dm_444;
+	input.dout.output_type  = (v->output[in_idx] == dcn_bw_hdmi) ? dm_hdmi : dm_dp;
+	//input[in_idx].dout.output_standard;
+	switch (v->output_deep_color[in_idx]) {
+	case dcn_bw_encoder_12bpc:
+		input.dout.output_bpc = dm_out_12;
+	break;
+	case dcn_bw_encoder_10bpc:
+		input.dout.output_bpc = dm_out_10;
+	break;
+	case dcn_bw_encoder_8bpc:
+	default:
+		input.dout.output_bpc = dm_out_8;
+	break;
+	}
 
 	/*todo: soc->sr_enter_plus_exit_time??*/
 	dlg_sys_param.t_srx_delay_us = dc->dcn_ip.dcfclk_cstate_latency / v->dcf_clk_deep_sleep;
@@ -487,6 +503,21 @@ static void dcn_dml_wm_override(
 		input[in_idx].clks_cfg.refclk_mhz = pool->ref_clock_inKhz / 1000;
 		input[in_idx].clks_cfg.socclk_mhz = v->socclk;
 		input[in_idx].clks_cfg.voltage = v->voltage_level;
+		input[in_idx].dout.output_format = (v->output_format[in_idx] == dcn_bw_420) ? dm_420 : dm_444;
+		input[in_idx].dout.output_type  = (v->output[in_idx] == dcn_bw_hdmi) ? dm_hdmi : dm_dp;
+		//input[in_idx].dout.output_standard;
+		switch (v->output_deep_color[in_idx]) {
+		case dcn_bw_encoder_12bpc:
+			input[in_idx].dout.output_bpc = dm_out_12;
+		break;
+		case dcn_bw_encoder_10bpc:
+			input[in_idx].dout.output_bpc = dm_out_10;
+		break;
+		case dcn_bw_encoder_8bpc:
+		default:
+			input[in_idx].dout.output_bpc = dm_out_8;
+		break;
+		}
 		pipe_ctx_to_e2e_pipe_params(pipe, &input[in_idx].pipe);
 		dml_rq_dlg_get_rq_reg(
 			dml,
@@ -1060,7 +1091,7 @@ bool dcn_validate_bandwidth(
 							pipe, hsplit_pipe);
 					}
 
-					dcn_bw_calc_rq_dlg_ttu(dc, v, hsplit_pipe);
+					dcn_bw_calc_rq_dlg_ttu(dc, v, hsplit_pipe, input_idx);
 				} else if (hsplit_pipe && hsplit_pipe->plane_state == pipe->plane_state) {
 					/* merge previously split pipe */
 					pipe->bottom_pipe = hsplit_pipe->bottom_pipe;
@@ -1073,7 +1104,7 @@ bool dcn_validate_bandwidth(
 					resource_build_scaling_params(pipe);
 				}
 				/* for now important to do this after pipe split for building e2e params */
-				dcn_bw_calc_rq_dlg_ttu(dc, v, pipe);
+				dcn_bw_calc_rq_dlg_ttu(dc, v, pipe, input_idx);
 			}
 
 			input_idx++;
