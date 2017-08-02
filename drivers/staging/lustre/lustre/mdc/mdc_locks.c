@@ -1030,7 +1030,7 @@ int mdc_revalidate_lock(struct obd_export *exp, struct lookup_intent *it,
  * If we're performing a creation, that means that unless the creation
  * failed with EEXIST, we should fake up a negative dentry.
  *
- * For everything else, we want to lookup to succeed.
+ * For everything else, we want the lookup to succeed.
  *
  * One additional note: if CREATE or OPEN succeeded, we add an extra
  * reference to the request because we need to keep it around until
@@ -1040,7 +1040,7 @@ int mdc_revalidate_lock(struct obd_export *exp, struct lookup_intent *it,
  * exactly what it_status refers to.
  *
  * If DISP_OPEN_OPEN is set, then it_status refers to the open() call,
- * otherwise if DISP_OPEN_CREATE is set, then it status is the
+ * otherwise if DISP_OPEN_CREATE is set, then it_status is the
  * creation failure mode.  In either case, one of DISP_LOOKUP_NEG or
  * DISP_LOOKUP_POS will be set, indicating whether the child lookup
  * was successful.
