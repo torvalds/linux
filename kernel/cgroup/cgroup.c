@@ -1311,6 +1311,8 @@ static struct cgroup *cset_cgroup_from_root(struct css_set *cset,
 
 	if (cset == &init_css_set) {
 		res = &root->cgrp;
+	} else if (root == &cgrp_dfl_root) {
+		res = cset->dfl_cgrp;
 	} else {
 		struct cgrp_cset_link *link;
 
