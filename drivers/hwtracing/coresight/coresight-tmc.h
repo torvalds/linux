@@ -54,11 +54,26 @@
 #define TMC_STS_TMCREADY_BIT	2
 #define TMC_STS_FULL		BIT(0)
 #define TMC_STS_TRIGGERED	BIT(1)
-/* TMC_AXICTL - 0x110 */
+/*
+ * TMC_AXICTL - 0x110
+ *
+ * TMC AXICTL format for SoC-400
+ *	Bits [0-1]	: ProtCtrlBit0-1
+ *	Bits [2-5]	: CacheCtrlBits 0-3 (AxCACHE)
+ *	Bit  6		: Reserved
+ *	Bit  7		: ScatterGatherMode
+ *	Bits [8-11]	: WrBurstLen
+ *	Bits [12-31]	: Reserved.
+ */
+#define TMC_AXICTL_CLEAR_MASK 0xfbf
+
 #define TMC_AXICTL_PROT_CTL_B0	BIT(0)
 #define TMC_AXICTL_PROT_CTL_B1	BIT(1)
 #define TMC_AXICTL_SCT_GAT_MODE	BIT(7)
 #define TMC_AXICTL_WR_BURST_16	0xF00
+/* Write-back Read and Write-allocate */
+#define TMC_AXICTL_AXCACHE_OS	(0xf << 2)
+
 /* TMC_FFCR - 0x304 */
 #define TMC_FFCR_FLUSHMAN_BIT	6
 #define TMC_FFCR_EN_FMT		BIT(0)
