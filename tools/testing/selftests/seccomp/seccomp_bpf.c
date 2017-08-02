@@ -136,7 +136,7 @@ TEST(no_new_privs_support)
 	}
 }
 
-/* Tests kernel support by checking for a copy_from_user() fault on * NULL. */
+/* Tests kernel support by checking for a copy_from_user() fault on NULL. */
 TEST(mode_filter_support)
 {
 	long ret;
@@ -541,26 +541,30 @@ TEST(arg_out_of_range)
 	EXPECT_EQ(EINVAL, errno);
 }
 
+#define ERRNO_FILTER(name, errno)					\
+	struct sock_filter _read_filter_##name[] = {			\
+		BPF_STMT(BPF_LD|BPF_W|BPF_ABS,				\
+			offsetof(struct seccomp_data, nr)),		\
+		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_read, 0, 1),	\
+		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ERRNO | errno),	\
+		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),		\
+	};								\
+	struct sock_fprog prog_##name = {				\
+		.len = (unsigned short)ARRAY_SIZE(_read_filter_##name),	\
+		.filter = _read_filter_##name,				\
+	}
+
+/* Make sure basic errno values are correctly passed through a filter. */
 TEST(ERRNO_valid)
 {
-	struct sock_filter filter[] = {
-		BPF_STMT(BPF_LD|BPF_W|BPF_ABS,
-			offsetof(struct seccomp_data, nr)),
-		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_read, 0, 1),
-		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ERRNO | E2BIG),
-		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
-	};
-	struct sock_fprog prog = {
-		.len = (unsigned short)ARRAY_SIZE(filter),
-		.filter = filter,
-	};
+	ERRNO_FILTER(valid, E2BIG);
 	long ret;
 	pid_t parent = getppid();
 
 	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 	ASSERT_EQ(0, ret);
 
-	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog);
+	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog_valid);
 	ASSERT_EQ(0, ret);
 
 	EXPECT_EQ(parent, syscall(__NR_getppid));
@@ -568,26 +572,17 @@ TEST(ERRNO_valid)
 	EXPECT_EQ(E2BIG, errno);
 }
 
+/* Make sure an errno of zero is correctly handled by the arch code. */
 TEST(ERRNO_zero)
 {
-	struct sock_filter filter[] = {
-		BPF_STMT(BPF_LD|BPF_W|BPF_ABS,
-			offsetof(struct seccomp_data, nr)),
-		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_read, 0, 1),
-		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ERRNO | 0),
-		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
-	};
-	struct sock_fprog prog = {
-		.len = (unsigned short)ARRAY_SIZE(filter),
-		.filter = filter,
-	};
+	ERRNO_FILTER(zero, 0);
 	long ret;
 	pid_t parent = getppid();
 
 	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 	ASSERT_EQ(0, ret);
 
-	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog);
+	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog_zero);
 	ASSERT_EQ(0, ret);
 
 	EXPECT_EQ(parent, syscall(__NR_getppid));
@@ -595,31 +590,57 @@ TEST(ERRNO_zero)
 	EXPECT_EQ(0, read(0, NULL, 0));
 }
 
+/*
+ * The SECCOMP_RET_DATA mask is 16 bits wide, but errno is smaller.
+ * This tests that the errno value gets capped correctly, fixed by
+ * 580c57f10768 ("seccomp: cap SECCOMP_RET_ERRNO data to MAX_ERRNO").
+ */
 TEST(ERRNO_capped)
 {
-	struct sock_filter filter[] = {
-		BPF_STMT(BPF_LD|BPF_W|BPF_ABS,
-			offsetof(struct seccomp_data, nr)),
-		BPF_JUMP(BPF_JMP|BPF_JEQ|BPF_K, __NR_read, 0, 1),
-		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ERRNO | 4096),
-		BPF_STMT(BPF_RET|BPF_K, SECCOMP_RET_ALLOW),
-	};
-	struct sock_fprog prog = {
-		.len = (unsigned short)ARRAY_SIZE(filter),
-		.filter = filter,
-	};
+	ERRNO_FILTER(capped, 4096);
 	long ret;
 	pid_t parent = getppid();
 
 	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
 	ASSERT_EQ(0, ret);
 
-	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog);
+	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog_capped);
 	ASSERT_EQ(0, ret);
 
 	EXPECT_EQ(parent, syscall(__NR_getppid));
 	EXPECT_EQ(-1, read(0, NULL, 0));
 	EXPECT_EQ(4095, errno);
+}
+
+/*
+ * Filters are processed in reverse order: last applied is executed first.
+ * Since only the SECCOMP_RET_ACTION mask is tested for return values, the
+ * SECCOMP_RET_DATA mask results will follow the most recently applied
+ * matching filter return (and not the lowest or highest value).
+ */
+TEST(ERRNO_order)
+{
+	ERRNO_FILTER(first,  11);
+	ERRNO_FILTER(second, 13);
+	ERRNO_FILTER(third,  12);
+	long ret;
+	pid_t parent = getppid();
+
+	ret = prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0);
+	ASSERT_EQ(0, ret);
+
+	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog_first);
+	ASSERT_EQ(0, ret);
+
+	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog_second);
+	ASSERT_EQ(0, ret);
+
+	ret = prctl(PR_SET_SECCOMP, SECCOMP_MODE_FILTER, &prog_third);
+	ASSERT_EQ(0, ret);
+
+	EXPECT_EQ(parent, syscall(__NR_getppid));
+	EXPECT_EQ(-1, read(0, NULL, 0));
+	EXPECT_EQ(12, errno);
 }
 
 FIXTURE_DATA(TRAP) {
