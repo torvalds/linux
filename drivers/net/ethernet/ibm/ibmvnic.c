@@ -1741,6 +1741,21 @@ static void ibmvnic_get_ringparam(struct net_device *netdev,
 	ring->rx_jumbo_pending = 0;
 }
 
+static void ibmvnic_get_channels(struct net_device *netdev,
+				 struct ethtool_channels *channels)
+{
+	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
+
+	channels->max_rx = adapter->max_rx_queues;
+	channels->max_tx = adapter->max_tx_queues;
+	channels->max_other = 0;
+	channels->max_combined = 0;
+	channels->rx_count = adapter->req_rx_queues;
+	channels->tx_count = adapter->req_tx_queues;
+	channels->other_count = 0;
+	channels->combined_count = 0;
+}
+
 static void ibmvnic_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(dev);
@@ -1837,6 +1852,7 @@ static const struct ethtool_ops ibmvnic_ethtool_ops = {
 	.set_msglevel		= ibmvnic_set_msglevel,
 	.get_link		= ibmvnic_get_link,
 	.get_ringparam		= ibmvnic_get_ringparam,
+	.get_channels		= ibmvnic_get_channels,
 	.get_strings            = ibmvnic_get_strings,
 	.get_sset_count         = ibmvnic_get_sset_count,
 	.get_ethtool_stats	= ibmvnic_get_ethtool_stats,
