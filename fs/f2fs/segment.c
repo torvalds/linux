@@ -1618,6 +1618,8 @@ static void update_sit_entry(struct f2fs_sb_info *sbi, block_t blkaddr, int del)
 			f2fs_msg(sbi->sb, KERN_ERR,
 				"Bitmap was wrongly set, blk:%u", blkaddr);
 			f2fs_bug_on(sbi, 1);
+			se->valid_blocks--;
+			del = 0;
 		}
 
 		if (f2fs_discard_en(sbi) &&
@@ -1645,6 +1647,8 @@ static void update_sit_entry(struct f2fs_sb_info *sbi, block_t blkaddr, int del)
 			f2fs_msg(sbi->sb, KERN_ERR,
 				"Bitmap was wrongly cleared, blk:%u", blkaddr);
 			f2fs_bug_on(sbi, 1);
+			se->valid_blocks++;
+			del = 0;
 		}
 
 		if (f2fs_discard_en(sbi) &&
