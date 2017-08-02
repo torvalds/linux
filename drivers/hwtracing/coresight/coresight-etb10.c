@@ -233,10 +233,8 @@ static void etb_dump_hw(struct etb_drvdata *drvdata)
 	for (i = 0; i < depth; i++) {
 		read_data = readl_relaxed(drvdata->base +
 					  ETB_RAM_READ_DATA_REG);
-		*buf_ptr++ = read_data >> 0;
-		*buf_ptr++ = read_data >> 8;
-		*buf_ptr++ = read_data >> 16;
-		*buf_ptr++ = read_data >> 24;
+		*(u32 *)buf_ptr = read_data;
+		buf_ptr += 4;
 	}
 
 	if (frame_off) {
@@ -444,10 +442,8 @@ static void etb_update_buffer(struct coresight_device *csdev,
 		buf_ptr = buf->data_pages[cur] + offset;
 		read_data = readl_relaxed(drvdata->base +
 					  ETB_RAM_READ_DATA_REG);
-		*buf_ptr++ = read_data >> 0;
-		*buf_ptr++ = read_data >> 8;
-		*buf_ptr++ = read_data >> 16;
-		*buf_ptr++ = read_data >> 24;
+		*(u32 *)buf_ptr = read_data;
+		buf_ptr += 4;
 
 		offset += 4;
 		if (offset >= PAGE_SIZE) {
