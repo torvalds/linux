@@ -81,7 +81,7 @@ unsigned long vmalloc_to_phys(void *vmalloc_addr);
 void pgtable_cache_add(unsigned shift, void (*ctor)(void *));
 void pgtable_cache_init(void);
 
-#ifdef CONFIG_STRICT_KERNEL_RWX
+#if defined(CONFIG_STRICT_KERNEL_RWX) || defined(CONFIG_PPC32)
 void mark_initmem_nx(void);
 #else
 static inline void mark_initmem_nx(void) { }

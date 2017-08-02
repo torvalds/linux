@@ -323,8 +323,6 @@ get_pteptr(struct mm_struct *mm, unsigned long addr, pte_t **ptep, pmd_t **pmdp)
         return(retval);
 }
 
-#ifdef CONFIG_DEBUG_PAGEALLOC
-
 static int __change_page_attr_noflush(struct page *page, pgprot_t prot)
 {
 	pte_t *kpte;
@@ -347,7 +345,7 @@ static int __change_page_attr_noflush(struct page *page, pgprot_t prot)
 /*
  * Change the page attributes of an page in the linear mapping.
  *
- * THIS CONFLICTS WITH BAT MAPPINGS, DEBUG USE ONLY
+ * THIS DOES NOTHING WITH BAT MAPPINGS, DEBUG USE ONLY
  */
 static int change_page_attr(struct page *page, int numpages, pgprot_t prot)
 {
@@ -368,7 +366,16 @@ static int change_page_attr(struct page *page, int numpages, pgprot_t prot)
 	return err;
 }
 
+void mark_initmem_nx(void)
+{
+	struct page *page = virt_to_page(_sinittext);
+	unsigned long numpages = PFN_UP((unsigned long)_einittext) -
+				 PFN_DOWN((unsigned long)_sinittext);
 
+	change_page_attr(page, numpages, PAGE_KERNEL);
+}
+
+#ifdef CONFIG_DEBUG_PAGEALLOC
 void __kernel_map_pages(struct page *page, int numpages, int enable)
 {
 	if (PageHighMem(page))
