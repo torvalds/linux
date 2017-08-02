@@ -1653,6 +1653,24 @@ mlxsw_sp_nexthop_fib_entries_update(struct mlxsw_sp *mlxsw_sp,
 }
 
 static void
+mlxsw_sp_fib_entry_offload_refresh(struct mlxsw_sp_fib_entry *fib_entry,
+				   enum mlxsw_reg_ralue_op op, int err);
+
+static void
+mlxsw_sp_nexthop_fib_entries_refresh(struct mlxsw_sp_nexthop_group *nh_grp)
+{
+	enum mlxsw_reg_ralue_op op = MLXSW_REG_RALUE_OP_WRITE_WRITE;
+	struct mlxsw_sp_fib_entry *fib_entry;
+
+	list_for_each_entry(fib_entry, &nh_grp->fib_list, nexthop_group_node) {
+		if (!mlxsw_sp_fib_node_entry_is_first(fib_entry->fib_node,
+						      fib_entry))
+			continue;
+		mlxsw_sp_fib_entry_offload_refresh(fib_entry, op, 0);
+	}
+}
+
+static void
 mlxsw_sp_nexthop_group_refresh(struct mlxsw_sp *mlxsw_sp,
 			       struct mlxsw_sp_nexthop_group *nh_grp)
 {
@@ -1739,6 +1757,10 @@ mlxsw_sp_nexthop_group_refresh(struct mlxsw_sp *mlxsw_sp,
 		dev_warn(mlxsw_sp->bus_info->dev, "Failed to mass-update adjacency index for nexthop group.\n");
 		goto set_trap;
 	}
+
+	/* Offload state within the group changed, so update the flags. */
+	mlxsw_sp_nexthop_fib_entries_refresh(nh_grp);
+
 	return;
 
 set_trap:
