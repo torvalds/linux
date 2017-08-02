@@ -201,6 +201,11 @@ static struct amba_id tpiu_ids[] = {
 		.id	= 0x0004b912,
 		.mask	= 0x0007ffff,
 	},
+	{
+		/* Coresight SoC-600 */
+		.id	= 0x000bb9e7,
+		.mask	= 0x000fffff,
+	},
 	{ 0, 0},
 };
 
