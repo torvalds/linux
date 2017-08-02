@@ -202,6 +202,7 @@ hnae_init_ring(struct hnae_queue *q, struct hnae_ring *ring, int flags)
 	ring->q = q;
 	ring->flags = flags;
 	spin_lock_init(&ring->lock);
+	ring->coal_param = q->handle->coal_param;
 	assert(!ring->desc && !ring->desc_cb && !ring->desc_dma_addr);
 
 	/* not matter for tx or rx ring, the ntc and ntc start from 0 */
