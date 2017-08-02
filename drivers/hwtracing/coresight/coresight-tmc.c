@@ -230,9 +230,11 @@ coresight_tmc_reg(ffsr, TMC_FFSR);
 coresight_tmc_reg(ffcr, TMC_FFCR);
 coresight_tmc_reg(mode, TMC_MODE);
 coresight_tmc_reg(pscr, TMC_PSCR);
+coresight_tmc_reg(axictl, TMC_AXICTL);
 coresight_tmc_reg(devid, CORESIGHT_DEVID);
 coresight_tmc_reg64(rrp, TMC_RRP, TMC_RRPHI);
 coresight_tmc_reg64(rwp, TMC_RWP, TMC_RWPHI);
+coresight_tmc_reg64(dba, TMC_DBALO, TMC_DBAHI);
 
 static struct attribute *coresight_tmc_mgmt_attrs[] = {
 	&dev_attr_rsz.attr,
@@ -246,6 +248,8 @@ static struct attribute *coresight_tmc_mgmt_attrs[] = {
 	&dev_attr_mode.attr,
 	&dev_attr_pscr.attr,
 	&dev_attr_devid.attr,
+	&dev_attr_dba.attr,
+	&dev_attr_axictl.attr,
 	NULL,
 };
 
