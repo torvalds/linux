@@ -119,6 +119,15 @@ enum tmc_mem_intf_width {
 #define TMC_ETR_SG			(0x1U << 0)
 /* ETR has separate read/write cache encodings */
 #define TMC_ETR_AXI_ARCACHE		(0x1U << 1)
+/*
+ * TMC_ETR_SAVE_RESTORE - Values of RRP/RWP/STS.Full are
+ * retained when TMC leaves Disabled state, allowing us to continue
+ * the tracing from a point where we stopped. This also implies that
+ * the RRP/RWP/STS.Full should always be programmed to the correct
+ * value. Unfortunately this is not advertised by the hardware,
+ * so we have to rely on PID of the IP to detect the functionality.
+ */
+#define TMC_ETR_SAVE_RESTORE		(0x1U << 2)
 
 /**
  * struct tmc_drvdata - specifics associated to an TMC component
