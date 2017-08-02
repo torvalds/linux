@@ -3526,7 +3526,8 @@ static void ov511_mode_init_regs(struct sd *sd)
 				sd->clockdiv = 0;
 				break;
 			}
-			/* Fall through for 640x480 case */
+			/* For 640x480 case */
+			/* fall through */
 		default:
 /*		case 20: */
 /*		case 15: */

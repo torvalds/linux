@@ -419,7 +419,7 @@
 
 	/* RFID EEPROM */
 	m24lr64@50 {
-		compatible = "at,24c64";
+		compatible = "atmel,24c64";
 		reg = <0x50>;
 	};
 };

@@ -14,10 +14,23 @@
 #include <linux/const.h>
 #include <linux/types.h>
 
+#define MCIC_SUBCLASS_MASK	(1ULL<<63 | 1ULL<<62 | 1ULL<<61 | \
+				1ULL<<59 | 1ULL<<58 | 1ULL<<56 | \
+				1ULL<<55 | 1ULL<<54 | 1ULL<<53 | \
+				1ULL<<52 | 1ULL<<47 | 1ULL<<46 | \
+				1ULL<<45 | 1ULL<<44)
 #define MCCK_CODE_SYSTEM_DAMAGE		_BITUL(63)
+#define MCCK_CODE_EXT_DAMAGE		_BITUL(63 - 5)
+#define MCCK_CODE_CP			_BITUL(63 - 9)
 #define MCCK_CODE_CPU_TIMER_VALID	_BITUL(63 - 46)
 #define MCCK_CODE_PSW_MWP_VALID		_BITUL(63 - 20)
 #define MCCK_CODE_PSW_IA_VALID		_BITUL(63 - 23)
+
+#define MCCK_CR14_CR_PENDING_SUB_MASK	(1 << 28)
+#define MCCK_CR14_RECOVERY_SUB_MASK	(1 << 27)
+#define MCCK_CR14_DEGRAD_SUB_MASK	(1 << 26)
+#define MCCK_CR14_EXT_DAMAGE_SUB_MASK	(1 << 25)
+#define MCCK_CR14_WARN_SUB_MASK		(1 << 24)
 
 #ifndef __ASSEMBLY__
 

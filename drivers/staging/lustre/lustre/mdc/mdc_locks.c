@@ -830,7 +830,7 @@ resend:
 		ptlrpc_req_finished(req);
 		resends++;
 
-		CDEBUG(D_HA, "%s: resend:%d op:%d "DFID"/"DFID"\n",
+		CDEBUG(D_HA, "%s: resend:%d op:%d " DFID "/" DFID "\n",
 		       obddev->obd_name, resends, it->it_op,
 		       PFID(&op_data->op_fid1), PFID(&op_data->op_fid2));
 
@@ -911,13 +911,13 @@ static int mdc_finish_intent_lock(struct obd_export *exp,
 		OBD_FAIL_TIMEOUT(OBD_FAIL_MDC_ENQUEUE_PAUSE, obd_timeout);
 	}
 
-	if (it->it_op & IT_CREAT) {
+	if (it->it_op & IT_CREAT)
 		/* XXX this belongs in ll_create_it */
-	} else if (it->it_op == IT_OPEN) {
+		;
+	else if (it->it_op == IT_OPEN)
 		LASSERT(!it_disposition(it, DISP_OPEN_CREATE));
-	} else {
+	else
 		LASSERT(it->it_op & (IT_GETATTR | IT_LOOKUP | IT_LAYOUT));
-	}
 
 	/* If we already have a matching lock, then cancel the new
 	 * one.  We have to set the data here instead of in
@@ -933,7 +933,7 @@ static int mdc_finish_intent_lock(struct obd_export *exp,
 
 		LASSERTF(fid_res_name_eq(&mdt_body->mbo_fid1,
 					 &lock->l_resource->lr_name),
-			 "Lock res_id: "DLDLMRES", fid: "DFID"\n",
+			 "Lock res_id: " DLDLMRES ", fid: " DFID "\n",
 			 PLDLMRES(lock->l_resource), PFID(&mdt_body->mbo_fid1));
 		LDLM_LOCK_PUT(lock);
 
@@ -1063,7 +1063,7 @@ int mdc_intent_lock(struct obd_export *exp, struct md_op_data *op_data,
 
 	LASSERT(it);
 
-	CDEBUG(D_DLMTRACE, "(name: %.*s,"DFID") in obj "DFID
+	CDEBUG(D_DLMTRACE, "(name: %.*s," DFID ") in obj " DFID
 		", intent: %s flags %#Lo\n", (int)op_data->op_namelen,
 		op_data->op_name, PFID(&op_data->op_fid2),
 		PFID(&op_data->op_fid1), ldlm_it2str(it->it_op),

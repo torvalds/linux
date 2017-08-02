@@ -23,6 +23,10 @@ struct samsung_clk_pll {
 	struct clk_hw		hw;
 	void __iomem		*lock_reg;
 	void __iomem		*con_reg;
+	/* PLL enable control bit offset in @con_reg register */
+	unsigned short		enable_offs;
+	/* PLL lock status bit offset in @con_reg register */
+	unsigned short		lock_offs;
 	enum samsung_pll_type	type;
 	unsigned int		rate_count;
 	const struct samsung_pll_rate_table *rate_table;
@@ -59,6 +63,34 @@ static long samsung_pll_round_rate(struct clk_hw *hw,
 
 	/* return minimum supported value */
 	return rate_table[i - 1].rate;
+}
+
+static int samsung_pll3xxx_enable(struct clk_hw *hw)
+{
+	struct samsung_clk_pll *pll = to_clk_pll(hw);
+	u32 tmp;
+
+	tmp = readl_relaxed(pll->con_reg);
+	tmp |= BIT(pll->enable_offs);
+	writel_relaxed(tmp, pll->con_reg);
+
+	/* wait lock time */
+	do {
+		cpu_relax();
+		tmp = readl_relaxed(pll->con_reg);
+	} while (!(tmp & BIT(pll->lock_offs)));
+
+	return 0;
+}
+
+static void samsung_pll3xxx_disable(struct clk_hw *hw)
+{
+	struct samsung_clk_pll *pll = to_clk_pll(hw);
+	u32 tmp;
+
+	tmp = readl_relaxed(pll->con_reg);
+	tmp &= ~BIT(pll->enable_offs);
+	writel_relaxed(tmp, pll->con_reg);
 }
 
 /*
@@ -142,34 +174,6 @@ static const struct clk_ops samsung_pll3000_clk_ops = {
 #define PLL35XX_LOCK_STAT_SHIFT	(29)
 #define PLL35XX_ENABLE_SHIFT	(31)
 
-static int samsung_pll35xx_enable(struct clk_hw *hw)
-{
-	struct samsung_clk_pll *pll = to_clk_pll(hw);
-	u32 tmp;
-
-	tmp = readl_relaxed(pll->con_reg);
-	tmp |= BIT(PLL35XX_ENABLE_SHIFT);
-	writel_relaxed(tmp, pll->con_reg);
-
-	/* wait_lock_time */
-	do {
-		cpu_relax();
-		tmp = readl_relaxed(pll->con_reg);
-	} while (!(tmp & BIT(PLL35XX_LOCK_STAT_SHIFT)));
-
-	return 0;
-}
-
-static void samsung_pll35xx_disable(struct clk_hw *hw)
-{
-	struct samsung_clk_pll *pll = to_clk_pll(hw);
-	u32 tmp;
-
-	tmp = readl_relaxed(pll->con_reg);
-	tmp &= ~BIT(PLL35XX_ENABLE_SHIFT);
-	writel_relaxed(tmp, pll->con_reg);
-}
-
 static unsigned long samsung_pll35xx_recalc_rate(struct clk_hw *hw,
 				unsigned long parent_rate)
 {
@@ -238,12 +242,12 @@ static int samsung_pll35xx_set_rate(struct clk_hw *hw, unsigned long drate,
 			(rate->sdiv << PLL35XX_SDIV_SHIFT);
 	writel_relaxed(tmp, pll->con_reg);
 
-	/* wait_lock_time if enabled */
-	if (tmp & BIT(PLL35XX_ENABLE_SHIFT)) {
+	/* Wait until the PLL is locked if it is enabled. */
+	if (tmp & BIT(pll->enable_offs)) {
 		do {
 			cpu_relax();
 			tmp = readl_relaxed(pll->con_reg);
-		} while (!(tmp & BIT(PLL35XX_LOCK_STAT_SHIFT)));
+		} while (!(tmp & BIT(pll->lock_offs)));
 	}
 	return 0;
 }
@@ -252,8 +256,8 @@ static const struct clk_ops samsung_pll35xx_clk_ops = {
 	.recalc_rate = samsung_pll35xx_recalc_rate,
 	.round_rate = samsung_pll_round_rate,
 	.set_rate = samsung_pll35xx_set_rate,
-	.enable = samsung_pll35xx_enable,
-	.disable = samsung_pll35xx_disable,
+	.enable = samsung_pll3xxx_enable,
+	.disable = samsung_pll3xxx_disable,
 };
 
 static const struct clk_ops samsung_pll35xx_clk_min_ops = {
@@ -275,6 +279,7 @@ static const struct clk_ops samsung_pll35xx_clk_min_ops = {
 #define PLL36XX_SDIV_SHIFT	(0)
 #define PLL36XX_KDIV_SHIFT	(0)
 #define PLL36XX_LOCK_STAT_SHIFT	(29)
+#define PLL36XX_ENABLE_SHIFT	(31)
 
 static unsigned long samsung_pll36xx_recalc_rate(struct clk_hw *hw,
 				unsigned long parent_rate)
@@ -354,10 +359,12 @@ static int samsung_pll36xx_set_rate(struct clk_hw *hw, unsigned long drate,
 	writel_relaxed(pll_con1, pll->con_reg + 4);
 
 	/* wait_lock_time */
-	do {
-		cpu_relax();
-		tmp = readl_relaxed(pll->con_reg);
-	} while (!(tmp & (1 << PLL36XX_LOCK_STAT_SHIFT)));
+	if (pll_con0 & BIT(pll->enable_offs)) {
+		do {
+			cpu_relax();
+			tmp = readl_relaxed(pll->con_reg);
+		} while (!(tmp & BIT(pll->lock_offs)));
+	}
 
 	return 0;
 }
@@ -366,6 +373,8 @@ static const struct clk_ops samsung_pll36xx_clk_ops = {
 	.recalc_rate = samsung_pll36xx_recalc_rate,
 	.set_rate = samsung_pll36xx_set_rate,
 	.round_rate = samsung_pll_round_rate,
+	.enable = samsung_pll3xxx_enable,
+	.disable = samsung_pll3xxx_disable,
 };
 
 static const struct clk_ops samsung_pll36xx_clk_min_ops = {
@@ -1244,7 +1253,6 @@ static void __init _samsung_clk_register_pll(struct samsung_clk_provider *ctx,
 				void __iomem *base)
 {
 	struct samsung_clk_pll *pll;
-	struct clk *clk;
 	struct clk_init_data init;
 	int ret, len;
 
@@ -1288,6 +1296,8 @@ static void __init _samsung_clk_register_pll(struct samsung_clk_provider *ctx,
 	case pll_1450x:
 	case pll_1451x:
 	case pll_1452x:
+		pll->enable_offs = PLL35XX_ENABLE_SHIFT;
+		pll->lock_offs = PLL35XX_LOCK_STAT_SHIFT;
 		if (!pll->rate_table)
 			init.ops = &samsung_pll35xx_clk_min_ops;
 		else
@@ -1306,6 +1316,8 @@ static void __init _samsung_clk_register_pll(struct samsung_clk_provider *ctx,
 	/* clk_ops for 36xx and 2650 are similar */
 	case pll_36xx:
 	case pll_2650:
+		pll->enable_offs = PLL36XX_ENABLE_SHIFT;
+		pll->lock_offs = PLL36XX_LOCK_STAT_SHIFT;
 		if (!pll->rate_table)
 			init.ops = &samsung_pll36xx_clk_min_ops;
 		else
@@ -1376,20 +1388,21 @@ static void __init _samsung_clk_register_pll(struct samsung_clk_provider *ctx,
 	pll->lock_reg = base + pll_clk->lock_offset;
 	pll->con_reg = base + pll_clk->con_offset;
 
-	clk = clk_register(NULL, &pll->hw);
-	if (IS_ERR(clk)) {
-		pr_err("%s: failed to register pll clock %s : %ld\n",
-			__func__, pll_clk->name, PTR_ERR(clk));
+	ret = clk_hw_register(NULL, &pll->hw);
+	if (ret) {
+		pr_err("%s: failed to register pll clock %s : %d\n",
+			__func__, pll_clk->name, ret);
 		kfree(pll);
 		return;
 	}
 
-	samsung_clk_add_lookup(ctx, clk, pll_clk->id);
+	samsung_clk_add_lookup(ctx, &pll->hw, pll_clk->id);
 
 	if (!pll_clk->alias)
 		return;
 
-	ret = clk_register_clkdev(clk, pll_clk->alias, pll_clk->dev_name);
+	ret = clk_hw_register_clkdev(&pll->hw, pll_clk->alias,
+				     pll_clk->dev_name);
 	if (ret)
 		pr_err("%s: failed to register lookup for %s : %d",
 			__func__, pll_clk->name, ret);

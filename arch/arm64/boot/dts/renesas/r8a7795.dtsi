@@ -182,7 +182,7 @@
 		clock-frequency = <0>;
 	};
 
-	soc {
+	soc: soc {
 		compatible = "simple-bus";
 		interrupt-parent = <&gic>;
 
@@ -398,7 +398,7 @@
 			#power-domain-cells = <1>;
 		};
 
-		pfc: pfc@e6060000 {
+		pfc: pin-controller@e6060000 {
 			compatible = "renesas,pfc-r8a7795";
 			reg = <0 0xe6060000 0 0x50c>;
 		};
@@ -883,6 +883,8 @@
 			clocks = <&cpg CPG_MOD 926>;
 			power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
 			resets = <&cpg 926>;
+			dmas = <&dmac0 0x11>, <&dmac0 0x10>;
+			dma-names = "tx", "rx";
 			status = "disabled";
 		};
 
@@ -1118,6 +1120,16 @@
 				      "dvc.0", "dvc.1",
 				      "clk_a", "clk_b", "clk_c", "clk_i";
 			power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
+			resets = <&cpg 1005>,
+				 <&cpg 1006>, <&cpg 1007>,
+				 <&cpg 1008>, <&cpg 1009>,
+				 <&cpg 1010>, <&cpg 1011>,
+				 <&cpg 1012>, <&cpg 1013>,
+				 <&cpg 1014>, <&cpg 1015>;
+			reset-names = "ssi-all",
+				      "ssi.9", "ssi.8", "ssi.7", "ssi.6",
+				      "ssi.5", "ssi.4", "ssi.3", "ssi.2",
+				      "ssi.1", "ssi.0";
 			status = "disabled";
 
 			rcar_sound,dvc {
@@ -1271,16 +1283,6 @@
 			clocks = <&cpg CPG_MOD 328>;
 			power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
 			resets = <&cpg 328>;
-			status = "disabled";
-		};
-
-		xhci1: usb@ee0400000 {
-			compatible = "renesas,xhci-r8a7795", "renesas,rcar-gen3-xhci";
-			reg = <0 0xee040000 0 0xc00>;
-			interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cpg CPG_MOD 327>;
-			power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
-			resets = <&cpg 327>;
 			status = "disabled";
 		};
 
@@ -1568,14 +1570,6 @@
 			resets = <&cpg 614>;
 		};
 
-		fcpf2: fcp@fe952000 {
-			compatible = "renesas,fcpf";
-			reg = <0 0xfe952000 0 0x200>;
-			clocks = <&cpg CPG_MOD 613>;
-			power-domains = <&sysc R8A7795_PD_A3VP>;
-			resets = <&cpg 613>;
-		};
-
 		vspbd: vsp@fe960000 {
 			compatible = "renesas,vsp2";
 			reg = <0 0xfe960000 0 0x8000>;
@@ -1631,25 +1625,6 @@
 			clocks = <&cpg CPG_MOD 610>;
 			power-domains = <&sysc R8A7795_PD_A3VP>;
 			resets = <&cpg 610>;
-		};
-
-		vspi2: vsp@fe9c0000 {
-			compatible = "renesas,vsp2";
-			reg = <0 0xfe9c0000 0 0x8000>;
-			interrupts = <GIC_SPI 446 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cpg CPG_MOD 629>;
-			power-domains = <&sysc R8A7795_PD_A3VP>;
-			resets = <&cpg 629>;
-
-			renesas,fcp = <&fcpvi2>;
-		};
-
-		fcpvi2: fcp@fe9cf000 {
-			compatible = "renesas,fcpv";
-			reg = <0 0xfe9cf000 0 0x200>;
-			clocks = <&cpg CPG_MOD 609>;
-			power-domains = <&sysc R8A7795_PD_A3VP>;
-			resets = <&cpg 609>;
 		};
 
 		vspd0: vsp@fea20000 {
@@ -1709,25 +1684,6 @@
 			resets = <&cpg 601>;
 		};
 
-		vspd3: vsp@fea38000 {
-			compatible = "renesas,vsp2";
-			reg = <0 0xfea38000 0 0x4000>;
-			interrupts = <GIC_SPI 469 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cpg CPG_MOD 620>;
-			power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
-			resets = <&cpg 620>;
-
-			renesas,fcp = <&fcpvd3>;
-		};
-
-		fcpvd3: fcp@fea3f000 {
-			compatible = "renesas,fcpv";
-			reg = <0 0xfea3f000 0 0x200>;
-			clocks = <&cpg CPG_MOD 600>;
-			power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
-			resets = <&cpg 600>;
-		};
-
 		fdp1@fe940000 {
 			compatible = "renesas,fdp1";
 			reg = <0 0xfe940000 0 0x2400>;
@@ -1748,18 +1704,57 @@
 			renesas,fcp = <&fcpf1>;
 		};
 
-		fdp1@fe948000 {
-			compatible = "renesas,fdp1";
-			reg = <0 0xfe948000 0 0x2400>;
-			interrupts = <GIC_SPI 264 IRQ_TYPE_LEVEL_HIGH>;
-			clocks = <&cpg CPG_MOD 117>;
-			power-domains = <&sysc R8A7795_PD_A3VP>;
-			resets = <&cpg 117>;
-			renesas,fcp = <&fcpf2>;
+		hdmi0: hdmi0@fead0000 {
+			compatible = "renesas,r8a7795-hdmi", "renesas,rcar-gen3-hdmi";
+			reg = <0 0xfead0000 0 0x10000>;
+			interrupts = <GIC_SPI 389 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD 729>, <&cpg CPG_CORE R8A7795_CLK_HDMI>;
+			clock-names = "iahb", "isfr";
+			power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
+			resets = <&cpg 729>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				port@0 {
+					reg = <0>;
+					dw_hdmi0_in: endpoint {
+						remote-endpoint = <&du_out_hdmi0>;
+					};
+				};
+				port@1 {
+					reg = <1>;
+				};
+			};
+		};
+
+		hdmi1: hdmi1@feae0000 {
+			compatible = "renesas,r8a7795-hdmi", "renesas,rcar-gen3-hdmi";
+			reg = <0 0xfeae0000 0 0x10000>;
+			interrupts = <GIC_SPI 436 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD 728>, <&cpg CPG_CORE R8A7795_CLK_HDMI>;
+			clock-names = "iahb", "isfr";
+			power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
+			resets = <&cpg 728>;
+			status = "disabled";
+
+			ports {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				port@0 {
+					reg = <0>;
+					dw_hdmi1_in: endpoint {
+						remote-endpoint = <&du_out_hdmi1>;
+					};
+				};
+				port@1 {
+					reg = <1>;
+				};
+			};
 		};
 
 		du: display@feb00000 {
-			compatible = "renesas,du-r8a7795";
 			reg = <0 0xfeb00000 0 0x80000>,
 			      <0 0xfeb90000 0 0x14>;
 			reg-names = "du", "lvds.0";
@@ -1775,8 +1770,6 @@
 			clock-names = "du.0", "du.1", "du.2", "du.3", "lvds.0";
 			status = "disabled";
 
-			vsps = <&vspd0 &vspd1 &vspd2 &vspd3>;
-
 			ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1789,11 +1782,13 @@
 				port@1 {
 					reg = <1>;
 					du_out_hdmi0: endpoint {
+						remote-endpoint = <&dw_hdmi0_in>;
 					};
 				};
 				port@2 {
 					reg = <2>;
 					du_out_hdmi1: endpoint {
+						remote-endpoint = <&dw_hdmi1_in>;
 					};
 				};
 				port@3 {

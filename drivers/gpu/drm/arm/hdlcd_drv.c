@@ -297,6 +297,9 @@ static int hdlcd_drm_bind(struct device *dev)
 	if (ret)
 		goto err_free;
 
+	/* Set the CRTC's port so that the encoder component can find it */
+	hdlcd->crtc.port = of_graph_get_port_by_id(dev->of_node, 0);
+
 	ret = component_bind_all(dev, drm);
 	if (ret) {
 		DRM_ERROR("Failed to bind all components\n");
@@ -346,6 +349,8 @@ err_vblank:
 err_pm_active:
 	component_unbind_all(dev, drm);
 err_unload:
+	of_node_put(hdlcd->crtc.port);
+	hdlcd->crtc.port = NULL;
 	drm_irq_uninstall(drm);
 	of_reserved_mem_device_release(drm->dev);
 err_free:
@@ -368,6 +373,8 @@ static void hdlcd_drm_unbind(struct device *dev)
 	}
 	drm_kms_helper_poll_fini(drm);
 	component_unbind_all(dev, drm);
+	of_node_put(hdlcd->crtc.port);
+	hdlcd->crtc.port = NULL;
 	drm_vblank_cleanup(drm);
 	pm_runtime_get_sync(drm->dev);
 	drm_irq_uninstall(drm);

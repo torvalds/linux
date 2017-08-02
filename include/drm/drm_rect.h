@@ -43,6 +43,33 @@ struct drm_rect {
 };
 
 /**
+ * DRM_RECT_FMT - printf string for &struct drm_rect
+ */
+#define DRM_RECT_FMT    "%dx%d%+d%+d"
+/**
+ * DRM_RECT_ARG - printf arguments for &struct drm_rect
+ * @r: rectangle struct
+ */
+#define DRM_RECT_ARG(r) drm_rect_width(r), drm_rect_height(r), (r)->x1, (r)->y1
+
+/**
+ * DRM_RECT_FP_FMT - printf string for &struct drm_rect in 16.16 fixed point
+ */
+#define DRM_RECT_FP_FMT "%d.%06ux%d.%06u%+d.%06u%+d.%06u"
+/**
+ * DRM_RECT_FP_ARG - printf arguments for &struct drm_rect in 16.16 fixed point
+ * @r: rectangle struct
+ *
+ * This is useful for e.g. printing plane source rectangles, which are in 16.16
+ * fixed point.
+ */
+#define DRM_RECT_FP_ARG(r) \
+		drm_rect_width(r) >> 16, ((drm_rect_width(r) & 0xffff) * 15625) >> 10, \
+		drm_rect_height(r) >> 16, ((drm_rect_height(r) & 0xffff) * 15625) >> 10, \
+		(r)->x1 >> 16, (((r)->x1 & 0xffff) * 15625) >> 10, \
+		(r)->y1 >> 16, (((r)->y1 & 0xffff) * 15625) >> 10
+
+/**
  * drm_rect_adjust_size - adjust the size of the rectangle
  * @r: rectangle to be adjusted
  * @dw: horizontal adjustment

@@ -1,6 +1,6 @@
 /*
  * STIH4xx CEC driver
- * Copyright (C) STMicroelectronic SA 2016
+ * Copyright (C) STMicroelectronics SA 2016
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -213,7 +213,8 @@ static int stih_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 	for (i = 0; i < msg->len; i++)
 		writeb(msg->msg[i], cec->regs + CEC_TX_DATA_BASE + i);
 
-	/* Start transmission, configure hardware to add start and stop bits
+	/*
+	 * Start transmission, configure hardware to add start and stop bits
 	 * Signal free time is handled by the hardware
 	 */
 	writel(CEC_TX_AUTO_SOM_EN | CEC_TX_AUTO_EOM_EN | CEC_TX_START |
@@ -225,22 +226,21 @@ static int stih_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 static void stih_tx_done(struct stih_cec *cec, u32 status)
 {
 	if (status & CEC_TX_ERROR) {
-		cec_transmit_done(cec->adap, CEC_TX_STATUS_ERROR, 0, 0, 0, 1);
+		cec_transmit_attempt_done(cec->adap, CEC_TX_STATUS_ERROR);
 		return;
 	}
 
 	if (status & CEC_TX_ARB_ERROR) {
-		cec_transmit_done(cec->adap,
-				  CEC_TX_STATUS_ARB_LOST, 1, 0, 0, 0);
+		cec_transmit_attempt_done(cec->adap, CEC_TX_STATUS_ARB_LOST);
 		return;
 	}
 
 	if (!(status & CEC_TX_ACK_GET_STS)) {
-		cec_transmit_done(cec->adap, CEC_TX_STATUS_NACK, 0, 1, 0, 0);
+		cec_transmit_attempt_done(cec->adap, CEC_TX_STATUS_NACK);
 		return;
 	}
 
-	cec_transmit_done(cec->adap, CEC_TX_STATUS_OK, 0, 0, 0, 0);
+	cec_transmit_attempt_done(cec->adap, CEC_TX_STATUS_OK);
 }
 
 static void stih_rx_done(struct stih_cec *cec, u32 status)
@@ -353,7 +353,7 @@ static int stih_cec_probe(struct platform_device *pdev)
 	cec->adap = cec_allocate_adapter(&sti_cec_adap_ops, cec,
 			CEC_NAME,
 			CEC_CAP_LOG_ADDRS | CEC_CAP_PASSTHROUGH |
-			CEC_CAP_TRANSMIT, 1);
+			CEC_CAP_TRANSMIT, CEC_MAX_LOG_ADDRS);
 	ret = PTR_ERR_OR_ZERO(cec->adap);
 	if (ret)
 		return ret;

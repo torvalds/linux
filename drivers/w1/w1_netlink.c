@@ -17,7 +17,7 @@
 #include <linux/netlink.h>
 #include <linux/connector.h>
 
-#include "w1.h"
+#include "w1_internal.h"
 #include "w1_netlink.h"
 
 #if defined(CONFIG_W1_CON) && (defined(CONFIG_CONNECTOR) || (defined(CONFIG_CONNECTOR_MODULE) && defined(CONFIG_W1_MODULE)))

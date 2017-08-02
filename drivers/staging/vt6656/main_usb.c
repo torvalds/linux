@@ -513,6 +513,9 @@ static int vnt_start(struct ieee80211_hw *hw)
 		goto free_all;
 	}
 
+	if (vnt_key_init_table(priv))
+		goto free_all;
+
 	priv->int_interval = 1;  /* bInterval is set to 1 */
 
 	vnt_int_start_interrupt(priv);
@@ -634,7 +637,6 @@ static int vnt_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct vnt_private *priv = hw->priv;
 	struct ieee80211_conf *conf = &hw->conf;
-	u8 bb_type;
 
 	if (changed & IEEE80211_CONF_CHANGE_PS) {
 		if (conf->flags & IEEE80211_CONF_PS)
@@ -648,15 +650,9 @@ static int vnt_config(struct ieee80211_hw *hw, u32 changed)
 		vnt_set_channel(priv, conf->chandef.chan->hw_value);
 
 		if (conf->chandef.chan->band == NL80211_BAND_5GHZ)
-			bb_type = BB_TYPE_11A;
+			priv->bb_type = BB_TYPE_11A;
 		else
-			bb_type = BB_TYPE_11G;
-
-		if (priv->bb_type != bb_type) {
-			priv->bb_type = bb_type;
-
-			vnt_set_bss_mode(priv);
-		}
+			priv->bb_type = BB_TYPE_11G;
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
@@ -687,6 +683,7 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 		priv->basic_rates = conf->basic_rates;
 
 		vnt_update_top_rates(priv);
+		vnt_set_bss_mode(priv);
 
 		dev_dbg(&priv->usb->dev, "basic rates %x\n", conf->basic_rates);
 	}
@@ -715,6 +712,7 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 			priv->short_slot_time = false;
 
 		vnt_set_short_slot_time(priv);
+		vnt_update_ifs(priv);
 		vnt_set_vga_gain_offset(priv, priv->bb_vga[0]);
 		vnt_update_pre_ed_threshold(priv, false);
 	}
@@ -846,7 +844,6 @@ static void vnt_sw_scan_start(struct ieee80211_hw *hw,
 {
 	struct vnt_private *priv = hw->priv;
 
-	vnt_set_bss_mode(priv);
 	/* Set max sensitivity*/
 	vnt_update_pre_ed_threshold(priv, true);
 }

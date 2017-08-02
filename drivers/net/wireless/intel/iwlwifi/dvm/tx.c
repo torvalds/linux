@@ -319,8 +319,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv,
 		if (noa_data &&
 		    pskb_expand_head(skb, 0, noa_data->length,
 				     GFP_ATOMIC) == 0) {
-			memcpy(skb_put(skb, noa_data->length),
-			       noa_data->data, noa_data->length);
+			skb_put_data(skb, noa_data->data, noa_data->length);
 			hdr = (struct ieee80211_hdr *)skb->data;
 		}
 	}

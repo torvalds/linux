@@ -53,6 +53,9 @@
 #define MAC_ERROR_BIT		0
 #define CHK_MAC_ERR_BIT(x)	(((x) >> MAC_ERROR_BIT) & 1)
 #define MAX_SALT                4
+#define WR_MIN_LEN (sizeof(struct chcr_wr) + \
+		    sizeof(struct cpl_rx_phys_dsgl) + \
+		    sizeof(struct ulptx_sgl))
 
 #define padap(dev) pci_get_drvdata(dev->u_ctx->lldi.pdev)
 
@@ -86,7 +89,7 @@ struct uld_ctx {
 	struct chcr_dev *dev;
 };
 
-int assign_chcr_device(struct chcr_dev **dev);
+struct uld_ctx * assign_chcr_device(void);
 int chcr_send_wr(struct sk_buff *skb);
 int start_crypto(void);
 int stop_crypto(void);

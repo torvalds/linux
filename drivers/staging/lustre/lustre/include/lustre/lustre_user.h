@@ -532,7 +532,7 @@ static inline void obd_uuid2fsname(char *buf, char *uuid, int buflen)
 #define FID_NOBRACE_LEN 40
 #define FID_LEN (FID_NOBRACE_LEN + 2)
 #define DFID_NOBRACE "%#llx:0x%x:0x%x"
-#define DFID "["DFID_NOBRACE"]"
+#define DFID "[" DFID_NOBRACE "]"
 #define PFID(fid) (unsigned long long)(fid)->f_seq, (fid)->f_oid, (fid)->f_ver
 
 /* scanf input parse format for fids in DFID_NOBRACE format

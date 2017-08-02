@@ -32,7 +32,6 @@
 #include <linux/string.h>
 #include <linux/of.h>
 #include <linux/clk.h>
-#include <linux/component.h>
 
 #include "omapdss.h"
 #include "dss.h"
@@ -59,12 +58,6 @@ struct dpi_data {
 static struct dpi_data *dpi_get_data_from_dssdev(struct omap_dss_device *dssdev)
 {
 	return container_of(dssdev, struct dpi_data, output);
-}
-
-/* only used in non-DT mode */
-static struct dpi_data *dpi_get_data_from_pdev(struct platform_device *pdev)
-{
-	return dev_get_drvdata(&pdev->dev);
 }
 
 static enum dss_clk_source dpi_get_clk_src_dra7xx(enum omap_channel channel)
@@ -567,17 +560,6 @@ static int dpi_check_timings(struct omap_dss_device *dssdev,
 	return 0;
 }
 
-static void dpi_set_data_lines(struct omap_dss_device *dssdev, int data_lines)
-{
-	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
-
-	mutex_lock(&dpi->lock);
-
-	dpi->data_lines = data_lines;
-
-	mutex_unlock(&dpi->lock);
-}
-
 static int dpi_verify_pll(struct dss_pll *pll)
 {
 	int r;
@@ -732,33 +714,7 @@ static const struct omapdss_dpi_ops dpi_ops = {
 	.check_timings = dpi_check_timings,
 	.set_timings = dpi_set_timings,
 	.get_timings = dpi_get_timings,
-
-	.set_data_lines = dpi_set_data_lines,
 };
-
-static void dpi_init_output(struct platform_device *pdev)
-{
-	struct dpi_data *dpi = dpi_get_data_from_pdev(pdev);
-	struct omap_dss_device *out = &dpi->output;
-
-	out->dev = &pdev->dev;
-	out->id = OMAP_DSS_OUTPUT_DPI;
-	out->output_type = OMAP_DISPLAY_TYPE_DPI;
-	out->name = "dpi.0";
-	out->dispc_channel = dpi_get_channel(0);
-	out->ops.dpi = &dpi_ops;
-	out->owner = THIS_MODULE;
-
-	omapdss_register_output(out);
-}
-
-static void dpi_uninit_output(struct platform_device *pdev)
-{
-	struct dpi_data *dpi = dpi_get_data_from_pdev(pdev);
-	struct omap_dss_device *out = &dpi->output;
-
-	omapdss_unregister_output(out);
-}
 
 static void dpi_init_output_port(struct platform_device *pdev,
 	struct device_node *port)
@@ -802,68 +758,6 @@ static void dpi_uninit_output_port(struct device_node *port)
 	struct omap_dss_device *out = &dpi->output;
 
 	omapdss_unregister_output(out);
-}
-
-static int dpi_bind(struct device *dev, struct device *master, void *data)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct dpi_data *dpi;
-
-	dpi = devm_kzalloc(&pdev->dev, sizeof(*dpi), GFP_KERNEL);
-	if (!dpi)
-		return -ENOMEM;
-
-	dpi->pdev = pdev;
-
-	dev_set_drvdata(&pdev->dev, dpi);
-
-	mutex_init(&dpi->lock);
-
-	dpi_init_output(pdev);
-
-	return 0;
-}
-
-static void dpi_unbind(struct device *dev, struct device *master, void *data)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-
-	dpi_uninit_output(pdev);
-}
-
-static const struct component_ops dpi_component_ops = {
-	.bind	= dpi_bind,
-	.unbind	= dpi_unbind,
-};
-
-static int dpi_probe(struct platform_device *pdev)
-{
-	return component_add(&pdev->dev, &dpi_component_ops);
-}
-
-static int dpi_remove(struct platform_device *pdev)
-{
-	component_del(&pdev->dev, &dpi_component_ops);
-	return 0;
-}
-
-static struct platform_driver omap_dpi_driver = {
-	.probe		= dpi_probe,
-	.remove		= dpi_remove,
-	.driver         = {
-		.name   = "omapdss_dpi",
-		.suppress_bind_attrs = true,
-	},
-};
-
-int __init dpi_init_platform_driver(void)
-{
-	return platform_driver_register(&omap_dpi_driver);
-}
-
-void dpi_uninit_platform_driver(void)
-{
-	platform_driver_unregister(&omap_dpi_driver);
 }
 
 int dpi_init_port(struct platform_device *pdev, struct device_node *port)

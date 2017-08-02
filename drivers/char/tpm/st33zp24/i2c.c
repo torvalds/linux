@@ -127,7 +127,7 @@ static int st33zp24_i2c_acpi_request_resources(struct i2c_client *client)
 	struct device *dev = &client->dev;
 	int ret;
 
-	ret = acpi_dev_add_driver_gpios(ACPI_COMPANION(dev), acpi_st33zp24_gpios);
+	ret = devm_acpi_dev_add_driver_gpios(dev, acpi_st33zp24_gpios);
 	if (ret)
 		return ret;
 
@@ -285,7 +285,6 @@ static int st33zp24_i2c_remove(struct i2c_client *client)
 	if (ret)
 		return ret;
 
-	acpi_dev_remove_driver_gpios(ACPI_COMPANION(&client->dev));
 	return 0;
 }
 

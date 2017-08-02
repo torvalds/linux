@@ -164,7 +164,7 @@ static bool blk_flush_queue_rq(struct request *rq, bool add_front)
  */
 static bool blk_flush_complete_seq(struct request *rq,
 				   struct blk_flush_queue *fq,
-				   unsigned int seq, int error)
+				   unsigned int seq, blk_status_t error)
 {
 	struct request_queue *q = rq->q;
 	struct list_head *pending = &fq->flush_queue[fq->flush_pending_idx];
@@ -216,7 +216,7 @@ static bool blk_flush_complete_seq(struct request *rq,
 	return kicked | queued;
 }
 
-static void flush_end_io(struct request *flush_rq, int error)
+static void flush_end_io(struct request *flush_rq, blk_status_t error)
 {
 	struct request_queue *q = flush_rq->q;
 	struct list_head *running;
@@ -341,10 +341,12 @@ static bool blk_kick_flush(struct request_queue *q, struct blk_flush_queue *fq)
 	return blk_flush_queue_rq(flush_rq, false);
 }
 
-static void flush_data_end_io(struct request *rq, int error)
+static void flush_data_end_io(struct request *rq, blk_status_t error)
 {
 	struct request_queue *q = rq->q;
 	struct blk_flush_queue *fq = blk_get_flush_queue(q, NULL);
+
+	lockdep_assert_held(q->queue_lock);
 
 	/*
 	 * Updating q->in_flight[] here for making this tag usable
@@ -382,7 +384,7 @@ static void flush_data_end_io(struct request *rq, int error)
 		blk_run_queue_async(q);
 }
 
-static void mq_flush_data_end_io(struct request *rq, int error)
+static void mq_flush_data_end_io(struct request *rq, blk_status_t error)
 {
 	struct request_queue *q = rq->q;
 	struct blk_mq_hw_ctx *hctx;
@@ -411,9 +413,6 @@ static void mq_flush_data_end_io(struct request *rq, int error)
  * or __blk_mq_run_hw_queue() to dispatch request.
  * @rq is being submitted.  Analyze what needs to be done and put it on the
  * right queue.
- *
- * CONTEXT:
- * spin_lock_irq(q->queue_lock) in !mq case
  */
 void blk_insert_flush(struct request *rq)
 {
@@ -421,6 +420,9 @@ void blk_insert_flush(struct request *rq)
 	unsigned long fflags = q->queue_flags;	/* may change, cache */
 	unsigned int policy = blk_flush_policy(fflags, rq);
 	struct blk_flush_queue *fq = blk_get_flush_queue(q, rq->mq_ctx);
+
+	if (!q->mq_ops)
+		lockdep_assert_held(q->queue_lock);
 
 	/*
 	 * @policy now records what operations need to be done.  Adjust

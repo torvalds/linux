@@ -15,6 +15,7 @@
 #include <linux/of_address.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/parser.h>
 #include <linux/suspend.h>
 
 #include <linux/clk/at91_pmc.h>
@@ -22,6 +23,7 @@
 #include <asm/cacheflush.h>
 #include <asm/fncpy.h>
 #include <asm/system_misc.h>
+#include <asm/suspend.h>
 
 #include "generic.h"
 #include "pm.h"
@@ -37,7 +39,17 @@ extern void at91_pinctrl_gpio_suspend(void);
 extern void at91_pinctrl_gpio_resume(void);
 #endif
 
-static struct at91_pm_data pm_data;
+static const match_table_t pm_modes __initconst = {
+	{ 0, "standby" },
+	{ AT91_PM_SLOW_CLOCK, "ulp0" },
+	{ AT91_PM_BACKUP, "backup" },
+	{ -1, NULL },
+};
+
+static struct at91_pm_data pm_data = {
+	.standby_mode = 0,
+	.suspend_mode = AT91_PM_SLOW_CLOCK,
+};
 
 #define at91_ramc_read(id, field) \
 	__raw_readl(pm_data.ramc[id] + field)
@@ -58,15 +70,33 @@ static int at91_pm_valid_state(suspend_state_t state)
 	}
 }
 
+static int canary = 0xA5A5A5A5;
 
-static suspend_state_t target_state;
+static struct at91_pm_bu {
+	int suspended;
+	unsigned long reserved;
+	phys_addr_t canary;
+	phys_addr_t resume;
+} *pm_bu;
 
 /*
  * Called after processes are frozen, but before we shutdown devices.
  */
 static int at91_pm_begin(suspend_state_t state)
 {
-	target_state = state;
+	switch (state) {
+	case PM_SUSPEND_MEM:
+		pm_data.mode = pm_data.suspend_mode;
+		break;
+
+	case PM_SUSPEND_STANDBY:
+		pm_data.mode = pm_data.standby_mode;
+		break;
+
+	default:
+		pm_data.mode = -1;
+	}
+
 	return 0;
 }
 
@@ -115,7 +145,7 @@ static int at91_pm_verify_clocks(void)
  */
 int at91_suspend_entering_slow_clock(void)
 {
-	return (target_state == PM_SUSPEND_MEM);
+	return (pm_data.mode >= AT91_PM_SLOW_CLOCK);
 }
 EXPORT_SYMBOL(at91_suspend_entering_slow_clock);
 
@@ -123,48 +153,63 @@ static void (*at91_suspend_sram_fn)(struct at91_pm_data *);
 extern void at91_pm_suspend_in_sram(struct at91_pm_data *pm_data);
 extern u32 at91_pm_suspend_in_sram_sz;
 
-static void at91_pm_suspend(suspend_state_t state)
+static int at91_suspend_finish(unsigned long val)
 {
-	pm_data.mode = (state == PM_SUSPEND_MEM) ? AT91_PM_SLOW_CLOCK : 0;
-
 	flush_cache_all();
 	outer_disable();
 
 	at91_suspend_sram_fn(&pm_data);
 
+	return 0;
+}
+
+static void at91_pm_suspend(suspend_state_t state)
+{
+	if (pm_data.mode == AT91_PM_BACKUP) {
+		pm_bu->suspended = 1;
+
+		cpu_suspend(0, at91_suspend_finish);
+
+		/* The SRAM is lost between suspend cycles */
+		at91_suspend_sram_fn = fncpy(at91_suspend_sram_fn,
+					     &at91_pm_suspend_in_sram,
+					     at91_pm_suspend_in_sram_sz);
+	} else {
+		at91_suspend_finish(0);
+	}
+
 	outer_resume();
 }
 
+/*
+ * STANDBY mode has *all* drivers suspended; ignores irqs not marked as 'wakeup'
+ * event sources; and reduces DRAM power.  But otherwise it's identical to
+ * PM_SUSPEND_ON: cpu idle, and nothing fancy done with main or cpu clocks.
+ *
+ * AT91_PM_SLOW_CLOCK is like STANDBY plus slow clock mode, so drivers must
+ * suspend more deeply, the master clock switches to the clk32k and turns off
+ * the main oscillator
+ *
+ * AT91_PM_BACKUP turns off the whole SoC after placing the DDR in self refresh
+ */
 static int at91_pm_enter(suspend_state_t state)
 {
 #ifdef CONFIG_PINCTRL_AT91
 	at91_pinctrl_gpio_suspend();
 #endif
+
 	switch (state) {
-	/*
-	 * Suspend-to-RAM is like STANDBY plus slow clock mode, so
-	 * drivers must suspend more deeply, the master clock switches
-	 * to the clk32k and turns off the main oscillator
-	 */
 	case PM_SUSPEND_MEM:
+	case PM_SUSPEND_STANDBY:
 		/*
 		 * Ensure that clocks are in a valid state.
 		 */
-		if (!at91_pm_verify_clocks())
+		if ((pm_data.mode >= AT91_PM_SLOW_CLOCK) &&
+		    !at91_pm_verify_clocks())
 			goto error;
 
 		at91_pm_suspend(state);
 
-		break;
-
-	/*
-	 * STANDBY mode has *all* drivers suspended; ignores irqs not
-	 * marked as 'wakeup' event sources; and reduces DRAM power.
-	 * But otherwise it's identical to PM_SUSPEND_ON: cpu idle, and
-	 * nothing fancy done with main or cpu clocks.
-	 */
-	case PM_SUSPEND_STANDBY:
-		at91_pm_suspend(state);
 		break;
 
 	case PM_SUSPEND_ON:
@@ -177,8 +222,6 @@ static int at91_pm_enter(suspend_state_t state)
 	}
 
 error:
-	target_state = PM_SUSPEND_ON;
-
 #ifdef CONFIG_PINCTRL_AT91
 	at91_pinctrl_gpio_resume();
 #endif
@@ -190,7 +233,6 @@ error:
  */
 static void at91_pm_end(void)
 {
-	target_state = PM_SUSPEND_ON;
 }
 
 
@@ -436,6 +478,79 @@ static void __init at91_pm_sram_init(void)
 			&at91_pm_suspend_in_sram, at91_pm_suspend_in_sram_sz);
 }
 
+static void __init at91_pm_backup_init(void)
+{
+	struct gen_pool *sram_pool;
+	struct device_node *np;
+	struct platform_device *pdev = NULL;
+
+	if ((pm_data.standby_mode != AT91_PM_BACKUP) &&
+	    (pm_data.suspend_mode != AT91_PM_BACKUP))
+		return;
+
+	pm_bu = NULL;
+
+	np = of_find_compatible_node(NULL, NULL, "atmel,sama5d2-shdwc");
+	if (!np) {
+		pr_warn("%s: failed to find shdwc!\n", __func__);
+		return;
+	}
+
+	pm_data.shdwc = of_iomap(np, 0);
+	of_node_put(np);
+
+	np = of_find_compatible_node(NULL, NULL, "atmel,sama5d2-sfrbu");
+	if (!np) {
+		pr_warn("%s: failed to find sfrbu!\n", __func__);
+		goto sfrbu_fail;
+	}
+
+	pm_data.sfrbu = of_iomap(np, 0);
+	of_node_put(np);
+	pm_bu = NULL;
+
+	np = of_find_compatible_node(NULL, NULL, "atmel,sama5d2-securam");
+	if (!np)
+		goto securam_fail;
+
+	pdev = of_find_device_by_node(np);
+	of_node_put(np);
+	if (!pdev) {
+		pr_warn("%s: failed to find securam device!\n", __func__);
+		goto securam_fail;
+	}
+
+	sram_pool = gen_pool_get(&pdev->dev, NULL);
+	if (!sram_pool) {
+		pr_warn("%s: securam pool unavailable!\n", __func__);
+		goto securam_fail;
+	}
+
+	pm_bu = (void *)gen_pool_alloc(sram_pool, sizeof(struct at91_pm_bu));
+	if (!pm_bu) {
+		pr_warn("%s: unable to alloc securam!\n", __func__);
+		goto securam_fail;
+	}
+
+	pm_bu->suspended = 0;
+	pm_bu->canary = virt_to_phys(&canary);
+	pm_bu->resume = virt_to_phys(cpu_resume);
+
+	return;
+
+sfrbu_fail:
+	iounmap(pm_data.shdwc);
+	pm_data.shdwc = NULL;
+securam_fail:
+	iounmap(pm_data.sfrbu);
+	pm_data.sfrbu = NULL;
+
+	if (pm_data.standby_mode == AT91_PM_BACKUP)
+		pm_data.standby_mode = AT91_PM_SLOW_CLOCK;
+	if (pm_data.suspend_mode == AT91_PM_BACKUP)
+		pm_data.suspend_mode = AT91_PM_SLOW_CLOCK;
+}
+
 struct pmc_info {
 	unsigned long uhp_udp_mask;
 };
@@ -481,10 +596,14 @@ static void __init at91_pm_init(void (*pm_idle)(void))
 
 	at91_pm_sram_init();
 
-	if (at91_suspend_sram_fn)
+	if (at91_suspend_sram_fn) {
 		suspend_set_ops(&at91_pm_ops);
-	else
+		pr_info("AT91: PM: standby: %s, suspend: %s\n",
+			pm_modes[pm_data.standby_mode].pattern,
+			pm_modes[pm_data.suspend_mode].pattern);
+	} else {
 		pr_info("AT91: PM not supported, due to no SRAM allocated\n");
+	}
 }
 
 void __init at91rm9200_pm_init(void)
@@ -510,3 +629,34 @@ void __init sama5_pm_init(void)
 	at91_dt_ramc();
 	at91_pm_init(NULL);
 }
+
+void __init sama5d2_pm_init(void)
+{
+	at91_pm_backup_init();
+	sama5_pm_init();
+}
+
+static int __init at91_pm_modes_select(char *str)
+{
+	char *s;
+	substring_t args[MAX_OPT_ARGS];
+	int standby, suspend;
+
+	if (!str)
+		return 0;
+
+	s = strsep(&str, ",");
+	standby = match_token(s, pm_modes, args);
+	if (standby < 0)
+		return 0;
+
+	suspend = match_token(str, pm_modes, args);
+	if (suspend < 0)
+		return 0;
+
+	pm_data.standby_mode = standby;
+	pm_data.suspend_mode = suspend;
+
+	return 0;
+}
+early_param("atmel.pm_modes", at91_pm_modes_select);

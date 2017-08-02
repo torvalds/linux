@@ -509,6 +509,10 @@ static ssize_t wil_read_file_ioblob(struct file *file, char __user *user_buf,
 	void *buf;
 	size_t ret;
 
+	if (test_bit(wil_status_suspending, wil_blob->wil->status) ||
+	    test_bit(wil_status_suspended, wil_blob->wil->status))
+		return 0;
+
 	if (pos < 0)
 		return -EINVAL;
 
@@ -795,15 +799,11 @@ static ssize_t wil_write_file_txmgmt(struct file *file, const char __user *buf,
 	struct wireless_dev *wdev = wil_to_wdev(wil);
 	struct cfg80211_mgmt_tx_params params;
 	int rc;
-	void *frame = kmalloc(len, GFP_KERNEL);
+	void *frame;
 
-	if (!frame)
-		return -ENOMEM;
-
-	if (copy_from_user(frame, buf, len)) {
-		kfree(frame);
-		return -EIO;
-	}
+	frame = memdup_user(buf, len);
+	if (IS_ERR(frame))
+		return PTR_ERR(frame);
 
 	params.buf = frame;
 	params.len = len;
@@ -1604,6 +1604,49 @@ static const struct file_operations fops_fw_version = {
 	.llseek		= seq_lseek,
 };
 
+/*---------suspend_stats---------*/
+static ssize_t wil_write_suspend_stats(struct file *file,
+				       const char __user *buf,
+				       size_t len, loff_t *ppos)
+{
+	struct wil6210_priv *wil = file->private_data;
+
+	memset(&wil->suspend_stats, 0, sizeof(wil->suspend_stats));
+
+	return len;
+}
+
+static ssize_t wil_read_suspend_stats(struct file *file,
+				      char __user *user_buf,
+				      size_t count, loff_t *ppos)
+{
+	struct wil6210_priv *wil = file->private_data;
+	static char text[400];
+	int n;
+
+	n = snprintf(text, sizeof(text),
+		     "Suspend statistics:\n"
+		     "successful suspends:%ld failed suspends:%ld\n"
+		     "successful resumes:%ld failed resumes:%ld\n"
+		     "rejected by host:%ld rejected by device:%ld\n",
+		     wil->suspend_stats.successful_suspends,
+		     wil->suspend_stats.failed_suspends,
+		     wil->suspend_stats.successful_resumes,
+		     wil->suspend_stats.failed_resumes,
+		     wil->suspend_stats.rejected_by_host,
+		     wil->suspend_stats.rejected_by_device);
+
+	n = min_t(int, n, sizeof(text));
+
+	return simple_read_from_buffer(user_buf, count, ppos, text, n);
+}
+
+static const struct file_operations fops_suspend_stats = {
+	.read = wil_read_suspend_stats,
+	.write = wil_write_suspend_stats,
+	.open  = simple_open,
+};
+
 /*----------------*/
 static void wil6210_debugfs_init_blobs(struct wil6210_priv *wil,
 				       struct dentry *dbg)
@@ -1656,6 +1699,7 @@ static const struct {
 	{"led_blink_time",	0644,	&fops_led_blink_time},
 	{"fw_capabilities",	0444,	&fops_fw_capabilities},
 	{"fw_version",	0444,		&fops_fw_version},
+	{"suspend_stats",	0644,	&fops_suspend_stats},
 };
 
 static void wil6210_debugfs_init_files(struct wil6210_priv *wil,
@@ -1702,6 +1746,7 @@ static const struct dbg_off dbg_wil_off[] = {
 	WIL_FIELD(discovery_mode, 0644,	doff_u8),
 	WIL_FIELD(chip_revision, 0444,	doff_u8),
 	WIL_FIELD(abft_len, 0644,		doff_u8),
+	WIL_FIELD(wakeup_trigger, 0644,		doff_u8),
 	{},
 };
 

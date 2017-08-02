@@ -1257,8 +1257,8 @@ static void xive_pre_save_scan(struct kvmppc_xive *xive)
 		if (!xc)
 			continue;
 		for (j = 0; j < KVMPPC_XIVE_Q_COUNT; j++) {
-			if (xc->queues[i].qpage)
-				xive_pre_save_queue(xive, &xc->queues[i]);
+			if (xc->queues[j].qpage)
+				xive_pre_save_queue(xive, &xc->queues[j]);
 		}
 	}
 

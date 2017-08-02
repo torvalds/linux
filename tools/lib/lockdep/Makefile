@@ -79,6 +79,7 @@ INCLUDES = -I. -I./uinclude -I./include -I../../include $(CONFIG_INCLUDES)
 # Set compile option CFLAGS if not set elsewhere
 CFLAGS ?= -g -DCONFIG_LOCKDEP -DCONFIG_STACKTRACE -DCONFIG_PROVE_LOCKING -DBITS_PER_LONG=__WORDSIZE -DLIBLOCKDEP_VERSION='"$(LIBLOCKDEP_VERSION)"' -rdynamic -O0 -g
 CFLAGS += -fPIC
+CFLAGS += -Wall
 
 override CFLAGS += $(CONFIG_FLAGS) $(INCLUDES) $(PLUGIN_DIR_SQ)
 
@@ -100,7 +101,7 @@ include $(srctree)/tools/build/Makefile.include
 
 do_compile_shared_library =			\
 	($(print_shared_lib_compile)		\
-	$(CC) --shared $^ -o $@ -lpthread -ldl -Wl,-soname='"$@"';$(shell ln -sf $@ liblockdep.so))
+	$(CC) $(LDFLAGS) --shared $^ -o $@ -lpthread -ldl -Wl,-soname='$(@F)';$(shell ln -sf $(@F) $(@D)/liblockdep.so))
 
 do_build_static_lib =				\
 	($(print_static_lib_build)		\
@@ -118,10 +119,10 @@ all_cmd: $(CMD_TARGETS)
 $(LIB_IN): force
 	$(Q)$(MAKE) $(build)=liblockdep
 
-liblockdep.so.$(LIBLOCKDEP_VERSION): $(LIB_IN)
+$(OUTPUT)liblockdep.so.$(LIBLOCKDEP_VERSION): $(LIB_IN)
 	$(Q)$(do_compile_shared_library)
 
-liblockdep.a: $(LIB_IN)
+$(OUTPUT)liblockdep.a: $(LIB_IN)
 	$(Q)$(do_build_static_lib)
 
 tags:	force
@@ -149,7 +150,7 @@ install_lib: all_cmd
 install: install_lib
 
 clean:
-	$(RM) *.o *~ $(TARGETS) *.a *liblockdep*.so* $(VERSION_FILES) .*.d .*.cmd
+	$(RM) $(OUTPUT)*.o *~ $(TARGETS) $(OUTPUT)*.a $(OUTPUT)*liblockdep*.so* $(VERSION_FILES) $(OUTPUT).*.d $(OUTPUT).*.cmd
 	$(RM) tags TAGS
 
 PHONY += force

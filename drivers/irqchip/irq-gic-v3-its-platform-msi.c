@@ -86,7 +86,7 @@ static struct msi_domain_info its_pmsi_domain_info = {
 	.chip	= &its_pmsi_irq_chip,
 };
 
-static struct of_device_id its_device_id[] = {
+static const struct of_device_id its_device_id[] = {
 	{	.compatible	= "arm,gic-v3-its",	},
 	{},
 };

@@ -79,11 +79,11 @@ static inline int ldlm_ns_empty(struct ldlm_namespace *ns)
 	return atomic_read(&ns->ns_bref) == 0;
 }
 
-void ldlm_namespace_move_to_active_locked(struct ldlm_namespace *,
-					  enum ldlm_side);
-void ldlm_namespace_move_to_inactive_locked(struct ldlm_namespace *,
-					    enum ldlm_side);
-struct ldlm_namespace *ldlm_namespace_first_locked(enum ldlm_side);
+void ldlm_namespace_move_to_active_locked(struct ldlm_namespace *ns,
+					  enum ldlm_side client);
+void ldlm_namespace_move_to_inactive_locked(struct ldlm_namespace *ns,
+					    enum ldlm_side client);
+struct ldlm_namespace *ldlm_namespace_first_locked(enum ldlm_side client);
 
 /* ldlm_request.c */
 /* Cancel lru flag, it indicates we cancel aged locks. */
@@ -130,16 +130,19 @@ void ldlm_grant_lock(struct ldlm_lock *lock, struct list_head *work_list);
 int ldlm_fill_lvb(struct ldlm_lock *lock, struct req_capsule *pill,
 		  enum req_location loc, void *data, int size);
 struct ldlm_lock *
-ldlm_lock_create(struct ldlm_namespace *ns, const struct ldlm_res_id *,
+ldlm_lock_create(struct ldlm_namespace *ns, const struct ldlm_res_id *id,
 		 enum ldlm_type type, enum ldlm_mode mode,
 		 const struct ldlm_callback_suite *cbs,
 		 void *data, __u32 lvb_len, enum lvb_type lvb_type);
-enum ldlm_error ldlm_lock_enqueue(struct ldlm_namespace *, struct ldlm_lock **,
-				  void *cookie, __u64 *flags);
-void ldlm_lock_addref_internal(struct ldlm_lock *, enum ldlm_mode mode);
-void ldlm_lock_addref_internal_nolock(struct ldlm_lock *, enum ldlm_mode mode);
-void ldlm_lock_decref_internal(struct ldlm_lock *, enum ldlm_mode mode);
-void ldlm_lock_decref_internal_nolock(struct ldlm_lock *, enum ldlm_mode mode);
+enum ldlm_error ldlm_lock_enqueue(struct ldlm_namespace *ns,
+				  struct ldlm_lock **lock, void *cookie,
+				  __u64 *flags);
+void ldlm_lock_addref_internal(struct ldlm_lock *lock, enum ldlm_mode mode);
+void ldlm_lock_addref_internal_nolock(struct ldlm_lock *lock,
+				      enum ldlm_mode mode);
+void ldlm_lock_decref_internal(struct ldlm_lock *lock, enum ldlm_mode mode);
+void ldlm_lock_decref_internal_nolock(struct ldlm_lock *lock,
+				      enum ldlm_mode mode);
 int ldlm_run_ast_work(struct ldlm_namespace *ns, struct list_head *rpc_list,
 		      enum ldlm_desc_ast_t ast_type);
 int ldlm_lock_remove_from_lru_check(struct ldlm_lock *lock, time_t last_use);

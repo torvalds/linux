@@ -268,7 +268,7 @@ static void snapshot_buf(struct msm_rd_state *rd,
 	struct msm_gem_object *obj = submit->bos[idx].obj;
 	const char *buf;
 
-	buf = msm_gem_get_vaddr_locked(&obj->base);
+	buf = msm_gem_get_vaddr(&obj->base);
 	if (IS_ERR(buf))
 		return;
 
@@ -283,7 +283,7 @@ static void snapshot_buf(struct msm_rd_state *rd,
 			(uint32_t[3]){ iova, size, iova >> 32 }, 12);
 	rd_write_section(rd, RD_BUFFER_CONTENTS, buf, size);
 
-	msm_gem_put_vaddr_locked(&obj->base);
+	msm_gem_put_vaddr(&obj->base);
 }
 
 /* called under struct_mutex */

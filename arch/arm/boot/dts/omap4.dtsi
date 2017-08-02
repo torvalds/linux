@@ -900,12 +900,21 @@
 			ctrl-module = <&omap_control_usbotg>;
 		};
 
-		aes: aes@4b501000 {
+		aes1: aes@4b501000 {
 			compatible = "ti,omap4-aes";
-			ti,hwmods = "aes";
+			ti,hwmods = "aes1";
 			reg = <0x4b501000 0xa0>;
 			interrupts = <GIC_SPI 85 IRQ_TYPE_LEVEL_HIGH>;
 			dmas = <&sdma 111>, <&sdma 110>;
+			dma-names = "tx", "rx";
+		};
+
+		aes2: aes@4b701000 {
+			compatible = "ti,omap4-aes";
+			ti,hwmods = "aes2";
+			reg = <0x4b701000 0xa0>;
+			interrupts = <GIC_SPI 64 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&sdma 114>, <&sdma 113>;
 			dma-names = "tx", "rx";
 		};
 
@@ -916,6 +925,15 @@
 			interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
 			dmas = <&sdma 117>, <&sdma 116>;
 			dma-names = "tx", "rx";
+		};
+
+		sham: sham@4b100000 {
+			compatible = "ti,omap4-sham";
+			ti,hwmods = "sham";
+			reg = <0x4b100000 0x300>;
+			interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&sdma 119>;
+			dma-names = "rx";
 		};
 
 		abb_mpu: regulator-abb-mpu {

@@ -175,8 +175,7 @@ static void sun4i_rgb_encoder_mode_set(struct drm_encoder *encoder,
 	struct sun4i_tcon *tcon = rgb->tcon;
 
 	sun4i_tcon0_mode_set(tcon, mode);
-
-	clk_set_rate(tcon->dclk, mode->crtc_clock * 1000);
+	sun4i_tcon_set_mux(tcon, 0, encoder);
 
 	/* FIXME: This seems to be board specific */
 	clk_set_phase(tcon->dclk, 120);

@@ -87,7 +87,10 @@ nvbios_iccsense_parse(struct nvkm_bios *bios, struct nvbios_iccsense *iccsense)
 
 		switch(ver) {
 		case 0x10:
-			rail->mode = nvbios_rd08(bios, entry + 0x1);
+			if ((nvbios_rd08(bios, entry + 0x1) & 0xf8) == 0xf8)
+				rail->mode = 1;
+			else
+				rail->mode = 0;
 			rail->extdev_id = nvbios_rd08(bios, entry + 0x2);
 			res_start = 0x3;
 			break;

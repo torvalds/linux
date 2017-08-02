@@ -23,6 +23,7 @@
 #include "include/apparmor.h"
 #include "include/context.h"
 #include "include/policy_ns.h"
+#include "include/label.h"
 #include "include/policy.h"
 
 /* root profile namespace */
@@ -99,21 +100,25 @@ static struct aa_ns *alloc_ns(const char *prefix, const char *name)
 		goto fail_ns;
 
 	INIT_LIST_HEAD(&ns->sub_ns);
+	INIT_LIST_HEAD(&ns->rawdata_list);
 	mutex_init(&ns->lock);
+	init_waitqueue_head(&ns->wait);
 
 	/* released by aa_free_ns() */
-	ns->unconfined = aa_alloc_profile("unconfined", GFP_KERNEL);
+	ns->unconfined = aa_alloc_profile("unconfined", NULL, GFP_KERNEL);
 	if (!ns->unconfined)
 		goto fail_unconfined;
 
-	ns->unconfined->flags = PFLAG_IX_ON_NAME_ERROR |
-		PFLAG_IMMUTABLE | PFLAG_NS_COUNT;
+	ns->unconfined->label.flags |= FLAG_IX_ON_NAME_ERROR |
+		FLAG_IMMUTIBLE | FLAG_NS_COUNT | FLAG_UNCONFINED;
 	ns->unconfined->mode = APPARMOR_UNCONFINED;
 
 	/* ns and ns->unconfined share ns->unconfined refcount */
 	ns->unconfined->ns = ns;
 
 	atomic_set(&ns->uniq_null, 0);
+
+	aa_labelset_init(&ns->labels);
 
 	return ns;
 
@@ -137,6 +142,7 @@ void aa_free_ns(struct aa_ns *ns)
 		return;
 
 	aa_policy_destroy(&ns->base);
+	aa_labelset_destroy(&ns->labels);
 	aa_put_ns(ns->parent);
 
 	ns->unconfined->ns = NULL;
@@ -181,6 +187,60 @@ struct aa_ns *aa_find_ns(struct aa_ns *root, const char *name)
 	return aa_findn_ns(root, name, strlen(name));
 }
 
+/**
+ * __aa_lookupn_ns - lookup the namespace matching @hname
+ * @base: base list to start looking up profile name from  (NOT NULL)
+ * @hname: hierarchical ns name  (NOT NULL)
+ * @n: length of @hname
+ *
+ * Requires: rcu_read_lock be held
+ *
+ * Returns: unrefcounted ns pointer or NULL if not found
+ *
+ * Do a relative name lookup, recursing through profile tree.
+ */
+struct aa_ns *__aa_lookupn_ns(struct aa_ns *view, const char *hname, size_t n)
+{
+	struct aa_ns *ns = view;
+	const char *split;
+
+	for (split = strnstr(hname, "//", n); split;
+	     split = strnstr(hname, "//", n)) {
+		ns = __aa_findn_ns(&ns->sub_ns, hname, split - hname);
+		if (!ns)
+			return NULL;
+
+		n -= split + 2 - hname;
+		hname = split + 2;
+	}
+
+	if (n)
+		return __aa_findn_ns(&ns->sub_ns, hname, n);
+	return NULL;
+}
+
+/**
+ * aa_lookupn_ns  -  look up a policy namespace relative to @view
+ * @view: namespace to search in  (NOT NULL)
+ * @name: name of namespace to find  (NOT NULL)
+ * @n: length of @name
+ *
+ * Returns: a refcounted namespace on the list, or NULL if no namespace
+ *          called @name exists.
+ *
+ * refcount released by caller
+ */
+struct aa_ns *aa_lookupn_ns(struct aa_ns *view, const char *name, size_t n)
+{
+	struct aa_ns *ns = NULL;
+
+	rcu_read_lock();
+	ns = aa_get_ns(__aa_lookupn_ns(view, name, n));
+	rcu_read_unlock();
+
+	return ns;
+}
+
 static struct aa_ns *__aa_create_ns(struct aa_ns *parent, const char *name,
 				    struct dentry *dir)
 {
@@ -195,7 +255,7 @@ static struct aa_ns *__aa_create_ns(struct aa_ns *parent, const char *name,
 	if (!ns)
 		return NULL;
 	mutex_lock(&ns->lock);
-	error = __aa_fs_ns_mkdir(ns, ns_subns_dir(parent), name);
+	error = __aafs_ns_mkdir(ns, ns_subns_dir(parent), name, dir);
 	if (error) {
 		AA_ERROR("Failed to create interface for ns %s\n",
 			 ns->base.name);
@@ -281,9 +341,15 @@ static void destroy_ns(struct aa_ns *ns)
 	/* release all sub namespaces */
 	__ns_list_release(&ns->sub_ns);
 
-	if (ns->parent)
-		__aa_update_proxy(ns->unconfined, ns->parent->unconfined);
-	__aa_fs_ns_rmdir(ns);
+	if (ns->parent) {
+		unsigned long flags;
+
+		write_lock_irqsave(&ns->labels.lock, flags);
+		__aa_proxy_redirect(ns_unconfined(ns),
+				    ns_unconfined(ns->parent));
+		write_unlock_irqrestore(&ns->labels.lock, flags);
+	}
+	__aafs_ns_rmdir(ns);
 	mutex_unlock(&ns->lock);
 }
 

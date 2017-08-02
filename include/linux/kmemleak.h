@@ -22,6 +22,7 @@
 #define __KMEMLEAK_H
 
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 
 #ifdef CONFIG_DEBUG_KMEMLEAK
 
@@ -30,6 +31,8 @@ extern void kmemleak_alloc(const void *ptr, size_t size, int min_count,
 			   gfp_t gfp) __ref;
 extern void kmemleak_alloc_percpu(const void __percpu *ptr, size_t size,
 				  gfp_t gfp) __ref;
+extern void kmemleak_vmalloc(const struct vm_struct *area, size_t size,
+			     gfp_t gfp) __ref;
 extern void kmemleak_free(const void *ptr) __ref;
 extern void kmemleak_free_part(const void *ptr, size_t size) __ref;
 extern void kmemleak_free_percpu(const void __percpu *ptr) __ref;
@@ -79,6 +82,10 @@ static inline void kmemleak_alloc_recursive(const void *ptr, size_t size,
 }
 static inline void kmemleak_alloc_percpu(const void __percpu *ptr, size_t size,
 					 gfp_t gfp)
+{
+}
+static inline void kmemleak_vmalloc(const struct vm_struct *area, size_t size,
+				    gfp_t gfp)
 {
 }
 static inline void kmemleak_free(const void *ptr)

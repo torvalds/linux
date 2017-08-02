@@ -27,6 +27,7 @@ kafs-objs := \
 	vlocation.o \
 	vnode.o \
 	volume.o \
-	write.o
+	write.o \
+	xattr.o
 
 obj-$(CONFIG_AFS_FS)  := kafs.o
