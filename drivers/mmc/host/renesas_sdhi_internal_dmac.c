@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/pagemap.h>
 #include <linux/scatterlist.h>
+#include <linux/sys_soc.h>
 
 #include "renesas_sdhi.h"
 #include "tmio_mmc.h"
@@ -241,8 +242,22 @@ static struct tmio_mmc_dma_ops renesas_sdhi_internal_dmac_dma_ops = {
 	.dataend = renesas_sdhi_internal_dmac_dataend_dma,
 };
 
+/*
+ * Whitelist of specific R-Car Gen3 SoC ES versions to use this DMAC
+ * implementation as others may use a different implementation.
+ */
+static const struct soc_device_attribute gen3_soc_whitelist[] = {
+        { .soc_id = "r8a7795", .revision = "ES1.*" },
+        { .soc_id = "r8a7795", .revision = "ES2.0" },
+        { .soc_id = "r8a7796", .revision = "ES1.0" },
+        { /* sentinel */ }
+};
+
 static int renesas_sdhi_internal_dmac_probe(struct platform_device *pdev)
 {
+	if (!soc_device_match(gen3_soc_whitelist))
+		return -ENODEV;
+
 	return renesas_sdhi_probe(pdev, &renesas_sdhi_internal_dmac_dma_ops);
 }
 
