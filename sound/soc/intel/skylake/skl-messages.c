@@ -22,6 +22,7 @@
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include "skl-sst-dsp.h"
+#include "cnl-sst-dsp.h"
 #include "skl-sst-ipc.h"
 #include "skl.h"
 #include "../common/sst-dsp.h"
@@ -230,6 +231,14 @@ static const struct skl_dsp_ops dsp_ops[] = {
 		.init = bxt_sst_dsp_init,
 		.init_fw = bxt_sst_init_fw,
 		.cleanup = bxt_sst_dsp_cleanup
+	},
+	{
+		.id = 0x9dc8,
+		.num_cores = 4,
+		.loader_ops = bxt_get_loader_ops,
+		.init = cnl_sst_dsp_init,
+		.init_fw = cnl_sst_init_fw,
+		.cleanup = cnl_sst_dsp_cleanup
 	},
 };
 
