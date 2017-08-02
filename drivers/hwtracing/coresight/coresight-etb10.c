@@ -575,17 +575,17 @@ static const struct file_operations etb_fops = {
 	.llseek		= no_llseek,
 };
 
-#define coresight_etb10_simple_func(name, offset)                       \
-	coresight_simple_func(struct etb_drvdata, NULL, name, offset)
+#define coresight_etb10_reg(name, offset)		\
+	coresight_simple_reg32(struct etb_drvdata, name, offset)
 
-coresight_etb10_simple_func(rdp, ETB_RAM_DEPTH_REG);
-coresight_etb10_simple_func(sts, ETB_STATUS_REG);
-coresight_etb10_simple_func(rrp, ETB_RAM_READ_POINTER);
-coresight_etb10_simple_func(rwp, ETB_RAM_WRITE_POINTER);
-coresight_etb10_simple_func(trg, ETB_TRG);
-coresight_etb10_simple_func(ctl, ETB_CTL_REG);
-coresight_etb10_simple_func(ffsr, ETB_FFSR);
-coresight_etb10_simple_func(ffcr, ETB_FFCR);
+coresight_etb10_reg(rdp, ETB_RAM_DEPTH_REG);
+coresight_etb10_reg(sts, ETB_STATUS_REG);
+coresight_etb10_reg(rrp, ETB_RAM_READ_POINTER);
+coresight_etb10_reg(rwp, ETB_RAM_WRITE_POINTER);
+coresight_etb10_reg(trg, ETB_TRG);
+coresight_etb10_reg(ctl, ETB_CTL_REG);
+coresight_etb10_reg(ffsr, ETB_FFSR);
+coresight_etb10_reg(ffcr, ETB_FFCR);
 
 static struct attribute *coresight_etb_mgmt_attrs[] = {
 	&dev_attr_rdp.attr,

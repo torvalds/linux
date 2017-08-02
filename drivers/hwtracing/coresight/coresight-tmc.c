@@ -217,20 +217,22 @@ static enum tmc_mem_intf_width tmc_get_memwidth(u32 devid)
 	return memwidth;
 }
 
-#define coresight_tmc_simple_func(name, offset)			\
-	coresight_simple_func(struct tmc_drvdata, NULL, name, offset)
+#define coresight_tmc_reg(name, offset)			\
+	coresight_simple_reg32(struct tmc_drvdata, name, offset)
+#define coresight_tmc_reg64(name, lo_off, hi_off)	\
+	coresight_simple_reg64(struct tmc_drvdata, name, lo_off, hi_off)
 
-coresight_tmc_simple_func(rsz, TMC_RSZ);
-coresight_tmc_simple_func(sts, TMC_STS);
-coresight_tmc_simple_func(rrp, TMC_RRP);
-coresight_tmc_simple_func(rwp, TMC_RWP);
-coresight_tmc_simple_func(trg, TMC_TRG);
-coresight_tmc_simple_func(ctl, TMC_CTL);
-coresight_tmc_simple_func(ffsr, TMC_FFSR);
-coresight_tmc_simple_func(ffcr, TMC_FFCR);
-coresight_tmc_simple_func(mode, TMC_MODE);
-coresight_tmc_simple_func(pscr, TMC_PSCR);
-coresight_tmc_simple_func(devid, CORESIGHT_DEVID);
+coresight_tmc_reg(rsz, TMC_RSZ);
+coresight_tmc_reg(sts, TMC_STS);
+coresight_tmc_reg(trg, TMC_TRG);
+coresight_tmc_reg(ctl, TMC_CTL);
+coresight_tmc_reg(ffsr, TMC_FFSR);
+coresight_tmc_reg(ffcr, TMC_FFCR);
+coresight_tmc_reg(mode, TMC_MODE);
+coresight_tmc_reg(pscr, TMC_PSCR);
+coresight_tmc_reg(devid, CORESIGHT_DEVID);
+coresight_tmc_reg64(rrp, TMC_RRP, TMC_RRPHI);
+coresight_tmc_reg64(rwp, TMC_RWP, TMC_RWPHI);
 
 static struct attribute *coresight_tmc_mgmt_attrs[] = {
 	&dev_attr_rsz.attr,
