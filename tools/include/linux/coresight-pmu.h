@@ -26,6 +26,11 @@
 #define ETM_OPT_TS      28
 #define ETM_OPT_RETSTK	29
 
+/* ETMv4 CONFIGR programming bits for the ETM OPTs */
+#define ETM4_CFG_BIT_CYCACC	4
+#define ETM4_CFG_BIT_TS		11
+#define ETM4_CFG_BIT_RETSTK	12
+
 static inline int coresight_get_trace_id(int cpu)
 {
 	/*
