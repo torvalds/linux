@@ -30,7 +30,8 @@
 #include <linux/list.h>
 #include <linux/irqreturn.h>
 
-struct drm_device;
+#include <drm/drm_device.h>
+
 struct drm_file;
 struct drm_gem_object;
 struct drm_master;
@@ -613,7 +614,24 @@ void drm_dev_unregister(struct drm_device *dev);
 void drm_dev_ref(struct drm_device *dev);
 void drm_dev_unref(struct drm_device *dev);
 void drm_put_dev(struct drm_device *dev);
-void drm_unplug_dev(struct drm_device *dev);
+void drm_dev_unplug(struct drm_device *dev);
+
+/**
+ * drm_dev_is_unplugged - is a DRM device unplugged
+ * @dev: DRM device
+ *
+ * This function can be called to check whether a hotpluggable is unplugged.
+ * Unplugging itself is singalled through drm_dev_unplug(). If a device is
+ * unplugged, these two functions guarantee that any store before calling
+ * drm_dev_unplug() is visible to callers of this function after it completes
+ */
+static inline int drm_dev_is_unplugged(struct drm_device *dev)
+{
+	int ret = atomic_read(&dev->unplugged);
+	smp_rmb();
+	return ret;
+}
+
 
 int drm_dev_set_unique(struct drm_device *dev, const char *name);
 

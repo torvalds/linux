@@ -390,7 +390,7 @@ unsigned long drm_gem_cma_get_unmapped_area(struct file *filp,
 	struct drm_device *dev = priv->minor->dev;
 	struct drm_vma_offset_node *node;
 
-	if (drm_device_is_unplugged(dev))
+	if (drm_dev_is_unplugged(dev))
 		return -ENODEV;
 
 	drm_vma_offset_lock_lookup(dev->vma_offset_manager);

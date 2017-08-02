@@ -56,7 +56,7 @@ static const struct drm_connector_helper_funcs tinydrm_connector_hfuncs = {
 static enum drm_connector_status
 tinydrm_connector_detect(struct drm_connector *connector, bool force)
 {
-	if (drm_device_is_unplugged(connector->dev))
+	if (drm_dev_is_unplugged(connector->dev))
 		return connector_status_disconnected;
 
 	return connector->status;

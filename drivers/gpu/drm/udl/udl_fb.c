@@ -198,7 +198,7 @@ static int udl_fb_open(struct fb_info *info, int user)
 	struct udl_device *udl = dev->dev_private;
 
 	/* If the USB device is gone, we don't accept new opens */
-	if (drm_device_is_unplugged(udl->ddev))
+	if (drm_dev_is_unplugged(udl->ddev))
 		return -ENODEV;
 
 	ufbdev->fb_count++;
