@@ -1807,7 +1807,8 @@ static void ibmvnic_get_ethtool_stats(struct net_device *dev,
 	wait_for_completion(&adapter->stats_done);
 
 	for (i = 0; i < ARRAY_SIZE(ibmvnic_stats); i++)
-		data[i] = IBMVNIC_GET_STAT(adapter, ibmvnic_stats[i].offset);
+		data[i] = be64_to_cpu(IBMVNIC_GET_STAT(adapter,
+						ibmvnic_stats[i].offset));
 
 	for (j = 0; j < adapter->req_tx_queues; j++) {
 		data[i] = adapter->tx_stats_buffers[j].packets;
