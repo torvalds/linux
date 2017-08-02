@@ -661,6 +661,9 @@ static int dw_mipi_dsi_host_attach(struct mipi_dsi_host *host,
 	struct dw_mipi_dsi *dsi = host_to_dsi(host);
 	int lanes;
 
+	if (dsi->master)
+		return 0;
+
 	lanes = dsi->slave ? device->lanes / 2 : device->lanes;
 
 	if (lanes > dsi->pdata->max_data_lanes) {
@@ -684,6 +687,12 @@ static int dw_mipi_dsi_host_attach(struct mipi_dsi_host *host,
 		dsi->slave->channel = device->channel;
 		dsi->slave->format = device->format;
 		dsi->slave->mode_flags = device->mode_flags;
+	}
+
+	dsi->panel = of_drm_find_panel(device->dev.of_node);
+	if (!dsi->panel) {
+		DRM_ERROR("failed to find panel\n");
+		return -ENODEV;
 	}
 
 	return 0;
@@ -1400,7 +1409,6 @@ static int dw_mipi_dsi_bind(struct device *dev, struct device *master,
 	if (dsi->master)
 		return 0;
 
-	dsi->panel = of_drm_find_panel(dsi->panel_node);
 	if (!dsi->panel)
 		return -EPROBE_DEFER;
 
@@ -1433,26 +1441,6 @@ static const struct component_ops dw_mipi_dsi_ops = {
 	.bind	= dw_mipi_dsi_bind,
 	.unbind	= dw_mipi_dsi_unbind,
 };
-
-static int rockchip_dsi_parse_dt(struct dw_mipi_dsi *dsi)
-{
-	struct device_node *np = dsi->dev->of_node;
-	struct device_node *endpoint, *remote = NULL;
-
-	endpoint = of_graph_get_endpoint_by_regs(np, 1, -1);
-	if (endpoint) {
-		remote = of_graph_get_remote_port_parent(endpoint);
-		of_node_put(endpoint);
-		if (!remote) {
-			dev_err(dsi->dev, "No panel/bridge connected\n");
-			return -ENODEV;
-		}
-	}
-
-	dsi->panel_node = remote;
-
-	return 0;
-}
 
 static int rockchip_dsi_get_reset_handle(struct dw_mipi_dsi *dsi)
 {
@@ -1580,7 +1568,6 @@ static int dw_mipi_dsi_probe(struct platform_device *pdev)
 	dsi->dev = dev;
 	dsi->pdata = pdata;
 
-	rockchip_dsi_parse_dt(dsi);
 	rockchip_dsi_ioremap_resource(pdev, dsi);
 	rockchip_dsi_clk_get(dsi);
 	rockchip_dsi_dphy_parse(dsi);
