@@ -433,6 +433,13 @@ static void destruct(struct core_dc *dc)
 
 	dm_free(dc->ctx);
 	dc->ctx = NULL;
+
+	dm_free(dc->bw_vbios);
+	dc->bw_vbios = NULL;
+
+	dm_free(dc->bw_dceip);
+	dc->bw_dceip = NULL;
+
 }
 
 static bool construct(struct core_dc *dc,
@@ -440,7 +447,24 @@ static bool construct(struct core_dc *dc,
 {
 	struct dal_logger *logger;
 	struct dc_context *dc_ctx = dm_alloc(sizeof(*dc_ctx));
+	struct bw_calcs_dceip *dc_dceip = dm_alloc(sizeof(*dc_dceip));
+	struct bw_calcs_vbios *dc_vbios = dm_alloc(sizeof(*dc_vbios));
+
 	enum dce_version dc_version = DCE_VERSION_UNKNOWN;
+
+	if (!dc_dceip) {
+		dm_error("%s: failed to create dceip\n", __func__);
+		goto dceip_fail;
+	}
+
+	dc->bw_dceip = dc_dceip;
+
+	if (!dc_vbios) {
+		dm_error("%s: failed to create vbios\n", __func__);
+		goto vbios_fail;
+	}
+
+	dc->bw_vbios = dc_vbios;
 
 	if (!dc_ctx) {
 		dm_error("%s: failed to create ctx\n", __func__);
@@ -544,6 +568,8 @@ bios_fail:
 logger_fail:
 val_ctx_fail:
 ctx_fail:
+dceip_fail:
+vbios_fail:
 	destruct(dc);
 	return false;
 }

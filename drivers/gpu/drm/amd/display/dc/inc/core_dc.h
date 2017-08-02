@@ -29,8 +29,8 @@ struct core_dc {
 	struct dm_pp_clock_levels sclk_lvls;
 
 	/* Inputs into BW and WM calculations. */
-	struct bw_calcs_dceip bw_dceip;
-	struct bw_calcs_vbios bw_vbios;
+	struct bw_calcs_dceip *bw_dceip;
+	struct bw_calcs_vbios *bw_vbios;
 #ifdef CONFIG_DRM_AMD_DC_DCN1_0
 	struct dcn_soc_bounding_box dcn_soc;
 	struct dcn_ip_params dcn_ip;

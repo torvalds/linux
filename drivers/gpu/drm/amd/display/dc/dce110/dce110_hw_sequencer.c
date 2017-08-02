@@ -1264,7 +1264,7 @@ void dce110_set_displaymarks(
 			continue;
 
 		total_dest_line_time_ns = compute_pstate_blackout_duration(
-			dc->bw_vbios.blackout_duration, pipe_ctx->stream);
+			dc->bw_vbios->blackout_duration, pipe_ctx->stream);
 		pipe_ctx->plane_res.mi->funcs->mem_input_program_display_marks(
 			pipe_ctx->plane_res.mi,
 			context->bw.dce.nbp_state_change_wm_ns[num_pipes],

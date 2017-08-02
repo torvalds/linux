@@ -826,8 +826,8 @@ static bool dce110_validate_bandwidth(
 
 	if (bw_calcs(
 			dc->ctx,
-			&dc->bw_dceip,
-			&dc->bw_vbios,
+			dc->bw_dceip,
+			dc->bw_vbios,
 			context->res_ctx.pipe_ctx,
 			dc->res_pool->pipe_count,
 			&context->bw.dce))
@@ -1127,21 +1127,21 @@ static void bw_calcs_data_update_from_pplib(struct core_dc *dc)
 			DM_PP_CLOCK_TYPE_ENGINE_CLK,
 			&clks);
 	/* convert all the clock fro kHz to fix point mHz */
-	dc->bw_vbios.high_sclk = bw_frc_to_fixed(
+	dc->bw_vbios->high_sclk = bw_frc_to_fixed(
 			clks.clocks_in_khz[clks.num_levels-1], 1000);
-	dc->bw_vbios.mid1_sclk  = bw_frc_to_fixed(
+	dc->bw_vbios->mid1_sclk  = bw_frc_to_fixed(
 			clks.clocks_in_khz[clks.num_levels/8], 1000);
-	dc->bw_vbios.mid2_sclk  = bw_frc_to_fixed(
+	dc->bw_vbios->mid2_sclk  = bw_frc_to_fixed(
 			clks.clocks_in_khz[clks.num_levels*2/8], 1000);
-	dc->bw_vbios.mid3_sclk  = bw_frc_to_fixed(
+	dc->bw_vbios->mid3_sclk  = bw_frc_to_fixed(
 			clks.clocks_in_khz[clks.num_levels*3/8], 1000);
-	dc->bw_vbios.mid4_sclk  = bw_frc_to_fixed(
+	dc->bw_vbios->mid4_sclk  = bw_frc_to_fixed(
 			clks.clocks_in_khz[clks.num_levels*4/8], 1000);
-	dc->bw_vbios.mid5_sclk  = bw_frc_to_fixed(
+	dc->bw_vbios->mid5_sclk  = bw_frc_to_fixed(
 			clks.clocks_in_khz[clks.num_levels*5/8], 1000);
-	dc->bw_vbios.mid6_sclk  = bw_frc_to_fixed(
+	dc->bw_vbios->mid6_sclk  = bw_frc_to_fixed(
 			clks.clocks_in_khz[clks.num_levels*6/8], 1000);
-	dc->bw_vbios.low_sclk  = bw_frc_to_fixed(
+	dc->bw_vbios->low_sclk  = bw_frc_to_fixed(
 			clks.clocks_in_khz[0], 1000);
 	dc->sclk_lvls = clks;
 
@@ -1150,11 +1150,11 @@ static void bw_calcs_data_update_from_pplib(struct core_dc *dc)
 			dc->ctx,
 			DM_PP_CLOCK_TYPE_DISPLAY_CLK,
 			&clks);
-	dc->bw_vbios.high_voltage_max_dispclk = bw_frc_to_fixed(
+	dc->bw_vbios->high_voltage_max_dispclk = bw_frc_to_fixed(
 			clks.clocks_in_khz[clks.num_levels-1], 1000);
-	dc->bw_vbios.mid_voltage_max_dispclk  = bw_frc_to_fixed(
+	dc->bw_vbios->mid_voltage_max_dispclk  = bw_frc_to_fixed(
 			clks.clocks_in_khz[clks.num_levels>>1], 1000);
-	dc->bw_vbios.low_voltage_max_dispclk  = bw_frc_to_fixed(
+	dc->bw_vbios->low_voltage_max_dispclk  = bw_frc_to_fixed(
 			clks.clocks_in_khz[0], 1000);
 
 	/*do memory clock*/
@@ -1163,12 +1163,12 @@ static void bw_calcs_data_update_from_pplib(struct core_dc *dc)
 			DM_PP_CLOCK_TYPE_MEMORY_CLK,
 			&clks);
 
-	dc->bw_vbios.low_yclk = bw_frc_to_fixed(
+	dc->bw_vbios->low_yclk = bw_frc_to_fixed(
 		clks.clocks_in_khz[0] * MEMORY_TYPE_MULTIPLIER, 1000);
-	dc->bw_vbios.mid_yclk = bw_frc_to_fixed(
+	dc->bw_vbios->mid_yclk = bw_frc_to_fixed(
 		clks.clocks_in_khz[clks.num_levels>>1] * MEMORY_TYPE_MULTIPLIER,
 		1000);
-	dc->bw_vbios.high_yclk = bw_frc_to_fixed(
+	dc->bw_vbios->high_yclk = bw_frc_to_fixed(
 		clks.clocks_in_khz[clks.num_levels-1] * MEMORY_TYPE_MULTIPLIER,
 		1000);
 }
@@ -1353,7 +1353,7 @@ static bool construct(
 
 	dc->public.caps.max_planes =  pool->base.pipe_count;
 
-	bw_calcs_init(&dc->bw_dceip, &dc->bw_vbios, dc->ctx->asic_id);
+	bw_calcs_init(dc->bw_dceip, dc->bw_vbios, dc->ctx->asic_id);
 
 	bw_calcs_data_update_from_pplib(dc);
 
