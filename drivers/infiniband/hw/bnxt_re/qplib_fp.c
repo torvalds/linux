@@ -365,6 +365,7 @@ void bnxt_qplib_disable_nq(struct bnxt_qplib_nq *nq)
 	tasklet_kill(&nq->worker);
 
 	if (nq->requested) {
+		irq_set_affinity_hint(nq->vector, NULL);
 		free_irq(nq->vector, nq);
 		nq->requested = false;
 	}
@@ -378,7 +379,7 @@ void bnxt_qplib_disable_nq(struct bnxt_qplib_nq *nq)
 }
 
 int bnxt_qplib_enable_nq(struct pci_dev *pdev, struct bnxt_qplib_nq *nq,
-			 int msix_vector, int bar_reg_offset,
+			 int nq_idx, int msix_vector, int bar_reg_offset,
 			 int (*cqn_handler)(struct bnxt_qplib_nq *nq,
 					    struct bnxt_qplib_cq *),
 			 int (*srqn_handler)(struct bnxt_qplib_nq *nq,
@@ -402,13 +403,25 @@ int bnxt_qplib_enable_nq(struct pci_dev *pdev, struct bnxt_qplib_nq *nq,
 		goto fail;
 
 	nq->requested = false;
-	rc = request_irq(nq->vector, bnxt_qplib_nq_irq, 0, "bnxt_qplib_nq", nq);
+	memset(nq->name, 0, 32);
+	sprintf(nq->name, "bnxt_qplib_nq-%d", nq_idx);
+	rc = request_irq(nq->vector, bnxt_qplib_nq_irq, 0, nq->name, nq);
 	if (rc) {
 		dev_err(&nq->pdev->dev,
 			"Failed to request IRQ for NQ: %#x", rc);
 		bnxt_qplib_disable_nq(nq);
 		goto fail;
 	}
+
+	cpumask_clear(&nq->mask);
+	cpumask_set_cpu(nq_idx, &nq->mask);
+	rc = irq_set_affinity_hint(nq->vector, &nq->mask);
+	if (rc) {
+		dev_warn(&nq->pdev->dev,
+			 "QPLIB: set affinity failed; vector: %d nq_idx: %d\n",
+			 nq->vector, nq_idx);
+	}
+
 	nq->requested = true;
 	nq->bar_reg = NQ_CONS_PCI_BAR_REGION;
 	nq->bar_reg_off = bar_reg_offset;
@@ -432,8 +445,10 @@ fail:
 
 void bnxt_qplib_free_nq(struct bnxt_qplib_nq *nq)
 {
-	if (nq->hwq.max_elements)
+	if (nq->hwq.max_elements) {
 		bnxt_qplib_free_hwq(nq->pdev, &nq->hwq);
+		nq->hwq.max_elements = 0;
+	}
 }
 
 int bnxt_qplib_alloc_nq(struct pci_dev *pdev, struct bnxt_qplib_nq *nq)

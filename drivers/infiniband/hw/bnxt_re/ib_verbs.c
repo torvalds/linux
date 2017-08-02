@@ -2290,6 +2290,7 @@ int bnxt_re_destroy_cq(struct ib_cq *ib_cq)
 	struct bnxt_re_cq *cq = container_of(ib_cq, struct bnxt_re_cq, ib_cq);
 	struct bnxt_re_dev *rdev = cq->rdev;
 	int rc;
+	struct bnxt_qplib_nq *nq = cq->qplib_cq.nq;
 
 	rc = bnxt_qplib_destroy_cq(&rdev->qplib_res, &cq->qplib_cq);
 	if (rc) {
@@ -2304,7 +2305,7 @@ int bnxt_re_destroy_cq(struct ib_cq *ib_cq)
 		kfree(cq);
 	}
 	atomic_dec(&rdev->cq_count);
-	rdev->nq.budget--;
+	nq->budget--;
 	return 0;
 }
 
@@ -2318,6 +2319,8 @@ struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
 	struct bnxt_re_cq *cq = NULL;
 	int rc, entries;
 	int cqe = attr->cqe;
+	struct bnxt_qplib_nq *nq = NULL;
+	unsigned int nq_alloc_cnt;
 
 	/* Validate CQ fields */
 	if (cqe < 1 || cqe > dev_attr->max_cq_wqes) {
@@ -2369,9 +2372,15 @@ struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
 		cq->qplib_cq.sghead = NULL;
 		cq->qplib_cq.nmap = 0;
 	}
+	/*
+	 * Allocating the NQ in a round robin fashion. nq_alloc_cnt is a
+	 * used for getting the NQ index.
+	 */
+	nq_alloc_cnt = atomic_inc_return(&rdev->nq_alloc_cnt);
+	nq = &rdev->nq[nq_alloc_cnt % (rdev->num_msix - 1)];
 	cq->qplib_cq.max_wqe = entries;
-	cq->qplib_cq.cnq_hw_ring_id = rdev->nq.ring_id;
-	cq->qplib_cq.nq	= &rdev->nq;
+	cq->qplib_cq.cnq_hw_ring_id = nq->ring_id;
+	cq->qplib_cq.nq	= nq;
 
 	rc = bnxt_qplib_create_cq(&rdev->qplib_res, &cq->qplib_cq);
 	if (rc) {
@@ -2381,7 +2390,7 @@ struct ib_cq *bnxt_re_create_cq(struct ib_device *ibdev,
 
 	cq->ib_cq.cqe = entries;
 	cq->cq_period = cq->qplib_cq.period;
-	rdev->nq.budget++;
+	nq->budget++;
 
 	atomic_inc(&rdev->cq_count);
 

@@ -161,13 +161,15 @@ static int bnxt_re_free_msix(struct bnxt_re_dev *rdev, bool lock_wait)
 
 static int bnxt_re_request_msix(struct bnxt_re_dev *rdev)
 {
-	int rc = 0, num_msix_want = BNXT_RE_MIN_MSIX, num_msix_got;
+	int rc = 0, num_msix_want = BNXT_RE_MAX_MSIX, num_msix_got;
 	struct bnxt_en_dev *en_dev;
 
 	if (!rdev)
 		return -EINVAL;
 
 	en_dev = rdev->en_dev;
+
+	num_msix_want = min_t(u32, BNXT_RE_MAX_MSIX, num_online_cpus());
 
 	rtnl_lock();
 	num_msix_got = en_dev->en_ops->bnxt_request_msix(en_dev, BNXT_ROCE_ULP,
@@ -651,8 +653,12 @@ static int bnxt_re_cqn_handler(struct bnxt_qplib_nq *nq,
 
 static void bnxt_re_cleanup_res(struct bnxt_re_dev *rdev)
 {
-	if (rdev->nq.hwq.max_elements)
-		bnxt_qplib_disable_nq(&rdev->nq);
+	int i;
+
+	if (rdev->nq[0].hwq.max_elements) {
+		for (i = 1; i < rdev->num_msix; i++)
+			bnxt_qplib_disable_nq(&rdev->nq[i - 1]);
+	}
 
 	if (rdev->qplib_res.rcfw)
 		bnxt_qplib_cleanup_res(&rdev->qplib_res);
@@ -660,31 +666,41 @@ static void bnxt_re_cleanup_res(struct bnxt_re_dev *rdev)
 
 static int bnxt_re_init_res(struct bnxt_re_dev *rdev)
 {
-	int rc = 0;
+	int rc = 0, i;
 
 	bnxt_qplib_init_res(&rdev->qplib_res);
 
-	if (rdev->msix_entries[BNXT_RE_NQ_IDX].vector <= 0)
-		return -EINVAL;
+	for (i = 1; i < rdev->num_msix ; i++) {
+		rc = bnxt_qplib_enable_nq(rdev->en_dev->pdev, &rdev->nq[i - 1],
+					  i - 1, rdev->msix_entries[i].vector,
+					  rdev->msix_entries[i].db_offset,
+					  &bnxt_re_cqn_handler, NULL);
 
-	rc = bnxt_qplib_enable_nq(rdev->en_dev->pdev, &rdev->nq,
-				  rdev->msix_entries[BNXT_RE_NQ_IDX].vector,
-				  rdev->msix_entries[BNXT_RE_NQ_IDX].db_offset,
-				  &bnxt_re_cqn_handler,
-				  NULL);
-
-	if (rc)
-		dev_err(rdev_to_dev(rdev), "Failed to enable NQ: %#x", rc);
-
+		if (rc) {
+			dev_err(rdev_to_dev(rdev),
+				"Failed to enable NQ with rc = 0x%x", rc);
+			goto fail;
+		}
+	}
+	return 0;
+fail:
 	return rc;
+}
+
+static void bnxt_re_free_nq_res(struct bnxt_re_dev *rdev, bool lock_wait)
+{
+	int i;
+
+	for (i = 0; i < rdev->num_msix - 1; i++) {
+		bnxt_re_net_ring_free(rdev, rdev->nq[i].ring_id, lock_wait);
+		bnxt_qplib_free_nq(&rdev->nq[i]);
+	}
 }
 
 static void bnxt_re_free_res(struct bnxt_re_dev *rdev, bool lock_wait)
 {
-	if (rdev->nq.hwq.max_elements) {
-		bnxt_re_net_ring_free(rdev, rdev->nq.ring_id, lock_wait);
-		bnxt_qplib_free_nq(&rdev->nq);
-	}
+	bnxt_re_free_nq_res(rdev, lock_wait);
+
 	if (rdev->qplib_res.dpi_tbl.max) {
 		bnxt_qplib_dealloc_dpi(&rdev->qplib_res,
 				       &rdev->qplib_res.dpi_tbl,
@@ -698,7 +714,7 @@ static void bnxt_re_free_res(struct bnxt_re_dev *rdev, bool lock_wait)
 
 static int bnxt_re_alloc_res(struct bnxt_re_dev *rdev)
 {
-	int rc = 0;
+	int rc = 0, i;
 
 	/* Configure and allocate resources for qplib */
 	rdev->qplib_res.rcfw = &rdev->rcfw;
@@ -715,30 +731,42 @@ static int bnxt_re_alloc_res(struct bnxt_re_dev *rdev)
 				  &rdev->dpi_privileged,
 				  rdev);
 	if (rc)
-		goto fail;
+		goto dealloc_res;
 
-	rdev->nq.hwq.max_elements = BNXT_RE_MAX_CQ_COUNT +
-				    BNXT_RE_MAX_SRQC_COUNT + 2;
-	rc = bnxt_qplib_alloc_nq(rdev->en_dev->pdev, &rdev->nq);
-	if (rc) {
-		dev_err(rdev_to_dev(rdev),
-			"Failed to allocate NQ memory: %#x", rc);
-		goto fail;
-	}
-	rc = bnxt_re_net_ring_alloc
-			(rdev, rdev->nq.hwq.pbl[PBL_LVL_0].pg_map_arr,
-			 rdev->nq.hwq.pbl[rdev->nq.hwq.level].pg_count,
-			 HWRM_RING_ALLOC_CMPL, BNXT_QPLIB_NQE_MAX_CNT - 1,
-			 rdev->msix_entries[BNXT_RE_NQ_IDX].ring_idx,
-			 &rdev->nq.ring_id);
-	if (rc) {
-		dev_err(rdev_to_dev(rdev),
-			"Failed to allocate NQ ring: %#x", rc);
-		goto free_nq;
+	for (i = 0; i < rdev->num_msix - 1; i++) {
+		rdev->nq[i].hwq.max_elements = BNXT_RE_MAX_CQ_COUNT +
+			BNXT_RE_MAX_SRQC_COUNT + 2;
+		rc = bnxt_qplib_alloc_nq(rdev->en_dev->pdev, &rdev->nq[i]);
+		if (rc) {
+			dev_err(rdev_to_dev(rdev), "Alloc Failed NQ%d rc:%#x",
+				i, rc);
+			goto dealloc_dpi;
+		}
+		rc = bnxt_re_net_ring_alloc
+			(rdev, rdev->nq[i].hwq.pbl[PBL_LVL_0].pg_map_arr,
+			 rdev->nq[i].hwq.pbl[rdev->nq[i].hwq.level].pg_count,
+			 HWRM_RING_ALLOC_CMPL,
+			 BNXT_QPLIB_NQE_MAX_CNT - 1,
+			 rdev->msix_entries[i + 1].ring_idx,
+			 &rdev->nq[i].ring_id);
+		if (rc) {
+			dev_err(rdev_to_dev(rdev),
+				"Failed to allocate NQ fw id with rc = 0x%x",
+				rc);
+			goto free_nq;
+		}
 	}
 	return 0;
 free_nq:
-	bnxt_qplib_free_nq(&rdev->nq);
+	for (i = 0; i < rdev->num_msix - 1; i++)
+		bnxt_qplib_free_nq(&rdev->nq[i]);
+dealloc_dpi:
+	bnxt_qplib_dealloc_dpi(&rdev->qplib_res,
+			       &rdev->qplib_res.dpi_tbl,
+			       &rdev->dpi_privileged);
+dealloc_res:
+	bnxt_qplib_free_res(&rdev->qplib_res);
+
 fail:
 	rdev->qplib_res.rcfw = NULL;
 	return rc;

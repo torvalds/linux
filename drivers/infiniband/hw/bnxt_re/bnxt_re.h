@@ -85,7 +85,7 @@ struct bnxt_re_sqp_entries {
 };
 
 #define BNXT_RE_MIN_MSIX		2
-#define BNXT_RE_MAX_MSIX		16
+#define BNXT_RE_MAX_MSIX		9
 #define BNXT_RE_AEQ_IDX			0
 #define BNXT_RE_NQ_IDX			1
 
@@ -116,7 +116,7 @@ struct bnxt_re_dev {
 	struct bnxt_qplib_rcfw		rcfw;
 
 	/* NQ */
-	struct bnxt_qplib_nq		nq;
+	struct bnxt_qplib_nq		nq[BNXT_RE_MAX_MSIX];
 
 	/* Device Resources */
 	struct bnxt_qplib_dev_attr	dev_attr;
@@ -140,6 +140,7 @@ struct bnxt_re_dev {
 	struct bnxt_re_qp		*qp1_sqp;
 	struct bnxt_re_ah		*sqp_ah;
 	struct bnxt_re_sqp_entries sqp_tbl[1024];
+	atomic_t nq_alloc_cnt;
 };
 
 #define to_bnxt_re_dev(ptr, member)	\
