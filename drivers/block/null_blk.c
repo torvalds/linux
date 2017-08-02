@@ -733,9 +733,6 @@ static int null_add_dev(void)
 
 	spin_lock_init(&nullb->lock);
 
-	if (queue_mode == NULL_Q_MQ && use_per_node_hctx)
-		submit_queues = nr_online_nodes;
-
 	rv = setup_queues(nullb);
 	if (rv)
 		goto out_free_nullb;
@@ -845,8 +842,8 @@ static int __init null_init(void)
 	}
 
 	if (queue_mode == NULL_Q_MQ && use_per_node_hctx) {
-		if (submit_queues < nr_online_nodes) {
-			pr_warn("null_blk: submit_queues param is set to %u.",
+		if (submit_queues != nr_online_nodes) {
+			pr_warn("null_blk: submit_queues param is set to %u.\n",
 							nr_online_nodes);
 			submit_queues = nr_online_nodes;
 		}
