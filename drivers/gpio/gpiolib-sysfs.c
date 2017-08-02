@@ -2,6 +2,7 @@
 #include <linux/mutex.h>
 #include <linux/device.h>
 #include <linux/sysfs.h>
+#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
@@ -432,6 +433,11 @@ static struct attribute *gpiochip_attrs[] = {
 };
 ATTRIBUTE_GROUPS(gpiochip);
 
+static struct gpio_desc *gpio_to_valid_desc(int gpio)
+{
+	return gpio_is_valid(gpio) ? gpio_to_desc(gpio) : NULL;
+}
+
 /*
  * /sys/class/gpio/export ... write-only
  *	integer N ... number of GPIO to export (full access)
@@ -450,7 +456,7 @@ static ssize_t export_store(struct class *class,
 	if (status < 0)
 		goto done;
 
-	desc = gpio_to_desc(gpio);
+	desc = gpio_to_valid_desc(gpio);
 	/* reject invalid GPIOs */
 	if (!desc) {
 		pr_warn("%s: invalid GPIO %ld\n", __func__, gpio);
@@ -493,7 +499,7 @@ static ssize_t unexport_store(struct class *class,
 	if (status < 0)
 		goto done;
 
-	desc = gpio_to_desc(gpio);
+	desc = gpio_to_valid_desc(gpio);
 	/* reject bogus commands (gpio_unexport ignores them) */
 	if (!desc) {
 		pr_warn("%s: invalid GPIO %ld\n", __func__, gpio);
