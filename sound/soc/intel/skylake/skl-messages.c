@@ -253,6 +253,7 @@ int skl_init_dsp(struct skl *skl)
 	struct skl_dsp_loader_ops loader_ops;
 	int irq = bus->irq;
 	const struct skl_dsp_ops *ops;
+	struct skl_dsp_cores *cores;
 	int ret;
 
 	/* enable ppcap interrupt */
@@ -279,7 +280,19 @@ int skl_init_dsp(struct skl *skl)
 		return ret;
 
 	skl->skl_sst->dsp_ops = ops;
-	skl->skl_sst->cores.count = ops->num_cores;
+	cores = &skl->skl_sst->cores;
+	cores->count = ops->num_cores;
+
+	cores->state = kcalloc(cores->count, sizeof(*cores->state), GFP_KERNEL);
+	if (!cores->state)
+		return -ENOMEM;
+
+	cores->usage_count = kcalloc(cores->count, sizeof(*cores->usage_count),
+				     GFP_KERNEL);
+	if (!cores->usage_count) {
+		kfree(cores->state);
+		return -ENOMEM;
+	}
 
 	dev_dbg(bus->dev, "dsp registration status=%d\n", ret);
 
@@ -296,6 +309,9 @@ int skl_free_dsp(struct skl *skl)
 	snd_hdac_ext_bus_ppcap_int_enable(&skl->ebus, false);
 
 	ctx->dsp_ops->cleanup(bus->dev, ctx);
+
+	kfree(ctx->cores.state);
+	kfree(ctx->cores.usage_count);
 
 	if (ctx->dsp->addr.lpe)
 		iounmap(ctx->dsp->addr.lpe);
