@@ -60,7 +60,7 @@ static struct attribute *etm_config_formats_attr[] = {
 	NULL,
 };
 
-static struct attribute_group etm_pmu_format_group = {
+static const struct attribute_group etm_pmu_format_group = {
 	.name   = "format",
 	.attrs  = etm_config_formats_attr,
 };
