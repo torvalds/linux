@@ -1141,11 +1141,11 @@ struct fiemap_state {
 	bool		fs_enough;
 };
 
-int fiemap_for_stripe(const struct lu_env *env, struct cl_object *obj,
-		      struct lov_stripe_md *lsm,
-		      struct fiemap *fiemap, size_t *buflen,
-		      struct ll_fiemap_info_key *fmkey, int stripeno,
-		      struct fiemap_state *fs)
+static int fiemap_for_stripe(const struct lu_env *env, struct cl_object *obj,
+			     struct lov_stripe_md *lsm,
+			     struct fiemap *fiemap, size_t *buflen,
+			     struct ll_fiemap_info_key *fmkey, int stripeno,
+			     struct fiemap_state *fs)
 {
 	struct cl_object *subobj;
 	struct lov_obd *lov = lu2lov_dev(obj->co_lu.lo_dev)->ld_lov;
