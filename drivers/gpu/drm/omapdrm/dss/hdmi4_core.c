@@ -335,9 +335,6 @@ void hdmi4_configure(struct hdmi_core_data *core,
 	 */
 	hdmi_core_swreset_assert(core);
 
-	/* power down off */
-	hdmi4_core_powerdown_disable(core);
-
 	v_core_cfg.pkt_mode = HDMI_PACKETMODE24BITPERPIXEL;
 	v_core_cfg.hdmi_dvi = cfg->hdmi_dvi_mode;
 

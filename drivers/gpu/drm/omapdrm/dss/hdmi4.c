@@ -132,6 +132,8 @@ static int hdmi_power_on_core(struct omap_dss_device *dssdev)
 	if (r)
 		goto err_runtime_get;
 
+	hdmi4_core_powerdown_disable(&hdmi.core);
+
 	/* Make selection of HDMI in DSS */
 	dss_select_hdmi_venc_clk_source(DSS_HDMI_M_PCLK);
 
