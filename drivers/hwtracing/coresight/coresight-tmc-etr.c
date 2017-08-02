@@ -59,6 +59,8 @@ static void tmc_etr_enable_hw(struct tmc_drvdata *drvdata)
 
 static void tmc_etr_dump_hw(struct tmc_drvdata *drvdata)
 {
+	const u32 *barrier;
+	u32 *temp;
 	u32 rwp, val;
 
 	rwp = readl_relaxed(drvdata->base + TMC_RWP);
@@ -71,6 +73,16 @@ static void tmc_etr_dump_hw(struct tmc_drvdata *drvdata)
 	if (val & TMC_STS_FULL) {
 		drvdata->buf = drvdata->vaddr + rwp - drvdata->paddr;
 		drvdata->len = drvdata->size;
+
+		barrier = barrier_pkt;
+		temp = (u32 *)drvdata->buf;
+
+		while (*barrier) {
+			*temp = *barrier;
+			temp++;
+			barrier++;
+		}
+
 	} else {
 		drvdata->buf = drvdata->vaddr;
 		drvdata->len = rwp - drvdata->paddr;

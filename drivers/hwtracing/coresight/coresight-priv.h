@@ -56,6 +56,8 @@ static ssize_t name##_show(struct device *_dev,				\
 }									\
 static DEVICE_ATTR_RO(name)
 
+extern const u32 barrier_pkt[5];
+
 enum etm_addr_type {
 	ETM_ADDR_TYPE_NONE,
 	ETM_ADDR_TYPE_SINGLE,

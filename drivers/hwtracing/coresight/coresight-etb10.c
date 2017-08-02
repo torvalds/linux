@@ -200,8 +200,10 @@ static void etb_disable_hw(struct etb_drvdata *drvdata)
 
 static void etb_dump_hw(struct etb_drvdata *drvdata)
 {
+	bool lost = false;
 	int i;
 	u8 *buf_ptr;
+	const u32 *barrier;
 	u32 read_data, depth;
 	u32 read_ptr, write_ptr;
 	u32 frame_off, frame_endoff;
@@ -223,16 +225,24 @@ static void etb_dump_hw(struct etb_drvdata *drvdata)
 	}
 
 	if ((readl_relaxed(drvdata->base + ETB_STATUS_REG)
-		      & ETB_STATUS_RAM_FULL) == 0)
+		      & ETB_STATUS_RAM_FULL) == 0) {
 		writel_relaxed(0x0, drvdata->base + ETB_RAM_READ_POINTER);
-	else
+	} else {
 		writel_relaxed(write_ptr, drvdata->base + ETB_RAM_READ_POINTER);
+		lost = true;
+	}
 
 	depth = drvdata->buffer_depth;
 	buf_ptr = drvdata->buf;
+	barrier = barrier_pkt;
 	for (i = 0; i < depth; i++) {
 		read_data = readl_relaxed(drvdata->base +
 					  ETB_RAM_READ_DATA_REG);
+		if (lost && *barrier) {
+			read_data = *barrier;
+			barrier++;
+		}
+
 		*(u32 *)buf_ptr = read_data;
 		buf_ptr += 4;
 	}
@@ -354,6 +364,7 @@ static void etb_update_buffer(struct coresight_device *csdev,
 	bool lost = false;
 	int i, cur;
 	u8 *buf_ptr;
+	const u32 *barrier;
 	u32 read_ptr, write_ptr, capacity;
 	u32 status, read_data, to_read;
 	unsigned long offset;
@@ -438,10 +449,17 @@ static void etb_update_buffer(struct coresight_device *csdev,
 
 	cur = buf->cur;
 	offset = buf->offset;
+	barrier = barrier_pkt;
+
 	for (i = 0; i < to_read; i += 4) {
 		buf_ptr = buf->data_pages[cur] + offset;
 		read_data = readl_relaxed(drvdata->base +
 					  ETB_RAM_READ_DATA_REG);
+		if (lost && *barrier) {
+			read_data = *barrier;
+			barrier++;
+		}
+
 		*(u32 *)buf_ptr = read_data;
 		buf_ptr += 4;
 

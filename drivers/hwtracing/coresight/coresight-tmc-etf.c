@@ -43,17 +43,34 @@ static void tmc_etb_enable_hw(struct tmc_drvdata *drvdata)
 
 static void tmc_etb_dump_hw(struct tmc_drvdata *drvdata)
 {
+	bool lost = false;
 	char *bufp;
-	u32 read_data;
+	const u32 *barrier;
+	u32 read_data, status;
 	int i;
+
+	/*
+	 * Get a hold of the status register and see if a wrap around
+	 * has occurred.
+	 */
+	status = readl_relaxed(drvdata->base + TMC_STS);
+	if (status & TMC_STS_FULL)
+		lost = true;
 
 	bufp = drvdata->buf;
 	drvdata->len = 0;
+	barrier = barrier_pkt;
 	while (1) {
 		for (i = 0; i < drvdata->memwidth; i++) {
 			read_data = readl_relaxed(drvdata->base + TMC_RRD);
 			if (read_data == 0xFFFFFFFF)
 				return;
+
+			if (lost && *barrier) {
+				read_data = *barrier;
+				barrier++;
+			}
+
 			memcpy(bufp, &read_data, 4);
 			bufp += 4;
 			drvdata->len += 4;
@@ -371,6 +388,7 @@ static void tmc_update_etf_buffer(struct coresight_device *csdev,
 {
 	bool lost = false;
 	int i, cur;
+	const u32 *barrier;
 	u32 *buf_ptr;
 	u32 read_ptr, write_ptr;
 	u32 status, to_read;
@@ -451,11 +469,17 @@ static void tmc_update_etf_buffer(struct coresight_device *csdev,
 
 	cur = buf->cur;
 	offset = buf->offset;
+	barrier = barrier_pkt;
 
 	/* for every byte to read */
 	for (i = 0; i < to_read; i += 4) {
 		buf_ptr = buf->data_pages[cur] + offset;
 		*buf_ptr = readl_relaxed(drvdata->base + TMC_RRD);
+
+		if (lost && *barrier) {
+			*buf_ptr = *barrier;
+			barrier++;
+		}
 
 		offset += 4;
 		if (offset >= PAGE_SIZE) {
