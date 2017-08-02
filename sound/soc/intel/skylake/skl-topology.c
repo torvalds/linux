@@ -596,24 +596,35 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 		if (mconfig->id.pvt_id < 0)
 			return ret;
 		skl_tplg_set_module_init_data(w);
+
+		ret = skl_dsp_get_core(ctx->dsp, mconfig->core_id);
+		if (ret < 0) {
+			dev_err(ctx->dev, "Failed to wake up core %d ret=%d\n",
+						mconfig->core_id, ret);
+			return ret;
+		}
+
 		ret = skl_init_module(ctx, mconfig);
 		if (ret < 0) {
 			skl_put_pvt_id(ctx, uuid_mod, &mconfig->id.pvt_id);
-			return ret;
+			goto err;
 		}
 		skl_tplg_alloc_pipe_mcps(skl, mconfig);
 		ret = skl_tplg_set_module_params(w, ctx);
 		if (ret < 0)
-			return ret;
+			goto err;
 	}
 
 	return 0;
+err:
+	skl_dsp_put_core(ctx->dsp, mconfig->core_id);
+	return ret;
 }
 
 static int skl_tplg_unload_pipe_modules(struct skl_sst *ctx,
 	 struct skl_pipe *pipe)
 {
-	int ret;
+	int ret = 0;
 	struct skl_pipe_module *w_module = NULL;
 	struct skl_module_cfg *mconfig = NULL;
 
@@ -630,10 +641,17 @@ static int skl_tplg_unload_pipe_modules(struct skl_sst *ctx,
 				return -EIO;
 		}
 		skl_put_pvt_id(ctx, uuid_mod, &mconfig->id.pvt_id);
+
+		ret = skl_dsp_put_core(ctx->dsp, mconfig->core_id);
+		if (ret < 0) {
+			/* don't return; continue with other modules */
+			dev_err(ctx->dev, "Failed to sleep core %d ret=%d\n",
+				mconfig->core_id, ret);
+		}
 	}
 
 	/* no modules to unload in this path, so return */
-	return 0;
+	return ret;
 }
 
 /*
