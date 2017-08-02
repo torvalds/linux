@@ -243,6 +243,8 @@ void etm_set_default(struct etm_config *config)
 	}
 
 	config->ctxid_mask = 0x0;
+	/* Setting default to 1024 as per TRM recommendation */
+	config->sync_freq = 0x400;
 }
 
 void etm_config_trace_mode(struct etm_config *config)
