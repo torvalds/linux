@@ -2509,15 +2509,16 @@ int xdp_do_redirect(struct net_device *dev, struct xdp_buff *xdp,
 {
 	struct redirect_info *ri = this_cpu_ptr(&redirect_info);
 	struct net_device *fwd;
+	u32 index = ri->ifindex;
 
 	if (ri->map)
 		return xdp_do_redirect_map(dev, xdp, xdp_prog);
 
-	fwd = dev_get_by_index_rcu(dev_net(dev), ri->ifindex);
+	fwd = dev_get_by_index_rcu(dev_net(dev), index);
 	ri->ifindex = 0;
 	ri->map = NULL;
 	if (unlikely(!fwd)) {
-		bpf_warn_invalid_xdp_redirect(ri->ifindex);
+		bpf_warn_invalid_xdp_redirect(index);
 		return -EINVAL;
 	}
 
@@ -2531,11 +2532,12 @@ int xdp_do_generic_redirect(struct net_device *dev, struct sk_buff *skb)
 {
 	struct redirect_info *ri = this_cpu_ptr(&redirect_info);
 	unsigned int len;
+	u32 index = ri->ifindex;
 
-	dev = dev_get_by_index_rcu(dev_net(dev), ri->ifindex);
+	dev = dev_get_by_index_rcu(dev_net(dev), index);
 	ri->ifindex = 0;
 	if (unlikely(!dev)) {
-		bpf_warn_invalid_xdp_redirect(ri->ifindex);
+		bpf_warn_invalid_xdp_redirect(index);
 		goto err;
 	}
 
