@@ -50,6 +50,12 @@
 		bootargs = "earlycon=uart8250,mmio32,0xff690000 vmalloc=496M";
 	};
 
+	cpuinfo {
+		compatible = "rockchip,cpuinfo";
+		nvmem-cells = <&efuse_id>;
+		nvmem-cell-names = "id";
+	};
+
 	/delete-node/ dmc@ff610000;
 
 	dfi: dfi {
