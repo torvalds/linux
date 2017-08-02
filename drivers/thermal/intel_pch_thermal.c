@@ -387,7 +387,7 @@ static int intel_pch_thermal_resume(struct device *device)
 	return ptd->ops->resume(ptd);
 }
 
-static struct pci_device_id intel_pch_thermal_id[] = {
+static const struct pci_device_id intel_pch_thermal_id[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_HSW_1),
 		.driver_data = board_hsw, },
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCH_THERMAL_DID_HSW_2),
