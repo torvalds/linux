@@ -2097,7 +2097,11 @@ MODULE_PARM_DESC(finject, "enable fault simulation, 0 - off, 1 - on, for debug p
 static inline void ssd_bio_endio(struct bio *bio, int error)
 {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,4,0))
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4,13,0))
 	bio->bi_error = error;
+#else
+	bio->bi_status = errno_to_blk_status(error);
+#endif
 	bio_endio(bio);
 #elif (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,24))
 	bio_endio(bio, error);
@@ -8457,7 +8461,9 @@ static int ssd_make_request(struct request_queue *q, struct bio *bio)
 		goto out;
 	}
 
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,3,0))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,13,0))
+	blk_queue_split(q, &bio);
+#elif (LINUX_VERSION_CODE >= KERNEL_VERSION(4,3,0))
 	blk_queue_split(q, &bio, q->bio_split);
 #endif
 
