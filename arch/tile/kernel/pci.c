@@ -67,16 +67,6 @@ static struct pci_ops tile_cfg_ops;
 
 
 /*
- * We don't need to worry about the alignment of resources.
- */
-resource_size_t pcibios_align_resource(void *data, const struct resource *res,
-			    resource_size_t size, resource_size_t align)
-{
-	return res->start;
-}
-EXPORT_SYMBOL(pcibios_align_resource);
-
-/*
  * Open a FD to the hypervisor PCI device.
  *
  * controller_id is the controller number, config type is 0 or 1 for

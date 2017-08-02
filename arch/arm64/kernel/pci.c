@@ -22,15 +22,6 @@
 #include <linux/pci-ecam.h>
 #include <linux/slab.h>
 
-/*
- * We don't have to worry about legacy ISA devices, so nothing to do here
- */
-resource_size_t pcibios_align_resource(void *data, const struct resource *res,
-				resource_size_t size, resource_size_t align)
-{
-	return res->start;
-}
-
 #ifdef CONFIG_ACPI
 /*
  * Try to assign the IRQ number when probing a new device
