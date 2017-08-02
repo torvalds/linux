@@ -19,12 +19,6 @@ void lkdtm_SOFTLOCKUP(void);
 void lkdtm_HARDLOCKUP(void);
 void lkdtm_SPINLOCKUP(void);
 void lkdtm_HUNG_TASK(void);
-void lkdtm_REFCOUNT_SATURATE_INC(void);
-void lkdtm_REFCOUNT_SATURATE_ADD(void);
-void lkdtm_REFCOUNT_ZERO_DEC(void);
-void lkdtm_REFCOUNT_ZERO_INC(void);
-void lkdtm_REFCOUNT_ZERO_SUB(void);
-void lkdtm_REFCOUNT_ZERO_ADD(void);
 void lkdtm_CORRUPT_LIST_ADD(void);
 void lkdtm_CORRUPT_LIST_DEL(void);
 void lkdtm_CORRUPT_USER_DS(void);
@@ -48,6 +42,27 @@ void lkdtm_EXEC_VMALLOC(void);
 void lkdtm_EXEC_RODATA(void);
 void lkdtm_EXEC_USERSPACE(void);
 void lkdtm_ACCESS_USERSPACE(void);
+
+/* lkdtm_refcount.c */
+void lkdtm_REFCOUNT_INC_OVERFLOW(void);
+void lkdtm_REFCOUNT_ADD_OVERFLOW(void);
+void lkdtm_REFCOUNT_INC_NOT_ZERO_OVERFLOW(void);
+void lkdtm_REFCOUNT_ADD_NOT_ZERO_OVERFLOW(void);
+void lkdtm_REFCOUNT_DEC_ZERO(void);
+void lkdtm_REFCOUNT_DEC_NEGATIVE(void);
+void lkdtm_REFCOUNT_DEC_AND_TEST_NEGATIVE(void);
+void lkdtm_REFCOUNT_SUB_AND_TEST_NEGATIVE(void);
+void lkdtm_REFCOUNT_INC_ZERO(void);
+void lkdtm_REFCOUNT_ADD_ZERO(void);
+void lkdtm_REFCOUNT_INC_SATURATED(void);
+void lkdtm_REFCOUNT_DEC_SATURATED(void);
+void lkdtm_REFCOUNT_ADD_SATURATED(void);
+void lkdtm_REFCOUNT_INC_NOT_ZERO_SATURATED(void);
+void lkdtm_REFCOUNT_ADD_NOT_ZERO_SATURATED(void);
+void lkdtm_REFCOUNT_DEC_AND_TEST_SATURATED(void);
+void lkdtm_REFCOUNT_SUB_AND_TEST_SATURATED(void);
+void lkdtm_REFCOUNT_TIMING(void);
+void lkdtm_ATOMIC_TIMING(void);
 
 /* lkdtm_rodata.c */
 void lkdtm_rodata_do_nothing(void);
