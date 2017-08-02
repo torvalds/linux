@@ -381,12 +381,15 @@ static inline void dqput_all(struct dquot **dquot)
 		dqput(dquot[cnt]);
 }
 
-/* This function needs dq_list_lock */
 static inline int clear_dquot_dirty(struct dquot *dquot)
 {
-	if (!test_and_clear_bit(DQ_MOD_B, &dquot->dq_flags))
+	spin_lock(&dq_list_lock);
+	if (!test_and_clear_bit(DQ_MOD_B, &dquot->dq_flags)) {
+		spin_unlock(&dq_list_lock);
 		return 0;
+	}
 	list_del_init(&dquot->dq_dirty);
+	spin_unlock(&dq_list_lock);
 	return 1;
 }
 
@@ -451,12 +454,8 @@ int dquot_commit(struct dquot *dquot)
 	struct quota_info *dqopt = sb_dqopt(dquot->dq_sb);
 
 	mutex_lock(&dquot->dq_lock);
-	spin_lock(&dq_list_lock);
-	if (!clear_dquot_dirty(dquot)) {
-		spin_unlock(&dq_list_lock);
+	if (!clear_dquot_dirty(dquot))
 		goto out_lock;
-	}
-	spin_unlock(&dq_list_lock);
 	/* Inactive dquot can be only if there was error during read/init
 	 * => we have better not writing it */
 	if (test_bit(DQ_ACTIVE_B, &dquot->dq_flags))
@@ -772,9 +771,7 @@ we_slept:
 			 * We clear dirty bit anyway, so that we avoid
 			 * infinite loop here
 			 */
-			spin_lock(&dq_list_lock);
 			clear_dquot_dirty(dquot);
-			spin_unlock(&dq_list_lock);
 		}
 		goto we_slept;
 	}
