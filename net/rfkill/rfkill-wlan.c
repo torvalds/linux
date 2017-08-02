@@ -454,7 +454,14 @@ u8 wifi_custom_mac_addr[6] = {0,0,0,0,0,0};
 static int get_wifi_addr_vendor(unsigned char *addr)
 {
 	int ret;
+	int count = 5;
 
+	while (count-- > 0) {
+		if (is_rk_vendor_ready())
+			break;
+		/* sleep 500ms wait rk vendor driver ready */
+		msleep(500);
+	}
 	ret = rk_vendor_read(WIFI_MAC_ID, addr, 6);
 	if (ret != 6 || is_zero_ether_addr(addr)) {
 		LOG("%s: rk_vendor_read wifi mac address failed (%d)\n",

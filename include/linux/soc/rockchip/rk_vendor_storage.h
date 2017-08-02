@@ -19,5 +19,6 @@
 int rk_vendor_read(u32 id, void *pbuf, u32 size);
 int rk_vendor_write(u32 id, void *pbuf, u32 size);
 int rk_vendor_register(void *read, void *write);
+bool is_rk_vendor_ready(void);
 
 #endif

@@ -38,3 +38,11 @@ int rk_vendor_register(void *read, void *write)
 	return -1;
 }
 EXPORT_SYMBOL(rk_vendor_register);
+
+bool is_rk_vendor_ready(void)
+{
+	if (_vendor_read && _vendor_write)
+		return true;
+	return false;
+}
+EXPORT_SYMBOL(is_rk_vendor_ready);
