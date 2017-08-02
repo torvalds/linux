@@ -32,6 +32,8 @@
 #include <linux/hyperv.h>
 #include <linux/export.h>
 #include <asm/hyperv.h>
+#include <asm/mshyperv.h>
+
 #include "hyperv_vmbus.h"
 
 
