@@ -398,7 +398,7 @@ static inline void gtp0_push_header(struct sk_buff *skb, struct pdp_ctx *pctx)
 	int payload_len = skb->len;
 	struct gtp0_header *gtp0;
 
-	gtp0 = (struct gtp0_header *) skb_push(skb, sizeof(*gtp0));
+	gtp0 = skb_push(skb, sizeof(*gtp0));
 
 	gtp0->flags	= 0x1e; /* v0, GTP-non-prime. */
 	gtp0->type	= GTP_TPDU;
@@ -415,7 +415,7 @@ static inline void gtp1_push_header(struct sk_buff *skb, struct pdp_ctx *pctx)
 	int payload_len = skb->len;
 	struct gtp1_header *gtp1;
 
-	gtp1 = (struct gtp1_header *) skb_push(skb, sizeof(*gtp1));
+	gtp1 = skb_push(skb, sizeof(*gtp1));
 
 	/* Bits    8  7  6  5  4  3  2	1
 	 *	  +--+--+--+--+--+--+--+--+
@@ -636,7 +636,8 @@ static void gtp_hashtable_free(struct gtp_dev *gtp);
 static int gtp_encap_enable(struct gtp_dev *gtp, struct nlattr *data[]);
 
 static int gtp_newlink(struct net *src_net, struct net_device *dev,
-			struct nlattr *tb[], struct nlattr *data[])
+		       struct nlattr *tb[], struct nlattr *data[],
+		       struct netlink_ext_ack *extack)
 {
 	struct gtp_dev *gtp;
 	struct gtp_net *gn;
@@ -697,7 +698,8 @@ static const struct nla_policy gtp_policy[IFLA_GTP_MAX + 1] = {
 	[IFLA_GTP_ROLE]			= { .type = NLA_U32 },
 };
 
-static int gtp_validate(struct nlattr *tb[], struct nlattr *data[])
+static int gtp_validate(struct nlattr *tb[], struct nlattr *data[],
+			struct netlink_ext_ack *extack)
 {
 	if (!data)
 		return -EINVAL;

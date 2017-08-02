@@ -15,7 +15,7 @@ FE_SET_VOLTAGE - Allow setting the DC level sent to the antenna subsystem.
 Synopsis
 ========
 
-.. c:function:: int ioctl( int fd, FE_SET_VOLTAGE, enum fe_sec_voltage *voltage )
+.. c:function:: int ioctl( int fd, FE_SET_VOLTAGE, enum fe_sec_voltage voltage )
     :name: FE_SET_VOLTAGE
 
 
@@ -26,10 +26,7 @@ Arguments
     File descriptor returned by :ref:`open() <frontend_f_open>`.
 
 ``voltage``
-    pointer to enum :c:type:`fe_sec_voltage`
-
-    Valid values are described at enum
-    :c:type:`fe_sec_voltage`.
+    an integer enumered value described at :c:type:`fe_sec_voltage`
 
 
 Description

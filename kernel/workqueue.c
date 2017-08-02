@@ -2864,11 +2864,11 @@ bool flush_work(struct work_struct *work)
 EXPORT_SYMBOL_GPL(flush_work);
 
 struct cwt_wait {
-	wait_queue_t		wait;
+	wait_queue_entry_t		wait;
 	struct work_struct	*work;
 };
 
-static int cwt_wakefn(wait_queue_t *wait, unsigned mode, int sync, void *key)
+static int cwt_wakefn(wait_queue_entry_t *wait, unsigned mode, int sync, void *key)
 {
 	struct cwt_wait *cwait = container_of(wait, struct cwt_wait, wait);
 

@@ -69,9 +69,9 @@ static void opa_vnic_get_stats64(struct net_device *netdev,
 	struct opa_vnic_stats vstats;
 
 	memset(&vstats, 0, sizeof(vstats));
-	mutex_lock(&adapter->stats_lock);
+	spin_lock(&adapter->stats_lock);
 	adapter->rn_ops->ndo_get_stats64(netdev, &vstats.netstats);
-	mutex_unlock(&adapter->stats_lock);
+	spin_unlock(&adapter->stats_lock);
 	memcpy(stats, &vstats.netstats, sizeof(*stats));
 }
 
@@ -103,7 +103,7 @@ static u16 opa_vnic_select_queue(struct net_device *netdev, struct sk_buff *skb,
 	int rc;
 
 	/* pass entropy and vl as metadata in skb */
-	mdata = (struct opa_vnic_skb_mdata *)skb_push(skb, sizeof(*mdata));
+	mdata = skb_push(skb, sizeof(*mdata));
 	mdata->entropy =  opa_vnic_calc_entropy(adapter, skb);
 	mdata->vl = opa_vnic_get_vl(adapter, skb);
 	rc = adapter->rn_ops->ndo_select_queue(netdev, skb,
@@ -323,13 +323,13 @@ struct opa_vnic_adapter *opa_vnic_add_netdev(struct ib_device *ibdev,
 	else if (IS_ERR(netdev))
 		return ERR_CAST(netdev);
 
+	rn = netdev_priv(netdev);
 	adapter = kzalloc(sizeof(*adapter), GFP_KERNEL);
 	if (!adapter) {
 		rc = -ENOMEM;
 		goto adapter_err;
 	}
 
-	rn = netdev_priv(netdev);
 	rn->clnt_priv = adapter;
 	rn->hca = ibdev;
 	rn->port_num = port_num;
@@ -344,7 +344,7 @@ struct opa_vnic_adapter *opa_vnic_add_netdev(struct ib_device *ibdev,
 	netdev->hard_header_len += OPA_VNIC_SKB_HEADROOM;
 	mutex_init(&adapter->lock);
 	mutex_init(&adapter->mactbl_lock);
-	mutex_init(&adapter->stats_lock);
+	spin_lock_init(&adapter->stats_lock);
 
 	SET_NETDEV_DEV(netdev, ibdev->dev.parent);
 
@@ -364,10 +364,9 @@ struct opa_vnic_adapter *opa_vnic_add_netdev(struct ib_device *ibdev,
 netdev_err:
 	mutex_destroy(&adapter->lock);
 	mutex_destroy(&adapter->mactbl_lock);
-	mutex_destroy(&adapter->stats_lock);
 	kfree(adapter);
 adapter_err:
-	ibdev->free_rdma_netdev(netdev);
+	rn->free_rdma_netdev(netdev);
 
 	return ERR_PTR(rc);
 }
@@ -376,14 +375,13 @@ adapter_err:
 void opa_vnic_rem_netdev(struct opa_vnic_adapter *adapter)
 {
 	struct net_device *netdev = adapter->netdev;
-	struct ib_device *ibdev = adapter->ibdev;
+	struct rdma_netdev *rn = netdev_priv(netdev);
 
 	v_info("removing\n");
 	unregister_netdev(netdev);
 	opa_vnic_release_mac_tbl(adapter);
 	mutex_destroy(&adapter->lock);
 	mutex_destroy(&adapter->mactbl_lock);
-	mutex_destroy(&adapter->stats_lock);
 	kfree(adapter);
-	ibdev->free_rdma_netdev(netdev);
+	rn->free_rdma_netdev(netdev);
 }

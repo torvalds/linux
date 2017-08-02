@@ -548,7 +548,7 @@ static void raid0_handle_discard(struct mddev *mddev, struct bio *bio)
 	bio_endio(bio);
 }
 
-static void raid0_make_request(struct mddev *mddev, struct bio *bio)
+static bool raid0_make_request(struct mddev *mddev, struct bio *bio)
 {
 	struct strip_zone *zone;
 	struct md_rdev *tmp_dev;
@@ -559,12 +559,12 @@ static void raid0_make_request(struct mddev *mddev, struct bio *bio)
 
 	if (unlikely(bio->bi_opf & REQ_PREFLUSH)) {
 		md_flush_request(mddev, bio);
-		return;
+		return true;
 	}
 
 	if (unlikely((bio_op(bio) == REQ_OP_DISCARD))) {
 		raid0_handle_discard(mddev, bio);
-		return;
+		return true;
 	}
 
 	bio_sector = bio->bi_iter.bi_sector;
@@ -599,6 +599,7 @@ static void raid0_make_request(struct mddev *mddev, struct bio *bio)
 	mddev_check_writesame(mddev, bio);
 	mddev_check_write_zeroes(mddev, bio);
 	generic_make_request(bio);
+	return true;
 }
 
 static void raid0_status(struct seq_file *seq, struct mddev *mddev)

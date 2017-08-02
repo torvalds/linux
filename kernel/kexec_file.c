@@ -26,13 +26,6 @@
 #include <linux/vmalloc.h>
 #include "kexec_internal.h"
 
-/*
- * Declare these symbols weak so that if architecture provides a purgatory,
- * these will be overridden.
- */
-char __weak kexec_purgatory[0];
-size_t __weak kexec_purgatory_size = 0;
-
 static int kexec_calculate_store_digests(struct kimage *image);
 
 /* Architectures can provide this probe function */
@@ -162,16 +155,10 @@ kimage_file_prepare_segments(struct kimage *image, int kernel_fd, int initrd_fd,
 	}
 
 	if (cmdline_len) {
-		image->cmdline_buf = kzalloc(cmdline_len, GFP_KERNEL);
-		if (!image->cmdline_buf) {
-			ret = -ENOMEM;
-			goto out;
-		}
-
-		ret = copy_from_user(image->cmdline_buf, cmdline_ptr,
-				     cmdline_len);
-		if (ret) {
-			ret = -EFAULT;
+		image->cmdline_buf = memdup_user(cmdline_ptr, cmdline_len);
+		if (IS_ERR(image->cmdline_buf)) {
+			ret = PTR_ERR(image->cmdline_buf);
+			image->cmdline_buf = NULL;
 			goto out;
 		}
 
@@ -301,6 +288,14 @@ SYSCALL_DEFINE5(kexec_file_load, int, kernel_fd, int, initrd_fd,
 		goto out;
 
 	ret = machine_kexec_prepare(image);
+	if (ret)
+		goto out;
+
+	/*
+	 * Some architecture(like S390) may touch the crash memory before
+	 * machine_kexec_prepare(), we must copy vmcoreinfo data after it.
+	 */
+	ret = kimage_crash_copy_vmcoreinfo(image);
 	if (ret)
 		goto out;
 

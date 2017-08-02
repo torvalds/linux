@@ -303,7 +303,7 @@ static int ll_readdir(struct file *filp, struct dir_context *ctx)
 	struct md_op_data *op_data;
 	int			rc;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p) pos/size %lu/%llu 32bit_api %d\n",
+	CDEBUG(D_VFSTRACE, "VFS Op:inode=" DFID "(%p) pos/size %lu/%llu 32bit_api %d\n",
 	       PFID(ll_inode2fid(inode)), inode, (unsigned long)pos,
 	       i_size_read(inode), api32);
 
@@ -419,7 +419,7 @@ static int ll_dir_setdirstripe(struct inode *parent, struct lmv_user_md *lump,
 	if (unlikely(lump->lum_magic != LMV_USER_MAGIC))
 		return -EINVAL;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p) name %s stripe_offset %d, stripe_count: %u\n",
+	CDEBUG(D_VFSTRACE, "VFS Op:inode=" DFID "(%p) name %s stripe_offset %d, stripe_count: %u\n",
 	       PFID(ll_inode2fid(parent)), parent, dirname,
 	       (int)lump->lum_stripe_offset, lump->lum_stripe_count);
 
@@ -606,7 +606,7 @@ int ll_dir_getstripe(struct inode *inode, void **plmm, int *plmm_size,
 	rc = md_getattr(sbi->ll_md_exp, op_data, &req);
 	ll_finish_md_op_data(op_data);
 	if (rc < 0) {
-		CDEBUG(D_INFO, "md_getattr failed on inode "DFID": rc %d\n",
+		CDEBUG(D_INFO, "md_getattr failed on inode " DFID ": rc %d\n",
 		       PFID(ll_inode2fid(inode)), rc);
 		goto out;
 	}
@@ -733,7 +733,7 @@ static int ll_ioc_copy_start(struct super_block *sb, struct hsm_copy *copy)
 		iput(inode);
 		if (rc != 0) {
 			CDEBUG(D_HSM, "Could not read file data version of "
-				      DFID" (rc = %d). Archive request (%#llx) could not be done.\n",
+				      DFID " (rc = %d). Archive request (%#llx) could not be done.\n",
 				      PFID(&copy->hc_hai.hai_fid), rc,
 				      copy->hc_hai.hai_cookie);
 			hpk.hpk_flags |= HP_FLAG_RETRY;
@@ -833,7 +833,7 @@ static int ll_ioc_copy_end(struct super_block *sb, struct hsm_copy *copy)
 		if ((copy->hc_hai.hai_action == HSMA_ARCHIVE) &&
 		    (copy->hc_data_version != data_version)) {
 			CDEBUG(D_HSM, "File data version mismatched. File content was changed during archiving. "
-			       DFID", start:%#llx current:%#llx\n",
+			       DFID ", start:%#llx current:%#llx\n",
 			       PFID(&copy->hc_hai.hai_fid),
 			       copy->hc_data_version, data_version);
 			/* File was changed, send error to cdt. Do not ask for
@@ -1037,7 +1037,7 @@ static long ll_dir_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct obd_ioctl_data *data;
 	int rc = 0;
 
-	CDEBUG(D_VFSTRACE, "VFS Op:inode="DFID"(%p), cmd=%#x\n",
+	CDEBUG(D_VFSTRACE, "VFS Op:inode=" DFID "(%p), cmd=%#x\n",
 	       PFID(ll_inode2fid(inode)), inode, cmd);
 
 	/* asm-ppc{,64} declares TCGETS, et. al. as type 't' not 'T' */
@@ -1141,7 +1141,7 @@ out_free:
 		}
 
 #if OBD_OCD_VERSION(2, 9, 50, 0) > LUSTRE_VERSION_CODE
-		mode = data->ioc_type != 0 ? data->ioc_type : S_IRWXUGO;
+		mode = data->ioc_type != 0 ? data->ioc_type : 0777;
 #else
 		mode = data->ioc_type;
 #endif

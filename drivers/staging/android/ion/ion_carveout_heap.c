@@ -33,7 +33,7 @@ struct ion_carveout_heap {
 };
 
 static phys_addr_t ion_carveout_allocate(struct ion_heap *heap,
-					     unsigned long size)
+					 unsigned long size)
 {
 	struct ion_carveout_heap *carveout_heap =
 		container_of(heap, struct ion_carveout_heap, heap);

@@ -809,7 +809,7 @@ static netdev_tx_t kaweth_start_xmit(struct sk_buff *skb,
 		return NETDEV_TX_OK;
 	}
 
-	private_header = (__le16 *)__skb_push(skb, 2);
+	private_header = __skb_push(skb, 2);
 	*private_header = cpu_to_le16(skb->len-2);
 	kaweth->tx_skb = skb;
 

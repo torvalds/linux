@@ -154,7 +154,7 @@ asmlinkage void __weak plat_irq_dispatch(void)
 static int mips_cpu_intc_map(struct irq_domain *d, unsigned int irq,
 			     irq_hw_number_t hw)
 {
-	static struct irq_chip *chip;
+	struct irq_chip *chip;
 
 	if (hw < 2 && cpu_has_mipsmt) {
 		/* Software interrupts are used for MT/CMT IPI */
@@ -240,7 +240,7 @@ static void mips_cpu_register_ipi_domain(struct device_node *of_node)
 					      ipi_domain_state);
 	if (!ipi_domain)
 		panic("Failed to add MIPS CPU IPI domain");
-	ipi_domain->bus_token = DOMAIN_BUS_IPI;
+	irq_domain_update_bus_token(ipi_domain, DOMAIN_BUS_IPI);
 }
 
 #else /* !CONFIG_GENERIC_IRQ_IPI */

@@ -473,8 +473,12 @@ config USB_OHCI_HCD_AT91
 config USB_OHCI_HCD_OMAP3
 	tristate "OHCI support for OMAP3 and later chips"
 	depends on (ARCH_OMAP3 || ARCH_OMAP4 || SOC_OMAP5)
+	select USB_OHCI_HCD_PLATFORM
 	default y
-	---help---
+	help
+	  This option is deprecated now and the driver was removed, use
+	  USB_OHCI_HCD_PLATFORM instead.
+
 	  Enables support for the on-chip OHCI controller on
 	  OMAP3 and later chips.
 
@@ -627,7 +631,11 @@ config USB_UHCI_SUPPORT_NON_PCI_HC
 
 config USB_UHCI_PLATFORM
 	bool
-	default y if ARCH_VT8500
+	default y if (ARCH_VT8500 || ARCH_ASPEED)
+
+config USB_UHCI_ASPEED
+       bool
+       default y if ARCH_ASPEED
 
 config USB_UHCI_BIG_ENDIAN_MMIO
 	bool

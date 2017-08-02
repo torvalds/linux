@@ -12,7 +12,9 @@
  * (at your option) any later version.
  */
 
-#include "mv88e6xxx.h"
+#include <linux/bitfield.h>
+
+#include "chip.h"
 #include "global1.h"
 
 int mv88e6xxx_g1_read(struct mv88e6xxx_chip *chip, int reg, u16 *val)
@@ -42,13 +44,13 @@ static int mv88e6185_g1_wait_ppu_disabled(struct mv88e6xxx_chip *chip)
 	int i, err;
 
 	for (i = 0; i < 16; i++) {
-		err = mv88e6xxx_g1_read(chip, GLOBAL_STATUS, &state);
+		err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_STS, &state);
 		if (err)
 			return err;
 
 		/* Check the value of the PPUState bits 15:14 */
-		state &= GLOBAL_STATUS_PPU_STATE_MASK;
-		if (state != GLOBAL_STATUS_PPU_STATE_POLLING)
+		state &= MV88E6185_G1_STS_PPU_STATE_MASK;
+		if (state != MV88E6185_G1_STS_PPU_STATE_POLLING)
 			return 0;
 
 		usleep_range(1000, 2000);
@@ -63,13 +65,13 @@ static int mv88e6185_g1_wait_ppu_polling(struct mv88e6xxx_chip *chip)
 	int i, err;
 
 	for (i = 0; i < 16; ++i) {
-		err = mv88e6xxx_g1_read(chip, GLOBAL_STATUS, &state);
+		err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_STS, &state);
 		if (err)
 			return err;
 
 		/* Check the value of the PPUState bits 15:14 */
-		state &= GLOBAL_STATUS_PPU_STATE_MASK;
-		if (state == GLOBAL_STATUS_PPU_STATE_POLLING)
+		state &= MV88E6185_G1_STS_PPU_STATE_MASK;
+		if (state == MV88E6185_G1_STS_PPU_STATE_POLLING)
 			return 0;
 
 		usleep_range(1000, 2000);
@@ -84,12 +86,12 @@ static int mv88e6352_g1_wait_ppu_polling(struct mv88e6xxx_chip *chip)
 	int i, err;
 
 	for (i = 0; i < 16; ++i) {
-		err = mv88e6xxx_g1_read(chip, GLOBAL_STATUS, &state);
+		err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_STS, &state);
 		if (err)
 			return err;
 
 		/* Check the value of the PPUState (or InitState) bit 15 */
-		if (state & GLOBAL_STATUS_PPU_STATE)
+		if (state & MV88E6352_G1_STS_PPU_STATE)
 			return 0;
 
 		usleep_range(1000, 2000);
@@ -109,11 +111,11 @@ static int mv88e6xxx_g1_wait_init_ready(struct mv88e6xxx_chip *chip)
 	 * have finished their initialization and are ready to accept frames.
 	 */
 	while (time_before(jiffies, timeout)) {
-		err = mv88e6xxx_g1_read(chip, GLOBAL_STATUS, &val);
+		err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_STS, &val);
 		if (err)
 			return err;
 
-		if (val & GLOBAL_STATUS_INIT_READY)
+		if (val & MV88E6XXX_G1_STS_INIT_READY)
 			break;
 
 		usleep_range(1000, 2000);
@@ -121,6 +123,33 @@ static int mv88e6xxx_g1_wait_init_ready(struct mv88e6xxx_chip *chip)
 
 	if (time_after(jiffies, timeout))
 		return -ETIMEDOUT;
+
+	return 0;
+}
+
+/* Offset 0x01: Switch MAC Address Register Bytes 0 & 1
+ * Offset 0x02: Switch MAC Address Register Bytes 2 & 3
+ * Offset 0x03: Switch MAC Address Register Bytes 4 & 5
+ */
+int mv88e6xxx_g1_set_switch_mac(struct mv88e6xxx_chip *chip, u8 *addr)
+{
+	u16 reg;
+	int err;
+
+	reg = (addr[0] << 8) | addr[1];
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_MAC_01, reg);
+	if (err)
+		return err;
+
+	reg = (addr[2] << 8) | addr[3];
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_MAC_23, reg);
+	if (err)
+		return err;
+
+	reg = (addr[4] << 8) | addr[5];
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_MAC_45, reg);
+	if (err)
+		return err;
 
 	return 0;
 }
@@ -135,14 +164,14 @@ int mv88e6185_g1_reset(struct mv88e6xxx_chip *chip)
 	/* Set the SWReset bit 15 along with the PPUEn bit 14, to also restart
 	 * the PPU, including re-doing PHY detection and initialization
 	 */
-	err = mv88e6xxx_g1_read(chip, GLOBAL_CONTROL, &val);
+	err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_CTL1, &val);
 	if (err)
 		return err;
 
-	val |= GLOBAL_CONTROL_SW_RESET;
-	val |= GLOBAL_CONTROL_PPU_ENABLE;
+	val |= MV88E6XXX_G1_CTL1_SW_RESET;
+	val |= MV88E6XXX_G1_CTL1_PPU_ENABLE;
 
-	err = mv88e6xxx_g1_write(chip, GLOBAL_CONTROL, val);
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_CTL1, val);
 	if (err)
 		return err;
 
@@ -159,13 +188,13 @@ int mv88e6352_g1_reset(struct mv88e6xxx_chip *chip)
 	int err;
 
 	/* Set the SWReset bit 15 */
-	err = mv88e6xxx_g1_read(chip, GLOBAL_CONTROL, &val);
+	err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_CTL1, &val);
 	if (err)
 		return err;
 
-	val |= GLOBAL_CONTROL_SW_RESET;
+	val |= MV88E6XXX_G1_CTL1_SW_RESET;
 
-	err = mv88e6xxx_g1_write(chip, GLOBAL_CONTROL, val);
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_CTL1, val);
 	if (err)
 		return err;
 
@@ -181,13 +210,13 @@ int mv88e6185_g1_ppu_enable(struct mv88e6xxx_chip *chip)
 	u16 val;
 	int err;
 
-	err = mv88e6xxx_g1_read(chip, GLOBAL_CONTROL, &val);
+	err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_CTL1, &val);
 	if (err)
 		return err;
 
-	val |= GLOBAL_CONTROL_PPU_ENABLE;
+	val |= MV88E6XXX_G1_CTL1_PPU_ENABLE;
 
-	err = mv88e6xxx_g1_write(chip, GLOBAL_CONTROL, val);
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_CTL1, val);
 	if (err)
 		return err;
 
@@ -199,13 +228,13 @@ int mv88e6185_g1_ppu_disable(struct mv88e6xxx_chip *chip)
 	u16 val;
 	int err;
 
-	err = mv88e6xxx_g1_read(chip, GLOBAL_CONTROL, &val);
+	err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_CTL1, &val);
 	if (err)
 		return err;
 
-	val &= ~GLOBAL_CONTROL_PPU_ENABLE;
+	val &= ~MV88E6XXX_G1_CTL1_PPU_ENABLE;
 
-	err = mv88e6xxx_g1_write(chip, GLOBAL_CONTROL, val);
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_CTL1, val);
 	if (err)
 		return err;
 
@@ -220,17 +249,17 @@ int mv88e6095_g1_set_egress_port(struct mv88e6xxx_chip *chip, int port)
 	u16 reg;
 	int err;
 
-	err = mv88e6xxx_g1_read(chip, GLOBAL_MONITOR_CONTROL, &reg);
+	err = mv88e6xxx_g1_read(chip, MV88E6185_G1_MONITOR_CTL, &reg);
 	if (err)
 		return err;
 
-	reg &= ~(GLOBAL_MONITOR_CONTROL_INGRESS_MASK |
-		 GLOBAL_MONITOR_CONTROL_EGRESS_MASK);
+	reg &= ~(MV88E6185_G1_MONITOR_CTL_INGRESS_DEST_MASK |
+		 MV88E6185_G1_MONITOR_CTL_EGRESS_DEST_MASK);
 
-	reg |= port << GLOBAL_MONITOR_CONTROL_INGRESS_SHIFT |
-		port << GLOBAL_MONITOR_CONTROL_EGRESS_SHIFT;
+	reg |= port << __bf_shf(MV88E6185_G1_MONITOR_CTL_INGRESS_DEST_MASK) |
+		port << __bf_shf(MV88E6185_G1_MONITOR_CTL_EGRESS_DEST_MASK);
 
-	return mv88e6xxx_g1_write(chip, GLOBAL_MONITOR_CONTROL, reg);
+	return mv88e6xxx_g1_write(chip, MV88E6185_G1_MONITOR_CTL, reg);
 }
 
 /* Older generations also call this the ARP destination. It has been
@@ -242,14 +271,14 @@ int mv88e6095_g1_set_cpu_port(struct mv88e6xxx_chip *chip, int port)
 	u16 reg;
 	int err;
 
-	err = mv88e6xxx_g1_read(chip, GLOBAL_MONITOR_CONTROL, &reg);
+	err = mv88e6xxx_g1_read(chip, MV88E6185_G1_MONITOR_CTL, &reg);
 	if (err)
 		return err;
 
-	reg &= ~GLOBAL_MONITOR_CONTROL_ARP_MASK;
-	reg |= port << GLOBAL_MONITOR_CONTROL_ARP_SHIFT;
+	reg &= ~MV88E6185_G1_MONITOR_CTL_ARP_DEST_MASK;
+	reg |= port << __bf_shf(MV88E6185_G1_MONITOR_CTL_ARP_DEST_MASK);
 
-	return mv88e6xxx_g1_write(chip, GLOBAL_MONITOR_CONTROL, reg);
+	return mv88e6xxx_g1_write(chip, MV88E6185_G1_MONITOR_CTL, reg);
 }
 
 static int mv88e6390_g1_monitor_write(struct mv88e6xxx_chip *chip,
@@ -257,55 +286,66 @@ static int mv88e6390_g1_monitor_write(struct mv88e6xxx_chip *chip,
 {
 	u16 reg;
 
-	reg = GLOBAL_MONITOR_CONTROL_UPDATE | pointer | data;
+	reg = MV88E6390_G1_MONITOR_MGMT_CTL_UPDATE | pointer | data;
 
-	return mv88e6xxx_g1_write(chip, GLOBAL_MONITOR_CONTROL, reg);
+	return mv88e6xxx_g1_write(chip, MV88E6390_G1_MONITOR_MGMT_CTL, reg);
 }
 
 int mv88e6390_g1_set_egress_port(struct mv88e6xxx_chip *chip, int port)
 {
+	u16 ptr;
 	int err;
 
-	err = mv88e6390_g1_monitor_write(chip, GLOBAL_MONITOR_CONTROL_INGRESS,
-					 port);
+	ptr = MV88E6390_G1_MONITOR_MGMT_CTL_PTR_INGRESS_DEST;
+	err = mv88e6390_g1_monitor_write(chip, ptr, port);
 	if (err)
 		return err;
 
-	return mv88e6390_g1_monitor_write(chip, GLOBAL_MONITOR_CONTROL_EGRESS,
-					  port);
+	ptr = MV88E6390_G1_MONITOR_MGMT_CTL_PTR_EGRESS_DEST;
+	err = mv88e6390_g1_monitor_write(chip, ptr, port);
+	if (err)
+		return err;
+
+	return 0;
 }
 
 int mv88e6390_g1_set_cpu_port(struct mv88e6xxx_chip *chip, int port)
 {
-	return mv88e6390_g1_monitor_write(chip, GLOBAL_MONITOR_CONTROL_CPU_DEST,
-					  port);
+	u16 ptr = MV88E6390_G1_MONITOR_MGMT_CTL_PTR_CPU_DEST;
+
+	return mv88e6390_g1_monitor_write(chip, ptr, port);
 }
 
 int mv88e6390_g1_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip)
 {
+	u16 ptr;
 	int err;
 
 	/* 01:c2:80:00:00:00:00-01:c2:80:00:00:00:07 are Management */
-	err = mv88e6390_g1_monitor_write(
-		chip, GLOBAL_MONITOR_CONTROL_0180C280000000XLO, 0xff);
+	ptr = MV88E6390_G1_MONITOR_MGMT_CTL_PTR_0180C280000000XLO;
+	err = mv88e6390_g1_monitor_write(chip, ptr, 0xff);
 	if (err)
 		return err;
 
 	/* 01:c2:80:00:00:00:08-01:c2:80:00:00:00:0f are Management */
-	err = mv88e6390_g1_monitor_write(
-		chip, GLOBAL_MONITOR_CONTROL_0180C280000000XHI, 0xff);
+	ptr = MV88E6390_G1_MONITOR_MGMT_CTL_PTR_0180C280000000XHI;
+	err = mv88e6390_g1_monitor_write(chip, ptr, 0xff);
 	if (err)
 		return err;
 
 	/* 01:c2:80:00:00:00:20-01:c2:80:00:00:00:27 are Management */
-	err = mv88e6390_g1_monitor_write(
-		chip, GLOBAL_MONITOR_CONTROL_0180C280000002XLO, 0xff);
+	ptr = MV88E6390_G1_MONITOR_MGMT_CTL_PTR_0180C280000002XLO;
+	err = mv88e6390_g1_monitor_write(chip, ptr, 0xff);
 	if (err)
 		return err;
 
 	/* 01:c2:80:00:00:00:28-01:c2:80:00:00:00:2f are Management */
-	return mv88e6390_g1_monitor_write(
-		chip, GLOBAL_MONITOR_CONTROL_0180C280000002XHI, 0xff);
+	ptr = MV88E6390_G1_MONITOR_MGMT_CTL_PTR_0180C280000002XHI;
+	err = mv88e6390_g1_monitor_write(chip, ptr, 0xff);
+	if (err)
+		return err;
+
+	return 0;
 }
 
 /* Offset 0x1c: Global Control 2 */
@@ -315,13 +355,13 @@ int mv88e6390_g1_stats_set_histogram(struct mv88e6xxx_chip *chip)
 	u16 val;
 	int err;
 
-	err = mv88e6xxx_g1_read(chip, GLOBAL_CONTROL_2, &val);
+	err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_CTL2, &val);
 	if (err)
 		return err;
 
-	val |= GLOBAL_CONTROL_2_HIST_RX_TX;
+	val |= MV88E6XXX_G1_CTL2_HIST_RX_TX;
 
-	err = mv88e6xxx_g1_write(chip, GLOBAL_CONTROL_2, val);
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_CTL2, val);
 
 	return err;
 }
@@ -330,7 +370,8 @@ int mv88e6390_g1_stats_set_histogram(struct mv88e6xxx_chip *chip)
 
 int mv88e6xxx_g1_stats_wait(struct mv88e6xxx_chip *chip)
 {
-	return mv88e6xxx_g1_wait(chip, GLOBAL_STATS_OP, GLOBAL_STATS_OP_BUSY);
+	return mv88e6xxx_g1_wait(chip, MV88E6XXX_G1_STATS_OP,
+				 MV88E6XXX_G1_STATS_OP_BUSY);
 }
 
 int mv88e6xxx_g1_stats_snapshot(struct mv88e6xxx_chip *chip, int port)
@@ -338,9 +379,10 @@ int mv88e6xxx_g1_stats_snapshot(struct mv88e6xxx_chip *chip, int port)
 	int err;
 
 	/* Snapshot the hardware statistics counters for this port. */
-	err = mv88e6xxx_g1_write(chip, GLOBAL_STATS_OP,
-				 GLOBAL_STATS_OP_CAPTURE_PORT |
-				 GLOBAL_STATS_OP_HIST_RX_TX | port);
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_STATS_OP,
+				 MV88E6XXX_G1_STATS_OP_BUSY |
+				 MV88E6XXX_G1_STATS_OP_CAPTURE_PORT |
+				 MV88E6XXX_G1_STATS_OP_HIST_RX_TX | port);
 	if (err)
 		return err;
 
@@ -362,8 +404,9 @@ int mv88e6390_g1_stats_snapshot(struct mv88e6xxx_chip *chip, int port)
 	port = (port + 1) << 5;
 
 	/* Snapshot the hardware statistics counters for this port. */
-	err = mv88e6xxx_g1_write(chip, GLOBAL_STATS_OP,
-				 GLOBAL_STATS_OP_CAPTURE_PORT | port);
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_STATS_OP,
+				 MV88E6XXX_G1_STATS_OP_BUSY |
+				 MV88E6XXX_G1_STATS_OP_CAPTURE_PORT | port);
 	if (err)
 		return err;
 
@@ -379,8 +422,9 @@ void mv88e6xxx_g1_stats_read(struct mv88e6xxx_chip *chip, int stat, u32 *val)
 
 	*val = 0;
 
-	err = mv88e6xxx_g1_write(chip, GLOBAL_STATS_OP,
-				 GLOBAL_STATS_OP_READ_CAPTURED | stat);
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_STATS_OP,
+				 MV88E6XXX_G1_STATS_OP_BUSY |
+				 MV88E6XXX_G1_STATS_OP_READ_CAPTURED | stat);
 	if (err)
 		return;
 
@@ -388,13 +432,13 @@ void mv88e6xxx_g1_stats_read(struct mv88e6xxx_chip *chip, int stat, u32 *val)
 	if (err)
 		return;
 
-	err = mv88e6xxx_g1_read(chip, GLOBAL_STATS_COUNTER_32, &reg);
+	err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_STATS_COUNTER_32, &reg);
 	if (err)
 		return;
 
 	value = reg << 16;
 
-	err = mv88e6xxx_g1_read(chip, GLOBAL_STATS_COUNTER_01, &reg);
+	err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_STATS_COUNTER_01, &reg);
 	if (err)
 		return;
 

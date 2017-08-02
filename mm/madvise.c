@@ -205,7 +205,7 @@ static int swapin_walk_pmd_entry(pmd_t *pmd, unsigned long start,
 			continue;
 
 		page = read_swap_cache_async(entry, GFP_HIGHUSER_MOVABLE,
-								vma, index);
+							vma, index, false);
 		if (page)
 			put_page(page);
 	}
@@ -246,7 +246,7 @@ static void force_shm_swapin_readahead(struct vm_area_struct *vma,
 		}
 		swap = radix_to_swp_entry(page);
 		page = read_swap_cache_async(swap, GFP_HIGHUSER_MOVABLE,
-								NULL, 0);
+							NULL, 0, false);
 		if (page)
 			put_page(page);
 	}
@@ -451,9 +451,6 @@ static int madvise_free_single_vma(struct vm_area_struct *vma,
 	struct mm_struct *mm = vma->vm_mm;
 	struct mmu_gather tlb;
 
-	if (vma->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP))
-		return -EINVAL;
-
 	/* MADV_FREE works for only anon vma at the moment */
 	if (!vma_is_anonymous(vma))
 		return -EINVAL;
@@ -477,14 +474,6 @@ static int madvise_free_single_vma(struct vm_area_struct *vma,
 	return 0;
 }
 
-static long madvise_free(struct vm_area_struct *vma,
-			     struct vm_area_struct **prev,
-			     unsigned long start, unsigned long end)
-{
-	*prev = vma;
-	return madvise_free_single_vma(vma, start, end);
-}
-
 /*
  * Application no longer needs these pages.  If the pages are dirty,
  * it's OK to just throw them away.  The app will be more careful about
@@ -504,9 +493,17 @@ static long madvise_free(struct vm_area_struct *vma,
  * An interface that causes the system to free clean pages and flush
  * dirty pages is already available as msync(MS_INVALIDATE).
  */
-static long madvise_dontneed(struct vm_area_struct *vma,
-			     struct vm_area_struct **prev,
-			     unsigned long start, unsigned long end)
+static long madvise_dontneed_single_vma(struct vm_area_struct *vma,
+					unsigned long start, unsigned long end)
+{
+	zap_page_range(vma, start, end - start);
+	return 0;
+}
+
+static long madvise_dontneed_free(struct vm_area_struct *vma,
+				  struct vm_area_struct **prev,
+				  unsigned long start, unsigned long end,
+				  int behavior)
 {
 	*prev = vma;
 	if (!can_madv_dontneed_vma(vma))
@@ -526,7 +523,8 @@ static long madvise_dontneed(struct vm_area_struct *vma,
 			 * is also < vma->vm_end. If start <
 			 * vma->vm_start it means an hole materialized
 			 * in the user address space within the
-			 * virtual range passed to MADV_DONTNEED.
+			 * virtual range passed to MADV_DONTNEED
+			 * or MADV_FREE.
 			 */
 			return -ENOMEM;
 		}
@@ -537,7 +535,7 @@ static long madvise_dontneed(struct vm_area_struct *vma,
 			 * Don't fail if end > vma->vm_end. If the old
 			 * vma was splitted while the mmap_sem was
 			 * released the effect of the concurrent
-			 * operation may not cause MADV_DONTNEED to
+			 * operation may not cause madvise() to
 			 * have an undefined result. There may be an
 			 * adjacent next vma that we'll walk
 			 * next. userfaultfd_remove() will generate an
@@ -549,8 +547,13 @@ static long madvise_dontneed(struct vm_area_struct *vma,
 		}
 		VM_WARN_ON(start >= end);
 	}
-	zap_page_range(vma, start, end - start);
-	return 0;
+
+	if (behavior == MADV_DONTNEED)
+		return madvise_dontneed_single_vma(vma, start, end);
+	else if (behavior == MADV_FREE)
+		return madvise_free_single_vma(vma, start, end);
+	else
+		return -EINVAL;
 }
 
 /*
@@ -656,9 +659,8 @@ madvise_vma(struct vm_area_struct *vma, struct vm_area_struct **prev,
 	case MADV_WILLNEED:
 		return madvise_willneed(vma, prev, start, end);
 	case MADV_FREE:
-		return madvise_free(vma, prev, start, end);
 	case MADV_DONTNEED:
-		return madvise_dontneed(vma, prev, start, end);
+		return madvise_dontneed_free(vma, prev, start, end, behavior);
 	default:
 		return madvise_behavior(vma, prev, start, end, behavior);
 	}

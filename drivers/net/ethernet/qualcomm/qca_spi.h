@@ -32,7 +32,7 @@
 #include <linux/spi/spi.h>
 #include <linux/types.h>
 
-#include "qca_framing.h"
+#include "qca_7k_common.h"
 
 #define QCASPI_DRV_VERSION "0.2.7-i"
 #define QCASPI_DRV_NAME    "qcaspi"
@@ -107,8 +107,5 @@ struct qcaspi {
 	u8 legacy_mode;
 	u16 burst_len;
 };
-
-int qcaspi_netdev_open(struct net_device *dev);
-int qcaspi_netdev_close(struct net_device *dev);
 
 #endif /* _QCA_SPI_H */

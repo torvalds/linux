@@ -33,7 +33,7 @@
 
 #define DRV_NAME		"enic"
 #define DRV_DESCRIPTION		"Cisco VIC Ethernet NIC Driver"
-#define DRV_VERSION		"2.3.0.31"
+#define DRV_VERSION		"2.3.0.42"
 #define DRV_COPYRIGHT		"Copyright 2008-2013 Cisco Systems, Inc"
 
 #define ENIC_BARS_MAX		6
@@ -47,7 +47,7 @@
 
 struct enic_msix_entry {
 	int requested;
-	char devname[IFNAMSIZ];
+	char devname[IFNAMSIZ + 8];
 	irqreturn_t (*isr)(int, void *);
 	void *devid;
 	cpumask_var_t affinity_mask;

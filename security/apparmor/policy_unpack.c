@@ -13,7 +13,7 @@
  * License.
  *
  * AppArmor uses a serialized binary format for loading policy. To find
- * policy format documentation look in Documentation/security/apparmor.txt
+ * policy format documentation see Documentation/admin-guide/LSM/apparmor.rst
  * All policy is validated before it is used.
  */
 
@@ -26,6 +26,7 @@
 #include "include/context.h"
 #include "include/crypto.h"
 #include "include/match.h"
+#include "include/path.h"
 #include "include/policy.h"
 #include "include/policy_unpack.h"
 
@@ -107,7 +108,7 @@ static int audit_iface(struct aa_profile *new, const char *ns_name,
 		       const char *name, const char *info, struct aa_ext *e,
 		       int error)
 {
-	struct aa_profile *profile = __aa_current_profile();
+	struct aa_profile *profile = labels_profile(aa_current_raw_label());
 	DEFINE_AUDIT_DATA(sa, LSM_AUDIT_DATA_NONE, NULL);
 	if (e)
 		aad(&sa)->iface.pos = e->pos - e->start;
@@ -122,14 +123,71 @@ static int audit_iface(struct aa_profile *new, const char *ns_name,
 	return aa_audit(AUDIT_APPARMOR_STATUS, profile, &sa, audit_cb);
 }
 
+void __aa_loaddata_update(struct aa_loaddata *data, long revision)
+{
+	AA_BUG(!data);
+	AA_BUG(!data->ns);
+	AA_BUG(!data->dents[AAFS_LOADDATA_REVISION]);
+	AA_BUG(!mutex_is_locked(&data->ns->lock));
+	AA_BUG(data->revision > revision);
+
+	data->revision = revision;
+	d_inode(data->dents[AAFS_LOADDATA_DIR])->i_mtime =
+		current_time(d_inode(data->dents[AAFS_LOADDATA_DIR]));
+	d_inode(data->dents[AAFS_LOADDATA_REVISION])->i_mtime =
+		current_time(d_inode(data->dents[AAFS_LOADDATA_REVISION]));
+}
+
+bool aa_rawdata_eq(struct aa_loaddata *l, struct aa_loaddata *r)
+{
+	if (l->size != r->size)
+		return false;
+	if (aa_g_hash_policy && memcmp(l->hash, r->hash, aa_hash_size()) != 0)
+		return false;
+	return memcmp(l->data, r->data, r->size) == 0;
+}
+
+/*
+ * need to take the ns mutex lock which is NOT safe most places that
+ * put_loaddata is called, so we have to delay freeing it
+ */
+static void do_loaddata_free(struct work_struct *work)
+{
+	struct aa_loaddata *d = container_of(work, struct aa_loaddata, work);
+	struct aa_ns *ns = aa_get_ns(d->ns);
+
+	if (ns) {
+		mutex_lock(&ns->lock);
+		__aa_fs_remove_rawdata(d);
+		mutex_unlock(&ns->lock);
+		aa_put_ns(ns);
+	}
+
+	kzfree(d->hash);
+	kfree(d->name);
+	kvfree(d);
+}
+
 void aa_loaddata_kref(struct kref *kref)
 {
 	struct aa_loaddata *d = container_of(kref, struct aa_loaddata, count);
 
 	if (d) {
-		kzfree(d->hash);
-		kvfree(d);
+		INIT_WORK(&d->work, do_loaddata_free);
+		schedule_work(&d->work);
 	}
+}
+
+struct aa_loaddata *aa_loaddata_alloc(size_t size)
+{
+	struct aa_loaddata *d = kvzalloc(sizeof(*d) + size, GFP_KERNEL);
+
+	if (d == NULL)
+		return ERR_PTR(-ENOMEM);
+	kref_init(&d->count);
+	INIT_LIST_HEAD(&d->list);
+
+	return d;
 }
 
 /* test if read will be in packed data bounds */
@@ -408,7 +466,7 @@ static bool unpack_trans_table(struct aa_ext *e, struct aa_profile *profile)
 		profile->file.trans.size = size;
 		for (i = 0; i < size; i++) {
 			char *str;
-			int c, j, size2 = unpack_strdup(e, &str, NULL);
+			int c, j, pos, size2 = unpack_strdup(e, &str, NULL);
 			/* unpack_strdup verifies that the last character is
 			 * null termination byte.
 			 */
@@ -420,19 +478,25 @@ static bool unpack_trans_table(struct aa_ext *e, struct aa_profile *profile)
 				goto fail;
 
 			/* count internal #  of internal \0 */
-			for (c = j = 0; j < size2 - 2; j++) {
-				if (!str[j])
+			for (c = j = 0; j < size2 - 1; j++) {
+				if (!str[j]) {
+					pos = j;
 					c++;
+				}
 			}
 			if (*str == ':') {
+				/* first character after : must be valid */
+				if (!str[1])
+					goto fail;
 				/* beginning with : requires an embedded \0,
 				 * verify that exactly 1 internal \0 exists
 				 * trailing \0 already verified by unpack_strdup
+				 *
+				 * convert \0 back to : for label_parse
 				 */
-				if (c != 1)
-					goto fail;
-				/* first character after : must be valid */
-				if (!str[1])
+				if (c == 1)
+					str[pos] = ':';
+				else if (c > 1)
 					goto fail;
 			} else if (c)
 				/* fail - all other cases with embedded \0 */
@@ -545,7 +609,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		name = tmpname;
 	}
 
-	profile = aa_alloc_profile(name, GFP_KERNEL);
+	profile = aa_alloc_profile(name, NULL, GFP_KERNEL);
 	if (!profile)
 		return ERR_PTR(-ENOMEM);
 
@@ -569,13 +633,16 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		profile->xmatch_len = tmp;
 	}
 
+	/* disconnected attachment string is optional */
+	(void) unpack_str(e, &profile->disconnected, "disconnected");
+
 	/* per profile debug flags (complain, audit) */
 	if (!unpack_nameX(e, AA_STRUCT, "flags"))
 		goto fail;
 	if (!unpack_u32(e, &tmp, NULL))
 		goto fail;
 	if (tmp & PACKED_FLAG_HAT)
-		profile->flags |= PFLAG_HAT;
+		profile->label.flags |= FLAG_HAT;
 	if (!unpack_u32(e, &tmp, NULL))
 		goto fail;
 	if (tmp == PACKED_MODE_COMPLAIN || (e->version & FORCE_COMPLAIN_FLAG))
@@ -594,10 +661,11 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 
 	/* path_flags is optional */
 	if (unpack_u32(e, &profile->path_flags, "path_flags"))
-		profile->path_flags |= profile->flags & PFLAG_MEDIATE_DELETED;
+		profile->path_flags |= profile->label.flags &
+			PATH_MEDIATE_DELETED;
 	else
 		/* set a default value if path_flags field is not present */
-		profile->path_flags = PFLAG_MEDIATE_DELETED;
+		profile->path_flags = PATH_MEDIATE_DELETED;
 
 	if (!unpack_u32(e, &(profile->caps.allow.cap[0]), NULL))
 		goto fail;

@@ -30,49 +30,49 @@
 #include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_page_alloc.h>
 
-static struct ttm_place vram_placement_flags = {
+static const struct ttm_place vram_placement_flags = {
 	.fpfn = 0,
 	.lpfn = 0,
 	.flags = TTM_PL_FLAG_VRAM | TTM_PL_FLAG_CACHED
 };
 
-static struct ttm_place vram_ne_placement_flags = {
+static const struct ttm_place vram_ne_placement_flags = {
 	.fpfn = 0,
 	.lpfn = 0,
 	.flags = TTM_PL_FLAG_VRAM | TTM_PL_FLAG_CACHED | TTM_PL_FLAG_NO_EVICT
 };
 
-static struct ttm_place sys_placement_flags = {
+static const struct ttm_place sys_placement_flags = {
 	.fpfn = 0,
 	.lpfn = 0,
 	.flags = TTM_PL_FLAG_SYSTEM | TTM_PL_FLAG_CACHED
 };
 
-static struct ttm_place sys_ne_placement_flags = {
+static const struct ttm_place sys_ne_placement_flags = {
 	.fpfn = 0,
 	.lpfn = 0,
 	.flags = TTM_PL_FLAG_SYSTEM | TTM_PL_FLAG_CACHED | TTM_PL_FLAG_NO_EVICT
 };
 
-static struct ttm_place gmr_placement_flags = {
+static const struct ttm_place gmr_placement_flags = {
 	.fpfn = 0,
 	.lpfn = 0,
 	.flags = VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED
 };
 
-static struct ttm_place gmr_ne_placement_flags = {
+static const struct ttm_place gmr_ne_placement_flags = {
 	.fpfn = 0,
 	.lpfn = 0,
 	.flags = VMW_PL_FLAG_GMR | TTM_PL_FLAG_CACHED | TTM_PL_FLAG_NO_EVICT
 };
 
-static struct ttm_place mob_placement_flags = {
+static const struct ttm_place mob_placement_flags = {
 	.fpfn = 0,
 	.lpfn = 0,
 	.flags = VMW_PL_FLAG_MOB | TTM_PL_FLAG_CACHED
 };
 
-static struct ttm_place mob_ne_placement_flags = {
+static const struct ttm_place mob_ne_placement_flags = {
 	.fpfn = 0,
 	.lpfn = 0,
 	.flags = VMW_PL_FLAG_MOB | TTM_PL_FLAG_CACHED | TTM_PL_FLAG_NO_EVICT
@@ -85,7 +85,7 @@ struct ttm_placement vmw_vram_placement = {
 	.busy_placement = &vram_placement_flags
 };
 
-static struct ttm_place vram_gmr_placement_flags[] = {
+static const struct ttm_place vram_gmr_placement_flags[] = {
 	{
 		.fpfn = 0,
 		.lpfn = 0,
@@ -97,7 +97,7 @@ static struct ttm_place vram_gmr_placement_flags[] = {
 	}
 };
 
-static struct ttm_place gmr_vram_placement_flags[] = {
+static const struct ttm_place gmr_vram_placement_flags[] = {
 	{
 		.fpfn = 0,
 		.lpfn = 0,
@@ -116,7 +116,7 @@ struct ttm_placement vmw_vram_gmr_placement = {
 	.busy_placement = &gmr_placement_flags
 };
 
-static struct ttm_place vram_gmr_ne_placement_flags[] = {
+static const struct ttm_place vram_gmr_ne_placement_flags[] = {
 	{
 		.fpfn = 0,
 		.lpfn = 0,
@@ -165,7 +165,7 @@ struct ttm_placement vmw_sys_ne_placement = {
 	.busy_placement = &sys_ne_placement_flags
 };
 
-static struct ttm_place evictable_placement_flags[] = {
+static const struct ttm_place evictable_placement_flags[] = {
 	{
 		.fpfn = 0,
 		.lpfn = 0,

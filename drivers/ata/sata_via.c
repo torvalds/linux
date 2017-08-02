@@ -25,7 +25,7 @@
  *
  *
  *  libata documentation is available via 'make {ps|pdf}docs',
- *  as Documentation/DocBook/libata.*
+ *  as Documentation/driver-api/libata.rst
  *
  *  Hardware documentation available under NDA.
  *
@@ -79,6 +79,10 @@ enum {
 struct svia_priv {
 	bool			wd_workaround;
 };
+
+static int vt6420_hotplug;
+module_param_named(vt6420_hotplug, vt6420_hotplug, int, 0644);
+MODULE_PARM_DESC(vt6420_hotplug, "Enable hot-plug support for VT6420 (0=Don't support, 1=support)");
 
 static int svia_init_one(struct pci_dev *pdev, const struct pci_device_id *ent);
 #ifdef CONFIG_PM_SLEEP
@@ -166,7 +170,7 @@ static const struct ata_port_info vt6420_port_info = {
 	.port_ops	= &vt6420_sata_ops,
 };
 
-static struct ata_port_info vt6421_sport_info = {
+static const struct ata_port_info vt6421_sport_info = {
 	.flags		= ATA_FLAG_SATA,
 	.pio_mask	= ATA_PIO4,
 	.mwdma_mask	= ATA_MWDMA2,
@@ -174,7 +178,7 @@ static struct ata_port_info vt6421_sport_info = {
 	.port_ops	= &vt6421_sata_ops,
 };
 
-static struct ata_port_info vt6421_pport_info = {
+static const struct ata_port_info vt6421_pport_info = {
 	.flags		= ATA_FLAG_SLAVE_POSS,
 	.pio_mask	= ATA_PIO4,
 	/* No MWDMA */
@@ -182,7 +186,7 @@ static struct ata_port_info vt6421_pport_info = {
 	.port_ops	= &vt6421_pata_ops,
 };
 
-static struct ata_port_info vt8251_port_info = {
+static const struct ata_port_info vt8251_port_info = {
 	.flags		= ATA_FLAG_SATA | ATA_FLAG_SLAVE_POSS,
 	.pio_mask	= ATA_PIO4,
 	.mwdma_mask	= ATA_MWDMA2,
@@ -473,6 +477,11 @@ static int vt6420_prepare_host(struct pci_dev *pdev, struct ata_host **r_host)
 	struct ata_host *host;
 	int rc;
 
+	if (vt6420_hotplug) {
+		ppi[0]->port_ops->scr_read = svia_scr_read;
+		ppi[0]->port_ops->scr_write = svia_scr_write;
+	}
+
 	rc = ata_pci_bmdma_prepare_host(pdev, ppi, &host);
 	if (rc)
 		return rc;
@@ -556,7 +565,7 @@ static void svia_wd_fix(struct pci_dev *pdev)
 	pci_write_config_byte(pdev, 0x52, tmp8 | BIT(2));
 }
 
-static irqreturn_t vt6421_interrupt(int irq, void *dev_instance)
+static irqreturn_t vt642x_interrupt(int irq, void *dev_instance)
 {
 	struct ata_host *host = dev_instance;
 	irqreturn_t rc = ata_bmdma_interrupt(irq, dev_instance);
@@ -644,7 +653,7 @@ static void svia_configure(struct pci_dev *pdev, int board_id,
 		pci_write_config_byte(pdev, SATA_NATIVE_MODE, tmp8);
 	}
 
-	if (board_id == vt6421) {
+	if ((board_id == vt6420 && vt6420_hotplug) || board_id == vt6421) {
 		/* enable IRQ on hotplug */
 		pci_read_config_byte(pdev, SVIA_MISC_3, &tmp8);
 		if ((tmp8 & SATA_HOTPLUG) != SATA_HOTPLUG) {
@@ -744,8 +753,8 @@ static int svia_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	svia_configure(pdev, board_id, hpriv);
 
 	pci_set_master(pdev);
-	if (board_id == vt6421)
-		return ata_host_activate(host, pdev->irq, vt6421_interrupt,
+	if ((board_id == vt6420 && vt6420_hotplug) || board_id == vt6421)
+		return ata_host_activate(host, pdev->irq, vt642x_interrupt,
 					 IRQF_SHARED, &svia_sht);
 	else
 		return ata_host_activate(host, pdev->irq, ata_bmdma_interrupt,

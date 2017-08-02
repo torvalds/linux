@@ -1134,7 +1134,7 @@ void cx231xx_v4l2_create_entities(struct cx231xx *dev)
 			/* The DVB core will handle it */
 			if (dev->tuner_type == TUNER_ABSENT)
 				continue;
-			/* fall though */
+			/* fall through */
 		default: /* just to shut up a gcc warning */
 			ent->function = MEDIA_ENT_F_CONN_RF;
 			break;

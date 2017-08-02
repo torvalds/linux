@@ -493,6 +493,11 @@ int ena_com_tx_comp_req_id_get(struct ena_com_io_cq *io_cq, u16 *req_id)
 	if (cdesc_phase != expected_phase)
 		return -EAGAIN;
 
+	if (unlikely(cdesc->req_id >= io_cq->q_depth)) {
+		pr_err("Invalid req id %d\n", cdesc->req_id);
+		return -EINVAL;
+	}
+
 	ena_com_cq_inc_head(io_cq);
 
 	*req_id = READ_ONCE(cdesc->req_id);

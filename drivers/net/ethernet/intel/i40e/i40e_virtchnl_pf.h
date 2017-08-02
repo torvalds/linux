@@ -40,9 +40,6 @@
 #define I40E_VLAN_MASK			0xFFF
 #define I40E_PRIORITY_MASK		0x7000
 
-#define VF_IS_V10(_v) (((_v)->vf_ver.major == 1) && ((_v)->vf_ver.minor == 0))
-#define VF_IS_V11(_v) (((_v)->vf_ver.major == 1) && ((_v)->vf_ver.minor == 1))
-
 /* Various queue ctrls */
 enum i40e_queue_ctrl {
 	I40E_QUEUE_CTRL_UNKNOWN = 0,
@@ -81,13 +78,13 @@ struct i40e_vf {
 	s16 vf_id;
 	/* all VF vsis connect to the same parent */
 	enum i40e_switch_element_types parent_type;
-	struct i40e_virtchnl_version_info vf_ver;
+	struct virtchnl_version_info vf_ver;
 	u32 driver_caps; /* reported by VF driver */
 
 	/* VF Port Extender (PE) stag if used */
 	u16 stag;
 
-	struct i40e_virtchnl_ether_addr default_lan_addr;
+	struct virtchnl_ether_addr default_lan_addr;
 	u16 port_vlan_id;
 	bool pf_set_mac;	/* The VMM admin set the VF MAC address */
 	bool trusted;
@@ -115,7 +112,7 @@ struct i40e_vf {
 	u16 num_vlan;
 
 	/* RDMA Client */
-	struct i40e_virtchnl_iwarp_qvlist_info *qvlist_info;
+	struct virtchnl_iwarp_qvlist_info *qvlist_info;
 };
 
 void i40e_free_vfs(struct i40e_pf *pf);

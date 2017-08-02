@@ -606,7 +606,7 @@ static inline __u32 fid_flatten32(const struct lu_fid *fid)
 static inline int lu_fid_diff(const struct lu_fid *fid1,
 			      const struct lu_fid *fid2)
 {
-	LASSERTF(fid_seq(fid1) == fid_seq(fid2), "fid1:"DFID", fid2:"DFID"\n",
+	LASSERTF(fid_seq(fid1) == fid_seq(fid2), "fid1:" DFID ", fid2:" DFID "\n",
 		 PFID(fid1), PFID(fid2));
 
 	if (fid_is_idif(fid1) && fid_is_idif(fid2))

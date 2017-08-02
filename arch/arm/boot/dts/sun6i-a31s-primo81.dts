@@ -158,10 +158,15 @@
 		reg = <0x68>;
 		interrupt-parent = <&nmi_intc>;
 		interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
+		x-powers,drive-vbus-en;
 	};
 };
 
 #include "axp22x.dtsi"
+
+&battery_power_supply {
+	status = "okay";
+};
 
 &reg_aldo3 {
 	regulator-always-on;
@@ -226,6 +231,11 @@
 	regulator-name = "vddio-csi";
 };
 
+&reg_drivevbus {
+	regulator-name = "usb0-vbus";
+	status = "okay";
+};
+
 &reg_eldo3 {
 	regulator-min-microvolt = <1080000>;
 	regulator-max-microvolt = <1320000>;
@@ -238,12 +248,18 @@
 };
 
 &usb_otg {
-	/* otg support requires support for AXP221 usb-power-supply and GPIO */
-	dr_mode = "host";
+	dr_mode = "otg";
+	status = "okay";
+};
+
+&usb_power_supply {
 	status = "okay";
 };
 
 &usbphy {
+	usb0_id_det-gpio = <&pio 0 15 GPIO_ACTIVE_HIGH>; /* PA15 */
+	usb0_vbus_power-supply = <&usb_power_supply>;
+	usb0_vbus-supply = <&reg_drivevbus>;
 	usb1_vbus-supply = <&reg_dldo1>;
 	status = "okay";
 };

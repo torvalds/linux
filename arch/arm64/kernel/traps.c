@@ -140,7 +140,7 @@ static void dump_instr(const char *lvl, struct pt_regs *regs)
 	}
 }
 
-static void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
+void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 {
 	struct stackframe frame;
 	unsigned long irq_stack_ptr;
@@ -274,10 +274,12 @@ static DEFINE_RAW_SPINLOCK(die_lock);
 void die(const char *str, struct pt_regs *regs, int err)
 {
 	int ret;
+	unsigned long flags;
+
+	raw_spin_lock_irqsave(&die_lock, flags);
 
 	oops_enter();
 
-	raw_spin_lock_irq(&die_lock);
 	console_verbose();
 	bust_spinlocks(1);
 	ret = __die(str, err, regs);
@@ -287,13 +289,15 @@ void die(const char *str, struct pt_regs *regs, int err)
 
 	bust_spinlocks(0);
 	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
-	raw_spin_unlock_irq(&die_lock);
 	oops_exit();
 
 	if (in_interrupt())
 		panic("Fatal exception in interrupt");
 	if (panic_on_oops)
 		panic("Fatal exception");
+
+	raw_spin_unlock_irqrestore(&die_lock, flags);
+
 	if (ret != NOTIFY_STOP)
 		do_exit(SIGSEGV);
 }
@@ -344,22 +348,24 @@ static int call_undef_hook(struct pt_regs *regs)
 
 	if (compat_thumb_mode(regs)) {
 		/* 16-bit Thumb instruction */
-		if (get_user(instr, (u16 __user *)pc))
+		__le16 instr_le;
+		if (get_user(instr_le, (__le16 __user *)pc))
 			goto exit;
-		instr = le16_to_cpu(instr);
+		instr = le16_to_cpu(instr_le);
 		if (aarch32_insn_is_wide(instr)) {
 			u32 instr2;
 
-			if (get_user(instr2, (u16 __user *)(pc + 2)))
+			if (get_user(instr_le, (__le16 __user *)(pc + 2)))
 				goto exit;
-			instr2 = le16_to_cpu(instr2);
+			instr2 = le16_to_cpu(instr_le);
 			instr = (instr << 16) | instr2;
 		}
 	} else {
 		/* 32-bit ARM instruction */
-		if (get_user(instr, (u32 __user *)pc))
+		__le32 instr_le;
+		if (get_user(instr_le, (__le32 __user *)pc))
 			goto exit;
-		instr = le32_to_cpu(instr);
+		instr = le32_to_cpu(instr_le);
 	}
 
 	raw_spin_lock_irqsave(&undef_lock, flags);
@@ -728,8 +734,6 @@ static int bug_handler(struct pt_regs *regs, unsigned int esr)
 		break;
 
 	case BUG_TRAP_TYPE_WARN:
-		/* Ideally, report_bug() should backtrace for us... but no. */
-		dump_backtrace(regs, NULL);
 		break;
 
 	default:

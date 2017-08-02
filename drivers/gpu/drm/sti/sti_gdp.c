@@ -149,7 +149,7 @@ static void gdp_dbg_ctl(struct seq_file *s, int val)
 	seq_puts(s, "\tColor:");
 	for (i = 0; i < ARRAY_SIZE(gdp_format_to_str); i++) {
 		if (gdp_format_to_str[i].format == (val & 0x1F)) {
-			seq_printf(s, gdp_format_to_str[i].name);
+			seq_puts(s, gdp_format_to_str[i].name);
 			break;
 		}
 	}
@@ -266,8 +266,7 @@ static void gdp_node_dump_node(struct seq_file *s, struct sti_gdp_node *node)
 	seq_printf(s, "\n\tKEY2 0x%08X", node->gam_gdp_key2);
 	seq_printf(s, "\n\tPPT  0x%08X", node->gam_gdp_ppt);
 	gdp_dbg_ppt(s, node->gam_gdp_ppt);
-	seq_printf(s, "\n\tCML  0x%08X", node->gam_gdp_cml);
-	seq_puts(s, "\n");
+	seq_printf(s, "\n\tCML  0x%08X\n", node->gam_gdp_cml);
 }
 
 static int gdp_node_dbg_show(struct seq_file *s, void *arg)

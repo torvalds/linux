@@ -1826,7 +1826,7 @@ static int wait_for_avail(struct snd_pcm_substream *substream,
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int is_playback = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
-	wait_queue_t wait;
+	wait_queue_entry_t wait;
 	int err = 0;
 	snd_pcm_uframes_t avail = 0;
 	long wait_time, tout;

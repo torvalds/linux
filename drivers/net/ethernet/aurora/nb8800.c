@@ -251,7 +251,7 @@ static void nb8800_receive(struct net_device *dev, unsigned int i,
 
 	if (len <= RX_COPYBREAK) {
 		dma_sync_single_for_cpu(&dev->dev, dma, len, DMA_FROM_DEVICE);
-		memcpy(skb_put(skb, len), data, len);
+		skb_put_data(skb, data, len);
 		dma_sync_single_for_device(&dev->dev, dma, len,
 					   DMA_FROM_DEVICE);
 	} else {
@@ -264,7 +264,7 @@ static void nb8800_receive(struct net_device *dev, unsigned int i,
 		}
 
 		dma_unmap_page(&dev->dev, dma, RX_BUF_SIZE, DMA_FROM_DEVICE);
-		memcpy(skb_put(skb, RX_COPYHDR), data, RX_COPYHDR);
+		skb_put_data(skb, data, RX_COPYHDR);
 		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,
 				offset + RX_COPYHDR, len - RX_COPYHDR,
 				RX_BUF_SIZE);

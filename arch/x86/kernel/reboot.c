@@ -9,6 +9,7 @@
 #include <linux/sched.h>
 #include <linux/tboot.h>
 #include <linux/delay.h>
+#include <linux/frame.h>
 #include <acpi/reboot.h>
 #include <asm/io.h>
 #include <asm/apic.h>
@@ -123,6 +124,7 @@ void __noreturn machine_real_restart(unsigned int type)
 #ifdef CONFIG_APM_MODULE
 EXPORT_SYMBOL(machine_real_restart);
 #endif
+STACK_FRAME_NON_STANDARD(machine_real_restart);
 
 /*
  * Some Apple MacBook and MacBookPro's needs reboot=p to be able to reboot
@@ -469,12 +471,12 @@ static int __init reboot_init(void)
 
 	/*
 	 * The DMI quirks table takes precedence. If no quirks entry
-	 * matches and the ACPI Hardware Reduced bit is set, force EFI
-	 * reboot.
+	 * matches and the ACPI Hardware Reduced bit is set and EFI
+	 * runtime services are enabled, force EFI reboot.
 	 */
 	rv = dmi_check_system(reboot_dmi_table);
 
-	if (!rv && efi_reboot_required())
+	if (!rv && efi_reboot_required() && !efi_runtime_disabled())
 		reboot_type = BOOT_EFI;
 
 	return 0;

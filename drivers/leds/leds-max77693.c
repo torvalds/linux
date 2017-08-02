@@ -930,8 +930,9 @@ static int max77693_register_led(struct max77693_sub_led *sub_led,
 	max77693_init_v4l2_flash_config(sub_led, led_cfg, &v4l2_sd_cfg);
 
 	/* Register in the V4L2 subsystem. */
-	sub_led->v4l2_flash = v4l2_flash_init(dev, sub_node, fled_cdev, NULL,
-					      &v4l2_flash_ops, &v4l2_sd_cfg);
+	sub_led->v4l2_flash = v4l2_flash_init(dev, of_fwnode_handle(sub_node),
+					      fled_cdev, NULL, &v4l2_flash_ops,
+					      &v4l2_sd_cfg);
 	if (IS_ERR(sub_led->v4l2_flash)) {
 		ret = PTR_ERR(sub_led->v4l2_flash);
 		goto err_v4l2_flash_init;

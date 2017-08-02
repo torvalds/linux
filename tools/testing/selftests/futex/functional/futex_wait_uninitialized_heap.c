@@ -36,6 +36,7 @@
 #include "logging.h"
 #include "futextest.h"
 
+#define TEST_NAME "futex-wait-uninitialized-heap"
 #define WAIT_US 5000000
 
 static int child_blocked = 1;
@@ -119,6 +120,6 @@ int main(int argc, char **argv)
 	}
 
  out:
-	print_result(ret);
+	print_result(TEST_NAME, ret);
 	return ret;
 }

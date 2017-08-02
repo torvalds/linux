@@ -126,9 +126,10 @@ static int hash__init_new_context(struct mm_struct *mm)
 static int radix__init_new_context(struct mm_struct *mm)
 {
 	unsigned long rts_field;
-	int index;
+	int index, max_id;
 
-	index = alloc_context_id(1, PRTB_ENTRIES - 1);
+	max_id = (1 << mmu_pid_bits) - 1;
+	index = alloc_context_id(mmu_base_pid, max_id);
 	if (index < 0)
 		return index;
 
@@ -137,6 +138,14 @@ static int radix__init_new_context(struct mm_struct *mm)
 	 */
 	rts_field = radix__get_tree_size();
 	process_tb[index].prtb0 = cpu_to_be64(rts_field | __pa(mm->pgd) | RADIX_PGD_INDEX_SIZE);
+
+	/*
+	 * Order the above store with subsequent update of the PID
+	 * register (at which point HW can start loading/caching
+	 * the entry) and the corresponding load by the MMU from
+	 * the L2 cache.
+	 */
+	asm volatile("ptesync;isync" : : : "memory");
 
 	mm->context.npu_context = NULL;
 
@@ -223,9 +232,15 @@ void destroy_context(struct mm_struct *mm)
 	mm->context.cop_lockp = NULL;
 #endif /* CONFIG_PPC_ICSWX */
 
-	if (radix_enabled())
-		process_tb[mm->context.id].prtb1 = 0;
-	else
+	if (radix_enabled()) {
+		/*
+		 * Radix doesn't have a valid bit in the process table
+		 * entries. However we know that at least P9 implementation
+		 * will avoid caching an entry with an invalid RTS field,
+		 * and 0 is invalid. So this will do.
+		 */
+		process_tb[mm->context.id].prtb0 = 0;
+	} else
 		subpage_prot_free(mm);
 	destroy_pagetable_page(mm);
 	__destroy_context(mm->context.id);
@@ -235,10 +250,15 @@ void destroy_context(struct mm_struct *mm)
 #ifdef CONFIG_PPC_RADIX_MMU
 void radix__switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
 {
-	asm volatile("isync": : :"memory");
-	mtspr(SPRN_PID, next->context.id);
-	asm volatile("isync \n"
-		     PPC_SLBIA(0x7)
-		     : : :"memory");
+
+	if (cpu_has_feature(CPU_FTR_POWER9_DD1)) {
+		isync();
+		mtspr(SPRN_PID, next->context.id);
+		isync();
+		asm volatile(PPC_INVALIDATE_ERAT : : :"memory");
+	} else {
+		mtspr(SPRN_PID, next->context.id);
+		isync();
+	}
 }
 #endif

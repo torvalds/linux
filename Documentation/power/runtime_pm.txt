@@ -105,9 +105,9 @@ knows what to do to handle the device).
 
 In particular, if the driver requires remote wakeup capability (i.e. hardware
 mechanism allowing the device to request a change of its power state, such as
-PCI PME) for proper functioning and device_run_wake() returns 'false' for the
+PCI PME) for proper functioning and device_can_wakeup() returns 'false' for the
 device, then ->runtime_suspend() should return -EBUSY.  On the other hand, if
-device_run_wake() returns 'true' for the device and the device is put into a
+device_can_wakeup() returns 'true' for the device and the device is put into a
 low-power state during the execution of the suspend callback, it is expected
 that remote wakeup will be enabled for the device.  Generally, remote wakeup
 should be enabled for all input devices put into low-power states at run time.
@@ -252,9 +252,6 @@ defined in include/linux/pm.h:
     - set if ->runtime_resume() is about to be run while ->runtime_suspend() is
       being executed for that device and it is not practical to wait for the
       suspend to complete; means "start a resume as soon as you've suspended"
-
-  unsigned int run_wake;
-    - set if the device is capable of generating runtime wake-up events
 
   enum rpm_status runtime_status;
     - the runtime PM status of the device; this field's initial value is

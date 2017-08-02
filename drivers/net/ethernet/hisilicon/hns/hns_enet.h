@@ -92,8 +92,8 @@ void hns_ethtool_set_ops(struct net_device *ndev);
 void hns_nic_net_reset(struct net_device *ndev);
 void hns_nic_net_reinit(struct net_device *netdev);
 int hns_nic_init_phy(struct net_device *ndev, struct hnae_handle *h);
-int hns_nic_net_xmit_hw(struct net_device *ndev,
-			struct sk_buff *skb,
-			struct hns_nic_ring_data *ring_data);
+netdev_tx_t hns_nic_net_xmit_hw(struct net_device *ndev,
+				struct sk_buff *skb,
+				struct hns_nic_ring_data *ring_data);
 
 #endif	/**__HNS_ENET_H */

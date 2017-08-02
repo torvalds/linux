@@ -235,46 +235,6 @@
 			};
 		};
 
-		nand0: nand@60000000 {
-			nand-bus-width = <8>;
-			nand-ecc-mode = "hw";
-			atmel,has-pmecc;
-			atmel,pmecc-cap = <4>;
-			atmel,pmecc-sector-size = <512>;
-			nand-on-flash-bbt;
-			status = "okay";
-
-			at91bootstrap@0 {
-				label = "at91bootstrap";
-				reg = <0x0 0x40000>;
-			};
-
-			bootloader@40000 {
-				label = "bootloader";
-				reg = <0x40000 0x80000>;
-			};
-
-			bootloaderenv@c0000 {
-				label = "bootloader env";
-				reg = <0xc0000 0xc0000>;
-			};
-
-			dtb@180000 {
-				label = "device tree";
-				reg = <0x180000 0x80000>;
-			};
-
-			kernel@200000 {
-				label = "kernel";
-				reg = <0x200000 0x600000>;
-			};
-
-			rootfs@800000 {
-				label = "rootfs";
-				reg = <0x800000 0x0f800000>;
-			};
-		};
-
 		usb0: gadget@00500000 {
 			atmel,vbus-gpio = <&pioE 9 GPIO_ACTIVE_HIGH>;	/* PE9, conflicts with A9 */
 			pinctrl-names = "default";
@@ -293,6 +253,63 @@
 
 		usb2: ehci@00700000 {
 			status = "okay";
+		};
+
+		ebi: ebi@10000000 {
+			pinctrl-0 = <&pinctrl_ebi_nand_addr>;
+			pinctrl-names = "default";
+			status = "okay";
+
+			nand_controller: nand-controller {
+				status = "okay";
+
+				nand@3 {
+					reg = <0x3 0x0 0x2>;
+					atmel,rb = <0>;
+					nand-bus-width = <8>;
+					nand-ecc-mode = "hw";
+					nand-ecc-strength = <4>;
+					nand-ecc-step-size = <512>;
+					nand-on-flash-bbt;
+					label = "atmel_nand";
+
+					partitions {
+						compatible = "fixed-partitions";
+						#address-cells = <1>;
+						#size-cells = <1>;
+
+						at91bootstrap@0 {
+							label = "at91bootstrap";
+							reg = <0x0 0x40000>;
+						};
+
+						bootloader@40000 {
+							label = "bootloader";
+							reg = <0x40000 0x80000>;
+						};
+
+						bootloaderenv@c0000 {
+							label = "bootloader env";
+							reg = <0xc0000 0xc0000>;
+						};
+
+						dtb@180000 {
+							label = "device tree";
+							reg = <0x180000 0x80000>;
+						};
+
+						kernel@200000 {
+							label = "kernel";
+							reg = <0x200000 0x600000>;
+						};
+
+						rootfs@800000 {
+							label = "rootfs";
+							reg = <0x800000 0x0f800000>;
+						};
+					};
+				};
+			};
 		};
 	};
 

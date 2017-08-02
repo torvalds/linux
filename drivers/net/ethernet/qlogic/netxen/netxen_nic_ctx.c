@@ -174,7 +174,6 @@ netxen_setup_minidump(struct netxen_adapter *adapter)
 {
 	int err = 0, i;
 	u32 *template, *tmp_buf;
-	struct netxen_minidump_template_hdr *hdr;
 	err = netxen_get_minidump_template_size(adapter);
 	if (err) {
 		adapter->mdump.fw_supports_md = 0;
@@ -218,8 +217,6 @@ netxen_setup_minidump(struct netxen_adapter *adapter)
 	template = (u32 *) adapter->mdump.md_template;
 	for (i = 0; i < adapter->mdump.md_template_size/sizeof(u32); i++)
 		*template++ = __le32_to_cpu(*tmp_buf++);
-	hdr = (struct netxen_minidump_template_hdr *)
-				adapter->mdump.md_template;
 	adapter->mdump.md_capture_buff = NULL;
 	adapter->mdump.fw_supports_md = 1;
 	adapter->mdump.md_enabled = 0;

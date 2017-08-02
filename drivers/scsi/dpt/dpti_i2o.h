@@ -48,7 +48,7 @@
 #include <linux/wait.h>
 typedef wait_queue_head_t adpt_wait_queue_head_t;
 #define ADPT_DECLARE_WAIT_QUEUE_HEAD(wait) DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wait)
-typedef wait_queue_t adpt_wait_queue_t;
+typedef wait_queue_entry_t adpt_wait_queue_entry_t;
 
 /*
  * message structures

@@ -16,7 +16,7 @@
  * Boston, MA 021110-1307, USA.
  */
 
-#include <linux/vmalloc.h>
+#include <linux/mm.h>
 #include <linux/rbtree.h>
 #include "ctree.h"
 #include "disk-io.h"
@@ -2305,7 +2305,7 @@ struct btrfs_data_container *init_data_container(u32 total_bytes)
 	size_t alloc_bytes;
 
 	alloc_bytes = max_t(size_t, total_bytes, sizeof(*data));
-	data = vmalloc(alloc_bytes);
+	data = kvmalloc(alloc_bytes, GFP_KERNEL);
 	if (!data)
 		return ERR_PTR(-ENOMEM);
 
@@ -2339,9 +2339,9 @@ struct inode_fs_paths *init_ipath(s32 total_bytes, struct btrfs_root *fs_root,
 	if (IS_ERR(fspath))
 		return (void *)fspath;
 
-	ifp = kmalloc(sizeof(*ifp), GFP_NOFS);
+	ifp = kmalloc(sizeof(*ifp), GFP_KERNEL);
 	if (!ifp) {
-		vfree(fspath);
+		kvfree(fspath);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -2356,6 +2356,6 @@ void free_ipath(struct inode_fs_paths *ipath)
 {
 	if (!ipath)
 		return;
-	vfree(ipath->fspath);
+	kvfree(ipath->fspath);
 	kfree(ipath);
 }

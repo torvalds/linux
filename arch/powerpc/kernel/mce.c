@@ -268,6 +268,7 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 	static const char *mc_ra_types[] = {
 		"Indeterminate",
 		"Instruction fetch (bad)",
+		"Instruction fetch (foreign)",
 		"Page table walk ifetch (bad)",
 		"Page table walk ifetch (foreign)",
 		"Load (bad)",
@@ -405,6 +406,7 @@ void machine_check_print_event_info(struct machine_check_event *evt,
 		break;
 	}
 }
+EXPORT_SYMBOL_GPL(machine_check_print_event_info);
 
 uint64_t get_mce_fault_addr(struct machine_check_event *evt)
 {

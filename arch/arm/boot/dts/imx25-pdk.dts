@@ -125,7 +125,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_fec>;
 	phy-supply = <&reg_fec_3v3>;
-	phy-reset-gpios = <&gpio4 8 0>;
+	phy-reset-gpios = <&gpio4 8 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
 

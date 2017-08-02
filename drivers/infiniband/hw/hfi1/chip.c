@@ -12847,7 +12847,12 @@ static void remap_intr(struct hfi1_devdata *dd, int isrc, int msix_intr)
 	/* clear from the handled mask of the general interrupt */
 	m = isrc / 64;
 	n = isrc % 64;
-	dd->gi_mask[m] &= ~((u64)1 << n);
+	if (likely(m < CCE_NUM_INT_CSRS)) {
+		dd->gi_mask[m] &= ~((u64)1 << n);
+	} else {
+		dd_dev_err(dd, "remap interrupt err\n");
+		return;
+	}
 
 	/* direct the chip source to the given MSI-X interrupt */
 	m = isrc / 8;

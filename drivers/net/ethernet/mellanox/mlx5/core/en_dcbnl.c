@@ -464,6 +464,8 @@ static void mlx5e_dcbnl_getpermhwaddr(struct net_device *netdev,
 	if (!perm_addr)
 		return;
 
+	memset(perm_addr, 0xff, MAX_ADDR_LEN);
+
 	mlx5_query_nic_vport_mac_address(priv->mdev, 0, perm_addr);
 }
 
