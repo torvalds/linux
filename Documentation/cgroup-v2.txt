@@ -868,6 +868,24 @@ All cgroup core files are prefixed with "cgroup."
 	If the actual descent depth is equal or larger,
 	an attempt to create a new child cgroup will fail.
 
+  cgroup.stat
+	A read-only flat-keyed file with the following entries:
+
+	  nr_descendants
+		Total number of visible descendant cgroups.
+
+	  nr_dying_descendants
+		Total number of dying descendant cgroups. A cgroup becomes
+		dying after being deleted by a user. The cgroup will remain
+		in dying state for some time undefined time (which can depend
+		on system load) before being completely destroyed.
+
+		A process can't enter a dying cgroup under any circumstances,
+		a dying cgroup can't revive.
+
+		A dying cgroup can consume system resources not exceeding
+		limits, which were active at the moment of cgroup deletion.
+
 
 Controllers
 ===========

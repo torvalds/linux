@@ -3304,6 +3304,18 @@ static int cgroup_events_show(struct seq_file *seq, void *v)
 	return 0;
 }
 
+static int cgroup_stats_show(struct seq_file *seq, void *v)
+{
+	struct cgroup *cgroup = seq_css(seq)->cgroup;
+
+	seq_printf(seq, "nr_descendants %d\n",
+		   cgroup->nr_descendants);
+	seq_printf(seq, "nr_dying_descendants %d\n",
+		   cgroup->nr_dying_descendants);
+
+	return 0;
+}
+
 static int cgroup_file_open(struct kernfs_open_file *of)
 {
 	struct cftype *cft = of->kn->priv;
@@ -4406,6 +4418,10 @@ static struct cftype cgroup_base_files[] = {
 		.name = "cgroup.max.depth",
 		.seq_show = cgroup_max_depth_show,
 		.write = cgroup_max_depth_write,
+	},
+	{
+		.name = "cgroup.stat",
+		.seq_show = cgroup_stats_show,
 	},
 	{ }	/* terminate */
 };
