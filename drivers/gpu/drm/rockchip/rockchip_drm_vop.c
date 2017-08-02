@@ -3236,13 +3236,13 @@ static int vop_bind(struct device *dev, struct device *master, void *data)
 	for (i = 0; i < ARRAY_SIZE(dmc_vop); i++) {
 		if (dmc_vop[i])
 			continue;
-		dmc_vop[i] = vop;
 		if (devfreq_vop) {
-			dmc_vop[i]->dmc_nb.notifier_call = dmc_notifier_call;
+			vop->dmc_nb.notifier_call = dmc_notifier_call;
 			devfreq_register_notifier(devfreq_vop,
-						  &dmc_vop[i]->dmc_nb,
+						  &vop->dmc_nb,
 						  DEVFREQ_TRANSITION_NOTIFIER);
 		}
+		dmc_vop[i] = vop;
 		break;
 	}
 
@@ -3265,7 +3265,8 @@ static void vop_unbind(struct device *dev, struct device *master, void *data)
 
 		if (!devfreq_vop)
 			break;
-		devfreq_unregister_notifier(devfreq_vop, &dmc_vop[i]->dmc_nb,
+		devfreq_unregister_notifier(devfreq_vop,
+					    &vop->dmc_nb,
 					    DEVFREQ_TRANSITION_NOTIFIER);
 		break;
 	}
