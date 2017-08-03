@@ -239,6 +239,7 @@ enum cmd_frame_type {
 	CW_MODE_REQ,
 	PER_CMD_PKT,
 	ANT_SEL_FRAME = 0x20,
+	VAP_DYNAMIC_UPDATE = 0x27,
 	COMMON_DEV_CONFIG = 0x28,
 	RADIO_PARAMS_UPDATE = 0x29
 };
@@ -372,6 +373,18 @@ struct rsi_ant_sel_frame {
 	__le16 ant_value;
 	__le32 reserved1;
 	__le32 reserved2;
+} __packed;
+
+struct rsi_dynamic_s {
+	struct rsi_cmd_desc_dword0 desc_dword0;
+	struct rsi_cmd_desc_dword1 desc_dword1;
+	struct rsi_cmd_desc_dword2 desc_dword2;
+	struct rsi_cmd_desc_dword3 desc_dword3;
+	struct framebody {
+		__le16 data_rate;
+		__le16 mgmt_rate;
+		__le16 keep_alive_period;
+	} frame_body;
 } __packed;
 
 /* Key descriptor flags */
@@ -585,6 +598,7 @@ int rsi_hal_load_key(struct rsi_common *common, u8 *data, u16 key_len,
 		     u8 key_type, u8 key_id, u32 cipher);
 int rsi_set_channel(struct rsi_common *common,
 		    struct ieee80211_channel *channel);
+int rsi_send_vap_dynamic_update(struct rsi_common *common);
 int rsi_send_block_unblock_frame(struct rsi_common *common, bool event);
 void rsi_inform_bss_status(struct rsi_common *common, u8 status,
 			   const u8 *bssid, u8 qos_enable, u16 aid);

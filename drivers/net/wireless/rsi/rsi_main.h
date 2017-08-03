@@ -58,6 +58,7 @@ extern __printf(2, 3) void rsi_dbg(u32 zone, const char *fmt, ...);
 #define IEEE80211_ADDR_LEN              6
 #define FRAME_DESC_SZ                   16
 #define MIN_802_11_HDR_LEN              24
+#define RSI_DEF_KEEPALIVE               90
 
 #define DATA_QUEUE_WATER_MARK           400
 #define MIN_DATA_QUEUE_WATER_MARK       300

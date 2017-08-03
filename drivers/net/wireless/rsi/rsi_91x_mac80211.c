@@ -497,6 +497,15 @@ static int rsi_mac80211_config(struct ieee80211_hw *hw,
 		spin_unlock_irqrestore(&adapter->ps_lock, flags);
 	}
 
+	/* RTS threshold */
+	if (changed & WIPHY_PARAM_RTS_THRESHOLD) {
+		rsi_dbg(INFO_ZONE, "RTS threshold\n");
+		if ((common->rts_threshold) <= IEEE80211_MAX_RTS_THRESHOLD) {
+			rsi_dbg(INFO_ZONE,
+				"%s: Sending vap updates....\n", __func__);
+			status = rsi_send_vap_dynamic_update(common);
+		}
+	}
 	mutex_unlock(&common->mutex);
 
 	return status;
