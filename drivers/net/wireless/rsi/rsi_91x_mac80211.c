@@ -279,11 +279,12 @@ static int rsi_mac80211_start(struct ieee80211_hw *hw)
 	struct rsi_hw *adapter = hw->priv;
 	struct rsi_common *common = adapter->priv;
 
+	rsi_dbg(ERR_ZONE, "===> Interface UP <===\n");
 	mutex_lock(&common->mutex);
 	common->iface_down = false;
-	mutex_unlock(&common->mutex);
-
+	wiphy_rfkill_start_polling(hw->wiphy);
 	rsi_send_rx_filter_frame(common, 0);
+	mutex_unlock(&common->mutex);
 
 	return 0;
 }
@@ -299,8 +300,10 @@ static void rsi_mac80211_stop(struct ieee80211_hw *hw)
 	struct rsi_hw *adapter = hw->priv;
 	struct rsi_common *common = adapter->priv;
 
+	rsi_dbg(ERR_ZONE, "===> Interface DOWN <===\n");
 	mutex_lock(&common->mutex);
 	common->iface_down = true;
+	wiphy_rfkill_stop_polling(hw->wiphy);
 
 	/* Block all rx frames */
 	rsi_send_rx_filter_frame(common, 0xffff);
@@ -1214,6 +1217,19 @@ static void rsi_reg_notify(struct wiphy *wiphy,
 	mutex_unlock(&common->mutex);
 }
 
+static void rsi_mac80211_rfkill_poll(struct ieee80211_hw *hw)
+{
+	struct rsi_hw *adapter = hw->priv;
+	struct rsi_common *common = adapter->priv;
+
+	mutex_lock(&common->mutex);
+	if (common->fsm_state != FSM_MAC_INIT_DONE)
+		wiphy_rfkill_set_hw_state(hw->wiphy, true);
+	else
+		wiphy_rfkill_set_hw_state(hw->wiphy, false);
+	mutex_unlock(&common->mutex);
+}
+
 static struct ieee80211_ops mac80211_ops = {
 	.tx = rsi_mac80211_tx,
 	.start = rsi_mac80211_start,
@@ -1232,6 +1248,7 @@ static struct ieee80211_ops mac80211_ops = {
 	.sta_remove = rsi_mac80211_sta_remove,
 	.set_antenna = rsi_mac80211_set_antenna,
 	.get_antenna = rsi_mac80211_get_antenna,
+	.rfkill_poll = rsi_mac80211_rfkill_poll,
 };
 
 /**
