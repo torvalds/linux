@@ -1044,14 +1044,14 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 	/*  */
 	dc->hwss.prog_pixclk_crtc_otg(pipe_ctx, context, dc);
 
-	pipe_ctx->stream_res.opp->funcs->opp_set_dyn_expansion(
-			pipe_ctx->stream_res.opp,
-			COLOR_SPACE_YCBCR601,
-			stream->timing.display_color_depth,
-			pipe_ctx->stream->signal);
-
 	/* FPGA does not program backend */
 	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) {
+		pipe_ctx->stream_res.opp->funcs->opp_set_dyn_expansion(
+		pipe_ctx->stream_res.opp,
+		COLOR_SPACE_YCBCR601,
+		stream->timing.display_color_depth,
+		pipe_ctx->stream->signal);
+
 	pipe_ctx->stream_res.opp->funcs->opp_program_fmt(
 			pipe_ctx->stream_res.opp,
 			&stream->bit_depth_params,
@@ -1064,6 +1064,11 @@ static enum dc_status apply_single_controller_ctx_to_hw(
 			BREAK_TO_DEBUGGER();
 			return DC_ERROR_UNEXPECTED;
 		}
+	pipe_ctx->stream_res.opp->funcs->opp_set_dyn_expansion(
+			pipe_ctx->stream_res.opp,
+			COLOR_SPACE_YCBCR601,
+			stream->timing.display_color_depth,
+			pipe_ctx->stream->signal);
 
 	if (pipe_ctx->stream->signal != SIGNAL_TYPE_VIRTUAL)
 		stream->sink->link->link_enc->funcs->setup(

@@ -240,7 +240,8 @@ static void oppn10_set_dyn_expansion(
 	/*01 - 8-bit  -> 12-bit dynamic expansion*/
 	if (signal == SIGNAL_TYPE_HDMI_TYPE_A ||
 		signal == SIGNAL_TYPE_DISPLAY_PORT ||
-		signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
+		signal == SIGNAL_TYPE_DISPLAY_PORT_MST ||
+		signal == SIGNAL_TYPE_VIRTUAL) {
 		switch (color_dpth) {
 		case COLOR_DEPTH_888:
 			REG_UPDATE_2(FMT_DYNAMIC_EXP_CNTL,
