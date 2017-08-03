@@ -32,4 +32,5 @@ ib_umad-y :=			user_mad.o
 ib_ucm-y :=			ucm.o
 
 ib_uverbs-y :=			uverbs_main.o uverbs_cmd.o uverbs_marshall.o \
-				rdma_core.o uverbs_std_types.o uverbs_ioctl.o
+				rdma_core.o uverbs_std_types.o uverbs_ioctl.o \
+				uverbs_ioctl_merge.o
