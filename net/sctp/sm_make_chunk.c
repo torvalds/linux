@@ -857,15 +857,15 @@ nodata:
 struct sctp_chunk *sctp_make_shutdown(const struct sctp_association *asoc,
 				      const struct sctp_chunk *chunk)
 {
+	struct sctp_shutdownhdr shut;
 	struct sctp_chunk *retval;
-	sctp_shutdownhdr_t shut;
 	__u32 ctsn;
 
 	ctsn = sctp_tsnmap_get_ctsn(&asoc->peer.tsn_map);
 	shut.cum_tsn_ack = htonl(ctsn);
 
 	retval = sctp_make_control(asoc, SCTP_CID_SHUTDOWN, 0,
-				   sizeof(sctp_shutdownhdr_t), GFP_ATOMIC);
+				   sizeof(shut), GFP_ATOMIC);
 	if (!retval)
 		goto nodata;
 

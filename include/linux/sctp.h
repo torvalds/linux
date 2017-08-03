@@ -416,13 +416,13 @@ struct sctp_abort_chunk {
 /* For the graceful shutdown we must carry the tag (in common header)
  * and the highest consecutive acking value.
  */
-typedef struct sctp_shutdownhdr {
+struct sctp_shutdownhdr {
 	__be32 cum_tsn_ack;
-} sctp_shutdownhdr_t;
+};
 
 struct sctp_shutdown_chunk_t {
 	struct sctp_chunkhdr chunk_hdr;
-	sctp_shutdownhdr_t shutdown_hdr;
+	struct sctp_shutdownhdr shutdown_hdr;
 };
 
 /* RFC 2960.  Section 3.3.10 Operation Error (ERROR) (9) */

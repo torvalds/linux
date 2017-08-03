@@ -2656,8 +2656,8 @@ sctp_disposition_t sctp_sf_do_9_2_shutdown(struct net *net,
 					   sctp_cmd_seq_t *commands)
 {
 	struct sctp_chunk *chunk = arg;
-	sctp_shutdownhdr_t *sdh;
 	sctp_disposition_t disposition;
+	struct sctp_shutdownhdr *sdh;
 	struct sctp_ulpevent *ev;
 	__u32 ctsn;
 
@@ -2671,8 +2671,8 @@ sctp_disposition_t sctp_sf_do_9_2_shutdown(struct net *net,
 						  commands);
 
 	/* Convert the elaborate header.  */
-	sdh = (sctp_shutdownhdr_t *)chunk->skb->data;
-	skb_pull(chunk->skb, sizeof(sctp_shutdownhdr_t));
+	sdh = (struct sctp_shutdownhdr *)chunk->skb->data;
+	skb_pull(chunk->skb, sizeof(*sdh));
 	chunk->subh.shutdown_hdr = sdh;
 	ctsn = ntohl(sdh->cum_tsn_ack);
 
@@ -2746,7 +2746,7 @@ sctp_disposition_t sctp_sf_do_9_2_shut_ctsn(struct net *net,
 					   sctp_cmd_seq_t *commands)
 {
 	struct sctp_chunk *chunk = arg;
-	sctp_shutdownhdr_t *sdh;
+	struct sctp_shutdownhdr *sdh;
 	__u32 ctsn;
 
 	if (!sctp_vtag_verify(chunk, asoc))
@@ -2758,7 +2758,7 @@ sctp_disposition_t sctp_sf_do_9_2_shut_ctsn(struct net *net,
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
 
-	sdh = (sctp_shutdownhdr_t *)chunk->skb->data;
+	sdh = (struct sctp_shutdownhdr *)chunk->skb->data;
 	ctsn = ntohl(sdh->cum_tsn_ack);
 
 	if (TSN_lt(ctsn, asoc->ctsn_ack_point)) {
