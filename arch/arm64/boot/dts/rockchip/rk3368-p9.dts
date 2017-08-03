@@ -688,8 +688,8 @@
 		dsi,format = <MIPI_DSI_FMT_RGB888>;
 		dsi,lanes = <4>;
 
-		delay,prepare = <120>;
-		delay,enable = <200>;
+		prepare-delay-ms = <120>;
+		enable-delay-ms = <200>;
 
 		display-timings {
 			native-mode = <&timing0>;

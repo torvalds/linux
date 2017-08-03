@@ -701,8 +701,8 @@
 		backlight = <&backlight>;
 		enable-gpios = <&gpio0 12 GPIO_ACTIVE_HIGH>;
 
-		delay,prepare = <20>;
-		delay,enable = <20>;
+		prepare-delay-ms = <20>;
+		enable-delay-ms = <20>;
 
 		dsi,flags = <(MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST)>;
 		dsi,format = <MIPI_DSI_FMT_RGB888>;

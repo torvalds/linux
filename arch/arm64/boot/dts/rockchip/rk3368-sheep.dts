@@ -609,7 +609,7 @@
 		dsi,format = <MIPI_DSI_FMT_RGB888>;
 		dsi,lanes = <4>;
 
-		delay,prepare = <120>;
+		prepare-delay-ms = <120>;
 
 		display-timings {
 			native-mode = <&timing0>;
