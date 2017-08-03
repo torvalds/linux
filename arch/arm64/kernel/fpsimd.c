@@ -194,7 +194,7 @@ void fpsimd_restore_current_state(void)
 		struct fpsimd_state *st = &current->thread.fpsimd_state;
 
 		fpsimd_load_state(st);
-		this_cpu_write(fpsimd_last_state, st);
+		__this_cpu_write(fpsimd_last_state, st);
 		st->cpu = smp_processor_id();
 	}
 	preempt_enable();
@@ -214,7 +214,7 @@ void fpsimd_update_current_state(struct fpsimd_state *state)
 	if (test_and_clear_thread_flag(TIF_FOREIGN_FPSTATE)) {
 		struct fpsimd_state *st = &current->thread.fpsimd_state;
 
-		this_cpu_write(fpsimd_last_state, st);
+		__this_cpu_write(fpsimd_last_state, st);
 		st->cpu = smp_processor_id();
 	}
 	preempt_enable();
