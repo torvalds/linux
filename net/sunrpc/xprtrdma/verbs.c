@@ -180,6 +180,7 @@ rpcrdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 		__func__, rep, wc->byte_len);
 
 	rep->rr_len = wc->byte_len;
+	rpcrdma_set_xdrlen(&rep->rr_hdrbuf, wc->byte_len);
 	rep->rr_wc_flags = wc->wc_flags;
 	rep->rr_inv_rkey = wc->ex.invalidate_rkey;
 
@@ -974,6 +975,8 @@ rpcrdma_create_rep(struct rpcrdma_xprt *r_xprt)
 		rc = PTR_ERR(rep->rr_rdmabuf);
 		goto out_free;
 	}
+	xdr_buf_init(&rep->rr_hdrbuf, rep->rr_rdmabuf->rg_base,
+		     rdmab_length(rep->rr_rdmabuf));
 
 	rep->rr_cqe.done = rpcrdma_wc_receive;
 	rep->rr_rxprt = r_xprt;

@@ -223,6 +223,8 @@ struct rpcrdma_rep {
 	u32			rr_inv_rkey;
 	struct rpcrdma_xprt	*rr_rxprt;
 	struct work_struct	rr_work;
+	struct xdr_buf		rr_hdrbuf;
+	struct xdr_stream	rr_stream;
 	struct list_head	rr_list;
 	struct ib_recv_wr	rr_recv_wr;
 	struct rpcrdma_regbuf	*rr_rdmabuf;
@@ -641,6 +643,12 @@ void rpcrdma_unmap_sges(struct rpcrdma_ia *, struct rpcrdma_req *);
 int rpcrdma_marshal_req(struct rpc_rqst *);
 void rpcrdma_set_max_header_sizes(struct rpcrdma_xprt *);
 void rpcrdma_reply_handler(struct work_struct *work);
+
+static inline void rpcrdma_set_xdrlen(struct xdr_buf *xdr, size_t len)
+{
+	xdr->head[0].iov_len = len;
+	xdr->len = len;
+}
 
 /* RPC/RDMA module init - xprtrdma/transport.c
  */
