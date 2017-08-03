@@ -41,12 +41,65 @@
  * =======================================
  */
 
+enum uverbs_attr_type {
+	UVERBS_ATTR_TYPE_NA,
+	UVERBS_ATTR_TYPE_IDR,
+	UVERBS_ATTR_TYPE_FD,
+};
+
 enum uverbs_obj_access {
 	UVERBS_ACCESS_READ,
 	UVERBS_ACCESS_WRITE,
 	UVERBS_ACCESS_NEW,
 	UVERBS_ACCESS_DESTROY
 };
+
+struct uverbs_attr_spec {
+	enum uverbs_attr_type		type;
+	struct {
+		/*
+		 * higher bits mean the namespace and lower bits mean
+		 * the type id within the namespace.
+		 */
+		u16			obj_type;
+		u8			access;
+	} obj;
+};
+
+struct uverbs_attr_spec_hash {
+	size_t				num_attrs;
+	struct uverbs_attr_spec		attrs[0];
+};
+
+struct uverbs_obj_attr {
+	struct ib_uobject		*uobject;
+};
+
+struct uverbs_attr {
+	struct uverbs_obj_attr	obj_attr;
+};
+
+struct uverbs_attr_bundle_hash {
+	/* if bit i is set, it means attrs[i] contains valid information */
+	unsigned long *valid_bitmap;
+	size_t num_attrs;
+	/*
+	 * arrays of attributes, each element corresponds to the specification
+	 * of the attribute in the same index.
+	 */
+	struct uverbs_attr *attrs;
+};
+
+struct uverbs_attr_bundle {
+	size_t				num_buckets;
+	struct uverbs_attr_bundle_hash  hash[];
+};
+
+static inline bool uverbs_attr_is_valid_in_hash(const struct uverbs_attr_bundle_hash *attrs_hash,
+						unsigned int idx)
+{
+	return test_bit(idx, attrs_hash->valid_bitmap);
+}
 
 #endif
 
