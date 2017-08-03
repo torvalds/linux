@@ -32,7 +32,10 @@
 #include "ddc_service_types.h"
 #include "dc_bios_types.h"
 #include "mem_input.h"
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 #include "mpc.h"
+#endif
+#include "dwb.h"
 
 #define MAX_CLOCK_SOURCES 7
 
@@ -125,6 +128,8 @@ struct resource_pool {
 	struct mpc *mpc;
 #endif
 
+	struct dwbc *dwbc[MAX_DWB_PIPES];
+
 	unsigned int pipe_count;
 	unsigned int underlay_pipe_index;
 	unsigned int stream_enc_count;
@@ -193,6 +198,7 @@ struct pipe_ctx {
 	struct _vcs_dpi_display_rq_regs_st rq_regs;
 	struct _vcs_dpi_display_pipe_dest_params_st pipe_dlg_param;
 #endif
+	struct dwbc *dwbc;
 };
 
 struct resource_context {

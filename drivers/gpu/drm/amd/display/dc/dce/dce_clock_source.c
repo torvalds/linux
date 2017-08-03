@@ -34,6 +34,7 @@
 
 #include "dce_clock_source.h"
 
+#include "core_dc.h"
 #include "reg_helper.h"
 
 #define REG(reg)\
@@ -602,6 +603,89 @@ static uint32_t dce110_get_pix_clk_dividers(
 	return pll_calc_error;
 }
 
+static uint32_t dce110_get_pll_pixel_rate_in_hz(
+	struct clock_source *cs,
+	struct pixel_clk_params *pix_clk_params,
+	struct pll_settings *pll_settings)
+{
+	uint32_t inst = pix_clk_params->controller_id - CONTROLLER_ID_D0;
+	struct core_dc *dc_core = DC_TO_CORE(cs->ctx->dc);
+	struct validate_context *context = dc_core->current_context;
+	struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[inst];
+
+	/* This function need separate to different DCE version, before separate, just use pixel clock */
+	return pipe_ctx->stream->phy_pix_clk;
+}
+
+static uint32_t dce110_get_dp_pixel_rate_from_combo_phy_pll(
+	struct clock_source *cs,
+	struct pixel_clk_params *pix_clk_params,
+	struct pll_settings *pll_settings)
+{
+	uint32_t inst = pix_clk_params->controller_id - CONTROLLER_ID_D0;
+	struct core_dc *dc_core = DC_TO_CORE(cs->ctx->dc);
+	struct validate_context *context = dc_core->current_context;
+	struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[inst];
+
+	/* This function need separate to different DCE version, before separate, just use pixel clock */
+	return pipe_ctx->stream->phy_pix_clk;
+}
+
+static uint32_t dce110_get_d_to_pixel_rate_in_hz(
+	struct clock_source *cs,
+	struct pixel_clk_params *pix_clk_params,
+	struct pll_settings *pll_settings)
+{
+	uint32_t inst = pix_clk_params->controller_id - CONTROLLER_ID_D0;
+	struct dce110_clk_src *clk_src = TO_DCE110_CLK_SRC(cs);
+	int dto_enabled = 0;
+	struct fixed31_32 pix_rate;
+
+	REG_GET(PIXEL_RATE_CNTL[inst], DP_DTO0_ENABLE, &dto_enabled);
+
+	if (dto_enabled) {
+		uint32_t phase = 0;
+		uint32_t modulo = 0;
+		REG_GET(PHASE[inst], DP_DTO0_PHASE, &phase);
+		REG_GET(MODULO[inst], DP_DTO0_MODULO, &modulo);
+
+		if (modulo == 0) {
+			return 0;
+		}
+
+		pix_rate = dal_fixed31_32_from_int(clk_src->ref_freq_khz);
+		pix_rate = dal_fixed31_32_mul_int(pix_rate, 1000);
+		pix_rate = dal_fixed31_32_mul_int(pix_rate, phase);
+		pix_rate = dal_fixed31_32_div_int(pix_rate, modulo);
+
+		return dal_fixed31_32_round(pix_rate);
+	} else {
+		return dce110_get_dp_pixel_rate_from_combo_phy_pll(cs, pix_clk_params, pll_settings);
+	}
+}
+
+static uint32_t dce110_get_pix_rate_in_hz(
+	struct clock_source *cs,
+	struct pixel_clk_params *pix_clk_params,
+	struct pll_settings *pll_settings)
+{
+	uint32_t pix_rate = 0;
+	switch (pix_clk_params->signal_type) {
+	case	SIGNAL_TYPE_DISPLAY_PORT:
+	case	SIGNAL_TYPE_DISPLAY_PORT_MST:
+	case	SIGNAL_TYPE_EDP:
+	case	SIGNAL_TYPE_VIRTUAL:
+		pix_rate = dce110_get_d_to_pixel_rate_in_hz(cs, pix_clk_params, pll_settings);
+		break;
+	case	SIGNAL_TYPE_HDMI_TYPE_A:
+	default:
+		pix_rate = dce110_get_pll_pixel_rate_in_hz(cs, pix_clk_params, pll_settings);
+		break;
+	}
+
+	return pix_rate;
+}
+
 static bool disable_spread_spectrum(struct dce110_clk_src *clk_src)
 {
 	enum bp_result result;
@@ -962,7 +1046,8 @@ static bool dce110_clock_source_power_down(
 static const struct clock_source_funcs dce110_clk_src_funcs = {
 	.cs_power_down = dce110_clock_source_power_down,
 	.program_pix_clk = dce110_program_pix_clk,
-	.get_pix_clk_dividers = dce110_get_pix_clk_dividers
+	.get_pix_clk_dividers = dce110_get_pix_clk_dividers,
+	.get_pix_rate_in_hz = dce110_get_pix_rate_in_hz
 };
 
 static void get_ss_info_from_atombios(

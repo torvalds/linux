@@ -797,6 +797,8 @@ const struct dc_link_status *dc_link_get_status(const struct dc_link *dc_link);
  */
 struct dc_link *dc_get_link_at_index(const struct dc *dc, uint32_t link_index);
 
+struct dwbc *dc_get_dwb_at_pipe(const struct dc *dc, uint32_t pipe);
+
 /* Return id of physical connector represented by a dc_link at link_index.*/
 const struct graphics_object_id dc_get_link_id_at_index(
 		struct dc *dc, uint32_t link_index);

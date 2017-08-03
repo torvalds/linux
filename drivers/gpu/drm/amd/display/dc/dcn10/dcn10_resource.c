@@ -32,6 +32,7 @@
 
 #include "dcn10/dcn10_ipp.h"
 #include "dcn10/dcn10_mpc.h"
+#include "dcn10/dcn10_dwb.h"
 #include "irq/dcn10/irq_service_dcn10.h"
 #include "dcn10/dcn10_dpp.h"
 #include "dcn10/dcn10_timing_generator.h"
@@ -410,6 +411,7 @@ static const struct resource_caps res_cap = {
 		.num_audio = 4,
 		.num_stream_encoder = 4,
 		.num_pll = 4,
+		.num_dwb = 2,
 };
 
 static const struct dc_debug debug_defaults_drv = {
@@ -1410,6 +1412,12 @@ static bool construct(
 		goto mpc_create_fail;
 	}
 
+#if defined(CONFIG_DRM_AMD_DC_DCN1_0)
+	if (!dcn10_dwbc_create(ctx, &pool->base)) {
+		goto dwbc_create_fail;
+	}
+#endif
+
 	if (!resource_construct(num_virtual_links, dc, &pool->base,
 			(!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment) ?
 			&res_create_funcs : &res_create_maximus_funcs)))
@@ -1432,6 +1440,7 @@ mi_create_fail:
 irqs_create_fail:
 res_create_fail:
 clock_source_create_fail:
+dwbc_create_fail:
 
 	destruct(pool);
 

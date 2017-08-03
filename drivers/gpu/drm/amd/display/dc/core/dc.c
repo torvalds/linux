@@ -1749,6 +1749,16 @@ struct dc_link *dc_get_link_at_index(const struct dc *dc, uint32_t link_index)
 	return core_dc->links[link_index];
 }
 
+struct dwbc *dc_get_dwb_at_pipe(const struct dc *dc, uint32_t pipe)
+{
+	struct core_dc *core_dc = DC_TO_CORE(dc);
+	if ((pipe >= dwb_pipe0) && (pipe < dwb_pipe_max_num)) {
+		return core_dc->res_pool->dwbc[(int)pipe];
+	} else {
+		return NULL;
+	}
+}
+
 const struct graphics_object_id dc_get_link_id_at_index(
 	struct dc *dc, uint32_t link_index)
 {
