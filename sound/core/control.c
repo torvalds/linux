@@ -1394,65 +1394,115 @@ static int snd_ctl_subscribe_events(struct snd_ctl_file *file, int __user *ptr)
 	return 0;
 }
 
-static int snd_ctl_tlv_ioctl(struct snd_ctl_file *file,
-                             struct snd_ctl_tlv __user *_tlv,
-                             int op_flag)
+static int call_tlv_handler(struct snd_ctl_file *file, int op_flag,
+			    struct snd_kcontrol *kctl,
+			    struct snd_ctl_elem_id *id,
+			    unsigned int __user *buf, unsigned int size)
 {
-	struct snd_card *card = file->card;
-	struct snd_ctl_tlv tlv;
-	struct snd_kcontrol *kctl;
-	struct snd_kcontrol_volatile *vd;
+	static const struct {
+		int op;
+		int perm;
+	} pairs[] = {
+		{SNDRV_CTL_TLV_OP_READ,  SNDRV_CTL_ELEM_ACCESS_TLV_READ},
+		{SNDRV_CTL_TLV_OP_WRITE, SNDRV_CTL_ELEM_ACCESS_TLV_WRITE},
+		{SNDRV_CTL_TLV_OP_CMD,   SNDRV_CTL_ELEM_ACCESS_TLV_COMMAND},
+	};
+	struct snd_kcontrol_volatile *vd = &kctl->vd[snd_ctl_get_ioff(kctl, id)];
+	int i;
+	int err;
+
+	/* Check support of the request for this element. */
+	for (i = 0; i < ARRAY_SIZE(pairs); ++i) {
+		if (op_flag == pairs[i].op && (vd->access & pairs[i].perm))
+			break;
+	}
+	if (i == ARRAY_SIZE(pairs))
+		return -ENXIO;
+
+	if (kctl->tlv.c == NULL)
+		return -ENXIO;
+
+	/* When locked, this is unavailable. */
+	if (vd->owner != NULL && vd->owner != file)
+		return -EPERM;
+
+	err = kctl->tlv.c(kctl, op_flag, size, buf);
+	if (err < 0)
+		return err;
+
+	if (err > 0)
+		snd_ctl_notify(file->card, SNDRV_CTL_EVENT_MASK_TLV, id);
+
+	return 0;
+}
+
+static int read_tlv_buf(struct snd_kcontrol *kctl, struct snd_ctl_elem_id *id,
+			unsigned int __user *buf, unsigned int size)
+{
+	struct snd_kcontrol_volatile *vd = &kctl->vd[snd_ctl_get_ioff(kctl, id)];
 	unsigned int len;
 
-	if (copy_from_user(&tlv, _tlv, sizeof(tlv)))
-		return -EFAULT;
-	if (tlv.length < sizeof(unsigned int) * 2)
-		return -EINVAL;
-	if (!tlv.numid)
-		return -EINVAL;
-
-	kctl = snd_ctl_find_numid(card, tlv.numid);
-	if (kctl == NULL)
-		return -ENOENT;
+	if (!(vd->access & SNDRV_CTL_ELEM_ACCESS_TLV_READ))
+		return -ENXIO;
 
 	if (kctl->tlv.p == NULL)
 		return -ENXIO;
 
-	vd = &kctl->vd[tlv.numid - kctl->id.numid];
-	if ((op_flag == SNDRV_CTL_TLV_OP_READ &&
-	     (vd->access & SNDRV_CTL_ELEM_ACCESS_TLV_READ) == 0) ||
-	    (op_flag == SNDRV_CTL_TLV_OP_WRITE &&
-	     (vd->access & SNDRV_CTL_ELEM_ACCESS_TLV_WRITE) == 0) ||
-	    (op_flag == SNDRV_CTL_TLV_OP_CMD &&
-	     (vd->access & SNDRV_CTL_ELEM_ACCESS_TLV_COMMAND) == 0))
-		return -ENXIO;
+	len = sizeof(unsigned int) * 2 + kctl->tlv.p[1];
+	if (size < len)
+		return -ENOMEM;
 
-	if (vd->access & SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK) {
-		int err;
-
-		if (vd->owner != NULL && vd->owner != file)
-			return -EPERM;
-
-		err = kctl->tlv.c(kctl, op_flag, tlv.length, _tlv->tlv);
-		if (err < 0)
-			return err;
-		if (err > 0) {
-			struct snd_ctl_elem_id id = kctl->id;
-			snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_TLV, &id);
-		}
-	} else {
-		if (op_flag != SNDRV_CTL_TLV_OP_READ)
-			return -ENXIO;
-
-		len = kctl->tlv.p[1] + 2 * sizeof(unsigned int);
-		if (tlv.length < len)
-			return -ENOMEM;
-
-		if (copy_to_user(_tlv->tlv, kctl->tlv.p, len))
-			return -EFAULT;
-	}
+	if (copy_to_user(buf, kctl->tlv.p, len))
+		return -EFAULT;
 
 	return 0;
+}
+
+static int snd_ctl_tlv_ioctl(struct snd_ctl_file *file,
+			     struct snd_ctl_tlv __user *buf,
+                             int op_flag)
+{
+	struct snd_ctl_tlv header;
+	unsigned int *container;
+	unsigned int container_size;
+	struct snd_kcontrol *kctl;
+	struct snd_ctl_elem_id id;
+	struct snd_kcontrol_volatile *vd;
+
+	if (copy_from_user(&header, buf, sizeof(header)))
+		return -EFAULT;
+
+	/* In design of control core, numerical ID starts at 1. */
+	if (header.numid == 0)
+		return -EINVAL;
+
+	/* At least, container should include type and length fields.  */
+	if (header.length < sizeof(unsigned int) * 2)
+		return -EINVAL;
+	container_size = header.length;
+	container = buf->tlv;
+
+	kctl = snd_ctl_find_numid(file->card, header.numid);
+	if (kctl == NULL)
+		return -ENOENT;
+
+	/* Calculate index of the element in this set. */
+	id = kctl->id;
+	snd_ctl_build_ioff(&id, kctl, header.numid - id.numid);
+	vd = &kctl->vd[snd_ctl_get_ioff(kctl, &id)];
+
+	if (vd->access & SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK) {
+		return call_tlv_handler(file, op_flag, kctl, &id, container,
+					container_size);
+	} else {
+		if (op_flag == SNDRV_CTL_TLV_OP_READ) {
+			return read_tlv_buf(kctl, &id, container,
+					    container_size);
+		}
+	}
+
+	/* Not supported. */
+	return -ENXIO;
 }
 
 static long snd_ctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
