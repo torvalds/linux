@@ -1810,7 +1810,7 @@ static int test_pmu_events(void)
 	return ret;
 }
 
-int test__parse_events(int subtest __maybe_unused)
+int test__parse_events(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	int ret1, ret2 = 0;
 

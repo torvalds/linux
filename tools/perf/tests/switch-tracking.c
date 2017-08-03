@@ -306,7 +306,7 @@ out_free_nodes:
  * evsel->system_wide and evsel->tracking flags (respectively) with other events
  * sometimes enabled or disabled.
  */
-int test__switch_tracking(int subtest __maybe_unused)
+int test__switch_tracking(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	const char *sched_switch = "sched:sched_switch";
 	struct switch_tracking switch_tracking = { .tids = NULL, };

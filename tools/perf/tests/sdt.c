@@ -71,7 +71,7 @@ static int search_cached_probe(const char *target,
 	return ret;
 }
 
-int test__sdt_event(int subtests __maybe_unused)
+int test__sdt_event(struct test *test __maybe_unused, int subtests __maybe_unused)
 {
 	int ret = TEST_FAIL;
 	char __tempdir[] = "./test-buildid-XXXXXX";
@@ -109,7 +109,7 @@ error:
 	return ret;
 }
 #else
-int test__sdt_event(int subtests __maybe_unused)
+int test__sdt_event(struct test *test __maybe_unused, int subtests __maybe_unused)
 {
 	pr_debug("Skip SDT event test because SDT support is not compiled\n");
 	return TEST_SKIP;

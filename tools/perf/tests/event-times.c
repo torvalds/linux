@@ -213,7 +213,7 @@ out_err:
  * and checks that enabled and running times
  * match.
  */
-int test__event_times(int subtest __maybe_unused)
+int test__event_times(struct test *test __maybe_unused, int subtest __maybe_unused)
 {
 	int err, ret = 0;
 
