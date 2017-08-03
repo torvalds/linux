@@ -170,6 +170,8 @@ enum WIFI_REASON_CODE	{
 enum WIFI_STATUS_CODE {
 	_STATS_SUCCESSFUL_			= 0,
 	_STATS_FAILURE_				= 1,
+	_STATS_SEC_DISABLED_			= 5,
+	_STATS_NOT_IN_SAME_BSS_		= 7,
 	_STATS_CAP_FAIL_			= 10,
 	_STATS_NO_ASOC_				= 11,
 	_STATS_OTHER_				= 12,
@@ -179,6 +181,10 @@ enum WIFI_STATUS_CODE {
 	_STATS_AUTH_TIMEOUT_		= 16,
 	_STATS_UNABLE_HANDLE_STA_	= 17,
 	_STATS_RATE_FAIL_			= 18,
+	_STATS_REFUSED_TEMPORARILY_ = 30,
+	_STATS_DECLINE_REQ_			= 37,
+	_STATS_INVALID_PARAMETERS_	= 38,
+	_STATS_INVALID_RSNIE_			= 72,
 };
 
 /* Status codes (IEEE 802.11-2007, 7.3.1.9, Table 7-23) */
@@ -668,6 +674,7 @@ typedef	enum _ELEMENT_ID{
 	EID_WAPI					= 68,
 	EID_VHTCapability 			= 191, // Based on 802.11ac D2.0
 	EID_VHTOperation 			= 192, // Based on 802.11ac D2.0
+	EID_AID						= 197, /* Based on 802.11ac D4.0 */
 	EID_OpModeNotification		= 199, // Based on 802.11ac D3.0
 }ELEMENT_ID, *PELEMENT_ID;
 
@@ -933,6 +940,18 @@ typedef enum _HT_CAP_AMPDU_FACTOR {
 	MAX_AMPDU_FACTOR_64K	= 3,	
 }HT_CAP_AMPDU_FACTOR;
 
+
+typedef enum _HT_CAP_AMPDU_DENSITY {
+	AMPDU_DENSITY_VALUE_0 = 0 , /* For no restriction */
+	AMPDU_DENSITY_VALUE_1 = 1 , /* For 1/4 us */
+	AMPDU_DENSITY_VALUE_2 = 2 , /* For 1/2 us */
+	AMPDU_DENSITY_VALUE_3 = 3 , /* For 1 us */
+	AMPDU_DENSITY_VALUE_4 = 4 , /* For 2 us */
+	AMPDU_DENSITY_VALUE_5 = 5 , /* For 4 us */
+	AMPDU_DENSITY_VALUE_6 = 6 , /* For 8 us */
+	AMPDU_DENSITY_VALUE_7 = 7 , /* For 16 us */
+} HT_CAP_AMPDU_DENSITY;
+
 /* 802.11n HT capabilities masks */
 #define IEEE80211_HT_CAP_LDPC_CODING		0x0001
 #define IEEE80211_HT_CAP_SUP_WIDTH		0x0002
@@ -947,6 +966,7 @@ typedef enum _HT_CAP_AMPDU_FACTOR {
 #define IEEE80211_HT_CAP_DELAY_BA		0x0400
 #define IEEE80211_HT_CAP_MAX_AMSDU		0x0800
 #define IEEE80211_HT_CAP_DSSSCCK40		0x1000
+#define RTW_IEEE80211_HT_CAP_40MHZ_INTOLERANT	((u16) BIT(14))
 /* 802.11n HT capability AMPDU settings */
 #define IEEE80211_HT_CAP_AMPDU_FACTOR		0x03
 #define IEEE80211_HT_CAP_AMPDU_DENSITY		0x1C

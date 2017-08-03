@@ -28,6 +28,140 @@
 #endif
 
 
+bool test_st_match_rule(_adapter *adapter, u8 *local_naddr, u8 *local_port, u8 *remote_naddr, u8 *remote_port)
+{
+	if (ntohs(*((u16 *)local_port)) == 5001 || ntohs(*((u16 *)remote_port)) == 5001)
+		return _TRUE;
+	return _FALSE;
+}
+
+struct st_register test_st_reg = {
+	.s_proto = 0x06,
+	.rule = test_st_match_rule,
+};
+
+inline void rtw_st_ctl_init(struct st_ctl_t *st_ctl)
+{
+	_rtw_memset(st_ctl->reg, 0 , sizeof(struct st_register) * SESSION_TRACKER_REG_ID_NUM);
+	_rtw_init_queue(&st_ctl->tracker_q);
+}
+
+inline void rtw_st_ctl_clear_tracker_q(struct st_ctl_t *st_ctl)
+{
+	_irqL irqL;
+	_list *plist, *phead;
+	struct session_tracker *st;
+
+	_enter_critical_bh(&st_ctl->tracker_q.lock, &irqL);
+	phead = &st_ctl->tracker_q.queue;
+	plist = get_next(phead);
+	while (rtw_end_of_queue_search(phead, plist) == _FALSE) {
+		st = LIST_CONTAINOR(plist, struct session_tracker, list);
+		plist = get_next(plist);
+		rtw_list_delete(&st->list);
+		rtw_mfree((u8 *)st, sizeof(struct session_tracker));
+	}
+	_exit_critical_bh(&st_ctl->tracker_q.lock, &irqL);
+}
+
+inline void rtw_st_ctl_deinit(struct st_ctl_t *st_ctl)
+{
+	rtw_st_ctl_clear_tracker_q(st_ctl);
+	_rtw_deinit_queue(&st_ctl->tracker_q);
+}
+
+inline void rtw_st_ctl_register(struct st_ctl_t *st_ctl, u8 st_reg_id, struct st_register *reg)
+{
+	if (st_reg_id >= SESSION_TRACKER_REG_ID_NUM) {
+		rtw_warn_on(1);
+		return;
+	}
+
+	st_ctl->reg[st_reg_id].s_proto = reg->s_proto;
+	st_ctl->reg[st_reg_id].rule = reg->rule;
+}
+
+inline void rtw_st_ctl_unregister(struct st_ctl_t *st_ctl, u8 st_reg_id)
+{
+	int i;
+
+	if (st_reg_id >= SESSION_TRACKER_REG_ID_NUM) {
+		rtw_warn_on(1);
+		return;
+	}
+
+	st_ctl->reg[st_reg_id].s_proto = 0;
+	st_ctl->reg[st_reg_id].rule = NULL;
+
+	/* clear tracker queue if no session trecker registered */
+	for (i = 0; i < SESSION_TRACKER_REG_ID_NUM; i++)
+		if (st_ctl->reg[i].s_proto != 0)
+			break;
+	if (i >= SESSION_TRACKER_REG_ID_NUM)
+		rtw_st_ctl_clear_tracker_q(st_ctl);
+}
+
+inline bool rtw_st_ctl_chk_reg_s_proto(struct st_ctl_t *st_ctl, u8 s_proto)
+{
+	bool ret = _FALSE;
+	int i;
+
+	for (i = 0; i < SESSION_TRACKER_REG_ID_NUM; i++) {
+		if (st_ctl->reg[i].s_proto == s_proto) {
+			ret = _TRUE;
+			break;
+		}
+	}
+
+	return ret;
+}
+
+inline bool rtw_st_ctl_chk_reg_rule(struct st_ctl_t *st_ctl, _adapter *adapter, u8 *local_naddr, u8 *local_port, u8 *remote_naddr, u8 *remote_port)
+{
+	bool ret = _FALSE;
+	int i;
+	st_match_rule rule;
+
+	for (i = 0; i < SESSION_TRACKER_REG_ID_NUM; i++) {
+		rule = st_ctl->reg[i].rule;
+		if (rule && rule(adapter, local_naddr, local_port, remote_naddr, remote_port) == _TRUE) {
+			ret = _TRUE;
+			break;
+		}
+	}
+
+	return ret;
+}
+
+#define SESSION_TRACKER_FMT IP_FMT":"PORT_FMT" "IP_FMT":"PORT_FMT" %u %d"
+#define SESSION_TRACKER_ARG(st) IP_ARG(&(st)->local_naddr), PORT_ARG(&(st)->local_port), IP_ARG(&(st)->remote_naddr), PORT_ARG(&(st)->remote_port), (st)->status, rtw_get_passing_time_ms((st)->set_time)
+
+void dump_st_ctl(void *sel, struct st_ctl_t *st_ctl)
+{
+	int i;
+	_irqL irqL;
+	_list *plist, *phead;
+	struct session_tracker *st;
+
+	if (!DBG_SESSION_TRACKER)
+		return;
+
+	for (i = 0; i < SESSION_TRACKER_REG_ID_NUM; i++)
+		DBG_871X_SEL_NL(sel, "reg%d: %u %p\n", i, st_ctl->reg[i].s_proto, st_ctl->reg[i].rule);
+
+	_enter_critical_bh(&st_ctl->tracker_q.lock, &irqL);
+	phead = &st_ctl->tracker_q.queue;
+	plist = get_next(phead);
+	while (rtw_end_of_queue_search(phead, plist) == _FALSE) {
+		st = LIST_CONTAINOR(plist, struct session_tracker, list);
+		plist = get_next(plist);
+
+		DBG_871X_SEL_NL(sel, SESSION_TRACKER_FMT"\n", SESSION_TRACKER_ARG(st));
+	}
+	_exit_critical_bh(&st_ctl->tracker_q.lock, &irqL);
+
+}
+
 void _rtw_init_stainfo(struct sta_info *psta);
 void _rtw_init_stainfo(struct sta_info *psta)
 {
@@ -71,6 +205,7 @@ _func_enter_;
 	psta->no_ht_gf_set = 0;
 	psta->no_ht_set = 0;
 	psta->ht_20mhz_set = 0;
+	psta->ht_40mhz_intolerant = 0;
 #endif	
 
 #ifdef CONFIG_TX_MCAST2UNI
@@ -80,7 +215,9 @@ _func_enter_;
 	psta->keep_alive_trycnt = 0;
 
 #endif	// CONFIG_AP_MODE	
-	
+
+	rtw_st_ctl_init(&psta->st_ctl);
+
 _func_exit_;	
 
 }
@@ -123,7 +260,7 @@ _func_enter_;
 		psta++;
 	}
 
-	
+	pstapriv->adhoc_expire_to = 4; /* 4 * 2 = 8 sec */
 
 #ifdef CONFIG_AP_MODE
 
@@ -317,7 +454,7 @@ _func_exit_;
 
 
 //struct	sta_info *rtw_alloc_stainfo(_queue *pfree_sta_queue, unsigned char *hwaddr)
-struct	sta_info *rtw_alloc_stainfo(struct	sta_priv *pstapriv, u8 *hwaddr) 
+struct	sta_info *rtw_alloc_stainfo(struct	sta_priv *pstapriv, const u8 *hwaddr) 
 {	
 	_irqL irqL, irqL2;
 	uint tmp_aid;
@@ -390,7 +527,9 @@ _func_enter_;
 		pstapriv->asoc_sta_count , hwaddr[0], hwaddr[1], hwaddr[2],hwaddr[3],hwaddr[4],hwaddr[5]));
 
 		init_addba_retry_timer(pstapriv->padapter, psta);
-
+#ifdef CONFIG_IEEE80211W
+		init_dot11w_expire_timer(pstapriv->padapter, psta);
+#endif /* CONFIG_IEEE80211W */
 #ifdef CONFIG_TDLS
 		rtw_init_tdls_timer(pstapriv->padapter, psta);
 #endif //CONFIG_TDLS
@@ -412,6 +551,7 @@ _func_enter_;
 			preorder_ctrl->wend_b= 0xffff;       
 			//preorder_ctrl->wsize_b = (NR_RECVBUFF-2);
 			preorder_ctrl->wsize_b = 64;//64;
+			preorder_ctrl->ampdu_size = RX_AMPDU_SIZE_INVALID;
 
 			_rtw_init_queue(&preorder_ctrl->pending_recvframe_queue);
 
@@ -427,6 +567,7 @@ _func_enter_;
 #endif
 		/* init for the sequence number of received management frame */
 		psta->RxMgmtFrameSeqNum = 0xffff;
+		psta->ra_rpt_linked = _FALSE;
 
 		//alloc mac id for non-bc/mc station,
 		rtw_alloc_macid(pstapriv->padapter, psta);
@@ -536,10 +677,13 @@ _func_enter_;
 	// re-init sta_info; 20061114 // will be init in alloc_stainfo
 	//_rtw_init_sta_xmit_priv(&psta->sta_xmitpriv);
 	//_rtw_init_sta_recv_priv(&psta->sta_recvpriv);
-
+#ifdef CONFIG_IEEE80211W
+	_cancel_timer_ex(&psta->dot11w_expire_timer);
+#endif /* CONFIG_IEEE80211W */
 	_cancel_timer_ex(&psta->addba_retry_timer);
 
 #ifdef CONFIG_TDLS
+	psta->tdls_sta_state = TDLS_STATE_NONE;
 	rtw_free_tdls_timer(psta);
 #endif //CONFIG_TDLS
 
@@ -636,6 +780,8 @@ _func_enter_;
 
 #endif	// CONFIG_AP_MODE	
 
+	rtw_st_ctl_deinit(&psta->st_ctl);
+
 	 _rtw_spinlock_free(&psta->lock);
 
 	//_enter_critical_bh(&(pfree_sta_queue->lock), &irqL0);
@@ -712,7 +858,7 @@ _func_exit_;
 }
 
 /* any station allocated can be searched by hash list */
-struct sta_info *rtw_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
+struct sta_info *rtw_get_stainfo(struct sta_priv *pstapriv, const u8 *hwaddr)
 {
 
 	_irqL	 irqL;
@@ -723,16 +869,16 @@ struct sta_info *rtw_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr)
 	
 	u32	index;
 
-	u8 *addr;
+	const u8 *addr;
 
-	u8 bc_addr[ETH_ALEN] = {0xff,0xff,0xff,0xff,0xff,0xff};
+	const u8 bc_addr[ETH_ALEN] = {0xff,0xff,0xff,0xff,0xff,0xff};
 
 _func_enter_;
 
 	if(hwaddr==NULL)
 		return NULL;
 		
-	if(IS_MCAST(hwaddr))
+	if(IS_MCAST((unsigned char *)hwaddr))
 	{
 		addr = bc_addr;
 	}
@@ -788,7 +934,10 @@ _func_enter_;
 		RT_TRACE(_module_rtl871x_sta_mgt_c_,_drv_err_,("rtw_alloc_stainfo fail"));
 		goto exit;
 	}
-
+#ifdef CONFIG_BEAMFORMING
+	psta->txbf_gid = 63;
+	psta->txbf_paid = 0;
+#endif
 	ptxservq= &(psta->sta_xmitpriv.be_q);
 
 /*

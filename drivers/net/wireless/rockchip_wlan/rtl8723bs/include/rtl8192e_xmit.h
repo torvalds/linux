@@ -127,17 +127,7 @@ typedef struct txdescriptor_8192e
 	u32 mcs15_sgi_max_len:4;
 }TXDESC_8192E, *PTXDESC_8192E; 
 
-//
-// Queue Select Value in TxDesc
-//
-#define QSLT_BK							0x2//0x01
-#define QSLT_BE							0x0
-#define QSLT_VI							0x5//0x4
-#define QSLT_VO							0x7//0x6
-#define QSLT_BEACON					0x10
-#define QSLT_HIGH						0x11
-#define QSLT_MGNT						0x12
-#define QSLT_CMD						0x13
+
 
 //For 88e early mode
 #define SET_EARLYMODE_PKTNUM(__pAddr, __Value) SET_BITS_TO_LE_4BYTE(__pAddr, 0, 3, __Value)
@@ -365,9 +355,7 @@ typedef struct txdescriptor_8192e
 #define SET_EARLYMODE_LEN2_92E(__pAddr, __Value) 					SET_BITS_TO_LE_4BYTE(__pAddr+4, 2, 15,  __Value)
 #define SET_EARLYMODE_LEN3_92E(__pAddr, __Value) 					SET_BITS_TO_LE_4BYTE(__pAddr+4, 17, 15, __Value)
 
-
-
-void rtl8192e_fill_fake_txdesc(PADAPTER	padapter,u8*pDesc,u32 BufferLen,u8 IsPsPoll,u8	IsBTQosNull);
+void rtl8192e_cal_txdesc_chksum(u8 *ptxdesc);
 
 #ifdef CONFIG_USB_HCI
 s32 rtl8192eu_init_xmit_priv(PADAPTER padapter);
@@ -392,6 +380,20 @@ s32 rtl8192ee_mgnt_xmit(PADAPTER padapter, struct xmit_frame *pmgntframe);
 void rtl8192ee_xmit_tasklet(void *priv);
 #endif
 
+#if defined(CONFIG_SDIO_HCI)||defined (CONFIG_GSPI_HCI)
+s32 rtl8192es_init_xmit_priv(PADAPTER padapter);
+void rtl8192es_free_xmit_priv(PADAPTER padapter);
+
+s32 rtl8192es_hal_xmit(PADAPTER padapter, struct xmit_frame *pxmitframe);
+s32 rtl8192es_mgnt_xmit(PADAPTER padapter, struct xmit_frame *pmgntframe);
+s32	rtl8192es_hal_xmitframe_enqueue(_adapter *padapter, struct xmit_frame *pxmitframe);
+thread_return rtl8192es_xmit_thread(thread_context context);
+s32 rtl8192es_xmit_buf_handler(PADAPTER padapter);
+
+#ifdef CONFIG_SDIO_TX_TASKLET
+void rtl8192es_xmit_tasklet(void *priv);
+#endif
+#endif
 
 struct txrpt_ccx_92e {
 	/* offset 0 */
@@ -430,12 +432,20 @@ struct txrpt_ccx_92e {
 #ifdef CONFIG_TX_EARLY_MODE
 void UpdateEarlyModeInfo8192E(struct xmit_priv *pxmitpriv,struct xmit_buf *pxmitbuf );
 #endif
-
+ s32	rtl8192e_init_xmit_priv(_adapter *padapter);
 void _dbg_dump_tx_info(_adapter	*padapter,int frame_tag,u8 *ptxdesc);
 
-u8	BWMapping_92E(PADAPTER Adapter, struct pkt_attrib *pattrib);
+void rtl8192e_fill_fake_txdesc(PADAPTER	padapter,u8*pDesc,u32 BufferLen,
+		u8 IsPsPoll,u8	IsBTQosNull, u8 bDataFrame);
+void rtl8192e_cal_txdesc_chksum(u8 *ptxdesc);
 
+u8	BWMapping_92E(PADAPTER Adapter, struct pkt_attrib *pattrib);
 u8	SCMapping_92E(PADAPTER Adapter, struct pkt_attrib	*pattrib);
+void fill_txdesc_phy(PADAPTER padapter, struct pkt_attrib *pattrib, u8 *ptxdesc);
+void fill_txdesc_vcs(struct pkt_attrib *pattrib, u8 *ptxdesc);
+void fill_txdesc_sectype(struct pkt_attrib *pattrib, u8 *ptxdesc);
+void rtl8192e_fixed_rate(_adapter *padapter,u8 *ptxdesc);
 
 #endif //__RTL8192E_XMIT_H__
+
 

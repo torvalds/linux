@@ -22,9 +22,29 @@
 
 
 #define IBSS_START_MAC_ID	2
-#define NUM_STA 32
+#define NUM_STA MACID_NUM_SW_LIMIT
 #define NUM_ACL 16
 
+#ifdef CONFIG_TDLS
+#define MAX_ALLOWED_TDLS_STA_NUM	4
+#endif
+
+enum sta_info_update_type {
+	STA_INFO_UPDATE_NONE = 0, 
+	STA_INFO_UPDATE_BW = BIT(0), 
+	STA_INFO_UPDATE_RATE = BIT(1),	
+	STA_INFO_UPDATE_PROTECTION_MODE = BIT(2),
+	STA_INFO_UPDATE_CAP = BIT(3),
+	STA_INFO_UPDATE_HT_CAP = BIT(4),
+	STA_INFO_UPDATE_VHT_CAP = BIT(5),
+	STA_INFO_UPDATE_ALL = STA_INFO_UPDATE_BW
+							|STA_INFO_UPDATE_RATE
+							|STA_INFO_UPDATE_PROTECTION_MODE
+							|STA_INFO_UPDATE_CAP
+							|STA_INFO_UPDATE_HT_CAP
+							|STA_INFO_UPDATE_VHT_CAP,
+	STA_INFO_UPDATE_MAX
+};
 
 //if mode ==0, then the sta is allowed once the addr is hit.
 //if mode ==1, then the sta is rejected once the addr is non-hit.
@@ -48,6 +68,7 @@ typedef struct _RSSI_STA{
 	s32	UndecoratedSmoothedPWDB;
 	s32	UndecoratedSmoothedCCK;
 	s32	UndecoratedSmoothedOFDM;
+	u32	OFDM_pkt;
 	u64	PacketMap;
 	u8	ValidBit;
 }RSSI_STA, *PRSSI_STA;
@@ -62,7 +83,7 @@ struct	stainfo_stats	{
 		u64 rx_probersp_uo_pkts;
 	u64 rx_ctrl_pkts;
 	u64 rx_data_pkts;
-
+	u64 rx_data_qos_pkts[TID_NUM];
 	u64	last_rx_mgnt_pkts;
 		u64 last_rx_beacon_pkts;
 		u64 last_rx_probereq_pkts;
@@ -71,7 +92,11 @@ struct	stainfo_stats	{
 		u64 last_rx_probersp_uo_pkts;
 	u64	last_rx_ctrl_pkts;
 	u64	last_rx_data_pkts;
-	
+	u64 last_rx_data_qos_pkts[TID_NUM];
+#ifdef CONFIG_TDLS
+	u64 rx_tdls_disc_rsp_pkts;
+	u64 last_rx_tdls_disc_rsp_pkts;
+#endif
 	u64	rx_bytes;
 	u64	rx_drops;
 
@@ -79,6 +104,65 @@ struct	stainfo_stats	{
 	u64	tx_bytes;
 	u64  tx_drops;
 };
+
+#ifndef DBG_SESSION_TRACKER
+#define DBG_SESSION_TRACKER 0
+#endif
+
+/* session tracker status */
+#define ST_STATUS_NONE		0
+#define ST_STATUS_CHECK		BIT0
+#define ST_STATUS_ESTABLISH	BIT1
+#define ST_STATUS_EXPIRE	BIT2
+
+#define ST_EXPIRE_MS (10 * 1000)
+
+struct session_tracker {
+	_list list; /* session_tracker_queue */
+	u32 local_naddr;
+	u16 local_port;
+	u32 remote_naddr;
+	u16 remote_port;
+	u32 set_time;
+	u8 status;
+};
+
+/* session tracker cmd */
+#define ST_CMD_ADD 0
+#define ST_CMD_DEL 1
+#define ST_CMD_CHK 2
+
+struct st_cmd_parm {
+	u8 cmd;
+	struct sta_info *sta;
+	u32 local_naddr; /* TODO: IPV6 */
+	u16 local_port;
+	u32 remote_naddr; /* TODO: IPV6 */
+	u16 remote_port;
+};
+
+typedef bool (*st_match_rule)(_adapter *adapter, u8 *local_naddr, u8 *local_port, u8 *remote_naddr, u8 *remote_port);
+
+struct st_register {
+	u8 s_proto;
+	st_match_rule rule;
+};
+
+#define SESSION_TRACKER_REG_ID_WFD 0
+#define SESSION_TRACKER_REG_ID_NUM 1
+
+struct st_ctl_t {
+	struct st_register reg[SESSION_TRACKER_REG_ID_NUM];
+	_queue tracker_q;
+};
+
+void rtw_st_ctl_init(struct st_ctl_t *st_ctl);
+void rtw_st_ctl_deinit(struct st_ctl_t *st_ctl);
+void rtw_st_ctl_register(struct st_ctl_t *st_ctl, u8 st_reg_id, struct st_register *reg);
+void rtw_st_ctl_unregister(struct st_ctl_t *st_ctl, u8 st_reg_id);
+bool rtw_st_ctl_chk_reg_s_proto(struct st_ctl_t *st_ctl, u8 s_proto);
+bool rtw_st_ctl_chk_reg_rule(struct st_ctl_t *st_ctl, _adapter *adapter, u8 *local_naddr, u8 *local_port, u8 *remote_naddr, u8 *remote_port);
+void dump_st_ctl(void *sel, struct st_ctl_t *st_ctl);
 
 #ifdef CONFIG_TDLS
 struct TDLS_PeerKey {
@@ -108,6 +192,8 @@ struct sta_info {
 	uint mac_id;
 	uint qos_option;
 	u8	hwaddr[ETH_ALEN];
+	u16 hwseq;
+	u8	ra_rpt_linked;
 
 	uint	ieee8021x_blocked;	//0: allowed, 1:blocked 
 	uint	dot118021XPrivacy; //aes, tkip...
@@ -122,6 +208,7 @@ struct sta_info {
 #endif //CONFIG_GTK_OL
 #ifdef CONFIG_IEEE80211W
 	union pn48		dot11wtxpn;			// PN48 used for Unicast mgmt xmit.
+	_timer dot11w_expire_timer;
 #endif //CONFIG_IEEE80211W
 	union pn48		dot11rxpn;			// PN48 used for Unicast recv.
 
@@ -136,45 +223,49 @@ struct sta_info {
 
 	u8	raid;
 	u8 	init_rate;
-	u32	ra_mask;
+	u64	ra_mask;
 	u8	wireless_mode;	// NETWORK_TYPE
 	u8	bw_mode;
 
 	u8	ldpc;
 	u8	stbc;
 
+#ifdef CONFIG_BEAMFORMING
+	u16 txbf_paid;
+	u16 txbf_gid;
+#endif
+		
 	struct stainfo_stats sta_stats;
 
 #ifdef CONFIG_TDLS
 	u32	tdls_sta_state;
-	u8	dialog;
 	u8	SNonce[32];
 	u8	ANonce[32];
 	u32	TDLS_PeerKey_Lifetime;
-	u16	TPK_count;
+	u32	TPK_count;
 	_timer	TPK_timer;
 	struct TDLS_PeerKey	tpk;
-	u16	stat_code;
-	u8	off_ch;
+#ifdef CONFIG_TDLS_CH_SW	
 	u16	ch_switch_time;
 	u16	ch_switch_timeout;
-	u8	option;
-	_timer	option_timer;
-	_timer	base_ch_timer;
-	_timer	off_ch_timer;
+	//u8	option;
+	_timer	ch_sw_timer;
+	_timer	delay_timer;
+	_timer	stay_on_base_chnl_timer;
+	_timer	ch_sw_monitor_timer;
+#endif	
 	_timer handshake_timer;
-	u8 timer_flag;
 	u8 alive_count;
 	_timer	pti_timer;
-	u8	TDLS_RSNIE[20];	//Save peer's RSNIE, use for sending TDLS_SETUP_RSP
-#endif //CONFIG_TDLS
+	u8	TDLS_RSNIE[20];	/* Save peer's RSNIE, used for sending TDLS_SETUP_RSP */
+#endif /* CONFIG_TDLS */
 
 	//for A-MPDU TX, ADDBA timeout check	
 	_timer addba_retry_timer;
 	
 	//for A-MPDU Rx reordering buffer control 
-	struct recv_reorder_ctrl recvreorder_ctrl[16];
-
+	struct recv_reorder_ctrl recvreorder_ctrl[TID_NUM];
+	ATOMIC_T continual_no_rx_packet[TID_NUM];
 	//for A-MPDU Tx
 	//unsigned char		ampdu_txen_bitmap;
 	u16	BA_starting_seqctrl[16];
@@ -196,13 +287,14 @@ struct sta_info {
 	//AP_Mode:
 	//curr_network(mlme_priv/security_priv/qos/ht) : AP CAP/INFO
 	//sta_info: (AP & STA) CAP/INFO
-		
+
+	unsigned int expire_to;
+
 #ifdef CONFIG_AP_MODE
 
 	_list asoc_list;
 	_list auth_list;
-	 
-	unsigned int expire_to;
+
 	unsigned int auth_seq;
 	unsigned int authalg;
 	unsigned char chg_txt[128];
@@ -228,13 +320,13 @@ struct sta_info {
 	u8 no_ht_gf_set;
 	u8 no_ht_set;
 	u8 ht_20mhz_set;
+	u8 ht_40mhz_intolerant;
 #endif	// CONFIG_NATIVEAP_MLME
 
 #ifdef CONFIG_ATMEL_RC_PATCH
 	u8 flag_atmel_rc;
 #endif
 
-	unsigned int tx_ra_bitmap;
 	u8 qos_info;
 
 	u8 max_sp_len;
@@ -262,6 +354,10 @@ struct sta_info {
 	u16 dev_name_len;
 	u8 dev_name[32];	
 #endif //CONFIG_P2P
+
+#ifdef CONFIG_WFD
+	u8 op_wfd_mode;
+#endif
 
 #ifdef CONFIG_TX_MCAST2UNI
 	u8 under_exist_checking;
@@ -312,6 +408,8 @@ struct sta_info {
 
 	/* To store the sequence number of received management frame */
 	u16 RxMgmtFrameSeqNum;
+
+	struct st_ctl_t st_ctl;
 };
 
 #define sta_rx_pkts(sta) \
@@ -327,8 +425,14 @@ struct sta_info {
 #define sta_rx_data_pkts(sta) \
 	(sta->sta_stats.rx_data_pkts)
 
+#define sta_rx_data_qos_pkts(sta, i) \
+	(sta->sta_stats.rx_data_qos_pkts[i])
+
 #define sta_last_rx_data_pkts(sta) \
 	(sta->sta_stats.last_rx_data_pkts)
+
+#define sta_last_rx_data_qos_pkts(sta, i) \
+	(sta->sta_stats.last_rx_data_qos_pkts[i])
 
 #define sta_rx_mgnt_pkts(sta) \
 	(sta->sta_stats.rx_mgnt_pkts)
@@ -394,7 +498,15 @@ struct sta_info {
 	, sta->sta_stats.rx_data_pkts -sta->sta_stats.last_rx_data_pkts
 
 #define STA_PKTS_FMT "(m:%llu, c:%llu, d:%llu)"
-	
+
+#ifdef CONFIG_WFD
+#define STA_OP_WFD_MODE(sta) (sta)->op_wfd_mode
+#define STA_SET_OP_WFD_MODE(sta, mode) (sta)->op_wfd_mode = (mode)
+#else
+#define STA_OP_WFD_MODE(sta) 0
+#define STA_SET_OP_WFD_MODE(sta, mode) do {} while (0)
+#endif
+
 struct	sta_priv {
 	
 	u8 *pallocated_stainfo_buf;
@@ -408,7 +520,8 @@ struct	sta_priv {
 	_queue wakeup_q;
 	
 	_adapter *padapter;
-	
+
+	u32 adhoc_expire_to;
 
 #ifdef CONFIG_AP_MODE
 	_list asoc_list;
@@ -443,7 +556,7 @@ struct	sta_priv {
 };
 
 
-__inline static u32 wifi_mac_hash(u8 *mac)
+static u32 wifi_mac_hash(const u8 *mac)
 {
         u32 x;
 
@@ -468,10 +581,10 @@ extern u32	_rtw_free_sta_priv(struct sta_priv *pstapriv);
 int rtw_stainfo_offset(struct sta_priv *stapriv, struct sta_info *sta);
 struct sta_info *rtw_get_stainfo_by_offset(struct sta_priv *stapriv, int offset);
 
-extern struct sta_info *rtw_alloc_stainfo(struct	sta_priv *pstapriv, u8 *hwaddr);
+extern struct sta_info *rtw_alloc_stainfo(struct sta_priv *pstapriv, const u8 *hwaddr);
 extern u32	rtw_free_stainfo(_adapter *padapter , struct sta_info *psta);
 extern void rtw_free_all_stainfo(_adapter *padapter);
-extern struct sta_info *rtw_get_stainfo(struct sta_priv *pstapriv, u8 *hwaddr);
+extern struct sta_info *rtw_get_stainfo(struct sta_priv *pstapriv, const u8 *hwaddr);
 extern u32 rtw_init_bcmc_stainfo(_adapter* padapter);
 extern struct sta_info* rtw_get_bcmc_stainfo(_adapter* padapter);
 extern u8 rtw_access_ctrl(_adapter *padapter, u8 *mac_addr);

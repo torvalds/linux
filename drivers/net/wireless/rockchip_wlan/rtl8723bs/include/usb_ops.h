@@ -22,9 +22,10 @@
 
 
 #define REALTEK_USB_VENQT_READ		0xC0
-#define REALTEK_USB_VENQT_WRITE		0x40
+#define REALTEK_USB_VENQT_WRITE	0x40
 #define REALTEK_USB_VENQT_CMD_REQ	0x05
 #define REALTEK_USB_VENQT_CMD_IDX	0x00
+#define REALTEK_USB_IN_INT_EP_IDX	1
 
 enum{
 	VENDOR_WRITE = 0x00,
@@ -51,57 +52,68 @@ enum{
 #include <usb_ops_linux.h>
 #endif //PLATFORM_LINUX
 
-#ifdef CONFIG_RTL8192C
-void rtl8192cu_set_hw_type(_adapter *padapter);
-void rtl8192cu_set_intf_ops(struct _io_ops *pops);
-void rtl8192cu_recv_tasklet(void *priv);
-void rtl8192cu_xmit_tasklet(void *priv);
-#endif
-
-#ifdef CONFIG_RTL8723A
-void rtl8723au_set_hw_type(_adapter *padapter);
-void rtl8723au_set_intf_ops(struct _io_ops *pops);
-void rtl8192cu_recv_tasklet(void *priv);
-void rtl8192cu_xmit_tasklet(void *priv);
-#endif
-
-#ifdef CONFIG_RTL8192D
-void rtl8192du_set_hw_type(_adapter *padapter);
-void rtl8192du_set_intf_ops(struct _io_ops *pops);
-#ifndef PLATFORM_FREEBSD
-void rtl8192du_recv_tasklet(void *priv);
-#else	// PLATFORM_FREEBSD
-void rtl8192du_recv_tasklet(void *priv, int npending);
-#ifdef CONFIG_RX_INDICATE_QUEUE
-void rtw_rx_indicate_tasklet(void *priv, int npending);
-#endif	// CONFIG_RX_INDICATE_QUEUE
-#endif	// PLATFORM_FREEBSD
-
-void rtl8192du_xmit_tasklet(void *priv);
-#endif
-
 #ifdef CONFIG_RTL8188E
-void rtl8188eu_set_hw_type(_adapter *padapter);
+void rtl8188eu_set_hw_type(struct dvobj_priv *pdvobj);
 void rtl8188eu_set_intf_ops(struct _io_ops *pops);
+#ifdef CONFIG_SUPPORT_USB_INT
+void interrupt_handler_8188eu(_adapter *padapter, u16 pkt_len, u8 *pbuf);
+#endif
 #endif
 
 #if defined(CONFIG_RTL8812A) || defined(CONFIG_RTL8821A)
-void rtl8812au_set_hw_type(_adapter *padapter);
+void rtl8812au_set_hw_type(struct dvobj_priv *pdvobj);
 void rtl8812au_set_intf_ops(struct _io_ops *pops);
+#ifdef CONFIG_SUPPORT_USB_INT
+void interrupt_handler_8812au(_adapter *padapter, u16 pkt_len, u8 *pbuf);
+#endif
 #endif
 
+#ifdef CONFIG_RTL8814A
+void rtl8814au_set_hw_type(struct dvobj_priv *pdvobj);
+void rtl8814au_set_intf_ops(struct _io_ops	*pops);
+#ifdef CONFIG_SUPPORT_USB_INT
+void interrupt_handler_8814au(_adapter *padapter, u16 pkt_len, u8 *pbuf);
+#endif
+#endif /* CONFIG_RTL8814 */
+
 #ifdef CONFIG_RTL8192E
-void rtl8192eu_set_hw_type(_adapter *padapter);
+void rtl8192eu_set_hw_type(struct dvobj_priv *pdvobj);
 void rtl8192eu_set_intf_ops(struct _io_ops *pops);
+#ifdef CONFIG_SUPPORT_USB_INT
+void interrupt_handler_8192eu(_adapter *padapter, u16 pkt_len, u8 *pbuf);
+#endif
+
+#endif
+
+#ifdef CONFIG_RTL8188F
+void rtl8188fu_set_hw_type(struct dvobj_priv *pdvobj);
+void rtl8188fu_set_intf_ops(struct _io_ops *pops);
+void rtl8188fu_recv_tasklet(void *priv);
+void rtl8188fu_xmit_tasklet(void *priv);
+#ifdef CONFIG_SUPPORT_USB_INT
+void interrupt_handler_8188fu(_adapter *padapter, u16 pkt_len, u8 *pbuf);
+#endif
 #endif
 
 #ifdef CONFIG_RTL8723B
-void rtl8723bu_set_hw_type(_adapter *padapter);
+void rtl8723bu_set_hw_type(struct dvobj_priv *pdvobj);
 void rtl8723bu_set_intf_ops(struct _io_ops *pops);
 void rtl8723bu_recv_tasklet(void *priv);
 void rtl8723bu_xmit_tasklet(void *priv);
+#ifdef CONFIG_SUPPORT_USB_INT
+void interrupt_handler_8723bu(_adapter *padapter, u16 pkt_len, u8 *pbuf);
+#endif
 #endif
 
+#ifdef CONFIG_RTL8703B
+void rtl8703bu_set_hw_type(struct dvobj_priv *pdvobj);
+void rtl8703bu_set_intf_ops(struct _io_ops *pops);
+void rtl8703bu_recv_tasklet(void *priv);
+void rtl8703bu_xmit_tasklet(void *priv);
+#ifdef CONFIG_SUPPORT_USB_INT
+void interrupt_handler_8703bu(_adapter *padapter, u16 pkt_len, u8 *pbuf);
+#endif /* CONFIG_SUPPORT_USB_INT */
+#endif /* CONFIG_RTL8703B */
 
 enum RTW_USB_SPEED {
 	RTW_USB_SPEED_UNKNOWN	= 0,

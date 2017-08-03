@@ -21,17 +21,7 @@
 #define __RTL8188E_XMIT_H__
 
 
-//
-// Queue Select Value in TxDesc
-//
-#define QSLT_BK							0x2//0x01
-#define QSLT_BE							0x0
-#define QSLT_VI							0x5//0x4
-#define QSLT_VO							0x7//0x6
-#define QSLT_BEACON						0x10
-#define QSLT_HIGH						0x11
-#define QSLT_MGNT						0x12
-#define QSLT_CMD						0x13
+
 
 //For 88e early mode
 #define SET_EARLYMODE_PKTNUM(__pAddr, __Value) SET_BITS_TO_LE_4BYTE(__pAddr, 0, 3, __Value)
@@ -253,7 +243,9 @@ struct txrpt_ccx_88e {
 
 void rtl8188e_fill_fake_txdesc(PADAPTER	padapter,u8*pDesc,u32 BufferLen,
 		u8 IsPsPoll,u8	IsBTQosNull, u8 bDataFrame);
-#ifdef CONFIG_SDIO_HCI
+void rtl8188e_cal_txdesc_chksum(struct tx_desc	*ptxdesc);
+
+#if defined(CONFIG_SDIO_HCI)||defined (CONFIG_GSPI_HCI)
 s32 rtl8188es_init_xmit_priv(PADAPTER padapter);
 void rtl8188es_free_xmit_priv(PADAPTER padapter);
 s32 rtl8188es_hal_xmit(PADAPTER padapter, struct xmit_frame *pxmitframe);

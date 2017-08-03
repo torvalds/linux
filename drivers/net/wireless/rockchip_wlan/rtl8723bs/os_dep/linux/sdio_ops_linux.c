@@ -53,7 +53,7 @@ _func_enter_;
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 
-	if(padapter->bSurpriseRemoved){
+	if (rtw_is_surprise_removed(padapter)) {
 		//DBG_871X(" %s (padapter->bSurpriseRemoved ||adapter->pwrctrlpriv.pnp_bstop_trx)!!!\n",__FUNCTION__);
 		return v;
 	}	
@@ -88,7 +88,7 @@ _func_enter_;
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 
-	if(padapter->bSurpriseRemoved){
+	if (rtw_is_surprise_removed(padapter)) {
 		//DBG_871X(" %s (padapter->bSurpriseRemoved ||adapter->pwrctrlpriv.pnp_bstop_trx)!!!\n",__FUNCTION__);
 		return;
 	}	
@@ -126,7 +126,7 @@ _func_enter_;
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 
-	if(padapter->bSurpriseRemoved){
+	if (rtw_is_surprise_removed(padapter)) {
 		//DBG_871X(" %s (padapter->bSurpriseRemoved ||adapter->pwrctrlpriv.pnp_bstop_trx)!!!\n",__FUNCTION__);
 		return err;
 	}
@@ -166,7 +166,7 @@ _func_enter_;
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 
-	if(padapter->bSurpriseRemoved){
+	if (rtw_is_surprise_removed(padapter)) {
 		//DBG_871X(" %s (padapter->bSurpriseRemoved ||adapter->pwrctrlpriv.pnp_bstop_trx)!!!\n",__FUNCTION__);
 		return err;
 	}	
@@ -204,7 +204,7 @@ _func_enter_;
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 
-	if(padapter->bSurpriseRemoved){
+	if (rtw_is_surprise_removed(padapter)) {
 		//DBG_871X(" %s (padapter->bSurpriseRemoved ||adapter->pwrctrlpriv.pnp_bstop_trx)!!!\n",__FUNCTION__);
 		return err;
 	}
@@ -244,7 +244,7 @@ _func_enter_;
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 
-	if(padapter->bSurpriseRemoved){
+	if (rtw_is_surprise_removed(padapter)) {
 		//DBG_871X(" %s (padapter->bSurpriseRemoved ||adapter->pwrctrlpriv.pnp_bstop_trx)!!!\n",__FUNCTION__);
 		return err;
 	}
@@ -277,7 +277,7 @@ _func_enter_;
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 
-	if(padapter->bSurpriseRemoved){
+	if (rtw_is_surprise_removed(padapter)) {
 		//DBG_871X(" %s (padapter->bSurpriseRemoved ||adapter->pwrctrlpriv.pnp_bstop_trx)!!!\n",__FUNCTION__);
 		return v;
 	}
@@ -309,7 +309,7 @@ _func_enter_;
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 
-	if(padapter->bSurpriseRemoved){
+	if (rtw_is_surprise_removed(padapter)) {
 		//DBG_871X(" %s (padapter->bSurpriseRemoved ||adapter->pwrctrlpriv.pnp_bstop_trx)!!!\n",__FUNCTION__);
 		return v;
 	}
@@ -345,7 +345,7 @@ _func_enter_;
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 
-	if(padapter->bSurpriseRemoved){
+	if (rtw_is_surprise_removed(padapter)) {
 		//DBG_871X(" %s (padapter->bSurpriseRemoved ||adapter->pwrctrlpriv.pnp_bstop_trx)!!!\n",__FUNCTION__);
 		return v;
 	}
@@ -380,7 +380,7 @@ _func_enter_;
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 
-	if(padapter->bSurpriseRemoved){
+	if (rtw_is_surprise_removed(padapter)) {
 		//DBG_871X(" %s (padapter->bSurpriseRemoved ||adapter->pwrctrlpriv.pnp_bstop_trx)!!!\n",__FUNCTION__);
 		return v;
 	}
@@ -409,11 +409,11 @@ _func_enter_;
 				DBG_871X(KERN_ERR "%s: (%d) addr=0x%05x, val=0x%x, try_cnt=%d\n", __func__, *err, addr, v, i);
 				if(( -ESHUTDOWN == *err ) || ( -ENODEV == *err))
 				{			
-					padapter->bSurpriseRemoved = _TRUE;
+					rtw_set_surprise_removed(padapter);
 				}
 
 				if(rtw_inc_and_chk_continual_io_error(psdiodev) == _TRUE ){
-					padapter->bSurpriseRemoved = _TRUE;
+					rtw_set_surprise_removed(padapter);
 					break;
 				}						
 					
@@ -447,7 +447,7 @@ _func_enter_;
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 
-	if(padapter->bSurpriseRemoved){
+	if (rtw_is_surprise_removed(padapter)) {
 		//DBG_871X(" %s (padapter->bSurpriseRemoved ||adapter->pwrctrlpriv.pnp_bstop_trx)!!!\n",__FUNCTION__);
 		return v;
 	}
@@ -480,11 +480,11 @@ _func_enter_;
 			}else{				
 				DBG_871X(KERN_ERR "%s: (%d) addr=0x%05x, val=0x%x, try_cnt=%d\n", __func__, *err, addr, v, i);
 				if(( -ESHUTDOWN == *err ) || ( -ENODEV == *err)){			
-					padapter->bSurpriseRemoved = _TRUE;
+					rtw_set_surprise_removed(padapter);
 				}
 
 				if(rtw_inc_and_chk_continual_io_error(psdiodev) == _TRUE ){
-					padapter->bSurpriseRemoved = _TRUE;
+					rtw_set_surprise_removed(padapter);
 					break;
 				}
 			}
@@ -517,7 +517,7 @@ _func_enter_;
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 
-	if(padapter->bSurpriseRemoved){
+	if (rtw_is_surprise_removed(padapter)) {
 		//DBG_871X(" %s (padapter->bSurpriseRemoved ||adapter->pwrctrlpriv.pnp_bstop_trx)!!!\n",__FUNCTION__);
 		return ;
 	}
@@ -550,7 +550,7 @@ _func_enter_;
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 
-	if(padapter->bSurpriseRemoved){
+	if (rtw_is_surprise_removed(padapter)) {
 		//DBG_871X(" %s (padapter->bSurpriseRemoved ||adapter->pwrctrlpriv.pnp_bstop_trx)!!!\n",__FUNCTION__);
 		return ;
 	}
@@ -582,7 +582,7 @@ _func_enter_;
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 
-	if(padapter->bSurpriseRemoved){
+	if (rtw_is_surprise_removed(padapter)) {
 		//DBG_871X(" %s (padapter->bSurpriseRemoved ||adapter->pwrctrlpriv.pnp_bstop_trx)!!!\n",__FUNCTION__);
 		return ;
 	}
@@ -607,11 +607,11 @@ _func_enter_;
 			}else{				
 				DBG_871X(KERN_ERR "%s: (%d) addr=0x%05x, val=0x%x, try_cnt=%d\n", __func__, *err, addr, v, i);
 				if(( -ESHUTDOWN == *err ) || ( -ENODEV == *err)){			
-					padapter->bSurpriseRemoved = _TRUE;
+					rtw_set_surprise_removed(padapter);
 				}
 
 				if(rtw_inc_and_chk_continual_io_error(psdiodev) == _TRUE ){
-					padapter->bSurpriseRemoved = _TRUE;
+					rtw_set_surprise_removed(padapter);
 					break;
 				}
 			}
@@ -640,7 +640,7 @@ _func_enter_;
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 
-	if(padapter->bSurpriseRemoved){
+	if (rtw_is_surprise_removed(padapter)) {
 		//DBG_871X(" %s (padapter->bSurpriseRemoved ||adapter->pwrctrlpriv.pnp_bstop_trx)!!!\n",__FUNCTION__);
 		return ;
 	}
@@ -672,11 +672,11 @@ _func_enter_;
 			}else{				
 				DBG_871X(KERN_ERR "%s: (%d) addr=0x%05x, val=0x%x, try_cnt=%d\n", __func__, *err, addr, v, i);
 				if(( -ESHUTDOWN == *err ) || ( -ENODEV == *err)){			
-					padapter->bSurpriseRemoved = _TRUE;
+					rtw_set_surprise_removed(padapter);
 				}
 
 				if(rtw_inc_and_chk_continual_io_error(psdiodev) == _TRUE ){
-					padapter->bSurpriseRemoved = _TRUE;
+					rtw_set_surprise_removed(padapter);
 					break;
 				}
 			}
@@ -720,7 +720,7 @@ _func_enter_;
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 	
-	if(padapter->bSurpriseRemoved){
+	if (rtw_is_surprise_removed(padapter)) {
 		//DBG_871X(" %s (padapter->bSurpriseRemoved ||adapter->pwrctrlpriv.pnp_bstop_trx)!!!\n",__FUNCTION__);
 		return err;
 	}
@@ -782,7 +782,7 @@ _func_enter_;
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 	
-	if(padapter->bSurpriseRemoved){
+	if (rtw_is_surprise_removed(padapter)) {
 		//DBG_871X(" %s (padapter->bSurpriseRemoved ||adapter->pwrctrlpriv.pnp_bstop_trx)!!!\n",__FUNCTION__);
 		return err;
 	}
@@ -828,7 +828,7 @@ _func_enter_;
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 	
-	if(padapter->bSurpriseRemoved){
+	if (rtw_is_surprise_removed(padapter)) {
 		//DBG_871X(" %s (padapter->bSurpriseRemoved ||adapter->pwrctrlpriv.pnp_bstop_trx)!!!\n",__FUNCTION__);
 		return err;
 	}
@@ -891,7 +891,7 @@ _func_enter_;
 	psdiodev = pintfhdl->pintf_dev;
 	psdio = &psdiodev->intf_data;
 	
-	if(padapter->bSurpriseRemoved){
+	if (rtw_is_surprise_removed(padapter)) {
 		//DBG_871X(" %s (padapter->bSurpriseRemoved ||adapter->pwrctrlpriv.pnp_bstop_trx)!!!\n",__FUNCTION__);
 		return err;
 	}

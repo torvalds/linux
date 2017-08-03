@@ -1,16 +1,4 @@
-#config RTL8723AS
-#	tristate "Realtek 8723A SDIO or SPI WiFi"
-#	---help---
-#	  Help message of RTL8723AS
-
 config RTL8723BS
-	tristate "Realtek 8723BS SDIO or SPI WiFi"
+	tristate "Realtek 8723B SDIO or SPI WiFi"
 	---help---
 	  Help message of RTL8723BS
-
-#config WLAN_SDIO
-#	bool "Enable SDIO interface for Realtek"
-#	depends on RTL8723AS || RTL8723BS
-#	default n
-#	---help---
-#	  Use memory preallocated in platform

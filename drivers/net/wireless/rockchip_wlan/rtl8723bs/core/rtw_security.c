@@ -1733,8 +1733,9 @@ _func_enter_;
 				prwskey=pattrib->dot118021x_UncstKey.skey;
 			}
 
-#ifdef CONFIG_TDLS	//swencryption
+#ifdef CONFIG_TDLS
 			{
+				/* Swencryption */
 				struct	sta_info		*ptdls_sta;
 				ptdls_sta=rtw_get_stainfo(&padapter->stapriv ,&pattrib->dst[0] );
 				if((ptdls_sta != NULL) && (ptdls_sta->tdls_sta_state & TDLS_LINKED_STATE) )
@@ -2213,8 +2214,7 @@ u32	rtw_BIP_verify(_adapter *padapter, u8 *precvframe)
 		_rtw_memcpy(&temp_ipn, p+4, 6);
 		temp_ipn = le64_to_cpu(temp_ipn);
 		//BIP packet number should bigger than previous BIP packet
-		if(temp_ipn <= pmlmeext->mgnt_80211w_IPN_rx)
-		{
+		if (temp_ipn < pmlmeext->mgnt_80211w_IPN_rx) {
 			DBG_871X("replay BIP packet\n");
 			goto BIP_exit;
 		}
@@ -3029,12 +3029,12 @@ void wpa_tdls_generate_tpk(_adapter *padapter, PVOID sta)
 	 * added by the KDF anyway..
 	 */
 
-	if (os_memcmp(myid(&(padapter->eeprompriv)), psta->hwaddr, ETH_ALEN) < 0) {
-		_rtw_memcpy(data, myid(&(padapter->eeprompriv)), ETH_ALEN);
+	if (os_memcmp(adapter_mac_addr(padapter), psta->hwaddr, ETH_ALEN) < 0) {
+		_rtw_memcpy(data, adapter_mac_addr(padapter), ETH_ALEN);
 		_rtw_memcpy(data + ETH_ALEN, psta->hwaddr, ETH_ALEN);
 	} else {
 		_rtw_memcpy(data, psta->hwaddr, ETH_ALEN);
-		_rtw_memcpy(data + ETH_ALEN, myid(&(padapter->eeprompriv)), ETH_ALEN);
+		_rtw_memcpy(data + ETH_ALEN, adapter_mac_addr(padapter), ETH_ALEN);
 	}
 	_rtw_memcpy(data + 2 * ETH_ALEN, get_bssid(pmlmepriv), ETH_ALEN);
 
@@ -3101,6 +3101,55 @@ int wpa_tdls_ftie_mic(u8 *kck, u8 trans_seq,
 
 }
 
+/**
+ * wpa_tdls_teardown_ftie_mic - Calculate TDLS TEARDOWN FTIE MIC
+ * @kck: TPK-KCK
+ * @lnkid: Pointer to the beginning of Link Identifier IE
+ * @reason: Reason code of TDLS Teardown
+ * @dialog_token: Dialog token that was used in the MIC calculation for TPK Handshake Message 3
+ * @trans_seq: Transaction Sequence number (1 octet) which shall be set to the value 4
+ * @ftie: Pointer to the beginning of FT IE
+ * @mic: Pointer for writing MIC
+ *
+ * Calculate MIC for TDLS TEARDOWN frame according to Section 10.22.5 in IEEE 802.11 - 2012.
+ */
+int wpa_tdls_teardown_ftie_mic(u8 *kck, u8 *lnkid, u16 reason, 
+	u8 dialog_token, u8 trans_seq, u8 *ftie, u8 *mic)
+{
+	u8 *buf, *pos;
+	struct wpa_tdls_ftie *_ftie;
+	int ret;
+	int len = 2 + lnkid[1] + 2 + 1 + 1 + 2 + ftie[1];
+	
+	buf = rtw_zmalloc(len);
+	if (!buf) {
+		DBG_871X("TDLS: No memory for MIC calculation\n");
+		return -1;
+	}
+
+	pos = buf;
+	/* 1) Link Identifier IE */
+	_rtw_memcpy(pos, lnkid, 2 + lnkid[1]);
+	pos += 2 + lnkid[1];
+	/* 2) Reason Code */
+	_rtw_memcpy(pos, (u8 *)&reason, 2);
+	pos += 2;
+	/* 3) Dialog Token */
+	*pos++ = dialog_token;
+	/* 4) Transaction Sequence number */
+	*pos++ = trans_seq;
+	/* 5) FTIE, with the MIC field of the FTIE set to 0 */
+	_rtw_memcpy(pos, ftie, 2 + ftie[1]);
+	_ftie = (struct wpa_tdls_ftie *) pos;
+	_rtw_memset(_ftie->mic, 0, TDLS_MIC_LEN);
+	pos += 2 + ftie[1];
+
+	ret = omac1_aes_128(kck, buf, pos - buf, mic);
+	rtw_mfree(buf, len);
+	return ret;
+
+}
+
 int tdls_verify_mic(u8 *kck, u8 trans_seq,
 							u8 *lnkid, u8 *rsnie, u8 *timeoutie, u8 *ftie)
 {
@@ -3112,14 +3161,14 @@ int tdls_verify_mic(u8 *kck, u8 trans_seq,
 
 	if (lnkid == NULL || rsnie == NULL ||
 	    timeoutie == NULL || ftie == NULL){
-		return 0;
+		return _FAIL;
 	}
 	
 	len = 2 * ETH_ALEN + 1 + 2 + 18 + 2 + *(rsnie+1) + 2 + *(timeoutie+1) + 2 + *(ftie+1);
 
 	buf = rtw_zmalloc(len);
 	if (buf == NULL)
-		return 0;
+		return _FAIL;
 
 	pos = buf;
 	/* 1) TDLS initiator STA MAC address */
@@ -3149,17 +3198,17 @@ int tdls_verify_mic(u8 *kck, u8 trans_seq,
 	ret = omac1_aes_128(kck, buf, pos - buf, mic);
 	rtw_mfree(buf, len);
 	if (ret)
-		return 0;
+		return _FAIL;
 	rx_ftie = ftie+4;
 
 	if (os_memcmp(mic, rx_ftie, 16) == 0) {
 		//Valid MIC
-		return 1;
+		return _SUCCESS;
 	}
 
 	//Invalid MIC
 	DBG_871X( "[%s] Invalid MIC\n", __FUNCTION__);
-	return 0;
+	return _FAIL;
 
 }
 #endif //CONFIG_TDLS
@@ -3173,8 +3222,10 @@ _func_enter_;
 	RT_TRACE(_module_rtl871x_security_c_,_drv_err_,("^^^rtw_use_tkipkey_handler ^^^\n"));
 	
 /*
-	if(padapter->bDriverStopped ||padapter->bSurpriseRemoved){
-			RT_TRACE(_module_rtl871x_security_c_,_drv_err_,("^^^rtw_use_tkipkey_handler (padapter->bDriverStopped %d)(padapter->bSurpriseRemoved %d)^^^\n",padapter->bDriverStopped,padapter->bSurpriseRemoved));
+	if (RTW_CANNOT_RUN(padapter)) {
+			RT_TRACE(_module_rtl871x_security_c_,_drv_err_,("^^^rtw_use_tkipkey_handler (padapter->bDriverStopped %s)(padapter->bSurpriseRemoved %s)^^^\n"
+			, rtw_is_drv_stopped(padapter)?"True":"False"
+			, rtw_is_surprise_removed(padapter)?"True":"False"));
 
 		return;
 	}
@@ -3228,3 +3279,68 @@ u8 rtw_handle_tkip_countermeasure(_adapter* adapter, const char *caller)
 	return status;
 }
 
+#ifdef CONFIG_WOWLAN
+u16 rtw_cal_crc16(u8 data, u16 crc)
+{
+	u8 shift_in, data_bit;
+	u8 crc_bit4, crc_bit11, crc_bit15;
+	u16 crc_result;
+	int index;
+
+	for (index = 0; index < 8; index++) {
+		crc_bit15 = ((crc & BIT15) ? 1 : 0);
+		data_bit = (data & (BIT0 << index) ? 1 : 0);
+		shift_in = crc_bit15 ^ data_bit;
+		/*printf("crc_bit15=%d, DataBit=%d, shift_in=%d\n",
+		 * crc_bit15, data_bit, shift_in);*/
+
+		crc_result = crc << 1;
+
+		if (shift_in == 0)
+			crc_result &= (~BIT0);
+		else
+			crc_result |= BIT0;
+		/*printf("CRC =%x\n",CRC_Result);*/
+
+		crc_bit11 = ((crc & BIT11) ? 1 : 0) ^ shift_in;
+
+		if (crc_bit11 == 0)
+			crc_result &= (~BIT12); 
+		else
+			crc_result |= BIT12;
+
+		/*printf("bit12 CRC =%x\n",CRC_Result);*/
+
+		crc_bit4 = ((crc & BIT4) ? 1 : 0) ^ shift_in;
+
+		if (crc_bit4 == 0)
+			crc_result &= (~BIT5);
+		else
+			crc_result |= BIT5;
+
+		/* printf("bit5 CRC =%x\n",CRC_Result); */
+		/* repeat using the last result*/
+		crc = crc_result;
+	}
+	return crc;
+}
+
+/*
+ * function name :rtw_calc_crc
+ *
+ * input: char* pattern , pattern size
+ *
+ */
+u16 rtw_calc_crc(u8  *pdata, int length)
+{
+	u16 crc = 0xffff;
+	int i;
+	
+	for (i = 0; i < length; i++)
+		crc = rtw_cal_crc16(pdata[i], crc);
+	/* get 1' complement */
+	crc = ~crc;
+
+	return crc;
+}
+#endif /*CONFIG_WOWLAN*/

@@ -162,7 +162,7 @@ void sreset_restore_security_station(_adapter *padapter)
 		else
 		{
 			//pairwise key
-			rtw_setstakey_cmd(padapter, psta, _TRUE,_FALSE);
+			rtw_setstakey_cmd(padapter, psta, UNICAST_KEY,_FALSE);
 			//group key
 			rtw_set_key(padapter,&padapter->securitypriv,padapter->securitypriv.dot118021XGrpKeyid, 0,_FALSE);
 		}
@@ -174,6 +174,7 @@ void sreset_restore_network_station(_adapter *padapter)
 	struct mlme_priv *mlmepriv = &padapter->mlmepriv;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
+	u8 doiqk = _FALSE;
 
 	#if 0
 	{
@@ -214,12 +215,15 @@ void sreset_restore_network_station(_adapter *padapter)
 		#endif
 	}
 
-	rtw_hal_set_hwreg(padapter, HW_VAR_DO_IQK, NULL);
+	doiqk = _TRUE;
+	rtw_hal_set_hwreg(padapter, HW_VAR_DO_IQK , &doiqk);
 
 	set_channel_bwmode(padapter, pmlmeext->cur_channel, pmlmeext->cur_ch_offset, pmlmeext->cur_bwmode);
 
+	doiqk = _FALSE;
+	rtw_hal_set_hwreg(padapter , HW_VAR_DO_IQK , &doiqk);
 	//disable dynamic functions, such as high power, DIG
-	//Switch_DM_Func(padapter, DYNAMIC_FUNC_DISABLE, _FALSE);
+	/*rtw_phydm_func_disable_all(padapter);*/
 	
 	rtw_hal_set_hwreg(padapter, HW_VAR_BSSID, pmlmeinfo->network.MacAddress);
 
@@ -232,7 +236,7 @@ void sreset_restore_network_station(_adapter *padapter)
 
 	mlmeext_joinbss_event_callback(padapter, 1);
 	//restore Sequence No.
-	rtw_write8(padapter,0x4dc,padapter->xmitpriv.nqos_ssn);
+	rtw_hal_set_hwreg(padapter, HW_VAR_RESTORE_HW_SEQ, 0);
 
 	sreset_restore_security_station(padapter);
 }

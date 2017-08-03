@@ -236,6 +236,7 @@ phy_RFSerialRead_8723B(
 	u4Byte						MaskforPhySet=0;
 	int i = 0;
 
+	_enter_critical_mutex(&(adapter_to_dvobj(Adapter)->rf_read_reg_mutex) , NULL);
 	//
 	// Make sure RF register offset is correct
 	//
@@ -283,6 +284,7 @@ phy_RFSerialRead_8723B(
 		
 		//RT_DISP(FINIT, INIT_RF,("Readback from RF-SI : 0x%x\n", retValue));
 	}
+	_exit_critical_mutex(&(adapter_to_dvobj(Adapter)->rf_read_reg_mutex) , NULL);
 	return retValue;
 
 }
@@ -498,10 +500,6 @@ s32 PHY_MACConfig8723B(PADAPTER Adapter)
 #endif//CONFIG_EMBEDDED_FWIMG
 	}
 
-#ifdef CONFIG_GPIO_WAKEUP
-	rtw_clear_hostwakeupgpio(Adapter);
-#endif // CONFIG_GPIO_WAKEUP
-
 	return rtStatus;
 }
 
@@ -573,41 +571,41 @@ phy_ConfigBBWithMpHeaderFile(
 	IN	u1Byte 			ConfigType)
 {
 	int i;
-	u32*	Rtl8192CPHY_REGArray_Table_MP;
+	u32*	Rtl8723BPHY_REGArray_Table_MP;
 	u16	PHY_REGArrayMPLen;
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
 
 
 	PHY_REGArrayMPLen = Rtl8723B_PHY_REG_Array_MPLength;
-	Rtl8192CPHY_REGArray_Table_MP = (u32*)Rtl8723B_PHY_REG_Array_MP;
+	Rtl8723BPHY_REGArray_Table_MP = (u32*)Rtl8723B_PHY_REG_Array_MP;
 
 	if(ConfigType == BaseBand_Config_PHY_REG)
 	{
 		for(i=0;i<PHY_REGArrayMPLen;i=i+2)
 		{
-			if (Rtl8192CPHY_REGArray_Table_MP[i] == 0xfe) {
+			if (Rtl8723BPHY_REGArray_Table_MP[i] == 0xfe) {
 				#ifdef CONFIG_LONG_DELAY_ISSUE
 				rtw_msleep_os(50);
 				#else
 				rtw_mdelay_os(50);
 				#endif
 			}
-			else if (Rtl8192CPHY_REGArray_Table_MP[i] == 0xfd)
+			else if (Rtl8723BPHY_REGArray_Table_MP[i] == 0xfd)
 				rtw_mdelay_os(5);
-			else if (Rtl8192CPHY_REGArray_Table_MP[i] == 0xfc)
+			else if (Rtl8723BPHY_REGArray_Table_MP[i] == 0xfc)
 				rtw_mdelay_os(1);
-			else if (Rtl8192CPHY_REGArray_Table_MP[i] == 0xfb) {
+			else if (Rtl8723BPHY_REGArray_Table_MP[i] == 0xfb) {
 				#ifdef CONFIG_LONG_DELAY_ISSUE
 				rtw_msleep_os(50);
 				#else
 				rtw_mdelay_os(50);
 				#endif
 			}
-			else if (Rtl8192CPHY_REGArray_Table_MP[i] == 0xfa)
+			else if (Rtl8723BPHY_REGArray_Table_MP[i] == 0xfa)
 				rtw_mdelay_os(5);
-			else if (Rtl8192CPHY_REGArray_Table_MP[i] == 0xf9)
+			else if (Rtl8723BPHY_REGArray_Table_MP[i] == 0xf9)
 				rtw_mdelay_os(1);
-			PHY_SetBBReg(Adapter, Rtl8192CPHY_REGArray_Table_MP[i], bMaskDWord, Rtl8192CPHY_REGArray_Table_MP[i+1]);
+			PHY_SetBBReg(Adapter, Rtl8723BPHY_REGArray_Table_MP[i], bMaskDWord, Rtl8723BPHY_REGArray_Table_MP[i+1]);
 
 			// Add 1us delay between BB/RF register setting.
 			rtw_mdelay_os(1);
@@ -625,28 +623,6 @@ phy_ConfigBBWithMpHeaderFile(
 
 #endif	// #if (MP_DRIVER == 1)
 
-#if 0 //YJ,test,130321
-static VOID
-phy_BB8192C_Config_1T(
-	IN PADAPTER Adapter
-	)
-{
-	//for path - B
-	PHY_SetBBReg(Adapter, rFPGA0_TxInfo, 0x3, 0x2);
-	PHY_SetBBReg(Adapter, rFPGA1_TxInfo, 0x300033, 0x200022);
-
-	// 20100519 Joseph: Add for 1T2R config. Suggested by Kevin, Jenyu and Yunan.
-	PHY_SetBBReg(Adapter, rCCK0_AFESetting, bMaskByte3, 0x45);
-	PHY_SetBBReg(Adapter, rOFDM0_TRxPathEnable, bMaskByte0, 0x23);
-	PHY_SetBBReg(Adapter, rOFDM0_AGCParameter1, 0x30, 0x1);	// B path first AGC
-
-	PHY_SetBBReg(Adapter, 0xe74, 0x0c000000, 0x2);
-	PHY_SetBBReg(Adapter, 0xe78, 0x0c000000, 0x2);
-	PHY_SetBBReg(Adapter, 0xe7c, 0x0c000000, 0x2);
-	PHY_SetBBReg(Adapter, 0xe80, 0x0c000000, 0x2);
-	PHY_SetBBReg(Adapter, 0xe88, 0x0c000000, 0x2);
-}
-#endif
 
 static	int
 phy_BB8723b_Config_ParaFile(
@@ -657,37 +633,12 @@ phy_BB8723b_Config_ParaFile(
 	int			rtStatus = _SUCCESS;
 	u8	sz8723BBRegFile[] = RTL8723B_PHY_REG;
 	u8	sz8723AGCTableFile[] = RTL8723B_AGC_TAB;
-	u8	sz8723BBBRegPgFile[] = RTL8723B_PHY_REG_PG;
 	u8	sz8723BBRegMpFile[] = RTL8723B_PHY_REG_MP;
-	u8	sz8723BRFTxPwrLmtFile[] = RTL8723B_TXPWR_LMT;
-	u8	*pszBBRegFile = NULL, *pszAGCTableFile = NULL, *pszBBRegPgFile = NULL, *pszBBRegMpFile=NULL, *pszRFTxPwrLmtFile = NULL;
+	u8	*pszBBRegFile = NULL, *pszAGCTableFile = NULL, *pszBBRegMpFile = NULL;
 
 	pszBBRegFile = sz8723BBRegFile ;
 	pszAGCTableFile = sz8723AGCTableFile;
-	pszBBRegPgFile = sz8723BBBRegPgFile;
 	pszBBRegMpFile = sz8723BBRegMpFile;
-	pszRFTxPwrLmtFile = sz8723BRFTxPwrLmtFile;
-
-	// Read Tx Power Limit File
-	PHY_InitTxPowerLimit( Adapter );
-	if ( Adapter->registrypriv.RegEnableTxPowerLimit == 1 || 
-	     ( Adapter->registrypriv.RegEnableTxPowerLimit == 2 && pHalData->EEPROMRegulatory == 1 ) )
-	{
-#ifdef CONFIG_LOAD_PHY_PARA_FROM_FILE
-		if (PHY_ConfigRFWithPowerLimitTableParaFile( Adapter, pszRFTxPwrLmtFile )== _FAIL)
-#endif
-		{
-#ifdef CONFIG_EMBEDDED_FWIMG
-			if (HAL_STATUS_SUCCESS != ODM_ConfigRFWithHeaderFile(&pHalData->odmpriv, CONFIG_RF_TXPWR_LMT, (ODM_RF_RADIO_PATH_E)0))
-				rtStatus = _FAIL;
-#endif
-		}
-
-		if(rtStatus != _SUCCESS){
-			DBG_871X("%s():Read Tx power limit fail\n",__func__);
-			goto phy_BB8190_Config_ParaFile_Fail;
-		}
-	}
 
 	//
 	// 1. Read PHY_REG.TXT BB INIT!!
@@ -730,33 +681,6 @@ phy_BB8723b_Config_ParaFile(
 	}
 #endif	// #if (MP_DRIVER == 1)
 
-	// If EEPROM or EFUSE autoload OK, We must config by PHY_REG_PG.txt
-	PHY_InitTxPowerByRate( Adapter );
-	if ( Adapter->registrypriv.RegEnableTxPowerByRate == 1 || 
-	     ( Adapter->registrypriv.RegEnableTxPowerByRate == 2 && pHalData->EEPROMRegulatory != 2 ) )
-	{
-#ifdef CONFIG_LOAD_PHY_PARA_FROM_FILE
-		if (phy_ConfigBBWithPgParaFile(Adapter, pszBBRegPgFile) == _FAIL)
-#endif
-		{
-#ifdef CONFIG_EMBEDDED_FWIMG
-			if (HAL_STATUS_SUCCESS != ODM_ConfigBBWithHeaderFile(&pHalData->odmpriv, CONFIG_BB_PHY_REG_PG))
-				rtStatus = _FAIL;
-#endif
-		}
-
-		if ( pHalData->odmpriv.PhyRegPgValueType == PHY_REG_PG_EXACT_VALUE )
-			PHY_TxPowerByRateConfiguration( Adapter );
-
-		if ( Adapter->registrypriv.RegEnableTxPowerLimit == 1 || 
-	         ( Adapter->registrypriv.RegEnableTxPowerLimit == 2 && pHalData->EEPROMRegulatory == 1 ) )
-			PHY_ConvertTxPowerLimitToPowerIndex( Adapter );
-
-		if(rtStatus != _SUCCESS){
-			DBG_8192C("%s():BB_PG Reg Fail!!\n",__func__);
-		}
-	}
-
 	//
 	// 2. Read BB AGC table Initialization
 	//
@@ -790,7 +714,7 @@ PHY_BBConfig8723B(
 	HAL_DATA_TYPE	*pHalData = GET_HAL_DATA(Adapter);
 	u32	RegVal;
 	u8	TmpU1B=0;
-	u8	value8, CrystalCap;
+	u8	value8;
 
 	phy_InitBBRFRegisterDefinition(Adapter);
 
@@ -798,7 +722,7 @@ PHY_BBConfig8723B(
 	RegVal = rtw_read16(Adapter, REG_SYS_FUNC_EN);
 	rtw_write16(Adapter, REG_SYS_FUNC_EN, (u16)(RegVal|BIT13|BIT0|BIT1));
 
-	// switch ant to BT
+	/* switch ant to BT */
 #ifdef CONFIG_USB_HCI
 	rtw_write32(Adapter, 0x948, 0x0);	// USB use Antenna S0
 #else
@@ -829,9 +753,7 @@ PHY_BBConfig8723B(
 	//
 	rtStatus = phy_BB8723b_Config_ParaFile(Adapter);
 
-	// 0x2C[23:18] = 0x2C[17:12] = CrystalCap
-	CrystalCap = pHalData->CrystalCap & 0x3F;
-	PHY_SetBBReg(Adapter, REG_MAC_PHY_CTRL, 0xFFF000, (CrystalCap | (CrystalCap << 6)));	
+	hal_set_crystal_cap(Adapter, pHalData->CrystalCap);
 
 	return rtStatus;
 }
@@ -1065,16 +987,18 @@ PHY_SetTxPowerLevel8723B(
 	)
 {
 	PHAL_DATA_TYPE	pHalData = GET_HAL_DATA(Adapter);
-	PDM_ODM_T		pDM_Odm = &pHalData->odmpriv;
-	pFAT_T			pDM_FatTable = &pDM_Odm->DM_FatTable;
+	u8				cur_antenna;
 	u8				RFPath = ODM_RF_PATH_A; 
 
-	if(pHalData->AntDivCfg){// antenna diversity Enable
-		RFPath = ( (pDM_FatTable->RxIdleAnt == MAIN_ANT) ? ODM_RF_PATH_A : ODM_RF_PATH_B);
-	}
-	else{ // antenna diversity disable
+#ifdef CONFIG_ANTENNA_DIVERSITY
+	rtw_hal_get_odm_var(Adapter, HAL_ODM_ANTDIV_SELECT, &cur_antenna, NULL);
+		
+	if (pHalData->AntDivCfg)  /* antenna diversity Enable */
+		RFPath = ((cur_antenna == MAIN_ANT) ? ODM_RF_PATH_A : ODM_RF_PATH_B);
+	else   /* antenna diversity disable */
+#endif
 		RFPath = pHalData->ant_path;
-	}
+	
 
 	RT_TRACE(_module_hal_init_c_, _drv_info_,("==>PHY_SetTxPowerLevel8723B()\n"));
 
@@ -1421,10 +1345,8 @@ phy_SwChnlAndSetBwMode8723B(
 			pHalData->CurrentChannelBW);
 	}
 
-	if((Adapter->bDriverStopped) || (Adapter->bSurpriseRemoved))
-	{
+	if (RTW_CANNOT_RUN(Adapter))
 		return;
-	}
 
 	if(pHalData->bSwChnl)
 	{
@@ -1538,12 +1460,9 @@ PHY_HandleSwChnlAndSetBW8723B(
 	}
 
 	//Switch workitem or set timer to do switch channel or setbandwidth operation
-	if((!Adapter->bDriverStopped) && (!Adapter->bSurpriseRemoved))
-	{
+	if (!RTW_CANNOT_RUN(Adapter))
 		phy_SwChnlAndSetBwMode8723B(Adapter);
-	}
-	else
-	{
+	else {
 		if(pHalData->bSwChnl)
 		{
 			pHalData->CurrentChannel = tmpChannel;

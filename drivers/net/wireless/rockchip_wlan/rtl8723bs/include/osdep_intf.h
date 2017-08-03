@@ -105,12 +105,20 @@ void rtw_cancel_dynamic_chk_timer(_adapter *padapter);
 #endif
 void rtw_cancel_all_timer(_adapter *padapter);
 
+uint loadparam(_adapter *adapter);
+
 #ifdef PLATFORM_LINUX
 int rtw_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 
 int rtw_init_netdev_name(struct net_device *pnetdev, const char *ifname);
 struct net_device *rtw_init_netdev(_adapter *padapter);
-void rtw_unregister_netdevs(struct dvobj_priv *dvobj);
+
+void rtw_os_ndev_free(_adapter *adapter);
+int rtw_os_ndev_init(_adapter *adapter, char *name);
+void rtw_os_ndev_deinit(_adapter *adapter);
+void rtw_os_ndevs_unregister(struct dvobj_priv *dvobj);
+int rtw_os_ndevs_init(struct dvobj_priv *dvobj);
+void rtw_os_ndevs_deinit(struct dvobj_priv *dvobj);
 
 #if (LINUX_VERSION_CODE>=KERNEL_VERSION(2,6,35))
 u16 rtw_recv_select_queue(struct sk_buff *skb);
@@ -152,7 +160,6 @@ void rtw_drv_free_vir_ifaces(struct dvobj_priv *dvobj);
 #endif //CONFIG_MULTI_VIR_IFACES
 #endif
 
-int rtw_drv_register_netdev(_adapter *padapter);
 void rtw_ndev_destructor(_nic_hdl ndev);
 
 #ifdef CONFIG_ARP_KEEP_ALIVE

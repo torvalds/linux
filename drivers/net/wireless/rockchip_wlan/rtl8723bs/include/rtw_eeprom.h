@@ -27,8 +27,9 @@
 #define	HWSET_MAX_SIZE_128		128
 #define	HWSET_MAX_SIZE_256		256
 #define	HWSET_MAX_SIZE_512		512
+#define HWSET_MAX_SIZE_1024		1024
 
-#define	EEPROM_MAX_SIZE			HWSET_MAX_SIZE_512
+#define	EEPROM_MAX_SIZE			HWSET_MAX_SIZE_1024
 
 #define	CLOCK_RATE					50			//100us		
 
@@ -43,11 +44,6 @@
 #define USA							0x555320
 #define EUROPE						0x1 //temp, should be provided later	
 #define JAPAN						0x2 //temp, should be provided later
-
-#ifdef CONFIG_SDIO_HCI
-#define eeprom_cis0_sz	17
-#define eeprom_cis1_sz	50
-#endif
 
 //
 // Customer ID, note that: 
@@ -108,35 +104,6 @@ typedef enum _RT_CUSTOMER_ID
 	RT_CID_DNI_BUFFALO = 46,//add by page for NEC
 }RT_CUSTOMER_ID, *PRT_CUSTOMER_ID;
 
-struct eeprom_priv 
-{    
-	u8		bautoload_fail_flag;
-	u8		bloadfile_fail_flag;
-	u8		bloadmac_fail_flag;
-	u8		EepromOrEfuse;
-
-	u8		mac_addr[6];	//PermanentAddress
-
-	u16		channel_plan;
-	u16		CustomerID;
-
-	u8		efuse_eeprom_data[EEPROM_MAX_SIZE]; //92C:256bytes, 88E:512bytes, we use union set (512bytes)
-	u8		adjuseVoltageVal;
-
-#ifdef CONFIG_RF_GAIN_OFFSET
-	u8		EEPROMRFGainOffset;
-	u8		EEPROMRFGainVal;
-#endif //CONFIG_RF_GAIN_OFFSET
-
-#ifdef CONFIG_SDIO_HCI
-	u8		sdio_setting;	
-	u32		ocr;
-	u8		cis0[eeprom_cis0_sz];
-	u8		cis1[eeprom_cis1_sz];	
-#endif
-};
-
-
 extern void eeprom_write16(_adapter *padapter, u16 reg, u16 data);
 extern u16 eeprom_read16(_adapter *padapter, u16 reg);
 extern void read_eeprom_content(_adapter *padapter);
@@ -147,8 +114,8 @@ extern void read_eeprom_content_by_attrib(_adapter *	padapter	);
 #ifdef PLATFORM_LINUX
 #ifdef CONFIG_ADAPTOR_INFO_CACHING_FILE
 extern int isAdaptorInfoFileValid(void);
-extern int storeAdaptorInfoFile(char *path, struct eeprom_priv * eeprom_priv);
-extern int retriveAdaptorInfoFile(char *path, struct eeprom_priv * eeprom_priv);
+extern int storeAdaptorInfoFile(char *path, u8 *efuse_data);
+extern int retriveAdaptorInfoFile(char *path, u8 *efuse_data);
 #endif //CONFIG_ADAPTOR_INFO_CACHING_FILE
 #endif //PLATFORM_LINUX
 

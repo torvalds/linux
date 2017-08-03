@@ -164,7 +164,10 @@
 //	0x0100h ~ 0x01FFh	MACTOP General Configuration
 //
 //-----------------------------------------------------
-
+#undef IS_E_CUT
+#define IS_E_CUT(version)		FALSE
+#undef IS_F_CUT
+#define IS_F_CUT(version)		((GET_CVID_CUT_VERSION(version) == E_CUT_VERSION) ? TRUE : FALSE)
 
 //-----------------------------------------------------
 //
@@ -283,7 +286,11 @@
 //========================================================
 
 #define MACID_NUM_8723B 128
-#define CAM_ENTRY_NUM_8723B 64
+#define SEC_CAM_ENT_NUM_8723B 64
+#define NSS_NUM_8723B 1
+#define BAND_CAP_8723B (BAND_CAP_2G)
+#define BW_CAP_8723B (BW_CAP_20M | BW_CAP_40M)
+#define PROTO_CAP_8723B (PROTO_CAP_11B|PROTO_CAP_11G|PROTO_CAP_11N)
 
 #endif /* __RTL8723B_SPEC_H__ */
 

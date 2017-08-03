@@ -178,6 +178,7 @@ u16 sdio_read16(struct intf_hdl *pintfhdl, u32 addr)
 
 _func_enter_;
 	ftaddr = _cvrt2ftaddr(addr, NULL, NULL);
+	val = 0;
 	sd_cmd52_read(pintfhdl, ftaddr, 2, (u8*)&val);
 	val = le16_to_cpu(val);
 
@@ -202,6 +203,7 @@ _func_enter_;
 	padapter = pintfhdl->padapter;
 	ftaddr = _cvrt2ftaddr(addr, &deviceId, &offset);
 
+	bMacPwrCtrlOn = _FALSE;
 	rtw_hal_get_hwreg(padapter, HW_VAR_APFM_ON_MAC, &bMacPwrCtrlOn);
 	if (((deviceId == WLAN_IOREG_DEVICE_ID) && (offset < 0x100))
 		|| (_FALSE == bMacPwrCtrlOn)
@@ -210,6 +212,7 @@ _func_enter_;
 #endif
 		)
 	{
+		val = 0;
 		err = sd_cmd52_read(pintfhdl, ftaddr, 4, (u8*)&val);
 #ifdef SDIO_DEBUG_IO
 		if (!err) {
@@ -238,7 +241,9 @@ _func_enter_;
 		}
 
 		ftaddr &= ~(u16)0x3;
-		sd_read(pintfhdl, ftaddr, 8, ptmpbuf);
+		err = sd_read(pintfhdl, ftaddr, 8, ptmpbuf);
+		if (err)
+			return SDIO_ERR_VAL32;
 		_rtw_memcpy(&val, ptmpbuf+shift, 4);
 		val = le32_to_cpu(val);
 
@@ -267,6 +272,7 @@ _func_enter_;
 
 	ftaddr = _cvrt2ftaddr(addr, &deviceId, &offset);
 
+	bMacPwrCtrlOn = _FALSE;
 	rtw_hal_get_hwreg(padapter, HW_VAR_APFM_ON_MAC, &bMacPwrCtrlOn);
 	if (((deviceId == WLAN_IOREG_DEVICE_ID) && (offset < 0x100))
 		|| (_FALSE == bMacPwrCtrlOn)
@@ -309,6 +315,7 @@ s32 sdio_write8(struct intf_hdl *pintfhdl, u32 addr, u8 val)
 
 _func_enter_;
 	ftaddr = _cvrt2ftaddr(addr, NULL, NULL);
+	err = 0;
 	sd_write8(pintfhdl, ftaddr, val, &err);
 
 _func_exit_;
@@ -349,6 +356,7 @@ _func_enter_;
 
 	ftaddr = _cvrt2ftaddr(addr, &deviceId, &offset);
 
+	bMacPwrCtrlOn = _FALSE;
 	rtw_hal_get_hwreg(padapter, HW_VAR_APFM_ON_MAC, &bMacPwrCtrlOn);
 	if (((deviceId == WLAN_IOREG_DEVICE_ID) && (offset < 0x100))
 		|| (_FALSE == bMacPwrCtrlOn)
@@ -419,6 +427,7 @@ _func_enter_;
 
 	ftaddr = _cvrt2ftaddr(addr, &deviceId, &offset);
 
+	bMacPwrCtrlOn = _FALSE;
 	rtw_hal_get_hwreg(padapter, HW_VAR_APFM_ON_MAC, &bMacPwrCtrlOn);
 	if (((deviceId == WLAN_IOREG_DEVICE_ID) && (offset < 0x100))
 		|| (_FALSE == bMacPwrCtrlOn)
@@ -591,7 +600,7 @@ static u32 sdio_write_port(
 	padapter = pintfhdl->padapter;
 	psdio = &adapter_to_dvobj(padapter)->intf_data;
 
-	if (padapter->hw_init_completed == _FALSE) {
+	if (!rtw_is_hw_init_completed(padapter)) {
 		DBG_871X("%s [addr=0x%x cnt=%d] padapter->hw_init_completed == _FALSE\n",__func__,addr,cnt);
 		return _FAIL;
 	}
@@ -654,6 +663,7 @@ s32 _sdio_local_read(
 
 	HalSdioGetCmdAddr8723BSdio(padapter, SDIO_LOCAL_DEVICE_ID, addr, &addr);
 
+	bMacPwrCtrlOn = _FALSE;
 	rtw_hal_get_hwreg(padapter, HW_VAR_APFM_ON_MAC, &bMacPwrCtrlOn);
 	if (_FALSE == bMacPwrCtrlOn)
 	{
@@ -695,6 +705,7 @@ s32 sdio_local_read(
 
 	HalSdioGetCmdAddr8723BSdio(padapter, SDIO_LOCAL_DEVICE_ID, addr, &addr);
 
+	bMacPwrCtrlOn = _FALSE;
 	rtw_hal_get_hwreg(padapter, HW_VAR_APFM_ON_MAC, &bMacPwrCtrlOn);
 	if ((_FALSE == bMacPwrCtrlOn)
 #ifdef CONFIG_LPS_LCLK
@@ -745,6 +756,7 @@ s32 _sdio_local_write(
 
 	HalSdioGetCmdAddr8723BSdio(padapter, SDIO_LOCAL_DEVICE_ID, addr, &addr);
 
+	bMacPwrCtrlOn = _FALSE;
 	rtw_hal_get_hwreg(padapter, HW_VAR_APFM_ON_MAC, &bMacPwrCtrlOn);
 	if ((_FALSE == bMacPwrCtrlOn)
 #ifdef CONFIG_LPS_LCLK
@@ -794,6 +806,7 @@ s32 sdio_local_write(
 
 	HalSdioGetCmdAddr8723BSdio(padapter, SDIO_LOCAL_DEVICE_ID, addr, &addr);
 
+	bMacPwrCtrlOn = _FALSE;
 	rtw_hal_get_hwreg(padapter, HW_VAR_APFM_ON_MAC, &bMacPwrCtrlOn);
 	if ((_FALSE == bMacPwrCtrlOn)
 #ifdef CONFIG_LPS_LCLK
@@ -864,6 +877,7 @@ u32 SdioLocalCmd53Read4Byte(PADAPTER padapter, u32 addr)
 	struct intf_hdl * pintfhdl=&padapter->iopriv.intf;
 
 	HalSdioGetCmdAddr8723BSdio(padapter, SDIO_LOCAL_DEVICE_ID, addr, &addr);
+	bMacPwrCtrlOn = _FALSE;
 	rtw_hal_get_hwreg(padapter, HW_VAR_APFM_ON_MAC, &bMacPwrCtrlOn);
 	if ((_FALSE == bMacPwrCtrlOn)
 #ifdef CONFIG_LPS_LCLK
@@ -1123,8 +1137,11 @@ void InitInterrupt8723BSdio(PADAPTER padapter)
 //								SDIO_HIMR_C2HCMD_MSK				|
 #if defined(CONFIG_LPS_LCLK) && !defined(CONFIG_DETECT_CPWM_BY_POLLING)
 								SDIO_HIMR_CPWM1_MSK				|
-//								SDIO_HIMR_CPWM2_MSK				|
 #endif // CONFIG_LPS_LCLK && !CONFIG_DETECT_CPWM_BY_POLLING
+#ifdef CONFIG_WOWLAN
+								SDIO_HIMR_CPWM2_MSK				|
+#endif
+
 //								SDIO_HIMR_HSISR_IND_MSK			|
 //								SDIO_HIMR_GTINT3_IND_MSK			|
 //								SDIO_HIMR_GTINT4_IND_MSK			|
@@ -1158,7 +1175,7 @@ void InitSysInterrupt8723BSdio(PADAPTER padapter)
 							0);
 }
 
-#ifdef CONFIG_WOWLAN
+#if defined(CONFIG_WOWLAN) || defined(CONFIG_AP_WOWLAN)
 //
 //	Description:
 //		Clear corresponding SDIO Host ISR interrupt service.
@@ -1174,7 +1191,7 @@ void ClearInterrupt8723BSdio(PADAPTER padapter)
 	u8 *clear;
 
 
-	if (_TRUE == padapter->bSurpriseRemoved)
+	if (rtw_is_surprise_removed(padapter))
 		return;
 
 	pHalData = GET_HAL_DATA(padapter);
@@ -1205,7 +1222,7 @@ void ClearSysInterrupt8723BSdio(PADAPTER padapter)
 	u32 clear;
 
 
-	if (_TRUE == padapter->bSurpriseRemoved)
+	if (rtw_is_surprise_removed(padapter))
 		return;
 
 	pHalData = GET_HAL_DATA(padapter);
@@ -1234,11 +1251,6 @@ void EnableInterrupt8723BSdio(PADAPTER padapter)
 	PHAL_DATA_TYPE pHalData;
 	u32 himr;
 
-#ifdef CONFIG_CONCURRENT_MODE
-	if ((padapter->isprimary == _FALSE) && padapter->pbuddy_adapter){
-		padapter = padapter->pbuddy_adapter;
-	}
-#endif
 	pHalData = GET_HAL_DATA(padapter);
 
 	himr = cpu_to_le32(pHalData->sdio_himr);
@@ -1275,11 +1287,6 @@ void DisableInterrupt8723BSdio(PADAPTER padapter)
 {
 	u32 himr;
 
-#ifdef CONFIG_CONCURRENT_MODE
-	if ((padapter->isprimary == _FALSE) && padapter->pbuddy_adapter){
-		padapter = padapter->pbuddy_adapter;
-	}
-#endif
 	himr = cpu_to_le32(SDIO_HIMR_DISABLED);
 	sdio_local_write(padapter, SDIO_REG_HIMR, 4, (u8*)&himr);
 
@@ -1310,11 +1317,6 @@ void DisableInterruptButCpwm28723BSdio(PADAPTER padapter)
 {
 	u32 himr, tmp;
 
-#ifdef CONFIG_CONCURRENT_MODE
-	if ((padapter->isprimary == _FALSE) && padapter->pbuddy_adapter){
-		padapter = padapter->pbuddy_adapter;
-	}
-#endif
 	sdio_local_read(padapter, SDIO_REG_HIMR, 4, (u8*)&tmp);
 	DBG_871X("DisableInterruptButCpwm28723BSdio(): Read SDIO_REG_HIMR: 0x%08x\n", tmp);
 	
@@ -1339,11 +1341,6 @@ void UpdateInterruptMask8723BSdio(PADAPTER padapter, u32 AddMSR, u32 RemoveMSR)
 {
 	HAL_DATA_TYPE *pHalData;
 
-#ifdef CONFIG_CONCURRENT_MODE
-	if ((padapter->isprimary == _FALSE) && padapter->pbuddy_adapter){
-		padapter = padapter->pbuddy_adapter;
-	}
-#endif
 	pHalData = GET_HAL_DATA(padapter);
 
 	if (AddMSR)
@@ -1706,8 +1703,7 @@ void sd_int_hdl(PADAPTER padapter)
 	PHAL_DATA_TYPE phal;
 
 
-	if ((padapter->bDriverStopped == _TRUE) ||
-	    (padapter->bSurpriseRemoved == _TRUE))
+	if (RTW_CANNOT_RUN(padapter))
 		return;
 
 	phal = GET_HAL_DATA(padapter);

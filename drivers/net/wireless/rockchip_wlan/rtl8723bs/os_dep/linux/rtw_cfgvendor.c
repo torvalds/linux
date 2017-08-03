@@ -20,6 +20,10 @@
 
 #include <drv_types.h>
 
+#ifdef CONFIG_IOCTL_CFG80211
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0)) || defined(RTW_VENDOR_EXT_SUPPORT)
+
 /*
 #include <linux/kernel.h>
 #include <linux/if_arp.h>
@@ -38,19 +42,22 @@
 
 #include <net/rtnetlink.h>
 
-#ifdef CONFIG_IOCTL_CFG80211
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0)) || defined(RTW_VENDOR_EXT_SUPPORT)
-
 #ifdef DBG_MEM_ALLOC
 extern bool match_mstat_sniff_rules(const enum mstat_f flags, const size_t size);
-struct sk_buff * dbg_rtw_cfg80211_vendor_event_alloc(struct wiphy *wiphy, int len, int event_id, gfp_t gfp
+struct sk_buff *dbg_rtw_cfg80211_vendor_event_alloc(struct wiphy *wiphy, int len, int event_id, gfp_t gfp
 	, const enum mstat_f flags, const char *func, const int line)
 {
+	_adapter *padapter = wiphy_to_adapter(wiphy);
+	struct wireless_dev *wdev = padapter->rtw_wdev;
+
 	struct sk_buff *skb;
 	unsigned int truesize = 0;
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0))
 	skb = cfg80211_vendor_event_alloc(wiphy, len, event_id, gfp);
+#else
+	skb = cfg80211_vendor_event_alloc(wiphy, wdev, len, event_id, gfp);
+#endif
 
 	if(skb)
 		truesize = skb->truesize;
@@ -139,9 +146,22 @@ int dbg_rtw_cfg80211_vendor_cmd_reply(struct sk_buff *skb
 #define rtw_cfg80211_vendor_cmd_reply(skb) \
 		dbg_rtw_cfg80211_vendor_cmd_reply(skb, MSTAT_FUNC_CFG_VENDOR|MSTAT_TYPE_SKB, __FUNCTION__, __LINE__)
 #else
-#define rtw_cfg80211_vendor_event_alloc(wiphy, len, event_id, gfp) \
-	cfg80211_vendor_event_alloc(wiphy, len, event_id, gfp)
-	
+
+struct sk_buff *rtw_cfg80211_vendor_event_alloc(
+		struct wiphy *wiphy, int len, int event_id, gfp_t gfp)
+{
+	_adapter *padapter = wiphy_to_adapter(wiphy);
+	struct wireless_dev *wdev = padapter->rtw_wdev;
+	struct sk_buff *skb;
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(4, 1, 0))
+	skb = cfg80211_vendor_event_alloc(wiphy, len, event_id, gfp);
+#else
+	skb = cfg80211_vendor_event_alloc(wiphy, wdev, len, event_id, gfp);
+#endif
+	return skb;
+}
+
 #define rtw_cfg80211_vendor_event(skb, gfp) \
 	cfg80211_vendor_event(skb, gfp)
 	
@@ -229,7 +249,8 @@ int rtw_dev_get_feature_set(struct net_device *dev)
 
 	feature_set |= WIFI_FEATURE_INFRA;
 
-	if(IS_92D(*hal_ver) || IS_8812_SERIES(*hal_ver) || IS_8821_SERIES(*hal_ver))
+	if (IS_8814A_SERIES(*hal_ver) || IS_8812_SERIES(*hal_ver) ||
+			IS_8821_SERIES(*hal_ver))
 		feature_set |= WIFI_FEATURE_INFRA_5G;
 
 	feature_set |= WIFI_FEATURE_P2P;

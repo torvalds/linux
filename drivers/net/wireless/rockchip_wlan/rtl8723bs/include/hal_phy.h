@@ -56,13 +56,6 @@
 
 
 /*--------------------------Define Parameters-------------------------------*/
-typedef enum _BAND_TYPE{
-	BAND_ON_2_4G = 0,
-	BAND_ON_5G,
-	BAND_ON_BOTH,
-	BANDMAX
-}BAND_TYPE,*PBAND_TYPE;
-
 typedef	enum _RF_TYPE{
 	RF_TYPE_MIN = 0, 	// 0
 	RF_8225=1,			// 1 11b/g RF for verification only
@@ -72,13 +65,6 @@ typedef	enum _RF_TYPE{
 	RF_PSEUDO_11N=5,	// 5, It is a temporality RF. 
 	RF_TYPE_MAX
 }RF_TYPE_E,*PRF_TYPE_E;
-
-typedef enum _RF_PATH{
-	RF_PATH_A = 0,
-	RF_PATH_B,
-	RF_PATH_C,
-	RF_PATH_D
-}RF_PATH, *PRF_PATH;
 
 #define	TX_1S			0			
 #define	TX_2S			1			

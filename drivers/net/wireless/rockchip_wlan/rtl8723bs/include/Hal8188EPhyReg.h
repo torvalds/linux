@@ -420,13 +420,8 @@
 
 #define		RF_TX_BB1					0x23	// 
 
-//#if HARDWARE_TYPE_IS_RTL8192D	== 1
-#define		RF_T_METER_92D					0x42	// 
-//#else
 #define		RF_T_METER_88E					0x42	// 
 #define		RF_T_METER					0x24	// 
-
-//#endif
 
 #define		RF_SYN_G1					0x25	// RF TX Power control
 #define		RF_SYN_G2					0x26	// RF TX Power control

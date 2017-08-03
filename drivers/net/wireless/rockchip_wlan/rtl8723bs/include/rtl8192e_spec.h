@@ -41,7 +41,7 @@
 #define REG_AFE_CTRL2_8192E			0x0028
 #define REG_AFE_CTRL3_8192E			0x002c
 
-
+#define REG_PAD_CTRL1_8192E			0x0064           
 #define REG_SDIO_CTRL_8192E			0x0070
 #define REG_OPT_CTRL_8192E				0x0074
 #define REG_RF_B_CTRL_8192E			0x0076
@@ -175,6 +175,10 @@
 #define REG_WMAC_LBK_BUF_HD_8192E			0x045D
 #define REG_NDPA_OPT_CTRL_8192E		0x045F
 #define REG_DATA_SC_8192E				0x0483
+#ifdef CONFIG_WOWLAN
+#define REG_TXPKTBUF_IV_LOW             0x0484
+#define REG_TXPKTBUF_IV_HIGH            0x0488
+#endif
 #define REG_ARFR2_8192E					0x048C
 #define REG_ARFR3_8192E					0x0494
 #define REG_TXRPT_START_OFFSET			0x04AC
@@ -309,8 +313,16 @@
 #define	AcmHw_ViqStatus_8192E			BIT(6)
 #define	AcmHw_BeqStatus_8192E			BIT(7)
 
+//========================================================
+// General definitions
+//========================================================
 
-
+#define MACID_NUM_8192E 128
+#define SEC_CAM_ENT_NUM_8192E 64
+#define NSS_NUM_8192E 2
+#define BAND_CAP_8192E (BAND_CAP_2G)
+#define BW_CAP_8192E (BW_CAP_20M | BW_CAP_40M)
+#define PROTO_CAP_8192E (PROTO_CAP_11B|PROTO_CAP_11G|PROTO_CAP_11N)
 
 #endif //__RTL8192E_SPEC_H__
 

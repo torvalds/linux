@@ -49,6 +49,8 @@
 #define REG_HISRE_88E					0x00BC //RTL8188E
 #define REG_MACID_NO_LINK_0			0x0484
 #define REG_MACID_NO_LINK_1			0x0488
+#define REG_MACID_PAUSE_0			0x048c
+#define REG_MACID_PAUSE_1			0x0490
 
 //-----------------------------------------------------
 //
@@ -145,6 +147,12 @@
 // General definitions
 //========================================================
 
+#define MACID_NUM_88E 64
+#define SEC_CAM_ENT_NUM_88E 32
+#define NSS_NUM_88E 1
+#define BAND_CAP_88E (BAND_CAP_2G)
+#define BW_CAP_88E (BW_CAP_20M | BW_CAP_40M)
+#define PROTO_CAP_88E (PROTO_CAP_11B|PROTO_CAP_11G|PROTO_CAP_11N)
 
 //----------------------------------------------------------------------------
 //       8192C EEPROM/EFUSE share register definition.
@@ -153,5 +161,5 @@
 #define EFUSE_ACCESS_ON			0x69	// For RTL8723 only.
 #define EFUSE_ACCESS_OFF			0x00	// For RTL8723 only.
 
-#endif //__RTL8188E_SPEC_H__
+#endif /* __RTL8188E_SPEC_H__ */
 

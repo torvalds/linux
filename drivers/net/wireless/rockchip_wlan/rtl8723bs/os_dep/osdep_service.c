@@ -804,7 +804,7 @@ void rtw_mfree2d(void *pbuf, int h, int w, int size)
 	rtw_mfree((u8 *)pbuf, h*sizeof(void*) + w*h*size);
 }
 
-void _rtw_memcpy(void* dst, void* src, u32 sz)
+void _rtw_memcpy(void *dst, const void *src, u32 sz)
 {
 
 #if defined (PLATFORM_LINUX)|| defined (PLATFORM_FREEBSD)
@@ -821,7 +821,16 @@ void _rtw_memcpy(void* dst, void* src, u32 sz)
 
 }
 
-int	_rtw_memcmp(void *dst, void *src, u32 sz)
+inline void _rtw_memmove(void *dst, const void *src, u32 sz)
+{
+#if defined(PLATFORM_LINUX)
+	memmove(dst, src, sz);
+#else
+	#warning "no implementation\n"
+#endif
+}
+
+int	_rtw_memcmp(void *dst, const void *src, u32 sz)
 {
 
 #if defined (PLATFORM_LINUX)|| defined (PLATFORM_FREEBSD)
@@ -1270,13 +1279,15 @@ void	_rtw_spinunlock_ex(_lock *plock)
 
 
 
-void	_rtw_init_queue(_queue	*pqueue)
+void _rtw_init_queue(_queue *pqueue)
 {
-
 	_rtw_init_listhead(&(pqueue->queue));
-
 	_rtw_spinlock_init(&(pqueue->lock));
+}
 
+void _rtw_deinit_queue(_queue *pqueue)
+{
+	_rtw_spinlock_free(&(pqueue->lock));
 }
 
 u32	  _rtw_queue_empty(_queue	*pqueue)
@@ -1551,7 +1562,7 @@ void rtw_udelay_os(int us)
 }
 #endif
 
-void rtw_yield_os()
+void rtw_yield_os(void)
 {
 #ifdef PLATFORM_LINUX
 	yield();
@@ -1598,7 +1609,7 @@ static android_suspend_lock_t rtw_resume_scan_lock ={
 };
 #endif
 
-inline void rtw_suspend_lock_init()
+inline void rtw_suspend_lock_init(void)
 {
 	#ifdef CONFIG_WAKELOCK
 	wake_lock_init(&rtw_suspend_lock, WAKE_LOCK_SUSPEND, RTW_SUSPEND_LOCK_NAME);
@@ -1617,7 +1628,7 @@ inline void rtw_suspend_lock_init()
 	#endif
 }
 
-inline void rtw_suspend_lock_uninit()
+inline void rtw_suspend_lock_uninit(void)
 {
 	#ifdef CONFIG_WAKELOCK
 	wake_lock_destroy(&rtw_suspend_lock);
@@ -2051,7 +2062,7 @@ int rtw_is_file_readable(char *path)
 * @param sz how many bytes to read at most
 * @return the byte we've read
 */
-int rtw_retrive_from_file(char *path, u8* buf, u32 sz)
+int rtw_retrieve_from_file(char *path, u8 *buf, u32 sz)
 {
 #ifdef PLATFORM_LINUX
 	int ret =retriveFromFile(path, buf, sz);
@@ -2141,7 +2152,6 @@ void rtw_free_netdev(struct net_device * netdev)
 	if(!pnpi->priv)
 		goto RETURN;
 
-	rtw_vmfree(pnpi->priv, pnpi->sizeof_priv);
 	free_netdev(netdev);
 
 RETURN:
@@ -2190,7 +2200,7 @@ int rtw_change_ifname(_adapter *padapter, const char *ifname)
 
 	rtw_init_netdev_name(pnetdev, ifname);
 
-	_rtw_memcpy(pnetdev->dev_addr, padapter->eeprompriv.mac_addr, ETH_ALEN);
+	_rtw_memcpy(pnetdev->dev_addr, adapter_mac_addr(padapter), ETH_ALEN);
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,26))
 	if(!rtnl_is_locked())
@@ -2474,5 +2484,43 @@ struct rtw_cbuf *rtw_cbuf_alloc(u32 size)
 void rtw_cbuf_free(struct rtw_cbuf *cbuf)
 {
 	rtw_mfree((u8*)cbuf, sizeof(*cbuf) + sizeof(void*)*cbuf->size);
+}
+
+/**
+* IsHexDigit -
+*
+* Return	TRUE if chTmp is represent for hex digit
+*		FALSE otherwise.
+*/
+inline BOOLEAN IsHexDigit(char chTmp)
+{
+	if ((chTmp >= '0' && chTmp <= '9') ||
+		(chTmp >= 'a' && chTmp <= 'f') ||
+		(chTmp >= 'A' && chTmp <= 'F'))
+		return _TRUE;
+	else
+		return _FALSE;
+}
+
+/**
+* is_alpha -
+*
+* Return	TRUE if chTmp is represent for alphabet
+*		FALSE otherwise.
+*/
+inline BOOLEAN is_alpha(char chTmp)
+{
+	if ((chTmp >= 'a' && chTmp <= 'z') ||
+		(chTmp >= 'A' && chTmp <= 'Z'))
+		return _TRUE;
+	else
+		return _FALSE;
+}
+
+inline char alpha_to_upper(char c)
+{
+	if ((c >= 'a' && c <= 'z'))
+		c = 'A' + (c - 'a');
+	return c;
 }
 

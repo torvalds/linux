@@ -41,6 +41,8 @@ typedef enum _RTL8812_H2C_CMD
 	H2C_8812_RA_MASK = 0x40,
 	H2C_8812_TxBF = 0x41,
 	H2C_8812_RSSI_REPORT = 0x42,
+	H2C_8812_IQ_CALIBRATION = 0x45,
+	H2C_8812_RA_PARA_ADJUST = 0x46,
 
 	H2C_8812_BT_FW_PATCH = 0x6a,
 
@@ -54,24 +56,6 @@ typedef enum _RTL8812_H2C_CMD
 
 	MAX_8812_H2CCMD
 }RTL8812_H2C_CMD;
-
-
-typedef enum _RTL8812_C2H_EVT
-{
-	C2H_8812_DBG = 0,
-	C2H_8812_LB = 1,
-	C2H_8812_TXBF = 2,
-	C2H_8812_TX_REPORT = 3,
-	C2H_8812_BT_INFO = 9,
-	C2H_8812_BT_MP = 11,
-	C2H_8812_RA_RPT=12,
-
-	C2H_8812_FW_SWCHNL = 0x10,
-	C2H_8812_IQK_FINISH = 0x11,
-	C2H_8812_MAILBOX_STATUS = 0x15,
-	MAX_8812_C2HEVENT
-}RTL8812_C2H_EVT;
-
 
 struct cmd_msg_parm {
 	u8 eid; //element id
@@ -91,26 +75,21 @@ struct H2C_SS_RFOFF_PARAM{
 
 
 //_RSVDPAGE_LOC_CMD0
-#define SET_8812_H2CCMD_RSVDPAGE_LOC_PROBE_RSP(__pH2CCmd, __Value)			SET_BITS_TO_LE_1BYTE_8BIT(__pH2CCmd, 0, 8, __Value)
-#define SET_8812_H2CCMD_RSVDPAGE_LOC_PSPOLL(__pH2CCmd, __Value)				SET_BITS_TO_LE_1BYTE_8BIT((__pH2CCmd)+1, 0, 8, __Value)
-#define SET_8812_H2CCMD_RSVDPAGE_LOC_NULL_DATA(__pH2CCmd, __Value)			SET_BITS_TO_LE_1BYTE_8BIT((__pH2CCmd)+2, 0, 8, __Value)
-#define SET_8812_H2CCMD_RSVDPAGE_LOC_QOS_NULL_DATA(__pH2CCmd, __Value)		SET_BITS_TO_LE_1BYTE_8BIT((__pH2CCmd)+3, 0, 8, __Value)
-#define SET_8812_H2CCMD_RSVDPAGE_LOC_BT_QOS_NULL_DATA(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE_8BIT((__pH2CCmd)+4, 0, 8, __Value)
-
-//_MEDIA_STATUS_RPT_PARM_CMD1
-#define SET_8812_H2CCMD_MSRRPT_PARM_OPMODE(__pH2CCmd, __Value)				SET_BITS_TO_LE_1BYTE(__pH2CCmd, 0, 1, __Value)
-#define SET_8812_H2CCMD_MSRRPT_PARM_MACID_IND(__pH2CCmd, __Value)				SET_BITS_TO_LE_1BYTE(__pH2CCmd, 1, 1, __Value)
-#define SET_8812_H2CCMD_MSRRPT_PARM_MACID(__pH2CCmd, __Value)					SET_BITS_TO_LE_1BYTE_8BIT(__pH2CCmd+1, 0, 8, __Value)
-#define SET_8812_H2CCMD_MSRRPT_PARM_MACID_END(__pH2CCmd, __Value)			SET_BITS_TO_LE_1BYTE_8BIT(__pH2CCmd+2, 0, 8, __Value)
+#define SET_8812_H2CCMD_RSVDPAGE_LOC_PROBE_RSP(__pH2CCmd, __Value)			SET_BITS_TO_LE_1BYTE(__pH2CCmd, 0, 8, __Value)
+#define SET_8812_H2CCMD_RSVDPAGE_LOC_PSPOLL(__pH2CCmd, __Value)				SET_BITS_TO_LE_1BYTE((__pH2CCmd)+1, 0, 8, __Value)
+#define SET_8812_H2CCMD_RSVDPAGE_LOC_NULL_DATA(__pH2CCmd, __Value)			SET_BITS_TO_LE_1BYTE((__pH2CCmd)+2, 0, 8, __Value)
+#define SET_8812_H2CCMD_RSVDPAGE_LOC_QOS_NULL_DATA(__pH2CCmd, __Value)		SET_BITS_TO_LE_1BYTE((__pH2CCmd)+3, 0, 8, __Value)
+#define SET_8812_H2CCMD_RSVDPAGE_LOC_BT_QOS_NULL_DATA(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE((__pH2CCmd)+4, 0, 8, __Value)
 
 //_SETPWRMODE_PARM
-#define SET_8812_H2CCMD_PWRMODE_PARM_MODE(__pH2CCmd, __Value)				SET_BITS_TO_LE_1BYTE_8BIT(__pH2CCmd, 0, 8, __Value)
+#define SET_8812_H2CCMD_PWRMODE_PARM_MODE(__pH2CCmd, __Value)				SET_BITS_TO_LE_1BYTE(__pH2CCmd, 0, 8, __Value)
 #define SET_8812_H2CCMD_PWRMODE_PARM_RLBM(__pH2CCmd, __Value)				SET_BITS_TO_LE_1BYTE((__pH2CCmd)+1, 0, 4, __Value)
 #define SET_8812_H2CCMD_PWRMODE_PARM_SMART_PS(__pH2CCmd, __Value)			SET_BITS_TO_LE_1BYTE((__pH2CCmd)+1, 4, 4, __Value)
-#define SET_8812_H2CCMD_PWRMODE_PARM_BCN_PASS_TIME(__pH2CCmd, __Value)		SET_BITS_TO_LE_1BYTE_8BIT((__pH2CCmd)+2, 0, 8, __Value)
-#define SET_8812_H2CCMD_PWRMODE_PARM_ALL_QUEUE_UAPSD(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE_8BIT((__pH2CCmd)+3, 0, 8, __Value)
-#define SET_8812_H2CCMD_PWRMODE_PARM_PWR_STATE(__pH2CCmd, __Value)			SET_BITS_TO_LE_1BYTE_8BIT((__pH2CCmd)+4, 0, 8, __Value)
-#define SET_8812_H2CCMD_PWRMODE_PARM_BYTE5(__pH2CCmd, __Value)				SET_BITS_TO_LE_1BYTE_8BIT((__pH2CCmd)+5, 0, 8, __Value)
+#define SET_8812_H2CCMD_PWRMODE_PARM_BCN_PASS_TIME(__pH2CCmd, __Value)		SET_BITS_TO_LE_1BYTE((__pH2CCmd)+2, 0, 8, __Value)
+#define SET_8812_H2CCMD_PWRMODE_PARM_ALL_QUEUE_UAPSD(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE((__pH2CCmd)+3, 0, 8, __Value)
+#define SET_8812_H2CCMD_PWRMODE_PARM_BCN_EARLY_C2H_RPT(__pH2CCmd, __Value)	SET_BITS_TO_LE_1BYTE((__pH2CCmd)+3, 2, 1, __Value)
+#define SET_8812_H2CCMD_PWRMODE_PARM_PWR_STATE(__pH2CCmd, __Value)			SET_BITS_TO_LE_1BYTE((__pH2CCmd)+4, 0, 8, __Value)
+#define SET_8812_H2CCMD_PWRMODE_PARM_BYTE5(__pH2CCmd, __Value)				SET_BITS_TO_LE_1BYTE((__pH2CCmd)+5, 0, 8, __Value)
 
 #define GET_8812_H2CCMD_PWRMODE_PARM_MODE(__pH2CCmd)							LE_BITS_TO_1BYTE(__pH2CCmd, 0, 8)
 
@@ -132,46 +111,29 @@ void rtl8812_set_FwPwrMode_cmd(PADAPTER padapter, u8 PSMode);
 void rtl8812_set_FwJoinBssReport_cmd(PADAPTER padapter, u8 mstatus);
 u8 rtl8812_set_rssi_cmd(PADAPTER padapter, u8 *param);
 void rtl8812_set_raid_cmd(PADAPTER padapter, u32 bitmap, u8* arg);
-void rtl8812_Add_RateATid(PADAPTER padapter, u32 bitmap, u8* arg, u8 rssi_level);
+void rtl8812_Add_RateATid(PADAPTER padapter, u64 rate_bitmap, u8 *arg, u8 rssi_level);
 void rtl8812_set_wowlan_cmd(_adapter* padapter, u8 enable);
+s32 FillH2CCmd_8812(PADAPTER padapter, u8 ElementID, u32 CmdLen, u8 *pCmdBuffer);
+u8 GetTxBufferRsvdPageNum8812(_adapter *padapter, bool wowlan);
 
+#ifdef CONFIG_BT_COEXIST
+void rtl8812a_download_BTCoex_AP_mode_rsvd_page(PADAPTER padapter);
+#endif // CONFIG_BT_COEXIST
 #ifdef CONFIG_P2P_PS
 void rtl8812_set_p2p_ps_offload_cmd(PADAPTER padapter, u8 p2p_ps_state);
 #endif //CONFIG_P2P
 
 void CheckFwRsvdPageContent(PADAPTER padapter);
-void rtl8812_set_FwMediaStatus_cmd(PADAPTER padapter, u16 mstatus_rpt );
+
+#ifdef CONFIG_TDLS
+#ifdef CONFIG_TDLS_CH_SW
+void rtl8812_set_BcnEarly_C2H_Rpt_cmd(PADAPTER padapter, u8 enable);
+#endif
+#endif
 
 #ifdef CONFIG_TSF_RESET_OFFLOAD
 int reset_tsf(PADAPTER Adapter, u8 reset_port );
 #endif	// CONFIG_TSF_RESET_OFFLOAD
-
-#ifdef CONFIG_WOWLAN
-typedef struct _SETWOWLAN_PARM{
-	u8		mode;
-	u8		gpio_index;
-	u8		gpio_duration;
-	u8		second_mode;
-	u8		reserve;
-}SETWOWLAN_PARM, *PSETWOWLAN_PARM;
-
-#define FW_WOWLAN_FUN_EN				BIT(0)
-#define FW_WOWLAN_PATTERN_MATCH			BIT(1)
-#define FW_WOWLAN_MAGIC_PKT				BIT(2)
-#define FW_WOWLAN_UNICAST				BIT(3)
-#define FW_WOWLAN_ALL_PKT_DROP			BIT(4)
-#define FW_WOWLAN_GPIO_ACTIVE			BIT(5)
-#define FW_WOWLAN_REKEY_WAKEUP			BIT(6)
-#define FW_WOWLAN_DEAUTH_WAKEUP			BIT(7)
-
-#define FW_WOWLAN_GPIO_WAKEUP_EN		BIT(0)
-#define FW_FW_PARSE_MAGIC_PKT			BIT(1)
-
-#define FW_REMOTE_WAKE_CTRL_EN			BIT(0)
-#define FW_REALWOWLAN_EN				BIT(5)
-void rtl8812a_set_wowlan_cmd(_adapter* padapter, u8 enable);
-void SetFwRelatedForWoWLAN8812(_adapter* padapter, u8 bHostIsGoingtoSleep);
-#endif//CONFIG_WOWLAN
 
 //------------------------------------
 //     C2H format
