@@ -202,7 +202,6 @@ struct sahara_dev {
 	struct completion	dma_completion;
 
 	struct sahara_ctx	*ctx;
-	spinlock_t		lock;
 	struct crypto_queue	queue;
 	unsigned long		flags;
 
@@ -1487,7 +1486,6 @@ static int sahara_probe(struct platform_device *pdev)
 
 	crypto_init_queue(&dev->queue, SAHARA_QUEUE_LENGTH);
 
-	spin_lock_init(&dev->lock);
 	mutex_init(&dev->queue_mutex);
 
 	dev_ptr = dev;
