@@ -16,9 +16,7 @@
 
 #define cpu_has_neon()		system_supports_fpsimd()
 
-#define kernel_neon_begin()	kernel_neon_begin_partial(32)
-
-void kernel_neon_begin_partial(u32 num_regs);
+void kernel_neon_begin(void);
 void kernel_neon_end(void);
 
 #endif /* ! __ASM_NEON_H */
