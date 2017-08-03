@@ -629,10 +629,10 @@ struct sctp_fwdtsn_chunk {
  *	The ASCONF Parameter Response is used in the ASCONF-ACK to
  *	report status of ASCONF processing.
  */
-typedef struct sctp_addip_param {
-	struct sctp_paramhdr	param_hdr;
-	__be32		crr_id;
-} sctp_addip_param_t;
+struct sctp_addip_param {
+	struct sctp_paramhdr param_hdr;
+	__be32 crr_id;
+};
 
 typedef struct sctp_addiphdr {
 	__be32	serial;
