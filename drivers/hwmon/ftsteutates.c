@@ -435,6 +435,7 @@ clear_temp_alarm(struct device *dev, struct device_attribute *devattr,
 		goto error;
 
 	data->valid = false;
+	ret = count;
 error:
 	mutex_unlock(&data->update_lock);
 	return ret;
@@ -508,6 +509,7 @@ clear_fan_alarm(struct device *dev, struct device_attribute *devattr,
 		goto error;
 
 	data->valid = false;
+	ret = count;
 error:
 	mutex_unlock(&data->update_lock);
 	return ret;
