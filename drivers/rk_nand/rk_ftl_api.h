@@ -28,6 +28,14 @@ void rk_ftl_de_init(void);
 void rk_nand_suspend(void);
 void rk_nand_resume(void);
 int rknand_get_reg_addr(unsigned long *p_nandc0, unsigned long *p_nandc1);
+long rknand_sys_storage_ioctl(struct file *file, unsigned int cmd,
+			      unsigned long arg);
+long rk_ftl_vendor_storage_ioctl(struct file *file, unsigned int cmd,
+				 unsigned long arg);
+int rk_ftl_vendor_write(u32 id, void *pbuf, u32 size);
+int rk_ftl_vendor_read(u32 id, void *pbuf, u32 size);
+int rk_ftl_vendor_storage_init(void);
+int rknand_vendor_storage_init(void);
 
 #endif
 

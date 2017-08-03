@@ -30,6 +30,7 @@
 #include <linux/kthread.h>
 #include <linux/proc_fs.h>
 #include <linux/version.h>
+#include <linux/soc/rockchip/rk_vendor_storage.h>
 
 #include "rk_nand_blk.h"
 #include "rk_ftl_api.h"
@@ -260,14 +261,9 @@ static int nand_blktrans_thread(void *arg)
 				ftl_gc_status = rk_ftl_garbage_collect(1, 0);
 				rknand_device_unlock();
 				rk_ftl_gc_jiffies = HZ / 50;
-				if (ftl_gc_status == 0) {
+				if (ftl_gc_status == 0)
 					rk_ftl_gc_jiffies = 1 * HZ;
-				} else if (ftl_gc_status < 8) {
-					spin_lock_irq(rq->queue_lock);
-					remove_wait_queue(&nandr->thread_wq,
-							  &wait);
-					continue;
-				}
+
 			} else {
 				rk_ftl_gc_jiffies = HZ / 50;
 			}
@@ -698,6 +694,14 @@ static int nand_blk_register(struct nand_blk_ops *nandr)
 
 	rknand_create_procfs();
 	rk_ftl_storage_sys_init();
+
+	ret = rk_ftl_vendor_storage_init();
+	if (!ret) {
+#ifdef CONFIG_ROCKCHIP_VENDOR_STORAGE
+		rk_vendor_register(rk_ftl_vendor_read, rk_ftl_vendor_write);
+#endif
+		rknand_vendor_storage_init();
+	}
 
 	return 0;
 }
