@@ -730,7 +730,8 @@ static inline int ntb_link_disable(struct ntb_dev *ntb)
  * Hardware and topology may support a different number of memory windows.
  * Moreover different peer devices can support different number of memory
  * windows. Simply speaking this method returns the number of possible inbound
- * memory windows to share with specified peer device.
+ * memory windows to share with specified peer device. Note: this may return
+ * zero if the link is not up yet.
  *
  * Return: the number of memory windows.
  */
@@ -751,7 +752,7 @@ static inline int ntb_mw_count(struct ntb_dev *ntb, int pidx)
  * Get the alignments of an inbound memory window with specified index.
  * NULL may be given for any output parameter if the value is not needed.
  * The alignment and size parameters may be used for allocation of proper
- * shared memory.
+ * shared memory. Note: this must only be called when the link is up.
  *
  * Return: Zero on success, otherwise a negative error number.
  */
@@ -760,6 +761,9 @@ static inline int ntb_mw_get_align(struct ntb_dev *ntb, int pidx, int widx,
 				   resource_size_t *size_align,
 				   resource_size_t *size_max)
 {
+	if (!(ntb_link_is_up(ntb, NULL, NULL) & (1 << pidx)))
+		return -ENOTCONN;
+
 	return ntb->ops->mw_get_align(ntb, pidx, widx, addr_align, size_align,
 				      size_max);
 }
