@@ -358,7 +358,6 @@ static int a5xx_zap_shader_init(struct msm_gpu *gpu)
 {
 	static bool loaded;
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
-	struct a5xx_gpu *a5xx_gpu = to_a5xx_gpu(adreno_gpu);
 	struct platform_device *pdev = gpu->pdev;
 	int ret;
 
