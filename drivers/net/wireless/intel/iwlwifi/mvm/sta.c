@@ -121,7 +121,8 @@ int iwl_mvm_sta_send_to_fw(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
 		.mac_id_n_color = cpu_to_le32(mvm_sta->mac_id_n_color),
 		.add_modify = update ? 1 : 0,
 		.station_flags_msk = cpu_to_le32(STA_FLG_FAT_EN_MSK |
-						 STA_FLG_MIMO_EN_MSK),
+						 STA_FLG_MIMO_EN_MSK |
+						 STA_FLG_RTS_MIMO_PROT),
 		.tid_disable_tx = cpu_to_le16(mvm_sta->tid_disable_agg),
 	};
 	int ret;
