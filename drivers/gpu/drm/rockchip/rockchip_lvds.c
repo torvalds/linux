@@ -79,6 +79,7 @@ struct rockchip_lvds {
 	struct mutex suspend_lock;
 	int suspend;
 	struct dev_pin_info *pins;
+	struct drm_display_mode mode;
 };
 
 static inline void lvds_writel(struct rockchip_lvds *lvds, u32 offset, u32 val)
@@ -506,6 +507,14 @@ static void rockchip_lvds_encoder_mode_set(struct drm_encoder *encoder,
 					  struct drm_display_mode *adjusted)
 {
 	struct rockchip_lvds *lvds = encoder_to_lvds(encoder);
+
+	drm_mode_copy(&lvds->mode, adjusted);
+}
+
+static void rockchip_lvds_grf_config(struct drm_encoder *encoder,
+				     struct drm_display_mode *mode)
+{
+	struct rockchip_lvds *lvds = encoder_to_lvds(encoder);
 	u32 h_bp = mode->htotal - mode->hsync_start;
 	u8 pin_hsync = (mode->flags & DRM_MODE_FLAG_PHSYNC) ? 1 : 0;
 	u8 pin_dclk = (mode->flags & DRM_MODE_FLAG_PCSYNC) ? 1 : 0;
@@ -631,11 +640,12 @@ rockchip_lvds_encoder_atomic_check(struct drm_encoder *encoder,
 	return 0;
 }
 
-static void rockchip_lvds_encoder_commit(struct drm_encoder *encoder)
+static void rockchip_lvds_encoder_enable(struct drm_encoder *encoder)
 {
 	struct rockchip_lvds *lvds = encoder_to_lvds(encoder);
 
 	rockchip_lvds_encoder_dpms(encoder, DRM_MODE_DPMS_ON);
+	rockchip_lvds_grf_config(encoder, &lvds->mode);
 	rockchip_lvds_set_vop_source(lvds, encoder);
 }
 
@@ -645,10 +655,9 @@ static void rockchip_lvds_encoder_disable(struct drm_encoder *encoder)
 }
 
 static struct drm_encoder_helper_funcs rockchip_lvds_encoder_helper_funcs = {
-	.dpms = rockchip_lvds_encoder_dpms,
 	.mode_fixup = rockchip_lvds_encoder_mode_fixup,
 	.mode_set = rockchip_lvds_encoder_mode_set,
-	.commit = rockchip_lvds_encoder_commit,
+	.enable = rockchip_lvds_encoder_enable,
 	.disable = rockchip_lvds_encoder_disable,
 	.atomic_check = rockchip_lvds_encoder_atomic_check,
 };
