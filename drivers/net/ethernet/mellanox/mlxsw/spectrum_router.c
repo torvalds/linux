@@ -3528,6 +3528,9 @@ static int mlxsw_sp_router_fib6_add(struct mlxsw_sp *mlxsw_sp,
 	if (mlxsw_sp->router->aborted)
 		return 0;
 
+	if (rt->rt6i_src.plen)
+		return -EINVAL;
+
 	if (mlxsw_sp_fib6_rt_should_ignore(rt))
 		return 0;
 
