@@ -891,17 +891,6 @@ static inline struct vmcs12 *get_vmcs12(struct kvm_vcpu *vcpu)
 	return to_vmx(vcpu)->nested.cached_vmcs12;
 }
 
-
-static void nested_release_page(struct page *page)
-{
-	kvm_release_page_dirty(page);
-}
-
-static void nested_release_page_clean(struct page *page)
-{
-	kvm_release_page_clean(page);
-}
-
 static bool nested_ept_ad_enabled(struct kvm_vcpu *vcpu);
 static unsigned long nested_ept_get_cr3(struct kvm_vcpu *vcpu);
 static u64 construct_eptp(struct kvm_vcpu *vcpu, unsigned long root_hpa);
@@ -7155,12 +7144,12 @@ static int handle_vmon(struct kvm_vcpu *vcpu)
 	}
 	if (*(u32 *)kmap(page) != VMCS12_REVISION) {
 		kunmap(page);
-		nested_release_page_clean(page);
+		kvm_release_page_clean(page);
 		nested_vmx_failInvalid(vcpu);
 		return kvm_skip_emulated_instruction(vcpu);
 	}
 	kunmap(page);
-	nested_release_page_clean(page);
+	kvm_release_page_clean(page);
 
 	vmx->nested.vmxon_ptr = vmptr;
 	ret = enter_vmx_operation(vcpu);
@@ -7241,16 +7230,16 @@ static void free_nested(struct vcpu_vmx *vmx)
 	kfree(vmx->nested.cached_vmcs12);
 	/* Unpin physical memory we referred to in current vmcs02 */
 	if (vmx->nested.apic_access_page) {
-		nested_release_page(vmx->nested.apic_access_page);
+		kvm_release_page_dirty(vmx->nested.apic_access_page);
 		vmx->nested.apic_access_page = NULL;
 	}
 	if (vmx->nested.virtual_apic_page) {
-		nested_release_page(vmx->nested.virtual_apic_page);
+		kvm_release_page_dirty(vmx->nested.virtual_apic_page);
 		vmx->nested.virtual_apic_page = NULL;
 	}
 	if (vmx->nested.pi_desc_page) {
 		kunmap(vmx->nested.pi_desc_page);
-		nested_release_page(vmx->nested.pi_desc_page);
+		kvm_release_page_dirty(vmx->nested.pi_desc_page);
 		vmx->nested.pi_desc_page = NULL;
 		vmx->nested.pi_desc = NULL;
 	}
@@ -7625,7 +7614,7 @@ static int handle_vmptrld(struct kvm_vcpu *vcpu)
 		new_vmcs12 = kmap(page);
 		if (new_vmcs12->revision_id != VMCS12_REVISION) {
 			kunmap(page);
-			nested_release_page_clean(page);
+			kvm_release_page_clean(page);
 			nested_vmx_failValid(vcpu,
 				VMXERR_VMPTRLD_INCORRECT_VMCS_REVISION_ID);
 			return kvm_skip_emulated_instruction(vcpu);
@@ -7638,7 +7627,7 @@ static int handle_vmptrld(struct kvm_vcpu *vcpu)
 		 */
 		memcpy(vmx->nested.cached_vmcs12, new_vmcs12, VMCS12_SIZE);
 		kunmap(page);
-		nested_release_page_clean(page);
+		kvm_release_page_clean(page);
 
 		set_current_vmptr(vmx, vmptr);
 	}
@@ -9635,7 +9624,7 @@ static void nested_get_vmcs12_pages(struct kvm_vcpu *vcpu,
 		 * to it so we can release it later.
 		 */
 		if (vmx->nested.apic_access_page) { /* shouldn't happen */
-			nested_release_page(vmx->nested.apic_access_page);
+			kvm_release_page_dirty(vmx->nested.apic_access_page);
 			vmx->nested.apic_access_page = NULL;
 		}
 		page = kvm_vcpu_gpa_to_page(vcpu, vmcs12->apic_access_addr);
@@ -9662,7 +9651,7 @@ static void nested_get_vmcs12_pages(struct kvm_vcpu *vcpu,
 
 	if (nested_cpu_has(vmcs12, CPU_BASED_TPR_SHADOW)) {
 		if (vmx->nested.virtual_apic_page) { /* shouldn't happen */
-			nested_release_page(vmx->nested.virtual_apic_page);
+			kvm_release_page_dirty(vmx->nested.virtual_apic_page);
 			vmx->nested.virtual_apic_page = NULL;
 		}
 		page = kvm_vcpu_gpa_to_page(vcpu, vmcs12->virtual_apic_page_addr);
@@ -9690,7 +9679,7 @@ static void nested_get_vmcs12_pages(struct kvm_vcpu *vcpu,
 	if (nested_cpu_has_posted_intr(vmcs12)) {
 		if (vmx->nested.pi_desc_page) { /* shouldn't happen */
 			kunmap(vmx->nested.pi_desc_page);
-			nested_release_page(vmx->nested.pi_desc_page);
+			kvm_release_page_dirty(vmx->nested.pi_desc_page);
 			vmx->nested.pi_desc_page = NULL;
 		}
 		page = kvm_vcpu_gpa_to_page(vcpu, vmcs12->posted_intr_desc_addr);
@@ -9810,7 +9799,7 @@ static inline bool nested_vmx_merge_msr_bitmap(struct kvm_vcpu *vcpu,
 		}
 	}
 	kunmap(page);
-	nested_release_page_clean(page);
+	kvm_release_page_clean(page);
 
 	return true;
 }
@@ -11202,16 +11191,16 @@ static void nested_vmx_vmexit(struct kvm_vcpu *vcpu, u32 exit_reason,
 
 	/* Unpin physical memory we referred to in vmcs02 */
 	if (vmx->nested.apic_access_page) {
-		nested_release_page(vmx->nested.apic_access_page);
+		kvm_release_page_dirty(vmx->nested.apic_access_page);
 		vmx->nested.apic_access_page = NULL;
 	}
 	if (vmx->nested.virtual_apic_page) {
-		nested_release_page(vmx->nested.virtual_apic_page);
+		kvm_release_page_dirty(vmx->nested.virtual_apic_page);
 		vmx->nested.virtual_apic_page = NULL;
 	}
 	if (vmx->nested.pi_desc_page) {
 		kunmap(vmx->nested.pi_desc_page);
-		nested_release_page(vmx->nested.pi_desc_page);
+		kvm_release_page_dirty(vmx->nested.pi_desc_page);
 		vmx->nested.pi_desc_page = NULL;
 		vmx->nested.pi_desc = NULL;
 	}
@@ -11394,7 +11383,7 @@ static int vmx_write_pml_buffer(struct kvm_vcpu *vcpu)
 		pml_address = kmap(page);
 		pml_address[vmcs12->guest_pml_index--] = gpa;
 		kunmap(page);
-		nested_release_page_clean(page);
+		kvm_release_page_clean(page);
 	}
 
 	return 0;
