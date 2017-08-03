@@ -985,6 +985,12 @@ static inline hpa_t pfn_to_hpa(kvm_pfn_t pfn)
 	return (hpa_t)pfn << PAGE_SHIFT;
 }
 
+static inline struct page *kvm_vcpu_gpa_to_page(struct kvm_vcpu *vcpu,
+						gpa_t gpa)
+{
+	return kvm_vcpu_gfn_to_page(vcpu, gpa_to_gfn(gpa));
+}
+
 static inline bool kvm_is_error_gpa(struct kvm *kvm, gpa_t gpa)
 {
 	unsigned long hva = gfn_to_hva(kvm, gpa_to_gfn(gpa));

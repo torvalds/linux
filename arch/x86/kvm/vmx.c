@@ -891,14 +891,6 @@ static inline struct vmcs12 *get_vmcs12(struct kvm_vcpu *vcpu)
 	return to_vmx(vcpu)->nested.cached_vmcs12;
 }
 
-static struct page *nested_get_page(struct kvm_vcpu *vcpu, gpa_t addr)
-{
-	struct page *page = kvm_vcpu_gfn_to_page(vcpu, addr >> PAGE_SHIFT);
-	if (is_error_page(page))
-		return NULL;
-
-	return page;
-}
 
 static void nested_release_page(struct page *page)
 {
@@ -7156,8 +7148,8 @@ static int handle_vmon(struct kvm_vcpu *vcpu)
 		return kvm_skip_emulated_instruction(vcpu);
 	}
 
-	page = nested_get_page(vcpu, vmptr);
-	if (page == NULL) {
+	page = kvm_vcpu_gpa_to_page(vcpu, vmptr);
+	if (is_error_page(page)) {
 		nested_vmx_failInvalid(vcpu);
 		return kvm_skip_emulated_instruction(vcpu);
 	}
@@ -7625,8 +7617,8 @@ static int handle_vmptrld(struct kvm_vcpu *vcpu)
 	if (vmx->nested.current_vmptr != vmptr) {
 		struct vmcs12 *new_vmcs12;
 		struct page *page;
-		page = nested_get_page(vcpu, vmptr);
-		if (page == NULL) {
+		page = kvm_vcpu_gpa_to_page(vcpu, vmptr);
+		if (is_error_page(page)) {
 			nested_vmx_failInvalid(vcpu);
 			return kvm_skip_emulated_instruction(vcpu);
 		}
@@ -9632,6 +9624,7 @@ static void nested_get_vmcs12_pages(struct kvm_vcpu *vcpu,
 					struct vmcs12 *vmcs12)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	struct page *page;
 	u64 hpa;
 
 	if (nested_cpu_has2(vmcs12, SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES)) {
@@ -9641,17 +9634,19 @@ static void nested_get_vmcs12_pages(struct kvm_vcpu *vcpu,
 		 * physical address remains valid. We keep a reference
 		 * to it so we can release it later.
 		 */
-		if (vmx->nested.apic_access_page) /* shouldn't happen */
+		if (vmx->nested.apic_access_page) { /* shouldn't happen */
 			nested_release_page(vmx->nested.apic_access_page);
-		vmx->nested.apic_access_page =
-			nested_get_page(vcpu, vmcs12->apic_access_addr);
+			vmx->nested.apic_access_page = NULL;
+		}
+		page = kvm_vcpu_gpa_to_page(vcpu, vmcs12->apic_access_addr);
 		/*
 		 * If translation failed, no matter: This feature asks
 		 * to exit when accessing the given address, and if it
 		 * can never be accessed, this feature won't do
 		 * anything anyway.
 		 */
-		if (vmx->nested.apic_access_page) {
+		if (!is_error_page(page)) {
+			vmx->nested.apic_access_page = page;
 			hpa = page_to_phys(vmx->nested.apic_access_page);
 			vmcs_write64(APIC_ACCESS_ADDR, hpa);
 		} else {
@@ -9666,10 +9661,11 @@ static void nested_get_vmcs12_pages(struct kvm_vcpu *vcpu,
 	}
 
 	if (nested_cpu_has(vmcs12, CPU_BASED_TPR_SHADOW)) {
-		if (vmx->nested.virtual_apic_page) /* shouldn't happen */
+		if (vmx->nested.virtual_apic_page) { /* shouldn't happen */
 			nested_release_page(vmx->nested.virtual_apic_page);
-		vmx->nested.virtual_apic_page =
-			nested_get_page(vcpu, vmcs12->virtual_apic_page_addr);
+			vmx->nested.virtual_apic_page = NULL;
+		}
+		page = kvm_vcpu_gpa_to_page(vcpu, vmcs12->virtual_apic_page_addr);
 
 		/*
 		 * If translation failed, VM entry will fail because
@@ -9684,7 +9680,8 @@ static void nested_get_vmcs12_pages(struct kvm_vcpu *vcpu,
 		 * control.  But such a configuration is useless, so
 		 * let's keep the code simple.
 		 */
-		if (vmx->nested.virtual_apic_page) {
+		if (!is_error_page(page)) {
+			vmx->nested.virtual_apic_page = page;
 			hpa = page_to_phys(vmx->nested.virtual_apic_page);
 			vmcs_write64(VIRTUAL_APIC_PAGE_ADDR, hpa);
 		}
@@ -9694,15 +9691,13 @@ static void nested_get_vmcs12_pages(struct kvm_vcpu *vcpu,
 		if (vmx->nested.pi_desc_page) { /* shouldn't happen */
 			kunmap(vmx->nested.pi_desc_page);
 			nested_release_page(vmx->nested.pi_desc_page);
+			vmx->nested.pi_desc_page = NULL;
 		}
-		vmx->nested.pi_desc_page =
-			nested_get_page(vcpu, vmcs12->posted_intr_desc_addr);
-		vmx->nested.pi_desc =
-			(struct pi_desc *)kmap(vmx->nested.pi_desc_page);
-		if (!vmx->nested.pi_desc) {
-			nested_release_page_clean(vmx->nested.pi_desc_page);
+		page = kvm_vcpu_gpa_to_page(vcpu, vmcs12->posted_intr_desc_addr);
+		if (is_error_page(page))
 			return;
-		}
+		vmx->nested.pi_desc_page = page;
+		vmx->nested.pi_desc = kmap(vmx->nested.pi_desc_page);
 		vmx->nested.pi_desc =
 			(struct pi_desc *)((void *)vmx->nested.pi_desc +
 			(unsigned long)(vmcs12->posted_intr_desc_addr &
@@ -9784,8 +9779,8 @@ static inline bool nested_vmx_merge_msr_bitmap(struct kvm_vcpu *vcpu,
 	if (!nested_cpu_has_virt_x2apic_mode(vmcs12))
 		return false;
 
-	page = nested_get_page(vcpu, vmcs12->msr_bitmap);
-	if (!page)
+	page = kvm_vcpu_gpa_to_page(vcpu, vmcs12->msr_bitmap);
+	if (is_error_page(page))
 		return false;
 	msr_bitmap_l1 = (unsigned long *)kmap(page);
 
@@ -11392,8 +11387,8 @@ static int vmx_write_pml_buffer(struct kvm_vcpu *vcpu)
 
 		gpa = vmcs_read64(GUEST_PHYSICAL_ADDRESS) & ~0xFFFull;
 
-		page = nested_get_page(vcpu, vmcs12->pml_address);
-		if (!page)
+		page = kvm_vcpu_gpa_to_page(vcpu, vmcs12->pml_address);
+		if (is_error_page(page))
 			return 0;
 
 		pml_address = kmap(page);
