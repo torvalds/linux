@@ -1414,7 +1414,6 @@ static int snd_ctl_tlv_ioctl(struct snd_ctl_file *file,
 	struct snd_kcontrol *kctl;
 	struct snd_kcontrol_volatile *vd;
 	unsigned int len;
-	int err = 0;
 
 	if (copy_from_user(&tlv, _tlv, sizeof(tlv)))
 		return -EFAULT;
@@ -1422,53 +1421,49 @@ static int snd_ctl_tlv_ioctl(struct snd_ctl_file *file,
 		return -EINVAL;
 	if (!tlv.numid)
 		return -EINVAL;
-	down_read(&card->controls_rwsem);
+
 	kctl = snd_ctl_find_numid(card, tlv.numid);
-	if (kctl == NULL) {
-		err = -ENOENT;
-		goto __kctl_end;
-	}
-	if (kctl->tlv.p == NULL) {
-		err = -ENXIO;
-		goto __kctl_end;
-	}
+	if (kctl == NULL)
+		return -ENOENT;
+
+	if (kctl->tlv.p == NULL)
+		return -ENXIO;
+
 	vd = &kctl->vd[tlv.numid - kctl->id.numid];
 	if ((op_flag == SNDRV_CTL_TLV_OP_READ &&
 	     (vd->access & SNDRV_CTL_ELEM_ACCESS_TLV_READ) == 0) ||
 	    (op_flag == SNDRV_CTL_TLV_OP_WRITE &&
 	     (vd->access & SNDRV_CTL_ELEM_ACCESS_TLV_WRITE) == 0) ||
 	    (op_flag == SNDRV_CTL_TLV_OP_CMD &&
-	     (vd->access & SNDRV_CTL_ELEM_ACCESS_TLV_COMMAND) == 0)) {
-	    	err = -ENXIO;
-	    	goto __kctl_end;
-	}
+	     (vd->access & SNDRV_CTL_ELEM_ACCESS_TLV_COMMAND) == 0))
+		return -ENXIO;
+
 	if (vd->access & SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK) {
-		if (vd->owner != NULL && vd->owner != file) {
-			err = -EPERM;
-			goto __kctl_end;
-		}
+		int err;
+
+		if (vd->owner != NULL && vd->owner != file)
+			return -EPERM;
+
 		err = kctl->tlv.c(kctl, op_flag, tlv.length, _tlv->tlv);
+		if (err < 0)
+			return err;
 		if (err > 0) {
 			struct snd_ctl_elem_id id = kctl->id;
 			snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_TLV, &id);
-			err = 0;
 		}
 	} else {
-		if (op_flag != SNDRV_CTL_TLV_OP_READ) {
-			err = -ENXIO;
-			goto __kctl_end;
-		}
+		if (op_flag != SNDRV_CTL_TLV_OP_READ)
+			return -ENXIO;
+
 		len = kctl->tlv.p[1] + 2 * sizeof(unsigned int);
-		if (tlv.length < len) {
-			err = -ENOMEM;
-			goto __kctl_end;
-		}
+		if (tlv.length < len)
+			return -ENOMEM;
+
 		if (copy_to_user(_tlv->tlv, kctl->tlv.p, len))
-			err = -EFAULT;
+			return -EFAULT;
 	}
-      __kctl_end:
-	up_read(&card->controls_rwsem);
-	return err;
+
+	return 0;
 }
 
 static long snd_ctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
@@ -1510,11 +1505,20 @@ static long snd_ctl_ioctl(struct file *file, unsigned int cmd, unsigned long arg
 	case SNDRV_CTL_IOCTL_SUBSCRIBE_EVENTS:
 		return snd_ctl_subscribe_events(ctl, ip);
 	case SNDRV_CTL_IOCTL_TLV_READ:
-		return snd_ctl_tlv_ioctl(ctl, argp, SNDRV_CTL_TLV_OP_READ);
+		down_read(&ctl->card->controls_rwsem);
+		err = snd_ctl_tlv_ioctl(ctl, argp, SNDRV_CTL_TLV_OP_READ);
+		up_read(&ctl->card->controls_rwsem);
+		return err;
 	case SNDRV_CTL_IOCTL_TLV_WRITE:
-		return snd_ctl_tlv_ioctl(ctl, argp, SNDRV_CTL_TLV_OP_WRITE);
+		down_write(&ctl->card->controls_rwsem);
+		err = snd_ctl_tlv_ioctl(ctl, argp, SNDRV_CTL_TLV_OP_WRITE);
+		up_write(&ctl->card->controls_rwsem);
+		return err;
 	case SNDRV_CTL_IOCTL_TLV_COMMAND:
-		return snd_ctl_tlv_ioctl(ctl, argp, SNDRV_CTL_TLV_OP_CMD);
+		down_write(&ctl->card->controls_rwsem);
+		err = snd_ctl_tlv_ioctl(ctl, argp, SNDRV_CTL_TLV_OP_CMD);
+		up_write(&ctl->card->controls_rwsem);
+		return err;
 	case SNDRV_CTL_IOCTL_POWER:
 		return -ENOPROTOOPT;
 	case SNDRV_CTL_IOCTL_POWER_STATE:
