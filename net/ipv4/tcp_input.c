@@ -3004,10 +3004,7 @@ void tcp_rearm_rto(struct sock *sk)
 		/* Offset the time elapsed after installing regular RTO */
 		if (icsk->icsk_pending == ICSK_TIME_REO_TIMEOUT ||
 		    icsk->icsk_pending == ICSK_TIME_LOSS_PROBE) {
-			struct sk_buff *skb = tcp_write_queue_head(sk);
-			u64 rto_time_stamp = skb->skb_mstamp +
-					     jiffies_to_usecs(rto);
-			s64 delta_us = rto_time_stamp - tp->tcp_mstamp;
+			s64 delta_us = tcp_rto_delta_us(sk);
 			/* delta_us may not be positive if the socket is locked
 			 * when the retrans timer fires and is rescheduled.
 			 */
