@@ -528,7 +528,7 @@ sctp_disposition_t sctp_sf_do_5_1C_ack(struct net *net,
 			      (struct sctp_init_chunk *)chunk->chunk_hdr, chunk,
 			      &err_chunk)) {
 
-		sctp_error_t error = SCTP_ERROR_NO_RESOURCE;
+		enum sctp_error error = SCTP_ERROR_NO_RESOURCE;
 
 		/* This chunk contains fatal error. It is to be discarded.
 		 * Send an ABORT, with causes.  If there are no causes,

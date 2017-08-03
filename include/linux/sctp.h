@@ -457,7 +457,7 @@ struct sctp_operr_chunk {
  *      9              No User Data
  *     10              Cookie Received While Shutting Down
  */
-typedef enum {
+enum sctp_error {
 
 	SCTP_ERROR_NO_ERROR	   = cpu_to_be16(0x00),
 	SCTP_ERROR_INV_STRM	   = cpu_to_be16(0x01),
@@ -512,7 +512,7 @@ typedef enum {
 	 * 0x0105          Unsupported HMAC Identifier
 	 */
 	 SCTP_ERROR_UNSUP_HMAC	= cpu_to_be16(0x0105)
-} sctp_error_t;
+};
 
 
 
