@@ -86,8 +86,8 @@ void ip_options_build(struct sk_buff *skb, struct ip_options *opt,
  * NOTE: dopt cannot point to skb.
  */
 
-int __ip_options_echo(struct ip_options *dopt, struct sk_buff *skb,
-		      const struct ip_options *sopt)
+int __ip_options_echo(struct net *net, struct ip_options *dopt,
+		      struct sk_buff *skb, const struct ip_options *sopt)
 {
 	unsigned char *sptr, *dptr;
 	int soffset, doffset;
@@ -140,7 +140,7 @@ int __ip_options_echo(struct ip_options *dopt, struct sk_buff *skb,
 						__be32 addr;
 
 						memcpy(&addr, dptr+soffset-1, 4);
-						if (inet_addr_type(dev_net(skb_dst(skb)->dev), addr) != RTN_UNICAST) {
+						if (inet_addr_type(net, addr) != RTN_UNICAST) {
 							dopt->ts_needtime = 1;
 							soffset += 8;
 						}
