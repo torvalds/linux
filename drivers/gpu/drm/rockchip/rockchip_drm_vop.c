@@ -3002,6 +3002,63 @@ static int vop_plane_init(struct vop *vop, struct vop_win *win,
 	return 0;
 }
 
+static int vop_of_init_display_lut(struct vop *vop)
+{
+	struct device_node *node = vop->dev->of_node;
+	struct device_node *dsp_lut;
+	u32 lut_len = vop->lut_len;
+	struct property *prop;
+	int length, i, j;
+	int ret;
+
+	if (!vop->lut)
+		return -ENOMEM;
+
+	dsp_lut = of_parse_phandle(node, "dsp-lut", 0);
+	if (!dsp_lut)
+		return -ENXIO;
+
+	prop = of_find_property(dsp_lut, "gamma-lut", &length);
+	if (!prop) {
+		dev_err(vop->dev, "failed to find gamma_lut\n");
+		return -ENXIO;
+	}
+
+	length >>= 2;
+
+	if (length != lut_len) {
+		u32 r, g, b;
+		u32 *lut = kmalloc_array(length, sizeof(*lut), GFP_KERNEL);
+
+		if (!lut)
+			return -ENOMEM;
+		ret = of_property_read_u32_array(dsp_lut, "gamma-lut", lut,
+						 length);
+		if (ret) {
+			dev_err(vop->dev, "load gamma-lut failed\n");
+			kfree(lut);
+			return -EINVAL;
+		}
+
+		for (i = 0; i < lut_len; i++) {
+			j = i * length / lut_len;
+			r = lut[j] / length / length * lut_len / length;
+			g = lut[j] / length % length * lut_len / length;
+			b = lut[j] % length * lut_len / length;
+
+			vop->lut[i] = r * lut_len * lut_len + g * lut_len + b;
+		}
+
+		kfree(lut);
+	} else {
+		of_property_read_u32_array(dsp_lut, "gamma-lut",
+					   vop->lut, vop->lut_len);
+	}
+	vop->lut_active = true;
+
+	return 0;
+}
+
 static int vop_create_crtc(struct vop *vop)
 {
 	struct device *dev = vop->dev;
@@ -3103,18 +3160,27 @@ static int vop_create_crtc(struct vop *vop)
 		u16 *r_base, *g_base, *b_base;
 		u32 lut_len = vop->lut_len;
 
-		drm_mode_crtc_set_gamma_size(crtc, lut_len);
 		vop->lut = devm_kmalloc_array(dev, lut_len, sizeof(*vop->lut),
 					      GFP_KERNEL);
 		if (!vop->lut)
 			goto err_unregister_crtc_funcs;
 
+		if (vop_of_init_display_lut(vop)) {
+			for (i = 0; i < lut_len; i++) {
+				u32 r = i * lut_len * lut_len;
+				u32 g = i * lut_len;
+				u32 b = i;
+
+				vop->lut[i] = r | g | b;
+			}
+		}
+
+		drm_mode_crtc_set_gamma_size(crtc, lut_len);
 		r_base = crtc->gamma_store;
 		g_base = r_base + crtc->gamma_size;
 		b_base = g_base + crtc->gamma_size;
 
 		for (i = 0; i < lut_len; i++) {
-			vop->lut[i] = i * lut_len * lut_len | i * lut_len | i;
 			rockchip_vop_crtc_fb_gamma_get(crtc, &r_base[i],
 						       &g_base[i], &b_base[i],
 						       i);
