@@ -1767,6 +1767,10 @@ static void dcn10_power_on_fe(
 	struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	struct dce_hwseq *hws = dc->hwseq;
 
+	if (dc->public.debug.sanity_checks) {
+		verify_allow_pstate_change_high(dc->hwseq);
+	}
+
 	power_on_plane(dc->hwseq,
 		pipe_ctx->pipe_idx);
 
@@ -1812,6 +1816,10 @@ static void dcn10_power_on_fe(
 				pipe_ctx->plane_res.scl_data.recout.x,
 				pipe_ctx->plane_res.scl_data.recout.y);
 		print_rq_dlg_ttu(dc, pipe_ctx);
+	}
+
+	if (dc->public.debug.sanity_checks) {
+		verify_allow_pstate_change_high(dc->hwseq);
 	}
 }
 
@@ -2287,6 +2295,10 @@ static void dcn10_set_bandwidth(
 {
 	struct dm_pp_clock_for_voltage_req clock;
 
+	if (dc->public.debug.sanity_checks) {
+		verify_allow_pstate_change_high(dc->hwseq);
+	}
+
 	if (IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
 		return;
 
@@ -2337,6 +2349,10 @@ static void dcn10_set_bandwidth(
 				context->bw.dcn.calc_clk.min_active_dram_ccm_us;
 	}
 	dcn10_pplib_apply_display_requirements(dc, context);
+
+	if (dc->public.debug.sanity_checks) {
+		verify_allow_pstate_change_high(dc->hwseq);
+	}
 
 	/* need to fix this function.  not doing the right thing here */
 }
@@ -2459,6 +2475,10 @@ static void dcn10_wait_for_mpcc_disconnect(
 {
 	int i;
 
+	if (dc->public.debug.sanity_checks) {
+		verify_allow_pstate_change_high(dc->hwseq);
+	}
+
 	if (!pipe_ctx->stream_res.opp)
 		return;
 
@@ -2471,6 +2491,10 @@ static void dcn10_wait_for_mpcc_disconnect(
 					"[debug_mpo: wait_for_mpcc finished waiting on mpcc %d]\n",
 					i);*/
 		}
+	}
+
+	if (dc->public.debug.sanity_checks) {
+		verify_allow_pstate_change_high(dc->hwseq);
 	}
 
 }
