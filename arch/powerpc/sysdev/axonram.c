@@ -192,10 +192,8 @@ static int axon_ram_probe(struct platform_device *device)
 			device->dev.of_node);
 
 	bank = kzalloc(sizeof(*bank), GFP_KERNEL);
-	if (bank == NULL) {
-		rc = -ENOMEM;
-		goto failed;
-	}
+	if (!bank)
+		return -ENOMEM;
 
 	device->dev.platform_data = bank;
 
@@ -291,25 +289,22 @@ static int axon_ram_probe(struct platform_device *device)
 	return 0;
 
 failed:
-	if (bank != NULL) {
-		if (bank->irq_id)
-			free_irq(bank->irq_id, device);
-		if (bank->disk != NULL) {
-			if (bank->disk->major > 0)
-				unregister_blkdev(bank->disk->major,
-						bank->disk->disk_name);
-			if (bank->disk->flags & GENHD_FL_UP)
-				del_gendisk(bank->disk);
-			put_disk(bank->disk);
-		}
-		kill_dax(bank->dax_dev);
-		put_dax(bank->dax_dev);
-		device->dev.platform_data = NULL;
-		if (bank->io_addr != 0)
-			iounmap((void __iomem *) bank->io_addr);
-		kfree(bank);
+	if (bank->irq_id)
+		free_irq(bank->irq_id, device);
+	if (bank->disk != NULL) {
+		if (bank->disk->major > 0)
+			unregister_blkdev(bank->disk->major,
+					bank->disk->disk_name);
+		if (bank->disk->flags & GENHD_FL_UP)
+			del_gendisk(bank->disk);
+		put_disk(bank->disk);
 	}
-
+	kill_dax(bank->dax_dev);
+	put_dax(bank->dax_dev);
+	device->dev.platform_data = NULL;
+	if (bank->io_addr != 0)
+		iounmap((void __iomem *) bank->io_addr);
+	kfree(bank);
 	return rc;
 }
 
