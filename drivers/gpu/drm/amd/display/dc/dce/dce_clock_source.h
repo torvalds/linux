@@ -107,9 +107,9 @@ struct dce110_clk_src_regs {
 	/* below are for DTO.
 	 * todo: should probably use different struct to not waste space
 	 */
-	uint32_t PHASE[4];
-	uint32_t MODULO[4];
-	uint32_t PIXEL_RATE_CNTL[4];
+	uint32_t PHASE[MAX_PIPES];
+	uint32_t MODULO[MAX_PIPES];
+	uint32_t PIXEL_RATE_CNTL[MAX_PIPES];
 };
 
 struct dce110_clk_src {
