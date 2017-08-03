@@ -2934,7 +2934,8 @@ int sdhci_runtime_resume_host(struct sdhci_host *host)
 
 	sdhci_init(host, 0);
 
-	if (mmc->ios.power_mode != MMC_POWER_UNDEFINED) {
+	if (mmc->ios.power_mode != MMC_POWER_UNDEFINED &&
+	    mmc->ios.power_mode != MMC_POWER_OFF) {
 		/* Force clock and power re-program */
 		host->pwr = 0;
 		host->clock = 0;
