@@ -2869,7 +2869,7 @@ sctp_disposition_t sctp_sf_do_ecn_cwr(struct net *net,
 	if (!sctp_vtag_verify(chunk, asoc))
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
 
-	if (!sctp_chunk_length_valid(chunk, sizeof(sctp_ecne_chunk_t)))
+	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_ecne_chunk)))
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
 
@@ -2924,7 +2924,7 @@ sctp_disposition_t sctp_sf_do_ecne(struct net *net,
 	if (!sctp_vtag_verify(chunk, asoc))
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
 
-	if (!sctp_chunk_length_valid(chunk, sizeof(sctp_ecne_chunk_t)))
+	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_ecne_chunk)))
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
 
