@@ -2512,7 +2512,17 @@ static inline void skb_orphan(struct sk_buff *skb)
  */
 static inline int skb_orphan_frags(struct sk_buff *skb, gfp_t gfp_mask)
 {
-	if (likely(!(skb_shinfo(skb)->tx_flags & SKBTX_DEV_ZEROCOPY)))
+	if (likely(!skb_zcopy(skb)))
+		return 0;
+	if (skb_uarg(skb)->callback == sock_zerocopy_callback)
+		return 0;
+	return skb_copy_ubufs(skb, gfp_mask);
+}
+
+/* Frags must be orphaned, even if refcounted, if skb might loop to rx path */
+static inline int skb_orphan_frags_rx(struct sk_buff *skb, gfp_t gfp_mask)
+{
+	if (likely(!skb_zcopy(skb)))
 		return 0;
 	return skb_copy_ubufs(skb, gfp_mask);
 }
@@ -2944,6 +2954,8 @@ static inline int skb_add_data(struct sk_buff *skb,
 static inline bool skb_can_coalesce(struct sk_buff *skb, int i,
 				    const struct page *page, int off)
 {
+	if (skb_zcopy(skb))
+		return false;
 	if (i) {
 		const struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[i - 1];
 
