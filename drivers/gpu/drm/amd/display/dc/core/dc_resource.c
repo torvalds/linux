@@ -132,7 +132,7 @@ struct resource_pool *dc_create_resource_pool(
 #if defined(CONFIG_DRM_AMD_DC_DCN1_0)
 	case DCN_VERSION_1_0:
 		res_pool = dcn10_create_resource_pool(
-			num_virtual_links, dc);
+				num_virtual_links, dc);
 		break;
 #endif
 

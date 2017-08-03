@@ -615,6 +615,7 @@ static uint32_t dce110_get_pll_pixel_rate_in_hz(
 
 	/* This function need separate to different DCE version, before separate, just use pixel clock */
 	return pipe_ctx->stream->phy_pix_clk;
+
 }
 
 static uint32_t dce110_get_dp_pixel_rate_from_combo_phy_pll(

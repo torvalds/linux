@@ -1246,7 +1246,7 @@ static void toggle_watermark_change_req(struct dce_hwseq *hws)
 			DCHUBBUB_ARB_WATERMARK_CHANGE_REQUEST, watermark_change_req);
 }
 
-static void update_plane_addr(const struct core_dc *dc, struct pipe_ctx *pipe_ctx)
+static void dcn10_update_plane_addr(const struct core_dc *dc, struct pipe_ctx *pipe_ctx)
 {
 	bool addr_patched = false;
 	PHYSICAL_ADDRESS_LOC addr;
@@ -2115,7 +2115,7 @@ static void update_dchubp_dpp(
 	 */
 	REG_UPDATE(DCHUBP_CNTL[pipe_ctx->pipe_idx], HUBP_VTG_SEL, pipe_ctx->stream_res.tg->inst);
 
-	update_plane_addr(dc, pipe_ctx);
+	dc->hwss.update_plane_addr(dc, pipe_ctx);
 
 	mi->funcs->mem_input_setup(
 		mi,
@@ -2687,7 +2687,7 @@ static const struct hw_sequencer_funcs dcn10_funcs = {
 	.apply_ctx_to_hw = dce110_apply_ctx_to_hw,
 	.apply_ctx_for_surface = dcn10_apply_ctx_for_surface,
 	.set_plane_config = set_plane_config,
-	.update_plane_addr = update_plane_addr,
+	.update_plane_addr = dcn10_update_plane_addr,
 	.update_dchub = dcn10_update_dchub,
 	.update_pending_status = dcn10_update_pending_status,
 	.set_input_transfer_func = dcn10_set_input_transfer_func,
