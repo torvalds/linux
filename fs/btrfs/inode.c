@@ -8514,8 +8514,7 @@ static inline blk_status_t btrfs_lookup_and_bind_dio_csum(struct inode *inode,
 }
 
 static inline int __btrfs_submit_dio_bio(struct bio *bio, struct inode *inode,
-					 u64 file_offset, int skip_sum,
-					 int async_submit)
+					 u64 file_offset, int async_submit)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_dio_private *dip = bio->bi_private;
@@ -8533,7 +8532,7 @@ static inline int __btrfs_submit_dio_bio(struct bio *bio, struct inode *inode,
 			goto err;
 	}
 
-	if (skip_sum)
+	if (BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM)
 		goto map;
 
 	if (write && async_submit) {
@@ -8563,8 +8562,7 @@ err:
 	return ret;
 }
 
-static int btrfs_submit_direct_hook(struct btrfs_dio_private *dip,
-				    int skip_sum)
+static int btrfs_submit_direct_hook(struct btrfs_dio_private *dip)
 {
 	struct inode *inode = dip->inode;
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
@@ -8627,7 +8625,7 @@ static int btrfs_submit_direct_hook(struct btrfs_dio_private *dip,
 		 */
 		atomic_inc(&dip->pending_bios);
 
-		ret = __btrfs_submit_dio_bio(bio, inode, file_offset, skip_sum,
+		ret = __btrfs_submit_dio_bio(bio, inode, file_offset,
 					     async_submit);
 		if (ret) {
 			bio_put(bio);
@@ -8647,8 +8645,7 @@ static int btrfs_submit_direct_hook(struct btrfs_dio_private *dip,
 	} while (submit_len > 0);
 
 submit:
-	ret = __btrfs_submit_dio_bio(bio, inode, file_offset, skip_sum,
-				     async_submit);
+	ret = __btrfs_submit_dio_bio(bio, inode, file_offset, async_submit);
 	if (!ret)
 		return 0;
 
@@ -8673,11 +8670,8 @@ static void btrfs_submit_direct(struct bio *dio_bio, struct inode *inode,
 	struct btrfs_dio_private *dip = NULL;
 	struct bio *bio = NULL;
 	struct btrfs_io_bio *io_bio;
-	int skip_sum;
 	bool write = (bio_op(dio_bio) == REQ_OP_WRITE);
 	int ret = 0;
-
-	skip_sum = BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM;
 
 	bio = btrfs_bio_clone(dio_bio);
 
@@ -8721,7 +8715,7 @@ static void btrfs_submit_direct(struct bio *dio_bio, struct inode *inode,
 			dio_data->unsubmitted_oe_range_end;
 	}
 
-	ret = btrfs_submit_direct_hook(dip, skip_sum);
+	ret = btrfs_submit_direct_hook(dip);
 	if (!ret)
 		return;
 
