@@ -685,7 +685,7 @@ enum mvpp2_prs_l3_cast {
 #define MVPP21_ADDR_SPACE_SZ		0
 #define MVPP22_ADDR_SPACE_SZ		SZ_64K
 
-#define MVPP2_MAX_CPUS			4
+#define MVPP2_MAX_THREADS		8
 
 enum mvpp2_bm_type {
 	MVPP2_BM_FREE,
@@ -701,11 +701,12 @@ struct mvpp2 {
 	void __iomem *lms_base;
 	void __iomem *iface_base;
 
-	/* On PPv2.2, each CPU can access the base register through a
-	 * separate address space, each 64 KB apart from each
-	 * other.
+	/* On PPv2.2, each "software thread" can access the base
+	 * register through a separate address space, each 64 KB apart
+	 * from each other. Typically, such address spaces will be
+	 * used per CPU.
 	 */
-	void __iomem *cpu_base[MVPP2_MAX_CPUS];
+	void __iomem *swth_base[MVPP2_MAX_THREADS];
 
 	/* Common clocks */
 	struct clk *pp_clk;
@@ -1071,12 +1072,12 @@ struct mvpp2_bm_pool {
 
 static void mvpp2_write(struct mvpp2 *priv, u32 offset, u32 data)
 {
-	writel(data, priv->cpu_base[0] + offset);
+	writel(data, priv->swth_base[0] + offset);
 }
 
 static u32 mvpp2_read(struct mvpp2 *priv, u32 offset)
 {
-	return readl(priv->cpu_base[0] + offset);
+	return readl(priv->swth_base[0] + offset);
 }
 
 /* These accessors should be used to access:
@@ -1118,13 +1119,13 @@ static u32 mvpp2_read(struct mvpp2 *priv, u32 offset)
 static void mvpp2_percpu_write(struct mvpp2 *priv, int cpu,
 			       u32 offset, u32 data)
 {
-	writel(data, priv->cpu_base[cpu] + offset);
+	writel(data, priv->swth_base[cpu] + offset);
 }
 
 static u32 mvpp2_percpu_read(struct mvpp2 *priv, int cpu,
 			     u32 offset)
 {
-	return readl(priv->cpu_base[cpu] + offset);
+	return readl(priv->swth_base[cpu] + offset);
 }
 
 static dma_addr_t mvpp2_txdesc_dma_addr_get(struct mvpp2_port *port,
@@ -6874,7 +6875,7 @@ static int mvpp2_probe(struct platform_device *pdev)
 	struct mvpp2 *priv;
 	struct resource *res;
 	void __iomem *base;
-	int port_count, cpu;
+	int port_count, i;
 	int err;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
@@ -6901,12 +6902,12 @@ static int mvpp2_probe(struct platform_device *pdev)
 			return PTR_ERR(priv->iface_base);
 	}
 
-	for_each_present_cpu(cpu) {
+	for (i = 0; i < MVPP2_MAX_THREADS; i++) {
 		u32 addr_space_sz;
 
 		addr_space_sz = (priv->hw_version == MVPP21 ?
 				 MVPP21_ADDR_SPACE_SZ : MVPP22_ADDR_SPACE_SZ);
-		priv->cpu_base[cpu] = base + cpu * addr_space_sz;
+		priv->swth_base[i] = base + i * addr_space_sz;
 	}
 
 	if (priv->hw_version == MVPP21)
