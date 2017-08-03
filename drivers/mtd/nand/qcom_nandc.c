@@ -1893,7 +1893,7 @@ static int qcom_nand_host_setup(struct qcom_nand_host *host)
 				| wide_bus << WIDE_FLASH
 				| 1 << DEV0_CFG1_ECC_DISABLE;
 
-	host->ecc_bch_cfg = host->bch_enabled << ECC_CFG_ECC_DISABLE
+	host->ecc_bch_cfg = !host->bch_enabled << ECC_CFG_ECC_DISABLE
 				| 0 << ECC_SW_RESET
 				| host->cw_data << ECC_NUM_DATA_BYTES
 				| 1 << ECC_FORCE_CLK_OPEN
