@@ -340,7 +340,8 @@ if branches:
 		'to_sym_offset	bigint,'
 		'to_ip		bigint,'
 		'branch_type	integer,'
-		'in_tx		boolean)')
+		'in_tx		boolean,'
+		'call_path_id	bigint)')
 else:
 	do_query(query, 'CREATE TABLE samples ('
 		'id		bigint		NOT NULL,'
