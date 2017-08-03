@@ -639,10 +639,10 @@ struct sctp_addiphdr {
 	__u8	params[0];
 };
 
-typedef struct sctp_addip_chunk {
+struct sctp_addip_chunk {
 	struct sctp_chunkhdr chunk_hdr;
 	struct sctp_addiphdr addip_hdr;
-} sctp_addip_chunk_t;
+};
 
 /* AUTH
  * Section 4.1  Authentication Chunk (AUTH)

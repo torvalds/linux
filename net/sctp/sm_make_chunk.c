@@ -3140,10 +3140,11 @@ bool sctp_verify_asconf(const struct sctp_association *asoc,
 			struct sctp_chunk *chunk, bool addr_param_needed,
 			struct sctp_paramhdr **errp)
 {
-	sctp_addip_chunk_t *addip = (sctp_addip_chunk_t *) chunk->chunk_hdr;
+	struct sctp_addip_chunk *addip;
 	union sctp_params param;
 	bool addr_param_seen = false;
 
+	addip = (struct sctp_addip_chunk *)chunk->chunk_hdr;
 	sctp_walk_params(param, addip, addip_hdr.params) {
 		size_t length = ntohs(param.p->length);
 
@@ -3207,7 +3208,7 @@ bool sctp_verify_asconf(const struct sctp_association *asoc,
 struct sctp_chunk *sctp_process_asconf(struct sctp_association *asoc,
 				       struct sctp_chunk *asconf)
 {
-	sctp_addip_chunk_t *addip = (sctp_addip_chunk_t *) asconf->chunk_hdr;
+	struct sctp_addip_chunk *addip;
 	bool all_param_pass = true;
 	union sctp_params param;
 	struct sctp_addiphdr	*hdr;
@@ -3218,6 +3219,7 @@ struct sctp_chunk *sctp_process_asconf(struct sctp_association *asoc,
 	int	chunk_len;
 	__u32	serial;
 
+	addip = (struct sctp_addip_chunk *)asconf->chunk_hdr;
 	chunk_len = ntohs(asconf->chunk_hdr->length) -
 		    sizeof(struct sctp_chunkhdr);
 	hdr = (struct sctp_addiphdr *)asconf->skb->data;
@@ -3419,7 +3421,7 @@ int sctp_process_asconf_ack(struct sctp_association *asoc,
 	/* Skip the chunkhdr and addiphdr from the last asconf sent and store
 	 * a pointer to address parameter.
 	 */
-	length = sizeof(sctp_addip_chunk_t);
+	length = sizeof(struct sctp_addip_chunk);
 	addr_param = (union sctp_addr_param *)(asconf->skb->data + length);
 	asconf_len -= length;
 
