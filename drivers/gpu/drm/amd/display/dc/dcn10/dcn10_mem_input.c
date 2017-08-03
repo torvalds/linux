@@ -841,9 +841,10 @@ void dcn10_mem_input_read_state(struct dcn10_mem_input *mi,
 	REG_GET(DCSURF_SURFACE_CONTROL,
 			PRIMARY_SURFACE_DCC_EN, &s->dcc_en);
 
-	REG_GET_2(DCHUBP_CNTL,
+	REG_GET_3(DCHUBP_CNTL,
 			HUBP_BLANK_EN, &s->blank_en,
-			HUBP_TTU_DISABLE, &s->ttu_disable);
+			HUBP_TTU_DISABLE, &s->ttu_disable,
+			HUBP_UNDERFLOW_STATUS, &s->underflow_status);
 
 	REG_GET(DCN_GLOBAL_TTU_CNTL,
 			MIN_TTU_VBLANK, &s->min_ttu_vblank);

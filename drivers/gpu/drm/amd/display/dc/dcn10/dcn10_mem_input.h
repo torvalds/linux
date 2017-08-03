@@ -250,6 +250,7 @@ struct dcn_mi_registers {
 #define MI_MASK_SH_LIST_DCN(mask_sh)\
 	MI_SF(HUBP0_DCHUBP_CNTL, HUBP_BLANK_EN, mask_sh),\
 	MI_SF(HUBP0_DCHUBP_CNTL, HUBP_TTU_DISABLE, mask_sh),\
+	MI_SF(HUBP0_DCHUBP_CNTL, HUBP_UNDERFLOW_STATUS, mask_sh),\
 	MI_SF(HUBP0_DCHUBP_CNTL, HUBP_NO_OUTSTANDING_REQ, mask_sh),\
 	MI_SF(HUBP0_DCSURF_ADDR_CONFIG, NUM_PIPES, mask_sh),\
 	MI_SF(HUBP0_DCSURF_ADDR_CONFIG, NUM_BANKS, mask_sh),\
@@ -402,6 +403,7 @@ struct dcn_mi_registers {
 	type HUBP_BLANK_EN;\
 	type HUBP_TTU_DISABLE;\
 	type HUBP_NO_OUTSTANDING_REQ;\
+	type HUBP_UNDERFLOW_STATUS;\
 	type NUM_PIPES;\
 	type NUM_BANKS;\
 	type PIPE_INTERLEAVE;\
@@ -591,6 +593,7 @@ struct dcn_hubp_state {
 	uint32_t sw_mode;
 	uint32_t dcc_en;
 	uint32_t blank_en;
+	uint32_t underflow_status;
 	uint32_t ttu_disable;
 	uint32_t min_ttu_vblank;
 	uint32_t qos_level_low_wm;

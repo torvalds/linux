@@ -65,6 +65,20 @@ static void log_mpc_crc(struct core_dc *dc)
 		REG_READ(DPP_TOP0_DPP_CRC_VAL_B_A), REG_READ(DPP_TOP0_DPP_CRC_VAL_R_G));
 }
 
+void print_microsec(struct dc_context *dc_ctx, uint32_t ref_cycle)
+{
+	static const uint32_t ref_clk_mhz = 48;
+	static const unsigned int frac = 10;
+	uint32_t us_x10 = (ref_cycle * frac) / ref_clk_mhz;
+
+	DTN_INFO("%d.%d \t ",
+			us_x10 / frac,
+			us_x10 % frac);
+}
+
+#define DTN_INFO_MICRO_SEC(ref_cycle) \
+	print_microsec(dc_ctx, ref_cycle)
+
 static void dcn10_log_hw_state(struct core_dc *dc)
 {
 	struct dc_context *dc_ctx = dc->ctx;
@@ -73,8 +87,9 @@ static void dcn10_log_hw_state(struct core_dc *dc)
 
 	DTN_INFO_BEGIN();
 
-	DTN_INFO("HUBP:\t format \t addr_hi \t width \t height \t rotation \t"
-			"mirror \t  sw_mode \t dcc_en \t blank_en \t ttu_dis \t"
+	DTN_INFO("HUBP:\t format \t addr_hi \t width \t height \t "
+			"rotation \t mirror \t  sw_mode \t "
+			"dcc_en \t blank_en \t ttu_dis \t underflow \t "
 			"min_ttu_vblank \t qos_low_wm \t qos_high_wm \n");
 
 	for (i = 0; i < pool->pipe_count; i++) {
@@ -83,9 +98,9 @@ static void dcn10_log_hw_state(struct core_dc *dc)
 
 		dcn10_mem_input_read_state(TO_DCN10_MEM_INPUT(mi), &s);
 
-		DTN_INFO("[%d]:\t %xh \t %xh \t %d \t %d \t %xh \t %xh \t "
-				"%d \t %d \t %d \t %d \t"
-				"%d \t %d \t %d \n",
+		DTN_INFO("[%d]:\t %xh \t %xh \t %d \t %d \t "
+				"%xh \t %xh \t %xh \t "
+				"%d \t %d \t %d \t %xh \t",
 				i,
 				s.pixel_format,
 				s.inuse_addr_hi,
@@ -97,9 +112,11 @@ static void dcn10_log_hw_state(struct core_dc *dc)
 				s.dcc_en,
 				s.blank_en,
 				s.ttu_disable,
-				s.min_ttu_vblank,
-				s.qos_level_low_wm,
-				s.qos_level_high_wm);
+				s.underflow_status);
+		DTN_INFO_MICRO_SEC(s.min_ttu_vblank);
+		DTN_INFO_MICRO_SEC(s.qos_level_low_wm);
+		DTN_INFO_MICRO_SEC(s.qos_level_high_wm);
+		DTN_INFO("\n");
 	}
 	DTN_INFO("\n");
 
