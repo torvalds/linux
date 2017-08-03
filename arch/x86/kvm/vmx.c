@@ -243,6 +243,7 @@ struct __packed vmcs12 {
 	u64 virtual_apic_page_addr;
 	u64 apic_access_addr;
 	u64 posted_intr_desc_addr;
+	u64 vm_function_control;
 	u64 ept_pointer;
 	u64 eoi_exit_bitmap0;
 	u64 eoi_exit_bitmap1;
@@ -481,6 +482,7 @@ struct nested_vmx {
 	u64 nested_vmx_cr4_fixed0;
 	u64 nested_vmx_cr4_fixed1;
 	u64 nested_vmx_vmcs_enum;
+	u64 nested_vmx_vmfunc_controls;
 };
 
 #define POSTED_INTR_ON  0
@@ -763,6 +765,7 @@ static const unsigned short vmcs_field_to_offset_table[] = {
 	FIELD64(VIRTUAL_APIC_PAGE_ADDR, virtual_apic_page_addr),
 	FIELD64(APIC_ACCESS_ADDR, apic_access_addr),
 	FIELD64(POSTED_INTR_DESC_ADDR, posted_intr_desc_addr),
+	FIELD64(VM_FUNCTION_CONTROL, vm_function_control),
 	FIELD64(EPT_POINTER, ept_pointer),
 	FIELD64(EOI_EXIT_BITMAP0, eoi_exit_bitmap0),
 	FIELD64(EOI_EXIT_BITMAP1, eoi_exit_bitmap1),
@@ -1378,6 +1381,11 @@ static inline bool nested_cpu_has_vid(struct vmcs12 *vmcs12)
 static inline bool nested_cpu_has_posted_intr(struct vmcs12 *vmcs12)
 {
 	return vmcs12->pin_based_vm_exec_control & PIN_BASED_POSTED_INTR;
+}
+
+static inline bool nested_cpu_has_vmfunc(struct vmcs12 *vmcs12)
+{
+	return nested_cpu_has2(vmcs12, SECONDARY_EXEC_ENABLE_VMFUNC);
 }
 
 static inline bool is_nmi(u32 intr_info)
@@ -2828,6 +2836,12 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 	} else
 		vmx->nested.nested_vmx_ept_caps = 0;
 
+	if (cpu_has_vmx_vmfunc()) {
+		vmx->nested.nested_vmx_secondary_ctls_high |=
+			SECONDARY_EXEC_ENABLE_VMFUNC;
+		vmx->nested.nested_vmx_vmfunc_controls = 0;
+	}
+
 	/*
 	 * Old versions of KVM use the single-context version without
 	 * checking for support, so declare that it is supported even
@@ -3196,6 +3210,9 @@ static int vmx_get_vmx_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 *pdata)
 	case MSR_IA32_VMX_EPT_VPID_CAP:
 		*pdata = vmx->nested.nested_vmx_ept_caps |
 			((u64)vmx->nested.nested_vmx_vpid_caps << 32);
+		break;
+	case MSR_IA32_VMX_VMFUNC:
+		*pdata = vmx->nested.nested_vmx_vmfunc_controls;
 		break;
 	default:
 		return 1;
@@ -7847,7 +7864,29 @@ static int handle_preemption_timer(struct kvm_vcpu *vcpu)
 
 static int handle_vmfunc(struct kvm_vcpu *vcpu)
 {
-	kvm_queue_exception(vcpu, UD_VECTOR);
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	struct vmcs12 *vmcs12;
+	u32 function = vcpu->arch.regs[VCPU_REGS_RAX];
+
+	/*
+	 * VMFUNC is only supported for nested guests, but we always enable the
+	 * secondary control for simplicity; for non-nested mode, fake that we
+	 * didn't by injecting #UD.
+	 */
+	if (!is_guest_mode(vcpu)) {
+		kvm_queue_exception(vcpu, UD_VECTOR);
+		return 1;
+	}
+
+	vmcs12 = get_vmcs12(vcpu);
+	if ((vmcs12->vm_function_control & (1 << function)) == 0)
+		goto fail;
+	WARN_ONCE(1, "VMCS12 VM function control should have been zero");
+
+fail:
+	nested_vmx_vmexit(vcpu, vmx->exit_reason,
+			  vmcs_read32(VM_EXIT_INTR_INFO),
+			  vmcs_readl(EXIT_QUALIFICATION));
 	return 1;
 }
 
@@ -10220,13 +10259,18 @@ static int prepare_vmcs02(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12,
 				  SECONDARY_EXEC_ENABLE_INVPCID |
 				  SECONDARY_EXEC_RDTSCP |
 				  SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY |
-				  SECONDARY_EXEC_APIC_REGISTER_VIRT);
+				  SECONDARY_EXEC_APIC_REGISTER_VIRT |
+				  SECONDARY_EXEC_ENABLE_VMFUNC);
 		if (nested_cpu_has(vmcs12,
 				   CPU_BASED_ACTIVATE_SECONDARY_CONTROLS)) {
 			vmcs12_exec_ctrl = vmcs12->secondary_vm_exec_control &
 				~SECONDARY_EXEC_ENABLE_PML;
 			exec_control |= vmcs12_exec_ctrl;
 		}
+
+		/* All VMFUNCs are currently emulated through L0 vmexits.  */
+		if (exec_control & SECONDARY_EXEC_ENABLE_VMFUNC)
+			vmcs_write64(VM_FUNCTION_CONTROL, 0);
 
 		if (exec_control & SECONDARY_EXEC_VIRTUAL_INTR_DELIVERY) {
 			vmcs_write64(EOI_EXIT_BITMAP0,
@@ -10478,6 +10522,11 @@ static int check_vmentry_prereqs(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 	    !vmx_control_verify(vmcs12->vm_entry_controls,
 				vmx->nested.nested_vmx_entry_ctls_low,
 				vmx->nested.nested_vmx_entry_ctls_high))
+		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
+
+	if (nested_cpu_has_vmfunc(vmcs12) &&
+	    (vmcs12->vm_function_control &
+	     ~vmx->nested.nested_vmx_vmfunc_controls))
 		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
 
 	if (vmcs12->cr3_target_count > nested_cpu_vmx_misc_cr3_count(vcpu))
