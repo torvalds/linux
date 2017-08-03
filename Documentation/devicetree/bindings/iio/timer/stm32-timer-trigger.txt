@@ -4,7 +4,9 @@ Must be a sub-node of an STM32 Timers device tree node.
 See ../mfd/stm32-timers.txt for details about the parent node.
 
 Required parameters:
-- compatible:	Must be "st,stm32-timer-trigger".
+- compatible:	Must be one of:
+		"st,stm32-timer-trigger"
+		"st,stm32h7-timer-trigger"
 - reg:		Identify trigger hardware block.
 
 Example:
