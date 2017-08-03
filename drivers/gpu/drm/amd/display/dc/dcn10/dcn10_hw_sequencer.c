@@ -320,6 +320,9 @@ static void program_watermarks(
 	 */
 	uint32_t prog_wm_value;
 
+	REG_UPDATE(DCHUBBUB_ARB_WATERMARK_CHANGE_CNTL,
+			DCHUBBUB_ARB_WATERMARK_CHANGE_REQUEST, 0);
+
 	/* Repeat for water mark set A, B, C and D. */
 	/* clock state A */
 	prog_wm_value = convert_and_clamp(watermarks->a.urgent_ns,
@@ -518,8 +521,7 @@ static void program_watermarks(
 
 	REG_UPDATE(DCHUBBUB_ARB_WATERMARK_CHANGE_CNTL,
 			DCHUBBUB_ARB_WATERMARK_CHANGE_REQUEST, 1);
-	REG_UPDATE(DCHUBBUB_ARB_WATERMARK_CHANGE_CNTL,
-			DCHUBBUB_ARB_WATERMARK_CHANGE_REQUEST, 0);
+
 	REG_UPDATE(DCHUBBUB_ARB_SAT_LEVEL,
 			DCHUBBUB_ARB_SAT_LEVEL, 60 * refclk_mhz);
 	REG_UPDATE(DCHUBBUB_ARB_DF_REQ_OUTSTAND,
