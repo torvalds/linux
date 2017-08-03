@@ -978,10 +978,10 @@ static bool dc_commit_context_no_check(struct dc *dc, struct validate_context *c
 		const struct dc_sink *sink = context->streams[i]->sink;
 
 		for (j = 0; j < context->stream_status[i].plane_count; j++) {
-			const struct dc_plane_state *plane_state =
-					context->stream_status[i].plane_states[j];
-
-			core_dc->hwss.apply_ctx_for_surface(core_dc, plane_state, context);
+			core_dc->hwss.apply_ctx_for_surface(
+					core_dc, context->streams[i],
+					context->stream_status[i].plane_count,
+					context);
 
 			/*
 			 * enable stereo
@@ -1391,6 +1391,21 @@ enum surface_update_type dc_check_update_surfaces_for_stream(
 	return overall_type;
 }
 
+static struct dc_stream_status *stream_get_status(
+	struct validate_context *ctx,
+	struct dc_stream_state *stream)
+{
+	uint8_t i;
+
+	for (i = 0; i < ctx->stream_count; i++) {
+		if (stream == ctx->streams[i]) {
+			return &ctx->stream_status[i];
+		}
+	}
+
+	return NULL;
+}
+
 enum surface_update_type update_surface_trace_level = UPDATE_TYPE_FULL;
 
 void dc_update_planes_and_stream(struct dc *dc,
@@ -1404,16 +1419,6 @@ void dc_update_planes_and_stream(struct dc *dc,
 	enum surface_update_type update_type;
 	const struct dc_stream_status *stream_status;
 	struct dc_context *dc_ctx = core_dc->ctx;
-
-	/* Currently this function do not result in any HW programming
-	 * when called with 0 surface. But proceeding will cause
-	 * SW state to be updated in validate_context. So we might as
-	 * well make it not do anything at all until the hw programming
-	 * is implemented properly to handle 0 surface case.
-	 * TODO: fix hw programming then remove this early return
-	 */
-	if (surface_count == 0)
-		return;
 
 	stream_status = dc_stream_get_status(stream);
 
@@ -1595,7 +1600,7 @@ void dc_update_planes_and_stream(struct dc *dc,
 	}
 
 	if (surface_count == 0)
-		core_dc->hwss.apply_ctx_for_surface(core_dc, NULL, context);
+		core_dc->hwss.apply_ctx_for_surface(core_dc, stream, surface_count, context);
 
 	/* Lock pipes for provided surfaces, or all active if full update*/
 	for (i = 0; i < surface_count; i++) {
@@ -1625,12 +1630,16 @@ void dc_update_planes_and_stream(struct dc *dc,
 		bool is_new_pipe_surface = cur_pipe_ctx->plane_state != pipe_ctx->plane_state;
 		struct dc_cursor_position position = { 0 };
 
+
 		if (update_type != UPDATE_TYPE_FULL || !pipe_ctx->plane_state)
 			continue;
 
-		if (!pipe_ctx->top_pipe)
+		if (!pipe_ctx->top_pipe && pipe_ctx->stream) {
+			struct dc_stream_status *stream_status = stream_get_status(context, pipe_ctx->stream);
+
 			core_dc->hwss.apply_ctx_for_surface(
-					core_dc, pipe_ctx->plane_state, context);
+					core_dc, pipe_ctx->stream, stream_status->plane_count, context);
+		}
 
 		/* TODO: this is a hack w/a for switching from mpo to pipe split */
 		dc_stream_set_cursor_position(pipe_ctx->stream, &position);
@@ -1653,7 +1662,7 @@ void dc_update_planes_and_stream(struct dc *dc,
 
 		if (update_type == UPDATE_TYPE_MED)
 			core_dc->hwss.apply_ctx_for_surface(
-					core_dc, plane_state, context);
+					core_dc, stream, surface_count, context);
 
 		for (j = 0; j < core_dc->res_pool->pipe_count; j++) {
 			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];

@@ -59,7 +59,8 @@ struct hw_sequencer_funcs {
 
 	void (*apply_ctx_for_surface)(
 			struct core_dc *dc,
-			const struct dc_plane_state *plane_state,
+			const struct dc_stream_state *stream,
+			int num_planes,
 			struct validate_context *context);
 
 	void (*set_plane_config)(

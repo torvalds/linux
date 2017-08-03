@@ -2151,7 +2151,8 @@ static void dcn10_pplib_apply_display_requirements(
 
 static void dcn10_apply_ctx_for_surface(
 		struct core_dc *dc,
-		const struct dc_plane_state *plane_state,
+		const struct dc_stream_state *stream,
+		int num_planes,
 		struct validate_context *context)
 {
 	int i, be_idx;
@@ -2159,12 +2160,26 @@ static void dcn10_apply_ctx_for_surface(
 	if (dc->public.debug.sanity_checks)
 		verify_allow_pstate_change_high(dc->hwseq);
 
-	if (!plane_state)
-		return;
-
-	for (be_idx = 0; be_idx < dc->res_pool->pipe_count; be_idx++)
-		if (plane_state == context->res_ctx.pipe_ctx[be_idx].plane_state)
+	be_idx = -1;
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		if (stream == context->res_ctx.pipe_ctx[i].stream) {
+			be_idx = context->res_ctx.pipe_ctx[i].stream_res.tg->inst;
 			break;
+		}
+	}
+
+	ASSERT(be_idx != -1);
+
+	if (num_planes == 0) {
+		for (i = dc->res_pool->pipe_count - 1; i >= 0 ; i--) {
+			struct pipe_ctx *old_pipe_ctx =
+							&dc->current_context->res_ctx.pipe_ctx[i];
+
+			if (old_pipe_ctx->stream_res.tg && old_pipe_ctx->stream_res.tg->inst == be_idx)
+				dcn10_power_down_fe(dc, old_pipe_ctx->pipe_idx);
+		}
+		return;
+	}
 
 	/* reset unused mpcc */
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -2229,7 +2244,7 @@ static void dcn10_apply_ctx_for_surface(
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
-		if (pipe_ctx->plane_state != plane_state)
+		if (pipe_ctx->stream != stream)
 			continue;
 
 		/* looking for top pipe to program */

@@ -2614,18 +2614,27 @@ static void dce110_program_front_end_for_pipe(
 
 static void dce110_apply_ctx_for_surface(
 		struct core_dc *dc,
-		const struct dc_plane_state *plane_state,
+		const struct dc_stream_state *stream,
+		int num_planes,
 		struct validate_context *context)
 {
-	int i;
+	int i, be_idx;
 
-	if (!plane_state)
+	if (num_planes == 0)
 		return;
+
+	be_idx = -1;
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		if (stream == context->res_ctx.pipe_ctx[i].stream) {
+			be_idx = context->res_ctx.pipe_ctx[i].stream_res.tg->inst;
+			break;
+		}
+	}
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
-		if (pipe_ctx->plane_state != plane_state)
+		if (pipe_ctx->stream == stream)
 			continue;
 
 		dce110_program_front_end_for_pipe(dc, pipe_ctx);
