@@ -105,7 +105,7 @@ static int mt7621_wdt_bootcause(void)
 	return 0;
 }
 
-static struct watchdog_info mt7621_wdt_info = {
+static const struct watchdog_info mt7621_wdt_info = {
 	.identity = "Mediatek Watchdog",
 	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
 };
