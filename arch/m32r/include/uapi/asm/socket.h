@@ -102,4 +102,6 @@
 
 #define SO_PEERGROUPS		59
 
+#define SO_ZEROCOPY		60
+
 #endif /* _ASM_M32R_SOCKET_H */
