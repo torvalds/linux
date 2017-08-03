@@ -257,3 +257,20 @@ DECLARE_UVERBS_OBJECT(uverbs_object_xrcd, UVERBS_OBJECT_XRCD,
 DECLARE_UVERBS_OBJECT(uverbs_object_pd, UVERBS_OBJECT_PD,
 		      /* 2 is used in order to free the PD after MRs */
 		      &UVERBS_TYPE_ALLOC_IDR(2, uverbs_free_pd));
+
+DECLARE_UVERBS_OBJECT(uverbs_object_device, UVERBS_OBJECT_DEVICE, NULL);
+
+DECLARE_UVERBS_OBJECT_TREE(uverbs_default_objects,
+			   &uverbs_object_device,
+			   &uverbs_object_pd,
+			   &uverbs_object_mr,
+			   &uverbs_object_comp_channel,
+			   &uverbs_object_cq,
+			   &uverbs_object_qp,
+			   &uverbs_object_ah,
+			   &uverbs_object_mw,
+			   &uverbs_object_srq,
+			   &uverbs_object_flow,
+			   &uverbs_object_wq,
+			   &uverbs_object_rwq_ind_table,
+			   &uverbs_object_xrcd);

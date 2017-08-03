@@ -133,16 +133,51 @@ struct uverbs_root_spec {
  * =======================================
  */
 
+struct uverbs_attr_def {
+	u16                           id;
+	struct uverbs_attr_spec       attr;
+};
+
+struct uverbs_method_def {
+	u16                                  id;
+	/* Combination of bits from enum UVERBS_ACTION_FLAG_XXXX */
+	u32				     flags;
+	size_t				     num_attrs;
+	const struct uverbs_attr_def * const (*attrs)[];
+	int (*handler)(struct ib_device *ib_dev, struct ib_uverbs_file *ufile,
+		       struct uverbs_attr_bundle *ctx);
+};
+
 struct uverbs_object_def {
+	u16					 id;
 	const struct uverbs_obj_type	        *type_attrs;
+	size_t				         num_methods;
+	const struct uverbs_method_def * const (*methods)[];
+};
+
+struct uverbs_object_tree_def {
+	size_t					 num_objects;
+	const struct uverbs_object_def * const (*objects)[];
 };
 
 #define _UVERBS_OBJECT(_id, _type_attrs, ...)				\
 	((const struct uverbs_object_def) {				\
+	 .id = _id,							\
 	 .type_attrs = _type_attrs})
 #define DECLARE_UVERBS_OBJECT(_name, _id, _type_attrs, ...)		\
 	const struct uverbs_object_def _name =				\
 		_UVERBS_OBJECT(_id, _type_attrs, ##__VA_ARGS__)
+#define _UVERBS_TREE_OBJECTS_SZ(...)					\
+	(sizeof((const struct uverbs_object_def * const []){__VA_ARGS__}) / \
+	 sizeof(const struct uverbs_object_def *))
+#define _UVERBS_OBJECT_TREE(...)					\
+	((const struct uverbs_object_tree_def) {			\
+	 .num_objects = _UVERBS_TREE_OBJECTS_SZ(__VA_ARGS__),		\
+	 .objects = &(const struct uverbs_object_def * const []){__VA_ARGS__} })
+#define DECLARE_UVERBS_OBJECT_TREE(_name, ...)				\
+	const struct uverbs_object_tree_def _name =			\
+		_UVERBS_OBJECT_TREE(__VA_ARGS__)
+
 /* =================================================
  *              Parsing infrastructure
  * =================================================
