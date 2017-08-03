@@ -176,7 +176,7 @@ const char *acpi_ut_scan_number(const char *string, u64 *number_ptr)
 	u64 number = 0;
 
 	while (isdigit((int)*string)) {
-		number *= 10;
+		acpi_ut_short_multiply(number, 10, &number);
 		number += *(string++) - '0';
 	}
 

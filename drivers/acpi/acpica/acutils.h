@@ -538,6 +538,13 @@ acpi_status
 acpi_ut_short_divide(u64 in_dividend,
 		     u32 divisor, u64 *out_quotient, u32 *out_remainder);
 
+acpi_status
+acpi_ut_short_multiply(u64 in_multiplicand, u32 multiplier, u64 *outproduct);
+
+acpi_status acpi_ut_short_shift_left(u64 operand, u32 count, u64 *out_result);
+
+acpi_status acpi_ut_short_shift_right(u64 operand, u32 count, u64 *out_result);
+
 /*
  * utmisc
  */
