@@ -160,7 +160,7 @@ void amdgpu_gem_object_close(struct drm_gem_object *obj,
 	if (bo_va && --bo_va->ref_count == 0) {
 		amdgpu_vm_bo_rmv(adev, bo_va);
 
-		if (amdgpu_vm_ready(adev, vm)) {
+		if (amdgpu_vm_ready(vm)) {
 			struct dma_fence *fence = NULL;
 
 			r = amdgpu_vm_clear_freed(adev, vm, &fence);
@@ -481,10 +481,10 @@ static void amdgpu_gem_va_update_vm(struct amdgpu_device *adev,
 				    struct list_head *list,
 				    uint32_t operation)
 {
-	int r = -ERESTARTSYS;
+	int r;
 
-	if (!amdgpu_vm_ready(adev, vm))
-		goto error;
+	if (!amdgpu_vm_ready(vm))
+		return;
 
 	r = amdgpu_vm_update_directories(adev, vm);
 	if (r)

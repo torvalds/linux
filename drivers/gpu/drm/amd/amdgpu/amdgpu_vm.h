@@ -111,12 +111,12 @@ struct amdgpu_vm_bo_base {
 };
 
 struct amdgpu_vm_pt {
-	struct amdgpu_bo	*bo;
-	uint64_t		addr;
+	struct amdgpu_vm_bo_base	base;
+	uint64_t			addr;
 
 	/* array of page tables, one for each directory entry */
-	struct amdgpu_vm_pt	*entries;
-	unsigned		last_entry_used;
+	struct amdgpu_vm_pt		*entries;
+	unsigned			last_entry_used;
 };
 
 struct amdgpu_vm {
@@ -125,6 +125,9 @@ struct amdgpu_vm {
 
 	/* protecting invalidated */
 	spinlock_t		status_lock;
+
+	/* BOs who needs a validation */
+	struct list_head	evicted;
 
 	/* BOs moved, but not yet updated in the PT */
 	struct list_head	moved;
@@ -135,7 +138,6 @@ struct amdgpu_vm {
 	/* contains the page directory */
 	struct amdgpu_vm_pt     root;
 	struct dma_fence	*last_dir_update;
-	uint64_t		last_eviction_counter;
 
 	/* protecting freed */
 	spinlock_t		freed_lock;
@@ -225,7 +227,7 @@ void amdgpu_vm_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm);
 void amdgpu_vm_get_pd_bo(struct amdgpu_vm *vm,
 			 struct list_head *validated,
 			 struct amdgpu_bo_list_entry *entry);
-bool amdgpu_vm_ready(struct amdgpu_device *adev, struct amdgpu_vm *vm);
+bool amdgpu_vm_ready(struct amdgpu_vm *vm);
 int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 			      int (*callback)(void *p, struct amdgpu_bo *bo),
 			      void *param);
@@ -250,7 +252,7 @@ int amdgpu_vm_bo_update(struct amdgpu_device *adev,
 			struct amdgpu_bo_va *bo_va,
 			bool clear);
 void amdgpu_vm_bo_invalidate(struct amdgpu_device *adev,
-			     struct amdgpu_bo *bo);
+			     struct amdgpu_bo *bo, bool evicted);
 struct amdgpu_bo_va *amdgpu_vm_bo_find(struct amdgpu_vm *vm,
 				       struct amdgpu_bo *bo);
 struct amdgpu_bo_va *amdgpu_vm_bo_add(struct amdgpu_device *adev,

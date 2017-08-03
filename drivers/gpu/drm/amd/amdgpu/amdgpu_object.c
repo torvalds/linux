@@ -929,7 +929,7 @@ void amdgpu_bo_move_notify(struct ttm_buffer_object *bo,
 		return;
 
 	abo = container_of(bo, struct amdgpu_bo, tbo);
-	amdgpu_vm_bo_invalidate(adev, abo);
+	amdgpu_vm_bo_invalidate(adev, abo, evict);
 
 	amdgpu_bo_kunmap(abo);
 

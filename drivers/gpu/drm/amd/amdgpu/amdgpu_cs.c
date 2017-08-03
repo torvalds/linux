@@ -636,9 +636,6 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 
 	amdgpu_cs_report_moved_bytes(p->adev, p->bytes_moved,
 				     p->bytes_moved_vis);
-	fpriv->vm.last_eviction_counter =
-		atomic64_read(&p->adev->num_evictions);
-
 	if (p->bo_list) {
 		struct amdgpu_bo *gds = p->bo_list->gds_obj;
 		struct amdgpu_bo *gws = p->bo_list->gws_obj;
@@ -835,7 +832,7 @@ static int amdgpu_bo_vm_update_pte(struct amdgpu_cs_parser *p)
 			if (!bo)
 				continue;
 
-			amdgpu_vm_bo_invalidate(adev, bo);
+			amdgpu_vm_bo_invalidate(adev, bo, false);
 		}
 	}
 
@@ -860,7 +857,7 @@ static int amdgpu_cs_ib_vm_chunk(struct amdgpu_device *adev,
 	}
 
 	if (p->job->vm) {
-		p->job->vm_pd_addr = amdgpu_bo_gpu_offset(vm->root.bo);
+		p->job->vm_pd_addr = amdgpu_bo_gpu_offset(vm->root.base.bo);
 
 		r = amdgpu_bo_vm_update_pte(p);
 		if (r)
