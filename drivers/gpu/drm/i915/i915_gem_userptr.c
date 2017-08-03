@@ -399,64 +399,42 @@ struct get_pages_work {
 	struct task_struct *task;
 };
 
-#if IS_ENABLED(CONFIG_SWIOTLB)
-#define swiotlb_active() swiotlb_nr_tbl()
-#else
-#define swiotlb_active() 0
-#endif
-
-static int
-st_set_pages(struct sg_table **st, struct page **pvec, int num_pages)
-{
-	struct scatterlist *sg;
-	int ret, n;
-
-	*st = kmalloc(sizeof(**st), GFP_KERNEL);
-	if (*st == NULL)
-		return -ENOMEM;
-
-	if (swiotlb_active()) {
-		ret = sg_alloc_table(*st, num_pages, GFP_KERNEL);
-		if (ret)
-			goto err;
-
-		for_each_sg((*st)->sgl, sg, num_pages, n)
-			sg_set_page(sg, pvec[n], PAGE_SIZE, 0);
-	} else {
-		ret = sg_alloc_table_from_pages(*st, pvec, num_pages,
-						0, num_pages << PAGE_SHIFT,
-						GFP_KERNEL);
-		if (ret)
-			goto err;
-	}
-
-	return 0;
-
-err:
-	kfree(*st);
-	*st = NULL;
-	return ret;
-}
-
 static struct sg_table *
-__i915_gem_userptr_set_pages(struct drm_i915_gem_object *obj,
-			     struct page **pvec, int num_pages)
+__i915_gem_userptr_alloc_pages(struct drm_i915_gem_object *obj,
+			       struct page **pvec, int num_pages)
 {
-	struct sg_table *pages;
+	unsigned int max_segment = i915_sg_segment_size();
+	struct sg_table *st;
 	int ret;
 
-	ret = st_set_pages(&pages, pvec, num_pages);
-	if (ret)
-		return ERR_PTR(ret);
+	st = kmalloc(sizeof(*st), GFP_KERNEL);
+	if (!st)
+		return ERR_PTR(-ENOMEM);
 
-	ret = i915_gem_gtt_prepare_pages(obj, pages);
+alloc_table:
+	ret = __sg_alloc_table_from_pages(st, pvec, num_pages,
+					  0, num_pages << PAGE_SHIFT,
+					  max_segment,
+					  GFP_KERNEL);
 	if (ret) {
-		sg_free_table(pages);
-		kfree(pages);
+		kfree(st);
 		return ERR_PTR(ret);
 	}
 
-	return pages;
+	ret = i915_gem_gtt_prepare_pages(obj, st);
+	if (ret) {
+		sg_free_table(st);
+
+		if (max_segment > PAGE_SIZE) {
+			max_segment = PAGE_SIZE;
+			goto alloc_table;
+		}
+
+		kfree(st);
+		return ERR_PTR(ret);
+	}
+
+	return st;
 }
 
 static int
@@ -540,7 +518,8 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 		struct sg_table *pages = ERR_PTR(ret);
 
 		if (pinned == npages) {
-			pages = __i915_gem_userptr_set_pages(obj, pvec, npages);
+			pages = __i915_gem_userptr_alloc_pages(obj, pvec,
+							       npages);
 			if (!IS_ERR(pages)) {
 				__i915_gem_object_set_pages(obj, pages);
 				pinned = 0;
@@ -661,7 +640,7 @@ i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 		pages = __i915_gem_userptr_get_pages_schedule(obj);
 		active = pages == ERR_PTR(-EAGAIN);
 	} else {
-		pages = __i915_gem_userptr_set_pages(obj, pvec, num_pages);
+		pages = __i915_gem_userptr_alloc_pages(obj, pvec, num_pages);
 		active = !IS_ERR(pages);
 	}
 	if (active)
