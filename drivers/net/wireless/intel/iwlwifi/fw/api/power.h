@@ -18,11 +18,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
@@ -65,8 +60,8 @@
  *
  *****************************************************************************/
 
-#ifndef __fw_api_power_h__
-#define __fw_api_power_h__
+#ifndef __iwl_fw_api_power_h__
+#define __iwl_fw_api_power_h__
 
 /* Power Management Commands, Responses, Notifications */
 
@@ -224,7 +219,7 @@ struct iwl_device_power_cmd {
 /**
  * struct iwl_mac_power_cmd - New power command containing uAPSD support
  * MAC_PM_POWER_TABLE = 0xA9 (command, has simple generic response)
- * @id_and_color:	MAC contex identifier, &enum iwl_mvm_id_and_color
+ * @id_and_color:	MAC contex identifier, &enum iwl_ctxt_id_and_color
  * @flags:		Power table command flags from POWER_FLAGS_*
  * @keep_alive_seconds:	Keep alive period in seconds. Default - 25 sec.
  *			Minimum allowed:- 3 * DTIM. Keep alive period must be
@@ -528,4 +523,4 @@ struct iwl_beacon_filter_cmd {
 
 #define IWL_BF_CMD_CONFIG_DEFAULTS IWL_BF_CMD_CONFIG(_DEFAULT)
 #define IWL_BF_CMD_CONFIG_D0I3 IWL_BF_CMD_CONFIG(_D0I3)
-#endif
+#endif /* __iwl_fw_api_power_h__ */

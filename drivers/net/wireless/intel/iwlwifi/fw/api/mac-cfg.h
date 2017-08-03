@@ -18,11 +18,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
@@ -65,35 +60,93 @@
  *
  *****************************************************************************/
 
-#ifndef __fw_api_h__
-#define __fw_api_h__
+#ifndef __iwl_fw_api_mac_cfg_h__
+#define __iwl_fw_api_mac_cfg_h__
 
-#include "fw/api/tdls.h"
-#include "fw/api/mac-cfg.h"
-#include "fw/api/offload.h"
-#include "fw/api/context.h"
-#include "fw/api/time-event.h"
-#include "fw/api/datapath.h"
-#include "fw/api/phy.h"
-#include "fw/api/config.h"
-#include "fw/api/alive.h"
-#include "fw/api/binding.h"
-#include "fw/api/cmdhdr.h"
-#include "fw/api/coex.h"
-#include "fw/api/commands.h"
-#include "fw/api/d3.h"
-#include "fw/api/filter.h"
-#include "fw/api/mac.h"
-#include "fw/api/nvm-reg.h"
-#include "fw/api/phy-ctxt.h"
-#include "fw/api/power.h"
-#include "fw/api/rs.h"
-#include "fw/api/rx.h"
-#include "fw/api/scan.h"
-#include "fw/api/sf.h"
-#include "fw/api/sta.h"
-#include "fw/api/stats.h"
-#include "fw/api/tof.h"
-#include "fw/api/tx.h"
+/**
+ * enum iwl_mac_conf_subcmd_ids - mac configuration command IDs
+ */
+enum iwl_mac_conf_subcmd_ids {
+	/**
+	 * @LINK_QUALITY_MEASUREMENT_CMD: &struct iwl_link_qual_msrmnt_cmd
+	 */
+	LINK_QUALITY_MEASUREMENT_CMD = 0x1,
 
-#endif /* __fw_api_h__ */
+	/**
+	 * @LINK_QUALITY_MEASUREMENT_COMPLETE_NOTIF:
+	 * &struct iwl_link_qual_msrmnt_notif
+	 */
+	LINK_QUALITY_MEASUREMENT_COMPLETE_NOTIF = 0xFE,
+
+	/**
+	 * @CHANNEL_SWITCH_NOA_NOTIF: &struct iwl_channel_switch_noa_notif
+	 */
+	CHANNEL_SWITCH_NOA_NOTIF = 0xFF,
+};
+
+#define LQM_NUMBER_OF_STATIONS_IN_REPORT 16
+
+enum iwl_lqm_cmd_operatrions {
+	LQM_CMD_OPERATION_START_MEASUREMENT = 0x01,
+	LQM_CMD_OPERATION_STOP_MEASUREMENT = 0x02,
+};
+
+enum iwl_lqm_status {
+	LQM_STATUS_SUCCESS = 0,
+	LQM_STATUS_TIMEOUT = 1,
+	LQM_STATUS_ABORT = 2,
+};
+
+/**
+ * struct iwl_link_qual_msrmnt_cmd - Link Quality Measurement command
+ * @cmd_operation: command operation to be performed (start or stop)
+ *	as defined above.
+ * @mac_id: MAC ID the measurement applies to.
+ * @measurement_time: time of the total measurement to be performed, in uSec.
+ * @timeout: maximum time allowed until a response is sent, in uSec.
+ */
+struct iwl_link_qual_msrmnt_cmd {
+	__le32 cmd_operation;
+	__le32 mac_id;
+	__le32 measurement_time;
+	__le32 timeout;
+} __packed /* LQM_CMD_API_S_VER_1 */;
+
+/**
+ * struct iwl_link_qual_msrmnt_notif - Link Quality Measurement notification
+ *
+ * @frequent_stations_air_time: an array containing the total air time
+ *	(in uSec) used by the most frequently transmitting stations.
+ * @number_of_stations: the number of uniqe stations included in the array
+ *	(a number between 0 to 16)
+ * @total_air_time_other_stations: the total air time (uSec) used by all the
+ *	stations which are not included in the above report.
+ * @time_in_measurement_window: the total time in uSec in which a measurement
+ *	took place.
+ * @tx_frame_dropped: the number of TX frames dropped due to retry limit during
+ *	measurement
+ * @mac_id: MAC ID the measurement applies to.
+ * @status: return status. may be one of the LQM_STATUS_* defined above.
+ * @reserved: reserved.
+ */
+struct iwl_link_qual_msrmnt_notif {
+	__le32 frequent_stations_air_time[LQM_NUMBER_OF_STATIONS_IN_REPORT];
+	__le32 number_of_stations;
+	__le32 total_air_time_other_stations;
+	__le32 time_in_measurement_window;
+	__le32 tx_frame_dropped;
+	__le32 mac_id;
+	__le32 status;
+	u8 reserved[12];
+} __packed; /* LQM_MEASUREMENT_COMPLETE_NTF_API_S_VER1 */
+
+/**
+ * struct iwl_channel_switch_noa_notif - Channel switch NOA notification
+ *
+ * @id_and_color: ID and color of the MAC
+ */
+struct iwl_channel_switch_noa_notif {
+	__le32 id_and_color;
+} __packed; /* CHANNEL_SWITCH_START_NTFY_API_S_VER_1 */
+
+#endif /* __iwl_fw_api_mac_cfg_h__ */

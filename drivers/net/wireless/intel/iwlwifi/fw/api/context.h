@@ -5,7 +5,9 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2015 Intel Deutschland GmbH
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -16,21 +18,18 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
  * Contact Information:
- * Intel Linux Wireless <linuxwifi@intel.com>
+ *  Intel Linux Wireless <linuxwifi@intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  * BSD LICENSE
  *
- * Copyright(c) 2015 Intel Deutschland GmbH
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,35 +59,36 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-#ifndef __tof_h__
-#define __tof_h__
 
-#include "fw/api/tof.h"
+#ifndef __iwl_fw_api_context_h__
+#define __iwl_fw_api_context_h__
 
-struct iwl_mvm_tof_data {
-	struct iwl_tof_config_cmd tof_cfg;
-	struct iwl_tof_range_req_cmd range_req;
-	struct iwl_tof_range_req_ext_cmd range_req_ext;
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	struct iwl_tof_responder_config_cmd responder_cfg;
-#endif
-	struct iwl_tof_range_rsp_ntfy range_resp;
-	u8 last_abort_id;
-	u16 active_range_request;
+/**
+ * enum iwl_ctxt_id_and_color - ID and color fields in context dword
+ * @FW_CTXT_ID_POS: position of the ID
+ * @FW_CTXT_ID_MSK: mask of the ID
+ * @FW_CTXT_COLOR_POS: position of the color
+ * @FW_CTXT_COLOR_MSK: mask of the color
+ * @FW_CTXT_INVALID: value used to indicate unused/invalid
+ */
+enum iwl_ctxt_id_and_color {
+	FW_CTXT_ID_POS		= 0,
+	FW_CTXT_ID_MSK		= 0xff << FW_CTXT_ID_POS,
+	FW_CTXT_COLOR_POS	= 8,
+	FW_CTXT_COLOR_MSK	= 0xff << FW_CTXT_COLOR_POS,
+	FW_CTXT_INVALID		= 0xffffffff,
 };
 
-void iwl_mvm_tof_init(struct iwl_mvm *mvm);
-void iwl_mvm_tof_clean(struct iwl_mvm *mvm);
-int iwl_mvm_tof_config_cmd(struct iwl_mvm *mvm);
-int iwl_mvm_tof_range_abort_cmd(struct iwl_mvm *mvm, u8 id);
-int iwl_mvm_tof_range_request_cmd(struct iwl_mvm *mvm,
-				  struct ieee80211_vif *vif);
-void iwl_mvm_tof_resp_handler(struct iwl_mvm *mvm,
-			      struct iwl_rx_cmd_buffer *rxb);
-int iwl_mvm_tof_range_request_ext_cmd(struct iwl_mvm *mvm,
-				      struct ieee80211_vif *vif);
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-int iwl_mvm_tof_responder_cmd(struct iwl_mvm *mvm,
-			      struct ieee80211_vif *vif);
-#endif
-#endif /* __tof_h__ */
+#define FW_CMD_ID_AND_COLOR(_id, _color) (((_id) << FW_CTXT_ID_POS) |\
+					  ((_color) << FW_CTXT_COLOR_POS))
+
+/* Possible actions on PHYs, MACs and Bindings */
+enum iwl_ctxt_action {
+	FW_CTXT_ACTION_STUB = 0,
+	FW_CTXT_ACTION_ADD,
+	FW_CTXT_ACTION_MODIFY,
+	FW_CTXT_ACTION_REMOVE,
+	FW_CTXT_ACTION_NUM
+}; /* COMMON_CONTEXT_ACTION_API_E_VER_1 */
+
+#endif /* __iwl_fw_api_context_h__ */

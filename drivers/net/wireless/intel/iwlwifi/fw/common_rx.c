@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2015 Intel Deutschland GmbH
+ * Copyright(c) 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -16,21 +16,16 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
  * Contact Information:
- * Intel Linux Wireless <linuxwifi@intel.com>
+ *  Intel Linux Wireless <linuxwifi@intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  * BSD LICENSE
  *
- * Copyright(c) 2015 Intel Deutschland GmbH
+ * Copyright(c) 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,35 +55,34 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-#ifndef __tof_h__
-#define __tof_h__
+#include "iwl-drv.h"
+#include "runtime.h"
+#include "fw/api/commands.h"
+#include "fw/api/alive.h"
 
-#include "fw/api/tof.h"
+static void iwl_fwrt_fseq_ver_mismatch(struct iwl_fw_runtime *fwrt,
+				       struct iwl_rx_cmd_buffer *rxb)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_fseq_ver_mismatch_ntf *fseq = (void *)pkt->data;
 
-struct iwl_mvm_tof_data {
-	struct iwl_tof_config_cmd tof_cfg;
-	struct iwl_tof_range_req_cmd range_req;
-	struct iwl_tof_range_req_ext_cmd range_req_ext;
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	struct iwl_tof_responder_config_cmd responder_cfg;
-#endif
-	struct iwl_tof_range_rsp_ntfy range_resp;
-	u8 last_abort_id;
-	u16 active_range_request;
-};
+	IWL_ERR(fwrt, "FSEQ version mismatch (aux: %d, wifi: %d)\n",
+		__le32_to_cpu(fseq->aux_read_fseq_ver),
+		__le32_to_cpu(fseq->wifi_fseq_ver));
+}
 
-void iwl_mvm_tof_init(struct iwl_mvm *mvm);
-void iwl_mvm_tof_clean(struct iwl_mvm *mvm);
-int iwl_mvm_tof_config_cmd(struct iwl_mvm *mvm);
-int iwl_mvm_tof_range_abort_cmd(struct iwl_mvm *mvm, u8 id);
-int iwl_mvm_tof_range_request_cmd(struct iwl_mvm *mvm,
-				  struct ieee80211_vif *vif);
-void iwl_mvm_tof_resp_handler(struct iwl_mvm *mvm,
-			      struct iwl_rx_cmd_buffer *rxb);
-int iwl_mvm_tof_range_request_ext_cmd(struct iwl_mvm *mvm,
-				      struct ieee80211_vif *vif);
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-int iwl_mvm_tof_responder_cmd(struct iwl_mvm *mvm,
-			      struct ieee80211_vif *vif);
-#endif
-#endif /* __tof_h__ */
+void iwl_fwrt_handle_notification(struct iwl_fw_runtime *fwrt,
+				  struct iwl_rx_cmd_buffer *rxb)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	u32 cmd = WIDE_ID(pkt->hdr.group_id, pkt->hdr.cmd);
+
+	switch (cmd) {
+	case WIDE_ID(SYSTEM_GROUP, FSEQ_VER_MISMATCH_NTF):
+		iwl_fwrt_fseq_ver_mismatch(fwrt, rxb);
+		break;
+	default:
+		break;
+	}
+}
+IWL_EXPORT_SYMBOL(iwl_fwrt_handle_notification);

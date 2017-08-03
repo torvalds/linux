@@ -5,7 +5,9 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2015 Intel Deutschland GmbH
+ * Copyright(c) 2007 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -16,21 +18,18 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
  * Contact Information:
- * Intel Linux Wireless <linuxwifi@intel.com>
+ *  Intel Linux Wireless <linuxwifi@intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  * BSD LICENSE
  *
- * Copyright(c) 2015 Intel Deutschland GmbH
+ * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,35 +59,50 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-#ifndef __tof_h__
-#define __tof_h__
+#ifndef __iwl_fw_api_paging_h__
+#define __iwl_fw_api_paging_h__
 
-#include "fw/api/tof.h"
+#define NUM_OF_FW_PAGING_BLOCKS	33 /* 32 for data and 1 block for CSS */
 
-struct iwl_mvm_tof_data {
-	struct iwl_tof_config_cmd tof_cfg;
-	struct iwl_tof_range_req_cmd range_req;
-	struct iwl_tof_range_req_ext_cmd range_req_ext;
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	struct iwl_tof_responder_config_cmd responder_cfg;
-#endif
-	struct iwl_tof_range_rsp_ntfy range_resp;
-	u8 last_abort_id;
-	u16 active_range_request;
+/**
+ * struct iwl_fw_paging_cmd - paging layout
+ *
+ * Send to FW the paging layout in the driver.
+ *
+ * @flags: various flags for the command
+ * @block_size: the block size in powers of 2
+ * @block_num: number of blocks specified in the command.
+ * @device_phy_addr: virtual addresses from device side
+ */
+struct iwl_fw_paging_cmd {
+	__le32 flags;
+	__le32 block_size;
+	__le32 block_num;
+	__le32 device_phy_addr[NUM_OF_FW_PAGING_BLOCKS];
+} __packed; /* FW_PAGING_BLOCK_CMD_API_S_VER_1 */
+
+/**
+ * enum iwl_fw_item_id - FW item IDs
+ *
+ * @IWL_FW_ITEM_ID_PAGING: Address of the pages that the FW will upload
+ *	download
+ */
+enum iwl_fw_item_id {
+	IWL_FW_ITEM_ID_PAGING = 3,
 };
 
-void iwl_mvm_tof_init(struct iwl_mvm *mvm);
-void iwl_mvm_tof_clean(struct iwl_mvm *mvm);
-int iwl_mvm_tof_config_cmd(struct iwl_mvm *mvm);
-int iwl_mvm_tof_range_abort_cmd(struct iwl_mvm *mvm, u8 id);
-int iwl_mvm_tof_range_request_cmd(struct iwl_mvm *mvm,
-				  struct ieee80211_vif *vif);
-void iwl_mvm_tof_resp_handler(struct iwl_mvm *mvm,
-			      struct iwl_rx_cmd_buffer *rxb);
-int iwl_mvm_tof_range_request_ext_cmd(struct iwl_mvm *mvm,
-				      struct ieee80211_vif *vif);
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-int iwl_mvm_tof_responder_cmd(struct iwl_mvm *mvm,
-			      struct ieee80211_vif *vif);
-#endif
-#endif /* __tof_h__ */
+/**
+ * struct iwl_fw_get_item_cmd - get an item from the fw
+ * @item_id: ID of item to obtain, see &enum iwl_fw_item_id
+ */
+struct iwl_fw_get_item_cmd {
+	__le32 item_id;
+} __packed; /* FW_GET_ITEM_CMD_API_S_VER_1 */
+
+struct iwl_fw_get_item_resp {
+	__le32 item_id;
+	__le32 item_byte_cnt;
+	__le32 item_val;
+} __packed; /* FW_GET_ITEM_RSP_S_VER_1 */
+
+#endif /* __iwl_fw_api_paging_h__ */

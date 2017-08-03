@@ -1437,22 +1437,6 @@ struct agg_tx_status {
 	__le16 sequence;
 } __packed;
 
-/*
- * definitions for initial rate index field
- * bits [3:0] initial rate index
- * bits [6:4] rate table color, used for the initial rate
- * bit-7 invalid rate indication
- *   i.e. rate was not chosen from rate table
- *   or rate table color was changed during frame retries
- * refer tlc rate info
- */
-
-#define IWL50_TX_RES_INIT_RATE_INDEX_POS	0
-#define IWL50_TX_RES_INIT_RATE_INDEX_MSK	0x0f
-#define IWL50_TX_RES_RATE_TABLE_COLOR_POS	4
-#define IWL50_TX_RES_RATE_TABLE_COLOR_MSK	0x70
-#define IWL50_TX_RES_INV_RATE_INDEX_MSK	0x80
-
 /* refer to ra_tid */
 #define IWLAGN_TX_RES_TID_POS	0
 #define IWLAGN_TX_RES_TID_MSK	0x0f

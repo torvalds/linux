@@ -18,11 +18,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
@@ -65,8 +60,8 @@
  *
  *****************************************************************************/
 
-#ifndef __fw_api_scan_h__
-#define __fw_api_scan_h__
+#ifndef __iwl_fw_api_scan_h__
+#define __iwl_fw_api_scan_h__
 
 /* Scan Commands, Responses, Notifications */
 
@@ -789,4 +784,4 @@ struct iwl_umac_scan_iter_complete_notif {
 	struct iwl_scan_results_notif results[];
 } __packed; /* SCAN_ITER_COMPLETE_NTF_UMAC_API_S_VER_2 */
 
-#endif
+#endif /* __iwl_fw_api_scan_h__ */

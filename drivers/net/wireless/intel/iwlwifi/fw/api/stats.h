@@ -18,11 +18,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
@@ -64,9 +59,9 @@
  *
  *****************************************************************************/
 
-#ifndef __fw_api_stats_h__
-#define __fw_api_stats_h__
-#include "fw-api-mac.h"
+#ifndef __iwl_fw_api_stats_h__
+#define __iwl_fw_api_stats_h__
+#include "mac.h"
 
 struct mvm_statistics_dbg {
 	__le32 burst_check;
@@ -476,4 +471,4 @@ struct iwl_statistics_cmd {
 	__le32 flags;
 } __packed; /* STATISTICS_CMD_API_S_VER_1 */
 
-#endif /* __fw_api_stats_h__ */
+#endif /* __iwl_fw_api_stats_h__ */

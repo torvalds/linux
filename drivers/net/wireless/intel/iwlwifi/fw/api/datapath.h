@@ -5,7 +5,9 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2015 Intel Deutschland GmbH
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -16,21 +18,18 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
  * Contact Information:
- * Intel Linux Wireless <linuxwifi@intel.com>
+ *  Intel Linux Wireless <linuxwifi@intel.com>
  * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
  *
  * BSD LICENSE
  *
- * Copyright(c) 2015 Intel Deutschland GmbH
+ * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
+ * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,35 +59,69 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-#ifndef __tof_h__
-#define __tof_h__
 
-#include "fw/api/tof.h"
+#ifndef __iwl_fw_api_datapath_h__
+#define __iwl_fw_api_datapath_h__
 
-struct iwl_mvm_tof_data {
-	struct iwl_tof_config_cmd tof_cfg;
-	struct iwl_tof_range_req_cmd range_req;
-	struct iwl_tof_range_req_ext_cmd range_req_ext;
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-	struct iwl_tof_responder_config_cmd responder_cfg;
-#endif
-	struct iwl_tof_range_rsp_ntfy range_resp;
-	u8 last_abort_id;
-	u16 active_range_request;
+/**
+ * enum iwl_data_path_subcmd_ids - data path group commands
+ */
+enum iwl_data_path_subcmd_ids {
+	/**
+	 * @DQA_ENABLE_CMD: &struct iwl_dqa_enable_cmd
+	 */
+	DQA_ENABLE_CMD = 0x0,
+
+	/**
+	 * @UPDATE_MU_GROUPS_CMD: &struct iwl_mu_group_mgmt_cmd
+	 */
+	UPDATE_MU_GROUPS_CMD = 0x1,
+
+	/**
+	 * @TRIGGER_RX_QUEUES_NOTIF_CMD: &struct iwl_rxq_sync_cmd
+	 */
+	TRIGGER_RX_QUEUES_NOTIF_CMD = 0x2,
+
+	/**
+	 * @STA_PM_NOTIF: &struct iwl_mvm_pm_state_notification
+	 */
+	STA_PM_NOTIF = 0xFD,
+
+	/**
+	 * @MU_GROUP_MGMT_NOTIF: &struct iwl_mu_group_mgmt_notif
+	 */
+	MU_GROUP_MGMT_NOTIF = 0xFE,
+
+	/**
+	 * @RX_QUEUES_NOTIFICATION: &struct iwl_rxq_sync_notification
+	 */
+	RX_QUEUES_NOTIFICATION = 0xFF,
 };
 
-void iwl_mvm_tof_init(struct iwl_mvm *mvm);
-void iwl_mvm_tof_clean(struct iwl_mvm *mvm);
-int iwl_mvm_tof_config_cmd(struct iwl_mvm *mvm);
-int iwl_mvm_tof_range_abort_cmd(struct iwl_mvm *mvm, u8 id);
-int iwl_mvm_tof_range_request_cmd(struct iwl_mvm *mvm,
-				  struct ieee80211_vif *vif);
-void iwl_mvm_tof_resp_handler(struct iwl_mvm *mvm,
-			      struct iwl_rx_cmd_buffer *rxb);
-int iwl_mvm_tof_range_request_ext_cmd(struct iwl_mvm *mvm,
-				      struct ieee80211_vif *vif);
-#ifdef CONFIG_IWLWIFI_DEBUGFS
-int iwl_mvm_tof_responder_cmd(struct iwl_mvm *mvm,
-			      struct ieee80211_vif *vif);
-#endif
-#endif /* __tof_h__ */
+/**
+ * struct iwl_mu_group_mgmt_cmd - VHT MU-MIMO group configuration
+ *
+ * @reserved: reserved
+ * @membership_status: a bitmap of MU groups
+ * @user_position:the position of station in a group. If the station is in the
+ *	group then bits (group * 2) is the position -1
+ */
+struct iwl_mu_group_mgmt_cmd {
+	__le32 reserved;
+	__le32 membership_status[2];
+	__le32 user_position[4];
+} __packed; /* MU_GROUP_ID_MNG_TABLE_API_S_VER_1 */
+
+/**
+ * struct iwl_mu_group_mgmt_notif - VHT MU-MIMO group id notification
+ *
+ * @membership_status: a bitmap of MU groups
+ * @user_position: the position of station in a group. If the station is in the
+ *	group then bits (group * 2) is the position -1
+ */
+struct iwl_mu_group_mgmt_notif {
+	__le32 membership_status[2];
+	__le32 user_position[4];
+} __packed; /* MU_GROUP_MNG_NTFY_API_S_VER_1 */
+
+#endif /* __iwl_fw_api_datapath_h__ */

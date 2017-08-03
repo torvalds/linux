@@ -18,11 +18,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
@@ -64,36 +59,94 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-
-#ifndef __fw_api_h__
-#define __fw_api_h__
-
-#include "fw/api/tdls.h"
-#include "fw/api/mac-cfg.h"
-#include "fw/api/offload.h"
-#include "fw/api/context.h"
-#include "fw/api/time-event.h"
-#include "fw/api/datapath.h"
-#include "fw/api/phy.h"
-#include "fw/api/config.h"
-#include "fw/api/alive.h"
-#include "fw/api/binding.h"
-#include "fw/api/cmdhdr.h"
-#include "fw/api/coex.h"
+#include "iwl-drv.h"
+#include "runtime.h"
 #include "fw/api/commands.h"
-#include "fw/api/d3.h"
-#include "fw/api/filter.h"
-#include "fw/api/mac.h"
-#include "fw/api/nvm-reg.h"
-#include "fw/api/phy-ctxt.h"
-#include "fw/api/power.h"
-#include "fw/api/rs.h"
-#include "fw/api/rx.h"
-#include "fw/api/scan.h"
-#include "fw/api/sf.h"
-#include "fw/api/sta.h"
-#include "fw/api/stats.h"
-#include "fw/api/tof.h"
-#include "fw/api/tx.h"
 
-#endif /* __fw_api_h__ */
+static void iwl_parse_shared_mem_a000(struct iwl_fw_runtime *fwrt,
+				      struct iwl_rx_packet *pkt)
+{
+	struct iwl_shared_mem_cfg *mem_cfg = (void *)pkt->data;
+	int i, lmac;
+	int lmac_num = le32_to_cpu(mem_cfg->lmac_num);
+
+	if (WARN_ON(lmac_num > ARRAY_SIZE(mem_cfg->lmac_smem)))
+		return;
+
+	fwrt->smem_cfg.num_lmacs = lmac_num;
+	fwrt->smem_cfg.num_txfifo_entries =
+		ARRAY_SIZE(mem_cfg->lmac_smem[0].txfifo_size);
+	fwrt->smem_cfg.rxfifo2_size = le32_to_cpu(mem_cfg->rxfifo2_size);
+
+	for (lmac = 0; lmac < lmac_num; lmac++) {
+		struct iwl_shared_mem_lmac_cfg *lmac_cfg =
+			&mem_cfg->lmac_smem[lmac];
+
+		for (i = 0; i < ARRAY_SIZE(lmac_cfg->txfifo_size); i++)
+			fwrt->smem_cfg.lmac[lmac].txfifo_size[i] =
+				le32_to_cpu(lmac_cfg->txfifo_size[i]);
+		fwrt->smem_cfg.lmac[lmac].rxfifo1_size =
+			le32_to_cpu(lmac_cfg->rxfifo1_size);
+	}
+}
+
+static void iwl_parse_shared_mem(struct iwl_fw_runtime *fwrt,
+				 struct iwl_rx_packet *pkt)
+{
+	struct iwl_shared_mem_cfg_v2 *mem_cfg = (void *)pkt->data;
+	int i;
+
+	fwrt->smem_cfg.num_lmacs = 1;
+
+	fwrt->smem_cfg.num_txfifo_entries = ARRAY_SIZE(mem_cfg->txfifo_size);
+	for (i = 0; i < ARRAY_SIZE(mem_cfg->txfifo_size); i++)
+		fwrt->smem_cfg.lmac[0].txfifo_size[i] =
+			le32_to_cpu(mem_cfg->txfifo_size[i]);
+
+	fwrt->smem_cfg.lmac[0].rxfifo1_size =
+		le32_to_cpu(mem_cfg->rxfifo_size[0]);
+	fwrt->smem_cfg.rxfifo2_size = le32_to_cpu(mem_cfg->rxfifo_size[1]);
+
+	/* new API has more data, from rxfifo_addr field and on */
+	if (fw_has_capa(&fwrt->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG)) {
+		BUILD_BUG_ON(sizeof(fwrt->smem_cfg.internal_txfifo_size) !=
+			     sizeof(mem_cfg->internal_txfifo_size));
+
+		for (i = 0;
+		     i < ARRAY_SIZE(fwrt->smem_cfg.internal_txfifo_size);
+		     i++)
+			fwrt->smem_cfg.internal_txfifo_size[i] =
+				le32_to_cpu(mem_cfg->internal_txfifo_size[i]);
+	}
+}
+
+void iwl_get_shared_mem_conf(struct iwl_fw_runtime *fwrt)
+{
+	struct iwl_host_cmd cmd = {
+		.flags = CMD_WANT_SKB,
+		.data = { NULL, },
+		.len = { 0, },
+	};
+	struct iwl_rx_packet *pkt;
+
+	if (fw_has_capa(&fwrt->fw->ucode_capa,
+			IWL_UCODE_TLV_CAPA_EXTEND_SHARED_MEM_CFG))
+		cmd.id = iwl_cmd_id(SHARED_MEM_CFG_CMD, SYSTEM_GROUP, 0);
+	else
+		cmd.id = SHARED_MEM_CFG;
+
+	if (WARN_ON(iwl_trans_send_cmd(fwrt->trans, &cmd)))
+		return;
+
+	pkt = cmd.resp_pkt;
+	if (fwrt->trans->cfg->device_family == IWL_DEVICE_FAMILY_A000)
+		iwl_parse_shared_mem_a000(fwrt, pkt);
+	else
+		iwl_parse_shared_mem(fwrt, pkt);
+
+	IWL_DEBUG_INFO(fwrt, "SHARED MEM CFG: got memory offsets/sizes\n");
+
+	iwl_free_resp(&cmd);
+}
+IWL_EXPORT_SYMBOL(iwl_get_shared_mem_conf);
