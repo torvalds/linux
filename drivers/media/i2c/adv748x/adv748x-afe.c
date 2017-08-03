@@ -267,6 +267,7 @@ static int adv748x_afe_g_input_status(struct v4l2_subdev *sd, u32 *status)
 	ret = adv748x_afe_status(afe, status, NULL);
 
 	mutex_unlock(&state->mutex);
+
 	return ret;
 }
 
