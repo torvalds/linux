@@ -137,7 +137,7 @@ static void batadv_v_ogm_send(struct work_struct *work)
 	struct batadv_priv *bat_priv;
 	struct batadv_ogm2_packet *ogm_packet;
 	struct sk_buff *skb, *skb_tmp;
-	unsigned char *ogm_buff, *pkt_buff;
+	unsigned char *ogm_buff;
 	int ogm_buff_len;
 	u16 tvlv_len = 0;
 	int ret;
@@ -166,7 +166,7 @@ static void batadv_v_ogm_send(struct work_struct *work)
 		goto reschedule;
 
 	skb_reserve(skb, ETH_HLEN);
-	pkt_buff = skb_put_data(skb, ogm_buff, ogm_buff_len);
+	skb_put_data(skb, ogm_buff, ogm_buff_len);
 
 	ogm_packet = (struct batadv_ogm2_packet *)skb->data;
 	ogm_packet->seqno = htonl(atomic_read(&bat_priv->bat_v.ogm_seqno));
@@ -200,7 +200,7 @@ static void batadv_v_ogm_send(struct work_struct *work)
 				type = "unknown";
 			}
 
-			batadv_dbg(BATADV_DBG_BATMAN, bat_priv, "OGM2 from ourselve on %s surpressed: %s\n",
+			batadv_dbg(BATADV_DBG_BATMAN, bat_priv, "OGM2 from ourselves on %s suppressed: %s\n",
 				   hard_iface->net_dev->name, type);
 
 			batadv_hardif_put(hard_iface);
@@ -683,18 +683,18 @@ static void batadv_v_ogm_process(const struct sk_buff *skb, int ogm_offset,
 	ogm_throughput = ntohl(ogm_packet->throughput);
 
 	batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
-		   "Received OGM2 packet via NB: %pM, IF: %s [%pM] (from OG: %pM, seqno %u, troughput %u, TTL %u, V %u, tvlv_len %u)\n",
+		   "Received OGM2 packet via NB: %pM, IF: %s [%pM] (from OG: %pM, seqno %u, throughput %u, TTL %u, V %u, tvlv_len %u)\n",
 		   ethhdr->h_source, if_incoming->net_dev->name,
 		   if_incoming->net_dev->dev_addr, ogm_packet->orig,
 		   ntohl(ogm_packet->seqno), ogm_throughput, ogm_packet->ttl,
 		   ogm_packet->version, ntohs(ogm_packet->tvlv_len));
 
-	/* If the troughput metric is 0, immediately drop the packet. No need to
-	 * create orig_node / neigh_node for an unusable route.
+	/* If the throughput metric is 0, immediately drop the packet. No need
+	 * to create orig_node / neigh_node for an unusable route.
 	 */
 	if (ogm_throughput == 0) {
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,
-			   "Drop packet: originator packet with troughput metric of 0\n");
+			   "Drop packet: originator packet with throughput metric of 0\n");
 		return;
 	}
 
@@ -762,7 +762,7 @@ static void batadv_v_ogm_process(const struct sk_buff *skb, int ogm_offset,
 				type = "unknown";
 			}
 
-			batadv_dbg(BATADV_DBG_BATMAN, bat_priv, "OGM2 packet from %pM on %s surpressed: %s\n",
+			batadv_dbg(BATADV_DBG_BATMAN, bat_priv, "OGM2 packet from %pM on %s suppressed: %s\n",
 				   ogm_packet->orig, hard_iface->net_dev->name,
 				   type);
 
