@@ -187,6 +187,22 @@ static inline void ip6_rt_put(struct rt6_info *rt)
 	dst_release(&rt->dst);
 }
 
+void rt6_free_pcpu(struct rt6_info *non_pcpu_rt);
+
+static inline void rt6_hold(struct rt6_info *rt)
+{
+	atomic_inc(&rt->rt6i_ref);
+}
+
+static inline void rt6_release(struct rt6_info *rt)
+{
+	if (atomic_dec_and_test(&rt->rt6i_ref)) {
+		rt6_free_pcpu(rt);
+		dst_dev_put(&rt->dst);
+		dst_release(&rt->dst);
+	}
+}
+
 enum fib6_walk_state {
 #ifdef CONFIG_IPV6_SUBTREES
 	FWS_S,
