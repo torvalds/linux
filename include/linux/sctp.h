@@ -420,7 +420,7 @@ struct sctp_shutdownhdr {
 	__be32 cum_tsn_ack;
 };
 
-struct sctp_shutdown_chunk_t {
+struct sctp_shutdown_chunk {
 	struct sctp_chunkhdr chunk_hdr;
 	struct sctp_shutdownhdr shutdown_hdr;
 };
