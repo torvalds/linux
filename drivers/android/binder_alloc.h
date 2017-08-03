@@ -57,7 +57,7 @@ struct binder_buffer {
 	size_t data_size;
 	size_t offsets_size;
 	size_t extra_buffers_size;
-	uint8_t data[0];
+	void *data;
 };
 
 /**
