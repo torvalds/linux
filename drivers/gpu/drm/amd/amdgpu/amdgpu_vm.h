@@ -103,7 +103,6 @@ struct amdgpu_bo_list_entry;
 struct amdgpu_vm_pt {
 	struct amdgpu_bo	*bo;
 	uint64_t		addr;
-	bool			huge_page;
 
 	/* array of page tables, one for each directory entry */
 	struct amdgpu_vm_pt	*entries;

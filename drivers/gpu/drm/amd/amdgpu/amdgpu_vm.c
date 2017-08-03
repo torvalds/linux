@@ -331,7 +331,6 @@ static int amdgpu_vm_alloc_levels(struct amdgpu_device *adev,
 
 			entry->bo = pt;
 			entry->addr = 0;
-			entry->huge_page = false;
 		}
 
 		if (level < adev->vm_manager.num_level) {
@@ -1083,11 +1082,12 @@ static int amdgpu_vm_update_level(struct amdgpu_device *adev,
 
 		pt = amdgpu_bo_gpu_offset(bo);
 		pt = amdgpu_gart_get_vm_pde(adev, pt);
-		if (parent->entries[pt_idx].addr == pt ||
-		    parent->entries[pt_idx].huge_page)
+		/* Don't update huge pages here */
+		if ((parent->entries[pt_idx].addr & AMDGPU_PDE_PTE) ||
+		    parent->entries[pt_idx].addr == (pt | AMDGPU_PTE_VALID))
 			continue;
 
-		parent->entries[pt_idx].addr = pt;
+		parent->entries[pt_idx].addr = pt | AMDGPU_PTE_VALID;
 
 		pde = pd_addr + pt_idx * 8;
 		if (((last_pde + 8 * count) != pde) ||
@@ -1284,15 +1284,14 @@ static void amdgpu_vm_handle_huge_pages(struct amdgpu_pte_update_params *p,
 		dst = amdgpu_gart_get_vm_pde(p->adev, dst);
 		flags = AMDGPU_PTE_VALID;
 	} else {
+		/* Set the huge page flag to stop scanning at this PDE */
 		flags |= AMDGPU_PDE_PTE;
 	}
 
-	if (entry->addr == dst &&
-	    entry->huge_page == !!(flags & AMDGPU_PDE_PTE))
+	if (entry->addr == (dst | flags))
 		return;
 
-	entry->addr = dst;
-	entry->huge_page = !!(flags & AMDGPU_PDE_PTE);
+	entry->addr = (dst | flags);
 
 	if (use_cpu_update) {
 		pd_addr = (unsigned long)amdgpu_bo_kptr(parent->bo);
@@ -1351,7 +1350,8 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 
 		amdgpu_vm_handle_huge_pages(params, entry, parent,
 					    nptes, dst, flags);
-		if (entry->huge_page)
+		/* We don't need to update PTEs for huge pages */
+		if (entry->addr & AMDGPU_PDE_PTE)
 			continue;
 
 		pt = entry->bo;
