@@ -2278,7 +2278,7 @@ sctp_disposition_t sctp_sf_cookie_echoed_err(struct net *net,
 	/* Make sure that the ERROR chunk has a valid length.
 	 * The parameter walking depends on this as well.
 	 */
-	if (!sctp_chunk_length_valid(chunk, sizeof(sctp_operr_chunk_t)))
+	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_operr_chunk)))
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
 
@@ -3317,7 +3317,7 @@ sctp_disposition_t sctp_sf_operr_notify(struct net *net,
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
 
 	/* Make sure that the ERROR chunk has a valid length. */
-	if (!sctp_chunk_length_valid(chunk, sizeof(sctp_operr_chunk_t)))
+	if (!sctp_chunk_length_valid(chunk, sizeof(struct sctp_operr_chunk)))
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
 	sctp_walk_errors(err, chunk->chunk_hdr);

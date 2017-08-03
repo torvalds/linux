@@ -433,10 +433,10 @@ struct sctp_errhdr {
 	__u8  variable[0];
 };
 
-typedef struct sctp_operr_chunk {
+struct sctp_operr_chunk {
 	struct sctp_chunkhdr chunk_hdr;
 	struct sctp_errhdr err_hdr;
-} sctp_operr_chunk_t;
+};
 
 /* RFC 2960 3.3.10 - Operation Error
  *
