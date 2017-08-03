@@ -70,6 +70,7 @@ struct pci_dev;
  * @NTB_TOPO_SEC:	On secondary side of remote ntb.
  * @NTB_TOPO_B2B_USD:	On primary side of local ntb upstream of remote ntb.
  * @NTB_TOPO_B2B_DSD:	On primary side of local ntb downstream of remote ntb.
+ * @NTB_TOPO_SWITCH:	Connected via a switch which supports ntb.
  */
 enum ntb_topo {
 	NTB_TOPO_NONE = -1,
@@ -77,6 +78,7 @@ enum ntb_topo {
 	NTB_TOPO_SEC,
 	NTB_TOPO_B2B_USD,
 	NTB_TOPO_B2B_DSD,
+	NTB_TOPO_SWITCH,
 };
 
 static inline int ntb_topo_is_b2b(enum ntb_topo topo)
@@ -97,6 +99,7 @@ static inline char *ntb_topo_string(enum ntb_topo topo)
 	case NTB_TOPO_SEC:	return "NTB_TOPO_SEC";
 	case NTB_TOPO_B2B_USD:	return "NTB_TOPO_B2B_USD";
 	case NTB_TOPO_B2B_DSD:	return "NTB_TOPO_B2B_DSD";
+	case NTB_TOPO_SWITCH:	return "NTB_TOPO_SWITCH";
 	}
 	return "NTB_TOPO_INVALID";
 }
