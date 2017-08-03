@@ -543,10 +543,10 @@ static int sahara_hw_descriptor_create(struct sahara_dev *dev)
 
 unmap_out:
 	dma_unmap_sg(dev->device, dev->out_sg, dev->nb_out_sg,
-		DMA_TO_DEVICE);
+		DMA_FROM_DEVICE);
 unmap_in:
 	dma_unmap_sg(dev->device, dev->in_sg, dev->nb_in_sg,
-		DMA_FROM_DEVICE);
+		DMA_TO_DEVICE);
 
 	return -EINVAL;
 }
@@ -594,9 +594,9 @@ static int sahara_aes_process(struct ablkcipher_request *req)
 	}
 
 	dma_unmap_sg(dev->device, dev->out_sg, dev->nb_out_sg,
-		DMA_TO_DEVICE);
-	dma_unmap_sg(dev->device, dev->in_sg, dev->nb_in_sg,
 		DMA_FROM_DEVICE);
+	dma_unmap_sg(dev->device, dev->in_sg, dev->nb_in_sg,
+		DMA_TO_DEVICE);
 
 	return 0;
 }
