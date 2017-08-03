@@ -12,6 +12,7 @@
 #include <linux/crc32.h>
 #include <linux/medusa/l3/registry.h>
 #include "kobject_fuck.h"
+
 MED_ATTRS(fuck_kobject) {
 	MED_ATTR_KEY	(fuck_kobject, path, "path", MED_STRING),
 	MED_ATTR		(fuck_kobject, i_ino, "i_ino", MED_UNSIGNED),
@@ -84,14 +85,13 @@ int fuck_free(struct medusa_l1_inode_s* med) {
 //used in medusa_l1_path_chown, medusa_l1_path_chmod, medusa_l1_file_open
 int validate_fuck(struct path fuck_path) {
 		struct inode *fuck_inode = fuck_path.dentry->d_inode;
-		////char *saved_path = inode_security(fuck_inode).fuck_path;
-		int hash;
+		int hash, ret = 0;
 		char *accessed_path;
-		char *buf;
+		char *buf = NULL;
 		
 		//dont change to goto out you dont have buf
 		if(hash_empty(inode_security(fuck_inode).fuck))
-			return 0;	
+			return ret;	
 		
 		buf = (char *) kmalloc(PATH_MAX * sizeof(char), GFP_KERNEL);
 		if(!buf)
@@ -101,29 +101,24 @@ int validate_fuck(struct path fuck_path) {
 		if(!accessed_path || IS_ERR(accessed_path)) {
 			if(PTR_ERR(accessed_path) == -ENAMETOOLONG)
 				goto out;
-			//accessed_path = dentry_path_raw(fuck_path.dentry, buf, PATH_MAX);
-			if(IS_ERR(accessed_path)) {
+			if(IS_ERR(accessed_path)) 
 				goto out;
-			}
+                        // accessed_path is NULL
+                        goto out;
 		}
 
-		if(accessed_path == NULL) {
-			goto out;
-		}
-		
 		hash = hash_function(accessed_path);
 		if (exists_in_hash(accessed_path, hash, &inode_security(fuck_inode))) {
-			printk("VALIDATE_FUCK: path exists\n");
-			printk("VALIDATE_FUCK: accessed_path: %s inode: %lu\n", accessed_path, fuck_inode->i_ino);
-			goto out;
+			printk("VALIDATE_FUCK: allowed path\n");
+			goto out2;
 		}
-		printk("VALIDATE_FUCK: path don't exists\n");
+		printk("VALIDATE_FUCK: denied path (not defined in allowed path list)\n");
+		ret = -EPERM;
+out2:   
 		printk("VALIDATE_FUCK: accessed_path: %s inode: %lu\n", accessed_path, fuck_inode->i_ino);
-		kfree(buf);
-		return -EPERM;
 out:
 		kfree(buf);
-		return 0;
+		return ret;
 }
 
 //used in medusa_l1_path_link
@@ -152,7 +147,8 @@ static struct medusa_kobject_s * fuck_fetch(struct medusa_kobject_s * kobj)
 
 		strncpy(fuck_path->path, path_name, PATH_MAX);
 
-
+                // don't check for duplicity in hash table
+                // is up to admin do not add the same 'path' more then once
 		hash_add(inode_security(fuck_inode).fuck, &fuck_path->list, hash);
 
 		i_ino = fuck_inode->i_ino;
