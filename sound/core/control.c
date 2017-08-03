@@ -1450,9 +1450,8 @@ static int snd_ctl_tlv_ioctl(struct snd_ctl_file *file,
 		err = kctl->tlv.c(kctl, op_flag, tlv.length, _tlv->tlv);
 		if (err > 0) {
 			struct snd_ctl_elem_id id = kctl->id;
-			up_read(&card->controls_rwsem);
 			snd_ctl_notify(card, SNDRV_CTL_EVENT_MASK_TLV, &id);
-			return 0;
+			err = 0;
 		}
 	} else {
 		if (op_flag != SNDRV_CTL_TLV_OP_READ) {
