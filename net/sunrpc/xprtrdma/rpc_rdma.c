@@ -1178,7 +1178,7 @@ rpcrdma_reply_handler(struct work_struct *work)
 
 	dprintk("RPC:       %s: incoming rep %p\n", __func__, rep);
 
-	if (rep->rr_len == RPCRDMA_BAD_LEN)
+	if (rep->rr_hdrbuf.head[0].iov_len == 0)
 		goto out_badstatus;
 
 	xdr_init_decode(xdr, &rep->rr_hdrbuf,

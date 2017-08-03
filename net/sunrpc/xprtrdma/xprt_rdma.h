@@ -218,7 +218,6 @@ enum {
 
 struct rpcrdma_rep {
 	struct ib_cqe		rr_cqe;
-	unsigned int		rr_len;
 	int			rr_wc_flags;
 	u32			rr_inv_rkey;
 	struct rpcrdma_xprt	*rr_rxprt;
@@ -229,8 +228,6 @@ struct rpcrdma_rep {
 	struct ib_recv_wr	rr_recv_wr;
 	struct rpcrdma_regbuf	*rr_rdmabuf;
 };
-
-#define RPCRDMA_BAD_LEN		(~0U)
 
 /*
  * struct rpcrdma_mw - external memory region metadata

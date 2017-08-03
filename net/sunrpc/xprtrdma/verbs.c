@@ -143,9 +143,6 @@ rpcrdma_update_granted_credits(struct rpcrdma_rep *rep)
 	struct rpcrdma_buffer *buffer = &rep->rr_rxprt->rx_buf;
 	u32 credits;
 
-	if (rep->rr_len < RPCRDMA_HDRLEN_ERR)
-		return;
-
 	credits = be32_to_cpu(rmsgp->rm_credit);
 	if (credits == 0)
 		credits = 1;	/* don't deadlock */
@@ -176,16 +173,16 @@ rpcrdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 	dprintk("RPC:       %s: rep %p opcode 'recv', length %u: success\n",
 		__func__, rep, wc->byte_len);
 
-	rep->rr_len = wc->byte_len;
 	rpcrdma_set_xdrlen(&rep->rr_hdrbuf, wc->byte_len);
 	rep->rr_wc_flags = wc->wc_flags;
 	rep->rr_inv_rkey = wc->ex.invalidate_rkey;
 
 	ib_dma_sync_single_for_cpu(rdmab_device(rep->rr_rdmabuf),
 				   rdmab_addr(rep->rr_rdmabuf),
-				   rep->rr_len, DMA_FROM_DEVICE);
+				   wc->byte_len, DMA_FROM_DEVICE);
 
-	rpcrdma_update_granted_credits(rep);
+	if (wc->byte_len >= RPCRDMA_HDRLEN_ERR)
+		rpcrdma_update_granted_credits(rep);
 
 out_schedule:
 	queue_work(rpcrdma_receive_wq, &rep->rr_work);
@@ -196,7 +193,7 @@ out_fail:
 		pr_err("rpcrdma: Recv: %s (%u/0x%x)\n",
 		       ib_wc_status_msg(wc->status),
 		       wc->status, wc->vendor_err);
-	rep->rr_len = RPCRDMA_BAD_LEN;
+	rpcrdma_set_xdrlen(&rep->rr_hdrbuf, 0);
 	goto out_schedule;
 }
 
