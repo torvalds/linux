@@ -295,6 +295,7 @@ int ipv6_route_open(struct inode *inode, struct file *file);
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 int fib6_rules_init(void);
 void fib6_rules_cleanup(void);
+bool fib6_rule_default(const struct fib_rule *rule);
 #else
 static inline int               fib6_rules_init(void)
 {
@@ -303,6 +304,10 @@ static inline int               fib6_rules_init(void)
 static inline void              fib6_rules_cleanup(void)
 {
 	return ;
+}
+static inline bool fib6_rule_default(const struct fib_rule *rule)
+{
+	return true;
 }
 #endif
 #endif

@@ -29,6 +29,26 @@ struct fib6_rule {
 	u8			tclass;
 };
 
+static bool fib6_rule_matchall(const struct fib_rule *rule)
+{
+	struct fib6_rule *r = container_of(rule, struct fib6_rule, common);
+
+	if (r->dst.plen || r->src.plen || r->tclass)
+		return false;
+	return fib_rule_matchall(rule);
+}
+
+bool fib6_rule_default(const struct fib_rule *rule)
+{
+	if (!fib6_rule_matchall(rule) || rule->action != FR_ACT_TO_TBL ||
+	    rule->l3mdev)
+		return false;
+	if (rule->table != RT6_TABLE_LOCAL && rule->table != RT6_TABLE_MAIN)
+		return false;
+	return true;
+}
+EXPORT_SYMBOL_GPL(fib6_rule_default);
+
 struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi6 *fl6,
 				   int flags, pol_lookup_t lookup)
 {
