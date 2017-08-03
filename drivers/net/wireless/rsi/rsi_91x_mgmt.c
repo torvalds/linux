@@ -1407,7 +1407,7 @@ int rsi_send_rx_filter_frame(struct rsi_common *common, u16 rx_filter_word)
  */
 int rsi_set_antenna(struct rsi_common *common, u8 antenna)
 {
-	struct rsi_mac_frame *cmd_frame;
+	struct rsi_ant_sel_frame *ant_sel_frame;
 	struct sk_buff *skb;
 
 	skb = dev_alloc_skb(FRAME_DESC_SZ);
@@ -1418,12 +1418,13 @@ int rsi_set_antenna(struct rsi_common *common, u8 antenna)
 	}
 
 	memset(skb->data, 0, FRAME_DESC_SZ);
-	cmd_frame = (struct rsi_mac_frame *)skb->data;
 
-	cmd_frame->desc_word[1] = cpu_to_le16(ANT_SEL_FRAME);
-	cmd_frame->desc_word[3] = cpu_to_le16(antenna & 0x00ff);
-	cmd_frame->desc_word[0] = cpu_to_le16(RSI_WIFI_MGMT_Q << 12);
-
+	ant_sel_frame = (struct rsi_ant_sel_frame *)skb->data;
+	ant_sel_frame->desc_dword0.frame_type = ANT_SEL_FRAME;
+	ant_sel_frame->sub_frame_type = ANTENNA_SEL_TYPE;
+	ant_sel_frame->ant_value = cpu_to_le16(antenna & ANTENNA_MASK_VALUE);
+	rsi_set_len_qno(&ant_sel_frame->desc_dword0.len_qno,
+			0, RSI_WIFI_MGMT_Q);
 	skb_put(skb, FRAME_DESC_SZ);
 
 	return rsi_send_internal_mgmt_frame(common, skb);

@@ -155,6 +155,8 @@
 
 #define ANTENNA_SEL_INT			0x02 /* RF_OUT_2 / Integerated */
 #define ANTENNA_SEL_UFL			0x03 /* RF_OUT_1 / U.FL */
+#define ANTENNA_MASK_VALUE		0x00ff
+#define ANTENNA_SEL_TYPE		1
 
 /* Rx filter word definitions */
 #define PROMISCOUS_MODE			BIT(0)
@@ -346,6 +348,15 @@ struct rsi_vap_caps {
 	__le16 beacon_interval;
 	__le16 dtim_period;
 	__le16 beacon_miss_threshold;
+} __packed;
+
+struct rsi_ant_sel_frame {
+	struct rsi_cmd_desc_dword0 desc_dword0;
+	u8 reserved;
+	u8 sub_frame_type;
+	__le16 ant_value;
+	__le32 reserved1;
+	__le32 reserved2;
 } __packed;
 
 /* Key descriptor flags */
