@@ -838,7 +838,7 @@ static void atmel_hlcdc_plane_destroy(struct drm_plane *p)
 	struct atmel_hlcdc_plane *plane = drm_plane_to_atmel_hlcdc_plane(p);
 
 	if (plane->base.fb)
-		drm_framebuffer_unreference(plane->base.fb);
+		drm_framebuffer_put(plane->base.fb);
 
 	drm_plane_cleanup(p);
 }
@@ -987,7 +987,7 @@ static void atmel_hlcdc_plane_reset(struct drm_plane *p)
 		state = drm_plane_state_to_atmel_hlcdc_plane_state(p->state);
 
 		if (state->base.fb)
-			drm_framebuffer_unreference(state->base.fb);
+			drm_framebuffer_put(state->base.fb);
 
 		kfree(state);
 		p->state = NULL;
@@ -1025,7 +1025,7 @@ atmel_hlcdc_plane_atomic_duplicate_state(struct drm_plane *p)
 	}
 
 	if (copy->base.fb)
-		drm_framebuffer_reference(copy->base.fb);
+		drm_framebuffer_get(copy->base.fb);
 
 	return &copy->base;
 }
@@ -1044,7 +1044,7 @@ static void atmel_hlcdc_plane_atomic_destroy_state(struct drm_plane *p,
 	}
 
 	if (s->fb)
-		drm_framebuffer_unreference(s->fb);
+		drm_framebuffer_put(s->fb);
 
 	kfree(state);
 }
