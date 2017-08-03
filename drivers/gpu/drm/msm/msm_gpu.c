@@ -777,7 +777,7 @@ int msm_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 	}
 
 	if (nr_rings > ARRAY_SIZE(gpu->rb)) {
-		DRM_DEV_INFO_ONCE(drm->dev, "Only creating %lu ringbuffers\n",
+		DRM_DEV_INFO_ONCE(drm->dev, "Only creating %zu ringbuffers\n",
 			ARRAY_SIZE(gpu->rb));
 		nr_rings = ARRAY_SIZE(gpu->rb);
 	}
