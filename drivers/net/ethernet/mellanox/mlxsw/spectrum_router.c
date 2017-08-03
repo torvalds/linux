@@ -48,6 +48,7 @@
 #include <net/neighbour.h>
 #include <net/arp.h>
 #include <net/ip_fib.h>
+#include <net/ip6_fib.h>
 #include <net/fib_rules.h>
 #include <net/l3mdev.h>
 #include <net/addrconf.h>
@@ -3087,6 +3088,23 @@ static void mlxsw_sp_router_fib4_event_work(struct work_struct *work)
 
 static void mlxsw_sp_router_fib6_event_work(struct work_struct *work)
 {
+	struct mlxsw_sp_fib_event_work *fib_work =
+		container_of(work, struct mlxsw_sp_fib_event_work, work);
+	struct mlxsw_sp *mlxsw_sp = fib_work->mlxsw_sp;
+	struct fib_rule *rule;
+
+	rtnl_lock();
+	switch (fib_work->event) {
+	case FIB_EVENT_RULE_ADD: /* fall through */
+	case FIB_EVENT_RULE_DEL:
+		rule = fib_work->fr_info.rule;
+		if (!fib6_rule_default(rule) && !rule->l3mdev)
+			mlxsw_sp_router_fib_abort(mlxsw_sp);
+		fib_rule_put(rule);
+		break;
+	}
+	rtnl_unlock();
+	kfree(fib_work);
 }
 
 static void mlxsw_sp_router_fib4_event(struct mlxsw_sp_fib_event_work *fib_work,
@@ -3119,6 +3137,13 @@ static void mlxsw_sp_router_fib4_event(struct mlxsw_sp_fib_event_work *fib_work,
 static void mlxsw_sp_router_fib6_event(struct mlxsw_sp_fib_event_work *fib_work,
 				       struct fib_notifier_info *info)
 {
+	switch (fib_work->event) {
+	case FIB_EVENT_RULE_ADD: /* fall through */
+	case FIB_EVENT_RULE_DEL:
+		memcpy(&fib_work->fr_info, info, sizeof(fib_work->fr_info));
+		fib_rule_get(fib_work->fr_info.rule);
+		break;
+	}
 }
 
 /* Called with rcu_read_lock() */
