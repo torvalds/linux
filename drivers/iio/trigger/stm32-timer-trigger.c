@@ -29,12 +29,14 @@ static const void *triggers_table[][MAX_TRIGGERS] = {
 	{ TIM7_TRGO,},
 	{ TIM8_TRGO, TIM8_TRGO2, TIM8_CH1, TIM8_CH2, TIM8_CH3, TIM8_CH4,},
 	{ TIM9_TRGO, TIM9_CH1, TIM9_CH2,},
-	{ }, /* timer 10 */
-	{ }, /* timer 11 */
+	{ TIM10_OC1,},
+	{ TIM11_OC1,},
 	{ TIM12_TRGO, TIM12_CH1, TIM12_CH2,},
-	{ }, /* timer 13 */
-	{ }, /* timer 14 */
+	{ TIM13_OC1,},
+	{ TIM14_OC1,},
 	{ TIM15_TRGO,},
+	{ TIM16_OC1,},
+	{ TIM17_OC1,},
 };
 
 /* List the triggers accepted by each timer */
@@ -47,10 +49,10 @@ static const void *valids_table[][MAX_VALIDS] = {
 	{ }, /* timer 6 */
 	{ }, /* timer 7 */
 	{ TIM1_TRGO, TIM2_TRGO, TIM4_TRGO, TIM5_TRGO,},
-	{ TIM2_TRGO, TIM3_TRGO,},
+	{ TIM2_TRGO, TIM3_TRGO, TIM10_OC1, TIM11_OC1,},
 	{ }, /* timer 10 */
 	{ }, /* timer 11 */
-	{ TIM4_TRGO, TIM5_TRGO,},
+	{ TIM4_TRGO, TIM5_TRGO, TIM13_OC1, TIM14_OC1,},
 };
 
 static const void *stm32h7_valids_table[][MAX_VALIDS] = {
@@ -65,10 +67,12 @@ static const void *stm32h7_valids_table[][MAX_VALIDS] = {
 	{ }, /* timer 9 */
 	{ }, /* timer 10 */
 	{ }, /* timer 11 */
-	{ TIM4_TRGO, TIM5_TRGO,},
+	{ TIM4_TRGO, TIM5_TRGO, TIM13_OC1, TIM14_OC1,},
 	{ }, /* timer 13 */
 	{ }, /* timer 14 */
-	{ TIM1_TRGO, TIM3_TRGO,},
+	{ TIM1_TRGO, TIM3_TRGO, TIM16_OC1, TIM17_OC1,},
+	{ }, /* timer 16 */
+	{ }, /* timer 17 */
 };
 
 struct stm32_timer_trigger {
@@ -89,6 +93,11 @@ struct stm32_timer_trigger_cfg {
 static bool stm32_timer_is_trgo2_name(const char *name)
 {
 	return !!strstr(name, "trgo2");
+}
+
+static bool stm32_timer_is_trgo_name(const char *name)
+{
+	return (!!strstr(name, "trgo") && !strstr(name, "trgo2"));
 }
 
 static int stm32_timer_start(struct stm32_timer_trigger *priv,
@@ -355,6 +364,7 @@ static int stm32_setup_iio_triggers(struct stm32_timer_trigger *priv)
 
 	while (cur && *cur) {
 		struct iio_trigger *trig;
+		bool cur_is_trgo = stm32_timer_is_trgo_name(*cur);
 		bool cur_is_trgo2 = stm32_timer_is_trgo2_name(*cur);
 
 		if (cur_is_trgo2 && !priv->has_trgo2) {
@@ -371,10 +381,9 @@ static int stm32_setup_iio_triggers(struct stm32_timer_trigger *priv)
 
 		/*
 		 * sampling frequency and master mode attributes
-		 * should only be available on trgo trigger which
-		 * is always the first in the list.
+		 * should only be available on trgo/trgo2 triggers
 		 */
-		if (cur == priv->triggers || cur_is_trgo2)
+		if (cur_is_trgo || cur_is_trgo2)
 			trig->dev.groups = stm32_trigger_attr_groups;
 
 		iio_trigger_set_drvdata(trig, priv);
