@@ -1820,6 +1820,11 @@ static struct rt6_info *ip6_route_info_create(struct fib6_config *cfg,
 		goto out;
 	}
 
+	if (cfg->fc_flags & RTF_OFFLOAD) {
+		NL_SET_ERR_MSG(extack, "Userspace can not set RTF_OFFLOAD");
+		goto out;
+	}
+
 	if (cfg->fc_dst_len > 128) {
 		NL_SET_ERR_MSG(extack, "Invalid prefix length");
 		goto out;
@@ -3326,6 +3331,9 @@ static int rt6_nexthop_info(struct sk_buff *skb, struct rt6_info *rt,
 		if (nla_put_in6_addr(skb, RTA_GATEWAY, &rt->rt6i_gateway) < 0)
 			goto nla_put_failure;
 	}
+
+	if (rt->rt6i_flags & RTF_OFFLOAD)
+		*flags |= RTNH_F_OFFLOAD;
 
 	/* not needed for multipath encoding b/c it has a rtnexthop struct */
 	if (!skip_oif && rt->dst.dev &&
