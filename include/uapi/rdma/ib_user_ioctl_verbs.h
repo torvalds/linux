@@ -60,5 +60,25 @@ enum {
 	UVERBS_UHW_OUT,
 };
 
+enum uverbs_create_cq_cmd_attr_ids {
+	CREATE_CQ_HANDLE,
+	CREATE_CQ_CQE,
+	CREATE_CQ_USER_HANDLE,
+	CREATE_CQ_COMP_CHANNEL,
+	CREATE_CQ_COMP_VECTOR,
+	CREATE_CQ_FLAGS,
+	CREATE_CQ_RESP_CQE,
+};
+
+enum uverbs_destroy_cq_cmd_attr_ids {
+	DESTROY_CQ_HANDLE,
+	DESTROY_CQ_RESP,
+};
+
+enum uverbs_actions_cq_ops {
+	UVERBS_CQ_CREATE,
+	UVERBS_CQ_DESTROY,
+};
+
 #endif
 
