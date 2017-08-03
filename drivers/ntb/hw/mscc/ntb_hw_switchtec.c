@@ -98,6 +98,9 @@ struct switchtec_ntb {
 	int db_shift;
 	int db_peer_shift;
 
+	/* synchronize rmw access of db_mask and hw reg */
+	spinlock_t db_mask_lock;
+
 	int nr_direct_mw;
 	int nr_lut_mw;
 	int direct_mw_to_bar[MAX_DIRECT_MW];
@@ -338,41 +341,115 @@ static int switchtec_ntb_link_disable(struct ntb_dev *ntb)
 
 static u64 switchtec_ntb_db_valid_mask(struct ntb_dev *ntb)
 {
-	return 0;
+	struct switchtec_ntb *sndev = ntb_sndev(ntb);
+
+	return sndev->db_valid_mask;
 }
 
 static int switchtec_ntb_db_vector_count(struct ntb_dev *ntb)
 {
-	return 0;
+	return 1;
 }
 
 static u64 switchtec_ntb_db_vector_mask(struct ntb_dev *ntb, int db_vector)
 {
-	return 0;
+	struct switchtec_ntb *sndev = ntb_sndev(ntb);
+
+	if (db_vector < 0 || db_vector > 1)
+		return 0;
+
+	return sndev->db_valid_mask;
 }
 
 static u64 switchtec_ntb_db_read(struct ntb_dev *ntb)
 {
-	return 0;
+	u64 ret;
+	struct switchtec_ntb *sndev = ntb_sndev(ntb);
+
+	ret = ioread64(&sndev->mmio_self_dbmsg->idb) >> sndev->db_shift;
+
+	return ret & sndev->db_valid_mask;
 }
 
 static int switchtec_ntb_db_clear(struct ntb_dev *ntb, u64 db_bits)
 {
+	struct switchtec_ntb *sndev = ntb_sndev(ntb);
+
+	iowrite64(db_bits << sndev->db_shift, &sndev->mmio_self_dbmsg->idb);
+
 	return 0;
 }
 
 static int switchtec_ntb_db_set_mask(struct ntb_dev *ntb, u64 db_bits)
 {
+	unsigned long irqflags;
+	struct switchtec_ntb *sndev = ntb_sndev(ntb);
+
+	if (db_bits & ~sndev->db_valid_mask)
+		return -EINVAL;
+
+	spin_lock_irqsave(&sndev->db_mask_lock, irqflags);
+
+	sndev->db_mask |= db_bits << sndev->db_shift;
+	iowrite64(~sndev->db_mask, &sndev->mmio_self_dbmsg->idb_mask);
+
+	spin_unlock_irqrestore(&sndev->db_mask_lock, irqflags);
+
 	return 0;
 }
 
 static int switchtec_ntb_db_clear_mask(struct ntb_dev *ntb, u64 db_bits)
 {
+	unsigned long irqflags;
+	struct switchtec_ntb *sndev = ntb_sndev(ntb);
+
+	if (db_bits & ~sndev->db_valid_mask)
+		return -EINVAL;
+
+	spin_lock_irqsave(&sndev->db_mask_lock, irqflags);
+
+	sndev->db_mask &= ~(db_bits << sndev->db_shift);
+	iowrite64(~sndev->db_mask, &sndev->mmio_self_dbmsg->idb_mask);
+
+	spin_unlock_irqrestore(&sndev->db_mask_lock, irqflags);
+
+	return 0;
+}
+
+static u64 switchtec_ntb_db_read_mask(struct ntb_dev *ntb)
+{
+	struct switchtec_ntb *sndev = ntb_sndev(ntb);
+
+	return (sndev->db_mask >> sndev->db_shift) & sndev->db_valid_mask;
+}
+
+static int switchtec_ntb_peer_db_addr(struct ntb_dev *ntb,
+				      phys_addr_t *db_addr,
+				      resource_size_t *db_size)
+{
+	struct switchtec_ntb *sndev = ntb_sndev(ntb);
+	unsigned long offset;
+
+	offset = (unsigned long)sndev->mmio_self_dbmsg->odb -
+		(unsigned long)sndev->stdev->mmio;
+
+	offset += sndev->db_shift / 8;
+
+	if (db_addr)
+		*db_addr = pci_resource_start(ntb->pdev, 0) + offset;
+	if (db_size)
+		*db_size = sizeof(u32);
+
 	return 0;
 }
 
 static int switchtec_ntb_peer_db_set(struct ntb_dev *ntb, u64 db_bits)
 {
+	struct switchtec_ntb *sndev = ntb_sndev(ntb);
+
+	iowrite64(db_bits << sndev->db_peer_shift,
+		  &sndev->mmio_self_dbmsg->odb);
+
 	return 0;
 }
 
@@ -413,6 +490,8 @@ static const struct ntb_dev_ops switchtec_ntb_ops = {
 	.db_clear		= switchtec_ntb_db_clear,
 	.db_set_mask		= switchtec_ntb_db_set_mask,
 	.db_clear_mask		= switchtec_ntb_db_clear_mask,
+	.db_read_mask		= switchtec_ntb_db_read_mask,
+	.peer_db_addr		= switchtec_ntb_peer_db_addr,
 	.peer_db_set		= switchtec_ntb_peer_db_set,
 	.spad_count		= switchtec_ntb_spad_count,
 	.spad_read		= switchtec_ntb_spad_read,
@@ -684,6 +763,8 @@ static irqreturn_t switchtec_ntb_doorbell_isr(int irq, void *dev)
 	struct switchtec_ntb *sndev = dev;
 
 	dev_dbg(&sndev->stdev->dev, "doorbell\n");
+
+	ntb_db_event(&sndev->ntb, 0);
 
 	return IRQ_HANDLED;
 }
