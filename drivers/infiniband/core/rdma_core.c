@@ -451,6 +451,41 @@ int __must_check rdma_remove_commit_uobject(struct ib_uobject *uobj)
 	return ret;
 }
 
+static int null_obj_type_class_remove_commit(struct ib_uobject *uobj,
+					     enum rdma_remove_reason why)
+{
+	return 0;
+}
+
+static const struct uverbs_obj_type null_obj_type = {
+	.type_class = &((const struct uverbs_obj_type_class){
+			.remove_commit = null_obj_type_class_remove_commit,
+			/* be cautious */
+			.needs_kfree_rcu = true}),
+};
+
+int rdma_explicit_destroy(struct ib_uobject *uobject)
+{
+	int ret;
+	struct ib_ucontext *ucontext = uobject->context;
+
+	/* Cleanup is running. Calling this should have been impossible */
+	if (!down_read_trylock(&ucontext->cleanup_rwsem)) {
+		WARN(true, "ib_uverbs: Cleanup is running while removing an uobject\n");
+		return 0;
+	}
+	lockdep_check(uobject, true);
+	ret = uobject->type->type_class->remove_commit(uobject,
+						       RDMA_REMOVE_DESTROY);
+	if (ret)
+		return ret;
+
+	uobject->type = &null_obj_type;
+
+	up_read(&ucontext->cleanup_rwsem);
+	return 0;
+}
+
 static void alloc_commit_idr_uobject(struct ib_uobject *uobj)
 {
 	uverbs_uobject_add(uobj);
