@@ -95,16 +95,17 @@ int __init parse_spcr(bool earlycon)
 	}
 
 	if (table->serial_port.space_id == ACPI_ADR_SPACE_SYSTEM_MEMORY) {
-		switch (table->serial_port.access_width) {
+		switch (ACPI_ACCESS_BIT_WIDTH((
+			table->serial_port.access_width))) {
 		default:
 			pr_err("Unexpected SPCR Access Width.  Defaulting to byte size\n");
-		case ACPI_ACCESS_SIZE_BYTE:
+		case 8:
 			iotype = "mmio";
 			break;
-		case ACPI_ACCESS_SIZE_WORD:
+		case 16:
 			iotype = "mmio16";
 			break;
-		case ACPI_ACCESS_SIZE_DWORD:
+		case 32:
 			iotype = "mmio32";
 			break;
 		}

@@ -107,7 +107,7 @@ acpi_hw_get_access_bit_width(u64 address,
 	    ACPI_IS_ALIGNED(reg->bit_width, 8)) {
 		access_bit_width = reg->bit_width;
 	} else if (reg->access_width) {
-		access_bit_width = (1 << (reg->access_width + 2));
+		access_bit_width = ACPI_ACCESS_BIT_WIDTH(reg->access_width);
 	} else {
 		access_bit_width =
 		    ACPI_ROUND_UP_POWER_OF_TWO_8(reg->bit_offset +
