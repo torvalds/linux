@@ -243,6 +243,7 @@ struct rsi_common {
 	u16 oper_mode;
 	u8 lp_ps_handshake_mode;
 	u8 ulp_ps_handshake_mode;
+	u8 uapsd_bitmap;
 	u8 rf_power_val;
 	u8 wlan_rf_power_mode;
 	u8 obm_ant_sel_val;

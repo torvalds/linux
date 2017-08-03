@@ -327,6 +327,7 @@ static int rsi_mac80211_add_interface(struct ieee80211_hw *hw,
 	struct rsi_common *common = adapter->priv;
 	int ret = -EOPNOTSUPP;
 
+	vif->driver_flags |= IEEE80211_VIF_SUPPORTS_UAPSD;
 	mutex_lock(&common->mutex);
 	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
@@ -560,6 +561,16 @@ static void rsi_mac80211_bss_info_changed(struct ieee80211_hw *hw,
 				      bss_conf->aid);
 		adapter->ps_info.dtim_interval_duration = bss->dtim_period;
 		adapter->ps_info.listen_interval = conf->listen_interval;
+
+	/* If U-APSD is updated, send ps parameters to firmware */
+	if (bss->assoc) {
+		if (common->uapsd_bitmap) {
+			rsi_dbg(INFO_ZONE, "Configuring UAPSD\n");
+			rsi_conf_uapsd(adapter);
+		}
+	} else {
+		common->uapsd_bitmap = 0;
+	}
 	}
 
 	if (changed & BSS_CHANGED_CQM) {
@@ -641,6 +652,12 @@ static int rsi_mac80211_conf_tx(struct ieee80211_hw *hw,
 	memcpy(&common->edca_params[idx],
 	       params,
 	       sizeof(struct ieee80211_tx_queue_params));
+
+	if (params->uapsd)
+		common->uapsd_bitmap |= idx;
+	else
+		common->uapsd_bitmap &= (~idx);
+
 	mutex_unlock(&common->mutex);
 
 	return 0;
@@ -1311,6 +1328,8 @@ int rsi_mac80211_attach(struct rsi_common *common)
 
 	hw->max_rates = 1;
 	hw->max_rate_tries = MAX_RETRIES;
+	hw->uapsd_queues = RSI_IEEE80211_UAPSD_QUEUES;
+	hw->uapsd_max_sp_len = IEEE80211_WMM_IE_STA_QOSINFO_SP_ALL;
 
 	hw->max_tx_aggregation_subframes = 6;
 	rsi_register_rates_channels(adapter, NL80211_BAND_2GHZ);

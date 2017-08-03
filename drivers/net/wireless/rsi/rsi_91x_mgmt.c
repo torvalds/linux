@@ -1425,6 +1425,9 @@ int rsi_send_ps_request(struct rsi_hw *adapter, bool enable)
 		ps->desc.desc_dword0.len_qno |= cpu_to_le16(RSI_PS_DISABLE_IND);
 		ps->desc.desc_dword3.token = cpu_to_le16(RSI_WAKEUP_REQUEST);
 	}
+
+	ps->ps_uapsd_acs = common->uapsd_bitmap;
+
 	ps->ps_sleep.sleep_type = ps_info->sleep_type;
 	ps->ps_sleep.num_bcns_per_lis_int =
 		cpu_to_le16(ps_info->num_bcns_per_lis_int);
