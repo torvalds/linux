@@ -941,7 +941,7 @@ static int mt_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 	 * touchpad report descriptor. We need to treat these as an array to
 	 * map usages to input keys.
 	 */
-	if (field->application == 0xff310076 &&
+	if (field->application == HID_VD_ASUS_CUSTOM_MEDIA_KEYS &&
 	    td->mtclass.quirks & MT_QUIRK_ASUS_CUSTOM_UP &&
 	    (usage->hid & HID_USAGE_PAGE) == HID_UP_CUSTOM) {
 		set_bit(EV_REP, hi->input->evbit);
