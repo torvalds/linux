@@ -541,6 +541,9 @@ struct sdhci_host {
 	/* Delay (ms) between tuning commands */
 	int			tuning_delay;
 
+	/* Host SDMA buffer boundary. */
+	u32			sdma_boundary;
+
 	unsigned long private[0] ____cacheline_aligned;
 };
 
