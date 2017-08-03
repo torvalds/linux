@@ -910,13 +910,16 @@ static void ippn10_program_input_lut(
 		CM_IGAM_LUT_FORMAT_B, 3);
 	// Start at index 0 of IGAM LUT
 	REG_UPDATE(CM_IGAM_LUT_RW_INDEX, CM_IGAM_LUT_RW_INDEX, 0);
-	for (i = 0; i < INPUT_LUT_ENTRIES; i++) {
+	for (i = 0; i < gamma->num_entries; i++) {
 		REG_SET(CM_IGAM_LUT_SEQ_COLOR, 0, CM_IGAM_LUT_SEQ_COLOR,
-					gamma->red[i]);
+				dal_fixed31_32_round(
+					gamma->entries.red[i]));
 		REG_SET(CM_IGAM_LUT_SEQ_COLOR, 0, CM_IGAM_LUT_SEQ_COLOR,
-					gamma->green[i]);
+				dal_fixed31_32_round(
+					gamma->entries.green[i]));
 		REG_SET(CM_IGAM_LUT_SEQ_COLOR, 0, CM_IGAM_LUT_SEQ_COLOR,
-					gamma->blue[i]);
+				dal_fixed31_32_round(
+					gamma->entries.blue[i]));
 	}
 	// Power off LUT memory
 	REG_SET(CM_MEM_PWR_CTRL, 0, SHARED_MEM_PWR_DIS, 0);

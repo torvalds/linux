@@ -193,10 +193,16 @@ static void dce_ipp_program_input_lut(
 	REG_SET(DC_LUT_RW_INDEX, 0,
 		DC_LUT_RW_INDEX, 0);
 
-	for (i = 0; i < INPUT_LUT_ENTRIES; i++) {
-		REG_SET(DC_LUT_SEQ_COLOR, 0, DC_LUT_SEQ_COLOR, gamma->red[i]);
-		REG_SET(DC_LUT_SEQ_COLOR, 0, DC_LUT_SEQ_COLOR, gamma->green[i]);
-		REG_SET(DC_LUT_SEQ_COLOR, 0, DC_LUT_SEQ_COLOR, gamma->blue[i]);
+	for (i = 0; i < gamma->num_entries; i++) {
+		REG_SET(DC_LUT_SEQ_COLOR, 0, DC_LUT_SEQ_COLOR,
+				dal_fixed31_32_round(
+					gamma->entries.red[i]));
+		REG_SET(DC_LUT_SEQ_COLOR, 0, DC_LUT_SEQ_COLOR,
+				dal_fixed31_32_round(
+					gamma->entries.green[i]));
+		REG_SET(DC_LUT_SEQ_COLOR, 0, DC_LUT_SEQ_COLOR,
+				dal_fixed31_32_round(
+					gamma->entries.blue[i]));
 	}
 
 	/* power off LUT memory */

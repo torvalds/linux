@@ -409,20 +409,31 @@ struct dc_cursor_mi_param {
 /* IPP related types */
 
 enum {
-	INPUT_LUT_ENTRIES = 256
+	GAMMA_RGB_256_ENTRIES = 256,
+	GAMMA_RGB_FLOAT_1024_ENTRIES = 1024,
+	GAMMA_MAX_ENTRIES = 1024
+};
+
+enum dc_gamma_type {
+	GAMMA_RGB_256 = 1,
+	GAMMA_RGB_FLOAT_1024 = 2
 };
 
 struct dc_gamma {
-	uint16_t red[INPUT_LUT_ENTRIES];
-	uint16_t green[INPUT_LUT_ENTRIES];
-	uint16_t blue[INPUT_LUT_ENTRIES];
+	enum dc_gamma_type type;
+	unsigned int num_entries;
+
+	struct dc_gamma_entries {
+		struct fixed31_32 red[GAMMA_MAX_ENTRIES];
+		struct fixed31_32 green[GAMMA_MAX_ENTRIES];
+		struct fixed31_32 blue[GAMMA_MAX_ENTRIES];
+	} entries;
 
 	/* private to DC core */
 	struct dc_context *ctx;
 
 	/* private to dc_surface.c */
 	int ref_count;
-
 };
 
 /* Used by both ipp amd opp functions*/

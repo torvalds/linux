@@ -1874,15 +1874,14 @@ static int fill_plane_attributes_from_fb(
 
 }
 
-#define NUM_OF_RAW_GAMMA_RAMP_RGB_256 256
-
 static void fill_gamma_from_crtc_state(
 	const struct drm_crtc_state *crtc_state,
 	struct dc_plane_state *plane_state)
 {
 	int i;
 	struct dc_gamma *gamma;
-	struct drm_color_lut *lut = (struct drm_color_lut *) crtc_state->gamma_lut->data;
+	struct drm_color_lut *lut =
+			(struct drm_color_lut *) crtc_state->gamma_lut->data;
 
 	gamma = dc_create_gamma();
 
@@ -1891,10 +1890,11 @@ static void fill_gamma_from_crtc_state(
 		return;
 	}
 
-	for (i = 0; i < NUM_OF_RAW_GAMMA_RAMP_RGB_256; i++) {
-		gamma->red[i] = lut[i].red;
-		gamma->green[i] = lut[i].green;
-		gamma->blue[i] = lut[i].blue;
+	gamma->type = GAMMA_RGB_256_ENTRIES;
+	for (i = 0; i < GAMMA_RGB_256_ENTRIES; i++) {
+		gamma->entries.red[i] = dal_fixed31_32_from_int(lut[i].red);
+		gamma->entries.green[i] = dal_fixed31_32_from_int(lut[i].green);
+		gamma->entries.blue[i] = dal_fixed31_32_from_int(lut[i].blue);
 	}
 
 	plane_state->gamma_correction = gamma;
