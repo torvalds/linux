@@ -19,6 +19,7 @@
 #include <net/flow.h>
 #include <linux/seq_file.h>
 #include <linux/rcupdate.h>
+#include <net/fib_notifier.h>
 #include <net/fib_rules.h>
 #include <net/inetpeer.h>
 #include <linux/percpu.h>
@@ -188,10 +189,6 @@ __be32 fib_info_update_nh_saddr(struct net *net, struct fib_nh *nh);
 #define FIB_RES_PREFSRC(net, res)	((res).fi->fib_prefsrc ? : \
 					 FIB_RES_SADDR(net, res))
 
-struct fib_notifier_info {
-	struct net *net;
-};
-
 struct fib_entry_notifier_info {
 	struct fib_notifier_info info; /* must be first */
 	u32 dst;
@@ -212,25 +209,14 @@ struct fib_nh_notifier_info {
 	struct fib_nh *fib_nh;
 };
 
-enum fib_event_type {
-	FIB_EVENT_ENTRY_REPLACE,
-	FIB_EVENT_ENTRY_APPEND,
-	FIB_EVENT_ENTRY_ADD,
-	FIB_EVENT_ENTRY_DEL,
-	FIB_EVENT_RULE_ADD,
-	FIB_EVENT_RULE_DEL,
-	FIB_EVENT_NH_ADD,
-	FIB_EVENT_NH_DEL,
-};
-
-int register_fib_notifier(struct notifier_block *nb,
-			  void (*cb)(struct notifier_block *nb));
-int unregister_fib_notifier(struct notifier_block *nb);
-int call_fib_notifier(struct notifier_block *nb, struct net *net,
-		      enum fib_event_type event_type,
-		      struct fib_notifier_info *info);
-int call_fib_notifiers(struct net *net, enum fib_event_type event_type,
+int call_fib4_notifier(struct notifier_block *nb, struct net *net,
+		       enum fib_event_type event_type,
 		       struct fib_notifier_info *info);
+int call_fib4_notifiers(struct net *net, enum fib_event_type event_type,
+			struct fib_notifier_info *info);
+
+int __net_init fib4_notifier_init(struct net *net);
+void __net_exit fib4_notifier_exit(struct net *net);
 
 void fib_notify(struct net *net, struct notifier_block *nb);
 #ifdef CONFIG_IP_MULTIPLE_TABLES

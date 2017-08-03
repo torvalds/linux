@@ -53,6 +53,7 @@
 #include <net/addrconf.h>
 #include <net/ndisc.h>
 #include <net/ipv6.h>
+#include <net/fib_notifier.h>
 
 #include "spectrum.h"
 #include "core.h"

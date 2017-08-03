@@ -34,6 +34,7 @@
 #include <net/netevent.h>
 #include <net/arp.h>
 #include <net/fib_rules.h>
+#include <net/fib_notifier.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <generated/utsrelease.h>
 

@@ -32,6 +32,7 @@
 #include <net/tcp.h>
 #include <net/ip_fib.h>
 #include <net/fib_rules.h>
+#include <net/fib_notifier.h>
 
 struct fib4_rule {
 	struct fib_rule		common;
@@ -193,7 +194,7 @@ static int call_fib_rule_notifier(struct notifier_block *nb, struct net *net,
 		.rule = rule,
 	};
 
-	return call_fib_notifier(nb, net, event_type, &info.info);
+	return call_fib4_notifier(nb, net, event_type, &info.info);
 }
 
 static int call_fib_rule_notifiers(struct net *net,
@@ -204,7 +205,7 @@ static int call_fib_rule_notifiers(struct net *net,
 		.rule = rule,
 	};
 
-	return call_fib_notifiers(net, event_type, &info.info);
+	return call_fib4_notifiers(net, event_type, &info.info);
 }
 
 /* Called with rcu_read_lock() */
