@@ -75,7 +75,7 @@ static void unref_worker(struct drm_flip_work *work, void *val)
 	struct drm_device *dev = tilcdc_crtc->base.dev;
 
 	mutex_lock(&dev->mode_config.mutex);
-	drm_framebuffer_unreference(val);
+	drm_framebuffer_put(val);
 	mutex_unlock(&dev->mode_config.mutex);
 }
 
@@ -456,7 +456,7 @@ static void tilcdc_crtc_set_mode(struct drm_crtc *crtc)
 
 	set_scanout(crtc, fb);
 
-	drm_framebuffer_reference(fb);
+	drm_framebuffer_get(fb);
 
 	crtc->hwmode = crtc->state->adjusted_mode;
 }
@@ -633,7 +633,7 @@ int tilcdc_crtc_update_fb(struct drm_crtc *crtc,
 		return -EBUSY;
 	}
 
-	drm_framebuffer_reference(fb);
+	drm_framebuffer_get(fb);
 
 	crtc->primary->fb = fb;
 	tilcdc_crtc->event = event;
