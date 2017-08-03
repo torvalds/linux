@@ -200,7 +200,7 @@ static int __shm_open(struct vm_area_struct *vma)
 	if (IS_ERR(shp))
 		return PTR_ERR(shp);
 
-	shp->shm_atim = get_seconds();
+	shp->shm_atim = ktime_get_real_seconds();
 	shp->shm_lprid = task_tgid_vnr(current);
 	shp->shm_nattch++;
 	shm_unlock(shp);
@@ -287,7 +287,7 @@ static void shm_close(struct vm_area_struct *vma)
 		goto done; /* no-op */
 
 	shp->shm_lprid = task_tgid_vnr(current);
-	shp->shm_dtim = get_seconds();
+	shp->shm_dtim = ktime_get_real_seconds();
 	shp->shm_nattch--;
 	if (shm_may_destroy(ns, shp))
 		shm_destroy(ns, shp);
@@ -592,7 +592,7 @@ static int newseg(struct ipc_namespace *ns, struct ipc_params *params)
 	shp->shm_cprid = task_tgid_vnr(current);
 	shp->shm_lprid = 0;
 	shp->shm_atim = shp->shm_dtim = 0;
-	shp->shm_ctim = get_seconds();
+	shp->shm_ctim = ktime_get_real_seconds();
 	shp->shm_segsz = size;
 	shp->shm_nattch = 0;
 	shp->shm_file = file;
@@ -846,7 +846,7 @@ static int shmctl_down(struct ipc_namespace *ns, int shmid, int cmd,
 		err = ipc_update_perm(&shmid64->shm_perm, ipcp);
 		if (err)
 			goto out_unlock0;
-		shp->shm_ctim = get_seconds();
+		shp->shm_ctim = ktime_get_real_seconds();
 		break;
 	default:
 		err = -EINVAL;
@@ -1586,7 +1586,7 @@ static int sysvipc_shm_proc_show(struct seq_file *s, void *it)
 
 	seq_printf(s,
 		   "%10d %10d  %4o " SIZE_SPEC " %5u %5u  "
-		   "%5lu %5u %5u %5u %5u %10lu %10lu %10lu "
+		   "%5lu %5u %5u %5u %5u %10llu %10llu %10llu "
 		   SIZE_SPEC " " SIZE_SPEC "\n",
 		   shp->shm_perm.key,
 		   shp->shm_perm.id,
