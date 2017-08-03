@@ -1,5 +1,5 @@
 #!/usr/bin/python2
-# call-graph-from-sql.py: create call-graph from postgresql database
+# call-graph-from-sql.py: create call-graph from sql database
 # Copyright (c) 2014-2017, Intel Corporation.
 #
 # This program is free software; you can redistribute it and/or modify it
@@ -11,16 +11,17 @@
 # FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
 # more details.
 
-# To use this script you will need to have exported data using the
-# export-to-postgresql.py script.  Refer to that script for details.
+# To use this script you will need to have exported data using either the
+# export-to-sqlite.py or the export-to-postgresql.py script.  Refer to those
+# scripts for details.
 #
-# Following on from the example in the export-to-postgresql.py script, a
+# Following on from the example in the export scripts, a
 # call-graph can be displayed for the pt_example database like this:
 #
 #	python tools/perf/scripts/python/call-graph-from-sql.py pt_example
 #
-# Note this script supports connecting to remote databases by setting hostname,
-# port, username, password, and dbname e.g.
+# Note that for PostgreSQL, this script supports connecting to remote databases
+# by setting hostname, port, username, password, and dbname e.g.
 #
 #	python tools/perf/scripts/python/call-graph-from-sql.py "hostname=myhost username=myuser password=mypassword dbname=pt_example"
 #
@@ -296,24 +297,35 @@ if __name__ == '__main__':
 
 	dbname = sys.argv[1]
 
-	db = QSqlDatabase.addDatabase('QPSQL')
+	is_sqlite3 = False
+	try:
+		f = open(dbname)
+		if f.read(15) == "SQLite format 3":
+			is_sqlite3 = True
+		f.close()
+	except:
+		pass
 
-	opts = dbname.split()
-	for opt in opts:
-		if '=' in opt:
-			opt = opt.split('=')
-			if opt[0] == 'hostname':
-				db.setHostName(opt[1])
-			elif opt[0] == 'port':
-				db.setPort(int(opt[1]))
-			elif opt[0] == 'username':
-				db.setUserName(opt[1])
-			elif opt[0] == 'password':
-				db.setPassword(opt[1])
-			elif opt[0] == 'dbname':
-				dbname = opt[1]
-		else:
-			dbname = opt
+	if is_sqlite3:
+		db = QSqlDatabase.addDatabase('QSQLITE')
+	else:
+		db = QSqlDatabase.addDatabase('QPSQL')
+		opts = dbname.split()
+		for opt in opts:
+			if '=' in opt:
+				opt = opt.split('=')
+				if opt[0] == 'hostname':
+					db.setHostName(opt[1])
+				elif opt[0] == 'port':
+					db.setPort(int(opt[1]))
+				elif opt[0] == 'username':
+					db.setUserName(opt[1])
+				elif opt[0] == 'password':
+					db.setPassword(opt[1])
+				elif opt[0] == 'dbname':
+					dbname = opt[1]
+			else:
+				dbname = opt
 
 	db.setDatabaseName(dbname)
 	if not db.open():
