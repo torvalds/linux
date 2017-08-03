@@ -1935,6 +1935,8 @@ struct i915_oa_config {
 	struct attribute_group sysfs_metric;
 	struct attribute *attrs[2];
 	struct device_attribute sysfs_metric_id;
+
+	atomic_t ref_count;
 };
 
 struct i915_perf_stream;
@@ -2060,6 +2062,25 @@ struct i915_perf_stream {
  * struct i915_oa_ops - Gen specific implementation of an OA unit stream
  */
 struct i915_oa_ops {
+	/**
+	 * @is_valid_b_counter_reg: Validates register's address for
+	 * programming boolean counters for a particular platform.
+	 */
+	bool (*is_valid_b_counter_reg)(struct drm_i915_private *dev_priv,
+				       u32 addr);
+
+	/**
+	 * @is_valid_mux_reg: Validates register's address for programming mux
+	 * for a particular platform.
+	 */
+	bool (*is_valid_mux_reg)(struct drm_i915_private *dev_priv, u32 addr);
+
+	/**
+	 * @is_valid_flex_reg: Validates register's address for programming
+	 * flex EU filtering for a particular platform.
+	 */
+	bool (*is_valid_flex_reg)(struct drm_i915_private *dev_priv, u32 addr);
+
 	/**
 	 * @init_oa_buffer: Resets the head and tail pointers of the
 	 * circular buffer for periodic OA reports.
@@ -2444,10 +2465,32 @@ struct drm_i915_private {
 		struct kobject *metrics_kobj;
 		struct ctl_table_header *sysctl_header;
 
+		/*
+		 * Lock associated with adding/modifying/removing OA configs
+		 * in dev_priv->perf.metrics_idr.
+		 */
+		struct mutex metrics_lock;
+
+		/*
+		 * List of dynamic configurations, you need to hold
+		 * dev_priv->perf.metrics_lock to access it.
+		 */
+		struct idr metrics_idr;
+
+		/*
+		 * Lock associated with anything below within this structure
+		 * except exclusive_stream.
+		 */
 		struct mutex lock;
 		struct list_head streams;
 
 		struct {
+			/*
+			 * The stream currently using the OA unit. If accessed
+			 * outside a syscall associated to its file
+			 * descriptor, you need to hold
+			 * dev_priv->drm.struct_mutex.
+			 */
 			struct i915_perf_stream *exclusive_stream;
 
 			u32 specific_ctx_id;
@@ -3637,6 +3680,10 @@ i915_gem_context_lookup_timeline(struct i915_gem_context *ctx,
 
 int i915_perf_open_ioctl(struct drm_device *dev, void *data,
 			 struct drm_file *file);
+int i915_perf_add_config_ioctl(struct drm_device *dev, void *data,
+			       struct drm_file *file);
+int i915_perf_remove_config_ioctl(struct drm_device *dev, void *data,
+				  struct drm_file *file);
 void i915_oa_init_reg_state(struct intel_engine_cs *engine,
 			    struct i915_gem_context *ctx,
 			    uint32_t *reg_state);

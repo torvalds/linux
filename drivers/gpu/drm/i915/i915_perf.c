@@ -193,6 +193,7 @@
 
 #include <linux/anon_inodes.h>
 #include <linux/sizes.h>
+#include <linux/uuid.h>
 
 #include "i915_drv.h"
 #include "i915_oa_hsw.h"
@@ -356,6 +357,54 @@ struct perf_open_properties {
 	bool oa_periodic;
 	int oa_period_exponent;
 };
+
+static void free_oa_config(struct drm_i915_private *dev_priv,
+			   struct i915_oa_config *oa_config)
+{
+	if (!PTR_ERR(oa_config->flex_regs))
+		kfree(oa_config->flex_regs);
+	if (!PTR_ERR(oa_config->b_counter_regs))
+		kfree(oa_config->b_counter_regs);
+	if (!PTR_ERR(oa_config->mux_regs))
+		kfree(oa_config->mux_regs);
+	kfree(oa_config);
+}
+
+static void put_oa_config(struct drm_i915_private *dev_priv,
+			  struct i915_oa_config *oa_config)
+{
+	if (!atomic_dec_and_test(&oa_config->ref_count))
+		return;
+
+	free_oa_config(dev_priv, oa_config);
+}
+
+static int get_oa_config(struct drm_i915_private *dev_priv,
+			 int metrics_set,
+			 struct i915_oa_config **out_config)
+{
+	int ret;
+
+	if (metrics_set == 1) {
+		*out_config = &dev_priv->perf.oa.test_config;
+		atomic_inc(&dev_priv->perf.oa.test_config.ref_count);
+		return 0;
+	}
+
+	ret = mutex_lock_interruptible(&dev_priv->perf.metrics_lock);
+	if (ret)
+		return ret;
+
+	*out_config = idr_find(&dev_priv->perf.metrics_idr, metrics_set);
+	if (!*out_config)
+		ret = -EINVAL;
+	else
+		atomic_inc(&(*out_config)->ref_count);
+
+	mutex_unlock(&dev_priv->perf.metrics_lock);
+
+	return ret;
+}
 
 static u32 gen8_oa_hw_tail_read(struct drm_i915_private *dev_priv)
 {
@@ -1246,8 +1295,8 @@ static void i915_oa_stream_destroy(struct i915_perf_stream *stream)
 	BUG_ON(stream != dev_priv->perf.oa.exclusive_stream);
 
 	/*
-	 * Unset exclusive_stream first, it might be checked while
-	 * disabling the metric set on gen8+.
+	 * Unset exclusive_stream first, it will be checked while disabling
+	 * the metric set on gen8+.
 	 */
 	mutex_lock(&dev_priv->drm.struct_mutex);
 	dev_priv->perf.oa.exclusive_stream = NULL;
@@ -1262,6 +1311,8 @@ static void i915_oa_stream_destroy(struct i915_perf_stream *stream)
 
 	if (stream->ctx)
 		oa_put_render_ctx_id(stream);
+
+	put_oa_config(dev_priv, stream->oa_config);
 
 	if (dev_priv->perf.oa.spurious_report_rs.missed) {
 		DRM_NOTE("%d spurious OA report notices suppressed due to ratelimiting\n",
@@ -1950,15 +2001,6 @@ static const struct i915_perf_stream_ops i915_oa_stream_ops = {
 	.read = i915_oa_read,
 };
 
-static struct i915_oa_config *get_oa_config(struct drm_i915_private *dev_priv,
-					    int metrics_set)
-{
-	if (metrics_set == 1)
-		return &dev_priv->perf.oa.test_config;
-
-	return NULL;
-}
-
 /**
  * i915_oa_stream_init - validate combined props for OA stream and init
  * @stream: An i915 perf stream
@@ -2062,9 +2104,9 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 			return ret;
 	}
 
-	stream->oa_config = get_oa_config(dev_priv, props->metrics_set);
-	if (!stream->oa_config)
-		return -EINVAL;
+	ret = get_oa_config(dev_priv, props->metrics_set, &stream->oa_config);
+	if (ret)
+		goto err_config;
 
 	/* PRM - observability performance counters:
 	 *
@@ -2112,8 +2154,12 @@ err_enable:
 	free_oa_buffer(dev_priv);
 
 err_oa_buf_alloc:
+	put_oa_config(dev_priv, stream->oa_config);
+
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 	intel_runtime_pm_put(dev_priv);
+
+err_config:
 	if (stream->ctx)
 		oa_put_render_ctx_id(stream);
 
@@ -2126,6 +2172,8 @@ void i915_oa_init_reg_state(struct intel_engine_cs *engine,
 {
 	struct drm_i915_private *dev_priv = engine->i915;
 	struct i915_perf_stream *stream = dev_priv->perf.oa.exclusive_stream;
+
+	lockdep_assert_held(&dev_priv->drm.struct_mutex);
 
 	if (engine->id != RCS)
 		return;
@@ -2894,6 +2942,9 @@ void i915_perf_register(struct drm_i915_private *dev_priv)
 				 &dev_priv->perf.oa.test_config.sysfs_metric);
 	if (ret)
 		goto sysfs_error;
+
+	atomic_set(&dev_priv->perf.oa.test_config.ref_count, 1);
+
 	goto exit;
 
 sysfs_error:
@@ -2923,6 +2974,367 @@ void i915_perf_unregister(struct drm_i915_private *dev_priv)
 
 	kobject_put(dev_priv->perf.metrics_kobj);
 	dev_priv->perf.metrics_kobj = NULL;
+}
+
+static bool gen8_is_valid_flex_addr(struct drm_i915_private *dev_priv, u32 addr)
+{
+	static const i915_reg_t flex_eu_regs[] = {
+		EU_PERF_CNTL0,
+		EU_PERF_CNTL1,
+		EU_PERF_CNTL2,
+		EU_PERF_CNTL3,
+		EU_PERF_CNTL4,
+		EU_PERF_CNTL5,
+		EU_PERF_CNTL6,
+	};
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(flex_eu_regs); i++) {
+		if (flex_eu_regs[i].reg == addr)
+			return true;
+	}
+	return false;
+}
+
+static bool gen7_is_valid_b_counter_addr(struct drm_i915_private *dev_priv, u32 addr)
+{
+	return (addr >= OASTARTTRIG1.reg && addr <= OASTARTTRIG8.reg) ||
+		(addr >= OAREPORTTRIG1.reg && addr <= OAREPORTTRIG8.reg) ||
+		(addr >= OACEC0_0.reg && addr <= OACEC7_1.reg);
+}
+
+static bool gen7_is_valid_mux_addr(struct drm_i915_private *dev_priv, u32 addr)
+{
+	return addr == HALF_SLICE_CHICKEN2.reg ||
+		(addr >= MICRO_BP0_0.reg && addr <= NOA_WRITE.reg) ||
+		(addr >= OA_PERFCNT1_LO.reg && addr <= OA_PERFCNT2_HI.reg) ||
+		(addr >= OA_PERFMATRIX_LO.reg && addr <= OA_PERFMATRIX_HI.reg);
+}
+
+static bool gen8_is_valid_mux_addr(struct drm_i915_private *dev_priv, u32 addr)
+{
+	return gen7_is_valid_mux_addr(dev_priv, addr) ||
+		addr == WAIT_FOR_RC6_EXIT.reg ||
+		(addr >= RPM_CONFIG0.reg && addr <= NOA_CONFIG(8).reg);
+}
+
+static bool hsw_is_valid_mux_addr(struct drm_i915_private *dev_priv, u32 addr)
+{
+	return gen7_is_valid_mux_addr(dev_priv, addr) ||
+		(addr >= 0x25100 && addr <= 0x2FF90) ||
+		addr == 0x9ec0;
+}
+
+static bool chv_is_valid_mux_addr(struct drm_i915_private *dev_priv, u32 addr)
+{
+	return gen7_is_valid_mux_addr(dev_priv, addr) ||
+		(addr >= 0x182300 && addr <= 0x1823A4);
+}
+
+static uint32_t mask_reg_value(u32 reg, u32 val)
+{
+	/* HALF_SLICE_CHICKEN2 is programmed with a the
+	 * WaDisableSTUnitPowerOptimization workaround. Make sure the value
+	 * programmed by userspace doesn't change this.
+	 */
+	if (HALF_SLICE_CHICKEN2.reg == reg)
+		val = val & ~_MASKED_BIT_ENABLE(GEN8_ST_PO_DISABLE);
+
+	/* WAIT_FOR_RC6_EXIT has only one bit fullfilling the function
+	 * indicated by its name and a bunch of selection fields used by OA
+	 * configs.
+	 */
+	if (WAIT_FOR_RC6_EXIT.reg == reg)
+		val = val & ~_MASKED_BIT_ENABLE(HSW_WAIT_FOR_RC6_EXIT_ENABLE);
+
+	return val;
+}
+
+static struct i915_oa_reg *alloc_oa_regs(struct drm_i915_private *dev_priv,
+					 bool (*is_valid)(struct drm_i915_private *dev_priv, u32 addr),
+					 u32 __user *regs,
+					 u32 n_regs)
+{
+	struct i915_oa_reg *oa_regs;
+	int err;
+	u32 i;
+
+	if (!n_regs)
+		return NULL;
+
+	if (!access_ok(VERIFY_READ, regs, n_regs * sizeof(u32) * 2))
+		return ERR_PTR(-EFAULT);
+
+	/* No is_valid function means we're not allowing any register to be programmed. */
+	GEM_BUG_ON(!is_valid);
+	if (!is_valid)
+		return ERR_PTR(-EINVAL);
+
+	oa_regs = kmalloc_array(n_regs, sizeof(*oa_regs), GFP_KERNEL);
+	if (!oa_regs)
+		return ERR_PTR(-ENOMEM);
+
+	for (i = 0; i < n_regs; i++) {
+		u32 addr, value;
+
+		err = get_user(addr, regs);
+		if (err)
+			goto addr_err;
+
+		if (!is_valid(dev_priv, addr)) {
+			DRM_DEBUG("Invalid oa_reg address: %X\n", addr);
+			err = -EINVAL;
+			goto addr_err;
+		}
+
+		err = get_user(value, regs + 1);
+		if (err)
+			goto addr_err;
+
+		oa_regs[i].addr = _MMIO(addr);
+		oa_regs[i].value = mask_reg_value(addr, value);
+
+		regs += 2;
+	}
+
+	return oa_regs;
+
+addr_err:
+	kfree(oa_regs);
+	return ERR_PTR(err);
+}
+
+static ssize_t show_dynamic_id(struct device *dev,
+			       struct device_attribute *attr,
+			       char *buf)
+{
+	struct i915_oa_config *oa_config =
+		container_of(attr, typeof(*oa_config), sysfs_metric_id);
+
+	return sprintf(buf, "%d\n", oa_config->id);
+}
+
+static int create_dynamic_oa_sysfs_entry(struct drm_i915_private *dev_priv,
+					 struct i915_oa_config *oa_config)
+{
+	oa_config->sysfs_metric_id.attr.name = "id";
+	oa_config->sysfs_metric_id.attr.mode = S_IRUGO;
+	oa_config->sysfs_metric_id.show = show_dynamic_id;
+	oa_config->sysfs_metric_id.store = NULL;
+
+	oa_config->attrs[0] = &oa_config->sysfs_metric_id.attr;
+	oa_config->attrs[1] = NULL;
+
+	oa_config->sysfs_metric.name = oa_config->uuid;
+	oa_config->sysfs_metric.attrs = oa_config->attrs;
+
+	return sysfs_create_group(dev_priv->perf.metrics_kobj,
+				  &oa_config->sysfs_metric);
+}
+
+/**
+ * i915_perf_add_config_ioctl - DRM ioctl() for userspace to add a new OA config
+ * @dev: drm device
+ * @data: ioctl data (pointer to struct drm_i915_perf_oa_config) copied from
+ *        userspace (unvalidated)
+ * @file: drm file
+ *
+ * Validates the submitted OA register to be saved into a new OA config that
+ * can then be used for programming the OA unit and its NOA network.
+ *
+ * Returns: A new allocated config number to be used with the perf open ioctl
+ * or a negative error code on failure.
+ */
+int i915_perf_add_config_ioctl(struct drm_device *dev, void *data,
+			       struct drm_file *file)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_perf_oa_config *args = data;
+	struct i915_oa_config *oa_config, *tmp;
+	int err, id;
+
+	if (!dev_priv->perf.initialized) {
+		DRM_DEBUG("i915 perf interface not available for this system\n");
+		return -ENOTSUPP;
+	}
+
+	if (!dev_priv->perf.metrics_kobj) {
+		DRM_DEBUG("OA metrics weren't advertised via sysfs\n");
+		return -EINVAL;
+	}
+
+	if (i915_perf_stream_paranoid && !capable(CAP_SYS_ADMIN)) {
+		DRM_DEBUG("Insufficient privileges to add i915 OA config\n");
+		return -EACCES;
+	}
+
+	if ((!args->mux_regs_ptr || !args->n_mux_regs) &&
+	    (!args->boolean_regs_ptr || !args->n_boolean_regs) &&
+	    (!args->flex_regs_ptr || !args->n_flex_regs)) {
+		DRM_DEBUG("No OA registers given\n");
+		return -EINVAL;
+	}
+
+	oa_config = kzalloc(sizeof(*oa_config), GFP_KERNEL);
+	if (!oa_config) {
+		DRM_DEBUG("Failed to allocate memory for the OA config\n");
+		return -ENOMEM;
+	}
+
+	atomic_set(&oa_config->ref_count, 1);
+
+	if (!uuid_is_valid(args->uuid)) {
+		DRM_DEBUG("Invalid uuid format for OA config\n");
+		err = -EINVAL;
+		goto reg_err;
+	}
+
+	/* Last character in oa_config->uuid will be 0 because oa_config is
+	 * kzalloc.
+	 */
+	memcpy(oa_config->uuid, args->uuid, sizeof(args->uuid));
+
+	oa_config->mux_regs_len = args->n_mux_regs;
+	oa_config->mux_regs =
+		alloc_oa_regs(dev_priv,
+			      dev_priv->perf.oa.ops.is_valid_mux_reg,
+			      u64_to_user_ptr(args->mux_regs_ptr),
+			      args->n_mux_regs);
+
+	if (IS_ERR(oa_config->mux_regs)) {
+		DRM_DEBUG("Failed to create OA config for mux_regs\n");
+		err = PTR_ERR(oa_config->mux_regs);
+		goto reg_err;
+	}
+
+	oa_config->b_counter_regs_len = args->n_boolean_regs;
+	oa_config->b_counter_regs =
+		alloc_oa_regs(dev_priv,
+			      dev_priv->perf.oa.ops.is_valid_b_counter_reg,
+			      u64_to_user_ptr(args->boolean_regs_ptr),
+			      args->n_boolean_regs);
+
+	if (IS_ERR(oa_config->b_counter_regs)) {
+		DRM_DEBUG("Failed to create OA config for b_counter_regs\n");
+		err = PTR_ERR(oa_config->b_counter_regs);
+		goto reg_err;
+	}
+
+	if (INTEL_GEN(dev_priv) < 8) {
+		if (args->n_flex_regs != 0) {
+			err = -EINVAL;
+			goto reg_err;
+		}
+	} else {
+		oa_config->flex_regs_len = args->n_flex_regs;
+		oa_config->flex_regs =
+			alloc_oa_regs(dev_priv,
+				      dev_priv->perf.oa.ops.is_valid_flex_reg,
+				      u64_to_user_ptr(args->flex_regs_ptr),
+				      args->n_flex_regs);
+
+		if (IS_ERR(oa_config->flex_regs)) {
+			DRM_DEBUG("Failed to create OA config for flex_regs\n");
+			err = PTR_ERR(oa_config->flex_regs);
+			goto reg_err;
+		}
+	}
+
+	err = mutex_lock_interruptible(&dev_priv->perf.metrics_lock);
+	if (err)
+		goto reg_err;
+
+	/* We shouldn't have too many configs, so this iteration shouldn't be
+	 * too costly.
+	 */
+	idr_for_each_entry(&dev_priv->perf.metrics_idr, tmp, id) {
+		if (!strcmp(tmp->uuid, oa_config->uuid)) {
+			DRM_DEBUG("OA config already exists with this uuid\n");
+			err = -EADDRINUSE;
+			goto sysfs_err;
+		}
+	}
+
+	err = create_dynamic_oa_sysfs_entry(dev_priv, oa_config);
+	if (err) {
+		DRM_DEBUG("Failed to create sysfs entry for OA config\n");
+		goto sysfs_err;
+	}
+
+	/* Config id 0 is invalid, id 1 for kernel stored test config. */
+	oa_config->id = idr_alloc(&dev_priv->perf.metrics_idr,
+				  oa_config, 2,
+				  0, GFP_KERNEL);
+	if (oa_config->id < 0) {
+		DRM_DEBUG("Failed to create sysfs entry for OA config\n");
+		err = oa_config->id;
+		goto sysfs_err;
+	}
+
+	mutex_unlock(&dev_priv->perf.metrics_lock);
+
+	return oa_config->id;
+
+sysfs_err:
+	mutex_unlock(&dev_priv->perf.metrics_lock);
+reg_err:
+	put_oa_config(dev_priv, oa_config);
+	DRM_DEBUG("Failed to add new OA config\n");
+	return err;
+}
+
+/**
+ * i915_perf_remove_config_ioctl - DRM ioctl() for userspace to remove an OA config
+ * @dev: drm device
+ * @data: ioctl data (pointer to u64 integer) copied from userspace
+ * @file: drm file
+ *
+ * Configs can be removed while being used, the will stop appearing in sysfs
+ * and their content will be freed when the stream using the config is closed.
+ *
+ * Returns: 0 on success or a negative error code on failure.
+ */
+int i915_perf_remove_config_ioctl(struct drm_device *dev, void *data,
+				  struct drm_file *file)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u64 *arg = data;
+	struct i915_oa_config *oa_config;
+	int ret;
+
+	if (!dev_priv->perf.initialized) {
+		DRM_DEBUG("i915 perf interface not available for this system\n");
+		return -ENOTSUPP;
+	}
+
+	if (i915_perf_stream_paranoid && !capable(CAP_SYS_ADMIN)) {
+		DRM_DEBUG("Insufficient privileges to remove i915 OA config\n");
+		return -EACCES;
+	}
+
+	ret = mutex_lock_interruptible(&dev_priv->perf.metrics_lock);
+	if (ret)
+		goto lock_err;
+
+	oa_config = idr_find(&dev_priv->perf.metrics_idr, *arg);
+	if (!oa_config) {
+		DRM_DEBUG("Failed to remove unknown OA config\n");
+		ret = -ENOENT;
+		goto config_err;
+	}
+
+	GEM_BUG_ON(*arg != oa_config->id);
+
+	sysfs_remove_group(dev_priv->perf.metrics_kobj,
+			   &oa_config->sysfs_metric);
+
+	idr_remove(&dev_priv->perf.metrics_idr, *arg);
+	put_oa_config(dev_priv, oa_config);
+
+config_err:
+	mutex_unlock(&dev_priv->perf.metrics_lock);
+lock_err:
+	return ret;
 }
 
 static struct ctl_table oa_table[] = {
@@ -2981,6 +3393,11 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 	dev_priv->perf.oa.timestamp_frequency = 0;
 
 	if (IS_HASWELL(dev_priv)) {
+		dev_priv->perf.oa.ops.is_valid_b_counter_reg =
+			gen7_is_valid_b_counter_addr;
+		dev_priv->perf.oa.ops.is_valid_mux_reg =
+			hsw_is_valid_mux_addr;
+		dev_priv->perf.oa.ops.is_valid_flex_reg = NULL;
 		dev_priv->perf.oa.ops.init_oa_buffer = gen7_init_oa_buffer;
 		dev_priv->perf.oa.ops.enable_metric_set = hsw_enable_metric_set;
 		dev_priv->perf.oa.ops.disable_metric_set = hsw_disable_metric_set;
@@ -3000,6 +3417,12 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 		 * worth the complexity to maintain now that BDW+ enable
 		 * execlist mode by default.
 		 */
+		dev_priv->perf.oa.ops.is_valid_b_counter_reg =
+			gen7_is_valid_b_counter_addr;
+		dev_priv->perf.oa.ops.is_valid_mux_reg =
+			gen8_is_valid_mux_addr;
+		dev_priv->perf.oa.ops.is_valid_flex_reg =
+			gen8_is_valid_flex_addr;
 
 		dev_priv->perf.oa.ops.init_oa_buffer = gen8_init_oa_buffer;
 		dev_priv->perf.oa.ops.enable_metric_set = gen8_enable_metric_set;
@@ -3018,6 +3441,10 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 			dev_priv->perf.oa.timestamp_frequency = 12500000;
 
 			dev_priv->perf.oa.gen8_valid_ctx_bit = (1<<25);
+			if (IS_CHERRYVIEW(dev_priv)) {
+				dev_priv->perf.oa.ops.is_valid_mux_reg =
+					chv_is_valid_mux_addr;
+			}
 		} else if (IS_GEN9(dev_priv)) {
 			dev_priv->perf.oa.ctx_oactxctrl_offset = 0x128;
 			dev_priv->perf.oa.ctx_flexeu0_offset = 0x3de;
@@ -3056,8 +3483,21 @@ void i915_perf_init(struct drm_i915_private *dev_priv)
 			dev_priv->perf.oa.timestamp_frequency / 2;
 		dev_priv->perf.sysctl_header = register_sysctl_table(dev_root);
 
+		mutex_init(&dev_priv->perf.metrics_lock);
+		idr_init(&dev_priv->perf.metrics_idr);
+
 		dev_priv->perf.initialized = true;
 	}
+}
+
+static int destroy_config(int id, void *p, void *data)
+{
+	struct drm_i915_private *dev_priv = data;
+	struct i915_oa_config *oa_config = p;
+
+	put_oa_config(dev_priv, oa_config);
+
+	return 0;
 }
 
 /**
@@ -3068,6 +3508,9 @@ void i915_perf_fini(struct drm_i915_private *dev_priv)
 {
 	if (!dev_priv->perf.initialized)
 		return;
+
+	idr_for_each(&dev_priv->perf.metrics_idr, destroy_config, dev_priv);
+	idr_destroy(&dev_priv->perf.metrics_idr);
 
 	unregister_sysctl_table(dev_priv->perf.sysctl_header);
 

@@ -260,6 +260,8 @@ typedef struct _drm_i915_sarea {
 #define DRM_I915_GEM_CONTEXT_GETPARAM	0x34
 #define DRM_I915_GEM_CONTEXT_SETPARAM	0x35
 #define DRM_I915_PERF_OPEN		0x36
+#define DRM_I915_PERF_ADD_CONFIG	0x37
+#define DRM_I915_PERF_REMOVE_CONFIG	0x38
 
 #define DRM_IOCTL_I915_INIT		DRM_IOW( DRM_COMMAND_BASE + DRM_I915_INIT, drm_i915_init_t)
 #define DRM_IOCTL_I915_FLUSH		DRM_IO ( DRM_COMMAND_BASE + DRM_I915_FLUSH)
@@ -315,6 +317,8 @@ typedef struct _drm_i915_sarea {
 #define DRM_IOCTL_I915_GEM_CONTEXT_GETPARAM	DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_CONTEXT_GETPARAM, struct drm_i915_gem_context_param)
 #define DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM	DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_CONTEXT_SETPARAM, struct drm_i915_gem_context_param)
 #define DRM_IOCTL_I915_PERF_OPEN	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_PERF_OPEN, struct drm_i915_perf_open_param)
+#define DRM_IOCTL_I915_PERF_ADD_CONFIG	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_PERF_ADD_CONFIG, struct drm_i915_perf_oa_config)
+#define DRM_IOCTL_I915_PERF_REMOVE_CONFIG	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_PERF_REMOVE_CONFIG, __u64)
 
 /* Allow drivers to submit batchbuffers directly to hardware, relying
  * on the security mechanisms provided by hardware.
@@ -1465,6 +1469,22 @@ enum drm_i915_perf_record_type {
 	DRM_I915_PERF_RECORD_OA_BUFFER_LOST = 3,
 
 	DRM_I915_PERF_RECORD_MAX /* non-ABI */
+};
+
+/**
+ * Structure to upload perf dynamic configuration into the kernel.
+ */
+struct drm_i915_perf_oa_config {
+	/** String formatted like "%08x-%04x-%04x-%04x-%012x" */
+	char uuid[36];
+
+	__u32 n_mux_regs;
+	__u32 n_boolean_regs;
+	__u32 n_flex_regs;
+
+	__u64 __user mux_regs_ptr;
+	__u64 __user boolean_regs_ptr;
+	__u64 __user flex_regs_ptr;
 };
 
 #if defined(__cplusplus)

@@ -417,6 +417,10 @@ integrate with drm/i915 and to handle the `DRM_I915_PERF_OPEN` ioctl.
    :functions: i915_perf_open_ioctl
 .. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
    :functions: i915_perf_release
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_perf_add_config_ioctl
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
+   :functions: i915_perf_remove_config_ioctl
 
 i915 Perf Stream
 ----------------
