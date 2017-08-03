@@ -55,7 +55,7 @@ vc4_free_hang_state(struct drm_device *dev, struct vc4_hang_state *state)
 	unsigned int i;
 
 	for (i = 0; i < state->user_state.bo_count; i++)
-		drm_gem_object_unreference_unlocked(state->bo[i]);
+		drm_gem_object_put_unlocked(state->bo[i]);
 
 	kfree(state);
 }
@@ -188,12 +188,12 @@ vc4_save_hang_state(struct drm_device *dev)
 			continue;
 
 		for (j = 0; j < exec[i]->bo_count; j++) {
-			drm_gem_object_reference(&exec[i]->bo[j]->base);
+			drm_gem_object_get(&exec[i]->bo[j]->base);
 			kernel_state->bo[j + prev_idx] = &exec[i]->bo[j]->base;
 		}
 
 		list_for_each_entry(bo, &exec[i]->unref_list, unref_head) {
-			drm_gem_object_reference(&bo->base.base);
+			drm_gem_object_get(&bo->base.base);
 			kernel_state->bo[j + prev_idx] = &bo->base.base;
 			j++;
 		}
@@ -696,7 +696,7 @@ vc4_cl_lookup_bos(struct drm_device *dev,
 			spin_unlock(&file_priv->table_lock);
 			goto fail;
 		}
-		drm_gem_object_reference(bo);
+		drm_gem_object_get(bo);
 		exec->bo[i] = (struct drm_gem_cma_object *)bo;
 	}
 	spin_unlock(&file_priv->table_lock);
@@ -834,7 +834,7 @@ vc4_complete_exec(struct drm_device *dev, struct vc4_exec_info *exec)
 
 	if (exec->bo) {
 		for (i = 0; i < exec->bo_count; i++)
-			drm_gem_object_unreference_unlocked(&exec->bo[i]->base);
+			drm_gem_object_put_unlocked(&exec->bo[i]->base);
 		kvfree(exec->bo);
 	}
 
@@ -842,7 +842,7 @@ vc4_complete_exec(struct drm_device *dev, struct vc4_exec_info *exec)
 		struct vc4_bo *bo = list_first_entry(&exec->unref_list,
 						     struct vc4_bo, unref_head);
 		list_del(&bo->unref_head);
-		drm_gem_object_unreference_unlocked(&bo->base.base);
+		drm_gem_object_put_unlocked(&bo->base.base);
 	}
 
 	/* Free up the allocation of any bin slots we used. */
@@ -981,7 +981,7 @@ vc4_wait_bo_ioctl(struct drm_device *dev, void *data,
 	ret = vc4_wait_for_seqno_ioctl_helper(dev, bo->seqno,
 					      &args->timeout_ns);
 
-	drm_gem_object_unreference_unlocked(gem_obj);
+	drm_gem_object_put_unlocked(gem_obj);
 	return ret;
 }
 

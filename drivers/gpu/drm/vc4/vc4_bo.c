@@ -366,7 +366,7 @@ int vc4_dumb_create(struct drm_file *file_priv,
 		return PTR_ERR(bo);
 
 	ret = drm_gem_handle_create(file_priv, &bo->base.base, &args->handle);
-	drm_gem_object_unreference_unlocked(&bo->base.base);
+	drm_gem_object_put_unlocked(&bo->base.base);
 
 	return ret;
 }
@@ -581,7 +581,7 @@ int vc4_create_bo_ioctl(struct drm_device *dev, void *data,
 		return PTR_ERR(bo);
 
 	ret = drm_gem_handle_create(file_priv, &bo->base.base, &args->handle);
-	drm_gem_object_unreference_unlocked(&bo->base.base);
+	drm_gem_object_put_unlocked(&bo->base.base);
 
 	return ret;
 }
@@ -601,7 +601,7 @@ int vc4_mmap_bo_ioctl(struct drm_device *dev, void *data,
 	/* The mmap offset was set up at BO allocation time. */
 	args->offset = drm_vma_node_offset_addr(&gem_obj->vma_node);
 
-	drm_gem_object_unreference_unlocked(gem_obj);
+	drm_gem_object_put_unlocked(gem_obj);
 	return 0;
 }
 
@@ -657,7 +657,7 @@ vc4_create_shader_bo_ioctl(struct drm_device *dev, void *data,
 	ret = drm_gem_handle_create(file_priv, &bo->base.base, &args->handle);
 
  fail:
-	drm_gem_object_unreference_unlocked(&bo->base.base);
+	drm_gem_object_put_unlocked(&bo->base.base);
 
 	return ret;
 }
@@ -704,7 +704,7 @@ int vc4_set_tiling_ioctl(struct drm_device *dev, void *data,
 	bo = to_vc4_bo(gem_obj);
 	bo->t_format = t_format;
 
-	drm_gem_object_unreference_unlocked(gem_obj);
+	drm_gem_object_put_unlocked(gem_obj);
 
 	return 0;
 }
@@ -739,7 +739,7 @@ int vc4_get_tiling_ioctl(struct drm_device *dev, void *data,
 	else
 		args->modifier = DRM_FORMAT_MOD_NONE;
 
-	drm_gem_object_unreference_unlocked(gem_obj);
+	drm_gem_object_put_unlocked(gem_obj);
 
 	return 0;
 }
