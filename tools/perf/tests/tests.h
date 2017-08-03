@@ -35,6 +35,7 @@ struct test {
 		const char *(*get_desc)(int subtest);
 	} subtest;
 	bool (*is_supported)(void);
+	void *priv;
 };
 
 /* Tests */
