@@ -346,6 +346,31 @@ static void replenish_pools(struct ibmvnic_adapter *adapter)
 	}
 }
 
+static void release_stats_buffers(struct ibmvnic_adapter *adapter)
+{
+	kfree(adapter->tx_stats_buffers);
+	kfree(adapter->rx_stats_buffers);
+}
+
+static int init_stats_buffers(struct ibmvnic_adapter *adapter)
+{
+	adapter->tx_stats_buffers =
+				kcalloc(adapter->req_tx_queues,
+					sizeof(struct ibmvnic_tx_queue_stats),
+					GFP_KERNEL);
+	if (!adapter->tx_stats_buffers)
+		return -ENOMEM;
+
+	adapter->rx_stats_buffers =
+				kcalloc(adapter->req_rx_queues,
+					sizeof(struct ibmvnic_rx_queue_stats),
+					GFP_KERNEL);
+	if (!adapter->rx_stats_buffers)
+		return -ENOMEM;
+
+	return 0;
+}
+
 static void release_stats_token(struct ibmvnic_adapter *adapter)
 {
 	struct device *dev = &adapter->vdev->dev;
@@ -686,6 +711,7 @@ static void release_resources(struct ibmvnic_adapter *adapter)
 	release_rx_pools(adapter);
 
 	release_stats_token(adapter);
+	release_stats_buffers(adapter);
 	release_error_buffers(adapter);
 
 	if (adapter->napi) {
@@ -760,6 +786,10 @@ static int init_resources(struct ibmvnic_adapter *adapter)
 	int i, rc;
 
 	rc = set_real_num_queues(netdev);
+	if (rc)
+		return rc;
+
+	rc = init_stats_buffers(adapter);
 	if (rc)
 		return rc;
 
@@ -1245,6 +1275,9 @@ out:
 	netdev->stats.tx_packets += tx_packets;
 	adapter->tx_send_failed += tx_send_failed;
 	adapter->tx_map_failed += tx_map_failed;
+	adapter->tx_stats_buffers[queue_num].packets += tx_packets;
+	adapter->tx_stats_buffers[queue_num].bytes += tx_bytes;
+	adapter->tx_stats_buffers[queue_num].dropped_packets += tx_dropped;
 
 	return ret;
 }
@@ -1585,6 +1618,8 @@ restart_poll:
 		napi_gro_receive(napi, skb); /* send it up */
 		netdev->stats.rx_packets++;
 		netdev->stats.rx_bytes += length;
+		adapter->rx_stats_buffers[scrq_num].packets++;
+		adapter->rx_stats_buffers[scrq_num].bytes += length;
 		frames_processed++;
 	}
 
@@ -1694,18 +1729,36 @@ static u32 ibmvnic_get_link(struct net_device *netdev)
 static void ibmvnic_get_ringparam(struct net_device *netdev,
 				  struct ethtool_ringparam *ring)
 {
-	ring->rx_max_pending = 0;
-	ring->tx_max_pending = 0;
+	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
+
+	ring->rx_max_pending = adapter->max_rx_add_entries_per_subcrq;
+	ring->tx_max_pending = adapter->max_tx_entries_per_subcrq;
 	ring->rx_mini_max_pending = 0;
 	ring->rx_jumbo_max_pending = 0;
-	ring->rx_pending = 0;
-	ring->tx_pending = 0;
+	ring->rx_pending = adapter->req_rx_add_entries_per_subcrq;
+	ring->tx_pending = adapter->req_tx_entries_per_subcrq;
 	ring->rx_mini_pending = 0;
 	ring->rx_jumbo_pending = 0;
 }
 
+static void ibmvnic_get_channels(struct net_device *netdev,
+				 struct ethtool_channels *channels)
+{
+	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
+
+	channels->max_rx = adapter->max_rx_queues;
+	channels->max_tx = adapter->max_tx_queues;
+	channels->max_other = 0;
+	channels->max_combined = 0;
+	channels->rx_count = adapter->req_rx_queues;
+	channels->tx_count = adapter->req_tx_queues;
+	channels->other_count = 0;
+	channels->combined_count = 0;
+}
+
 static void ibmvnic_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 {
+	struct ibmvnic_adapter *adapter = netdev_priv(dev);
 	int i;
 
 	if (stringset != ETH_SS_STATS)
@@ -1713,13 +1766,39 @@ static void ibmvnic_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 
 	for (i = 0; i < ARRAY_SIZE(ibmvnic_stats); i++, data += ETH_GSTRING_LEN)
 		memcpy(data, ibmvnic_stats[i].name, ETH_GSTRING_LEN);
+
+	for (i = 0; i < adapter->req_tx_queues; i++) {
+		snprintf(data, ETH_GSTRING_LEN, "tx%d_packets", i);
+		data += ETH_GSTRING_LEN;
+
+		snprintf(data, ETH_GSTRING_LEN, "tx%d_bytes", i);
+		data += ETH_GSTRING_LEN;
+
+		snprintf(data, ETH_GSTRING_LEN, "tx%d_dropped_packets", i);
+		data += ETH_GSTRING_LEN;
+	}
+
+	for (i = 0; i < adapter->req_rx_queues; i++) {
+		snprintf(data, ETH_GSTRING_LEN, "rx%d_packets", i);
+		data += ETH_GSTRING_LEN;
+
+		snprintf(data, ETH_GSTRING_LEN, "rx%d_bytes", i);
+		data += ETH_GSTRING_LEN;
+
+		snprintf(data, ETH_GSTRING_LEN, "rx%d_interrupts", i);
+		data += ETH_GSTRING_LEN;
+	}
 }
 
 static int ibmvnic_get_sset_count(struct net_device *dev, int sset)
 {
+	struct ibmvnic_adapter *adapter = netdev_priv(dev);
+
 	switch (sset) {
 	case ETH_SS_STATS:
-		return ARRAY_SIZE(ibmvnic_stats);
+		return ARRAY_SIZE(ibmvnic_stats) +
+		       adapter->req_tx_queues * NUM_TX_STATS +
+		       adapter->req_rx_queues * NUM_RX_STATS;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1730,7 +1809,7 @@ static void ibmvnic_get_ethtool_stats(struct net_device *dev,
 {
 	struct ibmvnic_adapter *adapter = netdev_priv(dev);
 	union ibmvnic_crq crq;
-	int i;
+	int i, j;
 
 	memset(&crq, 0, sizeof(crq));
 	crq.request_statistics.first = IBMVNIC_CRQ_CMD;
@@ -1745,7 +1824,26 @@ static void ibmvnic_get_ethtool_stats(struct net_device *dev,
 	wait_for_completion(&adapter->stats_done);
 
 	for (i = 0; i < ARRAY_SIZE(ibmvnic_stats); i++)
-		data[i] = IBMVNIC_GET_STAT(adapter, ibmvnic_stats[i].offset);
+		data[i] = be64_to_cpu(IBMVNIC_GET_STAT(adapter,
+						ibmvnic_stats[i].offset));
+
+	for (j = 0; j < adapter->req_tx_queues; j++) {
+		data[i] = adapter->tx_stats_buffers[j].packets;
+		i++;
+		data[i] = adapter->tx_stats_buffers[j].bytes;
+		i++;
+		data[i] = adapter->tx_stats_buffers[j].dropped_packets;
+		i++;
+	}
+
+	for (j = 0; j < adapter->req_rx_queues; j++) {
+		data[i] = adapter->rx_stats_buffers[j].packets;
+		i++;
+		data[i] = adapter->rx_stats_buffers[j].bytes;
+		i++;
+		data[i] = adapter->rx_stats_buffers[j].interrupts;
+		i++;
+	}
 }
 
 static const struct ethtool_ops ibmvnic_ethtool_ops = {
@@ -1754,6 +1852,7 @@ static const struct ethtool_ops ibmvnic_ethtool_ops = {
 	.set_msglevel		= ibmvnic_set_msglevel,
 	.get_link		= ibmvnic_get_link,
 	.get_ringparam		= ibmvnic_get_ringparam,
+	.get_channels		= ibmvnic_get_channels,
 	.get_strings            = ibmvnic_get_strings,
 	.get_sset_count         = ibmvnic_get_sset_count,
 	.get_ethtool_stats	= ibmvnic_get_ethtool_stats,
@@ -2049,6 +2148,8 @@ static irqreturn_t ibmvnic_interrupt_rx(int irq, void *instance)
 {
 	struct ibmvnic_sub_crq_queue *scrq = instance;
 	struct ibmvnic_adapter *adapter = scrq->adapter;
+
+	adapter->rx_stats_buffers[scrq->scrq_num].interrupts++;
 
 	if (napi_schedule_prep(&adapter->napi[scrq->scrq_num])) {
 		disable_scrq_irq(adapter, scrq);
