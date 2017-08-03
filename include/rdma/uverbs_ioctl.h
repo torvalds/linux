@@ -419,8 +419,20 @@ static inline int _uverbs_copy_from(void *to, size_t to_size,
  * An object without any methods is considered invalid and will abort the
  * function with -ENOENT error.
  */
+#if IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS)
 struct uverbs_root_spec *uverbs_alloc_spec_tree(unsigned int num_trees,
 						const struct uverbs_object_tree_def **trees);
 void uverbs_free_spec_tree(struct uverbs_root_spec *root);
+#else
+static inline struct uverbs_root_spec *uverbs_alloc_spec_tree(unsigned int num_trees,
+							      const struct uverbs_object_tree_def **trees)
+{
+	return NULL;
+}
+
+static inline void uverbs_free_spec_tree(struct uverbs_root_spec *root)
+{
+}
+#endif
 
 #endif

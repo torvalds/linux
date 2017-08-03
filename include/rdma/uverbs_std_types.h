@@ -34,8 +34,10 @@
 #define _UVERBS_STD_TYPES__
 
 #include <rdma/uverbs_types.h>
+#include <rdma/uverbs_ioctl.h>
 #include <rdma/ib_user_ioctl_verbs.h>
 
+#if IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS)
 extern const struct uverbs_object_def uverbs_object_comp_channel;
 extern const struct uverbs_object_def uverbs_object_cq;
 extern const struct uverbs_object_def uverbs_object_qp;
@@ -49,6 +51,18 @@ extern const struct uverbs_object_def uverbs_object_mw;
 extern const struct uverbs_object_def uverbs_object_pd;
 extern const struct uverbs_object_def uverbs_object_xrcd;
 extern const struct uverbs_object_def uverbs_object_device;
+
+extern const struct uverbs_object_tree_def uverbs_default_objects;
+static inline const struct uverbs_object_tree_def *uverbs_default_get_objects(void)
+{
+	return &uverbs_default_objects;
+}
+#else
+static inline const struct uverbs_object_tree_def *uverbs_default_get_objects(void)
+{
+	return NULL;
+}
+#endif
 
 static inline struct ib_uobject *__uobj_get(const struct uverbs_obj_type *type,
 					    bool write,

@@ -49,6 +49,7 @@
 #include <linux/uaccess.h>
 
 #include <rdma/ib.h>
+#include <rdma/uverbs_std_types.h>
 
 #include "uverbs.h"
 #include "core_priv.h"
@@ -1097,6 +1098,18 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	if (device_create_file(uverbs_dev->dev, &dev_attr_abi_version))
 		goto err_class;
 
+	if (!device->specs_root) {
+		const struct uverbs_object_tree_def *default_root[] = {
+			uverbs_default_get_objects()};
+
+		uverbs_dev->specs_root = uverbs_alloc_spec_tree(1,
+								default_root);
+		if (IS_ERR(uverbs_dev->specs_root))
+			goto err_class;
+
+		device->specs_root = uverbs_dev->specs_root;
+	}
+
 	ib_set_client_data(device, &uverbs_client, uverbs_dev);
 
 	return;
@@ -1228,6 +1241,11 @@ static void ib_uverbs_remove_one(struct ib_device *device, void *client_data)
 		ib_uverbs_comp_dev(uverbs_dev);
 	if (wait_clients)
 		wait_for_completion(&uverbs_dev->comp);
+	if (uverbs_dev->specs_root) {
+		uverbs_free_spec_tree(uverbs_dev->specs_root);
+		device->specs_root = NULL;
+	}
+
 	kobject_put(&uverbs_dev->kobj);
 }
 
