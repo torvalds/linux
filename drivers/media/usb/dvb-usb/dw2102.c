@@ -2104,46 +2104,46 @@ static struct dvb_usb_device_properties s6x0_properties = {
 };
 
 static struct dvb_usb_device_properties *p1100;
-static struct dvb_usb_device_description d1100 = {
+static const struct dvb_usb_device_description d1100 = {
 	"Prof 1100 USB ",
 	{&dw2102_table[PROF_1100], NULL},
 	{NULL},
 };
 
 static struct dvb_usb_device_properties *s660;
-static struct dvb_usb_device_description d660 = {
+static const struct dvb_usb_device_description d660 = {
 	"TeVii S660 USB",
 	{&dw2102_table[TEVII_S660], NULL},
 	{NULL},
 };
 
-static struct dvb_usb_device_description d480_1 = {
+static const struct dvb_usb_device_description d480_1 = {
 	"TeVii S480.1 USB",
 	{&dw2102_table[TEVII_S480_1], NULL},
 	{NULL},
 };
 
-static struct dvb_usb_device_description d480_2 = {
+static const struct dvb_usb_device_description d480_2 = {
 	"TeVii S480.2 USB",
 	{&dw2102_table[TEVII_S480_2], NULL},
 	{NULL},
 };
 
 static struct dvb_usb_device_properties *p7500;
-static struct dvb_usb_device_description d7500 = {
+static const struct dvb_usb_device_description d7500 = {
 	"Prof 7500 USB DVB-S2",
 	{&dw2102_table[PROF_7500], NULL},
 	{NULL},
 };
 
 static struct dvb_usb_device_properties *s421;
-static struct dvb_usb_device_description d421 = {
+static const struct dvb_usb_device_description d421 = {
 	"TeVii S421 PCI",
 	{&dw2102_table[TEVII_S421], NULL},
 	{NULL},
 };
 
-static struct dvb_usb_device_description d632 = {
+static const struct dvb_usb_device_description d632 = {
 	"TeVii S632 USB",
 	{&dw2102_table[TEVII_S632], NULL},
 	{NULL},
