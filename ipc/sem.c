@@ -1856,7 +1856,7 @@ out:
 }
 
 static long do_semtimedop(int semid, struct sembuf __user *tsops,
-		unsigned nsops, const struct timespec *timeout)
+		unsigned nsops, const struct timespec64 *timeout)
 {
 	int error = -EINVAL;
 	struct sem_array *sma;
@@ -1892,7 +1892,7 @@ static long do_semtimedop(int semid, struct sembuf __user *tsops,
 			error = -EINVAL;
 			goto out_free;
 		}
-		jiffies_left = timespec_to_jiffies(timeout);
+		jiffies_left = timespec64_to_jiffies(timeout);
 	}
 
 	max = 0;
@@ -2111,8 +2111,8 @@ SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
 		unsigned, nsops, const struct timespec __user *, timeout)
 {
 	if (timeout) {
-		struct timespec ts;
-		if (copy_from_user(&ts, timeout, sizeof(*timeout)))
+		struct timespec64 ts;
+		if (get_timespec64(&ts, timeout))
 			return -EFAULT;
 		return do_semtimedop(semid, tsops, nsops, &ts);
 	}
@@ -2125,8 +2125,8 @@ COMPAT_SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsems,
 		       const struct compat_timespec __user *, timeout)
 {
 	if (timeout) {
-		struct timespec ts;
-		if (compat_get_timespec(&ts, timeout))
+		struct timespec64 ts;
+		if (compat_get_timespec64(&ts, timeout))
 			return -EFAULT;
 		return do_semtimedop(semid, tsems, nsops, &ts);
 	}
