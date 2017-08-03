@@ -59,6 +59,21 @@ static char fw_type[LIO_MAX_FW_TYPE_LEN];
 module_param_string(fw_type, fw_type, sizeof(fw_type), 0000);
 MODULE_PARM_DESC(fw_type, "Type of firmware to be loaded. Default \"nic\"");
 
+static u32 console_bitmask;
+module_param(console_bitmask, int, 0644);
+MODULE_PARM_DESC(console_bitmask,
+		 "Bitmask indicating which consoles have debug output redirected to syslog.");
+
+/**
+ * \brief determines if a given console has debug enabled.
+ * @param console console to check
+ * @returns  1 = enabled. 0 otherwise
+ */
+int octeon_console_debug_enabled(u32 console)
+{
+	return (console_bitmask >> (console)) & 0x1;
+}
+
 static int ptp_enable = 1;
 
 /* Polling interval for determining when NIC application is alive */

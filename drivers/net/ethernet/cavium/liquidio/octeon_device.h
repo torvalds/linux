@@ -739,6 +739,8 @@ int octeon_wait_for_bootloader(struct octeon_device *oct,
  */
 int octeon_init_consoles(struct octeon_device *oct);
 
+int octeon_console_debug_enabled(u32 console);
+
 /**
  * Adds access to a console to the device.
  *

@@ -37,10 +37,6 @@ static u64 cvmx_bootmem_phy_named_block_find(struct octeon_device *oct,
 					     u32 flags);
 static int octeon_console_read(struct octeon_device *oct, u32 console_num,
 			       char *buffer, u32 buf_size);
-static u32 console_bitmask;
-module_param(console_bitmask, int, 0644);
-MODULE_PARM_DESC(console_bitmask,
-		 "Bitmask indicating which consoles have debug output redirected to syslog.");
 
 #define BOOTLOADER_PCI_READ_BUFFER_DATA_ADDR    0x0006c008
 #define BOOTLOADER_PCI_READ_BUFFER_LEN_ADDR     0x0006c004
@@ -134,16 +130,6 @@ struct octeon_pci_console_desc {
 	u64 console_addr_array[0];
 	/* Implicit storage for console_addr_array */
 };
-
-/**
- * \brief determines if a given console has debug enabled.
- * @param console console to check
- * @returns  1 = enabled. 0 otherwise
- */
-static int octeon_console_debug_enabled(u32 console)
-{
-	return (console_bitmask >> (console)) & 0x1;
-}
 
 /**
  * This function is the implementation of the get macros defined
