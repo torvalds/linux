@@ -1265,15 +1265,14 @@ void amdgpu_vm_get_entry(struct amdgpu_pte_update_params *p, uint64_t addr,
  *
  * Check if we can update the PD with a huge page.
  */
-static int amdgpu_vm_handle_huge_pages(struct amdgpu_pte_update_params *p,
-				       struct amdgpu_vm_pt *entry,
-				       struct amdgpu_vm_pt *parent,
-				       unsigned nptes, uint64_t dst,
-				       uint64_t flags)
+static void amdgpu_vm_handle_huge_pages(struct amdgpu_pte_update_params *p,
+					struct amdgpu_vm_pt *entry,
+					struct amdgpu_vm_pt *parent,
+					unsigned nptes, uint64_t dst,
+					uint64_t flags)
 {
 	bool use_cpu_update = (p->func == amdgpu_vm_cpu_set_ptes);
 	uint64_t pd_addr, pde;
-	int r;
 
 	/* In the case of a mixed PT the PDE must point to it*/
 	if (p->adev->asic_type < CHIP_VEGA10 ||
@@ -1290,16 +1289,13 @@ static int amdgpu_vm_handle_huge_pages(struct amdgpu_pte_update_params *p,
 
 	if (entry->addr == dst &&
 	    entry->huge_page == !!(flags & AMDGPU_PDE_PTE))
-		return 0;
+		return;
 
 	entry->addr = dst;
 	entry->huge_page = !!(flags & AMDGPU_PDE_PTE);
 
 	if (use_cpu_update) {
-		r = amdgpu_bo_kmap(parent->bo, (void *)&pd_addr);
-		if (r)
-			return r;
-
+		pd_addr = (unsigned long)amdgpu_bo_kptr(parent->bo);
 		pde = pd_addr + (entry - parent->entries) * 8;
 		amdgpu_vm_cpu_set_ptes(p, pde, dst, 1, 0, flags);
 	} else {
@@ -1312,8 +1308,6 @@ static int amdgpu_vm_handle_huge_pages(struct amdgpu_pte_update_params *p,
 		pde = pd_addr + (entry - parent->entries) * 8;
 		amdgpu_vm_do_set_ptes(p, pde, dst, 1, 0, flags);
 	}
-
-	return 0;
 }
 
 /**
@@ -1340,7 +1334,6 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 	struct amdgpu_bo *pt;
 	unsigned nptes;
 	bool use_cpu_update = (params->func == amdgpu_vm_cpu_set_ptes);
-	int r;
 
 	/* walk over the address space and update the page tables */
 	for (addr = start; addr < end; addr += nptes,
@@ -1356,11 +1349,8 @@ static int amdgpu_vm_update_ptes(struct amdgpu_pte_update_params *params,
 		else
 			nptes = AMDGPU_VM_PTE_COUNT(adev) - (addr & mask);
 
-		r = amdgpu_vm_handle_huge_pages(params, entry, parent,
-						nptes, dst, flags);
-		if (r)
-			return r;
-
+		amdgpu_vm_handle_huge_pages(params, entry, parent,
+					    nptes, dst, flags);
 		if (entry->huge_page)
 			continue;
 
