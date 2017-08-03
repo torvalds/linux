@@ -837,8 +837,6 @@ static void fib6_purge_rt(struct rt6_info *rt, struct fib6_node *fn,
 			}
 			fn = fn->parent;
 		}
-		/* No more references are possible at this point. */
-		BUG_ON(atomic_read(&rt->rt6i_ref) != 1);
 	}
 }
 
