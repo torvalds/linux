@@ -3613,7 +3613,7 @@ sctp_disposition_t sctp_sf_do_asconf(struct net *net,
 	struct sctp_chunk	*chunk = arg;
 	struct sctp_chunk	*asconf_ack = NULL;
 	struct sctp_paramhdr	*err_param = NULL;
-	sctp_addiphdr_t		*hdr;
+	struct sctp_addiphdr	*hdr;
 	__u32			serial;
 
 	if (!sctp_vtag_verify(chunk, asoc)) {
@@ -3636,7 +3636,7 @@ sctp_disposition_t sctp_sf_do_asconf(struct net *net,
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
 
-	hdr = (sctp_addiphdr_t *)chunk->skb->data;
+	hdr = (struct sctp_addiphdr *)chunk->skb->data;
 	serial = ntohl(hdr->serial);
 
 	/* Verify the ASCONF chunk before processing it. */
@@ -3730,7 +3730,7 @@ sctp_disposition_t sctp_sf_do_asconf_ack(struct net *net,
 	struct sctp_chunk	*last_asconf = asoc->addip_last_asconf;
 	struct sctp_chunk	*abort;
 	struct sctp_paramhdr	*err_param = NULL;
-	sctp_addiphdr_t		*addip_hdr;
+	struct sctp_addiphdr	*addip_hdr;
 	__u32			sent_serial, rcvd_serial;
 
 	if (!sctp_vtag_verify(asconf_ack, asoc)) {
@@ -3753,7 +3753,7 @@ sctp_disposition_t sctp_sf_do_asconf_ack(struct net *net,
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
 
-	addip_hdr = (sctp_addiphdr_t *)asconf_ack->skb->data;
+	addip_hdr = (struct sctp_addiphdr *)asconf_ack->skb->data;
 	rcvd_serial = ntohl(addip_hdr->serial);
 
 	/* Verify the ASCONF-ACK chunk before processing it. */
@@ -3762,7 +3762,7 @@ sctp_disposition_t sctp_sf_do_asconf_ack(struct net *net,
 			   (void *)err_param, commands);
 
 	if (last_asconf) {
-		addip_hdr = (sctp_addiphdr_t *)last_asconf->subh.addip_hdr;
+		addip_hdr = (struct sctp_addiphdr *)last_asconf->subh.addip_hdr;
 		sent_serial = ntohl(addip_hdr->serial);
 	} else {
 		sent_serial = asoc->addip_serial - 1;

@@ -2752,7 +2752,7 @@ static struct sctp_chunk *sctp_make_asconf(struct sctp_association *asoc,
 					   union sctp_addr *addr,
 					   int vparam_len)
 {
-	sctp_addiphdr_t asconf;
+	struct sctp_addiphdr asconf;
 	struct sctp_chunk *retval;
 	int length = sizeof(asconf) + vparam_len;
 	union sctp_addr_param addrparam;
@@ -2945,7 +2945,7 @@ struct sctp_chunk *sctp_make_asconf_set_prim(struct sctp_association *asoc,
 static struct sctp_chunk *sctp_make_asconf_ack(const struct sctp_association *asoc,
 					       __u32 serial, int vparam_len)
 {
-	sctp_addiphdr_t		asconf;
+	struct sctp_addiphdr	asconf;
 	struct sctp_chunk	*retval;
 	int			length = sizeof(asconf) + vparam_len;
 
@@ -3210,7 +3210,7 @@ struct sctp_chunk *sctp_process_asconf(struct sctp_association *asoc,
 	sctp_addip_chunk_t *addip = (sctp_addip_chunk_t *) asconf->chunk_hdr;
 	bool all_param_pass = true;
 	union sctp_params param;
-	sctp_addiphdr_t		*hdr;
+	struct sctp_addiphdr	*hdr;
 	union sctp_addr_param	*addr_param;
 	struct sctp_chunk	*asconf_ack;
 	__be16	err_code;
@@ -3220,11 +3220,11 @@ struct sctp_chunk *sctp_process_asconf(struct sctp_association *asoc,
 
 	chunk_len = ntohs(asconf->chunk_hdr->length) -
 		    sizeof(struct sctp_chunkhdr);
-	hdr = (sctp_addiphdr_t *)asconf->skb->data;
+	hdr = (struct sctp_addiphdr *)asconf->skb->data;
 	serial = ntohl(hdr->serial);
 
 	/* Skip the addiphdr and store a pointer to address parameter.  */
-	length = sizeof(sctp_addiphdr_t);
+	length = sizeof(*hdr);
 	addr_param = (union sctp_addr_param *)(asconf->skb->data + length);
 	chunk_len -= length;
 
@@ -3370,7 +3370,7 @@ static __be16 sctp_get_asconf_response(struct sctp_chunk *asconf_ack,
 	/* Skip the addiphdr from the asconf_ack chunk and store a pointer to
 	 * the first asconf_ack parameter.
 	 */
-	length = sizeof(sctp_addiphdr_t);
+	length = sizeof(struct sctp_addiphdr);
 	asconf_ack_param = (struct sctp_addip_param *)(asconf_ack->skb->data +
 						       length);
 	asconf_ack_len -= length;
@@ -3435,7 +3435,7 @@ int sctp_process_asconf_ack(struct sctp_association *asoc,
 	 * failures are indicated, then all request(s) are considered
 	 * successful.
 	 */
-	if (asconf_ack->skb->len == sizeof(sctp_addiphdr_t))
+	if (asconf_ack->skb->len == sizeof(struct sctp_addiphdr))
 		all_param_pass = 1;
 
 	/* Process the TLVs contained in the last sent ASCONF chunk. */

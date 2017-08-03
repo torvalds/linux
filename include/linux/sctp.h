@@ -634,14 +634,14 @@ struct sctp_addip_param {
 	__be32 crr_id;
 };
 
-typedef struct sctp_addiphdr {
+struct sctp_addiphdr {
 	__be32	serial;
 	__u8	params[0];
-} sctp_addiphdr_t;
+};
 
 typedef struct sctp_addip_chunk {
 	struct sctp_chunkhdr chunk_hdr;
-	sctp_addiphdr_t addip_hdr;
+	struct sctp_addiphdr addip_hdr;
 } sctp_addip_chunk_t;
 
 /* AUTH
