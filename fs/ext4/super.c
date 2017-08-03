@@ -5404,6 +5404,13 @@ static int ext4_quota_on(struct super_block *sb, int type, int format_id,
 			ext4_msg(sb, KERN_WARNING,
 				"Quota file not on filesystem root. "
 				"Journaled quota will not work");
+		sb_dqopt(sb)->flags |= DQUOT_NOLIST_DIRTY;
+	} else {
+		/*
+		 * Clear the flag just in case mount options changed since
+		 * last time.
+		 */
+		sb_dqopt(sb)->flags &= ~DQUOT_NOLIST_DIRTY;
 	}
 
 	/*
@@ -5500,7 +5507,7 @@ static int ext4_enable_quotas(struct super_block *sb)
 		test_opt(sb, PRJQUOTA),
 	};
 
-	sb_dqopt(sb)->flags |= DQUOT_QUOTA_SYS_FILE;
+	sb_dqopt(sb)->flags |= DQUOT_QUOTA_SYS_FILE | DQUOT_NOLIST_DIRTY;
 	for (type = 0; type < EXT4_MAXQUOTAS; type++) {
 		if (qf_inums[type]) {
 			err = ext4_quota_enable(sb, type, QFMT_VFS_V1,
