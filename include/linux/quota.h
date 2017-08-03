@@ -490,6 +490,9 @@ enum {
 						 */
 #define DQUOT_NEGATIVE_USAGE	(1 << (DQUOT_STATE_LAST + 1))
 					       /* Allow negative quota usage */
+/* Do not track dirty dquots in a list */
+#define DQUOT_NOLIST_DIRTY	(1 << (DQUOT_STATE_LAST + 2))
+
 static inline unsigned int dquot_state_flag(unsigned int flags, int type)
 {
 	return flags << type;

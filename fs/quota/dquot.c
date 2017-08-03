@@ -344,6 +344,9 @@ int dquot_mark_dquot_dirty(struct dquot *dquot)
 	if (!test_bit(DQ_ACTIVE_B, &dquot->dq_flags))
 		return 0;
 
+	if (sb_dqopt(dquot->dq_sb)->flags & DQUOT_NOLIST_DIRTY)
+		return test_and_set_bit(DQ_MOD_B, &dquot->dq_flags);
+
 	/* If quota is dirty already, we don't have to acquire dq_list_lock */
 	if (test_bit(DQ_MOD_B, &dquot->dq_flags))
 		return 1;
@@ -385,6 +388,9 @@ static inline void dqput_all(struct dquot **dquot)
 
 static inline int clear_dquot_dirty(struct dquot *dquot)
 {
+	if (sb_dqopt(dquot->dq_sb)->flags & DQUOT_NOLIST_DIRTY)
+		return test_and_clear_bit(DQ_MOD_B, &dquot->dq_flags);
+
 	spin_lock(&dq_list_lock);
 	if (!test_and_clear_bit(DQ_MOD_B, &dquot->dq_flags)) {
 		spin_unlock(&dq_list_lock);
