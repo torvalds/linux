@@ -323,17 +323,10 @@ void rsi_interrupt_handler(struct rsi_hw *adapter)
 	} while (1);
 }
 
-/**
- * rsi_sdio_read_buffer_status_register() - This function is used to the read
- *					    buffer status register and set
- *					    relevant fields in
- *					    rsi_91x_sdiodev struct.
- * @adapter: Pointer to the driver hw structure.
- * @q_num: The Q number whose status is to be found.
- *
- * Return: status: -1 on failure or else queue full/stop is indicated.
+/* This function is used to read buffer status register and
+ * set relevant fields in rsi_91x_sdiodev struct.
  */
-int rsi_sdio_read_buffer_status_register(struct rsi_hw *adapter, u8 q_num)
+int rsi_sdio_check_buffer_status(struct rsi_hw *adapter, u8 q_num)
 {
 	struct rsi_common *common = adapter->priv;
 	struct rsi_91x_sdiodev *dev =
