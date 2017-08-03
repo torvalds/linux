@@ -1827,6 +1827,10 @@ static void gen8_disable_metric_set(struct drm_i915_private *dev_priv)
 {
 	/* Reset all contexts' slices/subslices configurations. */
 	gen8_configure_all_contexts(dev_priv, NULL, false);
+
+	I915_WRITE(GDT_CHICKEN_BITS, (I915_READ(GDT_CHICKEN_BITS) &
+				      ~GT_NOA_ENABLE));
+
 }
 
 static void gen7_oa_enable(struct drm_i915_private *dev_priv)
