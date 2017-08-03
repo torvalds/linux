@@ -839,6 +839,15 @@
 
 		qcom,smem-states = <&adsp_smp2p_out 0>;
 		qcom,smem-state-names = "stop";
+
+		smd-edge {
+			interrupts = <GIC_SPI 156 IRQ_TYPE_EDGE_RISING>;
+
+			label = "lpass";
+			qcom,ipc = <&apcs 16 8>;
+			qcom,smd-edge = <1>;
+			qcom,remote-pid = <2>;
+		};
 	};
 
 	adsp-smp2p {
