@@ -1714,8 +1714,11 @@ void dc_update_planes_and_stream(struct dc *dc,
 	}
 
 	if (core_dc->current_context != context) {
-		dc_release_validate_context(core_dc->current_context);
+		struct validate_context *old = core_dc->current_context;
+
 		core_dc->current_context = context;
+		dc_release_validate_context(old);
+
 	}
 	return;
 
