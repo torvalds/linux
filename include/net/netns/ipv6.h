@@ -86,6 +86,7 @@ struct netns_ipv6 {
 	atomic_t		dev_addr_genid;
 	atomic_t		fib6_sernum;
 	struct seg6_pernet_data *seg6_data;
+	struct fib_notifier_ops	*notifier_ops;
 };
 
 #if IS_ENABLED(CONFIG_NF_DEFRAG_IPV6)

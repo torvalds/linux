@@ -88,6 +88,7 @@ struct net {
 	/* core fib_rules */
 	struct list_head	rules_ops;
 
+	struct list_head	fib_notifier_ops;  /* protected by net_mutex */
 
 	struct net_device       *loopback_dev;          /* The loopback */
 	struct netns_core	core;
