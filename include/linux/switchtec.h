@@ -353,6 +353,10 @@ struct switchtec_dev {
 
 	wait_queue_head_t event_wq;
 	atomic_t event_cnt;
+
+	struct work_struct link_event_work;
+	void (*link_notifier)(struct switchtec_dev *stdev);
+	u8 link_event_count[SWITCHTEC_MAX_PFF_CSR];
 };
 
 static inline struct switchtec_dev *to_stdev(struct device *dev)
