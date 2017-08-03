@@ -25,6 +25,11 @@ MODULE_VERSION("0.1");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Microsemi Corporation");
 
+static ulong max_mw_size = SZ_2M;
+module_param(max_mw_size, ulong, 0644);
+MODULE_PARM_DESC(max_mw_size,
+	"Max memory window size reported to the upper layer");
+
 static bool use_lut_mws;
 module_param(use_lut_mws, bool, 0644);
 MODULE_PARM_DESC(use_lut_mws,
@@ -190,7 +195,27 @@ static int switchtec_ntb_send_msg(struct switchtec_ntb *sndev, int idx,
 
 static int switchtec_ntb_mw_count(struct ntb_dev *ntb, int pidx)
 {
-	return 0;
+	struct switchtec_ntb *sndev = ntb_sndev(ntb);
+	int nr_direct_mw = sndev->peer_nr_direct_mw;
+	int nr_lut_mw = sndev->peer_nr_lut_mw - 1;
+
+	if (pidx != NTB_DEF_PEER_IDX)
+		return -EINVAL;
+
+	if (!use_lut_mws)
+		nr_lut_mw = 0;
+
+	return nr_direct_mw + nr_lut_mw;
+}
+
+static int lut_index(struct switchtec_ntb *sndev, int mw_idx)
+{
+	return mw_idx - sndev->nr_direct_mw + 1;
+}
+
+static int peer_lut_index(struct switchtec_ntb *sndev, int mw_idx)
+{
+	return mw_idx - sndev->peer_nr_direct_mw + 1;
 }
 
 static int switchtec_ntb_mw_get_align(struct ntb_dev *ntb, int pidx,
@@ -198,17 +223,192 @@ static int switchtec_ntb_mw_get_align(struct ntb_dev *ntb, int pidx,
 				      resource_size_t *size_align,
 				      resource_size_t *size_max)
 {
+	struct switchtec_ntb *sndev = ntb_sndev(ntb);
+	int lut;
+	resource_size_t size;
+
+	if (pidx != NTB_DEF_PEER_IDX)
+		return -EINVAL;
+
+	lut = widx >= sndev->peer_nr_direct_mw;
+	size = ioread64(&sndev->peer_shared->mw_sizes[widx]);
+
+	if (size == 0)
+		return -EINVAL;
+
+	if (addr_align)
+		*addr_align = lut ? size : SZ_4K;
+
+	if (size_align)
+		*size_align = lut ? size : SZ_4K;
+
+	if (size_max)
+		*size_max = size;
+
 	return 0;
+}
+
+static void switchtec_ntb_mw_clr_direct(struct switchtec_ntb *sndev, int idx)
+{
+	struct ntb_ctrl_regs __iomem *ctl = sndev->mmio_peer_ctrl;
+	int bar = sndev->peer_direct_mw_to_bar[idx];
+	u32 ctl_val;
+
+	ctl_val = ioread32(&ctl->bar_entry[bar].ctl);
+	ctl_val &= ~NTB_CTRL_BAR_DIR_WIN_EN;
+	iowrite32(ctl_val, &ctl->bar_entry[bar].ctl);
+	iowrite32(0, &ctl->bar_entry[bar].win_size);
+	iowrite64(sndev->self_partition, &ctl->bar_entry[bar].xlate_addr);
+}
+
+static void switchtec_ntb_mw_clr_lut(struct switchtec_ntb *sndev, int idx)
+{
+	struct ntb_ctrl_regs __iomem *ctl = sndev->mmio_peer_ctrl;
+
+	iowrite64(0, &ctl->lut_entry[peer_lut_index(sndev, idx)]);
+}
+
+static void switchtec_ntb_mw_set_direct(struct switchtec_ntb *sndev, int idx,
+					dma_addr_t addr, resource_size_t size)
+{
+	int xlate_pos = ilog2(size);
+	int bar = sndev->peer_direct_mw_to_bar[idx];
+	struct ntb_ctrl_regs __iomem *ctl = sndev->mmio_peer_ctrl;
+	u32 ctl_val;
+
+	ctl_val = ioread32(&ctl->bar_entry[bar].ctl);
+	ctl_val |= NTB_CTRL_BAR_DIR_WIN_EN;
+
+	iowrite32(ctl_val, &ctl->bar_entry[bar].ctl);
+	iowrite32(xlate_pos | size, &ctl->bar_entry[bar].win_size);
+	iowrite64(sndev->self_partition | addr,
+		  &ctl->bar_entry[bar].xlate_addr);
+}
+
+static void switchtec_ntb_mw_set_lut(struct switchtec_ntb *sndev, int idx,
+				     dma_addr_t addr, resource_size_t size)
+{
+	struct ntb_ctrl_regs __iomem *ctl = sndev->mmio_peer_ctrl;
+
+	iowrite64((NTB_CTRL_LUT_EN | (sndev->self_partition << 1) | addr),
+		  &ctl->lut_entry[peer_lut_index(sndev, idx)]);
 }
 
 static int switchtec_ntb_mw_set_trans(struct ntb_dev *ntb, int pidx, int widx,
 				      dma_addr_t addr, resource_size_t size)
 {
-	return 0;
+	struct switchtec_ntb *sndev = ntb_sndev(ntb);
+	struct ntb_ctrl_regs __iomem *ctl = sndev->mmio_peer_ctrl;
+	int xlate_pos = ilog2(size);
+	int nr_direct_mw = sndev->peer_nr_direct_mw;
+	int rc;
+
+	if (pidx != NTB_DEF_PEER_IDX)
+		return -EINVAL;
+
+	dev_dbg(&sndev->stdev->dev, "MW %d: part %d addr %pad size %pap",
+		widx, pidx, &addr, &size);
+
+	if (widx >= switchtec_ntb_mw_count(ntb, pidx))
+		return -EINVAL;
+
+	if (xlate_pos < 12)
+		return -EINVAL;
+
+	rc = switchtec_ntb_part_op(sndev, ctl, NTB_CTRL_PART_OP_LOCK,
+				   NTB_CTRL_PART_STATUS_LOCKED);
+	if (rc)
+		return rc;
+
+	if (addr == 0 || size == 0) {
+		if (widx < nr_direct_mw)
+			switchtec_ntb_mw_clr_direct(sndev, widx);
+		else
+			switchtec_ntb_mw_clr_lut(sndev, widx);
+	} else {
+		if (widx < nr_direct_mw)
+			switchtec_ntb_mw_set_direct(sndev, widx, addr, size);
+		else
+			switchtec_ntb_mw_set_lut(sndev, widx, addr, size);
+	}
+
+	rc = switchtec_ntb_part_op(sndev, ctl, NTB_CTRL_PART_OP_CFG,
+				   NTB_CTRL_PART_STATUS_NORMAL);
+
+	if (rc == -EIO) {
+		dev_err(&sndev->stdev->dev,
+			"Hardware reported an error configuring mw %d: %08x",
+			widx, ioread32(&ctl->bar_error));
+
+		if (widx < nr_direct_mw)
+			switchtec_ntb_mw_clr_direct(sndev, widx);
+		else
+			switchtec_ntb_mw_clr_lut(sndev, widx);
+
+		switchtec_ntb_part_op(sndev, ctl, NTB_CTRL_PART_OP_CFG,
+				      NTB_CTRL_PART_STATUS_NORMAL);
+	}
+
+	return rc;
 }
 
 static int switchtec_ntb_peer_mw_count(struct ntb_dev *ntb)
 {
+	struct switchtec_ntb *sndev = ntb_sndev(ntb);
+
+	return sndev->nr_direct_mw + (use_lut_mws ? sndev->nr_lut_mw - 1 : 0);
+}
+
+static int switchtec_ntb_direct_get_addr(struct switchtec_ntb *sndev,
+					 int idx, phys_addr_t *base,
+					 resource_size_t *size)
+{
+	int bar = sndev->direct_mw_to_bar[idx];
+	size_t offset = 0;
+
+	if (bar < 0)
+		return -EINVAL;
+
+	if (idx == 0) {
+		/*
+		 * This is the direct BAR shared with the LUTs
+		 * which means the actual window will be offset
+		 * by the size of all the LUT entries.
+		 */
+
+		offset = LUT_SIZE * sndev->nr_lut_mw;
+	}
+
+	if (base)
+		*base = pci_resource_start(sndev->ntb.pdev, bar) + offset;
+
+	if (size) {
+		*size = pci_resource_len(sndev->ntb.pdev, bar) - offset;
+		if (offset && *size > offset)
+			*size = offset;
+
+		if (*size > max_mw_size)
+			*size = max_mw_size;
+	}
+
+	return 0;
+}
+
+static int switchtec_ntb_lut_get_addr(struct switchtec_ntb *sndev,
+				      int idx, phys_addr_t *base,
+				      resource_size_t *size)
+{
+	int bar = sndev->direct_mw_to_bar[0];
+	int offset;
+
+	offset = LUT_SIZE * lut_index(sndev, idx);
+
+	if (base)
+		*base = pci_resource_start(sndev->ntb.pdev, bar) + offset;
+
+	if (size)
+		*size = LUT_SIZE;
+
 	return 0;
 }
 
@@ -216,7 +416,14 @@ static int switchtec_ntb_peer_mw_get_addr(struct ntb_dev *ntb, int idx,
 					  phys_addr_t *base,
 					  resource_size_t *size)
 {
-	return 0;
+	struct switchtec_ntb *sndev = ntb_sndev(ntb);
+
+	if (idx < sndev->nr_direct_mw)
+		return switchtec_ntb_direct_get_addr(sndev, idx, base, size);
+	else if (idx < switchtec_ntb_peer_mw_count(ntb))
+		return switchtec_ntb_lut_get_addr(sndev, idx, base, size);
+	else
+		return -EINVAL;
 }
 
 static void switchtec_ntb_part_link_speed(struct switchtec_ntb *sndev,
