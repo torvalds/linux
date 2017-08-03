@@ -1921,6 +1921,22 @@ struct i915_oa_reg {
 	u32 value;
 };
 
+struct i915_oa_config {
+	char uuid[UUID_STRING_LEN + 1];
+	int id;
+
+	const struct i915_oa_reg *mux_regs;
+	u32 mux_regs_len;
+	const struct i915_oa_reg *b_counter_regs;
+	u32 b_counter_regs_len;
+	const struct i915_oa_reg *flex_regs;
+	u32 flex_regs_len;
+
+	struct attribute_group sysfs_metric;
+	struct attribute *attrs[2];
+	struct device_attribute sysfs_metric_id;
+};
+
 struct i915_perf_stream;
 
 /**
@@ -2033,6 +2049,11 @@ struct i915_perf_stream {
 	 * type of configured stream.
 	 */
 	const struct i915_perf_stream_ops *ops;
+
+	/**
+	 * @oa_config: The OA configuration used by the stream.
+	 */
+	struct i915_oa_config *oa_config;
 };
 
 /**
@@ -2057,20 +2078,13 @@ struct i915_oa_ops {
 	void (*init_oa_buffer)(struct drm_i915_private *dev_priv);
 
 	/**
-	 * @select_metric_set: The auto generated code that checks whether a
-	 * requested OA config is applicable to the system and if so sets up
-	 * the mux, oa and flex eu register config pointers according to the
-	 * current dev_priv->perf.oa.metrics_set.
-	 */
-	int (*select_metric_set)(struct drm_i915_private *dev_priv);
-
-	/**
 	 * @enable_metric_set: Selects and applies any MUX configuration to set
 	 * up the Boolean and Custom (B/C) counters that are part of the
 	 * counter reports being sampled. May apply system constraints such as
 	 * disabling EU clock gating as required.
 	 */
-	int (*enable_metric_set)(struct drm_i915_private *dev_priv);
+	int (*enable_metric_set)(struct drm_i915_private *dev_priv,
+				 const struct i915_oa_config *oa_config);
 
 	/**
 	 * @disable_metric_set: Remove system constraints associated with using
@@ -2452,16 +2466,7 @@ struct drm_i915_private {
 			int period_exponent;
 			int timestamp_frequency;
 
-			int metrics_set;
-
-			const struct i915_oa_reg *mux_regs[6];
-			int mux_regs_lens[6];
-			int n_mux_configs;
-
-			const struct i915_oa_reg *b_counter_regs;
-			int b_counter_regs_len;
-			const struct i915_oa_reg *flex_regs;
-			int flex_regs_len;
+			struct i915_oa_config test_config;
 
 			struct {
 				struct i915_vma *vma;
@@ -2548,7 +2553,6 @@ struct drm_i915_private {
 
 			struct i915_oa_ops ops;
 			const struct i915_oa_format *oa_formats;
-			int n_builtin_sets;
 		} oa;
 	} perf;
 
