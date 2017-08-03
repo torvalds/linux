@@ -67,6 +67,7 @@ struct shared_mw {
 	u32 link_sta;
 	u32 partition_id;
 	u64 mw_sizes[MAX_MWS];
+	u32 spad[128];
 };
 
 #define MAX_DIRECT_MW ARRAY_SIZE(((struct ntb_ctrl_regs *)(0))->bar_entry)
@@ -455,22 +456,90 @@ static int switchtec_ntb_peer_db_set(struct ntb_dev *ntb, u64 db_bits)
 
 static int switchtec_ntb_spad_count(struct ntb_dev *ntb)
 {
-	return 0;
+	struct switchtec_ntb *sndev = ntb_sndev(ntb);
+
+	return ARRAY_SIZE(sndev->self_shared->spad);
 }
 
 static u32 switchtec_ntb_spad_read(struct ntb_dev *ntb, int idx)
 {
-	return 0;
+	struct switchtec_ntb *sndev = ntb_sndev(ntb);
+
+	if (idx < 0 || idx >= ARRAY_SIZE(sndev->self_shared->spad))
+		return 0;
+
+	if (!sndev->self_shared)
+		return 0;
+
+	return sndev->self_shared->spad[idx];
 }
 
 static int switchtec_ntb_spad_write(struct ntb_dev *ntb, int idx, u32 val)
 {
+	struct switchtec_ntb *sndev = ntb_sndev(ntb);
+
+	if (idx < 0 || idx >= ARRAY_SIZE(sndev->self_shared->spad))
+		return -EINVAL;
+
+	if (!sndev->self_shared)
+		return -EIO;
+
+	sndev->self_shared->spad[idx] = val;
+
 	return 0;
+}
+
+static u32 switchtec_ntb_peer_spad_read(struct ntb_dev *ntb, int pidx,
+					int sidx)
+{
+	struct switchtec_ntb *sndev = ntb_sndev(ntb);
+
+	if (pidx != NTB_DEF_PEER_IDX)
+		return -EINVAL;
+
+	if (sidx < 0 || sidx >= ARRAY_SIZE(sndev->peer_shared->spad))
+		return 0;
+
+	if (!sndev->peer_shared)
+		return 0;
+
+	return ioread32(&sndev->peer_shared->spad[sidx]);
 }
 
 static int switchtec_ntb_peer_spad_write(struct ntb_dev *ntb, int pidx,
 					 int sidx, u32 val)
 {
+	struct switchtec_ntb *sndev = ntb_sndev(ntb);
+
+	if (pidx != NTB_DEF_PEER_IDX)
+		return -EINVAL;
+
+	if (sidx < 0 || sidx >= ARRAY_SIZE(sndev->peer_shared->spad))
+		return -EINVAL;
+
+	if (!sndev->peer_shared)
+		return -EIO;
+
+	iowrite32(val, &sndev->peer_shared->spad[sidx]);
+
+	return 0;
+}
+
+static int switchtec_ntb_peer_spad_addr(struct ntb_dev *ntb, int pidx,
+					int sidx, phys_addr_t *spad_addr)
+{
+	struct switchtec_ntb *sndev = ntb_sndev(ntb);
+	unsigned long offset;
+
+	if (pidx != NTB_DEF_PEER_IDX)
+		return -EINVAL;
+
+	offset = (unsigned long)&sndev->peer_shared->spad[sidx] -
+		(unsigned long)sndev->stdev->mmio;
+
+	if (spad_addr)
+		*spad_addr = pci_resource_start(ntb->pdev, 0) + offset;
+
 	return 0;
 }
 
@@ -496,7 +565,9 @@ static const struct ntb_dev_ops switchtec_ntb_ops = {
 	.spad_count		= switchtec_ntb_spad_count,
 	.spad_read		= switchtec_ntb_spad_read,
 	.spad_write		= switchtec_ntb_spad_write,
+	.peer_spad_read		= switchtec_ntb_peer_spad_read,
 	.peer_spad_write	= switchtec_ntb_peer_spad_write,
+	.peer_spad_addr		= switchtec_ntb_peer_spad_addr,
 };
 
 static void switchtec_ntb_init_sndev(struct switchtec_ntb *sndev)
