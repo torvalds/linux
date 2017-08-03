@@ -485,7 +485,7 @@ static int stm32_get_trigger_mode(struct iio_dev *indio_dev,
 
 	regmap_read(priv->regmap, TIM_SMCR, &smcr);
 
-	return smcr == TIM_SMCR_SMS ? 0 : -EINVAL;
+	return (smcr & TIM_SMCR_SMS) == TIM_SMCR_SMS ? 0 : -EINVAL;
 }
 
 static const struct iio_enum stm32_trigger_mode_enum = {
