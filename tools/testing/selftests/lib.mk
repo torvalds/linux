@@ -14,7 +14,12 @@ all: $(TEST_GEN_PROGS) $(TEST_GEN_PROGS_EXTENDED) $(TEST_GEN_FILES)
 define RUN_TESTS
 	@for TEST in $(TEST_GEN_PROGS) $(TEST_PROGS); do \
 		BASENAME_TEST=`basename $$TEST`;	\
-		cd `dirname $$TEST`; (./$$BASENAME_TEST && echo "selftests: $$BASENAME_TEST [PASS]") || echo "selftests:  $$BASENAME_TEST [FAIL]"; cd -;\
+		if [ ! -x $$BASENAME_TEST ]; then	\
+			echo "selftests: Warning: file $$BASENAME_TEST is not executable, correct this.";\
+			echo "selftests: $$BASENAME_TEST [FAIL]"; \
+		else					\
+			cd `dirname $$TEST`; (./$$BASENAME_TEST && echo "selftests: $$BASENAME_TEST [PASS]") || echo "selftests:  $$BASENAME_TEST [FAIL]"; cd -;\
+		fi;					\
 	done;
 endef
 
