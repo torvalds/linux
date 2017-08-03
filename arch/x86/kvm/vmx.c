@@ -249,6 +249,7 @@ struct __packed vmcs12 {
 	u64 eoi_exit_bitmap1;
 	u64 eoi_exit_bitmap2;
 	u64 eoi_exit_bitmap3;
+	u64 eptp_list_address;
 	u64 xss_exit_bitmap;
 	u64 guest_physical_address;
 	u64 vmcs_link_pointer;
@@ -771,6 +772,7 @@ static const unsigned short vmcs_field_to_offset_table[] = {
 	FIELD64(EOI_EXIT_BITMAP1, eoi_exit_bitmap1),
 	FIELD64(EOI_EXIT_BITMAP2, eoi_exit_bitmap2),
 	FIELD64(EOI_EXIT_BITMAP3, eoi_exit_bitmap3),
+	FIELD64(EPTP_LIST_ADDRESS, eptp_list_address),
 	FIELD64(XSS_EXIT_BITMAP, xss_exit_bitmap),
 	FIELD64(GUEST_PHYSICAL_ADDRESS, guest_physical_address),
 	FIELD64(VMCS_LINK_POINTER, vmcs_link_pointer),
@@ -1386,6 +1388,13 @@ static inline bool nested_cpu_has_posted_intr(struct vmcs12 *vmcs12)
 static inline bool nested_cpu_has_vmfunc(struct vmcs12 *vmcs12)
 {
 	return nested_cpu_has2(vmcs12, SECONDARY_EXEC_ENABLE_VMFUNC);
+}
+
+static inline bool nested_cpu_has_eptp_switching(struct vmcs12 *vmcs12)
+{
+	return nested_cpu_has_vmfunc(vmcs12) &&
+		(vmcs12->vm_function_control &
+		 VMX_VMFUNC_EPTP_SWITCHING);
 }
 
 static inline bool is_nmi(u32 intr_info)
@@ -2839,7 +2848,12 @@ static void nested_vmx_setup_ctls_msrs(struct vcpu_vmx *vmx)
 	if (cpu_has_vmx_vmfunc()) {
 		vmx->nested.nested_vmx_secondary_ctls_high |=
 			SECONDARY_EXEC_ENABLE_VMFUNC;
-		vmx->nested.nested_vmx_vmfunc_controls = 0;
+		/*
+		 * Advertise EPTP switching unconditionally
+		 * since we emulate it
+		 */
+		vmx->nested.nested_vmx_vmfunc_controls =
+			VMX_VMFUNC_EPTP_SWITCHING;
 	}
 
 	/*
@@ -7862,6 +7876,88 @@ static int handle_preemption_timer(struct kvm_vcpu *vcpu)
 	return 1;
 }
 
+static bool valid_ept_address(struct kvm_vcpu *vcpu, u64 address)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	u64 mask = address & 0x7;
+	int maxphyaddr = cpuid_maxphyaddr(vcpu);
+
+	/* Check for memory type validity */
+	switch (mask) {
+	case 0:
+		if (!(vmx->nested.nested_vmx_ept_caps & VMX_EPTP_UC_BIT))
+			return false;
+		break;
+	case 6:
+		if (!(vmx->nested.nested_vmx_ept_caps & VMX_EPTP_WB_BIT))
+			return false;
+		break;
+	default:
+		return false;
+	}
+
+	/* Bits 5:3 must be 3 */
+	if (((address >> VMX_EPT_GAW_EPTP_SHIFT) & 0x7) != VMX_EPT_DEFAULT_GAW)
+		return false;
+
+	/* Reserved bits should not be set */
+	if (address >> maxphyaddr || ((address >> 7) & 0x1f))
+		return false;
+
+	/* AD, if set, should be supported */
+	if ((address & VMX_EPT_AD_ENABLE_BIT)) {
+		if (!(vmx->nested.nested_vmx_ept_caps & VMX_EPT_AD_BIT))
+			return false;
+	}
+
+	return true;
+}
+
+static int nested_vmx_eptp_switching(struct kvm_vcpu *vcpu,
+				     struct vmcs12 *vmcs12)
+{
+	u32 index = vcpu->arch.regs[VCPU_REGS_RCX];
+	u64 address;
+	bool accessed_dirty;
+	struct kvm_mmu *mmu = vcpu->arch.walk_mmu;
+
+	if (!nested_cpu_has_eptp_switching(vmcs12) ||
+	    !nested_cpu_has_ept(vmcs12))
+		return 1;
+
+	if (index >= VMFUNC_EPTP_ENTRIES)
+		return 1;
+
+
+	if (kvm_vcpu_read_guest_page(vcpu, vmcs12->eptp_list_address >> PAGE_SHIFT,
+				     &address, index * 8, 8))
+		return 1;
+
+	accessed_dirty = !!(address & VMX_EPT_AD_ENABLE_BIT);
+
+	/*
+	 * If the (L2) guest does a vmfunc to the currently
+	 * active ept pointer, we don't have to do anything else
+	 */
+	if (vmcs12->ept_pointer != address) {
+		if (!valid_ept_address(vcpu, address))
+			return 1;
+
+		kvm_mmu_unload(vcpu);
+		mmu->ept_ad = accessed_dirty;
+		mmu->base_role.ad_disabled = !accessed_dirty;
+		vmcs12->ept_pointer = address;
+		/*
+		 * TODO: Check what's the correct approach in case
+		 * mmu reload fails. Currently, we just let the next
+		 * reload potentially fail
+		 */
+		kvm_mmu_reload(vcpu);
+	}
+
+	return 0;
+}
+
 static int handle_vmfunc(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -7881,7 +7977,16 @@ static int handle_vmfunc(struct kvm_vcpu *vcpu)
 	vmcs12 = get_vmcs12(vcpu);
 	if ((vmcs12->vm_function_control & (1 << function)) == 0)
 		goto fail;
-	WARN_ONCE(1, "VMCS12 VM function control should have been zero");
+
+	switch (function) {
+	case 0:
+		if (nested_vmx_eptp_switching(vcpu, vmcs12))
+			goto fail;
+		break;
+	default:
+		goto fail;
+	}
+	return kvm_skip_emulated_instruction(vcpu);
 
 fail:
 	nested_vmx_vmexit(vcpu, vmx->exit_reason,
@@ -10524,10 +10629,17 @@ static int check_vmentry_prereqs(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 				vmx->nested.nested_vmx_entry_ctls_high))
 		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
 
-	if (nested_cpu_has_vmfunc(vmcs12) &&
-	    (vmcs12->vm_function_control &
-	     ~vmx->nested.nested_vmx_vmfunc_controls))
-		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
+	if (nested_cpu_has_vmfunc(vmcs12)) {
+		if (vmcs12->vm_function_control &
+		    ~vmx->nested.nested_vmx_vmfunc_controls)
+			return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
+
+		if (nested_cpu_has_eptp_switching(vmcs12)) {
+			if (!nested_cpu_has_ept(vmcs12) ||
+			    !page_address_valid(vcpu, vmcs12->eptp_list_address))
+				return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
+		}
+	}
 
 	if (vmcs12->cr3_target_count > nested_cpu_vmx_misc_cr3_count(vcpu))
 		return VMXERR_ENTRY_INVALID_CONTROL_FIELD;

@@ -115,6 +115,10 @@
 #define VMX_MISC_SAVE_EFER_LMA			0x00000020
 #define VMX_MISC_ACTIVITY_HLT			0x00000040
 
+/* VMFUNC functions */
+#define VMX_VMFUNC_EPTP_SWITCHING               0x00000001
+#define VMFUNC_EPTP_ENTRIES  512
+
 static inline u32 vmx_basic_vmcs_revision_id(u64 vmx_basic)
 {
 	return vmx_basic & GENMASK_ULL(30, 0);
@@ -200,6 +204,8 @@ enum vmcs_field {
 	EOI_EXIT_BITMAP2_HIGH           = 0x00002021,
 	EOI_EXIT_BITMAP3                = 0x00002022,
 	EOI_EXIT_BITMAP3_HIGH           = 0x00002023,
+	EPTP_LIST_ADDRESS               = 0x00002024,
+	EPTP_LIST_ADDRESS_HIGH          = 0x00002025,
 	VMREAD_BITMAP                   = 0x00002026,
 	VMWRITE_BITMAP                  = 0x00002028,
 	XSS_EXIT_BITMAP                 = 0x0000202C,
