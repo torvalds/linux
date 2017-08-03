@@ -18,6 +18,7 @@
 #include "rsi_debugfs.h"
 #include "rsi_mgmt.h"
 #include "rsi_common.h"
+#include "rsi_ps.h"
 
 static const struct ieee80211_channel rsi_2ghz_channels[] = {
 	{ .band = NL80211_BAND_2GHZ, .center_freq = 2412,
@@ -467,6 +468,8 @@ static int rsi_mac80211_config(struct ieee80211_hw *hw,
 {
 	struct rsi_hw *adapter = hw->priv;
 	struct rsi_common *common = adapter->priv;
+	struct ieee80211_vif *vif = adapter->vifs[0];
+	struct ieee80211_conf *conf = &hw->conf;
 	int status = -EOPNOTSUPP;
 
 	mutex_lock(&common->mutex);
@@ -478,6 +481,19 @@ static int rsi_mac80211_config(struct ieee80211_hw *hw,
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
 		rsi_dbg(INFO_ZONE, "%s: Configuring Power\n", __func__);
 		status = rsi_config_power(hw);
+	}
+
+	/* Power save parameters */
+	if ((changed & IEEE80211_CONF_CHANGE_PS) &&
+	    (vif->type == NL80211_IFTYPE_STATION)) {
+		unsigned long flags;
+
+		spin_lock_irqsave(&adapter->ps_lock, flags);
+		if (conf->flags & IEEE80211_CONF_PS)
+			rsi_enable_ps(adapter);
+		else
+			rsi_disable_ps(adapter);
+		spin_unlock_irqrestore(&adapter->ps_lock, flags);
 	}
 
 	mutex_unlock(&common->mutex);
@@ -522,6 +538,8 @@ static void rsi_mac80211_bss_info_changed(struct ieee80211_hw *hw,
 {
 	struct rsi_hw *adapter = hw->priv;
 	struct rsi_common *common = adapter->priv;
+	struct ieee80211_bss_conf *bss = &vif->bss_conf;
+	struct ieee80211_conf *conf = &hw->conf;
 	u16 rx_filter_word = 0;
 
 	mutex_lock(&common->mutex);
@@ -540,6 +558,8 @@ static void rsi_mac80211_bss_info_changed(struct ieee80211_hw *hw,
 				      bss_conf->bssid,
 				      bss_conf->qos,
 				      bss_conf->aid);
+		adapter->ps_info.dtim_interval_duration = bss->dtim_period;
+		adapter->ps_info.listen_interval = conf->listen_interval;
 	}
 
 	if (changed & BSS_CHANGED_CQM) {
@@ -1283,6 +1303,8 @@ int rsi_mac80211_attach(struct rsi_common *common)
 	ieee80211_hw_set(hw, SIGNAL_DBM);
 	ieee80211_hw_set(hw, HAS_RATE_CONTROL);
 	ieee80211_hw_set(hw, AMPDU_AGGREGATION);
+	ieee80211_hw_set(hw, SUPPORTS_PS);
+	ieee80211_hw_set(hw, SUPPORTS_DYNAMIC_PS);
 
 	hw->queues = MAX_HW_QUEUES;
 	hw->extra_tx_headroom = RSI_NEEDED_HEADROOM;

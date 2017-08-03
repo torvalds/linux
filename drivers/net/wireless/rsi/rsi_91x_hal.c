@@ -111,6 +111,8 @@ static int rsi_prepare_mgmt_desc(struct rsi_common *common, struct sk_buff *skb)
 /* This function prepares descriptor for given data packet */
 static int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 {
+	struct rsi_hw *adapter = common->priv;
+	struct ieee80211_vif *vif;
 	struct ieee80211_hdr *wh = NULL;
 	struct ieee80211_tx_info *info;
 	struct skb_info *tx_params;
@@ -148,6 +150,7 @@ static int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 	xtend_desc = (struct xtended_desc *)&skb->data[FRAME_DESC_SZ];
 	wh = (struct ieee80211_hdr *)&skb->data[header_size];
 	seq_num = (le16_to_cpu(wh->seq_ctrl) >> 4);
+	vif = adapter->vifs[0];
 
 	data_desc->xtend_desc_size = header_size - FRAME_DESC_SZ;
 
@@ -155,6 +158,10 @@ static int rsi_prepare_data_desc(struct rsi_common *common, struct sk_buff *skb)
 		ieee80211_size += 2;
 		data_desc->mac_flags |= cpu_to_le16(RSI_QOS_ENABLE);
 	}
+
+	if ((vif->type == NL80211_IFTYPE_STATION) &&
+	    (adapter->ps_state == PS_ENABLED))
+		wh->frame_control |= cpu_to_le16(RSI_SET_PS_ENABLE);
 
 	if ((!(info->flags & IEEE80211_TX_INTFL_DONT_ENCRYPT)) &&
 	    (common->secinfo.security_enable)) {

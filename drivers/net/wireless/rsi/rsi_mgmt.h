@@ -69,6 +69,7 @@
 #define RSI_QOS_ENABLE			BIT(12)
 #define RSI_REKEY_PURPOSE		BIT(13)
 #define RSI_ENCRYPT_PKT			BIT(15)
+#define RSI_SET_PS_ENABLE		BIT(12)
 
 #define RSI_CMDDESC_40MHZ		BIT(4)
 #define RSI_CMDDESC_UPPER_20_ENABLE	BIT(5)
@@ -171,6 +172,14 @@
 #define RSI_CHAN_RADAR			BIT(7)
 #define RSI_BEACON_INTERVAL		200
 #define RSI_DTIM_COUNT			2
+
+#define RSI_PS_DISABLE_IND		BIT(15)
+#define RSI_PS_ENABLE			1
+#define RSI_PS_DISABLE			0
+#define RSI_DEEP_SLEEP			1
+#define RSI_CONNECTED_SLEEP		2
+#define RSI_SLEEP_REQUEST		1
+#define RSI_WAKEUP_REQUEST		2
 
 enum opmode {
 	STA_OPMODE = 1,
@@ -517,6 +526,18 @@ struct rsi_eeprom_read_frame {
 	__le32 eeprom_offset;
 	__le16 delay_ms;
 	__le16 reserved3;
+} __packed;
+
+struct rsi_request_ps {
+	struct rsi_cmd_desc desc;
+	struct ps_sleep_params ps_sleep;
+	u8 ps_mimic_support;
+	u8 ps_uapsd_acs;
+	u8 ps_uapsd_wakeup_period;
+	u8 reserved;
+	__le32 ps_listen_interval;
+	__le32 ps_dtim_interval_duration;
+	__le16 ps_num_dtim_intervals;
 } __packed;
 
 static inline u32 rsi_get_queueno(u8 *addr, u16 offset)

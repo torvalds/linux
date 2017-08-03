@@ -21,6 +21,10 @@
 #include <linux/skbuff.h>
 #include <net/mac80211.h>
 
+struct rsi_hw;
+
+#include "rsi_ps.h"
+
 #define ERR_ZONE                        BIT(0)  /* For Error Msgs             */
 #define INFO_ZONE                       BIT(1)  /* For General Status Msgs    */
 #define INIT_ZONE                       BIT(2)  /* For Driver Init Seq Msgs   */
@@ -177,8 +181,6 @@ enum rsi_dfs_regions {
 	RSI_REGION_WORLD
 };
 
-struct rsi_hw;
-
 struct rsi_common {
 	struct rsi_hw *priv;
 	struct vif_priv vif_info[RSI_MAX_VIFS];
@@ -282,6 +284,9 @@ struct rsi_hw {
 
 	enum host_intf rsi_host_intf;
 	u16 block_size;
+	enum ps_state ps_state;
+	struct rsi_ps_info ps_info;
+	spinlock_t ps_lock; /*To protect power save config*/
 	u32 usb_buffer_status_reg;
 #ifdef CONFIG_RSI_DEBUGFS
 	struct rsi_debugfs *dfsentry;
