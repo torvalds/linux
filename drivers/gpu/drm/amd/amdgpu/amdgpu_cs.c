@@ -54,7 +54,7 @@ static int amdgpu_cs_user_fence_chunk(struct amdgpu_cs_parser *p,
 
 	*offset = data->offset;
 
-	drm_gem_object_unreference_unlocked(gobj);
+	drm_gem_object_put_unlocked(gobj);
 
 	if (amdgpu_ttm_tt_get_usermm(p->uf_entry.robj->tbo.ttm)) {
 		amdgpu_bo_unref(&p->uf_entry.robj);
