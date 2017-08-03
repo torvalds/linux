@@ -16,10 +16,12 @@
 #include <linux/ipv6_route.h>
 #include <linux/rtnetlink.h>
 #include <linux/spinlock.h>
+#include <linux/notifier.h>
 #include <net/dst.h>
 #include <net/flow.h>
 #include <net/netlink.h>
 #include <net/inetpeer.h>
+#include <net/fib_notifier.h>
 
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 #define FIB6_TABLE_HASHSZ 256
@@ -291,6 +293,15 @@ void fib6_gc_cleanup(void);
 int fib6_init(void);
 
 int ipv6_route_open(struct inode *inode, struct file *file);
+
+int call_fib6_notifier(struct notifier_block *nb, struct net *net,
+		       enum fib_event_type event_type,
+		       struct fib_notifier_info *info);
+int call_fib6_notifiers(struct net *net, enum fib_event_type event_type,
+			struct fib_notifier_info *info);
+
+int __net_init fib6_notifier_init(struct net *net);
+void __net_exit fib6_notifier_exit(struct net *net);
 
 #ifdef CONFIG_IPV6_MULTIPLE_TABLES
 int fib6_rules_init(void);
