@@ -733,7 +733,7 @@ static int hdmi_of_xlate_dai_id(struct snd_soc_component *component,
 	return ret;
 }
 
-static struct snd_soc_codec_driver hdmi_codec = {
+static const struct snd_soc_codec_driver hdmi_codec = {
 	.component_driver = {
 		.dapm_widgets		= hdmi_widgets,
 		.num_dapm_widgets	= ARRAY_SIZE(hdmi_widgets),

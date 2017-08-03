@@ -50,7 +50,7 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"DMIC AIF", NULL, "DMic"},
 };
 
-static struct snd_soc_codec_driver soc_dmic = {
+static const struct snd_soc_codec_driver soc_dmic = {
 	.component_driver = {
 		.dapm_widgets		= dmic_dapm_widgets,
 		.num_dapm_widgets	= ARRAY_SIZE(dmic_dapm_widgets),

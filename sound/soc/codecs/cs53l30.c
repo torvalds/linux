@@ -892,7 +892,7 @@ static int cs53l30_codec_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver cs53l30_driver = {
+static const struct snd_soc_codec_driver cs53l30_driver = {
 	.probe = cs53l30_codec_probe,
 	.set_bias_level = cs53l30_set_bias_level,
 	.idle_bias_off = true,

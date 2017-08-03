@@ -1183,7 +1183,7 @@ static struct regmap *cs47l24_get_regmap(struct device *dev)
 	return priv->core.arizona->regmap;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_cs47l24 = {
+static const struct snd_soc_codec_driver soc_codec_dev_cs47l24 = {
 	.probe = cs47l24_codec_probe,
 	.remove = cs47l24_codec_remove,
 	.get_regmap = cs47l24_get_regmap,

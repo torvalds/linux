@@ -98,7 +98,7 @@ static struct snd_soc_dai_driver pcm3008_dai = {
 	},
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_pcm3008 = {
+static const struct snd_soc_codec_driver soc_codec_dev_pcm3008 = {
 	.component_driver = {
 		.dapm_widgets		= pcm3008_dapm_widgets,
 		.num_dapm_widgets	= ARRAY_SIZE(pcm3008_dapm_widgets),

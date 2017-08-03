@@ -825,7 +825,7 @@ static int adav80x_resume(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver adav80x_codec_driver = {
+static const struct snd_soc_codec_driver adav80x_codec_driver = {
 	.probe = adav80x_probe,
 	.resume = adav80x_resume,
 	.set_bias_level = adav80x_set_bias_level,

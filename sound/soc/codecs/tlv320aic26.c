@@ -319,7 +319,7 @@ static int aic26_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static struct snd_soc_codec_driver aic26_soc_codec_dev = {
+static const struct snd_soc_codec_driver aic26_soc_codec_dev = {
 	.probe = aic26_probe,
 	.component_driver = {
 		.controls		= aic26_snd_controls,

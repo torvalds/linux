@@ -830,7 +830,7 @@ static struct snd_soc_dai_driver msm8916_wcd_digital_dai[] = {
 	       },
 };
 
-static struct snd_soc_codec_driver msm8916_wcd_digital = {
+static const struct snd_soc_codec_driver msm8916_wcd_digital = {
 	.probe = msm8916_wcd_digital_codec_probe,
 	.set_sysclk = msm8916_wcd_digital_codec_set_sysclk,
 	.component_driver = {

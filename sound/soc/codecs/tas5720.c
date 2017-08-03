@@ -483,7 +483,7 @@ static const struct snd_soc_dapm_route tas5720_audio_map[] = {
 	{ "OUT", NULL, "DAC" },
 };
 
-static struct snd_soc_codec_driver soc_codec_dev_tas5720 = {
+static const struct snd_soc_codec_driver soc_codec_dev_tas5720 = {
 	.probe = tas5720_codec_probe,
 	.remove = tas5720_codec_remove,
 	.suspend = tas5720_suspend,

@@ -37,7 +37,7 @@ static struct snd_soc_dai_driver ics43432_dai = {
 	},
 };
 
-static struct snd_soc_codec_driver ics43432_codec_driver = {
+static const struct snd_soc_codec_driver ics43432_codec_driver = {
 };
 
 static int ics43432_probe(struct platform_device *pdev)

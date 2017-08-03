@@ -1499,7 +1499,7 @@ static int da732x_set_bias_level(struct snd_soc_codec *codec,
 	return 0;
 }
 
-static struct snd_soc_codec_driver soc_codec_dev_da732x = {
+static const struct snd_soc_codec_driver soc_codec_dev_da732x = {
 	.set_bias_level		= da732x_set_bias_level,
 	.component_driver = {
 		.controls		= da732x_snd_controls,
