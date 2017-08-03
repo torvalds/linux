@@ -511,7 +511,7 @@ static int newary(struct ipc_namespace *ns, struct ipc_params *params)
 	INIT_LIST_HEAD(&sma->pending_const);
 	INIT_LIST_HEAD(&sma->list_id);
 	sma->sem_nsems = nsems;
-	sma->sem_ctime = get_seconds();
+	sma->sem_ctime = ktime_get_real_seconds();
 
 	retval = ipc_addid(&sem_ids(ns), &sma->sem_perm, ns->sc_semmni);
 	if (retval < 0) {
@@ -1162,14 +1162,14 @@ static unsigned long copy_semid_to_user(void __user *buf, struct semid64_ds *in,
 	}
 }
 
-static time_t get_semotime(struct sem_array *sma)
+static time64_t get_semotime(struct sem_array *sma)
 {
 	int i;
-	time_t res;
+	time64_t res;
 
 	res = sma->sems[0].sem_otime;
 	for (i = 1; i < sma->sem_nsems; i++) {
-		time_t to = sma->sems[i].sem_otime;
+		time64_t to = sma->sems[i].sem_otime;
 
 		if (to > res)
 			res = to;
@@ -1309,7 +1309,7 @@ static int semctl_setval(struct ipc_namespace *ns, int semid, int semnum,
 
 	curr->semval = val;
 	curr->sempid = task_tgid_vnr(current);
-	sma->sem_ctime = get_seconds();
+	sma->sem_ctime = ktime_get_real_seconds();
 	/* maybe some queued-up processes were waiting for this */
 	do_smart_update(sma, NULL, 0, 0, &wake_q);
 	sem_unlock(sma, -1);
@@ -1437,7 +1437,7 @@ static int semctl_main(struct ipc_namespace *ns, int semid, int semnum,
 			for (i = 0; i < nsems; i++)
 				un->semadj[i] = 0;
 		}
-		sma->sem_ctime = get_seconds();
+		sma->sem_ctime = ktime_get_real_seconds();
 		/* maybe some queued-up processes were waiting for this */
 		do_smart_update(sma, NULL, 0, 0, &wake_q);
 		err = 0;
@@ -1547,7 +1547,7 @@ static int semctl_down(struct ipc_namespace *ns, int semid,
 		err = ipc_update_perm(&semid64->sem_perm, ipcp);
 		if (err)
 			goto out_unlock0;
-		sma->sem_ctime = get_seconds();
+		sma->sem_ctime = ktime_get_real_seconds();
 		break;
 	default:
 		err = -EINVAL;
@@ -2292,7 +2292,7 @@ static int sysvipc_sem_proc_show(struct seq_file *s, void *it)
 {
 	struct user_namespace *user_ns = seq_user_ns(s);
 	struct sem_array *sma = it;
-	time_t sem_otime;
+	time64_t sem_otime;
 
 	/*
 	 * The proc interface isn't aware of sem_lock(), it calls
@@ -2305,7 +2305,7 @@ static int sysvipc_sem_proc_show(struct seq_file *s, void *it)
 	sem_otime = get_semotime(sma);
 
 	seq_printf(s,
-		   "%10d %10d  %4o %10u %5u %5u %5u %5u %10lu %10lu\n",
+		   "%10d %10d  %4o %10u %5u %5u %5u %5u %10llu %10llu\n",
 		   sma->sem_perm.key,
 		   sma->sem_perm.id,
 		   sma->sem_perm.mode,
