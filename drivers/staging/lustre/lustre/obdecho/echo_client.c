@@ -319,7 +319,7 @@ static void echo_lock_fini(const struct lu_env *env,
 	kmem_cache_free(echo_lock_kmem, ecl);
 }
 
-static struct cl_lock_operations echo_lock_ops = {
+static const struct cl_lock_operations echo_lock_ops = {
 	.clo_fini      = echo_lock_fini,
 };
 
