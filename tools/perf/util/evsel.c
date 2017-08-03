@@ -1983,6 +1983,8 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 	data->stream_id = data->id = data->time = -1ULL;
 	data->period = evsel->attr.sample_period;
 	data->cpumode = event->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
+	data->id = -1ULL;
+	data->data_src = PERF_MEM_DATA_SRC_NONE;
 
 	if (event->header.type != PERF_RECORD_SAMPLE) {
 		if (!evsel->attr.sample_id_all)
@@ -2000,7 +2002,6 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 	if (evsel->sample_size + sizeof(event->header) > event->header.size)
 		return -EFAULT;
 
-	data->id = -1ULL;
 	if (type & PERF_SAMPLE_IDENTIFIER) {
 		data->id = *array;
 		array++;
@@ -2030,7 +2031,6 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 		array++;
 	}
 
-	data->addr = 0;
 	if (type & PERF_SAMPLE_ADDR) {
 		data->addr = *array;
 		array++;
@@ -2194,14 +2194,12 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 		array++;
 	}
 
-	data->data_src = PERF_MEM_DATA_SRC_NONE;
 	if (type & PERF_SAMPLE_DATA_SRC) {
 		OVERFLOW_CHECK_u64(array);
 		data->data_src = *array;
 		array++;
 	}
 
-	data->transaction = 0;
 	if (type & PERF_SAMPLE_TRANSACTION) {
 		OVERFLOW_CHECK_u64(array);
 		data->transaction = *array;
