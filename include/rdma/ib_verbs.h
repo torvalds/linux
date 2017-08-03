@@ -2348,6 +2348,8 @@ struct ib_device {
 	void (*get_dev_fw_str)(struct ib_device *, char *str);
 	const struct cpumask *(*get_vector_affinity)(struct ib_device *ibdev,
 						     int comp_vector);
+
+	struct uverbs_root_spec		*specs_root;
 };
 
 struct ib_client {

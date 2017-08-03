@@ -43,6 +43,8 @@
 
 enum uverbs_attr_type {
 	UVERBS_ATTR_TYPE_NA,
+	UVERBS_ATTR_TYPE_PTR_IN,
+	UVERBS_ATTR_TYPE_PTR_OUT,
 	UVERBS_ATTR_TYPE_IDR,
 	UVERBS_ATTR_TYPE_FD,
 };
@@ -54,29 +56,110 @@ enum uverbs_obj_access {
 	UVERBS_ACCESS_DESTROY
 };
 
+enum {
+	UVERBS_ATTR_SPEC_F_MANDATORY	= 1U << 0,
+	/* Support extending attributes by length */
+	UVERBS_ATTR_SPEC_F_MIN_SZ	= 1U << 1,
+};
+
 struct uverbs_attr_spec {
 	enum uverbs_attr_type		type;
-	struct {
-		/*
-		 * higher bits mean the namespace and lower bits mean
-		 * the type id within the namespace.
-		 */
-		u16			obj_type;
-		u8			access;
-	} obj;
+	union {
+		u16				len;
+		struct {
+			/*
+			 * higher bits mean the namespace and lower bits mean
+			 * the type id within the namespace.
+			 */
+			u16			obj_type;
+			u8			access;
+		} obj;
+	};
+	/* Combination of bits from enum UVERBS_ATTR_SPEC_F_XXXX */
+	u8				flags;
 };
 
 struct uverbs_attr_spec_hash {
 	size_t				num_attrs;
+	unsigned long			*mandatory_attrs_bitmask;
 	struct uverbs_attr_spec		attrs[0];
 };
 
+struct uverbs_attr_bundle;
+struct ib_uverbs_file;
+
+enum {
+	/*
+	 * Action marked with this flag creates a context (or root for all
+	 * objects).
+	 */
+	UVERBS_ACTION_FLAG_CREATE_ROOT = 1U << 0,
+};
+
+struct uverbs_method_spec {
+	/* Combination of bits from enum UVERBS_ACTION_FLAG_XXXX */
+	u32						flags;
+	size_t						num_buckets;
+	size_t						num_child_attrs;
+	int (*handler)(struct ib_device *ib_dev, struct ib_uverbs_file *ufile,
+		       struct uverbs_attr_bundle *ctx);
+	struct uverbs_attr_spec_hash		*attr_buckets[0];
+};
+
+struct uverbs_method_spec_hash {
+	size_t					num_methods;
+	struct uverbs_method_spec		*methods[0];
+};
+
+struct uverbs_object_spec {
+	const struct uverbs_obj_type		*type_attrs;
+	size_t					num_buckets;
+	struct uverbs_method_spec_hash		*method_buckets[0];
+};
+
+struct uverbs_object_spec_hash {
+	size_t					num_objects;
+	struct uverbs_object_spec		*objects[0];
+};
+
+struct uverbs_root_spec {
+	size_t					num_buckets;
+	struct uverbs_object_spec_hash		*object_buckets[0];
+};
+
+/* =================================================
+ *              Parsing infrastructure
+ * =================================================
+ */
+
+struct uverbs_ptr_attr {
+	union {
+		u64		data;
+		void	__user *ptr;
+	};
+	u16		len;
+	/* Combination of bits from enum UVERBS_ATTR_F_XXXX */
+	u16		flags;
+};
+
 struct uverbs_obj_attr {
+	/* pointer to the kernel descriptor -> type, access, etc */
+	const struct uverbs_obj_type	*type;
 	struct ib_uobject		*uobject;
+	/* fd or id in idr of this object */
+	int				id;
 };
 
 struct uverbs_attr {
-	struct uverbs_obj_attr	obj_attr;
+	/*
+	 * pointer to the user-space given attribute, in order to write the
+	 * new uobject's id or update flags.
+	 */
+	struct ib_uverbs_attr __user	*uattr;
+	union {
+		struct uverbs_ptr_attr	ptr_attr;
+		struct uverbs_obj_attr	obj_attr;
+	};
 };
 
 struct uverbs_attr_bundle_hash {

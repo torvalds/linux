@@ -36,9 +36,55 @@
 #include <rdma/uverbs_types.h>
 #include <linux/rcupdate.h>
 #include <rdma/uverbs_ioctl.h>
+#include <rdma/rdma_user_ioctl.h>
 #include "uverbs.h"
 #include "core_priv.h"
 #include "rdma_core.h"
+
+int uverbs_ns_idx(u16 *id, unsigned int ns_count)
+{
+	int ret = (*id & UVERBS_ID_NS_MASK) >> UVERBS_ID_NS_SHIFT;
+
+	if (ret >= ns_count)
+		return -EINVAL;
+
+	*id &= ~UVERBS_ID_NS_MASK;
+	return ret;
+}
+
+const struct uverbs_object_spec *uverbs_get_object(const struct ib_device *ibdev,
+						   uint16_t object)
+{
+	const struct uverbs_root_spec *object_hash = ibdev->specs_root;
+	const struct uverbs_object_spec_hash *objects;
+	int ret = uverbs_ns_idx(&object, object_hash->num_buckets);
+
+	if (ret < 0)
+		return NULL;
+
+	objects = object_hash->object_buckets[ret];
+
+	if (object >= objects->num_objects)
+		return NULL;
+
+	return objects->objects[object];
+}
+
+const struct uverbs_method_spec *uverbs_get_method(const struct uverbs_object_spec *object,
+						   uint16_t method)
+{
+	const struct uverbs_method_spec_hash *methods;
+	int ret = uverbs_ns_idx(&method, object->num_buckets);
+
+	if (ret < 0)
+		return NULL;
+
+	methods = object->method_buckets[ret];
+	if (method >= methods->num_methods)
+		return NULL;
+
+	return methods->methods[method];
+}
 
 void uverbs_uobject_get(struct ib_uobject *uobject)
 {
