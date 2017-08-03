@@ -341,6 +341,8 @@ acpi_ut_walk_package_tree(union acpi_operand_object *source_object,
 
 	/* We should never get here */
 
+	ACPI_ERROR((AE_INFO, "State list did not terminate correctly"));
+
 	return_ACPI_STATUS(AE_AML_INTERNAL);
 }
 
