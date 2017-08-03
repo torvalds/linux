@@ -258,6 +258,11 @@ typedef struct rt6_info *(*pol_lookup_t)(struct net *,
 					 struct fib6_table *,
 					 struct flowi6 *, int);
 
+struct fib6_entry_notifier_info {
+	struct fib_notifier_info info; /* must be first */
+	struct rt6_info *rt;
+};
+
 /*
  *	exported functions
  */
