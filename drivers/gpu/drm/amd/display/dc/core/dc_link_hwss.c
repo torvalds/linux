@@ -90,10 +90,13 @@ void dp_enable_link_phy(
 	if (dc_is_dp_sst_signal(signal)) {
 		if (signal == SIGNAL_TYPE_EDP) {
 			link_enc->funcs->power_control(link_enc, true);
+			link_enc->funcs->enable_dp_output(
+						link_enc,
+						link_settings,
+						clock_source);
 			link_enc->funcs->backlight_control(link_enc, true);
-		}
-
-		link_enc->funcs->enable_dp_output(
+		} else
+			link_enc->funcs->enable_dp_output(
 						link_enc,
 						link_settings,
 						clock_source);
@@ -114,10 +117,10 @@ void dp_disable_link_phy(struct dc_link *link, enum signal_type signal)
 
 	if (signal == SIGNAL_TYPE_EDP) {
 		link->link_enc->funcs->backlight_control(link->link_enc, false);
+		link->link_enc->funcs->disable_output(link->link_enc, signal);
 		link->link_enc->funcs->power_control(link->link_enc, false);
-	}
-
-	link->link_enc->funcs->disable_output(link->link_enc, signal);
+	} else
+		link->link_enc->funcs->disable_output(link->link_enc, signal);
 
 	/* Clear current link setting.*/
 	memset(&link->cur_link_settings, 0,
