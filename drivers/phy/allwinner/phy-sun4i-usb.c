@@ -107,6 +107,7 @@ enum sun4i_usb_phy_type {
 
 struct sun4i_usb_phy_cfg {
 	int num_phys;
+	int hsic_index;
 	enum sun4i_usb_phy_type type;
 	u32 disc_thresh;
 	u8 phyctl_offset;
@@ -126,6 +127,7 @@ struct sun4i_usb_phy_data {
 		struct regulator *vbus;
 		struct reset_control *reset;
 		struct clk *clk;
+		struct clk *clk2;
 		bool regulator_on;
 		int index;
 	} phys[MAX_PHYS];
@@ -261,8 +263,15 @@ static int sun4i_usb_phy_init(struct phy *_phy)
 	if (ret)
 		return ret;
 
+	ret = clk_prepare_enable(phy->clk2);
+	if (ret) {
+		clk_disable_unprepare(phy->clk);
+		return ret;
+	}
+
 	ret = reset_control_deassert(phy->reset);
 	if (ret) {
+		clk_disable_unprepare(phy->clk2);
 		clk_disable_unprepare(phy->clk);
 		return ret;
 	}
@@ -315,6 +324,7 @@ static int sun4i_usb_phy_exit(struct phy *_phy)
 
 	sun4i_usb_phy_passby(phy, 0);
 	reset_control_assert(phy->reset);
+	clk_disable_unprepare(phy->clk2);
 	clk_disable_unprepare(phy->clk);
 
 	return 0;
@@ -717,6 +727,17 @@ static int sun4i_usb_phy_probe(struct platform_device *pdev)
 		if (IS_ERR(phy->clk)) {
 			dev_err(dev, "failed to get clock %s\n", name);
 			return PTR_ERR(phy->clk);
+		}
+
+		/* The first PHY is always tied to OTG, and never HSIC */
+		if (data->cfg->hsic_index && i == data->cfg->hsic_index) {
+			/* HSIC needs secondary clock */
+			snprintf(name, sizeof(name), "usb%d_hsic_12M", i);
+			phy->clk2 = devm_clk_get(dev, name);
+			if (IS_ERR(phy->clk2)) {
+				dev_err(dev, "failed to get clock %s\n", name);
+				return PTR_ERR(phy->clk2);
+			}
 		}
 
 		snprintf(name, sizeof(name), "usb%d_reset", i);
