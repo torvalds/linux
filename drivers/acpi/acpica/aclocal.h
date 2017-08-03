@@ -605,7 +605,7 @@ struct acpi_update_state {
  * Pkg state - used to traverse nested package structures
  */
 struct acpi_pkg_state {
-	ACPI_STATE_COMMON u16 index;
+	ACPI_STATE_COMMON u32 index;
 	union acpi_operand_object *source_object;
 	union acpi_operand_object *dest_object;
 	struct acpi_walk_state *walk_state;

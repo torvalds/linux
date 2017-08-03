@@ -339,11 +339,12 @@ struct acpi_object_addr_handler {
 struct acpi_object_reference {
 	ACPI_OBJECT_COMMON_HEADER u8 class;	/* Reference Class */
 	u8 target_type;		/* Used for Index Op */
-	u8 reserved;
+	u8 resolved;		/* Reference has been resolved to a value */
 	void *object;		/* name_op=>HANDLE to obj, index_op=>union acpi_operand_object */
 	struct acpi_namespace_node *node;	/* ref_of or Namepath */
 	union acpi_operand_object **where;	/* Target of Index */
 	u8 *index_pointer;	/* Used for Buffers and Strings */
+	u8 *aml;		/* Used for deferred resolution of the ref */
 	u32 value;		/* Used for Local/Arg/Index/ddb_handle */
 };
 
