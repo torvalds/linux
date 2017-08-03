@@ -2862,8 +2862,8 @@ sctp_disposition_t sctp_sf_do_ecn_cwr(struct net *net,
 				      void *arg,
 				      sctp_cmd_seq_t *commands)
 {
-	sctp_cwrhdr_t *cwr;
 	struct sctp_chunk *chunk = arg;
+	struct sctp_cwrhdr *cwr;
 	u32 lowest_tsn;
 
 	if (!sctp_vtag_verify(chunk, asoc))
@@ -2873,8 +2873,8 @@ sctp_disposition_t sctp_sf_do_ecn_cwr(struct net *net,
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
 
-	cwr = (sctp_cwrhdr_t *) chunk->skb->data;
-	skb_pull(chunk->skb, sizeof(sctp_cwrhdr_t));
+	cwr = (struct sctp_cwrhdr *)chunk->skb->data;
+	skb_pull(chunk->skb, sizeof(*cwr));
 
 	lowest_tsn = ntohl(cwr->lowest_tsn);
 

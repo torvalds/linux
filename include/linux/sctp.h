@@ -531,13 +531,13 @@ struct sctp_ecne_chunk {
 /* RFC 2960.  Appendix A.  Explicit Congestion Notification.
  *   Congestion Window Reduced (CWR) (13)
  */
-typedef struct sctp_cwrhdr {
+struct sctp_cwrhdr {
 	__be32 lowest_tsn;
-} sctp_cwrhdr_t;
+};
 
 typedef struct sctp_cwr_chunk {
 	struct sctp_chunkhdr chunk_hdr;
-	sctp_cwrhdr_t cwr_hdr;
+	struct sctp_cwrhdr cwr_hdr;
 } sctp_cwr_chunk_t;
 
 /* PR-SCTP

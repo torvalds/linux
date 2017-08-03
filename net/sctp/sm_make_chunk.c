@@ -663,11 +663,11 @@ struct sctp_chunk *sctp_make_cwr(const struct sctp_association *asoc,
 			    const struct sctp_chunk *chunk)
 {
 	struct sctp_chunk *retval;
-	sctp_cwrhdr_t cwr;
+	struct sctp_cwrhdr cwr;
 
 	cwr.lowest_tsn = htonl(lowest_tsn);
 	retval = sctp_make_control(asoc, SCTP_CID_ECN_CWR, 0,
-				   sizeof(sctp_cwrhdr_t), GFP_ATOMIC);
+				   sizeof(cwr), GFP_ATOMIC);
 
 	if (!retval)
 		goto nodata;
