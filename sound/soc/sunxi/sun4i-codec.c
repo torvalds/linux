@@ -762,7 +762,7 @@ static const struct snd_soc_dapm_route sun4i_codec_codec_dapm_routes[] = {
 	{ "Mic1", NULL, "VMIC" },
 };
 
-static struct snd_soc_codec_driver sun4i_codec_codec = {
+static const struct snd_soc_codec_driver sun4i_codec_codec = {
 	.component_driver = {
 		.controls		= sun4i_codec_controls,
 		.num_controls		= ARRAY_SIZE(sun4i_codec_controls),
@@ -1068,7 +1068,7 @@ static const struct snd_soc_dapm_route sun6i_codec_codec_dapm_routes[] = {
 	{ "Right ADC", NULL, "Right ADC Mixer" },
 };
 
-static struct snd_soc_codec_driver sun6i_codec_codec = {
+static const struct snd_soc_codec_driver sun6i_codec_codec = {
 	.component_driver = {
 		.controls		= sun6i_codec_codec_widgets,
 		.num_controls		= ARRAY_SIZE(sun6i_codec_codec_widgets),
@@ -1096,7 +1096,7 @@ static const struct snd_soc_dapm_widget sun8i_a23_codec_codec_widgets[] = {
 
 };
 
-static struct snd_soc_codec_driver sun8i_a23_codec_codec = {
+static const struct snd_soc_codec_driver sun8i_a23_codec_codec = {
 	.component_driver = {
 		.controls		= sun8i_a23_codec_codec_controls,
 		.num_controls		= ARRAY_SIZE(sun8i_a23_codec_codec_controls),

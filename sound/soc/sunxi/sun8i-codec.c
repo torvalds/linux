@@ -360,7 +360,7 @@ static struct snd_soc_dai_driver sun8i_codec_dai = {
 	.ops = &sun8i_codec_dai_ops,
 };
 
-static struct snd_soc_codec_driver sun8i_soc_codec = {
+static const struct snd_soc_codec_driver sun8i_soc_codec = {
 	.component_driver = {
 		.dapm_widgets		= sun8i_codec_dapm_widgets,
 		.num_dapm_widgets	= ARRAY_SIZE(sun8i_codec_dapm_widgets),
