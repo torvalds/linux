@@ -36,6 +36,7 @@
 #include <rdma/uverbs_types.h>
 #include <linux/uaccess.h>
 #include <rdma/rdma_user_ioctl.h>
+#include <rdma/ib_user_ioctl_verbs.h>
 
 /*
  * =======================================
@@ -337,6 +338,51 @@ static inline bool uverbs_attr_is_valid(const struct uverbs_attr_bundle *attrs_b
 	return uverbs_attr_is_valid_in_hash(&attrs_bundle->hash[idx_bucket],
 					    idx & ~UVERBS_ID_NS_MASK);
 }
+
+static inline const struct uverbs_attr *uverbs_attr_get(const struct uverbs_attr_bundle *attrs_bundle,
+							u16 idx)
+{
+	u16 idx_bucket = idx >>	UVERBS_ID_NS_SHIFT;
+
+	if (!uverbs_attr_is_valid(attrs_bundle, idx))
+		return ERR_PTR(-ENOENT);
+
+	return &attrs_bundle->hash[idx_bucket].attrs[idx & ~UVERBS_ID_NS_MASK];
+}
+
+static inline int uverbs_copy_to(const struct uverbs_attr_bundle *attrs_bundle,
+				 size_t idx, const void *from)
+{
+	const struct uverbs_attr *attr = uverbs_attr_get(attrs_bundle, idx);
+	u16 flags;
+
+	if (IS_ERR(attr))
+		return PTR_ERR(attr);
+
+	flags = attr->ptr_attr.flags | UVERBS_ATTR_F_VALID_OUTPUT;
+	return (!copy_to_user(attr->ptr_attr.ptr, from, attr->ptr_attr.len) &&
+		!put_user(flags, &attr->uattr->flags)) ? 0 : -EFAULT;
+}
+
+static inline int _uverbs_copy_from(void *to, size_t to_size,
+				    const struct uverbs_attr_bundle *attrs_bundle,
+				    size_t idx)
+{
+	const struct uverbs_attr *attr = uverbs_attr_get(attrs_bundle, idx);
+
+	if (IS_ERR(attr))
+		return PTR_ERR(attr);
+
+	if (to_size <= sizeof(((struct ib_uverbs_attr *)0)->data))
+		memcpy(to, &attr->ptr_attr.data, attr->ptr_attr.len);
+	else if (copy_from_user(to, attr->ptr_attr.ptr, attr->ptr_attr.len))
+		return -EFAULT;
+
+	return 0;
+}
+
+#define uverbs_copy_from(to, attrs_bundle, idx)				      \
+	_uverbs_copy_from(to, sizeof(*(to)), attrs_bundle, idx)
 
 /* =================================================
  *	 Definitions -> Specs infrastructure

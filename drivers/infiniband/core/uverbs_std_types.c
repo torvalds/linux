@@ -209,6 +209,46 @@ static int uverbs_hot_unplug_completion_event_file(struct ib_uobject_file *uobj_
 	return 0;
 };
 
+/*
+ * This spec is used in order to pass information to the hardware driver in a
+ * legacy way. Every verb that could get driver specific data should get this
+ * spec.
+ */
+static const struct uverbs_attr_def uverbs_uhw_compat_in =
+	UVERBS_ATTR_PTR_IN_SZ(UVERBS_UHW_IN, 0, UA_FLAGS(UVERBS_ATTR_SPEC_F_MIN_SZ));
+static const struct uverbs_attr_def uverbs_uhw_compat_out =
+	UVERBS_ATTR_PTR_OUT_SZ(UVERBS_UHW_OUT, 0, UA_FLAGS(UVERBS_ATTR_SPEC_F_MIN_SZ));
+
+static void create_udata(struct uverbs_attr_bundle *ctx,
+			 struct ib_udata *udata)
+{
+	/*
+	 * This is for ease of conversion. The purpose is to convert all drivers
+	 * to use uverbs_attr_bundle instead of ib_udata.
+	 * Assume attr == 0 is input and attr == 1 is output.
+	 */
+	void __user *inbuf;
+	size_t inbuf_len = 0;
+	void __user *outbuf;
+	size_t outbuf_len = 0;
+	const struct uverbs_attr *uhw_in =
+		uverbs_attr_get(ctx, UVERBS_UHW_IN);
+	const struct uverbs_attr *uhw_out =
+		uverbs_attr_get(ctx, UVERBS_UHW_OUT);
+
+	if (!IS_ERR(uhw_in)) {
+		inbuf = uhw_in->ptr_attr.ptr;
+		inbuf_len = uhw_in->ptr_attr.len;
+	}
+
+	if (!IS_ERR(uhw_out)) {
+		outbuf = uhw_out->ptr_attr.ptr;
+		outbuf_len = uhw_out->ptr_attr.len;
+	}
+
+	INIT_UDATA_BUF_OR_NULL(udata, inbuf, outbuf, inbuf_len, outbuf_len);
+}
+
 DECLARE_UVERBS_OBJECT(uverbs_object_comp_channel,
 		      UVERBS_OBJECT_COMP_CHANNEL,
 		      &UVERBS_TYPE_ALLOC_FD(0,

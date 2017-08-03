@@ -33,6 +33,11 @@
 #ifndef IB_USER_IOCTL_VERBS_H
 #define IB_USER_IOCTL_VERBS_H
 
+#include <rdma/rdma_user_ioctl.h>
+
+#define UVERBS_UDATA_DRIVER_DATA_NS	1
+#define UVERBS_UDATA_DRIVER_DATA_FLAG	(1UL << UVERBS_ID_NS_SHIFT)
+
 enum uverbs_default_objects {
 	UVERBS_OBJECT_DEVICE, /* No instances of DEVICE are allowed */
 	UVERBS_OBJECT_PD,
@@ -48,6 +53,11 @@ enum uverbs_default_objects {
 	UVERBS_OBJECT_RWQ_IND_TBL,
 	UVERBS_OBJECT_WQ,
 	UVERBS_OBJECT_LAST,
+};
+
+enum {
+	UVERBS_UHW_IN = UVERBS_UDATA_DRIVER_DATA_FLAG,
+	UVERBS_UHW_OUT,
 };
 
 #endif
