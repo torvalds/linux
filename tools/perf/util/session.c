@@ -873,9 +873,9 @@ static int process_finished_round(struct perf_tool *tool __maybe_unused,
 }
 
 int perf_session__queue_event(struct perf_session *s, union perf_event *event,
-			      struct perf_sample *sample, u64 file_offset)
+			      u64 timestamp, u64 file_offset)
 {
-	return ordered_events__queue(&s->ordered_events, event, sample, file_offset);
+	return ordered_events__queue(&s->ordered_events, event, timestamp, file_offset);
 }
 
 static void callchain__lbr_callstack_printf(struct perf_sample *sample)
@@ -1517,7 +1517,7 @@ static s64 perf_session__process_event(struct perf_session *session,
 		return ret;
 
 	if (tool->ordered_events) {
-		ret = perf_session__queue_event(session, event, &sample, file_offset);
+		ret = perf_session__queue_event(session, event, sample.time, file_offset);
 		if (ret != -ETIME)
 			return ret;
 	}
