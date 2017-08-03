@@ -78,6 +78,7 @@ __acquires(&self->lock)
 			if (ring[AQ_VEC_RX_ID].sw_head !=
 				ring[AQ_VEC_RX_ID].hw_head) {
 				err = aq_ring_rx_clean(&ring[AQ_VEC_RX_ID],
+						       napi,
 						       &work_done,
 						       budget - work_done);
 				if (err < 0)

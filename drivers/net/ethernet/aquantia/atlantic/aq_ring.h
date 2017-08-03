@@ -148,7 +148,10 @@ int aq_ring_init(struct aq_ring_s *self);
 void aq_ring_rx_deinit(struct aq_ring_s *self);
 void aq_ring_free(struct aq_ring_s *self);
 void aq_ring_tx_clean(struct aq_ring_s *self);
-int aq_ring_rx_clean(struct aq_ring_s *self, int *work_done, int budget);
+int aq_ring_rx_clean(struct aq_ring_s *self,
+		     struct napi_struct *napi,
+		     int *work_done,
+		     int budget);
 int aq_ring_rx_fill(struct aq_ring_s *self);
 
 #endif /* AQ_RING_H */
