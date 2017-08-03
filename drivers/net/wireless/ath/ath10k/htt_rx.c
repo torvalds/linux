@@ -1524,7 +1524,7 @@ static bool ath10k_htt_rx_amsdu_allowed(struct ath10k *ar,
 	 */
 
 	if (!rx_status->freq) {
-		ath10k_warn(ar, "no channel configured; ignoring frame(s)!\n");
+		ath10k_dbg(ar, ATH10K_DBG_HTT, "no channel configured; ignoring frame(s)!\n");
 		return false;
 	}
 
