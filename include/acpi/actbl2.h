@@ -76,6 +76,7 @@
 #define ACPI_SIG_MCHI           "MCHI"	/* Management Controller Host Interface table */
 #define ACPI_SIG_MSDM           "MSDM"	/* Microsoft Data Management Table */
 #define ACPI_SIG_MTMR           "MTMR"	/* MID Timer table */
+#define ACPI_SIG_SDEI           "SDEI"	/* Software Delegated Exception Interface Table */
 #define ACPI_SIG_SLIC           "SLIC"	/* Software Licensing Description Table */
 #define ACPI_SIG_SPCR           "SPCR"	/* Serial Port Console Redirection table */
 #define ACPI_SIG_SPMI           "SPMI"	/* Server Platform Management Interface table */
@@ -1130,6 +1131,19 @@ struct acpi_mtmr_entry {
 	struct acpi_generic_address physical_address;
 	u32 frequency;
 	u32 irq;
+};
+
+/*******************************************************************************
+ *
+ * SDEI - Software Delegated Exception Interface Descriptor Table
+ *
+ * Conforms to "Software Delegated Exception Interface (SDEI)" ARM DEN0054A,
+ * May 8th, 2017. Copyright 2017 ARM Ltd.
+ *
+ ******************************************************************************/
+
+struct acpi_table_sdei {
+	struct acpi_table_header header;	/* Common ACPI table header */
 };
 
 /*******************************************************************************
