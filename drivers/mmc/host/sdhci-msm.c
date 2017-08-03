@@ -1133,6 +1133,7 @@ static int sdhci_msm_probe(struct platform_device *pdev)
 	if (IS_ERR(host))
 		return PTR_ERR(host);
 
+	host->sdma_boundary = 0;
 	pltfm_host = sdhci_priv(host);
 	msm_host = sdhci_pltfm_priv(pltfm_host);
 	msm_host->mmc = host->mmc;
