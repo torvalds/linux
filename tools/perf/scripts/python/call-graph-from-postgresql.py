@@ -160,7 +160,7 @@ class TreeItem():
 				  '( SELECT short_name FROM dsos WHERE id = ( SELECT dso_id FROM symbols WHERE id = ( SELECT symbol_id FROM call_paths WHERE id = call_path_id ) ) ), '
 				  '( SELECT ip FROM call_paths where id = call_path_id ) '
 				  'FROM calls WHERE parent_call_path_id = ' + str(self.call_path_id) + ' AND comm_id = ' + str(self.comm_id) + ' AND thread_id = ' + str(self.thread_id) +
-				  'ORDER BY call_path_id')
+				  ' ORDER BY call_path_id')
 		if not ret:
 			raise Exception("Query failed: " + query.lastError().text())
 		last_call_path_id = 0
