@@ -1233,7 +1233,7 @@ static int sctp_sf_send_restart_abort(struct net *net, union sctp_addr *ssa,
 	union sctp_addr_param *addrparm;
 	struct sctp_errhdr *errhdr;
 	struct sctp_endpoint *ep;
-	char buffer[sizeof(struct sctp_errhdr)+sizeof(union sctp_addr_param)];
+	char buffer[sizeof(*errhdr) + sizeof(*addrparm)];
 	struct sctp_af *af = sctp_get_af_specific(ssa->v4.sin_family);
 
 	/* Build the error on the stack.   We are way to malloc crazy
@@ -1244,7 +1244,7 @@ static int sctp_sf_send_restart_abort(struct net *net, union sctp_addr *ssa,
 
 	/* Copy into a parm format. */
 	len = af->to_addr_param(ssa, addrparm);
-	len += sizeof(sctp_errhdr_t);
+	len += sizeof(*errhdr);
 
 	errhdr->cause = SCTP_ERROR_RESTART;
 	errhdr->length = htons(len);
@@ -2270,7 +2270,7 @@ sctp_disposition_t sctp_sf_cookie_echoed_err(struct net *net,
 					sctp_cmd_seq_t *commands)
 {
 	struct sctp_chunk *chunk = arg;
-	sctp_errhdr_t *err;
+	struct sctp_errhdr *err;
 
 	if (!sctp_vtag_verify(chunk, asoc))
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
@@ -2337,7 +2337,7 @@ static sctp_disposition_t sctp_sf_do_5_2_6_stale(struct net *net,
 	struct sctp_chunk *chunk = arg, *reply;
 	struct sctp_cookie_preserve_param bht;
 	struct sctp_bind_addr *bp;
-	sctp_errhdr_t *err;
+	struct sctp_errhdr *err;
 	u32 stale;
 
 	if (attempts > asoc->max_init_attempts) {
@@ -2348,7 +2348,7 @@ static sctp_disposition_t sctp_sf_do_5_2_6_stale(struct net *net,
 		return SCTP_DISPOSITION_DELETE_TCB;
 	}
 
-	err = (sctp_errhdr_t *)(chunk->skb->data);
+	err = (struct sctp_errhdr *)(chunk->skb->data);
 
 	/* When calculating the time extension, an implementation
 	 * SHOULD use the RTT information measured based on the
@@ -2364,7 +2364,7 @@ static sctp_disposition_t sctp_sf_do_5_2_6_stale(struct net *net,
 	 * to give ample time to retransmit the new cookie and thus
 	 * yield a higher probability of success on the reattempt.
 	 */
-	stale = ntohl(*(__be32 *)((u8 *)err + sizeof(sctp_errhdr_t)));
+	stale = ntohl(*(__be32 *)((u8 *)err + sizeof(*err)));
 	stale = (stale * 2) / 1000;
 
 	bht.param_hdr.type = SCTP_PARAM_COOKIE_PRESERVATIVE;
@@ -2499,13 +2499,14 @@ static sctp_disposition_t __sctp_sf_do_9_1_abort(struct net *net,
 	/* See if we have an error cause code in the chunk.  */
 	len = ntohs(chunk->chunk_hdr->length);
 	if (len >= sizeof(struct sctp_chunkhdr) + sizeof(struct sctp_errhdr)) {
+		struct sctp_errhdr *err;
 
-		sctp_errhdr_t *err;
 		sctp_walk_errors(err, chunk->chunk_hdr);
 		if ((void *)err != (void *)chunk->chunk_end)
-			return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
+			return sctp_sf_pdiscard(net, ep, asoc, type, arg,
+						commands);
 
-		error = ((sctp_errhdr_t *)chunk->skb->data)->cause;
+		error = ((struct sctp_errhdr *)chunk->skb->data)->cause;
 	}
 
 	sctp_add_cmd_sf(commands, SCTP_CMD_SET_SK_ERR, SCTP_ERROR(ECONNRESET));
@@ -2552,7 +2553,7 @@ sctp_disposition_t sctp_sf_cookie_wait_abort(struct net *net,
 	/* See if we have an error cause code in the chunk.  */
 	len = ntohs(chunk->chunk_hdr->length);
 	if (len >= sizeof(struct sctp_chunkhdr) + sizeof(struct sctp_errhdr))
-		error = ((sctp_errhdr_t *)chunk->skb->data)->cause;
+		error = ((struct sctp_errhdr *)chunk->skb->data)->cause;
 
 	return sctp_stop_t1_and_abort(net, commands, error, ECONNREFUSED, asoc,
 				      chunk->transport);
@@ -3310,7 +3311,7 @@ sctp_disposition_t sctp_sf_operr_notify(struct net *net,
 					sctp_cmd_seq_t *commands)
 {
 	struct sctp_chunk *chunk = arg;
-	sctp_errhdr_t *err;
+	struct sctp_errhdr *err;
 
 	if (!sctp_vtag_verify(chunk, asoc))
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
@@ -3433,7 +3434,7 @@ sctp_disposition_t sctp_sf_ootb(struct net *net,
 	struct sctp_chunk *chunk = arg;
 	struct sk_buff *skb = chunk->skb;
 	struct sctp_chunkhdr *ch;
-	sctp_errhdr_t *err;
+	struct sctp_errhdr *err;
 	__u8 *ch_end;
 	int ootb_shut_ack = 0;
 	int ootb_cookie_ack = 0;
@@ -3776,7 +3777,7 @@ sctp_disposition_t sctp_sf_do_asconf_ack(struct net *net,
 	if (ADDIP_SERIAL_gte(rcvd_serial, sent_serial + 1) &&
 	    !(asoc->addip_last_asconf)) {
 		abort = sctp_make_abort(asoc, asconf_ack,
-					sizeof(sctp_errhdr_t));
+					sizeof(struct sctp_errhdr));
 		if (abort) {
 			sctp_init_cause(abort, SCTP_ERROR_ASCONF_ACK, 0);
 			sctp_add_cmd_sf(commands, SCTP_CMD_REPLY,
@@ -3812,7 +3813,7 @@ sctp_disposition_t sctp_sf_do_asconf_ack(struct net *net,
 		}
 
 		abort = sctp_make_abort(asoc, asconf_ack,
-					sizeof(sctp_errhdr_t));
+					sizeof(struct sctp_errhdr));
 		if (abort) {
 			sctp_init_cause(abort, SCTP_ERROR_RSRC_LOW, 0);
 			sctp_add_cmd_sf(commands, SCTP_CMD_REPLY,

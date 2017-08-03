@@ -427,15 +427,15 @@ struct sctp_shutdown_chunk {
 
 /* RFC 2960.  Section 3.3.10 Operation Error (ERROR) (9) */
 
-typedef struct sctp_errhdr {
+struct sctp_errhdr {
 	__be16 cause;
 	__be16 length;
 	__u8  variable[0];
-} sctp_errhdr_t;
+};
 
 typedef struct sctp_operr_chunk {
 	struct sctp_chunkhdr chunk_hdr;
-	sctp_errhdr_t err_hdr;
+	struct sctp_errhdr err_hdr;
 } sctp_operr_chunk_t;
 
 /* RFC 2960 3.3.10 - Operation Error

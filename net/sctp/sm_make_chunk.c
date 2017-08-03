@@ -135,14 +135,14 @@ static const struct sctp_paramhdr prsctp_param = {
 void  sctp_init_cause(struct sctp_chunk *chunk, __be16 cause_code,
 		      size_t paylen)
 {
-	sctp_errhdr_t err;
+	struct sctp_errhdr err;
 	__u16 len;
 
 	/* Cause code constants are now defined in network order.  */
 	err.cause = cause_code;
-	len = sizeof(sctp_errhdr_t) + paylen;
+	len = sizeof(err) + paylen;
 	err.length  = htons(len);
-	chunk->subh.err_hdr = sctp_addto_chunk(chunk, sizeof(sctp_errhdr_t), &err);
+	chunk->subh.err_hdr = sctp_addto_chunk(chunk, sizeof(err), &err);
 }
 
 /* A helper to initialize an op error inside a
@@ -153,19 +153,19 @@ void  sctp_init_cause(struct sctp_chunk *chunk, __be16 cause_code,
 static int sctp_init_cause_fixed(struct sctp_chunk *chunk, __be16 cause_code,
 		      size_t paylen)
 {
-	sctp_errhdr_t err;
+	struct sctp_errhdr err;
 	__u16 len;
 
 	/* Cause code constants are now defined in network order.  */
 	err.cause = cause_code;
-	len = sizeof(sctp_errhdr_t) + paylen;
+	len = sizeof(err) + paylen;
 	err.length  = htons(len);
 
 	if (skb_tailroom(chunk->skb) < len)
 		return -ENOSPC;
-	chunk->subh.err_hdr = sctp_addto_chunk_fixed(chunk,
-						     sizeof(sctp_errhdr_t),
-						     &err);
+
+	chunk->subh.err_hdr = sctp_addto_chunk_fixed(chunk, sizeof(err), &err);
+
 	return 0;
 }
 /* 3.3.2 Initiation (INIT) (1)
@@ -979,8 +979,8 @@ struct sctp_chunk *sctp_make_abort_no_data(
 	struct sctp_chunk *retval;
 	__be32 payload;
 
-	retval = sctp_make_abort(asoc, chunk, sizeof(sctp_errhdr_t)
-				 + sizeof(tsn));
+	retval = sctp_make_abort(asoc, chunk,
+				 sizeof(struct sctp_errhdr) + sizeof(tsn));
 
 	if (!retval)
 		goto no_mem;
@@ -1015,7 +1015,8 @@ struct sctp_chunk *sctp_make_abort_user(const struct sctp_association *asoc,
 	void *payload = NULL;
 	int err;
 
-	retval = sctp_make_abort(asoc, NULL, sizeof(sctp_errhdr_t) + paylen);
+	retval = sctp_make_abort(asoc, NULL,
+				 sizeof(struct sctp_errhdr) + paylen);
 	if (!retval)
 		goto err_chunk;
 
@@ -1080,8 +1081,8 @@ struct sctp_chunk *sctp_make_abort_violation(
 	struct sctp_chunk  *retval;
 	struct sctp_paramhdr phdr;
 
-	retval = sctp_make_abort(asoc, chunk, sizeof(sctp_errhdr_t) + paylen +
-					      sizeof(phdr));
+	retval = sctp_make_abort(asoc, chunk, sizeof(struct sctp_errhdr) +
+					      paylen + sizeof(phdr));
 	if (!retval)
 		goto end;
 
@@ -1104,7 +1105,7 @@ struct sctp_chunk *sctp_make_violation_paramlen(
 {
 	struct sctp_chunk *retval;
 	static const char error[] = "The following parameter had invalid length:";
-	size_t payload_len = sizeof(error) + sizeof(sctp_errhdr_t) +
+	size_t payload_len = sizeof(error) + sizeof(struct sctp_errhdr) +
 			     sizeof(*param);
 
 	retval = sctp_make_abort(asoc, chunk, payload_len);
@@ -1126,7 +1127,7 @@ struct sctp_chunk *sctp_make_violation_max_retrans(
 {
 	struct sctp_chunk *retval;
 	static const char error[] = "Association exceeded its max_retans count";
-	size_t payload_len = sizeof(error) + sizeof(sctp_errhdr_t);
+	size_t payload_len = sizeof(error) + sizeof(struct sctp_errhdr);
 
 	retval = sctp_make_abort(asoc, chunk, payload_len);
 	if (!retval)
@@ -1209,7 +1210,8 @@ static struct sctp_chunk *sctp_make_op_error_space(
 	struct sctp_chunk *retval;
 
 	retval = sctp_make_control(asoc, SCTP_CID_ERROR, 0,
-				   sizeof(sctp_errhdr_t) + size, GFP_ATOMIC);
+				   sizeof(struct sctp_errhdr) + size,
+				   GFP_ATOMIC);
 	if (!retval)
 		goto nodata;
 
@@ -2966,7 +2968,7 @@ static void sctp_add_asconf_response(struct sctp_chunk *chunk, __be32 crr_id,
 			      __be16 err_code, sctp_addip_param_t *asconf_param)
 {
 	sctp_addip_param_t 	ack_param;
-	sctp_errhdr_t		err_param;
+	struct sctp_errhdr	err_param;
 	int			asconf_param_len = 0;
 	int			err_param_len = 0;
 	__be16			response_type;
@@ -3351,7 +3353,7 @@ static __be16 sctp_get_asconf_response(struct sctp_chunk *asconf_ack,
 				      int no_err)
 {
 	sctp_addip_param_t	*asconf_ack_param;
-	sctp_errhdr_t		*err_param;
+	struct sctp_errhdr	*err_param;
 	int			length;
 	int			asconf_ack_len;
 	__be16			err_code;

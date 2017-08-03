@@ -828,7 +828,7 @@ static void sctp_cmd_assoc_update(sctp_cmd_seq_t *cmds,
 	if (!sctp_assoc_update(asoc, new))
 		return;
 
-	abort = sctp_make_abort(asoc, NULL, sizeof(sctp_errhdr_t));
+	abort = sctp_make_abort(asoc, NULL, sizeof(struct sctp_errhdr));
 	if (abort) {
 		sctp_init_cause(abort, SCTP_ERROR_RSRC_LOW, 0);
 		sctp_add_cmd_sf(cmds, SCTP_CMD_REPLY, SCTP_CHUNK(abort));
