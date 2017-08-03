@@ -320,6 +320,8 @@ struct pff_csr_regs {
 	u32 reserved4[174];
 } __packed;
 
+struct switchtec_ntb;
+
 struct switchtec_dev {
 	struct pci_dev *pdev;
 	struct device dev;
@@ -357,6 +359,8 @@ struct switchtec_dev {
 	struct work_struct link_event_work;
 	void (*link_notifier)(struct switchtec_dev *stdev);
 	u8 link_event_count[SWITCHTEC_MAX_PFF_CSR];
+
+	struct switchtec_ntb *sndev;
 };
 
 static inline struct switchtec_dev *to_stdev(struct device *dev)
