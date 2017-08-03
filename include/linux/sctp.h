@@ -699,10 +699,10 @@ struct sctp_authhdr {
 	__u8   hmac[0];
 };
 
-typedef struct sctp_auth_chunk {
+struct sctp_auth_chunk {
 	struct sctp_chunkhdr chunk_hdr;
 	struct sctp_authhdr auth_hdr;
-} sctp_auth_chunk_t;
+};
 
 struct sctp_infox {
 	struct sctp_info *sctpinfo;

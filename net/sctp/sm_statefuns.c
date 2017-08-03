@@ -4093,7 +4093,7 @@ static sctp_ierror_t sctp_sf_authenticate(struct net *net,
 	/* Pull in the auth header, so we can do some more verification */
 	auth_hdr = (struct sctp_authhdr *)chunk->skb->data;
 	chunk->subh.auth_hdr = auth_hdr;
-	skb_pull(chunk->skb, sizeof(struct sctp_authhdr));
+	skb_pull(chunk->skb, sizeof(*auth_hdr));
 
 	/* Make sure that we support the HMAC algorithm from the auth
 	 * chunk.
@@ -4112,7 +4112,8 @@ static sctp_ierror_t sctp_sf_authenticate(struct net *net,
 	/* Make sure that the length of the signature matches what
 	 * we expect.
 	 */
-	sig_len = ntohs(chunk->chunk_hdr->length) - sizeof(sctp_auth_chunk_t);
+	sig_len = ntohs(chunk->chunk_hdr->length) -
+		  sizeof(struct sctp_auth_chunk);
 	hmac = sctp_auth_get_hmac(ntohs(auth_hdr->hmac_id));
 	if (sig_len != hmac->hmac_len)
 		return SCTP_IERROR_PROTO_VIOLATION;
@@ -4134,8 +4135,8 @@ static sctp_ierror_t sctp_sf_authenticate(struct net *net,
 	memset(digest, 0, sig_len);
 
 	sctp_auth_calculate_hmac(asoc, chunk->skb,
-				(struct sctp_auth_chunk *)chunk->chunk_hdr,
-				GFP_ATOMIC);
+				 (struct sctp_auth_chunk *)chunk->chunk_hdr,
+				 GFP_ATOMIC);
 
 	/* Discard the packet if the digests do not match */
 	if (memcmp(save_digest, digest, sig_len)) {

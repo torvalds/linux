@@ -201,7 +201,7 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 		struct sctp_hmac *hmac_desc = sctp_auth_asoc_get_hmac(asoc);
 
 		if (hmac_desc)
-			max_data -= SCTP_PAD4(sizeof(sctp_auth_chunk_t) +
+			max_data -= SCTP_PAD4(sizeof(struct sctp_auth_chunk) +
 					      hmac_desc->hmac_len);
 	}
 
