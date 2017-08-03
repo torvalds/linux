@@ -52,7 +52,17 @@
 
 /* disable turnrequest, turndisable, forcetxstopmode, forcerxmode */
 #define RK3399_GRF_SOC_CON22		0x6258
-#define RK3399_GRF_DSI_MODE		0xffff0000
+#define RK3399_GRF_DSI0_MODE		0xffff0000
+/* disable turndisable, forcetxstopmode, forcerxmode, enable */
+#define RK3399_GRF_SOC_CON23		0x625c
+#define RK3399_GRF_DSI1_MODE1		0xffff0000
+#define RK3399_GRF_DSI1_ENABLE		0x000f000f
+/* disable basedir and enable clk*/
+#define RK3399_GRF_SOC_CON24		0x6260
+#define RK3399_TXRX_MASTERSLAVEZ	BIT(7)
+#define RK3399_TXRX_ENABLECLK		BIT(6)
+#define RK3399_TXRX_BASEDIR		BIT(5)
+#define RK3399_GRF_DSI1_MODE2		0x00600040
 
 #define DSI_VERSION			0x00
 #define DSI_PWR_UP			0x04
@@ -295,8 +305,12 @@ struct dw_mipi_dsi_plat_data {
 	u32 grf_switch_reg;
 	u32 grf_dsi0_mode;
 	u32 grf_dsi0_mode_reg;
+	u32 grf_dsi1_mode;
+	u32 grf_dsi1_mode_reg1;
 	u32 dsi1_basedir;
 	u32 dsi1_masterslavez;
+	u32 dsi1_enableclk;
+	u32 grf_dsi1_mode_reg2;
 	u32 grf_dsi1_cfg_reg;
 	unsigned int max_data_lanes;
 	u32 max_bit_rate_per_lane;
@@ -1055,6 +1069,19 @@ static void rockchip_dsi_grf_config(struct dw_mipi_dsi *dsi, int vop_id)
 		      (pdata->dsi1_masterslavez << 16) |
 		      (pdata->dsi1_basedir << 16);
 		regmap_write(dsi->grf_regmap, pdata->grf_dsi1_cfg_reg, val);
+
+		if (pdata->grf_dsi0_mode_reg)
+			regmap_write(dsi->grf_regmap, pdata->grf_dsi0_mode_reg,
+				     pdata->grf_dsi0_mode);
+		if (pdata->grf_dsi1_mode_reg1)
+			regmap_write(dsi->grf_regmap, pdata->grf_dsi1_mode_reg1,
+				     pdata->grf_dsi1_mode);
+		if (pdata->grf_dsi1_mode_reg2)
+			regmap_write(dsi->grf_regmap, pdata->grf_dsi1_mode_reg2,
+				     RK3399_GRF_DSI1_MODE2);
+		if (pdata->grf_dsi1_mode_reg1)
+			regmap_write(dsi->grf_regmap, pdata->grf_dsi1_mode_reg1,
+				     RK3399_GRF_DSI1_ENABLE);
 	} else {
 		if (vop_id)
 			val = pdata->dsi0_en_bit |
@@ -1063,6 +1090,11 @@ static void rockchip_dsi_grf_config(struct dw_mipi_dsi *dsi, int vop_id)
 			val = pdata->dsi0_en_bit << 16;
 
 		regmap_write(dsi->grf_regmap, pdata->grf_switch_reg, val);
+
+		if (pdata->grf_dsi0_mode_reg)
+			regmap_write(dsi->grf_regmap, pdata->grf_dsi0_mode_reg,
+				     pdata->grf_dsi0_mode);
+
 	}
 
 	dev_info(dsi->dev, "vop %s output to dsi0\n", (vop_id) ? "LIT" : "BIG");
@@ -1370,8 +1402,14 @@ static struct dw_mipi_dsi_plat_data rk3399_mipi_dsi_drv_data = {
 	.dsi0_en_bit = RK3399_DSI0_SEL_VOP_LIT,
 	.dsi1_en_bit = RK3399_DSI1_SEL_VOP_LIT,
 	.grf_switch_reg = RK3399_GRF_SOC_CON19,
-	.grf_dsi0_mode = RK3399_GRF_DSI_MODE,
+	.grf_dsi0_mode = RK3399_GRF_DSI0_MODE,
 	.grf_dsi0_mode_reg = RK3399_GRF_SOC_CON22,
+	.grf_dsi1_mode = RK3399_GRF_DSI1_MODE1,
+	.grf_dsi1_mode_reg1 = RK3399_GRF_SOC_CON23,
+	.dsi1_basedir = RK3399_TXRX_BASEDIR,
+	.dsi1_masterslavez = RK3399_TXRX_MASTERSLAVEZ,
+	.dsi1_enableclk = RK3399_TXRX_ENABLECLK,
+	.grf_dsi1_mode_reg2 = RK3399_GRF_SOC_CON24,
 	.max_data_lanes = 4,
 	.max_bit_rate_per_lane = 1500000000,
 	.has_vop_sel = true,
