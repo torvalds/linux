@@ -2666,14 +2666,6 @@ void dcn10_update_pending_status(struct pipe_ctx *pipe_ctx)
 			pipe_ctx->plane_res.mi->funcs->mem_input_is_flip_pending(
 					pipe_ctx->plane_res.mi);
 
-	/* DCN we read INUSE address in MI, do we still need this wa? */
-	if (plane_state->status.is_flip_pending &&
-			!plane_state->visible) {
-		pipe_ctx->plane_res.mi->current_address =
-				pipe_ctx->plane_res.mi->request_address;
-		BREAK_TO_DEBUGGER();
-	}
-
 	plane_state->status.current_address = pipe_ctx->plane_res.mi->current_address;
 	if (pipe_ctx->plane_res.mi->current_address.type == PLN_ADDR_TYPE_GRPH_STEREO &&
 			tg->funcs->is_stereo_left_eye) {
