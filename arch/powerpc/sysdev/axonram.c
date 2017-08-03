@@ -193,7 +193,6 @@ static int axon_ram_probe(struct platform_device *device)
 
 	bank = kzalloc(sizeof(struct axon_ram_bank), GFP_KERNEL);
 	if (bank == NULL) {
-		dev_err(&device->dev, "Out of memory\n");
 		rc = -ENOMEM;
 		goto failed;
 	}
