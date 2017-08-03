@@ -312,6 +312,8 @@ void __net_exit fib6_notifier_exit(struct net *net);
 int fib6_rules_init(void);
 void fib6_rules_cleanup(void);
 bool fib6_rule_default(const struct fib_rule *rule);
+int fib6_rules_dump(struct net *net, struct notifier_block *nb);
+unsigned int fib6_rules_seq_read(struct net *net);
 #else
 static inline int               fib6_rules_init(void)
 {
@@ -324,6 +326,14 @@ static inline void              fib6_rules_cleanup(void)
 static inline bool fib6_rule_default(const struct fib_rule *rule)
 {
 	return true;
+}
+static inline int fib6_rules_dump(struct net *net, struct notifier_block *nb)
+{
+	return 0;
+}
+static inline unsigned int fib6_rules_seq_read(struct net *net)
+{
+	return 0;
 }
 #endif
 #endif

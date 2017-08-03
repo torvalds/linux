@@ -14,6 +14,7 @@
  */
 
 #include <linux/netdevice.h>
+#include <linux/notifier.h>
 #include <linux/export.h>
 
 #include <net/fib_rules.h>
@@ -48,6 +49,16 @@ bool fib6_rule_default(const struct fib_rule *rule)
 	return true;
 }
 EXPORT_SYMBOL_GPL(fib6_rule_default);
+
+int fib6_rules_dump(struct net *net, struct notifier_block *nb)
+{
+	return fib_rules_dump(net, nb, AF_INET6);
+}
+
+unsigned int fib6_rules_seq_read(struct net *net)
+{
+	return fib_rules_seq_read(net, AF_INET6);
+}
 
 struct dst_entry *fib6_rule_lookup(struct net *net, struct flowi6 *fl6,
 				   int flags, pol_lookup_t lookup)

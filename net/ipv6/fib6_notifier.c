@@ -23,12 +23,12 @@ int call_fib6_notifiers(struct net *net, enum fib_event_type event_type,
 
 static unsigned int fib6_seq_read(struct net *net)
 {
-	return 0;
+	return fib6_rules_seq_read(net);
 }
 
 static int fib6_dump(struct net *net, struct notifier_block *nb)
 {
-	return 0;
+	return fib6_rules_dump(net, nb);
 }
 
 static const struct fib_notifier_ops fib6_notifier_ops_template = {
