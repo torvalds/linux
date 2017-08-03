@@ -1456,9 +1456,6 @@ static void config_oa_regs(struct drm_i915_private *dev_priv,
 static int hsw_enable_metric_set(struct drm_i915_private *dev_priv,
 				 const struct i915_oa_config *oa_config)
 {
-	I915_WRITE(GDT_CHICKEN_BITS, (I915_READ(GDT_CHICKEN_BITS) |
-				      GT_NOA_ENABLE));
-
 	/* PRM:
 	 *
 	 * OA unit is using “crclk” for its functionality. When trunk
@@ -1818,11 +1815,7 @@ static int gen8_enable_metric_set(struct drm_i915_private *dev_priv,
 	if (ret)
 		return ret;
 
-	I915_WRITE(GDT_CHICKEN_BITS, 0xA0);
-
 	config_oa_regs(dev_priv, oa_config->mux_regs, oa_config->mux_regs_len);
-
-	I915_WRITE(GDT_CHICKEN_BITS, 0x80);
 
 	config_oa_regs(dev_priv, oa_config->b_counter_regs,
 		       oa_config->b_counter_regs_len);

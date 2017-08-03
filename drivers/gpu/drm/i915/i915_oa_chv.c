@@ -60,6 +60,7 @@ static const struct i915_oa_reg flex_eu_config_test_oa[] = {
 };
 
 static const struct i915_oa_reg mux_config_test_oa[] = {
+	{ _MMIO(0x9840), 0x000000a0 },
 	{ _MMIO(0x9888), 0x59800000 },
 	{ _MMIO(0x9888), 0x59800001 },
 	{ _MMIO(0x9888), 0x338b0000 },
@@ -71,6 +72,7 @@ static const struct i915_oa_reg mux_config_test_oa[] = {
 	{ _MMIO(0x9888), 0x57800000 },
 	{ _MMIO(0x1823a4), 0x00000000 },
 	{ _MMIO(0x9888), 0x59800000 },
+	{ _MMIO(0x9840), 0x00000080 },
 };
 
 static ssize_t

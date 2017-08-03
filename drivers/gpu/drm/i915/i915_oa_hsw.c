@@ -42,6 +42,7 @@ static const struct i915_oa_reg flex_eu_config_render_basic[] = {
 };
 
 static const struct i915_oa_reg mux_config_render_basic[] = {
+	{ _MMIO(0x9840), 0x00000080 },
 	{ _MMIO(0x253a4), 0x01600000 },
 	{ _MMIO(0x25440), 0x00100000 },
 	{ _MMIO(0x25128), 0x00000000 },
