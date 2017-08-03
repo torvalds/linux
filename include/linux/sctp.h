@@ -535,11 +535,6 @@ struct sctp_cwrhdr {
 	__be32 lowest_tsn;
 };
 
-typedef struct sctp_cwr_chunk {
-	struct sctp_chunkhdr chunk_hdr;
-	struct sctp_cwrhdr cwr_hdr;
-} sctp_cwr_chunk_t;
-
 /* PR-SCTP
  * 3.2 Forward Cumulative TSN Chunk Definition (FORWARD TSN)
  *
