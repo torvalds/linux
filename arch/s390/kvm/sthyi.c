@@ -394,7 +394,7 @@ static int sthyi(u64 vaddr)
 		"srl     %[cc],28\n"
 		: [cc] "=d" (cc)
 		: [code] "d" (code), [addr] "a" (addr)
-		: "memory", "cc");
+		: "3", "memory", "cc");
 	return cc;
 }
 
