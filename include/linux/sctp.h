@@ -693,15 +693,15 @@ struct sctp_addip_chunk {
  *   HMAC: n bytes (unsigned integer) This hold the result of the HMAC
  *      calculation.
  */
-typedef struct sctp_authhdr {
+struct sctp_authhdr {
 	__be16 shkey_id;
 	__be16 hmac_id;
 	__u8   hmac[0];
-} sctp_authhdr_t;
+};
 
 typedef struct sctp_auth_chunk {
 	struct sctp_chunkhdr chunk_hdr;
-	sctp_authhdr_t auth_hdr;
+	struct sctp_authhdr auth_hdr;
 } sctp_auth_chunk_t;
 
 struct sctp_infox {

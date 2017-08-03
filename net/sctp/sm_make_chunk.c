@@ -1282,16 +1282,16 @@ struct sctp_chunk *sctp_make_auth(const struct sctp_association *asoc)
 		return NULL;
 
 	retval = sctp_make_control(asoc, SCTP_CID_AUTH, 0,
-			hmac_desc->hmac_len + sizeof(sctp_authhdr_t),
-			GFP_ATOMIC);
+				   hmac_desc->hmac_len + sizeof(auth_hdr),
+				   GFP_ATOMIC);
 	if (!retval)
 		return NULL;
 
 	auth_hdr.hmac_id = htons(hmac_desc->hmac_id);
 	auth_hdr.shkey_id = htons(asoc->active_key_id);
 
-	retval->subh.auth_hdr = sctp_addto_chunk(retval, sizeof(sctp_authhdr_t),
-						&auth_hdr);
+	retval->subh.auth_hdr = sctp_addto_chunk(retval, sizeof(auth_hdr),
+						 &auth_hdr);
 
 	hmac = skb_put_zero(retval->skb, hmac_desc->hmac_len);
 
