@@ -35,18 +35,18 @@
 
 #include <rdma/uverbs_types.h>
 
-extern const struct uverbs_obj_fd_type uverbs_type_attrs_comp_channel;
-extern const struct uverbs_obj_idr_type uverbs_type_attrs_cq;
-extern const struct uverbs_obj_idr_type uverbs_type_attrs_qp;
-extern const struct uverbs_obj_idr_type uverbs_type_attrs_rwq_ind_table;
-extern const struct uverbs_obj_idr_type uverbs_type_attrs_wq;
-extern const struct uverbs_obj_idr_type uverbs_type_attrs_srq;
-extern const struct uverbs_obj_idr_type uverbs_type_attrs_ah;
-extern const struct uverbs_obj_idr_type uverbs_type_attrs_flow;
-extern const struct uverbs_obj_idr_type uverbs_type_attrs_mr;
-extern const struct uverbs_obj_idr_type uverbs_type_attrs_mw;
-extern const struct uverbs_obj_idr_type uverbs_type_attrs_pd;
-extern const struct uverbs_obj_idr_type uverbs_type_attrs_xrcd;
+extern const struct uverbs_object_def uverbs_object_comp_channel;
+extern const struct uverbs_object_def uverbs_object_cq;
+extern const struct uverbs_object_def uverbs_object_qp;
+extern const struct uverbs_object_def uverbs_object_rwq_ind_table;
+extern const struct uverbs_object_def uverbs_object_wq;
+extern const struct uverbs_object_def uverbs_object_srq;
+extern const struct uverbs_object_def uverbs_object_ah;
+extern const struct uverbs_object_def uverbs_object_flow;
+extern const struct uverbs_object_def uverbs_object_mr;
+extern const struct uverbs_object_def uverbs_object_mw;
+extern const struct uverbs_object_def uverbs_object_pd;
+extern const struct uverbs_object_def uverbs_object_xrcd;
 
 static inline struct ib_uobject *__uobj_get(const struct uverbs_obj_type *type,
 					    bool write,
@@ -56,22 +56,22 @@ static inline struct ib_uobject *__uobj_get(const struct uverbs_obj_type *type,
 	return rdma_lookup_get_uobject(type, ucontext, id, write);
 }
 
-#define uobj_get_type(_type) uverbs_type_attrs_##_type.type
+#define uobj_get_type(_object) uverbs_object_##_object.type_attrs
 
 #define uobj_get_read(_type, _id, _ucontext)				\
-	 __uobj_get(&(_type), false, _ucontext, _id)
+	 __uobj_get(_type, false, _ucontext, _id)
 
-#define uobj_get_obj_read(_type, _id, _ucontext)			\
+#define uobj_get_obj_read(_object, _id, _ucontext)			\
 ({									\
-	struct ib_uobject *uobj =					\
-		__uobj_get(&uobj_get_type(_type),			\
+	struct ib_uobject *__uobj =					\
+		__uobj_get(uverbs_object_##_object.type_attrs,		\
 			   false, _ucontext, _id);			\
 									\
-	(struct ib_##_type *)(IS_ERR(uobj) ? NULL : uobj->object);	\
+	(struct ib_##_object *)(IS_ERR(__uobj) ? NULL : __uobj->object);\
 })
 
 #define uobj_get_write(_type, _id, _ucontext)				\
-	 __uobj_get(&(_type), true, _ucontext, _id)
+	 __uobj_get(_type, true, _ucontext, _id)
 
 static inline void uobj_put_read(struct ib_uobject *uobj)
 {
@@ -108,7 +108,7 @@ static inline struct ib_uobject *__uobj_alloc(const struct uverbs_obj_type *type
 }
 
 #define uobj_alloc(_type, ucontext)	\
-	__uobj_alloc(&(_type), ucontext)
+	__uobj_alloc(_type, ucontext)
 
 #endif
 

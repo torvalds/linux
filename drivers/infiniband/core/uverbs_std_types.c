@@ -209,67 +209,51 @@ static int uverbs_hot_unplug_completion_event_file(struct ib_uobject_file *uobj_
 	return 0;
 };
 
-const struct uverbs_obj_fd_type uverbs_type_attrs_comp_channel = {
-	.type = UVERBS_TYPE_ALLOC_FD(sizeof(struct ib_uverbs_completion_event_file), 0),
-	.context_closed = uverbs_hot_unplug_completion_event_file,
-	.fops = &uverbs_event_fops,
-	.name = "[infinibandevent]",
-	.flags = O_RDONLY,
-};
+DECLARE_UVERBS_OBJECT(uverbs_object_comp_channel,
+		      UVERBS_OBJECT_COMP_CHANNEL,
+		      &UVERBS_TYPE_ALLOC_FD(0,
+					      sizeof(struct ib_uverbs_completion_event_file),
+					      uverbs_hot_unplug_completion_event_file,
+					      &uverbs_event_fops,
+					      "[infinibandevent]", O_RDONLY));
 
-const struct uverbs_obj_idr_type uverbs_type_attrs_cq = {
-	.type = UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_ucq_object), 0),
-	.destroy_object = uverbs_free_cq,
-};
+DECLARE_UVERBS_OBJECT(uverbs_object_cq, UVERBS_OBJECT_CQ,
+		      &UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_ucq_object), 0,
+						  uverbs_free_cq));
 
-const struct uverbs_obj_idr_type uverbs_type_attrs_qp = {
-	.type = UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_uqp_object), 0),
-	.destroy_object = uverbs_free_qp,
-};
+DECLARE_UVERBS_OBJECT(uverbs_object_qp, UVERBS_OBJECT_QP,
+		      &UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_uqp_object), 0,
+						  uverbs_free_qp));
 
-const struct uverbs_obj_idr_type uverbs_type_attrs_mw = {
-	.type = UVERBS_TYPE_ALLOC_IDR(0),
-	.destroy_object = uverbs_free_mw,
-};
+DECLARE_UVERBS_OBJECT(uverbs_object_mw, UVERBS_OBJECT_MW,
+		      &UVERBS_TYPE_ALLOC_IDR(0, uverbs_free_mw));
 
-const struct uverbs_obj_idr_type uverbs_type_attrs_mr = {
-	/* 1 is used in order to free the MR after all the MWs */
-	.type = UVERBS_TYPE_ALLOC_IDR(1),
-	.destroy_object = uverbs_free_mr,
-};
+DECLARE_UVERBS_OBJECT(uverbs_object_mr, UVERBS_OBJECT_MR,
+		      /* 1 is used in order to free the MR after all the MWs */
+		      &UVERBS_TYPE_ALLOC_IDR(1, uverbs_free_mr));
 
-const struct uverbs_obj_idr_type uverbs_type_attrs_srq = {
-	.type = UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_usrq_object), 0),
-	.destroy_object = uverbs_free_srq,
-};
+DECLARE_UVERBS_OBJECT(uverbs_object_srq, UVERBS_OBJECT_SRQ,
+		      &UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_usrq_object), 0,
+						  uverbs_free_srq));
 
-const struct uverbs_obj_idr_type uverbs_type_attrs_ah = {
-	.type = UVERBS_TYPE_ALLOC_IDR(0),
-	.destroy_object = uverbs_free_ah,
-};
+DECLARE_UVERBS_OBJECT(uverbs_object_ah, UVERBS_OBJECT_AH,
+		      &UVERBS_TYPE_ALLOC_IDR(0, uverbs_free_ah));
 
-const struct uverbs_obj_idr_type uverbs_type_attrs_flow = {
-	.type = UVERBS_TYPE_ALLOC_IDR(0),
-	.destroy_object = uverbs_free_flow,
-};
+DECLARE_UVERBS_OBJECT(uverbs_object_flow, UVERBS_OBJECT_FLOW,
+		      &UVERBS_TYPE_ALLOC_IDR(0, uverbs_free_flow));
 
-const struct uverbs_obj_idr_type uverbs_type_attrs_wq = {
-	.type = UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_uwq_object), 0),
-	.destroy_object = uverbs_free_wq,
-};
+DECLARE_UVERBS_OBJECT(uverbs_object_wq, UVERBS_OBJECT_WQ,
+		      &UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_uwq_object), 0,
+						  uverbs_free_wq));
 
-const struct uverbs_obj_idr_type uverbs_type_attrs_rwq_ind_table = {
-	.type = UVERBS_TYPE_ALLOC_IDR(0),
-	.destroy_object = uverbs_free_rwq_ind_tbl,
-};
+DECLARE_UVERBS_OBJECT(uverbs_object_rwq_ind_table,
+		      UVERBS_OBJECT_RWQ_IND_TBL,
+		      &UVERBS_TYPE_ALLOC_IDR(0, uverbs_free_rwq_ind_tbl));
 
-const struct uverbs_obj_idr_type uverbs_type_attrs_xrcd = {
-	.type = UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_uxrcd_object), 0),
-	.destroy_object = uverbs_free_xrcd,
-};
+DECLARE_UVERBS_OBJECT(uverbs_object_xrcd, UVERBS_OBJECT_XRCD,
+		      &UVERBS_TYPE_ALLOC_IDR_SZ(sizeof(struct ib_uxrcd_object), 0,
+						  uverbs_free_xrcd));
 
-const struct uverbs_obj_idr_type uverbs_type_attrs_pd = {
-	/* 2 is used in order to free the PD after MRs */
-	.type = UVERBS_TYPE_ALLOC_IDR(2),
-	.destroy_object = uverbs_free_pd,
-};
+DECLARE_UVERBS_OBJECT(uverbs_object_pd, UVERBS_OBJECT_PD,
+		      /* 2 is used in order to free the PD after MRs */
+		      &UVERBS_TYPE_ALLOC_IDR(2, uverbs_free_pd));

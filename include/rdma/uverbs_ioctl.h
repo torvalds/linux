@@ -127,6 +127,22 @@ struct uverbs_root_spec {
 	struct uverbs_object_spec_hash		*object_buckets[0];
 };
 
+/*
+ * =======================================
+ *	Verbs definitions
+ * =======================================
+ */
+
+struct uverbs_object_def {
+	const struct uverbs_obj_type	        *type_attrs;
+};
+
+#define _UVERBS_OBJECT(_id, _type_attrs, ...)				\
+	((const struct uverbs_object_def) {				\
+	 .type_attrs = _type_attrs})
+#define DECLARE_UVERBS_OBJECT(_name, _id, _type_attrs, ...)		\
+	const struct uverbs_object_def _name =				\
+		_UVERBS_OBJECT(_id, _type_attrs, ##__VA_ARGS__)
 /* =================================================
  *              Parsing infrastructure
  * =================================================
