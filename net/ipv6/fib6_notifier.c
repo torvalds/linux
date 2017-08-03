@@ -23,12 +23,18 @@ int call_fib6_notifiers(struct net *net, enum fib_event_type event_type,
 
 static unsigned int fib6_seq_read(struct net *net)
 {
-	return fib6_rules_seq_read(net);
+	return fib6_tables_seq_read(net) + fib6_rules_seq_read(net);
 }
 
 static int fib6_dump(struct net *net, struct notifier_block *nb)
 {
-	return fib6_rules_dump(net, nb);
+	int err;
+
+	err = fib6_rules_dump(net, nb);
+	if (err)
+		return err;
+
+	return fib6_tables_dump(net, nb);
 }
 
 static const struct fib_notifier_ops fib6_notifier_ops_template = {

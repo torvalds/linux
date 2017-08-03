@@ -303,6 +303,37 @@ static void __net_init fib6_tables_init(struct net *net)
 
 #endif
 
+unsigned int fib6_tables_seq_read(struct net *net)
+{
+	unsigned int h, fib_seq = 0;
+
+	rcu_read_lock();
+	for (h = 0; h < FIB6_TABLE_HASHSZ; h++) {
+		struct hlist_head *head = &net->ipv6.fib_table_hash[h];
+		struct fib6_table *tb;
+
+		hlist_for_each_entry_rcu(tb, head, tb6_hlist) {
+			read_lock_bh(&tb->tb6_lock);
+			fib_seq += tb->fib_seq;
+			read_unlock_bh(&tb->tb6_lock);
+		}
+	}
+	rcu_read_unlock();
+
+	return fib_seq;
+}
+
+static int call_fib6_entry_notifier(struct notifier_block *nb, struct net *net,
+				    enum fib_event_type event_type,
+				    struct rt6_info *rt)
+{
+	struct fib6_entry_notifier_info info = {
+		.rt = rt,
+	};
+
+	return call_fib6_notifier(nb, net, event_type, &info.info);
+}
+
 static int call_fib6_entry_notifiers(struct net *net,
 				     enum fib_event_type event_type,
 				     struct rt6_info *rt)
@@ -311,7 +342,68 @@ static int call_fib6_entry_notifiers(struct net *net,
 		.rt = rt,
 	};
 
+	rt->rt6i_table->fib_seq++;
 	return call_fib6_notifiers(net, event_type, &info.info);
+}
+
+struct fib6_dump_arg {
+	struct net *net;
+	struct notifier_block *nb;
+};
+
+static void fib6_rt_dump(struct rt6_info *rt, struct fib6_dump_arg *arg)
+{
+	if (rt == arg->net->ipv6.ip6_null_entry)
+		return;
+	call_fib6_entry_notifier(arg->nb, arg->net, FIB_EVENT_ENTRY_ADD, rt);
+}
+
+static int fib6_node_dump(struct fib6_walker *w)
+{
+	struct rt6_info *rt;
+
+	for (rt = w->leaf; rt; rt = rt->dst.rt6_next)
+		fib6_rt_dump(rt, w->args);
+	w->leaf = NULL;
+	return 0;
+}
+
+static void fib6_table_dump(struct net *net, struct fib6_table *tb,
+			    struct fib6_walker *w)
+{
+	w->root = &tb->tb6_root;
+	read_lock_bh(&tb->tb6_lock);
+	fib6_walk(net, w);
+	read_unlock_bh(&tb->tb6_lock);
+}
+
+/* Called with rcu_read_lock() */
+int fib6_tables_dump(struct net *net, struct notifier_block *nb)
+{
+	struct fib6_dump_arg arg;
+	struct fib6_walker *w;
+	unsigned int h;
+
+	w = kzalloc(sizeof(*w), GFP_ATOMIC);
+	if (!w)
+		return -ENOMEM;
+
+	w->func = fib6_node_dump;
+	arg.net = net;
+	arg.nb = nb;
+	w->args = &arg;
+
+	for (h = 0; h < FIB6_TABLE_HASHSZ; h++) {
+		struct hlist_head *head = &net->ipv6.fib_table_hash[h];
+		struct fib6_table *tb;
+
+		hlist_for_each_entry_rcu(tb, head, tb6_hlist)
+			fib6_table_dump(net, tb, w);
+	}
+
+	kfree(w);
+
+	return 0;
 }
 
 static int fib6_dump_node(struct fib6_walker *w)
