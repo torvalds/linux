@@ -180,8 +180,8 @@ static const struct acpi_device_id acpi_apd_device_ids[] = {
 	{ "APMC0D0F", APD_ADDR(xgene_i2c_desc) },
 	{ "BRCM900D", APD_ADDR(vulcan_spi_desc) },
 	{ "CAV900D",  APD_ADDR(vulcan_spi_desc) },
-	{ "HISI0A21", APD_ADDR(hip07_i2c_desc) },
-	{ "HISI0A22", APD_ADDR(hip08_i2c_desc) },
+	{ "HISI02A1", APD_ADDR(hip07_i2c_desc) },
+	{ "HISI02A2", APD_ADDR(hip08_i2c_desc) },
 #endif
 	{ }
 };
