@@ -159,7 +159,8 @@ void amdgpu_vm_get_pd_bo(struct amdgpu_vm *vm,
  */
 static int amdgpu_vm_validate_level(struct amdgpu_vm_pt *parent,
 				    int (*validate)(void *, struct amdgpu_bo *),
-				    void *param, bool use_cpu_for_update)
+				    void *param, bool use_cpu_for_update,
+				    struct ttm_bo_global *glob)
 {
 	unsigned i;
 	int r;
@@ -183,12 +184,18 @@ static int amdgpu_vm_validate_level(struct amdgpu_vm_pt *parent,
 		if (r)
 			return r;
 
+		spin_lock(&glob->lru_lock);
+		ttm_bo_move_to_lru_tail(&entry->bo->tbo);
+		if (entry->bo->shadow)
+			ttm_bo_move_to_lru_tail(&entry->bo->shadow->tbo);
+		spin_unlock(&glob->lru_lock);
+
 		/*
 		 * Recurse into the sub directory. This is harmless because we
 		 * have only a maximum of 5 layers.
 		 */
 		r = amdgpu_vm_validate_level(entry, validate, param,
-					     use_cpu_for_update);
+					     use_cpu_for_update, glob);
 		if (r)
 			return r;
 	}
@@ -220,54 +227,11 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		return 0;
 
 	return amdgpu_vm_validate_level(&vm->root, validate, param,
-					vm->use_cpu_for_update);
+					vm->use_cpu_for_update,
+					adev->mman.bdev.glob);
 }
 
 /**
- * amdgpu_vm_move_level_in_lru - move one level of PT BOs to the LRU tail
- *
- * @adev: amdgpu device instance
- * @vm: vm providing the BOs
- *
- * Move the PT BOs to the tail of the LRU.
- */
-static void amdgpu_vm_move_level_in_lru(struct amdgpu_vm_pt *parent)
-{
-	unsigned i;
-
-	if (!parent->entries)
-		return;
-
-	for (i = 0; i <= parent->last_entry_used; ++i) {
-		struct amdgpu_vm_pt *entry = &parent->entries[i];
-
-		if (!entry->bo)
-			continue;
-
-		ttm_bo_move_to_lru_tail(&entry->bo->tbo);
-		amdgpu_vm_move_level_in_lru(entry);
-	}
-}
-
-/**
- * amdgpu_vm_move_pt_bos_in_lru - move the PT BOs to the LRU tail
- *
- * @adev: amdgpu device instance
- * @vm: vm providing the BOs
- *
- * Move the PT BOs to the tail of the LRU.
- */
-void amdgpu_vm_move_pt_bos_in_lru(struct amdgpu_device *adev,
-				  struct amdgpu_vm *vm)
-{
-	struct ttm_bo_global *glob = adev->mman.bdev.glob;
-
-	spin_lock(&glob->lru_lock);
-	amdgpu_vm_move_level_in_lru(&vm->root);
-	spin_unlock(&glob->lru_lock);
-}
-
- /**
  * amdgpu_vm_alloc_levels - allocate the PD/PT levels
  *
  * @adev: amdgpu_device pointer

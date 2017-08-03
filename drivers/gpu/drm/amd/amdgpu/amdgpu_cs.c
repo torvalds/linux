@@ -673,10 +673,8 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 	}
 
 error_validate:
-	if (r) {
-		amdgpu_vm_move_pt_bos_in_lru(p->adev, &fpriv->vm);
+	if (r)
 		ttm_eu_backoff_reservation(&p->ticket, &p->validated);
-	}
 
 error_free_pages:
 
@@ -724,21 +722,18 @@ static int amdgpu_cs_sync_rings(struct amdgpu_cs_parser *p)
  * If error is set than unvalidate buffer, otherwise just free memory
  * used by parsing context.
  **/
-static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error, bool backoff)
+static void amdgpu_cs_parser_fini(struct amdgpu_cs_parser *parser, int error,
+				  bool backoff)
 {
-	struct amdgpu_fpriv *fpriv = parser->filp->driver_priv;
 	unsigned i;
 
-	if (!error) {
-		amdgpu_vm_move_pt_bos_in_lru(parser->adev, &fpriv->vm);
-
+	if (!error)
 		ttm_eu_fence_buffer_objects(&parser->ticket,
 					    &parser->validated,
 					    parser->fence);
-	} else if (backoff) {
+	else if (backoff)
 		ttm_eu_backoff_reservation(&parser->ticket,
 					   &parser->validated);
-	}
 
 	for (i = 0; i < parser->num_post_dep_syncobjs; i++)
 		drm_syncobj_put(parser->post_dep_syncobjs[i]);
