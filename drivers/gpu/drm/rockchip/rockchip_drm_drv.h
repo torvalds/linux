@@ -43,6 +43,7 @@ struct rockchip_crtc_funcs {
 	int (*enable_vblank)(struct drm_crtc *crtc);
 	void (*disable_vblank)(struct drm_crtc *crtc);
 	void (*cancel_pending_vblank)(struct drm_crtc *crtc, struct drm_file *file_priv);
+	int (*debugfs_init)(struct drm_minor *minor, struct drm_crtc *crtc);
 	int (*debugfs_dump)(struct drm_crtc *crtc, struct seq_file *s);
 	void (*regs_dump)(struct drm_crtc *crtc, struct seq_file *s);
 	enum drm_mode_status (*mode_valid)(struct drm_crtc *crtc,

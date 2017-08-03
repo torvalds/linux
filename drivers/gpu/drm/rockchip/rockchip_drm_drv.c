@@ -1013,6 +1013,8 @@ static struct drm_info_list rockchip_debugfs_files[] = {
 static int rockchip_drm_debugfs_init(struct drm_minor *minor)
 {
 	struct drm_device *dev = minor->dev;
+	struct rockchip_drm_private *priv = dev->dev_private;
+	struct drm_crtc *crtc;
 	int ret;
 
 	ret = drm_debugfs_create_files(rockchip_debugfs_files,
@@ -1022,6 +1024,14 @@ static int rockchip_drm_debugfs_init(struct drm_minor *minor)
 	if (ret) {
 		dev_err(dev->dev, "could not install rockchip_debugfs_list\n");
 		return ret;
+	}
+
+	drm_for_each_crtc(crtc, dev) {
+		int pipe = drm_crtc_index(crtc);
+
+		if (priv->crtc_funcs[pipe] &&
+		    priv->crtc_funcs[pipe]->debugfs_init)
+			priv->crtc_funcs[pipe]->debugfs_init(minor, crtc);
 	}
 
 	return 0;

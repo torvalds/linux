@@ -20,6 +20,7 @@
 #include <drm/drm_flip_work.h>
 #include <drm/drm_plane_helper.h>
 
+#include <linux/debugfs.h>
 #include <linux/devfreq.h>
 #include <linux/fixp-arith.h>
 #include <linux/iopoll.h>
@@ -176,6 +177,8 @@ struct vop {
 	struct drm_crtc crtc;
 	struct device *dev;
 	struct drm_device *drm_dev;
+	struct dentry *debugfs;
+	struct drm_info_list *debugfs_files;
 	struct drm_property *plane_zpos_prop;
 	struct drm_property *plane_feature_prop;
 	struct drm_property *feature_prop;
@@ -1614,7 +1617,71 @@ static void vop_crtc_regs_dump(struct drm_crtc *crtc, struct seq_file *s)
 	}
 }
 
+static int vop_gamma_show(struct seq_file *s, void *data)
+{
+	struct drm_info_node *node = s->private;
+	struct vop *vop = node->info_ent->data;
+	int i;
+
+	if (!vop->lut || !vop->lut_active || !vop->lut_regs)
+		return 0;
+
+	for (i = 0; i < vop->lut_len; i++) {
+		if (i % 8 == 0)
+			DEBUG_PRINT("\n");
+		DEBUG_PRINT("0x%08x ", vop->lut[i]);
+	}
+	DEBUG_PRINT("\n");
+
+	return 0;
+}
+
 #undef DEBUG_PRINT
+
+static struct drm_info_list vop_debugfs_files[] = {
+	{ "gamma_lut", vop_gamma_show, 0, NULL },
+};
+
+static int vop_crtc_debugfs_init(struct drm_minor *minor, struct drm_crtc *crtc)
+{
+	struct vop *vop = to_vop(crtc);
+	int ret, i;
+
+	vop->debugfs = debugfs_create_dir(dev_name(vop->dev),
+					  minor->debugfs_root);
+
+	if (!vop->debugfs)
+		return -ENOMEM;
+
+	vop->debugfs_files = kmemdup(vop_debugfs_files,
+				     sizeof(vop_debugfs_files),
+				     GFP_KERNEL);
+	if (!vop->debugfs_files) {
+		ret = -ENOMEM;
+		goto remove;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(vop_debugfs_files); i++)
+		vop->debugfs_files[i].data = vop;
+
+	ret = drm_debugfs_create_files(vop->debugfs_files,
+				       ARRAY_SIZE(vop_debugfs_files),
+				       vop->debugfs,
+				       minor);
+	if (ret) {
+		dev_err(vop->dev, "could not install rockchip_debugfs_list\n");
+		goto free;
+	}
+
+	return 0;
+free:
+	kfree(vop->debugfs_files);
+	vop->debugfs_files = NULL;
+remove:
+	debugfs_remove(vop->debugfs);
+	vop->debugfs = NULL;
+	return ret;
+}
 
 static enum drm_mode_status
 vop_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode,
@@ -1653,6 +1720,7 @@ static const struct rockchip_crtc_funcs private_crtc_funcs = {
 	.enable_vblank = vop_crtc_enable_vblank,
 	.disable_vblank = vop_crtc_disable_vblank,
 	.cancel_pending_vblank = vop_crtc_cancel_pending_vblank,
+	.debugfs_init = vop_crtc_debugfs_init,
 	.debugfs_dump = vop_crtc_debugfs_dump,
 	.regs_dump = vop_crtc_regs_dump,
 	.mode_valid = vop_crtc_mode_valid,
