@@ -39,6 +39,7 @@
 
 #include <linux/idr.h>
 #include <rdma/uverbs_types.h>
+#include <rdma/uverbs_ioctl.h>
 #include <rdma/ib_verbs.h>
 #include <linux/mutex.h>
 
@@ -74,5 +75,21 @@ void uverbs_uobject_put(struct ib_uobject *uobject);
  * This must be called from the release file_operations of the file!
  */
 void uverbs_close_fd(struct file *f);
+
+/*
+ * Get an ib_uobject that corresponds to the given id from ucontext, assuming
+ * the object is from the given type. Lock it to the required access when
+ * applicable.
+ * This function could create (access == NEW), destroy (access == DESTROY)
+ * or unlock (access == READ || access == WRITE) objects if required.
+ * The action will be finalized only when uverbs_finalize_object is called.
+ */
+struct ib_uobject *uverbs_get_uobject_from_context(const struct uverbs_obj_type *type_attrs,
+						   struct ib_ucontext *ucontext,
+						   enum uverbs_obj_access access,
+						   int id);
+int uverbs_finalize_object(struct ib_uobject *uobj,
+			   enum uverbs_obj_access access,
+			   bool commit);
 
 #endif /* RDMA_CORE_H */

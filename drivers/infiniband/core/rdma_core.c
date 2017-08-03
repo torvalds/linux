@@ -35,6 +35,7 @@
 #include <rdma/ib_verbs.h>
 #include <rdma/uverbs_types.h>
 #include <linux/rcupdate.h>
+#include <rdma/uverbs_ioctl.h>
 #include "uverbs.h"
 #include "core_priv.h"
 #include "rdma_core.h"
@@ -625,3 +626,60 @@ const struct uverbs_obj_type_class uverbs_fd_class = {
 	.needs_kfree_rcu = false,
 };
 
+struct ib_uobject *uverbs_get_uobject_from_context(const struct uverbs_obj_type *type_attrs,
+						   struct ib_ucontext *ucontext,
+						   enum uverbs_obj_access access,
+						   int id)
+{
+	switch (access) {
+	case UVERBS_ACCESS_READ:
+		return rdma_lookup_get_uobject(type_attrs, ucontext, id, false);
+	case UVERBS_ACCESS_DESTROY:
+	case UVERBS_ACCESS_WRITE:
+		return rdma_lookup_get_uobject(type_attrs, ucontext, id, true);
+	case UVERBS_ACCESS_NEW:
+		return rdma_alloc_begin_uobject(type_attrs, ucontext);
+	default:
+		WARN_ON(true);
+		return ERR_PTR(-EOPNOTSUPP);
+	}
+}
+
+int uverbs_finalize_object(struct ib_uobject *uobj,
+			   enum uverbs_obj_access access,
+			   bool commit)
+{
+	int ret = 0;
+
+	/*
+	 * refcounts should be handled at the object level and not at the
+	 * uobject level. Refcounts of the objects themselves are done in
+	 * handlers.
+	 */
+
+	switch (access) {
+	case UVERBS_ACCESS_READ:
+		rdma_lookup_put_uobject(uobj, false);
+		break;
+	case UVERBS_ACCESS_WRITE:
+		rdma_lookup_put_uobject(uobj, true);
+		break;
+	case UVERBS_ACCESS_DESTROY:
+		if (commit)
+			ret = rdma_remove_commit_uobject(uobj);
+		else
+			rdma_lookup_put_uobject(uobj, true);
+		break;
+	case UVERBS_ACCESS_NEW:
+		if (commit)
+			ret = rdma_alloc_commit_uobject(uobj);
+		else
+			rdma_alloc_abort_uobject(uobj);
+		break;
+	default:
+		WARN_ON(true);
+		ret = -EOPNOTSUPP;
+	}
+
+	return ret;
+}
