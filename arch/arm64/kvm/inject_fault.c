@@ -167,7 +167,7 @@ void kvm_inject_undefined(struct kvm_vcpu *vcpu)
 static void pend_guest_serror(struct kvm_vcpu *vcpu, u64 esr)
 {
 	vcpu_set_vsesr(vcpu, esr);
-	vcpu_set_hcr(vcpu, vcpu_get_hcr(vcpu) | HCR_VSE);
+	*vcpu_hcr(vcpu) |= HCR_VSE;
 }
 
 /**

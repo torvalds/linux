@@ -2035,7 +2035,7 @@ void kvm_arch_flush_shadow_memslot(struct kvm *kvm,
  */
 void kvm_set_way_flush(struct kvm_vcpu *vcpu)
 {
-	unsigned long hcr = vcpu_get_hcr(vcpu);
+	unsigned long hcr = *vcpu_hcr(vcpu);
 
 	/*
 	 * If this is the first time we do a S/W operation
@@ -2050,7 +2050,7 @@ void kvm_set_way_flush(struct kvm_vcpu *vcpu)
 		trace_kvm_set_way_flush(*vcpu_pc(vcpu),
 					vcpu_has_cache_enabled(vcpu));
 		stage2_flush_vm(vcpu->kvm);
-		vcpu_set_hcr(vcpu, hcr | HCR_TVM);
+		*vcpu_hcr(vcpu) = hcr | HCR_TVM;
 	}
 }
 
@@ -2068,7 +2068,7 @@ void kvm_toggle_cache(struct kvm_vcpu *vcpu, bool was_enabled)
 
 	/* Caches are now on, stop trapping VM ops (until a S/W op) */
 	if (now_enabled)
-		vcpu_set_hcr(vcpu, vcpu_get_hcr(vcpu) & ~HCR_TVM);
+		*vcpu_hcr(vcpu) &= ~HCR_TVM;
 
 	trace_kvm_toggle_cache(*vcpu_pc(vcpu), was_enabled, now_enabled);
 }
