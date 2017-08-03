@@ -429,6 +429,7 @@ enum {
 	SKBTX_SCHED_TSTAMP = 1 << 6,
 };
 
+#define SKBTX_ZEROCOPY_FRAG	(SKBTX_DEV_ZEROCOPY | SKBTX_SHARED_FRAG)
 #define SKBTX_ANY_SW_TSTAMP	(SKBTX_SW_TSTAMP    | \
 				 SKBTX_SCHED_TSTAMP)
 #define SKBTX_ANY_TSTAMP	(SKBTX_HW_TSTAMP | SKBTX_ANY_SW_TSTAMP)
@@ -445,7 +446,27 @@ struct ubuf_info {
 	void (*callback)(struct ubuf_info *, bool zerocopy_success);
 	void *ctx;
 	unsigned long desc;
+	u16 zerocopy:1;
+	atomic_t refcnt;
 };
+
+#define skb_uarg(SKB)	((struct ubuf_info *)(skb_shinfo(SKB)->destructor_arg))
+
+struct ubuf_info *sock_zerocopy_alloc(struct sock *sk, size_t size);
+
+static inline void sock_zerocopy_get(struct ubuf_info *uarg)
+{
+	atomic_inc(&uarg->refcnt);
+}
+
+void sock_zerocopy_put(struct ubuf_info *uarg);
+void sock_zerocopy_put_abort(struct ubuf_info *uarg);
+
+void sock_zerocopy_callback(struct ubuf_info *uarg, bool success);
+
+int skb_zerocopy_iter_stream(struct sock *sk, struct sk_buff *skb,
+			     struct msghdr *msg, int len,
+			     struct ubuf_info *uarg);
 
 /* This data is invariant across clones and lives at
  * the end of the header data, ie. at skb->end.
@@ -1212,6 +1233,45 @@ static inline unsigned int skb_end_offset(const struct sk_buff *skb)
 static inline struct skb_shared_hwtstamps *skb_hwtstamps(struct sk_buff *skb)
 {
 	return &skb_shinfo(skb)->hwtstamps;
+}
+
+static inline struct ubuf_info *skb_zcopy(struct sk_buff *skb)
+{
+	bool is_zcopy = skb && skb_shinfo(skb)->tx_flags & SKBTX_DEV_ZEROCOPY;
+
+	return is_zcopy ? skb_uarg(skb) : NULL;
+}
+
+static inline void skb_zcopy_set(struct sk_buff *skb, struct ubuf_info *uarg)
+{
+	if (skb && uarg && !skb_zcopy(skb)) {
+		sock_zerocopy_get(uarg);
+		skb_shinfo(skb)->destructor_arg = uarg;
+		skb_shinfo(skb)->tx_flags |= SKBTX_ZEROCOPY_FRAG;
+	}
+}
+
+/* Release a reference on a zerocopy structure */
+static inline void skb_zcopy_clear(struct sk_buff *skb, bool zerocopy)
+{
+	struct ubuf_info *uarg = skb_zcopy(skb);
+
+	if (uarg) {
+		uarg->zerocopy = uarg->zerocopy && zerocopy;
+		sock_zerocopy_put(uarg);
+		skb_shinfo(skb)->tx_flags &= ~SKBTX_ZEROCOPY_FRAG;
+	}
+}
+
+/* Abort a zerocopy operation and revert zckey on error in send syscall */
+static inline void skb_zcopy_abort(struct sk_buff *skb)
+{
+	struct ubuf_info *uarg = skb_zcopy(skb);
+
+	if (uarg) {
+		sock_zerocopy_put_abort(uarg);
+		skb_shinfo(skb)->tx_flags &= ~SKBTX_ZEROCOPY_FRAG;
+	}
 }
 
 /**
