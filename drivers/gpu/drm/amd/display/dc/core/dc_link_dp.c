@@ -2283,13 +2283,6 @@ void detect_dp_sink_caps(struct dc_link *link)
 	 * DP, hw_init may need check signal or power up
 	 * encoder here.
 	 */
-
-	if (is_mst_supported(link)) {
-		link->verified_link_cap = link->reported_link_cap;
-	} else {
-		dp_hbr_verify_link_cap(link,
-			&link->reported_link_cap);
-	}
 	/* TODO save sink caps in link->sink */
 }
 

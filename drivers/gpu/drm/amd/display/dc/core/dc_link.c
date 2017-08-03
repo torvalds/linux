@@ -666,6 +666,22 @@ bool dc_link_detect(struct dc_link *link, bool boot)
 			break;
 		}
 
+		if (link->connector_signal == SIGNAL_TYPE_DISPLAY_PORT &&
+			sink_caps.transaction_type ==
+			DDC_TRANSACTION_TYPE_I2C_OVER_AUX) {
+			/*
+			 * TODO debug why Dell 2413 doesn't like
+			 *  two link trainings
+			 */
+			if (is_mst_supported(link)) {
+				link->verified_link_cap =
+						link->reported_link_cap;
+			} else {
+				dp_hbr_verify_link_cap(link,
+				    &link->reported_link_cap);
+			}
+		}
+
 		/* HDMI-DVI Dongle */
 		if (sink->sink_signal == SIGNAL_TYPE_HDMI_TYPE_A &&
 				!sink->edid_caps.edid_hdmi)
