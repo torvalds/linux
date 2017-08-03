@@ -29,12 +29,17 @@ static unsigned int fib4_seq_read(struct net *net)
 {
 	ASSERT_RTNL();
 
-	return net->ipv4.fib_seq;
+	return net->ipv4.fib_seq + fib4_rules_seq_read(net);
 }
 
 static int fib4_dump(struct net *net, struct notifier_block *nb)
 {
-	fib_rules_notify(net, nb);
+	int err;
+
+	err = fib4_rules_dump(net, nb);
+	if (err)
+		return err;
+
 	fib_notify(net, nb);
 
 	return 0;

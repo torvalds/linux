@@ -199,11 +199,6 @@ struct fib_entry_notifier_info {
 	u32 tb_id;
 };
 
-struct fib_rule_notifier_info {
-	struct fib_notifier_info info; /* must be first */
-	struct fib_rule *rule;
-};
-
 struct fib_nh_notifier_info {
 	struct fib_notifier_info info; /* must be first */
 	struct fib_nh *fib_nh;
@@ -219,13 +214,6 @@ int __net_init fib4_notifier_init(struct net *net);
 void __net_exit fib4_notifier_exit(struct net *net);
 
 void fib_notify(struct net *net, struct notifier_block *nb);
-#ifdef CONFIG_IP_MULTIPLE_TABLES
-void fib_rules_notify(struct net *net, struct notifier_block *nb);
-#else
-static inline void fib_rules_notify(struct net *net, struct notifier_block *nb)
-{
-}
-#endif
 
 struct fib_table {
 	struct hlist_node	tb_hlist;
@@ -298,6 +286,16 @@ static inline bool fib4_rule_default(const struct fib_rule *rule)
 	return true;
 }
 
+static inline int fib4_rules_dump(struct net *net, struct notifier_block *nb)
+{
+	return 0;
+}
+
+static inline unsigned int fib4_rules_seq_read(struct net *net)
+{
+	return 0;
+}
+
 #else /* CONFIG_IP_MULTIPLE_TABLES */
 int __net_init fib4_rules_init(struct net *net);
 void __net_exit fib4_rules_exit(struct net *net);
@@ -343,6 +341,8 @@ out:
 }
 
 bool fib4_rule_default(const struct fib_rule *rule);
+int fib4_rules_dump(struct net *net, struct notifier_block *nb);
+unsigned int fib4_rules_seq_read(struct net *net);
 
 #endif /* CONFIG_IP_MULTIPLE_TABLES */
 
