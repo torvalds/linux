@@ -220,13 +220,13 @@ struct rpcrdma_rep {
 	struct ib_cqe		rr_cqe;
 	int			rr_wc_flags;
 	u32			rr_inv_rkey;
+	struct rpcrdma_regbuf	*rr_rdmabuf;
 	struct rpcrdma_xprt	*rr_rxprt;
 	struct work_struct	rr_work;
 	struct xdr_buf		rr_hdrbuf;
 	struct xdr_stream	rr_stream;
 	struct list_head	rr_list;
 	struct ib_recv_wr	rr_recv_wr;
-	struct rpcrdma_regbuf	*rr_rdmabuf;
 };
 
 /*

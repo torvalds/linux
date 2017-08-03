@@ -139,11 +139,11 @@ rpcrdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
 static void
 rpcrdma_update_granted_credits(struct rpcrdma_rep *rep)
 {
-	struct rpcrdma_msg *rmsgp = rdmab_to_msg(rep->rr_rdmabuf);
 	struct rpcrdma_buffer *buffer = &rep->rr_rxprt->rx_buf;
+	__be32 *p = rep->rr_rdmabuf->rg_base;
 	u32 credits;
 
-	credits = be32_to_cpu(rmsgp->rm_credit);
+	credits = be32_to_cpup(p + 2);
 	if (credits == 0)
 		credits = 1;	/* don't deadlock */
 	else if (credits > buffer->rb_max_requests)
