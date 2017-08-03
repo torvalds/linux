@@ -114,6 +114,7 @@ struct rsi_91x_sdiodev {
 	u8 prev_desc[16];
 	u16 tx_blk_size;
 	u8 write_fail;
+	bool buff_status_updated;
 };
 
 void rsi_interrupt_handler(struct rsi_hw *adapter);

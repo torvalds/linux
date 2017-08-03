@@ -271,6 +271,7 @@ void rsi_interrupt_handler(struct rsi_hw *adapter)
 					"%s: ==> BUFFER_AVAILABLE <==\n",
 					__func__);
 				dev->rx_info.buf_available_counter++;
+				dev->buff_status_updated = true;
 				break;
 
 			case FIRMWARE_ASSERT_IND:
@@ -333,7 +334,14 @@ int rsi_sdio_check_buffer_status(struct rsi_hw *adapter, u8 q_num)
 		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
 	u8 buf_status = 0;
 	int status = 0;
+	static int counter = 4;
 
+	if (!dev->buff_status_updated && counter) {
+		counter--;
+		goto out;
+	}
+
+	dev->buff_status_updated = false;
 	status = rsi_sdio_read_register(common->priv,
 					RSI_DEVICE_BUFFER_STATUS_REGISTER,
 					&buf_status);
@@ -368,10 +376,16 @@ int rsi_sdio_check_buffer_status(struct rsi_hw *adapter, u8 q_num)
 		dev->rx_info.semi_buffer_full = false;
 	}
 
+	if (dev->rx_info.mgmt_buffer_full || dev->rx_info.buf_full_counter)
+		counter = 1;
+	else
+		counter = 4;
+
+out:
 	if ((q_num == MGMT_SOFT_Q) && (dev->rx_info.mgmt_buffer_full))
 		return QUEUE_FULL;
 
-	if (dev->rx_info.buffer_full)
+	if ((q_num < MGMT_SOFT_Q) && (dev->rx_info.buffer_full))
 		return QUEUE_FULL;
 
 	return QUEUE_NOT_FULL;
