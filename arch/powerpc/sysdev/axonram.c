@@ -191,7 +191,7 @@ static int axon_ram_probe(struct platform_device *device)
 	dev_info(&device->dev, "Found memory controller on %pOF\n",
 			device->dev.of_node);
 
-	bank = kzalloc(sizeof(struct axon_ram_bank), GFP_KERNEL);
+	bank = kzalloc(sizeof(*bank), GFP_KERNEL);
 	if (bank == NULL) {
 		rc = -ENOMEM;
 		goto failed;
