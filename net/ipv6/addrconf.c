@@ -3321,11 +3321,11 @@ static void addrconf_gre_config(struct net_device *dev)
 static int fixup_permanent_addr(struct inet6_dev *idev,
 				struct inet6_ifaddr *ifp)
 {
-	/* rt6i_ref == 0 means the host route was removed from the
+	/* !rt6i_node means the host route was removed from the
 	 * FIB, for example, if 'lo' device is taken down. In that
 	 * case regenerate the host route.
 	 */
-	if (!ifp->rt || !atomic_read(&ifp->rt->rt6i_ref)) {
+	if (!ifp->rt || !ifp->rt->rt6i_node) {
 		struct rt6_info *rt, *prev;
 
 		rt = addrconf_dst_alloc(idev, &ifp->addr, false);
