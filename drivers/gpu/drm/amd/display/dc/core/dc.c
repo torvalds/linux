@@ -440,6 +440,13 @@ static void destruct(struct core_dc *dc)
 	dm_free(dc->bw_dceip);
 	dc->bw_dceip = NULL;
 
+#ifdef CONFIG_DRM_AMD_DC_DCN1_0
+	dm_free(dc->dcn_soc);
+	dc->dcn_soc = NULL;
+
+	dm_free(dc->dcn_ip);
+	dc->dcn_ip = NULL;
+#endif
 }
 
 static bool construct(struct core_dc *dc,
@@ -449,33 +456,52 @@ static bool construct(struct core_dc *dc,
 	struct dc_context *dc_ctx = dm_alloc(sizeof(*dc_ctx));
 	struct bw_calcs_dceip *dc_dceip = dm_alloc(sizeof(*dc_dceip));
 	struct bw_calcs_vbios *dc_vbios = dm_alloc(sizeof(*dc_vbios));
+#ifdef CONFIG_DRM_AMD_DC_DCN1_0
+	struct dcn_soc_bounding_box *dcn_soc = dm_alloc(sizeof(*dcn_soc));
+	struct dcn_ip_params *dcn_ip = dm_alloc(sizeof(*dcn_ip));
+#endif
 
 	enum dce_version dc_version = DCE_VERSION_UNKNOWN;
 
 	if (!dc_dceip) {
 		dm_error("%s: failed to create dceip\n", __func__);
-		goto dceip_fail;
+		goto fail;
 	}
 
 	dc->bw_dceip = dc_dceip;
 
 	if (!dc_vbios) {
 		dm_error("%s: failed to create vbios\n", __func__);
-		goto vbios_fail;
+		goto fail;
 	}
 
 	dc->bw_vbios = dc_vbios;
+#ifdef CONFIG_DRM_AMD_DC_DCN1_0
+	if (!dcn_soc) {
+		dm_error("%s: failed to create dcn_soc\n", __func__);
+		goto fail;
+	}
+
+	dc->dcn_soc = dcn_soc;
+
+	if (!dcn_ip) {
+		dm_error("%s: failed to create dcn_ip\n", __func__);
+		goto fail;
+	}
+
+	dc->dcn_ip = dcn_ip;
+#endif
 
 	if (!dc_ctx) {
 		dm_error("%s: failed to create ctx\n", __func__);
-		goto ctx_fail;
+		goto fail;
 	}
 
 	dc->current_context = dm_alloc(sizeof(*dc->current_context));
 
 	if (!dc->current_context) {
 		dm_error("%s: failed to create validate ctx\n", __func__);
-		goto val_ctx_fail;
+		goto fail;
 	}
 
 	atomic_inc(&dc->current_context->ref_count);
@@ -491,7 +517,7 @@ static bool construct(struct core_dc *dc,
 	if (!logger) {
 		/* can *not* call logger. call base driver 'print error' */
 		dm_error("%s: failed to create Logger!\n", __func__);
-		goto logger_fail;
+		goto fail;
 	}
 	dc_ctx->logger = logger;
 	dc->ctx = dc_ctx;
@@ -519,7 +545,7 @@ static bool construct(struct core_dc *dc,
 
 		if (!dc_ctx->dc_bios) {
 			ASSERT_CRITICAL(false);
-			goto bios_fail;
+			goto fail;
 		}
 
 		dc_ctx->created_bios = true;
@@ -530,7 +556,7 @@ static bool construct(struct core_dc *dc,
 
 	if (!dc_ctx->i2caux) {
 		ASSERT_CRITICAL(false);
-		goto failed_to_create_i2caux;
+		goto fail;
 	}
 
 	/* Create GPIO service */
@@ -541,7 +567,7 @@ static bool construct(struct core_dc *dc,
 
 	if (!dc_ctx->gpio_service) {
 		ASSERT_CRITICAL(false);
-		goto gpio_fail;
+		goto fail;
 	}
 
 	dc->res_pool = dc_create_resource_pool(
@@ -550,26 +576,17 @@ static bool construct(struct core_dc *dc,
 			dc_version,
 			init_params->asic_id);
 	if (!dc->res_pool)
-		goto create_resource_fail;
+		goto fail;
 
 	if (!create_links(dc, init_params->num_virtual_links))
-		goto create_links_fail;
+		goto fail;
 
 	allocate_dc_stream_funcs(dc);
 
 	return true;
 
-	/**** error handling here ****/
-create_links_fail:
-create_resource_fail:
-gpio_fail:
-failed_to_create_i2caux:
-bios_fail:
-logger_fail:
-val_ctx_fail:
-ctx_fail:
-dceip_fail:
-vbios_fail:
+fail:
+
 	destruct(dc);
 	return false;
 }

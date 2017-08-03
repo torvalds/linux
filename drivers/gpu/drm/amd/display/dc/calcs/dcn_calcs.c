@@ -457,7 +457,7 @@ static void dcn_bw_calc_rq_dlg_ttu(
 	}
 
 	/*todo: soc->sr_enter_plus_exit_time??*/
-	dlg_sys_param.t_srx_delay_us = dc->dcn_ip.dcfclk_cstate_latency / v->dcf_clk_deep_sleep;
+	dlg_sys_param.t_srx_delay_us = dc->dcn_ip->dcfclk_cstate_latency / v->dcf_clk_deep_sleep;
 
 	dml_rq_dlg_get_rq_params(dml, &rq_param, input.pipe.src);
 	extract_rq_regs(dml, rq_regs, rq_param);
@@ -679,39 +679,39 @@ static bool dcn_bw_apply_registry_override(struct core_dc *dc)
 	bool updated = false;
 
 	kernel_fpu_begin();
-	if ((int)(dc->dcn_soc.sr_exit_time * 1000) != dc->public.debug.sr_exit_time_ns
+	if ((int)(dc->dcn_soc->sr_exit_time * 1000) != dc->public.debug.sr_exit_time_ns
 			&& dc->public.debug.sr_exit_time_ns) {
 		updated = true;
-		dc->dcn_soc.sr_exit_time = dc->public.debug.sr_exit_time_ns / 1000.0;
+		dc->dcn_soc->sr_exit_time = dc->public.debug.sr_exit_time_ns / 1000.0;
 	}
 
-	if ((int)(dc->dcn_soc.sr_enter_plus_exit_time * 1000)
+	if ((int)(dc->dcn_soc->sr_enter_plus_exit_time * 1000)
 				!= dc->public.debug.sr_enter_plus_exit_time_ns
 			&& dc->public.debug.sr_enter_plus_exit_time_ns) {
 		updated = true;
-		dc->dcn_soc.sr_enter_plus_exit_time =
+		dc->dcn_soc->sr_enter_plus_exit_time =
 				dc->public.debug.sr_enter_plus_exit_time_ns / 1000.0;
 	}
 
-	if ((int)(dc->dcn_soc.urgent_latency * 1000) != dc->public.debug.urgent_latency_ns
+	if ((int)(dc->dcn_soc->urgent_latency * 1000) != dc->public.debug.urgent_latency_ns
 			&& dc->public.debug.urgent_latency_ns) {
 		updated = true;
-		dc->dcn_soc.urgent_latency = dc->public.debug.urgent_latency_ns / 1000.0;
+		dc->dcn_soc->urgent_latency = dc->public.debug.urgent_latency_ns / 1000.0;
 	}
 
-	if ((int)(dc->dcn_soc.percent_of_ideal_drambw_received_after_urg_latency * 1000)
+	if ((int)(dc->dcn_soc->percent_of_ideal_drambw_received_after_urg_latency * 1000)
 				!= dc->public.debug.percent_of_ideal_drambw
 			&& dc->public.debug.percent_of_ideal_drambw) {
 		updated = true;
-		dc->dcn_soc.percent_of_ideal_drambw_received_after_urg_latency =
+		dc->dcn_soc->percent_of_ideal_drambw_received_after_urg_latency =
 				dc->public.debug.percent_of_ideal_drambw;
 	}
 
-	if ((int)(dc->dcn_soc.dram_clock_change_latency * 1000)
+	if ((int)(dc->dcn_soc->dram_clock_change_latency * 1000)
 				!= dc->public.debug.dram_clock_change_latency_ns
 			&& dc->public.debug.dram_clock_change_latency_ns) {
 		updated = true;
-		dc->dcn_soc.dram_clock_change_latency =
+		dc->dcn_soc->dram_clock_change_latency =
 				dc->public.debug.dram_clock_change_latency_ns / 1000.0;
 	}
 	kernel_fpu_end();
@@ -735,83 +735,83 @@ bool dcn_validate_bandwidth(
 
 	memset(v, 0, sizeof(*v));
 	kernel_fpu_begin();
-	v->sr_exit_time = dc->dcn_soc.sr_exit_time;
-	v->sr_enter_plus_exit_time = dc->dcn_soc.sr_enter_plus_exit_time;
-	v->urgent_latency = dc->dcn_soc.urgent_latency;
-	v->write_back_latency = dc->dcn_soc.write_back_latency;
+	v->sr_exit_time = dc->dcn_soc->sr_exit_time;
+	v->sr_enter_plus_exit_time = dc->dcn_soc->sr_enter_plus_exit_time;
+	v->urgent_latency = dc->dcn_soc->urgent_latency;
+	v->write_back_latency = dc->dcn_soc->write_back_latency;
 	v->percent_of_ideal_drambw_received_after_urg_latency =
-			dc->dcn_soc.percent_of_ideal_drambw_received_after_urg_latency;
+			dc->dcn_soc->percent_of_ideal_drambw_received_after_urg_latency;
 
-	v->dcfclkv_min0p65 = dc->dcn_soc.dcfclkv_min0p65;
-	v->dcfclkv_mid0p72 = dc->dcn_soc.dcfclkv_mid0p72;
-	v->dcfclkv_nom0p8 = dc->dcn_soc.dcfclkv_nom0p8;
-	v->dcfclkv_max0p9 = dc->dcn_soc.dcfclkv_max0p9;
+	v->dcfclkv_min0p65 = dc->dcn_soc->dcfclkv_min0p65;
+	v->dcfclkv_mid0p72 = dc->dcn_soc->dcfclkv_mid0p72;
+	v->dcfclkv_nom0p8 = dc->dcn_soc->dcfclkv_nom0p8;
+	v->dcfclkv_max0p9 = dc->dcn_soc->dcfclkv_max0p9;
 
-	v->max_dispclk_vmin0p65 = dc->dcn_soc.max_dispclk_vmin0p65;
-	v->max_dispclk_vmid0p72 = dc->dcn_soc.max_dispclk_vmid0p72;
-	v->max_dispclk_vnom0p8 = dc->dcn_soc.max_dispclk_vnom0p8;
-	v->max_dispclk_vmax0p9 = dc->dcn_soc.max_dispclk_vmax0p9;
+	v->max_dispclk_vmin0p65 = dc->dcn_soc->max_dispclk_vmin0p65;
+	v->max_dispclk_vmid0p72 = dc->dcn_soc->max_dispclk_vmid0p72;
+	v->max_dispclk_vnom0p8 = dc->dcn_soc->max_dispclk_vnom0p8;
+	v->max_dispclk_vmax0p9 = dc->dcn_soc->max_dispclk_vmax0p9;
 
-	v->max_dppclk_vmin0p65 = dc->dcn_soc.max_dppclk_vmin0p65;
-	v->max_dppclk_vmid0p72 = dc->dcn_soc.max_dppclk_vmid0p72;
-	v->max_dppclk_vnom0p8 = dc->dcn_soc.max_dppclk_vnom0p8;
-	v->max_dppclk_vmax0p9 = dc->dcn_soc.max_dppclk_vmax0p9;
+	v->max_dppclk_vmin0p65 = dc->dcn_soc->max_dppclk_vmin0p65;
+	v->max_dppclk_vmid0p72 = dc->dcn_soc->max_dppclk_vmid0p72;
+	v->max_dppclk_vnom0p8 = dc->dcn_soc->max_dppclk_vnom0p8;
+	v->max_dppclk_vmax0p9 = dc->dcn_soc->max_dppclk_vmax0p9;
 
-	v->socclk = dc->dcn_soc.socclk;
+	v->socclk = dc->dcn_soc->socclk;
 
-	v->fabric_and_dram_bandwidth_vmin0p65 = dc->dcn_soc.fabric_and_dram_bandwidth_vmin0p65;
-	v->fabric_and_dram_bandwidth_vmid0p72 = dc->dcn_soc.fabric_and_dram_bandwidth_vmid0p72;
-	v->fabric_and_dram_bandwidth_vnom0p8 = dc->dcn_soc.fabric_and_dram_bandwidth_vnom0p8;
-	v->fabric_and_dram_bandwidth_vmax0p9 = dc->dcn_soc.fabric_and_dram_bandwidth_vmax0p9;
+	v->fabric_and_dram_bandwidth_vmin0p65 = dc->dcn_soc->fabric_and_dram_bandwidth_vmin0p65;
+	v->fabric_and_dram_bandwidth_vmid0p72 = dc->dcn_soc->fabric_and_dram_bandwidth_vmid0p72;
+	v->fabric_and_dram_bandwidth_vnom0p8 = dc->dcn_soc->fabric_and_dram_bandwidth_vnom0p8;
+	v->fabric_and_dram_bandwidth_vmax0p9 = dc->dcn_soc->fabric_and_dram_bandwidth_vmax0p9;
 
-	v->phyclkv_min0p65 = dc->dcn_soc.phyclkv_min0p65;
-	v->phyclkv_mid0p72 = dc->dcn_soc.phyclkv_mid0p72;
-	v->phyclkv_nom0p8 = dc->dcn_soc.phyclkv_nom0p8;
-	v->phyclkv_max0p9 = dc->dcn_soc.phyclkv_max0p9;
+	v->phyclkv_min0p65 = dc->dcn_soc->phyclkv_min0p65;
+	v->phyclkv_mid0p72 = dc->dcn_soc->phyclkv_mid0p72;
+	v->phyclkv_nom0p8 = dc->dcn_soc->phyclkv_nom0p8;
+	v->phyclkv_max0p9 = dc->dcn_soc->phyclkv_max0p9;
 
-	v->downspreading = dc->dcn_soc.downspreading;
-	v->round_trip_ping_latency_cycles = dc->dcn_soc.round_trip_ping_latency_cycles;
-	v->urgent_out_of_order_return_per_channel = dc->dcn_soc.urgent_out_of_order_return_per_channel;
-	v->number_of_channels = dc->dcn_soc.number_of_channels;
-	v->vmm_page_size = dc->dcn_soc.vmm_page_size;
-	v->dram_clock_change_latency = dc->dcn_soc.dram_clock_change_latency;
-	v->return_bus_width = dc->dcn_soc.return_bus_width;
+	v->downspreading = dc->dcn_soc->downspreading;
+	v->round_trip_ping_latency_cycles = dc->dcn_soc->round_trip_ping_latency_cycles;
+	v->urgent_out_of_order_return_per_channel = dc->dcn_soc->urgent_out_of_order_return_per_channel;
+	v->number_of_channels = dc->dcn_soc->number_of_channels;
+	v->vmm_page_size = dc->dcn_soc->vmm_page_size;
+	v->dram_clock_change_latency = dc->dcn_soc->dram_clock_change_latency;
+	v->return_bus_width = dc->dcn_soc->return_bus_width;
 
-	v->rob_buffer_size_in_kbyte = dc->dcn_ip.rob_buffer_size_in_kbyte;
-	v->det_buffer_size_in_kbyte = dc->dcn_ip.det_buffer_size_in_kbyte;
-	v->dpp_output_buffer_pixels = dc->dcn_ip.dpp_output_buffer_pixels;
-	v->opp_output_buffer_lines = dc->dcn_ip.opp_output_buffer_lines;
-	v->pixel_chunk_size_in_kbyte = dc->dcn_ip.pixel_chunk_size_in_kbyte;
-	v->pte_enable = dc->dcn_ip.pte_enable;
-	v->pte_chunk_size = dc->dcn_ip.pte_chunk_size;
-	v->meta_chunk_size = dc->dcn_ip.meta_chunk_size;
-	v->writeback_chunk_size = dc->dcn_ip.writeback_chunk_size;
-	v->odm_capability = dc->dcn_ip.odm_capability;
-	v->dsc_capability = dc->dcn_ip.dsc_capability;
-	v->line_buffer_size = dc->dcn_ip.line_buffer_size;
-	v->is_line_buffer_bpp_fixed = dc->dcn_ip.is_line_buffer_bpp_fixed;
-	v->line_buffer_fixed_bpp = dc->dcn_ip.line_buffer_fixed_bpp;
-	v->max_line_buffer_lines = dc->dcn_ip.max_line_buffer_lines;
-	v->writeback_luma_buffer_size = dc->dcn_ip.writeback_luma_buffer_size;
-	v->writeback_chroma_buffer_size = dc->dcn_ip.writeback_chroma_buffer_size;
-	v->max_num_dpp = dc->dcn_ip.max_num_dpp;
-	v->max_num_writeback = dc->dcn_ip.max_num_writeback;
-	v->max_dchub_topscl_throughput = dc->dcn_ip.max_dchub_topscl_throughput;
-	v->max_pscl_tolb_throughput = dc->dcn_ip.max_pscl_tolb_throughput;
-	v->max_lb_tovscl_throughput = dc->dcn_ip.max_lb_tovscl_throughput;
-	v->max_vscl_tohscl_throughput = dc->dcn_ip.max_vscl_tohscl_throughput;
-	v->max_hscl_ratio = dc->dcn_ip.max_hscl_ratio;
-	v->max_vscl_ratio = dc->dcn_ip.max_vscl_ratio;
-	v->max_hscl_taps = dc->dcn_ip.max_hscl_taps;
-	v->max_vscl_taps = dc->dcn_ip.max_vscl_taps;
-	v->under_scan_factor = dc->dcn_ip.under_scan_factor;
-	v->pte_buffer_size_in_requests = dc->dcn_ip.pte_buffer_size_in_requests;
-	v->dispclk_ramping_margin = dc->dcn_ip.dispclk_ramping_margin;
-	v->max_inter_dcn_tile_repeaters = dc->dcn_ip.max_inter_dcn_tile_repeaters;
+	v->rob_buffer_size_in_kbyte = dc->dcn_ip->rob_buffer_size_in_kbyte;
+	v->det_buffer_size_in_kbyte = dc->dcn_ip->det_buffer_size_in_kbyte;
+	v->dpp_output_buffer_pixels = dc->dcn_ip->dpp_output_buffer_pixels;
+	v->opp_output_buffer_lines = dc->dcn_ip->opp_output_buffer_lines;
+	v->pixel_chunk_size_in_kbyte = dc->dcn_ip->pixel_chunk_size_in_kbyte;
+	v->pte_enable = dc->dcn_ip->pte_enable;
+	v->pte_chunk_size = dc->dcn_ip->pte_chunk_size;
+	v->meta_chunk_size = dc->dcn_ip->meta_chunk_size;
+	v->writeback_chunk_size = dc->dcn_ip->writeback_chunk_size;
+	v->odm_capability = dc->dcn_ip->odm_capability;
+	v->dsc_capability = dc->dcn_ip->dsc_capability;
+	v->line_buffer_size = dc->dcn_ip->line_buffer_size;
+	v->is_line_buffer_bpp_fixed = dc->dcn_ip->is_line_buffer_bpp_fixed;
+	v->line_buffer_fixed_bpp = dc->dcn_ip->line_buffer_fixed_bpp;
+	v->max_line_buffer_lines = dc->dcn_ip->max_line_buffer_lines;
+	v->writeback_luma_buffer_size = dc->dcn_ip->writeback_luma_buffer_size;
+	v->writeback_chroma_buffer_size = dc->dcn_ip->writeback_chroma_buffer_size;
+	v->max_num_dpp = dc->dcn_ip->max_num_dpp;
+	v->max_num_writeback = dc->dcn_ip->max_num_writeback;
+	v->max_dchub_topscl_throughput = dc->dcn_ip->max_dchub_topscl_throughput;
+	v->max_pscl_tolb_throughput = dc->dcn_ip->max_pscl_tolb_throughput;
+	v->max_lb_tovscl_throughput = dc->dcn_ip->max_lb_tovscl_throughput;
+	v->max_vscl_tohscl_throughput = dc->dcn_ip->max_vscl_tohscl_throughput;
+	v->max_hscl_ratio = dc->dcn_ip->max_hscl_ratio;
+	v->max_vscl_ratio = dc->dcn_ip->max_vscl_ratio;
+	v->max_hscl_taps = dc->dcn_ip->max_hscl_taps;
+	v->max_vscl_taps = dc->dcn_ip->max_vscl_taps;
+	v->under_scan_factor = dc->dcn_ip->under_scan_factor;
+	v->pte_buffer_size_in_requests = dc->dcn_ip->pte_buffer_size_in_requests;
+	v->dispclk_ramping_margin = dc->dcn_ip->dispclk_ramping_margin;
+	v->max_inter_dcn_tile_repeaters = dc->dcn_ip->max_inter_dcn_tile_repeaters;
 	v->can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one =
-			dc->dcn_ip.can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one;
+			dc->dcn_ip->can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one;
 	v->bug_forcing_luma_and_chroma_request_to_same_size_fixed =
-			dc->dcn_ip.bug_forcing_luma_and_chroma_request_to_same_size_fixed;
+			dc->dcn_ip->bug_forcing_luma_and_chroma_request_to_same_size_fixed;
 
 	v->voltage[5] = dcn_bw_no_support;
 	v->voltage[4] = dcn_bw_v_max0p9;
@@ -1021,7 +1021,7 @@ bool dcn_validate_bandwidth(
 		context->bw.dcn.calc_clk.dcfclk_khz = (int)(v->dcfclk * 1000);
 		context->bw.dcn.calc_clk.dispclk_khz = (int)(v->dispclk * 1000);
 		if (dc->public.debug.max_disp_clk == true)
-			context->bw.dcn.calc_clk.dispclk_khz = (int)(dc->dcn_soc.max_dispclk_vmax0p9 * 1000);
+			context->bw.dcn.calc_clk.dispclk_khz = (int)(dc->dcn_soc->max_dispclk_vmax0p9 * 1000);
 		context->bw.dcn.calc_clk.dppclk_div = (int)(v->dispclk_dppclk_ratio) == 2;
 
 		for (i = 0, input_idx = 0; i < pool->pipe_count; i++) {
@@ -1118,15 +1118,15 @@ bool dcn_validate_bandwidth(
 		struct core_dc *dc_core = DC_TO_CORE(&dc->public);
 
 		dc_core->dml.soc.sr_enter_plus_exit_time_us =
-				dc_core->dcn_soc.sr_enter_plus_exit_time;
-		dc_core->dml.soc.sr_exit_time_us = dc_core->dcn_soc.sr_exit_time;
+				dc_core->dcn_soc->sr_enter_plus_exit_time;
+		dc_core->dml.soc.sr_exit_time_us = dc_core->dcn_soc->sr_exit_time;
 	}
 
 	/*
 	 * BW limit is set to prevent display from impacting other system functions
 	 */
 
-	bw_limit = dc->dcn_soc.percent_disp_bw_limit * v->fabric_and_dram_bandwidth_vmax0p9;
+	bw_limit = dc->dcn_soc->percent_disp_bw_limit * v->fabric_and_dram_bandwidth_vmax0p9;
 	bw_limit_pass = (v->total_data_read_bandwidth / 1000.0) < bw_limit;
 
 	kernel_fpu_end();
@@ -1149,41 +1149,41 @@ unsigned int dcn_find_normalized_clock_vdd_Level(
 
 	switch (clocks_type) {
 	case DM_PP_CLOCK_TYPE_DISPLAY_CLK:
-		if (clocks_in_khz > dc->dcn_soc.max_dispclk_vmax0p9*1000) {
+		if (clocks_in_khz > dc->dcn_soc->max_dispclk_vmax0p9*1000) {
 			vdd_level = dcn_bw_v_max0p91;
 			BREAK_TO_DEBUGGER();
-		} else if (clocks_in_khz > dc->dcn_soc.max_dispclk_vnom0p8*1000) {
+		} else if (clocks_in_khz > dc->dcn_soc->max_dispclk_vnom0p8*1000) {
 			vdd_level = dcn_bw_v_max0p9;
-		} else if (clocks_in_khz > dc->dcn_soc.max_dispclk_vmid0p72*1000) {
+		} else if (clocks_in_khz > dc->dcn_soc->max_dispclk_vmid0p72*1000) {
 			vdd_level = dcn_bw_v_nom0p8;
-		} else if (clocks_in_khz > dc->dcn_soc.max_dispclk_vmin0p65*1000) {
+		} else if (clocks_in_khz > dc->dcn_soc->max_dispclk_vmin0p65*1000) {
 			vdd_level = dcn_bw_v_mid0p72;
 		} else
 			vdd_level = dcn_bw_v_min0p65;
 		break;
 	case DM_PP_CLOCK_TYPE_DISPLAYPHYCLK:
-		if (clocks_in_khz > dc->dcn_soc.phyclkv_max0p9*1000) {
+		if (clocks_in_khz > dc->dcn_soc->phyclkv_max0p9*1000) {
 			vdd_level = dcn_bw_v_max0p91;
 			BREAK_TO_DEBUGGER();
-		} else if (clocks_in_khz > dc->dcn_soc.phyclkv_nom0p8*1000) {
+		} else if (clocks_in_khz > dc->dcn_soc->phyclkv_nom0p8*1000) {
 			vdd_level = dcn_bw_v_max0p9;
-		} else if (clocks_in_khz > dc->dcn_soc.phyclkv_mid0p72*1000) {
+		} else if (clocks_in_khz > dc->dcn_soc->phyclkv_mid0p72*1000) {
 			vdd_level = dcn_bw_v_nom0p8;
-		} else if (clocks_in_khz > dc->dcn_soc.phyclkv_min0p65*1000) {
+		} else if (clocks_in_khz > dc->dcn_soc->phyclkv_min0p65*1000) {
 			vdd_level = dcn_bw_v_mid0p72;
 		} else
 			vdd_level = dcn_bw_v_min0p65;
 		break;
 
 	case DM_PP_CLOCK_TYPE_DPPCLK:
-		if (clocks_in_khz > dc->dcn_soc.max_dppclk_vmax0p9*1000) {
+		if (clocks_in_khz > dc->dcn_soc->max_dppclk_vmax0p9*1000) {
 			vdd_level = dcn_bw_v_max0p91;
 			BREAK_TO_DEBUGGER();
-		} else if (clocks_in_khz > dc->dcn_soc.max_dppclk_vnom0p8*1000) {
+		} else if (clocks_in_khz > dc->dcn_soc->max_dppclk_vnom0p8*1000) {
 			vdd_level = dcn_bw_v_max0p9;
-		} else if (clocks_in_khz > dc->dcn_soc.max_dppclk_vmid0p72*1000) {
+		} else if (clocks_in_khz > dc->dcn_soc->max_dppclk_vmid0p72*1000) {
 			vdd_level = dcn_bw_v_nom0p8;
-		} else if (clocks_in_khz > dc->dcn_soc.max_dppclk_vmin0p65*1000) {
+		} else if (clocks_in_khz > dc->dcn_soc->max_dppclk_vmin0p65*1000) {
 			vdd_level = dcn_bw_v_mid0p72;
 		} else
 			vdd_level = dcn_bw_v_min0p65;
@@ -1191,15 +1191,16 @@ unsigned int dcn_find_normalized_clock_vdd_Level(
 
 	case DM_PP_CLOCK_TYPE_MEMORY_CLK:
 		{
-			unsigned factor = (ddr4_dram_factor_single_Channel * dc->dcn_soc.number_of_channels);
-			if (clocks_in_khz > dc->dcn_soc.fabric_and_dram_bandwidth_vmax0p9*1000000/factor) {
+			unsigned factor = (ddr4_dram_factor_single_Channel * dc->dcn_soc->number_of_channels);
+
+			if (clocks_in_khz > dc->dcn_soc->fabric_and_dram_bandwidth_vmax0p9*1000000/factor) {
 			vdd_level = dcn_bw_v_max0p91;
 				BREAK_TO_DEBUGGER();
-			} else if (clocks_in_khz > dc->dcn_soc.fabric_and_dram_bandwidth_vnom0p8*1000000/factor) {
+			} else if (clocks_in_khz > dc->dcn_soc->fabric_and_dram_bandwidth_vnom0p8*1000000/factor) {
 				vdd_level = dcn_bw_v_max0p9;
-			} else if (clocks_in_khz > dc->dcn_soc.fabric_and_dram_bandwidth_vmid0p72*1000000/factor) {
+			} else if (clocks_in_khz > dc->dcn_soc->fabric_and_dram_bandwidth_vmid0p72*1000000/factor) {
 				vdd_level = dcn_bw_v_nom0p8;
-			} else if (clocks_in_khz > dc->dcn_soc.fabric_and_dram_bandwidth_vmin0p65*1000000/factor) {
+			} else if (clocks_in_khz > dc->dcn_soc->fabric_and_dram_bandwidth_vmin0p65*1000000/factor) {
 				vdd_level = dcn_bw_v_mid0p72;
 			} else
 				vdd_level = dcn_bw_v_min0p65;
@@ -1207,14 +1208,14 @@ unsigned int dcn_find_normalized_clock_vdd_Level(
 		break;
 
 	case DM_PP_CLOCK_TYPE_DCFCLK:
-		if (clocks_in_khz > dc->dcn_soc.dcfclkv_max0p9*1000) {
+		if (clocks_in_khz > dc->dcn_soc->dcfclkv_max0p9*1000) {
 			vdd_level = dcn_bw_v_max0p91;
 			BREAK_TO_DEBUGGER();
-		} else if (clocks_in_khz > dc->dcn_soc.dcfclkv_nom0p8*1000) {
+		} else if (clocks_in_khz > dc->dcn_soc->dcfclkv_nom0p8*1000) {
 			vdd_level = dcn_bw_v_max0p9;
-		} else if (clocks_in_khz > dc->dcn_soc.dcfclkv_mid0p72*1000) {
+		} else if (clocks_in_khz > dc->dcn_soc->dcfclkv_mid0p72*1000) {
 			vdd_level = dcn_bw_v_nom0p8;
-		} else if (clocks_in_khz > dc->dcn_soc.dcfclkv_min0p65*1000) {
+		} else if (clocks_in_khz > dc->dcn_soc->dcfclkv_min0p65*1000) {
 			vdd_level = dcn_bw_v_mid0p72;
 		} else
 			vdd_level = dcn_bw_v_min0p65;
@@ -1254,15 +1255,15 @@ unsigned int dcn_find_dcfclk_suits_all(
 	vdd_level = dcn_bw_max(vdd_level, vdd_level_temp);
 	if (vdd_level == dcn_bw_v_max0p91) {
 		BREAK_TO_DEBUGGER();
-		dcf_clk = dc->dcn_soc.dcfclkv_max0p9*1000;
+		dcf_clk = dc->dcn_soc->dcfclkv_max0p9*1000;
 	} else if (vdd_level == dcn_bw_v_max0p9)
-		dcf_clk =  dc->dcn_soc.dcfclkv_max0p9*1000;
+		dcf_clk =  dc->dcn_soc->dcfclkv_max0p9*1000;
 	else if (vdd_level == dcn_bw_v_nom0p8)
-		dcf_clk =  dc->dcn_soc.dcfclkv_nom0p8*1000;
+		dcf_clk =  dc->dcn_soc->dcfclkv_nom0p8*1000;
 	else if (vdd_level == dcn_bw_v_mid0p72)
-		dcf_clk =  dc->dcn_soc.dcfclkv_mid0p72*1000;
+		dcf_clk =  dc->dcn_soc->dcfclkv_mid0p72*1000;
 	else
-		dcf_clk =  dc->dcn_soc.dcfclkv_min0p65*1000;
+		dcf_clk =  dc->dcn_soc->dcfclkv_min0p65*1000;
 
 	dm_logger_write(dc->ctx->logger, LOG_HW_MARKS,
 		"\tdcf_clk for voltage = %d\n", dcf_clk);
@@ -1282,27 +1283,27 @@ void dcn_bw_update_from_pplib(struct core_dc *dc)
 			ctx, DM_PP_CLOCK_TYPE_FCLK, &clks) &&
 			clks.num_levels != 0) {
 		ASSERT(clks.num_levels >= 3);
-		dc->dcn_soc.fabric_and_dram_bandwidth_vmin0p65 = 32 * (clks.data[0].clocks_in_khz / 1000.0) / 1000.0;
+		dc->dcn_soc->fabric_and_dram_bandwidth_vmin0p65 = 32 * (clks.data[0].clocks_in_khz / 1000.0) / 1000.0;
 		if (clks.num_levels > 2) {
-			dc->dcn_soc.fabric_and_dram_bandwidth_vmid0p72 = dc->dcn_soc.number_of_channels *
+			dc->dcn_soc->fabric_and_dram_bandwidth_vmid0p72 = dc->dcn_soc->number_of_channels *
 					(clks.data[clks.num_levels - 3].clocks_in_khz / 1000.0) * ddr4_dram_factor_single_Channel / 1000.0;
 		} else {
-			dc->dcn_soc.fabric_and_dram_bandwidth_vmid0p72 = dc->dcn_soc.number_of_channels *
+			dc->dcn_soc->fabric_and_dram_bandwidth_vmid0p72 = dc->dcn_soc->number_of_channels *
 					(clks.data[clks.num_levels - 2].clocks_in_khz / 1000.0) * ddr4_dram_factor_single_Channel / 1000.0;
 		}
-		dc->dcn_soc.fabric_and_dram_bandwidth_vnom0p8 = dc->dcn_soc.number_of_channels *
+		dc->dcn_soc->fabric_and_dram_bandwidth_vnom0p8 = dc->dcn_soc->number_of_channels *
 				(clks.data[clks.num_levels - 2].clocks_in_khz / 1000.0) * ddr4_dram_factor_single_Channel / 1000.0;
-		dc->dcn_soc.fabric_and_dram_bandwidth_vmax0p9 = dc->dcn_soc.number_of_channels *
+		dc->dcn_soc->fabric_and_dram_bandwidth_vmax0p9 = dc->dcn_soc->number_of_channels *
 				(clks.data[clks.num_levels - 1].clocks_in_khz / 1000.0) * ddr4_dram_factor_single_Channel / 1000.0;
 	} else
 		BREAK_TO_DEBUGGER();
 	if (dm_pp_get_clock_levels_by_type_with_voltage(
 				ctx, DM_PP_CLOCK_TYPE_DCFCLK, &clks) &&
 				clks.num_levels >= 3) {
-		dc->dcn_soc.dcfclkv_min0p65 = clks.data[0].clocks_in_khz / 1000.0;
-		dc->dcn_soc.dcfclkv_mid0p72 = clks.data[clks.num_levels - 3].clocks_in_khz / 1000.0;
-		dc->dcn_soc.dcfclkv_nom0p8 = clks.data[clks.num_levels - 2].clocks_in_khz / 1000.0;
-		dc->dcn_soc.dcfclkv_max0p9 = clks.data[clks.num_levels - 1].clocks_in_khz / 1000.0;
+		dc->dcn_soc->dcfclkv_min0p65 = clks.data[0].clocks_in_khz / 1000.0;
+		dc->dcn_soc->dcfclkv_mid0p72 = clks.data[clks.num_levels - 3].clocks_in_khz / 1000.0;
+		dc->dcn_soc->dcfclkv_nom0p8 = clks.data[clks.num_levels - 2].clocks_in_khz / 1000.0;
+		dc->dcn_soc->dcfclkv_max0p9 = clks.data[clks.num_levels - 1].clocks_in_khz / 1000.0;
 	} else
 		BREAK_TO_DEBUGGER();
 
@@ -1315,17 +1316,17 @@ void dcn_bw_notify_pplib_of_wm_ranges(struct core_dc *dc)
 	int max_fclk_khz, nom_fclk_khz, min_fclk_khz, max_dcfclk_khz,
 		nom_dcfclk_khz, mid_fclk_khz, min_dcfclk_khz, socclk_khz;
 	const int overdrive = 5000000; /* 5 GHz to cover Overdrive */
-	unsigned factor = (ddr4_dram_factor_single_Channel * dc->dcn_soc.number_of_channels);
+	unsigned factor = (ddr4_dram_factor_single_Channel * dc->dcn_soc->number_of_channels);
 
 	kernel_fpu_begin();
-	max_fclk_khz = dc->dcn_soc.fabric_and_dram_bandwidth_vmax0p9 * 1000000 / factor;
-	nom_fclk_khz = dc->dcn_soc.fabric_and_dram_bandwidth_vnom0p8 * 1000000 / factor;
-	mid_fclk_khz = dc->dcn_soc.fabric_and_dram_bandwidth_vmid0p72 * 1000000 / factor;
-	min_fclk_khz = dc->dcn_soc.fabric_and_dram_bandwidth_vmin0p65 * 1000000 / 32;
-	max_dcfclk_khz = dc->dcn_soc.dcfclkv_max0p9 * 1000;
-	nom_dcfclk_khz = dc->dcn_soc.dcfclkv_nom0p8 * 1000;
-	min_dcfclk_khz = dc->dcn_soc.dcfclkv_min0p65 * 1000;
-	socclk_khz = dc->dcn_soc.socclk * 1000;
+	max_fclk_khz = dc->dcn_soc->fabric_and_dram_bandwidth_vmax0p9 * 1000000 / factor;
+	nom_fclk_khz = dc->dcn_soc->fabric_and_dram_bandwidth_vnom0p8 * 1000000 / factor;
+	mid_fclk_khz = dc->dcn_soc->fabric_and_dram_bandwidth_vmid0p72 * 1000000 / factor;
+	min_fclk_khz = dc->dcn_soc->fabric_and_dram_bandwidth_vmin0p65 * 1000000 / 32;
+	max_dcfclk_khz = dc->dcn_soc->dcfclkv_max0p9 * 1000;
+	nom_dcfclk_khz = dc->dcn_soc->dcfclkv_nom0p8 * 1000;
+	min_dcfclk_khz = dc->dcn_soc->dcfclkv_min0p65 * 1000;
+	socclk_khz = dc->dcn_soc->socclk * 1000;
 	kernel_fpu_end();
 
 	/* Now notify PPLib/SMU about which Watermarks sets they should select
@@ -1425,40 +1426,40 @@ void dcn_bw_sync_calcs_and_dml(struct core_dc *dc)
 			"vmm_page_size: %d Bytes\n"
 			"dram_clock_change_latency: %d ns\n"
 			"return_bus_width: %d Bytes\n",
-			dc->dcn_soc.sr_exit_time * 1000,
-			dc->dcn_soc.sr_enter_plus_exit_time * 1000,
-			dc->dcn_soc.urgent_latency * 1000,
-			dc->dcn_soc.write_back_latency * 1000,
-			dc->dcn_soc.percent_of_ideal_drambw_received_after_urg_latency,
-			dc->dcn_soc.max_request_size,
-			dc->dcn_soc.dcfclkv_max0p9 * 1000,
-			dc->dcn_soc.dcfclkv_nom0p8 * 1000,
-			dc->dcn_soc.dcfclkv_mid0p72 * 1000,
-			dc->dcn_soc.dcfclkv_min0p65 * 1000,
-			dc->dcn_soc.max_dispclk_vmax0p9 * 1000,
-			dc->dcn_soc.max_dispclk_vnom0p8 * 1000,
-			dc->dcn_soc.max_dispclk_vmid0p72 * 1000,
-			dc->dcn_soc.max_dispclk_vmin0p65 * 1000,
-			dc->dcn_soc.max_dppclk_vmax0p9 * 1000,
-			dc->dcn_soc.max_dppclk_vnom0p8 * 1000,
-			dc->dcn_soc.max_dppclk_vmid0p72 * 1000,
-			dc->dcn_soc.max_dppclk_vmin0p65 * 1000,
-			dc->dcn_soc.socclk * 1000,
-			dc->dcn_soc.fabric_and_dram_bandwidth_vmax0p9 * 1000,
-			dc->dcn_soc.fabric_and_dram_bandwidth_vnom0p8 * 1000,
-			dc->dcn_soc.fabric_and_dram_bandwidth_vmid0p72 * 1000,
-			dc->dcn_soc.fabric_and_dram_bandwidth_vmin0p65 * 1000,
-			dc->dcn_soc.phyclkv_max0p9 * 1000,
-			dc->dcn_soc.phyclkv_nom0p8 * 1000,
-			dc->dcn_soc.phyclkv_mid0p72 * 1000,
-			dc->dcn_soc.phyclkv_min0p65 * 1000,
-			dc->dcn_soc.downspreading * 100,
-			dc->dcn_soc.round_trip_ping_latency_cycles,
-			dc->dcn_soc.urgent_out_of_order_return_per_channel,
-			dc->dcn_soc.number_of_channels,
-			dc->dcn_soc.vmm_page_size,
-			dc->dcn_soc.dram_clock_change_latency * 1000,
-			dc->dcn_soc.return_bus_width);
+			dc->dcn_soc->sr_exit_time * 1000,
+			dc->dcn_soc->sr_enter_plus_exit_time * 1000,
+			dc->dcn_soc->urgent_latency * 1000,
+			dc->dcn_soc->write_back_latency * 1000,
+			dc->dcn_soc->percent_of_ideal_drambw_received_after_urg_latency,
+			dc->dcn_soc->max_request_size,
+			dc->dcn_soc->dcfclkv_max0p9 * 1000,
+			dc->dcn_soc->dcfclkv_nom0p8 * 1000,
+			dc->dcn_soc->dcfclkv_mid0p72 * 1000,
+			dc->dcn_soc->dcfclkv_min0p65 * 1000,
+			dc->dcn_soc->max_dispclk_vmax0p9 * 1000,
+			dc->dcn_soc->max_dispclk_vnom0p8 * 1000,
+			dc->dcn_soc->max_dispclk_vmid0p72 * 1000,
+			dc->dcn_soc->max_dispclk_vmin0p65 * 1000,
+			dc->dcn_soc->max_dppclk_vmax0p9 * 1000,
+			dc->dcn_soc->max_dppclk_vnom0p8 * 1000,
+			dc->dcn_soc->max_dppclk_vmid0p72 * 1000,
+			dc->dcn_soc->max_dppclk_vmin0p65 * 1000,
+			dc->dcn_soc->socclk * 1000,
+			dc->dcn_soc->fabric_and_dram_bandwidth_vmax0p9 * 1000,
+			dc->dcn_soc->fabric_and_dram_bandwidth_vnom0p8 * 1000,
+			dc->dcn_soc->fabric_and_dram_bandwidth_vmid0p72 * 1000,
+			dc->dcn_soc->fabric_and_dram_bandwidth_vmin0p65 * 1000,
+			dc->dcn_soc->phyclkv_max0p9 * 1000,
+			dc->dcn_soc->phyclkv_nom0p8 * 1000,
+			dc->dcn_soc->phyclkv_mid0p72 * 1000,
+			dc->dcn_soc->phyclkv_min0p65 * 1000,
+			dc->dcn_soc->downspreading * 100,
+			dc->dcn_soc->round_trip_ping_latency_cycles,
+			dc->dcn_soc->urgent_out_of_order_return_per_channel,
+			dc->dcn_soc->number_of_channels,
+			dc->dcn_soc->vmm_page_size,
+			dc->dcn_soc->dram_clock_change_latency * 1000,
+			dc->dcn_soc->return_bus_width);
 	dm_logger_write(dc->ctx->logger, LOG_BANDWIDTH_CALCS,
 			"rob_buffer_size_in_kbyte: %d\n"
 			"det_buffer_size_in_kbyte: %d\n"
@@ -1494,120 +1495,120 @@ void dcn_bw_sync_calcs_and_dml(struct core_dc *dc)
 			"can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one: %d\n"
 			"bug_forcing_luma_and_chroma_request_to_same_size_fixed: %d\n"
 			"dcfclk_cstate_latency: %d\n",
-			dc->dcn_ip.rob_buffer_size_in_kbyte,
-			dc->dcn_ip.det_buffer_size_in_kbyte,
-			dc->dcn_ip.dpp_output_buffer_pixels,
-			dc->dcn_ip.opp_output_buffer_lines,
-			dc->dcn_ip.pixel_chunk_size_in_kbyte,
-			dc->dcn_ip.pte_enable,
-			dc->dcn_ip.pte_chunk_size,
-			dc->dcn_ip.meta_chunk_size,
-			dc->dcn_ip.writeback_chunk_size,
-			dc->dcn_ip.odm_capability,
-			dc->dcn_ip.dsc_capability,
-			dc->dcn_ip.line_buffer_size,
-			dc->dcn_ip.max_line_buffer_lines,
-			dc->dcn_ip.is_line_buffer_bpp_fixed,
-			dc->dcn_ip.line_buffer_fixed_bpp,
-			dc->dcn_ip.writeback_luma_buffer_size,
-			dc->dcn_ip.writeback_chroma_buffer_size,
-			dc->dcn_ip.max_num_dpp,
-			dc->dcn_ip.max_num_writeback,
-			dc->dcn_ip.max_dchub_topscl_throughput,
-			dc->dcn_ip.max_pscl_tolb_throughput,
-			dc->dcn_ip.max_lb_tovscl_throughput,
-			dc->dcn_ip.max_vscl_tohscl_throughput,
-			dc->dcn_ip.max_hscl_ratio,
-			dc->dcn_ip.max_vscl_ratio,
-			dc->dcn_ip.max_hscl_taps,
-			dc->dcn_ip.max_vscl_taps,
-			dc->dcn_ip.pte_buffer_size_in_requests,
-			dc->dcn_ip.dispclk_ramping_margin,
-			dc->dcn_ip.under_scan_factor * 100,
-			dc->dcn_ip.max_inter_dcn_tile_repeaters,
-			dc->dcn_ip.can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one,
-			dc->dcn_ip.bug_forcing_luma_and_chroma_request_to_same_size_fixed,
-			dc->dcn_ip.dcfclk_cstate_latency);
-	dc->dml.soc.vmin.socclk_mhz = dc->dcn_soc.socclk;
-	dc->dml.soc.vmid.socclk_mhz = dc->dcn_soc.socclk;
-	dc->dml.soc.vnom.socclk_mhz = dc->dcn_soc.socclk;
-	dc->dml.soc.vmax.socclk_mhz = dc->dcn_soc.socclk;
+			dc->dcn_ip->rob_buffer_size_in_kbyte,
+			dc->dcn_ip->det_buffer_size_in_kbyte,
+			dc->dcn_ip->dpp_output_buffer_pixels,
+			dc->dcn_ip->opp_output_buffer_lines,
+			dc->dcn_ip->pixel_chunk_size_in_kbyte,
+			dc->dcn_ip->pte_enable,
+			dc->dcn_ip->pte_chunk_size,
+			dc->dcn_ip->meta_chunk_size,
+			dc->dcn_ip->writeback_chunk_size,
+			dc->dcn_ip->odm_capability,
+			dc->dcn_ip->dsc_capability,
+			dc->dcn_ip->line_buffer_size,
+			dc->dcn_ip->max_line_buffer_lines,
+			dc->dcn_ip->is_line_buffer_bpp_fixed,
+			dc->dcn_ip->line_buffer_fixed_bpp,
+			dc->dcn_ip->writeback_luma_buffer_size,
+			dc->dcn_ip->writeback_chroma_buffer_size,
+			dc->dcn_ip->max_num_dpp,
+			dc->dcn_ip->max_num_writeback,
+			dc->dcn_ip->max_dchub_topscl_throughput,
+			dc->dcn_ip->max_pscl_tolb_throughput,
+			dc->dcn_ip->max_lb_tovscl_throughput,
+			dc->dcn_ip->max_vscl_tohscl_throughput,
+			dc->dcn_ip->max_hscl_ratio,
+			dc->dcn_ip->max_vscl_ratio,
+			dc->dcn_ip->max_hscl_taps,
+			dc->dcn_ip->max_vscl_taps,
+			dc->dcn_ip->pte_buffer_size_in_requests,
+			dc->dcn_ip->dispclk_ramping_margin,
+			dc->dcn_ip->under_scan_factor * 100,
+			dc->dcn_ip->max_inter_dcn_tile_repeaters,
+			dc->dcn_ip->can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one,
+			dc->dcn_ip->bug_forcing_luma_and_chroma_request_to_same_size_fixed,
+			dc->dcn_ip->dcfclk_cstate_latency);
+	dc->dml.soc.vmin.socclk_mhz = dc->dcn_soc->socclk;
+	dc->dml.soc.vmid.socclk_mhz = dc->dcn_soc->socclk;
+	dc->dml.soc.vnom.socclk_mhz = dc->dcn_soc->socclk;
+	dc->dml.soc.vmax.socclk_mhz = dc->dcn_soc->socclk;
 
-	dc->dml.soc.vmin.dcfclk_mhz = dc->dcn_soc.dcfclkv_min0p65;
-	dc->dml.soc.vmid.dcfclk_mhz = dc->dcn_soc.dcfclkv_mid0p72;
-	dc->dml.soc.vnom.dcfclk_mhz = dc->dcn_soc.dcfclkv_nom0p8;
-	dc->dml.soc.vmax.dcfclk_mhz = dc->dcn_soc.dcfclkv_max0p9;
+	dc->dml.soc.vmin.dcfclk_mhz = dc->dcn_soc->dcfclkv_min0p65;
+	dc->dml.soc.vmid.dcfclk_mhz = dc->dcn_soc->dcfclkv_mid0p72;
+	dc->dml.soc.vnom.dcfclk_mhz = dc->dcn_soc->dcfclkv_nom0p8;
+	dc->dml.soc.vmax.dcfclk_mhz = dc->dcn_soc->dcfclkv_max0p9;
 
-	dc->dml.soc.vmin.dispclk_mhz = dc->dcn_soc.max_dispclk_vmin0p65;
-	dc->dml.soc.vmid.dispclk_mhz = dc->dcn_soc.max_dispclk_vmid0p72;
-	dc->dml.soc.vnom.dispclk_mhz = dc->dcn_soc.max_dispclk_vnom0p8;
-	dc->dml.soc.vmax.dispclk_mhz = dc->dcn_soc.max_dispclk_vmax0p9;
+	dc->dml.soc.vmin.dispclk_mhz = dc->dcn_soc->max_dispclk_vmin0p65;
+	dc->dml.soc.vmid.dispclk_mhz = dc->dcn_soc->max_dispclk_vmid0p72;
+	dc->dml.soc.vnom.dispclk_mhz = dc->dcn_soc->max_dispclk_vnom0p8;
+	dc->dml.soc.vmax.dispclk_mhz = dc->dcn_soc->max_dispclk_vmax0p9;
 
-	dc->dml.soc.vmin.dppclk_mhz = dc->dcn_soc.max_dppclk_vmin0p65;
-	dc->dml.soc.vmid.dppclk_mhz = dc->dcn_soc.max_dppclk_vmid0p72;
-	dc->dml.soc.vnom.dppclk_mhz = dc->dcn_soc.max_dppclk_vnom0p8;
-	dc->dml.soc.vmax.dppclk_mhz = dc->dcn_soc.max_dppclk_vmax0p9;
+	dc->dml.soc.vmin.dppclk_mhz = dc->dcn_soc->max_dppclk_vmin0p65;
+	dc->dml.soc.vmid.dppclk_mhz = dc->dcn_soc->max_dppclk_vmid0p72;
+	dc->dml.soc.vnom.dppclk_mhz = dc->dcn_soc->max_dppclk_vnom0p8;
+	dc->dml.soc.vmax.dppclk_mhz = dc->dcn_soc->max_dppclk_vmax0p9;
 
-	dc->dml.soc.vmin.phyclk_mhz = dc->dcn_soc.phyclkv_min0p65;
-	dc->dml.soc.vmid.phyclk_mhz = dc->dcn_soc.phyclkv_mid0p72;
-	dc->dml.soc.vnom.phyclk_mhz = dc->dcn_soc.phyclkv_nom0p8;
-	dc->dml.soc.vmax.phyclk_mhz = dc->dcn_soc.phyclkv_max0p9;
+	dc->dml.soc.vmin.phyclk_mhz = dc->dcn_soc->phyclkv_min0p65;
+	dc->dml.soc.vmid.phyclk_mhz = dc->dcn_soc->phyclkv_mid0p72;
+	dc->dml.soc.vnom.phyclk_mhz = dc->dcn_soc->phyclkv_nom0p8;
+	dc->dml.soc.vmax.phyclk_mhz = dc->dcn_soc->phyclkv_max0p9;
 
-	dc->dml.soc.vmin.dram_bw_per_chan_gbps = dc->dcn_soc.fabric_and_dram_bandwidth_vmin0p65;
-	dc->dml.soc.vmid.dram_bw_per_chan_gbps = dc->dcn_soc.fabric_and_dram_bandwidth_vmid0p72;
-	dc->dml.soc.vnom.dram_bw_per_chan_gbps = dc->dcn_soc.fabric_and_dram_bandwidth_vnom0p8;
-	dc->dml.soc.vmax.dram_bw_per_chan_gbps = dc->dcn_soc.fabric_and_dram_bandwidth_vmax0p9;
+	dc->dml.soc.vmin.dram_bw_per_chan_gbps = dc->dcn_soc->fabric_and_dram_bandwidth_vmin0p65;
+	dc->dml.soc.vmid.dram_bw_per_chan_gbps = dc->dcn_soc->fabric_and_dram_bandwidth_vmid0p72;
+	dc->dml.soc.vnom.dram_bw_per_chan_gbps = dc->dcn_soc->fabric_and_dram_bandwidth_vnom0p8;
+	dc->dml.soc.vmax.dram_bw_per_chan_gbps = dc->dcn_soc->fabric_and_dram_bandwidth_vmax0p9;
 
-	dc->dml.soc.sr_exit_time_us = dc->dcn_soc.sr_exit_time;
-	dc->dml.soc.sr_enter_plus_exit_time_us = dc->dcn_soc.sr_enter_plus_exit_time;
-	dc->dml.soc.urgent_latency_us = dc->dcn_soc.urgent_latency;
-	dc->dml.soc.writeback_latency_us = dc->dcn_soc.write_back_latency;
+	dc->dml.soc.sr_exit_time_us = dc->dcn_soc->sr_exit_time;
+	dc->dml.soc.sr_enter_plus_exit_time_us = dc->dcn_soc->sr_enter_plus_exit_time;
+	dc->dml.soc.urgent_latency_us = dc->dcn_soc->urgent_latency;
+	dc->dml.soc.writeback_latency_us = dc->dcn_soc->write_back_latency;
 	dc->dml.soc.ideal_dram_bw_after_urgent_percent =
-			dc->dcn_soc.percent_of_ideal_drambw_received_after_urg_latency;
-	dc->dml.soc.max_request_size_bytes = dc->dcn_soc.max_request_size;
-	dc->dml.soc.downspread_percent = dc->dcn_soc.downspreading;
+			dc->dcn_soc->percent_of_ideal_drambw_received_after_urg_latency;
+	dc->dml.soc.max_request_size_bytes = dc->dcn_soc->max_request_size;
+	dc->dml.soc.downspread_percent = dc->dcn_soc->downspreading;
 	dc->dml.soc.round_trip_ping_latency_dcfclk_cycles =
-			dc->dcn_soc.round_trip_ping_latency_cycles;
+			dc->dcn_soc->round_trip_ping_latency_cycles;
 	dc->dml.soc.urgent_out_of_order_return_per_channel_bytes =
-			dc->dcn_soc.urgent_out_of_order_return_per_channel;
-	dc->dml.soc.num_chans = dc->dcn_soc.number_of_channels;
-	dc->dml.soc.vmm_page_size_bytes = dc->dcn_soc.vmm_page_size;
-	dc->dml.soc.dram_clock_change_latency_us = dc->dcn_soc.dram_clock_change_latency;
-	dc->dml.soc.return_bus_width_bytes = dc->dcn_soc.return_bus_width;
+			dc->dcn_soc->urgent_out_of_order_return_per_channel;
+	dc->dml.soc.num_chans = dc->dcn_soc->number_of_channels;
+	dc->dml.soc.vmm_page_size_bytes = dc->dcn_soc->vmm_page_size;
+	dc->dml.soc.dram_clock_change_latency_us = dc->dcn_soc->dram_clock_change_latency;
+	dc->dml.soc.return_bus_width_bytes = dc->dcn_soc->return_bus_width;
 
-	dc->dml.ip.rob_buffer_size_kbytes = dc->dcn_ip.rob_buffer_size_in_kbyte;
-	dc->dml.ip.det_buffer_size_kbytes = dc->dcn_ip.det_buffer_size_in_kbyte;
-	dc->dml.ip.dpp_output_buffer_pixels = dc->dcn_ip.dpp_output_buffer_pixels;
-	dc->dml.ip.opp_output_buffer_lines = dc->dcn_ip.opp_output_buffer_lines;
-	dc->dml.ip.pixel_chunk_size_kbytes = dc->dcn_ip.pixel_chunk_size_in_kbyte;
-	dc->dml.ip.pte_enable = dc->dcn_ip.pte_enable == dcn_bw_yes;
-	dc->dml.ip.pte_chunk_size_kbytes = dc->dcn_ip.pte_chunk_size;
-	dc->dml.ip.meta_chunk_size_kbytes = dc->dcn_ip.meta_chunk_size;
-	dc->dml.ip.writeback_chunk_size_kbytes = dc->dcn_ip.writeback_chunk_size;
-	dc->dml.ip.line_buffer_size_bits = dc->dcn_ip.line_buffer_size;
-	dc->dml.ip.max_line_buffer_lines = dc->dcn_ip.max_line_buffer_lines;
-	dc->dml.ip.IsLineBufferBppFixed = dc->dcn_ip.is_line_buffer_bpp_fixed == dcn_bw_yes;
-	dc->dml.ip.LineBufferFixedBpp = dc->dcn_ip.line_buffer_fixed_bpp;
-	dc->dml.ip.writeback_luma_buffer_size_kbytes = dc->dcn_ip.writeback_luma_buffer_size;
-	dc->dml.ip.writeback_chroma_buffer_size_kbytes = dc->dcn_ip.writeback_chroma_buffer_size;
-	dc->dml.ip.max_num_dpp = dc->dcn_ip.max_num_dpp;
-	dc->dml.ip.max_num_wb = dc->dcn_ip.max_num_writeback;
-	dc->dml.ip.max_dchub_pscl_bw_pix_per_clk = dc->dcn_ip.max_dchub_topscl_throughput;
-	dc->dml.ip.max_pscl_lb_bw_pix_per_clk = dc->dcn_ip.max_pscl_tolb_throughput;
-	dc->dml.ip.max_lb_vscl_bw_pix_per_clk = dc->dcn_ip.max_lb_tovscl_throughput;
-	dc->dml.ip.max_vscl_hscl_bw_pix_per_clk = dc->dcn_ip.max_vscl_tohscl_throughput;
-	dc->dml.ip.max_hscl_ratio = dc->dcn_ip.max_hscl_ratio;
-	dc->dml.ip.max_vscl_ratio = dc->dcn_ip.max_vscl_ratio;
-	dc->dml.ip.max_hscl_taps = dc->dcn_ip.max_hscl_taps;
-	dc->dml.ip.max_vscl_taps = dc->dcn_ip.max_vscl_taps;
+	dc->dml.ip.rob_buffer_size_kbytes = dc->dcn_ip->rob_buffer_size_in_kbyte;
+	dc->dml.ip.det_buffer_size_kbytes = dc->dcn_ip->det_buffer_size_in_kbyte;
+	dc->dml.ip.dpp_output_buffer_pixels = dc->dcn_ip->dpp_output_buffer_pixels;
+	dc->dml.ip.opp_output_buffer_lines = dc->dcn_ip->opp_output_buffer_lines;
+	dc->dml.ip.pixel_chunk_size_kbytes = dc->dcn_ip->pixel_chunk_size_in_kbyte;
+	dc->dml.ip.pte_enable = dc->dcn_ip->pte_enable == dcn_bw_yes;
+	dc->dml.ip.pte_chunk_size_kbytes = dc->dcn_ip->pte_chunk_size;
+	dc->dml.ip.meta_chunk_size_kbytes = dc->dcn_ip->meta_chunk_size;
+	dc->dml.ip.writeback_chunk_size_kbytes = dc->dcn_ip->writeback_chunk_size;
+	dc->dml.ip.line_buffer_size_bits = dc->dcn_ip->line_buffer_size;
+	dc->dml.ip.max_line_buffer_lines = dc->dcn_ip->max_line_buffer_lines;
+	dc->dml.ip.IsLineBufferBppFixed = dc->dcn_ip->is_line_buffer_bpp_fixed == dcn_bw_yes;
+	dc->dml.ip.LineBufferFixedBpp = dc->dcn_ip->line_buffer_fixed_bpp;
+	dc->dml.ip.writeback_luma_buffer_size_kbytes = dc->dcn_ip->writeback_luma_buffer_size;
+	dc->dml.ip.writeback_chroma_buffer_size_kbytes = dc->dcn_ip->writeback_chroma_buffer_size;
+	dc->dml.ip.max_num_dpp = dc->dcn_ip->max_num_dpp;
+	dc->dml.ip.max_num_wb = dc->dcn_ip->max_num_writeback;
+	dc->dml.ip.max_dchub_pscl_bw_pix_per_clk = dc->dcn_ip->max_dchub_topscl_throughput;
+	dc->dml.ip.max_pscl_lb_bw_pix_per_clk = dc->dcn_ip->max_pscl_tolb_throughput;
+	dc->dml.ip.max_lb_vscl_bw_pix_per_clk = dc->dcn_ip->max_lb_tovscl_throughput;
+	dc->dml.ip.max_vscl_hscl_bw_pix_per_clk = dc->dcn_ip->max_vscl_tohscl_throughput;
+	dc->dml.ip.max_hscl_ratio = dc->dcn_ip->max_hscl_ratio;
+	dc->dml.ip.max_vscl_ratio = dc->dcn_ip->max_vscl_ratio;
+	dc->dml.ip.max_hscl_taps = dc->dcn_ip->max_hscl_taps;
+	dc->dml.ip.max_vscl_taps = dc->dcn_ip->max_vscl_taps;
 	/*pte_buffer_size_in_requests missing in dml*/
-	dc->dml.ip.dispclk_ramp_margin_percent = dc->dcn_ip.dispclk_ramping_margin;
-	dc->dml.ip.underscan_factor = dc->dcn_ip.under_scan_factor;
-	dc->dml.ip.max_inter_dcn_tile_repeaters = dc->dcn_ip.max_inter_dcn_tile_repeaters;
+	dc->dml.ip.dispclk_ramp_margin_percent = dc->dcn_ip->dispclk_ramping_margin;
+	dc->dml.ip.underscan_factor = dc->dcn_ip->under_scan_factor;
+	dc->dml.ip.max_inter_dcn_tile_repeaters = dc->dcn_ip->max_inter_dcn_tile_repeaters;
 	dc->dml.ip.can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one =
-		dc->dcn_ip.can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one == dcn_bw_yes;
+		dc->dcn_ip->can_vstartup_lines_exceed_vsync_plus_back_porch_lines_minus_one == dcn_bw_yes;
 	dc->dml.ip.bug_forcing_LC_req_same_size_fixed =
-		dc->dcn_ip.bug_forcing_luma_and_chroma_request_to_same_size_fixed == dcn_bw_yes;
-	dc->dml.ip.dcfclk_cstate_latency = dc->dcn_ip.dcfclk_cstate_latency;
+		dc->dcn_ip->bug_forcing_luma_and_chroma_request_to_same_size_fixed == dcn_bw_yes;
+	dc->dml.ip.dcfclk_cstate_latency = dc->dcn_ip->dcfclk_cstate_latency;
 	kernel_fpu_end();
 }
