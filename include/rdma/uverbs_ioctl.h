@@ -34,6 +34,8 @@
 #define _UVERBS_IOCTL_
 
 #include <rdma/uverbs_types.h>
+#include <linux/uaccess.h>
+#include <rdma/rdma_user_ioctl.h>
 
 /*
  * =======================================
@@ -160,10 +162,99 @@ struct uverbs_object_tree_def {
 	const struct uverbs_object_def * const (*objects)[];
 };
 
+#define UA_FLAGS(_flags)  .flags = _flags
+#define __UVERBS_ATTR0(_id, _len, _type, ...)                           \
+	((const struct uverbs_attr_def)				  \
+	 {.id = _id, .attr = {.type = _type, {.len = _len}, .flags = 0, } })
+#define __UVERBS_ATTR1(_id, _len, _type, _flags)                        \
+	((const struct uverbs_attr_def)				  \
+	 {.id = _id, .attr = {.type = _type, {.len = _len}, _flags, } })
+#define __UVERBS_ATTR(_id, _len, _type, _flags, _n, ...)		\
+	__UVERBS_ATTR##_n(_id, _len, _type, _flags)
+/*
+ * In new compiler, UVERBS_ATTR could be simplified by declaring it as
+ * [_id] = {.type = _type, .len = _len, ##__VA_ARGS__}
+ * But since we support older compilers too, we need the more complex code.
+ */
+#define UVERBS_ATTR(_id, _len, _type, ...)				\
+	__UVERBS_ATTR(_id, _len, _type, ##__VA_ARGS__, 1, 0)
+#define UVERBS_ATTR_PTR_IN_SZ(_id, _len, ...)				\
+	UVERBS_ATTR(_id, _len, UVERBS_ATTR_TYPE_PTR_IN, ##__VA_ARGS__)
+/* If sizeof(_type) <= sizeof(u64), this will be inlined rather than a pointer */
+#define UVERBS_ATTR_PTR_IN(_id, _type, ...)				\
+	UVERBS_ATTR_PTR_IN_SZ(_id, sizeof(_type), ##__VA_ARGS__)
+#define UVERBS_ATTR_PTR_OUT_SZ(_id, _len, ...)				\
+	UVERBS_ATTR(_id, _len, UVERBS_ATTR_TYPE_PTR_OUT, ##__VA_ARGS__)
+#define UVERBS_ATTR_PTR_OUT(_id, _type, ...)				\
+	UVERBS_ATTR_PTR_OUT_SZ(_id, sizeof(_type), ##__VA_ARGS__)
+
+/*
+ * In new compiler, UVERBS_ATTR_IDR (and FD) could be simplified by declaring
+ * it as
+ * {.id = _id,								\
+ *  .attr {.type = __obj_class,						\
+ *         .obj = {.obj_type = _idr_type,				\
+ *                       .access = _access                              \
+ *                }, ##__VA_ARGS__ } }
+ * But since we support older compilers too, we need the more complex code.
+ */
+#define ___UVERBS_ATTR_OBJ0(_id, _obj_class, _obj_type, _access, ...)\
+	((const struct uverbs_attr_def)					\
+	{.id = _id,							\
+	 .attr = {.type = _obj_class,					\
+		  {.obj = {.obj_type = _obj_type, .access = _access } },\
+		  .flags = 0} })
+#define ___UVERBS_ATTR_OBJ1(_id, _obj_class, _obj_type, _access, _flags)\
+	((const struct uverbs_attr_def)					\
+	{.id = _id,							\
+	.attr = {.type = _obj_class,					\
+		 {.obj = {.obj_type = _obj_type, .access = _access} },	\
+		  _flags} })
+#define ___UVERBS_ATTR_OBJ(_id, _obj_class, _obj_type, _access, _flags, \
+			   _n, ...)					\
+	___UVERBS_ATTR_OBJ##_n(_id, _obj_class, _obj_type, _access, _flags)
+#define __UVERBS_ATTR_OBJ(_id, _obj_class, _obj_type, _access, ...)	\
+	___UVERBS_ATTR_OBJ(_id, _obj_class, _obj_type, _access,		\
+			   ##__VA_ARGS__, 1, 0)
+#define UVERBS_ATTR_IDR(_id, _idr_type, _access, ...)			 \
+	__UVERBS_ATTR_OBJ(_id, UVERBS_ATTR_TYPE_IDR, _idr_type, _access,\
+			  ##__VA_ARGS__)
+#define UVERBS_ATTR_FD(_id, _fd_type, _access, ...)			\
+	__UVERBS_ATTR_OBJ(_id, UVERBS_ATTR_TYPE_FD, _fd_type,		\
+			  (_access) + BUILD_BUG_ON_ZERO(		\
+				(_access) != UVERBS_ACCESS_NEW &&	\
+				(_access) != UVERBS_ACCESS_READ),	\
+			  ##__VA_ARGS__)
+#define DECLARE_UVERBS_ATTR_SPEC(_name, ...)				\
+	const struct uverbs_attr_def _name = __VA_ARGS__
+
+#define _UVERBS_METHOD_ATTRS_SZ(...)					\
+	(sizeof((const struct uverbs_attr_def * const []){__VA_ARGS__}) /\
+	 sizeof(const struct uverbs_attr_def *))
+#define _UVERBS_METHOD(_id, _handler, _flags, ...)			\
+	((const struct uverbs_method_def) {				\
+	 .id = _id,							\
+	 .flags = _flags,						\
+	 .handler = _handler,						\
+	 .num_attrs = _UVERBS_METHOD_ATTRS_SZ(__VA_ARGS__),		\
+	 .attrs = &(const struct uverbs_attr_def * const []){__VA_ARGS__} })
+#define DECLARE_UVERBS_METHOD(_name, _id, _handler, ...)		\
+	const struct uverbs_method_def _name =				\
+		_UVERBS_METHOD(_id, _handler, 0, ##__VA_ARGS__)
+#define DECLARE_UVERBS_CTX_METHOD(_name, _id, _handler, _flags, ...)	\
+	const struct uverbs_method_def _name =				\
+		_UVERBS_METHOD(_id, _handler,				\
+			       UVERBS_ACTION_FLAG_CREATE_ROOT,		\
+			       ##__VA_ARGS__)
+#define _UVERBS_OBJECT_METHODS_SZ(...)					\
+	(sizeof((const struct uverbs_method_def * const []){__VA_ARGS__}) / \
+	 sizeof(const struct uverbs_method_def *))
 #define _UVERBS_OBJECT(_id, _type_attrs, ...)				\
 	((const struct uverbs_object_def) {				\
 	 .id = _id,							\
-	 .type_attrs = _type_attrs})
+	 .type_attrs = _type_attrs,					\
+	 .num_methods = _UVERBS_OBJECT_METHODS_SZ(__VA_ARGS__),		\
+	 .methods = &(const struct uverbs_method_def * const []){__VA_ARGS__} })
 #define DECLARE_UVERBS_OBJECT(_name, _id, _type_attrs, ...)		\
 	const struct uverbs_object_def _name =				\
 		_UVERBS_OBJECT(_id, _type_attrs, ##__VA_ARGS__)
@@ -233,6 +324,18 @@ static inline bool uverbs_attr_is_valid_in_hash(const struct uverbs_attr_bundle_
 						unsigned int idx)
 {
 	return test_bit(idx, attrs_hash->valid_bitmap);
+}
+
+static inline bool uverbs_attr_is_valid(const struct uverbs_attr_bundle *attrs_bundle,
+					unsigned int idx)
+{
+	u16 idx_bucket = idx >>	UVERBS_ID_NS_SHIFT;
+
+	if (attrs_bundle->num_buckets <= idx_bucket)
+		return false;
+
+	return uverbs_attr_is_valid_in_hash(&attrs_bundle->hash[idx_bucket],
+					    idx & ~UVERBS_ID_NS_MASK);
 }
 
 /* =================================================
