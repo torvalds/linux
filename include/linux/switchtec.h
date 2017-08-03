@@ -156,6 +156,12 @@ struct flash_info_regs {
 	struct partition_info vendor[8];
 };
 
+enum {
+	SWITCHTEC_NTB_REG_INFO_OFFSET   = 0x0000,
+	SWITCHTEC_NTB_REG_CTRL_OFFSET   = 0x4000,
+	SWITCHTEC_NTB_REG_DBMSG_OFFSET  = 0x64000,
+};
+
 struct ntb_info_regs {
 	u8  partition_count;
 	u8  partition_id;
@@ -188,6 +194,84 @@ struct part_cfg_regs {
 	u32 dyn_binding_hdr;
 	u32 dyn_binding_data[5];
 	u32 reserved4[159];
+} __packed;
+
+enum {
+	NTB_CTRL_PART_OP_LOCK = 0x1,
+	NTB_CTRL_PART_OP_CFG = 0x2,
+	NTB_CTRL_PART_OP_RESET = 0x3,
+
+	NTB_CTRL_PART_STATUS_NORMAL = 0x1,
+	NTB_CTRL_PART_STATUS_LOCKED = 0x2,
+	NTB_CTRL_PART_STATUS_LOCKING = 0x3,
+	NTB_CTRL_PART_STATUS_CONFIGURING = 0x4,
+	NTB_CTRL_PART_STATUS_RESETTING = 0x5,
+
+	NTB_CTRL_BAR_VALID = 1 << 0,
+	NTB_CTRL_BAR_DIR_WIN_EN = 1 << 4,
+	NTB_CTRL_BAR_LUT_WIN_EN = 1 << 5,
+
+	NTB_CTRL_REQ_ID_EN = 1 << 0,
+
+	NTB_CTRL_LUT_EN = 1 << 0,
+
+	NTB_PART_CTRL_ID_PROT_DIS = 1 << 0,
+};
+
+struct ntb_ctrl_regs {
+	u32 partition_status;
+	u32 partition_op;
+	u32 partition_ctrl;
+	u32 bar_setup;
+	u32 bar_error;
+	u16 lut_table_entries;
+	u16 lut_table_offset;
+	u32 lut_error;
+	u16 req_id_table_size;
+	u16 req_id_table_offset;
+	u32 req_id_error;
+	u32 reserved1[7];
+	struct {
+		u32 ctl;
+		u32 win_size;
+		u64 xlate_addr;
+	} bar_entry[6];
+	u32 reserved2[216];
+	u32 req_id_table[256];
+	u32 reserved3[512];
+	u64 lut_entry[512];
+} __packed;
+
+#define NTB_DBMSG_IMSG_STATUS BIT_ULL(32)
+#define NTB_DBMSG_IMSG_MASK   BIT_ULL(40)
+
+struct ntb_dbmsg_regs {
+	u32 reserved1[1024];
+	u64 odb;
+	u64 odb_mask;
+	u64 idb;
+	u64 idb_mask;
+	u8  idb_vec_map[64];
+	u32 msg_map;
+	u32 reserved2;
+	struct {
+		u32 msg;
+		u32 status;
+	} omsg[4];
+
+	struct {
+		u32 msg;
+		u8  status;
+		u8  mask;
+		u8  src;
+		u8  reserved;
+	} imsg[4];
+
+	u8 reserved3[3928];
+	u8 msix_table[1024];
+	u8 reserved4[3072];
+	u8 pba[24];
+	u8 reserved5[4072];
 } __packed;
 
 enum {
