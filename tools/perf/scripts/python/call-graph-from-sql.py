@@ -1,6 +1,6 @@
 #!/usr/bin/python2
-# call-graph-from-postgresql.py: create call-graph from postgresql database
-# Copyright (c) 2014, Intel Corporation.
+# call-graph-from-sql.py: create call-graph from postgresql database
+# Copyright (c) 2014-2017, Intel Corporation.
 #
 # This program is free software; you can redistribute it and/or modify it
 # under the terms and conditions of the GNU General Public License,
@@ -17,12 +17,12 @@
 # Following on from the example in the export-to-postgresql.py script, a
 # call-graph can be displayed for the pt_example database like this:
 #
-#	python tools/perf/scripts/python/call-graph-from-postgresql.py pt_example
+#	python tools/perf/scripts/python/call-graph-from-sql.py pt_example
 #
 # Note this script supports connecting to remote databases by setting hostname,
 # port, username, password, and dbname e.g.
 #
-#	python tools/perf/scripts/python/call-graph-from-postgresql.py "hostname=myhost username=myuser password=mypassword dbname=pt_example"
+#	python tools/perf/scripts/python/call-graph-from-sql.py "hostname=myhost username=myuser password=mypassword dbname=pt_example"
 #
 # The result is a GUI window with a tree representing a context-sensitive
 # call-graph.  Expanding a couple of levels of the tree and adjusting column
@@ -291,7 +291,7 @@ class MainWindow(QMainWindow):
 
 if __name__ == '__main__':
 	if (len(sys.argv) < 2):
-		print >> sys.stderr, "Usage is: call-graph-from-postgresql.py <database name>"
+		print >> sys.stderr, "Usage is: call-graph-from-sql.py <database name>"
 		raise Exception("Too few arguments")
 
 	dbname = sys.argv[1]
