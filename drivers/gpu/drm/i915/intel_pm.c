@@ -78,6 +78,12 @@ static void gen9_init_clock_gating(struct drm_i915_private *dev_priv)
 	/* WaFbcHighMemBwCorruptionAvoidance:skl,bxt,kbl,cfl */
 	I915_WRITE(ILK_DPFC_CHICKEN, I915_READ(ILK_DPFC_CHICKEN) |
 		   ILK_DPFC_DISABLE_DUMMY0);
+
+	if (IS_SKYLAKE(dev_priv)) {
+		/* WaDisableDopClockGating */
+		I915_WRITE(GEN7_MISCCPCTL, I915_READ(GEN7_MISCCPCTL)
+			   & ~GEN7_DOP_CLOCK_GATE_ENABLE);
+	}
 }
 
 static void bxt_init_clock_gating(struct drm_i915_private *dev_priv)
