@@ -519,13 +519,13 @@ enum sctp_error {
 /* RFC 2960.  Appendix A.  Explicit Congestion Notification.
  *   Explicit Congestion Notification Echo (ECNE) (12)
  */
-typedef struct sctp_ecnehdr {
+struct sctp_ecnehdr {
 	__be32 lowest_tsn;
-} sctp_ecnehdr_t;
+};
 
 typedef struct sctp_ecne_chunk {
 	struct sctp_chunkhdr chunk_hdr;
-	sctp_ecnehdr_t ence_hdr;
+	struct sctp_ecnehdr ence_hdr;
 } sctp_ecne_chunk_t;
 
 /* RFC 2960.  Appendix A.  Explicit Congestion Notification.

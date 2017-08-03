@@ -2918,8 +2918,8 @@ sctp_disposition_t sctp_sf_do_ecne(struct net *net,
 				   void *arg,
 				   sctp_cmd_seq_t *commands)
 {
-	sctp_ecnehdr_t *ecne;
 	struct sctp_chunk *chunk = arg;
+	struct sctp_ecnehdr *ecne;
 
 	if (!sctp_vtag_verify(chunk, asoc))
 		return sctp_sf_pdiscard(net, ep, asoc, type, arg, commands);
@@ -2928,8 +2928,8 @@ sctp_disposition_t sctp_sf_do_ecne(struct net *net,
 		return sctp_sf_violation_chunklen(net, ep, asoc, type, arg,
 						  commands);
 
-	ecne = (sctp_ecnehdr_t *) chunk->skb->data;
-	skb_pull(chunk->skb, sizeof(sctp_ecnehdr_t));
+	ecne = (struct sctp_ecnehdr *)chunk->skb->data;
+	skb_pull(chunk->skb, sizeof(*ecne));
 
 	/* If this is a newer ECNE than the last CWR packet we sent out */
 	sctp_add_cmd_sf(commands, SCTP_CMD_ECN_ECNE,
