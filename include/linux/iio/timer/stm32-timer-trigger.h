@@ -59,6 +59,8 @@
 #define TIM12_CH1	"tim12_ch1"
 #define TIM12_CH2	"tim12_ch2"
 
+#define TIM15_TRGO	"tim15_trgo"
+
 bool is_stm32_timer_trigger(struct iio_trigger *trig);
 
 #endif
