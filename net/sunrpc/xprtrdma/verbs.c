@@ -173,9 +173,6 @@ rpcrdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 		goto out_fail;
 
 	/* status == SUCCESS means all fields in wc are trustworthy */
-	if (wc->opcode != IB_WC_RECV)
-		return;
-
 	dprintk("RPC:       %s: rep %p opcode 'recv', length %u: success\n",
 		__func__, rep, wc->byte_len);
 
