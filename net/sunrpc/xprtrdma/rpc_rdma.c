@@ -949,34 +949,58 @@ rpcrdma_mark_remote_invalidation(struct list_head *mws,
 		}
 }
 
-#if defined(CONFIG_SUNRPC_BACKCHANNEL)
 /* By convention, backchannel calls arrive via rdma_msg type
  * messages, and never populate the chunk lists. This makes
  * the RPC/RDMA header small and fixed in size, so it is
  * straightforward to check the RPC header's direction field.
  */
 static bool
-rpcrdma_is_bcall(struct rpcrdma_msg *headerp)
+rpcrdma_is_bcall(struct rpcrdma_xprt *r_xprt, struct rpcrdma_rep *rep,
+		 __be32 xid, __be32 proc)
+#if defined(CONFIG_SUNRPC_BACKCHANNEL)
 {
-	__be32 *p = (__be32 *)headerp;
+	struct xdr_stream *xdr = &rep->rr_stream;
+	__be32 *p;
 
-	if (headerp->rm_type != rdma_msg)
-		return false;
-	if (headerp->rm_body.rm_chunks[0] != xdr_zero)
-		return false;
-	if (headerp->rm_body.rm_chunks[1] != xdr_zero)
-		return false;
-	if (headerp->rm_body.rm_chunks[2] != xdr_zero)
+	if (proc != rdma_msg)
 		return false;
 
-	/* sanity */
-	if (p[7] != headerp->rm_xid)
+	/* Peek at stream contents without advancing. */
+	p = xdr_inline_decode(xdr, 0);
+
+	/* Chunk lists */
+	if (*p++ != xdr_zero)
 		return false;
-	/* call direction */
-	if (p[8] != cpu_to_be32(RPC_CALL))
+	if (*p++ != xdr_zero)
+		return false;
+	if (*p++ != xdr_zero)
 		return false;
 
+	/* RPC header */
+	if (*p++ != xid)
+		return false;
+	if (*p != cpu_to_be32(RPC_CALL))
+		return false;
+
+	/* Now that we are sure this is a backchannel call,
+	 * advance to the RPC header.
+	 */
+	p = xdr_inline_decode(xdr, 3 * sizeof(*p));
+	if (unlikely(!p))
+		goto out_short;
+
+	rpcrdma_bc_receive_call(r_xprt, rep);
 	return true;
+
+out_short:
+	pr_warn("RPC/RDMA short backward direction call\n");
+	if (rpcrdma_ep_post_recv(&r_xprt->rx_ia, rep))
+		xprt_disconnect_done(&r_xprt->rx_xprt);
+	return true;
+}
+#else	/* CONFIG_SUNRPC_BACKCHANNEL */
+{
+	return false;
 }
 #endif	/* CONFIG_SUNRPC_BACKCHANNEL */
 
@@ -1020,10 +1044,8 @@ rpcrdma_reply_handler(struct work_struct *work)
 	proc = *p++;
 
 	headerp = rdmab_to_msg(rep->rr_rdmabuf);
-#if defined(CONFIG_SUNRPC_BACKCHANNEL)
-	if (rpcrdma_is_bcall(headerp))
-		goto out_bcall;
-#endif
+	if (rpcrdma_is_bcall(r_xprt, rep, xid, proc))
+		return;
 
 	/* Match incoming rpcrdma_rep to an rpcrdma_req to
 	 * get context for handling any incoming chunks.
@@ -1158,12 +1180,6 @@ out_badstatus:
 		rpcrdma_conn_func(&r_xprt->rx_ep);
 	}
 	return;
-
-#if defined(CONFIG_SUNRPC_BACKCHANNEL)
-out_bcall:
-	rpcrdma_bc_receive_call(r_xprt, rep);
-	return;
-#endif
 
 /* If the incoming reply terminated a pending RPC, the next
  * RPC call will post a replacement receive buffer as it is
