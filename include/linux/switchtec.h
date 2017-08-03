@@ -276,4 +276,6 @@ static inline struct switchtec_dev *to_stdev(struct device *dev)
 	return container_of(dev, struct switchtec_dev, dev);
 }
 
+extern struct class *switchtec_class;
+
 #endif

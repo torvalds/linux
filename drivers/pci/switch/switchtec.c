@@ -33,8 +33,10 @@ module_param(max_devices, int, 0644);
 MODULE_PARM_DESC(max_devices, "max number of switchtec device instances");
 
 static dev_t switchtec_devt;
-static struct class *switchtec_class;
 static DEFINE_IDA(switchtec_minor_ida);
+
+struct class *switchtec_class;
+EXPORT_SYMBOL_GPL(switchtec_class);
 
 enum mrpc_state {
 	MRPC_IDLE = 0,
