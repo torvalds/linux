@@ -416,27 +416,27 @@ struct sctp_abort_chunk {
 /* For the graceful shutdown we must carry the tag (in common header)
  * and the highest consecutive acking value.
  */
-typedef struct sctp_shutdownhdr {
+struct sctp_shutdownhdr {
 	__be32 cum_tsn_ack;
-} sctp_shutdownhdr_t;
+};
 
-struct sctp_shutdown_chunk_t {
+struct sctp_shutdown_chunk {
 	struct sctp_chunkhdr chunk_hdr;
-	sctp_shutdownhdr_t shutdown_hdr;
+	struct sctp_shutdownhdr shutdown_hdr;
 };
 
 /* RFC 2960.  Section 3.3.10 Operation Error (ERROR) (9) */
 
-typedef struct sctp_errhdr {
+struct sctp_errhdr {
 	__be16 cause;
 	__be16 length;
 	__u8  variable[0];
-} sctp_errhdr_t;
+};
 
-typedef struct sctp_operr_chunk {
+struct sctp_operr_chunk {
 	struct sctp_chunkhdr chunk_hdr;
-	sctp_errhdr_t err_hdr;
-} sctp_operr_chunk_t;
+	struct sctp_errhdr err_hdr;
+};
 
 /* RFC 2960 3.3.10 - Operation Error
  *
@@ -457,7 +457,7 @@ typedef struct sctp_operr_chunk {
  *      9              No User Data
  *     10              Cookie Received While Shutting Down
  */
-typedef enum {
+enum sctp_error {
 
 	SCTP_ERROR_NO_ERROR	   = cpu_to_be16(0x00),
 	SCTP_ERROR_INV_STRM	   = cpu_to_be16(0x01),
@@ -512,33 +512,28 @@ typedef enum {
 	 * 0x0105          Unsupported HMAC Identifier
 	 */
 	 SCTP_ERROR_UNSUP_HMAC	= cpu_to_be16(0x0105)
-} sctp_error_t;
+};
 
 
 
 /* RFC 2960.  Appendix A.  Explicit Congestion Notification.
  *   Explicit Congestion Notification Echo (ECNE) (12)
  */
-typedef struct sctp_ecnehdr {
+struct sctp_ecnehdr {
 	__be32 lowest_tsn;
-} sctp_ecnehdr_t;
+};
 
-typedef struct sctp_ecne_chunk {
+struct sctp_ecne_chunk {
 	struct sctp_chunkhdr chunk_hdr;
-	sctp_ecnehdr_t ence_hdr;
-} sctp_ecne_chunk_t;
+	struct sctp_ecnehdr ence_hdr;
+};
 
 /* RFC 2960.  Appendix A.  Explicit Congestion Notification.
  *   Congestion Window Reduced (CWR) (13)
  */
-typedef struct sctp_cwrhdr {
+struct sctp_cwrhdr {
 	__be32 lowest_tsn;
-} sctp_cwrhdr_t;
-
-typedef struct sctp_cwr_chunk {
-	struct sctp_chunkhdr chunk_hdr;
-	sctp_cwrhdr_t cwr_hdr;
-} sctp_cwr_chunk_t;
+};
 
 /* PR-SCTP
  * 3.2 Forward Cumulative TSN Chunk Definition (FORWARD TSN)
@@ -634,20 +629,20 @@ struct sctp_fwdtsn_chunk {
  *	The ASCONF Parameter Response is used in the ASCONF-ACK to
  *	report status of ASCONF processing.
  */
-typedef struct sctp_addip_param {
-	struct sctp_paramhdr	param_hdr;
-	__be32		crr_id;
-} sctp_addip_param_t;
+struct sctp_addip_param {
+	struct sctp_paramhdr param_hdr;
+	__be32 crr_id;
+};
 
-typedef struct sctp_addiphdr {
+struct sctp_addiphdr {
 	__be32	serial;
 	__u8	params[0];
-} sctp_addiphdr_t;
+};
 
-typedef struct sctp_addip_chunk {
+struct sctp_addip_chunk {
 	struct sctp_chunkhdr chunk_hdr;
-	sctp_addiphdr_t addip_hdr;
-} sctp_addip_chunk_t;
+	struct sctp_addiphdr addip_hdr;
+};
 
 /* AUTH
  * Section 4.1  Authentication Chunk (AUTH)
@@ -698,16 +693,16 @@ typedef struct sctp_addip_chunk {
  *   HMAC: n bytes (unsigned integer) This hold the result of the HMAC
  *      calculation.
  */
-typedef struct sctp_authhdr {
+struct sctp_authhdr {
 	__be16 shkey_id;
 	__be16 hmac_id;
 	__u8   hmac[0];
-} sctp_authhdr_t;
+};
 
-typedef struct sctp_auth_chunk {
+struct sctp_auth_chunk {
 	struct sctp_chunkhdr chunk_hdr;
-	sctp_authhdr_t auth_hdr;
-} sctp_auth_chunk_t;
+	struct sctp_authhdr auth_hdr;
+};
 
 struct sctp_infox {
 	struct sctp_info *sctpinfo;
