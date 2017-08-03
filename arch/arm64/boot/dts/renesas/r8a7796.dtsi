@@ -1228,7 +1228,14 @@
 		};
 
 		xhci0: usb@ee000000 {
-			/* placeholder */
+			compatible = "renesas,xhci-r8a7796",
+				     "renesas,rcar-gen3-xhci";
+			reg = <0 0xee000000 0 0xc00>;
+			interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD 328>;
+			power-domains = <&sysc R8A7796_PD_ALWAYS_ON>;
+			resets = <&cpg 328>;
+			status = "disabled";
 		};
 
 		ohci0: usb@ee080000 {
