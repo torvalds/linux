@@ -133,7 +133,7 @@ static int newque(struct ipc_namespace *ns, struct ipc_params *params)
 	}
 
 	msq->q_stime = msq->q_rtime = 0;
-	msq->q_ctime = get_seconds();
+	msq->q_ctime = ktime_get_real_seconds();
 	msq->q_cbytes = msq->q_qnum = 0;
 	msq->q_qbytes = ns->msg_ctlmnb;
 	msq->q_lspid = msq->q_lrpid = 0;
@@ -406,7 +406,7 @@ static int msgctl_down(struct ipc_namespace *ns, int msqid, int cmd,
 
 		msq->q_qbytes = msqid64->msg_qbytes;
 
-		msq->q_ctime = get_seconds();
+		msq->q_ctime = ktime_get_real_seconds();
 		/*
 		 * Sleeping receivers might be excluded by
 		 * stricter permissions.
@@ -1181,7 +1181,7 @@ static int sysvipc_msg_proc_show(struct seq_file *s, void *it)
 	struct msg_queue *msq = it;
 
 	seq_printf(s,
-		   "%10d %10d  %4o  %10lu %10lu %5u %5u %5u %5u %5u %5u %10lu %10lu %10lu\n",
+		   "%10d %10d  %4o  %10lu %10lu %5u %5u %5u %5u %5u %5u %10llu %10llu %10llu\n",
 		   msq->q_perm.key,
 		   msq->q_perm.id,
 		   msq->q_perm.mode,
