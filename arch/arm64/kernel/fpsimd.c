@@ -21,12 +21,15 @@
 #include <linux/cpu_pm.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/preempt.h>
 #include <linux/sched/signal.h>
 #include <linux/signal.h>
 #include <linux/hardirq.h>
 
 #include <asm/fpsimd.h>
 #include <asm/cputype.h>
+#include <asm/neon.h>
+#include <asm/simd.h>
 
 #define FPEXC_IOF	(1 << 0)
 #define FPEXC_DZF	(1 << 1)
@@ -275,6 +278,55 @@ void kernel_neon_end(void)
 	}
 }
 EXPORT_SYMBOL(kernel_neon_end);
+
+DEFINE_PER_CPU(struct fpsimd_state, efi_fpsimd_state);
+DEFINE_PER_CPU(bool, efi_fpsimd_state_used);
+
+/*
+ * EFI runtime services support functions
+ *
+ * The ABI for EFI runtime services allows EFI to use FPSIMD during the call.
+ * This means that for EFI (and only for EFI), we have to assume that FPSIMD
+ * is always used rather than being an optional accelerator.
+ *
+ * These functions provide the necessary support for ensuring FPSIMD
+ * save/restore in the contexts from which EFI is used.
+ *
+ * Do not use them for any other purpose -- if tempted to do so, you are
+ * either doing something wrong or you need to propose some refactoring.
+ */
+
+/*
+ * __efi_fpsimd_begin(): prepare FPSIMD for making an EFI runtime services call
+ */
+void __efi_fpsimd_begin(void)
+{
+	if (!system_supports_fpsimd())
+		return;
+
+	WARN_ON(preemptible());
+
+	if (may_use_simd())
+		kernel_neon_begin();
+	else {
+		fpsimd_save_state(this_cpu_ptr(&efi_fpsimd_state));
+		__this_cpu_write(efi_fpsimd_state_used, true);
+	}
+}
+
+/*
+ * __efi_fpsimd_end(): clean up FPSIMD after an EFI runtime services call
+ */
+void __efi_fpsimd_end(void)
+{
+	if (!system_supports_fpsimd())
+		return;
+
+	if (__this_cpu_xchg(efi_fpsimd_state_used, false))
+		fpsimd_load_state(this_cpu_ptr(&efi_fpsimd_state));
+	else
+		kernel_neon_end();
+}
 
 #endif /* CONFIG_KERNEL_MODE_NEON */
 

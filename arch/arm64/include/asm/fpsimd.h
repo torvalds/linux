@@ -81,6 +81,10 @@ extern void fpsimd_save_partial_state(struct fpsimd_partial_state *state,
 				      u32 num_regs);
 extern void fpsimd_load_partial_state(struct fpsimd_partial_state *state);
 
+/* For use by EFI runtime services calls only */
+extern void __efi_fpsimd_begin(void);
+extern void __efi_fpsimd_end(void);
+
 #endif
 
 #endif

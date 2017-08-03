@@ -3,6 +3,7 @@
 
 #include <asm/boot.h>
 #include <asm/cpufeature.h>
+#include <asm/fpsimd.h>
 #include <asm/io.h>
 #include <asm/mmu_context.h>
 #include <asm/neon.h>
@@ -20,8 +21,8 @@ int efi_set_mapping_permissions(struct mm_struct *mm, efi_memory_desc_t *md);
 
 #define arch_efi_call_virt_setup()					\
 ({									\
-	kernel_neon_begin();						\
 	efi_virtmap_load();						\
+	__efi_fpsimd_begin();						\
 })
 
 #define arch_efi_call_virt(p, f, args...)				\
@@ -33,8 +34,8 @@ int efi_set_mapping_permissions(struct mm_struct *mm, efi_memory_desc_t *md);
 
 #define arch_efi_call_virt_teardown()					\
 ({									\
+	__efi_fpsimd_end();						\
 	efi_virtmap_unload();						\
-	kernel_neon_end();						\
 })
 
 #define ARCH_EFI_IRQ_FLAGS_MASK (PSR_D_BIT | PSR_A_BIT | PSR_I_BIT | PSR_F_BIT)
