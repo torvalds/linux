@@ -1821,17 +1821,6 @@ static int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	if (ret < 0)
 		return ret;
 
-	/*
-	 * Set the fb pointer - usually drm_setup_crtcs does this for hotplug
-	 * events, but at init time drm_setup_crtcs needs to be called before
-	 * the fb is allocated (since we need to figure out the desired size of
-	 * the fb before we can allocate it ...). Hence we need to fix things up
-	 * here again.
-	 */
-	for (i = 0; i < fb_helper->crtc_count; i++)
-		if (fb_helper->crtc_info[i].mode_set.num_connectors)
-			fb_helper->crtc_info[i].mode_set.fb = fb_helper->fb;
-
 	return 0;
 }
 
@@ -2426,7 +2415,6 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper,
 							   fb_crtc->desired_mode);
 			drm_connector_get(connector);
 			modeset->connectors[modeset->num_connectors++] = connector;
-			modeset->fb = fb_helper->fb;
 			modeset->x = offset->x;
 			modeset->y = offset->y;
 		}
@@ -2436,6 +2424,22 @@ out:
 	kfree(modes);
 	kfree(offsets);
 	kfree(enabled);
+}
+
+/*
+ * This is a continuation of drm_setup_crtcs() that sets up anything related
+ * to the framebuffer. During initialization, drm_setup_crtcs() is called before
+ * the framebuffer has been allocated (fb_helper->fb and fb_helper->fbdev).
+ * So, any setup that touches those fields needs to be done here instead of in
+ * drm_setup_crtcs().
+ */
+static void drm_setup_crtcs_fb(struct drm_fb_helper *fb_helper)
+{
+	int i;
+
+	for (i = 0; i < fb_helper->crtc_count; i++)
+		if (fb_helper->crtc_info[i].mode_set.num_connectors)
+			fb_helper->crtc_info[i].mode_set.fb = fb_helper->fb;
 }
 
 /* Note: Drops fb_helper->lock before returning. */
@@ -2463,6 +2467,7 @@ __drm_fb_helper_initial_config_and_unlock(struct drm_fb_helper *fb_helper,
 
 		return ret;
 	}
+	drm_setup_crtcs_fb(fb_helper);
 
 	fb_helper->deferred_setup = false;
 
@@ -2591,6 +2596,7 @@ int drm_fb_helper_hotplug_event(struct drm_fb_helper *fb_helper)
 	DRM_DEBUG_KMS("\n");
 
 	drm_setup_crtcs(fb_helper, fb_helper->fb->width, fb_helper->fb->height);
+	drm_setup_crtcs_fb(fb_helper);
 	mutex_unlock(&fb_helper->lock);
 
 	drm_fb_helper_set_par(fb_helper->fbdev);
