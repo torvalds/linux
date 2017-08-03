@@ -1123,6 +1123,13 @@ noinline void __init arc_ioc_setup(void)
 	__dc_enable();
 }
 
+/*
+ * Cache related boot time checks/setups only needed on master CPU:
+ *  - Geometry checks (kernel build and hardware agree: e.g. L1_CACHE_BYTES)
+ *    Assume SMP only, so all cores will have same cache config. A check on
+ *    one core suffices for all
+ *  - IOC setup / dma callbacks only need to be done once
+ */
 void __init arc_cache_init_master(void)
 {
 	unsigned int __maybe_unused cpu = smp_processor_id();
@@ -1202,12 +1209,27 @@ void __ref arc_cache_init(void)
 
 	printk(arc_cache_mumbojumbo(0, str, sizeof(str)));
 
-	/*
-	 * Only master CPU needs to execute rest of function:
-	 *  - Assume SMP so all cores will have same cache config so
-	 *    any geomtry checks will be same for all
-	 *  - IOC setup / dma callbacks only need to be setup once
-	 */
 	if (!cpu)
 		arc_cache_init_master();
+
+	/*
+	 * In PAE regime, TLB and cache maintenance ops take wider addresses
+	 * And even if PAE is not enabled in kernel, the upper 32-bits still need
+	 * to be zeroed to keep the ops sane.
+	 * As an optimization for more common !PAE enabled case, zero them out
+	 * once at init, rather than checking/setting to 0 for every runtime op
+	 */
+	if (is_isa_arcv2() && pae40_exist_but_not_enab()) {
+
+		if (IS_ENABLED(CONFIG_ARC_HAS_ICACHE))
+			write_aux_reg(ARC_REG_IC_PTAG_HI, 0);
+
+		if (IS_ENABLED(CONFIG_ARC_HAS_DCACHE))
+			write_aux_reg(ARC_REG_DC_PTAG_HI, 0);
+
+		if (l2_line_sz) {
+			write_aux_reg(ARC_REG_SLC_RGN_END1, 0);
+			write_aux_reg(ARC_REG_SLC_RGN_START1, 0);
+		}
+	}
 }
