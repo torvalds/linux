@@ -1114,43 +1114,59 @@ static int snd_ctl_elem_user_put(struct snd_kcontrol *kcontrol,
 	return change;
 }
 
-static int snd_ctl_elem_user_tlv(struct snd_kcontrol *kcontrol,
-				 int op_flag,
-				 unsigned int size,
-				 unsigned int __user *tlv)
+static int replace_user_tlv(struct snd_kcontrol *kctl, unsigned int __user *buf,
+			    unsigned int size)
 {
-	struct user_element *ue = kcontrol->private_data;
+	struct user_element *ue = kctl->private_data;
+	unsigned int *container;
+	int change;
 
-	if (op_flag == SNDRV_CTL_TLV_OP_WRITE) {
-		int change;
-		void *new_data;
+	if (size > 1024 * 128)	/* sane value */
+		return -EINVAL;
 
-		if (size > 1024 * 128)	/* sane value */
-			return -EINVAL;
+	container = memdup_user(buf, size);
+	if (IS_ERR(container))
+		return PTR_ERR(container);
 
-		new_data = memdup_user(tlv, size);
-		if (IS_ERR(new_data))
-			return PTR_ERR(new_data);
-		change = ue->tlv_data_size != size;
-		if (!change)
-			change = memcmp(ue->tlv_data, new_data, size);
-		kfree(ue->tlv_data);
-		ue->tlv_data = new_data;
-		ue->tlv_data_size = size;
-
-		return change;
-	} else {
-		if (!ue->tlv_data_size || !ue->tlv_data)
-			return -ENXIO;
-
-		if (size < ue->tlv_data_size)
-			return -ENOSPC;
-
-		if (copy_to_user(tlv, ue->tlv_data, ue->tlv_data_size))
-			return -EFAULT;
-
+	change = ue->tlv_data_size != size;
+	if (!change)
+		change = memcmp(ue->tlv_data, container, size);
+	if (!change) {
+		kfree(container);
 		return 0;
 	}
+
+	kfree(ue->tlv_data);
+	ue->tlv_data = container;
+	ue->tlv_data_size = size;
+
+	return change;
+}
+
+static int read_user_tlv(struct snd_kcontrol *kctl, unsigned int __user *buf,
+			 unsigned int size)
+{
+	struct user_element *ue = kctl->private_data;
+
+	if (ue->tlv_data_size == 0 || ue->tlv_data == NULL)
+		return -ENXIO;
+
+	if (size < ue->tlv_data_size)
+		return -ENOSPC;
+
+	if (copy_to_user(buf, ue->tlv_data, ue->tlv_data_size))
+		return -EFAULT;
+
+	return 0;
+}
+
+static int snd_ctl_elem_user_tlv(struct snd_kcontrol *kctl, int op_flag,
+				 unsigned int size, unsigned int __user *buf)
+{
+	if (op_flag == SNDRV_CTL_TLV_OP_WRITE)
+		return replace_user_tlv(kctl, buf, size);
+	else
+		return read_user_tlv(kctl, buf, size);
 }
 
 static int snd_ctl_elem_init_enum_names(struct user_element *ue)
