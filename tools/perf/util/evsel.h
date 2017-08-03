@@ -338,6 +338,10 @@ static inline int perf_evsel__read_on_cpu_scaled(struct perf_evsel *evsel,
 int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 			     struct perf_sample *sample);
 
+int perf_evsel__parse_sample_timestamp(struct perf_evsel *evsel,
+				       union perf_event *event,
+				       u64 *timestamp);
+
 static inline struct perf_evsel *perf_evsel__next(struct perf_evsel *evsel)
 {
 	return list_entry(evsel->node.next, struct perf_evsel, node);

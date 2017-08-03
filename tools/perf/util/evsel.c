@@ -1962,6 +1962,20 @@ static inline bool overflow(const void *endp, u16 max_size, const void *offset,
 #define OVERFLOW_CHECK_u64(offset) \
 	OVERFLOW_CHECK(offset, sizeof(u64), sizeof(u64))
 
+static int
+perf_event__check_size(union perf_event *event, unsigned int sample_size)
+{
+	/*
+	 * The evsel's sample_size is based on PERF_SAMPLE_MASK which includes
+	 * up to PERF_SAMPLE_PERIOD.  After that overflow() must be used to
+	 * check the format does not go past the end of the event.
+	 */
+	if (sample_size + sizeof(event->header) > event->header.size)
+		return -EFAULT;
+
+	return 0;
+}
+
 int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 			     struct perf_sample *data)
 {
@@ -1994,12 +2008,7 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 
 	array = event->sample.array;
 
-	/*
-	 * The evsel's sample_size is based on PERF_SAMPLE_MASK which includes
-	 * up to PERF_SAMPLE_PERIOD.  After that overflow() must be used to
-	 * check the format does not go past the end of the event.
-	 */
-	if (evsel->sample_size + sizeof(event->header) > event->header.size)
+	if (perf_event__check_size(event, evsel->sample_size))
 		return -EFAULT;
 
 	if (type & PERF_SAMPLE_IDENTIFIER) {
@@ -2228,6 +2237,50 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 		data->phys_addr = *array;
 		array++;
 	}
+
+	return 0;
+}
+
+int perf_evsel__parse_sample_timestamp(struct perf_evsel *evsel,
+				       union perf_event *event,
+				       u64 *timestamp)
+{
+	u64 type = evsel->attr.sample_type;
+	const u64 *array;
+
+	if (!(type & PERF_SAMPLE_TIME))
+		return -1;
+
+	if (event->header.type != PERF_RECORD_SAMPLE) {
+		struct perf_sample data = {
+			.time = -1ULL,
+		};
+
+		if (!evsel->attr.sample_id_all)
+			return -1;
+		if (perf_evsel__parse_id_sample(evsel, event, &data))
+			return -1;
+
+		*timestamp = data.time;
+		return 0;
+	}
+
+	array = event->sample.array;
+
+	if (perf_event__check_size(event, evsel->sample_size))
+		return -EFAULT;
+
+	if (type & PERF_SAMPLE_IDENTIFIER)
+		array++;
+
+	if (type & PERF_SAMPLE_IP)
+		array++;
+
+	if (type & PERF_SAMPLE_TID)
+		array++;
+
+	if (type & PERF_SAMPLE_TIME)
+		*timestamp = *array;
 
 	return 0;
 }
