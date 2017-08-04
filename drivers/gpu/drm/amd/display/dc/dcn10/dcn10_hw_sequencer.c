@@ -134,6 +134,7 @@ static void verify_allow_pstate_change_high(
 	static unsigned int pstate_wait_timeout_us = 40;
 	static unsigned int max_sampled_pstate_wait_us; /* data collection */
 	static bool forced_pstate_allow; /* help with revert wa */
+	static bool should_log_hw_state; /* prevent hw state log by default */
 
 	unsigned int debug_index = 0x7;
 	unsigned int debug_data;
@@ -191,7 +192,9 @@ static void verify_allow_pstate_change_high(
 	REG_WRITE(DCHUBBUB_ARB_DRAM_STATE_CNTL, force_allow_pstate);
 	forced_pstate_allow = true;
 
-	dcn10_log_hw_state(DC_TO_CORE(hws->ctx->dc));
+	if (should_log_hw_state) {
+		dcn10_log_hw_state(DC_TO_CORE(hws->ctx->dc));
+	}
 
 	BREAK_TO_DEBUGGER();
 }
