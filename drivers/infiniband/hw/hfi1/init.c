@@ -126,71 +126,67 @@ static struct idr hfi1_unit_table;
 u32 hfi1_cpulist_count;
 unsigned long *hfi1_cpulist;
 
-/*
- * Common code for creating the receive context array.
- */
-int hfi1_create_ctxts(struct hfi1_devdata *dd)
+static int hfi1_create_kctxt(struct hfi1_devdata *dd,
+			     struct hfi1_pportdata *ppd)
 {
-	u16 i;
+	struct hfi1_ctxtdata *rcd;
 	int ret;
 
 	/* Control context has to be always 0 */
 	BUILD_BUG_ON(HFI1_CTRL_CTXT != 0);
 
-	dd->rcd = kzalloc_node(dd->num_rcv_contexts * sizeof(*dd->rcd),
-			       GFP_KERNEL, dd->node);
-	if (!dd->rcd)
-		goto nomem;
-
-	/* create one or more kernel contexts */
-	for (i = 0; i < dd->first_dyn_alloc_ctxt; ++i) {
-		struct hfi1_pportdata *ppd;
-		struct hfi1_ctxtdata *rcd;
-
-		ppd = dd->pport + (i % dd->num_pports);
-
-		/* dd->rcd[i] gets assigned inside the callee */
-		rcd = hfi1_create_ctxtdata(ppd, i, dd->node);
-		if (!rcd) {
-			dd_dev_err(dd,
-				   "Unable to allocate kernel receive context, failing\n");
-			goto nomem;
-		}
-		/*
-		 * Set up the kernel context flags here and now because they
-		 * use default values for all receive side memories.  User
-		 * contexts will be handled as they are created.
-		 */
-		rcd->flags = HFI1_CAP_KGET(MULTI_PKT_EGR) |
-			HFI1_CAP_KGET(NODROP_RHQ_FULL) |
-			HFI1_CAP_KGET(NODROP_EGR_FULL) |
-			HFI1_CAP_KGET(DMA_RTAIL);
-
-		/* Control context must use DMA_RTAIL */
-		if (rcd->ctxt == HFI1_CTRL_CTXT)
-			rcd->flags |= HFI1_CAP_DMA_RTAIL;
-		rcd->seq_cnt = 1;
-
-		rcd->sc = sc_alloc(dd, SC_ACK, rcd->rcvhdrqentsize, dd->node);
-		if (!rcd->sc) {
-			dd_dev_err(dd,
-				   "Unable to allocate kernel send context, failing\n");
-			goto nomem;
-		}
-
-		hfi1_init_ctxt(rcd->sc);
+	ret = hfi1_create_ctxtdata(ppd, dd->node, &rcd);
+	if (ret < 0) {
+		dd_dev_err(dd, "Kernel receive context allocation failed\n");
+		return ret;
 	}
 
 	/*
-	 * Initialize aspm, to be done after gen3 transition and setting up
-	 * contexts and before enabling interrupts
+	 * Set up the kernel context flags here and now because they use
+	 * default values for all receive side memories.  User contexts will
+	 * be handled as they are created.
 	 */
-	aspm_init(dd);
+	rcd->flags = HFI1_CAP_KGET(MULTI_PKT_EGR) |
+		HFI1_CAP_KGET(NODROP_RHQ_FULL) |
+		HFI1_CAP_KGET(NODROP_EGR_FULL) |
+		HFI1_CAP_KGET(DMA_RTAIL);
+
+	/* Control context must use DMA_RTAIL */
+	if (rcd->ctxt == HFI1_CTRL_CTXT)
+		rcd->flags |= HFI1_CAP_DMA_RTAIL;
+	rcd->seq_cnt = 1;
+
+	rcd->sc = sc_alloc(dd, SC_ACK, rcd->rcvhdrqentsize, dd->node);
+	if (!rcd->sc) {
+		dd_dev_err(dd, "Kernel send context allocation failed\n");
+		return -ENOMEM;
+	}
+	hfi1_init_ctxt(rcd->sc);
 
 	return 0;
-nomem:
-	ret = -ENOMEM;
+}
 
+/*
+ * Create the receive context array and one or more kernel contexts
+ */
+int hfi1_create_kctxts(struct hfi1_devdata *dd)
+{
+	u16 i;
+	int ret;
+
+	dd->rcd = kzalloc_node(dd->num_rcv_contexts * sizeof(*dd->rcd),
+			       GFP_KERNEL, dd->node);
+	if (!dd->rcd)
+		return -ENOMEM;
+
+	for (i = 0; i < dd->first_dyn_alloc_ctxt; ++i) {
+		ret = hfi1_create_kctxt(dd, dd->pport);
+		if (ret)
+			goto bail;
+	}
+
+	return 0;
+bail:
 	for (i = 0; dd->rcd && i < dd->first_dyn_alloc_ctxt; ++i)
 		hfi1_rcd_put(dd->rcd[i]);
 
@@ -208,6 +204,11 @@ static void hfi1_rcd_init(struct hfi1_ctxtdata *rcd)
 	kref_init(&rcd->kref);
 }
 
+/**
+ * hfi1_rcd_free - When reference is zero clean up.
+ * @kref: pointer to an initialized rcd data structure
+ *
+ */
 static void hfi1_rcd_free(struct kref *kref)
 {
 	struct hfi1_ctxtdata *rcd =
@@ -217,6 +218,12 @@ static void hfi1_rcd_free(struct kref *kref)
 	kfree(rcd);
 }
 
+/**
+ * hfi1_rcd_put - decrement reference for rcd
+ * @rcd: pointer to an initialized rcd data structure
+ *
+ * Use this to put a reference after the init.
+ */
 int hfi1_rcd_put(struct hfi1_ctxtdata *rcd)
 {
 	if (rcd)
@@ -225,16 +232,58 @@ int hfi1_rcd_put(struct hfi1_ctxtdata *rcd)
 	return 0;
 }
 
+/**
+ * hfi1_rcd_get - increment reference for rcd
+ * @rcd: pointer to an initialized rcd data structure
+ *
+ * Use this to get a reference after the init.
+ */
 void hfi1_rcd_get(struct hfi1_ctxtdata *rcd)
 {
 	kref_get(&rcd->kref);
 }
 
+/**
+ * allocate_rcd_index - allocate an rcd index from the rcd array
+ * @dd: pointer to a valid devdata structure
+ * @rcd: rcd data structure to assign
+ * @index: pointer to index that is allocated
+ *
+ * Find an empty index in the rcd array, and assign the given rcd to it.
+ * If the array is full, we are EBUSY.
+ *
+ */
+static u16 allocate_rcd_index(struct hfi1_devdata *dd,
+			      struct hfi1_ctxtdata *rcd, u16 *index)
+{
+	unsigned long flags;
+	u16 ctxt;
+
+	spin_lock_irqsave(&dd->uctxt_lock, flags);
+	for (ctxt = 0; ctxt < dd->num_rcv_contexts; ctxt++)
+		if (!dd->rcd[ctxt])
+			break;
+
+	if (ctxt < dd->num_rcv_contexts) {
+		rcd->ctxt = ctxt;
+		dd->rcd[ctxt] = rcd;
+		hfi1_rcd_init(rcd);
+	}
+	spin_unlock_irqrestore(&dd->uctxt_lock, flags);
+
+	if (ctxt >= dd->num_rcv_contexts)
+		return -EBUSY;
+
+	*index = ctxt;
+
+	return 0;
+}
+
 /*
  * Common code for user and kernel context setup.
  */
-struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u16 ctxt,
-					   int numa)
+int hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, int numa,
+			 struct hfi1_ctxtdata **context)
 {
 	struct hfi1_devdata *dd = ppd->dd;
 	struct hfi1_ctxtdata *rcd;
@@ -248,8 +297,17 @@ struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u16 ctxt,
 	rcd = kzalloc_node(sizeof(*rcd), GFP_KERNEL, numa);
 	if (rcd) {
 		u32 rcvtids, max_entries;
+		u16 ctxt;
+		int ret;
 
 		hfi1_cdbg(PROC, "setting up context %u\n", ctxt);
+
+		ret = allocate_rcd_index(dd, rcd, &ctxt);
+		if (ret) {
+			*context = NULL;
+			kfree(rcd);
+			return ret;
+		}
 
 		INIT_LIST_HEAD(&rcd->qp_wait_list);
 		hfi1_exp_tid_group_init(&rcd->tid_group_list);
@@ -258,8 +316,6 @@ struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u16 ctxt,
 		rcd->ppd = ppd;
 		rcd->dd = dd;
 		__set_bit(0, rcd->in_use_ctxts);
-		rcd->ctxt = ctxt;
-		dd->rcd[ctxt] = rcd;
 		rcd->numa_id = numa;
 		rcd->rcv_array_groups = dd->rcv_entries.ngroups;
 
@@ -363,15 +419,34 @@ struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u16 ctxt,
 				goto bail;
 		}
 
-		hfi1_rcd_init(rcd);
+		*context = rcd;
+		return 0;
 	}
-	return rcd;
+
 bail:
-	dd->rcd[ctxt] = NULL;
-	kfree(rcd->egrbufs.rcvtids);
-	kfree(rcd->egrbufs.buffers);
-	kfree(rcd);
-	return NULL;
+	*context = NULL;
+	hfi1_free_ctxt(dd, rcd);
+	return -ENOMEM;
+}
+
+/**
+ * hfi1_free_ctxt
+ * @dd: Pointer to a valid device
+ * @rcd: pointer to an initialized rcd data structure
+ *
+ * This is the "free" to match the _create_ctxtdata (alloc) function.
+ * This is the final "put" for the kref.
+ */
+void hfi1_free_ctxt(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
+{
+	unsigned long flags;
+
+	if (rcd) {
+		spin_lock_irqsave(&dd->uctxt_lock, flags);
+		dd->rcd[rcd->ctxt] = NULL;
+		spin_unlock_irqrestore(&dd->uctxt_lock, flags);
+		hfi1_rcd_put(rcd);
+	}
 }
 
 /*

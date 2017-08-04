@@ -273,7 +273,6 @@ struct hfi1_ctxtdata {
 	u16 poll_type;
 	/* receive packet sequence counter */
 	u8 seq_cnt;
-	u8 redirect_seq_cnt;
 	/* ctxt rcvhdrq head offset */
 	u32 head;
 	/* QPs waiting for context processing */
@@ -1263,9 +1262,10 @@ void handle_user_interrupt(struct hfi1_ctxtdata *rcd);
 
 int hfi1_create_rcvhdrq(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd);
 int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd);
-int hfi1_create_ctxts(struct hfi1_devdata *dd);
-struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u16 ctxt,
-					   int numa);
+int hfi1_create_kctxts(struct hfi1_devdata *dd);
+int hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, int numa,
+			 struct hfi1_ctxtdata **rcd);
+void hfi1_free_ctxt(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd);
 void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
 			 struct hfi1_devdata *dd, u8 hw_pidx, u8 port);
 void hfi1_free_ctxtdata(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd);

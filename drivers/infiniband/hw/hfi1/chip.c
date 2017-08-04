@@ -15054,9 +15054,15 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 	if (ret)
 		goto bail_cleanup;
 
-	ret = hfi1_create_ctxts(dd);
+	ret = hfi1_create_kctxts(dd);
 	if (ret)
 		goto bail_cleanup;
+
+	/*
+	 * Initialize aspm, to be done after gen3 transition and setting up
+	 * contexts and before enabling interrupts
+	 */
+	aspm_init(dd);
 
 	dd->rcvhdrsize = DEFAULT_RCVHDRSIZE;
 	/*
@@ -15076,7 +15082,7 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 			goto bail_cleanup;
 	}
 
-	/* use contexts created by hfi1_create_ctxts */
+	/* use contexts created by hfi1_create_kctxts */
 	ret = set_up_interrupts(dd);
 	if (ret)
 		goto bail_cleanup;

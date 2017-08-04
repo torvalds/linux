@@ -106,22 +106,13 @@ static int allocate_vnic_ctxt(struct hfi1_devdata *dd,
 			      struct hfi1_ctxtdata **vnic_ctxt)
 {
 	struct hfi1_ctxtdata *uctxt;
-	u16 ctxt;
 	int ret;
 
 	if (dd->flags & HFI1_FROZEN)
 		return -EIO;
 
-	for (ctxt = dd->first_dyn_alloc_ctxt;
-	     ctxt < dd->num_rcv_contexts; ctxt++)
-		if (!dd->rcd[ctxt])
-			break;
-
-	if (ctxt == dd->num_rcv_contexts)
-		return -EBUSY;
-
-	uctxt = hfi1_create_ctxtdata(dd->pport, ctxt, dd->node);
-	if (!uctxt) {
+	ret = hfi1_create_ctxtdata(dd->pport, dd->node, &uctxt);
+	if (ret < 0) {
 		dd_dev_err(dd, "Unable to create ctxtdata, failing open\n");
 		return -ENOMEM;
 	}
@@ -156,11 +147,10 @@ static int allocate_vnic_ctxt(struct hfi1_devdata *dd,
 	return ret;
 bail:
 	/*
-	 * hfi1_rcd_put() will call hfi1_free_ctxtdata(), which will
+	 * hfi1_free_ctxt() will call hfi1_free_ctxtdata(), which will
 	 * release send_context structure if uctxt->sc is not null
 	 */
-	dd->rcd[uctxt->ctxt] = NULL;
-	hfi1_rcd_put(uctxt);
+	hfi1_free_ctxt(dd, uctxt);
 	dd_dev_dbg(dd, "vnic allocation failed. rc %d\n", ret);
 	return ret;
 }
@@ -201,14 +191,14 @@ static void deallocate_vnic_ctxt(struct hfi1_devdata *dd,
 	dd->send_contexts[uctxt->sc->sw_index].type = SC_USER;
 	spin_unlock_irqrestore(&dd->uctxt_lock, flags);
 
-	dd->rcd[uctxt->ctxt] = NULL;
 	uctxt->event_flags = 0;
 
 	hfi1_clear_tids(uctxt);
 	hfi1_clear_ctxt_pkey(dd, uctxt);
 
 	hfi1_stats.sps_ctxts--;
-	hfi1_rcd_put(uctxt);
+
+	hfi1_free_ctxt(dd, uctxt);
 }
 
 void hfi1_vnic_setup(struct hfi1_devdata *dd)
