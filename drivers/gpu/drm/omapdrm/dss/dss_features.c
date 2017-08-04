@@ -28,13 +28,8 @@
 #include "dss.h"
 #include "dss_features.h"
 
-struct dss_param_range {
-	int min, max;
-};
-
 struct omap_dss_features {
 	const enum omap_dss_output_id *supported_outputs;
-	const struct dss_param_range *dss_params;
 };
 
 /* This struct is assigned to one of the below during initialization */
@@ -100,36 +95,14 @@ static const enum omap_dss_output_id omap5_dss_supported_outputs[] = {
 	OMAP_DSS_OUTPUT_DSI2,
 };
 
-static const struct dss_param_range omap2_dss_param_range[] = {
-	[FEAT_PARAM_DSS_FCK]			= { 0, 133000000 },
-};
-
-static const struct dss_param_range omap3_dss_param_range[] = {
-	[FEAT_PARAM_DSS_FCK]			= { 0, 173000000 },
-};
-
-static const struct dss_param_range am43xx_dss_param_range[] = {
-	[FEAT_PARAM_DSS_FCK]			= { 0, 200000000 },
-};
-
-static const struct dss_param_range omap4_dss_param_range[] = {
-	[FEAT_PARAM_DSS_FCK]			= { 0, 186000000 },
-};
-
-static const struct dss_param_range omap5_dss_param_range[] = {
-	[FEAT_PARAM_DSS_FCK]			= { 0, 209250000 },
-};
-
 /* OMAP2 DSS Features */
 static const struct omap_dss_features omap2_dss_features = {
 	.supported_outputs = omap2_dss_supported_outputs,
-	.dss_params = omap2_dss_param_range,
 };
 
 /* OMAP3 DSS Features */
 static const struct omap_dss_features omap3430_dss_features = {
 	.supported_outputs = omap3430_dss_supported_outputs,
-	.dss_params = omap3_dss_param_range,
 };
 
 /*
@@ -138,54 +111,36 @@ static const struct omap_dss_features omap3430_dss_features = {
  */
 static const struct omap_dss_features am35xx_dss_features = {
 	.supported_outputs = omap3430_dss_supported_outputs,
-	.dss_params = omap3_dss_param_range,
 };
 
 static const struct omap_dss_features am43xx_dss_features = {
 	.supported_outputs = am43xx_dss_supported_outputs,
-	.dss_params = am43xx_dss_param_range,
 };
 
 static const struct omap_dss_features omap3630_dss_features = {
 	.supported_outputs = omap3630_dss_supported_outputs,
-	.dss_params = omap3_dss_param_range,
 };
 
 /* OMAP4 DSS Features */
 /* For OMAP4430 ES 1.0 revision */
 static const struct omap_dss_features omap4430_es1_0_dss_features  = {
 	.supported_outputs = omap4_dss_supported_outputs,
-	.dss_params = omap4_dss_param_range,
 };
 
 /* For OMAP4430 ES 2.0, 2.1 and 2.2 revisions */
 static const struct omap_dss_features omap4430_es2_0_1_2_dss_features = {
 	.supported_outputs = omap4_dss_supported_outputs,
-	.dss_params = omap4_dss_param_range,
 };
 
 /* For all the other OMAP4 versions */
 static const struct omap_dss_features omap4_dss_features = {
 	.supported_outputs = omap4_dss_supported_outputs,
-	.dss_params = omap4_dss_param_range,
 };
 
 /* OMAP5 DSS Features */
 static const struct omap_dss_features omap5_dss_features = {
 	.supported_outputs = omap5_dss_supported_outputs,
-	.dss_params = omap5_dss_param_range,
 };
-
-/* Functions returning values related to a DSS feature */
-unsigned long dss_feat_get_param_min(enum dss_range_param param)
-{
-	return omap_current_dss_features->dss_params[param].min;
-}
-
-unsigned long dss_feat_get_param_max(enum dss_range_param param)
-{
-	return omap_current_dss_features->dss_params[param].max;
-}
 
 enum omap_dss_output_id dss_feat_get_supported_outputs(enum omap_channel channel)
 {

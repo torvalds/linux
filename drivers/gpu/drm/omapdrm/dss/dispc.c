@@ -3502,7 +3502,7 @@ bool dispc_div_calc(unsigned long dispc_freq,
 	pckd_hw_min = dispc.feat->min_pcd;
 	pckd_hw_max = 255;
 
-	lck_max = dss_feat_get_param_max(FEAT_PARAM_DSS_FCK);
+	lck_max = dss_get_max_fck_rate();
 
 	pck_min = pck_min ? pck_min : 1;
 	pck_max = pck_max ? pck_max : ULONG_MAX;

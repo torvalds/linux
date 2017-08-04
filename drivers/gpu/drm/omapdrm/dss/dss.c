@@ -81,6 +81,7 @@ struct dss_ops {
 struct dss_features {
 	enum dss_model model;
 	u8 fck_div_max;
+	unsigned int fck_freq_max;
 	u8 dss_fck_multiplier;
 	const char *parent_clk_name;
 	const enum omap_display_type *ports;
@@ -623,7 +624,7 @@ bool dss_div_calc(unsigned long pck, unsigned long fck_min,
 	unsigned long prate;
 	unsigned m;
 
-	fck_hw_max = dss_feat_get_param_max(FEAT_PARAM_DSS_FCK);
+	fck_hw_max = dss.feat->fck_freq_max;
 
 	if (dss.parent_clk == NULL) {
 		unsigned pckd;
@@ -681,6 +682,11 @@ unsigned long dss_get_dispc_clk_rate(void)
 	return dss.dss_clk_rate;
 }
 
+unsigned long dss_get_max_fck_rate(void)
+{
+	return dss.feat->fck_freq_max;
+}
+
 static int dss_setup_default_clock(void)
 {
 	unsigned long max_dss_fck, prate;
@@ -688,7 +694,7 @@ static int dss_setup_default_clock(void)
 	unsigned fck_div;
 	int r;
 
-	max_dss_fck = dss_feat_get_param_max(FEAT_PARAM_DSS_FCK);
+	max_dss_fck = dss.feat->fck_freq_max;
 
 	if (dss.parent_clk == NULL) {
 		fck = clk_round_rate(dss.dss_clk, max_dss_fck);
@@ -1005,6 +1011,7 @@ static const struct dss_features omap24xx_dss_feats = {
 	 * from 1 to 6 has no gaps, so let's use that as a max.
 	 */
 	.fck_div_max		=	6,
+	.fck_freq_max		=	133000000,
 	.dss_fck_multiplier	=	2,
 	.parent_clk_name	=	"core_ck",
 	.ports			=	omap2plus_ports,
@@ -1017,6 +1024,7 @@ static const struct dss_features omap24xx_dss_feats = {
 static const struct dss_features omap34xx_dss_feats = {
 	.model			=	DSS_MODEL_OMAP3,
 	.fck_div_max		=	16,
+	.fck_freq_max		=	173000000,
 	.dss_fck_multiplier	=	2,
 	.parent_clk_name	=	"dpll4_ck",
 	.ports			=	omap34xx_ports,
@@ -1029,6 +1037,7 @@ static const struct dss_features omap34xx_dss_feats = {
 static const struct dss_features omap3630_dss_feats = {
 	.model			=	DSS_MODEL_OMAP3,
 	.fck_div_max		=	32,
+	.fck_freq_max		=	173000000,
 	.dss_fck_multiplier	=	1,
 	.parent_clk_name	=	"dpll4_ck",
 	.ports			=	omap2plus_ports,
@@ -1041,6 +1050,7 @@ static const struct dss_features omap3630_dss_feats = {
 static const struct dss_features omap44xx_dss_feats = {
 	.model			=	DSS_MODEL_OMAP4,
 	.fck_div_max		=	32,
+	.fck_freq_max		=	186000000,
 	.dss_fck_multiplier	=	1,
 	.parent_clk_name	=	"dpll_per_x2_ck",
 	.ports			=	omap2plus_ports,
@@ -1053,6 +1063,7 @@ static const struct dss_features omap44xx_dss_feats = {
 static const struct dss_features omap54xx_dss_feats = {
 	.model			=	DSS_MODEL_OMAP5,
 	.fck_div_max		=	64,
+	.fck_freq_max		=	209250000,
 	.dss_fck_multiplier	=	1,
 	.parent_clk_name	=	"dpll_per_x2_ck",
 	.ports			=	omap2plus_ports,
@@ -1065,6 +1076,7 @@ static const struct dss_features omap54xx_dss_feats = {
 static const struct dss_features am43xx_dss_feats = {
 	.model			=	DSS_MODEL_OMAP3,
 	.fck_div_max		=	0,
+	.fck_freq_max		=	200000000,
 	.dss_fck_multiplier	=	0,
 	.parent_clk_name	=	NULL,
 	.ports			=	omap2plus_ports,
@@ -1077,6 +1089,7 @@ static const struct dss_features am43xx_dss_feats = {
 static const struct dss_features dra7xx_dss_feats = {
 	.model			=	DSS_MODEL_DRA7,
 	.fck_div_max		=	64,
+	.fck_freq_max		=	209250000,
 	.dss_fck_multiplier	=	1,
 	.parent_clk_name	=	"dpll_per_x2_ck",
 	.ports			=	dra7xx_ports,

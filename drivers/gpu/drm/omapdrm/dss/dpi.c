@@ -211,7 +211,7 @@ static bool dpi_calc_pll_cb(int n, int m, unsigned long fint,
 	ctx->pll_cinfo.clkdco = clkdco;
 
 	return dss_pll_hsdiv_calc_a(ctx->pll, clkdco,
-		ctx->pck_min, dss_feat_get_param_max(FEAT_PARAM_DSS_FCK),
+		ctx->pck_min, dss_get_max_fck_rate(),
 		dpi_calc_hsdiv_cb, ctx);
 }
 

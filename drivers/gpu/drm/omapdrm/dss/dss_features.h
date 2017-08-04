@@ -25,14 +25,6 @@
 #define MAX_DSS_LCD_MANAGERS	3
 #define MAX_NUM_DSI		2
 
-enum dss_range_param {
-	FEAT_PARAM_DSS_FCK,
-};
-
-/* DSS Feature Functions */
-unsigned long dss_feat_get_param_min(enum dss_range_param param);
-unsigned long dss_feat_get_param_max(enum dss_range_param param);
-
 void dss_features_init(enum omapdss_version version);
 
 enum omap_dss_output_id dss_feat_get_supported_outputs(enum omap_channel channel);

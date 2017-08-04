@@ -265,6 +265,7 @@ int dss_runtime_get(void);
 void dss_runtime_put(void);
 
 unsigned long dss_get_dispc_clk_rate(void);
+unsigned long dss_get_max_fck_rate(void);
 int dss_dpi_select_source(int port, enum omap_channel channel);
 void dss_select_hdmi_venc_clk_source(enum dss_hdmi_venc_clk_source_select);
 enum dss_hdmi_venc_clk_source_select dss_get_hdmi_venc_clk_source(void);
