@@ -16,11 +16,13 @@
 #include <linux/slab.h>
 #include <linux/smp.h>
 #include <asm/archrandom.h>
+#include <asm/cputable.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/smp.h>
 
+#define DARN_ERR 0xFFFFFFFFFFFFFFFFul
 
 struct powernv_rng {
 	void __iomem *regs;
@@ -65,6 +67,41 @@ int powernv_get_random_real_mode(unsigned long *v)
 	*v = rng_whiten(rng, __raw_rm_readq(rng->regs_real));
 
 	return 1;
+}
+
+int powernv_get_random_darn(unsigned long *v)
+{
+	unsigned long val;
+
+	/* Using DARN with L=1 - 64-bit conditioned random number */
+	asm volatile(PPC_DARN(%0, 1) : "=r"(val));
+
+	if (val == DARN_ERR)
+		return 0;
+
+	*v = val;
+
+	return 1;
+}
+
+static int initialise_darn(void)
+{
+	unsigned long val;
+	int i;
+
+	if (!cpu_has_feature(CPU_FTR_ARCH_300))
+		return -ENODEV;
+
+	for (i = 0; i < 10; i++) {
+		if (powernv_get_random_darn(&val)) {
+			ppc_md.get_random_seed = powernv_get_random_darn;
+			return 0;
+		}
+	}
+
+	pr_warn("Unable to use DARN for get_random_seed()\n");
+
+	return -EIO;
 }
 
 int powernv_get_random_long(unsigned long *v)
@@ -149,6 +186,8 @@ static __init int rng_init(void)
 		/* Create devices for hwrng driver */
 		of_platform_device_create(dn, NULL, NULL);
 	}
+
+	initialise_darn();
 
 	return 0;
 }
