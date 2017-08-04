@@ -37,6 +37,7 @@
 #include <linux/of.h>
 #include <linux/of_graph.h>
 #include <linux/component.h>
+#include <linux/sys_soc.h>
 
 #include "omapdss.h"
 #include "dss.h"
@@ -309,6 +310,7 @@ static struct {
 	struct videomode vm;
 	enum omap_dss_venc_type type;
 	bool invert_polarity;
+	bool requires_tv_dac_clk;
 
 	struct omap_dss_device output;
 } venc;
@@ -691,7 +693,7 @@ static int venc_get_clocks(struct platform_device *pdev)
 {
 	struct clk *clk;
 
-	if (dss_has_feature(FEAT_VENC_REQUIRES_TV_DAC_CLK)) {
+	if (venc.requires_tv_dac_clk) {
 		clk = devm_clk_get(&pdev->dev, "tv_dac_clk");
 		if (IS_ERR(clk)) {
 			DSSERR("can't get tv_dac_clk\n");
@@ -826,6 +828,12 @@ err:
 }
 
 /* VENC HW IP initialisation */
+static const struct soc_device_attribute venc_soc_devices[] = {
+	{ .machine = "OMAP3[45]*" },
+	{ .machine = "AM35*" },
+	{ /* sentinel */ }
+};
+
 static int venc_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -834,6 +842,10 @@ static int venc_bind(struct device *dev, struct device *master, void *data)
 	int r;
 
 	venc.pdev = pdev;
+
+	/* The OMAP34xx, OMAP35xx and AM35xx VENC require the TV DAC clock. */
+	if (soc_device_match(venc_soc_devices))
+		venc.requires_tv_dac_clk = true;
 
 	mutex_init(&venc.venc_lock);
 
