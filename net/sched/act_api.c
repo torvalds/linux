@@ -473,9 +473,10 @@ static struct tc_action_ops *tc_lookup_action(struct nlattr *kind)
 int tcf_action_exec(struct sk_buff *skb, struct tc_action **actions,
 		    int nr_actions, struct tcf_result *res)
 {
-	int ret = -1, i;
 	u32 jmp_prgcnt = 0;
 	u32 jmp_ttl = TCA_ACT_MAX_PRIO; /*matches actions per filter */
+	int i;
+	int ret = TC_ACT_OK;
 
 	if (skb_skip_tc_classify(skb))
 		return TC_ACT_OK;

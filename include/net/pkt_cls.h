@@ -192,9 +192,7 @@ tcf_exts_exec(struct sk_buff *skb, struct tcf_exts *exts,
 	      struct tcf_result *res)
 {
 #ifdef CONFIG_NET_CLS_ACT
-	if (tcf_exts_has_actions(exts))
-		return tcf_action_exec(skb, exts->actions, exts->nr_actions,
-				       res);
+	return tcf_action_exec(skb, exts->actions, exts->nr_actions, res);
 #endif
 	return TC_ACT_OK;
 }
