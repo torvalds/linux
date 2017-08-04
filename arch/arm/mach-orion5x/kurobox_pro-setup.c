@@ -15,7 +15,7 @@
 #include <linux/irq.h>
 #include <linux/delay.h>
 #include <linux/mtd/physmap.h>
-#include <linux/mtd/nand.h>
+#include <linux/mtd/rawnand.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/i2c.h>
 #include <linux/serial_reg.h>
