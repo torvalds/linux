@@ -45,9 +45,10 @@ else ifeq ($(HAS_NEON),yes)
         CFLAGS += -DCONFIG_KERNEL_MODE_NEON=1
 else
         HAS_ALTIVEC := $(shell printf '\#include <altivec.h>\nvector int a;\n' |\
-                         gcc -c -x c - >&/dev/null && \
-                         rm ./-.o && echo yes)
+                         gcc -c -x c - >/dev/null && rm ./-.o && echo yes)
         ifeq ($(HAS_ALTIVEC),yes)
+                CFLAGS += -I../../../arch/powerpc/include
+                CFLAGS += -DCONFIG_ALTIVEC
                 OBJS += altivec1.o altivec2.o altivec4.o altivec8.o \
                         vpermxor1.o vpermxor2.o vpermxor4.o vpermxor8.o
         endif
