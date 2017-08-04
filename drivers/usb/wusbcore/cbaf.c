@@ -586,7 +586,7 @@ static struct attribute *cbaf_dev_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group cbaf_dev_attr_group = {
+static const struct attribute_group cbaf_dev_attr_group = {
 	.name = NULL,	/* we want them in the same directory */
 	.attrs = cbaf_dev_attrs,
 };
