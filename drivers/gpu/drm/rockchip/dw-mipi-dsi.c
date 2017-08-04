@@ -1112,6 +1112,13 @@ static void rockchip_dsi_pre_init(struct dw_mipi_dsi *dsi)
 		return;
 	}
 
+	if (dsi->dphy.phy) {
+		rockchip_dsi_set_hs_clk(dsi);
+		phy_power_on(dsi->dphy.phy);
+	} else {
+		dw_mipi_dsi_get_lane_bps(dsi);
+	}
+
 	pm_runtime_get_sync(dsi->dev);
 
 	if (dsi->rst) {
@@ -1120,13 +1127,6 @@ static void rockchip_dsi_pre_init(struct dw_mipi_dsi *dsi)
 		udelay(10);
 		reset_control_deassert(dsi->rst);
 		udelay(10);
-	}
-
-	if (dsi->dphy.phy) {
-		rockchip_dsi_set_hs_clk(dsi);
-		phy_power_on(dsi->dphy.phy);
-	} else {
-		dw_mipi_dsi_get_lane_bps(dsi);
 	}
 
 	dev_info(dsi->dev, "final DSI-Link bandwidth: %u x %d Mbps\n",
