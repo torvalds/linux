@@ -233,8 +233,6 @@ static inline int dss_set_min_bus_tput(struct device *dev, unsigned long tput)
 	return 0;
 }
 
-int dss_debugfs_create_file(const char *name, void (*write)(struct seq_file *));
-
 static inline bool dss_mgr_is_lcd(enum omap_channel id)
 {
 	if (id == OMAP_DSS_CHANNEL_LCD || id == OMAP_DSS_CHANNEL_LCD2 ||
@@ -245,6 +243,16 @@ static inline bool dss_mgr_is_lcd(enum omap_channel id)
 }
 
 /* DSS */
+#if defined(CONFIG_OMAP2_DSS_DEBUGFS)
+int dss_debugfs_create_file(const char *name, void (*write)(struct seq_file *));
+#else
+static inline int dss_debugfs_create_file(const char *name,
+					  void (*write)(struct seq_file *))
+{
+	return 0;
+}
+#endif /* CONFIG_OMAP2_DSS_DEBUGFS */
+
 int dss_init_platform_driver(void) __init;
 void dss_uninit_platform_driver(void);
 
@@ -262,10 +270,6 @@ void dss_dump_clocks(struct seq_file *s);
 struct dss_pll *dss_video_pll_init(struct platform_device *pdev, int id,
 	struct regulator *regulator);
 void dss_video_pll_uninit(struct dss_pll *pll);
-
-#if defined(CONFIG_OMAP2_DSS_DEBUGFS)
-void dss_debug_dump_clocks(struct seq_file *s);
-#endif
 
 void dss_ctrl_pll_enable(enum dss_pll_id pll_id, bool enable);
 

@@ -22,6 +22,7 @@
 
 #define DSS_SUBSYS_NAME "DSS"
 
+#include <linux/debugfs.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/io.h>
@@ -891,7 +892,7 @@ void dss_runtime_put(void)
 
 /* DEBUGFS */
 #if defined(CONFIG_OMAP2_DSS_DEBUGFS)
-void dss_debug_dump_clocks(struct seq_file *s)
+static void dss_debug_dump_clocks(struct seq_file *s)
 {
 	dss_dump_clocks(s);
 	dispc_dump_clocks(s);
@@ -899,8 +900,69 @@ void dss_debug_dump_clocks(struct seq_file *s)
 	dsi_dump_clocks(s);
 #endif
 }
-#endif
 
+static int dss_debug_show(struct seq_file *s, void *unused)
+{
+	void (*func)(struct seq_file *) = s->private;
+
+	func(s);
+	return 0;
+}
+
+static int dss_debug_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, dss_debug_show, inode->i_private);
+}
+
+static const struct file_operations dss_debug_fops = {
+	.open           = dss_debug_open,
+	.read           = seq_read,
+	.llseek         = seq_lseek,
+	.release        = single_release,
+};
+
+static struct dentry *dss_debugfs_dir;
+
+static int dss_initialize_debugfs(void)
+{
+	dss_debugfs_dir = debugfs_create_dir("omapdss", NULL);
+	if (IS_ERR(dss_debugfs_dir)) {
+		int err = PTR_ERR(dss_debugfs_dir);
+
+		dss_debugfs_dir = NULL;
+		return err;
+	}
+
+	debugfs_create_file("clk", S_IRUGO, dss_debugfs_dir,
+			&dss_debug_dump_clocks, &dss_debug_fops);
+
+	return 0;
+}
+
+static void dss_uninitialize_debugfs(void)
+{
+	if (dss_debugfs_dir)
+		debugfs_remove_recursive(dss_debugfs_dir);
+}
+
+int dss_debugfs_create_file(const char *name, void (*write)(struct seq_file *))
+{
+	struct dentry *d;
+
+	d = debugfs_create_file(name, S_IRUGO, dss_debugfs_dir,
+			write, &dss_debug_fops);
+
+	return PTR_ERR_OR_ZERO(d);
+}
+#else /* CONFIG_OMAP2_DSS_DEBUGFS */
+static inline int dss_initialize_debugfs(void)
+{
+	return 0;
+}
+static inline void dss_uninitialize_debugfs(void)
+{
+}
+#endif /* CONFIG_OMAP2_DSS_DEBUGFS */
 
 static const struct dss_ops dss_ops_omap2_omap3 = {
 	.dpi_select_source = &dss_dpi_select_source_omap2_omap3,
@@ -1293,12 +1355,18 @@ static int dss_probe(struct platform_device *pdev)
 	else
 		dss.feat = of_match_device(dss_of_match, &pdev->dev)->data;
 
+	r = dss_initialize_debugfs();
+	if (r)
+		return r;
+
 	/* add all the child devices as components */
 	device_for_each_child(&pdev->dev, &match, dss_add_child_component);
 
 	r = component_master_add_with_match(&pdev->dev, &dss_component_ops, match);
-	if (r)
+	if (r) {
+		dss_uninitialize_debugfs();
 		return r;
+	}
 
 	return 0;
 }
@@ -1306,6 +1374,9 @@ static int dss_probe(struct platform_device *pdev)
 static int dss_remove(struct platform_device *pdev)
 {
 	component_master_del(&pdev->dev, &dss_component_ops);
+
+	dss_uninitialize_debugfs();
+
 	return 0;
 }
 
