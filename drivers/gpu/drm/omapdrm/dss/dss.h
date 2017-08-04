@@ -219,7 +219,12 @@ struct seq_file;
 struct platform_device;
 
 /* core */
-int dss_set_min_bus_tput(struct device *dev, unsigned long tput);
+static inline int dss_set_min_bus_tput(struct device *dev, unsigned long tput)
+{
+	/* To be implemented when the OMAP platform will provide this feature */
+	return 0;
+}
+
 int dss_debugfs_create_file(const char *name, void (*write)(struct seq_file *));
 
 static inline bool dss_mgr_is_lcd(enum omap_channel id)
