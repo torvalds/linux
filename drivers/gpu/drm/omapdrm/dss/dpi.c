@@ -32,6 +32,7 @@
 #include <linux/string.h>
 #include <linux/of.h>
 #include <linux/clk.h>
+#include <linux/sys_soc.h>
 
 #include "omapdss.h"
 #include "dss.h"
@@ -565,11 +566,21 @@ static int dpi_verify_pll(struct dss_pll *pll)
 	return 0;
 }
 
+static const struct soc_device_attribute dpi_soc_devices[] = {
+	{ .family = "OMAP3[456]*" },
+	{ .family = "[AD]M37*" },
+	{ /* sentinel */ }
+};
+
 static int dpi_init_regulator(struct dpi_data *dpi)
 {
 	struct regulator *vdds_dsi;
 
-	if (!dss_has_feature(FEAT_DPI_USES_VDDS_DSI))
+	/*
+	 * The DPI uses the DSI VDDS on OMAP34xx, OMAP35xx, OMAP36xx, AM37xx and
+	 * DM37xx only.
+	 */
+	if (!soc_device_match(dpi_soc_devices))
 		return 0;
 
 	if (dpi->vdds_dsi_reg)
