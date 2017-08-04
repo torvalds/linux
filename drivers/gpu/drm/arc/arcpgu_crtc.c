@@ -69,12 +69,13 @@ static enum drm_mode_status arc_pgu_crtc_mode_valid(struct drm_crtc *crtc,
 {
 	struct arcpgu_drm_private *arcpgu = crtc_to_arcpgu_priv(crtc);
 	long rate, clk_rate = mode->clock * 1000;
+	long diff = clk_rate / 200; /* +-0.5% allowed by HDMI spec */
 
 	rate = clk_round_rate(arcpgu->clk, clk_rate);
-	if (rate != clk_rate)
-		return MODE_NOCLOCK;
+	if ((max(rate, clk_rate) - min(rate, clk_rate) < diff) && (rate > 0))
+		return MODE_OK;
 
-	return MODE_OK;
+	return MODE_NOCLOCK;
 }
 
 static void arc_pgu_crtc_mode_set_nofb(struct drm_crtc *crtc)
