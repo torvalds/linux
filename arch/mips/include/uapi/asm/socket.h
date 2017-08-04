@@ -120,4 +120,6 @@
 
 #define SO_PEERGROUPS		59
 
+#define SO_ZEROCOPY		60
+
 #endif /* _UAPI_ASM_SOCKET_H */
