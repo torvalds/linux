@@ -39,12 +39,6 @@ enum dss_feat_id {
 	/* Independent core clk divider */
 	FEAT_CORE_CLK_DIV,
 	FEAT_LCD_CLK_SRC,
-	/* DSI-PLL power command 0x3 is not working */
-	FEAT_DSI_PLL_PWR_BUG,
-	FEAT_DSI_DCS_CMD_CONFIG_VC,
-	FEAT_DSI_VC_OCP_WIDTH,
-	FEAT_DSI_REVERSE_TXCLKESC,
-	FEAT_DSI_GNQ,
 	FEAT_DPI_USES_VDDS_DSI,
 	FEAT_HDMI_CTS_SWMODE,
 	FEAT_HDMI_AUDIO_USE_MCLK,
@@ -59,7 +53,6 @@ enum dss_feat_id {
 	/* An unknown HW bug causing the normal FIFO thresholds not to work */
 	FEAT_OMAP3_DSI_FIFO_BUG,
 	FEAT_BURST_2D,
-	FEAT_DSI_PHY_DCC,
 	FEAT_MFLAG,
 };
 
