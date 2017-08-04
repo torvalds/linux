@@ -190,6 +190,7 @@ static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
 {
 	struct dsa_switch_tree *dst = dev->dsa_ptr;
 	struct sk_buff *nskb = NULL;
+	struct pcpu_sw_netstats *s;
 	struct dsa_slave_priv *p;
 
 	if (unlikely(dst == NULL)) {
@@ -213,10 +214,11 @@ static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
 	skb->pkt_type = PACKET_HOST;
 	skb->protocol = eth_type_trans(skb, skb->dev);
 
-	u64_stats_update_begin(&p->stats64.syncp);
-	p->stats64.rx_packets++;
-	p->stats64.rx_bytes += skb->len;
-	u64_stats_update_end(&p->stats64.syncp);
+	s = this_cpu_ptr(p->stats64);
+	u64_stats_update_begin(&s->syncp);
+	s->rx_packets++;
+	s->rx_bytes += skb->len;
+	u64_stats_update_end(&s->syncp);
 
 	netif_receive_skb(skb);
 
