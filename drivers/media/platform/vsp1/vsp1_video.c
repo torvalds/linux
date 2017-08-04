@@ -822,6 +822,20 @@ static int vsp1_video_setup_pipeline(struct vsp1_pipeline *pipe)
 	return 0;
 }
 
+static void vsp1_video_cleanup_pipeline(struct vsp1_pipeline *pipe)
+{
+	struct vsp1_video *video = pipe->output->video;
+	struct vsp1_vb2_buffer *buffer;
+	unsigned long flags;
+
+	/* Remove all buffers from the IRQ queue. */
+	spin_lock_irqsave(&video->irqlock, flags);
+	list_for_each_entry(buffer, &video->irqqueue, queue)
+		vb2_buffer_done(&buffer->buf.vb2_buf, VB2_BUF_STATE_ERROR);
+	INIT_LIST_HEAD(&video->irqqueue);
+	spin_unlock_irqrestore(&video->irqlock, flags);
+}
+
 static int vsp1_video_start_streaming(struct vb2_queue *vq, unsigned int count)
 {
 	struct vsp1_video *video = vb2_get_drv_priv(vq);
@@ -835,6 +849,7 @@ static int vsp1_video_start_streaming(struct vb2_queue *vq, unsigned int count)
 		ret = vsp1_video_setup_pipeline(pipe);
 		if (ret < 0) {
 			mutex_unlock(&pipe->lock);
+			vsp1_video_cleanup_pipeline(pipe);
 			return ret;
 		}
 
@@ -866,7 +881,6 @@ static void vsp1_video_stop_streaming(struct vb2_queue *vq)
 {
 	struct vsp1_video *video = vb2_get_drv_priv(vq);
 	struct vsp1_pipeline *pipe = video->rwpf->pipe;
-	struct vsp1_vb2_buffer *buffer;
 	unsigned long flags;
 	int ret;
 
@@ -891,14 +905,8 @@ static void vsp1_video_stop_streaming(struct vb2_queue *vq)
 	mutex_unlock(&pipe->lock);
 
 	media_pipeline_stop(&video->video.entity);
+	vsp1_video_cleanup_pipeline(pipe);
 	vsp1_video_pipeline_put(pipe);
-
-	/* Remove all buffers from the IRQ queue. */
-	spin_lock_irqsave(&video->irqlock, flags);
-	list_for_each_entry(buffer, &video->irqqueue, queue)
-		vb2_buffer_done(&buffer->buf.vb2_buf, VB2_BUF_STATE_ERROR);
-	INIT_LIST_HEAD(&video->irqqueue);
-	spin_unlock_irqrestore(&video->irqlock, flags);
 }
 
 static const struct vb2_ops vsp1_video_queue_qops = {
