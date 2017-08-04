@@ -2169,9 +2169,6 @@ static noinline int btrfs_ioctl_tree_search_v2(struct file *file,
 
 	buf_size = args.buf_size;
 
-	if (buf_size < sizeof(struct btrfs_ioctl_search_header))
-		return -EOVERFLOW;
-
 	/* limit result size to 16MB */
 	if (buf_size > buf_limit)
 		buf_size = buf_limit;
