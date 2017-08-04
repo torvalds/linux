@@ -465,10 +465,12 @@ static int perf_test__list(int argc, const char **argv)
 	int i = 0;
 
 	for_each_test(j, t) {
+		++i;
+
 		if (argc > 1 && !strstr(t->desc, argv[1]))
 			continue;
 
-		pr_info("%2d: %s\n", ++i, t->desc);
+		pr_info("%2d: %s\n", i, t->desc);
 	}
 
 	return 0;
