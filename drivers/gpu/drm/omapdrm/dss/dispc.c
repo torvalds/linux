@@ -2736,7 +2736,7 @@ static int dispc_ovl_enable(enum omap_plane_id plane, bool enable)
 
 static enum omap_dss_output_id dispc_mgr_get_supported_outputs(enum omap_channel channel)
 {
-	return dss_feat_get_supported_outputs(channel);
+	return dss_get_supported_outputs(channel);
 }
 
 static void dispc_lcd_enable_signal_polarity(bool act_high)

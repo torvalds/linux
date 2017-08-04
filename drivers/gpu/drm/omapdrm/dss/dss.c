@@ -86,6 +86,7 @@ struct dss_features {
 	const char *parent_clk_name;
 	const enum omap_display_type *ports;
 	int num_ports;
+	const enum omap_dss_output_id *outputs;
 	const struct dss_ops *ops;
 	struct dss_reg_field dispc_clk_switch;
 	bool has_lcd_clk_src;
@@ -150,8 +151,7 @@ static void dss_save_context(void)
 
 	SR(CONTROL);
 
-	if (dss_feat_get_supported_outputs(OMAP_DSS_CHANNEL_LCD) &
-			OMAP_DSS_OUTPUT_SDI) {
+	if (dss.feat->outputs[OMAP_DSS_CHANNEL_LCD] & OMAP_DSS_OUTPUT_SDI) {
 		SR(SDI_CONTROL);
 		SR(PLL_CONTROL);
 	}
@@ -170,8 +170,7 @@ static void dss_restore_context(void)
 
 	RR(CONTROL);
 
-	if (dss_feat_get_supported_outputs(OMAP_DSS_CHANNEL_LCD) &
-			OMAP_DSS_OUTPUT_SDI) {
+	if (dss.feat->outputs[OMAP_DSS_CHANNEL_LCD] & OMAP_DSS_OUTPUT_SDI) {
 		RR(SDI_CONTROL);
 		RR(PLL_CONTROL);
 	}
@@ -401,8 +400,7 @@ static void dss_dump_regs(struct seq_file *s)
 	DUMPREG(DSS_SYSSTATUS);
 	DUMPREG(DSS_CONTROL);
 
-	if (dss_feat_get_supported_outputs(OMAP_DSS_CHANNEL_LCD) &
-			OMAP_DSS_OUTPUT_SDI) {
+	if (dss.feat->outputs[OMAP_DSS_CHANNEL_LCD] & OMAP_DSS_OUTPUT_SDI) {
 		DUMPREG(DSS_SDI_CONTROL);
 		DUMPREG(DSS_PLL_CONTROL);
 		DUMPREG(DSS_SDI_STATUS);
@@ -687,6 +685,11 @@ unsigned long dss_get_max_fck_rate(void)
 	return dss.feat->fck_freq_max;
 }
 
+enum omap_dss_output_id dss_get_supported_outputs(enum omap_channel channel)
+{
+	return dss.feat->outputs[channel];
+}
+
 static int dss_setup_default_clock(void)
 {
 	unsigned long max_dss_fck, prate;
@@ -737,7 +740,7 @@ void dss_select_hdmi_venc_clk_source(enum dss_hdmi_venc_clk_source_select src)
 {
 	enum omap_dss_output_id outputs;
 
-	outputs = dss_feat_get_supported_outputs(OMAP_DSS_CHANNEL_DIGIT);
+	outputs = dss.feat->outputs[OMAP_DSS_CHANNEL_DIGIT];
 
 	/* Complain about invalid selections */
 	WARN_ON((src == DSS_VENC_TV_CLK) && !(outputs & OMAP_DSS_OUTPUT_VENC));
@@ -753,7 +756,7 @@ enum dss_hdmi_venc_clk_source_select dss_get_hdmi_venc_clk_source(void)
 {
 	enum omap_dss_output_id outputs;
 
-	outputs = dss_feat_get_supported_outputs(OMAP_DSS_CHANNEL_DIGIT);
+	outputs = dss.feat->outputs[OMAP_DSS_CHANNEL_DIGIT];
 	if ((outputs & OMAP_DSS_OUTPUT_HDMI) == 0)
 		return DSS_VENC_TV_CLK;
 
@@ -1004,6 +1007,66 @@ static const enum omap_display_type dra7xx_ports[] = {
 	OMAP_DISPLAY_TYPE_DPI,
 };
 
+static const enum omap_dss_output_id omap2_dss_supported_outputs[] = {
+	/* OMAP_DSS_CHANNEL_LCD */
+	OMAP_DSS_OUTPUT_DPI | OMAP_DSS_OUTPUT_DBI,
+
+	/* OMAP_DSS_CHANNEL_DIGIT */
+	OMAP_DSS_OUTPUT_VENC,
+};
+
+static const enum omap_dss_output_id omap3430_dss_supported_outputs[] = {
+	/* OMAP_DSS_CHANNEL_LCD */
+	OMAP_DSS_OUTPUT_DPI | OMAP_DSS_OUTPUT_DBI |
+	OMAP_DSS_OUTPUT_SDI | OMAP_DSS_OUTPUT_DSI1,
+
+	/* OMAP_DSS_CHANNEL_DIGIT */
+	OMAP_DSS_OUTPUT_VENC,
+};
+
+static const enum omap_dss_output_id omap3630_dss_supported_outputs[] = {
+	/* OMAP_DSS_CHANNEL_LCD */
+	OMAP_DSS_OUTPUT_DPI | OMAP_DSS_OUTPUT_DBI |
+	OMAP_DSS_OUTPUT_DSI1,
+
+	/* OMAP_DSS_CHANNEL_DIGIT */
+	OMAP_DSS_OUTPUT_VENC,
+};
+
+static const enum omap_dss_output_id am43xx_dss_supported_outputs[] = {
+	/* OMAP_DSS_CHANNEL_LCD */
+	OMAP_DSS_OUTPUT_DPI | OMAP_DSS_OUTPUT_DBI,
+};
+
+static const enum omap_dss_output_id omap4_dss_supported_outputs[] = {
+	/* OMAP_DSS_CHANNEL_LCD */
+	OMAP_DSS_OUTPUT_DBI | OMAP_DSS_OUTPUT_DSI1,
+
+	/* OMAP_DSS_CHANNEL_DIGIT */
+	OMAP_DSS_OUTPUT_VENC | OMAP_DSS_OUTPUT_HDMI,
+
+	/* OMAP_DSS_CHANNEL_LCD2 */
+	OMAP_DSS_OUTPUT_DPI | OMAP_DSS_OUTPUT_DBI |
+	OMAP_DSS_OUTPUT_DSI2,
+};
+
+static const enum omap_dss_output_id omap5_dss_supported_outputs[] = {
+	/* OMAP_DSS_CHANNEL_LCD */
+	OMAP_DSS_OUTPUT_DPI | OMAP_DSS_OUTPUT_DBI |
+	OMAP_DSS_OUTPUT_DSI1 | OMAP_DSS_OUTPUT_DSI2,
+
+	/* OMAP_DSS_CHANNEL_DIGIT */
+	OMAP_DSS_OUTPUT_HDMI,
+
+	/* OMAP_DSS_CHANNEL_LCD2 */
+	OMAP_DSS_OUTPUT_DPI | OMAP_DSS_OUTPUT_DBI |
+	OMAP_DSS_OUTPUT_DSI1,
+
+	/* OMAP_DSS_CHANNEL_LCD3 */
+	OMAP_DSS_OUTPUT_DPI | OMAP_DSS_OUTPUT_DBI |
+	OMAP_DSS_OUTPUT_DSI2,
+};
+
 static const struct dss_features omap24xx_dss_feats = {
 	.model			=	DSS_MODEL_OMAP2,
 	/*
@@ -1016,6 +1079,7 @@ static const struct dss_features omap24xx_dss_feats = {
 	.parent_clk_name	=	"core_ck",
 	.ports			=	omap2plus_ports,
 	.num_ports		=	ARRAY_SIZE(omap2plus_ports),
+	.outputs		=	omap2_dss_supported_outputs,
 	.ops			=	&dss_ops_omap2_omap3,
 	.dispc_clk_switch	=	{ 0, 0 },
 	.has_lcd_clk_src	=	false,
@@ -1028,6 +1092,7 @@ static const struct dss_features omap34xx_dss_feats = {
 	.dss_fck_multiplier	=	2,
 	.parent_clk_name	=	"dpll4_ck",
 	.ports			=	omap34xx_ports,
+	.outputs		=	omap3430_dss_supported_outputs,
 	.num_ports		=	ARRAY_SIZE(omap34xx_ports),
 	.ops			=	&dss_ops_omap2_omap3,
 	.dispc_clk_switch	=	{ 0, 0 },
@@ -1042,6 +1107,7 @@ static const struct dss_features omap3630_dss_feats = {
 	.parent_clk_name	=	"dpll4_ck",
 	.ports			=	omap2plus_ports,
 	.num_ports		=	ARRAY_SIZE(omap2plus_ports),
+	.outputs		=	omap3630_dss_supported_outputs,
 	.ops			=	&dss_ops_omap2_omap3,
 	.dispc_clk_switch	=	{ 0, 0 },
 	.has_lcd_clk_src	=	false,
@@ -1055,6 +1121,7 @@ static const struct dss_features omap44xx_dss_feats = {
 	.parent_clk_name	=	"dpll_per_x2_ck",
 	.ports			=	omap2plus_ports,
 	.num_ports		=	ARRAY_SIZE(omap2plus_ports),
+	.outputs		=	omap4_dss_supported_outputs,
 	.ops			=	&dss_ops_omap4,
 	.dispc_clk_switch	=	{ 9, 8 },
 	.has_lcd_clk_src	=	true,
@@ -1068,6 +1135,7 @@ static const struct dss_features omap54xx_dss_feats = {
 	.parent_clk_name	=	"dpll_per_x2_ck",
 	.ports			=	omap2plus_ports,
 	.num_ports		=	ARRAY_SIZE(omap2plus_ports),
+	.outputs		=	omap5_dss_supported_outputs,
 	.ops			=	&dss_ops_omap5,
 	.dispc_clk_switch	=	{ 9, 7 },
 	.has_lcd_clk_src	=	true,
@@ -1081,6 +1149,7 @@ static const struct dss_features am43xx_dss_feats = {
 	.parent_clk_name	=	NULL,
 	.ports			=	omap2plus_ports,
 	.num_ports		=	ARRAY_SIZE(omap2plus_ports),
+	.outputs		=	am43xx_dss_supported_outputs,
 	.ops			=	&dss_ops_omap2_omap3,
 	.dispc_clk_switch	=	{ 0, 0 },
 	.has_lcd_clk_src	=	true,
@@ -1094,6 +1163,7 @@ static const struct dss_features dra7xx_dss_feats = {
 	.parent_clk_name	=	"dpll_per_x2_ck",
 	.ports			=	dra7xx_ports,
 	.num_ports		=	ARRAY_SIZE(dra7xx_ports),
+	.outputs		=	omap5_dss_supported_outputs,
 	.ops			=	&dss_ops_dra7,
 	.dispc_clk_switch	=	{ 9, 7 },
 	.has_lcd_clk_src	=	true,
