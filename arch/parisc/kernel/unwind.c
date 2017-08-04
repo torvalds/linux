@@ -34,7 +34,7 @@
 extern struct unwind_table_entry __start___unwind[];
 extern struct unwind_table_entry __stop___unwind[];
 
-static spinlock_t unwind_lock;
+static DEFINE_SPINLOCK(unwind_lock);
 /*
  * the kernel unwind block is not dynamically allocated so that
  * we can call unwind_init as early in the bootup process as 
@@ -180,8 +180,6 @@ int __init unwind_init(void)
 
 	start = (long)&__start___unwind[0];
 	stop = (long)&__stop___unwind[0];
-
-	spin_lock_init(&unwind_lock);
 
 	printk("unwind_init: start = 0x%lx, end = 0x%lx, entries = %lu\n", 
 	    start, stop,
