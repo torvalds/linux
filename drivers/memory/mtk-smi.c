@@ -42,6 +42,7 @@
 #define SMI_SECUR_CON_VAL_DOMAIN(id)	(0x3 << ((((id) & 0x7) << 2) + 1))
 
 struct mtk_smi_larb_gen {
+	bool need_larbid;
 	int port_in_larb[MTK_LARB_NR_MAX + 1];
 	void (*config_port)(struct device *);
 };
@@ -214,6 +215,7 @@ static const struct mtk_smi_larb_gen mtk_smi_larb_mt8173 = {
 };
 
 static const struct mtk_smi_larb_gen mtk_smi_larb_mt2701 = {
+	.need_larbid = true,
 	.port_in_larb = {
 		LARB0_PORT_OFFSET, LARB1_PORT_OFFSET,
 		LARB2_PORT_OFFSET, LARB3_PORT_OFFSET
@@ -240,6 +242,7 @@ static int mtk_smi_larb_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *smi_node;
 	struct platform_device *smi_pdev;
+	int err;
 
 	if (!dev->pm_domain)
 		return -EPROBE_DEFER;
@@ -262,6 +265,15 @@ static int mtk_smi_larb_probe(struct platform_device *pdev)
 	if (IS_ERR(larb->smi.clk_smi))
 		return PTR_ERR(larb->smi.clk_smi);
 	larb->smi.dev = dev;
+
+	if (larb->larb_gen->need_larbid) {
+		err = of_property_read_u32(dev->of_node, "mediatek,larb-id",
+					   &larb->larbid);
+		if (err) {
+			dev_err(dev, "missing larbid property\n");
+			return err;
+		}
+	}
 
 	smi_node = of_parse_phandle(dev->of_node, "mediatek,smi", 0);
 	if (!smi_node)
