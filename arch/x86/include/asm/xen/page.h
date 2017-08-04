@@ -158,9 +158,6 @@ static inline unsigned long mfn_to_pfn_no_overrides(unsigned long mfn)
 	unsigned long pfn;
 	int ret;
 
-	if (xen_feature(XENFEAT_auto_translated_physmap))
-		return mfn;
-
 	if (unlikely(mfn >= machine_to_phys_nr))
 		return ~0;
 
