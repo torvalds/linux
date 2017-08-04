@@ -242,13 +242,6 @@ struct omap_dss_dsi_config {
 	enum omap_dss_dsi_trans_mode trans_mode;
 };
 
-/* Hardcoded videomodes for tv. Venc only uses these to
- * identify the mode, and does not actually use the configs
- * itself. However, the configs should be something that
- * a normal monitor can also show */
-extern const struct videomode omap_dss_pal_vm;
-extern const struct videomode omap_dss_ntsc_vm;
-
 struct omap_dss_cpr_coefs {
 	s16 rr, rg, rb;
 	s16 gr, gg, gb;

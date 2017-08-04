@@ -263,7 +263,7 @@ static const struct venc_config venc_config_pal_bdghi = {
 	.fid_ext_start_y__fid_ext_offset_y	= 0x01380005,
 };
 
-const struct videomode omap_dss_pal_vm = {
+static const struct videomode omap_dss_pal_vm = {
 	.hactive	= 720,
 	.vactive	= 574,
 	.pixelclock	= 13500000,
@@ -279,9 +279,8 @@ const struct videomode omap_dss_pal_vm = {
 			  DISPLAY_FLAGS_PIXDATA_POSEDGE |
 			  DISPLAY_FLAGS_SYNC_NEGEDGE,
 };
-EXPORT_SYMBOL(omap_dss_pal_vm);
 
-const struct videomode omap_dss_ntsc_vm = {
+static const struct videomode omap_dss_ntsc_vm = {
 	.hactive	= 720,
 	.vactive	= 482,
 	.pixelclock	= 13500000,
@@ -297,7 +296,6 @@ const struct videomode omap_dss_ntsc_vm = {
 			  DISPLAY_FLAGS_PIXDATA_POSEDGE |
 			  DISPLAY_FLAGS_SYNC_NEGEDGE,
 };
-EXPORT_SYMBOL(omap_dss_ntsc_vm);
 
 static struct {
 	struct platform_device *pdev;
