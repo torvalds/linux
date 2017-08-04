@@ -6785,13 +6785,17 @@ static void wait_for_freeze_status(struct hfi1_devdata *dd, int freeze)
 static void rxe_freeze(struct hfi1_devdata *dd)
 {
 	int i;
+	struct hfi1_ctxtdata *rcd;
 
 	/* disable port */
 	clear_rcvctrl(dd, RCV_CTRL_RCV_PORT_ENABLE_SMASK);
 
 	/* disable all receive contexts */
-	for (i = 0; i < dd->num_rcv_contexts; i++)
-		hfi1_rcvctrl(dd, HFI1_RCVCTRL_CTXT_DIS, dd->rcd[i]);
+	for (i = 0; i < dd->num_rcv_contexts; i++) {
+		rcd = hfi1_rcd_get_by_index(dd, i);
+		hfi1_rcvctrl(dd, HFI1_RCVCTRL_CTXT_DIS, rcd);
+		hfi1_rcd_put(rcd);
+	}
 }
 
 /*
@@ -6804,20 +6808,23 @@ static void rxe_kernel_unfreeze(struct hfi1_devdata *dd)
 {
 	u32 rcvmask;
 	u16 i;
+	struct hfi1_ctxtdata *rcd;
 
 	/* enable all kernel contexts */
 	for (i = 0; i < dd->num_rcv_contexts; i++) {
-		struct hfi1_ctxtdata *rcd = dd->rcd[i];
+		rcd = hfi1_rcd_get_by_index(dd, i);
 
 		/* Ensure all non-user contexts(including vnic) are enabled */
-		if (!rcd || !rcd->sc || (rcd->sc->type == SC_USER))
+		if (!rcd || !rcd->sc || (rcd->sc->type == SC_USER)) {
+			hfi1_rcd_put(rcd);
 			continue;
-
+		}
 		rcvmask = HFI1_RCVCTRL_CTXT_ENB;
 		/* HFI1_RCVCTRL_TAILUPD_[ENB|DIS] needs to be set explicitly */
 		rcvmask |= HFI1_CAP_KGET_MASK(rcd->flags, DMA_RTAIL) ?
 			HFI1_RCVCTRL_TAILUPD_ENB : HFI1_RCVCTRL_TAILUPD_DIS;
 		hfi1_rcvctrl(dd, rcvmask, rcd);
+		hfi1_rcd_put(rcd);
 	}
 
 	/* enable port */
@@ -8104,7 +8111,7 @@ static void is_rcv_avail_int(struct hfi1_devdata *dd, unsigned int source)
 	char *err_detail;
 
 	if (likely(source < dd->num_rcv_contexts)) {
-		rcd = dd->rcd[source];
+		rcd = hfi1_rcd_get_by_index(dd, source);
 		if (rcd) {
 			/* Check for non-user contexts, including vnic */
 			if ((source < dd->first_dyn_alloc_ctxt) ||
@@ -8112,6 +8119,8 @@ static void is_rcv_avail_int(struct hfi1_devdata *dd, unsigned int source)
 				rcd->do_interrupt(rcd, 0);
 			else
 				handle_user_interrupt(rcd);
+
+			hfi1_rcd_put(rcd);
 			return;	/* OK */
 		}
 		/* received an interrupt, but no rcd */
@@ -8133,12 +8142,14 @@ static void is_rcv_urgent_int(struct hfi1_devdata *dd, unsigned int source)
 	char *err_detail;
 
 	if (likely(source < dd->num_rcv_contexts)) {
-		rcd = dd->rcd[source];
+		rcd = hfi1_rcd_get_by_index(dd, source);
 		if (rcd) {
 			/* only pay attention to user urgent interrupts */
 			if ((source >= dd->first_dyn_alloc_ctxt) &&
 			    (!rcd->sc || (rcd->sc->type == SC_USER)))
 				handle_user_interrupt(rcd);
+
+			hfi1_rcd_put(rcd);
 			return;	/* OK */
 		}
 		/* received an interrupt, but no rcd */
@@ -8343,7 +8354,7 @@ static irqreturn_t receive_context_interrupt(int irq, void *data)
 	int disposition;
 	int present;
 
-	trace_hfi1_receive_interrupt(dd, rcd->ctxt);
+	trace_hfi1_receive_interrupt(dd, rcd);
 	this_cpu_inc(*dd->int_counter);
 	aspm_ctx_disable(rcd);
 
@@ -13030,7 +13041,7 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 			me->type = IRQ_SDMA;
 		} else if (first_rx <= i && i < last_rx) {
 			idx = i - first_rx;
-			rcd = dd->rcd[idx];
+			rcd = hfi1_rcd_get_by_index(dd, idx);
 			if (rcd) {
 				/*
 				 * Set the interrupt register and mask for this
@@ -13049,6 +13060,7 @@ static int request_msix_irqs(struct hfi1_devdata *dd)
 				remap_intr(dd, IS_RCVAVAIL_START + idx, i);
 				me->type = IRQ_RCVCTXT;
 				rcd->msix_intr = i;
+				hfi1_rcd_put(rcd);
 			}
 		} else {
 			/* not in our expected range - complain, then

@@ -114,24 +114,24 @@ TRACE_EVENT(hfi1_rcvhdr,
 );
 
 TRACE_EVENT(hfi1_receive_interrupt,
-	    TP_PROTO(struct hfi1_devdata *dd, u16 ctxt),
-	    TP_ARGS(dd, ctxt),
+	    TP_PROTO(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd),
+	    TP_ARGS(dd, rcd),
 	    TP_STRUCT__entry(DD_DEV_ENTRY(dd)
 			     __field(u32, ctxt)
 			     __field(u8, slow_path)
 			     __field(u8, dma_rtail)
 			     ),
 	    TP_fast_assign(DD_DEV_ASSIGN(dd);
-			__entry->ctxt = ctxt;
-			if (dd->rcd[ctxt]->do_interrupt ==
+			__entry->ctxt = rcd->ctxt;
+			if (rcd->do_interrupt ==
 			    &handle_receive_interrupt) {
 				__entry->slow_path = 1;
 				__entry->dma_rtail = 0xFF;
-			} else if (dd->rcd[ctxt]->do_interrupt ==
+			} else if (rcd->do_interrupt ==
 					&handle_receive_interrupt_dma_rtail){
 				__entry->dma_rtail = 1;
 				__entry->slow_path = 0;
-			} else if (dd->rcd[ctxt]->do_interrupt ==
+			} else if (rcd->do_interrupt ==
 					&handle_receive_interrupt_nodma_rtail) {
 				__entry->dma_rtail = 0;
 				__entry->slow_path = 0;

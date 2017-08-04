@@ -146,11 +146,7 @@ static int allocate_vnic_ctxt(struct hfi1_devdata *dd,
 
 	return ret;
 bail:
-	/*
-	 * hfi1_free_ctxt() will call hfi1_free_ctxtdata(), which will
-	 * release send_context structure if uctxt->sc is not null
-	 */
-	hfi1_free_ctxt(dd, uctxt);
+	hfi1_free_ctxt(uctxt);
 	dd_dev_dbg(dd, "vnic allocation failed. rc %d\n", ret);
 	return ret;
 }
@@ -158,15 +154,12 @@ bail:
 static void deallocate_vnic_ctxt(struct hfi1_devdata *dd,
 				 struct hfi1_ctxtdata *uctxt)
 {
-	unsigned long flags;
-
 	dd_dev_dbg(dd, "closing vnic context %d\n", uctxt->ctxt);
 	flush_wc();
 
 	if (dd->num_msix_entries)
 		hfi1_reset_vnic_msix_info(uctxt);
 
-	spin_lock_irqsave(&dd->uctxt_lock, flags);
 	/*
 	 * Disable receive context and interrupt available, reset all
 	 * RcvCtxtCtrl bits to default values.
@@ -189,7 +182,6 @@ static void deallocate_vnic_ctxt(struct hfi1_devdata *dd,
 	sc_disable(uctxt->sc);
 
 	dd->send_contexts[uctxt->sc->sw_index].type = SC_USER;
-	spin_unlock_irqrestore(&dd->uctxt_lock, flags);
 
 	uctxt->event_flags = 0;
 
@@ -198,7 +190,7 @@ static void deallocate_vnic_ctxt(struct hfi1_devdata *dd,
 
 	hfi1_stats.sps_ctxts--;
 
-	hfi1_free_ctxt(dd, uctxt);
+	hfi1_free_ctxt(uctxt);
 }
 
 void hfi1_vnic_setup(struct hfi1_devdata *dd)

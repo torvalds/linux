@@ -839,6 +839,7 @@ bail:
 
 static inline void set_nodma_rtail(struct hfi1_devdata *dd, u16 ctxt)
 {
+	struct hfi1_ctxtdata *rcd;
 	u16 i;
 
 	/*
@@ -847,18 +848,27 @@ static inline void set_nodma_rtail(struct hfi1_devdata *dd, u16 ctxt)
 	 * interrupt handler for all statically allocated kernel contexts.
 	 */
 	if (ctxt >= dd->first_dyn_alloc_ctxt) {
-		dd->rcd[ctxt]->do_interrupt =
-			&handle_receive_interrupt_nodma_rtail;
+		rcd = hfi1_rcd_get_by_index(dd, ctxt);
+		if (rcd) {
+			rcd->do_interrupt =
+				&handle_receive_interrupt_nodma_rtail;
+			hfi1_rcd_put(rcd);
+		}
 		return;
 	}
 
-	for (i = HFI1_CTRL_CTXT + 1; i < dd->first_dyn_alloc_ctxt; i++)
-		dd->rcd[i]->do_interrupt =
-			&handle_receive_interrupt_nodma_rtail;
+	for (i = HFI1_CTRL_CTXT + 1; i < dd->first_dyn_alloc_ctxt; i++) {
+		rcd = hfi1_rcd_get_by_index(dd, i);
+		if (rcd)
+			rcd->do_interrupt =
+				&handle_receive_interrupt_nodma_rtail;
+		hfi1_rcd_put(rcd);
+	}
 }
 
 static inline void set_dma_rtail(struct hfi1_devdata *dd, u16 ctxt)
 {
+	struct hfi1_ctxtdata *rcd;
 	u16 i;
 
 	/*
@@ -867,27 +877,39 @@ static inline void set_dma_rtail(struct hfi1_devdata *dd, u16 ctxt)
 	 * interrupt handler for all statically allocated kernel contexts.
 	 */
 	if (ctxt >= dd->first_dyn_alloc_ctxt) {
-		dd->rcd[ctxt]->do_interrupt =
-			&handle_receive_interrupt_dma_rtail;
+		rcd = hfi1_rcd_get_by_index(dd, ctxt);
+		if (rcd) {
+			rcd->do_interrupt =
+				&handle_receive_interrupt_dma_rtail;
+			hfi1_rcd_put(rcd);
+		}
 		return;
 	}
 
-	for (i = HFI1_CTRL_CTXT + 1; i < dd->first_dyn_alloc_ctxt; i++)
-		dd->rcd[i]->do_interrupt =
-			&handle_receive_interrupt_dma_rtail;
+	for (i = HFI1_CTRL_CTXT + 1; i < dd->first_dyn_alloc_ctxt; i++) {
+		rcd = hfi1_rcd_get_by_index(dd, i);
+		if (rcd)
+			rcd->do_interrupt =
+				&handle_receive_interrupt_dma_rtail;
+		hfi1_rcd_put(rcd);
+	}
 }
 
 void set_all_slowpath(struct hfi1_devdata *dd)
 {
+	struct hfi1_ctxtdata *rcd;
 	u16 i;
 
 	/* HFI1_CTRL_CTXT must always use the slow path interrupt handler */
 	for (i = HFI1_CTRL_CTXT + 1; i < dd->num_rcv_contexts; i++) {
-		struct hfi1_ctxtdata *rcd = dd->rcd[i];
-
+		rcd = hfi1_rcd_get_by_index(dd, i);
+		if (!rcd)
+			continue;
 		if ((i < dd->first_dyn_alloc_ctxt) ||
-		    (rcd && rcd->sc && (rcd->sc->type == SC_KERNEL)))
+		    (rcd->sc && (rcd->sc->type == SC_KERNEL))) {
 			rcd->do_interrupt = &handle_receive_interrupt;
+		}
+		hfi1_rcd_put(rcd);
 	}
 }
 
@@ -1068,6 +1090,7 @@ void receive_interrupt_work(struct work_struct *work)
 	struct hfi1_pportdata *ppd = container_of(work, struct hfi1_pportdata,
 						  linkstate_active_work);
 	struct hfi1_devdata *dd = ppd->dd;
+	struct hfi1_ctxtdata *rcd;
 	u16 i;
 
 	/* Received non-SC15 packet implies neighbor_normal */
@@ -1078,8 +1101,12 @@ void receive_interrupt_work(struct work_struct *work)
 	 * Interrupt all statically allocated kernel contexts that could
 	 * have had an interrupt during auto activation.
 	 */
-	for (i = HFI1_CTRL_CTXT; i < dd->first_dyn_alloc_ctxt; i++)
-		force_recv_intr(dd->rcd[i]);
+	for (i = HFI1_CTRL_CTXT; i < dd->first_dyn_alloc_ctxt; i++) {
+		rcd = hfi1_rcd_get_by_index(dd, i);
+		if (rcd)
+			force_recv_intr(rcd);
+		hfi1_rcd_put(rcd);
+	}
 }
 
 /*
@@ -1270,10 +1297,8 @@ void hfi1_start_led_override(struct hfi1_pportdata *ppd, unsigned int timeon,
 int hfi1_reset_device(int unit)
 {
 	int ret;
-	u16 i;
 	struct hfi1_devdata *dd = hfi1_lookup(unit);
 	struct hfi1_pportdata *ppd;
-	unsigned long flags;
 	int pidx;
 
 	if (!dd) {
@@ -1291,17 +1316,15 @@ int hfi1_reset_device(int unit)
 		goto bail;
 	}
 
-	spin_lock_irqsave(&dd->uctxt_lock, flags);
+	/* If there are any user/vnic contexts, we cannot reset */
+	mutex_lock(&hfi1_mutex);
 	if (dd->rcd)
-		for (i = dd->first_dyn_alloc_ctxt;
-		     i < dd->num_rcv_contexts; i++) {
-			if (!dd->rcd[i])
-				continue;
-			spin_unlock_irqrestore(&dd->uctxt_lock, flags);
+		if (hfi1_stats.sps_ctxts) {
+			mutex_unlock(&hfi1_mutex);
 			ret = -EBUSY;
 			goto bail;
 		}
-	spin_unlock_irqrestore(&dd->uctxt_lock, flags);
+	mutex_unlock(&hfi1_mutex);
 
 	for (pidx = 0; pidx < dd->num_pports; ++pidx) {
 		ppd = dd->pport + pidx;

@@ -173,12 +173,15 @@ static int _opcode_stats_seq_show(struct seq_file *s, void *v)
 	u64 n_packets = 0, n_bytes = 0;
 	struct hfi1_ibdev *ibd = (struct hfi1_ibdev *)s->private;
 	struct hfi1_devdata *dd = dd_from_dev(ibd);
+	struct hfi1_ctxtdata *rcd;
 
 	for (j = 0; j < dd->first_dyn_alloc_ctxt; j++) {
-		if (!dd->rcd[j])
-			continue;
-		n_packets += dd->rcd[j]->opstats->stats[i].n_packets;
-		n_bytes += dd->rcd[j]->opstats->stats[i].n_bytes;
+		rcd = hfi1_rcd_get_by_index(dd, j);
+		if (rcd) {
+			n_packets += rcd->opstats->stats[i].n_packets;
+			n_bytes += rcd->opstats->stats[i].n_bytes;
+		}
+		hfi1_rcd_put(rcd);
 	}
 	if (!n_packets && !n_bytes)
 		return SEQ_SKIP;
@@ -231,6 +234,7 @@ static int _ctx_stats_seq_show(struct seq_file *s, void *v)
 	u64 n_packets = 0;
 	struct hfi1_ibdev *ibd = (struct hfi1_ibdev *)s->private;
 	struct hfi1_devdata *dd = dd_from_dev(ibd);
+	struct hfi1_ctxtdata *rcd;
 
 	if (v == SEQ_START_TOKEN) {
 		seq_puts(s, "Ctx:npkts\n");
@@ -240,11 +244,14 @@ static int _ctx_stats_seq_show(struct seq_file *s, void *v)
 	spos = v;
 	i = *spos;
 
-	if (!dd->rcd[i])
+	rcd = hfi1_rcd_get_by_index(dd, i);
+	if (!rcd)
 		return SEQ_SKIP;
 
-	for (j = 0; j < ARRAY_SIZE(dd->rcd[i]->opstats->stats); j++)
-		n_packets += dd->rcd[i]->opstats->stats[j].n_packets;
+	for (j = 0; j < ARRAY_SIZE(rcd->opstats->stats); j++)
+		n_packets += rcd->opstats->stats[j].n_packets;
+
+	hfi1_rcd_put(rcd);
 
 	if (!n_packets)
 		return SEQ_SKIP;
@@ -1098,12 +1105,15 @@ static int _fault_stats_seq_show(struct seq_file *s, void *v)
 	u64 n_packets = 0, n_bytes = 0;
 	struct hfi1_ibdev *ibd = (struct hfi1_ibdev *)s->private;
 	struct hfi1_devdata *dd = dd_from_dev(ibd);
+	struct hfi1_ctxtdata *rcd;
 
 	for (j = 0; j < dd->first_dyn_alloc_ctxt; j++) {
-		if (!dd->rcd[j])
-			continue;
-		n_packets += dd->rcd[j]->opstats->stats[i].n_packets;
-		n_bytes += dd->rcd[j]->opstats->stats[i].n_bytes;
+		rcd = hfi1_rcd_get_by_index(dd, j);
+		if (rcd) {
+			n_packets += rcd->opstats->stats[i].n_packets;
+			n_bytes += rcd->opstats->stats[i].n_bytes;
+		}
+		hfi1_rcd_put(rcd);
 	}
 	if (!n_packets && !n_bytes)
 		return SEQ_SKIP;

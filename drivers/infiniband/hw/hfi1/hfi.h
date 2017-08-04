@@ -938,8 +938,7 @@ struct hfi1_devdata {
 	u64 __iomem *egrtidbase;
 	spinlock_t sendctrl_lock; /* protect changes to SendCtrl */
 	spinlock_t rcvctrl_lock; /* protect changes to RcvCtrl */
-	/* around rcd and (user ctxts) ctxt_cnt use (intr vs free) */
-	spinlock_t uctxt_lock; /* rcd and user context changes */
+	spinlock_t uctxt_lock; /* protect rcd changes */
 	struct mutex dc8051_lock; /* exclusive access to 8051 */
 	struct workqueue_struct *update_cntr_wq;
 	struct work_struct update_cntr_work;
@@ -1265,12 +1264,13 @@ int hfi1_setup_eagerbufs(struct hfi1_ctxtdata *rcd);
 int hfi1_create_kctxts(struct hfi1_devdata *dd);
 int hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, int numa,
 			 struct hfi1_ctxtdata **rcd);
-void hfi1_free_ctxt(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd);
+void hfi1_free_ctxt(struct hfi1_ctxtdata *rcd);
 void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
 			 struct hfi1_devdata *dd, u8 hw_pidx, u8 port);
 void hfi1_free_ctxtdata(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd);
 int hfi1_rcd_put(struct hfi1_ctxtdata *rcd);
 void hfi1_rcd_get(struct hfi1_ctxtdata *rcd);
+struct hfi1_ctxtdata *hfi1_rcd_get_by_index(struct hfi1_devdata *dd, u16 ctxt);
 int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread);
 int handle_receive_interrupt_nodma_rtail(struct hfi1_ctxtdata *rcd, int thread);
 int handle_receive_interrupt_dma_rtail(struct hfi1_ctxtdata *rcd, int thread);

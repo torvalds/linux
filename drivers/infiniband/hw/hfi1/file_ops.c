@@ -757,7 +757,7 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 	if (!uctxt)
 		goto done;
 
-	hfi1_cdbg(PROC, "freeing ctxt %u:%u", uctxt->ctxt, fdata->subctxt);
+	hfi1_cdbg(PROC, "closing ctxt %u:%u", uctxt->ctxt, fdata->subctxt);
 
 	flush_wc();
 	/* drain user sdma queue */
@@ -770,6 +770,13 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 	hfi1_user_exp_rcv_free(fdata);
 
 	/*
+	 * fdata->uctxt is used in the above cleanup.  It is not ready to be
+	 * removed until here.
+	 */
+	fdata->uctxt = NULL;
+	hfi1_rcd_put(uctxt);
+
+	/*
 	 * Clear any left over, unhandled events so the next process that
 	 * gets this context doesn't get confused.
 	 */
@@ -777,16 +784,14 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 			   HFI1_MAX_SHARED_CTXTS) + fdata->subctxt;
 	*ev = 0;
 
-	mutex_lock(&hfi1_mutex);
+	spin_lock_irqsave(&dd->uctxt_lock, flags);
 	__clear_bit(fdata->subctxt, uctxt->in_use_ctxts);
-	fdata->uctxt = NULL;
-	hfi1_rcd_put(uctxt); /* fdata reference */
 	if (!bitmap_empty(uctxt->in_use_ctxts, HFI1_MAX_SHARED_CTXTS)) {
-		mutex_unlock(&hfi1_mutex);
+		spin_unlock_irqrestore(&dd->uctxt_lock, flags);
 		goto done;
 	}
+	spin_unlock_irqrestore(&dd->uctxt_lock, flags);
 
-	spin_lock_irqsave(&dd->uctxt_lock, flags);
 	/*
 	 * Disable receive context and interrupt available, reset all
 	 * RcvCtxtCtrl bits to default values.
@@ -808,13 +813,11 @@ static int hfi1_file_close(struct inode *inode, struct file *fp)
 		set_pio_integrity(uctxt->sc);
 		sc_disable(uctxt->sc);
 	}
-	spin_unlock_irqrestore(&dd->uctxt_lock, flags);
 
 	hfi1_free_ctxt_rcv_groups(uctxt);
 	hfi1_clear_ctxt_pkey(dd, uctxt);
 
 	uctxt->event_flags = 0;
-	mutex_unlock(&hfi1_mutex);
 
 	deallocate_ctxt(uctxt);
 done:
@@ -844,9 +847,22 @@ static u64 kvirt_to_phys(void *addr)
 	return paddr;
 }
 
+/**
+ * complete_subctxt
+ * @fd: valid filedata pointer
+ *
+ * Sub-context info can only be set up after the base context
+ * has been completed.  This is indicated by the clearing of the
+ * HFI1_CTXT_BASE_UINIT bit.
+ *
+ * Wait for the bit to be cleared, and then complete the subcontext
+ * initialization.
+ *
+ */
 static int complete_subctxt(struct hfi1_filedata *fd)
 {
 	int ret;
+	unsigned long flags;
 
 	/*
 	 * sub-context info can only be set up after the base context
@@ -859,7 +875,7 @@ static int complete_subctxt(struct hfi1_filedata *fd)
 	if (test_bit(HFI1_CTXT_BASE_FAILED, &fd->uctxt->event_flags))
 		ret = -ENOMEM;
 
-	/* The only thing a sub context needs is the user_xxx stuff */
+	/* Finish the sub-context init */
 	if (!ret) {
 		fd->rec_cpu_num = hfi1_get_proc_affinity(fd->uctxt->numa_id);
 		ret = init_user_ctxt(fd, fd->uctxt);
@@ -868,9 +884,9 @@ static int complete_subctxt(struct hfi1_filedata *fd)
 	if (ret) {
 		hfi1_rcd_put(fd->uctxt);
 		fd->uctxt = NULL;
-		mutex_lock(&hfi1_mutex);
+		spin_lock_irqsave(&fd->dd->uctxt_lock, flags);
 		__clear_bit(fd->subctxt, fd->uctxt->in_use_ctxts);
-		mutex_unlock(&hfi1_mutex);
+		spin_unlock_irqrestore(&fd->dd->uctxt_lock, flags);
 	}
 
 	return ret;
@@ -911,14 +927,15 @@ static int assign_ctxt(struct hfi1_filedata *fd, struct hfi1_user_info *uinfo)
 
 	mutex_unlock(&hfi1_mutex);
 
-	/* Depending on the context type, do the appropriate init */
+	/* Depending on the context type, finish the appropriate init */
 	switch (ret) {
 	case 0:
 		ret = setup_base_ctxt(fd, uctxt);
 		if (uctxt->subctxt_cnt) {
 			/*
-			 * Base context is done, notify anybody using a
-			 * sub-context that is waiting for this completion
+			 * Base context is done (successfully or not), notify
+			 * anybody using a sub-context that is waiting for
+			 * this completion.
 			 */
 			clear_bit(HFI1_CTXT_BASE_UNINIT, &uctxt->event_flags);
 			wake_up(&uctxt->wait);
@@ -934,58 +951,97 @@ static int assign_ctxt(struct hfi1_filedata *fd, struct hfi1_user_info *uinfo)
 	return ret;
 }
 
-/*
+/**
+ * match_ctxt
+ * @fd: valid filedata pointer
+ * @uinfo: user info to compare base context with
+ * @uctxt: context to compare uinfo to.
+ *
+ * Compare the given context with the given information to see if it
+ * can be used for a sub context.
+ */
+static int match_ctxt(struct hfi1_filedata *fd,
+		      const struct hfi1_user_info *uinfo,
+		      struct hfi1_ctxtdata *uctxt)
+{
+	struct hfi1_devdata *dd = fd->dd;
+	unsigned long flags;
+	u16 subctxt;
+
+	/* Skip dynamically allocated kernel contexts */
+	if (uctxt->sc && (uctxt->sc->type == SC_KERNEL))
+		return 0;
+
+	/* Skip ctxt if it doesn't match the requested one */
+	if (memcmp(uctxt->uuid, uinfo->uuid, sizeof(uctxt->uuid)) ||
+	    uctxt->jkey != generate_jkey(current_uid()) ||
+	    uctxt->subctxt_id != uinfo->subctxt_id ||
+	    uctxt->subctxt_cnt != uinfo->subctxt_cnt)
+		return 0;
+
+	/* Verify the sharing process matches the base */
+	if (uctxt->userversion != uinfo->userversion)
+		return -EINVAL;
+
+	/* Find an unused sub context */
+	spin_lock_irqsave(&dd->uctxt_lock, flags);
+	if (bitmap_empty(uctxt->in_use_ctxts, HFI1_MAX_SHARED_CTXTS)) {
+		/* context is being closed, do not use */
+		spin_unlock_irqrestore(&dd->uctxt_lock, flags);
+		return 0;
+	}
+
+	subctxt = find_first_zero_bit(uctxt->in_use_ctxts,
+				      HFI1_MAX_SHARED_CTXTS);
+	if (subctxt >= uctxt->subctxt_cnt) {
+		spin_unlock_irqrestore(&dd->uctxt_lock, flags);
+		return -EBUSY;
+	}
+
+	fd->subctxt = subctxt;
+	__set_bit(fd->subctxt, uctxt->in_use_ctxts);
+	spin_unlock_irqrestore(&dd->uctxt_lock, flags);
+
+	fd->uctxt = uctxt;
+	hfi1_rcd_get(uctxt);
+
+	return 1;
+}
+
+/**
+ * find_sub_ctxt
+ * @fd: valid filedata pointer
+ * @uinfo: matching info to use to find a possible context to share.
+ *
  * The hfi1_mutex must be held when this function is called.  It is
  * necessary to ensure serialized creation of shared contexts.
+ *
+ * Return:
+ *    0      No sub-context found
+ *    1      Subcontext found and allocated
+ *    errno  EINVAL (incorrect parameters)
+ *           EBUSY (all sub contexts in use)
  */
 static int find_sub_ctxt(struct hfi1_filedata *fd,
 			 const struct hfi1_user_info *uinfo)
 {
-	u16 i;
+	struct hfi1_ctxtdata *uctxt;
 	struct hfi1_devdata *dd = fd->dd;
-	u16 subctxt;
+	u16 i;
+	int ret;
 
 	if (!uinfo->subctxt_cnt)
 		return 0;
 
 	for (i = dd->first_dyn_alloc_ctxt; i < dd->num_rcv_contexts; i++) {
-		struct hfi1_ctxtdata *uctxt = dd->rcd[i];
-
-		/* Skip ctxts which are not yet open */
-		if (!uctxt ||
-		    bitmap_empty(uctxt->in_use_ctxts,
-				 HFI1_MAX_SHARED_CTXTS))
-			continue;
-
-		/* Skip dynamically allocted kernel contexts */
-		if (uctxt->sc && (uctxt->sc->type == SC_KERNEL))
-			continue;
-
-		/* Skip ctxt if it doesn't match the requested one */
-		if (memcmp(uctxt->uuid, uinfo->uuid,
-			   sizeof(uctxt->uuid)) ||
-		    uctxt->jkey != generate_jkey(current_uid()) ||
-		    uctxt->subctxt_id != uinfo->subctxt_id ||
-		    uctxt->subctxt_cnt != uinfo->subctxt_cnt)
-			continue;
-
-		/* Verify the sharing process matches the master */
-		if (uctxt->userversion != uinfo->userversion)
-			return -EINVAL;
-
-		/* Find an unused context */
-		subctxt = find_first_zero_bit(uctxt->in_use_ctxts,
-					      HFI1_MAX_SHARED_CTXTS);
-		if (subctxt >= uctxt->subctxt_cnt)
-			return -EBUSY;
-
-		fd->uctxt = uctxt;
-		fd->subctxt = subctxt;
-
-		hfi1_rcd_get(uctxt);
-		__set_bit(fd->subctxt, uctxt->in_use_ctxts);
-
-		return 1;
+		uctxt = hfi1_rcd_get_by_index(dd, i);
+		if (uctxt) {
+			ret = match_ctxt(fd, uinfo, uctxt);
+			hfi1_rcd_put(uctxt);
+			/* value of != 0 will return */
+			if (ret)
+				return ret;
+		}
 	}
 
 	return 0;
@@ -993,7 +1049,7 @@ static int find_sub_ctxt(struct hfi1_filedata *fd,
 
 static int allocate_ctxt(struct hfi1_filedata *fd, struct hfi1_devdata *dd,
 			 struct hfi1_user_info *uinfo,
-			 struct hfi1_ctxtdata **cd)
+			 struct hfi1_ctxtdata **rcd)
 {
 	struct hfi1_ctxtdata *uctxt;
 	int ret, numa;
@@ -1066,12 +1122,12 @@ static int allocate_ctxt(struct hfi1_filedata *fd, struct hfi1_devdata *dd,
 	if (dd->freectxts-- == dd->num_user_contexts)
 		aspm_disable_all(dd);
 
-	*cd = uctxt;
+	*rcd = uctxt;
 
 	return 0;
 
 ctxdata_free:
-	hfi1_free_ctxt(dd, uctxt);
+	hfi1_free_ctxt(uctxt);
 	return ret;
 }
 
@@ -1083,7 +1139,7 @@ static void deallocate_ctxt(struct hfi1_ctxtdata *uctxt)
 		aspm_enable_all(uctxt->dd);
 	mutex_unlock(&hfi1_mutex);
 
-	hfi1_free_ctxt(uctxt->dd, uctxt);
+	hfi1_free_ctxt(uctxt);
 }
 
 static void init_subctxts(struct hfi1_ctxtdata *uctxt,
@@ -1279,8 +1335,10 @@ static int setup_base_ctxt(struct hfi1_filedata *fd,
 	return 0;
 
 setup_failed:
+	/* Set the failed bit so sub-context init can do the right thing */
 	set_bit(HFI1_CTXT_BASE_FAILED, &uctxt->event_flags);
 	deallocate_ctxt(uctxt);
+
 	return ret;
 }
 
@@ -1417,18 +1475,13 @@ int hfi1_set_uevent_bits(struct hfi1_pportdata *ppd, const int evtbit)
 	struct hfi1_ctxtdata *uctxt;
 	struct hfi1_devdata *dd = ppd->dd;
 	u16 ctxt;
-	int ret = 0;
-	unsigned long flags;
 
-	if (!dd->events) {
-		ret = -EINVAL;
-		goto done;
-	}
+	if (!dd->events)
+		return -EINVAL;
 
-	spin_lock_irqsave(&dd->uctxt_lock, flags);
 	for (ctxt = dd->first_dyn_alloc_ctxt; ctxt < dd->num_rcv_contexts;
 	     ctxt++) {
-		uctxt = dd->rcd[ctxt];
+		uctxt = hfi1_rcd_get_by_index(dd, ctxt);
 		if (uctxt) {
 			unsigned long *evs = dd->events +
 				(uctxt->ctxt - dd->first_dyn_alloc_ctxt) *
@@ -1441,11 +1494,11 @@ int hfi1_set_uevent_bits(struct hfi1_pportdata *ppd, const int evtbit)
 			set_bit(evtbit, evs);
 			for (i = 1; i < uctxt->subctxt_cnt; i++)
 				set_bit(evtbit, evs + i);
+			hfi1_rcd_put(uctxt);
 		}
 	}
-	spin_unlock_irqrestore(&dd->uctxt_lock, flags);
-done:
-	return ret;
+
+	return 0;
 }
 
 /**
