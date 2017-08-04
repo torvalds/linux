@@ -146,8 +146,8 @@ static void dss_save_context(void)
 
 	SR(CONTROL);
 
-	if (dss_feat_get_supported_displays(OMAP_DSS_CHANNEL_LCD) &
-			OMAP_DISPLAY_TYPE_SDI) {
+	if (dss_feat_get_supported_outputs(OMAP_DSS_CHANNEL_LCD) &
+			OMAP_DSS_OUTPUT_SDI) {
 		SR(SDI_CONTROL);
 		SR(PLL_CONTROL);
 	}
@@ -166,8 +166,8 @@ static void dss_restore_context(void)
 
 	RR(CONTROL);
 
-	if (dss_feat_get_supported_displays(OMAP_DSS_CHANNEL_LCD) &
-			OMAP_DISPLAY_TYPE_SDI) {
+	if (dss_feat_get_supported_outputs(OMAP_DSS_CHANNEL_LCD) &
+			OMAP_DSS_OUTPUT_SDI) {
 		RR(SDI_CONTROL);
 		RR(PLL_CONTROL);
 	}
@@ -397,8 +397,8 @@ static void dss_dump_regs(struct seq_file *s)
 	DUMPREG(DSS_SYSSTATUS);
 	DUMPREG(DSS_CONTROL);
 
-	if (dss_feat_get_supported_displays(OMAP_DSS_CHANNEL_LCD) &
-			OMAP_DISPLAY_TYPE_SDI) {
+	if (dss_feat_get_supported_outputs(OMAP_DSS_CHANNEL_LCD) &
+			OMAP_DSS_OUTPUT_SDI) {
 		DUMPREG(DSS_SDI_CONTROL);
 		DUMPREG(DSS_PLL_CONTROL);
 		DUMPREG(DSS_SDI_STATUS);
@@ -728,27 +728,29 @@ void dss_set_dac_pwrdn_bgz(bool enable)
 
 void dss_select_hdmi_venc_clk_source(enum dss_hdmi_venc_clk_source_select src)
 {
-	enum omap_display_type dp;
-	dp = dss_feat_get_supported_displays(OMAP_DSS_CHANNEL_DIGIT);
+	enum omap_dss_output_id outputs;
+
+	outputs = dss_feat_get_supported_outputs(OMAP_DSS_CHANNEL_DIGIT);
 
 	/* Complain about invalid selections */
-	WARN_ON((src == DSS_VENC_TV_CLK) && !(dp & OMAP_DISPLAY_TYPE_VENC));
-	WARN_ON((src == DSS_HDMI_M_PCLK) && !(dp & OMAP_DISPLAY_TYPE_HDMI));
+	WARN_ON((src == DSS_VENC_TV_CLK) && !(outputs & OMAP_DSS_OUTPUT_VENC));
+	WARN_ON((src == DSS_HDMI_M_PCLK) && !(outputs & OMAP_DSS_OUTPUT_HDMI));
 
 	/* Select only if we have options */
-	if ((dp & OMAP_DISPLAY_TYPE_VENC) && (dp & OMAP_DISPLAY_TYPE_HDMI))
+	if ((outputs & OMAP_DSS_OUTPUT_VENC) &&
+	    (outputs & OMAP_DSS_OUTPUT_HDMI))
 		REG_FLD_MOD(DSS_CONTROL, src, 15, 15);	/* VENC_HDMI_SWITCH */
 }
 
 enum dss_hdmi_venc_clk_source_select dss_get_hdmi_venc_clk_source(void)
 {
-	enum omap_display_type displays;
+	enum omap_dss_output_id outputs;
 
-	displays = dss_feat_get_supported_displays(OMAP_DSS_CHANNEL_DIGIT);
-	if ((displays & OMAP_DISPLAY_TYPE_HDMI) == 0)
+	outputs = dss_feat_get_supported_outputs(OMAP_DSS_CHANNEL_DIGIT);
+	if ((outputs & OMAP_DSS_OUTPUT_HDMI) == 0)
 		return DSS_VENC_TV_CLK;
 
-	if ((displays & OMAP_DISPLAY_TYPE_VENC) == 0)
+	if ((outputs & OMAP_DSS_OUTPUT_VENC) == 0)
 		return DSS_HDMI_M_PCLK;
 
 	return REG_GET(DSS_CONTROL, 15, 15);

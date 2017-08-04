@@ -46,7 +46,6 @@ struct omap_dss_features {
 
 	const int num_mgrs;
 	const int num_ovls;
-	const enum omap_display_type *supported_displays;
 	const enum omap_dss_output_id *supported_outputs;
 	const u32 **supported_color_modes;
 	const enum omap_overlay_caps *overlay_caps;
@@ -112,62 +111,6 @@ static const struct dss_reg_field omap5_dss_reg_fields[] = {
 	[FEAT_REG_HORIZONTALACCU]		= { 10, 0 },
 	[FEAT_REG_VERTICALACCU]			= { 26, 16 },
 	[FEAT_REG_DISPC_CLK_SWITCH]		= { 9, 7 },
-};
-
-static const enum omap_display_type omap2_dss_supported_displays[] = {
-	/* OMAP_DSS_CHANNEL_LCD */
-	OMAP_DISPLAY_TYPE_DPI | OMAP_DISPLAY_TYPE_DBI,
-
-	/* OMAP_DSS_CHANNEL_DIGIT */
-	OMAP_DISPLAY_TYPE_VENC,
-};
-
-static const enum omap_display_type omap3430_dss_supported_displays[] = {
-	/* OMAP_DSS_CHANNEL_LCD */
-	OMAP_DISPLAY_TYPE_DPI | OMAP_DISPLAY_TYPE_DBI |
-	OMAP_DISPLAY_TYPE_SDI | OMAP_DISPLAY_TYPE_DSI,
-
-	/* OMAP_DSS_CHANNEL_DIGIT */
-	OMAP_DISPLAY_TYPE_VENC,
-};
-
-static const enum omap_display_type omap3630_dss_supported_displays[] = {
-	/* OMAP_DSS_CHANNEL_LCD */
-	OMAP_DISPLAY_TYPE_DPI | OMAP_DISPLAY_TYPE_DBI |
-	OMAP_DISPLAY_TYPE_DSI,
-
-	/* OMAP_DSS_CHANNEL_DIGIT */
-	OMAP_DISPLAY_TYPE_VENC,
-};
-
-static const enum omap_display_type am43xx_dss_supported_displays[] = {
-	/* OMAP_DSS_CHANNEL_LCD */
-	OMAP_DISPLAY_TYPE_DPI | OMAP_DISPLAY_TYPE_DBI,
-};
-
-static const enum omap_display_type omap4_dss_supported_displays[] = {
-	/* OMAP_DSS_CHANNEL_LCD */
-	OMAP_DISPLAY_TYPE_DBI | OMAP_DISPLAY_TYPE_DSI,
-
-	/* OMAP_DSS_CHANNEL_DIGIT */
-	OMAP_DISPLAY_TYPE_VENC | OMAP_DISPLAY_TYPE_HDMI,
-
-	/* OMAP_DSS_CHANNEL_LCD2 */
-	OMAP_DISPLAY_TYPE_DPI | OMAP_DISPLAY_TYPE_DBI |
-	OMAP_DISPLAY_TYPE_DSI,
-};
-
-static const enum omap_display_type omap5_dss_supported_displays[] = {
-	/* OMAP_DSS_CHANNEL_LCD */
-	OMAP_DISPLAY_TYPE_DPI | OMAP_DISPLAY_TYPE_DBI |
-	OMAP_DISPLAY_TYPE_DSI,
-
-	/* OMAP_DSS_CHANNEL_DIGIT */
-	OMAP_DISPLAY_TYPE_HDMI | OMAP_DISPLAY_TYPE_DPI,
-
-	/* OMAP_DSS_CHANNEL_LCD2 */
-	OMAP_DISPLAY_TYPE_DPI | OMAP_DISPLAY_TYPE_DBI |
-	OMAP_DISPLAY_TYPE_DSI,
 };
 
 static const enum omap_dss_output_id omap2_dss_supported_outputs[] = {
@@ -604,7 +547,6 @@ static const struct omap_dss_features omap2_dss_features = {
 
 	.num_mgrs = 2,
 	.num_ovls = 3,
-	.supported_displays = omap2_dss_supported_displays,
 	.supported_outputs = omap2_dss_supported_outputs,
 	.supported_color_modes = omap2_dss_supported_color_modes,
 	.overlay_caps = omap2_dss_overlay_caps,
@@ -623,7 +565,6 @@ static const struct omap_dss_features omap3430_dss_features = {
 
 	.num_mgrs = 2,
 	.num_ovls = 3,
-	.supported_displays = omap3430_dss_supported_displays,
 	.supported_outputs = omap3430_dss_supported_outputs,
 	.supported_color_modes = omap3_dss_supported_color_modes,
 	.overlay_caps = omap3430_dss_overlay_caps,
@@ -645,7 +586,6 @@ static const struct omap_dss_features am35xx_dss_features = {
 
 	.num_mgrs = 2,
 	.num_ovls = 3,
-	.supported_displays = omap3430_dss_supported_displays,
 	.supported_outputs = omap3430_dss_supported_outputs,
 	.supported_color_modes = omap3_dss_supported_color_modes,
 	.overlay_caps = omap3430_dss_overlay_caps,
@@ -663,7 +603,6 @@ static const struct omap_dss_features am43xx_dss_features = {
 
 	.num_mgrs = 1,
 	.num_ovls = 3,
-	.supported_displays = am43xx_dss_supported_displays,
 	.supported_outputs = am43xx_dss_supported_outputs,
 	.supported_color_modes = omap3_dss_supported_color_modes,
 	.overlay_caps = omap3430_dss_overlay_caps,
@@ -681,7 +620,6 @@ static const struct omap_dss_features omap3630_dss_features = {
 
 	.num_mgrs = 2,
 	.num_ovls = 3,
-	.supported_displays = omap3630_dss_supported_displays,
 	.supported_outputs = omap3630_dss_supported_outputs,
 	.supported_color_modes = omap3_dss_supported_color_modes,
 	.overlay_caps = omap3630_dss_overlay_caps,
@@ -701,7 +639,6 @@ static const struct omap_dss_features omap4430_es1_0_dss_features  = {
 
 	.num_mgrs = 3,
 	.num_ovls = 4,
-	.supported_displays = omap4_dss_supported_displays,
 	.supported_outputs = omap4_dss_supported_outputs,
 	.supported_color_modes = omap4_dss_supported_color_modes,
 	.overlay_caps = omap4_dss_overlay_caps,
@@ -720,7 +657,6 @@ static const struct omap_dss_features omap4430_es2_0_1_2_dss_features = {
 
 	.num_mgrs = 3,
 	.num_ovls = 4,
-	.supported_displays = omap4_dss_supported_displays,
 	.supported_outputs = omap4_dss_supported_outputs,
 	.supported_color_modes = omap4_dss_supported_color_modes,
 	.overlay_caps = omap4_dss_overlay_caps,
@@ -739,7 +675,6 @@ static const struct omap_dss_features omap4_dss_features = {
 
 	.num_mgrs = 3,
 	.num_ovls = 4,
-	.supported_displays = omap4_dss_supported_displays,
 	.supported_outputs = omap4_dss_supported_outputs,
 	.supported_color_modes = omap4_dss_supported_color_modes,
 	.overlay_caps = omap4_dss_overlay_caps,
@@ -758,7 +693,6 @@ static const struct omap_dss_features omap5_dss_features = {
 
 	.num_mgrs = 4,
 	.num_ovls = 4,
-	.supported_displays = omap5_dss_supported_displays,
 	.supported_outputs = omap5_dss_supported_outputs,
 	.supported_color_modes = omap4_dss_supported_color_modes,
 	.overlay_caps = omap4_dss_overlay_caps,
@@ -786,11 +720,6 @@ unsigned long dss_feat_get_param_min(enum dss_range_param param)
 unsigned long dss_feat_get_param_max(enum dss_range_param param)
 {
 	return omap_current_dss_features->dss_params[param].max;
-}
-
-enum omap_display_type dss_feat_get_supported_displays(enum omap_channel channel)
-{
-	return omap_current_dss_features->supported_displays[channel];
 }
 
 enum omap_dss_output_id dss_feat_get_supported_outputs(enum omap_channel channel)
