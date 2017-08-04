@@ -76,6 +76,7 @@ struct dss_ops {
 };
 
 struct dss_features {
+	enum dss_model model;
 	u8 fck_div_max;
 	u8 dss_fck_multiplier;
 	const char *parent_clk_name;
@@ -932,6 +933,7 @@ static const enum omap_display_type dra7xx_ports[] = {
 };
 
 static const struct dss_features omap24xx_dss_feats = {
+	.model			=	DSS_MODEL_OMAP2,
 	/*
 	 * fck div max is really 16, but the divider range has gaps. The range
 	 * from 1 to 6 has no gaps, so let's use that as a max.
@@ -945,6 +947,7 @@ static const struct dss_features omap24xx_dss_feats = {
 };
 
 static const struct dss_features omap34xx_dss_feats = {
+	.model			=	DSS_MODEL_OMAP3,
 	.fck_div_max		=	16,
 	.dss_fck_multiplier	=	2,
 	.parent_clk_name	=	"dpll4_ck",
@@ -954,6 +957,7 @@ static const struct dss_features omap34xx_dss_feats = {
 };
 
 static const struct dss_features omap3630_dss_feats = {
+	.model			=	DSS_MODEL_OMAP3,
 	.fck_div_max		=	32,
 	.dss_fck_multiplier	=	1,
 	.parent_clk_name	=	"dpll4_ck",
@@ -963,6 +967,7 @@ static const struct dss_features omap3630_dss_feats = {
 };
 
 static const struct dss_features omap44xx_dss_feats = {
+	.model			=	DSS_MODEL_OMAP4,
 	.fck_div_max		=	32,
 	.dss_fck_multiplier	=	1,
 	.parent_clk_name	=	"dpll_per_x2_ck",
@@ -972,6 +977,7 @@ static const struct dss_features omap44xx_dss_feats = {
 };
 
 static const struct dss_features omap54xx_dss_feats = {
+	.model			=	DSS_MODEL_OMAP5,
 	.fck_div_max		=	64,
 	.dss_fck_multiplier	=	1,
 	.parent_clk_name	=	"dpll_per_x2_ck",
@@ -981,6 +987,7 @@ static const struct dss_features omap54xx_dss_feats = {
 };
 
 static const struct dss_features am43xx_dss_feats = {
+	.model			=	DSS_MODEL_OMAP3,
 	.fck_div_max		=	0,
 	.dss_fck_multiplier	=	0,
 	.parent_clk_name	=	NULL,
@@ -990,6 +997,7 @@ static const struct dss_features am43xx_dss_feats = {
 };
 
 static const struct dss_features dra7xx_dss_feats = {
+	.model			=	DSS_MODEL_DRA7,
 	.fck_div_max		=	64,
 	.dss_fck_multiplier	=	1,
 	.parent_clk_name	=	"dpll_per_x2_ck",
@@ -1065,7 +1073,7 @@ static int dss_init_ports(struct platform_device *pdev)
 
 		switch (dss.feat->ports[i]) {
 		case OMAP_DISPLAY_TYPE_DPI:
-			dpi_init_port(pdev, port);
+			dpi_init_port(pdev, port, dss.feat->model);
 			break;
 		case OMAP_DISPLAY_TYPE_SDI:
 			sdi_init_port(pdev, port);

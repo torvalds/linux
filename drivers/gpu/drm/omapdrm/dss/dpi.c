@@ -39,6 +39,7 @@
 
 struct dpi_data {
 	struct platform_device *pdev;
+	enum dss_model dss_model;
 
 	struct regulator *vdds_dsi_reg;
 	enum dss_clk_source clk_src;
@@ -99,25 +100,21 @@ static enum dss_clk_source dpi_get_clk_src_dra7xx(enum omap_channel channel)
 	return DSS_CLK_SRC_FCK;
 }
 
-static enum dss_clk_source dpi_get_clk_src(enum omap_channel channel)
+static enum dss_clk_source dpi_get_clk_src(struct dpi_data *dpi)
 {
+	enum omap_channel channel = dpi->output.dispc_channel;
+
 	/*
 	 * XXX we can't currently use DSI PLL for DPI with OMAP3, as the DSI PLL
 	 * would also be used for DISPC fclk. Meaning, when the DPI output is
 	 * disabled, DISPC clock will be disabled, and TV out will stop.
 	 */
-	switch (omapdss_get_version()) {
-	case OMAPDSS_VER_OMAP24xx:
-	case OMAPDSS_VER_OMAP34xx_ES1:
-	case OMAPDSS_VER_OMAP34xx_ES3:
-	case OMAPDSS_VER_OMAP3630:
-	case OMAPDSS_VER_AM35xx:
-	case OMAPDSS_VER_AM43xx:
+	switch (dpi->dss_model) {
+	case DSS_MODEL_OMAP2:
+	case DSS_MODEL_OMAP3:
 		return DSS_CLK_SRC_FCK;
 
-	case OMAPDSS_VER_OMAP4430_ES1:
-	case OMAPDSS_VER_OMAP4430_ES2:
-	case OMAPDSS_VER_OMAP4:
+	case DSS_MODEL_OMAP4:
 		switch (channel) {
 		case OMAP_DSS_CHANNEL_LCD:
 			return DSS_CLK_SRC_PLL1_1;
@@ -127,7 +124,7 @@ static enum dss_clk_source dpi_get_clk_src(enum omap_channel channel)
 			return DSS_CLK_SRC_FCK;
 		}
 
-	case OMAPDSS_VER_OMAP5:
+	case DSS_MODEL_OMAP5:
 		switch (channel) {
 		case OMAP_DSS_CHANNEL_LCD:
 			return DSS_CLK_SRC_PLL1_1;
@@ -138,7 +135,7 @@ static enum dss_clk_source dpi_get_clk_src(enum omap_channel channel)
 			return DSS_CLK_SRC_FCK;
 		}
 
-	case OMAPDSS_VER_DRA7xx:
+	case DSS_MODEL_DRA7:
 		return dpi_get_clk_src_dra7xx(channel);
 
 	default:
@@ -597,7 +594,7 @@ static void dpi_init_pll(struct dpi_data *dpi)
 	if (dpi->pll)
 		return;
 
-	dpi->clk_src = dpi_get_clk_src(dpi->output.dispc_channel);
+	dpi->clk_src = dpi_get_clk_src(dpi);
 
 	pll = dss_pll_find_by_src(dpi->clk_src);
 	if (!pll)
@@ -617,18 +614,14 @@ static void dpi_init_pll(struct dpi_data *dpi)
  * the channel in some more dynamic manner, or get the channel as a user
  * parameter.
  */
-static enum omap_channel dpi_get_channel(int port_num)
+static enum omap_channel dpi_get_channel(struct dpi_data *dpi, int port_num)
 {
-	switch (omapdss_get_version()) {
-	case OMAPDSS_VER_OMAP24xx:
-	case OMAPDSS_VER_OMAP34xx_ES1:
-	case OMAPDSS_VER_OMAP34xx_ES3:
-	case OMAPDSS_VER_OMAP3630:
-	case OMAPDSS_VER_AM35xx:
-	case OMAPDSS_VER_AM43xx:
+	switch (dpi->dss_model) {
+	case DSS_MODEL_OMAP2:
+	case DSS_MODEL_OMAP3:
 		return OMAP_DSS_CHANNEL_LCD;
 
-	case OMAPDSS_VER_DRA7xx:
+	case DSS_MODEL_DRA7:
 		switch (port_num) {
 		case 2:
 			return OMAP_DSS_CHANNEL_LCD3;
@@ -639,12 +632,10 @@ static enum omap_channel dpi_get_channel(int port_num)
 			return OMAP_DSS_CHANNEL_LCD;
 		}
 
-	case OMAPDSS_VER_OMAP4430_ES1:
-	case OMAPDSS_VER_OMAP4430_ES2:
-	case OMAPDSS_VER_OMAP4:
+	case DSS_MODEL_OMAP4:
 		return OMAP_DSS_CHANNEL_LCD2;
 
-	case OMAPDSS_VER_OMAP5:
+	case DSS_MODEL_OMAP5:
 		return OMAP_DSS_CHANNEL_LCD3;
 
 	default:
@@ -709,10 +700,8 @@ static const struct omapdss_dpi_ops dpi_ops = {
 	.get_timings = dpi_get_timings,
 };
 
-static void dpi_init_output_port(struct platform_device *pdev,
-	struct device_node *port)
+static void dpi_init_output_port(struct dpi_data *dpi, struct device_node *port)
 {
-	struct dpi_data *dpi = port->data;
 	struct omap_dss_device *out = &dpi->output;
 	int r;
 	u32 port_num;
@@ -734,10 +723,10 @@ static void dpi_init_output_port(struct platform_device *pdev,
 		break;
 	}
 
-	out->dev = &pdev->dev;
+	out->dev = &dpi->pdev->dev;
 	out->id = OMAP_DSS_OUTPUT_DPI;
 	out->output_type = OMAP_DISPLAY_TYPE_DPI;
-	out->dispc_channel = dpi_get_channel(port_num);
+	out->dispc_channel = dpi_get_channel(dpi, port_num);
 	out->port_num = port_num;
 	out->ops.dpi = &dpi_ops;
 	out->owner = THIS_MODULE;
@@ -753,7 +742,8 @@ static void dpi_uninit_output_port(struct device_node *port)
 	omapdss_unregister_output(out);
 }
 
-int dpi_init_port(struct platform_device *pdev, struct device_node *port)
+int dpi_init_port(struct platform_device *pdev, struct device_node *port,
+		  enum dss_model dss_model)
 {
 	struct dpi_data *dpi;
 	struct device_node *ep;
@@ -779,11 +769,12 @@ int dpi_init_port(struct platform_device *pdev, struct device_node *port)
 	of_node_put(ep);
 
 	dpi->pdev = pdev;
+	dpi->dss_model = dss_model;
 	port->data = dpi;
 
 	mutex_init(&dpi->lock);
 
-	dpi_init_output_port(pdev, port);
+	dpi_init_output_port(dpi, port);
 
 	dpi->port_initialized = true;
 

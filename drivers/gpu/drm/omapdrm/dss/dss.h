@@ -72,6 +72,14 @@
 #define FLD_MOD(orig, val, start, end) \
 	(((orig) & ~FLD_MASK(start, end)) | FLD_VAL(val, start, end))
 
+enum dss_model {
+	DSS_MODEL_OMAP2,
+	DSS_MODEL_OMAP3,
+	DSS_MODEL_OMAP4,
+	DSS_MODEL_OMAP5,
+	DSS_MODEL_DRA7,
+};
+
 enum dss_io_pad_mode {
 	DSS_IO_PAD_MODE_RESET,
 	DSS_IO_PAD_MODE_RFBI,
@@ -315,11 +323,12 @@ void dsi_irq_handler(void);
 
 /* DPI */
 #ifdef CONFIG_OMAP2_DSS_DPI
-int dpi_init_port(struct platform_device *pdev, struct device_node *port);
+int dpi_init_port(struct platform_device *pdev, struct device_node *port,
+		  enum dss_model dss_model);
 void dpi_uninit_port(struct device_node *port);
 #else
 static inline int dpi_init_port(struct platform_device *pdev,
-		struct device_node *port)
+		struct device_node *port, enum dss_model dss_model)
 {
 	return 0;
 }
