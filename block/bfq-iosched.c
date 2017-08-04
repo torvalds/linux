@@ -128,7 +128,7 @@ BFQ_BFQQ_FNS(busy);
 BFQ_BFQQ_FNS(wait_request);
 BFQ_BFQQ_FNS(non_blocking_wait_rq);
 BFQ_BFQQ_FNS(fifo_expire);
-BFQ_BFQQ_FNS(idle_window);
+BFQ_BFQQ_FNS(has_short_ttime);
 BFQ_BFQQ_FNS(sync);
 BFQ_BFQQ_FNS(IO_bound);
 BFQ_BFQQ_FNS(in_large_burst);
@@ -731,10 +731,10 @@ bfq_bfqq_resume_state(struct bfq_queue *bfqq, struct bfq_data *bfqd,
 	unsigned int old_wr_coeff = bfqq->wr_coeff;
 	bool busy = bfq_already_existing && bfq_bfqq_busy(bfqq);
 
-	if (bic->saved_idle_window)
-		bfq_mark_bfqq_idle_window(bfqq);
+	if (bic->saved_has_short_ttime)
+		bfq_mark_bfqq_has_short_ttime(bfqq);
 	else
-		bfq_clear_bfqq_idle_window(bfqq);
+		bfq_clear_bfqq_has_short_ttime(bfqq);
 
 	if (bic->saved_IO_bound)
 		bfq_mark_bfqq_IO_bound(bfqq);
@@ -2012,7 +2012,7 @@ static void bfq_bfqq_save_state(struct bfq_queue *bfqq)
 		return;
 
 	bic->saved_ttime = bfqq->ttime;
-	bic->saved_idle_window = bfq_bfqq_idle_window(bfqq);
+	bic->saved_has_short_ttime = bfq_bfqq_has_short_ttime(bfqq);
 	bic->saved_IO_bound = bfq_bfqq_IO_bound(bfqq);
 	bic->saved_in_large_burst = bfq_bfqq_in_large_burst(bfqq);
 	bic->was_in_burst_list = !hlist_unhashed(&bfqq->burst_list_node);
@@ -3038,8 +3038,8 @@ void bfq_bfqq_expire(struct bfq_data *bfqd,
 	}
 
 	bfq_log_bfqq(bfqd, bfqq,
-		"expire (%d, slow %d, num_disp %d, idle_win %d)", reason,
-		slow, bfqq->dispatched, bfq_bfqq_idle_window(bfqq));
+		"expire (%d, slow %d, num_disp %d, short_ttime %d)", reason,
+		slow, bfqq->dispatched, bfq_bfqq_has_short_ttime(bfqq));
 
 	/*
 	 * Increase, decrease or leave budget unchanged according to
@@ -3122,6 +3122,18 @@ static bool bfq_bfqq_may_idle(struct bfq_queue *bfqq)
 		return true;
 
 	/*
+	 * Idling is performed only if slice_idle > 0. In addition, we
+	 * do not idle if
+	 * (a) bfqq is async
+	 * (b) bfqq is in the idle io prio class: in this case we do
+	 * not idle because we want to minimize the bandwidth that
+	 * queues in this class can steal to higher-priority queues
+	 */
+	if (bfqd->bfq_slice_idle == 0 || !bfq_bfqq_sync(bfqq) ||
+	    bfq_class_idle(bfqq))
+		return false;
+
+	/*
 	 * The next variable takes into account the cases where idling
 	 * boosts the throughput.
 	 *
@@ -3142,7 +3154,7 @@ static bool bfq_bfqq_may_idle(struct bfq_queue *bfqq)
 	 */
 	idling_boosts_thr = !bfqd->hw_tag ||
 		(!blk_queue_nonrot(bfqd->queue) && bfq_bfqq_IO_bound(bfqq) &&
-		 bfq_bfqq_idle_window(bfqq));
+		 bfq_bfqq_has_short_ttime(bfqq));
 
 	/*
 	 * The value of the next variable,
@@ -3313,16 +3325,13 @@ static bool bfq_bfqq_may_idle(struct bfq_queue *bfqq)
 		asymmetric_scenario && !bfq_bfqq_in_large_burst(bfqq);
 
 	/*
-	 * We have now all the components we need to compute the return
-	 * value of the function, which is true only if both the following
-	 * conditions hold:
-	 * 1) bfqq is sync, because idling make sense only for sync queues;
-	 * 2) idling either boosts the throughput (without issues), or
-	 *    is necessary to preserve service guarantees.
+	 * We have now all the components we need to compute the
+	 * return value of the function, which is true only if idling
+	 * either boosts the throughput (without issues), or is
+	 * necessary to preserve service guarantees.
 	 */
-	return bfq_bfqq_sync(bfqq) &&
-		(idling_boosts_thr_without_issues ||
-		 idling_needed_for_service_guarantees);
+	return idling_boosts_thr_without_issues ||
+		idling_needed_for_service_guarantees;
 }
 
 /*
@@ -3338,10 +3347,7 @@ static bool bfq_bfqq_may_idle(struct bfq_queue *bfqq)
  */
 static bool bfq_bfqq_must_idle(struct bfq_queue *bfqq)
 {
-	struct bfq_data *bfqd = bfqq->bfqd;
-
-	return RB_EMPTY_ROOT(&bfqq->sort_list) && bfqd->bfq_slice_idle != 0 &&
-	       bfq_bfqq_may_idle(bfqq);
+	return RB_EMPTY_ROOT(&bfqq->sort_list) && bfq_bfqq_may_idle(bfqq);
 }
 
 /*
@@ -3783,7 +3789,6 @@ bfq_set_next_ioprio_data(struct bfq_queue *bfqq, struct bfq_io_cq *bic)
 	case IOPRIO_CLASS_IDLE:
 		bfqq->new_ioprio_class = IOPRIO_CLASS_IDLE;
 		bfqq->new_ioprio = 7;
-		bfq_clear_bfqq_idle_window(bfqq);
 		break;
 	}
 
@@ -3843,8 +3848,14 @@ static void bfq_init_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 		bfq_set_next_ioprio_data(bfqq, bic);
 
 	if (is_sync) {
+		/*
+		 * No need to mark as has_short_ttime if in
+		 * idle_class, because no device idling is performed
+		 * for queues in idle class
+		 */
 		if (!bfq_class_idle(bfqq))
-			bfq_mark_bfqq_idle_window(bfqq);
+			/* tentatively mark as has_short_ttime */
+			bfq_mark_bfqq_has_short_ttime(bfqq);
 		bfq_mark_bfqq_sync(bfqq);
 		bfq_mark_bfqq_just_created(bfqq);
 	} else
@@ -3985,18 +3996,19 @@ bfq_update_io_seektime(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 		 blk_rq_sectors(rq) < BFQQ_SECT_THR_NONROT);
 }
 
-/*
- * Disable idle window if the process thinks too long or seeks so much that
- * it doesn't matter.
- */
-static void bfq_update_idle_window(struct bfq_data *bfqd,
-				   struct bfq_queue *bfqq,
-				   struct bfq_io_cq *bic)
+static void bfq_update_has_short_ttime(struct bfq_data *bfqd,
+				       struct bfq_queue *bfqq,
+				       struct bfq_io_cq *bic)
 {
-	int enable_idle;
+	bool has_short_ttime = true;
 
-	/* Don't idle for async or idle io prio class. */
-	if (!bfq_bfqq_sync(bfqq) || bfq_class_idle(bfqq))
+	/*
+	 * No need to update has_short_ttime if bfqq is async or in
+	 * idle io prio class, or if bfq_slice_idle is zero, because
+	 * no device idling is performed for bfqq in this case.
+	 */
+	if (!bfq_bfqq_sync(bfqq) || bfq_class_idle(bfqq) ||
+	    bfqd->bfq_slice_idle == 0)
 		return;
 
 	/* Idle window just restored, statistics are meaningless. */
@@ -4004,27 +4016,22 @@ static void bfq_update_idle_window(struct bfq_data *bfqd,
 				     bfqd->bfq_wr_min_idle_time))
 		return;
 
-	enable_idle = bfq_bfqq_idle_window(bfqq);
-
+	/* Think time is infinite if no process is linked to
+	 * bfqq. Otherwise check average think time to
+	 * decide whether to mark as has_short_ttime
+	 */
 	if (atomic_read(&bic->icq.ioc->active_ref) == 0 ||
-	    bfqd->bfq_slice_idle == 0 ||
-		(bfqd->hw_tag && BFQQ_SEEKY(bfqq) &&
-			bfqq->wr_coeff == 1))
-		enable_idle = 0;
-	else if (bfq_sample_valid(bfqq->ttime.ttime_samples)) {
-		if (bfqq->ttime.ttime_mean > bfqd->bfq_slice_idle &&
-			bfqq->wr_coeff == 1)
-			enable_idle = 0;
-		else
-			enable_idle = 1;
-	}
-	bfq_log_bfqq(bfqd, bfqq, "update_idle_window: enable_idle %d",
-		enable_idle);
+	    (bfq_sample_valid(bfqq->ttime.ttime_samples) &&
+	     bfqq->ttime.ttime_mean > bfqd->bfq_slice_idle))
+		has_short_ttime = false;
 
-	if (enable_idle)
-		bfq_mark_bfqq_idle_window(bfqq);
+	bfq_log_bfqq(bfqd, bfqq, "update_has_short_ttime: has_short_ttime %d",
+		     has_short_ttime);
+
+	if (has_short_ttime)
+		bfq_mark_bfqq_has_short_ttime(bfqq);
 	else
-		bfq_clear_bfqq_idle_window(bfqq);
+		bfq_clear_bfqq_has_short_ttime(bfqq);
 }
 
 /*
@@ -4040,14 +4047,12 @@ static void bfq_rq_enqueued(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 		bfqq->meta_pending++;
 
 	bfq_update_io_thinktime(bfqd, bfqq);
+	bfq_update_has_short_ttime(bfqd, bfqq, bic);
 	bfq_update_io_seektime(bfqd, bfqq, rq);
-	if (bfqq->entity.service > bfq_max_budget(bfqd) / 8 ||
-	    !BFQQ_SEEKY(bfqq))
-		bfq_update_idle_window(bfqd, bfqq, bic);
 
 	bfq_log_bfqq(bfqd, bfqq,
-		     "rq_enqueued: idle_window=%d (seeky %d)",
-		     bfq_bfqq_idle_window(bfqq), BFQQ_SEEKY(bfqq));
+		     "rq_enqueued: has_short_ttime=%d (seeky %d)",
+		     bfq_bfqq_has_short_ttime(bfqq), BFQQ_SEEKY(bfqq));
 
 	bfqq->last_request_pos = blk_rq_pos(rq) + blk_rq_sectors(rq);
 

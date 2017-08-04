@@ -348,11 +348,11 @@ struct bfq_io_cq {
 	uint64_t blkcg_serial_nr; /* the current blkcg serial */
 #endif
 	/*
-	 * Snapshot of the idle window before merging; taken to
-	 * remember this value while the queue is merged, so as to be
-	 * able to restore it in case of split.
+	 * Snapshot of the has_short_time flag before merging; taken
+	 * to remember its value while the queue is merged, so as to
+	 * be able to restore it in case of split.
 	 */
-	bool saved_idle_window;
+	bool saved_has_short_ttime;
 	/*
 	 * Same purpose as the previous two fields for the I/O bound
 	 * classification of a queue.
@@ -626,7 +626,7 @@ enum bfqq_state_flags {
 				     * without idling the device
 				     */
 	BFQQF_fifo_expire,	/* FIFO checked in this slice */
-	BFQQF_idle_window,	/* slice idling enabled */
+	BFQQF_has_short_ttime,	/* queue has a short think time */
 	BFQQF_sync,		/* synchronous queue */
 	BFQQF_IO_bound,		/*
 				 * bfqq has timed-out at least once
@@ -655,7 +655,7 @@ BFQ_BFQQ_FNS(busy);
 BFQ_BFQQ_FNS(wait_request);
 BFQ_BFQQ_FNS(non_blocking_wait_rq);
 BFQ_BFQQ_FNS(fifo_expire);
-BFQ_BFQQ_FNS(idle_window);
+BFQ_BFQQ_FNS(has_short_ttime);
 BFQ_BFQQ_FNS(sync);
 BFQ_BFQQ_FNS(IO_bound);
 BFQ_BFQQ_FNS(in_large_burst);
