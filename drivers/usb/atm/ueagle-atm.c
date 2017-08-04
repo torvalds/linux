@@ -2522,7 +2522,7 @@ static struct attribute *attrs[] = {
 	&dev_attr_stat_firmid.attr,
 	NULL,
 };
-static struct attribute_group attr_grp = {
+static const struct attribute_group attr_grp = {
 	.attrs = attrs,
 };
 
