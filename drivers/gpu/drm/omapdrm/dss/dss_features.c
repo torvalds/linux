@@ -33,9 +33,6 @@ struct dss_param_range {
 };
 
 struct omap_dss_features {
-	const enum dss_feat_id *features;
-	const int num_features;
-
 	const enum omap_dss_output_id *supported_outputs;
 	const struct dss_param_range *dss_params;
 };
@@ -148,146 +145,14 @@ static const struct dss_param_range omap5_dss_param_range[] = {
 	[FEAT_PARAM_LINEWIDTH]			= { 1, 2048 },
 };
 
-static const enum dss_feat_id omap2_dss_feat_list[] = {
-	FEAT_LCDENABLEPOL,
-	FEAT_LCDENABLESIGNAL,
-	FEAT_PCKFREEENABLE,
-	FEAT_FUNCGATED,
-	FEAT_ROWREPEATENABLE,
-	FEAT_RESIZECONF,
-};
-
-static const enum dss_feat_id omap3430_dss_feat_list[] = {
-	FEAT_LCDENABLEPOL,
-	FEAT_LCDENABLESIGNAL,
-	FEAT_PCKFREEENABLE,
-	FEAT_FUNCGATED,
-	FEAT_LINEBUFFERSPLIT,
-	FEAT_ROWREPEATENABLE,
-	FEAT_RESIZECONF,
-	FEAT_CPR,
-	FEAT_PRELOAD,
-	FEAT_FIR_COEF_V,
-	FEAT_ALPHA_FIXED_ZORDER,
-	FEAT_FIFO_MERGE,
-	FEAT_OMAP3_DSI_FIFO_BUG,
-};
-
-static const enum dss_feat_id am35xx_dss_feat_list[] = {
-	FEAT_LCDENABLEPOL,
-	FEAT_LCDENABLESIGNAL,
-	FEAT_PCKFREEENABLE,
-	FEAT_FUNCGATED,
-	FEAT_LINEBUFFERSPLIT,
-	FEAT_ROWREPEATENABLE,
-	FEAT_RESIZECONF,
-	FEAT_CPR,
-	FEAT_PRELOAD,
-	FEAT_FIR_COEF_V,
-	FEAT_ALPHA_FIXED_ZORDER,
-	FEAT_FIFO_MERGE,
-	FEAT_OMAP3_DSI_FIFO_BUG,
-};
-
-static const enum dss_feat_id am43xx_dss_feat_list[] = {
-	FEAT_LCDENABLEPOL,
-	FEAT_LCDENABLESIGNAL,
-	FEAT_PCKFREEENABLE,
-	FEAT_FUNCGATED,
-	FEAT_LINEBUFFERSPLIT,
-	FEAT_ROWREPEATENABLE,
-	FEAT_RESIZECONF,
-	FEAT_CPR,
-	FEAT_PRELOAD,
-	FEAT_FIR_COEF_V,
-	FEAT_ALPHA_FIXED_ZORDER,
-	FEAT_FIFO_MERGE,
-};
-
-static const enum dss_feat_id omap3630_dss_feat_list[] = {
-	FEAT_LCDENABLEPOL,
-	FEAT_LCDENABLESIGNAL,
-	FEAT_PCKFREEENABLE,
-	FEAT_FUNCGATED,
-	FEAT_LINEBUFFERSPLIT,
-	FEAT_ROWREPEATENABLE,
-	FEAT_RESIZECONF,
-	FEAT_CPR,
-	FEAT_PRELOAD,
-	FEAT_FIR_COEF_V,
-	FEAT_ALPHA_FIXED_ZORDER,
-	FEAT_FIFO_MERGE,
-	FEAT_OMAP3_DSI_FIFO_BUG,
-};
-
-static const enum dss_feat_id omap4430_es1_0_dss_feat_list[] = {
-	FEAT_MGR_LCD2,
-	FEAT_CORE_CLK_DIV,
-	FEAT_HANDLE_UV_SEPARATE,
-	FEAT_ATTR2,
-	FEAT_CPR,
-	FEAT_PRELOAD,
-	FEAT_FIR_COEF_V,
-	FEAT_ALPHA_FREE_ZORDER,
-	FEAT_FIFO_MERGE,
-	FEAT_BURST_2D,
-};
-
-static const enum dss_feat_id omap4430_es2_0_1_2_dss_feat_list[] = {
-	FEAT_MGR_LCD2,
-	FEAT_CORE_CLK_DIV,
-	FEAT_HANDLE_UV_SEPARATE,
-	FEAT_ATTR2,
-	FEAT_CPR,
-	FEAT_PRELOAD,
-	FEAT_FIR_COEF_V,
-	FEAT_ALPHA_FREE_ZORDER,
-	FEAT_FIFO_MERGE,
-	FEAT_BURST_2D,
-};
-
-static const enum dss_feat_id omap4_dss_feat_list[] = {
-	FEAT_MGR_LCD2,
-	FEAT_CORE_CLK_DIV,
-	FEAT_HANDLE_UV_SEPARATE,
-	FEAT_ATTR2,
-	FEAT_CPR,
-	FEAT_PRELOAD,
-	FEAT_FIR_COEF_V,
-	FEAT_ALPHA_FREE_ZORDER,
-	FEAT_FIFO_MERGE,
-	FEAT_BURST_2D,
-};
-
-static const enum dss_feat_id omap5_dss_feat_list[] = {
-	FEAT_MGR_LCD2,
-	FEAT_MGR_LCD3,
-	FEAT_CORE_CLK_DIV,
-	FEAT_HANDLE_UV_SEPARATE,
-	FEAT_ATTR2,
-	FEAT_CPR,
-	FEAT_PRELOAD,
-	FEAT_FIR_COEF_V,
-	FEAT_ALPHA_FREE_ZORDER,
-	FEAT_FIFO_MERGE,
-	FEAT_BURST_2D,
-	FEAT_MFLAG,
-};
-
 /* OMAP2 DSS Features */
 static const struct omap_dss_features omap2_dss_features = {
-	.features = omap2_dss_feat_list,
-	.num_features = ARRAY_SIZE(omap2_dss_feat_list),
-
 	.supported_outputs = omap2_dss_supported_outputs,
 	.dss_params = omap2_dss_param_range,
 };
 
 /* OMAP3 DSS Features */
 static const struct omap_dss_features omap3430_dss_features = {
-	.features = omap3430_dss_feat_list,
-	.num_features = ARRAY_SIZE(omap3430_dss_feat_list),
-
 	.supported_outputs = omap3430_dss_supported_outputs,
 	.dss_params = omap3_dss_param_range,
 };
@@ -297,25 +162,16 @@ static const struct omap_dss_features omap3430_dss_features = {
  * vdds_dsi regulator.
  */
 static const struct omap_dss_features am35xx_dss_features = {
-	.features = am35xx_dss_feat_list,
-	.num_features = ARRAY_SIZE(am35xx_dss_feat_list),
-
 	.supported_outputs = omap3430_dss_supported_outputs,
 	.dss_params = omap3_dss_param_range,
 };
 
 static const struct omap_dss_features am43xx_dss_features = {
-	.features = am43xx_dss_feat_list,
-	.num_features = ARRAY_SIZE(am43xx_dss_feat_list),
-
 	.supported_outputs = am43xx_dss_supported_outputs,
 	.dss_params = am43xx_dss_param_range,
 };
 
 static const struct omap_dss_features omap3630_dss_features = {
-	.features = omap3630_dss_feat_list,
-	.num_features = ARRAY_SIZE(omap3630_dss_feat_list),
-
 	.supported_outputs = omap3630_dss_supported_outputs,
 	.dss_params = omap3_dss_param_range,
 };
@@ -323,36 +179,24 @@ static const struct omap_dss_features omap3630_dss_features = {
 /* OMAP4 DSS Features */
 /* For OMAP4430 ES 1.0 revision */
 static const struct omap_dss_features omap4430_es1_0_dss_features  = {
-	.features = omap4430_es1_0_dss_feat_list,
-	.num_features = ARRAY_SIZE(omap4430_es1_0_dss_feat_list),
-
 	.supported_outputs = omap4_dss_supported_outputs,
 	.dss_params = omap4_dss_param_range,
 };
 
 /* For OMAP4430 ES 2.0, 2.1 and 2.2 revisions */
 static const struct omap_dss_features omap4430_es2_0_1_2_dss_features = {
-	.features = omap4430_es2_0_1_2_dss_feat_list,
-	.num_features = ARRAY_SIZE(omap4430_es2_0_1_2_dss_feat_list),
-
 	.supported_outputs = omap4_dss_supported_outputs,
 	.dss_params = omap4_dss_param_range,
 };
 
 /* For all the other OMAP4 versions */
 static const struct omap_dss_features omap4_dss_features = {
-	.features = omap4_dss_feat_list,
-	.num_features = ARRAY_SIZE(omap4_dss_feat_list),
-
 	.supported_outputs = omap4_dss_supported_outputs,
 	.dss_params = omap4_dss_param_range,
 };
 
 /* OMAP5 DSS Features */
 static const struct omap_dss_features omap5_dss_features = {
-	.features = omap5_dss_feat_list,
-	.num_features = ARRAY_SIZE(omap5_dss_feat_list),
-
 	.supported_outputs = omap5_dss_supported_outputs,
 	.dss_params = omap5_dss_param_range,
 };
@@ -371,21 +215,6 @@ unsigned long dss_feat_get_param_max(enum dss_range_param param)
 enum omap_dss_output_id dss_feat_get_supported_outputs(enum omap_channel channel)
 {
 	return omap_current_dss_features->supported_outputs[channel];
-}
-
-/* DSS has_feature check */
-bool dss_has_feature(enum dss_feat_id id)
-{
-	int i;
-	const enum dss_feat_id *features = omap_current_dss_features->features;
-	const int num_features = omap_current_dss_features->num_features;
-
-	for (i = 0; i < num_features; i++) {
-		if (features[i] == id)
-			return true;
-	}
-
-	return false;
 }
 
 void dss_features_init(enum omapdss_version version)

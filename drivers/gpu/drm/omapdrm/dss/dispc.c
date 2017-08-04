@@ -65,6 +65,33 @@ enum omap_burst_size {
 #define REG_FLD_MOD(idx, val, start, end)				\
 	dispc_write_reg(idx, FLD_MOD(dispc_read_reg(idx), val, start, end))
 
+/* DISPC has feature id */
+enum dispc_feature_id {
+	FEAT_LCDENABLEPOL,
+	FEAT_LCDENABLESIGNAL,
+	FEAT_PCKFREEENABLE,
+	FEAT_FUNCGATED,
+	FEAT_MGR_LCD2,
+	FEAT_MGR_LCD3,
+	FEAT_LINEBUFFERSPLIT,
+	FEAT_ROWREPEATENABLE,
+	FEAT_RESIZECONF,
+	/* Independent core clk divider */
+	FEAT_CORE_CLK_DIV,
+	FEAT_HANDLE_UV_SEPARATE,
+	FEAT_ATTR2,
+	FEAT_CPR,
+	FEAT_PRELOAD,
+	FEAT_FIR_COEF_V,
+	FEAT_ALPHA_FIXED_ZORDER,
+	FEAT_ALPHA_FREE_ZORDER,
+	FEAT_FIFO_MERGE,
+	/* An unknown HW bug causing the normal FIFO thresholds not to work */
+	FEAT_OMAP3_DSI_FIFO_BUG,
+	FEAT_BURST_2D,
+	FEAT_MFLAG,
+};
+
 struct dispc_features {
 	u8 sw_start;
 	u8 fp_start;
@@ -88,6 +115,8 @@ struct dispc_features {
 		u16 width, u16 height, u16 out_width, u16 out_height,
 		bool mem_to_mem);
 	u8 num_fifos;
+	const enum dispc_feature_id *features;
+	unsigned int num_features;
 	const struct dss_reg_field *reg_fields;
 	const unsigned int num_reg_fields;
 	const enum omap_overlay_caps *overlay_caps;
@@ -384,6 +413,18 @@ static void dispc_get_reg_field(enum dispc_feat_reg_field id,
 	*end = dispc.feat->reg_fields[id].end;
 }
 
+static bool dispc_has_feature(enum dispc_feature_id id)
+{
+	unsigned int i;
+
+	for (i = 0; i < dispc.feat->num_features; i++) {
+		if (dispc.feat->features[i] == id)
+			return true;
+	}
+
+	return false;
+}
+
 #define SR(reg) \
 	dispc.ctx[DISPC_##reg / sizeof(u32)] = dispc_read_reg(DISPC_##reg)
 #define RR(reg) \
@@ -399,14 +440,14 @@ static void dispc_save_context(void)
 	SR(CONTROL);
 	SR(CONFIG);
 	SR(LINE_NUMBER);
-	if (dss_has_feature(FEAT_ALPHA_FIXED_ZORDER) ||
-			dss_has_feature(FEAT_ALPHA_FREE_ZORDER))
+	if (dispc_has_feature(FEAT_ALPHA_FIXED_ZORDER) ||
+			dispc_has_feature(FEAT_ALPHA_FREE_ZORDER))
 		SR(GLOBAL_ALPHA);
-	if (dss_has_feature(FEAT_MGR_LCD2)) {
+	if (dispc_has_feature(FEAT_MGR_LCD2)) {
 		SR(CONTROL2);
 		SR(CONFIG2);
 	}
-	if (dss_has_feature(FEAT_MGR_LCD3)) {
+	if (dispc_has_feature(FEAT_MGR_LCD3)) {
 		SR(CONTROL3);
 		SR(CONFIG3);
 	}
@@ -426,7 +467,7 @@ static void dispc_save_context(void)
 		SR(DATA_CYCLE2(i));
 		SR(DATA_CYCLE3(i));
 
-		if (dss_has_feature(FEAT_CPR)) {
+		if (dispc_has_feature(FEAT_CPR)) {
 			SR(CPR_COEF_R(i));
 			SR(CPR_COEF_G(i));
 			SR(CPR_COEF_B(i));
@@ -442,7 +483,7 @@ static void dispc_save_context(void)
 		SR(OVL_FIFO_THRESHOLD(i));
 		SR(OVL_ROW_INC(i));
 		SR(OVL_PIXEL_INC(i));
-		if (dss_has_feature(FEAT_PRELOAD))
+		if (dispc_has_feature(FEAT_PRELOAD))
 			SR(OVL_PRELOAD(i));
 		if (i == OMAP_DSS_GFX) {
 			SR(OVL_WINDOW_SKIP(i));
@@ -463,12 +504,12 @@ static void dispc_save_context(void)
 		for (j = 0; j < 5; j++)
 			SR(OVL_CONV_COEF(i, j));
 
-		if (dss_has_feature(FEAT_FIR_COEF_V)) {
+		if (dispc_has_feature(FEAT_FIR_COEF_V)) {
 			for (j = 0; j < 8; j++)
 				SR(OVL_FIR_COEF_V(i, j));
 		}
 
-		if (dss_has_feature(FEAT_HANDLE_UV_SEPARATE)) {
+		if (dispc_has_feature(FEAT_HANDLE_UV_SEPARATE)) {
 			SR(OVL_BA0_UV(i));
 			SR(OVL_BA1_UV(i));
 			SR(OVL_FIR2(i));
@@ -484,11 +525,11 @@ static void dispc_save_context(void)
 			for (j = 0; j < 8; j++)
 				SR(OVL_FIR_COEF_V2(i, j));
 		}
-		if (dss_has_feature(FEAT_ATTR2))
+		if (dispc_has_feature(FEAT_ATTR2))
 			SR(OVL_ATTRIBUTES2(i));
 	}
 
-	if (dss_has_feature(FEAT_CORE_CLK_DIV))
+	if (dispc_has_feature(FEAT_CORE_CLK_DIV))
 		SR(DIVISOR);
 
 	dispc.ctx_valid = true;
@@ -509,12 +550,12 @@ static void dispc_restore_context(void)
 	/*RR(CONTROL);*/
 	RR(CONFIG);
 	RR(LINE_NUMBER);
-	if (dss_has_feature(FEAT_ALPHA_FIXED_ZORDER) ||
-			dss_has_feature(FEAT_ALPHA_FREE_ZORDER))
+	if (dispc_has_feature(FEAT_ALPHA_FIXED_ZORDER) ||
+			dispc_has_feature(FEAT_ALPHA_FREE_ZORDER))
 		RR(GLOBAL_ALPHA);
-	if (dss_has_feature(FEAT_MGR_LCD2))
+	if (dispc_has_feature(FEAT_MGR_LCD2))
 		RR(CONFIG2);
-	if (dss_has_feature(FEAT_MGR_LCD3))
+	if (dispc_has_feature(FEAT_MGR_LCD3))
 		RR(CONFIG3);
 
 	for (i = 0; i < dispc_get_num_mgrs(); i++) {
@@ -532,7 +573,7 @@ static void dispc_restore_context(void)
 		RR(DATA_CYCLE2(i));
 		RR(DATA_CYCLE3(i));
 
-		if (dss_has_feature(FEAT_CPR)) {
+		if (dispc_has_feature(FEAT_CPR)) {
 			RR(CPR_COEF_R(i));
 			RR(CPR_COEF_G(i));
 			RR(CPR_COEF_B(i));
@@ -548,7 +589,7 @@ static void dispc_restore_context(void)
 		RR(OVL_FIFO_THRESHOLD(i));
 		RR(OVL_ROW_INC(i));
 		RR(OVL_PIXEL_INC(i));
-		if (dss_has_feature(FEAT_PRELOAD))
+		if (dispc_has_feature(FEAT_PRELOAD))
 			RR(OVL_PRELOAD(i));
 		if (i == OMAP_DSS_GFX) {
 			RR(OVL_WINDOW_SKIP(i));
@@ -569,12 +610,12 @@ static void dispc_restore_context(void)
 		for (j = 0; j < 5; j++)
 			RR(OVL_CONV_COEF(i, j));
 
-		if (dss_has_feature(FEAT_FIR_COEF_V)) {
+		if (dispc_has_feature(FEAT_FIR_COEF_V)) {
 			for (j = 0; j < 8; j++)
 				RR(OVL_FIR_COEF_V(i, j));
 		}
 
-		if (dss_has_feature(FEAT_HANDLE_UV_SEPARATE)) {
+		if (dispc_has_feature(FEAT_HANDLE_UV_SEPARATE)) {
 			RR(OVL_BA0_UV(i));
 			RR(OVL_BA1_UV(i));
 			RR(OVL_FIR2(i));
@@ -590,18 +631,18 @@ static void dispc_restore_context(void)
 			for (j = 0; j < 8; j++)
 				RR(OVL_FIR_COEF_V2(i, j));
 		}
-		if (dss_has_feature(FEAT_ATTR2))
+		if (dispc_has_feature(FEAT_ATTR2))
 			RR(OVL_ATTRIBUTES2(i));
 	}
 
-	if (dss_has_feature(FEAT_CORE_CLK_DIV))
+	if (dispc_has_feature(FEAT_CORE_CLK_DIV))
 		RR(DIVISOR);
 
 	/* enable last, because LCD & DIGIT enable are here */
 	RR(CONTROL);
-	if (dss_has_feature(FEAT_MGR_LCD2))
+	if (dispc_has_feature(FEAT_MGR_LCD2))
 		RR(CONTROL2);
-	if (dss_has_feature(FEAT_MGR_LCD3))
+	if (dispc_has_feature(FEAT_MGR_LCD3))
 		RR(CONTROL3);
 	/* clear spurious SYNC_LOST_DIGIT interrupts */
 	dispc_clear_irqstatus(DISPC_IRQ_SYNC_LOST_DIGIT);
@@ -909,7 +950,7 @@ static void dispc_ovl_enable_zorder_planes(void)
 {
 	int i;
 
-	if (!dss_has_feature(FEAT_ALPHA_FREE_ZORDER))
+	if (!dispc_has_feature(FEAT_ALPHA_FREE_ZORDER))
 		return;
 
 	for (i = 0; i < dispc_get_num_ovls(); i++)
@@ -1035,7 +1076,7 @@ static bool format_is_yuv(u32 fourcc)
 static void dispc_ovl_configure_burst_type(enum omap_plane_id plane,
 		enum omap_dss_rotation_type rotation_type)
 {
-	if (dss_has_feature(FEAT_BURST_2D) == 0)
+	if (dispc_has_feature(FEAT_BURST_2D) == 0)
 		return;
 
 	if (rotation_type == OMAP_DSS_ROT_TILER)
@@ -1066,7 +1107,7 @@ static void dispc_ovl_set_channel_out(enum omap_plane_id plane,
 	}
 
 	val = dispc_read_reg(DISPC_OVL_ATTRIBUTES(plane));
-	if (dss_has_feature(FEAT_MGR_LCD2)) {
+	if (dispc_has_feature(FEAT_MGR_LCD2)) {
 		switch (channel) {
 		case OMAP_DSS_CHANNEL_LCD:
 			chan = 0;
@@ -1081,7 +1122,7 @@ static void dispc_ovl_set_channel_out(enum omap_plane_id plane,
 			chan2 = 1;
 			break;
 		case OMAP_DSS_CHANNEL_LCD3:
-			if (dss_has_feature(FEAT_MGR_LCD3)) {
+			if (dispc_has_feature(FEAT_MGR_LCD3)) {
 				chan = 0;
 				chan2 = 2;
 			} else {
@@ -1130,7 +1171,7 @@ static enum omap_channel dispc_ovl_get_channel_out(enum omap_plane_id plane)
 	if (FLD_GET(val, shift, shift) == 1)
 		return OMAP_DSS_CHANNEL_DIGIT;
 
-	if (!dss_has_feature(FEAT_MGR_LCD2))
+	if (!dispc_has_feature(FEAT_MGR_LCD2))
 		return OMAP_DSS_CHANNEL_LCD;
 
 	switch (FLD_GET(val, 31, 30)) {
@@ -1385,14 +1426,14 @@ void dispc_ovl_set_fifo_threshold(enum omap_plane_id plane, u32 low,
 	 * large for the preload field, set the threshold to the maximum value
 	 * that can be held by the preload register
 	 */
-	if (dss_has_feature(FEAT_PRELOAD) && dispc.feat->set_max_preload &&
+	if (dispc_has_feature(FEAT_PRELOAD) && dispc.feat->set_max_preload &&
 			plane != OMAP_DSS_WB)
 		dispc_write_reg(DISPC_OVL_PRELOAD(plane), min(high, 0xfffu));
 }
 
 void dispc_enable_fifomerge(bool enable)
 {
-	if (!dss_has_feature(FEAT_FIFO_MERGE)) {
+	if (!dispc_has_feature(FEAT_FIFO_MERGE)) {
 		WARN_ON(enable);
 		return;
 	}
@@ -1431,7 +1472,7 @@ void dispc_ovl_compute_fifo_thresholds(enum omap_plane_id plane,
 	 * combined fifo size
 	 */
 
-	if (manual_update && dss_has_feature(FEAT_OMAP3_DSI_FIFO_BUG)) {
+	if (manual_update && dispc_has_feature(FEAT_OMAP3_DSI_FIFO_BUG)) {
 		*fifo_low = ovl_fifo_size - burst_size * 2;
 		*fifo_high = total_fifo_size - burst_size;
 	} else if (plane == OMAP_DSS_WB) {
@@ -1719,14 +1760,14 @@ static void dispc_ovl_set_scaling_common(enum omap_plane_id plane,
 	l |= five_taps ? (1 << 21) : 0;
 
 	/* VRESIZECONF and HRESIZECONF */
-	if (dss_has_feature(FEAT_RESIZECONF)) {
+	if (dispc_has_feature(FEAT_RESIZECONF)) {
 		l &= ~(0x3 << 7);
 		l |= (orig_width <= out_width) ? 0 : (1 << 7);
 		l |= (orig_height <= out_height) ? 0 : (1 << 8);
 	}
 
 	/* LINEBUFFERSPLIT */
-	if (dss_has_feature(FEAT_LINEBUFFERSPLIT)) {
+	if (dispc_has_feature(FEAT_LINEBUFFERSPLIT)) {
 		l &= ~(0x1 << 22);
 		l |= five_taps ? (1 << 22) : 0;
 	}
@@ -1761,7 +1802,7 @@ static void dispc_ovl_set_scaling_uv(enum omap_plane_id plane,
 	int scale_y = out_height != orig_height;
 	bool chroma_upscale = plane != OMAP_DSS_WB;
 
-	if (!dss_has_feature(FEAT_HANDLE_UV_SEPARATE))
+	if (!dispc_has_feature(FEAT_HANDLE_UV_SEPARATE))
 		return;
 
 	if (!format_is_yuv(fourcc)) {
@@ -1908,7 +1949,7 @@ static void dispc_ovl_set_rotation_attrs(enum omap_plane_id plane, u8 rotation,
 		vidrot = 1;
 
 	REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane), vidrot, 13, 12);
-	if (dss_has_feature(FEAT_ROWREPEATENABLE))
+	if (dispc_has_feature(FEAT_ROWREPEATENABLE))
 		REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane),
 			row_repeat ? 1 : 0, 18, 18);
 
@@ -2380,7 +2421,7 @@ static int dispc_ovl_calc_scaling(unsigned long pclk, unsigned long lclk,
 	} else {
 		*x_predecim = max_decim_limit;
 		*y_predecim = (rotation_type == OMAP_DSS_ROT_TILER &&
-				dss_has_feature(FEAT_BURST_2D)) ?
+				dispc_has_feature(FEAT_BURST_2D)) ?
 				2 : max_decim_limit;
 	}
 
@@ -2700,7 +2741,7 @@ static enum omap_dss_output_id dispc_mgr_get_supported_outputs(enum omap_channel
 
 static void dispc_lcd_enable_signal_polarity(bool act_high)
 {
-	if (!dss_has_feature(FEAT_LCDENABLEPOL))
+	if (!dispc_has_feature(FEAT_LCDENABLEPOL))
 		return;
 
 	REG_FLD_MOD(DISPC_CONTROL, act_high ? 1 : 0, 29, 29);
@@ -2708,7 +2749,7 @@ static void dispc_lcd_enable_signal_polarity(bool act_high)
 
 void dispc_lcd_enable_signal(bool enable)
 {
-	if (!dss_has_feature(FEAT_LCDENABLESIGNAL))
+	if (!dispc_has_feature(FEAT_LCDENABLESIGNAL))
 		return;
 
 	REG_FLD_MOD(DISPC_CONTROL, enable ? 1 : 0, 28, 28);
@@ -2716,7 +2757,7 @@ void dispc_lcd_enable_signal(bool enable)
 
 void dispc_pck_free_enable(bool enable)
 {
-	if (!dss_has_feature(FEAT_PCKFREEENABLE))
+	if (!dispc_has_feature(FEAT_PCKFREEENABLE))
 		return;
 
 	REG_FLD_MOD(DISPC_CONTROL, enable ? 1 : 0, 27, 27);
@@ -2761,7 +2802,7 @@ static void dispc_mgr_enable_trans_key(enum omap_channel ch, bool enable)
 static void dispc_mgr_enable_alpha_fixed_zorder(enum omap_channel ch,
 		bool enable)
 {
-	if (!dss_has_feature(FEAT_ALPHA_FIXED_ZORDER))
+	if (!dispc_has_feature(FEAT_ALPHA_FIXED_ZORDER))
 		return;
 
 	if (ch == OMAP_DSS_CHANNEL_LCD)
@@ -2778,7 +2819,7 @@ static void dispc_mgr_setup(enum omap_channel channel,
 	dispc_mgr_enable_trans_key(channel, info->trans_enabled);
 	dispc_mgr_enable_alpha_fixed_zorder(channel,
 			info->partial_alpha_enabled);
-	if (dss_has_feature(FEAT_CPR)) {
+	if (dispc_has_feature(FEAT_CPR)) {
 		dispc_mgr_enable_cpr(channel, info->cpr_enable);
 		dispc_mgr_set_cpr_coef(channel, &info->cpr_coefs);
 	}
@@ -3056,7 +3097,7 @@ static void dispc_mgr_set_lcd_divisor(enum omap_channel channel, u16 lck_div,
 	dispc_write_reg(DISPC_DIVISORo(channel),
 			FLD_VAL(lck_div, 23, 16) | FLD_VAL(pck_div, 7, 0));
 
-	if (!dss_has_feature(FEAT_CORE_CLK_DIV) &&
+	if (!dispc_has_feature(FEAT_CORE_CLK_DIV) &&
 			channel == OMAP_DSS_CHANNEL_LCD)
 		dispc.core_clk_rate = dispc_fclk_rate() / lck_div;
 }
@@ -3211,7 +3252,7 @@ void dispc_dump_clocks(struct seq_file *s)
 
 	seq_printf(s, "fck\t\t%-16lu\n", dispc_fclk_rate());
 
-	if (dss_has_feature(FEAT_CORE_CLK_DIV)) {
+	if (dispc_has_feature(FEAT_CORE_CLK_DIV)) {
 		seq_printf(s, "- DISPC-CORE-CLK -\n");
 		l = dispc_read_reg(DISPC_DIVISOR);
 		lcd = FLD_GET(l, 23, 16);
@@ -3222,9 +3263,9 @@ void dispc_dump_clocks(struct seq_file *s)
 
 	dispc_dump_clocks_channel(s, OMAP_DSS_CHANNEL_LCD);
 
-	if (dss_has_feature(FEAT_MGR_LCD2))
+	if (dispc_has_feature(FEAT_MGR_LCD2))
 		dispc_dump_clocks_channel(s, OMAP_DSS_CHANNEL_LCD2);
-	if (dss_has_feature(FEAT_MGR_LCD3))
+	if (dispc_has_feature(FEAT_MGR_LCD3))
 		dispc_dump_clocks_channel(s, OMAP_DSS_CHANNEL_LCD3);
 
 	dispc_runtime_put();
@@ -3264,18 +3305,18 @@ static void dispc_dump_regs(struct seq_file *s)
 	DUMPREG(DISPC_CAPABLE);
 	DUMPREG(DISPC_LINE_STATUS);
 	DUMPREG(DISPC_LINE_NUMBER);
-	if (dss_has_feature(FEAT_ALPHA_FIXED_ZORDER) ||
-			dss_has_feature(FEAT_ALPHA_FREE_ZORDER))
+	if (dispc_has_feature(FEAT_ALPHA_FIXED_ZORDER) ||
+			dispc_has_feature(FEAT_ALPHA_FREE_ZORDER))
 		DUMPREG(DISPC_GLOBAL_ALPHA);
-	if (dss_has_feature(FEAT_MGR_LCD2)) {
+	if (dispc_has_feature(FEAT_MGR_LCD2)) {
 		DUMPREG(DISPC_CONTROL2);
 		DUMPREG(DISPC_CONFIG2);
 	}
-	if (dss_has_feature(FEAT_MGR_LCD3)) {
+	if (dispc_has_feature(FEAT_MGR_LCD3)) {
 		DUMPREG(DISPC_CONTROL3);
 		DUMPREG(DISPC_CONFIG3);
 	}
-	if (dss_has_feature(FEAT_MFLAG))
+	if (dispc_has_feature(FEAT_MFLAG))
 		DUMPREG(DISPC_GLOBAL_MFLAG_ATTRIBUTE);
 
 #undef DUMPREG
@@ -3305,7 +3346,7 @@ static void dispc_dump_regs(struct seq_file *s)
 		DUMPREG(i, DISPC_DATA_CYCLE2);
 		DUMPREG(i, DISPC_DATA_CYCLE3);
 
-		if (dss_has_feature(FEAT_CPR)) {
+		if (dispc_has_feature(FEAT_CPR)) {
 			DUMPREG(i, DISPC_CPR_COEF_R);
 			DUMPREG(i, DISPC_CPR_COEF_G);
 			DUMPREG(i, DISPC_CPR_COEF_B);
@@ -3325,9 +3366,9 @@ static void dispc_dump_regs(struct seq_file *s)
 		DUMPREG(i, DISPC_OVL_ROW_INC);
 		DUMPREG(i, DISPC_OVL_PIXEL_INC);
 
-		if (dss_has_feature(FEAT_PRELOAD))
+		if (dispc_has_feature(FEAT_PRELOAD))
 			DUMPREG(i, DISPC_OVL_PRELOAD);
-		if (dss_has_feature(FEAT_MFLAG))
+		if (dispc_has_feature(FEAT_MFLAG))
 			DUMPREG(i, DISPC_OVL_MFLAG_THRESHOLD);
 
 		if (i == OMAP_DSS_GFX) {
@@ -3340,14 +3381,14 @@ static void dispc_dump_regs(struct seq_file *s)
 		DUMPREG(i, DISPC_OVL_PICTURE_SIZE);
 		DUMPREG(i, DISPC_OVL_ACCU0);
 		DUMPREG(i, DISPC_OVL_ACCU1);
-		if (dss_has_feature(FEAT_HANDLE_UV_SEPARATE)) {
+		if (dispc_has_feature(FEAT_HANDLE_UV_SEPARATE)) {
 			DUMPREG(i, DISPC_OVL_BA0_UV);
 			DUMPREG(i, DISPC_OVL_BA1_UV);
 			DUMPREG(i, DISPC_OVL_FIR2);
 			DUMPREG(i, DISPC_OVL_ACCU2_0);
 			DUMPREG(i, DISPC_OVL_ACCU2_1);
 		}
-		if (dss_has_feature(FEAT_ATTR2))
+		if (dispc_has_feature(FEAT_ATTR2))
 			DUMPREG(i, DISPC_OVL_ATTRIBUTES2);
 	}
 
@@ -3362,21 +3403,21 @@ static void dispc_dump_regs(struct seq_file *s)
 		DUMPREG(i, DISPC_OVL_ROW_INC);
 		DUMPREG(i, DISPC_OVL_PIXEL_INC);
 
-		if (dss_has_feature(FEAT_MFLAG))
+		if (dispc_has_feature(FEAT_MFLAG))
 			DUMPREG(i, DISPC_OVL_MFLAG_THRESHOLD);
 
 		DUMPREG(i, DISPC_OVL_FIR);
 		DUMPREG(i, DISPC_OVL_PICTURE_SIZE);
 		DUMPREG(i, DISPC_OVL_ACCU0);
 		DUMPREG(i, DISPC_OVL_ACCU1);
-		if (dss_has_feature(FEAT_HANDLE_UV_SEPARATE)) {
+		if (dispc_has_feature(FEAT_HANDLE_UV_SEPARATE)) {
 			DUMPREG(i, DISPC_OVL_BA0_UV);
 			DUMPREG(i, DISPC_OVL_BA1_UV);
 			DUMPREG(i, DISPC_OVL_FIR2);
 			DUMPREG(i, DISPC_OVL_ACCU2_0);
 			DUMPREG(i, DISPC_OVL_ACCU2_1);
 		}
-		if (dss_has_feature(FEAT_ATTR2))
+		if (dispc_has_feature(FEAT_ATTR2))
 			DUMPREG(i, DISPC_OVL_ATTRIBUTES2);
 	}
 
@@ -3402,12 +3443,12 @@ static void dispc_dump_regs(struct seq_file *s)
 		for (j = 0; j < 5; j++)
 			DUMPREG(i, DISPC_OVL_CONV_COEF, j);
 
-		if (dss_has_feature(FEAT_FIR_COEF_V)) {
+		if (dispc_has_feature(FEAT_FIR_COEF_V)) {
 			for (j = 0; j < 8; j++)
 				DUMPREG(i, DISPC_OVL_FIR_COEF_V, j);
 		}
 
-		if (dss_has_feature(FEAT_HANDLE_UV_SEPARATE)) {
+		if (dispc_has_feature(FEAT_HANDLE_UV_SEPARATE)) {
 			for (j = 0; j < 8; j++)
 				DUMPREG(i, DISPC_OVL_FIR_COEF_H2, j);
 
@@ -3484,7 +3525,7 @@ bool dispc_div_calc(unsigned long dispc,
 			 * also. Thus we need to use the calculated lck. For
 			 * OMAP4+ the DISPC fclk is a separate clock.
 			 */
-			if (dss_has_feature(FEAT_CORE_CLK_DIV))
+			if (dispc_has_feature(FEAT_CORE_CLK_DIV))
 				fck = dispc_core_clk_rate();
 			else
 				fck = lck;
@@ -3599,10 +3640,10 @@ static void dispc_restore_gamma_tables(void)
 
 	dispc_mgr_write_gamma_table(OMAP_DSS_CHANNEL_DIGIT);
 
-	if (dss_has_feature(FEAT_MGR_LCD2))
+	if (dispc_has_feature(FEAT_MGR_LCD2))
 		dispc_mgr_write_gamma_table(OMAP_DSS_CHANNEL_LCD2);
 
-	if (dss_has_feature(FEAT_MGR_LCD3))
+	if (dispc_has_feature(FEAT_MGR_LCD3))
 		dispc_mgr_write_gamma_table(OMAP_DSS_CHANNEL_LCD3);
 }
 
@@ -3670,11 +3711,11 @@ static int dispc_init_gamma_tables(void)
 		u32 *gt;
 
 		if (channel == OMAP_DSS_CHANNEL_LCD2 &&
-		    !dss_has_feature(FEAT_MGR_LCD2))
+		    !dispc_has_feature(FEAT_MGR_LCD2))
 			continue;
 
 		if (channel == OMAP_DSS_CHANNEL_LCD3 &&
-		    !dss_has_feature(FEAT_MGR_LCD3))
+		    !dispc_has_feature(FEAT_MGR_LCD3))
 			continue;
 
 		gt = devm_kmalloc_array(&dispc.pdev->dev, gdesc->len,
@@ -3694,7 +3735,7 @@ static void _omap_dispc_initial_config(void)
 	u32 l;
 
 	/* Exclusively enable DISPC_CORE_CLK and set divider to 1 */
-	if (dss_has_feature(FEAT_CORE_CLK_DIV)) {
+	if (dispc_has_feature(FEAT_CORE_CLK_DIV)) {
 		l = dispc_read_reg(DISPC_DIVISOR);
 		/* Use DISPC_DIVISOR.LCD, instead of DISPC_DIVISOR1.LCD */
 		l = FLD_MOD(l, 1, 0, 0);
@@ -3712,7 +3753,7 @@ static void _omap_dispc_initial_config(void)
 	 * func-clock auto-gating. For newer versions
 	 * (dispc.feat->has_gamma_table) this enables tv-out gamma tables.
 	 */
-	if (dss_has_feature(FEAT_FUNCGATED) || dispc.feat->has_gamma_table)
+	if (dispc_has_feature(FEAT_FUNCGATED) || dispc.feat->has_gamma_table)
 		REG_FLD_MOD(DISPC_CONFIG, 1, 9, 9);
 
 	dispc_setup_color_conv_coef();
@@ -3728,9 +3769,77 @@ static void _omap_dispc_initial_config(void)
 	if (dispc.feat->mstandby_workaround)
 		REG_FLD_MOD(DISPC_MSTANDBY_CTRL, 1, 0, 0);
 
-	if (dss_has_feature(FEAT_MFLAG))
+	if (dispc_has_feature(FEAT_MFLAG))
 		dispc_init_mflag();
 }
+
+static const enum dispc_feature_id omap2_dispc_features_list[] = {
+	FEAT_LCDENABLEPOL,
+	FEAT_LCDENABLESIGNAL,
+	FEAT_PCKFREEENABLE,
+	FEAT_FUNCGATED,
+	FEAT_ROWREPEATENABLE,
+	FEAT_RESIZECONF,
+};
+
+static const enum dispc_feature_id omap3_dispc_features_list[] = {
+	FEAT_LCDENABLEPOL,
+	FEAT_LCDENABLESIGNAL,
+	FEAT_PCKFREEENABLE,
+	FEAT_FUNCGATED,
+	FEAT_LINEBUFFERSPLIT,
+	FEAT_ROWREPEATENABLE,
+	FEAT_RESIZECONF,
+	FEAT_CPR,
+	FEAT_PRELOAD,
+	FEAT_FIR_COEF_V,
+	FEAT_ALPHA_FIXED_ZORDER,
+	FEAT_FIFO_MERGE,
+	FEAT_OMAP3_DSI_FIFO_BUG,
+};
+
+static const enum dispc_feature_id am43xx_dispc_features_list[] = {
+	FEAT_LCDENABLEPOL,
+	FEAT_LCDENABLESIGNAL,
+	FEAT_PCKFREEENABLE,
+	FEAT_FUNCGATED,
+	FEAT_LINEBUFFERSPLIT,
+	FEAT_ROWREPEATENABLE,
+	FEAT_RESIZECONF,
+	FEAT_CPR,
+	FEAT_PRELOAD,
+	FEAT_FIR_COEF_V,
+	FEAT_ALPHA_FIXED_ZORDER,
+	FEAT_FIFO_MERGE,
+};
+
+static const enum dispc_feature_id omap4_dispc_features_list[] = {
+	FEAT_MGR_LCD2,
+	FEAT_CORE_CLK_DIV,
+	FEAT_HANDLE_UV_SEPARATE,
+	FEAT_ATTR2,
+	FEAT_CPR,
+	FEAT_PRELOAD,
+	FEAT_FIR_COEF_V,
+	FEAT_ALPHA_FREE_ZORDER,
+	FEAT_FIFO_MERGE,
+	FEAT_BURST_2D,
+};
+
+static const enum dispc_feature_id omap5_dispc_features_list[] = {
+	FEAT_MGR_LCD2,
+	FEAT_MGR_LCD3,
+	FEAT_CORE_CLK_DIV,
+	FEAT_HANDLE_UV_SEPARATE,
+	FEAT_ATTR2,
+	FEAT_CPR,
+	FEAT_PRELOAD,
+	FEAT_FIR_COEF_V,
+	FEAT_ALPHA_FREE_ZORDER,
+	FEAT_FIFO_MERGE,
+	FEAT_BURST_2D,
+	FEAT_MFLAG,
+};
 
 static const struct dss_reg_field omap2_dispc_reg_fields[] = {
 	[FEAT_REG_FIRHINC]			= { 11, 0 },
@@ -3941,6 +4050,8 @@ static const struct dispc_features omap24xx_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_24xx,
 	.calc_core_clk		=	calc_core_clk_24xx,
 	.num_fifos		=	3,
+	.features		=	omap2_dispc_features_list,
+	.num_features		=	ARRAY_SIZE(omap2_dispc_features_list),
 	.reg_fields		=	omap2_dispc_reg_fields,
 	.num_reg_fields		=	ARRAY_SIZE(omap2_dispc_reg_fields),
 	.overlay_caps		=	omap2_dispc_overlay_caps,
@@ -3970,6 +4081,8 @@ static const struct dispc_features omap34xx_rev1_0_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_34xx,
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
+	.features		=	omap3_dispc_features_list,
+	.num_features		=	ARRAY_SIZE(omap3_dispc_features_list),
 	.reg_fields		=	omap3_dispc_reg_fields,
 	.num_reg_fields		=	ARRAY_SIZE(omap3_dispc_reg_fields),
 	.overlay_caps		=	omap3430_dispc_overlay_caps,
@@ -3999,6 +4112,8 @@ static const struct dispc_features omap34xx_rev3_0_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_34xx,
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
+	.features		=	omap3_dispc_features_list,
+	.num_features		=	ARRAY_SIZE(omap3_dispc_features_list),
 	.reg_fields		=	omap3_dispc_reg_fields,
 	.num_reg_fields		=	ARRAY_SIZE(omap3_dispc_reg_fields),
 	.overlay_caps		=	omap3430_dispc_overlay_caps,
@@ -4028,6 +4143,8 @@ static const struct dispc_features omap36xx_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_34xx,
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
+	.features		=	omap3_dispc_features_list,
+	.num_features		=	ARRAY_SIZE(omap3_dispc_features_list),
 	.reg_fields		=	omap3_dispc_reg_fields,
 	.num_reg_fields		=	ARRAY_SIZE(omap3_dispc_reg_fields),
 	.overlay_caps		=	omap3630_dispc_overlay_caps,
@@ -4057,6 +4174,8 @@ static const struct dispc_features am43xx_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_34xx,
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
+	.features		=	am43xx_dispc_features_list,
+	.num_features		=	ARRAY_SIZE(am43xx_dispc_features_list),
 	.reg_fields		=	omap3_dispc_reg_fields,
 	.num_reg_fields		=	ARRAY_SIZE(omap3_dispc_reg_fields),
 	.overlay_caps		=	omap3430_dispc_overlay_caps,
@@ -4086,6 +4205,8 @@ static const struct dispc_features omap44xx_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_44xx,
 	.calc_core_clk		=	calc_core_clk_44xx,
 	.num_fifos		=	5,
+	.features		=	omap4_dispc_features_list,
+	.num_features		=	ARRAY_SIZE(omap4_dispc_features_list),
 	.reg_fields		=	omap4_dispc_reg_fields,
 	.num_reg_fields		=	ARRAY_SIZE(omap4_dispc_reg_fields),
 	.overlay_caps		=	omap4_dispc_overlay_caps,
@@ -4120,6 +4241,8 @@ static const struct dispc_features omap54xx_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_44xx,
 	.calc_core_clk		=	calc_core_clk_44xx,
 	.num_fifos		=	5,
+	.features		=	omap5_dispc_features_list,
+	.num_features		=	ARRAY_SIZE(omap5_dispc_features_list),
 	.reg_fields		=	omap4_dispc_reg_fields,
 	.num_reg_fields		=	ARRAY_SIZE(omap4_dispc_reg_fields),
 	.overlay_caps		=	omap4_dispc_overlay_caps,
