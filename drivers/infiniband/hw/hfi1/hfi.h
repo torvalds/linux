@@ -1298,6 +1298,13 @@ int hfi1_reset_device(int);
 static inline u32 driver_pstate(struct hfi1_pportdata *ppd)
 {
 	/*
+	 * When DC is shut down and state is changed, its CSRs are not
+	 * impacted, therefore host_link_state should be used to get
+	 * current physical state.
+	 */
+	if (ppd->dd->dc_shutdown)
+		return driver_physical_state(ppd);
+	/*
 	 * The driver does some processing from the time the physical
 	 * link state is at LINKUP to the time the SM can be notified
 	 * as such. Return IB_PORTPHYSSTATE_TRAINING until the software
