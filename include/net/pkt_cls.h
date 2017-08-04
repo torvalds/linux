@@ -182,7 +182,7 @@ static inline bool tcf_exts_has_one_action(struct tcf_exts *exts)
  * @exts: tc filter extensions handle
  * @res: desired result
  *
- * Executes all configured extensions. Returns 0 on a normal execution,
+ * Executes all configured extensions. Returns TC_ACT_OK on a normal execution,
  * a negative number if the filter must be considered unmatched or
  * a positive action code (TC_ACT_*) which must be returned to the
  * underlying layer.
@@ -196,7 +196,7 @@ tcf_exts_exec(struct sk_buff *skb, struct tcf_exts *exts,
 		return tcf_action_exec(skb, exts->actions, exts->nr_actions,
 				       res);
 #endif
-	return 0;
+	return TC_ACT_OK;
 }
 
 int tcf_exts_validate(struct net *net, struct tcf_proto *tp,
