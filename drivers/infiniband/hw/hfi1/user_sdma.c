@@ -502,6 +502,8 @@ int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
 	struct sdma_req_info info;
 	struct user_sdma_request *req;
 	u8 opcode, sc, vl;
+	u16 pkey;
+	u32 slid;
 	int req_queued = 0;
 	u16 dlid;
 	u32 selector;
@@ -635,8 +637,9 @@ int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
 	}
 
 	/* Checking P_KEY for requests from user-space */
-	if (egress_pkey_check(dd->pport, req->hdr.lrh, req->hdr.bth, sc,
-			      PKEY_CHECK_INVALID)) {
+	pkey = (u16)be32_to_cpu(req->hdr.bth[0]);
+	slid = be16_to_cpu(req->hdr.lrh[3]);
+	if (egress_pkey_check(dd->pport, slid, pkey, sc, PKEY_CHECK_INVALID)) {
 		ret = -EINVAL;
 		goto free_req;
 	}

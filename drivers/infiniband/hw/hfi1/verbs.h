@@ -163,6 +163,7 @@ struct hfi1_pkt_state {
 	unsigned long timeout;
 	unsigned long timeout_int;
 	int cpu;
+	u8 opcode;
 	bool in_thread;
 	bool pkts_sent;
 };

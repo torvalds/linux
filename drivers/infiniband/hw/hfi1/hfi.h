@@ -1558,7 +1558,7 @@ static const hfi1_handle_cnp hfi1_handle_cnp_tbl[2] = {
 	[HFI1_PKT_TYPE_16B] = &return_cnp_16B
 };
 #define PKEY_CHECK_INVALID -1
-int egress_pkey_check(struct hfi1_pportdata *ppd, __be16 *lrh, __be32 *bth,
+int egress_pkey_check(struct hfi1_pportdata *ppd, u32 slid, u16 pkey,
 		      u8 sc5, int8_t s_pkey_index);
 
 #define PACKET_EGRESS_TIMEOUT 350
