@@ -571,7 +571,7 @@ static inline void hfi1_handle_packet(struct hfi1_packet *packet,
 			goto drop;
 		mcast = rvt_mcast_find(&ibp->rvp,
 				       &packet->grh->dgid,
-				       packet->dlid);
+				       opa_get_lid(packet->dlid, 9B));
 		if (!mcast)
 			goto drop;
 		list_for_each_entry_rcu(p, &mcast->qp_list, list) {
@@ -627,14 +627,17 @@ drop:
 void hfi1_ib_rcv(struct hfi1_packet *packet)
 {
 	struct hfi1_ctxtdata *rcd = packet->rcd;
-	bool is_mcast = false;
 
-	if (unlikely(hfi1_check_mcast(packet->dlid)))
-		is_mcast = true;
+	trace_input_ibhdr(rcd->dd, packet, !!(rhf_dc_info(packet->rhf)));
+	hfi1_handle_packet(packet, hfi1_check_mcast(packet->dlid));
+}
 
-	trace_input_ibhdr(rcd->dd, packet,
-			  !!(packet->rhf & RHF_DC_INFO_SMASK));
-	hfi1_handle_packet(packet, is_mcast);
+void hfi1_16B_rcv(struct hfi1_packet *packet)
+{
+	struct hfi1_ctxtdata *rcd = packet->rcd;
+
+	trace_input_ibhdr(rcd->dd, packet, false);
+	hfi1_handle_packet(packet, hfi1_check_mcast(packet->dlid));
 }
 
 /*

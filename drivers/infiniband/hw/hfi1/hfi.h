@@ -66,6 +66,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 #include <rdma/ib_hdrs.h>
+#include <rdma/opa_addr.h>
 #include <linux/rhashtable.h>
 #include <linux/netdevice.h>
 #include <rdma/rdma_vt.h>
@@ -325,6 +326,7 @@ struct hfi1_ctxtdata {
 struct hfi1_packet {
 	void *ebuf;
 	void *hdr;
+	void *payload;
 	struct hfi1_ctxtdata *rcd;
 	__le32 *rhf_addr;
 	struct rvt_qp *qp;
@@ -350,6 +352,83 @@ struct hfi1_packet {
 	bool becn;
 	bool fecn;
 };
+
+/*
+ * OPA 16B Header
+ */
+#define OPA_16B_L4_MASK		0xFFull
+#define OPA_16B_SC_MASK		0x1F00000ull
+#define OPA_16B_SC_SHIFT	20
+#define OPA_16B_LID_MASK	0xFFFFFull
+#define OPA_16B_DLID_MASK	0xF000ull
+#define OPA_16B_DLID_SHIFT	20
+#define OPA_16B_DLID_HIGH_SHIFT	12
+#define OPA_16B_SLID_MASK	0xF00ull
+#define OPA_16B_SLID_SHIFT	20
+#define OPA_16B_SLID_HIGH_SHIFT	8
+#define OPA_16B_BECN_MASK       0x80000000ull
+#define OPA_16B_BECN_SHIFT      31
+#define OPA_16B_FECN_MASK       0x10000000ull
+#define OPA_16B_FECN_SHIFT      28
+#define OPA_16B_L2_MASK		0x60000000ull
+#define OPA_16B_L2_SHIFT	29
+
+/*
+ * OPA 16B L2/L4 Encodings
+ */
+#define OPA_16B_L2_TYPE		0x02
+#define OPA_16B_L4_IB_LOCAL	0x09
+#define OPA_16B_L4_IB_GLOBAL	0x0A
+#define OPA_16B_L4_ETHR		OPA_VNIC_L4_ETHR
+
+static inline u8 hfi1_16B_get_l4(struct hfi1_16b_header *hdr)
+{
+	return (u8)(hdr->lrh[2] & OPA_16B_L4_MASK);
+}
+
+static inline u8 hfi1_16B_get_sc(struct hfi1_16b_header *hdr)
+{
+	return (u8)((hdr->lrh[1] & OPA_16B_SC_MASK) >> OPA_16B_SC_SHIFT);
+}
+
+static inline u32 hfi1_16B_get_dlid(struct hfi1_16b_header *hdr)
+{
+	return (u32)((hdr->lrh[1] & OPA_16B_LID_MASK) |
+		     (((hdr->lrh[2] & OPA_16B_DLID_MASK) >>
+		     OPA_16B_DLID_HIGH_SHIFT) << OPA_16B_DLID_SHIFT));
+}
+
+static inline u32 hfi1_16B_get_slid(struct hfi1_16b_header *hdr)
+{
+	return (u32)((hdr->lrh[0] & OPA_16B_LID_MASK) |
+		     (((hdr->lrh[2] & OPA_16B_SLID_MASK) >>
+		     OPA_16B_SLID_HIGH_SHIFT) << OPA_16B_SLID_SHIFT));
+}
+
+static inline u8 hfi1_16B_get_becn(struct hfi1_16b_header *hdr)
+{
+	return (u8)((hdr->lrh[0] & OPA_16B_BECN_MASK) >> OPA_16B_BECN_SHIFT);
+}
+
+static inline u8 hfi1_16B_get_fecn(struct hfi1_16b_header *hdr)
+{
+	return (u8)((hdr->lrh[1] & OPA_16B_FECN_MASK) >> OPA_16B_FECN_SHIFT);
+}
+
+static inline u8 hfi1_16B_get_l2(struct hfi1_16b_header *hdr)
+{
+	return (u8)((hdr->lrh[1] & OPA_16B_L2_MASK) >> OPA_16B_L2_SHIFT);
+}
+
+/*
+ * BTH
+ */
+#define OPA_16B_BTH_PAD_MASK	7
+static inline u8 hfi1_16B_bth_get_pad(struct ib_other_headers *ohdr)
+{
+	return (u8)((be32_to_cpu(ohdr->bth[0]) >> IB_BTH_PAD_SHIFT) &
+		   OPA_16B_BTH_PAD_MASK);
+}
 
 struct rvt_sge_state;
 
@@ -2084,11 +2163,55 @@ int hfi1_tempsense_rd(struct hfi1_devdata *dd, struct hfi1_temp *temp);
 
 /*
  * hfi1_check_mcast- Check if the given lid is
- * in the IB multicast range.
+ * in the OPA multicast range.
+ *
+ * The LID might either reside in ah.dlid or might be
+ * in the GRH of the address handle as DGID if extended
+ * addresses are in use.
  */
-static inline bool hfi1_check_mcast(u16 lid)
+static inline bool hfi1_check_mcast(u32 lid)
 {
-	return ((lid >= be16_to_cpu(IB_MULTICAST_LID_BASE)) &&
-		(lid != be16_to_cpu(IB_LID_PERMISSIVE)));
+	return ((lid >= opa_get_mcast_base(OPA_MCAST_NR)) &&
+		(lid != be32_to_cpu(OPA_LID_PERMISSIVE)));
+}
+
+#define opa_get_lid(lid, format)	\
+	__opa_get_lid(lid, OPA_PORT_PACKET_FORMAT_##format)
+
+/* Convert a lid to a specific lid space */
+static inline u32 __opa_get_lid(u32 lid, u8 format)
+{
+	bool is_mcast = hfi1_check_mcast(lid);
+
+	switch (format) {
+	case OPA_PORT_PACKET_FORMAT_8B:
+	case OPA_PORT_PACKET_FORMAT_10B:
+		if (is_mcast)
+			return (lid - opa_get_mcast_base(OPA_MCAST_NR) +
+				0xF0000);
+		return lid & 0xFFFFF;
+	case OPA_PORT_PACKET_FORMAT_16B:
+		if (is_mcast)
+			return (lid - opa_get_mcast_base(OPA_MCAST_NR) +
+				0xF00000);
+		return lid & 0xFFFFFF;
+	case OPA_PORT_PACKET_FORMAT_9B:
+		if (is_mcast)
+			return (lid -
+				opa_get_mcast_base(OPA_MCAST_NR) +
+				be16_to_cpu(IB_MULTICAST_LID_BASE));
+		else
+			return lid & 0xFFFF;
+	default:
+		return lid;
+	}
+}
+
+/* Return true if the given lid is the OPA 16B multicast range */
+static inline bool hfi1_is_16B_mcast(u32 lid)
+{
+	return ((lid >=
+		opa_get_lid(opa_get_mcast_base(OPA_MCAST_NR), 16B)) &&
+		(lid != opa_get_lid(be32_to_cpu(OPA_LID_PERMISSIVE), 16B)));
 }
 #endif                          /* _HFI1_KERNEL_H */

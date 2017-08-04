@@ -104,6 +104,17 @@ enum {
 	HFI1_HAS_GRH = (1 << 0),
 };
 
+struct hfi1_16b_header {
+	u32 lrh[4];
+	union {
+		struct {
+			struct ib_grh grh;
+			struct ib_other_headers oth;
+		} l;
+		struct ib_other_headers oth;
+	} u;
+} __packed;
+
 struct hfi1_ahg_info {
 	u32 ahgdesc[2];
 	u16 tx_flags;
@@ -377,6 +388,8 @@ int hfi1_register_ib_device(struct hfi1_devdata *);
 void hfi1_unregister_ib_device(struct hfi1_devdata *);
 
 void hfi1_ib_rcv(struct hfi1_packet *packet);
+
+void hfi1_16B_rcv(struct hfi1_packet *packet);
 
 unsigned hfi1_get_npkeys(struct hfi1_devdata *);
 

@@ -564,8 +564,8 @@ void hfi1_vnic_bypass_rcv(struct hfi1_packet *packet)
 	int l4_type, vesw_id = -1;
 	u8 q_idx;
 
-	l4_type = HFI1_GET_L4_TYPE(packet->ebuf);
-	if (likely(l4_type == OPA_VNIC_L4_ETHR)) {
+	l4_type = hfi1_16B_get_l4(packet->ebuf);
+	if (likely(l4_type == OPA_16B_L4_ETHR)) {
 		vesw_id = HFI1_VNIC_GET_VESWID(packet->ebuf);
 		vinfo = idr_find(&dd->vnic.vesw_idr, vesw_id);
 

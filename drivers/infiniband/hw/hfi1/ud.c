@@ -667,11 +667,10 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 	struct hfi1_ibport *ibp = rcd_to_iport(packet->rcd);
 	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
 	struct ib_header *hdr = packet->hdr;
-	void *data = packet->ebuf;
+	void *data = packet->payload;
 	u32 tlen = packet->tlen;
 	struct rvt_qp *qp = packet->qp;
 	u8 sc5 = hfi1_9B_get_sc5(hdr, packet->rhf);
-	u32 bth1;
 	u8 sl_from_sc;
 	u8 extra_bytes = packet->pad;
 	u8 opcode = packet->opcode;
@@ -679,7 +678,6 @@ void hfi1_ud_rcv(struct hfi1_packet *packet)
 	u32 dlid = packet->dlid;
 	u32 slid = packet->slid;
 
-	bth1 = be32_to_cpu(ohdr->bth[1]);
 	qkey = ib_get_qkey(ohdr);
 	src_qp = ib_get_sqpn(ohdr);
 	pkey = ib_bth_get_pkey(ohdr);

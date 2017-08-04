@@ -327,6 +327,7 @@ struct diag_pkt {
 /* misc. */
 #define SC15_PACKET 0xF
 #define SIZE_OF_CRC 1
+#define SIZE_OF_LT 1
 
 #define LIM_MGMT_P_KEY       0x7FFF
 #define FULL_MGMT_P_KEY      0xFFFF

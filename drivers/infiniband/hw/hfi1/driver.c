@@ -237,6 +237,13 @@ static inline struct ib_header *hfi1_get_msgheader(struct hfi1_devdata *dd,
 	return (struct ib_header *)hfi1_get_header(dd, rhf_addr);
 }
 
+static inline struct hfi1_16b_header
+		*hfi1_get_16B_header(struct hfi1_devdata *dd,
+				     __le32 *rhf_addr)
+{
+	return (struct hfi1_16b_header *)hfi1_get_header(dd, rhf_addr);
+}
+
 /*
  * Validate and encode the a given RcvArray Buffer size.
  * The function will check whether the given size falls within
@@ -925,6 +932,11 @@ static inline int set_armed_to_active(struct hfi1_ctxtdata *rcd,
 		struct ib_header *hdr = hfi1_get_msgheader(packet->rcd->dd,
 							   packet->rhf_addr);
 		sc = hfi1_9B_get_sc5(hdr, packet->rhf);
+	} else if (etype == RHF_RCV_TYPE_BYPASS) {
+		struct hfi1_16b_header *hdr = hfi1_get_16B_header(
+						packet->rcd->dd,
+						packet->rhf_addr);
+		sc = hfi1_16B_get_sc(hdr);
 	}
 	if (sc != SC15_PACKET) {
 		int hwstate = driver_lstate(rcd->ppd);
@@ -1386,9 +1398,14 @@ static int hfi1_setup_9B_packet(struct hfi1_packet *packet)
 	}
 
 	/* Query commonly used fields from packet header */
+	packet->payload = packet->ebuf;
 	packet->opcode = ib_bth_get_opcode(packet->ohdr);
 	packet->slid = ib_get_slid(hdr);
 	packet->dlid = ib_get_dlid(hdr);
+	if (unlikely((packet->dlid >= be16_to_cpu(IB_MULTICAST_LID_BASE)) &&
+		     (packet->dlid != be16_to_cpu(IB_LID_PERMISSIVE))))
+		packet->dlid += opa_get_mcast_base(OPA_MCAST_NR) -
+				be16_to_cpu(IB_MULTICAST_LID_BASE);
 	packet->sl = ib_get_sl(hdr);
 	packet->sc = hfi1_9B_get_sc5(hdr, packet->rhf);
 	packet->pad = ib_bth_get_pad(packet->ohdr);
@@ -1398,6 +1415,73 @@ static int hfi1_setup_9B_packet(struct hfi1_packet *packet)
 
 	return 0;
 drop:
+	ibp->rvp.n_pkt_drops++;
+	return -EINVAL;
+}
+
+static int hfi1_setup_bypass_packet(struct hfi1_packet *packet)
+{
+	/*
+	 * Bypass packets have a different header/payload split
+	 * compared to an IB packet.
+	 * Current split is set such that 16 bytes of the actual
+	 * header is in the header buffer and the remining is in
+	 * the eager buffer. We chose 16 since hfi1 driver only
+	 * supports 16B bypass packets and we will be able to
+	 * receive the entire LRH with such a split.
+	 */
+
+	struct hfi1_ctxtdata *rcd = packet->rcd;
+	struct hfi1_pportdata *ppd = rcd->ppd;
+	struct hfi1_ibport *ibp = &ppd->ibport_data;
+	u8 l4;
+	u8 grh_len;
+
+	packet->hdr = (struct hfi1_16b_header *)
+			hfi1_get_16B_header(packet->rcd->dd,
+					    packet->rhf_addr);
+	packet->hlen = (u8 *)packet->rhf_addr - (u8 *)packet->hdr;
+
+	l4 = hfi1_16B_get_l4(packet->hdr);
+	if (l4 == OPA_16B_L4_IB_LOCAL) {
+		grh_len = 0;
+		packet->ohdr = packet->ebuf;
+		packet->grh = NULL;
+	} else if (l4 == OPA_16B_L4_IB_GLOBAL) {
+		u32 vtf;
+
+		grh_len = sizeof(struct ib_grh);
+		packet->ohdr = packet->ebuf + grh_len;
+		packet->grh = packet->ebuf;
+		if (packet->grh->next_hdr != IB_GRH_NEXT_HDR)
+			goto drop;
+		vtf = be32_to_cpu(packet->grh->version_tclass_flow);
+		if ((vtf >> IB_GRH_VERSION_SHIFT) != IB_GRH_VERSION)
+			goto drop;
+	} else {
+		goto drop;
+	}
+
+	/* Query commonly used fields from packet header */
+	packet->opcode = ib_bth_get_opcode(packet->ohdr);
+	packet->hlen = hdr_len_by_opcode[packet->opcode] + 8 + grh_len;
+	packet->payload = packet->ebuf + packet->hlen - (4 * sizeof(u32));
+	packet->slid = hfi1_16B_get_slid(packet->hdr);
+	packet->dlid = hfi1_16B_get_dlid(packet->hdr);
+	if (unlikely(hfi1_is_16B_mcast(packet->dlid)))
+		packet->dlid += opa_get_mcast_base(OPA_MCAST_NR) -
+				opa_get_lid(opa_get_mcast_base(OPA_MCAST_NR),
+					    16B);
+	packet->sc = hfi1_16B_get_sc(packet->hdr);
+	packet->sl = ibp->sc_to_sl[packet->sc];
+	packet->pad = hfi1_16B_bth_get_pad(packet->ohdr);
+	packet->extra_byte = SIZE_OF_LT;
+	packet->fecn = hfi1_16B_get_fecn(packet->hdr);
+	packet->becn = hfi1_16B_get_becn(packet->hdr);
+
+	return 0;
+drop:
+	hfi1_cdbg(PKT, "%s: packet dropped\n", __func__);
 	ibp->rvp.n_pkt_drops++;
 	return -EINVAL;
 }
@@ -1464,8 +1548,8 @@ static inline bool hfi1_is_vnic_packet(struct hfi1_packet *packet)
 	if (packet->rcd->is_vnic)
 		return true;
 
-	if ((HFI1_GET_L2_TYPE(packet->ebuf) == OPA_VNIC_L2_TYPE) &&
-	    (HFI1_GET_L4_TYPE(packet->ebuf) == OPA_VNIC_L4_ETHR))
+	if ((hfi1_16B_get_l2(packet->ebuf) == OPA_16B_L2_TYPE) &&
+	    (hfi1_16B_get_l4(packet->ebuf) == OPA_16B_L4_ETHR))
 		return true;
 
 	return false;
@@ -1475,25 +1559,38 @@ int process_receive_bypass(struct hfi1_packet *packet)
 {
 	struct hfi1_devdata *dd = packet->rcd->dd;
 
-	if (unlikely(rhf_err_flags(packet->rhf))) {
-		handle_eflags(packet);
-	} else if (hfi1_is_vnic_packet(packet)) {
+	if (hfi1_is_vnic_packet(packet)) {
 		hfi1_vnic_bypass_rcv(packet);
 		return RHF_RCV_CONTINUE;
 	}
 
-	dd_dev_err(dd, "Unsupported bypass packet. Dropping\n");
-	incr_cntr64(&dd->sw_rcv_bypass_packet_errors);
-	if (!(dd->err_info_rcvport.status_and_code & OPA_EI_STATUS_SMASK)) {
-		u64 *flits = packet->ebuf;
+	if (hfi1_setup_bypass_packet(packet))
+		return RHF_RCV_CONTINUE;
 
-		if (flits && !(packet->rhf & RHF_LEN_ERR)) {
-			dd->err_info_rcvport.packet_flit1 = flits[0];
-			dd->err_info_rcvport.packet_flit2 =
-				packet->tlen > sizeof(flits[0]) ? flits[1] : 0;
+	if (unlikely(rhf_err_flags(packet->rhf))) {
+		handle_eflags(packet);
+		return RHF_RCV_CONTINUE;
+	}
+
+	if (hfi1_16B_get_l2(packet->hdr) == 0x2) {
+		hfi1_16B_rcv(packet);
+	} else {
+		dd_dev_err(dd,
+			   "Bypass packets other than 16B are not supported in normal operation. Dropping\n");
+		incr_cntr64(&dd->sw_rcv_bypass_packet_errors);
+		if (!(dd->err_info_rcvport.status_and_code &
+		      OPA_EI_STATUS_SMASK)) {
+			u64 *flits = packet->ebuf;
+
+			if (flits && !(packet->rhf & RHF_LEN_ERR)) {
+				dd->err_info_rcvport.packet_flit1 = flits[0];
+				dd->err_info_rcvport.packet_flit2 =
+					packet->tlen > sizeof(flits[0]) ?
+					flits[1] : 0;
+			}
+			dd->err_info_rcvport.status_and_code |=
+				(OPA_EI_STATUS_SMASK | BAD_L2_ERR);
 		}
-		dd->err_info_rcvport.status_and_code |=
-			(OPA_EI_STATUS_SMASK | BAD_L2_ERR);
 	}
 	return RHF_RCV_CONTINUE;
 }
