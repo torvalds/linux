@@ -381,6 +381,11 @@ struct hfi1_packet {
 #define OPA_16B_PKEY_SHIFT	16
 #define OPA_16B_LEN_MASK	0x7FF00000ull
 #define OPA_16B_LEN_SHIFT	20
+#define OPA_16B_RC_MASK		0xE000000ull
+#define OPA_16B_RC_SHIFT	25
+#define OPA_16B_AGE_MASK	0xFF0000ull
+#define OPA_16B_AGE_SHIFT	16
+#define OPA_16B_ENTROPY_MASK	0xFFFFull
 
 /*
  * OPA 16B L2/L4 Encodings
@@ -432,6 +437,26 @@ static inline u8 hfi1_16B_get_l2(struct hfi1_16b_header *hdr)
 static inline u16 hfi1_16B_get_pkey(struct hfi1_16b_header *hdr)
 {
 	return (u16)((hdr->lrh[2] & OPA_16B_PKEY_MASK) >> OPA_16B_PKEY_SHIFT);
+}
+
+static inline u8 hfi1_16B_get_rc(struct hfi1_16b_header *hdr)
+{
+	return (u8)((hdr->lrh[1] & OPA_16B_RC_MASK) >> OPA_16B_RC_SHIFT);
+}
+
+static inline u8 hfi1_16B_get_age(struct hfi1_16b_header *hdr)
+{
+	return (u8)((hdr->lrh[3] & OPA_16B_AGE_MASK) >> OPA_16B_AGE_SHIFT);
+}
+
+static inline u16 hfi1_16B_get_len(struct hfi1_16b_header *hdr)
+{
+	return (u16)((hdr->lrh[0] & OPA_16B_LEN_MASK) >> OPA_16B_LEN_SHIFT);
+}
+
+static inline u16 hfi1_16B_get_entropy(struct hfi1_16b_header *hdr)
+{
+	return (u16)(hdr->lrh[3] & OPA_16B_ENTROPY_MASK);
 }
 
 /*
