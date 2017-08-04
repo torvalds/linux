@@ -3114,7 +3114,10 @@ static bool bfq_may_expire_for_budg_timeout(struct bfq_queue *bfqq)
 static bool bfq_bfqq_may_idle(struct bfq_queue *bfqq)
 {
 	struct bfq_data *bfqd = bfqq->bfqd;
-	bool idling_boosts_thr, idling_boosts_thr_without_issues,
+	bool rot_without_queueing =
+		!blk_queue_nonrot(bfqd->queue) && !bfqd->hw_tag,
+		bfqq_sequential_and_IO_bound,
+		idling_boosts_thr, idling_boosts_thr_without_issues,
 		idling_needed_for_service_guarantees,
 		asymmetric_scenario;
 
@@ -3133,28 +3136,34 @@ static bool bfq_bfqq_may_idle(struct bfq_queue *bfqq)
 	    bfq_class_idle(bfqq))
 		return false;
 
+	bfqq_sequential_and_IO_bound = !BFQQ_SEEKY(bfqq) &&
+		bfq_bfqq_IO_bound(bfqq) && bfq_bfqq_has_short_ttime(bfqq);
+
 	/*
 	 * The next variable takes into account the cases where idling
 	 * boosts the throughput.
 	 *
 	 * The value of the variable is computed considering, first, that
 	 * idling is virtually always beneficial for the throughput if:
-	 * (a) the device is not NCQ-capable, or
-	 * (b) regardless of the presence of NCQ, the device is rotational
-	 *     and the request pattern for bfqq is I/O-bound and sequential.
+	 * (a) the device is not NCQ-capable and rotational, or
+	 * (b) regardless of the presence of NCQ, the device is rotational and
+	 *     the request pattern for bfqq is I/O-bound and sequential, or
+	 * (c) regardless of whether it is rotational, the device is
+	 *     not NCQ-capable and the request pattern for bfqq is
+	 *     I/O-bound and sequential.
 	 *
 	 * Secondly, and in contrast to the above item (b), idling an
 	 * NCQ-capable flash-based device would not boost the
 	 * throughput even with sequential I/O; rather it would lower
 	 * the throughput in proportion to how fast the device
 	 * is. Accordingly, the next variable is true if any of the
-	 * above conditions (a) and (b) is true, and, in particular,
-	 * happens to be false if bfqd is an NCQ-capable flash-based
-	 * device.
+	 * above conditions (a), (b) or (c) is true, and, in
+	 * particular, happens to be false if bfqd is an NCQ-capable
+	 * flash-based device.
 	 */
-	idling_boosts_thr = !bfqd->hw_tag ||
-		(!blk_queue_nonrot(bfqd->queue) && bfq_bfqq_IO_bound(bfqq) &&
-		 bfq_bfqq_has_short_ttime(bfqq));
+	idling_boosts_thr = rot_without_queueing ||
+		((!blk_queue_nonrot(bfqd->queue) || !bfqd->hw_tag) &&
+		 bfqq_sequential_and_IO_bound);
 
 	/*
 	 * The value of the next variable,
