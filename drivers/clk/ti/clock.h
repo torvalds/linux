@@ -232,6 +232,7 @@ struct omap_clkctrl_data {
 
 extern const struct omap_clkctrl_data omap4_clkctrl_data[];
 extern const struct omap_clkctrl_data omap5_clkctrl_data[];
+extern const struct omap_clkctrl_data dra7_clkctrl_data[];
 
 #define CLKF_SW_SUP	BIT(0)
 #define CLKF_HW_SUP	BIT(1)
