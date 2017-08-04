@@ -4096,7 +4096,7 @@ static int gfx_v9_0_kiq_irq(struct amdgpu_device *adev,
 	return 0;
 }
 
-const struct amd_ip_funcs gfx_v9_0_ip_funcs = {
+static const struct amd_ip_funcs gfx_v9_0_ip_funcs = {
 	.name = "gfx_v9_0",
 	.early_init = gfx_v9_0_early_init,
 	.late_init = gfx_v9_0_late_init,
