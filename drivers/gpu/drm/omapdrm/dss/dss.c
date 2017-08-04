@@ -38,10 +38,12 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/regulator/consumer.h>
 #include <linux/suspend.h>
 #include <linux/component.h>
+#include <linux/sys_soc.h>
 
 #include "omapdss.h"
 #include "dss.h"
@@ -1006,60 +1008,6 @@ static const struct dss_features dra7xx_dss_feats = {
 	.ops			=	&dss_ops_dra7,
 };
 
-static int dss_init_features(struct platform_device *pdev)
-{
-	const struct dss_features *src;
-	struct dss_features *dst;
-
-	dst = devm_kzalloc(&pdev->dev, sizeof(*dst), GFP_KERNEL);
-	if (!dst) {
-		dev_err(&pdev->dev, "Failed to allocate local DSS Features\n");
-		return -ENOMEM;
-	}
-
-	switch (omapdss_get_version()) {
-	case OMAPDSS_VER_OMAP24xx:
-		src = &omap24xx_dss_feats;
-		break;
-
-	case OMAPDSS_VER_OMAP34xx_ES1:
-	case OMAPDSS_VER_OMAP34xx_ES3:
-	case OMAPDSS_VER_AM35xx:
-		src = &omap34xx_dss_feats;
-		break;
-
-	case OMAPDSS_VER_OMAP3630:
-		src = &omap3630_dss_feats;
-		break;
-
-	case OMAPDSS_VER_OMAP4430_ES1:
-	case OMAPDSS_VER_OMAP4430_ES2:
-	case OMAPDSS_VER_OMAP4:
-		src = &omap44xx_dss_feats;
-		break;
-
-	case OMAPDSS_VER_OMAP5:
-		src = &omap54xx_dss_feats;
-		break;
-
-	case OMAPDSS_VER_AM43xx:
-		src = &am43xx_dss_feats;
-		break;
-
-	case OMAPDSS_VER_DRA7xx:
-		src = &dra7xx_dss_feats;
-		break;
-
-	default:
-		return -ENODEV;
-	}
-
-	memcpy(dst, src, sizeof(*dst));
-	dss.feat = dst;
-
-	return 0;
-}
-
 static int dss_init_ports(struct platform_device *pdev)
 {
 	struct device_node *parent = pdev->dev.of_node;
@@ -1172,18 +1120,42 @@ static int dss_video_pll_probe(struct platform_device *pdev)
 }
 
 /* DSS HW IP initialisation */
+static const struct of_device_id dss_of_match[] = {
+	{ .compatible = "ti,omap2-dss", .data = &omap24xx_dss_feats },
+	{ .compatible = "ti,omap3-dss", .data = &omap3630_dss_feats },
+	{ .compatible = "ti,omap4-dss", .data = &omap44xx_dss_feats },
+	{ .compatible = "ti,omap5-dss", .data = &omap54xx_dss_feats },
+	{ .compatible = "ti,dra7-dss",  .data = &dra7xx_dss_feats },
+	{},
+};
+MODULE_DEVICE_TABLE(of, dss_of_match);
+
+static const struct soc_device_attribute dss_soc_devices[] = {
+	{ .machine = "OMAP3430/3530", .data = &omap34xx_dss_feats },
+	{ .machine = "AM35??",        .data = &omap34xx_dss_feats },
+	{ .family  = "AM43xx",        .data = &am43xx_dss_feats },
+	{ /* sentinel */ }
+};
+
 static int dss_bind(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
+	const struct soc_device_attribute *soc;
 	struct resource *dss_mem;
 	u32 rev;
 	int r;
 
 	dss.pdev = pdev;
 
-	r = dss_init_features(dss.pdev);
-	if (r)
-		return r;
+	/*
+	 * The various OMAP3-based SoCs can't be told apart using the compatible
+	 * string, use SoC device matching.
+	 */
+	soc = soc_device_match(dss_soc_devices);
+	if (soc)
+		dss.feat = soc->data;
+	else
+		dss.feat = of_match_device(dss_of_match, &pdev->dev)->data;
 
 	dss_mem = platform_get_resource(dss.pdev, IORESOURCE_MEM, 0);
 	dss.base = devm_ioremap_resource(&pdev->dev, dss_mem);
@@ -1370,17 +1342,6 @@ static const struct dev_pm_ops dss_pm_ops = {
 	.runtime_suspend = dss_runtime_suspend,
 	.runtime_resume = dss_runtime_resume,
 };
-
-static const struct of_device_id dss_of_match[] = {
-	{ .compatible = "ti,omap2-dss", },
-	{ .compatible = "ti,omap3-dss", },
-	{ .compatible = "ti,omap4-dss", },
-	{ .compatible = "ti,omap5-dss", },
-	{ .compatible = "ti,dra7-dss", },
-	{},
-};
-
-MODULE_DEVICE_TABLE(of, dss_of_match);
 
 static struct platform_driver omap_dsshw_driver = {
 	.probe		= dss_probe,
