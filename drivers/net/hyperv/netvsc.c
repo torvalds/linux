@@ -78,6 +78,7 @@ static struct netvsc_device *alloc_net_device(void)
 	net_device->max_pkt = RNDIS_MAX_PKT_DEFAULT;
 	net_device->pkt_align = RNDIS_PKT_ALIGN_DEFAULT;
 	init_completion(&net_device->channel_init_wait);
+	init_waitqueue_head(&net_device->subchan_open);
 
 	return net_device;
 }
