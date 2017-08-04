@@ -79,6 +79,84 @@ void print_microsec(struct dc_context *dc_ctx, uint32_t ref_cycle)
 #define DTN_INFO_MICRO_SEC(ref_cycle) \
 	print_microsec(dc_ctx, ref_cycle)
 
+struct dcn_hubbub_wm_set {
+	uint32_t wm_set;
+	uint32_t data_urgent;
+	uint32_t pte_meta_urgent;
+	uint32_t sr_enter;
+	uint32_t sr_exit;
+	uint32_t dram_clk_chanage;
+};
+
+struct dcn_hubbub_wm {
+	struct dcn_hubbub_wm_set sets[4];
+};
+
+static void dcn10_hubbub_wm_read_state(struct dce_hwseq *hws,
+		struct dcn_hubbub_wm *wm)
+{
+	struct dcn_hubbub_wm_set *s;
+
+	s = &wm->sets[0];
+	s->wm_set = 0;
+	s->data_urgent = REG_READ(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_A);
+	s->pte_meta_urgent = REG_READ(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_A);
+	s->sr_enter = REG_READ(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_A);
+	s->sr_exit = REG_READ(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_A);
+	s->dram_clk_chanage = REG_READ(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_A);
+
+	s = &wm->sets[1];
+	s->wm_set = 1;
+	s->data_urgent = REG_READ(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_B);
+	s->pte_meta_urgent = REG_READ(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_B);
+	s->sr_enter = REG_READ(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_B);
+	s->sr_exit = REG_READ(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_B);
+	s->dram_clk_chanage = REG_READ(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_B);
+
+	s = &wm->sets[2];
+	s->wm_set = 2;
+	s->data_urgent = REG_READ(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_C);
+	s->pte_meta_urgent = REG_READ(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_C);
+	s->sr_enter = REG_READ(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_C);
+	s->sr_exit = REG_READ(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_C);
+	s->dram_clk_chanage = REG_READ(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_C);
+
+	s = &wm->sets[3];
+	s->wm_set = 3;
+	s->data_urgent = REG_READ(DCHUBBUB_ARB_DATA_URGENCY_WATERMARK_D);
+	s->pte_meta_urgent = REG_READ(DCHUBBUB_ARB_PTE_META_URGENCY_WATERMARK_D);
+	s->sr_enter = REG_READ(DCHUBBUB_ARB_ALLOW_SR_ENTER_WATERMARK_D);
+	s->sr_exit = REG_READ(DCHUBBUB_ARB_ALLOW_SR_EXIT_WATERMARK_D);
+	s->dram_clk_chanage = REG_READ(DCHUBBUB_ARB_ALLOW_DRAM_CLK_CHANGE_WATERMARK_D);
+}
+
+static void dcn10_log_hubbub_state(struct core_dc *dc)
+{
+	struct dc_context *dc_ctx = dc->ctx;
+	struct dcn_hubbub_wm wm;
+	int i;
+
+	dcn10_hubbub_wm_read_state(dc->hwseq, &wm);
+
+	DTN_INFO("HUBBUB WM: \t data_urgent \t pte_meta_urgent \t "
+			"sr_enter \t sr_exit \t dram_clk_change \n");
+
+	for (i = 0; i < 4; i++) {
+		struct dcn_hubbub_wm_set *s;
+
+		s = &wm.sets[i];
+		DTN_INFO("WM_Set[%d]:\t ", s->wm_set);
+		DTN_INFO_MICRO_SEC(s->data_urgent);
+		DTN_INFO_MICRO_SEC(s->pte_meta_urgent);
+		DTN_INFO_MICRO_SEC(s->sr_enter);
+		DTN_INFO_MICRO_SEC(s->sr_exit);
+		DTN_INFO_MICRO_SEC(s->dram_clk_chanage);
+		DTN_INFO("\n");
+	}
+
+	DTN_INFO("\n");
+}
+
 static void dcn10_log_hw_state(struct core_dc *dc)
 {
 	struct dc_context *dc_ctx = dc->ctx;
@@ -86,6 +164,8 @@ static void dcn10_log_hw_state(struct core_dc *dc)
 	int i;
 
 	DTN_INFO_BEGIN();
+
+	dcn10_log_hubbub_state(dc);
 
 	DTN_INFO("HUBP:\t format \t addr_hi \t width \t height \t "
 			"rotation \t mirror \t  sw_mode \t "
