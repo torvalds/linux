@@ -735,32 +735,169 @@ static inline void build_ahg(struct rvt_qp *qp, u32 npsn)
 	}
 }
 
+static inline void hfi1_make_ruc_bth(struct rvt_qp *qp,
+				     struct ib_other_headers *ohdr,
+				     u32 bth0, u32 bth1, u32 bth2)
+{
+	bth1 |= qp->remote_qpn;
+	ohdr->bth[0] = cpu_to_be32(bth0);
+	ohdr->bth[1] = cpu_to_be32(bth1);
+	ohdr->bth[2] = cpu_to_be32(bth2);
+}
+
+static inline void hfi1_make_ruc_header_16B(struct rvt_qp *qp,
+					    struct ib_other_headers *ohdr,
+					    u32 bth0, u32 bth2, int middle,
+					    struct hfi1_pkt_state *ps)
+{
+	struct hfi1_qp_priv *priv = qp->priv;
+	struct hfi1_ibport *ibp = ps->ibp;
+	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
+	u32 bth1 = 0;
+	u32 slid;
+	u16 pkey = hfi1_get_pkey(ibp, qp->s_pkey_index);
+	u8 l4 = OPA_16B_L4_IB_LOCAL;
+	u8 extra_bytes = hfi1_get_16b_padding((qp->s_hdrwords << 2),
+				   ps->s_txreq->s_cur_size);
+	u32 nwords = SIZE_OF_CRC + ((ps->s_txreq->s_cur_size +
+				 extra_bytes + SIZE_OF_LT) >> 2);
+	u8 becn = 0;
+
+	if (unlikely(rdma_ah_get_ah_flags(&qp->remote_ah_attr) & IB_AH_GRH) &&
+	    hfi1_check_mcast(rdma_ah_get_dlid(&qp->remote_ah_attr))) {
+		struct ib_grh *grh;
+		struct ib_global_route *grd =
+			rdma_ah_retrieve_grh(&qp->remote_ah_attr);
+		int hdrwords;
+
+		/*
+		 * Ensure OPA GIDs are transformed to IB gids
+		 * before creating the GRH.
+		 */
+		if (grd->sgid_index == OPA_GID_INDEX)
+			grd->sgid_index = 0;
+		grh = &ps->s_txreq->phdr.hdr.opah.u.l.grh;
+		l4 = OPA_16B_L4_IB_GLOBAL;
+		hdrwords = qp->s_hdrwords - 4;
+		qp->s_hdrwords += hfi1_make_grh(ibp, grh, grd,
+						hdrwords, nwords);
+		middle = 0;
+	}
+
+	if (qp->s_mig_state == IB_MIG_MIGRATED)
+		bth1 |= OPA_BTH_MIG_REQ;
+	else
+		middle = 0;
+
+	if (middle)
+		build_ahg(qp, bth2);
+	else
+		qp->s_flags &= ~RVT_S_AHG_VALID;
+
+	bth0 |= pkey;
+	bth0 |= extra_bytes << 20;
+	if (qp->s_flags & RVT_S_ECN) {
+		qp->s_flags &= ~RVT_S_ECN;
+		/* we recently received a FECN, so return a BECN */
+		becn = 1;
+	}
+	hfi1_make_ruc_bth(qp, ohdr, bth0, bth1, bth2);
+
+	if (!ppd->lid)
+		slid = be32_to_cpu(OPA_LID_PERMISSIVE);
+	else
+		slid = ppd->lid |
+			(rdma_ah_get_path_bits(&qp->remote_ah_attr) &
+			((1 << ppd->lmc) - 1));
+
+	hfi1_make_16b_hdr(&ps->s_txreq->phdr.hdr.opah,
+			  slid,
+			  opa_get_lid(rdma_ah_get_dlid(&qp->remote_ah_attr),
+				      16B),
+			  (qp->s_hdrwords + nwords) >> 1,
+			  pkey, becn, 0, l4, priv->s_sc);
+}
+
+static inline void hfi1_make_ruc_header_9B(struct rvt_qp *qp,
+					   struct ib_other_headers *ohdr,
+					   u32 bth0, u32 bth2, int middle,
+					   struct hfi1_pkt_state *ps)
+{
+	struct hfi1_qp_priv *priv = qp->priv;
+	struct hfi1_ibport *ibp = ps->ibp;
+	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
+	u32 bth1 = 0;
+	u16 pkey = hfi1_get_pkey(ibp, qp->s_pkey_index);
+	u16 lrh0 = HFI1_LRH_BTH;
+	u16 slid;
+	u8 extra_bytes = -ps->s_txreq->s_cur_size & 3;
+	u32 nwords = SIZE_OF_CRC + ((ps->s_txreq->s_cur_size +
+					 extra_bytes) >> 2);
+
+	if (unlikely(rdma_ah_get_ah_flags(&qp->remote_ah_attr) & IB_AH_GRH)) {
+		struct ib_grh *grh = &ps->s_txreq->phdr.hdr.ibh.u.l.grh;
+		int hdrwords = qp->s_hdrwords - 2;
+
+		lrh0 = HFI1_LRH_GRH;
+		qp->s_hdrwords +=
+			hfi1_make_grh(ibp, grh,
+				      rdma_ah_read_grh(&qp->remote_ah_attr),
+				      hdrwords, nwords);
+		middle = 0;
+	}
+	lrh0 |= (priv->s_sc & 0xf) << 12 |
+		(rdma_ah_get_sl(&qp->remote_ah_attr) & 0xf) << 4;
+
+	if (qp->s_mig_state == IB_MIG_MIGRATED)
+		bth0 |= IB_BTH_MIG_REQ;
+	else
+		middle = 0;
+
+	if (middle)
+		build_ahg(qp, bth2);
+	else
+		qp->s_flags &= ~RVT_S_AHG_VALID;
+
+	bth0 |= pkey;
+	bth0 |= extra_bytes << 20;
+	if (qp->s_flags & RVT_S_ECN) {
+		qp->s_flags &= ~RVT_S_ECN;
+		/* we recently received a FECN, so return a BECN */
+		bth1 |= (IB_BECN_MASK << IB_BECN_SHIFT);
+	}
+	hfi1_make_ruc_bth(qp, ohdr, bth0, bth1, bth2);
+
+	if (!ppd->lid)
+		slid = be16_to_cpu(IB_LID_PERMISSIVE);
+	else
+		slid = ppd->lid |
+			(rdma_ah_get_path_bits(&qp->remote_ah_attr) &
+			((1 << ppd->lmc) - 1));
+	hfi1_make_ib_hdr(&ps->s_txreq->phdr.hdr.ibh,
+			 lrh0,
+			 qp->s_hdrwords + nwords,
+			 opa_get_lid(rdma_ah_get_dlid(&qp->remote_ah_attr), 9B),
+			 ppd_from_ibp(ibp)->lid |
+				rdma_ah_get_path_bits(&qp->remote_ah_attr));
+}
+
+typedef void (*hfi1_make_ruc_hdr)(struct rvt_qp *qp,
+				  struct ib_other_headers *ohdr,
+				  u32 bth0, u32 bth2, int middle,
+				  struct hfi1_pkt_state *ps);
+
+/* We support only two types - 9B and 16B for now */
+static const hfi1_make_ruc_hdr hfi1_ruc_header_tbl[2] = {
+	[HFI1_PKT_TYPE_9B] = &hfi1_make_ruc_header_9B,
+	[HFI1_PKT_TYPE_16B] = &hfi1_make_ruc_header_16B
+};
+
 void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 			  u32 bth0, u32 bth2, int middle,
 			  struct hfi1_pkt_state *ps)
 {
 	struct hfi1_qp_priv *priv = qp->priv;
-	struct hfi1_ibport *ibp = ps->ibp;
-	u16 lrh0;
-	u32 nwords;
-	u32 extra_bytes;
-	u32 bth1;
 
-	/* Construct the header. */
-	extra_bytes = -ps->s_txreq->s_cur_size & 3;
-	nwords = (ps->s_txreq->s_cur_size + extra_bytes) >> 2;
-	lrh0 = HFI1_LRH_BTH;
-	if (unlikely(rdma_ah_get_ah_flags(&qp->remote_ah_attr) & IB_AH_GRH)) {
-		qp->s_hdrwords +=
-			hfi1_make_grh(ibp,
-				      &ps->s_txreq->phdr.hdr.ibh.u.l.grh,
-				      &qp->remote_ah_attr.grh,
-				      qp->s_hdrwords, nwords);
-		lrh0 = HFI1_LRH_GRH;
-		middle = 0;
-	}
-	lrh0 |= (priv->s_sc & 0xf) << 12 |
-		(rdma_ah_get_sl(&qp->remote_ah_attr) & 0xf) << 4;
 	/*
 	 * reset s_ahg/AHG fields
 	 *
@@ -775,33 +912,9 @@ void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 	priv->s_ahg->tx_flags = 0;
 	priv->s_ahg->ahgcount = 0;
 	priv->s_ahg->ahgidx = 0;
-	if (qp->s_mig_state == IB_MIG_MIGRATED)
-		bth0 |= IB_BTH_MIG_REQ;
-	else
-		middle = 0;
-	if (middle)
-		build_ahg(qp, bth2);
-	else
-		qp->s_flags &= ~RVT_S_AHG_VALID;
-	ps->s_txreq->phdr.hdr.ibh.lrh[0] = cpu_to_be16(lrh0);
-	ps->s_txreq->phdr.hdr.ibh.lrh[1] =
-		cpu_to_be16(rdma_ah_get_dlid(&qp->remote_ah_attr));
-	ps->s_txreq->phdr.hdr.ibh.lrh[2] =
-		cpu_to_be16(qp->s_hdrwords + nwords + SIZE_OF_CRC);
-	ps->s_txreq->phdr.hdr.ibh.lrh[3] =
-		cpu_to_be16(ppd_from_ibp(ibp)->lid |
-		rdma_ah_get_path_bits(&qp->remote_ah_attr));
-	bth0 |= hfi1_get_pkey(ibp, qp->s_pkey_index);
-	bth0 |= extra_bytes << 20;
-	ohdr->bth[0] = cpu_to_be32(bth0);
-	bth1 = qp->remote_qpn;
-	if (qp->s_flags & RVT_S_ECN) {
-		qp->s_flags &= ~RVT_S_ECN;
-		/* we recently received a FECN, so return a BECN */
-		bth1 |= (IB_BECN_MASK << IB_BECN_SHIFT);
-	}
-	ohdr->bth[1] = cpu_to_be32(bth1);
-	ohdr->bth[2] = cpu_to_be32(bth2);
+
+	/* Make the appropriate header */
+	hfi1_ruc_header_tbl[priv->hdr_type](qp, ohdr, bth0, bth2, middle, ps);
 }
 
 /* when sending, force a reschedule every one of these periods */

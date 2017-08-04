@@ -459,6 +459,8 @@ static inline u16 hfi1_16B_get_entropy(struct hfi1_16b_header *hdr)
 	return (u16)(hdr->lrh[3] & OPA_16B_ENTROPY_MASK);
 }
 
+#define OPA_16B_MAKE_QW(low_dw, high_dw) (((u64)(high_dw) << 32) | (low_dw))
+
 /*
  * BTH
  */
@@ -1538,7 +1540,7 @@ static inline u32 egress_cycles(u32 len, u32 rate)
 }
 
 void set_link_ipg(struct hfi1_pportdata *ppd);
-void process_becn(struct hfi1_pportdata *ppd, u8 sl,  u16 rlid, u32 lqpn,
+void process_becn(struct hfi1_pportdata *ppd, u8 sl, u32 rlid, u32 lqpn,
 		  u32 rqpn, u8 svc_type);
 void return_cnp(struct hfi1_ibport *ibp, struct rvt_qp *qp, u32 remote_qpn,
 		u32 pkey, u32 slid, u32 dlid, u8 sc5,

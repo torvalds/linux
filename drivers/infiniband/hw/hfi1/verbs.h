@@ -373,7 +373,8 @@ void hfi1_do_send(struct rvt_qp *qp, bool in_thread);
 void hfi1_send_complete(struct rvt_qp *qp, struct rvt_swqe *wqe,
 			enum ib_wc_status status);
 
-void hfi1_send_rc_ack(struct hfi1_ctxtdata *, struct rvt_qp *qp, int is_fecn);
+void hfi1_send_rc_ack(struct hfi1_ctxtdata *rcd, struct rvt_qp *qp,
+		      bool is_fecn);
 
 int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps);
 
