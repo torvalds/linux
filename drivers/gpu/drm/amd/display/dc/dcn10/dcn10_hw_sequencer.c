@@ -264,28 +264,32 @@ static void dpp_pg_control(
 				DOMAIN1_POWER_GATE, power_gate);
 
 		REG_WAIT(DOMAIN1_PG_STATUS,
-				DOMAIN1_PGFSM_PWR_STATUS, pwr_status, 20000, 200000);
+				DOMAIN1_PGFSM_PWR_STATUS, pwr_status,
+				1, 1000);
 		break;
 	case 1: /* DPP1 */
 		REG_UPDATE(DOMAIN3_PG_CONFIG,
 				DOMAIN3_POWER_GATE, power_gate);
 
 		REG_WAIT(DOMAIN3_PG_STATUS,
-				DOMAIN3_PGFSM_PWR_STATUS, pwr_status, 20000, 200000);
+				DOMAIN3_PGFSM_PWR_STATUS, pwr_status,
+				1, 1000);
 		break;
 	case 2: /* DPP2 */
 		REG_UPDATE(DOMAIN5_PG_CONFIG,
 				DOMAIN5_POWER_GATE, power_gate);
 
 		REG_WAIT(DOMAIN5_PG_STATUS,
-				DOMAIN5_PGFSM_PWR_STATUS, pwr_status, 20000, 200000);
+				DOMAIN5_PGFSM_PWR_STATUS, pwr_status,
+				1, 1000);
 		break;
 	case 3: /* DPP3 */
 		REG_UPDATE(DOMAIN7_PG_CONFIG,
 				DOMAIN7_POWER_GATE, power_gate);
 
 		REG_WAIT(DOMAIN7_PG_STATUS,
-				DOMAIN7_PGFSM_PWR_STATUS, pwr_status, 20000, 200000);
+				DOMAIN7_PGFSM_PWR_STATUS, pwr_status,
+				1, 1000);
 		break;
 	default:
 		BREAK_TO_DEBUGGER();
@@ -612,28 +616,32 @@ static void hubp_pg_control(
 				DOMAIN0_POWER_GATE, power_gate);
 
 		REG_WAIT(DOMAIN0_PG_STATUS,
-				DOMAIN0_PGFSM_PWR_STATUS, pwr_status, 20000, 200000);
+				DOMAIN0_PGFSM_PWR_STATUS, pwr_status,
+				1, 1000);
 		break;
 	case 1: /* DCHUBP1 */
 		REG_UPDATE(DOMAIN2_PG_CONFIG,
 				DOMAIN2_POWER_GATE, power_gate);
 
 		REG_WAIT(DOMAIN2_PG_STATUS,
-				DOMAIN2_PGFSM_PWR_STATUS, pwr_status, 20000, 200000);
+				DOMAIN2_PGFSM_PWR_STATUS, pwr_status,
+				1, 1000);
 		break;
 	case 2: /* DCHUBP2 */
 		REG_UPDATE(DOMAIN4_PG_CONFIG,
 				DOMAIN4_POWER_GATE, power_gate);
 
 		REG_WAIT(DOMAIN4_PG_STATUS,
-				DOMAIN4_PGFSM_PWR_STATUS, pwr_status, 20000, 200000);
+				DOMAIN4_PGFSM_PWR_STATUS, pwr_status,
+				1, 1000);
 		break;
 	case 3: /* DCHUBP3 */
 		REG_UPDATE(DOMAIN6_PG_CONFIG,
 				DOMAIN6_POWER_GATE, power_gate);
 
 		REG_WAIT(DOMAIN6_PG_STATUS,
-				DOMAIN6_PGFSM_PWR_STATUS, pwr_status, 20000, 200000);
+				DOMAIN6_PGFSM_PWR_STATUS, pwr_status,
+				1, 1000);
 		break;
 	default:
 		BREAK_TO_DEBUGGER();
@@ -1011,7 +1019,8 @@ static void reset_front_end(
 
 	if (tg->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS)
 		REG_WAIT(OTG_GLOBAL_SYNC_STATUS[tg->inst],
-				VUPDATE_NO_LOCK_EVENT_OCCURRED, 1, 20000, 200000);
+				VUPDATE_NO_LOCK_EVENT_OCCURRED, 1,
+				1, 100000);
 
 	plane_atomic_disable(dc, fe_idx);
 

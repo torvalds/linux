@@ -195,8 +195,9 @@ static void driver_set_backlight_level(struct dce_abm *abm_dce, uint32_t level)
 			BL_PWM_GRP1_REG_LOCK, 0);
 
 	/* 5.4.4 Wait for pending bit to be cleared */
-	REG_WAIT(BL_PWM_GRP1_REG_LOCK, BL_PWM_GRP1_REG_UPDATE_PENDING,
-			0, 10, 1000);
+	REG_WAIT(BL_PWM_GRP1_REG_LOCK,
+			BL_PWM_GRP1_REG_UPDATE_PENDING, 0,
+			1, 10000);
 }
 
 static void dmcu_set_backlight_level(
@@ -224,7 +225,7 @@ static void dmcu_set_backlight_level(
 
 	/* waitDMCUReadyForCmd */
 	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT,
-			0, 100, 800);
+			0, 1, 80000);
 
 	/* setDMCUParam_BL */
 	REG_UPDATE(BL1_PWM_USER_LEVEL, BL1_PWM_USER_LEVEL, backlight_17_bit);
@@ -304,7 +305,7 @@ static bool dce_abm_set_level(struct abm *abm, uint32_t level)
 	struct dce_abm *abm_dce = TO_DCE_ABM(abm);
 
 	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0,
-			100, 800);
+			1, 80000);
 
 	/* setDMCUParam_ABMLevel */
 	REG_UPDATE_2(MASTER_COMM_CMD_REG,
@@ -322,7 +323,7 @@ static bool dce_abm_immediate_disable(struct abm *abm)
 	struct dce_abm *abm_dce = TO_DCE_ABM(abm);
 
 	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0,
-			100, 800);
+			1, 80000);
 
 	/* setDMCUParam_ABMLevel */
 	REG_UPDATE_2(MASTER_COMM_CMD_REG,

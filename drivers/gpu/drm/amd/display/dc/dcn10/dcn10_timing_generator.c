@@ -312,7 +312,7 @@ static void tgn10_blank_crtc(struct timing_generator *tg)
 	 */
 	REG_WAIT(OTG_BLANK_CONTROL,
 			OTG_BLANK_DATA_EN, 1,
-			20000, 200000);
+			1, 100000);
 
 	REG_UPDATE(OTG_DOUBLE_BUFFER_CONTROL,
 			OTG_BLANK_DATA_DOUBLE_BUFFER_EN, 0);
@@ -351,7 +351,7 @@ static void tgn10_enable_optc_clock(struct timing_generator *tg, bool enable)
 
 		REG_WAIT(OPTC_INPUT_CLOCK_CONTROL,
 				OPTC_INPUT_CLK_ON, 1,
-				2000, 500);
+				1, 1000);
 
 		/* Enable clock */
 		REG_UPDATE_2(OTG_CLOCK_CONTROL,
@@ -359,7 +359,7 @@ static void tgn10_enable_optc_clock(struct timing_generator *tg, bool enable)
 				OTG_CLOCK_GATE_DIS, 1);
 		REG_WAIT(OTG_CLOCK_CONTROL,
 				OTG_CLOCK_ON, 1,
-				2000, 500);
+				1, 1000);
 	} else  {
 		REG_UPDATE_2(OTG_CLOCK_CONTROL,
 				OTG_CLOCK_GATE_DIS, 0,
@@ -368,7 +368,7 @@ static void tgn10_enable_optc_clock(struct timing_generator *tg, bool enable)
 		if (tg->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS)
 			REG_WAIT(OTG_CLOCK_CONTROL,
 					OTG_CLOCK_ON, 0,
-					2000, 500);
+					1, 1000);
 
 		REG_UPDATE_2(OPTC_INPUT_CLOCK_CONTROL,
 				OPTC_INPUT_CLK_GATE_DIS, 0,
@@ -377,7 +377,7 @@ static void tgn10_enable_optc_clock(struct timing_generator *tg, bool enable)
 		if (tg->ctx->dce_environment != DCE_ENV_FPGA_MAXIMUS)
 			REG_WAIT(OPTC_INPUT_CLOCK_CONTROL,
 					OPTC_INPUT_CLK_ON, 0,
-					2000, 500);
+					1, 1000);
 	}
 }
 
@@ -429,7 +429,7 @@ static bool tgn10_disable_crtc(struct timing_generator *tg)
 	/* CRTC disabled, so disable  clock. */
 	REG_WAIT(OTG_CLOCK_CONTROL,
 			OTG_BUSY, 0,
-			2000, 500);
+			1, 100000);
 
 	return true;
 }
@@ -556,7 +556,7 @@ static void tgn10_unlock(struct timing_generator *tg)
 	/* why are we waiting here? */
 	REG_WAIT(OTG_DOUBLE_BUFFER_CONTROL,
 			OTG_UPDATE_PENDING, 0,
-			20000, 200000);
+			1, 100000);
 }
 
 static void tgn10_get_position(struct timing_generator *tg,
@@ -651,13 +651,13 @@ static void tgn10_wait_for_state(struct timing_generator *tg,
 	case CRTC_STATE_VBLANK:
 		REG_WAIT(OTG_STATUS,
 				OTG_V_BLANK, 1,
-				100, 100000); /* 1 vupdate at 10hz */
+				1, 100000); /* 1 vupdate at 10hz */
 		break;
 
 	case CRTC_STATE_VACTIVE:
 		REG_WAIT(OTG_STATUS,
 				OTG_V_ACTIVE_DISP, 1,
-				100, 100000); /* 1 vupdate at 10hz */
+				1, 100000); /* 1 vupdate at 10hz */
 		break;
 
 	default:

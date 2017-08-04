@@ -72,7 +72,7 @@ static void mpc10_assert_idle_mpcc(struct mpc *mpc, int id)
 	ASSERT(!(mpc10->mpcc_in_use_mask & 1 << id));
 	REG_WAIT(MPCC_STATUS[id],
 			MPCC_IDLE, 1,
-			1000, 1000);
+			1, 100000);
 }
 
 static int mpc10_get_idle_mpcc_id(struct dcn10_mpc *mpc10)

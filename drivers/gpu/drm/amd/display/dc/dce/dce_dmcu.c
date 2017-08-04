@@ -262,7 +262,7 @@ static void dce_psr_wait_loop(
 	union dce_dmcu_psr_config_data_wait_loop_reg1 masterCmdData1;
 
 	/* waitDMCUReadyForCmd */
-	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0, 100, 100);
+	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0, 1, 10000);
 
 	masterCmdData1.u32 = 0;
 	masterCmdData1.bits.wait_loop = wait_loop_number;
@@ -502,7 +502,7 @@ static void dcn10_psr_wait_loop(
 	union dce_dmcu_psr_config_data_wait_loop_reg1 masterCmdData1;
 
 	/* waitDMCUReadyForCmd */
-	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0, 100, 100);
+	REG_WAIT(MASTER_COMM_CNTL_REG, MASTER_COMM_INTERRUPT, 0, 1, 10000);
 
 	masterCmdData1.u32 = 0;
 	masterCmdData1.bits.wait_loop = wait_loop_number;
