@@ -578,11 +578,8 @@ static inline bool cpufreq_can_do_remote_dvfs(struct cpufreq_policy *policy)
 	 * - dvfs_possible_from_any_cpu flag is set
 	 * - the local and remote CPUs share cpufreq policy
 	 */
-	if (policy->dvfs_possible_from_any_cpu ||
-	    cpumask_test_cpu(smp_processor_id(), policy->cpus))
-		return true;
-
-	return false;
+	return policy->dvfs_possible_from_any_cpu ||
+		cpumask_test_cpu(smp_processor_id(), policy->cpus);
 }
 
 /*********************************************************************
