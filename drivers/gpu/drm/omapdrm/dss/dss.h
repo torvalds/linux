@@ -200,6 +200,11 @@ struct dss_pll {
 	struct dss_pll_clock_info cinfo;
 };
 
+/* Defines a generic omap register field */
+struct dss_reg_field {
+	u8 start, end;
+};
+
 struct dispc_clock_info {
 	/* rates that we get with dividers below */
 	unsigned long lck;

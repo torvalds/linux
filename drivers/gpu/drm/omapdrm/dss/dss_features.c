@@ -28,11 +28,6 @@
 #include "dss.h"
 #include "dss_features.h"
 
-/* Defines a generic omap register field */
-struct dss_reg_field {
-	u8 start, end;
-};
-
 struct dss_param_range {
 	int min, max;
 };
@@ -59,7 +54,6 @@ static const struct dss_reg_field omap2_dss_reg_fields[] = {
 	[FEAT_REG_FIFOSIZE]			= { 8, 0 },
 	[FEAT_REG_HORIZONTALACCU]		= { 9, 0 },
 	[FEAT_REG_VERTICALACCU]			= { 25, 16 },
-	[FEAT_REG_DISPC_CLK_SWITCH]		= { 0, 0 },
 };
 
 static const struct dss_reg_field omap3_dss_reg_fields[] = {
@@ -70,7 +64,6 @@ static const struct dss_reg_field omap3_dss_reg_fields[] = {
 	[FEAT_REG_FIFOSIZE]			= { 10, 0 },
 	[FEAT_REG_HORIZONTALACCU]		= { 9, 0 },
 	[FEAT_REG_VERTICALACCU]			= { 25, 16 },
-	[FEAT_REG_DISPC_CLK_SWITCH]		= { 0, 0 },
 };
 
 static const struct dss_reg_field am43xx_dss_reg_fields[] = {
@@ -81,7 +74,6 @@ static const struct dss_reg_field am43xx_dss_reg_fields[] = {
 	[FEAT_REG_FIFOSIZE]		= { 10, 0 },
 	[FEAT_REG_HORIZONTALACCU]		= { 9, 0 },
 	[FEAT_REG_VERTICALACCU]			= { 25, 16 },
-	[FEAT_REG_DISPC_CLK_SWITCH]		= { 0, 0 },
 };
 
 static const struct dss_reg_field omap4_dss_reg_fields[] = {
@@ -92,7 +84,6 @@ static const struct dss_reg_field omap4_dss_reg_fields[] = {
 	[FEAT_REG_FIFOSIZE]			= { 15, 0 },
 	[FEAT_REG_HORIZONTALACCU]		= { 10, 0 },
 	[FEAT_REG_VERTICALACCU]			= { 26, 16 },
-	[FEAT_REG_DISPC_CLK_SWITCH]		= { 9, 8 },
 };
 
 static const struct dss_reg_field omap5_dss_reg_fields[] = {
@@ -103,7 +94,6 @@ static const struct dss_reg_field omap5_dss_reg_fields[] = {
 	[FEAT_REG_FIFOSIZE]			= { 15, 0 },
 	[FEAT_REG_HORIZONTALACCU]		= { 10, 0 },
 	[FEAT_REG_VERTICALACCU]			= { 26, 16 },
-	[FEAT_REG_DISPC_CLK_SWITCH]		= { 9, 7 },
 };
 
 static const enum omap_dss_output_id omap2_dss_supported_outputs[] = {

@@ -86,6 +86,7 @@ struct dss_features {
 	const enum omap_display_type *ports;
 	int num_ports;
 	const struct dss_ops *ops;
+	struct dss_reg_field dispc_clk_switch;
 };
 
 static struct {
@@ -427,7 +428,6 @@ static int dss_get_channel_index(enum omap_channel channel)
 static void dss_select_dispc_clk_source(enum dss_clk_source clk_src)
 {
 	int b;
-	u8 start, end;
 
 	/*
 	 * We always use PRCM clock as the DISPC func clock, except on DSS3,
@@ -452,9 +452,9 @@ static void dss_select_dispc_clk_source(enum dss_clk_source clk_src)
 		return;
 	}
 
-	dss_feat_get_reg_field(FEAT_REG_DISPC_CLK_SWITCH, &start, &end);
-
-	REG_FLD_MOD(DSS_CONTROL, b, start, end);	/* DISPC_CLK_SWITCH */
+	REG_FLD_MOD(DSS_CONTROL, b,			/* DISPC_CLK_SWITCH */
+		    dss.feat->dispc_clk_switch.start,
+		    dss.feat->dispc_clk_switch.end);
 
 	dss.dispc_clk_source = clk_src;
 }
@@ -1010,6 +1010,7 @@ static const struct dss_features omap24xx_dss_feats = {
 	.ports			=	omap2plus_ports,
 	.num_ports		=	ARRAY_SIZE(omap2plus_ports),
 	.ops			=	&dss_ops_omap2_omap3,
+	.dispc_clk_switch	=	{ 0, 0 },
 };
 
 static const struct dss_features omap34xx_dss_feats = {
@@ -1020,6 +1021,7 @@ static const struct dss_features omap34xx_dss_feats = {
 	.ports			=	omap34xx_ports,
 	.num_ports		=	ARRAY_SIZE(omap34xx_ports),
 	.ops			=	&dss_ops_omap2_omap3,
+	.dispc_clk_switch	=	{ 0, 0 },
 };
 
 static const struct dss_features omap3630_dss_feats = {
@@ -1030,6 +1032,7 @@ static const struct dss_features omap3630_dss_feats = {
 	.ports			=	omap2plus_ports,
 	.num_ports		=	ARRAY_SIZE(omap2plus_ports),
 	.ops			=	&dss_ops_omap2_omap3,
+	.dispc_clk_switch	=	{ 0, 0 },
 };
 
 static const struct dss_features omap44xx_dss_feats = {
@@ -1040,6 +1043,7 @@ static const struct dss_features omap44xx_dss_feats = {
 	.ports			=	omap2plus_ports,
 	.num_ports		=	ARRAY_SIZE(omap2plus_ports),
 	.ops			=	&dss_ops_omap4,
+	.dispc_clk_switch	=	{ 9, 8 },
 };
 
 static const struct dss_features omap54xx_dss_feats = {
@@ -1050,6 +1054,7 @@ static const struct dss_features omap54xx_dss_feats = {
 	.ports			=	omap2plus_ports,
 	.num_ports		=	ARRAY_SIZE(omap2plus_ports),
 	.ops			=	&dss_ops_omap5,
+	.dispc_clk_switch	=	{ 9, 7 },
 };
 
 static const struct dss_features am43xx_dss_feats = {
@@ -1060,6 +1065,7 @@ static const struct dss_features am43xx_dss_feats = {
 	.ports			=	omap2plus_ports,
 	.num_ports		=	ARRAY_SIZE(omap2plus_ports),
 	.ops			=	&dss_ops_omap2_omap3,
+	.dispc_clk_switch	=	{ 0, 0 },
 };
 
 static const struct dss_features dra7xx_dss_feats = {
@@ -1070,6 +1076,7 @@ static const struct dss_features dra7xx_dss_feats = {
 	.ports			=	dra7xx_ports,
 	.num_ports		=	ARRAY_SIZE(dra7xx_ports),
 	.ops			=	&dss_ops_dra7,
+	.dispc_clk_switch	=	{ 9, 7 },
 };
 
 static int dss_init_ports(struct platform_device *pdev)

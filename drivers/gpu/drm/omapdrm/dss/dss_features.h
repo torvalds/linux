@@ -73,7 +73,6 @@ enum dss_feat_reg_field {
 	FEAT_REG_FIFOSIZE,
 	FEAT_REG_HORIZONTALACCU,
 	FEAT_REG_VERTICALACCU,
-	FEAT_REG_DISPC_CLK_SWITCH,
 };
 
 enum dss_range_param {
