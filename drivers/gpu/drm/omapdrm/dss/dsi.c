@@ -20,6 +20,8 @@
 #define DSS_SUBSYS_NAME "DSI"
 
 #include <linux/kernel.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/device.h>
@@ -330,6 +332,7 @@ struct dsi_data {
 	bool is_enabled;
 
 	struct clk *dss_clk;
+	struct regmap *syscon;
 
 	struct dispc_clock_info user_dispc_cinfo;
 	struct dss_pll_clock_info user_dsi_cinfo;
@@ -2073,6 +2076,64 @@ static unsigned dsi_get_lane_mask(struct platform_device *dsidev)
 	return mask;
 }
 
+/* OMAP4 CONTROL_DSIPHY */
+#define OMAP4_DSIPHY_SYSCON_OFFSET			0x78
+
+#define OMAP4_DSI2_LANEENABLE_SHIFT			29
+#define OMAP4_DSI2_LANEENABLE_MASK			(0x7 << 29)
+#define OMAP4_DSI1_LANEENABLE_SHIFT			24
+#define OMAP4_DSI1_LANEENABLE_MASK			(0x1f << 24)
+#define OMAP4_DSI1_PIPD_SHIFT				19
+#define OMAP4_DSI1_PIPD_MASK				(0x1f << 19)
+#define OMAP4_DSI2_PIPD_SHIFT				14
+#define OMAP4_DSI2_PIPD_MASK				(0x1f << 14)
+
+static int dsi_omap4_mux_pads(struct dsi_data *dsi, unsigned int lanes)
+{
+	u32 enable_mask, enable_shift;
+	u32 pipd_mask, pipd_shift;
+	u32 reg;
+
+	if (!dsi->syscon)
+		return 0;
+
+	if (dsi->module_id == 0) {
+		enable_mask = OMAP4_DSI1_LANEENABLE_MASK;
+		enable_shift = OMAP4_DSI1_LANEENABLE_SHIFT;
+		pipd_mask = OMAP4_DSI1_PIPD_MASK;
+		pipd_shift = OMAP4_DSI1_PIPD_SHIFT;
+	} else if (dsi->module_id == 1) {
+		enable_mask = OMAP4_DSI2_LANEENABLE_MASK;
+		enable_shift = OMAP4_DSI2_LANEENABLE_SHIFT;
+		pipd_mask = OMAP4_DSI2_PIPD_MASK;
+		pipd_shift = OMAP4_DSI2_PIPD_SHIFT;
+	} else {
+		return -ENODEV;
+	}
+
+	regmap_read(dsi->syscon, OMAP4_DSIPHY_SYSCON_OFFSET, &reg);
+
+	reg &= ~enable_mask;
+	reg &= ~pipd_mask;
+
+	reg |= (lanes << enable_shift) & enable_mask;
+	reg |= (lanes << pipd_shift) & pipd_mask;
+
+	regmap_write(dsi->syscon, OMAP4_DSIPHY_SYSCON_OFFSET, reg);
+
+	return 0;
+}
+
+static int dsi_enable_pads(struct dsi_data *dsi, unsigned int lane_mask)
+{
+	return dsi_omap4_mux_pads(dsi, lane_mask);
+}
+
+static void dsi_disable_pads(struct dsi_data *dsi)
+{
+	dsi_omap4_mux_pads(dsi, 0);
+}
+
 static int dsi_cio_init(struct platform_device *dsidev)
 {
 	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
@@ -2081,7 +2142,7 @@ static int dsi_cio_init(struct platform_device *dsidev)
 
 	DSSDBG("DSI CIO init starts");
 
-	r = dss_dsi_enable_pads(dsi->module_id, dsi_get_lane_mask(dsidev));
+	r = dsi_enable_pads(dsi, dsi_get_lane_mask(dsidev));
 	if (r)
 		return r;
 
@@ -2191,7 +2252,7 @@ err_cio_pwr:
 		dsi_cio_disable_lane_override(dsidev);
 err_scp_clk_dom:
 	dsi_disable_scp_clk(dsidev);
-	dss_dsi_disable_pads(dsi->module_id, dsi_get_lane_mask(dsidev));
+	dsi_disable_pads(dsi);
 	return r;
 }
 
@@ -2204,7 +2265,7 @@ static void dsi_cio_uninit(struct platform_device *dsidev)
 
 	dsi_cio_power(dsidev, DSI_COMPLEXIO_POWER_OFF);
 	dsi_disable_scp_clk(dsidev);
-	dss_dsi_disable_pads(dsi->module_id, dsi_get_lane_mask(dsidev));
+	dsi_disable_pads(dsi);
 }
 
 static void dsi_config_tx_fifo(struct platform_device *dsidev,
@@ -5331,6 +5392,21 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 	}
 
 	dsi->module_id = d->id;
+
+	if (dsi->data->model == DSI_MODEL_OMAP4) {
+		struct device_node *np;
+
+		/*
+		 * The OMAP4 display DT bindings don't reference the padconf
+		 * syscon. Our only option to retrieve it is to find it by name.
+		 */
+		np = of_find_node_by_name(NULL, "omap4_padconf_global");
+		if (!np)
+			return -ENODEV;
+
+		dsi->syscon = syscon_node_to_regmap(np);
+		of_node_put(np);
+	}
 
 	/* DSI VCs initialization */
 	for (i = 0; i < ARRAY_SIZE(dsi->vc); i++) {

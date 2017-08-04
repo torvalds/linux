@@ -50,26 +50,6 @@ enum omapdss_version omapdss_get_version(void)
 }
 EXPORT_SYMBOL(omapdss_get_version);
 
-int dss_dsi_enable_pads(int dsi_id, unsigned lane_mask)
-{
-	struct omap_dss_board_info *board_data = core.pdev->dev.platform_data;
-
-	if (!board_data->dsi_enable_pads)
-		return -ENOENT;
-
-	return board_data->dsi_enable_pads(dsi_id, lane_mask);
-}
-
-void dss_dsi_disable_pads(int dsi_id, unsigned lane_mask)
-{
-	struct omap_dss_board_info *board_data = core.pdev->dev.platform_data;
-
-	if (!board_data->dsi_disable_pads)
-		return;
-
-	return board_data->dsi_disable_pads(dsi_id, lane_mask);
-}
-
 int dss_set_min_bus_tput(struct device *dev, unsigned long tput)
 {
 	struct omap_dss_board_info *pdata = core.pdev->dev.platform_data;

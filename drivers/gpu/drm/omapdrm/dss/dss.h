@@ -219,8 +219,6 @@ struct seq_file;
 struct platform_device;
 
 /* core */
-int dss_dsi_enable_pads(int dsi_id, unsigned lane_mask);
-void dss_dsi_disable_pads(int dsi_id, unsigned lane_mask);
 int dss_set_min_bus_tput(struct device *dev, unsigned long tput);
 int dss_debugfs_create_file(const char *name, void (*write)(struct seq_file *));
 
