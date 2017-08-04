@@ -7,9 +7,6 @@ Required properties:
  - model - the user-visible name of this sound complex
  - clocks - should contain entries matching clock names in the clock-names
     property
- - clock-names - should contain following entries:
-    - "epll" - indicating the EPLL output clock
-    - "i2s_rclk" - indicating the RCLK (root) clock of the I2S0 controller
  - samsung,audio-widgets - this property specifies off-codec audio elements
    like headphones or speakers, for details see widgets.txt
  - samsung,audio-routing - a list of the connections between audio
@@ -45,9 +42,6 @@ sound {
 		"Headphone Jack", "HPR",
 		"IN1", "Mic Jack",
 		"Mic Jack", "MICBIAS";
-
-	clocks = <&clock CLK_FOUT_EPLL>, <&i2s0 CLK_I2S_RCLK_SRC>;
-	clock-names = "epll", "sclk_i2s";
 
 	cpu {
 		sound-dai = <&i2s0 0>;
