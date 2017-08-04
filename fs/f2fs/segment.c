@@ -868,11 +868,14 @@ void __check_sit_bitmap(struct f2fs_sb_info *sbi,
 		sentry = get_seg_entry(sbi, segno);
 		offset = GET_BLKOFF_FROM_SEG0(sbi, blk);
 
-		size = min((unsigned long)(end - blk), max_blocks);
+		if (end < START_BLOCK(sbi, segno + 1))
+			size = GET_BLKOFF_FROM_SEG0(sbi, end);
+		else
+			size = max_blocks;
 		map = (unsigned long *)(sentry->cur_valid_map);
 		offset = __find_rev_next_bit(map, size, offset);
 		f2fs_bug_on(sbi, offset != size);
-		blk += size;
+		blk = START_BLOCK(sbi, segno + 1);
 	}
 #endif
 }
