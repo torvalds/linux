@@ -214,7 +214,11 @@ static bool bt_iter(struct sbitmap *bitmap, unsigned int bitnr, void *data)
 		bitnr += tags->nr_reserved_tags;
 	rq = tags->rqs[bitnr];
 
-	if (rq->q == hctx->queue)
+	/*
+	 * We can hit rq == NULL here, because the tagging functions
+	 * test and set the bit before assining ->rqs[].
+	 */
+	if (rq && rq->q == hctx->queue)
 		iter_data->fn(hctx, rq, iter_data->data, reserved);
 	return true;
 }
@@ -248,9 +252,15 @@ static bool bt_tags_iter(struct sbitmap *bitmap, unsigned int bitnr, void *data)
 
 	if (!reserved)
 		bitnr += tags->nr_reserved_tags;
-	rq = tags->rqs[bitnr];
 
-	iter_data->fn(rq, iter_data->data, reserved);
+	/*
+	 * We can hit rq == NULL here, because the tagging functions
+	 * test and set the bit before assining ->rqs[].
+	 */
+	rq = tags->rqs[bitnr];
+	if (rq)
+		iter_data->fn(rq, iter_data->data, reserved);
+
 	return true;
 }
 
