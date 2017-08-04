@@ -502,11 +502,11 @@ void intel_gvt_reset_vgpu_locked(struct intel_vgpu *vgpu, bool dmlr,
 	/* full GPU reset or device model level reset */
 	if (engine_mask == ALL_ENGINES || dmlr) {
 
-		intel_vgpu_reset_gtt(vgpu, dmlr);
-
 		/*fence will not be reset during virtual reset */
-		if (dmlr)
+		if (dmlr) {
+			intel_vgpu_reset_gtt(vgpu);
 			intel_vgpu_reset_resource(vgpu);
+		}
 
 		intel_vgpu_reset_mmio(vgpu, dmlr);
 		populate_pvinfo_page(vgpu);
