@@ -85,16 +85,31 @@ void lkdtm_OVERFLOW(void)
 
 static noinline void __lkdtm_CORRUPT_STACK(void *stack)
 {
-	memset(stack, 'a', 64);
+	memset(stack, '\xff', 64);
 }
 
+/* This should trip the stack canary, not corrupt the return address. */
 noinline void lkdtm_CORRUPT_STACK(void)
 {
 	/* Use default char array length that triggers stack protection. */
-	char data[8];
+	char data[8] __aligned(sizeof(void *));
+
 	__lkdtm_CORRUPT_STACK(&data);
 
-	pr_info("Corrupted stack with '%16s'...\n", data);
+	pr_info("Corrupted stack containing char array ...\n");
+}
+
+/* Same as above but will only get a canary with -fstack-protector-strong */
+noinline void lkdtm_CORRUPT_STACK_STRONG(void)
+{
+	union {
+		unsigned short shorts[4];
+		unsigned long *ptr;
+	} data __aligned(sizeof(void *));
+
+	__lkdtm_CORRUPT_STACK(&data);
+
+	pr_info("Corrupted stack containing union ...\n");
 }
 
 void lkdtm_UNALIGNED_LOAD_STORE_WRITE(void)

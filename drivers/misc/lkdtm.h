@@ -14,6 +14,7 @@ void lkdtm_EXCEPTION(void);
 void lkdtm_LOOP(void);
 void lkdtm_OVERFLOW(void);
 void lkdtm_CORRUPT_STACK(void);
+void lkdtm_CORRUPT_STACK_STRONG(void);
 void lkdtm_UNALIGNED_LOAD_STORE_WRITE(void);
 void lkdtm_SOFTLOCKUP(void);
 void lkdtm_HARDLOCKUP(void);
