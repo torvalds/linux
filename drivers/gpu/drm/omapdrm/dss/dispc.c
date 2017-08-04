@@ -39,7 +39,9 @@
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/component.h>
+#include <linux/sys_soc.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_blend.h>
 
@@ -3804,54 +3806,6 @@ static const struct dispc_features omap54xx_dispc_feats = {
 	.has_gamma_i734_bug	=	true,
 };
 
-static int dispc_init_features(struct platform_device *pdev)
-{
-	const struct dispc_features *src;
-	struct dispc_features *dst;
-
-	dst = devm_kzalloc(&pdev->dev, sizeof(*dst), GFP_KERNEL);
-	if (!dst) {
-		dev_err(&pdev->dev, "Failed to allocate DISPC Features\n");
-		return -ENOMEM;
-	}
-
-	switch (omapdss_get_version()) {
-	case OMAPDSS_VER_OMAP24xx:
-		src = &omap24xx_dispc_feats;
-		break;
-
-	case OMAPDSS_VER_OMAP34xx_ES1:
-		src = &omap34xx_rev1_0_dispc_feats;
-		break;
-
-	case OMAPDSS_VER_OMAP34xx_ES3:
-	case OMAPDSS_VER_OMAP3630:
-	case OMAPDSS_VER_AM35xx:
-	case OMAPDSS_VER_AM43xx:
-		src = &omap34xx_rev3_0_dispc_feats;
-		break;
-
-	case OMAPDSS_VER_OMAP4430_ES1:
-	case OMAPDSS_VER_OMAP4430_ES2:
-	case OMAPDSS_VER_OMAP4:
-		src = &omap44xx_dispc_feats;
-		break;
-
-	case OMAPDSS_VER_OMAP5:
-	case OMAPDSS_VER_DRA7xx:
-		src = &omap54xx_dispc_feats;
-		break;
-
-	default:
-		return -ENODEV;
-	}
-
-	memcpy(dst, src, sizeof(*dst));
-	dispc.feat = dst;
-
-	return 0;
-}
-
 static irqreturn_t dispc_irq_handler(int irq, void *arg)
 {
 	if (!dispc.is_enabled)
@@ -4083,9 +4037,25 @@ static const struct dispc_ops dispc_ops = {
 };
 
 /* DISPC HW IP initialisation */
+static const struct of_device_id dispc_of_match[] = {
+	{ .compatible = "ti,omap2-dispc", .data = &omap24xx_dispc_feats },
+	{ .compatible = "ti,omap3-dispc", .data = &omap34xx_rev3_0_dispc_feats },
+	{ .compatible = "ti,omap4-dispc", .data = &omap44xx_dispc_feats },
+	{ .compatible = "ti,omap5-dispc", .data = &omap54xx_dispc_feats },
+	{ .compatible = "ti,dra7-dispc",  .data = &omap54xx_dispc_feats },
+	{},
+};
+
+static const struct soc_device_attribute dispc_soc_devices[] = {
+	{ .machine = "OMAP3[45]*",
+	  .revision = "ES[12].?",	.data = &omap34xx_rev1_0_dispc_feats },
+	{ /* sentinel */ }
+};
+
 static int dispc_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
+	const struct soc_device_attribute *soc;
 	u32 rev;
 	int r = 0;
 	struct resource *dispc_mem;
@@ -4095,9 +4065,15 @@ static int dispc_bind(struct device *dev, struct device *master, void *data)
 
 	spin_lock_init(&dispc.control_lock);
 
-	r = dispc_init_features(dispc.pdev);
-	if (r)
-		return r;
+	/*
+	 * The OMAP34xx ES1.x and ES2.x can't be identified through the
+	 * compatible string, use SoC device matching.
+	 */
+	soc = soc_device_match(dispc_soc_devices);
+	if (soc)
+		dispc.feat = soc->data;
+	else
+		dispc.feat = of_match_device(dispc_of_match, &pdev->dev)->data;
 
 	r = dispc_errata_i734_wa_init();
 	if (r)
@@ -4224,15 +4200,6 @@ static int dispc_runtime_resume(struct device *dev)
 static const struct dev_pm_ops dispc_pm_ops = {
 	.runtime_suspend = dispc_runtime_suspend,
 	.runtime_resume = dispc_runtime_resume,
-};
-
-static const struct of_device_id dispc_of_match[] = {
-	{ .compatible = "ti,omap2-dispc", },
-	{ .compatible = "ti,omap3-dispc", },
-	{ .compatible = "ti,omap4-dispc", },
-	{ .compatible = "ti,omap5-dispc", },
-	{ .compatible = "ti,dra7-dispc", },
-	{},
 };
 
 static struct platform_driver omap_dispchw_driver = {
