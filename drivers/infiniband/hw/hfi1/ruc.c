@@ -227,15 +227,23 @@ int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct hfi1_packet *packet)
 	u32 sl = packet->sl;
 	int migrated;
 	u32 bth0, bth1;
+	u16 pkey;
 
 	bth0 = be32_to_cpu(packet->ohdr->bth[0]);
 	bth1 = be32_to_cpu(packet->ohdr->bth[1]);
-	migrated = bth0 & IB_BTH_MIG_REQ;
+	if (packet->etype == RHF_RCV_TYPE_BYPASS) {
+		pkey = hfi1_16B_get_pkey(packet->hdr);
+		migrated = bth1 & OPA_BTH_MIG_REQ;
+	} else {
+		pkey = ib_bth_get_pkey(packet->ohdr);
+		migrated = bth0 & IB_BTH_MIG_REQ;
+	}
 
 	if (qp->s_mig_state == IB_MIG_ARMED && migrated) {
 		if (!packet->grh) {
-			if (rdma_ah_get_ah_flags(&qp->alt_ah_attr) &
-			    IB_AH_GRH)
+			if ((rdma_ah_get_ah_flags(&qp->alt_ah_attr) &
+			     IB_AH_GRH) &&
+			    (packet->etype != RHF_RCV_TYPE_BYPASS))
 				return 1;
 		} else {
 			const struct ib_global_route *grh;
@@ -254,10 +262,10 @@ int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct hfi1_packet *packet)
 				grh->dgid.global.interface_id))
 				return 1;
 		}
-		if (unlikely(rcv_pkey_check(ppd_from_ibp(ibp), (u16)bth0,
+		if (unlikely(rcv_pkey_check(ppd_from_ibp(ibp), pkey,
 					    sc5, slid))) {
-			hfi1_bad_pkey(ibp, (u16)bth0, sl,
-				      0, qp->ibqp.qp_num, slid, dlid);
+			hfi1_bad_pkey(ibp, pkey, sl, 0, qp->ibqp.qp_num,
+				      slid, dlid);
 			return 1;
 		}
 		/* Validate the SLID. See Ch. 9.6.1.5 and 17.2.8 */
@@ -270,8 +278,9 @@ int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct hfi1_packet *packet)
 		spin_unlock_irqrestore(&qp->s_lock, flags);
 	} else {
 		if (!packet->grh) {
-			if (rdma_ah_get_ah_flags(&qp->remote_ah_attr) &
-						 IB_AH_GRH)
+			if ((rdma_ah_get_ah_flags(&qp->remote_ah_attr) &
+			     IB_AH_GRH) &&
+			    (packet->etype != RHF_RCV_TYPE_BYPASS))
 				return 1;
 		} else {
 			const struct ib_global_route *grh;
@@ -290,10 +299,10 @@ int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct hfi1_packet *packet)
 			     grh->dgid.global.interface_id))
 				return 1;
 		}
-		if (unlikely(rcv_pkey_check(ppd_from_ibp(ibp), (u16)bth0,
+		if (unlikely(rcv_pkey_check(ppd_from_ibp(ibp), pkey,
 					    sc5, slid))) {
-			hfi1_bad_pkey(ibp, (u16)bth0, sl,
-				      0, qp->ibqp.qp_num, slid, dlid);
+			hfi1_bad_pkey(ibp, pkey, sl, 0, qp->ibqp.qp_num,
+				      slid, dlid);
 			return 1;
 		}
 		/* Validate the SLID. See Ch. 9.6.1.5 */

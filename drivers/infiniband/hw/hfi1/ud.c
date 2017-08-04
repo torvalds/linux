@@ -109,7 +109,8 @@ static void ud_loopback(struct rvt_qp *sqp, struct rvt_swqe *swqe)
 		slid = ppd->lid | (rdma_ah_get_path_bits(ah_attr) &
 				   ((1 << ppd->lmc) - 1));
 		if (unlikely(ingress_pkey_check(ppd, pkey, sc5,
-						qp->s_pkey_index, slid))) {
+						qp->s_pkey_index,
+						slid, false))) {
 			hfi1_bad_pkey(ibp, pkey,
 				      rdma_ah_get_sl(ah_attr),
 				      sqp->ibqp.qp_num, qp->ibqp.qp_num,

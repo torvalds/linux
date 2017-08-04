@@ -372,6 +372,10 @@ struct hfi1_packet {
 #define OPA_16B_FECN_SHIFT      28
 #define OPA_16B_L2_MASK		0x60000000ull
 #define OPA_16B_L2_SHIFT	29
+#define OPA_16B_PKEY_MASK	0xFFFF0000ull
+#define OPA_16B_PKEY_SHIFT	16
+#define OPA_16B_LEN_MASK	0x7FF00000ull
+#define OPA_16B_LEN_SHIFT	20
 
 /*
  * OPA 16B L2/L4 Encodings
@@ -418,6 +422,11 @@ static inline u8 hfi1_16B_get_fecn(struct hfi1_16b_header *hdr)
 static inline u8 hfi1_16B_get_l2(struct hfi1_16b_header *hdr)
 {
 	return (u8)((hdr->lrh[1] & OPA_16B_L2_MASK) >> OPA_16B_L2_SHIFT);
+}
+
+static inline u16 hfi1_16B_get_pkey(struct hfi1_16b_header *hdr)
+{
+	return (u16)((hdr->lrh[2] & OPA_16B_PKEY_MASK) >> OPA_16B_PKEY_SHIFT);
 }
 
 /*
@@ -1597,9 +1606,9 @@ static void ingress_pkey_table_fail(struct hfi1_pportdata *ppd, u16 pkey,
  * by HW and rcv_pkey_check function should be called instead.
  */
 static inline int ingress_pkey_check(struct hfi1_pportdata *ppd, u16 pkey,
-				     u8 sc5, u8 idx, u16 slid)
+				     u8 sc5, u8 idx, u32 slid, bool force)
 {
-	if (!(ppd->part_enforce & HFI1_PART_ENFORCE_IN))
+	if (!(force) && !(ppd->part_enforce & HFI1_PART_ENFORCE_IN))
 		return 0;
 
 	/* If SC15, pkey[0:14] must be 0x7fff */

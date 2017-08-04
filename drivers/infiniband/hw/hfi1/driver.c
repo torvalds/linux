@@ -269,8 +269,7 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 {
 	struct ib_header *rhdr = packet->hdr;
 	u32 rte = rhf_rcv_type_err(packet->rhf);
-	u8 lnh = ib_get_lnh(rhdr);
-	bool has_grh = false;
+	u32 mlid_base;
 	struct hfi1_ibport *ibp = rcd_to_iport(rcd);
 	struct hfi1_devdata *dd = ppd->dd;
 	struct rvt_dev_info *rdi = &dd->verbs_dev.rdi;
@@ -278,14 +277,20 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 	if (packet->rhf & (RHF_VCRC_ERR | RHF_ICRC_ERR))
 		return;
 
-	if (lnh == HFI1_LRH_BTH) {
-		packet->ohdr = &rhdr->u.oth;
-	} else if (lnh == HFI1_LRH_GRH) {
-		has_grh = true;
-		packet->ohdr = &rhdr->u.l.oth;
-		packet->grh = &rhdr->u.l.grh;
-	} else {
+	if (packet->etype == RHF_RCV_TYPE_BYPASS) {
 		goto drop;
+	} else {
+		u8 lnh = ib_get_lnh(rhdr);
+
+		mlid_base = be16_to_cpu(IB_MULTICAST_LID_BASE);
+		if (lnh == HFI1_LRH_BTH) {
+			packet->ohdr = &rhdr->u.oth;
+		} else if (lnh == HFI1_LRH_GRH) {
+			packet->ohdr = &rhdr->u.l.oth;
+			packet->grh = &rhdr->u.l.grh;
+		} else {
+			goto drop;
+		}
 	}
 
 	if (packet->rhf & RHF_TID_ERR) {
@@ -293,14 +298,13 @@ static void rcv_hdrerr(struct hfi1_ctxtdata *rcd, struct hfi1_pportdata *ppd,
 		u32 tlen = rhf_pkt_len(packet->rhf); /* in bytes */
 		u32 dlid = ib_get_dlid(rhdr);
 		u32 qp_num;
-		u32 mlid_base = be16_to_cpu(IB_MULTICAST_LID_BASE);
 
 		/* Sanity check packet */
 		if (tlen < 24)
 			goto drop;
 
 		/* Check for GRH */
-		if (has_grh) {
+		if (packet->grh) {
 			u32 vtf;
 			struct ib_grh *grh = packet->grh;
 
@@ -1370,6 +1374,35 @@ static inline void hfi1_setup_ib_header(struct hfi1_packet *packet)
 	packet->hlen = (u8 *)packet->rhf_addr - (u8 *)packet->hdr;
 }
 
+static int hfi1_bypass_ingress_pkt_check(struct hfi1_packet *packet)
+{
+	struct hfi1_pportdata *ppd = packet->rcd->ppd;
+
+	/* slid and dlid cannot be 0 */
+	if ((!packet->slid) || (!packet->dlid))
+		return -EINVAL;
+
+	/* Compare port lid with incoming packet dlid */
+	if ((!(hfi1_is_16B_mcast(packet->dlid))) &&
+	    (packet->dlid !=
+		opa_get_lid(be32_to_cpu(OPA_LID_PERMISSIVE), 16B))) {
+		if (packet->dlid != ppd->lid)
+			return -EINVAL;
+	}
+
+	/* No multicast packets with SC15 */
+	if ((hfi1_is_16B_mcast(packet->dlid)) && (packet->sc == 0xF))
+		return -EINVAL;
+
+	/* Packets with permissive DLID always on SC15 */
+	if ((packet->dlid == opa_get_lid(be32_to_cpu(OPA_LID_PERMISSIVE),
+					 16B)) &&
+	    (packet->sc != 0xF))
+		return -EINVAL;
+
+	return 0;
+}
+
 static int hfi1_setup_9B_packet(struct hfi1_packet *packet)
 {
 	struct hfi1_ibport *ibp = rcd_to_iport(packet->rcd);
@@ -1478,6 +1511,9 @@ static int hfi1_setup_bypass_packet(struct hfi1_packet *packet)
 	packet->extra_byte = SIZE_OF_LT;
 	packet->fecn = hfi1_16B_get_fecn(packet->hdr);
 	packet->becn = hfi1_16B_get_becn(packet->hdr);
+
+	if (hfi1_bypass_ingress_pkt_check(packet))
+		goto drop;
 
 	return 0;
 drop:

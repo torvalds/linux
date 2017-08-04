@@ -95,6 +95,7 @@ struct hfi1_packet;
 #define HFI1_VENDOR_IPG		cpu_to_be16(0xFFA0)
 
 #define IB_DEFAULT_GID_PREFIX	cpu_to_be64(0xfe80000000000000ULL)
+#define OPA_BTH_MIG_REQ		BIT(31)
 
 #define RC_OP(x) IB_OPCODE_RC_##x
 #define UC_OP(x) IB_OPCODE_UC_##x

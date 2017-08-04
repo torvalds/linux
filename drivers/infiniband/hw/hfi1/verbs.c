@@ -568,6 +568,24 @@ static u64 hfi1_fault_tx(struct rvt_qp *qp, u8 opcode, u64 pbc)
 	return pbc;
 }
 
+static int hfi1_do_pkey_check(struct hfi1_packet *packet)
+{
+	struct hfi1_ctxtdata *rcd = packet->rcd;
+	struct hfi1_pportdata *ppd = rcd->ppd;
+	struct hfi1_16b_header *hdr = packet->hdr;
+	u16 pkey;
+
+	/* Pkey check needed only for bypass packets */
+	if (packet->etype != RHF_RCV_TYPE_BYPASS)
+		return 0;
+
+	/* Perform pkey check */
+	pkey = hfi1_16B_get_pkey(hdr);
+	return ingress_pkey_check(ppd, pkey, packet->sc,
+				  packet->qp->s_pkey_index,
+				  packet->slid, true);
+}
+
 static inline void hfi1_handle_packet(struct hfi1_packet *packet,
 				      bool is_mcast)
 {
@@ -594,6 +612,8 @@ static inline void hfi1_handle_packet(struct hfi1_packet *packet,
 			goto drop;
 		list_for_each_entry_rcu(p, &mcast->qp_list, list) {
 			packet->qp = p->qp;
+			if (hfi1_do_pkey_check(packet))
+				goto drop;
 			spin_lock_irqsave(&packet->qp->r_lock, flags);
 			packet_handler = qp_ok(packet);
 			if (likely(packet_handler))
@@ -613,15 +633,16 @@ static inline void hfi1_handle_packet(struct hfi1_packet *packet,
 		qp_num = ib_bth_get_qpn(packet->ohdr);
 		rcu_read_lock();
 		packet->qp = rvt_lookup_qpn(rdi, &ibp->rvp, qp_num);
-		if (!packet->qp) {
-			rcu_read_unlock();
-			goto drop;
-		}
+		if (!packet->qp)
+			goto unlock_drop;
+
+		if (hfi1_do_pkey_check(packet))
+			goto unlock_drop;
+
 		if (unlikely(hfi1_dbg_fault_opcode(packet->qp, packet->opcode,
-						   true))) {
-			rcu_read_unlock();
-			goto drop;
-		}
+						   true)))
+			goto unlock_drop;
+
 		spin_lock_irqsave(&packet->qp->r_lock, flags);
 		packet_handler = qp_ok(packet);
 		if (likely(packet_handler))
@@ -632,6 +653,8 @@ static inline void hfi1_handle_packet(struct hfi1_packet *packet,
 		rcu_read_unlock();
 	}
 	return;
+unlock_drop:
+	rcu_read_unlock();
 drop:
 	ibp->rvp.n_pkt_drops++;
 }
