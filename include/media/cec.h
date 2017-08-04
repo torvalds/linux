@@ -31,6 +31,9 @@
 #include <media/rc-core.h>
 #include <media/cec-notifier.h>
 
+#define CEC_CAP_DEFAULTS (CEC_CAP_LOG_ADDRS | CEC_CAP_TRANSMIT | \
+			  CEC_CAP_PASSTHROUGH | CEC_CAP_RC)
+
 /**
  * struct cec_devnode - cec device node
  * @dev:	cec device
