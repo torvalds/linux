@@ -1882,8 +1882,6 @@ void drm_fb_helper_fill_var(struct fb_info *info, struct drm_fb_helper *fb_helpe
 	info->var.xoffset = 0;
 	info->var.yoffset = 0;
 	info->var.activate = FB_ACTIVATE_NOW;
-	info->var.height = -1;
-	info->var.width = -1;
 
 	switch (fb->format->depth) {
 	case 8:
@@ -2435,11 +2433,26 @@ out:
  */
 static void drm_setup_crtcs_fb(struct drm_fb_helper *fb_helper)
 {
+	struct fb_info *info = fb_helper->fbdev;
 	int i;
 
 	for (i = 0; i < fb_helper->crtc_count; i++)
 		if (fb_helper->crtc_info[i].mode_set.num_connectors)
 			fb_helper->crtc_info[i].mode_set.fb = fb_helper->fb;
+
+	mutex_lock(&fb_helper->dev->mode_config.mutex);
+	drm_fb_helper_for_each_connector(fb_helper, i) {
+		struct drm_connector *connector =
+					fb_helper->connector_info[i]->connector;
+
+		/* use first connected connector for the physical dimensions */
+		if (connector->status == connector_status_connected) {
+			info->var.width = connector->display_info.width_mm;
+			info->var.height = connector->display_info.height_mm;
+			break;
+		}
+	}
+	mutex_unlock(&fb_helper->dev->mode_config.mutex);
 }
 
 /* Note: Drops fb_helper->lock before returning. */
