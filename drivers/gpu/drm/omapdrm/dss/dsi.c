@@ -326,6 +326,8 @@ struct dsi_of_data {
 	enum dsi_model model;
 	const struct dss_pll_hw *pll_hw;
 	const struct dsi_module_id_data *modules;
+	unsigned int max_fck_freq;
+	unsigned int max_pll_lpdiv;
 	enum dsi_quirks quirks;
 };
 
@@ -1323,7 +1325,7 @@ static int dsi_set_lp_clk_divisor(struct platform_device *dsidev)
 	unsigned long dsi_fclk;
 	unsigned lp_clk_div;
 	unsigned long lp_clk;
-	unsigned lpdiv_max = dss_feat_get_param_max(FEAT_PARAM_DSIPLL_LPDIV);
+	unsigned lpdiv_max = dsi->data->max_pll_lpdiv;
 
 
 	lp_clk_div = dsi->user_lp_cinfo.lp_clk_div;
@@ -1400,11 +1402,12 @@ static int dsi_pll_power(struct platform_device *dsidev,
 }
 
 
-static void dsi_pll_calc_dsi_fck(struct dss_pll_clock_info *cinfo)
+static void dsi_pll_calc_dsi_fck(struct dsi_data *dsi,
+				 struct dss_pll_clock_info *cinfo)
 {
 	unsigned long max_dsi_fck;
 
-	max_dsi_fck = dss_feat_get_param_max(FEAT_PARAM_DSI_FCK);
+	max_dsi_fck = dsi->data->max_fck_freq;
 
 	cinfo->mX[HSDIV_DSI] = DIV_ROUND_UP(cinfo->clkdco, max_dsi_fck);
 	cinfo->clkout[HSDIV_DSI] = cinfo->clkdco / cinfo->mX[HSDIV_DSI];
@@ -4537,6 +4540,7 @@ static bool dsi_cm_calc_pll_cb(int n, int m, unsigned long fint,
 		unsigned long clkdco, void *data)
 {
 	struct dsi_clk_calc_ctx *ctx = data;
+	struct dsi_data *dsi = dsi_get_dsidrv_data(ctx->dsidev);
 
 	ctx->dsi_cinfo.n = n;
 	ctx->dsi_cinfo.m = m;
@@ -4544,7 +4548,7 @@ static bool dsi_cm_calc_pll_cb(int n, int m, unsigned long fint,
 	ctx->dsi_cinfo.clkdco = clkdco;
 
 	return dss_pll_hsdiv_calc_a(ctx->pll, clkdco, ctx->req_pck_min,
-			dss_feat_get_param_max(FEAT_PARAM_DSS_FCK),
+			dsi->data->max_fck_freq,
 			dsi_cm_calc_hsdiv_cb, ctx);
 }
 
@@ -4836,6 +4840,7 @@ static bool dsi_vm_calc_pll_cb(int n, int m, unsigned long fint,
 		unsigned long clkdco, void *data)
 {
 	struct dsi_clk_calc_ctx *ctx = data;
+	struct dsi_data *dsi = dsi_get_dsidrv_data(ctx->dsidev);
 
 	ctx->dsi_cinfo.n = n;
 	ctx->dsi_cinfo.m = m;
@@ -4843,7 +4848,7 @@ static bool dsi_vm_calc_pll_cb(int n, int m, unsigned long fint,
 	ctx->dsi_cinfo.clkdco = clkdco;
 
 	return dss_pll_hsdiv_calc_a(ctx->pll, clkdco, ctx->req_pck_min,
-			dss_feat_get_param_max(FEAT_PARAM_DSS_FCK),
+			dsi->data->max_fck_freq,
 			dsi_vm_calc_hsdiv_cb, ctx);
 }
 
@@ -4914,7 +4919,7 @@ static int dsi_set_config(struct omap_dss_device *dssdev,
 		goto err;
 	}
 
-	dsi_pll_calc_dsi_fck(&ctx.dsi_cinfo);
+	dsi_pll_calc_dsi_fck(dsi, &ctx.dsi_cinfo);
 
 	r = dsi_lp_clock_calc(ctx.dsi_cinfo.clkout[HSDIV_DSI],
 		config->lp_clk_min, config->lp_clk_max, &dsi->user_lp_cinfo);
@@ -5335,6 +5340,8 @@ static const struct dsi_of_data dsi_of_data_omap34xx = {
 		{ .address = 0x4804fc00, .id = 0, },
 		{ },
 	},
+	.max_fck_freq = 173000000,
+	.max_pll_lpdiv = (1 << 13) - 1,
 	.quirks = DSI_QUIRK_REVERSE_TXCLKESC,
 };
 
@@ -5345,6 +5352,8 @@ static const struct dsi_of_data dsi_of_data_omap36xx = {
 		{ .address = 0x4804fc00, .id = 0, },
 		{ },
 	},
+	.max_fck_freq = 173000000,
+	.max_pll_lpdiv = (1 << 13) - 1,
 	.quirks = DSI_QUIRK_PLL_PWR_BUG,
 };
 
@@ -5356,6 +5365,8 @@ static const struct dsi_of_data dsi_of_data_omap4 = {
 		{ .address = 0x58005000, .id = 1, },
 		{ },
 	},
+	.max_fck_freq = 170000000,
+	.max_pll_lpdiv = (1 << 13) - 1,
 	.quirks = DSI_QUIRK_DCS_CMD_CONFIG_VC | DSI_QUIRK_VC_OCP_WIDTH
 		| DSI_QUIRK_GNQ,
 };
@@ -5368,6 +5379,8 @@ static const struct dsi_of_data dsi_of_data_omap5 = {
 		{ .address = 0x58009000, .id = 1, },
 		{ },
 	},
+	.max_fck_freq = 209250000,
+	.max_pll_lpdiv = (1 << 13) - 1,
 	.quirks = DSI_QUIRK_DCS_CMD_CONFIG_VC | DSI_QUIRK_VC_OCP_WIDTH
 		| DSI_QUIRK_GNQ | DSI_QUIRK_PHY_DCC,
 };
