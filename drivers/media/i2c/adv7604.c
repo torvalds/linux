@@ -618,7 +618,7 @@ static int adv76xx_read_reg(struct v4l2_subdev *sd, unsigned int reg)
 	unsigned int val;
 	int err;
 
-	if (!(BIT(page) & state->info->page_mask))
+	if (page >= ADV76XX_PAGE_MAX || !(BIT(page) & state->info->page_mask))
 		return -EINVAL;
 
 	reg &= 0xff;
@@ -633,7 +633,7 @@ static int adv76xx_write_reg(struct v4l2_subdev *sd, unsigned int reg, u8 val)
 	struct adv76xx_state *state = to_state(sd);
 	unsigned int page = reg >> 8;
 
-	if (!(BIT(page) & state->info->page_mask))
+	if (page >= ADV76XX_PAGE_MAX || !(BIT(page) & state->info->page_mask))
 		return -EINVAL;
 
 	reg &= 0xff;
