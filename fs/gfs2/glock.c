@@ -112,23 +112,6 @@ static wait_queue_head_t *glock_waitqueue(struct lm_lockname *name)
 	return glock_wait_table + hash_32(hash, GLOCK_WAIT_TABLE_BITS);
 }
 
-static void prepare_to_wait_on_glock(wait_queue_head_t **wq,
-				     struct wait_glock_queue *wait,
-				     struct lm_lockname *name)
-{
-	wait->name = name;
-	init_wait(&wait->wait);
-	wait->wait.func = glock_wake_function;
-	*wq = glock_waitqueue(name);
-	prepare_to_wait(*wq, &wait->wait, TASK_UNINTERRUPTIBLE);
-}
-
-static void finish_wait_on_glock(wait_queue_head_t *wq,
-				 struct wait_glock_queue *wait)
-{
-	finish_wait(wq, &wait->wait);
-}
-
 /**
  * wake_up_glock  -  Wake up waiters on a glock
  * @gl: the glock
@@ -754,11 +737,15 @@ static struct gfs2_glock *find_insert_glock(struct lm_lockname *name,
 					    struct gfs2_glock *new)
 {
 	struct wait_glock_queue wait;
-	wait_queue_head_t *wq;
+	wait_queue_head_t *wq = glock_waitqueue(name);
 	struct gfs2_glock *gl;
 
+	wait.name = name;
+	init_wait(&wait.wait);
+	wait.wait.func = glock_wake_function;
+
 again:
-	prepare_to_wait_on_glock(&wq, &wait, name);
+	prepare_to_wait(wq, &wait.wait, TASK_UNINTERRUPTIBLE);
 	rcu_read_lock();
 	if (new) {
 		gl = rhashtable_lookup_get_insert_fast(&gl_hash_table,
@@ -776,7 +763,7 @@ again:
 	}
 out:
 	rcu_read_unlock();
-	finish_wait_on_glock(wq, &wait);
+	finish_wait(wq, &wait.wait);
 	return gl;
 }
 
