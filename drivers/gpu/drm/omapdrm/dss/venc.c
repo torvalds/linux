@@ -41,7 +41,6 @@
 
 #include "omapdss.h"
 #include "dss.h"
-#include "dss_features.h"
 
 /* Venc registers */
 #define VENC_REV_ID				0x00

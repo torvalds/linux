@@ -47,7 +47,6 @@
 
 #include "omapdss.h"
 #include "dss.h"
-#include "dss_features.h"
 #include "dispc.h"
 
 /* DISPC */

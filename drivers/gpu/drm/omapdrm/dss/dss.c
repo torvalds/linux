@@ -48,7 +48,6 @@
 
 #include "omapdss.h"
 #include "dss.h"
-#include "dss_features.h"
 
 #define DSS_SZ_REGS			SZ_512
 

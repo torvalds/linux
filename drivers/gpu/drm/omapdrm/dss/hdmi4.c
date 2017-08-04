@@ -40,7 +40,6 @@
 #include "omapdss.h"
 #include "hdmi4_core.h"
 #include "dss.h"
-#include "dss_features.h"
 #include "hdmi.h"
 
 static struct omap_hdmi hdmi;

@@ -27,6 +27,9 @@
 
 #include "omapdss.h"
 
+#define MAX_DSS_LCD_MANAGERS	3
+#define MAX_NUM_DSI		2
+
 #ifdef pr_fmt
 #undef pr_fmt
 #endif

@@ -36,7 +36,6 @@
 #include <sound/asoundef.h>
 
 #include "hdmi4_core.h"
-#include "dss_features.h"
 
 #define HDMI_CORE_AV		0x500
 

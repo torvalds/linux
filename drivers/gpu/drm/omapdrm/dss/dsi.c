@@ -50,7 +50,6 @@
 
 #include "omapdss.h"
 #include "dss.h"
-#include "dss_features.h"
 
 #define DSI_CATCH_MISSING_TE
 

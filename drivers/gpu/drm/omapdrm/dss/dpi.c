@@ -36,7 +36,6 @@
 
 #include "omapdss.h"
 #include "dss.h"
-#include "dss_features.h"
 
 struct dpi_data {
 	struct platform_device *pdev;
