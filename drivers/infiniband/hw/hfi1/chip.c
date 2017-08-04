@@ -1065,6 +1065,7 @@ static int do_8051_command(struct hfi1_devdata *dd, u32 type, u64 in_data,
 static int read_idle_sma(struct hfi1_devdata *dd, u64 *data);
 static int thermal_init(struct hfi1_devdata *dd);
 
+static void update_statusp(struct hfi1_pportdata *ppd, u32 state);
 static int wait_logical_linkstate(struct hfi1_pportdata *ppd, u32 state,
 				  int msecs);
 static int wait_physical_linkstate(struct hfi1_pportdata *ppd, u32 state,
@@ -10261,8 +10262,10 @@ static void force_logical_link_state_down(struct hfi1_pportdata *ppd)
 	write_csr(dd, DC_LCB_CFG_ALLOW_LINK_UP, 0);
 	write_csr(dd, DC_LCB_CFG_IGNORE_LOST_RCLK, 0);
 
-	/* call again to adjust ppd->statusp, if needed */
-	get_logical_state(ppd);
+	/* adjust ppd->statusp, if needed */
+	update_statusp(ppd, IB_PORT_DOWN);
+
+	dd_dev_info(ppd->dd, "logical state forced to LINK_DOWN\n");
 }
 
 /*
@@ -10458,11 +10461,11 @@ u32 driver_physical_state(struct hfi1_pportdata *ppd)
 }
 
 /*
- * driver_logical_state - convert the driver's notion of a port's
+ * driver_lstate - convert the driver's notion of a port's
  * state (an HLS_*) into a logical state (a IB_PORT_*). Return -1
  * (converted to a u32) to indicate error.
  */
-u32 driver_logical_state(struct hfi1_pportdata *ppd)
+u32 driver_lstate(struct hfi1_pportdata *ppd)
 {
 	if (ppd->host_link_state && (ppd->host_link_state & HLS_DOWN))
 		return IB_PORT_DOWN;
@@ -12651,20 +12654,8 @@ const char *opa_pstate_name(u32 pstate)
 	return "unknown";
 }
 
-/*
- * Read the hardware link state and set the driver's cached value of it.
- * Return the (new) current value.
- */
-u32 get_logical_state(struct hfi1_pportdata *ppd)
+static void update_statusp(struct hfi1_pportdata *ppd, u32 state)
 {
-	u32 new_state;
-
-	new_state = chip_to_opa_lstate(ppd->dd, read_logical_state(ppd->dd));
-	if (new_state != ppd->lstate) {
-		dd_dev_info(ppd->dd, "logical state changed to %s (0x%x)\n",
-			    opa_lstate_name(new_state), new_state);
-		ppd->lstate = new_state;
-	}
 	/*
 	 * Set port status flags in the page mapped into userspace
 	 * memory. Do it here to ensure a reliable state - this is
@@ -12674,7 +12665,7 @@ u32 get_logical_state(struct hfi1_pportdata *ppd)
 	 * function.
 	 */
 	if (ppd->statusp) {
-		switch (ppd->lstate) {
+		switch (state) {
 		case IB_PORT_DOWN:
 		case IB_PORT_INIT:
 			*ppd->statusp &= ~(HFI1_STATUS_IB_CONF |
@@ -12688,10 +12679,9 @@ u32 get_logical_state(struct hfi1_pportdata *ppd)
 			break;
 		}
 	}
-	return ppd->lstate;
 }
 
-/**
+/*
  * wait_logical_linkstate - wait for an IB link state change to occur
  * @ppd: port device
  * @state: the state to wait for
@@ -12705,18 +12695,29 @@ static int wait_logical_linkstate(struct hfi1_pportdata *ppd, u32 state,
 				  int msecs)
 {
 	unsigned long timeout;
+	u32 new_state;
 
 	timeout = jiffies + msecs_to_jiffies(msecs);
 	while (1) {
-		if (get_logical_state(ppd) == state)
-			return 0;
-		if (time_after(jiffies, timeout))
+		new_state = chip_to_opa_lstate(ppd->dd,
+					       read_logical_state(ppd->dd));
+		if (new_state == state)
 			break;
+		if (time_after(jiffies, timeout)) {
+			dd_dev_err(ppd->dd,
+				   "timeout waiting for link state 0x%x\n",
+				   state);
+			return -ETIMEDOUT;
+		}
 		msleep(20);
 	}
-	dd_dev_err(ppd->dd, "timeout waiting for link state 0x%x\n", state);
 
-	return -ETIMEDOUT;
+	update_statusp(ppd, state);
+	dd_dev_info(ppd->dd,
+		    "logical state changed to %s (0x%x)\n",
+		    opa_lstate_name(state),
+		    state);
+	return 0;
 }
 
 /*
@@ -14855,7 +14856,6 @@ struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
 		 * Set the initial values to reasonable default, will be set
 		 * for real when link is up.
 		 */
-		ppd->lstate = IB_PORT_DOWN;
 		ppd->overrun_threshold = 0x4;
 		ppd->phy_error_threshold = 0xf;
 		ppd->port_crc_mode_enabled = link_crc_mask;

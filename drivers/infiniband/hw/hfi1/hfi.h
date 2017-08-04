@@ -591,8 +591,6 @@ struct hfi1_pportdata {
 	struct mutex hls_lock;
 	u32 host_link_state;
 
-	u32 lstate;	/* logical link state */
-
 	/* these are the "32 bit" regs */
 
 	u32 ibmtu; /* The MTU programmed for this unit */
@@ -1295,21 +1293,6 @@ static inline __le32 *get_rhf_addr(struct hfi1_ctxtdata *rcd)
 }
 
 int hfi1_reset_device(int);
-
-/* return the driver's idea of the logical OPA port state */
-static inline u32 driver_lstate(struct hfi1_pportdata *ppd)
-{
-	/*
-	 * The driver does some processing from the time the logical
-	 * link state is at INIT to the time the SM can be notified
-	 * as such. Return IB_PORT_DOWN until the software state
-	 * is ready.
-	 */
-	if (ppd->lstate == IB_PORT_INIT && !(ppd->host_link_state & HLS_UP))
-		return IB_PORT_DOWN;
-	else
-		return ppd->lstate;
-}
 
 /* return the driver's idea of the physical OPA port state */
 static inline u32 driver_pstate(struct hfi1_pportdata *ppd)

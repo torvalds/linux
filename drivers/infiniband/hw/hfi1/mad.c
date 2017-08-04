@@ -1117,7 +1117,7 @@ static int port_states_transition_allowed(struct hfi1_pportdata *ppd,
 					  u32 logical_new, u32 physical_new)
 {
 	u32 physical_old = driver_physical_state(ppd);
-	u32 logical_old = driver_logical_state(ppd);
+	u32 logical_old = driver_lstate(ppd);
 	int ret, logical_allowed, physical_allowed;
 
 	ret = logical_transition_allowed(logical_old, logical_new);
