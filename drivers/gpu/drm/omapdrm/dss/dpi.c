@@ -403,19 +403,13 @@ static int dpi_display_enable(struct omap_dss_device *dssdev)
 
 	mutex_lock(&dpi->lock);
 
-	if (dss_has_feature(FEAT_DPI_USES_VDDS_DSI) && !dpi->vdds_dsi_reg) {
-		DSSERR("no VDSS_DSI regulator\n");
-		r = -ENODEV;
-		goto err_no_reg;
-	}
-
 	if (!out->dispc_channel_connected) {
 		DSSERR("failed to enable display: no output/manager\n");
 		r = -ENODEV;
 		goto err_no_out_mgr;
 	}
 
-	if (dss_has_feature(FEAT_DPI_USES_VDDS_DSI)) {
+	if (dpi->vdds_dsi_reg) {
 		r = regulator_enable(dpi->vdds_dsi_reg);
 		if (r)
 			goto err_reg_enable;
@@ -459,11 +453,10 @@ err_pll_init:
 err_src_sel:
 	dispc_runtime_put();
 err_get_dispc:
-	if (dss_has_feature(FEAT_DPI_USES_VDDS_DSI))
+	if (dpi->vdds_dsi_reg)
 		regulator_disable(dpi->vdds_dsi_reg);
 err_reg_enable:
 err_no_out_mgr:
-err_no_reg:
 	mutex_unlock(&dpi->lock);
 	return r;
 }
@@ -484,7 +477,7 @@ static void dpi_display_disable(struct omap_dss_device *dssdev)
 
 	dispc_runtime_put();
 
-	if (dss_has_feature(FEAT_DPI_USES_VDDS_DSI))
+	if (dpi->vdds_dsi_reg)
 		regulator_disable(dpi->vdds_dsi_reg);
 
 	mutex_unlock(&dpi->lock);
