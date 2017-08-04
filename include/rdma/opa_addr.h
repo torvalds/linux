@@ -48,10 +48,21 @@
 #ifndef OPA_ADDR_H
 #define OPA_ADDR_H
 
+#include <rdma/opa_smi.h>
+
 #define	OPA_SPECIAL_OUI		(0x00066AULL)
 #define OPA_MAKE_ID(x)          (cpu_to_be64(OPA_SPECIAL_OUI << 40 | (x)))
 #define OPA_TO_IB_UCAST_LID(x) (((x) >= be16_to_cpu(IB_MULTICAST_LID_BASE)) \
 				? 0 : x)
+/**
+ * 0xF8 - 4 bits of multicast range and 1 bit for collective range
+ * Example: For 24 bit LID space,
+ * Multicast range: 0xF00000 to 0xF7FFFF
+ * Collective range: 0xF80000 to 0xFFFFFE
+ */
+#define OPA_MCAST_NR 0x4 /* Number of top bits set */
+#define OPA_COLLECTIVE_NR 0x1 /* Number of bits after MCAST_NR */
+
 /**
  * ib_is_opa_gid: Returns true if the top 24 bits of the gid
  * contains the OPA_STL_OUI identifier. This identifies that
@@ -95,4 +106,11 @@ static inline bool opa_is_extended_lid(u32 dlid, u32 slid)
 	else
 		return false;
 }
+
+/* Get multicast lid base */
+static inline u32 opa_get_mcast_base(u32 nr_top_bits)
+{
+	return (be32_to_cpu(OPA_LID_PERMISSIVE) << (32 - nr_top_bits));
+}
+
 #endif /* OPA_ADDR_H */

@@ -53,6 +53,7 @@
 #include <linux/rculist.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
+#include <rdma/opa_addr.h>
 
 #include "hfi.h"
 #include "common.h"
@@ -1460,6 +1461,10 @@ static int hfi1_check_ah(struct ib_device *ibdev, struct rdma_ah_attr *ah_attr)
 	struct hfi1_pportdata *ppd;
 	struct hfi1_devdata *dd;
 	u8 sc5;
+
+	if (hfi1_check_mcast(rdma_ah_get_dlid(ah_attr)) &&
+	    !(rdma_ah_get_ah_flags(ah_attr) & IB_AH_GRH))
+		return -EINVAL;
 
 	/* test the mapping for validity */
 	ibp = to_iport(ibdev, rdma_ah_get_port_num(ah_attr));
