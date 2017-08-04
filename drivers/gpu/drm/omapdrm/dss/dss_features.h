@@ -88,7 +88,6 @@ enum dss_range_param {
 /* DSS Feature Functions */
 unsigned long dss_feat_get_param_min(enum dss_range_param param);
 unsigned long dss_feat_get_param_max(enum dss_range_param param);
-enum omap_overlay_caps dss_feat_get_overlay_caps(enum omap_plane_id plane);
 
 bool dss_has_feature(enum dss_feat_id id);
 void dss_feat_get_reg_field(enum dss_feat_reg_field id, u8 *start, u8 *end);

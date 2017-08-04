@@ -88,6 +88,7 @@ struct dispc_features {
 		u16 width, u16 height, u16 out_width, u16 out_height,
 		bool mem_to_mem);
 	u8 num_fifos;
+	const enum omap_overlay_caps *overlay_caps;
 	const u32 **supported_color_modes;
 	unsigned int buffer_size_unit;
 	unsigned int burst_size_unit;
@@ -2568,7 +2569,7 @@ static int dispc_ovl_setup(enum omap_plane_id plane,
 		enum omap_channel channel)
 {
 	int r;
-	enum omap_overlay_caps caps = dss_feat_get_overlay_caps(plane);
+	enum omap_overlay_caps caps = dispc.feat->overlay_caps[plane];
 	const bool replication = true;
 
 	DSSDBG("dispc_ovl_setup %d, pa %pad, pa_uv %pad, sw %d, %d,%d, %dx%d ->"
@@ -3708,6 +3709,70 @@ static void _omap_dispc_initial_config(void)
 		dispc_init_mflag();
 }
 
+static const enum omap_overlay_caps omap2_dispc_overlay_caps[] = {
+	/* OMAP_DSS_GFX */
+	OMAP_DSS_OVL_CAP_POS | OMAP_DSS_OVL_CAP_REPLICATION,
+
+	/* OMAP_DSS_VIDEO1 */
+	OMAP_DSS_OVL_CAP_SCALE | OMAP_DSS_OVL_CAP_POS |
+		OMAP_DSS_OVL_CAP_REPLICATION,
+
+	/* OMAP_DSS_VIDEO2 */
+	OMAP_DSS_OVL_CAP_SCALE | OMAP_DSS_OVL_CAP_POS |
+		OMAP_DSS_OVL_CAP_REPLICATION,
+};
+
+static const enum omap_overlay_caps omap3430_dispc_overlay_caps[] = {
+	/* OMAP_DSS_GFX */
+	OMAP_DSS_OVL_CAP_GLOBAL_ALPHA | OMAP_DSS_OVL_CAP_POS |
+		OMAP_DSS_OVL_CAP_REPLICATION,
+
+	/* OMAP_DSS_VIDEO1 */
+	OMAP_DSS_OVL_CAP_SCALE | OMAP_DSS_OVL_CAP_POS |
+		OMAP_DSS_OVL_CAP_REPLICATION,
+
+	/* OMAP_DSS_VIDEO2 */
+	OMAP_DSS_OVL_CAP_SCALE | OMAP_DSS_OVL_CAP_GLOBAL_ALPHA |
+		OMAP_DSS_OVL_CAP_POS | OMAP_DSS_OVL_CAP_REPLICATION,
+};
+
+static const enum omap_overlay_caps omap3630_dispc_overlay_caps[] = {
+	/* OMAP_DSS_GFX */
+	OMAP_DSS_OVL_CAP_GLOBAL_ALPHA | OMAP_DSS_OVL_CAP_PRE_MULT_ALPHA |
+		OMAP_DSS_OVL_CAP_POS | OMAP_DSS_OVL_CAP_REPLICATION,
+
+	/* OMAP_DSS_VIDEO1 */
+	OMAP_DSS_OVL_CAP_SCALE | OMAP_DSS_OVL_CAP_POS |
+		OMAP_DSS_OVL_CAP_REPLICATION,
+
+	/* OMAP_DSS_VIDEO2 */
+	OMAP_DSS_OVL_CAP_SCALE | OMAP_DSS_OVL_CAP_GLOBAL_ALPHA |
+		OMAP_DSS_OVL_CAP_PRE_MULT_ALPHA | OMAP_DSS_OVL_CAP_POS |
+		OMAP_DSS_OVL_CAP_REPLICATION,
+};
+
+static const enum omap_overlay_caps omap4_dispc_overlay_caps[] = {
+	/* OMAP_DSS_GFX */
+	OMAP_DSS_OVL_CAP_GLOBAL_ALPHA | OMAP_DSS_OVL_CAP_PRE_MULT_ALPHA |
+		OMAP_DSS_OVL_CAP_ZORDER | OMAP_DSS_OVL_CAP_POS |
+		OMAP_DSS_OVL_CAP_REPLICATION,
+
+	/* OMAP_DSS_VIDEO1 */
+	OMAP_DSS_OVL_CAP_SCALE | OMAP_DSS_OVL_CAP_GLOBAL_ALPHA |
+		OMAP_DSS_OVL_CAP_PRE_MULT_ALPHA | OMAP_DSS_OVL_CAP_ZORDER |
+		OMAP_DSS_OVL_CAP_POS | OMAP_DSS_OVL_CAP_REPLICATION,
+
+	/* OMAP_DSS_VIDEO2 */
+	OMAP_DSS_OVL_CAP_SCALE | OMAP_DSS_OVL_CAP_GLOBAL_ALPHA |
+		OMAP_DSS_OVL_CAP_PRE_MULT_ALPHA | OMAP_DSS_OVL_CAP_ZORDER |
+		OMAP_DSS_OVL_CAP_POS | OMAP_DSS_OVL_CAP_REPLICATION,
+
+	/* OMAP_DSS_VIDEO3 */
+	OMAP_DSS_OVL_CAP_SCALE | OMAP_DSS_OVL_CAP_GLOBAL_ALPHA |
+		OMAP_DSS_OVL_CAP_PRE_MULT_ALPHA | OMAP_DSS_OVL_CAP_ZORDER |
+		OMAP_DSS_OVL_CAP_POS | OMAP_DSS_OVL_CAP_REPLICATION,
+};
+
 #define COLOR_ARRAY(arr...) (const u32[]) { arr, 0 }
 
 static const u32 *omap2_dispc_supported_color_modes[] = {
@@ -3823,6 +3888,7 @@ static const struct dispc_features omap24xx_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_24xx,
 	.calc_core_clk		=	calc_core_clk_24xx,
 	.num_fifos		=	3,
+	.overlay_caps		=	omap2_dispc_overlay_caps,
 	.supported_color_modes	=	omap2_dispc_supported_color_modes,
 	.buffer_size_unit	=	1,
 	.burst_size_unit	=	8,
@@ -3847,6 +3913,7 @@ static const struct dispc_features omap34xx_rev1_0_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_34xx,
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
+	.overlay_caps		=	omap3430_dispc_overlay_caps,
 	.supported_color_modes	=	omap3_dispc_supported_color_modes,
 	.buffer_size_unit	=	1,
 	.burst_size_unit	=	8,
@@ -3871,6 +3938,32 @@ static const struct dispc_features omap34xx_rev3_0_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_34xx,
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
+	.overlay_caps		=	omap3430_dispc_overlay_caps,
+	.supported_color_modes	=	omap3_dispc_supported_color_modes,
+	.buffer_size_unit	=	1,
+	.burst_size_unit	=	8,
+	.no_framedone_tv	=	true,
+	.set_max_preload	=	false,
+	.last_pixel_inc_missing	=	true,
+};
+
+static const struct dispc_features omap36xx_dispc_feats = {
+	.sw_start		=	7,
+	.fp_start		=	19,
+	.bp_start		=	31,
+	.sw_max			=	256,
+	.vp_max			=	4095,
+	.hp_max			=	4096,
+	.mgr_width_start	=	10,
+	.mgr_height_start	=	26,
+	.mgr_width_max		=	2048,
+	.mgr_height_max		=	2048,
+	.max_lcd_pclk		=	173000000,
+	.max_tv_pclk		=	59000000,
+	.calc_scaling		=	dispc_ovl_calc_scaling_34xx,
+	.calc_core_clk		=	calc_core_clk_34xx,
+	.num_fifos		=	3,
+	.overlay_caps		=	omap3630_dispc_overlay_caps,
 	.supported_color_modes	=	omap3_dispc_supported_color_modes,
 	.buffer_size_unit	=	1,
 	.burst_size_unit	=	8,
@@ -3895,6 +3988,7 @@ static const struct dispc_features omap44xx_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_44xx,
 	.calc_core_clk		=	calc_core_clk_44xx,
 	.num_fifos		=	5,
+	.overlay_caps		=	omap4_dispc_overlay_caps,
 	.supported_color_modes	=	omap4_dispc_supported_color_modes,
 	.buffer_size_unit	=	16,
 	.burst_size_unit	=	16,
@@ -3924,6 +4018,7 @@ static const struct dispc_features omap54xx_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_44xx,
 	.calc_core_clk		=	calc_core_clk_44xx,
 	.num_fifos		=	5,
+	.overlay_caps		=	omap4_dispc_overlay_caps,
 	.supported_color_modes	=	omap4_dispc_supported_color_modes,
 	.buffer_size_unit	=	16,
 	.burst_size_unit	=	16,
@@ -4171,7 +4266,7 @@ static const struct dispc_ops dispc_ops = {
 /* DISPC HW IP initialisation */
 static const struct of_device_id dispc_of_match[] = {
 	{ .compatible = "ti,omap2-dispc", .data = &omap24xx_dispc_feats },
-	{ .compatible = "ti,omap3-dispc", .data = &omap34xx_rev3_0_dispc_feats },
+	{ .compatible = "ti,omap3-dispc", .data = &omap36xx_dispc_feats },
 	{ .compatible = "ti,omap4-dispc", .data = &omap44xx_dispc_feats },
 	{ .compatible = "ti,omap5-dispc", .data = &omap54xx_dispc_feats },
 	{ .compatible = "ti,dra7-dispc",  .data = &omap54xx_dispc_feats },
@@ -4181,6 +4276,9 @@ static const struct of_device_id dispc_of_match[] = {
 static const struct soc_device_attribute dispc_soc_devices[] = {
 	{ .machine = "OMAP3[45]*",
 	  .revision = "ES[12].?",	.data = &omap34xx_rev1_0_dispc_feats },
+	{ .machine = "OMAP3[45]*",	.data = &omap34xx_rev3_0_dispc_feats },
+	{ .machine = "AM35*",		.data = &omap34xx_rev3_0_dispc_feats },
+	{ .machine = "AM43*",		.data = &omap34xx_rev3_0_dispc_feats },
 	{ /* sentinel */ }
 };
 
@@ -4198,8 +4296,8 @@ static int dispc_bind(struct device *dev, struct device *master, void *data)
 	spin_lock_init(&dispc.control_lock);
 
 	/*
-	 * The OMAP34xx ES1.x and ES2.x can't be identified through the
-	 * compatible string, use SoC device matching.
+	 * The OMAP34xx and OMAP36xx can't be told apart using the compatible
+	 * string, use SoC device matching.
 	 */
 	soc = soc_device_match(dispc_soc_devices);
 	if (soc)
