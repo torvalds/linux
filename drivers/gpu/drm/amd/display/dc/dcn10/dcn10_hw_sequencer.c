@@ -1150,6 +1150,22 @@ static bool patch_address_for_sbs_tb_stereo(
 	return false;
 }
 
+static void toggle_watermark_change_req(struct dce_hwseq *hws)
+{
+	uint32_t watermark_change_req;
+
+	REG_GET(DCHUBBUB_ARB_WATERMARK_CHANGE_CNTL,
+			DCHUBBUB_ARB_WATERMARK_CHANGE_REQUEST, &watermark_change_req);
+
+	if (watermark_change_req)
+		watermark_change_req = 0;
+	else
+		watermark_change_req = 1;
+
+	REG_UPDATE(DCHUBBUB_ARB_WATERMARK_CHANGE_CNTL,
+			DCHUBBUB_ARB_WATERMARK_CHANGE_REQUEST, watermark_change_req);
+}
+
 static void update_plane_addr(const struct core_dc *dc, struct pipe_ctx *pipe_ctx)
 {
 	bool addr_patched = false;
@@ -2089,6 +2105,7 @@ static void update_dchubp_dpp(
 	mi->funcs->set_blank(mi, !is_pipe_tree_visible(pipe_ctx));
 }
 
+
 static void program_all_pipe_in_tree(
 		struct core_dc *dc,
 		struct pipe_ctx *pipe_ctx,
@@ -2124,6 +2141,18 @@ static void program_all_pipe_in_tree(
 
 	if (pipe_ctx->plane_state != NULL) {
 		dcn10_power_on_fe(dc, pipe_ctx, context);
+
+		/* temporary dcn1 wa:
+                 *   watermark update requires toggle after a/b/c/d sets are programmed
+                 *   if hubp is pg then wm value doesn't get properaged to hubp
+                 *   need to toggle after ungate to ensure wm gets to hubp.
+                 *
+                 * final solution:  we need to get SMU to do the toggle as
+                 * DCHUBBUB_ARB_WATERMARK_CHANGE_REQUEST is owned by SMU we should have 
+                 * both driver and fw accessing same register
+                 */
+		toggle_watermark_change_req(dc->hwseq);
+
 		update_dchubp_dpp(dc, pipe_ctx, context);
 	}
 
