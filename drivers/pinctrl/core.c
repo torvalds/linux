@@ -264,7 +264,7 @@ static int pinctrl_register_one_pin(struct pinctrl_dev *pctldev,
 }
 
 static int pinctrl_register_pins(struct pinctrl_dev *pctldev,
-				 struct pinctrl_pin_desc const *pins,
+				 const struct pinctrl_pin_desc *pins,
 				 unsigned num_descs)
 {
 	unsigned i;
@@ -907,7 +907,7 @@ static struct pinctrl_state *create_state(struct pinctrl *p,
 }
 
 static int add_setting(struct pinctrl *p, struct pinctrl_dev *pctldev,
-		       struct pinctrl_map const *map)
+		       const struct pinctrl_map *map)
 {
 	struct pinctrl_state *state;
 	struct pinctrl_setting *setting;
@@ -995,7 +995,7 @@ static struct pinctrl *create_pinctrl(struct device *dev,
 	const char *devname;
 	struct pinctrl_maps *maps_node;
 	int i;
-	struct pinctrl_map const *map;
+	const struct pinctrl_map *map;
 	int ret;
 
 	/*
@@ -1321,7 +1321,7 @@ void devm_pinctrl_put(struct pinctrl *p)
 }
 EXPORT_SYMBOL_GPL(devm_pinctrl_put);
 
-int pinctrl_register_map(struct pinctrl_map const *maps, unsigned num_maps,
+int pinctrl_register_map(const struct pinctrl_map *maps, unsigned num_maps,
 			 bool dup)
 {
 	int i, ret;
@@ -1402,13 +1402,13 @@ int pinctrl_register_map(struct pinctrl_map const *maps, unsigned num_maps,
  *	function will perform a shallow copy for the mapping entries.
  * @num_maps: the number of maps in the mapping table
  */
-int pinctrl_register_mappings(struct pinctrl_map const *maps,
+int pinctrl_register_mappings(const struct pinctrl_map *maps,
 			      unsigned num_maps)
 {
 	return pinctrl_register_map(maps, num_maps, true);
 }
 
-void pinctrl_unregister_map(struct pinctrl_map const *map)
+void pinctrl_unregister_map(const struct pinctrl_map *map)
 {
 	struct pinctrl_maps *maps_node;
 
@@ -1702,7 +1702,7 @@ static int pinctrl_maps_show(struct seq_file *s, void *what)
 {
 	struct pinctrl_maps *maps_node;
 	int i;
-	struct pinctrl_map const *map;
+	const struct pinctrl_map *map;
 
 	seq_puts(s, "Pinctrl maps:\n");
 
