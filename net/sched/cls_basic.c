@@ -129,31 +129,22 @@ static int basic_set_parms(struct net *net, struct tcf_proto *tp,
 			   struct nlattr *est, bool ovr)
 {
 	int err;
-	struct tcf_exts e;
 
-	err = tcf_exts_init(&e, TCA_BASIC_ACT, TCA_BASIC_POLICE);
+	err = tcf_exts_validate(net, tp, tb, est, &f->exts, ovr);
 	if (err < 0)
 		return err;
-	err = tcf_exts_validate(net, tp, tb, est, &e, ovr);
-	if (err < 0)
-		goto errout;
 
 	err = tcf_em_tree_validate(tp, tb[TCA_BASIC_EMATCHES], &f->ematches);
 	if (err < 0)
-		goto errout;
+		return err;
 
 	if (tb[TCA_BASIC_CLASSID]) {
 		f->res.classid = nla_get_u32(tb[TCA_BASIC_CLASSID]);
 		tcf_bind_filter(tp, &f->res, base);
 	}
 
-	tcf_exts_change(tp, &f->exts, &e);
 	f->tp = tp;
-
 	return 0;
-errout:
-	tcf_exts_destroy(&e);
-	return err;
 }
 
 static int basic_change(struct net *net, struct sk_buff *in_skb,
