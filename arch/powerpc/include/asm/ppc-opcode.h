@@ -271,6 +271,7 @@
 #define PPC_INST_TLBSRX_DOT		0x7c0006a5
 #define PPC_INST_VPMSUMW		0x10000488
 #define PPC_INST_VPMSUMD		0x100004c8
+#define PPC_INST_VPERMXOR		0x1000002d
 #define PPC_INST_XXLOR			0xf0000490
 #define PPC_INST_XXSWAPD		0xf0000250
 #define PPC_INST_XVCPSGNDP		0xf0000780
@@ -516,6 +517,11 @@
 					       VSX_XX3((t), a, a))
 #define XVCPSGNDP(t, a, b)	stringify_in_c(.long (PPC_INST_XVCPSGNDP | \
 					       VSX_XX3((t), (a), (b))))
+
+#define VPERMXOR(vrt, vra, vrb, vrc)				\
+	stringify_in_c(.long (PPC_INST_VPERMXOR |		\
+			      ___PPC_RT(vrt) | ___PPC_RA(vra) | \
+			      ___PPC_RB(vrb) | (((vrc) & 0x1f) << 6)))
 
 #define PPC_NAP			stringify_in_c(.long PPC_INST_NAP)
 #define PPC_SLEEP		stringify_in_c(.long PPC_INST_SLEEP)
