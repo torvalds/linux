@@ -245,9 +245,16 @@ struct hdmi_pll_data {
 	struct hdmi_wp_data *wp;
 };
 
+struct hdmi_phy_features {
+	bool bist_ctrl;
+	bool ldo_voltage;
+	unsigned long max_phy;
+};
+
 struct hdmi_phy_data {
 	void __iomem *base;
 
+	const struct hdmi_phy_features *features;
 	u8 lane_function[4];
 	u8 lane_polarity[4];
 };
