@@ -630,7 +630,8 @@ struct v4l2_input32 {
 	__u32        tuner;             /*  Associated tuner */
 	compat_u64   std;
 	__u32	     status;
-	__u32	     reserved[4];
+	__u32	     capabilities;
+	__u32	     reserved[3];
 };
 
 /* The 64-bit v4l2_input struct has extra padding at the end of the struct.
