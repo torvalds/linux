@@ -18,6 +18,12 @@
 #include "mt6323.dtsi"
 
 / {
+	aliases {
+		serial0 = &uart0;
+		serial1 = &uart1;
+		serial2 = &uart2;
+	};
+
 	chosen {
 		stdout-path = "serial2:115200n8";
 	};
@@ -44,12 +50,6 @@
 		reg = <0 0x80000000 0 0x40000000>;
 	};
 
-	aliases {
-		serial0 = &uart0;
-		serial1 = &uart1;
-		serial2 = &uart2;
-	};
-
 	usb_p1_vbus: regulator@0 {
 		compatible = "regulator-fixed";
 		regulator-name = "usb_vbus";
@@ -58,6 +58,16 @@
 		gpio = <&pio 135 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
+};
+
+&mmc0 {
+	vmmc-supply = <&mt6323_vemc3v3_reg>;
+	vqmmc-supply = <&mt6323_vio18_reg>;
+};
+
+&mmc1 {
+	vmmc-supply = <&mt6323_vmch_reg>;
+	vqmmc-supply = <&mt6323_vmc_reg>;
 };
 
 &uart0 {
@@ -70,16 +80,6 @@
 
 &uart2 {
 	status = "okay";
-};
-
-&mmc0 {
-	vmmc-supply = <&mt6323_vemc3v3_reg>;
-	vqmmc-supply = <&mt6323_vio18_reg>;
-};
-
-&mmc1 {
-	vmmc-supply = <&mt6323_vmch_reg>;
-	vqmmc-supply = <&mt6323_vmc_reg>;
 };
 
 &usb1 {

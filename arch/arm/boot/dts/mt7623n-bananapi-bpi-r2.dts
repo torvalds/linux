@@ -62,9 +62,9 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&led_pins_a>;
 
-		red {
-			label = "bpi-r2:pio:red";
-			gpios = <&pio 239 GPIO_ACTIVE_HIGH>;
+		blue {
+			label = "bpi-r2:pio:blue";
+			gpios = <&pio 241 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 
@@ -74,9 +74,9 @@
 			default-state = "off";
 		};
 
-		blue {
-			label = "bpi-r2:pio:blue";
-			gpios = <&pio 241 GPIO_ACTIVE_HIGH>;
+		red {
+			label = "bpi-r2:pio:red";
+			gpios = <&pio 239 GPIO_ACTIVE_HIGH>;
 			default-state = "off";
 		};
 	};
@@ -98,10 +98,12 @@
 
 &eth {
 	status = "okay";
+
 	gmac0: mac@0 {
 		compatible = "mediatek,eth-mac";
 		reg = <0>;
 		phy-mode = "trgmii";
+
 		fixed-link {
 			speed = <1000>;
 			full-duplex;
@@ -112,12 +114,12 @@
 	mdio: mdio-bus {
 		#address-cells = <1>;
 		#size-cells = <0>;
+
 		switch@0 {
 			compatible = "mediatek,mt7530";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0>;
-
 			pinctrl-names = "default";
 			reset-gpios = <&pio 33 0>;
 			core-supply = <&mt6323_vpa_reg>;
@@ -127,6 +129,7 @@
 				#address-cells = <1>;
 				#size-cells = <0>;
 				reg = <0>;
+
 				port@0 {
 					reg = <0>;
 					label = "wan";
@@ -157,6 +160,7 @@
 					label = "cpu";
 					ethernet = <&gmac0>;
 					phy-mode = "trgmii";
+
 					fixed-link {
 						speed = <1000>;
 						full-duplex;
@@ -372,16 +376,6 @@
 		};
 	};
 
-	spi0_pins_a: spi@0 {
-		pins_spi {
-			pinmux = <MT7623_PIN_53_SPI0_CSN_FUNC_SPI0_CS>,
-				<MT7623_PIN_54_SPI0_CK_FUNC_SPI0_CK>,
-				<MT7623_PIN_55_SPI0_MI_FUNC_SPI0_MI>,
-				<MT7623_PIN_56_SPI0_MO_FUNC_SPI0_MO>;
-			bias-disable;
-		};
-	};
-
 	pwm_pins_a: pwm@0 {
 		pins_pwm {
 			pinmux = <MT7623_PIN_203_PWM0_FUNC_PWM0>,
@@ -389,6 +383,16 @@
 				 <MT7623_PIN_205_PWM2_FUNC_PWM2>,
 				 <MT7623_PIN_206_PWM3_FUNC_PWM3>,
 				 <MT7623_PIN_207_PWM4_FUNC_PWM4>;
+		};
+	};
+
+	spi0_pins_a: spi@0 {
+		pins_spi {
+			pinmux = <MT7623_PIN_53_SPI0_CSN_FUNC_SPI0_CS>,
+				<MT7623_PIN_54_SPI0_CK_FUNC_SPI0_CK>,
+				<MT7623_PIN_55_SPI0_MI_FUNC_SPI0_MI>,
+				<MT7623_PIN_56_SPI0_MO_FUNC_SPI0_MO>;
+			bias-disable;
 		};
 	};
 
@@ -425,11 +429,13 @@
 				label = "bpi-r2:isink:green";
 				default-state = "off";
 			};
+
 			led@1 {
 				reg = <1>;
 				label = "bpi-r2:isink:red";
 				default-state = "off";
 			};
+
 			led@2 {
 				reg = <2>;
 				label = "bpi-r2:isink:blue";
@@ -451,14 +457,6 @@
 	status = "disabled";
 };
 
-&u3phy1 {
-	status = "okay";
-};
-
-&u3phy2 {
-	status = "okay";
-};
-
 &uart1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart1_pins_a>;
@@ -478,3 +476,12 @@
 	vusb33-supply = <&mt6323_vusb_reg>;
 	status = "okay";
 };
+
+&u3phy1 {
+	status = "okay";
+};
+
+&u3phy2 {
+	status = "okay";
+};
+
