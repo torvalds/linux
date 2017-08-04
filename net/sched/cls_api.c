@@ -915,7 +915,7 @@ int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts)
 #ifdef CONFIG_NET_CLS_ACT
 	struct nlattr *nest;
 
-	if (exts->action && exts->nr_actions) {
+	if (exts->action && tcf_exts_has_actions(exts)) {
 		/*
 		 * again for backward compatible mode - we want
 		 * to work with both old and new modes of entering
