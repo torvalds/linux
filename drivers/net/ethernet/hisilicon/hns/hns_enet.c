@@ -847,7 +847,8 @@ static void hns_update_rx_rate(struct hnae_ring *ring)
 
 	total_bytes = ring->stats.rx_bytes - ring->coal_last_rx_bytes;
 	time_passed_ms = jiffies_to_msecs(jiffies - ring->coal_last_jiffies);
-	ring->coal_rx_rate = (total_bytes / time_passed_ms) >> 10;
+	do_div(total_bytes, time_passed_ms);
+	ring->coal_rx_rate = total_bytes >> 10;
 
 	ring->coal_last_rx_bytes = ring->stats.rx_bytes;
 	ring->coal_last_jiffies = jiffies;
