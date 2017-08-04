@@ -1142,22 +1142,9 @@ static const struct soc_device_attribute dss_soc_devices[] = {
 static int dss_bind(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
-	const struct soc_device_attribute *soc;
 	struct resource *dss_mem;
 	u32 rev;
 	int r;
-
-	dss.pdev = pdev;
-
-	/*
-	 * The various OMAP3-based SoCs can't be told apart using the compatible
-	 * string, use SoC device matching.
-	 */
-	soc = soc_device_match(dss_soc_devices);
-	if (soc)
-		dss.feat = soc->data;
-	else
-		dss.feat = of_match_device(dss_of_match, &pdev->dev)->data;
 
 	dss_mem = platform_get_resource(dss.pdev, IORESOURCE_MEM, 0);
 	dss.base = devm_ioremap_resource(&pdev->dev, dss_mem);
@@ -1290,8 +1277,21 @@ static int dss_add_child_component(struct device *dev, void *data)
 
 static int dss_probe(struct platform_device *pdev)
 {
+	const struct soc_device_attribute *soc;
 	struct component_match *match = NULL;
 	int r;
+
+	dss.pdev = pdev;
+
+	/*
+	 * The various OMAP3-based SoCs can't be told apart using the compatible
+	 * string, use SoC device matching.
+	 */
+	soc = soc_device_match(dss_soc_devices);
+	if (soc)
+		dss.feat = soc->data;
+	else
+		dss.feat = of_match_device(dss_of_match, &pdev->dev)->data;
 
 	/* add all the child devices as components */
 	device_for_each_child(&pdev->dev, &match, dss_add_child_component);
