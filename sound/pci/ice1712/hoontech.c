@@ -269,7 +269,7 @@ static void stdsp24_ak4524_lock(struct snd_akm4xxx *ak, int chip)
 static int snd_ice1712_value_init(struct snd_ice1712 *ice)
 {
 	/* Hoontech STDSP24 with modified hardware */
-	static struct snd_akm4xxx akm_stdsp24_mv = {
+	static const struct snd_akm4xxx akm_stdsp24_mv = {
 		.num_adcs = 2,
 		.num_dacs = 2,
 		.type = SND_AK4524,

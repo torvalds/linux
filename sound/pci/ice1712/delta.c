@@ -445,7 +445,7 @@ static const struct snd_kcontrol_new snd_ice1712_delta1010lt_wordclock_status =
  * initialize the chips on M-Audio cards
  */
 
-static struct snd_akm4xxx akm_audiophile = {
+static const struct snd_akm4xxx akm_audiophile = {
 	.type = SND_AK4528,
 	.num_adcs = 2,
 	.num_dacs = 2,
@@ -466,7 +466,7 @@ static const struct snd_ak4xxx_private akm_audiophile_priv = {
 	.mask_flags = 0,
 };
 
-static struct snd_akm4xxx akm_delta410 = {
+static const struct snd_akm4xxx akm_delta410 = {
 	.type = SND_AK4529,
 	.num_adcs = 2,
 	.num_dacs = 8,
@@ -487,7 +487,7 @@ static const struct snd_ak4xxx_private akm_delta410_priv = {
 	.mask_flags = 0,
 };
 
-static struct snd_akm4xxx akm_delta1010lt = {
+static const struct snd_akm4xxx akm_delta1010lt = {
 	.type = SND_AK4524,
 	.num_adcs = 8,
 	.num_dacs = 8,
@@ -509,7 +509,7 @@ static const struct snd_ak4xxx_private akm_delta1010lt_priv = {
 	.mask_flags = 0,
 };
 
-static struct snd_akm4xxx akm_delta66e = {
+static const struct snd_akm4xxx akm_delta66e = {
 	.type = SND_AK4524,
 	.num_adcs = 4,
 	.num_dacs = 4,
@@ -532,7 +532,7 @@ static const struct snd_ak4xxx_private akm_delta66e_priv = {
 };
 
 
-static struct snd_akm4xxx akm_delta44 = {
+static const struct snd_akm4xxx akm_delta44 = {
 	.type = SND_AK4524,
 	.num_adcs = 4,
 	.num_dacs = 4,
@@ -554,7 +554,7 @@ static const struct snd_ak4xxx_private akm_delta44_priv = {
 	.mask_flags = 0,
 };
 
-static struct snd_akm4xxx akm_vx442 = {
+static const struct snd_akm4xxx akm_vx442 = {
 	.type = SND_AK4524,
 	.num_adcs = 4,
 	.num_dacs = 4,

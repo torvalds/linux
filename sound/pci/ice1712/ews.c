@@ -344,7 +344,7 @@ static void ews88_setup_spdif(struct snd_ice1712 *ice, int rate)
 
 /*
  */
-static struct snd_akm4xxx akm_ews88mt = {
+static const struct snd_akm4xxx akm_ews88mt = {
 	.num_adcs = 8,
 	.num_dacs = 8,
 	.type = SND_AK4524,
@@ -366,7 +366,7 @@ static const struct snd_ak4xxx_private akm_ews88mt_priv = {
 	.mask_flags = 0,
 };
 
-static struct snd_akm4xxx akm_ewx2496 = {
+static const struct snd_akm4xxx akm_ewx2496 = {
 	.num_adcs = 2,
 	.num_dacs = 2,
 	.type = SND_AK4524,
@@ -387,7 +387,7 @@ static const struct snd_ak4xxx_private akm_ewx2496_priv = {
 	.mask_flags = 0,
 };
 
-static struct snd_akm4xxx akm_6fire = {
+static const struct snd_akm4xxx akm_6fire = {
 	.num_adcs = 6,
 	.num_dacs = 6,
 	.type = SND_AK4524,

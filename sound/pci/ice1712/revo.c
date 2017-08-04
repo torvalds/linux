@@ -235,7 +235,7 @@ static const struct snd_akm4xxx_adc_channel revo51_adc[] = {
 	},
 };
 
-static struct snd_akm4xxx akm_revo_front = {
+static const struct snd_akm4xxx akm_revo_front = {
 	.type = SND_AK4381,
 	.num_dacs = 2,
 	.ops = {
@@ -256,7 +256,7 @@ static const struct snd_ak4xxx_private akm_revo_front_priv = {
 	.mask_flags = 0,
 };
 
-static struct snd_akm4xxx akm_revo_surround = {
+static const struct snd_akm4xxx akm_revo_surround = {
 	.type = SND_AK4355,
 	.idx_offset = 1,
 	.num_dacs = 6,
@@ -278,7 +278,7 @@ static const struct snd_ak4xxx_private akm_revo_surround_priv = {
 	.mask_flags = 0,
 };
 
-static struct snd_akm4xxx akm_revo51 = {
+static const struct snd_akm4xxx akm_revo51 = {
 	.type = SND_AK4358,
 	.num_dacs = 8,
 	.ops = {
@@ -299,7 +299,7 @@ static const struct snd_ak4xxx_private akm_revo51_priv = {
 	.mask_flags = 0,
 };
 
-static struct snd_akm4xxx akm_revo51_adc = {
+static const struct snd_akm4xxx akm_revo51_adc = {
 	.type = SND_AK5365,
 	.num_adcs = 2,
 	.adc_info = revo51_adc,
@@ -346,7 +346,7 @@ static const struct snd_akm4xxx_dac_channel ap192_dac[] = {
 	AK_DAC("PCM Playback Volume", 2)
 };
 
-static struct snd_akm4xxx akm_ap192 = {
+static const struct snd_akm4xxx akm_ap192 = {
 	.type = SND_AK4358,
 	.num_dacs = 2,
 	.ops = {
