@@ -1243,7 +1243,6 @@ int rvt_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	if (attr_mask & IB_QP_PATH_MTU) {
 		qp->pmtu = rdi->driver_f.mtu_from_qp(rdi, qp, pmtu);
-		qp->path_mtu = rdi->driver_f.mtu_to_path_mtu(qp->pmtu);
 		qp->log_pmtu = ilog2(qp->pmtu);
 	}
 
@@ -1366,7 +1365,7 @@ int rvt_query_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	attr->qp_state = qp->state;
 	attr->cur_qp_state = attr->qp_state;
-	attr->path_mtu = qp->path_mtu;
+	attr->path_mtu = rdi->driver_f.mtu_to_path_mtu(qp->pmtu);
 	attr->path_mig_state = qp->s_mig_state;
 	attr->qkey = qp->qkey;
 	attr->rq_psn = qp->r_psn & rdi->dparms.psn_mask;

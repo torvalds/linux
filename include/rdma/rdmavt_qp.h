@@ -277,7 +277,6 @@ struct rvt_qp {
 
 	unsigned long timeout_jiffies;  /* computed from timeout */
 
-	enum ib_mtu path_mtu;
 	int srate_mbps;		/* s_srate (below) converted to Mbit/s */
 	pid_t pid;		/* pid for user mode QPs */
 	u32 remote_qpn;
