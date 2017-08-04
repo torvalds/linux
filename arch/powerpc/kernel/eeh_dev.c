@@ -54,11 +54,8 @@ struct eeh_dev *eeh_dev_init(struct pci_dn *pdn)
 
 	/* Allocate EEH device */
 	edev = kzalloc(sizeof(*edev), GFP_KERNEL);
-	if (!edev) {
-		pr_warn("%s: out of memory\n",
-			__func__);
+	if (!edev)
 		return NULL;
-	}
 
 	/* Associate EEH device with OF node */
 	pdn->edev = edev;
