@@ -642,8 +642,7 @@ static const struct cec_adap_ops pulse8_cec_adap_ops = {
 
 static int pulse8_connect(struct serio *serio, struct serio_driver *drv)
 {
-	u32 caps = CEC_CAP_TRANSMIT | CEC_CAP_LOG_ADDRS | CEC_CAP_PHYS_ADDR |
-		CEC_CAP_PASSTHROUGH | CEC_CAP_RC | CEC_CAP_MONITOR_ALL;
+	u32 caps = CEC_CAP_DEFAULTS | CEC_CAP_PHYS_ADDR | CEC_CAP_MONITOR_ALL;
 	struct pulse8 *pulse8;
 	int err = -ENOMEM;
 	struct cec_log_addrs log_addrs = {};

@@ -1927,8 +1927,7 @@ static int adv7511_probe(struct i2c_client *client, const struct i2c_device_id *
 
 #if IS_ENABLED(CONFIG_VIDEO_ADV7511_CEC)
 	state->cec_adap = cec_allocate_adapter(&adv7511_cec_adap_ops,
-		state, dev_name(&client->dev), CEC_CAP_TRANSMIT |
-		CEC_CAP_LOG_ADDRS | CEC_CAP_PASSTHROUGH | CEC_CAP_RC,
+		state, dev_name(&client->dev), CEC_CAP_DEFAULTS,
 		ADV7511_MAX_ADDRS);
 	err = PTR_ERR_OR_ZERO(state->cec_adap);
 	if (err) {

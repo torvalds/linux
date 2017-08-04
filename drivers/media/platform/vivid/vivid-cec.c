@@ -219,8 +219,7 @@ struct cec_adapter *vivid_cec_alloc_adap(struct vivid_dev *dev,
 					 bool is_source)
 {
 	char name[sizeof(dev->vid_out_dev.name) + 2];
-	u32 caps = CEC_CAP_TRANSMIT | CEC_CAP_LOG_ADDRS |
-		CEC_CAP_PASSTHROUGH | CEC_CAP_RC | CEC_CAP_MONITOR_ALL;
+	u32 caps = CEC_CAP_DEFAULTS | CEC_CAP_MONITOR_ALL;
 
 	snprintf(name, sizeof(name), "%s%d",
 		 is_source ? dev->vid_out_dev.name : dev->vid_cap_dev.name,
