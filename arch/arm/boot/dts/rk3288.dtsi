@@ -1180,13 +1180,11 @@
 		compatible = "rockchip,rk3288-rga";
 		reg = <0x0 0xff920000 0x0 0x180>;
 		interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "rga";
 		clocks = <&cru ACLK_RGA>, <&cru HCLK_RGA>, <&cru SCLK_RGA>;
 		clock-names = "aclk", "hclk", "sclk";
 		power-domains = <&power RK3288_PD_VIO>;
 		resets = <&cru SRST_RGA_CORE>, <&cru SRST_RGA_AXI>, <&cru SRST_RGA_AHB>;
 		reset-names = "core", "axi", "ahb";
-		dma-coherent;
 		status = "disabled";
 	};
 
