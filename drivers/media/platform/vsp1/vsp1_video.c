@@ -196,6 +196,7 @@ static void vsp1_video_calculate_partition(struct vsp1_pipeline *pipe,
 					   unsigned int index)
 {
 	const struct v4l2_mbus_framefmt *format;
+	struct vsp1_partition_window window;
 	unsigned int modulus;
 
 	/*
@@ -208,14 +209,17 @@ static void vsp1_video_calculate_partition(struct vsp1_pipeline *pipe,
 
 	/* A single partition simply processes the output size in full. */
 	if (pipe->partitions <= 1) {
-		partition->left = 0;
-		partition->width = format->width;
+		window.left = 0;
+		window.width = format->width;
+
+		vsp1_pipeline_propagate_partition(pipe, partition, index,
+						  &window);
 		return;
 	}
 
 	/* Initialise the partition with sane starting conditions. */
-	partition->left = index * div_size;
-	partition->width = div_size;
+	window.left = index * div_size;
+	window.width = div_size;
 
 	modulus = format->width % div_size;
 
@@ -238,16 +242,18 @@ static void vsp1_video_calculate_partition(struct vsp1_pipeline *pipe,
 		if (modulus < div_size / 2) {
 			if (index == partitions - 1) {
 				/* Halve the penultimate partition. */
-				partition->width = div_size / 2;
+				window.width = div_size / 2;
 			} else if (index == partitions) {
 				/* Increase the final partition. */
-				partition->width = (div_size / 2) + modulus;
-				partition->left -= div_size / 2;
+				window.width = (div_size / 2) + modulus;
+				window.left -= div_size / 2;
 			}
 		} else if (index == partitions) {
-			partition->width = modulus;
+			window.width = modulus;
 		}
 	}
+
+	vsp1_pipeline_propagate_partition(pipe, partition, index, &window);
 }
 
 static int vsp1_video_pipeline_setup_partitions(struct vsp1_pipeline *pipe)
