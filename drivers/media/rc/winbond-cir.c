@@ -429,7 +429,7 @@ wbcir_irq_tx(struct wbcir_data *data)
 		bytes[used] = byte;
 	}
 
-	while (data->txbuf[data->txoff] == 0 && data->txoff != data->txlen)
+	while (data->txoff != data->txlen && data->txbuf[data->txoff] == 0)
 		data->txoff++;
 
 	if (used == 0) {
