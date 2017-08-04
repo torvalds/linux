@@ -25,6 +25,8 @@
 #include <linux/of_pci.h>
 #include <linux/slab.h>
 
+#define NO_IOMMU	1
+
 static const struct of_device_id __iommu_of_table_sentinel
 	__used __section(__iommu_of_table_end);
 
@@ -109,8 +111,8 @@ static bool of_iommu_driver_present(struct device_node *np)
 	return of_match_node(&__iommu_of_table, np);
 }
 
-static const struct iommu_ops
-*of_iommu_xlate(struct device *dev, struct of_phandle_args *iommu_spec)
+static int of_iommu_xlate(struct device *dev,
+			  struct of_phandle_args *iommu_spec)
 {
 	const struct iommu_ops *ops;
 	struct fwnode_handle *fwnode = &iommu_spec->np->fwnode;
@@ -120,24 +122,20 @@ static const struct iommu_ops
 	if ((ops && !ops->of_xlate) ||
 	    !of_device_is_available(iommu_spec->np) ||
 	    (!ops && !of_iommu_driver_present(iommu_spec->np)))
-		return NULL;
+		return NO_IOMMU;
 
 	err = iommu_fwspec_init(dev, &iommu_spec->np->fwnode, ops);
 	if (err)
-		return ERR_PTR(err);
+		return err;
 	/*
 	 * The otherwise-empty fwspec handily serves to indicate the specific
 	 * IOMMU device we're waiting for, which will be useful if we ever get
 	 * a proper probe-ordering dependency mechanism in future.
 	 */
 	if (!ops)
-		return ERR_PTR(-EPROBE_DEFER);
+		return -EPROBE_DEFER;
 
-	err = ops->of_xlate(dev, iommu_spec);
-	if (err)
-		return ERR_PTR(err);
-
-	return ops;
+	return ops->of_xlate(dev, iommu_spec);
 }
 
 struct of_pci_iommu_alias_info {
@@ -148,7 +146,6 @@ struct of_pci_iommu_alias_info {
 static int of_pci_iommu_init(struct pci_dev *pdev, u16 alias, void *data)
 {
 	struct of_pci_iommu_alias_info *info = data;
-	const struct iommu_ops *ops;
 	struct of_phandle_args iommu_spec = { .args_count = 1 };
 	int err;
 
@@ -156,13 +153,12 @@ static int of_pci_iommu_init(struct pci_dev *pdev, u16 alias, void *data)
 			     "iommu-map-mask", &iommu_spec.np,
 			     iommu_spec.args);
 	if (err)
-		return err == -ENODEV ? 1 : err;
+		return err == -ENODEV ? NO_IOMMU : err;
 
-	ops = of_iommu_xlate(info->dev, &iommu_spec);
+	err = of_iommu_xlate(info->dev, &iommu_spec);
 	of_node_put(iommu_spec.np);
-
-	if (IS_ERR(ops))
-		return PTR_ERR(ops);
+	if (err)
+		return err;
 
 	return info->np == pdev->bus->dev.of_node;
 }
@@ -172,7 +168,7 @@ const struct iommu_ops *of_iommu_configure(struct device *dev,
 {
 	const struct iommu_ops *ops = NULL;
 	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
-	int err;
+	int err = NO_IOMMU;
 
 	if (!master_np)
 		return NULL;
@@ -198,10 +194,6 @@ const struct iommu_ops *of_iommu_configure(struct device *dev,
 
 		err = pci_for_each_dma_alias(to_pci_dev(dev),
 					     of_pci_iommu_init, &info);
-		if (err) /* err > 0 means the walk stopped, but non-fatally */
-			ops = ERR_PTR(min(err, 0));
-		else /* success implies both fwspec and ops are now valid */
-			ops = dev->iommu_fwspec->ops;
 	} else {
 		struct of_phandle_args iommu_spec;
 		int idx = 0;
@@ -209,27 +201,34 @@ const struct iommu_ops *of_iommu_configure(struct device *dev,
 		while (!of_parse_phandle_with_args(master_np, "iommus",
 						   "#iommu-cells",
 						   idx, &iommu_spec)) {
-			ops = of_iommu_xlate(dev, &iommu_spec);
+			err = of_iommu_xlate(dev, &iommu_spec);
 			of_node_put(iommu_spec.np);
 			idx++;
-			if (IS_ERR_OR_NULL(ops))
+			if (err)
 				break;
 		}
 	}
+
+	/*
+	 * Two success conditions can be represented by non-negative err here:
+	 * >0 : there is no IOMMU, or one was unavailable for non-fatal reasons
+	 *  0 : we found an IOMMU, and dev->fwspec is initialised appropriately
+	 * <0 : any actual error
+	 */
+	if (!err)
+		ops = dev->iommu_fwspec->ops;
 	/*
 	 * If we have reason to believe the IOMMU driver missed the initial
 	 * add_device callback for dev, replay it to get things in order.
 	 */
-	if (!IS_ERR_OR_NULL(ops) && ops->add_device &&
-	    dev->bus && !dev->iommu_group) {
+	if (ops && ops->add_device && dev->bus && !dev->iommu_group)
 		err = ops->add_device(dev);
-		if (err)
-			ops = ERR_PTR(err);
-	}
 
 	/* Ignore all other errors apart from EPROBE_DEFER */
-	if (IS_ERR(ops) && (PTR_ERR(ops) != -EPROBE_DEFER)) {
-		dev_dbg(dev, "Adding to IOMMU failed: %ld\n", PTR_ERR(ops));
+	if (err == -EPROBE_DEFER) {
+		ops = ERR_PTR(err);
+	} else if (err < 0) {
+		dev_dbg(dev, "Adding to IOMMU failed: %d\n", err);
 		ops = NULL;
 	}
 
