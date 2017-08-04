@@ -1380,6 +1380,21 @@ static int dss_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void dss_shutdown(struct platform_device *pdev)
+{
+	struct omap_dss_device *dssdev = NULL;
+
+	DSSDBG("shutdown\n");
+
+	for_each_dss_dev(dssdev) {
+		if (!dssdev->driver)
+			continue;
+
+		if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
+			dssdev->driver->disable(dssdev);
+	}
+}
+
 static int dss_runtime_suspend(struct device *dev)
 {
 	dss_save_context();
@@ -1419,6 +1434,7 @@ static const struct dev_pm_ops dss_pm_ops = {
 static struct platform_driver omap_dsshw_driver = {
 	.probe		= dss_probe,
 	.remove		= dss_remove,
+	.shutdown	= dss_shutdown,
 	.driver         = {
 		.name   = "omapdss_dss",
 		.pm	= &dss_pm_ops,

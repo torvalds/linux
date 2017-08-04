@@ -50,19 +50,6 @@ EXPORT_SYMBOL(omapdss_get_version);
 
 /* PLATFORM DEVICE */
 
-static void dss_disable_all_devices(void)
-{
-	struct omap_dss_device *dssdev = NULL;
-
-	for_each_dss_dev(dssdev) {
-		if (!dssdev->driver)
-			continue;
-
-		if (dssdev->state == OMAP_DSS_DISPLAY_ACTIVE)
-			dssdev->driver->disable(dssdev);
-	}
-}
-
 static int __init omap_dss_probe(struct platform_device *pdev)
 {
 	core.pdev = pdev;
@@ -77,15 +64,8 @@ static int omap_dss_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static void omap_dss_shutdown(struct platform_device *pdev)
-{
-	DSSDBG("shutdown\n");
-	dss_disable_all_devices();
-}
-
 static struct platform_driver omap_dss_driver = {
 	.remove         = omap_dss_remove,
-	.shutdown	= omap_dss_shutdown,
 	.driver         = {
 		.name   = "omapdss",
 	},
