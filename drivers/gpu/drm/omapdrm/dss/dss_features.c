@@ -223,7 +223,6 @@ static const enum dss_feat_id omap3630_dss_feat_list[] = {
 static const enum dss_feat_id omap4430_es1_0_dss_feat_list[] = {
 	FEAT_MGR_LCD2,
 	FEAT_CORE_CLK_DIV,
-	FEAT_LCD_CLK_SRC,
 	FEAT_HANDLE_UV_SEPARATE,
 	FEAT_ATTR2,
 	FEAT_CPR,
@@ -237,7 +236,6 @@ static const enum dss_feat_id omap4430_es1_0_dss_feat_list[] = {
 static const enum dss_feat_id omap4430_es2_0_1_2_dss_feat_list[] = {
 	FEAT_MGR_LCD2,
 	FEAT_CORE_CLK_DIV,
-	FEAT_LCD_CLK_SRC,
 	FEAT_HANDLE_UV_SEPARATE,
 	FEAT_ATTR2,
 	FEAT_CPR,
@@ -251,7 +249,6 @@ static const enum dss_feat_id omap4430_es2_0_1_2_dss_feat_list[] = {
 static const enum dss_feat_id omap4_dss_feat_list[] = {
 	FEAT_MGR_LCD2,
 	FEAT_CORE_CLK_DIV,
-	FEAT_LCD_CLK_SRC,
 	FEAT_HANDLE_UV_SEPARATE,
 	FEAT_ATTR2,
 	FEAT_CPR,
@@ -266,7 +263,6 @@ static const enum dss_feat_id omap5_dss_feat_list[] = {
 	FEAT_MGR_LCD2,
 	FEAT_MGR_LCD3,
 	FEAT_CORE_CLK_DIV,
-	FEAT_LCD_CLK_SRC,
 	FEAT_HANDLE_UV_SEPARATE,
 	FEAT_ATTR2,
 	FEAT_CPR,

@@ -38,7 +38,6 @@ enum dss_feat_id {
 	FEAT_RESIZECONF,
 	/* Independent core clk divider */
 	FEAT_CORE_CLK_DIV,
-	FEAT_LCD_CLK_SRC,
 	FEAT_HANDLE_UV_SEPARATE,
 	FEAT_ATTR2,
 	FEAT_CPR,
