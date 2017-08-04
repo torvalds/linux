@@ -197,7 +197,7 @@ static struct attribute *mid_att_als[] = {
 	NULL
 };
 
-static struct attribute_group m_als_gr = {
+static const struct attribute_group m_als_gr = {
 	.name = "apds9802als",
 	.attrs = mid_att_als
 };
