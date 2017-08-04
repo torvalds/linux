@@ -883,18 +883,12 @@ int tcf_exts_validate(struct net *net, struct tcf_proto *tp, struct nlattr **tb,
 }
 EXPORT_SYMBOL(tcf_exts_validate);
 
-void tcf_exts_change(struct tcf_proto *tp, struct tcf_exts *dst,
-		     struct tcf_exts *src)
+void tcf_exts_change(struct tcf_exts *dst, struct tcf_exts *src)
 {
 #ifdef CONFIG_NET_CLS_ACT
 	struct tcf_exts old = *dst;
 
-	tcf_tree_lock(tp);
-	dst->nr_actions = src->nr_actions;
-	dst->actions = src->actions;
-	dst->type = src->type;
-	tcf_tree_unlock(tp);
-
+	*dst = *src;
 	tcf_exts_destroy(&old);
 #endif
 }
@@ -915,7 +909,7 @@ int tcf_exts_dump(struct sk_buff *skb, struct tcf_exts *exts)
 #ifdef CONFIG_NET_CLS_ACT
 	struct nlattr *nest;
 
-	if (exts->action && exts->nr_actions) {
+	if (exts->action && tcf_exts_has_actions(exts)) {
 		/*
 		 * again for backward compatible mode - we want
 		 * to work with both old and new modes of entering
@@ -972,7 +966,7 @@ int tcf_exts_get_dev(struct net_device *dev, struct tcf_exts *exts,
 	const struct tc_action *a;
 	LIST_HEAD(actions);
 
-	if (tc_no_actions(exts))
+	if (!tcf_exts_has_actions(exts))
 		return -EINVAL;
 
 	tcf_exts_to_list(exts, &actions);

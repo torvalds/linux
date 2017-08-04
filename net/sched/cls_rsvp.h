@@ -518,7 +518,7 @@ static int rsvp_change(struct net *net, struct sk_buff *in_skb,
 			tcf_bind_filter(tp, &n->res, base);
 		}
 
-		tcf_exts_change(tp, &n->exts, &e);
+		tcf_exts_change(&n->exts, &e);
 		rsvp_replace(tp, n, handle);
 		return 0;
 	}
@@ -591,7 +591,7 @@ insert:
 			if (f->tunnelhdr == 0)
 				tcf_bind_filter(tp, &f->res, base);
 
-			tcf_exts_change(tp, &f->exts, &e);
+			tcf_exts_change(&f->exts, &e);
 
 			fp = &s->ht[h2];
 			for (nfp = rtnl_dereference(*fp); nfp;

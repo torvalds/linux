@@ -779,7 +779,7 @@ static int dsa_slave_add_cls_matchall(struct net_device *dev,
 	if (!ds->ops->port_mirror_add)
 		return err;
 
-	if (!tc_single_action(cls->exts))
+	if (!tcf_exts_has_one_action(cls->exts))
 		return err;
 
 	tcf_exts_to_list(cls->exts, &actions);

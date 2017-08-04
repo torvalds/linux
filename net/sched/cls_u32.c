@@ -723,29 +723,24 @@ static int u32_set_parms(struct net *net, struct tcf_proto *tp,
 			 struct tc_u_knode *n, struct nlattr **tb,
 			 struct nlattr *est, bool ovr)
 {
-	struct tcf_exts e;
 	int err;
 
-	err = tcf_exts_init(&e, TCA_U32_ACT, TCA_U32_POLICE);
+	err = tcf_exts_validate(net, tp, tb, est, &n->exts, ovr);
 	if (err < 0)
 		return err;
-	err = tcf_exts_validate(net, tp, tb, est, &e, ovr);
-	if (err < 0)
-		goto errout;
 
-	err = -EINVAL;
 	if (tb[TCA_U32_LINK]) {
 		u32 handle = nla_get_u32(tb[TCA_U32_LINK]);
 		struct tc_u_hnode *ht_down = NULL, *ht_old;
 
 		if (TC_U32_KEY(handle))
-			goto errout;
+			return -EINVAL;
 
 		if (handle) {
 			ht_down = u32_lookup_ht(ht->tp_c, handle);
 
 			if (ht_down == NULL)
-				goto errout;
+				return -EINVAL;
 			ht_down->refcnt++;
 		}
 
@@ -765,16 +760,11 @@ static int u32_set_parms(struct net *net, struct tcf_proto *tp,
 		int ret;
 		ret = tcf_change_indev(net, tb[TCA_U32_INDEV]);
 		if (ret < 0)
-			goto errout;
+			return -EINVAL;
 		n->ifindex = ret;
 	}
 #endif
-	tcf_exts_change(tp, &n->exts, &e);
-
 	return 0;
-errout:
-	tcf_exts_destroy(&e);
-	return err;
 }
 
 static void u32_replace_knode(struct tcf_proto *tp, struct tc_u_common *tp_c,
