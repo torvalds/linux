@@ -619,7 +619,7 @@ static int osst_verify_frame(struct osst_tape * STp, int frame_seq_number, int q
 	os_aux_t           * aux  = STp->buffer->aux;
 	os_partition_t     * par  = &(aux->partition);
 	struct st_partstat * STps = &(STp->ps[STp->partition]);
-	int		     blk_cnt, blk_sz, i;
+	unsigned int	     blk_cnt, blk_sz, i;
 
 	if (STp->raw) {
 		if (STp->buffer->syscall_result) {
