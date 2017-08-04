@@ -1196,6 +1196,7 @@ err_pm_disable:
 
 err_free_bridge:
 	pci_free_host_bridge(bridge);
+	pci_free_resource_list(&pcie->resources);
 
 	return err;
 }
