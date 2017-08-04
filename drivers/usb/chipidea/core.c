@@ -887,7 +887,7 @@ static struct attribute *ci_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group ci_attr_group = {
+static const struct attribute_group ci_attr_group = {
 	.attrs = ci_attrs,
 };
 
