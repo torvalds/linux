@@ -2097,7 +2097,7 @@ static void vop_post_config(struct drm_crtc *crtc)
 #define POST_HORIZONTAL_SCALEDOWN_EN(x)		((x) << 0)
 #define POST_VERTICAL_SCALEDOWN_EN(x)		((x) << 1)
 	VOP_CTRL_SET(vop, post_scl_ctrl,
-		     POST_HORIZONTAL_SCALEDOWN_EN(hdisplay != hsize) ||
+		     POST_HORIZONTAL_SCALEDOWN_EN(hdisplay != hsize) |
 		     POST_VERTICAL_SCALEDOWN_EN(vdisplay != vsize));
 	if (mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		u16 vact_st_f1 = vtotal + vact_st + 1;
