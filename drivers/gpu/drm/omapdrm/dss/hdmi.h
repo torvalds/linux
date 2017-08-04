@@ -261,6 +261,8 @@ struct hdmi_phy_data {
 
 struct hdmi_core_data {
 	void __iomem *base;
+	bool cts_swmode;
+	bool audio_use_mclk;
 };
 
 static inline void hdmi_write_reg(void __iomem *base_addr, const u32 idx,
