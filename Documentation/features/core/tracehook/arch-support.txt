@@ -25,7 +25,7 @@
     |     mn10300: |  ok  |
     |       nios2: |  ok  |
     |    openrisc: |  ok  |
-    |      parisc: | TODO |
+    |      parisc: |  ok  |
     |     powerpc: |  ok  |
     |        s390: |  ok  |
     |       score: | TODO |
