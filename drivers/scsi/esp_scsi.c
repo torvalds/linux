@@ -1951,6 +1951,8 @@ again:
 				scsi_esp_cmd(esp, ESP_CMD_NULL);
 		}
 
+		esp->msg_out_len = 0;
+
 		esp_event(esp, ESP_EVENT_CHECK_PHASE);
 		goto again;
 	case ESP_EVENT_MSGIN:
