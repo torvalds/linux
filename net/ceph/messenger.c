@@ -1287,10 +1287,10 @@ static void prepare_write_message(struct ceph_connection *con)
 	if (m->needs_out_seq) {
 		m->hdr.seq = cpu_to_le64(++con->out_seq);
 		m->needs_out_seq = false;
-	}
 
-	if (con->ops->reencode_message)
-		con->ops->reencode_message(m);
+		if (con->ops->reencode_message)
+			con->ops->reencode_message(m);
+	}
 
 	dout("prepare_write_message %p seq %lld type %d len %d+%d+%zd\n",
 	     m, con->out_seq, le16_to_cpu(m->hdr.type),
