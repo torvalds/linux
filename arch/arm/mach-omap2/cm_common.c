@@ -175,6 +175,16 @@ int omap_cm_module_disable(u8 part, u16 inst, u16 clkctrl_offs)
 	return 0;
 }
 
+u32 omap_cm_xlate_clkctrl(u8 part, u16 inst, u16 clkctrl_offs)
+{
+	if (!cm_ll_data->xlate_clkctrl) {
+		WARN_ONCE(1, "cm: %s: no low-level function defined\n",
+			  __func__);
+		return 0;
+	}
+	return cm_ll_data->xlate_clkctrl(part, inst, clkctrl_offs);
+}
+
 /**
  * cm_register - register per-SoC low-level data with the CM
  * @cld: low-level per-SoC OMAP CM data & function pointers to register
