@@ -195,16 +195,12 @@ static int fw_set_parms(struct net *net, struct tcf_proto *tp,
 			struct nlattr **tca, unsigned long base, bool ovr)
 {
 	struct fw_head *head = rtnl_dereference(tp->root);
-	struct tcf_exts e;
 	u32 mask;
 	int err;
 
-	err = tcf_exts_init(&e, TCA_FW_ACT, TCA_FW_POLICE);
+	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &f->exts, ovr);
 	if (err < 0)
 		return err;
-	err = tcf_exts_validate(net, tp, tb, tca[TCA_RATE], &e, ovr);
-	if (err < 0)
-		goto errout;
 
 	if (tb[TCA_FW_CLASSID]) {
 		f->res.classid = nla_get_u32(tb[TCA_FW_CLASSID]);
@@ -215,10 +211,8 @@ static int fw_set_parms(struct net *net, struct tcf_proto *tp,
 	if (tb[TCA_FW_INDEV]) {
 		int ret;
 		ret = tcf_change_indev(net, tb[TCA_FW_INDEV]);
-		if (ret < 0) {
-			err = ret;
-			goto errout;
-		}
+		if (ret < 0)
+			return ret;
 		f->ifindex = ret;
 	}
 #endif /* CONFIG_NET_CLS_IND */
@@ -227,16 +221,11 @@ static int fw_set_parms(struct net *net, struct tcf_proto *tp,
 	if (tb[TCA_FW_MASK]) {
 		mask = nla_get_u32(tb[TCA_FW_MASK]);
 		if (mask != head->mask)
-			goto errout;
+			return err;
 	} else if (head->mask != 0xFFFFFFFF)
-		goto errout;
-
-	tcf_exts_change(tp, &f->exts, &e);
+		return err;
 
 	return 0;
-errout:
-	tcf_exts_destroy(&e);
-	return err;
 }
 
 static int fw_change(struct net *net, struct sk_buff *in_skb,
