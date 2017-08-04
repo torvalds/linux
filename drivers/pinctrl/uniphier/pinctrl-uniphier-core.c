@@ -198,7 +198,7 @@ static int uniphier_conf_pin_bias_get(struct pinctrl_dev *pctldev,
 }
 
 static int uniphier_conf_pin_drive_get(struct pinctrl_dev *pctldev,
-				       unsigned int pin, u16 *strength)
+				       unsigned int pin, u32 *strength)
 {
 	struct uniphier_pinctrl_priv *priv = pinctrl_dev_get_drvdata(pctldev);
 	const struct pin_desc *desc = pin_desc_get(pctldev, pin);
@@ -289,7 +289,7 @@ static int uniphier_conf_pin_config_get(struct pinctrl_dev *pctldev,
 {
 	enum pin_config_param param = pinconf_to_config_param(*configs);
 	bool has_arg = false;
-	u16 arg;
+	u32 arg;
 	int ret;
 
 	switch (param) {
@@ -393,7 +393,7 @@ static int uniphier_conf_pin_bias_set(struct pinctrl_dev *pctldev,
 }
 
 static int uniphier_conf_pin_drive_set(struct pinctrl_dev *pctldev,
-				       unsigned int pin, u16 strength)
+				       unsigned int pin, u32 strength)
 {
 	struct uniphier_pinctrl_priv *priv = pinctrl_dev_get_drvdata(pctldev);
 	const struct pin_desc *desc = pin_desc_get(pctldev, pin);
@@ -454,7 +454,7 @@ static int uniphier_conf_pin_drive_set(struct pinctrl_dev *pctldev,
 }
 
 static int uniphier_conf_pin_input_enable(struct pinctrl_dev *pctldev,
-					  unsigned int pin, u16 enable)
+					  unsigned int pin, u32 enable)
 {
 	struct uniphier_pinctrl_priv *priv = pinctrl_dev_get_drvdata(pctldev);
 	const struct pin_desc *desc = pin_desc_get(pctldev, pin);
