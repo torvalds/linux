@@ -90,6 +90,8 @@ struct dispc_features {
 	u8 num_fifos;
 	const enum omap_overlay_caps *overlay_caps;
 	const u32 **supported_color_modes;
+	unsigned int num_mgrs;
+	unsigned int num_ovls;
 	unsigned int buffer_size_unit;
 	unsigned int burst_size_unit;
 
@@ -349,6 +351,16 @@ static void mgr_fld_write(enum omap_channel channel,
 		spin_unlock_irqrestore(&dispc.control_lock, flags);
 }
 
+static int dispc_get_num_ovls(void)
+{
+	return dispc.feat->num_ovls;
+}
+
+static int dispc_get_num_mgrs(void)
+{
+	return dispc.feat->num_mgrs;
+}
+
 #define SR(reg) \
 	dispc.ctx[DISPC_##reg / sizeof(u32)] = dispc_read_reg(DISPC_##reg)
 #define RR(reg) \
@@ -376,7 +388,7 @@ static void dispc_save_context(void)
 		SR(CONFIG3);
 	}
 
-	for (i = 0; i < dss_feat_get_num_mgrs(); i++) {
+	for (i = 0; i < dispc_get_num_mgrs(); i++) {
 		SR(DEFAULT_COLOR(i));
 		SR(TRANS_COLOR(i));
 		SR(SIZE_MGR(i));
@@ -398,7 +410,7 @@ static void dispc_save_context(void)
 		}
 	}
 
-	for (i = 0; i < dss_feat_get_num_ovls(); i++) {
+	for (i = 0; i < dispc_get_num_ovls(); i++) {
 		SR(OVL_BA0(i));
 		SR(OVL_BA1(i));
 		SR(OVL_POSITION(i));
@@ -482,7 +494,7 @@ static void dispc_restore_context(void)
 	if (dss_has_feature(FEAT_MGR_LCD3))
 		RR(CONFIG3);
 
-	for (i = 0; i < dss_feat_get_num_mgrs(); i++) {
+	for (i = 0; i < dispc_get_num_mgrs(); i++) {
 		RR(DEFAULT_COLOR(i));
 		RR(TRANS_COLOR(i));
 		RR(SIZE_MGR(i));
@@ -504,7 +516,7 @@ static void dispc_restore_context(void)
 		}
 	}
 
-	for (i = 0; i < dss_feat_get_num_ovls(); i++) {
+	for (i = 0; i < dispc_get_num_ovls(); i++) {
 		RR(OVL_BA0(i));
 		RR(OVL_BA1(i));
 		RR(OVL_POSITION(i));
@@ -785,7 +797,7 @@ static void dispc_ovl_write_color_conv_coef(enum omap_plane_id plane,
 static void dispc_setup_color_conv_coef(void)
 {
 	int i;
-	int num_ovl = dss_feat_get_num_ovls();
+	int num_ovl = dispc_get_num_ovls();
 	const struct color_conv_coef ctbl_bt601_5_ovl = {
 		/* YUV -> RGB */
 		298, 409, 0, 298, -208, -100, 298, 0, 517, 0,
@@ -877,7 +889,7 @@ static void dispc_ovl_enable_zorder_planes(void)
 	if (!dss_has_feature(FEAT_ALPHA_FREE_ZORDER))
 		return;
 
-	for (i = 0; i < dss_feat_get_num_ovls(); i++)
+	for (i = 0; i < dispc_get_num_ovls(); i++)
 		REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(i), 1, 25, 25);
 }
 
@@ -1134,7 +1146,7 @@ static void dispc_configure_burst_sizes(void)
 	const int burst_size = BURST_SIZE_X8;
 
 	/* Configure burst size always to maximum size */
-	for (i = 0; i < dss_feat_get_num_ovls(); ++i)
+	for (i = 0; i < dispc_get_num_ovls(); ++i)
 		dispc_ovl_set_burst_size(i, burst_size);
 	if (dispc.feat->has_writeback)
 		dispc_ovl_set_burst_size(OMAP_DSS_WB, burst_size);
@@ -1164,11 +1176,6 @@ static bool dispc_ovl_color_mode_supported(enum omap_plane_id plane, u32 fourcc)
 static const u32 *dispc_ovl_get_color_modes(enum omap_plane_id plane)
 {
 	return dispc.feat->supported_color_modes[plane];
-}
-
-static int dispc_get_num_ovls(void)
-{
-	return dss_feat_get_num_ovls();
 }
 
 static void dispc_mgr_enable_cpr(enum omap_channel channel, bool enable)
@@ -1285,7 +1292,7 @@ static void dispc_init_fifos(void)
 	/*
 	 * Setup default fifo thresholds.
 	 */
-	for (i = 0; i < dss_feat_get_num_ovls(); ++i) {
+	for (i = 0; i < dispc_get_num_ovls(); ++i) {
 		u32 low, high;
 		const bool use_fifomerge = false;
 		const bool manual_update = false;
@@ -1389,7 +1396,7 @@ void dispc_ovl_compute_fifo_thresholds(enum omap_plane_id plane,
 
 	if (use_fifomerge) {
 		total_fifo_size = 0;
-		for (i = 0; i < dss_feat_get_num_ovls(); ++i)
+		for (i = 0; i < dispc_get_num_ovls(); ++i)
 			total_fifo_size += dispc_ovl_get_fifo_size(i);
 	} else {
 		total_fifo_size = ovl_fifo_size;
@@ -1455,7 +1462,7 @@ static void dispc_init_mflag(void)
 		(1 << 0) |	/* MFLAG_CTRL = force always on */
 		(0 << 2));	/* MFLAG_START = disable */
 
-	for (i = 0; i < dss_feat_get_num_ovls(); ++i) {
+	for (i = 0; i < dispc_get_num_ovls(); ++i) {
 		u32 size = dispc_ovl_get_fifo_size(i);
 		u32 unit = dispc.feat->buffer_size_unit;
 		u32 low, high;
@@ -2694,11 +2701,6 @@ void dispc_pck_free_enable(bool enable)
 	REG_FLD_MOD(DISPC_CONTROL, enable ? 1 : 0, 27, 27);
 }
 
-static int dispc_get_num_mgrs(void)
-{
-	return dss_feat_get_num_mgrs();
-}
-
 static void dispc_mgr_enable_fifohandcheck(enum omap_channel channel, bool enable)
 {
 	mgr_fld_write(channel, DISPC_MGR_FLD_FIFOHANDCHECK, enable);
@@ -3265,7 +3267,7 @@ static void dispc_dump_regs(struct seq_file *s)
 	p_names = mgr_names;
 
 	/* DISPC channel specific registers */
-	for (i = 0; i < dss_feat_get_num_mgrs(); i++) {
+	for (i = 0; i < dispc_get_num_mgrs(); i++) {
 		DUMPREG(i, DISPC_DEFAULT_COLOR);
 		DUMPREG(i, DISPC_TRANS_COLOR);
 		DUMPREG(i, DISPC_SIZE_MGR);
@@ -3291,7 +3293,7 @@ static void dispc_dump_regs(struct seq_file *s)
 
 	p_names = ovl_names;
 
-	for (i = 0; i < dss_feat_get_num_ovls(); i++) {
+	for (i = 0; i < dispc_get_num_ovls(); i++) {
 		DUMPREG(i, DISPC_OVL_BA0);
 		DUMPREG(i, DISPC_OVL_BA1);
 		DUMPREG(i, DISPC_OVL_POSITION);
@@ -3369,7 +3371,7 @@ static void dispc_dump_regs(struct seq_file *s)
 	/* Video pipeline coefficient registers */
 
 	/* start from OMAP_DSS_VIDEO1 */
-	for (i = 1; i < dss_feat_get_num_ovls(); i++) {
+	for (i = 1; i < dispc_get_num_ovls(); i++) {
 		for (j = 0; j < 8; j++)
 			DUMPREG(i, DISPC_OVL_FIR_COEF_H, j);
 
@@ -3890,6 +3892,8 @@ static const struct dispc_features omap24xx_dispc_feats = {
 	.num_fifos		=	3,
 	.overlay_caps		=	omap2_dispc_overlay_caps,
 	.supported_color_modes	=	omap2_dispc_supported_color_modes,
+	.num_mgrs		=	2,
+	.num_ovls		=	3,
 	.buffer_size_unit	=	1,
 	.burst_size_unit	=	8,
 	.no_framedone_tv	=	true,
@@ -3915,6 +3919,8 @@ static const struct dispc_features omap34xx_rev1_0_dispc_feats = {
 	.num_fifos		=	3,
 	.overlay_caps		=	omap3430_dispc_overlay_caps,
 	.supported_color_modes	=	omap3_dispc_supported_color_modes,
+	.num_mgrs		=	2,
+	.num_ovls		=	3,
 	.buffer_size_unit	=	1,
 	.burst_size_unit	=	8,
 	.no_framedone_tv	=	true,
@@ -3940,6 +3946,8 @@ static const struct dispc_features omap34xx_rev3_0_dispc_feats = {
 	.num_fifos		=	3,
 	.overlay_caps		=	omap3430_dispc_overlay_caps,
 	.supported_color_modes	=	omap3_dispc_supported_color_modes,
+	.num_mgrs		=	2,
+	.num_ovls		=	3,
 	.buffer_size_unit	=	1,
 	.burst_size_unit	=	8,
 	.no_framedone_tv	=	true,
@@ -3965,6 +3973,35 @@ static const struct dispc_features omap36xx_dispc_feats = {
 	.num_fifos		=	3,
 	.overlay_caps		=	omap3630_dispc_overlay_caps,
 	.supported_color_modes	=	omap3_dispc_supported_color_modes,
+	.num_mgrs		=	2,
+	.num_ovls		=	3,
+	.buffer_size_unit	=	1,
+	.burst_size_unit	=	8,
+	.no_framedone_tv	=	true,
+	.set_max_preload	=	false,
+	.last_pixel_inc_missing	=	true,
+};
+
+static const struct dispc_features am43xx_dispc_feats = {
+	.sw_start		=	7,
+	.fp_start		=	19,
+	.bp_start		=	31,
+	.sw_max			=	256,
+	.vp_max			=	4095,
+	.hp_max			=	4096,
+	.mgr_width_start	=	10,
+	.mgr_height_start	=	26,
+	.mgr_width_max		=	2048,
+	.mgr_height_max		=	2048,
+	.max_lcd_pclk		=	173000000,
+	.max_tv_pclk		=	59000000,
+	.calc_scaling		=	dispc_ovl_calc_scaling_34xx,
+	.calc_core_clk		=	calc_core_clk_34xx,
+	.num_fifos		=	3,
+	.overlay_caps		=	omap3430_dispc_overlay_caps,
+	.supported_color_modes	=	omap3_dispc_supported_color_modes,
+	.num_mgrs		=	1,
+	.num_ovls		=	3,
 	.buffer_size_unit	=	1,
 	.burst_size_unit	=	8,
 	.no_framedone_tv	=	true,
@@ -3990,6 +4027,8 @@ static const struct dispc_features omap44xx_dispc_feats = {
 	.num_fifos		=	5,
 	.overlay_caps		=	omap4_dispc_overlay_caps,
 	.supported_color_modes	=	omap4_dispc_supported_color_modes,
+	.num_mgrs		=	3,
+	.num_ovls		=	4,
 	.buffer_size_unit	=	16,
 	.burst_size_unit	=	16,
 	.gfx_fifo_workaround	=	true,
@@ -4020,6 +4059,8 @@ static const struct dispc_features omap54xx_dispc_feats = {
 	.num_fifos		=	5,
 	.overlay_caps		=	omap4_dispc_overlay_caps,
 	.supported_color_modes	=	omap4_dispc_supported_color_modes,
+	.num_mgrs		=	4,
+	.num_ovls		=	4,
 	.buffer_size_unit	=	16,
 	.burst_size_unit	=	16,
 	.gfx_fifo_workaround	=	true,
@@ -4278,7 +4319,7 @@ static const struct soc_device_attribute dispc_soc_devices[] = {
 	  .revision = "ES[12].?",	.data = &omap34xx_rev1_0_dispc_feats },
 	{ .machine = "OMAP3[45]*",	.data = &omap34xx_rev3_0_dispc_feats },
 	{ .machine = "AM35*",		.data = &omap34xx_rev3_0_dispc_feats },
-	{ .machine = "AM43*",		.data = &omap34xx_rev3_0_dispc_feats },
+	{ .machine = "AM43*",		.data = &am43xx_dispc_feats },
 	{ /* sentinel */ }
 };
 
@@ -4296,7 +4337,7 @@ static int dispc_bind(struct device *dev, struct device *master, void *data)
 	spin_lock_init(&dispc.control_lock);
 
 	/*
-	 * The OMAP34xx and OMAP36xx can't be told apart using the compatible
+	 * The OMAP3-based models can't be told apart using the compatible
 	 * string, use SoC device matching.
 	 */
 	soc = soc_device_match(dispc_soc_devices);

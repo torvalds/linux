@@ -44,8 +44,6 @@ struct omap_dss_features {
 	const enum dss_feat_id *features;
 	const int num_features;
 
-	const int num_mgrs;
-	const int num_ovls;
 	const enum omap_dss_output_id *supported_outputs;
 	const struct dss_param_range *dss_params;
 };
@@ -376,8 +374,6 @@ static const struct omap_dss_features omap2_dss_features = {
 	.features = omap2_dss_feat_list,
 	.num_features = ARRAY_SIZE(omap2_dss_feat_list),
 
-	.num_mgrs = 2,
-	.num_ovls = 3,
 	.supported_outputs = omap2_dss_supported_outputs,
 	.dss_params = omap2_dss_param_range,
 };
@@ -390,8 +386,6 @@ static const struct omap_dss_features omap3430_dss_features = {
 	.features = omap3430_dss_feat_list,
 	.num_features = ARRAY_SIZE(omap3430_dss_feat_list),
 
-	.num_mgrs = 2,
-	.num_ovls = 3,
 	.supported_outputs = omap3430_dss_supported_outputs,
 	.dss_params = omap3_dss_param_range,
 };
@@ -407,8 +401,6 @@ static const struct omap_dss_features am35xx_dss_features = {
 	.features = am35xx_dss_feat_list,
 	.num_features = ARRAY_SIZE(am35xx_dss_feat_list),
 
-	.num_mgrs = 2,
-	.num_ovls = 3,
 	.supported_outputs = omap3430_dss_supported_outputs,
 	.dss_params = omap3_dss_param_range,
 };
@@ -420,8 +412,6 @@ static const struct omap_dss_features am43xx_dss_features = {
 	.features = am43xx_dss_feat_list,
 	.num_features = ARRAY_SIZE(am43xx_dss_feat_list),
 
-	.num_mgrs = 1,
-	.num_ovls = 3,
 	.supported_outputs = am43xx_dss_supported_outputs,
 	.dss_params = am43xx_dss_param_range,
 };
@@ -433,8 +423,6 @@ static const struct omap_dss_features omap3630_dss_features = {
 	.features = omap3630_dss_feat_list,
 	.num_features = ARRAY_SIZE(omap3630_dss_feat_list),
 
-	.num_mgrs = 2,
-	.num_ovls = 3,
 	.supported_outputs = omap3630_dss_supported_outputs,
 	.dss_params = omap3_dss_param_range,
 };
@@ -448,8 +436,6 @@ static const struct omap_dss_features omap4430_es1_0_dss_features  = {
 	.features = omap4430_es1_0_dss_feat_list,
 	.num_features = ARRAY_SIZE(omap4430_es1_0_dss_feat_list),
 
-	.num_mgrs = 3,
-	.num_ovls = 4,
 	.supported_outputs = omap4_dss_supported_outputs,
 	.dss_params = omap4_dss_param_range,
 };
@@ -462,8 +448,6 @@ static const struct omap_dss_features omap4430_es2_0_1_2_dss_features = {
 	.features = omap4430_es2_0_1_2_dss_feat_list,
 	.num_features = ARRAY_SIZE(omap4430_es2_0_1_2_dss_feat_list),
 
-	.num_mgrs = 3,
-	.num_ovls = 4,
 	.supported_outputs = omap4_dss_supported_outputs,
 	.dss_params = omap4_dss_param_range,
 };
@@ -476,8 +460,6 @@ static const struct omap_dss_features omap4_dss_features = {
 	.features = omap4_dss_feat_list,
 	.num_features = ARRAY_SIZE(omap4_dss_feat_list),
 
-	.num_mgrs = 3,
-	.num_ovls = 4,
 	.supported_outputs = omap4_dss_supported_outputs,
 	.dss_params = omap4_dss_param_range,
 };
@@ -490,23 +472,11 @@ static const struct omap_dss_features omap5_dss_features = {
 	.features = omap5_dss_feat_list,
 	.num_features = ARRAY_SIZE(omap5_dss_feat_list),
 
-	.num_mgrs = 4,
-	.num_ovls = 4,
 	.supported_outputs = omap5_dss_supported_outputs,
 	.dss_params = omap5_dss_param_range,
 };
 
 /* Functions returning values related to a DSS feature */
-int dss_feat_get_num_mgrs(void)
-{
-	return omap_current_dss_features->num_mgrs;
-}
-
-int dss_feat_get_num_ovls(void)
-{
-	return omap_current_dss_features->num_ovls;
-}
-
 unsigned long dss_feat_get_param_min(enum dss_range_param param)
 {
 	return omap_current_dss_features->dss_params[param].min;
