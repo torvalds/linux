@@ -64,17 +64,6 @@ enum dss_feat_id {
 	FEAT_MFLAG,
 };
 
-/* DSS register field id */
-enum dss_feat_reg_field {
-	FEAT_REG_FIRHINC,
-	FEAT_REG_FIRVINC,
-	FEAT_REG_FIFOHIGHTHRESHOLD,
-	FEAT_REG_FIFOLOWTHRESHOLD,
-	FEAT_REG_FIFOSIZE,
-	FEAT_REG_HORIZONTALACCU,
-	FEAT_REG_VERTICALACCU,
-};
-
 enum dss_range_param {
 	FEAT_PARAM_DSS_FCK,
 	FEAT_PARAM_DSS_PCD,
@@ -89,7 +78,6 @@ unsigned long dss_feat_get_param_min(enum dss_range_param param);
 unsigned long dss_feat_get_param_max(enum dss_range_param param);
 
 bool dss_has_feature(enum dss_feat_id id);
-void dss_feat_get_reg_field(enum dss_feat_reg_field id, u8 *start, u8 *end);
 void dss_features_init(enum omapdss_version version);
 
 enum omap_dss_output_id dss_feat_get_supported_outputs(enum omap_channel channel);

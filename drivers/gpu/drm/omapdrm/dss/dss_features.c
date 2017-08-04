@@ -33,9 +33,6 @@ struct dss_param_range {
 };
 
 struct omap_dss_features {
-	const struct dss_reg_field *reg_fields;
-	const int num_reg_fields;
-
 	const enum dss_feat_id *features;
 	const int num_features;
 
@@ -45,56 +42,6 @@ struct omap_dss_features {
 
 /* This struct is assigned to one of the below during initialization */
 static const struct omap_dss_features *omap_current_dss_features;
-
-static const struct dss_reg_field omap2_dss_reg_fields[] = {
-	[FEAT_REG_FIRHINC]			= { 11, 0 },
-	[FEAT_REG_FIRVINC]			= { 27, 16 },
-	[FEAT_REG_FIFOLOWTHRESHOLD]		= { 8, 0 },
-	[FEAT_REG_FIFOHIGHTHRESHOLD]		= { 24, 16 },
-	[FEAT_REG_FIFOSIZE]			= { 8, 0 },
-	[FEAT_REG_HORIZONTALACCU]		= { 9, 0 },
-	[FEAT_REG_VERTICALACCU]			= { 25, 16 },
-};
-
-static const struct dss_reg_field omap3_dss_reg_fields[] = {
-	[FEAT_REG_FIRHINC]			= { 12, 0 },
-	[FEAT_REG_FIRVINC]			= { 28, 16 },
-	[FEAT_REG_FIFOLOWTHRESHOLD]		= { 11, 0 },
-	[FEAT_REG_FIFOHIGHTHRESHOLD]		= { 27, 16 },
-	[FEAT_REG_FIFOSIZE]			= { 10, 0 },
-	[FEAT_REG_HORIZONTALACCU]		= { 9, 0 },
-	[FEAT_REG_VERTICALACCU]			= { 25, 16 },
-};
-
-static const struct dss_reg_field am43xx_dss_reg_fields[] = {
-	[FEAT_REG_FIRHINC]			= { 12, 0 },
-	[FEAT_REG_FIRVINC]			= { 28, 16 },
-	[FEAT_REG_FIFOLOWTHRESHOLD]	= { 11, 0 },
-	[FEAT_REG_FIFOHIGHTHRESHOLD]		= { 27, 16 },
-	[FEAT_REG_FIFOSIZE]		= { 10, 0 },
-	[FEAT_REG_HORIZONTALACCU]		= { 9, 0 },
-	[FEAT_REG_VERTICALACCU]			= { 25, 16 },
-};
-
-static const struct dss_reg_field omap4_dss_reg_fields[] = {
-	[FEAT_REG_FIRHINC]			= { 12, 0 },
-	[FEAT_REG_FIRVINC]			= { 28, 16 },
-	[FEAT_REG_FIFOLOWTHRESHOLD]		= { 15, 0 },
-	[FEAT_REG_FIFOHIGHTHRESHOLD]		= { 31, 16 },
-	[FEAT_REG_FIFOSIZE]			= { 15, 0 },
-	[FEAT_REG_HORIZONTALACCU]		= { 10, 0 },
-	[FEAT_REG_VERTICALACCU]			= { 26, 16 },
-};
-
-static const struct dss_reg_field omap5_dss_reg_fields[] = {
-	[FEAT_REG_FIRHINC]			= { 12, 0 },
-	[FEAT_REG_FIRVINC]			= { 28, 16 },
-	[FEAT_REG_FIFOLOWTHRESHOLD]		= { 15, 0 },
-	[FEAT_REG_FIFOHIGHTHRESHOLD]		= { 31, 16 },
-	[FEAT_REG_FIFOSIZE]			= { 15, 0 },
-	[FEAT_REG_HORIZONTALACCU]		= { 10, 0 },
-	[FEAT_REG_VERTICALACCU]			= { 26, 16 },
-};
 
 static const enum omap_dss_output_id omap2_dss_supported_outputs[] = {
 	/* OMAP_DSS_CHANNEL_LCD */
@@ -358,9 +305,6 @@ static const enum dss_feat_id omap5_dss_feat_list[] = {
 
 /* OMAP2 DSS Features */
 static const struct omap_dss_features omap2_dss_features = {
-	.reg_fields = omap2_dss_reg_fields,
-	.num_reg_fields = ARRAY_SIZE(omap2_dss_reg_fields),
-
 	.features = omap2_dss_feat_list,
 	.num_features = ARRAY_SIZE(omap2_dss_feat_list),
 
@@ -370,9 +314,6 @@ static const struct omap_dss_features omap2_dss_features = {
 
 /* OMAP3 DSS Features */
 static const struct omap_dss_features omap3430_dss_features = {
-	.reg_fields = omap3_dss_reg_fields,
-	.num_reg_fields = ARRAY_SIZE(omap3_dss_reg_fields),
-
 	.features = omap3430_dss_feat_list,
 	.num_features = ARRAY_SIZE(omap3430_dss_feat_list),
 
@@ -385,9 +326,6 @@ static const struct omap_dss_features omap3430_dss_features = {
  * vdds_dsi regulator.
  */
 static const struct omap_dss_features am35xx_dss_features = {
-	.reg_fields = omap3_dss_reg_fields,
-	.num_reg_fields = ARRAY_SIZE(omap3_dss_reg_fields),
-
 	.features = am35xx_dss_feat_list,
 	.num_features = ARRAY_SIZE(am35xx_dss_feat_list),
 
@@ -396,9 +334,6 @@ static const struct omap_dss_features am35xx_dss_features = {
 };
 
 static const struct omap_dss_features am43xx_dss_features = {
-	.reg_fields = am43xx_dss_reg_fields,
-	.num_reg_fields = ARRAY_SIZE(am43xx_dss_reg_fields),
-
 	.features = am43xx_dss_feat_list,
 	.num_features = ARRAY_SIZE(am43xx_dss_feat_list),
 
@@ -407,9 +342,6 @@ static const struct omap_dss_features am43xx_dss_features = {
 };
 
 static const struct omap_dss_features omap3630_dss_features = {
-	.reg_fields = omap3_dss_reg_fields,
-	.num_reg_fields = ARRAY_SIZE(omap3_dss_reg_fields),
-
 	.features = omap3630_dss_feat_list,
 	.num_features = ARRAY_SIZE(omap3630_dss_feat_list),
 
@@ -420,9 +352,6 @@ static const struct omap_dss_features omap3630_dss_features = {
 /* OMAP4 DSS Features */
 /* For OMAP4430 ES 1.0 revision */
 static const struct omap_dss_features omap4430_es1_0_dss_features  = {
-	.reg_fields = omap4_dss_reg_fields,
-	.num_reg_fields = ARRAY_SIZE(omap4_dss_reg_fields),
-
 	.features = omap4430_es1_0_dss_feat_list,
 	.num_features = ARRAY_SIZE(omap4430_es1_0_dss_feat_list),
 
@@ -432,9 +361,6 @@ static const struct omap_dss_features omap4430_es1_0_dss_features  = {
 
 /* For OMAP4430 ES 2.0, 2.1 and 2.2 revisions */
 static const struct omap_dss_features omap4430_es2_0_1_2_dss_features = {
-	.reg_fields = omap4_dss_reg_fields,
-	.num_reg_fields = ARRAY_SIZE(omap4_dss_reg_fields),
-
 	.features = omap4430_es2_0_1_2_dss_feat_list,
 	.num_features = ARRAY_SIZE(omap4430_es2_0_1_2_dss_feat_list),
 
@@ -444,9 +370,6 @@ static const struct omap_dss_features omap4430_es2_0_1_2_dss_features = {
 
 /* For all the other OMAP4 versions */
 static const struct omap_dss_features omap4_dss_features = {
-	.reg_fields = omap4_dss_reg_fields,
-	.num_reg_fields = ARRAY_SIZE(omap4_dss_reg_fields),
-
 	.features = omap4_dss_feat_list,
 	.num_features = ARRAY_SIZE(omap4_dss_feat_list),
 
@@ -456,9 +379,6 @@ static const struct omap_dss_features omap4_dss_features = {
 
 /* OMAP5 DSS Features */
 static const struct omap_dss_features omap5_dss_features = {
-	.reg_fields = omap5_dss_reg_fields,
-	.num_reg_fields = ARRAY_SIZE(omap5_dss_reg_fields),
-
 	.features = omap5_dss_feat_list,
 	.num_features = ARRAY_SIZE(omap5_dss_feat_list),
 
@@ -495,15 +415,6 @@ bool dss_has_feature(enum dss_feat_id id)
 	}
 
 	return false;
-}
-
-void dss_feat_get_reg_field(enum dss_feat_reg_field id, u8 *start, u8 *end)
-{
-	if (id >= omap_current_dss_features->num_reg_fields)
-		BUG();
-
-	*start = omap_current_dss_features->reg_fields[id].start;
-	*end = omap_current_dss_features->reg_fields[id].end;
 }
 
 void dss_features_init(enum omapdss_version version)

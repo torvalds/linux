@@ -88,6 +88,8 @@ struct dispc_features {
 		u16 width, u16 height, u16 out_width, u16 out_height,
 		bool mem_to_mem);
 	u8 num_fifos;
+	const struct dss_reg_field *reg_fields;
+	const unsigned int num_reg_fields;
 	const enum omap_overlay_caps *overlay_caps;
 	const u32 **supported_color_modes;
 	unsigned int num_mgrs;
@@ -186,6 +188,17 @@ enum mgr_reg_fields {
 	DISPC_MGR_FLD_FIFOHANDCHECK,
 	/* used to maintain a count of the above fields */
 	DISPC_MGR_FLD_NUM,
+};
+
+/* DISPC register field id */
+enum dispc_feat_reg_field {
+	FEAT_REG_FIRHINC,
+	FEAT_REG_FIRVINC,
+	FEAT_REG_FIFOHIGHTHRESHOLD,
+	FEAT_REG_FIFOLOWTHRESHOLD,
+	FEAT_REG_FIFOSIZE,
+	FEAT_REG_HORIZONTALACCU,
+	FEAT_REG_VERTICALACCU,
 };
 
 struct dispc_reg_field {
@@ -359,6 +372,16 @@ static int dispc_get_num_ovls(void)
 static int dispc_get_num_mgrs(void)
 {
 	return dispc.feat->num_mgrs;
+}
+
+static void dispc_get_reg_field(enum dispc_feat_reg_field id,
+				u8 *start, u8 *end)
+{
+	if (id >= dispc.feat->num_reg_fields)
+		BUG();
+
+	*start = dispc.feat->reg_fields[id].start;
+	*end = dispc.feat->reg_fields[id].end;
 }
 
 #define SR(reg) \
@@ -1252,7 +1275,7 @@ static void dispc_init_fifos(void)
 
 	unit = dispc.feat->buffer_size_unit;
 
-	dss_feat_get_reg_field(FEAT_REG_FIFOSIZE, &start, &end);
+	dispc_get_reg_field(FEAT_REG_FIFOSIZE, &start, &end);
 
 	for (fifo = 0; fifo < dispc.feat->num_fifos; ++fifo) {
 		size = REG_GET(DISPC_OVL_FIFO_SIZE_STATUS(fifo), start, end);
@@ -1342,8 +1365,8 @@ void dispc_ovl_set_fifo_threshold(enum omap_plane_id plane, u32 low,
 	low /= unit;
 	high /= unit;
 
-	dss_feat_get_reg_field(FEAT_REG_FIFOHIGHTHRESHOLD, &hi_start, &hi_end);
-	dss_feat_get_reg_field(FEAT_REG_FIFOLOWTHRESHOLD, &lo_start, &lo_end);
+	dispc_get_reg_field(FEAT_REG_FIFOHIGHTHRESHOLD, &hi_start, &hi_end);
+	dispc_get_reg_field(FEAT_REG_FIFOLOWTHRESHOLD, &lo_start, &lo_end);
 
 	DSSDBG("fifo(%d) threshold (bytes), old %u/%u, new %u/%u\n",
 			plane,
@@ -1510,10 +1533,8 @@ static void dispc_ovl_set_fir(enum omap_plane_id plane,
 	if (color_comp == DISPC_COLOR_COMPONENT_RGB_Y) {
 		u8 hinc_start, hinc_end, vinc_start, vinc_end;
 
-		dss_feat_get_reg_field(FEAT_REG_FIRHINC,
-					&hinc_start, &hinc_end);
-		dss_feat_get_reg_field(FEAT_REG_FIRVINC,
-					&vinc_start, &vinc_end);
+		dispc_get_reg_field(FEAT_REG_FIRHINC, &hinc_start, &hinc_end);
+		dispc_get_reg_field(FEAT_REG_FIRVINC, &vinc_start, &vinc_end);
 		val = FLD_VAL(vinc, vinc_start, vinc_end) |
 				FLD_VAL(hinc, hinc_start, hinc_end);
 
@@ -1530,8 +1551,8 @@ static void dispc_ovl_set_vid_accu0(enum omap_plane_id plane, int haccu,
 	u32 val;
 	u8 hor_start, hor_end, vert_start, vert_end;
 
-	dss_feat_get_reg_field(FEAT_REG_HORIZONTALACCU, &hor_start, &hor_end);
-	dss_feat_get_reg_field(FEAT_REG_VERTICALACCU, &vert_start, &vert_end);
+	dispc_get_reg_field(FEAT_REG_HORIZONTALACCU, &hor_start, &hor_end);
+	dispc_get_reg_field(FEAT_REG_VERTICALACCU, &vert_start, &vert_end);
 
 	val = FLD_VAL(vaccu, vert_start, vert_end) |
 			FLD_VAL(haccu, hor_start, hor_end);
@@ -1545,8 +1566,8 @@ static void dispc_ovl_set_vid_accu1(enum omap_plane_id plane, int haccu,
 	u32 val;
 	u8 hor_start, hor_end, vert_start, vert_end;
 
-	dss_feat_get_reg_field(FEAT_REG_HORIZONTALACCU, &hor_start, &hor_end);
-	dss_feat_get_reg_field(FEAT_REG_VERTICALACCU, &vert_start, &vert_end);
+	dispc_get_reg_field(FEAT_REG_HORIZONTALACCU, &hor_start, &hor_end);
+	dispc_get_reg_field(FEAT_REG_VERTICALACCU, &vert_start, &vert_end);
 
 	val = FLD_VAL(vaccu, vert_start, vert_end) |
 			FLD_VAL(haccu, hor_start, hor_end);
@@ -3711,6 +3732,36 @@ static void _omap_dispc_initial_config(void)
 		dispc_init_mflag();
 }
 
+static const struct dss_reg_field omap2_dispc_reg_fields[] = {
+	[FEAT_REG_FIRHINC]			= { 11, 0 },
+	[FEAT_REG_FIRVINC]			= { 27, 16 },
+	[FEAT_REG_FIFOLOWTHRESHOLD]		= { 8, 0 },
+	[FEAT_REG_FIFOHIGHTHRESHOLD]		= { 24, 16 },
+	[FEAT_REG_FIFOSIZE]			= { 8, 0 },
+	[FEAT_REG_HORIZONTALACCU]		= { 9, 0 },
+	[FEAT_REG_VERTICALACCU]			= { 25, 16 },
+};
+
+static const struct dss_reg_field omap3_dispc_reg_fields[] = {
+	[FEAT_REG_FIRHINC]			= { 12, 0 },
+	[FEAT_REG_FIRVINC]			= { 28, 16 },
+	[FEAT_REG_FIFOLOWTHRESHOLD]		= { 11, 0 },
+	[FEAT_REG_FIFOHIGHTHRESHOLD]		= { 27, 16 },
+	[FEAT_REG_FIFOSIZE]			= { 10, 0 },
+	[FEAT_REG_HORIZONTALACCU]		= { 9, 0 },
+	[FEAT_REG_VERTICALACCU]			= { 25, 16 },
+};
+
+static const struct dss_reg_field omap4_dispc_reg_fields[] = {
+	[FEAT_REG_FIRHINC]			= { 12, 0 },
+	[FEAT_REG_FIRVINC]			= { 28, 16 },
+	[FEAT_REG_FIFOLOWTHRESHOLD]		= { 15, 0 },
+	[FEAT_REG_FIFOHIGHTHRESHOLD]		= { 31, 16 },
+	[FEAT_REG_FIFOSIZE]			= { 15, 0 },
+	[FEAT_REG_HORIZONTALACCU]		= { 10, 0 },
+	[FEAT_REG_VERTICALACCU]			= { 26, 16 },
+};
+
 static const enum omap_overlay_caps omap2_dispc_overlay_caps[] = {
 	/* OMAP_DSS_GFX */
 	OMAP_DSS_OVL_CAP_POS | OMAP_DSS_OVL_CAP_REPLICATION,
@@ -3890,6 +3941,8 @@ static const struct dispc_features omap24xx_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_24xx,
 	.calc_core_clk		=	calc_core_clk_24xx,
 	.num_fifos		=	3,
+	.reg_fields		=	omap2_dispc_reg_fields,
+	.num_reg_fields		=	ARRAY_SIZE(omap2_dispc_reg_fields),
 	.overlay_caps		=	omap2_dispc_overlay_caps,
 	.supported_color_modes	=	omap2_dispc_supported_color_modes,
 	.num_mgrs		=	2,
@@ -3917,6 +3970,8 @@ static const struct dispc_features omap34xx_rev1_0_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_34xx,
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
+	.reg_fields		=	omap3_dispc_reg_fields,
+	.num_reg_fields		=	ARRAY_SIZE(omap3_dispc_reg_fields),
 	.overlay_caps		=	omap3430_dispc_overlay_caps,
 	.supported_color_modes	=	omap3_dispc_supported_color_modes,
 	.num_mgrs		=	2,
@@ -3944,6 +3999,8 @@ static const struct dispc_features omap34xx_rev3_0_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_34xx,
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
+	.reg_fields		=	omap3_dispc_reg_fields,
+	.num_reg_fields		=	ARRAY_SIZE(omap3_dispc_reg_fields),
 	.overlay_caps		=	omap3430_dispc_overlay_caps,
 	.supported_color_modes	=	omap3_dispc_supported_color_modes,
 	.num_mgrs		=	2,
@@ -3971,6 +4028,8 @@ static const struct dispc_features omap36xx_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_34xx,
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
+	.reg_fields		=	omap3_dispc_reg_fields,
+	.num_reg_fields		=	ARRAY_SIZE(omap3_dispc_reg_fields),
 	.overlay_caps		=	omap3630_dispc_overlay_caps,
 	.supported_color_modes	=	omap3_dispc_supported_color_modes,
 	.num_mgrs		=	2,
@@ -3998,6 +4057,8 @@ static const struct dispc_features am43xx_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_34xx,
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
+	.reg_fields		=	omap3_dispc_reg_fields,
+	.num_reg_fields		=	ARRAY_SIZE(omap3_dispc_reg_fields),
 	.overlay_caps		=	omap3430_dispc_overlay_caps,
 	.supported_color_modes	=	omap3_dispc_supported_color_modes,
 	.num_mgrs		=	1,
@@ -4025,6 +4086,8 @@ static const struct dispc_features omap44xx_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_44xx,
 	.calc_core_clk		=	calc_core_clk_44xx,
 	.num_fifos		=	5,
+	.reg_fields		=	omap4_dispc_reg_fields,
+	.num_reg_fields		=	ARRAY_SIZE(omap4_dispc_reg_fields),
 	.overlay_caps		=	omap4_dispc_overlay_caps,
 	.supported_color_modes	=	omap4_dispc_supported_color_modes,
 	.num_mgrs		=	3,
@@ -4057,6 +4120,8 @@ static const struct dispc_features omap54xx_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_44xx,
 	.calc_core_clk		=	calc_core_clk_44xx,
 	.num_fifos		=	5,
+	.reg_fields		=	omap4_dispc_reg_fields,
+	.num_reg_fields		=	ARRAY_SIZE(omap4_dispc_reg_fields),
 	.overlay_caps		=	omap4_dispc_overlay_caps,
 	.supported_color_modes	=	omap4_dispc_supported_color_modes,
 	.num_mgrs		=	4,
