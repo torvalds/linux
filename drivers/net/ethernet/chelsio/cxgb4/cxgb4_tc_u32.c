@@ -96,7 +96,7 @@ static int fill_action_fields(struct adapter *adap,
 	LIST_HEAD(actions);
 
 	exts = cls->knode.exts;
-	if (tc_no_actions(exts))
+	if (!tcf_exts_has_actions(exts))
 		return -EINVAL;
 
 	tcf_exts_to_list(exts, &actions);

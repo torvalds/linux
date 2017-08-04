@@ -1626,7 +1626,7 @@ static int mlxsw_sp_port_add_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
 	LIST_HEAD(actions);
 	int err;
 
-	if (!tc_single_action(cls->exts)) {
+	if (!tcf_exts_has_one_action(cls->exts)) {
 		netdev_err(mlxsw_sp_port->dev, "only singular actions are supported\n");
 		return -EOPNOTSUPP;
 	}

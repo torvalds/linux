@@ -199,17 +199,35 @@ tcf_exts_exec(struct sk_buff *skb, struct tcf_exts *exts,
 	return 0;
 }
 
+/**
+ * tcf_exts_has_actions - check if at least one action is present
+ * @exts: tc filter extensions handle
+ *
+ * Returns true if at least one action is present.
+ */
+static inline bool tcf_exts_has_actions(struct tcf_exts *exts)
+{
 #ifdef CONFIG_NET_CLS_ACT
+	return exts->nr_actions;
+#else
+	return false;
+#endif
+}
 
-#define tc_no_actions(_exts)  ((_exts)->nr_actions == 0)
-#define tc_single_action(_exts) ((_exts)->nr_actions == 1)
-
-#else /* CONFIG_NET_CLS_ACT */
-
-#define tc_no_actions(_exts) true
-#define tc_single_action(_exts) false
-
-#endif /* CONFIG_NET_CLS_ACT */
+/**
+ * tcf_exts_has_one_action - check if exactly one action is present
+ * @exts: tc filter extensions handle
+ *
+ * Returns true if exactly one action is present.
+ */
+static inline bool tcf_exts_has_one_action(struct tcf_exts *exts)
+{
+#ifdef CONFIG_NET_CLS_ACT
+	return exts->nr_actions == 1;
+#else
+	return false;
+#endif
+}
 
 int tcf_exts_validate(struct net *net, struct tcf_proto *tp,
 		      struct nlattr **tb, struct nlattr *rate_tlv,

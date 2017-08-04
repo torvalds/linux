@@ -972,7 +972,7 @@ int tcf_exts_get_dev(struct net_device *dev, struct tcf_exts *exts,
 	const struct tc_action *a;
 	LIST_HEAD(actions);
 
-	if (tc_no_actions(exts))
+	if (!tcf_exts_has_actions(exts))
 		return -EINVAL;
 
 	tcf_exts_to_list(exts, &actions);

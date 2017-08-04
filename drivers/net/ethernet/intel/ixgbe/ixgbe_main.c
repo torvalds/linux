@@ -8953,7 +8953,7 @@ static int parse_tc_actions(struct ixgbe_adapter *adapter,
 	LIST_HEAD(actions);
 	int err;
 
-	if (tc_no_actions(exts))
+	if (!tcf_exts_has_actions(exts))
 		return -EINVAL;
 
 	tcf_exts_to_list(exts, &actions);
