@@ -82,6 +82,49 @@ static inline int notify_page_fault(struct pt_regs *regs, unsigned int esr)
 }
 #endif
 
+static void data_abort_decode(unsigned int esr)
+{
+	pr_alert("Data abort info:\n");
+
+	if (esr & ESR_ELx_ISV) {
+		pr_alert("  Access size = %u byte(s)\n",
+			 1U << ((esr & ESR_ELx_SAS) >> ESR_ELx_SAS_SHIFT));
+		pr_alert("  SSE = %lu, SRT = %lu\n",
+			 (esr & ESR_ELx_SSE) >> ESR_ELx_SSE_SHIFT,
+			 (esr & ESR_ELx_SRT_MASK) >> ESR_ELx_SRT_SHIFT);
+		pr_alert("  SF = %lu, AR = %lu\n",
+			 (esr & ESR_ELx_SF) >> ESR_ELx_SF_SHIFT,
+			 (esr & ESR_ELx_AR) >> ESR_ELx_AR_SHIFT);
+	} else {
+		pr_alert("  ISV = 0, ISS = 0x%08lu\n", esr & ESR_ELx_ISS_MASK);
+	}
+
+	pr_alert("  CM = %lu, WnR = %lu\n",
+		 (esr & ESR_ELx_CM) >> ESR_ELx_CM_SHIFT,
+		 (esr & ESR_ELx_WNR) >> ESR_ELx_WNR_SHIFT);
+}
+
+/*
+ * Decode mem abort information
+ */
+static void mem_abort_decode(unsigned int esr)
+{
+	pr_alert("Mem abort info:\n");
+
+	pr_alert("  Exception class = %s, IL = %u bits\n",
+		 esr_get_class_string(esr),
+		 (esr & ESR_ELx_IL) ? 32 : 16);
+	pr_alert("  SET = %lu, FnV = %lu\n",
+		 (esr & ESR_ELx_SET_MASK) >> ESR_ELx_SET_SHIFT,
+		 (esr & ESR_ELx_FnV) >> ESR_ELx_FnV_SHIFT);
+	pr_alert("  EA = %lu, S1PTW = %lu\n",
+		 (esr & ESR_ELx_EA) >> ESR_ELx_EA_SHIFT,
+		 (esr & ESR_ELx_S1PTW) >> ESR_ELx_S1PTW_SHIFT);
+
+	if (esr_is_data_abort(esr))
+		data_abort_decode(esr);
+}
+
 /*
  * Dump out the page tables associated with 'addr' in the currently active mm.
  */
@@ -247,6 +290,8 @@ static void __do_kernel_fault(unsigned long addr, unsigned int esr,
 
 	pr_alert("Unable to handle kernel %s at virtual address %08lx\n", msg,
 		 addr);
+
+	mem_abort_decode(esr);
 
 	show_pte(addr);
 	die("Oops", regs, esr);
@@ -701,6 +746,8 @@ asmlinkage void __exception do_mem_abort(unsigned long addr, unsigned int esr,
 
 	pr_alert("Unhandled fault: %s (0x%08x) at 0x%016lx\n",
 		 inf->name, esr, addr);
+
+	mem_abort_decode(esr);
 
 	info.si_signo = inf->sig;
 	info.si_errno = 0;
