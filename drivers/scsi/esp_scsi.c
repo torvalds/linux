@@ -1485,9 +1485,8 @@ static void esp_msgin_reject(struct esp *esp)
 		return;
 	}
 
-	esp->msg_out[0] = ABORT_TASK_SET;
-	esp->msg_out_len = 1;
-	scsi_esp_cmd(esp, ESP_CMD_SATN);
+	shost_printk(KERN_INFO, esp->host, "Unexpected MESSAGE REJECT\n");
+	esp_schedule_reset(esp);
 }
 
 static void esp_msgin_sdtr(struct esp *esp, struct esp_target_data *tp)
@@ -1610,7 +1609,7 @@ static void esp_msgin_extended(struct esp *esp)
 	shost_printk(KERN_INFO, esp->host,
 		     "Unexpected extended msg type %x\n", esp->msg_in[2]);
 
-	esp->msg_out[0] = ABORT_TASK_SET;
+	esp->msg_out[0] = MESSAGE_REJECT;
 	esp->msg_out_len = 1;
 	scsi_esp_cmd(esp, ESP_CMD_SATN);
 }
@@ -1987,6 +1986,10 @@ again:
 				scsi_esp_cmd(esp, ESP_CMD_FLUSH);
 
 			scsi_esp_cmd(esp, ESP_CMD_MOK);
+
+			/* Check whether a bus reset is to be done next */
+			if (esp->event == ESP_EVENT_RESET)
+				return 0;
 
 			if (esp->event != ESP_EVENT_FREE_BUS)
 				esp_event(esp, ESP_EVENT_CHECK_PHASE);
