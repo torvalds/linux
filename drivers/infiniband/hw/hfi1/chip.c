@@ -10067,10 +10067,16 @@ static void set_lidlmc(struct hfi1_pportdata *ppd)
 	struct hfi1_devdata *dd = ppd->dd;
 	u32 mask = ~((1U << ppd->lmc) - 1);
 	u64 c1 = read_csr(ppd->dd, DCC_CFG_PORT_CONFIG1);
+	u32 lid;
 
+	/*
+	 * Program 0 in CSR if port lid is extended. This prevents
+	 * 9B packets being sent out for large lids.
+	 */
+	lid = (ppd->lid >= be16_to_cpu(IB_MULTICAST_LID_BASE)) ? 0 : ppd->lid;
 	c1 &= ~(DCC_CFG_PORT_CONFIG1_TARGET_DLID_SMASK
 		| DCC_CFG_PORT_CONFIG1_DLID_MASK_SMASK);
-	c1 |= ((ppd->lid & DCC_CFG_PORT_CONFIG1_TARGET_DLID_MASK)
+	c1 |= ((lid & DCC_CFG_PORT_CONFIG1_TARGET_DLID_MASK)
 			<< DCC_CFG_PORT_CONFIG1_TARGET_DLID_SHIFT) |
 	      ((mask & DCC_CFG_PORT_CONFIG1_DLID_MASK_MASK)
 			<< DCC_CFG_PORT_CONFIG1_DLID_MASK_SHIFT);
@@ -10081,7 +10087,7 @@ static void set_lidlmc(struct hfi1_pportdata *ppd)
 	 */
 	sreg = ((mask & SEND_CTXT_CHECK_SLID_MASK_MASK) <<
 			SEND_CTXT_CHECK_SLID_MASK_SHIFT) |
-	       (((ppd->lid & mask) & SEND_CTXT_CHECK_SLID_VALUE_MASK) <<
+	       (((lid & mask) & SEND_CTXT_CHECK_SLID_VALUE_MASK) <<
 			SEND_CTXT_CHECK_SLID_VALUE_SHIFT);
 
 	for (i = 0; i < dd->chip_send_contexts; i++) {
@@ -10091,7 +10097,7 @@ static void set_lidlmc(struct hfi1_pportdata *ppd)
 	}
 
 	/* Now we have to do the same thing for the sdma engines */
-	sdma_update_lmc(dd, mask, ppd->lid);
+	sdma_update_lmc(dd, mask, lid);
 }
 
 static const char *state_completed_string(u32 completed)

@@ -718,7 +718,7 @@ struct hfi1_pportdata {
 	u32 ibmaxlen;
 	u32 current_egress_rate; /* units [10^6 bits/sec] */
 	/* LID programmed for this instance */
-	u16 lid;
+	u32 lid;
 	/* list of pkeys programmed; 0 if not set */
 	u16 pkeys[MAX_PKEY_VALUES];
 	u16 link_width_supported;
