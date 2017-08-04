@@ -60,6 +60,8 @@ struct axp20x_batt_ps {
 	struct iio_channel *batt_chrg_i;
 	struct iio_channel *batt_dischrg_i;
 	struct iio_channel *batt_v;
+	/* Maximum constant charge current */
+	unsigned int max_ccc;
 	u8 axp_id;
 };
 
@@ -127,6 +129,14 @@ static void raw_to_constant_charge_current(struct axp20x_batt_ps *axp, int *val)
 		*val = *val * 100000 + 300000;
 	else
 		*val = *val * 150000 + 300000;
+}
+
+static void constant_charge_current_to_raw(struct axp20x_batt_ps *axp, int *val)
+{
+	if (axp->axp_id == AXP209_ID)
+		*val = (*val - 300000) / 100000;
+	else
+		*val = (*val - 300000) / 150000;
 }
 
 static int axp20x_get_constant_charge_current(struct axp20x_batt_ps *axp,
@@ -221,9 +231,7 @@ static int axp20x_battery_get_prop(struct power_supply *psy,
 		break;
 
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX:
-		val->intval = AXP20X_CHRG_CTRL1_TGT_CURR;
-		raw_to_constant_charge_current(axp20x_batt, &val->intval);
-
+		val->intval = axp20x_batt->max_ccc;
 		break;
 
 	case POWER_SUPPLY_PROP_CURRENT_NOW:
@@ -340,10 +348,10 @@ static int axp20x_battery_set_max_voltage(struct axp20x_batt_ps *axp20x_batt,
 static int axp20x_set_constant_charge_current(struct axp20x_batt_ps *axp_batt,
 					      int charge_current)
 {
-	if (axp_batt->axp_id == AXP209_ID)
-		charge_current = (charge_current - 300000) / 100000;
-	else
-		charge_current = (charge_current - 300000) / 150000;
+	if (charge_current > axp_batt->max_ccc)
+		return -EINVAL;
+
+	constant_charge_current_to_raw(axp_batt, &charge_current);
 
 	if (charge_current > AXP20X_CHRG_CTRL1_TGT_CURR || charge_current < 0)
 		return -EINVAL;
@@ -352,6 +360,36 @@ static int axp20x_set_constant_charge_current(struct axp20x_batt_ps *axp_batt,
 				  AXP20X_CHRG_CTRL1_TGT_CURR, charge_current);
 }
 
+static int axp20x_set_max_constant_charge_current(struct axp20x_batt_ps *axp,
+						  int charge_current)
+{
+	bool lower_max = false;
+
+	constant_charge_current_to_raw(axp, &charge_current);
+
+	if (charge_current > AXP20X_CHRG_CTRL1_TGT_CURR || charge_current < 0)
+		return -EINVAL;
+
+	raw_to_constant_charge_current(axp, &charge_current);
+
+	if (charge_current > axp->max_ccc)
+		dev_warn(axp->dev,
+			 "Setting max constant charge current higher than previously defined. Note that increasing the constant charge current may damage your battery.\n");
+	else
+		lower_max = true;
+
+	axp->max_ccc = charge_current;
+
+	if (lower_max) {
+		int current_cc;
+
+		axp20x_get_constant_charge_current(axp, &current_cc);
+		if (current_cc > charge_current)
+			axp20x_set_constant_charge_current(axp, charge_current);
+	}
+
+	return 0;
+}
 static int axp20x_set_voltage_min_design(struct axp20x_batt_ps *axp_batt,
 					 int min_voltage)
 {
@@ -380,6 +418,9 @@ static int axp20x_battery_set_prop(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT:
 		return axp20x_set_constant_charge_current(axp20x_batt,
 							  val->intval);
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX:
+		return axp20x_set_max_constant_charge_current(axp20x_batt,
+							      val->intval);
 
 	default:
 		return -EINVAL;
@@ -405,7 +446,8 @@ static int axp20x_battery_prop_writeable(struct power_supply *psy,
 {
 	return psp == POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN ||
 	       psp == POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN ||
-	       psp == POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT;
+	       psp == POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT ||
+	       psp == POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX;
 }
 
 static const struct power_supply_desc axp20x_batt_ps_desc = {
@@ -433,6 +475,7 @@ static int axp20x_power_probe(struct platform_device *pdev)
 {
 	struct axp20x_batt_ps *axp20x_batt;
 	struct power_supply_config psy_cfg = {};
+	struct power_supply_battery_info info;
 
 	if (!of_device_is_available(pdev->dev.of_node))
 		return -ENODEV;
@@ -483,6 +526,35 @@ static int axp20x_power_probe(struct platform_device *pdev)
 			PTR_ERR(axp20x_batt->batt));
 		return PTR_ERR(axp20x_batt->batt);
 	}
+
+	if (!power_supply_get_battery_info(axp20x_batt->batt, &info)) {
+		int vmin = info.voltage_min_design_uv;
+		int ccc = info.constant_charge_current_max_ua;
+
+		if (vmin > 0 && axp20x_set_voltage_min_design(axp20x_batt,
+							      vmin))
+			dev_err(&pdev->dev,
+				"couldn't set voltage_min_design\n");
+
+		/* Set max to unverified value to be able to set CCC */
+		axp20x_batt->max_ccc = ccc;
+
+		if (ccc <= 0 || axp20x_set_constant_charge_current(axp20x_batt,
+								   ccc)) {
+			dev_err(&pdev->dev,
+				"couldn't set constant charge current from DT: fallback to minimum value\n");
+			ccc = 300000;
+			axp20x_batt->max_ccc = ccc;
+			axp20x_set_constant_charge_current(axp20x_batt, ccc);
+		}
+	}
+
+	/*
+	 * Update max CCC to a valid value if battery info is present or set it
+	 * to current register value by default.
+	 */
+	axp20x_get_constant_charge_current(axp20x_batt,
+					   &axp20x_batt->max_ccc);
 
 	return 0;
 }

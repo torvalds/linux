@@ -8,6 +8,10 @@
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
  * version 2, as published by the Free Software Foundation.
+ *
+ * Contact Information: Nehal Shah <Nehal-bakulchandra.Shah@amd.com>
+ *			Shyam Sundar S K <Shyam-sundar.S-k@amd.com>
+ *
  */
 
 #include <linux/err.h>

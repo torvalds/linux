@@ -15,16 +15,15 @@ sctp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 		   struct ip_vs_iphdr *iph)
 {
 	struct ip_vs_service *svc;
-	sctp_chunkhdr_t _schunkh, *sch;
-	sctp_sctphdr_t *sh, _sctph;
+	struct sctp_chunkhdr _schunkh, *sch;
+	struct sctphdr *sh, _sctph;
 	__be16 _ports[2], *ports = NULL;
 
 	if (likely(!ip_vs_iph_icmp(iph))) {
 		sh = skb_header_pointer(skb, iph->len, sizeof(_sctph), &_sctph);
 		if (sh) {
-			sch = skb_header_pointer(
-				skb, iph->len + sizeof(sctp_sctphdr_t),
-				sizeof(_schunkh), &_schunkh);
+			sch = skb_header_pointer(skb, iph->len + sizeof(_sctph),
+						 sizeof(_schunkh), &_schunkh);
 			if (sch && (sch->type == SCTP_CID_INIT ||
 				    sysctl_sloppy_sctp(ipvs)))
 				ports = &sh->source;
@@ -77,7 +76,7 @@ sctp_conn_schedule(struct netns_ipvs *ipvs, int af, struct sk_buff *skb,
 	return 1;
 }
 
-static void sctp_nat_csum(struct sk_buff *skb, sctp_sctphdr_t *sctph,
+static void sctp_nat_csum(struct sk_buff *skb, struct sctphdr *sctph,
 			  unsigned int sctphoff)
 {
 	sctph->checksum = sctp_compute_cksum(skb, sctphoff);
@@ -88,7 +87,7 @@ static int
 sctp_snat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		  struct ip_vs_conn *cp, struct ip_vs_iphdr *iph)
 {
-	sctp_sctphdr_t *sctph;
+	struct sctphdr *sctph;
 	unsigned int sctphoff = iph->len;
 	bool payload_csum = false;
 
@@ -135,7 +134,7 @@ static int
 sctp_dnat_handler(struct sk_buff *skb, struct ip_vs_protocol *pp,
 		  struct ip_vs_conn *cp, struct ip_vs_iphdr *iph)
 {
-	sctp_sctphdr_t *sctph;
+	struct sctphdr *sctph;
 	unsigned int sctphoff = iph->len;
 	bool payload_csum = false;
 
@@ -378,7 +377,7 @@ static inline void
 set_sctp_state(struct ip_vs_proto_data *pd, struct ip_vs_conn *cp,
 		int direction, const struct sk_buff *skb)
 {
-	sctp_chunkhdr_t _sctpch, *sch;
+	struct sctp_chunkhdr _sctpch, *sch;
 	unsigned char chunk_type;
 	int event, next_state;
 	int ihl, cofs;
@@ -389,7 +388,7 @@ set_sctp_state(struct ip_vs_proto_data *pd, struct ip_vs_conn *cp,
 	ihl = ip_hdrlen(skb);
 #endif
 
-	cofs = ihl + sizeof(sctp_sctphdr_t);
+	cofs = ihl + sizeof(struct sctphdr);
 	sch = skb_header_pointer(skb, cofs, sizeof(_sctpch), &_sctpch);
 	if (sch == NULL)
 		return;
@@ -410,7 +409,7 @@ set_sctp_state(struct ip_vs_proto_data *pd, struct ip_vs_conn *cp,
 	    (sch->type == SCTP_CID_COOKIE_ACK)) {
 		int clen = ntohs(sch->length);
 
-		if (clen >= sizeof(sctp_chunkhdr_t)) {
+		if (clen >= sizeof(_sctpch)) {
 			sch = skb_header_pointer(skb, cofs + ALIGN(clen, 4),
 						 sizeof(_sctpch), &_sctpch);
 			if (sch && sch->type == SCTP_CID_ABORT)

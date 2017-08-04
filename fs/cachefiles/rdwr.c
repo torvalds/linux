@@ -21,7 +21,7 @@
  * - we use this to detect read completion of backing pages
  * - the caller holds the waitqueue lock
  */
-static int cachefiles_read_waiter(wait_queue_t *wait, unsigned mode,
+static int cachefiles_read_waiter(wait_queue_entry_t *wait, unsigned mode,
 				  int sync, void *_key)
 {
 	struct cachefiles_one_read *monitor =
@@ -48,7 +48,7 @@ static int cachefiles_read_waiter(wait_queue_t *wait, unsigned mode,
 	}
 
 	/* remove from the waitqueue */
-	list_del(&wait->task_list);
+	list_del(&wait->entry);
 
 	/* move onto the action list and queue for FS-Cache thread pool */
 	ASSERT(monitor->op);

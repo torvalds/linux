@@ -28,8 +28,6 @@
 /************************************************************************
  * The following is for 8723B 2Ant BT Co-exist definition
  ************************************************************************/
-#define	BT_AUTO_REPORT_ONLY_8723B_2ANT			1
-
 #define	BT_INFO_8723B_2ANT_B_FTP			BIT7
 #define	BT_INFO_8723B_2ANT_B_A2DP			BIT6
 #define	BT_INFO_8723B_2ANT_B_HID			BIT5
@@ -198,5 +196,8 @@ void ex_btc8723b2ant_bt_info_notify(struct btc_coexist *btcoexist,
 void ex_btc8723b2ant_halt_notify(struct btc_coexist *btcoexist);
 void ex_btc8723b2ant_periodical(struct btc_coexist *btcoexist);
 void ex_btc8723b2ant_display_coex_info(struct btc_coexist *btcoexist);
+void ex_btc8723b2ant_pnp_notify(struct btc_coexist *btcoexist, u8 pnp_state);
+void ex_btc8723b2ant_pre_load_firmware(struct btc_coexist *btcoexist);
+void ex_btc8723b2ant_power_on_setting(struct btc_coexist *btcoexist);
 
 #endif

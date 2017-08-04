@@ -110,6 +110,8 @@
 #define CMD_TLB_DIRECT_WRITE 35         /* IO_COMMAND for I/O TLB Writes     */
 #define CMD_TLB_PURGE        33         /* IO_COMMAND to Purge I/O TLB entry */
 
+#define CCIO_MAPPING_ERROR    (~(dma_addr_t)0)
+
 struct ioa_registers {
         /* Runway Supervisory Set */
         int32_t    unused1[12];
@@ -741,6 +743,8 @@ ccio_map_single(struct device *dev, void *addr, size_t size,
 
 	BUG_ON(!dev);
 	ioc = GET_IOC(dev);
+	if (!ioc)
+		return CCIO_MAPPING_ERROR;
 
 	BUG_ON(size <= 0);
 
@@ -814,6 +818,10 @@ ccio_unmap_page(struct device *dev, dma_addr_t iova, size_t size,
 	
 	BUG_ON(!dev);
 	ioc = GET_IOC(dev);
+	if (!ioc) {
+		WARN_ON(!ioc);
+		return;
+	}
 
 	DBG_RUN("%s() iovp 0x%lx/%x\n",
 		__func__, (long)iova, size);
@@ -918,6 +926,8 @@ ccio_map_sg(struct device *dev, struct scatterlist *sglist, int nents,
 	
 	BUG_ON(!dev);
 	ioc = GET_IOC(dev);
+	if (!ioc)
+		return 0;
 	
 	DBG_RUN_SG("%s() START %d entries\n", __func__, nents);
 
@@ -990,6 +1000,10 @@ ccio_unmap_sg(struct device *dev, struct scatterlist *sglist, int nents,
 
 	BUG_ON(!dev);
 	ioc = GET_IOC(dev);
+	if (!ioc) {
+		WARN_ON(!ioc);
+		return;
+	}
 
 	DBG_RUN_SG("%s() START %d entries, %p,%x\n",
 		__func__, nents, sg_virt(sglist), sglist->length);
@@ -1011,6 +1025,11 @@ ccio_unmap_sg(struct device *dev, struct scatterlist *sglist, int nents,
 	DBG_RUN_SG("%s() DONE (nents %d)\n", __func__, nents);
 }
 
+static int ccio_mapping_error(struct device *dev, dma_addr_t dma_addr)
+{
+	return dma_addr == CCIO_MAPPING_ERROR;
+}
+
 static const struct dma_map_ops ccio_ops = {
 	.dma_supported =	ccio_dma_supported,
 	.alloc =		ccio_alloc,
@@ -1019,6 +1038,7 @@ static const struct dma_map_ops ccio_ops = {
 	.unmap_page =		ccio_unmap_page,
 	.map_sg = 		ccio_map_sg,
 	.unmap_sg = 		ccio_unmap_sg,
+	.mapping_error =	ccio_mapping_error,
 };
 
 #ifdef CONFIG_PROC_FS

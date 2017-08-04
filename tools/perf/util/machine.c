@@ -2209,7 +2209,7 @@ int machine__get_kernel_start(struct machine *machine)
 	machine->kernel_start = 1ULL << 63;
 	if (map) {
 		err = map__load(map);
-		if (map->start)
+		if (!err)
 			machine->kernel_start = map->start;
 	}
 	return err;

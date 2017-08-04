@@ -559,9 +559,7 @@ The <tt>rcu_access_pointer()</tt> on line&nbsp;6 is similar to
 	For <tt>remove_gp_synchronous()</tt>, as long as all modifications
 	to <tt>gp</tt> are carried out while holding <tt>gp_lock</tt>,
 	the above optimizations are harmless.
-	However,
-	with <tt>CONFIG_SPARSE_RCU_POINTER=y</tt>,
-	<tt>sparse</tt> will complain if you
+	However, <tt>sparse</tt> will complain if you
 	define <tt>gp</tt> with <tt>__rcu</tt> and then
 	access it without using
 	either <tt>rcu_access_pointer()</tt> or <tt>rcu_dereference()</tt>.
@@ -1849,7 +1847,8 @@ mass storage, or user patience, whichever comes first.
 If the nesting is not visible to the compiler, as is the case with
 mutually recursive functions each in its own translation unit,
 stack overflow will result.
-If the nesting takes the form of loops, either the control variable
+If the nesting takes the form of loops, perhaps in the guise of tail
+recursion, either the control variable
 will overflow or (in the Linux kernel) you will get an RCU CPU stall warning.
 Nevertheless, this class of RCU implementations is one
 of the most composable constructs in existence.
@@ -1977,9 +1976,8 @@ guard against mishaps and misuse:
 	and <tt>rcu_dereference()</tt>, perhaps (incorrectly)
 	substituting a simple assignment.
 	To catch this sort of error, a given RCU-protected pointer may be
-	tagged with <tt>__rcu</tt>, after which running sparse
-	with <tt>CONFIG_SPARSE_RCU_POINTER=y</tt> will complain
-	about simple-assignment accesses to that pointer.
+	tagged with <tt>__rcu</tt>, after which sparse
+	will complain about simple-assignment accesses to that pointer.
 	Arnd Bergmann made me aware of this requirement, and also
 	supplied the needed
 	<a href="https://lwn.net/Articles/376011/">patch series</a>.
@@ -2036,7 +2034,7 @@ guard against mishaps and misuse:
 	some other synchronization mechanism, for example, reference
 	counting.
 <li>	In kernels built with <tt>CONFIG_RCU_TRACE=y</tt>, RCU-related
-	information is provided via both debugfs and event tracing.
+	information is provided via event tracing.
 <li>	Open-coded use of <tt>rcu_assign_pointer()</tt> and
 	<tt>rcu_dereference()</tt> to create typical linked
 	data structures can be surprisingly error-prone.
@@ -2519,11 +2517,7 @@ It is similarly socially unacceptable to interrupt an
 <tt>nohz_full</tt> CPU running in userspace.
 RCU must therefore track <tt>nohz_full</tt> userspace
 execution.
-And in
-<a href="https://lwn.net/Articles/558284/"><tt>CONFIG_NO_HZ_FULL_SYSIDLE=y</tt></a>
-kernels, RCU must separately track idle CPUs on the one hand and
-CPUs that are either idle or executing in userspace on the other.
-In both cases, RCU must be able to sample state at two points in
+RCU must therefore be able to sample state at two points in
 time, and be able to determine whether or not some other CPU spent
 any time idle and/or executing in userspace.
 
@@ -2934,6 +2928,20 @@ though this is not necessarily a good idea.
 The reason that this is possible is that SRCU is insensitive
 to whether or not a CPU is online, which means that <tt>srcu_barrier()</tt>
 need not exclude CPU-hotplug operations.
+
+<p>
+SRCU also differs from other RCU flavors in that SRCU's expedited and
+non-expedited grace periods are implemented by the same mechanism.
+This means that in the current SRCU implementation, expediting a
+future grace period has the side effect of expediting all prior
+grace periods that have not yet completed.
+(But please note that this is a property of the current implementation,
+not necessarily of future implementations.)
+In addition, if SRCU has been idle for longer than the interval
+specified by the <tt>srcutree.exp_holdoff</tt> kernel boot parameter
+(25&nbsp;microseconds by default),
+and if a <tt>synchronize_srcu()</tt> invocation ends this idle period,
+that invocation will be automatically expedited.
 
 <p>
 As of v4.12, SRCU's callbacks are maintained per-CPU, eliminating

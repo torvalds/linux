@@ -2855,7 +2855,7 @@ static int em28xx_hint_board(struct em28xx *dev)
 				"Your board has no unique USB ID.\n"
 				"A hint were successfully done, based on eeprom hash.\n"
 				"This method is not 100%% failproof.\n"
-				"If the board were missdetected, please email this log to:\n"
+				"If the board were misdetected, please email this log to:\n"
 				"\tV4L Mailing List  <linux-media@vger.kernel.org>\n"
 				"Board detected as %s\n",
 			       em28xx_boards[dev->model].name);
@@ -2885,7 +2885,7 @@ static int em28xx_hint_board(struct em28xx *dev)
 				"Your board has no unique USB ID.\n"
 				"A hint were successfully done, based on i2c devicelist hash.\n"
 				"This method is not 100%% failproof.\n"
-				"If the board were missdetected, please email this log to:\n"
+				"If the board were misdetected, please email this log to:\n"
 				"\tV4L Mailing List  <linux-media@vger.kernel.org>\n"
 				"Board detected as %s\n",
 				em28xx_boards[dev->model].name);

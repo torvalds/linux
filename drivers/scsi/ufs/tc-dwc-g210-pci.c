@@ -130,8 +130,6 @@ tc_dwc_g210_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		return err;
 	}
 
-	INIT_LIST_HEAD(&hba->clk_list_head);
-
 	hba->vops = &tc_dwc_g210_pci_hba_vops;
 
 	err = ufshcd_init(hba, mmio_base, pdev->irq);

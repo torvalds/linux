@@ -100,12 +100,12 @@ int main(void)
 	OFFSET(THREAD_NORMSAVES, thread_struct, normsave[0]);
 #endif
 	OFFSET(THREAD_FPEXC_MODE, thread_struct, fpexc_mode);
-	OFFSET(THREAD_FPSTATE, thread_struct, fp_state);
+	OFFSET(THREAD_FPSTATE, thread_struct, fp_state.fpr);
 	OFFSET(THREAD_FPSAVEAREA, thread_struct, fp_save_area);
 	OFFSET(FPSTATE_FPSCR, thread_fp_state, fpscr);
 	OFFSET(THREAD_LOAD_FP, thread_struct, load_fp);
 #ifdef CONFIG_ALTIVEC
-	OFFSET(THREAD_VRSTATE, thread_struct, vr_state);
+	OFFSET(THREAD_VRSTATE, thread_struct, vr_state.vr);
 	OFFSET(THREAD_VRSAVEAREA, thread_struct, vr_save_area);
 	OFFSET(THREAD_VRSAVE, thread_struct, vrsave);
 	OFFSET(THREAD_USED_VR, thread_struct, used_vr);
@@ -145,9 +145,9 @@ int main(void)
 	OFFSET(THREAD_TM_PPR, thread_struct, tm_ppr);
 	OFFSET(THREAD_TM_DSCR, thread_struct, tm_dscr);
 	OFFSET(PT_CKPT_REGS, thread_struct, ckpt_regs);
-	OFFSET(THREAD_CKVRSTATE, thread_struct, ckvr_state);
+	OFFSET(THREAD_CKVRSTATE, thread_struct, ckvr_state.vr);
 	OFFSET(THREAD_CKVRSAVE, thread_struct, ckvrsave);
-	OFFSET(THREAD_CKFPSTATE, thread_struct, ckfp_state);
+	OFFSET(THREAD_CKFPSTATE, thread_struct, ckfp_state.fpr);
 	/* Local pt_regs on stack for Transactional Memory funcs. */
 	DEFINE(TM_FRAME_SIZE, STACK_FRAME_OVERHEAD +
 	       sizeof(struct pt_regs) + 16);
@@ -485,6 +485,7 @@ int main(void)
 	OFFSET(KVM_ENABLED_HCALLS, kvm, arch.enabled_hcalls);
 	OFFSET(KVM_VRMA_SLB_V, kvm, arch.vrma_slb_v);
 	OFFSET(KVM_RADIX, kvm, arch.radix);
+	OFFSET(KVM_FWNMI, kvm, arch.fwnmi_enabled);
 	OFFSET(VCPU_DSISR, kvm_vcpu, arch.shregs.dsisr);
 	OFFSET(VCPU_DAR, kvm_vcpu, arch.shregs.dar);
 	OFFSET(VCPU_VPA, kvm_vcpu, arch.vpa.pinned_addr);
@@ -513,6 +514,7 @@ int main(void)
 	OFFSET(VCPU_PENDING_EXC, kvm_vcpu, arch.pending_exceptions);
 	OFFSET(VCPU_CEDED, kvm_vcpu, arch.ceded);
 	OFFSET(VCPU_PRODDED, kvm_vcpu, arch.prodded);
+	OFFSET(VCPU_DBELL_REQ, kvm_vcpu, arch.doorbell_request);
 	OFFSET(VCPU_MMCR, kvm_vcpu, arch.mmcr);
 	OFFSET(VCPU_PMC, kvm_vcpu, arch.pmc);
 	OFFSET(VCPU_SPMC, kvm_vcpu, arch.spmc);
@@ -542,6 +544,7 @@ int main(void)
 	OFFSET(VCPU_WORT, kvm_vcpu, arch.wort);
 	OFFSET(VCPU_TID, kvm_vcpu, arch.tid);
 	OFFSET(VCPU_PSSCR, kvm_vcpu, arch.psscr);
+	OFFSET(VCPU_HFSCR, kvm_vcpu, arch.hfscr);
 	OFFSET(VCORE_ENTRY_EXIT, kvmppc_vcore, entry_exit_map);
 	OFFSET(VCORE_IN_GUEST, kvmppc_vcore, in_guest);
 	OFFSET(VCORE_NAPPING_THREADS, kvmppc_vcore, napping_threads);
@@ -742,9 +745,11 @@ int main(void)
 	OFFSET(PACA_THREAD_MASK, paca_struct, thread_mask);
 	OFFSET(PACA_SUBCORE_SIBLING_MASK, paca_struct, subcore_sibling_mask);
 	OFFSET(PACA_SIBLING_PACA_PTRS, paca_struct, thread_sibling_pacas);
+	OFFSET(PACA_REQ_PSSCR, paca_struct, requested_psscr);
 #endif
 
 	DEFINE(PPC_DBELL_SERVER, PPC_DBELL_SERVER);
+	DEFINE(PPC_DBELL_MSGTYPE, PPC_DBELL_MSGTYPE);
 
 #ifdef CONFIG_PPC_8xx
 	DEFINE(VIRT_IMMR_BASE, (u64)__fix_to_virt(FIX_IMMR_BASE));

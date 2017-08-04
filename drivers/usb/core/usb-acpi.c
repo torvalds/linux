@@ -127,6 +127,22 @@ out:
  */
 #define USB_ACPI_LOCATION_VALID (1 << 31)
 
+static struct acpi_device *usb_acpi_find_port(struct acpi_device *parent,
+					      int raw)
+{
+	struct acpi_device *adev;
+
+	if (!parent)
+		return NULL;
+
+	list_for_each_entry(adev, &parent->children, node) {
+		if (acpi_device_adr(adev) == raw)
+			return adev;
+	}
+
+	return acpi_find_child_device(parent, raw, false);
+}
+
 static struct acpi_device *usb_acpi_find_companion(struct device *dev)
 {
 	struct usb_device *udev;
@@ -174,8 +190,10 @@ static struct acpi_device *usb_acpi_find_companion(struct device *dev)
 			int raw;
 
 			raw = usb_hcd_find_raw_port_number(hcd, port1);
-			adev = acpi_find_child_device(ACPI_COMPANION(&udev->dev),
-					raw, false);
+
+			adev = usb_acpi_find_port(ACPI_COMPANION(&udev->dev),
+						  raw);
+
 			if (!adev)
 				return NULL;
 		} else {
@@ -186,7 +204,9 @@ static struct acpi_device *usb_acpi_find_companion(struct device *dev)
 				return NULL;
 
 			acpi_bus_get_device(parent_handle, &adev);
-			adev = acpi_find_child_device(adev, port1, false);
+
+			adev = usb_acpi_find_port(adev, port1);
+
 			if (!adev)
 				return NULL;
 		}

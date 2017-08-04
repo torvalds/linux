@@ -244,6 +244,11 @@ static inline int pud_devmap(pud_t pud)
 	return 0;
 }
 #endif
+
+static inline int pgd_devmap(pgd_t pgd)
+{
+	return 0;
+}
 #endif
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
@@ -917,7 +922,7 @@ extern pgd_t trampoline_pgd_entry;
 static inline void __meminit init_trampoline_default(void)
 {
 	/* Default trampoline pgd value */
-	trampoline_pgd_entry = init_level4_pgt[pgd_index(__PAGE_OFFSET)];
+	trampoline_pgd_entry = init_top_pgt[pgd_index(__PAGE_OFFSET)];
 }
 # ifdef CONFIG_RANDOMIZE_MEMORY
 void __meminit init_trampoline(void);
@@ -1183,6 +1188,54 @@ static inline u16 pte_flags_pkey(unsigned long pte_flags)
 #else
 	return 0;
 #endif
+}
+
+static inline bool __pkru_allows_pkey(u16 pkey, bool write)
+{
+	u32 pkru = read_pkru();
+
+	if (!__pkru_allows_read(pkru, pkey))
+		return false;
+	if (write && !__pkru_allows_write(pkru, pkey))
+		return false;
+
+	return true;
+}
+
+/*
+ * 'pteval' can come from a PTE, PMD or PUD.  We only check
+ * _PAGE_PRESENT, _PAGE_USER, and _PAGE_RW in here which are the
+ * same value on all 3 types.
+ */
+static inline bool __pte_access_permitted(unsigned long pteval, bool write)
+{
+	unsigned long need_pte_bits = _PAGE_PRESENT|_PAGE_USER;
+
+	if (write)
+		need_pte_bits |= _PAGE_RW;
+
+	if ((pteval & need_pte_bits) != need_pte_bits)
+		return 0;
+
+	return __pkru_allows_pkey(pte_flags_pkey(pteval), write);
+}
+
+#define pte_access_permitted pte_access_permitted
+static inline bool pte_access_permitted(pte_t pte, bool write)
+{
+	return __pte_access_permitted(pte_val(pte), write);
+}
+
+#define pmd_access_permitted pmd_access_permitted
+static inline bool pmd_access_permitted(pmd_t pmd, bool write)
+{
+	return __pte_access_permitted(pmd_val(pmd), write);
+}
+
+#define pud_access_permitted pud_access_permitted
+static inline bool pud_access_permitted(pud_t pud, bool write)
+{
+	return __pte_access_permitted(pud_val(pud), write);
 }
 
 #include <asm-generic/pgtable.h>

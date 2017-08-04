@@ -3573,6 +3573,9 @@ irq_retry:
 		/* Report disconnection if it is not already done. */
 		dwc2_hsotg_disconnect(hsotg);
 
+		/* Reset device address to zero */
+		__bic32(hsotg->regs + DCFG, DCFG_DEVADDR_MASK);
+
 		if (usb_status & GOTGCTL_BSESVLD && connected)
 			dwc2_hsotg_core_init_disconnected(hsotg, true);
 	}

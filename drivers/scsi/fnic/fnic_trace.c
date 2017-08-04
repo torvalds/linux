@@ -219,7 +219,31 @@ int fnic_get_stats_data(struct stats_debug_info *debug,
 	int buf_size = debug->buf_size;
 	struct timespec val1, val2;
 
+	getnstimeofday(&val1);
 	len = snprintf(debug->debug_buffer + len, buf_size - len,
+		"------------------------------------------\n"
+		 "\t\tTime\n"
+		"------------------------------------------\n");
+
+	len += snprintf(debug->debug_buffer + len, buf_size - len,
+		"Current time :          [%ld:%ld]\n"
+		"Last stats reset time:  [%ld:%ld]\n"
+		"Last stats read time:   [%ld:%ld]\n"
+		"delta since last reset: [%ld:%ld]\n"
+		"delta since last read:  [%ld:%ld]\n",
+	val1.tv_sec, val1.tv_nsec,
+	stats->stats_timestamps.last_reset_time.tv_sec,
+	stats->stats_timestamps.last_reset_time.tv_nsec,
+	stats->stats_timestamps.last_read_time.tv_sec,
+	stats->stats_timestamps.last_read_time.tv_nsec,
+	timespec_sub(val1, stats->stats_timestamps.last_reset_time).tv_sec,
+	timespec_sub(val1, stats->stats_timestamps.last_reset_time).tv_nsec,
+	timespec_sub(val1, stats->stats_timestamps.last_read_time).tv_sec,
+	timespec_sub(val1, stats->stats_timestamps.last_read_time).tv_nsec);
+
+	stats->stats_timestamps.last_read_time = val1;
+
+	len += snprintf(debug->debug_buffer + len, buf_size - len,
 		  "------------------------------------------\n"
 		  "\t\tIO Statistics\n"
 		  "------------------------------------------\n");

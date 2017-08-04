@@ -445,8 +445,8 @@ int ldlm_cli_enqueue_fini(struct obd_export *exp, struct ptlrpc_request *req,
 
 		if (!ldlm_res_eq(&reply->lock_desc.l_resource.lr_name,
 				 &lock->l_resource->lr_name)) {
-			CDEBUG(D_INFO, "remote intent success, locking "DLDLMRES
-				       " instead of "DLDLMRES"\n",
+			CDEBUG(D_INFO, "remote intent success, locking " DLDLMRES
+				       " instead of " DLDLMRES "\n",
 			       PLDLMRES(&reply->lock_desc.l_resource),
 			       PLDLMRES(lock->l_resource));
 
@@ -1677,7 +1677,7 @@ int ldlm_cli_cancel_unused_resource(struct ldlm_namespace *ns,
 					   0, flags | LCF_BL_AST, opaque);
 	rc = ldlm_cli_cancel_list(&cancels, count, NULL, flags);
 	if (rc != ELDLM_OK)
-		CERROR("canceling unused lock "DLDLMRES": rc = %d\n",
+		CERROR("canceling unused lock " DLDLMRES ": rc = %d\n",
 		       PLDLMRES(res), rc);
 
 	LDLM_RESOURCE_DELREF(res);

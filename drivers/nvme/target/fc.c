@@ -1164,18 +1164,24 @@ nvmet_fc_ls_create_association(struct nvmet_fc_tgtport *tgtport,
 
 	memset(acc, 0, sizeof(*acc));
 
-	if (iod->rqstdatalen < sizeof(struct fcnvme_ls_cr_assoc_rqst))
+	/*
+	 * FC-NVME spec changes. There are initiators sending different
+	 * lengths as padding sizes for Create Association Cmd descriptor
+	 * was incorrect.
+	 * Accept anything of "minimum" length. Assume format per 1.15
+	 * spec (with HOSTID reduced to 16 bytes), ignore how long the
+	 * trailing pad length is.
+	 */
+	if (iod->rqstdatalen < FCNVME_LSDESC_CRA_RQST_MINLEN)
 		ret = VERR_CR_ASSOC_LEN;
-	else if (rqst->desc_list_len !=
-			fcnvme_lsdesc_len(
-				sizeof(struct fcnvme_ls_cr_assoc_rqst)))
+	else if (be32_to_cpu(rqst->desc_list_len) <
+			FCNVME_LSDESC_CRA_RQST_MIN_LISTLEN)
 		ret = VERR_CR_ASSOC_RQST_LEN;
 	else if (rqst->assoc_cmd.desc_tag !=
 			cpu_to_be32(FCNVME_LSDESC_CREATE_ASSOC_CMD))
 		ret = VERR_CR_ASSOC_CMD;
-	else if (rqst->assoc_cmd.desc_len !=
-			fcnvme_lsdesc_len(
-				sizeof(struct fcnvme_lsdesc_cr_assoc_cmd)))
+	else if (be32_to_cpu(rqst->assoc_cmd.desc_len) <
+			FCNVME_LSDESC_CRA_CMD_DESC_MIN_DESCLEN)
 		ret = VERR_CR_ASSOC_CMD_LEN;
 	else if (!rqst->assoc_cmd.ersp_ratio ||
 		 (be16_to_cpu(rqst->assoc_cmd.ersp_ratio) >=
@@ -2096,20 +2102,22 @@ nvmet_fc_handle_fcp_rqst(struct nvmet_fc_tgtport *tgtport,
 	/* clear any response payload */
 	memset(&fod->rspiubuf, 0, sizeof(fod->rspiubuf));
 
+	fod->data_sg = NULL;
+	fod->data_sg_cnt = 0;
+
 	ret = nvmet_req_init(&fod->req,
 				&fod->queue->nvme_cq,
 				&fod->queue->nvme_sq,
 				&nvmet_fc_tgt_fcp_ops);
-	if (!ret) {	/* bad SQE content or invalid ctrl state */
-		nvmet_fc_abort_op(tgtport, fod);
+	if (!ret) {
+		/* bad SQE content or invalid ctrl state */
+		/* nvmet layer has already called op done to send rsp. */
 		return;
 	}
 
 	/* keep a running counter of tail position */
 	atomic_inc(&fod->queue->sqtail);
 
-	fod->data_sg = NULL;
-	fod->data_sg_cnt = 0;
 	if (fod->total_length) {
 		ret = nvmet_fc_alloc_tgt_pgs(fod);
 		if (ret) {
@@ -2285,66 +2293,70 @@ nvmet_fc_rcv_fcp_abort(struct nvmet_fc_target_port *target_port,
 }
 EXPORT_SYMBOL_GPL(nvmet_fc_rcv_fcp_abort);
 
-enum {
-	FCT_TRADDR_ERR		= 0,
-	FCT_TRADDR_WWNN		= 1 << 0,
-	FCT_TRADDR_WWPN		= 1 << 1,
-};
 
 struct nvmet_fc_traddr {
 	u64	nn;
 	u64	pn;
 };
 
-static const match_table_t traddr_opt_tokens = {
-	{ FCT_TRADDR_WWNN,	"nn-%s"		},
-	{ FCT_TRADDR_WWPN,	"pn-%s"		},
-	{ FCT_TRADDR_ERR,	NULL		}
-};
-
 static int
-nvmet_fc_parse_traddr(struct nvmet_fc_traddr *traddr, char *buf)
+__nvme_fc_parse_u64(substring_t *sstr, u64 *val)
 {
-	substring_t args[MAX_OPT_ARGS];
-	char *options, *o, *p;
-	int token, ret = 0;
 	u64 token64;
 
-	options = o = kstrdup(buf, GFP_KERNEL);
-	if (!options)
-		return -ENOMEM;
+	if (match_u64(sstr, &token64))
+		return -EINVAL;
+	*val = token64;
 
-	while ((p = strsep(&o, ":\n")) != NULL) {
-		if (!*p)
-			continue;
+	return 0;
+}
 
-		token = match_token(p, traddr_opt_tokens, args);
-		switch (token) {
-		case FCT_TRADDR_WWNN:
-			if (match_u64(args, &token64)) {
-				ret = -EINVAL;
-				goto out;
-			}
-			traddr->nn = token64;
-			break;
-		case FCT_TRADDR_WWPN:
-			if (match_u64(args, &token64)) {
-				ret = -EINVAL;
-				goto out;
-			}
-			traddr->pn = token64;
-			break;
-		default:
-			pr_warn("unknown traddr token or missing value '%s'\n",
-					p);
-			ret = -EINVAL;
-			goto out;
-		}
-	}
+/*
+ * This routine validates and extracts the WWN's from the TRADDR string.
+ * As kernel parsers need the 0x to determine number base, universally
+ * build string to parse with 0x prefix before parsing name strings.
+ */
+static int
+nvme_fc_parse_traddr(struct nvmet_fc_traddr *traddr, char *buf, size_t blen)
+{
+	char name[2 + NVME_FC_TRADDR_HEXNAMELEN + 1];
+	substring_t wwn = { name, &name[sizeof(name)-1] };
+	int nnoffset, pnoffset;
 
-out:
-	kfree(options);
-	return ret;
+	/* validate it string one of the 2 allowed formats */
+	if (strnlen(buf, blen) == NVME_FC_TRADDR_MAXLENGTH &&
+			!strncmp(buf, "nn-0x", NVME_FC_TRADDR_OXNNLEN) &&
+			!strncmp(&buf[NVME_FC_TRADDR_MAX_PN_OFFSET],
+				"pn-0x", NVME_FC_TRADDR_OXNNLEN)) {
+		nnoffset = NVME_FC_TRADDR_OXNNLEN;
+		pnoffset = NVME_FC_TRADDR_MAX_PN_OFFSET +
+						NVME_FC_TRADDR_OXNNLEN;
+	} else if ((strnlen(buf, blen) == NVME_FC_TRADDR_MINLENGTH &&
+			!strncmp(buf, "nn-", NVME_FC_TRADDR_NNLEN) &&
+			!strncmp(&buf[NVME_FC_TRADDR_MIN_PN_OFFSET],
+				"pn-", NVME_FC_TRADDR_NNLEN))) {
+		nnoffset = NVME_FC_TRADDR_NNLEN;
+		pnoffset = NVME_FC_TRADDR_MIN_PN_OFFSET + NVME_FC_TRADDR_NNLEN;
+	} else
+		goto out_einval;
+
+	name[0] = '0';
+	name[1] = 'x';
+	name[2 + NVME_FC_TRADDR_HEXNAMELEN] = 0;
+
+	memcpy(&name[2], &buf[nnoffset], NVME_FC_TRADDR_HEXNAMELEN);
+	if (__nvme_fc_parse_u64(&wwn, &traddr->nn))
+		goto out_einval;
+
+	memcpy(&name[2], &buf[pnoffset], NVME_FC_TRADDR_HEXNAMELEN);
+	if (__nvme_fc_parse_u64(&wwn, &traddr->pn))
+		goto out_einval;
+
+	return 0;
+
+out_einval:
+	pr_warn("%s: bad traddr string\n", __func__);
+	return -EINVAL;
 }
 
 static int
@@ -2362,7 +2374,8 @@ nvmet_fc_add_port(struct nvmet_port *port)
 
 	/* map the traddr address info to a target port */
 
-	ret = nvmet_fc_parse_traddr(&traddr, port->disc_addr.traddr);
+	ret = nvme_fc_parse_traddr(&traddr, port->disc_addr.traddr,
+			sizeof(port->disc_addr.traddr));
 	if (ret)
 		return ret;
 

@@ -333,8 +333,8 @@ static inline void receive_chars(struct IsdnCardState *cs,
 		if (!(skb = dev_alloc_skb(cs->hw.elsa.rcvcnt)))
 			printk(KERN_WARNING "ElsaSER: receive out of memory\n");
 		else {
-			memcpy(skb_put(skb, cs->hw.elsa.rcvcnt), cs->hw.elsa.rcvbuf,
-			       cs->hw.elsa.rcvcnt);
+			skb_put_data(skb, cs->hw.elsa.rcvbuf,
+				     cs->hw.elsa.rcvcnt);
 			skb_queue_tail(&cs->hw.elsa.bcs->rqueue, skb);
 		}
 		schedule_event(cs->hw.elsa.bcs, B_RCVBUFREADY);

@@ -954,7 +954,7 @@ static struct attribute *pdcs_subsys_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group pdcs_attr_group = {
+static const struct attribute_group pdcs_attr_group = {
 	.attrs = pdcs_subsys_attrs,
 };
 

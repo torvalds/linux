@@ -51,6 +51,8 @@ static const char * const platform_names[] = {
 	PLATFORM_NAME(BROXTON),
 	PLATFORM_NAME(KABYLAKE),
 	PLATFORM_NAME(GEMINILAKE),
+	PLATFORM_NAME(COFFEELAKE),
+	PLATFORM_NAME(CANNONLAKE),
 };
 #undef PLATFORM_NAME
 
@@ -183,16 +185,15 @@ static void gen9_sseu_info_init(struct drm_i915_private *dev_priv)
 				DIV_ROUND_UP(sseu->eu_total,
 					     sseu_subslice_total(sseu)) : 0;
 	/*
-	 * SKL supports slice power gating on devices with more than
+	 * SKL+ supports slice power gating on devices with more than
 	 * one slice, and supports EU power gating on devices with
-	 * more than one EU pair per subslice. BXT supports subslice
+	 * more than one EU pair per subslice. BXT+ supports subslice
 	 * power gating on devices with more than one subslice, and
 	 * supports EU power gating on devices with more than one EU
 	 * pair per subslice.
 	*/
 	sseu->has_slice_pg =
-		(IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) &&
-		hweight8(sseu->slice_mask) > 1;
+		!IS_GEN9_LP(dev_priv) && hweight8(sseu->slice_mask) > 1;
 	sseu->has_subslice_pg =
 		IS_GEN9_LP(dev_priv) && sseu_subslice_total(sseu) > 1;
 	sseu->has_eu_pg = sseu->eu_per_subslice > 2;
@@ -327,7 +328,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 	 * we don't expose the topmost plane at all to prevent ABI breakage
 	 * down the line.
 	 */
-	if (IS_GEMINILAKE(dev_priv))
+	if (IS_GEN10(dev_priv) || IS_GEMINILAKE(dev_priv))
 		for_each_pipe(dev_priv, pipe)
 			info->num_sprites[pipe] = 3;
 	else if (IS_BROXTON(dev_priv)) {
@@ -337,7 +338,7 @@ void intel_device_info_runtime_init(struct drm_i915_private *dev_priv)
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		for_each_pipe(dev_priv, pipe)
 			info->num_sprites[pipe] = 2;
-	} else if (INTEL_GEN(dev_priv) >= 5) {
+	} else if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv)) {
 		for_each_pipe(dev_priv, pipe)
 			info->num_sprites[pipe] = 1;
 	}

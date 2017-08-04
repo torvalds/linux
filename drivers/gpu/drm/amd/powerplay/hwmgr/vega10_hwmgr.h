@@ -185,6 +185,7 @@ struct vega10_vbios_boot_state {
 	uint32_t    gfx_clock;
 	uint32_t    mem_clock;
 	uint32_t    soc_clock;
+	uint32_t    dcef_clock;
 };
 
 #define DPMTABLE_OD_UPDATE_SCLK     0x00000001
@@ -210,6 +211,7 @@ struct vega10_smc_state_table {
 	PPTable_t       pp_table;
 	Watermarks_t    water_marks_table;
 	AvfsTable_t     avfs_table;
+	AvfsFuseOverride_t avfs_fuse_override_table;
 };
 
 struct vega10_mclk_latency_entries {

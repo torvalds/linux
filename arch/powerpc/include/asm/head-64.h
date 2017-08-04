@@ -3,6 +3,7 @@
 
 #include <asm/cache.h>
 
+#ifdef __ASSEMBLY__
 /*
  * We can't do CPP stringification and concatination directly into the section
  * name for some reason, so these macros can do it for us.
@@ -49,8 +50,8 @@
  *   CLOSE_FIXED_SECTION() or elsewhere, there may be something
  *   unexpected being added there. Remove the '. = x_len' line, rebuild, and
  *   check what is pushing the section down.
- * - If the build dies in linking, check arch/powerpc/kernel/vmlinux.lds.S
- *   for instructions.
+ * - If the build dies in linking, check arch/powerpc/tools/head_check.sh
+ *   comments.
  * - If the kernel crashes or hangs in very early boot, it could be linker
  *   stubs at the start of the main text.
  */
@@ -63,11 +64,29 @@
 	. = 0x0;						\
 start_##sname:
 
+/*
+ * .linker_stub_catch section is used to catch linker stubs from being
+ * inserted in our .text section, above the start_text label (which breaks
+ * the ABS_ADDR calculation). See kernel/vmlinux.lds.S and tools/head_check.sh
+ * for more details. We would prefer to just keep a cacheline (0x80), but
+ * 0x100 seems to be how the linker aligns branch stub groups.
+ */
+#ifdef CONFIG_LD_HEAD_STUB_CATCH
+#define OPEN_TEXT_SECTION(start)				\
+	.section ".linker_stub_catch","ax",@progbits;		\
+linker_stub_catch:						\
+	. = 0x4;						\
+	text_start = (start) + 0x100;				\
+	.section ".text","ax",@progbits;			\
+	.balign 0x100;						\
+start_text:
+#else
 #define OPEN_TEXT_SECTION(start)				\
 	text_start = (start);					\
 	.section ".text","ax",@progbits;			\
 	. = 0x0;						\
 start_text:
+#endif
 
 #define ZERO_FIXED_SECTION(sname, start, end)			\
 	sname##_start = (start);				\
@@ -396,5 +415,7 @@ name:
 #define EXC_COMMON_HV(name, realvec, hdlr)				\
 	EXC_COMMON_BEGIN(name);						\
 	STD_EXCEPTION_COMMON(realvec + 0x2, name, hdlr);		\
+
+#endif /* __ASSEMBLY__ */
 
 #endif	/* _ASM_POWERPC_HEAD_64_H */

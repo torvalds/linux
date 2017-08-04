@@ -18,34 +18,34 @@
 #ifndef __XFS_TYPES_H__
 #define	__XFS_TYPES_H__
 
-typedef __uint32_t	prid_t;		/* project ID */
+typedef uint32_t	prid_t;		/* project ID */
 
-typedef __uint32_t	xfs_agblock_t;	/* blockno in alloc. group */
-typedef	__uint32_t	xfs_agino_t;	/* inode # within allocation grp */
-typedef	__uint32_t	xfs_extlen_t;	/* extent length in blocks */
-typedef	__uint32_t	xfs_agnumber_t;	/* allocation group number */
-typedef __int32_t	xfs_extnum_t;	/* # of extents in a file */
-typedef __int16_t	xfs_aextnum_t;	/* # extents in an attribute fork */
-typedef	__int64_t	xfs_fsize_t;	/* bytes in a file */
-typedef __uint64_t	xfs_ufsize_t;	/* unsigned bytes in a file */
+typedef uint32_t	xfs_agblock_t;	/* blockno in alloc. group */
+typedef uint32_t	xfs_agino_t;	/* inode # within allocation grp */
+typedef uint32_t	xfs_extlen_t;	/* extent length in blocks */
+typedef uint32_t	xfs_agnumber_t;	/* allocation group number */
+typedef int32_t		xfs_extnum_t;	/* # of extents in a file */
+typedef int16_t		xfs_aextnum_t;	/* # extents in an attribute fork */
+typedef int64_t		xfs_fsize_t;	/* bytes in a file */
+typedef uint64_t	xfs_ufsize_t;	/* unsigned bytes in a file */
 
-typedef	__int32_t	xfs_suminfo_t;	/* type of bitmap summary info */
-typedef	__int32_t	xfs_rtword_t;	/* word type for bitmap manipulations */
+typedef int32_t		xfs_suminfo_t;	/* type of bitmap summary info */
+typedef int32_t		xfs_rtword_t;	/* word type for bitmap manipulations */
 
-typedef	__int64_t	xfs_lsn_t;	/* log sequence number */
-typedef	__int32_t	xfs_tid_t;	/* transaction identifier */
+typedef int64_t		xfs_lsn_t;	/* log sequence number */
+typedef int32_t		xfs_tid_t;	/* transaction identifier */
 
-typedef	__uint32_t	xfs_dablk_t;	/* dir/attr block number (in file) */
-typedef	__uint32_t	xfs_dahash_t;	/* dir/attr hash value */
+typedef uint32_t	xfs_dablk_t;	/* dir/attr block number (in file) */
+typedef uint32_t	xfs_dahash_t;	/* dir/attr hash value */
 
-typedef	__uint64_t	xfs_fsblock_t;	/* blockno in filesystem (agno|agbno) */
-typedef __uint64_t	xfs_rfsblock_t;	/* blockno in filesystem (raw) */
-typedef __uint64_t	xfs_rtblock_t;	/* extent (block) in realtime area */
-typedef __uint64_t	xfs_fileoff_t;	/* block number in a file */
-typedef __uint64_t	xfs_filblks_t;	/* number of blocks in a file */
+typedef uint64_t	xfs_fsblock_t;	/* blockno in filesystem (agno|agbno) */
+typedef uint64_t	xfs_rfsblock_t;	/* blockno in filesystem (raw) */
+typedef uint64_t	xfs_rtblock_t;	/* extent (block) in realtime area */
+typedef uint64_t	xfs_fileoff_t;	/* block number in a file */
+typedef uint64_t	xfs_filblks_t;	/* number of blocks in a file */
 
-typedef	__int64_t	xfs_srtblock_t;	/* signed version of xfs_rtblock_t */
-typedef __int64_t	xfs_sfiloff_t;	/* signed block number in a file */
+typedef int64_t		xfs_srtblock_t;	/* signed version of xfs_rtblock_t */
+typedef int64_t		xfs_sfiloff_t;	/* signed block number in a file */
 
 /*
  * Null values for the types.
@@ -125,7 +125,7 @@ struct xfs_name {
  * uid_t and gid_t are hard-coded to 32 bits in the inode.
  * Hence, an 'id' in a dquot is 32 bits..
  */
-typedef __uint32_t	xfs_dqid_t;
+typedef uint32_t	xfs_dqid_t;
 
 /*
  * Constants for bit manipulations.

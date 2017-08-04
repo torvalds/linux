@@ -378,7 +378,7 @@ __i915_mm_struct_free(struct kref *kref)
 	mutex_unlock(&mm->i915->mm_lock);
 
 	INIT_WORK(&mm->work, __i915_mm_struct_free__worker);
-	schedule_work(&mm->work);
+	queue_work(mm->i915->mm.userptr_wq, &mm->work);
 }
 
 static void
@@ -507,7 +507,7 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 	ret = -ENOMEM;
 	pinned = 0;
 
-	pvec = drm_malloc_gfp(npages, sizeof(struct page *), GFP_TEMPORARY);
+	pvec = kvmalloc_array(npages, sizeof(struct page *), GFP_TEMPORARY);
 	if (pvec != NULL) {
 		struct mm_struct *mm = obj->userptr.mm->mm;
 		unsigned int flags = 0;
@@ -555,7 +555,7 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
 	mutex_unlock(&obj->mm.lock);
 
 	release_pages(pvec, pinned, 0);
-	drm_free_large(pvec);
+	kvfree(pvec);
 
 	i915_gem_object_put(obj);
 	put_task_struct(work->task);
@@ -598,7 +598,7 @@ __i915_gem_userptr_get_pages_schedule(struct drm_i915_gem_object *obj)
 	get_task_struct(work->task);
 
 	INIT_WORK(&work->work, __i915_gem_userptr_get_pages_worker);
-	schedule_work(&work->work);
+	queue_work(to_i915(obj->base.dev)->mm.userptr_wq, &work->work);
 
 	return ERR_PTR(-EAGAIN);
 }
@@ -642,7 +642,7 @@ i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 	pinned = 0;
 
 	if (mm == current->mm) {
-		pvec = drm_malloc_gfp(num_pages, sizeof(struct page *),
+		pvec = kvmalloc_array(num_pages, sizeof(struct page *),
 				      GFP_TEMPORARY |
 				      __GFP_NORETRY |
 				      __GFP_NOWARN);
@@ -669,7 +669,7 @@ i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
 
 	if (IS_ERR(pages))
 		release_pages(pvec, pinned, 0);
-	drm_free_large(pvec);
+	kvfree(pvec);
 
 	return pages;
 }
@@ -802,9 +802,11 @@ i915_gem_userptr_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 
 	drm_gem_private_object_init(dev, &obj->base, args->user_size);
 	i915_gem_object_init(obj, &i915_gem_userptr_ops);
-	obj->cache_level = I915_CACHE_LLC;
-	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
 	obj->base.read_domains = I915_GEM_DOMAIN_CPU;
+	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
+	obj->cache_level = I915_CACHE_LLC;
+	obj->cache_coherent = i915_gem_object_is_coherent(obj);
+	obj->cache_dirty = !obj->cache_coherent;
 
 	obj->userptr.ptr = args->user_ptr;
 	obj->userptr.read_only = !!(args->flags & I915_USERPTR_READ_ONLY);
@@ -828,8 +830,20 @@ i915_gem_userptr_ioctl(struct drm_device *dev, void *data, struct drm_file *file
 	return 0;
 }
 
-void i915_gem_init_userptr(struct drm_i915_private *dev_priv)
+int i915_gem_init_userptr(struct drm_i915_private *dev_priv)
 {
 	mutex_init(&dev_priv->mm_lock);
 	hash_init(dev_priv->mm_structs);
+
+	dev_priv->mm.userptr_wq =
+		alloc_workqueue("i915-userptr-acquire", WQ_HIGHPRI, 0);
+	if (!dev_priv->mm.userptr_wq)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void i915_gem_cleanup_userptr(struct drm_i915_private *dev_priv)
+{
+	destroy_workqueue(dev_priv->mm.userptr_wq);
 }

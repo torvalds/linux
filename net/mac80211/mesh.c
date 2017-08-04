@@ -345,7 +345,7 @@ int mesh_add_vendor_ies(struct ieee80211_sub_if_data *sdata,
 		data = ifmsh->ie + offset;
 		if (skb_tailroom(skb) < len)
 			return -ENOMEM;
-		memcpy(skb_put(skb, len), data, len);
+		skb_put_data(skb, data, len);
 	}
 
 	return 0;
@@ -369,7 +369,7 @@ int mesh_add_rsn_ie(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb)
 
 	if (skb_tailroom(skb) < len)
 		return -ENOMEM;
-	memcpy(skb_put(skb, len), data, len);
+	skb_put_data(skb, data, len);
 
 	return 0;
 }
@@ -690,6 +690,9 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 		   2 + sizeof(struct ieee80211_channel_sw_ie) +
 		   /* Mesh Channel Switch Parameters */
 		   2 + sizeof(struct ieee80211_mesh_chansw_params_ie) +
+		   /* Channel Switch Wrapper + Wide Bandwidth CSA IE */
+		   2 + 2 + sizeof(struct ieee80211_wide_bw_chansw_ie) +
+		   2 + sizeof(struct ieee80211_sec_chan_offs_ie) +
 		   2 + 8 + /* supported rates */
 		   2 + 3; /* DS params */
 	tail_len = 2 + (IEEE80211_MAX_SUPP_RATES - 8) +
@@ -716,8 +719,7 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 	bcn->head = ((u8 *) bcn) + sizeof(*bcn);
 
 	/* fill in the head */
-	mgmt = (struct ieee80211_mgmt *) skb_put(skb, hdr_len);
-	memset(mgmt, 0, hdr_len);
+	mgmt = skb_put_zero(skb, hdr_len);
 	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					  IEEE80211_STYPE_BEACON);
 	eth_broadcast_addr(mgmt->da);
@@ -736,8 +738,12 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 	rcu_read_lock();
 	csa = rcu_dereference(ifmsh->csa);
 	if (csa) {
-		pos = skb_put(skb, 13);
-		memset(pos, 0, 13);
+		enum nl80211_channel_type ct;
+		struct cfg80211_chan_def *chandef;
+		int ie_len = 2 + sizeof(struct ieee80211_channel_sw_ie) +
+			     2 + sizeof(struct ieee80211_mesh_chansw_params_ie);
+
+		pos = skb_put_zero(skb, ie_len);
 		*pos++ = WLAN_EID_CHANNEL_SWITCH;
 		*pos++ = 3;
 		*pos++ = 0x0;
@@ -760,6 +766,37 @@ ieee80211_mesh_build_beacon(struct ieee80211_if_mesh *ifmsh)
 		pos += 2;
 		put_unaligned_le16(ifmsh->pre_value, pos);
 		pos += 2;
+
+		switch (csa->settings.chandef.width) {
+		case NL80211_CHAN_WIDTH_40:
+			ie_len = 2 + sizeof(struct ieee80211_sec_chan_offs_ie);
+			pos = skb_put_zero(skb, ie_len);
+
+			*pos++ = WLAN_EID_SECONDARY_CHANNEL_OFFSET; /* EID */
+			*pos++ = 1;				    /* len */
+			ct = cfg80211_get_chandef_type(&csa->settings.chandef);
+			if (ct == NL80211_CHAN_HT40PLUS)
+				*pos++ = IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
+			else
+				*pos++ = IEEE80211_HT_PARAM_CHA_SEC_BELOW;
+			break;
+		case NL80211_CHAN_WIDTH_80:
+		case NL80211_CHAN_WIDTH_80P80:
+		case NL80211_CHAN_WIDTH_160:
+			/* Channel Switch Wrapper + Wide Bandwidth CSA IE */
+			ie_len = 2 + 2 +
+				 sizeof(struct ieee80211_wide_bw_chansw_ie);
+			pos = skb_put_zero(skb, ie_len);
+
+			*pos++ = WLAN_EID_CHANNEL_SWITCH_WRAPPER; /* EID */
+			*pos++ = 5;				  /* len */
+			/* put sub IE */
+			chandef = &csa->settings.chandef;
+			ieee80211_ie_build_wide_bw_cs(pos, chandef);
+			break;
+		default:
+			break;
+		}
 	}
 	rcu_read_unlock();
 
@@ -916,6 +953,21 @@ void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 	ieee80211_configure_filter(local);
 }
 
+static void ieee80211_mesh_csa_mark_radar(struct ieee80211_sub_if_data *sdata)
+{
+	int err;
+
+	/* if the current channel is a DFS channel, mark the channel as
+	 * unavailable.
+	 */
+	err = cfg80211_chandef_dfs_required(sdata->local->hw.wiphy,
+					    &sdata->vif.bss_conf.chandef,
+					    NL80211_IFTYPE_MESH_POINT);
+	if (err > 0)
+		cfg80211_radar_event(sdata->local->hw.wiphy,
+				     &sdata->vif.bss_conf.chandef, GFP_ATOMIC);
+}
+
 static bool
 ieee80211_mesh_process_chnswitch(struct ieee80211_sub_if_data *sdata,
 				 struct ieee802_11_elems *elems, bool beacon)
@@ -933,19 +985,20 @@ ieee80211_mesh_process_chnswitch(struct ieee80211_sub_if_data *sdata,
 	if (!sband)
 		return false;
 
-	sta_flags = IEEE80211_STA_DISABLE_VHT;
+	sta_flags = 0;
 	switch (sdata->vif.bss_conf.chandef.width) {
 	case NL80211_CHAN_WIDTH_20_NOHT:
 		sta_flags |= IEEE80211_STA_DISABLE_HT;
 	case NL80211_CHAN_WIDTH_20:
 		sta_flags |= IEEE80211_STA_DISABLE_40MHZ;
+	case NL80211_CHAN_WIDTH_40:
+		sta_flags |= IEEE80211_STA_DISABLE_VHT;
 		break;
 	default:
 		break;
 	}
 
 	memset(&params, 0, sizeof(params));
-	memset(&csa_ie, 0, sizeof(csa_ie));
 	err = ieee80211_parse_ch_switch_ie(sdata, elems, sband->band,
 					   sta_flags, sdata->vif.addr,
 					   &csa_ie);
@@ -954,11 +1007,19 @@ ieee80211_mesh_process_chnswitch(struct ieee80211_sub_if_data *sdata,
 	if (err)
 		return false;
 
+	/* Mark the channel unavailable if the reason for the switch is
+	 * regulatory.
+	 */
+	if (csa_ie.reason_code == WLAN_REASON_MESH_CHAN_REGULATORY)
+		ieee80211_mesh_csa_mark_radar(sdata);
+
 	params.chandef = csa_ie.chandef;
 	params.count = csa_ie.count;
 
 	if (!cfg80211_chandef_usable(sdata->local->hw.wiphy, &params.chandef,
-				     IEEE80211_CHAN_DISABLED)) {
+				     IEEE80211_CHAN_DISABLED) ||
+	    !cfg80211_reg_can_beacon(sdata->local->hw.wiphy, &params.chandef,
+				     NL80211_IFTYPE_MESH_POINT)) {
 		sdata_info(sdata,
 			   "mesh STA %pM switches to unsupported channel (%d MHz, width:%d, CF1/2: %d/%d MHz), aborting\n",
 			   sdata->vif.addr,
@@ -974,9 +1035,16 @@ ieee80211_mesh_process_chnswitch(struct ieee80211_sub_if_data *sdata,
 					    NL80211_IFTYPE_MESH_POINT);
 	if (err < 0)
 		return false;
-	if (err > 0)
-		/* TODO: DFS not (yet) supported */
+	if (err > 0 && !ifmsh->userspace_handles_dfs) {
+		sdata_info(sdata,
+			   "mesh STA %pM switches to channel requiring DFS (%d MHz, width:%d, CF1/2: %d/%d MHz), aborting\n",
+			   sdata->vif.addr,
+			   params.chandef.chan->center_freq,
+			   params.chandef.width,
+			   params.chandef.center_freq1,
+			   params.chandef.center_freq2);
 		return false;
+	}
 
 	params.radar_required = err;
 
@@ -1057,8 +1125,8 @@ ieee80211_mesh_rx_probe_req(struct ieee80211_sub_if_data *sdata,
 		goto out;
 
 	skb_reserve(presp, local->tx_headroom);
-	memcpy(skb_put(presp, bcn->head_len), bcn->head, bcn->head_len);
-	memcpy(skb_put(presp, bcn->tail_len), bcn->tail, bcn->tail_len);
+	skb_put_data(presp, bcn->head, bcn->head_len);
+	skb_put_data(presp, bcn->tail, bcn->tail_len);
 	hdr = (struct ieee80211_mgmt *) presp->data;
 	hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					 IEEE80211_STYPE_PROBE_RESP);
@@ -1197,7 +1265,7 @@ static int mesh_fwd_csa_frame(struct ieee80211_sub_if_data *sdata,
 	if (!skb)
 		return -ENOMEM;
 	skb_reserve(skb, local->tx_headroom);
-	mgmt_fwd = (struct ieee80211_mgmt *) skb_put(skb, len);
+	mgmt_fwd = skb_put(skb, len);
 
 	/* offset_ttl is based on whether the secondary channel
 	 * offset is available or not. Subtract 1 from the mesh TTL
@@ -1233,7 +1301,7 @@ static void mesh_rx_csa_frame(struct ieee80211_sub_if_data *sdata,
 	pos = mgmt->u.action.u.chan_switch.variable;
 	baselen = offsetof(struct ieee80211_mgmt,
 			   u.action.u.chan_switch.variable);
-	ieee802_11_parse_elems(pos, len - baselen, false, &elems);
+	ieee802_11_parse_elems(pos, len - baselen, true, &elems);
 
 	ifmsh->chsw_ttl = elems.mesh_chansw_params_ie->mesh_ttl;
 	if (!--ifmsh->chsw_ttl)

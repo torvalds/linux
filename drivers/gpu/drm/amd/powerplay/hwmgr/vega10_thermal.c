@@ -439,9 +439,6 @@ static int vega10_thermal_set_temperature_range(struct pp_hwmgr *hwmgr,
 
 	cgs_write_register(hwmgr->device, reg, val);
 
-	reg = soc15_get_register_offset(THM_HWID, 0,
-			mmTHM_TCON_HTC_BASE_IDX, mmTHM_TCON_HTC);
-
 	return 0;
 }
 

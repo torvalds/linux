@@ -735,6 +735,7 @@ static int ubifs_do_bulk_read(struct ubifs_info *c, struct bu_info *bu,
 	int err, page_idx, page_cnt, ret = 0, n = 0;
 	int allocate = bu->buf ? 0 : 1;
 	loff_t isize;
+	gfp_t ra_gfp_mask = readahead_gfp_mask(mapping) & ~__GFP_FS;
 
 	err = ubifs_tnc_get_bu_keys(c, bu);
 	if (err)
@@ -796,8 +797,7 @@ static int ubifs_do_bulk_read(struct ubifs_info *c, struct bu_info *bu,
 
 		if (page_offset > end_index)
 			break;
-		page = find_or_create_page(mapping, page_offset,
-					   GFP_NOFS | __GFP_COLD);
+		page = find_or_create_page(mapping, page_offset, ra_gfp_mask);
 		if (!page)
 			break;
 		if (!PageUptodate(page))
@@ -1284,6 +1284,14 @@ int ubifs_setattr(struct dentry *dentry, struct iattr *attr)
 	if (err)
 		return err;
 
+	if (ubifs_crypt_is_encrypted(inode) && (attr->ia_valid & ATTR_SIZE)) {
+		err = fscrypt_get_encryption_info(inode);
+		if (err)
+			return err;
+		if (!fscrypt_has_encryption_key(inode))
+			return -ENOKEY;
+	}
+
 	if ((attr->ia_valid & ATTR_SIZE) && attr->ia_size < inode->i_size)
 		/* Truncation to a smaller size */
 		err = do_truncation(c, inode, attr);
@@ -1607,15 +1615,6 @@ static const struct vm_operations_struct ubifs_file_vm_ops = {
 static int ubifs_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	int err;
-	struct inode *inode = file->f_mapping->host;
-
-	if (ubifs_crypt_is_encrypted(inode)) {
-		err = fscrypt_get_encryption_info(inode);
-		if (err)
-			return -EACCES;
-		if (!fscrypt_has_encryption_key(inode))
-			return -ENOKEY;
-	}
 
 	err = generic_file_mmap(file, vma);
 	if (err)
@@ -1697,12 +1696,6 @@ static const char *ubifs_get_link(struct dentry *dentry,
 	}
 
 	pstr.name[pstr.len] = '\0';
-
-	// XXX this probably won't happen anymore...
-	if (pstr.name[0] == '\0') {
-		fscrypt_fname_free_buffer(&pstr);
-		return ERR_PTR(-ENOENT);
-	}
 
 	set_delayed_call(done, kfree_link, pstr.name);
 	return pstr.name;

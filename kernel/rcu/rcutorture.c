@@ -52,6 +52,8 @@
 #include <linux/torture.h>
 #include <linux/vmalloc.h>
 
+#include "rcu.h"
+
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Paul E. McKenney <paulmck@us.ibm.com> and Josh Triplett <josh@joshtriplett.org>");
 
@@ -562,31 +564,19 @@ static void srcu_torture_stats(void)
 	int __maybe_unused cpu;
 	int idx;
 
-#if defined(CONFIG_TREE_SRCU) || defined(CONFIG_CLASSIC_SRCU)
 #ifdef CONFIG_TREE_SRCU
 	idx = srcu_ctlp->srcu_idx & 0x1;
-#else /* #ifdef CONFIG_TREE_SRCU */
-	idx = srcu_ctlp->completed & 0x1;
-#endif /* #else #ifdef CONFIG_TREE_SRCU */
 	pr_alert("%s%s Tree SRCU per-CPU(idx=%d):",
 		 torture_type, TORTURE_FLAG, idx);
 	for_each_possible_cpu(cpu) {
 		unsigned long l0, l1;
 		unsigned long u0, u1;
 		long c0, c1;
-#ifdef CONFIG_TREE_SRCU
 		struct srcu_data *counts;
 
 		counts = per_cpu_ptr(srcu_ctlp->sda, cpu);
 		u0 = counts->srcu_unlock_count[!idx];
 		u1 = counts->srcu_unlock_count[idx];
-#else /* #ifdef CONFIG_TREE_SRCU */
-		struct srcu_array *counts;
-
-		counts = per_cpu_ptr(srcu_ctlp->per_cpu_ref, cpu);
-		u0 = counts->unlock_count[!idx];
-		u1 = counts->unlock_count[idx];
-#endif /* #else #ifdef CONFIG_TREE_SRCU */
 
 		/*
 		 * Make sure that a lock is always counted if the corresponding
@@ -594,13 +584,8 @@ static void srcu_torture_stats(void)
 		 */
 		smp_rmb();
 
-#ifdef CONFIG_TREE_SRCU
 		l0 = counts->srcu_lock_count[!idx];
 		l1 = counts->srcu_lock_count[idx];
-#else /* #ifdef CONFIG_TREE_SRCU */
-		l0 = counts->lock_count[!idx];
-		l1 = counts->lock_count[idx];
-#endif /* #else #ifdef CONFIG_TREE_SRCU */
 
 		c0 = l0 - u0;
 		c1 = l1 - u1;
@@ -609,7 +594,7 @@ static void srcu_torture_stats(void)
 	pr_cont("\n");
 #elif defined(CONFIG_TINY_SRCU)
 	idx = READ_ONCE(srcu_ctlp->srcu_idx) & 0x1;
-	pr_alert("%s%s Tiny SRCU per-CPU(idx=%d): (%d,%d)\n",
+	pr_alert("%s%s Tiny SRCU per-CPU(idx=%d): (%hd,%hd)\n",
 		 torture_type, TORTURE_FLAG, idx,
 		 READ_ONCE(srcu_ctlp->srcu_lock_nesting[!idx]),
 		 READ_ONCE(srcu_ctlp->srcu_lock_nesting[idx]));

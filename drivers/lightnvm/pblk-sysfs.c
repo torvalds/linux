@@ -49,30 +49,26 @@ static ssize_t pblk_sysfs_luns_show(struct pblk *pblk, char *page)
 
 static ssize_t pblk_sysfs_rate_limiter(struct pblk *pblk, char *page)
 {
-	struct nvm_tgt_dev *dev = pblk->dev;
-	struct nvm_geo *geo = &dev->geo;
 	int free_blocks, total_blocks;
 	int rb_user_max, rb_user_cnt;
-	int rb_gc_max, rb_gc_rsv, rb_gc_cnt, rb_budget, rb_state;
+	int rb_gc_max, rb_gc_cnt, rb_budget, rb_state;
 
 	free_blocks = atomic_read(&pblk->rl.free_blocks);
 	rb_user_max = pblk->rl.rb_user_max;
 	rb_user_cnt = atomic_read(&pblk->rl.rb_user_cnt);
 	rb_gc_max = pblk->rl.rb_gc_max;
-	rb_gc_rsv = pblk->rl.rb_gc_rsv;
 	rb_gc_cnt = atomic_read(&pblk->rl.rb_gc_cnt);
 	rb_budget = pblk->rl.rb_budget;
 	rb_state = pblk->rl.rb_state;
 
-	total_blocks = geo->blks_per_lun * geo->nr_luns;
+	total_blocks = pblk->rl.total_blocks;
 
 	return snprintf(page, PAGE_SIZE,
-		"u:%u/%u,gc:%u/%u/%u(%u/%u)(stop:<%u,full:>%u,free:%d/%d)-%d\n",
+		"u:%u/%u,gc:%u/%u(%u/%u)(stop:<%u,full:>%u,free:%d/%d)-%d\n",
 				rb_user_cnt,
 				rb_user_max,
 				rb_gc_cnt,
 				rb_gc_max,
-				rb_gc_rsv,
 				rb_state,
 				rb_budget,
 				pblk->rl.low,
@@ -150,11 +146,11 @@ static ssize_t pblk_sysfs_lines(struct pblk *pblk, char *page)
 	ssize_t sz = 0;
 	int nr_free_lines;
 	int cur_data, cur_log;
-	int free_line_cnt = 0, closed_line_cnt = 0;
+	int free_line_cnt = 0, closed_line_cnt = 0, emeta_line_cnt = 0;
 	int d_line_cnt = 0, l_line_cnt = 0;
 	int gc_full = 0, gc_high = 0, gc_mid = 0, gc_low = 0, gc_empty = 0;
-	int free = 0, bad = 0, cor = 0;
-	int msecs = 0, ssecs = 0, cur_sec = 0, vsc = 0, sec_in_line = 0;
+	int bad = 0, cor = 0;
+	int msecs = 0, cur_sec = 0, vsc = 0, sec_in_line = 0;
 	int map_weight = 0, meta_weight = 0;
 
 	spin_lock(&l_mg->free_lock);
@@ -165,6 +161,11 @@ static ssize_t pblk_sysfs_lines(struct pblk *pblk, char *page)
 	list_for_each_entry(line, &l_mg->free_list, list)
 		free_line_cnt++;
 	spin_unlock(&l_mg->free_lock);
+
+	spin_lock(&l_mg->close_lock);
+	list_for_each_entry(line, &l_mg->emeta_list, list)
+		emeta_line_cnt++;
+	spin_unlock(&l_mg->close_lock);
 
 	spin_lock(&l_mg->gc_lock);
 	list_for_each_entry(line, &l_mg->gc_full_list, list) {
@@ -212,8 +213,6 @@ static ssize_t pblk_sysfs_lines(struct pblk *pblk, char *page)
 		gc_empty++;
 	}
 
-	list_for_each_entry(line, &l_mg->free_list, list)
-		free++;
 	list_for_each_entry(line, &l_mg->bad_list, list)
 		bad++;
 	list_for_each_entry(line, &l_mg->corrupt_list, list)
@@ -224,8 +223,7 @@ static ssize_t pblk_sysfs_lines(struct pblk *pblk, char *page)
 	if (l_mg->data_line) {
 		cur_sec = l_mg->data_line->cur_sec;
 		msecs = l_mg->data_line->left_msecs;
-		ssecs = l_mg->data_line->left_ssecs;
-		vsc = l_mg->data_line->vsc;
+		vsc = le32_to_cpu(*l_mg->data_line->vsc);
 		sec_in_line = l_mg->data_line->sec_in_line;
 		meta_weight = bitmap_weight(&l_mg->meta_bitmap,
 							PBLK_DATA_LINES);
@@ -235,17 +233,20 @@ static ssize_t pblk_sysfs_lines(struct pblk *pblk, char *page)
 	spin_unlock(&l_mg->free_lock);
 
 	if (nr_free_lines != free_line_cnt)
-		pr_err("pblk: corrupted free line list\n");
+		pr_err("pblk: corrupted free line list:%d/%d\n",
+						nr_free_lines, free_line_cnt);
 
 	sz = snprintf(page, PAGE_SIZE - sz,
 		"line: nluns:%d, nblks:%d, nsecs:%d\n",
 		geo->nr_luns, lm->blk_per_line, lm->sec_per_line);
 
 	sz += snprintf(page + sz, PAGE_SIZE - sz,
-		"lines:d:%d,l:%d-f:%d(%d),b:%d,co:%d,c:%d(d:%d,l:%d)t:%d\n",
+		"lines:d:%d,l:%d-f:%d,m:%d/%d,c:%d,b:%d,co:%d(d:%d,l:%d)t:%d\n",
 					cur_data, cur_log,
-					free, nr_free_lines, bad, cor,
+					nr_free_lines,
+					emeta_line_cnt, meta_weight,
 					closed_line_cnt,
+					bad, cor,
 					d_line_cnt, l_line_cnt,
 					l_mg->nr_lines);
 
@@ -255,9 +256,10 @@ static ssize_t pblk_sysfs_lines(struct pblk *pblk, char *page)
 			atomic_read(&pblk->gc.inflight_gc));
 
 	sz += snprintf(page + sz, PAGE_SIZE - sz,
-		"data (%d) cur:%d, left:%d/%d, vsc:%d, s:%d, map:%d/%d (%d)\n",
-			cur_data, cur_sec, msecs, ssecs, vsc, sec_in_line,
-			map_weight, lm->sec_per_line, meta_weight);
+		"data (%d) cur:%d, left:%d, vsc:%d, s:%d, map:%d/%d (%d)\n",
+			cur_data, cur_sec, msecs, vsc, sec_in_line,
+			map_weight, lm->sec_per_line,
+			atomic_read(&pblk->inflight_io));
 
 	return sz;
 }
@@ -274,7 +276,7 @@ static ssize_t pblk_sysfs_lines_info(struct pblk *pblk, char *page)
 					lm->smeta_len, lm->smeta_sec);
 	sz += snprintf(page + sz, PAGE_SIZE - sz,
 				"emeta - len:%d, sec:%d, bb_start:%d\n",
-					lm->emeta_len, lm->emeta_sec,
+					lm->emeta_len[0], lm->emeta_sec[0],
 					lm->emeta_bb);
 	sz += snprintf(page + sz, PAGE_SIZE - sz,
 				"bitmap lengths: sec:%d, blk:%d, lun:%d\n",
@@ -290,6 +292,11 @@ static ssize_t pblk_sysfs_lines_info(struct pblk *pblk, char *page)
 	return sz;
 }
 
+static ssize_t pblk_sysfs_get_sec_per_write(struct pblk *pblk, char *page)
+{
+	return snprintf(page, PAGE_SIZE, "%d\n", pblk->sec_per_write);
+}
+
 #ifdef CONFIG_NVM_DEBUG
 static ssize_t pblk_sysfs_stats_debug(struct pblk *pblk, char *page)
 {
@@ -303,34 +310,13 @@ static ssize_t pblk_sysfs_stats_debug(struct pblk *pblk, char *page)
 			atomic_long_read(&pblk->padded_wb),
 			atomic_long_read(&pblk->sub_writes),
 			atomic_long_read(&pblk->sync_writes),
-			atomic_long_read(&pblk->compl_writes),
 			atomic_long_read(&pblk->recov_writes),
 			atomic_long_read(&pblk->recov_gc_writes),
 			atomic_long_read(&pblk->recov_gc_reads),
+			atomic_long_read(&pblk->cache_reads),
 			atomic_long_read(&pblk->sync_reads));
 }
 #endif
-
-static ssize_t pblk_sysfs_rate_store(struct pblk *pblk, const char *page,
-				     size_t len)
-{
-	struct pblk_gc *gc = &pblk->gc;
-	size_t c_len;
-	int value;
-
-	c_len = strcspn(page, "\n");
-	if (c_len >= len)
-		return -EINVAL;
-
-	if (kstrtouint(page, 0, &value))
-		return -EINVAL;
-
-	spin_lock(&gc->lock);
-	pblk_rl_set_gc_rsc(&pblk->rl, value);
-	spin_unlock(&gc->lock);
-
-	return len;
-}
 
 static ssize_t pblk_sysfs_gc_force(struct pblk *pblk, const char *page,
 				   size_t len)
@@ -345,10 +331,30 @@ static ssize_t pblk_sysfs_gc_force(struct pblk *pblk, const char *page,
 	if (kstrtouint(page, 0, &force))
 		return -EINVAL;
 
-	if (force < 0 || force > 1)
+	pblk_gc_sysfs_force(pblk, force);
+
+	return len;
+}
+
+static ssize_t pblk_sysfs_set_sec_per_write(struct pblk *pblk,
+					     const char *page, size_t len)
+{
+	size_t c_len;
+	int sec_per_write;
+
+	c_len = strcspn(page, "\n");
+	if (c_len >= len)
 		return -EINVAL;
 
-	pblk_gc_sysfs_force(pblk, force);
+	if (kstrtouint(page, 0, &sec_per_write))
+		return -EINVAL;
+
+	if (sec_per_write < pblk->min_write_pgs
+				|| sec_per_write > pblk->max_write_pgs
+				|| sec_per_write % pblk->min_write_pgs != 0)
+		return -EINVAL;
+
+	pblk_set_sec_per_write(pblk, sec_per_write);
 
 	return len;
 }
@@ -398,9 +404,9 @@ static struct attribute sys_gc_force = {
 	.mode = 0200,
 };
 
-static struct attribute sys_gc_rl_max = {
-	.name = "gc_rl_max",
-	.mode = 0200,
+static struct attribute sys_max_sec_per_write = {
+	.name = "max_sec_per_write",
+	.mode = 0644,
 };
 
 #ifdef CONFIG_NVM_DEBUG
@@ -416,7 +422,7 @@ static struct attribute *pblk_attrs[] = {
 	&sys_errors_attr,
 	&sys_gc_state,
 	&sys_gc_force,
-	&sys_gc_rl_max,
+	&sys_max_sec_per_write,
 	&sys_rb_attr,
 	&sys_stats_ppaf_attr,
 	&sys_lines_attr,
@@ -448,6 +454,8 @@ static ssize_t pblk_sysfs_show(struct kobject *kobj, struct attribute *attr,
 		return pblk_sysfs_lines(pblk, buf);
 	else if (strcmp(attr->name, "lines_info") == 0)
 		return pblk_sysfs_lines_info(pblk, buf);
+	else if (strcmp(attr->name, "max_sec_per_write") == 0)
+		return pblk_sysfs_get_sec_per_write(pblk, buf);
 #ifdef CONFIG_NVM_DEBUG
 	else if (strcmp(attr->name, "stats") == 0)
 		return pblk_sysfs_stats_debug(pblk, buf);
@@ -460,10 +468,10 @@ static ssize_t pblk_sysfs_store(struct kobject *kobj, struct attribute *attr,
 {
 	struct pblk *pblk = container_of(kobj, struct pblk, kobj);
 
-	if (strcmp(attr->name, "gc_rl_max") == 0)
-		return pblk_sysfs_rate_store(pblk, buf, len);
-	else if (strcmp(attr->name, "gc_force") == 0)
+	if (strcmp(attr->name, "gc_force") == 0)
 		return pblk_sysfs_gc_force(pblk, buf, len);
+	else if (strcmp(attr->name, "max_sec_per_write") == 0)
+		return pblk_sysfs_set_sec_per_write(pblk, buf, len);
 
 	return 0;
 }

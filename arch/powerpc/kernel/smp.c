@@ -33,6 +33,7 @@
 #include <linux/notifier.h>
 #include <linux/topology.h>
 #include <linux/profile.h>
+#include <linux/processor.h>
 
 #include <asm/ptrace.h>
 #include <linux/atomic.h>
@@ -97,7 +98,7 @@ int smp_generic_cpu_bootable(unsigned int nr)
 	/* Special case - we inhibit secondary thread startup
 	 * during boot if the user requests it.
 	 */
-	if (system_state == SYSTEM_BOOTING && cpu_has_feature(CPU_FTR_SMT)) {
+	if (system_state < SYSTEM_RUNNING && cpu_has_feature(CPU_FTR_SMT)) {
 		if (!smt_enabled_at_boot && cpu_thread_in_core(nr) != 0)
 			return 0;
 		if (smt_enabled_at_boot
@@ -112,7 +113,8 @@ int smp_generic_cpu_bootable(unsigned int nr)
 #ifdef CONFIG_PPC64
 int smp_generic_kick_cpu(int nr)
 {
-	BUG_ON(nr < 0 || nr >= NR_CPUS);
+	if (nr < 0 || nr >= nr_cpu_ids)
+		return -EINVAL;
 
 	/*
 	 * The processor is currently spinning, waiting for the
@@ -433,13 +435,31 @@ static void do_smp_send_nmi_ipi(int cpu)
 	}
 }
 
+void smp_flush_nmi_ipi(u64 delay_us)
+{
+	unsigned long flags;
+
+	nmi_ipi_lock_start(&flags);
+	while (nmi_ipi_busy_count) {
+		nmi_ipi_unlock_end(&flags);
+		udelay(1);
+		if (delay_us) {
+			delay_us--;
+			if (!delay_us)
+				return;
+		}
+		nmi_ipi_lock_start(&flags);
+	}
+	nmi_ipi_unlock_end(&flags);
+}
+
 /*
  * - cpu is the target CPU (must not be this CPU), or NMI_IPI_ALL_OTHERS.
  * - fn is the target callback function.
  * - delay_us > 0 is the delay before giving up waiting for targets to
  *   enter the handler, == 0 specifies indefinite delay.
  */
-static int smp_send_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us)
+int smp_send_nmi_ipi(int cpu, void (*fn)(struct pt_regs *), u64 delay_us)
 {
 	unsigned long flags;
 	int me = raw_smp_processor_id();
@@ -766,8 +786,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *tidle)
 		smp_ops->give_timebase();
 
 	/* Wait until cpu puts itself in the online & active maps */
-	while (!cpu_online(cpu))
-		cpu_relax();
+	spin_until_cond(cpu_online(cpu));
 
 	return 0;
 }

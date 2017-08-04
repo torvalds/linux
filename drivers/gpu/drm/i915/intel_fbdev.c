@@ -211,7 +211,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	 * This also validates that any existing fb inherited from the
 	 * BIOS is suitable for own access.
 	 */
-	vma = intel_pin_and_fence_fb_obj(&ifbdev->fb->base, DRM_ROTATE_0);
+	vma = intel_pin_and_fence_fb_obj(&ifbdev->fb->base, DRM_MODE_ROTATE_0);
 	if (IS_ERR(vma)) {
 		ret = PTR_ERR(vma);
 		goto out_unlock;
@@ -535,13 +535,14 @@ static void intel_fbdev_destroy(struct intel_fbdev *ifbdev)
 
 	drm_fb_helper_fini(&ifbdev->helper);
 
-	if (ifbdev->fb) {
+	if (ifbdev->vma) {
 		mutex_lock(&ifbdev->helper.dev->struct_mutex);
 		intel_unpin_fb_vma(ifbdev->vma);
 		mutex_unlock(&ifbdev->helper.dev->struct_mutex);
-
-		drm_framebuffer_remove(&ifbdev->fb->base);
 	}
+
+	if (ifbdev->fb)
+		drm_framebuffer_remove(&ifbdev->fb->base);
 
 	kfree(ifbdev);
 }
@@ -765,7 +766,7 @@ void intel_fbdev_set_suspend(struct drm_device *dev, int state, bool synchronous
 	struct intel_fbdev *ifbdev = dev_priv->fbdev;
 	struct fb_info *info;
 
-	if (!ifbdev || !ifbdev->fb)
+	if (!ifbdev || !ifbdev->vma)
 		return;
 
 	info = ifbdev->helper.fbdev;
@@ -812,7 +813,7 @@ void intel_fbdev_output_poll_changed(struct drm_device *dev)
 {
 	struct intel_fbdev *ifbdev = to_i915(dev)->fbdev;
 
-	if (ifbdev && ifbdev->fb)
+	if (ifbdev && ifbdev->vma)
 		drm_fb_helper_hotplug_event(&ifbdev->helper);
 }
 
@@ -824,7 +825,7 @@ void intel_fbdev_restore_mode(struct drm_device *dev)
 		return;
 
 	intel_fbdev_sync(ifbdev);
-	if (!ifbdev->fb)
+	if (!ifbdev->vma)
 		return;
 
 	if (drm_fb_helper_restore_fbdev_mode_unlocked(&ifbdev->helper) == 0)

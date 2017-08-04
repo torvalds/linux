@@ -460,12 +460,12 @@ static int get_gpmc_timing_reg(
 		if (l)
 			time_ns_min = gpmc_clk_ticks_to_ns(l - 1, cs, cd) + 1;
 		time_ns = gpmc_clk_ticks_to_ns(l, cs, cd);
-		pr_info("gpmc,%s = <%u> /* %u ns - %u ns; %i ticks%s*/\n",
+		pr_info("gpmc,%s = <%u>; /* %u ns - %u ns; %i ticks%s*/\n",
 			name, time_ns, time_ns_min, time_ns, l,
 			invalid ? "; invalid " : " ");
 	} else {
 		/* raw format */
-		pr_info("gpmc,%s = <%u>%s\n", name, l,
+		pr_info("gpmc,%s = <%u>;%s\n", name, l,
 			invalid ? " /* invalid */" : "");
 	}
 
@@ -2083,8 +2083,11 @@ static int gpmc_probe_generic_child(struct platform_device *pdev,
 	} else {
 		ret = of_property_read_u32(child, "bank-width",
 					   &gpmc_s.device_width);
-		if (ret < 0)
+		if (ret < 0) {
+			dev_err(&pdev->dev, "%s has no 'bank-width' property\n",
+				child->full_name);
 			goto err;
+		}
 	}
 
 	/* Reserve wait pin if it is required and valid */

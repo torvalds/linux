@@ -266,7 +266,7 @@ static int check_partial_mapping(struct drm_i915_gem_object *obj,
 		if (offset >= obj->base.size)
 			continue;
 
-		i915_gem_object_flush_gtt_write_domain(obj);
+		flush_write_domain(obj, ~I915_GEM_DOMAIN_CPU);
 
 		p = i915_gem_object_get_page(obj, offset >> PAGE_SHIFT);
 		cpu = kmap(p) + offset_in_page(offset);
@@ -545,7 +545,9 @@ static int igt_mmap_offset_exhaustion(void *arg)
 		}
 
 		mutex_lock(&i915->drm.struct_mutex);
+		intel_runtime_pm_get(i915);
 		err = make_obj_busy(obj);
+		intel_runtime_pm_put(i915);
 		mutex_unlock(&i915->drm.struct_mutex);
 		if (err) {
 			pr_err("[loop %d] Failed to busy the object\n", loop);

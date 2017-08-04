@@ -109,20 +109,34 @@ void __f_setown(struct file *filp, struct pid *pid, enum pid_type type,
 }
 EXPORT_SYMBOL(__f_setown);
 
-void f_setown(struct file *filp, unsigned long arg, int force)
+int f_setown(struct file *filp, unsigned long arg, int force)
 {
 	enum pid_type type;
-	struct pid *pid;
-	int who = arg;
+	struct pid *pid = NULL;
+	int who = arg, ret = 0;
+
 	type = PIDTYPE_PID;
 	if (who < 0) {
+		/* avoid overflow below */
+		if (who == INT_MIN)
+			return -EINVAL;
+
 		type = PIDTYPE_PGID;
 		who = -who;
 	}
+
 	rcu_read_lock();
-	pid = find_vpid(who);
-	__f_setown(filp, pid, type, force);
+	if (who) {
+		pid = find_vpid(who);
+		if (!pid)
+			ret = -ESRCH;
+	}
+
+	if (!ret)
+		__f_setown(filp, pid, type, force);
 	rcu_read_unlock();
+
+	return ret;
 }
 EXPORT_SYMBOL(f_setown);
 
@@ -243,9 +257,72 @@ static int f_getowner_uids(struct file *filp, unsigned long arg)
 }
 #endif
 
+static bool rw_hint_valid(enum rw_hint hint)
+{
+	switch (hint) {
+	case RWF_WRITE_LIFE_NOT_SET:
+	case RWH_WRITE_LIFE_NONE:
+	case RWH_WRITE_LIFE_SHORT:
+	case RWH_WRITE_LIFE_MEDIUM:
+	case RWH_WRITE_LIFE_LONG:
+	case RWH_WRITE_LIFE_EXTREME:
+		return true;
+	default:
+		return false;
+	}
+}
+
+static long fcntl_rw_hint(struct file *file, unsigned int cmd,
+			  unsigned long arg)
+{
+	struct inode *inode = file_inode(file);
+	u64 *argp = (u64 __user *)arg;
+	enum rw_hint hint;
+	u64 h;
+
+	switch (cmd) {
+	case F_GET_FILE_RW_HINT:
+		h = file_write_hint(file);
+		if (copy_to_user(argp, &h, sizeof(*argp)))
+			return -EFAULT;
+		return 0;
+	case F_SET_FILE_RW_HINT:
+		if (copy_from_user(&h, argp, sizeof(h)))
+			return -EFAULT;
+		hint = (enum rw_hint) h;
+		if (!rw_hint_valid(hint))
+			return -EINVAL;
+
+		spin_lock(&file->f_lock);
+		file->f_write_hint = hint;
+		spin_unlock(&file->f_lock);
+		return 0;
+	case F_GET_RW_HINT:
+		h = inode->i_write_hint;
+		if (copy_to_user(argp, &h, sizeof(*argp)))
+			return -EFAULT;
+		return 0;
+	case F_SET_RW_HINT:
+		if (copy_from_user(&h, argp, sizeof(h)))
+			return -EFAULT;
+		hint = (enum rw_hint) h;
+		if (!rw_hint_valid(hint))
+			return -EINVAL;
+
+		inode_lock(inode);
+		inode->i_write_hint = hint;
+		inode_unlock(inode);
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
 static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 		struct file *filp)
 {
+	void __user *argp = (void __user *)arg;
+	struct flock flock;
 	long err = -EINVAL;
 
 	switch (cmd) {
@@ -273,7 +350,11 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 	case F_OFD_GETLK:
 #endif
 	case F_GETLK:
-		err = fcntl_getlk(filp, cmd, (struct flock __user *) arg);
+		if (copy_from_user(&flock, argp, sizeof(flock)))
+			return -EFAULT;
+		err = fcntl_getlk(filp, cmd, &flock);
+		if (!err && copy_to_user(argp, &flock, sizeof(flock)))
+			return -EFAULT;
 		break;
 #if BITS_PER_LONG != 32
 	/* 32-bit arches must use fcntl64() */
@@ -283,7 +364,9 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 		/* Fallthrough */
 	case F_SETLK:
 	case F_SETLKW:
-		err = fcntl_setlk(fd, filp, cmd, (struct flock __user *) arg);
+		if (copy_from_user(&flock, argp, sizeof(flock)))
+			return -EFAULT;
+		err = fcntl_setlk(fd, filp, cmd, &flock);
 		break;
 	case F_GETOWN:
 		/*
@@ -297,8 +380,7 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 		force_successful_syscall_return();
 		break;
 	case F_SETOWN:
-		f_setown(filp, arg, 1);
-		err = 0;
+		err = f_setown(filp, arg, 1);
 		break;
 	case F_GETOWN_EX:
 		err = f_getown_ex(filp, arg);
@@ -336,6 +418,12 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 	case F_ADD_SEALS:
 	case F_GET_SEALS:
 		err = shmem_fcntl(filp, cmd, arg);
+		break;
+	case F_GET_RW_HINT:
+	case F_SET_RW_HINT:
+	case F_GET_FILE_RW_HINT:
+	case F_SET_FILE_RW_HINT:
+		err = fcntl_rw_hint(filp, cmd, arg);
 		break;
 	default:
 		break;
@@ -383,7 +471,9 @@ out:
 SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
 		unsigned long, arg)
 {	
+	void __user *argp = (void __user *)arg;
 	struct fd f = fdget_raw(fd);
+	struct flock64 flock;
 	long err = -EBADF;
 
 	if (!f.file)
@@ -401,14 +491,21 @@ SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
 	switch (cmd) {
 	case F_GETLK64:
 	case F_OFD_GETLK:
-		err = fcntl_getlk64(f.file, cmd, (struct flock64 __user *) arg);
+		err = -EFAULT;
+		if (copy_from_user(&flock, argp, sizeof(flock)))
+			break;
+		err = fcntl_getlk64(f.file, cmd, &flock);
+		if (!err && copy_to_user(argp, &flock, sizeof(flock)))
+			err = -EFAULT;
 		break;
 	case F_SETLK64:
 	case F_SETLKW64:
 	case F_OFD_SETLK:
 	case F_OFD_SETLKW:
-		err = fcntl_setlk64(fd, f.file, cmd,
-				(struct flock64 __user *) arg);
+		err = -EFAULT;
+		if (copy_from_user(&flock, argp, sizeof(flock)))
+			break;
+		err = fcntl_setlk64(fd, f.file, cmd, &flock);
 		break;
 	default:
 		err = do_fcntl(fd, cmd, arg, f.file);
@@ -422,57 +519,56 @@ out:
 #endif
 
 #ifdef CONFIG_COMPAT
-static int get_compat_flock(struct flock *kfl, struct compat_flock __user *ufl)
+/* careful - don't use anywhere else */
+#define copy_flock_fields(dst, src)		\
+	(dst)->l_type = (src)->l_type;		\
+	(dst)->l_whence = (src)->l_whence;	\
+	(dst)->l_start = (src)->l_start;	\
+	(dst)->l_len = (src)->l_len;		\
+	(dst)->l_pid = (src)->l_pid;
+
+static int get_compat_flock(struct flock *kfl, const struct compat_flock __user *ufl)
 {
-	if (!access_ok(VERIFY_READ, ufl, sizeof(*ufl)) ||
-	    __get_user(kfl->l_type, &ufl->l_type) ||
-	    __get_user(kfl->l_whence, &ufl->l_whence) ||
-	    __get_user(kfl->l_start, &ufl->l_start) ||
-	    __get_user(kfl->l_len, &ufl->l_len) ||
-	    __get_user(kfl->l_pid, &ufl->l_pid))
+	struct compat_flock fl;
+
+	if (copy_from_user(&fl, ufl, sizeof(struct compat_flock)))
+		return -EFAULT;
+	copy_flock_fields(kfl, &fl);
+	return 0;
+}
+
+static int get_compat_flock64(struct flock *kfl, const struct compat_flock64 __user *ufl)
+{
+	struct compat_flock64 fl;
+
+	if (copy_from_user(&fl, ufl, sizeof(struct compat_flock64)))
+		return -EFAULT;
+	copy_flock_fields(kfl, &fl);
+	return 0;
+}
+
+static int put_compat_flock(const struct flock *kfl, struct compat_flock __user *ufl)
+{
+	struct compat_flock fl;
+
+	memset(&fl, 0, sizeof(struct compat_flock));
+	copy_flock_fields(&fl, kfl);
+	if (copy_to_user(ufl, &fl, sizeof(struct compat_flock)))
 		return -EFAULT;
 	return 0;
 }
 
-static int put_compat_flock(struct flock *kfl, struct compat_flock __user *ufl)
+static int put_compat_flock64(const struct flock *kfl, struct compat_flock64 __user *ufl)
 {
-	if (!access_ok(VERIFY_WRITE, ufl, sizeof(*ufl)) ||
-	    __put_user(kfl->l_type, &ufl->l_type) ||
-	    __put_user(kfl->l_whence, &ufl->l_whence) ||
-	    __put_user(kfl->l_start, &ufl->l_start) ||
-	    __put_user(kfl->l_len, &ufl->l_len) ||
-	    __put_user(kfl->l_pid, &ufl->l_pid))
-		return -EFAULT;
-	return 0;
-}
+	struct compat_flock64 fl;
 
-#ifndef HAVE_ARCH_GET_COMPAT_FLOCK64
-static int get_compat_flock64(struct flock *kfl, struct compat_flock64 __user *ufl)
-{
-	if (!access_ok(VERIFY_READ, ufl, sizeof(*ufl)) ||
-	    __get_user(kfl->l_type, &ufl->l_type) ||
-	    __get_user(kfl->l_whence, &ufl->l_whence) ||
-	    __get_user(kfl->l_start, &ufl->l_start) ||
-	    __get_user(kfl->l_len, &ufl->l_len) ||
-	    __get_user(kfl->l_pid, &ufl->l_pid))
+	memset(&fl, 0, sizeof(struct compat_flock64));
+	copy_flock_fields(&fl, kfl);
+	if (copy_to_user(ufl, &fl, sizeof(struct compat_flock64)))
 		return -EFAULT;
 	return 0;
 }
-#endif
-
-#ifndef HAVE_ARCH_PUT_COMPAT_FLOCK64
-static int put_compat_flock64(struct flock *kfl, struct compat_flock64 __user *ufl)
-{
-	if (!access_ok(VERIFY_WRITE, ufl, sizeof(*ufl)) ||
-	    __put_user(kfl->l_type, &ufl->l_type) ||
-	    __put_user(kfl->l_whence, &ufl->l_whence) ||
-	    __put_user(kfl->l_start, &ufl->l_start) ||
-	    __put_user(kfl->l_len, &ufl->l_len) ||
-	    __put_user(kfl->l_pid, &ufl->l_pid))
-		return -EFAULT;
-	return 0;
-}
-#endif
+#undef copy_flock_fields
 
 static unsigned int
 convert_fcntl_cmd(unsigned int cmd)
@@ -489,76 +585,92 @@ convert_fcntl_cmd(unsigned int cmd)
 	return cmd;
 }
 
+/*
+ * GETLK was successful and we need to return the data, but it needs to fit in
+ * the compat structure.
+ * l_start shouldn't be too big, unless the original start + end is greater than
+ * COMPAT_OFF_T_MAX, in which case the app was asking for trouble, so we return
+ * -EOVERFLOW in that case.  l_len could be too big, in which case we just
+ * truncate it, and only allow the app to see that part of the conflicting lock
+ * that might make sense to it anyway
+ */
+static int fixup_compat_flock(struct flock *flock)
+{
+	if (flock->l_start > COMPAT_OFF_T_MAX)
+		return -EOVERFLOW;
+	if (flock->l_len > COMPAT_OFF_T_MAX)
+		flock->l_len = COMPAT_OFF_T_MAX;
+	return 0;
+}
+
 COMPAT_SYSCALL_DEFINE3(fcntl64, unsigned int, fd, unsigned int, cmd,
 		       compat_ulong_t, arg)
 {
-	mm_segment_t old_fs;
-	struct flock f;
-	long ret;
-	unsigned int conv_cmd;
+	struct fd f = fdget_raw(fd);
+	struct flock flock;
+	long err = -EBADF;
+
+	if (!f.file)
+		return err;
+
+	if (unlikely(f.file->f_mode & FMODE_PATH)) {
+		if (!check_fcntl_cmd(cmd))
+			goto out_put;
+	}
+
+	err = security_file_fcntl(f.file, cmd, arg);
+	if (err)
+		goto out_put;
 
 	switch (cmd) {
 	case F_GETLK:
+		err = get_compat_flock(&flock, compat_ptr(arg));
+		if (err)
+			break;
+		err = fcntl_getlk(f.file, convert_fcntl_cmd(cmd), &flock);
+		if (err)
+			break;
+		err = fixup_compat_flock(&flock);
+		if (err)
+			return err;
+		err = put_compat_flock(&flock, compat_ptr(arg));
+		break;
+	case F_GETLK64:
+	case F_OFD_GETLK:
+		err = get_compat_flock64(&flock, compat_ptr(arg));
+		if (err)
+			break;
+		err = fcntl_getlk(f.file, convert_fcntl_cmd(cmd), &flock);
+		if (err)
+			break;
+		err = fixup_compat_flock(&flock);
+		if (err)
+			return err;
+		err = put_compat_flock64(&flock, compat_ptr(arg));
+		break;
 	case F_SETLK:
 	case F_SETLKW:
-		ret = get_compat_flock(&f, compat_ptr(arg));
-		if (ret != 0)
+		err = get_compat_flock(&flock, compat_ptr(arg));
+		if (err)
 			break;
-		old_fs = get_fs();
-		set_fs(KERNEL_DS);
-		ret = sys_fcntl(fd, cmd, (unsigned long)&f);
-		set_fs(old_fs);
-		if (cmd == F_GETLK && ret == 0) {
-			/* GETLK was successful and we need to return the data...
-			 * but it needs to fit in the compat structure.
-			 * l_start shouldn't be too big, unless the original
-			 * start + end is greater than COMPAT_OFF_T_MAX, in which
-			 * case the app was asking for trouble, so we return
-			 * -EOVERFLOW in that case.
-			 * l_len could be too big, in which case we just truncate it,
-			 * and only allow the app to see that part of the conflicting
-			 * lock that might make sense to it anyway
-			 */
-
-			if (f.l_start > COMPAT_OFF_T_MAX)
-				ret = -EOVERFLOW;
-			if (f.l_len > COMPAT_OFF_T_MAX)
-				f.l_len = COMPAT_OFF_T_MAX;
-			if (ret == 0)
-				ret = put_compat_flock(&f, compat_ptr(arg));
-		}
+		err = fcntl_setlk(fd, f.file, convert_fcntl_cmd(cmd), &flock);
 		break;
-
-	case F_GETLK64:
 	case F_SETLK64:
 	case F_SETLKW64:
-	case F_OFD_GETLK:
 	case F_OFD_SETLK:
 	case F_OFD_SETLKW:
-		ret = get_compat_flock64(&f, compat_ptr(arg));
-		if (ret != 0)
+		err = get_compat_flock64(&flock, compat_ptr(arg));
+		if (err)
 			break;
-		old_fs = get_fs();
-		set_fs(KERNEL_DS);
-		conv_cmd = convert_fcntl_cmd(cmd);
-		ret = sys_fcntl(fd, conv_cmd, (unsigned long)&f);
-		set_fs(old_fs);
-		if ((conv_cmd == F_GETLK || conv_cmd == F_OFD_GETLK) && ret == 0) {
-			/* need to return lock information - see above for commentary */
-			if (f.l_start > COMPAT_LOFF_T_MAX)
-				ret = -EOVERFLOW;
-			if (f.l_len > COMPAT_LOFF_T_MAX)
-				f.l_len = COMPAT_LOFF_T_MAX;
-			if (ret == 0)
-				ret = put_compat_flock64(&f, compat_ptr(arg));
-		}
+		err = fcntl_setlk(fd, f.file, convert_fcntl_cmd(cmd), &flock);
 		break;
-
 	default:
-		ret = sys_fcntl(fd, cmd, arg);
+		err = do_fcntl(fd, cmd, arg, f.file);
 		break;
 	}
-	return ret;
+out_put:
+	fdput(f);
+	return err;
 }
 
 COMPAT_SYSCALL_DEFINE3(fcntl, unsigned int, fd, unsigned int, cmd,

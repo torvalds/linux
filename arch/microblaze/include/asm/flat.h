@@ -32,29 +32,27 @@
  * reference
  */
 
-static inline unsigned long
-flat_get_addr_from_rp(unsigned long *rp, unsigned long relval,
-			unsigned long flags, unsigned long *persistent)
+static inline int flat_get_addr_from_rp(u32 __user *rp, u32 relval, u32 flags,
+					u32 *addr, u32 *persistent)
 {
-	unsigned long addr;
-	(void)flags;
+	u32 *p = (__force u32 *)rp;
 
 	/* Is it a split 64/32 reference? */
 	if (relval & 0x80000000) {
 		/* Grab the two halves of the reference */
-		unsigned long val_hi, val_lo;
+		u32 val_hi, val_lo;
 
-		val_hi = get_unaligned(rp);
-		val_lo = get_unaligned(rp+1);
+		val_hi = get_unaligned(p);
+		val_lo = get_unaligned(p+1);
 
 		/* Crack the address out */
-		addr = ((val_hi & 0xffff) << 16) + (val_lo & 0xffff);
+		*addr = ((val_hi & 0xffff) << 16) + (val_lo & 0xffff);
 	} else {
 		/* Get the address straight out */
-		addr = get_unaligned(rp);
+		*addr = get_unaligned(p);
 	}
 
-	return addr;
+	return 0;
 }
 
 /*
@@ -63,25 +61,27 @@ flat_get_addr_from_rp(unsigned long *rp, unsigned long relval,
  */
 
 static inline void
-flat_put_addr_at_rp(unsigned long *rp, unsigned long addr, unsigned long relval)
+flat_put_addr_at_rp(u32 __user *rp, u32 addr, u32 relval)
 {
+	u32 *p = (__force u32 *)rp;
 	/* Is this a split 64/32 reloc? */
 	if (relval & 0x80000000) {
 		/* Get the two "halves" */
-		unsigned long val_hi = get_unaligned(rp);
-		unsigned long val_lo = get_unaligned(rp + 1);
+		unsigned long val_hi = get_unaligned(p);
+		unsigned long val_lo = get_unaligned(p + 1);
 
 		/* insert the address */
 		val_hi = (val_hi & 0xffff0000) | addr >> 16;
 		val_lo = (val_lo & 0xffff0000) | (addr & 0xffff);
 
 		/* store the two halves back into memory */
-		put_unaligned(val_hi, rp);
-		put_unaligned(val_lo, rp+1);
+		put_unaligned(val_hi, p);
+		put_unaligned(val_lo, p+1);
 	} else {
 		/* Put it straight in, no messing around */
-		put_unaligned(addr, rp);
+		put_unaligned(addr, p);
 	}
+	return 0;
 }
 
 #define	flat_get_relocate_addr(rel)	(rel & 0x7fffffff)

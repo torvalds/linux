@@ -703,6 +703,8 @@ static int vf610_nfc_probe(struct platform_device *pdev)
 	chip->read_buf = vf610_nfc_read_buf;
 	chip->write_buf = vf610_nfc_write_buf;
 	chip->select_chip = vf610_nfc_select_chip;
+	chip->onfi_set_features = nand_onfi_get_set_features_notsupp;
+	chip->onfi_get_features = nand_onfi_get_set_features_notsupp;
 
 	chip->options |= NAND_NO_SUBPAGE_WRITE;
 

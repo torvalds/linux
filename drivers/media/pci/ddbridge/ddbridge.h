@@ -43,14 +43,29 @@
 #define DDB_MAX_PORT    4
 #define DDB_MAX_INPUT   8
 #define DDB_MAX_OUTPUT  4
+#define DDB_MAX_LINK    4
+#define DDB_LINK_SHIFT 28
+
+#define DDB_LINK_TAG(_x) (_x << DDB_LINK_SHIFT)
+
+#define DDB_XO2_TYPE_NONE	0
+#define DDB_XO2_TYPE_DUOFLEX	1
+#define DDB_XO2_TYPE_CI		2
 
 struct ddb_info {
 	int   type;
-#define DDB_NONE         0
-#define DDB_OCTOPUS      1
+#define DDB_NONE		0
+#define DDB_OCTOPUS		1
+#define DDB_OCTOPUS_MAX_CT	6
 	char *name;
 	int   port_num;
 	u32   port_type[DDB_MAX_PORT];
+	u32   board_control;
+	u32   board_control_2;
+	u8    ts_quirks;
+#define TS_QUIRK_SERIAL   1
+#define TS_QUIRK_REVERSED 2
+#define TS_QUIRK_ALT_OSC  8
 };
 
 /* DMA_SIZE MUST be divisible by 188 and 128 !!! */
@@ -86,6 +101,7 @@ struct ddb_input {
 
 	struct dvb_adapter     adap;
 	struct dvb_device     *dev;
+	struct i2c_client     *i2c_client[1];
 	struct dvb_frontend   *fe;
 	struct dvb_frontend   *fe2;
 	struct dmxdev          dmxdev;
@@ -138,11 +154,22 @@ struct ddb_port {
 #define DDB_PORT_CI             1
 #define DDB_PORT_TUNER          2
 	u32                    type;
-#define DDB_TUNER_NONE          0
-#define DDB_TUNER_DVBS_ST       1
-#define DDB_TUNER_DVBS_ST_AA    2
-#define DDB_TUNER_DVBCT_TR     16
-#define DDB_TUNER_DVBCT_ST     17
+#define DDB_TUNER_NONE			0
+#define DDB_TUNER_DVBS_ST		1
+#define DDB_TUNER_DVBS_ST_AA		2
+#define DDB_TUNER_DVBCT2_SONY_P		7
+#define DDB_TUNER_DVBC2T2_SONY_P	8
+#define DDB_TUNER_ISDBT_SONY_P		9
+#define DDB_TUNER_DVBC2T2I_SONY_P	15
+#define DDB_TUNER_DVBCT_TR		16
+#define DDB_TUNER_DVBCT_ST		17
+#define DDB_TUNER_XO2_DVBS_STV0910	32
+#define DDB_TUNER_XO2_DVBCT2_SONY	33
+#define DDB_TUNER_XO2_ISDBT_SONY	34
+#define DDB_TUNER_XO2_DVBC2T2_SONY	35
+#define DDB_TUNER_XO2_ATSC_ST		36
+#define DDB_TUNER_XO2_DVBC2T2I_SONY	37
+
 	u32                    adr;
 
 	struct ddb_input      *input[2];

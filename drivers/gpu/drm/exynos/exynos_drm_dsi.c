@@ -1650,9 +1650,7 @@ static int exynos_dsi_parse_dt(struct exynos_dsi *dsi)
 	if (ret < 0)
 		return ret;
 
-	dsi->bridge_node = of_graph_get_remote_node(node, DSI_PORT_OUT, 0);
-	if (!dsi->bridge_node)
-		return -EINVAL;
+	dsi->bridge_node = of_graph_get_remote_node(node, DSI_PORT_IN, 0);
 
 	return 0;
 }
@@ -1687,9 +1685,11 @@ static int exynos_dsi_bind(struct device *dev, struct device *master,
 		return ret;
 	}
 
-	bridge = of_drm_find_bridge(dsi->bridge_node);
-	if (bridge)
-		drm_bridge_attach(encoder, bridge, NULL);
+	if (dsi->bridge_node) {
+		bridge = of_drm_find_bridge(dsi->bridge_node);
+		if (bridge)
+			drm_bridge_attach(encoder, bridge, NULL);
+	}
 
 	return mipi_dsi_host_register(&dsi->dsi_host);
 }

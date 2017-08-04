@@ -4,7 +4,9 @@ nvkm-y += nvkm/engine/disp/nv50.o
 nvkm-y += nvkm/engine/disp/g84.o
 nvkm-y += nvkm/engine/disp/g94.o
 nvkm-y += nvkm/engine/disp/gt200.o
+nvkm-y += nvkm/engine/disp/mcp77.o
 nvkm-y += nvkm/engine/disp/gt215.o
+nvkm-y += nvkm/engine/disp/mcp89.o
 nvkm-y += nvkm/engine/disp/gf119.o
 nvkm-y += nvkm/engine/disp/gk104.o
 nvkm-y += nvkm/engine/disp/gk110.o
@@ -12,29 +14,41 @@ nvkm-y += nvkm/engine/disp/gm107.o
 nvkm-y += nvkm/engine/disp/gm200.o
 nvkm-y += nvkm/engine/disp/gp100.o
 nvkm-y += nvkm/engine/disp/gp102.o
+nvkm-y += nvkm/engine/disp/vga.o
 
-nvkm-y += nvkm/engine/disp/outp.o
-nvkm-y += nvkm/engine/disp/outpdp.o
+nvkm-y += nvkm/engine/disp/head.o
+nvkm-y += nvkm/engine/disp/headnv04.o
+nvkm-y += nvkm/engine/disp/headnv50.o
+nvkm-y += nvkm/engine/disp/headgf119.o
+
+nvkm-y += nvkm/engine/disp/ior.o
 nvkm-y += nvkm/engine/disp/dacnv50.o
+nvkm-y += nvkm/engine/disp/dacgf119.o
 nvkm-y += nvkm/engine/disp/piornv50.o
 nvkm-y += nvkm/engine/disp/sornv50.o
+nvkm-y += nvkm/engine/disp/sorg84.o
 nvkm-y += nvkm/engine/disp/sorg94.o
+nvkm-y += nvkm/engine/disp/sormcp77.o
+nvkm-y += nvkm/engine/disp/sorgt215.o
+nvkm-y += nvkm/engine/disp/sormcp89.o
 nvkm-y += nvkm/engine/disp/sorgf119.o
+nvkm-y += nvkm/engine/disp/sorgk104.o
 nvkm-y += nvkm/engine/disp/sorgm107.o
 nvkm-y += nvkm/engine/disp/sorgm200.o
-nvkm-y += nvkm/engine/disp/dport.o
 
-nvkm-y += nvkm/engine/disp/conn.o
+nvkm-y += nvkm/engine/disp/outp.o
+nvkm-y += nvkm/engine/disp/dp.o
 
 nvkm-y += nvkm/engine/disp/hdagt215.o
 nvkm-y += nvkm/engine/disp/hdagf119.o
 
+nvkm-y += nvkm/engine/disp/hdmi.o
 nvkm-y += nvkm/engine/disp/hdmig84.o
 nvkm-y += nvkm/engine/disp/hdmigt215.o
 nvkm-y += nvkm/engine/disp/hdmigf119.o
 nvkm-y += nvkm/engine/disp/hdmigk104.o
 
-nvkm-y += nvkm/engine/disp/vga.o
+nvkm-y += nvkm/engine/disp/conn.o
 
 nvkm-y += nvkm/engine/disp/rootnv04.o
 nvkm-y += nvkm/engine/disp/rootnv50.o

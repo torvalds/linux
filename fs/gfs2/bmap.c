@@ -970,7 +970,7 @@ more_rgrps:
 			continue;
 		bn = be64_to_cpu(*p);
 		if (gfs2_holder_initialized(rd_gh)) {
-			rgd = (struct gfs2_rgrpd *)rd_gh->gh_gl->gl_object;
+			rgd = gfs2_glock2rgrp(rd_gh->gh_gl);
 			gfs2_assert_withdraw(sdp,
 				     gfs2_glock_is_locked_by_me(rd_gh->gh_gl));
 		} else {

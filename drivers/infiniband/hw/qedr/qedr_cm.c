@@ -44,7 +44,7 @@
 #include <rdma/ib_cache.h>
 
 #include <linux/qed/qed_if.h>
-#include <linux/qed/qed_roce_if.h>
+#include <linux/qed/qed_rdma_if.h>
 #include "qedr.h"
 #include "verbs.h"
 #include <rdma/qedr-abi.h>
@@ -64,9 +64,14 @@ void qedr_store_gsi_qp_cq(struct qedr_dev *dev, struct qedr_qp *qp,
 	dev->gsi_qp = qp;
 }
 
-void qedr_ll2_tx_cb(void *_qdev, struct qed_roce_ll2_packet *pkt)
+void qedr_ll2_complete_tx_packet(void *cxt,
+				 u8 connection_handle,
+				 void *cookie,
+				 dma_addr_t first_frag_addr,
+				 bool b_last_fragment, bool b_last_packet)
 {
-	struct qedr_dev *dev = (struct qedr_dev *)_qdev;
+	struct qedr_dev *dev = (struct qedr_dev *)cxt;
+	struct qed_roce_ll2_packet *pkt = cookie;
 	struct qedr_cq *cq = dev->gsi_sqcq;
 	struct qedr_qp *qp = dev->gsi_qp;
 	unsigned long flags;
@@ -88,20 +93,26 @@ void qedr_ll2_tx_cb(void *_qdev, struct qed_roce_ll2_packet *pkt)
 		(*cq->ibcq.comp_handler) (&cq->ibcq, cq->ibcq.cq_context);
 }
 
-void qedr_ll2_rx_cb(void *_dev, struct qed_roce_ll2_packet *pkt,
-		    struct qed_roce_ll2_rx_params *params)
+void qedr_ll2_complete_rx_packet(void *cxt,
+				 struct qed_ll2_comp_rx_data *data)
 {
-	struct qedr_dev *dev = (struct qedr_dev *)_dev;
+	struct qedr_dev *dev = (struct qedr_dev *)cxt;
 	struct qedr_cq *cq = dev->gsi_rqcq;
 	struct qedr_qp *qp = dev->gsi_qp;
 	unsigned long flags;
 
 	spin_lock_irqsave(&qp->q_lock, flags);
 
-	qp->rqe_wr_id[qp->rq.gsi_cons].rc = params->rc;
-	qp->rqe_wr_id[qp->rq.gsi_cons].vlan_id = params->vlan_id;
-	qp->rqe_wr_id[qp->rq.gsi_cons].sg_list[0].length = pkt->payload[0].len;
-	ether_addr_copy(qp->rqe_wr_id[qp->rq.gsi_cons].smac, params->smac);
+	qp->rqe_wr_id[qp->rq.gsi_cons].rc = data->u.data_length_error ?
+		-EINVAL : 0;
+	qp->rqe_wr_id[qp->rq.gsi_cons].vlan_id = data->vlan;
+	/* note: length stands for data length i.e. GRH is excluded */
+	qp->rqe_wr_id[qp->rq.gsi_cons].sg_list[0].length =
+		data->length.data_length;
+	*((u32 *)&qp->rqe_wr_id[qp->rq.gsi_cons].smac[0]) =
+		ntohl(data->opaque_data_0);
+	*((u16 *)&qp->rqe_wr_id[qp->rq.gsi_cons].smac[4]) =
+		ntohs((u16)data->opaque_data_1);
 
 	qedr_inc_sw_gsi_cons(&qp->rq);
 
@@ -109,6 +120,14 @@ void qedr_ll2_rx_cb(void *_dev, struct qed_roce_ll2_packet *pkt,
 
 	if (cq->ibcq.comp_handler)
 		(*cq->ibcq.comp_handler) (&cq->ibcq, cq->ibcq.cq_context);
+}
+
+void qedr_ll2_release_rx_packet(void *cxt,
+				u8 connection_handle,
+				void *cookie,
+				dma_addr_t rx_buf_addr, bool b_last_packet)
+{
+	/* Do nothing... */
 }
 
 static void qedr_destroy_gsi_cq(struct qedr_dev *dev,
@@ -159,27 +178,159 @@ static inline int qedr_check_gsi_qp_attrs(struct qedr_dev *dev,
 	return 0;
 }
 
+static int qedr_ll2_post_tx(struct qedr_dev *dev,
+			    struct qed_roce_ll2_packet *pkt)
+{
+	enum qed_ll2_roce_flavor_type roce_flavor;
+	struct qed_ll2_tx_pkt_info ll2_tx_pkt;
+	int rc;
+	int i;
+
+	memset(&ll2_tx_pkt, 0, sizeof(ll2_tx_pkt));
+
+	roce_flavor = (pkt->roce_mode == ROCE_V1) ?
+	    QED_LL2_ROCE : QED_LL2_RROCE;
+
+	if (pkt->roce_mode == ROCE_V2_IPV4)
+		ll2_tx_pkt.enable_ip_cksum = 1;
+
+	ll2_tx_pkt.num_of_bds = 1 /* hdr */  + pkt->n_seg;
+	ll2_tx_pkt.vlan = 0;
+	ll2_tx_pkt.tx_dest = pkt->tx_dest;
+	ll2_tx_pkt.qed_roce_flavor = roce_flavor;
+	ll2_tx_pkt.first_frag = pkt->header.baddr;
+	ll2_tx_pkt.first_frag_len = pkt->header.len;
+	ll2_tx_pkt.cookie = pkt;
+
+	/* tx header */
+	rc = dev->ops->ll2_prepare_tx_packet(dev->rdma_ctx,
+					     dev->gsi_ll2_handle,
+					     &ll2_tx_pkt, 1);
+	if (rc) {
+		/* TX failed while posting header - release resources */
+		dma_free_coherent(&dev->pdev->dev, pkt->header.len,
+				  pkt->header.vaddr, pkt->header.baddr);
+		kfree(pkt);
+
+		DP_ERR(dev, "roce ll2 tx: header failed (rc=%d)\n", rc);
+		return rc;
+	}
+
+	/* tx payload */
+	for (i = 0; i < pkt->n_seg; i++) {
+		rc = dev->ops->ll2_set_fragment_of_tx_packet(
+			dev->rdma_ctx,
+			dev->gsi_ll2_handle,
+			pkt->payload[i].baddr,
+			pkt->payload[i].len);
+
+		if (rc) {
+			/* if failed not much to do here, partial packet has
+			 * been posted we can't free memory, will need to wait
+			 * for completion
+			 */
+			DP_ERR(dev, "ll2 tx: payload failed (rc=%d)\n", rc);
+			return rc;
+		}
+	}
+
+	return 0;
+}
+
+int qedr_ll2_stop(struct qedr_dev *dev)
+{
+	int rc;
+
+	if (dev->gsi_ll2_handle == QED_LL2_UNUSED_HANDLE)
+		return 0;
+
+	/* remove LL2 MAC address filter */
+	rc = dev->ops->ll2_set_mac_filter(dev->cdev,
+					  dev->gsi_ll2_mac_address, NULL);
+
+	rc = dev->ops->ll2_terminate_connection(dev->rdma_ctx,
+						dev->gsi_ll2_handle);
+	if (rc)
+		DP_ERR(dev, "Failed to terminate LL2 connection (rc=%d)\n", rc);
+
+	dev->ops->ll2_release_connection(dev->rdma_ctx, dev->gsi_ll2_handle);
+
+	dev->gsi_ll2_handle = QED_LL2_UNUSED_HANDLE;
+
+	return rc;
+}
+
+int qedr_ll2_start(struct qedr_dev *dev,
+		   struct ib_qp_init_attr *attrs, struct qedr_qp *qp)
+{
+	struct qed_ll2_acquire_data data;
+	struct qed_ll2_cbs cbs;
+	int rc;
+
+	/* configure and start LL2 */
+	cbs.rx_comp_cb = qedr_ll2_complete_rx_packet;
+	cbs.tx_comp_cb = qedr_ll2_complete_tx_packet;
+	cbs.rx_release_cb = qedr_ll2_release_rx_packet;
+	cbs.tx_release_cb = qedr_ll2_complete_tx_packet;
+	cbs.cookie = dev;
+
+	memset(&data, 0, sizeof(data));
+	data.input.conn_type = QED_LL2_TYPE_ROCE;
+	data.input.mtu = dev->ndev->mtu;
+	data.input.rx_num_desc = attrs->cap.max_recv_wr;
+	data.input.rx_drop_ttl0_flg = true;
+	data.input.rx_vlan_removal_en = false;
+	data.input.tx_num_desc = attrs->cap.max_send_wr;
+	data.input.tx_tc = 0;
+	data.input.tx_dest = QED_LL2_TX_DEST_NW;
+	data.input.ai_err_packet_too_big = QED_LL2_DROP_PACKET;
+	data.input.ai_err_no_buf = QED_LL2_DROP_PACKET;
+	data.input.gsi_enable = 1;
+	data.p_connection_handle = &dev->gsi_ll2_handle;
+	data.cbs = &cbs;
+
+	rc = dev->ops->ll2_acquire_connection(dev->rdma_ctx, &data);
+	if (rc) {
+		DP_ERR(dev,
+		       "ll2 start: failed to acquire LL2 connection (rc=%d)\n",
+		       rc);
+		return rc;
+	}
+
+	rc = dev->ops->ll2_establish_connection(dev->rdma_ctx,
+						dev->gsi_ll2_handle);
+	if (rc) {
+		DP_ERR(dev,
+		       "ll2 start: failed to establish LL2 connection (rc=%d)\n",
+		       rc);
+		goto err1;
+	}
+
+	rc = dev->ops->ll2_set_mac_filter(dev->cdev, NULL, dev->ndev->dev_addr);
+	if (rc)
+		goto err2;
+
+	return 0;
+
+err2:
+	dev->ops->ll2_terminate_connection(dev->rdma_ctx, dev->gsi_ll2_handle);
+err1:
+	dev->ops->ll2_release_connection(dev->rdma_ctx, dev->gsi_ll2_handle);
+
+	return rc;
+}
+
 struct ib_qp *qedr_create_gsi_qp(struct qedr_dev *dev,
 				 struct ib_qp_init_attr *attrs,
 				 struct qedr_qp *qp)
 {
-	struct qed_roce_ll2_params ll2_params;
 	int rc;
 
 	rc = qedr_check_gsi_qp_attrs(dev, attrs);
 	if (rc)
 		return ERR_PTR(rc);
 
-	/* configure and start LL2 */
-	memset(&ll2_params, 0, sizeof(ll2_params));
-	ll2_params.max_tx_buffers = attrs->cap.max_send_wr;
-	ll2_params.max_rx_buffers = attrs->cap.max_recv_wr;
-	ll2_params.cbs.tx_cb = qedr_ll2_tx_cb;
-	ll2_params.cbs.rx_cb = qedr_ll2_rx_cb;
-	ll2_params.cb_cookie = (void *)dev;
-	ll2_params.mtu = dev->ndev->mtu;
-	ether_addr_copy(ll2_params.mac_address, dev->ndev->dev_addr);
-	rc = dev->ops->roce_ll2_start(dev->cdev, &ll2_params);
+	rc = qedr_ll2_start(dev, attrs, qp);
 	if (rc) {
 		DP_ERR(dev, "create gsi qp: failed on ll2 start. rc=%d\n", rc);
 		return ERR_PTR(rc);
@@ -214,7 +365,7 @@ struct ib_qp *qedr_create_gsi_qp(struct qedr_dev *dev,
 err:
 	kfree(qp->rqe_wr_id);
 
-	rc = dev->ops->roce_ll2_stop(dev->cdev);
+	rc = qedr_ll2_stop(dev);
 	if (rc)
 		DP_ERR(dev, "create gsi qp: failed destroy on create\n");
 
@@ -223,15 +374,7 @@ err:
 
 int qedr_destroy_gsi_qp(struct qedr_dev *dev)
 {
-	int rc;
-
-	rc = dev->ops->roce_ll2_stop(dev->cdev);
-	if (rc)
-		DP_ERR(dev, "destroy gsi qp: failed (rc=%d)\n", rc);
-	else
-		DP_DEBUG(dev, QEDR_MSG_GSI, "destroy gsi qp: success\n");
-
-	return rc;
+	return qedr_ll2_stop(dev);
 }
 
 #define QEDR_MAX_UD_HEADER_SIZE	(100)
@@ -421,7 +564,6 @@ int qedr_gsi_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 {
 	struct qed_roce_ll2_packet *pkt = NULL;
 	struct qedr_qp *qp = get_qedr_qp(ibqp);
-	struct qed_roce_ll2_tx_params params;
 	struct qedr_dev *dev = qp->dev;
 	unsigned long flags;
 	int rc;
@@ -449,8 +591,6 @@ int qedr_gsi_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		goto err;
 	}
 
-	memset(&params, 0, sizeof(params));
-
 	spin_lock_irqsave(&qp->q_lock, flags);
 
 	rc = qedr_gsi_build_packet(dev, qp, wr, &pkt);
@@ -459,7 +599,8 @@ int qedr_gsi_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		goto err;
 	}
 
-	rc = dev->ops->roce_ll2_tx(dev->cdev, pkt, &params);
+	rc = qedr_ll2_post_tx(dev, pkt);
+
 	if (!rc) {
 		qp->wqe_wr_id[qp->sq.prod].wr_id = wr->wr_id;
 		qedr_inc_sw_prod(&qp->sq);
@@ -467,17 +608,6 @@ int qedr_gsi_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			 "gsi post send: opcode=%d, in_irq=%ld, irqs_disabled=%d, wr_id=%llx\n",
 			 wr->opcode, in_irq(), irqs_disabled(), wr->wr_id);
 	} else {
-		if (rc == QED_ROCE_TX_HEAD_FAILURE) {
-			/* TX failed while posting header - release resources */
-			dma_free_coherent(&dev->pdev->dev, pkt->header.len,
-					  pkt->header.vaddr, pkt->header.baddr);
-			kfree(pkt);
-		} else if (rc == QED_ROCE_TX_FRAG_FAILURE) {
-			/* NTD since TX failed while posting a fragment. We will
-			 * release the resources on TX callback
-			 */
-		}
-
 		DP_ERR(dev, "gsi post send: failed to transmit (rc=%d)\n", rc);
 		rc = -EAGAIN;
 		*bad_wr = wr;
@@ -504,10 +634,8 @@ int qedr_gsi_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 {
 	struct qedr_dev *dev = get_qedr_dev(ibqp->device);
 	struct qedr_qp *qp = get_qedr_qp(ibqp);
-	struct qed_roce_ll2_buffer buf;
 	unsigned long flags;
-	int status = 0;
-	int rc;
+	int rc = 0;
 
 	if ((qp->state != QED_ROCE_QP_STATE_RTR) &&
 	    (qp->state != QED_ROCE_QP_STATE_RTS)) {
@@ -517,8 +645,6 @@ int qedr_gsi_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 		       qp->state);
 		return -EINVAL;
 	}
-
-	memset(&buf, 0, sizeof(buf));
 
 	spin_lock_irqsave(&qp->q_lock, flags);
 
@@ -530,10 +656,12 @@ int qedr_gsi_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 			goto err;
 		}
 
-		buf.baddr = wr->sg_list[0].addr;
-		buf.len = wr->sg_list[0].length;
-
-		rc = dev->ops->roce_ll2_post_rx_buffer(dev->cdev, &buf, 0, 1);
+		rc = dev->ops->ll2_post_rx_buffer(dev->rdma_ctx,
+						  dev->gsi_ll2_handle,
+						  wr->sg_list[0].addr,
+						  wr->sg_list[0].length,
+						  0 /* cookie */,
+						  1 /* notify_fw */);
 		if (rc) {
 			DP_ERR(dev,
 			       "gsi post recv: failed to post rx buffer (rc=%d)\n",
@@ -553,7 +681,7 @@ int qedr_gsi_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 
 	spin_unlock_irqrestore(&qp->q_lock, flags);
 
-	return status;
+	return rc;
 err:
 	spin_unlock_irqrestore(&qp->q_lock, flags);
 	*bad_wr = wr;

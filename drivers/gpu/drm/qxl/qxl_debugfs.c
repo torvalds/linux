@@ -30,7 +30,7 @@
 
 #include <linux/debugfs.h>
 
-#include "drmP.h"
+#include <drm/drmP.h>
 #include "qxl_drv.h"
 #include "qxl_object.h"
 

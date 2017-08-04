@@ -1597,8 +1597,6 @@ static int bfin_atapi_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	platform_set_drvdata(pdev, host);
-
 	return 0;
 }
 

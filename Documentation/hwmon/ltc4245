@@ -96,7 +96,7 @@ slowly, -EAGAIN will be returned when you read the sysfs attribute containing
 the sensor reading.
 
 The LTC4245 chip can be configured to sample all GPIO pins with two methods:
-1) platform data -- see include/linux/i2c/ltc4245.h
+1) platform data -- see include/linux/platform_data/ltc4245.h
 2) OF device tree -- add the "ltc4245,use-extra-gpios" property to each chip
 
 The default mode of operation is to sample a single GPIO pin.

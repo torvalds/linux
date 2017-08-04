@@ -384,6 +384,12 @@ vmw_du_cursor_plane_atomic_update(struct drm_plane *plane,
 
 	hotspot_x = du->hotspot_x;
 	hotspot_y = du->hotspot_y;
+
+	if (plane->fb) {
+		hotspot_x += plane->fb->hot_x;
+		hotspot_y += plane->fb->hot_y;
+	}
+
 	du->cursor_surface = vps->surf;
 	du->cursor_dmabuf = vps->dmabuf;
 
@@ -411,6 +417,9 @@ vmw_du_cursor_plane_atomic_update(struct drm_plane *plane,
 		vmw_cursor_update_position(dev_priv, true,
 					   du->cursor_x + hotspot_x,
 					   du->cursor_y + hotspot_y);
+
+		du->core_hotspot_x = hotspot_x - du->hotspot_x;
+		du->core_hotspot_y = hotspot_y - du->hotspot_y;
 	} else {
 		DRM_ERROR("Failed to update cursor image\n");
 	}
@@ -452,7 +461,7 @@ int vmw_du_primary_plane_atomic_check(struct drm_plane *plane,
 
 	ret = drm_plane_helper_check_update(plane, state->crtc, new_fb,
 					    &src, &dest, &clip,
-					    DRM_ROTATE_0,
+					    DRM_MODE_ROTATE_0,
 					    DRM_PLANE_HELPER_NO_SCALING,
 					    DRM_PLANE_HELPER_NO_SCALING,
 					    false, true, &visible);
@@ -731,7 +740,7 @@ void vmw_du_plane_reset(struct drm_plane *plane)
 
 	plane->state = &vps->base;
 	plane->state->plane = plane;
-	plane->state->rotation = DRM_ROTATE_0;
+	plane->state->rotation = DRM_MODE_ROTATE_0;
 }
 
 

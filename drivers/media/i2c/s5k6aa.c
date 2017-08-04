@@ -838,7 +838,7 @@ static int __s5k6aa_power_on(struct s5k6aa *s5k6aa)
 
 	if (s5k6aa->s_power)
 		ret = s5k6aa->s_power(1);
-	usleep_range(4000, 4000);
+	usleep_range(4000, 5000);
 
 	if (s5k6aa_gpio_deassert(s5k6aa, RST))
 		msleep(20);

@@ -3,9 +3,10 @@
 #
 
 menu "Performance monitor support"
+	depends on PERF_EVENTS
 
 config ARM_PMU
-	depends on PERF_EVENTS && (ARM || ARM64)
+	depends on ARM || ARM64
 	bool "ARM PMU framework"
 	default y
 	help
@@ -18,7 +19,7 @@ config ARM_PMU_ACPI
 
 config QCOM_L2_PMU
 	bool "Qualcomm Technologies L2-cache PMU"
-	depends on ARCH_QCOM && ARM64 && PERF_EVENTS && ACPI
+	depends on ARCH_QCOM && ARM64 && ACPI
 	  help
 	  Provides support for the L2 cache performance monitor unit (PMU)
 	  in Qualcomm Technologies processors.
@@ -27,7 +28,7 @@ config QCOM_L2_PMU
 
 config QCOM_L3_PMU
 	bool "Qualcomm Technologies L3-cache PMU"
-	depends on ARCH_QCOM && ARM64 && PERF_EVENTS && ACPI
+	depends on ARCH_QCOM && ARM64 && ACPI
 	select QCOM_IRQ_COMBINER
 	help
 	   Provides support for the L3 cache performance monitor unit (PMU)
@@ -36,7 +37,7 @@ config QCOM_L3_PMU
 	   monitoring L3 cache events.
 
 config XGENE_PMU
-        depends on PERF_EVENTS && ARCH_XGENE
+        depends on ARCH_XGENE
         bool "APM X-Gene SoC PMU"
         default n
         help

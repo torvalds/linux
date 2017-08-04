@@ -85,7 +85,7 @@ static inline void syscall_set_return_value(struct task_struct *task,
 {
 	if (error) {
 		regs->regs[2] = -error;
-		regs->regs[7] = -1;
+		regs->regs[7] = 1;
 	} else {
 		regs->regs[2] = val;
 		regs->regs[7] = 0;

@@ -207,7 +207,7 @@ static void fprop_reflect_period_percpu(struct fprop_global *p,
 		if (val < (nr_cpu_ids * PROP_BATCH))
 			val = percpu_counter_sum(&pl->events);
 
-		__percpu_counter_add(&pl->events,
+		percpu_counter_add_batch(&pl->events,
 			-val + (val >> (period-pl->period)), PROP_BATCH);
 	} else
 		percpu_counter_set(&pl->events, 0);
@@ -219,7 +219,7 @@ static void fprop_reflect_period_percpu(struct fprop_global *p,
 void __fprop_inc_percpu(struct fprop_global *p, struct fprop_local_percpu *pl)
 {
 	fprop_reflect_period_percpu(p, pl);
-	__percpu_counter_add(&pl->events, 1, PROP_BATCH);
+	percpu_counter_add_batch(&pl->events, 1, PROP_BATCH);
 	percpu_counter_add(&p->events, 1);
 }
 
@@ -267,6 +267,6 @@ void __fprop_inc_percpu_max(struct fprop_global *p,
 			return;
 	} else
 		fprop_reflect_period_percpu(p, pl);
-	__percpu_counter_add(&pl->events, 1, PROP_BATCH);
+	percpu_counter_add_batch(&pl->events, 1, PROP_BATCH);
 	percpu_counter_add(&p->events, 1);
 }

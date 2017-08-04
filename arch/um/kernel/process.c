@@ -255,11 +255,6 @@ int clear_user_proc(void __user *buf, int size)
 	return clear_user(buf, size);
 }
 
-int strlen_user_proc(char __user *str)
-{
-	return strlen_user(str);
-}
-
 int cpu(void)
 {
 	return current_thread_info()->cpu;

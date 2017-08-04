@@ -90,9 +90,6 @@
 #define __put_user_inatomic(x, ptr) \
 	__put_user_nosleep((__typeof__(*(ptr)))(x), (ptr), sizeof(*(ptr)))
 
-#define __get_user_unaligned __get_user
-#define __put_user_unaligned __put_user
-
 extern long __put_user_bad(void);
 
 /*
@@ -340,7 +337,6 @@ static inline unsigned long clear_user(void __user *addr, unsigned long size)
 }
 
 extern long strncpy_from_user(char *dst, const char __user *src, long count);
-extern __must_check long strlen_user(const char __user *str);
 extern __must_check long strnlen_user(const char __user *str, long n);
 
 #endif	/* _ARCH_POWERPC_UACCESS_H */
