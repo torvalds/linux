@@ -190,10 +190,9 @@ static const struct nla_policy fw_policy[TCA_FW_MAX + 1] = {
 	[TCA_FW_MASK]		= { .type = NLA_U32 },
 };
 
-static int
-fw_change_attrs(struct net *net, struct tcf_proto *tp, struct fw_filter *f,
-		struct nlattr **tb, struct nlattr **tca, unsigned long base,
-		bool ovr)
+static int fw_set_parms(struct net *net, struct tcf_proto *tp,
+			struct fw_filter *f, struct nlattr **tb,
+			struct nlattr **tca, unsigned long base, bool ovr)
 {
 	struct fw_head *head = rtnl_dereference(tp->root);
 	struct tcf_exts e;
@@ -282,7 +281,7 @@ static int fw_change(struct net *net, struct sk_buff *in_skb,
 			return err;
 		}
 
-		err = fw_change_attrs(net, tp, fnew, tb, tca, base, ovr);
+		err = fw_set_parms(net, tp, fnew, tb, tca, base, ovr);
 		if (err < 0) {
 			tcf_exts_destroy(&fnew->exts);
 			kfree(fnew);
@@ -330,7 +329,7 @@ static int fw_change(struct net *net, struct sk_buff *in_skb,
 	f->id = handle;
 	f->tp = tp;
 
-	err = fw_change_attrs(net, tp, f, tb, tca, base, ovr);
+	err = fw_set_parms(net, tp, f, tb, tca, base, ovr);
 	if (err < 0)
 		goto errout;
 
