@@ -52,7 +52,7 @@ struct tcindex_data {
 
 static inline int tcindex_filter_is_set(struct tcindex_filter_result *r)
 {
-	return tcf_exts_is_predicative(&r->exts) || r->res.classid;
+	return tcf_exts_has_actions(&r->exts) || r->res.classid;
 }
 
 static struct tcindex_filter_result *tcindex_lookup(struct tcindex_data *p,

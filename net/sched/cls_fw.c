@@ -387,7 +387,7 @@ static int fw_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 
 	t->tcm_handle = f->id;
 
-	if (!f->res.classid && !tcf_exts_is_available(&f->exts))
+	if (!f->res.classid && !tcf_exts_has_actions(&f->exts))
 		return skb->len;
 
 	nest = nla_nest_start(skb, TCA_OPTIONS);

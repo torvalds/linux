@@ -113,36 +113,6 @@ static inline int tcf_exts_init(struct tcf_exts *exts, int action, int police)
 	return 0;
 }
 
-/**
- * tcf_exts_is_predicative - check if a predicative extension is present
- * @exts: tc filter extensions handle
- *
- * Returns 1 if a predicative extension is present, i.e. an extension which
- * might cause further actions and thus overrule the regular tcf_result.
- */
-static inline int
-tcf_exts_is_predicative(struct tcf_exts *exts)
-{
-#ifdef CONFIG_NET_CLS_ACT
-	return exts->nr_actions;
-#else
-	return 0;
-#endif
-}
-
-/**
- * tcf_exts_is_available - check if at least one extension is present
- * @exts: tc filter extensions handle
- *
- * Returns 1 if at least one extension is present.
- */
-static inline int
-tcf_exts_is_available(struct tcf_exts *exts)
-{
-	/* All non-predicative extensions must be added here. */
-	return tcf_exts_is_predicative(exts);
-}
-
 static inline void tcf_exts_to_list(const struct tcf_exts *exts,
 				    struct list_head *actions)
 {

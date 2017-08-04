@@ -113,7 +113,7 @@ static inline int route4_hash_wild(void)
 #define ROUTE4_APPLY_RESULT()					\
 {								\
 	*res = f->res;						\
-	if (tcf_exts_is_available(&f->exts)) {			\
+	if (tcf_exts_has_actions(&f->exts)) {			\
 		int r = tcf_exts_exec(skb, &f->exts, res);	\
 		if (r < 0) {					\
 			dont_cache = 1;				\
