@@ -76,7 +76,6 @@ static int cls_cgroup_change(struct net *net, struct sk_buff *in_skb,
 	struct nlattr *tb[TCA_CGROUP_MAX + 1];
 	struct cls_cgroup_head *head = rtnl_dereference(tp->root);
 	struct cls_cgroup_head *new;
-	struct tcf_ematch_tree t;
 	struct tcf_exts e;
 	int err;
 
@@ -112,14 +111,13 @@ static int cls_cgroup_change(struct net *net, struct sk_buff *in_skb,
 		goto errout;
 	}
 
-	err = tcf_em_tree_validate(tp, tb[TCA_CGROUP_EMATCHES], &t);
+	err = tcf_em_tree_validate(tp, tb[TCA_CGROUP_EMATCHES], &new->ematches);
 	if (err < 0) {
 		tcf_exts_destroy(&e);
 		goto errout;
 	}
 
 	tcf_exts_change(tp, &new->exts, &e);
-	tcf_em_tree_change(tp, &new->ematches, &t);
 
 	rcu_assign_pointer(tp->root, new);
 	if (head)

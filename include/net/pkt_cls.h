@@ -333,26 +333,6 @@ int __tcf_em_tree_match(struct sk_buff *, struct tcf_ematch_tree *,
 			struct tcf_pkt_info *);
 
 /**
- * tcf_em_tree_change - replace ematch tree of a running classifier
- *
- * @tp: classifier kind handle
- * @dst: destination ematch tree variable
- * @src: source ematch tree (temporary tree from tcf_em_tree_validate)
- *
- * This functions replaces the ematch tree in @dst with the ematch
- * tree in @src. The classifier in charge of the ematch tree may be
- * running.
- */
-static inline void tcf_em_tree_change(struct tcf_proto *tp,
-				      struct tcf_ematch_tree *dst,
-				      struct tcf_ematch_tree *src)
-{
-	tcf_tree_lock(tp);
-	memcpy(dst, src, sizeof(*dst));
-	tcf_tree_unlock(tp);
-}
-
-/**
  * tcf_em_tree_match - evaulate an ematch tree
  *
  * @skb: socket buffer of the packet in question
@@ -386,7 +366,6 @@ struct tcf_ematch_tree {
 #define tcf_em_tree_validate(tp, tb, t) ((void)(t), 0)
 #define tcf_em_tree_destroy(t) do { (void)(t); } while(0)
 #define tcf_em_tree_dump(skb, t, tlv) (0)
-#define tcf_em_tree_change(tp, dst, src) do { } while(0)
 #define tcf_em_tree_match(skb, t, info) ((void)(info), 1)
 
 #endif /* CONFIG_NET_EMATCH */

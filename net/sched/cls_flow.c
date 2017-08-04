@@ -389,7 +389,6 @@ static int flow_change(struct net *net, struct sk_buff *in_skb,
 	struct nlattr *opt = tca[TCA_OPTIONS];
 	struct nlattr *tb[TCA_FLOW_MAX + 1];
 	struct tcf_exts e;
-	struct tcf_ematch_tree t;
 	unsigned int nkeys = 0;
 	unsigned int perturb_period = 0;
 	u32 baseclass = 0;
@@ -432,13 +431,13 @@ static int flow_change(struct net *net, struct sk_buff *in_skb,
 	if (err < 0)
 		goto err1;
 
-	err = tcf_em_tree_validate(tp, tb[TCA_FLOW_EMATCHES], &t);
-	if (err < 0)
-		goto err1;
-
 	err = -ENOBUFS;
 	fnew = kzalloc(sizeof(*fnew), GFP_KERNEL);
 	if (!fnew)
+		goto err1;
+
+	err = tcf_em_tree_validate(tp, tb[TCA_FLOW_EMATCHES], &fnew->ematches);
+	if (err < 0)
 		goto err2;
 
 	err = tcf_exts_init(&fnew->exts, TCA_FLOW_ACT, TCA_FLOW_POLICE);
@@ -512,7 +511,6 @@ static int flow_change(struct net *net, struct sk_buff *in_skb,
 			       (unsigned long)fnew);
 
 	tcf_exts_change(tp, &fnew->exts, &e);
-	tcf_em_tree_change(tp, &fnew->ematches, &t);
 
 	netif_keep_dst(qdisc_dev(tp->q));
 
@@ -554,8 +552,8 @@ static int flow_change(struct net *net, struct sk_buff *in_skb,
 
 err3:
 	tcf_exts_destroy(&fnew->exts);
+	tcf_em_tree_destroy(&fnew->ematches);
 err2:
-	tcf_em_tree_destroy(&t);
 	kfree(fnew);
 err1:
 	tcf_exts_destroy(&e);
