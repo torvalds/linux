@@ -1974,6 +1974,17 @@ static void mlxsw_sp_fdb_fini(struct mlxsw_sp *mlxsw_sp)
 
 }
 
+static void mlxsw_sp_mids_fini(struct mlxsw_sp *mlxsw_sp)
+{
+	struct mlxsw_sp_mid *mid, *tmp;
+
+	list_for_each_entry_safe(mid, tmp, &mlxsw_sp->bridge->mids_list, list) {
+		list_del(&mid->list);
+		clear_bit(mid->mid, mlxsw_sp->bridge->mids_bitmap);
+		kfree(mid);
+	}
+}
+
 int mlxsw_sp_switchdev_init(struct mlxsw_sp *mlxsw_sp)
 {
 	struct mlxsw_sp_bridge *bridge;
@@ -1996,7 +2007,7 @@ int mlxsw_sp_switchdev_init(struct mlxsw_sp *mlxsw_sp)
 void mlxsw_sp_switchdev_fini(struct mlxsw_sp *mlxsw_sp)
 {
 	mlxsw_sp_fdb_fini(mlxsw_sp);
-	WARN_ON(!list_empty(&mlxsw_sp->bridge->mids_list));
+	mlxsw_sp_mids_fini(mlxsw_sp);
 	WARN_ON(!list_empty(&mlxsw_sp->bridge->bridges_list));
 	kfree(mlxsw_sp->bridge);
 }
