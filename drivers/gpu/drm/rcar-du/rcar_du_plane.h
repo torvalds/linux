@@ -20,7 +20,8 @@
 struct rcar_du_format_info;
 struct rcar_du_group;
 
-/* The RCAR DU has 8 hardware planes, shared between primary and overlay planes.
+/*
+ * The RCAR DU has 8 hardware planes, shared between primary and overlay planes.
  * As using overlay planes requires at least one of the CRTCs being enabled, no
  * more than 7 overlay planes can be available. We thus create 1 primary plane
  * per CRTC and 7 overlay planes, for a total of up to 9 KMS planes.
