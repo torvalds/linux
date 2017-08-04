@@ -115,6 +115,14 @@ struct hfi1_16b_header {
 	} u;
 } __packed;
 
+struct hfi1_opa_header {
+	union {
+		struct ib_header ibh; /* 9B header */
+		struct hfi1_16b_header opah; /* 16B header */
+	};
+	u8 hdr_type; /* 9B or 16B */
+} __packed;
+
 struct hfi1_ahg_info {
 	u32 ahgdesc[2];
 	u16 tx_flags;
@@ -124,7 +132,7 @@ struct hfi1_ahg_info {
 
 struct hfi1_sdma_header {
 	__le64 pbc;
-	struct ib_header hdr;
+	struct hfi1_opa_header hdr;
 } __packed;
 
 /*
@@ -326,7 +334,7 @@ u8 ah_to_sc(struct ib_device *ibdev, struct rdma_ah_attr *ah_attr);
 
 struct ib_ah *hfi1_create_qp0_ah(struct hfi1_ibport *ibp, u16 dlid);
 
-void hfi1_rc_send_complete(struct rvt_qp *qp, struct ib_header *hdr);
+void hfi1_rc_send_complete(struct rvt_qp *qp, struct hfi1_opa_header *opah);
 
 void hfi1_ud_rcv(struct hfi1_packet *packet);
 
@@ -346,16 +354,6 @@ int hfi1_check_send_wqe(struct rvt_qp *qp, struct rvt_swqe *wqe);
 
 extern const u32 rc_only_opcode;
 extern const u32 uc_only_opcode;
-
-static inline u8 get_opcode(struct ib_header *h)
-{
-	u16 lnh = be16_to_cpu(h->lrh[0]) & 3;
-
-	if (lnh == IB_LNH_IBA_LOCAL)
-		return be32_to_cpu(h->u.oth.bth[0]) >> 24;
-	else
-		return be32_to_cpu(h->u.l.oth.bth[0]) >> 24;
-}
 
 int hfi1_ruc_check_hdr(struct hfi1_ibport *ibp, struct hfi1_packet *packet);
 

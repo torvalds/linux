@@ -357,12 +357,13 @@ int hfi1_make_ud_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 
 	if (rdma_ah_get_ah_flags(ah_attr) & IB_AH_GRH) {
 		/* Header size in 32-bit words. */
-		qp->s_hdrwords += hfi1_make_grh(ibp,
-						&ps->s_txreq->phdr.hdr.u.l.grh,
-						rdma_ah_read_grh(ah_attr),
-						qp->s_hdrwords, nwords);
+		qp->s_hdrwords +=
+			hfi1_make_grh(ibp,
+				      &ps->s_txreq->phdr.hdr.ibh.u.l.grh,
+				      rdma_ah_read_grh(ah_attr),
+				      qp->s_hdrwords, nwords);
 		lrh0 = HFI1_LRH_GRH;
-		ohdr = &ps->s_txreq->phdr.hdr.u.l.oth;
+		ohdr = &ps->s_txreq->phdr.hdr.ibh.u.l.oth;
 		/*
 		 * Don't worry about sending to locally attached multicast
 		 * QPs.  It is unspecified by the spec. what happens.
@@ -370,7 +371,7 @@ int hfi1_make_ud_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 	} else {
 		/* Header size in 32-bit words. */
 		lrh0 = HFI1_LRH_BTH;
-		ohdr = &ps->s_txreq->phdr.hdr.u.oth;
+		ohdr = &ps->s_txreq->phdr.hdr.ibh.u.oth;
 	}
 	if (wqe->wr.opcode == IB_WR_SEND_WITH_IMM) {
 		qp->s_hdrwords++;
@@ -392,21 +393,21 @@ int hfi1_make_ud_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 	ps->s_txreq->sde = priv->s_sde;
 	priv->s_sendcontext = qp_to_send_context(qp, priv->s_sc);
 	ps->s_txreq->psc = priv->s_sendcontext;
-	ps->s_txreq->phdr.hdr.lrh[0] = cpu_to_be16(lrh0);
-	ps->s_txreq->phdr.hdr.lrh[1] =
+	ps->s_txreq->phdr.hdr.ibh.lrh[0] = cpu_to_be16(lrh0);
+	ps->s_txreq->phdr.hdr.ibh.lrh[1] =
 		cpu_to_be16(rdma_ah_get_dlid(ah_attr));
-	ps->s_txreq->phdr.hdr.lrh[2] =
+	ps->s_txreq->phdr.hdr.ibh.lrh[2] =
 		cpu_to_be16(qp->s_hdrwords + nwords + SIZE_OF_CRC);
 	if (rdma_ah_get_dlid(ah_attr) == be16_to_cpu(IB_LID_PERMISSIVE)) {
-		ps->s_txreq->phdr.hdr.lrh[3] = IB_LID_PERMISSIVE;
+		ps->s_txreq->phdr.hdr.ibh.lrh[3] = IB_LID_PERMISSIVE;
 	} else {
 		lid = ppd->lid;
 		if (lid) {
 			lid |= rdma_ah_get_path_bits(ah_attr) &
 				((1 << ppd->lmc) - 1);
-			ps->s_txreq->phdr.hdr.lrh[3] = cpu_to_be16(lid);
+			ps->s_txreq->phdr.hdr.ibh.lrh[3] = cpu_to_be16(lid);
 		} else {
-			ps->s_txreq->phdr.hdr.lrh[3] = IB_LID_PERMISSIVE;
+			ps->s_txreq->phdr.hdr.ibh.lrh[3] = IB_LID_PERMISSIVE;
 		}
 	}
 	if (wqe->wr.send_flags & IB_SEND_SOLICITED)

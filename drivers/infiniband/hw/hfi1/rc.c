@@ -273,9 +273,9 @@ int hfi1_make_rc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 	if (IS_ERR(ps->s_txreq))
 		goto bail_no_tx;
 
-	ohdr = &ps->s_txreq->phdr.hdr.u.oth;
+	ohdr = &ps->s_txreq->phdr.hdr.ibh.u.oth;
 	if (rdma_ah_get_ah_flags(&qp->remote_ah_attr) & IB_AH_GRH)
-		ohdr = &ps->s_txreq->phdr.hdr.u.l.oth;
+		ohdr = &ps->s_txreq->phdr.hdr.ibh.u.l.oth;
 
 	/* Sending responses has higher priority over sending requests. */
 	if ((qp->s_flags & RVT_S_RESP_PENDING) &&
@@ -724,7 +724,8 @@ void hfi1_send_rc_ack(struct hfi1_ctxtdata *rcd, struct rvt_qp *qp,
 	u32 vl, plen;
 	struct send_context *sc;
 	struct pio_buf *pbuf;
-	struct ib_header hdr;
+	struct hfi1_opa_header opah;
+	struct ib_header *hdr;
 	struct ib_other_headers *ohdr;
 	unsigned long flags;
 
@@ -741,16 +742,19 @@ void hfi1_send_rc_ack(struct hfi1_ctxtdata *rcd, struct rvt_qp *qp,
 		goto queue_ack;
 
 	/* Construct the header */
+	opah.hdr_type = 0;
+	hdr = &opah.ibh;
+
 	/* header size in 32-bit words LRH+BTH+AETH = (8+12+4)/4 */
 	hwords = 6;
 	if (unlikely(rdma_ah_get_ah_flags(&qp->remote_ah_attr) & IB_AH_GRH)) {
-		hwords += hfi1_make_grh(ibp, &hdr.u.l.grh,
+		hwords += hfi1_make_grh(ibp, &hdr->u.l.grh,
 					rdma_ah_read_grh(&qp->remote_ah_attr),
 					hwords, 0);
-		ohdr = &hdr.u.l.oth;
+		ohdr = &hdr->u.l.oth;
 		lrh0 = HFI1_LRH_GRH;
 	} else {
-		ohdr = &hdr.u.oth;
+		ohdr = &hdr->u.oth;
 		lrh0 = HFI1_LRH_BTH;
 	}
 	/* read pkey_index w/o lock (its atomic) */
@@ -768,11 +772,11 @@ void hfi1_send_rc_ack(struct hfi1_ctxtdata *rcd, struct rvt_qp *qp,
 	pbc_flags |= (ib_is_sc5(sc5) << PBC_DC_INFO_SHIFT);
 	lrh0 |= (sc5 & 0xf) << 12 | (rdma_ah_get_sl(&qp->remote_ah_attr)
 				     & 0xf) << 4;
-	hdr.lrh[0] = cpu_to_be16(lrh0);
-	hdr.lrh[1] = cpu_to_be16(rdma_ah_get_dlid(&qp->remote_ah_attr));
-	hdr.lrh[2] = cpu_to_be16(hwords + SIZE_OF_CRC);
-	hdr.lrh[3] = cpu_to_be16(ppd->lid |
-				 rdma_ah_get_path_bits(&qp->remote_ah_attr));
+	hdr->lrh[0] = cpu_to_be16(lrh0);
+	hdr->lrh[1] = cpu_to_be16(rdma_ah_get_dlid(&qp->remote_ah_attr));
+	hdr->lrh[2] = cpu_to_be16(hwords + SIZE_OF_CRC);
+	hdr->lrh[3] = cpu_to_be16(ppd->lid |
+				  rdma_ah_get_path_bits(&qp->remote_ah_attr));
 	ohdr->bth[0] = cpu_to_be32(bth0);
 	ohdr->bth[1] = cpu_to_be32(qp->remote_qpn);
 	ohdr->bth[1] |= cpu_to_be32((!!is_fecn) << IB_BECN_SHIFT);
@@ -799,10 +803,10 @@ void hfi1_send_rc_ack(struct hfi1_ctxtdata *rcd, struct rvt_qp *qp,
 	}
 
 	trace_ack_output_ibhdr(dd_from_ibdev(qp->ibqp.device),
-			       &hdr, ib_is_sc5(sc5));
+			       &opah, ib_is_sc5(sc5));
 
 	/* write the pbc and data */
-	ppd->dd->pio_inline_send(ppd->dd, pbuf, pbc, &hdr, hwords);
+	ppd->dd->pio_inline_send(ppd->dd, pbuf, pbc, hdr, hwords);
 
 	return;
 
@@ -985,9 +989,10 @@ static void reset_sending_psn(struct rvt_qp *qp, u32 psn)
 /*
  * This should be called with the QP s_lock held and interrupts disabled.
  */
-void hfi1_rc_send_complete(struct rvt_qp *qp, struct ib_header *hdr)
+void hfi1_rc_send_complete(struct rvt_qp *qp, struct hfi1_opa_header *opah)
 {
 	struct ib_other_headers *ohdr;
+	struct ib_header *hdr = &opah->ibh;
 	struct rvt_swqe *wqe;
 	u32 opcode;
 	u32 psn;

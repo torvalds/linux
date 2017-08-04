@@ -93,9 +93,9 @@ int hfi1_make_uc_req(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 		goto done_free_tx;
 	}
 
-	ohdr = &ps->s_txreq->phdr.hdr.u.oth;
+	ohdr = &ps->s_txreq->phdr.hdr.ibh.u.oth;
 	if (rdma_ah_get_ah_flags(&qp->remote_ah_attr) & IB_AH_GRH)
-		ohdr = &ps->s_txreq->phdr.hdr.u.l.oth;
+		ohdr = &ps->s_txreq->phdr.hdr.ibh.u.l.oth;
 
 	/* Get the next send request. */
 	wqe = rvt_get_swqe_ptr(qp, qp->s_cur);

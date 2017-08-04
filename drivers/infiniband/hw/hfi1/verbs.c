@@ -506,6 +506,24 @@ again:
 	}
 }
 
+static u8 get_opcode(struct hfi1_opa_header *hdr)
+{
+	struct ib_other_headers *ohdr;
+
+	if (hdr->hdr_type) {
+		if (hfi1_16B_get_l4(&hdr->opah) == OPA_16B_L4_IB_LOCAL)
+			ohdr = &hdr->opah.u.oth;
+		else
+			ohdr = &hdr->opah.u.l.oth;
+	} else {
+		if (ib_get_lnh(&hdr->ibh) == HFI1_LRH_BTH)
+			ohdr = &hdr->ibh.u.oth;
+		else
+			ohdr = &hdr->ibh.u.l.oth;
+	}
+	return ib_bth_get_opcode(ohdr);
+}
+
 /*
  * Make sure the QP is ready and able to accept the given opcode.
  */
@@ -686,7 +704,7 @@ static void verbs_sdma_complete(
 	if (tx->wqe) {
 		hfi1_send_complete(qp, tx->wqe, IB_WC_SUCCESS);
 	} else if (qp->ibqp.qp_type == IB_QPT_RC) {
-		struct ib_header *hdr;
+		struct hfi1_opa_header *hdr;
 
 		hdr = &tx->phdr.hdr;
 		hfi1_rc_send_complete(qp, hdr);
@@ -1175,7 +1193,7 @@ static inline send_routine get_send_routine(struct rvt_qp *qp,
 {
 	struct hfi1_devdata *dd = dd_from_ibdev(qp->ibqp.device);
 	struct hfi1_qp_priv *priv = qp->priv;
-	struct ib_header *h = &tx->phdr.hdr;
+	struct hfi1_opa_header *h = &tx->phdr.hdr;
 
 	if (unlikely(!(dd->flags & HFI1_HAS_SEND_DMA)))
 		return dd->process_pio_send;
@@ -1221,7 +1239,7 @@ int hfi1_verbs_send(struct rvt_qp *qp, struct hfi1_pkt_state *ps)
 	int ret;
 	u8 lnh;
 
-	hdr = &ps->s_txreq->phdr.hdr;
+	hdr = &ps->s_txreq->phdr.hdr.ibh;
 	/* locate the pkey within the headers */
 	lnh = ib_get_lnh(hdr);
 	if (lnh == HFI1_LRH_GRH)

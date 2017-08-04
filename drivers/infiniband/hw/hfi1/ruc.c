@@ -668,7 +668,8 @@ u32 hfi1_make_grh(struct hfi1_ibport *ibp, struct ib_grh *hdr,
 	return sizeof(struct ib_grh) / sizeof(u32);
 }
 
-#define BTH2_OFFSET (offsetof(struct hfi1_sdma_header, hdr.u.oth.bth[2]) / 4)
+#define BTH2_OFFSET (offsetof(struct hfi1_sdma_header, \
+			      hdr.ibh.u.oth.bth[2]) / 4)
 
 /**
  * build_ahg - create ahg in s_ahg
@@ -743,8 +744,8 @@ void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 	if (unlikely(rdma_ah_get_ah_flags(&qp->remote_ah_attr) & IB_AH_GRH)) {
 		qp->s_hdrwords +=
 			hfi1_make_grh(ibp,
-				      &ps->s_txreq->phdr.hdr.u.l.grh,
-				      rdma_ah_read_grh(&qp->remote_ah_attr),
+				      &ps->s_txreq->phdr.hdr.ibh.u.l.grh,
+				      &qp->remote_ah_attr.grh,
 				      qp->s_hdrwords, nwords);
 		lrh0 = HFI1_LRH_GRH;
 		middle = 0;
@@ -773,14 +774,14 @@ void hfi1_make_ruc_header(struct rvt_qp *qp, struct ib_other_headers *ohdr,
 		build_ahg(qp, bth2);
 	else
 		qp->s_flags &= ~RVT_S_AHG_VALID;
-	ps->s_txreq->phdr.hdr.lrh[0] = cpu_to_be16(lrh0);
-	ps->s_txreq->phdr.hdr.lrh[1] =
+	ps->s_txreq->phdr.hdr.ibh.lrh[0] = cpu_to_be16(lrh0);
+	ps->s_txreq->phdr.hdr.ibh.lrh[1] =
 		cpu_to_be16(rdma_ah_get_dlid(&qp->remote_ah_attr));
-	ps->s_txreq->phdr.hdr.lrh[2] =
+	ps->s_txreq->phdr.hdr.ibh.lrh[2] =
 		cpu_to_be16(qp->s_hdrwords + nwords + SIZE_OF_CRC);
-	ps->s_txreq->phdr.hdr.lrh[3] =
+	ps->s_txreq->phdr.hdr.ibh.lrh[3] =
 		cpu_to_be16(ppd_from_ibp(ibp)->lid |
-			    rdma_ah_get_path_bits(&qp->remote_ah_attr));
+		rdma_ah_get_path_bits(&qp->remote_ah_attr));
 	bth0 |= hfi1_get_pkey(ibp, qp->s_pkey_index);
 	bth0 |= extra_bytes << 20;
 	ohdr->bth[0] = cpu_to_be32(bth0);
