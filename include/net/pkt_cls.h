@@ -177,29 +177,6 @@ tcf_exts_stats_update(const struct tcf_exts *exts,
 }
 
 /**
- * tcf_exts_exec - execute tc filter extensions
- * @skb: socket buffer
- * @exts: tc filter extensions handle
- * @res: desired result
- *
- * Executes all configured extensions. Returns 0 on a normal execution,
- * a negative number if the filter must be considered unmatched or
- * a positive action code (TC_ACT_*) which must be returned to the
- * underlying layer.
- */
-static inline int
-tcf_exts_exec(struct sk_buff *skb, struct tcf_exts *exts,
-	       struct tcf_result *res)
-{
-#ifdef CONFIG_NET_CLS_ACT
-	if (exts->nr_actions)
-		return tcf_action_exec(skb, exts->actions, exts->nr_actions,
-				       res);
-#endif
-	return 0;
-}
-
-/**
  * tcf_exts_has_actions - check if at least one action is present
  * @exts: tc filter extensions handle
  *
@@ -227,6 +204,29 @@ static inline bool tcf_exts_has_one_action(struct tcf_exts *exts)
 #else
 	return false;
 #endif
+}
+
+/**
+ * tcf_exts_exec - execute tc filter extensions
+ * @skb: socket buffer
+ * @exts: tc filter extensions handle
+ * @res: desired result
+ *
+ * Executes all configured extensions. Returns 0 on a normal execution,
+ * a negative number if the filter must be considered unmatched or
+ * a positive action code (TC_ACT_*) which must be returned to the
+ * underlying layer.
+ */
+static inline int
+tcf_exts_exec(struct sk_buff *skb, struct tcf_exts *exts,
+	      struct tcf_result *res)
+{
+#ifdef CONFIG_NET_CLS_ACT
+	if (tcf_exts_has_actions(exts))
+		return tcf_action_exec(skb, exts->actions, exts->nr_actions,
+				       res);
+#endif
+	return 0;
 }
 
 int tcf_exts_validate(struct net *net, struct tcf_proto *tp,
