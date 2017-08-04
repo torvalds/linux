@@ -69,15 +69,19 @@ struct dss_reg {
 #define REG_FLD_MOD(idx, val, start, end) \
 	dss_write_reg(idx, FLD_MOD(dss_read_reg(idx), val, start, end))
 
+struct dss_ops {
+	int (*dpi_select_source)(int port, enum omap_channel channel);
+	int (*select_lcd_source)(enum omap_channel channel,
+		enum dss_clk_source clk_src);
+};
+
 struct dss_features {
 	u8 fck_div_max;
 	u8 dss_fck_multiplier;
 	const char *parent_clk_name;
 	const enum omap_display_type *ports;
 	int num_ports;
-	int (*dpi_select_source)(int port, enum omap_channel channel);
-	int (*select_lcd_source)(enum omap_channel channel,
-		enum dss_clk_source clk_src);
+	const struct dss_ops *ops;
 };
 
 static struct {
@@ -576,7 +580,7 @@ void dss_select_lcd_clk_source(enum omap_channel channel,
 		return;
 	}
 
-	r = dss.feat->select_lcd_source(channel, clk_src);
+	r = dss.feat->ops->select_lcd_source(channel, clk_src);
 	if (r)
 		return;
 
@@ -823,7 +827,7 @@ static int dss_dpi_select_source_dra7xx(int port, enum omap_channel channel)
 
 int dss_dpi_select_source(int port, enum omap_channel channel)
 {
-	return dss.feat->dpi_select_source(port, channel);
+	return dss.feat->ops->dpi_select_source(port, channel);
 }
 
 static int dss_get_clocks(void)
@@ -893,6 +897,25 @@ void dss_debug_dump_clocks(struct seq_file *s)
 #endif
 
 
+static const struct dss_ops dss_ops_omap2_omap3 = {
+	.dpi_select_source = &dss_dpi_select_source_omap2_omap3,
+};
+
+static const struct dss_ops dss_ops_omap4 = {
+	.dpi_select_source = &dss_dpi_select_source_omap4,
+	.select_lcd_source = &dss_lcd_clk_mux_omap4,
+};
+
+static const struct dss_ops dss_ops_omap5 = {
+	.dpi_select_source = &dss_dpi_select_source_omap5,
+	.select_lcd_source = &dss_lcd_clk_mux_omap5,
+};
+
+static const struct dss_ops dss_ops_dra7 = {
+	.dpi_select_source = &dss_dpi_select_source_dra7xx,
+	.select_lcd_source = &dss_lcd_clk_mux_dra7,
+};
+
 static const enum omap_display_type omap2plus_ports[] = {
 	OMAP_DISPLAY_TYPE_DPI,
 };
@@ -916,66 +939,63 @@ static const struct dss_features omap24xx_dss_feats = {
 	.fck_div_max		=	6,
 	.dss_fck_multiplier	=	2,
 	.parent_clk_name	=	"core_ck",
-	.dpi_select_source	=	&dss_dpi_select_source_omap2_omap3,
 	.ports			=	omap2plus_ports,
 	.num_ports		=	ARRAY_SIZE(omap2plus_ports),
+	.ops			=	&dss_ops_omap2_omap3,
 };
 
 static const struct dss_features omap34xx_dss_feats = {
 	.fck_div_max		=	16,
 	.dss_fck_multiplier	=	2,
 	.parent_clk_name	=	"dpll4_ck",
-	.dpi_select_source	=	&dss_dpi_select_source_omap2_omap3,
 	.ports			=	omap34xx_ports,
 	.num_ports		=	ARRAY_SIZE(omap34xx_ports),
+	.ops			=	&dss_ops_omap2_omap3,
 };
 
 static const struct dss_features omap3630_dss_feats = {
 	.fck_div_max		=	32,
 	.dss_fck_multiplier	=	1,
 	.parent_clk_name	=	"dpll4_ck",
-	.dpi_select_source	=	&dss_dpi_select_source_omap2_omap3,
 	.ports			=	omap2plus_ports,
 	.num_ports		=	ARRAY_SIZE(omap2plus_ports),
+	.ops			=	&dss_ops_omap2_omap3,
 };
 
 static const struct dss_features omap44xx_dss_feats = {
 	.fck_div_max		=	32,
 	.dss_fck_multiplier	=	1,
 	.parent_clk_name	=	"dpll_per_x2_ck",
-	.dpi_select_source	=	&dss_dpi_select_source_omap4,
 	.ports			=	omap2plus_ports,
 	.num_ports		=	ARRAY_SIZE(omap2plus_ports),
-	.select_lcd_source	=	&dss_lcd_clk_mux_omap4,
+	.ops			=	&dss_ops_omap4,
 };
 
 static const struct dss_features omap54xx_dss_feats = {
 	.fck_div_max		=	64,
 	.dss_fck_multiplier	=	1,
 	.parent_clk_name	=	"dpll_per_x2_ck",
-	.dpi_select_source	=	&dss_dpi_select_source_omap5,
 	.ports			=	omap2plus_ports,
 	.num_ports		=	ARRAY_SIZE(omap2plus_ports),
-	.select_lcd_source	=	&dss_lcd_clk_mux_omap5,
+	.ops			=	&dss_ops_omap5,
 };
 
 static const struct dss_features am43xx_dss_feats = {
 	.fck_div_max		=	0,
 	.dss_fck_multiplier	=	0,
 	.parent_clk_name	=	NULL,
-	.dpi_select_source	=	&dss_dpi_select_source_omap2_omap3,
 	.ports			=	omap2plus_ports,
 	.num_ports		=	ARRAY_SIZE(omap2plus_ports),
+	.ops			=	&dss_ops_omap2_omap3,
 };
 
 static const struct dss_features dra7xx_dss_feats = {
 	.fck_div_max		=	64,
 	.dss_fck_multiplier	=	1,
 	.parent_clk_name	=	"dpll_per_x2_ck",
-	.dpi_select_source	=	&dss_dpi_select_source_dra7xx,
 	.ports			=	dra7xx_ports,
 	.num_ports		=	ARRAY_SIZE(dra7xx_ports),
-	.select_lcd_source	=	&dss_lcd_clk_mux_dra7,
+	.ops			=	&dss_ops_dra7,
 };
 
 static int dss_init_features(struct platform_device *pdev)
