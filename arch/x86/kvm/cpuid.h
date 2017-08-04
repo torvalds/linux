@@ -160,25 +160,13 @@ static inline bool guest_cpuid_has_rdtscp(struct kvm_vcpu *vcpu)
 	return best && (best->edx & bit(X86_FEATURE_RDTSCP));
 }
 
-/*
- * NRIPS is provided through cpuidfn 0x8000000a.edx bit 3
- */
-#define BIT_NRIPS	3
-
 static inline bool guest_cpuid_has_nrips(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpuid_entry2 *best;
 
 	best = kvm_find_cpuid_entry(vcpu, 0x8000000a, 0);
-
-	/*
-	 * NRIPS is a scattered cpuid feature, so we can't use
-	 * X86_FEATURE_NRIPS here (X86_FEATURE_NRIPS would be bit
-	 * position 8, not 3).
-	 */
-	return best && (best->edx & bit(BIT_NRIPS));
+	return best && (best->edx & bit(X86_FEATURE_NRIPS));
 }
-#undef BIT_NRIPS
 
 static inline int guest_cpuid_family(struct kvm_vcpu *vcpu)
 {
