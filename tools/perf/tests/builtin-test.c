@@ -609,15 +609,16 @@ static int perf_test__list_shell(int argc, const char **argv, int i)
 		return -1;
 
 	for_each_shell_test(dir, ent) {
+		int curr = i++;
 		char bf[256];
-		const char *desc = shell_test__description(bf, sizeof(bf), path, ent->d_name);
+		struct test t = {
+			.desc = shell_test__description(bf, sizeof(bf), path, ent->d_name),
+		};
 
-		++i;
-
-		if (argc > 1 && !strstr(desc, argv[1]))
+		if (!perf_test__matches(&t, curr, argc, argv))
 			continue;
 
-		pr_info("%2d: %s\n", i, desc);
+		pr_info("%2d: %s\n", i, t.desc);
 	}
 
 	closedir(dir);
@@ -631,9 +632,10 @@ static int perf_test__list(int argc, const char **argv)
 	int i = 0;
 
 	for_each_test(j, t) {
-		++i;
+		int curr = i++;
 
-		if (argc > 1 && !strstr(t->desc, argv[1]))
+		if (!perf_test__matches(t, curr, argc, argv) ||
+		    (t->is_supported && !t->is_supported()))
 			continue;
 
 		pr_info("%2d: %s\n", i, t->desc);
@@ -668,7 +670,7 @@ int cmd_test(int argc, const char **argv)
 
 	argc = parse_options_subcommand(argc, argv, test_options, test_subcommands, test_usage, 0);
 	if (argc >= 1 && !strcmp(argv[0], "list"))
-		return perf_test__list(argc, argv);
+		return perf_test__list(argc - 1, argv + 1);
 
 	symbol_conf.priv_size = sizeof(int);
 	symbol_conf.sort_by_name = true;
