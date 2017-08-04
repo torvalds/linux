@@ -291,7 +291,7 @@ static void wpf_configure(struct vsp1_entity *entity,
 		 * multiple slices.
 		 */
 		if (pipe->partitions > 1)
-			width = pipe->partition.width;
+			width = pipe->partition->width;
 
 		vsp1_wpf_write(wpf, dl, VI6_WPF_HSZCLIP, VI6_WPF_SZCLIP_EN |
 			       (0 << VI6_WPF_SZCLIP_OFST_SHIFT) |
@@ -320,13 +320,13 @@ static void wpf_configure(struct vsp1_entity *entity,
 		 * is applied horizontally or vertically accordingly.
 		 */
 		if (flip & BIT(WPF_CTRL_HFLIP) && !wpf->flip.rotate)
-			offset = format->width - pipe->partition.left
-				- pipe->partition.width;
+			offset = format->width - pipe->partition->left
+				- pipe->partition->width;
 		else if (flip & BIT(WPF_CTRL_VFLIP) && wpf->flip.rotate)
-			offset = format->height - pipe->partition.left
-				- pipe->partition.width;
+			offset = format->height - pipe->partition->left
+				- pipe->partition->width;
 		else
-			offset = pipe->partition.left;
+			offset = pipe->partition->left;
 
 		for (i = 0; i < format->num_planes; ++i) {
 			unsigned int hsub = i > 0 ? fmtinfo->hsub : 1;
@@ -348,7 +348,7 @@ static void wpf_configure(struct vsp1_entity *entity,
 			 * image height.
 			 */
 			if (wpf->flip.rotate)
-				height = pipe->partition.width;
+				height = pipe->partition->width;
 			else
 				height = format->height;
 

@@ -108,9 +108,9 @@ static void rpf_configure(struct vsp1_entity *entity,
 			output = vsp1_entity_get_pad_format(wpf, wpf->config,
 							    RWPF_PAD_SINK);
 
-			crop.width = pipe->partition.width * input_width
+			crop.width = pipe->partition->width * input_width
 				   / output->width;
-			crop.left += pipe->partition.left * input_width
+			crop.left += pipe->partition->left * input_width
 				   / output->width;
 		}
 
