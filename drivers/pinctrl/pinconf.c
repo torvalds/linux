@@ -205,7 +205,7 @@ int pinconf_set_config(struct pinctrl_dev *pctldev, unsigned pin,
 	const struct pinconf_ops *ops;
 
 	ops = pctldev->desc->confops;
-	if (!ops)
+	if (!ops || !ops->pin_config_set)
 		return -ENOTSUPP;
 
 	return ops->pin_config_set(pctldev, pin, configs, nconfigs);
