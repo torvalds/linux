@@ -195,6 +195,15 @@ struct intel_gvt_fence {
 	unsigned long vgpu_allocated_fence_num;
 };
 
+/* Special MMIO blocks. */
+struct gvt_mmio_block {
+	unsigned int device;
+	i915_reg_t   offset;
+	unsigned int size;
+	gvt_mmio_func read;
+	gvt_mmio_func write;
+};
+
 #define INTEL_GVT_MMIO_HASH_BITS 11
 
 struct intel_gvt_mmio {
@@ -213,6 +222,9 @@ struct intel_gvt_mmio {
 #define F_CMD_ACCESSED	(1 << 5)
 /* This reg could be accessed by unaligned address */
 #define F_UNALIGN	(1 << 6)
+
+	struct gvt_mmio_block *mmio_block;
+	unsigned int num_mmio_block;
 
 	DECLARE_HASHTABLE(mmio_info_table, INTEL_GVT_MMIO_HASH_BITS);
 	unsigned int num_tracked_mmio;
