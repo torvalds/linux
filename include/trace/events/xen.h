@@ -248,16 +248,6 @@ TRACE_EVENT(xen_mmu_set_p4d,
 		      (int)sizeof(p4dval_t) * 2, (unsigned long long)pgd_val(native_make_pgd(__entry->p4dval)),
 		      (int)sizeof(p4dval_t) * 2, (unsigned long long)__entry->p4dval)
 	);
-
-TRACE_EVENT(xen_mmu_pud_clear,
-	    TP_PROTO(pud_t *pudp),
-	    TP_ARGS(pudp),
-	    TP_STRUCT__entry(
-		    __field(pud_t *, pudp)
-		    ),
-	    TP_fast_assign(__entry->pudp = pudp),
-	    TP_printk("pudp %p", __entry->pudp)
-	);
 #else
 
 TRACE_EVENT(xen_mmu_set_pud,
@@ -276,16 +266,6 @@ TRACE_EVENT(xen_mmu_set_pud,
 	);
 
 #endif
-
-TRACE_EVENT(xen_mmu_pgd_clear,
-	    TP_PROTO(pgd_t *pgdp),
-	    TP_ARGS(pgdp),
-	    TP_STRUCT__entry(
-		    __field(pgd_t *, pgdp)
-		    ),
-	    TP_fast_assign(__entry->pgdp = pgdp),
-	    TP_printk("pgdp %p", __entry->pgdp)
-	);
 
 DECLARE_EVENT_CLASS(xen_mmu_ptep_modify_prot,
 	    TP_PROTO(struct mm_struct *mm, unsigned long addr,
