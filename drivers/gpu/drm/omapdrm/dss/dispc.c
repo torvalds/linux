@@ -88,6 +88,8 @@ struct dispc_features {
 		u16 width, u16 height, u16 out_width, u16 out_height,
 		bool mem_to_mem);
 	u8 num_fifos;
+	unsigned int buffer_size_unit;
+	unsigned int burst_size_unit;
 
 	/* swap GFX & WB fifos */
 	bool gfx_fifo_workaround:1;
@@ -1138,9 +1140,8 @@ static void dispc_configure_burst_sizes(void)
 
 static u32 dispc_ovl_get_burst_size(enum omap_plane_id plane)
 {
-	unsigned unit = dss_feat_get_burst_size_unit();
 	/* burst multiplier is always x8 (see dispc_configure_burst_sizes()) */
-	return unit * 8;
+	return dispc.feat->burst_size_unit * 8;
 }
 
 static const u32 *dispc_ovl_get_color_modes(enum omap_plane_id plane)
@@ -1225,7 +1226,7 @@ static void dispc_init_fifos(void)
 	u32 unit;
 	int i;
 
-	unit = dss_feat_get_buffer_size_unit();
+	unit = dispc.feat->buffer_size_unit;
 
 	dss_feat_get_reg_field(FEAT_REG_FIFOSIZE, &start, &end);
 
@@ -1309,7 +1310,7 @@ void dispc_ovl_set_fifo_threshold(enum omap_plane_id plane, u32 low,
 	u8 hi_start, hi_end, lo_start, lo_end;
 	u32 unit;
 
-	unit = dss_feat_get_buffer_size_unit();
+	unit = dispc.feat->buffer_size_unit;
 
 	WARN_ON(low % unit != 0);
 	WARN_ON(high % unit != 0);
@@ -1362,7 +1363,7 @@ void dispc_ovl_compute_fifo_thresholds(enum omap_plane_id plane,
 	 * buffer_units, and the fifo thresholds must be buffer_unit aligned.
 	 */
 
-	unsigned buf_unit = dss_feat_get_buffer_size_unit();
+	unsigned buf_unit = dispc.feat->buffer_size_unit;
 	unsigned ovl_fifo_size, total_fifo_size, burst_size;
 	int i;
 
@@ -1439,7 +1440,7 @@ static void dispc_init_mflag(void)
 
 	for (i = 0; i < dss_feat_get_num_ovls(); ++i) {
 		u32 size = dispc_ovl_get_fifo_size(i);
-		u32 unit = dss_feat_get_buffer_size_unit();
+		u32 unit = dispc.feat->buffer_size_unit;
 		u32 low, high;
 
 		dispc_ovl_set_mflag(i, true);
@@ -1458,7 +1459,7 @@ static void dispc_init_mflag(void)
 
 	if (dispc.feat->has_writeback) {
 		u32 size = dispc_ovl_get_fifo_size(OMAP_DSS_WB);
-		u32 unit = dss_feat_get_buffer_size_unit();
+		u32 unit = dispc.feat->buffer_size_unit;
 		u32 low, high;
 
 		dispc_ovl_set_mflag(OMAP_DSS_WB, true);
@@ -3706,6 +3707,8 @@ static const struct dispc_features omap24xx_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_24xx,
 	.calc_core_clk		=	calc_core_clk_24xx,
 	.num_fifos		=	3,
+	.buffer_size_unit	=	1,
+	.burst_size_unit	=	8,
 	.no_framedone_tv	=	true,
 	.set_max_preload	=	false,
 	.last_pixel_inc_missing	=	true,
@@ -3727,6 +3730,8 @@ static const struct dispc_features omap34xx_rev1_0_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_34xx,
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
+	.buffer_size_unit	=	1,
+	.burst_size_unit	=	8,
 	.no_framedone_tv	=	true,
 	.set_max_preload	=	false,
 	.last_pixel_inc_missing	=	true,
@@ -3748,6 +3753,8 @@ static const struct dispc_features omap34xx_rev3_0_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_34xx,
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
+	.buffer_size_unit	=	1,
+	.burst_size_unit	=	8,
 	.no_framedone_tv	=	true,
 	.set_max_preload	=	false,
 	.last_pixel_inc_missing	=	true,
@@ -3769,6 +3776,8 @@ static const struct dispc_features omap44xx_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_44xx,
 	.calc_core_clk		=	calc_core_clk_44xx,
 	.num_fifos		=	5,
+	.buffer_size_unit	=	16,
+	.burst_size_unit	=	16,
 	.gfx_fifo_workaround	=	true,
 	.set_max_preload	=	true,
 	.supports_sync_align	=	true,
@@ -3795,6 +3804,8 @@ static const struct dispc_features omap54xx_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_44xx,
 	.calc_core_clk		=	calc_core_clk_44xx,
 	.num_fifos		=	5,
+	.buffer_size_unit	=	16,
+	.burst_size_unit	=	16,
 	.gfx_fifo_workaround	=	true,
 	.mstandby_workaround	=	true,
 	.set_max_preload	=	true,

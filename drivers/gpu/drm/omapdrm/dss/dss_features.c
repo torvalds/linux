@@ -50,9 +50,6 @@ struct omap_dss_features {
 	const u32 **supported_color_modes;
 	const enum omap_overlay_caps *overlay_caps;
 	const struct dss_param_range *dss_params;
-
-	const u32 buffer_size_unit;
-	const u32 burst_size_unit;
 };
 
 /* This struct is assigned to one of the below during initialization */
@@ -551,8 +548,6 @@ static const struct omap_dss_features omap2_dss_features = {
 	.supported_color_modes = omap2_dss_supported_color_modes,
 	.overlay_caps = omap2_dss_overlay_caps,
 	.dss_params = omap2_dss_param_range,
-	.buffer_size_unit = 1,
-	.burst_size_unit = 8,
 };
 
 /* OMAP3 DSS Features */
@@ -569,8 +564,6 @@ static const struct omap_dss_features omap3430_dss_features = {
 	.supported_color_modes = omap3_dss_supported_color_modes,
 	.overlay_caps = omap3430_dss_overlay_caps,
 	.dss_params = omap3_dss_param_range,
-	.buffer_size_unit = 1,
-	.burst_size_unit = 8,
 };
 
 /*
@@ -590,8 +583,6 @@ static const struct omap_dss_features am35xx_dss_features = {
 	.supported_color_modes = omap3_dss_supported_color_modes,
 	.overlay_caps = omap3430_dss_overlay_caps,
 	.dss_params = omap3_dss_param_range,
-	.buffer_size_unit = 1,
-	.burst_size_unit = 8,
 };
 
 static const struct omap_dss_features am43xx_dss_features = {
@@ -607,8 +598,6 @@ static const struct omap_dss_features am43xx_dss_features = {
 	.supported_color_modes = omap3_dss_supported_color_modes,
 	.overlay_caps = omap3430_dss_overlay_caps,
 	.dss_params = am43xx_dss_param_range,
-	.buffer_size_unit = 1,
-	.burst_size_unit = 8,
 };
 
 static const struct omap_dss_features omap3630_dss_features = {
@@ -624,8 +613,6 @@ static const struct omap_dss_features omap3630_dss_features = {
 	.supported_color_modes = omap3_dss_supported_color_modes,
 	.overlay_caps = omap3630_dss_overlay_caps,
 	.dss_params = omap3_dss_param_range,
-	.buffer_size_unit = 1,
-	.burst_size_unit = 8,
 };
 
 /* OMAP4 DSS Features */
@@ -643,8 +630,6 @@ static const struct omap_dss_features omap4430_es1_0_dss_features  = {
 	.supported_color_modes = omap4_dss_supported_color_modes,
 	.overlay_caps = omap4_dss_overlay_caps,
 	.dss_params = omap4_dss_param_range,
-	.buffer_size_unit = 16,
-	.burst_size_unit = 16,
 };
 
 /* For OMAP4430 ES 2.0, 2.1 and 2.2 revisions */
@@ -661,8 +646,6 @@ static const struct omap_dss_features omap4430_es2_0_1_2_dss_features = {
 	.supported_color_modes = omap4_dss_supported_color_modes,
 	.overlay_caps = omap4_dss_overlay_caps,
 	.dss_params = omap4_dss_param_range,
-	.buffer_size_unit = 16,
-	.burst_size_unit = 16,
 };
 
 /* For all the other OMAP4 versions */
@@ -679,8 +662,6 @@ static const struct omap_dss_features omap4_dss_features = {
 	.supported_color_modes = omap4_dss_supported_color_modes,
 	.overlay_caps = omap4_dss_overlay_caps,
 	.dss_params = omap4_dss_param_range,
-	.buffer_size_unit = 16,
-	.burst_size_unit = 16,
 };
 
 /* OMAP5 DSS Features */
@@ -697,8 +678,6 @@ static const struct omap_dss_features omap5_dss_features = {
 	.supported_color_modes = omap4_dss_supported_color_modes,
 	.overlay_caps = omap4_dss_overlay_caps,
 	.dss_params = omap5_dss_param_range,
-	.buffer_size_unit = 16,
-	.burst_size_unit = 16,
 };
 
 /* Functions returning values related to a DSS feature */
@@ -750,16 +729,6 @@ bool dss_feat_color_mode_supported(enum omap_plane_id plane, u32 fourcc)
 	}
 
 	return false;
-}
-
-u32 dss_feat_get_buffer_size_unit(void)
-{
-	return omap_current_dss_features->buffer_size_unit;
-}
-
-u32 dss_feat_get_burst_size_unit(void)
-{
-	return omap_current_dss_features->burst_size_unit;
 }
 
 /* DSS has_feature check */
