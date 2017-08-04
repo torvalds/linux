@@ -259,7 +259,7 @@ static inline int hfi1_send_ok(struct rvt_qp *qp)
  * This must be called with s_lock held.
  */
 void hfi1_bad_pkey(struct hfi1_ibport *ibp, u32 key, u32 sl,
-		   u32 qp1, u32 qp2, u16 lid1, u16 lid2);
+		   u32 qp1, u32 qp2, u32 lid1, u32 lid2);
 void hfi1_cap_mask_chg(struct rvt_dev_info *rdi, u8 port_num);
 void hfi1_sys_guid_chg(struct hfi1_ibport *ibp);
 void hfi1_node_desc_chg(struct hfi1_ibport *ibp);

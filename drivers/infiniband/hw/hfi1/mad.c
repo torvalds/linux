@@ -373,12 +373,10 @@ static struct trap_node *create_trap_node(u8 type, __be16 trap_num, u32 lid)
  * Send a bad P_Key trap (ch. 14.3.8).
  */
 void hfi1_bad_pkey(struct hfi1_ibport *ibp, u32 key, u32 sl,
-		   u32 qp1, u32 qp2, u16 lid1, u16 lid2)
+		   u32 qp1, u32 qp2, u32 lid1, u32 lid2)
 {
 	struct trap_node *trap;
 	u32 lid = ppd_from_ibp(ibp)->lid;
-	u32 _lid1 = lid1;
-	u32 _lid2 = lid2;
 
 	ibp->rvp.n_pkt_drops++;
 	ibp->rvp.pkey_violations++;
@@ -389,8 +387,8 @@ void hfi1_bad_pkey(struct hfi1_ibport *ibp, u32 key, u32 sl,
 		return;
 
 	/* Send violation trap */
-	trap->data.ntc_257_258.lid1 = cpu_to_be32(_lid1);
-	trap->data.ntc_257_258.lid2 = cpu_to_be32(_lid2);
+	trap->data.ntc_257_258.lid1 = cpu_to_be32(lid1);
+	trap->data.ntc_257_258.lid2 = cpu_to_be32(lid2);
 	trap->data.ntc_257_258.key = cpu_to_be32(key);
 	trap->data.ntc_257_258.sl = sl << 3;
 	trap->data.ntc_257_258.qp1 = cpu_to_be32(qp1);

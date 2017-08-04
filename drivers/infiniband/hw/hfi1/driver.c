@@ -437,23 +437,33 @@ void hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 			       bool do_cnp)
 {
 	struct hfi1_ibport *ibp = to_iport(qp->ibqp.device, qp->port_num);
-	struct ib_header *hdr = pkt->hdr;
 	struct ib_other_headers *ohdr = pkt->ohdr;
 	struct ib_grh *grh = pkt->grh;
 	u32 rqpn = 0, bth1;
-	u16 rlid, dlid = ib_get_dlid(hdr);
-	u8 sc, svc_type;
+	u16 pkey, rlid, dlid = ib_get_dlid(pkt->hdr);
+	u8 hdr_type, sc, svc_type;
 	bool is_mcast = false;
+
+	if (pkt->etype == RHF_RCV_TYPE_BYPASS) {
+		is_mcast = hfi1_is_16B_mcast(dlid);
+		pkey = hfi1_16B_get_pkey(pkt->hdr);
+		sc = hfi1_16B_get_sc(pkt->hdr);
+		hdr_type = HFI1_PKT_TYPE_16B;
+	} else {
+		is_mcast = (dlid > be16_to_cpu(IB_MULTICAST_LID_BASE)) &&
+			   (dlid != be16_to_cpu(IB_LID_PERMISSIVE));
+		pkey = ib_bth_get_pkey(ohdr);
+		sc = hfi1_9B_get_sc5(pkt->hdr, pkt->rhf);
+		hdr_type = HFI1_PKT_TYPE_9B;
+	}
 
 	switch (qp->ibqp.qp_type) {
 	case IB_QPT_SMI:
 	case IB_QPT_GSI:
 	case IB_QPT_UD:
-		rlid = ib_get_slid(hdr);
-		rqpn = ib_get_sqpn(ohdr);
+		rlid = ib_get_slid(pkt->hdr);
+		rqpn = ib_get_sqpn(pkt->ohdr);
 		svc_type = IB_CC_SVCTYPE_UD;
-		is_mcast = (dlid > be16_to_cpu(IB_MULTICAST_LID_BASE)) &&
-			(dlid != be16_to_cpu(IB_LID_PERMISSIVE));
 		break;
 	case IB_QPT_UC:
 		rlid = rdma_ah_get_dlid(&qp->remote_ah_attr);
@@ -469,14 +479,11 @@ void hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
 		return;
 	}
 
-	sc = hfi1_9B_get_sc5(hdr, pkt->rhf);
-
 	bth1 = be32_to_cpu(ohdr->bth[1]);
-	if (do_cnp && (bth1 & IB_FECN_SMASK)) {
-		u16 pkey = ib_bth_get_pkey(ohdr);
-
-		return_cnp(ibp, qp, rqpn, pkey, dlid, rlid, sc, grh);
-	}
+	/* Call appropriate CNP handler */
+	if (do_cnp && (bth1 & IB_FECN_SMASK))
+		hfi1_handle_cnp_tbl[hdr_type](ibp, qp, rqpn, pkey,
+					      dlid, rlid, sc, grh);
 
 	if (!is_mcast && (bth1 & IB_BECN_SMASK)) {
 		struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);

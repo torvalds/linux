@@ -54,6 +54,7 @@
 #define OPA_MAKE_ID(x)          (cpu_to_be64(OPA_SPECIAL_OUI << 40 | (x)))
 #define OPA_TO_IB_UCAST_LID(x) (((x) >= be16_to_cpu(IB_MULTICAST_LID_BASE)) \
 				? 0 : x)
+#define OPA_GID_INDEX		0x1
 /**
  * 0xF8 - 4 bits of multicast range and 1 bit for collective range
  * Example: For 24 bit LID space,

@@ -831,6 +831,10 @@ struct hfi1_pportdata {
 typedef int (*rhf_rcv_function_ptr)(struct hfi1_packet *packet);
 
 typedef void (*opcode_handler)(struct hfi1_packet *packet);
+typedef void (*hfi1_make_req)(struct rvt_qp *qp,
+			      struct hfi1_pkt_state *ps,
+			      struct rvt_swqe *wqe);
+
 
 /* return values for the RHF receive functions */
 #define RHF_RCV_CONTINUE  0	/* keep going */
@@ -1373,6 +1377,13 @@ void hfi1_set_vnic_msix_info(struct hfi1_ctxtdata *rcd);
 void hfi1_reset_vnic_msix_info(struct hfi1_ctxtdata *rcd);
 
 extern const struct pci_device_id hfi1_pci_tbl[];
+void hfi1_make_ud_req_9B(struct rvt_qp *qp,
+			 struct hfi1_pkt_state *ps,
+			 struct rvt_swqe *wqe);
+
+void hfi1_make_ud_req_16B(struct rvt_qp *qp,
+			  struct hfi1_pkt_state *ps,
+			  struct rvt_swqe *wqe);
 
 /* receive packet handler dispositions */
 #define RCV_PKT_OK      0x0 /* keep going */
@@ -1507,6 +1518,18 @@ void process_becn(struct hfi1_pportdata *ppd, u8 sl,  u16 rlid, u32 lqpn,
 void return_cnp(struct hfi1_ibport *ibp, struct rvt_qp *qp, u32 remote_qpn,
 		u32 pkey, u32 slid, u32 dlid, u8 sc5,
 		const struct ib_grh *old_grh);
+void return_cnp_16B(struct hfi1_ibport *ibp, struct rvt_qp *qp,
+		    u32 remote_qpn, u32 pkey, u32 slid, u32 dlid,
+		    u8 sc5, const struct ib_grh *old_grh);
+typedef void (*hfi1_handle_cnp)(struct hfi1_ibport *ibp, struct rvt_qp *qp,
+				u32 remote_qpn, u32 pkey, u32 slid, u32 dlid,
+				u8 sc5, const struct ib_grh *old_grh);
+
+/* We support only two types - 9B and 16B for now */
+static const hfi1_handle_cnp hfi1_handle_cnp_tbl[2] = {
+	[HFI1_PKT_TYPE_9B] = &return_cnp,
+	[HFI1_PKT_TYPE_16B] = &return_cnp_16B
+};
 #define PKEY_CHECK_INVALID -1
 int egress_pkey_check(struct hfi1_pportdata *ppd, __be16 *lrh, __be32 *bth,
 		      u8 sc5, int8_t s_pkey_index);
@@ -1747,12 +1770,22 @@ static inline bool process_ecn(struct rvt_qp *qp, struct hfi1_packet *pkt,
 			       bool do_cnp)
 {
 	struct ib_other_headers *ohdr = pkt->ohdr;
-	u32 bth1;
 
-	bth1 = be32_to_cpu(ohdr->bth[1]);
-	if (unlikely(bth1 & (IB_BECN_SMASK | IB_FECN_SMASK))) {
+	u32 bth1;
+	bool becn = false;
+	bool fecn = false;
+
+	if (pkt->etype == RHF_RCV_TYPE_BYPASS) {
+		fecn = hfi1_16B_get_fecn(pkt->hdr);
+		becn = hfi1_16B_get_becn(pkt->hdr);
+	} else {
+		bth1 = be32_to_cpu(ohdr->bth[1]);
+		fecn = bth1 & IB_FECN_SMASK;
+		becn = bth1 & IB_BECN_SMASK;
+	}
+	if (unlikely(fecn || becn)) {
 		hfi1_process_ecn_slowpath(qp, pkt, do_cnp);
-		return !!(bth1 & IB_FECN_SMASK);
+		return fecn;
 	}
 	return false;
 }
@@ -2314,5 +2347,81 @@ static inline bool hfi1_get_hdr_type(u32 lid, struct rdma_ah_attr *attr)
 		return HFI1_PKT_TYPE_16B;
 
 	return hfi1_get_packet_type(lid);
+}
+
+static inline void hfi1_make_ext_grh(struct hfi1_packet *packet,
+				     struct ib_grh *grh, u32 slid,
+				     u32 dlid)
+{
+	struct hfi1_ibport *ibp = &packet->rcd->ppd->ibport_data;
+	struct hfi1_pportdata *ppd = ppd_from_ibp(ibp);
+
+	if (!ibp)
+		return;
+
+	grh->hop_limit = 1;
+	grh->sgid.global.subnet_prefix = ibp->rvp.gid_prefix;
+	if (slid == opa_get_lid(be32_to_cpu(OPA_LID_PERMISSIVE), 16B))
+		grh->sgid.global.interface_id =
+			OPA_MAKE_ID(be32_to_cpu(OPA_LID_PERMISSIVE));
+	else
+		grh->sgid.global.interface_id = OPA_MAKE_ID(slid);
+
+	/*
+	 * Upper layers (like mad) may compare the dgid in the
+	 * wc that is obtained here with the sgid_index in
+	 * the wr. Since sgid_index in wr is always 0 for
+	 * extended lids, set the dgid here to the default
+	 * IB gid.
+	 */
+	grh->dgid.global.subnet_prefix = ibp->rvp.gid_prefix;
+	grh->dgid.global.interface_id =
+		cpu_to_be64(ppd->guids[HFI1_PORT_GUID_INDEX]);
+}
+
+static inline int hfi1_get_16b_padding(u32 hdr_size, u32 payload)
+{
+	return -(hdr_size + payload + (SIZE_OF_CRC << 2) +
+		     SIZE_OF_LT) & 0x7;
+}
+
+static inline void hfi1_make_ib_hdr(struct ib_header *hdr,
+				    u16 lrh0, u16 len,
+				    u16 dlid, u16 slid)
+{
+	hdr->lrh[0] = cpu_to_be16(lrh0);
+	hdr->lrh[1] = cpu_to_be16(dlid);
+	hdr->lrh[2] = cpu_to_be16(len);
+	hdr->lrh[3] = cpu_to_be16(slid);
+}
+
+static inline void hfi1_make_16b_hdr(struct hfi1_16b_header *hdr,
+				     u32 slid, u32 dlid,
+				     u16 len, u16 pkey,
+				     u8 becn, u8 fecn, u8 l4,
+				     u8 sc)
+{
+	u32 lrh0 = 0;
+	u32 lrh1 = 0x40000000;
+	u32 lrh2 = 0;
+	u32 lrh3 = 0;
+
+	lrh0 = (lrh0 & ~OPA_16B_BECN_MASK) | (becn << OPA_16B_BECN_SHIFT);
+	lrh0 = (lrh0 & ~OPA_16B_LEN_MASK) | (len << OPA_16B_LEN_SHIFT);
+	lrh0 = (lrh0 & ~OPA_16B_LID_MASK)  | (slid & OPA_16B_LID_MASK);
+	lrh1 = (lrh1 & ~OPA_16B_FECN_MASK) | (fecn << OPA_16B_FECN_SHIFT);
+	lrh1 = (lrh1 & ~OPA_16B_SC_MASK) | (sc << OPA_16B_SC_SHIFT);
+	lrh1 = (lrh1 & ~OPA_16B_LID_MASK) | (dlid & OPA_16B_LID_MASK);
+	lrh2 = (lrh2 & ~OPA_16B_SLID_MASK) |
+		((slid >> OPA_16B_SLID_SHIFT) << OPA_16B_SLID_HIGH_SHIFT);
+	lrh2 = (lrh2 & ~OPA_16B_DLID_MASK) |
+		((dlid >> OPA_16B_DLID_SHIFT) << OPA_16B_DLID_HIGH_SHIFT);
+	lrh2 = (lrh2 & ~OPA_16B_PKEY_MASK) | (pkey << OPA_16B_PKEY_SHIFT);
+	lrh2 = (lrh2 & ~OPA_16B_L4_MASK) | l4;
+
+	hdr->lrh[0] = lrh0;
+	hdr->lrh[1] = lrh1;
+	hdr->lrh[2] = lrh2;
+	hdr->lrh[3] = lrh3;
 }
 #endif                          /* _HFI1_KERNEL_H */

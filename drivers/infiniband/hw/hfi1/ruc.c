@@ -649,7 +649,7 @@ done:
  * @ibp: a pointer to the IB port
  * @hdr: a pointer to the GRH header being constructed
  * @grh: the global route address to send to
- * @hwords: the number of 32 bit words of header being sent
+ * @hwords: size of header after grh being sent in dwords
  * @nwords: the number of 32 bit words of data being sent
  *
  * Return the size of the header in 32 bit words.
@@ -661,7 +661,7 @@ u32 hfi1_make_grh(struct hfi1_ibport *ibp, struct ib_grh *hdr,
 		cpu_to_be32((IB_GRH_VERSION << IB_GRH_VERSION_SHIFT) |
 			    (grh->traffic_class << IB_GRH_TCLASS_SHIFT) |
 			    (grh->flow_label << IB_GRH_FLOW_SHIFT));
-	hdr->paylen = cpu_to_be16((hwords - 2 + nwords + SIZE_OF_CRC) << 2);
+	hdr->paylen = cpu_to_be16((hwords + nwords) << 2);
 	/* next_hdr is defined by C8-7 in ch. 8.4.1 */
 	hdr->next_hdr = IB_GRH_NEXT_HDR;
 	hdr->hop_limit = grh->hop_limit;
