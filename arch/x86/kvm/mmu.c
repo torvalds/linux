@@ -4052,7 +4052,8 @@ static void reset_rsvds_bits_mask(struct kvm_vcpu *vcpu,
 {
 	__reset_rsvds_bits_mask(vcpu, &context->guest_rsvd_check,
 				cpuid_maxphyaddr(vcpu), context->root_level,
-				context->nx, guest_cpuid_has_gbpages(vcpu),
+				context->nx,
+				guest_cpuid_has(vcpu, X86_FEATURE_GBPAGES),
 				is_pse(vcpu), guest_cpuid_is_amd(vcpu));
 }
 
@@ -4114,8 +4115,8 @@ reset_shadow_zero_bits_mask(struct kvm_vcpu *vcpu, struct kvm_mmu *context)
 	__reset_rsvds_bits_mask(vcpu, &context->shadow_zero_check,
 				boot_cpu_data.x86_phys_bits,
 				context->shadow_root_level, uses_nx,
-				guest_cpuid_has_gbpages(vcpu), is_pse(vcpu),
-				true);
+				guest_cpuid_has(vcpu, X86_FEATURE_GBPAGES),
+				is_pse(vcpu), true);
 }
 EXPORT_SYMBOL_GPL(reset_shadow_zero_bits_mask);
 

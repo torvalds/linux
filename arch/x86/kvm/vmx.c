@@ -2611,7 +2611,7 @@ static void setup_msrs(struct vcpu_vmx *vmx)
 		if (index >= 0)
 			move_msr_up(vmx, index, save_nmsrs++);
 		index = __find_msr_index(vmx, MSR_TSC_AUX);
-		if (index >= 0 && guest_cpuid_has_rdtscp(&vmx->vcpu))
+		if (index >= 0 && guest_cpuid_has(&vmx->vcpu, X86_FEATURE_RDTSCP))
 			move_msr_up(vmx, index, save_nmsrs++);
 		/*
 		 * MSR_STAR is only needed on long mode guests, and only
@@ -2671,12 +2671,6 @@ static void vmx_write_tsc_offset(struct kvm_vcpu *vcpu, u64 offset)
 	}
 }
 
-static bool guest_cpuid_has_vmx(struct kvm_vcpu *vcpu)
-{
-	struct kvm_cpuid_entry2 *best = kvm_find_cpuid_entry(vcpu, 1, 0);
-	return best && (best->ecx & (1 << (X86_FEATURE_VMX & 31)));
-}
-
 /*
  * nested_vmx_allowed() checks whether a guest should be allowed to use VMX
  * instructions and MSRs (i.e., nested VMX). Nested VMX is disabled for
@@ -2685,7 +2679,7 @@ static bool guest_cpuid_has_vmx(struct kvm_vcpu *vcpu)
  */
 static inline bool nested_vmx_allowed(struct kvm_vcpu *vcpu)
 {
-	return nested && guest_cpuid_has_vmx(vcpu);
+	return nested && guest_cpuid_has(vcpu, X86_FEATURE_VMX);
 }
 
 /*
@@ -3281,7 +3275,8 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		break;
 	case MSR_IA32_BNDCFGS:
 		if (!kvm_mpx_supported() ||
-		    (!msr_info->host_initiated && !guest_cpuid_has_mpx(vcpu)))
+		    (!msr_info->host_initiated &&
+		     !guest_cpuid_has(vcpu, X86_FEATURE_MPX)))
 			return 1;
 		msr_info->data = vmcs_read64(GUEST_BNDCFGS);
 		break;
@@ -3305,7 +3300,8 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		msr_info->data = vcpu->arch.ia32_xss;
 		break;
 	case MSR_TSC_AUX:
-		if (!guest_cpuid_has_rdtscp(vcpu) && !msr_info->host_initiated)
+		if (!msr_info->host_initiated &&
+		    !guest_cpuid_has(vcpu, X86_FEATURE_RDTSCP))
 			return 1;
 		/* Otherwise falls through */
 	default:
@@ -3364,7 +3360,8 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		break;
 	case MSR_IA32_BNDCFGS:
 		if (!kvm_mpx_supported() ||
-		    (!msr_info->host_initiated && !guest_cpuid_has_mpx(vcpu)))
+		    (!msr_info->host_initiated &&
+		     !guest_cpuid_has(vcpu, X86_FEATURE_MPX)))
 			return 1;
 		if (is_noncanonical_address(data & PAGE_MASK) ||
 		    (data & MSR_IA32_BNDCFGS_RSVD))
@@ -3427,7 +3424,8 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			clear_atomic_switch_msr(vmx, MSR_IA32_XSS);
 		break;
 	case MSR_TSC_AUX:
-		if (!guest_cpuid_has_rdtscp(vcpu) && !msr_info->host_initiated)
+		if (!msr_info->host_initiated &&
+		    !guest_cpuid_has(vcpu, X86_FEATURE_RDTSCP))
 			return 1;
 		/* Check reserved bit, higher 32 bits should be zero */
 		if ((data >> 32) != 0)
@@ -9622,7 +9620,7 @@ static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 	u32 secondary_exec_ctl = vmx_secondary_exec_control(vmx);
 
 	if (vmx_rdtscp_supported()) {
-		bool rdtscp_enabled = guest_cpuid_has_rdtscp(vcpu);
+		bool rdtscp_enabled = guest_cpuid_has(vcpu, X86_FEATURE_RDTSCP);
 		if (!rdtscp_enabled)
 			secondary_exec_ctl &= ~SECONDARY_EXEC_RDTSCP;
 
@@ -9641,7 +9639,7 @@ static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 		struct kvm_cpuid_entry2 *best = kvm_find_cpuid_entry(vcpu, 0x7, 0);
 		bool invpcid_enabled =
 			best && best->ebx & bit(X86_FEATURE_INVPCID) &&
-			guest_cpuid_has_pcid(vcpu);
+			guest_cpuid_has(vcpu, X86_FEATURE_PCID);
 
 		if (!invpcid_enabled) {
 			secondary_exec_ctl &= ~SECONDARY_EXEC_ENABLE_INVPCID;

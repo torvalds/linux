@@ -5078,7 +5078,7 @@ static void svm_cpuid_update(struct kvm_vcpu *vcpu)
 	struct kvm_cpuid_entry2 *entry;
 
 	/* Update nrips enabled cache */
-	svm->nrips_enabled = !!guest_cpuid_has_nrips(&svm->vcpu);
+	svm->nrips_enabled = !!guest_cpuid_has(&svm->vcpu, X86_FEATURE_NRIPS);
 
 	if (!kvm_vcpu_apicv_active(vcpu))
 		return;
