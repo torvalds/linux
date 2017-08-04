@@ -162,26 +162,6 @@ static bool xen_page_pinned(void *ptr)
 	return PagePinned(page);
 }
 
-void xen_set_domain_pte(pte_t *ptep, pte_t pteval, unsigned domid)
-{
-	struct multicall_space mcs;
-	struct mmu_update *u;
-
-	trace_xen_mmu_set_domain_pte(ptep, pteval, domid);
-
-	mcs = xen_mc_entry(sizeof(*u));
-	u = mcs.args;
-
-	/* ptep might be kmapped when using 32-bit HIGHPTE */
-	u->ptr = virt_to_machine(ptep).maddr;
-	u->val = pte_val_ma(pteval);
-
-	MULTI_mmu_update(mcs.mc, mcs.args, 1, NULL, domid);
-
-	xen_mc_issue(PARAVIRT_LAZY_MMU);
-}
-EXPORT_SYMBOL_GPL(xen_set_domain_pte);
-
 static void xen_extend_mmu_update(const struct mmu_update *update)
 {
 	struct multicall_space mcs;

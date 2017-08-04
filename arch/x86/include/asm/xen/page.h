@@ -314,8 +314,6 @@ static inline pte_t __pte_ma(pteval_t x)
 #define p4d_val_ma(x)	((x).p4d)
 #endif
 
-void xen_set_domain_pte(pte_t *ptep, pte_t pteval, unsigned domid);
-
 xmaddr_t arbitrary_virt_to_machine(void *address);
 unsigned long arbitrary_virt_to_mfn(void *vaddr);
 void make_lowmem_page_readonly(void *vaddr);

@@ -149,24 +149,6 @@ DECLARE_EVENT_CLASS(xen_mmu__set_pte,
 DEFINE_XEN_MMU_SET_PTE(xen_mmu_set_pte);
 DEFINE_XEN_MMU_SET_PTE(xen_mmu_set_pte_atomic);
 
-TRACE_EVENT(xen_mmu_set_domain_pte,
-	    TP_PROTO(pte_t *ptep, pte_t pteval, unsigned domid),
-	    TP_ARGS(ptep, pteval, domid),
-	    TP_STRUCT__entry(
-		    __field(pte_t *, ptep)
-		    __field(pteval_t, pteval)
-		    __field(unsigned, domid)
-		    ),
-	    TP_fast_assign(__entry->ptep = ptep;
-			   __entry->pteval = pteval.pte;
-			   __entry->domid = domid),
-	    TP_printk("ptep %p pteval %0*llx (raw %0*llx) domid %u",
-		      __entry->ptep,
-		      (int)sizeof(pteval_t) * 2, (unsigned long long)pte_val(native_make_pte(__entry->pteval)),
-		      (int)sizeof(pteval_t) * 2, (unsigned long long)__entry->pteval,
-		      __entry->domid)
-	);
-
 TRACE_EVENT(xen_mmu_set_pte_at,
 	    TP_PROTO(struct mm_struct *mm, unsigned long addr,
 		     pte_t *ptep, pte_t pteval),
