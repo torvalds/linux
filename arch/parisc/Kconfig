@@ -47,6 +47,9 @@ config PARISC
 	  and later HP3000 series).  The PA-RISC Linux project home page is
 	  at <http://www.parisc-linux.org/>.
 
+config CPU_BIG_ENDIAN
+	def_bool y
+
 config MMU
 	def_bool y
 
