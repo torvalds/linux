@@ -686,7 +686,7 @@ EXPORT_SYMBOL_GPL(pinctrl_generic_remove_group);
 static void pinctrl_generic_free_groups(struct pinctrl_dev *pctldev)
 {
 	struct radix_tree_iter iter;
-	void **slot;
+	void __rcu **slot;
 
 	radix_tree_for_each_slot(slot, &pctldev->pin_group_tree, &iter, 0)
 		radix_tree_delete(&pctldev->pin_group_tree, iter.index);

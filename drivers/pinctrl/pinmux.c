@@ -833,7 +833,7 @@ EXPORT_SYMBOL_GPL(pinmux_generic_remove_function);
 void pinmux_generic_free_functions(struct pinctrl_dev *pctldev)
 {
 	struct radix_tree_iter iter;
-	void **slot;
+	void __rcu **slot;
 
 	radix_tree_for_each_slot(slot, &pctldev->pin_function_tree, &iter, 0)
 		radix_tree_delete(&pctldev->pin_function_tree, iter.index);
