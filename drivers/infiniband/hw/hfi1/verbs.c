@@ -1421,6 +1421,15 @@ static int query_port(struct rvt_dev_info *rdi, u8 port_num,
 	props->active_mtu = !valid_ib_mtu(ppd->ibmtu) ? props->max_mtu :
 		mtu_to_enum(ppd->ibmtu, IB_MTU_2048);
 
+	/*
+	 * sm_lid of 0xFFFF needs special handling so that it can
+	 * be differentiated from a permissve LID of 0xFFFF.
+	 * We set the grh_required flag here so the SA can program
+	 * the DGID in the address handle appropriately
+	 */
+	if (props->sm_lid == be16_to_cpu(IB_LID_PERMISSIVE))
+		props->grh_required = true;
+
 	return 0;
 }
 
@@ -1528,6 +1537,7 @@ static void hfi1_notify_new_ah(struct ib_device *ibdev,
 	struct hfi1_pportdata *ppd;
 	struct hfi1_devdata *dd;
 	u8 sc5;
+	struct rdma_ah_attr *attr = &ah->attr;
 
 	/*
 	 * Do not trust reading anything from rvt_ah at this point as it is not
@@ -1537,6 +1547,8 @@ static void hfi1_notify_new_ah(struct ib_device *ibdev,
 	ibp = to_iport(ibdev, rdma_ah_get_port_num(ah_attr));
 	ppd = ppd_from_ibp(ibp);
 	sc5 = ibp->sl_to_sc[rdma_ah_get_sl(&ah->attr)];
+	hfi1_update_ah_attr(ibdev, attr);
+	hfi1_make_opa_lid(attr);
 	dd = dd_from_ppd(ppd);
 	ah->vl = sc_to_vlt(dd, sc5);
 	if (ah->vl < num_vls || ah->vl == 15)

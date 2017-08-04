@@ -71,7 +71,7 @@
  *
  * @gid: The Global identifier
  */
-static inline bool ib_is_opa_gid(union ib_gid *gid)
+static inline bool ib_is_opa_gid(const union ib_gid *gid)
 {
 	return ((be64_to_cpu(gid->global.interface_id) >> 40) ==
 		OPA_SPECIAL_OUI);
@@ -84,7 +84,7 @@ static inline bool ib_is_opa_gid(union ib_gid *gid)
  *
  * @gid: The Global identifier
  */
-static inline u32 opa_get_lid_from_gid(union ib_gid *gid)
+static inline u32 opa_get_lid_from_gid(const union ib_gid *gid)
 {
 	return be64_to_cpu(gid->global.interface_id) & 0xFFFFFFFF;
 }

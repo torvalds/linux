@@ -50,6 +50,7 @@
 #include <uapi/rdma/ib_user_sa.h>
 #include <rdma/ib_marshall.h>
 #include <rdma/ib_addr.h>
+#include <rdma/opa_addr.h>
 #include "sa.h"
 #include "core_priv.h"
 
@@ -1239,6 +1240,11 @@ int ib_init_ah_from_path(struct ib_device *device, u8 port_num,
 	ah_attr->type = rdma_ah_find_type(device, port_num);
 
 	rdma_ah_set_dlid(ah_attr, be32_to_cpu(sa_path_get_dlid(rec)));
+
+	if ((ah_attr->type == RDMA_AH_ATTR_TYPE_OPA) &&
+	    (rdma_ah_get_dlid(ah_attr) == be16_to_cpu(IB_LID_PERMISSIVE)))
+		rdma_ah_set_make_grd(ah_attr, true);
+
 	rdma_ah_set_sl(ah_attr, rec->sl);
 	rdma_ah_set_path_bits(ah_attr, be32_to_cpu(sa_path_get_slid(rec)) &
 			      get_src_path_mask(device, port_num));
@@ -2288,12 +2294,15 @@ static void update_sm_ah(struct work_struct *work)
 	rdma_ah_set_sl(&ah_attr, port_attr.sm_sl);
 	rdma_ah_set_port_num(&ah_attr, port->port_num);
 	if (port_attr.grh_required) {
-		rdma_ah_set_ah_flags(&ah_attr, IB_AH_GRH);
-
-		rdma_ah_set_subnet_prefix(&ah_attr,
-					  cpu_to_be64(port_attr.subnet_prefix));
-		rdma_ah_set_interface_id(&ah_attr,
-					 cpu_to_be64(IB_SA_WELL_KNOWN_GUID));
+		if (ah_attr.type == RDMA_AH_ATTR_TYPE_OPA) {
+			rdma_ah_set_make_grd(&ah_attr, true);
+		} else {
+			rdma_ah_set_ah_flags(&ah_attr, IB_AH_GRH);
+			rdma_ah_set_subnet_prefix(&ah_attr,
+						  cpu_to_be64(port_attr.subnet_prefix));
+			rdma_ah_set_interface_id(&ah_attr,
+						 cpu_to_be64(IB_SA_WELL_KNOWN_GUID));
+		}
 	}
 
 	new_ah->ah = rdma_create_ah(port->agent->qp->pd, &ah_attr);

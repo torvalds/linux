@@ -147,6 +147,7 @@ struct hfi1_qp_priv {
 	u8 s_sc;		                  /* SC[0..4] for next packet */
 	struct iowait s_iowait;
 	struct rvt_qp *owner;
+	u8 hdr_type; /* 9B or 16B */
 };
 
 /*

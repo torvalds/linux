@@ -70,6 +70,7 @@
 #include <linux/rhashtable.h>
 #include <linux/netdevice.h>
 #include <rdma/rdma_vt.h>
+#include <rdma/opa_addr.h>
 
 #include "chip_registers.h"
 #include "common.h"
@@ -352,6 +353,10 @@ struct hfi1_packet {
 	bool becn;
 	bool fecn;
 };
+
+/* Packet types */
+#define HFI1_PKT_TYPE_9B  0
+#define HFI1_PKT_TYPE_16B 1
 
 /*
  * OPA 16B Header
@@ -2170,6 +2175,31 @@ int hfi1_tempsense_rd(struct hfi1_devdata *dd, struct hfi1_temp *temp);
 #define DD_DEV_ENTRY(dd)       __string(dev, dev_name(&(dd)->pcidev->dev))
 #define DD_DEV_ASSIGN(dd)      __assign_str(dev, dev_name(&(dd)->pcidev->dev))
 
+static inline void hfi1_update_ah_attr(struct ib_device *ibdev,
+				       struct rdma_ah_attr *attr)
+{
+	struct hfi1_pportdata *ppd;
+	struct hfi1_ibport *ibp;
+	u32 dlid = rdma_ah_get_dlid(attr);
+
+	/*
+	 * Kernel clients may not have setup GRH information
+	 * Set that here.
+	 */
+	ibp = to_iport(ibdev, rdma_ah_get_port_num(attr));
+	ppd = ppd_from_ibp(ibp);
+	if ((((dlid >= be16_to_cpu(IB_MULTICAST_LID_BASE)) ||
+	      (ppd->lid >= be16_to_cpu(IB_MULTICAST_LID_BASE))) &&
+	    (dlid != be32_to_cpu(OPA_LID_PERMISSIVE)) &&
+	    (dlid != be16_to_cpu(IB_LID_PERMISSIVE)) &&
+	    (!(rdma_ah_get_ah_flags(attr) & IB_AH_GRH))) ||
+	    (rdma_ah_get_make_grd(attr))) {
+		rdma_ah_set_ah_flags(attr, IB_AH_GRH);
+		rdma_ah_set_interface_id(attr, OPA_MAKE_ID(dlid));
+		rdma_ah_set_subnet_prefix(attr, ibp->rvp.gid_prefix);
+	}
+}
+
 /*
  * hfi1_check_mcast- Check if the given lid is
  * in the OPA multicast range.
@@ -2222,5 +2252,67 @@ static inline bool hfi1_is_16B_mcast(u32 lid)
 	return ((lid >=
 		opa_get_lid(opa_get_mcast_base(OPA_MCAST_NR), 16B)) &&
 		(lid != opa_get_lid(be32_to_cpu(OPA_LID_PERMISSIVE), 16B)));
+}
+
+static inline void hfi1_make_opa_lid(struct rdma_ah_attr *attr)
+{
+	const struct ib_global_route *grh = rdma_ah_read_grh(attr);
+	u32 dlid = rdma_ah_get_dlid(attr);
+
+	/* Modify ah_attr.dlid to be in the 32 bit LID space.
+	 * This is how the address will be laid out:
+	 * Assuming MCAST_NR to be 4,
+	 * 32 bit permissive LID = 0xFFFFFFFF
+	 * Multicast LID range = 0xFFFFFFFE to 0xF0000000
+	 * Unicast LID range = 0xEFFFFFFF to 1
+	 * Invalid LID = 0
+	 */
+	if (ib_is_opa_gid(&grh->dgid))
+		dlid = opa_get_lid_from_gid(&grh->dgid);
+	else if ((dlid >= be16_to_cpu(IB_MULTICAST_LID_BASE)) &&
+		 (dlid != be16_to_cpu(IB_LID_PERMISSIVE)) &&
+		 (dlid != be32_to_cpu(OPA_LID_PERMISSIVE)))
+		dlid = dlid - be16_to_cpu(IB_MULTICAST_LID_BASE) +
+			opa_get_mcast_base(OPA_MCAST_NR);
+	else if (dlid == be16_to_cpu(IB_LID_PERMISSIVE))
+		dlid = be32_to_cpu(OPA_LID_PERMISSIVE);
+
+	rdma_ah_set_dlid(attr, dlid);
+}
+
+static inline u8 hfi1_get_packet_type(u32 lid)
+{
+	/* 9B if lid > 0xF0000000 */
+	if (lid >= opa_get_mcast_base(OPA_MCAST_NR))
+		return HFI1_PKT_TYPE_9B;
+
+	/* 16B if lid > 0xC000 */
+	if (lid >= opa_get_lid(opa_get_mcast_base(OPA_MCAST_NR), 9B))
+		return HFI1_PKT_TYPE_16B;
+
+	return HFI1_PKT_TYPE_9B;
+}
+
+static inline bool hfi1_get_hdr_type(u32 lid, struct rdma_ah_attr *attr)
+{
+	/*
+	 * If there was an incoming 16B packet with permissive
+	 * LIDs, OPA GIDs would have been programmed when those
+	 * packets were received. A 16B packet will have to
+	 * be sent in response to that packet. Return a 16B
+	 * header type if that's the case.
+	 */
+	if (rdma_ah_get_dlid(attr) == be32_to_cpu(OPA_LID_PERMISSIVE))
+		return (ib_is_opa_gid(&rdma_ah_read_grh(attr)->dgid)) ?
+			HFI1_PKT_TYPE_16B : HFI1_PKT_TYPE_9B;
+
+	/*
+	 * Return a 16B header type if either the the destination
+	 * or source lid is extended.
+	 */
+	if (hfi1_get_packet_type(rdma_ah_get_dlid(attr)) == HFI1_PKT_TYPE_16B)
+		return HFI1_PKT_TYPE_16B;
+
+	return hfi1_get_packet_type(lid);
 }
 #endif                          /* _HFI1_KERNEL_H */

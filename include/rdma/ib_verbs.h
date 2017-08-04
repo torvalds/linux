@@ -864,6 +864,7 @@ struct roce_ah_attr {
 struct opa_ah_attr {
 	u32			dlid;
 	u8			src_path_bits;
+	bool			make_grd;
 };
 
 struct rdma_ah_attr {
@@ -3623,6 +3624,20 @@ static inline u8 rdma_ah_get_path_bits(const struct rdma_ah_attr *attr)
 	else if (attr->type == RDMA_AH_ATTR_TYPE_OPA)
 		return attr->opa.src_path_bits;
 	return 0;
+}
+
+static inline void rdma_ah_set_make_grd(struct rdma_ah_attr *attr,
+					bool make_grd)
+{
+	if (attr->type == RDMA_AH_ATTR_TYPE_OPA)
+		attr->opa.make_grd = make_grd;
+}
+
+static inline bool rdma_ah_get_make_grd(const struct rdma_ah_attr *attr)
+{
+	if (attr->type == RDMA_AH_ATTR_TYPE_OPA)
+		return attr->opa.make_grd;
+	return false;
 }
 
 static inline void rdma_ah_set_port_num(struct rdma_ah_attr *attr, u8 port_num)

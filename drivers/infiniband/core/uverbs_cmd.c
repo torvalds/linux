@@ -2009,6 +2009,7 @@ static int modify_qp(struct ib_uverbs_file *file,
 	rdma_ah_set_static_rate(&attr->ah_attr, cmd->base.dest.static_rate);
 	rdma_ah_set_port_num(&attr->ah_attr,
 			     cmd->base.dest.port_num);
+	rdma_ah_set_make_grd(&attr->ah_attr, false);
 
 	attr->alt_ah_attr.type = rdma_ah_find_type(qp->device,
 						   cmd->base.dest.port_num);
@@ -2032,6 +2033,7 @@ static int modify_qp(struct ib_uverbs_file *file,
 				cmd->base.alt_dest.static_rate);
 	rdma_ah_set_port_num(&attr->alt_ah_attr,
 			     cmd->base.alt_dest.port_num);
+	rdma_ah_set_make_grd(&attr->alt_ah_attr, false);
 
 	ret = ib_modify_qp_with_udata(qp, attr,
 				      modify_qp_mask(qp->qp_type,
@@ -2584,6 +2586,7 @@ ssize_t ib_uverbs_create_ah(struct ib_uverbs_file *file,
 	}
 
 	attr.type = rdma_ah_find_type(ib_dev, cmd.attr.port_num);
+	rdma_ah_set_make_grd(&attr, false);
 	rdma_ah_set_dlid(&attr, cmd.attr.dlid);
 	rdma_ah_set_sl(&attr, cmd.attr.sl);
 	rdma_ah_set_path_bits(&attr, cmd.attr.src_path_bits);
