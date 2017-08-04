@@ -284,8 +284,8 @@ static int rockchip_hdmi_update_phy_table(struct rockchip_hdmi *hdmi,
 			rockchip_phy_config[i].mpixelclock = (u64)config[i * 4];
 		else
 			rockchip_phy_config[i].mpixelclock = ~0UL;
-		rockchip_phy_config[i].term = (u16)config[i * 4 + 1];
-		rockchip_phy_config[i].sym_ctr = (u16)config[i * 4 + 2];
+		rockchip_phy_config[i].sym_ctr = (u16)config[i * 4 + 1];
+		rockchip_phy_config[i].term = (u16)config[i * 4 + 2];
 		rockchip_phy_config[i].vlev_ctr = (u16)config[i * 4 + 3];
 	}
 
