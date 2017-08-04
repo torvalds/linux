@@ -348,7 +348,7 @@ static void mac_esp_send_pio_cmd(struct esp *esp, u32 addr, u32 esp_count,
 				 u32 dma_count, int write, u8 cmd)
 {
 	struct mac_esp_priv *mep = MAC_ESP_GET_PRIV(esp);
-	u8 *fifo = esp->regs + ESP_FDATA * 16;
+	u8 __iomem *fifo = esp->regs + ESP_FDATA * 16;
 
 	cmd &= ~ESP_CMD_DMA;
 	mep->error = 0;
