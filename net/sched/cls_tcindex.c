@@ -419,9 +419,9 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 	}
 
 	if (old_r)
-		tcf_exts_change(tp, &r->exts, &e);
+		tcf_exts_change(&r->exts, &e);
 	else
-		tcf_exts_change(tp, &cr.exts, &e);
+		tcf_exts_change(&cr.exts, &e);
 
 	if (old_r && old_r != r) {
 		err = tcindex_filter_result_init(old_r);
@@ -439,7 +439,7 @@ tcindex_set_parms(struct net *net, struct tcf_proto *tp, unsigned long base,
 		struct tcindex_filter *nfp;
 		struct tcindex_filter __rcu **fp;
 
-		tcf_exts_change(tp, &f->result.exts, &r->exts);
+		tcf_exts_change(&f->result.exts, &r->exts);
 
 		fp = cp->h + (handle % cp->hash);
 		for (nfp = rtnl_dereference(*fp);
