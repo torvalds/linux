@@ -228,6 +228,12 @@ static int dsi_vc_send_null(struct omap_dss_device *dssdev, int channel);
 #define DSI_MAX_NR_ISRS                2
 #define DSI_MAX_NR_LANES	5
 
+enum dsi_model {
+	DSI_MODEL_OMAP3,
+	DSI_MODEL_OMAP4,
+	DSI_MODEL_OMAP5,
+};
+
 enum dsi_lane_function {
 	DSI_LANE_UNUSED	= 0,
 	DSI_LANE_CLK,
@@ -299,12 +305,24 @@ struct dsi_lp_clock_info {
 	u16 lp_clk_div;
 };
 
+struct dsi_module_id_data {
+	u32 address;
+	int id;
+};
+
+struct dsi_of_data {
+	enum dsi_model model;
+	const struct dss_pll_hw *pll_hw;
+	const struct dsi_module_id_data *modules;
+};
+
 struct dsi_data {
 	struct platform_device *pdev;
 	void __iomem *proto_base;
 	void __iomem *phy_base;
 	void __iomem *pll_base;
 
+	const struct dsi_of_data *data;
 	int module_id;
 
 	int irq;
@@ -395,11 +413,6 @@ struct dsi_data {
 struct dsi_packet_sent_handler_data {
 	struct platform_device *dsidev;
 	struct completion *completion;
-};
-
-struct dsi_module_id_data {
-	u32 address;
-	int id;
 };
 
 static const struct of_device_id dsi_of_match[];
@@ -4857,24 +4870,14 @@ err:
  * the channel in some more dynamic manner, or get the channel as a user
  * parameter.
  */
-static enum omap_channel dsi_get_channel(int module_id)
+static enum omap_channel dsi_get_channel(struct dsi_data *dsi)
 {
-	switch (omapdss_get_version()) {
-	case OMAPDSS_VER_OMAP24xx:
-	case OMAPDSS_VER_AM43xx:
-		DSSWARN("DSI not supported\n");
+	switch (dsi->data->model) {
+	case DSI_MODEL_OMAP3:
 		return OMAP_DSS_CHANNEL_LCD;
 
-	case OMAPDSS_VER_OMAP34xx_ES1:
-	case OMAPDSS_VER_OMAP34xx_ES3:
-	case OMAPDSS_VER_OMAP3630:
-	case OMAPDSS_VER_AM35xx:
-		return OMAP_DSS_CHANNEL_LCD;
-
-	case OMAPDSS_VER_OMAP4430_ES1:
-	case OMAPDSS_VER_OMAP4430_ES2:
-	case OMAPDSS_VER_OMAP4:
-		switch (module_id) {
+	case DSI_MODEL_OMAP4:
+		switch (dsi->module_id) {
 		case 0:
 			return OMAP_DSS_CHANNEL_LCD;
 		case 1:
@@ -4884,8 +4887,8 @@ static enum omap_channel dsi_get_channel(int module_id)
 			return OMAP_DSS_CHANNEL_LCD;
 		}
 
-	case OMAPDSS_VER_OMAP5:
-		switch (module_id) {
+	case DSI_MODEL_OMAP5:
+		switch (dsi->module_id) {
 		case 0:
 			return OMAP_DSS_CHANNEL_LCD;
 		case 1:
@@ -5065,7 +5068,7 @@ static void dsi_init_output(struct platform_device *dsidev)
 
 	out->output_type = OMAP_DISPLAY_TYPE_DSI;
 	out->name = dsi->module_id == 0 ? "dsi.0" : "dsi.1";
-	out->dispc_channel = dsi_get_channel(dsi->module_id);
+	out->dispc_channel = dsi_get_channel(dsi);
 	out->ops.dsi = &dsi_ops;
 	out->owner = THIS_MODULE;
 
@@ -5240,29 +5243,7 @@ static int dsi_init_pll_data(struct platform_device *dsidev)
 	pll->id = dsi->module_id == 0 ? DSS_PLL_DSI1 : DSS_PLL_DSI2;
 	pll->clkin = clk;
 	pll->base = dsi->pll_base;
-
-	switch (omapdss_get_version()) {
-	case OMAPDSS_VER_OMAP34xx_ES1:
-	case OMAPDSS_VER_OMAP34xx_ES3:
-	case OMAPDSS_VER_OMAP3630:
-	case OMAPDSS_VER_AM35xx:
-		pll->hw = &dss_omap3_dsi_pll_hw;
-		break;
-
-	case OMAPDSS_VER_OMAP4430_ES1:
-	case OMAPDSS_VER_OMAP4430_ES2:
-	case OMAPDSS_VER_OMAP4:
-		pll->hw = &dss_omap4_dsi_pll_hw;
-		break;
-
-	case OMAPDSS_VER_OMAP5:
-		pll->hw = &dss_omap5_dsi_pll_hw;
-		break;
-
-	default:
-		return -ENODEV;
-	}
-
+	pll->hw = dsi->data->pll_hw;
 	pll->ops = &dsi_pll_ops;
 
 	r = dss_pll_register(pll);
@@ -5339,7 +5320,8 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 		return r;
 	}
 
-	d = of_match_node(dsi_of_match, dsidev->dev.of_node)->data;
+	dsi->data = of_match_node(dsi_of_match, dsidev->dev.of_node)->data;
+	d = dsi->data->modules;
 	while (d->address != 0 && d->address != dsi_mem->start)
 		d++;
 
@@ -5495,27 +5477,39 @@ static const struct dev_pm_ops dsi_pm_ops = {
 	.runtime_resume = dsi_runtime_resume,
 };
 
-static const struct dsi_module_id_data dsi_of_data_omap3[] = {
-	{ .address = 0x4804fc00, .id = 0, },
-	{ },
+static const struct dsi_of_data dsi_of_data_omap3 = {
+	.model = DSI_MODEL_OMAP3,
+	.pll_hw = &dss_omap3_dsi_pll_hw,
+	.modules = (const struct dsi_module_id_data[]) {
+		{ .address = 0x4804fc00, .id = 0, },
+		{ },
+	},
 };
 
-static const struct dsi_module_id_data dsi_of_data_omap4[] = {
-	{ .address = 0x58004000, .id = 0, },
-	{ .address = 0x58005000, .id = 1, },
-	{ },
+static const struct dsi_of_data dsi_of_data_omap4 = {
+	.model = DSI_MODEL_OMAP4,
+	.pll_hw = &dss_omap4_dsi_pll_hw,
+	.modules = (const struct dsi_module_id_data[]) {
+		{ .address = 0x58004000, .id = 0, },
+		{ .address = 0x58005000, .id = 1, },
+		{ },
+	},
 };
 
-static const struct dsi_module_id_data dsi_of_data_omap5[] = {
-	{ .address = 0x58004000, .id = 0, },
-	{ .address = 0x58009000, .id = 1, },
-	{ },
+static const struct dsi_of_data dsi_of_data_omap5 = {
+	.model = DSI_MODEL_OMAP5,
+	.pll_hw = &dss_omap5_dsi_pll_hw,
+	.modules = (const struct dsi_module_id_data[]) {
+		{ .address = 0x58004000, .id = 0, },
+		{ .address = 0x58009000, .id = 1, },
+		{ },
+	},
 };
 
 static const struct of_device_id dsi_of_match[] = {
-	{ .compatible = "ti,omap3-dsi", .data = dsi_of_data_omap3, },
-	{ .compatible = "ti,omap4-dsi", .data = dsi_of_data_omap4, },
-	{ .compatible = "ti,omap5-dsi", .data = dsi_of_data_omap5, },
+	{ .compatible = "ti,omap3-dsi", .data = &dsi_of_data_omap3, },
+	{ .compatible = "ti,omap4-dsi", .data = &dsi_of_data_omap4, },
+	{ .compatible = "ti,omap5-dsi", .data = &dsi_of_data_omap5, },
 	{},
 };
 
