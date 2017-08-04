@@ -1978,10 +1978,10 @@ static bool its_alloc_vpe_table(u32 vpe_id)
 }
 
 static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
-					    int nvecs)
+					    int nvecs, bool alloc_lpis)
 {
 	struct its_device *dev;
-	unsigned long *lpi_map;
+	unsigned long *lpi_map = NULL;
 	unsigned long flags;
 	u16 *col_map = NULL;
 	void *itt;
@@ -2003,11 +2003,18 @@ static struct its_device *its_create_device(struct its_node *its, u32 dev_id,
 	sz = nr_ites * its->ite_size;
 	sz = max(sz, ITS_ITT_ALIGN) + ITS_ITT_ALIGN - 1;
 	itt = kzalloc(sz, GFP_KERNEL);
-	lpi_map = its_lpi_alloc_chunks(nvecs, &lpi_base, &nr_lpis);
-	if (lpi_map)
-		col_map = kzalloc(sizeof(*col_map) * nr_lpis, GFP_KERNEL);
+	if (alloc_lpis) {
+		lpi_map = its_lpi_alloc_chunks(nvecs, &lpi_base, &nr_lpis);
+		if (lpi_map)
+			col_map = kzalloc(sizeof(*col_map) * nr_lpis,
+					  GFP_KERNEL);
+	} else {
+		col_map = kzalloc(sizeof(*col_map) * nr_ites, GFP_KERNEL);
+		nr_lpis = 0;
+		lpi_base = 0;
+	}
 
-	if (!dev || !itt || !lpi_map || !col_map) {
+	if (!dev || !itt ||  !col_map || (!lpi_map && alloc_lpis)) {
 		kfree(dev);
 		kfree(itt);
 		kfree(lpi_map);
@@ -2094,7 +2101,7 @@ static int its_msi_prepare(struct irq_domain *domain, struct device *dev,
 		goto out;
 	}
 
-	its_dev = its_create_device(its, dev_id, nvec);
+	its_dev = its_create_device(its, dev_id, nvec, true);
 	if (!its_dev)
 		return -ENOMEM;
 
