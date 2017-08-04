@@ -21,6 +21,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
+#include <linux/sys_soc.h>
 #include <linux/uaccess.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
@@ -2493,21 +2494,35 @@ static void renesas_usb3_init_ram(struct renesas_usb3 *usb3, struct device *dev,
 	}
 }
 
-static const struct renesas_usb3_priv renesas_usb3_priv_r8a7795 = {
+static const struct renesas_usb3_priv renesas_usb3_priv_r8a7795_es1 = {
 	.ramsize_per_ramif = SZ_16K,
 	.num_ramif = 2,
 	.ramsize_per_pipe = SZ_4K,
 	.workaround_for_vbus = true,
 };
 
+static const struct renesas_usb3_priv renesas_usb3_priv_gen3 = {
+	.ramsize_per_ramif = SZ_16K,
+	.num_ramif = 4,
+	.ramsize_per_pipe = SZ_4K,
+};
+
 static const struct of_device_id usb3_of_match[] = {
 	{
 		.compatible = "renesas,r8a7795-usb3-peri",
-		.data = &renesas_usb3_priv_r8a7795,
+		.data = &renesas_usb3_priv_gen3,
 	},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, usb3_of_match);
+
+static const struct soc_device_attribute renesas_usb3_quirks_match[] = {
+	{
+		.soc_id = "r8a7795", .revision = "ES1.*",
+		.data = &renesas_usb3_priv_r8a7795_es1,
+	},
+	{ /* sentinel */ },
+};
 
 static const unsigned int renesas_usb3_cable[] = {
 	EXTCON_USB,
@@ -2522,11 +2537,17 @@ static int renesas_usb3_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	int irq, ret;
 	const struct renesas_usb3_priv *priv;
+	const struct soc_device_attribute *attr;
 
 	match = of_match_node(usb3_of_match, pdev->dev.of_node);
 	if (!match)
 		return -ENODEV;
-	priv = match->data;
+
+	attr = soc_device_match(renesas_usb3_quirks_match);
+	if (attr)
+		priv = attr->data;
+	else
+		priv = match->data;
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
