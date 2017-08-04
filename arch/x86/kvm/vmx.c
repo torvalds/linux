@@ -9636,15 +9636,13 @@ static void vmx_cpuid_update(struct kvm_vcpu *vcpu)
 
 	if (vmx_invpcid_supported()) {
 		/* Exposing INVPCID only when PCID is exposed */
-		struct kvm_cpuid_entry2 *best = kvm_find_cpuid_entry(vcpu, 0x7, 0);
 		bool invpcid_enabled =
-			best && best->ebx & bit(X86_FEATURE_INVPCID) &&
+			guest_cpuid_has(vcpu, X86_FEATURE_INVPCID) &&
 			guest_cpuid_has(vcpu, X86_FEATURE_PCID);
 
 		if (!invpcid_enabled) {
 			secondary_exec_ctl &= ~SECONDARY_EXEC_ENABLE_INVPCID;
-			if (best)
-				best->ebx &= ~bit(X86_FEATURE_INVPCID);
+			guest_cpuid_clear(vcpu, X86_FEATURE_INVPCID);
 		}
 
 		if (nested) {
