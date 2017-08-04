@@ -244,7 +244,7 @@ static struct snd_akm4xxx akm_revo_front = {
 	.dac_info = revo71_front,
 };
 
-static struct snd_ak4xxx_private akm_revo_front_priv = {
+static const struct snd_ak4xxx_private akm_revo_front_priv = {
 	.caddr = 1,
 	.cif = 0,
 	.data_mask = VT1724_REVO_CDOUT,
@@ -266,7 +266,7 @@ static struct snd_akm4xxx akm_revo_surround = {
 	.dac_info = revo71_surround,
 };
 
-static struct snd_ak4xxx_private akm_revo_surround_priv = {
+static const struct snd_ak4xxx_private akm_revo_surround_priv = {
 	.caddr = 3,
 	.cif = 0,
 	.data_mask = VT1724_REVO_CDOUT,
@@ -287,7 +287,7 @@ static struct snd_akm4xxx akm_revo51 = {
 	.dac_info = revo51_dac,
 };
 
-static struct snd_ak4xxx_private akm_revo51_priv = {
+static const struct snd_ak4xxx_private akm_revo51_priv = {
 	.caddr = 2,
 	.cif = 0,
 	.data_mask = VT1724_REVO_CDOUT,
@@ -305,7 +305,7 @@ static struct snd_akm4xxx akm_revo51_adc = {
 	.adc_info = revo51_adc,
 };
 
-static struct snd_ak4xxx_private akm_revo51_adc_priv = {
+static const struct snd_ak4xxx_private akm_revo51_adc_priv = {
 	.caddr = 2,
 	.cif = 0,
 	.data_mask = VT1724_REVO_CDOUT,
@@ -355,7 +355,7 @@ static struct snd_akm4xxx akm_ap192 = {
 	.dac_info = ap192_dac,
 };
 
-static struct snd_ak4xxx_private akm_ap192_priv = {
+static const struct snd_ak4xxx_private akm_ap192_priv = {
 	.caddr = 2,
 	.cif = 0,
 	.data_mask = VT1724_REVO_CDOUT,

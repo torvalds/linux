@@ -454,7 +454,7 @@ static struct snd_akm4xxx akm_audiophile = {
 	}
 };
 
-static struct snd_ak4xxx_private akm_audiophile_priv = {
+static const struct snd_ak4xxx_private akm_audiophile_priv = {
 	.caddr = 2,
 	.cif = 0,
 	.data_mask = ICE1712_DELTA_AP_DOUT,
@@ -475,7 +475,7 @@ static struct snd_akm4xxx akm_delta410 = {
 	}
 };
 
-static struct snd_ak4xxx_private akm_delta410_priv = {
+static const struct snd_ak4xxx_private akm_delta410_priv = {
 	.caddr = 0,
 	.cif = 0,
 	.data_mask = ICE1712_DELTA_AP_DOUT,
@@ -497,7 +497,7 @@ static struct snd_akm4xxx akm_delta1010lt = {
 	}
 };
 
-static struct snd_ak4xxx_private akm_delta1010lt_priv = {
+static const struct snd_ak4xxx_private akm_delta1010lt_priv = {
 	.caddr = 2,
 	.cif = 0, /* the default level of the CIF pin from AK4524 */
 	.data_mask = ICE1712_DELTA_1010LT_DOUT,
@@ -519,7 +519,7 @@ static struct snd_akm4xxx akm_delta66e = {
 	}
 };
 
-static struct snd_ak4xxx_private akm_delta66e_priv = {
+static const struct snd_ak4xxx_private akm_delta66e_priv = {
 	.caddr = 2,
 	.cif = 0, /* the default level of the CIF pin from AK4524 */
 	.data_mask = ICE1712_DELTA_66E_DOUT,
@@ -542,7 +542,7 @@ static struct snd_akm4xxx akm_delta44 = {
 	}
 };
 
-static struct snd_ak4xxx_private akm_delta44_priv = {
+static const struct snd_ak4xxx_private akm_delta44_priv = {
 	.caddr = 2,
 	.cif = 0, /* the default level of the CIF pin from AK4524 */
 	.data_mask = ICE1712_DELTA_CODEC_SERIAL_DATA,
@@ -564,7 +564,7 @@ static struct snd_akm4xxx akm_vx442 = {
 	}
 };
 
-static struct snd_ak4xxx_private akm_vx442_priv = {
+static const struct snd_ak4xxx_private akm_vx442_priv = {
 	.caddr = 2,
 	.cif = 0,
 	.data_mask = ICE1712_VX442_DOUT,

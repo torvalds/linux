@@ -354,7 +354,7 @@ static struct snd_akm4xxx akm_ews88mt = {
 	}
 };
 
-static struct snd_ak4xxx_private akm_ews88mt_priv = {
+static const struct snd_ak4xxx_private akm_ews88mt_priv = {
 	.caddr = 2,
 	.cif = 1, /* CIF high */
 	.data_mask = ICE1712_EWS88_SERIAL_DATA,
@@ -375,7 +375,7 @@ static struct snd_akm4xxx akm_ewx2496 = {
 	}
 };
 
-static struct snd_ak4xxx_private akm_ewx2496_priv = {
+static const struct snd_ak4xxx_private akm_ewx2496_priv = {
 	.caddr = 2,
 	.cif = 1, /* CIF high */
 	.data_mask = ICE1712_EWS88_SERIAL_DATA,
@@ -396,7 +396,7 @@ static struct snd_akm4xxx akm_6fire = {
 	}
 };
 
-static struct snd_ak4xxx_private akm_6fire_priv = {
+static const struct snd_ak4xxx_private akm_6fire_priv = {
 	.caddr = 2,
 	.cif = 1, /* CIF high */
 	.data_mask = ICE1712_6FIRE_SERIAL_DATA,

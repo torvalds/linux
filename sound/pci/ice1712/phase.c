@@ -108,7 +108,7 @@ static struct snd_akm4xxx akm_phase22 = {
 	.num_adcs = 2,
 };
 
-static struct snd_ak4xxx_private akm_phase22_priv = {
+static const struct snd_ak4xxx_private akm_phase22_priv = {
 	.caddr =	2,
 	.cif =		1,
 	.data_mask =	1 << 4,
