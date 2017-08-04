@@ -8,6 +8,7 @@
 #include <linux/list.h>
 #include <linux/sched.h>
 #include <linux/sched/signal.h>
+#include <linux/sched/task_stack.h>
 #include <linux/uaccess.h>
 
 struct lkdtm_list {
@@ -199,6 +200,7 @@ void lkdtm_CORRUPT_LIST_DEL(void)
 		pr_err("list_del() corruption not detected!\n");
 }
 
+/* Test if unbalanced set_fs(KERNEL_DS)/set_fs(USER_DS) check exists. */
 void lkdtm_CORRUPT_USER_DS(void)
 {
 	pr_info("setting bad task size limit\n");
@@ -206,4 +208,32 @@ void lkdtm_CORRUPT_USER_DS(void)
 
 	/* Make sure we do not keep running with a KERNEL_DS! */
 	force_sig(SIGKILL, current);
+}
+
+/* Test that VMAP_STACK is actually allocating with a leading guard page */
+void lkdtm_STACK_GUARD_PAGE_LEADING(void)
+{
+	const unsigned char *stack = task_stack_page(current);
+	const unsigned char *ptr = stack - 1;
+	volatile unsigned char byte;
+
+	pr_info("attempting bad read from page below current stack\n");
+
+	byte = *ptr;
+
+	pr_err("FAIL: accessed page before stack!\n");
+}
+
+/* Test that VMAP_STACK is actually allocating with a trailing guard page */
+void lkdtm_STACK_GUARD_PAGE_TRAILING(void)
+{
+	const unsigned char *stack = task_stack_page(current);
+	const unsigned char *ptr = stack + THREAD_SIZE;
+	volatile unsigned char byte;
+
+	pr_info("attempting bad read from page above current stack\n");
+
+	byte = *ptr;
+
+	pr_err("FAIL: accessed page after stack!\n");
 }
