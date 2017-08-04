@@ -88,6 +88,7 @@ struct dispc_features {
 		u16 width, u16 height, u16 out_width, u16 out_height,
 		bool mem_to_mem);
 	u8 num_fifos;
+	const u32 **supported_color_modes;
 	unsigned int buffer_size_unit;
 	unsigned int burst_size_unit;
 
@@ -1144,9 +1145,24 @@ static u32 dispc_ovl_get_burst_size(enum omap_plane_id plane)
 	return dispc.feat->burst_size_unit * 8;
 }
 
+static bool dispc_ovl_color_mode_supported(enum omap_plane_id plane, u32 fourcc)
+{
+	const u32 *modes;
+	unsigned int i;
+
+	modes = dispc.feat->supported_color_modes[plane];
+
+	for (i = 0; modes[i]; ++i) {
+		if (modes[i] == fourcc)
+			return true;
+	}
+
+	return false;
+}
+
 static const u32 *dispc_ovl_get_color_modes(enum omap_plane_id plane)
 {
-	return dss_feat_get_supported_color_modes(plane);
+	return dispc.feat->supported_color_modes[plane];
 }
 
 static int dispc_get_num_ovls(void)
@@ -1867,7 +1883,7 @@ static void dispc_ovl_set_rotation_attrs(enum omap_plane_id plane, u8 rotation,
 		REG_FLD_MOD(DISPC_OVL_ATTRIBUTES(plane),
 			row_repeat ? 1 : 0, 18, 18);
 
-	if (dss_feat_color_mode_supported(plane, DRM_FORMAT_NV12)) {
+	if (dispc_ovl_color_mode_supported(plane, DRM_FORMAT_NV12)) {
 		bool doublestride =
 			fourcc == DRM_FORMAT_NV12 &&
 			rotation_type == OMAP_DSS_ROT_TILER &&
@@ -2431,7 +2447,7 @@ static int dispc_ovl_setup_common(enum omap_plane_id plane,
 			out_height);
 	}
 
-	if (!dss_feat_color_mode_supported(plane, fourcc))
+	if (!dispc_ovl_color_mode_supported(plane, fourcc))
 		return -EINVAL;
 
 	r = dispc_ovl_calc_scaling(pclk, lclk, caps, vm, in_width,
@@ -3692,6 +3708,106 @@ static void _omap_dispc_initial_config(void)
 		dispc_init_mflag();
 }
 
+#define COLOR_ARRAY(arr...) (const u32[]) { arr, 0 }
+
+static const u32 *omap2_dispc_supported_color_modes[] = {
+
+	/* OMAP_DSS_GFX */
+	COLOR_ARRAY(
+	DRM_FORMAT_RGBX4444, DRM_FORMAT_RGB565,
+	DRM_FORMAT_XRGB8888, DRM_FORMAT_RGB888),
+
+	/* OMAP_DSS_VIDEO1 */
+	COLOR_ARRAY(
+	DRM_FORMAT_RGB565, DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_RGB888, DRM_FORMAT_YUYV,
+	DRM_FORMAT_UYVY),
+
+	/* OMAP_DSS_VIDEO2 */
+	COLOR_ARRAY(
+	DRM_FORMAT_RGB565, DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_RGB888, DRM_FORMAT_YUYV,
+	DRM_FORMAT_UYVY),
+};
+
+static const u32 *omap3_dispc_supported_color_modes[] = {
+	/* OMAP_DSS_GFX */
+	COLOR_ARRAY(
+	DRM_FORMAT_RGBX4444, DRM_FORMAT_ARGB4444,
+	DRM_FORMAT_RGB565, DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_RGB888, DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_RGBA8888, DRM_FORMAT_RGBX8888),
+
+	/* OMAP_DSS_VIDEO1 */
+	COLOR_ARRAY(
+	DRM_FORMAT_XRGB8888, DRM_FORMAT_RGB888,
+	DRM_FORMAT_RGBX4444, DRM_FORMAT_RGB565,
+	DRM_FORMAT_YUYV, DRM_FORMAT_UYVY),
+
+	/* OMAP_DSS_VIDEO2 */
+	COLOR_ARRAY(
+	DRM_FORMAT_RGBX4444, DRM_FORMAT_ARGB4444,
+	DRM_FORMAT_RGB565, DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_RGB888, DRM_FORMAT_YUYV,
+	DRM_FORMAT_UYVY, DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_RGBA8888, DRM_FORMAT_RGBX8888),
+};
+
+static const u32 *omap4_dispc_supported_color_modes[] = {
+	/* OMAP_DSS_GFX */
+	COLOR_ARRAY(
+	DRM_FORMAT_RGBX4444, DRM_FORMAT_ARGB4444,
+	DRM_FORMAT_RGB565, DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_RGB888, DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_RGBA8888, DRM_FORMAT_RGBX8888,
+	DRM_FORMAT_ARGB1555, DRM_FORMAT_XRGB4444,
+	DRM_FORMAT_RGBA4444, DRM_FORMAT_XRGB1555),
+
+	/* OMAP_DSS_VIDEO1 */
+	COLOR_ARRAY(
+	DRM_FORMAT_RGB565, DRM_FORMAT_RGBX4444,
+	DRM_FORMAT_YUYV, DRM_FORMAT_ARGB1555,
+	DRM_FORMAT_RGBA8888, DRM_FORMAT_NV12,
+	DRM_FORMAT_RGBA4444, DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_RGB888, DRM_FORMAT_UYVY,
+	DRM_FORMAT_ARGB4444, DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_ARGB8888, DRM_FORMAT_XRGB4444,
+	DRM_FORMAT_RGBX8888),
+
+       /* OMAP_DSS_VIDEO2 */
+	COLOR_ARRAY(
+	DRM_FORMAT_RGB565, DRM_FORMAT_RGBX4444,
+	DRM_FORMAT_YUYV, DRM_FORMAT_ARGB1555,
+	DRM_FORMAT_RGBA8888, DRM_FORMAT_NV12,
+	DRM_FORMAT_RGBA4444, DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_RGB888, DRM_FORMAT_UYVY,
+	DRM_FORMAT_ARGB4444, DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_ARGB8888, DRM_FORMAT_XRGB4444,
+	DRM_FORMAT_RGBX8888),
+
+	/* OMAP_DSS_VIDEO3 */
+	COLOR_ARRAY(
+	DRM_FORMAT_RGB565, DRM_FORMAT_RGBX4444,
+	DRM_FORMAT_YUYV, DRM_FORMAT_ARGB1555,
+	DRM_FORMAT_RGBA8888, DRM_FORMAT_NV12,
+	DRM_FORMAT_RGBA4444, DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_RGB888, DRM_FORMAT_UYVY,
+	DRM_FORMAT_ARGB4444, DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_ARGB8888, DRM_FORMAT_XRGB4444,
+	DRM_FORMAT_RGBX8888),
+
+	/* OMAP_DSS_WB */
+	COLOR_ARRAY(
+	DRM_FORMAT_RGB565, DRM_FORMAT_RGBX4444,
+	DRM_FORMAT_YUYV, DRM_FORMAT_ARGB1555,
+	DRM_FORMAT_RGBA8888, DRM_FORMAT_NV12,
+	DRM_FORMAT_RGBA4444, DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_RGB888, DRM_FORMAT_UYVY,
+	DRM_FORMAT_ARGB4444, DRM_FORMAT_XRGB1555,
+	DRM_FORMAT_ARGB8888, DRM_FORMAT_XRGB4444,
+	DRM_FORMAT_RGBX8888),
+};
+
 static const struct dispc_features omap24xx_dispc_feats = {
 	.sw_start		=	5,
 	.fp_start		=	15,
@@ -3707,6 +3823,7 @@ static const struct dispc_features omap24xx_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_24xx,
 	.calc_core_clk		=	calc_core_clk_24xx,
 	.num_fifos		=	3,
+	.supported_color_modes	=	omap2_dispc_supported_color_modes,
 	.buffer_size_unit	=	1,
 	.burst_size_unit	=	8,
 	.no_framedone_tv	=	true,
@@ -3730,6 +3847,7 @@ static const struct dispc_features omap34xx_rev1_0_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_34xx,
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
+	.supported_color_modes	=	omap3_dispc_supported_color_modes,
 	.buffer_size_unit	=	1,
 	.burst_size_unit	=	8,
 	.no_framedone_tv	=	true,
@@ -3753,6 +3871,7 @@ static const struct dispc_features omap34xx_rev3_0_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_34xx,
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
+	.supported_color_modes	=	omap3_dispc_supported_color_modes,
 	.buffer_size_unit	=	1,
 	.burst_size_unit	=	8,
 	.no_framedone_tv	=	true,
@@ -3776,6 +3895,7 @@ static const struct dispc_features omap44xx_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_44xx,
 	.calc_core_clk		=	calc_core_clk_44xx,
 	.num_fifos		=	5,
+	.supported_color_modes	=	omap4_dispc_supported_color_modes,
 	.buffer_size_unit	=	16,
 	.burst_size_unit	=	16,
 	.gfx_fifo_workaround	=	true,
@@ -3804,6 +3924,7 @@ static const struct dispc_features omap54xx_dispc_feats = {
 	.calc_scaling		=	dispc_ovl_calc_scaling_44xx,
 	.calc_core_clk		=	calc_core_clk_44xx,
 	.num_fifos		=	5,
+	.supported_color_modes	=	omap4_dispc_supported_color_modes,
 	.buffer_size_unit	=	16,
 	.burst_size_unit	=	16,
 	.gfx_fifo_workaround	=	true,
