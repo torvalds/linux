@@ -105,6 +105,9 @@ struct dispc_features {
 	u16 mgr_height_max;
 	unsigned long max_lcd_pclk;
 	unsigned long max_tv_pclk;
+	unsigned int max_downscale;
+	unsigned int max_line_width;
+	unsigned int min_pcd;
 	int (*calc_scaling) (unsigned long pclk, unsigned long lclk,
 		const struct videomode *vm,
 		u16 width, u16 height, u16 out_width, u16 out_height,
@@ -2207,8 +2210,7 @@ static int dispc_ovl_calc_scaling_24xx(unsigned long pclk, unsigned long lclk,
 	int error;
 	u16 in_width, in_height;
 	int min_factor = min(*decim_x, *decim_y);
-	const int maxsinglelinewidth =
-			dss_feat_get_param_max(FEAT_PARAM_LINEWIDTH);
+	const int maxsinglelinewidth = dispc.feat->max_line_width;
 
 	*five_taps = false;
 
@@ -2252,8 +2254,7 @@ static int dispc_ovl_calc_scaling_34xx(unsigned long pclk, unsigned long lclk,
 {
 	int error;
 	u16 in_width, in_height;
-	const int maxsinglelinewidth =
-			dss_feat_get_param_max(FEAT_PARAM_LINEWIDTH);
+	const int maxsinglelinewidth = dispc.feat->max_line_width;
 
 	do {
 		in_height = height / *decim_y;
@@ -2338,9 +2339,8 @@ static int dispc_ovl_calc_scaling_44xx(unsigned long pclk, unsigned long lclk,
 	u16 in_width, in_width_max;
 	int decim_x_min = *decim_x;
 	u16 in_height = height / *decim_y;
-	const int maxsinglelinewidth =
-				dss_feat_get_param_max(FEAT_PARAM_LINEWIDTH);
-	const int maxdownscale = dss_feat_get_param_max(FEAT_PARAM_DOWNSCALE);
+	const int maxsinglelinewidth = dispc.feat->max_line_width;
+	const int maxdownscale = dispc.feat->max_downscale;
 
 	if (mem_to_mem) {
 		in_width_max = out_width * maxdownscale;
@@ -2400,7 +2400,7 @@ static int dispc_ovl_calc_scaling(unsigned long pclk, unsigned long lclk,
 		int *x_predecim, int *y_predecim, u16 pos_x,
 		enum omap_dss_rotation_type rotation_type, bool mem_to_mem)
 {
-	const int maxdownscale = dss_feat_get_param_max(FEAT_PARAM_DOWNSCALE);
+	const int maxdownscale = dispc.feat->max_downscale;
 	const int max_decim_limit = 16;
 	unsigned long core_clk = 0;
 	int decim_x, decim_y, ret;
@@ -3481,7 +3481,7 @@ int dispc_calc_clock_rates(unsigned long dispc_fclk_rate,
 	return 0;
 }
 
-bool dispc_div_calc(unsigned long dispc,
+bool dispc_div_calc(unsigned long dispc_freq,
 		unsigned long pck_min, unsigned long pck_max,
 		dispc_div_calc_func func, void *data)
 {
@@ -3499,19 +3499,19 @@ bool dispc_div_calc(unsigned long dispc,
 	min_fck_per_pck = 0;
 #endif
 
-	pckd_hw_min = dss_feat_get_param_min(FEAT_PARAM_DSS_PCD);
-	pckd_hw_max = dss_feat_get_param_max(FEAT_PARAM_DSS_PCD);
+	pckd_hw_min = dispc.feat->min_pcd;
+	pckd_hw_max = 255;
 
 	lck_max = dss_feat_get_param_max(FEAT_PARAM_DSS_FCK);
 
 	pck_min = pck_min ? pck_min : 1;
 	pck_max = pck_max ? pck_max : ULONG_MAX;
 
-	lckd_start = max(DIV_ROUND_UP(dispc, lck_max), 1ul);
-	lckd_stop = min(dispc / pck_min, 255ul);
+	lckd_start = max(DIV_ROUND_UP(dispc_freq, lck_max), 1ul);
+	lckd_stop = min(dispc_freq / pck_min, 255ul);
 
 	for (lckd = lckd_start; lckd <= lckd_stop; ++lckd) {
-		lck = dispc / lckd;
+		lck = dispc_freq / lckd;
 
 		pckd_start = max(DIV_ROUND_UP(lck, pck_max), pckd_hw_min);
 		pckd_stop = min(lck / pck_min, pckd_hw_max);
@@ -4047,6 +4047,13 @@ static const struct dispc_features omap24xx_dispc_feats = {
 	.mgr_width_max		=	2048,
 	.mgr_height_max		=	2048,
 	.max_lcd_pclk		=	66500000,
+	.max_downscale		=	2,
+	/*
+	 * Assume the line width buffer to be 768 pixels as OMAP2 DISPC scaler
+	 * cannot scale an image width larger than 768.
+	 */
+	.max_line_width		=	768,
+	.min_pcd		=	2,
 	.calc_scaling		=	dispc_ovl_calc_scaling_24xx,
 	.calc_core_clk		=	calc_core_clk_24xx,
 	.num_fifos		=	3,
@@ -4078,6 +4085,9 @@ static const struct dispc_features omap34xx_rev1_0_dispc_feats = {
 	.mgr_height_max		=	2048,
 	.max_lcd_pclk		=	173000000,
 	.max_tv_pclk		=	59000000,
+	.max_downscale		=	4,
+	.max_line_width		=	1024,
+	.min_pcd		=	1,
 	.calc_scaling		=	dispc_ovl_calc_scaling_34xx,
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
@@ -4109,6 +4119,9 @@ static const struct dispc_features omap34xx_rev3_0_dispc_feats = {
 	.mgr_height_max		=	2048,
 	.max_lcd_pclk		=	173000000,
 	.max_tv_pclk		=	59000000,
+	.max_downscale		=	4,
+	.max_line_width		=	1024,
+	.min_pcd		=	1,
 	.calc_scaling		=	dispc_ovl_calc_scaling_34xx,
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
@@ -4140,6 +4153,9 @@ static const struct dispc_features omap36xx_dispc_feats = {
 	.mgr_height_max		=	2048,
 	.max_lcd_pclk		=	173000000,
 	.max_tv_pclk		=	59000000,
+	.max_downscale		=	4,
+	.max_line_width		=	1024,
+	.min_pcd		=	1,
 	.calc_scaling		=	dispc_ovl_calc_scaling_34xx,
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
@@ -4171,6 +4187,9 @@ static const struct dispc_features am43xx_dispc_feats = {
 	.mgr_height_max		=	2048,
 	.max_lcd_pclk		=	173000000,
 	.max_tv_pclk		=	59000000,
+	.max_downscale		=	4,
+	.max_line_width		=	1024,
+	.min_pcd		=	1,
 	.calc_scaling		=	dispc_ovl_calc_scaling_34xx,
 	.calc_core_clk		=	calc_core_clk_34xx,
 	.num_fifos		=	3,
@@ -4202,6 +4221,9 @@ static const struct dispc_features omap44xx_dispc_feats = {
 	.mgr_height_max		=	2048,
 	.max_lcd_pclk		=	170000000,
 	.max_tv_pclk		=	185625000,
+	.max_downscale		=	4,
+	.max_line_width		=	2048,
+	.min_pcd		=	1,
 	.calc_scaling		=	dispc_ovl_calc_scaling_44xx,
 	.calc_core_clk		=	calc_core_clk_44xx,
 	.num_fifos		=	5,
@@ -4238,6 +4260,9 @@ static const struct dispc_features omap54xx_dispc_feats = {
 	.mgr_height_max		=	4096,
 	.max_lcd_pclk		=	170000000,
 	.max_tv_pclk		=	186000000,
+	.max_downscale		=	4,
+	.max_line_width		=	2048,
+	.min_pcd		=	1,
 	.calc_scaling		=	dispc_ovl_calc_scaling_44xx,
 	.calc_core_clk		=	calc_core_clk_44xx,
 	.num_fifos		=	5,

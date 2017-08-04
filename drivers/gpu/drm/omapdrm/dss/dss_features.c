@@ -102,41 +102,22 @@ static const enum omap_dss_output_id omap5_dss_supported_outputs[] = {
 
 static const struct dss_param_range omap2_dss_param_range[] = {
 	[FEAT_PARAM_DSS_FCK]			= { 0, 133000000 },
-	[FEAT_PARAM_DSS_PCD]			= { 2, 255 },
-	[FEAT_PARAM_DOWNSCALE]			= { 1, 2 },
-	/*
-	 * Assuming the line width buffer to be 768 pixels as OMAP2 DISPC
-	 * scaler cannot scale a image with width more than 768.
-	 */
-	[FEAT_PARAM_LINEWIDTH]			= { 1, 768 },
 };
 
 static const struct dss_param_range omap3_dss_param_range[] = {
 	[FEAT_PARAM_DSS_FCK]			= { 0, 173000000 },
-	[FEAT_PARAM_DSS_PCD]			= { 1, 255 },
-	[FEAT_PARAM_DOWNSCALE]			= { 1, 4 },
-	[FEAT_PARAM_LINEWIDTH]			= { 1, 1024 },
 };
 
 static const struct dss_param_range am43xx_dss_param_range[] = {
 	[FEAT_PARAM_DSS_FCK]			= { 0, 200000000 },
-	[FEAT_PARAM_DSS_PCD]			= { 1, 255 },
-	[FEAT_PARAM_DOWNSCALE]			= { 1, 4 },
-	[FEAT_PARAM_LINEWIDTH]			= { 1, 1024 },
 };
 
 static const struct dss_param_range omap4_dss_param_range[] = {
 	[FEAT_PARAM_DSS_FCK]			= { 0, 186000000 },
-	[FEAT_PARAM_DSS_PCD]			= { 1, 255 },
-	[FEAT_PARAM_DOWNSCALE]			= { 1, 4 },
-	[FEAT_PARAM_LINEWIDTH]			= { 1, 2048 },
 };
 
 static const struct dss_param_range omap5_dss_param_range[] = {
 	[FEAT_PARAM_DSS_FCK]			= { 0, 209250000 },
-	[FEAT_PARAM_DSS_PCD]			= { 1, 255 },
-	[FEAT_PARAM_DOWNSCALE]			= { 1, 4 },
-	[FEAT_PARAM_LINEWIDTH]			= { 1, 2048 },
 };
 
 /* OMAP2 DSS Features */

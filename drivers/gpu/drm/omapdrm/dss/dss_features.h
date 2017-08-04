@@ -27,9 +27,6 @@
 
 enum dss_range_param {
 	FEAT_PARAM_DSS_FCK,
-	FEAT_PARAM_DSS_PCD,
-	FEAT_PARAM_DOWNSCALE,
-	FEAT_PARAM_LINEWIDTH,
 };
 
 /* DSS Feature Functions */
