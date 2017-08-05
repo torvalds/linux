@@ -110,7 +110,7 @@ typedef enum {
 #define SCTP_NUM_OTHER_TYPES		(SCTP_EVENT_OTHER_MAX + 1)
 
 /* These are primitive requests from the ULP.  */
-typedef enum {
+enum sctp_event_primitive {
 	SCTP_PRIMITIVE_ASSOCIATE = 0,
 	SCTP_PRIMITIVE_SHUTDOWN,
 	SCTP_PRIMITIVE_ABORT,
@@ -118,7 +118,7 @@ typedef enum {
 	SCTP_PRIMITIVE_REQUESTHEARTBEAT,
 	SCTP_PRIMITIVE_ASCONF,
 	SCTP_PRIMITIVE_RECONF,
-} sctp_event_primitive_t;
+};
 
 #define SCTP_EVENT_PRIMITIVE_MAX	SCTP_PRIMITIVE_RECONF
 #define SCTP_NUM_PRIMITIVE_TYPES	(SCTP_EVENT_PRIMITIVE_MAX + 1)
@@ -133,7 +133,7 @@ typedef union {
 	enum sctp_cid chunk;
 	sctp_event_timeout_t timeout;
 	sctp_event_other_t other;
-	sctp_event_primitive_t primitive;
+	enum sctp_event_primitive primitive;
 } sctp_subtype_t;
 
 #define SCTP_SUBTYPE_CONSTRUCTOR(_name, _type, _elt) \
@@ -144,7 +144,7 @@ SCTP_ST_## _name (_type _arg)		\
 SCTP_SUBTYPE_CONSTRUCTOR(CHUNK,		enum sctp_cid,		chunk)
 SCTP_SUBTYPE_CONSTRUCTOR(TIMEOUT,	sctp_event_timeout_t,	timeout)
 SCTP_SUBTYPE_CONSTRUCTOR(OTHER,		sctp_event_other_t,	other)
-SCTP_SUBTYPE_CONSTRUCTOR(PRIMITIVE,	sctp_event_primitive_t,	primitive)
+SCTP_SUBTYPE_CONSTRUCTOR(PRIMITIVE,	enum sctp_event_primitive, primitive)
 
 
 #define sctp_chunk_is_data(a) (a->chunk_hdr->type == SCTP_CID_DATA)
