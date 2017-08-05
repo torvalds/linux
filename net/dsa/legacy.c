@@ -80,15 +80,13 @@ dsa_switch_probe(struct device *parent, struct device *host_dev, int sw_addr,
 /* basic switch operations **************************************************/
 static int dsa_cpu_dsa_setups(struct dsa_switch *ds)
 {
-	struct dsa_port *dport;
 	int ret, port;
 
 	for (port = 0; port < ds->num_ports; port++) {
 		if (!(dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port)))
 			continue;
 
-		dport = &ds->ports[port];
-		ret = dsa_cpu_dsa_setup(ds, ds->dev, dport, port);
+		ret = dsa_cpu_dsa_setup(&ds->ports[port]);
 		if (ret)
 			return ret;
 	}
