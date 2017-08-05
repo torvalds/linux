@@ -43,9 +43,9 @@ static int cls_cgroup_classify(struct sk_buff *skb, const struct tcf_proto *tp,
 	return tcf_exts_exec(skb, &head->exts, res);
 }
 
-static unsigned long cls_cgroup_get(struct tcf_proto *tp, u32 handle)
+static void *cls_cgroup_get(struct tcf_proto *tp, u32 handle)
 {
-	return 0UL;
+	return NULL;
 }
 
 static int cls_cgroup_init(struct tcf_proto *tp)
@@ -71,7 +71,7 @@ static void cls_cgroup_destroy_rcu(struct rcu_head *root)
 static int cls_cgroup_change(struct net *net, struct sk_buff *in_skb,
 			     struct tcf_proto *tp, unsigned long base,
 			     u32 handle, struct nlattr **tca,
-			     unsigned long *arg, bool ovr)
+			     void **arg, bool ovr)
 {
 	struct nlattr *tb[TCA_CGROUP_MAX + 1];
 	struct cls_cgroup_head *head = rtnl_dereference(tp->root);
@@ -128,7 +128,7 @@ static void cls_cgroup_destroy(struct tcf_proto *tp)
 		call_rcu(&head->rcu, cls_cgroup_destroy_rcu);
 }
 
-static int cls_cgroup_delete(struct tcf_proto *tp, unsigned long arg, bool *last)
+static int cls_cgroup_delete(struct tcf_proto *tp, void *arg, bool *last)
 {
 	return -EOPNOTSUPP;
 }
@@ -140,7 +140,7 @@ static void cls_cgroup_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 	if (arg->count < arg->skip)
 		goto skip;
 
-	if (arg->fn(tp, (unsigned long) head, arg) < 0) {
+	if (arg->fn(tp, head, arg) < 0) {
 		arg->stop = 1;
 		return;
 	}
@@ -148,7 +148,7 @@ skip:
 	arg->count++;
 }
 
-static int cls_cgroup_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
+static int cls_cgroup_dump(struct net *net, struct tcf_proto *tp, void *fh,
 			   struct sk_buff *skb, struct tcmsg *t)
 {
 	struct cls_cgroup_head *head = rtnl_dereference(tp->root);

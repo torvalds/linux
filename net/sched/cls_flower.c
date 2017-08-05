@@ -332,15 +332,15 @@ static void fl_destroy(struct tcf_proto *tp)
 	call_rcu(&head->rcu, fl_destroy_rcu);
 }
 
-static unsigned long fl_get(struct tcf_proto *tp, u32 handle)
+static void *fl_get(struct tcf_proto *tp, u32 handle)
 {
 	struct cls_fl_head *head = rtnl_dereference(tp->root);
 	struct cls_fl_filter *f;
 
 	list_for_each_entry(f, &head->filters, list)
 		if (f->handle == handle)
-			return (unsigned long) f;
-	return 0;
+			return f;
+	return NULL;
 }
 
 static const struct nla_policy fl_policy[TCA_FLOWER_MAX + 1] = {
@@ -883,10 +883,10 @@ static u32 fl_grab_new_handle(struct tcf_proto *tp,
 static int fl_change(struct net *net, struct sk_buff *in_skb,
 		     struct tcf_proto *tp, unsigned long base,
 		     u32 handle, struct nlattr **tca,
-		     unsigned long *arg, bool ovr)
+		     void **arg, bool ovr)
 {
 	struct cls_fl_head *head = rtnl_dereference(tp->root);
-	struct cls_fl_filter *fold = (struct cls_fl_filter *) *arg;
+	struct cls_fl_filter *fold = *arg;
 	struct cls_fl_filter *fnew;
 	struct nlattr **tb;
 	struct fl_flow_mask mask = {};
@@ -977,7 +977,7 @@ static int fl_change(struct net *net, struct sk_buff *in_skb,
 			fl_hw_destroy_filter(tp, fold);
 	}
 
-	*arg = (unsigned long) fnew;
+	*arg = fnew;
 
 	if (fold) {
 		list_replace_rcu(&fold->list, &fnew->list);
@@ -998,10 +998,10 @@ errout_tb:
 	return err;
 }
 
-static int fl_delete(struct tcf_proto *tp, unsigned long arg, bool *last)
+static int fl_delete(struct tcf_proto *tp, void *arg, bool *last)
 {
 	struct cls_fl_head *head = rtnl_dereference(tp->root);
-	struct cls_fl_filter *f = (struct cls_fl_filter *) arg;
+	struct cls_fl_filter *f = arg;
 
 	if (!tc_skip_sw(f->flags))
 		rhashtable_remove_fast(&head->ht, &f->ht_node,
@@ -1019,7 +1019,7 @@ static void fl_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 	list_for_each_entry_rcu(f, &head->filters, list) {
 		if (arg->count < arg->skip)
 			goto skip;
-		if (arg->fn(tp, (unsigned long) f, arg) < 0) {
+		if (arg->fn(tp, f, arg) < 0) {
 			arg->stop = 1;
 			break;
 		}
@@ -1154,11 +1154,11 @@ static int fl_dump_key_flags(struct sk_buff *skb, u32 flags_key, u32 flags_mask)
 	return nla_put(skb, TCA_FLOWER_KEY_FLAGS_MASK, 4, &_mask);
 }
 
-static int fl_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
+static int fl_dump(struct net *net, struct tcf_proto *tp, void *fh,
 		   struct sk_buff *skb, struct tcmsg *t)
 {
 	struct cls_fl_head *head = rtnl_dereference(tp->root);
-	struct cls_fl_filter *f = (struct cls_fl_filter *) fh;
+	struct cls_fl_filter *f = fh;
 	struct nlattr *nest;
 	struct fl_flow_key *key, *mask;
 

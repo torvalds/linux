@@ -382,7 +382,7 @@ static void flow_destroy_filter(struct rcu_head *head)
 static int flow_change(struct net *net, struct sk_buff *in_skb,
 		       struct tcf_proto *tp, unsigned long base,
 		       u32 handle, struct nlattr **tca,
-		       unsigned long *arg, bool ovr)
+		       void **arg, bool ovr)
 {
 	struct flow_head *head = rtnl_dereference(tp->root);
 	struct flow_filter *fold, *fnew;
@@ -439,7 +439,7 @@ static int flow_change(struct net *net, struct sk_buff *in_skb,
 	if (err < 0)
 		goto err2;
 
-	fold = (struct flow_filter *)*arg;
+	fold = *arg;
 	if (fold) {
 		err = -EINVAL;
 		if (fold->handle != handle && handle)
@@ -532,12 +532,12 @@ static int flow_change(struct net *net, struct sk_buff *in_skb,
 	if (perturb_period)
 		mod_timer(&fnew->perturb_timer, jiffies + perturb_period);
 
-	if (*arg == 0)
+	if (!*arg)
 		list_add_tail_rcu(&fnew->list, &head->filters);
 	else
 		list_replace_rcu(&fold->list, &fnew->list);
 
-	*arg = (unsigned long)fnew;
+	*arg = fnew;
 
 	if (fold)
 		call_rcu(&fold->rcu, flow_destroy_filter);
@@ -551,10 +551,10 @@ err1:
 	return err;
 }
 
-static int flow_delete(struct tcf_proto *tp, unsigned long arg, bool *last)
+static int flow_delete(struct tcf_proto *tp, void *arg, bool *last)
 {
 	struct flow_head *head = rtnl_dereference(tp->root);
-	struct flow_filter *f = (struct flow_filter *)arg;
+	struct flow_filter *f = arg;
 
 	list_del_rcu(&f->list);
 	call_rcu(&f->rcu, flow_destroy_filter);
@@ -586,21 +586,21 @@ static void flow_destroy(struct tcf_proto *tp)
 	kfree_rcu(head, rcu);
 }
 
-static unsigned long flow_get(struct tcf_proto *tp, u32 handle)
+static void *flow_get(struct tcf_proto *tp, u32 handle)
 {
 	struct flow_head *head = rtnl_dereference(tp->root);
 	struct flow_filter *f;
 
 	list_for_each_entry(f, &head->filters, list)
 		if (f->handle == handle)
-			return (unsigned long)f;
-	return 0;
+			return f;
+	return NULL;
 }
 
-static int flow_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
+static int flow_dump(struct net *net, struct tcf_proto *tp, void *fh,
 		     struct sk_buff *skb, struct tcmsg *t)
 {
-	struct flow_filter *f = (struct flow_filter *)fh;
+	struct flow_filter *f = fh;
 	struct nlattr *nest;
 
 	if (f == NULL)
@@ -666,7 +666,7 @@ static void flow_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 	list_for_each_entry(f, &head->filters, list) {
 		if (arg->count < arg->skip)
 			goto skip;
-		if (arg->fn(tp, (unsigned long)f, arg) < 0) {
+		if (arg->fn(tp, f, arg) < 0) {
 			arg->stop = 1;
 			break;
 		}

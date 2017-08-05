@@ -102,11 +102,11 @@ EXPORT_SYMBOL(unregister_tcf_proto_ops);
 
 static int tfilter_notify(struct net *net, struct sk_buff *oskb,
 			  struct nlmsghdr *n, struct tcf_proto *tp,
-			  unsigned long fh, int event, bool unicast);
+			  void *fh, int event, bool unicast);
 
 static int tfilter_del_notify(struct net *net, struct sk_buff *oskb,
 			      struct nlmsghdr *n, struct tcf_proto *tp,
-			      unsigned long fh, bool unicast, bool *last);
+			      void *fh, bool unicast, bool *last);
 
 static void tfilter_notify_chain(struct net *net, struct sk_buff *oskb,
 				 struct nlmsghdr *n,
@@ -432,7 +432,7 @@ static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
 	struct tcf_proto *tp;
 	const struct Qdisc_class_ops *cops;
 	unsigned long cl;
-	unsigned long fh;
+	void *fh;
 	int err;
 	int tp_created;
 
@@ -571,7 +571,7 @@ replay:
 
 	fh = tp->ops->get(tp, t->tcm_handle);
 
-	if (fh == 0) {
+	if (!fh) {
 		if (n->nlmsg_type == RTM_DELTFILTER && t->tcm_handle == 0) {
 			tcf_chain_tp_remove(chain, &chain_info, tp);
 			tfilter_notify(net, skb, n, tp, fh,
@@ -641,7 +641,7 @@ errout:
 }
 
 static int tcf_fill_node(struct net *net, struct sk_buff *skb,
-			 struct tcf_proto *tp, unsigned long fh, u32 portid,
+			 struct tcf_proto *tp, void *fh, u32 portid,
 			 u32 seq, u16 flags, int event)
 {
 	struct tcmsg *tcm;
@@ -679,7 +679,7 @@ nla_put_failure:
 
 static int tfilter_notify(struct net *net, struct sk_buff *oskb,
 			  struct nlmsghdr *n, struct tcf_proto *tp,
-			  unsigned long fh, int event, bool unicast)
+			  void *fh, int event, bool unicast)
 {
 	struct sk_buff *skb;
 	u32 portid = oskb ? NETLINK_CB(oskb).portid : 0;
@@ -703,7 +703,7 @@ static int tfilter_notify(struct net *net, struct sk_buff *oskb,
 
 static int tfilter_del_notify(struct net *net, struct sk_buff *oskb,
 			      struct nlmsghdr *n, struct tcf_proto *tp,
-			      unsigned long fh, bool unicast, bool *last)
+			      void *fh, bool unicast, bool *last)
 {
 	struct sk_buff *skb;
 	u32 portid = oskb ? NETLINK_CB(oskb).portid : 0;
@@ -738,8 +738,7 @@ struct tcf_dump_args {
 	struct netlink_callback *cb;
 };
 
-static int tcf_node_dump(struct tcf_proto *tp, unsigned long n,
-			 struct tcf_walker *arg)
+static int tcf_node_dump(struct tcf_proto *tp, void *n, struct tcf_walker *arg)
 {
 	struct tcf_dump_args *a = (void *)arg;
 	struct net *net = sock_net(a->skb->sk);
