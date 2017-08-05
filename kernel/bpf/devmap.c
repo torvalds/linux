@@ -40,11 +40,12 @@
  * contain a reference to the net device and remove them. This is a two step
  * process (a) dereference the bpf_dtab_netdev object in netdev_map and (b)
  * check to see if the ifindex is the same as the net_device being removed.
- * Unfortunately, the xchg() operations do not protect against this. To avoid
- * potentially removing incorrect objects the dev_map_list_mutex protects
- * conflicting netdev unregister and BPF syscall operations. Updates and
- * deletes from a BPF program (done in rcu critical section) are blocked
- * because of this mutex.
+ * When removing the dev a cmpxchg() is used to ensure the correct dev is
+ * removed, in the case of a concurrent update or delete operation it is
+ * possible that the initially referenced dev is no longer in the map. As the
+ * notifier hook walks the map we know that new dev references can not be
+ * added by the user because core infrastructure ensures dev_get_by_index()
+ * calls will fail at this point.
  */
 #include <linux/bpf.h>
 #include <linux/jhash.h>
@@ -68,7 +69,7 @@ struct bpf_dtab {
 	struct list_head list;
 };
 
-static DEFINE_MUTEX(dev_map_list_mutex);
+static DEFINE_SPINLOCK(dev_map_lock);
 static LIST_HEAD(dev_map_list);
 
 static struct bpf_map *dev_map_alloc(union bpf_attr *attr)
@@ -128,9 +129,9 @@ static struct bpf_map *dev_map_alloc(union bpf_attr *attr)
 	if (!dtab->netdev_map)
 		goto free_dtab;
 
-	mutex_lock(&dev_map_list_mutex);
-	list_add_tail(&dtab->list, &dev_map_list);
-	mutex_unlock(&dev_map_list_mutex);
+	spin_lock(&dev_map_lock);
+	list_add_tail_rcu(&dtab->list, &dev_map_list);
+	spin_unlock(&dev_map_lock);
 	return &dtab->map;
 
 free_dtab:
@@ -169,7 +170,6 @@ static void dev_map_free(struct bpf_map *map)
 	 * at this point we we can still race with netdev notifier, hence the
 	 * lock.
 	 */
-	mutex_lock(&dev_map_list_mutex);
 	for (i = 0; i < dtab->map.max_entries; i++) {
 		struct bpf_dtab_netdev *dev;
 
@@ -184,8 +184,9 @@ static void dev_map_free(struct bpf_map *map)
 	/* At this point bpf program is detached and all pending operations
 	 * _must_ be complete
 	 */
-	list_del(&dtab->list);
-	mutex_unlock(&dev_map_list_mutex);
+	spin_lock(&dev_map_lock);
+	list_del_rcu(&dtab->list);
+	spin_unlock(&dev_map_lock);
 	free_percpu(dtab->flush_needed);
 	bpf_map_area_free(dtab->netdev_map);
 	kfree(dtab);
@@ -322,11 +323,9 @@ static int dev_map_delete_elem(struct bpf_map *map, void *key)
 	 * the driver tear down ensures all soft irqs are complete before
 	 * removing the net device in the case of dev_put equals zero.
 	 */
-	mutex_lock(&dev_map_list_mutex);
 	old_dev = xchg(&dtab->netdev_map[k], NULL);
 	if (old_dev)
 		call_rcu(&old_dev->rcu, __dev_map_entry_free);
-	mutex_unlock(&dev_map_list_mutex);
 	return 0;
 }
 
@@ -369,11 +368,9 @@ static int dev_map_update_elem(struct bpf_map *map, void *key, void *value,
 	 * Remembering the driver side flush operation will happen before the
 	 * net device is removed.
 	 */
-	mutex_lock(&dev_map_list_mutex);
 	old_dev = xchg(&dtab->netdev_map[i], dev);
 	if (old_dev)
 		call_rcu(&old_dev->rcu, __dev_map_entry_free);
-	mutex_unlock(&dev_map_list_mutex);
 
 	return 0;
 }
@@ -396,22 +393,27 @@ static int dev_map_notification(struct notifier_block *notifier,
 
 	switch (event) {
 	case NETDEV_UNREGISTER:
-		mutex_lock(&dev_map_list_mutex);
-		list_for_each_entry(dtab, &dev_map_list, list) {
+		/* This rcu_read_lock/unlock pair is needed because
+		 * dev_map_list is an RCU list AND to ensure a delete
+		 * operation does not free a netdev_map entry while we
+		 * are comparing it against the netdev being unregistered.
+		 */
+		rcu_read_lock();
+		list_for_each_entry_rcu(dtab, &dev_map_list, list) {
 			for (i = 0; i < dtab->map.max_entries; i++) {
-				struct bpf_dtab_netdev *dev;
+				struct bpf_dtab_netdev *dev, *odev;
 
-				dev = dtab->netdev_map[i];
+				dev = READ_ONCE(dtab->netdev_map[i]);
 				if (!dev ||
 				    dev->dev->ifindex != netdev->ifindex)
 					continue;
-				dev = xchg(&dtab->netdev_map[i], NULL);
-				if (dev)
+				odev = cmpxchg(&dtab->netdev_map[i], dev, NULL);
+				if (dev == odev)
 					call_rcu(&dev->rcu,
 						 __dev_map_entry_free);
 			}
 		}
-		mutex_unlock(&dev_map_list_mutex);
+		rcu_read_unlock();
 		break;
 	default:
 		break;
