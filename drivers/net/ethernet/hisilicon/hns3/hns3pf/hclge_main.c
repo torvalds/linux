@@ -4089,7 +4089,8 @@ static int hclge_init_ae_dev(struct hnae3_ae_dev *ae_dev)
 
 	ret = hclge_get_cap(hdev);
 	if (ret) {
-		dev_err(&pdev->dev, "get hw capabilty error, ret = %d.\n", ret);
+		dev_err(&pdev->dev, "get hw capability error, ret = %d.\n",
+			ret);
 		return ret;
 	}
 
