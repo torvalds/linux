@@ -436,7 +436,7 @@ static void sta_addba_resp_timer_expired(unsigned long data)
 	    test_bit(HT_AGG_STATE_RESPONSE_RECEIVED, &tid_tx->state)) {
 		rcu_read_unlock();
 		ht_dbg(sta->sdata,
-		       "timer expired on %pM tid %d but we are not (or no longer) expecting addBA response there\n",
+		       "timer expired on %pM tid %d not expecting addBA response\n",
 		       sta->sta.addr, tid);
 		return;
 	}
@@ -639,7 +639,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 	    time_before(jiffies, sta->ampdu_mlme.last_addba_req_time[tid] +
 			HT_AGG_RETRIES_PERIOD)) {
 		ht_dbg(sdata,
-		       "BA request denied - waiting a grace period after %d failed requests on %pM tid %u\n",
+		       "BA request denied - %d failed requests on %pM tid %u\n",
 		       sta->ampdu_mlme.addba_req_num[tid], sta->sta.addr, tid);
 		ret = -EBUSY;
 		goto err_unlock_sta;
