@@ -560,15 +560,16 @@ static int lan9303_handle_reset(struct lan9303 *chip)
 /* stop processing packets for all ports */
 static int lan9303_disable_processing(struct lan9303 *chip)
 {
-	int ret;
+	int p;
 
-	ret = lan9303_disable_packet_processing(chip, 0);
-	if (ret)
-		return ret;
-	ret = lan9303_disable_packet_processing(chip, 1);
-	if (ret)
-		return ret;
-	return lan9303_disable_packet_processing(chip, 2);
+	for (p = 0; p < LAN9303_NUM_PORTS; p++) {
+		int ret = lan9303_disable_packet_processing(chip, p);
+
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int lan9303_check_device(struct lan9303 *chip)
@@ -761,7 +762,6 @@ static int lan9303_port_enable(struct dsa_switch *ds, int port,
 	/* enable internal packet processing */
 	switch (port) {
 	case 1:
-		return lan9303_enable_packet_processing(chip, port);
 	case 2:
 		return lan9303_enable_packet_processing(chip, port);
 	default:
@@ -780,13 +780,9 @@ static void lan9303_port_disable(struct dsa_switch *ds, int port,
 	/* disable internal packet processing */
 	switch (port) {
 	case 1:
-		lan9303_disable_packet_processing(chip, port);
-		lan9303_phy_write(ds, chip->phy_addr_sel_strap + 1,
-				  MII_BMCR, BMCR_PDOWN);
-		break;
 	case 2:
 		lan9303_disable_packet_processing(chip, port);
-		lan9303_phy_write(ds, chip->phy_addr_sel_strap + 2,
+		lan9303_phy_write(ds, chip->phy_addr_sel_strap + port,
 				  MII_BMCR, BMCR_PDOWN);
 		break;
 	default:
