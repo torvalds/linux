@@ -188,7 +188,7 @@ int medusa_l1_inode_alloc_security(struct inode *inode)
 	struct medusa_l1_inode_s *med;
 
 	med = (struct medusa_l1_inode_s*) kmalloc(sizeof(struct medusa_l1_inode_s), GFP_KERNEL);
-	med->fuck_path = NULL;
+	hash_init(med->fuck);
 	if (med == NULL)
 		return -ENOMEM;
 
@@ -200,11 +200,12 @@ int medusa_l1_inode_alloc_security(struct inode *inode)
 
 void medusa_l1_inode_free_security(struct inode *inode)
 {
-		struct medusa_l1_inode_s *med;
+	struct medusa_l1_inode_s *med;
 
 	if (inode->i_security != NULL) {
 		med = inode->i_security;
 		inode->i_security = NULL;
+		fuck_free(med);
 		kfree(med);
 	}
 }
@@ -366,9 +367,9 @@ static int medusa_l1_path_mkdir(const struct path *dir, struct dentry *dentry, u
 
 static int medusa_l1_path_rmdir(const struct path *dir, struct dentry *dentry)
 {
-        if (medusa_rmdir(dir, dentry) == MED_NO)
-                return -EPERM;
-        return 0;
+	if (medusa_rmdir(dir, dentry) == MED_NO)
+		return -EPERM;
+	return 0;
 }
 
 static int medusa_l1_path_unlink(const struct path *dir, struct dentry *dentry)
@@ -392,9 +393,9 @@ static int medusa_l1_path_link(struct dentry *old_dentry, const struct path *new
 static int medusa_l1_path_rename(const struct path *old_path, struct dentry *old_dentry,
 			const struct path *new_path, struct dentry *new_dentry)
 {
-        //if (medusa_rename(old_dentry, new_dentry) == MED_NO)
-        if (medusa_rename(old_dentry, new_dentry->d_name.name) == MED_NO)
-                return -EPERM;
+	//if (medusa_rename(old_dentry, new_dentry) == MED_NO)
+	if (medusa_rename(old_dentry, new_dentry->d_name.name) == MED_NO)
+	        return -EPERM;
 	return 0;
 }
 
@@ -1334,8 +1335,6 @@ static struct security_hook_list medusa_l1_hooks[] = {
 	LSM_HOOK_INIT(path_chroot, medusa_l1_path_chroot),
 #endif /* CONFIG_SECURITY_PATH */
 
-	// LSM_HOOK_INIT(inode_alloc_security, medusa_l1_inode_alloc_security),
-	// LSM_HOOK_INIT(inode_free_security, medusa_l1_inode_free_security),
 	LSM_HOOK_INIT(inode_init_security, medusa_l1_inode_init_security),
 	LSM_HOOK_INIT(inode_create, medusa_l1_inode_create),
 	LSM_HOOK_INIT(inode_link, medusa_l1_inode_link),
@@ -1530,7 +1529,7 @@ void __init medusa_init(void);
 
 static void medusa_l1_init_sb(struct super_block *sb, void *unused) {
 	struct inode *entry;
-        struct list_head *tmp;
+	struct list_head *tmp;
 
 	medusa_l1_sb_kern_mount(sb, 0, NULL);
 	printk("medusa: sb: %s\n", sb->s_root->d_name.name);

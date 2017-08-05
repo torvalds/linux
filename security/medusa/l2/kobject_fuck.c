@@ -8,13 +8,22 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
+#include <linux/hashtable.h>
 #include <linux/medusa/l3/registry.h>
 #include "kobject_fuck.h"
 MED_ATTRS(fuck_kobject) {
 	MED_ATTR_KEY	(fuck_kobject, path, "path", MED_STRING),
 	MED_ATTR		(fuck_kobject, i_ino, "i_ino", MED_UNSIGNED),
+	MED_ATTR		(fuck_kobject, action, "sction", MED_STRING),
 	MED_ATTR_OBJECT (fuck_kobject),
 	MED_ATTR_END
+};
+
+#define hash_function(path) 0 //TODO: create hash_function
+
+struct fuck_path {
+	struct hlist_node list;
+	char path[0];
 };
 
 //append name to path and save it to dest
@@ -37,16 +46,50 @@ int append_path(char *path, char* dest, const unsigned char *name)
 	return 0;
 }
 
+static int exists_in_hash(char* path, int hash, struct medusa_l1_inode_s* inode) {
+	struct fuck_path* fuck_item;
+	
+	hash_for_each_possible(inode->fuck, fuck_item, list, hash) {
+		if (strncmp(path, fuck_item->path, PATH_MAX) == 0) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+struct fuck_path* hash_get_first(struct medusa_l1_inode_s* med) {
+	int bkt;
+	struct fuck_path* path;
+
+	hash_for_each(med->fuck, bkt, path, list) {
+		return path;
+	}
+
+	return NULL;
+}
+
+int fuck_free(struct medusa_l1_inode_s* med) {
+	struct fuck_path* path;
+
+	while ((path = hash_get_first(med))) { 
+		hash_del(&path->list);
+		kfree(path);
+	}
+
+	return 0;
+}
 
 //used in medusa_l1_path_chown, medusa_l1_path_chmod, medusa_l1_file_open
-int validate_fuck(struct path fuck_path){
+int validate_fuck(struct path fuck_path) {
 		struct inode *fuck_inode = fuck_path.dentry->d_inode;
-		char *saved_path = inode_security(fuck_inode).fuck_path;
+		////char *saved_path = inode_security(fuck_inode).fuck_path;
+		int hash;
 		char *accessed_path;
 		char *buf;
 		
 		//dont change to goto out you dont have buf
-		if(saved_path == NULL)
+		if(hash_empty(inode_security(fuck_inode).fuck))
 			return 0;	
 		
 		buf = (char *) kmalloc(PATH_MAX * sizeof(char), GFP_KERNEL);
@@ -54,26 +97,26 @@ int validate_fuck(struct path fuck_path){
 			goto out;
 
 		accessed_path = d_absolute_path(&fuck_path, buf, PATH_MAX);
-		if(!accessed_path || IS_ERR(accessed_path)){
+		if(!accessed_path || IS_ERR(accessed_path)) {
 			if(PTR_ERR(accessed_path) == -ENAMETOOLONG)
 				goto out;
 			//accessed_path = dentry_path_raw(fuck_path.dentry, buf, PATH_MAX);
-			if(IS_ERR(accessed_path)){
+			if(IS_ERR(accessed_path)) {
 				goto out;
 			}
 		}
 
-		if(accessed_path == NULL){
+		if(accessed_path == NULL) {
 			goto out;
 		}
-		if (strncmp(saved_path, accessed_path, PATH_MAX) == 0){
-			printk("VALIDATE_FUCK: paths are equal\n");
-			printk("VALIDATE_FUCK: saved path: %s\n", saved_path);
+		
+		hash = hash_function(accessed_path);
+		if (exists_in_hash(accessed_path, hash, &inode_security(fuck_inode))) {
+			printk("VALIDATE_FUCK: path exists\n");
 			printk("VALIDATE_FUCK: accessed_path: %s inode: %lu\n", accessed_path, fuck_inode->i_ino);
 			goto out;
 		}
-		printk("VALIDATE_FUCK: paths are not equal\n");
-		printk("VALIDATE_FUCK: saved path: %s\n", saved_path);
+		printk("VALIDATE_FUCK: path don't exists\n");
 		printk("VALIDATE_FUCK: accessed_path: %s inode: %lu\n", accessed_path, fuck_inode->i_ino);
 		kfree(buf);
 		return -EPERM;
@@ -83,60 +126,12 @@ out:
 }
 
 //used in medusa_l1_path_link
-//int validate_fuck_link(struct dentry *old_dentry, const struct path *fuck_path, struct dentry *new_dentry){
-int validate_fuck_link(struct dentry *old_dentry){
+int validate_fuck_link(struct dentry *old_dentry) {
 		struct inode *fuck_inode = old_dentry->d_inode;
-		char *saved_path = inode_security(fuck_inode).fuck_path;
 		//if inode has no protected paths defined, allow hard link alse deny
-		if(saved_path == NULL) 
+		if(hash_empty(inode_security(fuck_inode).fuck))
 			  return 0;
 		return -EPERM;
-		/*
-		char *accessed_path;
-		char *parent_path;
-		char *buf;
-		const unsigned char *d_name = new_dentry->d_name.name;
-
-		//dont change to goto out you dont have buf
-		if(saved_path == NULL)
-			return 0;
-		buf = (char *) kmalloc(PATH_MAX * sizeof(char), GFP_KERNEL);
-		accessed_path = (char *) kmalloc(PATH_MAX * sizeof(char), GFP_KERNEL);
-		if(!buf || !accessed_path)
-			goto out;
-
-		parent_path = d_absolute_path(fuck_path, buf, PATH_MAX);
-		if(!parent_path || IS_ERR(parent_path)){
-			if(PTR_ERR(parent_path) == -ENAMETOOLONG)
-				goto out;
-			if(IS_ERR(parent_path)){
-				goto out;
-			}
-		}
-		
-		if(append_path(parent_path, accessed_path, d_name) != 0)
-			goto out;
-
-		if(accessed_path == NULL){
-			goto out;
-		}
-		if (strncmp(saved_path, accessed_path, PATH_MAX) == 0){
-			printk("VALIDATE_FUCK_LINK: paths are equal\n");
-			printk("VALIDATE_FUCK_LINK: saved path: %s\n", saved_path);
-			printk("VALIDATE_FUCK_LINK: accessed_path: %s inode: %lu\n", accessed_path, fuck_inode->i_ino);
-			goto out;
-		}
-		printk("VALIDATE_FUCK_LINK: paths are not equal\n");
-		printk("VALIDATE_FUCK_LINK: saved path: %s\n", saved_path);
-		printk("VALIDATE_FUCK_LINK: accessed_path: %s inode: %lu\n", accessed_path, fuck_inode->i_ino);
-		kfree(buf);
-		kfree(accessed_path);
-		return -EPERM;
-out:
-		kfree(buf);
-		kfree(accessed_path);
-		return 0;
-	*/
 }
 
 static struct medusa_kobject_s * fuck_fetch(struct medusa_kobject_s * kobj)
@@ -144,23 +139,25 @@ static struct medusa_kobject_s * fuck_fetch(struct medusa_kobject_s * kobj)
 	struct fuck_kobject * fkobj =  (struct fuck_kobject *) kobj;
 	char *path_name;
 	struct path path;
-	unsigned long i_ino; 
+	unsigned long i_ino;
 	fkobj->path[sizeof(fkobj->path)-1] = '\0';
 	path_name = fkobj->path;
 
-	if(kern_path(path_name, LOOKUP_FOLLOW, &path) >= 0){
+	if(kern_path(path_name, LOOKUP_FOLLOW, &path) >= 0) {
 		struct inode *fuck_inode = path.dentry->d_inode;
 		
-		char *fuck_path = (char *) kmalloc((PATH_MAX * sizeof(char)), GFP_KERNEL);
-		strncpy(fuck_path, path_name, PATH_MAX);
-		fuck_path[PATH_MAX-1] = '\0';
-		
-		inode_security(fuck_inode).fuck_path = fuck_path;
+		struct fuck_path *fuck_path = (struct fuck_path*) kmalloc(sizeof(fuck_path) + sizeof(char)*(strnlen(path_name, PATH_MAX)+1), GFP_KERNEL);
+		int hash = hash_function(fuck_path);	
+
+		strncpy(fuck_path->path, path_name, PATH_MAX);
+
+
+		hash_add(inode_security(fuck_inode).fuck, &fuck_path->list, hash);
 
 		i_ino = fuck_inode->i_ino;
 		fkobj->i_ino = i_ino;
 
-		printk("FUCK_SECURED_PATH: %s\n", fuck_path);
+		printk("FUCK_SECURED_PATH: %s\n", path_name);
 		MED_PRINTF("Fuck: %s with i_no %lu", path_name, i_ino);
 	}else{
 		MED_PRINTF("Fuck: %s have no inode", path_name);
