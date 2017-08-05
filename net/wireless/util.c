@@ -1367,13 +1367,29 @@ int cfg80211_get_p2p_attr(const u8 *ies, unsigned int len,
 }
 EXPORT_SYMBOL(cfg80211_get_p2p_attr);
 
-static bool ieee80211_id_in_list(const u8 *ids, int n_ids, u8 id)
+static bool ieee80211_id_in_list(const u8 *ids, int n_ids, u8 id, bool id_ext)
 {
 	int i;
 
-	for (i = 0; i < n_ids; i++)
-		if (ids[i] == id)
+	/* Make sure array values are legal */
+	if (WARN_ON(ids[n_ids - 1] == WLAN_EID_EXTENSION))
+		return false;
+
+	i = 0;
+	while (i < n_ids) {
+		if (ids[i] == WLAN_EID_EXTENSION) {
+			if (id_ext && (ids[i + 1] == id))
+				return true;
+
+			i += 2;
+			continue;
+		}
+
+		if (ids[i] == id && !id_ext)
 			return true;
+
+		i++;
+	}
 	return false;
 }
 
@@ -1403,14 +1419,36 @@ size_t ieee80211_ie_split_ric(const u8 *ies, size_t ielen,
 {
 	size_t pos = offset;
 
-	while (pos < ielen && ieee80211_id_in_list(ids, n_ids, ies[pos])) {
+	while (pos < ielen) {
+		u8 ext = 0;
+
+		if (ies[pos] == WLAN_EID_EXTENSION)
+			ext = 2;
+		if ((pos + ext) >= ielen)
+			break;
+
+		if (!ieee80211_id_in_list(ids, n_ids, ies[pos + ext],
+					  ies[pos] == WLAN_EID_EXTENSION))
+			break;
+
 		if (ies[pos] == WLAN_EID_RIC_DATA && n_after_ric) {
 			pos = skip_ie(ies, ielen, pos);
 
-			while (pos < ielen &&
-			       !ieee80211_id_in_list(after_ric, n_after_ric,
-						     ies[pos]))
-				pos = skip_ie(ies, ielen, pos);
+			while (pos < ielen) {
+				if (ies[pos] == WLAN_EID_EXTENSION)
+					ext = 2;
+				else
+					ext = 0;
+
+				if ((pos + ext) >= ielen)
+					break;
+
+				if (!ieee80211_id_in_list(after_ric,
+							  n_after_ric,
+							  ies[pos + ext],
+							  ext == 2))
+					pos = skip_ie(ies, ielen, pos);
+			}
 		} else {
 			pos = skip_ie(ies, ielen, pos);
 		}

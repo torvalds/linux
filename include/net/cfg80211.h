@@ -5934,7 +5934,8 @@ int cfg80211_get_p2p_attr(const u8 *ies, unsigned int len,
  * @ies: the IE buffer
  * @ielen: the length of the IE buffer
  * @ids: an array with element IDs that are allowed before
- *	the split
+ *	the split. A WLAN_EID_EXTENSION value means that the next
+ *	EID in the list is a sub-element of the EXTENSION IE.
  * @n_ids: the size of the element ID array
  * @after_ric: array IE types that come after the RIC element
  * @n_after_ric: size of the @after_ric array
@@ -5965,7 +5966,8 @@ size_t ieee80211_ie_split_ric(const u8 *ies, size_t ielen,
  * @ies: the IE buffer
  * @ielen: the length of the IE buffer
  * @ids: an array with element IDs that are allowed before
- *	the split
+ *	the split. A WLAN_EID_EXTENSION value means that the next
+ *	EID in the list is a sub-element of the EXTENSION IE.
  * @n_ids: the size of the element ID array
  * @offset: offset where to start splitting in the buffer
  *
