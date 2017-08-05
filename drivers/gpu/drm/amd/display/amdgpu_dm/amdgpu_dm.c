@@ -2835,8 +2835,7 @@ void dm_drm_plane_destroy_state(struct drm_plane *plane,
 	if (dm_plane_state->dc_state)
 		dc_plane_state_release(dm_plane_state->dc_state);
 
-	__drm_atomic_helper_plane_destroy_state(state);
-	kfree(dm_plane_state);
+	drm_atomic_helper_plane_destroy_state(plane, state);
 }
 
 static const struct drm_plane_funcs dm_plane_funcs = {
