@@ -465,8 +465,8 @@ static int lan9303_detect_phy_setup(struct lan9303 *chip)
 	return 0;
 }
 
-static int lan9303_disable_packet_processing(struct lan9303 *chip,
-					     unsigned int port)
+static int lan9303_disable_processing_port(struct lan9303 *chip,
+					   unsigned int port)
 {
 	int ret;
 
@@ -482,8 +482,8 @@ static int lan9303_disable_packet_processing(struct lan9303 *chip,
 				LAN9303_MAC_TX_CFG_X_TX_PAD_ENABLE);
 }
 
-static int lan9303_enable_packet_processing(struct lan9303 *chip,
-					    unsigned int port)
+static int lan9303_enable_processing_port(struct lan9303 *chip,
+					  unsigned int port)
 {
 	int ret;
 
@@ -563,7 +563,7 @@ static int lan9303_disable_processing(struct lan9303 *chip)
 	int p;
 
 	for (p = 0; p < LAN9303_NUM_PORTS; p++) {
-		int ret = lan9303_disable_packet_processing(chip, p);
+		int ret = lan9303_disable_processing_port(chip, p);
 
 		if (ret)
 			return ret;
@@ -639,7 +639,7 @@ static int lan9303_setup(struct dsa_switch *ds)
 	if (ret)
 		dev_err(chip->dev, "failed to separate ports %d\n", ret);
 
-	ret = lan9303_enable_packet_processing(chip, 0);
+	ret = lan9303_enable_processing_port(chip, 0);
 	if (ret)
 		dev_err(chip->dev, "failed to re-enable switching %d\n", ret);
 
@@ -763,7 +763,7 @@ static int lan9303_port_enable(struct dsa_switch *ds, int port,
 	switch (port) {
 	case 1:
 	case 2:
-		return lan9303_enable_packet_processing(chip, port);
+		return lan9303_enable_processing_port(chip, port);
 	default:
 		dev_dbg(chip->dev,
 			"Error: request to power up invalid port %d\n", port);
@@ -781,7 +781,7 @@ static void lan9303_port_disable(struct dsa_switch *ds, int port,
 	switch (port) {
 	case 1:
 	case 2:
-		lan9303_disable_packet_processing(chip, port);
+		lan9303_disable_processing_port(chip, port);
 		lan9303_phy_write(ds, chip->phy_addr_sel_strap + port,
 				  MII_BMCR, BMCR_PDOWN);
 		break;
