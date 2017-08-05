@@ -87,6 +87,7 @@ struct nd_mapping_desc {
 	struct nvdimm *nvdimm;
 	u64 start;
 	u64 size;
+	int position;
 };
 
 struct nd_region_desc {

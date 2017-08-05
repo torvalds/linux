@@ -1835,6 +1835,30 @@ static int acpi_nfit_init_interleave_set(struct acpi_nfit_desc *acpi_desc,
 			cmp_map_compat, NULL);
 	nd_set->altcookie = nd_fletcher64(info, sizeof_nfit_set_info(nr), 0);
 
+	/* record the result of the sort for the mapping position */
+	for (i = 0; i < nr; i++) {
+		struct nfit_set_info_map2 *map2 = &info2->mapping[i];
+		int j;
+
+		for (j = 0; j < nr; j++) {
+			struct nd_mapping_desc *mapping = &ndr_desc->mapping[j];
+			struct nvdimm *nvdimm = mapping->nvdimm;
+			struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
+
+			if (map2->serial_number
+				== nfit_mem->dcr->serial_number &&
+			    map2->vendor_id
+				== nfit_mem->dcr->vendor_id &&
+			    map2->manufacturing_date
+				== nfit_mem->dcr->manufacturing_date &&
+			    map2->manufacturing_location
+				== nfit_mem->dcr->manufacturing_location) {
+				mapping->position = i;
+				break;
+			}
+		}
+	}
+
 	ndr_desc->nd_set = nd_set;
 	devm_kfree(dev, info);
 	devm_kfree(dev, info2);
