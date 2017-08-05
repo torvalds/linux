@@ -275,7 +275,7 @@ static int dsa_user_port_apply(struct dsa_port *port)
 	if (!name)
 		name = "eth%d";
 
-	err = dsa_slave_create(ds, ds->dev, port->index, name);
+	err = dsa_slave_create(port, name);
 	if (err) {
 		dev_warn(ds->dev, "Failed to create slave %d: %d\n",
 			 port->index, err);

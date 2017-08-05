@@ -194,7 +194,7 @@ static int dsa_switch_setup_one(struct dsa_switch *ds,
 		if (!(ds->enabled_port_mask & (1 << i)))
 			continue;
 
-		ret = dsa_slave_create(ds, ds->dev, i, cd->port_names[i]);
+		ret = dsa_slave_create(&ds->ports[i], cd->port_names[i]);
 		if (ret < 0)
 			netdev_err(master, "[%d]: can't create dsa slave device for port %d(%s): %d\n",
 				   index, i, cd->port_names[i], ret);
