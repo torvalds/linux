@@ -375,7 +375,7 @@ static void bcap_stop_streaming(struct vb2_queue *vq)
 	}
 }
 
-static struct vb2_ops bcap_video_qops = {
+static const struct vb2_ops bcap_video_qops = {
 	.queue_setup            = bcap_queue_setup,
 	.buf_prepare            = bcap_buffer_prepare,
 	.buf_cleanup            = bcap_buffer_cleanup,
