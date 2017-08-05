@@ -104,6 +104,10 @@ static int tfilter_notify(struct net *net, struct sk_buff *oskb,
 			  struct nlmsghdr *n, struct tcf_proto *tp,
 			  unsigned long fh, int event, bool unicast);
 
+static int tfilter_del_notify(struct net *net, struct sk_buff *oskb,
+			      struct nlmsghdr *n, struct tcf_proto *tp,
+			      unsigned long fh, bool unicast, bool *last);
+
 static void tfilter_notify_chain(struct net *net, struct sk_buff *oskb,
 				 struct nlmsghdr *n,
 				 struct tcf_chain *chain, int event)
@@ -595,11 +599,10 @@ replay:
 			}
 			break;
 		case RTM_DELTFILTER:
-			err = tp->ops->delete(tp, fh, &last);
+			err = tfilter_del_notify(net, skb, n, tp, fh, false,
+						 &last);
 			if (err)
 				goto errout;
-			tfilter_notify(net, skb, n, tp, t->tcm_handle,
-				       RTM_DELTFILTER, false);
 			if (last) {
 				tcf_chain_tp_remove(chain, &chain_info, tp);
 				tcf_proto_destroy(tp);
@@ -659,9 +662,9 @@ static int tcf_fill_node(struct net *net, struct sk_buff *skb,
 		goto nla_put_failure;
 	if (nla_put_u32(skb, TCA_CHAIN, tp->chain->index))
 		goto nla_put_failure;
-	tcm->tcm_handle = fh;
-	if (RTM_DELTFILTER != event) {
+	if (!fh) {
 		tcm->tcm_handle = 0;
+	} else {
 		if (tp->ops->dump && tp->ops->dump(net, tp, fh, skb, tcm) < 0)
 			goto nla_put_failure;
 	}
@@ -689,6 +692,37 @@ static int tfilter_notify(struct net *net, struct sk_buff *oskb,
 			  n->nlmsg_flags, event) <= 0) {
 		kfree_skb(skb);
 		return -EINVAL;
+	}
+
+	if (unicast)
+		return netlink_unicast(net->rtnl, skb, portid, MSG_DONTWAIT);
+
+	return rtnetlink_send(skb, net, portid, RTNLGRP_TC,
+			      n->nlmsg_flags & NLM_F_ECHO);
+}
+
+static int tfilter_del_notify(struct net *net, struct sk_buff *oskb,
+			      struct nlmsghdr *n, struct tcf_proto *tp,
+			      unsigned long fh, bool unicast, bool *last)
+{
+	struct sk_buff *skb;
+	u32 portid = oskb ? NETLINK_CB(oskb).portid : 0;
+	int err;
+
+	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!skb)
+		return -ENOBUFS;
+
+	if (tcf_fill_node(net, skb, tp, fh, portid, n->nlmsg_seq,
+			  n->nlmsg_flags, RTM_DELTFILTER) <= 0) {
+		kfree_skb(skb);
+		return -EINVAL;
+	}
+
+	err = tp->ops->delete(tp, fh, last);
+	if (err) {
+		kfree_skb(skb);
+		return err;
 	}
 
 	if (unicast)
