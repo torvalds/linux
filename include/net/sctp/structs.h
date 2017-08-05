@@ -1054,8 +1054,8 @@ int sctp_outq_sack(struct sctp_outq *, struct sctp_chunk *);
 int sctp_outq_is_empty(const struct sctp_outq *);
 void sctp_outq_restart(struct sctp_outq *);
 
-void sctp_retransmit(struct sctp_outq *, struct sctp_transport *,
-		     sctp_retransmit_reason_t);
+void sctp_retransmit(struct sctp_outq *q, struct sctp_transport *transport,
+		     enum sctp_retransmit_reason reason);
 void sctp_retransmit_mark(struct sctp_outq *, struct sctp_transport *, __u8);
 void sctp_outq_uncork(struct sctp_outq *, gfp_t gfp);
 void sctp_prsctp_prune(struct sctp_association *asoc,

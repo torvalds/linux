@@ -534,7 +534,7 @@ void sctp_retransmit_mark(struct sctp_outq *q,
  * one packet out.
  */
 void sctp_retransmit(struct sctp_outq *q, struct sctp_transport *transport,
-		     sctp_retransmit_reason_t reason)
+		     enum sctp_retransmit_reason reason)
 {
 	struct net *net = sock_net(q->asoc->base.sk);
 
