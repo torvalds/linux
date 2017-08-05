@@ -950,7 +950,8 @@ int sctp_transport_hold(struct sctp_transport *);
 void sctp_transport_put(struct sctp_transport *);
 void sctp_transport_update_rto(struct sctp_transport *, __u32);
 void sctp_transport_raise_cwnd(struct sctp_transport *, __u32, __u32);
-void sctp_transport_lower_cwnd(struct sctp_transport *, sctp_lower_cwnd_t);
+void sctp_transport_lower_cwnd(struct sctp_transport *t,
+			       enum sctp_lower_cwnd reason);
 void sctp_transport_burst_limited(struct sctp_transport *);
 void sctp_transport_burst_reset(struct sctp_transport *);
 unsigned long sctp_transport_timeout(struct sctp_transport *);

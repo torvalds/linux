@@ -378,12 +378,12 @@ typedef enum {
 } sctp_retransmit_reason_t;
 
 /* Reasons to lower cwnd. */
-typedef enum {
+enum sctp_lower_cwnd {
 	SCTP_LOWER_CWND_T3_RTX,
 	SCTP_LOWER_CWND_FAST_RTX,
 	SCTP_LOWER_CWND_ECNE,
 	SCTP_LOWER_CWND_INACTIVE,
-} sctp_lower_cwnd_t;
+};
 
 
 /* SCTP-AUTH Necessary constants */
