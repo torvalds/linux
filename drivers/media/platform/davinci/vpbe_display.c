@@ -355,7 +355,7 @@ static void vpbe_stop_streaming(struct vb2_queue *vq)
 	spin_unlock_irqrestore(&disp->dma_queue_lock, flags);
 }
 
-static struct vb2_ops video_qops = {
+static const struct vb2_ops video_qops = {
 	.queue_setup = vpbe_buffer_queue_setup,
 	.wait_prepare = vb2_ops_wait_prepare,
 	.wait_finish = vb2_ops_wait_finish,
