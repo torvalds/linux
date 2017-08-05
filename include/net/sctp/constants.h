@@ -312,12 +312,12 @@ enum { SCTP_MAX_GABS = 16 };
 /* These return values describe the success or failure of a number of
  * routines which form the lower interface to SCTP_outqueue.
  */
-typedef enum {
+enum sctp_xmit {
 	SCTP_XMIT_OK,
 	SCTP_XMIT_PMTU_FULL,
 	SCTP_XMIT_RWND_FULL,
 	SCTP_XMIT_DELAY,
-} sctp_xmit_t;
+};
 
 /* These are the commands for manipulating transports.  */
 enum sctp_transport_cmd {

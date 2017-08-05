@@ -697,10 +697,11 @@ struct sctp_packet {
 void sctp_packet_init(struct sctp_packet *, struct sctp_transport *,
 		      __u16 sport, __u16 dport);
 void sctp_packet_config(struct sctp_packet *, __u32 vtag, int);
-sctp_xmit_t sctp_packet_transmit_chunk(struct sctp_packet *,
-				       struct sctp_chunk *, int, gfp_t);
-sctp_xmit_t sctp_packet_append_chunk(struct sctp_packet *,
-                                     struct sctp_chunk *);
+enum sctp_xmit sctp_packet_transmit_chunk(struct sctp_packet *packet,
+					  struct sctp_chunk *chunk,
+					  int one_packet, gfp_t gfp);
+enum sctp_xmit sctp_packet_append_chunk(struct sctp_packet *packet,
+					struct sctp_chunk *chunk);
 int sctp_packet_transmit(struct sctp_packet *, gfp_t);
 void sctp_packet_free(struct sctp_packet *);
 
