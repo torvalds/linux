@@ -341,12 +341,14 @@ typedef enum {
 	SCTP_SCOPE_UNUSABLE,		/* IPv4 unusable addresses */
 } sctp_scope_t;
 
-typedef enum {
+enum {
 	SCTP_SCOPE_POLICY_DISABLE,	/* Disable IPv4 address scoping */
 	SCTP_SCOPE_POLICY_ENABLE,	/* Enable IPv4 address scoping */
 	SCTP_SCOPE_POLICY_PRIVATE,	/* Follow draft but allow IPv4 private addresses */
 	SCTP_SCOPE_POLICY_LINK,		/* Follow draft but allow IPv4 link local addresses */
-} sctp_scope_policy_t;
+};
+
+#define SCTP_SCOPE_POLICY_MAX	SCTP_SCOPE_POLICY_LINK
 
 /* Based on IPv4 scoping <draft-stewart-tsvwg-sctp-ipv4-00.txt>,
  * SCTP IPv4 unusable addresses: 0.0.0.0/8, 224.0.0.0/4, 198.18.0.0/24,
