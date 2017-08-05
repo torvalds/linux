@@ -796,7 +796,7 @@ void sctp_assoc_del_nonprimary_peers(struct sctp_association *asoc,
  */
 void sctp_assoc_control_transport(struct sctp_association *asoc,
 				  struct sctp_transport *transport,
-				  sctp_transport_cmd_t command,
+				  enum sctp_transport_cmd command,
 				  sctp_sn_error_t error)
 {
 	struct sctp_ulpevent *event;

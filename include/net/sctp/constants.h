@@ -320,11 +320,11 @@ typedef enum {
 } sctp_xmit_t;
 
 /* These are the commands for manipulating transports.  */
-typedef enum {
+enum sctp_transport_cmd {
 	SCTP_TRANSPORT_UP,
 	SCTP_TRANSPORT_DOWN,
 	SCTP_TRANSPORT_PF,
-} sctp_transport_cmd_t;
+};
 
 /* These are the address scopes defined mainly for IPv4 addresses
  * based on draft of SCTP IPv4 scoping <draft-stewart-tsvwg-sctp-ipv4-00.txt>.
