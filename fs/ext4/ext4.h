@@ -2020,7 +2020,8 @@ static inline __le16 ext4_rec_len_to_disk(unsigned len, unsigned blocksize)
 
 #define is_dx(dir) (ext4_has_feature_dir_index((dir)->i_sb) && \
 		    ext4_test_inode_flag((dir), EXT4_INODE_INDEX))
-#define EXT4_DIR_LINK_MAX(dir) (!is_dx(dir) && (dir)->i_nlink >= EXT4_LINK_MAX)
+#define EXT4_DIR_LINK_MAX(dir) unlikely((dir)->i_nlink >= EXT4_LINK_MAX && \
+		    !(ext4_has_feature_dir_nlink((dir)->i_sb) && is_dx(dir)))
 #define EXT4_DIR_LINK_EMPTY(dir) ((dir)->i_nlink == 2 || (dir)->i_nlink == 1)
 
 /* Legal values for the dx_root hash_version field: */
