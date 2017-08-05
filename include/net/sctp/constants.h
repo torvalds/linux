@@ -101,10 +101,10 @@ typedef enum {
 #define SCTP_EVENT_TIMEOUT_MAX		SCTP_EVENT_TIMEOUT_AUTOCLOSE
 #define SCTP_NUM_TIMEOUT_TYPES		(SCTP_EVENT_TIMEOUT_MAX + 1)
 
-typedef enum {
+enum sctp_event_other {
 	SCTP_EVENT_NO_PENDING_TSN = 0,
 	SCTP_EVENT_ICMP_PROTO_UNREACH,
-} sctp_event_other_t;
+};
 
 #define SCTP_EVENT_OTHER_MAX		SCTP_EVENT_ICMP_PROTO_UNREACH
 #define SCTP_NUM_OTHER_TYPES		(SCTP_EVENT_OTHER_MAX + 1)
@@ -132,7 +132,7 @@ enum sctp_event_primitive {
 typedef union {
 	enum sctp_cid chunk;
 	sctp_event_timeout_t timeout;
-	sctp_event_other_t other;
+	enum sctp_event_other other;
 	enum sctp_event_primitive primitive;
 } sctp_subtype_t;
 
@@ -143,7 +143,7 @@ SCTP_ST_## _name (_type _arg)		\
 
 SCTP_SUBTYPE_CONSTRUCTOR(CHUNK,		enum sctp_cid,		chunk)
 SCTP_SUBTYPE_CONSTRUCTOR(TIMEOUT,	sctp_event_timeout_t,	timeout)
-SCTP_SUBTYPE_CONSTRUCTOR(OTHER,		sctp_event_other_t,	other)
+SCTP_SUBTYPE_CONSTRUCTOR(OTHER,		enum sctp_event_other,	other)
 SCTP_SUBTYPE_CONSTRUCTOR(PRIMITIVE,	enum sctp_event_primitive, primitive)
 
 
