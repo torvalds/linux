@@ -9,17 +9,18 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/hashtable.h>
+#include <linux/crc32.h>
 #include <linux/medusa/l3/registry.h>
 #include "kobject_fuck.h"
 MED_ATTRS(fuck_kobject) {
 	MED_ATTR_KEY	(fuck_kobject, path, "path", MED_STRING),
 	MED_ATTR		(fuck_kobject, i_ino, "i_ino", MED_UNSIGNED),
-	MED_ATTR		(fuck_kobject, action, "sction", MED_STRING),
+	MED_ATTR		(fuck_kobject, action, "action", MED_STRING),
 	MED_ATTR_OBJECT (fuck_kobject),
 	MED_ATTR_END
 };
 
-#define hash_function(path) 0 //TODO: create hash_function
+#define hash_function(path) crc32(0, path, strlen(path)) //TODO: create hash_function
 
 struct fuck_path {
 	struct hlist_node list;
@@ -147,7 +148,7 @@ static struct medusa_kobject_s * fuck_fetch(struct medusa_kobject_s * kobj)
 		struct inode *fuck_inode = path.dentry->d_inode;
 		
 		struct fuck_path *fuck_path = (struct fuck_path*) kmalloc(sizeof(fuck_path) + sizeof(char)*(strnlen(path_name, PATH_MAX)+1), GFP_KERNEL);
-		int hash = hash_function(fuck_path);	
+		int hash = hash_function(fuck_path->path);	
 
 		strncpy(fuck_path->path, path_name, PATH_MAX);
 

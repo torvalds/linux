@@ -188,10 +188,10 @@ int medusa_l1_inode_alloc_security(struct inode *inode)
 	struct medusa_l1_inode_s *med;
 
 	med = (struct medusa_l1_inode_s*) kmalloc(sizeof(struct medusa_l1_inode_s), GFP_KERNEL);
-	hash_init(med->fuck);
 	if (med == NULL)
 		return -ENOMEM;
 
+	hash_init(med->fuck);
 	inode->i_security = med;
 	medusa_clean_inode(inode);
 
@@ -1561,7 +1561,7 @@ static int __init medusa_l1_init(void)
 	extern struct mutex l0_mutex;
 	
 	struct list_head *pos, *q;
-	struct inode_list *tmp;
+	struct inode_list *tmp = NULL;
 	struct cred_list *tmp_cred;
 
 	/* register the hooks */	

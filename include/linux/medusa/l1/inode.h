@@ -27,7 +27,7 @@ struct medusa_l1_inode_s {
 	/* for kobject_file.c - don't touch! */
 	struct inode * next_live;
 	int use_count;
-	DECLARE_HASHTABLE(fuck, 8); // enought for now
+	DECLARE_HASHTABLE(fuck, 3); // enought for now
 };
 
 #endif
