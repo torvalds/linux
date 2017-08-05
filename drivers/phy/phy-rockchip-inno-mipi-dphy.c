@@ -239,6 +239,25 @@ static inline void inno_mipi_dphy_lane_disable(struct inno_mipi_dphy *inno)
 	regmap_update_bits(inno->regmap, INNO_PHY_LANE_CTRL, 0x7c, 0x00);
 }
 
+static void inno_mipi_dphy_pll_enable(struct inno_mipi_dphy *inno)
+{
+	regmap_update_bits(inno->regmap, INNO_PHY_PLL_CTRL_0, FBDIV_HI_MASK |
+			   PREDIV_MASK, FBDIV_HI(inno->pll.fbdiv >> 8) |
+			   PREDIV(inno->pll.prediv));
+	regmap_update_bits(inno->regmap, INNO_PHY_PLL_CTRL_1,
+			   FBDIV_LO_MASK, FBDIV_LO(inno->pll.fbdiv));
+	regmap_update_bits(inno->regmap, INNO_PHY_POWER_CTRL,
+			   PLL_POWER_MASK | LDO_POWER_MASK,
+			   PLL_POWER_ON | LDO_POWER_ON);
+}
+
+static void inno_mipi_dphy_pll_disable(struct inno_mipi_dphy *inno)
+{
+	regmap_update_bits(inno->regmap, INNO_PHY_POWER_CTRL,
+			   PLL_POWER_MASK | LDO_POWER_MASK,
+			   PLL_POWER_DOWN | LDO_POWER_DOWN);
+}
+
 static void mipi_dphy_timing_get_default(struct mipi_dphy_timing *timing,
 					 unsigned long period)
 {
@@ -450,6 +469,7 @@ static int inno_mipi_dphy_power_on(struct phy *phy)
 {
 	struct inno_mipi_dphy *inno = phy_get_drvdata(phy);
 
+	inno_mipi_dphy_pll_enable(inno);
 	inno_mipi_dphy_lane_enable(inno);
 	inno_mipi_dphy_reset(inno);
 	inno_mipi_dphy_timing_init(inno);
@@ -463,6 +483,7 @@ static int inno_mipi_dphy_power_off(struct phy *phy)
 	struct inno_mipi_dphy *inno = phy_get_drvdata(phy);
 
 	inno_mipi_dphy_lane_disable(inno);
+	inno_mipi_dphy_pll_disable(inno);
 
 	return 0;
 }
@@ -519,34 +540,7 @@ inno_mipi_dphy_pll_clk_recalc_rate(struct clk_hw *hw, unsigned long prate)
 	return inno->lane_rate;
 }
 
-static int inno_mipi_dphy_pll_clk_enable(struct clk_hw *hw)
-{
-	struct inno_mipi_dphy *inno = hw_to_inno(hw);
-
-	regmap_update_bits(inno->regmap, INNO_PHY_PLL_CTRL_0, FBDIV_HI_MASK |
-			   PREDIV_MASK, FBDIV_HI(inno->pll.fbdiv >> 8) |
-			   PREDIV(inno->pll.prediv));
-	regmap_update_bits(inno->regmap, INNO_PHY_PLL_CTRL_1,
-			   FBDIV_LO_MASK, FBDIV_LO(inno->pll.fbdiv));
-	regmap_update_bits(inno->regmap, INNO_PHY_POWER_CTRL,
-			   PLL_POWER_MASK | LDO_POWER_MASK,
-			   PLL_POWER_ON | LDO_POWER_ON);
-
-	return 0;
-}
-
-static void inno_mipi_dphy_pll_clk_disable(struct clk_hw *hw)
-{
-	struct inno_mipi_dphy *inno = hw_to_inno(hw);
-
-	regmap_update_bits(inno->regmap, INNO_PHY_POWER_CTRL,
-			   PLL_POWER_MASK | LDO_POWER_MASK,
-			   PLL_POWER_DOWN | LDO_POWER_DOWN);
-}
-
 static const struct clk_ops inno_mipi_dphy_pll_clk_ops = {
-	.enable = inno_mipi_dphy_pll_clk_enable,
-	.disable = inno_mipi_dphy_pll_clk_disable,
 	.round_rate = inno_mipi_dphy_pll_clk_round_rate,
 	.set_rate = inno_mipi_dphy_pll_clk_set_rate,
 	.recalc_rate = inno_mipi_dphy_pll_clk_recalc_rate,
