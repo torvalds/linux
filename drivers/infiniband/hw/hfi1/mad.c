@@ -173,7 +173,7 @@ static struct trap_node *check_and_add_trap(struct hfi1_ibport *ibp,
 			trap_list->list_len++;
 			list_add_tail(&trap->list, &trap_list->list);
 		} else {
-			pr_warn_ratelimited("hfi1: Maximim trap limit reached for 0x%0x traps\n",
+			pr_warn_ratelimited("hfi1: Maximum trap limit reached for 0x%0x traps\n",
 					    trap->data.generic_type);
 			kfree(trap);
 		}
