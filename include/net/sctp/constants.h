@@ -42,7 +42,7 @@
 
 #include <linux/sctp.h>
 #include <linux/ipv6.h> /* For ipv6hdr. */
-#include <net/tcp_states.h>  /* For TCP states used in sctp_sock_state_t */
+#include <net/tcp_states.h>  /* For TCP states used in enum sctp_sock_state */
 
 /* Value used for stream negotiation. */
 enum { SCTP_MAX_STREAM = 0xffff };
@@ -214,13 +214,13 @@ typedef enum {
  * - A socket in SCTP_SS_ESTABLISHED state indicates that it has a single 
  *   association.
  */
-typedef enum {
+enum sctp_sock_state {
 	SCTP_SS_CLOSED         = TCP_CLOSE,
 	SCTP_SS_LISTENING      = TCP_LISTEN,
 	SCTP_SS_ESTABLISHING   = TCP_SYN_SENT,
 	SCTP_SS_ESTABLISHED    = TCP_ESTABLISHED,
 	SCTP_SS_CLOSING        = TCP_CLOSE_WAIT,
-} sctp_sock_state_t;
+};
 
 /* These functions map various type to printable names.  */
 const char *sctp_cname(const sctp_subtype_t);	/* chunk types */

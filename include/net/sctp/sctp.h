@@ -565,7 +565,8 @@ static inline int __sctp_state(const struct sctp_association *asoc,
 
 /* Is the socket in this state? */
 #define sctp_sstate(sk, state) __sctp_sstate((sk), (SCTP_SS_##state))
-static inline int __sctp_sstate(const struct sock *sk, sctp_sock_state_t state)
+static inline int __sctp_sstate(const struct sock *sk,
+				enum sctp_sock_state state)
 {
 	return sk->sk_state == state;
 }
