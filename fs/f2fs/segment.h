@@ -577,6 +577,10 @@ static inline bool need_inplace_update_policy(struct inode *inode,
 	if (test_opt(sbi, LFS))
 		return false;
 
+	/* if this is cold file, we should overwrite to avoid fragmentation */
+	if (file_is_cold(inode))
+		return true;
+
 	if (policy & (0x1 << F2FS_IPU_FORCE))
 		return true;
 	if (policy & (0x1 << F2FS_IPU_SSR) && need_SSR(sbi))
