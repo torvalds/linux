@@ -155,8 +155,7 @@ SCTP_SUBTYPE_CONSTRUCTOR(PRIMITIVE,	sctp_event_primitive_t,	primitive)
 				- sizeof(struct sctp_data_chunk)))
 
 /* Internal error codes */
-typedef enum {
-
+enum sctp_ierror {
 	SCTP_IERROR_NO_ERROR	        = 0,
 	SCTP_IERROR_BASE		= 1000,
 	SCTP_IERROR_NO_COOKIE,
@@ -177,7 +176,7 @@ typedef enum {
 	SCTP_IERROR_PROTO_VIOLATION,
 	SCTP_IERROR_ERROR,
 	SCTP_IERROR_ABORT,
-} sctp_ierror_t;
+};
 
 
 

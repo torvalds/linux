@@ -144,11 +144,12 @@ static sctp_disposition_t sctp_sf_violation_chunk(
 				     void *arg,
 				     sctp_cmd_seq_t *commands);
 
-static sctp_ierror_t sctp_sf_authenticate(struct net *net,
-				    const struct sctp_endpoint *ep,
-				    const struct sctp_association *asoc,
-				    const sctp_subtype_t type,
-				    struct sctp_chunk *chunk);
+static enum sctp_ierror sctp_sf_authenticate(
+				struct net *net,
+				const struct sctp_endpoint *ep,
+				const struct sctp_association *asoc,
+				const sctp_subtype_t type,
+				struct sctp_chunk *chunk);
 
 static sctp_disposition_t __sctp_sf_do_9_1_abort(struct net *net,
 					const struct sctp_endpoint *ep,
@@ -756,7 +757,7 @@ sctp_disposition_t sctp_sf_do_5_1D_ce(struct net *net,
 	 */
 	if (chunk->auth_chunk) {
 		struct sctp_chunk auth;
-		sctp_ierror_t ret;
+		enum sctp_ierror ret;
 
 		/* Make sure that we and the peer are AUTH capable */
 		if (!net->sctp.auth_enable || !new_asoc->peer.auth_capable) {
@@ -4077,11 +4078,12 @@ gen_shutdown:
  *
  * The return value is the disposition of the chunk.
  */
-static sctp_ierror_t sctp_sf_authenticate(struct net *net,
-				    const struct sctp_endpoint *ep,
-				    const struct sctp_association *asoc,
-				    const sctp_subtype_t type,
-				    struct sctp_chunk *chunk)
+static enum sctp_ierror sctp_sf_authenticate(
+				struct net *net,
+				const struct sctp_endpoint *ep,
+				const struct sctp_association *asoc,
+				const sctp_subtype_t type,
+				struct sctp_chunk *chunk)
 {
 	struct sctp_authhdr *auth_hdr;
 	struct sctp_hmac *hmac;
@@ -4159,10 +4161,10 @@ sctp_disposition_t sctp_sf_eat_auth(struct net *net,
 				    void *arg,
 				    sctp_cmd_seq_t *commands)
 {
-	struct sctp_authhdr *auth_hdr;
 	struct sctp_chunk *chunk = arg;
+	struct sctp_authhdr *auth_hdr;
 	struct sctp_chunk *err_chunk;
-	sctp_ierror_t error;
+	enum sctp_ierror error;
 
 	/* Make sure that the peer has AUTH capable */
 	if (!asoc->peer.auth_capable)

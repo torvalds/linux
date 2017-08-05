@@ -2065,10 +2065,11 @@ static void sctp_process_ext_param(struct sctp_association *asoc,
  * 	SCTP_IERROR_ERROR    - stop and report an error.
  * 	SCTP_IERROR_NOMEME   - out of memory.
  */
-static sctp_ierror_t sctp_process_unk_param(const struct sctp_association *asoc,
-					    union sctp_params param,
-					    struct sctp_chunk *chunk,
-					    struct sctp_chunk **errp)
+static enum sctp_ierror sctp_process_unk_param(
+					const struct sctp_association *asoc,
+					union sctp_params param,
+					struct sctp_chunk *chunk,
+					struct sctp_chunk **errp)
 {
 	int retval = SCTP_IERROR_NO_ERROR;
 
@@ -2117,13 +2118,13 @@ static sctp_ierror_t sctp_process_unk_param(const struct sctp_association *asoc,
  *	SCTP_IERROR_ERROR - stop processing, trigger an ERROR
  * 	SCTP_IERROR_NO_ERROR - continue with the chunk
  */
-static sctp_ierror_t sctp_verify_param(struct net *net,
-					const struct sctp_endpoint *ep,
-					const struct sctp_association *asoc,
-					union sctp_params param,
-					enum sctp_cid cid,
-					struct sctp_chunk *chunk,
-					struct sctp_chunk **err_chunk)
+static enum sctp_ierror sctp_verify_param(struct net *net,
+					  const struct sctp_endpoint *ep,
+					  const struct sctp_association *asoc,
+					  union sctp_params param,
+					  enum sctp_cid cid,
+					  struct sctp_chunk *chunk,
+					  struct sctp_chunk **err_chunk)
 {
 	struct sctp_hmac_algo_param *hmacs;
 	int retval = SCTP_IERROR_NO_ERROR;
