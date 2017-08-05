@@ -435,6 +435,13 @@ static int lan9303_write_switch_port(struct lan9303 *chip, int port,
 		chip, LAN9303_SWITCH_PORT_REG(port, regnum), val);
 }
 
+static int lan9303_read_switch_port(struct lan9303 *chip, int port,
+				    u16 regnum, u32 *val)
+{
+	return lan9303_read_switch_reg(
+		chip, LAN9303_SWITCH_PORT_REG(port, regnum), val);
+}
+
 static int lan9303_detect_phy_setup(struct lan9303 *chip)
 {
 	int reg;
@@ -705,19 +712,18 @@ static void lan9303_get_ethtool_stats(struct dsa_switch *ds, int port,
 				      uint64_t *data)
 {
 	struct lan9303 *chip = ds->priv;
-	u32 reg;
-	unsigned int u, poff;
-	int ret;
-
-	poff = port * 0x400;
+	unsigned int u;
 
 	for (u = 0; u < ARRAY_SIZE(lan9303_mib); u++) {
-		ret = lan9303_read_switch_reg(chip,
-					      lan9303_mib[u].offset + poff,
-					      &reg);
+		u32 reg;
+		int ret;
+
+		ret = lan9303_read_switch_port(
+			chip, port, lan9303_mib[u].offset, &reg);
+
 		if (ret)
-			dev_warn(chip->dev, "Reading status reg %u failed\n",
-				 lan9303_mib[u].offset + poff);
+			dev_warn(chip->dev, "Reading status port %d reg %u failed\n",
+				 port, lan9303_mib[u].offset);
 		data[u] = reg;
 	}
 }
