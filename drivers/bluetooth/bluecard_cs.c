@@ -161,7 +161,7 @@ static void bluecard_activity_led_timeout(u_long arg)
 	unsigned int iobase = info->p_dev->resource[0]->start;
 
 	if (test_bit(CARD_HAS_ACTIVITY_LED, &(info->hw_state))) {
-		/* Disable activity LED */
+		/* Disable activity LED, keep power LED enabled */
 		outb(0x08 | 0x20, iobase + 0x30);
 	} else {
 		/* Disable power LED */
@@ -175,8 +175,8 @@ static void bluecard_enable_activity_led(struct bluecard_info *info)
 	unsigned int iobase = info->p_dev->resource[0]->start;
 
 	if (test_bit(CARD_HAS_ACTIVITY_LED, &(info->hw_state))) {
-		/* Enable activity LED */
-		outb(0x10 | 0x40, iobase + 0x30);
+		/* Enable activity LED, keep power LED enabled */
+		outb(0x18 | 0x60, iobase + 0x30);
 
 		/* Stop the LED after HZ/4 */
 		mod_timer(&(info->timer), jiffies + HZ / 4);
@@ -624,7 +624,7 @@ static int bluecard_hci_open(struct hci_dev *hdev)
 	if (test_bit(CARD_HAS_PCCARD_ID, &(info->hw_state)))
 		bluecard_hci_set_baud_rate(hdev, DEFAULT_BAUD_RATE);
 
-	/* Enable LED */
+	/* Enable power LED */
 	outb(0x08 | 0x20, iobase + 0x30);
 
 	return 0;
@@ -638,7 +638,10 @@ static int bluecard_hci_close(struct hci_dev *hdev)
 
 	bluecard_hci_flush(hdev);
 
-	/* Disable LED */
+	/* Stop LED timer */
+	del_timer_sync(&(info->timer));
+
+	/* Disable power LED */
 	outb(0x00, iobase + 0x30);
 
 	return 0;
