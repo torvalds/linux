@@ -52,7 +52,7 @@
 #include <net/sctp/sm.h>
 
 static int sctp_cmd_interpreter(enum sctp_event event_type,
-				sctp_subtype_t subtype,
+				union sctp_subtype subtype,
 				enum sctp_state state,
 				struct sctp_endpoint *ep,
 				struct sctp_association *asoc,
@@ -60,7 +60,8 @@ static int sctp_cmd_interpreter(enum sctp_event event_type,
 				sctp_disposition_t status,
 				sctp_cmd_seq_t *commands,
 				gfp_t gfp);
-static int sctp_side_effects(enum sctp_event event_type, sctp_subtype_t subtype,
+static int sctp_side_effects(enum sctp_event event_type,
+			     union sctp_subtype subtype,
 			     enum sctp_state state,
 			     struct sctp_endpoint *ep,
 			     struct sctp_association **asoc,
@@ -603,7 +604,7 @@ static void sctp_cmd_init_failed(sctp_cmd_seq_t *commands,
 static void sctp_cmd_assoc_failed(sctp_cmd_seq_t *commands,
 				  struct sctp_association *asoc,
 				  enum sctp_event event_type,
-				  sctp_subtype_t subtype,
+				  union sctp_subtype subtype,
 				  struct sctp_chunk *chunk,
 				  unsigned int error)
 {
@@ -1140,7 +1141,7 @@ static void sctp_cmd_send_asconf(struct sctp_association *asoc)
  * good place to start.
  */
 int sctp_do_sm(struct net *net, enum sctp_event event_type,
-	       sctp_subtype_t subtype, enum sctp_state state,
+	       union sctp_subtype subtype, enum sctp_state state,
 	       struct sctp_endpoint *ep, struct sctp_association *asoc,
 	       void *event_arg, gfp_t gfp)
 {
@@ -1148,7 +1149,7 @@ int sctp_do_sm(struct net *net, enum sctp_event event_type,
 	const sctp_sm_table_entry_t *state_fn;
 	sctp_disposition_t status;
 	int error = 0;
-	typedef const char *(printfn_t)(sctp_subtype_t);
+	typedef const char *(printfn_t)(union sctp_subtype);
 	static printfn_t *table[] = {
 		NULL, sctp_cname, sctp_tname, sctp_oname, sctp_pname,
 	};
@@ -1176,7 +1177,8 @@ int sctp_do_sm(struct net *net, enum sctp_event event_type,
 /*****************************************************************
  * This the master state function side effect processing function.
  *****************************************************************/
-static int sctp_side_effects(enum sctp_event event_type, sctp_subtype_t subtype,
+static int sctp_side_effects(enum sctp_event event_type,
+			     union sctp_subtype subtype,
 			     enum sctp_state state,
 			     struct sctp_endpoint *ep,
 			     struct sctp_association **asoc,
@@ -1262,7 +1264,7 @@ bail:
 
 /* This is the side-effect interpreter.  */
 static int sctp_cmd_interpreter(enum sctp_event event_type,
-				sctp_subtype_t subtype,
+				union sctp_subtype subtype,
 				enum sctp_state state,
 				struct sctp_endpoint *ep,
 				struct sctp_association *asoc,

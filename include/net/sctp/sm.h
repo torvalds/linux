@@ -73,7 +73,7 @@ typedef struct {
 typedef sctp_disposition_t (sctp_state_fn_t) (struct net *,
 					      const struct sctp_endpoint *,
 					      const struct sctp_association *,
-					      const sctp_subtype_t type,
+					      const union sctp_subtype type,
 					      void *arg,
 					      sctp_cmd_seq_t *);
 typedef void (sctp_timer_event_t) (unsigned long);
@@ -175,10 +175,11 @@ sctp_state_fn_t sctp_sf_autoclose_timer_expire;
 
 /* Prototypes for utility support functions.  */
 __u8 sctp_get_chunk_type(struct sctp_chunk *chunk);
-const sctp_sm_table_entry_t *sctp_sm_lookup_event(struct net *net,
-						  enum sctp_event event_type,
-						  enum sctp_state state,
-						  sctp_subtype_t event_subtype);
+const sctp_sm_table_entry_t *sctp_sm_lookup_event(
+					struct net *net,
+					enum sctp_event event_type,
+					enum sctp_state state,
+					union sctp_subtype event_subtype);
 int sctp_chunk_iif(const struct sctp_chunk *);
 struct sctp_association *sctp_make_temp_asoc(const struct sctp_endpoint *,
 					     struct sctp_chunk *,
@@ -313,7 +314,7 @@ struct sctp_chunk *sctp_process_strreset_resp(
 /* Prototypes for statetable processing. */
 
 int sctp_do_sm(struct net *net, enum sctp_event event_type,
-	       sctp_subtype_t subtype, enum sctp_state state,
+	       union sctp_subtype subtype, enum sctp_state state,
 	       struct sctp_endpoint *ep, struct sctp_association *asoc,
 	       void *event_arg, gfp_t gfp);
 

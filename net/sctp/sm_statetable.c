@@ -77,10 +77,11 @@ static const sctp_sm_table_entry_t bug = {
 	rtn;								\
 })
 
-const sctp_sm_table_entry_t *sctp_sm_lookup_event(struct net *net,
-						  enum sctp_event event_type,
-						  enum sctp_state state,
-						  sctp_subtype_t event_subtype)
+const sctp_sm_table_entry_t *sctp_sm_lookup_event(
+					struct net *net,
+					enum sctp_event event_type,
+					enum sctp_state state,
+					union sctp_subtype event_subtype)
 {
 	switch (event_type) {
 	case SCTP_EVENT_T_CHUNK:

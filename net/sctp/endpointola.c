@@ -382,7 +382,7 @@ static void sctp_endpoint_bh_rcv(struct work_struct *work)
 	struct sctp_transport *transport;
 	struct sctp_chunk *chunk;
 	struct sctp_inq *inqueue;
-	sctp_subtype_t subtype;
+	union sctp_subtype subtype;
 	enum sctp_state state;
 	int error = 0;
 	int first_time = 1;	/* is this the first time through the loop */

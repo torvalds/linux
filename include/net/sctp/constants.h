@@ -124,20 +124,20 @@ enum sctp_event_primitive {
 /* We define here a utility type for manipulating subtypes.
  * The subtype constructors all work like this:
  *
- * 	sctp_subtype_t foo = SCTP_ST_CHUNK(SCTP_CID_INIT);
+ *   union sctp_subtype foo = SCTP_ST_CHUNK(SCTP_CID_INIT);
  */
 
-typedef union {
+union sctp_subtype {
 	enum sctp_cid chunk;
 	enum sctp_event_timeout timeout;
 	enum sctp_event_other other;
 	enum sctp_event_primitive primitive;
-} sctp_subtype_t;
+};
 
 #define SCTP_SUBTYPE_CONSTRUCTOR(_name, _type, _elt) \
-static inline sctp_subtype_t	\
+static inline union sctp_subtype	\
 SCTP_ST_## _name (_type _arg)		\
-{ sctp_subtype_t _retval; _retval._elt = _arg; return _retval; }
+{ union sctp_subtype _retval; _retval._elt = _arg; return _retval; }
 
 SCTP_SUBTYPE_CONSTRUCTOR(CHUNK,		enum sctp_cid,		chunk)
 SCTP_SUBTYPE_CONSTRUCTOR(TIMEOUT,	enum sctp_event_timeout, timeout)
@@ -220,10 +220,10 @@ enum sctp_sock_state {
 };
 
 /* These functions map various type to printable names.  */
-const char *sctp_cname(const sctp_subtype_t);	/* chunk types */
-const char *sctp_oname(const sctp_subtype_t);	/* other events */
-const char *sctp_tname(const sctp_subtype_t);	/* timeouts */
-const char *sctp_pname(const sctp_subtype_t);	/* primitives */
+const char *sctp_cname(const union sctp_subtype id);	/* chunk types */
+const char *sctp_oname(const union sctp_subtype id);	/* other events */
+const char *sctp_tname(const union sctp_subtype id);	/* timeouts */
+const char *sctp_pname(const union sctp_subtype id);	/* primitives */
 
 /* This is a table of printable names of sctp_state_t's.  */
 extern const char *const sctp_state_tbl[];

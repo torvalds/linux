@@ -1021,11 +1021,11 @@ static void sctp_assoc_bh_rcv(struct work_struct *work)
 		container_of(work, struct sctp_association,
 			     base.inqueue.immediate);
 	struct net *net = sock_net(asoc->base.sk);
+	union sctp_subtype subtype;
 	struct sctp_endpoint *ep;
 	struct sctp_chunk *chunk;
 	struct sctp_inq *inqueue;
 	int state;
-	sctp_subtype_t subtype;
 	int error = 0;
 
 	/* The association should be held so we should be safe. */
