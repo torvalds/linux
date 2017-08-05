@@ -418,6 +418,7 @@ int iscsit_reset_np_thread(
 		return 0;
 	}
 	np->np_thread_state = ISCSI_NP_THREAD_RESET;
+	atomic_inc(&np->np_reset_count);
 
 	if (np->np_thread) {
 		spin_unlock_bh(&np->np_thread_lock);
