@@ -449,7 +449,7 @@ struct sctp_af {
 	int		(*addr_valid)	(union sctp_addr *,
 					 struct sctp_sock *,
 					 const struct sk_buff *);
-	sctp_scope_t	(*scope) (union sctp_addr *);
+	enum sctp_scope	(*scope)(union sctp_addr *);
 	void		(*inaddr_any)	(union sctp_addr *, __be16);
 	int		(*is_any)	(const union sctp_addr *);
 	int		(*available)	(union sctp_addr *,
@@ -1111,7 +1111,7 @@ void sctp_bind_addr_init(struct sctp_bind_addr *, __u16 port);
 void sctp_bind_addr_free(struct sctp_bind_addr *);
 int sctp_bind_addr_copy(struct net *net, struct sctp_bind_addr *dest,
 			const struct sctp_bind_addr *src,
-			sctp_scope_t scope, gfp_t gfp,
+			enum sctp_scope scope, gfp_t gfp,
 			int flags);
 int sctp_bind_addr_dup(struct sctp_bind_addr *dest,
 			const struct sctp_bind_addr *src,
@@ -1135,8 +1135,9 @@ union sctp_params sctp_bind_addrs_to_raw(const struct sctp_bind_addr *bp,
 int sctp_raw_to_bind_addrs(struct sctp_bind_addr *bp, __u8 *raw, int len,
 			   __u16 port, gfp_t gfp);
 
-sctp_scope_t sctp_scope(const union sctp_addr *);
-int sctp_in_scope(struct net *net, const union sctp_addr *addr, const sctp_scope_t scope);
+enum sctp_scope sctp_scope(const union sctp_addr *addr);
+int sctp_in_scope(struct net *net, const union sctp_addr *addr,
+		  const enum sctp_scope scope);
 int sctp_is_any(struct sock *sk, const union sctp_addr *addr);
 int sctp_is_ep_boundall(struct sock *sk);
 
@@ -1925,8 +1926,8 @@ static inline struct sctp_association *sctp_assoc(struct sctp_ep_common *base)
 
 
 struct sctp_association *
-sctp_association_new(const struct sctp_endpoint *, const struct sock *,
-		     sctp_scope_t scope, gfp_t gfp);
+sctp_association_new(const struct sctp_endpoint *ep, const struct sock *sk,
+		     enum sctp_scope scope, gfp_t gfp);
 void sctp_association_free(struct sctp_association *);
 void sctp_association_put(struct sctp_association *);
 void sctp_association_hold(struct sctp_association *);
@@ -1967,8 +1968,8 @@ void sctp_assoc_set_primary(struct sctp_association *,
 			    struct sctp_transport *);
 void sctp_assoc_del_nonprimary_peers(struct sctp_association *,
 				    struct sctp_transport *);
-int sctp_assoc_set_bind_addr_from_ep(struct sctp_association *,
-				     sctp_scope_t, gfp_t);
+int sctp_assoc_set_bind_addr_from_ep(struct sctp_association *asoc,
+				     enum sctp_scope scope, gfp_t gfp);
 int sctp_assoc_set_bind_addr_from_cookie(struct sctp_association *,
 					 struct sctp_cookie*,
 					 gfp_t gfp);

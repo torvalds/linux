@@ -333,13 +333,13 @@ typedef enum {
  * At this point, the IPv6 scopes will be mapped to these internal scopes
  * as much as possible.
  */
-typedef enum {
+enum sctp_scope {
 	SCTP_SCOPE_GLOBAL,		/* IPv4 global addresses */
 	SCTP_SCOPE_PRIVATE,		/* IPv4 private addresses */
 	SCTP_SCOPE_LINK,		/* IPv4 link local address */
 	SCTP_SCOPE_LOOPBACK,		/* IPv4 loopback address */
 	SCTP_SCOPE_UNUSABLE,		/* IPv4 unusable addresses */
-} sctp_scope_t;
+};
 
 enum {
 	SCTP_SCOPE_POLICY_DISABLE,	/* Disable IPv4 address scoping */

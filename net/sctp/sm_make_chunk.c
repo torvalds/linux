@@ -1578,8 +1578,8 @@ struct sctp_association *sctp_make_temp_asoc(const struct sctp_endpoint *ep,
 					gfp_t gfp)
 {
 	struct sctp_association *asoc;
+	enum sctp_scope scope;
 	struct sk_buff *skb;
-	sctp_scope_t scope;
 
 	/* Create the bare association.  */
 	scope = sctp_scope(sctp_source(chunk));
@@ -1701,7 +1701,7 @@ struct sctp_association *sctp_unpack_cookie(
 	int headersize, bodysize, fixed_size;
 	__u8 *digest = ep->digest;
 	unsigned int len;
-	sctp_scope_t scope;
+	enum sctp_scope scope;
 	struct sk_buff *skb = chunk->skb;
 	ktime_t kt;
 
@@ -2502,7 +2502,7 @@ static int sctp_process_param(struct sctp_association *asoc,
 	int i;
 	__u16 sat;
 	int retval = 1;
-	sctp_scope_t scope;
+	enum sctp_scope scope;
 	u32 stale;
 	struct sctp_af *af;
 	union sctp_addr_param *addr_param;
