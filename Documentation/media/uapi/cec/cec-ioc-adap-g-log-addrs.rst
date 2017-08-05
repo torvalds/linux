@@ -175,7 +175,7 @@ logical address types are already defined will return with error ``EBUSY``.
 	to avoid trivial snooping of the keystrokes.
     * .. _`CEC-LOG-ADDRS-FL-CDC-ONLY`:
 
-      - `CEC_LOG_ADDRS_FL_CDC_ONLY`
+      - ``CEC_LOG_ADDRS_FL_CDC_ONLY``
       - 4
       - If this flag is set, then the device is CDC-Only. CDC-Only CEC devices
 	are CEC devices that can only handle CDC messages.
