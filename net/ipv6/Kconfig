@@ -311,7 +311,8 @@ config IPV6_SEG6_LWTUNNEL
 	---help---
 	  Support for encapsulation of packets within an outer IPv6
 	  header and a Segment Routing Header using the lightweight
-	  tunnels mechanism.
+	  tunnels mechanism. Also enable support for advanced local
+	  processing of SRv6 packets based on their active segment.
 
 	  If unsure, say N.
 

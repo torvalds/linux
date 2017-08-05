@@ -456,6 +456,10 @@ int __init seg6_init(void)
 	err = seg6_iptunnel_init();
 	if (err)
 		goto out_unregister_pernet;
+
+	err = seg6_local_init();
+	if (err)
+		goto out_unregister_pernet;
 #endif
 
 #ifdef CONFIG_IPV6_SEG6_HMAC
@@ -471,6 +475,7 @@ out:
 #ifdef CONFIG_IPV6_SEG6_HMAC
 out_unregister_iptun:
 #ifdef CONFIG_IPV6_SEG6_LWTUNNEL
+	seg6_local_exit();
 	seg6_iptunnel_exit();
 #endif
 #endif
