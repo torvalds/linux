@@ -558,7 +558,7 @@ static inline int __sctp_style(const struct sock *sk, sctp_socket_type_t style)
 /* Is the association in this state? */
 #define sctp_state(asoc, state) __sctp_state((asoc), (SCTP_STATE_##state))
 static inline int __sctp_state(const struct sctp_association *asoc,
-			       sctp_state_t state)
+			       enum sctp_state state)
 {
 	return asoc->state == state;
 }

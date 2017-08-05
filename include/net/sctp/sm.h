@@ -175,10 +175,10 @@ sctp_state_fn_t sctp_sf_autoclose_timer_expire;
 
 /* Prototypes for utility support functions.  */
 __u8 sctp_get_chunk_type(struct sctp_chunk *chunk);
-const sctp_sm_table_entry_t *sctp_sm_lookup_event(struct net *,
-					    sctp_event_t,
-					    sctp_state_t,
-					    sctp_subtype_t);
+const sctp_sm_table_entry_t *sctp_sm_lookup_event(struct net *net,
+						  sctp_event_t event_type,
+						  enum sctp_state state,
+						  sctp_subtype_t event_subtype);
 int sctp_chunk_iif(const struct sctp_chunk *);
 struct sctp_association *sctp_make_temp_asoc(const struct sctp_endpoint *,
 					     struct sctp_chunk *,
@@ -313,7 +313,7 @@ struct sctp_chunk *sctp_process_strreset_resp(
 /* Prototypes for statetable processing. */
 
 int sctp_do_sm(struct net *net, sctp_event_t event_type, sctp_subtype_t subtype,
-	       sctp_state_t state,
+	       enum sctp_state state,
                struct sctp_endpoint *,
                struct sctp_association *asoc,
                void *event_arg,

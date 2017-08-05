@@ -1577,7 +1577,7 @@ struct sctp_association {
 	 *
 	 *		State takes values from SCTP_STATE_*.
 	 */
-	sctp_state_t state;
+	enum sctp_state state;
 
 	/* Overall     : The overall association error count.
 	 * Error Count : [Clear this any time I get something.]

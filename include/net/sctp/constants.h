@@ -181,7 +181,7 @@ enum sctp_ierror {
 
 
 /* SCTP state defines for internal state machine */
-typedef enum {
+enum sctp_state {
 
 	SCTP_STATE_CLOSED		= 0,
 	SCTP_STATE_COOKIE_WAIT		= 1,
@@ -192,7 +192,7 @@ typedef enum {
 	SCTP_STATE_SHUTDOWN_RECEIVED	= 6,
 	SCTP_STATE_SHUTDOWN_ACK_SENT	= 7,
 
-} sctp_state_t;
+};
 
 #define SCTP_STATE_MAX			SCTP_STATE_SHUTDOWN_ACK_SENT
 #define SCTP_STATE_NUM_STATES		(SCTP_STATE_MAX + 1)

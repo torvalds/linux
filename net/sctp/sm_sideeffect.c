@@ -53,7 +53,7 @@
 
 static int sctp_cmd_interpreter(sctp_event_t event_type,
 				sctp_subtype_t subtype,
-				sctp_state_t state,
+				enum sctp_state state,
 				struct sctp_endpoint *ep,
 				struct sctp_association *asoc,
 				void *event_arg,
@@ -61,7 +61,7 @@ static int sctp_cmd_interpreter(sctp_event_t event_type,
 				sctp_cmd_seq_t *commands,
 				gfp_t gfp);
 static int sctp_side_effects(sctp_event_t event_type, sctp_subtype_t subtype,
-			     sctp_state_t state,
+			     enum sctp_state state,
 			     struct sctp_endpoint *ep,
 			     struct sctp_association **asoc,
 			     void *event_arg,
@@ -843,7 +843,7 @@ static void sctp_cmd_assoc_update(sctp_cmd_seq_t *cmds,
 /* Helper function to change the state of an association. */
 static void sctp_cmd_new_state(sctp_cmd_seq_t *cmds,
 			       struct sctp_association *asoc,
-			       sctp_state_t state)
+			       enum sctp_state state)
 {
 	struct sock *sk = asoc->base.sk;
 
@@ -1140,7 +1140,7 @@ static void sctp_cmd_send_asconf(struct sctp_association *asoc)
  * good place to start.
  */
 int sctp_do_sm(struct net *net, sctp_event_t event_type, sctp_subtype_t subtype,
-	       sctp_state_t state,
+	       enum sctp_state state,
 	       struct sctp_endpoint *ep,
 	       struct sctp_association *asoc,
 	       void *event_arg,
@@ -1179,7 +1179,7 @@ int sctp_do_sm(struct net *net, sctp_event_t event_type, sctp_subtype_t subtype,
  * This the master state function side effect processing function.
  *****************************************************************/
 static int sctp_side_effects(sctp_event_t event_type, sctp_subtype_t subtype,
-			     sctp_state_t state,
+			     enum sctp_state state,
 			     struct sctp_endpoint *ep,
 			     struct sctp_association **asoc,
 			     void *event_arg,
@@ -1265,7 +1265,7 @@ bail:
 /* This is the side-effect interpreter.  */
 static int sctp_cmd_interpreter(sctp_event_t event_type,
 				sctp_subtype_t subtype,
-				sctp_state_t state,
+				enum sctp_state state,
 				struct sctp_endpoint *ep,
 				struct sctp_association *asoc,
 				void *event_arg,
