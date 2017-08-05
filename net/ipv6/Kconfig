@@ -315,18 +315,6 @@ config IPV6_SEG6_LWTUNNEL
 
 	  If unsure, say N.
 
-config IPV6_SEG6_INLINE
-	bool "IPv6: direct Segment Routing Header insertion "
-	depends on IPV6_SEG6_LWTUNNEL
-	---help---
-	  Support for direct insertion of the Segment Routing Header,
-	  also known as inline mode. Be aware that direct insertion of
-	  extension headers (as opposed to encapsulation) may break
-	  multiple mechanisms such as PMTUD or IPSec AH. Use this feature
-	  only if you know exactly what you are doing.
-
-	  If unsure, say N.
-
 config IPV6_SEG6_HMAC
 	bool "IPv6: Segment Routing HMAC support"
 	depends on IPV6
