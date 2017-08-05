@@ -2122,6 +2122,15 @@ static int nl80211_parse_chandef(struct cfg80211_registered_device *rdev,
 		case NL80211_CHAN_HT40MINUS:
 			cfg80211_chandef_create(chandef, chandef->chan,
 						chantype);
+			/* user input for center_freq is incorrect */
+			if (info->attrs[NL80211_ATTR_CENTER_FREQ1] &&
+			    chandef->center_freq1 != nla_get_u32(
+					info->attrs[NL80211_ATTR_CENTER_FREQ1]))
+				return -EINVAL;
+			/* center_freq2 must be zero */
+			if (info->attrs[NL80211_ATTR_CENTER_FREQ2] &&
+			    nla_get_u32(info->attrs[NL80211_ATTR_CENTER_FREQ2]))
+				return -EINVAL;
 			break;
 		default:
 			return -EINVAL;
