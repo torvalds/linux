@@ -3072,7 +3072,7 @@ extern int ext4_handle_dirty_dirent_node(handle_t *handle,
 					 struct inode *inode,
 					 struct buffer_head *bh);
 #define S_SHIFT 12
-static const unsigned char ext4_type_by_mode[S_IFMT >> S_SHIFT] = {
+static const unsigned char ext4_type_by_mode[(S_IFMT >> S_SHIFT) + 1] = {
 	[S_IFREG >> S_SHIFT]	= EXT4_FT_REG_FILE,
 	[S_IFDIR >> S_SHIFT]	= EXT4_FT_DIR,
 	[S_IFCHR >> S_SHIFT]	= EXT4_FT_CHRDEV,
