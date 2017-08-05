@@ -280,7 +280,7 @@ out_unlock:
  * for timeouts which use the association as their parameter.
  */
 static void sctp_generate_timeout_event(struct sctp_association *asoc,
-					sctp_event_timeout_t timeout_type)
+					enum sctp_event_timeout timeout_type)
 {
 	struct sock *sk = asoc->base.sk;
 	struct net *net = sock_net(sk);
@@ -1052,8 +1052,8 @@ static void sctp_cmd_adaptation_ind(sctp_cmd_seq_t *commands,
 
 
 static void sctp_cmd_t1_timer_update(struct sctp_association *asoc,
-				    sctp_event_timeout_t timer,
-				    char *name)
+				     enum sctp_event_timeout timer,
+				     char *name)
 {
 	struct sctp_transport *t;
 

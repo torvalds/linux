@@ -84,7 +84,7 @@ typedef enum {
  * SCTP_ULP_* to the list of possible chunks.
  */
 
-typedef enum {
+enum sctp_event_timeout {
 	SCTP_EVENT_TIMEOUT_NONE = 0,
 	SCTP_EVENT_TIMEOUT_T1_COOKIE,
 	SCTP_EVENT_TIMEOUT_T1_INIT,
@@ -96,7 +96,7 @@ typedef enum {
 	SCTP_EVENT_TIMEOUT_RECONF,
 	SCTP_EVENT_TIMEOUT_SACK,
 	SCTP_EVENT_TIMEOUT_AUTOCLOSE,
-} sctp_event_timeout_t;
+};
 
 #define SCTP_EVENT_TIMEOUT_MAX		SCTP_EVENT_TIMEOUT_AUTOCLOSE
 #define SCTP_NUM_TIMEOUT_TYPES		(SCTP_EVENT_TIMEOUT_MAX + 1)
@@ -131,7 +131,7 @@ enum sctp_event_primitive {
 
 typedef union {
 	enum sctp_cid chunk;
-	sctp_event_timeout_t timeout;
+	enum sctp_event_timeout timeout;
 	enum sctp_event_other other;
 	enum sctp_event_primitive primitive;
 } sctp_subtype_t;
@@ -142,7 +142,7 @@ SCTP_ST_## _name (_type _arg)		\
 { sctp_subtype_t _retval; _retval._elt = _arg; return _retval; }
 
 SCTP_SUBTYPE_CONSTRUCTOR(CHUNK,		enum sctp_cid,		chunk)
-SCTP_SUBTYPE_CONSTRUCTOR(TIMEOUT,	sctp_event_timeout_t,	timeout)
+SCTP_SUBTYPE_CONSTRUCTOR(TIMEOUT,	enum sctp_event_timeout, timeout)
 SCTP_SUBTYPE_CONSTRUCTOR(OTHER,		enum sctp_event_other,	other)
 SCTP_SUBTYPE_CONSTRUCTOR(PRIMITIVE,	enum sctp_event_primitive, primitive)
 

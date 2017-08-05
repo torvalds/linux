@@ -127,7 +127,7 @@ typedef union {
 	int error;
 	__be16 err;
 	enum sctp_state state;
-	sctp_event_timeout_t to;
+	enum sctp_event_timeout to;
 	struct sctp_chunk *chunk;
 	struct sctp_association *asoc;
 	struct sctp_transport *transport;
@@ -168,7 +168,7 @@ SCTP_ARG_CONSTRUCTOR(U8,	__u8, u8)
 SCTP_ARG_CONSTRUCTOR(ERROR,     int, error)
 SCTP_ARG_CONSTRUCTOR(PERR,      __be16, err)	/* protocol error */
 SCTP_ARG_CONSTRUCTOR(STATE,	enum sctp_state, state)
-SCTP_ARG_CONSTRUCTOR(TO,	sctp_event_timeout_t, to)
+SCTP_ARG_CONSTRUCTOR(TO,	enum sctp_event_timeout, to)
 SCTP_ARG_CONSTRUCTOR(CHUNK,	struct sctp_chunk *, chunk)
 SCTP_ARG_CONSTRUCTOR(ASOC,	struct sctp_association *, asoc)
 SCTP_ARG_CONSTRUCTOR(TRANSPORT,	struct sctp_transport *, transport)
