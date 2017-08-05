@@ -312,7 +312,6 @@ struct dc_plane_status {
 
 struct dc_plane_state {
 	struct dc_plane_address address;
-
 	struct scaling_taps scaling_quality;
 	struct rect src_rect;
 	struct rect dst_rect;
