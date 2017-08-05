@@ -67,7 +67,7 @@ master:
 	mr	%r16,%r3	/* save dt address in reg16 */
 	li	%r4,20
 	LWZX_BE	%r6,%r3,%r4	/* fetch __be32 version number at byte 20 */
-	cmpwi	%r0,%r6,2	/* v2 or later? */
+	cmpwi	%cr0,%r6,2	/* v2 or later? */
 	blt	1f
 	li	%r4,28
 	STWX_BE	%r17,%r3,%r4	/* Store my cpu as __be32 at byte 28 */
