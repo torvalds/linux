@@ -314,11 +314,12 @@ static int __power_supply_am_i_supplied(struct device *dev, void *_data)
 	struct power_supply *epsy = dev_get_drvdata(dev);
 	struct psy_am_i_supplied_data *data = _data;
 
-	data->count++;
-	if (__power_supply_is_supplied_by(epsy, data->psy))
+	if (__power_supply_is_supplied_by(epsy, data->psy)) {
+		data->count++;
 		if (!epsy->desc->get_property(epsy, POWER_SUPPLY_PROP_ONLINE,
 					&ret))
 			return ret.intval;
+	}
 
 	return 0;
 }
