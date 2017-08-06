@@ -299,7 +299,7 @@ static void __DEBUG_bytes(__u8 *bytes, size_t len, const char *msg, ...)
 /*
  * DM Integrity profile, protection is performed layer above (dm-crypt)
  */
-static struct blk_integrity_profile dm_integrity_profile = {
+static const struct blk_integrity_profile dm_integrity_profile = {
 	.name			= "DM-DIF-EXT-TAG",
 	.generate_fn		= NULL,
 	.verify_fn		= NULL,
