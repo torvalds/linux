@@ -55,7 +55,7 @@ struct capictr_event {
 
 /* ------------------------------------------------------------- */
 
-static struct capi_version driver_version = {2, 0, 1, 1 << 4};
+static const struct capi_version driver_version = {2, 0, 1, 1 << 4};
 static char driver_serial[CAPI_SERIAL_LEN] = "0004711";
 static char capi_manufakturer[64] = "AVM Berlin";
 
