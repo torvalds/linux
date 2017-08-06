@@ -43,9 +43,10 @@ struct dsa_notifier_bridge_info {
 
 /* DSA_NOTIFIER_FDB_* */
 struct dsa_notifier_fdb_info {
-	const struct switchdev_obj_port_fdb *fdb;
 	int sw_index;
 	int port;
+	const unsigned char *addr;
+	u16 vid;
 };
 
 /* DSA_NOTIFIER_MDB_* */
@@ -120,10 +121,10 @@ int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
 			    struct switchdev_trans *trans);
 int dsa_port_ageing_time(struct dsa_port *dp, clock_t ageing_clock,
 			 struct switchdev_trans *trans);
-int dsa_port_fdb_add(struct dsa_port *dp,
-		     const struct switchdev_obj_port_fdb *fdb);
-int dsa_port_fdb_del(struct dsa_port *dp,
-		     const struct switchdev_obj_port_fdb *fdb);
+int dsa_port_fdb_add(struct dsa_port *dp, const unsigned char *addr,
+		     u16 vid);
+int dsa_port_fdb_del(struct dsa_port *dp, const unsigned char *addr,
+		     u16 vid);
 int dsa_port_fdb_dump(struct dsa_port *dp, struct switchdev_obj_port_fdb *fdb,
 		      switchdev_obj_dump_cb_t *cb);
 int dsa_port_mdb_add(struct dsa_port *dp,

@@ -83,8 +83,6 @@ static int dsa_switch_bridge_leave(struct dsa_switch *ds,
 static int dsa_switch_fdb_add(struct dsa_switch *ds,
 			      struct dsa_notifier_fdb_info *info)
 {
-	const struct switchdev_obj_port_fdb *fdb = info->fdb;
-
 	/* Do not care yet about other switch chips of the fabric */
 	if (ds->index != info->sw_index)
 		return 0;
@@ -92,14 +90,13 @@ static int dsa_switch_fdb_add(struct dsa_switch *ds,
 	if (!ds->ops->port_fdb_add)
 		return -EOPNOTSUPP;
 
-	return ds->ops->port_fdb_add(ds, info->port, fdb->addr, fdb->vid);
+	return ds->ops->port_fdb_add(ds, info->port, info->addr,
+				     info->vid);
 }
 
 static int dsa_switch_fdb_del(struct dsa_switch *ds,
 			      struct dsa_notifier_fdb_info *info)
 {
-	const struct switchdev_obj_port_fdb *fdb = info->fdb;
-
 	/* Do not care yet about other switch chips of the fabric */
 	if (ds->index != info->sw_index)
 		return 0;
@@ -107,8 +104,8 @@ static int dsa_switch_fdb_del(struct dsa_switch *ds,
 	if (!ds->ops->port_fdb_del)
 		return -EOPNOTSUPP;
 
-	return ds->ops->port_fdb_del(ds, info->port, fdb->addr,
-				     fdb->vid);
+	return ds->ops->port_fdb_del(ds, info->port, info->addr,
+				     info->vid);
 }
 
 static int dsa_switch_mdb_add(struct dsa_switch *ds,
