@@ -324,6 +324,9 @@ static int dsa_slave_port_attr_get(struct net_device *dev,
 		attr->u.ppid.id_len = sizeof(ds->index);
 		memcpy(&attr->u.ppid.id, &ds->index, attr->u.ppid.id_len);
 		break;
+	case SWITCHDEV_ATTR_ID_PORT_BRIDGE_FLAGS_SUPPORT:
+		attr->u.brport_flags_support = 0;
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}
