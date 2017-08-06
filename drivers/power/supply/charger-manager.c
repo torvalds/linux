@@ -1651,8 +1651,8 @@ static int charger_manager_probe(struct platform_device *pdev)
 	}
 
 	/*
-	 * The following two do not need to be errors.
-	 * Users may intentionally ignore those two features.
+	 * Some of the following do not need to be errors.
+	 * Users may intentionally ignore those features.
 	 */
 	if (desc->fullbatt_uV == 0) {
 		dev_info(&pdev->dev, "Ignoring full-battery voltage threshold as it is not supplied\n");
