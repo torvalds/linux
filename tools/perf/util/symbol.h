@@ -306,7 +306,7 @@ int dso__load_sym(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 int dso__synthesize_plt_symbols(struct dso *dso, struct symsrc *ss,
 				struct map *map);
 
-char *dso__demangle_sym(struct dso *dso, int kmodule, char *elf_name);
+char *dso__demangle_sym(struct dso *dso, int kmodule, const char *elf_name);
 
 void __symbols__insert(struct rb_root *symbols, struct symbol *sym, bool kernel);
 void symbols__insert(struct rb_root *symbols, struct symbol *sym);

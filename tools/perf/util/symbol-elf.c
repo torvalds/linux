@@ -391,7 +391,7 @@ out_elf_end:
 	return 0;
 }
 
-char *dso__demangle_sym(struct dso *dso, int kmodule, char *elf_name)
+char *dso__demangle_sym(struct dso *dso, int kmodule, const char *elf_name)
 {
 	return demangle_sym(dso, kmodule, elf_name);
 }

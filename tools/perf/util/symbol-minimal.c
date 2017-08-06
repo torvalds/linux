@@ -377,7 +377,7 @@ void symbol__elf_init(void)
 
 char *dso__demangle_sym(struct dso *dso __maybe_unused,
 			int kmodule __maybe_unused,
-			char *elf_name __maybe_unused)
+			const char *elf_name __maybe_unused)
 {
 	return NULL;
 }
