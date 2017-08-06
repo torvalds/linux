@@ -2645,10 +2645,6 @@ int ext4_expand_extra_isize_ea(struct inode *inode, int new_extra_isize,
 	int error = 0, tried_min_extra_isize = 0;
 	int s_min_extra_isize = le16_to_cpu(EXT4_SB(inode->i_sb)->s_es->s_min_extra_isize);
 	int isize_diff;	/* How much do we need to grow i_extra_isize */
-	int no_expand;
-
-	if (ext4_write_trylock_xattr(inode, &no_expand) == 0)
-		return 0;
 
 retry:
 	isize_diff = new_extra_isize - EXT4_I(inode)->i_extra_isize;
@@ -2731,16 +2727,10 @@ shift:
 	EXT4_I(inode)->i_extra_isize = new_extra_isize;
 	brelse(bh);
 out:
-	ext4_write_unlock_xattr(inode, &no_expand);
 	return 0;
 
 cleanup:
 	brelse(bh);
-	/*
-	 * Inode size expansion failed; don't try again
-	 */
-	no_expand = 1;
-	ext4_write_unlock_xattr(inode, &no_expand);
 	return error;
 }
 
