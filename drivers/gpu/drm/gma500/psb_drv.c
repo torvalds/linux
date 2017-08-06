@@ -494,8 +494,6 @@ static struct drm_driver driver = {
 	.gem_vm_ops = &psb_gem_vm_ops,
 
 	.dumb_create = psb_gem_dumb_create,
-	.dumb_map_offset = psb_gem_dumb_map_gtt,
-	.dumb_destroy = drm_gem_dumb_destroy,
 	.ioctls = psb_ioctls,
 	.fops = &psb_gem_fops,
 	.name = DRIVER_NAME,
