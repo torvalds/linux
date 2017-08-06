@@ -452,13 +452,6 @@ static void saa7134_input_timer(unsigned long data)
 	mod_timer(&ir->timer, jiffies + msecs_to_jiffies(ir->polling));
 }
 
-static void ir_raw_decode_timer_end(unsigned long data)
-{
-	struct saa7134_dev *dev = (struct saa7134_dev *)data;
-
-	ir_raw_event_handle(dev->remote->dev);
-}
-
 static int __saa7134_ir_start(void *priv)
 {
 	struct saa7134_dev *dev = priv;
@@ -514,10 +507,6 @@ static int __saa7134_ir_start(void *priv)
 			    (unsigned long)dev);
 		ir->timer.expires = jiffies + HZ;
 		add_timer(&ir->timer);
-	} else if (ir->raw_decode) {
-		/* set timer_end for code completion */
-		setup_timer(&ir->timer, ir_raw_decode_timer_end,
-			    (unsigned long)dev);
 	}
 
 	return 0;
@@ -535,7 +524,7 @@ static void __saa7134_ir_stop(void *priv)
 	if (!ir->running)
 		return;
 
-	if (ir->polling || ir->raw_decode)
+	if (ir->polling)
 		del_timer_sync(&ir->timer);
 
 	ir->running = false;
@@ -1057,7 +1046,6 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 static int saa7134_raw_decode_irq(struct saa7134_dev *dev)
 {
 	struct saa7134_card_ir *ir = dev->remote;
-	unsigned long timeout;
 	int space;
 
 	/* Generate initial event */
@@ -1065,18 +1053,6 @@ static int saa7134_raw_decode_irq(struct saa7134_dev *dev)
 	saa_setb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
 	space = saa_readl(SAA7134_GPIO_GPSTATUS0 >> 2) & ir->mask_keydown;
 	ir_raw_event_store_edge(dev->remote->dev, space ? IR_SPACE : IR_PULSE);
-
-	/*
-	 * Wait 15 ms from the start of the first IR event before processing
-	 * the event. This time is enough for NEC protocol. May need adjustments
-	 * to work with other protocols.
-	 */
-	smp_mb();
-
-	if (!timer_pending(&ir->timer)) {
-		timeout = jiffies + msecs_to_jiffies(15);
-		mod_timer(&ir->timer, timeout);
-	}
 
 	return 1;
 }

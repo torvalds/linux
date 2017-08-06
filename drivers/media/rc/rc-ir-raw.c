@@ -133,6 +133,11 @@ int ir_raw_event_store_edge(struct rc_dev *dev, enum raw_event_type type)
 
 	dev->raw->last_event = now;
 	dev->raw->last_type = type;
+
+	if (!timer_pending(&dev->raw->edge_handle))
+		mod_timer(&dev->raw->edge_handle,
+			  jiffies + msecs_to_jiffies(15));
+
 	return rc;
 }
 EXPORT_SYMBOL_GPL(ir_raw_event_store_edge);
@@ -483,6 +488,13 @@ int ir_raw_encode_scancode(enum rc_type protocol, u32 scancode,
 }
 EXPORT_SYMBOL(ir_raw_encode_scancode);
 
+static void edge_handle(unsigned long arg)
+{
+	struct rc_dev *dev = (struct rc_dev *)arg;
+
+	ir_raw_event_handle(dev);
+}
+
 /*
  * Used to (un)register raw event clients
  */
@@ -504,6 +516,8 @@ int ir_raw_event_prepare(struct rc_dev *dev)
 
 	dev->raw->dev = dev;
 	dev->change_protocol = change_protocol;
+	setup_timer(&dev->raw->edge_handle, edge_handle,
+		    (unsigned long)dev);
 	INIT_KFIFO(dev->raw->kfifo);
 
 	return 0;
@@ -555,6 +569,7 @@ void ir_raw_event_unregister(struct rc_dev *dev)
 		return;
 
 	kthread_stop(dev->raw->thread);
+	del_timer_sync(&dev->raw->edge_handle);
 
 	mutex_lock(&ir_raw_handler_lock);
 	list_del(&dev->raw->list);
