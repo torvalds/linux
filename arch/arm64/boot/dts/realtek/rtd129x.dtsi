@@ -37,6 +37,36 @@
 		/* Exclude up to 2 GiB of RAM */
 		ranges = <0x80000000 0x80000000 0x80000000>;
 
+		reset1: reset-controller@98000000 {
+			compatible = "snps,dw-low-reset";
+			reg = <0x98000000 0x4>;
+			#reset-cells = <1>;
+		};
+
+		reset2: reset-controller@98000004 {
+			compatible = "snps,dw-low-reset";
+			reg = <0x98000004 0x4>;
+			#reset-cells = <1>;
+		};
+
+		reset3: reset-controller@98000008 {
+			compatible = "snps,dw-low-reset";
+			reg = <0x98000008 0x4>;
+			#reset-cells = <1>;
+		};
+
+		reset4: reset-controller@98000050 {
+			compatible = "snps,dw-low-reset";
+			reg = <0x98000050 0x4>;
+			#reset-cells = <1>;
+		};
+
+		iso_reset: reset-controller@98007088 {
+			compatible = "snps,dw-low-reset";
+			reg = <0x98007088 0x4>;
+			#reset-cells = <1>;
+		};
+
 		wdt: watchdog@98007680 {
 			compatible = "realtek,rtd1295-watchdog";
 			reg = <0x98007680 0x100>;
