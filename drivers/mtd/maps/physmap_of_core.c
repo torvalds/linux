@@ -235,10 +235,10 @@ static int of_flash_probe(struct platform_device *dev)
 
 		err = of_flash_probe_gemini(dev, dp, &info->list[i].map);
 		if (err)
-			return err;
+			goto err_out;
 		err = of_flash_probe_versatile(dev, dp, &info->list[i].map);
 		if (err)
-			return err;
+			goto err_out;
 
 		err = -ENOMEM;
 		info->list[i].map.virt = ioremap(info->list[i].map.phys,
