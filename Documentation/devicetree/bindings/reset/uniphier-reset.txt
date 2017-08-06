@@ -6,7 +6,6 @@ System reset
 
 Required properties:
 - compatible: should be one of the following:
-    "socionext,uniphier-sld3-reset" - for sLD3 SoC
     "socionext,uniphier-ld4-reset"  - for LD4 SoC
     "socionext,uniphier-pro4-reset" - for Pro4 SoC
     "socionext,uniphier-sld8-reset" - for sLD8 SoC
@@ -37,7 +36,6 @@ Media I/O (MIO) reset, SD reset
 
 Required properties:
 - compatible: should be one of the following:
-    "socionext,uniphier-sld3-mio-reset" - for sLD3 SoC
     "socionext,uniphier-ld4-mio-reset"  - for LD4 SoC
     "socionext,uniphier-pro4-mio-reset" - for Pro4 SoC
     "socionext,uniphier-sld8-mio-reset" - for sLD8 SoC
