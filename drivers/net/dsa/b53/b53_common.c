@@ -1053,49 +1053,6 @@ int b53_vlan_del(struct dsa_switch *ds, int port,
 }
 EXPORT_SYMBOL(b53_vlan_del);
 
-int b53_vlan_dump(struct dsa_switch *ds, int port,
-		  struct switchdev_obj_port_vlan *vlan,
-		  switchdev_obj_dump_cb_t *cb)
-{
-	struct b53_device *dev = ds->priv;
-	u16 vid, vid_start = 0, pvid;
-	struct b53_vlan *vl;
-	int err = 0;
-
-	if (is5325(dev) || is5365(dev))
-		vid_start = 1;
-
-	b53_read16(dev, B53_VLAN_PAGE, B53_VLAN_PORT_DEF_TAG(port), &pvid);
-
-	/* Use our software cache for dumps, since we do not have any HW
-	 * operation returning only the used/valid VLANs
-	 */
-	for (vid = vid_start; vid < dev->num_vlans; vid++) {
-		vl = &dev->vlans[vid];
-
-		if (!vl->valid)
-			continue;
-
-		if (!(vl->members & BIT(port)))
-			continue;
-
-		vlan->vid_begin = vlan->vid_end = vid;
-		vlan->flags = 0;
-
-		if (vl->untag & BIT(port))
-			vlan->flags |= BRIDGE_VLAN_INFO_UNTAGGED;
-		if (pvid == vid)
-			vlan->flags |= BRIDGE_VLAN_INFO_PVID;
-
-		err = cb(&vlan->obj);
-		if (err)
-			break;
-	}
-
-	return err;
-}
-EXPORT_SYMBOL(b53_vlan_dump);
-
 /* Address Resolution Logic routines */
 static int b53_arl_op_wait(struct b53_device *dev)
 {
@@ -1552,7 +1509,6 @@ static const struct dsa_switch_ops b53_switch_ops = {
 	.port_vlan_prepare	= b53_vlan_prepare,
 	.port_vlan_add		= b53_vlan_add,
 	.port_vlan_del		= b53_vlan_del,
-	.port_vlan_dump		= b53_vlan_dump,
 	.port_fdb_dump		= b53_fdb_dump,
 	.port_fdb_add		= b53_fdb_add,
 	.port_fdb_del		= b53_fdb_del,
