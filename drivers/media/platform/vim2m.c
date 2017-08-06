@@ -983,7 +983,7 @@ static struct video_device vim2m_videodev = {
 	.release	= video_device_release_empty,
 };
 
-static struct v4l2_m2m_ops m2m_ops = {
+static const struct v4l2_m2m_ops m2m_ops = {
 	.device_run	= device_run,
 	.job_ready	= job_ready,
 	.job_abort	= job_abort,
