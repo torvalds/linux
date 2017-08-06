@@ -1607,8 +1607,13 @@ int aa_label_snxprint(char *str, size_t size, struct aa_ns *ns,
 	AA_BUG(!str && size != 0);
 	AA_BUG(!label);
 
-	if (!ns)
+	if (flags & FLAG_ABS_ROOT) {
+		ns = root_ns;
+		len = snprintf(str, size, "=");
+		update_for_len(total, len, size, str);
+	} else if (!ns) {
 		ns = labels_ns(label);
+	}
 
 	label_for_each(i, label, profile) {
 		if (aa_ns_visible(ns, profile->ns, flags & FLAG_VIEW_SUBNS)) {
@@ -1868,6 +1873,9 @@ struct aa_label *aa_label_parse(struct aa_label *base, const char *str,
 		if (*str == '&')
 			str++;
 	}
+	if (*str == '=')
+		base = &root_ns->unconfined->label;
+
 	error = vec_setup(profile, vec, len, gfp);
 	if (error)
 		return ERR_PTR(error);
