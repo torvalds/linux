@@ -342,6 +342,11 @@ void vbox_fbdev_fini(struct drm_device *dev)
 	struct vbox_fbdev *fbdev = vbox->fbdev;
 	struct vbox_framebuffer *afb = &fbdev->afb;
 
+#ifdef CONFIG_FB_DEFERRED_IO
+	if (fbdev->helper.fbdev && fbdev->helper.fbdev->fbdefio)
+		fb_deferred_io_cleanup(fbdev->helper.fbdev);
+#endif
+
 	drm_fb_helper_unregister_fbi(&fbdev->helper);
 
 	if (afb->obj) {
