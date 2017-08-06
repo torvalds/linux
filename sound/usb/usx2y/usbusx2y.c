@@ -313,7 +313,7 @@ static void usX2Y_unlinkSeq(struct snd_usX2Y_AsyncSeq *S)
 }
 
 
-static struct usb_device_id snd_usX2Y_usb_id_table[] = {
+static const struct usb_device_id snd_usX2Y_usb_id_table[] = {
 	{
 		.match_flags =	USB_DEVICE_ID_MATCH_DEVICE,
 		.idVendor =	0x1604,
