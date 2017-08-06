@@ -385,9 +385,7 @@ struct dsa_switch_ops {
 	/*
 	 * Forwarding database
 	 */
-	int	(*port_fdb_prepare)(struct dsa_switch *ds, int port,
-				    const unsigned char *addr, u16 vid);
-	void	(*port_fdb_add)(struct dsa_switch *ds, int port,
+	int	(*port_fdb_add)(struct dsa_switch *ds, int port,
 				const unsigned char *addr, u16 vid);
 	int	(*port_fdb_del)(struct dsa_switch *ds, int port,
 				const unsigned char *addr, u16 vid);

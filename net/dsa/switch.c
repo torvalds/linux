@@ -84,23 +84,15 @@ static int dsa_switch_fdb_add(struct dsa_switch *ds,
 			      struct dsa_notifier_fdb_info *info)
 {
 	const struct switchdev_obj_port_fdb *fdb = info->fdb;
-	struct switchdev_trans *trans = info->trans;
 
 	/* Do not care yet about other switch chips of the fabric */
 	if (ds->index != info->sw_index)
 		return 0;
 
-	if (switchdev_trans_ph_prepare(trans)) {
-		if (!ds->ops->port_fdb_prepare || !ds->ops->port_fdb_add)
-			return -EOPNOTSUPP;
+	if (!ds->ops->port_fdb_add)
+		return -EOPNOTSUPP;
 
-		return ds->ops->port_fdb_prepare(ds, info->port, fdb->addr,
-						 fdb->vid);
-	}
-
-	ds->ops->port_fdb_add(ds, info->port, fdb->addr, fdb->vid);
-
-	return 0;
+	return ds->ops->port_fdb_add(ds, info->port, fdb->addr, fdb->vid);
 }
 
 static int dsa_switch_fdb_del(struct dsa_switch *ds,

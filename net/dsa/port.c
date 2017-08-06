@@ -147,13 +147,11 @@ int dsa_port_ageing_time(struct dsa_port *dp, clock_t ageing_clock,
 }
 
 int dsa_port_fdb_add(struct dsa_port *dp,
-		     const struct switchdev_obj_port_fdb *fdb,
-		     struct switchdev_trans *trans)
+		     const struct switchdev_obj_port_fdb *fdb)
 {
 	struct dsa_notifier_fdb_info info = {
 		.sw_index = dp->ds->index,
 		.port = dp->index,
-		.trans = trans,
 		.fdb = fdb,
 	};
 

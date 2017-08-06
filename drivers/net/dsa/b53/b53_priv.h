@@ -396,10 +396,8 @@ int b53_vlan_del(struct dsa_switch *ds, int port,
 int b53_vlan_dump(struct dsa_switch *ds, int port,
 		  struct switchdev_obj_port_vlan *vlan,
 		  switchdev_obj_dump_cb_t *cb);
-int b53_fdb_prepare(struct dsa_switch *ds, int port,
-		    const unsigned char *addr, u16 vid);
-void b53_fdb_add(struct dsa_switch *ds, int port,
-		 const unsigned char *addr, u16 vid);
+int b53_fdb_add(struct dsa_switch *ds, int port,
+		const unsigned char *addr, u16 vid);
 int b53_fdb_del(struct dsa_switch *ds, int port,
 		const unsigned char *addr, u16 vid);
 int b53_fdb_dump(struct dsa_switch *ds, int port,

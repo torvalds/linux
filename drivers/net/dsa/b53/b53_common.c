@@ -1213,8 +1213,8 @@ static int b53_arl_op(struct b53_device *dev, int op, int port,
 	return b53_arl_rw_op(dev, 0);
 }
 
-int b53_fdb_prepare(struct dsa_switch *ds, int port,
-		    const unsigned char *addr, u16 vid)
+int b53_fdb_add(struct dsa_switch *ds, int port,
+		const unsigned char *addr, u16 vid)
 {
 	struct b53_device *priv = ds->priv;
 
@@ -1224,17 +1224,7 @@ int b53_fdb_prepare(struct dsa_switch *ds, int port,
 	if (is5325(priv) || is5365(priv))
 		return -EOPNOTSUPP;
 
-	return 0;
-}
-EXPORT_SYMBOL(b53_fdb_prepare);
-
-void b53_fdb_add(struct dsa_switch *ds, int port,
-		 const unsigned char *addr, u16 vid)
-{
-	struct b53_device *priv = ds->priv;
-
-	if (b53_arl_op(priv, 0, port, addr, vid, true))
-		pr_err("%s: failed to add MAC address\n", __func__);
+	return b53_arl_op(priv, 0, port, addr, vid, true);
 }
 EXPORT_SYMBOL(b53_fdb_add);
 
@@ -1563,7 +1553,6 @@ static const struct dsa_switch_ops b53_switch_ops = {
 	.port_vlan_add		= b53_vlan_add,
 	.port_vlan_del		= b53_vlan_del,
 	.port_vlan_dump		= b53_vlan_dump,
-	.port_fdb_prepare	= b53_fdb_prepare,
 	.port_fdb_dump		= b53_fdb_dump,
 	.port_fdb_add		= b53_fdb_add,
 	.port_fdb_del		= b53_fdb_del,

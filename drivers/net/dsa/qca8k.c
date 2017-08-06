@@ -777,28 +777,13 @@ qca8k_port_fdb_insert(struct qca8k_priv *priv, const u8 *addr,
 }
 
 static int
-qca8k_port_fdb_prepare(struct dsa_switch *ds, int port,
-		       const unsigned char *addr, u16 vid)
-{
-	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
-
-	/* The FDB table for static and auto learned entries is the same. We
-	 * need to reserve an entry with no port_mask set to make sure that
-	 * when port_fdb_add is called an entry is still available. Otherwise
-	 * the last free entry might have been used up by auto learning
-	 */
-	return qca8k_port_fdb_insert(priv, addr, 0, vid);
-}
-
-static void
 qca8k_port_fdb_add(struct dsa_switch *ds, int port,
 		   const unsigned char *addr, u16 vid)
 {
 	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
 	u16 port_mask = BIT(port);
 
-	/* Update the FDB entry adding the port_mask */
-	qca8k_port_fdb_insert(priv, addr, port_mask, vid);
+	return qca8k_port_fdb_insert(priv, addr, port_mask, vid);
 }
 
 static int
@@ -866,7 +851,6 @@ static const struct dsa_switch_ops qca8k_switch_ops = {
 	.port_stp_state_set	= qca8k_port_stp_state_set,
 	.port_bridge_join	= qca8k_port_bridge_join,
 	.port_bridge_leave	= qca8k_port_bridge_leave,
-	.port_fdb_prepare	= qca8k_port_fdb_prepare,
 	.port_fdb_add		= qca8k_port_fdb_add,
 	.port_fdb_del		= qca8k_port_fdb_del,
 	.port_fdb_dump		= qca8k_port_fdb_dump,

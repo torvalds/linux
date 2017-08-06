@@ -678,14 +678,6 @@ static int ksz_port_vlan_dump(struct dsa_switch *ds, int port,
 	return err;
 }
 
-static int ksz_port_fdb_prepare(struct dsa_switch *ds, int port,
-				const unsigned char *addr, u16 vid)
-{
-	/* nothing needed */
-
-	return 0;
-}
-
 struct alu_struct {
 	/* entry 1 */
 	u8	is_static:1;
@@ -705,12 +697,13 @@ struct alu_struct {
 	u8	mac[ETH_ALEN];
 };
 
-static void ksz_port_fdb_add(struct dsa_switch *ds, int port,
-			     const unsigned char *addr, u16 vid)
+static int ksz_port_fdb_add(struct dsa_switch *ds, int port,
+			    const unsigned char *addr, u16 vid)
 {
 	struct ksz_device *dev = ds->priv;
 	u32 alu_table[4];
 	u32 data;
+	int ret = 0;
 
 	mutex_lock(&dev->alu_mutex);
 
@@ -727,7 +720,8 @@ static void ksz_port_fdb_add(struct dsa_switch *ds, int port,
 	ksz_write32(dev, REG_SW_ALU_CTRL__4, ALU_READ | ALU_START);
 
 	/* wait to be finished */
-	if (wait_alu_ready(dev, ALU_START, 1000) < 0) {
+	ret = wait_alu_ready(dev, ALU_START, 1000);
+	if (ret < 0) {
 		dev_dbg(dev->dev, "Failed to read ALU\n");
 		goto exit;
 	}
@@ -750,11 +744,14 @@ static void ksz_port_fdb_add(struct dsa_switch *ds, int port,
 	ksz_write32(dev, REG_SW_ALU_CTRL__4, ALU_WRITE | ALU_START);
 
 	/* wait to be finished */
-	if (wait_alu_ready(dev, ALU_START, 1000) < 0)
-		dev_dbg(dev->dev, "Failed to read ALU\n");
+	ret = wait_alu_ready(dev, ALU_START, 1000);
+	if (ret < 0)
+		dev_dbg(dev->dev, "Failed to write ALU\n");
 
 exit:
 	mutex_unlock(&dev->alu_mutex);
+
+	return ret;
 }
 
 static int ksz_port_fdb_del(struct dsa_switch *ds, int port,
@@ -1128,7 +1125,6 @@ static const struct dsa_switch_ops ksz_switch_ops = {
 	.port_vlan_add		= ksz_port_vlan_add,
 	.port_vlan_del		= ksz_port_vlan_del,
 	.port_vlan_dump		= ksz_port_vlan_dump,
-	.port_fdb_prepare	= ksz_port_fdb_prepare,
 	.port_fdb_dump		= ksz_port_fdb_dump,
 	.port_fdb_add		= ksz_port_fdb_add,
 	.port_fdb_del		= ksz_port_fdb_del,
