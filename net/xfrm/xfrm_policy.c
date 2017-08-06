@@ -1818,7 +1818,8 @@ xfrm_resolve_and_create_bundle(struct xfrm_policy **pols, int num_pols,
 	    xdst->num_pols == num_pols &&
 	    !xfrm_pol_dead(xdst) &&
 	    memcmp(xdst->pols, pols,
-		   sizeof(struct xfrm_policy *) * num_pols) == 0) {
+		   sizeof(struct xfrm_policy *) * num_pols) == 0 &&
+	    xfrm_bundle_ok(xdst)) {
 		dst_hold(&xdst->u.dst);
 		return xdst;
 	}
