@@ -1655,6 +1655,7 @@ static int balloon_probe(struct hv_device *dev,
 	}
 
 	dm_device.state = DM_INITIALIZED;
+	last_post_time = jiffies;
 
 	return 0;
 
