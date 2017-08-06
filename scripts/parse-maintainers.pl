@@ -109,8 +109,20 @@ sub file_input {
 }
 
 my %hash;
+my %new_hash;
 
 file_input(\%hash, "MAINTAINERS");
+
+foreach my $type (@ARGV) {
+    foreach my $key (keys %hash) {
+	if ($key =~ /$type/ || $hash{$key} =~ /$type/) {
+	    $new_hash{$key} = $hash{$key};
+	    delete $hash{$key};
+	}
+    }
+}
+
 alpha_output(\%hash, "MAINTAINERS.new");
+alpha_output(\%new_hash, "SECTION.new");
 
 exit(0);
