@@ -94,10 +94,11 @@ static int dsa_switch_fdb_add(struct dsa_switch *ds,
 		if (!ds->ops->port_fdb_prepare || !ds->ops->port_fdb_add)
 			return -EOPNOTSUPP;
 
-		return ds->ops->port_fdb_prepare(ds, info->port, fdb, trans);
+		return ds->ops->port_fdb_prepare(ds, info->port, fdb->addr,
+						 fdb->vid);
 	}
 
-	ds->ops->port_fdb_add(ds, info->port, fdb, trans);
+	ds->ops->port_fdb_add(ds, info->port, fdb->addr, fdb->vid);
 
 	return 0;
 }
@@ -114,7 +115,8 @@ static int dsa_switch_fdb_del(struct dsa_switch *ds,
 	if (!ds->ops->port_fdb_del)
 		return -EOPNOTSUPP;
 
-	return ds->ops->port_fdb_del(ds, info->port, fdb);
+	return ds->ops->port_fdb_del(ds, info->port, fdb->addr,
+				     fdb->vid);
 }
 
 static int dsa_switch_mdb_add(struct dsa_switch *ds,

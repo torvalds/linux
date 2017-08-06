@@ -679,8 +679,7 @@ static int ksz_port_vlan_dump(struct dsa_switch *ds, int port,
 }
 
 static int ksz_port_fdb_prepare(struct dsa_switch *ds, int port,
-				const struct switchdev_obj_port_fdb *fdb,
-				struct switchdev_trans *trans)
+				const unsigned char *addr, u16 vid)
 {
 	/* nothing needed */
 
@@ -707,8 +706,7 @@ struct alu_struct {
 };
 
 static void ksz_port_fdb_add(struct dsa_switch *ds, int port,
-			     const struct switchdev_obj_port_fdb *fdb,
-			     struct switchdev_trans *trans)
+			     const unsigned char *addr, u16 vid)
 {
 	struct ksz_device *dev = ds->priv;
 	u32 alu_table[4];
@@ -717,12 +715,12 @@ static void ksz_port_fdb_add(struct dsa_switch *ds, int port,
 	mutex_lock(&dev->alu_mutex);
 
 	/* find any entry with mac & vid */
-	data = fdb->vid << ALU_FID_INDEX_S;
-	data |= ((fdb->addr[0] << 8) | fdb->addr[1]);
+	data = vid << ALU_FID_INDEX_S;
+	data |= ((addr[0] << 8) | addr[1]);
 	ksz_write32(dev, REG_SW_ALU_INDEX_0, data);
 
-	data = ((fdb->addr[2] << 24) | (fdb->addr[3] << 16));
-	data |= ((fdb->addr[4] << 8) | fdb->addr[5]);
+	data = ((addr[2] << 24) | (addr[3] << 16));
+	data |= ((addr[4] << 8) | addr[5]);
 	ksz_write32(dev, REG_SW_ALU_INDEX_1, data);
 
 	/* start read operation */
@@ -740,12 +738,12 @@ static void ksz_port_fdb_add(struct dsa_switch *ds, int port,
 	/* update ALU entry */
 	alu_table[0] = ALU_V_STATIC_VALID;
 	alu_table[1] |= BIT(port);
-	if (fdb->vid)
+	if (vid)
 		alu_table[1] |= ALU_V_USE_FID;
-	alu_table[2] = (fdb->vid << ALU_V_FID_S);
-	alu_table[2] |= ((fdb->addr[0] << 8) | fdb->addr[1]);
-	alu_table[3] = ((fdb->addr[2] << 24) | (fdb->addr[3] << 16));
-	alu_table[3] |= ((fdb->addr[4] << 8) | fdb->addr[5]);
+	alu_table[2] = (vid << ALU_V_FID_S);
+	alu_table[2] |= ((addr[0] << 8) | addr[1]);
+	alu_table[3] = ((addr[2] << 24) | (addr[3] << 16));
+	alu_table[3] |= ((addr[4] << 8) | addr[5]);
 
 	write_table(ds, alu_table);
 
@@ -760,7 +758,7 @@ exit:
 }
 
 static int ksz_port_fdb_del(struct dsa_switch *ds, int port,
-			    const struct switchdev_obj_port_fdb *fdb)
+			    const unsigned char *addr, u16 vid)
 {
 	struct ksz_device *dev = ds->priv;
 	u32 alu_table[4];
@@ -770,12 +768,12 @@ static int ksz_port_fdb_del(struct dsa_switch *ds, int port,
 	mutex_lock(&dev->alu_mutex);
 
 	/* read any entry with mac & vid */
-	data = fdb->vid << ALU_FID_INDEX_S;
-	data |= ((fdb->addr[0] << 8) | fdb->addr[1]);
+	data = vid << ALU_FID_INDEX_S;
+	data |= ((addr[0] << 8) | addr[1]);
 	ksz_write32(dev, REG_SW_ALU_INDEX_0, data);
 
-	data = ((fdb->addr[2] << 24) | (fdb->addr[3] << 16));
-	data |= ((fdb->addr[4] << 8) | fdb->addr[5]);
+	data = ((addr[2] << 24) | (addr[3] << 16));
+	data |= ((addr[4] << 8) | addr[5]);
 	ksz_write32(dev, REG_SW_ALU_INDEX_1, data);
 
 	/* start read operation */

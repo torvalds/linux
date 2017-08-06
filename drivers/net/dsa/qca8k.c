@@ -778,8 +778,7 @@ qca8k_port_fdb_insert(struct qca8k_priv *priv, const u8 *addr,
 
 static int
 qca8k_port_fdb_prepare(struct dsa_switch *ds, int port,
-		       const struct switchdev_obj_port_fdb *fdb,
-		       struct switchdev_trans *trans)
+		       const unsigned char *addr, u16 vid)
 {
 	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
 
@@ -788,33 +787,31 @@ qca8k_port_fdb_prepare(struct dsa_switch *ds, int port,
 	 * when port_fdb_add is called an entry is still available. Otherwise
 	 * the last free entry might have been used up by auto learning
 	 */
-	return qca8k_port_fdb_insert(priv, fdb->addr, 0, fdb->vid);
+	return qca8k_port_fdb_insert(priv, addr, 0, vid);
 }
 
 static void
 qca8k_port_fdb_add(struct dsa_switch *ds, int port,
-		   const struct switchdev_obj_port_fdb *fdb,
-		   struct switchdev_trans *trans)
+		   const unsigned char *addr, u16 vid)
 {
 	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
 	u16 port_mask = BIT(port);
 
 	/* Update the FDB entry adding the port_mask */
-	qca8k_port_fdb_insert(priv, fdb->addr, port_mask, fdb->vid);
+	qca8k_port_fdb_insert(priv, addr, port_mask, vid);
 }
 
 static int
 qca8k_port_fdb_del(struct dsa_switch *ds, int port,
-		   const struct switchdev_obj_port_fdb *fdb)
+		   const unsigned char *addr, u16 vid)
 {
 	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
 	u16 port_mask = BIT(port);
-	u16 vid = fdb->vid;
 
 	if (!vid)
 		vid = 1;
 
-	return qca8k_fdb_del(priv, fdb->addr, port_mask, vid);
+	return qca8k_fdb_del(priv, addr, port_mask, vid);
 }
 
 static int

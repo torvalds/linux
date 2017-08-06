@@ -1214,8 +1214,7 @@ static int b53_arl_op(struct b53_device *dev, int op, int port,
 }
 
 int b53_fdb_prepare(struct dsa_switch *ds, int port,
-		    const struct switchdev_obj_port_fdb *fdb,
-		    struct switchdev_trans *trans)
+		    const unsigned char *addr, u16 vid)
 {
 	struct b53_device *priv = ds->priv;
 
@@ -1230,22 +1229,21 @@ int b53_fdb_prepare(struct dsa_switch *ds, int port,
 EXPORT_SYMBOL(b53_fdb_prepare);
 
 void b53_fdb_add(struct dsa_switch *ds, int port,
-		 const struct switchdev_obj_port_fdb *fdb,
-		 struct switchdev_trans *trans)
+		 const unsigned char *addr, u16 vid)
 {
 	struct b53_device *priv = ds->priv;
 
-	if (b53_arl_op(priv, 0, port, fdb->addr, fdb->vid, true))
+	if (b53_arl_op(priv, 0, port, addr, vid, true))
 		pr_err("%s: failed to add MAC address\n", __func__);
 }
 EXPORT_SYMBOL(b53_fdb_add);
 
 int b53_fdb_del(struct dsa_switch *ds, int port,
-		const struct switchdev_obj_port_fdb *fdb)
+		const unsigned char *addr, u16 vid)
 {
 	struct b53_device *priv = ds->priv;
 
-	return b53_arl_op(priv, 0, port, fdb->addr, fdb->vid, false);
+	return b53_arl_op(priv, 0, port, addr, vid, false);
 }
 EXPORT_SYMBOL(b53_fdb_del);
 

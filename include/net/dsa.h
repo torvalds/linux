@@ -386,13 +386,11 @@ struct dsa_switch_ops {
 	 * Forwarding database
 	 */
 	int	(*port_fdb_prepare)(struct dsa_switch *ds, int port,
-				    const struct switchdev_obj_port_fdb *fdb,
-				    struct switchdev_trans *trans);
+				    const unsigned char *addr, u16 vid);
 	void	(*port_fdb_add)(struct dsa_switch *ds, int port,
-				const struct switchdev_obj_port_fdb *fdb,
-				struct switchdev_trans *trans);
+				const unsigned char *addr, u16 vid);
 	int	(*port_fdb_del)(struct dsa_switch *ds, int port,
-				const struct switchdev_obj_port_fdb *fdb);
+				const unsigned char *addr, u16 vid);
 	int	(*port_fdb_dump)(struct dsa_switch *ds, int port,
 				 struct switchdev_obj_port_fdb *fdb,
 				  switchdev_obj_dump_cb_t *cb);
