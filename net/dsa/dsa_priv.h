@@ -147,10 +147,6 @@ int dsa_port_vlan_add(struct dsa_port *dp,
 		      struct switchdev_trans *trans);
 int dsa_port_vlan_del(struct dsa_port *dp,
 		      const struct switchdev_obj_port_vlan *vlan);
-int dsa_port_vlan_dump(struct dsa_port *dp,
-		       struct switchdev_obj_port_vlan *vlan,
-		       switchdev_obj_dump_cb_t *cb);
-
 /* slave.c */
 extern const struct dsa_device_ops notag_netdev_ops;
 void dsa_slave_mii_bus_init(struct dsa_switch *ds);
