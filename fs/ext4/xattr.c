@@ -317,28 +317,41 @@ static void ext4_xattr_inode_set_hash(struct inode *ea_inode, u32 hash)
  */
 static int ext4_xattr_inode_read(struct inode *ea_inode, void *buf, size_t size)
 {
-	unsigned long block = 0;
-	struct buffer_head *bh;
-	int blocksize = ea_inode->i_sb->s_blocksize;
-	size_t csize, copied = 0;
-	void *copy_pos = buf;
+	int blocksize = 1 << ea_inode->i_blkbits;
+	int bh_count = (size + blocksize - 1) >> ea_inode->i_blkbits;
+	int tail_size = (size % blocksize) ?: blocksize;
+	struct buffer_head *bhs_inline[8];
+	struct buffer_head **bhs = bhs_inline;
+	int i, ret;
 
-	while (copied < size) {
-		csize = (size - copied) > blocksize ? blocksize : size - copied;
-		bh = ext4_bread(NULL, ea_inode, block, 0);
-		if (IS_ERR(bh))
-			return PTR_ERR(bh);
-		if (!bh)
-			return -EFSCORRUPTED;
-
-		memcpy(copy_pos, bh->b_data, csize);
-		brelse(bh);
-
-		copy_pos += csize;
-		block += 1;
-		copied += csize;
+	if (bh_count > ARRAY_SIZE(bhs_inline)) {
+		bhs = kmalloc_array(bh_count, sizeof(*bhs), GFP_NOFS);
+		if (!bhs)
+			return -ENOMEM;
 	}
-	return 0;
+
+	ret = ext4_bread_batch(ea_inode, 0 /* block */, bh_count,
+			       true /* wait */, bhs);
+	if (ret)
+		goto free_bhs;
+
+	for (i = 0; i < bh_count; i++) {
+		/* There shouldn't be any holes in ea_inode. */
+		if (!bhs[i]) {
+			ret = -EFSCORRUPTED;
+			goto put_bhs;
+		}
+		memcpy((char *)buf + blocksize * i, bhs[i]->b_data,
+		       i < bh_count - 1 ? blocksize : tail_size);
+	}
+	ret = 0;
+put_bhs:
+	for (i = 0; i < bh_count; i++)
+		brelse(bhs[i]);
+free_bhs:
+	if (bhs != bhs_inline)
+		kfree(bhs);
+	return ret;
 }
 
 static int ext4_xattr_inode_iget(struct inode *parent, unsigned long ea_ino,
