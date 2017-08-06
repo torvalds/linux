@@ -1227,8 +1227,7 @@ static void b53_arl_search_rd(struct b53_device *dev, u8 idx,
 }
 
 static int b53_fdb_copy(int port, const struct b53_arl_entry *ent,
-			struct switchdev_obj_port_fdb *fdb,
-			switchdev_obj_dump_cb_t *cb)
+			dsa_fdb_dump_cb_t *cb, void *data)
 {
 	if (!ent->is_valid)
 		return 0;
@@ -1236,16 +1235,11 @@ static int b53_fdb_copy(int port, const struct b53_arl_entry *ent,
 	if (port != ent->port)
 		return 0;
 
-	ether_addr_copy(fdb->addr, ent->mac);
-	fdb->vid = ent->vid;
-	fdb->ndm_state = ent->is_static ? NUD_NOARP : NUD_REACHABLE;
-
-	return cb(&fdb->obj);
+	return cb(ent->mac, ent->vid, ent->is_static, data);
 }
 
 int b53_fdb_dump(struct dsa_switch *ds, int port,
-		 struct switchdev_obj_port_fdb *fdb,
-		 switchdev_obj_dump_cb_t *cb)
+		 dsa_fdb_dump_cb_t *cb, void *data)
 {
 	struct b53_device *priv = ds->priv;
 	struct b53_arl_entry results[2];
@@ -1263,13 +1257,13 @@ int b53_fdb_dump(struct dsa_switch *ds, int port,
 			return ret;
 
 		b53_arl_search_rd(priv, 0, &results[0]);
-		ret = b53_fdb_copy(port, &results[0], fdb, cb);
+		ret = b53_fdb_copy(port, &results[0], cb, data);
 		if (ret)
 			return ret;
 
 		if (priv->num_arl_entries > 2) {
 			b53_arl_search_rd(priv, 1, &results[1]);
-			ret = b53_fdb_copy(port, &results[1], fdb, cb);
+			ret = b53_fdb_copy(port, &results[1], cb, data);
 			if (ret)
 				return ret;
 

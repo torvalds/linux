@@ -208,9 +208,6 @@ int switchdev_port_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 int switchdev_port_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 			   struct net_device *dev, const unsigned char *addr,
 			   u16 vid);
-int switchdev_port_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
-			    struct net_device *dev,
-			    struct net_device *filter_dev, int *idx);
 void switchdev_port_fwd_mark_set(struct net_device *dev,
 				 struct net_device *group_dev,
 				 bool joining);
@@ -307,15 +304,6 @@ static inline int switchdev_port_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 					 const unsigned char *addr, u16 vid)
 {
 	return -EOPNOTSUPP;
-}
-
-static inline int switchdev_port_fdb_dump(struct sk_buff *skb,
-					  struct netlink_callback *cb,
-					  struct net_device *dev,
-					  struct net_device *filter_dev,
-					  int *idx)
-{
-       return *idx;
 }
 
 static inline bool switchdev_port_same_parent_id(struct net_device *a,

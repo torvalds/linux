@@ -272,6 +272,8 @@ static inline u8 dsa_upstream_port(struct dsa_switch *ds)
 		return ds->rtable[dst->cpu_dp->ds->index];
 }
 
+typedef int dsa_fdb_dump_cb_t(const unsigned char *addr, u16 vid,
+			      bool is_static, void *data);
 struct dsa_switch_ops {
 	/*
 	 * Legacy probing.
@@ -386,8 +388,7 @@ struct dsa_switch_ops {
 	int	(*port_fdb_del)(struct dsa_switch *ds, int port,
 				const unsigned char *addr, u16 vid);
 	int	(*port_fdb_dump)(struct dsa_switch *ds, int port,
-				 struct switchdev_obj_port_fdb *fdb,
-				  switchdev_obj_dump_cb_t *cb);
+				 dsa_fdb_dump_cb_t *cb, void *data);
 
 	/*
 	 * Multicast database
