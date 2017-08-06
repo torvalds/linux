@@ -197,6 +197,12 @@ enum iwl_bt_mxbox_dw4 {
 	((le32_to_cpu((_notif)->mbox_msg[(_num)]) & BT_MBOX##_num##_##_field)\
 	>> BT_MBOX##_num##_##_field##_POS)
 
+#define BT_MBOX_PRINT(_num, _field, _end)				    \
+			pos += scnprintf(buf + pos, bufsz - pos,	    \
+					 "\t%s: %d%s",			    \
+					 #_field,			    \
+					 BT_MBOX_MSG(notif, _num, _field),  \
+					 true ? "\n" : ", ");
 enum iwl_bt_activity_grading {
 	BT_OFF			= 0,
 	BT_ON_NO_CONNECTION	= 1,

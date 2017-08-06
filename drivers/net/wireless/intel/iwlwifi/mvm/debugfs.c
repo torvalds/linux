@@ -469,18 +469,6 @@ static ssize_t iwl_dbgfs_disable_power_off_write(struct iwl_mvm *mvm, char *buf,
 	return ret ?: count;
 }
 
-#define BT_MBOX_MSG(_notif, _num, _field)				     \
-	((le32_to_cpu((_notif)->mbox_msg[(_num)]) & BT_MBOX##_num##_##_field)\
-	>> BT_MBOX##_num##_##_field##_POS)
-
-
-#define BT_MBOX_PRINT(_num, _field, _end)				    \
-			pos += scnprintf(buf + pos, bufsz - pos,	    \
-					 "\t%s: %d%s",			    \
-					 #_field,			    \
-					 BT_MBOX_MSG(notif, _num, _field),  \
-					 true ? "\n" : ", ");
-
 static
 int iwl_mvm_coex_dump_mbox(struct iwl_mvm *mvm,
 			   struct iwl_bt_coex_profile_notif *notif, char *buf,
