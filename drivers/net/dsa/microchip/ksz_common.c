@@ -1020,14 +1020,6 @@ exit:
 	return ret;
 }
 
-static int ksz_port_mdb_dump(struct dsa_switch *ds, int port,
-			     struct switchdev_obj_port_mdb *mdb,
-			     switchdev_obj_dump_cb_t *cb)
-{
-	/* this is not called by switch layer */
-	return 0;
-}
-
 static int ksz_port_mirror_add(struct dsa_switch *ds, int port,
 			       struct dsa_mall_mirror_tc_entry *mirror,
 			       bool ingress)
@@ -1090,7 +1082,6 @@ static const struct dsa_switch_ops ksz_switch_ops = {
 	.port_mdb_prepare       = ksz_port_mdb_prepare,
 	.port_mdb_add           = ksz_port_mdb_add,
 	.port_mdb_del           = ksz_port_mdb_del,
-	.port_mdb_dump          = ksz_port_mdb_dump,
 	.port_mirror_add	= ksz_port_mirror_add,
 	.port_mirror_del	= ksz_port_mirror_del,
 };
