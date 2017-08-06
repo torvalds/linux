@@ -1532,15 +1532,15 @@ static int of_spi_parse_dt(struct spi_controller *ctlr, struct spi_device *spi,
 	int rc;
 
 	/* Mode (clock phase/polarity/etc.) */
-	if (of_find_property(nc, "spi-cpha", NULL))
+	if (of_property_read_bool(nc, "spi-cpha"))
 		spi->mode |= SPI_CPHA;
-	if (of_find_property(nc, "spi-cpol", NULL))
+	if (of_property_read_bool(nc, "spi-cpol"))
 		spi->mode |= SPI_CPOL;
-	if (of_find_property(nc, "spi-cs-high", NULL))
+	if (of_property_read_bool(nc, "spi-cs-high"))
 		spi->mode |= SPI_CS_HIGH;
-	if (of_find_property(nc, "spi-3wire", NULL))
+	if (of_property_read_bool(nc, "spi-3wire"))
 		spi->mode |= SPI_3WIRE;
-	if (of_find_property(nc, "spi-lsb-first", NULL))
+	if (of_property_read_bool(nc, "spi-lsb-first"))
 		spi->mode |= SPI_LSB_FIRST;
 
 	/* Device DUAL/QUAD mode */
