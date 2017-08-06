@@ -5836,7 +5836,7 @@ ext4_swap_extents(handle_t *handle, struct inode *inode1,
 			if (e1_blk > lblk1)
 				next1 = e1_blk;
 			if (e2_blk > lblk2)
-				next2 = e1_blk;
+				next2 = e2_blk;
 			/* Do we have something to swap */
 			if (next1 == EXT_MAX_BLOCKS || next2 == EXT_MAX_BLOCKS)
 				goto finish;
