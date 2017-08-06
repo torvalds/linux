@@ -2,7 +2,7 @@
 
 use strict;
 
-my %hash;
+my $P = $0;
 
 # sort comparison functions
 sub by_category($$) {
@@ -45,20 +45,6 @@ sub by_pattern($$) {
     }
 }
 
-sub alpha_output {
-    foreach my $key (sort by_category keys %hash) {
-	if ($key eq " ") {
-	    chomp $hash{$key};
-	    print $hash{$key};
-	} else {
-	    print "\n" . $key . "\n";
-	    foreach my $pattern (sort by_pattern split('\n', $hash{$key})) {
-		print($pattern . "\n");
-	    }
-	}
-    }
-}
-
 sub trim {
     my $s = shift;
     $s =~ s/\s+$//;
@@ -66,40 +52,65 @@ sub trim {
     return $s;
 }
 
+sub alpha_output {
+    my ($hashref, $filename) = (@_);
+
+    open(my $file, '>', "$filename") or die "$P: $filename: open failed - $!\n";
+    foreach my $key (sort by_category keys %$hashref) {
+	if ($key eq " ") {
+	    chomp $$hashref{$key};
+	    print $file $$hashref{$key};
+	} else {
+	    print $file "\n" . $key . "\n";
+	    foreach my $pattern (sort by_pattern split('\n', %$hashref{$key})) {
+		print $file ($pattern . "\n");
+	    }
+	}
+    }
+    close($file);
+}
+
 sub file_input {
+    my ($hashref, $filename) = (@_);
+
     my $lastline = "";
     my $case = " ";
-    $hash{$case} = "";
+    $$hashref{$case} = "";
 
-    while (<>) {
+    open(my $file, '<', "$filename") or die "$P: $filename: open failed - $!\n";
+
+    while (<$file>) {
         my $line = $_;
 
         # Pattern line?
         if ($line =~ m/^([A-Z]):\s*(.*)/) {
             $line = $1 . ":\t" . trim($2) . "\n";
             if ($lastline eq "") {
-                $hash{$case} = $hash{$case} . $line;
+                $$hashref{$case} = $$hashref{$case} . $line;
                 next;
             }
             $case = trim($lastline);
-            exists $hash{$case} and die "Header '$case' already exists";
-            $hash{$case} = $line;
+            exists $$hashref{$case} and die "Header '$case' already exists";
+            $$hashref{$case} = $line;
             $lastline = "";
             next;
         }
 
         if ($case eq " ") {
-            $hash{$case} = $hash{$case} . $lastline;
+            $$hashref{$case} = $$hashref{$case} . $lastline;
             $lastline = $line;
             next;
         }
         trim($lastline) eq "" or die ("Odd non-pattern line '$lastline' for '$case'");
         $lastline = $line;
     }
-    $hash{$case} = $hash{$case} . $lastline;
+    $$hashref{$case} = $$hashref{$case} . $lastline;
+    close($file);
 }
 
-file_input();
-alpha_output();
+my %hash;
+
+file_input(\%hash, "MAINTAINERS");
+alpha_output(\%hash, "MAINTAINERS.new");
 
 exit(0);
