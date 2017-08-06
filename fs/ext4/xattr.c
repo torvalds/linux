@@ -1816,9 +1816,6 @@ ext4_xattr_block_set(handle_t *handle, struct inode *inode,
 			ea_bdebug(bs->bh, "modifying in-place");
 			error = ext4_xattr_set_entry(i, s, handle, inode,
 						     true /* is_block */);
-			if (!error)
-				ext4_xattr_block_cache_insert(ea_block_cache,
-							      bs->bh);
 			ext4_xattr_block_csum_set(inode, bs->bh);
 			unlock_buffer(bs->bh);
 			if (error == -EFSCORRUPTED)
@@ -1974,6 +1971,7 @@ inserted:
 		} else if (bs->bh && s->base == bs->bh->b_data) {
 			/* We were modifying this block in-place. */
 			ea_bdebug(bs->bh, "keeping this block");
+			ext4_xattr_block_cache_insert(ea_block_cache, bs->bh);
 			new_bh = bs->bh;
 			get_bh(new_bh);
 		} else {
