@@ -63,6 +63,7 @@ static uint32_t formats[] = {
 	DRM_FORMAT_YUYV,
 	DRM_FORMAT_UYVY,
 	DRM_FORMAT_NV12,
+	DRM_FORMAT_NV21,
 };
 
 /* Sine can be approximated with
@@ -159,16 +160,18 @@ nv10_update_plane(struct drm_plane *plane, struct drm_crtc *crtc,
 	nvif_wr32(dev, NV_PVIDEO_POINT_OUT(flip), crtc_y << 16 | crtc_x);
 	nvif_wr32(dev, NV_PVIDEO_SIZE_OUT(flip), crtc_h << 16 | crtc_w);
 
-	if (fb->format->format != DRM_FORMAT_UYVY)
+	if (fb->format->format == DRM_FORMAT_YUYV ||
+	    fb->format->format == DRM_FORMAT_NV12)
 		format |= NV_PVIDEO_FORMAT_COLOR_LE_CR8YB8CB8YA8;
-	if (fb->format->format == DRM_FORMAT_NV12)
+	if (fb->format->format == DRM_FORMAT_NV12 ||
+	    fb->format->format == DRM_FORMAT_NV21)
 		format |= NV_PVIDEO_FORMAT_PLANAR;
 	if (nv_plane->iturbt_709)
 		format |= NV_PVIDEO_FORMAT_MATRIX_ITURBT709;
 	if (nv_plane->colorkey & (1 << 24))
 		format |= NV_PVIDEO_FORMAT_DISPLAY_COLOR_KEY;
 
-	if (fb->format->format == DRM_FORMAT_NV12) {
+	if (format & NV_PVIDEO_FORMAT_PLANAR) {
 		nvif_wr32(dev, NV_PVIDEO_UVPLANE_BASE(flip), 0);
 		nvif_wr32(dev, NV_PVIDEO_UVPLANE_OFFSET_BUFF(flip),
 			nv_fb->nvbo->bo.offset + fb->offsets[1]);
