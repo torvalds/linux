@@ -250,12 +250,6 @@ static int dsa_slave_port_obj_add(struct net_device *dev,
 	 */
 
 	switch (obj->id) {
-	case SWITCHDEV_OBJ_ID_PORT_FDB:
-		if (switchdev_trans_ph_prepare(trans))
-			return 0;
-		err = dsa_port_fdb_add(dp, SWITCHDEV_OBJ_PORT_FDB(obj)->addr,
-				       SWITCHDEV_OBJ_PORT_FDB(obj)->vid);
-		break;
 	case SWITCHDEV_OBJ_ID_PORT_MDB:
 		err = dsa_port_mdb_add(dp, SWITCHDEV_OBJ_PORT_MDB(obj), trans);
 		break;
@@ -279,10 +273,6 @@ static int dsa_slave_port_obj_del(struct net_device *dev,
 	int err;
 
 	switch (obj->id) {
-	case SWITCHDEV_OBJ_ID_PORT_FDB:
-		err = dsa_port_fdb_del(dp, SWITCHDEV_OBJ_PORT_FDB(obj)->addr,
-				       SWITCHDEV_OBJ_PORT_FDB(obj)->vid);
-		break;
 	case SWITCHDEV_OBJ_ID_PORT_MDB:
 		err = dsa_port_mdb_del(dp, SWITCHDEV_OBJ_PORT_MDB(obj));
 		break;
@@ -985,8 +975,8 @@ static const struct net_device_ops dsa_slave_netdev_ops = {
 	.ndo_change_rx_flags	= dsa_slave_change_rx_flags,
 	.ndo_set_rx_mode	= dsa_slave_set_rx_mode,
 	.ndo_set_mac_address	= dsa_slave_set_mac_address,
-	.ndo_fdb_add		= switchdev_port_fdb_add,
-	.ndo_fdb_del		= switchdev_port_fdb_del,
+	.ndo_fdb_add		= dsa_legacy_fdb_add,
+	.ndo_fdb_del		= dsa_legacy_fdb_del,
 	.ndo_fdb_dump		= switchdev_port_fdb_dump,
 	.ndo_do_ioctl		= dsa_slave_ioctl,
 	.ndo_get_iflink		= dsa_slave_get_iflink,

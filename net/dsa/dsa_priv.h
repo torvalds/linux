@@ -111,6 +111,13 @@ bool dsa_schedule_work(struct work_struct *work);
 /* legacy.c */
 int dsa_legacy_register(void);
 void dsa_legacy_unregister(void);
+int dsa_legacy_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
+		       struct net_device *dev,
+		       const unsigned char *addr, u16 vid,
+		       u16 flags);
+int dsa_legacy_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
+		       struct net_device *dev,
+		       const unsigned char *addr, u16 vid);
 
 /* port.c */
 int dsa_port_set_state(struct dsa_port *dp, u8 state,
