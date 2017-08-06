@@ -1632,8 +1632,7 @@ static int charger_manager_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	cm = devm_kzalloc(&pdev->dev,
-			sizeof(struct charger_manager),	GFP_KERNEL);
+	cm = devm_kzalloc(&pdev->dev, sizeof(*cm), GFP_KERNEL);
 	if (!cm)
 		return -ENOMEM;
 
