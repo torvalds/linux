@@ -1331,6 +1331,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 	while (!skb_queue_empty(&skbs)) {
 		struct sk_buff *skb = __skb_dequeue(&skbs);
 		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+		bool flushed = false;
 
 		skb_freed++;
 
@@ -1343,6 +1344,10 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		case TX_STATUS_SUCCESS:
 		case TX_STATUS_DIRECT_DONE:
 			info->flags |= IEEE80211_TX_STAT_ACK;
+			break;
+		case TX_STATUS_FAIL_FIFO_FLUSHED:
+		case TX_STATUS_FAIL_DRAIN_FLOW:
+			flushed = true;
 			break;
 		case TX_STATUS_FAIL_DEST_PS:
 			/* the FW should have stopped the queue and not
@@ -1366,7 +1371,7 @@ static void iwl_mvm_rx_tx_cmd_single(struct iwl_mvm *mvm,
 		/* Single frame failure in an AMPDU queue => send BAR */
 		if (info->flags & IEEE80211_TX_CTL_AMPDU &&
 		    !(info->flags & IEEE80211_TX_STAT_ACK) &&
-		    !(info->flags & IEEE80211_TX_STAT_TX_FILTERED))
+		    !(info->flags & IEEE80211_TX_STAT_TX_FILTERED) && !flushed)
 			info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
 		info->flags &= ~IEEE80211_TX_CTL_AMPDU;
 
