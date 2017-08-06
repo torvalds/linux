@@ -1450,9 +1450,11 @@ bool aa_update_label_name(struct aa_ns *ns, struct aa_label *label, gfp_t gfp)
  * cached label name is present and visible
  * @label->hname only exists if label is namespace hierachical
  */
-static inline bool use_label_hname(struct aa_ns *ns, struct aa_label *label)
+static inline bool use_label_hname(struct aa_ns *ns, struct aa_label *label,
+				   int flags)
 {
-	if (label->hname && labels_ns(label) == ns)
+	if (label->hname && (!ns || labels_ns(label) == ns) &&
+	    !(flags & ~FLAG_SHOW_MODE))
 		return true;
 
 	return false;
@@ -1710,10 +1712,8 @@ void aa_label_xaudit(struct audit_buffer *ab, struct aa_ns *ns,
 	AA_BUG(!ab);
 	AA_BUG(!label);
 
-	if (!ns)
-		ns = labels_ns(label);
-
-	if (!use_label_hname(ns, label) || display_mode(ns, label, flags)) {
+	if (!use_label_hname(ns, label, flags) ||
+	    display_mode(ns, label, flags)) {
 		len  = aa_label_asxprint(&name, ns, label, flags, gfp);
 		if (len == -1) {
 			AA_DEBUG("label print error");
@@ -1738,10 +1738,7 @@ void aa_label_seq_xprint(struct seq_file *f, struct aa_ns *ns,
 	AA_BUG(!f);
 	AA_BUG(!label);
 
-	if (!ns)
-		ns = labels_ns(label);
-
-	if (!use_label_hname(ns, label)) {
+	if (!use_label_hname(ns, label, flags)) {
 		char *str;
 		int len;
 
@@ -1764,10 +1761,7 @@ void aa_label_xprintk(struct aa_ns *ns, struct aa_label *label, int flags,
 {
 	AA_BUG(!label);
 
-	if (!ns)
-		ns = labels_ns(label);
-
-	if (!use_label_hname(ns, label)) {
+	if (!use_label_hname(ns, label, flags)) {
 		char *str;
 		int len;
 
