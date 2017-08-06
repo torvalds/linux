@@ -5702,6 +5702,42 @@ ext4_reserve_inode_write(handle_t *handle, struct inode *inode,
 	return err;
 }
 
+static int __ext4_expand_extra_isize(struct inode *inode,
+				     unsigned int new_extra_isize,
+				     struct ext4_iloc *iloc,
+				     handle_t *handle, int *no_expand)
+{
+	struct ext4_inode *raw_inode;
+	struct ext4_xattr_ibody_header *header;
+	int error;
+
+	raw_inode = ext4_raw_inode(iloc);
+
+	header = IHDR(inode, raw_inode);
+
+	/* No extended attributes present */
+	if (!ext4_test_inode_state(inode, EXT4_STATE_XATTR) ||
+	    header->h_magic != cpu_to_le32(EXT4_XATTR_MAGIC)) {
+		memset((void *)raw_inode + EXT4_GOOD_OLD_INODE_SIZE +
+		       EXT4_I(inode)->i_extra_isize, 0,
+		       new_extra_isize - EXT4_I(inode)->i_extra_isize);
+		EXT4_I(inode)->i_extra_isize = new_extra_isize;
+		return 0;
+	}
+
+	/* try to expand with EAs present */
+	error = ext4_expand_extra_isize_ea(inode, new_extra_isize,
+					   raw_inode, handle);
+	if (error) {
+		/*
+		 * Inode size expansion failed; don't try again
+		 */
+		*no_expand = 1;
+	}
+
+	return error;
+}
+
 /*
  * Expand an inode by new_extra_isize bytes.
  * Returns 0 on success or negative error number on failure.
@@ -5711,8 +5747,6 @@ static int ext4_try_to_expand_extra_isize(struct inode *inode,
 					  struct ext4_iloc iloc,
 					  handle_t *handle)
 {
-	struct ext4_inode *raw_inode;
-	struct ext4_xattr_ibody_header *header;
 	int no_expand;
 	int error;
 
@@ -5736,32 +5770,53 @@ static int ext4_try_to_expand_extra_isize(struct inode *inode,
 	if (ext4_write_trylock_xattr(inode, &no_expand) == 0)
 		return -EBUSY;
 
-	raw_inode = ext4_raw_inode(&iloc);
-
-	header = IHDR(inode, raw_inode);
-
-	/* No extended attributes present */
-	if (!ext4_test_inode_state(inode, EXT4_STATE_XATTR) ||
-	    header->h_magic != cpu_to_le32(EXT4_XATTR_MAGIC)) {
-		memset((void *)raw_inode + EXT4_GOOD_OLD_INODE_SIZE +
-		       EXT4_I(inode)->i_extra_isize, 0,
-		       new_extra_isize - EXT4_I(inode)->i_extra_isize);
-		EXT4_I(inode)->i_extra_isize = new_extra_isize;
-		ext4_write_unlock_xattr(inode, &no_expand);
-		return 0;
-	}
-
-	/* try to expand with EAs present */
-	error = ext4_expand_extra_isize_ea(inode, new_extra_isize,
-					   raw_inode, handle);
-	if (error) {
-		/*
-		 * Inode size expansion failed; don't try again
-		 */
-		no_expand = 1;
-	}
+	error = __ext4_expand_extra_isize(inode, new_extra_isize, &iloc,
+					  handle, &no_expand);
 	ext4_write_unlock_xattr(inode, &no_expand);
 
+	return error;
+}
+
+int ext4_expand_extra_isize(struct inode *inode,
+			    unsigned int new_extra_isize,
+			    struct ext4_iloc *iloc)
+{
+	handle_t *handle;
+	int no_expand;
+	int error, rc;
+
+	if (ext4_test_inode_state(inode, EXT4_STATE_NO_EXPAND)) {
+		brelse(iloc->bh);
+		return -EOVERFLOW;
+	}
+
+	handle = ext4_journal_start(inode, EXT4_HT_INODE,
+				    EXT4_DATA_TRANS_BLOCKS(inode->i_sb));
+	if (IS_ERR(handle)) {
+		error = PTR_ERR(handle);
+		brelse(iloc->bh);
+		return error;
+	}
+
+	ext4_write_lock_xattr(inode, &no_expand);
+
+	BUFFER_TRACE(iloc.bh, "get_write_access");
+	error = ext4_journal_get_write_access(handle, iloc->bh);
+	if (error) {
+		brelse(iloc->bh);
+		goto out_stop;
+	}
+
+	error = __ext4_expand_extra_isize(inode, new_extra_isize, iloc,
+					  handle, &no_expand);
+
+	rc = ext4_mark_iloc_dirty(handle, inode, iloc);
+	if (!error)
+		error = rc;
+
+	ext4_write_unlock_xattr(inode, &no_expand);
+out_stop:
+	ext4_journal_stop(handle);
 	return error;
 }
 

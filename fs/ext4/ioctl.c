@@ -349,11 +349,14 @@ static int ext4_ioctl_setproject(struct file *filp, __u32 projid)
 
 	raw_inode = ext4_raw_inode(&iloc);
 	if (!EXT4_FITS_IN_INODE(raw_inode, ei, i_projid)) {
-		err = -EOVERFLOW;
+		err = ext4_expand_extra_isize(inode,
+					      EXT4_SB(sb)->s_want_extra_isize,
+					      &iloc);
+		if (err)
+			goto out_unlock;
+	} else {
 		brelse(iloc.bh);
-		goto out_unlock;
 	}
-	brelse(iloc.bh);
 
 	dquot_initialize(inode);
 
