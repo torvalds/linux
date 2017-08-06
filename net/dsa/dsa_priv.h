@@ -106,6 +106,7 @@ void dsa_cpu_dsa_destroy(struct dsa_port *dport);
 const struct dsa_device_ops *dsa_resolve_tag_protocol(int tag_protocol);
 int dsa_cpu_port_ethtool_setup(struct dsa_port *cpu_dp);
 void dsa_cpu_port_ethtool_restore(struct dsa_port *cpu_dp);
+bool dsa_schedule_work(struct work_struct *work);
 
 /* legacy.c */
 int dsa_legacy_register(void);

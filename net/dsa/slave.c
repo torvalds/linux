@@ -1332,18 +1332,141 @@ static int dsa_slave_netdevice_event(struct notifier_block *nb,
 	return NOTIFY_DONE;
 }
 
+struct dsa_switchdev_event_work {
+	struct work_struct work;
+	struct switchdev_notifier_fdb_info fdb_info;
+	struct net_device *dev;
+	unsigned long event;
+};
+
+static void dsa_slave_switchdev_event_work(struct work_struct *work)
+{
+	struct dsa_switchdev_event_work *switchdev_work =
+		container_of(work, struct dsa_switchdev_event_work, work);
+	struct net_device *dev = switchdev_work->dev;
+	struct switchdev_notifier_fdb_info *fdb_info;
+	struct dsa_slave_priv *p = netdev_priv(dev);
+	int err;
+
+	rtnl_lock();
+	switch (switchdev_work->event) {
+	case SWITCHDEV_FDB_ADD_TO_DEVICE:
+		fdb_info = &switchdev_work->fdb_info;
+		err = dsa_port_fdb_add(p->dp, fdb_info->addr, fdb_info->vid);
+		if (err) {
+			netdev_dbg(dev, "fdb add failed err=%d\n", err);
+			break;
+		}
+		call_switchdev_notifiers(SWITCHDEV_FDB_OFFLOADED, dev,
+					 &fdb_info->info);
+		break;
+
+	case SWITCHDEV_FDB_DEL_TO_DEVICE:
+		fdb_info = &switchdev_work->fdb_info;
+		err = dsa_port_fdb_del(p->dp, fdb_info->addr, fdb_info->vid);
+		if (err) {
+			netdev_dbg(dev, "fdb del failed err=%d\n", err);
+			dev_close(dev);
+		}
+		break;
+	}
+	rtnl_unlock();
+
+	kfree(switchdev_work->fdb_info.addr);
+	kfree(switchdev_work);
+	dev_put(dev);
+}
+
+static int
+dsa_slave_switchdev_fdb_work_init(struct dsa_switchdev_event_work *
+				  switchdev_work,
+				  const struct switchdev_notifier_fdb_info *
+				  fdb_info)
+{
+	memcpy(&switchdev_work->fdb_info, fdb_info,
+	       sizeof(switchdev_work->fdb_info));
+	switchdev_work->fdb_info.addr = kzalloc(ETH_ALEN, GFP_ATOMIC);
+	if (!switchdev_work->fdb_info.addr)
+		return -ENOMEM;
+	ether_addr_copy((u8 *)switchdev_work->fdb_info.addr,
+			fdb_info->addr);
+	return 0;
+}
+
+/* Called under rcu_read_lock() */
+static int dsa_slave_switchdev_event(struct notifier_block *unused,
+				     unsigned long event, void *ptr)
+{
+	struct net_device *dev = switchdev_notifier_info_to_dev(ptr);
+	struct dsa_switchdev_event_work *switchdev_work;
+
+	if (!dsa_slave_dev_check(dev))
+		return NOTIFY_DONE;
+
+	switchdev_work = kzalloc(sizeof(*switchdev_work), GFP_ATOMIC);
+	if (!switchdev_work)
+		return NOTIFY_BAD;
+
+	INIT_WORK(&switchdev_work->work,
+		  dsa_slave_switchdev_event_work);
+	switchdev_work->dev = dev;
+	switchdev_work->event = event;
+
+	switch (event) {
+	case SWITCHDEV_FDB_ADD_TO_DEVICE: /* fall through */
+	case SWITCHDEV_FDB_DEL_TO_DEVICE:
+		if (dsa_slave_switchdev_fdb_work_init(switchdev_work,
+						      ptr))
+			goto err_fdb_work_init;
+		dev_hold(dev);
+		break;
+	default:
+		kfree(switchdev_work);
+		return NOTIFY_DONE;
+	}
+
+	dsa_schedule_work(&switchdev_work->work);
+	return NOTIFY_OK;
+
+err_fdb_work_init:
+	kfree(switchdev_work);
+	return NOTIFY_BAD;
+}
+
 static struct notifier_block dsa_slave_nb __read_mostly = {
-	.notifier_call	= dsa_slave_netdevice_event,
+	.notifier_call  = dsa_slave_netdevice_event,
+};
+
+static struct notifier_block dsa_slave_switchdev_notifier = {
+	.notifier_call = dsa_slave_switchdev_event,
 };
 
 int dsa_slave_register_notifier(void)
 {
-	return register_netdevice_notifier(&dsa_slave_nb);
+	int err;
+
+	err = register_netdevice_notifier(&dsa_slave_nb);
+	if (err)
+		return err;
+
+	err = register_switchdev_notifier(&dsa_slave_switchdev_notifier);
+	if (err)
+		goto err_switchdev_nb;
+
+	return 0;
+
+err_switchdev_nb:
+	unregister_netdevice_notifier(&dsa_slave_nb);
+	return err;
 }
 
 void dsa_slave_unregister_notifier(void)
 {
 	int err;
+
+	err = unregister_switchdev_notifier(&dsa_slave_switchdev_notifier);
+	if (err)
+		pr_err("DSA: failed to unregister switchdev notifier (%d)\n", err);
 
 	err = unregister_netdevice_notifier(&dsa_slave_nb);
 	if (err)
