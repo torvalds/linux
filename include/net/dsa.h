@@ -400,10 +400,6 @@ struct dsa_switch_ops {
 				struct switchdev_trans *trans);
 	int	(*port_mdb_del)(struct dsa_switch *ds, int port,
 				const struct switchdev_obj_port_mdb *mdb);
-	int	(*port_mdb_dump)(struct dsa_switch *ds, int port,
-				 struct switchdev_obj_port_mdb *mdb,
-				  switchdev_obj_dump_cb_t *cb);
-
 	/*
 	 * RXNFC
 	 */

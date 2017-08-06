@@ -299,9 +299,6 @@ static int dsa_slave_port_obj_dump(struct net_device *dev,
 	case SWITCHDEV_OBJ_ID_PORT_FDB:
 		err = dsa_port_fdb_dump(dp, SWITCHDEV_OBJ_PORT_FDB(obj), cb);
 		break;
-	case SWITCHDEV_OBJ_ID_PORT_MDB:
-		err = dsa_port_mdb_dump(dp, SWITCHDEV_OBJ_PORT_MDB(obj), cb);
-		break;
 	default:
 		err = -EOPNOTSUPP;
 		break;
