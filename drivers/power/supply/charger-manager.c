@@ -1645,6 +1645,8 @@ static int charger_manager_probe(struct platform_device *pdev)
 	/* Initialize alarm timer */
 	if (alarmtimer_get_rtcdev()) {
 		cm_timer = devm_kzalloc(cm->dev, sizeof(*cm_timer), GFP_KERNEL);
+		if (!cm_timer)
+			return -ENOMEM;
 		alarm_init(cm_timer, ALARM_BOOTTIME, cm_timer_func);
 	}
 
