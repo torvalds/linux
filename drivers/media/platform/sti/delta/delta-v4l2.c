@@ -1095,7 +1095,7 @@ static int delta_job_ready(void *priv)
 }
 
 /* mem-to-mem ops */
-static struct v4l2_m2m_ops delta_m2m_ops = {
+static const struct v4l2_m2m_ops delta_m2m_ops = {
 	.device_run     = delta_device_run,
 	.job_ready	= delta_job_ready,
 	.job_abort      = delta_job_abort,
