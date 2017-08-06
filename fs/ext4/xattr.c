@@ -2637,7 +2637,7 @@ int ext4_expand_extra_isize_ea(struct inode *inode, int new_extra_isize,
 			       struct ext4_inode *raw_inode, handle_t *handle)
 {
 	struct ext4_xattr_ibody_header *header;
-	struct buffer_head *bh = NULL;
+	struct buffer_head *bh;
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	static unsigned int mnt_count;
 	size_t min_offs;
@@ -2651,7 +2651,7 @@ int ext4_expand_extra_isize_ea(struct inode *inode, int new_extra_isize,
 retry:
 	isize_diff = new_extra_isize - EXT4_I(inode)->i_extra_isize;
 	if (EXT4_I(inode)->i_extra_isize >= new_extra_isize)
-		goto out;
+		return 0;
 
 	header = IHDR(inode, raw_inode);
 
@@ -2686,6 +2686,7 @@ retry:
 			EXT4_ERROR_INODE(inode, "bad block %llu",
 					 EXT4_I(inode)->i_file_acl);
 			error = -EFSCORRUPTED;
+			brelse(bh);
 			goto cleanup;
 		}
 		base = BHDR(bh);
@@ -2693,11 +2694,11 @@ retry:
 		min_offs = end - base;
 		bfree = ext4_xattr_free_space(BFIRST(bh), &min_offs, base,
 					      NULL);
+		brelse(bh);
 		if (bfree + ifree < isize_diff) {
 			if (!tried_min_extra_isize && s_min_extra_isize) {
 				tried_min_extra_isize++;
 				new_extra_isize = s_min_extra_isize;
-				brelse(bh);
 				goto retry;
 			}
 			error = -ENOSPC;
@@ -2715,7 +2716,6 @@ retry:
 		    s_min_extra_isize) {
 			tried_min_extra_isize++;
 			new_extra_isize = s_min_extra_isize;
-			brelse(bh);
 			goto retry;
 		}
 		goto cleanup;
@@ -2727,13 +2727,9 @@ shift:
 			EXT4_GOOD_OLD_INODE_SIZE + new_extra_isize,
 			(void *)header, total_ino);
 	EXT4_I(inode)->i_extra_isize = new_extra_isize;
-	brelse(bh);
-out:
-	return 0;
 
 cleanup:
-	brelse(bh);
-	if (mnt_count != le16_to_cpu(sbi->s_es->s_mnt_count)) {
+	if (error && (mnt_count != le16_to_cpu(sbi->s_es->s_mnt_count))) {
 		ext4_warning(inode->i_sb, "Unable to expand inode %lu. Delete some EAs or run e2fsck.",
 			     inode->i_ino);
 		mnt_count = le16_to_cpu(sbi->s_es->s_mnt_count);
