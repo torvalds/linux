@@ -5494,10 +5494,10 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 	ioc->ctl_cmds.status = MPT3_CMD_NOT_USED;
 	mutex_init(&ioc->ctl_cmds.mutex);
 
-	if (!ioc->base_cmds.reply || !ioc->transport_cmds.reply ||
-	    !ioc->scsih_cmds.reply || !ioc->tm_cmds.reply ||
-	    !ioc->config_cmds.reply || !ioc->ctl_cmds.reply ||
-	    !ioc->ctl_cmds.sense) {
+	if (!ioc->base_cmds.reply || !ioc->port_enable_cmds.reply ||
+	    !ioc->transport_cmds.reply || !ioc->scsih_cmds.reply ||
+	    !ioc->tm_cmds.reply || !ioc->config_cmds.reply ||
+	    !ioc->ctl_cmds.reply || !ioc->ctl_cmds.sense) {
 		r = -ENOMEM;
 		goto out_free_resources;
 	}
