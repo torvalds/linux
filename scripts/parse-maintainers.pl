@@ -2,9 +2,9 @@
 
 use strict;
 
-my %map;
+my %hash;
 
-# sort comparison function
+# sort comparison functions
 sub by_category($$) {
     my ($a, $b) = @_;
 
@@ -15,20 +15,47 @@ sub by_category($$) {
     $a =~ s/THE REST/ZZZZZZ/g;
     $b =~ s/THE REST/ZZZZZZ/g;
 
-    $a cmp $b;
+    return $a cmp $b;
+}
+
+sub by_pattern($$) {
+    my ($a, $b) = @_;
+    my $preferred_order = 'MRPLSWTQBCFXNK';
+
+    my $a1 = uc(substr($a, 0, 1));
+    my $b1 = uc(substr($b, 0, 1));
+
+    my $a_index = index($preferred_order, $a1);
+    my $b_index = index($preferred_order, $b1);
+
+    $a_index = 1000 if ($a_index == -1);
+    $b_index = 1000 if ($b_index == -1);
+
+    if (($a1 =~ /^F$/ && $b1 =~ /^F$/) ||
+	($a1 =~ /^X$/ && $b1 =~ /^X$/)) {
+	return $a cmp $b;
+    }
+
+    if ($a_index < $b_index) {
+	return -1;
+    } elsif ($a_index == $b_index) {
+	return 0;
+    } else {
+	return 1;
+    }
 }
 
 sub alpha_output {
-    my $key;
-    my $sort_method = \&by_category;
-    my $sep = "";
-
-    foreach $key (sort $sort_method keys %map) {
-        if ($key ne " ") {
-            print $sep . $key . "\n";
-            $sep = "\n";
-        }
-        print $map{$key};
+    foreach my $key (sort by_category keys %hash) {
+	if ($key eq " ") {
+	    chomp $hash{$key};
+	    print $hash{$key};
+	} else {
+	    print "\n" . $key . "\n";
+	    foreach my $pattern (sort by_pattern split('\n', $hash{$key})) {
+		print($pattern . "\n");
+	    }
+	}
     }
 }
 
@@ -42,7 +69,7 @@ sub trim {
 sub file_input {
     my $lastline = "";
     my $case = " ";
-    $map{$case} = "";
+    $hash{$case} = "";
 
     while (<>) {
         my $line = $_;
@@ -51,27 +78,28 @@ sub file_input {
         if ($line =~ m/^([A-Z]):\s*(.*)/) {
             $line = $1 . ":\t" . trim($2) . "\n";
             if ($lastline eq "") {
-                $map{$case} = $map{$case} . $line;
+                $hash{$case} = $hash{$case} . $line;
                 next;
             }
             $case = trim($lastline);
-            exists $map{$case} and die "Header '$case' already exists";
-            $map{$case} = $line;
+            exists $hash{$case} and die "Header '$case' already exists";
+            $hash{$case} = $line;
             $lastline = "";
             next;
         }
 
         if ($case eq " ") {
-            $map{$case} = $map{$case} . $lastline;
+            $hash{$case} = $hash{$case} . $lastline;
             $lastline = $line;
             next;
         }
         trim($lastline) eq "" or die ("Odd non-pattern line '$lastline' for '$case'");
         $lastline = $line;
     }
-    $map{$case} = $map{$case} . $lastline;
+    $hash{$case} = $hash{$case} . $lastline;
 }
 
-&file_input;
-&alpha_output;
+file_input();
+alpha_output();
+
 exit(0);
