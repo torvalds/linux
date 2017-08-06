@@ -2638,12 +2638,14 @@ int ext4_expand_extra_isize_ea(struct inode *inode, int new_extra_isize,
 {
 	struct ext4_xattr_ibody_header *header;
 	struct buffer_head *bh = NULL;
+	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
+	static unsigned int mnt_count;
 	size_t min_offs;
 	size_t ifree, bfree;
 	int total_ino;
 	void *base, *end;
 	int error = 0, tried_min_extra_isize = 0;
-	int s_min_extra_isize = le16_to_cpu(EXT4_SB(inode->i_sb)->s_es->s_min_extra_isize);
+	int s_min_extra_isize = le16_to_cpu(sbi->s_es->s_min_extra_isize);
 	int isize_diff;	/* How much do we need to grow i_extra_isize */
 
 retry:
@@ -2731,6 +2733,11 @@ out:
 
 cleanup:
 	brelse(bh);
+	if (mnt_count != le16_to_cpu(sbi->s_es->s_mnt_count)) {
+		ext4_warning(inode->i_sb, "Unable to expand inode %lu. Delete some EAs or run e2fsck.",
+			     inode->i_ino);
+		mnt_count = le16_to_cpu(sbi->s_es->s_mnt_count);
+	}
 	return error;
 }
 
