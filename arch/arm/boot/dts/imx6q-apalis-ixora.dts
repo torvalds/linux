@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2016 Toradex AG
+ * Copyright 2014-2017 Toradex AG
  * Copyright 2012 Freescale Semiconductor, Inc.
  * Copyright 2011 Linaro Ltd.
  *
@@ -268,7 +268,7 @@
 /* SD1 */
 &usdhc2 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_sd_cd>;
+	pinctrl-0 = <&pinctrl_usdhc2 &pinctrl_sd_cd>;
 	cd-gpios = <&gpio6 14 GPIO_ACTIVE_LOW>;
 	status = "okay";
 };
