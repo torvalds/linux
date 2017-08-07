@@ -1824,20 +1824,13 @@ check_deadlock(struct task_struct *curr, struct held_lock *next,
  */
 static int
 check_prev_add(struct task_struct *curr, struct held_lock *prev,
-	       struct held_lock *next, int distance, int *stack_saved)
+	       struct held_lock *next, int distance, struct stack_trace *trace,
+	       int (*save)(struct stack_trace *trace))
 {
 	struct lock_list *entry;
 	int ret;
 	struct lock_list this;
 	struct lock_list *uninitialized_var(target_entry);
-	/*
-	 * Static variable, serialized by the graph_lock().
-	 *
-	 * We use this static variable to save the stack trace in case
-	 * we call into this function multiple times due to encountering
-	 * trylocks in the held lock stack.
-	 */
-	static struct stack_trace trace;
 
 	/*
 	 * Prove that the new <prev> -> <next> dependency would not
@@ -1899,11 +1892,8 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
 		return print_bfs_bug(ret);
 
 
-	if (!*stack_saved) {
-		if (!save_trace(&trace))
-			return 0;
-		*stack_saved = 1;
-	}
+	if (save && !save(trace))
+		return 0;
 
 	/*
 	 * Ok, all validations passed, add the new lock
@@ -1911,14 +1901,14 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
 	 */
 	ret = add_lock_to_list(hlock_class(next),
 			       &hlock_class(prev)->locks_after,
-			       next->acquire_ip, distance, &trace);
+			       next->acquire_ip, distance, trace);
 
 	if (!ret)
 		return 0;
 
 	ret = add_lock_to_list(hlock_class(prev),
 			       &hlock_class(next)->locks_before,
-			       next->acquire_ip, distance, &trace);
+			       next->acquire_ip, distance, trace);
 	if (!ret)
 		return 0;
 
@@ -1926,8 +1916,6 @@ check_prev_add(struct task_struct *curr, struct held_lock *prev,
 	 * Debugging printouts:
 	 */
 	if (verbose(hlock_class(prev)) || verbose(hlock_class(next))) {
-		/* We drop graph lock, so another thread can overwrite trace. */
-		*stack_saved = 0;
 		graph_unlock();
 		printk("\n new dependency: ");
 		print_lock_name(hlock_class(prev));
@@ -1951,8 +1939,9 @@ static int
 check_prevs_add(struct task_struct *curr, struct held_lock *next)
 {
 	int depth = curr->lockdep_depth;
-	int stack_saved = 0;
 	struct held_lock *hlock;
+	struct stack_trace trace;
+	int (*save)(struct stack_trace *trace) = save_trace;
 
 	/*
 	 * Debugging checks.
@@ -1977,9 +1966,18 @@ check_prevs_add(struct task_struct *curr, struct held_lock *next)
 		 * added:
 		 */
 		if (hlock->read != 2 && hlock->check) {
-			if (!check_prev_add(curr, hlock, next,
-						distance, &stack_saved))
+			int ret = check_prev_add(curr, hlock, next,
+						distance, &trace, save);
+			if (!ret)
 				return 0;
+
+			/*
+			 * Stop saving stack_trace if save_trace() was
+			 * called at least once:
+			 */
+			if (save && ret == 2)
+				save = NULL;
+
 			/*
 			 * Stop after the first non-trylock entry,
 			 * as non-trylock entries have added their
