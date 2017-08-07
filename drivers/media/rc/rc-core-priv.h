@@ -41,7 +41,6 @@ struct ir_raw_event_ctrl {
 	/* fifo for the pulse/space durations */
 	DECLARE_KFIFO(kfifo, struct ir_raw_event, MAX_IR_EVENT_SIZE);
 	ktime_t				last_event;	/* when last event occurred */
-	enum raw_event_type		last_type;	/* last event type */
 	struct rc_dev			*dev;		/* pointer to the parent rc_dev */
 	/* edge driver */
 	struct timer_list edge_handle;
