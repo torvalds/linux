@@ -271,10 +271,7 @@
 };
 
 &iomuxc {
-	/*
-	 * Mux the Apalis GPIOs
-	 * GPIO5, 6 used by optional fusion_F0710A kernel module
-	 */
+	/* Mux the Apalis GPIOs */
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_apalis_gpio1 &pinctrl_apalis_gpio2
 		     &pinctrl_apalis_gpio3 &pinctrl_apalis_gpio4
