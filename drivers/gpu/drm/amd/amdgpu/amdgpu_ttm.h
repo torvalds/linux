@@ -66,6 +66,7 @@ int amdgpu_gtt_mgr_alloc(struct ttm_mem_type_manager *man,
 			 struct ttm_buffer_object *tbo,
 			 const struct ttm_place *place,
 			 struct ttm_mem_reg *mem);
+uint64_t amdgpu_gtt_mgr_usage(struct ttm_mem_type_manager *man);
 
 int amdgpu_copy_buffer(struct amdgpu_ring *ring, uint64_t src_offset,
 		       uint64_t dst_offset, uint32_t byte_count,

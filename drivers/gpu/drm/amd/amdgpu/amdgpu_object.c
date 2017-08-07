@@ -62,7 +62,6 @@ static void amdgpu_update_memory_usage(struct amdgpu_device *adev,
 	if (new_mem) {
 		switch (new_mem->mem_type) {
 		case TTM_PL_TT:
-			atomic64_add(new_mem->size, &adev->gtt_usage);
 			break;
 		case TTM_PL_VRAM:
 			atomic64_add(new_mem->size, &adev->vram_usage);
@@ -75,7 +74,6 @@ static void amdgpu_update_memory_usage(struct amdgpu_device *adev,
 	if (old_mem) {
 		switch (old_mem->mem_type) {
 		case TTM_PL_TT:
-			atomic64_sub(old_mem->size, &adev->gtt_usage);
 			break;
 		case TTM_PL_VRAM:
 			atomic64_sub(old_mem->size, &adev->vram_usage);
