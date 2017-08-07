@@ -1525,7 +1525,7 @@ void ip_send_unicast_reply(struct sock *sk, struct sk_buff *skb,
 	int err;
 	int oif;
 
-	if (__ip_options_echo(&replyopts.opt.opt, skb, sopt))
+	if (__ip_options_echo(net, &replyopts.opt.opt, skb, sopt))
 		return;
 
 	ipc.addr = daddr;

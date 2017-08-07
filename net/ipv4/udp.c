@@ -1176,7 +1176,11 @@ static void udp_set_dev_scratch(struct sk_buff *skb)
 	scratch->csum_unnecessary = !!skb_csum_unnecessary(skb);
 	scratch->is_linear = !skb_is_nonlinear(skb);
 #endif
-	if (likely(!skb->_skb_refdst))
+	/* all head states execept sp (dst, sk, nf) are always cleared by
+	 * udp_rcv() and we need to preserve secpath, if present, to eventually
+	 * process IP_CMSG_PASSSEC at recvmsg() time
+	 */
+	if (likely(!skb_sec_path(skb)))
 		scratch->_tsize_state |= UDP_SKB_IS_STATELESS;
 }
 
@@ -1781,13 +1785,6 @@ static int __udp_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	} else {
 		sk_mark_napi_id_once(sk, skb);
 	}
-
-	/* At recvmsg() time we may access skb->dst or skb->sp depending on
-	 * the IP options and the cmsg flags, elsewhere can we clear all
-	 * pending head states while they are hot in the cache
-	 */
-	if (likely(IPCB(skb)->opt.optlen == 0 && !skb_sec_path(skb)))
-		skb_release_head_state(skb);
 
 	rc = __udp_enqueue_schedule_skb(sk, skb);
 	if (rc < 0) {
