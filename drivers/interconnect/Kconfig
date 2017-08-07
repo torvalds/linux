@@ -11,6 +11,16 @@ menuconfig INTERCONNECT
 
 if INTERCONNECT
 
+menuconfig INTERCONNECT_TEST
+	tristate "Debugfs test"
+	depends on DEBUG_FS
+	help
+	  Expose the interconnect API to userspace for testing purposes. This
+	  will create /sys/kernel/debug/interconnect-test to allow requesting
+	  bandwidth between endpoints.
+
+	  If unsure, say no.
+
 source "drivers/interconnect/imx/Kconfig"
 source "drivers/interconnect/qcom/Kconfig"
 source "drivers/interconnect/samsung/Kconfig"
