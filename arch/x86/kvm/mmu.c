@@ -4840,7 +4840,8 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u64 error_code,
 	 * Note: AMD only (since it supports the PFERR_GUEST_PAGE_MASK used
 	 *       in PFERR_NEXT_GUEST_PAGE)
 	 */
-	if (error_code == PFERR_NESTED_GUEST_PAGE) {
+	if (vcpu->arch.mmu.direct_map &&
+		error_code == PFERR_NESTED_GUEST_PAGE) {
 		kvm_mmu_unprotect_page(vcpu->kvm, gpa_to_gfn(cr2));
 		return 1;
 	}
