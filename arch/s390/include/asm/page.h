@@ -152,15 +152,25 @@ static inline int devmem_is_allowed(unsigned long pfn)
 
 #endif /* !__ASSEMBLY__ */
 
-#define __PAGE_OFFSET           0x0UL
-#define PAGE_OFFSET             0x0UL
-#define __pa(x)                 (unsigned long)(x)
-#define __va(x)                 (void *)(unsigned long)(x)
-#define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)
-#define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
-#define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
+#define __PAGE_OFFSET		0x0UL
+#define PAGE_OFFSET		0x0UL
+
+#define __pa(x)			((unsigned long)(x))
+#define __va(x)			((void *)(unsigned long)(x))
+
+#define virt_to_pfn(kaddr)	(__pa(kaddr) >> PAGE_SHIFT)
 #define pfn_to_virt(pfn)	__va((pfn) << PAGE_SHIFT)
+
+#define virt_to_page(kaddr)	pfn_to_page(virt_to_pfn(kaddr))
 #define page_to_virt(page)	pfn_to_virt(page_to_pfn(page))
+
+#define phys_to_pfn(kaddr)	((kaddr) >> PAGE_SHIFT)
+#define pfn_to_phys(pfn)	((pfn) << PAGE_SHIFT)
+
+#define phys_to_page(kaddr)	pfn_to_page(phys_to_pfn(kaddr))
+#define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
+
+#define virt_addr_valid(kaddr)	pfn_valid(__pa(kaddr) >> PAGE_SHIFT)
 
 #define VM_DATA_DEFAULT_FLAGS	(VM_READ | VM_WRITE | \
 				 VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC)
