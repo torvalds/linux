@@ -681,12 +681,17 @@ static const struct iommu_ops *iort_iommu_xlate(struct device *dev,
 }
 
 /**
- * iort_set_dma_mask - Set-up dma mask for a device.
+ * iort_dma_setup() - Set-up device DMA parameters.
  *
  * @dev: device to configure
+ * @dma_addr: device DMA address result pointer
+ * @size: DMA range size result pointer
  */
-void iort_set_dma_mask(struct device *dev)
+void iort_dma_setup(struct device *dev, u64 *dma_addr, u64 *dma_size)
 {
+	u64 mask, dmaaddr = 0, size = 0, offset = 0;
+	int ret, msb;
+
 	/*
 	 * Set default coherent_dma_mask to 32 bit.  Drivers are expected to
 	 * setup the correct supported mask.
@@ -700,6 +705,34 @@ void iort_set_dma_mask(struct device *dev)
 	 */
 	if (!dev->dma_mask)
 		dev->dma_mask = &dev->coherent_dma_mask;
+
+	size = max(dev->coherent_dma_mask, dev->coherent_dma_mask + 1);
+
+	if (dev_is_pci(dev)) {
+		ret = acpi_dma_get_range(dev, &dmaaddr, &offset, &size);
+		if (!ret) {
+			msb = fls64(dmaaddr + size - 1);
+			/*
+			 * Round-up to the power-of-two mask or set
+			 * the mask to the whole 64-bit address space
+			 * in case the DMA region covers the full
+			 * memory window.
+			 */
+			mask = msb == 64 ? U64_MAX : (1ULL << msb) - 1;
+			/*
+			 * Limit coherent and dma mask based on size
+			 * retrieved from firmware.
+			 */
+			dev->coherent_dma_mask = mask;
+			*dev->dma_mask = mask;
+		}
+	}
+
+	*dma_addr = dmaaddr;
+	*dma_size = size;
+
+	dev->dma_pfn_offset = PFN_DOWN(offset);
+	dev_dbg(dev, "dma_pfn_offset(%#08llx)\n", offset);
 }
 
 /**

@@ -1446,20 +1446,16 @@ int acpi_dma_get_range(struct device *dev, u64 *dma_addr, u64 *offset,
 int acpi_dma_configure(struct device *dev, enum dev_dma_attr attr)
 {
 	const struct iommu_ops *iommu;
-	u64 size;
+	u64 dma_addr = 0, size = 0;
 
-	iort_set_dma_mask(dev);
+	iort_dma_setup(dev, &dma_addr, &size);
 
 	iommu = iort_iommu_configure(dev);
 	if (IS_ERR(iommu) && PTR_ERR(iommu) == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 
-	size = max(dev->coherent_dma_mask, dev->coherent_dma_mask + 1);
-	/*
-	 * Assume dma valid range starts at 0 and covers the whole
-	 * coherent_dma_mask.
-	 */
-	arch_setup_dma_ops(dev, 0, size, iommu, attr == DEV_DMA_COHERENT);
+	arch_setup_dma_ops(dev, dma_addr, size,
+				iommu, attr == DEV_DMA_COHERENT);
 
 	return 0;
 }
