@@ -3365,11 +3365,12 @@ err_free:
 EXPORT_SYMBOL_GPL(snd_soc_register_component);
 
 /**
- * snd_soc_unregister_component - Unregister a component from the ASoC core
+ * snd_soc_unregister_component - Unregister all related component
+ * from the ASoC core
  *
  * @dev: The device to unregister
  */
-void snd_soc_unregister_component(struct device *dev)
+static int __snd_soc_unregister_component(struct device *dev)
 {
 	struct snd_soc_component *component;
 	int found = 0;
@@ -3391,6 +3392,13 @@ void snd_soc_unregister_component(struct device *dev)
 		snd_soc_component_cleanup(component);
 		kfree(component);
 	}
+
+	return found;
+}
+
+void snd_soc_unregister_component(struct device *dev)
+{
+	while (__snd_soc_unregister_component(dev));
 }
 EXPORT_SYMBOL_GPL(snd_soc_unregister_component);
 
