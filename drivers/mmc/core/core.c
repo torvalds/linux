@@ -763,7 +763,7 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card)
 		/*
 		 * SDHC cards always use these fixed values.
 		 */
-		if (timeout_us > limit_us || mmc_card_blockaddr(card)) {
+		if (timeout_us > limit_us) {
 			data->timeout_ns = limit_us * 1000;
 			data->timeout_clks = 0;
 		}
