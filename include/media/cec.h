@@ -190,6 +190,11 @@ struct cec_adapter {
 
 	u32 tx_timeouts;
 
+#ifdef CONFIG_MEDIA_CEC_RC
+	bool rc_repeating;
+	int rc_last_scancode;
+	u64 rc_last_keypress;
+#endif
 #ifdef CONFIG_CEC_NOTIFIER
 	struct cec_notifier *notifier;
 #endif
