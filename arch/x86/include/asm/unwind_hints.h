@@ -44,10 +44,12 @@
 .endm
 
 .macro UNWIND_HINT_REGS base=%rsp offset=0 indirect=0 extra=1 iret=0
-	.if \base == %rsp && \indirect
-		.set sp_reg, ORC_REG_SP_INDIRECT
-	.elseif \base == %rsp
-		.set sp_reg, ORC_REG_SP
+	.if \base == %rsp
+		.if \indirect
+			.set sp_reg, ORC_REG_SP_INDIRECT
+		.else
+			.set sp_reg, ORC_REG_SP
+		.endif
 	.elseif \base == %rbp
 		.set sp_reg, ORC_REG_BP
 	.elseif \base == %rdi
