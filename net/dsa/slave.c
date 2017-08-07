@@ -873,7 +873,7 @@ static int dsa_slave_setup_tc(struct net_device *dev, enum tc_setup_type type,
 		return -EOPNOTSUPP;
 
 	switch (type) {
-	case TC_SETUP_MATCHALL:
+	case TC_SETUP_CLSMATCHALL:
 		switch (tc->cls_mall->command) {
 		case TC_CLSMATCHALL_REPLACE:
 			return dsa_slave_add_cls_matchall(dev, protocol,
