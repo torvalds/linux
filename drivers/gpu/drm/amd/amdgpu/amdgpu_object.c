@@ -37,53 +37,6 @@
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
 
-
-
-static u64 amdgpu_get_vis_part_size(struct amdgpu_device *adev,
-						struct ttm_mem_reg *mem)
-{
-	if (mem->start << PAGE_SHIFT >= adev->mc.visible_vram_size)
-		return 0;
-
-	return ((mem->start << PAGE_SHIFT) + mem->size) >
-		adev->mc.visible_vram_size ?
-		adev->mc.visible_vram_size - (mem->start << PAGE_SHIFT) :
-		mem->size;
-}
-
-static void amdgpu_update_memory_usage(struct amdgpu_device *adev,
-		       struct ttm_mem_reg *old_mem,
-		       struct ttm_mem_reg *new_mem)
-{
-	u64 vis_size;
-	if (!adev)
-		return;
-
-	if (new_mem) {
-		switch (new_mem->mem_type) {
-		case TTM_PL_TT:
-			break;
-		case TTM_PL_VRAM:
-			atomic64_add(new_mem->size, &adev->vram_usage);
-			vis_size = amdgpu_get_vis_part_size(adev, new_mem);
-			atomic64_add(vis_size, &adev->vram_vis_usage);
-			break;
-		}
-	}
-
-	if (old_mem) {
-		switch (old_mem->mem_type) {
-		case TTM_PL_TT:
-			break;
-		case TTM_PL_VRAM:
-			atomic64_sub(old_mem->size, &adev->vram_usage);
-			vis_size = amdgpu_get_vis_part_size(adev, old_mem);
-			atomic64_sub(vis_size, &adev->vram_vis_usage);
-			break;
-		}
-	}
-}
-
 static void amdgpu_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 {
 	struct amdgpu_device *adev = amdgpu_ttm_adev(tbo->bdev);
@@ -92,7 +45,6 @@ static void amdgpu_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 	bo = container_of(tbo, struct amdgpu_bo, tbo);
 
 	amdgpu_bo_kunmap(bo);
-	amdgpu_update_memory_usage(adev, &bo->tbo.mem, NULL);
 
 	drm_gem_object_release(&bo->gem_base);
 	amdgpu_bo_unref(&bo->parent);
@@ -990,8 +942,6 @@ void amdgpu_bo_move_notify(struct ttm_buffer_object *bo,
 		return;
 
 	/* move_notify is called before move happens */
-	amdgpu_update_memory_usage(adev, &bo->mem, new_mem);
-
 	trace_amdgpu_ttm_bo_move(abo, new_mem->mem_type, old_mem->mem_type);
 }
 

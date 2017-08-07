@@ -1482,8 +1482,6 @@ struct amdgpu_device {
 	struct amdgpu_mman		mman;
 	struct amdgpu_vram_scratch	vram_scratch;
 	struct amdgpu_wb		wb;
-	atomic64_t			vram_usage;
-	atomic64_t			vram_vis_usage;
 	atomic64_t			num_bytes_moved;
 	atomic64_t			num_evictions;
 	atomic64_t			num_vram_cpu_page_faults;

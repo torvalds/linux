@@ -455,10 +455,10 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		ui64 = atomic64_read(&adev->num_vram_cpu_page_faults);
 		return copy_to_user(out, &ui64, min(size, 8u)) ? -EFAULT : 0;
 	case AMDGPU_INFO_VRAM_USAGE:
-		ui64 = atomic64_read(&adev->vram_usage);
+		ui64 = amdgpu_vram_mgr_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
 		return copy_to_user(out, &ui64, min(size, 8u)) ? -EFAULT : 0;
 	case AMDGPU_INFO_VIS_VRAM_USAGE:
-		ui64 = atomic64_read(&adev->vram_vis_usage);
+		ui64 = amdgpu_vram_mgr_vis_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
 		return copy_to_user(out, &ui64, min(size, 8u)) ? -EFAULT : 0;
 	case AMDGPU_INFO_GTT_USAGE:
 		ui64 = amdgpu_gtt_mgr_usage(&adev->mman.bdev.man[TTM_PL_TT]);
@@ -497,7 +497,8 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		mem.vram.total_heap_size = adev->mc.real_vram_size;
 		mem.vram.usable_heap_size =
 			adev->mc.real_vram_size - adev->vram_pin_size;
-		mem.vram.heap_usage = atomic64_read(&adev->vram_usage);
+		mem.vram.heap_usage =
+			amdgpu_vram_mgr_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
 		mem.vram.max_allocation = mem.vram.usable_heap_size * 3 / 4;
 
 		mem.cpu_accessible_vram.total_heap_size =
@@ -506,7 +507,7 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 			adev->mc.visible_vram_size -
 			(adev->vram_pin_size - adev->invisible_pin_size);
 		mem.cpu_accessible_vram.heap_usage =
-			atomic64_read(&adev->vram_vis_usage);
+			amdgpu_vram_mgr_vis_usage(&adev->mman.bdev.man[TTM_PL_VRAM]);
 		mem.cpu_accessible_vram.max_allocation =
 			mem.cpu_accessible_vram.usable_heap_size * 3 / 4;
 
