@@ -2272,19 +2272,17 @@ static void hclge_service_task(struct work_struct *work)
 
 static void hclge_disable_sriov(struct hclge_dev *hdev)
 {
-#ifdef CONFIG_PCI_IOV
-		/* If our VFs are assigned we cannot shut down SR-IOV
-		 * without causing issues, so just leave the hardware
-		 * available but disabled
-		 */
-		if (pci_vfs_assigned(hdev->pdev)) {
-			dev_warn(&hdev->pdev->dev,
-				 "disabling driver while VFs are assigned\n");
-			return;
-		}
+	/* If our VFs are assigned we cannot shut down SR-IOV
+	 * without causing issues, so just leave the hardware
+	 * available but disabled
+	 */
+	if (pci_vfs_assigned(hdev->pdev)) {
+		dev_warn(&hdev->pdev->dev,
+			 "disabling driver while VFs are assigned\n");
+		return;
+	}
 
-		pci_disable_sriov(hdev->pdev);
-#endif
+	pci_disable_sriov(hdev->pdev);
 }
 
 struct hclge_vport *hclge_get_vport(struct hnae3_handle *handle)
@@ -4182,9 +4180,8 @@ static void hclge_uninit_ae_dev(struct hnae3_ae_dev *ae_dev)
 
 	set_bit(HCLGE_STATE_DOWN, &hdev->state);
 
-#ifdef CONFIG_PCI_IOV
-	hclge_disable_sriov(hdev);
-#endif
+	if (IS_ENABLED(CONFIG_PCI_IOV))
+		hclge_disable_sriov(hdev);
 
 	if (hdev->service_timer.data)
 		del_timer_sync(&hdev->service_timer);
