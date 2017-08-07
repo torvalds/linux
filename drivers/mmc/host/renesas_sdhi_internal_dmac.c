@@ -233,7 +233,7 @@ renesas_sdhi_internal_dmac_release_dma(struct tmio_mmc_host *host)
 	host->chan_rx = host->chan_tx = NULL;
 }
 
-static struct tmio_mmc_dma_ops renesas_sdhi_internal_dmac_dma_ops = {
+static const struct tmio_mmc_dma_ops renesas_sdhi_internal_dmac_dma_ops = {
 	.start = renesas_sdhi_internal_dmac_start_dma,
 	.enable = renesas_sdhi_internal_dmac_enable_dma,
 	.request = renesas_sdhi_internal_dmac_request_dma,
