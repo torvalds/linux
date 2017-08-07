@@ -1360,6 +1360,85 @@ enum dev_dma_attr acpi_get_dma_attr(struct acpi_device *adev)
 }
 
 /**
+ * acpi_dma_get_range() - Get device DMA parameters.
+ *
+ * @dev: device to configure
+ * @dma_addr: pointer device DMA address result
+ * @offset: pointer to the DMA offset result
+ * @size: pointer to DMA range size result
+ *
+ * Evaluate DMA regions and return respectively DMA region start, offset
+ * and size in dma_addr, offset and size on parsing success; it does not
+ * update the passed in values on failure.
+ *
+ * Return 0 on success, < 0 on failure.
+ */
+int acpi_dma_get_range(struct device *dev, u64 *dma_addr, u64 *offset,
+		       u64 *size)
+{
+	struct acpi_device *adev;
+	LIST_HEAD(list);
+	struct resource_entry *rentry;
+	int ret;
+	struct device *dma_dev = dev;
+	u64 len, dma_start = U64_MAX, dma_end = 0, dma_offset = 0;
+
+	/*
+	 * Walk the device tree chasing an ACPI companion with a _DMA
+	 * object while we go. Stop if we find a device with an ACPI
+	 * companion containing a _DMA method.
+	 */
+	do {
+		adev = ACPI_COMPANION(dma_dev);
+		if (adev && acpi_has_method(adev->handle, METHOD_NAME__DMA))
+			break;
+
+		dma_dev = dma_dev->parent;
+	} while (dma_dev);
+
+	if (!dma_dev)
+		return -ENODEV;
+
+	if (!acpi_has_method(adev->handle, METHOD_NAME__CRS)) {
+		acpi_handle_warn(adev->handle, "_DMA is valid only if _CRS is present\n");
+		return -EINVAL;
+	}
+
+	ret = acpi_dev_get_dma_resources(adev, &list);
+	if (ret > 0) {
+		list_for_each_entry(rentry, &list, node) {
+			if (dma_offset && rentry->offset != dma_offset) {
+				ret = -EINVAL;
+				dev_warn(dma_dev, "Can't handle multiple windows with different offsets\n");
+				goto out;
+			}
+			dma_offset = rentry->offset;
+
+			/* Take lower and upper limits */
+			if (rentry->res->start < dma_start)
+				dma_start = rentry->res->start;
+			if (rentry->res->end > dma_end)
+				dma_end = rentry->res->end;
+		}
+
+		if (dma_start >= dma_end) {
+			ret = -EINVAL;
+			dev_dbg(dma_dev, "Invalid DMA regions configuration\n");
+			goto out;
+		}
+
+		*dma_addr = dma_start - dma_offset;
+		len = dma_end - dma_start;
+		*size = max(len, len + 1);
+		*offset = dma_offset;
+	}
+ out:
+	acpi_dev_free_resource_list(&list);
+
+	return ret >= 0 ? 0 : ret;
+}
+
+/**
  * acpi_dma_configure - Set-up DMA configuration for the device.
  * @dev: The pointer to the device
  * @attr: device dma attributes
