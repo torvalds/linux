@@ -3027,8 +3027,8 @@ out:
 	return err;
 }
 
-static int mlx5e_ndo_setup_tc(struct net_device *dev, u32 handle,
-			      u32 chain_index, __be16 proto,
+static int mlx5e_ndo_setup_tc(struct net_device *dev, enum tc_setup_type type,
+			      u32 handle, u32 chain_index, __be16 proto,
 			      struct tc_to_netdev *tc)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
@@ -3039,7 +3039,7 @@ static int mlx5e_ndo_setup_tc(struct net_device *dev, u32 handle,
 	if (chain_index)
 		return -EOPNOTSUPP;
 
-	switch (tc->type) {
+	switch (type) {
 	case TC_SETUP_CLSFLOWER:
 		switch (tc->cls_flower->command) {
 		case TC_CLSFLOWER_REPLACE:
@@ -3054,7 +3054,7 @@ static int mlx5e_ndo_setup_tc(struct net_device *dev, u32 handle,
 	}
 
 mqprio:
-	if (tc->type != TC_SETUP_MQPRIO)
+	if (type != TC_SETUP_MQPRIO)
 		return -EINVAL;
 
 	tc->mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;

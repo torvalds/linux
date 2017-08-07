@@ -9226,8 +9226,9 @@ free_jump:
 	return err;
 }
 
-static int __ixgbe_setup_tc(struct net_device *dev, u32 handle, u32 chain_index,
-			    __be16 proto, struct tc_to_netdev *tc)
+static int __ixgbe_setup_tc(struct net_device *dev, enum tc_setup_type type,
+			    u32 handle, u32 chain_index, __be16 proto,
+			    struct tc_to_netdev *tc)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 
@@ -9235,7 +9236,7 @@ static int __ixgbe_setup_tc(struct net_device *dev, u32 handle, u32 chain_index,
 		return -EOPNOTSUPP;
 
 	if (TC_H_MAJ(handle) == TC_H_MAJ(TC_H_INGRESS) &&
-	    tc->type == TC_SETUP_CLSU32) {
+	    type == TC_SETUP_CLSU32) {
 		switch (tc->cls_u32->command) {
 		case TC_CLSU32_NEW_KNODE:
 		case TC_CLSU32_REPLACE_KNODE:
@@ -9255,7 +9256,7 @@ static int __ixgbe_setup_tc(struct net_device *dev, u32 handle, u32 chain_index,
 		}
 	}
 
-	if (tc->type != TC_SETUP_MQPRIO)
+	if (type != TC_SETUP_MQPRIO)
 		return -EINVAL;
 
 	tc->mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;

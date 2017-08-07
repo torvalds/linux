@@ -130,11 +130,11 @@ out:
 	return err;
 }
 
-static int __mlx4_en_setup_tc(struct net_device *dev, u32 handle,
-			      u32 chain_index, __be16 proto,
+static int __mlx4_en_setup_tc(struct net_device *dev, enum tc_setup_type type,
+			      u32 handle, u32 chain_index, __be16 proto,
 			      struct tc_to_netdev *tc)
 {
-	if (tc->type != TC_SETUP_MQPRIO)
+	if (type != TC_SETUP_MQPRIO)
 		return -EINVAL;
 
 	if (tc->mqprio->num_tc && tc->mqprio->num_tc != MLX4_EN_NUM_UP_HIGH)

@@ -1877,8 +1877,9 @@ static u16 netcp_select_queue(struct net_device *dev, struct sk_buff *skb,
 	return 0;
 }
 
-static int netcp_setup_tc(struct net_device *dev, u32 handle, u32 chain_index,
-			  __be16 proto, struct tc_to_netdev *tc)
+static int netcp_setup_tc(struct net_device *dev, enum tc_setup_type type,
+			  u32 handle, u32 chain_index, __be16 proto,
+			  struct tc_to_netdev *tc)
 {
 	u8 num_tc;
 	int i;
@@ -1886,7 +1887,7 @@ static int netcp_setup_tc(struct net_device *dev, u32 handle, u32 chain_index,
 	/* setup tc must be called under rtnl lock */
 	ASSERT_RTNL();
 
-	if (tc->type != TC_SETUP_MQPRIO)
+	if (type != TC_SETUP_MQPRIO)
 		return -EINVAL;
 
 	tc->mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;

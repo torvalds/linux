@@ -7237,10 +7237,11 @@ int bnxt_setup_mq_tc(struct net_device *dev, u8 tc)
 	return 0;
 }
 
-static int bnxt_setup_tc(struct net_device *dev, u32 handle, u32 chain_index,
-			 __be16 proto, struct tc_to_netdev *ntc)
+static int bnxt_setup_tc(struct net_device *dev, enum tc_setup_type type,
+			 u32 handle, u32 chain_index, __be16 proto,
+			 struct tc_to_netdev *ntc)
 {
-	if (ntc->type != TC_SETUP_MQPRIO)
+	if (type != TC_SETUP_MQPRIO)
 		return -EINVAL;
 
 	ntc->mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;

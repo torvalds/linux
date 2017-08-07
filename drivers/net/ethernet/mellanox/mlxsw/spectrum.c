@@ -1693,8 +1693,8 @@ static void mlxsw_sp_port_del_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
 	kfree(mall_tc_entry);
 }
 
-static int mlxsw_sp_setup_tc(struct net_device *dev, u32 handle,
-			     u32 chain_index, __be16 proto,
+static int mlxsw_sp_setup_tc(struct net_device *dev, enum tc_setup_type type,
+			     u32 handle, u32 chain_index, __be16 proto,
 			     struct tc_to_netdev *tc)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
@@ -1703,7 +1703,7 @@ static int mlxsw_sp_setup_tc(struct net_device *dev, u32 handle,
 	if (chain_index)
 		return -EOPNOTSUPP;
 
-	switch (tc->type) {
+	switch (type) {
 	case TC_SETUP_MATCHALL:
 		switch (tc->cls_mall->command) {
 		case TC_CLSMATCHALL_REPLACE:
@@ -1733,9 +1733,9 @@ static int mlxsw_sp_setup_tc(struct net_device *dev, u32 handle,
 		default:
 			return -EOPNOTSUPP;
 		}
+	default:
+		return -EOPNOTSUPP;
 	}
-
-	return -EOPNOTSUPP;
 }
 
 static const struct net_device_ops mlxsw_sp_port_netdev_ops = {

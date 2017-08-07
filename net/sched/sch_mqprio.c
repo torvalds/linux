@@ -40,10 +40,10 @@ static void mqprio_destroy(struct Qdisc *sch)
 
 	if (priv->hw_offload && dev->netdev_ops->ndo_setup_tc) {
 		struct tc_mqprio_qopt offload = { 0 };
-		struct tc_to_netdev tc = { .type = TC_SETUP_MQPRIO,
-					   { .mqprio = &offload } };
+		struct tc_to_netdev tc = { { .mqprio = &offload } };
 
-		dev->netdev_ops->ndo_setup_tc(dev, sch->handle, 0, 0, &tc);
+		dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_MQPRIO,
+					      sch->handle, 0, 0, &tc);
 	} else {
 		netdev_set_num_tc(dev, 0);
 	}
@@ -149,11 +149,10 @@ static int mqprio_init(struct Qdisc *sch, struct nlattr *opt)
 	 */
 	if (qopt->hw) {
 		struct tc_mqprio_qopt offload = *qopt;
-		struct tc_to_netdev tc = { .type = TC_SETUP_MQPRIO,
-					   { .mqprio = &offload } };
+		struct tc_to_netdev tc = { { .mqprio = &offload } };
 
-		err = dev->netdev_ops->ndo_setup_tc(dev, sch->handle,
-						    0, 0, &tc);
+		err = dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_MQPRIO,
+						    sch->handle, 0, 0, &tc);
 		if (err)
 			return err;
 

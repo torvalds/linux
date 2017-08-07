@@ -774,7 +774,7 @@ typedef u16 (*select_queue_fallback_t)(struct net_device *dev,
 /* These structures hold the attributes of qdisc and classifiers
  * that are being passed to the netdevice through the setup_tc op.
  */
-enum {
+enum tc_setup_type {
 	TC_SETUP_MQPRIO,
 	TC_SETUP_CLSU32,
 	TC_SETUP_CLSFLOWER,
@@ -785,7 +785,6 @@ enum {
 struct tc_cls_u32_offload;
 
 struct tc_to_netdev {
-	unsigned int type;
 	union {
 		struct tc_cls_u32_offload *cls_u32;
 		struct tc_cls_flower_offload *cls_flower;
@@ -978,8 +977,9 @@ struct xfrmdev_ops {
  *      with PF and querying it may introduce a theoretical security risk.
  * int (*ndo_set_vf_rss_query_en)(struct net_device *dev, int vf, bool setting);
  * int (*ndo_get_vf_port)(struct net_device *dev, int vf, struct sk_buff *skb);
- * int (*ndo_setup_tc)(struct net_device *dev, u32 handle, u32 chain_index,
- *		       __be16 protocol, struct tc_to_netdev *tc);
+ * int (*ndo_setup_tc)(struct net_device *dev, enum tc_setup_type type,
+ *		       u32 handle, u32 chain_index, __be16 protocol,
+ *		       struct tc_to_netdev *tc);
  *	Called to setup any 'tc' scheduler, classifier or action on @dev.
  *	This is always called from the stack with the rtnl lock held and netif
  *	tx queues stopped. This allows the netdevice to perform queue
@@ -1227,6 +1227,7 @@ struct net_device_ops {
 						   struct net_device *dev,
 						   int vf, bool setting);
 	int			(*ndo_setup_tc)(struct net_device *dev,
+						enum tc_setup_type type,
 						u32 handle, u32 chain_index,
 						__be16 protocol,
 						struct tc_to_netdev *tc);

@@ -151,7 +151,6 @@ static int cls_bpf_offload_cmd(struct tcf_proto *tp, struct cls_bpf_prog *prog,
 	struct tc_to_netdev offload;
 	int err;
 
-	offload.type = TC_SETUP_CLSBPF;
 	offload.cls_bpf = &bpf_offload;
 
 	bpf_offload.command = cmd;
@@ -161,7 +160,8 @@ static int cls_bpf_offload_cmd(struct tcf_proto *tp, struct cls_bpf_prog *prog,
 	bpf_offload.exts_integrated = prog->exts_integrated;
 	bpf_offload.gen_flags = prog->gen_flags;
 
-	err = dev->netdev_ops->ndo_setup_tc(dev, tp->q->handle,
+	err = dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_CLSBPF,
+					    tp->q->handle,
 					    tp->chain->index,
 					    tp->protocol, &offload);
 

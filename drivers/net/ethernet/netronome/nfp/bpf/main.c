@@ -121,7 +121,8 @@ static void nfp_bpf_vnic_clean(struct nfp_app *app, struct nfp_net *nn)
 }
 
 static int nfp_bpf_setup_tc(struct nfp_app *app, struct net_device *netdev,
-			    u32 handle, __be16 proto, struct tc_to_netdev *tc)
+			    enum tc_setup_type type, u32 handle, __be16 proto,
+			    struct tc_to_netdev *tc)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
 
@@ -130,7 +131,7 @@ static int nfp_bpf_setup_tc(struct nfp_app *app, struct net_device *netdev,
 	if (proto != htons(ETH_P_ALL))
 		return -EOPNOTSUPP;
 
-	if (tc->type == TC_SETUP_CLSBPF && nfp_net_ebpf_capable(nn)) {
+	if (type == TC_SETUP_CLSBPF && nfp_net_ebpf_capable(nn)) {
 		if (!nn->dp.bpf_offload_xdp)
 			return nfp_net_bpf_offload(nn, tc->cls_bpf);
 		else

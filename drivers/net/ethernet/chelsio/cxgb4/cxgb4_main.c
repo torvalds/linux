@@ -2889,8 +2889,9 @@ static int cxgb_set_tx_maxrate(struct net_device *dev, int index, u32 rate)
 	return err;
 }
 
-static int cxgb_setup_tc(struct net_device *dev, u32 handle, u32 chain_index,
-			 __be16 proto, struct tc_to_netdev *tc)
+static int cxgb_setup_tc(struct net_device *dev, enum tc_setup_type type,
+			 u32 handle, u32 chain_index, __be16 proto,
+			 struct tc_to_netdev *tc)
 {
 	struct port_info *pi = netdev2pinfo(dev);
 	struct adapter *adap = netdev2adap(dev);
@@ -2906,7 +2907,7 @@ static int cxgb_setup_tc(struct net_device *dev, u32 handle, u32 chain_index,
 	}
 
 	if (TC_H_MAJ(handle) == TC_H_MAJ(TC_H_INGRESS) &&
-	    tc->type == TC_SETUP_CLSU32) {
+	    type == TC_SETUP_CLSU32) {
 		switch (tc->cls_u32->command) {
 		case TC_CLSU32_NEW_KNODE:
 		case TC_CLSU32_REPLACE_KNODE:

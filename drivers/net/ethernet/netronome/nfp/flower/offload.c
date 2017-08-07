@@ -385,7 +385,8 @@ nfp_flower_repr_offload(struct nfp_app *app, struct net_device *netdev,
 }
 
 int nfp_flower_setup_tc(struct nfp_app *app, struct net_device *netdev,
-			u32 handle, __be16 proto, struct tc_to_netdev *tc)
+			enum tc_setup_type type, u32 handle, __be16 proto,
+			struct tc_to_netdev *tc)
 {
 	if (TC_H_MAJ(handle) != TC_H_MAJ(TC_H_INGRESS))
 		return -EOPNOTSUPP;
@@ -393,7 +394,7 @@ int nfp_flower_setup_tc(struct nfp_app *app, struct net_device *netdev,
 	if (!eth_proto_is_802_3(proto))
 		return -EOPNOTSUPP;
 
-	if (tc->type != TC_SETUP_CLSFLOWER)
+	if (type != TC_SETUP_CLSFLOWER)
 		return -EINVAL;
 
 	return nfp_flower_repr_offload(app, netdev, tc->cls_flower);

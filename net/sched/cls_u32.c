@@ -434,15 +434,14 @@ static void u32_remove_hw_knode(struct tcf_proto *tp, u32 handle)
 	struct tc_cls_u32_offload u32_offload = {0};
 	struct tc_to_netdev offload;
 
-	offload.type = TC_SETUP_CLSU32;
 	offload.cls_u32 = &u32_offload;
 
 	if (tc_should_offload(dev, tp, 0)) {
 		offload.cls_u32->command = TC_CLSU32_DELETE_KNODE;
 		offload.cls_u32->knode.handle = handle;
-		dev->netdev_ops->ndo_setup_tc(dev, tp->q->handle,
-					      tp->chain->index, tp->protocol,
-					      &offload);
+		dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_CLSU32,
+					      tp->q->handle, tp->chain->index,
+					      tp->protocol, &offload);
 	}
 }
 
@@ -457,7 +456,6 @@ static int u32_replace_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h,
 	if (!tc_should_offload(dev, tp, flags))
 		return tc_skip_sw(flags) ? -EINVAL : 0;
 
-	offload.type = TC_SETUP_CLSU32;
 	offload.cls_u32 = &u32_offload;
 
 	offload.cls_u32->command = TC_CLSU32_NEW_HNODE;
@@ -465,7 +463,7 @@ static int u32_replace_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h,
 	offload.cls_u32->hnode.handle = h->handle;
 	offload.cls_u32->hnode.prio = h->prio;
 
-	err = dev->netdev_ops->ndo_setup_tc(dev, tp->q->handle,
+	err = dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_CLSU32, tp->q->handle,
 					    tp->chain->index, tp->protocol,
 					    &offload);
 	if (tc_skip_sw(flags))
@@ -480,7 +478,6 @@ static void u32_clear_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h)
 	struct tc_cls_u32_offload u32_offload = {0};
 	struct tc_to_netdev offload;
 
-	offload.type = TC_SETUP_CLSU32;
 	offload.cls_u32 = &u32_offload;
 
 	if (tc_should_offload(dev, tp, 0)) {
@@ -489,9 +486,9 @@ static void u32_clear_hw_hnode(struct tcf_proto *tp, struct tc_u_hnode *h)
 		offload.cls_u32->hnode.handle = h->handle;
 		offload.cls_u32->hnode.prio = h->prio;
 
-		dev->netdev_ops->ndo_setup_tc(dev, tp->q->handle,
-					      tp->chain->index, tp->protocol,
-					      &offload);
+		dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_CLSU32,
+					      tp->q->handle, tp->chain->index,
+					      tp->protocol, &offload);
 	}
 }
 
@@ -503,7 +500,6 @@ static int u32_replace_hw_knode(struct tcf_proto *tp, struct tc_u_knode *n,
 	struct tc_to_netdev offload;
 	int err;
 
-	offload.type = TC_SETUP_CLSU32;
 	offload.cls_u32 = &u32_offload;
 
 	if (!tc_should_offload(dev, tp, flags))
@@ -524,7 +520,7 @@ static int u32_replace_hw_knode(struct tcf_proto *tp, struct tc_u_knode *n,
 	if (n->ht_down)
 		offload.cls_u32->knode.link_handle = n->ht_down->handle;
 
-	err = dev->netdev_ops->ndo_setup_tc(dev, tp->q->handle,
+	err = dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_CLSU32, tp->q->handle,
 					    tp->chain->index, tp->protocol,
 					    &offload);
 

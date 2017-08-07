@@ -5656,11 +5656,11 @@ exit:
 	return ret;
 }
 
-static int __i40e_setup_tc(struct net_device *netdev, u32 handle,
-			   u32 chain_index, __be16 proto,
+static int __i40e_setup_tc(struct net_device *netdev, enum tc_setup_type type,
+			   u32 handle, u32 chain_index, __be16 proto,
 			   struct tc_to_netdev *tc)
 {
-	if (tc->type != TC_SETUP_MQPRIO)
+	if (type != TC_SETUP_MQPRIO)
 		return -EINVAL;
 
 	tc->mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
