@@ -863,26 +863,35 @@ static void dsa_slave_del_cls_matchall(struct net_device *dev,
 	kfree(mall_tc_entry);
 }
 
-static int dsa_slave_setup_tc(struct net_device *dev, enum tc_setup_type type,
-			      u32 handle, u32 chain_index, __be16 protocol,
-			      struct tc_to_netdev *tc)
+static int dsa_slave_setup_tc_cls_matchall(struct net_device *dev,
+					   u32 handle, u32 chain_index,
+					   __be16 protocol,
+					   struct tc_cls_matchall_offload *cls)
 {
 	bool ingress = TC_H_MAJ(handle) == TC_H_MAJ(TC_H_INGRESS);
 
 	if (chain_index)
 		return -EOPNOTSUPP;
 
+	switch (cls->command) {
+	case TC_CLSMATCHALL_REPLACE:
+		return dsa_slave_add_cls_matchall(dev, protocol, cls, ingress);
+	case TC_CLSMATCHALL_DESTROY:
+		dsa_slave_del_cls_matchall(dev, cls);
+		return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int dsa_slave_setup_tc(struct net_device *dev, enum tc_setup_type type,
+			      u32 handle, u32 chain_index, __be16 protocol,
+			      struct tc_to_netdev *tc)
+{
 	switch (type) {
 	case TC_SETUP_CLSMATCHALL:
-		switch (tc->cls_mall->command) {
-		case TC_CLSMATCHALL_REPLACE:
-			return dsa_slave_add_cls_matchall(dev, protocol,
-							  tc->cls_mall,
-							  ingress);
-		case TC_CLSMATCHALL_DESTROY:
-			dsa_slave_del_cls_matchall(dev, tc->cls_mall);
-			return 0;
-		}
+		return dsa_slave_setup_tc_cls_matchall(dev, handle, chain_index,
+						       protocol, tc->cls_mall);
 	default:
 		return -EOPNOTSUPP;
 	}
