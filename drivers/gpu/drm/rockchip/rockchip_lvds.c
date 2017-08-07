@@ -222,8 +222,39 @@ static int rk3288_lvds_poweron(struct rockchip_lvds *lvds)
 static int rk336x_lvds_poweron(struct rockchip_lvds *lvds)
 {
 	u32 delay_times = 20;
+	u32 val;
 
-	if (lvds->output == DISPLAY_OUTPUT_LVDS) {
+	if (lvds->output == DISPLAY_OUTPUT_RGB) {
+		/* enable lane */
+		lvds_writel(lvds, MIPIPHY_REG0, 0x7f);
+		val = v_LANE0_EN(1) | v_LANE1_EN(1) | v_LANE2_EN(1) |
+			v_LANE3_EN(1) | v_LANECLK_EN(1) | v_PLL_PWR_OFF(1);
+		lvds_writel(lvds, MIPIPHY_REGEB, val);
+
+		/* set ttl mode and reset phy config */
+		val = v_LVDS_MODE_EN(0) | v_TTL_MODE_EN(1) | v_MIPI_MODE_EN(0) |
+			v_MSB_SEL(1) | v_DIG_INTER_RST(1);
+		lvds_writel(lvds, MIPIPHY_REGE0, val);
+
+		lvds_msk_reg(lvds, MIPIPHY_REGE3,
+			     m_MIPI_EN | m_LVDS_EN | m_TTL_EN,
+			     v_MIPI_EN(0) | v_LVDS_EN(0) | v_TTL_EN(1));
+	} else {
+		/* digital internal disable */
+		lvds_msk_reg(lvds, MIPIPHY_REGE1,
+			     m_DIG_INTER_EN, v_DIG_INTER_EN(0));
+
+		/* set pll prediv and fbdiv */
+		lvds_writel(lvds, MIPIPHY_REG3, v_PREDIV(2) | v_FBDIV_MSB(0));
+		lvds_writel(lvds, MIPIPHY_REG4, v_FBDIV_LSB(28));
+
+		lvds_writel(lvds, MIPIPHY_REGE8, 0xfc);
+
+		/* set lvds mode and reset phy config */
+		lvds_msk_reg(lvds, MIPIPHY_REGE0,
+			     m_MSB_SEL | m_DIG_INTER_RST,
+			     v_MSB_SEL(1) | v_DIG_INTER_RST(1));
+
 		/* set VOCM 900 mv and V-DIFF 350 mv */
 		lvds_msk_reg(lvds, MIPIPHY_REGE4, m_VOCM | m_DIFF_V,
 			     v_VOCM(0) | v_DIFF_V(2));
@@ -241,68 +272,22 @@ static int rk336x_lvds_poweron(struct rockchip_lvds *lvds)
 		lvds_msk_reg(lvds, MIPIPHY_REGE3,
 			     m_MIPI_EN | m_LVDS_EN | m_TTL_EN,
 			     v_MIPI_EN(0) | v_LVDS_EN(1) | v_TTL_EN(0));
-	} else {
-		lvds_msk_reg(lvds, MIPIPHY_REGE3,
-			     m_MIPI_EN | m_LVDS_EN | m_TTL_EN,
-			     v_MIPI_EN(0) | v_LVDS_EN(0) | v_TTL_EN(1));
+
+		/* delay for waitting pll lock on */
+		while (delay_times--) {
+			if (lvds_phy_lockon(lvds))
+				break;
+			usleep_range(100, 200);
+		}
+
+		if (delay_times <= 0)
+			dev_err(lvds->dev,
+				"wait phy lockon failed, please check hardware\n");
+
+		lvds_msk_reg(lvds, MIPIPHY_REGE1,
+			     m_DIG_INTER_EN, v_DIG_INTER_EN(1));
 	}
-	/* delay for waitting pll lock on */
-	while (delay_times--) {
-		if (lvds_phy_lockon(lvds))
-			break;
-		udelay(100);
-	}
 
-	if (delay_times <= 0)
-		dev_err(lvds->dev, "wait phy lockon failed, please check hardware\n");
-
-	return 0;
-}
-
-static void rk336x_output_ttl(struct rockchip_lvds *lvds)
-{
-	u32 val = 0;
-
-	/* enable lane */
-	lvds_writel(lvds, MIPIPHY_REG0, 0x7f);
-	val = v_LANE0_EN(1) | v_LANE1_EN(1) | v_LANE2_EN(1) | v_LANE3_EN(1) |
-		v_LANECLK_EN(1) | v_PLL_PWR_OFF(1);
-	lvds_writel(lvds, MIPIPHY_REGEB, val);
-
-	/* set ttl mode and reset phy config */
-	val = v_LVDS_MODE_EN(0) | v_TTL_MODE_EN(1) | v_MIPI_MODE_EN(0) |
-		v_MSB_SEL(1) | v_DIG_INTER_RST(1);
-	lvds_writel(lvds, MIPIPHY_REGE0, val);
-
-	rk336x_lvds_poweron(lvds);
-}
-
-static void rk336x_output_lvds(struct rockchip_lvds *lvds)
-{
-	/* digital internal disable */
-	lvds_msk_reg(lvds, MIPIPHY_REGE1, m_DIG_INTER_EN, v_DIG_INTER_EN(0));
-
-	/* set pll prediv and fbdiv */
-	lvds_writel(lvds, MIPIPHY_REG3, v_PREDIV(2) | v_FBDIV_MSB(0));
-	lvds_writel(lvds, MIPIPHY_REG4, v_FBDIV_LSB(28));
-
-	lvds_writel(lvds, MIPIPHY_REGE8, 0xfc);
-
-	/* set lvds mode and reset phy config */
-	lvds_msk_reg(lvds, MIPIPHY_REGE0,
-		     m_MSB_SEL | m_DIG_INTER_RST,
-		     v_MSB_SEL(1) | v_DIG_INTER_RST(1));
-
-	rk336x_lvds_poweron(lvds);
-	lvds_msk_reg(lvds, MIPIPHY_REGE1, m_DIG_INTER_EN, v_DIG_INTER_EN(1));
-}
-
-static int rk336x_lvds_output(struct rockchip_lvds *lvds)
-{
-	if (lvds->output == DISPLAY_OUTPUT_RGB)
-		rk336x_output_ttl(lvds);
-	else
-		rk336x_output_lvds(lvds);
 	return 0;
 }
 
@@ -333,7 +318,7 @@ static int rockchip_lvds_poweron(struct rockchip_lvds *lvds)
 	if (LVDS_CHIP(lvds) == RK3288_LVDS)
 		rk3288_lvds_poweron(lvds);
 	else if (LVDS_CHIP(lvds) == RK336X_LVDS)
-		rk336x_lvds_output(lvds);
+		rk336x_lvds_poweron(lvds);
 
 	return 0;
 }
