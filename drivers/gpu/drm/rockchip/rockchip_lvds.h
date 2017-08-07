@@ -178,6 +178,12 @@
 #define v_LANE1_EN(x)		BITS_MASK(x, 1, 6)
 #define v_LANE0_EN(x)		BITS_MASK(x, 1, 7)
 
+/* MIPI DSI Controller register */
+#define MIPIC_PHY_RSTZ		0x00a0
+#define m_PHY_ENABLE_CLK	BIT(2)
+#define MIPIC_PHY_STATUS	0x00b0
+#define m_PHY_LOCK_STATUS	BIT(0)
+
 #define v_RK336X_LVDS_OUTPUT_FORMAT(x)	(BITS_MASK(x, 3, 13) | BITS_EN(3, 13))
 #define v_RK336X_LVDS_MSBSEL(x)		(BITS_MASK(x, 1, 11) | BITS_EN(1, 11))
 #define v_RK336X_LVDSMODE_EN(x)		(BITS_MASK(x, 1, 12) | BITS_EN(1, 12))

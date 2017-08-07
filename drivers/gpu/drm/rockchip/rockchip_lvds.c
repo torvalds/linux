@@ -110,8 +110,8 @@ static inline u32 lvds_phy_lockon(struct rockchip_lvds *lvds)
 {
 	u32 val = 0;
 
-	val = readl_relaxed(lvds->regs_ctrl + 0x10);
-	return (val & 0x01);
+	val = readl_relaxed(lvds->regs_ctrl + MIPIC_PHY_STATUS);
+	return (val & m_PHY_LOCK_STATUS) ? 1 : 0;
 }
 
 static inline int lvds_name_to_format(const char *s)
@@ -239,6 +239,9 @@ static int rk336x_lvds_poweron(struct rockchip_lvds *lvds)
 		lvds_msk_reg(lvds, MIPIPHY_REGE3,
 			     m_MIPI_EN | m_LVDS_EN | m_TTL_EN,
 			     v_MIPI_EN(0) | v_LVDS_EN(0) | v_TTL_EN(1));
+
+		/* set clock lane enable */
+		lvds_dsi_writel(lvds, MIPIC_PHY_RSTZ, m_PHY_ENABLE_CLK);
 	} else {
 		/* digital internal disable */
 		lvds_msk_reg(lvds, MIPIPHY_REGE1,
@@ -529,7 +532,6 @@ static void rockchip_lvds_grf_config(struct drm_encoder *encoder,
 				pinctrl_select_state(lvds->pins->p,
 						     lvds->pins->default_state);
 
-			lvds_dsi_writel(lvds, 0x0, 0x4);/*set clock lane enable*/
 			/* enable lvds mode */
 			val = v_RK336X_LVDSMODE_EN(0) |
 				v_RK336X_MIPIPHY_TTL_EN(1) |
