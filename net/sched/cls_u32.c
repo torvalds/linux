@@ -289,7 +289,7 @@ out:
 }
 
 
-static unsigned long u32_get(struct tcf_proto *tp, u32 handle)
+static void *u32_get(struct tcf_proto *tp, u32 handle)
 {
 	struct tc_u_hnode *ht;
 	struct tc_u_common *tp_c = tp->data;
@@ -300,12 +300,12 @@ static unsigned long u32_get(struct tcf_proto *tp, u32 handle)
 		ht = u32_lookup_ht(tp_c, TC_U32_HTID(handle));
 
 	if (!ht)
-		return 0;
+		return NULL;
 
 	if (TC_U32_KEY(handle) == 0)
-		return (unsigned long)ht;
+		return ht;
 
-	return (unsigned long)u32_lookup_key(ht, handle);
+	return u32_lookup_key(ht, handle);
 }
 
 static u32 gen_new_htid(struct tc_u_common *tp_c)
@@ -605,9 +605,9 @@ static void u32_destroy(struct tcf_proto *tp)
 	tp->data = NULL;
 }
 
-static int u32_delete(struct tcf_proto *tp, unsigned long arg, bool *last)
+static int u32_delete(struct tcf_proto *tp, void *arg, bool *last)
 {
-	struct tc_u_hnode *ht = (struct tc_u_hnode *)arg;
+	struct tc_u_hnode *ht = arg;
 	struct tc_u_hnode *root_ht = rtnl_dereference(tp->root);
 	struct tc_u_common *tp_c = tp->data;
 	int ret = 0;
@@ -831,7 +831,7 @@ static struct tc_u_knode *u32_init_knode(struct tcf_proto *tp,
 
 static int u32_change(struct net *net, struct sk_buff *in_skb,
 		      struct tcf_proto *tp, unsigned long base, u32 handle,
-		      struct nlattr **tca, unsigned long *arg, bool ovr)
+		      struct nlattr **tca, void **arg, bool ovr)
 {
 	struct tc_u_common *tp_c = tp->data;
 	struct tc_u_hnode *ht;
@@ -858,7 +858,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 			return -EINVAL;
 	}
 
-	n = (struct tc_u_knode *)*arg;
+	n = *arg;
 	if (n) {
 		struct tc_u_knode *new;
 
@@ -925,7 +925,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 
 		RCU_INIT_POINTER(ht->next, tp_c->hlist);
 		rcu_assign_pointer(tp_c->hlist, ht);
-		*arg = (unsigned long)ht;
+		*arg = ht;
 
 		return 0;
 	}
@@ -1020,7 +1020,7 @@ static int u32_change(struct net *net, struct sk_buff *in_skb,
 
 		RCU_INIT_POINTER(n->next, pins);
 		rcu_assign_pointer(*ins, n);
-		*arg = (unsigned long)n;
+		*arg = n;
 		return 0;
 	}
 
@@ -1054,7 +1054,7 @@ static void u32_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 		if (ht->prio != tp->prio)
 			continue;
 		if (arg->count >= arg->skip) {
-			if (arg->fn(tp, (unsigned long)ht, arg) < 0) {
+			if (arg->fn(tp, ht, arg) < 0) {
 				arg->stop = 1;
 				return;
 			}
@@ -1068,7 +1068,7 @@ static void u32_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 					arg->count++;
 					continue;
 				}
-				if (arg->fn(tp, (unsigned long)n, arg) < 0) {
+				if (arg->fn(tp, n, arg) < 0) {
 					arg->stop = 1;
 					return;
 				}
@@ -1078,10 +1078,10 @@ static void u32_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 	}
 }
 
-static int u32_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
+static int u32_dump(struct net *net, struct tcf_proto *tp, void *fh,
 		    struct sk_buff *skb, struct tcmsg *t)
 {
-	struct tc_u_knode *n = (struct tc_u_knode *)fh;
+	struct tc_u_knode *n = fh;
 	struct tc_u_hnode *ht_up, *ht_down;
 	struct nlattr *nest;
 
@@ -1095,7 +1095,7 @@ static int u32_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
 		goto nla_put_failure;
 
 	if (TC_U32_KEY(n->handle) == 0) {
-		struct tc_u_hnode *ht = (struct tc_u_hnode *)fh;
+		struct tc_u_hnode *ht = fh;
 		u32 divisor = ht->divisor + 1;
 
 		if (nla_put_u32(skb, TCA_U32_DIVISOR, divisor))

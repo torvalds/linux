@@ -11,7 +11,7 @@ struct tcf_walker {
 	int	stop;
 	int	skip;
 	int	count;
-	int	(*fn)(struct tcf_proto *, unsigned long node, struct tcf_walker *);
+	int	(*fn)(struct tcf_proto *, void *node, struct tcf_walker *);
 };
 
 int register_tcf_proto_ops(struct tcf_proto_ops *ops);

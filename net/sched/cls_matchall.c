@@ -98,9 +98,9 @@ static void mall_destroy(struct tcf_proto *tp)
 	call_rcu(&head->rcu, mall_destroy_rcu);
 }
 
-static unsigned long mall_get(struct tcf_proto *tp, u32 handle)
+static void *mall_get(struct tcf_proto *tp, u32 handle)
 {
-	return 0UL;
+	return NULL;
 }
 
 static const struct nla_policy mall_policy[TCA_MATCHALL_MAX + 1] = {
@@ -129,7 +129,7 @@ static int mall_set_parms(struct net *net, struct tcf_proto *tp,
 static int mall_change(struct net *net, struct sk_buff *in_skb,
 		       struct tcf_proto *tp, unsigned long base,
 		       u32 handle, struct nlattr **tca,
-		       unsigned long *arg, bool ovr)
+		       void **arg, bool ovr)
 {
 	struct cls_mall_head *head = rtnl_dereference(tp->root);
 	struct net_device *dev = tp->q->dev_queue->dev;
@@ -185,7 +185,7 @@ static int mall_change(struct net *net, struct sk_buff *in_skb,
 	if (!tc_in_hw(new->flags))
 		new->flags |= TCA_CLS_FLAGS_NOT_IN_HW;
 
-	*arg = (unsigned long) head;
+	*arg = head;
 	rcu_assign_pointer(tp->root, new);
 	return 0;
 
@@ -197,7 +197,7 @@ err_exts_init:
 	return err;
 }
 
-static int mall_delete(struct tcf_proto *tp, unsigned long arg, bool *last)
+static int mall_delete(struct tcf_proto *tp, void *arg, bool *last)
 {
 	return -EOPNOTSUPP;
 }
@@ -208,16 +208,16 @@ static void mall_walk(struct tcf_proto *tp, struct tcf_walker *arg)
 
 	if (arg->count < arg->skip)
 		goto skip;
-	if (arg->fn(tp, (unsigned long) head, arg) < 0)
+	if (arg->fn(tp, head, arg) < 0)
 		arg->stop = 1;
 skip:
 	arg->count++;
 }
 
-static int mall_dump(struct net *net, struct tcf_proto *tp, unsigned long fh,
+static int mall_dump(struct net *net, struct tcf_proto *tp, void *fh,
 		     struct sk_buff *skb, struct tcmsg *t)
 {
-	struct cls_mall_head *head = (struct cls_mall_head *) fh;
+	struct cls_mall_head *head = fh;
 	struct nlattr *nest;
 
 	if (!head)
