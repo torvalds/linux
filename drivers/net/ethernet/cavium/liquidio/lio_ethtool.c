@@ -649,33 +649,21 @@ lio_ethtool_get_ringparam(struct net_device *netdev,
 		rx_max_pending = CN6XXX_MAX_OQ_DESCRIPTORS;
 		rx_pending = CFG_GET_NUM_RX_DESCS_NIC_IF(conf6x, lio->ifidx);
 		tx_pending = CFG_GET_NUM_TX_DESCS_NIC_IF(conf6x, lio->ifidx);
-	} else if (OCTEON_CN23XX_PF(oct)) {
-		struct octeon_config *conf23 = CHIP_CONF(oct, cn23xx_pf);
-
+	} else if (OCTEON_CN23XX_PF(oct) || OCTEON_CN23XX_VF(oct)) {
 		tx_max_pending = CN23XX_MAX_IQ_DESCRIPTORS;
 		rx_max_pending = CN23XX_MAX_OQ_DESCRIPTORS;
-		rx_pending = CFG_GET_NUM_RX_DESCS_NIC_IF(conf23, lio->ifidx);
-		tx_pending = CFG_GET_NUM_TX_DESCS_NIC_IF(conf23, lio->ifidx);
-	}
-
-	if (lio->mtu > OCTNET_DEFAULT_FRM_SIZE - OCTNET_FRM_HEADER_SIZE) {
-		ering->rx_pending = 0;
-		ering->rx_max_pending = 0;
-		ering->rx_mini_pending = 0;
-		ering->rx_jumbo_pending = rx_pending;
-		ering->rx_mini_max_pending = 0;
-		ering->rx_jumbo_max_pending = rx_max_pending;
-	} else {
-		ering->rx_pending = rx_pending;
-		ering->rx_max_pending = rx_max_pending;
-		ering->rx_mini_pending = 0;
-		ering->rx_jumbo_pending = 0;
-		ering->rx_mini_max_pending = 0;
-		ering->rx_jumbo_max_pending = 0;
+		rx_pending = oct->droq[0]->max_count;
+		tx_pending = oct->instr_queue[0]->max_count;
 	}
 
 	ering->tx_pending = tx_pending;
 	ering->tx_max_pending = tx_max_pending;
+	ering->rx_pending = rx_pending;
+	ering->rx_max_pending = rx_max_pending;
+	ering->rx_mini_pending = 0;
+	ering->rx_jumbo_pending = 0;
+	ering->rx_mini_max_pending = 0;
+	ering->rx_jumbo_max_pending = 0;
 }
 
 static u32 lio_get_msglevel(struct net_device *netdev)
