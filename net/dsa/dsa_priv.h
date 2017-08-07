@@ -43,10 +43,10 @@ struct dsa_notifier_bridge_info {
 
 /* DSA_NOTIFIER_FDB_* */
 struct dsa_notifier_fdb_info {
-	const struct switchdev_obj_port_fdb *fdb;
-	struct switchdev_trans *trans;
 	int sw_index;
 	int port;
+	const unsigned char *addr;
+	u16 vid;
 };
 
 /* DSA_NOTIFIER_MDB_* */
@@ -106,10 +106,18 @@ void dsa_cpu_dsa_destroy(struct dsa_port *dport);
 const struct dsa_device_ops *dsa_resolve_tag_protocol(int tag_protocol);
 int dsa_cpu_port_ethtool_setup(struct dsa_port *cpu_dp);
 void dsa_cpu_port_ethtool_restore(struct dsa_port *cpu_dp);
+bool dsa_schedule_work(struct work_struct *work);
 
 /* legacy.c */
 int dsa_legacy_register(void);
 void dsa_legacy_unregister(void);
+int dsa_legacy_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
+		       struct net_device *dev,
+		       const unsigned char *addr, u16 vid,
+		       u16 flags);
+int dsa_legacy_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
+		       struct net_device *dev,
+		       const unsigned char *addr, u16 vid);
 
 /* port.c */
 int dsa_port_set_state(struct dsa_port *dp, u8 state,
@@ -121,29 +129,20 @@ int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
 			    struct switchdev_trans *trans);
 int dsa_port_ageing_time(struct dsa_port *dp, clock_t ageing_clock,
 			 struct switchdev_trans *trans);
-int dsa_port_fdb_add(struct dsa_port *dp,
-		     const struct switchdev_obj_port_fdb *fdb,
-		     struct switchdev_trans *trans);
-int dsa_port_fdb_del(struct dsa_port *dp,
-		     const struct switchdev_obj_port_fdb *fdb);
-int dsa_port_fdb_dump(struct dsa_port *dp, struct switchdev_obj_port_fdb *fdb,
-		      switchdev_obj_dump_cb_t *cb);
+int dsa_port_fdb_add(struct dsa_port *dp, const unsigned char *addr,
+		     u16 vid);
+int dsa_port_fdb_del(struct dsa_port *dp, const unsigned char *addr,
+		     u16 vid);
 int dsa_port_mdb_add(struct dsa_port *dp,
 		     const struct switchdev_obj_port_mdb *mdb,
 		     struct switchdev_trans *trans);
 int dsa_port_mdb_del(struct dsa_port *dp,
 		     const struct switchdev_obj_port_mdb *mdb);
-int dsa_port_mdb_dump(struct dsa_port *dp, struct switchdev_obj_port_mdb *mdb,
-		      switchdev_obj_dump_cb_t *cb);
 int dsa_port_vlan_add(struct dsa_port *dp,
 		      const struct switchdev_obj_port_vlan *vlan,
 		      struct switchdev_trans *trans);
 int dsa_port_vlan_del(struct dsa_port *dp,
 		      const struct switchdev_obj_port_vlan *vlan);
-int dsa_port_vlan_dump(struct dsa_port *dp,
-		       struct switchdev_obj_port_vlan *vlan,
-		       switchdev_obj_dump_cb_t *cb);
-
 /* slave.c */
 extern const struct dsa_device_ops notag_netdev_ops;
 void dsa_slave_mii_bus_init(struct dsa_switch *ds);
