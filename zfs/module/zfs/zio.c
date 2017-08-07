@@ -3472,7 +3472,7 @@ zbookmark_is_before(const dnode_phys_t *dnp, const zbookmark_phys_t *zb1,
 
 	if (zb1->zb_object == DMU_META_DNODE_OBJECT) {
 		uint64_t nextobj = zb1nextL0 *
-		    (dnp->dn_datablkszsec << SPA_MINBLOCKSHIFT) >> DNODE_SHIFT;
+		    (dnp->dn_datablkszsec << (SPA_MINBLOCKSHIFT - DNODE_SHIFT));
 		return (nextobj <= zb2thisobj);
 	}
 

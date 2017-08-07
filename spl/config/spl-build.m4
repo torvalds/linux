@@ -1311,7 +1311,8 @@ AC_DEFUN([SPL_AC_RWSEM_SPINLOCK_IS_RAW], [
 		#include <linux/rwsem.h>
 	],[
 		struct rw_semaphore dummy_semaphore __attribute__ ((unused));
-		raw_spinlock_t dummy_lock __attribute__ ((unused));
+		raw_spinlock_t dummy_lock __attribute__ ((unused)) =
+		    __RAW_SPIN_LOCK_INITIALIZER(dummy_lock);
 		dummy_semaphore.wait_lock = dummy_lock;
 	],[
 		AC_MSG_RESULT(yes)

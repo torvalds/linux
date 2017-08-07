@@ -69,7 +69,7 @@ AC_DEFUN([ZFS_AC_KERNEL_BIO_BI_OPF], [
 AC_DEFUN([ZFS_AC_KERNEL_HAVE_BIO_SET_OP_ATTRS], [
 	AC_MSG_CHECKING([whether bio_set_op_attrs is available])
 	ZFS_LINUX_TRY_COMPILE([
-		#include <linux/blk_types.h>
+		#include <linux/bio.h>
 	],[
 		struct bio *bio __attribute__ ((unused)) = NULL;
 

@@ -270,6 +270,12 @@
 /* lseek_execute() is available */
 #undef HAVE_LSEEK_EXECUTE
 
+/* makedev() is declared in sys/mkdev.h */
+#undef HAVE_MAKEDEV_IN_MKDEV
+
+/* makedev() is declared in sys/sysmacros.h */
+#undef HAVE_MAKEDEV_IN_SYSMACROS
+
 /* Noting that make_request_fn() returns int */
 #undef HAVE_MAKE_REQUEST_FN_RET_INT
 

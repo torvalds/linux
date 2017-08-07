@@ -1615,14 +1615,12 @@ zvol_rename_minors_impl(const char *oldname, const char *newname)
 {
 	zvol_state_t *zv, *zv_next;
 	int oldnamelen, newnamelen;
-	char *name;
 
 	if (zvol_inhibit_dev)
 		return;
 
 	oldnamelen = strlen(oldname);
 	newnamelen = strlen(newname);
-	name = kmem_alloc(MAXNAMELEN, KM_SLEEP);
 
 	mutex_enter(&zvol_state_lock);
 
@@ -1638,16 +1636,15 @@ zvol_rename_minors_impl(const char *oldname, const char *newname)
 		} else if (strncmp(zv->zv_name, oldname, oldnamelen) == 0 &&
 		    (zv->zv_name[oldnamelen] == '/' ||
 		    zv->zv_name[oldnamelen] == '@')) {
-			snprintf(name, MAXNAMELEN, "%s%c%s", newname,
+			char *name = kmem_asprintf("%s%c%s", newname,
 			    zv->zv_name[oldnamelen],
 			    zv->zv_name + oldnamelen + 1);
 			zvol_rename_minor(zv, name);
+			kmem_free(name, strlen(name + 1));
 		}
 	}
 
 	mutex_exit(&zvol_state_lock);
-
-	kmem_free(name, MAXNAMELEN);
 }
 
 typedef struct zvol_snapdev_cb_arg {

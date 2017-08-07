@@ -178,6 +178,8 @@ am__aclocal_m4_deps = $(top_srcdir)/config/always-no-bool-compare.m4 \
 	$(top_srcdir)/config/user-frame-larger-than.m4 \
 	$(top_srcdir)/config/user-libblkid.m4 \
 	$(top_srcdir)/config/user-libuuid.m4 \
+	$(top_srcdir)/config/user-makedev.m4 \
+	$(top_srcdir)/config/user-no-format-truncation.m4 \
 	$(top_srcdir)/config/user-runstatedir.m4 \
 	$(top_srcdir)/config/user-systemd.m4 \
 	$(top_srcdir)/config/user-sysvinit.m4 \
@@ -387,6 +389,7 @@ MKDIR_P = @MKDIR_P@
 NM = @NM@
 NMEDIT = @NMEDIT@
 NO_BOOL_COMPARE = @NO_BOOL_COMPARE@
+NO_FORMAT_TRUNCATION = @NO_FORMAT_TRUNCATION@
 NO_UNUSED_BUT_SET_VARIABLE = @NO_UNUSED_BUT_SET_VARIABLE@
 OBJDUMP = @OBJDUMP@
 OBJEXT = @OBJEXT@
