@@ -151,7 +151,6 @@ static irqreturn_t rt5514_spi_irq(int irq, void *data)
 	u8 buf[8];
 
 	rt5514_dsp->get_size = 0;
-	rt5514_dsp->dma_offset = 0;
 
 	/**
 	 * The address area x1800XXXX is the register address, and it cannot
@@ -205,6 +204,7 @@ static int rt5514_spi_hw_params(struct snd_pcm_substream *substream,
 	ret = snd_pcm_lib_alloc_vmalloc_buffer(substream,
 			params_buffer_bytes(hw_params));
 	rt5514_dsp->substream = substream;
+	rt5514_dsp->dma_offset = 0;
 	mutex_unlock(&rt5514_dsp->dma_lock);
 
 	return ret;
