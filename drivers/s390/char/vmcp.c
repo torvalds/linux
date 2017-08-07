@@ -150,7 +150,9 @@ static long vmcp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				get_order(session->bufsize));
 		session->response=NULL;
 		temp = get_user(session->bufsize, argp);
-		if (get_order(session->bufsize) > 8) {
+		if (temp)
+			session->bufsize = PAGE_SIZE;
+		if (!session->bufsize || get_order(session->bufsize) > 8) {
 			session->bufsize = PAGE_SIZE;
 			temp = -EINVAL;
 		}
