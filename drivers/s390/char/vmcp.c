@@ -199,8 +199,8 @@ vmcp_write(struct file *file, const char __user *buff, size_t count,
 static long vmcp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct vmcp_session *session;
+	int ret = -ENOTTY;
 	int __user *argp;
-	int temp;
 
 	session = file->private_data;
 	if (is_compat_task())
@@ -211,28 +211,26 @@ static long vmcp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return -ERESTARTSYS;
 	switch (cmd) {
 	case VMCP_GETCODE:
-		temp = session->resp_code;
-		mutex_unlock(&session->mutex);
-		return put_user(temp, argp);
+		ret = put_user(session->resp_code, argp);
+		break;
 	case VMCP_SETBUF:
 		vmcp_response_free(session);
-		temp = get_user(session->bufsize, argp);
-		if (temp)
+		ret = get_user(session->bufsize, argp);
+		if (ret)
 			session->bufsize = PAGE_SIZE;
 		if (!session->bufsize || get_order(session->bufsize) > 8) {
 			session->bufsize = PAGE_SIZE;
-			temp = -EINVAL;
+			ret = -EINVAL;
 		}
-		mutex_unlock(&session->mutex);
-		return temp;
+		break;
 	case VMCP_GETSIZE:
-		temp = session->resp_size;
-		mutex_unlock(&session->mutex);
-		return put_user(temp, argp);
+		ret = put_user(session->resp_size, argp);
+		break;
 	default:
-		mutex_unlock(&session->mutex);
-		return -ENOTTY;
+		break;
 	}
+	mutex_unlock(&session->mutex);
+	return ret;
 }
 
 static const struct file_operations vmcp_fops = {
