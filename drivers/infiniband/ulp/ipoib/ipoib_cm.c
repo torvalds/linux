@@ -511,7 +511,6 @@ static int ipoib_cm_rx_handler(struct ib_cm_id *cm_id,
 	case IB_CM_REQ_RECEIVED:
 		return ipoib_cm_req_handler(cm_id, event);
 	case IB_CM_DREQ_RECEIVED:
-		p = cm_id->context;
 		ib_send_cm_drep(cm_id, NULL, 0);
 		/* Fall through */
 	case IB_CM_REJ_RECEIVED:
