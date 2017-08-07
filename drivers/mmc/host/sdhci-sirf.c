@@ -146,7 +146,7 @@ retry:
 	return rc;
 }
 
-static struct sdhci_ops sdhci_sirf_ops = {
+static const struct sdhci_ops sdhci_sirf_ops = {
 	.read_l = sdhci_sirf_readl_le,
 	.read_w = sdhci_sirf_readw_le,
 	.platform_execute_tuning = sdhci_sirf_execute_tuning,
@@ -157,7 +157,7 @@ static struct sdhci_ops sdhci_sirf_ops = {
 	.set_uhs_signaling = sdhci_set_uhs_signaling,
 };
 
-static struct sdhci_pltfm_data sdhci_sirf_pdata = {
+static const struct sdhci_pltfm_data sdhci_sirf_pdata = {
 	.ops = &sdhci_sirf_ops,
 	.quirks = SDHCI_QUIRK_BROKEN_TIMEOUT_VAL |
 		SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |
