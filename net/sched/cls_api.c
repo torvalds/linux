@@ -100,25 +100,6 @@ int unregister_tcf_proto_ops(struct tcf_proto_ops *ops)
 }
 EXPORT_SYMBOL(unregister_tcf_proto_ops);
 
-static int tfilter_notify(struct net *net, struct sk_buff *oskb,
-			  struct nlmsghdr *n, struct tcf_proto *tp,
-			  void *fh, int event, bool unicast);
-
-static int tfilter_del_notify(struct net *net, struct sk_buff *oskb,
-			      struct nlmsghdr *n, struct tcf_proto *tp,
-			      void *fh, bool unicast, bool *last);
-
-static void tfilter_notify_chain(struct net *net, struct sk_buff *oskb,
-				 struct nlmsghdr *n,
-				 struct tcf_chain *chain, int event)
-{
-	struct tcf_proto *tp;
-
-	for (tp = rtnl_dereference(chain->filter_chain);
-	     tp; tp = rtnl_dereference(tp->next))
-		tfilter_notify(net, oskb, n, tp, 0, event, false);
-}
-
 /* Select new prio value from the range, managed by kernel. */
 
 static inline u32 tcf_auto_prio(struct tcf_proto *tp)
@@ -411,6 +392,109 @@ static struct tcf_proto *tcf_chain_tp_find(struct tcf_chain *chain,
 	return tp;
 }
 
+static int tcf_fill_node(struct net *net, struct sk_buff *skb,
+			 struct tcf_proto *tp, void *fh, u32 portid,
+			 u32 seq, u16 flags, int event)
+{
+	struct tcmsg *tcm;
+	struct nlmsghdr  *nlh;
+	unsigned char *b = skb_tail_pointer(skb);
+
+	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*tcm), flags);
+	if (!nlh)
+		goto out_nlmsg_trim;
+	tcm = nlmsg_data(nlh);
+	tcm->tcm_family = AF_UNSPEC;
+	tcm->tcm__pad1 = 0;
+	tcm->tcm__pad2 = 0;
+	tcm->tcm_ifindex = qdisc_dev(tp->q)->ifindex;
+	tcm->tcm_parent = tp->classid;
+	tcm->tcm_info = TC_H_MAKE(tp->prio, tp->protocol);
+	if (nla_put_string(skb, TCA_KIND, tp->ops->kind))
+		goto nla_put_failure;
+	if (nla_put_u32(skb, TCA_CHAIN, tp->chain->index))
+		goto nla_put_failure;
+	if (!fh) {
+		tcm->tcm_handle = 0;
+	} else {
+		if (tp->ops->dump && tp->ops->dump(net, tp, fh, skb, tcm) < 0)
+			goto nla_put_failure;
+	}
+	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
+	return skb->len;
+
+out_nlmsg_trim:
+nla_put_failure:
+	nlmsg_trim(skb, b);
+	return -1;
+}
+
+static int tfilter_notify(struct net *net, struct sk_buff *oskb,
+			  struct nlmsghdr *n, struct tcf_proto *tp,
+			  void *fh, int event, bool unicast)
+{
+	struct sk_buff *skb;
+	u32 portid = oskb ? NETLINK_CB(oskb).portid : 0;
+
+	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!skb)
+		return -ENOBUFS;
+
+	if (tcf_fill_node(net, skb, tp, fh, portid, n->nlmsg_seq,
+			  n->nlmsg_flags, event) <= 0) {
+		kfree_skb(skb);
+		return -EINVAL;
+	}
+
+	if (unicast)
+		return netlink_unicast(net->rtnl, skb, portid, MSG_DONTWAIT);
+
+	return rtnetlink_send(skb, net, portid, RTNLGRP_TC,
+			      n->nlmsg_flags & NLM_F_ECHO);
+}
+
+static int tfilter_del_notify(struct net *net, struct sk_buff *oskb,
+			      struct nlmsghdr *n, struct tcf_proto *tp,
+			      void *fh, bool unicast, bool *last)
+{
+	struct sk_buff *skb;
+	u32 portid = oskb ? NETLINK_CB(oskb).portid : 0;
+	int err;
+
+	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
+	if (!skb)
+		return -ENOBUFS;
+
+	if (tcf_fill_node(net, skb, tp, fh, portid, n->nlmsg_seq,
+			  n->nlmsg_flags, RTM_DELTFILTER) <= 0) {
+		kfree_skb(skb);
+		return -EINVAL;
+	}
+
+	err = tp->ops->delete(tp, fh, last);
+	if (err) {
+		kfree_skb(skb);
+		return err;
+	}
+
+	if (unicast)
+		return netlink_unicast(net->rtnl, skb, portid, MSG_DONTWAIT);
+
+	return rtnetlink_send(skb, net, portid, RTNLGRP_TC,
+			      n->nlmsg_flags & NLM_F_ECHO);
+}
+
+static void tfilter_notify_chain(struct net *net, struct sk_buff *oskb,
+				 struct nlmsghdr *n,
+				 struct tcf_chain *chain, int event)
+{
+	struct tcf_proto *tp;
+
+	for (tp = rtnl_dereference(chain->filter_chain);
+	     tp; tp = rtnl_dereference(tp->next))
+		tfilter_notify(net, oskb, n, tp, 0, event, false);
+}
+
 /* Add/change/delete/get a filter node */
 
 static int tc_ctl_tfilter(struct sk_buff *skb, struct nlmsghdr *n,
@@ -638,98 +722,6 @@ errout:
 		/* Replay the request. */
 		goto replay;
 	return err;
-}
-
-static int tcf_fill_node(struct net *net, struct sk_buff *skb,
-			 struct tcf_proto *tp, void *fh, u32 portid,
-			 u32 seq, u16 flags, int event)
-{
-	struct tcmsg *tcm;
-	struct nlmsghdr  *nlh;
-	unsigned char *b = skb_tail_pointer(skb);
-
-	nlh = nlmsg_put(skb, portid, seq, event, sizeof(*tcm), flags);
-	if (!nlh)
-		goto out_nlmsg_trim;
-	tcm = nlmsg_data(nlh);
-	tcm->tcm_family = AF_UNSPEC;
-	tcm->tcm__pad1 = 0;
-	tcm->tcm__pad2 = 0;
-	tcm->tcm_ifindex = qdisc_dev(tp->q)->ifindex;
-	tcm->tcm_parent = tp->classid;
-	tcm->tcm_info = TC_H_MAKE(tp->prio, tp->protocol);
-	if (nla_put_string(skb, TCA_KIND, tp->ops->kind))
-		goto nla_put_failure;
-	if (nla_put_u32(skb, TCA_CHAIN, tp->chain->index))
-		goto nla_put_failure;
-	if (!fh) {
-		tcm->tcm_handle = 0;
-	} else {
-		if (tp->ops->dump && tp->ops->dump(net, tp, fh, skb, tcm) < 0)
-			goto nla_put_failure;
-	}
-	nlh->nlmsg_len = skb_tail_pointer(skb) - b;
-	return skb->len;
-
-out_nlmsg_trim:
-nla_put_failure:
-	nlmsg_trim(skb, b);
-	return -1;
-}
-
-static int tfilter_notify(struct net *net, struct sk_buff *oskb,
-			  struct nlmsghdr *n, struct tcf_proto *tp,
-			  void *fh, int event, bool unicast)
-{
-	struct sk_buff *skb;
-	u32 portid = oskb ? NETLINK_CB(oskb).portid : 0;
-
-	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
-	if (!skb)
-		return -ENOBUFS;
-
-	if (tcf_fill_node(net, skb, tp, fh, portid, n->nlmsg_seq,
-			  n->nlmsg_flags, event) <= 0) {
-		kfree_skb(skb);
-		return -EINVAL;
-	}
-
-	if (unicast)
-		return netlink_unicast(net->rtnl, skb, portid, MSG_DONTWAIT);
-
-	return rtnetlink_send(skb, net, portid, RTNLGRP_TC,
-			      n->nlmsg_flags & NLM_F_ECHO);
-}
-
-static int tfilter_del_notify(struct net *net, struct sk_buff *oskb,
-			      struct nlmsghdr *n, struct tcf_proto *tp,
-			      void *fh, bool unicast, bool *last)
-{
-	struct sk_buff *skb;
-	u32 portid = oskb ? NETLINK_CB(oskb).portid : 0;
-	int err;
-
-	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
-	if (!skb)
-		return -ENOBUFS;
-
-	if (tcf_fill_node(net, skb, tp, fh, portid, n->nlmsg_seq,
-			  n->nlmsg_flags, RTM_DELTFILTER) <= 0) {
-		kfree_skb(skb);
-		return -EINVAL;
-	}
-
-	err = tp->ops->delete(tp, fh, last);
-	if (err) {
-		kfree_skb(skb);
-		return err;
-	}
-
-	if (unicast)
-		return netlink_unicast(net->rtnl, skb, portid, MSG_DONTWAIT);
-
-	return rtnetlink_send(skb, net, portid, RTNLGRP_TC,
-			      n->nlmsg_flags & NLM_F_ECHO);
 }
 
 struct tcf_dump_args {
