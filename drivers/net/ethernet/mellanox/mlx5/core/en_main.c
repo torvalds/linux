@@ -3053,13 +3053,13 @@ static int mlx5e_setup_tc_cls_flower(struct net_device *dev,
 }
 
 static int mlx5e_setup_tc(struct net_device *dev, enum tc_setup_type type,
-			  struct tc_to_netdev *tc)
+			  void *type_data)
 {
 	switch (type) {
 	case TC_SETUP_CLSFLOWER:
-		return mlx5e_setup_tc_cls_flower(dev, tc->cls_flower);
+		return mlx5e_setup_tc_cls_flower(dev, type_data);
 	case TC_SETUP_MQPRIO:
-		return mlx5e_setup_tc_mqprio(dev, tc->mqprio);
+		return mlx5e_setup_tc_mqprio(dev, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}

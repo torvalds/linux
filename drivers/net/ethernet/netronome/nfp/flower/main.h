@@ -38,8 +38,8 @@
 #include <linux/hashtable.h>
 #include <linux/time64.h>
 #include <linux/types.h>
+#include <net/pkt_cls.h>
 
-struct tc_to_netdev;
 struct net_device;
 struct nfp_app;
 
@@ -135,7 +135,7 @@ int nfp_flower_metadata_init(struct nfp_app *app);
 void nfp_flower_metadata_cleanup(struct nfp_app *app);
 
 int nfp_flower_setup_tc(struct nfp_app *app, struct net_device *netdev,
-			enum tc_setup_type type, struct tc_to_netdev *tc);
+			enum tc_setup_type type, void *type_data);
 int nfp_flower_compile_flow_match(struct tc_cls_flower_offload *flow,
 				  struct nfp_fl_key_ls *key_ls,
 				  struct net_device *netdev,

@@ -651,10 +651,10 @@ static int mlx5e_rep_get_phys_port_name(struct net_device *dev,
 	return 0;
 }
 
-static int mlx5e_rep_setup_tc_cls_flower(struct net_device *dev,
-					 struct tc_to_netdev *tc)
+static int
+mlx5e_rep_setup_tc_cls_flower(struct net_device *dev,
+			      struct tc_cls_flower_offload *cls_flower)
 {
-	struct tc_cls_flower_offload *cls_flower = tc->cls_flower;
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
 	if (TC_H_MAJ(cls_flower->common.handle) != TC_H_MAJ(TC_H_INGRESS) ||
@@ -666,7 +666,7 @@ static int mlx5e_rep_setup_tc_cls_flower(struct net_device *dev,
 
 		dev = mlx5_eswitch_get_uplink_netdev(esw);
 		return dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_CLSFLOWER,
-						     tc);
+						     cls_flower);
 	}
 
 	switch (cls_flower->command) {
@@ -682,11 +682,11 @@ static int mlx5e_rep_setup_tc_cls_flower(struct net_device *dev,
 }
 
 static int mlx5e_rep_setup_tc(struct net_device *dev, enum tc_setup_type type,
-			      struct tc_to_netdev *tc)
+			      void *type_data)
 {
 	switch (type) {
 	case TC_SETUP_CLSFLOWER:
-		return mlx5e_rep_setup_tc_cls_flower(dev, tc);
+		return mlx5e_rep_setup_tc_cls_flower(dev, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}

@@ -883,11 +883,11 @@ static int dsa_slave_setup_tc_cls_matchall(struct net_device *dev,
 }
 
 static int dsa_slave_setup_tc(struct net_device *dev, enum tc_setup_type type,
-			      struct tc_to_netdev *tc)
+			      void *type_data)
 {
 	switch (type) {
 	case TC_SETUP_CLSMATCHALL:
-		return dsa_slave_setup_tc_cls_matchall(dev, tc->cls_mall);
+		return dsa_slave_setup_tc_cls_matchall(dev, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}

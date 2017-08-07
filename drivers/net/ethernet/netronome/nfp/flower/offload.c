@@ -385,9 +385,9 @@ nfp_flower_repr_offload(struct nfp_app *app, struct net_device *netdev,
 }
 
 int nfp_flower_setup_tc(struct nfp_app *app, struct net_device *netdev,
-			enum tc_setup_type type, struct tc_to_netdev *tc)
+			enum tc_setup_type type, void *type_data)
 {
-	struct tc_cls_flower_offload *cls_flower = tc->cls_flower;
+	struct tc_cls_flower_offload *cls_flower = type_data;
 
 	if (type != TC_SETUP_CLSFLOWER ||
 	    TC_H_MAJ(cls_flower->common.handle) != TC_H_MAJ(TC_H_INGRESS) ||

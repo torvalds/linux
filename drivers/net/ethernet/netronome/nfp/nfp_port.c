@@ -89,7 +89,7 @@ const struct switchdev_ops nfp_port_switchdev_ops = {
 };
 
 int nfp_port_setup_tc(struct net_device *netdev, enum tc_setup_type type,
-		      struct tc_to_netdev *tc)
+		      void *type_data)
 {
 	struct nfp_port *port;
 
@@ -97,7 +97,7 @@ int nfp_port_setup_tc(struct net_device *netdev, enum tc_setup_type type,
 	if (!port)
 		return -EOPNOTSUPP;
 
-	return nfp_app_setup_tc(port->app, netdev, type, tc);
+	return nfp_app_setup_tc(port->app, netdev, type, type_data);
 }
 
 struct nfp_port *

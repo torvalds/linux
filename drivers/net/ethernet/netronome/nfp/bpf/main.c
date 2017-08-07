@@ -121,10 +121,9 @@ static void nfp_bpf_vnic_clean(struct nfp_app *app, struct nfp_net *nn)
 }
 
 static int nfp_bpf_setup_tc(struct nfp_app *app, struct net_device *netdev,
-			    enum tc_setup_type type,
-			    struct tc_to_netdev *tc)
+			    enum tc_setup_type type, void *type_data)
 {
-	struct tc_cls_bpf_offload *cls_bpf = tc->cls_bpf;
+	struct tc_cls_bpf_offload *cls_bpf = type_data;
 	struct nfp_net *nn = netdev_priv(netdev);
 
 	if (type != TC_SETUP_CLSBPF || !nfp_net_ebpf_capable(nn) ||

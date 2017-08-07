@@ -1878,8 +1878,9 @@ static u16 netcp_select_queue(struct net_device *dev, struct sk_buff *skb,
 }
 
 static int netcp_setup_tc(struct net_device *dev, enum tc_setup_type type,
-			  struct tc_to_netdev *tc)
+			  void *type_data)
 {
+	struct tc_mqprio_qopt *mqprio = type_data;
 	u8 num_tc;
 	int i;
 
@@ -1889,8 +1890,8 @@ static int netcp_setup_tc(struct net_device *dev, enum tc_setup_type type,
 	if (type != TC_SETUP_MQPRIO)
 		return -EOPNOTSUPP;
 
-	tc->mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
-	num_tc = tc->mqprio->num_tc;
+	mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
+	num_tc = mqprio->num_tc;
 
 	/* Sanity-check the number of traffic classes requested */
 	if ((dev->real_num_tx_queues <= 1) ||

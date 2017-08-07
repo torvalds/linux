@@ -33,6 +33,8 @@
 #ifndef __MLX5_EN_TC_H__
 #define __MLX5_EN_TC_H__
 
+#include <net/pkt_cls.h>
+
 #define MLX5E_TC_FLOW_ID_MASK 0x0000ffff
 
 int mlx5e_tc_init(struct mlx5e_priv *priv);

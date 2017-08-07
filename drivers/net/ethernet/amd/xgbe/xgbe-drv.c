@@ -1919,16 +1919,17 @@ static void xgbe_poll_controller(struct net_device *netdev)
 #endif /* End CONFIG_NET_POLL_CONTROLLER */
 
 static int xgbe_setup_tc(struct net_device *netdev, enum tc_setup_type type,
-			 struct tc_to_netdev *tc_to_netdev)
+			 void *type_data)
 {
 	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+	struct tc_mqprio_qopt *mqprio = type_data;
 	u8 tc;
 
 	if (type != TC_SETUP_MQPRIO)
 		return -EOPNOTSUPP;
 
-	tc_to_netdev->mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
-	tc = tc_to_netdev->mqprio->num_tc;
+	mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
+	tc = mqprio->num_tc;
 
 	if (tc > pdata->hw_feat.tc_cnt)
 		return -EINVAL;

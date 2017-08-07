@@ -54,18 +54,16 @@ static int mall_replace_hw_filter(struct tcf_proto *tp,
 				  unsigned long cookie)
 {
 	struct net_device *dev = tp->q->dev_queue->dev;
-	struct tc_to_netdev offload;
-	struct tc_cls_matchall_offload mall_offload = {0};
+	struct tc_cls_matchall_offload cls_mall = {};
 	int err;
 
-	tc_cls_common_offload_init(&mall_offload.common, tp);
-	offload.cls_mall = &mall_offload;
-	offload.cls_mall->command = TC_CLSMATCHALL_REPLACE;
-	offload.cls_mall->exts = &head->exts;
-	offload.cls_mall->cookie = cookie;
+	tc_cls_common_offload_init(&cls_mall.common, tp);
+	cls_mall.command = TC_CLSMATCHALL_REPLACE;
+	cls_mall.exts = &head->exts;
+	cls_mall.cookie = cookie;
 
 	err = dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_CLSMATCHALL,
-					    &offload);
+					    &cls_mall);
 	if (!err)
 		head->flags |= TCA_CLS_FLAGS_IN_HW;
 
@@ -77,16 +75,13 @@ static void mall_destroy_hw_filter(struct tcf_proto *tp,
 				   unsigned long cookie)
 {
 	struct net_device *dev = tp->q->dev_queue->dev;
-	struct tc_to_netdev offload;
-	struct tc_cls_matchall_offload mall_offload = {0};
+	struct tc_cls_matchall_offload cls_mall = {};
 
-	tc_cls_common_offload_init(&mall_offload.common, tp);
-	offload.cls_mall = &mall_offload;
-	offload.cls_mall->command = TC_CLSMATCHALL_DESTROY;
-	offload.cls_mall->exts = NULL;
-	offload.cls_mall->cookie = cookie;
+	tc_cls_common_offload_init(&cls_mall.common, tp);
+	cls_mall.command = TC_CLSMATCHALL_DESTROY;
+	cls_mall.cookie = cookie;
 
-	dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_CLSMATCHALL, &offload);
+	dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_CLSMATCHALL, &cls_mall);
 }
 
 static void mall_destroy(struct tcf_proto *tp)

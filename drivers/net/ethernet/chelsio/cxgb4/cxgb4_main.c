@@ -2908,7 +2908,7 @@ static int cxgb_setup_tc_cls_u32(struct net_device *dev,
 }
 
 static int cxgb_setup_tc(struct net_device *dev, enum tc_setup_type type,
-			 struct tc_to_netdev *tc)
+			 void *type_data)
 {
 	struct port_info *pi = netdev2pinfo(dev);
 	struct adapter *adap = netdev2adap(dev);
@@ -2922,7 +2922,7 @@ static int cxgb_setup_tc(struct net_device *dev, enum tc_setup_type type,
 
 	switch (type) {
 	case TC_SETUP_CLSU32:
-		return cxgb_setup_tc_cls_u32(dev, tc->cls_u32);
+		return cxgb_setup_tc_cls_u32(dev, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}

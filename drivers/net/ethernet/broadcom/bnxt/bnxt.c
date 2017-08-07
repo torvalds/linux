@@ -7238,14 +7238,16 @@ int bnxt_setup_mq_tc(struct net_device *dev, u8 tc)
 }
 
 static int bnxt_setup_tc(struct net_device *dev, enum tc_setup_type type,
-			 struct tc_to_netdev *ntc)
+			 void *type_data)
 {
+	struct tc_mqprio_qopt *mqprio = type_data;
+
 	if (type != TC_SETUP_MQPRIO)
 		return -EOPNOTSUPP;
 
-	ntc->mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
+	mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
 
-	return bnxt_setup_mq_tc(dev, ntc->mqprio->num_tc);
+	return bnxt_setup_mq_tc(dev, mqprio->num_tc);
 }
 
 #ifdef CONFIG_RFS_ACCEL

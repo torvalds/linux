@@ -1220,12 +1220,14 @@ static int hns3_setup_tc(struct net_device *netdev, u8 tc)
 }
 
 static int hns3_nic_setup_tc(struct net_device *dev, enum tc_setup_type type,
-			     struct tc_to_netdev *tc)
+			     void *type_data)
 {
+	struct tc_mqprio_qopt *mqprio = type_data;
+
 	if (type != TC_SETUP_MQPRIO)
 		return -EOPNOTSUPP;
 
-	return hns3_setup_tc(dev, tc->mqprio->num_tc);
+	return hns3_setup_tc(dev, mqprio->num_tc);
 }
 
 static int hns3_vlan_rx_add_vid(struct net_device *netdev,

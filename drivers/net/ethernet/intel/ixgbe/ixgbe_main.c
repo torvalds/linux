@@ -9258,13 +9258,13 @@ static int ixgbe_setup_tc_mqprio(struct net_device *dev,
 }
 
 static int __ixgbe_setup_tc(struct net_device *dev, enum tc_setup_type type,
-			    struct tc_to_netdev *tc)
+			    void *type_data)
 {
 	switch (type) {
 	case TC_SETUP_CLSU32:
-		return ixgbe_setup_tc_cls_u32(dev, tc->cls_u32);
+		return ixgbe_setup_tc_cls_u32(dev, type_data);
 	case TC_SETUP_MQPRIO:
-		return ixgbe_setup_tc_mqprio(dev, tc->mqprio);
+		return ixgbe_setup_tc_mqprio(dev, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}

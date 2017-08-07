@@ -1736,17 +1736,15 @@ mlxsw_sp_setup_tc_cls_flower(struct mlxsw_sp_port *mlxsw_sp_port,
 }
 
 static int mlxsw_sp_setup_tc(struct net_device *dev, enum tc_setup_type type,
-			     struct tc_to_netdev *tc)
+			     void *type_data)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 
 	switch (type) {
 	case TC_SETUP_CLSMATCHALL:
-		return mlxsw_sp_setup_tc_cls_matchall(mlxsw_sp_port,
-						      tc->cls_mall);
+		return mlxsw_sp_setup_tc_cls_matchall(mlxsw_sp_port, type_data);
 	case TC_SETUP_CLSFLOWER:
-		return mlxsw_sp_setup_tc_cls_flower(mlxsw_sp_port,
-						    tc->cls_flower);
+		return mlxsw_sp_setup_tc_cls_flower(mlxsw_sp_port, type_data);
 	default:
 		return -EOPNOTSUPP;
 	}
