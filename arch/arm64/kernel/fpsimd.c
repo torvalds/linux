@@ -255,6 +255,7 @@ void fpsimd_flush_task_state(struct task_struct *t)
 #ifdef CONFIG_KERNEL_MODE_NEON
 
 DEFINE_PER_CPU(bool, kernel_neon_busy);
+EXPORT_PER_CPU_SYMBOL(kernel_neon_busy);
 
 /*
  * Kernel-side NEON support functions
