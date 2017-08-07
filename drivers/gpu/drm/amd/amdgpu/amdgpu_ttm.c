@@ -1641,8 +1641,6 @@ error_free:
 
 #if defined(CONFIG_DEBUG_FS)
 
-extern void amdgpu_gtt_mgr_print(struct seq_file *m, struct ttm_mem_type_manager
-				 *man);
 static int amdgpu_mm_dump_table(struct seq_file *m, void *data)
 {
 	struct drm_info_node *node = (struct drm_info_node *)m->private;
@@ -1653,17 +1651,6 @@ static int amdgpu_mm_dump_table(struct seq_file *m, void *data)
 	struct drm_printer p = drm_seq_file_printer(m);
 
 	man->func->debug(man, &p);
-	switch (ttm_pl) {
-	case TTM_PL_VRAM:
-		seq_printf(m, "man size:%llu pages, ram usage:%lluMB, vis usage:%lluMB\n",
-			   adev->mman.bdev.man[ttm_pl].size,
-			   (u64)atomic64_read(&adev->vram_usage) >> 20,
-			   (u64)atomic64_read(&adev->vram_vis_usage) >> 20);
-		break;
-	case TTM_PL_TT:
-		amdgpu_gtt_mgr_print(m, &adev->mman.bdev.man[TTM_PL_TT]);
-		break;
-	}
 	return 0;
 }
 
