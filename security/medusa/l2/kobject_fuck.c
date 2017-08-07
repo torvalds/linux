@@ -16,7 +16,7 @@
 
 MED_ATTRS(fuck_kobject) {
 	MED_ATTR		(fuck_kobject, path, "path", MED_STRING),
-	MED_ATTR		(fuck_kobject, ino, "ino", MED_UNSIGNED),   // unsigned long
+	MED_ATTR		(fuck_kobject, ino, "ino", MED_UNSIGNED), // unsigned long
 	MED_ATTR		(fuck_kobject, dev, "dev", MED_UNSIGNED), // unsigned int
 	MED_ATTR		(fuck_kobject, action, "action", MED_STRING),
 	MED_ATTR_END
@@ -34,7 +34,7 @@ static struct fuck_kobject storage;
 
 static struct fuck_path* get_from_hash(char* path, int hash, struct medusa_l1_inode_s* inode) {
 	struct fuck_path* fuck_item;
-	
+
 	hash_for_each_possible(inode->fuck, fuck_item, list, hash) {
 		if (strncmp(path, fuck_item->path, PATH_MAX) == 0) {
 			return fuck_item;
@@ -58,7 +58,7 @@ static struct fuck_path* hash_get_first(struct medusa_l1_inode_s* med) {
 int fuck_free(struct medusa_l1_inode_s* med) {
 	struct fuck_path* path;
 
-	while ((path = hash_get_first(med))) { 
+	while ((path = hash_get_first(med))) {
 		hash_del(&path->list);
 		kfree(path);
 	}
@@ -75,7 +75,7 @@ int validate_fuck(struct path fuck_path) {
 		
 		/* don't change to goto out, you don't have allocated buf yet */
 		if(hash_empty(inode_security(fuck_inode).fuck))
-			return ret;	
+			return ret;
 		
 		buf = (char *) kmalloc(PATH_MAX * sizeof(char), GFP_KERNEL);
 		if(!buf)
@@ -83,12 +83,8 @@ int validate_fuck(struct path fuck_path) {
 
 		accessed_path = d_absolute_path(&fuck_path, buf, PATH_MAX);
 		if(!accessed_path || IS_ERR(accessed_path)) {
-			if(PTR_ERR(accessed_path) == -ENAMETOOLONG)
-				goto out;
-			if(IS_ERR(accessed_path)) 
-				goto out;
-                        /* accessed_path is NULL */
-                        goto out;
+			/* accessed_path is NULL */
+			goto out;
 		}
 
 		hash = hash_function(accessed_path);
@@ -98,7 +94,7 @@ int validate_fuck(struct path fuck_path) {
 		}
 		printk("VALIDATE_FUCK: denied path (not defined in allowed path list)\n");
 		ret = -EPERM;
-out2:   
+out2:
 		printk("VALIDATE_FUCK: accessed_path: %s inode: %lu\n", accessed_path, fuck_inode->i_ino);
 out:
 		kfree(buf);
@@ -116,90 +112,90 @@ int validate_fuck_link(struct dentry *old_dentry) {
 
 static struct medusa_kobject_s * fuck_fetch(struct medusa_kobject_s * kobj)
 {
-	struct fuck_kobject * fkobj =  (struct fuck_kobject *) kobj;
-        struct inode *fuck_inode;
-        struct path path;
+	struct fuck_kobject * fkobj = (struct fuck_kobject *) kobj;
+	struct inode *fuck_inode;
+	struct path path;
 
 	fkobj->path[sizeof(fkobj->path)-1] = '\0';
-        if (kern_path(fkobj->path, LOOKUP_FOLLOW, &path) < 0)
-                return NULL;
+	if (kern_path(fkobj->path, LOOKUP_FOLLOW, &path) < 0)
+		return NULL;
 
-        fuck_inode = path.dentry->d_inode;
-        storage.ino = fuck_inode->i_ino;
-        storage.dev = fuck_inode->i_sb->s_dev;
-        memset(storage.action, '\0', sizeof(storage.action));
-        strncpy(storage.path, fkobj->path, PATH_MAX);
+	fuck_inode = path.dentry->d_inode;
+	storage.ino = fuck_inode->i_ino;
+	storage.dev = fuck_inode->i_sb->s_dev;
+	memset(storage.action, '\0', sizeof(storage.action));
+	strncpy(storage.path, fkobj->path, PATH_MAX);
 
 	return (struct medusa_kobject_s *) &storage;
 }
 
 /**
- *      fuck_update - update allowed path list for given dev/ino file
- *      @kobj:  fuck_kobject with filled 'dev', 'ino', 'path' and 'action' values
+ *	  fuck_update - update allowed path list for given dev/ino file
+ *	  @kobj:  fuck_kobject with filled 'dev', 'ino', 'path' and 'action' values
  *
- *      Add or remove allowed 'path' for given file (identified by dev/ino values).
- *      fuck_kobject:
- *              'dev':  identification of device
- *              'ino':  inode number on the device
- *              'path': allowed access path to be added/removed for file identified by dev/ino
- *              'action': action to be done, can be:
- *                      'remove': removes 'path' from allowed access paths for dev/ino
- *                      'append': add 'path' to allowed access paths for dev/ino
+ *	  Add or remove allowed 'path' for given file (identified by dev/ino values).
+ *	  fuck_kobject:
+ *			  'dev':  identification of device
+ *			  'ino':  inode number on the device
+ *			  'path': allowed access path to be added/removed for file identified by dev/ino
+ *			  'action': action to be done, can be:
+ *					  'remove': removes 'path' from allowed access paths for dev/ino
+ *					  'append': add 'path' to allowed access paths for dev/ino
  *
- *      return values:
- *              MED_OK:
- *                      - successfully appended/removed path
- *                      - attempt to remove path from empty list
- *                      - attempt to remove non-existing path in list
- *              MED_ERR:
- *                      - unable to get info about file specified by dev/ino numbers
- *                      - memory allocation error
+ *	  return values:
+ *			  MED_OK:
+ *					  - successfully appended/removed path
+ *					  - attempt to remove path from empty list
+ *					  - attempt to remove non-existing path in list
+ *			  MED_ERR:
+ *					  - unable to get info about file specified by dev/ino numbers
+ *					  - memory allocation error
  */
 static medusa_answer_t fuck_update(struct medusa_kobject_s * kobj)
 {
 	struct fuck_kobject * fkobj =  (struct fuck_kobject *) kobj;
-        struct super_block *sb;
-        struct inode *fuck_inode;
-        struct fuck_path *fuck_path;
+	struct super_block *sb;
+	struct inode *fuck_inode;
+	struct fuck_path *fuck_path;
 	int hash;
 
+	sb = user_get_super((dev_t)fkobj->dev);
+	if (!sb)
+		return MED_ERR;
+	fuck_inode = ilookup(sb, fkobj->ino);
+	drop_super(sb);
+
+	if (!fuck_inode)
+		return MED_OK;
+
 	fkobj->path[sizeof(fkobj->path)-1] = '\0';
-        hash = hash_function(fkobj->path);
+	hash = hash_function(fkobj->path);
 
-        sb = user_get_super((dev_t)fkobj->dev);
-        if (!sb)
-                return MED_ERR;
-        fuck_inode = ilookup(sb, fkobj->ino);
-        drop_super(sb);
-
-        if (strcmp(fkobj->action, "append") == 0) {
+	if (strcmp(fkobj->action, "append") == 0) {
 		fuck_path = (struct fuck_path*) kmalloc(sizeof(fuck_path) + sizeof(char)*(strnlen(fkobj->path, PATH_MAX)+1), GFP_KERNEL);
-                if (!fuck_path) {
-                        iput(fuck_inode);
-	                return MED_ERR;
-                }
-                strncpy(fuck_path->path, fkobj->path, PATH_MAX);
+		if (!fuck_path) {
+			iput(fuck_inode);
+			return MED_ERR;
+		}
+		strncpy(fuck_path->path, fkobj->path, PATH_MAX);
 
-                /* don't check for duplicity in hash table
-                   is up to admin do not add the same 'path' more than once */
-	        hash_add(inode_security(fuck_inode).fuck, &fuck_path->list, hash);
-        } else if (strcmp(fkobj->action, "remove") == 0) {
-                /* remove from empty hash table is ok */
-		if(hash_empty(inode_security(fuck_inode).fuck))
-			goto out;
-                /* remove non-existing path in hash table is ok */
+		/* don't check for duplicity in hash table
+		   is up to admin do not add the same 'path' more than once */
+		hash_add(inode_security(fuck_inode).fuck, &fuck_path->list, hash);
+	} else if (strcmp(fkobj->action, "remove") == 0) {
+		/* remove non-existing path in hash table is ok */
 		if ((fuck_path = get_from_hash(fkobj->path, hash, &inode_security(fuck_inode))) == NULL)
 			goto out;
 		hash_del(&fuck_path->list);
 		kfree(fuck_path);
-        }
+	}
 
 	MED_PRINTF("Fuck: '%s' (dev = %u, ino = %lu, act = %s)", \
-                fkobj->path, fkobj->dev, fkobj->ino, fkobj->action);
+				fkobj->path, fkobj->dev, fkobj->ino, fkobj->action);
 
 out:
-        iput(fuck_inode);
-        return MED_OK;
+	iput(fuck_inode);
+	return MED_OK;
 }
 
 MED_KCLASS(fuck_kobject) {
