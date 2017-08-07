@@ -210,6 +210,21 @@ int asix_rx_fixup_common(struct usbnet *dev, struct sk_buff *skb)
 	return asix_rx_fixup_internal(dev, skb, rx);
 }
 
+void asix_rx_fixup_common_free(struct asix_common_private *dp)
+{
+	struct asix_rx_fixup_info *rx;
+
+	if (!dp)
+		return;
+
+	rx = &dp->rx_fixup_info;
+
+	if (rx->ax_skb) {
+		kfree_skb(rx->ax_skb);
+		rx->ax_skb = NULL;
+	}
+}
+
 struct sk_buff *asix_tx_fixup(struct usbnet *dev, struct sk_buff *skb,
 			      gfp_t flags)
 {
