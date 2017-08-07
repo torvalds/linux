@@ -1176,7 +1176,7 @@ static int f2fs_quota_on(struct super_block *sb, int type, int format_id,
 	struct inode *inode;
 	int err;
 
-	err = f2fs_quota_sync(sb, -1);
+	err = f2fs_quota_sync(sb, type);
 	if (err)
 		return err;
 
@@ -1204,7 +1204,7 @@ static int f2fs_quota_off(struct super_block *sb, int type)
 	if (!inode || !igrab(inode))
 		return dquot_quota_off(sb, type);
 
-	f2fs_quota_sync(sb, -1);
+	f2fs_quota_sync(sb, type);
 
 	err = dquot_quota_off(sb, type);
 	if (err)
