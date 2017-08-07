@@ -20,9 +20,10 @@ int fuck_free(struct medusa_l1_inode_s* med);
 
 struct fuck_kobject {	
 	MEDUSA_KOBJECT_HEADER;
-	char path[PATH_MAX];
-	unsigned long i_ino;
-	char action[20];
+	char path[PATH_MAX];    /* primary key in 'fetch' operation */
+	unsigned long ino;      /* primary key in 'update' operation */
+	unsigned int dev;       /* primary key in 'update' operation */
+	char action[20];        /* type of operation 'update' ('append' or 'remove') */
 	MEDUSA_OBJECT_VARS;
 };
 extern MED_DECLARE_KCLASSOF(fuck_kobject);

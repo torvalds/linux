@@ -12,55 +12,40 @@
 #include <linux/crc32.h>
 #include <linux/medusa/l3/registry.h>
 #include "kobject_fuck.h"
+#include "../../fs/internal.h" /* we need internal fs function 'user_get_super' */
 
 MED_ATTRS(fuck_kobject) {
 	MED_ATTR_KEY	(fuck_kobject, path, "path", MED_STRING),
-	MED_ATTR		(fuck_kobject, i_ino, "i_ino", MED_UNSIGNED),
+	MED_ATTR		(fuck_kobject, ino, "ino", MED_UNSIGNED),   // unsigned long
+	MED_ATTR		(fuck_kobject, dev, "dev", MED_UNSIGNED), // unsigned int
 	MED_ATTR		(fuck_kobject, action, "action", MED_STRING),
 	MED_ATTR_OBJECT (fuck_kobject),
 	MED_ATTR_END
 };
 
-#define hash_function(path) crc32(0, path, strlen(path)) //TODO: create hash_function
+// TODO add choices to menu config
+#define hash_function(path) crc32(0, path, strlen(path))
 
 struct fuck_path {
 	struct hlist_node list;
 	char path[0];
 };
 
-//append name to path and save it to dest
-//not used
-int append_path(char *path, char* dest, const unsigned char *name)
-{
-	int namelen;
-	int pathlen;
+static struct fuck_kobject storage;
 
-	pathlen = strlen(path);
-	namelen = strlen(name);
-
-	if ((pathlen + namelen + 2) > PATH_MAX)
-		return ENAMETOOLONG;
-	memcpy(dest, path , pathlen);
-	dest[pathlen] = '/';
-	memcpy(dest + pathlen + 1, name , namelen);
-	dest[pathlen + namelen + 1] = '\0';
-	
-	return 0;
-}
-
-static int exists_in_hash(char* path, int hash, struct medusa_l1_inode_s* inode) {
+static struct fuck_path* get_from_hash(char* path, int hash, struct medusa_l1_inode_s* inode) {
 	struct fuck_path* fuck_item;
 	
 	hash_for_each_possible(inode->fuck, fuck_item, list, hash) {
 		if (strncmp(path, fuck_item->path, PATH_MAX) == 0) {
-			return 1;
+			return fuck_item;
 		}
 	}
 
-	return 0;
+	return NULL;
 }
 
-struct fuck_path* hash_get_first(struct medusa_l1_inode_s* med) {
+static struct fuck_path* hash_get_first(struct medusa_l1_inode_s* med) {
 	int bkt;
 	struct fuck_path* path;
 
@@ -89,7 +74,7 @@ int validate_fuck(struct path fuck_path) {
 		char *accessed_path;
 		char *buf = NULL;
 		
-		//dont change to goto out you dont have buf
+		/* don't change to goto out, you don't have allocated buf yet */
 		if(hash_empty(inode_security(fuck_inode).fuck))
 			return ret;	
 		
@@ -103,12 +88,12 @@ int validate_fuck(struct path fuck_path) {
 				goto out;
 			if(IS_ERR(accessed_path)) 
 				goto out;
-                        // accessed_path is NULL
+                        /* accessed_path is NULL */
                         goto out;
 		}
 
 		hash = hash_function(accessed_path);
-		if (exists_in_hash(accessed_path, hash, &inode_security(fuck_inode))) {
+		if (get_from_hash(accessed_path, hash, &inode_security(fuck_inode)) != NULL) {
 			printk("VALIDATE_FUCK: allowed path\n");
 			goto out2;
 		}
@@ -133,39 +118,88 @@ int validate_fuck_link(struct dentry *old_dentry) {
 static struct medusa_kobject_s * fuck_fetch(struct medusa_kobject_s * kobj)
 {
 	struct fuck_kobject * fkobj =  (struct fuck_kobject *) kobj;
-	char *path_name;
-	struct path path;
-	unsigned long i_ino;
+        struct inode *fuck_inode;
+        struct path path;
+
 	fkobj->path[sizeof(fkobj->path)-1] = '\0';
-	path_name = fkobj->path;
+        if (kern_path(fkobj->path, LOOKUP_FOLLOW, &path) < 0)
+                return NULL;
 
-	if(kern_path(path_name, LOOKUP_FOLLOW, &path) >= 0) {
-		struct inode *fuck_inode = path.dentry->d_inode;
-		
-		struct fuck_path *fuck_path = (struct fuck_path*) kmalloc(sizeof(fuck_path) + sizeof(char)*(strnlen(path_name, PATH_MAX)+1), GFP_KERNEL);
-		int hash = hash_function(fuck_path->path);	
+        fuck_inode = path.dentry->d_inode;
+        storage.ino = fuck_inode->i_ino;
+        storage.dev = fuck_inode->i_sb->s_dev;
+        memset(storage.action, '\0', sizeof(storage.action));
+        strncpy(storage.path, fkobj->path, PATH_MAX);
 
-		strncpy(fuck_path->path, path_name, PATH_MAX);
-
-                // don't check for duplicity in hash table
-                // is up to admin do not add the same 'path' more then once
-		hash_add(inode_security(fuck_inode).fuck, &fuck_path->list, hash);
-
-		i_ino = fuck_inode->i_ino;
-		fkobj->i_ino = i_ino;
-
-		printk("FUCK_SECURED_PATH: %s\n", path_name);
-		MED_PRINTF("Fuck: %s with i_no %lu", path_name, i_ino);
-	}else{
-		MED_PRINTF("Fuck: %s have no inode", path_name);
-	}
-	
-	return (struct medusa_kobject_s *)fkobj;
+	return (struct medusa_kobject_s *) &storage;
 }
 
+/**
+ *      fuck_update - update allowed path list for given dev/ino file
+ *      @kobj:  fuck_kobject with filled 'dev', 'ino', 'path' and 'action' values
+ *
+ *      Add or remove allowed 'path' for given file (identified by dev/ino values).
+ *      fuck_kobject:
+ *              'dev':  identification of device
+ *              'ino':  inode number on the device
+ *              'path': allowed access path to be added/removed for file identified by dev/ino
+ *              'action': action to be done, can be:
+ *                      'remove': removes 'path' from allowed access paths for dev/ino
+ *                      'append': add 'path' to allowed access paths for dev/ino
+ *
+ *      return values:
+ *              MED_OK:
+ *                      - successfully appended/removed path
+ *                      - attempt to remove path from empty list
+ *                      - attempt to remove non-existing path in list
+ *              MED_ERR:
+ *                      - unable to get info about file specified by dev/ino numbers
+ *                      - memory allocation error
+ */
 static medusa_answer_t fuck_update(struct medusa_kobject_s * kobj)
 {
-	return MED_OK;
+	struct fuck_kobject * fkobj =  (struct fuck_kobject *) kobj;
+        struct super_block *sb;
+        struct inode *fuck_inode;
+        struct fuck_path *fuck_path;
+	int hash;
+
+	fkobj->path[sizeof(fkobj->path)-1] = '\0';
+        hash = hash_function(fkobj->path);
+
+        sb = user_get_super((dev_t)fkobj->dev);
+        if (!sb)
+                return MED_ERR;
+        fuck_inode = ilookup(sb, fkobj->ino);
+        drop_super(sb);
+
+        if (strcmp(fkobj->action, "append") == 0) {
+		fuck_path = (struct fuck_path*) kmalloc(sizeof(fuck_path) + sizeof(char)*(strnlen(fkobj->path, PATH_MAX)+1), GFP_KERNEL);
+                if (!fuck_path) {
+                        iput(fuck_inode);
+	                return MED_ERR;
+                }
+                strncpy(fuck_path->path, fkobj->path, PATH_MAX);
+
+                /* don't check for duplicity in hash table
+                   is up to admin do not add the same 'path' more than once */
+	        hash_add(inode_security(fuck_inode).fuck, &fuck_path->list, hash);
+        } else if (strcmp(fkobj->action, "remove") == 0) {
+                /* remove from empty hash table is ok */
+		if(hash_empty(inode_security(fuck_inode).fuck))
+			return MED_OK;
+                /* remove non-existing path in hash table is ok */
+		if ((fuck_path = get_from_hash(fkobj->path, hash, &inode_security(fuck_inode))) == NULL)
+			return MED_OK;
+		hash_del(&fuck_path->list);
+		kfree(fuck_path);
+        }
+        iput(fuck_inode);
+
+	MED_PRINTF("Fuck: '%s' (dev = %u, ino = %lu, act = %s)", \
+                fkobj->path, fkobj->dev, fkobj->ino, fkobj->action);
+
+        return MED_OK;
 }
 
 MED_KCLASS(fuck_kobject) {
