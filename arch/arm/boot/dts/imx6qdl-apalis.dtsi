@@ -371,7 +371,8 @@
 };
 
 /*
- * GEN2_I2C, CAM: I2C3_SDA/SCL on MXM3 201/203 (unused)
+ * I2C3_SDA/SCL (CAM) on MXM3 pin 201/203 (e.g. camera sensor on carrier
+ * board)
  */
 &i2c3 {
 	clock-frequency = <100000>;
