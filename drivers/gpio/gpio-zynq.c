@@ -195,10 +195,10 @@ static inline void zynq_gpio_get_bank_pin(unsigned int pin_num,
 	for (bank = 0; bank < gpio->p_data->max_bank; bank++) {
 		if ((pin_num >= gpio->p_data->bank_min[bank]) &&
 			(pin_num <= gpio->p_data->bank_max[bank])) {
-				*bank_num = bank;
-				*bank_pin_num = pin_num -
-						gpio->p_data->bank_min[bank];
-				return;
+			*bank_num = bank;
+			*bank_pin_num = pin_num -
+					gpio->p_data->bank_min[bank];
+			return;
 		}
 	}
 
@@ -712,7 +712,7 @@ static int __maybe_unused zynq_gpio_runtime_resume(struct device *dev)
 	return clk_prepare_enable(gpio->clk);
 }
 
-static int zynq_gpio_request(struct gpio_chip *chip, unsigned offset)
+static int zynq_gpio_request(struct gpio_chip *chip, unsigned int offset)
 {
 	int ret;
 
@@ -725,7 +725,7 @@ static int zynq_gpio_request(struct gpio_chip *chip, unsigned offset)
 	return ret < 0 ? ret : 0;
 }
 
-static void zynq_gpio_free(struct gpio_chip *chip, unsigned offset)
+static void zynq_gpio_free(struct gpio_chip *chip, unsigned int offset)
 {
 	pm_runtime_put(chip->parent);
 }
