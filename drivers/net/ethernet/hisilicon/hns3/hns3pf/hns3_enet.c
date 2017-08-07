@@ -1219,14 +1219,15 @@ static int hns3_setup_tc(struct net_device *netdev, u8 tc)
 	return 0;
 }
 
-static int hns3_nic_setup_tc(struct net_device *dev, u32 handle,
-			     u32 chain_index, __be16 protocol,
-			     struct tc_to_netdev *tc)
+static int hns3_nic_setup_tc(struct net_device *dev, enum tc_setup_type type,
+			     void *type_data)
 {
-	if (handle != TC_H_ROOT || tc->type != TC_SETUP_MQPRIO)
-		return -EINVAL;
+	struct tc_mqprio_qopt *mqprio = type_data;
 
-	return hns3_setup_tc(dev, tc->mqprio->num_tc);
+	if (type != TC_SETUP_MQPRIO)
+		return -EOPNOTSUPP;
+
+	return hns3_setup_tc(dev, mqprio->num_tc);
 }
 
 static int hns3_vlan_rx_add_vid(struct net_device *netdev,

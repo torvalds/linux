@@ -147,24 +147,18 @@ static int cls_bpf_offload_cmd(struct tcf_proto *tp, struct cls_bpf_prog *prog,
 			       enum tc_clsbpf_command cmd)
 {
 	struct net_device *dev = tp->q->dev_queue->dev;
-	struct tc_cls_bpf_offload bpf_offload = {};
-	struct tc_to_netdev offload;
+	struct tc_cls_bpf_offload cls_bpf = {};
 	int err;
 
-	offload.type = TC_SETUP_CLSBPF;
-	offload.cls_bpf = &bpf_offload;
+	tc_cls_common_offload_init(&cls_bpf.common, tp);
+	cls_bpf.command = cmd;
+	cls_bpf.exts = &prog->exts;
+	cls_bpf.prog = prog->filter;
+	cls_bpf.name = prog->bpf_name;
+	cls_bpf.exts_integrated = prog->exts_integrated;
+	cls_bpf.gen_flags = prog->gen_flags;
 
-	bpf_offload.command = cmd;
-	bpf_offload.exts = &prog->exts;
-	bpf_offload.prog = prog->filter;
-	bpf_offload.name = prog->bpf_name;
-	bpf_offload.exts_integrated = prog->exts_integrated;
-	bpf_offload.gen_flags = prog->gen_flags;
-
-	err = dev->netdev_ops->ndo_setup_tc(dev, tp->q->handle,
-					    tp->chain->index,
-					    tp->protocol, &offload);
-
+	err = dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_CLSBPF, &cls_bpf);
 	if (!err && (cmd == TC_CLSBPF_ADD || cmd == TC_CLSBPF_REPLACE))
 		prog->gen_flags |= TCA_CLS_FLAGS_IN_HW;
 
