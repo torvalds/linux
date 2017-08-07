@@ -89,7 +89,7 @@ static void dccp_v6_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	sk = __inet6_lookup_established(net, &dccp_hashinfo,
 					&hdr->daddr, dh->dccph_dport,
 					&hdr->saddr, ntohs(dh->dccph_sport),
-					inet6_iif(skb));
+					inet6_iif(skb), 0);
 
 	if (!sk) {
 		__ICMP6_INC_STATS(net, __in6_dev_get(skb->dev),
@@ -687,7 +687,7 @@ static int dccp_v6_rcv(struct sk_buff *skb)
 lookup:
 	sk = __inet6_lookup_skb(&dccp_hashinfo, skb, __dccp_hdr_len(dh),
 			        dh->dccph_sport, dh->dccph_dport,
-				inet6_iif(skb), &refcounted);
+				inet6_iif(skb), 0, &refcounted);
 	if (!sk) {
 		dccp_pr_debug("failed to look up flow ID in table and "
 			      "get corresponding socket\n");
