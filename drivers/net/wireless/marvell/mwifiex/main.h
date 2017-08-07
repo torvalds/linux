@@ -1077,9 +1077,9 @@ int mwifiex_get_debug_info(struct mwifiex_private *,
 			   struct mwifiex_debug_info *);
 
 int mwifiex_alloc_cmd_buffer(struct mwifiex_adapter *adapter);
-int mwifiex_free_cmd_buffer(struct mwifiex_adapter *adapter);
+void mwifiex_free_cmd_buffer(struct mwifiex_adapter *adapter);
+void mwifiex_free_cmd_buffers(struct mwifiex_adapter *adapter);
 void mwifiex_cancel_all_pending_cmd(struct mwifiex_adapter *adapter);
-void mwifiex_cancel_pending_ioctl(struct mwifiex_adapter *adapter);
 void mwifiex_cancel_pending_scan_cmd(struct mwifiex_adapter *adapter);
 void mwifiex_cancel_scan(struct mwifiex_adapter *adapter);
 
@@ -1087,8 +1087,7 @@ void mwifiex_recycle_cmd_node(struct mwifiex_adapter *adapter,
 			      struct cmd_ctrl_node *cmd_node);
 
 void mwifiex_insert_cmd_to_pending_q(struct mwifiex_adapter *adapter,
-				     struct cmd_ctrl_node *cmd_node,
-				     u32 addtail);
+				     struct cmd_ctrl_node *cmd_node);
 
 int mwifiex_exec_next_cmd(struct mwifiex_adapter *adapter);
 int mwifiex_process_cmdresp(struct mwifiex_adapter *adapter);

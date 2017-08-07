@@ -59,109 +59,66 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-#ifndef __iwl_fw_api_h__
-#define __iwl_fw_api_h__
-
-/**
- * DOC: Host command section
- *
- * A host command is a command issued by the upper layer to the fw. There are
- * several versions of fw that have several APIs. The transport layer is
- * completely agnostic to these differences.
- * The transport does provide helper functionality (i.e. SYNC / ASYNC mode),
- */
-#define SEQ_TO_QUEUE(s)	(((s) >> 8) & 0x1f)
-#define QUEUE_TO_SEQ(q)	(((q) & 0x1f) << 8)
-#define SEQ_TO_INDEX(s)	((s) & 0xff)
-#define INDEX_TO_SEQ(i)	((i) & 0xff)
-#define SEQ_RX_FRAME	cpu_to_le16(0x8000)
+#ifndef __iwl_fw_api_txq_h__
+#define __iwl_fw_api_txq_h__
 
 /*
- * those functions retrieve specific information from
- * the id field in the iwl_host_cmd struct which contains
- * the command id, the group id and the version of the command
- * and vice versa
-*/
-static inline u8 iwl_cmd_opcode(u32 cmdid)
-{
-	return cmdid & 0xFF;
-}
-
-static inline u8 iwl_cmd_groupid(u32 cmdid)
-{
-	return ((cmdid & 0xFF00) >> 8);
-}
-
-static inline u8 iwl_cmd_version(u32 cmdid)
-{
-	return ((cmdid & 0xFF0000) >> 16);
-}
-
-static inline u32 iwl_cmd_id(u8 opcode, u8 groupid, u8 version)
-{
-	return opcode + (groupid << 8) + (version << 16);
-}
-
-/* make u16 wide id out of u8 group and opcode */
-#define WIDE_ID(grp, opcode) (((grp) << 8) | (opcode))
-#define DEF_ID(opcode) ((1 << 8) | (opcode))
-
-/* due to the conversion, this group is special; new groups
- * should be defined in the appropriate fw-api header files
- */
-#define IWL_ALWAYS_LONG_GROUP	1
-
-/**
- * struct iwl_cmd_header
+ * DQA queue numbers
  *
- * This header format appears in the beginning of each command sent from the
- * driver, and each response/notification received from uCode.
+ * @IWL_MVM_DQA_CMD_QUEUE: a queue reserved for sending HCMDs to the FW
+ * @IWL_MVM_DQA_AUX_QUEUE: a queue reserved for aux frames
+ * @IWL_MVM_DQA_P2P_DEVICE_QUEUE: a queue reserved for P2P device frames
+ * @IWL_MVM_DQA_GCAST_QUEUE: a queue reserved for P2P GO/SoftAP GCAST frames
+ * @IWL_MVM_DQA_BSS_CLIENT_QUEUE: a queue reserved for BSS activity, to ensure
+ *	that we are never left without the possibility to connect to an AP.
+ * @IWL_MVM_DQA_MIN_MGMT_QUEUE: first TXQ in pool for MGMT and non-QOS frames.
+ *	Each MGMT queue is mapped to a single STA
+ *	MGMT frames are frames that return true on ieee80211_is_mgmt()
+ * @IWL_MVM_DQA_MAX_MGMT_QUEUE: last TXQ in pool for MGMT frames
+ * @IWL_MVM_DQA_AP_PROBE_RESP_QUEUE: a queue reserved for P2P GO/SoftAP probe
+ *	responses
+ * @IWL_MVM_DQA_MIN_DATA_QUEUE: first TXQ in pool for DATA frames.
+ *	DATA frames are intended for !ieee80211_is_mgmt() frames, but if
+ *	the MGMT TXQ pool is exhausted, mgmt frames can be sent on DATA queues
+ *	as well
+ * @IWL_MVM_DQA_MAX_DATA_QUEUE: last TXQ in pool for DATA frames
  */
-struct iwl_cmd_header {
-	u8 cmd;		/* Command ID:  REPLY_RXON, etc. */
-	u8 group_id;
-	/*
-	 * The driver sets up the sequence number to values of its choosing.
-	 * uCode does not use this value, but passes it back to the driver
-	 * when sending the response to each driver-originated command, so
-	 * the driver can match the response to the command.  Since the values
-	 * don't get used by uCode, the driver may set up an arbitrary format.
-	 *
-	 * There is one exception:  uCode sets bit 15 when it originates
-	 * the response/notification, i.e. when the response/notification
-	 * is not a direct response to a command sent by the driver.  For
-	 * example, uCode issues REPLY_RX when it sends a received frame
-	 * to the driver; it is not a direct response to any driver command.
-	 *
-	 * The Linux driver uses the following format:
-	 *
-	 *  0:7		tfd index - position within TX queue
-	 *  8:12	TX queue id
-	 *  13:14	reserved
-	 *  15		unsolicited RX or uCode-originated notification
-	 */
-	__le16 sequence;
-} __packed;
+enum iwl_mvm_dqa_txq {
+	IWL_MVM_DQA_CMD_QUEUE = 0,
+	IWL_MVM_DQA_AUX_QUEUE = 1,
+	IWL_MVM_DQA_P2P_DEVICE_QUEUE = 2,
+	IWL_MVM_DQA_GCAST_QUEUE = 3,
+	IWL_MVM_DQA_BSS_CLIENT_QUEUE = 4,
+	IWL_MVM_DQA_MIN_MGMT_QUEUE = 5,
+	IWL_MVM_DQA_MAX_MGMT_QUEUE = 8,
+	IWL_MVM_DQA_AP_PROBE_RESP_QUEUE = 9,
+	IWL_MVM_DQA_MIN_DATA_QUEUE = 10,
+	IWL_MVM_DQA_MAX_DATA_QUEUE = 31,
+};
+
+enum iwl_mvm_tx_fifo {
+	IWL_MVM_TX_FIFO_BK = 0,
+	IWL_MVM_TX_FIFO_BE,
+	IWL_MVM_TX_FIFO_VI,
+	IWL_MVM_TX_FIFO_VO,
+	IWL_MVM_TX_FIFO_MCAST = 5,
+	IWL_MVM_TX_FIFO_CMD = 7,
+};
+
+enum iwl_gen2_tx_fifo {
+	IWL_GEN2_TX_FIFO_CMD = 0,
+	IWL_GEN2_EDCA_TX_FIFO_BK,
+	IWL_GEN2_EDCA_TX_FIFO_BE,
+	IWL_GEN2_EDCA_TX_FIFO_VI,
+	IWL_GEN2_EDCA_TX_FIFO_VO,
+	IWL_GEN2_TRIG_TX_FIFO_BK,
+	IWL_GEN2_TRIG_TX_FIFO_BE,
+	IWL_GEN2_TRIG_TX_FIFO_VI,
+	IWL_GEN2_TRIG_TX_FIFO_VO,
+};
 
 /**
- * struct iwl_cmd_header_wide
- *
- * This header format appears in the beginning of each command sent from the
- * driver, and each response/notification received from uCode.
- * this is the wide version that contains more information about the command
- * like length, version and command type
- */
-struct iwl_cmd_header_wide {
-	u8 cmd;
-	u8 group_id;
-	__le16 sequence;
-	__le16 length;
-	u8 reserved;
-	u8 version;
-} __packed;
-
-/**
- * iwl_tx_queue_cfg_actions - TXQ config options
+ * enum iwl_tx_queue_cfg_actions - TXQ config options
  * @TX_QUEUE_CFG_ENABLE_QUEUE: enable a queue
  * @TX_QUEUE_CFG_TFD_SHORT_FORMAT: use short TFD format
  */
@@ -194,6 +151,7 @@ struct iwl_tx_queue_cfg_cmd {
  * @queue_number: queue number assigned to this RA -TID
  * @flags: set on failure
  * @write_pointer: initial value for write pointer
+ * @reserved: reserved
  */
 struct iwl_tx_queue_cfg_rsp {
 	__le16 queue_number;
@@ -202,28 +160,4 @@ struct iwl_tx_queue_cfg_rsp {
 	__le16 reserved;
 } __packed; /* TX_QUEUE_CFG_RSP_API_S_VER_2 */
 
-/**
- * struct iwl_calib_res_notif_phy_db - Receive phy db chunk after calibrations
- * @type: type of the result - mostly ignored
- * @length: length of the data
- * @data: data, length in @length
- */
-struct iwl_calib_res_notif_phy_db {
-	__le16 type;
-	__le16 length;
-	u8 data[];
-} __packed;
-
-/**
- * struct iwl_phy_db_cmd - configure operational ucode
- * @type: type of the data
- * @length: length of the data
- * @data: data, length in @length
- */
-struct iwl_phy_db_cmd {
-	__le16 type;
-	__le16 length;
-	u8 data[];
-} __packed;
-
-#endif /* __iwl_fw_api_h__*/
+#endif /* __iwl_fw_api_txq_h__ */

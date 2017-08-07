@@ -229,11 +229,19 @@ void rsi_indicate_tx_status(struct rsi_hw *adapter,
 			    int status)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct skb_info *tx_params;
 
-	memset(info->driver_data, 0, IEEE80211_TX_INFO_DRIVER_DATA_SIZE);
+	if (!adapter->hw) {
+		rsi_dbg(ERR_ZONE, "##### No MAC #####\n");
+		return;
+	}
 
 	if (!status)
 		info->flags |= IEEE80211_TX_STAT_ACK;
+
+	tx_params = (struct skb_info *)info->driver_data;
+	skb_pull(skb, tx_params->internal_hdr_size);
+	memset(info->driver_data, 0, IEEE80211_TX_INFO_DRIVER_DATA_SIZE);
 
 	ieee80211_tx_status_irqsafe(adapter->hw, skb);
 }
@@ -293,6 +301,10 @@ static void rsi_mac80211_stop(struct ieee80211_hw *hw)
 
 	mutex_lock(&common->mutex);
 	common->iface_down = true;
+
+	/* Block all rx frames */
+	rsi_send_rx_filter_frame(common, 0xffff);
+
 	mutex_unlock(&common->mutex);
 }
 
@@ -1151,6 +1163,21 @@ static int rsi_mac80211_get_antenna(struct ieee80211_hw *hw,
 	return 0;	
 }
 
+static int rsi_map_region_code(enum nl80211_dfs_regions region_code)
+{
+	switch (region_code) {
+	case NL80211_DFS_FCC:
+		return RSI_REGION_FCC;
+	case NL80211_DFS_ETSI:
+		return RSI_REGION_ETSI;
+	case NL80211_DFS_JP:
+		return RSI_REGION_TELEC;
+	case NL80211_DFS_UNSET:
+		return RSI_REGION_WORLD;
+	}
+	return RSI_REGION_WORLD;
+}
+
 static void rsi_reg_notify(struct wiphy *wiphy,
 			   struct regulatory_request *request)
 {
@@ -1158,23 +1185,33 @@ static void rsi_reg_notify(struct wiphy *wiphy,
 	struct ieee80211_channel *ch;
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct rsi_hw * adapter = hw->priv; 
+	struct rsi_common *common = adapter->priv;
 	int i;
-
-	sband = wiphy->bands[NL80211_BAND_5GHZ];
 	
-	for (i = 0; i < sband->n_channels; i++) {
-		ch = &sband->channels[i];
-		if (ch->flags & IEEE80211_CHAN_DISABLED)
-			continue;
+	mutex_lock(&common->mutex);
 
-		if (ch->flags & IEEE80211_CHAN_RADAR)
-			ch->flags |= IEEE80211_CHAN_NO_IR;
-	}
-	
-	rsi_dbg(INFO_ZONE,
-		"country = %s dfs_region = %d\n",
+	rsi_dbg(INFO_ZONE, "country = %s dfs_region = %d\n",
 		request->alpha2, request->dfs_region);
-	adapter->dfs_region = request->dfs_region;
+
+	if (common->num_supp_bands > 1) {
+		sband = wiphy->bands[NL80211_BAND_5GHZ];
+
+		for (i = 0; i < sband->n_channels; i++) {
+			ch = &sband->channels[i];
+			if (ch->flags & IEEE80211_CHAN_DISABLED)
+				continue;
+
+			if (ch->flags & IEEE80211_CHAN_RADAR)
+				ch->flags |= IEEE80211_CHAN_NO_IR;
+		}
+	}
+	adapter->dfs_region = rsi_map_region_code(request->dfs_region);
+	rsi_dbg(INFO_ZONE, "RSI region code = %d\n", adapter->dfs_region);
+	
+	adapter->country[0] = request->alpha2[0];
+	adapter->country[1] = request->alpha2[1];
+
+	mutex_unlock(&common->mutex);
 }
 
 static struct ieee80211_ops mac80211_ops = {

@@ -67,7 +67,7 @@
 #include <linux/etherdevice.h>
 #include <net/mac80211.h>
 
-#include "fw-api-coex.h"
+#include "fw/api/coex.h"
 #include "iwl-modparams.h"
 #include "mvm.h"
 #include "iwl-debug.h"

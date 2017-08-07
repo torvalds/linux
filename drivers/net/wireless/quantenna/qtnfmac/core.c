@@ -288,6 +288,8 @@ static struct qtnf_wmac *qtnf_core_mac_alloc(struct qtnf_bus *bus,
 		mac->iflist[i].mac = mac;
 		mac->iflist[i].vifid = i;
 		qtnf_sta_list_init(&mac->iflist[i].sta_list);
+		mutex_init(&mac->mac_lock);
+		init_timer(&mac->scan_timeout);
 	}
 
 	qtnf_mac_init_primary_intf(mac);
@@ -548,6 +550,9 @@ void qtnf_core_detach(struct qtnf_bus *bus)
 		flush_workqueue(bus->workqueue);
 		destroy_workqueue(bus->workqueue);
 	}
+
+	kfree(bus->hw_info.rd);
+	bus->hw_info.rd = NULL;
 
 	qtnf_trans_free(bus);
 }

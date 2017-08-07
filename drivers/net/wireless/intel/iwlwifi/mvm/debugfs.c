@@ -69,7 +69,6 @@
 #include <linux/netdevice.h>
 
 #include "mvm.h"
-#include "fw-dbg.h"
 #include "sta.h"
 #include "iwl-io.h"
 #include "debugfs.h"
@@ -84,7 +83,7 @@ static ssize_t iwl_dbgfs_ctdp_budget_read(struct file *file,
 	int pos, budget;
 
 	if (!iwl_mvm_firmware_running(mvm) ||
-	    mvm->cur_ucode != IWL_UCODE_REGULAR)
+	    mvm->fwrt.cur_fw_img != IWL_UCODE_REGULAR)
 		return -EIO;
 
 	mutex_lock(&mvm->mutex);
@@ -105,7 +104,7 @@ static ssize_t iwl_dbgfs_stop_ctdp_write(struct iwl_mvm *mvm, char *buf,
 	int ret;
 
 	if (!iwl_mvm_firmware_running(mvm) ||
-	    mvm->cur_ucode != IWL_UCODE_REGULAR)
+	    mvm->fwrt.cur_fw_img != IWL_UCODE_REGULAR)
 		return -EIO;
 
 	mutex_lock(&mvm->mutex);
@@ -122,7 +121,7 @@ static ssize_t iwl_dbgfs_tx_flush_write(struct iwl_mvm *mvm, char *buf,
 	u32 flush_arg;
 
 	if (!iwl_mvm_firmware_running(mvm) ||
-	    mvm->cur_ucode != IWL_UCODE_REGULAR)
+	    mvm->fwrt.cur_fw_img != IWL_UCODE_REGULAR)
 		return -EIO;
 
 	if (kstrtou32(buf, 0, &flush_arg))
@@ -155,7 +154,7 @@ static ssize_t iwl_dbgfs_sta_drain_write(struct iwl_mvm *mvm, char *buf,
 	int sta_id, drain, ret;
 
 	if (!iwl_mvm_firmware_running(mvm) ||
-	    mvm->cur_ucode != IWL_UCODE_REGULAR)
+	    mvm->fwrt.cur_fw_img != IWL_UCODE_REGULAR)
 		return -EIO;
 
 	if (sscanf(buf, "%d %d", &sta_id, &drain) != 2)
@@ -192,7 +191,7 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file, char __user *user_buf,
 		return -EINVAL;
 
 	/* default is to dump the entire data segment */
-	img = &mvm->fw->img[mvm->cur_ucode];
+	img = &mvm->fw->img[mvm->fwrt.cur_fw_img];
 	ofs = img->sec[IWL_UCODE_SECTION_DATA].offset;
 	len = img->sec[IWL_UCODE_SECTION_DATA].len;
 
@@ -224,7 +223,7 @@ static ssize_t iwl_dbgfs_sram_write(struct iwl_mvm *mvm, char *buf,
 	if (!iwl_mvm_firmware_running(mvm))
 		return -EINVAL;
 
-	img = &mvm->fw->img[mvm->cur_ucode];
+	img = &mvm->fw->img[mvm->fwrt.cur_fw_img];
 	img_offset = img->sec[IWL_UCODE_SECTION_DATA].offset;
 	img_len = img->sec[IWL_UCODE_SECTION_DATA].len;
 
@@ -1123,7 +1122,7 @@ static ssize_t iwl_dbgfs_fw_dbg_conf_read(struct file *file,
 	int pos = 0;
 
 	mutex_lock(&mvm->mutex);
-	conf = mvm->fw_dbg_conf;
+	conf = mvm->fwrt.dump.conf;
 	mutex_unlock(&mvm->mutex);
 
 	pos += scnprintf(buf + pos, bufsz - pos, "%d\n", conf);
@@ -1190,7 +1189,7 @@ static ssize_t iwl_dbgfs_fw_dbg_conf_write(struct iwl_mvm *mvm,
 		return -EINVAL;
 
 	mutex_lock(&mvm->mutex);
-	ret = iwl_mvm_start_fw_dbg_conf(mvm, conf_id);
+	ret = iwl_fw_start_dbg_conf(&mvm->fwrt, conf_id);
 	mutex_unlock(&mvm->mutex);
 
 	return ret ?: count;
@@ -1211,8 +1210,8 @@ static ssize_t iwl_dbgfs_fw_dbg_collect_write(struct iwl_mvm *mvm,
 	if (count == 0)
 		return 0;
 
-	iwl_mvm_fw_dbg_collect(mvm, FW_DBG_TRIGGER_USER, buf,
-			       (count - 1), NULL);
+	iwl_fw_dbg_collect(&mvm->fwrt, FW_DBG_TRIGGER_USER, buf,
+			   (count - 1), NULL);
 
 	iwl_mvm_unref(mvm, IWL_MVM_REF_PRPH_WRITE);
 

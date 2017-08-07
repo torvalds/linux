@@ -18,11 +18,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
@@ -64,8 +59,8 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
-#ifndef __fw_api_sta_h__
-#define __fw_api_sta_h__
+#ifndef __iwl_fw_api_sta_h__
+#define __iwl_fw_api_sta_h__
 
 /**
  * enum iwl_sta_flags - flags for the ADD_STA host command
@@ -291,7 +286,7 @@ struct iwl_mvm_keyinfo {
  * @tid_disable_tx: is tid BIT(tid) enabled for Tx. Clear BIT(x) to enable
  *	AMPDU for tid x. Set %STA_MODIFY_TID_DISABLE_TX to change this field.
  * @mac_id_n_color: the Mac context this station belongs to,
- *	see &enum iwl_mvm_id_and_color
+ *	see &enum iwl_ctxt_id_and_color
  * @addr: station's MAC address
  * @reserved2: reserved
  * @sta_id: index of station in uCode's station table
@@ -372,7 +367,7 @@ enum iwl_sta_type {
  * @tid_disable_tx: is tid BIT(tid) enabled for Tx. Clear BIT(x) to enable
  *	AMPDU for tid x. Set %STA_MODIFY_TID_DISABLE_TX to change this field.
  * @mac_id_n_color: the Mac context this station belongs to,
- *	see &enum iwl_mvm_id_and_color
+ *	see &enum iwl_ctxt_id_and_color
  * @addr: station's MAC address
  * @reserved2: reserved
  * @sta_id: index of station in uCode's station table
@@ -575,4 +570,4 @@ struct iwl_mvm_eosp_notification {
 	__le32 sta_id;
 } __packed; /* UAPSD_EOSP_NTFY_API_S_VER_1 */
 
-#endif /* __fw_api_sta_h__ */
+#endif /* __iwl_fw_api_sta_h__ */

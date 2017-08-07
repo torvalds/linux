@@ -41,6 +41,7 @@ enum sdio_interrupt_type {
 #define PKT_BUFF_FULL                           1
 #define PKT_MGMT_BUFF_FULL                      2
 #define MSDU_PKT_PENDING                        3
+#define RECV_NUM_BLOCKS                         4
 /* Interrupt Bit Related Macros */
 #define PKT_BUFF_AVAILABLE                      1
 #define FW_ASSERT_IND                           2
@@ -58,6 +59,7 @@ enum sdio_interrupt_type {
 #define SDIO_READ_START_LVL                     0x000FC
 #define SDIO_READ_FIFO_CTL                      0x000FD
 #define SDIO_WRITE_FIFO_CTL                     0x000FE
+#define SDIO_WAKEUP_REG				0x000FF
 #define SDIO_FUN1_INTR_CLR_REG                  0x0008
 #define SDIO_REG_HIGH_SPEED                     0x0013
 
@@ -103,7 +105,7 @@ struct receive_info {
 
 struct rsi_91x_sdiodev {
 	struct sdio_func *pfunction;
-	struct task_struct *in_sdio_litefi_irq;
+	struct task_struct *sdio_irq_task;
 	struct receive_info rx_info;
 	u32 next_read_delay;
 	u32 sdio_high_speed_enable;

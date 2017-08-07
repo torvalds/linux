@@ -85,6 +85,10 @@ static int rtl92cu_init_sw_vars(struct ieee80211_hw *hw)
 	err = request_firmware_nowait(THIS_MODULE, 1,
 				      fw_name, rtlpriv->io.dev,
 				      GFP_KERNEL, hw, rtl_fw_cb);
+	if (err) {
+		vfree(rtlpriv->rtlhal.pfirmware);
+		rtlpriv->rtlhal.pfirmware = NULL;
+	}
 	return err;
 }
 
@@ -173,7 +177,7 @@ static struct rtl_hal_usbint_cfg rtl92cu_interface_cfg = {
 	.rx_urb_num = RTL92C_NUM_RX_URBS,
 	.rx_max_size = RTL92C_SIZE_MAX_RX_BUFFER,
 	.usb_rx_hdl = rtl8192cu_rx_hdl,
-	.usb_rx_segregate_hdl = NULL, /* rtl8192c_rx_segregate_hdl; */
+	.usb_rx_segregate_hdl = NULL,
 	/* tx */
 	.usb_tx_cleanup = rtl8192c_tx_cleanup,
 	.usb_tx_post_hdl = rtl8192c_tx_post_hdl,

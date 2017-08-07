@@ -43,6 +43,7 @@
 #define WLAN_HOST_MODE_LEN              0x04
 #define WLAN_FW_VERSION_LEN             0x08
 #define MAGIC_WORD                      0x5A
+#define WLAN_EEPROM_RFTYPE_ADDR		424
 
 /* Receive Frame Types */
 #define TA_CONFIRM_TYPE                 0x01
@@ -62,7 +63,17 @@
 #define RF_RESET_ENABLE                 BIT(3)
 #define RATE_INFO_ENABLE                BIT(0)
 #define RSI_BROADCAST_PKT               BIT(9)
+#define RSI_DESC_REQUIRE_CFM_TO_HOST	BIT(2)
+#define RSI_ADD_DELTA_TSF_VAP_ID	BIT(3)
+#define RSI_FETCH_RETRY_CNT_FRM_HST	BIT(4)
+#define RSI_QOS_ENABLE			BIT(12)
+#define RSI_REKEY_PURPOSE		BIT(13)
+#define RSI_ENCRYPT_PKT			BIT(15)
 
+#define RSI_CMDDESC_40MHZ		BIT(4)
+#define RSI_CMDDESC_UPPER_20_ENABLE	BIT(5)
+#define RSI_CMDDESC_LOWER_20_ENABLE	BIT(6)
+#define RSI_CMDDESC_FULL_40_ENABLE	(BIT(5) | BIT(6))
 #define UPPER_20_ENABLE                 (0x2 << 12)
 #define LOWER_20_ENABLE                 (0x4 << 12)
 #define FULL40M_ENABLE                  0x6
@@ -120,6 +131,7 @@
 #define RSI_RATE_MCS6                   0x106
 #define RSI_RATE_MCS7                   0x107
 #define RSI_RATE_MCS7_SG                0x307
+#define RSI_RATE_AUTO			0xffff
 
 #define BW_20MHZ                        0
 #define BW_40MHZ                        1
@@ -152,6 +164,11 @@
 #define DISALLOW_BEACONS		BIT(4)
 #define ALLOW_CONN_PEER_MGMT_WHILE_BUF_FULL BIT(5)
 #define DISALLOW_BROADCAST_DATA		BIT(6)
+
+#define RSI_MPDU_DENSITY		0x8
+#define RSI_CHAN_RADAR			BIT(7)
+#define RSI_BEACON_INTERVAL		200
+#define RSI_DTIM_COUNT			2
 
 enum opmode {
 	STA_OPMODE = 1,
@@ -192,7 +209,7 @@ enum cmd_frame_type {
 	AUTO_RATE_IND,
 	BOOTUP_PARAMS_REQUEST,
 	VAP_CAPABILITIES,
-	EEPROM_READ_TYPE ,
+	EEPROM_READ,
 	EEPROM_WRITE,
 	GPIO_PIN_CONFIG ,
 	SET_RX_FILTER,
@@ -213,13 +230,52 @@ struct rsi_mac_frame {
 	__le16 desc_word[8];
 } __packed;
 
+#define PWR_SAVE_WAKEUP_IND		BIT(0)
+#define TCP_CHECK_SUM_OFFLOAD		BIT(1)
+#define CONFIRM_REQUIRED_TO_HOST	BIT(2)
+#define ADD_DELTA_TSF			BIT(3)
+#define FETCH_RETRY_CNT_FROM_HOST_DESC	BIT(4)
+#define EOSP_INDICATION			BIT(5)
+#define REQUIRE_TSF_SYNC_CONFIRM	BIT(6)
+#define ENCAP_MGMT_PKT			BIT(7)
+#define DESC_IMMEDIATE_WAKEUP		BIT(15)
+
+struct rsi_cmd_desc_dword0 {
+	__le16 len_qno;
+	u8 frame_type;
+	u8 misc_flags;
+};
+
+struct rsi_cmd_desc_dword1 {
+	u8 xtend_desc_size;
+	u8 reserved1;
+	__le16 reserved2;
+};
+
+struct rsi_cmd_desc_dword2 {
+	__le32 pkt_info; /* Packet specific data */
+};
+
+struct rsi_cmd_desc_dword3 {
+	__le16 token;
+	u8 qid_tid;
+	u8 sta_id;
+};
+
+struct rsi_cmd_desc {
+	struct rsi_cmd_desc_dword0 desc_dword0;
+	struct rsi_cmd_desc_dword1 desc_dword1;
+	struct rsi_cmd_desc_dword2 desc_dword2;
+	struct rsi_cmd_desc_dword3 desc_dword3;
+};
+
 struct rsi_boot_params {
 	__le16 desc_word[8];
 	struct bootup_params bootup_params;
 } __packed;
 
 struct rsi_peer_notify {
-	__le16 desc_word[8];
+	struct rsi_cmd_desc desc;
 	u8 mac_addr[6];
 	__le16 command;
 	__le16 mpdu_density;
@@ -227,24 +283,87 @@ struct rsi_peer_notify {
 	__le32 sta_flags;
 } __packed;
 
+/* Aggregation params flags */
+#define RSI_AGGR_PARAMS_TID_MASK	0xf
+#define RSI_AGGR_PARAMS_START		BIT(4)
+#define RSI_AGGR_PARAMS_RX_AGGR		BIT(5)
+struct rsi_aggr_params {
+	struct rsi_cmd_desc_dword0 desc_dword0;
+	struct rsi_cmd_desc_dword0 desc_dword1;
+	__le16 seq_start;
+	__le16 baw_size;
+	__le16 token;
+	u8 aggr_params;
+	u8 peer_id;
+} __packed;
+
+struct rsi_bb_rf_prog {
+	struct rsi_cmd_desc_dword0 desc_dword0;
+	__le16 reserved1;
+	u8 rf_power_mode;
+	u8 reserved2;
+	u8 endpoint;
+	u8 reserved3;
+	__le16 reserved4;
+	__le16 reserved5;
+	__le16 flags;
+} __packed;
+
+struct rsi_chan_config {
+	struct rsi_cmd_desc_dword0 desc_dword0;
+	struct rsi_cmd_desc_dword1 desc_dword1;
+	u8 channel_number;
+	u8 antenna_gain_offset_2g;
+	u8 antenna_gain_offset_5g;
+	u8 channel_width;
+	__le16 tx_power;
+	u8 region_rftype;
+	u8 flags;
+} __packed;
+
 struct rsi_vap_caps {
-	__le16 desc_word[8];
+	struct rsi_cmd_desc_dword0 desc_dword0;
+	u8 reserved1;
+	u8 status;
+	__le16 reserved2;
+	u8 vif_type;
+	u8 channel_bw;
+	__le16 antenna_info;
+	u8 radioid_macid;
+	u8 vap_id;
+	__le16 reserved3;
 	u8 mac_addr[6];
 	__le16 keep_alive_period;
 	u8 bssid[6];
-	__le16 reserved;
+	__le16 reserved4;
 	__le32 flags;
 	__le16 frag_threshold;
 	__le16 rts_threshold;
 	__le32 default_mgmt_rate;
-	__le32 default_ctrl_rate;
+	__le16 default_ctrl_rate;
+	__le16 ctrl_rate_flags;
 	__le32 default_data_rate;
 	__le16 beacon_interval;
 	__le16 dtim_period;
+	__le16 beacon_miss_threshold;
 } __packed;
 
+/* Key descriptor flags */
+#define RSI_KEY_TYPE_BROADCAST	BIT(1)
+#define RSI_WEP_KEY		BIT(2)
+#define RSI_WEP_KEY_104		BIT(3)
+#define RSI_CIPHER_WPA		BIT(4)
+#define RSI_CIPHER_TKIP		BIT(5)
+#define RSI_PROTECT_DATA_FRAMES	BIT(13)
+#define RSI_KEY_ID_MASK		0xC0
+#define RSI_KEY_ID_OFFSET	14
 struct rsi_set_key {
-	__le16 desc_word[8];
+	struct rsi_cmd_desc_dword0 desc_dword0;
+	struct rsi_cmd_desc_dword1 desc_dword1;
+	__le16 key_desc;
+	__le32 bpn;
+	u8 sta_id;
+	u8 vap_id;
 	u8 key[4][32];
 	u8 tx_mic_key[8];
 	u8 rx_mic_key[8];
@@ -262,6 +381,19 @@ struct rsi_auto_rate {
 	__le16 supported_rates[40];
 } __packed;
 
+#define QUIET_INFO_VALID	BIT(0)
+#define QUIET_ENABLE		BIT(1)
+struct rsi_block_unblock_data {
+	struct rsi_cmd_desc_dword0 desc_dword0;
+	u8 xtend_desc_size;
+	u8 host_quiet_info;
+	__le16 reserved;
+	__le16 block_q_bitmap;
+	__le16 unblock_q_bitmap;
+	__le16 token;
+	__le16 flush_q_bitmap;
+} __packed;
+
 struct qos_params {
 	__le16 cont_win_min_q;
 	__le16 cont_win_max_q;
@@ -270,7 +402,14 @@ struct qos_params {
 } __packed;
 
 struct rsi_radio_caps {
-	__le16 desc_word[8];
+	struct rsi_cmd_desc_dword0 desc_dword0;
+	struct rsi_cmd_desc_dword0 desc_dword1;
+	u8 channel_num;
+	u8 rf_model;
+	__le16 ppe_ack_rate;
+	__le16 mode_11j;
+	u8 radio_cfg_info;
+	u8 radio_info;
 	struct qos_params qos_params[MAX_HW_QUEUES];
 	u8 num_11n_rates;
 	u8 num_11ac_rates;
@@ -351,6 +490,22 @@ struct rsi_config_vals {
 	u8 region_code;
 	u8 antenna_sel_val;
 	u8 reserved2[16];
+} __packed;
+
+/* Packet info flags */
+#define RSI_EEPROM_HDR_SIZE_OFFSET		8
+#define RSI_EEPROM_HDR_SIZE_MASK		0x300
+#define RSI_EEPROM_LEN_OFFSET			20
+#define RSI_EEPROM_LEN_MASK			0xFFF00000
+
+struct rsi_eeprom_read_frame {
+	__le16 len_qno;
+	u8 pkt_type;
+	u8 misc_flags;
+	__le32 pkt_info;
+	__le32 eeprom_offset;
+	__le16 delay_ms;
+	__le16 reserved3;
 } __packed;
 
 static inline u32 rsi_get_queueno(u8 *addr, u16 offset)

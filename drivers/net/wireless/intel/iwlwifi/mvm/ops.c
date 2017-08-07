@@ -82,11 +82,10 @@
 #include "iwl-io.h"
 #include "iwl-prph.h"
 #include "rs.h"
-#include "fw-api-scan.h"
+#include "fw/api/scan.h"
 #include "time-event.h"
-#include "fw-dbg.h"
 #include "fw-api.h"
-#include "fw-api-scan.h"
+#include "fw/api/scan.h"
 
 #define DRV_DESCRIPTION	"The new Intel(R) wireless AGN driver for Linux"
 MODULE_DESCRIPTION(DRV_DESCRIPTION);
@@ -510,8 +509,6 @@ static u32 calc_min_backoff(struct iwl_trans *trans, const struct iwl_cfg *cfg)
 	return 0;
 }
 
-static void iwl_mvm_fw_error_dump_wk(struct work_struct *work);
-
 static void iwl_mvm_tx_unblock_dwork(struct work_struct *work)
 {
 	struct iwl_mvm *mvm =
@@ -534,6 +531,34 @@ static void iwl_mvm_tx_unblock_dwork(struct work_struct *work)
 unlock:
 	mutex_unlock(&mvm->mutex);
 }
+
+static int iwl_mvm_fwrt_dump_start(void *ctx)
+{
+	struct iwl_mvm *mvm = ctx;
+	int ret;
+
+	ret = iwl_mvm_ref_sync(mvm, IWL_MVM_REF_FW_DBG_COLLECT);
+	if (ret)
+		return ret;
+
+	mutex_lock(&mvm->mutex);
+
+	return 0;
+}
+
+static void iwl_mvm_fwrt_dump_end(void *ctx)
+{
+	struct iwl_mvm *mvm = ctx;
+
+	mutex_unlock(&mvm->mutex);
+
+	iwl_mvm_unref(mvm, IWL_MVM_REF_FW_DBG_COLLECT);
+}
+
+static const struct iwl_fw_runtime_ops iwl_mvm_fwrt_ops = {
+	.dump_start = iwl_mvm_fwrt_dump_start,
+	.dump_end = iwl_mvm_fwrt_dump_end,
+};
 
 static struct iwl_op_mode *
 iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
@@ -580,6 +605,8 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	mvm->fw = fw;
 	mvm->hw = hw;
 
+	iwl_fw_runtime_init(&mvm->fwrt, trans, fw, &iwl_mvm_fwrt_ops, mvm);
+
 	mvm->init_status = 0;
 
 	if (iwl_mvm_has_new_rx_api(mvm)) {
@@ -596,32 +623,15 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	mvm->fw_restart = iwlwifi_mod_params.fw_restart ? -1 : 0;
 
-	if (!iwl_mvm_is_dqa_supported(mvm)) {
-		mvm->last_agg_queue = mvm->cfg->base_params->num_of_queues - 1;
+	mvm->aux_queue = IWL_MVM_DQA_AUX_QUEUE;
+	mvm->probe_queue = IWL_MVM_DQA_AP_PROBE_RESP_QUEUE;
+	mvm->p2p_dev_queue = IWL_MVM_DQA_P2P_DEVICE_QUEUE;
 
-		if (mvm->cfg->base_params->num_of_queues == 16) {
-			mvm->aux_queue = 11;
-			mvm->first_agg_queue = 12;
-			BUILD_BUG_ON(BITS_PER_BYTE *
-				     sizeof(mvm->hw_queue_to_mac80211[0]) < 12);
-		} else {
-			mvm->aux_queue = 15;
-			mvm->first_agg_queue = 16;
-			BUILD_BUG_ON(BITS_PER_BYTE *
-				     sizeof(mvm->hw_queue_to_mac80211[0]) < 16);
-		}
-	} else {
-		mvm->aux_queue = IWL_MVM_DQA_AUX_QUEUE;
-		mvm->probe_queue = IWL_MVM_DQA_AP_PROBE_RESP_QUEUE;
-		mvm->p2p_dev_queue = IWL_MVM_DQA_P2P_DEVICE_QUEUE;
-		mvm->first_agg_queue = IWL_MVM_DQA_MIN_DATA_QUEUE;
-		mvm->last_agg_queue = IWL_MVM_DQA_MAX_DATA_QUEUE;
-	}
 	mvm->sf_state = SF_UNINIT;
-	if (iwl_mvm_has_new_tx_api(mvm))
-		mvm->cur_ucode = IWL_UCODE_REGULAR;
+	if (iwl_mvm_has_unified_ucode(mvm))
+		iwl_fw_set_current_image(&mvm->fwrt, IWL_UCODE_REGULAR);
 	else
-		mvm->cur_ucode = IWL_UCODE_INIT;
+		iwl_fw_set_current_image(&mvm->fwrt, IWL_UCODE_INIT);
 	mvm->drop_bcn_ap_mode = true;
 
 	mutex_init(&mvm->mutex);
@@ -635,9 +645,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 
 	INIT_WORK(&mvm->async_handlers_wk, iwl_mvm_async_handlers_wk);
 	INIT_WORK(&mvm->roc_done_wk, iwl_mvm_roc_done_wk);
-	INIT_WORK(&mvm->sta_drained_wk, iwl_mvm_sta_drained_wk);
 	INIT_WORK(&mvm->d0i3_exit_work, iwl_mvm_d0i3_exit_work);
-	INIT_DELAYED_WORK(&mvm->fw_dump_wk, iwl_mvm_fw_error_dump_wk);
 	INIT_DELAYED_WORK(&mvm->tdls_cs.dwork, iwl_mvm_tdls_ch_switch_work);
 	INIT_DELAYED_WORK(&mvm->scan_timeout_dwork, iwl_mvm_scan_timeout_wk);
 	INIT_WORK(&mvm->add_stream_wk, iwl_mvm_add_new_dqa_stream_wk);
@@ -688,10 +696,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	trans_cfg.command_groups = iwl_mvm_groups;
 	trans_cfg.command_groups_size = ARRAY_SIZE(iwl_mvm_groups);
 
-	if (iwl_mvm_is_dqa_supported(mvm))
-		trans_cfg.cmd_queue = IWL_MVM_DQA_CMD_QUEUE;
-	else
-		trans_cfg.cmd_queue = IWL_MVM_CMD_QUEUE;
+	trans_cfg.cmd_queue = IWL_MVM_DQA_CMD_QUEUE;
 	trans_cfg.cmd_fifo = IWL_MVM_TX_FIFO_CMD;
 	trans_cfg.scd_set_active = true;
 
@@ -800,7 +805,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	iwl_mvm_leds_exit(mvm);
 	iwl_mvm_thermal_exit(mvm);
  out_free:
-	flush_delayed_work(&mvm->fw_dump_wk);
+	iwl_fw_flush_dump(&mvm->fwrt);
 
 	if (iwlmvm_mod_params.init_dbg)
 		return op_mode;
@@ -920,7 +925,7 @@ static inline void iwl_mvm_rx_check_trigger(struct iwl_mvm *mvm,
 	trig = iwl_fw_dbg_get_trigger(mvm->fw, FW_DBG_TRIGGER_FW_NOTIF);
 	cmds_trig = (void *)trig->data;
 
-	if (!iwl_fw_dbg_trigger_check_stop(mvm, NULL, trig))
+	if (!iwl_fw_dbg_trigger_check_stop(&mvm->fwrt, NULL, trig))
 		return;
 
 	for (i = 0; i < ARRAY_SIZE(cmds_trig->cmds); i++) {
@@ -932,9 +937,9 @@ static inline void iwl_mvm_rx_check_trigger(struct iwl_mvm *mvm,
 		    cmds_trig->cmds[i].group_id != pkt->hdr.group_id)
 			continue;
 
-		iwl_mvm_fw_dbg_collect_trig(mvm, trig,
-					    "CMD 0x%02x.%02x received",
-					    pkt->hdr.group_id, pkt->hdr.cmd);
+		iwl_fw_dbg_collect_trig(&mvm->fwrt, trig,
+					"CMD 0x%02x.%02x received",
+					pkt->hdr.group_id, pkt->hdr.cmd);
 		break;
 	}
 }
@@ -980,8 +985,10 @@ static void iwl_mvm_rx_common(struct iwl_mvm *mvm,
 		list_add_tail(&entry->list, &mvm->async_handlers_list);
 		spin_unlock(&mvm->async_handlers_lock);
 		schedule_work(&mvm->async_handlers_wk);
-		break;
+		return;
 	}
+
+	iwl_fwrt_handle_notification(&mvm->fwrt, rxb);
 }
 
 static void iwl_mvm_rx(struct iwl_op_mode *op_mode,
@@ -1131,7 +1138,7 @@ static bool iwl_mvm_set_hw_rfkill_state(struct iwl_op_mode *op_mode, bool state)
 	 * Stop the device if we run OPERATIONAL firmware or if we are in the
 	 * middle of the calibrations.
 	 */
-	return state && (mvm->cur_ucode != IWL_UCODE_INIT || calibrating);
+	return state && (mvm->fwrt.cur_fw_img != IWL_UCODE_INIT || calibrating);
 }
 
 static void iwl_mvm_free_skb(struct iwl_op_mode *op_mode, struct sk_buff *skb)
@@ -1160,57 +1167,6 @@ static void iwl_mvm_reprobe_wk(struct work_struct *wk)
 	module_put(THIS_MODULE);
 }
 
-static void iwl_mvm_fw_error_dump_wk(struct work_struct *work)
-{
-	struct iwl_mvm *mvm =
-		container_of(work, struct iwl_mvm, fw_dump_wk.work);
-
-	if (iwl_mvm_ref_sync(mvm, IWL_MVM_REF_FW_DBG_COLLECT))
-		return;
-
-	mutex_lock(&mvm->mutex);
-
-	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
-		/* stop recording */
-		iwl_set_bits_prph(mvm->trans, MON_BUFF_SAMPLE_CTL, 0x100);
-
-		iwl_mvm_fw_error_dump(mvm);
-
-		/* start recording again if the firmware is not crashed */
-		if (!test_bit(STATUS_FW_ERROR, &mvm->trans->status) &&
-		    mvm->fw->dbg_dest_tlv) {
-			iwl_clear_bits_prph(mvm->trans,
-					    MON_BUFF_SAMPLE_CTL, 0x100);
-			iwl_clear_bits_prph(mvm->trans,
-					    MON_BUFF_SAMPLE_CTL, 0x1);
-			iwl_set_bits_prph(mvm->trans, MON_BUFF_SAMPLE_CTL, 0x1);
-		}
-	} else {
-		u32 in_sample = iwl_read_prph(mvm->trans, DBGC_IN_SAMPLE);
-		u32 out_ctrl = iwl_read_prph(mvm->trans, DBGC_OUT_CTRL);
-
-		/* stop recording */
-		iwl_write_prph(mvm->trans, DBGC_IN_SAMPLE, 0);
-		udelay(100);
-		iwl_write_prph(mvm->trans, DBGC_OUT_CTRL, 0);
-		/* wait before we collect the data till the DBGC stop */
-		udelay(500);
-
-		iwl_mvm_fw_error_dump(mvm);
-
-		/* start recording again if the firmware is not crashed */
-		if (!test_bit(STATUS_FW_ERROR, &mvm->trans->status) &&
-		    mvm->fw->dbg_dest_tlv) {
-			iwl_write_prph(mvm->trans, DBGC_IN_SAMPLE, in_sample);
-			iwl_write_prph(mvm->trans, DBGC_OUT_CTRL, out_ctrl);
-		}
-	}
-
-	mutex_unlock(&mvm->mutex);
-
-	iwl_mvm_unref(mvm, IWL_MVM_REF_FW_DBG_COLLECT);
-}
-
 void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 {
 	iwl_abort_notification_waits(&mvm->notif_wait);
@@ -1234,7 +1190,7 @@ void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 	 * can't recover this since we're already half suspended.
 	 */
 	if (!mvm->fw_restart && fw_error) {
-		iwl_mvm_fw_dbg_collect_desc(mvm, &iwl_mvm_dump_desc_assert,
+		iwl_fw_dbg_collect_desc(&mvm->fwrt, &iwl_dump_desc_assert,
 					NULL);
 	} else if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
 		struct iwl_mvm_reprobe *reprobe;
@@ -1260,7 +1216,7 @@ void iwl_mvm_nic_restart(struct iwl_mvm *mvm, bool fw_error)
 		reprobe->dev = mvm->trans->dev;
 		INIT_WORK(&reprobe->work, iwl_mvm_reprobe_wk);
 		schedule_work(&reprobe->work);
-	} else if (mvm->cur_ucode == IWL_UCODE_REGULAR &&
+	} else if (mvm->fwrt.cur_fw_img == IWL_UCODE_REGULAR &&
 		   mvm->hw_registered) {
 		/* don't let the transport/FW power down */
 		iwl_mvm_ref(mvm, IWL_MVM_REF_UCODE_DOWN);
@@ -1439,7 +1395,7 @@ int iwl_mvm_enter_d0i3(struct iwl_op_mode *op_mode)
 
 	IWL_DEBUG_RPM(mvm, "MVM entering D0i3\n");
 
-	if (WARN_ON_ONCE(mvm->cur_ucode != IWL_UCODE_REGULAR))
+	if (WARN_ON_ONCE(mvm->fwrt.cur_fw_img != IWL_UCODE_REGULAR))
 		return -EINVAL;
 
 	set_bit(IWL_MVM_STATUS_IN_D0I3, &mvm->status);
@@ -1665,7 +1621,7 @@ int _iwl_mvm_exit_d0i3(struct iwl_mvm *mvm)
 
 	IWL_DEBUG_RPM(mvm, "MVM exiting D0i3\n");
 
-	if (WARN_ON_ONCE(mvm->cur_ucode != IWL_UCODE_REGULAR))
+	if (WARN_ON_ONCE(mvm->fwrt.cur_fw_img != IWL_UCODE_REGULAR))
 		return -EINVAL;
 
 	mutex_lock(&mvm->d0i3_suspend_mutex);

@@ -61,7 +61,7 @@ static void dump_regwrite(u32 rw)
 
 	switch (reg) {
 	case 0:
-		PDEBUG("reg0 CFG1 ref_sel %d hybernate %d rf_vco_reg_en %d"
+		PDEBUG("reg0 CFG1 ref_sel %d hibernate %d rf_vco_reg_en %d"
 		       " if_vco_reg_en %d if_vga_en %d",
 		       bits(rw, 14, 15), bit(rw, 3), bit(rw, 2), bit(rw, 1),
 		       bit(rw, 0));

@@ -7,7 +7,7 @@
  *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2015        Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -32,7 +32,7 @@
  *
  * Copyright(c) 2005 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
- * Copyright(c) 2015        Intel Deutschland GmbH
+ * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -63,24 +63,46 @@
  *
  *****************************************************************************/
 
-#ifndef __mvm_fw_dbg_h__
-#define __mvm_fw_dbg_h__
-#include "fw/file.h"
-#include "fw/error-dump.h"
-#include "mvm.h"
+#ifndef __iwl_fw_dbg_h__
+#define __iwl_fw_dbg_h__
+#include <linux/workqueue.h>
+#include <net/cfg80211.h>
+#include "runtime.h"
+#include "file.h"
+#include "error-dump.h"
 
-void iwl_mvm_fw_error_dump(struct iwl_mvm *mvm);
-void iwl_mvm_free_fw_dump_desc(struct iwl_mvm *mvm);
-int iwl_mvm_fw_dbg_collect_desc(struct iwl_mvm *mvm,
-				const struct iwl_mvm_dump_desc *desc,
-				const struct iwl_fw_dbg_trigger_tlv *trigger);
-int iwl_mvm_fw_dbg_collect(struct iwl_mvm *mvm, enum iwl_fw_dbg_trigger trig,
-			   const char *str, size_t len,
-			   const struct iwl_fw_dbg_trigger_tlv *trigger);
-int iwl_mvm_fw_dbg_collect_trig(struct iwl_mvm *mvm,
-				struct iwl_fw_dbg_trigger_tlv *trigger,
-				const char *fmt, ...) __printf(3, 4);
-int iwl_mvm_start_fw_dbg_conf(struct iwl_mvm *mvm, u8 id);
+/**
+ * struct iwl_fw_dump_desc - describes the dump
+ * @len: length of trig_desc->data
+ * @trig_desc: the description of the dump
+ */
+struct iwl_fw_dump_desc {
+	size_t len;
+	/* must be last */
+	struct iwl_fw_error_dump_trigger_desc trig_desc;
+};
+
+extern const struct iwl_fw_dump_desc iwl_dump_desc_assert;
+
+static inline void iwl_fw_free_dump_desc(struct iwl_fw_runtime *fwrt)
+{
+	if (fwrt->dump.desc != &iwl_dump_desc_assert)
+		kfree(fwrt->dump.desc);
+	fwrt->dump.desc = NULL;
+}
+
+void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt);
+int iwl_fw_dbg_collect_desc(struct iwl_fw_runtime *fwrt,
+			    const struct iwl_fw_dump_desc *desc,
+			    const struct iwl_fw_dbg_trigger_tlv *trigger);
+int iwl_fw_dbg_collect(struct iwl_fw_runtime *fwrt,
+		       enum iwl_fw_dbg_trigger trig,
+		       const char *str, size_t len,
+		       const struct iwl_fw_dbg_trigger_tlv *trigger);
+int iwl_fw_dbg_collect_trig(struct iwl_fw_runtime *fwrt,
+			    struct iwl_fw_dbg_trigger_tlv *trigger,
+			    const char *fmt, ...) __printf(3, 4);
+int iwl_fw_start_dbg_conf(struct iwl_fw_runtime *fwrt, u8 id);
 
 #define iwl_fw_dbg_trigger_enabled(fw, id) ({			\
 	void *__dbg_trigger = (fw)->dbg_trigger_tlv[(id)];	\
@@ -101,25 +123,25 @@ _iwl_fw_dbg_get_trigger(const struct iwl_fw *fw, enum iwl_fw_dbg_trigger id)
 
 static inline bool
 iwl_fw_dbg_trigger_vif_match(struct iwl_fw_dbg_trigger_tlv *trig,
-			     struct ieee80211_vif *vif)
+			     struct wireless_dev *wdev)
 {
 	u32 trig_vif = le32_to_cpu(trig->vif_type);
 
 	return trig_vif == IWL_FW_DBG_CONF_VIF_ANY ||
-	       ieee80211_vif_type_p2p(vif) == trig_vif;
+	       wdev->iftype == trig_vif;
 }
 
 static inline bool
-iwl_fw_dbg_trigger_stop_conf_match(struct iwl_mvm *mvm,
+iwl_fw_dbg_trigger_stop_conf_match(struct iwl_fw_runtime *fwrt,
 				   struct iwl_fw_dbg_trigger_tlv *trig)
 {
 	return ((trig->mode & IWL_FW_DBG_TRIGGER_STOP) &&
-		(mvm->fw_dbg_conf == FW_DBG_INVALID ||
-		(BIT(mvm->fw_dbg_conf) & le32_to_cpu(trig->stop_conf_ids))));
+		(fwrt->dump.conf == FW_DBG_INVALID ||
+		(BIT(fwrt->dump.conf) & le32_to_cpu(trig->stop_conf_ids))));
 }
 
 static inline bool
-iwl_fw_dbg_no_trig_window(struct iwl_mvm *mvm,
+iwl_fw_dbg_no_trig_window(struct iwl_fw_runtime *fwrt,
 			  struct iwl_fw_dbg_trigger_tlv *trig)
 {
 	unsigned long wind_jiff =
@@ -127,49 +149,66 @@ iwl_fw_dbg_no_trig_window(struct iwl_mvm *mvm,
 	u32 id = le32_to_cpu(trig->id);
 
 	/* If this is the first event checked, jump to update start ts */
-	if (mvm->fw_dbg_non_collect_ts_start[id] &&
-	    (time_after(mvm->fw_dbg_non_collect_ts_start[id] + wind_jiff,
+	if (fwrt->dump.non_collect_ts_start[id] &&
+	    (time_after(fwrt->dump.non_collect_ts_start[id] + wind_jiff,
 			jiffies)))
 		return true;
 
-	mvm->fw_dbg_non_collect_ts_start[id] = jiffies;
+	fwrt->dump.non_collect_ts_start[id] = jiffies;
 	return false;
 }
 
 static inline bool
-iwl_fw_dbg_trigger_check_stop(struct iwl_mvm *mvm,
-			      struct ieee80211_vif *vif,
+iwl_fw_dbg_trigger_check_stop(struct iwl_fw_runtime *fwrt,
+			      struct wireless_dev *wdev,
 			      struct iwl_fw_dbg_trigger_tlv *trig)
 {
-	if (vif && !iwl_fw_dbg_trigger_vif_match(trig, vif))
+	if (wdev && !iwl_fw_dbg_trigger_vif_match(trig, wdev))
 		return false;
 
-	if (iwl_fw_dbg_no_trig_window(mvm, trig)) {
-		IWL_WARN(mvm, "Trigger %d occurred while no-collect window.\n",
+	if (iwl_fw_dbg_no_trig_window(fwrt, trig)) {
+		IWL_WARN(fwrt, "Trigger %d occurred while no-collect window.\n",
 			 trig->id);
 		return false;
 	}
 
-	return iwl_fw_dbg_trigger_stop_conf_match(mvm, trig);
+	return iwl_fw_dbg_trigger_stop_conf_match(fwrt, trig);
 }
 
 static inline void
-_iwl_fw_dbg_trigger_simple_stop(struct iwl_mvm *mvm,
-				struct ieee80211_vif *vif,
+_iwl_fw_dbg_trigger_simple_stop(struct iwl_fw_runtime *fwrt,
+				struct wireless_dev *wdev,
 				struct iwl_fw_dbg_trigger_tlv *trigger)
 {
 	if (!trigger)
 		return;
 
-	if (!iwl_fw_dbg_trigger_check_stop(mvm, vif, trigger))
+	if (!iwl_fw_dbg_trigger_check_stop(fwrt, wdev, trigger))
 		return;
 
-	iwl_mvm_fw_dbg_collect_trig(mvm, trigger, NULL);
+	iwl_fw_dbg_collect_trig(fwrt, trigger, NULL);
 }
 
-#define iwl_fw_dbg_trigger_simple_stop(mvm, vif, trig)	\
-	_iwl_fw_dbg_trigger_simple_stop((mvm), (vif),	\
-					iwl_fw_dbg_get_trigger((mvm)->fw,\
+#define iwl_fw_dbg_trigger_simple_stop(fwrt, wdev, trig)	\
+	_iwl_fw_dbg_trigger_simple_stop((fwrt), (wdev),		\
+					iwl_fw_dbg_get_trigger((fwrt)->fw,\
 							       (trig)))
 
-#endif  /* __mvm_fw_dbg_h__ */
+static inline void iwl_fw_dump_conf_clear(struct iwl_fw_runtime *fwrt)
+{
+	fwrt->dump.conf = FW_DBG_INVALID;
+}
+
+void iwl_fw_error_dump_wk(struct work_struct *work);
+
+static inline void iwl_fw_flush_dump(struct iwl_fw_runtime *fwrt)
+{
+	flush_delayed_work(&fwrt->dump.wk);
+}
+
+static inline void iwl_fw_cancel_dump(struct iwl_fw_runtime *fwrt)
+{
+	cancel_delayed_work_sync(&fwrt->dump.wk);
+}
+
+#endif  /* __iwl_fw_dbg_h__ */
