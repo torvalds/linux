@@ -284,6 +284,26 @@ struct held_lock {
  */
 struct hist_lock {
 	/*
+	 * Id for each entry in the ring buffer. This is used to
+	 * decide whether the ring buffer was overwritten or not.
+	 *
+	 * For example,
+	 *
+	 *           |<----------- hist_lock ring buffer size ------->|
+	 *           pppppppppppppppppppppiiiiiiiiiiiiiiiiiiiiiiiiiiiii
+	 * wrapped > iiiiiiiiiiiiiiiiiiiiiiiiiii.......................
+	 *
+	 *           where 'p' represents an acquisition in process
+	 *           context, 'i' represents an acquisition in irq
+	 *           context.
+	 *
+	 * In this example, the ring buffer was overwritten by
+	 * acquisitions in irq context, that should be detected on
+	 * rollback or commit.
+	 */
+	unsigned int hist_id;
+
+	/*
 	 * Seperate stack_trace data. This will be used at commit step.
 	 */
 	struct stack_trace	trace;
