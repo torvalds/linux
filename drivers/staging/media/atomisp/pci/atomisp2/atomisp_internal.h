@@ -301,8 +301,6 @@ struct atomisp_device {
 
 extern struct device *atomisp_dev;
 
-extern void *atomisp_kernel_malloc(size_t bytes);
-
 #define atomisp_is_wdt_running(a) timer_pending(&(a)->wdt)
 #ifdef ISP2401
 extern void atomisp_wdt_refresh_pipe(struct atomisp_video_pipe *pipe,

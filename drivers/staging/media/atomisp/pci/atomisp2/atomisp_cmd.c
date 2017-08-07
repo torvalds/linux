@@ -83,35 +83,6 @@ union host {
 };
 
 /*
- * atomisp_kernel_malloc: chooses whether kmalloc() or vmalloc() is preferable.
- *
- * It is also a wrap functions to pass into css framework.
- */
-void *atomisp_kernel_malloc(size_t bytes)
-{
-	/* vmalloc() is preferable if allocating more than 1 page */
-	if (bytes > PAGE_SIZE)
-		return vmalloc(bytes);
-
-	return kmalloc(bytes, GFP_KERNEL);
-}
-
-/*
- * atomisp_kernel_zalloc: chooses whether set 0 to the allocated memory.
- *
- * It is also a wrap functions to pass into css framework.
- */
-void *atomisp_kernel_zalloc(size_t bytes, bool zero_mem)
-{
-	void *ptr = atomisp_kernel_malloc(bytes);
-
-	if (ptr && zero_mem)
-		memset(ptr, 0, bytes);
-
-	return ptr;
-}
-
-/*
  * get sensor:dis71430/ov2720 related info from v4l2_subdev->priv data field.
  * subdev->priv is set in mrst.c
  */
@@ -4316,7 +4287,7 @@ int atomisp_set_parameters(struct video_device *vdev,
 		 * are ready, the parameters will be set to CSS.
 		 * per-frame setting only works for the main output frame.
 		 */
-		param = atomisp_kernel_zalloc(sizeof(*param), true);
+		param = kvzalloc(sizeof(*param), GFP_KERNEL);
 		if (!param) {
 			dev_err(asd->isp->dev, "%s: failed to alloc params buffer\n",
 				__func__);
