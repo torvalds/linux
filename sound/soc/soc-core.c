@@ -3328,21 +3328,25 @@ EXPORT_SYMBOL_GPL(snd_soc_register_component);
 void snd_soc_unregister_component(struct device *dev)
 {
 	struct snd_soc_component *component;
+	int found = 0;
 
 	mutex_lock(&client_mutex);
 	list_for_each_entry(component, &component_list, list) {
-		if (dev == component->dev && component->registered_as_component)
-			goto found;
+		if (dev != component->dev ||
+		    !component->registered_as_component)
+			continue;
+
+		snd_soc_tplg_component_remove(component, SND_SOC_TPLG_INDEX_ALL);
+		snd_soc_component_del_unlocked(component);
+		found = 1;
+		break;
 	}
 	mutex_unlock(&client_mutex);
-	return;
 
-found:
-	snd_soc_tplg_component_remove(component, SND_SOC_TPLG_INDEX_ALL);
-	snd_soc_component_del_unlocked(component);
-	mutex_unlock(&client_mutex);
-	snd_soc_component_cleanup(component);
-	kfree(component);
+	if (found) {
+		snd_soc_component_cleanup(component);
+		kfree(component);
+	}
 }
 EXPORT_SYMBOL_GPL(snd_soc_unregister_component);
 
