@@ -9,6 +9,7 @@
 
 #include <linux/bpf.h> /* for enum bpf_reg_type */
 #include <linux/filter.h> /* for MAX_BPF_STACK */
+#include <linux/tnum.h>
 
  /* Just some arbitrary values so we can safely do math without overflowing and
   * are obviously wrong for any sort of memory access.
@@ -19,30 +20,37 @@
 struct bpf_reg_state {
 	enum bpf_reg_type type;
 	union {
-		/* valid when type == CONST_IMM | PTR_TO_STACK | UNKNOWN_VALUE */
-		s64 imm;
-
-		/* valid when type == PTR_TO_PACKET* */
-		struct {
-			u16 off;
-			u16 range;
-		};
+		/* valid when type == PTR_TO_PACKET */
+		u16 range;
 
 		/* valid when type == CONST_PTR_TO_MAP | PTR_TO_MAP_VALUE |
 		 *   PTR_TO_MAP_VALUE_OR_NULL
 		 */
 		struct bpf_map *map_ptr;
 	};
+	/* Fixed part of pointer offset, pointer types only */
+	s32 off;
+	/* For PTR_TO_PACKET, used to find other pointers with the same variable
+	 * offset, so they can share range knowledge.
+	 * For PTR_TO_MAP_VALUE_OR_NULL this is used to share which map value we
+	 * came from, when one is tested for != NULL.
+	 */
 	u32 id;
+	/* These three fields must be last.  See states_equal() */
+	/* For scalar types (SCALAR_VALUE), this represents our knowledge of
+	 * the actual value.
+	 * For pointer types, this represents the variable part of the offset
+	 * from the pointed-to object, and is shared with all bpf_reg_states
+	 * with the same id as us.
+	 */
+	struct tnum var_off;
 	/* Used to determine if any memory access using this register will
-	 * result in a bad access. These two fields must be last.
-	 * See states_equal()
+	 * result in a bad access.
+	 * These refer to the same value as var_off, not necessarily the actual
+	 * contents of the register.
 	 */
 	s64 min_value;
 	u64 max_value;
-	u32 min_align;
-	u32 aux_off;
-	u32 aux_off_align;
 	bool value_from_signed;
 };
 
