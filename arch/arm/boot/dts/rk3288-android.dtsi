@@ -85,7 +85,7 @@
 			SYS_STATUS_DUALVIEW	396000
 			SYS_STATUS_ISP		396000
 		>;
-		auto-min-freq = <400000>;
+		auto-min-freq = <396000>;
 		auto-freq-en = <1>;
 		status = "diasbled";
 	};
