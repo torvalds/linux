@@ -606,7 +606,7 @@ static inline bool __udp_is_mcast_sock(struct net *net, struct sock *sk,
 	    (sk->sk_bound_dev_if && sk->sk_bound_dev_if != dif &&
 	     sk->sk_bound_dev_if != sdif))
 		return false;
-	if (!ip_mc_sf_allow(sk, loc_addr, rmt_addr, dif))
+	if (!ip_mc_sf_allow(sk, loc_addr, rmt_addr, dif, sdif))
 		return false;
 	return true;
 }
