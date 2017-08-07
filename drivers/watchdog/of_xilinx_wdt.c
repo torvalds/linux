@@ -264,6 +264,43 @@ static int xwdt_remove(struct platform_device *pdev)
 	return 0;
 }
 
+/**
+ * xwdt_suspend - Suspend the device.
+ *
+ * @dev: handle to the device structure.
+ * Return: 0 always.
+ */
+static int __maybe_unused xwdt_suspend(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct xwdt_device *xdev = platform_get_drvdata(pdev);
+
+	if (watchdog_active(&xdev->xilinx_wdt_wdd))
+		xilinx_wdt_stop(&xdev->xilinx_wdt_wdd);
+
+	return 0;
+}
+
+/**
+ * xwdt_resume - Resume the device.
+ *
+ * @dev: handle to the device structure.
+ * Return: 0 on success, errno otherwise.
+ */
+static int __maybe_unused xwdt_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct xwdt_device *xdev = platform_get_drvdata(pdev);
+	int ret = 0;
+
+	if (watchdog_active(&xdev->xilinx_wdt_wdd))
+		ret = xilinx_wdt_start(&xdev->xilinx_wdt_wdd);
+
+	return ret;
+}
+
+static SIMPLE_DEV_PM_OPS(xwdt_pm_ops, xwdt_suspend, xwdt_resume);
+
 /* Match table for of_platform binding */
 static const struct of_device_id xwdt_of_match[] = {
 	{ .compatible = "xlnx,xps-timebase-wdt-1.00.a", },
@@ -278,6 +315,7 @@ static struct platform_driver xwdt_driver = {
 	.driver = {
 		.name  = WATCHDOG_NAME,
 		.of_match_table = xwdt_of_match,
+		.pm = &xwdt_pm_ops,
 	},
 };
 
