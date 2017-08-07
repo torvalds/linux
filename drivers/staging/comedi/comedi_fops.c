@@ -2901,9 +2901,6 @@ static int __init comedi_init(void)
 
 	comedi_class->dev_groups = comedi_dev_groups;
 
-	/* XXX requires /proc interface */
-	comedi_proc_init();
-
 	/* create devices files for legacy/manual use */
 	for (i = 0; i < comedi_num_legacy_minors; i++) {
 		struct comedi_device *dev;
@@ -2920,6 +2917,9 @@ static int __init comedi_init(void)
 		/* comedi_alloc_board_minor() locked the mutex */
 		mutex_unlock(&dev->mutex);
 	}
+
+	/* XXX requires /proc interface */
+	comedi_proc_init();
 
 	return 0;
 }

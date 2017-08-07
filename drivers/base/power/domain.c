@@ -1188,7 +1188,6 @@ static struct generic_pm_domain_data *genpd_alloc_dev_data(struct device *dev,
 	}
 
 	dev->power.subsys_data->domain_data = &gpd_data->base;
-	dev->pm_domain = &genpd->domain;
 
 	spin_unlock_irq(&dev->power.lock);
 
@@ -1207,7 +1206,6 @@ static void genpd_free_dev_data(struct device *dev,
 {
 	spin_lock_irq(&dev->power.lock);
 
-	dev->pm_domain = NULL;
 	dev->power.subsys_data->domain_data = NULL;
 
 	spin_unlock_irq(&dev->power.lock);
@@ -1247,6 +1245,8 @@ int __pm_genpd_add_device(struct generic_pm_domain *genpd, struct device *dev,
 	ret = genpd->attach_dev ? genpd->attach_dev(genpd, dev) : 0;
 	if (ret)
 		goto out;
+
+	dev->pm_domain = &genpd->domain;
 
 	genpd->device_count++;
 	genpd->max_off_time_changed = true;
@@ -1298,6 +1298,8 @@ int pm_genpd_remove_device(struct generic_pm_domain *genpd,
 
 	if (genpd->detach_dev)
 		genpd->detach_dev(genpd, dev);
+
+	dev->pm_domain = NULL;
 
 	list_del_init(&pdd->list_node);
 

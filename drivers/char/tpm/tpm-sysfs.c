@@ -38,6 +38,8 @@ static ssize_t pubek_show(struct device *dev, struct device_attribute *attr,
 
 	struct tpm_chip *chip = dev_get_drvdata(dev);
 
+	memset(&tpm_cmd, 0, sizeof(tpm_cmd));
+
 	tpm_cmd.header.in = tpm_readpubek_header;
 	err = tpm_transmit_cmd(chip, &tpm_cmd, READ_PUBEK_RESULT_SIZE, 0,
 			       "attempting to read the PUBEK");

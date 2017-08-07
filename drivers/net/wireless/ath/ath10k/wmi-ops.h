@@ -639,6 +639,9 @@ ath10k_wmi_vdev_spectral_conf(struct ath10k *ar,
 	struct sk_buff *skb;
 	u32 cmd_id;
 
+	if (!ar->wmi.ops->gen_vdev_spectral_conf)
+		return -EOPNOTSUPP;
+
 	skb = ar->wmi.ops->gen_vdev_spectral_conf(ar, arg);
 	if (IS_ERR(skb))
 		return PTR_ERR(skb);
@@ -653,6 +656,9 @@ ath10k_wmi_vdev_spectral_enable(struct ath10k *ar, u32 vdev_id, u32 trigger,
 {
 	struct sk_buff *skb;
 	u32 cmd_id;
+
+	if (!ar->wmi.ops->gen_vdev_spectral_enable)
+		return -EOPNOTSUPP;
 
 	skb = ar->wmi.ops->gen_vdev_spectral_enable(ar, vdev_id, trigger,
 						    enable);
