@@ -1595,29 +1595,6 @@ static qsize_t inode_get_rsv_space(struct inode *inode)
 	return ret;
 }
 
-static void inode_incr_space(struct inode *inode, qsize_t number,
-				int reserve)
-{
-	if (reserve) {
-		spin_lock(&inode->i_lock);
-		*inode_reserved_space(inode) += number;
-		spin_unlock(&inode->i_lock);
-	} else {
-		inode_add_bytes(inode, number);
-	}
-}
-
-static void inode_decr_space(struct inode *inode, qsize_t number, int reserve)
-{
-	if (reserve) {
-		spin_lock(&inode->i_lock);
-		*inode_reserved_space(inode) -= number;
-		spin_unlock(&inode->i_lock);
-	} else {
-		inode_sub_bytes(inode, number);
-	}
-}
-
 /*
  * This functions updates i_blocks+i_bytes fields and quota information
  * (together with appropriate checks).
@@ -1639,7 +1616,13 @@ int __dquot_alloc_space(struct inode *inode, qsize_t number, int flags)
 	struct dquot **dquots;
 
 	if (!dquot_active(inode)) {
-		inode_incr_space(inode, number, reserve);
+		if (reserve) {
+			spin_lock(&inode->i_lock);
+			*inode_reserved_space(inode) += number;
+			spin_unlock(&inode->i_lock);
+		} else {
+			inode_add_bytes(inode, number);
+		}
 		goto out;
 	}
 
@@ -1667,7 +1650,13 @@ int __dquot_alloc_space(struct inode *inode, qsize_t number, int flags)
 		else
 			dquot_incr_space(dquots[cnt], number);
 	}
-	inode_incr_space(inode, number, reserve);
+	if (reserve) {
+		spin_lock(&inode->i_lock);
+		*inode_reserved_space(inode) += number;
+		spin_unlock(&inode->i_lock);
+	} else {
+		inode_add_bytes(inode, number);
+	}
 	spin_unlock(&dq_data_lock);
 
 	if (reserve)
@@ -1805,7 +1794,13 @@ void __dquot_free_space(struct inode *inode, qsize_t number, int flags)
 	int reserve = flags & DQUOT_SPACE_RESERVE, index;
 
 	if (!dquot_active(inode)) {
-		inode_decr_space(inode, number, reserve);
+		if (reserve) {
+			spin_lock(&inode->i_lock);
+			*inode_reserved_space(inode) -= number;
+			spin_unlock(&inode->i_lock);
+		} else {
+			inode_sub_bytes(inode, number);
+		}
 		return;
 	}
 
@@ -1826,7 +1821,13 @@ void __dquot_free_space(struct inode *inode, qsize_t number, int flags)
 		else
 			dquot_decr_space(dquots[cnt], number);
 	}
-	inode_decr_space(inode, number, reserve);
+	if (reserve) {
+		spin_lock(&inode->i_lock);
+		*inode_reserved_space(inode) -= number;
+		spin_unlock(&inode->i_lock);
+	} else {
+		inode_sub_bytes(inode, number);
+	}
 	spin_unlock(&dq_data_lock);
 
 	if (reserve)
