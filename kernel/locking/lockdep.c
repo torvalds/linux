@@ -4867,11 +4867,28 @@ static int add_xlock(struct held_lock *hlock)
 
 	xlock = &((struct lockdep_map_cross *)hlock->instance)->xlock;
 
+	/*
+	 * When acquisitions for a crosslock are overlapped, we use
+	 * nr_acquire to perform commit for them, based on cross_gen_id
+	 * of the first acquisition, which allows to add additional
+	 * dependencies.
+	 *
+	 * Moreover, when no acquisition of a crosslock is in progress,
+	 * we should not perform commit because the lock might not exist
+	 * any more, which might cause incorrect memory access. So we
+	 * have to track the number of acquisitions of a crosslock.
+	 *
+	 * depend_after() is necessary to initialize only the first
+	 * valid xlock so that the xlock can be used on its commit.
+	 */
+	if (xlock->nr_acquire++ && depend_after(&xlock->hlock))
+		goto unlock;
+
 	gen_id = (unsigned int)atomic_inc_return(&cross_gen_id);
 	xlock->hlock = *hlock;
 	xlock->hlock.gen_id = gen_id;
+unlock:
 	graph_unlock();
-
 	return 1;
 }
 
@@ -4967,35 +4984,37 @@ static void commit_xhlocks(struct cross_lock *xlock)
 	if (!graph_lock())
 		return;
 
-	for (i = 0; i < MAX_XHLOCKS_NR; i++) {
-		struct hist_lock *xhlock = &xhlock(cur - i);
+	if (xlock->nr_acquire) {
+		for (i = 0; i < MAX_XHLOCKS_NR; i++) {
+			struct hist_lock *xhlock = &xhlock(cur - i);
 
-		if (!xhlock_valid(xhlock))
-			break;
+			if (!xhlock_valid(xhlock))
+				break;
 
-		if (before(xhlock->hlock.gen_id, xlock->hlock.gen_id))
-			break;
+			if (before(xhlock->hlock.gen_id, xlock->hlock.gen_id))
+				break;
 
-		if (!same_context_xhlock(xhlock))
-			break;
+			if (!same_context_xhlock(xhlock))
+				break;
 
-		/*
-		 * Filter out the cases that the ring buffer was
-		 * overwritten and the previous entry has a bigger
-		 * hist_id than the following one, which is impossible
-		 * otherwise.
-		 */
-		if (unlikely(before(xhlock->hist_id, prev_hist_id)))
-			break;
+			/*
+			 * Filter out the cases that the ring buffer was
+			 * overwritten and the previous entry has a bigger
+			 * hist_id than the following one, which is impossible
+			 * otherwise.
+			 */
+			if (unlikely(before(xhlock->hist_id, prev_hist_id)))
+				break;
 
-		prev_hist_id = xhlock->hist_id;
+			prev_hist_id = xhlock->hist_id;
 
-		/*
-		 * commit_xhlock() returns 0 with graph_lock already
-		 * released if fail.
-		 */
-		if (!commit_xhlock(xlock, xhlock))
-			return;
+			/*
+			 * commit_xhlock() returns 0 with graph_lock already
+			 * released if fail.
+			 */
+			if (!commit_xhlock(xlock, xhlock))
+				return;
+		}
 	}
 
 	graph_unlock();
@@ -5039,16 +5058,27 @@ void lock_commit_crosslock(struct lockdep_map *lock)
 EXPORT_SYMBOL_GPL(lock_commit_crosslock);
 
 /*
- * Return: 1 - crosslock, done;
+ * Return: 0 - failure;
+ *         1 - crosslock, done;
  *         2 - normal lock, continue to held_lock[] ops.
  */
 static int lock_release_crosslock(struct lockdep_map *lock)
 {
-	return cross_lock(lock) ? 1 : 2;
+	if (cross_lock(lock)) {
+		if (!graph_lock())
+			return 0;
+		((struct lockdep_map_cross *)lock)->xlock.nr_acquire--;
+		graph_unlock();
+		return 1;
+	}
+	return 2;
 }
 
 static void cross_init(struct lockdep_map *lock, int cross)
 {
+	if (cross)
+		((struct lockdep_map_cross *)lock)->xlock.nr_acquire = 0;
+
 	lock->cross = cross;
 
 	/*

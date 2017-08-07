@@ -325,6 +325,19 @@ struct hist_lock {
  */
 struct cross_lock {
 	/*
+	 * When more than one acquisition of crosslocks are overlapped,
+	 * we have to perform commit for them based on cross_gen_id of
+	 * the first acquisition, which allows us to add more true
+	 * dependencies.
+	 *
+	 * Moreover, when no acquisition of a crosslock is in progress,
+	 * we should not perform commit because the lock might not exist
+	 * any more, which might cause incorrect memory access. So we
+	 * have to track the number of acquisitions of a crosslock.
+	 */
+	int nr_acquire;
+
+	/*
 	 * Seperate hlock instance. This will be used at commit step.
 	 *
 	 * TODO: Use a smaller data structure containing only necessary
@@ -547,9 +560,16 @@ extern void lockdep_init_map_crosslock(struct lockdep_map *lock,
 				       int subclass);
 extern void lock_commit_crosslock(struct lockdep_map *lock);
 
+/*
+ * What we essencially have to initialize is 'nr_acquire'. Other members
+ * will be initialized in add_xlock().
+ */
+#define STATIC_CROSS_LOCK_INIT() \
+	{ .nr_acquire = 0,}
+
 #define STATIC_CROSS_LOCKDEP_MAP_INIT(_name, _key) \
 	{ .map.name = (_name), .map.key = (void *)(_key), \
-	  .map.cross = 1, }
+	  .map.cross = 1, .xlock = STATIC_CROSS_LOCK_INIT(), }
 
 /*
  * To initialize a lockdep_map statically use this macro.
