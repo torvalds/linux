@@ -569,7 +569,7 @@ static int build_rdma_read(union t4_wr *wqe, struct ib_send_wr *wr, u8 *len16)
 {
 	if (wr->num_sge > 1)
 		return -EINVAL;
-	if (wr->num_sge) {
+	if (wr->num_sge && wr->sg_list[0].length) {
 		wqe->read.stag_src = cpu_to_be32(rdma_wr(wr)->rkey);
 		wqe->read.to_src_hi = cpu_to_be32((u32)(rdma_wr(wr)->remote_addr
 							>> 32));

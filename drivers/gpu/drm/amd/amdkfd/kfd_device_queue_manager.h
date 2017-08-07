@@ -180,7 +180,6 @@ void device_queue_manager_init_cik(struct device_queue_manager_asic_ops *ops);
 void device_queue_manager_init_vi(struct device_queue_manager_asic_ops *ops);
 void program_sh_mem_settings(struct device_queue_manager *dqm,
 					struct qcm_process_device *qpd);
-unsigned int get_mec_num(struct device_queue_manager *dqm);
 unsigned int get_queues_num(struct device_queue_manager *dqm);
 unsigned int get_queues_per_pipe(struct device_queue_manager *dqm);
 unsigned int get_pipes_per_mec(struct device_queue_manager *dqm);

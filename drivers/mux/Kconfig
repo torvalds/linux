@@ -2,20 +2,11 @@
 # Multiplexer devices
 #
 
-menuconfig MULTIPLEXER
-	tristate "Multiplexer subsystem"
-	help
-	  Multiplexer controller subsystem. Multiplexers are used in a
-	  variety of settings, and this subsystem abstracts their use
-	  so that the rest of the kernel sees a common interface. When
-	  multiple parallel multiplexers are controlled by one single
-	  multiplexer controller, this subsystem also coordinates the
-	  multiplexer accesses.
+config MULTIPLEXER
+	tristate
 
-	  To compile the subsystem as a module, choose M here: the module will
-	  be called mux-core.
-
-if MULTIPLEXER
+menu "Multiplexer drivers"
+	depends on MULTIPLEXER
 
 config MUX_ADG792A
 	tristate "Analog Devices ADG792A/ADG792G Multiplexers"
@@ -56,4 +47,4 @@ config MUX_MMIO
 	  To compile the driver as a module, choose M here: the module will
 	  be called mux-mmio.
 
-endif
+endmenu

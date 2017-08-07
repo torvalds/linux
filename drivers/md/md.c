@@ -2287,7 +2287,7 @@ static void export_array(struct mddev *mddev)
 
 static bool set_in_sync(struct mddev *mddev)
 {
-	WARN_ON_ONCE(!spin_is_locked(&mddev->lock));
+	WARN_ON_ONCE(NR_CPUS != 1 && !spin_is_locked(&mddev->lock));
 	if (!mddev->in_sync) {
 		mddev->sync_checkers++;
 		spin_unlock(&mddev->lock);

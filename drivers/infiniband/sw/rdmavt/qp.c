@@ -1258,9 +1258,7 @@ int rvt_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 
 	if (attr_mask & IB_QP_TIMEOUT) {
 		qp->timeout = attr->timeout;
-		qp->timeout_jiffies =
-			usecs_to_jiffies((4096UL * (1UL << qp->timeout)) /
-				1000UL);
+		qp->timeout_jiffies = rvt_timeout_to_jiffies(qp->timeout);
 	}
 
 	if (attr_mask & IB_QP_QKEY)
