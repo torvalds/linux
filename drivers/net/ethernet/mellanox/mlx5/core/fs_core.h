@@ -144,10 +144,22 @@ struct mlx5_fc {
 	struct mlx5_fc_cache cache ____cacheline_aligned_in_smp;
 };
 
+#define MLX5_FTE_MATCH_PARAM_RESERVED	reserved_at_600
+/* Calculate the fte_match_param length and without the reserved length.
+ * Make sure the reserved field is the last.
+ */
+#define MLX5_ST_SZ_DW_MATCH_PARAM					    \
+	((MLX5_BYTE_OFF(fte_match_param, MLX5_FTE_MATCH_PARAM_RESERVED) / sizeof(u32)) + \
+	 BUILD_BUG_ON_ZERO(MLX5_ST_SZ_BYTES(fte_match_param) !=		     \
+			   MLX5_FLD_SZ_BYTES(fte_match_param,		     \
+					     MLX5_FTE_MATCH_PARAM_RESERVED) +\
+			   MLX5_BYTE_OFF(fte_match_param,		     \
+					 MLX5_FTE_MATCH_PARAM_RESERVED)))
+
 /* Type of children is mlx5_flow_rule */
 struct fs_fte {
 	struct fs_node			node;
-	u32				val[MLX5_ST_SZ_DW(fte_match_param)];
+	u32				val[MLX5_ST_SZ_DW_MATCH_PARAM];
 	u32				dests_size;
 	u32				flow_tag;
 	u32				index;
@@ -175,7 +187,7 @@ struct mlx5_flow_namespace {
 
 struct mlx5_flow_group_mask {
 	u8	match_criteria_enable;
-	u32	match_criteria[MLX5_ST_SZ_DW(fte_match_param)];
+	u32	match_criteria[MLX5_ST_SZ_DW_MATCH_PARAM];
 };
 
 /* Type of children is fs_fte */
