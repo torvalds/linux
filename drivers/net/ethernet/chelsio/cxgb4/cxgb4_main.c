@@ -2889,15 +2889,32 @@ static int cxgb_set_tx_maxrate(struct net_device *dev, int index, u32 rate)
 	return err;
 }
 
+static int cxgb_setup_tc_cls_u32(struct net_device *dev,
+				 enum tc_setup_type type,
+				 u32 handle, u32 chain_index, __be16 proto,
+				 struct tc_cls_u32_offload *cls_u32)
+{
+	if (TC_H_MAJ(handle) != TC_H_MAJ(TC_H_INGRESS) ||
+	    chain_index)
+		return -EOPNOTSUPP;
+
+	switch (cls_u32->command) {
+	case TC_CLSU32_NEW_KNODE:
+	case TC_CLSU32_REPLACE_KNODE:
+		return cxgb4_config_knode(dev, proto, cls_u32);
+	case TC_CLSU32_DELETE_KNODE:
+		return cxgb4_delete_knode(dev, proto, cls_u32);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static int cxgb_setup_tc(struct net_device *dev, enum tc_setup_type type,
 			 u32 handle, u32 chain_index, __be16 proto,
 			 struct tc_to_netdev *tc)
 {
 	struct port_info *pi = netdev2pinfo(dev);
 	struct adapter *adap = netdev2adap(dev);
-
-	if (chain_index)
-		return -EOPNOTSUPP;
 
 	if (!(adap->flags & FULL_INIT_DONE)) {
 		dev_err(adap->pdev_dev,
@@ -2906,20 +2923,13 @@ static int cxgb_setup_tc(struct net_device *dev, enum tc_setup_type type,
 		return -EINVAL;
 	}
 
-	if (TC_H_MAJ(handle) == TC_H_MAJ(TC_H_INGRESS) &&
-	    type == TC_SETUP_CLSU32) {
-		switch (tc->cls_u32->command) {
-		case TC_CLSU32_NEW_KNODE:
-		case TC_CLSU32_REPLACE_KNODE:
-			return cxgb4_config_knode(dev, proto, tc->cls_u32);
-		case TC_CLSU32_DELETE_KNODE:
-			return cxgb4_delete_knode(dev, proto, tc->cls_u32);
-		default:
-			return -EOPNOTSUPP;
-		}
+	switch (type) {
+	case TC_SETUP_CLSU32:
+		return cxgb_setup_tc_cls_u32(dev, type, handle, chain_index,
+					     proto, tc->cls_u32);
+	default:
+		return -EOPNOTSUPP;
 	}
-
-	return -EOPNOTSUPP;
 }
 
 static netdev_features_t cxgb_fix_features(struct net_device *dev,
