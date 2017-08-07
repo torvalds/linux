@@ -5,22 +5,21 @@
  */
 
 
-#define EX_LD(x)			\
+#define EX_LD(x, y)			\
 98:	x;				\
 	.section __ex_table,"a";	\
 	.align 4;			\
-	.word 98b, __restore_asi;	\
+	.word 98b, y;			\
 	.text;				\
 	.align 4;
 
-#define EX_LD_FP(x)			\
+#define EX_LD_FP(x, y)			\
 98:	x;				\
 	.section __ex_table,"a";	\
 	.align 4;			\
-	.word 98b, __restore_asi_fp;	\
+	.word 98b, y##_fp;		\
 	.text;				\
 	.align 4;
-
 
 #ifndef ASI_AIUS
 #define ASI_AIUS	0x11
@@ -35,7 +34,7 @@
 	rd		%asi, %g1;			\
 	cmp		%g1, ASI_AIUS;			\
 	bne,pn		%icc, raw_copy_in_user;		\
-	nop
+	 nop
 #endif
 
 #include "M7memcpy.S"
