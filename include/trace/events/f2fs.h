@@ -543,14 +543,14 @@ TRACE_EVENT(f2fs_map_blocks,
 
 TRACE_EVENT(f2fs_background_gc,
 
-	TP_PROTO(struct super_block *sb, long wait_ms,
+	TP_PROTO(struct super_block *sb, unsigned int wait_ms,
 			unsigned int prefree, unsigned int free),
 
 	TP_ARGS(sb, wait_ms, prefree, free),
 
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
-		__field(long,	wait_ms)
+		__field(unsigned int,	wait_ms)
 		__field(unsigned int,	prefree)
 		__field(unsigned int,	free)
 	),
@@ -562,7 +562,7 @@ TRACE_EVENT(f2fs_background_gc,
 		__entry->free		= free;
 	),
 
-	TP_printk("dev = (%d,%d), wait_ms = %ld, prefree = %u, free = %u",
+	TP_printk("dev = (%d,%d), wait_ms = %u, prefree = %u, free = %u",
 		show_dev(__entry->dev),
 		__entry->wait_ms,
 		__entry->prefree,
