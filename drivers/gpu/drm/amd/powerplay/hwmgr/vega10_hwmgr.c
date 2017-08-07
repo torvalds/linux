@@ -2313,7 +2313,7 @@ static int vega10_acg_enable(struct pp_hwmgr *hwmgr)
 		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_InitializeAcg);
 
 		smum_send_msg_to_smc(hwmgr->smumgr, PPSMC_MSG_RunAcgBtc);
-		vega10_read_arg_from_smc(hwmgr->smumgr, &agc_btc_response);;
+		vega10_read_arg_from_smc(hwmgr->smumgr, &agc_btc_response);
 
 		if (1 == agc_btc_response) {
 			if (1 == data->acg_loop_state)
