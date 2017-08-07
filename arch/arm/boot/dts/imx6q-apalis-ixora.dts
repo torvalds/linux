@@ -185,6 +185,14 @@
 	};
 };
 
+/*
+ * I2C3_SDA/SCL (CAM) on MXM3 pin 201/203 (e.g. camera sensor on carrier
+ * board)
+ */
+&i2c3 {
+	status = "okay";
+};
+
 &ipu1_di1_disp1 {
 	remote-endpoint = <&lcd_display_in>;
 };
