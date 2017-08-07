@@ -511,10 +511,6 @@ void restore_math(struct pt_regs *regs)
 {
 	unsigned long msr;
 
-	/*
-	 * Syscall exit makes a similar initial check before branching
-	 * to restore_math. Keep them in synch.
-	 */
 	if (!msr_tm_active(regs->msr) &&
 		!current->thread.load_fp && !loadvec(current->thread))
 		return;
