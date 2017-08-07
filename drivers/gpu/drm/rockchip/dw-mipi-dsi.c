@@ -832,10 +832,14 @@ static void dw_mipi_dsi_video_mode_config(struct dw_mipi_dsi *dsi)
 static void dw_mipi_dsi_set_mode(struct dw_mipi_dsi *dsi,
 				 enum dw_mipi_dsi_mode mode)
 {
-	if (mode == DSI_COMMAND_MODE)
+	if (mode == DSI_COMMAND_MODE) {
 		dsi_write(dsi, DSI_MODE_CFG, ENABLE_CMD_MODE);
-	else
+	} else {
+		dsi_write(dsi, DSI_PWR_UP, RESET);
+		dsi_write(dsi, DSI_LPCLK_CTRL, PHY_TXREQUESTCLKHS);
 		dsi_write(dsi, DSI_MODE_CFG, ENABLE_VIDEO_MODE);
+		dsi_write(dsi, DSI_PWR_UP, POWERUP);
+	}
 }
 
 static void dw_mipi_dsi_init(struct dw_mipi_dsi *dsi)
@@ -1161,7 +1165,6 @@ static void rockchip_dsi_init(struct dw_mipi_dsi *dsi)
 
 static void rockchip_dsi_enable(struct dw_mipi_dsi *dsi)
 {
-	dsi_write(dsi, DSI_LPCLK_CTRL, PHY_TXREQUESTCLKHS);
 	dw_mipi_dsi_set_mode(dsi, DSI_VIDEO_MODE);
 	clk_disable_unprepare(dsi->dphy.ref_clk);
 	clk_disable_unprepare(dsi->pclk);
