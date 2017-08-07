@@ -275,8 +275,8 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 	adap->rc->input_id.product = 0;
 	adap->rc->input_id.version = 1;
 	adap->rc->driver_name = CEC_NAME;
-	adap->rc->allowed_protocols = RC_BIT_CEC;
-	adap->rc->enabled_protocols = RC_BIT_CEC;
+	adap->rc->allowed_protocols = RC_PROTO_BIT_CEC;
+	adap->rc->enabled_protocols = RC_PROTO_BIT_CEC;
 	adap->rc->priv = adap;
 	adap->rc->map_name = RC_MAP_CEC;
 	adap->rc->timeout = MS_TO_NS(100);

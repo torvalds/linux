@@ -1053,7 +1053,7 @@ static int ene_probe(struct pnp_dev *pnp_dev, const struct pnp_device_id *id)
 	if (!dev->hw_learning_and_tx_capable)
 		learning_mode_force = false;
 
-	rdev->allowed_protocols = RC_BIT_ALL_IR_DECODER;
+	rdev->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	rdev->priv = dev;
 	rdev->open = ene_open;
 	rdev->close = ene_close;

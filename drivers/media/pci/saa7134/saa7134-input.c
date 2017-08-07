@@ -83,14 +83,16 @@ static int build_key(struct saa7134_dev *dev)
 		if (data == ir->mask_keycode)
 			rc_keyup(ir->dev);
 		else
-			rc_keydown_notimeout(ir->dev, RC_TYPE_UNKNOWN, data, 0);
+			rc_keydown_notimeout(ir->dev, RC_PROTO_UNKNOWN, data,
+					     0);
 		return 0;
 	}
 
 	if (ir->polling) {
 		if ((ir->mask_keydown  &&  (0 != (gpio & ir->mask_keydown))) ||
 		    (ir->mask_keyup    &&  (0 == (gpio & ir->mask_keyup)))) {
-			rc_keydown_notimeout(ir->dev, RC_TYPE_UNKNOWN, data, 0);
+			rc_keydown_notimeout(ir->dev, RC_PROTO_UNKNOWN, data,
+					     0);
 		} else {
 			rc_keyup(ir->dev);
 		}
@@ -98,7 +100,8 @@ static int build_key(struct saa7134_dev *dev)
 	else {	/* IRQ driven mode - handle key press and release in one go */
 		if ((ir->mask_keydown  &&  (0 != (gpio & ir->mask_keydown))) ||
 		    (ir->mask_keyup    &&  (0 == (gpio & ir->mask_keyup)))) {
-			rc_keydown_notimeout(ir->dev, RC_TYPE_UNKNOWN, data, 0);
+			rc_keydown_notimeout(ir->dev, RC_PROTO_UNKNOWN, data,
+					     0);
 			rc_keyup(ir->dev);
 		}
 	}
@@ -108,7 +111,7 @@ static int build_key(struct saa7134_dev *dev)
 
 /* --------------------- Chip specific I2C key builders ----------------- */
 
-static int get_key_flydvb_trio(struct IR_i2c *ir, enum rc_type *protocol,
+static int get_key_flydvb_trio(struct IR_i2c *ir, enum rc_proto *protocol,
 			       u32 *scancode, u8 *toggle)
 {
 	int gpio;
@@ -154,13 +157,14 @@ static int get_key_flydvb_trio(struct IR_i2c *ir, enum rc_type *protocol,
 		return -EIO;
 	}
 
-	*protocol = RC_TYPE_UNKNOWN;
+	*protocol = RC_PROTO_UNKNOWN;
 	*scancode = b;
 	*toggle = 0;
 	return 1;
 }
 
-static int get_key_msi_tvanywhere_plus(struct IR_i2c *ir, enum rc_type *protocol,
+static int get_key_msi_tvanywhere_plus(struct IR_i2c *ir,
+				       enum rc_proto *protocol,
 				       u32 *scancode, u8 *toggle)
 {
 	unsigned char b;
@@ -201,14 +205,14 @@ static int get_key_msi_tvanywhere_plus(struct IR_i2c *ir, enum rc_type *protocol
 	/* Button pressed */
 
 	input_dbg("get_key_msi_tvanywhere_plus: Key = 0x%02X\n", b);
-	*protocol = RC_TYPE_UNKNOWN;
+	*protocol = RC_PROTO_UNKNOWN;
 	*scancode = b;
 	*toggle = 0;
 	return 1;
 }
 
 /* copied and modified from get_key_msi_tvanywhere_plus() */
-static int get_key_kworld_pc150u(struct IR_i2c *ir, enum rc_type *protocol,
+static int get_key_kworld_pc150u(struct IR_i2c *ir, enum rc_proto *protocol,
 				 u32 *scancode, u8 *toggle)
 {
 	unsigned char b;
@@ -249,13 +253,13 @@ static int get_key_kworld_pc150u(struct IR_i2c *ir, enum rc_type *protocol,
 	/* Button pressed */
 
 	input_dbg("get_key_kworld_pc150u: Key = 0x%02X\n", b);
-	*protocol = RC_TYPE_UNKNOWN;
+	*protocol = RC_PROTO_UNKNOWN;
 	*scancode = b;
 	*toggle = 0;
 	return 1;
 }
 
-static int get_key_purpletv(struct IR_i2c *ir, enum rc_type *protocol,
+static int get_key_purpletv(struct IR_i2c *ir, enum rc_proto *protocol,
 			    u32 *scancode, u8 *toggle)
 {
 	unsigned char b;
@@ -274,13 +278,13 @@ static int get_key_purpletv(struct IR_i2c *ir, enum rc_type *protocol,
 	if (b & 0x80)
 		return 1;
 
-	*protocol = RC_TYPE_UNKNOWN;
+	*protocol = RC_PROTO_UNKNOWN;
 	*scancode = b;
 	*toggle = 0;
 	return 1;
 }
 
-static int get_key_hvr1110(struct IR_i2c *ir, enum rc_type *protocol,
+static int get_key_hvr1110(struct IR_i2c *ir, enum rc_proto *protocol,
 			   u32 *scancode, u8 *toggle)
 {
 	unsigned char buf[5];
@@ -304,14 +308,14 @@ static int get_key_hvr1110(struct IR_i2c *ir, enum rc_type *protocol,
 	 *
 	 * FIXME: start bits could maybe be used...?
 	 */
-	*protocol = RC_TYPE_RC5;
+	*protocol = RC_PROTO_RC5;
 	*scancode = RC_SCANCODE_RC5(buf[3] & 0x1f, buf[4] >> 2);
 	*toggle = !!(buf[3] & 0x40);
 	return 1;
 }
 
 
-static int get_key_beholdm6xx(struct IR_i2c *ir, enum rc_type *protocol,
+static int get_key_beholdm6xx(struct IR_i2c *ir, enum rc_proto *protocol,
 			      u32 *scancode, u8 *toggle)
 {
 	unsigned char data[12];
@@ -338,7 +342,7 @@ static int get_key_beholdm6xx(struct IR_i2c *ir, enum rc_type *protocol,
 	if (data[9] != (unsigned char)(~data[8]))
 		return 0;
 
-	*protocol = RC_TYPE_NECX;
+	*protocol = RC_PROTO_NECX;
 	*scancode = RC_SCANCODE_NECX(data[11] << 8 | data[10], data[9]);
 	*toggle = 0;
 	return 1;
@@ -347,7 +351,7 @@ static int get_key_beholdm6xx(struct IR_i2c *ir, enum rc_type *protocol,
 /* Common (grey or coloured) pinnacle PCTV remote handling
  *
  */
-static int get_key_pinnacle(struct IR_i2c *ir, enum rc_type *protocol,
+static int get_key_pinnacle(struct IR_i2c *ir, enum rc_proto *protocol,
 			    u32 *scancode, u8 *toggle, int parity_offset,
 			    int marker, int code_modulo)
 {
@@ -384,7 +388,7 @@ static int get_key_pinnacle(struct IR_i2c *ir, enum rc_type *protocol,
 
 	code %= code_modulo;
 
-	*protocol = RC_TYPE_UNKNOWN;
+	*protocol = RC_PROTO_UNKNOWN;
 	*scancode = code;
 	*toggle = 0;
 
@@ -401,7 +405,7 @@ static int get_key_pinnacle(struct IR_i2c *ir, enum rc_type *protocol,
  *
  * Sylvain Pasche <sylvain.pasche@gmail.com>
  */
-static int get_key_pinnacle_grey(struct IR_i2c *ir, enum rc_type *protocol,
+static int get_key_pinnacle_grey(struct IR_i2c *ir, enum rc_proto *protocol,
 				 u32 *scancode, u8 *toggle)
 {
 
@@ -413,7 +417,7 @@ static int get_key_pinnacle_grey(struct IR_i2c *ir, enum rc_type *protocol,
  *
  * Ricardo Cerqueira <v4l@cerqueira.org>
  */
-static int get_key_pinnacle_color(struct IR_i2c *ir, enum rc_type *protocol,
+static int get_key_pinnacle_color(struct IR_i2c *ir, enum rc_proto *protocol,
 				  u32 *scancode, u8 *toggle)
 {
 	/* code_modulo parameter (0x88) is used to reduce code value to fit inside IR_KEYTAB_SIZE
@@ -858,7 +862,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	rc->close = saa7134_ir_close;
 	if (raw_decode) {
 		rc->driver_type = RC_DRIVER_IR_RAW;
-		rc->allowed_protocols = RC_BIT_ALL_IR_DECODER;
+		rc->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	}
 
 	rc->device_name = ir->name;
@@ -1022,7 +1026,7 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		dev->init_data.name = "BeholdTV";
 		dev->init_data.get_key = get_key_beholdm6xx;
 		dev->init_data.ir_codes = RC_MAP_BEHOLD;
-		dev->init_data.type = RC_BIT_NECX;
+		dev->init_data.type = RC_PROTO_BIT_NECX;
 		info.addr = 0x2d;
 		break;
 	case SAA7134_BOARD_AVERMEDIA_CARDBUS_501:

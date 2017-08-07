@@ -1897,7 +1897,7 @@ static int cec_receive_notify(struct cec_adapter *adap, struct cec_msg *msg,
 		}
 
 		/* Send key press */
-		rc_keydown(adap->rc, RC_TYPE_CEC, scancode, 0);
+		rc_keydown(adap->rc, RC_PROTO_CEC, scancode, 0);
 
 		/* When in repeating mode, we're done */
 		if (adap->rc_repeating)

@@ -54,7 +54,7 @@ static irqreturn_t zx_irdec_irq(int irq, void *dev_id)
 	u8 address, not_address;
 	u8 command, not_command;
 	u32 rawcode, scancode;
-	enum rc_type rc_type;
+	enum rc_proto rc_proto;
 
 	/* Clear interrupt */
 	writel(1, irdec->base + ZX_IR_INTSTCLR);
@@ -73,8 +73,8 @@ static irqreturn_t zx_irdec_irq(int irq, void *dev_id)
 
 	scancode = ir_nec_bytes_to_scancode(address, not_address,
 					    command, not_command,
-					    &rc_type);
-	rc_keydown(irdec->rcd, rc_type, scancode, 0);
+					    &rc_proto);
+	rc_keydown(irdec->rcd, rc_proto, scancode, 0);
 
 done:
 	return IRQ_HANDLED;
@@ -114,7 +114,8 @@ static int zx_irdec_probe(struct platform_device *pdev)
 	rcd->input_phys = DRIVER_NAME "/input0";
 	rcd->input_id.bustype = BUS_HOST;
 	rcd->map_name = RC_MAP_ZX_IRDEC;
-	rcd->allowed_protocols = RC_BIT_NEC | RC_BIT_NECX | RC_BIT_NEC32;
+	rcd->allowed_protocols = RC_PROTO_BIT_NEC | RC_PROTO_BIT_NECX |
+							RC_PROTO_BIT_NEC32;
 	rcd->driver_name = DRIVER_NAME;
 	rcd->device_name = DRIVER_NAME;
 

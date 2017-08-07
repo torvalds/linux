@@ -315,7 +315,7 @@ static int sir_ir_probe(struct platform_device *dev)
 	rcdev->input_id.product = 0x0001;
 	rcdev->input_id.version = 0x0100;
 	rcdev->tx_ir = sir_tx_ir;
-	rcdev->allowed_protocols = RC_BIT_ALL_IR_DECODER;
+	rcdev->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	rcdev->driver_name = KBUILD_MODNAME;
 	rcdev->map_name = RC_MAP_RC6_MCE;
 	rcdev->timeout = IR_DEFAULT_TIMEOUT;

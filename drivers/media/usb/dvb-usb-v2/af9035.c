@@ -1828,7 +1828,7 @@ static int af9035_rc_query(struct dvb_usb_device *d)
 {
 	struct usb_interface *intf = d->intf;
 	int ret;
-	enum rc_type proto;
+	enum rc_proto proto;
 	u32 key;
 	u8 buf[4];
 	struct usb_req req = { CMD_IR_GET, 0, 0, NULL, 4, buf };
@@ -1843,17 +1843,17 @@ static int af9035_rc_query(struct dvb_usb_device *d)
 		if ((buf[0] + buf[1]) == 0xff) {
 			/* NEC standard 16bit */
 			key = RC_SCANCODE_NEC(buf[0], buf[2]);
-			proto = RC_TYPE_NEC;
+			proto = RC_PROTO_NEC;
 		} else {
 			/* NEC extended 24bit */
 			key = RC_SCANCODE_NECX(buf[0] << 8 | buf[1], buf[2]);
-			proto = RC_TYPE_NECX;
+			proto = RC_PROTO_NECX;
 		}
 	} else {
 		/* NEC full code 32bit */
 		key = RC_SCANCODE_NEC32(buf[0] << 24 | buf[1] << 16 |
 					buf[2] << 8  | buf[3]);
-		proto = RC_TYPE_NEC32;
+		proto = RC_PROTO_NEC32;
 	}
 
 	dev_dbg(&intf->dev, "%*ph\n", 4, buf);
@@ -1881,11 +1881,11 @@ static int af9035_get_rc_config(struct dvb_usb_device *d, struct dvb_usb_rc *rc)
 		switch (state->ir_type) {
 		case 0: /* NEC */
 		default:
-			rc->allowed_protos = RC_BIT_NEC | RC_BIT_NECX |
-								RC_BIT_NEC32;
+			rc->allowed_protos = RC_PROTO_BIT_NEC |
+					RC_PROTO_BIT_NECX | RC_PROTO_BIT_NEC32;
 			break;
 		case 1: /* RC6 */
-			rc->allowed_protos = RC_BIT_RC6_MCE;
+			rc->allowed_protos = RC_PROTO_BIT_RC6_MCE;
 			break;
 		}
 

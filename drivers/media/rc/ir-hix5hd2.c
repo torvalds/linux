@@ -242,7 +242,7 @@ static int hix5hd2_ir_probe(struct platform_device *pdev)
 	clk_prepare_enable(priv->clock);
 	priv->rate = clk_get_rate(priv->clock);
 
-	rdev->allowed_protocols = RC_BIT_ALL_IR_DECODER;
+	rdev->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	rdev->priv = priv;
 	rdev->open = hix5hd2_ir_open;
 	rdev->close = hix5hd2_ir_close;

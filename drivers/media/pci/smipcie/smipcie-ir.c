@@ -144,7 +144,7 @@ static void smi_ir_decode(struct work_struct *work)
 			rc5_system = (dwIRCode & 0x7C0) >> 6;
 			toggle = (dwIRCode & 0x800) ? 1 : 0;
 			scancode = rc5_system << 8 | rc5_command;
-			rc_keydown(rc_dev, RC_TYPE_RC5, scancode, toggle);
+			rc_keydown(rc_dev, RC_PROTO_RC5, scancode, toggle);
 		}
 	}
 end_ir_decode:

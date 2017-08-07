@@ -87,11 +87,12 @@ enum rc_filter_type {
  * @idle: used to keep track of RX state
  * @encode_wakeup: wakeup filtering uses IR encode API, therefore the allowed
  *	wakeup protocols is the set of all raw encoders
- * @allowed_protocols: bitmask with the supported RC_BIT_* protocols
- * @enabled_protocols: bitmask with the enabled RC_BIT_* protocols
- * @allowed_wakeup_protocols: bitmask with the supported RC_BIT_* wakeup protocols
- * @wakeup_protocol: the enabled RC_TYPE_* wakeup protocol or
- *	RC_TYPE_UNKNOWN if disabled.
+ * @allowed_protocols: bitmask with the supported RC_PROTO_BIT_* protocols
+ * @enabled_protocols: bitmask with the enabled RC_PROTO_BIT_* protocols
+ * @allowed_wakeup_protocols: bitmask with the supported RC_PROTO_BIT_* wakeup
+ *	protocols
+ * @wakeup_protocol: the enabled RC_PROTO_* wakeup protocol or
+ *	RC_PROTO_UNKNOWN if disabled.
  * @scancode_filter: scancode filter
  * @scancode_wakeup_filter: scancode wakeup filters
  * @scancode_mask: some hardware decoders are not capable of providing the full
@@ -154,7 +155,7 @@ struct rc_dev {
 	u64				allowed_protocols;
 	u64				enabled_protocols;
 	u64				allowed_wakeup_protocols;
-	enum rc_type			wakeup_protocol;
+	enum rc_proto			wakeup_protocol;
 	struct rc_scancode_filter	scancode_filter;
 	struct rc_scancode_filter	scancode_wakeup_filter;
 	u32				scancode_mask;
@@ -165,7 +166,7 @@ struct rc_dev {
 	unsigned long			keyup_jiffies;
 	struct timer_list		timer_keyup;
 	u32				last_keycode;
-	enum rc_type			last_protocol;
+	enum rc_proto			last_protocol;
 	u32				last_scancode;
 	u8				last_toggle;
 	u32				timeout;
@@ -173,7 +174,7 @@ struct rc_dev {
 	u32				max_timeout;
 	u32				rx_resolution;
 	u32				tx_resolution;
-	int				(*change_protocol)(struct rc_dev *dev, u64 *rc_type);
+	int				(*change_protocol)(struct rc_dev *dev, u64 *rc_proto);
 	int				(*open)(struct rc_dev *dev);
 	void				(*close)(struct rc_dev *dev);
 	int				(*s_tx_mask)(struct rc_dev *dev, u32 mask);
@@ -262,8 +263,10 @@ int rc_open(struct rc_dev *rdev);
 void rc_close(struct rc_dev *rdev);
 
 void rc_repeat(struct rc_dev *dev);
-void rc_keydown(struct rc_dev *dev, enum rc_type protocol, u32 scancode, u8 toggle);
-void rc_keydown_notimeout(struct rc_dev *dev, enum rc_type protocol, u32 scancode, u8 toggle);
+void rc_keydown(struct rc_dev *dev, enum rc_proto protocol, u32 scancode,
+		u8 toggle);
+void rc_keydown_notimeout(struct rc_dev *dev, enum rc_proto protocol,
+			  u32 scancode, u8 toggle);
 void rc_keyup(struct rc_dev *dev);
 u32 rc_g_keycode_from_table(struct rc_dev *dev, u32 scancode);
 
@@ -304,7 +307,7 @@ int ir_raw_event_store_edge(struct rc_dev *dev, bool pulse);
 int ir_raw_event_store_with_filter(struct rc_dev *dev,
 				struct ir_raw_event *ev);
 void ir_raw_event_set_idle(struct rc_dev *dev, bool idle);
-int ir_raw_encode_scancode(enum rc_type protocol, u32 scancode,
+int ir_raw_encode_scancode(enum rc_proto protocol, u32 scancode,
 			   struct ir_raw_event *events, unsigned int max);
 
 static inline void ir_raw_event_reset(struct rc_dev *dev)
@@ -335,7 +338,7 @@ static inline u32 ir_extract_bits(u32 data, u32 mask)
 /* Get NEC scancode and protocol type from address and command bytes */
 static inline u32 ir_nec_bytes_to_scancode(u8 address, u8 not_address,
 					   u8 command, u8 not_command,
-					   enum rc_type *protocol)
+					   enum rc_proto *protocol)
 {
 	u32 scancode;
 
@@ -347,17 +350,17 @@ static inline u32 ir_nec_bytes_to_scancode(u8 address, u8 not_address,
 			address     << 16 |
 			not_command <<  8 |
 			command;
-		*protocol = RC_TYPE_NEC32;
+		*protocol = RC_PROTO_NEC32;
 	} else if ((address ^ not_address) != 0xff) {
 		/* Extended NEC */
 		scancode = address     << 16 |
 			   not_address <<  8 |
 			   command;
-		*protocol = RC_TYPE_NECX;
+		*protocol = RC_PROTO_NECX;
 	} else {
 		/* Normal NEC */
 		scancode = address << 8 | command;
-		*protocol = RC_TYPE_NEC;
+		*protocol = RC_PROTO_NEC;
 	}
 
 	return scancode;

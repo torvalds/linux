@@ -208,7 +208,7 @@ static int az6007_rc_query(struct dvb_usb_device *d)
 {
 	struct az6007_device_state *st = d_to_priv(d);
 	unsigned code;
-	enum rc_type proto;
+	enum rc_proto proto;
 
 	az6007_read(d, AZ6007_READ_IR, 0, 0, st->data, 10);
 
@@ -218,18 +218,18 @@ static int az6007_rc_query(struct dvb_usb_device *d)
 	if ((st->data[3] ^ st->data[4]) == 0xff) {
 		if ((st->data[1] ^ st->data[2]) == 0xff) {
 			code = RC_SCANCODE_NEC(st->data[1], st->data[3]);
-			proto = RC_TYPE_NEC;
+			proto = RC_PROTO_NEC;
 		} else {
 			code = RC_SCANCODE_NECX(st->data[1] << 8 | st->data[2],
 						st->data[3]);
-			proto = RC_TYPE_NECX;
+			proto = RC_PROTO_NECX;
 		}
 	} else {
 		code = RC_SCANCODE_NEC32(st->data[1] << 24 |
 					 st->data[2] << 16 |
 					 st->data[3] << 8  |
 					 st->data[4]);
-		proto = RC_TYPE_NEC32;
+		proto = RC_PROTO_NEC32;
 	}
 
 	rc_keydown(d->rc_dev, proto, code, st->data[5]);
@@ -241,7 +241,8 @@ static int az6007_get_rc_config(struct dvb_usb_device *d, struct dvb_usb_rc *rc)
 {
 	pr_debug("Getting az6007 Remote Control properties\n");
 
-	rc->allowed_protos = RC_BIT_NEC | RC_BIT_NECX | RC_BIT_NEC32;
+	rc->allowed_protos = RC_PROTO_BIT_NEC | RC_PROTO_BIT_NECX |
+						RC_PROTO_BIT_NEC32;
 	rc->query          = az6007_rc_query;
 	rc->interval       = 400;
 

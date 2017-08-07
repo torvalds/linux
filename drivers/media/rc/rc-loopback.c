@@ -226,8 +226,8 @@ static int __init loop_init(void)
 	rc->driver_name		= DRIVER_NAME;
 	rc->map_name		= RC_MAP_EMPTY;
 	rc->priv		= &loopdev;
-	rc->allowed_protocols	= RC_BIT_ALL_IR_DECODER;
-	rc->allowed_wakeup_protocols = RC_BIT_ALL_IR_ENCODER;
+	rc->allowed_protocols	= RC_PROTO_BIT_ALL_IR_DECODER;
+	rc->allowed_wakeup_protocols = RC_PROTO_BIT_ALL_IR_ENCODER;
 	rc->encode_wakeup	= true;
 	rc->timeout		= 100 * 1000 * 1000; /* 100 ms */
 	rc->min_timeout		= 1;

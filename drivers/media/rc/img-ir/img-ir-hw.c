@@ -589,7 +589,7 @@ static void img_ir_set_decoder(struct img_ir_priv *priv,
 	/* clear the wakeup scancode filter */
 	rdev->scancode_wakeup_filter.data = 0;
 	rdev->scancode_wakeup_filter.mask = 0;
-	rdev->wakeup_protocol = RC_TYPE_UNKNOWN;
+	rdev->wakeup_protocol = RC_PROTO_UNKNOWN;
 
 	/* clear raw filters */
 	_img_ir_set_filter(priv, NULL);
@@ -823,7 +823,7 @@ static void img_ir_handle_data(struct img_ir_priv *priv, u32 len, u64 raw)
 	int ret = IMG_IR_SCANCODE;
 	struct img_ir_scancode_req request;
 
-	request.protocol = RC_TYPE_UNKNOWN;
+	request.protocol = RC_PROTO_UNKNOWN;
 	request.toggle   = 0;
 
 	if (dec->scancode)
