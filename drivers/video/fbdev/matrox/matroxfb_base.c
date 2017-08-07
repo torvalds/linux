@@ -1578,9 +1578,9 @@ static struct fb_videomode defaultmode = {
 	NULL, 60, 640, 480, 39721, 40, 24, 32, 11, 96, 2,
 	0, FB_VMODE_NONINTERLACED
 };
-#endif /* !MODULE */
 
 static int hotplug = 0;
+#endif /* !MODULE */
 
 static void setDefaultOutputs(struct matrox_fb_info *minfo)
 {
