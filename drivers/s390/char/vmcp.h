@@ -20,8 +20,9 @@
 #define VMCP_GETSIZE _IOR(0x10, 3, int)
 
 struct vmcp_session {
-	unsigned int bufsize;
 	char *response;
+	unsigned int bufsize;
+	unsigned int cma_alloc : 1;
 	int resp_size;
 	int resp_code;
 	/* As we use copy_from/to_user, which might     *

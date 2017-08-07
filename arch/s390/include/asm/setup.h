@@ -108,6 +108,12 @@ extern void pfault_fini(void);
 #define pfault_fini()		do { } while (0)
 #endif /* CONFIG_PFAULT */
 
+#ifdef CONFIG_VMCP
+void vmcp_cma_reserve(void);
+#else
+static inline void vmcp_cma_reserve(void) { }
+#endif
+
 void report_user_fault(struct pt_regs *regs, long signr, int is_mm_fault);
 
 void cmma_init(void);

@@ -17,14 +17,76 @@
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/slab.h>
+#include <linux/uaccess.h>
 #include <linux/export.h>
+#include <linux/mutex.h>
+#include <linux/cma.h>
+#include <linux/mm.h>
 #include <asm/compat.h>
 #include <asm/cpcmd.h>
 #include <asm/debug.h>
-#include <linux/uaccess.h>
 #include "vmcp.h"
 
 static debug_info_t *vmcp_debug;
+
+static unsigned long vmcp_cma_size __initdata = CONFIG_VMCP_CMA_SIZE * 1024 * 1024;
+static struct cma *vmcp_cma;
+
+static int __init early_parse_vmcp_cma(char *p)
+{
+	vmcp_cma_size = ALIGN(memparse(p, NULL), PAGE_SIZE);
+	return 0;
+}
+early_param("vmcp_cma", early_parse_vmcp_cma);
+
+void __init vmcp_cma_reserve(void)
+{
+	if (!MACHINE_IS_VM)
+		return;
+	cma_declare_contiguous(0, vmcp_cma_size, 0, 0, 0, false, "vmcp", &vmcp_cma);
+}
+
+static void vmcp_response_alloc(struct vmcp_session *session)
+{
+	struct page *page = NULL;
+	int nr_pages, order;
+
+	order = get_order(session->bufsize);
+	nr_pages = ALIGN(session->bufsize, PAGE_SIZE) >> PAGE_SHIFT;
+	/*
+	 * For anything below order 3 allocations rely on the buddy
+	 * allocator. If such low-order allocations can't be handled
+	 * anymore the system won't work anyway.
+	 */
+	if (order > 2)
+		page = cma_alloc(vmcp_cma, nr_pages, 0, GFP_KERNEL);
+	if (page) {
+		session->response = (char *)page_to_phys(page);
+		session->cma_alloc = 1;
+		return;
+	}
+	session->response = (char *)__get_free_pages(GFP_KERNEL | __GFP_RETRY_MAYFAIL, order);
+}
+
+static void vmcp_response_free(struct vmcp_session *session)
+{
+	int nr_pages, order;
+	struct page *page;
+
+	if (!session->response)
+		return;
+	order = get_order(session->bufsize);
+	nr_pages = ALIGN(session->bufsize, PAGE_SIZE) >> PAGE_SHIFT;
+	if (session->cma_alloc) {
+		page = phys_to_page((unsigned long)session->response);
+		cma_release(vmcp_cma, page, nr_pages);
+		session->cma_alloc = 0;
+		goto out;
+	}
+	free_pages((unsigned long)session->response, order);
+out:
+	session->response = NULL;
+}
 
 static int vmcp_open(struct inode *inode, struct file *file)
 {
@@ -51,7 +113,7 @@ static int vmcp_release(struct inode *inode, struct file *file)
 
 	session = file->private_data;
 	file->private_data = NULL;
-	free_pages((unsigned long)session->response, get_order(session->bufsize));
+	vmcp_response_free(session);
 	kfree(session);
 	return 0;
 }
@@ -97,9 +159,7 @@ vmcp_write(struct file *file, const char __user *buff, size_t count,
 		return -ERESTARTSYS;
 	}
 	if (!session->response)
-		session->response = (char *)__get_free_pages(GFP_KERNEL
-						| __GFP_RETRY_MAYFAIL,
-						get_order(session->bufsize));
+		vmcp_response_alloc(session);
 	if (!session->response) {
 		mutex_unlock(&session->mutex);
 		kfree(cmd);
@@ -146,9 +206,7 @@ static long vmcp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		mutex_unlock(&session->mutex);
 		return put_user(temp, argp);
 	case VMCP_SETBUF:
-		free_pages((unsigned long)session->response,
-				get_order(session->bufsize));
-		session->response=NULL;
+		vmcp_response_free(session);
 		temp = get_user(session->bufsize, argp);
 		if (temp)
 			session->bufsize = PAGE_SIZE;

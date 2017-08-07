@@ -925,6 +925,7 @@ void __init setup_arch(char **cmdline_p)
 	setup_memory_end();
 	setup_memory();
 	dma_contiguous_reserve(memory_end);
+	vmcp_cma_reserve();
 
 	check_initrd();
 	reserve_crashkernel();

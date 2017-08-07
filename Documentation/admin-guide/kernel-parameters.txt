@@ -4375,6 +4375,10 @@
 			decrease the size and leave more room for directly
 			mapped kernel RAM.
 
+	vmcp_cma=nn[MG]	[KNL,S390]
+			Sets the memory size reserved for contiguous memory
+			allocations for the vmcp device driver.
+
 	vmhalt=		[KNL,S390] Perform z/VM CP command after system halt.
 			Format: <command>
 
