@@ -23,17 +23,9 @@ Required properties:
 
 - rockchip,grf: phandle to the general register files syscon
 
-- rockchip,data-mapping: should be "vesa" or "jeida",
-	This describes how the color bits are laid out in the
-	serialized LVDS signal.
-- rockchip,data-width : should be <18> or <24>;
-- rockchip,output: should be "rgb", "lvds" or "duallvds",
-	This describes the output face.
-
 Optional properties
-- pinctrl-names: must contain a "default" entry.
+- pinctrl-names: must contain a "lcdc" entry.
 - pinctrl-0: pin control group to be used for this controller.
-- pinctrl-1: pin control group to be used for gpio.
 
 Required nodes:
 
@@ -45,7 +37,34 @@ Their connections are modeled using the OF graph bindings specified in
 - video port 0 for the VOP inputs
 - video port 1 for either a panel or subsequent encoder
 
+the lvds panel described by
+	Documentation/devicetree/bindings/display/panel/simple-panel.txt
+
+- rockchip,data-mapping: should be "vesa" or "jeida",
+	This describes how the color bits are laid out in the
+	serialized LVDS signal.
+- rockchip,data-width : should be <18> or <24>;
+- rockchip,output: should be "rgb", "lvds" or "duallvds",
+	This describes the output face.
+- ports for remote LVDS output
+
 Example:
+
+lvds_panel: lvds-panel {
+	status = "okay";
+	compatible = "simple-panel";
+	enable-gpios = <&gpio7 21 GPIO_ACTIVE_HIGH>;
+	rockchip,data-mapping = "jeida";
+	rockchip,data-width = <24>;
+	rockchip,output = "rgb";
+
+	ports {
+		panel_in_lvds: endpoint {
+			remote-endpoint = <&lvds_out_panel>;
+		};
+	};
+};
+
 
 For Rockchip RK3288:
 
@@ -55,6 +74,8 @@ For Rockchip RK3288:
 		reg = <0xff96c000 0x4000>;
 		clocks = <&cru PCLK_LVDS_PHY>;
 		clock-names = "pclk_lvds";
+		pinctrl-names = "lcdc";
+		pinctrl-0 = <&lcdc_ctl>;
 		avdd1v0-supply = <&vdd10_lcd>;
 		avdd1v8-supply = <&vcc18_lcd>;
 		avdd3v3-supply = <&vcca_33>;
@@ -98,9 +119,8 @@ For Rockchip RK3368:
 		clock-names = "pclk_lvds", "pclk_lvds_ctl";
 		power-domains = <&power RK3368_PD_VIO>;
 		rockchip,grf = <&grf>;
-		pinctrl-names = "lcdc", "gpio";
+		pinctrl-names = "lcdc";
 		pinctrl-0 = <&lcdc_lcdc>;
-		pinctrl-1 = <&lcdc_gpio>;
 
 		ports {
 

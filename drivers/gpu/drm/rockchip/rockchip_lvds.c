@@ -506,6 +506,11 @@ static void rockchip_lvds_grf_config(struct drm_encoder *encoder,
 	u32 val;
 	int ret;
 
+	/* iomux to LCD data/sync mode */
+	if (lvds->output == DISPLAY_OUTPUT_RGB)
+		if (lvds->pins && !IS_ERR(lvds->pins->default_state))
+			pinctrl_select_state(lvds->pins->p,
+					     lvds->pins->default_state);
 	if (LVDS_CHIP(lvds) == RK3288_LVDS) {
 		val = lvds->format;
 		if (lvds->output == DISPLAY_OUTPUT_DUAL_LVDS)
@@ -527,11 +532,6 @@ static void rockchip_lvds_grf_config(struct drm_encoder *encoder,
 		}
 	} else if (LVDS_CHIP(lvds) == RK336X_LVDS) {
 		if (lvds->output == DISPLAY_OUTPUT_RGB) {
-			/* iomux to lcdc */
-			if (lvds->pins && !IS_ERR(lvds->pins->default_state))
-				pinctrl_select_state(lvds->pins->p,
-						     lvds->pins->default_state);
-
 			/* enable lvds mode */
 			val = v_RK336X_LVDSMODE_EN(0) |
 				v_RK336X_MIPIPHY_TTL_EN(1) |
@@ -933,31 +933,33 @@ static int rockchip_lvds_probe(struct platform_device *pdev)
 			dev_err(dev, "could not get pclk_ctrl\n");
 			lvds->pclk_ctrl = NULL;
 		}
-		lvds->pins = devm_kzalloc(lvds->dev, sizeof(*lvds->pins),
-					  GFP_KERNEL);
-		if (!lvds->pins)
-			return -ENOMEM;
-
-		lvds->pins->p = devm_pinctrl_get(lvds->dev);
-		if (IS_ERR(lvds->pins->p)) {
-			dev_info(lvds->dev, "no pinctrl handle\n");
-			devm_kfree(lvds->dev, lvds->pins);
-			lvds->pins = NULL;
-		} else {
-			lvds->pins->default_state =
-				pinctrl_lookup_state(lvds->pins->p, "lcdc");
-			if (IS_ERR(lvds->pins->default_state)) {
-				dev_info(lvds->dev, "no default pinctrl state\n");
-				devm_kfree(lvds->dev, lvds->pins);
-				lvds->pins = NULL;
-			}
-		}
 	}
 	lvds->pclk = devm_clk_get(&pdev->dev, "pclk_lvds");
 	if (IS_ERR(lvds->pclk)) {
 		dev_err(dev, "could not get pclk_lvds\n");
 		return PTR_ERR(lvds->pclk);
 	}
+
+	lvds->pins = devm_kzalloc(lvds->dev, sizeof(*lvds->pins),
+				  GFP_KERNEL);
+	if (!lvds->pins)
+		return -ENOMEM;
+
+	lvds->pins->p = devm_pinctrl_get(lvds->dev);
+	if (IS_ERR(lvds->pins->p)) {
+		dev_info(lvds->dev, "no pinctrl handle\n");
+		devm_kfree(lvds->dev, lvds->pins);
+		lvds->pins = NULL;
+	} else {
+		lvds->pins->default_state =
+			pinctrl_lookup_state(lvds->pins->p, "lcdc");
+		if (IS_ERR(lvds->pins->default_state)) {
+			dev_info(lvds->dev, "no lcdc pinctrl state\n");
+			devm_kfree(lvds->dev, lvds->pins);
+			lvds->pins = NULL;
+		}
+	}
+
 	lvds->grf = syscon_regmap_lookup_by_phandle(dev->of_node,
 						    "rockchip,grf");
 	if (IS_ERR(lvds->grf)) {
