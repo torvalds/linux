@@ -741,7 +741,11 @@ static int ps3vram_probe(struct ps3_system_bus_device *dev)
 		goto out_unmap_reports;
 	}
 
-	ps3vram_cache_init(dev);
+	error = ps3vram_cache_init(dev);
+	if (error < 0) {
+		goto out_unmap_reports;
+	}
+
 	ps3vram_proc_init(dev);
 
 	queue = blk_alloc_queue(GFP_KERNEL);
