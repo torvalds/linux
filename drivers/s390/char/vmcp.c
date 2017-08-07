@@ -25,7 +25,16 @@
 #include <asm/compat.h>
 #include <asm/cpcmd.h>
 #include <asm/debug.h>
-#include "vmcp.h"
+#include <asm/vmcp.h>
+
+struct vmcp_session {
+	char *response;
+	unsigned int bufsize;
+	unsigned int cma_alloc : 1;
+	int resp_size;
+	int resp_code;
+	struct mutex mutex;
+};
 
 static debug_info_t *vmcp_debug;
 
