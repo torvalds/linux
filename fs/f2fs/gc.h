@@ -13,6 +13,7 @@
 						 * whether IO subsystem is idle
 						 * or not
 						 */
+#define DEF_GC_THREAD_URGENT_SLEEP_TIME	500	/* 500 ms */
 #define DEF_GC_THREAD_MIN_SLEEP_TIME	30000	/* milliseconds */
 #define DEF_GC_THREAD_MAX_SLEEP_TIME	60000
 #define DEF_GC_THREAD_NOGC_SLEEP_TIME	300000	/* wait 5 min */
@@ -27,12 +28,15 @@ struct f2fs_gc_kthread {
 	wait_queue_head_t gc_wait_queue_head;
 
 	/* for gc sleep time */
+	unsigned int urgent_sleep_time;
 	unsigned int min_sleep_time;
 	unsigned int max_sleep_time;
 	unsigned int no_gc_sleep_time;
 
 	/* for changing gc mode */
 	unsigned int gc_idle;
+	unsigned int gc_urgent;
+	unsigned int gc_wake;
 };
 
 struct gc_inode_list {
