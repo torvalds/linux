@@ -339,11 +339,12 @@ static void soc_cleanup_component_debugfs(struct snd_soc_component *component)
 static void soc_init_codec_debugfs(struct snd_soc_component *component)
 {
 	struct snd_soc_codec *codec = snd_soc_component_to_codec(component);
+	struct dentry *debugfs_reg;
 
-	codec->debugfs_reg = debugfs_create_file("codec_reg", 0644,
-						 codec->component.debugfs_root,
-						 codec, &codec_reg_fops);
-	if (!codec->debugfs_reg)
+	debugfs_reg = debugfs_create_file("codec_reg", 0644,
+					  codec->component.debugfs_root,
+					  codec, &codec_reg_fops);
+	if (!debugfs_reg)
 		dev_warn(codec->dev,
 			"ASoC: Failed to create codec register debugfs file\n");
 }
