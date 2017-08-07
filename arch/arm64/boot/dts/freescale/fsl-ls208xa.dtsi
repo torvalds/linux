@@ -125,6 +125,11 @@
 		interrupts = <1 7 0x8>; /* PMU PPI, Level low type */
 	};
 
+	psci {
+		compatible = "arm,psci-0.2";
+		method = "smc";
+	};
+
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <2>;
