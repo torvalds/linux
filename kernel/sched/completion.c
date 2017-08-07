@@ -32,6 +32,12 @@ void complete(struct completion *x)
 	unsigned long flags;
 
 	spin_lock_irqsave(&x->wait.lock, flags);
+
+	/*
+	 * Perform commit of crossrelease here.
+	 */
+	complete_release_commit(x);
+
 	if (x->done != UINT_MAX)
 		x->done++;
 	__wake_up_locked(&x->wait, TASK_NORMAL, 1);
@@ -92,9 +98,14 @@ __wait_for_common(struct completion *x,
 {
 	might_sleep();
 
+	complete_acquire(x);
+
 	spin_lock_irq(&x->wait.lock);
 	timeout = do_wait_for_common(x, action, timeout, state);
 	spin_unlock_irq(&x->wait.lock);
+
+	complete_release(x);
+
 	return timeout;
 }
 

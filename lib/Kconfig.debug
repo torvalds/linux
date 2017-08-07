@@ -1162,6 +1162,15 @@ config LOCKDEP_CROSSRELEASE
 	 such as page locks or completions can use the lock correctness
 	 detector, lockdep.
 
+config LOCKDEP_COMPLETE
+	bool "Lock debugging: allow completions to use deadlock detector"
+	depends on PROVE_LOCKING
+	select LOCKDEP_CROSSRELEASE
+	default n
+	help
+	 A deadlock caused by wait_for_completion() and complete() can be
+	 detected by lockdep using crossrelease feature.
+
 config DEBUG_LOCKDEP
 	bool "Lock dependency engine debugging"
 	depends on DEBUG_KERNEL && LOCKDEP
