@@ -67,17 +67,17 @@ const struct dsa_device_ops *dsa_device_ops[DSA_TAG_LAST] = {
 	[DSA_TAG_PROTO_NONE] = &none_ops,
 };
 
-int dsa_cpu_dsa_setup(struct dsa_switch *ds, struct device *dev,
-		      struct dsa_port *dport, int port)
+int dsa_cpu_dsa_setup(struct dsa_port *port)
 {
-	struct device_node *port_dn = dport->dn;
+	struct device_node *port_dn = port->dn;
+	struct dsa_switch *ds = port->ds;
 	struct phy_device *phydev;
 	int ret, mode;
 
 	if (of_phy_is_fixed_link(port_dn)) {
 		ret = of_phy_register_fixed_link(port_dn);
 		if (ret) {
-			dev_err(dev, "failed to register fixed PHY\n");
+			dev_err(ds->dev, "failed to register fixed PHY\n");
 			return ret;
 		}
 		phydev = of_phy_find_device(port_dn);
@@ -90,7 +90,7 @@ int dsa_cpu_dsa_setup(struct dsa_switch *ds, struct device *dev,
 		genphy_config_init(phydev);
 		genphy_read_status(phydev);
 		if (ds->ops->adjust_link)
-			ds->ops->adjust_link(ds, port, phydev);
+			ds->ops->adjust_link(ds, port->index, phydev);
 
 		put_device(&phydev->mdio.dev);
 	}

@@ -1195,9 +1195,9 @@ int dsa_slave_resume(struct net_device *slave_dev)
 	return 0;
 }
 
-int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
-		     int port, const char *name)
+int dsa_slave_create(struct dsa_port *port, const char *name)
 {
+	struct dsa_switch *ds = port->ds;
 	struct dsa_switch_tree *dst = ds->dst;
 	struct net_device *master;
 	struct net_device *slave_dev;
@@ -1227,8 +1227,8 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	netdev_for_each_tx_queue(slave_dev, dsa_slave_set_lockdep_class_one,
 				 NULL);
 
-	SET_NETDEV_DEV(slave_dev, parent);
-	slave_dev->dev.of_node = ds->ports[port].dn;
+	SET_NETDEV_DEV(slave_dev, port->ds->dev);
+	slave_dev->dev.of_node = port->dn;
 	slave_dev->vlan_features = master->vlan_features;
 
 	p = netdev_priv(slave_dev);
@@ -1237,7 +1237,7 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 		free_netdev(slave_dev);
 		return -ENOMEM;
 	}
-	p->dp = &ds->ports[port];
+	p->dp = port;
 	INIT_LIST_HEAD(&p->mall_tc_list);
 	p->xmit = dst->tag_ops->xmit;
 
@@ -1245,12 +1245,12 @@ int dsa_slave_create(struct dsa_switch *ds, struct device *parent,
 	p->old_link = -1;
 	p->old_duplex = -1;
 
-	ds->ports[port].netdev = slave_dev;
+	port->netdev = slave_dev;
 	ret = register_netdev(slave_dev);
 	if (ret) {
 		netdev_err(master, "error %d registering interface %s\n",
 			   ret, slave_dev->name);
-		ds->ports[port].netdev = NULL;
+		port->netdev = NULL;
 		free_percpu(p->stats64);
 		free_netdev(slave_dev);
 		return ret;
