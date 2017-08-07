@@ -733,7 +733,7 @@ EXPORT_SYMBOL_GPL(rc_keydown_notimeout);
 static int rc_validate_filter(struct rc_dev *dev,
 			      struct rc_scancode_filter *filter)
 {
-	static u32 masks[] = {
+	static const u32 masks[] = {
 		[RC_TYPE_RC5] = 0x1f7f,
 		[RC_TYPE_RC5X_20] = 0x1f7f3f,
 		[RC_TYPE_RC5_SZ] = 0x2fff,
@@ -756,6 +756,9 @@ static int rc_validate_filter(struct rc_dev *dev,
 	};
 	u32 s = filter->data;
 	enum rc_type protocol = dev->wakeup_protocol;
+
+	if (protocol >= ARRAY_SIZE(masks))
+		return -EINVAL;
 
 	switch (protocol) {
 	case RC_TYPE_NECX:
