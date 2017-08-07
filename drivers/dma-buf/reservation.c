@@ -195,8 +195,7 @@ done:
 	if (old)
 		kfree_rcu(old, rcu);
 
-	if (old_fence)
-		dma_fence_put(old_fence);
+	dma_fence_put(old_fence);
 }
 
 /**
@@ -258,8 +257,7 @@ void reservation_object_add_excl_fence(struct reservation_object *obj,
 		dma_fence_put(rcu_dereference_protected(old->shared[i],
 						reservation_object_held(obj)));
 
-	if (old_fence)
-		dma_fence_put(old_fence);
+	dma_fence_put(old_fence);
 }
 EXPORT_SYMBOL(reservation_object_add_excl_fence);
 
