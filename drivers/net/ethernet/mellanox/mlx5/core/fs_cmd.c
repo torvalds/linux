@@ -263,7 +263,7 @@ static int mlx5_cmd_set_fte(struct mlx5_core_dev *dev,
 	MLX5_SET(flow_context, in_flow_context, modify_header_id, fte->modify_id);
 	in_match_value = MLX5_ADDR_OF(flow_context, in_flow_context,
 				      match_value);
-	memcpy(in_match_value, &fte->val, MLX5_ST_SZ_BYTES(fte_match_param));
+	memcpy(in_match_value, &fte->val, sizeof(fte->val));
 
 	in_dests = MLX5_ADDR_OF(flow_context, in_flow_context, destination);
 	if (fte->action & MLX5_FLOW_CONTEXT_ACTION_FWD_DEST) {

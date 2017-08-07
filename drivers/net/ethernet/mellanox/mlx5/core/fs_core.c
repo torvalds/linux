@@ -371,21 +371,14 @@ static void del_rule(struct fs_node *node)
 	struct mlx5_flow_table *ft;
 	struct mlx5_flow_group *fg;
 	struct fs_fte *fte;
-	u32	*match_value;
 	int modify_mask;
 	struct mlx5_core_dev *dev = get_dev(node);
-	int match_len = MLX5_ST_SZ_BYTES(fte_match_param);
 	int err;
 	bool update_fte = false;
-
-	match_value = kvzalloc(match_len, GFP_KERNEL);
-	if (!match_value)
-		return;
 
 	fs_get_obj(rule, node);
 	fs_get_obj(fte, rule->node.parent);
 	fs_get_obj(fg, fte->node.parent);
-	memcpy(match_value, fte->val, sizeof(fte->val));
 	fs_get_obj(ft, fg->node.parent);
 	list_del(&rule->node.list);
 	if (rule->sw_action == MLX5_FLOW_CONTEXT_ACTION_FWD_NEXT_PRIO) {
@@ -415,7 +408,6 @@ out:
 				       "%s can't del rule fg id=%d fte_index=%d\n",
 				       __func__, fg->id, fte->index);
 	}
-	kvfree(match_value);
 }
 
 static void del_fte(struct fs_node *node)
