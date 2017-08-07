@@ -1371,10 +1371,14 @@ static int vrf_validate(struct nlattr *tb[], struct nlattr *data[],
 			struct netlink_ext_ack *extack)
 {
 	if (tb[IFLA_ADDRESS]) {
-		if (nla_len(tb[IFLA_ADDRESS]) != ETH_ALEN)
+		if (nla_len(tb[IFLA_ADDRESS]) != ETH_ALEN) {
+			NL_SET_ERR_MSG(extack, "Invalid hardware address");
 			return -EINVAL;
-		if (!is_valid_ether_addr(nla_data(tb[IFLA_ADDRESS])))
+		}
+		if (!is_valid_ether_addr(nla_data(tb[IFLA_ADDRESS]))) {
+			NL_SET_ERR_MSG(extack, "Invalid hardware address");
 			return -EADDRNOTAVAIL;
+		}
 	}
 	return 0;
 }
@@ -1399,12 +1403,17 @@ static int vrf_newlink(struct net *src_net, struct net_device *dev,
 	struct net *net;
 	int err;
 
-	if (!data || !data[IFLA_VRF_TABLE])
+	if (!data || !data[IFLA_VRF_TABLE]) {
+		NL_SET_ERR_MSG(extack, "VRF table id is missing");
 		return -EINVAL;
+	}
 
 	vrf->tb_id = nla_get_u32(data[IFLA_VRF_TABLE]);
-	if (vrf->tb_id == RT_TABLE_UNSPEC)
+	if (vrf->tb_id == RT_TABLE_UNSPEC) {
+		NL_SET_ERR_MSG_ATTR(extack, data[IFLA_VRF_TABLE],
+				    "Invalid VRF table id");
 		return -EINVAL;
+	}
 
 	dev->priv_flags |= IFF_L3MDEV_MASTER;
 
