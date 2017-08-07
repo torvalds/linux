@@ -1862,8 +1862,7 @@ static void pch_uart_exit_port(struct eg20t_port *priv)
 {
 
 #ifdef CONFIG_DEBUG_FS
-	if (priv->debugfs)
-		debugfs_remove(priv->debugfs);
+	debugfs_remove(priv->debugfs);
 #endif
 	uart_remove_one_port(&pch_uart_driver, &priv->port);
 	free_page((unsigned long)priv->rxbuf.buf);
