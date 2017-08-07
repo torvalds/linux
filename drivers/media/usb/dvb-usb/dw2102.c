@@ -1614,7 +1614,7 @@ static int dw2102_rc_query(struct dvb_usb_device *d)
 		if (msg.buf[0] != 0xff) {
 			deb_rc("%s: rc code: %x, %x\n",
 					__func__, key[0], key[1]);
-			rc_keydown(d->rc_dev, RC_TYPE_UNKNOWN, key[0], 0);
+			rc_keydown(d->rc_dev, RC_PROTO_UNKNOWN, key[0], 0);
 		}
 	}
 
@@ -1635,7 +1635,8 @@ static int prof_rc_query(struct dvb_usb_device *d)
 		if (msg.buf[0] != 0xff) {
 			deb_rc("%s: rc code: %x, %x\n",
 					__func__, key[0], key[1]);
-			rc_keydown(d->rc_dev, RC_TYPE_UNKNOWN, key[0]^0xff, 0);
+			rc_keydown(d->rc_dev, RC_PROTO_UNKNOWN, key[0] ^ 0xff,
+				   0);
 		}
 	}
 
@@ -1656,7 +1657,7 @@ static int su3000_rc_query(struct dvb_usb_device *d)
 		if (msg.buf[0] != 0xff) {
 			deb_rc("%s: rc code: %x, %x\n",
 					__func__, key[0], key[1]);
-			rc_keydown(d->rc_dev, RC_TYPE_RC5,
+			rc_keydown(d->rc_dev, RC_PROTO_RC5,
 				   RC_SCANCODE_RC5(key[1], key[0]), 0);
 		}
 	}
@@ -1842,7 +1843,7 @@ static struct dvb_usb_device_properties dw2102_properties = {
 		.rc_interval = 150,
 		.rc_codes = RC_MAP_DM1105_NEC,
 		.module_name = "dw2102",
-		.allowed_protos   = RC_BIT_NEC,
+		.allowed_protos   = RC_PROTO_BIT_NEC,
 		.rc_query = dw2102_rc_query,
 	},
 
@@ -1897,7 +1898,7 @@ static struct dvb_usb_device_properties dw2104_properties = {
 		.rc_interval = 150,
 		.rc_codes = RC_MAP_DM1105_NEC,
 		.module_name = "dw2102",
-		.allowed_protos   = RC_BIT_NEC,
+		.allowed_protos   = RC_PROTO_BIT_NEC,
 		.rc_query = dw2102_rc_query,
 	},
 
@@ -1948,7 +1949,7 @@ static struct dvb_usb_device_properties dw3101_properties = {
 		.rc_interval = 150,
 		.rc_codes = RC_MAP_DM1105_NEC,
 		.module_name = "dw2102",
-		.allowed_protos   = RC_BIT_NEC,
+		.allowed_protos   = RC_PROTO_BIT_NEC,
 		.rc_query = dw2102_rc_query,
 	},
 
@@ -1997,7 +1998,7 @@ static struct dvb_usb_device_properties s6x0_properties = {
 		.rc_interval = 150,
 		.rc_codes = RC_MAP_TEVII_NEC,
 		.module_name = "dw2102",
-		.allowed_protos   = RC_BIT_NEC,
+		.allowed_protos   = RC_PROTO_BIT_NEC,
 		.rc_query = dw2102_rc_query,
 	},
 
@@ -2091,7 +2092,7 @@ static struct dvb_usb_device_properties su3000_properties = {
 		.rc_interval = 150,
 		.rc_codes = RC_MAP_SU3000,
 		.module_name = "dw2102",
-		.allowed_protos   = RC_BIT_RC5,
+		.allowed_protos   = RC_PROTO_BIT_RC5,
 		.rc_query = su3000_rc_query,
 	},
 
@@ -2156,7 +2157,7 @@ static struct dvb_usb_device_properties t220_properties = {
 		.rc_interval = 150,
 		.rc_codes = RC_MAP_SU3000,
 		.module_name = "dw2102",
-		.allowed_protos   = RC_BIT_RC5,
+		.allowed_protos   = RC_PROTO_BIT_RC5,
 		.rc_query = su3000_rc_query,
 	},
 
@@ -2205,7 +2206,7 @@ static struct dvb_usb_device_properties tt_s2_4600_properties = {
 		.rc_interval = 250,
 		.rc_codes = RC_MAP_TT_1500,
 		.module_name = "dw2102",
-		.allowed_protos   = RC_BIT_RC5,
+		.allowed_protos   = RC_PROTO_BIT_RC5,
 		.rc_query = su3000_rc_query,
 	},
 

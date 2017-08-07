@@ -213,7 +213,7 @@ ir_raw_get_allowed_protocols(void)
 	return atomic64_read(&available_protocols);
 }
 
-static int change_protocol(struct rc_dev *dev, u64 *rc_type)
+static int change_protocol(struct rc_dev *dev, u64 *rc_proto)
 {
 	/* the caller will update dev->enabled_protocols */
 	return 0;
@@ -450,7 +450,7 @@ EXPORT_SYMBOL(ir_raw_gen_pl);
  *		-EINVAL if the scancode is ambiguous or invalid, or if no
  *		compatible encoder was found.
  */
-int ir_raw_encode_scancode(enum rc_type protocol, u32 scancode,
+int ir_raw_encode_scancode(enum rc_proto protocol, u32 scancode,
 			   struct ir_raw_event *events, unsigned int max)
 {
 	struct ir_raw_handler *handler;

@@ -49,7 +49,7 @@ static int ir_nec_decode(struct rc_dev *dev, struct ir_raw_event ev)
 {
 	struct nec_dec *data = &dev->raw->nec;
 	u32 scancode;
-	enum rc_type rc_type;
+	enum rc_proto rc_proto;
 	u8 address, not_address, command, not_command;
 
 	if (!is_timing_event(ev)) {
@@ -158,12 +158,12 @@ static int ir_nec_decode(struct rc_dev *dev, struct ir_raw_event ev)
 
 		scancode = ir_nec_bytes_to_scancode(address, not_address,
 						    command, not_command,
-						    &rc_type);
+						    &rc_proto);
 
 		if (data->is_nec_x)
 			data->necx_repeat = true;
 
-		rc_keydown(dev, rc_type, scancode, 0);
+		rc_keydown(dev, rc_proto, scancode, 0);
 		data->state = STATE_INACTIVE;
 		return 0;
 	}
@@ -180,19 +180,19 @@ static int ir_nec_decode(struct rc_dev *dev, struct ir_raw_event ev)
  * @scancode:	a single NEC scancode.
  * @raw:	raw data to be modulated.
  */
-static u32 ir_nec_scancode_to_raw(enum rc_type protocol, u32 scancode)
+static u32 ir_nec_scancode_to_raw(enum rc_proto protocol, u32 scancode)
 {
 	unsigned int addr, addr_inv, data, data_inv;
 
 	data = scancode & 0xff;
 
-	if (protocol == RC_TYPE_NEC32) {
+	if (protocol == RC_PROTO_NEC32) {
 		/* 32-bit NEC (used by Apple and TiVo remotes) */
 		/* scan encoding: aaAAddDD */
 		addr_inv   = (scancode >> 24) & 0xff;
 		addr       = (scancode >> 16) & 0xff;
 		data_inv   = (scancode >>  8) & 0xff;
-	} else if (protocol == RC_TYPE_NECX) {
+	} else if (protocol == RC_PROTO_NECX) {
 		/* Extended NEC */
 		/* scan encoding AAaaDD */
 		addr       = (scancode >> 16) & 0xff;
@@ -236,7 +236,7 @@ static const struct ir_raw_timings_pd ir_nec_timings = {
  *		-ENOBUFS if there isn't enough space in the array to fit the
  *		encoding. In this case all @max events will have been written.
  */
-static int ir_nec_encode(enum rc_type protocol, u32 scancode,
+static int ir_nec_encode(enum rc_proto protocol, u32 scancode,
 			 struct ir_raw_event *events, unsigned int max)
 {
 	struct ir_raw_event *e = events;
@@ -255,7 +255,8 @@ static int ir_nec_encode(enum rc_type protocol, u32 scancode,
 }
 
 static struct ir_raw_handler nec_handler = {
-	.protocols	= RC_BIT_NEC | RC_BIT_NECX | RC_BIT_NEC32,
+	.protocols	= RC_PROTO_BIT_NEC | RC_PROTO_BIT_NECX |
+							RC_PROTO_BIT_NEC32,
 	.decode		= ir_nec_decode,
 	.encode		= ir_nec_encode,
 };

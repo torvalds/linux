@@ -31,7 +31,7 @@
 void mantis_input_process(struct mantis_pci *mantis, int scancode)
 {
 	if (mantis->rc)
-		rc_keydown(mantis->rc, RC_TYPE_UNKNOWN, scancode, 0);
+		rc_keydown(mantis->rc, RC_PROTO_UNKNOWN, scancode, 0);
 }
 
 int mantis_input_init(struct mantis_pci *mantis)

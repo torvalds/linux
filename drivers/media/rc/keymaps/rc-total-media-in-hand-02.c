@@ -62,10 +62,10 @@ static struct rc_map_table total_media_in_hand_02[] = {
 
 static struct rc_map_list total_media_in_hand_02_map = {
 	.map = {
-		.scan    = total_media_in_hand_02,
-		.size    = ARRAY_SIZE(total_media_in_hand_02),
-		.rc_type = RC_TYPE_RC5,
-		.name    = RC_MAP_TOTAL_MEDIA_IN_HAND_02,
+		.scan     = total_media_in_hand_02,
+		.size     = ARRAY_SIZE(total_media_in_hand_02),
+		.rc_proto = RC_PROTO_RC5,
+		.name     = RC_MAP_TOTAL_MEDIA_IN_HAND_02,
 	}
 };
 

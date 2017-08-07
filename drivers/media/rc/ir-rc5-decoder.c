@@ -51,7 +51,7 @@ static int ir_rc5_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	struct rc5_dec *data = &dev->raw->rc5;
 	u8 toggle;
 	u32 scancode;
-	enum rc_type protocol;
+	enum rc_proto protocol;
 
 	if (!is_timing_event(ev)) {
 		if (ev.reset)
@@ -124,7 +124,7 @@ again:
 		if (data->is_rc5x && data->count == RC5X_NBITS) {
 			/* RC5X */
 			u8 xdata, command, system;
-			if (!(dev->enabled_protocols & RC_BIT_RC5X_20)) {
+			if (!(dev->enabled_protocols & RC_PROTO_BIT_RC5X_20)) {
 				data->state = STATE_INACTIVE;
 				return 0;
 			}
@@ -134,12 +134,12 @@ again:
 			toggle   = (data->bits & 0x20000) ? 1 : 0;
 			command += (data->bits & 0x40000) ? 0 : 0x40;
 			scancode = system << 16 | command << 8 | xdata;
-			protocol = RC_TYPE_RC5X_20;
+			protocol = RC_PROTO_RC5X_20;
 
 		} else if (!data->is_rc5x && data->count == RC5_NBITS) {
 			/* RC5 */
 			u8 command, system;
-			if (!(dev->enabled_protocols & RC_BIT_RC5)) {
+			if (!(dev->enabled_protocols & RC_PROTO_BIT_RC5)) {
 				data->state = STATE_INACTIVE;
 				return 0;
 			}
@@ -148,12 +148,12 @@ again:
 			toggle   = (data->bits & 0x00800) ? 1 : 0;
 			command += (data->bits & 0x01000) ? 0 : 0x40;
 			scancode = system << 8 | command;
-			protocol = RC_TYPE_RC5;
+			protocol = RC_PROTO_RC5;
 
 		} else if (!data->is_rc5x && data->count == RC5_SZ_NBITS) {
 			/* RC5 StreamZap */
 			u8 command, system;
-			if (!(dev->enabled_protocols & RC_BIT_RC5_SZ)) {
+			if (!(dev->enabled_protocols & RC_PROTO_BIT_RC5_SZ)) {
 				data->state = STATE_INACTIVE;
 				return 0;
 			}
@@ -161,7 +161,7 @@ again:
 			system   = (data->bits & 0x02FC0) >> 6;
 			toggle   = (data->bits & 0x01000) ? 1 : 0;
 			scancode = system << 6 | command;
-			protocol = RC_TYPE_RC5_SZ;
+			protocol = RC_PROTO_RC5_SZ;
 
 		} else
 			break;
@@ -221,7 +221,7 @@ static const struct ir_raw_timings_manchester ir_rc5_sz_timings = {
  *		encoding. In this case all @max events will have been written.
  *		-EINVAL if the scancode is ambiguous or invalid.
  */
-static int ir_rc5_encode(enum rc_type protocol, u32 scancode,
+static int ir_rc5_encode(enum rc_proto protocol, u32 scancode,
 			 struct ir_raw_event *events, unsigned int max)
 {
 	int ret;
@@ -229,7 +229,7 @@ static int ir_rc5_encode(enum rc_type protocol, u32 scancode,
 	unsigned int data, xdata, command, commandx, system, pre_space_data;
 
 	/* Detect protocol and convert scancode to raw data */
-	if (protocol == RC_TYPE_RC5) {
+	if (protocol == RC_PROTO_RC5) {
 		/* decode scancode */
 		command  = (scancode & 0x003f) >> 0;
 		commandx = (scancode & 0x0040) >> 6;
@@ -242,7 +242,7 @@ static int ir_rc5_encode(enum rc_type protocol, u32 scancode,
 					    RC5_NBITS, data);
 		if (ret < 0)
 			return ret;
-	} else if (protocol == RC_TYPE_RC5X_20) {
+	} else if (protocol == RC_PROTO_RC5X_20) {
 		/* decode scancode */
 		xdata    = (scancode & 0x00003f) >> 0;
 		command  = (scancode & 0x003f00) >> 8;
@@ -264,7 +264,7 @@ static int ir_rc5_encode(enum rc_type protocol, u32 scancode,
 					    data);
 		if (ret < 0)
 			return ret;
-	} else if (protocol == RC_TYPE_RC5_SZ) {
+	} else if (protocol == RC_PROTO_RC5_SZ) {
 		/* RC5-SZ scancode is raw enough for Manchester as it is */
 		ret = ir_raw_gen_manchester(&e, max, &ir_rc5_sz_timings,
 					    RC5_SZ_NBITS, scancode & 0x2fff);
@@ -278,7 +278,8 @@ static int ir_rc5_encode(enum rc_type protocol, u32 scancode,
 }
 
 static struct ir_raw_handler rc5_handler = {
-	.protocols	= RC_BIT_RC5 | RC_BIT_RC5X_20 | RC_BIT_RC5_SZ,
+	.protocols	= RC_PROTO_BIT_RC5 | RC_PROTO_BIT_RC5X_20 |
+							RC_PROTO_BIT_RC5_SZ,
 	.decode		= ir_rc5_decode,
 	.encode		= ir_rc5_encode,
 };

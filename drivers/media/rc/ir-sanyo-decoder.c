@@ -161,7 +161,7 @@ static int ir_sanyo_decode(struct rc_dev *dev, struct ir_raw_event ev)
 
 		scancode = address << 8 | command;
 		IR_dprintk(1, "SANYO scancode: 0x%06x\n", scancode);
-		rc_keydown(dev, RC_TYPE_SANYO, scancode, 0);
+		rc_keydown(dev, RC_PROTO_SANYO, scancode, 0);
 		data->state = STATE_INACTIVE;
 		return 0;
 	}
@@ -195,7 +195,7 @@ static const struct ir_raw_timings_pd ir_sanyo_timings = {
  *		-ENOBUFS if there isn't enough space in the array to fit the
  *		encoding. In this case all @max events will have been written.
  */
-static int ir_sanyo_encode(enum rc_type protocol, u32 scancode,
+static int ir_sanyo_encode(enum rc_proto protocol, u32 scancode,
 			   struct ir_raw_event *events, unsigned int max)
 {
 	struct ir_raw_event *e = events;
@@ -215,7 +215,7 @@ static int ir_sanyo_encode(enum rc_type protocol, u32 scancode,
 }
 
 static struct ir_raw_handler sanyo_handler = {
-	.protocols	= RC_BIT_SANYO,
+	.protocols	= RC_PROTO_BIT_SANYO,
 	.decode		= ir_sanyo_decode,
 	.encode		= ir_sanyo_encode,
 };

@@ -68,10 +68,10 @@ static struct rc_map_table asus_pc39[] = {
 
 static struct rc_map_list asus_pc39_map = {
 	.map = {
-		.scan    = asus_pc39,
-		.size    = ARRAY_SIZE(asus_pc39),
-		.rc_type = RC_TYPE_RC5,
-		.name    = RC_MAP_ASUS_PC39,
+		.scan     = asus_pc39,
+		.size     = ARRAY_SIZE(asus_pc39),
+		.rc_proto = RC_PROTO_RC5,
+		.name     = RC_MAP_ASUS_PC39,
 	}
 };
 

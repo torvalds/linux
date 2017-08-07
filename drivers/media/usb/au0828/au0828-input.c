@@ -343,8 +343,8 @@ int au0828_rc_register(struct au0828_dev *dev)
 	rc->input_id.product = le16_to_cpu(dev->usbdev->descriptor.idProduct);
 	rc->dev.parent = &dev->usbdev->dev;
 	rc->driver_name = "au0828-input";
-	rc->allowed_protocols = RC_BIT_NEC | RC_BIT_NECX | RC_BIT_NEC32 |
-								RC_BIT_RC5;
+	rc->allowed_protocols = RC_PROTO_BIT_NEC | RC_PROTO_BIT_NECX |
+				RC_PROTO_BIT_NEC32 | RC_PROTO_BIT_RC5;
 
 	/* all done */
 	err = rc_register_device(rc);

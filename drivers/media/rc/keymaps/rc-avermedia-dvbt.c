@@ -55,10 +55,10 @@ static struct rc_map_table avermedia_dvbt[] = {
 
 static struct rc_map_list avermedia_dvbt_map = {
 	.map = {
-		.scan    = avermedia_dvbt,
-		.size    = ARRAY_SIZE(avermedia_dvbt),
-		.rc_type = RC_TYPE_UNKNOWN,	/* Legacy IR type */
-		.name    = RC_MAP_AVERMEDIA_DVBT,
+		.scan     = avermedia_dvbt,
+		.size     = ARRAY_SIZE(avermedia_dvbt),
+		.rc_proto = RC_PROTO_UNKNOWN,	/* Legacy IR type */
+		.name     = RC_MAP_AVERMEDIA_DVBT,
 	}
 };
 

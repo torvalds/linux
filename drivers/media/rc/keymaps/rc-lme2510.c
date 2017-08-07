@@ -87,10 +87,10 @@ static struct rc_map_table lme2510_rc[] = {
 
 static struct rc_map_list lme2510_map = {
 	.map = {
-		.scan    = lme2510_rc,
-		.size    = ARRAY_SIZE(lme2510_rc),
-		.rc_type = RC_TYPE_NEC,
-		.name    = RC_MAP_LME2510,
+		.scan     = lme2510_rc,
+		.size     = ARRAY_SIZE(lme2510_rc),
+		.rc_proto = RC_PROTO_NEC,
+		.name     = RC_MAP_LME2510,
 	}
 };
 
