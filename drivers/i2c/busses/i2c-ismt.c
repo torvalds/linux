@@ -339,8 +339,10 @@ static int ismt_process_desc(const struct ismt_desc *desc,
 			break;
 		case I2C_SMBUS_BLOCK_DATA:
 		case I2C_SMBUS_I2C_BLOCK_DATA:
+			if (desc->rxbytes != dma_buffer[0] + 1)
+				return -EMSGSIZE;
+
 			memcpy(data->block, dma_buffer, desc->rxbytes);
-			data->block[0] = desc->rxbytes - 1;
 			break;
 		}
 		return 0;
