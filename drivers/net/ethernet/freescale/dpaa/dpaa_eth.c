@@ -350,7 +350,7 @@ static int dpaa_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
 	int i;
 
 	if (type != TC_SETUP_MQPRIO)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	tc->mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
 	num_tc = tc->mqprio->num_tc;

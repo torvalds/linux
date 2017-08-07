@@ -7241,7 +7241,7 @@ static int bnxt_setup_tc(struct net_device *dev, enum tc_setup_type type,
 			 struct tc_to_netdev *ntc)
 {
 	if (type != TC_SETUP_MQPRIO)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	ntc->mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
 

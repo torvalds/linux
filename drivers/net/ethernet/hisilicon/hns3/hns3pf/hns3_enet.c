@@ -1223,7 +1223,7 @@ static int hns3_nic_setup_tc(struct net_device *dev, enum tc_setup_type type,
 			     struct tc_to_netdev *tc)
 {
 	if (type != TC_SETUP_MQPRIO)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	return hns3_setup_tc(dev, tc->mqprio->num_tc);
 }

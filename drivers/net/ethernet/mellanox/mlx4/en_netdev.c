@@ -134,7 +134,7 @@ static int __mlx4_en_setup_tc(struct net_device *dev, enum tc_setup_type type,
 			      struct tc_to_netdev *tc)
 {
 	if (type != TC_SETUP_MQPRIO)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	if (tc->mqprio->num_tc && tc->mqprio->num_tc != MLX4_EN_NUM_UP_HIGH)
 		return -EINVAL;

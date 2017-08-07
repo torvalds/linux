@@ -1887,7 +1887,7 @@ static int netcp_setup_tc(struct net_device *dev, enum tc_setup_type type,
 	ASSERT_RTNL();
 
 	if (type != TC_SETUP_MQPRIO)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	tc->mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
 	num_tc = tc->mqprio->num_tc;

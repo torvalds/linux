@@ -1925,7 +1925,7 @@ static int xgbe_setup_tc(struct net_device *netdev, enum tc_setup_type type,
 	u8 tc;
 
 	if (type != TC_SETUP_MQPRIO)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	tc_to_netdev->mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
 	tc = tc_to_netdev->mqprio->num_tc;

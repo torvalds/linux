@@ -663,7 +663,7 @@ int efx_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
 	int rc;
 
 	if (type != TC_SETUP_MQPRIO)
-		return -EINVAL;
+		return -EOPNOTSUPP;
 
 	num_tc = ntc->mqprio->num_tc;
 
