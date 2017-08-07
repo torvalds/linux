@@ -652,15 +652,13 @@ static int mlx5e_rep_get_phys_port_name(struct net_device *dev,
 }
 
 static int mlx5e_rep_setup_tc_cls_flower(struct net_device *dev,
-					 u32 handle, u32 chain_index,
-					 __be16 proto,
 					 struct tc_to_netdev *tc)
 {
 	struct tc_cls_flower_offload *cls_flower = tc->cls_flower;
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
-	if (TC_H_MAJ(handle) != TC_H_MAJ(TC_H_INGRESS) ||
-	    chain_index)
+	if (TC_H_MAJ(cls_flower->common.handle) != TC_H_MAJ(TC_H_INGRESS) ||
+	    cls_flower->common.chain_index)
 		return -EOPNOTSUPP;
 
 	if (cls_flower->egress_dev) {
@@ -668,13 +666,12 @@ static int mlx5e_rep_setup_tc_cls_flower(struct net_device *dev,
 
 		dev = mlx5_eswitch_get_uplink_netdev(esw);
 		return dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_CLSFLOWER,
-						     handle, chain_index,
-						     proto, tc);
+						     tc);
 	}
 
 	switch (cls_flower->command) {
 	case TC_CLSFLOWER_REPLACE:
-		return mlx5e_configure_flower(priv, proto, cls_flower);
+		return mlx5e_configure_flower(priv, cls_flower);
 	case TC_CLSFLOWER_DESTROY:
 		return mlx5e_delete_flower(priv, cls_flower);
 	case TC_CLSFLOWER_STATS:
@@ -685,13 +682,11 @@ static int mlx5e_rep_setup_tc_cls_flower(struct net_device *dev,
 }
 
 static int mlx5e_rep_setup_tc(struct net_device *dev, enum tc_setup_type type,
-			      u32 handle, u32 chain_index, __be16 proto,
 			      struct tc_to_netdev *tc)
 {
 	switch (type) {
 	case TC_SETUP_CLSFLOWER:
-		return mlx5e_rep_setup_tc_cls_flower(dev, handle, chain_index,
-						     proto, tc);
+		return mlx5e_rep_setup_tc_cls_flower(dev, tc);
 	default:
 		return -EOPNOTSUPP;
 	}

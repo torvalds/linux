@@ -426,7 +426,6 @@ void ef4_init_tx_queue_core_txq(struct ef4_tx_queue *tx_queue)
 }
 
 int ef4_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
-		 u32 handle, u32 chain_index, __be16 proto,
 		 struct tc_to_netdev *ntc)
 {
 	struct ef4_nic *efx = netdev_priv(net_dev);

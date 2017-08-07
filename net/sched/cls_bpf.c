@@ -153,6 +153,7 @@ static int cls_bpf_offload_cmd(struct tcf_proto *tp, struct cls_bpf_prog *prog,
 
 	offload.cls_bpf = &bpf_offload;
 
+	tc_cls_common_offload_init(&bpf_offload.common, tp);
 	bpf_offload.command = cmd;
 	bpf_offload.exts = &prog->exts;
 	bpf_offload.prog = prog->filter;
@@ -160,11 +161,7 @@ static int cls_bpf_offload_cmd(struct tcf_proto *tp, struct cls_bpf_prog *prog,
 	bpf_offload.exts_integrated = prog->exts_integrated;
 	bpf_offload.gen_flags = prog->gen_flags;
 
-	err = dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_CLSBPF,
-					    tp->q->handle,
-					    tp->chain->index,
-					    tp->protocol, &offload);
-
+	err = dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_CLSBPF, &offload);
 	if (!err && (cmd == TC_CLSBPF_ADD || cmd == TC_CLSBPF_REPLACE))
 		prog->gen_flags |= TCA_CLS_FLAGS_IN_HW;
 

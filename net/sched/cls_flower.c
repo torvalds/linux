@@ -232,14 +232,14 @@ static void fl_hw_destroy_filter(struct tcf_proto *tp, struct cls_fl_filter *f)
 	if (!tc_can_offload(dev, tp))
 		return;
 
+	tc_cls_common_offload_init(&offload.common, tp);
 	offload.command = TC_CLSFLOWER_DESTROY;
 	offload.prio = tp->prio;
 	offload.cookie = (unsigned long)f;
 
 	tc->cls_flower = &offload;
 
-	dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_CLSFLOWER, tp->q->handle,
-				      tp->chain->index, tp->protocol, tc);
+	dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_CLSFLOWER, tc);
 }
 
 static int fl_hw_replace_filter(struct tcf_proto *tp,
@@ -264,6 +264,7 @@ static int fl_hw_replace_filter(struct tcf_proto *tp,
 		f->hw_dev = dev;
 	}
 
+	tc_cls_common_offload_init(&offload.common, tp);
 	offload.command = TC_CLSFLOWER_REPLACE;
 	offload.prio = tp->prio;
 	offload.cookie = (unsigned long)f;
@@ -274,9 +275,7 @@ static int fl_hw_replace_filter(struct tcf_proto *tp,
 
 	tc->cls_flower = &offload;
 
-	err = dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_CLSFLOWER,
-					    tp->q->handle, tp->chain->index,
-					    tp->protocol, tc);
+	err = dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_CLSFLOWER, tc);
 	if (!err)
 		f->flags |= TCA_CLS_FLAGS_IN_HW;
 
@@ -294,6 +293,7 @@ static void fl_hw_update_stats(struct tcf_proto *tp, struct cls_fl_filter *f)
 	if (!tc_can_offload(dev, tp))
 		return;
 
+	tc_cls_common_offload_init(&offload.common, tp);
 	offload.command = TC_CLSFLOWER_STATS;
 	offload.prio = tp->prio;
 	offload.cookie = (unsigned long)f;
@@ -301,8 +301,7 @@ static void fl_hw_update_stats(struct tcf_proto *tp, struct cls_fl_filter *f)
 
 	tc->cls_flower = &offload;
 
-	dev->netdev_ops->ndo_setup_tc(dev, TC_CLSFLOWER_STATS, tp->q->handle,
-				      tp->chain->index, tp->protocol, tc);
+	dev->netdev_ops->ndo_setup_tc(dev, TC_CLSFLOWER_STATS, tc);
 }
 
 static void __fl_delete(struct tcf_proto *tp, struct cls_fl_filter *f)

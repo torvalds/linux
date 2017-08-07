@@ -58,14 +58,14 @@ static int mall_replace_hw_filter(struct tcf_proto *tp,
 	struct tc_cls_matchall_offload mall_offload = {0};
 	int err;
 
+	tc_cls_common_offload_init(&mall_offload.common, tp);
 	offload.cls_mall = &mall_offload;
 	offload.cls_mall->command = TC_CLSMATCHALL_REPLACE;
 	offload.cls_mall->exts = &head->exts;
 	offload.cls_mall->cookie = cookie;
 
 	err = dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_CLSMATCHALL,
-					    tp->q->handle, tp->chain->index,
-					    tp->protocol, &offload);
+					    &offload);
 	if (!err)
 		head->flags |= TCA_CLS_FLAGS_IN_HW;
 
@@ -80,13 +80,13 @@ static void mall_destroy_hw_filter(struct tcf_proto *tp,
 	struct tc_to_netdev offload;
 	struct tc_cls_matchall_offload mall_offload = {0};
 
+	tc_cls_common_offload_init(&mall_offload.common, tp);
 	offload.cls_mall = &mall_offload;
 	offload.cls_mall->command = TC_CLSMATCHALL_DESTROY;
 	offload.cls_mall->exts = NULL;
 	offload.cls_mall->cookie = cookie;
 
-	dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_CLSMATCHALL, tp->q->handle,
-				      tp->chain->index, tp->protocol, &offload);
+	dev->netdev_ops->ndo_setup_tc(dev, TC_SETUP_CLSMATCHALL, &offload);
 }
 
 static void mall_destroy(struct tcf_proto *tp)

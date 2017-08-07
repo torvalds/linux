@@ -1617,11 +1617,11 @@ mlxsw_sp_port_del_cls_matchall_sample(struct mlxsw_sp_port *mlxsw_sp_port)
 }
 
 static int mlxsw_sp_port_add_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
-					  __be16 protocol,
 					  struct tc_cls_matchall_offload *f,
 					  bool ingress)
 {
 	struct mlxsw_sp_port_mall_tc_entry *mall_tc_entry;
+	__be16 protocol = f->common.protocol;
 	const struct tc_action *a;
 	LIST_HEAD(actions);
 	int err;
@@ -1694,18 +1694,16 @@ static void mlxsw_sp_port_del_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
 }
 
 static int mlxsw_sp_setup_tc_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
-					  u32 handle, u32 chain_index,
-					  __be16 proto,
 					  struct tc_cls_matchall_offload *f)
 {
-	bool ingress = TC_H_MAJ(handle) == TC_H_MAJ(TC_H_INGRESS);
+	bool ingress = TC_H_MAJ(f->common.handle) == TC_H_MAJ(TC_H_INGRESS);
 
-	if (chain_index)
+	if (f->common.chain_index)
 		return -EOPNOTSUPP;
 
 	switch (f->command) {
 	case TC_CLSMATCHALL_REPLACE:
-		return mlxsw_sp_port_add_cls_matchall(mlxsw_sp_port, proto, f,
+		return mlxsw_sp_port_add_cls_matchall(mlxsw_sp_port, f,
 						      ingress);
 	case TC_CLSMATCHALL_DESTROY:
 		mlxsw_sp_port_del_cls_matchall(mlxsw_sp_port, f);
@@ -1717,18 +1715,16 @@ static int mlxsw_sp_setup_tc_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
 
 static int
 mlxsw_sp_setup_tc_cls_flower(struct mlxsw_sp_port *mlxsw_sp_port,
-			     u32 handle, u32 chain_index, __be16 proto,
 			     struct tc_cls_flower_offload *f)
 {
-	bool ingress = TC_H_MAJ(handle) == TC_H_MAJ(TC_H_INGRESS);
+	bool ingress = TC_H_MAJ(f->common.handle) == TC_H_MAJ(TC_H_INGRESS);
 
-	if (chain_index)
+	if (f->common.chain_index)
 		return -EOPNOTSUPP;
 
 	switch (f->command) {
 	case TC_CLSFLOWER_REPLACE:
-		return mlxsw_sp_flower_replace(mlxsw_sp_port, ingress,
-					       proto, f);
+		return mlxsw_sp_flower_replace(mlxsw_sp_port, ingress, f);
 	case TC_CLSFLOWER_DESTROY:
 		mlxsw_sp_flower_destroy(mlxsw_sp_port, ingress, f);
 		return 0;
@@ -1740,19 +1736,16 @@ mlxsw_sp_setup_tc_cls_flower(struct mlxsw_sp_port *mlxsw_sp_port,
 }
 
 static int mlxsw_sp_setup_tc(struct net_device *dev, enum tc_setup_type type,
-			     u32 handle, u32 chain_index, __be16 proto,
 			     struct tc_to_netdev *tc)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 
 	switch (type) {
 	case TC_SETUP_CLSMATCHALL:
-		return mlxsw_sp_setup_tc_cls_matchall(mlxsw_sp_port, handle,
-						      chain_index, proto,
+		return mlxsw_sp_setup_tc_cls_matchall(mlxsw_sp_port,
 						      tc->cls_mall);
 	case TC_SETUP_CLSFLOWER:
-		return mlxsw_sp_setup_tc_cls_flower(mlxsw_sp_port, handle,
-						    chain_index, proto,
+		return mlxsw_sp_setup_tc_cls_flower(mlxsw_sp_port,
 						    tc->cls_flower);
 	default:
 		return -EOPNOTSUPP;

@@ -5657,7 +5657,6 @@ exit:
 }
 
 static int __i40e_setup_tc(struct net_device *netdev, enum tc_setup_type type,
-			   u32 handle, u32 chain_index, __be16 proto,
 			   struct tc_to_netdev *tc)
 {
 	if (type != TC_SETUP_MQPRIO)

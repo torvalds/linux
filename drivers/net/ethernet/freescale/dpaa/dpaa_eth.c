@@ -343,7 +343,6 @@ static void dpaa_get_stats64(struct net_device *net_dev,
 }
 
 static int dpaa_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
-			 u32 handle, u32 chain_index, __be16 proto,
 			 struct tc_to_netdev *tc)
 {
 	struct dpaa_priv *priv = netdev_priv(net_dev);

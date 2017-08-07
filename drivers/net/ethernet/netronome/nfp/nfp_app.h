@@ -109,8 +109,7 @@ struct nfp_app_type {
 	void (*ctrl_msg_rx)(struct nfp_app *app, struct sk_buff *skb);
 
 	int (*setup_tc)(struct nfp_app *app, struct net_device *netdev,
-			enum tc_setup_type type, u32 handle, __be16 proto,
-			struct tc_to_netdev *tc);
+			enum tc_setup_type type, struct tc_to_netdev *tc);
 	bool (*tc_busy)(struct nfp_app *app, struct nfp_net *nn);
 	int (*xdp_offload)(struct nfp_app *app, struct nfp_net *nn,
 			   struct bpf_prog *prog);
@@ -240,12 +239,11 @@ static inline bool nfp_app_tc_busy(struct nfp_app *app, struct nfp_net *nn)
 static inline int nfp_app_setup_tc(struct nfp_app *app,
 				   struct net_device *netdev,
 				   enum tc_setup_type type,
-				   u32 handle, __be16 proto,
 				   struct tc_to_netdev *tc)
 {
 	if (!app || !app->type->setup_tc)
 		return -EOPNOTSUPP;
-	return app->type->setup_tc(app, netdev, type, handle, proto, tc);
+	return app->type->setup_tc(app, netdev, type, tc);
 }
 
 static inline int nfp_app_xdp_offload(struct nfp_app *app, struct nfp_net *nn,

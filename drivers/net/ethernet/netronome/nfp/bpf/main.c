@@ -121,20 +121,22 @@ static void nfp_bpf_vnic_clean(struct nfp_app *app, struct nfp_net *nn)
 }
 
 static int nfp_bpf_setup_tc(struct nfp_app *app, struct net_device *netdev,
-			    enum tc_setup_type type, u32 handle, __be16 proto,
+			    enum tc_setup_type type,
 			    struct tc_to_netdev *tc)
 {
+	struct tc_cls_bpf_offload *cls_bpf = tc->cls_bpf;
 	struct nfp_net *nn = netdev_priv(netdev);
 
 	if (type != TC_SETUP_CLSBPF || !nfp_net_ebpf_capable(nn) ||
-	    TC_H_MAJ(handle) != TC_H_MAJ(TC_H_INGRESS) ||
-	    proto != htons(ETH_P_ALL))
+	    TC_H_MAJ(cls_bpf->common.handle) != TC_H_MAJ(TC_H_INGRESS) ||
+	    cls_bpf->common.protocol != htons(ETH_P_ALL) ||
+	    cls_bpf->common.chain_index)
 		return -EOPNOTSUPP;
 
 	if (nn->dp.bpf_offload_xdp)
 		return -EBUSY;
 
-	return nfp_net_bpf_offload(nn, tc->cls_bpf);
+	return nfp_net_bpf_offload(nn, cls_bpf);
 }
 
 static bool nfp_bpf_tc_busy(struct nfp_app *app, struct nfp_net *nn)

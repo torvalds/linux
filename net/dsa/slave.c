@@ -774,12 +774,12 @@ dsa_slave_mall_tc_entry_find(struct dsa_slave_priv *p,
 }
 
 static int dsa_slave_add_cls_matchall(struct net_device *dev,
-				      __be16 protocol,
 				      struct tc_cls_matchall_offload *cls,
 				      bool ingress)
 {
 	struct dsa_slave_priv *p = netdev_priv(dev);
 	struct dsa_mall_tc_entry *mall_tc_entry;
+	__be16 protocol = cls->common.protocol;
 	struct dsa_switch *ds = p->dp->ds;
 	struct net *net = dev_net(dev);
 	struct dsa_slave_priv *to_p;
@@ -864,18 +864,16 @@ static void dsa_slave_del_cls_matchall(struct net_device *dev,
 }
 
 static int dsa_slave_setup_tc_cls_matchall(struct net_device *dev,
-					   u32 handle, u32 chain_index,
-					   __be16 protocol,
 					   struct tc_cls_matchall_offload *cls)
 {
-	bool ingress = TC_H_MAJ(handle) == TC_H_MAJ(TC_H_INGRESS);
+	bool ingress = TC_H_MAJ(cls->common.handle) == TC_H_MAJ(TC_H_INGRESS);
 
-	if (chain_index)
+	if (cls->common.chain_index)
 		return -EOPNOTSUPP;
 
 	switch (cls->command) {
 	case TC_CLSMATCHALL_REPLACE:
-		return dsa_slave_add_cls_matchall(dev, protocol, cls, ingress);
+		return dsa_slave_add_cls_matchall(dev, cls, ingress);
 	case TC_CLSMATCHALL_DESTROY:
 		dsa_slave_del_cls_matchall(dev, cls);
 		return 0;
@@ -885,13 +883,11 @@ static int dsa_slave_setup_tc_cls_matchall(struct net_device *dev,
 }
 
 static int dsa_slave_setup_tc(struct net_device *dev, enum tc_setup_type type,
-			      u32 handle, u32 chain_index, __be16 protocol,
 			      struct tc_to_netdev *tc)
 {
 	switch (type) {
 	case TC_SETUP_CLSMATCHALL:
-		return dsa_slave_setup_tc_cls_matchall(dev, handle, chain_index,
-						       protocol, tc->cls_mall);
+		return dsa_slave_setup_tc_cls_matchall(dev, tc->cls_mall);
 	default:
 		return -EOPNOTSUPP;
 	}
