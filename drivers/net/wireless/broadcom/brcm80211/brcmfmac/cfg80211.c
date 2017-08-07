@@ -5698,10 +5698,13 @@ brcmf_notify_roaming_status(struct brcmf_if *ifp,
 	u32 status = e->status;
 
 	if (event == BRCMF_E_ROAM && status == BRCMF_E_STATUS_SUCCESS) {
-		if (test_bit(BRCMF_VIF_STATUS_CONNECTED, &ifp->vif->sme_state))
+		if (test_bit(BRCMF_VIF_STATUS_CONNECTED,
+			     &ifp->vif->sme_state)) {
 			brcmf_bss_roaming_done(cfg, ifp->ndev, e);
-		else
+		} else {
 			brcmf_bss_connect_done(cfg, ifp->ndev, e, true);
+			brcmf_net_setcarrier(ifp, true);
+		}
 	}
 
 	return 0;
