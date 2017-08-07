@@ -1649,13 +1649,10 @@ static int amdgpu_mm_dump_table(struct seq_file *m, void *data)
 	unsigned ttm_pl = *(int *)node->info_ent->data;
 	struct drm_device *dev = node->minor->dev;
 	struct amdgpu_device *adev = dev->dev_private;
-	struct drm_mm *mm = (struct drm_mm *)adev->mman.bdev.man[ttm_pl].priv;
-	struct ttm_bo_global *glob = adev->mman.bdev.glob;
+	struct ttm_mem_type_manager *man = &adev->mman.bdev.man[ttm_pl];
 	struct drm_printer p = drm_seq_file_printer(m);
 
-	spin_lock(&glob->lru_lock);
-	drm_mm_print(mm, &p);
-	spin_unlock(&glob->lru_lock);
+	man->func->debug(man, &p);
 	switch (ttm_pl) {
 	case TTM_PL_VRAM:
 		seq_printf(m, "man size:%llu pages, ram usage:%lluMB, vis usage:%lluMB\n",
