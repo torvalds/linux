@@ -856,8 +856,10 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	rc->priv = dev;
 	rc->open = saa7134_ir_open;
 	rc->close = saa7134_ir_close;
-	if (raw_decode)
+	if (raw_decode) {
 		rc->driver_type = RC_DRIVER_IR_RAW;
+		rc->allowed_protocols = RC_BIT_ALL_IR_DECODER;
+	}
 
 	rc->device_name = ir->name;
 	rc->input_phys = ir->phys;
