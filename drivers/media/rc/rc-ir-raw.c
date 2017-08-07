@@ -134,9 +134,13 @@ int ir_raw_event_store_edge(struct rc_dev *dev, enum raw_event_type type)
 	dev->raw->last_event = now;
 	dev->raw->last_type = type;
 
-	if (!timer_pending(&dev->raw->edge_handle))
+	/* timer could be set to timeout (125ms by default) */
+	if (!timer_pending(&dev->raw->edge_handle) ||
+	    time_after(dev->raw->edge_handle.expires,
+		       jiffies + msecs_to_jiffies(15))) {
 		mod_timer(&dev->raw->edge_handle,
 			  jiffies + msecs_to_jiffies(15));
+	}
 
 	return rc;
 }
@@ -491,6 +495,19 @@ EXPORT_SYMBOL(ir_raw_encode_scancode);
 static void edge_handle(unsigned long arg)
 {
 	struct rc_dev *dev = (struct rc_dev *)arg;
+	ktime_t interval = ktime_get() - dev->raw->last_event;
+
+	if (interval >= dev->timeout) {
+		DEFINE_IR_RAW_EVENT(ev);
+
+		ev.timeout = true;
+		ev.duration = interval;
+
+		ir_raw_event_store(dev, &ev);
+	} else {
+		mod_timer(&dev->raw->edge_handle,
+			  jiffies + nsecs_to_jiffies(dev->timeout - interval));
+	}
 
 	ir_raw_event_handle(dev);
 }
