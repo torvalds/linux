@@ -126,19 +126,15 @@ static int nfp_bpf_setup_tc(struct nfp_app *app, struct net_device *netdev,
 {
 	struct nfp_net *nn = netdev_priv(netdev);
 
-	if (TC_H_MAJ(handle) != TC_H_MAJ(TC_H_INGRESS))
-		return -EOPNOTSUPP;
-	if (proto != htons(ETH_P_ALL))
+	if (type != TC_SETUP_CLSBPF || !nfp_net_ebpf_capable(nn) ||
+	    TC_H_MAJ(handle) != TC_H_MAJ(TC_H_INGRESS) ||
+	    proto != htons(ETH_P_ALL))
 		return -EOPNOTSUPP;
 
-	if (type == TC_SETUP_CLSBPF && nfp_net_ebpf_capable(nn)) {
-		if (!nn->dp.bpf_offload_xdp)
-			return nfp_net_bpf_offload(nn, tc->cls_bpf);
-		else
-			return -EBUSY;
-	}
+	if (nn->dp.bpf_offload_xdp)
+		return -EBUSY;
 
-	return -EINVAL;
+	return nfp_net_bpf_offload(nn, tc->cls_bpf);
 }
 
 static bool nfp_bpf_tc_busy(struct nfp_app *app, struct nfp_net *nn)
