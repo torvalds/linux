@@ -1804,6 +1804,7 @@ static int acpi_nfit_init_interleave_set(struct acpi_nfit_desc *acpi_desc,
 		struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
 		struct acpi_nfit_memory_map *memdev = memdev_from_spa(acpi_desc,
 				spa->range_index, i);
+		struct acpi_nfit_control_region *dcr = nfit_mem->dcr;
 
 		if (!memdev || !nfit_mem->dcr) {
 			dev_err(dev, "%s: failed to find DCR\n", __func__);
@@ -1811,13 +1812,13 @@ static int acpi_nfit_init_interleave_set(struct acpi_nfit_desc *acpi_desc,
 		}
 
 		map->region_offset = memdev->region_offset;
-		map->serial_number = nfit_mem->dcr->serial_number;
+		map->serial_number = dcr->serial_number;
 
 		map2->region_offset = memdev->region_offset;
-		map2->serial_number = nfit_mem->dcr->serial_number;
-		map2->vendor_id = nfit_mem->dcr->vendor_id;
-		map2->manufacturing_date = nfit_mem->dcr->manufacturing_date;
-		map2->manufacturing_location = nfit_mem->dcr->manufacturing_location;
+		map2->serial_number = dcr->serial_number;
+		map2->vendor_id = dcr->vendor_id;
+		map2->manufacturing_date = dcr->manufacturing_date;
+		map2->manufacturing_location = dcr->manufacturing_location;
 	}
 
 	/* v1.1 namespaces */
@@ -1844,15 +1845,13 @@ static int acpi_nfit_init_interleave_set(struct acpi_nfit_desc *acpi_desc,
 			struct nd_mapping_desc *mapping = &ndr_desc->mapping[j];
 			struct nvdimm *nvdimm = mapping->nvdimm;
 			struct nfit_mem *nfit_mem = nvdimm_provider_data(nvdimm);
+			struct acpi_nfit_control_region *dcr = nfit_mem->dcr;
 
-			if (map2->serial_number
-				== nfit_mem->dcr->serial_number &&
-			    map2->vendor_id
-				== nfit_mem->dcr->vendor_id &&
-			    map2->manufacturing_date
-				== nfit_mem->dcr->manufacturing_date &&
+			if (map2->serial_number == dcr->serial_number &&
+			    map2->vendor_id == dcr->vendor_id &&
+			    map2->manufacturing_date == dcr->manufacturing_date &&
 			    map2->manufacturing_location
-				== nfit_mem->dcr->manufacturing_location) {
+				    == dcr->manufacturing_location) {
 				mapping->position = i;
 				break;
 			}
