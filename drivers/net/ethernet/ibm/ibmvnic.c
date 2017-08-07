@@ -1579,7 +1579,8 @@ restart_poll:
 							  rx_comp.correlator);
 		/* do error checking */
 		if (next->rx_comp.rc) {
-			netdev_err(netdev, "rx error %x\n", next->rx_comp.rc);
+			netdev_dbg(netdev, "rx buffer returned with rc %x\n",
+				   be16_to_cpu(next->rx_comp.rc));
 			/* free the entry */
 			next->rx_comp.first = 0;
 			remove_buff_from_pool(adapter, rx_buff);
