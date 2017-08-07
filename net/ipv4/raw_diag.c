@@ -46,7 +46,7 @@ static struct sock *raw_lookup(struct net *net, struct sock *from,
 		sk = __raw_v4_lookup(net, from, r->sdiag_raw_protocol,
 				     r->id.idiag_dst[0],
 				     r->id.idiag_src[0],
-				     r->id.idiag_if);
+				     r->id.idiag_if, 0);
 #if IS_ENABLED(CONFIG_IPV6)
 	else
 		sk = __raw_v6_lookup(net, from, r->sdiag_raw_protocol,
