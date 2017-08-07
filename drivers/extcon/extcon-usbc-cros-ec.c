@@ -68,6 +68,8 @@ static int cros_ec_pd_command(struct cros_ec_extcon_info *info,
 	int ret;
 
 	msg = kzalloc(sizeof(*msg) + max(outsize, insize), GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
 
 	msg->version = version;
 	msg->command = command;
