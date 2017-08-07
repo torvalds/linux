@@ -550,6 +550,7 @@ struct mlx5_fc_stats {
 	unsigned long sampling_interval; /* jiffies */
 };
 
+struct mlx5_mpfs;
 struct mlx5_eswitch;
 struct mlx5_lag;
 struct mlx5_pagefault;
@@ -646,7 +647,11 @@ struct mlx5_priv {
 	struct list_head        ctx_list;
 	spinlock_t              ctx_lock;
 
+	struct list_head	waiting_events_list;
+	bool			is_accum_events;
+
 	struct mlx5_flow_steering *steering;
+	struct mlx5_mpfs        *mpfs;
 	struct mlx5_eswitch     *eswitch;
 	struct mlx5_core_sriov	sriov;
 	struct mlx5_lag		*lag;

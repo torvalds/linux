@@ -424,6 +424,9 @@ static int mxc_gpio_probe(struct platform_device *pdev)
 		return PTR_ERR(port->base);
 
 	port->irq_high = platform_get_irq(pdev, 1);
+	if (port->irq_high < 0)
+		port->irq_high = 0;
+
 	port->irq = platform_get_irq(pdev, 0);
 	if (port->irq < 0)
 		return port->irq;

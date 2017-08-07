@@ -36,6 +36,7 @@
 #include <linux/tcp.h>
 #include <linux/mlx5/fs.h>
 #include "en.h"
+#include "lib/mpfs.h"
 
 static int mlx5e_add_l2_flow_rule(struct mlx5e_priv *priv,
 				  struct mlx5e_l2_rule *ai, int type);
@@ -65,6 +66,7 @@ struct mlx5e_l2_hash_node {
 	struct hlist_node          hlist;
 	u8                         action;
 	struct mlx5e_l2_rule ai;
+	bool   mpfs;
 };
 
 static inline int mlx5e_hash_l2(u8 *addr)
@@ -362,17 +364,30 @@ static void mlx5e_del_vlan_rules(struct mlx5e_priv *priv)
 static void mlx5e_execute_l2_action(struct mlx5e_priv *priv,
 				    struct mlx5e_l2_hash_node *hn)
 {
-	switch (hn->action) {
+	u8 action = hn->action;
+	int l2_err = 0;
+
+	switch (action) {
 	case MLX5E_ACTION_ADD:
 		mlx5e_add_l2_flow_rule(priv, &hn->ai, MLX5E_FULLMATCH);
+		if (!is_multicast_ether_addr(hn->ai.addr)) {
+			l2_err = mlx5_mpfs_add_mac(priv->mdev, hn->ai.addr);
+			hn->mpfs = !l2_err;
+		}
 		hn->action = MLX5E_ACTION_NONE;
 		break;
 
 	case MLX5E_ACTION_DEL:
+		if (!is_multicast_ether_addr(hn->ai.addr) && hn->mpfs)
+			l2_err = mlx5_mpfs_del_mac(priv->mdev, hn->ai.addr);
 		mlx5e_del_l2_flow_rule(priv, &hn->ai);
 		mlx5e_del_l2_from_hash(hn);
 		break;
 	}
+
+	if (l2_err)
+		netdev_warn(priv->netdev, "MPFS, failed to %s mac %pM, err(%d)\n",
+			    action == MLX5E_ACTION_ADD ? "add" : "del", hn->ai.addr, l2_err);
 }
 
 static void mlx5e_sync_netdev_addr(struct mlx5e_priv *priv)

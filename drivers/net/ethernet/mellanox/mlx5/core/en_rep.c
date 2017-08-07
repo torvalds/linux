@@ -1104,3 +1104,16 @@ void mlx5e_unregister_vport_reps(struct mlx5e_priv *priv)
 	mlx5e_rep_unregister_vf_vports(priv); /* VFs vports */
 	mlx5_eswitch_unregister_vport_rep(esw, 0); /* UPLINK PF*/
 }
+
+void *mlx5e_alloc_nic_rep_priv(struct mlx5_core_dev *mdev)
+{
+	struct mlx5_eswitch *esw = mdev->priv.eswitch;
+	struct mlx5e_rep_priv *rpriv;
+
+	rpriv = kzalloc(sizeof(*rpriv), GFP_KERNEL);
+	if (!rpriv)
+		return NULL;
+
+	rpriv->rep = &esw->offloads.vport_reps[0];
+	return rpriv;
+}

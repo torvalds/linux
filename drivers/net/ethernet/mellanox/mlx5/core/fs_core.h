@@ -136,7 +136,7 @@ struct mlx5_fc {
 	u64 lastpackets;
 	u64 lastbytes;
 
-	u16 id;
+	u32 id;
 	bool deleted;
 	bool aging;
 

@@ -477,7 +477,8 @@ struct kvm {
 static inline struct kvm_io_bus *kvm_get_bus(struct kvm *kvm, enum kvm_bus idx)
 {
 	return srcu_dereference_check(kvm->buses[idx], &kvm->srcu,
-				      lockdep_is_held(&kvm->slots_lock));
+				      lockdep_is_held(&kvm->slots_lock) ||
+				      !refcount_read(&kvm->users_count));
 }
 
 static inline struct kvm_vcpu *kvm_get_vcpu(struct kvm *kvm, int i)
@@ -570,7 +571,8 @@ void kvm_put_kvm(struct kvm *kvm);
 static inline struct kvm_memslots *__kvm_memslots(struct kvm *kvm, int as_id)
 {
 	return srcu_dereference_check(kvm->memslots[as_id], &kvm->srcu,
-			lockdep_is_held(&kvm->slots_lock));
+			lockdep_is_held(&kvm->slots_lock) ||
+			!refcount_read(&kvm->users_count));
 }
 
 static inline struct kvm_memslots *kvm_memslots(struct kvm *kvm)

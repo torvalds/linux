@@ -1852,6 +1852,14 @@ static int pnv_pci_ioda_dma_set_mask(struct pci_dev *pdev, u64 dma_mask)
 			/* 4GB offset bypasses 32-bit space */
 			set_dma_offset(&pdev->dev, (1ULL << 32));
 			set_dma_ops(&pdev->dev, &dma_direct_ops);
+		} else if (dma_mask >> 32 && dma_mask != DMA_BIT_MASK(64)) {
+			/*
+			 * Fail the request if a DMA mask between 32 and 64 bits
+			 * was requested but couldn't be fulfilled. Ideally we
+			 * would do this for 64-bits but historically we have
+			 * always fallen back to 32-bits.
+			 */
+			return -ENOMEM;
 		} else {
 			dev_info(&pdev->dev, "Using 32-bit DMA via iommu\n");
 			set_dma_ops(&pdev->dev, &dma_iommu_ops);
