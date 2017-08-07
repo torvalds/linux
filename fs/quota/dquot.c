@@ -1088,27 +1088,6 @@ static inline void dquot_resv_space(struct dquot *dquot, qsize_t number)
 	dquot->dq_dqb.dqb_rsvspace += number;
 }
 
-/*
- * Claim reserved quota space
- */
-static void dquot_claim_reserved_space(struct dquot *dquot, qsize_t number)
-{
-	if (dquot->dq_dqb.dqb_rsvspace < number) {
-		WARN_ON_ONCE(1);
-		number = dquot->dq_dqb.dqb_rsvspace;
-	}
-	dquot->dq_dqb.dqb_curspace += number;
-	dquot->dq_dqb.dqb_rsvspace -= number;
-}
-
-static void dquot_reclaim_reserved_space(struct dquot *dquot, qsize_t number)
-{
-	if (WARN_ON_ONCE(dquot->dq_dqb.dqb_curspace < number))
-		number = dquot->dq_dqb.dqb_curspace;
-	dquot->dq_dqb.dqb_rsvspace += number;
-	dquot->dq_dqb.dqb_curspace -= number;
-}
-
 static inline
 void dquot_free_reserved_space(struct dquot *dquot, qsize_t number)
 {
@@ -1732,8 +1711,14 @@ int dquot_claim_space_nodirty(struct inode *inode, qsize_t number)
 	spin_lock(&dq_data_lock);
 	/* Claim reserved quotas to allocated quotas */
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
-		if (dquots[cnt])
-			dquot_claim_reserved_space(dquots[cnt], number);
+		if (dquots[cnt]) {
+			struct dquot *dquot = dquots[cnt];
+
+			if (WARN_ON_ONCE(dquot->dq_dqb.dqb_rsvspace < number))
+				number = dquot->dq_dqb.dqb_rsvspace;
+			dquot->dq_dqb.dqb_curspace += number;
+			dquot->dq_dqb.dqb_rsvspace -= number;
+		}
 	}
 	/* Update inode bytes */
 	spin_lock(&inode->i_lock);
@@ -1768,8 +1753,14 @@ void dquot_reclaim_space_nodirty(struct inode *inode, qsize_t number)
 	spin_lock(&dq_data_lock);
 	/* Claim reserved quotas to allocated quotas */
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
-		if (dquots[cnt])
-			dquot_reclaim_reserved_space(dquots[cnt], number);
+		if (dquots[cnt]) {
+			struct dquot *dquot = dquots[cnt];
+
+			if (WARN_ON_ONCE(dquot->dq_dqb.dqb_curspace < number))
+				number = dquot->dq_dqb.dqb_curspace;
+			dquot->dq_dqb.dqb_rsvspace += number;
+			dquot->dq_dqb.dqb_curspace -= number;
+		}
 	}
 	/* Update inode bytes */
 	spin_lock(&inode->i_lock);
