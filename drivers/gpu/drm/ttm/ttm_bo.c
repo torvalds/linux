@@ -70,6 +70,7 @@ static inline int ttm_mem_type_from_place(const struct ttm_place *place,
 static void ttm_mem_type_debug(struct ttm_bo_device *bdev, int mem_type)
 {
 	struct ttm_mem_type_manager *man = &bdev->man[mem_type];
+	struct drm_printer p = drm_debug_printer(TTM_PFX);
 
 	pr_err("    has_type: %d\n", man->has_type);
 	pr_err("    use_type: %d\n", man->use_type);
@@ -79,7 +80,7 @@ static void ttm_mem_type_debug(struct ttm_bo_device *bdev, int mem_type)
 	pr_err("    available_caching: 0x%08X\n", man->available_caching);
 	pr_err("    default_caching: 0x%08X\n", man->default_caching);
 	if (mem_type != TTM_PL_SYSTEM)
-		(*man->func->debug)(man, TTM_PFX);
+		(*man->func->debug)(man, &p);
 }
 
 static void ttm_bo_mem_space_debug(struct ttm_buffer_object *bo,

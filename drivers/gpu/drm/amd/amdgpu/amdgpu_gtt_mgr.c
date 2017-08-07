@@ -253,18 +253,17 @@ static void amdgpu_gtt_mgr_del(struct ttm_mem_type_manager *man,
  * amdgpu_gtt_mgr_debug - dump VRAM table
  *
  * @man: TTM memory type manager
- * @prefix: text prefix
+ * @printer: DRM printer to use
  *
  * Dump the table content using printk.
  */
 static void amdgpu_gtt_mgr_debug(struct ttm_mem_type_manager *man,
-				  const char *prefix)
+				 struct drm_printer *printer)
 {
 	struct amdgpu_gtt_mgr *mgr = man->priv;
-	struct drm_printer p = drm_debug_printer(prefix);
 
 	spin_lock(&mgr->lock);
-	drm_mm_print(&mgr->mm, &p);
+	drm_mm_print(&mgr->mm, printer);
 	spin_unlock(&mgr->lock);
 }
 

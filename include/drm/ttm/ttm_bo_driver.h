@@ -229,13 +229,14 @@ struct ttm_mem_type_manager_func {
 	 * struct ttm_mem_type_manager member debug
 	 *
 	 * @man: Pointer to a memory type manager.
-	 * @prefix: Prefix to be used in printout to identify the caller.
+	 * @printer: Prefix to be used in printout to identify the caller.
 	 *
 	 * This function is called to print out the state of the memory
 	 * type manager to aid debugging of out-of-memory conditions.
 	 * It may not be called from within atomic context.
 	 */
-	void (*debug)(struct ttm_mem_type_manager *man, const char *prefix);
+	void (*debug)(struct ttm_mem_type_manager *man,
+		      struct drm_printer *printer);
 };
 
 /**
