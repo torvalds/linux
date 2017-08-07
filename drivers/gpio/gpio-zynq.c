@@ -133,11 +133,12 @@ struct zynq_gpio {
 /**
  * struct zynq_platform_data -  zynq gpio platform data structure
  * @label:	string to store in gpio->label
+ * @quirks:	Flags is used to identify the platform
  * @ngpio:	max number of gpio pins
  * @max_bank:	maximum number of gpio banks
  * @bank_min:	this array represents bank's min pin
  * @bank_max:	this array represents bank's max pin
-*/
+ */
 struct zynq_platform_data {
 	const char *label;
 	u32 quirks;
@@ -180,6 +181,7 @@ static int gpio_data_ro_bug(struct zynq_gpio *gpio)
  *		pin
  * @bank_pin_num: an output parameter used to return pin number within a bank
  *		  for the given gpio pin
+ * @gpio:	gpio device data structure
  *
  * Returns the bank number and pin offset within the bank.
  */
@@ -575,7 +577,6 @@ static void zynq_gpio_handle_bank_irq(struct zynq_gpio *gpio,
 
 /**
  * zynq_gpio_irqhandler - IRQ handler for the gpio banks of a gpio device
- * @irq:	irq number of the gpio bank where interrupt has occurred
  * @desc:	irq descriptor instance of the 'irq'
  *
  * This function reads the Interrupt Status Register of each bank to get the
