@@ -5103,24 +5103,17 @@ out_unlock:
 	return retval;
 }
 
-static const char stat_nam[] = TASK_STATE_TO_CHAR_STR;
-
 void sched_show_task(struct task_struct *p)
 {
 	unsigned long free = 0;
 	int ppid;
-	unsigned long state = p->state;
-
-	/* Make sure the string lines up properly with the number of task states: */
-	BUILD_BUG_ON(sizeof(TASK_STATE_TO_CHAR_STR)-1 != ilog2(TASK_STATE_MAX)+1);
 
 	if (!try_get_task_stack(p))
 		return;
-	if (state)
-		state = __ffs(state) + 1;
-	printk(KERN_INFO "%-15.15s %c", p->comm,
-		state < sizeof(stat_nam) - 1 ? stat_nam[state] : '?');
-	if (state == TASK_RUNNING)
+
+	printk(KERN_INFO "%-15.15s %c", p->comm, task_state_to_char(p));
+
+	if (p->state == TASK_RUNNING)
 		printk(KERN_CONT "  running task    ");
 #ifdef CONFIG_DEBUG_STACK_USAGE
 	free = stack_not_used(p);
