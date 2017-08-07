@@ -17,6 +17,8 @@ struct tnum {
 struct tnum tnum_const(u64 value);
 /* A completely unknown value */
 extern const struct tnum tnum_unknown;
+/* A value that's unknown except that @min <= value <= @max */
+struct tnum tnum_range(u64 min, u64 max);
 
 /* Arithmetic and logical ops */
 /* Shift a tnum left (by a fixed shift) */

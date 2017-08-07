@@ -11,11 +11,15 @@
 #include <linux/filter.h> /* for MAX_BPF_STACK */
 #include <linux/tnum.h>
 
- /* Just some arbitrary values so we can safely do math without overflowing and
-  * are obviously wrong for any sort of memory access.
-  */
-#define BPF_REGISTER_MAX_RANGE (1024 * 1024 * 1024)
-#define BPF_REGISTER_MIN_RANGE -1
+/* Maximum variable offset umax_value permitted when resolving memory accesses.
+ * In practice this is far bigger than any realistic pointer offset; this limit
+ * ensures that umax_value + (int)off + (int)size cannot overflow a u64.
+ */
+#define BPF_MAX_VAR_OFF	(1ULL << 31)
+/* Maximum variable size permitted for ARG_CONST_SIZE[_OR_ZERO].  This ensures
+ * that converting umax_value to int cannot overflow.
+ */
+#define BPF_MAX_VAR_SIZ	INT_MAX
 
 struct bpf_reg_state {
 	enum bpf_reg_type type;
@@ -36,7 +40,7 @@ struct bpf_reg_state {
 	 * came from, when one is tested for != NULL.
 	 */
 	u32 id;
-	/* These three fields must be last.  See states_equal() */
+	/* These five fields must be last.  See states_equal() */
 	/* For scalar types (SCALAR_VALUE), this represents our knowledge of
 	 * the actual value.
 	 * For pointer types, this represents the variable part of the offset
@@ -49,9 +53,10 @@ struct bpf_reg_state {
 	 * These refer to the same value as var_off, not necessarily the actual
 	 * contents of the register.
 	 */
-	s64 min_value;
-	u64 max_value;
-	bool value_from_signed;
+	s64 smin_value; /* minimum possible (s64)value */
+	s64 smax_value; /* maximum possible (s64)value */
+	u64 umin_value; /* minimum possible (u64)value */
+	u64 umax_value; /* maximum possible (u64)value */
 };
 
 enum bpf_stack_slot_type {

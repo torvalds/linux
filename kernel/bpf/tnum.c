@@ -17,6 +17,22 @@ struct tnum tnum_const(u64 value)
 	return TNUM(value, 0);
 }
 
+struct tnum tnum_range(u64 min, u64 max)
+{
+	u64 chi = min ^ max, delta;
+	u8 bits = fls64(chi);
+
+	/* special case, needed because 1ULL << 64 is undefined */
+	if (bits > 63)
+		return tnum_unknown;
+	/* e.g. if chi = 4, bits = 3, delta = (1<<3) - 1 = 7.
+	 * if chi = 0, bits = 0, delta = (1<<0) - 1 = 0, so we return
+	 *  constant min (since min == max).
+	 */
+	delta = (1ULL << bits) - 1;
+	return TNUM(min & ~delta, delta);
+}
+
 struct tnum tnum_lshift(struct tnum a, u8 shift)
 {
 	return TNUM(a.value << shift, a.mask << shift);
