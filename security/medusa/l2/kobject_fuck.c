@@ -15,11 +15,10 @@
 #include "../../fs/internal.h" /* we need internal fs function 'user_get_super' */
 
 MED_ATTRS(fuck_kobject) {
-	MED_ATTR_KEY	(fuck_kobject, path, "path", MED_STRING),
+	MED_ATTR		(fuck_kobject, path, "path", MED_STRING),
 	MED_ATTR		(fuck_kobject, ino, "ino", MED_UNSIGNED),   // unsigned long
 	MED_ATTR		(fuck_kobject, dev, "dev", MED_UNSIGNED), // unsigned int
 	MED_ATTR		(fuck_kobject, action, "action", MED_STRING),
-	MED_ATTR_OBJECT (fuck_kobject),
 	MED_ATTR_END
 };
 
@@ -187,18 +186,19 @@ static medusa_answer_t fuck_update(struct medusa_kobject_s * kobj)
         } else if (strcmp(fkobj->action, "remove") == 0) {
                 /* remove from empty hash table is ok */
 		if(hash_empty(inode_security(fuck_inode).fuck))
-			return MED_OK;
+			goto out;
                 /* remove non-existing path in hash table is ok */
 		if ((fuck_path = get_from_hash(fkobj->path, hash, &inode_security(fuck_inode))) == NULL)
-			return MED_OK;
+			goto out;
 		hash_del(&fuck_path->list);
 		kfree(fuck_path);
         }
-        iput(fuck_inode);
 
 	MED_PRINTF("Fuck: '%s' (dev = %u, ino = %lu, act = %s)", \
                 fkobj->path, fkobj->dev, fkobj->ino, fkobj->action);
 
+out:
+        iput(fuck_inode);
         return MED_OK;
 }
 
