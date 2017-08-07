@@ -40,9 +40,9 @@ static void img_ir_refresh_raw(struct img_ir_priv *priv, u32 irq_status)
 
 	/* report the edge to the IR raw decoders */
 	if (ir_status) /* low */
-		ir_raw_event_store_edge(rc_dev, IR_SPACE);
+		ir_raw_event_store_edge(rc_dev, false);
 	else /* high */
-		ir_raw_event_store_edge(rc_dev, IR_PULSE);
+		ir_raw_event_store_edge(rc_dev, true);
 	ir_raw_event_handle(rc_dev);
 }
 

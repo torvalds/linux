@@ -272,14 +272,6 @@ u32 rc_g_keycode_from_table(struct rc_dev *dev, u32 scancode);
  * The Raw interface is specific to InfraRed. It may be a good idea to
  * split it later into a separate header.
  */
-
-enum raw_event_type {
-	IR_SPACE        = (1 << 0),
-	IR_PULSE        = (1 << 1),
-	IR_START_EVENT  = (1 << 2),
-	IR_STOP_EVENT   = (1 << 3),
-};
-
 struct ir_raw_event {
 	union {
 		u32             duration;
@@ -308,7 +300,7 @@ static inline void init_ir_raw_event(struct ir_raw_event *ev)
 
 void ir_raw_event_handle(struct rc_dev *dev);
 int ir_raw_event_store(struct rc_dev *dev, struct ir_raw_event *ev);
-int ir_raw_event_store_edge(struct rc_dev *dev, enum raw_event_type type);
+int ir_raw_event_store_edge(struct rc_dev *dev, bool pulse);
 int ir_raw_event_store_with_filter(struct rc_dev *dev,
 				struct ir_raw_event *ev);
 void ir_raw_event_set_idle(struct rc_dev *dev, bool idle);

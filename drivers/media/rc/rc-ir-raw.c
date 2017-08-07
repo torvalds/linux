@@ -88,7 +88,7 @@ EXPORT_SYMBOL_GPL(ir_raw_event_store);
 /**
  * ir_raw_event_store_edge() - notify raw ir decoders of the start of a pulse/space
  * @dev:	the struct rc_dev device descriptor
- * @type:	the type of the event that has occurred
+ * @pulse:	true for pulse, false for space
  *
  * This routine (which may be called from an interrupt context) is used to
  * store the beginning of an ir pulse or space (or the start/end of ir
@@ -96,43 +96,22 @@ EXPORT_SYMBOL_GPL(ir_raw_event_store);
  * hardware which does not provide durations directly but only interrupts
  * (or similar events) on state change.
  */
-int ir_raw_event_store_edge(struct rc_dev *dev, enum raw_event_type type)
+int ir_raw_event_store_edge(struct rc_dev *dev, bool pulse)
 {
 	ktime_t			now;
-	s64			delta; /* ns */
 	DEFINE_IR_RAW_EVENT(ev);
 	int			rc = 0;
-	int			delay;
 
 	if (!dev->raw)
 		return -EINVAL;
 
 	now = ktime_get();
-	delta = ktime_to_ns(ktime_sub(now, dev->raw->last_event));
-	delay = MS_TO_NS(dev->input_dev->rep[REP_DELAY]);
+	ev.duration = ktime_sub(now, dev->raw->last_event);
+	ev.pulse = !pulse;
 
-	/* Check for a long duration since last event or if we're
-	 * being called for the first time, note that delta can't
-	 * possibly be negative.
-	 */
-	if (delta > delay || !dev->raw->last_type)
-		type |= IR_START_EVENT;
-	else
-		ev.duration = delta;
-
-	if (type & IR_START_EVENT)
-		ir_raw_event_reset(dev);
-	else if (dev->raw->last_type & IR_SPACE) {
-		ev.pulse = false;
-		rc = ir_raw_event_store(dev, &ev);
-	} else if (dev->raw->last_type & IR_PULSE) {
-		ev.pulse = true;
-		rc = ir_raw_event_store(dev, &ev);
-	} else
-		return 0;
+	rc = ir_raw_event_store(dev, &ev);
 
 	dev->raw->last_event = now;
-	dev->raw->last_type = type;
 
 	/* timer could be set to timeout (125ms by default) */
 	if (!timer_pending(&dev->raw->edge_handle) ||
