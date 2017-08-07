@@ -69,25 +69,32 @@ static inline block_t limit_free_user_blocks(struct f2fs_sb_info *sbi)
 }
 
 static inline void increase_sleep_time(struct f2fs_gc_kthread *gc_th,
-								long *wait)
+							unsigned int *wait)
 {
+	unsigned int min_time = gc_th->min_sleep_time;
+	unsigned int max_time = gc_th->max_sleep_time;
+
 	if (*wait == gc_th->no_gc_sleep_time)
 		return;
 
-	*wait += gc_th->min_sleep_time;
-	if (*wait > gc_th->max_sleep_time)
-		*wait = gc_th->max_sleep_time;
+	if ((long long)*wait + (long long)min_time > (long long)max_time)
+		*wait = max_time;
+	else
+		*wait += min_time;
 }
 
 static inline void decrease_sleep_time(struct f2fs_gc_kthread *gc_th,
-								long *wait)
+							unsigned int *wait)
 {
+	unsigned int min_time = gc_th->min_sleep_time;
+
 	if (*wait == gc_th->no_gc_sleep_time)
 		*wait = gc_th->max_sleep_time;
 
-	*wait -= gc_th->min_sleep_time;
-	if (*wait <= gc_th->min_sleep_time)
-		*wait = gc_th->min_sleep_time;
+	if ((long long)*wait - (long long)min_time < (long long)min_time)
+		*wait = min_time;
+	else
+		*wait -= min_time;
 }
 
 static inline bool has_enough_invalid_blocks(struct f2fs_sb_info *sbi)
