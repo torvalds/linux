@@ -168,8 +168,10 @@ int asix_rx_fixup_internal(struct usbnet *dev, struct sk_buff *skb,
 		if (rx->ax_skb) {
 			skb_put_data(rx->ax_skb, skb->data + offset,
 				     copy_length);
-			if (!rx->remaining)
+			if (!rx->remaining) {
 				usbnet_skb_return(dev, rx->ax_skb);
+				rx->ax_skb = NULL;
+			}
 		}
 
 		offset += (copy_length + 1) & 0xfffe;
