@@ -1649,55 +1649,10 @@ static int netvsc_register_vf(struct net_device *vf_netdev)
 	return NOTIFY_OK;
 }
 
-/* Change datapath */
-static void netvsc_vf_update(struct work_struct *w)
-{
-	struct net_device_context *ndev_ctx
-		= container_of(w, struct net_device_context, vf_notify);
-	struct net_device *ndev = hv_get_drvdata(ndev_ctx->device_ctx);
-	struct netvsc_device *netvsc_dev;
-	struct net_device *vf_netdev;
-	bool vf_is_up;
-
-	if (!rtnl_trylock()) {
-		schedule_work(w);
-		return;
-	}
-
-	vf_netdev = rtnl_dereference(ndev_ctx->vf_netdev);
-	if (!vf_netdev)
-		goto unlock;
-
-	netvsc_dev = rtnl_dereference(ndev_ctx->nvdev);
-	if (!netvsc_dev)
-		goto unlock;
-
-	vf_is_up = netif_running(vf_netdev);
-	if (vf_is_up != ndev_ctx->datapath) {
-		if (vf_is_up) {
-			netdev_info(ndev, "VF up: %s\n", vf_netdev->name);
-			rndis_filter_open(netvsc_dev);
-			netvsc_switch_datapath(ndev, true);
-			netdev_info(ndev, "Data path switched to VF: %s\n",
-				    vf_netdev->name);
-		} else {
-			netdev_info(ndev, "VF down: %s\n", vf_netdev->name);
-			netvsc_switch_datapath(ndev, false);
-			rndis_filter_close(netvsc_dev);
-			netdev_info(ndev, "Data path switched from VF: %s\n",
-				    vf_netdev->name);
-		}
-
-		/* Now notify peers through VF device. */
-		call_netdevice_notifiers(NETDEV_NOTIFY_PEERS, ndev);
-	}
-unlock:
-	rtnl_unlock();
-}
-
-static int netvsc_vf_notify(struct net_device *vf_netdev)
+static int netvsc_vf_up(struct net_device *vf_netdev)
 {
 	struct net_device_context *net_device_ctx;
+	struct netvsc_device *netvsc_dev;
 	struct net_device *ndev;
 
 	ndev = get_netvsc_byref(vf_netdev);
@@ -1705,7 +1660,38 @@ static int netvsc_vf_notify(struct net_device *vf_netdev)
 		return NOTIFY_DONE;
 
 	net_device_ctx = netdev_priv(ndev);
-	schedule_work(&net_device_ctx->vf_notify);
+	netvsc_dev = rtnl_dereference(net_device_ctx->nvdev);
+	if (!netvsc_dev)
+		return NOTIFY_DONE;
+
+	/* Bump refcount when datapath is acvive - Why? */
+	rndis_filter_open(netvsc_dev);
+
+	/* notify the host to switch the data path. */
+	netvsc_switch_datapath(ndev, true);
+	netdev_info(ndev, "Data path switched to VF: %s\n", vf_netdev->name);
+
+	return NOTIFY_OK;
+}
+
+static int netvsc_vf_down(struct net_device *vf_netdev)
+{
+	struct net_device_context *net_device_ctx;
+	struct netvsc_device *netvsc_dev;
+	struct net_device *ndev;
+
+	ndev = get_netvsc_byref(vf_netdev);
+	if (!ndev)
+		return NOTIFY_DONE;
+
+	net_device_ctx = netdev_priv(ndev);
+	netvsc_dev = rtnl_dereference(net_device_ctx->nvdev);
+	if (!netvsc_dev)
+		return NOTIFY_DONE;
+
+	netvsc_switch_datapath(ndev, false);
+	netdev_info(ndev, "Data path switched from VF: %s\n", vf_netdev->name);
+	rndis_filter_close(netvsc_dev);
 
 	return NOTIFY_OK;
 }
@@ -1721,7 +1707,6 @@ static int netvsc_unregister_vf(struct net_device *vf_netdev)
 
 	net_device_ctx = netdev_priv(ndev);
 	cancel_work_sync(&net_device_ctx->vf_takeover);
-	cancel_work_sync(&net_device_ctx->vf_notify);
 
 	netdev_info(ndev, "VF unregistering: %s\n", vf_netdev->name);
 
@@ -1764,7 +1749,6 @@ static int netvsc_probe(struct hv_device *dev,
 	spin_lock_init(&net_device_ctx->lock);
 	INIT_LIST_HEAD(&net_device_ctx->reconfig_events);
 	INIT_WORK(&net_device_ctx->vf_takeover, netvsc_vf_setup);
-	INIT_WORK(&net_device_ctx->vf_notify, netvsc_vf_update);
 
 	net_device_ctx->vf_stats
 		= netdev_alloc_pcpu_stats(struct netvsc_vf_pcpu_stats);
@@ -1915,8 +1899,9 @@ static int netvsc_netdev_event(struct notifier_block *this,
 	case NETDEV_UNREGISTER:
 		return netvsc_unregister_vf(event_dev);
 	case NETDEV_UP:
+		return netvsc_vf_up(event_dev);
 	case NETDEV_DOWN:
-		return netvsc_vf_notify(event_dev);
+		return netvsc_vf_down(event_dev);
 	default:
 		return NOTIFY_DONE;
 	}
