@@ -52,9 +52,10 @@ other_event_table[SCTP_NUM_OTHER_TYPES][SCTP_STATE_NUM_STATES];
 static const sctp_sm_table_entry_t
 timeout_event_table[SCTP_NUM_TIMEOUT_TYPES][SCTP_STATE_NUM_STATES];
 
-static const sctp_sm_table_entry_t *sctp_chunk_event_lookup(struct net *net,
-							    enum sctp_cid cid,
-							    sctp_state_t state);
+static const sctp_sm_table_entry_t *sctp_chunk_event_lookup(
+						struct net *net,
+						enum sctp_cid cid,
+						enum sctp_state state);
 
 
 static const sctp_sm_table_entry_t bug = {
@@ -76,10 +77,11 @@ static const sctp_sm_table_entry_t bug = {
 	rtn;								\
 })
 
-const sctp_sm_table_entry_t *sctp_sm_lookup_event(struct net *net,
-						  sctp_event_t event_type,
-						  sctp_state_t state,
-						  sctp_subtype_t event_subtype)
+const sctp_sm_table_entry_t *sctp_sm_lookup_event(
+					struct net *net,
+					enum sctp_event event_type,
+					enum sctp_state state,
+					union sctp_subtype event_subtype)
 {
 	switch (event_type) {
 	case SCTP_EVENT_T_CHUNK:
@@ -967,9 +969,10 @@ static const sctp_sm_table_entry_t timeout_event_table[SCTP_NUM_TIMEOUT_TYPES][S
 	TYPE_SCTP_EVENT_TIMEOUT_AUTOCLOSE,
 };
 
-static const sctp_sm_table_entry_t *sctp_chunk_event_lookup(struct net *net,
-							    enum sctp_cid cid,
-							    sctp_state_t state)
+static const sctp_sm_table_entry_t *sctp_chunk_event_lookup(
+						struct net *net,
+						enum sctp_cid cid,
+						enum sctp_state state)
 {
 	if (state > SCTP_STATE_MAX)
 		return &bug;

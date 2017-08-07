@@ -1578,8 +1578,8 @@ struct sctp_association *sctp_make_temp_asoc(const struct sctp_endpoint *ep,
 					gfp_t gfp)
 {
 	struct sctp_association *asoc;
+	enum sctp_scope scope;
 	struct sk_buff *skb;
-	sctp_scope_t scope;
 
 	/* Create the bare association.  */
 	scope = sctp_scope(sctp_source(chunk));
@@ -1701,7 +1701,7 @@ struct sctp_association *sctp_unpack_cookie(
 	int headersize, bodysize, fixed_size;
 	__u8 *digest = ep->digest;
 	unsigned int len;
-	sctp_scope_t scope;
+	enum sctp_scope scope;
 	struct sk_buff *skb = chunk->skb;
 	ktime_t kt;
 
@@ -2065,10 +2065,11 @@ static void sctp_process_ext_param(struct sctp_association *asoc,
  * 	SCTP_IERROR_ERROR    - stop and report an error.
  * 	SCTP_IERROR_NOMEME   - out of memory.
  */
-static sctp_ierror_t sctp_process_unk_param(const struct sctp_association *asoc,
-					    union sctp_params param,
-					    struct sctp_chunk *chunk,
-					    struct sctp_chunk **errp)
+static enum sctp_ierror sctp_process_unk_param(
+					const struct sctp_association *asoc,
+					union sctp_params param,
+					struct sctp_chunk *chunk,
+					struct sctp_chunk **errp)
 {
 	int retval = SCTP_IERROR_NO_ERROR;
 
@@ -2117,13 +2118,13 @@ static sctp_ierror_t sctp_process_unk_param(const struct sctp_association *asoc,
  *	SCTP_IERROR_ERROR - stop processing, trigger an ERROR
  * 	SCTP_IERROR_NO_ERROR - continue with the chunk
  */
-static sctp_ierror_t sctp_verify_param(struct net *net,
-					const struct sctp_endpoint *ep,
-					const struct sctp_association *asoc,
-					union sctp_params param,
-					enum sctp_cid cid,
-					struct sctp_chunk *chunk,
-					struct sctp_chunk **err_chunk)
+static enum sctp_ierror sctp_verify_param(struct net *net,
+					  const struct sctp_endpoint *ep,
+					  const struct sctp_association *asoc,
+					  union sctp_params param,
+					  enum sctp_cid cid,
+					  struct sctp_chunk *chunk,
+					  struct sctp_chunk **err_chunk)
 {
 	struct sctp_hmac_algo_param *hmacs;
 	int retval = SCTP_IERROR_NO_ERROR;
@@ -2502,7 +2503,7 @@ static int sctp_process_param(struct sctp_association *asoc,
 	int i;
 	__u16 sat;
 	int retval = 1;
-	sctp_scope_t scope;
+	enum sctp_scope scope;
 	u32 stale;
 	struct sctp_af *af;
 	union sctp_addr_param *addr_param;

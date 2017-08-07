@@ -80,19 +80,19 @@ static void sctp_send_stale_cookie_err(struct net *net,
 static sctp_disposition_t sctp_sf_do_5_2_6_stale(struct net *net,
 						 const struct sctp_endpoint *ep,
 						 const struct sctp_association *asoc,
-						 const sctp_subtype_t type,
+						 const union sctp_subtype type,
 						 void *arg,
 						 sctp_cmd_seq_t *commands);
 static sctp_disposition_t sctp_sf_shut_8_4_5(struct net *net,
 					     const struct sctp_endpoint *ep,
 					     const struct sctp_association *asoc,
-					     const sctp_subtype_t type,
+					     const union sctp_subtype type,
 					     void *arg,
 					     sctp_cmd_seq_t *commands);
 static sctp_disposition_t sctp_sf_tabort_8_4_8(struct net *net,
 					const struct sctp_endpoint *ep,
 					const struct sctp_association *asoc,
-					const sctp_subtype_t type,
+					const union sctp_subtype type,
 					void *arg,
 					sctp_cmd_seq_t *commands);
 static struct sctp_sackhdr *sctp_sm_pull_sack(struct sctp_chunk *chunk);
@@ -116,7 +116,7 @@ static sctp_disposition_t sctp_sf_violation_chunklen(
 				     struct net *net,
 				     const struct sctp_endpoint *ep,
 				     const struct sctp_association *asoc,
-				     const sctp_subtype_t type,
+				     const union sctp_subtype type,
 				     void *arg,
 				     sctp_cmd_seq_t *commands);
 
@@ -124,7 +124,7 @@ static sctp_disposition_t sctp_sf_violation_paramlen(
 				     struct net *net,
 				     const struct sctp_endpoint *ep,
 				     const struct sctp_association *asoc,
-				     const sctp_subtype_t type,
+				     const union sctp_subtype type,
 				     void *arg, void *ext,
 				     sctp_cmd_seq_t *commands);
 
@@ -132,7 +132,7 @@ static sctp_disposition_t sctp_sf_violation_ctsn(
 				     struct net *net,
 				     const struct sctp_endpoint *ep,
 				     const struct sctp_association *asoc,
-				     const sctp_subtype_t type,
+				     const union sctp_subtype type,
 				     void *arg,
 				     sctp_cmd_seq_t *commands);
 
@@ -140,20 +140,21 @@ static sctp_disposition_t sctp_sf_violation_chunk(
 				     struct net *net,
 				     const struct sctp_endpoint *ep,
 				     const struct sctp_association *asoc,
-				     const sctp_subtype_t type,
+				     const union sctp_subtype type,
 				     void *arg,
 				     sctp_cmd_seq_t *commands);
 
-static sctp_ierror_t sctp_sf_authenticate(struct net *net,
-				    const struct sctp_endpoint *ep,
-				    const struct sctp_association *asoc,
-				    const sctp_subtype_t type,
-				    struct sctp_chunk *chunk);
+static enum sctp_ierror sctp_sf_authenticate(
+				struct net *net,
+				const struct sctp_endpoint *ep,
+				const struct sctp_association *asoc,
+				const union sctp_subtype type,
+				struct sctp_chunk *chunk);
 
 static sctp_disposition_t __sctp_sf_do_9_1_abort(struct net *net,
 					const struct sctp_endpoint *ep,
 					const struct sctp_association *asoc,
-					const sctp_subtype_t type,
+					const union sctp_subtype type,
 					void *arg,
 					sctp_cmd_seq_t *commands);
 
@@ -216,7 +217,7 @@ sctp_chunk_length_valid(struct sctp_chunk *chunk, __u16 required_length)
 sctp_disposition_t sctp_sf_do_4_C(struct net *net,
 				  const struct sctp_endpoint *ep,
 				  const struct sctp_association *asoc,
-				  const sctp_subtype_t type,
+				  const union sctp_subtype type,
 				  void *arg,
 				  sctp_cmd_seq_t *commands)
 {
@@ -302,7 +303,7 @@ sctp_disposition_t sctp_sf_do_4_C(struct net *net,
 sctp_disposition_t sctp_sf_do_5_1B_init(struct net *net,
 					const struct sctp_endpoint *ep,
 					const struct sctp_association *asoc,
-					const sctp_subtype_t type,
+					const union sctp_subtype type,
 					void *arg,
 					sctp_cmd_seq_t *commands)
 {
@@ -496,7 +497,7 @@ nomem:
 sctp_disposition_t sctp_sf_do_5_1C_ack(struct net *net,
 				       const struct sctp_endpoint *ep,
 				       const struct sctp_association *asoc,
-				       const sctp_subtype_t type,
+				       const union sctp_subtype type,
 				       void *arg,
 				       sctp_cmd_seq_t *commands)
 {
@@ -646,7 +647,7 @@ sctp_disposition_t sctp_sf_do_5_1C_ack(struct net *net,
 sctp_disposition_t sctp_sf_do_5_1D_ce(struct net *net,
 				      const struct sctp_endpoint *ep,
 				      const struct sctp_association *asoc,
-				      const sctp_subtype_t type, void *arg,
+				      const union sctp_subtype type, void *arg,
 				      sctp_cmd_seq_t *commands)
 {
 	struct sctp_chunk *chunk = arg;
@@ -756,7 +757,7 @@ sctp_disposition_t sctp_sf_do_5_1D_ce(struct net *net,
 	 */
 	if (chunk->auth_chunk) {
 		struct sctp_chunk auth;
-		sctp_ierror_t ret;
+		enum sctp_ierror ret;
 
 		/* Make sure that we and the peer are AUTH capable */
 		if (!net->sctp.auth_enable || !new_asoc->peer.auth_capable) {
@@ -873,7 +874,7 @@ nomem:
 sctp_disposition_t sctp_sf_do_5_1E_ca(struct net *net,
 				      const struct sctp_endpoint *ep,
 				      const struct sctp_association *asoc,
-				      const sctp_subtype_t type, void *arg,
+				      const union sctp_subtype type, void *arg,
 				      sctp_cmd_seq_t *commands)
 {
 	struct sctp_chunk *chunk = arg;
@@ -950,7 +951,7 @@ nomem:
 /* Generate and sendout a heartbeat packet.  */
 static sctp_disposition_t sctp_sf_heartbeat(const struct sctp_endpoint *ep,
 					    const struct sctp_association *asoc,
-					    const sctp_subtype_t type,
+					    const union sctp_subtype type,
 					    void *arg,
 					    sctp_cmd_seq_t *commands)
 {
@@ -976,7 +977,7 @@ static sctp_disposition_t sctp_sf_heartbeat(const struct sctp_endpoint *ep,
 sctp_disposition_t sctp_sf_sendbeat_8_3(struct net *net,
 					const struct sctp_endpoint *ep,
 					const struct sctp_association *asoc,
-					const sctp_subtype_t type,
+					const union sctp_subtype type,
 					void *arg,
 					sctp_cmd_seq_t *commands)
 {
@@ -1024,7 +1025,7 @@ sctp_disposition_t sctp_sf_sendbeat_8_3(struct net *net,
 sctp_disposition_t sctp_sf_send_reconf(struct net *net,
 				       const struct sctp_endpoint *ep,
 				       const struct sctp_association *asoc,
-				       const sctp_subtype_t type, void *arg,
+				       const union sctp_subtype type, void *arg,
 				       sctp_cmd_seq_t *commands)
 {
 	struct sctp_transport *transport = arg;
@@ -1075,7 +1076,7 @@ sctp_disposition_t sctp_sf_send_reconf(struct net *net,
 sctp_disposition_t sctp_sf_beat_8_3(struct net *net,
 				    const struct sctp_endpoint *ep,
 				    const struct sctp_association *asoc,
-				    const sctp_subtype_t type,
+				    const union sctp_subtype type,
 				    void *arg,
 				    sctp_cmd_seq_t *commands)
 {
@@ -1150,7 +1151,7 @@ nomem:
 sctp_disposition_t sctp_sf_backbeat_8_3(struct net *net,
 					const struct sctp_endpoint *ep,
 					const struct sctp_association *asoc,
-					const sctp_subtype_t type,
+					const union sctp_subtype type,
 					void *arg,
 					sctp_cmd_seq_t *commands)
 {
@@ -1415,7 +1416,7 @@ static sctp_disposition_t sctp_sf_do_unexpected_init(
 	struct net *net,
 	const struct sctp_endpoint *ep,
 	const struct sctp_association *asoc,
-	const sctp_subtype_t type,
+	const union sctp_subtype type,
 	void *arg, sctp_cmd_seq_t *commands)
 {
 	struct sctp_chunk *chunk = arg, *repl, *err_chunk;
@@ -1626,7 +1627,7 @@ cleanup:
 sctp_disposition_t sctp_sf_do_5_2_1_siminit(struct net *net,
 				    const struct sctp_endpoint *ep,
 				    const struct sctp_association *asoc,
-				    const sctp_subtype_t type,
+				    const union sctp_subtype type,
 				    void *arg,
 				    sctp_cmd_seq_t *commands)
 {
@@ -1680,7 +1681,7 @@ sctp_disposition_t sctp_sf_do_5_2_1_siminit(struct net *net,
 sctp_disposition_t sctp_sf_do_5_2_2_dupinit(struct net *net,
 					const struct sctp_endpoint *ep,
 					const struct sctp_association *asoc,
-					const sctp_subtype_t type,
+					const union sctp_subtype type,
 					void *arg,
 					sctp_cmd_seq_t *commands)
 {
@@ -1703,7 +1704,7 @@ sctp_disposition_t sctp_sf_do_5_2_2_dupinit(struct net *net,
 sctp_disposition_t sctp_sf_do_5_2_3_initack(struct net *net,
 					    const struct sctp_endpoint *ep,
 					    const struct sctp_association *asoc,
-					    const sctp_subtype_t type,
+					    const union sctp_subtype type,
 					    void *arg, sctp_cmd_seq_t *commands)
 {
 	/* Per the above section, we'll discard the chunk if we have an
@@ -2026,7 +2027,7 @@ nomem:
 sctp_disposition_t sctp_sf_do_5_2_4_dupcook(struct net *net,
 					const struct sctp_endpoint *ep,
 					const struct sctp_association *asoc,
-					const sctp_subtype_t type,
+					const union sctp_subtype type,
 					void *arg,
 					sctp_cmd_seq_t *commands)
 {
@@ -2145,7 +2146,7 @@ sctp_disposition_t sctp_sf_shutdown_pending_abort(
 	struct net *net,
 	const struct sctp_endpoint *ep,
 	const struct sctp_association *asoc,
-	const sctp_subtype_t type,
+	const union sctp_subtype type,
 	void *arg,
 	sctp_cmd_seq_t *commands)
 {
@@ -2187,7 +2188,7 @@ sctp_disposition_t sctp_sf_shutdown_pending_abort(
 sctp_disposition_t sctp_sf_shutdown_sent_abort(struct net *net,
 					const struct sctp_endpoint *ep,
 					const struct sctp_association *asoc,
-					const sctp_subtype_t type,
+					const union sctp_subtype type,
 					void *arg,
 					sctp_cmd_seq_t *commands)
 {
@@ -2238,7 +2239,7 @@ sctp_disposition_t sctp_sf_shutdown_ack_sent_abort(
 	struct net *net,
 	const struct sctp_endpoint *ep,
 	const struct sctp_association *asoc,
-	const sctp_subtype_t type,
+	const union sctp_subtype type,
 	void *arg,
 	sctp_cmd_seq_t *commands)
 {
@@ -2265,7 +2266,7 @@ sctp_disposition_t sctp_sf_shutdown_ack_sent_abort(
 sctp_disposition_t sctp_sf_cookie_echoed_err(struct net *net,
 					const struct sctp_endpoint *ep,
 					const struct sctp_association *asoc,
-					const sctp_subtype_t type,
+					const union sctp_subtype type,
 					void *arg,
 					sctp_cmd_seq_t *commands)
 {
@@ -2329,7 +2330,7 @@ sctp_disposition_t sctp_sf_cookie_echoed_err(struct net *net,
 static sctp_disposition_t sctp_sf_do_5_2_6_stale(struct net *net,
 						 const struct sctp_endpoint *ep,
 						 const struct sctp_association *asoc,
-						 const sctp_subtype_t type,
+						 const union sctp_subtype type,
 						 void *arg,
 						 sctp_cmd_seq_t *commands)
 {
@@ -2451,7 +2452,7 @@ nomem:
 sctp_disposition_t sctp_sf_do_9_1_abort(struct net *net,
 					const struct sctp_endpoint *ep,
 					const struct sctp_association *asoc,
-					const sctp_subtype_t type,
+					const union sctp_subtype type,
 					void *arg,
 					sctp_cmd_seq_t *commands)
 {
@@ -2488,7 +2489,7 @@ sctp_disposition_t sctp_sf_do_9_1_abort(struct net *net,
 static sctp_disposition_t __sctp_sf_do_9_1_abort(struct net *net,
 					const struct sctp_endpoint *ep,
 					const struct sctp_association *asoc,
-					const sctp_subtype_t type,
+					const union sctp_subtype type,
 					void *arg,
 					sctp_cmd_seq_t *commands)
 {
@@ -2526,7 +2527,7 @@ static sctp_disposition_t __sctp_sf_do_9_1_abort(struct net *net,
 sctp_disposition_t sctp_sf_cookie_wait_abort(struct net *net,
 				     const struct sctp_endpoint *ep,
 				     const struct sctp_association *asoc,
-				     const sctp_subtype_t type,
+				     const union sctp_subtype type,
 				     void *arg,
 				     sctp_cmd_seq_t *commands)
 {
@@ -2565,7 +2566,7 @@ sctp_disposition_t sctp_sf_cookie_wait_abort(struct net *net,
 sctp_disposition_t sctp_sf_cookie_wait_icmp_abort(struct net *net,
 					const struct sctp_endpoint *ep,
 					const struct sctp_association *asoc,
-					const sctp_subtype_t type,
+					const union sctp_subtype type,
 					void *arg,
 					sctp_cmd_seq_t *commands)
 {
@@ -2580,7 +2581,7 @@ sctp_disposition_t sctp_sf_cookie_wait_icmp_abort(struct net *net,
 sctp_disposition_t sctp_sf_cookie_echoed_abort(struct net *net,
 					       const struct sctp_endpoint *ep,
 					       const struct sctp_association *asoc,
-					       const sctp_subtype_t type,
+					       const union sctp_subtype type,
 					       void *arg,
 					       sctp_cmd_seq_t *commands)
 {
@@ -2652,7 +2653,7 @@ static sctp_disposition_t sctp_stop_t1_and_abort(struct net *net,
 sctp_disposition_t sctp_sf_do_9_2_shutdown(struct net *net,
 					   const struct sctp_endpoint *ep,
 					   const struct sctp_association *asoc,
-					   const sctp_subtype_t type,
+					   const union sctp_subtype type,
 					   void *arg,
 					   sctp_cmd_seq_t *commands)
 {
@@ -2741,7 +2742,7 @@ out:
 sctp_disposition_t sctp_sf_do_9_2_shut_ctsn(struct net *net,
 					   const struct sctp_endpoint *ep,
 					   const struct sctp_association *asoc,
-					   const sctp_subtype_t type,
+					   const union sctp_subtype type,
 					   void *arg,
 					   sctp_cmd_seq_t *commands)
 {
@@ -2794,7 +2795,7 @@ sctp_disposition_t sctp_sf_do_9_2_shut_ctsn(struct net *net,
 sctp_disposition_t sctp_sf_do_9_2_reshutack(struct net *net,
 				    const struct sctp_endpoint *ep,
 				    const struct sctp_association *asoc,
-				    const sctp_subtype_t type,
+				    const union sctp_subtype type,
 				    void *arg,
 				    sctp_cmd_seq_t *commands)
 {
@@ -2858,7 +2859,7 @@ nomem:
 sctp_disposition_t sctp_sf_do_ecn_cwr(struct net *net,
 				      const struct sctp_endpoint *ep,
 				      const struct sctp_association *asoc,
-				      const sctp_subtype_t type,
+				      const union sctp_subtype type,
 				      void *arg,
 				      sctp_cmd_seq_t *commands)
 {
@@ -2914,7 +2915,7 @@ sctp_disposition_t sctp_sf_do_ecn_cwr(struct net *net,
 sctp_disposition_t sctp_sf_do_ecne(struct net *net,
 				   const struct sctp_endpoint *ep,
 				   const struct sctp_association *asoc,
-				   const sctp_subtype_t type,
+				   const union sctp_subtype type,
 				   void *arg,
 				   sctp_cmd_seq_t *commands)
 {
@@ -2971,7 +2972,7 @@ sctp_disposition_t sctp_sf_do_ecne(struct net *net,
 sctp_disposition_t sctp_sf_eat_data_6_2(struct net *net,
 					const struct sctp_endpoint *ep,
 					const struct sctp_association *asoc,
-					const sctp_subtype_t type,
+					const union sctp_subtype type,
 					void *arg,
 					sctp_cmd_seq_t *commands)
 {
@@ -3091,7 +3092,7 @@ discard_noforce:
 sctp_disposition_t sctp_sf_eat_data_fast_4_4(struct net *net,
 				     const struct sctp_endpoint *ep,
 				     const struct sctp_association *asoc,
-				     const sctp_subtype_t type,
+				     const union sctp_subtype type,
 				     void *arg,
 				     sctp_cmd_seq_t *commands)
 {
@@ -3182,7 +3183,7 @@ sctp_disposition_t sctp_sf_eat_data_fast_4_4(struct net *net,
 sctp_disposition_t sctp_sf_eat_sack_6_2(struct net *net,
 					const struct sctp_endpoint *ep,
 					const struct sctp_association *asoc,
-					const sctp_subtype_t type,
+					const union sctp_subtype type,
 					void *arg,
 					sctp_cmd_seq_t *commands)
 {
@@ -3256,7 +3257,7 @@ sctp_disposition_t sctp_sf_eat_sack_6_2(struct net *net,
 static sctp_disposition_t sctp_sf_tabort_8_4_8(struct net *net,
 					const struct sctp_endpoint *ep,
 					const struct sctp_association *asoc,
-					const sctp_subtype_t type,
+					const union sctp_subtype type,
 					void *arg,
 					sctp_cmd_seq_t *commands)
 {
@@ -3306,7 +3307,7 @@ static sctp_disposition_t sctp_sf_tabort_8_4_8(struct net *net,
 sctp_disposition_t sctp_sf_operr_notify(struct net *net,
 					const struct sctp_endpoint *ep,
 					const struct sctp_association *asoc,
-					const sctp_subtype_t type,
+					const union sctp_subtype type,
 					void *arg,
 					sctp_cmd_seq_t *commands)
 {
@@ -3344,7 +3345,7 @@ sctp_disposition_t sctp_sf_operr_notify(struct net *net,
 sctp_disposition_t sctp_sf_do_9_2_final(struct net *net,
 					const struct sctp_endpoint *ep,
 					const struct sctp_association *asoc,
-					const sctp_subtype_t type,
+					const union sctp_subtype type,
 					void *arg,
 					sctp_cmd_seq_t *commands)
 {
@@ -3427,7 +3428,7 @@ nomem:
 sctp_disposition_t sctp_sf_ootb(struct net *net,
 				const struct sctp_endpoint *ep,
 				const struct sctp_association *asoc,
-				const sctp_subtype_t type,
+				const union sctp_subtype type,
 				void *arg,
 				sctp_cmd_seq_t *commands)
 {
@@ -3520,7 +3521,7 @@ sctp_disposition_t sctp_sf_ootb(struct net *net,
 static sctp_disposition_t sctp_sf_shut_8_4_5(struct net *net,
 					     const struct sctp_endpoint *ep,
 					     const struct sctp_association *asoc,
-					     const sctp_subtype_t type,
+					     const union sctp_subtype type,
 					     void *arg,
 					     sctp_cmd_seq_t *commands)
 {
@@ -3582,7 +3583,7 @@ static sctp_disposition_t sctp_sf_shut_8_4_5(struct net *net,
 sctp_disposition_t sctp_sf_do_8_5_1_E_sa(struct net *net,
 				      const struct sctp_endpoint *ep,
 				      const struct sctp_association *asoc,
-				      const sctp_subtype_t type,
+				      const union sctp_subtype type,
 				      void *arg,
 				      sctp_cmd_seq_t *commands)
 {
@@ -3607,7 +3608,7 @@ sctp_disposition_t sctp_sf_do_8_5_1_E_sa(struct net *net,
 sctp_disposition_t sctp_sf_do_asconf(struct net *net,
 				     const struct sctp_endpoint *ep,
 				     const struct sctp_association *asoc,
-				     const sctp_subtype_t type, void *arg,
+				     const union sctp_subtype type, void *arg,
 				     sctp_cmd_seq_t *commands)
 {
 	struct sctp_chunk	*chunk = arg;
@@ -3724,7 +3725,8 @@ sctp_disposition_t sctp_sf_do_asconf(struct net *net,
 sctp_disposition_t sctp_sf_do_asconf_ack(struct net *net,
 					 const struct sctp_endpoint *ep,
 					 const struct sctp_association *asoc,
-					 const sctp_subtype_t type, void *arg,
+					 const union sctp_subtype type,
+					 void *arg,
 					 sctp_cmd_seq_t *commands)
 {
 	struct sctp_chunk	*asconf_ack = arg;
@@ -3842,7 +3844,7 @@ sctp_disposition_t sctp_sf_do_asconf_ack(struct net *net,
 sctp_disposition_t sctp_sf_do_reconf(struct net *net,
 				     const struct sctp_endpoint *ep,
 				     const struct sctp_association *asoc,
-				     const sctp_subtype_t type, void *arg,
+				     const union sctp_subtype type, void *arg,
 				     sctp_cmd_seq_t *commands)
 {
 	struct sctp_paramhdr *err_param = NULL;
@@ -3918,7 +3920,7 @@ sctp_disposition_t sctp_sf_do_reconf(struct net *net,
 sctp_disposition_t sctp_sf_eat_fwd_tsn(struct net *net,
 				       const struct sctp_endpoint *ep,
 				       const struct sctp_association *asoc,
-				       const sctp_subtype_t type,
+				       const union sctp_subtype type,
 				       void *arg,
 				       sctp_cmd_seq_t *commands)
 {
@@ -3989,7 +3991,7 @@ sctp_disposition_t sctp_sf_eat_fwd_tsn_fast(
 	struct net *net,
 	const struct sctp_endpoint *ep,
 	const struct sctp_association *asoc,
-	const sctp_subtype_t type,
+	const union sctp_subtype type,
 	void *arg,
 	sctp_cmd_seq_t *commands)
 {
@@ -4077,11 +4079,12 @@ gen_shutdown:
  *
  * The return value is the disposition of the chunk.
  */
-static sctp_ierror_t sctp_sf_authenticate(struct net *net,
-				    const struct sctp_endpoint *ep,
-				    const struct sctp_association *asoc,
-				    const sctp_subtype_t type,
-				    struct sctp_chunk *chunk)
+static enum sctp_ierror sctp_sf_authenticate(
+				struct net *net,
+				const struct sctp_endpoint *ep,
+				const struct sctp_association *asoc,
+				const union sctp_subtype type,
+				struct sctp_chunk *chunk)
 {
 	struct sctp_authhdr *auth_hdr;
 	struct sctp_hmac *hmac;
@@ -4155,14 +4158,14 @@ nomem:
 sctp_disposition_t sctp_sf_eat_auth(struct net *net,
 				    const struct sctp_endpoint *ep,
 				    const struct sctp_association *asoc,
-				    const sctp_subtype_t type,
+				    const union sctp_subtype type,
 				    void *arg,
 				    sctp_cmd_seq_t *commands)
 {
-	struct sctp_authhdr *auth_hdr;
 	struct sctp_chunk *chunk = arg;
+	struct sctp_authhdr *auth_hdr;
 	struct sctp_chunk *err_chunk;
-	sctp_ierror_t error;
+	enum sctp_ierror error;
 
 	/* Make sure that the peer has AUTH capable */
 	if (!asoc->peer.auth_capable)
@@ -4252,7 +4255,7 @@ sctp_disposition_t sctp_sf_eat_auth(struct net *net,
 sctp_disposition_t sctp_sf_unk_chunk(struct net *net,
 				     const struct sctp_endpoint *ep,
 				     const struct sctp_association *asoc,
-				     const sctp_subtype_t type,
+				     const union sctp_subtype type,
 				     void *arg,
 				     sctp_cmd_seq_t *commands)
 {
@@ -4332,7 +4335,7 @@ sctp_disposition_t sctp_sf_unk_chunk(struct net *net,
 sctp_disposition_t sctp_sf_discard_chunk(struct net *net,
 					 const struct sctp_endpoint *ep,
 					 const struct sctp_association *asoc,
-					 const sctp_subtype_t type,
+					 const union sctp_subtype type,
 					 void *arg,
 					 sctp_cmd_seq_t *commands)
 {
@@ -4372,7 +4375,7 @@ sctp_disposition_t sctp_sf_discard_chunk(struct net *net,
 sctp_disposition_t sctp_sf_pdiscard(struct net *net,
 				    const struct sctp_endpoint *ep,
 				    const struct sctp_association *asoc,
-				    const sctp_subtype_t type,
+				    const union sctp_subtype type,
 				    void *arg,
 				    sctp_cmd_seq_t *commands)
 {
@@ -4400,7 +4403,7 @@ sctp_disposition_t sctp_sf_pdiscard(struct net *net,
 sctp_disposition_t sctp_sf_violation(struct net *net,
 				     const struct sctp_endpoint *ep,
 				     const struct sctp_association *asoc,
-				     const sctp_subtype_t type,
+				     const union sctp_subtype type,
 				     void *arg,
 				     sctp_cmd_seq_t *commands)
 {
@@ -4538,7 +4541,7 @@ static sctp_disposition_t sctp_sf_violation_chunklen(
 				     struct net *net,
 				     const struct sctp_endpoint *ep,
 				     const struct sctp_association *asoc,
-				     const sctp_subtype_t type,
+				     const union sctp_subtype type,
 				     void *arg,
 				     sctp_cmd_seq_t *commands)
 {
@@ -4558,7 +4561,7 @@ static sctp_disposition_t sctp_sf_violation_paramlen(
 				     struct net *net,
 				     const struct sctp_endpoint *ep,
 				     const struct sctp_association *asoc,
-				     const sctp_subtype_t type,
+				     const union sctp_subtype type,
 				     void *arg, void *ext,
 				     sctp_cmd_seq_t *commands)
 {
@@ -4601,7 +4604,7 @@ static sctp_disposition_t sctp_sf_violation_ctsn(
 				     struct net *net,
 				     const struct sctp_endpoint *ep,
 				     const struct sctp_association *asoc,
-				     const sctp_subtype_t type,
+				     const union sctp_subtype type,
 				     void *arg,
 				     sctp_cmd_seq_t *commands)
 {
@@ -4621,7 +4624,7 @@ static sctp_disposition_t sctp_sf_violation_chunk(
 				     struct net *net,
 				     const struct sctp_endpoint *ep,
 				     const struct sctp_association *asoc,
-				     const sctp_subtype_t type,
+				     const union sctp_subtype type,
 				     void *arg,
 				     sctp_cmd_seq_t *commands)
 {
@@ -4696,7 +4699,7 @@ static sctp_disposition_t sctp_sf_violation_chunk(
 sctp_disposition_t sctp_sf_do_prm_asoc(struct net *net,
 				       const struct sctp_endpoint *ep,
 				       const struct sctp_association *asoc,
-				       const sctp_subtype_t type,
+				       const union sctp_subtype type,
 				       void *arg,
 				       sctp_cmd_seq_t *commands)
 {
@@ -4808,7 +4811,7 @@ nomem:
 sctp_disposition_t sctp_sf_do_prm_send(struct net *net,
 				       const struct sctp_endpoint *ep,
 				       const struct sctp_association *asoc,
-				       const sctp_subtype_t type,
+				       const union sctp_subtype type,
 				       void *arg,
 				       sctp_cmd_seq_t *commands)
 {
@@ -4848,7 +4851,7 @@ sctp_disposition_t sctp_sf_do_9_2_prm_shutdown(
 	struct net *net,
 	const struct sctp_endpoint *ep,
 	const struct sctp_association *asoc,
-	const sctp_subtype_t type,
+	const union sctp_subtype type,
 	void *arg,
 	sctp_cmd_seq_t *commands)
 {
@@ -4904,7 +4907,7 @@ sctp_disposition_t sctp_sf_do_9_1_prm_abort(
 	struct net *net,
 	const struct sctp_endpoint *ep,
 	const struct sctp_association *asoc,
-	const sctp_subtype_t type,
+	const union sctp_subtype type,
 	void *arg,
 	sctp_cmd_seq_t *commands)
 {
@@ -4941,7 +4944,7 @@ sctp_disposition_t sctp_sf_do_9_1_prm_abort(
 sctp_disposition_t sctp_sf_error_closed(struct net *net,
 					const struct sctp_endpoint *ep,
 					const struct sctp_association *asoc,
-					const sctp_subtype_t type,
+					const union sctp_subtype type,
 					void *arg,
 					sctp_cmd_seq_t *commands)
 {
@@ -4955,7 +4958,7 @@ sctp_disposition_t sctp_sf_error_closed(struct net *net,
 sctp_disposition_t sctp_sf_error_shutdown(struct net *net,
 					  const struct sctp_endpoint *ep,
 					  const struct sctp_association *asoc,
-					  const sctp_subtype_t type,
+					  const union sctp_subtype type,
 					  void *arg,
 					  sctp_cmd_seq_t *commands)
 {
@@ -4982,7 +4985,7 @@ sctp_disposition_t sctp_sf_cookie_wait_prm_shutdown(
 	struct net *net,
 	const struct sctp_endpoint *ep,
 	const struct sctp_association *asoc,
-	const sctp_subtype_t type,
+	const union sctp_subtype type,
 	void *arg,
 	sctp_cmd_seq_t *commands)
 {
@@ -5017,7 +5020,7 @@ sctp_disposition_t sctp_sf_cookie_echoed_prm_shutdown(
 	struct net *net,
 	const struct sctp_endpoint *ep,
 	const struct sctp_association *asoc,
-	const sctp_subtype_t type,
+	const union sctp_subtype type,
 	void *arg, sctp_cmd_seq_t *commands)
 {
 	/* There is a single T1 timer, so we should be able to use
@@ -5044,7 +5047,7 @@ sctp_disposition_t sctp_sf_cookie_wait_prm_abort(
 	struct net *net,
 	const struct sctp_endpoint *ep,
 	const struct sctp_association *asoc,
-	const sctp_subtype_t type,
+	const union sctp_subtype type,
 	void *arg,
 	sctp_cmd_seq_t *commands)
 {
@@ -5093,7 +5096,7 @@ sctp_disposition_t sctp_sf_cookie_echoed_prm_abort(
 	struct net *net,
 	const struct sctp_endpoint *ep,
 	const struct sctp_association *asoc,
-	const sctp_subtype_t type,
+	const union sctp_subtype type,
 	void *arg,
 	sctp_cmd_seq_t *commands)
 {
@@ -5119,7 +5122,7 @@ sctp_disposition_t sctp_sf_shutdown_pending_prm_abort(
 	struct net *net,
 	const struct sctp_endpoint *ep,
 	const struct sctp_association *asoc,
-	const sctp_subtype_t type,
+	const union sctp_subtype type,
 	void *arg,
 	sctp_cmd_seq_t *commands)
 {
@@ -5146,7 +5149,7 @@ sctp_disposition_t sctp_sf_shutdown_sent_prm_abort(
 	struct net *net,
 	const struct sctp_endpoint *ep,
 	const struct sctp_association *asoc,
-	const sctp_subtype_t type,
+	const union sctp_subtype type,
 	void *arg,
 	sctp_cmd_seq_t *commands)
 {
@@ -5177,7 +5180,7 @@ sctp_disposition_t sctp_sf_shutdown_ack_sent_prm_abort(
 	struct net *net,
 	const struct sctp_endpoint *ep,
 	const struct sctp_association *asoc,
-	const sctp_subtype_t type,
+	const union sctp_subtype type,
 	void *arg,
 	sctp_cmd_seq_t *commands)
 {
@@ -5213,7 +5216,7 @@ sctp_disposition_t sctp_sf_do_prm_requestheartbeat(
 					struct net *net,
 					const struct sctp_endpoint *ep,
 					const struct sctp_association *asoc,
-					const sctp_subtype_t type,
+					const union sctp_subtype type,
 					void *arg,
 					sctp_cmd_seq_t *commands)
 {
@@ -5245,7 +5248,7 @@ sctp_disposition_t sctp_sf_do_prm_requestheartbeat(
 sctp_disposition_t sctp_sf_do_prm_asconf(struct net *net,
 					const struct sctp_endpoint *ep,
 					const struct sctp_association *asoc,
-					const sctp_subtype_t type,
+					const union sctp_subtype type,
 					void *arg,
 					sctp_cmd_seq_t *commands)
 {
@@ -5262,7 +5265,7 @@ sctp_disposition_t sctp_sf_do_prm_asconf(struct net *net,
 sctp_disposition_t sctp_sf_do_prm_reconf(struct net *net,
 					 const struct sctp_endpoint *ep,
 					 const struct sctp_association *asoc,
-					 const sctp_subtype_t type,
+					 const union sctp_subtype type,
 					 void *arg, sctp_cmd_seq_t *commands)
 {
 	struct sctp_chunk *chunk = arg;
@@ -5280,7 +5283,7 @@ sctp_disposition_t sctp_sf_ignore_primitive(
 	struct net *net,
 	const struct sctp_endpoint *ep,
 	const struct sctp_association *asoc,
-	const sctp_subtype_t type,
+	const union sctp_subtype type,
 	void *arg,
 	sctp_cmd_seq_t *commands)
 {
@@ -5304,7 +5307,7 @@ sctp_disposition_t sctp_sf_do_no_pending_tsn(
 	struct net *net,
 	const struct sctp_endpoint *ep,
 	const struct sctp_association *asoc,
-	const sctp_subtype_t type,
+	const union sctp_subtype type,
 	void *arg,
 	sctp_cmd_seq_t *commands)
 {
@@ -5336,7 +5339,7 @@ sctp_disposition_t sctp_sf_do_9_2_start_shutdown(
 	struct net *net,
 	const struct sctp_endpoint *ep,
 	const struct sctp_association *asoc,
-	const sctp_subtype_t type,
+	const union sctp_subtype type,
 	void *arg,
 	sctp_cmd_seq_t *commands)
 {
@@ -5406,7 +5409,7 @@ sctp_disposition_t sctp_sf_do_9_2_shutdown_ack(
 	struct net *net,
 	const struct sctp_endpoint *ep,
 	const struct sctp_association *asoc,
-	const sctp_subtype_t type,
+	const union sctp_subtype type,
 	void *arg,
 	sctp_cmd_seq_t *commands)
 {
@@ -5479,7 +5482,7 @@ nomem:
 sctp_disposition_t sctp_sf_ignore_other(struct net *net,
 					const struct sctp_endpoint *ep,
 					const struct sctp_association *asoc,
-					const sctp_subtype_t type,
+					const union sctp_subtype type,
 					void *arg,
 					sctp_cmd_seq_t *commands)
 {
@@ -5507,7 +5510,7 @@ sctp_disposition_t sctp_sf_ignore_other(struct net *net,
 sctp_disposition_t sctp_sf_do_6_3_3_rtx(struct net *net,
 					const struct sctp_endpoint *ep,
 					const struct sctp_association *asoc,
-					const sctp_subtype_t type,
+					const union sctp_subtype type,
 					void *arg,
 					sctp_cmd_seq_t *commands)
 {
@@ -5595,7 +5598,7 @@ sctp_disposition_t sctp_sf_do_6_3_3_rtx(struct net *net,
 sctp_disposition_t sctp_sf_do_6_2_sack(struct net *net,
 				       const struct sctp_endpoint *ep,
 				       const struct sctp_association *asoc,
-				       const sctp_subtype_t type,
+				       const union sctp_subtype type,
 				       void *arg,
 				       sctp_cmd_seq_t *commands)
 {
@@ -5626,7 +5629,7 @@ sctp_disposition_t sctp_sf_do_6_2_sack(struct net *net,
 sctp_disposition_t sctp_sf_t1_init_timer_expire(struct net *net,
 					   const struct sctp_endpoint *ep,
 					   const struct sctp_association *asoc,
-					   const sctp_subtype_t type,
+					   const union sctp_subtype type,
 					   void *arg,
 					   sctp_cmd_seq_t *commands)
 {
@@ -5690,7 +5693,7 @@ sctp_disposition_t sctp_sf_t1_init_timer_expire(struct net *net,
 sctp_disposition_t sctp_sf_t1_cookie_timer_expire(struct net *net,
 					   const struct sctp_endpoint *ep,
 					   const struct sctp_association *asoc,
-					   const sctp_subtype_t type,
+					   const union sctp_subtype type,
 					   void *arg,
 					   sctp_cmd_seq_t *commands)
 {
@@ -5740,7 +5743,7 @@ sctp_disposition_t sctp_sf_t1_cookie_timer_expire(struct net *net,
 sctp_disposition_t sctp_sf_t2_timer_expire(struct net *net,
 					   const struct sctp_endpoint *ep,
 					   const struct sctp_association *asoc,
-					   const sctp_subtype_t type,
+					   const union sctp_subtype type,
 					   void *arg,
 					   sctp_cmd_seq_t *commands)
 {
@@ -5811,7 +5814,7 @@ sctp_disposition_t sctp_sf_t4_timer_expire(
 	struct net *net,
 	const struct sctp_endpoint *ep,
 	const struct sctp_association *asoc,
-	const sctp_subtype_t type,
+	const union sctp_subtype type,
 	void *arg,
 	sctp_cmd_seq_t *commands)
 {
@@ -5882,7 +5885,7 @@ sctp_disposition_t sctp_sf_t4_timer_expire(
 sctp_disposition_t sctp_sf_t5_timer_expire(struct net *net,
 					   const struct sctp_endpoint *ep,
 					   const struct sctp_association *asoc,
-					   const sctp_subtype_t type,
+					   const union sctp_subtype type,
 					   void *arg,
 					   sctp_cmd_seq_t *commands)
 {
@@ -5919,7 +5922,7 @@ sctp_disposition_t sctp_sf_autoclose_timer_expire(
 	struct net *net,
 	const struct sctp_endpoint *ep,
 	const struct sctp_association *asoc,
-	const sctp_subtype_t type,
+	const union sctp_subtype type,
 	void *arg,
 	sctp_cmd_seq_t *commands)
 {
@@ -5961,7 +5964,7 @@ sctp_disposition_t sctp_sf_autoclose_timer_expire(
 sctp_disposition_t sctp_sf_not_impl(struct net *net,
 				    const struct sctp_endpoint *ep,
 				    const struct sctp_association *asoc,
-				    const sctp_subtype_t type,
+				    const union sctp_subtype type,
 				    void *arg,
 				    sctp_cmd_seq_t *commands)
 {
@@ -5979,7 +5982,7 @@ sctp_disposition_t sctp_sf_not_impl(struct net *net,
 sctp_disposition_t sctp_sf_bug(struct net *net,
 			       const struct sctp_endpoint *ep,
 			       const struct sctp_association *asoc,
-			       const sctp_subtype_t type,
+			       const union sctp_subtype type,
 			       void *arg,
 			       sctp_cmd_seq_t *commands)
 {
@@ -6000,7 +6003,7 @@ sctp_disposition_t sctp_sf_bug(struct net *net,
 sctp_disposition_t sctp_sf_timer_ignore(struct net *net,
 					const struct sctp_endpoint *ep,
 					const struct sctp_association *asoc,
-					const sctp_subtype_t type,
+					const union sctp_subtype type,
 					void *arg,
 					sctp_cmd_seq_t *commands)
 {

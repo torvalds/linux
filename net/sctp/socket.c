@@ -1055,7 +1055,7 @@ static int __sctp_connect(struct sock *sk,
 	struct sctp_association *asoc2;
 	struct sctp_transport *transport;
 	union sctp_addr to;
-	sctp_scope_t scope;
+	enum sctp_scope scope;
 	long timeo;
 	int err = 0;
 	int addrcnt = 0;
@@ -1610,7 +1610,7 @@ static int sctp_sendmsg(struct sock *sk, struct msghdr *msg, size_t msg_len)
 	struct sctp_initmsg *sinit;
 	sctp_assoc_t associd = 0;
 	sctp_cmsgs_t cmsgs = { NULL };
-	sctp_scope_t scope;
+	enum sctp_scope scope;
 	bool fill_sinfo_ttl = false, wait_connect = false;
 	struct sctp_datamsg *datamsg;
 	int msg_flags = msg->msg_flags;

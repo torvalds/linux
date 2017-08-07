@@ -534,7 +534,7 @@ void sctp_retransmit_mark(struct sctp_outq *q,
  * one packet out.
  */
 void sctp_retransmit(struct sctp_outq *q, struct sctp_transport *transport,
-		     sctp_retransmit_reason_t reason)
+		     enum sctp_retransmit_reason reason)
 {
 	struct net *net = sock_net(q->asoc->base.sk);
 
@@ -594,14 +594,14 @@ void sctp_retransmit(struct sctp_outq *q, struct sctp_transport *transport,
 static int sctp_outq_flush_rtx(struct sctp_outq *q, struct sctp_packet *pkt,
 			       int rtx_timeout, int *start_timer)
 {
-	struct list_head *lqueue;
 	struct sctp_transport *transport = pkt->transport;
-	sctp_xmit_t status;
 	struct sctp_chunk *chunk, *chunk1;
-	int fast_rtx;
+	struct list_head *lqueue;
+	enum sctp_xmit status;
 	int error = 0;
 	int timer = 0;
 	int done = 0;
+	int fast_rtx;
 
 	lqueue = &q->retransmit;
 	fast_rtx = q->fast_rtx;
@@ -781,7 +781,7 @@ static void sctp_outq_flush(struct sctp_outq *q, int rtx_timeout, gfp_t gfp)
 	struct sctp_transport *transport = NULL;
 	struct sctp_transport *new_transport;
 	struct sctp_chunk *chunk, *tmp;
-	sctp_xmit_t status;
+	enum sctp_xmit status;
 	int error = 0;
 	int start_timer = 0;
 	int one_packet = 0;

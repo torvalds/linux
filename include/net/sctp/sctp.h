@@ -94,8 +94,8 @@
 /*
  * sctp/protocol.c
  */
-int sctp_copy_local_addr_list(struct net *, struct sctp_bind_addr *,
-			      sctp_scope_t, gfp_t gfp, int flags);
+int sctp_copy_local_addr_list(struct net *net, struct sctp_bind_addr *addr,
+			      enum sctp_scope, gfp_t gfp, int flags);
 struct sctp_pf *sctp_get_pf_specific(sa_family_t family);
 int sctp_register_pf(struct sctp_pf *, sa_family_t);
 void sctp_addr_wq_mgmt(struct net *, struct sctp_sockaddr_entry *, int);
@@ -558,14 +558,15 @@ static inline int __sctp_style(const struct sock *sk, sctp_socket_type_t style)
 /* Is the association in this state? */
 #define sctp_state(asoc, state) __sctp_state((asoc), (SCTP_STATE_##state))
 static inline int __sctp_state(const struct sctp_association *asoc,
-			       sctp_state_t state)
+			       enum sctp_state state)
 {
 	return asoc->state == state;
 }
 
 /* Is the socket in this state? */
 #define sctp_sstate(sk, state) __sctp_sstate((sk), (SCTP_SS_##state))
-static inline int __sctp_sstate(const struct sock *sk, sctp_sock_state_t state)
+static inline int __sctp_sstate(const struct sock *sk,
+				enum sctp_sock_state state)
 {
 	return sk->sk_state == state;
 }

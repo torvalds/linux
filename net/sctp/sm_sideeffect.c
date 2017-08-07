@@ -51,17 +51,18 @@
 #include <net/sctp/sctp.h>
 #include <net/sctp/sm.h>
 
-static int sctp_cmd_interpreter(sctp_event_t event_type,
-				sctp_subtype_t subtype,
-				sctp_state_t state,
+static int sctp_cmd_interpreter(enum sctp_event event_type,
+				union sctp_subtype subtype,
+				enum sctp_state state,
 				struct sctp_endpoint *ep,
 				struct sctp_association *asoc,
 				void *event_arg,
 				sctp_disposition_t status,
 				sctp_cmd_seq_t *commands,
 				gfp_t gfp);
-static int sctp_side_effects(sctp_event_t event_type, sctp_subtype_t subtype,
-			     sctp_state_t state,
+static int sctp_side_effects(enum sctp_event event_type,
+			     union sctp_subtype subtype,
+			     enum sctp_state state,
 			     struct sctp_endpoint *ep,
 			     struct sctp_association **asoc,
 			     void *event_arg,
@@ -280,7 +281,7 @@ out_unlock:
  * for timeouts which use the association as their parameter.
  */
 static void sctp_generate_timeout_event(struct sctp_association *asoc,
-					sctp_event_timeout_t timeout_type)
+					enum sctp_event_timeout timeout_type)
 {
 	struct sock *sk = asoc->base.sk;
 	struct net *net = sock_net(sk);
@@ -602,8 +603,8 @@ static void sctp_cmd_init_failed(sctp_cmd_seq_t *commands,
 /* Worker routine to handle SCTP_CMD_ASSOC_FAILED.  */
 static void sctp_cmd_assoc_failed(sctp_cmd_seq_t *commands,
 				  struct sctp_association *asoc,
-				  sctp_event_t event_type,
-				  sctp_subtype_t subtype,
+				  enum sctp_event event_type,
+				  union sctp_subtype subtype,
 				  struct sctp_chunk *chunk,
 				  unsigned int error)
 {
@@ -843,7 +844,7 @@ static void sctp_cmd_assoc_update(sctp_cmd_seq_t *cmds,
 /* Helper function to change the state of an association. */
 static void sctp_cmd_new_state(sctp_cmd_seq_t *cmds,
 			       struct sctp_association *asoc,
-			       sctp_state_t state)
+			       enum sctp_state state)
 {
 	struct sock *sk = asoc->base.sk;
 
@@ -1052,8 +1053,8 @@ static void sctp_cmd_adaptation_ind(sctp_cmd_seq_t *commands,
 
 
 static void sctp_cmd_t1_timer_update(struct sctp_association *asoc,
-				    sctp_event_timeout_t timer,
-				    char *name)
+				     enum sctp_event_timeout timer,
+				     char *name)
 {
 	struct sctp_transport *t;
 
@@ -1139,18 +1140,16 @@ static void sctp_cmd_send_asconf(struct sctp_association *asoc)
  * If you want to understand all of lksctp, this is a
  * good place to start.
  */
-int sctp_do_sm(struct net *net, sctp_event_t event_type, sctp_subtype_t subtype,
-	       sctp_state_t state,
-	       struct sctp_endpoint *ep,
-	       struct sctp_association *asoc,
-	       void *event_arg,
-	       gfp_t gfp)
+int sctp_do_sm(struct net *net, enum sctp_event event_type,
+	       union sctp_subtype subtype, enum sctp_state state,
+	       struct sctp_endpoint *ep, struct sctp_association *asoc,
+	       void *event_arg, gfp_t gfp)
 {
 	sctp_cmd_seq_t commands;
 	const sctp_sm_table_entry_t *state_fn;
 	sctp_disposition_t status;
 	int error = 0;
-	typedef const char *(printfn_t)(sctp_subtype_t);
+	typedef const char *(printfn_t)(union sctp_subtype);
 	static printfn_t *table[] = {
 		NULL, sctp_cname, sctp_tname, sctp_oname, sctp_pname,
 	};
@@ -1178,8 +1177,9 @@ int sctp_do_sm(struct net *net, sctp_event_t event_type, sctp_subtype_t subtype,
 /*****************************************************************
  * This the master state function side effect processing function.
  *****************************************************************/
-static int sctp_side_effects(sctp_event_t event_type, sctp_subtype_t subtype,
-			     sctp_state_t state,
+static int sctp_side_effects(enum sctp_event event_type,
+			     union sctp_subtype subtype,
+			     enum sctp_state state,
 			     struct sctp_endpoint *ep,
 			     struct sctp_association **asoc,
 			     void *event_arg,
@@ -1263,9 +1263,9 @@ bail:
  ********************************************************************/
 
 /* This is the side-effect interpreter.  */
-static int sctp_cmd_interpreter(sctp_event_t event_type,
-				sctp_subtype_t subtype,
-				sctp_state_t state,
+static int sctp_cmd_interpreter(enum sctp_event event_type,
+				union sctp_subtype subtype,
+				enum sctp_state state,
 				struct sctp_endpoint *ep,
 				struct sctp_association *asoc,
 				void *event_arg,

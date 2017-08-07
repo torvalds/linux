@@ -130,7 +130,7 @@ static const struct file_operations sctpprobe_fops = {
 static sctp_disposition_t jsctp_sf_eat_sack(struct net *net,
 					    const struct sctp_endpoint *ep,
 					    const struct sctp_association *asoc,
-					    const sctp_subtype_t type,
+					    const union sctp_subtype type,
 					    void *arg,
 					    sctp_cmd_seq_t *commands)
 {
