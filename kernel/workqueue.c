@@ -21,7 +21,7 @@
  * pools for workqueues which are not bound to any specific CPU - the
  * number of these backing pools is dynamic.
  *
- * Please read Documentation/workqueue.txt for details.
+ * Please read Documentation/core-api/workqueue.rst for details.
  */
 
 #include <linux/export.h>
