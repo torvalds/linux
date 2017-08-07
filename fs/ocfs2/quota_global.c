@@ -504,7 +504,7 @@ int __ocfs2_sync_dquot(struct dquot *dquot, int freeing)
 	/* Update space and inode usage. Get also other information from
 	 * global quota file so that we don't overwrite any changes there.
 	 * We are */
-	spin_lock(&dq_data_lock);
+	spin_lock(&dquot->dq_dqb_lock);
 	spacechange = dquot->dq_dqb.dqb_curspace -
 					OCFS2_DQUOT(dquot)->dq_origspace;
 	inodechange = dquot->dq_dqb.dqb_curinodes -
@@ -560,7 +560,7 @@ int __ocfs2_sync_dquot(struct dquot *dquot, int freeing)
 	__clear_bit(DQ_LASTSET_B + QIF_ITIME_B, &dquot->dq_flags);
 	OCFS2_DQUOT(dquot)->dq_origspace = dquot->dq_dqb.dqb_curspace;
 	OCFS2_DQUOT(dquot)->dq_originodes = dquot->dq_dqb.dqb_curinodes;
-	spin_unlock(&dq_data_lock);
+	spin_unlock(&dquot->dq_dqb_lock);
 	err = ocfs2_qinfo_lock(info, freeing);
 	if (err < 0) {
 		mlog(ML_ERROR, "Failed to lock quota info, losing quota write"
@@ -924,10 +924,10 @@ static int ocfs2_mark_dquot_dirty(struct dquot *dquot)
 
 	/* In case user set some limits, sync dquot immediately to global
 	 * quota file so that information propagates quicker */
-	spin_lock(&dq_data_lock);
+	spin_lock(&dquot->dq_dqb_lock);
 	if (dquot->dq_flags & mask)
 		sync = 1;
-	spin_unlock(&dq_data_lock);
+	spin_unlock(&dquot->dq_dqb_lock);
 	/* This is a slight hack but we can't afford getting global quota
 	 * lock if we already have a transaction started. */
 	if (!sync || journal_current_handle()) {

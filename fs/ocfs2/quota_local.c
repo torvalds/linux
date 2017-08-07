@@ -521,7 +521,7 @@ static int ocfs2_recover_local_quota_file(struct inode *lqinode,
 				goto out_drop_lock;
 			}
 			down_write(&sb_dqopt(sb)->dqio_sem);
-			spin_lock(&dq_data_lock);
+			spin_lock(&dquot->dq_dqb_lock);
 			/* Add usage from quota entry into quota changes
 			 * of our node. Auxiliary variables are important
 			 * due to signedness */
@@ -529,7 +529,7 @@ static int ocfs2_recover_local_quota_file(struct inode *lqinode,
 			inodechange = le64_to_cpu(dqblk->dqb_inodemod);
 			dquot->dq_dqb.dqb_curspace += spacechange;
 			dquot->dq_dqb.dqb_curinodes += inodechange;
-			spin_unlock(&dq_data_lock);
+			spin_unlock(&dquot->dq_dqb_lock);
 			/* We want to drop reference held by the crashed
 			 * node. Since we have our own reference we know
 			 * global structure actually won't be freed. */
@@ -877,12 +877,12 @@ static void olq_set_dquot(struct buffer_head *bh, void *private)
 
 	dqblk->dqb_id = cpu_to_le64(from_kqid(&init_user_ns,
 					      od->dq_dquot.dq_id));
-	spin_lock(&dq_data_lock);
+	spin_lock(&od->dq_dquot.dq_dqb_lock);
 	dqblk->dqb_spacemod = cpu_to_le64(od->dq_dquot.dq_dqb.dqb_curspace -
 					  od->dq_origspace);
 	dqblk->dqb_inodemod = cpu_to_le64(od->dq_dquot.dq_dqb.dqb_curinodes -
 					  od->dq_originodes);
-	spin_unlock(&dq_data_lock);
+	spin_unlock(&od->dq_dquot.dq_dqb_lock);
 	trace_olq_set_dquot(
 		(unsigned long long)le64_to_cpu(dqblk->dqb_spacemod),
 		(unsigned long long)le64_to_cpu(dqblk->dqb_inodemod),

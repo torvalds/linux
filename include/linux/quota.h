@@ -298,12 +298,13 @@ struct dquot {
 	struct list_head dq_free;	/* Free list element */
 	struct list_head dq_dirty;	/* List of dirty dquots */
 	struct mutex dq_lock;		/* dquot IO lock */
+	spinlock_t dq_dqb_lock;		/* Lock protecting dq_dqb changes */
 	atomic_t dq_count;		/* Use count */
 	struct super_block *dq_sb;	/* superblock this applies to */
 	struct kqid dq_id;		/* ID this applies to (uid, gid, projid) */
 	loff_t dq_off;			/* Offset of dquot on disk */
 	unsigned long dq_flags;		/* See DQ_* */
-	struct mem_dqblk dq_dqb;	/* Diskquota usage */
+	struct mem_dqblk dq_dqb;	/* Diskquota usage [dq_dqb_lock] */
 };
 
 /* Operations which must be implemented by each quota format */

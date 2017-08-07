@@ -5194,7 +5194,7 @@ static int ext4_statfs_project(struct super_block *sb,
 	dquot = dqget(sb, qid);
 	if (IS_ERR(dquot))
 		return PTR_ERR(dquot);
-	spin_lock(&dq_data_lock);
+	spin_lock(&dquot->dq_dqb_lock);
 
 	limit = (dquot->dq_dqb.dqb_bsoftlimit ?
 		 dquot->dq_dqb.dqb_bsoftlimit :
@@ -5217,7 +5217,7 @@ static int ext4_statfs_project(struct super_block *sb,
 			 (buf->f_files - dquot->dq_dqb.dqb_curinodes) : 0;
 	}
 
-	spin_unlock(&dq_data_lock);
+	spin_unlock(&dquot->dq_dqb_lock);
 	dqput(dquot);
 	return 0;
 }
