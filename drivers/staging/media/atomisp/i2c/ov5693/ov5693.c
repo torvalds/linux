@@ -913,7 +913,7 @@ err:
 	return ret;
 }
 
-int ad5823_t_focus_vcm(struct v4l2_subdev *sd, u16 val)
+static int ad5823_t_focus_vcm(struct v4l2_subdev *sd, u16 val)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	int ret = -EINVAL;

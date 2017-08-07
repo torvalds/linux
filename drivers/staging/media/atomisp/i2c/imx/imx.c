@@ -1084,38 +1084,6 @@ static int imx_g_bin_factor_y(struct v4l2_subdev *sd, s32 *val)
 	return 0;
 }
 
-static int imx_vcm_power_up(struct v4l2_subdev *sd)
-{
-	struct imx_device *dev = to_imx_sensor(sd);
-	if (dev->vcm_driver && dev->vcm_driver->power_up)
-		return dev->vcm_driver->power_up(sd);
-	return 0;
-}
-
-static int imx_vcm_power_down(struct v4l2_subdev *sd)
-{
-	struct imx_device *dev = to_imx_sensor(sd);
-	if (dev->vcm_driver && dev->vcm_driver->power_down)
-		return dev->vcm_driver->power_down(sd);
-	return 0;
-}
-
-static int imx_vcm_init(struct v4l2_subdev *sd)
-{
-	struct imx_device *dev = to_imx_sensor(sd);
-	if (dev->vcm_driver && dev->vcm_driver->init)
-		return dev->vcm_driver->init(sd);
-	return 0;
-}
-
-static int imx_t_focus_vcm(struct v4l2_subdev *sd, u16 val)
-{
-	struct imx_device *dev = to_imx_sensor(sd);
-	if (dev->vcm_driver && dev->vcm_driver->t_focus_vcm)
-		return dev->vcm_driver->t_focus_vcm(sd, val);
-	return 0;
-}
-
 static int imx_t_focus_abs(struct v4l2_subdev *sd, s32 value)
 {
 	struct imx_device *dev = to_imx_sensor(sd);
