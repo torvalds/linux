@@ -1883,8 +1883,11 @@ static int atmel_xdmac_resume(struct device *dev)
 	struct at_xdmac_chan	*atchan;
 	struct dma_chan		*chan, *_chan;
 	int			i;
+	int ret;
 
-	clk_prepare_enable(atxdmac->clk);
+	ret = clk_prepare_enable(atxdmac->clk);
+	if (ret)
+		return ret;
 
 	/* Clear pending interrupts. */
 	for (i = 0; i < atxdmac->dma.chancnt; i++) {
