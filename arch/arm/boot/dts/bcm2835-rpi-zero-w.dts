@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016 Stefan Wahren <stefan.wahren@i2se.com>
+ * Copyright (C) 2017 Stefan Wahren <stefan.wahren@i2se.com>
  *
  * The code contained herein is licensed under the GNU General Public
  * License. You may obtain a copy of the GNU General Public License
@@ -12,16 +12,31 @@
 /dts-v1/;
 #include "bcm2835.dtsi"
 #include "bcm2835-rpi.dtsi"
-#include "bcm283x-rpi-usb-otg.dtsi"
+#include "bcm283x-rpi-usb-host.dtsi"
 
 / {
-	compatible = "raspberrypi,model-zero", "brcm,bcm2835";
-	model = "Raspberry Pi Zero";
+	compatible = "raspberrypi,model-zero-w", "brcm,bcm2835";
+	model = "Raspberry Pi Zero W";
+
+	/* Needed by firmware to properly init UARTs */
+	aliases {
+		uart0 = "/soc/serial@7e201000";
+		uart1 = "/soc/serial@7e215040";
+		serial0 = "/soc/serial@7e201000";
+		serial1 = "/soc/serial@7e215040";
+	};
 
 	leds {
 		act {
 			gpios = <&gpio 47 GPIO_ACTIVE_HIGH>;
 		};
+	};
+
+	wifi_pwrseq: wifi-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wl_on>;
+		reset-gpios = <&gpio 41 GPIO_ACTIVE_LOW>;
 	};
 };
 
@@ -34,8 +49,8 @@
 	 * "FOO" = GPIO line named "FOO" on the schematic
 	 * "FOO_N" = GPIO line named "FOO" on schematic, active low
 	 */
-	gpio-line-names = "SDA0",
-			  "SCL0",
+	gpio-line-names = "GPIO0",
+			  "GPIO1",
 			  "SDA1",
 			  "SCL1",
 			  "GPIO_GCLK",
@@ -67,7 +82,7 @@
 			  "SCL0",
 			  "NC", /* GPIO30 */
 			  "NC", /* GPIO31 */
-			  "CAM_GPIO1", /* GPIO32 */
+			  "NC", /* GPIO32 */
 			  "NC", /* GPIO33 */
 			  "NC", /* GPIO34 */
 			  "NC", /* GPIO35 */
@@ -75,12 +90,12 @@
 			  "NC", /* GPIO37 */
 			  "NC", /* GPIO38 */
 			  "NC", /* GPIO39 */
-			  "NC", /* GPIO40 */
-			  "CAM_GPIO0", /* GPIO41 */
+			  "CAM_GPIO1", /* GPIO40 */
+			  "WL_ON", /* GPIO41 */
 			  "NC", /* GPIO42 */
-			  "NC", /* GPIO43 */
-			  "NC", /* GPIO44 */
-			  "NC", /* GPIO45 */
+			  "WIFI_CLK", /* GPIO43 */
+			  "CAM_GPIO0", /* GPIO44 */
+			  "BT_ON", /* GPIO45 */
 			  "HDMI_HPD_N",
 			  "STATUS_LED_N",
 			  /* Used by SD Card */
@@ -91,17 +106,30 @@
 			  "SD_DATA2_R",
 			  "SD_DATA3_R";
 
-	pinctrl-0 = <&gpioout &alt0 &i2s_alt0>;
+	pinctrl-0 = <&gpioout &alt0>;
 
-	/* I2S interface */
-	i2s_alt0: i2s_alt0 {
-		brcm,pins = <18 19 20 21>;
-		brcm,function = <BCM2835_FSEL_ALT0>;
+	wl_on: wl-on {
+		brcm,pins = <41>;
+		brcm,function = <BCM2835_FSEL_GPIO_OUT>;
 	};
 };
 
 &hdmi {
 	hpd-gpios = <&gpio 46 GPIO_ACTIVE_LOW>;
+};
+
+&sdhci {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	pinctrl-0 = <&emmc_gpio34 &gpclk2_gpio43>;
+	mmc-pwrseq = <&wifi_pwrseq>;
+	non-removable;
+	status = "okay";
+
+	brcmf: wifi@1 {
+		reg = <1>;
+		compatible = "brcm,bcm4329-fmac";
+	};
 };
 
 &uart0 {

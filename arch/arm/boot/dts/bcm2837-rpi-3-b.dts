@@ -19,7 +19,17 @@
 	};
 };
 
+/* uart0 communicates with the BT module */
+&uart0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart0_gpio32 &gpclk2_gpio43>;
+	status = "okay";
+};
+
+/* uart1 is mapped to the pin header */
 &uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_gpio14>;
 	status = "okay";
 };
 
