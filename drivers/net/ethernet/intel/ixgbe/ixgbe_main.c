@@ -9226,42 +9226,53 @@ free_jump:
 	return err;
 }
 
+static int ixgbe_setup_tc_cls_u32(struct net_device *dev,
+				  u32 handle, u32 chain_index, __be16 proto,
+				  struct tc_cls_u32_offload *cls_u32)
+{
+	struct ixgbe_adapter *adapter = netdev_priv(dev);
+
+	if (TC_H_MAJ(handle) != TC_H_MAJ(TC_H_INGRESS) ||
+	    chain_index)
+		return -EOPNOTSUPP;
+
+	switch (cls_u32->command) {
+	case TC_CLSU32_NEW_KNODE:
+	case TC_CLSU32_REPLACE_KNODE:
+		return ixgbe_configure_clsu32(adapter, proto, cls_u32);
+	case TC_CLSU32_DELETE_KNODE:
+		return ixgbe_delete_clsu32(adapter, cls_u32);
+	case TC_CLSU32_NEW_HNODE:
+	case TC_CLSU32_REPLACE_HNODE:
+		return ixgbe_configure_clsu32_add_hnode(adapter, proto,
+							cls_u32);
+	case TC_CLSU32_DELETE_HNODE:
+		return ixgbe_configure_clsu32_del_hnode(adapter, cls_u32);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int ixgbe_setup_tc_mqprio(struct net_device *dev,
+				 struct tc_mqprio_qopt *mqprio)
+{
+	mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
+	return ixgbe_setup_tc(dev, mqprio->num_tc);
+}
+
 static int __ixgbe_setup_tc(struct net_device *dev, enum tc_setup_type type,
 			    u32 handle, u32 chain_index, __be16 proto,
 			    struct tc_to_netdev *tc)
 {
-	struct ixgbe_adapter *adapter = netdev_priv(dev);
-
-	if (chain_index)
+	switch (type) {
+	case TC_SETUP_CLSU32:
+		return ixgbe_setup_tc_cls_u32(dev, handle, chain_index, proto,
+					      tc->cls_u32);
+	case TC_SETUP_MQPRIO:
+		return ixgbe_setup_tc_mqprio(dev, tc->mqprio);
+	default:
 		return -EOPNOTSUPP;
-
-	if (TC_H_MAJ(handle) == TC_H_MAJ(TC_H_INGRESS) &&
-	    type == TC_SETUP_CLSU32) {
-		switch (tc->cls_u32->command) {
-		case TC_CLSU32_NEW_KNODE:
-		case TC_CLSU32_REPLACE_KNODE:
-			return ixgbe_configure_clsu32(adapter,
-						      proto, tc->cls_u32);
-		case TC_CLSU32_DELETE_KNODE:
-			return ixgbe_delete_clsu32(adapter, tc->cls_u32);
-		case TC_CLSU32_NEW_HNODE:
-		case TC_CLSU32_REPLACE_HNODE:
-			return ixgbe_configure_clsu32_add_hnode(adapter, proto,
-								tc->cls_u32);
-		case TC_CLSU32_DELETE_HNODE:
-			return ixgbe_configure_clsu32_del_hnode(adapter,
-								tc->cls_u32);
-		default:
-			return -EINVAL;
-		}
 	}
-
-	if (type != TC_SETUP_MQPRIO)
-		return -EINVAL;
-
-	tc->mqprio->hw = TC_MQPRIO_HW_OFFLOAD_TCS;
-
-	return ixgbe_setup_tc(dev, tc->mqprio->num_tc);
 }
 
 #ifdef CONFIG_PCI_IOV
