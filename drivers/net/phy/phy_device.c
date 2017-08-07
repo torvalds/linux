@@ -688,6 +688,19 @@ struct phy_device *phy_find_first(struct mii_bus *bus)
 }
 EXPORT_SYMBOL(phy_find_first);
 
+static void phy_link_change(struct phy_device *phydev, bool up, bool do_carrier)
+{
+	struct net_device *netdev = phydev->attached_dev;
+
+	if (do_carrier) {
+		if (up)
+			netif_carrier_on(netdev);
+		else
+			netif_carrier_off(netdev);
+	}
+	phydev->adjust_link(netdev);
+}
+
 /**
  * phy_prepare_link - prepares the PHY layer to monitor link status
  * @phydev: target phy_device struct
@@ -951,6 +964,7 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 		goto error;
 	}
 
+	phydev->phy_link_change = phy_link_change;
 	phydev->attached_dev = dev;
 	dev->phydev = phydev;
 
@@ -1070,6 +1084,7 @@ void phy_detach(struct phy_device *phydev)
 	phydev->attached_dev->phydev = NULL;
 	phydev->attached_dev = NULL;
 	phy_suspend(phydev);
+	phydev->phylink = NULL;
 
 	phy_led_triggers_unregister(phydev);
 
