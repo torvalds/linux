@@ -91,7 +91,7 @@ static void set_tun_src(struct net *net, struct net_device *dev,
 }
 
 /* encapsulate an IPv6 packet within an outer IPv6 header with a given SRH */
-static int seg6_do_srh_encap(struct sk_buff *skb, struct ipv6_sr_hdr *osrh)
+int seg6_do_srh_encap(struct sk_buff *skb, struct ipv6_sr_hdr *osrh)
 {
 	struct net *net = dev_net(skb_dst(skb)->dev);
 	struct ipv6hdr *hdr, *inner_hdr;
@@ -141,10 +141,10 @@ static int seg6_do_srh_encap(struct sk_buff *skb, struct ipv6_sr_hdr *osrh)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(seg6_do_srh_encap);
 
 /* insert an SRH within an IPv6 packet, just after the IPv6 header */
-#ifdef CONFIG_IPV6_SEG6_INLINE
-static int seg6_do_srh_inline(struct sk_buff *skb, struct ipv6_sr_hdr *osrh)
+int seg6_do_srh_inline(struct sk_buff *skb, struct ipv6_sr_hdr *osrh)
 {
 	struct ipv6hdr *hdr, *oldhdr;
 	struct ipv6_sr_hdr *isrh;
@@ -193,7 +193,7 @@ static int seg6_do_srh_inline(struct sk_buff *skb, struct ipv6_sr_hdr *osrh)
 
 	return 0;
 }
-#endif
+EXPORT_SYMBOL_GPL(seg6_do_srh_inline);
 
 static int seg6_do_srh(struct sk_buff *skb)
 {
@@ -209,12 +209,10 @@ static int seg6_do_srh(struct sk_buff *skb)
 	}
 
 	switch (tinfo->mode) {
-#ifdef CONFIG_IPV6_SEG6_INLINE
 	case SEG6_IPTUN_MODE_INLINE:
 		err = seg6_do_srh_inline(skb, tinfo->srh);
 		skb_reset_inner_headers(skb);
 		break;
-#endif
 	case SEG6_IPTUN_MODE_ENCAP:
 		err = seg6_do_srh_encap(skb, tinfo->srh);
 		break;
@@ -357,10 +355,8 @@ static int seg6_build_state(struct nlattr *nla,
 		return -EINVAL;
 
 	switch (tuninfo->mode) {
-#ifdef CONFIG_IPV6_SEG6_INLINE
 	case SEG6_IPTUN_MODE_INLINE:
 		break;
-#endif
 	case SEG6_IPTUN_MODE_ENCAP:
 		break;
 	default:
