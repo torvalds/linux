@@ -1833,7 +1833,7 @@ void audit_log_format(struct audit_buffer *ab, const char *fmt, ...)
 }
 
 /**
- * audit_log_hex - convert a buffer to hex and append it to the audit skb
+ * audit_log_n_hex - convert a buffer to hex and append it to the audit skb
  * @ab: the audit_buffer
  * @buf: buffer to convert to hex
  * @len: length of @buf to be converted
