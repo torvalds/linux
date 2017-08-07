@@ -52,7 +52,7 @@ static struct sock *raw_lookup(struct net *net, struct sock *from,
 		sk = __raw_v6_lookup(net, from, r->sdiag_raw_protocol,
 				     (const struct in6_addr *)r->id.idiag_src,
 				     (const struct in6_addr *)r->id.idiag_dst,
-				     r->id.idiag_if);
+				     r->id.idiag_if, 0);
 #endif
 	return sk;
 }
