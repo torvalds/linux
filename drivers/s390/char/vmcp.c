@@ -231,7 +231,7 @@ static long vmcp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		return put_user(temp, argp);
 	default:
 		mutex_unlock(&session->mutex);
-		return -ENOIOCTLCMD;
+		return -ENOTTY;
 	}
 }
 
