@@ -140,7 +140,7 @@ struct bpf_verifier_stack_elem {
 	struct bpf_verifier_stack_elem *next;
 };
 
-#define BPF_COMPLEXITY_LIMIT_INSNS	98304
+#define BPF_COMPLEXITY_LIMIT_INSNS	131072
 #define BPF_COMPLEXITY_LIMIT_STACK	1024
 
 #define BPF_MAP_PTR_POISON ((void *)0xeB9F + POISON_POINTER_DELTA)
