@@ -210,10 +210,7 @@
 	};
 };
 
-/*
- * GEN1_I2C: I2C1_SDA/SCL on MXM3 209/211 (e.g. RTC on carrier
- * board)
- */
+/* I2C1_SDA/SCL on MXM3 209/211 (e.g. RTC on carrier board) */
 &i2c1 {
 	clock-frequency = <100000>;
 	pinctrl-names = "default";
