@@ -234,25 +234,33 @@ static void print_verifier_state(struct bpf_verifier_state *state)
 				verbose(",ks=%d,vs=%d",
 					reg->map_ptr->key_size,
 					reg->map_ptr->value_size);
-			if (reg->smin_value != reg->umin_value &&
-			    reg->smin_value != S64_MIN)
-				verbose(",smin_value=%lld",
-					(long long)reg->smin_value);
-			if (reg->smax_value != reg->umax_value &&
-			    reg->smax_value != S64_MAX)
-				verbose(",smax_value=%lld",
-					(long long)reg->smax_value);
-			if (reg->umin_value != 0)
-				verbose(",umin_value=%llu",
-					(unsigned long long)reg->umin_value);
-			if (reg->umax_value != U64_MAX)
-				verbose(",umax_value=%llu",
-					(unsigned long long)reg->umax_value);
-			if (!tnum_is_unknown(reg->var_off)) {
-				char tn_buf[48];
+			if (tnum_is_const(reg->var_off)) {
+				/* Typically an immediate SCALAR_VALUE, but
+				 * could be a pointer whose offset is too big
+				 * for reg->off
+				 */
+				verbose(",imm=%llx", reg->var_off.value);
+			} else {
+				if (reg->smin_value != reg->umin_value &&
+				    reg->smin_value != S64_MIN)
+					verbose(",smin_value=%lld",
+						(long long)reg->smin_value);
+				if (reg->smax_value != reg->umax_value &&
+				    reg->smax_value != S64_MAX)
+					verbose(",smax_value=%lld",
+						(long long)reg->smax_value);
+				if (reg->umin_value != 0)
+					verbose(",umin_value=%llu",
+						(unsigned long long)reg->umin_value);
+				if (reg->umax_value != U64_MAX)
+					verbose(",umax_value=%llu",
+						(unsigned long long)reg->umax_value);
+				if (!tnum_is_unknown(reg->var_off)) {
+					char tn_buf[48];
 
-				tnum_strn(tn_buf, sizeof(tn_buf), reg->var_off);
-				verbose(",var_off=%s", tn_buf);
+					tnum_strn(tn_buf, sizeof(tn_buf), reg->var_off);
+					verbose(",var_off=%s", tn_buf);
+				}
 			}
 			verbose(")");
 		}
