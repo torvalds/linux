@@ -165,6 +165,8 @@ enum {
 /* Address alignment */
 #define MWIFIEX_ALIGN_ADDR(p, a) (((long)(p) + (a) - 1) & ~((a) - 1))
 
+#define MWIFIEX_MAC_LOCAL_ADMIN_BIT		41
+
 /**
  *enum mwifiex_debug_level  -  marvell wifi debug level
  */
@@ -1671,6 +1673,8 @@ void mwifiex_process_tx_pause_event(struct mwifiex_private *priv,
 void mwifiex_process_multi_chan_event(struct mwifiex_private *priv,
 				      struct sk_buff *event_skb);
 void mwifiex_multi_chan_resync(struct mwifiex_adapter *adapter);
+int mwifiex_set_mac_address(struct mwifiex_private *priv,
+			    struct net_device *dev);
 
 #ifdef CONFIG_DEBUG_FS
 void mwifiex_debugfs_init(void);
