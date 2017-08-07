@@ -259,7 +259,7 @@ static int fl_hw_replace_filter(struct tcf_proto *tp,
 			return tc_skip_sw(f->flags) ? -EINVAL : 0;
 		}
 		dev = f->hw_dev;
-		tc->egress_dev = true;
+		offload.egress_dev = true;
 	} else {
 		f->hw_dev = dev;
 	}

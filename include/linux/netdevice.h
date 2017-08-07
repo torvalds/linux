@@ -792,7 +792,6 @@ struct tc_to_netdev {
 		struct tc_cls_bpf_offload *cls_bpf;
 		struct tc_mqprio_qopt *mqprio;
 	};
-	bool egress_dev;
 };
 
 /* These structures hold the attributes of xdp state that are being passed

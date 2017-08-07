@@ -504,6 +504,7 @@ struct tc_cls_flower_offload {
 	struct fl_flow_key *mask;
 	struct fl_flow_key *key;
 	struct tcf_exts *exts;
+	bool egress_dev;
 };
 
 enum tc_matchall_command {
