@@ -1522,24 +1522,6 @@ void performance_monitor_exception(struct pt_regs *regs)
 	perf_irq(regs);
 }
 
-#ifdef CONFIG_8xx
-void SoftwareEmulation(struct pt_regs *regs)
-{
-	CHECK_FULL_REGS(regs);
-
-	if (!user_mode(regs)) {
-		debugger(regs);
-		die("Kernel Mode Unimplemented Instruction or SW FPU Emulation",
-			regs, SIGFPE);
-	}
-
-	if (!emulate_math(regs))
-		return;
-
-	_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
-}
-#endif /* CONFIG_8xx */
-
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 static void handle_debug(struct pt_regs *regs, unsigned long debug_status)
 {
