@@ -463,6 +463,7 @@ static const struct intel_device_info intel_skylake_gt4_info __initconst = {
 	.has_ddi = 1, \
 	.has_fpga_dbg = 1, \
 	.has_fbc = 1, \
+	.has_psr = 1, \
 	.has_runtime_pm = 1, \
 	.has_pooled_eu = 0, \
 	.has_csr = 1, \
