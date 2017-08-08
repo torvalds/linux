@@ -1209,10 +1209,8 @@ thermal_zone_device_register(const char *type, int trips, int mask,
 	ida_init(&tz->ida);
 	mutex_init(&tz->lock);
 	result = ida_simple_get(&thermal_tz_ida, 0, 0, GFP_KERNEL);
-	if (result < 0) {
-		kfree(tz);
-		return ERR_PTR(result);
-	}
+	if (result < 0)
+		goto free_tz;
 
 	tz->id = result;
 	strlcpy(tz->type, type, sizeof(tz->type));
@@ -1228,18 +1226,15 @@ thermal_zone_device_register(const char *type, int trips, int mask,
 	/* Add nodes that are always present via .groups */
 	result = thermal_zone_create_device_groups(tz, mask);
 	if (result)
-		goto unregister;
+		goto remove_id;
 
 	/* A new thermal zone needs to be updated anyway. */
 	atomic_set(&tz->need_update, 1);
 
 	dev_set_name(&tz->device, "thermal_zone%d", tz->id);
 	result = device_register(&tz->device);
-	if (result) {
-		ida_simple_remove(&thermal_tz_ida, tz->id);
-		kfree(tz);
-		return ERR_PTR(result);
-	}
+	if (result)
+		goto remove_device_groups;
 
 	for (count = 0; count < trips; count++) {
 		if (tz->ops->get_trip_type(tz, count, &trip_type))
@@ -1292,6 +1287,14 @@ thermal_zone_device_register(const char *type, int trips, int mask,
 unregister:
 	ida_simple_remove(&thermal_tz_ida, tz->id);
 	device_unregister(&tz->device);
+	return ERR_PTR(result);
+
+remove_device_groups:
+	thermal_zone_destroy_device_groups(tz);
+remove_id:
+	ida_simple_remove(&thermal_tz_ida, tz->id);
+free_tz:
+	kfree(tz);
 	return ERR_PTR(result);
 }
 EXPORT_SYMBOL_GPL(thermal_zone_device_register);
