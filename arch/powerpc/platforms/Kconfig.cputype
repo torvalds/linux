@@ -32,7 +32,6 @@ config PPC_85xx
 config PPC_8xx
 	bool "Freescale 8xx"
 	select FSL_SOC
-	select 8xx
 	select PPC_LIB_RHEAP
 	select SYS_SUPPORTS_HUGETLBFS
 
@@ -148,10 +147,6 @@ config 6xx
 	def_bool y
 	depends on PPC32 && PPC_BOOK3S
 	select PPC_HAVE_PMU_SUPPORT
-
-# this is temp to handle compat with arch=ppc
-config 8xx
-	bool
 
 config E500
 	select FSL_EMB_PERFMON
