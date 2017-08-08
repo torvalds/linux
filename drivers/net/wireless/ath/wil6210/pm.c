@@ -85,7 +85,9 @@ static int wil_resume_keep_radio_on(struct wil6210_priv *wil)
 	/* Send WMI resume request to the device */
 	rc = wmi_resume(wil);
 	if (rc) {
-		wil_err(wil, "device failed to resume (%d), resetting\n", rc);
+		wil_err(wil, "device failed to resume (%d)\n", rc);
+		if (no_fw_recovery)
+			goto out;
 		rc = wil_down(wil);
 		if (rc) {
 			wil_err(wil, "wil_down failed (%d)\n", rc);
