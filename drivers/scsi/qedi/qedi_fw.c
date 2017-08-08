@@ -1411,7 +1411,7 @@ static void qedi_tmf_work(struct work_struct *work)
 
 	list_work = kzalloc(sizeof(*list_work), GFP_ATOMIC);
 	if (!list_work) {
-		QEDI_ERR(&qedi->dbg_ctx, "Memory alloction failed\n");
+		QEDI_ERR(&qedi->dbg_ctx, "Memory allocation failed\n");
 		goto abort_ret;
 	}
 

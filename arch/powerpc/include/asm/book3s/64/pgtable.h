@@ -608,9 +608,17 @@ static inline pte_t pte_mkdevmap(pte_t pte)
 	return __pte(pte_val(pte) | _PAGE_SPECIAL|_PAGE_DEVMAP);
 }
 
+/*
+ * This is potentially called with a pmd as the argument, in which case it's not
+ * safe to check _PAGE_DEVMAP unless we also confirm that _PAGE_PTE is set.
+ * That's because the bit we use for _PAGE_DEVMAP is not reserved for software
+ * use in page directory entries (ie. non-ptes).
+ */
 static inline int pte_devmap(pte_t pte)
 {
-	return !!(pte_raw(pte) & cpu_to_be64(_PAGE_DEVMAP));
+	u64 mask = cpu_to_be64(_PAGE_DEVMAP | _PAGE_PTE);
+
+	return (pte_raw(pte) & mask) == mask;
 }
 
 static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
@@ -1192,5 +1200,6 @@ static inline const int pud_pfn(pud_t pud)
 	BUILD_BUG();
 	return 0;
 }
+
 #endif /* __ASSEMBLY__ */
 #endif /* _ASM_POWERPC_BOOK3S_64_PGTABLE_H_ */

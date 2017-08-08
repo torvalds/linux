@@ -609,7 +609,7 @@ EXPORT_SYMBOL_GPL(cec_transmit_done_ts);
 void cec_transmit_attempt_done_ts(struct cec_adapter *adap,
 				  u8 status, ktime_t ts)
 {
-	switch (status) {
+	switch (status & ~CEC_TX_STATUS_MAX_RETRIES) {
 	case CEC_TX_STATUS_OK:
 		cec_transmit_done_ts(adap, status, 0, 0, 0, 0, ts);
 		return;

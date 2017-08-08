@@ -41,8 +41,16 @@ static __init int timer_irq_init(struct device_node *np,
 	struct timer_of *to = container_of(of_irq, struct timer_of, of_irq);
 	struct clock_event_device *clkevt = &to->clkevt;
 
-	of_irq->irq = of_irq->name ? of_irq_get_byname(np, of_irq->name):
-		irq_of_parse_and_map(np, of_irq->index);
+	if (of_irq->name) {
+		of_irq->irq = ret = of_irq_get_byname(np, of_irq->name);
+		if (ret < 0) {
+			pr_err("Failed to get interrupt %s for %s\n",
+			       of_irq->name, np->full_name);
+			return ret;
+		}
+	} else	{
+		of_irq->irq = irq_of_parse_and_map(np, of_irq->index);
+	}
 	if (!of_irq->irq) {
 		pr_err("Failed to map interrupt for %s\n", np->full_name);
 		return -EINVAL;

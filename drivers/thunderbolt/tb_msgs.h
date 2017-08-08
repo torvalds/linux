@@ -179,7 +179,7 @@ struct icm_fr_pkg_get_topology_response {
 
 struct icm_fr_event_device_connected {
 	struct icm_pkg_header hdr;
-	uuid_be ep_uuid;
+	uuid_t ep_uuid;
 	u8 connection_key;
 	u8 connection_id;
 	u16 link_info;
@@ -193,7 +193,7 @@ struct icm_fr_event_device_connected {
 
 struct icm_fr_pkg_approve_device {
 	struct icm_pkg_header hdr;
-	uuid_be ep_uuid;
+	uuid_t ep_uuid;
 	u8 connection_key;
 	u8 connection_id;
 	u16 reserved;
@@ -207,7 +207,7 @@ struct icm_fr_event_device_disconnected {
 
 struct icm_fr_pkg_add_device_key {
 	struct icm_pkg_header hdr;
-	uuid_be ep_uuid;
+	uuid_t ep_uuid;
 	u8 connection_key;
 	u8 connection_id;
 	u16 reserved;
@@ -216,7 +216,7 @@ struct icm_fr_pkg_add_device_key {
 
 struct icm_fr_pkg_add_device_key_response {
 	struct icm_pkg_header hdr;
-	uuid_be ep_uuid;
+	uuid_t ep_uuid;
 	u8 connection_key;
 	u8 connection_id;
 	u16 reserved;
@@ -224,7 +224,7 @@ struct icm_fr_pkg_add_device_key_response {
 
 struct icm_fr_pkg_challenge_device {
 	struct icm_pkg_header hdr;
-	uuid_be ep_uuid;
+	uuid_t ep_uuid;
 	u8 connection_key;
 	u8 connection_id;
 	u16 reserved;
@@ -233,7 +233,7 @@ struct icm_fr_pkg_challenge_device {
 
 struct icm_fr_pkg_challenge_device_response {
 	struct icm_pkg_header hdr;
-	uuid_be ep_uuid;
+	uuid_t ep_uuid;
 	u8 connection_key;
 	u8 connection_id;
 	u16 reserved;

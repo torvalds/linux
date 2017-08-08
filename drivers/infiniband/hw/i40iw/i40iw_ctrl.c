@@ -1970,6 +1970,8 @@ static enum i40iw_status_code i40iw_sc_ccq_destroy(struct i40iw_sc_cq *ccq,
 		ret_code = i40iw_cqp_poll_registers(cqp, tail, 1000);
 	}
 
+	cqp->process_cqp_sds = i40iw_update_sds_noccq;
+
 	return ret_code;
 }
 

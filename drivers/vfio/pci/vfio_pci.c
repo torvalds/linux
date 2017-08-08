@@ -226,7 +226,14 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 	if (ret)
 		return ret;
 
-	vdev->reset_works = (pci_reset_function(pdev) == 0);
+	/* If reset fails because of the device lock, fail this path entirely */
+	ret = pci_try_reset_function(pdev);
+	if (ret == -EAGAIN) {
+		pci_disable_device(pdev);
+		return ret;
+	}
+
+	vdev->reset_works = !ret;
 	pci_save_state(pdev);
 	vdev->pci_saved_state = pci_store_saved_state(pdev);
 	if (!vdev->pci_saved_state)

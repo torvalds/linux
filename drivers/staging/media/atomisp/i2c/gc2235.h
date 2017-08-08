@@ -668,5 +668,5 @@ static struct gc2235_resolution gc2235_res_video[] = {
 #define N_RES_VIDEO (ARRAY_SIZE(gc2235_res_video))
 
 static struct gc2235_resolution *gc2235_res = gc2235_res_preview;
-static int N_RES = N_RES_PREVIEW;
+static unsigned long N_RES = N_RES_PREVIEW;
 #endif

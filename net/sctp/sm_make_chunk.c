@@ -228,7 +228,7 @@ struct sctp_chunk *sctp_make_init(const struct sctp_association *asoc,
 	sctp_adaptation_ind_param_t aiparam;
 	sctp_supported_ext_param_t ext_param;
 	int num_ext = 0;
-	__u8 extensions[3];
+	__u8 extensions[4];
 	struct sctp_paramhdr *auth_chunks = NULL,
 			*auth_hmacs = NULL;
 
@@ -396,7 +396,7 @@ struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *asoc,
 	sctp_adaptation_ind_param_t aiparam;
 	sctp_supported_ext_param_t ext_param;
 	int num_ext = 0;
-	__u8 extensions[3];
+	__u8 extensions[4];
 	struct sctp_paramhdr *auth_chunks = NULL,
 			*auth_hmacs = NULL,
 			*auth_random = NULL;

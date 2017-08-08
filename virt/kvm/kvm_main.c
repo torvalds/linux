@@ -717,10 +717,9 @@ out_err_no_srcu:
 	hardware_disable_all();
 out_err_no_disable:
 	for (i = 0; i < KVM_NR_BUSES; i++)
-		kfree(rcu_access_pointer(kvm->buses[i]));
+		kfree(kvm_get_bus(kvm, i));
 	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++)
-		kvm_free_memslots(kvm,
-			rcu_dereference_protected(kvm->memslots[i], 1));
+		kvm_free_memslots(kvm, __kvm_memslots(kvm, i));
 	kvm_arch_free_vm(kvm);
 	mmdrop(current->mm);
 	return ERR_PTR(r);
@@ -754,9 +753,8 @@ static void kvm_destroy_vm(struct kvm *kvm)
 	spin_unlock(&kvm_lock);
 	kvm_free_irq_routing(kvm);
 	for (i = 0; i < KVM_NR_BUSES; i++) {
-		struct kvm_io_bus *bus;
+		struct kvm_io_bus *bus = kvm_get_bus(kvm, i);
 
-		bus = rcu_dereference_protected(kvm->buses[i], 1);
 		if (bus)
 			kvm_io_bus_destroy(bus);
 		kvm->buses[i] = NULL;
@@ -770,8 +768,7 @@ static void kvm_destroy_vm(struct kvm *kvm)
 	kvm_arch_destroy_vm(kvm);
 	kvm_destroy_devices(kvm);
 	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++)
-		kvm_free_memslots(kvm,
-			rcu_dereference_protected(kvm->memslots[i], 1));
+		kvm_free_memslots(kvm, __kvm_memslots(kvm, i));
 	cleanup_srcu_struct(&kvm->irq_srcu);
 	cleanup_srcu_struct(&kvm->srcu);
 	kvm_arch_free_vm(kvm);
@@ -3883,7 +3880,6 @@ static const struct file_operations *stat_fops[] = {
 static void kvm_uevent_notify_change(unsigned int type, struct kvm *kvm)
 {
 	struct kobj_uevent_env *env;
-	char *tmp, *pathbuf = NULL;
 	unsigned long long created, active;
 
 	if (!kvm_dev.this_device || !kvm)
@@ -3907,38 +3903,28 @@ static void kvm_uevent_notify_change(unsigned int type, struct kvm *kvm)
 	add_uevent_var(env, "CREATED=%llu", created);
 	add_uevent_var(env, "COUNT=%llu", active);
 
-	if (type == KVM_EVENT_CREATE_VM)
+	if (type == KVM_EVENT_CREATE_VM) {
 		add_uevent_var(env, "EVENT=create");
-	else if (type == KVM_EVENT_DESTROY_VM)
+		kvm->userspace_pid = task_pid_nr(current);
+	} else if (type == KVM_EVENT_DESTROY_VM) {
 		add_uevent_var(env, "EVENT=destroy");
+	}
+	add_uevent_var(env, "PID=%d", kvm->userspace_pid);
 
 	if (kvm->debugfs_dentry) {
-		char p[ITOA_MAX_LEN];
+		char *tmp, *p = kmalloc(PATH_MAX, GFP_KERNEL);
 
-		snprintf(p, sizeof(p), "%s", kvm->debugfs_dentry->d_name.name);
-		tmp = strchrnul(p + 1, '-');
-		*tmp = '\0';
-		add_uevent_var(env, "PID=%s", p);
-		pathbuf = kmalloc(PATH_MAX, GFP_KERNEL);
-		if (pathbuf) {
-			/* sizeof counts the final '\0' */
-			int len = sizeof("STATS_PATH=") - 1;
-			const char *pvar = "STATS_PATH=";
-
-			tmp = dentry_path_raw(kvm->debugfs_dentry,
-					      pathbuf + len,
-					      PATH_MAX - len);
-			if (!IS_ERR(tmp)) {
-				memcpy(tmp - len, pvar, len);
-				env->envp[env->envp_idx++] = tmp - len;
-			}
+		if (p) {
+			tmp = dentry_path_raw(kvm->debugfs_dentry, p, PATH_MAX);
+			if (!IS_ERR(tmp))
+				add_uevent_var(env, "STATS_PATH=%s", tmp);
+			kfree(p);
 		}
 	}
 	/* no need for checks, since we are adding at most only 5 keys */
 	env->envp[env->envp_idx++] = NULL;
 	kobject_uevent_env(&kvm_dev.this_device->kobj, KOBJ_CHANGE, env->envp);
 	kfree(env);
-	kfree(pathbuf);
 }
 
 static int kvm_init_debug(void)
