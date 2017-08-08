@@ -317,6 +317,15 @@
 	};
 };
 
+&cluster0_opp {
+	rockchip,threshold-freq = <408000>;
+	rockchip,freq-limit;
+};
+
+&cluster1_opp {
+	rockchip,threshold-freq = <1416000>;
+};
+
 &cpu_l0 {
 	cpu-supply = <&vdd_cpu>;
 };
