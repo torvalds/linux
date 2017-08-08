@@ -801,6 +801,9 @@ static ssize_t wil_write_file_txmgmt(struct file *file, const char __user *buf,
 	int rc;
 	void *frame;
 
+	if (!len)
+		return -EINVAL;
+
 	frame = memdup_user(buf, len);
 	if (IS_ERR(frame))
 		return PTR_ERR(frame);
