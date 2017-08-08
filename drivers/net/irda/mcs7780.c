@@ -66,7 +66,7 @@
 #define MCS_VENDOR_ID 0x9710
 #define MCS_PRODUCT_ID 0x7780
 
-static struct usb_device_id mcs_table[] = {
+static const struct usb_device_id mcs_table[] = {
 	/* MosChip Corp.,  MCS7780 FIR-USB Adapter */
 	{USB_DEVICE(MCS_VENDOR_ID, MCS_PRODUCT_ID)},
 	{},
