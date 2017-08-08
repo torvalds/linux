@@ -6097,13 +6097,11 @@ static int megasas_probe_one(struct pci_dev *pdev,
 		instance->pd_info = pci_alloc_consistent(pdev,
 			sizeof(struct MR_PD_INFO), &instance->pd_info_h);
 
-		instance->pd_info = pci_alloc_consistent(pdev,
-			sizeof(struct MR_PD_INFO), &instance->pd_info_h);
-		instance->tgt_prop = pci_alloc_consistent(pdev,
-			sizeof(struct MR_TARGET_PROPERTIES), &instance->tgt_prop_h);
-
 		if (!instance->pd_info)
 			dev_err(&instance->pdev->dev, "Failed to alloc mem for pd_info\n");
+
+		instance->tgt_prop = pci_alloc_consistent(pdev,
+			sizeof(struct MR_TARGET_PROPERTIES), &instance->tgt_prop_h);
 
 		if (!instance->tgt_prop)
 			dev_err(&instance->pdev->dev, "Failed to alloc mem for tgt_prop\n");
