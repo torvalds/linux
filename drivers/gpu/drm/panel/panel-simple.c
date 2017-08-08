@@ -643,6 +643,7 @@ static void panel_simple_shutdown(struct device *dev)
 	struct panel_simple *panel = dev_get_drvdata(dev);
 
 	panel_simple_disable(&panel->base);
+	panel_simple_unprepare(&panel->base);
 }
 
 static const struct drm_display_mode ampire_am800480r3tmqwa1h_mode = {
