@@ -732,7 +732,8 @@ enum nft_exthdr_op {
  * @NFTA_EXTHDR_OFFSET: extension header offset (NLA_U32)
  * @NFTA_EXTHDR_LEN: extension header length (NLA_U32)
  * @NFTA_EXTHDR_FLAGS: extension header flags (NLA_U32)
- * @NFTA_EXTHDR_OP: option match type (NLA_U8)
+ * @NFTA_EXTHDR_OP: option match type (NLA_U32)
+ * @NFTA_EXTHDR_SREG: option match type (NLA_U32)
  */
 enum nft_exthdr_attributes {
 	NFTA_EXTHDR_UNSPEC,
@@ -742,6 +743,7 @@ enum nft_exthdr_attributes {
 	NFTA_EXTHDR_LEN,
 	NFTA_EXTHDR_FLAGS,
 	NFTA_EXTHDR_OP,
+	NFTA_EXTHDR_SREG,
 	__NFTA_EXTHDR_MAX
 };
 #define NFTA_EXTHDR_MAX		(__NFTA_EXTHDR_MAX - 1)
