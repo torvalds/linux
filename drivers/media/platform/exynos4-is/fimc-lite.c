@@ -1361,7 +1361,7 @@ static const struct v4l2_subdev_core_ops fimc_lite_core_ops = {
 	.log_status = fimc_lite_log_status,
 };
 
-static struct v4l2_subdev_ops fimc_lite_subdev_ops = {
+static const struct v4l2_subdev_ops fimc_lite_subdev_ops = {
 	.core = &fimc_lite_core_ops,
 	.video = &fimc_lite_subdev_video_ops,
 	.pad = &fimc_lite_subdev_pad_ops,
