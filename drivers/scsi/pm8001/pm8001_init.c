@@ -160,8 +160,6 @@ static void pm8001_free(struct pm8001_hba_info *pm8001_ha)
 			}
 	}
 	PM8001_CHIP_DISP->chip_iounmap(pm8001_ha);
-	if (pm8001_ha->shost)
-		scsi_host_put(pm8001_ha->shost);
 	flush_workqueue(pm8001_wq);
 	kfree(pm8001_ha->tags);
 	kfree(pm8001_ha);
@@ -1073,7 +1071,7 @@ err_out_ha_free:
 err_out_free:
 	kfree(SHOST_TO_SAS_HA(shost));
 err_out_free_host:
-	kfree(shost);
+	scsi_host_put(shost);
 err_out_regions:
 	pci_release_regions(pdev);
 err_out_disable:
@@ -1112,6 +1110,7 @@ static void pm8001_pci_remove(struct pci_dev *pdev)
 		for (j = 0; j < PM8001_MAX_MSIX_VEC; j++)
 			tasklet_kill(&pm8001_ha->tasklet[j]);
 #endif
+	scsi_host_put(pm8001_ha->shost);
 	pm8001_free(pm8001_ha);
 	kfree(sha->sas_phy);
 	kfree(sha->sas_port);
