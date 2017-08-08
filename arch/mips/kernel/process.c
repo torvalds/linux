@@ -384,10 +384,14 @@ static int get_frame_info(struct mips_frame_info *info)
 				{
 					unsigned short tmp;
 
-					if (ip->halfword[0] & mm_addiusp_func)
+					if (ip->mm16_r3_format.simmediate & mm_addiusp_func)
 					{
-						tmp = (((ip->halfword[0] >> 1) & 0x1ff) << 2);
-						info->frame_size = -(signed short)(tmp | ((tmp & 0x100) ? 0xfe00 : 0));
+						tmp = ip->mm_b0_format.simmediate >> 1;
+						tmp = ((tmp & 0x1ff) ^ 0x100) - 0x100;
+						/* 0x0,0x1,0x1fe,0x1ff are special */
+						if ((tmp + 2) < 4)
+							tmp ^= 0x100;
+						info->frame_size = -(signed short)(tmp << 2);
 					} else {
 						tmp = (ip->halfword[0] >> 1);
 						info->frame_size = -(signed short)(tmp & 0xf);
