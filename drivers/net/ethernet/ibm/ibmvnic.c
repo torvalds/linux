@@ -4013,7 +4013,6 @@ static int ibmvnic_resume(struct device *dev)
 {
 	struct net_device *netdev = dev_get_drvdata(dev);
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
-	int i;
 
 	if (adapter->state != VNIC_OPEN)
 		return 0;
