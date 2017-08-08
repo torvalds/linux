@@ -384,7 +384,7 @@ static void rockchip_lvds_connector_destroy(struct drm_connector *connector)
 	drm_connector_cleanup(connector);
 }
 
-static struct drm_connector_funcs rockchip_lvds_connector_funcs = {
+static const struct drm_connector_funcs rockchip_lvds_connector_funcs = {
 	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = rockchip_lvds_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
@@ -429,7 +429,7 @@ int rockchip_lvds_connector_loader_protect(struct drm_connector *connector,
 	return 0;
 }
 
-static
+static const
 struct drm_connector_helper_funcs rockchip_lvds_connector_helper_funcs = {
 	.get_modes = rockchip_lvds_connector_get_modes,
 	.mode_valid = rockchip_lvds_connector_mode_valid,
@@ -651,7 +651,8 @@ static int rockchip_lvds_encoder_loader_protect(struct drm_encoder *encoder,
 	return 0;
 }
 
-static struct drm_encoder_helper_funcs rockchip_lvds_encoder_helper_funcs = {
+static const
+struct drm_encoder_helper_funcs rockchip_lvds_encoder_helper_funcs = {
 	.mode_fixup = rockchip_lvds_encoder_mode_fixup,
 	.mode_set = rockchip_lvds_encoder_mode_set,
 	.enable = rockchip_lvds_encoder_enable,
@@ -665,7 +666,7 @@ static void rockchip_lvds_encoder_destroy(struct drm_encoder *encoder)
 	drm_encoder_cleanup(encoder);
 }
 
-static struct drm_encoder_funcs rockchip_lvds_encoder_funcs = {
+static const struct drm_encoder_funcs rockchip_lvds_encoder_funcs = {
 	.destroy = rockchip_lvds_encoder_destroy,
 };
 
