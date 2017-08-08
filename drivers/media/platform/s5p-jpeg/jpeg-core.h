@@ -63,6 +63,7 @@
 
 #define S5P_JPEG_ENCODE		0
 #define S5P_JPEG_DECODE		1
+#define S5P_JPEG_DISABLE	-1
 
 #define FMT_TYPE_OUTPUT		0
 #define FMT_TYPE_CAPTURE	1
