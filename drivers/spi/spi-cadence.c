@@ -704,7 +704,9 @@ static int __maybe_unused cdns_spi_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct spi_master *master = platform_get_drvdata(pdev);
+	struct cdns_spi *xspi = spi_master_get_devdata(master);
 
+	cdns_spi_init_hw(xspi);
 	return spi_master_resume(master);
 }
 
