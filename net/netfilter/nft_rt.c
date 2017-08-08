@@ -23,6 +23,42 @@ struct nft_rt {
 	enum nft_registers	dreg:8;
 };
 
+static u16 get_tcpmss(const struct nft_pktinfo *pkt, const struct dst_entry *skbdst)
+{
+	u32 minlen = sizeof(struct ipv6hdr), mtu = dst_mtu(skbdst);
+	const struct sk_buff *skb = pkt->skb;
+	const struct nf_afinfo *ai;
+	struct flowi fl;
+
+	memset(&fl, 0, sizeof(fl));
+
+	switch (nft_pf(pkt)) {
+	case NFPROTO_IPV4:
+		fl.u.ip4.daddr = ip_hdr(skb)->saddr;
+		minlen = sizeof(struct iphdr);
+		break;
+	case NFPROTO_IPV6:
+		fl.u.ip6.daddr = ipv6_hdr(skb)->saddr;
+		break;
+	}
+
+	ai = nf_get_afinfo(nft_pf(pkt));
+	if (ai) {
+		struct dst_entry *dst = NULL;
+
+		ai->route(nft_net(pkt), &dst, &fl, false);
+		if (dst) {
+			mtu = min(mtu, dst_mtu(dst));
+			dst_release(dst);
+		}
+	}
+
+	if (mtu <= minlen || mtu > 0xffff)
+		return TCP_MSS_DEFAULT;
+
+	return mtu - minlen;
+}
+
 static void nft_rt_get_eval(const struct nft_expr *expr,
 			    struct nft_regs *regs,
 			    const struct nft_pktinfo *pkt)
@@ -56,6 +92,9 @@ static void nft_rt_get_eval(const struct nft_expr *expr,
 		memcpy(dest, rt6_nexthop((struct rt6_info *)dst,
 					 &ipv6_hdr(skb)->daddr),
 		       sizeof(struct in6_addr));
+		break;
+	case NFT_RT_TCPMSS:
+		nft_reg_store16(dest, get_tcpmss(pkt, dst));
 		break;
 	default:
 		WARN_ON(1);
@@ -94,6 +133,9 @@ static int nft_rt_get_init(const struct nft_ctx *ctx,
 	case NFT_RT_NEXTHOP6:
 		len = sizeof(struct in6_addr);
 		break;
+	case NFT_RT_TCPMSS:
+		len = sizeof(u16);
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -118,6 +160,29 @@ nla_put_failure:
 	return -1;
 }
 
+static int nft_rt_validate(const struct nft_ctx *ctx, const struct nft_expr *expr,
+			   const struct nft_data **data)
+{
+	const struct nft_rt *priv = nft_expr_priv(expr);
+	unsigned int hooks;
+
+	switch (priv->key) {
+	case NFT_RT_NEXTHOP4:
+	case NFT_RT_NEXTHOP6:
+	case NFT_RT_CLASSID:
+		return 0;
+	case NFT_RT_TCPMSS:
+		hooks = (1 << NF_INET_FORWARD) |
+			(1 << NF_INET_LOCAL_OUT) |
+			(1 << NF_INET_POST_ROUTING);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return nft_chain_validate_hooks(ctx->chain, hooks);
+}
+
 static struct nft_expr_type nft_rt_type;
 static const struct nft_expr_ops nft_rt_get_ops = {
 	.type		= &nft_rt_type,
@@ -125,6 +190,7 @@ static const struct nft_expr_ops nft_rt_get_ops = {
 	.eval		= nft_rt_get_eval,
 	.init		= nft_rt_get_init,
 	.dump		= nft_rt_get_dump,
+	.validate	= nft_rt_validate,
 };
 
 static struct nft_expr_type nft_rt_type __read_mostly = {

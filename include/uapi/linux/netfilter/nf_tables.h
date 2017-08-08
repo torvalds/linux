@@ -811,11 +811,13 @@ enum nft_meta_keys {
  * @NFT_RT_CLASSID: realm value of packet's route (skb->dst->tclassid)
  * @NFT_RT_NEXTHOP4: routing nexthop for IPv4
  * @NFT_RT_NEXTHOP6: routing nexthop for IPv6
+ * @NFT_RT_TCPMSS: fetch current path tcp mss
  */
 enum nft_rt_keys {
 	NFT_RT_CLASSID,
 	NFT_RT_NEXTHOP4,
 	NFT_RT_NEXTHOP6,
+	NFT_RT_TCPMSS,
 };
 
 /**
