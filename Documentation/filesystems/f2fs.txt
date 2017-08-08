@@ -165,6 +165,15 @@ io_bits=%u             Set the bit size of write IO requests. It should be set
 usrquota               Enable plain user disk quota accounting.
 grpquota               Enable plain group disk quota accounting.
 prjquota               Enable plain project quota accounting.
+usrjquota=<file>       Appoint specified file and type during mount, so that quota
+grpjquota=<file>       information can be properly updated during recovery flow,
+prjjquota=<file>       <quota file>: must be in root directory;
+jqfmt=<quota type>     <quota type>: [vfsold,vfsv0,vfsv1].
+offusrjquota           Turn off user journelled quota.
+offgrpjquota           Turn off group journelled quota.
+offprjjquota           Turn off project journelled quota.
+quota                  Enable plain user disk quota accounting.
+noquota                Disable all plain disk quota option.
 
 ================================================================================
 DEBUGFS ENTRIES
