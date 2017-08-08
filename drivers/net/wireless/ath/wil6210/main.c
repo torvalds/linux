@@ -1034,6 +1034,12 @@ int wil_reset(struct wil6210_priv *wil, bool load_fw)
 		wil_s(wil, RGF_CAF_ICR + offsetof(struct RGF_ICR, ICR), 0);
 		wil_w(wil, RGF_CAF_ICR + offsetof(struct RGF_ICR, IMV), ~0);
 
+		if (wil->fw_calib_result > 0) {
+			__le32 val = cpu_to_le32(wil->fw_calib_result |
+						 (CALIB_RESULT_SIGNATURE << 8));
+			wil_w(wil, RGF_USER_FW_CALIB_RESULT, (u32 __force)val);
+		}
+
 		wil_release_cpu(wil);
 	}
 

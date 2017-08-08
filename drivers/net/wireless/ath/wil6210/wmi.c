@@ -344,6 +344,11 @@ static void wmi_evt_ready(struct wil6210_priv *wil, int id, void *d, int len)
 	strlcpy(wdev->wiphy->fw_version, wil->fw_version,
 		sizeof(wdev->wiphy->fw_version));
 
+	if (len > offsetof(struct wmi_ready_event, rfc_read_calib_result)) {
+		wil_dbg_wmi(wil, "rfc calibration result %d\n",
+			    evt->rfc_read_calib_result);
+		wil->fw_calib_result = evt->rfc_read_calib_result;
+	}
 	wil_set_recovery_state(wil, fw_recovery_idle);
 	set_bit(wil_status_fwready, wil->status);
 	/* let the reset sequence continue */

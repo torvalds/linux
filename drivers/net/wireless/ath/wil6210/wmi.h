@@ -1300,6 +1300,8 @@ struct wmi_ready_event {
 	/* enum wmi_phy_capability */
 	u8 phy_capability;
 	u8 numof_additional_mids;
+	u8 rfc_read_calib_result;
+	u8 reserved[3];
 } __packed;
 
 /* WMI_NOTIFY_REQ_DONE_EVENTID */
