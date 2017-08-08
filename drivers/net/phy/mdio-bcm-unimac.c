@@ -71,7 +71,7 @@ static int unimac_mdio_poll(void *wait_func_data)
 			return 0;
 
 		usleep_range(1000, 2000);
-	} while (timeout--);
+	} while (--timeout);
 
 	if (!timeout)
 		return -ETIMEDOUT;
