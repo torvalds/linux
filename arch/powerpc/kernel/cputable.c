@@ -1259,7 +1259,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.platform		= "ppc603",
 	},
 #endif /* CONFIG_PPC_BOOK3S_32 */
-#ifdef CONFIG_8xx
+#ifdef CONFIG_PPC_8xx
 	{	/* 8xx */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x00500000,
@@ -1274,7 +1274,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.machine_check		= machine_check_8xx,
 		.platform		= "ppc823",
 	},
-#endif /* CONFIG_8xx */
+#endif /* CONFIG_PPC_8xx */
 #ifdef CONFIG_40x
 	{	/* 403GC */
 		.pvr_mask		= 0xffffff00,

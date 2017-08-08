@@ -121,7 +121,7 @@ extern int icache_44x_need_flush;
 #include <asm/nohash/pte-book3e.h>
 #elif defined(CONFIG_FSL_BOOKE)
 #include <asm/nohash/32/pte-fsl-booke.h>
-#elif defined(CONFIG_8xx)
+#elif defined(CONFIG_PPC_8xx)
 #include <asm/nohash/32/pte-8xx.h>
 #endif
 

@@ -29,7 +29,7 @@ static inline cycles_t get_cycles(void)
 	ret = 0;
 
 	__asm__ __volatile__(
-#ifdef CONFIG_8xx
+#ifdef CONFIG_PPC_8xx
 		"97:	mftb %0\n"
 #else
 		"97:	mfspr %0, %2\n"

@@ -405,7 +405,7 @@ config HUGETLB_PAGE_SIZE_VARIABLE
 
 config MATH_EMULATION
 	bool "Math emulation"
-	depends on 4xx || 8xx || PPC_MPC832x || BOOKE
+	depends on 4xx || PPC_8xx || PPC_MPC832x || BOOKE
 	---help---
 	  Some PowerPC chips designed for embedded applications do not have
 	  a floating-point unit and therefore do not implement the
@@ -967,7 +967,7 @@ config PPC_PCI_CHOICE
 
 config PCI
 	bool "PCI support" if PPC_PCI_CHOICE
-	default y if !40x && !CPM2 && !8xx && !PPC_83xx \
+	default y if !40x && !CPM2 && !PPC_8xx && !PPC_83xx \
 		&& !PPC_85xx && !PPC_86xx && !GAMECUBE_COMMON
 	default PCI_QSPAN if PPC_8xx
 	select GENERIC_PCI_IOMAP

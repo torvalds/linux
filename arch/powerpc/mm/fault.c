@@ -353,7 +353,7 @@ static void sanity_check_fault(bool is_write, unsigned long error_code) { }
 #define page_fault_is_bad(__err)	(0)
 #else
 #define page_fault_is_write(__err)	((__err) & DSISR_ISSTORE)
-#if defined(CONFIG_8xx)
+#if defined(CONFIG_PPC_8xx)
 #define page_fault_is_bad(__err)	((__err) & 0x10000000)
 #elif defined(CONFIG_PPC64)
 #define page_fault_is_bad(__err)	((__err) & DSISR_BAD_FAULT_64S)

@@ -24,7 +24,7 @@
  * mask register (of which only 16 are defined), hence the weird shifting
  * and complement of the cached_irq_mask.  I want to be able to stuff
  * this right into the SIU SMASK register.
- * Many of the prep/chrp functions are conditional compiled on CONFIG_8xx
+ * Many of the prep/chrp functions are conditional compiled on CONFIG_PPC_8xx
  * to reduce code space and undefined function references.
  */
 

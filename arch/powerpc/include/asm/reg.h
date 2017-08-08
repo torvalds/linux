@@ -22,9 +22,9 @@
 #include <asm/reg_fsl_emb.h>
 #endif
 
-#ifdef CONFIG_8xx
+#ifdef CONFIG_PPC_8xx
 #include <asm/reg_8xx.h>
-#endif /* CONFIG_8xx */
+#endif /* CONFIG_PPC_8xx */
 
 #define MSR_SF_LG	63              /* Enable 64 bit mode */
 #define MSR_ISF_LG	61              /* Interrupt 64b mode valid on 630 */
@@ -135,7 +135,7 @@
 #define MSR_KERNEL	(MSR_ | MSR_64BIT)
 #define MSR_USER32	(MSR_ | MSR_PR | MSR_EE)
 #define MSR_USER64	(MSR_USER32 | MSR_64BIT)
-#elif defined(CONFIG_PPC_BOOK3S_32) || defined(CONFIG_8xx)
+#elif defined(CONFIG_PPC_BOOK3S_32) || defined(CONFIG_PPC_8xx)
 /* Default MSR for kernel mode. */
 #define MSR_KERNEL	(MSR_ME|MSR_RI|MSR_IR|MSR_DR)
 #define MSR_USER	(MSR_KERNEL|MSR_PR|MSR_EE)
@@ -1164,7 +1164,7 @@
 #endif
 #endif
 
-#ifdef CONFIG_8xx
+#ifdef CONFIG_PPC_8xx
 #define SPRN_SPRG_SCRATCH0	SPRN_SPRG0
 #define SPRN_SPRG_SCRATCH1	SPRN_SPRG1
 #define SPRN_SPRG_SCRATCH2	SPRN_SPRG2
@@ -1363,7 +1363,7 @@ static inline void msr_check_and_clear(unsigned long bits)
 
 #else /* __powerpc64__ */
 
-#if defined(CONFIG_8xx)
+#if defined(CONFIG_PPC_8xx)
 #define mftbl()		({unsigned long rval;	\
 			asm volatile("mftbl %0" : "=r" (rval)); rval;})
 #define mftbu()		({unsigned long rval;	\

@@ -417,7 +417,7 @@ END_FTR_SECTION_IFCLR(CPU_FTR_601)
  * and they must be used.
  */
 
-#if !defined(CONFIG_4xx) && !defined(CONFIG_8xx)
+#if !defined(CONFIG_4xx) && !defined(CONFIG_PPC_8xx)
 #define tlbia					\
 	li	r4,1024;			\
 	mtctr	r4;				\
