@@ -5809,7 +5809,7 @@ qla26xx_dport_diagnostics(scsi_qla_host_t *vha,
 
 	dd_dma = dma_map_single(&vha->hw->pdev->dev,
 	    dd_buf, size, DMA_FROM_DEVICE);
-	if (!dd_dma) {
+	if (dma_mapping_error(&vha->hw->pdev->dev, dd_dma)) {
 		ql_log(ql_log_warn, vha, 0x1194, "Failed to map dma buffer.\n");
 		return QLA_MEMORY_ALLOC_FAILED;
 	}
