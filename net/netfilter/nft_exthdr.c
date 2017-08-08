@@ -180,12 +180,8 @@ static int nft_exthdr_init(const struct nft_ctx *ctx,
 					   NFT_DATA_VALUE, priv->len);
 }
 
-static int nft_exthdr_dump(struct sk_buff *skb, const struct nft_expr *expr)
+static int nft_exthdr_dump_common(struct sk_buff *skb, const struct nft_exthdr *priv)
 {
-	const struct nft_exthdr *priv = nft_expr_priv(expr);
-
-	if (nft_dump_register(skb, NFTA_EXTHDR_DREG, priv->dreg))
-		goto nla_put_failure;
 	if (nla_put_u8(skb, NFTA_EXTHDR_TYPE, priv->type))
 		goto nla_put_failure;
 	if (nla_put_be32(skb, NFTA_EXTHDR_OFFSET, htonl(priv->offset)))
@@ -200,6 +196,16 @@ static int nft_exthdr_dump(struct sk_buff *skb, const struct nft_expr *expr)
 
 nla_put_failure:
 	return -1;
+}
+
+static int nft_exthdr_dump(struct sk_buff *skb, const struct nft_expr *expr)
+{
+	const struct nft_exthdr *priv = nft_expr_priv(expr);
+
+	if (nft_dump_register(skb, NFTA_EXTHDR_DREG, priv->dreg))
+		return -1;
+
+	return nft_exthdr_dump_common(skb, priv);
 }
 
 static struct nft_expr_type nft_exthdr_type;
