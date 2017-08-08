@@ -785,7 +785,7 @@ adv7511_connector_detect(struct drm_connector *connector, bool force)
 	return adv7511_detect(adv, connector);
 }
 
-static struct drm_connector_funcs adv7511_connector_funcs = {
+static const struct drm_connector_funcs adv7511_connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.detect = adv7511_connector_detect,
 	.destroy = drm_connector_cleanup,
