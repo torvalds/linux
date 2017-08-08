@@ -832,7 +832,7 @@ static const struct file_operations hdm_usb_fops = {
 /**
  * usb_device_id - ID table for HCD device probing
  */
-static struct usb_device_id usbid[] = {
+static const struct usb_device_id usbid[] = {
 	{ USB_DEVICE(USB_VENDOR_ID_SMSC, USB_DEV_ID_BRDG), },
 	{ USB_DEVICE(USB_VENDOR_ID_SMSC, USB_DEV_ID_OS81118), },
 	{ USB_DEVICE(USB_VENDOR_ID_SMSC, USB_DEV_ID_OS81119), },
