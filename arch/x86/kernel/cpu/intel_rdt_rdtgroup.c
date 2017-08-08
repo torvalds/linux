@@ -680,7 +680,7 @@ static ssize_t max_threshold_occ_write(struct kernfs_open_file *of,
 
 	intel_cqm_threshold = bytes / r->mon_scale;
 
-	return ret ?: nbytes;
+	return nbytes;
 }
 
 /* rdtgroup information files for one cache resource. */
