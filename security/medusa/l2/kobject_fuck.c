@@ -75,7 +75,7 @@ int validate_fuck(const struct path* fuck_path) {
 
 	if (unlikely(!fuck_inode)) {
 		printk("medusa: empty inode\n");
-	//	goto out;
+		goto out;
 	}
 		
 	if (unlikely(hash_empty(inode_security(fuck_inode).fuck)))
