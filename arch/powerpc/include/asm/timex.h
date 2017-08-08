@@ -45,11 +45,7 @@ static inline cycles_t get_cycles(void)
 		"	.long 0\n"
 		"	.long 0\n"
 		".previous"
-#ifdef CONFIG_8xx
-		: "=r" (ret) : "i" (CPU_FTR_601));
-#else
 		: "=r" (ret) : "i" (CPU_FTR_601), "i" (SPRN_TBRL));
-#endif
 	return ret;
 #endif
 }
