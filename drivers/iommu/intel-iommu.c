@@ -5349,7 +5349,8 @@ int intel_iommu_enable_pasid(struct intel_iommu *iommu, struct intel_svm_dev *sd
 	sdev->sid = PCI_DEVID(info->bus, info->devfn);
 
 	if (!(ctx_lo & CONTEXT_PASIDE)) {
-		context[1].hi = (u64)virt_to_phys(iommu->pasid_state_table);
+		if (iommu->pasid_state_table)
+			context[1].hi = (u64)virt_to_phys(iommu->pasid_state_table);
 		context[1].lo = (u64)virt_to_phys(iommu->pasid_table) |
 			intel_iommu_get_pts(iommu);
 
