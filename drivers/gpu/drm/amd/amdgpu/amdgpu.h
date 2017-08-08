@@ -1424,7 +1424,7 @@ struct amdgpu_device {
 	bool				is_atom_fw;
 	uint8_t				*bios;
 	uint32_t			bios_size;
-	struct amdgpu_bo		*stollen_vga_memory;
+	struct amdgpu_bo		*stolen_vga_memory;
 	uint32_t			bios_scratch_reg_offset;
 	uint32_t			bios_scratch[AMDGPU_BIOS_NUM_SCRATCH];
 

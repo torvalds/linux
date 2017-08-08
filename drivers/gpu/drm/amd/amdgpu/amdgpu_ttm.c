@@ -1234,7 +1234,7 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 
 	r = amdgpu_bo_create_kernel(adev, adev->mc.stolen_size, PAGE_SIZE,
 				    AMDGPU_GEM_DOMAIN_VRAM,
-				    &adev->stollen_vga_memory,
+				    &adev->stolen_vga_memory,
 				    NULL, NULL);
 	if (r)
 		return r;
@@ -1308,13 +1308,13 @@ void amdgpu_ttm_fini(struct amdgpu_device *adev)
 	if (!adev->mman.initialized)
 		return;
 	amdgpu_ttm_debugfs_fini(adev);
-	if (adev->stollen_vga_memory) {
-		r = amdgpu_bo_reserve(adev->stollen_vga_memory, true);
+	if (adev->stolen_vga_memory) {
+		r = amdgpu_bo_reserve(adev->stolen_vga_memory, true);
 		if (r == 0) {
-			amdgpu_bo_unpin(adev->stollen_vga_memory);
-			amdgpu_bo_unreserve(adev->stollen_vga_memory);
+			amdgpu_bo_unpin(adev->stolen_vga_memory);
+			amdgpu_bo_unreserve(adev->stolen_vga_memory);
 		}
-		amdgpu_bo_unref(&adev->stollen_vga_memory);
+		amdgpu_bo_unref(&adev->stolen_vga_memory);
 	}
 	ttm_bo_clean_mm(&adev->mman.bdev, TTM_PL_VRAM);
 	ttm_bo_clean_mm(&adev->mman.bdev, TTM_PL_TT);
