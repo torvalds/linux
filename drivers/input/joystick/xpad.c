@@ -408,7 +408,7 @@ static const signed short xpad_abs_triggers[] = {
 #define XPAD_XBOXONE_VENDOR(vend) \
 	{ XPAD_XBOXONE_VENDOR_PROTOCOL(vend, 208) }
 
-static struct usb_device_id xpad_table[] = {
+static const struct usb_device_id xpad_table[] = {
 	{ USB_INTERFACE_INFO('X', 'B', 0) },	/* X-Box USB-IF not approved class */
 	XPAD_XBOX360_VENDOR(0x044f),		/* Thrustmaster X-Box 360 controllers */
 	XPAD_XBOX360_VENDOR(0x045e),		/* Microsoft X-Box 360 controllers */
