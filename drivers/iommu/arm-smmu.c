@@ -1519,6 +1519,13 @@ static int arm_smmu_add_device(struct device *dev)
 
 	if (using_legacy_binding) {
 		ret = arm_smmu_register_legacy_master(dev, &smmu);
+
+		/*
+		 * If dev->iommu_fwspec is initally NULL, arm_smmu_register_legacy_master()
+		 * will allocate/initialise a new one. Thus we need to update fwspec for
+		 * later use.
+		 */
+		fwspec = dev->iommu_fwspec;
 		if (ret)
 			goto out_free;
 	} else if (fwspec && fwspec->ops == &arm_smmu_ops) {
