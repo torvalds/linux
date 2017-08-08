@@ -125,7 +125,7 @@ static int kaweth_resume(struct usb_interface *intf);
 /****************************************************************
  *     usb_device_id
  ****************************************************************/
-static struct usb_device_id usb_klsi_table[] = {
+static const struct usb_device_id usb_klsi_table[] = {
 	{ USB_DEVICE(0x03e8, 0x0008) }, /* AOX Endpoints USB Ethernet */
 	{ USB_DEVICE(0x04bb, 0x0901) }, /* I-O DATA USB-ET/T */
 	{ USB_DEVICE(0x0506, 0x03e8) }, /* 3Com 3C19250 */
