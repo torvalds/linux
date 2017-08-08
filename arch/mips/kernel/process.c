@@ -313,9 +313,11 @@ static inline int is_jump_ins(union mips_instruction *ip)
 #endif
 }
 
-static inline int is_sp_move_ins(union mips_instruction *ip)
+static inline int is_sp_move_ins(union mips_instruction *ip, int *frame_size)
 {
 #ifdef CONFIG_CPU_MICROMIPS
+	unsigned short tmp;
+
 	/*
 	 * addiusp -imm
 	 * addius5 sp,-imm
@@ -325,20 +327,39 @@ static inline int is_sp_move_ins(union mips_instruction *ip)
 	 * microMIPS is not more fun...
 	 */
 	if (mm_insn_16bit(ip->word >> 16)) {
-		return (ip->mm16_r3_format.opcode == mm_pool16d_op &&
-			ip->mm16_r3_format.simmediate & mm_addiusp_func) ||
-		       (ip->mm16_r5_format.opcode == mm_pool16d_op &&
-			ip->mm16_r5_format.rt == 29);
+		if (ip->mm16_r3_format.opcode == mm_pool16d_op &&
+		    ip->mm16_r3_format.simmediate & mm_addiusp_func) {
+			tmp = ip->mm_b0_format.simmediate >> 1;
+			tmp = ((tmp & 0x1ff) ^ 0x100) - 0x100;
+			if ((tmp + 2) < 4) /* 0x0,0x1,0x1fe,0x1ff are special */
+				tmp ^= 0x100;
+			*frame_size = -(signed short)(tmp << 2);
+			return 1;
+		}
+		if (ip->mm16_r5_format.opcode == mm_pool16d_op &&
+		    ip->mm16_r5_format.rt == 29) {
+			tmp = ip->mm16_r5_format.imm >> 1;
+			*frame_size = -(signed short)(tmp & 0xf);
+			return 1;
+		}
+		return 0;
 	}
 
-	return ip->mm_i_format.opcode == mm_addiu32_op &&
-	       ip->mm_i_format.rt == 29 && ip->mm_i_format.rs == 29;
+	if (ip->mm_i_format.opcode == mm_addiu32_op &&
+	    ip->mm_i_format.rt == 29 && ip->mm_i_format.rs == 29) {
+		*frame_size = -ip->i_format.simmediate;
+		return 1;
+	}
 #else
 	/* addiu/daddiu sp,sp,-imm */
 	if (ip->i_format.rs != 29 || ip->i_format.rt != 29)
 		return 0;
-	if (ip->i_format.opcode == addiu_op || ip->i_format.opcode == daddiu_op)
+
+	if (ip->i_format.opcode == addiu_op ||
+	    ip->i_format.opcode == daddiu_op) {
+		*frame_size = -ip->i_format.simmediate;
 		return 1;
+	}
 #endif
 	return 0;
 }
@@ -375,29 +396,7 @@ static int get_frame_info(struct mips_frame_info *info)
 		}
 
 		if (!info->frame_size) {
-			if (is_sp_move_ins(&insn))
-			{
-#ifdef CONFIG_CPU_MICROMIPS
-				if (mm_insn_16bit(insn.word >> 16))
-				{
-					unsigned short tmp;
-
-					if (ip->mm16_r3_format.simmediate & mm_addiusp_func)
-					{
-						tmp = ip->mm_b0_format.simmediate >> 1;
-						tmp = ((tmp & 0x1ff) ^ 0x100) - 0x100;
-						/* 0x0,0x1,0x1fe,0x1ff are special */
-						if ((tmp + 2) < 4)
-							tmp ^= 0x100;
-						info->frame_size = -(signed short)(tmp << 2);
-					} else {
-						tmp = (ip->mm16_r5_format.imm >> 1);
-						info->frame_size = -(signed short)(tmp & 0xf);
-					}
-				} else
-#endif
-				info->frame_size = - ip->i_format.simmediate;
-			}
+			is_sp_move_ins(&insn, &info->frame_size);
 			continue;
 		} else if (!saw_jump && is_jump_ins(ip)) {
 			/*
