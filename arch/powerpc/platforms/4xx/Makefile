@@ -1,4 +1,4 @@
-obj-y				+= uic.o
+obj-y				+= uic.o machine_check.o
 obj-$(CONFIG_PPC4xx_OCM)	+= ocm.o
 obj-$(CONFIG_4xx_SOC)		+= soc.o
 obj-$(CONFIG_PCI)		+= pci.o
