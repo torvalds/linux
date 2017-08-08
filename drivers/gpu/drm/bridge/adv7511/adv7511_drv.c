@@ -856,7 +856,7 @@ static int adv7511_bridge_attach(struct drm_bridge *bridge)
 	return ret;
 }
 
-static struct drm_bridge_funcs adv7511_bridge_funcs = {
+static const struct drm_bridge_funcs adv7511_bridge_funcs = {
 	.enable = adv7511_bridge_enable,
 	.disable = adv7511_bridge_disable,
 	.mode_set = adv7511_bridge_mode_set,
