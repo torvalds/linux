@@ -314,39 +314,6 @@ out:
 	/* What should we do here? We could issue a shutdown or hard reset. */
 }
 
-#ifdef CONFIG_PPC64
-/*
- * This function is called in real mode. Strictly no printk's please.
- *
- * regs->nip and regs->msr contains srr0 and ssr1.
- */
-long machine_check_early(struct pt_regs *regs)
-{
-	long handled = 0;
-
-	__this_cpu_inc(irq_stat.mce_exceptions);
-
-	if (cur_cpu_spec && cur_cpu_spec->machine_check_early)
-		handled = cur_cpu_spec->machine_check_early(regs);
-	return handled;
-}
-
-long hmi_exception_realmode(struct pt_regs *regs)
-{
-	__this_cpu_inc(irq_stat.hmi_exceptions);
-
-	wait_for_subcore_guest_exit();
-
-	if (ppc_md.hmi_exception_early)
-		ppc_md.hmi_exception_early(regs);
-
-	wait_for_tb_resync();
-
-	return 0;
-}
-
-#endif
-
 /*
  * I/O accesses can cause machine checks on powermacs.
  * Check if the NIP corresponds to the address of a sync
