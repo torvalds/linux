@@ -2639,7 +2639,7 @@ static void dce110_apply_ctx_for_surface(
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[i];
 
-		if (pipe_ctx->stream == stream)
+		if (pipe_ctx->stream != stream)
 			continue;
 
 		dce110_program_front_end_for_pipe(dc, pipe_ctx);
