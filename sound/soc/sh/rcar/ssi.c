@@ -72,6 +72,7 @@ struct rsnd_ssi {
 	u32 cr_own;
 	u32 cr_clk;
 	u32 cr_mode;
+	u32 cr_en;
 	u32 wsr;
 	int chan;
 	int rate;
@@ -291,6 +292,16 @@ static int rsnd_ssi_master_clk_start(struct rsnd_mod *mod,
 	if (ret < 0)
 		return ret;
 
+	/*
+	 * SSI clock will be output contiguously
+	 * by below settings.
+	 * This means, rsnd_ssi_master_clk_start()
+	 * and rsnd_ssi_register_setup() are necessary
+	 * for SSI parent
+	 *
+	 * SSICR  : FORCE, SCKD, SWSD
+	 * SSIWSR : CONT
+	 */
 	ssi->cr_clk = FORCE | SWL_32 | SCKD | SWSD | CKDV(idx);
 	ssi->wsr = CONT;
 	ssi->rate = rate;
@@ -393,7 +404,8 @@ static void rsnd_ssi_register_setup(struct rsnd_mod *mod)
 	rsnd_mod_write(mod, SSIWSR,	ssi->wsr);
 	rsnd_mod_write(mod, SSICR,	ssi->cr_own	|
 					ssi->cr_clk	|
-					ssi->cr_mode); /* without EN */
+					ssi->cr_mode	|
+					ssi->cr_en);
 }
 
 static void rsnd_ssi_pointer_init(struct rsnd_mod *mod,
@@ -544,6 +556,8 @@ static int rsnd_ssi_start(struct rsnd_mod *mod,
 			  struct rsnd_dai_stream *io,
 			  struct rsnd_priv *priv)
 {
+	struct rsnd_ssi *ssi = rsnd_mod_to_ssi(mod);
+
 	if (!rsnd_ssi_is_run_mods(mod, io))
 		return 0;
 
@@ -554,7 +568,19 @@ static int rsnd_ssi_start(struct rsnd_mod *mod,
 	if (rsnd_ssi_multi_slaves_runtime(io))
 		return 0;
 
-	rsnd_mod_bset(mod, SSICR, EN, EN);
+	/*
+	 * EN is for data output.
+	 * SSI parent EN is not needed.
+	 */
+	if (rsnd_ssi_is_parent(mod, io))
+		return 0;
+
+	ssi->cr_en = EN;
+
+	rsnd_mod_write(mod, SSICR,	ssi->cr_own	|
+					ssi->cr_clk	|
+					ssi->cr_mode	|
+					ssi->cr_en);
 
 	return 0;
 }
@@ -569,13 +595,7 @@ static int rsnd_ssi_stop(struct rsnd_mod *mod,
 	if (!rsnd_ssi_is_run_mods(mod, io))
 		return 0;
 
-	/*
-	 * don't stop if not last user
-	 * see also
-	 *	rsnd_ssi_start
-	 *	rsnd_ssi_interrupt
-	 */
-	if (ssi->usrcnt > 1)
+	if (rsnd_ssi_is_parent(mod, io))
 		return 0;
 
 	/*
@@ -594,6 +614,8 @@ static int rsnd_ssi_stop(struct rsnd_mod *mod,
 	 */
 	rsnd_mod_write(mod, SSICR, cr);	/* disabled all */
 	rsnd_ssi_status_check(mod, IIRQ);
+
+	ssi->cr_en = 0;
 
 	return 0;
 }
