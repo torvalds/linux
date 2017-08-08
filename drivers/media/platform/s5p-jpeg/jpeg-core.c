@@ -2303,6 +2303,7 @@ static void exynos4_jpeg_device_run(void *priv)
 		exynos4_jpeg_set_dec_bitstream_size(jpeg->regs, bitstream_size);
 	}
 
+	exynos4_jpeg_set_sys_int_enable(jpeg->regs, 1);
 	exynos4_jpeg_set_enc_dec_mode(jpeg->regs, ctx->mode);
 
 	spin_unlock_irqrestore(&jpeg->slock, flags);
@@ -2754,6 +2755,8 @@ static irqreturn_t exynos4_jpeg_irq(int irq, void *priv)
 	unsigned long payload_size = 0;
 
 	spin_lock(&jpeg->slock);
+
+	exynos4_jpeg_set_sys_int_enable(jpeg->regs, 0);
 
 	curr_ctx = v4l2_m2m_get_curr_priv(jpeg->m2m_dev);
 
