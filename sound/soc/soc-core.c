@@ -551,6 +551,54 @@ static inline void snd_soc_debugfs_exit(void)
 
 #endif
 
+static int snd_soc_rtdcom_add(struct snd_soc_pcm_runtime *rtd,
+			      struct snd_soc_component *component)
+{
+	struct snd_soc_rtdcom_list *rtdcom;
+	struct snd_soc_rtdcom_list *new_rtdcom;
+
+	for_each_rtdcom(rtd, rtdcom) {
+		/* already connected */
+		if (rtdcom->component == component)
+			return 0;
+	}
+
+	new_rtdcom = kmalloc(sizeof(*new_rtdcom), GFP_KERNEL);
+	if (!new_rtdcom)
+		return -ENOMEM;
+
+	new_rtdcom->component = component;
+	INIT_LIST_HEAD(&new_rtdcom->list);
+
+	list_add_tail(&new_rtdcom->list, &rtd->component_list);
+
+	return 0;
+}
+
+static void snd_soc_rtdcom_del_all(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_rtdcom_list *rtdcom1, *rtdcom2;
+
+	for_each_rtdcom_safe(rtd, rtdcom1, rtdcom2)
+		kfree(rtdcom1);
+
+	INIT_LIST_HEAD(&rtd->component_list);
+}
+
+struct snd_soc_component *snd_soc_rtdcom_lookup(struct snd_soc_pcm_runtime *rtd,
+						const char *driver_name)
+{
+	struct snd_soc_rtdcom_list *rtdcom;
+
+	for_each_rtdcom(rtd, rtdcom) {
+		if ((rtdcom->component->driver->name == driver_name) ||
+		    strcmp(rtdcom->component->driver->name, driver_name) == 0)
+			return rtdcom->component;
+	}
+
+	return NULL;
+}
+
 struct snd_pcm_substream *snd_soc_get_dai_substream(struct snd_soc_card *card,
 		const char *dai_link, int stream)
 {
@@ -575,6 +623,7 @@ static struct snd_soc_pcm_runtime *soc_new_pcm_runtime(
 	if (!rtd)
 		return NULL;
 
+	INIT_LIST_HEAD(&rtd->component_list);
 	rtd->card = card;
 	rtd->dai_link = dai_link;
 	rtd->codec_dais = kzalloc(sizeof(struct snd_soc_dai *) *
@@ -592,6 +641,7 @@ static void soc_free_pcm_runtime(struct snd_soc_pcm_runtime *rtd)
 {
 	if (rtd && rtd->codec_dais)
 		kfree(rtd->codec_dais);
+	snd_soc_rtdcom_del_all(rtd);
 	kfree(rtd);
 }
 

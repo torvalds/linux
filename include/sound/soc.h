@@ -886,6 +886,18 @@ struct snd_soc_component {
 #endif
 };
 
+struct snd_soc_rtdcom_list {
+	struct snd_soc_component *component;
+	struct list_head list; /* rtd::component_list */
+};
+struct snd_soc_component*
+snd_soc_rtdcom_lookup(struct snd_soc_pcm_runtime *rtd,
+		       const char *driver_name);
+#define for_each_rtdcom(rtd, rtdcom) \
+	list_for_each_entry(rtdcom, &(rtd)->component_list, list)
+#define for_each_rtdcom_safe(rtd, rtdcom1, rtdcom2) \
+	list_for_each_entry_safe(rtdcom1, rtdcom2, &(rtd)->component_list, list)
+
 /* SoC Audio Codec device */
 struct snd_soc_codec {
 	struct device *dev;
@@ -1240,6 +1252,7 @@ struct snd_soc_pcm_runtime {
 
 	unsigned int num; /* 0-based and monotonic increasing */
 	struct list_head list; /* rtd list of the soc card */
+	struct list_head component_list; /* list of connected components */
 
 	/* bit field */
 	unsigned int dev_registered:1;
