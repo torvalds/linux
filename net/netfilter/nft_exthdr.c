@@ -61,6 +61,26 @@ err:
 	regs->verdict.code = NFT_BREAK;
 }
 
+static void *
+nft_tcp_header_pointer(const struct nft_pktinfo *pkt,
+		       unsigned int len, void *buffer, unsigned int *tcphdr_len)
+{
+	struct tcphdr *tcph;
+
+	if (!pkt->tprot_set || pkt->tprot != IPPROTO_TCP)
+		return NULL;
+
+	tcph = skb_header_pointer(pkt->skb, pkt->xt.thoff, sizeof(*tcph), buffer);
+	if (!tcph)
+		return NULL;
+
+	*tcphdr_len = __tcp_hdrlen(tcph);
+	if (*tcphdr_len < sizeof(*tcph) || *tcphdr_len > len)
+		return NULL;
+
+	return skb_header_pointer(pkt->skb, pkt->xt.thoff, *tcphdr_len, buffer);
+}
+
 static void nft_exthdr_tcp_eval(const struct nft_expr *expr,
 				struct nft_regs *regs,
 				const struct nft_pktinfo *pkt)
@@ -72,18 +92,7 @@ static void nft_exthdr_tcp_eval(const struct nft_expr *expr,
 	struct tcphdr *tcph;
 	u8 *opt;
 
-	if (!pkt->tprot_set || pkt->tprot != IPPROTO_TCP)
-		goto err;
-
-	tcph = skb_header_pointer(pkt->skb, pkt->xt.thoff, sizeof(*tcph), buff);
-	if (!tcph)
-		goto err;
-
-	tcphdr_len = __tcp_hdrlen(tcph);
-	if (tcphdr_len < sizeof(*tcph))
-		goto err;
-
-	tcph = skb_header_pointer(pkt->skb, pkt->xt.thoff, tcphdr_len, buff);
+	tcph = nft_tcp_header_pointer(pkt, sizeof(buff), buff, &tcphdr_len);
 	if (!tcph)
 		goto err;
 
