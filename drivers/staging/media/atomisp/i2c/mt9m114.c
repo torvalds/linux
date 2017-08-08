@@ -1806,7 +1806,7 @@ static const struct v4l2_subdev_video_ops mt9m114_video_ops = {
 	.g_frame_interval = mt9m114_g_frame_interval,
 };
 
-static struct v4l2_subdev_sensor_ops mt9m114_sensor_ops = {
+static const struct v4l2_subdev_sensor_ops mt9m114_sensor_ops = {
 	.g_skip_frames	= mt9m114_g_skip_frames,
 };
 

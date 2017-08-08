@@ -1098,7 +1098,7 @@ static const struct v4l2_ctrl_config ctrls[] = {
 	},
 };
 
-static struct v4l2_subdev_sensor_ops ap1302_sensor_ops = {
+static const struct v4l2_subdev_sensor_ops ap1302_sensor_ops = {
 	.g_skip_frames	= ap1302_g_skip_frames,
 };
 
