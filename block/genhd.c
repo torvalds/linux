@@ -45,6 +45,43 @@ static void disk_add_events(struct gendisk *disk);
 static void disk_del_events(struct gendisk *disk);
 static void disk_release_events(struct gendisk *disk);
 
+void part_inc_in_flight(struct request_queue *q, struct hd_struct *part, int rw)
+{
+	if (q->mq_ops)
+		return;
+
+	atomic_inc(&part->in_flight[rw]);
+	if (part->partno)
+		atomic_inc(&part_to_disk(part)->part0.in_flight[rw]);
+}
+
+void part_dec_in_flight(struct request_queue *q, struct hd_struct *part, int rw)
+{
+	if (q->mq_ops)
+		return;
+
+	atomic_dec(&part->in_flight[rw]);
+	if (part->partno)
+		atomic_dec(&part_to_disk(part)->part0.in_flight[rw]);
+}
+
+void part_in_flight(struct request_queue *q, struct hd_struct *part,
+		    unsigned int inflight[2])
+{
+	if (q->mq_ops) {
+		blk_mq_in_flight(q, part, inflight);
+		return;
+	}
+
+	inflight[0] = atomic_read(&part->in_flight[0]) +
+			atomic_read(&part->in_flight[1]);
+	if (part->partno) {
+		part = &part_to_disk(part)->part0;
+		inflight[1] = atomic_read(&part->in_flight[0]) +
+				atomic_read(&part->in_flight[1]);
+	}
+}
+
 /**
  * disk_get_part - get partition
  * @disk: disk to look partition from
