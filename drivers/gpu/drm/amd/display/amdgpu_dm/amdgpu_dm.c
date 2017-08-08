@@ -1890,7 +1890,8 @@ static void fill_gamma_from_crtc_state(
 		return;
 	}
 
-	gamma->type = GAMMA_RGB_256_ENTRIES;
+	gamma->type = GAMMA_RGB_256;
+	gamma->num_entries = GAMMA_RGB_256_ENTRIES;
 	for (i = 0; i < GAMMA_RGB_256_ENTRIES; i++) {
 		gamma->entries.red[i] = dal_fixed31_32_from_int(lut[i].red);
 		gamma->entries.green[i] = dal_fixed31_32_from_int(lut[i].green);
