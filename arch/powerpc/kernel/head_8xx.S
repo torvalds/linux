@@ -595,7 +595,7 @@ DARFixed:/* Return from dcbx instruction bug workaround */
 	mfspr	r5,SPRN_DSISR
 	stw	r5,_DSISR(r11)
 	mfspr	r4,SPRN_DAR
-	andis.	r10,r5,0x4000
+	andis.	r10,r5,DSISR_NOHPTE@h
 	beq+	1f
 	tlbie	r4
 dtlbie:
