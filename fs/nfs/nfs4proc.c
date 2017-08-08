@@ -1659,6 +1659,28 @@ update:
 	return state;
 }
 
+static struct inode *
+nfs4_opendata_get_inode(struct nfs4_opendata *data)
+{
+	struct inode *inode;
+
+	switch (data->o_arg.claim) {
+	case NFS4_OPEN_CLAIM_NULL:
+	case NFS4_OPEN_CLAIM_DELEGATE_CUR:
+	case NFS4_OPEN_CLAIM_DELEGATE_PREV:
+		if (!(data->f_attr.valid & NFS_ATTR_FATTR))
+			return ERR_PTR(-EAGAIN);
+		inode = nfs_fhget(data->dir->d_sb, &data->o_res.fh,
+				&data->f_attr, data->f_label);
+		break;
+	default:
+		inode = d_inode(data->dentry);
+		ihold(inode);
+		nfs_refresh_inode(inode, &data->f_attr);
+	}
+	return inode;
+}
+
 static struct nfs4_state *
 _nfs4_opendata_to_nfs4_state(struct nfs4_opendata *data)
 {
@@ -1672,10 +1694,7 @@ _nfs4_opendata_to_nfs4_state(struct nfs4_opendata *data)
 		goto out;
 	}
 
-	ret = -EAGAIN;
-	if (!(data->f_attr.valid & NFS_ATTR_FATTR))
-		goto err;
-	inode = nfs_fhget(data->dir->d_sb, &data->o_res.fh, &data->f_attr, data->f_label);
+	inode = nfs4_opendata_get_inode(data);
 	ret = PTR_ERR(inode);
 	if (IS_ERR(inode))
 		goto err;
@@ -2071,7 +2090,6 @@ static void nfs4_open_prepare(struct rpc_task *task, void *calldata)
 		data->o_arg.open_bitmap = &nfs4_open_noattr_bitmap[0];
 	case NFS4_OPEN_CLAIM_FH:
 		task->tk_msg.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_OPEN_NOATTR];
-		nfs_copy_fh(&data->o_res.fh, data->o_arg.fh);
 	}
 	data->timestamp = jiffies;
 	if (nfs4_setup_sequence(data->o_arg.server->nfs_client,
