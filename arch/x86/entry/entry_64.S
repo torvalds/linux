@@ -142,14 +142,8 @@ ENTRY(entry_SYSCALL_64)
 	 * We do not frame this tiny irq-off block with TRACE_IRQS_OFF/ON,
 	 * it is too small to ever cause noticeable irq latency.
 	 */
-	SWAPGS_UNSAFE_STACK
-	/*
-	 * A hypervisor implementation might want to use a label
-	 * after the swapgs, so that it can do the swapgs
-	 * for the guest and jump here on syscall.
-	 */
-GLOBAL(entry_SYSCALL_64_after_swapgs)
 
+	swapgs
 	movq	%rsp, PER_CPU_VAR(rsp_scratch)
 	movq	PER_CPU_VAR(cpu_current_top_of_stack), %rsp
 
@@ -161,6 +155,7 @@ GLOBAL(entry_SYSCALL_64_after_swapgs)
 	pushq	%r11				/* pt_regs->flags */
 	pushq	$__USER_CS			/* pt_regs->cs */
 	pushq	%rcx				/* pt_regs->ip */
+GLOBAL(entry_SYSCALL_64_after_hwframe)
 	pushq	%rax				/* pt_regs->orig_ax */
 	pushq	%rdi				/* pt_regs->di */
 	pushq	%rsi				/* pt_regs->si */

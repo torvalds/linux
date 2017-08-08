@@ -82,34 +82,29 @@ RELOC(xen_sysret64, 1b+1)
  *	rip
  *	r11
  * rsp->rcx
- *
- * In all the entrypoints, we undo all that to make it look like a
- * CPU-generated syscall/sysenter and jump to the normal entrypoint.
  */
-
-.macro undo_xen_syscall
-	mov 0*8(%rsp), %rcx
-	mov 1*8(%rsp), %r11
-	mov 5*8(%rsp), %rsp
-.endm
 
 /* Normal 64-bit system call target */
 ENTRY(xen_syscall_target)
-	undo_xen_syscall
-	jmp entry_SYSCALL_64_after_swapgs
+	popq %rcx
+	popq %r11
+	jmp entry_SYSCALL_64_after_hwframe
 ENDPROC(xen_syscall_target)
 
 #ifdef CONFIG_IA32_EMULATION
 
 /* 32-bit compat syscall target */
 ENTRY(xen_syscall32_target)
-	undo_xen_syscall
-	jmp entry_SYSCALL_compat
+	popq %rcx
+	popq %r11
+	jmp entry_SYSCALL_compat_after_hwframe
 ENDPROC(xen_syscall32_target)
 
 /* 32-bit compat sysenter target */
 ENTRY(xen_sysenter_target)
-	undo_xen_syscall
+	mov 0*8(%rsp), %rcx
+	mov 1*8(%rsp), %r11
+	mov 5*8(%rsp), %rsp
 	jmp entry_SYSENTER_compat
 ENDPROC(xen_sysenter_target)
 
