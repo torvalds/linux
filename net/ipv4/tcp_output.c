@@ -3436,6 +3436,10 @@ int tcp_connect(struct sock *sk)
 	int err;
 
 	tcp_call_bpf(sk, BPF_SOCK_OPS_TCP_CONNECT_CB);
+
+	if (inet_csk(sk)->icsk_af_ops->rebuild_header(sk))
+		return -EHOSTUNREACH; /* Routing failure or similar. */
+
 	tcp_connect_init(sk);
 
 	if (unlikely(tp->repair)) {
