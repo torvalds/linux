@@ -35,7 +35,8 @@ driver consists of:
   the CSIDs to the inputs of the VFE;
 - VFE (Video Front End) module. Contains a pipeline of image processing hardware
   blocks. The VFE has different input interfaces. The PIX input interface feeds
-  the input data to the image processing pipeline. Three RDI input interfaces
+  the input data to the image processing pipeline. The image processing pipeline
+  contains also a scale and crop module at the end. Three RDI input interfaces
   bypass the image processing pipeline. The VFE also contains the AXI bus
   interface which writes the output data to memory.
 
@@ -73,6 +74,11 @@ The current version of the driver supports:
 
     - NV12/NV21 (two plane YUV 4:2:0 - V4L2_PIX_FMT_NV12 / V4L2_PIX_FMT_NV21);
     - NV16/NV61 (two plane YUV 4:2:2 - V4L2_PIX_FMT_NV16 / V4L2_PIX_FMT_NV61).
+
+  - Scaling support. Configuration of the VFE Encoder Scale module
+    for downscalling with ratio up to 16x.
+
+  - Cropping support. Configuration of the VFE Encoder Crop module.
 
 - Concurrent and independent usage of two data inputs - could be camera sensors
   and/or TG.
@@ -134,6 +140,12 @@ Runtime configuration of the hardware (updating settings while streaming) is
 not required to implement the currently supported functionality. The complete
 configuration on each hardware module is applied on STREAMON ioctl based on
 the current active media links, formats and controls set.
+
+The output size of the scaler module in the VFE is configured with the actual
+compose selection rectangle on the sink pad of the 'msm_vfe0_pix' entity.
+
+The crop output area of the crop module in the VFE is configured with the actual
+crop selection rectangle on the source pad of the 'msm_vfe0_pix' entity.
 
 
 Documentation
