@@ -47,13 +47,15 @@ struct volt_sel_table {
 struct cluster_info {
 	struct list_head list_head;
 	cpumask_t cpus;
+	unsigned int reboot_freq;
+	unsigned int threshold_freq;
 	int leakage;
 	int pvtm;
 	int volt_sel;
 	int soc_version;
-	bool set_opp;
-	unsigned int reboot_freq;
+	bool offline;
 	bool rebooting;
+	bool freq_limit;
 };
 
 struct pvtm_config {
@@ -365,6 +367,9 @@ static int rockchip_cpufreq_cluster_init(int cpu, struct cluster_info *cluster)
 	if (of_property_read_u32(np, "rockchip,reboot-freq",
 				 &cluster->reboot_freq))
 		cluster->reboot_freq = REBOOT_FREQ;
+	of_property_read_u32(np, "rockchip,threshold-freq",
+			     &cluster->threshold_freq);
+	cluster->freq_limit = of_property_read_bool(np, "rockchip,freq-limit");
 
 	cluster->volt_sel = -1;
 	ret = rockchip_get_efuse_value(np, "cpu_leakage", &cluster->leakage);
@@ -482,11 +487,11 @@ static int rockchip_hotcpu_notifier(struct notifier_block *nb,
 
 	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_ONLINE:
-		if (cluster->set_opp) {
+		if (cluster->offline) {
 			ret = rockchip_cpufreq_set_opp_info(cpu, cluster);
 			if (ret)
 				pr_err("Failed to set cpu%d opp_info\n", cpu);
-			cluster->set_opp = false;
+			cluster->offline = false;
 		}
 		break;
 
@@ -494,7 +499,7 @@ static int rockchip_hotcpu_notifier(struct notifier_block *nb,
 		cpumask_and(&cpus, &cluster->cpus, cpu_online_mask);
 		number = cpumask_weight(&cpus);
 		if (!number)
-			cluster->set_opp = true;
+			cluster->offline = true;
 		break;
 	}
 
@@ -526,33 +531,115 @@ static struct notifier_block rockchip_reboot_nb = {
 	.notifier_call = rockchip_reboot_notifier,
 };
 
-static int rockchip_cpufreq_notifier(struct notifier_block *nb,
-				     unsigned long event, void *data)
+static int rockchip_cpufreq_policy_notifier(struct notifier_block *nb,
+					    unsigned long event, void *data)
 {
 	struct cpufreq_policy *policy = data;
 	struct cluster_info *cluster;
+	int cpu = policy->cpu;
 
 	if (event != CPUFREQ_ADJUST)
 		return NOTIFY_OK;
 
-	list_for_each_entry(cluster, &cluster_info_list, list_head) {
-		if (cluster->rebooting &&
-		    cpumask_test_cpu(policy->cpu, &cluster->cpus)) {
-			if (cluster->reboot_freq < policy->max)
-				policy->max = cluster->reboot_freq;
-			policy->min = policy->max;
-			pr_info("cpu%d limit freq=%d min=%d max=%d\n",
-				policy->cpu, cluster->reboot_freq,
-				policy->min, policy->max);
-		}
+	cluster = rockchip_cluster_info_lookup(cpu);
+	if (!cluster)
+		return NOTIFY_DONE;
+
+	if (cluster->rebooting) {
+		if (cluster->reboot_freq < policy->max)
+			policy->max = cluster->reboot_freq;
+		policy->min = policy->max;
+		pr_info("cpu%d limit freq=%d min=%d max=%d\n",
+			policy->cpu, cluster->reboot_freq,
+			policy->min, policy->max);
+		return NOTIFY_OK;
 	}
 
 	return NOTIFY_OK;
 }
 
-static struct notifier_block rockchip_cpufreq_nb = {
-	.notifier_call = rockchip_cpufreq_notifier,
+static struct notifier_block rockchip_cpufreq_policy_nb = {
+	.notifier_call = rockchip_cpufreq_policy_notifier,
 };
+
+static struct cpufreq_policy *rockchip_get_policy(struct cluster_info *cluster)
+{
+	int first_cpu;
+
+	first_cpu = cpumask_first_and(&cluster->cpus, cpu_online_mask);
+	if (first_cpu >= nr_cpu_ids)
+		return NULL;
+
+	return cpufreq_cpu_get(first_cpu);
+}
+
+/**
+ * rockchip_cpufreq_adjust_target() - Adjust cpu target frequency
+ * @cpu:	 CPU number
+ * @freq: Expected target frequency
+ *
+ * This adjusts cpu target frequency for reducing power consumption.
+ * Only one cluster can eanble frequency limit, and the cluster's
+ * maximum frequency will be limited to its threshold frequency, if the
+ * other cluster's frequency is geater than or equal to its threshold
+ * frequency.
+ */
+unsigned int rockchip_cpufreq_adjust_target(int cpu, unsigned int freq)
+{
+	struct cpufreq_policy *policy;
+	struct cluster_info *cluster, *temp;
+
+	cluster = rockchip_cluster_info_lookup(cpu);
+	if (!cluster || !cluster->threshold_freq)
+		goto adjust_out;
+
+	if (cluster->freq_limit) {
+		if (freq <= cluster->threshold_freq)
+			goto adjust_out;
+
+		list_for_each_entry(temp, &cluster_info_list, list_head) {
+			if (temp->freq_limit || temp == cluster ||
+			    temp->offline)
+				continue;
+
+			policy = rockchip_get_policy(temp);
+			if (!policy)
+				continue;
+
+			if (temp->threshold_freq &&
+			    temp->threshold_freq <= policy->cur) {
+				cpufreq_cpu_put(policy);
+				return cluster->threshold_freq;
+			}
+			cpufreq_cpu_put(policy);
+		}
+	} else {
+		if (freq < cluster->threshold_freq)
+			goto adjust_out;
+
+		list_for_each_entry(temp, &cluster_info_list, list_head) {
+			if (!temp->freq_limit || temp == cluster ||
+			    temp->offline)
+				continue;
+
+			policy = rockchip_get_policy(temp);
+			if (!policy)
+				continue;
+
+			if (temp->threshold_freq &&
+			    temp->threshold_freq < policy->cur)
+				cpufreq_driver_target(policy,
+						      temp->threshold_freq,
+						      CPUFREQ_RELATION_H);
+			cpufreq_cpu_put(policy);
+		}
+	}
+
+adjust_out:
+
+	return freq;
+}
+EXPORT_SYMBOL_GPL(rockchip_cpufreq_adjust_target);
 
 static int __init rockchip_cpufreq_driver_init(void)
 {
@@ -607,7 +694,7 @@ static int __init rockchip_cpufreq_driver_init(void)
 
 	register_hotcpu_notifier(&rockchip_hotcpu_nb);
 	register_reboot_notifier(&rockchip_reboot_nb);
-	cpufreq_register_notifier(&rockchip_cpufreq_nb,
+	cpufreq_register_notifier(&rockchip_cpufreq_policy_nb,
 				  CPUFREQ_POLICY_NOTIFIER);
 
 next:

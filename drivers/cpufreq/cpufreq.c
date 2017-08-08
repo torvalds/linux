@@ -1950,6 +1950,8 @@ int __cpufreq_driver_target(struct cpufreq_policy *policy,
 	if (cpufreq_disabled())
 		return -ENODEV;
 
+	target_freq = rockchip_cpufreq_adjust_target(policy->cpu, target_freq);
+
 	/* Make sure that target_freq is within supported range */
 	if (target_freq > policy->max)
 		target_freq = policy->max;
