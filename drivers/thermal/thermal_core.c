@@ -836,11 +836,7 @@ static void thermal_release(struct device *dev)
 	if (!strncmp(dev_name(dev), "thermal_zone",
 		     sizeof("thermal_zone") - 1)) {
 		tz = to_thermal_zone(dev);
-		kfree(tz->trip_type_attrs);
-		kfree(tz->trip_temp_attrs);
-		kfree(tz->trip_hyst_attrs);
-		kfree(tz->trips_attribute_group.attrs);
-		kfree(tz->device.groups);
+		thermal_zone_destroy_device_groups(tz);
 		kfree(tz);
 	} else if (!strncmp(dev_name(dev), "cooling_device",
 			    sizeof("cooling_device") - 1)) {
