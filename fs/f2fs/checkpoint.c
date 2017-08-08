@@ -589,10 +589,23 @@ static int recover_orphan_inode(struct f2fs_sb_info *sbi, nid_t ino)
 int recover_orphan_inodes(struct f2fs_sb_info *sbi)
 {
 	block_t start_blk, orphan_blocks, i, j;
-	int err;
+	unsigned int s_flags = sbi->sb->s_flags;
+	int err = 0;
 
 	if (!is_set_ckpt_flags(sbi, CP_ORPHAN_PRESENT_FLAG))
 		return 0;
+
+	if (s_flags & MS_RDONLY) {
+		f2fs_msg(sbi->sb, KERN_INFO, "orphan cleanup on readonly fs");
+		sbi->sb->s_flags &= ~MS_RDONLY;
+	}
+
+#ifdef CONFIG_QUOTA
+	/* Needed for iput() to work correctly and not trash data */
+	sbi->sb->s_flags |= MS_ACTIVE;
+	/* Turn on quotas so that they are updated correctly */
+	f2fs_enable_quota_files(sbi);
+#endif
 
 	start_blk = __start_cp_addr(sbi) + 1 + __cp_payload(sbi);
 	orphan_blocks = __start_sum_addr(sbi) - 1 - __cp_payload(sbi);
@@ -609,14 +622,21 @@ int recover_orphan_inodes(struct f2fs_sb_info *sbi)
 			err = recover_orphan_inode(sbi, ino);
 			if (err) {
 				f2fs_put_page(page, 1);
-				return err;
+				goto out;
 			}
 		}
 		f2fs_put_page(page, 1);
 	}
 	/* clear Orphan Flag */
 	clear_ckpt_flags(sbi, CP_ORPHAN_PRESENT_FLAG);
-	return 0;
+out:
+#ifdef CONFIG_QUOTA
+	/* Turn quotas off */
+	f2fs_quota_off_umount(sbi->sb);
+#endif
+	sbi->sb->s_flags = s_flags; /* Restore MS_RDONLY status */
+
+	return err;
 }
 
 static void write_orphan_inodes(struct f2fs_sb_info *sbi, block_t start_blk)
