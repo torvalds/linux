@@ -55,7 +55,7 @@
 struct resources {
 	char *regulator[CAMSS_RES_MAX];
 	char *clock[CAMSS_RES_MAX];
-	s32 clock_rate[CAMSS_RES_MAX];
+	u32 clock_rate[CAMSS_RES_MAX][CAMSS_RES_MAX];
 	char *reg[CAMSS_RES_MAX];
 	char *interrupt[CAMSS_RES_MAX];
 };
@@ -89,8 +89,17 @@ struct camss_async_subdev {
 	struct v4l2_async_subdev asd;
 };
 
-int camss_enable_clocks(int nclocks, struct clk **clock, struct device *dev);
-void camss_disable_clocks(int nclocks, struct clk **clock);
+struct camss_clock {
+	struct clk *clk;
+	const char *name;
+	u32 *freq;
+	u32 nfreqs;
+};
+
+void camss_add_clock_margin(u64 *rate);
+int camss_enable_clocks(int nclocks, struct camss_clock *clock,
+			struct device *dev);
+void camss_disable_clocks(int nclocks, struct camss_clock *clock);
 int camss_get_pixel_clock(struct media_entity *entity, u32 *pixel_clock);
 void camss_delete(struct camss *camss);
 

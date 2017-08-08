@@ -56,7 +56,7 @@ struct csid_device {
 	void __iomem *base;
 	u32 irq;
 	char irq_name[30];
-	struct clk **clock;
+	struct camss_clock *clock;
 	int nclocks;
 	struct regulator *vdda;
 	struct completion reset_complete;

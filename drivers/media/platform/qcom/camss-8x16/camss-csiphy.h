@@ -57,7 +57,7 @@ struct csiphy_device {
 	void __iomem *base_clk_mux;
 	u32 irq;
 	char irq_name[30];
-	struct clk **clock;
+	struct camss_clock *clock;
 	int nclocks;
 	u32 timer_clk_rate;
 	struct csiphy_config cfg;

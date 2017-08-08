@@ -954,9 +954,14 @@ int msm_ispif_subdev_init(struct ispif_device *ispif,
 		return -ENOMEM;
 
 	for (i = 0; i < ispif->nclocks; i++) {
-		ispif->clock[i] = devm_clk_get(dev, res->clock[i]);
-		if (IS_ERR(ispif->clock[i]))
-			return PTR_ERR(ispif->clock[i]);
+		struct camss_clock *clock = &ispif->clock[i];
+
+		clock->clk = devm_clk_get(dev, res->clock[i]);
+		if (IS_ERR(clock->clk))
+			return PTR_ERR(clock->clk);
+
+		clock->freq = NULL;
+		clock->nfreqs = 0;
 	}
 
 	ispif->nclocks_for_reset = 0;
@@ -969,10 +974,14 @@ int msm_ispif_subdev_init(struct ispif_device *ispif,
 		return -ENOMEM;
 
 	for (i = 0; i < ispif->nclocks_for_reset; i++) {
-		ispif->clock_for_reset[i] = devm_clk_get(dev,
-						res->clock_for_reset[i]);
-		if (IS_ERR(ispif->clock_for_reset[i]))
-			return PTR_ERR(ispif->clock_for_reset[i]);
+		struct camss_clock *clock = &ispif->clock_for_reset[i];
+
+		clock->clk = devm_clk_get(dev, res->clock_for_reset[i]);
+		if (IS_ERR(clock->clk))
+			return PTR_ERR(clock->clk);
+
+		clock->freq = NULL;
+		clock->nfreqs = 0;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(ispif->line); i++)

@@ -158,6 +158,69 @@ static irqreturn_t csiphy_isr(int irq, void *dev)
 }
 
 /*
+ * csiphy_set_clock_rates - Calculate and set clock rates on CSIPHY module
+ * @csiphy: CSIPHY device
+ */
+static int csiphy_set_clock_rates(struct csiphy_device *csiphy)
+{
+	struct device *dev = to_device_index(csiphy, csiphy->id);
+	u32 pixel_clock;
+	int i, j;
+	int ret;
+
+	ret = camss_get_pixel_clock(&csiphy->subdev.entity, &pixel_clock);
+	if (ret)
+		pixel_clock = 0;
+
+	for (i = 0; i < csiphy->nclocks; i++) {
+		struct camss_clock *clock = &csiphy->clock[i];
+
+		if (!strcmp(clock->name, "csiphy0_timer") ||
+			!strcmp(clock->name, "csiphy1_timer")) {
+			u8 bpp = csiphy_get_bpp(
+					csiphy->fmt[MSM_CSIPHY_PAD_SINK].code);
+			u8 num_lanes = csiphy->cfg.csi2->lane_cfg.num_data;
+			u64 min_rate = pixel_clock * bpp / (2 * num_lanes * 4);
+			long round_rate;
+
+			camss_add_clock_margin(&min_rate);
+
+			for (j = 0; j < clock->nfreqs; j++)
+				if (min_rate < clock->freq[j])
+					break;
+
+			if (j == clock->nfreqs) {
+				dev_err(dev,
+					"Pixel clock is too high for CSIPHY\n");
+				return -EINVAL;
+			}
+
+			/* if sensor pixel clock is not available */
+			/* set highest possible CSIPHY clock rate */
+			if (min_rate == 0)
+				j = clock->nfreqs - 1;
+
+			round_rate = clk_round_rate(clock->clk, clock->freq[j]);
+			if (round_rate < 0) {
+				dev_err(dev, "clk round rate failed: %ld\n",
+					round_rate);
+				return -EINVAL;
+			}
+
+			csiphy->timer_clk_rate = round_rate;
+
+			ret = clk_set_rate(clock->clk, csiphy->timer_clk_rate);
+			if (ret < 0) {
+				dev_err(dev, "clk set rate failed: %d\n", ret);
+				return ret;
+			}
+		}
+	}
+
+	return 0;
+}
+
+/*
  * csiphy_reset - Perform software reset on CSIPHY module
  * @csiphy: CSIPHY device
  */
@@ -183,6 +246,10 @@ static int csiphy_set_power(struct v4l2_subdev *sd, int on)
 	if (on) {
 		u8 hw_version;
 		int ret;
+
+		ret = csiphy_set_clock_rates(csiphy);
+		if (ret < 0)
+			return ret;
 
 		ret = camss_enable_clocks(csiphy->nclocks, csiphy->clock, dev);
 		if (ret < 0)
@@ -616,7 +683,7 @@ int msm_csiphy_subdev_init(struct csiphy_device *csiphy,
 	struct device *dev = to_device_index(csiphy, id);
 	struct platform_device *pdev = to_platform_device(dev);
 	struct resource *r;
-	int i;
+	int i, j;
 	int ret;
 
 	csiphy->id = id;
@@ -671,30 +738,30 @@ int msm_csiphy_subdev_init(struct csiphy_device *csiphy,
 		return -ENOMEM;
 
 	for (i = 0; i < csiphy->nclocks; i++) {
-		csiphy->clock[i] = devm_clk_get(dev, res->clock[i]);
-		if (IS_ERR(csiphy->clock[i]))
-			return PTR_ERR(csiphy->clock[i]);
+		struct camss_clock *clock = &csiphy->clock[i];
 
-		if (res->clock_rate[i]) {
-			long clk_rate = clk_round_rate(csiphy->clock[i],
-						       res->clock_rate[i]);
-			if (clk_rate < 0) {
-				dev_err(to_device_index(csiphy, csiphy->id),
-					"clk round rate failed: %ld\n",
-					clk_rate);
-				return -EINVAL;
-			}
-			ret = clk_set_rate(csiphy->clock[i], clk_rate);
-			if (ret < 0) {
-				dev_err(to_device_index(csiphy, csiphy->id),
-					"clk set rate failed: %d\n", ret);
-				return ret;
-			}
+		clock->clk = devm_clk_get(dev, res->clock[i]);
+		if (IS_ERR(clock->clk))
+			return PTR_ERR(clock->clk);
 
-			if (!strcmp(res->clock[i], "csiphy0_timer") ||
-					!strcmp(res->clock[i], "csiphy1_timer"))
-				csiphy->timer_clk_rate = clk_rate;
+		clock->name = res->clock[i];
+
+		clock->nfreqs = 0;
+		while (res->clock_rate[i][clock->nfreqs])
+			clock->nfreqs++;
+
+		if (!clock->nfreqs) {
+			clock->freq = NULL;
+			continue;
 		}
+
+		clock->freq = devm_kzalloc(dev, clock->nfreqs *
+					   sizeof(*clock->freq), GFP_KERNEL);
+		if (!clock->freq)
+			return -ENOMEM;
+
+		for (j = 0; j < clock->nfreqs; j++)
+			clock->freq[j] = res->clock_rate[i][j];
 	}
 
 	return 0;

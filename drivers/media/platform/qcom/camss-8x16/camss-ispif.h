@@ -60,9 +60,9 @@ struct ispif_device {
 	void __iomem *base_clk_mux;
 	u32 irq;
 	char irq_name[30];
-	struct clk **clock;
+	struct camss_clock *clock;
 	int nclocks;
-	struct clk **clock_for_reset;
+	struct camss_clock  *clock_for_reset;
 	int nclocks_for_reset;
 	struct completion reset_complete;
 	int power_count;

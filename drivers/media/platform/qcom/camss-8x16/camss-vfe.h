@@ -91,7 +91,7 @@ struct vfe_device {
 	void __iomem *base;
 	u32 irq;
 	char irq_name[30];
-	struct clk **clock;
+	struct camss_clock *clock;
 	int nclocks;
 	struct completion reset_complete;
 	struct completion halt_complete;
