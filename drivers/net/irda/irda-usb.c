@@ -72,7 +72,7 @@
 static int qos_mtt_bits = 0;
 
 /* These are the currently known IrDA USB dongles. Add new dongles here */
-static struct usb_device_id dongles[] = {
+static const struct usb_device_id dongles[] = {
 	/* ACTiSYS Corp.,  ACT-IR2000U FIR-USB Adapter */
 	{ USB_DEVICE(0x9c4, 0x011), .driver_info = IUC_SPEED_BUG | IUC_NO_WINDOW },
 	/* Look like ACTiSYS, Report : IBM Corp., IBM UltraPort IrDA */
