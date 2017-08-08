@@ -208,7 +208,7 @@ static inline int is_ra_save_ins(union mips_instruction *ip, int *poff)
 	 *
 	 * microMIPS is way more fun...
 	 */
-	if (mm_insn_16bit(ip->halfword[1])) {
+	if (mm_insn_16bit(ip->word >> 16)) {
 		switch (ip->mm16_r5_format.opcode) {
 		case mm_swsp16_op:
 			if (ip->mm16_r5_format.rt != 31)
@@ -287,7 +287,7 @@ static inline int is_jump_ins(union mips_instruction *ip)
 	 *
 	 * microMIPS is kind of more fun...
 	 */
-	if (mm_insn_16bit(ip->halfword[1])) {
+	if (mm_insn_16bit(ip->word >> 16)) {
 		if ((ip->mm16_r5_format.opcode == mm_pool16c_op &&
 		    (ip->mm16_r5_format.rt & mm_jr16_op) == mm_jr16_op))
 			return 1;
@@ -324,7 +324,7 @@ static inline int is_sp_move_ins(union mips_instruction *ip)
 	 *
 	 * microMIPS is not more fun...
 	 */
-	if (mm_insn_16bit(ip->halfword[1])) {
+	if (mm_insn_16bit(ip->word >> 16)) {
 		return (ip->mm16_r3_format.opcode == mm_pool16d_op &&
 			ip->mm16_r3_format.simmediate & mm_addiusp_func) ||
 		       (ip->mm16_r5_format.opcode == mm_pool16d_op &&
@@ -364,12 +364,10 @@ static int get_frame_info(struct mips_frame_info *info)
 	for (i = 0; i < max_insns && ip < ip_end; i++) {
 		ip = (void *)ip + last_insn_size;
 		if (is_mmips && mm_insn_16bit(ip->halfword[0])) {
-			insn.halfword[0] = 0;
-			insn.halfword[1] = ip->halfword[0];
+			insn.word = ip->halfword[0] << 16;
 			last_insn_size = 2;
 		} else if (is_mmips) {
-			insn.halfword[0] = ip->halfword[1];
-			insn.halfword[1] = ip->halfword[0];
+			insn.word = ip->halfword[0] << 16 | ip->halfword[1];
 			last_insn_size = 4;
 		} else {
 			insn.word = ip->word;
@@ -380,7 +378,7 @@ static int get_frame_info(struct mips_frame_info *info)
 			if (is_sp_move_ins(&insn))
 			{
 #ifdef CONFIG_CPU_MICROMIPS
-				if (mm_insn_16bit(ip->halfword[0]))
+				if (mm_insn_16bit(insn.word >> 16))
 				{
 					unsigned short tmp;
 
@@ -393,7 +391,7 @@ static int get_frame_info(struct mips_frame_info *info)
 							tmp ^= 0x100;
 						info->frame_size = -(signed short)(tmp << 2);
 					} else {
-						tmp = (ip->halfword[0] >> 1);
+						tmp = (ip->mm16_r5_format.imm >> 1);
 						info->frame_size = -(signed short)(tmp & 0xf);
 					}
 				} else
