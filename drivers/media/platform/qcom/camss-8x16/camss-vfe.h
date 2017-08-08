@@ -81,6 +81,7 @@ struct vfe_line {
 	struct media_pad pads[MSM_VFE_PADS_NUM];
 	struct v4l2_mbus_framefmt fmt[MSM_VFE_PADS_NUM];
 	struct v4l2_rect compose;
+	struct v4l2_rect crop;
 	struct camss_video video_out;
 	struct vfe_output output;
 };
