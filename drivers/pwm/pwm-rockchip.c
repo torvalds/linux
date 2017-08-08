@@ -33,6 +33,7 @@
 struct rockchip_pwm_chip {
 	struct pwm_chip chip;
 	struct clk *clk;
+	struct clk *pclk;
 	const struct rockchip_pwm_data *data;
 	void __iomem *base;
 };
@@ -145,7 +146,7 @@ static void rockchip_pwm_get_state(struct pwm_chip *chip,
 	u64 tmp;
 	int ret;
 
-	ret = clk_enable(pc->clk);
+	ret = clk_enable(pc->pclk);
 	if (ret)
 		return;
 
@@ -161,7 +162,7 @@ static void rockchip_pwm_get_state(struct pwm_chip *chip,
 
 	pc->data->get_state(chip, pwm, state);
 
-	clk_disable(pc->clk);
+	clk_disable(pc->pclk);
 }
 
 static int rockchip_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
@@ -224,7 +225,7 @@ static int rockchip_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	pwm_get_state(pwm, &curstate);
 	enabled = curstate.enabled;
 
-	ret = clk_enable(pc->clk);
+	ret = clk_enable(pc->pclk);
 	if (ret)
 		return ret;
 
@@ -257,7 +258,7 @@ static int rockchip_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	rockchip_pwm_get_state(chip, pwm, state);
 
 out:
-	clk_disable(pc->clk);
+	clk_disable(pc->pclk);
 
 	return ret;
 }
@@ -328,7 +329,7 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 	const struct of_device_id *id;
 	struct rockchip_pwm_chip *pc;
 	struct resource *r;
-	int ret;
+	int ret, count;
 
 	id = of_match_device(rockchip_pwm_dt_ids, &pdev->dev);
 	if (!id)
@@ -343,13 +344,43 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 	if (IS_ERR(pc->base))
 		return PTR_ERR(pc->base);
 
-	pc->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(pc->clk))
-		return PTR_ERR(pc->clk);
+	pc->clk = devm_clk_get(&pdev->dev, "pwm");
+	if (IS_ERR(pc->clk)) {
+		pc->clk = devm_clk_get(&pdev->dev, NULL);
+		if (IS_ERR(pc->clk)) {
+			ret = PTR_ERR(pc->clk);
+			if (ret != -EPROBE_DEFER)
+				dev_err(&pdev->dev, "Can't get bus clk: %d\n",
+					ret);
+			return ret;
+		}
+	}
+
+	count = of_count_phandle_with_args(pdev->dev.of_node,
+					   "clocks", "#clock-cells");
+	if (count == 2)
+		pc->pclk = devm_clk_get(&pdev->dev, "pclk");
+	else
+		pc->pclk = pc->clk;
+
+	if (IS_ERR(pc->pclk)) {
+		ret = PTR_ERR(pc->pclk);
+		if (ret != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "Can't get APB clk: %d\n", ret);
+		return ret;
+	}
 
 	ret = clk_prepare_enable(pc->clk);
-	if (ret)
+	if (ret) {
+		dev_err(&pdev->dev, "Can't prepare enable bus clk: %d\n", ret);
 		return ret;
+	}
+
+	ret = clk_prepare(pc->pclk);
+	if (ret) {
+		dev_err(&pdev->dev, "Can't prepare APB clk: %d\n", ret);
+		goto err_clk;
+	}
 
 	platform_set_drvdata(pdev, pc);
 
@@ -368,11 +399,19 @@ static int rockchip_pwm_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		clk_unprepare(pc->clk);
 		dev_err(&pdev->dev, "pwmchip_add() failed: %d\n", ret);
+		goto err_pclk;
 	}
 
 	/* Keep the PWM clk enabled if the PWM appears to be up and running. */
 	if (!pwm_is_enabled(pc->chip.pwms))
 		clk_disable(pc->clk);
+
+	return 0;
+
+err_pclk:
+	clk_unprepare(pc->pclk);
+err_clk:
+	clk_disable_unprepare(pc->clk);
 
 	return ret;
 }
@@ -395,6 +434,7 @@ static int rockchip_pwm_remove(struct platform_device *pdev)
 	if (pwm_is_enabled(pc->chip.pwms))
 		clk_disable(pc->clk);
 
+	clk_unprepare(pc->pclk);
 	clk_unprepare(pc->clk);
 
 	return pwmchip_remove(&pc->chip);
