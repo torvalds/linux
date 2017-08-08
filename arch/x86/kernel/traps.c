@@ -581,7 +581,7 @@ do_general_protection(struct pt_regs *regs, long error_code)
 
 	show_signal(tsk, SIGSEGV, "", desc, regs, error_code);
 
-	force_sig_info(SIGSEGV, SEND_SIG_PRIV, tsk);
+	force_sig(SIGSEGV, tsk);
 }
 NOKPROBE_SYMBOL(do_general_protection);
 
