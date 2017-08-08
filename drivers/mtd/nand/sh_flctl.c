@@ -411,7 +411,7 @@ static int flctl_dma_fifo0_transfer(struct sh_flctl *flctl, unsigned long *buf,
 
 	dma_addr = dma_map_single(chan->device->dev, buf, len, dir);
 
-	if (dma_addr)
+	if (!dma_mapping_error(chan->device->dev, dma_addr))
 		desc = dmaengine_prep_slave_single(chan, dma_addr, len,
 			tr_dir, DMA_PREP_INTERRUPT | DMA_CTRL_ACK);
 
