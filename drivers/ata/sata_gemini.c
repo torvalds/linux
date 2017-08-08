@@ -15,6 +15,7 @@
 #include <linux/of_device.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/pinctrl/consumer.h>
 #include "sata_gemini.h"
 
 #define DRV_NAME "gemini_sata_bridge"
@@ -287,6 +288,29 @@ static int gemini_sata_bridge_init(struct sata_gemini *sg)
 	return 0;
 }
 
+static int gemini_setup_ide_pins(struct device *dev)
+{
+	struct pinctrl *p;
+	struct pinctrl_state *ide_state;
+	int ret;
+
+	p = devm_pinctrl_get(dev);
+	if (IS_ERR(p))
+		return PTR_ERR(p);
+
+	ide_state = pinctrl_lookup_state(p, "ide");
+	if (IS_ERR(ide_state))
+		return PTR_ERR(ide_state);
+
+	ret = pinctrl_select_state(p, ide_state);
+	if (ret) {
+		dev_err(dev, "could not select IDE state\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static int gemini_sata_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -353,6 +377,17 @@ static int gemini_sata_probe(struct platform_device *pdev)
 		dev_err(dev, "unable to set up IDE muxing\n");
 		ret = -ENODEV;
 		goto out_unprep_clk;
+	}
+
+	/*
+	 * Route out the IDE pins if desired.
+	 * This is done by looking up a special pin control state called
+	 * "ide" that will route out the IDE pins.
+	 */
+	if (sg->ide_pins) {
+		ret = gemini_setup_ide_pins(dev);
+		if (ret)
+			return ret;
 	}
 
 	dev_info(dev, "set up the Gemini IDE/SATA nexus\n");
