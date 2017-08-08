@@ -317,6 +317,13 @@ static inline int mem_reserve(unsigned long start, unsigned long end)
 
 void __init setup_arch(char **cmdline_p)
 {
+	pr_info("config ID: %08x:%08x\n",
+		get_sr(SREG_EPC), get_sr(SREG_EXCSAVE));
+	if (get_sr(SREG_EPC) != XCHAL_HW_CONFIGID0 ||
+	    get_sr(SREG_EXCSAVE) != XCHAL_HW_CONFIGID1)
+		pr_info("built for config ID: %08x:%08x\n",
+			XCHAL_HW_CONFIGID0, XCHAL_HW_CONFIGID1);
+
 	*cmdline_p = command_line;
 	platform_setup(cmdline_p);
 	strlcpy(boot_command_line, *cmdline_p, COMMAND_LINE_SIZE);
@@ -582,12 +589,14 @@ c_show(struct seq_file *f, void *slot)
 		      "model\t\t: Xtensa " XCHAL_HW_VERSION_NAME "\n"
 		      "core ID\t\t: " XCHAL_CORE_ID "\n"
 		      "build ID\t: 0x%x\n"
+		      "config ID\t: %08x:%08x\n"
 		      "byte order\t: %s\n"
 		      "cpu MHz\t\t: %lu.%02lu\n"
 		      "bogomips\t: %lu.%02lu\n",
 		      num_online_cpus(),
 		      cpumask_pr_args(cpu_online_mask),
 		      XCHAL_BUILD_UNIQUE_ID,
+		      get_sr(SREG_EPC), get_sr(SREG_EXCSAVE),
 		      XCHAL_HAVE_BE ?  "big" : "little",
 		      ccount_freq/1000000,
 		      (ccount_freq/10000) % 100,
