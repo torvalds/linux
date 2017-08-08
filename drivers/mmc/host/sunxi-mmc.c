@@ -722,7 +722,12 @@ static int sunxi_mmc_clk_set_phase(struct sunxi_mmc_host *host,
 {
 	int index;
 
+	/* clk controller delays not used under new timings mode */
 	if (host->use_new_timings)
+		return 0;
+
+	/* some old controllers don't support delays */
+	if (!host->cfg->clk_delays)
 		return 0;
 
 	/* determine delays */
