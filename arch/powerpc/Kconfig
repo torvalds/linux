@@ -969,7 +969,7 @@ config PCI
 	bool "PCI support" if PPC_PCI_CHOICE
 	default y if !40x && !CPM2 && !8xx && !PPC_83xx \
 		&& !PPC_85xx && !PPC_86xx && !GAMECUBE_COMMON
-	default PCI_QSPAN if !4xx && !CPM2 && 8xx
+	default PCI_QSPAN if PPC_8xx
 	select GENERIC_PCI_IOMAP
 	help
 	  Find out whether your system includes a PCI bus. PCI is the name of
@@ -985,7 +985,7 @@ config PCI_SYSCALL
 
 config PCI_QSPAN
 	bool "QSpan PCI"
-	depends on !4xx && !CPM2 && 8xx
+	depends on PPC_8xx
 	select PPC_I8259
 	help
 	  Say Y here if you have a system based on a Motorola 8xx-series
