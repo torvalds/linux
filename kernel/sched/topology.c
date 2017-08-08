@@ -1851,7 +1851,17 @@ void partition_sched_domains(int ndoms_new, cpumask_var_t doms_new[],
 	/* Let the architecture update CPU core mappings: */
 	new_topology = arch_update_cpu_topology();
 
-	n = doms_new ? ndoms_new : 0;
+	if (!doms_new) {
+		WARN_ON_ONCE(dattr_new);
+		n = 0;
+		doms_new = alloc_sched_domains(1);
+		if (doms_new) {
+			n = 1;
+			cpumask_andnot(doms_new[0], cpu_active_mask, cpu_isolated_map);
+		}
+	} else {
+		n = ndoms_new;
+	}
 
 	/* Destroy deleted domains: */
 	for (i = 0; i < ndoms_cur; i++) {
@@ -1867,11 +1877,10 @@ match1:
 	}
 
 	n = ndoms_cur;
-	if (doms_new == NULL) {
+	if (!doms_new) {
 		n = 0;
 		doms_new = &fallback_doms;
 		cpumask_andnot(doms_new[0], cpu_active_mask, cpu_isolated_map);
-		WARN_ON_ONCE(dattr_new);
 	}
 
 	/* Build new domains: */
