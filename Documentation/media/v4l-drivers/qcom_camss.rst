@@ -114,23 +114,16 @@ The considerations to split the driver in this particular way are as follows:
 
 Each VFE sub-device is linked to a separate video device node.
 
-The complete list of the media entities (V4L2 sub-devices and video device
-nodes) is as follows:
+The media controller pipeline graph is as follows (with connected two OV5645
+camera sensors):
 
-- msm_csiphy0
-- msm_csiphy1
-- msm_csid0
-- msm_csid1
-- msm_ispif0
-- msm_ispif1
-- msm_vfe0_rdi0
-- msm_vfe0_video0
-- msm_vfe0_rdi1
-- msm_vfe0_video1
-- msm_vfe0_rdi2
-- msm_vfe0_video2
-- msm_vfe0_pix
-- msm_vfe0_video3
+.. _qcom_camss_graph:
+
+.. kernel-figure:: qcom_camss_graph.dot
+    :alt:   qcom_camss_graph.dot
+    :align: center
+
+    Media pipeline graph
 
 
 Implementation
