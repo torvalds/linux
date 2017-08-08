@@ -150,6 +150,7 @@ static int video_find_format(u32 code, u32 pixelformat,
  * @mbus: v4l2_mbus_framefmt format (input)
  * @pix: v4l2_pix_format_mplane format (output)
  * @f: a pointer to formats array element to be used for the conversion
+ * @alignment: bytesperline alignment value
  *
  * Fill the output pix structure with information from the input mbus format.
  *
@@ -157,7 +158,8 @@ static int video_find_format(u32 code, u32 pixelformat,
  */
 static int video_mbus_to_pix_mp(const struct v4l2_mbus_framefmt *mbus,
 				struct v4l2_pix_format_mplane *pix,
-				const struct camss_format_info *f)
+				const struct camss_format_info *f,
+				unsigned int alignment)
 {
 	unsigned int i;
 	u32 bytesperline;
@@ -169,7 +171,7 @@ static int video_mbus_to_pix_mp(const struct v4l2_mbus_framefmt *mbus,
 	for (i = 0; i < pix->num_planes; i++) {
 		bytesperline = pix->width / f->hsub[i].numerator *
 			f->hsub[i].denominator * f->bpp[i] / 8;
-		bytesperline = ALIGN(bytesperline, 8);
+		bytesperline = ALIGN(bytesperline, alignment);
 		pix->plane_fmt[i].bytesperline = bytesperline;
 		pix->plane_fmt[i].sizeimage = pix->height /
 				f->vsub[i].numerator * f->vsub[i].denominator *
@@ -223,7 +225,7 @@ static int video_get_subdev_format(struct camss_video *video,
 	format->type = video->type;
 
 	return video_mbus_to_pix_mp(&fmt.format, &format->fmt.pix_mp,
-				    &video->formats[ret]);
+				    &video->formats[ret], video->bpl_alignment);
 }
 
 /* -----------------------------------------------------------------------------
@@ -323,7 +325,6 @@ static int video_check_format(struct camss_video *video)
 	struct v4l2_pix_format_mplane *pix = &video->active_fmt.fmt.pix_mp;
 	struct v4l2_format format;
 	struct v4l2_pix_format_mplane *sd_pix = &format.fmt.pix_mp;
-	unsigned int i;
 	int ret;
 
 	sd_pix->pixelformat = pix->pixelformat;
@@ -337,13 +338,6 @@ static int video_check_format(struct camss_video *video)
 	    pix->num_planes != sd_pix->num_planes ||
 	    pix->field != format.fmt.pix_mp.field)
 		return -EPIPE;
-
-	for (i = 0; i < pix->num_planes; i++)
-		if (pix->plane_fmt[i].bytesperline !=
-				sd_pix->plane_fmt[i].bytesperline ||
-		    pix->plane_fmt[i].sizeimage !=
-				sd_pix->plane_fmt[i].sizeimage)
-			return -EINVAL;
 
 	return 0;
 }
@@ -498,11 +492,24 @@ static int __video_try_fmt(struct camss_video *video, struct v4l2_format *f)
 {
 	struct v4l2_pix_format_mplane *pix_mp;
 	const struct camss_format_info *fi;
+	struct v4l2_plane_pix_format *p;
+	u32 bytesperline[3] = { 0 };
+	u32 sizeimage[3] = { 0 };
 	u32 width, height;
-	u32 bpl;
+	u32 bpl, lines;
 	int i, j;
 
 	pix_mp = &f->fmt.pix_mp;
+
+	if (video->line_based)
+		for (i = 0; i < pix_mp->num_planes && i < 3; i++) {
+			p = &pix_mp->plane_fmt[i];
+			bytesperline[i] = clamp_t(u32, p->bytesperline,
+						  1, 65528);
+			sizeimage[i] = clamp_t(u32, p->sizeimage,
+					       bytesperline[i],
+					       bytesperline[i] * 4096);
+		}
 
 	for (j = 0; j < video->nformats; j++)
 		if (pix_mp->pixelformat == video->formats[j].pixelformat)
@@ -524,7 +531,7 @@ static int __video_try_fmt(struct camss_video *video, struct v4l2_format *f)
 	for (i = 0; i < pix_mp->num_planes; i++) {
 		bpl = pix_mp->width / fi->hsub[i].numerator *
 			fi->hsub[i].denominator * fi->bpp[i] / 8;
-		bpl = ALIGN(bpl, 8);
+		bpl = ALIGN(bpl, video->bpl_alignment);
 		pix_mp->plane_fmt[i].bytesperline = bpl;
 		pix_mp->plane_fmt[i].sizeimage = pix_mp->height /
 			fi->vsub[i].numerator * fi->vsub[i].denominator * bpl;
@@ -537,6 +544,26 @@ static int __video_try_fmt(struct camss_video *video, struct v4l2_format *f)
 	pix_mp->quantization = V4L2_MAP_QUANTIZATION_DEFAULT(true,
 					pix_mp->colorspace, pix_mp->ycbcr_enc);
 	pix_mp->xfer_func = V4L2_MAP_XFER_FUNC_DEFAULT(pix_mp->colorspace);
+
+	if (video->line_based)
+		for (i = 0; i < pix_mp->num_planes; i++) {
+			p = &pix_mp->plane_fmt[i];
+			p->bytesperline = clamp_t(u32, p->bytesperline,
+						  1, 65528);
+			p->sizeimage = clamp_t(u32, p->sizeimage,
+					       p->bytesperline,
+					       p->bytesperline * 4096);
+			lines = p->sizeimage / p->bytesperline;
+
+			if (p->bytesperline < bytesperline[i])
+				p->bytesperline = ALIGN(bytesperline[i], 8);
+
+			if (p->sizeimage < p->bytesperline * lines)
+				p->sizeimage = p->bytesperline * lines;
+
+			if (p->sizeimage < sizeimage[i])
+				p->sizeimage = sizeimage[i];
+		}
 
 	return 0;
 }
