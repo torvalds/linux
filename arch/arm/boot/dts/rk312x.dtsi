@@ -128,6 +128,71 @@
 		#clock-cells = <0>;
 	};
 
+	gpu: gpu@0x10091000 {
+		compatible = "arm,mali400";
+		reg = <0x10091000 0x200>,
+		      <0x10090000 0x100>,
+		      <0x10093000 0x100>,
+		      <0x10098000 0x1100>,
+		      <0x10094000 0x100>,
+		      <0x1009A000 0x1100>,
+		      <0x10095000 0x100>;
+
+		reg-names = "Mali_L2",
+			    "Mali_GP",
+			    "Mali_GP_MMU",
+			    "Mali_PP0",
+			    "Mali_PP0_MMU",
+			    "Mali_PP1",
+			    "Mali_PP1_MMU";
+
+		interrupts = <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
+			     <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>;
+
+		interrupt-names = "Mali_GP_IRQ",
+				  "Mali_GP_MMU_IRQ",
+				  "Mali_PP0_IRQ",
+				  "Mali_PP0_MMU_IRQ",
+				  "Mali_PP1_IRQ",
+				  "Mali_PP1_MMU_IRQ";
+		clocks = <&cru ACLK_GPU>;
+		#cooling-cells = <2>; /* min followed by max */
+		clock-names = "clk_mali";
+		operating-points-v2 = <&gpu_opp_table>;
+		status = "disabled";
+
+		gpu_power_model: power_model {
+			compatible = "arm,mali-simple-power-model";
+			voltage = <900>;
+			frequency = <500>;
+			static-power = <300>;
+			dynamic-power = <396>;
+			ts = <32000 4700 (-80) 2>;
+			thermal-zone = "soc-thermal";
+		};
+	};
+
+	gpu_opp_table: opp-table2 {
+		compatible = "operating-points-v2";
+
+		opp-200000000 {
+			opp-hz = /bits/ 64 <200000000>;
+			opp-microvolt = <1000000>;
+		};
+		opp-300000000 {
+			opp-hz = /bits/ 64 <300000000>;
+			opp-microvolt = <1025000>;
+		};
+		opp-400000000 {
+			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <1125000>;
+		};
+	};
+
 	gic: interrupt-controller@10139000 {
 		compatible = "arm,cortex-a7-gic";
 		interrupt-controller;
