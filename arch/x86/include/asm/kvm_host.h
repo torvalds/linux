@@ -688,6 +688,9 @@ struct kvm_vcpu_arch {
 
 	/* GPA available (AMD only) */
 	bool gpa_available;
+
+	/* be preempted when it's in kernel-mode(cpl=0) */
+	bool preempted_in_kernel;
 };
 
 struct kvm_lpage_info {

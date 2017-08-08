@@ -2873,6 +2873,10 @@ static void kvm_steal_time_set_preempted(struct kvm_vcpu *vcpu)
 void kvm_arch_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	int idx;
+
+	if (vcpu->preempted)
+		vcpu->arch.preempted_in_kernel = !kvm_x86_ops->get_cpl(vcpu);
+
 	/*
 	 * Disable page faults because we're in atomic context here.
 	 * kvm_write_guest_offset_cached() would call might_fault()
@@ -7985,6 +7989,7 @@ int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 	kvm_pmu_init(vcpu);
 
 	vcpu->arch.pending_external_vector = -1;
+	vcpu->arch.preempted_in_kernel = false;
 
 	kvm_hv_vcpu_init(vcpu);
 
@@ -8434,7 +8439,7 @@ int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu)
 
 bool kvm_arch_vcpu_in_kernel(struct kvm_vcpu *vcpu)
 {
-	return false;
+	return vcpu->arch.preempted_in_kernel;
 }
 
 int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu)
