@@ -326,7 +326,7 @@ static inline int is_sp_move_ins(union mips_instruction *ip)
 	 */
 	if (mm_insn_16bit(ip->halfword[1])) {
 		return (ip->mm16_r3_format.opcode == mm_pool16d_op &&
-			ip->mm16_r3_format.simmediate && mm_addiusp_func) ||
+			ip->mm16_r3_format.simmediate & mm_addiusp_func) ||
 		       (ip->mm16_r5_format.opcode == mm_pool16d_op &&
 			ip->mm16_r5_format.rt == 29);
 	}
