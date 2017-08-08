@@ -418,7 +418,7 @@ int kvm_arch_vcpu_runnable(struct kvm_vcpu *v)
 
 bool kvm_arch_vcpu_in_kernel(struct kvm_vcpu *vcpu)
 {
-	return false;
+	return vcpu_mode_priv(vcpu);
 }
 
 /* Just ensure a guest exit from a particular CPU */
