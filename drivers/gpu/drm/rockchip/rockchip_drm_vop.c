@@ -2037,7 +2037,11 @@ static int vop_crtc_atomic_check(struct drm_crtc *crtc,
 		if (!pstate)
 			pstate = plane->state;
 		plane_state = to_vop_plane_state(pstate);
-		pzpos[cnt].zpos = plane_state->zpos;
+
+		if (!plane_state->enable)
+			pzpos[cnt].zpos = INT_MAX;
+		else
+			pzpos[cnt].zpos = plane_state->zpos;
 		pzpos[cnt++].win_id = win->win_id;
 	}
 
