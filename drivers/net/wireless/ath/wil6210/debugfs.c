@@ -20,7 +20,6 @@
 #include <linux/pci.h>
 #include <linux/rtnetlink.h>
 #include <linux/power_supply.h>
-
 #include "wil6210.h"
 #include "wmi.h"
 #include "txrx.h"
@@ -30,7 +29,6 @@
 static u32 mem_addr;
 static u32 dbg_txdesc_index;
 static u32 dbg_vring_index; /* 24+ for Rx, 0..23 for Tx */
-u32 vring_idle_trsh = 16; /* HW fetches up to 16 descriptors at once */
 
 enum dbg_off_type {
 	doff_u32 = 0,
@@ -1763,6 +1761,7 @@ static const struct dbg_off dbg_wil_off[] = {
 	WIL_FIELD(chip_revision, 0444,	doff_u8),
 	WIL_FIELD(abft_len, 0644,		doff_u8),
 	WIL_FIELD(wakeup_trigger, 0644,		doff_u8),
+	WIL_FIELD(vring_idle_trsh, 0644,	doff_u32),
 	{},
 };
 
@@ -1778,8 +1777,6 @@ static const struct dbg_off dbg_statics[] = {
 	{"desc_index",	0644, (ulong)&dbg_txdesc_index, doff_u32},
 	{"vring_index",	0644, (ulong)&dbg_vring_index, doff_u32},
 	{"mem_addr",	0644, (ulong)&mem_addr, doff_u32},
-	{"vring_idle_trsh", 0644, (ulong)&vring_idle_trsh,
-	 doff_u32},
 	{"led_polarity", 0644, (ulong)&led_polarity, doff_u8},
 	{},
 };
