@@ -281,6 +281,40 @@ static int uniphier_uart_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int __maybe_unused uniphier_uart_suspend(struct device *dev)
+{
+	struct uniphier8250_priv *priv = dev_get_drvdata(dev);
+	struct uart_8250_port *up = serial8250_get_port(priv->line);
+
+	serial8250_suspend_port(priv->line);
+
+	if (!uart_console(&up->port) || console_suspend_enabled)
+		clk_disable_unprepare(priv->clk);
+
+	return 0;
+}
+
+static int __maybe_unused uniphier_uart_resume(struct device *dev)
+{
+	struct uniphier8250_priv *priv = dev_get_drvdata(dev);
+	struct uart_8250_port *up = serial8250_get_port(priv->line);
+	int ret;
+
+	if (!uart_console(&up->port) || console_suspend_enabled) {
+		ret = clk_prepare_enable(priv->clk);
+		if (ret)
+			return ret;
+	}
+
+	serial8250_resume_port(priv->line);
+
+	return 0;
+}
+
+static const struct dev_pm_ops uniphier_uart_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(uniphier_uart_suspend, uniphier_uart_resume)
+};
+
 static const struct of_device_id uniphier_uart_match[] = {
 	{ .compatible = "socionext,uniphier-uart" },
 	{ /* sentinel */ }
@@ -293,6 +327,7 @@ static struct platform_driver uniphier_uart_platform_driver = {
 	.driver = {
 		.name	= "uniphier-uart",
 		.of_match_table = uniphier_uart_match,
+		.pm = &uniphier_uart_pm_ops,
 	},
 };
 module_platform_driver(uniphier_uart_platform_driver);
