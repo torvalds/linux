@@ -1100,6 +1100,7 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 	struct snd_soc_pcm_runtime *rtd;
 	struct snd_soc_dai_link_component *codecs = dai_link->codecs;
 	struct snd_soc_dai_link_component cpu_dai_component;
+	struct snd_soc_component *component;
 	struct snd_soc_dai **codec_dais;
 	struct snd_soc_platform *platform;
 	struct device_node *platform_of_node;
@@ -1127,6 +1128,7 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 			dai_link->cpu_dai_name);
 		goto _err_defer;
 	}
+	snd_soc_rtdcom_add(rtd, rtd->cpu_dai->component);
 
 	rtd->num_codecs = dai_link->num_codecs;
 
@@ -1139,6 +1141,7 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 				codecs[i].dai_name);
 			goto _err_defer;
 		}
+		snd_soc_rtdcom_add(rtd, codec_dais[i]->component);
 	}
 
 	/* Single codec links expect codec and codec_dai in runtime data */
@@ -1149,6 +1152,23 @@ static int soc_bind_dai_link(struct snd_soc_card *card,
 	platform_name = dai_link->platform_name;
 	if (!platform_name && !dai_link->platform_of_node)
 		platform_name = "snd-soc-dummy";
+
+	/* find one from the set of registered platforms */
+	list_for_each_entry(component, &component_list, list) {
+		platform_of_node = component->dev->of_node;
+		if (!platform_of_node && component->dev->parent->of_node)
+			platform_of_node = component->dev->parent->of_node;
+
+		if (dai_link->platform_of_node) {
+			if (platform_of_node != dai_link->platform_of_node)
+				continue;
+		} else {
+			if (strcmp(component->name, platform_name))
+				continue;
+		}
+
+		snd_soc_rtdcom_add(rtd, component);
+	}
 
 	/* find one from the set of registered platforms */
 	list_for_each_entry(platform, &platform_list, list) {
@@ -1235,26 +1255,14 @@ static void soc_remove_link_dais(struct snd_soc_card *card,
 static void soc_remove_link_components(struct snd_soc_card *card,
 	struct snd_soc_pcm_runtime *rtd, int order)
 {
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct snd_soc_platform *platform = rtd->platform;
 	struct snd_soc_component *component;
-	int i;
+	struct snd_soc_rtdcom_list *rtdcom;
 
-	/* remove the platform */
-	if (platform && platform->component.driver->remove_order == order)
-		soc_remove_component(&platform->component);
+	for_each_rtdcom(rtd, rtdcom) {
+		component = rtdcom->component;
 
-	/* remove the CODEC-side CODEC */
-	for (i = 0; i < rtd->num_codecs; i++) {
-		component = rtd->codec_dais[i]->component;
 		if (component->driver->remove_order == order)
 			soc_remove_component(component);
-	}
-
-	/* remove any CPU-side CODEC */
-	if (cpu_dai) {
-		if (cpu_dai->component->driver->remove_order == order)
-			soc_remove_component(cpu_dai->component);
 	}
 }
 
@@ -1607,33 +1615,18 @@ static int soc_probe_link_components(struct snd_soc_card *card,
 			struct snd_soc_pcm_runtime *rtd,
 				     int order)
 {
-	struct snd_soc_platform *platform = rtd->platform;
 	struct snd_soc_component *component;
-	int i, ret;
+	struct snd_soc_rtdcom_list *rtdcom;
+	int ret;
 
-	/* probe the CPU-side component, if it is a CODEC */
-	component = rtd->cpu_dai->component;
-	if (component->driver->probe_order == order) {
-		ret = soc_probe_component(card, component);
-		if (ret < 0)
-			return ret;
-	}
+	for_each_rtdcom(rtd, rtdcom) {
+		component = rtdcom->component;
 
-	/* probe the CODEC-side components */
-	for (i = 0; i < rtd->num_codecs; i++) {
-		component = rtd->codec_dais[i]->component;
 		if (component->driver->probe_order == order) {
 			ret = soc_probe_component(card, component);
 			if (ret < 0)
 				return ret;
 		}
-	}
-
-	/* probe the platform */
-	if (platform->component.driver->probe_order == order) {
-		ret = soc_probe_component(card, &platform->component);
-		if (ret < 0)
-			return ret;
 	}
 
 	return 0;

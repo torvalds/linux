@@ -450,6 +450,8 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_platform *platform = rtd->platform;
+	struct snd_soc_component *component;
+	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_dai *codec_dai;
 	const char *codec_dai_name = "multicodec";
@@ -458,10 +460,12 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	pinctrl_pm_select_default_state(cpu_dai->dev);
 	for (i = 0; i < rtd->num_codecs; i++)
 		pinctrl_pm_select_default_state(rtd->codec_dais[i]->dev);
-	pm_runtime_get_sync(cpu_dai->dev);
-	for (i = 0; i < rtd->num_codecs; i++)
-		pm_runtime_get_sync(rtd->codec_dais[i]->dev);
-	pm_runtime_get_sync(platform->dev);
+
+	for_each_rtdcom(rtd, rtdcom) {
+		component = rtdcom->component;
+
+		pm_runtime_get_sync(component->dev);
+	}
 
 	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
 
@@ -599,15 +603,13 @@ platform_err:
 out:
 	mutex_unlock(&rtd->pcm_mutex);
 
-	pm_runtime_mark_last_busy(platform->dev);
-	pm_runtime_put_autosuspend(platform->dev);
-	for (i = 0; i < rtd->num_codecs; i++) {
-		pm_runtime_mark_last_busy(rtd->codec_dais[i]->dev);
-		pm_runtime_put_autosuspend(rtd->codec_dais[i]->dev);
+	for_each_rtdcom(rtd, rtdcom) {
+		component = rtdcom->component;
+
+		pm_runtime_mark_last_busy(component->dev);
+		pm_runtime_put_autosuspend(component->dev);
 	}
 
-	pm_runtime_mark_last_busy(cpu_dai->dev);
-	pm_runtime_put_autosuspend(cpu_dai->dev);
 	for (i = 0; i < rtd->num_codecs; i++) {
 		if (!rtd->codec_dais[i]->active)
 			pinctrl_pm_select_sleep_state(rtd->codec_dais[i]->dev);
@@ -655,6 +657,8 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_platform *platform = rtd->platform;
+	struct snd_soc_component *component;
+	struct snd_soc_rtdcom_list *rtdcom;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_dai *codec_dai;
 	int i;
@@ -711,16 +715,12 @@ static int soc_pcm_close(struct snd_pcm_substream *substream)
 
 	mutex_unlock(&rtd->pcm_mutex);
 
-	pm_runtime_mark_last_busy(platform->dev);
-	pm_runtime_put_autosuspend(platform->dev);
+	for_each_rtdcom(rtd, rtdcom) {
+		component = rtdcom->component;
 
-	for (i = 0; i < rtd->num_codecs; i++) {
-		pm_runtime_mark_last_busy(rtd->codec_dais[i]->dev);
-		pm_runtime_put_autosuspend(rtd->codec_dais[i]->dev);
+		pm_runtime_mark_last_busy(component->dev);
+		pm_runtime_put_autosuspend(component->dev);
 	}
-
-	pm_runtime_mark_last_busy(cpu_dai->dev);
-	pm_runtime_put_autosuspend(cpu_dai->dev);
 
 	for (i = 0; i < rtd->num_codecs; i++) {
 		if (!rtd->codec_dais[i]->active)
