@@ -557,14 +557,14 @@ static int mvs_pci_init(struct pci_dev *pdev, const struct pci_device_id *ent)
 	SHOST_TO_SAS_HA(shost) =
 		kcalloc(1, sizeof(struct sas_ha_struct), GFP_KERNEL);
 	if (!SHOST_TO_SAS_HA(shost)) {
-		kfree(shost);
+		scsi_host_put(shost);
 		rc = -ENOMEM;
 		goto err_out_regions;
 	}
 
 	rc = mvs_prep_sas_ha_init(shost, chip);
 	if (rc) {
-		kfree(shost);
+		scsi_host_put(shost);
 		rc = -ENOMEM;
 		goto err_out_regions;
 	}
