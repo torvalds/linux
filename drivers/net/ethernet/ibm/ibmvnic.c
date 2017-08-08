@@ -3841,31 +3841,35 @@ static int ibmvnic_probe(struct vio_dev *dev, const struct vio_device_id *id)
 
 	do {
 		rc = ibmvnic_init(adapter);
-		if (rc && rc != EAGAIN) {
-			free_netdev(netdev);
-			return rc;
-		}
+		if (rc && rc != EAGAIN)
+			goto ibmvnic_init_fail;
 	} while (rc == EAGAIN);
 
 	netdev->mtu = adapter->req_mtu - ETH_HLEN;
 
 	rc = device_create_file(&dev->dev, &dev_attr_failover);
-	if (rc) {
-		free_netdev(netdev);
-		return rc;
-	}
+	if (rc)
+		goto ibmvnic_init_fail;
 
 	rc = register_netdev(netdev);
 	if (rc) {
 		dev_err(&dev->dev, "failed to register netdev rc=%d\n", rc);
-		device_remove_file(&dev->dev, &dev_attr_failover);
-		free_netdev(netdev);
-		return rc;
+		goto ibmvnic_register_fail;
 	}
 	dev_info(&dev->dev, "ibmvnic registered\n");
 
 	adapter->state = VNIC_PROBED;
 	return 0;
+
+ibmvnic_register_fail:
+	device_remove_file(&dev->dev, &dev_attr_failover);
+
+ibmvnic_init_fail:
+	release_sub_crqs(adapter);
+	release_crq_queue(adapter);
+	free_netdev(netdev);
+
+	return rc;
 }
 
 static int ibmvnic_remove(struct vio_dev *dev)
