@@ -31,7 +31,7 @@ static void arcpgu_fb_output_poll_changed(struct drm_device *dev)
 	drm_fbdev_cma_hotplug_event(arcpgu->fbdev);
 }
 
-static struct drm_mode_config_funcs arcpgu_drm_modecfg_funcs = {
+static const struct drm_mode_config_funcs arcpgu_drm_modecfg_funcs = {
 	.fb_create  = drm_fb_cma_create,
 	.output_poll_changed = arcpgu_fb_output_poll_changed,
 	.atomic_check = drm_atomic_helper_check,
