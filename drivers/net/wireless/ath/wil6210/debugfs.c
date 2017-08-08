@@ -1016,6 +1016,7 @@ static int wil_bf_debugfs_show(struct seq_file *s, void *data)
 			   "  TSF = 0x%016llx\n"
 			   "  TxMCS = %2d TxTpt = %4d\n"
 			   "  SQI = %4d\n"
+			   "  RSSI = %4d\n"
 			   "  Status = 0x%08x %s\n"
 			   "  Sectors(rx:tx) my %2d:%2d peer %2d:%2d\n"
 			   "  Goodput(rx:tx) %4d:%4d\n"
@@ -1025,6 +1026,7 @@ static int wil_bf_debugfs_show(struct seq_file *s, void *data)
 			   le16_to_cpu(reply.evt.bf_mcs),
 			   le32_to_cpu(reply.evt.tx_tpt),
 			   reply.evt.sqi,
+			   reply.evt.rssi,
 			   status, wil_bfstatus_str(status),
 			   le16_to_cpu(reply.evt.my_rx_sector),
 			   le16_to_cpu(reply.evt.my_tx_sector),
