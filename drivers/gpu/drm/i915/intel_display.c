@@ -12311,6 +12311,8 @@ static void intel_atomic_commit_tail(struct drm_atomic_state *state)
 	unsigned crtc_vblank_mask = 0;
 	int i;
 
+	i915_sw_fence_wait(&intel_state->commit_ready);
+
 	drm_atomic_helper_wait_for_dependencies(state);
 
 	if (intel_state->modeset)
@@ -12476,10 +12478,8 @@ intel_atomic_commit_ready(struct i915_sw_fence *fence,
 
 	switch (notify) {
 	case FENCE_COMPLETE:
-		if (state->base.commit_work.func)
-			queue_work(system_unbound_wq, &state->base.commit_work);
+		/* we do blocking waits in the worker, nothing to do here */
 		break;
-
 	case FENCE_FREE:
 		{
 			struct intel_atomic_helper *helper =
@@ -12581,14 +12581,14 @@ static int intel_atomic_commit(struct drm_device *dev,
 	}
 
 	drm_atomic_state_get(state);
-	INIT_WORK(&state->commit_work,
-		  nonblock ? intel_atomic_commit_work : NULL);
+	INIT_WORK(&state->commit_work, intel_atomic_commit_work);
 
 	i915_sw_fence_commit(&intel_state->commit_ready);
-	if (!nonblock) {
-		i915_sw_fence_wait(&intel_state->commit_ready);
+	if (nonblock)
+		queue_work(system_unbound_wq, &state->commit_work);
+	else
 		intel_atomic_commit_tail(state);
-	}
+
 
 	return 0;
 }
