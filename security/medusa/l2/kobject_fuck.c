@@ -72,8 +72,13 @@ int validate_fuck(const struct path* fuck_path) {
 	int hash, ret = 0;
 	char *accessed_path;
 	char *buf = NULL;
+
+	if (unlikely(!fuck_inode)) {
+		printk("medusa: empty inode\n");
+	//	goto out;
+	}
 		
-	if(unlikely(hash_empty(inode_security(fuck_inode).fuck)))
+	if (unlikely(hash_empty(inode_security(fuck_inode).fuck)))
 		goto out;
 
 	buf = (char *) kmalloc(sizeof(char) * (PATH_MAX + 1), GFP_KERNEL);
