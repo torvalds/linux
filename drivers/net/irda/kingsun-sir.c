@@ -85,7 +85,7 @@
 #define KING_PRODUCT_ID 0x4200
 
 /* These are the currently known USB ids */
-static struct usb_device_id dongles[] = {
+static const struct usb_device_id dongles[] = {
     /* KingSun Co,Ltd  IrDA/USB Bridge */
     { USB_DEVICE(KING_VENDOR_ID, KING_PRODUCT_ID) },
     { }
