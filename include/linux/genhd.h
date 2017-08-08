@@ -378,11 +378,18 @@ static inline void part_dec_in_flight(struct request_queue *q,
 		atomic_dec(&part_to_disk(part)->part0.in_flight[rw]);
 }
 
-static inline int part_in_flight(struct request_queue *q,
-				 struct hd_struct *part)
+static inline void part_in_flight(struct request_queue *q,
+				  struct hd_struct *part,
+				  unsigned int inflight[2])
 {
-	return atomic_read(&part->in_flight[0]) +
+	inflight[0] = atomic_read(&part->in_flight[0]) +
 			atomic_read(&part->in_flight[1]);
+	if (part->partno) {
+		part = &part_to_disk(part)->part0;
+		inflight[1] = atomic_read(&part->in_flight[0]) +
+				atomic_read(&part->in_flight[1]);
+	} else
+		inflight[1] = 0;
 }
 
 static inline struct partition_meta_info *alloc_part_info(struct gendisk *disk)
