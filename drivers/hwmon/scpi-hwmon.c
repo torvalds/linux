@@ -120,7 +120,7 @@ scpi_show_label(struct device *dev, struct device_attribute *attr, char *buf)
 	return sprintf(buf, "%s\n", sensor->info.name);
 }
 
-static struct thermal_zone_of_device_ops scpi_sensor_ops = {
+static const struct thermal_zone_of_device_ops scpi_sensor_ops = {
 	.get_temp = scpi_read_temp,
 };
 
