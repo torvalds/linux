@@ -261,6 +261,10 @@ void amdgpu_ring_fini(struct amdgpu_ring *ring)
 {
 	ring->ready = false;
 
+	/* Not to finish a ring which is not initialized */
+	if (!(ring->adev) || !(ring->adev->rings[ring->idx]))
+		return;
+
 	amdgpu_wb_free(ring->adev, ring->rptr_offs);
 	amdgpu_wb_free(ring->adev, ring->wptr_offs);
 
