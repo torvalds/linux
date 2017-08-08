@@ -740,7 +740,7 @@ int rf69_set_sync_values(struct spi_device *spi, u8 syncValues[8])
 	return retval;
 }
 
-int rf69_set_packet_format(struct spi_device * spi, enum packetFormat packetFormat)
+int rf69_set_packet_format(struct spi_device *spi, enum packetFormat packetFormat)
 {
 	#ifdef DEBUG
 		dev_dbg(&spi->dev, "set: packet format");
