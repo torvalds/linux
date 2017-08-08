@@ -618,7 +618,7 @@ int machine_check_8xx(struct pt_regs *regs)
 	return 0;
 #endif
 }
-#else
+#elif defined(CONFIG_PPC32)
 int machine_check_generic(struct pt_regs *regs)
 {
 	unsigned long reason = regs->msr;
