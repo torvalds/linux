@@ -68,46 +68,39 @@ int fuck_free(struct medusa_l1_inode_s* med) {
 
 //used in medusa_l1_path_chown, medusa_l1_path_chmod, medusa_l1_file_open
 int validate_fuck(struct path fuck_path) {
-		struct inode *fuck_inode = fuck_path.dentry->d_inode;
-		int hash, ret = 0;
-		char *accessed_path;
-		char *buf = NULL;
+	struct inode *fuck_inode = fuck_path.dentry->d_inode;
+	int hash, ret = 0;
+	char *accessed_path;
+	char buf[PATH_MAX + 1];
 		
-		/* don't change to goto out, you don't have allocated buf yet */
-		if(hash_empty(inode_security(fuck_inode).fuck))
-			return ret;
-		
-		buf = (char *) kmalloc(PATH_MAX * sizeof(char), GFP_KERNEL);
-		if(!buf)
-			goto out;
+	if(hash_empty(inode_security(fuck_inode).fuck))
+		goto out;
 
-		accessed_path = d_absolute_path(&fuck_path, buf, PATH_MAX);
-		if(!accessed_path || IS_ERR(accessed_path)) {
-			/* accessed_path is NULL */
-			goto out;
-		}
+	accessed_path = d_absolute_path(&fuck_path, buf, sizeof(buf));
+	if(!accessed_path || IS_ERR(accessed_path)) {
+		/* accessed_path is NULL */
+		goto out;
+	}
 
-		hash = hash_function(accessed_path);
-		if (get_from_hash(accessed_path, hash, &inode_security(fuck_inode)) != NULL) {
-			printk("VALIDATE_FUCK: allowed path\n");
-			goto out2;
-		}
+	hash = hash_function(accessed_path);
+	if (get_from_hash(accessed_path, hash, &inode_security(fuck_inode)) != NULL) {
+		printk("VALIDATE_FUCK: allowed path\n");
+	} else {
 		printk("VALIDATE_FUCK: denied path (not defined in allowed path list)\n");
 		ret = -EPERM;
-out2:
-		printk("VALIDATE_FUCK: accessed_path: %s inode: %lu\n", accessed_path, fuck_inode->i_ino);
+	}
+	printk("VALIDATE_FUCK: accessed_path: %s inode: %lu\n", accessed_path, fuck_inode->i_ino);
 out:
-		kfree(buf);
-		return ret;
+	return ret;
 }
 
 //used in medusa_l1_path_link
 int validate_fuck_link(struct dentry *old_dentry) {
-		struct inode *fuck_inode = old_dentry->d_inode;
-		//if inode has no protected paths defined, allow hard link alse deny
-		if(hash_empty(inode_security(fuck_inode).fuck))
-			  return 0;
-		return -EPERM;
+	struct inode *fuck_inode = old_dentry->d_inode;
+	//if inode has no protected paths defined, allow hard link alse deny
+	if(hash_empty(inode_security(fuck_inode).fuck))
+		  return 0;
+	return -EPERM;
 }
 
 static struct medusa_kobject_s * fuck_fetch(struct medusa_kobject_s * kobj)
