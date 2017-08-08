@@ -1405,6 +1405,7 @@ int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
 int t4_fl_pkt_align(struct adapter *adap);
 unsigned int t4_flash_cfg_addr(struct adapter *adapter);
 int t4_check_fw_version(struct adapter *adap);
+int t4_load_cfg(struct adapter *adapter, const u8 *cfg_data, unsigned int size);
 int t4_get_fw_version(struct adapter *adapter, u32 *vers);
 int t4_get_bs_version(struct adapter *adapter, u32 *vers);
 int t4_get_tp_version(struct adapter *adapter, u32 *vers);

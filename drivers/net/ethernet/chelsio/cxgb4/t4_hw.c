@@ -6664,6 +6664,17 @@ int t4_fw_upgrade(struct adapter *adap, unsigned int mbox,
 		goto out;
 
 	/*
+	 * If there was a Firmware Configuration File stored in FLASH,
+	 * there's a good chance that it won't be compatible with the new
+	 * Firmware.  In order to prevent difficult to diagnose adapter
+	 * initialization issues, we clear out the Firmware Configuration File
+	 * portion of the FLASH .  The user will need to re-FLASH a new
+	 * Firmware Configuration File which is compatible with the new
+	 * Firmware if that's desired.
+	 */
+	(void)t4_load_cfg(adap, NULL, 0);
+
+	/*
 	 * Older versions of the firmware don't understand the new
 	 * PCIE_FW.HALT flag and so won't know to perform a RESET when they
 	 * restart.  So for newly loaded older firmware we'll have to do the
@@ -8893,6 +8904,65 @@ void t4_idma_monitor(struct adapter *adapter,
 			 debug0, debug11);
 		t4_sge_decode_idma_state(adapter, idma->idma_state[i]);
 	}
+}
+
+/**
+ *	t4_load_cfg - download config file
+ *	@adap: the adapter
+ *	@cfg_data: the cfg text file to write
+ *	@size: text file size
+ *
+ *	Write the supplied config text file to the card's serial flash.
+ */
+int t4_load_cfg(struct adapter *adap, const u8 *cfg_data, unsigned int size)
+{
+	int ret, i, n, cfg_addr;
+	unsigned int addr;
+	unsigned int flash_cfg_start_sec;
+	unsigned int sf_sec_size = adap->params.sf_size / adap->params.sf_nsec;
+
+	cfg_addr = t4_flash_cfg_addr(adap);
+	if (cfg_addr < 0)
+		return cfg_addr;
+
+	addr = cfg_addr;
+	flash_cfg_start_sec = addr / SF_SEC_SIZE;
+
+	if (size > FLASH_CFG_MAX_SIZE) {
+		dev_err(adap->pdev_dev, "cfg file too large, max is %u bytes\n",
+			FLASH_CFG_MAX_SIZE);
+		return -EFBIG;
+	}
+
+	i = DIV_ROUND_UP(FLASH_CFG_MAX_SIZE,	/* # of sectors spanned */
+			 sf_sec_size);
+	ret = t4_flash_erase_sectors(adap, flash_cfg_start_sec,
+				     flash_cfg_start_sec + i - 1);
+	/* If size == 0 then we're simply erasing the FLASH sectors associated
+	 * with the on-adapter Firmware Configuration File.
+	 */
+	if (ret || size == 0)
+		goto out;
+
+	/* this will write to the flash up to SF_PAGE_SIZE at a time */
+	for (i = 0; i < size; i += SF_PAGE_SIZE) {
+		if ((size - i) <  SF_PAGE_SIZE)
+			n = size - i;
+		else
+			n = SF_PAGE_SIZE;
+		ret = t4_write_flash(adap, addr, n, cfg_data);
+		if (ret)
+			goto out;
+
+		addr += SF_PAGE_SIZE;
+		cfg_data += SF_PAGE_SIZE;
+	}
+
+out:
+	if (ret)
+		dev_err(adap->pdev_dev, "config file %s failed %d\n",
+			(size == 0 ? "clear" : "download"), ret);
+	return ret;
 }
 
 /**
