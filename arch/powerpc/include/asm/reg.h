@@ -1247,10 +1247,8 @@
  * differentiated by the version number in the Communication Processor
  * Module (CPM).
  */
-#define PVR_821		0x00500000
-#define PVR_823		PVR_821
-#define PVR_850		PVR_821
-#define PVR_860		PVR_821
+#define PVR_8xx		0x00500000
+
 #define PVR_8240	0x00810100
 #define PVR_8245	0x80811014
 #define PVR_8260	PVR_8240

@@ -1262,7 +1262,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 #ifdef CONFIG_PPC_8xx
 	{	/* 8xx */
 		.pvr_mask		= 0xffff0000,
-		.pvr_value		= 0x00500000,
+		.pvr_value		= PVR_8xx,
 		.cpu_name		= "8xx",
 		/* CPU_FTR_MAYBE_CAN_DOZE is possible,
 		 * if the 8xx code is there.... */
