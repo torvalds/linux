@@ -412,6 +412,13 @@ static int pca963x_probe(struct i2c_client *client,
 	if (!pca963x)
 		return -ENOMEM;
 
+	/* Check if chip actually exists on the bus */
+	err = i2c_smbus_read_byte_data(client, PCA963X_MODE1);
+	if (err < 0) {
+		dev_err(&client->dev, "controller not found");
+		return err;
+	}
+
 	i2c_set_clientdata(client, pca963x_chip);
 
 	mutex_init(&pca963x_chip->mutex);
