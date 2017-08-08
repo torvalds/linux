@@ -1341,10 +1341,14 @@ static int qmi_wwan_probe(struct usb_interface *intf,
 static void qmi_wwan_disconnect(struct usb_interface *intf)
 {
 	struct usbnet *dev = usb_get_intfdata(intf);
-	struct qmi_wwan_state *info = (void *)&dev->data;
+	struct qmi_wwan_state *info;
 	struct list_head *iter;
 	struct net_device *ldev;
 
+	/* called twice if separate control and data intf */
+	if (!dev)
+		return;
+	info = (void *)&dev->data;
 	if (info->flags & QMI_WWAN_FLAG_MUX) {
 		if (!rtnl_trylock()) {
 			restart_syscall();
