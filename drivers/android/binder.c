@@ -3619,7 +3619,7 @@ retry:
 			e->cmd = BR_OK;
 			ptr += sizeof(uint32_t);
 
-			binder_stat_br(proc, thread, cmd);
+			binder_stat_br(proc, thread, e->cmd);
 		} break;
 		case BINDER_WORK_TRANSACTION_COMPLETE: {
 			binder_inner_proc_unlock(proc);
