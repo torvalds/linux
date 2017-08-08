@@ -111,24 +111,6 @@ struct ep93xx_spi {
 /* converts bits per word to CR0.DSS value */
 #define bits_per_word_to_dss(bpw)	((bpw) - 1)
 
-static void ep93xx_spi_enable_interrupts(const struct ep93xx_spi *espi)
-{
-	u32 val;
-
-	val = readl(espi->mmio + SSPCR1);
-	val |= (SSPCR1_RORIE | SSPCR1_TIE | SSPCR1_RIE);
-	writel(val, espi->mmio + SSPCR1);
-}
-
-static void ep93xx_spi_disable_interrupts(const struct ep93xx_spi *espi)
-{
-	u32 val;
-
-	val = readl(espi->mmio + SSPCR1);
-	val &= ~(SSPCR1_RORIE | SSPCR1_TIE | SSPCR1_RIE);
-	writel(val, espi->mmio + SSPCR1);
-}
-
 /**
  * ep93xx_spi_calc_divisors() - calculates SPI clock divisors
  * @espi: ep93xx SPI controller struct
@@ -282,7 +264,12 @@ static void ep93xx_spi_pio_transfer(struct ep93xx_spi *espi)
 	 * FIFO, enable interrupts, and wait for the transfer to complete.
 	 */
 	if (ep93xx_spi_read_write(espi)) {
-		ep93xx_spi_enable_interrupts(espi);
+		u32 val;
+
+		val = readl(espi->mmio + SSPCR1);
+		val |= (SSPCR1_RORIE | SSPCR1_TIE | SSPCR1_RIE);
+		writel(val, espi->mmio + SSPCR1);
+
 		wait_for_completion(&espi->wait);
 	}
 }
@@ -604,6 +591,7 @@ static int ep93xx_spi_transfer_one_message(struct spi_master *master,
 static irqreturn_t ep93xx_spi_interrupt(int irq, void *dev_id)
 {
 	struct ep93xx_spi *espi = dev_id;
+	u32 val;
 
 	/*
 	 * If we got ROR (receive overrun) interrupt we know that something is
@@ -635,8 +623,12 @@ static irqreturn_t ep93xx_spi_interrupt(int irq, void *dev_id)
 	 * any case we disable interrupts and notify the worker to handle
 	 * any post-processing of the message.
 	 */
-	ep93xx_spi_disable_interrupts(espi);
+	val = readl(espi->mmio + SSPCR1);
+	val &= ~(SSPCR1_RORIE | SSPCR1_TIE | SSPCR1_RIE);
+	writel(val, espi->mmio + SSPCR1);
+
 	complete(&espi->wait);
+
 	return IRQ_HANDLED;
 }
 
