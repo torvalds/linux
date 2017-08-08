@@ -290,6 +290,7 @@ static int ssd1307fb_init(struct ssd1307fb_par *par)
 	int ret;
 	u32 precharge, dclk, com_invdir, compins;
 	struct pwm_args pargs;
+	char status;
 
 	if (par->device_info->need_pwm) {
 		par->pwm = pwm_get(&par->client->dev, NULL);
@@ -314,6 +315,13 @@ static int ssd1307fb_init(struct ssd1307fb_par *par)
 		dev_dbg(&par->client->dev, "Using PWM%d with a %dns period.\n",
 			par->pwm->pwm, par->pwm_period);
 	};
+
+	/* Check if we can talk to the display */
+	ret = i2c_master_recv(par->client, &status, 1);
+	if (ret < 0) {
+		dev_err(&par->client->dev, "controller not found\n");
+		return ret;
+	}
 
 	/* Set initial contrast */
 	ret = ssd1307fb_write_cmd(par->client, SSD1307FB_CONTRAST);
