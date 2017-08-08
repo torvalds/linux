@@ -185,7 +185,8 @@ static int verify_dfa(struct aa_dfa *dfa, int flags)
 
 	if (flags & DFA_FLAG_VERIFY_STATES) {
 		for (i = 0; i < state_count; i++) {
-			if (DEFAULT_TABLE(dfa)[i] >= state_count)
+			if (!(BASE_TABLE(dfa)[i] & MATCH_FLAG_DIFF_ENCODE) &&
+			    (DEFAULT_TABLE(dfa)[i] >= state_count))
 				goto out;
 			if (base_idx(BASE_TABLE(dfa)[i]) + 255 >= trans_count) {
 				printk(KERN_ERR "AppArmor DFA next/check upper "
@@ -202,6 +203,24 @@ static int verify_dfa(struct aa_dfa *dfa, int flags)
 		}
 	}
 
+	/* Now that all the other tables are verified, verify diffencoding */
+	if (flags & DFA_FLAG_VERIFY_STATES) {
+		size_t j, k;
+
+		for (i = 0; i < state_count; i++) {
+			for (j = i;
+			     (BASE_TABLE(dfa)[j] & MATCH_FLAG_DIFF_ENCODE) &&
+			      !(BASE_TABLE(dfa)[j] & MARK_DIFF_ENCODE);
+			     j = k) {
+				k = DEFAULT_TABLE(dfa)[j];
+				if (j == k)
+					goto out;
+				if (k < j)
+					break;		/* already verified */
+				BASE_TABLE(dfa)[j] |= MARK_DIFF_ENCODE;
+			}
+		}
+	}
 	error = 0;
 out:
 	return error;
@@ -274,6 +293,9 @@ struct aa_dfa *aa_dfa_unpack(void *blob, size_t size, int flags)
 		goto fail;
 
 	dfa->flags = ntohs(*(__be16 *) (data + 12));
+	if (dfa->flags != 0 && dfa->flags != YYTH_FLAG_DIFF_ENCODE)
+		goto fail;
+
 	data += hsize;
 	size -= hsize;
 
@@ -335,6 +357,8 @@ do {							\
 	unsigned int pos = base_idx(b) + (C);		\
 	if ((check)[pos] != (state)) {			\
 		(state) = (def)[(state)];		\
+		if (b & MATCH_FLAG_DIFF_ENCODE)		\
+			continue;			\
 		break;					\
 	}						\
 	(state) = (next)[pos];				\

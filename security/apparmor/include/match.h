@@ -40,6 +40,7 @@
  */
 
 #define YYTH_MAGIC	0x1B5E783D
+#define YYTH_FLAG_DIFF_ENCODE	1
 
 struct table_set_header {
 	u32 th_magic;		/* YYTH_MAGIC */
@@ -163,5 +164,8 @@ static inline void aa_put_dfa(struct aa_dfa *dfa)
 	if (dfa)
 		kref_put(&dfa->count, aa_dfa_free_kref);
 }
+
+#define MATCH_FLAG_DIFF_ENCODE 0x80000000
+#define MARK_DIFF_ENCODE 0x40000000
 
 #endif /* __AA_MATCH_H */
