@@ -183,7 +183,7 @@ struct stir_cb {
 
 
 /* These are the currently known USB ids */
-static struct usb_device_id dongles[] = {
+static const struct usb_device_id dongles[] = {
     /* SigmaTel, Inc,  STIr4200 IrDA/USB Bridge */
     { USB_DEVICE(0x066f, 0x4200) },
     { }
