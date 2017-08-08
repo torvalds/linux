@@ -1528,6 +1528,8 @@ struct i915_gpu_error {
 	/* Protected by the above dev->gpu_error.lock. */
 	struct i915_gpu_state *first_error;
 
+	atomic_t pending_fb_pin;
+
 	unsigned long missed_irq_rings;
 
 	/**
@@ -1587,6 +1589,7 @@ struct i915_gpu_error {
 	unsigned long flags;
 #define I915_RESET_BACKOFF	0
 #define I915_RESET_HANDOFF	1
+#define I915_RESET_MODESET	2
 #define I915_WEDGED		(BITS_PER_LONG - 1)
 #define I915_RESET_ENGINE	(I915_WEDGED - I915_NUM_ENGINES)
 

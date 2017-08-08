@@ -2709,7 +2709,7 @@ void i915_handle_error(struct drm_i915_private *dev_priv,
 	 */
 	if (intel_has_reset_engine(dev_priv)) {
 		for_each_engine_masked(engine, dev_priv, engine_mask, tmp) {
-			BUILD_BUG_ON(I915_RESET_HANDOFF >= I915_RESET_ENGINE);
+			BUILD_BUG_ON(I915_RESET_MODESET >= I915_RESET_ENGINE);
 			if (test_and_set_bit(I915_RESET_ENGINE + engine->id,
 					     &dev_priv->gpu_error.flags))
 				continue;
