@@ -312,6 +312,9 @@ static int bcm2836_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	writel(virt_to_phys(secondary_startup),
 	       intc_base + LOCAL_MAILBOX3_SET0 + 16 * cpu);
 
+	dsb(sy);
+	sev();
+
 	iounmap(intc_base);
 
 	return 0;
