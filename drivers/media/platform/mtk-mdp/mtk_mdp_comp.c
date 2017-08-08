@@ -75,7 +75,7 @@ void mtk_mdp_comp_clock_on(struct device *dev, struct mtk_mdp_comp *comp)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(comp->clk); i++) {
-		if (!comp->clk[i])
+		if (IS_ERR(comp->clk[i]))
 			continue;
 		err = clk_prepare_enable(comp->clk[i]);
 		if (err)
@@ -90,7 +90,7 @@ void mtk_mdp_comp_clock_off(struct device *dev, struct mtk_mdp_comp *comp)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(comp->clk); i++) {
-		if (!comp->clk[i])
+		if (IS_ERR(comp->clk[i]))
 			continue;
 		clk_disable_unprepare(comp->clk[i]);
 	}
