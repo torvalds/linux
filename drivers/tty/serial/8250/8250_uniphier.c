@@ -169,7 +169,7 @@ static int uniphier_of_serial_setup(struct device *dev, struct uart_port *port,
 		dev_err(dev, "failed to get alias id\n");
 		return ret;
 	}
-	port->line = priv->line = ret;
+	port->line = ret;
 
 	/* Get clk rate through clk driver */
 	priv->clk = devm_clk_get(dev, NULL);
@@ -249,8 +249,8 @@ static int uniphier_uart_probe(struct platform_device *pdev)
 	up.dl_read = uniphier_serial_dl_read;
 	up.dl_write = uniphier_serial_dl_write;
 
-	ret = serial8250_register_8250_port(&up);
-	if (ret < 0) {
+	priv->line = serial8250_register_8250_port(&up);
+	if (priv->line < 0) {
 		dev_err(dev, "failed to register 8250 port\n");
 		clk_disable_unprepare(priv->clk);
 		return ret;
