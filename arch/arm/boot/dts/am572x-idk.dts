@@ -88,7 +88,12 @@
 	load-gpios = <&gpio3 19 GPIO_ACTIVE_LOW>;
 };
 
-&pcie1 {
+&pcie1_rc {
+	status = "okay";
+	gpios = <&gpio3 23 GPIO_ACTIVE_HIGH>;
+};
+
+&pcie1_ep {
 	gpios = <&gpio3 23 GPIO_ACTIVE_HIGH>;
 };
 
