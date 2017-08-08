@@ -113,47 +113,47 @@ struct ep93xx_spi {
 
 static int ep93xx_spi_enable(const struct ep93xx_spi *espi)
 {
-	u8 regval;
+	u32 val;
 	int err;
 
 	err = clk_enable(espi->clk);
 	if (err)
 		return err;
 
-	regval = readb(espi->mmio + SSPCR1);
-	regval |= SSPCR1_SSE;
-	writeb(regval, espi->mmio + SSPCR1);
+	val = readl(espi->mmio + SSPCR1);
+	val |= SSPCR1_SSE;
+	writel(val, espi->mmio + SSPCR1);
 
 	return 0;
 }
 
 static void ep93xx_spi_disable(const struct ep93xx_spi *espi)
 {
-	u8 regval;
+	u32 val;
 
-	regval = readb(espi->mmio + SSPCR1);
-	regval &= ~SSPCR1_SSE;
-	writeb(regval, espi->mmio + SSPCR1);
+	val = readl(espi->mmio + SSPCR1);
+	val &= ~SSPCR1_SSE;
+	writel(val, espi->mmio + SSPCR1);
 
 	clk_disable(espi->clk);
 }
 
 static void ep93xx_spi_enable_interrupts(const struct ep93xx_spi *espi)
 {
-	u8 regval;
+	u32 val;
 
-	regval = readb(espi->mmio + SSPCR1);
-	regval |= (SSPCR1_RORIE | SSPCR1_TIE | SSPCR1_RIE);
-	writeb(regval, espi->mmio + SSPCR1);
+	val = readl(espi->mmio + SSPCR1);
+	val |= (SSPCR1_RORIE | SSPCR1_TIE | SSPCR1_RIE);
+	writel(val, espi->mmio + SSPCR1);
 }
 
 static void ep93xx_spi_disable_interrupts(const struct ep93xx_spi *espi)
 {
-	u8 regval;
+	u32 val;
 
-	regval = readb(espi->mmio + SSPCR1);
-	regval &= ~(SSPCR1_RORIE | SSPCR1_TIE | SSPCR1_RIE);
-	writeb(regval, espi->mmio + SSPCR1);
+	val = readl(espi->mmio + SSPCR1);
+	val &= ~(SSPCR1_RORIE | SSPCR1_TIE | SSPCR1_RIE);
+	writel(val, espi->mmio + SSPCR1);
 }
 
 /**
@@ -230,47 +230,41 @@ static int ep93xx_spi_chip_setup(const struct ep93xx_spi *espi,
 		spi->mode, div_cpsr, div_scr, dss);
 	dev_dbg(&espi->pdev->dev, "setup: cr0 %#x\n", cr0);
 
-	writeb(div_cpsr, espi->mmio + SSPCPSR);
-	writew(cr0, espi->mmio + SSPCR0);
+	writel(div_cpsr, espi->mmio + SSPCPSR);
+	writel(cr0, espi->mmio + SSPCR0);
 
 	return 0;
 }
 
 static void ep93xx_do_write(struct ep93xx_spi *espi, struct spi_transfer *t)
 {
+	u32 val = 0;
+
 	if (t->bits_per_word > 8) {
-		u16 tx_val = 0;
-
 		if (t->tx_buf)
-			tx_val = ((u16 *)t->tx_buf)[espi->tx];
-		writew(tx_val, espi->mmio + SSPDR);
-		espi->tx += sizeof(tx_val);
+			val = ((u16 *)t->tx_buf)[espi->tx];
+		espi->tx += 2;
 	} else {
-		u8 tx_val = 0;
-
 		if (t->tx_buf)
-			tx_val = ((u8 *)t->tx_buf)[espi->tx];
-		writeb(tx_val, espi->mmio + SSPDR);
-		espi->tx += sizeof(tx_val);
+			val = ((u8 *)t->tx_buf)[espi->tx];
+		espi->tx += 1;
 	}
+	writel(val, espi->mmio + SSPDR);
 }
 
 static void ep93xx_do_read(struct ep93xx_spi *espi, struct spi_transfer *t)
 {
+	u32 val;
+
+	val = readl(espi->mmio + SSPDR);
 	if (t->bits_per_word > 8) {
-		u16 rx_val;
-
-		rx_val = readw(espi->mmio + SSPDR);
 		if (t->rx_buf)
-			((u16 *)t->rx_buf)[espi->rx] = rx_val;
-		espi->rx += sizeof(rx_val);
+			((u16 *)t->rx_buf)[espi->rx] = val;
+		espi->rx += 2;
 	} else {
-		u8 rx_val;
-
-		rx_val = readb(espi->mmio + SSPDR);
 		if (t->rx_buf)
-			((u8 *)t->rx_buf)[espi->rx] = rx_val;
-		espi->rx += sizeof(rx_val);
+			((u8 *)t->rx_buf)[espi->rx] = val;
+		espi->rx += 1;
 	}
 }
 
@@ -291,7 +285,7 @@ static int ep93xx_spi_read_write(struct ep93xx_spi *espi)
 	struct spi_transfer *t = msg->state;
 
 	/* read as long as RX FIFO has frames in it */
-	while ((readb(espi->mmio + SSPSR) & SSPSR_RNE)) {
+	while ((readl(espi->mmio + SSPSR) & SSPSR_RNE)) {
 		ep93xx_do_read(espi, t);
 		espi->fifo_level--;
 	}
@@ -593,14 +587,14 @@ static void ep93xx_spi_process_message(struct ep93xx_spi *espi,
 	 * Just to be sure: flush any data from RX FIFO.
 	 */
 	timeout = jiffies + msecs_to_jiffies(SPI_TIMEOUT);
-	while (readw(espi->mmio + SSPSR) & SSPSR_RNE) {
+	while (readl(espi->mmio + SSPSR) & SSPSR_RNE) {
 		if (time_after(jiffies, timeout)) {
 			dev_warn(&espi->pdev->dev,
 				 "timeout while flushing RX FIFO\n");
 			msg->status = -ETIMEDOUT;
 			return;
 		}
-		readw(espi->mmio + SSPDR);
+		readl(espi->mmio + SSPDR);
 	}
 
 	/*
@@ -649,15 +643,14 @@ static int ep93xx_spi_transfer_one_message(struct spi_master *master,
 static irqreturn_t ep93xx_spi_interrupt(int irq, void *dev_id)
 {
 	struct ep93xx_spi *espi = dev_id;
-	u8 irq_status = readb(espi->mmio + SSPIIR);
 
 	/*
 	 * If we got ROR (receive overrun) interrupt we know that something is
 	 * wrong. Just abort the message.
 	 */
-	if (unlikely(irq_status & SSPIIR_RORIS)) {
+	if (readl(espi->mmio + SSPIIR) & SSPIIR_RORIS) {
 		/* clear the overrun interrupt */
-		writeb(0, espi->mmio + SSPICR);
+		writel(0, espi->mmio + SSPICR);
 		dev_warn(&espi->pdev->dev,
 			 "receive overrun, aborting the message\n");
 		espi->current_msg->status = -EIO;
@@ -857,7 +850,7 @@ static int ep93xx_spi_probe(struct platform_device *pdev)
 		dev_warn(&pdev->dev, "DMA setup failed. Falling back to PIO\n");
 
 	/* make sure that the hardware is disabled */
-	writeb(0, espi->mmio + SSPCR1);
+	writel(0, espi->mmio + SSPCR1);
 
 	error = devm_spi_register_master(&pdev->dev, master);
 	if (error) {
