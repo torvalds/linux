@@ -464,7 +464,7 @@ struct radeon_bo_list {
 	struct radeon_bo		*robj;
 	struct ttm_validate_buffer	tv;
 	uint64_t			gpu_offset;
-	unsigned			prefered_domains;
+	unsigned			preferred_domains;
 	unsigned			allowed_domains;
 	uint32_t			tiling_flags;
 };
