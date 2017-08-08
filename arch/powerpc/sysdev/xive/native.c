@@ -531,7 +531,7 @@ u32 xive_native_default_eq_shift(void)
 }
 EXPORT_SYMBOL_GPL(xive_native_default_eq_shift);
 
-bool xive_native_init(void)
+bool __init xive_native_init(void)
 {
 	struct device_node *np;
 	struct resource r;

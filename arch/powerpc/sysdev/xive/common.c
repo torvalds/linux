@@ -1399,8 +1399,8 @@ void xive_shutdown(void)
 	xive_ops->shutdown();
 }
 
-bool xive_core_init(const struct xive_ops *ops, void __iomem *area, u32 offset,
-		    u8 max_prio)
+bool __init xive_core_init(const struct xive_ops *ops, void __iomem *area, u32 offset,
+			   u8 max_prio)
 {
 	xive_tima = area;
 	xive_tima_offset = offset;
