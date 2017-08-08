@@ -1003,6 +1003,8 @@ static enum ispif_intf ispif_get_intf(enum vfe_line_id line_id)
 		return RDI1;
 	case (VFE_LINE_RDI2):
 		return RDI2;
+	case (VFE_LINE_PIX):
+		return PIX0;
 	default:
 		return RDI0;
 	}

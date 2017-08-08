@@ -30,8 +30,9 @@
 #define MSM_VFE_PAD_SRC 1
 #define MSM_VFE_PADS_NUM 2
 
-#define MSM_VFE_LINE_NUM 3
+#define MSM_VFE_LINE_NUM 4
 #define MSM_VFE_IMAGE_MASTERS_NUM 7
+#define MSM_VFE_COMPOSITE_IRQ_NUM 4
 
 #define MSM_VFE_VFE0_UB_SIZE 1023
 #define MSM_VFE_VFE0_UB_SIZE_RDI (MSM_VFE_VFE0_UB_SIZE / 3)
@@ -51,11 +52,13 @@ enum vfe_line_id {
 	VFE_LINE_NONE = -1,
 	VFE_LINE_RDI0 = 0,
 	VFE_LINE_RDI1 = 1,
-	VFE_LINE_RDI2 = 2
+	VFE_LINE_RDI2 = 2,
+	VFE_LINE_PIX = 3
 };
 
 struct vfe_output {
-	u8 wm_idx;
+	u8 wm_num;
+	u8 wm_idx[3];
 
 	int active_buf;
 	struct camss_buffer *buf[2];
@@ -66,6 +69,10 @@ struct vfe_output {
 
 	enum vfe_output_state state;
 	unsigned int sequence;
+	int wait_sof;
+	int wait_reg_update;
+	struct completion sof;
+	struct completion reg_update;
 };
 
 struct vfe_line {
