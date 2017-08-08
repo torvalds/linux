@@ -338,6 +338,13 @@ struct arm_smmu_smr {
 	bool				valid;
 };
 
+struct arm_smmu_cb {
+	u64				ttbr[2];
+	u32				tcr[2];
+	u32				mair[2];
+	struct arm_smmu_cfg		*cfg;
+};
+
 struct arm_smmu_master_cfg {
 	struct arm_smmu_device		*smmu;
 	s16				smendx[];
@@ -380,6 +387,7 @@ struct arm_smmu_device {
 	u32				num_context_banks;
 	u32				num_s2_context_banks;
 	DECLARE_BITMAP(context_map, ARM_SMMU_MAX_CBS);
+	struct arm_smmu_cb		*cbs;
 	atomic_t			irptndx;
 
 	u32				num_mapping_groups;
@@ -776,17 +784,74 @@ static irqreturn_t arm_smmu_global_fault(int irq, void *dev)
 static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain,
 				       struct io_pgtable_cfg *pgtbl_cfg)
 {
-	u32 reg, reg2;
-	u64 reg64;
-	bool stage1;
 	struct arm_smmu_cfg *cfg = &smmu_domain->cfg;
-	struct arm_smmu_device *smmu = smmu_domain->smmu;
+	struct arm_smmu_cb *cb = &smmu_domain->smmu->cbs[cfg->cbndx];
+	bool stage1 = cfg->cbar != CBAR_TYPE_S2_TRANS;
+
+	cb->cfg = cfg;
+
+	/* TTBCR */
+	if (stage1) {
+		if (cfg->fmt == ARM_SMMU_CTX_FMT_AARCH32_S) {
+			cb->tcr[0] = pgtbl_cfg->arm_v7s_cfg.tcr;
+		} else {
+			cb->tcr[0] = pgtbl_cfg->arm_lpae_s1_cfg.tcr;
+			cb->tcr[1] = pgtbl_cfg->arm_lpae_s1_cfg.tcr >> 32;
+			cb->tcr[1] |= TTBCR2_SEP_UPSTREAM;
+			if (cfg->fmt == ARM_SMMU_CTX_FMT_AARCH64)
+				cb->tcr[1] |= TTBCR2_AS;
+		}
+	} else {
+		cb->tcr[0] = pgtbl_cfg->arm_lpae_s2_cfg.vtcr;
+	}
+
+	/* TTBRs */
+	if (stage1) {
+		if (cfg->fmt == ARM_SMMU_CTX_FMT_AARCH32_S) {
+			cb->ttbr[0] = pgtbl_cfg->arm_v7s_cfg.ttbr[0];
+			cb->ttbr[1] = pgtbl_cfg->arm_v7s_cfg.ttbr[1];
+		} else {
+			cb->ttbr[0] = pgtbl_cfg->arm_lpae_s1_cfg.ttbr[0];
+			cb->ttbr[0] |= (u64)cfg->asid << TTBRn_ASID_SHIFT;
+			cb->ttbr[1] = pgtbl_cfg->arm_lpae_s1_cfg.ttbr[1];
+			cb->ttbr[1] |= (u64)cfg->asid << TTBRn_ASID_SHIFT;
+		}
+	} else {
+		cb->ttbr[0] = pgtbl_cfg->arm_lpae_s2_cfg.vttbr;
+	}
+
+	/* MAIRs (stage-1 only) */
+	if (stage1) {
+		if (cfg->fmt == ARM_SMMU_CTX_FMT_AARCH32_S) {
+			cb->mair[0] = pgtbl_cfg->arm_v7s_cfg.prrr;
+			cb->mair[1] = pgtbl_cfg->arm_v7s_cfg.nmrr;
+		} else {
+			cb->mair[0] = pgtbl_cfg->arm_lpae_s1_cfg.mair[0];
+			cb->mair[1] = pgtbl_cfg->arm_lpae_s1_cfg.mair[1];
+		}
+	}
+}
+
+static void arm_smmu_write_context_bank(struct arm_smmu_device *smmu, int idx)
+{
+	u32 reg;
+	bool stage1;
+	struct arm_smmu_cb *cb = &smmu->cbs[idx];
+	struct arm_smmu_cfg *cfg = cb->cfg;
 	void __iomem *cb_base, *gr1_base;
+
+	cb_base = ARM_SMMU_CB(smmu, idx);
+
+	/* Unassigned context banks only need disabling */
+	if (!cfg) {
+		writel_relaxed(0, cb_base + ARM_SMMU_CB_SCTLR);
+		return;
+	}
 
 	gr1_base = ARM_SMMU_GR1(smmu);
 	stage1 = cfg->cbar != CBAR_TYPE_S2_TRANS;
-	cb_base = ARM_SMMU_CB(smmu, cfg->cbndx);
 
+	/* CBA2R */
 	if (smmu->version > ARM_SMMU_V1) {
 		if (cfg->fmt == ARM_SMMU_CTX_FMT_AARCH64)
 			reg = CBA2R_RW64_64BIT;
@@ -796,7 +861,7 @@ static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain,
 		if (smmu->features & ARM_SMMU_FEAT_VMID16)
 			reg |= cfg->vmid << CBA2R_VMID_SHIFT;
 
-		writel_relaxed(reg, gr1_base + ARM_SMMU_GR1_CBA2R(cfg->cbndx));
+		writel_relaxed(reg, gr1_base + ARM_SMMU_GR1_CBA2R(idx));
 	}
 
 	/* CBAR */
@@ -815,72 +880,41 @@ static void arm_smmu_init_context_bank(struct arm_smmu_domain *smmu_domain,
 		/* 8-bit VMIDs live in CBAR */
 		reg |= cfg->vmid << CBAR_VMID_SHIFT;
 	}
-	writel_relaxed(reg, gr1_base + ARM_SMMU_GR1_CBAR(cfg->cbndx));
+	writel_relaxed(reg, gr1_base + ARM_SMMU_GR1_CBAR(idx));
 
 	/*
 	 * TTBCR
 	 * We must write this before the TTBRs, since it determines the
 	 * access behaviour of some fields (in particular, ASID[15:8]).
 	 */
-	if (stage1) {
-		if (cfg->fmt == ARM_SMMU_CTX_FMT_AARCH32_S) {
-			reg = pgtbl_cfg->arm_v7s_cfg.tcr;
-			reg2 = 0;
-		} else {
-			reg = pgtbl_cfg->arm_lpae_s1_cfg.tcr;
-			reg2 = pgtbl_cfg->arm_lpae_s1_cfg.tcr >> 32;
-			reg2 |= TTBCR2_SEP_UPSTREAM;
-			if (cfg->fmt == ARM_SMMU_CTX_FMT_AARCH64)
-				reg2 |= TTBCR2_AS;
-		}
-		if (smmu->version > ARM_SMMU_V1)
-			writel_relaxed(reg2, cb_base + ARM_SMMU_CB_TTBCR2);
-	} else {
-		reg = pgtbl_cfg->arm_lpae_s2_cfg.vtcr;
-	}
-	writel_relaxed(reg, cb_base + ARM_SMMU_CB_TTBCR);
+	if (stage1 && smmu->version > ARM_SMMU_V1)
+		writel_relaxed(cb->tcr[1], cb_base + ARM_SMMU_CB_TTBCR2);
+	writel_relaxed(cb->tcr[0], cb_base + ARM_SMMU_CB_TTBCR);
 
 	/* TTBRs */
-	if (stage1) {
-		if (cfg->fmt == ARM_SMMU_CTX_FMT_AARCH32_S) {
-			reg = pgtbl_cfg->arm_v7s_cfg.ttbr[0];
-			writel_relaxed(reg, cb_base + ARM_SMMU_CB_TTBR0);
-			reg = pgtbl_cfg->arm_v7s_cfg.ttbr[1];
-			writel_relaxed(reg, cb_base + ARM_SMMU_CB_TTBR1);
-			writel_relaxed(cfg->asid, cb_base + ARM_SMMU_CB_CONTEXTIDR);
-		} else {
-			reg64 = pgtbl_cfg->arm_lpae_s1_cfg.ttbr[0];
-			reg64 |= (u64)cfg->asid << TTBRn_ASID_SHIFT;
-			writeq_relaxed(reg64, cb_base + ARM_SMMU_CB_TTBR0);
-			reg64 = pgtbl_cfg->arm_lpae_s1_cfg.ttbr[1];
-			reg64 |= (u64)cfg->asid << TTBRn_ASID_SHIFT;
-			writeq_relaxed(reg64, cb_base + ARM_SMMU_CB_TTBR1);
-		}
+	if (cfg->fmt == ARM_SMMU_CTX_FMT_AARCH32_S) {
+		writel_relaxed(cfg->asid, cb_base + ARM_SMMU_CB_CONTEXTIDR);
+		writel_relaxed(cb->ttbr[0], cb_base + ARM_SMMU_CB_TTBR0);
+		writel_relaxed(cb->ttbr[1], cb_base + ARM_SMMU_CB_TTBR1);
 	} else {
-		reg64 = pgtbl_cfg->arm_lpae_s2_cfg.vttbr;
-		writeq_relaxed(reg64, cb_base + ARM_SMMU_CB_TTBR0);
+		writeq_relaxed(cb->ttbr[0], cb_base + ARM_SMMU_CB_TTBR0);
+		if (stage1)
+			writeq_relaxed(cb->ttbr[1], cb_base + ARM_SMMU_CB_TTBR1);
 	}
 
 	/* MAIRs (stage-1 only) */
 	if (stage1) {
-		if (cfg->fmt == ARM_SMMU_CTX_FMT_AARCH32_S) {
-			reg = pgtbl_cfg->arm_v7s_cfg.prrr;
-			reg2 = pgtbl_cfg->arm_v7s_cfg.nmrr;
-		} else {
-			reg = pgtbl_cfg->arm_lpae_s1_cfg.mair[0];
-			reg2 = pgtbl_cfg->arm_lpae_s1_cfg.mair[1];
-		}
-		writel_relaxed(reg, cb_base + ARM_SMMU_CB_S1_MAIR0);
-		writel_relaxed(reg2, cb_base + ARM_SMMU_CB_S1_MAIR1);
+		writel_relaxed(cb->mair[0], cb_base + ARM_SMMU_CB_S1_MAIR0);
+		writel_relaxed(cb->mair[1], cb_base + ARM_SMMU_CB_S1_MAIR1);
 	}
 
 	/* SCTLR */
 	reg = SCTLR_CFIE | SCTLR_CFRE | SCTLR_AFE | SCTLR_TRE | SCTLR_M;
 	if (stage1)
 		reg |= SCTLR_S1_ASIDPNE;
-#ifdef __BIG_ENDIAN
-	reg |= SCTLR_E;
-#endif
+	if (IS_ENABLED(CONFIG_CPU_BIG_ENDIAN))
+		reg |= SCTLR_E;
+
 	writel_relaxed(reg, cb_base + ARM_SMMU_CB_SCTLR);
 }
 
@@ -1043,6 +1077,7 @@ static int arm_smmu_init_domain_context(struct iommu_domain *domain,
 
 	/* Initialise the context bank with our page table cfg */
 	arm_smmu_init_context_bank(smmu_domain, &pgtbl_cfg);
+	arm_smmu_write_context_bank(smmu, cfg->cbndx);
 
 	/*
 	 * Request context fault interrupt. Do this last to avoid the
@@ -1075,7 +1110,6 @@ static void arm_smmu_destroy_domain_context(struct iommu_domain *domain)
 	struct arm_smmu_domain *smmu_domain = to_smmu_domain(domain);
 	struct arm_smmu_device *smmu = smmu_domain->smmu;
 	struct arm_smmu_cfg *cfg = &smmu_domain->cfg;
-	void __iomem *cb_base;
 	int irq;
 
 	if (!smmu || domain->type == IOMMU_DOMAIN_IDENTITY)
@@ -1085,8 +1119,8 @@ static void arm_smmu_destroy_domain_context(struct iommu_domain *domain)
 	 * Disable the context bank and free the page tables before freeing
 	 * it.
 	 */
-	cb_base = ARM_SMMU_CB(smmu, cfg->cbndx);
-	writel_relaxed(0, cb_base + ARM_SMMU_CB_SCTLR);
+	smmu->cbs[cfg->cbndx].cfg = NULL;
+	arm_smmu_write_context_bank(smmu, cfg->cbndx);
 
 	if (cfg->irptndx != INVALID_IRPTNDX) {
 		irq = smmu->irqs[smmu->num_global_irqs + cfg->irptndx];
@@ -1729,7 +1763,6 @@ static struct iommu_ops arm_smmu_ops = {
 static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 {
 	void __iomem *gr0_base = ARM_SMMU_GR0(smmu);
-	void __iomem *cb_base;
 	int i;
 	u32 reg, major;
 
@@ -1765,8 +1798,9 @@ static void arm_smmu_device_reset(struct arm_smmu_device *smmu)
 
 	/* Make sure all context banks are disabled and clear CB_FSR  */
 	for (i = 0; i < smmu->num_context_banks; ++i) {
-		cb_base = ARM_SMMU_CB(smmu, i);
-		writel_relaxed(0, cb_base + ARM_SMMU_CB_SCTLR);
+		void __iomem *cb_base = ARM_SMMU_CB(smmu, i);
+
+		arm_smmu_write_context_bank(smmu, i);
 		writel_relaxed(FSR_FAULT, cb_base + ARM_SMMU_CB_FSR);
 		/*
 		 * Disable MMU-500's not-particularly-beneficial next-page
@@ -1972,6 +2006,10 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 		smmu->cavium_id_base -= smmu->num_context_banks;
 		dev_notice(smmu->dev, "\tenabling workaround for Cavium erratum 27704\n");
 	}
+	smmu->cbs = devm_kcalloc(smmu->dev, smmu->num_context_banks,
+				 sizeof(*smmu->cbs), GFP_KERNEL);
+	if (!smmu->cbs)
+		return -ENOMEM;
 
 	/* ID2 */
 	id = readl_relaxed(gr0_base + ARM_SMMU_GR0_ID2);
