@@ -7996,7 +7996,7 @@ bool md_write_start(struct mddev *mddev, struct bio *bi)
 	if (mddev->safemode == 1)
 		mddev->safemode = 0;
 	/* sync_checkers is always 0 when writes_pending is in per-cpu mode */
-	if (mddev->in_sync || !mddev->sync_checkers) {
+	if (mddev->in_sync || mddev->sync_checkers) {
 		spin_lock(&mddev->lock);
 		if (mddev->in_sync) {
 			mddev->in_sync = 0;
