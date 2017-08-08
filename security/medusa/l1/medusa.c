@@ -406,12 +406,12 @@ static int medusa_l1_path_truncate(const struct path *path)
 
 static int medusa_l1_path_chmod(const struct path *path, umode_t mode)
 {
-	return validate_fuck(*path);
+	return validate_fuck(path);
 }
 
 static int medusa_l1_path_chown(const struct path *path, kuid_t uid, kgid_t gid)
 {
-	return validate_fuck(*path);
+	return validate_fuck(path);
 }
 
 static int medusa_l1_path_chroot(const struct path *root)
@@ -478,7 +478,7 @@ static int medusa_l1_file_receive(struct file *file)
 static int medusa_l1_file_open(struct file *file, const struct cred *cred)
 {
 	
-	return validate_fuck(file->f_path);
+	return validate_fuck(&file->f_path);
 }
 
 //static int medusa_l1_dentry_open(struct file *file, const struct cred *cred)

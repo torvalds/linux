@@ -67,23 +67,28 @@ int fuck_free(struct medusa_l1_inode_s* med) {
 }
 
 //used in medusa_l1_path_chown, medusa_l1_path_chmod, medusa_l1_file_open
-int validate_fuck(struct path fuck_path) {
-	struct inode *fuck_inode = fuck_path.dentry->d_inode;
+int validate_fuck(const struct path* fuck_path) {
+	struct inode *fuck_inode = fuck_path->dentry->d_inode;
 	int hash, ret = 0;
 	char *accessed_path;
-	char buf[PATH_MAX + 1];
+	char *buf = NULL;
 		
-	if(hash_empty(inode_security(fuck_inode).fuck))
+	if(unlikely(hash_empty(inode_security(fuck_inode).fuck)))
 		goto out;
 
-	accessed_path = d_absolute_path(&fuck_path, buf, sizeof(buf));
-	if(!accessed_path || IS_ERR(accessed_path)) {
+	buf = (char *) kmalloc(sizeof(char) * (PATH_MAX + 1), GFP_KERNEL);
+	if (unlikely(!buf)) {
+		goto out;
+	}
+
+	accessed_path = d_absolute_path(fuck_path, buf, sizeof(buf));
+	if(!unlikely(accessed_path || IS_ERR(accessed_path))) {
 		/* accessed_path is NULL */
 		goto out;
 	}
 
 	hash = hash_function(accessed_path);
-	if (get_from_hash(accessed_path, hash, &inode_security(fuck_inode)) != NULL) {
+	if (likely(get_from_hash(accessed_path, hash, &inode_security(fuck_inode)) != NULL)) {
 		printk("VALIDATE_FUCK: allowed path\n");
 	} else {
 		printk("VALIDATE_FUCK: denied path (not defined in allowed path list)\n");
@@ -91,6 +96,7 @@ int validate_fuck(struct path fuck_path) {
 	}
 	printk("VALIDATE_FUCK: accessed_path: %s inode: %lu\n", accessed_path, fuck_inode->i_ino);
 out:
+	kfree(buf);
 	return ret;
 }
 
@@ -99,7 +105,7 @@ int validate_fuck_link(struct dentry *old_dentry) {
 	struct inode *fuck_inode = old_dentry->d_inode;
 	//if inode has no protected paths defined, allow hard link alse deny
 	if(hash_empty(inode_security(fuck_inode).fuck))
-		  return 0;
+		return 0;
 	return -EPERM;
 }
 

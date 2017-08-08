@@ -14,7 +14,7 @@
 
 //int validate_fuck_link(struct dentry *old_dentry, const struct path *fuck_path, struct dentry *new_dentry);
 int validate_fuck_link(struct dentry *old_dentry);
-int validate_fuck(struct path fuck_path);
+int validate_fuck(const struct path *fuck_path);
 int fuck_free(struct medusa_l1_inode_s* med);
 
 
