@@ -586,11 +586,11 @@ ppc_swapcontext:
 handle_page_fault:
 	stw	r4,_DAR(r1)
 	addi	r3,r1,STACK_FRAME_OVERHEAD
-	andis.  r0,r5,DSISR_DABRMATCH@h
 #ifdef CONFIG_6xx
+	andis.  r0,r5,DSISR_DABRMATCH@h
 	bne-    handle_dabr_fault
-	bl	do_page_fault
 #endif
+	bl	do_page_fault
 	cmpwi	r3,0
 	beq+	ret_from_except
 	SAVE_NVGPRS(r1)
