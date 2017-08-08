@@ -29,12 +29,13 @@
  *   - MMIO32 (regshift = 2)
  *   - FCR is not at 2, but 3
  *   - LCR and MCR are not at 3 and 4, they share 4
+ *   - No SCR (Instead, CHAR can be used as a scratch register)
  *   - Divisor latch at 9, no divisor latch access bit
  */
 
 #define UNIPHIER_UART_REGSHIFT		2
 
-/* bit[15:8] = CHAR (not used), bit[7:0] = FCR */
+/* bit[15:8] = CHAR, bit[7:0] = FCR */
 #define UNIPHIER_UART_CHAR_FCR		(3 << (UNIPHIER_UART_REGSHIFT))
 /* bit[15:8] = LCR, bit[7:0] = MCR */
 #define UNIPHIER_UART_LCR_MCR		(4 << (UNIPHIER_UART_REGSHIFT))
@@ -72,13 +73,18 @@ OF_EARLYCON_DECLARE(uniphier, "socionext,uniphier-uart",
 
 /*
  * The register map is slightly different from that of 8250.
- * IO callbacks must be overridden for correct access to FCR, LCR, and MCR.
+ * IO callbacks must be overridden for correct access to FCR, LCR, MCR and SCR.
  */
 static unsigned int uniphier_serial_in(struct uart_port *p, int offset)
 {
 	unsigned int valshift = 0;
 
 	switch (offset) {
+	case UART_SCR:
+		/* No SCR for this hardware.  Use CHAR as a scratch register */
+		valshift = 8;
+		offset = UNIPHIER_UART_CHAR_FCR;
+		break;
 	case UART_LCR:
 		valshift = 8;
 		/* fall through */
@@ -91,8 +97,8 @@ static unsigned int uniphier_serial_in(struct uart_port *p, int offset)
 	}
 
 	/*
-	 * The return value must be masked with 0xff because LCR and MCR reside
-	 * in the same register that must be accessed by 32-bit write/read.
+	 * The return value must be masked with 0xff because some registers
+	 * share the same offset that must be accessed by 32-bit write/read.
 	 * 8 or 16 bit access to this hardware result in unexpected behavior.
 	 */
 	return (readl(p->membase + offset) >> valshift) & 0xff;
@@ -101,9 +107,13 @@ static unsigned int uniphier_serial_in(struct uart_port *p, int offset)
 static void uniphier_serial_out(struct uart_port *p, int offset, int value)
 {
 	unsigned int valshift = 0;
-	bool normal = true;
+	bool normal = false;
 
 	switch (offset) {
+	case UART_SCR:
+		/* No SCR for this hardware.  Use CHAR as a scratch register */
+		valshift = 8;
+		/* fall through */
 	case UART_FCR:
 		offset = UNIPHIER_UART_CHAR_FCR;
 		break;
@@ -114,10 +124,10 @@ static void uniphier_serial_out(struct uart_port *p, int offset, int value)
 		/* fall through */
 	case UART_MCR:
 		offset = UNIPHIER_UART_LCR_MCR;
-		normal = false;
 		break;
 	default:
 		offset <<= UNIPHIER_UART_REGSHIFT;
+		normal = true;
 		break;
 	}
 
