@@ -776,10 +776,16 @@ static struct rockchip_clk_branch rv1108_clk_branches[] __initdata = {
 
 static const char *const rv1108_critical_clocks[] __initconst = {
 	"aclk_core",
-	"aclk_bus_src_gpll",
+	"aclk_bus",
+	"hclk_bus",
+	"pclk_bus",
 	"aclk_periph",
 	"hclk_periph",
 	"pclk_periph",
+	"nclk_ddrupctl",
+	"pclk_ddrmon",
+	"pclk_acodecphy",
+	"pclk_pmu",
 };
 
 static void __init rv1108_clk_init(struct device_node *np)
