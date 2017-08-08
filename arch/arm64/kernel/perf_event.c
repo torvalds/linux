@@ -921,7 +921,13 @@ static void armv8pmu_reset(void *info)
 			    ARMV8_PMU_PMCR_LC);
 }
 
-static int armv8_pmuv3_map_event(struct perf_event *event)
+static int __armv8_pmuv3_map_event(struct perf_event *event,
+				   const unsigned (*extra_event_map)
+						  [PERF_COUNT_HW_MAX],
+				   const unsigned (*extra_cache_map)
+						  [PERF_COUNT_HW_CACHE_MAX]
+						  [PERF_COUNT_HW_CACHE_OP_MAX]
+						  [PERF_COUNT_HW_CACHE_RESULT_MAX])
 {
 	int hw_event_id;
 	struct arm_pmu *armpmu = to_arm_pmu(event->pmu);
@@ -929,44 +935,44 @@ static int armv8_pmuv3_map_event(struct perf_event *event)
 	hw_event_id = armpmu_map_event(event, &armv8_pmuv3_perf_map,
 				       &armv8_pmuv3_perf_cache_map,
 				       ARMV8_PMU_EVTYPE_EVENT);
-	if (hw_event_id < 0)
-		return hw_event_id;
 
-	/* disable micro/arch events not supported by this PMU */
-	if ((hw_event_id < ARMV8_PMUV3_MAX_COMMON_EVENTS) &&
-		!test_bit(hw_event_id, armpmu->pmceid_bitmap)) {
-			return -EOPNOTSUPP;
+	/* Onl expose micro/arch events supported by this PMU */
+	if ((hw_event_id > 0) && (hw_event_id < ARMV8_PMUV3_MAX_COMMON_EVENTS)
+	    && test_bit(hw_event_id, armpmu->pmceid_bitmap)) {
+		return hw_event_id;
 	}
 
-	return hw_event_id;
+	return armpmu_map_event(event, extra_event_map, extra_cache_map,
+				ARMV8_PMU_EVTYPE_EVENT);
+}
+
+static int armv8_pmuv3_map_event(struct perf_event *event)
+{
+	return __armv8_pmuv3_map_event(event, NULL, NULL);
 }
 
 static int armv8_a53_map_event(struct perf_event *event)
 {
-	return armpmu_map_event(event, &armv8_a53_perf_map,
-				&armv8_a53_perf_cache_map,
-				ARMV8_PMU_EVTYPE_EVENT);
+	return __armv8_pmuv3_map_event(event, &armv8_a53_perf_map,
+				       &armv8_a53_perf_cache_map);
 }
 
 static int armv8_a57_map_event(struct perf_event *event)
 {
-	return armpmu_map_event(event, &armv8_a57_perf_map,
-				&armv8_a57_perf_cache_map,
-				ARMV8_PMU_EVTYPE_EVENT);
+	return __armv8_pmuv3_map_event(event, &armv8_a57_perf_map,
+				       &armv8_a57_perf_cache_map);
 }
 
 static int armv8_thunder_map_event(struct perf_event *event)
 {
-	return armpmu_map_event(event, &armv8_thunder_perf_map,
-				&armv8_thunder_perf_cache_map,
-				ARMV8_PMU_EVTYPE_EVENT);
+	return __armv8_pmuv3_map_event(event, &armv8_thunder_perf_map,
+				       &armv8_thunder_perf_cache_map);
 }
 
 static int armv8_vulcan_map_event(struct perf_event *event)
 {
-	return armpmu_map_event(event, &armv8_vulcan_perf_map,
-				&armv8_vulcan_perf_cache_map,
-				ARMV8_PMU_EVTYPE_EVENT);
+	return __armv8_pmuv3_map_event(event, &armv8_vulcan_perf_map,
+				       &armv8_vulcan_perf_cache_map);
 }
 
 struct armv8pmu_probe_info {

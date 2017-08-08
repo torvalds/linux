@@ -47,6 +47,9 @@ armpmu_map_cache_event(const unsigned (*cache_map)
 	if (cache_result >= PERF_COUNT_HW_CACHE_RESULT_MAX)
 		return -EINVAL;
 
+	if (!cache_map)
+		return -ENOENT;
+
 	ret = (int)(*cache_map)[cache_type][cache_op][cache_result];
 
 	if (ret == CACHE_OP_UNSUPPORTED)
@@ -62,6 +65,9 @@ armpmu_map_hw_event(const unsigned (*event_map)[PERF_COUNT_HW_MAX], u64 config)
 
 	if (config >= PERF_COUNT_HW_MAX)
 		return -EINVAL;
+
+	if (!event_map)
+		return -ENOENT;
 
 	mapping = (*event_map)[config];
 	return mapping == HW_OP_UNSUPPORTED ? -ENOENT : mapping;
