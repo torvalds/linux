@@ -65,7 +65,7 @@ struct amdgpu_bo_va {
 
 struct amdgpu_bo {
 	/* Protected by tbo.reserved */
-	u32				prefered_domains;
+	u32				preferred_domains;
 	u32				allowed_domains;
 	struct ttm_place		placements[AMDGPU_GEM_DOMAIN_MAX + 1];
 	struct ttm_placement		placement;

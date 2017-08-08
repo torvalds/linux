@@ -156,11 +156,11 @@ static int amdgpu_bo_list_set(struct amdgpu_device *adev,
 		entry->tv.bo = &entry->robj->tbo;
 		entry->tv.shared = !entry->robj->prime_shared_count;
 
-		if (entry->robj->prefered_domains == AMDGPU_GEM_DOMAIN_GDS)
+		if (entry->robj->preferred_domains == AMDGPU_GEM_DOMAIN_GDS)
 			gds_obj = entry->robj;
-		if (entry->robj->prefered_domains == AMDGPU_GEM_DOMAIN_GWS)
+		if (entry->robj->preferred_domains == AMDGPU_GEM_DOMAIN_GWS)
 			gws_obj = entry->robj;
-		if (entry->robj->prefered_domains == AMDGPU_GEM_DOMAIN_OA)
+		if (entry->robj->preferred_domains == AMDGPU_GEM_DOMAIN_OA)
 			oa_obj = entry->robj;
 
 		total_size += amdgpu_bo_size(entry->robj);

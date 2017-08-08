@@ -348,11 +348,11 @@ static int amdgpu_cs_bo_validate(struct amdgpu_cs_parser *p,
 			 * that.
 			 */
 			if (p->bytes_moved_vis < p->bytes_moved_vis_threshold)
-				domain = bo->prefered_domains;
+				domain = bo->preferred_domains;
 			else
 				domain = bo->allowed_domains;
 		} else {
-			domain = bo->prefered_domains;
+			domain = bo->preferred_domains;
 		}
 	} else {
 		domain = bo->allowed_domains;

@@ -391,13 +391,13 @@ int amdgpu_bo_create_restricted(struct amdgpu_device *adev,
 	}
 	INIT_LIST_HEAD(&bo->shadow_list);
 	INIT_LIST_HEAD(&bo->va);
-	bo->prefered_domains = domain & (AMDGPU_GEM_DOMAIN_VRAM |
+	bo->preferred_domains = domain & (AMDGPU_GEM_DOMAIN_VRAM |
 					 AMDGPU_GEM_DOMAIN_GTT |
 					 AMDGPU_GEM_DOMAIN_CPU |
 					 AMDGPU_GEM_DOMAIN_GDS |
 					 AMDGPU_GEM_DOMAIN_GWS |
 					 AMDGPU_GEM_DOMAIN_OA);
-	bo->allowed_domains = bo->prefered_domains;
+	bo->allowed_domains = bo->preferred_domains;
 	if (!kernel && bo->allowed_domains == AMDGPU_GEM_DOMAIN_VRAM)
 		bo->allowed_domains |= AMDGPU_GEM_DOMAIN_GTT;
 
@@ -606,7 +606,7 @@ int amdgpu_bo_validate(struct amdgpu_bo *bo)
 	if (bo->pin_count)
 		return 0;
 
-	domain = bo->prefered_domains;
+	domain = bo->preferred_domains;
 
 retry:
 	amdgpu_ttm_placement_from_domain(bo, domain);

@@ -105,12 +105,12 @@ TRACE_EVENT(amdgpu_bo_create,
 			   __entry->bo = bo;
 			   __entry->pages = bo->tbo.num_pages;
 			   __entry->type = bo->tbo.mem.mem_type;
-			   __entry->prefer = bo->prefered_domains;
+			   __entry->prefer = bo->preferred_domains;
 			   __entry->allow = bo->allowed_domains;
 			   __entry->visible = bo->flags;
 			   ),
 
-	    TP_printk("bo=%p, pages=%u, type=%d, prefered=%d, allowed=%d, visible=%d",
+	    TP_printk("bo=%p, pages=%u, type=%d, preferred=%d, allowed=%d, visible=%d",
 		       __entry->bo, __entry->pages, __entry->type,
 		       __entry->prefer, __entry->allow, __entry->visible)
 );
