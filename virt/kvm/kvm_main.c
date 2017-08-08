@@ -2317,7 +2317,7 @@ static bool kvm_vcpu_eligible_for_directed_yield(struct kvm_vcpu *vcpu)
 #endif
 }
 
-void kvm_vcpu_on_spin(struct kvm_vcpu *me)
+void kvm_vcpu_on_spin(struct kvm_vcpu *me, bool yield_to_kernel_mode)
 {
 	struct kvm *kvm = me->kvm;
 	struct kvm_vcpu *vcpu;
@@ -2347,6 +2347,8 @@ void kvm_vcpu_on_spin(struct kvm_vcpu *me)
 			if (vcpu == me)
 				continue;
 			if (swait_active(&vcpu->wq) && !kvm_arch_vcpu_runnable(vcpu))
+				continue;
+			if (yield_to_kernel_mode && !kvm_arch_vcpu_in_kernel(vcpu))
 				continue;
 			if (!kvm_vcpu_eligible_for_directed_yield(vcpu))
 				continue;

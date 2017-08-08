@@ -1274,7 +1274,7 @@ int kvm_hv_hypercall(struct kvm_vcpu *vcpu)
 
 	switch (code) {
 	case HVCALL_NOTIFY_LONG_SPIN_WAIT:
-		kvm_vcpu_on_spin(vcpu);
+		kvm_vcpu_on_spin(vcpu, false);
 		break;
 	case HVCALL_POST_MESSAGE:
 	case HVCALL_SIGNAL_EVENT:
