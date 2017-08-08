@@ -32,7 +32,7 @@
 #include <asm/dcr-regs.h>
 #include <mm/mmu_decl.h>
 
-#include "ppc4xx_pci.h"
+#include "pci.h"
 
 static int dma_offset_set;
 
