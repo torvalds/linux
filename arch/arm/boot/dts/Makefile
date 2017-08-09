@@ -970,7 +970,6 @@ dtb-$(CONFIG_ARCH_UNIPHIER) += \
 	uniphier-pro4-sanji.dtb \
 	uniphier-pxs2-gentil.dtb \
 	uniphier-pxs2-vodka.dtb \
-	uniphier-sld3-ref.dtb \
 	uniphier-sld8-ref.dtb
 dtb-$(CONFIG_ARCH_VERSATILE) += \
 	versatile-ab.dtb \
