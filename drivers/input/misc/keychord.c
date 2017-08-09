@@ -60,6 +60,10 @@ struct keychord_device {
 	unsigned char		head;
 	unsigned char		tail;
 	__u16			buff[BUFFER_SIZE];
+	/* Bit to serialize writes to this device */
+#define KEYCHORD_BUSY			0x01
+	unsigned long		flags;
+	wait_queue_head_t	write_waitq;
 };
 
 static int check_keychord(struct keychord_device *kdev,
@@ -172,7 +176,6 @@ static int keychord_connect(struct input_handler *handler,
 		goto err_input_open_device;
 
 	pr_info("keychord: using input dev %s for fevent\n", dev->name);
-
 	return 0;
 
 err_input_open_device:
@@ -225,6 +228,41 @@ static ssize_t keychord_read(struct file *file, char __user *buffer,
 }
 
 /*
+ * serializes writes on a device. can use mutex_lock_interruptible()
+ * for this particular use case as well - a matter of preference.
+ */
+static int
+keychord_write_lock(struct keychord_device *kdev)
+{
+	int ret;
+	unsigned long flags;
+
+	spin_lock_irqsave(&kdev->lock, flags);
+	while (kdev->flags & KEYCHORD_BUSY) {
+		spin_unlock_irqrestore(&kdev->lock, flags);
+		ret = wait_event_interruptible(kdev->write_waitq,
+			       ((kdev->flags & KEYCHORD_BUSY) == 0));
+		if (ret)
+			return ret;
+		spin_lock_irqsave(&kdev->lock, flags);
+	}
+	kdev->flags |= KEYCHORD_BUSY;
+	spin_unlock_irqrestore(&kdev->lock, flags);
+	return 0;
+}
+
+static void
+keychord_write_unlock(struct keychord_device *kdev)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&kdev->lock, flags);
+	kdev->flags &= ~KEYCHORD_BUSY;
+	spin_unlock_irqrestore(&kdev->lock, flags);
+	wake_up_interruptible(&kdev->write_waitq);
+}
+
+/*
  * keychord_write is used to configure the driver
  */
 static ssize_t keychord_write(struct file *file, const char __user *buffer,
@@ -248,6 +286,22 @@ static ssize_t keychord_write(struct file *file, const char __user *buffer,
 	if (copy_from_user(keychords, buffer, count)) {
 		kfree(keychords);
 		return -EFAULT;
+	}
+
+	/*
+	 * Serialize writes to this device to prevent various races.
+	 * 1) writers racing here could do duplicate input_unregister_handler()
+	 *    calls, resulting in attempting to unlink a node from a list that
+	 *    does not exist.
+	 * 2) writers racing here could do duplicate input_register_handler() calls
+	 *    below, resulting in a duplicate insertion of a node into the list.
+	 * 3) a double kfree of keychords can occur (in the event that
+	 *    input_register_handler() fails below.
+	 */
+	ret = keychord_write_lock(kdev);
+	if (ret) {
+		kfree(keychords);
+		return ret;
 	}
 
 	/* unregister handler before changing configuration */
@@ -318,15 +372,19 @@ static ssize_t keychord_write(struct file *file, const char __user *buffer,
 	if (ret) {
 		kfree(keychords);
 		kdev->keychords = 0;
+		keychord_write_unlock(kdev);
 		return ret;
 	}
 	kdev->registered = 1;
+
+	keychord_write_unlock(kdev);
 
 	return count;
 
 err_unlock_return:
 	spin_unlock_irqrestore(&kdev->lock, flags);
 	kfree(keychords);
+	keychord_write_unlock(kdev);
 	return -EINVAL;
 }
 
@@ -352,6 +410,7 @@ static int keychord_open(struct inode *inode, struct file *file)
 
 	spin_lock_init(&kdev->lock);
 	init_waitqueue_head(&kdev->waitq);
+	init_waitqueue_head(&kdev->write_waitq);
 
 	kdev->input_handler.event = keychord_event;
 	kdev->input_handler.connect = keychord_connect;
