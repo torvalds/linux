@@ -885,11 +885,15 @@ static bool copy_device_table(void)
 	}
 
 	old_devtb_phys = entry & PAGE_MASK;
+	if (old_devtb_phys >= 0x100000000ULL) {
+		pr_err("The address of old device table is above 4G, not trustworthy!/n");
+		return false;
+	}
 	old_devtb = memremap(old_devtb_phys, dev_table_size, MEMREMAP_WB);
 	if (!old_devtb)
 		return false;
 
-	gfp_flag = GFP_KERNEL | __GFP_ZERO;
+	gfp_flag = GFP_KERNEL | __GFP_ZERO | GFP_DMA32;
 	old_dev_tbl_cpy = (void *)__get_free_pages(gfp_flag,
 				get_order(dev_table_size));
 	if (old_dev_tbl_cpy == NULL) {
@@ -2432,7 +2436,8 @@ static int __init early_amd_iommu_init(void)
 
 	/* Device table - directly used by all IOMMUs */
 	ret = -ENOMEM;
-	amd_iommu_dev_table = (void *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
+	amd_iommu_dev_table = (void *)__get_free_pages(
+				      GFP_KERNEL | __GFP_ZERO | GFP_DMA32,
 				      get_order(dev_table_size));
 	if (amd_iommu_dev_table == NULL)
 		goto out;
