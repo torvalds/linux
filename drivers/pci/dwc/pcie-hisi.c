@@ -223,7 +223,7 @@ static int hisi_pcie_link_up(struct dw_pcie *pci)
 	return hisi_pcie->soc_ops->hisi_pcie_link_up(hisi_pcie);
 }
 
-static struct dw_pcie_host_ops hisi_pcie_host_ops = {
+static const struct dw_pcie_host_ops hisi_pcie_host_ops = {
 	.rd_own_conf = hisi_pcie_cfg_read,
 	.wr_own_conf = hisi_pcie_cfg_write,
 };
