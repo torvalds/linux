@@ -263,9 +263,11 @@ static void wd_timer_fn(unsigned long data)
 
 void arch_touch_nmi_watchdog(void)
 {
+	unsigned long ticks = tb_ticks_per_usec * wd_timer_period_ms * 1000;
 	int cpu = smp_processor_id();
 
-	watchdog_timer_interrupt(cpu);
+	if (get_tb() - per_cpu(wd_timer_tb, cpu) >= ticks)
+		watchdog_timer_interrupt(cpu);
 }
 EXPORT_SYMBOL(arch_touch_nmi_watchdog);
 
