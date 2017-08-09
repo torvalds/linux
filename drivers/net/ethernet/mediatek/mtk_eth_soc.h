@@ -532,6 +532,7 @@ struct mtk_tx_ring {
 enum mtk_rx_flags {
 	MTK_RX_FLAGS_NORMAL = 0,
 	MTK_RX_FLAGS_HWLRO,
+	MTK_RX_FLAGS_QDMA,
 };
 
 /* struct mtk_rx_ring -	This struct holds info describing a RX ring
@@ -601,6 +602,7 @@ struct mtk_soc_data {
  * @dma_refcnt:		track how many netdevs are using the DMA engine
  * @tx_ring:		Pointer to the memory holding info about the TX ring
  * @rx_ring:		Pointer to the memory holding info about the RX ring
+ * @rx_ring_qdma:	Pointer to the memory holding info about the QDMA RX ring
  * @tx_napi:		The TX NAPI struct
  * @rx_napi:		The RX NAPI struct
  * @scratch_ring:	Newer SoCs need memory for a second HW managed TX ring
@@ -633,6 +635,7 @@ struct mtk_eth {
 	atomic_t			dma_refcnt;
 	struct mtk_tx_ring		tx_ring;
 	struct mtk_rx_ring		rx_ring[MTK_MAX_RX_RING_NUM];
+	struct mtk_rx_ring		rx_ring_qdma;
 	struct napi_struct		tx_napi;
 	struct napi_struct		rx_napi;
 	struct mtk_tx_dma		*scratch_ring;

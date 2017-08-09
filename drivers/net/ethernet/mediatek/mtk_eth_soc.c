@@ -1285,9 +1285,19 @@ static void mtk_tx_clean(struct mtk_eth *eth)
 
 static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
 {
-	struct mtk_rx_ring *ring = &eth->rx_ring[ring_no];
+	struct mtk_rx_ring *ring;
 	int rx_data_len, rx_dma_size;
 	int i;
+	u32 offset = 0;
+
+	if (rx_flag == MTK_RX_FLAGS_QDMA) {
+		if (ring_no)
+			return -EINVAL;
+		ring = &eth->rx_ring_qdma;
+		offset = 0x1000;
+	} else {
+		ring = &eth->rx_ring[ring_no];
+	}
 
 	if (rx_flag == MTK_RX_FLAGS_HWLRO) {
 		rx_data_len = MTK_MAX_LRO_RX_LENGTH;
@@ -1337,17 +1347,16 @@ static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
 	 */
 	wmb();
 
-	mtk_w32(eth, ring->phys, MTK_PRX_BASE_PTR_CFG(ring_no));
-	mtk_w32(eth, rx_dma_size, MTK_PRX_MAX_CNT_CFG(ring_no));
-	mtk_w32(eth, ring->calc_idx, ring->crx_idx_reg);
-	mtk_w32(eth, MTK_PST_DRX_IDX_CFG(ring_no), MTK_PDMA_RST_IDX);
+	mtk_w32(eth, ring->phys, MTK_PRX_BASE_PTR_CFG(ring_no) + offset);
+	mtk_w32(eth, rx_dma_size, MTK_PRX_MAX_CNT_CFG(ring_no) + offset);
+	mtk_w32(eth, ring->calc_idx, ring->crx_idx_reg + offset);
+	mtk_w32(eth, MTK_PST_DRX_IDX_CFG(ring_no), MTK_PDMA_RST_IDX + offset);
 
 	return 0;
 }
 
-static void mtk_rx_clean(struct mtk_eth *eth, int ring_no)
+static void mtk_rx_clean(struct mtk_eth *eth, struct mtk_rx_ring *ring)
 {
-	struct mtk_rx_ring *ring = &eth->rx_ring[ring_no];
 	int i;
 
 	if (ring->data && ring->dma) {
@@ -1673,6 +1682,10 @@ static int mtk_dma_init(struct mtk_eth *eth)
 	if (err)
 		return err;
 
+	err = mtk_rx_alloc(eth, 0, MTK_RX_FLAGS_QDMA);
+	if (err)
+		return err;
+
 	err = mtk_rx_alloc(eth, 0, MTK_RX_FLAGS_NORMAL);
 	if (err)
 		return err;
@@ -1712,12 +1725,13 @@ static void mtk_dma_free(struct mtk_eth *eth)
 		eth->phy_scratch_ring = 0;
 	}
 	mtk_tx_clean(eth);
-	mtk_rx_clean(eth, 0);
+	mtk_rx_clean(eth, &eth->rx_ring[0]);
+	mtk_rx_clean(eth, &eth->rx_ring_qdma);
 
 	if (eth->hwlro) {
 		mtk_hwlro_rx_uninit(eth);
 		for (i = 1; i < MTK_MAX_RX_RING_NUM; i++)
-			mtk_rx_clean(eth, i);
+			mtk_rx_clean(eth, &eth->rx_ring[i]);
 	}
 
 	kfree(eth->scratch_head);
@@ -1784,7 +1798,9 @@ static int mtk_start_dma(struct mtk_eth *eth)
 
 	mtk_w32(eth,
 		MTK_TX_WB_DDONE | MTK_TX_DMA_EN |
-		MTK_DMA_SIZE_16DWORDS | MTK_NDP_CO_PRO,
+		MTK_DMA_SIZE_16DWORDS | MTK_NDP_CO_PRO |
+		MTK_RX_DMA_EN | MTK_RX_2B_OFFSET |
+		MTK_RX_BT_32DWORDS,
 		MTK_QDMA_GLO_CFG);
 
 	mtk_w32(eth,
