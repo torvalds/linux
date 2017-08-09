@@ -385,6 +385,16 @@
 					      "main_wclk", "aux_wclk";
 			};
 
+			vga: vga@8000 {
+				compatible = "zte,zx296718-vga";
+				reg = <0x8000 0x1000>;
+				interrupts = <GIC_SPI 86 IRQ_TYPE_LEVEL_HIGH>;
+				clocks = <&topcrm VGA_I2C_WCLK>;
+				clock-names = "i2c_wclk";
+				zte,vga-power-control = <&sysctrl 0x170 0xe0>;
+				status = "disabled";
+			};
+
 			hdmi: hdmi@c000 {
 				compatible = "zte,zx296718-hdmi";
 				reg = <0xc000 0x4000>;
