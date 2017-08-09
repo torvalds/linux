@@ -4881,7 +4881,7 @@ void i40iw_vsi_stats_free(struct i40iw_sc_vsi *vsi)
 {
 	u8 fcn_id = vsi->fcn_id;
 
-	if ((vsi->stats_fcn_id_alloc) && (fcn_id != I40IW_INVALID_FCN_ID))
+	if (vsi->stats_fcn_id_alloc && fcn_id < I40IW_MAX_STATS_COUNT)
 		vsi->dev->fcn_id_array[fcn_id] = false;
 	i40iw_hw_stats_stop_timer(vsi);
 }
