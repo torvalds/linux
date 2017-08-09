@@ -1137,6 +1137,10 @@ static void liquidio_destroy_nic_device(struct octeon_device *oct, int ifidx)
 		oct->droq[0]->ops.poll_mode = 0;
 	}
 
+	/* Delete NAPI */
+	list_for_each_entry_safe(napi, n, &netdev->napi_list, dev_list)
+		netif_napi_del(napi);
+
 	if (atomic_read(&lio->ifstate) & LIO_IFSTATE_REGISTERED)
 		unregister_netdev(netdev);
 
@@ -1784,6 +1788,16 @@ static int liquidio_stop(struct net_device *netdev)
 {
 	struct lio *lio = GET_LIO(netdev);
 	struct octeon_device *oct = lio->oct_dev;
+	struct napi_struct *napi, *n;
+
+	if (oct->props[lio->ifidx].napi_enabled) {
+		list_for_each_entry_safe(napi, n, &netdev->napi_list, dev_list)
+			napi_disable(napi);
+
+		oct->props[lio->ifidx].napi_enabled = 0;
+
+		oct->droq[0]->ops.poll_mode = 0;
+	}
 
 	netif_info(lio, ifdown, lio->netdev, "Stopping interface!\n");
 	/* Inform that netif carrier is down */
