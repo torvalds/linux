@@ -1523,7 +1523,7 @@ static void __split_and_process_bio(struct mapped_device *md,
 	}
 
 	/* drop the extra reference count */
-	dec_pending(ci.io, error);
+	dec_pending(ci.io, errno_to_blk_status(error));
 }
 /*-----------------------------------------------------------------
  * CRUD END
