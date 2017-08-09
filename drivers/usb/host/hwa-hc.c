@@ -860,7 +860,7 @@ static void hwahc_disconnect(struct usb_interface *usb_iface)
 	usb_put_hcd(usb_hcd);
 }
 
-static struct usb_device_id hwahc_id_table[] = {
+static const struct usb_device_id hwahc_id_table[] = {
 	/* Alereon 5310 */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x13dc, 0x5310, 0xe0, 0x02, 0x01),
 	  .driver_info = WUSB_QUIRK_ALEREON_HWA_CONCAT_ISOC |
