@@ -797,7 +797,7 @@ static void lan9303_port_disable(struct dsa_switch *ds, int port,
 	}
 }
 
-static struct dsa_switch_ops lan9303_switch_ops = {
+static const struct dsa_switch_ops lan9303_switch_ops = {
 	.get_tag_protocol = lan9303_get_tag_protocol,
 	.setup = lan9303_setup,
 	.get_strings = lan9303_get_strings,

@@ -1017,7 +1017,7 @@ mt7530_setup(struct dsa_switch *ds)
 	return 0;
 }
 
-static struct dsa_switch_ops mt7530_switch_ops = {
+static const struct dsa_switch_ops mt7530_switch_ops = {
 	.get_tag_protocol	= mtk_get_tag_protocol,
 	.setup			= mt7530_setup,
 	.get_strings		= mt7530_get_strings,

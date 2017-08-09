@@ -257,7 +257,7 @@ static int dsa_loop_port_vlan_del(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static struct dsa_switch_ops dsa_loop_driver = {
+static const struct dsa_switch_ops dsa_loop_driver = {
 	.get_tag_protocol	= dsa_loop_get_protocol,
 	.setup			= dsa_loop_setup,
 	.get_strings		= dsa_loop_get_strings,
