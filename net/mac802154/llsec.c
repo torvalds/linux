@@ -713,7 +713,8 @@ int mac802154_llsec_encrypt(struct mac802154_llsec *sec, struct sk_buff *skb)
 	if (hlen < 0 || hdr.fc.type != IEEE802154_FC_TYPE_DATA)
 		return -EINVAL;
 
-	if (!hdr.fc.security_enabled || hdr.sec.level == 0) {
+	if (!hdr.fc.security_enabled ||
+	    (hdr.sec.level == IEEE802154_SCF_SECLEVEL_NONE)) {
 		skb_push(skb, hlen);
 		return 0;
 	}
