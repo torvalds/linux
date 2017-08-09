@@ -77,13 +77,6 @@ int octeon_init_instr_queue(struct octeon_device *oct,
 		return 1;
 	}
 
-	if (num_descs & (num_descs - 1)) {
-		dev_err(&oct->pci_dev->dev,
-			"Number of descriptors for instr queue %d not in power of 2.\n",
-			iq_no);
-		return 1;
-	}
-
 	q_size = (u32)conf->instr_type * num_descs;
 
 	iq = oct->instr_queue[iq_no];
