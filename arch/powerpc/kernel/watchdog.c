@@ -297,6 +297,8 @@ static void stop_watchdog_timer_on(unsigned int cpu)
 
 static int start_wd_on_cpu(unsigned int cpu)
 {
+	unsigned long flags;
+
 	if (cpumask_test_cpu(cpu, &wd_cpus_enabled)) {
 		WARN_ON(1);
 		return 0;
@@ -311,12 +313,14 @@ static int start_wd_on_cpu(unsigned int cpu)
 	if (!cpumask_test_cpu(cpu, &watchdog_cpumask))
 		return 0;
 
+	wd_smp_lock(&flags);
 	cpumask_set_cpu(cpu, &wd_cpus_enabled);
 	if (cpumask_weight(&wd_cpus_enabled) == 1) {
 		cpumask_set_cpu(cpu, &wd_smp_cpus_pending);
 		wd_smp_last_reset_tb = get_tb();
 	}
-	smp_wmb();
+	wd_smp_unlock(&flags);
+
 	start_watchdog_timer_on(cpu);
 
 	return 0;
@@ -324,12 +328,17 @@ static int start_wd_on_cpu(unsigned int cpu)
 
 static int stop_wd_on_cpu(unsigned int cpu)
 {
+	unsigned long flags;
+
 	if (!cpumask_test_cpu(cpu, &wd_cpus_enabled))
 		return 0; /* Can happen in CPU unplug case */
 
 	stop_watchdog_timer_on(cpu);
 
+	wd_smp_lock(&flags);
 	cpumask_clear_cpu(cpu, &wd_cpus_enabled);
+	wd_smp_unlock(&flags);
+
 	wd_smp_clear_cpu_pending(cpu, get_tb());
 
 	return 0;
