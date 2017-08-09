@@ -22,3 +22,25 @@ AC_DEFUN([ZFS_AC_KERNEL_BIO_END_IO_T_ARGS], [
 		AC_MSG_RESULT(no)
 	])
 ])
+
+dnl #
+dnl # 4.13 API change
+dnl # The bio->bi_error field was replaced with bio->bi_status which is an
+dnl # enum which describes all possible error types.
+dnl #
+AC_DEFUN([ZFS_AC_KERNEL_BIO_BI_STATUS], [
+	AC_MSG_CHECKING([whether bio->bi_status exists])
+	ZFS_LINUX_TRY_COMPILE([
+		#include <linux/bio.h>
+	],[
+		struct bio bio __attribute__ ((unused));
+		blk_status_t status __attribute__ ((unused)) = BLK_STS_OK;
+
+		bio.bi_status = status;
+	],[
+		AC_MSG_RESULT(yes)
+		AC_DEFINE(HAVE_BIO_BI_STATUS, 1, [bio->bi_status exists])
+	],[
+		AC_MSG_RESULT(no)
+	])
+])

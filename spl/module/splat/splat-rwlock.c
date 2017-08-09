@@ -76,7 +76,7 @@ typedef struct rw_priv {
 	struct file *rw_file;
 	krwlock_t rw_rwlock;
 	spinlock_t rw_lock;
-	wait_queue_head_t rw_waitq;
+	spl_wait_queue_head_t rw_waitq;
 	int rw_completed;
 	int rw_holders;
 	int rw_waiters;

@@ -275,8 +275,8 @@ typedef struct kmem_cache_priv {
 	struct file *kcp_file;
 	kmem_cache_t *kcp_cache;
 	spinlock_t kcp_lock;
-	wait_queue_head_t kcp_ctl_waitq;
-	wait_queue_head_t kcp_thr_waitq;
+	spl_wait_queue_head_t kcp_ctl_waitq;
+	spl_wait_queue_head_t kcp_thr_waitq;
 	int kcp_flags;
 	int kcp_kct_count;
 	kmem_cache_thread_t *kcp_kct[SPLAT_KMEM_THREADS];

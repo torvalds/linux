@@ -426,7 +426,7 @@ BIO_END_IO_PROTO(vdev_disk_physio_completion, bio, error)
 
 	if (dr->dr_error == 0) {
 #ifdef HAVE_1ARG_BIO_END_IO_T
-		dr->dr_error = -(bio->bi_error);
+		dr->dr_error = BIO_END_IO_ERROR(bio);
 #else
 		if (error)
 			dr->dr_error = -(error);
@@ -613,16 +613,17 @@ retry:
 	return (error);
 }
 
-BIO_END_IO_PROTO(vdev_disk_io_flush_completion, bio, rc)
+BIO_END_IO_PROTO(vdev_disk_io_flush_completion, bio, error)
 {
 	zio_t *zio = bio->bi_private;
 #ifdef HAVE_1ARG_BIO_END_IO_T
-	int rc = bio->bi_error;
+	zio->io_error = BIO_END_IO_ERROR(bio);
+#else
+	zio->io_error = -error;
 #endif
 
 	zio->io_delay = jiffies_64 - zio->io_delay;
-	zio->io_error = -rc;
-	if (rc && (rc == -EOPNOTSUPP))
+	if (zio->io_error && (zio->io_error == EOPNOTSUPP))
 		zio->io_vd->vdev_nowritecache = B_TRUE;
 
 	bio_put(bio);

@@ -402,11 +402,11 @@ static struct ctl_table spl_kmem_table[] = {
                 .mode     = 0444,
                 .proc_handler = &proc_doslab,
         },
-	{0},
+	{},
 };
 
 static struct ctl_table spl_kstat_table[] = {
-	{0},
+	{},
 };
 
 static struct ctl_table spl_table[] = {
@@ -437,7 +437,7 @@ static struct ctl_table spl_table[] = {
 		.mode     = 0555,
 		.child    = spl_kstat_table,
 	},
-        { 0 },
+        {},
 };
 
 static struct ctl_table spl_dir[] = {
@@ -446,7 +446,7 @@ static struct ctl_table spl_dir[] = {
                 .mode     = 0555,
                 .child    = spl_table,
         },
-        { 0 }
+        {}
 };
 
 static struct ctl_table spl_root[] = {
@@ -458,7 +458,7 @@ static struct ctl_table spl_root[] = {
 	.mode = 0555,
 	.child = spl_dir,
 	},
-	{ 0 }
+	{}
 };
 
 int

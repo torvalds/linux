@@ -28,6 +28,7 @@
 #include <sys/thread.h>
 #include <sys/mutex.h>
 #include <linux/mm_compat.h>
+#include <linux/wait_compat.h>
 #include <linux/slab.h>
 #include "splat-internal.h"
 
@@ -55,7 +56,7 @@ typedef struct atomic_priv {
         unsigned long ap_magic;
         struct file *ap_file;
 	kmutex_t ap_lock;
-        wait_queue_head_t ap_waitq;
+        spl_wait_queue_head_t ap_waitq;
 	volatile uint64_t ap_atomic;
 	volatile uint64_t ap_atomic_exited;
 	atomic_op_t ap_op;

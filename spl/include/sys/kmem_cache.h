@@ -193,7 +193,7 @@ typedef struct spl_kmem_cache {
 	struct list_head	skc_partial_list;  /* Partially alloc'ed */
 	struct rb_root		skc_emergency_tree; /* Min sized objects */
 	spinlock_t		skc_lock;	/* Cache lock */
-	wait_queue_head_t	skc_waitq;	/* Allocation waiters */
+	spl_wait_queue_head_t	skc_waitq;	/* Allocation waiters */
 	uint64_t		skc_slab_fail;	/* Slab alloc failures */
 	uint64_t		skc_slab_create;  /* Slab creates */
 	uint64_t		skc_slab_destroy; /* Slab destroys */

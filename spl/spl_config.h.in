@@ -144,6 +144,12 @@
 /* yes */
 #undef HAVE_WAIT_ON_BIT_ACTION
 
+/* wait_queue_entry_t exists */
+#undef HAVE_WAIT_QUEUE_ENTRY_T
+
+/* wq_head->head and wq_entry->entry exist */
+#undef HAVE_WAIT_QUEUE_HEAD_ENTRY
+
 /* Define to the sub-directory where libtool stores uninstalled libraries. */
 #undef LT_OBJDIR
 

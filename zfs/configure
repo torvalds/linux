@@ -16297,6 +16297,74 @@ fi
 
 
 
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether bio->bi_status exists" >&5
+$as_echo_n "checking whether bio->bi_status exists... " >&6; }
+
+
+cat confdefs.h - <<_ACEOF >conftest.c
+
+
+		#include <linux/bio.h>
+
+int
+main (void)
+{
+
+		struct bio bio __attribute__ ((unused));
+		blk_status_t status __attribute__ ((unused)) = BLK_STS_OK;
+
+		bio.bi_status = status;
+
+  ;
+  return 0;
+}
+
+_ACEOF
+
+
+
+cat - <<_ACEOF >conftest.h
+
+_ACEOF
+
+
+	rm -Rf build && mkdir -p build && touch build/conftest.mod.c
+	echo "obj-m := conftest.o" >build/Makefile
+	modpost_flag=''
+	test "x$enable_linux_builtin" = xyes && modpost_flag='modpost=true' # fake modpost stage
+	if { ac_try='cp conftest.c conftest.h build && make modules -C $LINUX_OBJ EXTRA_CFLAGS="-Werror $EXTRA_KCFLAGS" $ARCH_UM M=$PWD/build $modpost_flag'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; } >/dev/null && { ac_try='test -s build/conftest.o'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; }; then :
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HAVE_BIO_BI_STATUS 1" >>confdefs.h
+
+
+else
+  $as_echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+
+
+fi
+	rm -Rf build
+
+
+
+
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether BIO_RW_BARRIER is defined" >&5
 $as_echo_n "checking whether BIO_RW_BARRIER is defined... " >&6; }
 
@@ -27902,6 +27970,74 @@ _ACEOF
 $as_echo "yes" >&6; }
 
 $as_echo "#define HAVE_1ARG_BIO_END_IO_T 1" >>confdefs.h
+
+
+else
+  $as_echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+
+
+fi
+	rm -Rf build
+
+
+
+
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether bio->bi_status exists" >&5
+$as_echo_n "checking whether bio->bi_status exists... " >&6; }
+
+
+cat confdefs.h - <<_ACEOF >conftest.c
+
+
+		#include <linux/bio.h>
+
+int
+main (void)
+{
+
+		struct bio bio __attribute__ ((unused));
+		blk_status_t status __attribute__ ((unused)) = BLK_STS_OK;
+
+		bio.bi_status = status;
+
+  ;
+  return 0;
+}
+
+_ACEOF
+
+
+
+cat - <<_ACEOF >conftest.h
+
+_ACEOF
+
+
+	rm -Rf build && mkdir -p build && touch build/conftest.mod.c
+	echo "obj-m := conftest.o" >build/Makefile
+	modpost_flag=''
+	test "x$enable_linux_builtin" = xyes && modpost_flag='modpost=true' # fake modpost stage
+	if { ac_try='cp conftest.c conftest.h build && make modules -C $LINUX_OBJ EXTRA_CFLAGS="-Werror $EXTRA_KCFLAGS" $ARCH_UM M=$PWD/build $modpost_flag'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; } >/dev/null && { ac_try='test -s build/conftest.o'
+  { { eval echo "\"\$as_me\":${as_lineno-$LINENO}: \"$ac_try\""; } >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
+  test $ac_status = 0; }; }; then :
+
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define HAVE_BIO_BI_STATUS 1" >>confdefs.h
 
 
 else

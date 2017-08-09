@@ -26,7 +26,7 @@
 #define	_SPL_CONDVAR_H
 
 #include <linux/module.h>
-#include <linux/wait.h>
+#include <linux/wait_compat.h>
 #include <linux/delay_compat.h>
 #include <sys/kmem.h>
 #include <sys/mutex.h>
@@ -41,8 +41,8 @@
 
 typedef struct {
 	int cv_magic;
-	wait_queue_head_t cv_event;
-	wait_queue_head_t cv_destroy;
+	spl_wait_queue_head_t cv_event;
+	spl_wait_queue_head_t cv_destroy;
 	atomic_t cv_refs;
 	atomic_t cv_waiters;
 	kmutex_t *cv_mutex;

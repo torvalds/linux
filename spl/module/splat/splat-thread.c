@@ -28,6 +28,7 @@
 #include <sys/random.h>
 #include <linux/delay.h>
 #include <linux/mm_compat.h>
+#include <linux/wait_compat.h>
 #include <linux/slab.h>
 #include "splat-internal.h"
 
@@ -54,7 +55,7 @@ typedef struct thread_priv {
         unsigned long tp_magic;
         struct file *tp_file;
         spinlock_t tp_lock;
-        wait_queue_head_t tp_waitq;
+        spl_wait_queue_head_t tp_waitq;
 	uint_t tp_keys[SPLAT_THREAD_TEST_KEYS];
 	int tp_rc;
 	int tp_count;

@@ -51,6 +51,9 @@
 /* bio->bi_opf is defined */
 #undef HAVE_BIO_BI_OPF
 
+/* bio->bi_status exists */
+#undef HAVE_BIO_BI_STATUS
+
 /* bio has bi_iter */
 #undef HAVE_BIO_BVEC_ITER
 

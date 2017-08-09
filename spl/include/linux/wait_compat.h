@@ -26,6 +26,7 @@
 #define _SPL_WAIT_COMPAT_H
 
 #include <linux/sched.h>
+#include <linux/wait.h>
 
 #ifndef HAVE_WAIT_ON_BIT_ACTION
 #  define spl_wait_on_bit(word, bit, mode) wait_on_bit(word, bit, mode)
@@ -42,5 +43,13 @@ spl_bit_wait(void *word)
 	wait_on_bit(word, bit, spl_bit_wait, mode)
 
 #endif /* HAVE_WAIT_ON_BIT_ACTION */
+
+#ifdef HAVE_WAIT_QUEUE_ENTRY_T
+typedef wait_queue_head_t	spl_wait_queue_head_t;
+typedef wait_queue_entry_t	spl_wait_queue_entry_t;
+#else
+typedef wait_queue_head_t	spl_wait_queue_head_t;
+typedef wait_queue_t		spl_wait_queue_entry_t;
+#endif
 
 #endif /* SPL_WAIT_COMPAT_H */
