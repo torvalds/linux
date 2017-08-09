@@ -536,12 +536,18 @@ static int pm8916_wcd_analog_probe(struct snd_soc_codec *codec)
 		snd_soc_write(codec, wcd_reg_defaults_2_0[reg].reg,
 			      wcd_reg_defaults_2_0[reg].def);
 
+	snd_soc_update_bits(codec, CDC_D_CDC_RST_CTL,
+			    RST_CTL_DIG_SW_RST_N_MASK,
+			    RST_CTL_DIG_SW_RST_N_REMOVE_RESET);
 	return 0;
 }
 
 static int pm8916_wcd_analog_remove(struct snd_soc_codec *codec)
 {
 	struct pm8916_wcd_analog_priv *priv = dev_get_drvdata(codec->dev);
+
+	snd_soc_update_bits(codec, CDC_D_CDC_RST_CTL,
+			    RST_CTL_DIG_SW_RST_N_MASK, 0);
 
 	return regulator_bulk_disable(ARRAY_SIZE(priv->supplies),
 				      priv->supplies);
@@ -736,28 +742,6 @@ static struct regmap *pm8916_get_regmap(struct device *dev)
 	return dev_get_regmap(dev->parent, NULL);
 }
 
-static int pm8916_wcd_analog_startup(struct snd_pcm_substream *substream,
-				      struct snd_soc_dai *dai)
-{
-	snd_soc_update_bits(dai->codec, CDC_D_CDC_RST_CTL,
-			    RST_CTL_DIG_SW_RST_N_MASK,
-			    RST_CTL_DIG_SW_RST_N_REMOVE_RESET);
-
-	return 0;
-}
-
-static void pm8916_wcd_analog_shutdown(struct snd_pcm_substream *substream,
-					 struct snd_soc_dai *dai)
-{
-	snd_soc_update_bits(dai->codec, CDC_D_CDC_RST_CTL,
-			    RST_CTL_DIG_SW_RST_N_MASK, 0);
-}
-
-static struct snd_soc_dai_ops pm8916_wcd_analog_dai_ops = {
-	.startup = pm8916_wcd_analog_startup,
-	.shutdown = pm8916_wcd_analog_shutdown,
-};
-
 static struct snd_soc_dai_driver pm8916_wcd_analog_dai[] = {
 	[0] = {
 	       .name = "pm8916_wcd_analog_pdm_rx",
@@ -769,7 +753,6 @@ static struct snd_soc_dai_driver pm8916_wcd_analog_dai[] = {
 			    .channels_min = 1,
 			    .channels_max = 3,
 			    },
-	       .ops = &pm8916_wcd_analog_dai_ops,
 	       },
 	[1] = {
 	       .name = "pm8916_wcd_analog_pdm_tx",
@@ -781,7 +764,6 @@ static struct snd_soc_dai_driver pm8916_wcd_analog_dai[] = {
 			   .channels_min = 1,
 			   .channels_max = 4,
 			   },
-	       .ops = &pm8916_wcd_analog_dai_ops,
 	       },
 };
 
