@@ -551,6 +551,7 @@ static void clear_closid_rmid(int cpu)
 	struct intel_pqr_state *state = this_cpu_ptr(&pqr_state);
 
 	per_cpu(rdt_cpu_default.closid, cpu) = 0;
+	per_cpu(rdt_cpu_default.rmid, cpu) = 0;
 	state->closid = 0;
 	state->rmid = 0;
 	wrmsr(IA32_PQR_ASSOC, 0, 0);
