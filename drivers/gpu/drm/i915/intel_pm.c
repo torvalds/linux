@@ -2778,7 +2778,7 @@ hsw_compute_linetime_wm(const struct intel_crtc_state *cstate)
 static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 				  uint16_t wm[8])
 {
-	if (IS_GEN9(dev_priv)) {
+	if (INTEL_GEN(dev_priv) >= 9) {
 		uint32_t val;
 		int ret, i;
 		int level, max_level = ilk_wm_max_level(dev_priv);
@@ -2838,7 +2838,7 @@ static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 		}
 
 		/*
-		 * WaWmMemoryReadLatency:skl,glk
+		 * WaWmMemoryReadLatency:skl+,glk
 		 *
 		 * punit doesn't take into account the read latency so we need
 		 * to add 2us to the various latency levels we retrieve from the
@@ -2877,6 +2877,8 @@ static void intel_read_wm_latency(struct drm_i915_private *dev_priv,
 		wm[0] = 7;
 		wm[1] = (mltr >> MLTR_WM1_SHIFT) & ILK_SRLT_MASK;
 		wm[2] = (mltr >> MLTR_WM2_SHIFT) & ILK_SRLT_MASK;
+	} else {
+		MISSING_CASE(INTEL_DEVID(dev_priv));
 	}
 }
 
