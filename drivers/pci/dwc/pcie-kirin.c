@@ -441,7 +441,7 @@ static struct dw_pcie_ops kirin_dw_pcie_ops = {
 	.link_up = kirin_pcie_link_up,
 };
 
-static struct dw_pcie_host_ops kirin_pcie_host_ops = {
+static const struct dw_pcie_host_ops kirin_pcie_host_ops = {
 	.rd_own_conf = kirin_pcie_rd_own_conf,
 	.wr_own_conf = kirin_pcie_wr_own_conf,
 	.host_init = kirin_pcie_host_init,
