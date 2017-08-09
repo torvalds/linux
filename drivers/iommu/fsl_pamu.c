@@ -42,6 +42,8 @@ struct pamu_isr_data {
 static struct paace *ppaact;
 static struct paace *spaact;
 
+static bool probed;			/* Has PAMU been probed? */
+
 /*
  * Table for matching compatible strings, for device tree
  * guts node, for QorIQ SOCs.
@@ -1033,6 +1035,9 @@ static int fsl_pamu_probe(struct platform_device *pdev)
 	 * NOTE : All PAMUs share the same LIODN tables.
 	 */
 
+	if (WARN_ON(probed))
+		return -EBUSY;
+
 	pamu_regs = of_iomap(dev->of_node, 0);
 	if (!pamu_regs) {
 		dev_err(dev, "ioremap of PAMU node failed\n");
@@ -1171,6 +1176,8 @@ static int fsl_pamu_probe(struct platform_device *pdev)
 	/* Enable DMA for the LIODNs in the device tree */
 
 	setup_liodns();
+
+	probed = true;
 
 	return 0;
 
