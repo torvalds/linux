@@ -807,6 +807,7 @@ static const struct i2c_device_id adv748x_id[] = {
 	{ "adv7482", 0 },
 	{ },
 };
+MODULE_DEVICE_TABLE(i2c, adv748x_id);
 
 static const struct of_device_id adv748x_of_table[] = {
 	{ .compatible = "adi,adv7481", },
