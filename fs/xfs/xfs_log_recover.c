@@ -5218,7 +5218,7 @@ xlog_do_recovery_pass(
 	xfs_daddr_t		*first_bad)	/* out: first bad log rec */
 {
 	xlog_rec_header_t	*rhead;
-	xfs_daddr_t		blk_no;
+	xfs_daddr_t		blk_no, rblk_no;
 	xfs_daddr_t		rhead_blk;
 	char			*offset;
 	xfs_buf_t		*hbp, *dbp;
@@ -5371,9 +5371,19 @@ xlog_do_recovery_pass(
 			bblks = (int)BTOBB(be32_to_cpu(rhead->h_len));
 			blk_no += hblks;
 
-			/* Read in data for log record */
-			if (blk_no + bblks <= log->l_logBBsize) {
-				error = xlog_bread(log, blk_no, bblks, dbp,
+			/*
+			 * Read the log record data in multiple reads if it
+			 * wraps around the end of the log. Note that if the
+			 * header already wrapped, blk_no could point past the
+			 * end of the log. The record data is contiguous in
+			 * that case.
+			 */
+			if (blk_no + bblks <= log->l_logBBsize ||
+			    blk_no >= log->l_logBBsize) {
+				/* mod blk_no in case the header wrapped and
+				 * pushed it beyond the end of the log */
+				rblk_no = do_mod(blk_no, log->l_logBBsize);
+				error = xlog_bread(log, rblk_no, bblks, dbp,
 						   &offset);
 				if (error)
 					goto bread_err2;
