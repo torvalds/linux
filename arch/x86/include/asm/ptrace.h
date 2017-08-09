@@ -196,6 +196,17 @@ static inline unsigned long regs_get_register(struct pt_regs *regs,
 	if (offset == offsetof(struct pt_regs, sp) &&
 	    regs->cs == __KERNEL_CS)
 		return kernel_stack_pointer(regs);
+
+	/* The selector fields are 16-bit. */
+	if (offset == offsetof(struct pt_regs, cs) ||
+	    offset == offsetof(struct pt_regs, ss) ||
+	    offset == offsetof(struct pt_regs, ds) ||
+	    offset == offsetof(struct pt_regs, es) ||
+	    offset == offsetof(struct pt_regs, fs) ||
+	    offset == offsetof(struct pt_regs, gs)) {
+		return *(u16 *)((unsigned long)regs + offset);
+
+	}
 #endif
 	return *(unsigned long *)((unsigned long)regs + offset);
 }
