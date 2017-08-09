@@ -127,26 +127,31 @@
 
 		opp-500000000 {
 			opp-hz = /bits/ 64 <500000000>;
+			opp-microvolt = <866000>;
 			clock-latency-ns = <500000>;
 		};
 
 		opp-648000000 {
 			opp-hz = /bits/ 64 <648000000>;
+			opp-microvolt = <866000>;
 			clock-latency-ns = <500000>;
 		};
 
 		opp-800000000 {
 			opp-hz = /bits/ 64 <800000000>;
+			opp-microvolt = <888000>;
 			clock-latency-ns = <500000>;
 		};
 
 		opp-1000000000 {
 			opp-hz = /bits/ 64 <1000000000>;
+			opp-microvolt = <898000>;
 			clock-latency-ns = <500000>;
 		};
 
 		opp-1188000000 {
 			opp-hz = /bits/ 64 <1188000000>;
+			opp-microvolt = <1015000>;
 			clock-latency-ns = <500000>;
 		};
 	};
