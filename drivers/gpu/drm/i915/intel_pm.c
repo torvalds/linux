@@ -2934,7 +2934,7 @@ static void intel_print_wm_latency(struct drm_i915_private *dev_priv,
 		 * - latencies are in us on gen9.
 		 * - before then, WM1+ latency values are in 0.5us units
 		 */
-		if (IS_GEN9(dev_priv))
+		if (INTEL_GEN(dev_priv) >= 9)
 			latency *= 10;
 		else if (level > 0)
 			latency *= 5;
