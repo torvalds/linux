@@ -265,6 +265,8 @@ static bool get_hw_supported_ddc_line(
 {
 	enum gpio_ddc_line line_found;
 
+	*line = GPIO_DDC_LINE_UNKNOWN;
+
 	if (!ddc) {
 		BREAK_TO_DEBUGGER();
 		return false;

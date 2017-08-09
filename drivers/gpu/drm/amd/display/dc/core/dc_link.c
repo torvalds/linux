@@ -541,7 +541,7 @@ bool dc_link_detect(struct dc_link *link, bool boot)
 	struct audio_support *aud_support = &link->dc->res_pool->audio_support;
 	enum dc_edid_status edid_status;
 	struct dc_context *dc_ctx = link->ctx;
-	struct dc_sink *sink;
+	struct dc_sink *sink = NULL;
 	enum dc_connection_type new_connection_type = dc_connection_none;
 
 	if (link->connector_signal == SIGNAL_TYPE_VIRTUAL)
