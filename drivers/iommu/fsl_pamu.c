@@ -44,6 +44,8 @@ static struct paace *spaact;
 
 static bool probed;			/* Has PAMU been probed? */
 
+struct iommu_device pamu_iommu;	/* IOMMU core code handle */
+
 /*
  * Table for matching compatible strings, for device tree
  * guts node, for QorIQ SOCs.
@@ -1154,6 +1156,18 @@ static int fsl_pamu_probe(struct platform_device *pdev)
 	if (ret)
 		goto error_genpool;
 
+	ret = iommu_device_sysfs_add(&pamu_iommu, dev, NULL, "iommu0");
+	if (ret)
+		goto error_genpool;
+
+	iommu_device_set_ops(&pamu_iommu, &fsl_pamu_ops);
+
+	ret = iommu_device_register(&pamu_iommu);
+	if (ret) {
+		dev_err(dev, "Can't register iommu device\n");
+		goto error_sysfs;
+	}
+
 	pamubypenr = in_be32(&guts_regs->pamubypenr);
 
 	for (pamu_reg_off = 0, pamu_counter = 0x80000000; pamu_reg_off < size;
@@ -1180,6 +1194,9 @@ static int fsl_pamu_probe(struct platform_device *pdev)
 	probed = true;
 
 	return 0;
+
+error_sysfs:
+	iommu_device_sysfs_remove(&pamu_iommu);
 
 error_genpool:
 	gen_pool_destroy(spaace_pool);

@@ -391,6 +391,9 @@ struct ome {
 #define EOE_WWSAOL      0x1e    /* Write with stash allocate only and lock */
 #define EOE_VALID       0x80
 
+extern const struct iommu_ops fsl_pamu_ops;
+extern struct iommu_device pamu_iommu;	/* IOMMU core code handle */
+
 /* Function prototypes */
 int pamu_domain_init(void);
 int pamu_enable_liodn(int liodn);

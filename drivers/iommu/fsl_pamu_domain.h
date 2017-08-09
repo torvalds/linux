@@ -21,6 +21,8 @@
 
 #include "fsl_pamu.h"
 
+const struct iommu_ops fsl_pamu_ops;
+
 struct dma_window {
 	phys_addr_t paddr;
 	u64 size;

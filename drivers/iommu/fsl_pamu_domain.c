@@ -983,11 +983,14 @@ static int fsl_pamu_add_device(struct device *dev)
 
 	iommu_group_put(group);
 
+	iommu_device_link(&pamu_iommu, dev);
+
 	return 0;
 }
 
 static void fsl_pamu_remove_device(struct device *dev)
 {
+	iommu_device_unlink(&pamu_iommu, dev);
 	iommu_group_remove_device(dev);
 }
 
@@ -1047,7 +1050,7 @@ static u32 fsl_pamu_get_windows(struct iommu_domain *domain)
 	return dma_domain->win_cnt;
 }
 
-static const struct iommu_ops fsl_pamu_ops = {
+const struct iommu_ops fsl_pamu_ops = {
 	.capable	= fsl_pamu_capable,
 	.domain_alloc	= fsl_pamu_domain_alloc,
 	.domain_free    = fsl_pamu_domain_free,
