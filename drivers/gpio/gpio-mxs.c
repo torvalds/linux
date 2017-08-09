@@ -379,6 +379,7 @@ static struct platform_driver mxs_gpio_driver = {
 	.driver		= {
 		.name	= "gpio-mxs",
 		.of_match_table = mxs_gpio_dt_ids,
+		.suppress_bind_attrs = true,
 	},
 	.probe		= mxs_gpio_probe,
 	.id_table	= mxs_gpio_ids,
