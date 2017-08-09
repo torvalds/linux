@@ -883,16 +883,16 @@ static int safexcel_hmac_sha1_setkey(struct crypto_ahash *tfm, const u8 *key,
 	if (ret)
 		return ret;
 
-	memcpy(ctx->ipad, &istate.state, SHA1_DIGEST_SIZE);
-	memcpy(ctx->opad, &ostate.state, SHA1_DIGEST_SIZE);
-
-	for (i = 0; i < ARRAY_SIZE(istate.state); i++) {
+	for (i = 0; i < SHA1_DIGEST_SIZE / sizeof(u32); i++) {
 		if (ctx->ipad[i] != le32_to_cpu(istate.state[i]) ||
 		    ctx->opad[i] != le32_to_cpu(ostate.state[i])) {
 			ctx->base.needs_inv = true;
 			break;
 		}
 	}
+
+	memcpy(ctx->ipad, &istate.state, SHA1_DIGEST_SIZE);
+	memcpy(ctx->opad, &ostate.state, SHA1_DIGEST_SIZE);
 
 	return 0;
 }
