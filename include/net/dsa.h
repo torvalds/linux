@@ -106,6 +106,8 @@ struct dsa_device_ops {
 	struct sk_buff *(*rcv)(struct sk_buff *skb, struct net_device *dev,
 			       struct packet_type *pt,
 			       struct net_device *orig_dev);
+	int (*flow_dissect)(const struct sk_buff *skb, __be16 *proto,
+			    int *offset);
 };
 
 struct dsa_switch_tree {
