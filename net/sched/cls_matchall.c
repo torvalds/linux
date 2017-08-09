@@ -92,7 +92,7 @@ static void mall_destroy(struct tcf_proto *tp)
 	if (!head)
 		return;
 
-	if (tc_should_offload(dev, tp, head->flags))
+	if (tc_should_offload(dev, head->flags))
 		mall_destroy_hw_filter(tp, head, (unsigned long) head);
 
 	call_rcu(&head->rcu, mall_destroy_rcu);
@@ -172,7 +172,7 @@ static int mall_change(struct net *net, struct sk_buff *in_skb,
 	if (err)
 		goto err_set_parms;
 
-	if (tc_should_offload(dev, tp, flags)) {
+	if (tc_should_offload(dev, flags)) {
 		err = mall_replace_hw_filter(tp, new, (unsigned long) new);
 		if (err) {
 			if (tc_skip_sw(flags))

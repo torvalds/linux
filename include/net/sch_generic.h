@@ -156,7 +156,6 @@ struct Qdisc_class_ops {
 
 	/* Filter manipulation */
 	struct tcf_block *	(*tcf_block)(struct Qdisc *, unsigned long);
-	bool			(*tcf_cl_offload)(u32 classid);
 	unsigned long		(*bind_tcf)(struct Qdisc *, unsigned long,
 					u32 classid);
 	void			(*unbind_tcf)(struct Qdisc *, unsigned long);
