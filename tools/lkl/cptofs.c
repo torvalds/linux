@@ -571,6 +571,8 @@ int main(int argc, char **argv)
 		goto out_close;
 	}
 
+	lkl_sys_umask(0);
+
 	for (i = 0; i < cla.npaths - 1; i++) {
 		ret = copy_one(cla.paths[i], mpoint, cla.paths[cla.npaths - 1]);
 		if (ret)
