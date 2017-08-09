@@ -137,6 +137,7 @@ struct pt_regs {
 
 	u64 orig_addr_limit;
 	u64 unused;	// maintain 16 byte alignment
+	u64 stackframe[2];
 };
 
 static inline bool in_syscall(struct pt_regs const *regs)

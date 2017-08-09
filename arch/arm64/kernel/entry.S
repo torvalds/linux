@@ -111,6 +111,18 @@
 	mrs	x23, spsr_el1
 	stp	lr, x21, [sp, #S_LR]
 
+	/*
+	 * In order to be able to dump the contents of struct pt_regs at the
+	 * time the exception was taken (in case we attempt to walk the call
+	 * stack later), chain it together with the stack frames.
+	 */
+	.if \el == 0
+	stp	xzr, xzr, [sp, #S_STACKFRAME]
+	.else
+	stp	x29, x22, [sp, #S_STACKFRAME]
+	.endif
+	add	x29, sp, #S_STACKFRAME
+
 #ifdef CONFIG_ARM64_SW_TTBR0_PAN
 	/*
 	 * Set the TTBR0 PAN bit in SPSR. When the exception is taken from
@@ -263,14 +275,6 @@ alternative_else_nop_endif
 
 	/* switch to the irq stack */
 	mov	sp, x26
-
-	/*
-	 * Add a dummy stack frame, this non-standard format is fixed up
-	 * by unwind_frame()
-	 */
-	stp     x29, x19, [sp, #-16]!
-	mov	x29, sp
-
 9998:
 	.endm
 
@@ -350,7 +354,8 @@ END(vectors)
 	mov	x0, sp
 	mov	x1, #\reason
 	mrs	x2, esr_el1
-	b	bad_mode
+	bl	bad_mode
+	ASM_BUG()
 	.endm
 
 el0_sync_invalid:
@@ -447,14 +452,16 @@ el1_sp_pc:
 	mrs	x0, far_el1
 	enable_dbg
 	mov	x2, sp
-	b	do_sp_pc_abort
+	bl	do_sp_pc_abort
+	ASM_BUG()
 el1_undef:
 	/*
 	 * Undefined instruction
 	 */
 	enable_dbg
 	mov	x0, sp
-	b	do_undefinstr
+	bl	do_undefinstr
+	ASM_BUG()
 el1_dbg:
 	/*
 	 * Debug exception handling
@@ -472,7 +479,8 @@ el1_inv:
 	mov	x0, sp
 	mov	x2, x1
 	mov	x1, #BAD_SYNC
-	b	bad_mode
+	bl	bad_mode
+	ASM_BUG()
 ENDPROC(el1_sync)
 
 	.align	6
@@ -706,38 +714,6 @@ el0_irq_naked:
 ENDPROC(el0_irq)
 
 /*
- * Register switch for AArch64. The callee-saved registers need to be saved
- * and restored. On entry:
- *   x0 = previous task_struct (must be preserved across the switch)
- *   x1 = next task_struct
- * Previous and next are guaranteed not to be the same.
- *
- */
-ENTRY(cpu_switch_to)
-	mov	x10, #THREAD_CPU_CONTEXT
-	add	x8, x0, x10
-	mov	x9, sp
-	stp	x19, x20, [x8], #16		// store callee-saved registers
-	stp	x21, x22, [x8], #16
-	stp	x23, x24, [x8], #16
-	stp	x25, x26, [x8], #16
-	stp	x27, x28, [x8], #16
-	stp	x29, x9, [x8], #16
-	str	lr, [x8]
-	add	x8, x1, x10
-	ldp	x19, x20, [x8], #16		// restore callee-saved registers
-	ldp	x21, x22, [x8], #16
-	ldp	x23, x24, [x8], #16
-	ldp	x25, x26, [x8], #16
-	ldp	x27, x28, [x8], #16
-	ldp	x29, x9, [x8], #16
-	ldr	lr, [x8]
-	mov	sp, x9
-	msr	sp_el0, x1
-	ret
-ENDPROC(cpu_switch_to)
-
-/*
  * This is the fast syscall return path.  We do as little as possible here,
  * and this includes saving x0 back into the kernel stack.
  */
@@ -778,18 +754,6 @@ finish_ret_to_user:
 	enable_step_tsk x1, x2
 	kernel_exit 0
 ENDPROC(ret_to_user)
-
-/*
- * This is how we return from a fork.
- */
-ENTRY(ret_from_fork)
-	bl	schedule_tail
-	cbz	x19, 1f				// not a kernel thread
-	mov	x0, x20
-	blr	x19
-1:	get_thread_info tsk
-	b	ret_to_user
-ENDPROC(ret_from_fork)
 
 /*
  * SVC handler.
@@ -863,3 +827,49 @@ ENTRY(sys_rt_sigreturn_wrapper)
 	mov	x0, sp
 	b	sys_rt_sigreturn
 ENDPROC(sys_rt_sigreturn_wrapper)
+
+/*
+ * Register switch for AArch64. The callee-saved registers need to be saved
+ * and restored. On entry:
+ *   x0 = previous task_struct (must be preserved across the switch)
+ *   x1 = next task_struct
+ * Previous and next are guaranteed not to be the same.
+ *
+ */
+ENTRY(cpu_switch_to)
+	mov	x10, #THREAD_CPU_CONTEXT
+	add	x8, x0, x10
+	mov	x9, sp
+	stp	x19, x20, [x8], #16		// store callee-saved registers
+	stp	x21, x22, [x8], #16
+	stp	x23, x24, [x8], #16
+	stp	x25, x26, [x8], #16
+	stp	x27, x28, [x8], #16
+	stp	x29, x9, [x8], #16
+	str	lr, [x8]
+	add	x8, x1, x10
+	ldp	x19, x20, [x8], #16		// restore callee-saved registers
+	ldp	x21, x22, [x8], #16
+	ldp	x23, x24, [x8], #16
+	ldp	x25, x26, [x8], #16
+	ldp	x27, x28, [x8], #16
+	ldp	x29, x9, [x8], #16
+	ldr	lr, [x8]
+	mov	sp, x9
+	msr	sp_el0, x1
+	ret
+ENDPROC(cpu_switch_to)
+NOKPROBE(cpu_switch_to)
+
+/*
+ * This is how we return from a fork.
+ */
+ENTRY(ret_from_fork)
+	bl	schedule_tail
+	cbz	x19, 1f				// not a kernel thread
+	mov	x0, x20
+	blr	x19
+1:	get_thread_info tsk
+	b	ret_to_user
+ENDPROC(ret_from_fork)
+NOKPROBE(ret_from_fork)

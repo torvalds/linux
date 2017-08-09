@@ -143,7 +143,6 @@ static void dump_instr(const char *lvl, struct pt_regs *regs)
 void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 {
 	struct stackframe frame;
-	unsigned long irq_stack_ptr;
 	int skip;
 
 	pr_debug("%s(regs = %p tsk = %p)\n", __func__, regs, tsk);
@@ -154,25 +153,14 @@ void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 	if (!try_get_task_stack(tsk))
 		return;
 
-	/*
-	 * Switching between stacks is valid when tracing current and in
-	 * non-preemptible context.
-	 */
-	if (tsk == current && !preemptible())
-		irq_stack_ptr = IRQ_STACK_PTR(smp_processor_id());
-	else
-		irq_stack_ptr = 0;
-
 	if (tsk == current) {
 		frame.fp = (unsigned long)__builtin_frame_address(0);
-		frame.sp = current_stack_pointer;
 		frame.pc = (unsigned long)dump_backtrace;
 	} else {
 		/*
 		 * task blocked in __switch_to
 		 */
 		frame.fp = thread_saved_fp(tsk);
-		frame.sp = thread_saved_sp(tsk);
 		frame.pc = thread_saved_pc(tsk);
 	}
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
@@ -182,13 +170,12 @@ void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 	skip = !!regs;
 	printk("Call trace:\n");
 	while (1) {
-		unsigned long where = frame.pc;
 		unsigned long stack;
 		int ret;
 
 		/* skip until specified stack frame */
 		if (!skip) {
-			dump_backtrace_entry(where);
+			dump_backtrace_entry(frame.pc);
 		} else if (frame.fp == regs->regs[29]) {
 			skip = 0;
 			/*
@@ -203,20 +190,13 @@ void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 		ret = unwind_frame(tsk, &frame);
 		if (ret < 0)
 			break;
-		stack = frame.sp;
-		if (in_exception_text(where)) {
-			/*
-			 * If we switched to the irq_stack before calling this
-			 * exception handler, then the pt_regs will be on the
-			 * task stack. The easiest way to tell is if the large
-			 * pt_regs would overlap with the end of the irq_stack.
-			 */
-			if (stack < irq_stack_ptr &&
-			    (stack + sizeof(struct pt_regs)) > irq_stack_ptr)
-				stack = IRQ_STACK_TO_TASK_STACK(irq_stack_ptr);
+		if (in_entry_text(frame.pc)) {
+			stack = frame.fp - offsetof(struct pt_regs, stackframe);
 
-			dump_mem("", "Exception stack", stack,
-				 stack + sizeof(struct pt_regs));
+			if (on_task_stack(tsk, stack) ||
+			    (tsk == current && !preemptible() && on_irq_stack(stack)))
+				dump_mem("", "Exception stack", stack,
+					 stack + sizeof(struct pt_regs));
 		}
 	}
 

@@ -409,6 +409,17 @@ alternative_endif
 	.size	__pi_##x, . - x;	\
 	ENDPROC(x)
 
+/*
+ * Annotate a function as being unsuitable for kprobes.
+ */
+#ifdef CONFIG_KPROBES
+#define NOKPROBE(x)				\
+	.pushsection "_kprobe_blacklist", "aw";	\
+	.quad	x;				\
+	.popsection;
+#else
+#define NOKPROBE(x)
+#endif
 	/*
 	 * Emit a 64-bit absolute little endian symbol reference in a way that
 	 * ensures that it will be resolved at build time, even when building a
