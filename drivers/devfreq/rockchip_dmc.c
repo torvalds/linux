@@ -249,19 +249,20 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 	int err;
 
 	rcu_read_lock();
+
 	opp = devfreq_recommended_opp(dev, freq, flags);
 	if (IS_ERR(opp)) {
 		rcu_read_unlock();
 		return PTR_ERR(opp);
 	}
-
 	temp_rate = dev_pm_opp_get_freq(opp);
-	target_rate = clk_round_rate(dmcfreq->dmc_clk, temp_rate);
-	if ((long)target_rate <= 0)
-		target_rate = temp_rate;
 	target_volt = dev_pm_opp_get_voltage(opp);
 
 	rcu_read_unlock();
+
+	target_rate = clk_round_rate(dmcfreq->dmc_clk, temp_rate);
+	if ((long)target_rate <= 0)
+		target_rate = temp_rate;
 
 	if (dmcfreq->rate == target_rate) {
 		if (dmcfreq->volt == target_volt)
