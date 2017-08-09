@@ -195,6 +195,11 @@ spinlock_t amd_iommu_pd_lock;
  * page table root pointer.
  */
 struct dev_table_entry *amd_iommu_dev_table;
+/*
+ * Pointer to a device table which the content of old device table
+ * will be copied to. It's only be used in kdump kernel.
+ */
+static struct dev_table_entry *old_dev_tbl_cpy;
 
 /*
  * The alias table is a driver specific data structure which contains the
@@ -841,6 +846,63 @@ static int get_dev_entry_bit(u16 devid, u8 bit)
 	return (amd_iommu_dev_table[devid].data[i] & (1UL << _bit)) >> _bit;
 }
 
+
+static bool copy_device_table(void)
+{
+	struct dev_table_entry *old_devtb = NULL;
+	u32 lo, hi, devid, old_devtb_size;
+	phys_addr_t old_devtb_phys;
+	u64 entry, last_entry = 0;
+	struct amd_iommu *iommu;
+	u16 dom_id, dte_v;
+	gfp_t gfp_flag;
+
+
+	pr_warn("Translation is already enabled - trying to copy translation structures\n");
+	for_each_iommu(iommu) {
+		/* All IOMMUs should use the same device table with the same size */
+		lo = readl(iommu->mmio_base + MMIO_DEV_TABLE_OFFSET);
+		hi = readl(iommu->mmio_base + MMIO_DEV_TABLE_OFFSET + 4);
+		entry = (((u64) hi) << 32) + lo;
+		if (last_entry && last_entry != entry) {
+			pr_err("IOMMU:%d should use the same dev table as others!/n",
+				iommu->index);
+			return false;
+		}
+		last_entry = entry;
+
+		old_devtb_size = ((entry & ~PAGE_MASK) + 1) << 12;
+		if (old_devtb_size != dev_table_size) {
+			pr_err("The device table size of IOMMU:%d is not expected!/n",
+				iommu->index);
+			return false;
+		}
+	}
+
+	old_devtb_phys = entry & PAGE_MASK;
+	old_devtb = memremap(old_devtb_phys, dev_table_size, MEMREMAP_WB);
+	if (!old_devtb)
+		return false;
+
+	gfp_flag = GFP_KERNEL | __GFP_ZERO;
+	old_dev_tbl_cpy = (void *)__get_free_pages(gfp_flag,
+				get_order(dev_table_size));
+	if (old_dev_tbl_cpy == NULL) {
+		pr_err("Failed to allocate memory for copying old device table!/n");
+		return false;
+	}
+
+	for (devid = 0; devid <= amd_iommu_last_bdf; ++devid) {
+		old_dev_tbl_cpy[devid] = old_devtb[devid];
+		dom_id = old_devtb[devid].data[1] & DEV_DOMID_MASK;
+		dte_v = old_devtb[devid].data[0] & DTE_FLAG_V;
+		if (dte_v && dom_id)
+			__set_bit(dom_id, amd_iommu_pd_alloc_bitmap);
+	}
+	memunmap(old_devtb);
+
+	return true;
+}
 
 void amd_iommu_apply_erratum_63(u16 devid)
 {
