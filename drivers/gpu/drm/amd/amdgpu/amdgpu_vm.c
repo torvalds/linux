@@ -196,7 +196,7 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		}
 
 		spin_lock(&vm->status_lock);
-		list_del_init(&bo_base->vm_status);
+		list_move(&bo_base->vm_status, &vm->relocated);
 	}
 	spin_unlock(&vm->status_lock);
 
@@ -314,8 +314,10 @@ static int amdgpu_vm_alloc_levels(struct amdgpu_device *adev,
 			entry->base.vm = vm;
 			entry->base.bo = pt;
 			list_add_tail(&entry->base.bo_list, &pt->va);
-			INIT_LIST_HEAD(&entry->base.vm_status);
-			entry->addr = 0;
+			spin_lock(&vm->status_lock);
+			list_add(&entry->base.vm_status, &vm->relocated);
+			spin_unlock(&vm->status_lock);
+			entry->addr = ~0ULL;
 		}
 
 		if (level < adev->vm_manager.num_level) {
@@ -1000,18 +1002,17 @@ static int amdgpu_vm_wait_pd(struct amdgpu_device *adev, struct amdgpu_vm *vm,
  */
 static int amdgpu_vm_update_level(struct amdgpu_device *adev,
 				  struct amdgpu_vm *vm,
-				  struct amdgpu_vm_pt *parent,
-				  unsigned level)
+				  struct amdgpu_vm_pt *parent)
 {
 	struct amdgpu_bo *shadow;
 	struct amdgpu_ring *ring = NULL;
 	uint64_t pd_addr, shadow_addr = 0;
-	uint32_t incr = amdgpu_vm_bo_size(adev, level + 1);
 	uint64_t last_pde = ~0, last_pt = ~0, last_shadow = ~0;
 	unsigned count = 0, pt_idx, ndw = 0;
 	struct amdgpu_job *job;
 	struct amdgpu_pte_update_params params;
 	struct dma_fence *fence = NULL;
+	uint32_t incr;
 
 	int r;
 
@@ -1059,11 +1060,16 @@ static int amdgpu_vm_update_level(struct amdgpu_device *adev,
 
 	/* walk over the address space and update the directory */
 	for (pt_idx = 0; pt_idx <= parent->last_entry_used; ++pt_idx) {
-		struct amdgpu_bo *bo = parent->entries[pt_idx].base.bo;
+		struct amdgpu_vm_pt *entry = &parent->entries[pt_idx];
+		struct amdgpu_bo *bo = entry->base.bo;
 		uint64_t pde, pt;
 
 		if (bo == NULL)
 			continue;
+
+		spin_lock(&vm->status_lock);
+		list_del_init(&entry->base.vm_status);
+		spin_unlock(&vm->status_lock);
 
 		pt = amdgpu_bo_gpu_offset(bo);
 		pt = amdgpu_gart_get_vm_pde(adev, pt);
@@ -1075,6 +1081,7 @@ static int amdgpu_vm_update_level(struct amdgpu_device *adev,
 		parent->entries[pt_idx].addr = pt | AMDGPU_PTE_VALID;
 
 		pde = pd_addr + pt_idx * 8;
+		incr = amdgpu_bo_size(bo);
 		if (((last_pde + 8 * count) != pde) ||
 		    ((last_pt + incr * count) != pt) ||
 		    (count == AMDGPU_VM_MAX_UPDATE_SIZE)) {
@@ -1135,20 +1142,6 @@ static int amdgpu_vm_update_level(struct amdgpu_device *adev,
 			dma_fence_put(fence);
 		}
 	}
-	/*
-	 * Recurse into the subdirectories. This recursion is harmless because
-	 * we only have a maximum of 5 layers.
-	 */
-	for (pt_idx = 0; pt_idx <= parent->last_entry_used; ++pt_idx) {
-		struct amdgpu_vm_pt *entry = &parent->entries[pt_idx];
-
-		if (!entry->base.bo)
-			continue;
-
-		r = amdgpu_vm_update_level(adev, vm, entry, level + 1);
-		if (r)
-			return r;
-	}
 
 	return 0;
 
@@ -1164,7 +1157,8 @@ error_free:
  *
  * Mark all PD level as invalid after an error.
  */
-static void amdgpu_vm_invalidate_level(struct amdgpu_vm_pt *parent)
+static void amdgpu_vm_invalidate_level(struct amdgpu_vm *vm,
+				       struct amdgpu_vm_pt *parent)
 {
 	unsigned pt_idx;
 
@@ -1179,7 +1173,10 @@ static void amdgpu_vm_invalidate_level(struct amdgpu_vm_pt *parent)
 			continue;
 
 		entry->addr = ~0ULL;
-		amdgpu_vm_invalidate_level(entry);
+		spin_lock(&vm->status_lock);
+		list_move(&entry->base.vm_status, &vm->relocated);
+		spin_unlock(&vm->status_lock);
+		amdgpu_vm_invalidate_level(vm, entry);
 	}
 }
 
@@ -1197,9 +1194,38 @@ int amdgpu_vm_update_directories(struct amdgpu_device *adev,
 {
 	int r;
 
-	r = amdgpu_vm_update_level(adev, vm, &vm->root, 0);
-	if (r)
-		amdgpu_vm_invalidate_level(&vm->root);
+	spin_lock(&vm->status_lock);
+	while (!list_empty(&vm->relocated)) {
+		struct amdgpu_vm_bo_base *bo_base;
+		struct amdgpu_bo *bo;
+
+		bo_base = list_first_entry(&vm->relocated,
+					   struct amdgpu_vm_bo_base,
+					   vm_status);
+		spin_unlock(&vm->status_lock);
+
+		bo = bo_base->bo->parent;
+		if (bo) {
+			struct amdgpu_vm_bo_base *parent;
+			struct amdgpu_vm_pt *pt;
+
+			parent = list_first_entry(&bo->va,
+						  struct amdgpu_vm_bo_base,
+						  bo_list);
+			pt = container_of(parent, struct amdgpu_vm_pt, base);
+
+			r = amdgpu_vm_update_level(adev, vm, pt);
+			if (r) {
+				amdgpu_vm_invalidate_level(vm, &vm->root);
+				return r;
+			}
+			spin_lock(&vm->status_lock);
+		} else {
+			spin_lock(&vm->status_lock);
+			list_del_init(&bo_base->vm_status);
+		}
+	}
+	spin_unlock(&vm->status_lock);
 
 	if (vm->use_cpu_for_update) {
 		/* Flush HDP */
@@ -1601,7 +1627,7 @@ static int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 
 error_free:
 	amdgpu_job_free(job);
-	amdgpu_vm_invalidate_level(&vm->root);
+	amdgpu_vm_invalidate_level(vm, &vm->root);
 	return r;
 }
 
@@ -2391,9 +2417,13 @@ void amdgpu_vm_bo_invalidate(struct amdgpu_device *adev,
 			continue;
 		}
 
-		/* Don't add page tables to the moved state */
-		if (bo->tbo.type == ttm_bo_type_kernel)
+		if (bo->tbo.type == ttm_bo_type_kernel) {
+			spin_lock(&bo_base->vm->status_lock);
+			if (list_empty(&bo_base->vm_status))
+				list_add(&bo_base->vm_status, &vm->relocated);
+			spin_unlock(&bo_base->vm->status_lock);
 			continue;
+		}
 
 		spin_lock(&bo_base->vm->status_lock);
 		list_move(&bo_base->vm_status, &bo_base->vm->moved);
@@ -2483,6 +2513,7 @@ int amdgpu_vm_init(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		vm->reserved_vmid[i] = NULL;
 	spin_lock_init(&vm->status_lock);
 	INIT_LIST_HEAD(&vm->evicted);
+	INIT_LIST_HEAD(&vm->relocated);
 	INIT_LIST_HEAD(&vm->moved);
 	INIT_LIST_HEAD(&vm->freed);
 

@@ -129,6 +129,9 @@ struct amdgpu_vm {
 	/* BOs who needs a validation */
 	struct list_head	evicted;
 
+	/* PT BOs which relocated and their parent need an update */
+	struct list_head	relocated;
+
 	/* BOs moved, but not yet updated in the PT */
 	struct list_head	moved;
 
