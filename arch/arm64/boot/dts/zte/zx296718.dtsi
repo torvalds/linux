@@ -564,6 +564,8 @@
 			clocks = <&audiocrm AUDIO_I2S0_WCLK>,
 				 <&audiocrm AUDIO_I2S0_PCLK>;
 			clock-names = "wclk", "pclk";
+			assigned-clocks = <&audiocrm I2S0_WCLK_MUX>;
+			assigned-clock-parents = <&topcrm AUDIO_99M>;
 			interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
 			dmas = <&dma 22>, <&dma 23>;
 			dma-names = "tx", "rx";
