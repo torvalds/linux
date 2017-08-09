@@ -237,22 +237,22 @@ static inline bool pm_resume_via_firmware(void)
 }
 
 /* Suspend-to-idle state machnine. */
-enum freeze_state {
-	FREEZE_STATE_NONE,      /* Not suspended/suspending. */
-	FREEZE_STATE_ENTER,     /* Enter suspend-to-idle. */
-	FREEZE_STATE_WAKE,      /* Wake up from suspend-to-idle. */
+enum s2idle_states {
+	S2IDLE_STATE_NONE,      /* Not suspended/suspending. */
+	S2IDLE_STATE_ENTER,     /* Enter suspend-to-idle. */
+	S2IDLE_STATE_WAKE,      /* Wake up from suspend-to-idle. */
 };
 
-extern enum freeze_state __read_mostly suspend_freeze_state;
+extern enum s2idle_states __read_mostly s2idle_state;
 
-static inline bool idle_should_freeze(void)
+static inline bool idle_should_enter_s2idle(void)
 {
-	return unlikely(suspend_freeze_state == FREEZE_STATE_ENTER);
+	return unlikely(s2idle_state == S2IDLE_STATE_ENTER);
 }
 
 extern void __init pm_states_init(void);
 extern void freeze_set_ops(const struct platform_freeze_ops *ops);
-extern void freeze_wake(void);
+extern void s2idle_wake(void);
 
 /**
  * arch_suspend_disable_irqs - disable IRQs for suspend
@@ -284,10 +284,10 @@ static inline bool pm_resume_via_firmware(void) { return false; }
 
 static inline void suspend_set_ops(const struct platform_suspend_ops *ops) {}
 static inline int pm_suspend(suspend_state_t state) { return -ENOSYS; }
-static inline bool idle_should_freeze(void) { return false; }
+static inline bool idle_should_enter_s2idle(void) { return false; }
 static inline void __init pm_states_init(void) {}
 static inline void freeze_set_ops(const struct platform_freeze_ops *ops) {}
-static inline void freeze_wake(void) {}
+static inline void s2idle_wake(void) {}
 #endif /* !CONFIG_SUSPEND */
 
 /* struct pbe is used for creating lists of pages that should be restored

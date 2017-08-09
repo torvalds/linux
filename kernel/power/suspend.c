@@ -57,10 +57,10 @@ EXPORT_SYMBOL_GPL(pm_suspend_global_flags);
 
 static const struct platform_suspend_ops *suspend_ops;
 static const struct platform_freeze_ops *freeze_ops;
-static DECLARE_WAIT_QUEUE_HEAD(suspend_freeze_wait_head);
+static DECLARE_WAIT_QUEUE_HEAD(s2idle_wait_head);
 
-enum freeze_state __read_mostly suspend_freeze_state;
-static DEFINE_SPINLOCK(suspend_freeze_lock);
+enum s2idle_states __read_mostly s2idle_state;
+static DEFINE_SPINLOCK(s2idle_lock);
 
 void freeze_set_ops(const struct platform_freeze_ops *ops)
 {
@@ -69,21 +69,21 @@ void freeze_set_ops(const struct platform_freeze_ops *ops)
 	unlock_system_sleep();
 }
 
-static void freeze_begin(void)
+static void s2idle_begin(void)
 {
-	suspend_freeze_state = FREEZE_STATE_NONE;
+	s2idle_state = S2IDLE_STATE_NONE;
 }
 
-static void freeze_enter(void)
+static void s2idle_enter(void)
 {
 	trace_suspend_resume(TPS("machine_suspend"), PM_SUSPEND_TO_IDLE, true);
 
-	spin_lock_irq(&suspend_freeze_lock);
+	spin_lock_irq(&s2idle_lock);
 	if (pm_wakeup_pending())
 		goto out;
 
-	suspend_freeze_state = FREEZE_STATE_ENTER;
-	spin_unlock_irq(&suspend_freeze_lock);
+	s2idle_state = S2IDLE_STATE_ENTER;
+	spin_unlock_irq(&s2idle_lock);
 
 	get_online_cpus();
 	cpuidle_resume();
@@ -91,17 +91,17 @@ static void freeze_enter(void)
 	/* Push all the CPUs into the idle loop. */
 	wake_up_all_idle_cpus();
 	/* Make the current CPU wait so it can enter the idle loop too. */
-	wait_event(suspend_freeze_wait_head,
-		   suspend_freeze_state == FREEZE_STATE_WAKE);
+	wait_event(s2idle_wait_head,
+		   s2idle_state == S2IDLE_STATE_WAKE);
 
 	cpuidle_pause();
 	put_online_cpus();
 
-	spin_lock_irq(&suspend_freeze_lock);
+	spin_lock_irq(&s2idle_lock);
 
  out:
-	suspend_freeze_state = FREEZE_STATE_NONE;
-	spin_unlock_irq(&suspend_freeze_lock);
+	s2idle_state = S2IDLE_STATE_NONE;
+	spin_unlock_irq(&s2idle_lock);
 
 	trace_suspend_resume(TPS("machine_suspend"), PM_SUSPEND_TO_IDLE, false);
 }
@@ -118,12 +118,12 @@ static void s2idle_loop(void)
 		/*
 		 * Suspend-to-idle equals
 		 * frozen processes + suspended devices + idle processors.
-		 * Thus freeze_enter() should be called right after
+		 * Thus s2idle_enter() should be called right after
 		 * all devices have been suspended.
 		 */
 		error = dpm_noirq_suspend_devices(PMSG_SUSPEND);
 		if (!error)
-			freeze_enter();
+			s2idle_enter();
 
 		dpm_noirq_resume_devices(PMSG_RESUME);
 		if (error && (error != -EBUSY || !pm_wakeup_pending())) {
@@ -148,18 +148,18 @@ static void s2idle_loop(void)
 	pm_pr_dbg("resume from suspend-to-idle\n");
 }
 
-void freeze_wake(void)
+void s2idle_wake(void)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&suspend_freeze_lock, flags);
-	if (suspend_freeze_state > FREEZE_STATE_NONE) {
-		suspend_freeze_state = FREEZE_STATE_WAKE;
-		wake_up(&suspend_freeze_wait_head);
+	spin_lock_irqsave(&s2idle_lock, flags);
+	if (s2idle_state > S2IDLE_STATE_NONE) {
+		s2idle_state = S2IDLE_STATE_WAKE;
+		wake_up(&s2idle_wait_head);
 	}
-	spin_unlock_irqrestore(&suspend_freeze_lock, flags);
+	spin_unlock_irqrestore(&s2idle_lock, flags);
 }
-EXPORT_SYMBOL_GPL(freeze_wake);
+EXPORT_SYMBOL_GPL(s2idle_wake);
 
 static bool valid_state(suspend_state_t state)
 {
@@ -552,7 +552,7 @@ static int enter_state(suspend_state_t state)
 		return -EBUSY;
 
 	if (state == PM_SUSPEND_TO_IDLE)
-		freeze_begin();
+		s2idle_begin();
 
 #ifndef CONFIG_SUSPEND_SKIP_SYNC
 	trace_suspend_resume(TPS("sync_filesystems"), 0, true);
