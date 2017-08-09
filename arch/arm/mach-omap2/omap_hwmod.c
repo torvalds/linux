@@ -3519,6 +3519,7 @@ void __init omap_hwmod_init(void)
 		soc_ops.is_hardreset_asserted = _omap4_is_hardreset_asserted;
 		soc_ops.init_clkdm = _init_clkdm;
 		soc_ops.disable_direct_prcm = _omap4_disable_direct_prcm;
+		soc_ops.xlate_clkctrl = _omap4_xlate_clkctrl;
 	} else {
 		WARN(1, "omap_hwmod: unknown SoC type\n");
 	}
