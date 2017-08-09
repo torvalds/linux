@@ -753,7 +753,7 @@ static int amdgpu_ttm_backend_bind(struct ttm_tt *ttm,
 				   struct ttm_mem_reg *bo_mem)
 {
 	struct amdgpu_ttm_tt *gtt = (void*)ttm;
-	int r;
+	int r = 0;
 
 	if (gtt->userptr) {
 		r = amdgpu_ttm_tt_pin_userptr(ttm);
