@@ -468,6 +468,16 @@
 			#clock-cells = <1>;
 		};
 
+		pwm: pwm@1439000 {
+			compatible = "zte,zx296718-pwm";
+			reg = <0x1439000 0x1000>;
+			clocks = <&lsp1crm LSP1_PWM_PCLK>,
+				 <&lsp1crm LSP1_PWM_WCLK>;
+			clock-names = "pclk", "wclk";
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
 		vou: vou@1440000 {
 			compatible = "zte,zx296718-vou";
 			#address-cells = <1>;
