@@ -30,9 +30,14 @@
 #define BPF_FROM_LE	BPF_TO_LE
 #define BPF_FROM_BE	BPF_TO_BE
 
+/* jmp encodings */
 #define BPF_JNE		0x50	/* jump != */
+#define BPF_JLT		0xa0	/* LT is unsigned, '<' */
+#define BPF_JLE		0xb0	/* LE is unsigned, '<=' */
 #define BPF_JSGT	0x60	/* SGT is signed '>', GT in x86 */
 #define BPF_JSGE	0x70	/* SGE is signed '>=', GE in x86 */
+#define BPF_JSLT	0xc0	/* SLT is signed, '<' */
+#define BPF_JSLE	0xd0	/* SLE is signed, '<=' */
 #define BPF_CALL	0x80	/* function call */
 #define BPF_EXIT	0x90	/* function return */
 

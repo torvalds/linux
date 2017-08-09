@@ -906,6 +906,10 @@ If BPF_CLASS(code) == BPF_JMP, BPF_OP(code) is one of:
   BPF_JSGE  0x70  /* eBPF only: signed '>=' */
   BPF_CALL  0x80  /* eBPF only: function call */
   BPF_EXIT  0x90  /* eBPF only: function return */
+  BPF_JLT   0xa0  /* eBPF only: unsigned '<' */
+  BPF_JLE   0xb0  /* eBPF only: unsigned '<=' */
+  BPF_JSLT  0xc0  /* eBPF only: signed '<' */
+  BPF_JSLE  0xd0  /* eBPF only: signed '<=' */
 
 So BPF_ADD | BPF_X | BPF_ALU means 32-bit addition in both classic BPF
 and eBPF. There are only two registers in classic BPF, so it means A += X.
