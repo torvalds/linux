@@ -295,6 +295,13 @@
 		compatible = "simple-bus";
 		ranges;
 
+		irdec: ir-decoder@111000 {
+			compatible = "zte,zx296718-irdec";
+			reg = <0x111000 0x1000>;
+			interrupts = <GIC_SPI 111 IRQ_TYPE_LEVEL_HIGH>;
+			status = "disabled";
+		};
+
 		aon_sysctrl: aon-sysctrl@116000 {
 			compatible = "zte,zx296718-aon-sysctrl", "syscon";
 			reg = <0x116000 0x1000>;
