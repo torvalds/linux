@@ -40,6 +40,7 @@
 #define EXT_ACC           0xe4
 
 #define SDHI_VER_GEN2_SDR50	0x490c
+#define SDHI_VER_RZ_A1		0x820b
 /* very old datasheets said 0x490c for SDR104, too. They are wrong! */
 #define SDHI_VER_GEN2_SDR104	0xcb0d
 #define SDHI_VER_GEN3_SD	0xcc10
