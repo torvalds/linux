@@ -2905,7 +2905,8 @@ static void cfq_arm_slice_timer(struct cfq_data *cfqd)
 	 * for devices that support queuing, otherwise we still have a problem
 	 * with sync vs async workloads.
 	 */
-	if (blk_queue_nonrot(cfqd->queue) && cfqd->hw_tag)
+	if (blk_queue_nonrot(cfqd->queue) && cfqd->hw_tag &&
+		!cfqd->cfq_group_idle)
 		return;
 
 	WARN_ON(!RB_EMPTY_ROOT(&cfqq->sort_list));
