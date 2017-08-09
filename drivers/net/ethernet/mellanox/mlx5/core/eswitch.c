@@ -1644,13 +1644,9 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 		goto abort;
 	}
 
-	esw->offloads.vport_reps =
-		kzalloc(total_vports * sizeof(struct mlx5_eswitch_rep),
-			GFP_KERNEL);
-	if (!esw->offloads.vport_reps) {
-		err = -ENOMEM;
+	err = esw_offloads_init_reps(esw);
+	if (err)
 		goto abort;
-	}
 
 	hash_init(esw->offloads.encap_tbl);
 	hash_init(esw->offloads.mod_hdr_tbl);
@@ -1681,8 +1677,8 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev)
 abort:
 	if (esw->work_queue)
 		destroy_workqueue(esw->work_queue);
+	esw_offloads_cleanup_reps(esw);
 	kfree(esw->vports);
-	kfree(esw->offloads.vport_reps);
 	kfree(esw);
 	return err;
 }
@@ -1696,7 +1692,7 @@ void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw)
 
 	esw->dev->priv.eswitch = NULL;
 	destroy_workqueue(esw->work_queue);
-	kfree(esw->offloads.vport_reps);
+	esw_offloads_cleanup_reps(esw);
 	kfree(esw->vports);
 	kfree(esw);
 }

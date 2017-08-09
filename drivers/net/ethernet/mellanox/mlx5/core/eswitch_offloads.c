@@ -732,6 +732,41 @@ static int esw_offloads_start(struct mlx5_eswitch *esw)
 	return err;
 }
 
+void esw_offloads_cleanup_reps(struct mlx5_eswitch *esw)
+{
+	kfree(esw->offloads.vport_reps);
+}
+
+int esw_offloads_init_reps(struct mlx5_eswitch *esw)
+{
+	int total_vfs = MLX5_TOTAL_VPORTS(esw->dev);
+	struct mlx5_core_dev *dev = esw->dev;
+	struct mlx5_esw_offload *offloads;
+	struct mlx5_eswitch_rep *rep;
+	u8 hw_id[ETH_ALEN];
+	int vport;
+
+	esw->offloads.vport_reps = kcalloc(total_vfs,
+					   sizeof(struct mlx5_eswitch_rep),
+					   GFP_KERNEL);
+	if (!esw->offloads.vport_reps)
+		return -ENOMEM;
+
+	offloads = &esw->offloads;
+	mlx5_query_nic_vport_mac_address(dev, 0, hw_id);
+
+	for (vport = 0; vport < total_vfs; vport++) {
+		rep = &offloads->vport_reps[vport];
+
+		rep->vport = vport;
+		ether_addr_copy(rep->hw_id, hw_id);
+	}
+
+	offloads->vport_reps[0].vport = FDB_UPLINK_VPORT;
+
+	return 0;
+}
+
 int esw_offloads_init(struct mlx5_eswitch *esw, int nvports)
 {
 	struct mlx5_eswitch_rep *rep;
@@ -1127,13 +1162,9 @@ void mlx5_eswitch_register_vport_rep(struct mlx5_eswitch *esw,
 
 	rep = &offloads->vport_reps[vport_index];
 
-	memset(rep, 0, sizeof(*rep));
-
 	rep->load   = __rep->load;
 	rep->unload = __rep->unload;
-	rep->vport  = __rep->vport;
 	rep->netdev = __rep->netdev;
-	ether_addr_copy(rep->hw_id, __rep->hw_id);
 
 	INIT_LIST_HEAD(&rep->vport_sqs_list);
 	rep->valid = true;
