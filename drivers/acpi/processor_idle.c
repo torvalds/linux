@@ -789,7 +789,7 @@ static int acpi_idle_enter(struct cpuidle_device *dev,
 	return index;
 }
 
-static void acpi_idle_enter_freeze(struct cpuidle_device *dev,
+static void acpi_idle_enter_s2idle(struct cpuidle_device *dev,
 				   struct cpuidle_driver *drv, int index)
 {
 	struct acpi_processor_cx *cx = per_cpu(acpi_cstate[index], dev->cpu);
@@ -867,14 +867,14 @@ static int acpi_processor_setup_cstates(struct acpi_processor *pr)
 			drv->safe_state_index = count;
 		}
 		/*
-		 * Halt-induced C1 is not good for ->enter_freeze, because it
+		 * Halt-induced C1 is not good for ->enter_s2idle, because it
 		 * re-enables interrupts on exit.  Moreover, C1 is generally not
 		 * particularly interesting from the suspend-to-idle angle, so
 		 * avoid C1 and the situations in which we may need to fall back
 		 * to it altogether.
 		 */
 		if (cx->type != ACPI_STATE_C1 && !acpi_idle_fallback_to_c1(pr))
-			state->enter_freeze = acpi_idle_enter_freeze;
+			state->enter_s2idle = acpi_idle_enter_s2idle;
 
 		count++;
 		if (count == CPUIDLE_STATE_MAX)

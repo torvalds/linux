@@ -52,11 +52,11 @@ struct cpuidle_state {
 	int (*enter_dead) (struct cpuidle_device *dev, int index);
 
 	/*
-	 * CPUs execute ->enter_freeze with the local tick or entire timekeeping
+	 * CPUs execute ->enter_s2idle with the local tick or entire timekeeping
 	 * suspended, so it must not re-enable interrupts at any point (even
 	 * temporarily) or attempt to change states of clock event devices.
 	 */
-	void (*enter_freeze) (struct cpuidle_device *dev,
+	void (*enter_s2idle) (struct cpuidle_device *dev,
 			      struct cpuidle_driver *drv,
 			      int index);
 };
@@ -197,14 +197,14 @@ static inline struct cpuidle_device *cpuidle_get_device(void) {return NULL; }
 #ifdef CONFIG_CPU_IDLE
 extern int cpuidle_find_deepest_state(struct cpuidle_driver *drv,
 				      struct cpuidle_device *dev);
-extern int cpuidle_enter_freeze(struct cpuidle_driver *drv,
+extern int cpuidle_enter_s2idle(struct cpuidle_driver *drv,
 				struct cpuidle_device *dev);
 extern void cpuidle_use_deepest_state(bool enable);
 #else
 static inline int cpuidle_find_deepest_state(struct cpuidle_driver *drv,
 					     struct cpuidle_device *dev)
 {return -ENODEV; }
-static inline int cpuidle_enter_freeze(struct cpuidle_driver *drv,
+static inline int cpuidle_enter_s2idle(struct cpuidle_driver *drv,
 				       struct cpuidle_device *dev)
 {return -ENODEV; }
 static inline void cpuidle_use_deepest_state(bool enable)
