@@ -958,7 +958,7 @@ int phylink_ethtool_ksettings_set(struct phylink *pl,
 	}
 	mutex_unlock(&pl->state_mutex);
 
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL_GPL(phylink_ethtool_ksettings_set);
 
