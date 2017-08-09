@@ -1564,6 +1564,9 @@ int mwifiex_config_start_uap(struct mwifiex_private *priv,
 void mwifiex_uap_del_sta_data(struct mwifiex_private *priv,
 			      struct mwifiex_sta_node *node);
 
+void mwifiex_config_uap_11d(struct mwifiex_private *priv,
+			    struct cfg80211_beacon_data *beacon_data);
+
 void mwifiex_init_11h_params(struct mwifiex_private *priv);
 int mwifiex_is_11h_active(struct mwifiex_private *priv);
 int mwifiex_11h_activate(struct mwifiex_private *priv, bool flag);

@@ -2006,6 +2006,8 @@ static int mwifiex_cfg80211_start_ap(struct wiphy *wiphy,
 		priv->state_11h.is_11h_active = false;
 	}
 
+	mwifiex_config_uap_11d(priv, &params->beacon);
+
 	if (mwifiex_config_start_uap(priv, bss_cfg)) {
 		mwifiex_dbg(priv->adapter, ERROR,
 			    "Failed to start AP\n");
