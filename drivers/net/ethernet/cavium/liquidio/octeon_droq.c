@@ -209,6 +209,10 @@ int octeon_delete_droq(struct octeon_device *oct, u32 q_no)
 			     droq->desc_ring, droq->desc_ring_dma);
 
 	memset(droq, 0, OCT_DROQ_SIZE);
+	oct->io_qmask.oq &= ~(1ULL << q_no);
+	vfree(oct->droq[q_no]);
+	oct->droq[q_no] = NULL;
+	oct->num_oqs--;
 
 	return 0;
 }

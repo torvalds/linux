@@ -190,6 +190,10 @@ int octeon_delete_instr_queue(struct octeon_device *oct, u32 iq_no)
 		q_size = iq->max_count * desc_size;
 		lio_dma_free(oct, (u32)q_size, iq->base_addr,
 			     iq->base_addr_dma);
+		oct->io_qmask.iq &= ~(1ULL << iq_no);
+		vfree(oct->instr_queue[iq_no]);
+		oct->instr_queue[iq_no] = NULL;
+		oct->num_iqs--;
 		return 0;
 	}
 	return 1;
