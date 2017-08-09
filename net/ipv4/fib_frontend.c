@@ -1348,7 +1348,7 @@ void __init ip_fib_init(void)
 	register_netdevice_notifier(&fib_netdev_notifier);
 	register_inetaddr_notifier(&fib_inetaddr_notifier);
 
-	rtnl_register(PF_INET, RTM_NEWROUTE, inet_rtm_newroute, NULL, NULL);
-	rtnl_register(PF_INET, RTM_DELROUTE, inet_rtm_delroute, NULL, NULL);
-	rtnl_register(PF_INET, RTM_GETROUTE, NULL, inet_dump_fib, NULL);
+	rtnl_register(PF_INET, RTM_NEWROUTE, inet_rtm_newroute, NULL, 0);
+	rtnl_register(PF_INET, RTM_DELROUTE, inet_rtm_delroute, NULL, 0);
+	rtnl_register(PF_INET, RTM_GETROUTE, NULL, inet_dump_fib, 0);
 }
