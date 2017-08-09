@@ -5598,6 +5598,8 @@ xlog_do_recover(
 	xfs_buf_t	*bp;
 	xfs_sb_t	*sbp;
 
+	trace_xfs_log_recover(log, head_blk, tail_blk);
+
 	/*
 	 * First replay the images in the log.
 	 */
