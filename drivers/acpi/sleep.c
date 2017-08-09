@@ -719,7 +719,7 @@ static int lps0_device_attach(struct acpi_device *adev,
 			 * suspend mode was not set from the command line.
 			 */
 			if (mem_sleep_default > PM_SUSPEND_MEM)
-				mem_sleep_current = PM_SUSPEND_FREEZE;
+				mem_sleep_current = PM_SUSPEND_TO_IDLE;
 		}
 
 		acpi_handle_debug(adev->handle, "_DSM function mask: 0x%x\n",
