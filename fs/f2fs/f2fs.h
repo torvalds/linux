@@ -510,12 +510,13 @@ struct f2fs_map_blocks {
 };
 
 /* for flag in get_data_block */
-#define F2FS_GET_BLOCK_READ		0
-#define F2FS_GET_BLOCK_DIO		1
-#define F2FS_GET_BLOCK_FIEMAP		2
-#define F2FS_GET_BLOCK_BMAP		3
-#define F2FS_GET_BLOCK_PRE_DIO		4
-#define F2FS_GET_BLOCK_PRE_AIO		5
+enum {
+	F2FS_GET_BLOCK_DEFAULT,
+	F2FS_GET_BLOCK_FIEMAP,
+	F2FS_GET_BLOCK_BMAP,
+	F2FS_GET_BLOCK_PRE_DIO,
+	F2FS_GET_BLOCK_PRE_AIO,
+};
 
 /*
  * i_advise uses FADVISE_XXX_BIT. We can add additional hints later.
