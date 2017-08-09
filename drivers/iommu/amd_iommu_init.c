@@ -852,12 +852,12 @@ static int get_dev_entry_bit(u16 devid, u8 bit)
 
 static bool copy_device_table(void)
 {
+	u64 int_ctl, int_tab_len, entry, last_entry = 0;
 	struct dev_table_entry *old_devtb = NULL;
 	u32 lo, hi, devid, old_devtb_size;
 	phys_addr_t old_devtb_phys;
-	u64 entry, last_entry = 0;
 	struct amd_iommu *iommu;
-	u16 dom_id, dte_v;
+	u16 dom_id, dte_v, irq_v;
 	gfp_t gfp_flag;
 
 	if (!amd_iommu_pre_enabled)
@@ -901,8 +901,25 @@ static bool copy_device_table(void)
 		old_dev_tbl_cpy[devid] = old_devtb[devid];
 		dom_id = old_devtb[devid].data[1] & DEV_DOMID_MASK;
 		dte_v = old_devtb[devid].data[0] & DTE_FLAG_V;
-		if (dte_v && dom_id)
+
+		if (dte_v && dom_id) {
+			old_dev_tbl_cpy[devid].data[0] = old_devtb[devid].data[0];
+			old_dev_tbl_cpy[devid].data[1] = old_devtb[devid].data[1];
 			__set_bit(dom_id, amd_iommu_pd_alloc_bitmap);
+		}
+
+		irq_v = old_devtb[devid].data[2] & DTE_IRQ_REMAP_ENABLE;
+		int_ctl = old_devtb[devid].data[2] & DTE_IRQ_REMAP_INTCTL_MASK;
+		int_tab_len = old_devtb[devid].data[2] & DTE_IRQ_TABLE_LEN_MASK;
+		if (irq_v && (int_ctl || int_tab_len)) {
+			if ((int_ctl != DTE_IRQ_REMAP_INTCTL) ||
+			    (int_tab_len != DTE_IRQ_TABLE_LEN)) {
+				pr_err("Wrong old irq remapping flag: %#x\n", devid);
+				return false;
+			}
+
+		        old_dev_tbl_cpy[devid].data[2] = old_devtb[devid].data[2];
+		}
 	}
 	memunmap(old_devtb);
 
