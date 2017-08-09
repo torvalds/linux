@@ -390,7 +390,7 @@ int nfp_flower_setup_tc(struct nfp_app *app, struct net_device *netdev,
 	struct tc_cls_flower_offload *cls_flower = type_data;
 
 	if (type != TC_SETUP_CLSFLOWER ||
-	    TC_H_MAJ(cls_flower->common.handle) != TC_H_MAJ(TC_H_INGRESS) ||
+	    is_classid_clsact_ingress(cls_flower->common.classid) ||
 	    !eth_proto_is_802_3(cls_flower->common.protocol) ||
 	    cls_flower->common.chain_index)
 		return -EOPNOTSUPP;

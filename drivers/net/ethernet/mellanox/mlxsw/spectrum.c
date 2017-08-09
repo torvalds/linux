@@ -1696,7 +1696,14 @@ static void mlxsw_sp_port_del_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
 static int mlxsw_sp_setup_tc_cls_matchall(struct mlxsw_sp_port *mlxsw_sp_port,
 					  struct tc_cls_matchall_offload *f)
 {
-	bool ingress = TC_H_MAJ(f->common.handle) == TC_H_MAJ(TC_H_INGRESS);
+	bool ingress;
+
+	if (is_classid_clsact_ingress(f->common.classid))
+		ingress = true;
+	else if (is_classid_clsact_egress(f->common.classid))
+		ingress = false;
+	else
+		return -EOPNOTSUPP;
 
 	if (f->common.chain_index)
 		return -EOPNOTSUPP;
@@ -1717,7 +1724,14 @@ static int
 mlxsw_sp_setup_tc_cls_flower(struct mlxsw_sp_port *mlxsw_sp_port,
 			     struct tc_cls_flower_offload *f)
 {
-	bool ingress = TC_H_MAJ(f->common.handle) == TC_H_MAJ(TC_H_INGRESS);
+	bool ingress;
+
+	if (is_classid_clsact_ingress(f->common.classid))
+		ingress = true;
+	else if (is_classid_clsact_egress(f->common.classid))
+		ingress = false;
+	else
+		return -EOPNOTSUPP;
 
 	if (f->common.chain_index)
 		return -EOPNOTSUPP;

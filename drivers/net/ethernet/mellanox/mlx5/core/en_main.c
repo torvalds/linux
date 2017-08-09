@@ -3031,7 +3031,7 @@ static int mlx5e_setup_tc_cls_flower(struct net_device *dev,
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 
-	if (TC_H_MAJ(cls_flower->common.handle) != TC_H_MAJ(TC_H_INGRESS) ||
+	if (is_classid_clsact_ingress(cls_flower->common.classid) ||
 	    cls_flower->common.chain_index)
 		return -EOPNOTSUPP;
 
