@@ -15120,7 +15120,7 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
 		vlv_wm_get_hw_state(dev);
 		vlv_wm_sanitize(dev_priv);
-	} else if (IS_GEN9(dev_priv)) {
+	} else if (INTEL_GEN(dev_priv) >= 9) {
 		skl_wm_get_hw_state(dev);
 	} else if (HAS_PCH_SPLIT(dev_priv)) {
 		ilk_wm_get_hw_state(dev);
