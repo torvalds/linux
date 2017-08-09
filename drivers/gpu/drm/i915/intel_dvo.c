@@ -552,7 +552,7 @@ void intel_dvo_init(struct drm_i915_private *dev_priv)
 			 */
 			intel_panel_init(&intel_connector->panel,
 					 intel_dvo_get_current_mode(connector),
-					 NULL);
+					 NULL, NULL);
 			intel_dvo->panel_wants_dither = true;
 		}
 

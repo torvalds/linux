@@ -265,6 +265,7 @@ struct intel_encoder {
 
 struct intel_panel {
 	struct drm_display_mode *fixed_mode;
+	struct drm_display_mode *alt_fixed_mode;
 	struct drm_display_mode *downclock_mode;
 
 	/* backlight */
@@ -1678,6 +1679,7 @@ void intel_overlay_reset(struct drm_i915_private *dev_priv);
 /* intel_panel.c */
 int intel_panel_init(struct intel_panel *panel,
 		     struct drm_display_mode *fixed_mode,
+		     struct drm_display_mode *alt_fixed_mode,
 		     struct drm_display_mode *downclock_mode);
 void intel_panel_fini(struct intel_panel *panel);
 void intel_fixed_panel_mode(const struct drm_display_mode *fixed_mode,
