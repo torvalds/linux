@@ -1136,7 +1136,7 @@ static void prism2sta_inf_chinforesults(struct wlandevice *wlandev,
 	unsigned int i, n;
 
 	hw->channel_info.results.scanchannels =
-	    le16_to_cpu(inf->info.chinforesult.scanchannels);
+	    inf->info.chinforesult.scanchannels;
 
 	for (i = 0, n = 0; i < HFA384x_CHINFORESULT_MAX; i++) {
 		struct hfa384x_ch_info_result_sub *result;
@@ -1147,16 +1147,16 @@ static void prism2sta_inf_chinforesults(struct wlandevice *wlandev,
 			continue;
 
 		result = &inf->info.chinforesult.result[n];
-		chan = le16_to_cpu(result->chid) - 1;
+		chan = result->chid - 1;
 
 		if (chan < 0 || chan >= HFA384x_CHINFORESULT_MAX)
 			continue;
 
 		chinforesult = &hw->channel_info.results.result[chan];
 		chinforesult->chid = chan;
-		chinforesult->anl = le16_to_cpu(result->anl);
-		chinforesult->pnl = le16_to_cpu(result->pnl);
-		chinforesult->active = le16_to_cpu(result->active);
+		chinforesult->anl = result->anl;
+		chinforesult->pnl = result->pnl;
+		chinforesult->active = result->active;
 
 		pr_debug("chinfo: channel %d, %s level (avg/peak)=%d/%d dB, pcf %d\n",
 			 chan + 1,
@@ -1447,7 +1447,7 @@ static void prism2sta_inf_linkstatus(struct wlandevice *wlandev,
 {
 	struct hfa384x *hw = wlandev->priv;
 
-	hw->link_status_new = le16_to_cpu(inf->info.linkstatus.linkstatus);
+	hw->link_status_new = inf->info.linkstatus.linkstatus;
 
 	schedule_work(&hw->link_bh);
 }
