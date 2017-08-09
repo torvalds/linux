@@ -429,7 +429,7 @@ static int renesas_sdhi_write16_hook(struct tmio_mmc_host *host, int addr)
 	case CTL_TRANSACTION_CTL:
 	case CTL_DMA_ENABLE:
 	case EXT_ACC:
-		if (host->pdata->flags & TMIO_MMC_MIN_RCAR2)
+		if (host->pdata->flags & TMIO_MMC_HAVE_CBSY)
 			bit = TMIO_STAT_CMD_BUSY;
 		/* fallthrough */
 	case CTL_SD_CARD_CLK_CTL:
@@ -587,6 +587,10 @@ int renesas_sdhi_probe(struct platform_device *pdev,
 	ret = tmio_mmc_host_probe(host, mmc_data, dma_ops);
 	if (ret < 0)
 		goto efree;
+
+	/* One Gen2 SDHI incarnation does NOT have a CBSY bit */
+	if (sd_ctrl_read16(host, CTL_VERSION) == SDHI_VER_GEN2_SDR50)
+		mmc_data->flags &= ~TMIO_MMC_HAVE_CBSY;
 
 	/* Enable tuning iff we have an SCC and a supported mode */
 	if (of_data && of_data->scc_offset &&

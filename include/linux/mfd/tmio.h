@@ -107,6 +107,9 @@
  */
 #define TMIO_MMC_CLK_ACTUAL		BIT(10)
 
+/* Some controllers have a CBSY bit */
+#define TMIO_MMC_HAVE_CBSY		BIT(11)
+
 int tmio_core_mmc_enable(void __iomem *cnf, int shift, unsigned long base);
 int tmio_core_mmc_resume(void __iomem *cnf, int shift, unsigned long base);
 void tmio_core_mmc_pwr(void __iomem *cnf, int shift, int state);
