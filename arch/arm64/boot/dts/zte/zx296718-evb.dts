@@ -57,17 +57,9 @@
 		reg = <0x40000000 0x40000000>;
 	};
 
-	sound0 {
-		compatible = "simple-audio-card";
-		simple-audio-card,name = "zx_snd_spdif0";
-
-		simple-audio-card,cpu {
-			sound-dai = <&spdif0>;
-		};
-
-		simple-audio-card,codec {
-			sound-dai = <&hdmi>;
-		};
+	sound-spdif0 {
+		compatible = "audio-graph-card";
+		dais = <&spdif0_port>;
 	};
 };
 
@@ -77,6 +69,12 @@
 
 &hdmi {
 	status = "okay";
+
+	port {
+		hdmi_endpoint: endpoint {
+			remote-endpoint = <&spdif0_endpoint>;
+		};
+	};
 };
 
 &sd1 {
@@ -85,6 +83,12 @@
 
 &spdif0 {
 	status = "okay";
+
+	spdif0_port: port {
+		spdif0_endpoint: endpoint {
+			remote-endpoint = <&hdmi_endpoint>;
+		};
+	};
 };
 
 &uart0 {
