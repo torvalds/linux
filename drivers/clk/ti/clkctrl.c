@@ -456,6 +456,10 @@ static void __init _ti_omap4_clkctrl_setup(struct device_node *node)
 	if (of_machine_is_compatible("ti,dra7"))
 		data = dra7_clkctrl_data;
 #endif
+#ifdef CONFIG_SOC_AM33XX
+	if (of_machine_is_compatible("ti,am33xx"))
+		data = am3_clkctrl_data;
+#endif
 
 	while (data->addr) {
 		if (addr == data->addr)
