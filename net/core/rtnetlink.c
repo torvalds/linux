@@ -4178,9 +4178,11 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 		rtnl_dumpit_func dumpit;
 		u16 min_dump_alloc = 0;
 
+		rtnl_lock();
+
 		dumpit = rtnl_get_dumpit(family, type);
 		if (dumpit == NULL)
-			return -EOPNOTSUPP;
+			goto err_unlock;
 
 		refcount_inc(&rtnl_msg_handlers_ref[family]);
 
@@ -4196,23 +4198,28 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 			};
 			err = netlink_dump_start(rtnl, skb, nlh, &c);
 		}
-		rtnl_lock();
 		refcount_dec(&rtnl_msg_handlers_ref[family]);
 		return err;
 	}
 
+	rtnl_lock();
 	doit = rtnl_get_doit(family, type);
 	if (doit == NULL)
-		return -EOPNOTSUPP;
+		goto err_unlock;
 
-	return doit(skb, nlh, extack);
+	err = doit(skb, nlh, extack);
+	rtnl_unlock();
+
+	return err;
+
+err_unlock:
+	rtnl_unlock();
+	return -EOPNOTSUPP;
 }
 
 static void rtnetlink_rcv(struct sk_buff *skb)
 {
-	rtnl_lock();
 	netlink_rcv_skb(skb, &rtnetlink_rcv_msg);
-	rtnl_unlock();
 }
 
 static int rtnetlink_bind(struct net *net, int group)
