@@ -432,6 +432,7 @@ static int keychord_release(struct inode *inode, struct file *file)
 
 	if (kdev->registered)
 		input_unregister_handler(&kdev->input_handler);
+	kfree(kdev->keychords);
 	kfree(kdev);
 
 	return 0;
