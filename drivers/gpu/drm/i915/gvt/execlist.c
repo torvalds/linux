@@ -796,6 +796,8 @@ static void clean_workloads(struct intel_vgpu *vgpu, unsigned long engine_mask)
 			list_del_init(&pos->list);
 			free_workload(pos);
 		}
+
+		clear_bit(engine->id, vgpu->shadow_ctx_desc_updated);
 	}
 }
 

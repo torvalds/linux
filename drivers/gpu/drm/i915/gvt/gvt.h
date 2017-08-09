@@ -167,6 +167,7 @@ struct intel_vgpu {
 	atomic_t running_workload_num;
 	DECLARE_BITMAP(tlb_handle_pending, I915_NUM_ENGINES);
 	struct i915_gem_context *shadow_ctx;
+	DECLARE_BITMAP(shadow_ctx_desc_updated, I915_NUM_ENGINES);
 
 #if IS_ENABLED(CONFIG_DRM_I915_GVT_KVMGT)
 	struct {

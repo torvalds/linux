@@ -184,6 +184,23 @@ static int shadow_context_status_change(struct notifier_block *nb,
 	return NOTIFY_OK;
 }
 
+static void shadow_context_descriptor_update(struct i915_gem_context *ctx,
+		struct intel_engine_cs *engine)
+{
+	struct intel_context *ce = &ctx->engine[engine->id];
+	u64 desc = 0;
+
+	desc = ce->lrc_desc;
+
+	/* Update bits 0-11 of the context descriptor which includes flags
+	 * like GEN8_CTX_* cached in desc_template
+	 */
+	desc &= U64_MAX << 12;
+	desc |= ctx->desc_template & ((1ULL << 12) - 1);
+
+	ce->lrc_desc = desc;
+}
+
 /**
  * intel_gvt_scan_and_shadow_workload - audit the workload by scanning and
  * shadow it as well, include ringbuffer,wa_ctx and ctx.
@@ -209,6 +226,10 @@ int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload)
 	shadow_ctx->desc_template &= ~(0x3 << GEN8_CTX_ADDRESSING_MODE_SHIFT);
 	shadow_ctx->desc_template |= workload->ctx_desc.addressing_mode <<
 				    GEN8_CTX_ADDRESSING_MODE_SHIFT;
+
+	if (!test_and_set_bit(ring_id, vgpu->shadow_ctx_desc_updated))
+		shadow_context_descriptor_update(shadow_ctx,
+					dev_priv->engine[ring_id]);
 
 	rq = i915_gem_request_alloc(dev_priv->engine[ring_id], shadow_ctx);
 	if (IS_ERR(rq)) {
@@ -655,6 +676,8 @@ int intel_vgpu_init_gvt_context(struct intel_vgpu *vgpu)
 		return PTR_ERR(vgpu->shadow_ctx);
 
 	vgpu->shadow_ctx->engine[RCS].initialised = true;
+
+	bitmap_zero(vgpu->shadow_ctx_desc_updated, I915_NUM_ENGINES);
 
 	return 0;
 }
