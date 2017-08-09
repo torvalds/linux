@@ -265,7 +265,7 @@
 #define PM_LEVEL_INDEX(x, a)	(((a) >> PM_LEVEL_SHIFT((x))) & 0x1ffULL)
 #define PM_LEVEL_ENC(x)		(((x) << 9) & 0xe00ULL)
 #define PM_LEVEL_PDE(x, a)	((a) | PM_LEVEL_ENC((x)) | \
-				 IOMMU_PTE_P | IOMMU_PTE_IR | IOMMU_PTE_IW)
+				 IOMMU_PTE_PR | IOMMU_PTE_IR | IOMMU_PTE_IW)
 #define PM_PTE_LEVEL(pte)	(((pte) >> 9) & 0x7ULL)
 
 #define PM_MAP_4k		0
@@ -314,12 +314,22 @@
 #define PTE_LEVEL_PAGE_SIZE(level)			\
 	(1ULL << (12 + (9 * (level))))
 
-#define IOMMU_PTE_P  (1ULL << 0)
-#define IOMMU_PTE_TV (1ULL << 1)
+/*
+ * Bit value definition for I/O PTE fields
+ */
+#define IOMMU_PTE_PR (1ULL << 0)
 #define IOMMU_PTE_U  (1ULL << 59)
 #define IOMMU_PTE_FC (1ULL << 60)
 #define IOMMU_PTE_IR (1ULL << 61)
 #define IOMMU_PTE_IW (1ULL << 62)
+
+/*
+ * Bit value definition for DTE fields
+ */
+#define DTE_FLAG_V  (1ULL << 0)
+#define DTE_FLAG_TV (1ULL << 1)
+#define DTE_FLAG_IR (1ULL << 61)
+#define DTE_FLAG_IW (1ULL << 62)
 
 #define DTE_FLAG_IOTLB	(1ULL << 32)
 #define DTE_FLAG_GV	(1ULL << 55)
@@ -342,7 +352,7 @@
 #define GCR3_VALID		0x01ULL
 
 #define IOMMU_PAGE_MASK (((1ULL << 52) - 1) & ~0xfffULL)
-#define IOMMU_PTE_PRESENT(pte) ((pte) & IOMMU_PTE_P)
+#define IOMMU_PTE_PRESENT(pte) ((pte) & IOMMU_PTE_PR)
 #define IOMMU_PTE_PAGE(pte) (phys_to_virt((pte) & IOMMU_PAGE_MASK))
 #define IOMMU_PTE_MODE(pte) (((pte) >> 9) & 0x07)
 
