@@ -37,7 +37,7 @@
 #include <asm/cpufeature.h>
 #include <asm/intel-family.h>
 
-#define INTEL_PSTATE_DEFAULT_SAMPLING_INTERVAL	(10 * NSEC_PER_MSEC)
+#define INTEL_PSTATE_SAMPLING_INTERVAL	(10 * NSEC_PER_MSEC)
 
 #define INTEL_CPUFREQ_TRANSITION_LATENCY	20000
 #define INTEL_CPUFREQ_TRANSITION_DELAY		500
@@ -1438,7 +1438,7 @@ static inline int32_t get_avg_pstate(struct cpudata *cpu)
 			  cpu->sample.core_avg_perf);
 }
 
-static inline int32_t get_target_pstate_use_cpu_load(struct cpudata *cpu)
+static inline int32_t get_target_pstate(struct cpudata *cpu)
 {
 	struct sample *sample = &cpu->sample;
 	int32_t busy_frac, boost;
@@ -1503,7 +1503,7 @@ static void intel_pstate_adjust_pstate(struct cpudata *cpu)
 
 	update_turbo_state();
 
-	target_pstate = get_target_pstate_use_cpu_load(cpu);
+	target_pstate = get_target_pstate(cpu);
 	target_pstate = intel_pstate_prepare_request(cpu, target_pstate);
 	trace_cpu_frequency(target_pstate * cpu->pstate.scaling, cpu->cpu);
 	intel_pstate_update_pstate(cpu, target_pstate);
@@ -1545,7 +1545,7 @@ static void intel_pstate_update_util(struct update_util_data *data, u64 time,
 	}
 	cpu->last_update = time;
 	delta_ns = time - cpu->sample.time;
-	if ((s64)delta_ns < INTEL_PSTATE_DEFAULT_SAMPLING_INTERVAL)
+	if ((s64)delta_ns < INTEL_PSTATE_SAMPLING_INTERVAL)
 		return;
 
 set_pstate:
