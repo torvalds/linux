@@ -924,7 +924,7 @@ static const struct rt2x00_ops rt2800usb_ops = {
 /*
  * rt2800usb module information.
  */
-static struct usb_device_id rt2800usb_device_table[] = {
+static const struct usb_device_id rt2800usb_device_table[] = {
 	/* Abocom */
 	{ USB_DEVICE(0x07b8, 0x2870) },
 	{ USB_DEVICE(0x07b8, 0x2770) },
