@@ -504,7 +504,6 @@ static int multipath_clone_and_map(struct dm_target *ti, struct request *rq,
 		if (queue_dying) {
 			atomic_inc(&m->pg_init_in_progress);
 			activate_or_offline_path(pgpath);
-			return DM_MAPIO_REQUEUE;
 		}
 		return DM_MAPIO_DELAY_REQUEUE;
 	}
