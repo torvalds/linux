@@ -99,7 +99,7 @@ snd_emux_init_seq(struct snd_emux *emu, struct snd_card *card, int index)
 		sprintf(tmpname, "%s Port %d", emu->name, i);
 		p = snd_emux_create_port(emu, tmpname, MIDI_CHANNELS,
 					 0, &pinfo);
-		if (p == NULL) {
+		if (!p) {
 			snd_printk(KERN_ERR "can't create port\n");
 			return -ENOMEM;
 		}
@@ -151,7 +151,7 @@ snd_emux_create_port(struct snd_emux *emu, char *name,
 	}
 	p->chset.channels = kcalloc(max_channels, sizeof(*p->chset.channels),
 				    GFP_KERNEL);
-	if (p->chset.channels == NULL) {
+	if (!p->chset.channels) {
 		snd_printk(KERN_ERR "no memory\n");
 		kfree(p);
 		return NULL;
@@ -373,7 +373,7 @@ int snd_emux_init_virmidi(struct snd_emux *emu, struct snd_card *card)
 		return 0;
 
 	emu->vmidi = kcalloc(emu->midi_ports, sizeof(*emu->vmidi), GFP_KERNEL);
-	if (emu->vmidi == NULL)
+	if (!emu->vmidi)
 		return -ENOMEM;
 
 	for (i = 0; i < emu->midi_ports; i++) {
@@ -405,7 +405,7 @@ int snd_emux_delete_virmidi(struct snd_emux *emu)
 {
 	int i;
 
-	if (emu->vmidi == NULL)
+	if (!emu->vmidi)
 		return 0;
 
 	for (i = 0; i < emu->midi_ports; i++) {
