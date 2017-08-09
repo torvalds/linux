@@ -687,12 +687,13 @@ xfs_trans_ail_update_bulk(
 bool
 xfs_ail_delete_one(
 	struct xfs_ail		*ailp,
-	struct xfs_log_item 	*lip)
+	struct xfs_log_item	*lip)
 {
 	struct xfs_log_item	*mlip = xfs_ail_min(ailp);
 
 	trace_xfs_ail_delete(lip, mlip->li_lsn, lip->li_lsn);
 	xfs_ail_delete(ailp, lip);
+	xfs_clear_li_failed(lip);
 	lip->li_flags &= ~XFS_LI_IN_AIL;
 	lip->li_lsn = 0;
 
