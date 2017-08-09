@@ -50,3 +50,7 @@
 &i2c0 {
 	status = "okay";
 };
+
+&nand {
+	status = "okay";
+};
