@@ -737,14 +737,14 @@ static struct acpi_scan_handler lps0_handler = {
 	.attach = lps0_device_attach,
 };
 
-static int acpi_freeze_begin(void)
+static int acpi_s2idle_begin(void)
 {
 	acpi_scan_lock_acquire();
 	s2idle_in_progress = true;
 	return 0;
 }
 
-static int acpi_freeze_prepare(void)
+static int acpi_s2idle_prepare(void)
 {
 	if (lps0_device_handle) {
 		acpi_sleep_run_lps0_dsm(ACPI_LPS0_SCREEN_OFF);
@@ -764,7 +764,7 @@ static int acpi_freeze_prepare(void)
 	return 0;
 }
 
-static void acpi_freeze_wake(void)
+static void acpi_s2idle_wake(void)
 {
 	/*
 	 * If IRQD_WAKEUP_ARMED is not set for the SCI at this point, it means
@@ -778,7 +778,7 @@ static void acpi_freeze_wake(void)
 	}
 }
 
-static void acpi_freeze_sync(void)
+static void acpi_s2idle_sync(void)
 {
 	/*
 	 * Process all pending events in case there are any wakeup ones.
@@ -791,7 +791,7 @@ static void acpi_freeze_sync(void)
 	s2idle_wakeup = false;
 }
 
-static void acpi_freeze_restore(void)
+static void acpi_s2idle_restore(void)
 {
 	if (acpi_sci_irq_valid())
 		disable_irq_wake(acpi_sci_irq);
@@ -804,19 +804,19 @@ static void acpi_freeze_restore(void)
 	}
 }
 
-static void acpi_freeze_end(void)
+static void acpi_s2idle_end(void)
 {
 	s2idle_in_progress = false;
 	acpi_scan_lock_release();
 }
 
-static const struct platform_freeze_ops acpi_freeze_ops = {
-	.begin = acpi_freeze_begin,
-	.prepare = acpi_freeze_prepare,
-	.wake = acpi_freeze_wake,
-	.sync = acpi_freeze_sync,
-	.restore = acpi_freeze_restore,
-	.end = acpi_freeze_end,
+static const struct platform_s2idle_ops acpi_s2idle_ops = {
+	.begin = acpi_s2idle_begin,
+	.prepare = acpi_s2idle_prepare,
+	.wake = acpi_s2idle_wake,
+	.sync = acpi_s2idle_sync,
+	.restore = acpi_s2idle_restore,
+	.end = acpi_s2idle_end,
 };
 
 static void acpi_sleep_suspend_setup(void)
@@ -831,7 +831,7 @@ static void acpi_sleep_suspend_setup(void)
 		&acpi_suspend_ops_old : &acpi_suspend_ops);
 
 	acpi_scan_add_handler(&lps0_handler);
-	freeze_set_ops(&acpi_freeze_ops);
+	s2idle_set_ops(&acpi_s2idle_ops);
 }
 
 #else /* !CONFIG_SUSPEND */
