@@ -86,9 +86,10 @@ struct rockchip_lvds {
 static inline void lvds_writel(struct rockchip_lvds *lvds, u32 offset, u32 val)
 {
 	writel_relaxed(val, lvds->regs + offset);
-	if ((lvds->output == DISPLAY_OUTPUT_DUAL_LVDS) &&
+	if ((lvds->output != DISPLAY_OUTPUT_LVDS) &&
 	    (LVDS_CHIP(lvds) == RK3288_LVDS))
-		writel_relaxed(val, lvds->regs + offset + 0x100);
+		writel_relaxed(val,
+			       lvds->regs + offset + RK3288_LVDS_CH1_OFFSET);
 }
 
 static inline void lvds_msk_reg(struct rockchip_lvds *lvds, u32 offset,
