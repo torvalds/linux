@@ -53,6 +53,13 @@
 	interrupt-parent = <&gic>;
 
 	aliases {
+		gpio0 = &bgpio0;
+		gpio1 = &bgpio1;
+		gpio2 = &bgpio2;
+		gpio3 = &bgpio3;
+		gpio4 = &bgpio4;
+		gpio5 = &bgpio5;
+		gpio6 = &bgpio6;
 		serial0 = &uart0;
 	};
 
@@ -288,6 +295,11 @@
 			reg = <0x116000 0x1000>;
 		};
 
+		iocfg: pin-controller@119000 {
+			compatible = "zte,zx296718-iocfg";
+			reg = <0x119000 0x1000>;
+		};
+
 		uart0: uart@11f000 {
 			compatible = "arm,pl011", "arm,primecell";
 			arm,primecell-periphid = <0x001feffe>;
@@ -358,6 +370,93 @@
 			#clock-cells = <1>;
 		};
 
+		bgpio0: gpio@142d000 {
+			compatible = "zte,zx296718-gpio", "zte,zx296702-gpio";
+			reg = <0x142d000 0x40>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pmm 0 48 16>;
+			interrupts = <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-parent = <&gic>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		bgpio1: gpio@142d040 {
+			compatible = "zte,zx296718-gpio", "zte,zx296702-gpio";
+			reg = <0x142d040 0x40>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pmm 0 80 16>;
+			interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-parent = <&gic>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		bgpio2: gpio@142d080 {
+			compatible = "zte,zx296718-gpio", "zte,zx296702-gpio";
+			reg = <0x142d080 0x40>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pmm 0 80 3
+				       &pmm 3 32 4
+				       &pmm 7 83 9>;
+			interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-parent = <&gic>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		bgpio3: gpio@142d0c0 {
+			compatible = "zte,zx296718-gpio", "zte,zx296702-gpio";
+			reg = <0x142d0c0 0x40>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pmm 0 92 16>;
+			interrupts = <GIC_SPI 52 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-parent = <&gic>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		bgpio4: gpio@142d100 {
+			compatible = "zte,zx296718-gpio", "zte,zx296702-gpio";
+			reg = <0x142d100 0x40>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pmm 0 108 12
+				       &pmm 12 121 4>;
+			interrupts = <GIC_SPI 53 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-parent = <&gic>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		bgpio5: gpio@142d140 {
+			compatible = "zte,zx296718-gpio", "zte,zx296702-gpio";
+			reg = <0x142d140 0x40>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pmm 0 125 16>;
+			interrupts = <GIC_SPI 54 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-parent = <&gic>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
+		bgpio6: gpio@142d180 {
+			compatible = "zte,zx296718-gpio", "zte,zx296702-gpio";
+			reg = <0x142d180 0x40>;
+			gpio-controller;
+			#gpio-cells = <2>;
+			gpio-ranges = <&pmm 0 141 2>;
+			interrupts = <GIC_SPI 55 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-parent = <&gic>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+		};
+
 		lsp1crm: clock-controller@1430000 {
 			compatible = "zte,zx296718-lsp1crm";
 			reg = <0x01430000 0x1000>;
@@ -419,6 +518,12 @@
 			compatible = "zte,zx296718-topcrm";
 			reg = <0x01461000 0x1000>;
 			#clock-cells = <1>;
+		};
+
+		pmm: pin-controller@1462000 {
+			compatible = "zte,zx296718-pmm";
+			reg = <0x1462000 0x1000>;
+			zte,auxiliary-controller = <&iocfg>;
 		};
 
 		sysctrl: sysctrl@1463000 {
