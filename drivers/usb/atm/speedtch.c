@@ -737,7 +737,7 @@ static int speedtch_post_reset(struct usb_interface *intf)
 **  USB  **
 **********/
 
-static struct usb_device_id speedtch_usb_ids[] = {
+static const struct usb_device_id speedtch_usb_ids[] = {
 	{USB_DEVICE(0x06b9, 0x4061)},
 	{}
 };
