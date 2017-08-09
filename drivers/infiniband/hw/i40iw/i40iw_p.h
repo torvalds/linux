@@ -35,11 +35,13 @@
 #ifndef I40IW_P_H
 #define I40IW_P_H
 
-#define PAUSE_TIMER_VALUE  0xFFFF
-#define REFRESH_THRESHOLD  0x7FFF
-#define HIGH_THRESHOLD     0x800
-#define LOW_THRESHOLD      0x200
-#define ALL_TC2PFC         0xFF
+#define PAUSE_TIMER_VALUE       0xFFFF
+#define REFRESH_THRESHOLD       0x7FFF
+#define HIGH_THRESHOLD          0x800
+#define LOW_THRESHOLD           0x200
+#define ALL_TC2PFC              0xFF
+#define CQP_COMPL_WAIT_TIME     0x3E8
+#define CQP_TIMEOUT_THRESHOLD   5
 
 void i40iw_debug_buf(struct i40iw_sc_dev *dev, enum i40iw_debug_flag mask,
 		     char *desc, u64 *buf, u32 size);
@@ -50,6 +52,8 @@ enum i40iw_status_code i40iw_device_init(struct i40iw_sc_dev *dev,
 void i40iw_sc_cqp_post_sq(struct i40iw_sc_cqp *cqp);
 
 u64 *i40iw_sc_cqp_get_next_send_wqe(struct i40iw_sc_cqp *cqp, u64 scratch);
+
+void i40iw_check_cqp_progress(struct i40iw_cqp_timeout *cqp_timeout, struct i40iw_sc_dev *dev);
 
 enum i40iw_status_code i40iw_sc_mr_fast_register(struct i40iw_sc_qp *qp,
 						 struct i40iw_fast_reg_stag_info *info,
