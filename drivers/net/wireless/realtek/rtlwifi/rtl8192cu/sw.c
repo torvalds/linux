@@ -279,7 +279,7 @@ static struct rtl_hal_cfg rtl92cu_hal_cfg = {
 #define USB_VENDER_ID_REALTEK		0x0bda
 
 /* 2010-10-19 DID_USB_V3.4 */
-static struct usb_device_id rtl8192c_usb_ids[] = {
+static const struct usb_device_id rtl8192c_usb_ids[] = {
 
 	/*=== Realtek demoboard ===*/
 	/* Default ID */
