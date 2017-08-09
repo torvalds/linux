@@ -246,6 +246,9 @@ bool bio_integrity_prep(struct bio *bio)
 	blk_status_t status;
 
 	bi = bdev_get_integrity(bio->bi_bdev);
+	if (!bi)
+		return true;
+
 	q = bdev_get_queue(bio->bi_bdev);
 	if (bio_op(bio) != REQ_OP_READ && bio_op(bio) != REQ_OP_WRITE)
 		return true;
@@ -255,9 +258,6 @@ bool bio_integrity_prep(struct bio *bio)
 
 	/* Already protected? */
 	if (bio_integrity(bio))
-		return true;
-
-	if (bi == NULL)
 		return true;
 
 	if (bio_data_dir(bio) == READ) {
