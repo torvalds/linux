@@ -784,7 +784,7 @@ static enum i40iw_status_code i40iw_cq_poll_completion(struct i40iw_cq_uk *cq,
 	get_64bit_val(cqe, 0, &qword0);
 	get_64bit_val(cqe, 16, &qword2);
 
-	info->tcp_seq_num = (u8)RS_64(qword0, I40IWCQ_TCPSEQNUM);
+	info->tcp_seq_num = (u32)RS_64(qword0, I40IWCQ_TCPSEQNUM);
 
 	info->qp_id = (u32)RS_64(qword2, I40IWCQ_QPID);
 
