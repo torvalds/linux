@@ -312,11 +312,15 @@ static const char *const bpf_jmp_string[16] = {
 	[BPF_JA >> 4]   = "jmp",
 	[BPF_JEQ >> 4]  = "==",
 	[BPF_JGT >> 4]  = ">",
+	[BPF_JLT >> 4]  = "<",
 	[BPF_JGE >> 4]  = ">=",
+	[BPF_JLE >> 4]  = "<=",
 	[BPF_JSET >> 4] = "&",
 	[BPF_JNE >> 4]  = "!=",
 	[BPF_JSGT >> 4] = "s>",
+	[BPF_JSLT >> 4] = "s<",
 	[BPF_JSGE >> 4] = "s>=",
+	[BPF_JSLE >> 4] = "s<=",
 	[BPF_CALL >> 4] = "call",
 	[BPF_EXIT >> 4] = "exit",
 };
@@ -2383,26 +2387,36 @@ static void find_good_pkt_pointers(struct bpf_verifier_state *state,
 		 */
 		return;
 
-	/* LLVM can generate two kind of checks:
+	/* LLVM can generate four kind of checks:
 	 *
-	 * Type 1:
+	 * Type 1/2:
 	 *
 	 *   r2 = r3;
 	 *   r2 += 8;
 	 *   if (r2 > pkt_end) goto <handle exception>
 	 *   <access okay>
 	 *
+	 *   r2 = r3;
+	 *   r2 += 8;
+	 *   if (r2 < pkt_end) goto <access okay>
+	 *   <handle exception>
+	 *
 	 *   Where:
 	 *     r2 == dst_reg, pkt_end == src_reg
 	 *     r2=pkt(id=n,off=8,r=0)
 	 *     r3=pkt(id=n,off=0,r=0)
 	 *
-	 * Type 2:
+	 * Type 3/4:
 	 *
 	 *   r2 = r3;
 	 *   r2 += 8;
 	 *   if (pkt_end >= r2) goto <access okay>
 	 *   <handle exception>
+	 *
+	 *   r2 = r3;
+	 *   r2 += 8;
+	 *   if (pkt_end <= r2) goto <handle exception>
+	 *   <access okay>
 	 *
 	 *   Where:
 	 *     pkt_end == dst_reg, r2 == src_reg
@@ -2471,6 +2485,14 @@ static void reg_set_min_max(struct bpf_reg_state *true_reg,
 		false_reg->smax_value = min_t(s64, false_reg->smax_value, val);
 		true_reg->smin_value = max_t(s64, true_reg->smin_value, val + 1);
 		break;
+	case BPF_JLT:
+		false_reg->umin_value = max(false_reg->umin_value, val);
+		true_reg->umax_value = min(true_reg->umax_value, val - 1);
+		break;
+	case BPF_JSLT:
+		false_reg->smin_value = max_t(s64, false_reg->smin_value, val);
+		true_reg->smax_value = min_t(s64, true_reg->smax_value, val - 1);
+		break;
 	case BPF_JGE:
 		false_reg->umax_value = min(false_reg->umax_value, val - 1);
 		true_reg->umin_value = max(true_reg->umin_value, val);
@@ -2478,6 +2500,14 @@ static void reg_set_min_max(struct bpf_reg_state *true_reg,
 	case BPF_JSGE:
 		false_reg->smax_value = min_t(s64, false_reg->smax_value, val - 1);
 		true_reg->smin_value = max_t(s64, true_reg->smin_value, val);
+		break;
+	case BPF_JLE:
+		false_reg->umin_value = max(false_reg->umin_value, val + 1);
+		true_reg->umax_value = min(true_reg->umax_value, val);
+		break;
+	case BPF_JSLE:
+		false_reg->smin_value = max_t(s64, false_reg->smin_value, val + 1);
+		true_reg->smax_value = min_t(s64, true_reg->smax_value, val);
 		break;
 	default:
 		break;
@@ -2527,6 +2557,14 @@ static void reg_set_min_max_inv(struct bpf_reg_state *true_reg,
 		true_reg->smax_value = min_t(s64, true_reg->smax_value, val - 1);
 		false_reg->smin_value = max_t(s64, false_reg->smin_value, val);
 		break;
+	case BPF_JLT:
+		true_reg->umin_value = max(true_reg->umin_value, val + 1);
+		false_reg->umax_value = min(false_reg->umax_value, val);
+		break;
+	case BPF_JSLT:
+		true_reg->smin_value = max_t(s64, true_reg->smin_value, val + 1);
+		false_reg->smax_value = min_t(s64, false_reg->smax_value, val);
+		break;
 	case BPF_JGE:
 		true_reg->umax_value = min(true_reg->umax_value, val);
 		false_reg->umin_value = max(false_reg->umin_value, val + 1);
@@ -2534,6 +2572,14 @@ static void reg_set_min_max_inv(struct bpf_reg_state *true_reg,
 	case BPF_JSGE:
 		true_reg->smax_value = min_t(s64, true_reg->smax_value, val);
 		false_reg->smin_value = max_t(s64, false_reg->smin_value, val + 1);
+		break;
+	case BPF_JLE:
+		true_reg->umin_value = max(true_reg->umin_value, val);
+		false_reg->umax_value = min(false_reg->umax_value, val - 1);
+		break;
+	case BPF_JSLE:
+		true_reg->smin_value = max_t(s64, true_reg->smin_value, val);
+		false_reg->smax_value = min_t(s64, false_reg->smax_value, val - 1);
 		break;
 	default:
 		break;
@@ -2659,7 +2705,7 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
 	u8 opcode = BPF_OP(insn->code);
 	int err;
 
-	if (opcode > BPF_EXIT) {
+	if (opcode > BPF_JSLE) {
 		verbose("invalid BPF_JMP opcode %x\n", opcode);
 		return -EINVAL;
 	}
@@ -2761,10 +2807,18 @@ static int check_cond_jmp_op(struct bpf_verifier_env *env,
 		   dst_reg->type == PTR_TO_PACKET &&
 		   regs[insn->src_reg].type == PTR_TO_PACKET_END) {
 		find_good_pkt_pointers(this_branch, dst_reg);
+	} else if (BPF_SRC(insn->code) == BPF_X && opcode == BPF_JLT &&
+		   dst_reg->type == PTR_TO_PACKET &&
+		   regs[insn->src_reg].type == PTR_TO_PACKET_END) {
+		find_good_pkt_pointers(other_branch, dst_reg);
 	} else if (BPF_SRC(insn->code) == BPF_X && opcode == BPF_JGE &&
 		   dst_reg->type == PTR_TO_PACKET_END &&
 		   regs[insn->src_reg].type == PTR_TO_PACKET) {
 		find_good_pkt_pointers(other_branch, &regs[insn->src_reg]);
+	} else if (BPF_SRC(insn->code) == BPF_X && opcode == BPF_JLE &&
+		   dst_reg->type == PTR_TO_PACKET_END &&
+		   regs[insn->src_reg].type == PTR_TO_PACKET) {
+		find_good_pkt_pointers(this_branch, &regs[insn->src_reg]);
 	} else if (is_pointer_value(env, insn->dst_reg)) {
 		verbose("R%d pointer comparison prohibited\n", insn->dst_reg);
 		return -EACCES;
