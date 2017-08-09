@@ -3552,8 +3552,6 @@ bool ilk_disable_lp_wm(struct drm_device *dev)
 	return _ilk_disable_lp_wm(dev_priv, WM_DIRTY_LP_ALL);
 }
 
-#define SKL_SAGV_BLOCK_TIME	30 /* µs */
-
 /*
  * FIXME: We still don't have the proper code detect if we need to apply the WA,
  * so assume we'll always need it in order to avoid underruns.
@@ -3678,12 +3676,13 @@ bool intel_can_enable_sagv(struct drm_atomic_state *state)
 	struct intel_crtc_state *cstate;
 	enum pipe pipe;
 	int level, latency;
+	int sagv_block_time_us = IS_GEN9(dev_priv) ? 30 : 20;
 
 	if (!intel_has_sagv(dev_priv))
 		return false;
 
 	/*
-	 * SKL workaround: bspec recommends we disable the SAGV when we have
+	 * SKL+ workaround: bspec recommends we disable the SAGV when we have
 	 * more then one pipe enabled
 	 *
 	 * If there are no active CRTCs, no additional checks need be performed
@@ -3722,11 +3721,11 @@ bool intel_can_enable_sagv(struct drm_atomic_state *state)
 			latency += 15;
 
 		/*
-		 * If any of the planes on this pipe don't enable wm levels
-		 * that incur memory latencies higher then 30µs we can't enable
-		 * the SAGV
+		 * If any of the planes on this pipe don't enable wm levels that
+		 * incur memory latencies higher than sagv_block_time_us we
+		 * can't enable the SAGV.
 		 */
-		if (latency < SKL_SAGV_BLOCK_TIME)
+		if (latency < sagv_block_time_us)
 			return false;
 	}
 
