@@ -61,6 +61,26 @@
 		compatible = "audio-graph-card";
 		dais = <&spdif0_port>;
 	};
+
+	sound-i2s0 {
+		compatible = "audio-graph-card";
+		dais = <&i2s0_port>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&amplifier_pins>;
+		pa-gpios = <&bgpio4 0 GPIO_ACTIVE_HIGH>;
+		widgets = "Line", "Line Out Jack";
+		routing = "Amplifier", "LINEOUTL",
+			  "Amplifier", "LINEOUTR",
+			  "Line Out Jack", "Amplifier";
+	};
+};
+
+&aud96p22 {
+	port {
+		aud96p22_endpoint: endpoint {
+			remote-endpoint = <&i2s0_endpoint>;
+		};
+	};
 };
 
 &emmc {
@@ -77,6 +97,30 @@
 	};
 };
 
+&i2c0 {
+	status = "okay";
+};
+
+&i2s0 {
+	status = "okay";
+
+	i2s0_port: port {
+		i2s0_endpoint: endpoint {
+			remote-endpoint = <&aud96p22_endpoint>;
+			dai-format = "i2s";
+			frame-master;
+			bitclock-master;
+		};
+	};
+};
+
+&pmm {
+	amplifier_pins: amplifier {
+		pins = "TSI3_DATA";
+		function = "BGPIO";
+	};
+};
+
 &sd1 {
 	status = "okay";
 };
@@ -89,6 +133,10 @@
 			remote-endpoint = <&hdmi_endpoint>;
 		};
 	};
+};
+
+&tvenc {
+	status = "okay";
 };
 
 &uart0 {
