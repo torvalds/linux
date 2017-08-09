@@ -406,7 +406,6 @@ tcf_match_indev(struct sk_buff *skb, int ifindex)
 #endif /* CONFIG_NET_CLS_IND */
 
 struct tc_cls_common_offload {
-	u32 handle;
 	u32 chain_index;
 	__be16 protocol;
 	u32 prio;
@@ -417,7 +416,6 @@ static inline void
 tc_cls_common_offload_init(struct tc_cls_common_offload *cls_common,
 			   const struct tcf_proto *tp)
 {
-	cls_common->handle = tp->q->handle;
 	cls_common->chain_index = tp->chain->index;
 	cls_common->protocol = tp->protocol;
 	cls_common->prio = tp->prio;
