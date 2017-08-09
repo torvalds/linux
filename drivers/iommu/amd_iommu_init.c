@@ -37,6 +37,7 @@
 #include <asm/io_apic.h>
 #include <asm/irq_remapping.h>
 
+#include <linux/crash_dump.h>
 #include "amd_iommu_proto.h"
 #include "amd_iommu_types.h"
 #include "irq_remapping.h"
@@ -261,6 +262,8 @@ static enum iommu_init_state init_state = IOMMU_START_STATE;
 static int amd_iommu_enable_interrupts(void);
 static int __init iommu_go_to_state(enum iommu_init_state state);
 static void init_device_table_dma(void);
+
+static bool __initdata amd_iommu_pre_enabled = true;
 
 bool translation_pre_enabled(struct amd_iommu *iommu)
 {
@@ -857,6 +860,8 @@ static bool copy_device_table(void)
 	u16 dom_id, dte_v;
 	gfp_t gfp_flag;
 
+	if (!amd_iommu_pre_enabled)
+		return false;
 
 	pr_warn("Translation is already enabled - trying to copy translation structures\n");
 	for_each_iommu(iommu) {
@@ -1496,9 +1501,14 @@ static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h)
 	iommu->int_enabled = false;
 
 	init_translation_status(iommu);
-
-	if (translation_pre_enabled(iommu))
-		pr_warn("Translation is already enabled - trying to copy translation structures\n");
+	if (translation_pre_enabled(iommu) && !is_kdump_kernel()) {
+		iommu_disable(iommu);
+		clear_translation_pre_enabled(iommu);
+		pr_warn("Translation was enabled for IOMMU:%d but we are not in kdump mode\n",
+			iommu->index);
+	}
+	if (amd_iommu_pre_enabled)
+		amd_iommu_pre_enabled = translation_pre_enabled(iommu);
 
 	ret = init_iommu_from_acpi(iommu, h);
 	if (ret)
@@ -1993,8 +2003,7 @@ static int __init init_memory_definitions(struct acpi_table_header *table)
 }
 
 /*
- * Init the device table to not allow DMA access for devices and
- * suppress all page faults
+ * Init the device table to not allow DMA access for devices
  */
 static void init_device_table_dma(void)
 {
@@ -2130,14 +2139,48 @@ static void early_enable_iommu(struct amd_iommu *iommu)
 
 /*
  * This function finally enables all IOMMUs found in the system after
- * they have been initialized
+ * they have been initialized.
+ *
+ * Or if in kdump kernel and IOMMUs are all pre-enabled, try to copy
+ * the old content of device table entries. Not this case or copy failed,
+ * just continue as normal kernel does.
  */
 static void early_enable_iommus(void)
 {
 	struct amd_iommu *iommu;
 
-	for_each_iommu(iommu)
-		early_enable_iommu(iommu);
+
+	if (!copy_device_table()) {
+		/*
+		 * If come here because of failure in copying device table from old
+		 * kernel with all IOMMUs enabled, print error message and try to
+		 * free allocated old_dev_tbl_cpy.
+		 */
+		if (amd_iommu_pre_enabled)
+			pr_err("Failed to copy DEV table from previous kernel.\n");
+		if (old_dev_tbl_cpy != NULL)
+			free_pages((unsigned long)old_dev_tbl_cpy,
+					get_order(dev_table_size));
+
+		for_each_iommu(iommu) {
+			clear_translation_pre_enabled(iommu);
+			early_enable_iommu(iommu);
+		}
+	} else {
+		pr_info("Copied DEV table from previous kernel.\n");
+		free_pages((unsigned long)amd_iommu_dev_table,
+				get_order(dev_table_size));
+		amd_iommu_dev_table = old_dev_tbl_cpy;
+		for_each_iommu(iommu) {
+			iommu_disable_command_buffer(iommu);
+			iommu_disable_event_buffer(iommu);
+			iommu_enable_command_buffer(iommu);
+			iommu_enable_event_buffer(iommu);
+			iommu_enable_ga(iommu);
+			iommu_set_device_table(iommu);
+			iommu_flush_all_caches(iommu);
+		}
+	}
 
 #ifdef CONFIG_IRQ_REMAP
 	if (AMD_IOMMU_GUEST_IR_VAPIC(amd_iommu_guest_ir))
