@@ -47,8 +47,6 @@ DEFINE_MUTEX(rdtgroup_mutex);
  */
 DEFINE_PER_CPU(struct intel_pqr_state, pqr_state);
 
-DEFINE_PER_CPU_READ_MOSTLY(struct intel_pqr_state, rdt_cpu_default);
-
 /*
  * Used to store the max resource name width and max resource data width
  * to display the schemata in a tabular format
@@ -550,10 +548,10 @@ static void clear_closid_rmid(int cpu)
 {
 	struct intel_pqr_state *state = this_cpu_ptr(&pqr_state);
 
-	per_cpu(rdt_cpu_default.closid, cpu) = 0;
-	per_cpu(rdt_cpu_default.rmid, cpu) = 0;
-	state->closid = 0;
-	state->rmid = 0;
+	state->default_closid = 0;
+	state->default_rmid = 0;
+	state->cur_closid = 0;
+	state->cur_rmid = 0;
 	wrmsr(IA32_PQR_ASSOC, 0, 0);
 }
 

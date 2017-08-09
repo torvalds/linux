@@ -202,8 +202,8 @@ static void update_cpu_closid_rmid(void *info)
 	struct rdtgroup *r = info;
 
 	if (r) {
-		this_cpu_write(rdt_cpu_default.closid, r->closid);
-		this_cpu_write(rdt_cpu_default.rmid, r->mon.rmid);
+		this_cpu_write(pqr_state.default_closid, r->closid);
+		this_cpu_write(pqr_state.default_rmid, r->mon.rmid);
 	}
 
 	/*
@@ -1733,7 +1733,7 @@ static int rdtgroup_rmdir_mon(struct kernfs_node *kn, struct rdtgroup *rdtgrp,
 
 	/* Update per cpu rmid of the moved CPUs first */
 	for_each_cpu(cpu, &rdtgrp->cpu_mask)
-		per_cpu(rdt_cpu_default.rmid, cpu) = prdtgrp->mon.rmid;
+		per_cpu(pqr_state.default_rmid, cpu) = prdtgrp->mon.rmid;
 	/*
 	 * Update the MSR on moved CPUs and CPUs which have moved
 	 * task running on them.
@@ -1774,8 +1774,8 @@ static int rdtgroup_rmdir_ctrl(struct kernfs_node *kn, struct rdtgroup *rdtgrp,
 
 	/* Update per cpu closid and rmid of the moved CPUs first */
 	for_each_cpu(cpu, &rdtgrp->cpu_mask) {
-		per_cpu(rdt_cpu_default.closid, cpu) = rdtgroup_default.closid;
-		per_cpu(rdt_cpu_default.rmid, cpu) = rdtgroup_default.mon.rmid;
+		per_cpu(pqr_state.default_closid, cpu) = rdtgroup_default.closid;
+		per_cpu(pqr_state.default_rmid, cpu) = rdtgroup_default.mon.rmid;
 	}
 
 	/*
