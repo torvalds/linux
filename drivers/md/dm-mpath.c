@@ -632,6 +632,10 @@ static void process_queued_bios(struct work_struct *work)
 		case DM_MAPIO_REMAPPED:
 			generic_make_request(bio);
 			break;
+		case 0:
+			break;
+		default:
+			WARN_ONCE(true, "__multipath_map_bio() returned %d\n", r);
 		}
 	}
 	blk_finish_plug(&plug);
