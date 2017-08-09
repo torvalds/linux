@@ -1458,7 +1458,6 @@ static int noretry_error(blk_status_t error)
 	case BLK_STS_TARGET:
 	case BLK_STS_NEXUS:
 	case BLK_STS_MEDIUM:
-	case BLK_STS_RESOURCE:
 		return 1;
 	}
 
