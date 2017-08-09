@@ -990,6 +990,22 @@ static int armv8_pmuv3_init(struct arm_pmu *cpu_pmu)
 	return 0;
 }
 
+static int armv8_a35_pmu_init(struct arm_pmu *cpu_pmu)
+{
+	int ret = armv8_pmu_init(cpu_pmu);
+	if (ret)
+		return ret;
+
+	cpu_pmu->name			= "armv8_cortex_a35";
+	cpu_pmu->map_event		= armv8_a53_map_event;
+	cpu_pmu->attr_groups[ARMPMU_ATTR_GROUP_EVENTS] =
+		&armv8_pmuv3_events_attr_group;
+	cpu_pmu->attr_groups[ARMPMU_ATTR_GROUP_FORMATS] =
+		&armv8_pmuv3_format_attr_group;
+
+	return 0;
+}
+
 static int armv8_a53_pmu_init(struct arm_pmu *cpu_pmu)
 {
 	int ret = armv8_pmu_init(cpu_pmu);
@@ -1088,6 +1104,7 @@ static int armv8_vulcan_pmu_init(struct arm_pmu *cpu_pmu)
 
 static const struct of_device_id armv8_pmu_of_device_ids[] = {
 	{.compatible = "arm,armv8-pmuv3",	.data = armv8_pmuv3_init},
+	{.compatible = "arm,cortex-a35-pmu",	.data = armv8_a35_pmu_init},
 	{.compatible = "arm,cortex-a53-pmu",	.data = armv8_a53_pmu_init},
 	{.compatible = "arm,cortex-a57-pmu",	.data = armv8_a57_pmu_init},
 	{.compatible = "arm,cortex-a72-pmu",	.data = armv8_a72_pmu_init},

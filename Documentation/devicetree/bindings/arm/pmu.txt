@@ -13,6 +13,7 @@ Required properties:
 	"arm,cortex-a72-pmu"
 	"arm,cortex-a57-pmu"
 	"arm,cortex-a53-pmu"
+	"arm,cortex-a35-pmu"
 	"arm,cortex-a17-pmu"
 	"arm,cortex-a15-pmu"
 	"arm,cortex-a12-pmu"
