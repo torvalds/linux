@@ -8,6 +8,11 @@
  */
 
 &pinctrl {
+	pinctrl_aout: aout_grp {
+		groups = "aout";
+		function = "aout";
+	};
+
 	pinctrl_emmc: emmc_grp {
 		groups = "emmc", "emmc_dat8";
 		function = "emmc";
