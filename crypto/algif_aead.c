@@ -201,11 +201,11 @@ static int _aead_recvmsg(struct socket *sock, struct msghdr *msg,
 		 * Encryption operation - The in-place cipher operation is
 		 * achieved by the following operation:
 		 *
-		 * TX SGL: AAD || PT || Tag
+		 * TX SGL: AAD || PT
 		 *	    |	   |
 		 *	    | copy |
 		 *	    v	   v
-		 * RX SGL: AAD || PT
+		 * RX SGL: AAD || PT || Tag
 		 */
 		err = crypto_aead_copy_sgl(null_tfm, tsgl->sg,
 					   areq->first_rsgl.sgl.sg, processed);
