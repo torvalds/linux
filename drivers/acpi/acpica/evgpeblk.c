@@ -496,6 +496,8 @@ acpi_ev_initialize_gpe_block(struct acpi_gpe_xrupt_info *gpe_xrupt_info,
 				continue;
 			}
 
+			gpe_event_info->flags |= ACPI_GPE_AUTO_ENABLED;
+
 			if (event_status & ACPI_EVENT_FLAG_STATUS_SET) {
 				ACPI_INFO(("GPE 0x%02X active on init",
 					   gpe_number));
