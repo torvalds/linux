@@ -1563,8 +1563,6 @@ static void shutdown(struct pci_dev *pdev)
 	int err;
 
 	dev_info(&pdev->dev, "Shutdown was called\n");
-	/* Notify mlx5 clients that the kernel is being shut down */
-	set_bit(MLX5_INTERFACE_STATE_SHUTDOWN, &dev->intf_state);
 	err = mlx5_try_fast_unload(dev);
 	if (err)
 		mlx5_unload_one(dev, priv, false);
