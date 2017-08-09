@@ -101,16 +101,20 @@ static void wd_lockup_ipi(struct pt_regs *regs)
 		nmi_panic(regs, "Hard LOCKUP");
 }
 
-static void set_cpu_stuck(int cpu, u64 tb)
+static void set_cpumask_stuck(const struct cpumask *cpumask, u64 tb)
 {
-	cpumask_set_cpu(cpu, &wd_smp_cpus_stuck);
-	cpumask_clear_cpu(cpu, &wd_smp_cpus_pending);
+	cpumask_or(&wd_smp_cpus_stuck, &wd_smp_cpus_stuck, cpumask);
+	cpumask_andnot(&wd_smp_cpus_pending, &wd_smp_cpus_pending, cpumask);
 	if (cpumask_empty(&wd_smp_cpus_pending)) {
 		wd_smp_last_reset_tb = tb;
 		cpumask_andnot(&wd_smp_cpus_pending,
 				&wd_cpus_enabled,
 				&wd_smp_cpus_stuck);
 	}
+}
+static void set_cpu_stuck(int cpu, u64 tb)
+{
+	set_cpumask_stuck(cpumask_of(cpu), tb);
 }
 
 static void watchdog_smp_panic(int cpu, u64 tb)
@@ -140,9 +144,8 @@ static void watchdog_smp_panic(int cpu, u64 tb)
 	}
 	smp_flush_nmi_ipi(1000000);
 
-	/* Take the stuck CPU out of the watch group */
-	for_each_cpu(c, &wd_smp_cpus_pending)
-		set_cpu_stuck(c, tb);
+	/* Take the stuck CPUs out of the watch group */
+	set_cpumask_stuck(&wd_smp_cpus_pending, tb);
 
 	wd_smp_unlock(&flags);
 
