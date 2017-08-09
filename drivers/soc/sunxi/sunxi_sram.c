@@ -23,6 +23,7 @@
 struct sunxi_sram_func {
 	char	*func;
 	u8	val;
+	u32	reg_val;
 };
 
 struct sunxi_sram_data {
@@ -39,10 +40,11 @@ struct sunxi_sram_desc {
 	bool			claimed;
 };
 
-#define SUNXI_SRAM_MAP(_val, _func)				\
+#define SUNXI_SRAM_MAP(_reg_val, _val, _func)			\
 	{							\
 		.func = _func,					\
 		.val = _val,					\
+		.reg_val = _reg_val,				\
 	}
 
 #define SUNXI_SRAM_DATA(_name, _reg, _off, _width, ...)		\
@@ -57,14 +59,14 @@ struct sunxi_sram_desc {
 
 static struct sunxi_sram_desc sun4i_a10_sram_a3_a4 = {
 	.data	= SUNXI_SRAM_DATA("A3-A4", 0x4, 0x4, 2,
-				  SUNXI_SRAM_MAP(0, "cpu"),
-				  SUNXI_SRAM_MAP(1, "emac")),
+				  SUNXI_SRAM_MAP(0, 0, "cpu"),
+				  SUNXI_SRAM_MAP(1, 1, "emac")),
 };
 
 static struct sunxi_sram_desc sun4i_a10_sram_d = {
 	.data	= SUNXI_SRAM_DATA("D", 0x4, 0x0, 1,
-				  SUNXI_SRAM_MAP(0, "cpu"),
-				  SUNXI_SRAM_MAP(1, "usb-otg")),
+				  SUNXI_SRAM_MAP(0, 0, "cpu"),
+				  SUNXI_SRAM_MAP(1, 1, "usb-otg")),
 };
 
 static const struct of_device_id sunxi_sram_dt_ids[] = {
@@ -121,7 +123,8 @@ static int sunxi_sram_show(struct seq_file *s, void *data)
 
 			for (func = sram_data->func; func->func; func++) {
 				seq_printf(s, "\t\t%s%c\n", func->func,
-					   func->val == val ? '*' : ' ');
+					   func->reg_val == val ?
+					   '*' : ' ');
 			}
 		}
 
@@ -149,10 +152,13 @@ static inline struct sunxi_sram_desc *to_sram_desc(const struct sunxi_sram_data 
 }
 
 static const struct sunxi_sram_data *sunxi_sram_of_parse(struct device_node *node,
-							 unsigned int *value)
+							 unsigned int *reg_value)
 {
 	const struct of_device_id *match;
+	const struct sunxi_sram_data *data;
+	struct sunxi_sram_func *func;
 	struct of_phandle_args args;
+	u8 val;
 	int ret;
 
 	ret = of_parse_phandle_with_fixed_args(node, "allwinner,sram", 1, 0,
@@ -165,11 +171,30 @@ static const struct sunxi_sram_data *sunxi_sram_of_parse(struct device_node *nod
 		goto err;
 	}
 
-	if (value)
-		*value = args.args[0];
+	val = args.args[0];
 
 	match = of_match_node(sunxi_sram_dt_ids, args.np);
 	if (!match) {
+		ret = -EINVAL;
+		goto err;
+	}
+
+	data = match->data;
+	if (!data) {
+		ret = -EINVAL;
+		goto err;
+	};
+
+	for (func = data->func; func->func; func++) {
+		if (val == func->val) {
+			if (reg_value)
+				*reg_value = func->reg_val;
+
+			break;
+		}
+	}
+
+	if (!func->func) {
 		ret = -EINVAL;
 		goto err;
 	}
