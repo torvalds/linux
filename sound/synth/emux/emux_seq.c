@@ -144,7 +144,8 @@ snd_emux_create_port(struct snd_emux *emu, char *name,
 	int i, type, cap;
 
 	/* Allocate structures for this channel */
-	if ((p = kzalloc(sizeof(*p), GFP_KERNEL)) == NULL) {
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (!p) {
 		snd_printk(KERN_ERR "no memory\n");
 		return NULL;
 	}
