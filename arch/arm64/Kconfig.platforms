@@ -250,6 +250,7 @@ config ARCH_XGENE
 
 config ARCH_ZX
 	bool "ZTE ZX SoC Family"
+	select PINCTRL
 	help
 	  This enables support for ZTE ZX SoC Family
 
