@@ -9,41 +9,54 @@
 
 #include <linux/bpf.h> /* for enum bpf_reg_type */
 #include <linux/filter.h> /* for MAX_BPF_STACK */
+#include <linux/tnum.h>
 
- /* Just some arbitrary values so we can safely do math without overflowing and
-  * are obviously wrong for any sort of memory access.
-  */
-#define BPF_REGISTER_MAX_RANGE (1024 * 1024 * 1024)
-#define BPF_REGISTER_MIN_RANGE -1
+/* Maximum variable offset umax_value permitted when resolving memory accesses.
+ * In practice this is far bigger than any realistic pointer offset; this limit
+ * ensures that umax_value + (int)off + (int)size cannot overflow a u64.
+ */
+#define BPF_MAX_VAR_OFF	(1ULL << 31)
+/* Maximum variable size permitted for ARG_CONST_SIZE[_OR_ZERO].  This ensures
+ * that converting umax_value to int cannot overflow.
+ */
+#define BPF_MAX_VAR_SIZ	INT_MAX
 
 struct bpf_reg_state {
 	enum bpf_reg_type type;
 	union {
-		/* valid when type == CONST_IMM | PTR_TO_STACK | UNKNOWN_VALUE */
-		s64 imm;
-
-		/* valid when type == PTR_TO_PACKET* */
-		struct {
-			u16 off;
-			u16 range;
-		};
+		/* valid when type == PTR_TO_PACKET */
+		u16 range;
 
 		/* valid when type == CONST_PTR_TO_MAP | PTR_TO_MAP_VALUE |
 		 *   PTR_TO_MAP_VALUE_OR_NULL
 		 */
 		struct bpf_map *map_ptr;
 	};
-	u32 id;
-	/* Used to determine if any memory access using this register will
-	 * result in a bad access. These two fields must be last.
-	 * See states_equal()
+	/* Fixed part of pointer offset, pointer types only */
+	s32 off;
+	/* For PTR_TO_PACKET, used to find other pointers with the same variable
+	 * offset, so they can share range knowledge.
+	 * For PTR_TO_MAP_VALUE_OR_NULL this is used to share which map value we
+	 * came from, when one is tested for != NULL.
 	 */
-	s64 min_value;
-	u64 max_value;
-	u32 min_align;
-	u32 aux_off;
-	u32 aux_off_align;
-	bool value_from_signed;
+	u32 id;
+	/* These five fields must be last.  See states_equal() */
+	/* For scalar types (SCALAR_VALUE), this represents our knowledge of
+	 * the actual value.
+	 * For pointer types, this represents the variable part of the offset
+	 * from the pointed-to object, and is shared with all bpf_reg_states
+	 * with the same id as us.
+	 */
+	struct tnum var_off;
+	/* Used to determine if any memory access using this register will
+	 * result in a bad access.
+	 * These refer to the same value as var_off, not necessarily the actual
+	 * contents of the register.
+	 */
+	s64 smin_value; /* minimum possible (s64)value */
+	s64 smax_value; /* maximum possible (s64)value */
+	u64 umin_value; /* minimum possible (u64)value */
+	u64 umax_value; /* maximum possible (u64)value */
 };
 
 enum bpf_stack_slot_type {
