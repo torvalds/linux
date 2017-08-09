@@ -65,13 +65,6 @@ struct dsa_notifier_vlan_info {
 	int port;
 };
 
-struct dsa_device_ops {
-	struct sk_buff *(*xmit)(struct sk_buff *skb, struct net_device *dev);
-	struct sk_buff *(*rcv)(struct sk_buff *skb, struct net_device *dev,
-			       struct packet_type *pt,
-			       struct net_device *orig_dev);
-};
-
 struct dsa_slave_priv {
 	/* Copy of dp->ds->dst->tag_ops->xmit for faster access in hot path */
 	struct sk_buff *	(*xmit)(struct sk_buff *skb,
