@@ -1029,61 +1029,106 @@ out_error:
 }
 
 /*
- * Check the log tail for torn writes. This is required when torn writes are
- * detected at the head and the head had to be walked back to a previous record.
- * The tail of the previous record must now be verified to ensure the torn
- * writes didn't corrupt the previous tail.
+ * Calculate distance from head to tail (i.e., unused space in the log).
+ */
+static inline int
+xlog_tail_distance(
+	struct xlog	*log,
+	xfs_daddr_t	head_blk,
+	xfs_daddr_t	tail_blk)
+{
+	if (head_blk < tail_blk)
+		return tail_blk - head_blk;
+
+	return tail_blk + (log->l_logBBsize - head_blk);
+}
+
+/*
+ * Verify the log tail. This is particularly important when torn or incomplete
+ * writes have been detected near the front of the log and the head has been
+ * walked back accordingly.
  *
- * Return an error if CRC verification fails as recovery cannot proceed.
+ * We also have to handle the case where the tail was pinned and the head
+ * blocked behind the tail right before a crash. If the tail had been pushed
+ * immediately prior to the crash and the subsequent checkpoint was only
+ * partially written, it's possible it overwrote the last referenced tail in the
+ * log with garbage. This is not a coherency problem because the tail must have
+ * been pushed before it can be overwritten, but appears as log corruption to
+ * recovery because we have no way to know the tail was updated if the
+ * subsequent checkpoint didn't write successfully.
+ *
+ * Therefore, CRC check the log from tail to head. If a failure occurs and the
+ * offending record is within max iclog bufs from the head, walk the tail
+ * forward and retry until a valid tail is found or corruption is detected out
+ * of the range of a possible overwrite.
  */
 STATIC int
 xlog_verify_tail(
 	struct xlog		*log,
 	xfs_daddr_t		head_blk,
-	xfs_daddr_t		tail_blk)
+	xfs_daddr_t		*tail_blk,
+	int			hsize)
 {
 	struct xlog_rec_header	*thead;
 	struct xfs_buf		*bp;
 	xfs_daddr_t		first_bad;
-	int			count;
 	int			error = 0;
 	bool			wrapped;
-	xfs_daddr_t		tmp_head;
+	xfs_daddr_t		tmp_tail;
+	xfs_daddr_t		orig_tail = *tail_blk;
 
 	bp = xlog_get_bp(log, 1);
 	if (!bp)
 		return -ENOMEM;
 
 	/*
-	 * Seek XLOG_MAX_ICLOGS + 1 records past the current tail record to get
-	 * a temporary head block that points after the last possible
-	 * concurrently written record of the tail.
+	 * Make sure the tail points to a record (returns positive count on
+	 * success).
 	 */
-	count = xlog_seek_logrec_hdr(log, head_blk, tail_blk,
-				     XLOG_MAX_ICLOGS + 1, bp, &tmp_head, &thead,
-				     &wrapped);
-	if (count < 0) {
-		error = count;
+	error = xlog_seek_logrec_hdr(log, head_blk, *tail_blk, 1, bp,
+			&tmp_tail, &thead, &wrapped);
+	if (error < 0)
 		goto out;
+	if (*tail_blk != tmp_tail)
+		*tail_blk = tmp_tail;
+
+	/*
+	 * Run a CRC check from the tail to the head. We can't just check
+	 * MAX_ICLOGS records past the tail because the tail may point to stale
+	 * blocks cleared during the search for the head/tail. These blocks are
+	 * overwritten with zero-length records and thus record count is not a
+	 * reliable indicator of the iclog state before a crash.
+	 */
+	first_bad = 0;
+	error = xlog_do_recovery_pass(log, head_blk, *tail_blk,
+				      XLOG_RECOVER_CRCPASS, &first_bad);
+	while (error == -EFSBADCRC && first_bad) {
+		int	tail_distance;
+
+		/*
+		 * Is corruption within range of the head? If so, retry from
+		 * the next record. Otherwise return an error.
+		 */
+		tail_distance = xlog_tail_distance(log, head_blk, first_bad);
+		if (tail_distance > BTOBB(XLOG_MAX_ICLOGS * hsize))
+			break;
+
+		/* skip to the next record; returns positive count on success */
+		error = xlog_seek_logrec_hdr(log, head_blk, first_bad, 2, bp,
+				&tmp_tail, &thead, &wrapped);
+		if (error < 0)
+			goto out;
+
+		*tail_blk = tmp_tail;
+		first_bad = 0;
+		error = xlog_do_recovery_pass(log, head_blk, *tail_blk,
+					      XLOG_RECOVER_CRCPASS, &first_bad);
 	}
 
-	/*
-	 * If the call above didn't find XLOG_MAX_ICLOGS + 1 records, we ran
-	 * into the actual log head. tmp_head points to the start of the record
-	 * so update it to the actual head block.
-	 */
-	if (count < XLOG_MAX_ICLOGS + 1)
-		tmp_head = head_blk;
-
-	/*
-	 * We now have a tail and temporary head block that covers at least
-	 * XLOG_MAX_ICLOGS records from the tail. We need to verify that these
-	 * records were completely written. Run a CRC verification pass from
-	 * tail to head and return the result.
-	 */
-	error = xlog_do_recovery_pass(log, tmp_head, tail_blk,
-				      XLOG_RECOVER_CRCPASS, &first_bad);
-
+	if (!error && *tail_blk != orig_tail)
+		xfs_warn(log->l_mp,
+		"Tail block (0x%llx) overwrite detected. Updated to 0x%llx",
+			 orig_tail, *tail_blk);
 out:
 	xlog_put_bp(bp);
 	return error;
@@ -1187,7 +1232,8 @@ xlog_verify_head(
 	if (error)
 		return error;
 
-	return xlog_verify_tail(log, *head_blk, *tail_blk);
+	return xlog_verify_tail(log, *head_blk, tail_blk,
+				be32_to_cpu((*rhead)->h_size));
 }
 
 /*
