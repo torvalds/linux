@@ -122,6 +122,11 @@
 			reg = <0 0xe6160000 0 0x0200>;
 		};
 
+		pfc: pfc@e6060000 {
+			compatible = "renesas,pfc-r8a77995";
+			reg = <0 0xe6060000 0 0x508>;
+		};
+
 		prr: chipid@fff00044 {
 			compatible = "renesas,prr";
 			reg = <0 0xfff00044 0 4>;
