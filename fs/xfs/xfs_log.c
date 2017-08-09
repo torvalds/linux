@@ -812,11 +812,14 @@ xfs_log_unmount_write(xfs_mount_t *mp)
 	int		 error;
 
 	/*
-	 * Don't write out unmount record on read-only mounts.
+	 * Don't write out unmount record on norecovery mounts or ro devices.
 	 * Or, if we are doing a forced umount (typically because of IO errors).
 	 */
-	if (mp->m_flags & XFS_MOUNT_RDONLY)
+	if (mp->m_flags & XFS_MOUNT_NORECOVERY ||
+	    xfs_readonly_buftarg(log->l_mp->m_logdev_targp)) {
+		ASSERT(mp->m_flags & XFS_MOUNT_RDONLY);
 		return 0;
+	}
 
 	error = _xfs_log_force(mp, XFS_LOG_SYNC, NULL);
 	ASSERT(error || !(XLOG_FORCED_SHUTDOWN(log)));
