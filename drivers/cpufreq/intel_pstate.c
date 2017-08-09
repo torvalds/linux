@@ -1495,13 +1495,15 @@ static void intel_pstate_update_pstate(struct cpudata *cpu, int pstate)
 	wrmsrl(MSR_IA32_PERF_CTL, pstate_funcs.get_val(cpu, pstate));
 }
 
-static void intel_pstate_adjust_pstate(struct cpudata *cpu, int target_pstate)
+static void intel_pstate_adjust_pstate(struct cpudata *cpu)
 {
 	int from = cpu->pstate.current_pstate;
 	struct sample *sample;
+	int target_pstate;
 
 	update_turbo_state();
 
+	target_pstate = get_target_pstate_use_cpu_load(cpu);
 	target_pstate = intel_pstate_prepare_request(cpu, target_pstate);
 	trace_cpu_frequency(target_pstate * cpu->pstate.scaling, cpu->cpu);
 	intel_pstate_update_pstate(cpu, target_pstate);
@@ -1547,12 +1549,8 @@ static void intel_pstate_update_util(struct update_util_data *data, u64 time,
 		return;
 
 set_pstate:
-	if (intel_pstate_sample(cpu, time)) {
-		int target_pstate;
-
-		target_pstate = get_target_pstate_use_cpu_load(cpu);
-		intel_pstate_adjust_pstate(cpu, target_pstate);
-	}
+	if (intel_pstate_sample(cpu, time))
+		intel_pstate_adjust_pstate(cpu);
 }
 
 static struct pstate_funcs core_funcs = {
