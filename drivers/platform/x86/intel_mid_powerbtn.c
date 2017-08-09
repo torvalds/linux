@@ -142,8 +142,10 @@ static int mid_pb_probe(struct platform_device *pdev)
 	if (!id)
 		return -ENODEV;
 
-	if (irq < 0)
-		return -EINVAL;
+	if (irq < 0) {
+		dev_err(&pdev->dev, "Failed to get IRQ: %d\n", irq);
+		return irq;
+	}
 
 	input = devm_input_allocate_device(&pdev->dev);
 	if (!input)
