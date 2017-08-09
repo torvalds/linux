@@ -237,14 +237,14 @@ static void dm_end_request(struct request *clone, blk_status_t error)
 /*
  * Requeue the original request of a clone.
  */
-static void dm_old_requeue_request(struct request *rq)
+static void dm_old_requeue_request(struct request *rq, unsigned long delay_ms)
 {
 	struct request_queue *q = rq->q;
 	unsigned long flags;
 
 	spin_lock_irqsave(q->queue_lock, flags);
 	blk_requeue_request(q, rq);
-	blk_run_queue_async(q);
+	blk_delay_queue(q, delay_ms);
 	spin_unlock_irqrestore(q->queue_lock, flags);
 }
 
@@ -270,6 +270,7 @@ static void dm_requeue_original_request(struct dm_rq_target_io *tio, bool delay_
 	struct mapped_device *md = tio->md;
 	struct request *rq = tio->orig;
 	int rw = rq_data_dir(rq);
+	unsigned long delay_ms = delay_requeue ? 100 : 0;
 
 	rq_end_stats(md, rq);
 	if (tio->clone) {
@@ -278,9 +279,9 @@ static void dm_requeue_original_request(struct dm_rq_target_io *tio, bool delay_
 	}
 
 	if (!rq->q->mq_ops)
-		dm_old_requeue_request(rq);
+		dm_old_requeue_request(rq, delay_ms);
 	else
-		dm_mq_delay_requeue_request(rq, delay_requeue ? 100/*ms*/ : 0);
+		dm_mq_delay_requeue_request(rq, delay_ms);
 
 	rq_completed(md, rw, false);
 }
