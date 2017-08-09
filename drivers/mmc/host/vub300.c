@@ -266,7 +266,7 @@ MODULE_PARM_DESC(firmware_rom_wait_states,
 #define ELAN_VENDOR_ID		0x2201
 #define VUB300_VENDOR_ID	0x0424
 #define VUB300_PRODUCT_ID	0x012C
-static struct usb_device_id vub300_table[] = {
+static const struct usb_device_id vub300_table[] = {
 	{USB_DEVICE(ELAN_VENDOR_ID, VUB300_PRODUCT_ID)},
 	{USB_DEVICE(VUB300_VENDOR_ID, VUB300_PRODUCT_ID)},
 	{} /* Terminating entry */
