@@ -76,6 +76,7 @@ static struct netvsc_device *alloc_net_device(void)
 	net_device->max_pkt = RNDIS_MAX_PKT_DEFAULT;
 	net_device->pkt_align = RNDIS_PKT_ALIGN_DEFAULT;
 	init_completion(&net_device->channel_init_wait);
+	init_waitqueue_head(&net_device->subchan_open);
 
 	return net_device;
 }
@@ -1268,6 +1269,8 @@ struct netvsc_device *netvsc_device_add(struct hv_device *device,
 
 		nvchan->channel = device->channel;
 		nvchan->net_device = net_device;
+		u64_stats_init(&nvchan->tx_stats.syncp);
+		u64_stats_init(&nvchan->rx_stats.syncp);
 	}
 
 	/* Enable NAPI handler before init callbacks */

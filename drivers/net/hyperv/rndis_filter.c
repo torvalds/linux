@@ -1050,8 +1050,8 @@ static void netvsc_sc_open(struct vmbus_channel *new_sc)
 	else
 		netif_napi_del(&nvchan->napi);
 
-	if (refcount_dec_and_test(&nvscdev->sc_offered))
-		complete(&nvscdev->channel_init_wait);
+	atomic_inc(&nvscdev->open_chn);
+	wake_up(&nvscdev->subchan_open);
 }
 
 struct netvsc_device *rndis_filter_device_add(struct hv_device *dev,
@@ -1090,8 +1090,6 @@ struct netvsc_device *rndis_filter_device_add(struct hv_device *dev,
 	/* Initialize the rndis device */
 	net_device->max_chn = 1;
 	net_device->num_chn = 1;
-
-	refcount_set(&net_device->sc_offered, 0);
 
 	net_device->extension = rndis_device;
 	rndis_device->ndev = net;
@@ -1216,6 +1214,7 @@ struct netvsc_device *rndis_filter_device_add(struct hv_device *dev,
 		rndis_device->ind_table[i] = ethtool_rxfh_indir_default(i,
 							net_device->num_chn);
 
+	atomic_set(&net_device->open_chn, 1);
 	num_rss_qs = net_device->num_chn - 1;
 	if (num_rss_qs == 0)
 		return net_device;
@@ -1229,7 +1228,6 @@ struct netvsc_device *rndis_filter_device_add(struct hv_device *dev,
 		}
 	}
 
-	refcount_set(&net_device->sc_offered, num_rss_qs);
 	vmbus_set_sc_create_callback(dev->channel, netvsc_sc_open);
 
 	init_packet = &net_device->channel_init_pkt;
@@ -1246,14 +1244,18 @@ struct netvsc_device *rndis_filter_device_add(struct hv_device *dev,
 	if (ret)
 		goto out;
 
+	wait_for_completion(&net_device->channel_init_wait);
 	if (init_packet->msg.v5_msg.subchn_comp.status != NVSP_STAT_SUCCESS) {
 		ret = -ENODEV;
 		goto out;
 	}
-	wait_for_completion(&net_device->channel_init_wait);
 
 	net_device->num_chn = 1 +
 		init_packet->msg.v5_msg.subchn_comp.num_subchannels;
+
+	/* wait for all sub channels to open */
+	wait_event(net_device->subchan_open,
+		   atomic_read(&net_device->open_chn) == net_device->num_chn);
 
 	/* ignore failues from setting rss parameters, still have channels */
 	rndis_filter_set_rss_param(rndis_device, netvsc_hash_key,

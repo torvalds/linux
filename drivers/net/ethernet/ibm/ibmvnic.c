@@ -111,6 +111,7 @@ static void send_request_map(struct ibmvnic_adapter *, dma_addr_t, __be32, u8);
 static void send_request_unmap(struct ibmvnic_adapter *, u8);
 static void send_login(struct ibmvnic_adapter *adapter);
 static void send_cap_queries(struct ibmvnic_adapter *adapter);
+static int init_sub_crqs(struct ibmvnic_adapter *);
 static int init_sub_crq_irqs(struct ibmvnic_adapter *adapter);
 static int ibmvnic_init(struct ibmvnic_adapter *);
 static void release_crq_queue(struct ibmvnic_adapter *);
@@ -676,6 +677,7 @@ static int ibmvnic_login(struct net_device *netdev)
 	struct ibmvnic_adapter *adapter = netdev_priv(netdev);
 	unsigned long timeout = msecs_to_jiffies(30000);
 	struct device *dev = &adapter->vdev->dev;
+	int rc;
 
 	do {
 		if (adapter->renegotiate) {
@@ -687,6 +689,18 @@ static int ibmvnic_login(struct net_device *netdev)
 			if (!wait_for_completion_timeout(&adapter->init_done,
 							 timeout)) {
 				dev_err(dev, "Capabilities query timeout\n");
+				return -1;
+			}
+			rc = init_sub_crqs(adapter);
+			if (rc) {
+				dev_err(dev,
+					"Initialization of SCRQ's failed\n");
+				return -1;
+			}
+			rc = init_sub_crq_irqs(adapter);
+			if (rc) {
+				dev_err(dev,
+					"Initialization of SCRQ's irqs failed\n");
 				return -1;
 			}
 		}
@@ -3106,7 +3120,6 @@ static void handle_request_cap_rsp(union ibmvnic_crq *crq,
 			 *req_value,
 			 (long int)be64_to_cpu(crq->request_capability_rsp.
 					       number), name);
-		release_sub_crqs(adapter);
 		*req_value = be64_to_cpu(crq->request_capability_rsp.number);
 		ibmvnic_send_req_caps(adapter, 1);
 		return;

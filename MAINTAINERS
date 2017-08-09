@@ -1161,7 +1161,7 @@ M:	Brendan Higgins <brendanhiggins@google.com>
 R:	Benjamin Herrenschmidt <benh@kernel.crashing.org>
 R:	Joel Stanley <joel@jms.id.au>
 L:	linux-i2c@vger.kernel.org
-L:	openbmc@lists.ozlabs.org
+L:	openbmc@lists.ozlabs.org (moderated for non-subscribers)
 S:	Maintained
 F:	drivers/irqchip/irq-aspeed-i2c-ic.c
 F:	drivers/i2c/busses/i2c-aspeed.c
@@ -5835,7 +5835,7 @@ F:	drivers/staging/greybus/spi.c
 F:	drivers/staging/greybus/spilib.c
 F:	drivers/staging/greybus/spilib.h
 
-GREYBUS LOOBACK/TIME PROTOCOLS DRIVERS
+GREYBUS LOOPBACK/TIME PROTOCOLS DRIVERS
 M:	Bryan O'Donoghue <pure.logic@nexus-software.ie>
 S:	Maintained
 F:	drivers/staging/greybus/loopback.c
