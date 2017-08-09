@@ -453,6 +453,36 @@
 			#clock-cells = <1>;
 		};
 
+		i2s0: i2s@1482000 {
+			compatible = "zte,zx296718-i2s", "zte,zx296702-i2s";
+			reg = <0x01482000 0x1000>;
+			clocks = <&audiocrm AUDIO_I2S0_WCLK>,
+				 <&audiocrm AUDIO_I2S0_PCLK>;
+			clock-names = "wclk", "pclk";
+			interrupts = <GIC_SPI 60 IRQ_TYPE_LEVEL_HIGH>;
+			dmas = <&dma 22>, <&dma 23>;
+			dma-names = "tx", "rx";
+			#sound-dai-cells = <0>;
+			status = "disabled";
+		};
+
+		i2c0: i2c@1486000 {
+			compatible = "zte,zx296718-i2c";
+			reg = <0x01486000 0x1000>;
+			interrupts = <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			clocks = <&audiocrm AUDIO_I2C0_WCLK>;
+			clock-frequency = <1600000>;
+			status = "disabled";
+
+			aud96p22: codec@22 {
+				compatible = "zte,zx-aud96p22";
+				#sound-dai-cells = <0>;
+				reg = <0x22>;
+			};
+		};
+
 		spdif0: spdif@1488000 {
 			compatible = "zte,zx296702-spdif";
 			reg = <0x1488000 0x1000>;
