@@ -169,16 +169,14 @@ static void update_num_audio(
 	unsigned int *num_audio,
 	struct audio_support *aud_support)
 {
+	aud_support->dp_audio = true;
+	aud_support->hdmi_audio_native = false;
+	aud_support->hdmi_audio_on_dongle = false;
+
 	if (straps->hdmi_disable == 0) {
-		aud_support->hdmi_audio_native = true;
-		aud_support->hdmi_audio_on_dongle = true;
-		aud_support->dp_audio = true;
-	} else {
 		if (straps->dc_pinstraps_audio & 0x2) {
 			aud_support->hdmi_audio_on_dongle = true;
-			aud_support->dp_audio = true;
-		} else {
-			aud_support->dp_audio = true;
+			aud_support->hdmi_audio_native = true;
 		}
 	}
 

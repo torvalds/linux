@@ -1288,6 +1288,8 @@ void dce110_link_encoder_disable_output(
 		/* OF_SKIP_POWER_DOWN_INACTIVE_ENCODER */
 		return;
 	}
+	if (enc110->base.connector.id == CONNECTOR_ID_EDP)
+		dce110_link_encoder_edp_backlight_control(enc, false);
 	/* Power-down RX and disable GPU PHY should be paired.
 	 * Disabling PHY without powering down RX may cause
 	 * symbol lock loss, on which we will get DP Sink interrupt. */

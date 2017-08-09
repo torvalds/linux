@@ -62,7 +62,7 @@ struct display_clock {
 };
 
 struct display_clock_funcs {
-	void (*set_clock)(struct display_clock *disp_clk,
+	int (*set_clock)(struct display_clock *disp_clk,
 		int requested_clock_khz);
 
 	enum dm_pp_clocks_state (*get_required_clocks_state)(
