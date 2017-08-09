@@ -10,6 +10,7 @@
 #define __ASM_SIMD_H
 
 #include <linux/compiler.h>
+#include <linux/irqflags.h>
 #include <linux/percpu.h>
 #include <linux/preempt.h>
 #include <linux/types.h>
@@ -40,7 +41,8 @@ static __must_check inline bool may_use_simd(void)
 	 * can't migrate to another CPU and spuriously see it become
 	 * false.
 	 */
-	return !in_irq() && !in_nmi() && !raw_cpu_read(kernel_neon_busy);
+	return !in_irq() && !irqs_disabled() && !in_nmi() &&
+		!raw_cpu_read(kernel_neon_busy);
 }
 
 #else /* ! CONFIG_KERNEL_MODE_NEON */
