@@ -767,10 +767,45 @@ int esw_offloads_init_reps(struct mlx5_eswitch *esw)
 	return 0;
 }
 
-int esw_offloads_init(struct mlx5_eswitch *esw, int nvports)
+static void esw_offloads_unload_reps(struct mlx5_eswitch *esw, int nvports)
 {
 	struct mlx5_eswitch_rep *rep;
 	int vport;
+
+	for (vport = nvports - 1; vport >= 0; vport--) {
+		rep = &esw->offloads.vport_reps[vport];
+		if (!rep->valid)
+			continue;
+
+		rep->unload(esw, rep);
+	}
+}
+
+static int esw_offloads_load_reps(struct mlx5_eswitch *esw, int nvports)
+{
+	struct mlx5_eswitch_rep *rep;
+	int vport;
+	int err;
+
+	for (vport = 0; vport < nvports; vport++) {
+		rep = &esw->offloads.vport_reps[vport];
+		if (!rep->valid)
+			continue;
+
+		err = rep->load(esw, rep);
+		if (err)
+			goto err_reps;
+	}
+
+	return 0;
+
+err_reps:
+	esw_offloads_unload_reps(esw, vport);
+	return err;
+}
+
+int esw_offloads_init(struct mlx5_eswitch *esw, int nvports)
+{
 	int err;
 
 	/* disable PF RoCE so missed packets don't go through RoCE steering */
@@ -790,25 +825,13 @@ int esw_offloads_init(struct mlx5_eswitch *esw, int nvports)
 	if (err)
 		goto create_fg_err;
 
-	for (vport = 0; vport < nvports; vport++) {
-		rep = &esw->offloads.vport_reps[vport];
-		if (!rep->valid)
-			continue;
-
-		err = rep->load(esw, rep);
-		if (err)
-			goto err_reps;
-	}
+	err = esw_offloads_load_reps(esw, nvports);
+	if (err)
+		goto err_reps;
 
 	return 0;
 
 err_reps:
-	for (vport--; vport >= 0; vport--) {
-		rep = &esw->offloads.vport_reps[vport];
-		if (!rep->valid)
-			continue;
-		rep->unload(esw, rep);
-	}
 	esw_destroy_vport_rx_group(esw);
 
 create_fg_err:
@@ -849,16 +872,7 @@ static int esw_offloads_stop(struct mlx5_eswitch *esw)
 
 void esw_offloads_cleanup(struct mlx5_eswitch *esw, int nvports)
 {
-	struct mlx5_eswitch_rep *rep;
-	int vport;
-
-	for (vport = nvports - 1; vport >= 0; vport--) {
-		rep = &esw->offloads.vport_reps[vport];
-		if (!rep->valid)
-			continue;
-		rep->unload(esw, rep);
-	}
-
+	esw_offloads_unload_reps(esw, nvports);
 	esw_destroy_vport_rx_group(esw);
 	esw_destroy_offloads_table(esw);
 	esw_destroy_offloads_fdb_tables(esw);
