@@ -291,8 +291,8 @@ static void iwl_mvm_rx_agg_session_expired(unsigned long data)
 		goto unlock;
 
 	mvm_sta = iwl_mvm_sta_from_mac80211(sta);
-	ieee80211_stop_rx_ba_session_offl(mvm_sta->vif,
-					  sta->addr, ba_data->tid);
+	ieee80211_rx_ba_timer_expired(mvm_sta->vif,
+				      sta->addr, ba_data->tid);
 unlock:
 	rcu_read_unlock();
 }
