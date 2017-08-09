@@ -1102,7 +1102,7 @@ xlog_verify_tail(
 	first_bad = 0;
 	error = xlog_do_recovery_pass(log, head_blk, *tail_blk,
 				      XLOG_RECOVER_CRCPASS, &first_bad);
-	while (error == -EFSBADCRC && first_bad) {
+	while ((error == -EFSBADCRC || error == -EFSCORRUPTED) && first_bad) {
 		int	tail_distance;
 
 		/*
@@ -1188,7 +1188,7 @@ xlog_verify_head(
 	 */
 	error = xlog_do_recovery_pass(log, *head_blk, tmp_rhead_blk,
 				      XLOG_RECOVER_CRCPASS, &first_bad);
-	if (error == -EFSBADCRC) {
+	if ((error == -EFSBADCRC || error == -EFSCORRUPTED) && first_bad) {
 		/*
 		 * We've hit a potential torn write. Reset the error and warn
 		 * about it.
@@ -5257,7 +5257,7 @@ xlog_do_recovery_pass(
 	LIST_HEAD		(buffer_list);
 
 	ASSERT(head_blk != tail_blk);
-	rhead_blk = 0;
+	blk_no = rhead_blk = tail_blk;
 
 	for (i = 0; i < XLOG_RHASH_SIZE; i++)
 		INIT_HLIST_HEAD(&rhash[i]);
@@ -5335,7 +5335,6 @@ xlog_do_recovery_pass(
 	}
 
 	memset(rhash, 0, sizeof(rhash));
-	blk_no = rhead_blk = tail_blk;
 	if (tail_blk > head_blk) {
 		/*
 		 * Perform recovery around the end of the physical log.
