@@ -144,7 +144,6 @@ static void watchdog_smp_panic(int cpu, u64 tb)
 	for_each_cpu(c, &wd_smp_cpus_pending)
 		set_cpu_stuck(c, tb);
 
-out:
 	wd_smp_unlock(&flags);
 
 	printk_safe_flush();
@@ -157,6 +156,11 @@ out:
 
 	if (hardlockup_panic)
 		nmi_panic(NULL, "Hard LOCKUP");
+
+	return;
+
+out:
+	wd_smp_unlock(&flags);
 }
 
 static void wd_smp_clear_cpu_pending(int cpu, u64 tb)
