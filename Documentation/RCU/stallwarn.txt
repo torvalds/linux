@@ -40,7 +40,9 @@ o	Booting Linux using a console connection that is too slow to
 o	Anything that prevents RCU's grace-period kthreads from running.
 	This can result in the "All QSes seen" console-log message.
 	This message will include information on when the kthread last
-	ran and how often it should be expected to run.
+	ran and how often it should be expected to run.  It can also
+	result in the "rcu_.*kthread starved for" console-log message,
+	which will include additional debugging information.
 
 o	A CPU-bound real-time task in a CONFIG_PREEMPT kernel, which might
 	happen to preempt a low-priority task in the middle of an RCU
@@ -59,6 +61,14 @@ o	A CPU-bound real-time task in a CONFIG_PREEMPT_RT kernel that
 	system will eventually run out of memory and hang.  In the
 	CONFIG_PREEMPT_RCU case, you might see stall-warning
 	messages.
+
+o	A periodic interrupt whose handler takes longer than the time
+	interval between successive pairs of interrupts.  This can
+	prevent RCU's kthreads and softirq handlers from running.
+	Note that certain high-overhead debugging options, for example
+	the function_graph tracer, can result in interrupt handler taking
+	considerably longer than normal, which can in turn result in
+	RCU CPU stall warnings.
 
 o	A hardware or software issue shuts off the scheduler-clock
 	interrupt on a CPU that is not in dyntick-idle mode.  This
