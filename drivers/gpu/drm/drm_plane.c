@@ -601,6 +601,7 @@ int drm_mode_setplane(struct drm_device *dev, void *data,
 
 		crtc = drm_crtc_find(dev, plane_req->crtc_id);
 		if (!crtc) {
+			drm_framebuffer_put(fb);
 			DRM_DEBUG_KMS("Unknown crtc ID %d\n",
 				      plane_req->crtc_id);
 			return -ENOENT;
