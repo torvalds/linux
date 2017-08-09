@@ -325,6 +325,21 @@ xfs_ail_delete(
 	xfs_trans_ail_cursor_clear(ailp, lip);
 }
 
+static inline uint
+xfsaild_push_item(
+	struct xfs_ail		*ailp,
+	struct xfs_log_item	*lip)
+{
+	/*
+	 * If log item pinning is enabled, skip the push and track the item as
+	 * pinned. This can help induce head-behind-tail conditions.
+	 */
+	if (XFS_TEST_ERROR(false, ailp->xa_mount, XFS_ERRTAG_LOG_ITEM_PIN))
+		return XFS_ITEM_PINNED;
+
+	return lip->li_ops->iop_push(lip, &ailp->xa_buf_list);
+}
+
 static long
 xfsaild_push(
 	struct xfs_ail		*ailp)
@@ -382,7 +397,7 @@ xfsaild_push(
 		 * rely on the AIL cursor implementation to be able to deal with
 		 * the dropped lock.
 		 */
-		lock_result = lip->li_ops->iop_push(lip, &ailp->xa_buf_list);
+		lock_result = xfsaild_push_item(ailp, lip);
 		switch (lock_result) {
 		case XFS_ITEM_SUCCESS:
 			XFS_STATS_INC(mp, xs_push_ail_success);
