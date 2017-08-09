@@ -154,7 +154,7 @@ static unsigned char ns_phy_get(struct atm_dev *dev, unsigned long addr);
 
 static struct ns_dev *cards[NS_MAX_CARDS];
 static unsigned num_cards;
-static struct atmdev_ops atm_ops = {
+static const struct atmdev_ops atm_ops = {
 	.open = ns_open,
 	.close = ns_close,
 	.ioctl = ns_ioctl,

@@ -1187,7 +1187,7 @@ static int psend(struct atm_vcc *vcc, struct sk_buff *skb)
 	return 0;
 }
 
-static struct atmdev_ops fpga_ops = {
+static const struct atmdev_ops fpga_ops = {
 	.open =		popen,
 	.close =	pclose,
 	.ioctl =	NULL,

@@ -161,7 +161,7 @@ static unsigned int clocktab[] = {
 	CLK_LOW
 };     
 
-static struct atmdev_ops he_ops =
+static const struct atmdev_ops he_ops =
 {
 	.open =		he_open,
 	.close =	he_close,	

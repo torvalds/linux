@@ -130,7 +130,7 @@ adummy_proc_read(struct atm_dev *dev, loff_t *pos, char *page)
 	return 0;
 }
 
-static struct atmdev_ops adummy_ops =
+static const struct atmdev_ops adummy_ops =
 {
 	.open =		adummy_open,
 	.close =	adummy_close,	
