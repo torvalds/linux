@@ -933,9 +933,6 @@ static int dm_crypt_integrity_io_alloc(struct dm_crypt_io *io, struct bio *bio)
 	bip->bip_iter.bi_size = tag_len;
 	bip->bip_iter.bi_sector = io->cc->start + io->sector;
 
-	/* We own the metadata, do not let bio_free to release it */
-	bip->bip_flags &= ~BIP_BLOCK_INTEGRITY;
-
 	ret = bio_integrity_add_page(bio, virt_to_page(io->integrity_metadata),
 				     tag_len, offset_in_page(io->integrity_metadata));
 	if (unlikely(ret != tag_len))
