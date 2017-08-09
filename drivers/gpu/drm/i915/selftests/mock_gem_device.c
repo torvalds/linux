@@ -226,7 +226,7 @@ struct drm_i915_private *mock_gem_device(void)
 	mutex_unlock(&i915->drm.struct_mutex);
 
 	mkwrite_device_info(i915)->ring_mask = BIT(0);
-	i915->engine[RCS] = mock_engine(i915, "mock");
+	i915->engine[RCS] = mock_engine(i915, "mock", RCS);
 	if (!i915->engine[RCS])
 		goto err_priorities;
 
