@@ -435,6 +435,8 @@ struct iommu_domain;
 struct irq_domain;
 struct amd_irte_ops;
 
+#define AMD_IOMMU_FLAG_TRANS_PRE_ENABLED      (1 << 0)
+
 /*
  * This structure contains generic data for  IOMMU protection domains
  * independent of their use.
@@ -569,6 +571,7 @@ struct amd_iommu {
 	struct amd_irte_ops *irte_ops;
 #endif
 
+	u32 flags;
 	volatile u64 __aligned(8) cmd_sem;
 };
 
