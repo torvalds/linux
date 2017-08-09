@@ -1273,8 +1273,13 @@ static inline void skb_zcopy_clear(struct sk_buff *skb, bool zerocopy)
 	struct ubuf_info *uarg = skb_zcopy(skb);
 
 	if (uarg) {
-		uarg->zerocopy = uarg->zerocopy && zerocopy;
-		sock_zerocopy_put(uarg);
+		if (uarg->callback == sock_zerocopy_callback) {
+			uarg->zerocopy = uarg->zerocopy && zerocopy;
+			sock_zerocopy_put(uarg);
+		} else {
+			uarg->callback(uarg, zerocopy);
+		}
+
 		skb_shinfo(skb)->tx_flags &= ~SKBTX_ZEROCOPY_FRAG;
 	}
 }
