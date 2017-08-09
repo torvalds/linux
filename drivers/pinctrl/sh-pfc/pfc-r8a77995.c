@@ -23,7 +23,7 @@
 		PORT_GP_9(0,  fn, sfx),		\
 		PORT_GP_32(1, fn, sfx),		\
 		PORT_GP_32(2, fn, sfx),		\
-		PORT_GP_10(3, fn, sfx),		\
+		PORT_GP_CFG_10(3,  fn, sfx, SH_PFC_PIN_CFG_IO_VOLTAGE),	\
 		PORT_GP_32(4, fn, sfx),		\
 		PORT_GP_21(5, fn, sfx),		\
 		PORT_GP_14(6, fn, sfx)
@@ -1775,8 +1775,25 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 	{ },
 };
 
+static int r8a77995_pin_to_pocctrl(struct sh_pfc *pfc, unsigned int pin, u32 *pocctrl)
+{
+	int bit = -EINVAL;
+
+	*pocctrl = 0xe6060380;
+
+	if (pin >= RCAR_GP_PIN(3, 0) && pin <= RCAR_GP_PIN(3, 9))
+		bit = 29 - (pin - RCAR_GP_PIN(3, 0));
+
+	return bit;
+}
+
+static const struct sh_pfc_soc_operations r8a77995_pinmux_ops = {
+	.pin_to_pocctrl = r8a77995_pin_to_pocctrl,
+};
+
 const struct sh_pfc_soc_info r8a77995_pinmux_info = {
 	.name = "r8a77995_pfc",
+	.ops = &r8a77995_pinmux_ops,
 	.unlock_reg = 0xe6060000, /* PMMR */
 
 	.function = { PINMUX_FUNCTION_BEGIN, PINMUX_FUNCTION_END },
