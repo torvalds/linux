@@ -730,7 +730,7 @@ xprt_rdma_send_request(struct rpc_task *task)
 	if (unlikely(!list_empty(&req->rl_registered)))
 		r_xprt->rx_ia.ri_ops->ro_unmap_safe(r_xprt, req, false);
 
-	rc = rpcrdma_marshal_req(rqst);
+	rc = rpcrdma_marshal_req(r_xprt, rqst);
 	if (rc < 0)
 		goto failed_marshal;
 
