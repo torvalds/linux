@@ -726,7 +726,6 @@ static int rsnd_soc_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	case 2:
 	case 6:
 	case 8:
-	case 16:
 		/* TDM Extend Mode */
 		rsnd_rdai_channels_set(rdai, slots);
 		rsnd_rdai_ssi_lane_set(rdai, 1);
@@ -740,7 +739,7 @@ static int rsnd_soc_set_dai_tdm_slot(struct snd_soc_dai *dai,
 }
 
 static unsigned int rsnd_soc_hw_channels_list[] = {
-	2, 6, 8, 16,
+	2, 6, 8,
 };
 
 static unsigned int rsnd_soc_hw_rate_list[] = {
@@ -1025,7 +1024,7 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 	drv->playback.rates		= RSND_RATES;
 	drv->playback.formats		= RSND_FMTS;
 	drv->playback.channels_min	= 2;
-	drv->playback.channels_max	= 16;
+	drv->playback.channels_max	= 8;
 	drv->playback.stream_name	= rdai->playback.name;
 
 	snprintf(rdai->capture.name, RSND_DAI_NAME_SIZE,
@@ -1033,7 +1032,7 @@ static void __rsnd_dai_probe(struct rsnd_priv *priv,
 	drv->capture.rates		= RSND_RATES;
 	drv->capture.formats		= RSND_FMTS;
 	drv->capture.channels_min	= 2;
-	drv->capture.channels_max	= 16;
+	drv->capture.channels_max	= 8;
 	drv->capture.stream_name	= rdai->capture.name;
 
 	rdai->playback.rdai		= rdai;
