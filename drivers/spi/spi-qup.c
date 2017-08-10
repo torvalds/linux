@@ -427,8 +427,6 @@ static u32 spi_qup_sgl_get_nents_len(struct scatterlist *sgl, u32 max,
 	struct scatterlist *sg;
 	u32 total = 0;
 
-	*nents = 0;
-
 	for (sg = sgl; sg; sg = sg_next(sg)) {
 		unsigned int len = sg_dma_len(sg);
 
@@ -461,7 +459,7 @@ static int spi_qup_do_dma(struct spi_device *spi, struct spi_transfer *xfer,
 	tx_sgl = xfer->tx_sg.sgl;
 
 	do {
-		u32 rx_nents, tx_nents;
+		u32 rx_nents = 0, tx_nents = 0;
 
 		if (rx_sgl)
 			qup->n_words = spi_qup_sgl_get_nents_len(rx_sgl,
