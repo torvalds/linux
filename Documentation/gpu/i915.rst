@@ -480,5 +480,3 @@ specific details than found in the more high-level sections.
 
 .. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
    :internal:
-
-.. WARNING: DOCPROC directive not supported: !Cdrivers/gpu/drm/i915/i915_irq.c
