@@ -325,6 +325,7 @@ struct diag_pkt {
 #define HFI1_LRH_BTH 0x0002      /* 1. word of IB LRH - next header: BTH */
 
 /* misc. */
+#define SC15_PACKET 0xF
 #define SIZE_OF_CRC 1
 
 #define LIM_MGMT_P_KEY       0x7FFF

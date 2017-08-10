@@ -69,6 +69,7 @@
 #define ALT_FW_FABRIC_NAME "hfi1_fabric_d.fw"
 #define ALT_FW_SBUS_NAME "hfi1_sbus_d.fw"
 #define ALT_FW_PCIE_NAME "hfi1_pcie_d.fw"
+#define HOST_INTERFACE_VERSION 1
 
 static uint fw_8051_load = 1;
 static uint fw_fabric_serdes_load = 1;
@@ -615,6 +616,14 @@ retry:
 		fw_fabric_serdes_name = ALT_FW_FABRIC_NAME;
 		fw_sbus_name = ALT_FW_SBUS_NAME;
 		fw_pcie_serdes_name = ALT_FW_PCIE_NAME;
+
+		/*
+		 * Add a delay before obtaining and loading debug firmware.
+		 * Authorization will fail if the delay between firmware
+		 * authorization events is shorter than 50us. Add 100us to
+		 * make a delay time safe.
+		 */
+		usleep_range(100, 120);
 	}
 
 	if (fw_sbus_load) {
@@ -1079,6 +1088,13 @@ static int load_8051_firmware(struct hfi1_devdata *dd,
 	dd_dev_info(dd, "8051 firmware version %d.%d.%d\n",
 		    (int)ver_major, (int)ver_minor, (int)ver_patch);
 	dd->dc8051_ver = dc8051_ver(ver_major, ver_minor, ver_patch);
+	ret = write_host_interface_version(dd, HOST_INTERFACE_VERSION);
+	if (ret != HCMD_SUCCESS) {
+		dd_dev_err(dd,
+			   "Failed to set host interface version, return 0x%x\n",
+			   ret);
+		return -EIO;
+	}
 
 	return 0;
 }

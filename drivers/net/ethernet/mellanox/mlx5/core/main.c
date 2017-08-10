@@ -47,6 +47,7 @@
 #include <linux/debugfs.h>
 #include <linux/kmod.h>
 #include <linux/mlx5/mlx5_ifc.h>
+#include <linux/mlx5/vport.h>
 #ifdef CONFIG_RFS_ACCEL
 #include <linux/cpu_rmap.h>
 #endif
@@ -577,6 +578,18 @@ static int set_hca_ctrl(struct mlx5_core_dev *dev)
 					&he_out, sizeof(he_out),
 					MLX5_REG_HOST_ENDIANNESS, 0, 1);
 	return err;
+}
+
+static int mlx5_core_set_hca_defaults(struct mlx5_core_dev *dev)
+{
+	int ret = 0;
+
+	/* Disable local_lb by default */
+	if ((MLX5_CAP_GEN(dev, port_type) == MLX5_CAP_PORT_TYPE_ETH) &&
+	    MLX5_CAP_GEN(dev, disable_local_lb))
+		ret = mlx5_nic_vport_update_local_lb(dev, false);
+
+	return ret;
 }
 
 int mlx5_core_enable_hca(struct mlx5_core_dev *dev, u16 func_id)
@@ -1152,6 +1165,12 @@ static int mlx5_load_one(struct mlx5_core_dev *dev, struct mlx5_priv *priv,
 	err = mlx5_init_fs(dev);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to init flow steering\n");
+		goto err_fs;
+	}
+
+	err = mlx5_core_set_hca_defaults(dev);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to set hca defaults\n");
 		goto err_fs;
 	}
 

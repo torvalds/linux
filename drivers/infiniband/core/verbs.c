@@ -1244,6 +1244,18 @@ int ib_resolve_eth_dmac(struct ib_device *device,
 	if (rdma_link_local_addr((struct in6_addr *)grh->dgid.raw)) {
 		rdma_get_ll_mac((struct in6_addr *)grh->dgid.raw,
 				ah_attr->roce.dmac);
+		return 0;
+	}
+	if (rdma_is_multicast_addr((struct in6_addr *)ah_attr->grh.dgid.raw)) {
+		if (ipv6_addr_v4mapped((struct in6_addr *)ah_attr->grh.dgid.raw)) {
+			__be32 addr = 0;
+
+			memcpy(&addr, ah_attr->grh.dgid.raw + 12, 4);
+			ip_eth_mc_map(addr, (char *)ah_attr->roce.dmac);
+		} else {
+			ipv6_eth_mc_map((struct in6_addr *)ah_attr->grh.dgid.raw,
+					(char *)ah_attr->roce.dmac);
+		}
 	} else {
 		union ib_gid		sgid;
 		struct ib_gid_attr	sgid_attr;
@@ -1301,6 +1313,61 @@ int ib_modify_qp_with_udata(struct ib_qp *qp, struct ib_qp_attr *attr,
 	return ib_security_modify_qp(qp, attr, attr_mask, udata);
 }
 EXPORT_SYMBOL(ib_modify_qp_with_udata);
+
+int ib_get_eth_speed(struct ib_device *dev, u8 port_num, u8 *speed, u8 *width)
+{
+	int rc;
+	u32 netdev_speed;
+	struct net_device *netdev;
+	struct ethtool_link_ksettings lksettings;
+
+	if (rdma_port_get_link_layer(dev, port_num) != IB_LINK_LAYER_ETHERNET)
+		return -EINVAL;
+
+	if (!dev->get_netdev)
+		return -EOPNOTSUPP;
+
+	netdev = dev->get_netdev(dev, port_num);
+	if (!netdev)
+		return -ENODEV;
+
+	rtnl_lock();
+	rc = __ethtool_get_link_ksettings(netdev, &lksettings);
+	rtnl_unlock();
+
+	dev_put(netdev);
+
+	if (!rc) {
+		netdev_speed = lksettings.base.speed;
+	} else {
+		netdev_speed = SPEED_1000;
+		pr_warn("%s speed is unknown, defaulting to %d\n", netdev->name,
+			netdev_speed);
+	}
+
+	if (netdev_speed <= SPEED_1000) {
+		*width = IB_WIDTH_1X;
+		*speed = IB_SPEED_SDR;
+	} else if (netdev_speed <= SPEED_10000) {
+		*width = IB_WIDTH_1X;
+		*speed = IB_SPEED_FDR10;
+	} else if (netdev_speed <= SPEED_20000) {
+		*width = IB_WIDTH_4X;
+		*speed = IB_SPEED_DDR;
+	} else if (netdev_speed <= SPEED_25000) {
+		*width = IB_WIDTH_1X;
+		*speed = IB_SPEED_EDR;
+	} else if (netdev_speed <= SPEED_40000) {
+		*width = IB_WIDTH_4X;
+		*speed = IB_SPEED_FDR10;
+	} else {
+		*width = IB_WIDTH_4X;
+		*speed = IB_SPEED_EDR;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(ib_get_eth_speed);
 
 int ib_modify_qp(struct ib_qp *qp,
 		 struct ib_qp_attr *qp_attr,
@@ -1569,15 +1636,53 @@ EXPORT_SYMBOL(ib_dealloc_fmr);
 
 /* Multicast groups */
 
+static bool is_valid_mcast_lid(struct ib_qp *qp, u16 lid)
+{
+	struct ib_qp_init_attr init_attr = {};
+	struct ib_qp_attr attr = {};
+	int num_eth_ports = 0;
+	int port;
+
+	/* If QP state >= init, it is assigned to a port and we can check this
+	 * port only.
+	 */
+	if (!ib_query_qp(qp, &attr, IB_QP_STATE | IB_QP_PORT, &init_attr)) {
+		if (attr.qp_state >= IB_QPS_INIT) {
+			if (qp->device->get_link_layer(qp->device, attr.port_num) !=
+			    IB_LINK_LAYER_INFINIBAND)
+				return true;
+			goto lid_check;
+		}
+	}
+
+	/* Can't get a quick answer, iterate over all ports */
+	for (port = 0; port < qp->device->phys_port_cnt; port++)
+		if (qp->device->get_link_layer(qp->device, port) !=
+		    IB_LINK_LAYER_INFINIBAND)
+			num_eth_ports++;
+
+	/* If we have at lease one Ethernet port, RoCE annex declares that
+	 * multicast LID should be ignored. We can't tell at this step if the
+	 * QP belongs to an IB or Ethernet port.
+	 */
+	if (num_eth_ports)
+		return true;
+
+	/* If all the ports are IB, we can check according to IB spec. */
+lid_check:
+	return !(lid < be16_to_cpu(IB_MULTICAST_LID_BASE) ||
+		 lid == be16_to_cpu(IB_LID_PERMISSIVE));
+}
+
 int ib_attach_mcast(struct ib_qp *qp, union ib_gid *gid, u16 lid)
 {
 	int ret;
 
 	if (!qp->device->attach_mcast)
 		return -ENOSYS;
-	if (gid->raw[0] != 0xff || qp->qp_type != IB_QPT_UD ||
-	    lid < be16_to_cpu(IB_MULTICAST_LID_BASE) ||
-	    lid == be16_to_cpu(IB_LID_PERMISSIVE))
+
+	if (!rdma_is_multicast_addr((struct in6_addr *)gid->raw) ||
+	    qp->qp_type != IB_QPT_UD || !is_valid_mcast_lid(qp, lid))
 		return -EINVAL;
 
 	ret = qp->device->attach_mcast(qp, gid, lid);
@@ -1593,9 +1698,9 @@ int ib_detach_mcast(struct ib_qp *qp, union ib_gid *gid, u16 lid)
 
 	if (!qp->device->detach_mcast)
 		return -ENOSYS;
-	if (gid->raw[0] != 0xff || qp->qp_type != IB_QPT_UD ||
-	    lid < be16_to_cpu(IB_MULTICAST_LID_BASE) ||
-	    lid == be16_to_cpu(IB_LID_PERMISSIVE))
+
+	if (!rdma_is_multicast_addr((struct in6_addr *)gid->raw) ||
+	    qp->qp_type != IB_QPT_UD || !is_valid_mcast_lid(qp, lid))
 		return -EINVAL;
 
 	ret = qp->device->detach_mcast(qp, gid, lid);

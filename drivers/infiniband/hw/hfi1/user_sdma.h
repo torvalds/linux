@@ -56,8 +56,7 @@
 extern uint extended_psn;
 
 struct hfi1_user_sdma_pkt_q {
-	struct list_head list;
-	unsigned ctxt;
+	u16 ctxt;
 	u16 subctxt;
 	u16 n_max_reqs;
 	atomic_t n_reqs;
@@ -82,7 +81,8 @@ struct hfi1_user_sdma_comp_q {
 
 int hfi1_user_sdma_alloc_queues(struct hfi1_ctxtdata *uctxt,
 				struct hfi1_filedata *fd);
-int hfi1_user_sdma_free_queues(struct hfi1_filedata *fd);
+int hfi1_user_sdma_free_queues(struct hfi1_filedata *fd,
+			       struct hfi1_ctxtdata *uctxt);
 int hfi1_user_sdma_process_request(struct hfi1_filedata *fd,
 				   struct iovec *iovec, unsigned long dim,
 				   unsigned long *count);

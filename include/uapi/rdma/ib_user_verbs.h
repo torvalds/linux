@@ -578,7 +578,7 @@ struct ib_uverbs_ex_create_qp {
 	__u32 comp_mask;
 	__u32 create_flags;
 	__u32 rwq_ind_tbl_handle;
-	__u32  reserved1;
+	__u32  source_qpn;
 };
 
 struct ib_uverbs_open_qp {

@@ -1178,12 +1178,11 @@ static int mthca_port_immutable(struct ib_device *ibdev, u8 port_num,
 	return 0;
 }
 
-static void get_dev_fw_str(struct ib_device *device, char *str,
-			   size_t str_len)
+static void get_dev_fw_str(struct ib_device *device, char *str)
 {
 	struct mthca_dev *dev =
 		container_of(device, struct mthca_dev, ib_dev);
-	snprintf(str, str_len, "%d.%d.%d",
+	snprintf(str, IB_FW_VERSION_NAME_MAX, "%d.%d.%d",
 		 (int) (dev->fw_ver >> 32),
 		 (int) (dev->fw_ver >> 16) & 0xffff,
 		 (int) dev->fw_ver & 0xffff);

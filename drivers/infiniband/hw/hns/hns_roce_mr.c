@@ -32,6 +32,7 @@
  */
 
 #include <linux/platform_device.h>
+#include <linux/vmalloc.h>
 #include <rdma/ib_umem.h>
 #include "hns_roce_device.h"
 #include "hns_roce_cmd.h"

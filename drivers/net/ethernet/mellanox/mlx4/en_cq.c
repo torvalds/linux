@@ -140,6 +140,7 @@ int mlx4_en_activate_cq(struct mlx4_en_priv *priv, struct mlx4_en_cq *cq,
 	    (cq->type == RX && priv->hwtstamp_config.rx_filter))
 		timestamp_en = 1;
 
+	cq->mcq.usage = MLX4_RES_USAGE_DRIVER;
 	err = mlx4_cq_alloc(mdev->dev, cq->size, &cq->wqres.mtt,
 			    &mdev->priv_uar, cq->wqres.db.dma, &cq->mcq,
 			    cq->vector, 0, timestamp_en);

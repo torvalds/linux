@@ -58,8 +58,10 @@ static int qib_init_sge(struct rvt_qp *qp, struct rvt_rwqe *wqe)
 		if (wqe->sg_list[i].length == 0)
 			continue;
 		/* Check LKEY */
-		if (!rvt_lkey_ok(rkt, pd, j ? &ss->sg_list[j - 1] : &ss->sge,
-				 &wqe->sg_list[i], IB_ACCESS_LOCAL_WRITE))
+		ret = rvt_lkey_ok(rkt, pd, j ? &ss->sg_list[j - 1] : &ss->sge,
+				  NULL, &wqe->sg_list[i],
+				  IB_ACCESS_LOCAL_WRITE);
+		if (unlikely(ret <= 0))
 			goto bad_lkey;
 		qp->r_len += wqe->sg_list[i].length;
 		j++;
@@ -256,11 +258,11 @@ int qib_ruc_check_hdr(struct qib_ibport *ibp, struct ib_header *hdr,
 		}
 		if (!qib_pkey_ok((u16)bth0,
 				 qib_get_pkey(ibp, qp->s_alt_pkey_index))) {
-			qib_bad_pqkey(ibp, IB_NOTICE_TRAP_BAD_PKEY,
-				      (u16)bth0,
-				      (be16_to_cpu(hdr->lrh[0]) >> 4) & 0xF,
-				      0, qp->ibqp.qp_num,
-				      hdr->lrh[3], hdr->lrh[1]);
+			qib_bad_pkey(ibp,
+				     (u16)bth0,
+				     (be16_to_cpu(hdr->lrh[0]) >> 4) & 0xF,
+				     0, qp->ibqp.qp_num,
+				     hdr->lrh[3], hdr->lrh[1]);
 			goto err;
 		}
 		/* Validate the SLID. See Ch. 9.6.1.5 and 17.2.8 */
@@ -295,11 +297,11 @@ int qib_ruc_check_hdr(struct qib_ibport *ibp, struct ib_header *hdr,
 		}
 		if (!qib_pkey_ok((u16)bth0,
 				 qib_get_pkey(ibp, qp->s_pkey_index))) {
-			qib_bad_pqkey(ibp, IB_NOTICE_TRAP_BAD_PKEY,
-				      (u16)bth0,
-				      (be16_to_cpu(hdr->lrh[0]) >> 4) & 0xF,
-				      0, qp->ibqp.qp_num,
-				      hdr->lrh[3], hdr->lrh[1]);
+			qib_bad_pkey(ibp,
+				     (u16)bth0,
+				     (be16_to_cpu(hdr->lrh[0]) >> 4) & 0xF,
+				     0, qp->ibqp.qp_num,
+				     hdr->lrh[3], hdr->lrh[1]);
 			goto err;
 		}
 		/* Validate the SLID. See Ch. 9.6.1.5 */

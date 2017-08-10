@@ -651,7 +651,8 @@ static int mlx4_en_get_qp(struct mlx4_en_priv *priv)
 		return 0;
 	}
 
-	err = mlx4_qp_reserve_range(dev, 1, 1, qpn, MLX4_RESERVE_A0_QP);
+	err = mlx4_qp_reserve_range(dev, 1, 1, qpn, MLX4_RESERVE_A0_QP,
+				    MLX4_RES_USAGE_DRIVER);
 	en_dbg(DRV, priv, "Reserved qp %d\n", *qpn);
 	if (err) {
 		en_err(priv, "Failed to reserve qp for mac registration\n");

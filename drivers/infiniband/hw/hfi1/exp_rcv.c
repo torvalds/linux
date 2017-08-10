@@ -1,5 +1,5 @@
 /*
- * Copyright(c) 2015 - 2017 Intel Corporation.
+ * Copyright(c) 2017 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -44,79 +44,71 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  */
-#ifndef _HFI1_AFFINITY_H
-#define _HFI1_AFFINITY_H
 
-#include "hfi.h"
+#include "exp_rcv.h"
+#include "trace.h"
 
-enum irq_type {
-	IRQ_SDMA,
-	IRQ_RCVCTXT,
-	IRQ_GENERAL,
-	IRQ_OTHER
-};
-
-/* Can be used for both memory and cpu */
-enum affinity_flags {
-	AFF_AUTO,
-	AFF_NUMA_LOCAL,
-	AFF_DEV_LOCAL,
-	AFF_IRQ_LOCAL
-};
-
-struct cpu_mask_set {
-	struct cpumask mask;
-	struct cpumask used;
-	uint gen;
-};
-
-struct hfi1_msix_entry;
-
-/* Initialize non-HT cpu cores mask */
-void init_real_cpu_mask(void);
-/* Initialize driver affinity data */
-int hfi1_dev_affinity_init(struct hfi1_devdata *dd);
-/*
- * Set IRQ affinity to a CPU. The function will determine the
- * CPU and set the affinity to it.
+/**
+ * exp_tid_group_init - initialize exp_tid_set
+ * @set - the set
  */
-int hfi1_get_irq_affinity(struct hfi1_devdata *dd,
-			  struct hfi1_msix_entry *msix);
-/*
- * Remove the IRQ's CPU affinity. This function also updates
- * any internal CPU tracking data
+void hfi1_exp_tid_group_init(struct exp_tid_set *set)
+{
+	INIT_LIST_HEAD(&set->list);
+	set->count = 0;
+}
+
+/**
+ * alloc_ctxt_rcv_groups - initialize expected receive groups
+ * @rcd - the context to add the groupings to
  */
-void hfi1_put_irq_affinity(struct hfi1_devdata *dd,
-			   struct hfi1_msix_entry *msix);
-/*
- * Determine a CPU affinity for a user process, if the process does not
- * have an affinity set yet.
+int hfi1_alloc_ctxt_rcv_groups(struct hfi1_ctxtdata *rcd)
+{
+	struct hfi1_devdata *dd = rcd->dd;
+	u32 tidbase;
+	struct tid_group *grp;
+	int i;
+
+	tidbase = rcd->expected_base;
+	for (i = 0; i < rcd->expected_count /
+		     dd->rcv_entries.group_size; i++) {
+		grp = kzalloc(sizeof(*grp), GFP_KERNEL);
+		if (!grp)
+			goto bail;
+		grp->size = dd->rcv_entries.group_size;
+		grp->base = tidbase;
+		tid_group_add_tail(grp, &rcd->tid_group_list);
+		tidbase += dd->rcv_entries.group_size;
+	}
+
+	return 0;
+bail:
+	hfi1_free_ctxt_rcv_groups(rcd);
+	return -ENOMEM;
+}
+
+/**
+ * free_ctxt_rcv_groups - free  expected receive groups
+ * @rcd - the context to free
+ *
+ * The routine dismantles the expect receive linked
+ * list and clears any tids associated with the receive
+ * context.
+ *
+ * This should only be called for kernel contexts and the
+ * a base user context.
  */
-int hfi1_get_proc_affinity(int node);
-/* Release a CPU used by a user process. */
-void hfi1_put_proc_affinity(int cpu);
+void hfi1_free_ctxt_rcv_groups(struct hfi1_ctxtdata *rcd)
+{
+	struct tid_group *grp, *gptr;
 
-struct hfi1_affinity_node {
-	int node;
-	struct cpu_mask_set def_intr;
-	struct cpu_mask_set rcv_intr;
-	struct cpumask general_intr_mask;
-	struct list_head list;
-};
+	WARN_ON(!EXP_TID_SET_EMPTY(rcd->tid_full_list));
+	WARN_ON(!EXP_TID_SET_EMPTY(rcd->tid_used_list));
 
-struct hfi1_affinity_node_list {
-	struct list_head list;
-	struct cpumask real_cpu_mask;
-	struct cpu_mask_set proc;
-	int num_core_siblings;
-	int num_possible_nodes;
-	int num_online_nodes;
-	int num_online_cpus;
-	struct mutex lock; /* protects affinity nodes */
-};
+	list_for_each_entry_safe(grp, gptr, &rcd->tid_group_list.list, list) {
+		tid_group_remove(grp, &rcd->tid_group_list);
+		kfree(grp);
+	}
 
-int node_affinity_init(void);
-void node_affinity_destroy(void);
-extern struct hfi1_affinity_node_list node_affinity;
-
-#endif /* _HFI1_AFFINITY_H */
+	hfi1_clear_tids(rcd);
+}

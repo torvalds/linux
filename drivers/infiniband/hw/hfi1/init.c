@@ -67,6 +67,7 @@
 #include "aspm.h"
 #include "affinity.h"
 #include "vnic.h"
+#include "exp_rcv.h"
 
 #undef pr_fmt
 #define pr_fmt(fmt) DRIVER_NAME ": " fmt
@@ -130,7 +131,7 @@ unsigned long *hfi1_cpulist;
  */
 int hfi1_create_ctxts(struct hfi1_devdata *dd)
 {
-	unsigned i;
+	u16 i;
 	int ret;
 
 	/* Control context has to be always 0 */
@@ -190,19 +191,49 @@ int hfi1_create_ctxts(struct hfi1_devdata *dd)
 nomem:
 	ret = -ENOMEM;
 
-	if (dd->rcd) {
-		for (i = 0; i < dd->num_rcv_contexts; ++i)
-			hfi1_free_ctxtdata(dd, dd->rcd[i]);
-	}
+	for (i = 0; dd->rcd && i < dd->first_dyn_alloc_ctxt; ++i)
+		hfi1_rcd_put(dd->rcd[i]);
+
+	/* All the contexts should be freed, free the array */
 	kfree(dd->rcd);
 	dd->rcd = NULL;
 	return ret;
 }
 
 /*
+ * Helper routines for the receive context reference count (rcd and uctxt)
+ */
+static void hfi1_rcd_init(struct hfi1_ctxtdata *rcd)
+{
+	kref_init(&rcd->kref);
+}
+
+static void hfi1_rcd_free(struct kref *kref)
+{
+	struct hfi1_ctxtdata *rcd =
+		container_of(kref, struct hfi1_ctxtdata, kref);
+
+	hfi1_free_ctxtdata(rcd->dd, rcd);
+	kfree(rcd);
+}
+
+int hfi1_rcd_put(struct hfi1_ctxtdata *rcd)
+{
+	if (rcd)
+		return kref_put(&rcd->kref, hfi1_rcd_free);
+
+	return 0;
+}
+
+void hfi1_rcd_get(struct hfi1_ctxtdata *rcd)
+{
+	kref_get(&rcd->kref);
+}
+
+/*
  * Common code for user and kernel context setup.
  */
-struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u32 ctxt,
+struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u16 ctxt,
 					   int numa)
 {
 	struct hfi1_devdata *dd = ppd->dd;
@@ -221,6 +252,9 @@ struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u32 ctxt,
 		hfi1_cdbg(PROC, "setting up context %u\n", ctxt);
 
 		INIT_LIST_HEAD(&rcd->qp_wait_list);
+		hfi1_exp_tid_group_init(&rcd->tid_group_list);
+		hfi1_exp_tid_group_init(&rcd->tid_used_list);
+		hfi1_exp_tid_group_init(&rcd->tid_full_list);
 		rcd->ppd = ppd;
 		rcd->dd = dd;
 		__set_bit(0, rcd->in_use_ctxts);
@@ -328,6 +362,8 @@ struct hfi1_ctxtdata *hfi1_create_ctxtdata(struct hfi1_pportdata *ppd, u32 ctxt,
 			if (!rcd->opstats)
 				goto bail;
 		}
+
+		hfi1_rcd_init(rcd);
 	}
 	return rcd;
 bail:
@@ -567,8 +603,8 @@ static int init_after_reset(struct hfi1_devdata *dd)
 	 */
 	for (i = 0; i < dd->num_rcv_contexts; i++)
 		hfi1_rcvctrl(dd, HFI1_RCVCTRL_CTXT_DIS |
-				  HFI1_RCVCTRL_INTRAVAIL_DIS |
-				  HFI1_RCVCTRL_TAILUPD_DIS, i);
+			     HFI1_RCVCTRL_INTRAVAIL_DIS |
+			     HFI1_RCVCTRL_TAILUPD_DIS, dd->rcd[i]);
 	pio_send_control(dd, PSC_GLOBAL_DISABLE);
 	for (i = 0; i < dd->num_send_contexts; i++)
 		sc_disable(dd->send_contexts[i].sc);
@@ -579,7 +615,7 @@ static int init_after_reset(struct hfi1_devdata *dd)
 static void enable_chip(struct hfi1_devdata *dd)
 {
 	u32 rcvmask;
-	u32 i;
+	u16 i;
 
 	/* enable PIO send */
 	pio_send_control(dd, PSC_GLOBAL_ENABLE);
@@ -598,7 +634,7 @@ static void enable_chip(struct hfi1_devdata *dd)
 			rcvmask |= HFI1_RCVCTRL_NO_RHQ_DROP_ENB;
 		if (HFI1_CAP_KGET_MASK(dd->rcd[i]->flags, NODROP_EGR_FULL))
 			rcvmask |= HFI1_RCVCTRL_NO_EGR_DROP_ENB;
-		hfi1_rcvctrl(dd, rcvmask, i);
+		hfi1_rcvctrl(dd, rcvmask, dd->rcd[i]);
 		sc_enable(dd->rcd[i]->sc);
 	}
 }
@@ -624,6 +660,20 @@ static int create_workqueues(struct hfi1_devdata *dd)
 			if (!ppd->hfi1_wq)
 				goto wq_error;
 		}
+		if (!ppd->link_wq) {
+			/*
+			 * Make the link workqueue single-threaded to enforce
+			 * serialization.
+			 */
+			ppd->link_wq =
+				alloc_workqueue(
+				    "hfi_link_%d_%d",
+				    WQ_SYSFS | WQ_MEM_RECLAIM | WQ_UNBOUND,
+				    1, /* max_active */
+				    dd->unit, pidx);
+			if (!ppd->link_wq)
+				goto wq_error;
+		}
 	}
 	return 0;
 wq_error:
@@ -633,6 +683,10 @@ wq_error:
 		if (ppd->hfi1_wq) {
 			destroy_workqueue(ppd->hfi1_wq);
 			ppd->hfi1_wq = NULL;
+		}
+		if (ppd->link_wq) {
+			destroy_workqueue(ppd->link_wq);
+			ppd->link_wq = NULL;
 		}
 	}
 	return -ENOMEM;
@@ -656,7 +710,8 @@ wq_error:
 int hfi1_init(struct hfi1_devdata *dd, int reinit)
 {
 	int ret = 0, pidx, lastfail = 0;
-	unsigned i, len;
+	unsigned long len;
+	u16 i;
 	struct hfi1_ctxtdata *rcd;
 	struct hfi1_pportdata *ppd;
 
@@ -878,10 +933,10 @@ static void shutdown_device(struct hfi1_devdata *dd)
 		ppd = dd->pport + pidx;
 		for (i = 0; i < dd->num_rcv_contexts; i++)
 			hfi1_rcvctrl(dd, HFI1_RCVCTRL_TAILUPD_DIS |
-					  HFI1_RCVCTRL_CTXT_DIS |
-					  HFI1_RCVCTRL_INTRAVAIL_DIS |
-					  HFI1_RCVCTRL_PKEY_DIS |
-					  HFI1_RCVCTRL_ONE_PKT_EGR_DIS, i);
+				     HFI1_RCVCTRL_CTXT_DIS |
+				     HFI1_RCVCTRL_INTRAVAIL_DIS |
+				     HFI1_RCVCTRL_PKEY_DIS |
+				     HFI1_RCVCTRL_ONE_PKT_EGR_DIS, dd->rcd[i]);
 		/*
 		 * Gracefully stop all sends allowing any in progress to
 		 * trickle out first.
@@ -917,6 +972,10 @@ static void shutdown_device(struct hfi1_devdata *dd)
 			destroy_workqueue(ppd->hfi1_wq);
 			ppd->hfi1_wq = NULL;
 		}
+		if (ppd->link_wq) {
+			destroy_workqueue(ppd->link_wq);
+			ppd->link_wq = NULL;
+		}
 	}
 	sdma_exit(dd);
 }
@@ -927,14 +986,11 @@ static void shutdown_device(struct hfi1_devdata *dd)
  * @rcd: the ctxtdata structure
  *
  * free up any allocated data for a context
- * This should not touch anything that would affect a simultaneous
- * re-allocation of context data, because it is called after hfi1_mutex
- * is released (and can be called from reinit as well).
  * It should never change any chip state, or global driver state.
  */
 void hfi1_free_ctxtdata(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 {
-	unsigned e;
+	u32 e;
 
 	if (!rcd)
 		return;
@@ -953,6 +1009,7 @@ void hfi1_free_ctxtdata(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 
 	/* all the RcvArray entries should have been cleared by now */
 	kfree(rcd->egrbufs.rcvtids);
+	rcd->egrbufs.rcvtids = NULL;
 
 	for (e = 0; e < rcd->egrbufs.alloced; e++) {
 		if (rcd->egrbufs.buffers[e].dma)
@@ -962,13 +1019,21 @@ void hfi1_free_ctxtdata(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd)
 					  rcd->egrbufs.buffers[e].dma);
 	}
 	kfree(rcd->egrbufs.buffers);
+	rcd->egrbufs.alloced = 0;
+	rcd->egrbufs.buffers = NULL;
 
 	sc_free(rcd->sc);
+	rcd->sc = NULL;
+
 	vfree(rcd->subctxt_uregbase);
 	vfree(rcd->subctxt_rcvegrbuf);
 	vfree(rcd->subctxt_rcvhdr_base);
 	kfree(rcd->opstats);
-	kfree(rcd);
+
+	rcd->subctxt_uregbase = NULL;
+	rcd->subctxt_rcvegrbuf = NULL;
+	rcd->subctxt_rcvhdr_base = NULL;
+	rcd->opstats = NULL;
 }
 
 /*
@@ -1362,7 +1427,7 @@ static void cleanup_device_data(struct hfi1_devdata *dd)
 		tmp[ctxt] = NULL; /* debugging paranoia */
 		if (rcd) {
 			hfi1_clear_tids(rcd);
-			hfi1_free_ctxtdata(dd, rcd);
+			hfi1_rcd_put(rcd);
 		}
 	}
 	kfree(tmp);
@@ -1531,6 +1596,10 @@ static int init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 			if (ppd->hfi1_wq) {
 				destroy_workqueue(ppd->hfi1_wq);
 				ppd->hfi1_wq = NULL;
+			}
+			if (ppd->link_wq) {
+				destroy_workqueue(ppd->link_wq);
+				ppd->link_wq = NULL;
 			}
 		}
 		if (!j)

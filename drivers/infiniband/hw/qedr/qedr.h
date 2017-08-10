@@ -41,7 +41,6 @@
 #include <linux/qed/roce_common.h>
 #include "qedr_hsi_rdma.h"
 
-#define QEDR_MODULE_VERSION	"8.10.10.0"
 #define QEDR_NODE_DESC "QLogic 579xx RoCE HCA"
 #define DP_NAME(dev) ((dev)->ibdev.name)
 
@@ -163,6 +162,8 @@ struct qedr_dev {
 	struct qedr_qp		*gsi_qp;
 
 	unsigned long enet_state;
+
+	u8 user_dpm_enabled;
 };
 
 #define QEDR_MAX_SQ_PBL			(0x8000)

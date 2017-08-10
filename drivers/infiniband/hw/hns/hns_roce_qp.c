@@ -799,7 +799,7 @@ bool hns_roce_wq_overflow(struct hns_roce_wq *hr_wq, int nreq,
 
 	cur = hr_wq->head - hr_wq->tail;
 	if (likely(cur + nreq < hr_wq->max_post))
-		return 0;
+		return false;
 
 	hr_cq = to_hr_cq(ib_cq);
 	spin_lock(&hr_cq->lock);

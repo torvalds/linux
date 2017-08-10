@@ -68,16 +68,11 @@ static int iowait_sleep(
 	struct sdma_engine *sde,
 	struct iowait *wait,
 	struct sdma_txreq *stx,
-	unsigned seq);
+	unsigned int seq,
+	bool pkts_sent);
 static void iowait_wakeup(struct iowait *wait, int reason);
 static void iowait_sdma_drained(struct iowait *wait);
 static void qp_pio_drain(struct rvt_qp *qp);
-
-static inline unsigned mk_qpn(struct rvt_qpn_table *qpt,
-			      struct rvt_qpn_map *map, unsigned off)
-{
-	return (map - qpt->map) * RVT_BITS_PER_PAGE + off;
-}
 
 const struct rvt_operation_params hfi1_post_parms[RVT_OPERATION_MAX] = {
 [IB_WR_RDMA_WRITE] = {
@@ -377,7 +372,8 @@ static int iowait_sleep(
 	struct sdma_engine *sde,
 	struct iowait *wait,
 	struct sdma_txreq *stx,
-	unsigned seq)
+	uint seq,
+	bool pkts_sent)
 {
 	struct verbs_txreq *tx = container_of(stx, struct verbs_txreq, txreq);
 	struct rvt_qp *qp;
@@ -408,7 +404,8 @@ static int iowait_sleep(
 
 			ibp->rvp.n_dmawait++;
 			qp->s_flags |= RVT_S_WAIT_DMA_DESC;
-			list_add_tail(&priv->s_iowait.list, &sde->dmawait);
+			iowait_queue(pkts_sent, &priv->s_iowait,
+				     &sde->dmawait);
 			priv->s_iowait.lock = &dev->iowait_lock;
 			trace_hfi1_qpsleep(qp, RVT_S_WAIT_DMA_DESC);
 			rvt_get_qp(qp);
@@ -607,7 +604,7 @@ void qp_iter_print(struct seq_file *s, struct qp_iter *iter)
 	wqe = rvt_get_swqe_ptr(qp, qp->s_last);
 	send_context = qp_to_send_context(qp, priv->s_sc);
 	seq_printf(s,
-		   "N %d %s QP %x R %u %s %u %u %u f=%x %u %u %u %u %u %u SPSN %x %x %x %x %x RPSN %x (%u %u %u %u %u %u %u) RQP %x LID %x SL %u MTU %u %u %u %u %u SDE %p,%u SC %p,%u SCQ %u %u PID %d\n",
+		   "N %d %s QP %x R %u %s %u %u %u f=%x %u %u %u %u %u %u SPSN %x %x %x %x %x RPSN %x S(%u %u %u %u %u %u %u) R(%u %u %u) RQP %x LID %x SL %u MTU %u %u %u %u %u SDE %p,%u SC %p,%u SCQ %u %u PID %d\n",
 		   iter->n,
 		   qp_idle(qp) ? "I" : "B",
 		   qp->ibqp.qp_num,
@@ -630,6 +627,10 @@ void qp_iter_print(struct seq_file *s, struct qp_iter *iter)
 		   qp->s_last, qp->s_acked, qp->s_cur,
 		   qp->s_tail, qp->s_head, qp->s_size,
 		   qp->s_avail,
+		   /* ack_queue ring pointers, size */
+		   qp->s_tail_ack_queue, qp->r_head_ack_queue,
+		   HFI1_MAX_RDMA_ATOMIC,
+		   /* remote QP info  */
 		   qp->remote_qpn,
 		   rdma_ah_get_dlid(&qp->remote_ah_attr),
 		   rdma_ah_get_sl(&qp->remote_ah_attr),

@@ -245,8 +245,9 @@ int __mlx4_qp_reserve_range(struct mlx4_dev *dev, int cnt, int align,
 }
 
 int mlx4_qp_reserve_range(struct mlx4_dev *dev, int cnt, int align,
-			  int *base, u8 flags)
+			  int *base, u8 flags, u8 usage)
 {
+	u32 in_modifier = RES_QP | (((u32)usage & 3) << 30);
 	u64 in_param = 0;
 	u64 out_param;
 	int err;
@@ -258,7 +259,7 @@ int mlx4_qp_reserve_range(struct mlx4_dev *dev, int cnt, int align,
 		set_param_l(&in_param, (((u32)flags) << 24) | (u32)cnt);
 		set_param_h(&in_param, align);
 		err = mlx4_cmd_imm(dev, in_param, &out_param,
-				   RES_QP, RES_OP_RESERVE,
+				   in_modifier, RES_OP_RESERVE,
 				   MLX4_CMD_ALLOC_RES,
 				   MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
 		if (err)

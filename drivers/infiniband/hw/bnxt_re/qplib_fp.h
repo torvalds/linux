@@ -220,19 +220,20 @@ struct bnxt_qplib_q {
 	u16				q_full_delta;
 	u16				max_sge;
 	u32				psn;
-	bool				flush_in_progress;
 	bool				condition;
 	bool				single;
 	bool				send_phantom;
 	u32				phantom_wqe_cnt;
 	u32				phantom_cqe_cnt;
 	u32				next_cq_cons;
+	bool				flushed;
 };
 
 struct bnxt_qplib_qp {
 	struct bnxt_qplib_pd		*pd;
 	struct bnxt_qplib_dpi		*dpi;
 	u64				qp_handle;
+#define        BNXT_QPLIB_QP_ID_INVALID        0xFFFFFFFF
 	u32				id;
 	u8				type;
 	u8				sig_type;
@@ -296,6 +297,8 @@ struct bnxt_qplib_qp {
 	dma_addr_t			sq_hdr_buf_map;
 	void				*rq_hdr_buf;
 	dma_addr_t			rq_hdr_buf_map;
+	struct list_head		sq_flush;
+	struct list_head		rq_flush;
 };
 
 #define BNXT_QPLIB_MAX_CQE_ENTRY_SIZE	sizeof(struct cq_base)
@@ -351,6 +354,7 @@ struct bnxt_qplib_cq {
 	u16				period;
 	struct bnxt_qplib_hwq		hwq;
 	u32				cnq_hw_ring_id;
+	struct bnxt_qplib_nq		*nq;
 	bool				resize_in_progress;
 	struct scatterlist		*sghead;
 	u32				nmap;
@@ -360,6 +364,9 @@ struct bnxt_qplib_cq {
 	unsigned long			flags;
 #define CQ_FLAGS_RESIZE_IN_PROG		1
 	wait_queue_head_t		waitq;
+	struct list_head		sqf_head, rqf_head;
+	atomic_t			arm_state;
+	spinlock_t			compl_lock; /* synch CQ handlers */
 };
 
 #define BNXT_QPLIB_MAX_IRRQE_ENTRY_SIZE	sizeof(struct xrrq_irrq)
@@ -417,6 +424,13 @@ struct bnxt_qplib_nq {
 						(struct bnxt_qplib_nq *nq,
 						 void *srq,
 						 u8 event);
+	struct workqueue_struct         *cqn_wq;
+};
+
+struct bnxt_qplib_nq_work {
+	struct work_struct      work;
+	struct bnxt_qplib_nq    *nq;
+	struct bnxt_qplib_cq    *cq;
 };
 
 void bnxt_qplib_disable_nq(struct bnxt_qplib_nq *nq);
@@ -453,4 +467,13 @@ bool bnxt_qplib_is_cq_empty(struct bnxt_qplib_cq *cq);
 void bnxt_qplib_req_notify_cq(struct bnxt_qplib_cq *cq, u32 arm_type);
 void bnxt_qplib_free_nq(struct bnxt_qplib_nq *nq);
 int bnxt_qplib_alloc_nq(struct pci_dev *pdev, struct bnxt_qplib_nq *nq);
+void bnxt_qplib_add_flush_qp(struct bnxt_qplib_qp *qp);
+void bnxt_qplib_del_flush_qp(struct bnxt_qplib_qp *qp);
+void bnxt_qplib_acquire_cq_locks(struct bnxt_qplib_qp *qp,
+				 unsigned long *flags);
+void bnxt_qplib_release_cq_locks(struct bnxt_qplib_qp *qp,
+				 unsigned long *flags);
+int bnxt_qplib_process_flush_list(struct bnxt_qplib_cq *cq,
+				  struct bnxt_qplib_cqe *cqe,
+				  int num_cqes);
 #endif /* __BNXT_QPLIB_FP_H__ */

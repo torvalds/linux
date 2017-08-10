@@ -861,7 +861,7 @@ static int ib_nl_send_msg(struct ib_sa_query *query, gfp_t gfp_mask)
 	/* Repair the nlmsg header length */
 	nlmsg_end(skb, nlh);
 
-	ret = ibnl_multicast(skb, nlh, RDMA_NL_GROUP_LS, gfp_mask);
+	ret = rdma_nl_multicast(skb, RDMA_NL_GROUP_LS, gfp_mask);
 	if (!ret)
 		ret = len;
 	else
@@ -1021,9 +1021,9 @@ static void ib_nl_request_timeout(struct work_struct *work)
 }
 
 int ib_nl_handle_set_timeout(struct sk_buff *skb,
-			     struct netlink_callback *cb)
+			     struct nlmsghdr *nlh,
+			     struct netlink_ext_ack *extack)
 {
-	const struct nlmsghdr *nlh = (struct nlmsghdr *)cb->nlh;
 	int timeout, delta, abs_delta;
 	const struct nlattr *attr;
 	unsigned long flags;
@@ -1033,8 +1033,7 @@ int ib_nl_handle_set_timeout(struct sk_buff *skb,
 	int ret;
 
 	if (!(nlh->nlmsg_flags & NLM_F_REQUEST) ||
-	    !(NETLINK_CB(skb).sk) ||
-	    !netlink_capable(skb, CAP_NET_ADMIN))
+	    !(NETLINK_CB(skb).sk))
 		return -EPERM;
 
 	ret = nla_parse(tb, LS_NLA_TYPE_MAX - 1, nlmsg_data(nlh),
@@ -1098,9 +1097,9 @@ static inline int ib_nl_is_good_resolve_resp(const struct nlmsghdr *nlh)
 }
 
 int ib_nl_handle_resolve_resp(struct sk_buff *skb,
-			      struct netlink_callback *cb)
+			      struct nlmsghdr *nlh,
+			      struct netlink_ext_ack *extack)
 {
-	const struct nlmsghdr *nlh = (struct nlmsghdr *)cb->nlh;
 	unsigned long flags;
 	struct ib_sa_query *query;
 	struct ib_mad_send_buf *send_buf;
@@ -1109,8 +1108,7 @@ int ib_nl_handle_resolve_resp(struct sk_buff *skb,
 	int ret;
 
 	if ((nlh->nlmsg_flags & NLM_F_REQUEST) ||
-	    !(NETLINK_CB(skb).sk) ||
-	    !netlink_capable(skb, CAP_NET_ADMIN))
+	    !(NETLINK_CB(skb).sk))
 		return -EPERM;
 
 	spin_lock_irqsave(&ib_nl_request_lock, flags);
@@ -1420,7 +1418,7 @@ static int send_mad(struct ib_sa_query *query, int timeout_ms, gfp_t gfp_mask)
 
 	if ((query->flags & IB_SA_ENABLE_LOCAL_SERVICE) &&
 	    (!(query->flags & IB_SA_QUERY_OPA))) {
-		if (!ibnl_chk_listeners(RDMA_NL_GROUP_LS)) {
+		if (!rdma_nl_chk_listeners(RDMA_NL_GROUP_LS)) {
 			if (!ib_nl_make_request(query, gfp_mask))
 				return id;
 		}

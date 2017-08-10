@@ -95,7 +95,7 @@ static int setup_vnic_ctxt(struct hfi1_devdata *dd, struct hfi1_ctxtdata *uctxt)
 	if (HFI1_CAP_KGET_MASK(uctxt->flags, DMA_RTAIL))
 		rcvctrl_ops |= HFI1_RCVCTRL_TAILUPD_ENB;
 
-	hfi1_rcvctrl(uctxt->dd, rcvctrl_ops, uctxt->ctxt);
+	hfi1_rcvctrl(uctxt->dd, rcvctrl_ops, uctxt);
 
 	uctxt->is_vnic = true;
 done:
@@ -106,7 +106,7 @@ static int allocate_vnic_ctxt(struct hfi1_devdata *dd,
 			      struct hfi1_ctxtdata **vnic_ctxt)
 {
 	struct hfi1_ctxtdata *uctxt;
-	unsigned int ctxt;
+	u16 ctxt;
 	int ret;
 
 	if (dd->flags & HFI1_FROZEN)
@@ -156,11 +156,11 @@ static int allocate_vnic_ctxt(struct hfi1_devdata *dd,
 	return ret;
 bail:
 	/*
-	 * hfi1_free_ctxtdata() also releases send_context
-	 * structure if uctxt->sc is not null
+	 * hfi1_rcd_put() will call hfi1_free_ctxtdata(), which will
+	 * release send_context structure if uctxt->sc is not null
 	 */
 	dd->rcd[uctxt->ctxt] = NULL;
-	hfi1_free_ctxtdata(dd, uctxt);
+	hfi1_rcd_put(uctxt);
 	dd_dev_dbg(dd, "vnic allocation failed. rc %d\n", ret);
 	return ret;
 }
@@ -186,7 +186,7 @@ static void deallocate_vnic_ctxt(struct hfi1_devdata *dd,
 		     HFI1_RCVCTRL_INTRAVAIL_DIS |
 		     HFI1_RCVCTRL_ONE_PKT_EGR_DIS |
 		     HFI1_RCVCTRL_NO_RHQ_DROP_DIS |
-		     HFI1_RCVCTRL_NO_EGR_DROP_DIS, uctxt->ctxt);
+		     HFI1_RCVCTRL_NO_EGR_DROP_DIS, uctxt);
 	/*
 	 * VNIC contexts are allocated from user context pool.
 	 * Release them back to user context pool.
@@ -208,7 +208,7 @@ static void deallocate_vnic_ctxt(struct hfi1_devdata *dd,
 	hfi1_clear_ctxt_pkey(dd, uctxt);
 
 	hfi1_stats.sps_ctxts--;
-	hfi1_free_ctxtdata(dd, uctxt);
+	hfi1_rcd_put(uctxt);
 }
 
 void hfi1_vnic_setup(struct hfi1_devdata *dd)
@@ -751,6 +751,7 @@ static int hfi1_vnic_init(struct hfi1_vnic_vport_info *vinfo)
 		rc = hfi1_vnic_allot_ctxt(dd, &dd->vnic.ctxt[i]);
 		if (rc)
 			break;
+		hfi1_rcd_get(dd->vnic.ctxt[i]);
 		dd->vnic.ctxt[i]->vnic_q_idx = i;
 	}
 
@@ -762,6 +763,7 @@ static int hfi1_vnic_init(struct hfi1_vnic_vport_info *vinfo)
 		 */
 		while (i-- > dd->vnic.num_ctxt) {
 			deallocate_vnic_ctxt(dd, dd->vnic.ctxt[i]);
+			hfi1_rcd_put(dd->vnic.ctxt[i]);
 			dd->vnic.ctxt[i] = NULL;
 		}
 		goto alloc_fail;
@@ -791,6 +793,7 @@ static void hfi1_vnic_deinit(struct hfi1_vnic_vport_info *vinfo)
 	if (--dd->vnic.num_vports == 0) {
 		for (i = 0; i < dd->vnic.num_ctxt; i++) {
 			deallocate_vnic_ctxt(dd, dd->vnic.ctxt[i]);
+			hfi1_rcd_put(dd->vnic.ctxt[i]);
 			dd->vnic.ctxt[i] = NULL;
 		}
 		hfi1_deinit_vnic_rsm(dd);
