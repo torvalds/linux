@@ -477,10 +477,9 @@ alternative_endif
 	.endm
 
 /*
-/*
- * Errata workaround post TTBR0_EL1 update.
+ * Errata workaround post TTBRx_EL1 update.
  */
-	.macro	post_ttbr0_update_workaround
+	.macro	post_ttbr_update_workaround
 #ifdef CONFIG_CAVIUM_ERRATUM_27456
 alternative_if ARM64_WORKAROUND_CAVIUM_27456
 	ic	iallu

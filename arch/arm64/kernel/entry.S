@@ -257,7 +257,7 @@ alternative_else_nop_endif
 	 * Cavium erratum 27456 (broadcast TLBI instructions may cause I-cache
 	 * corruption).
 	 */
-	post_ttbr0_update_workaround
+	post_ttbr_update_workaround
 	.endif
 1:
 	.if	\el != 0
