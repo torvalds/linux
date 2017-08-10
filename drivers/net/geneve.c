@@ -1099,7 +1099,7 @@ static int geneve_validate(struct nlattr *tb[], struct nlattr *data[],
 	if (data[IFLA_GENEVE_ID]) {
 		__u32 vni =  nla_get_u32(data[IFLA_GENEVE_ID]);
 
-		if (vni >= GENEVE_VID_MASK)
+		if (vni >= GENEVE_N_VID)
 			return -ERANGE;
 	}
 

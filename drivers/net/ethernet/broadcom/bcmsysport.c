@@ -457,6 +457,8 @@ static void bcm_sysport_get_stats(struct net_device *dev,
 		else
 			p = (char *)priv;
 
+		if (priv->is_lite && !bcm_sysport_lite_stat_valid(s->type))
+			continue;
 		p += s->stat_offset;
 
 		if (s->stat_sizeof == sizeof(u64))
