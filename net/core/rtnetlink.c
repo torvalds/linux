@@ -4221,6 +4221,12 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 		return err;
 	}
 
+	doit = READ_ONCE(handlers[type].doit);
+	if (!doit) {
+		family = PF_UNSPEC;
+		handlers = rcu_dereference(rtnl_msg_handlers[family]);
+	}
+
 	flags = READ_ONCE(handlers[type].flags);
 	if (flags & RTNL_FLAG_DOIT_UNLOCKED) {
 		refcount_inc(&rtnl_msg_handlers_ref[family]);
