@@ -1112,6 +1112,8 @@ static const struct {
 	{ "tx_no_space",  offsetof(struct netvsc_ethtool_stats, tx_no_space) },
 	{ "tx_too_big",	  offsetof(struct netvsc_ethtool_stats, tx_too_big) },
 	{ "tx_busy",	  offsetof(struct netvsc_ethtool_stats, tx_busy) },
+	{ "tx_send_full", offsetof(struct netvsc_ethtool_stats, tx_send_full) },
+	{ "rx_comp_busy", offsetof(struct netvsc_ethtool_stats, rx_comp_busy) },
 }, vf_stats[] = {
 	{ "vf_rx_packets", offsetof(struct netvsc_vf_pcpu_stats, rx_packets) },
 	{ "vf_rx_bytes",   offsetof(struct netvsc_vf_pcpu_stats, rx_bytes) },

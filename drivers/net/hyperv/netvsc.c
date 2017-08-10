@@ -883,7 +883,9 @@ int netvsc_send(struct net_device_context *ndev_ctx,
 	} else if (pktlen + net_device->pkt_align <
 		   net_device->send_section_size) {
 		section_index = netvsc_get_next_send_section(net_device);
-		if (section_index != NETVSC_INVALID_INDEX) {
+		if (unlikely(section_index == NETVSC_INVALID_INDEX)) {
+			++ndev_ctx->eth_stats.tx_send_full;
+		} else {
 			move_pkt_msd(&msd_send, &msd_skb, msdp);
 			msd_len = 0;
 		}
@@ -949,9 +951,10 @@ send_now:
 }
 
 /* Send pending recv completions */
-static int send_recv_completions(struct netvsc_channel *nvchan)
+static int send_recv_completions(struct net_device *ndev,
+				 struct netvsc_device *nvdev,
+				 struct netvsc_channel *nvchan)
 {
-	struct netvsc_device *nvdev = nvchan->net_device;
 	struct multi_recv_comp *mrc = &nvchan->mrc;
 	struct recv_comp_msg {
 		struct nvsp_message_header hdr;
@@ -969,8 +972,12 @@ static int send_recv_completions(struct netvsc_channel *nvchan)
 		msg.status = rcd->status;
 		ret = vmbus_sendpacket(nvchan->channel, &msg, sizeof(msg),
 				       rcd->tid, VM_PKT_COMP, 0);
-		if (unlikely(ret))
+		if (unlikely(ret)) {
+			struct net_device_context *ndev_ctx = netdev_priv(ndev);
+
+			++ndev_ctx->eth_stats.rx_comp_busy;
 			return ret;
+		}
 
 		if (++mrc->first == nvdev->recv_completion_cnt)
 			mrc->first = 0;
@@ -1011,7 +1018,7 @@ static void enq_receive_complete(struct net_device *ndev,
 	recv_comp_slot_avail(nvdev, mrc, &filled, &avail);
 
 	if (unlikely(filled > NAPI_POLL_WEIGHT)) {
-		send_recv_completions(nvchan);
+		send_recv_completions(ndev, nvdev, nvchan);
 		recv_comp_slot_avail(nvdev, mrc, &filled, &avail);
 	}
 
@@ -1194,7 +1201,7 @@ int netvsc_poll(struct napi_struct *napi, int budget)
 	 * then re-enable host interrupts
 	 *     and reschedule if ring is not empty.
 	 */
-	if (send_recv_completions(nvchan) == 0 &&
+	if (send_recv_completions(ndev, net_device, nvchan) == 0 &&
 	    work_done < budget &&
 	    napi_complete_done(napi, work_done) &&
 	    hv_end_read(&channel->inbound)) {

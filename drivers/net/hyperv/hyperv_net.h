@@ -680,6 +680,8 @@ struct netvsc_ethtool_stats {
 	unsigned long tx_no_space;
 	unsigned long tx_too_big;
 	unsigned long tx_busy;
+	unsigned long tx_send_full;
+	unsigned long rx_comp_busy;
 };
 
 struct netvsc_vf_pcpu_stats {
