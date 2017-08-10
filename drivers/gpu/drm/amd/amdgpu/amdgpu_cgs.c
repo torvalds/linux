@@ -659,7 +659,7 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 		info->version = (uint16_t)le32_to_cpu(header->header.ucode_version);
 
 		if (CGS_UCODE_ID_CP_MEC == type)
-			info->image_size = (header->jt_offset) << 2;
+			info->image_size = le32_to_cpu(header->jt_offset) << 2;
 
 		info->fw_version = amdgpu_get_firmware_version(cgs_device, type);
 		info->feature_version = (uint16_t)le32_to_cpu(header->ucode_feature_version);
