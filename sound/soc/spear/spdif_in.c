@@ -216,10 +216,8 @@ static int spdif_in_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	host = devm_kzalloc(&pdev->dev, sizeof(*host), GFP_KERNEL);
-	if (!host) {
-		dev_warn(&pdev->dev, "kzalloc fail\n");
+	if (!host)
 		return -ENOMEM;
-	}
 
 	host->io_base = io_base;
 	host->irq = platform_get_irq(pdev, 0);
