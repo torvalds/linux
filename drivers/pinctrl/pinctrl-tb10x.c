@@ -577,7 +577,7 @@ out:
 	return ret;
 }
 
-static struct pinctrl_ops tb10x_pinctrl_ops = {
+static const struct pinctrl_ops tb10x_pinctrl_ops = {
 	.get_groups_count = tb10x_get_groups_count,
 	.get_group_name   = tb10x_get_group_name,
 	.get_group_pins   = tb10x_get_group_pins,
@@ -738,7 +738,7 @@ static int tb10x_pctl_set_mux(struct pinctrl_dev *pctl,
 	return 0;
 }
 
-static struct pinmux_ops tb10x_pinmux_ops = {
+static const struct pinmux_ops tb10x_pinmux_ops = {
 	.get_functions_count = tb10x_get_functions_count,
 	.get_function_name = tb10x_get_function_name,
 	.get_function_groups = tb10x_get_function_groups,
