@@ -2606,6 +2606,7 @@ static irqreturn_t int_phy_updown_v2_hw(int irq_no, void *p)
 	struct hisi_hba *hisi_hba = p;
 	u32 irq_msk;
 	int phy_no = 0;
+	irqreturn_t res = IRQ_NONE;
 
 	irq_msk = (hisi_sas_read32(hisi_hba, HGC_INVLD_DQE_INFO)
 		   >> HGC_INVLD_DQE_INFO_FB_CH0_OFF) & 0x1ff;
@@ -2620,15 +2621,15 @@ static irqreturn_t int_phy_updown_v2_hw(int irq_no, void *p)
 			case CHL_INT0_SL_PHY_ENABLE_MSK:
 				/* phy up */
 				if (phy_up_v2_hw(phy_no, hisi_hba) ==
-				    IRQ_NONE)
-					return IRQ_NONE;
+				    IRQ_HANDLED)
+					res = IRQ_HANDLED;
 				break;
 
 			case CHL_INT0_NOT_RDY_MSK:
 				/* phy down */
 				if (phy_down_v2_hw(phy_no, hisi_hba) ==
-				    IRQ_NONE)
-					return IRQ_NONE;
+				    IRQ_HANDLED)
+					res = IRQ_HANDLED;
 				break;
 
 			case (CHL_INT0_NOT_RDY_MSK |
@@ -2638,13 +2639,13 @@ static irqreturn_t int_phy_updown_v2_hw(int irq_no, void *p)
 				if (reg_value & BIT(phy_no)) {
 					/* phy up */
 					if (phy_up_v2_hw(phy_no, hisi_hba) ==
-					    IRQ_NONE)
-						return IRQ_NONE;
+					    IRQ_HANDLED)
+						res = IRQ_HANDLED;
 				} else {
 					/* phy down */
 					if (phy_down_v2_hw(phy_no, hisi_hba) ==
-					    IRQ_NONE)
-						return IRQ_NONE;
+					    IRQ_HANDLED)
+						res = IRQ_HANDLED;
 				}
 				break;
 
@@ -2657,7 +2658,7 @@ static irqreturn_t int_phy_updown_v2_hw(int irq_no, void *p)
 		phy_no++;
 	}
 
-	return IRQ_HANDLED;
+	return res;
 }
 
 static void phy_bcast_v2_hw(int phy_no, struct hisi_hba *hisi_hba)
