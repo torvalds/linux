@@ -64,6 +64,18 @@
 #define PCIE_FC_CREDIT_MASK	(GENMASK(31, 31) | GENMASK(28, 16))
 #define PCIE_FC_CREDIT_VAL(x)	((x) << 16)
 
+struct mtk_pcie_port;
+
+/**
+ * struct mtk_pcie_soc - differentiate between host generations
+ * @ops: pointer to configuration access functions
+ * @startup: pointer to controller setting functions
+ */
+struct mtk_pcie_soc {
+	struct pci_ops *ops;
+	int (*startup)(struct mtk_pcie_port *port);
+};
+
 /**
  * struct mtk_pcie_port - PCIe port information
  * @base: IO mapped register base
@@ -97,6 +109,7 @@ struct mtk_pcie_port {
  * @busn: bus range
  * @offset: IO / Memory offset
  * @ports: pointer to PCIe port information
+ * @soc: pointer to SoC-dependent operations
  */
 struct mtk_pcie {
 	struct device *dev;
@@ -112,6 +125,7 @@ struct mtk_pcie {
 		resource_size_t io;
 	} offset;
 	struct list_head ports;
+	const struct mtk_pcie_soc *soc;
 };
 
 static void mtk_pcie_subsys_powerdown(struct mtk_pcie *pcie)
@@ -229,7 +243,8 @@ static int mtk_pcie_startup_port(struct mtk_pcie_port *port)
 
 static void mtk_pcie_enable_port(struct mtk_pcie_port *port)
 {
-	struct device *dev = port->pcie->dev;
+	struct mtk_pcie *pcie = port->pcie;
+	struct device *dev = pcie->dev;
 	int err;
 
 	err = clk_prepare_enable(port->sys_ck);
@@ -247,7 +262,7 @@ static void mtk_pcie_enable_port(struct mtk_pcie_port *port)
 		goto err_phy_on;
 	}
 
-	if (!mtk_pcie_startup_port(port))
+	if (!pcie->soc->startup(port))
 		return;
 
 	dev_info(dev, "Port%d link down\n", port->slot);
@@ -472,7 +487,7 @@ static int mtk_pcie_register_host(struct pci_host_bridge *host)
 
 	host->busnr = pcie->busn.start;
 	host->dev.parent = pcie->dev;
-	host->ops = &mtk_pcie_ops;
+	host->ops = pcie->soc->ops;
 	host->map_irq = of_irq_parse_and_map_pci;
 	host->swizzle_irq = pci_common_swizzle;
 
@@ -505,6 +520,7 @@ static int mtk_pcie_probe(struct platform_device *pdev)
 	pcie = pci_host_bridge_priv(host);
 
 	pcie->dev = dev;
+	pcie->soc = of_device_get_match_data(dev);
 	platform_set_drvdata(pdev, pcie);
 	INIT_LIST_HEAD(&pcie->ports);
 
@@ -529,9 +545,14 @@ put_resources:
 	return err;
 }
 
+static const struct mtk_pcie_soc mtk_pcie_soc_v1 = {
+	.ops = &mtk_pcie_ops,
+	.startup = mtk_pcie_startup_port,
+};
+
 static const struct of_device_id mtk_pcie_ids[] = {
-	{ .compatible = "mediatek,mt7623-pcie"},
-	{ .compatible = "mediatek,mt2701-pcie"},
+	{ .compatible = "mediatek,mt2701-pcie", .data = &mtk_pcie_soc_v1 },
+	{ .compatible = "mediatek,mt7623-pcie", .data = &mtk_pcie_soc_v1 },
 	{},
 };
 
