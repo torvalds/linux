@@ -114,6 +114,24 @@
 			status = "disabled";
 		};
 
+		dcan0: can@0260B200 {
+			compatible = "ti,am4372-d_can", "ti,am3352-d_can";
+			reg = <0x0260B200 0x200>;
+			interrupts = <GIC_SPI 190 IRQ_TYPE_EDGE_RISING>;
+			status = "disabled";
+			power-domains = <&k2g_pds 0x0008>;
+			clocks = <&k2g_clks 0x0008 1>;
+		};
+
+		dcan1: can@0260B400 {
+			compatible = "ti,am4372-d_can", "ti,am3352-d_can";
+			reg = <0x0260B400 0x200>;
+			interrupts = <GIC_SPI 193 IRQ_TYPE_EDGE_RISING>;
+			status = "disabled";
+			power-domains = <&k2g_pds 0x0009>;
+			clocks = <&k2g_clks 0x0009 1>;
+		};
+
 		kirq0: keystone_irq@026202a0 {
 			compatible = "ti,keystone-irq";
 			interrupts = <GIC_SPI 1 IRQ_TYPE_EDGE_RISING>;
