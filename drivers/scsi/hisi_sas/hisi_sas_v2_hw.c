@@ -256,6 +256,8 @@
 #define LINK_DFX2_RCVR_HOLD_STS_MSK	(0x1 << LINK_DFX2_RCVR_HOLD_STS_OFF)
 #define LINK_DFX2_SEND_HOLD_STS_OFF	10
 #define LINK_DFX2_SEND_HOLD_STS_MSK	(0x1 << LINK_DFX2_SEND_HOLD_STS_OFF)
+#define SAS_ERR_CNT4_REG		(PORT_BASE + 0x290)
+#define SAS_ERR_CNT6_REG		(PORT_BASE + 0x298)
 #define PHY_CTRL_RDY_MSK		(PORT_BASE + 0x2b0)
 #define PHYCTRL_NOT_RDY_MSK		(PORT_BASE + 0x2b4)
 #define PHYCTRL_DWS_RESET_MSK		(PORT_BASE + 0x2b8)
@@ -1358,6 +1360,25 @@ static void phy_hard_reset_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
 	}
 	msleep(100);
 	start_phy_v2_hw(hisi_hba, phy_no);
+}
+
+static void phy_get_events_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
+{
+	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
+	struct asd_sas_phy *sas_phy = &phy->sas_phy;
+	struct sas_phy *sphy = sas_phy->phy;
+	u32 err4_reg_val, err6_reg_val;
+
+	/* loss dword syn, phy reset problem */
+	err4_reg_val = hisi_sas_phy_read32(hisi_hba, phy_no, SAS_ERR_CNT4_REG);
+
+	/* disparity err, invalid dword */
+	err6_reg_val = hisi_sas_phy_read32(hisi_hba, phy_no, SAS_ERR_CNT6_REG);
+
+	sphy->loss_of_dword_sync_count += (err4_reg_val >> 16) & 0xFFFF;
+	sphy->phy_reset_problem_count += err4_reg_val & 0xFFFF;
+	sphy->invalid_dword_count += (err6_reg_val & 0xFF0000) >> 16;
+	sphy->running_disparity_error_count += err6_reg_val & 0xFF;
 }
 
 static void start_phys_v2_hw(struct hisi_hba *hisi_hba)
@@ -3457,6 +3478,7 @@ static const struct hisi_sas_hw hisi_sas_v2_hw = {
 	.phy_enable = enable_phy_v2_hw,
 	.phy_disable = disable_phy_v2_hw,
 	.phy_hard_reset = phy_hard_reset_v2_hw,
+	.get_events = phy_get_events_v2_hw,
 	.phy_set_linkrate = phy_set_linkrate_v2_hw,
 	.phy_get_max_linkrate = phy_get_max_linkrate_v2_hw,
 	.max_command_entries = HISI_SAS_COMMAND_ENTRIES_V2_HW,
