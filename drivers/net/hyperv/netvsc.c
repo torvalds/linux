@@ -246,20 +246,13 @@ int netvsc_alloc_recv_comp_ring(struct netvsc_device *net_device, u32 q_idx)
 static int netvsc_init_buf(struct hv_device *device,
 			   struct netvsc_device *net_device)
 {
-	int ret = 0;
-	struct nvsp_message *init_packet;
 	struct nvsp_1_message_send_receive_buffer_complete *resp;
-	struct net_device *ndev;
+	struct net_device *ndev = hv_get_drvdata(device);
+	struct nvsp_message *init_packet;
 	size_t map_words;
-	int node;
+	int ret = 0;
 
-	ndev = hv_get_drvdata(device);
-
-	node = cpu_to_node(device->channel->target_cpu);
-	net_device->recv_buf = vzalloc_node(net_device->recv_buf_size, node);
-	if (!net_device->recv_buf)
-		net_device->recv_buf = vzalloc(net_device->recv_buf_size);
-
+	net_device->recv_buf = vzalloc(net_device->recv_buf_size);
 	if (!net_device->recv_buf) {
 		netdev_err(ndev, "unable to allocate receive "
 			"buffer of size %d\n", net_device->recv_buf_size);
@@ -340,9 +333,7 @@ static int netvsc_init_buf(struct hv_device *device,
 		goto cleanup;
 
 	/* Now setup the send buffer. */
-	net_device->send_buf = vzalloc_node(net_device->send_buf_size, node);
-	if (!net_device->send_buf)
-		net_device->send_buf = vzalloc(net_device->send_buf_size);
+	net_device->send_buf = vzalloc(net_device->send_buf_size);
 	if (!net_device->send_buf) {
 		netdev_err(ndev, "unable to allocate send "
 			   "buffer of size %d\n", net_device->send_buf_size);
