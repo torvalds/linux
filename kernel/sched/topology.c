@@ -335,7 +335,8 @@ static void free_sched_groups(struct sched_group *sg, int free_sgc)
 		if (free_sgc && atomic_dec_and_test(&sg->sgc->ref))
 			kfree(sg->sgc);
 
-		kfree(sg);
+		if (atomic_dec_and_test(&sg->ref))
+			kfree(sg);
 		sg = tmp;
 	} while (sg != first);
 }
@@ -343,15 +344,11 @@ static void free_sched_groups(struct sched_group *sg, int free_sgc)
 static void destroy_sched_domain(struct sched_domain *sd)
 {
 	/*
-	 * If its an overlapping domain it has private groups, iterate and
-	 * nuke them all.
+	 * A sched domain has many groups' reference, and an overlapping
+	 * domain has private groups, iterate and nuke them all.
 	 */
-	if (sd->flags & SD_OVERLAP) {
-		free_sched_groups(sd->groups, 1);
-	} else if (atomic_dec_and_test(&sd->groups->ref)) {
-		kfree(sd->groups->sgc);
-		kfree(sd->groups);
-	}
+	free_sched_groups(sd->groups, 1);
+
 	if (sd->shared && atomic_dec_and_test(&sd->shared->ref))
 		kfree(sd->shared);
 	kfree(sd);
@@ -668,6 +665,7 @@ build_group_from_child_sched_domain(struct sched_domain *sd, int cpu)
 	else
 		cpumask_copy(sg_span, sched_domain_span(sd));
 
+	atomic_inc(&sg->ref);
 	return sg;
 }
 
