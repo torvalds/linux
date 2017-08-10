@@ -1790,29 +1790,6 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	 */
 	card->reenable_cmdq = card->ext_csd.cmdq_en;
 
-	/*
-	 * The mandatory minimum values are defined for packed command.
-	 * read: 5, write: 3
-	 */
-	if (card->ext_csd.max_packed_writes >= 3 &&
-	    card->ext_csd.max_packed_reads >= 5 &&
-	    host->caps2 & MMC_CAP2_PACKED_CMD) {
-		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
-				EXT_CSD_EXP_EVENTS_CTRL,
-				EXT_CSD_PACKED_EVENT_EN,
-				card->ext_csd.generic_cmd6_time);
-		if (err && err != -EBADMSG)
-			goto free_card;
-		if (err) {
-			pr_warn("%s: Enabling packed event failed\n",
-				mmc_hostname(card->host));
-			card->ext_csd.packed_event_en = 0;
-			err = 0;
-		} else {
-			card->ext_csd.packed_event_en = 1;
-		}
-	}
-
 	if (!oldcard)
 		host->card = card;
 

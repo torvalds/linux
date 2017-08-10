@@ -291,10 +291,6 @@ struct mmc_host {
 				 MMC_CAP2_HS200_1_2V_SDR)
 #define MMC_CAP2_CD_ACTIVE_HIGH	(1 << 10)	/* Card-detect signal active high */
 #define MMC_CAP2_RO_ACTIVE_HIGH	(1 << 11)	/* Write-protect signal active high */
-#define MMC_CAP2_PACKED_RD	(1 << 12)	/* Allow packed read */
-#define MMC_CAP2_PACKED_WR	(1 << 13)	/* Allow packed write */
-#define MMC_CAP2_PACKED_CMD	(MMC_CAP2_PACKED_RD | \
-				 MMC_CAP2_PACKED_WR)
 #define MMC_CAP2_NO_PRESCAN_POWERUP (1 << 14)	/* Don't power up before scan */
 #define MMC_CAP2_HS400_1_8V	(1 << 15)	/* Can support HS400 1.8V */
 #define MMC_CAP2_HS400_1_2V	(1 << 16)	/* Can support HS400 1.2V */
