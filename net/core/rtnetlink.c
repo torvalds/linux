@@ -262,7 +262,7 @@ void rtnl_unregister_all(int protocol)
 
 	synchronize_net();
 
-	while (refcount_read(&rtnl_msg_handlers_ref[protocol]) > 0)
+	while (refcount_read(&rtnl_msg_handlers_ref[protocol]) > 1)
 		schedule();
 	kfree(handlers);
 }
@@ -4324,6 +4324,11 @@ static struct pernet_operations rtnetlink_net_ops = {
 
 void __init rtnetlink_init(void)
 {
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(rtnl_msg_handlers_ref); i++)
+		refcount_set(&rtnl_msg_handlers_ref[i], 1);
+
 	if (register_pernet_subsys(&rtnetlink_net_ops))
 		panic("rtnetlink_init: cannot initialize rtnetlink\n");
 
