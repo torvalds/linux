@@ -114,6 +114,7 @@ struct pmbus_data {
 	 */
 	u16 status[PB_NUM_STATUS_REG];
 
+	bool has_status_word;		/* device uses STATUS_WORD register */
 	int (*read_status)(struct i2c_client *client, int page);
 
 	u8 currpage;
@@ -1045,6 +1046,7 @@ static int pmbus_add_sensor_attrs_one(struct i2c_client *client,
 				      const struct pmbus_sensor_attr *attr)
 {
 	struct pmbus_sensor *base;
+	bool upper = !!(attr->gbit & 0xff00);	/* need to check STATUS_WORD */
 	int ret;
 
 	if (attr->label) {
@@ -1065,9 +1067,11 @@ static int pmbus_add_sensor_attrs_one(struct i2c_client *client,
 		/*
 		 * Add generic alarm attribute only if there are no individual
 		 * alarm attributes, if there is a global alarm bit, and if
-		 * the generic status register for this page is accessible.
+		 * the generic status register (word or byte, depending on
+		 * which global bit is set) for this page is accessible.
 		 */
 		if (!ret && attr->gbit &&
+		    (!upper || (upper && data->has_status_word)) &&
 		    pmbus_check_status_register(client, page)) {
 			ret = pmbus_add_boolean(data, name, "alarm", index,
 						NULL, NULL,
@@ -1324,6 +1328,7 @@ static const struct pmbus_sensor_attr current_attributes[] = {
 		.func = PMBUS_HAVE_IIN,
 		.sfunc = PMBUS_HAVE_STATUS_INPUT,
 		.sbase = PB_STATUS_INPUT_BASE,
+		.gbit = PB_STATUS_INPUT,
 		.limit = iin_limit_attrs,
 		.nlimit = ARRAY_SIZE(iin_limit_attrs),
 	}, {
@@ -1408,6 +1413,7 @@ static const struct pmbus_sensor_attr power_attributes[] = {
 		.func = PMBUS_HAVE_PIN,
 		.sfunc = PMBUS_HAVE_STATUS_INPUT,
 		.sbase = PB_STATUS_INPUT_BASE,
+		.gbit = PB_STATUS_INPUT,
 		.limit = pin_limit_attrs,
 		.nlimit = ARRAY_SIZE(pin_limit_attrs),
 	}, {
@@ -1775,6 +1781,8 @@ static int pmbus_init_common(struct i2c_client *client, struct pmbus_data *data,
 			dev_err(dev, "PMBus status register not found\n");
 			return -ENODEV;
 		}
+	} else {
+		data->has_status_word = true;
 	}
 
 	/* Enable PEC if the controller supports it */
