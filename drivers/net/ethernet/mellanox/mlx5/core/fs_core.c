@@ -1449,7 +1449,7 @@ try_add_to_existing_fg(struct mlx5_flow_table *ft,
 		       int dest_num)
 {
 	struct mlx5_flow_group *g;
-	struct mlx5_flow_handle *rule = ERR_PTR(-ENOENT);
+	struct mlx5_flow_handle *rule;
 	struct rhlist_head *tmp, *list;
 	struct match_list {
 		struct list_head	list;
@@ -1513,6 +1513,8 @@ try_add_to_existing_fg(struct mlx5_flow_table *ft,
 		unlock_ref_node(&g->node);
 	}
 
+	rule = ERR_PTR(-ENOENT);
+
 free_list:
 	if (!list_empty(&match_head)) {
 		struct match_list *match_tmp;
@@ -1553,7 +1555,7 @@ _mlx5_add_flow_rules(struct mlx5_flow_table *ft,
 
 	nested_lock_ref_node(&ft->node, FS_MUTEX_GRANDPARENT);
 	rule = try_add_to_existing_fg(ft, spec, flow_act, dest, dest_num);
-	if (!IS_ERR(rule))
+	if (!IS_ERR(rule) || PTR_ERR(rule) != -ENOENT)
 		goto unlock;
 
 	g = create_autogroup(ft, spec->match_criteria_enable,
