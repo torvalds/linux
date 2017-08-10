@@ -32,6 +32,7 @@ static unsigned long iova_rcache_get(struct iova_domain *iovad,
 				     unsigned long limit_pfn);
 static void init_iova_rcaches(struct iova_domain *iovad);
 static void free_iova_rcaches(struct iova_domain *iovad);
+static void fq_destroy_all_entries(struct iova_domain *iovad);
 
 void
 init_iova_domain(struct iova_domain *iovad, unsigned long granule,
@@ -61,6 +62,7 @@ static void free_iova_flush_queue(struct iova_domain *iovad)
 	if (!iovad->fq)
 		return;
 
+	fq_destroy_all_entries(iovad);
 	free_percpu(iovad->fq);
 
 	iovad->fq         = NULL;
@@ -460,6 +462,84 @@ free_iova_fast(struct iova_domain *iovad, unsigned long pfn, unsigned long size)
 	free_iova(iovad, pfn);
 }
 EXPORT_SYMBOL_GPL(free_iova_fast);
+
+#define fq_ring_for_each(i, fq) \
+	for ((i) = (fq)->head; (i) != (fq)->tail; (i) = ((i) + 1) % IOVA_FQ_SIZE)
+
+static inline bool fq_full(struct iova_fq *fq)
+{
+	return (((fq->tail + 1) % IOVA_FQ_SIZE) == fq->head);
+}
+
+static inline unsigned fq_ring_add(struct iova_fq *fq)
+{
+	unsigned idx = fq->tail;
+
+	fq->tail = (idx + 1) % IOVA_FQ_SIZE;
+
+	return idx;
+}
+
+static void fq_ring_free(struct iova_domain *iovad, struct iova_fq *fq)
+{
+	unsigned idx;
+
+	fq_ring_for_each(idx, fq) {
+
+		if (iovad->entry_dtor)
+			iovad->entry_dtor(fq->entries[idx].data);
+
+		free_iova_fast(iovad,
+			       fq->entries[idx].iova_pfn,
+			       fq->entries[idx].pages);
+	}
+
+	fq->head = 0;
+	fq->tail = 0;
+}
+
+static void fq_destroy_all_entries(struct iova_domain *iovad)
+{
+	int cpu;
+
+	/*
+	 * This code runs when the iova_domain is being detroyed, so don't
+	 * bother to free iovas, just call the entry_dtor on all remaining
+	 * entries.
+	 */
+	if (!iovad->entry_dtor)
+		return;
+
+	for_each_possible_cpu(cpu) {
+		struct iova_fq *fq = per_cpu_ptr(iovad->fq, cpu);
+		int idx;
+
+		fq_ring_for_each(idx, fq)
+			iovad->entry_dtor(fq->entries[idx].data);
+	}
+}
+
+void queue_iova(struct iova_domain *iovad,
+		unsigned long pfn, unsigned long pages,
+		unsigned long data)
+{
+	struct iova_fq *fq = get_cpu_ptr(iovad->fq);
+	unsigned idx;
+
+	if (fq_full(fq)) {
+		iovad->flush_cb(iovad);
+		fq_ring_free(iovad, fq);
+	}
+
+	idx = fq_ring_add(fq);
+
+	fq->entries[idx].iova_pfn = pfn;
+	fq->entries[idx].pages    = pages;
+	fq->entries[idx].data     = data;
+
+	put_cpu_ptr(iovad->fq);
+}
+EXPORT_SYMBOL_GPL(queue_iova);
 
 /**
  * put_iova_domain - destroys the iova doamin
