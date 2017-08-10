@@ -1900,7 +1900,7 @@ static struct Scsi_Host *hisi_sas_shost_alloc(struct platform_device *pdev,
 
 	return shost;
 err_out:
-	kfree(shost);
+	scsi_host_put(shost);
 	dev_err(dev, "shost alloc failed\n");
 	return NULL;
 }
@@ -1991,7 +1991,7 @@ err_out_register_ha:
 	scsi_remove_host(shost);
 err_out_ha:
 	hisi_sas_free(hisi_hba);
-	kfree(shost);
+	scsi_host_put(shost);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(hisi_sas_probe);
@@ -2006,7 +2006,7 @@ int hisi_sas_remove(struct platform_device *pdev)
 	sas_remove_host(sha->core.shost);
 
 	hisi_sas_free(hisi_hba);
-	kfree(shost);
+	scsi_host_put(shost);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(hisi_sas_remove);

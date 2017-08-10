@@ -1811,8 +1811,10 @@ hisi_sas_shost_alloc_pci(struct pci_dev *pdev)
 	struct device *dev = &pdev->dev;
 
 	shost = scsi_host_alloc(hisi_sas_sht, sizeof(*hisi_hba));
-	if (!shost)
-		goto err_out;
+	if (!shost) {
+		dev_err(dev, "shost alloc failed\n");
+		return NULL;
+	}
 	hisi_hba = shost_priv(shost);
 
 	hisi_hba->hw = &hisi_sas_v3_hw;
@@ -1833,6 +1835,7 @@ hisi_sas_shost_alloc_pci(struct pci_dev *pdev)
 
 	return shost;
 err_out:
+	scsi_host_put(shost);
 	dev_err(dev, "shost alloc failed\n");
 	return NULL;
 }
@@ -1941,7 +1944,7 @@ hisi_sas_v3_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 err_out_register_ha:
 	scsi_remove_host(shost);
 err_out_ha:
-	kfree(shost);
+	scsi_host_put(shost);
 err_out_regions:
 	pci_release_regions(pdev);
 err_out_disable_device:
@@ -1971,14 +1974,16 @@ static void hisi_sas_v3_remove(struct pci_dev *pdev)
 	struct device *dev = &pdev->dev;
 	struct sas_ha_struct *sha = dev_get_drvdata(dev);
 	struct hisi_hba *hisi_hba = sha->lldd_ha;
+	struct Scsi_Host *shost = sha->core.shost;
 
 	sas_unregister_ha(sha);
 	sas_remove_host(sha->core.shost);
 
-	hisi_sas_free(hisi_hba);
 	hisi_sas_v3_destroy_irqs(pdev, hisi_hba);
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
+	hisi_sas_free(hisi_hba);
+	scsi_host_put(shost);
 }
 
 enum {
