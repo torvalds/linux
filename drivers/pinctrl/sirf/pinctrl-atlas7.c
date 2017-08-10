@@ -5261,7 +5261,7 @@ static int atlas7_pmx_gpio_request_enable(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static struct pinmux_ops atlas7_pinmux_ops = {
+static const struct pinmux_ops atlas7_pinmux_ops = {
 	.get_functions_count = atlas7_pmx_get_funcs_count,
 	.get_function_name = atlas7_pmx_get_func_name,
 	.get_function_groups = atlas7_pmx_get_func_groups,
