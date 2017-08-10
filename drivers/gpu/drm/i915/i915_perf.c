@@ -2173,8 +2173,6 @@ void i915_oa_init_reg_state(struct intel_engine_cs *engine,
 	struct drm_i915_private *dev_priv = engine->i915;
 	struct i915_perf_stream *stream = dev_priv->perf.oa.exclusive_stream;
 
-	lockdep_assert_held(&dev_priv->drm.struct_mutex);
-
 	if (engine->id != RCS)
 		return;
 
