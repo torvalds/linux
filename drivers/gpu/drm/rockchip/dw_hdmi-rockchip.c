@@ -391,6 +391,7 @@ dw_hdmi_rockchip_mode_valid(struct drm_connector *connector,
 	struct drm_device *dev = connector->dev;
 	struct rockchip_drm_private *priv = dev->dev_private;
 	struct drm_crtc *crtc;
+	struct rockchip_hdmi *hdmi;
 
 	/*
 	 * Pixel clocks we support are always < 2GHz and so fit in an
@@ -420,6 +421,11 @@ dw_hdmi_rockchip_mode_valid(struct drm_connector *connector,
 	}
 
 	if (!encoder || !encoder->possible_crtcs)
+		return MODE_BAD;
+
+	hdmi = to_rockchip_hdmi(encoder);
+	if (hdmi->dev_type == RK3368_HDMI && mode->clock > 340000 &&
+	    !(mode->flags & DRM_MODE_FLAG_420_MASK))
 		return MODE_BAD;
 	/*
 	 * ensure all drm display mode can work, if someone want support more
