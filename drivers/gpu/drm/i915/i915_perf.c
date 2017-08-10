@@ -2170,15 +2170,12 @@ void i915_oa_init_reg_state(struct intel_engine_cs *engine,
 			    struct i915_gem_context *ctx,
 			    u32 *reg_state)
 {
-	struct drm_i915_private *dev_priv = engine->i915;
-	struct i915_perf_stream *stream = dev_priv->perf.oa.exclusive_stream;
+	struct i915_perf_stream *stream;
 
 	if (engine->id != RCS)
 		return;
 
-	if (!dev_priv->perf.initialized)
-		return;
-
+	stream = engine->i915->perf.oa.exclusive_stream;
 	if (stream)
 		gen8_update_reg_state_unlocked(ctx, reg_state, stream->oa_config);
 }
