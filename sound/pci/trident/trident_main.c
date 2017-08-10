@@ -2093,7 +2093,7 @@ static const struct snd_pcm_ops snd_trident_nx_playback_ops = {
 	.page =		snd_pcm_sgbuf_ops_page,
 };
 
-static struct snd_pcm_ops snd_trident_capture_ops = {
+static const struct snd_pcm_ops snd_trident_capture_ops = {
 	.open =		snd_trident_capture_open,
 	.close =	snd_trident_capture_close,
 	.ioctl =	snd_trident_ioctl,
@@ -2104,7 +2104,7 @@ static struct snd_pcm_ops snd_trident_capture_ops = {
 	.pointer =	snd_trident_capture_pointer,
 };
 
-static struct snd_pcm_ops snd_trident_si7018_capture_ops = {
+static const struct snd_pcm_ops snd_trident_si7018_capture_ops = {
 	.open =		snd_trident_capture_open,
 	.close =	snd_trident_capture_close,
 	.ioctl =	snd_trident_ioctl,

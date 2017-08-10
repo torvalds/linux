@@ -439,7 +439,7 @@ static snd_pcm_uframes_t snd_vortex_pcm_pointer(struct snd_pcm_substream *substr
 }
 
 /* operators */
-static struct snd_pcm_ops snd_vortex_playback_ops = {
+static const struct snd_pcm_ops snd_vortex_playback_ops = {
 	.open = snd_vortex_pcm_open,
 	.close = snd_vortex_pcm_close,
 	.ioctl = snd_pcm_lib_ioctl,
