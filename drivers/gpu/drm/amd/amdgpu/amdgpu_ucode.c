@@ -358,8 +358,6 @@ static int amdgpu_ucode_patch_jt(struct amdgpu_firmware_info *ucode,
 			   (le32_to_cpu(header->jt_offset) * 4);
 	memcpy(dst_addr, src_addr, le32_to_cpu(header->jt_size) * 4);
 
-	ucode->ucode_size += le32_to_cpu(header->jt_size) * 4;
-
 	return 0;
 }
 
