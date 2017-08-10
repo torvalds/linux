@@ -773,7 +773,7 @@ const struct iommu_ops *iort_iommu_configure(struct device *dev)
 	 * add_device callback for dev, replay it to get things in order.
 	 */
 	if (!err) {
-		ops = dev->iommu_fwspec->ops;
+		ops = iort_fwspec_iommu_ops(dev->iommu_fwspec);
 		err = iort_add_device_replay(ops, dev);
 	}
 
