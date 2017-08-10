@@ -42,7 +42,7 @@ struct rockchip_sub_backlight_ops {
 	void (*config_done)(struct device *dev, bool async);
 };
 
-#ifdef CONFIG_ROCKCHIP_DRM_BACKLIGHT
+#if IS_ENABLED(CONFIG_ROCKCHIP_DRM_BACKLIGHT)
 int of_rockchip_drm_sub_backlight_register(struct device *dev,
 				struct drm_crtc *crtc,
 				const struct rockchip_sub_backlight_ops *ops);
