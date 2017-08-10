@@ -1077,7 +1077,9 @@ found_clock:
 	return fp;
 }
 
-int snd_usb_parse_audio_interface(struct snd_usb_audio *chip, int iface_no)
+static int __snd_usb_parse_audio_interface(struct snd_usb_audio *chip,
+					   int iface_no,
+					   bool *has_non_pcm, bool non_pcm)
 {
 	struct usb_device *dev;
 	struct usb_interface *iface;
@@ -1178,6 +1180,16 @@ int snd_usb_parse_audio_interface(struct snd_usb_audio *chip, int iface_no)
 		else if (IS_ERR(fp))
 			return PTR_ERR(fp);
 
+		if (fp->fmt_type != UAC_FORMAT_TYPE_I)
+			*has_non_pcm = true;
+		if ((fp->fmt_type == UAC_FORMAT_TYPE_I) == non_pcm) {
+			audioformat_free(fp);
+			kfree(pd);
+			fp = NULL;
+			pd = NULL;
+			continue;
+		}
+
 		dev_dbg(&dev->dev, "%u:%d: add audio endpoint %#x\n", iface_no, altno, fp->endpoint);
 		if (protocol == UAC_VERSION_3)
 			err = snd_usb_add_audio_stream_v3(chip, stream, fp, pd);
@@ -1194,6 +1206,26 @@ int snd_usb_parse_audio_interface(struct snd_usb_audio *chip, int iface_no)
 		snd_usb_init_pitch(chip, iface_no, alts, fp);
 		snd_usb_init_sample_rate(chip, iface_no, alts, fp, fp->rate_max);
 	}
+	return 0;
+}
+
+int snd_usb_parse_audio_interface(struct snd_usb_audio *chip, int iface_no)
+{
+	int err;
+	bool has_non_pcm = false;
+
+	/* parse PCM formats */
+	err = __snd_usb_parse_audio_interface(chip, iface_no, &has_non_pcm, false);
+	if (err < 0)
+		return err;
+
+	if (has_non_pcm) {
+		/* parse non-PCM formats */
+		err = __snd_usb_parse_audio_interface(chip, iface_no, &has_non_pcm, true);
+		if (err < 0)
+			return err;
+	}
+
 	return 0;
 }
 
