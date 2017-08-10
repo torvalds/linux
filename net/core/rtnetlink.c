@@ -4167,7 +4167,7 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 	if (kind != 2 && !netlink_net_capable(skb, CAP_NET_ADMIN))
 		return -EPERM;
 
-	if (family > ARRAY_SIZE(rtnl_msg_handlers))
+	if (family >= ARRAY_SIZE(rtnl_msg_handlers))
 		family = PF_UNSPEC;
 
 	rcu_read_lock();
@@ -4196,7 +4196,7 @@ static int rtnetlink_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 		refcount_inc(&rtnl_msg_handlers_ref[family]);
 
-		if (type == RTM_GETLINK)
+		if (type == RTM_GETLINK - RTM_BASE)
 			min_dump_alloc = rtnl_calcit(skb, nlh);
 
 		rcu_read_unlock();
