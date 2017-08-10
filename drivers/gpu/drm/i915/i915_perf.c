@@ -1601,11 +1601,11 @@ static int gen8_emit_oa_config(struct drm_i915_gem_request *req)
 	u32 *cs;
 	int i;
 
-	cs = intel_ring_begin(req, n_flex_regs * 2 + 4);
+	cs = intel_ring_begin(req, ARRAY_SIZE(flex_mmio) * 2 + 4);
 	if (IS_ERR(cs))
 		return PTR_ERR(cs);
 
-	*cs++ = MI_LOAD_REGISTER_IMM(n_flex_regs + 1);
+	*cs++ = MI_LOAD_REGISTER_IMM(ARRAY_SIZE(flex_mmio) + 1);
 
 	*cs++ = i915_mmio_reg_offset(GEN8_OACTXCONTROL);
 	*cs++ = (dev_priv->perf.oa.period_exponent << GEN8_OA_TIMER_PERIOD_SHIFT) |
