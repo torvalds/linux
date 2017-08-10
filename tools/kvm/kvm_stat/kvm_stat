@@ -474,7 +474,7 @@ class Provider(object):
     @staticmethod
     def is_field_wanted(fields_filter, field):
         """Indicate whether field is valid according to fields_filter."""
-        if not fields_filter:
+        if not fields_filter or fields_filter == "help":
             return True
         return re.match(fields_filter, field) is not None
 
@@ -1413,8 +1413,8 @@ performance.
 
 Requirements:
 - Access to:
-    /sys/kernel/debug/kvm
-    /sys/kernel/debug/trace/events/*
+    %s
+    %s/events/*
     /proc/pid/task
 - /proc/sys/kernel/perf_event_paranoid < 1 if user has no
   CAP_SYS_ADMIN and perf events are used.
@@ -1434,7 +1434,7 @@ Interactive Commands:
    s     set update interval
    x     toggle reporting of stats for individual child trace events
 Press any other key to refresh statistics immediately.
-"""
+""" % (PATH_DEBUGFS_KVM, PATH_DEBUGFS_TRACING)
 
     class PlainHelpFormatter(optparse.IndentedHelpFormatter):
         def format_description(self, description):
@@ -1496,7 +1496,8 @@ Press any other key to refresh statistics immediately.
                          action='store',
                          default=DEFAULT_REGEX,
                          dest='fields',
-                         help='fields to display (regex)',
+                         help='''fields to display (regex)
+                                 "-f help" for a list of available events''',
                          )
     optparser.add_option('-p', '--pid',
                          action='store',
@@ -1558,6 +1559,17 @@ def main():
         sys.exit('Specified pid does not exist.')
 
     stats = Stats(options)
+
+    if options.fields == "help":
+        event_list = "\n"
+        s = stats.get()
+        for key in s.keys():
+            if key.find('(') != -1:
+                key = key[0:key.find('(')]
+            if event_list.find('\n' + key + '\n') == -1:
+                event_list += key + '\n'
+        sys.stdout.write(event_list)
+        return ""
 
     if options.log:
         log(stats)

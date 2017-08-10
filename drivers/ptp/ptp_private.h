@@ -22,6 +22,7 @@
 
 #include <linux/cdev.h>
 #include <linux/device.h>
+#include <linux/kthread.h>
 #include <linux/mutex.h>
 #include <linux/posix-clock.h>
 #include <linux/ptp_clock.h>
@@ -56,6 +57,8 @@ struct ptp_clock {
 	struct attribute_group pin_attr_group;
 	/* 1st entry is a pointer to the real group, 2nd is NULL terminator */
 	const struct attribute_group *pin_attr_groups[2];
+	struct kthread_worker *kworker;
+	struct kthread_delayed_work aux_work;
 };
 
 /*

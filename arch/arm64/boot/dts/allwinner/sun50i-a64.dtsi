@@ -452,7 +452,7 @@
 		emac: ethernet@1c30000 {
 			compatible = "allwinner,sun50i-a64-emac";
 			syscon = <&syscon>;
-			reg = <0x01c30000 0x100>;
+			reg = <0x01c30000 0x10000>;
 			interrupts = <GIC_SPI 82 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
 			resets = <&ccu RST_BUS_EMAC>;

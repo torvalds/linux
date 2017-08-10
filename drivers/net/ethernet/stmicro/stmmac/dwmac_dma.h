@@ -136,6 +136,9 @@
 #define DMA_STATUS_TI	0x00000001	/* Transmit Interrupt */
 #define DMA_CONTROL_FTF		0x00100000	/* Flush transmit FIFO */
 
+#define NUM_DWMAC100_DMA_REGS	9
+#define NUM_DWMAC1000_DMA_REGS	23
+
 void dwmac_enable_dma_transmission(void __iomem *ioaddr);
 void dwmac_enable_dma_irq(void __iomem *ioaddr, u32 chan);
 void dwmac_disable_dma_irq(void __iomem *ioaddr, u32 chan);
