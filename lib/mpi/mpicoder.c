@@ -364,17 +364,19 @@ MPI mpi_read_raw_from_sgl(struct scatterlist *sgl, unsigned int nbytes)
 	}
 
 	miter.consumed = lzeros;
-	sg_miter_stop(&miter);
 
 	nbytes -= lzeros;
 	nbits = nbytes * 8;
 	if (nbits > MAX_EXTERN_MPI_BITS) {
+		sg_miter_stop(&miter);
 		pr_info("MPI: mpi too large (%u bits)\n", nbits);
 		return NULL;
 	}
 
 	if (nbytes > 0)
 		nbits -= count_leading_zeros(*buff) - (BITS_PER_LONG - 8);
+
+	sg_miter_stop(&miter);
 
 	nlimbs = DIV_ROUND_UP(nbytes, BYTES_PER_MPI_LIMB);
 	val = mpi_alloc(nlimbs);
