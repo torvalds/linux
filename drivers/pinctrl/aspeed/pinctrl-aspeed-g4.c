@@ -2401,7 +2401,7 @@ static struct aspeed_pinctrl_data aspeed_g4_pinctrl_data = {
 	.nconfigs = ARRAY_SIZE(aspeed_g4_configs),
 };
 
-static struct pinmux_ops aspeed_g4_pinmux_ops = {
+static const struct pinmux_ops aspeed_g4_pinmux_ops = {
 	.get_functions_count = aspeed_pinmux_get_fn_count,
 	.get_function_name = aspeed_pinmux_get_fn_name,
 	.get_function_groups = aspeed_pinmux_get_fn_groups,
@@ -2410,7 +2410,7 @@ static struct pinmux_ops aspeed_g4_pinmux_ops = {
 	.strict = true,
 };
 
-static struct pinctrl_ops aspeed_g4_pinctrl_ops = {
+static const struct pinctrl_ops aspeed_g4_pinctrl_ops = {
 	.get_groups_count = aspeed_pinctrl_get_groups_count,
 	.get_group_name = aspeed_pinctrl_get_group_name,
 	.get_group_pins = aspeed_pinctrl_get_group_pins,
