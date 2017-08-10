@@ -1209,10 +1209,10 @@ static int mt9m114_s_exposure_selection(struct v4l2_subdev *sd,
 		return -EINVAL;
 	}
 
-	clamp_t(int, win_left, 0, 4);
-	clamp_t(int, win_top, 0, 4);
-	clamp_t(int, win_right, 0, 4);
-	clamp_t(int, win_bottom, 0, 4);
+	win_left   = clamp_t(int, win_left, 0, 4);
+	win_top    = clamp_t(int, win_top, 0, 4);
+	win_right  = clamp_t(int, win_right, 0, 4);
+	win_bottom = clamp_t(int, win_bottom, 0, 4);
 
 	ret = mt9m114_write_reg_array(client, mt9m114_exp_average, NO_POLLING);
 	if (ret) {
