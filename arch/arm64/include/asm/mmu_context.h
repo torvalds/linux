@@ -19,8 +19,6 @@
 #ifndef __ASM_MMU_CONTEXT_H
 #define __ASM_MMU_CONTEXT_H
 
-#define FALKOR_RESERVED_ASID	1
-
 #ifndef __ASSEMBLY__
 
 #include <linux/compiler.h>
