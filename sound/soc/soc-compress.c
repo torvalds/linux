@@ -764,15 +764,12 @@ int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num)
 		direction = SND_COMPRESS_CAPTURE;
 
 	compr = kzalloc(sizeof(*compr), GFP_KERNEL);
-	if (compr == NULL) {
-		snd_printk(KERN_ERR "Cannot allocate compr\n");
+	if (!compr)
 		return -ENOMEM;
-	}
 
 	compr->ops = devm_kzalloc(rtd->card->dev, sizeof(soc_compr_ops),
 				  GFP_KERNEL);
-	if (compr->ops == NULL) {
-		dev_err(rtd->card->dev, "Cannot allocate compressed ops\n");
+	if (!compr->ops) {
 		ret = -ENOMEM;
 		goto compr_err;
 	}
