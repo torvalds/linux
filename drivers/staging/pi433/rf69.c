@@ -101,8 +101,7 @@ enum modulation rf69_get_modulation(struct spi_device *spi)
 
 	currentValue = READ_REG(REG_DATAMODUL);
 
-	switch (currentValue & MASK_DATAMODUL_MODULATION_TYPE >> 3)  // TODO improvement: change 3 to define
-	{
+	switch (currentValue & MASK_DATAMODUL_MODULATION_TYPE >> 3) { // TODO improvement: change 3 to define
 	case DATAMODUL_MODULATION_TYPE_OOK: return OOK;
 	case DATAMODUL_MODULATION_TYPE_FSK: return FSK;
 	default:			    return undefined;
@@ -115,8 +114,7 @@ int rf69_set_modulation_shaping(struct spi_device *spi, enum modShaping modShapi
 		dev_dbg(&spi->dev, "set: mod shaping");
 	#endif
 
-	if (rf69_get_modulation(spi) == FSK)
-	{
+	if (rf69_get_modulation(spi) == FSK) {
 		switch (modShaping) {
 		case shapingOff: return WRITE_REG(REG_DATAMODUL, (READ_REG(REG_DATAMODUL) & ~MASK_DATAMODUL_MODULATION_SHAPE) | DATAMODUL_MODULATION_SHAPE_NONE);
 		case shaping1_0: return WRITE_REG(REG_DATAMODUL, (READ_REG(REG_DATAMODUL) & ~MASK_DATAMODUL_MODULATION_SHAPE) | DATAMODUL_MODULATION_SHAPE_1_0);
@@ -125,8 +123,7 @@ int rf69_set_modulation_shaping(struct spi_device *spi, enum modShaping modShapi
 		default:	 INVALID_PARAM;
 		}
 	}
-	else
-	{
+	else {
 		switch (modShaping) {
 		case shapingOff: return WRITE_REG(REG_DATAMODUL, (READ_REG(REG_DATAMODUL) & ~MASK_DATAMODUL_MODULATION_SHAPE) | DATAMODUL_MODULATION_SHAPE_NONE);
 		case shapingBR:	 return WRITE_REG(REG_DATAMODUL, (READ_REG(REG_DATAMODUL) & ~MASK_DATAMODUL_MODULATION_SHAPE) | DATAMODUL_MODULATION_SHAPE_BR);
@@ -150,8 +147,7 @@ int rf69_set_bit_rate(struct spi_device *spi, u16 bitRate)
 
 	// check input value
 	bitRate_min = F_OSC / 8388608; // 8388608 = 2^23;
-	if (bitRate < bitRate_min)
-	{
+	if (bitRate < bitRate_min) {
 		dev_dbg(&spi->dev, "setBitRate: illegal input param");
 		INVALID_PARAM;
 	}
@@ -185,8 +181,7 @@ int rf69_set_deviation(struct spi_device *spi, u32 deviation)
 		dev_dbg(&spi->dev, "set: deviation");
 	#endif
 
-	if (deviation < 600 || deviation > 500000) //TODO: Abhängigkeit von Bitrate beachten!!
-	{
+	if (deviation < 600 || deviation > 500000) { //TODO: Abhängigkeit von Bitrate beachten!!
 		dev_dbg(&spi->dev, "set_deviation: illegal input param");
 		INVALID_PARAM;
 	}
@@ -203,8 +198,7 @@ int rf69_set_deviation(struct spi_device *spi, u32 deviation)
 	lsb = (f_reg&0xff);
 
 	// check msb
-	if (msb & !FDEVMASB_MASK)
-	{
+	if (msb & !FDEVMASB_MASK) {
 		dev_dbg(&spi->dev, "set_deviation: err in calc of msb");
 		INVALID_PARAM;
 	}
@@ -239,8 +233,7 @@ int rf69_set_frequency(struct spi_device *spi, u32 frequency)
 
 	// check input value
 	f_max = div_u64(f_step * 8388608, factor);
-	if (frequency > f_max)
-	{
+	if (frequency > f_max) {
 		dev_dbg(&spi->dev, "setFrequency: illegal input param");
 		INVALID_PARAM;
 	}
@@ -387,8 +380,7 @@ enum lnaGain rf69_get_lna_gain(struct spi_device *spi)
 
 	currentValue = READ_REG(REG_LNA);
 
-	switch (currentValue & MASK_LNA_CURRENT_GAIN >> 3)  // improvement: change 3 to define
-	{
+	switch (currentValue & MASK_LNA_CURRENT_GAIN >> 3) { // improvement: change 3 to define
 	case LNA_GAIN_AUTO:	    return automatic;
 	case LNA_GAIN_MAX:	    return max;
 	case LNA_GAIN_MAX_MINUS_6:  return maxMinus6;
@@ -488,8 +480,7 @@ int rf69_set_ook_threshold_type(struct spi_device *spi, enum thresholdType thres
 		dev_dbg(&spi->dev, "set: threshold type");
 	#endif
 
-	switch (thresholdType)
-	{
+	switch (thresholdType) {
 	case fixed:	return WRITE_REG(REG_OOKPEAK, ( (READ_REG(REG_OOKPEAK) & ~MASK_OOKPEAK_THRESTYPE) | OOKPEAK_THRESHTYPE_FIXED) );
 	case peak:	return WRITE_REG(REG_OOKPEAK, ( (READ_REG(REG_OOKPEAK) & ~MASK_OOKPEAK_THRESTYPE) | OOKPEAK_THRESHTYPE_PEAK) );
 	case average:	return WRITE_REG(REG_OOKPEAK, ( (READ_REG(REG_OOKPEAK) & ~MASK_OOKPEAK_THRESTYPE) | OOKPEAK_THRESHTYPE_AVERAGE) );
@@ -875,8 +866,7 @@ int rf69_read_fifo (struct spi_device *spi, u8 *buffer, unsigned int size)
 	u8 local_buffer[FIFO_SIZE + 1];
 	int retval;
 
-	if (size > FIFO_SIZE)
-	{
+	if (size > FIFO_SIZE) {
 		#ifdef DEBUG
 			dev_dbg(&spi->dev, "read fifo: passed in buffer bigger then internal buffer \n");
 		#endif
@@ -910,8 +900,7 @@ int rf69_write_fifo(struct spi_device *spi, u8 *buffer, unsigned int size)
 	char spi_address = REG_FIFO | WRITE_BIT;
 	u8 local_buffer[FIFO_SIZE + 1];
 
-	if (size > FIFO_SIZE)
-	{
+	if (size > FIFO_SIZE) {
 		#ifdef DEBUG
 			dev_dbg(&spi->dev, "read fifo: passed in buffer bigger then internal buffer \n");
 		#endif
