@@ -880,10 +880,10 @@ static int test_dev_config_update_uint_sync(struct kmod_test_device *test_dev,
 					    int (*test_sync)(struct kmod_test_device *test_dev))
 {
 	int ret;
-	long new;
+	unsigned long new;
 	unsigned int old_val;
 
-	ret = kstrtol(buf, 10, &new);
+	ret = kstrtoul(buf, 10, &new);
 	if (ret)
 		return ret;
 
@@ -918,9 +918,9 @@ static int test_dev_config_update_uint_range(struct kmod_test_device *test_dev,
 					     unsigned int max)
 {
 	int ret;
-	long new;
+	unsigned long new;
 
-	ret = kstrtol(buf, 10, &new);
+	ret = kstrtoul(buf, 10, &new);
 	if (ret)
 		return ret;
 
