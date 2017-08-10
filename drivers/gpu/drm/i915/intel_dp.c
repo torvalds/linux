@@ -97,6 +97,9 @@ static const int bxt_rates[] = { 162000, 216000, 243000, 270000,
 				  324000, 432000, 540000 };
 static const int skl_rates[] = { 162000, 216000, 270000,
 				  324000, 432000, 540000 };
+static const int cnl_rates[] = { 162000, 216000, 270000,
+				 324000, 432000, 540000,
+				 648000, 810000 };
 static const int default_rates[] = { 162000, 270000, 540000 };
 
 /**
@@ -229,8 +232,10 @@ intel_dp_set_source_rates(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(dig_port->base.base.dev);
+	enum port port = dig_port->port;
 	const int *source_rates;
 	int size;
+	u32 voltage;
 
 	/* This should only be done once */
 	WARN_ON(intel_dp->source_rates || intel_dp->num_source_rates);
@@ -238,6 +243,13 @@ intel_dp_set_source_rates(struct intel_dp *intel_dp)
 	if (IS_GEN9_LP(dev_priv)) {
 		source_rates = bxt_rates;
 		size = ARRAY_SIZE(bxt_rates);
+	} else if (IS_CANNONLAKE(dev_priv)) {
+		source_rates = cnl_rates;
+		size = ARRAY_SIZE(cnl_rates);
+		voltage = I915_READ(CNL_PORT_COMP_DW3) & VOLTAGE_INFO_MASK;
+		if (port == PORT_A || port == PORT_D ||
+		    voltage == VOLTAGE_INFO_0_85V)
+			size -= 2;
 	} else if (IS_GEN9_BC(dev_priv)) {
 		source_rates = skl_rates;
 		size = ARRAY_SIZE(skl_rates);
