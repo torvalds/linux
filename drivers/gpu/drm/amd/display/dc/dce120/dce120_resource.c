@@ -535,7 +535,7 @@ static const struct encoder_feature_support link_enc_feature = {
 		.flags.bits.IS_YCBCR_CAPABLE = true
 };
 
-struct link_encoder *dce120_link_encoder_create(
+static struct link_encoder *dce120_link_encoder_create(
 	const struct encoder_init_data *enc_init_data)
 {
 	struct dce110_link_encoder *enc110 =
