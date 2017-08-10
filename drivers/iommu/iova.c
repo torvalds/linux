@@ -50,9 +50,47 @@ init_iova_domain(struct iova_domain *iovad, unsigned long granule,
 	iovad->granule = granule;
 	iovad->start_pfn = start_pfn;
 	iovad->dma_32bit_pfn = pfn_32bit + 1;
+	iovad->flush_cb = NULL;
+	iovad->fq = NULL;
 	init_iova_rcaches(iovad);
 }
 EXPORT_SYMBOL_GPL(init_iova_domain);
+
+static void free_iova_flush_queue(struct iova_domain *iovad)
+{
+	if (!iovad->fq)
+		return;
+
+	free_percpu(iovad->fq);
+
+	iovad->fq         = NULL;
+	iovad->flush_cb   = NULL;
+	iovad->entry_dtor = NULL;
+}
+
+int init_iova_flush_queue(struct iova_domain *iovad,
+			  iova_flush_cb flush_cb, iova_entry_dtor entry_dtor)
+{
+	int cpu;
+
+	iovad->fq = alloc_percpu(struct iova_fq);
+	if (!iovad->fq)
+		return -ENOMEM;
+
+	iovad->flush_cb   = flush_cb;
+	iovad->entry_dtor = entry_dtor;
+
+	for_each_possible_cpu(cpu) {
+		struct iova_fq *fq;
+
+		fq = per_cpu_ptr(iovad->fq, cpu);
+		fq->head = 0;
+		fq->tail = 0;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(init_iova_flush_queue);
 
 static struct rb_node *
 __get_cached_rbnode(struct iova_domain *iovad, unsigned long *limit_pfn)
@@ -433,6 +471,7 @@ void put_iova_domain(struct iova_domain *iovad)
 	struct rb_node *node;
 	unsigned long flags;
 
+	free_iova_flush_queue(iovad);
 	free_iova_rcaches(iovad);
 	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
 	node = rb_first(&iovad->rbroot);
