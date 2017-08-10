@@ -38,6 +38,7 @@
 #include <linux/cgroup_rdma.h>
 
 #include <rdma/ib_verbs.h>
+#include <rdma/opa_addr.h>
 #include <rdma/ib_mad.h>
 #include "mad_priv.h"
 

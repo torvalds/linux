@@ -549,8 +549,8 @@ struct ib_port_attr {
 	u32			bad_pkey_cntr;
 	u32			qkey_viol_cntr;
 	u16			pkey_tbl_len;
-	u16			lid;
-	u16			sm_lid;
+	u32			sm_lid;
+	u32			lid;
 	u8			lmc;
 	u8			max_vl_num;
 	u8			sm_sl;
@@ -951,7 +951,7 @@ struct ib_wc {
 	u32			src_qp;
 	int			wc_flags;
 	u16			pkey_index;
-	u16			slid;
+	u32			slid;
 	u8			sl;
 	u8			dlid_path_bits;
 	u8			port_num;	/* valid only for DR SMPs on switches */
@@ -2306,6 +2306,8 @@ struct ib_device {
 	 */
 	int (*get_port_immutable)(struct ib_device *, u8, struct ib_port_immutable *);
 	void (*get_dev_fw_str)(struct ib_device *, char *str, size_t str_len);
+	const struct cpumask *(*get_vector_affinity)(struct ib_device *ibdev,
+						     int comp_vector);
 };
 
 struct ib_client {
@@ -3717,4 +3719,38 @@ static inline enum rdma_ah_attr_type rdma_ah_find_type(struct ib_device *dev,
 	else
 		return RDMA_AH_ATTR_TYPE_IB;
 }
+
+/* Return slid in 16bit CPU encoding */
+static inline u16 ib_slid_cpu16(u32 slid)
+{
+	return (u16)slid;
+}
+
+/* Return slid in 16bit BE encoding */
+static inline u16 ib_slid_be16(u32 slid)
+{
+	return cpu_to_be16((u16)slid);
+}
+
+/**
+ * ib_get_vector_affinity - Get the affinity mappings of a given completion
+ *   vector
+ * @device:         the rdma device
+ * @comp_vector:    index of completion vector
+ *
+ * Returns NULL on failure, otherwise a corresponding cpu map of the
+ * completion vector (returns all-cpus map if the device driver doesn't
+ * implement get_vector_affinity).
+ */
+static inline const struct cpumask *
+ib_get_vector_affinity(struct ib_device *device, int comp_vector)
+{
+	if (comp_vector < 0 || comp_vector >= device->num_comp_vectors ||
+	    !device->get_vector_affinity)
+		return NULL;
+
+	return device->get_vector_affinity(device, comp_vector);
+
+}
+
 #endif /* IB_VERBS_H */

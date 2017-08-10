@@ -545,7 +545,6 @@ struct mlx5_core_sriov {
 };
 
 struct mlx5_irq_info {
-	cpumask_var_t mask;
 	char name[MLX5_MAX_IRQ_NAME];
 };
 
@@ -608,7 +607,6 @@ struct mlx5_port_module_event_stats {
 struct mlx5_priv {
 	char			name[MLX5_MAX_NAME_LEN];
 	struct mlx5_eq_table	eq_table;
-	struct msix_entry	*msix_arr;
 	struct mlx5_irq_info	*irq_info;
 
 	/* pages stuff */
@@ -1188,5 +1186,11 @@ static inline bool mlx5_rl_is_supported(struct mlx5_core_dev *dev)
 enum {
 	MLX5_TRIGGERED_CMD_COMP = (u64)1 << 32,
 };
+
+static inline const struct cpumask *
+mlx5_get_vector_affinity(struct mlx5_core_dev *dev, int vector)
+{
+	return pci_irq_get_affinity(dev->pdev, MLX5_EQ_VEC_COMP_BASE + vector);
+}
 
 #endif /* MLX5_DRIVER_H */

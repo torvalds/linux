@@ -50,7 +50,8 @@
 
 #define	OPA_SPECIAL_OUI		(0x00066AULL)
 #define OPA_MAKE_ID(x)          (cpu_to_be64(OPA_SPECIAL_OUI << 40 | (x)))
-
+#define OPA_TO_IB_UCAST_LID(x) (((x) >= be16_to_cpu(IB_MULTICAST_LID_BASE)) \
+				? 0 : x)
 /**
  * ib_is_opa_gid: Returns true if the top 24 bits of the gid
  * contains the OPA_STL_OUI identifier. This identifies that
@@ -75,5 +76,23 @@ static inline bool ib_is_opa_gid(union ib_gid *gid)
 static inline u32 opa_get_lid_from_gid(union ib_gid *gid)
 {
 	return be64_to_cpu(gid->global.interface_id) & 0xFFFFFFFF;
+}
+
+/**
+ * opa_is_extended_lid: Returns true if dlid or slid are
+ * extended.
+ *
+ * @dlid: The DLID
+ * @slid: The SLID
+ */
+static inline bool opa_is_extended_lid(u32 dlid, u32 slid)
+{
+	if ((be32_to_cpu(dlid) >=
+	     be16_to_cpu(IB_MULTICAST_LID_BASE)) ||
+	    (be32_to_cpu(slid) >=
+	     be16_to_cpu(IB_MULTICAST_LID_BASE)))
+		return true;
+	else
+		return false;
 }
 #endif /* OPA_ADDR_H */
