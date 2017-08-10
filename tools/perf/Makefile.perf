@@ -381,6 +381,52 @@ export INSTALL SHELL_PATH
 
 SHELL = $(SHELL_PATH)
 
+beauty_ioctl_outdir := $(OUTPUT)trace/beauty/generated/ioctl
+drm_ioctl_array := $(beauty_ioctl_outdir)/drm_ioctl_array.c
+drm_hdr_dir := $(srctree)/tools/include/uapi/drm
+drm_ioctl_tbl := $(srctree)/tools/perf/trace/beauty/drm_ioctl.sh
+
+# Create output directory if not already present
+_dummy := $(shell [ -d '$(beauty_ioctl_outdir)' ] || mkdir -p '$(beauty_ioctl_outdir)')
+
+$(drm_ioctl_array): $(drm_hdr_dir)/drm.h $(drm_hdr_dir)/i915_drm.h $(drm_ioctl_tbl)
+	$(Q)$(SHELL) '$(drm_ioctl_tbl)' $(drm_hdr_dir) > $@
+
+sndrv_ctl_ioctl_array := $(beauty_ioctl_outdir)/sndrv_ctl_ioctl_array.c
+sndrv_ctl_hdr_dir := $(srctree)/tools/include/uapi/sound
+sndrv_ctl_ioctl_tbl := $(srctree)/tools/perf/trace/beauty/sndrv_ctl_ioctl.sh
+
+$(sndrv_ctl_ioctl_array): $(sndrv_ctl_hdr_dir)/asound.h $(sndrv_ctl_ioctl_tbl)
+	$(Q)$(SHELL) '$(sndrv_ctl_ioctl_tbl)' $(sndrv_ctl_hdr_dir) > $@
+
+sndrv_pcm_ioctl_array := $(beauty_ioctl_outdir)/sndrv_pcm_ioctl_array.c
+sndrv_pcm_hdr_dir := $(srctree)/tools/include/uapi/sound
+sndrv_pcm_ioctl_tbl := $(srctree)/tools/perf/trace/beauty/sndrv_pcm_ioctl.sh
+
+$(sndrv_pcm_ioctl_array): $(sndrv_pcm_hdr_dir)/asound.h $(sndrv_pcm_ioctl_tbl)
+	$(Q)$(SHELL) '$(sndrv_pcm_ioctl_tbl)' $(sndrv_pcm_hdr_dir) > $@
+
+kvm_ioctl_array := $(beauty_ioctl_outdir)/kvm_ioctl_array.c
+kvm_hdr_dir := $(srctree)/tools/include/uapi/linux
+kvm_ioctl_tbl := $(srctree)/tools/perf/trace/beauty/kvm_ioctl.sh
+
+$(kvm_ioctl_array): $(kvm_hdr_dir)/kvm.h $(kvm_ioctl_tbl)
+	$(Q)$(SHELL) '$(kvm_ioctl_tbl)' $(kvm_hdr_dir) > $@
+
+vhost_virtio_ioctl_array := $(beauty_ioctl_outdir)/vhost_virtio_ioctl_array.c
+vhost_virtio_hdr_dir := $(srctree)/tools/include/uapi/linux
+vhost_virtio_ioctl_tbl := $(srctree)/tools/perf/trace/beauty/vhost_virtio_ioctl.sh
+
+$(vhost_virtio_ioctl_array): $(vhost_virtio_hdr_dir)/vhost.h $(vhost_virtio_ioctl_tbl)
+	$(Q)$(SHELL) '$(vhost_virtio_ioctl_tbl)' $(vhost_virtio_hdr_dir) > $@
+
+perf_ioctl_array := $(beauty_ioctl_outdir)/perf_ioctl_array.c
+perf_hdr_dir := $(srctree)/tools/include/uapi/linux
+perf_ioctl_tbl := $(srctree)/tools/perf/trace/beauty/perf_ioctl.sh
+
+$(perf_ioctl_array): $(perf_hdr_dir)/perf_event.h $(perf_ioctl_tbl)
+	$(Q)$(SHELL) '$(perf_ioctl_tbl)' $(perf_hdr_dir) > $@
+
 all: shell_compatibility_test $(ALL_PROGRAMS) $(LANG_BINDINGS) $(OTHER_PROGRAMS)
 
 $(OUTPUT)python/perf.so: $(PYTHON_EXT_SRCS) $(PYTHON_EXT_DEPS) $(LIBTRACEEVENT_DYNAMIC_LIST)
@@ -475,7 +521,12 @@ endif
 __build-dir = $(subst $(OUTPUT),,$(dir $@))
 build-dir   = $(if $(__build-dir),$(__build-dir),.)
 
-prepare: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h archheaders
+prepare: $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)common-cmds.h archheaders $(drm_ioctl_array) \
+	$(sndrv_pcm_ioctl_array) \
+	$(sndrv_ctl_ioctl_array) \
+	$(kvm_ioctl_array) \
+	$(vhost_virtio_ioctl_array) \
+	$(perf_ioctl_array)
 
 $(OUTPUT)%.o: %.c prepare FORCE
 	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=$(build-dir) $@
@@ -740,7 +791,13 @@ clean:: $(LIBTRACEEVENT)-clean $(LIBAPI)-clean $(LIBBPF)-clean $(LIBSUBCMD)-clea
 	$(call QUIET_CLEAN, core-gen)   $(RM)  *.spec *.pyc *.pyo */*.pyc */*.pyo $(OUTPUT)common-cmds.h TAGS tags cscope* $(OUTPUT)PERF-VERSION-FILE $(OUTPUT)FEATURE-DUMP $(OUTPUT)util/*-bison* $(OUTPUT)util/*-flex* \
 		$(OUTPUT)util/intel-pt-decoder/inat-tables.c \
 		$(OUTPUT)tests/llvm-src-{base,kbuild,prologue,relocation}.c \
-		$(OUTPUT)pmu-events/pmu-events.c
+		$(OUTPUT)pmu-events/pmu-events.c \
+		$(OUTPUT)$(drm_ioctl_array) \
+		$(OUTPUT)$(sndrv_ctl_ioctl_array) \
+		$(OUTPUT)$(sndrv_pcm_ioctl_array) \
+		$(OUTPUT)$(kvm_ioctl_array) \
+		$(OUTPUT)$(vhost_virtio_ioctl_array) \
+		$(OUTPUT)$(perf_ioctl_array)
 	$(QUIET_SUBDIR0)Documentation $(QUIET_SUBDIR1) clean
 	$(python-clean)
 

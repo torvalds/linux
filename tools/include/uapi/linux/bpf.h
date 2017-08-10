@@ -643,7 +643,7 @@ enum bpf_func_id {
 
 /* Mode for BPF_FUNC_skb_adjust_room helper. */
 enum bpf_adj_room_mode {
-	BPF_ADJ_ROOM_NET_OPTS,
+	BPF_ADJ_ROOM_NET,
 };
 
 /* user accessible mirror of in-kernel sk_buff.
@@ -750,6 +750,8 @@ struct bpf_map_info {
 
 /* User bpf_sock_ops struct to access socket values and specify request ops
  * and their replies.
+ * Some of this fields are in network (bigendian) byte order and may need
+ * to be converted before use (bpf_ntohl() defined in samples/bpf/bpf_endian.h).
  * New fields can only be added at the end of this structure
  */
 struct bpf_sock_ops {
@@ -759,12 +761,12 @@ struct bpf_sock_ops {
 		__u32 replylong[4];
 	};
 	__u32 family;
-	__u32 remote_ip4;
-	__u32 local_ip4;
-	__u32 remote_ip6[4];
-	__u32 local_ip6[4];
-	__u32 remote_port;
-	__u32 local_port;
+	__u32 remote_ip4;	/* Stored in network byte order */
+	__u32 local_ip4;	/* Stored in network byte order */
+	__u32 remote_ip6[4];	/* Stored in network byte order */
+	__u32 local_ip6[4];	/* Stored in network byte order */
+	__u32 remote_port;	/* Stored in network byte order */
+	__u32 local_port;	/* stored in host byte order */
 };
 
 /* List of known BPF sock_ops operators.
