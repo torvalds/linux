@@ -273,15 +273,70 @@ out_overflow:
 	return -EIO;
 }
 
-static inline __be32 *
+static inline int
+encode_item_present(struct xdr_stream *xdr)
+{
+	__be32 *p;
+
+	p = xdr_reserve_space(xdr, sizeof(*p));
+	if (unlikely(!p))
+		return -EMSGSIZE;
+
+	*p = xdr_one;
+	return 0;
+}
+
+static inline int
+encode_item_not_present(struct xdr_stream *xdr)
+{
+	__be32 *p;
+
+	p = xdr_reserve_space(xdr, sizeof(*p));
+	if (unlikely(!p))
+		return -EMSGSIZE;
+
+	*p = xdr_zero;
+	return 0;
+}
+
+static void
 xdr_encode_rdma_segment(__be32 *iptr, struct rpcrdma_mw *mw)
 {
 	*iptr++ = cpu_to_be32(mw->mw_handle);
 	*iptr++ = cpu_to_be32(mw->mw_length);
-	return xdr_encode_hyper(iptr, mw->mw_offset);
+	xdr_encode_hyper(iptr, mw->mw_offset);
 }
 
-/* XDR-encode the Read list. Supports encoding a list of read
+static int
+encode_rdma_segment(struct xdr_stream *xdr, struct rpcrdma_mw *mw)
+{
+	__be32 *p;
+
+	p = xdr_reserve_space(xdr, 4 * sizeof(*p));
+	if (unlikely(!p))
+		return -EMSGSIZE;
+
+	xdr_encode_rdma_segment(p, mw);
+	return 0;
+}
+
+static int
+encode_read_segment(struct xdr_stream *xdr, struct rpcrdma_mw *mw,
+		    u32 position)
+{
+	__be32 *p;
+
+	p = xdr_reserve_space(xdr, 6 * sizeof(*p));
+	if (unlikely(!p))
+		return -EMSGSIZE;
+
+	*p++ = xdr_one;			/* Item present */
+	*p++ = cpu_to_be32(position);
+	xdr_encode_rdma_segment(p, mw);
+	return 0;
+}
+
+/* Register and XDR encode the Read list. Supports encoding a list of read
  * segments that belong to a single read chunk.
  *
  * Encoding key for single-list chunks (HLOO = Handle32 Length32 Offset64):
@@ -290,23 +345,20 @@ xdr_encode_rdma_segment(__be32 *iptr, struct rpcrdma_mw *mw)
  *   N elements, position P (same P for all chunks of same arg!):
  *    1 - PHLOO - 1 - PHLOO - ... - 1 - PHLOO - 0
  *
- * Returns a pointer to the XDR word in the RDMA header following
- * the end of the Read list, or an error pointer.
+ * Returns zero on success, or a negative errno if a failure occurred.
+ * @xdr is advanced to the next position in the stream.
+ *
+ * Only a single @pos value is currently supported.
  */
-static __be32 *
-rpcrdma_encode_read_list(struct rpcrdma_xprt *r_xprt,
-			 struct rpcrdma_req *req, struct rpc_rqst *rqst,
-			 __be32 *iptr, enum rpcrdma_chunktype rtype)
+static noinline int
+rpcrdma_encode_read_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
+			 struct rpc_rqst *rqst, enum rpcrdma_chunktype rtype)
 {
+	struct xdr_stream *xdr = &req->rl_stream;
 	struct rpcrdma_mr_seg *seg;
 	struct rpcrdma_mw *mw;
 	unsigned int pos;
 	int n, nsegs;
-
-	if (rtype == rpcrdma_noch) {
-		*iptr++ = xdr_zero;	/* item not present */
-		return iptr;
-	}
 
 	pos = rqst->rq_snd_buf.head[0].iov_len;
 	if (rtype == rpcrdma_areadch)
@@ -315,22 +367,17 @@ rpcrdma_encode_read_list(struct rpcrdma_xprt *r_xprt,
 	nsegs = rpcrdma_convert_iovs(r_xprt, &rqst->rq_snd_buf, pos,
 				     rtype, seg);
 	if (nsegs < 0)
-		return ERR_PTR(nsegs);
+		return nsegs;
 
 	do {
 		n = r_xprt->rx_ia.ri_ops->ro_map(r_xprt, seg, nsegs,
 						 false, &mw);
 		if (n < 0)
-			return ERR_PTR(n);
+			return n;
 		rpcrdma_push_mw(mw, &req->rl_registered);
 
-		*iptr++ = xdr_one;	/* item present */
-
-		/* All read segments in this chunk
-		 * have the same "position".
-		 */
-		*iptr++ = cpu_to_be32(pos);
-		iptr = xdr_encode_rdma_segment(iptr, mw);
+		if (encode_read_segment(xdr, mw, pos) < 0)
+			return -EMSGSIZE;
 
 		dprintk("RPC: %5u %s: pos %u %u@0x%016llx:0x%08x (%s)\n",
 			rqst->rq_task->tk_pid, __func__, pos,
@@ -342,13 +389,12 @@ rpcrdma_encode_read_list(struct rpcrdma_xprt *r_xprt,
 		nsegs -= n;
 	} while (nsegs);
 
-	/* Finish Read list */
-	*iptr++ = xdr_zero;	/* Next item not present */
-	return iptr;
+	return 0;
 }
 
-/* XDR-encode the Write list. Supports encoding a list containing
- * one array of plain segments that belong to a single write chunk.
+/* Register and XDR encode the Write list. Supports encoding a list
+ * containing one array of plain segments that belong to a single
+ * write chunk.
  *
  * Encoding key for single-list chunks (HLOO = Handle32 Length32 Offset64):
  *
@@ -356,43 +402,45 @@ rpcrdma_encode_read_list(struct rpcrdma_xprt *r_xprt,
  *   N elements:
  *    1 - N - HLOO - HLOO - ... - HLOO - 0
  *
- * Returns a pointer to the XDR word in the RDMA header following
- * the end of the Write list, or an error pointer.
+ * Returns zero on success, or a negative errno if a failure occurred.
+ * @xdr is advanced to the next position in the stream.
+ *
+ * Only a single Write chunk is currently supported.
  */
-static __be32 *
+static noinline int
 rpcrdma_encode_write_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
-			  struct rpc_rqst *rqst, __be32 *iptr,
-			  enum rpcrdma_chunktype wtype)
+			  struct rpc_rqst *rqst, enum rpcrdma_chunktype wtype)
 {
+	struct xdr_stream *xdr = &req->rl_stream;
 	struct rpcrdma_mr_seg *seg;
 	struct rpcrdma_mw *mw;
 	int n, nsegs, nchunks;
 	__be32 *segcount;
-
-	if (wtype != rpcrdma_writech) {
-		*iptr++ = xdr_zero;	/* no Write list present */
-		return iptr;
-	}
 
 	seg = req->rl_segments;
 	nsegs = rpcrdma_convert_iovs(r_xprt, &rqst->rq_rcv_buf,
 				     rqst->rq_rcv_buf.head[0].iov_len,
 				     wtype, seg);
 	if (nsegs < 0)
-		return ERR_PTR(nsegs);
+		return nsegs;
 
-	*iptr++ = xdr_one;	/* Write list present */
-	segcount = iptr++;	/* save location of segment count */
+	if (encode_item_present(xdr) < 0)
+		return -EMSGSIZE;
+	segcount = xdr_reserve_space(xdr, sizeof(*segcount));
+	if (unlikely(!segcount))
+		return -EMSGSIZE;
+	/* Actual value encoded below */
 
 	nchunks = 0;
 	do {
 		n = r_xprt->rx_ia.ri_ops->ro_map(r_xprt, seg, nsegs,
 						 true, &mw);
 		if (n < 0)
-			return ERR_PTR(n);
+			return n;
 		rpcrdma_push_mw(mw, &req->rl_registered);
 
-		iptr = xdr_encode_rdma_segment(iptr, mw);
+		if (encode_rdma_segment(xdr, mw) < 0)
+			return -EMSGSIZE;
 
 		dprintk("RPC: %5u %s: %u@0x016%llx:0x%08x (%s)\n",
 			rqst->rq_task->tk_pid, __func__,
@@ -409,13 +457,11 @@ rpcrdma_encode_write_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
 	/* Update count of segments in this Write chunk */
 	*segcount = cpu_to_be32(nchunks);
 
-	/* Finish Write list */
-	*iptr++ = xdr_zero;	/* Next item not present */
-	return iptr;
+	return 0;
 }
 
-/* XDR-encode the Reply chunk. Supports encoding an array of plain
- * segments that belong to a single write (reply) chunk.
+/* Register and XDR encode the Reply chunk. Supports encoding an array
+ * of plain segments that belong to a single write (reply) chunk.
  *
  * Encoding key for single-list chunks (HLOO = Handle32 Length32 Offset64):
  *
@@ -423,41 +469,41 @@ rpcrdma_encode_write_list(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
  *   N elements:
  *    1 - N - HLOO - HLOO - ... - HLOO
  *
- * Returns a pointer to the XDR word in the RDMA header following
- * the end of the Reply chunk, or an error pointer.
+ * Returns zero on success, or a negative errno if a failure occurred.
+ * @xdr is advanced to the next position in the stream.
  */
-static __be32 *
-rpcrdma_encode_reply_chunk(struct rpcrdma_xprt *r_xprt,
-			   struct rpcrdma_req *req, struct rpc_rqst *rqst,
-			   __be32 *iptr, enum rpcrdma_chunktype wtype)
+static noinline int
+rpcrdma_encode_reply_chunk(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req,
+			   struct rpc_rqst *rqst, enum rpcrdma_chunktype wtype)
 {
+	struct xdr_stream *xdr = &req->rl_stream;
 	struct rpcrdma_mr_seg *seg;
 	struct rpcrdma_mw *mw;
 	int n, nsegs, nchunks;
 	__be32 *segcount;
 
-	if (wtype != rpcrdma_replych) {
-		*iptr++ = xdr_zero;	/* no Reply chunk present */
-		return iptr;
-	}
-
 	seg = req->rl_segments;
 	nsegs = rpcrdma_convert_iovs(r_xprt, &rqst->rq_rcv_buf, 0, wtype, seg);
 	if (nsegs < 0)
-		return ERR_PTR(nsegs);
+		return nsegs;
 
-	*iptr++ = xdr_one;	/* Reply chunk present */
-	segcount = iptr++;	/* save location of segment count */
+	if (encode_item_present(xdr) < 0)
+		return -EMSGSIZE;
+	segcount = xdr_reserve_space(xdr, sizeof(*segcount));
+	if (unlikely(!segcount))
+		return -EMSGSIZE;
+	/* Actual value encoded below */
 
 	nchunks = 0;
 	do {
 		n = r_xprt->rx_ia.ri_ops->ro_map(r_xprt, seg, nsegs,
 						 true, &mw);
 		if (n < 0)
-			return ERR_PTR(n);
+			return n;
 		rpcrdma_push_mw(mw, &req->rl_registered);
 
-		iptr = xdr_encode_rdma_segment(iptr, mw);
+		if (encode_rdma_segment(xdr, mw) < 0)
+			return -EMSGSIZE;
 
 		dprintk("RPC: %5u %s: %u@0x%016llx:0x%08x (%s)\n",
 			rqst->rq_task->tk_pid, __func__,
@@ -474,7 +520,7 @@ rpcrdma_encode_reply_chunk(struct rpcrdma_xprt *r_xprt,
 	/* Update count of segments in the Reply chunk */
 	*segcount = cpu_to_be32(nchunks);
 
-	return iptr;
+	return 0;
 }
 
 /* Prepare the RPC-over-RDMA header SGE.
@@ -676,24 +722,21 @@ rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst)
 	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);
 	struct xdr_stream *xdr = &req->rl_stream;
 	enum rpcrdma_chunktype rtype, wtype;
-	struct rpcrdma_msg *headerp;
 	bool ddp_allowed;
-	ssize_t hdrlen;
-	__be32 *iptr;
 	__be32 *p;
+	int ret;
 
 #if defined(CONFIG_SUNRPC_BACKCHANNEL)
 	if (test_bit(RPC_BC_PA_IN_USE, &rqst->rq_bc_pa_state))
 		return rpcrdma_bc_marshal_reply(rqst);
 #endif
 
-	headerp = rdmab_to_msg(req->rl_rdmabuf);
 	rpcrdma_set_xdrlen(&req->rl_hdrbuf, 0);
 	xdr_init_encode(xdr, &req->rl_hdrbuf,
 			req->rl_rdmabuf->rg_base);
 
 	/* Fixed header fields */
-	iptr = ERR_PTR(-EMSGSIZE);
+	ret = -EMSGSIZE;
 	p = xdr_reserve_space(xdr, 4 * sizeof(*p));
 	if (!p)
 		goto out_err;
@@ -775,37 +818,50 @@ rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst)
 	 * send a Call message with a Position Zero Read chunk and a
 	 * regular Read chunk at the same time.
 	 */
-	iptr = headerp->rm_body.rm_chunks;
-	iptr = rpcrdma_encode_read_list(r_xprt, req, rqst, iptr, rtype);
-	if (IS_ERR(iptr))
+	if (rtype != rpcrdma_noch) {
+		ret = rpcrdma_encode_read_list(r_xprt, req, rqst, rtype);
+		if (ret)
+			goto out_err;
+	}
+	ret = encode_item_not_present(xdr);
+	if (ret)
 		goto out_err;
-	iptr = rpcrdma_encode_write_list(r_xprt, req, rqst, iptr, wtype);
-	if (IS_ERR(iptr))
-		goto out_err;
-	iptr = rpcrdma_encode_reply_chunk(r_xprt, req, rqst, iptr, wtype);
-	if (IS_ERR(iptr))
-		goto out_err;
-	hdrlen = (unsigned char *)iptr - (unsigned char *)headerp;
 
-	dprintk("RPC: %5u %s: %s/%s: hdrlen %zd\n",
+	if (wtype == rpcrdma_writech) {
+		ret = rpcrdma_encode_write_list(r_xprt, req, rqst, wtype);
+		if (ret)
+			goto out_err;
+	}
+	ret = encode_item_not_present(xdr);
+	if (ret)
+		goto out_err;
+
+	if (wtype != rpcrdma_replych)
+		ret = encode_item_not_present(xdr);
+	else
+		ret = rpcrdma_encode_reply_chunk(r_xprt, req, rqst, wtype);
+	if (ret)
+		goto out_err;
+
+	dprintk("RPC: %5u %s: %s/%s: hdrlen %u rpclen\n",
 		rqst->rq_task->tk_pid, __func__,
 		transfertypes[rtype], transfertypes[wtype],
-		hdrlen);
+		xdr_stream_pos(xdr));
 
-	if (!rpcrdma_prepare_send_sges(&r_xprt->rx_ia, req, hdrlen,
+	if (!rpcrdma_prepare_send_sges(&r_xprt->rx_ia, req,
+				       xdr_stream_pos(xdr),
 				       &rqst->rq_snd_buf, rtype)) {
-		iptr = ERR_PTR(-EIO);
+		ret = -EIO;
 		goto out_err;
 	}
 	return 0;
 
 out_err:
-	if (PTR_ERR(iptr) != -ENOBUFS) {
-		pr_err("rpcrdma: rpcrdma_marshal_req failed, status %ld\n",
-		       PTR_ERR(iptr));
+	if (ret != -ENOBUFS) {
+		pr_err("rpcrdma: header marshaling failed (%d)\n", ret);
 		r_xprt->rx_stats.failed_marshal_count++;
 	}
-	return PTR_ERR(iptr);
+	return ret;
 }
 
 /**
