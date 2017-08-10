@@ -79,7 +79,8 @@ int xfrm_dev_state_add(struct net *net, struct xfrm_state *x,
 			daddr = &x->props.saddr;
 		}
 
-		dst = __xfrm_dst_lookup(net, 0, 0, saddr, daddr, x->props.family);
+		dst = __xfrm_dst_lookup(net, 0, 0, saddr, daddr,
+					x->props.family, x->props.output_mark);
 		if (IS_ERR(dst))
 			return 0;
 
