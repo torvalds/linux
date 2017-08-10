@@ -277,8 +277,12 @@ static ssize_t user_read(struct file * filp, char * buf,
 		size_t count, loff_t * ppos)
 {
 	ssize_t retval;
-	if (constable != current)
-		return -EPERM;
+
+        /* TODO TODO TODO: permission check turned-off due python thread handling... */
+        //printk("MEDUSA: user_read: constable=%d, pid=%d, ppid=%d\n", \
+        //                constable->pid, current->pid, current->real_parent->pid); 
+	//if (constable != current)
+	//	return -EPERM;
 	if (*ppos != filp->f_pos)
 		return -ESPIPE;
 	if (!access_ok(VERIFY_WRITE, buf, count))
@@ -434,8 +438,11 @@ static ssize_t user_write(struct file *filp, const char *buf, size_t count, loff
 	size_t orig_count = count;
 	struct medusa_kclass_s * cl;
 
-	if (constable != current)
-		return -EPERM;
+        /* TODO TODO TODO: permission check turned-off due python thread handling... */
+        //printk("MEDUSA: user_write: constable=%d, pid=%d, ppid=%d\n", \
+        //                constable->pid, current->pid, current->real_parent->pid); 
+	//if (constable != current)
+	//	return -EPERM;
 	if (*ppos != filp->f_pos)
 		return -ESPIPE;
 	if (!access_ok(VERIFY_READ, buf, count))
@@ -528,8 +535,11 @@ static ssize_t user_write(struct file *filp, const char *buf, size_t count, loff
  */
 static unsigned int user_poll(struct file *filp, poll_table * wait)
 {
-	if (constable != current)
-		return -EPERM;
+        /* TODO TODO TODO: permission check turned-off due python thread handling... */
+	//if (constable != current)
+	//	return -EPERM;
+        //printk("MEDUSA: user_poll: constable=%d, pid=%d, ppid=%d\n", \
+        //                constable->pid, current->pid, current->real_parent->pid); 
 	poll_wait(filp, &userspace, wait);
 	if (atomic_read(&currently_receiving))
 		return POLLOUT | POLLWRNORM;
