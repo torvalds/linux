@@ -1260,7 +1260,7 @@ static irqreturn_t int_chnl_int_v3_hw(int irq_no, void *p)
 		if (irq_msk & (2 << (phy_no * 4)) && irq_value0) {
 			hisi_sas_phy_write32(hisi_hba, phy_no,
 					CHL_INT0, irq_value0
-					& (~CHL_INT0_HOTPLUG_TOUT_MSK)
+					& (~CHL_INT0_SL_RX_BCST_ACK_MSK)
 					& (~CHL_INT0_SL_PHY_ENABLE_MSK)
 					& (~CHL_INT0_NOT_RDY_MSK));
 		}
