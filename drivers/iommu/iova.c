@@ -33,6 +33,7 @@ static unsigned long iova_rcache_get(struct iova_domain *iovad,
 static void init_iova_rcaches(struct iova_domain *iovad);
 static void free_iova_rcaches(struct iova_domain *iovad);
 static void fq_destroy_all_entries(struct iova_domain *iovad);
+static void fq_flush_timeout(unsigned long data);
 
 void
 init_iova_domain(struct iova_domain *iovad, unsigned long granule,
@@ -62,7 +63,11 @@ static void free_iova_flush_queue(struct iova_domain *iovad)
 	if (!iovad->fq)
 		return;
 
+	if (timer_pending(&iovad->fq_timer))
+		del_timer(&iovad->fq_timer);
+
 	fq_destroy_all_entries(iovad);
+
 	free_percpu(iovad->fq);
 
 	iovad->fq         = NULL;
@@ -94,6 +99,9 @@ int init_iova_flush_queue(struct iova_domain *iovad,
 
 		spin_lock_init(&fq->lock);
 	}
+
+	setup_timer(&iovad->fq_timer, fq_flush_timeout, (unsigned long)iovad);
+	atomic_set(&iovad->fq_timer_on, 0);
 
 	return 0;
 }
@@ -539,6 +547,25 @@ static void fq_destroy_all_entries(struct iova_domain *iovad)
 	}
 }
 
+static void fq_flush_timeout(unsigned long data)
+{
+	struct iova_domain *iovad = (struct iova_domain *)data;
+	int cpu;
+
+	atomic_set(&iovad->fq_timer_on, 0);
+	iova_domain_flush(iovad);
+
+	for_each_possible_cpu(cpu) {
+		unsigned long flags;
+		struct iova_fq *fq;
+
+		fq = per_cpu_ptr(iovad->fq, cpu);
+		spin_lock_irqsave(&fq->lock, flags);
+		fq_ring_free(iovad, fq);
+		spin_unlock_irqrestore(&fq->lock, flags);
+	}
+}
+
 void queue_iova(struct iova_domain *iovad,
 		unsigned long pfn, unsigned long pages,
 		unsigned long data)
@@ -569,6 +596,11 @@ void queue_iova(struct iova_domain *iovad,
 	fq->entries[idx].counter  = atomic64_read(&iovad->fq_flush_start_cnt);
 
 	spin_unlock_irqrestore(&fq->lock, flags);
+
+	if (atomic_cmpxchg(&iovad->fq_timer_on, 0, 1) == 0)
+		mod_timer(&iovad->fq_timer,
+			  jiffies + msecs_to_jiffies(IOVA_FQ_TIMEOUT));
+
 	put_cpu_ptr(iovad->fq);
 }
 EXPORT_SYMBOL_GPL(queue_iova);

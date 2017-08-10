@@ -48,6 +48,9 @@ typedef void (* iova_entry_dtor)(unsigned long data);
 /* Number of entries per Flush Queue */
 #define IOVA_FQ_SIZE	256
 
+/* Timeout (in ms) after which entries are flushed from the Flush-Queue */
+#define IOVA_FQ_TIMEOUT	10
+
 /* Flush Queue entry for defered flushing */
 struct iova_fq_entry {
 	unsigned long iova_pfn;
@@ -86,6 +89,11 @@ struct iova_domain {
 
 	atomic64_t	fq_flush_finish_cnt;	/* Number of TLB flushes that
 						   have been finished */
+
+	struct timer_list fq_timer;		/* Timer to regularily empty the
+						   flush-queues */
+	atomic_t fq_timer_on;			/* 1 when timer is active, 0
+						   when not */
 };
 
 static inline unsigned long iova_size(struct iova *iova)
