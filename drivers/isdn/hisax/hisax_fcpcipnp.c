@@ -495,8 +495,7 @@ static inline void hdlc_rpr_irq(struct fritz_bcs *bcs, u32 stat)
 			if (!skb) {
 				printk(KERN_WARNING "HDLC: receive out of memory\n");
 			} else {
-				memcpy(skb_put(skb, bcs->rcvidx), bcs->rcvbuf,
-				       bcs->rcvidx);
+				skb_put_data(skb, bcs->rcvbuf, bcs->rcvidx);
 				DBG_SKB(1, skb);
 				B_L1L2(bcs, PH_DATA | INDICATION, skb);
 			}

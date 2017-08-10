@@ -3,6 +3,11 @@
 #include <dt-bindings/clock/bcm2835-aux.h>
 #include <dt-bindings/gpio/gpio.h>
 
+/* firmware-provided startup stubs live here, where the secondary CPUs are
+ * spinning.
+ */
+/memreserve/ 0x00000000 0x00001000;
+
 /* This include file covers the common peripherals and configuration between
  * bcm2835 and bcm2836 implementations, leaving the CPU configuration to
  * bcm2835.dtsi and bcm2836.dtsi.
@@ -17,6 +22,26 @@
 
 	chosen {
 		bootargs = "earlyprintk console=ttyAMA0";
+	};
+
+	thermal-zones {
+		cpu_thermal: cpu-thermal {
+			polling-delay-passive = <0>;
+			polling-delay = <1000>;
+
+			thermal-sensors = <&thermal>;
+
+			trips {
+				cpu-crit {
+					temperature	= <80000>;
+					hysteresis	= <0>;
+					type		= "critical";
+				};
+			};
+
+			cooling-maps {
+			};
+		};
 	};
 
 	soc {
@@ -198,8 +223,8 @@
 				brcm,pins = <0 1>;
 				brcm,function = <BCM2835_FSEL_ALT0>;
 			};
-			i2c0_gpio32: i2c0_gpio32 {
-				brcm,pins = <32 34>;
+			i2c0_gpio28: i2c0_gpio28 {
+				brcm,pins = <28 29>;
 				brcm,function = <BCM2835_FSEL_ALT0>;
 			};
 			i2c0_gpio44: i2c0_gpio44 {
@@ -295,19 +320,27 @@
 			/* Separate from the uart0_gpio14 group
 			 * because it conflicts with spi1_gpio16, and
 			 * people often run uart0 on the two pins
-			 * without flow contrl.
+			 * without flow control.
 			 */
 			uart0_ctsrts_gpio16: uart0_ctsrts_gpio16 {
 				brcm,pins = <16 17>;
 				brcm,function = <BCM2835_FSEL_ALT3>;
 			};
-			uart0_gpio30: uart0_gpio30 {
+			uart0_ctsrts_gpio30: uart0_ctsrts_gpio30 {
 				brcm,pins = <30 31>;
 				brcm,function = <BCM2835_FSEL_ALT3>;
 			};
-			uart0_ctsrts_gpio32: uart0_ctsrts_gpio32 {
+			uart0_gpio32: uart0_gpio32 {
 				brcm,pins = <32 33>;
 				brcm,function = <BCM2835_FSEL_ALT3>;
+			};
+			uart0_gpio36: uart0_gpio36 {
+				brcm,pins = <36 37>;
+				brcm,function = <BCM2835_FSEL_ALT2>;
+			};
+			uart0_ctsrts_gpio38: uart0_ctsrts_gpio38 {
+				brcm,pins = <38 39>;
+				brcm,function = <BCM2835_FSEL_ALT2>;
 			};
 
 			uart1_gpio14: uart1_gpio14 {
@@ -325,10 +358,6 @@
 			uart1_ctsrts_gpio30: uart1_ctsrts_gpio30 {
 				brcm,pins = <30 31>;
 				brcm,function = <BCM2835_FSEL_ALT5>;
-			};
-			uart1_gpio36: uart1_gpio36 {
-				brcm,pins = <36 37 38 39>;
-				brcm,function = <BCM2835_FSEL_ALT2>;
 			};
 			uart1_gpio40: uart1_gpio40 {
 				brcm,pins = <40 41>;
@@ -426,6 +455,7 @@
 			compatible = "brcm,bcm2835-thermal";
 			reg = <0x7e212000 0x8>;
 			clocks = <&clocks BCM2835_CLOCK_TSENS>;
+			#thermal-sensor-cells = <0>;
 			status = "disabled";
 		};
 
@@ -564,6 +594,8 @@
 			#size-cells = <0>;
 			clocks = <&clk_usb>;
 			clock-names = "otg";
+			phys = <&usbphy>;
+			phy-names = "usb2-phy";
 		};
 
 		v3d: v3d@7ec00000 {
@@ -598,5 +630,9 @@
 			clock-output-names = "otg";
 			clock-frequency = <480000000>;
 		};
+	};
+
+	usbphy: phy {
+		compatible = "usb-nop-xceiv";
 	};
 };

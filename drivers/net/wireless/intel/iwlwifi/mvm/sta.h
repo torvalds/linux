@@ -313,6 +313,7 @@ enum iwl_mvm_agg_state {
  *	This is basically (last acked packet++).
  * @rate_n_flags: Rate at which Tx was attempted. Holds the data between the
  *	Tx response (TX_CMD), and the block ack notification (COMPRESSED_BA).
+ * @lq_color: the color of the LQ command as it appears in tx response.
  * @amsdu_in_ampdu_allowed: true if A-MSDU in A-MPDU is allowed.
  * @state: state of the BA agreement establishment / tear down.
  * @txq_id: Tx queue used by the BA session / DQA
@@ -331,6 +332,7 @@ struct iwl_mvm_tid_data {
 	u16 next_reclaimed;
 	/* The rest is Tx AGG related */
 	u32 rate_n_flags;
+	u8 lq_color;
 	bool amsdu_in_ampdu_allowed;
 	enum iwl_mvm_agg_state state;
 	u16 txq_id;
@@ -338,12 +340,6 @@ struct iwl_mvm_tid_data {
 	u16 tx_time;
 	bool is_tid_active;
 };
-
-static inline u16 iwl_mvm_tid_queued(struct iwl_mvm_tid_data *tid_data)
-{
-	return ieee80211_sn_sub(IEEE80211_SEQ_TO_SN(tid_data->seq_number),
-				tid_data->next_reclaimed);
-}
 
 struct iwl_mvm_key_pn {
 	struct rcu_head rcu_head;
@@ -445,6 +441,8 @@ struct iwl_mvm_sta {
 	u8 avg_energy;
 };
 
+u16 iwl_mvm_tid_queued(struct iwl_mvm *mvm, struct iwl_mvm_tid_data *tid_data);
+
 static inline struct iwl_mvm_sta *
 iwl_mvm_sta_from_mac80211(struct ieee80211_sta *sta)
 {
@@ -487,6 +485,8 @@ static inline int iwl_mvm_update_sta(struct iwl_mvm *mvm,
 	return iwl_mvm_sta_send_to_fw(mvm, sta, true, 0);
 }
 
+int iwl_mvm_wait_sta_queues_empty(struct iwl_mvm *mvm,
+				  struct iwl_mvm_sta *mvm_sta);
 int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 		   struct ieee80211_vif *vif,
 		   struct ieee80211_sta *sta);

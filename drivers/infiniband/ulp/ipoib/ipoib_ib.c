@@ -863,7 +863,6 @@ dev_stop:
 	set_bit(IPOIB_STOP_REAPER, &priv->flags);
 	cancel_delayed_work(&priv->ah_reap_task);
 	set_bit(IPOIB_FLAG_INITIALIZED, &priv->flags);
-	napi_enable(&priv->napi);
 	ipoib_ib_dev_stop(dev);
 	return -1;
 }

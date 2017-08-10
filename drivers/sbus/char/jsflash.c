@@ -214,7 +214,7 @@ static void jsfd_request(void)
 		struct jsfd_part *jdp = req->rq_disk->private_data;
 		unsigned long offset = blk_rq_pos(req) << 9;
 		size_t len = blk_rq_cur_bytes(req);
-		int err = -EIO;
+		blk_status_t err = BLK_STS_IOERR;
 
 		if ((offset + len) > jdp->dsize)
 			goto end;
@@ -230,7 +230,7 @@ static void jsfd_request(void)
 		}
 
 		jsfd_read(bio_data(req->bio), jdp->dbase + offset, len);
-		err = 0;
+		err = BLK_STS_OK;
 	end:
 		if (!__blk_end_request_cur(req, err))
 			req = jsfd_next_request();
@@ -592,6 +592,7 @@ static int jsfd_init(void)
 			put_disk(disk);
 			goto out;
 		}
+		blk_queue_bounce_limit(disk->queue, BLK_BOUNCE_HIGH);
 		jsfd_disk[i] = disk;
 	}
 

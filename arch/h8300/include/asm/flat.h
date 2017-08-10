@@ -5,6 +5,8 @@
 #ifndef __H8300_FLAT_H__
 #define __H8300_FLAT_H__
 
+#include <asm/unaligned.h>
+
 #define	flat_argvp_envp_on_stack()		1
 #define	flat_old_ram_flag(flags)		1
 #define	flat_reloc_valid(reloc, size)		((reloc) <= (size))
@@ -18,11 +20,21 @@
  */
 
 #define	flat_get_relocate_addr(rel)		(rel & ~0x00000001)
-#define flat_get_addr_from_rp(rp, relval, flags, persistent) \
-	({(void)persistent; \
-		get_unaligned(rp) & (((flags) & FLAT_FLAG_GOTPIC) ?	\
-				     0xffffffff : 0x00ffffff); })
-#define flat_put_addr_at_rp(rp, addr, rel) \
-	put_unaligned(((*(char *)(rp)) << 24) | ((addr) & 0x00ffffff), (rp))
+static inline int flat_get_addr_from_rp(u32 __user *rp, u32 relval, u32 flags,
+					u32 *addr, u32 *persistent)
+{
+	u32 val = get_unaligned((__force u32 *)rp);
+	if (!(flags & FLAT_FLAG_GOTPIC)
+		val &= 0x00ffffff;
+	*addr = val;
+	return 0;
+}
+
+static inline int flat_put_addr_at_rp(u32 __user *rp, u32 addr, u32 rel)
+{
+	u32 *p = (__force u32 *)rp;
+	put_unaligned((addr & 0x00ffffff) | (*(char *)p << 24), p);
+	return 0;
+}
 
 #endif /* __H8300_FLAT_H__ */

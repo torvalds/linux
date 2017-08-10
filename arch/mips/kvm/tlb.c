@@ -166,7 +166,11 @@ static int _kvm_mips_host_tlb_inv(unsigned long entryhi)
 int kvm_mips_host_tlb_inv(struct kvm_vcpu *vcpu, unsigned long va,
 			  bool user, bool kernel)
 {
-	int idx_user, idx_kernel;
+	/*
+	 * Initialize idx_user and idx_kernel to workaround bogus
+	 * maybe-initialized warning when using GCC 6.
+	 */
+	int idx_user = 0, idx_kernel = 0;
 	unsigned long flags, old_entryhi;
 
 	local_irq_save(flags);

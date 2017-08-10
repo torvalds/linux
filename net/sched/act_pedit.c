@@ -94,8 +94,10 @@ static struct tcf_pedit_key_ex *tcf_pedit_keys_ex_parse(struct nlattr *nla,
 		k++;
 	}
 
-	if (n)
+	if (n) {
+		err = -EINVAL;
 		goto err_out;
+	}
 
 	return keys_ex;
 

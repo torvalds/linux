@@ -419,7 +419,7 @@ static int xhci_stop_device(struct xhci_hcd *xhci, int slot_id, int suspend)
 	wait_for_completion(cmd->completion);
 
 	if (cmd->status == COMP_COMMAND_ABORTED ||
-			cmd->status == COMP_STOPPED) {
+	    cmd->status == COMP_COMMAND_RING_STOPPED) {
 		xhci_warn(xhci, "Timeout while waiting for stop endpoint command\n");
 		ret = -ETIME;
 	}
@@ -1461,6 +1461,9 @@ int xhci_bus_suspend(struct usb_hcd *hcd)
 				t2 |= PORT_WKOC_E | PORT_WKCONN_E;
 				t2 &= ~PORT_WKDISC_E;
 			}
+			if ((xhci->quirks & XHCI_U2_DISABLE_WAKE) &&
+			    (hcd->speed < HCD_USB3))
+				t2 &= ~PORT_WAKE_BITS;
 		} else
 			t2 &= ~PORT_WAKE_BITS;
 

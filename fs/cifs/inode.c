@@ -24,6 +24,7 @@
 #include <linux/pagemap.h>
 #include <linux/freezer.h>
 #include <linux/sched/signal.h>
+#include <linux/wait_bit.h>
 
 #include <asm/div64.h>
 #include "cifsfs.h"
@@ -563,8 +564,7 @@ static int cifs_sfu_mode(struct cifs_fattr *fattr, const unsigned char *path,
 
 	rc = tcon->ses->server->ops->query_all_EAs(xid, tcon, path,
 			"SETFILEBITS", ea_value, 4 /* size of buf */,
-			cifs_sb->local_nls,
-			cifs_remap(cifs_sb));
+			cifs_sb);
 	cifs_put_tlink(tlink);
 	if (rc < 0)
 		return (int)rc;

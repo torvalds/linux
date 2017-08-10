@@ -69,7 +69,7 @@ static void GLUE(X_PFX,source_eoi)(u32 hw_irq, struct xive_irq_data *xd)
 {
 	/* If the XIVE supports the new "store EOI facility, use it */
 	if (xd->flags & XIVE_IRQ_FLAG_STORE_EOI)
-		__x_writeq(0, __x_eoi_page(xd));
+		__x_writeq(0, __x_eoi_page(xd) + XIVE_ESB_STORE_EOI);
 	else if (hw_irq && xd->flags & XIVE_IRQ_FLAG_EOI_FW) {
 		opal_int_eoi(hw_irq);
 	} else {
@@ -89,7 +89,7 @@ static void GLUE(X_PFX,source_eoi)(u32 hw_irq, struct xive_irq_data *xd)
 		 * properly.
 		 */
 		if (xd->flags & XIVE_IRQ_FLAG_LSI)
-			__x_readq(__x_eoi_page(xd));
+			__x_readq(__x_eoi_page(xd) + XIVE_ESB_LOAD_EOI);
 		else {
 			eoi_val = GLUE(X_PFX,esb_load)(xd, XIVE_ESB_SET_PQ_00);
 

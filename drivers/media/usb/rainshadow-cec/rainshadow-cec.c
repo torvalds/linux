@@ -98,16 +98,13 @@ static void rain_process_msg(struct rain *rain)
 
 	switch (stat) {
 	case 1:
-		cec_transmit_done(rain->adap, CEC_TX_STATUS_OK,
-				  0, 0, 0, 0);
+		cec_transmit_attempt_done(rain->adap, CEC_TX_STATUS_OK);
 		break;
 	case 2:
-		cec_transmit_done(rain->adap, CEC_TX_STATUS_NACK,
-				  0, 1, 0, 0);
+		cec_transmit_attempt_done(rain->adap, CEC_TX_STATUS_NACK);
 		break;
 	default:
-		cec_transmit_done(rain->adap, CEC_TX_STATUS_LOW_DRIVE,
-				  0, 0, 0, 1);
+		cec_transmit_attempt_done(rain->adap, CEC_TX_STATUS_LOW_DRIVE);
 		break;
 	}
 }
@@ -119,15 +116,16 @@ static void rain_irq_work_handler(struct work_struct *work)
 
 	while (true) {
 		unsigned long flags;
-		bool exit_loop;
+		bool exit_loop = false;
 		char data;
 
 		spin_lock_irqsave(&rain->buf_lock, flags);
-		exit_loop = rain->buf_len == 0;
 		if (rain->buf_len) {
 			data = rain->buf[rain->buf_rd_idx];
 			rain->buf_len--;
 			rain->buf_rd_idx = (rain->buf_rd_idx + 1) & 0xff;
+		} else {
+			exit_loop = true;
 		}
 		spin_unlock_irqrestore(&rain->buf_lock, flags);
 
@@ -296,7 +294,7 @@ static int rain_cec_adap_transmit(struct cec_adapter *adap, u8 attempts,
 			 cec_msg_destination(msg), msg->msg[1]);
 		for (i = 2; i < msg->len; i++) {
 			snprintf(hex, sizeof(hex), "%02x", msg->msg[i]);
-			strncat(cmd, hex, sizeof(cmd));
+			strlcat(cmd, hex, sizeof(cmd));
 		}
 	}
 	mutex_lock(&rain->write_lock);
@@ -336,6 +334,7 @@ static int rain_connect(struct serio *serio, struct serio_driver *drv)
 	serio_set_drvdata(serio, rain);
 	INIT_WORK(&rain->work, rain_irq_work_handler);
 	mutex_init(&rain->write_lock);
+	spin_lock_init(&rain->buf_lock);
 
 	err = serio_open(serio, drv);
 	if (err)

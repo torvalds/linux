@@ -44,7 +44,7 @@
 
 /dts-v1/;
 #include "rk3399-gru.dtsi"
-#include <include/dt-bindings/input/linux-event-codes.h>
+#include <dt-bindings/input/linux-event-codes.h>
 
 /*
  * Kevin-specific things

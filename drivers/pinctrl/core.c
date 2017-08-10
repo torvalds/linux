@@ -170,7 +170,7 @@ const char *pin_get_name(struct pinctrl_dev *pctldev, const unsigned pin)
 	const struct pin_desc *desc;
 
 	desc = pin_desc_get(pctldev, pin);
-	if (desc == NULL) {
+	if (!desc) {
 		dev_err(pctldev->dev, "failed to get pin(%d) name\n",
 			pin);
 		return NULL;
@@ -214,7 +214,7 @@ static void pinctrl_free_pindescs(struct pinctrl_dev *pctldev,
 
 		pindesc = radix_tree_lookup(&pctldev->pin_desc_tree,
 					    pins[i].number);
-		if (pindesc != NULL) {
+		if (pindesc) {
 			radix_tree_delete(&pctldev->pin_desc_tree,
 					  pins[i].number);
 			if (pindesc->dynamic_name)
@@ -230,7 +230,7 @@ static int pinctrl_register_one_pin(struct pinctrl_dev *pctldev,
 	struct pin_desc *pindesc;
 
 	pindesc = pin_desc_get(pctldev, pin->number);
-	if (pindesc != NULL) {
+	if (pindesc) {
 		dev_err(pctldev->dev, "pin %d already registered\n",
 			pin->number);
 		return -EINVAL;
@@ -248,7 +248,7 @@ static int pinctrl_register_one_pin(struct pinctrl_dev *pctldev,
 		pindesc->name = pin->name;
 	} else {
 		pindesc->name = kasprintf(GFP_KERNEL, "PIN%u", pin->number);
-		if (pindesc->name == NULL) {
+		if (!pindesc->name) {
 			kfree(pindesc);
 			return -ENOMEM;
 		}
@@ -402,7 +402,7 @@ static int pinctrl_get_device_gpio_range(unsigned gpio,
 		struct pinctrl_gpio_range *range;
 
 		range = pinctrl_match_gpio_range(pctldev, gpio);
-		if (range != NULL) {
+		if (range) {
 			*outdev = pctldev;
 			*outrange = range;
 			mutex_unlock(&pinctrldev_list_mutex);
@@ -680,30 +680,16 @@ EXPORT_SYMBOL_GPL(pinctrl_generic_remove_group);
  * pinctrl_generic_free_groups() - removes all pin groups
  * @pctldev: pin controller device
  *
- * Note that the caller must take care of locking.
+ * Note that the caller must take care of locking. The pinctrl groups
+ * are allocated with devm_kzalloc() so no need to free them here.
  */
 static void pinctrl_generic_free_groups(struct pinctrl_dev *pctldev)
 {
 	struct radix_tree_iter iter;
-	struct group_desc *group;
-	unsigned long *indices;
 	void **slot;
-	int i = 0;
-
-	indices = devm_kzalloc(pctldev->dev, sizeof(*indices) *
-			       pctldev->num_groups, GFP_KERNEL);
-	if (!indices)
-		return;
 
 	radix_tree_for_each_slot(slot, &pctldev->pin_group_tree, &iter, 0)
-		indices[i++] = iter.index;
-
-	for (i = 0; i < pctldev->num_groups; i++) {
-		group = radix_tree_lookup(&pctldev->pin_group_tree,
-					  indices[i]);
-		radix_tree_delete(&pctldev->pin_group_tree, indices[i]);
-		devm_kfree(pctldev->dev, group);
-	}
+		radix_tree_delete(&pctldev->pin_group_tree, iter.index);
 
 	pctldev->num_groups = 0;
 }
@@ -947,7 +933,7 @@ static int add_setting(struct pinctrl *p, struct pinctrl_dev *pctldev,
 	else
 		setting->pctldev =
 			get_pinctrl_dev_from_devname(map->ctrl_dev_name);
-	if (setting->pctldev == NULL) {
+	if (!setting->pctldev) {
 		kfree(setting);
 		/* Do not defer probing of hogs (circular loop) */
 		if (!strcmp(map->ctrl_dev_name, map->dev_name))
@@ -1038,6 +1024,16 @@ static struct pinctrl *create_pinctrl(struct device *dev,
 		/* Map must be for this device */
 		if (strcmp(map->dev_name, devname))
 			continue;
+		/*
+		 * If pctldev is not null, we are claiming hog for it,
+		 * that means, setting that is served by pctldev by itself.
+		 *
+		 * Thus we must skip map that is for this device but is served
+		 * by other device.
+		 */
+		if (pctldev &&
+		    strcmp(dev_name(pctldev->dev), map->ctrl_dev_name))
+			continue;
 
 		ret = add_setting(p, pctldev, map);
 		/*
@@ -1094,7 +1090,7 @@ struct pinctrl *pinctrl_get(struct device *dev)
 	 * return another pointer to it.
 	 */
 	p = find_pinctrl(dev);
-	if (p != NULL) {
+	if (p) {
 		dev_dbg(dev, "obtain a copy of previously claimed pinctrl\n");
 		kref_get(&p->users);
 		return p;
@@ -1565,7 +1561,7 @@ static int pinctrl_pins_show(struct seq_file *s, void *what)
 		pin = pctldev->desc->pins[i].number;
 		desc = pin_desc_get(pctldev, pin);
 		/* Pin space may be sparse */
-		if (desc == NULL)
+		if (!desc)
 			continue;
 
 		seq_printf(s, "pin %d (%s) ", pin, desc->name);
@@ -1732,7 +1728,7 @@ static int pinctrl_maps_show(struct seq_file *s, void *what)
 			break;
 		}
 
-		seq_printf(s, "\n");
+		seq_putc(s, '\n');
 	}
 	mutex_unlock(&pinctrl_maps_mutex);
 
@@ -2145,7 +2141,7 @@ void pinctrl_unregister(struct pinctrl_dev *pctldev)
 {
 	struct pinctrl_gpio_range *range, *n;
 
-	if (pctldev == NULL)
+	if (!pctldev)
 		return;
 
 	mutex_lock(&pctldev->mutex);

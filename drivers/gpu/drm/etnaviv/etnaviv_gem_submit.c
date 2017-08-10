@@ -44,6 +44,7 @@ static struct etnaviv_gem_submit *submit_create(struct drm_device *dev,
 
 		/* initially, until copy_from_user() and bo lookup succeeds: */
 		submit->nr_bos = 0;
+		submit->fence = NULL;
 
 		ww_acquire_init(&submit->ticket, &reservation_ww_class);
 	}
@@ -171,7 +172,7 @@ static int submit_fence_sync(const struct etnaviv_gem_submit *submit)
 	for (i = 0; i < submit->nr_bos; i++) {
 		struct etnaviv_gem_object *etnaviv_obj = submit->bos[i].obj;
 		bool write = submit->bos[i].flags & ETNA_SUBMIT_BO_WRITE;
-		bool explicit = !(submit->flags & ETNA_SUBMIT_NO_IMPLICIT);
+		bool explicit = !!(submit->flags & ETNA_SUBMIT_NO_IMPLICIT);
 
 		ret = etnaviv_gpu_fence_sync_obj(etnaviv_obj, context, write,
 						 explicit);
@@ -294,7 +295,8 @@ static void submit_cleanup(struct etnaviv_gem_submit *submit)
 	}
 
 	ww_acquire_fini(&submit->ticket);
-	dma_fence_put(submit->fence);
+	if (submit->fence)
+		dma_fence_put(submit->fence);
 	kfree(submit);
 }
 
@@ -343,9 +345,9 @@ int etnaviv_ioctl_gem_submit(struct drm_device *dev, void *data,
 	 * Copy the command submission and bo array to kernel space in
 	 * one go, and do this outside of any locks.
 	 */
-	bos = drm_malloc_ab(args->nr_bos, sizeof(*bos));
-	relocs = drm_malloc_ab(args->nr_relocs, sizeof(*relocs));
-	stream = drm_malloc_ab(1, args->stream_size);
+	bos = kvmalloc_array(args->nr_bos, sizeof(*bos), GFP_KERNEL);
+	relocs = kvmalloc_array(args->nr_relocs, sizeof(*relocs), GFP_KERNEL);
+	stream = kvmalloc_array(1, args->stream_size, GFP_KERNEL);
 	cmdbuf = etnaviv_cmdbuf_new(gpu->cmdbuf_suballoc,
 				    ALIGN(args->stream_size, 8) + 8,
 				    args->nr_bos);
@@ -487,11 +489,11 @@ err_submit_cmds:
 	if (cmdbuf)
 		etnaviv_cmdbuf_free(cmdbuf);
 	if (stream)
-		drm_free_large(stream);
+		kvfree(stream);
 	if (bos)
-		drm_free_large(bos);
+		kvfree(bos);
 	if (relocs)
-		drm_free_large(relocs);
+		kvfree(relocs);
 
 	return ret;
 }

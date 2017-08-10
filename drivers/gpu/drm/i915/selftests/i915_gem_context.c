@@ -320,7 +320,7 @@ static unsigned long max_dwords(struct drm_i915_gem_object *obj)
 static int igt_ctx_exec(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
-	struct drm_i915_gem_object *obj;
+	struct drm_i915_gem_object *obj = NULL;
 	struct drm_file *file;
 	IGT_TIMEOUT(end_time);
 	LIST_HEAD(objects);
@@ -359,7 +359,7 @@ static int igt_ctx_exec(void *arg)
 		}
 
 		for_each_engine(engine, i915, id) {
-			if (dw == 0) {
+			if (!obj) {
 				obj = create_test_object(ctx, file, &objects);
 				if (IS_ERR(obj)) {
 					err = PTR_ERR(obj);
@@ -376,8 +376,10 @@ static int igt_ctx_exec(void *arg)
 				goto out_unlock;
 			}
 
-			if (++dw == max_dwords(obj))
+			if (++dw == max_dwords(obj)) {
+				obj = NULL;
 				dw = 0;
+			}
 			ndwords++;
 		}
 		ncontexts++;

@@ -9,8 +9,8 @@
 #ifndef _LINUX_FLAT_H
 #define _LINUX_FLAT_H
 
-#include <asm/flat.h>
 #include <uapi/linux/flat.h>
+#include <asm/flat.h>
 
 /*
  * While it would be nice to keep this header clean,  users of older

@@ -245,22 +245,26 @@ int iscsi_check_for_session_reinstatement(struct iscsi_conn *conn)
 	return 0;
 }
 
-static void iscsi_login_set_conn_values(
+static int iscsi_login_set_conn_values(
 	struct iscsi_session *sess,
 	struct iscsi_conn *conn,
 	__be16 cid)
 {
+	int ret;
 	conn->sess		= sess;
 	conn->cid		= be16_to_cpu(cid);
 	/*
 	 * Generate a random Status sequence number (statsn) for the new
 	 * iSCSI connection.
 	 */
-	get_random_bytes(&conn->stat_sn, sizeof(u32));
+	ret = get_random_bytes_wait(&conn->stat_sn, sizeof(u32));
+	if (unlikely(ret))
+		return ret;
 
 	mutex_lock(&auth_id_lock);
 	conn->auth_id		= iscsit_global->auth_id++;
 	mutex_unlock(&auth_id_lock);
+	return 0;
 }
 
 __printf(2, 3) int iscsi_change_param_sprintf(
@@ -306,7 +310,11 @@ static int iscsi_login_zero_tsih_s1(
 		return -ENOMEM;
 	}
 
-	iscsi_login_set_conn_values(sess, conn, pdu->cid);
+	ret = iscsi_login_set_conn_values(sess, conn, pdu->cid);
+	if (unlikely(ret)) {
+		kfree(sess);
+		return ret;
+	}
 	sess->init_task_tag	= pdu->itt;
 	memcpy(&sess->isid, pdu->isid, 6);
 	sess->exp_cmd_sn	= be32_to_cpu(pdu->cmdsn);
@@ -497,8 +505,7 @@ static int iscsi_login_non_zero_tsih_s1(
 {
 	struct iscsi_login_req *pdu = (struct iscsi_login_req *)buf;
 
-	iscsi_login_set_conn_values(NULL, conn, pdu->cid);
-	return 0;
+	return iscsi_login_set_conn_values(NULL, conn, pdu->cid);
 }
 
 /*
@@ -554,9 +561,8 @@ static int iscsi_login_non_zero_tsih_s2(
 		atomic_set(&sess->session_continuation, 1);
 	spin_unlock_bh(&sess->conn_lock);
 
-	iscsi_login_set_conn_values(sess, conn, pdu->cid);
-
-	if (iscsi_copy_param_list(&conn->param_list,
+	if (iscsi_login_set_conn_values(sess, conn, pdu->cid) < 0 ||
+	    iscsi_copy_param_list(&conn->param_list,
 			conn->tpg->param_list, 0) < 0) {
 		iscsit_tx_login_rsp(conn, ISCSI_STATUS_CLS_TARGET_ERR,
 				ISCSI_LOGIN_STATUS_NO_RESOURCES);
@@ -1462,6 +1468,10 @@ int iscsi_target_login_thread(void *arg)
 		 */
 		if (ret != 1)
 			break;
+	}
+
+	while (!kthread_should_stop()) {
+		msleep(100);
 	}
 
 	return 0;

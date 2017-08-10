@@ -89,7 +89,7 @@ struct region3_table_entry_fc1 {
 	unsigned long f  : 1; /* Fetch-Protection Bit */
 	unsigned long fc : 1; /* Format-Control */
 	unsigned long p  : 1; /* DAT-Protection Bit */
-	unsigned long co : 1; /* Change-Recording Override */
+	unsigned long iep: 1; /* Instruction-Execution-Protection */
 	unsigned long	 : 2;
 	unsigned long i  : 1; /* Region-Invalid Bit */
 	unsigned long cr : 1; /* Common-Region Bit */
@@ -131,7 +131,7 @@ struct segment_entry_fc1 {
 	unsigned long f  : 1; /* Fetch-Protection Bit */
 	unsigned long fc : 1; /* Format-Control */
 	unsigned long p  : 1; /* DAT-Protection Bit */
-	unsigned long co : 1; /* Change-Recording Override */
+	unsigned long iep: 1; /* Instruction-Execution-Protection */
 	unsigned long	 : 2;
 	unsigned long i  : 1; /* Segment-Invalid Bit */
 	unsigned long cs : 1; /* Common-Segment Bit */
@@ -168,7 +168,8 @@ union page_table_entry {
 		unsigned long z  : 1; /* Zero Bit */
 		unsigned long i  : 1; /* Page-Invalid Bit */
 		unsigned long p  : 1; /* DAT-Protection Bit */
-		unsigned long	 : 9;
+		unsigned long iep: 1; /* Instruction-Execution-Protection */
+		unsigned long	 : 8;
 	};
 };
 
@@ -241,7 +242,7 @@ struct ale {
 	unsigned long asteo  : 25; /* ASN-Second-Table-Entry Origin */
 	unsigned long        : 6;
 	unsigned long astesn : 32; /* ASTE Sequence Number */
-} __packed;
+};
 
 struct aste {
 	unsigned long i      : 1; /* ASX-Invalid Bit */
@@ -257,7 +258,7 @@ struct aste {
 	unsigned long ald    : 32;
 	unsigned long astesn : 32;
 	/* .. more fields there */
-} __packed;
+};
 
 int ipte_lock_held(struct kvm_vcpu *vcpu)
 {
@@ -485,6 +486,7 @@ enum prot_type {
 	PROT_TYPE_KEYC = 1,
 	PROT_TYPE_ALC  = 2,
 	PROT_TYPE_DAT  = 3,
+	PROT_TYPE_IEP  = 4,
 };
 
 static int trans_exc(struct kvm_vcpu *vcpu, int code, unsigned long gva,
@@ -500,6 +502,9 @@ static int trans_exc(struct kvm_vcpu *vcpu, int code, unsigned long gva,
 	switch (code) {
 	case PGM_PROTECTION:
 		switch (prot) {
+		case PROT_TYPE_IEP:
+			tec->b61 = 1;
+			/* FALL THROUGH */
 		case PROT_TYPE_LA:
 			tec->b56 = 1;
 			break;
@@ -551,26 +556,26 @@ static int get_vcpu_asce(struct kvm_vcpu *vcpu, union asce *asce,
 	int rc;
 	struct psw_bits psw = psw_bits(vcpu->arch.sie_block->gpsw);
 
-	if (!psw.t) {
+	if (!psw.dat) {
 		asce->val = 0;
 		asce->r = 1;
 		return 0;
 	}
 
-	if (mode == GACC_IFETCH)
-		psw.as = psw.as == PSW_AS_HOME ? PSW_AS_HOME : PSW_AS_PRIMARY;
+	if ((mode == GACC_IFETCH) && (psw.as != PSW_BITS_AS_HOME))
+		psw.as = PSW_BITS_AS_PRIMARY;
 
 	switch (psw.as) {
-	case PSW_AS_PRIMARY:
+	case PSW_BITS_AS_PRIMARY:
 		asce->val = vcpu->arch.sie_block->gcr[1];
 		return 0;
-	case PSW_AS_SECONDARY:
+	case PSW_BITS_AS_SECONDARY:
 		asce->val = vcpu->arch.sie_block->gcr[7];
 		return 0;
-	case PSW_AS_HOME:
+	case PSW_BITS_AS_HOME:
 		asce->val = vcpu->arch.sie_block->gcr[13];
 		return 0;
-	case PSW_AS_ACCREG:
+	case PSW_BITS_AS_ACCREG:
 		rc = ar_translation(vcpu, asce, ar, mode);
 		if (rc > 0)
 			return trans_exc(vcpu, rc, ga, ar, mode, PROT_TYPE_ALC);
@@ -591,6 +596,7 @@ static int deref_table(struct kvm *kvm, unsigned long gpa, unsigned long *val)
  * @gpa: points to where guest physical (absolute) address should be stored
  * @asce: effective asce
  * @mode: indicates the access mode to be used
+ * @prot: returns the type for protection exceptions
  *
  * Translate a guest virtual address into a guest absolute address by means
  * of dynamic address translation as specified by the architecture.
@@ -606,19 +612,21 @@ static int deref_table(struct kvm *kvm, unsigned long gpa, unsigned long *val)
  */
 static unsigned long guest_translate(struct kvm_vcpu *vcpu, unsigned long gva,
 				     unsigned long *gpa, const union asce asce,
-				     enum gacc_mode mode)
+				     enum gacc_mode mode, enum prot_type *prot)
 {
 	union vaddress vaddr = {.addr = gva};
 	union raddress raddr = {.addr = gva};
 	union page_table_entry pte;
 	int dat_protection = 0;
+	int iep_protection = 0;
 	union ctlreg0 ctlreg0;
 	unsigned long ptr;
-	int edat1, edat2;
+	int edat1, edat2, iep;
 
 	ctlreg0.val = vcpu->arch.sie_block->gcr[0];
 	edat1 = ctlreg0.edat && test_kvm_facility(vcpu->kvm, 8);
 	edat2 = edat1 && test_kvm_facility(vcpu->kvm, 78);
+	iep = ctlreg0.iep && test_kvm_facility(vcpu->kvm, 130);
 	if (asce.r)
 		goto real_address;
 	ptr = asce.origin * 4096;
@@ -702,6 +710,7 @@ static unsigned long guest_translate(struct kvm_vcpu *vcpu, unsigned long gva,
 			return PGM_TRANSLATION_SPEC;
 		if (rtte.fc && edat2) {
 			dat_protection |= rtte.fc1.p;
+			iep_protection = rtte.fc1.iep;
 			raddr.rfaa = rtte.fc1.rfaa;
 			goto absolute_address;
 		}
@@ -729,6 +738,7 @@ static unsigned long guest_translate(struct kvm_vcpu *vcpu, unsigned long gva,
 			return PGM_TRANSLATION_SPEC;
 		if (ste.fc && edat1) {
 			dat_protection |= ste.fc1.p;
+			iep_protection = ste.fc1.iep;
 			raddr.sfaa = ste.fc1.sfaa;
 			goto absolute_address;
 		}
@@ -745,12 +755,19 @@ static unsigned long guest_translate(struct kvm_vcpu *vcpu, unsigned long gva,
 	if (pte.z)
 		return PGM_TRANSLATION_SPEC;
 	dat_protection |= pte.p;
+	iep_protection = pte.iep;
 	raddr.pfra = pte.pfra;
 real_address:
 	raddr.addr = kvm_s390_real_to_abs(vcpu, raddr.addr);
 absolute_address:
-	if (mode == GACC_STORE && dat_protection)
+	if (mode == GACC_STORE && dat_protection) {
+		*prot = PROT_TYPE_DAT;
 		return PGM_PROTECTION;
+	}
+	if (mode == GACC_IFETCH && iep_protection && iep) {
+		*prot = PROT_TYPE_IEP;
+		return PGM_PROTECTION;
+	}
 	if (kvm_is_error_gpa(vcpu->kvm, raddr.addr))
 		return PGM_ADDRESSING;
 	*gpa = raddr.addr;
@@ -771,7 +788,7 @@ static int low_address_protection_enabled(struct kvm_vcpu *vcpu,
 
 	if (!ctlreg0.lap)
 		return 0;
-	if (psw_bits(*psw).t && asce.p)
+	if (psw_bits(*psw).dat && asce.p)
 		return 0;
 	return 1;
 }
@@ -782,6 +799,7 @@ static int guest_page_range(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar,
 {
 	psw_t *psw = &vcpu->arch.sie_block->gpsw;
 	int lap_enabled, rc = 0;
+	enum prot_type prot;
 
 	lap_enabled = low_address_protection_enabled(vcpu, asce);
 	while (nr_pages) {
@@ -790,8 +808,8 @@ static int guest_page_range(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar,
 			return trans_exc(vcpu, PGM_PROTECTION, ga, ar, mode,
 					 PROT_TYPE_LA);
 		ga &= PAGE_MASK;
-		if (psw_bits(*psw).t) {
-			rc = guest_translate(vcpu, ga, pages, asce, mode);
+		if (psw_bits(*psw).dat) {
+			rc = guest_translate(vcpu, ga, pages, asce, mode, &prot);
 			if (rc < 0)
 				return rc;
 		} else {
@@ -800,7 +818,7 @@ static int guest_page_range(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar,
 				rc = PGM_ADDRESSING;
 		}
 		if (rc)
-			return trans_exc(vcpu, rc, ga, ar, mode, PROT_TYPE_DAT);
+			return trans_exc(vcpu, rc, ga, ar, mode, prot);
 		ga += PAGE_SIZE;
 		pages++;
 		nr_pages--;
@@ -831,7 +849,7 @@ int access_guest(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar, void *data,
 		pages = vmalloc(nr_pages * sizeof(unsigned long));
 	if (!pages)
 		return -ENOMEM;
-	need_ipte_lock = psw_bits(*psw).t && !asce.r;
+	need_ipte_lock = psw_bits(*psw).dat && !asce.r;
 	if (need_ipte_lock)
 		ipte_lock(vcpu);
 	rc = guest_page_range(vcpu, ga, ar, pages, nr_pages, asce, mode);
@@ -886,6 +904,7 @@ int guest_translate_address(struct kvm_vcpu *vcpu, unsigned long gva, u8 ar,
 			    unsigned long *gpa, enum gacc_mode mode)
 {
 	psw_t *psw = &vcpu->arch.sie_block->gpsw;
+	enum prot_type prot;
 	union asce asce;
 	int rc;
 
@@ -899,10 +918,10 @@ int guest_translate_address(struct kvm_vcpu *vcpu, unsigned long gva, u8 ar,
 					 mode, PROT_TYPE_LA);
 	}
 
-	if (psw_bits(*psw).t && !asce.r) {	/* Use DAT? */
-		rc = guest_translate(vcpu, gva, gpa, asce, mode);
+	if (psw_bits(*psw).dat && !asce.r) {	/* Use DAT? */
+		rc = guest_translate(vcpu, gva, gpa, asce, mode, &prot);
 		if (rc > 0)
-			return trans_exc(vcpu, rc, gva, 0, mode, PROT_TYPE_DAT);
+			return trans_exc(vcpu, rc, gva, 0, mode, prot);
 	} else {
 		*gpa = kvm_s390_real_to_abs(vcpu, gva);
 		if (kvm_is_error_gpa(vcpu->kvm, *gpa))
@@ -977,11 +996,12 @@ static int kvm_s390_shadow_tables(struct gmap *sg, unsigned long saddr,
 	ptr = asce.origin * 4096;
 	if (asce.r) {
 		*fake = 1;
+		ptr = 0;
 		asce.dt = ASCE_TYPE_REGION1;
 	}
 	switch (asce.dt) {
 	case ASCE_TYPE_REGION1:
-		if (vaddr.rfx01 > asce.tl && !asce.r)
+		if (vaddr.rfx01 > asce.tl && !*fake)
 			return PGM_REGION_FIRST_TRANS;
 		break;
 	case ASCE_TYPE_REGION2:
@@ -1009,8 +1029,7 @@ static int kvm_s390_shadow_tables(struct gmap *sg, unsigned long saddr,
 		union region1_table_entry rfte;
 
 		if (*fake) {
-			/* offset in 16EB guest memory block */
-			ptr = ptr + ((unsigned long) vaddr.rsx << 53UL);
+			ptr += (unsigned long) vaddr.rfx << 53;
 			rfte.val = ptr;
 			goto shadow_r2t;
 		}
@@ -1036,8 +1055,7 @@ shadow_r2t:
 		union region2_table_entry rste;
 
 		if (*fake) {
-			/* offset in 8PB guest memory block */
-			ptr = ptr + ((unsigned long) vaddr.rtx << 42UL);
+			ptr += (unsigned long) vaddr.rsx << 42;
 			rste.val = ptr;
 			goto shadow_r3t;
 		}
@@ -1064,8 +1082,7 @@ shadow_r3t:
 		union region3_table_entry rtte;
 
 		if (*fake) {
-			/* offset in 4TB guest memory block */
-			ptr = ptr + ((unsigned long) vaddr.sx << 31UL);
+			ptr += (unsigned long) vaddr.rtx << 31;
 			rtte.val = ptr;
 			goto shadow_sgt;
 		}
@@ -1101,8 +1118,7 @@ shadow_sgt:
 		union segment_table_entry ste;
 
 		if (*fake) {
-			/* offset in 2G guest memory block */
-			ptr = ptr + ((unsigned long) vaddr.sx << 20UL);
+			ptr += (unsigned long) vaddr.sx << 20;
 			ste.val = ptr;
 			goto shadow_pgt;
 		}

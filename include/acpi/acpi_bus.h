@@ -61,17 +61,18 @@ bool acpi_ata_match(acpi_handle handle);
 bool acpi_bay_match(acpi_handle handle);
 bool acpi_dock_match(acpi_handle handle);
 
-bool acpi_check_dsm(acpi_handle handle, const u8 *uuid, u64 rev, u64 funcs);
-union acpi_object *acpi_evaluate_dsm(acpi_handle handle, const u8 *uuid,
+bool acpi_check_dsm(acpi_handle handle, const guid_t *guid, u64 rev, u64 funcs);
+union acpi_object *acpi_evaluate_dsm(acpi_handle handle, const guid_t *guid,
 			u64 rev, u64 func, union acpi_object *argv4);
 
 static inline union acpi_object *
-acpi_evaluate_dsm_typed(acpi_handle handle, const u8 *uuid, u64 rev, u64 func,
-			union acpi_object *argv4, acpi_object_type type)
+acpi_evaluate_dsm_typed(acpi_handle handle, const guid_t *guid, u64 rev,
+			u64 func, union acpi_object *argv4,
+			acpi_object_type type)
 {
 	union acpi_object *obj;
 
-	obj = acpi_evaluate_dsm(handle, uuid, rev, func, argv4);
+	obj = acpi_evaluate_dsm(handle, guid, rev, func, argv4);
 	if (obj && obj->type != type) {
 		ACPI_FREE(obj);
 		obj = NULL;
@@ -210,7 +211,8 @@ struct acpi_device_flags {
 	u32 of_compatible_ok:1;
 	u32 coherent_dma:1;
 	u32 cca_seen:1;
-	u32 reserved:20;
+	u32 spi_i2c_slave:1;
+	u32 reserved:19;
 };
 
 /* File System */
@@ -313,13 +315,12 @@ struct acpi_device_perf {
 /* Wakeup Management */
 struct acpi_device_wakeup_flags {
 	u8 valid:1;		/* Can successfully enable wakeup? */
-	u8 run_wake:1;		/* Run-Wake GPE devices */
 	u8 notifier_present:1;  /* Wake-up notify handler has been installed */
 	u8 enabled:1;		/* Enabled for wakeup */
 };
 
 struct acpi_device_wakeup_context {
-	struct work_struct work;
+	void (*func)(struct acpi_device_wakeup_context *context);
 	struct device *dev;
 };
 
@@ -598,21 +599,30 @@ static inline bool acpi_device_always_present(struct acpi_device *adev)
 #endif
 
 #ifdef CONFIG_PM
+void acpi_pm_wakeup_event(struct device *dev);
 acpi_status acpi_add_pm_notifier(struct acpi_device *adev, struct device *dev,
-				 void (*work_func)(struct work_struct *work));
+			void (*func)(struct acpi_device_wakeup_context *context));
 acpi_status acpi_remove_pm_notifier(struct acpi_device *adev);
+bool acpi_pm_device_can_wakeup(struct device *dev);
 int acpi_pm_device_sleep_state(struct device *, int *, int);
-int acpi_pm_device_run_wake(struct device *, bool);
+int acpi_pm_set_device_wakeup(struct device *dev, bool enable);
 #else
+static inline void acpi_pm_wakeup_event(struct device *dev)
+{
+}
 static inline acpi_status acpi_add_pm_notifier(struct acpi_device *adev,
 					       struct device *dev,
-				               void (*work_func)(struct work_struct *work))
+					       void (*func)(struct acpi_device_wakeup_context *context))
 {
 	return AE_SUPPORT;
 }
 static inline acpi_status acpi_remove_pm_notifier(struct acpi_device *adev)
 {
 	return AE_SUPPORT;
+}
+static inline bool acpi_pm_device_can_wakeup(struct device *dev)
+{
+	return false;
 }
 static inline int acpi_pm_device_sleep_state(struct device *d, int *p, int m)
 {
@@ -622,16 +632,7 @@ static inline int acpi_pm_device_sleep_state(struct device *d, int *p, int m)
 	return (m >= ACPI_STATE_D0 && m <= ACPI_STATE_D3_COLD) ?
 		m : ACPI_STATE_D0;
 }
-static inline int acpi_pm_device_run_wake(struct device *dev, bool enable)
-{
-	return -ENODEV;
-}
-#endif
-
-#ifdef CONFIG_PM_SLEEP
-int acpi_pm_device_sleep_wake(struct device *, bool);
-#else
-static inline int acpi_pm_device_sleep_wake(struct device *dev, bool enable)
+static inline int acpi_pm_set_device_wakeup(struct device *dev, bool enable)
 {
 	return -ENODEV;
 }

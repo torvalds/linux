@@ -22,6 +22,9 @@
  */
 #define USB_MAXCHILDREN		31
 
+/* See USB 3.1 spec Table 10-5 */
+#define USB_SS_MAXPORTS		15
+
 /*
  * Hub request types
  */

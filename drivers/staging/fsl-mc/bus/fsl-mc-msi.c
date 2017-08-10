@@ -16,7 +16,6 @@
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/msi.h>
-#include "../include/mc-bus.h"
 #include "fsl-mc-private.h"
 
 /*
@@ -170,7 +169,7 @@ struct irq_domain *fsl_mc_msi_create_irq_domain(struct fwnode_handle *fwnode,
 
 	domain = msi_create_irq_domain(fwnode, info, parent);
 	if (domain)
-		domain->bus_token = DOMAIN_BUS_FSL_MC_MSI;
+		irq_domain_update_bus_token(domain, DOMAIN_BUS_FSL_MC_MSI);
 
 	return domain;
 }

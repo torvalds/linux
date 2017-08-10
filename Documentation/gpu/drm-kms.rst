@@ -612,8 +612,8 @@ operation handler.
 Vertical Blanking and Interrupt Handling Functions Reference
 ------------------------------------------------------------
 
-.. kernel-doc:: include/drm/drm_irq.h
+.. kernel-doc:: include/drm/drm_vblank.h
    :internal:
 
-.. kernel-doc:: drivers/gpu/drm/drm_irq.c
+.. kernel-doc:: drivers/gpu/drm/drm_vblank.c
    :export:

@@ -979,10 +979,10 @@ static int vdec_vp9_get_param(unsigned long h_vdec,
 }
 
 static struct vdec_common_if vdec_vp9_if = {
-	vdec_vp9_init,
-	vdec_vp9_decode,
-	vdec_vp9_get_param,
-	vdec_vp9_deinit,
+	.init		= vdec_vp9_init,
+	.decode		= vdec_vp9_decode,
+	.get_param	= vdec_vp9_get_param,
+	.deinit		= vdec_vp9_deinit,
 };
 
 struct vdec_common_if *get_vp9_dec_comm_if(void);

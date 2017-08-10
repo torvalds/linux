@@ -207,7 +207,14 @@ EXPORT_SYMBOL_GPL(kvmppc_hwrng_present);
 
 long kvmppc_h_random(struct kvm_vcpu *vcpu)
 {
-	if (powernv_get_random_real_mode(&vcpu->arch.gpr[4]))
+	int r;
+
+	/* Only need to do the expensive mfmsr() on radix */
+	if (kvm_is_radix(vcpu->kvm) && (mfmsr() & MSR_IR))
+		r = powernv_get_random_long(&vcpu->arch.gpr[4]);
+	else
+		r = powernv_get_random_real_mode(&vcpu->arch.gpr[4]);
+	if (r)
 		return H_SUCCESS;
 
 	return H_HARDWARE;
@@ -300,7 +307,7 @@ void kvmhv_commence_exit(int trap)
 		return;
 
 	for (i = 0; i < MAX_SUBCORES; ++i) {
-		vc = sip->master_vcs[i];
+		vc = sip->vc[i];
 		if (!vc)
 			break;
 		do {

@@ -36,8 +36,8 @@
 #ifndef __GVT_RENDER_H__
 #define __GVT_RENDER_H__
 
-void intel_gvt_load_render_mmio(struct intel_vgpu *vgpu, int ring_id);
+void intel_gvt_switch_mmio(struct intel_vgpu *pre,
+			   struct intel_vgpu *next, int ring_id);
 
-void intel_gvt_restore_render_mmio(struct intel_vgpu *vgpu, int ring_id);
 
 #endif

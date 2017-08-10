@@ -20,6 +20,7 @@
  *			   ksz8081, ksz8091,
  *			   ksz8061,
  *		Switch : ksz8873, ksz886x
+ *			 ksz9477
  */
 
 #include <linux/kernel.h>
@@ -268,11 +269,31 @@ out:
 	return ret;
 }
 
+/* Some config bits need to be set again on resume, handle them here. */
+static int kszphy_config_reset(struct phy_device *phydev)
+{
+	struct kszphy_priv *priv = phydev->priv;
+	int ret;
+
+	if (priv->rmii_ref_clk_sel) {
+		ret = kszphy_rmii_clk_sel(phydev, priv->rmii_ref_clk_sel_val);
+		if (ret) {
+			phydev_err(phydev,
+				   "failed to set rmii reference clock\n");
+			return ret;
+		}
+	}
+
+	if (priv->led_mode >= 0)
+		kszphy_setup_led(phydev, priv->type->led_mode_reg, priv->led_mode);
+
+	return 0;
+}
+
 static int kszphy_config_init(struct phy_device *phydev)
 {
 	struct kszphy_priv *priv = phydev->priv;
 	const struct kszphy_type *type;
-	int ret;
 
 	if (!priv)
 		return 0;
@@ -285,19 +306,7 @@ static int kszphy_config_init(struct phy_device *phydev)
 	if (type->has_nand_tree_disable)
 		kszphy_nand_tree_disable(phydev);
 
-	if (priv->rmii_ref_clk_sel) {
-		ret = kszphy_rmii_clk_sel(phydev, priv->rmii_ref_clk_sel_val);
-		if (ret) {
-			phydev_err(phydev,
-				   "failed to set rmii reference clock\n");
-			return ret;
-		}
-	}
-
-	if (priv->led_mode >= 0)
-		kszphy_setup_led(phydev, type->led_mode_reg, priv->led_mode);
-
-	return 0;
+	return kszphy_config_reset(phydev);
 }
 
 static int ksz8041_config_init(struct phy_device *phydev)
@@ -611,6 +620,8 @@ static int ksz9031_read_status(struct phy_device *phydev)
 	if ((regval & 0xFF) == 0xFF) {
 		phy_init_hw(phydev);
 		phydev->link = 0;
+		if (phydev->drv->config_intr && phy_interrupt_is_valid(phydev))
+			phydev->drv->config_intr(phydev);
 	}
 
 	return 0;
@@ -700,7 +711,13 @@ static int kszphy_suspend(struct phy_device *phydev)
 
 static int kszphy_resume(struct phy_device *phydev)
 {
+	int ret;
+
 	genphy_resume(phydev);
+
+	ret = kszphy_config_reset(phydev);
+	if (ret)
+		return ret;
 
 	/* Enable PHY Interrupts */
 	if (phy_interrupt_is_valid(phydev)) {
@@ -779,7 +796,7 @@ static struct phy_driver ksphy_driver[] = {
 	.phy_id_mask	= MICREL_PHY_ID_MASK,
 	.name		= "Micrel KS8737",
 	.features	= PHY_BASIC_FEATURES,
-	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
+	.flags		= PHY_HAS_INTERRUPT,
 	.driver_data	= &ks8737_type,
 	.config_init	= kszphy_config_init,
 	.config_aneg	= genphy_config_aneg,
@@ -793,7 +810,7 @@ static struct phy_driver ksphy_driver[] = {
 	.phy_id_mask	= 0x00ffffff,
 	.name		= "Micrel KSZ8021 or KSZ8031",
 	.features	= PHY_BASIC_FEATURES,
-	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
+	.flags		= PHY_HAS_INTERRUPT,
 	.driver_data	= &ksz8021_type,
 	.probe		= kszphy_probe,
 	.config_init	= kszphy_config_init,
@@ -811,7 +828,7 @@ static struct phy_driver ksphy_driver[] = {
 	.phy_id_mask	= 0x00ffffff,
 	.name		= "Micrel KSZ8031",
 	.features	= PHY_BASIC_FEATURES,
-	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
+	.flags		= PHY_HAS_INTERRUPT,
 	.driver_data	= &ksz8021_type,
 	.probe		= kszphy_probe,
 	.config_init	= kszphy_config_init,
@@ -829,7 +846,7 @@ static struct phy_driver ksphy_driver[] = {
 	.phy_id_mask	= MICREL_PHY_ID_MASK,
 	.name		= "Micrel KSZ8041",
 	.features	= PHY_BASIC_FEATURES,
-	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
+	.flags		= PHY_HAS_INTERRUPT,
 	.driver_data	= &ksz8041_type,
 	.probe		= kszphy_probe,
 	.config_init	= ksz8041_config_init,
@@ -847,7 +864,7 @@ static struct phy_driver ksphy_driver[] = {
 	.phy_id_mask	= MICREL_PHY_ID_MASK,
 	.name		= "Micrel KSZ8041RNLI",
 	.features	= PHY_BASIC_FEATURES,
-	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
+	.flags		= PHY_HAS_INTERRUPT,
 	.driver_data	= &ksz8041_type,
 	.probe		= kszphy_probe,
 	.config_init	= kszphy_config_init,
@@ -865,7 +882,7 @@ static struct phy_driver ksphy_driver[] = {
 	.phy_id_mask	= MICREL_PHY_ID_MASK,
 	.name		= "Micrel KSZ8051",
 	.features	= PHY_BASIC_FEATURES,
-	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
+	.flags		= PHY_HAS_INTERRUPT,
 	.driver_data	= &ksz8051_type,
 	.probe		= kszphy_probe,
 	.config_init	= kszphy_config_init,
@@ -883,7 +900,7 @@ static struct phy_driver ksphy_driver[] = {
 	.name		= "Micrel KSZ8001 or KS8721",
 	.phy_id_mask	= 0x00fffffc,
 	.features	= PHY_BASIC_FEATURES,
-	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
+	.flags		= PHY_HAS_INTERRUPT,
 	.driver_data	= &ksz8041_type,
 	.probe		= kszphy_probe,
 	.config_init	= kszphy_config_init,
@@ -901,7 +918,7 @@ static struct phy_driver ksphy_driver[] = {
 	.name		= "Micrel KSZ8081 or KSZ8091",
 	.phy_id_mask	= MICREL_PHY_ID_MASK,
 	.features	= PHY_BASIC_FEATURES,
-	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
+	.flags		= PHY_HAS_INTERRUPT,
 	.driver_data	= &ksz8081_type,
 	.probe		= kszphy_probe,
 	.config_init	= kszphy_config_init,
@@ -919,7 +936,7 @@ static struct phy_driver ksphy_driver[] = {
 	.name		= "Micrel KSZ8061",
 	.phy_id_mask	= MICREL_PHY_ID_MASK,
 	.features	= PHY_BASIC_FEATURES,
-	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
+	.flags		= PHY_HAS_INTERRUPT,
 	.config_init	= kszphy_config_init,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
@@ -932,7 +949,7 @@ static struct phy_driver ksphy_driver[] = {
 	.phy_id_mask	= 0x000ffffe,
 	.name		= "Micrel KSZ9021 Gigabit PHY",
 	.features	= PHY_GBIT_FEATURES,
-	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
+	.flags		= PHY_HAS_INTERRUPT,
 	.driver_data	= &ksz9021_type,
 	.probe		= kszphy_probe,
 	.config_init	= ksz9021_config_init,
@@ -952,7 +969,7 @@ static struct phy_driver ksphy_driver[] = {
 	.phy_id_mask	= MICREL_PHY_ID_MASK,
 	.name		= "Micrel KSZ9031 Gigabit PHY",
 	.features	= PHY_GBIT_FEATURES,
-	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
+	.flags		= PHY_HAS_INTERRUPT,
 	.driver_data	= &ksz9021_type,
 	.probe		= kszphy_probe,
 	.config_init	= ksz9031_config_init,
@@ -969,7 +986,6 @@ static struct phy_driver ksphy_driver[] = {
 	.phy_id		= PHY_ID_KSZ8873MLL,
 	.phy_id_mask	= MICREL_PHY_ID_MASK,
 	.name		= "Micrel KSZ8873MLL Switch",
-	.flags		= PHY_HAS_MAGICANEG,
 	.config_init	= kszphy_config_init,
 	.config_aneg	= ksz8873mll_config_aneg,
 	.read_status	= ksz8873mll_read_status,
@@ -980,7 +996,7 @@ static struct phy_driver ksphy_driver[] = {
 	.phy_id_mask	= MICREL_PHY_ID_MASK,
 	.name		= "Micrel KSZ886X Switch",
 	.features	= PHY_BASIC_FEATURES,
-	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
+	.flags		= PHY_HAS_INTERRUPT,
 	.config_init	= kszphy_config_init,
 	.config_aneg	= genphy_config_aneg,
 	.read_status	= genphy_read_status,
@@ -991,10 +1007,20 @@ static struct phy_driver ksphy_driver[] = {
 	.phy_id_mask	= MICREL_PHY_ID_MASK,
 	.name		= "Micrel KSZ8795",
 	.features	= PHY_BASIC_FEATURES,
-	.flags		= PHY_HAS_MAGICANEG | PHY_HAS_INTERRUPT,
+	.flags		= PHY_HAS_INTERRUPT,
 	.config_init	= kszphy_config_init,
 	.config_aneg	= ksz8873mll_config_aneg,
 	.read_status	= ksz8873mll_read_status,
+	.suspend	= genphy_suspend,
+	.resume		= genphy_resume,
+}, {
+	.phy_id		= PHY_ID_KSZ9477,
+	.phy_id_mask	= MICREL_PHY_ID_MASK,
+	.name		= "Microchip KSZ9477",
+	.features	= PHY_GBIT_FEATURES,
+	.config_init	= kszphy_config_init,
+	.config_aneg	= genphy_config_aneg,
+	.read_status	= genphy_read_status,
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
 } };

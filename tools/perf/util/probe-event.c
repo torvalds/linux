@@ -619,7 +619,7 @@ static int post_process_probe_trace_point(struct probe_trace_point *tp,
 					   struct map *map, unsigned long offs)
 {
 	struct symbol *sym;
-	u64 addr = tp->address + tp->offset - offs;
+	u64 addr = tp->address - offs;
 
 	sym = map__find_symbol(map, addr);
 	if (!sym)

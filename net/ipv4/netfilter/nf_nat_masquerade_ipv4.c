@@ -98,8 +98,8 @@ static int masq_device_event(struct notifier_block *this,
 		 */
 		NF_CT_ASSERT(dev->ifindex != 0);
 
-		nf_ct_iterate_cleanup(net, device_cmp,
-				      (void *)(long)dev->ifindex, 0, 0);
+		nf_ct_iterate_cleanup_net(net, device_cmp,
+					  (void *)(long)dev->ifindex, 0, 0);
 	}
 
 	return NOTIFY_DONE;

@@ -190,7 +190,7 @@ static inline void __hostap_cmd_queue_free(local_info_t *local,
 		}
 	}
 
-	if (atomic_dec_and_test(&entry->usecnt) && entry->del_req)
+	if (refcount_dec_and_test(&entry->usecnt) && entry->del_req)
 		kfree(entry);
 }
 
@@ -228,7 +228,7 @@ static void prism2_clear_cmd_queue(local_info_t *local)
 	spin_lock_irqsave(&local->cmdlock, flags);
 	list_for_each_safe(ptr, n, &local->cmd_queue) {
 		entry = list_entry(ptr, struct hostap_cmd_queue, list);
-		atomic_inc(&entry->usecnt);
+		refcount_inc(&entry->usecnt);
 		printk(KERN_DEBUG "%s: removed pending cmd_queue entry "
 		       "(type=%d, cmd=0x%04x, param0=0x%04x)\n",
 		       local->dev->name, entry->type, entry->cmd,
@@ -350,7 +350,7 @@ static int hfa384x_cmd(struct net_device *dev, u16 cmd, u16 param0,
 	if (entry == NULL)
 		return -ENOMEM;
 
-	atomic_set(&entry->usecnt, 1);
+	refcount_set(&entry->usecnt, 1);
 	entry->type = CMD_SLEEP;
 	entry->cmd = cmd;
 	entry->param0 = param0;
@@ -516,7 +516,7 @@ static int hfa384x_cmd_callback(struct net_device *dev, u16 cmd, u16 param0,
 	if (entry == NULL)
 		return -ENOMEM;
 
-	atomic_set(&entry->usecnt, 1);
+	refcount_set(&entry->usecnt, 1);
 	entry->type = CMD_CALLBACK;
 	entry->cmd = cmd;
 	entry->param0 = param0;
@@ -666,7 +666,7 @@ static void prism2_cmd_ev(struct net_device *dev)
 	if (!list_empty(&local->cmd_queue)) {
 		entry = list_entry(local->cmd_queue.next,
 				   struct hostap_cmd_queue, list);
-		atomic_inc(&entry->usecnt);
+		refcount_inc(&entry->usecnt);
 		list_del_init(&entry->list);
 		local->cmd_queue_len--;
 
@@ -718,7 +718,7 @@ static void prism2_cmd_ev(struct net_device *dev)
 			entry = NULL;
 		}
 		if (entry)
-			atomic_inc(&entry->usecnt);
+			refcount_inc(&entry->usecnt);
 	}
 	spin_unlock(&local->cmdlock);
 
@@ -2005,7 +2005,7 @@ static void prism2_rx(local_info_t *local)
 		goto rx_dropped;
 	}
 	skb->dev = dev;
-	memcpy(skb_put(skb, hdr_len), &rxdesc, hdr_len);
+	skb_put_data(skb, &rxdesc, hdr_len);
 
 	if (len > 0)
 		res = hfa384x_from_bap(dev, BAP0, skb_put(skb, len), len);
@@ -2209,9 +2209,9 @@ static void hostap_tx_callback(local_info_t *local,
 		return;
 	}
 
-	memcpy(skb_put(skb, hdrlen), (void *) &txdesc->frame_control, hdrlen);
+	skb_put_data(skb, (void *)&txdesc->frame_control, hdrlen);
 	if (payload)
-		memcpy(skb_put(skb, len), payload, len);
+		skb_put_data(skb, payload, len);
 
 	skb->dev = local->dev;
 	skb_reset_mac_header(skb);
@@ -2362,8 +2362,7 @@ static void prism2_txexc(local_info_t *local)
 		struct sk_buff *skb;
 		skb = dev_alloc_skb(sizeof(txdesc));
 		if (skb) {
-			memcpy(skb_put(skb, sizeof(txdesc)), &txdesc,
-			       sizeof(txdesc));
+			skb_put_data(skb, &txdesc, sizeof(txdesc));
 			skb_queue_tail(&local->sta_tx_exc_list, skb);
 			tasklet_schedule(&local->sta_tx_exc_tasklet);
 		}
@@ -2460,7 +2459,7 @@ static void prism2_info(local_info_t *local)
 		goto out;
 	}
 
-	memcpy(skb_put(skb, sizeof(info)), &info, sizeof(info));
+	skb_put_data(skb, &info, sizeof(info));
 	if (left > 0 && hfa384x_from_bap(dev, BAP0, skb_put(skb, left), left))
 	{
 		spin_unlock(&local->baplock);

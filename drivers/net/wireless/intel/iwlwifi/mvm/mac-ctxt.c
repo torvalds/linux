@@ -257,7 +257,7 @@ unsigned long iwl_mvm_get_used_hw_queues(struct iwl_mvm *mvm,
 	};
 
 	if (iwl_mvm_is_dqa_supported(mvm))
-		data.used_hw_queues |= BIT(IWL_MVM_DQA_CMD_QUEUE);
+		data.used_hw_queues |= BIT(IWL_MVM_DQA_GCAST_QUEUE);
 	else
 		data.used_hw_queues |= BIT(IWL_MVM_CMD_QUEUE);
 
@@ -267,6 +267,14 @@ unsigned long iwl_mvm_get_used_hw_queues(struct iwl_mvm *mvm,
 	ieee80211_iterate_active_interfaces_atomic(
 		mvm->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
 		iwl_mvm_iface_hw_queues_iter, &data);
+
+	/*
+	 * for DQA, the hw_queue in mac80211 is never really used for
+	 * real traffic (only the few queue IDs covered above), so
+	 * we can reuse the real HW queue IDs the stations use
+	 */
+	if (iwl_mvm_is_dqa_supported(mvm))
+		return data.used_hw_queues;
 
 	/* don't assign the same hw queues as TDLS stations */
 	ieee80211_iterate_stations_atomic(mvm->hw,
@@ -344,7 +352,7 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 		.found_vif = false,
 	};
 	u32 ac;
-	int ret, i;
+	int ret, i, queue_limit;
 	unsigned long used_hw_queues;
 
 	/*
@@ -430,17 +438,29 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 		return 0;
 	}
 
+	if (iwl_mvm_is_dqa_supported(mvm)) {
+		/*
+		 * queues in mac80211 almost entirely independent of
+		 * the ones here - no real limit
+		 */
+		queue_limit = IEEE80211_MAX_QUEUES;
+		BUILD_BUG_ON(IEEE80211_MAX_QUEUES >
+			     BITS_PER_BYTE *
+			     sizeof(mvm->hw_queue_to_mac80211[0]));
+	} else {
+		/* need to not use too many in this case */
+		queue_limit = mvm->first_agg_queue;
+	}
+
 	/*
 	 * Find available queues, and allocate them to the ACs. When in
 	 * DQA-mode they aren't really used, and this is done only so the
 	 * mac80211 ieee80211_check_queues() function won't fail
 	 */
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
-		u8 queue = find_first_zero_bit(&used_hw_queues,
-					       mvm->first_agg_queue);
+		u8 queue = find_first_zero_bit(&used_hw_queues, queue_limit);
 
-		if (!iwl_mvm_is_dqa_supported(mvm) &&
-		    queue >= mvm->first_agg_queue) {
+		if (queue >= queue_limit) {
 			IWL_ERR(mvm, "Failed to allocate queue\n");
 			ret = -EIO;
 			goto exit_fail;
@@ -846,6 +866,8 @@ static int iwl_mvm_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 			cpu_to_le64(vif->bss_conf.sync_tsf + dtim_offs);
 		ctxt_sta->dtim_time =
 			cpu_to_le32(vif->bss_conf.sync_device_ts + dtim_offs);
+		ctxt_sta->assoc_beacon_arrive_time =
+			cpu_to_le32(vif->bss_conf.sync_device_ts);
 
 		IWL_DEBUG_INFO(mvm, "DTIM TBTT is 0x%llx/0x%x, offset %d\n",
 			       le64_to_cpu(ctxt_sta->dtim_tsf),
@@ -1040,7 +1062,7 @@ static int iwl_mvm_mac_ctxt_send_beacon(struct iwl_mvm *mvm,
 		struct iwl_mac_beacon_cmd_v6 beacon_cmd_v6;
 		struct iwl_mac_beacon_cmd_v7 beacon_cmd;
 	} u = {};
-	struct iwl_mac_beacon_cmd beacon_cmd;
+	struct iwl_mac_beacon_cmd beacon_cmd = {};
 	struct ieee80211_tx_info *info;
 	u32 beacon_skb_len;
 	u32 rate, tx_flags;
@@ -1457,6 +1479,7 @@ void iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
 
 	beacon_notify_hdr = &beacon->beacon_notify_hdr;
 	mvm->ap_last_beacon_gp2 = le32_to_cpu(beacon->gp2);
+	mvm->ibss_manager = beacon->ibss_mgr_status != 0;
 
 	agg_status = iwl_mvm_get_agg_status(mvm, beacon_notify_hdr);
 	status = le16_to_cpu(agg_status->status) & TX_STATUS_MSK;
@@ -1596,7 +1619,7 @@ void iwl_mvm_rx_stored_beacon_notif(struct iwl_mvm *mvm,
 					       rx_status.band);
 
 	/* copy the data */
-	memcpy(skb_put(skb, size), sb->data, size);
+	skb_put_data(skb, sb->data, size);
 	memcpy(IEEE80211_SKB_RXCB(skb), &rx_status, sizeof(rx_status));
 
 	/* pass it as regular rx to mac80211 */
@@ -1632,9 +1655,9 @@ void iwl_mvm_channel_switch_noa_notif(struct iwl_mvm *mvm,
 
 	IWL_DEBUG_INFO(mvm, "Channel Switch Started Notification\n");
 
-	queue_delayed_work(system_wq, &mvm->cs_tx_unblock_dwork,
-			   msecs_to_jiffies(IWL_MVM_CS_UNBLOCK_TX_TIMEOUT *
-					    csa_vif->bss_conf.beacon_int));
+	schedule_delayed_work(&mvm->cs_tx_unblock_dwork,
+			      msecs_to_jiffies(IWL_MVM_CS_UNBLOCK_TX_TIMEOUT *
+					       csa_vif->bss_conf.beacon_int));
 
 	ieee80211_csa_finish(csa_vif);
 

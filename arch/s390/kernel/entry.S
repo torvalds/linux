@@ -52,7 +52,7 @@ _TIF_TRACE	= (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_AUDIT | _TIF_SECCOMP | \
 		   _TIF_SYSCALL_TRACEPOINT)
 _CIF_WORK	= (_CIF_MCCK_PENDING | _CIF_ASCE_PRIMARY | \
 		   _CIF_ASCE_SECONDARY | _CIF_FPU)
-_PIF_WORK	= (_PIF_PER_TRAP)
+_PIF_WORK	= (_PIF_PER_TRAP | _PIF_SYSCALL_RESTART)
 
 #define BASED(name) name-cleanup_critical(%r13)
 
@@ -225,18 +225,24 @@ ENTRY(sie64a)
 	jnz	.Lsie_skip
 	TSTMSK	__LC_CPU_FLAGS,_CIF_FPU
 	jo	.Lsie_skip			# exit if fp/vx regs changed
+.Lsie_entry:
 	sie	0(%r14)
 .Lsie_skip:
 	ni	__SIE_PROG0C+3(%r14),0xfe	# no longer in SIE
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
 .Lsie_done:
 # some program checks are suppressing. C code (e.g. do_protection_exception)
-# will rewind the PSW by the ILC, which is 4 bytes in case of SIE. Other
-# instructions between sie64a and .Lsie_done should not cause program
-# interrupts. So lets use a nop (47 00 00 00) as a landing pad.
+# will rewind the PSW by the ILC, which is often 4 bytes in case of SIE. There
+# are some corner cases (e.g. runtime instrumentation) where ILC is unpredictable.
+# Other instructions between sie64a and .Lsie_done should not cause program
+# interrupts. So lets use 3 nops as a landing pad for all possible rewinds.
 # See also .Lcleanup_sie
-.Lrewind_pad:
-	nop	0
+.Lrewind_pad6:
+	nopr	7
+.Lrewind_pad4:
+	nopr	7
+.Lrewind_pad2:
+	nopr	7
 	.globl sie_exit
 sie_exit:
 	lg	%r14,__SF_EMPTY+8(%r15)		# load guest register save area
@@ -249,7 +255,9 @@ sie_exit:
 	stg	%r14,__SF_EMPTY+16(%r15)	# set exit reason code
 	j	sie_exit
 
-	EX_TABLE(.Lrewind_pad,.Lsie_fault)
+	EX_TABLE(.Lrewind_pad6,.Lsie_fault)
+	EX_TABLE(.Lrewind_pad4,.Lsie_fault)
+	EX_TABLE(.Lrewind_pad2,.Lsie_fault)
 	EX_TABLE(sie_exit,.Lsie_fault)
 EXPORT_SYMBOL(sie64a)
 EXPORT_SYMBOL(sie_exit)
@@ -312,6 +320,7 @@ ENTRY(system_call)
 	lg	%r14,__LC_VDSO_PER_CPU
 	lmg	%r0,%r10,__PT_R0(%r11)
 	mvc	__LC_RETURN_PSW(16),__PT_PSW(%r11)
+.Lsysc_exit_timer:
 	stpt	__LC_EXIT_TIMER
 	mvc	__VDSO_ECTG_BASE(16,%r14),__LC_EXIT_TIMER
 	lmg	%r11,%r15,__PT_R11(%r11)
@@ -326,6 +335,8 @@ ENTRY(system_call)
 	jo	.Lsysc_mcck_pending
 	TSTMSK	__TI_flags(%r12),_TIF_NEED_RESCHED
 	jo	.Lsysc_reschedule
+	TSTMSK	__PT_FLAGS(%r11),_PIF_SYSCALL_RESTART
+	jo	.Lsysc_syscall_restart
 #ifdef CONFIG_UPROBES
 	TSTMSK	__TI_flags(%r12),_TIF_UPROBE
 	jo	.Lsysc_uprobe_notify
@@ -339,6 +350,8 @@ ENTRY(system_call)
 	jo	.Lsysc_patch_pending	# handle live patching just before
 					# signals and possible syscall restart
 #endif
+	TSTMSK	__PT_FLAGS(%r11),_PIF_SYSCALL_RESTART
+	jo	.Lsysc_syscall_restart
 	TSTMSK	__TI_flags(%r12),_TIF_SIGPENDING
 	jo	.Lsysc_sigpending
 	TSTMSK	__TI_flags(%r12),_TIF_NOTIFY_RESUME
@@ -438,6 +451,15 @@ ENTRY(system_call)
 	lgr	%r2,%r11		# pass pointer to pt_regs
 	larl	%r14,.Lsysc_return
 	jg	do_per_trap
+
+#
+# _PIF_SYSCALL_RESTART is set, repeat the current system call
+#
+.Lsysc_syscall_restart:
+	ni	__PT_FLAGS+7(%r11),255-_PIF_SYSCALL_RESTART
+	lmg	%r1,%r7,__PT_R1(%r11)	# load svc arguments
+	lg	%r2,__PT_ORIG_GPR2(%r11)
+	j	.Lsysc_do_svc
 
 #
 # call tracehook_report_syscall_entry/tracehook_report_syscall_exit before
@@ -623,6 +645,7 @@ ENTRY(io_int_handler)
 	lg	%r14,__LC_VDSO_PER_CPU
 	lmg	%r0,%r10,__PT_R0(%r11)
 	mvc	__LC_RETURN_PSW(16),__PT_PSW(%r11)
+.Lio_exit_timer:
 	stpt	__LC_EXIT_TIMER
 	mvc	__VDSO_ECTG_BASE(16,%r14),__LC_EXIT_TIMER
 	lmg	%r11,%r15,__PT_R11(%r11)
@@ -872,9 +895,7 @@ ENTRY(save_fpu_regs)
 	oi	__LC_CPU_FLAGS+7,_CIF_FPU
 	br	%r14
 .Lsave_fpu_regs_end:
-#if IS_ENABLED(CONFIG_KVM)
 EXPORT_SYMBOL(save_fpu_regs)
-#endif
 
 /*
  * Load floating-point controls and floating-point or vector registers.
@@ -1102,7 +1123,13 @@ cleanup_critical:
 	.quad	.Lsie_done
 
 .Lcleanup_sie:
-	lg	%r9,__SF_EMPTY(%r15)		# get control block pointer
+	cghi    %r11,__LC_SAVE_AREA_ASYNC 	#Is this in normal interrupt?
+	je      1f
+	slg     %r9,BASED(.Lsie_crit_mcck_start)
+	clg     %r9,BASED(.Lsie_crit_mcck_length)
+	jh      1f
+	oi      __LC_CPU_FLAGS+7, _CIF_MCCK_GUEST
+1:	lg	%r9,__SF_EMPTY(%r15)		# get control block pointer
 	ni	__SIE_PROG0C+3(%r9),0xfe	# no longer in SIE
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
 	larl	%r9,sie_exit			# skip forward to sie_exit
@@ -1174,15 +1201,23 @@ cleanup_critical:
 	br	%r14
 
 .Lcleanup_sysc_restore:
+	# check if stpt has been executed
 	clg	%r9,BASED(.Lcleanup_sysc_restore_insn)
+	jh	0f
+	mvc	__LC_EXIT_TIMER(8),__LC_ASYNC_ENTER_TIMER
+	cghi	%r11,__LC_SAVE_AREA_ASYNC
 	je	0f
+	mvc	__LC_EXIT_TIMER(8),__LC_MCCK_ENTER_TIMER
+0:	clg	%r9,BASED(.Lcleanup_sysc_restore_insn+8)
+	je	1f
 	lg	%r9,24(%r11)		# get saved pointer to pt_regs
 	mvc	__LC_RETURN_PSW(16),__PT_PSW(%r9)
 	mvc	0(64,%r11),__PT_R8(%r9)
 	lmg	%r0,%r7,__PT_R0(%r9)
-0:	lmg	%r8,%r9,__LC_RETURN_PSW
+1:	lmg	%r8,%r9,__LC_RETURN_PSW
 	br	%r14
 .Lcleanup_sysc_restore_insn:
+	.quad	.Lsysc_exit_timer
 	.quad	.Lsysc_done - 4
 
 .Lcleanup_io_tif:
@@ -1190,15 +1225,20 @@ cleanup_critical:
 	br	%r14
 
 .Lcleanup_io_restore:
+	# check if stpt has been executed
 	clg	%r9,BASED(.Lcleanup_io_restore_insn)
-	je	0f
+	jh	0f
+	mvc	__LC_EXIT_TIMER(8),__LC_MCCK_ENTER_TIMER
+0:	clg	%r9,BASED(.Lcleanup_io_restore_insn+8)
+	je	1f
 	lg	%r9,24(%r11)		# get saved r11 pointer to pt_regs
 	mvc	__LC_RETURN_PSW(16),__PT_PSW(%r9)
 	mvc	0(64,%r11),__PT_R8(%r9)
 	lmg	%r0,%r7,__PT_R0(%r9)
-0:	lmg	%r8,%r9,__LC_RETURN_PSW
+1:	lmg	%r8,%r9,__LC_RETURN_PSW
 	br	%r14
 .Lcleanup_io_restore_insn:
+	.quad	.Lio_exit_timer
 	.quad	.Lio_done - 4
 
 .Lcleanup_idle:
@@ -1274,6 +1314,10 @@ cleanup_critical:
 	.quad	.Lsie_gmap
 .Lsie_critical_length:
 	.quad	.Lsie_done - .Lsie_gmap
+.Lsie_crit_mcck_start:
+	.quad   .Lsie_entry
+.Lsie_crit_mcck_length:
+	.quad   .Lsie_skip - .Lsie_entry
 #endif
 
 	.section .rodata, "a"

@@ -108,7 +108,7 @@ static void octeon_mmc_release_bus(struct cvm_mmc_host *host)
 static void octeon_mmc_int_enable(struct cvm_mmc_host *host, u64 val)
 {
 	writeq(val, host->base + MIO_EMM_INT(host));
-	if (!host->dma_active || (host->dma_active && !host->has_ciu3))
+	if (!host->has_ciu3)
 		writeq(val, host->base + MIO_EMM_INT_EN(host));
 }
 
@@ -267,7 +267,7 @@ static int octeon_mmc_probe(struct platform_device *pdev)
 	}
 
 	host->global_pwr_gpiod = devm_gpiod_get_optional(&pdev->dev,
-							 "power-gpios",
+							 "power",
 							 GPIOD_OUT_HIGH);
 	if (IS_ERR(host->global_pwr_gpiod)) {
 		dev_err(&pdev->dev, "Invalid power GPIO\n");
@@ -288,11 +288,20 @@ static int octeon_mmc_probe(struct platform_device *pdev)
 		if (ret) {
 			dev_err(&pdev->dev, "Error populating slots\n");
 			octeon_mmc_set_shared_power(host, 0);
-			return ret;
+			goto error;
 		}
 		i++;
 	}
 	return 0;
+
+error:
+	for (i = 0; i < CAVIUM_MAX_MMC; i++) {
+		if (host->slot[i])
+			cvm_mmc_of_slot_remove(host->slot[i]);
+		if (host->slot_pdev[i])
+			of_platform_device_destroy(&host->slot_pdev[i]->dev, NULL);
+	}
+	return ret;
 }
 
 static int octeon_mmc_remove(struct platform_device *pdev)

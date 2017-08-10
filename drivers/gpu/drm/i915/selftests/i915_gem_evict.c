@@ -304,7 +304,7 @@ static int igt_evict_vm(void *arg)
 		goto cleanup;
 
 	/* Everything is pinned, nothing should happen */
-	err = i915_gem_evict_vm(&ggtt->base, false);
+	err = i915_gem_evict_vm(&ggtt->base);
 	if (err) {
 		pr_err("i915_gem_evict_vm on a full GGTT returned err=%d]\n",
 		       err);
@@ -313,7 +313,7 @@ static int igt_evict_vm(void *arg)
 
 	unpin_ggtt(i915);
 
-	err = i915_gem_evict_vm(&ggtt->base, false);
+	err = i915_gem_evict_vm(&ggtt->base);
 	if (err) {
 		pr_err("i915_gem_evict_vm on a full GGTT returned err=%d]\n",
 		       err);

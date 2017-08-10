@@ -659,6 +659,7 @@ static int ext2_get_blocks(struct inode *inode,
 				 */
 				err = -EAGAIN;
 				count = 0;
+				partial = chain + depth - 1;
 				break;
 			}
 			blk = le32_to_cpu(*(chain[depth-1].p + count));
@@ -817,7 +818,7 @@ static int ext2_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 	iomap->bdev = bdev;
 	iomap->offset = (u64)first_block << blkbits;
 	if (blk_queue_dax(bdev->bd_queue))
-		iomap->dax_dev = dax_get_by_host(bdev->bd_disk->disk_name);
+		iomap->dax_dev = fs_dax_get_by_host(bdev->bd_disk->disk_name);
 	else
 		iomap->dax_dev = NULL;
 
@@ -841,7 +842,7 @@ static int
 ext2_iomap_end(struct inode *inode, loff_t offset, loff_t length,
 		ssize_t written, unsigned flags, struct iomap *iomap)
 {
-	put_dax(iomap->dax_dev);
+	fs_put_dax(iomap->dax_dev);
 	if (iomap->type == IOMAP_MAPPED &&
 	    written < length &&
 	    (flags & IOMAP_WRITE))

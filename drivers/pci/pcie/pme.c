@@ -40,17 +40,11 @@ static int __init pcie_pme_setup(char *str)
 }
 __setup("pcie_pme=", pcie_pme_setup);
 
-enum pme_suspend_level {
-	PME_SUSPEND_NONE = 0,
-	PME_SUSPEND_WAKEUP,
-	PME_SUSPEND_NOIRQ,
-};
-
 struct pcie_pme_service_data {
 	spinlock_t lock;
 	struct pcie_device *srv;
 	struct work_struct work;
-	enum pme_suspend_level suspend_level;
+	bool noirq; /* If set, keep the PME interrupt disabled. */
 };
 
 /**
@@ -228,7 +222,7 @@ static void pcie_pme_work_fn(struct work_struct *work)
 	spin_lock_irq(&data->lock);
 
 	for (;;) {
-		if (data->suspend_level != PME_SUSPEND_NONE)
+		if (data->noirq)
 			break;
 
 		pcie_capability_read_dword(port, PCI_EXP_RTSTA, &rtsta);
@@ -255,7 +249,7 @@ static void pcie_pme_work_fn(struct work_struct *work)
 		spin_lock_irq(&data->lock);
 	}
 
-	if (data->suspend_level == PME_SUSPEND_NONE)
+	if (!data->noirq)
 		pcie_pme_interrupt_enable(port, true);
 
 	spin_unlock_irq(&data->lock);
@@ -294,31 +288,29 @@ static irqreturn_t pcie_pme_irq(int irq, void *context)
 }
 
 /**
- * pcie_pme_set_native - Set the PME interrupt flag for given device.
+ * pcie_pme_can_wakeup - Set the wakeup capability flag.
  * @dev: PCI device to handle.
  * @ign: Ignored.
  */
-static int pcie_pme_set_native(struct pci_dev *dev, void *ign)
+static int pcie_pme_can_wakeup(struct pci_dev *dev, void *ign)
 {
-	device_set_run_wake(&dev->dev, true);
-	dev->pme_interrupt = true;
+	device_set_wakeup_capable(&dev->dev, true);
 	return 0;
 }
 
 /**
- * pcie_pme_mark_devices - Set the PME interrupt flag for devices below a port.
+ * pcie_pme_mark_devices - Set the wakeup flag for devices below a port.
  * @port: PCIe root port or event collector to handle.
  *
  * For each device below given root port, including the port itself (or for each
  * root complex integrated endpoint if @port is a root complex event collector)
- * set the flag indicating that it can signal run-time wake-up events via PCIe
- * PME interrupts.
+ * set the flag indicating that it can signal run-time wake-up events.
  */
 static void pcie_pme_mark_devices(struct pci_dev *port)
 {
-	pcie_pme_set_native(port, NULL);
+	pcie_pme_can_wakeup(port, NULL);
 	if (port->subordinate)
-		pci_walk_bus(port->subordinate, pcie_pme_set_native, NULL);
+		pci_walk_bus(port->subordinate, pcie_pme_can_wakeup, NULL);
 }
 
 /**
@@ -380,7 +372,7 @@ static int pcie_pme_suspend(struct pcie_device *srv)
 {
 	struct pcie_pme_service_data *data = get_service_data(srv);
 	struct pci_dev *port = srv->port;
-	bool wakeup, wake_irq_enabled = false;
+	bool wakeup;
 	int ret;
 
 	if (device_may_wakeup(&port->dev)) {
@@ -390,19 +382,16 @@ static int pcie_pme_suspend(struct pcie_device *srv)
 		wakeup = pcie_pme_check_wakeup(port->subordinate);
 		up_read(&pci_bus_sem);
 	}
-	spin_lock_irq(&data->lock);
 	if (wakeup) {
 		ret = enable_irq_wake(srv->irq);
-		if (ret == 0) {
-			data->suspend_level = PME_SUSPEND_WAKEUP;
-			wake_irq_enabled = true;
-		}
+		if (!ret)
+			return 0;
 	}
-	if (!wake_irq_enabled) {
-		pcie_pme_interrupt_enable(port, false);
-		pcie_clear_root_pme_status(port);
-		data->suspend_level = PME_SUSPEND_NOIRQ;
-	}
+
+	spin_lock_irq(&data->lock);
+	pcie_pme_interrupt_enable(port, false);
+	pcie_clear_root_pme_status(port);
+	data->noirq = true;
 	spin_unlock_irq(&data->lock);
 
 	synchronize_irq(srv->irq);
@@ -419,15 +408,15 @@ static int pcie_pme_resume(struct pcie_device *srv)
 	struct pcie_pme_service_data *data = get_service_data(srv);
 
 	spin_lock_irq(&data->lock);
-	if (data->suspend_level == PME_SUSPEND_NOIRQ) {
+	if (data->noirq) {
 		struct pci_dev *port = srv->port;
 
 		pcie_clear_root_pme_status(port);
 		pcie_pme_interrupt_enable(port, true);
+		data->noirq = false;
 	} else {
 		disable_irq_wake(srv->irq);
 	}
-	data->suspend_level = PME_SUSPEND_NONE;
 	spin_unlock_irq(&data->lock);
 
 	return 0;

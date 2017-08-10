@@ -55,8 +55,7 @@ EXPORT_SYMBOL_GPL(kvmppc_pr_ops);
 
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *v)
 {
-	return !!(v->arch.pending_exceptions) ||
-	       v->requests;
+	return !!(v->arch.pending_exceptions) || kvm_request_pending(v);
 }
 
 int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu)
@@ -108,7 +107,7 @@ int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu)
 		 */
 		smp_mb();
 
-		if (vcpu->requests) {
+		if (kvm_request_pending(vcpu)) {
 			/* Make sure we process requests preemptable */
 			local_irq_enable();
 			trace_kvm_check_requests(vcpu);
@@ -554,11 +553,26 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 #ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
 	case KVM_CAP_PPC_SMT:
 		r = 0;
-		if (hv_enabled) {
+		if (kvm) {
+			if (kvm->arch.emul_smt_mode > 1)
+				r = kvm->arch.emul_smt_mode;
+			else
+				r = kvm->arch.smt_mode;
+		} else if (hv_enabled) {
 			if (cpu_has_feature(CPU_FTR_ARCH_300))
 				r = 1;
 			else
 				r = threads_per_subcore;
+		}
+		break;
+	case KVM_CAP_PPC_SMT_POSSIBLE:
+		r = 1;
+		if (hv_enabled) {
+			if (!cpu_has_feature(CPU_FTR_ARCH_300))
+				r = ((threads_per_subcore << 1) - 1);
+			else
+				/* P9 can emulate dbells, so allow any mode */
+				r = 8 | 4 | 2 | 1;
 		}
 		break;
 	case KVM_CAP_PPC_RMA:
@@ -617,6 +631,11 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_SPAPR_RESIZE_HPT:
 		/* Disable this on POWER9 until code handles new HPTE format */
 		r = !!hv_enabled && !cpu_has_feature(CPU_FTR_ARCH_300);
+		break;
+#endif
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+	case KVM_CAP_PPC_FWNMI:
+		r = hv_enabled;
 		break;
 #endif
 	case KVM_CAP_PPC_HTM:
@@ -1538,6 +1557,15 @@ static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
 		break;
 	}
 #endif /* CONFIG_KVM_XICS */
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+	case KVM_CAP_PPC_FWNMI:
+		r = -EINVAL;
+		if (!is_kvmppc_hv_enabled(vcpu->kvm))
+			break;
+		r = 0;
+		vcpu->kvm->arch.fwnmi_enabled = true;
+		break;
+#endif /* CONFIG_KVM_BOOK3S_HV_POSSIBLE */
 	default:
 		r = -EINVAL;
 		break;
@@ -1712,6 +1740,15 @@ static int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
 		r = 0;
 		break;
 	}
+	case KVM_CAP_PPC_SMT: {
+		unsigned long mode = cap->args[0];
+		unsigned long flags = cap->args[1];
+
+		r = -EINVAL;
+		if (kvm->arch.kvm_ops->set_smt_mode)
+			r = kvm->arch.kvm_ops->set_smt_mode(kvm, mode, flags);
+		break;
+	}
 #endif
 	default:
 		r = -EINVAL;
@@ -1749,7 +1786,7 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		r = kvm_vm_ioctl_enable_cap(kvm, &cap);
 		break;
 	}
-#ifdef CONFIG_PPC_BOOK3S_64
+#ifdef CONFIG_SPAPR_TCE_IOMMU
 	case KVM_CREATE_SPAPR_TCE_64: {
 		struct kvm_create_spapr_tce_64 create_tce_64;
 
@@ -1780,6 +1817,8 @@ long kvm_arch_vm_ioctl(struct file *filp,
 		r = kvm_vm_ioctl_create_spapr_tce(kvm, &create_tce_64);
 		goto out;
 	}
+#endif
+#ifdef CONFIG_PPC_BOOK3S_64
 	case KVM_PPC_GET_SMMU_INFO: {
 		struct kvm_ppc_smmu_info info;
 		struct kvm *kvm = filp->private_data;

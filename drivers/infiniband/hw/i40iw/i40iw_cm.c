@@ -784,7 +784,6 @@ static void i40iw_build_mpa_v2(struct i40iw_cm_node *cm_node,
 	}
 
 	ctrl_ird |= IETF_PEER_TO_PEER;
-	ctrl_ird |= IETF_FLPDU_ZERO_LEN;
 
 	switch (mpa_key) {
 	case MPA_KEY_REQUEST:
@@ -2446,8 +2445,8 @@ static void i40iw_handle_rcv_mpa(struct i40iw_cm_node *cm_node,
 		} else {
 			type = I40IW_CM_EVENT_CONNECTED;
 			cm_node->state = I40IW_CM_STATE_OFFLOADED;
-			i40iw_send_ack(cm_node);
 		}
+		i40iw_send_ack(cm_node);
 		break;
 	default:
 		pr_err("%s wrong cm_node state =%d\n", __func__, cm_node->state);

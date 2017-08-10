@@ -179,8 +179,7 @@ static int ib_nl_ip_send_msg(struct rdma_dev_addr *dev_addr,
 	}
 
 	/* Construct the family header first */
-	header = (struct rdma_ls_ip_resolve_header *)
-		skb_put(skb, NLMSG_ALIGN(sizeof(*header)));
+	header = skb_put(skb, NLMSG_ALIGN(sizeof(*header)));
 	header->ifindex = dev_addr->bound_dev_if;
 	nla_put(skb, attrtype, size, daddr);
 
@@ -449,12 +448,7 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 		return ret;
 
 	rt = (struct rt6_info *)dst;
-	if (ipv6_addr_any(&fl6.saddr)) {
-		ret = ipv6_dev_get_saddr(addr->net, ip6_dst_idev(dst)->dev,
-					 &fl6.daddr, 0, &fl6.saddr);
-		if (ret)
-			goto put;
-
+	if (ipv6_addr_any(&src_in->sin6_addr)) {
 		src_in->sin6_family = AF_INET6;
 		src_in->sin6_addr = fl6.saddr;
 	}
@@ -471,9 +465,6 @@ static int addr6_resolve(struct sockaddr_in6 *src_in,
 
 	*pdst = dst;
 	return 0;
-put:
-	dst_release(dst);
-	return ret;
 }
 #else
 static int addr6_resolve(struct sockaddr_in6 *src_in,

@@ -39,13 +39,15 @@
 #endif
 
 #define KT_SPKUP 15
+#define SPK_SYNTH_TIMEOUT 100000 /* in micro-seconds */
+#define SYNTH_DEFAULT_DEV "ttyS0"
+#define SYNTH_DEFAULT_SER 0
 
 const struct old_serial_port *spk_serial_init(int index);
 void spk_stop_serial_interrupt(void);
 int spk_wait_for_xmitr(struct spk_synth *in_synth);
-unsigned char spk_serial_in(void);
-unsigned char spk_serial_in_nowait(void);
 void spk_serial_release(void);
+void spk_ttyio_release(void);
 
 void synth_buffer_skip_nonlatin1(void);
 u16 synth_buffer_getc(void);
@@ -58,9 +60,12 @@ ssize_t spk_var_store(struct kobject *kobj, struct kobj_attribute *attr,
 		      const char *buf, size_t count);
 
 int spk_serial_synth_probe(struct spk_synth *synth);
+int spk_ttyio_synth_probe(struct spk_synth *synth);
 const char *spk_serial_synth_immediate(struct spk_synth *synth, const char *buff);
+const char *spk_ttyio_synth_immediate(struct spk_synth *synth, const char *buff);
 void spk_do_catch_up(struct spk_synth *synth);
 void spk_synth_flush(struct spk_synth *synth);
+unsigned char spk_synth_get_index(struct spk_synth *synth);
 int spk_synth_is_alive_nop(struct spk_synth *synth);
 int spk_synth_is_alive_restart(struct spk_synth *synth);
 __printf(1, 2)
@@ -79,5 +84,6 @@ extern struct speakup_info_t speakup_info;
 extern struct var_t synth_time_vars[];
 
 extern struct spk_io_ops spk_serial_io_ops;
+extern struct spk_io_ops spk_ttyio_ops;
 
 #endif

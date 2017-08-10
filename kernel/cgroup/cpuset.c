@@ -176,9 +176,9 @@ typedef enum {
 } cpuset_flagbits_t;
 
 /* convenient tests for these bits */
-static inline bool is_cpuset_online(const struct cpuset *cs)
+static inline bool is_cpuset_online(struct cpuset *cs)
 {
-	return test_bit(CS_ONLINE, &cs->flags);
+	return test_bit(CS_ONLINE, &cs->flags) && !css_is_dying(&cs->css);
 }
 
 static inline int is_cpu_exclusive(const struct cpuset *cs)
@@ -1038,40 +1038,25 @@ static void cpuset_post_attach(void)
  * @tsk: the task to change
  * @newmems: new nodes that the task will be set
  *
- * In order to avoid seeing no nodes if the old and new nodes are disjoint,
- * we structure updates as setting all new allowed nodes, then clearing newly
- * disallowed ones.
+ * We use the mems_allowed_seq seqlock to safely update both tsk->mems_allowed
+ * and rebind an eventual tasks' mempolicy. If the task is allocating in
+ * parallel, it might temporarily see an empty intersection, which results in
+ * a seqlock check and retry before OOM or allocation failure.
  */
 static void cpuset_change_task_nodemask(struct task_struct *tsk,
 					nodemask_t *newmems)
 {
-	bool need_loop;
-
 	task_lock(tsk);
-	/*
-	 * Determine if a loop is necessary if another thread is doing
-	 * read_mems_allowed_begin().  If at least one node remains unchanged and
-	 * tsk does not have a mempolicy, then an empty nodemask will not be
-	 * possible when mems_allowed is larger than a word.
-	 */
-	need_loop = task_has_mempolicy(tsk) ||
-			!nodes_intersects(*newmems, tsk->mems_allowed);
 
-	if (need_loop) {
-		local_irq_disable();
-		write_seqcount_begin(&tsk->mems_allowed_seq);
-	}
+	local_irq_disable();
+	write_seqcount_begin(&tsk->mems_allowed_seq);
 
 	nodes_or(tsk->mems_allowed, tsk->mems_allowed, *newmems);
-	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP1);
-
-	mpol_rebind_task(tsk, newmems, MPOL_REBIND_STEP2);
+	mpol_rebind_task(tsk, newmems);
 	tsk->mems_allowed = *newmems;
 
-	if (need_loop) {
-		write_seqcount_end(&tsk->mems_allowed_seq);
-		local_irq_enable();
-	}
+	write_seqcount_end(&tsk->mems_allowed_seq);
+	local_irq_enable();
 
 	task_unlock(tsk);
 }

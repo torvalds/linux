@@ -61,6 +61,48 @@
 #include "ib_verbs.h"
 #include <rdma/bnxt_re-abi.h>
 
+static int __from_ib_access_flags(int iflags)
+{
+	int qflags = 0;
+
+	if (iflags & IB_ACCESS_LOCAL_WRITE)
+		qflags |= BNXT_QPLIB_ACCESS_LOCAL_WRITE;
+	if (iflags & IB_ACCESS_REMOTE_READ)
+		qflags |= BNXT_QPLIB_ACCESS_REMOTE_READ;
+	if (iflags & IB_ACCESS_REMOTE_WRITE)
+		qflags |= BNXT_QPLIB_ACCESS_REMOTE_WRITE;
+	if (iflags & IB_ACCESS_REMOTE_ATOMIC)
+		qflags |= BNXT_QPLIB_ACCESS_REMOTE_ATOMIC;
+	if (iflags & IB_ACCESS_MW_BIND)
+		qflags |= BNXT_QPLIB_ACCESS_MW_BIND;
+	if (iflags & IB_ZERO_BASED)
+		qflags |= BNXT_QPLIB_ACCESS_ZERO_BASED;
+	if (iflags & IB_ACCESS_ON_DEMAND)
+		qflags |= BNXT_QPLIB_ACCESS_ON_DEMAND;
+	return qflags;
+};
+
+static enum ib_access_flags __to_ib_access_flags(int qflags)
+{
+	enum ib_access_flags iflags = 0;
+
+	if (qflags & BNXT_QPLIB_ACCESS_LOCAL_WRITE)
+		iflags |= IB_ACCESS_LOCAL_WRITE;
+	if (qflags & BNXT_QPLIB_ACCESS_REMOTE_WRITE)
+		iflags |= IB_ACCESS_REMOTE_WRITE;
+	if (qflags & BNXT_QPLIB_ACCESS_REMOTE_READ)
+		iflags |= IB_ACCESS_REMOTE_READ;
+	if (qflags & BNXT_QPLIB_ACCESS_REMOTE_ATOMIC)
+		iflags |= IB_ACCESS_REMOTE_ATOMIC;
+	if (qflags & BNXT_QPLIB_ACCESS_MW_BIND)
+		iflags |= IB_ACCESS_MW_BIND;
+	if (qflags & BNXT_QPLIB_ACCESS_ZERO_BASED)
+		iflags |= IB_ZERO_BASED;
+	if (qflags & BNXT_QPLIB_ACCESS_ON_DEMAND)
+		iflags |= IB_ACCESS_ON_DEMAND;
+	return iflags;
+};
+
 static int bnxt_re_build_sgl(struct ib_sge *ib_sg_list,
 			     struct bnxt_qplib_sge *sg_list, int num)
 {
@@ -149,8 +191,8 @@ int bnxt_re_query_device(struct ib_device *ibdev,
 	ib_attr->max_total_mcast_qp_attach = 0;
 	ib_attr->max_ah = dev_attr->max_ah;
 
-	ib_attr->max_fmr = dev_attr->max_fmr;
-	ib_attr->max_map_per_fmr = 1;	/* ? */
+	ib_attr->max_fmr = 0;
+	ib_attr->max_map_per_fmr = 0;
 
 	ib_attr->max_srq = dev_attr->max_srq;
 	ib_attr->max_srq_wr = dev_attr->max_srq_wqes;
@@ -410,6 +452,158 @@ enum rdma_link_layer bnxt_re_get_link_layer(struct ib_device *ibdev,
 	return IB_LINK_LAYER_ETHERNET;
 }
 
+#define	BNXT_RE_FENCE_PBL_SIZE	DIV_ROUND_UP(BNXT_RE_FENCE_BYTES, PAGE_SIZE)
+
+static void bnxt_re_create_fence_wqe(struct bnxt_re_pd *pd)
+{
+	struct bnxt_re_fence_data *fence = &pd->fence;
+	struct ib_mr *ib_mr = &fence->mr->ib_mr;
+	struct bnxt_qplib_swqe *wqe = &fence->bind_wqe;
+
+	memset(wqe, 0, sizeof(*wqe));
+	wqe->type = BNXT_QPLIB_SWQE_TYPE_BIND_MW;
+	wqe->wr_id = BNXT_QPLIB_FENCE_WRID;
+	wqe->flags |= BNXT_QPLIB_SWQE_FLAGS_SIGNAL_COMP;
+	wqe->flags |= BNXT_QPLIB_SWQE_FLAGS_UC_FENCE;
+	wqe->bind.zero_based = false;
+	wqe->bind.parent_l_key = ib_mr->lkey;
+	wqe->bind.va = (u64)(unsigned long)fence->va;
+	wqe->bind.length = fence->size;
+	wqe->bind.access_cntl = __from_ib_access_flags(IB_ACCESS_REMOTE_READ);
+	wqe->bind.mw_type = SQ_BIND_MW_TYPE_TYPE1;
+
+	/* Save the initial rkey in fence structure for now;
+	 * wqe->bind.r_key will be set at (re)bind time.
+	 */
+	fence->bind_rkey = ib_inc_rkey(fence->mw->rkey);
+}
+
+static int bnxt_re_bind_fence_mw(struct bnxt_qplib_qp *qplib_qp)
+{
+	struct bnxt_re_qp *qp = container_of(qplib_qp, struct bnxt_re_qp,
+					     qplib_qp);
+	struct ib_pd *ib_pd = qp->ib_qp.pd;
+	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
+	struct bnxt_re_fence_data *fence = &pd->fence;
+	struct bnxt_qplib_swqe *fence_wqe = &fence->bind_wqe;
+	struct bnxt_qplib_swqe wqe;
+	int rc;
+
+	memcpy(&wqe, fence_wqe, sizeof(wqe));
+	wqe.bind.r_key = fence->bind_rkey;
+	fence->bind_rkey = ib_inc_rkey(fence->bind_rkey);
+
+	dev_dbg(rdev_to_dev(qp->rdev),
+		"Posting bind fence-WQE: rkey: %#x QP: %d PD: %p\n",
+		wqe.bind.r_key, qp->qplib_qp.id, pd);
+	rc = bnxt_qplib_post_send(&qp->qplib_qp, &wqe);
+	if (rc) {
+		dev_err(rdev_to_dev(qp->rdev), "Failed to bind fence-WQE\n");
+		return rc;
+	}
+	bnxt_qplib_post_send_db(&qp->qplib_qp);
+
+	return rc;
+}
+
+static void bnxt_re_destroy_fence_mr(struct bnxt_re_pd *pd)
+{
+	struct bnxt_re_fence_data *fence = &pd->fence;
+	struct bnxt_re_dev *rdev = pd->rdev;
+	struct device *dev = &rdev->en_dev->pdev->dev;
+	struct bnxt_re_mr *mr = fence->mr;
+
+	if (fence->mw) {
+		bnxt_re_dealloc_mw(fence->mw);
+		fence->mw = NULL;
+	}
+	if (mr) {
+		if (mr->ib_mr.rkey)
+			bnxt_qplib_dereg_mrw(&rdev->qplib_res, &mr->qplib_mr,
+					     true);
+		if (mr->ib_mr.lkey)
+			bnxt_qplib_free_mrw(&rdev->qplib_res, &mr->qplib_mr);
+		kfree(mr);
+		fence->mr = NULL;
+	}
+	if (fence->dma_addr) {
+		dma_unmap_single(dev, fence->dma_addr, BNXT_RE_FENCE_BYTES,
+				 DMA_BIDIRECTIONAL);
+		fence->dma_addr = 0;
+	}
+}
+
+static int bnxt_re_create_fence_mr(struct bnxt_re_pd *pd)
+{
+	int mr_access_flags = IB_ACCESS_LOCAL_WRITE | IB_ACCESS_MW_BIND;
+	struct bnxt_re_fence_data *fence = &pd->fence;
+	struct bnxt_re_dev *rdev = pd->rdev;
+	struct device *dev = &rdev->en_dev->pdev->dev;
+	struct bnxt_re_mr *mr = NULL;
+	dma_addr_t dma_addr = 0;
+	struct ib_mw *mw;
+	u64 pbl_tbl;
+	int rc;
+
+	dma_addr = dma_map_single(dev, fence->va, BNXT_RE_FENCE_BYTES,
+				  DMA_BIDIRECTIONAL);
+	rc = dma_mapping_error(dev, dma_addr);
+	if (rc) {
+		dev_err(rdev_to_dev(rdev), "Failed to dma-map fence-MR-mem\n");
+		rc = -EIO;
+		fence->dma_addr = 0;
+		goto fail;
+	}
+	fence->dma_addr = dma_addr;
+
+	/* Allocate a MR */
+	mr = kzalloc(sizeof(*mr), GFP_KERNEL);
+	if (!mr) {
+		rc = -ENOMEM;
+		goto fail;
+	}
+	fence->mr = mr;
+	mr->rdev = rdev;
+	mr->qplib_mr.pd = &pd->qplib_pd;
+	mr->qplib_mr.type = CMDQ_ALLOCATE_MRW_MRW_FLAGS_PMR;
+	mr->qplib_mr.flags = __from_ib_access_flags(mr_access_flags);
+	rc = bnxt_qplib_alloc_mrw(&rdev->qplib_res, &mr->qplib_mr);
+	if (rc) {
+		dev_err(rdev_to_dev(rdev), "Failed to alloc fence-HW-MR\n");
+		goto fail;
+	}
+
+	/* Register MR */
+	mr->ib_mr.lkey = mr->qplib_mr.lkey;
+	mr->qplib_mr.va = (u64)(unsigned long)fence->va;
+	mr->qplib_mr.total_size = BNXT_RE_FENCE_BYTES;
+	pbl_tbl = dma_addr;
+	rc = bnxt_qplib_reg_mr(&rdev->qplib_res, &mr->qplib_mr, &pbl_tbl,
+			       BNXT_RE_FENCE_PBL_SIZE, false);
+	if (rc) {
+		dev_err(rdev_to_dev(rdev), "Failed to register fence-MR\n");
+		goto fail;
+	}
+	mr->ib_mr.rkey = mr->qplib_mr.rkey;
+
+	/* Create a fence MW only for kernel consumers */
+	mw = bnxt_re_alloc_mw(&pd->ib_pd, IB_MW_TYPE_1, NULL);
+	if (!mw) {
+		dev_err(rdev_to_dev(rdev),
+			"Failed to create fence-MW for PD: %p\n", pd);
+		rc = -EINVAL;
+		goto fail;
+	}
+	fence->mw = mw;
+
+	bnxt_re_create_fence_wqe(pd);
+	return 0;
+
+fail:
+	bnxt_re_destroy_fence_mr(pd);
+	return rc;
+}
+
 /* Protection Domains */
 int bnxt_re_dealloc_pd(struct ib_pd *ib_pd)
 {
@@ -417,6 +611,7 @@ int bnxt_re_dealloc_pd(struct ib_pd *ib_pd)
 	struct bnxt_re_dev *rdev = pd->rdev;
 	int rc;
 
+	bnxt_re_destroy_fence_mr(pd);
 	if (ib_pd->uobject && pd->dpi.dbr) {
 		struct ib_ucontext *ib_uctx = ib_pd->uobject->context;
 		struct bnxt_re_ucontext *ucntx;
@@ -498,6 +693,10 @@ struct ib_pd *bnxt_re_alloc_pd(struct ib_device *ibdev,
 		}
 	}
 
+	if (!udata)
+		if (bnxt_re_create_fence_mr(pd))
+			dev_warn(rdev_to_dev(rdev),
+				 "Failed to create Fence-MR\n");
 	return &pd->ib_pd;
 dbfail:
 	(void)bnxt_qplib_dealloc_pd(&rdev->qplib_res, &rdev->qplib_res.pd_tbl,
@@ -849,12 +1048,16 @@ static struct bnxt_re_qp *bnxt_re_create_shadow_qp
 	/* Shadow QP SQ depth should be same as QP1 RQ depth */
 	qp->qplib_qp.sq.max_wqe = qp1_qp->rq.max_wqe;
 	qp->qplib_qp.sq.max_sge = 2;
+	/* Q full delta can be 1 since it is internal QP */
+	qp->qplib_qp.sq.q_full_delta = 1;
 
 	qp->qplib_qp.scq = qp1_qp->scq;
 	qp->qplib_qp.rcq = qp1_qp->rcq;
 
 	qp->qplib_qp.rq.max_wqe = qp1_qp->rq.max_wqe;
 	qp->qplib_qp.rq.max_sge = qp1_qp->rq.max_sge;
+	/* Q full delta can be 1 since it is internal QP */
+	qp->qplib_qp.rq.q_full_delta = 1;
 
 	qp->qplib_qp.mtu = qp1_qp->mtu;
 
@@ -917,10 +1120,6 @@ struct ib_qp *bnxt_re_create_qp(struct ib_pd *ib_pd,
 	qp->qplib_qp.sig_type = ((qp_init_attr->sq_sig_type ==
 				  IB_SIGNAL_ALL_WR) ? true : false);
 
-	entries = roundup_pow_of_two(qp_init_attr->cap.max_send_wr + 1);
-	qp->qplib_qp.sq.max_wqe = min_t(u32, entries,
-					dev_attr->max_qp_wqes + 1);
-
 	qp->qplib_qp.sq.max_sge = qp_init_attr->cap.max_send_sge;
 	if (qp->qplib_qp.sq.max_sge > dev_attr->max_qp_sges)
 		qp->qplib_qp.sq.max_sge = dev_attr->max_qp_sges;
@@ -959,6 +1158,9 @@ struct ib_qp *bnxt_re_create_qp(struct ib_pd *ib_pd,
 		qp->qplib_qp.rq.max_wqe = min_t(u32, entries,
 						dev_attr->max_qp_wqes + 1);
 
+		qp->qplib_qp.rq.q_full_delta = qp->qplib_qp.rq.max_wqe -
+						qp_init_attr->cap.max_recv_wr;
+
 		qp->qplib_qp.rq.max_sge = qp_init_attr->cap.max_recv_sge;
 		if (qp->qplib_qp.rq.max_sge > dev_attr->max_qp_sges)
 			qp->qplib_qp.rq.max_sge = dev_attr->max_qp_sges;
@@ -967,6 +1169,12 @@ struct ib_qp *bnxt_re_create_qp(struct ib_pd *ib_pd,
 	qp->qplib_qp.mtu = ib_mtu_enum_to_int(iboe_get_mtu(rdev->netdev->mtu));
 
 	if (qp_init_attr->qp_type == IB_QPT_GSI) {
+		/* Allocate 1 more than what's provided */
+		entries = roundup_pow_of_two(qp_init_attr->cap.max_send_wr + 1);
+		qp->qplib_qp.sq.max_wqe = min_t(u32, entries,
+						dev_attr->max_qp_wqes + 1);
+		qp->qplib_qp.sq.q_full_delta = qp->qplib_qp.sq.max_wqe -
+						qp_init_attr->cap.max_send_wr;
 		qp->qplib_qp.rq.max_sge = dev_attr->max_qp_sges;
 		if (qp->qplib_qp.rq.max_sge > dev_attr->max_qp_sges)
 			qp->qplib_qp.rq.max_sge = dev_attr->max_qp_sges;
@@ -1006,6 +1214,22 @@ struct ib_qp *bnxt_re_create_qp(struct ib_pd *ib_pd,
 		}
 
 	} else {
+		/* Allocate 128 + 1 more than what's provided */
+		entries = roundup_pow_of_two(qp_init_attr->cap.max_send_wr +
+					     BNXT_QPLIB_RESERVED_QP_WRS + 1);
+		qp->qplib_qp.sq.max_wqe = min_t(u32, entries,
+						dev_attr->max_qp_wqes +
+						BNXT_QPLIB_RESERVED_QP_WRS + 1);
+		qp->qplib_qp.sq.q_full_delta = BNXT_QPLIB_RESERVED_QP_WRS + 1;
+
+		/*
+		 * Reserving one slot for Phantom WQE. Application can
+		 * post one extra entry in this case. But allowing this to avoid
+		 * unexpected Queue full condition
+		 */
+
+		qp->qplib_qp.sq.q_full_delta -= 1;
+
 		qp->qplib_qp.max_rd_atomic = dev_attr->max_qp_rd_atom;
 		qp->qplib_qp.max_dest_rd_atomic = dev_attr->max_qp_init_rd_atom;
 		if (udata) {
@@ -1025,6 +1249,7 @@ struct ib_qp *bnxt_re_create_qp(struct ib_pd *ib_pd,
 
 	qp->ib_qp.qp_num = qp->qplib_qp.id;
 	spin_lock_init(&qp->sq_lock);
+	spin_lock_init(&qp->rq_lock);
 
 	if (udata) {
 		struct bnxt_re_qp_resp resp;
@@ -1128,48 +1353,6 @@ static enum ib_mtu __to_ib_mtu(u32 mtu)
 		return IB_MTU_2048;
 	}
 }
-
-static int __from_ib_access_flags(int iflags)
-{
-	int qflags = 0;
-
-	if (iflags & IB_ACCESS_LOCAL_WRITE)
-		qflags |= BNXT_QPLIB_ACCESS_LOCAL_WRITE;
-	if (iflags & IB_ACCESS_REMOTE_READ)
-		qflags |= BNXT_QPLIB_ACCESS_REMOTE_READ;
-	if (iflags & IB_ACCESS_REMOTE_WRITE)
-		qflags |= BNXT_QPLIB_ACCESS_REMOTE_WRITE;
-	if (iflags & IB_ACCESS_REMOTE_ATOMIC)
-		qflags |= BNXT_QPLIB_ACCESS_REMOTE_ATOMIC;
-	if (iflags & IB_ACCESS_MW_BIND)
-		qflags |= BNXT_QPLIB_ACCESS_MW_BIND;
-	if (iflags & IB_ZERO_BASED)
-		qflags |= BNXT_QPLIB_ACCESS_ZERO_BASED;
-	if (iflags & IB_ACCESS_ON_DEMAND)
-		qflags |= BNXT_QPLIB_ACCESS_ON_DEMAND;
-	return qflags;
-};
-
-static enum ib_access_flags __to_ib_access_flags(int qflags)
-{
-	enum ib_access_flags iflags = 0;
-
-	if (qflags & BNXT_QPLIB_ACCESS_LOCAL_WRITE)
-		iflags |= IB_ACCESS_LOCAL_WRITE;
-	if (qflags & BNXT_QPLIB_ACCESS_REMOTE_WRITE)
-		iflags |= IB_ACCESS_REMOTE_WRITE;
-	if (qflags & BNXT_QPLIB_ACCESS_REMOTE_READ)
-		iflags |= IB_ACCESS_REMOTE_READ;
-	if (qflags & BNXT_QPLIB_ACCESS_REMOTE_ATOMIC)
-		iflags |= IB_ACCESS_REMOTE_ATOMIC;
-	if (qflags & BNXT_QPLIB_ACCESS_MW_BIND)
-		iflags |= IB_ACCESS_MW_BIND;
-	if (qflags & BNXT_QPLIB_ACCESS_ZERO_BASED)
-		iflags |= IB_ZERO_BASED;
-	if (qflags & BNXT_QPLIB_ACCESS_ON_DEMAND)
-		iflags |= IB_ACCESS_ON_DEMAND;
-	return iflags;
-};
 
 static int bnxt_re_modify_shadow_qp(struct bnxt_re_dev *rdev,
 				    struct bnxt_re_qp *qp1_qp,
@@ -1378,11 +1561,21 @@ int bnxt_re_modify_qp(struct ib_qp *ib_qp, struct ib_qp_attr *qp_attr,
 		entries = roundup_pow_of_two(qp_attr->cap.max_send_wr);
 		qp->qplib_qp.sq.max_wqe = min_t(u32, entries,
 						dev_attr->max_qp_wqes + 1);
+		qp->qplib_qp.sq.q_full_delta = qp->qplib_qp.sq.max_wqe -
+						qp_attr->cap.max_send_wr;
+		/*
+		 * Reserving one slot for Phantom WQE. Some application can
+		 * post one extra entry in this case. Allowing this to avoid
+		 * unexpected Queue full condition
+		 */
+		qp->qplib_qp.sq.q_full_delta -= 1;
 		qp->qplib_qp.sq.max_sge = qp_attr->cap.max_send_sge;
 		if (qp->qplib_qp.rq.max_wqe) {
 			entries = roundup_pow_of_two(qp_attr->cap.max_recv_wr);
 			qp->qplib_qp.rq.max_wqe =
 				min_t(u32, entries, dev_attr->max_qp_wqes + 1);
+			qp->qplib_qp.rq.q_full_delta = qp->qplib_qp.rq.max_wqe -
+						       qp_attr->cap.max_recv_wr;
 			qp->qplib_qp.rq.max_sge = qp_attr->cap.max_recv_sge;
 		} else {
 			/* SRQ was used prior, just ignore the RQ caps */
@@ -1883,6 +2076,22 @@ static int bnxt_re_copy_wr_payload(struct bnxt_re_dev *rdev,
 	return payload_sz;
 }
 
+static void bnxt_ud_qp_hw_stall_workaround(struct bnxt_re_qp *qp)
+{
+	if ((qp->ib_qp.qp_type == IB_QPT_UD ||
+	     qp->ib_qp.qp_type == IB_QPT_GSI ||
+	     qp->ib_qp.qp_type == IB_QPT_RAW_ETHERTYPE) &&
+	     qp->qplib_qp.wqe_cnt == BNXT_RE_UD_QP_HW_STALL) {
+		int qp_attr_mask;
+		struct ib_qp_attr qp_attr;
+
+		qp_attr_mask = IB_QP_STATE;
+		qp_attr.qp_state = IB_QPS_RTS;
+		bnxt_re_modify_qp(&qp->ib_qp, &qp_attr, qp_attr_mask, NULL);
+		qp->qplib_qp.wqe_cnt = 0;
+	}
+}
+
 static int bnxt_re_post_send_shadow_qp(struct bnxt_re_dev *rdev,
 				       struct bnxt_re_qp *qp,
 				struct ib_send_wr *wr)
@@ -1928,6 +2137,7 @@ bad:
 		wr = wr->next;
 	}
 	bnxt_qplib_post_send_db(&qp->qplib_qp);
+	bnxt_ud_qp_hw_stall_workaround(qp);
 	spin_unlock_irqrestore(&qp->sq_lock, flags);
 	return rc;
 }
@@ -2024,6 +2234,7 @@ bad:
 		wr = wr->next;
 	}
 	bnxt_qplib_post_send_db(&qp->qplib_qp);
+	bnxt_ud_qp_hw_stall_workaround(qp);
 	spin_unlock_irqrestore(&qp->sq_lock, flags);
 
 	return rc;
@@ -2071,7 +2282,10 @@ int bnxt_re_post_recv(struct ib_qp *ib_qp, struct ib_recv_wr *wr,
 	struct bnxt_re_qp *qp = container_of(ib_qp, struct bnxt_re_qp, ib_qp);
 	struct bnxt_qplib_swqe wqe;
 	int rc = 0, payload_sz = 0;
+	unsigned long flags;
+	u32 count = 0;
 
+	spin_lock_irqsave(&qp->rq_lock, flags);
 	while (wr) {
 		/* House keeping */
 		memset(&wqe, 0, sizeof(wqe));
@@ -2100,9 +2314,21 @@ int bnxt_re_post_recv(struct ib_qp *ib_qp, struct ib_recv_wr *wr,
 			*bad_wr = wr;
 			break;
 		}
+
+		/* Ring DB if the RQEs posted reaches a threshold value */
+		if (++count >= BNXT_RE_RQ_WQE_THRESHOLD) {
+			bnxt_qplib_post_recv_db(&qp->qplib_qp);
+			count = 0;
+		}
+
 		wr = wr->next;
 	}
-	bnxt_qplib_post_recv_db(&qp->qplib_qp);
+
+	if (count)
+		bnxt_qplib_post_recv_db(&qp->qplib_qp);
+
+	spin_unlock_irqrestore(&qp->rq_lock, flags);
+
 	return rc;
 }
 
@@ -2643,12 +2869,36 @@ static void bnxt_re_process_res_ud_wc(struct ib_wc *wc,
 		wc->opcode = IB_WC_RECV_RDMA_WITH_IMM;
 }
 
+static int send_phantom_wqe(struct bnxt_re_qp *qp)
+{
+	struct bnxt_qplib_qp *lib_qp = &qp->qplib_qp;
+	unsigned long flags;
+	int rc = 0;
+
+	spin_lock_irqsave(&qp->sq_lock, flags);
+
+	rc = bnxt_re_bind_fence_mw(lib_qp);
+	if (!rc) {
+		lib_qp->sq.phantom_wqe_cnt++;
+		dev_dbg(&lib_qp->sq.hwq.pdev->dev,
+			"qp %#x sq->prod %#x sw_prod %#x phantom_wqe_cnt %d\n",
+			lib_qp->id, lib_qp->sq.hwq.prod,
+			HWQ_CMP(lib_qp->sq.hwq.prod, &lib_qp->sq.hwq),
+			lib_qp->sq.phantom_wqe_cnt);
+	}
+
+	spin_unlock_irqrestore(&qp->sq_lock, flags);
+	return rc;
+}
+
 int bnxt_re_poll_cq(struct ib_cq *ib_cq, int num_entries, struct ib_wc *wc)
 {
 	struct bnxt_re_cq *cq = container_of(ib_cq, struct bnxt_re_cq, ib_cq);
 	struct bnxt_re_qp *qp;
 	struct bnxt_qplib_cqe *cqe;
 	int i, ncqe, budget;
+	struct bnxt_qplib_q *sq;
+	struct bnxt_qplib_qp *lib_qp;
 	u32 tbl_idx;
 	struct bnxt_re_sqp_entries *sqp_entry = NULL;
 	unsigned long flags;
@@ -2661,7 +2911,21 @@ int bnxt_re_poll_cq(struct ib_cq *ib_cq, int num_entries, struct ib_wc *wc)
 	}
 	cqe = &cq->cql[0];
 	while (budget) {
-		ncqe = bnxt_qplib_poll_cq(&cq->qplib_cq, cqe, budget);
+		lib_qp = NULL;
+		ncqe = bnxt_qplib_poll_cq(&cq->qplib_cq, cqe, budget, &lib_qp);
+		if (lib_qp) {
+			sq = &lib_qp->sq;
+			if (sq->send_phantom) {
+				qp = container_of(lib_qp,
+						  struct bnxt_re_qp, qplib_qp);
+				if (send_phantom_wqe(qp) == -ENOMEM)
+					dev_err(rdev_to_dev(cq->rdev),
+						"Phantom failed! Scheduled to send again\n");
+				else
+					sq->send_phantom = false;
+			}
+		}
+
 		if (!ncqe)
 			break;
 
@@ -2822,6 +3086,12 @@ int bnxt_re_dereg_mr(struct ib_mr *ib_mr)
 	struct bnxt_re_dev *rdev = mr->rdev;
 	int rc;
 
+	rc = bnxt_qplib_free_mrw(&rdev->qplib_res, &mr->qplib_mr);
+	if (rc) {
+		dev_err(rdev_to_dev(rdev), "Dereg MR failed: %#x\n", rc);
+		return rc;
+	}
+
 	if (mr->npages && mr->pages) {
 		rc = bnxt_qplib_free_fast_reg_page_list(&rdev->qplib_res,
 							&mr->qplib_frpl);
@@ -2829,8 +3099,6 @@ int bnxt_re_dereg_mr(struct ib_mr *ib_mr)
 		mr->npages = 0;
 		mr->pages = NULL;
 	}
-	rc = bnxt_qplib_free_mrw(&rdev->qplib_res, &mr->qplib_mr);
-
 	if (!IS_ERR_OR_NULL(mr->ib_umem))
 		ib_umem_release(mr->ib_umem);
 
@@ -2914,97 +3182,52 @@ fail:
 	return ERR_PTR(rc);
 }
 
-/* Fast Memory Regions */
-struct ib_fmr *bnxt_re_alloc_fmr(struct ib_pd *ib_pd, int mr_access_flags,
-				 struct ib_fmr_attr *fmr_attr)
+struct ib_mw *bnxt_re_alloc_mw(struct ib_pd *ib_pd, enum ib_mw_type type,
+			       struct ib_udata *udata)
 {
 	struct bnxt_re_pd *pd = container_of(ib_pd, struct bnxt_re_pd, ib_pd);
 	struct bnxt_re_dev *rdev = pd->rdev;
-	struct bnxt_re_fmr *fmr;
+	struct bnxt_re_mw *mw;
 	int rc;
 
-	if (fmr_attr->max_pages > MAX_PBL_LVL_2_PGS ||
-	    fmr_attr->max_maps > rdev->dev_attr.max_map_per_fmr) {
-		dev_err(rdev_to_dev(rdev), "Allocate FMR exceeded Max limit");
+	mw = kzalloc(sizeof(*mw), GFP_KERNEL);
+	if (!mw)
 		return ERR_PTR(-ENOMEM);
-	}
-	fmr = kzalloc(sizeof(*fmr), GFP_KERNEL);
-	if (!fmr)
-		return ERR_PTR(-ENOMEM);
+	mw->rdev = rdev;
+	mw->qplib_mw.pd = &pd->qplib_pd;
 
-	fmr->rdev = rdev;
-	fmr->qplib_fmr.pd = &pd->qplib_pd;
-	fmr->qplib_fmr.type = CMDQ_ALLOCATE_MRW_MRW_FLAGS_PMR;
-
-	rc = bnxt_qplib_alloc_mrw(&rdev->qplib_res, &fmr->qplib_fmr);
-	if (rc)
+	mw->qplib_mw.type = (type == IB_MW_TYPE_1 ?
+			       CMDQ_ALLOCATE_MRW_MRW_FLAGS_MW_TYPE1 :
+			       CMDQ_ALLOCATE_MRW_MRW_FLAGS_MW_TYPE2B);
+	rc = bnxt_qplib_alloc_mrw(&rdev->qplib_res, &mw->qplib_mw);
+	if (rc) {
+		dev_err(rdev_to_dev(rdev), "Allocate MW failed!");
 		goto fail;
+	}
+	mw->ib_mw.rkey = mw->qplib_mw.rkey;
 
-	fmr->qplib_fmr.flags = __from_ib_access_flags(mr_access_flags);
-	fmr->ib_fmr.lkey = fmr->qplib_fmr.lkey;
-	fmr->ib_fmr.rkey = fmr->ib_fmr.lkey;
+	atomic_inc(&rdev->mw_count);
+	return &mw->ib_mw;
 
-	atomic_inc(&rdev->mr_count);
-	return &fmr->ib_fmr;
 fail:
-	kfree(fmr);
+	kfree(mw);
 	return ERR_PTR(rc);
 }
 
-int bnxt_re_map_phys_fmr(struct ib_fmr *ib_fmr, u64 *page_list, int list_len,
-			 u64 iova)
+int bnxt_re_dealloc_mw(struct ib_mw *ib_mw)
 {
-	struct bnxt_re_fmr *fmr = container_of(ib_fmr, struct bnxt_re_fmr,
-					     ib_fmr);
-	struct bnxt_re_dev *rdev = fmr->rdev;
+	struct bnxt_re_mw *mw = container_of(ib_mw, struct bnxt_re_mw, ib_mw);
+	struct bnxt_re_dev *rdev = mw->rdev;
 	int rc;
 
-	fmr->qplib_fmr.va = iova;
-	fmr->qplib_fmr.total_size = list_len * PAGE_SIZE;
-
-	rc = bnxt_qplib_reg_mr(&rdev->qplib_res, &fmr->qplib_fmr, page_list,
-			       list_len, true);
-	if (rc)
-		dev_err(rdev_to_dev(rdev), "Failed to map FMR for lkey = 0x%x!",
-			fmr->ib_fmr.lkey);
-	return rc;
-}
-
-int bnxt_re_unmap_fmr(struct list_head *fmr_list)
-{
-	struct bnxt_re_dev *rdev;
-	struct bnxt_re_fmr *fmr;
-	struct ib_fmr *ib_fmr;
-	int rc = 0;
-
-	/* Validate each FMRs inside the fmr_list */
-	list_for_each_entry(ib_fmr, fmr_list, list) {
-		fmr = container_of(ib_fmr, struct bnxt_re_fmr, ib_fmr);
-		rdev = fmr->rdev;
-
-		if (rdev) {
-			rc = bnxt_qplib_dereg_mrw(&rdev->qplib_res,
-						  &fmr->qplib_fmr, true);
-			if (rc)
-				break;
-		}
+	rc = bnxt_qplib_free_mrw(&rdev->qplib_res, &mw->qplib_mw);
+	if (rc) {
+		dev_err(rdev_to_dev(rdev), "Free MW failed: %#x\n", rc);
+		return rc;
 	}
-	return rc;
-}
 
-int bnxt_re_dealloc_fmr(struct ib_fmr *ib_fmr)
-{
-	struct bnxt_re_fmr *fmr = container_of(ib_fmr, struct bnxt_re_fmr,
-					       ib_fmr);
-	struct bnxt_re_dev *rdev = fmr->rdev;
-	int rc;
-
-	rc = bnxt_qplib_free_mrw(&rdev->qplib_res, &fmr->qplib_fmr);
-	if (rc)
-		dev_err(rdev_to_dev(rdev), "Failed to free FMR");
-
-	kfree(fmr);
-	atomic_dec(&rdev->mr_count);
+	kfree(mw);
+	atomic_dec(&rdev->mw_count);
 	return rc;
 }
 

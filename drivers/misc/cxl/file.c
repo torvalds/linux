@@ -159,11 +159,8 @@ static long afu_ioctl_start_work(struct cxl_context *ctx,
 
 	/* Do this outside the status_mutex to avoid a circular dependency with
 	 * the locking in cxl_mmap_fault() */
-	if (copy_from_user(&work, uwork,
-			   sizeof(struct cxl_ioctl_start_work))) {
-		rc = -EFAULT;
-		goto out;
-	}
+	if (copy_from_user(&work, uwork, sizeof(work)))
+		return -EFAULT;
 
 	mutex_lock(&ctx->status_mutex);
 	if (ctx->status != OPENED) {

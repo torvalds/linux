@@ -337,8 +337,8 @@ long __strncpy_from_user(char *dst, const char __user *src, long size)
 		return 0;
 	done = 0;
 	do {
-		offset = (size_t)src & ~PAGE_MASK;
-		len = min(size - done, PAGE_SIZE - offset);
+		offset = (size_t)src & (L1_CACHE_BYTES - 1);
+		len = min(size - done, L1_CACHE_BYTES - offset);
 		if (copy_from_user(dst, src, len))
 			return -EFAULT;
 		len_str = strnlen(dst, len);

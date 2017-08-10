@@ -90,8 +90,18 @@ static inline int to_reg(int gpio, enum ctrl_register reg_type)
 {
 	int reg;
 
-	if (gpio == 94)
-		return GPIOPANELCTL;
+	if (gpio >= CRYSTALCOVE_GPIO_NUM) {
+		/*
+		 * Virtual GPIO called from ACPI, for now we only support
+		 * the panel ctl.
+		 */
+		switch (gpio) {
+		case 0x5e:
+			return GPIOPANELCTL;
+		default:
+			return -EOPNOTSUPP;
+		}
+	}
 
 	if (reg_type == CTRL_IN) {
 		if (gpio < 8)
@@ -130,36 +140,36 @@ static void crystalcove_update_irq_ctrl(struct crystalcove_gpio *cg, int gpio)
 static int crystalcove_gpio_dir_in(struct gpio_chip *chip, unsigned gpio)
 {
 	struct crystalcove_gpio *cg = gpiochip_get_data(chip);
+	int reg = to_reg(gpio, CTRL_OUT);
 
-	if (gpio > CRYSTALCOVE_VGPIO_NUM)
+	if (reg < 0)
 		return 0;
 
-	return regmap_write(cg->regmap, to_reg(gpio, CTRL_OUT),
-			    CTLO_INPUT_SET);
+	return regmap_write(cg->regmap, reg, CTLO_INPUT_SET);
 }
 
 static int crystalcove_gpio_dir_out(struct gpio_chip *chip, unsigned gpio,
 				    int value)
 {
 	struct crystalcove_gpio *cg = gpiochip_get_data(chip);
+	int reg = to_reg(gpio, CTRL_OUT);
 
-	if (gpio > CRYSTALCOVE_VGPIO_NUM)
+	if (reg < 0)
 		return 0;
 
-	return regmap_write(cg->regmap, to_reg(gpio, CTRL_OUT),
-			    CTLO_OUTPUT_SET | value);
+	return regmap_write(cg->regmap, reg, CTLO_OUTPUT_SET | value);
 }
 
 static int crystalcove_gpio_get(struct gpio_chip *chip, unsigned gpio)
 {
 	struct crystalcove_gpio *cg = gpiochip_get_data(chip);
-	int ret;
 	unsigned int val;
+	int ret, reg = to_reg(gpio, CTRL_IN);
 
-	if (gpio > CRYSTALCOVE_VGPIO_NUM)
+	if (reg < 0)
 		return 0;
 
-	ret = regmap_read(cg->regmap, to_reg(gpio, CTRL_IN), &val);
+	ret = regmap_read(cg->regmap, reg, &val);
 	if (ret)
 		return ret;
 
@@ -170,20 +180,24 @@ static void crystalcove_gpio_set(struct gpio_chip *chip,
 				 unsigned gpio, int value)
 {
 	struct crystalcove_gpio *cg = gpiochip_get_data(chip);
+	int reg = to_reg(gpio, CTRL_OUT);
 
-	if (gpio > CRYSTALCOVE_VGPIO_NUM)
+	if (reg < 0)
 		return;
 
 	if (value)
-		regmap_update_bits(cg->regmap, to_reg(gpio, CTRL_OUT), 1, 1);
+		regmap_update_bits(cg->regmap, reg, 1, 1);
 	else
-		regmap_update_bits(cg->regmap, to_reg(gpio, CTRL_OUT), 1, 0);
+		regmap_update_bits(cg->regmap, reg, 1, 0);
 }
 
 static int crystalcove_irq_type(struct irq_data *data, unsigned type)
 {
 	struct crystalcove_gpio *cg =
 		gpiochip_get_data(irq_data_get_irq_chip_data(data));
+
+	if (data->hwirq >= CRYSTALCOVE_GPIO_NUM)
+		return 0;
 
 	switch (type) {
 	case IRQ_TYPE_NONE:
@@ -235,8 +249,10 @@ static void crystalcove_irq_unmask(struct irq_data *data)
 	struct crystalcove_gpio *cg =
 		gpiochip_get_data(irq_data_get_irq_chip_data(data));
 
-	cg->set_irq_mask = false;
-	cg->update |= UPDATE_IRQ_MASK;
+	if (data->hwirq < CRYSTALCOVE_GPIO_NUM) {
+		cg->set_irq_mask = false;
+		cg->update |= UPDATE_IRQ_MASK;
+	}
 }
 
 static void crystalcove_irq_mask(struct irq_data *data)
@@ -244,8 +260,10 @@ static void crystalcove_irq_mask(struct irq_data *data)
 	struct crystalcove_gpio *cg =
 		gpiochip_get_data(irq_data_get_irq_chip_data(data));
 
-	cg->set_irq_mask = true;
-	cg->update |= UPDATE_IRQ_MASK;
+	if (data->hwirq < CRYSTALCOVE_GPIO_NUM) {
+		cg->set_irq_mask = true;
+		cg->update |= UPDATE_IRQ_MASK;
+	}
 }
 
 static struct irq_chip crystalcove_irqchip = {

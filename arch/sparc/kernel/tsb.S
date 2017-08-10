@@ -455,12 +455,15 @@ __tsb_context_switch:
 	.type	copy_tsb,#function
 copy_tsb:		/* %o0=old_tsb_base, %o1=old_tsb_size
 			 * %o2=new_tsb_base, %o3=new_tsb_size
+			 * %o4=page_size_shift
 			 */
 	sethi		%uhi(TSB_PASS_BITS), %g7
 	srlx		%o3, 4, %o3
-	add		%o0, %o1, %g1	/* end of old tsb */
+	add		%o0, %o1, %o1	/* end of old tsb */
 	sllx		%g7, 32, %g7
 	sub		%o3, 1, %o3	/* %o3 == new tsb hash mask */
+
+	mov		%o4, %g1	/* page_size_shift */
 
 661:	prefetcha	[%o0] ASI_N, #one_read
 	.section	.tsb_phys_patch, "ax"
@@ -486,9 +489,9 @@ copy_tsb:		/* %o0=old_tsb_base, %o1=old_tsb_size
 	/* This can definitely be computed faster... */
 	srlx		%o0, 4, %o5	/* Build index */
 	and		%o5, 511, %o5	/* Mask index */
-	sllx		%o5, PAGE_SHIFT, %o5 /* Put into vaddr position */
+	sllx		%o5, %g1, %o5	/* Put into vaddr position */
 	or		%o4, %o5, %o4	/* Full VADDR. */
-	srlx		%o4, PAGE_SHIFT, %o4 /* Shift down to create index */
+	srlx		%o4, %g1, %o4	/* Shift down to create index */
 	and		%o4, %o3, %o4	/* Mask with new_tsb_nents-1 */
 	sllx		%o4, 4, %o4	/* Shift back up into tsb ent offset */
 	TSB_STORE(%o2 + %o4, %g2)	/* Store TAG */
@@ -496,7 +499,7 @@ copy_tsb:		/* %o0=old_tsb_base, %o1=old_tsb_size
 	TSB_STORE(%o2 + %o4, %g3)	/* Store TTE */
 
 80:	add		%o0, 16, %o0
-	cmp		%o0, %g1
+	cmp		%o0, %o1
 	bne,pt		%xcc, 90b
 	 nop
 

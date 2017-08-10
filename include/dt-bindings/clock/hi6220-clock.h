@@ -174,4 +174,8 @@
 #define HI6220_DDRC_AXI1	7
 
 #define HI6220_POWER_NR_CLKS	8
+
+/* clk in Hi6220 acpu sctrl */
+#define HI6220_ACPU_SFT_AT_S		0
+
 #endif

@@ -26,6 +26,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/spinlock.h>
 #include <linux/v4l2-dv-timings.h>
+#include <linux/of_graph.h>
 
 #include "vpif.h"
 
@@ -423,7 +424,9 @@ EXPORT_SYMBOL(vpif_channel_getfid);
 
 static int vpif_probe(struct platform_device *pdev)
 {
-	static struct resource	*res;
+	static struct resource	*res, *res_irq;
+	struct platform_device *pdev_capture, *pdev_display;
+	struct device_node *endpoint = NULL;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	vpif_base = devm_ioremap_resource(&pdev->dev, res);
@@ -435,6 +438,58 @@ static int vpif_probe(struct platform_device *pdev)
 
 	spin_lock_init(&vpif_lock);
 	dev_info(&pdev->dev, "vpif probe success\n");
+
+	/*
+	 * If VPIF Node has endpoints, assume "new" DT support,
+	 * where capture and display drivers don't have DT nodes
+	 * so their devices need to be registered manually here
+	 * for their legacy platform_drivers to work.
+	 */
+	endpoint = of_graph_get_next_endpoint(pdev->dev.of_node,
+					      endpoint);
+	if (!endpoint)
+		return 0;
+
+	/*
+	 * For DT platforms, manually create platform_devices for
+	 * capture/display drivers.
+	 */
+	res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	if (!res_irq) {
+		dev_warn(&pdev->dev, "Missing IRQ resource.\n");
+		return -EINVAL;
+	}
+
+	pdev_capture = devm_kzalloc(&pdev->dev, sizeof(*pdev_capture),
+				    GFP_KERNEL);
+	if (pdev_capture) {
+		pdev_capture->name = "vpif_capture";
+		pdev_capture->id = -1;
+		pdev_capture->resource = res_irq;
+		pdev_capture->num_resources = 1;
+		pdev_capture->dev.dma_mask = pdev->dev.dma_mask;
+		pdev_capture->dev.coherent_dma_mask = pdev->dev.coherent_dma_mask;
+		pdev_capture->dev.parent = &pdev->dev;
+		platform_device_register(pdev_capture);
+	} else {
+		dev_warn(&pdev->dev, "Unable to allocate memory for pdev_capture.\n");
+	}
+
+	pdev_display = devm_kzalloc(&pdev->dev, sizeof(*pdev_display),
+				    GFP_KERNEL);
+	if (pdev_display) {
+		pdev_display->name = "vpif_display";
+		pdev_display->id = -1;
+		pdev_display->resource = res_irq;
+		pdev_display->num_resources = 1;
+		pdev_display->dev.dma_mask = pdev->dev.dma_mask;
+		pdev_display->dev.coherent_dma_mask = pdev->dev.coherent_dma_mask;
+		pdev_display->dev.parent = &pdev->dev;
+		platform_device_register(pdev_display);
+	} else {
+		dev_warn(&pdev->dev, "Unable to allocate memory for pdev_display.\n");
+	}
+
 	return 0;
 }
 

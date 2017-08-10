@@ -908,8 +908,6 @@ static int peak_usb_probe(struct usb_interface *intf,
 	const struct peak_usb_adapter *peak_usb_adapter = NULL;
 	int i, err = -ENOMEM;
 
-	usb_dev = interface_to_usbdev(intf);
-
 	/* get corresponding PCAN-USB adapter */
 	for (i = 0; i < ARRAY_SIZE(peak_usb_adapters_list); i++)
 		if (peak_usb_adapters_list[i]->device_id == usb_id_product) {
@@ -920,7 +918,7 @@ static int peak_usb_probe(struct usb_interface *intf,
 	if (!peak_usb_adapter) {
 		/* should never come except device_id bad usage in this file */
 		pr_err("%s: didn't find device id. 0x%x in devices list\n",
-			PCAN_USB_DRIVER_NAME, usb_dev->descriptor.idProduct);
+			PCAN_USB_DRIVER_NAME, usb_id_product);
 		return -ENODEV;
 	}
 

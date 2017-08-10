@@ -350,7 +350,7 @@ static int afs_deliver_cb_init_call_back_state3(struct afs_call *call)
 {
 	struct sockaddr_rxrpc srx;
 	struct afs_server *server;
-	struct uuid_v1 *r;
+	struct afs_uuid *r;
 	unsigned loop;
 	__be32 *b;
 	int ret;
@@ -380,7 +380,7 @@ static int afs_deliver_cb_init_call_back_state3(struct afs_call *call)
 		}
 
 		_debug("unmarshall UUID");
-		call->request = kmalloc(sizeof(struct uuid_v1), GFP_KERNEL);
+		call->request = kmalloc(sizeof(struct afs_uuid), GFP_KERNEL);
 		if (!call->request)
 			return -ENOMEM;
 
@@ -453,7 +453,7 @@ static int afs_deliver_cb_probe(struct afs_call *call)
 static void SRXAFSCB_ProbeUuid(struct work_struct *work)
 {
 	struct afs_call *call = container_of(work, struct afs_call, work);
-	struct uuid_v1 *r = call->request;
+	struct afs_uuid *r = call->request;
 
 	struct {
 		__be32	match;
@@ -476,7 +476,7 @@ static void SRXAFSCB_ProbeUuid(struct work_struct *work)
  */
 static int afs_deliver_cb_probe_uuid(struct afs_call *call)
 {
-	struct uuid_v1 *r;
+	struct afs_uuid *r;
 	unsigned loop;
 	__be32 *b;
 	int ret;
@@ -502,15 +502,15 @@ static int afs_deliver_cb_probe_uuid(struct afs_call *call)
 		}
 
 		_debug("unmarshall UUID");
-		call->request = kmalloc(sizeof(struct uuid_v1), GFP_KERNEL);
+		call->request = kmalloc(sizeof(struct afs_uuid), GFP_KERNEL);
 		if (!call->request)
 			return -ENOMEM;
 
 		b = call->buffer;
 		r = call->request;
-		r->time_low			= b[0];
-		r->time_mid			= htons(ntohl(b[1]));
-		r->time_hi_and_version		= htons(ntohl(b[2]));
+		r->time_low			= ntohl(b[0]);
+		r->time_mid			= ntohl(b[1]);
+		r->time_hi_and_version		= ntohl(b[2]);
 		r->clock_seq_hi_and_reserved 	= ntohl(b[3]);
 		r->clock_seq_low		= ntohl(b[4]);
 

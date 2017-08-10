@@ -203,7 +203,7 @@ void start_new_tl_epoch(struct drbd_connection *connection)
 void complete_master_bio(struct drbd_device *device,
 		struct bio_and_error *m)
 {
-	m->bio->bi_error = m->error;
+	m->bio->bi_status = errno_to_blk_status(m->error);
 	bio_endio(m->bio);
 	dec_ap_bio(device);
 }
@@ -315,24 +315,32 @@ void drbd_req_complete(struct drbd_request *req, struct bio_and_error *m)
 }
 
 /* still holds resource->req_lock */
-static int drbd_req_put_completion_ref(struct drbd_request *req, struct bio_and_error *m, int put)
+static void drbd_req_put_completion_ref(struct drbd_request *req, struct bio_and_error *m, int put)
 {
 	struct drbd_device *device = req->device;
 	D_ASSERT(device, m || (req->rq_state & RQ_POSTPONED));
 
+	if (!put)
+		return;
+
 	if (!atomic_sub_and_test(put, &req->completion_ref))
-		return 0;
+		return;
 
 	drbd_req_complete(req, m);
+
+	/* local completion may still come in later,
+	 * we need to keep the req object around. */
+	if (req->rq_state & RQ_LOCAL_ABORTED)
+		return;
 
 	if (req->rq_state & RQ_POSTPONED) {
 		/* don't destroy the req object just yet,
 		 * but queue it for retry */
 		drbd_restart_request(req);
-		return 0;
+		return;
 	}
 
-	return 1;
+	kref_put(&req->kref, drbd_req_destroy);
 }
 
 static void set_if_null_req_next(struct drbd_peer_device *peer_device, struct drbd_request *req)
@@ -519,12 +527,8 @@ static void mod_rq_state(struct drbd_request *req, struct bio_and_error *m,
 	if (req->i.waiting)
 		wake_up(&device->misc_wait);
 
-	if (c_put) {
-		if (drbd_req_put_completion_ref(req, m, c_put))
-			kref_put(&req->kref, drbd_req_destroy);
-	} else {
-		kref_put(&req->kref, drbd_req_destroy);
-	}
+	drbd_req_put_completion_ref(req, m, c_put);
+	kref_put(&req->kref, drbd_req_destroy);
 }
 
 static void drbd_report_io_error(struct drbd_device *device, struct drbd_request *req)
@@ -1153,7 +1157,7 @@ static void drbd_process_discard_req(struct drbd_request *req)
 
 	if (blkdev_issue_zeroout(bdev, req->i.sector, req->i.size >> 9,
 			GFP_NOIO, 0))
-		req->private_bio->bi_error = -EIO;
+		req->private_bio->bi_status = BLK_STS_IOERR;
 	bio_endio(req->private_bio);
 }
 
@@ -1221,7 +1225,7 @@ drbd_request_prepare(struct drbd_device *device, struct bio *bio, unsigned long 
 		/* only pass the error to the upper layers.
 		 * if user cannot handle io errors, that's not our business. */
 		drbd_err(device, "could not kmalloc() req\n");
-		bio->bi_error = -ENOMEM;
+		bio->bi_status = BLK_STS_RESOURCE;
 		bio_endio(bio);
 		return ERR_PTR(-ENOMEM);
 	}
@@ -1366,8 +1370,7 @@ nodata:
 	}
 
 out:
-	if (drbd_req_put_completion_ref(req, &m, 1))
-		kref_put(&req->kref, drbd_req_destroy);
+	drbd_req_put_completion_ref(req, &m, 1);
 	spin_unlock_irq(&resource->req_lock);
 
 	/* Even though above is a kref_put(), this is safe.
@@ -1557,7 +1560,7 @@ blk_qc_t drbd_make_request(struct request_queue *q, struct bio *bio)
 	struct drbd_device *device = (struct drbd_device *) q->queuedata;
 	unsigned long start_jif;
 
-	blk_queue_split(q, &bio, q->bio_split);
+	blk_queue_split(q, &bio);
 
 	start_jif = jiffies;
 

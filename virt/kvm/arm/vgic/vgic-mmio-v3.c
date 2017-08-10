@@ -456,11 +456,13 @@ static const struct vgic_register_region vgic_v3_dist_registers[] = {
 		vgic_mmio_read_raz, vgic_mmio_write_wi, 1,
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_BITS_PER_IRQ_SHARED(GICD_ISACTIVER,
-		vgic_mmio_read_active, vgic_mmio_write_sactive, NULL, NULL, 1,
+		vgic_mmio_read_active, vgic_mmio_write_sactive,
+		NULL, vgic_mmio_uaccess_write_sactive, 1,
 		VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_BITS_PER_IRQ_SHARED(GICD_ICACTIVER,
-		vgic_mmio_read_active, vgic_mmio_write_cactive, NULL, NULL, 1,
-		VGIC_ACCESS_32bit),
+		vgic_mmio_read_active, vgic_mmio_write_cactive,
+		NULL, vgic_mmio_uaccess_write_cactive,
+		1, VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_BITS_PER_IRQ_SHARED(GICD_IPRIORITYR,
 		vgic_mmio_read_priority, vgic_mmio_write_priority, NULL, NULL,
 		8, VGIC_ACCESS_32bit | VGIC_ACCESS_8bit),
@@ -526,12 +528,14 @@ static const struct vgic_register_region vgic_v3_sgibase_registers[] = {
 		vgic_mmio_read_pending, vgic_mmio_write_cpending,
 		vgic_mmio_read_raz, vgic_mmio_write_wi, 4,
 		VGIC_ACCESS_32bit),
-	REGISTER_DESC_WITH_LENGTH(GICR_ISACTIVER0,
-		vgic_mmio_read_active, vgic_mmio_write_sactive, 4,
-		VGIC_ACCESS_32bit),
-	REGISTER_DESC_WITH_LENGTH(GICR_ICACTIVER0,
-		vgic_mmio_read_active, vgic_mmio_write_cactive, 4,
-		VGIC_ACCESS_32bit),
+	REGISTER_DESC_WITH_LENGTH_UACCESS(GICR_ISACTIVER0,
+		vgic_mmio_read_active, vgic_mmio_write_sactive,
+		NULL, vgic_mmio_uaccess_write_sactive,
+		4, VGIC_ACCESS_32bit),
+	REGISTER_DESC_WITH_LENGTH_UACCESS(GICR_ICACTIVER0,
+		vgic_mmio_read_active, vgic_mmio_write_cactive,
+		NULL, vgic_mmio_uaccess_write_cactive,
+		4, VGIC_ACCESS_32bit),
 	REGISTER_DESC_WITH_LENGTH(GICR_IPRIORITYR0,
 		vgic_mmio_read_priority, vgic_mmio_write_priority, 32,
 		VGIC_ACCESS_32bit | VGIC_ACCESS_8bit),
@@ -586,7 +590,7 @@ int vgic_register_redist_iodev(struct kvm_vcpu *vcpu)
 	if (!vgic_v3_check_base(kvm))
 		return -EINVAL;
 
-	rd_base = vgic->vgic_redist_base + kvm_vcpu_get_idx(vcpu) * SZ_64K * 2;
+	rd_base = vgic->vgic_redist_base + vgic->vgic_redist_free_offset;
 	sgi_base = rd_base + SZ_64K;
 
 	kvm_iodevice_init(&rd_dev->dev, &kvm_io_gic_ops);
@@ -614,11 +618,15 @@ int vgic_register_redist_iodev(struct kvm_vcpu *vcpu)
 	mutex_lock(&kvm->slots_lock);
 	ret = kvm_io_bus_register_dev(kvm, KVM_MMIO_BUS, sgi_base,
 				      SZ_64K, &sgi_dev->dev);
-	mutex_unlock(&kvm->slots_lock);
-	if (ret)
+	if (ret) {
 		kvm_io_bus_unregister_dev(kvm, KVM_MMIO_BUS,
 					  &rd_dev->dev);
+		goto out;
+	}
 
+	vgic->vgic_redist_free_offset += 2 * SZ_64K;
+out:
+	mutex_unlock(&kvm->slots_lock);
 	return ret;
 }
 
@@ -644,10 +652,12 @@ static int vgic_register_all_redist_iodevs(struct kvm *kvm)
 
 	if (ret) {
 		/* The current c failed, so we start with the previous one. */
+		mutex_lock(&kvm->slots_lock);
 		for (c--; c >= 0; c--) {
 			vcpu = kvm_get_vcpu(kvm, c);
 			vgic_unregister_redist_iodev(vcpu);
 		}
+		mutex_unlock(&kvm->slots_lock);
 	}
 
 	return ret;

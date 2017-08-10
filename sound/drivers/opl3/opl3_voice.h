@@ -44,9 +44,12 @@ void snd_opl3_load_drums(struct snd_opl3 *opl3);
 void snd_opl3_drum_switch(struct snd_opl3 *opl3, int note, int on_off, int vel, struct snd_midi_channel *chan);
 
 /* Prototypes for opl3_oss.c */
-#ifdef CONFIG_SND_SEQUENCER_OSS
+#if IS_ENABLED(CONFIG_SND_SEQUENCER_OSS)
 void snd_opl3_init_seq_oss(struct snd_opl3 *opl3, char *name);
 void snd_opl3_free_seq_oss(struct snd_opl3 *opl3);
+#else
+#define snd_opl3_init_seq_oss(opl3, name) /* NOP */
+#define snd_opl3_free_seq_oss(opl3) /* NOP */
 #endif
 
 #endif

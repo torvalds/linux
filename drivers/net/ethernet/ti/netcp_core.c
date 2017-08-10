@@ -1353,9 +1353,10 @@ int netcp_txpipe_open(struct netcp_tx_pipe *tx_pipe)
 
 	tx_pipe->dma_channel = knav_dma_open_channel(dev,
 				tx_pipe->dma_chan_name, &config);
-	if (IS_ERR_OR_NULL(tx_pipe->dma_channel)) {
+	if (IS_ERR(tx_pipe->dma_channel)) {
 		dev_err(dev, "failed opening tx chan(%s)\n",
 			tx_pipe->dma_chan_name);
+		ret = PTR_ERR(tx_pipe->dma_channel);
 		goto err;
 	}
 
@@ -1673,9 +1674,10 @@ static int netcp_setup_navigator_resources(struct net_device *ndev)
 
 	netcp->rx_channel = knav_dma_open_channel(netcp->netcp_device->device,
 					netcp->dma_chan_name, &config);
-	if (IS_ERR_OR_NULL(netcp->rx_channel)) {
+	if (IS_ERR(netcp->rx_channel)) {
 		dev_err(netcp->ndev_dev, "failed opening rx chan(%s\n",
 			netcp->dma_chan_name);
+		ret = PTR_ERR(netcp->rx_channel);
 		goto fail;
 	}
 
@@ -1875,8 +1877,8 @@ static u16 netcp_select_queue(struct net_device *dev, struct sk_buff *skb,
 	return 0;
 }
 
-static int netcp_setup_tc(struct net_device *dev, u32 handle, __be16 proto,
-			  struct tc_to_netdev *tc)
+static int netcp_setup_tc(struct net_device *dev, u32 handle, u32 chain_index,
+			  __be16 proto, struct tc_to_netdev *tc)
 {
 	u8 num_tc;
 	int i;

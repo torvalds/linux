@@ -30,10 +30,6 @@
 #ifndef _TTM_BO_DRIVER_H_
 #define _TTM_BO_DRIVER_H_
 
-#include <ttm/ttm_bo_api.h>
-#include <ttm/ttm_memory.h>
-#include <ttm/ttm_module.h>
-#include <ttm/ttm_placement.h>
 #include <drm/drm_mm.h>
 #include <drm/drm_global.h>
 #include <drm/drm_vma_manager.h>
@@ -41,6 +37,11 @@
 #include <linux/fs.h>
 #include <linux/spinlock.h>
 #include <linux/reservation.h>
+
+#include "ttm_bo_api.h"
+#include "ttm_memory.h"
+#include "ttm_module.h"
+#include "ttm_placement.h"
 
 #define TTM_MAX_BO_PRIORITY	4U
 

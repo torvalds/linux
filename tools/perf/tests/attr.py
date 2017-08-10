@@ -16,6 +16,13 @@ class Fail(Exception):
     def getMsg(self):
         return '\'%s\' - %s' % (self.test.path, self.msg)
 
+class Notest(Exception):
+    def __init__(self, test, arch):
+        self.arch = arch
+        self.test = test
+    def getMsg(self):
+        return '[%s] \'%s\'' % (self.arch, self.test.path)
+
 class Unsup(Exception):
     def __init__(self, test):
         self.test = test
@@ -112,6 +119,9 @@ class Event(dict):
 #     'command' - perf command name
 #     'args'    - special command arguments
 #     'ret'     - expected command return value (0 by default)
+#     'arch'    - architecture specific test (optional)
+#                 comma separated list, ! at the beginning
+#                 negates it.
 #
 # [eventX:base]
 #   - one or multiple instances in file
@@ -134,6 +144,12 @@ class Test(object):
         except:
             self.ret  = 0
 
+        try:
+            self.arch  = parser.get('config', 'arch')
+            log.warning("test limitation '%s'" % self.arch)
+        except:
+            self.arch  = ''
+
         self.expect   = {}
         self.result   = {}
         log.debug("  loading expected events");
@@ -144,6 +160,31 @@ class Test(object):
             return False
         else:
             return True
+
+    def skip_test(self, myarch):
+        # If architecture not set always run test
+        if self.arch == '':
+            # log.warning("test for arch %s is ok" % myarch)
+            return False
+
+        # Allow multiple values in assignment separated by ','
+        arch_list = self.arch.split(',')
+
+        # Handle negated list such as !s390x,ppc
+        if arch_list[0][0] == '!':
+            arch_list[0] = arch_list[0][1:]
+            log.warning("excluded architecture list %s" % arch_list)
+            for arch_item in arch_list:
+                # log.warning("test for %s arch is %s" % (arch_item, myarch))
+                if arch_item == myarch:
+                    return True
+            return False
+
+        for arch_item in arch_list:
+            # log.warning("test for architecture '%s' current '%s'" % (arch_item, myarch))
+            if arch_item == myarch:
+                return False
+        return True
 
     def load_events(self, path, events):
         parser_event = ConfigParser.SafeConfigParser()
@@ -168,6 +209,11 @@ class Test(object):
             events[section] = e
 
     def run_cmd(self, tempdir):
+        junk1, junk2, junk3, junk4, myarch = (os.uname())
+
+        if self.skip_test(myarch):
+            raise Notest(self, myarch)
+
         cmd = "PERF_TEST_ATTR=%s %s %s -o %s/perf.data %s" % (tempdir,
               self.perf, self.command, tempdir, self.args)
         ret = os.WEXITSTATUS(os.system(cmd))
@@ -265,6 +311,8 @@ def run_tests(options):
             Test(f, options).run()
         except Unsup, obj:
             log.warning("unsupp  %s" % obj.getMsg())
+        except Notest, obj:
+            log.warning("skipped %s" % obj.getMsg())
 
 def setup_log(verbose):
     global log

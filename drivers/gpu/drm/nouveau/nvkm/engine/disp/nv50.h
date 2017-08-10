@@ -2,18 +2,13 @@
 #define __NV50_DISP_H__
 #define nv50_disp(p) container_of((p), struct nv50_disp, base)
 #include "priv.h"
-struct nvkm_output;
-struct nvkm_output_dp;
-
-#define NV50_DISP_MTHD_ struct nvkm_object *object,                            \
-	struct nv50_disp *disp, void *data, u32 size
-#define NV50_DISP_MTHD_V0 NV50_DISP_MTHD_, int head
-#define NV50_DISP_MTHD_V1 NV50_DISP_MTHD_, int head, struct nvkm_output *outp
+struct nvkm_head;
 
 struct nv50_disp {
 	const struct nv50_disp_func *func;
 	struct nvkm_disp base;
 
+	struct workqueue_struct *wq;
 	struct work_struct supervisor;
 	u32 super;
 
@@ -30,41 +25,17 @@ struct nv50_disp {
 	struct nv50_disp_chan *chan[17];
 };
 
-int nv50_disp_root_scanoutpos(NV50_DISP_MTHD_V0);
-
-int gf119_disp_root_scanoutpos(NV50_DISP_MTHD_V0);
-
-int nv50_dac_power(NV50_DISP_MTHD_V1);
-int nv50_dac_sense(NV50_DISP_MTHD_V1);
-
-int gt215_hda_eld(NV50_DISP_MTHD_V1);
-int gf119_hda_eld(NV50_DISP_MTHD_V1);
-
-int g84_hdmi_ctrl(NV50_DISP_MTHD_V1);
-int gt215_hdmi_ctrl(NV50_DISP_MTHD_V1);
-int gf119_hdmi_ctrl(NV50_DISP_MTHD_V1);
-int gk104_hdmi_ctrl(NV50_DISP_MTHD_V1);
-
-int nv50_sor_power(NV50_DISP_MTHD_V1);
-int nv50_pior_power(NV50_DISP_MTHD_V1);
+void nv50_disp_super_1(struct nv50_disp *);
+void nv50_disp_super_1_0(struct nv50_disp *, struct nvkm_head *);
+void nv50_disp_super_2_0(struct nv50_disp *, struct nvkm_head *);
+void nv50_disp_super_2_1(struct nv50_disp *, struct nvkm_head *);
+void nv50_disp_super_2_2(struct nv50_disp *, struct nvkm_head *);
+void nv50_disp_super_3_0(struct nv50_disp *, struct nvkm_head *);
 
 int nv50_disp_new_(const struct nv50_disp_func *, struct nvkm_device *,
 		   int index, int heads, struct nvkm_disp **);
 int gf119_disp_new_(const struct nv50_disp_func *, struct nvkm_device *,
 		    int index, struct nvkm_disp **);
-
-struct nv50_disp_func_outp {
-	int (* crt)(struct nvkm_disp *, int index, struct dcb_output *,
-		    struct nvkm_output **);
-	int (*  tv)(struct nvkm_disp *, int index, struct dcb_output *,
-		    struct nvkm_output **);
-	int (*tmds)(struct nvkm_disp *, int index, struct dcb_output *,
-		    struct nvkm_output **);
-	int (*lvds)(struct nvkm_disp *, int index, struct dcb_output *,
-		    struct nvkm_output **);
-	int (*  dp)(struct nvkm_disp *, int index, struct dcb_output *,
-		    struct nvkm_output **);
-};
 
 struct nv50_disp_func {
 	void (*intr)(struct nv50_disp *);
@@ -76,44 +47,33 @@ struct nv50_disp_func {
 	const struct nvkm_disp_oclass *root;
 
 	struct {
-		void (*vblank_init)(struct nv50_disp *, int head);
-		void (*vblank_fini)(struct nv50_disp *, int head);
-		int (*scanoutpos)(NV50_DISP_MTHD_V0);
+		int (*new)(struct nvkm_disp *, int id);
 	} head;
 
 	struct {
-		const struct nv50_disp_func_outp internal;
-		const struct nv50_disp_func_outp external;
-	} outp;
-
-	struct {
 		int nr;
-		int (*power)(NV50_DISP_MTHD_V1);
-		int (*sense)(NV50_DISP_MTHD_V1);
+		int (*new)(struct nvkm_disp *, int id);
 	} dac;
 
 	struct {
 		int nr;
-		int (*power)(NV50_DISP_MTHD_V1);
-		int (*hda_eld)(NV50_DISP_MTHD_V1);
-		int (*hdmi)(NV50_DISP_MTHD_V1);
-		void (*magic)(struct nvkm_output *);
+		int (*new)(struct nvkm_disp *, int id);
 	} sor;
 
 	struct {
 		int nr;
-		int (*power)(NV50_DISP_MTHD_V1);
+		int (*new)(struct nvkm_disp *, int id);
 	} pior;
 };
 
-void nv50_disp_vblank_init(struct nv50_disp *, int);
-void nv50_disp_vblank_fini(struct nv50_disp *, int);
 void nv50_disp_intr(struct nv50_disp *);
-void nv50_disp_intr_supervisor(struct work_struct *);
+void nv50_disp_super(struct work_struct *);
 
-void gf119_disp_vblank_init(struct nv50_disp *, int);
-void gf119_disp_vblank_fini(struct nv50_disp *, int);
 void gf119_disp_intr(struct nv50_disp *);
-void gf119_disp_intr_supervisor(struct work_struct *);
+void gf119_disp_super(struct work_struct *);
 void gf119_disp_intr_error(struct nv50_disp *, int);
+
+void nv50_disp_dptmds_war_2(struct nv50_disp *, struct dcb_output *);
+void nv50_disp_dptmds_war_3(struct nv50_disp *, struct dcb_output *);
+void nv50_disp_update_sppll1(struct nv50_disp *);
 #endif

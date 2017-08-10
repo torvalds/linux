@@ -266,7 +266,7 @@ struct goldfish_pipe_dev {
 	unsigned char __iomem *base;
 };
 
-struct goldfish_pipe_dev pipe_dev[1] = {};
+static struct goldfish_pipe_dev pipe_dev[1] = {};
 
 static int goldfish_cmd_locked(struct goldfish_pipe *pipe, enum PipeCmdCode cmd)
 {
@@ -704,7 +704,7 @@ static int get_free_pipe_id_locked(struct goldfish_pipe_dev *dev)
 		/* Reallocate the array */
 		u32 new_capacity = 2 * dev->pipes_capacity;
 		struct goldfish_pipe **pipes =
-			kcalloc(new_capacity, sizeof(*pipes), GFP_KERNEL);
+			kcalloc(new_capacity, sizeof(*pipes), GFP_ATOMIC);
 		if (!pipes)
 			return -ENOMEM;
 		memcpy(pipes, dev->pipes, sizeof(*pipes) * dev->pipes_capacity);

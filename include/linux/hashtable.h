@@ -167,7 +167,6 @@ static inline void hash_del_rcu(struct hlist_node *node)
 /**
  * hash_for_each_possible_rcu - iterate over all possible objects hashing to the
  * same bucket in an rcu enabled hashtable
- * in a rcu enabled hashtable
  * @name: hashtable to iterate
  * @obj: the type * to use as a loop cursor for each entry
  * @member: the name of the hlist_node within the struct

@@ -18,10 +18,12 @@
  * 0c04: Xeon E3-1200 v3/4th Gen Core Processor DRAM Controller
  * 0c08: Xeon E3-1200 v3 Processor DRAM Controller
  * 1918: Xeon E3-1200 v5 Skylake Host Bridge/DRAM Registers
+ * 5918: Xeon E3-1200 Xeon E3-1200 v6/7th Gen Core Processor Host Bridge/DRAM Registers
  *
  * Based on Intel specification:
  * http://www.intel.com/content/dam/www/public/us/en/documents/datasheets/xeon-e3-1200v3-vol-2-datasheet.pdf
  * http://www.intel.com/content/www/us/en/processors/xeon/xeon-e3-1200-family-vol-2-datasheet.html
+ * http://www.intel.com/content/www/us/en/processors/core/7th-gen-core-family-mobile-h-processor-lines-datasheet-vol-2.html
  *
  * According to the above datasheet (p.16):
  * "
@@ -57,6 +59,7 @@
 #define PCI_DEVICE_ID_INTEL_IE31200_HB_6 0x0c04
 #define PCI_DEVICE_ID_INTEL_IE31200_HB_7 0x0c08
 #define PCI_DEVICE_ID_INTEL_IE31200_HB_8 0x1918
+#define PCI_DEVICE_ID_INTEL_IE31200_HB_9 0x5918
 
 #define IE31200_DIMMS			4
 #define IE31200_RANKS			8
@@ -376,7 +379,12 @@ static int ie31200_probe1(struct pci_dev *pdev, int dev_idx)
 	void __iomem *window;
 	struct ie31200_priv *priv;
 	u32 addr_decode, mad_offset;
-	bool skl = (pdev->device == PCI_DEVICE_ID_INTEL_IE31200_HB_8);
+
+	/*
+	 * Kaby Lake seems to work like Skylake. Please re-visit this logic
+	 * when adding new CPU support.
+	 */
+	bool skl = (pdev->device >= PCI_DEVICE_ID_INTEL_IE31200_HB_8);
 
 	edac_dbg(0, "MC:\n");
 
@@ -558,6 +566,9 @@ static const struct pci_device_id ie31200_pci_tbl[] = {
 		IE31200},
 	{
 		PCI_VEND_DEV(INTEL, IE31200_HB_8), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
+		IE31200},
+	{
+		PCI_VEND_DEV(INTEL, IE31200_HB_9), PCI_ANY_ID, PCI_ANY_ID, 0, 0,
 		IE31200},
 	{
 		0,

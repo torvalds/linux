@@ -9,7 +9,7 @@
  * 2 of the License, or (at your option) any later version.
  *
  *
- * See Documentation/security/keys.txt for information on keys/keyrings.
+ * See Documentation/security/keys/core.rst for information on keys/keyrings.
  */
 
 #ifndef _LINUX_KEY_H
@@ -173,7 +173,6 @@ struct key {
 #ifdef KEY_DEBUGGING
 	unsigned		magic;
 #define KEY_DEBUG_MAGIC		0x18273645u
-#define KEY_DEBUG_MAGIC_X	0xf8e9dacbu
 #endif
 
 	unsigned long		flags;		/* status flags (change with bitops) */

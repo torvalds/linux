@@ -307,6 +307,11 @@ enum {
 /* Bit 1-3: LQ command color. Used to match responses to LQ commands */
 #define LQ_FLAG_COLOR_POS               1
 #define LQ_FLAG_COLOR_MSK               (7 << LQ_FLAG_COLOR_POS)
+#define LQ_FLAG_COLOR_GET(_f)		(((_f) & LQ_FLAG_COLOR_MSK) >>\
+					 LQ_FLAG_COLOR_POS)
+#define LQ_FLAGS_COLOR_INC(_c)		((((_c) + 1) << LQ_FLAG_COLOR_POS) &\
+					 LQ_FLAG_COLOR_MSK)
+#define LQ_FLAG_COLOR_SET(_f, _c)	((_c) | ((_f) & ~LQ_FLAG_COLOR_MSK))
 
 /* Bit 4-5: Tx RTS BW Signalling
  * (0) No RTS BW signalling
@@ -363,6 +368,7 @@ enum {
 /**
  * struct iwl_lq_cmd - link quality command
  * @sta_id: station to update
+ * @reduced_tpc: reduced transmit power control value
  * @control: not used
  * @flags: combination of LQ_FLAG_*
  * @mimo_delim: the first SISO index in rs_table, which separates MIMO
@@ -380,6 +386,7 @@ enum {
  *	0: no limit
  *	1: no aggregation (one frame per aggregation)
  *	2 - 0x3f: maximal number of frames (up to 3f == 63)
+ * @reserved2: reserved
  * @rs_table: array of rates for each TX try, each is rate_n_flags,
  *	meaning it is a combination of RATE_MCS_* and IWL_RATE_*_PLCP
  * @ss_params: single stream features. declare whether STBC or BFER are allowed.
@@ -387,7 +394,7 @@ enum {
 struct iwl_lq_cmd {
 	u8 sta_id;
 	u8 reduced_tpc;
-	u16 control;
+	__le16 control;
 	/* LINK_QUAL_GENERAL_PARAMS_API_S_VER_1 */
 	u8 flags;
 	u8 mimo_delim;
@@ -402,4 +409,5 @@ struct iwl_lq_cmd {
 	__le32 rs_table[LQ_MAX_RETRY_NUM];
 	__le32 ss_params;
 }; /* LINK_QUALITY_CMD_API_S_VER_1 */
+
 #endif /* __fw_api_rs_h__ */

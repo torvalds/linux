@@ -1540,7 +1540,7 @@ static int musb_rx_dma_iso_cppi41(struct dma_controller *dma,
 	struct dma_channel *channel = hw_ep->rx_channel;
 	void __iomem *epio = hw_ep->regs;
 	dma_addr_t *buf;
-	u32 length, res;
+	u32 length;
 	u16 val;
 
 	buf = (void *)urb->iso_frame_desc[qh->iso_idx].offset +
@@ -1552,10 +1552,8 @@ static int musb_rx_dma_iso_cppi41(struct dma_controller *dma,
 	val |= MUSB_RXCSR_DMAENAB;
 	musb_writew(hw_ep->regs, MUSB_RXCSR, val);
 
-	res = dma->channel_program(channel, qh->maxpacket, 0,
+	return dma->channel_program(channel, qh->maxpacket, 0,
 				   (u32)buf, length);
-
-	return res;
 }
 #else
 static inline int musb_rx_dma_iso_cppi41(struct dma_controller *dma,
@@ -2780,10 +2778,11 @@ int musb_host_setup(struct musb *musb, int power_budget)
 	int ret;
 	struct usb_hcd *hcd = musb->hcd;
 
-	MUSB_HST_MODE(musb);
-	musb->xceiv->otg->default_a = 1;
-	musb->xceiv->otg->state = OTG_STATE_A_IDLE;
-
+	if (musb->port_mode == MUSB_PORT_MODE_HOST) {
+		MUSB_HST_MODE(musb);
+		musb->xceiv->otg->default_a = 1;
+		musb->xceiv->otg->state = OTG_STATE_A_IDLE;
+	}
 	otg_set_host(musb->xceiv->otg, &hcd->self);
 	hcd->self.otg_port = 1;
 	musb->xceiv->otg->host = &hcd->self;

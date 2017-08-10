@@ -281,7 +281,7 @@ static void pn_net_setup(struct net_device *dev)
 	dev->tx_queue_len	= 1;
 
 	dev->netdev_ops		= &pn_netdev_ops;
-	dev->destructor		= free_netdev;
+	dev->needs_free_netdev	= true;
 	dev->header_ops		= &phonet_header_ops;
 }
 
@@ -336,7 +336,7 @@ static void pn_rx_complete(struct usb_ep *ep, struct usb_request *req)
 			skb->protocol = htons(ETH_P_PHONET);
 			skb_reset_mac_header(skb);
 			/* Can't use pskb_pull() on page in IRQ */
-			memcpy(skb_put(skb, 1), page_address(page), 1);
+			skb_put_data(skb, page_address(page), 1);
 		}
 
 		skb_add_rx_frag(skb, skb_shinfo(skb)->nr_frags, page,

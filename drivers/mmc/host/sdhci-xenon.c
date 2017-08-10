@@ -486,7 +486,7 @@ static int xenon_probe(struct platform_device *pdev)
 
 	err = xenon_sdhc_prepare(host);
 	if (err)
-		goto clean_phy_param;
+		goto err_clk;
 
 	err = sdhci_add_host(host);
 	if (err)
@@ -496,8 +496,6 @@ static int xenon_probe(struct platform_device *pdev)
 
 remove_sdhc:
 	xenon_sdhc_unprepare(host);
-clean_phy_param:
-	xenon_clean_phy(host);
 err_clk:
 	clk_disable_unprepare(pltfm_host->clk);
 free_pltfm:
@@ -509,8 +507,6 @@ static int xenon_remove(struct platform_device *pdev)
 {
 	struct sdhci_host *host = platform_get_drvdata(pdev);
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
-
-	xenon_clean_phy(host);
 
 	sdhci_remove_host(host, 0);
 

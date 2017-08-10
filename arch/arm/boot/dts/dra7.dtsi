@@ -2022,4 +2022,8 @@
 	coefficients = <0 2000>;
 };
 
+&cpu_crit {
+	temperature = <120000>; /* milli Celsius */
+};
+
 /include/ "dra7xx-clocks.dtsi"

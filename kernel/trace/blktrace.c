@@ -867,7 +867,7 @@ static void blk_add_trace_split(void *ignore,
 
 		__blk_add_trace(bt, bio->bi_iter.bi_sector,
 				bio->bi_iter.bi_size, bio_op(bio), bio->bi_opf,
-				BLK_TA_SPLIT, bio->bi_error, sizeof(rpdu),
+				BLK_TA_SPLIT, bio->bi_status, sizeof(rpdu),
 				&rpdu);
 	}
 }
@@ -900,7 +900,7 @@ static void blk_add_trace_bio_remap(void *ignore,
 	r.sector_from = cpu_to_be64(from);
 
 	__blk_add_trace(bt, bio->bi_iter.bi_sector, bio->bi_iter.bi_size,
-			bio_op(bio), bio->bi_opf, BLK_TA_REMAP, bio->bi_error,
+			bio_op(bio), bio->bi_opf, BLK_TA_REMAP, bio->bi_status,
 			sizeof(r), &r);
 }
 
@@ -1662,14 +1662,14 @@ static ssize_t sysfs_blk_trace_attr_store(struct device *dev,
 		goto out;
 
 	if (attr == &dev_attr_act_mask) {
-		if (sscanf(buf, "%llx", &value) != 1) {
+		if (kstrtoull(buf, 0, &value)) {
 			/* Assume it is a list of trace category names */
 			ret = blk_trace_str2mask(buf);
 			if (ret < 0)
 				goto out;
 			value = ret;
 		}
-	} else if (sscanf(buf, "%llu", &value) != 1)
+	} else if (kstrtoull(buf, 0, &value))
 		goto out;
 
 	ret = -ENXIO;

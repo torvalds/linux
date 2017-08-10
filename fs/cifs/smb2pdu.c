@@ -1167,15 +1167,12 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 	int rc = 0;
 	int resp_buftype;
 	int unc_path_len;
-	struct TCP_Server_Info *server;
 	__le16 *unc_path = NULL;
 	int flags = 0;
 
 	cifs_dbg(FYI, "TCON\n");
 
-	if ((ses->server) && tree)
-		server = ses->server;
-	else
+	if (!(ses->server) || !tree)
 		return -EIO;
 
 	unc_path = kmalloc(MAX_SHARENAME_LENGTH * 2, GFP_KERNEL);
@@ -1240,15 +1237,19 @@ SMB2_tcon(const unsigned int xid, struct cifs_ses *ses, const char *tree,
 		goto tcon_exit;
 	}
 
-	if (rsp->ShareType & SMB2_SHARE_TYPE_DISK)
+	switch (rsp->ShareType) {
+	case SMB2_SHARE_TYPE_DISK:
 		cifs_dbg(FYI, "connection to disk share\n");
-	else if (rsp->ShareType & SMB2_SHARE_TYPE_PIPE) {
+		break;
+	case SMB2_SHARE_TYPE_PIPE:
 		tcon->ipc = true;
 		cifs_dbg(FYI, "connection to pipe share\n");
-	} else if (rsp->ShareType & SMB2_SHARE_TYPE_PRINT) {
-		tcon->print = true;
+		break;
+	case SMB2_SHARE_TYPE_PRINT:
+		tcon->ipc = true;
 		cifs_dbg(FYI, "connection to printer\n");
-	} else {
+		break;
+	default:
 		cifs_dbg(VFS, "unknown share type %d\n", rsp->ShareType);
 		rc = -EOPNOTSUPP;
 		goto tcon_error_exit;
@@ -1290,15 +1291,12 @@ SMB2_tdis(const unsigned int xid, struct cifs_tcon *tcon)
 {
 	struct smb2_tree_disconnect_req *req; /* response is trivial */
 	int rc = 0;
-	struct TCP_Server_Info *server;
 	struct cifs_ses *ses = tcon->ses;
 	int flags = 0;
 
 	cifs_dbg(FYI, "Tree Disconnect\n");
 
-	if (ses && (ses->server))
-		server = ses->server;
-	else
+	if (!ses || !(ses->server))
 		return -EIO;
 
 	if ((tcon->need_reconnect) || (tcon->ses->need_reconnect))
@@ -1790,7 +1788,6 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 	struct smb2_ioctl_req *req;
 	struct smb2_ioctl_rsp *rsp;
 	struct smb2_sync_hdr *shdr;
-	struct TCP_Server_Info *server;
 	struct cifs_ses *ses;
 	struct kvec iov[2];
 	struct kvec rsp_iov;
@@ -1813,9 +1810,7 @@ SMB2_ioctl(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 	else
 		return -EIO;
 
-	if (ses && (ses->server))
-		server = ses->server;
-	else
+	if (!ses || !(ses->server))
 		return -EIO;
 
 	rc = small_smb2_init(SMB2_IOCTL, tcon, (void **) &req);
@@ -1973,7 +1968,6 @@ SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
 {
 	struct smb2_close_req *req;
 	struct smb2_close_rsp *rsp;
-	struct TCP_Server_Info *server;
 	struct cifs_ses *ses = tcon->ses;
 	struct kvec iov[1];
 	struct kvec rsp_iov;
@@ -1983,9 +1977,7 @@ SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
 
 	cifs_dbg(FYI, "Close\n");
 
-	if (ses && (ses->server))
-		server = ses->server;
-	else
+	if (!ses || !(ses->server))
 		return -EIO;
 
 	rc = small_smb2_init(SMB2_CLOSE, tcon, (void **) &req);
@@ -2077,8 +2069,9 @@ validate_and_copy_buf(unsigned int offset, unsigned int buffer_length,
 
 static int
 query_info(const unsigned int xid, struct cifs_tcon *tcon,
-	   u64 persistent_fid, u64 volatile_fid, u8 info_class,
-	   size_t output_len, size_t min_len, void *data)
+	   u64 persistent_fid, u64 volatile_fid, u8 info_class, u8 info_type,
+	   u32 additional_info, size_t output_len, size_t min_len, void **data,
+		u32 *dlen)
 {
 	struct smb2_query_info_req *req;
 	struct smb2_query_info_rsp *rsp = NULL;
@@ -2086,15 +2079,12 @@ query_info(const unsigned int xid, struct cifs_tcon *tcon,
 	struct kvec rsp_iov;
 	int rc = 0;
 	int resp_buftype;
-	struct TCP_Server_Info *server;
 	struct cifs_ses *ses = tcon->ses;
 	int flags = 0;
 
 	cifs_dbg(FYI, "Query Info\n");
 
-	if (ses && (ses->server))
-		server = ses->server;
-	else
+	if (!ses || !(ses->server))
 		return -EIO;
 
 	rc = small_smb2_init(SMB2_QUERY_INFO, tcon, (void **) &req);
@@ -2104,10 +2094,11 @@ query_info(const unsigned int xid, struct cifs_tcon *tcon,
 	if (encryption_required(tcon))
 		flags |= CIFS_TRANSFORM_REQ;
 
-	req->InfoType = SMB2_O_INFO_FILE;
+	req->InfoType = info_type;
 	req->FileInfoClass = info_class;
 	req->PersistentFileId = persistent_fid;
 	req->VolatileFileId = volatile_fid;
+	req->AdditionalInformation = cpu_to_le32(additional_info);
 	/* 4 for rfc1002 length field and 1 for Buffer */
 	req->InputBufferOffset =
 		cpu_to_le16(sizeof(struct smb2_query_info_req) - 1 - 4);
@@ -2126,24 +2117,51 @@ query_info(const unsigned int xid, struct cifs_tcon *tcon,
 		goto qinf_exit;
 	}
 
+	if (dlen) {
+		*dlen = le32_to_cpu(rsp->OutputBufferLength);
+		if (!*data) {
+			*data = kmalloc(*dlen, GFP_KERNEL);
+			if (!*data) {
+				cifs_dbg(VFS,
+					"Error %d allocating memory for acl\n",
+					rc);
+				*dlen = 0;
+				goto qinf_exit;
+			}
+		}
+	}
+
 	rc = validate_and_copy_buf(le16_to_cpu(rsp->OutputBufferOffset),
 				   le32_to_cpu(rsp->OutputBufferLength),
-				   &rsp->hdr, min_len, data);
+				   &rsp->hdr, min_len, *data);
 
 qinf_exit:
 	free_rsp_buf(resp_buftype, rsp);
 	return rc;
 }
 
-int
-SMB2_query_info(const unsigned int xid, struct cifs_tcon *tcon,
-		u64 persistent_fid, u64 volatile_fid,
-		struct smb2_file_all_info *data)
+int SMB2_query_info(const unsigned int xid, struct cifs_tcon *tcon,
+	u64 persistent_fid, u64 volatile_fid, struct smb2_file_all_info *data)
 {
 	return query_info(xid, tcon, persistent_fid, volatile_fid,
-			  FILE_ALL_INFORMATION,
+			  FILE_ALL_INFORMATION, SMB2_O_INFO_FILE, 0,
 			  sizeof(struct smb2_file_all_info) + PATH_MAX * 2,
-			  sizeof(struct smb2_file_all_info), data);
+			  sizeof(struct smb2_file_all_info), (void **)&data,
+			  NULL);
+}
+
+int
+SMB2_query_acl(const unsigned int xid, struct cifs_tcon *tcon,
+		u64 persistent_fid, u64 volatile_fid,
+		void **data, u32 *plen)
+{
+	__u32 additional_info = OWNER_SECINFO | GROUP_SECINFO | DACL_SECINFO;
+	*plen = 0;
+
+	return query_info(xid, tcon, persistent_fid, volatile_fid,
+			  0, SMB2_O_INFO_SECURITY, additional_info,
+			  SMB2_MAX_BUFFER_SIZE,
+			  sizeof(struct smb2_file_all_info), data, plen);
 }
 
 int
@@ -2151,9 +2169,10 @@ SMB2_get_srv_num(const unsigned int xid, struct cifs_tcon *tcon,
 		 u64 persistent_fid, u64 volatile_fid, __le64 *uniqueid)
 {
 	return query_info(xid, tcon, persistent_fid, volatile_fid,
-			  FILE_INTERNAL_INFORMATION,
+			  FILE_INTERNAL_INFORMATION, SMB2_O_INFO_FILE, 0,
 			  sizeof(struct smb2_file_internal_info),
-			  sizeof(struct smb2_file_internal_info), uniqueid);
+			  sizeof(struct smb2_file_internal_info),
+			  (void **)&uniqueid, NULL);
 }
 
 /*
@@ -2173,9 +2192,7 @@ smb2_echo_callback(struct mid_q_entry *mid)
 	if (mid->mid_state == MID_RESPONSE_RECEIVED)
 		credits_received = le16_to_cpu(rsp->hdr.sync_hdr.CreditRequest);
 
-	mutex_lock(&server->srv_mutex);
 	DeleteMidQEntry(mid);
-	mutex_unlock(&server->srv_mutex);
 	add_credits(server, credits_received, CIFS_ECHO_OP);
 }
 
@@ -2279,7 +2296,6 @@ SMB2_flush(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 	   u64 volatile_fid)
 {
 	struct smb2_flush_req *req;
-	struct TCP_Server_Info *server;
 	struct cifs_ses *ses = tcon->ses;
 	struct kvec iov[1];
 	struct kvec rsp_iov;
@@ -2289,9 +2305,7 @@ SMB2_flush(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 
 	cifs_dbg(FYI, "Flush\n");
 
-	if (ses && (ses->server))
-		server = ses->server;
-	else
+	if (!ses || !(ses->server))
 		return -EIO;
 
 	rc = small_smb2_init(SMB2_FLUSH, tcon, (void **) &req);
@@ -2433,9 +2447,7 @@ smb2_readv_callback(struct mid_q_entry *mid)
 		cifs_stats_fail_inc(tcon, SMB2_READ_HE);
 
 	queue_work(cifsiod_wq, &rdata->work);
-	mutex_lock(&server->srv_mutex);
 	DeleteMidQEntry(mid);
-	mutex_unlock(&server->srv_mutex);
 	add_credits(server, credits_received, 0);
 }
 
@@ -2594,7 +2606,6 @@ smb2_writev_callback(struct mid_q_entry *mid)
 {
 	struct cifs_writedata *wdata = mid->callback_data;
 	struct cifs_tcon *tcon = tlink_tcon(wdata->cfile->tlink);
-	struct TCP_Server_Info *server = tcon->ses->server;
 	unsigned int written;
 	struct smb2_write_rsp *rsp = (struct smb2_write_rsp *)mid->resp_buf;
 	unsigned int credits_received = 1;
@@ -2634,9 +2645,7 @@ smb2_writev_callback(struct mid_q_entry *mid)
 		cifs_stats_fail_inc(tcon, SMB2_WRITE_HE);
 
 	queue_work(cifsiod_wq, &wdata->work);
-	mutex_lock(&server->srv_mutex);
 	DeleteMidQEntry(mid);
-	mutex_unlock(&server->srv_mutex);
 	add_credits(tcon->ses->server, credits_received, 0);
 }
 
@@ -2973,8 +2982,9 @@ qdir_exit:
 
 static int
 send_set_info(const unsigned int xid, struct cifs_tcon *tcon,
-	       u64 persistent_fid, u64 volatile_fid, u32 pid, int info_class,
-	       unsigned int num, void **data, unsigned int *size)
+	       u64 persistent_fid, u64 volatile_fid, u32 pid, u8 info_class,
+	       u8 info_type, u32 additional_info, unsigned int num,
+		void **data, unsigned int *size)
 {
 	struct smb2_set_info_req *req;
 	struct smb2_set_info_rsp *rsp = NULL;
@@ -2983,13 +2993,10 @@ send_set_info(const unsigned int xid, struct cifs_tcon *tcon,
 	int rc = 0;
 	int resp_buftype;
 	unsigned int i;
-	struct TCP_Server_Info *server;
 	struct cifs_ses *ses = tcon->ses;
 	int flags = 0;
 
-	if (ses && (ses->server))
-		server = ses->server;
-	else
+	if (!ses || !(ses->server))
 		return -EIO;
 
 	if (!num)
@@ -3010,10 +3017,11 @@ send_set_info(const unsigned int xid, struct cifs_tcon *tcon,
 
 	req->hdr.sync_hdr.ProcessId = cpu_to_le32(pid);
 
-	req->InfoType = SMB2_O_INFO_FILE;
+	req->InfoType = info_type;
 	req->FileInfoClass = info_class;
 	req->PersistentFileId = persistent_fid;
 	req->VolatileFileId = volatile_fid;
+	req->AdditionalInformation = cpu_to_le32(additional_info);
 
 	/* 4 for RFC1001 length and 1 for Buffer */
 	req->BufferOffset =
@@ -3073,8 +3081,8 @@ SMB2_rename(const unsigned int xid, struct cifs_tcon *tcon,
 	size[1] = len + 2 /* null */;
 
 	rc = send_set_info(xid, tcon, persistent_fid, volatile_fid,
-			   current->tgid, FILE_RENAME_INFORMATION, 2, data,
-			   size);
+		current->tgid, FILE_RENAME_INFORMATION, SMB2_O_INFO_FILE,
+		0, 2, data, size);
 	kfree(data);
 	return rc;
 }
@@ -3091,8 +3099,8 @@ SMB2_rmdir(const unsigned int xid, struct cifs_tcon *tcon,
 	size = 1; /* sizeof __u8 */
 
 	return send_set_info(xid, tcon, persistent_fid, volatile_fid,
-			current->tgid, FILE_DISPOSITION_INFORMATION, 1, &data,
-			&size);
+		current->tgid, FILE_DISPOSITION_INFORMATION, SMB2_O_INFO_FILE,
+		0, 1, &data, &size);
 }
 
 int
@@ -3121,7 +3129,8 @@ SMB2_set_hardlink(const unsigned int xid, struct cifs_tcon *tcon,
 	size[1] = len + 2 /* null */;
 
 	rc = send_set_info(xid, tcon, persistent_fid, volatile_fid,
-			   current->tgid, FILE_LINK_INFORMATION, 2, data, size);
+			current->tgid, FILE_LINK_INFORMATION, SMB2_O_INFO_FILE,
+			0, 2, data, size);
 	kfree(data);
 	return rc;
 }
@@ -3141,10 +3150,12 @@ SMB2_set_eof(const unsigned int xid, struct cifs_tcon *tcon, u64 persistent_fid,
 
 	if (is_falloc)
 		return send_set_info(xid, tcon, persistent_fid, volatile_fid,
-			pid, FILE_ALLOCATION_INFORMATION, 1, &data, &size);
+			pid, FILE_ALLOCATION_INFORMATION, SMB2_O_INFO_FILE,
+			0, 1, &data, &size);
 	else
 		return send_set_info(xid, tcon, persistent_fid, volatile_fid,
-			pid, FILE_END_OF_FILE_INFORMATION, 1, &data, &size);
+			pid, FILE_END_OF_FILE_INFORMATION, SMB2_O_INFO_FILE,
+			0, 1, &data, &size);
 }
 
 int
@@ -3154,8 +3165,18 @@ SMB2_set_info(const unsigned int xid, struct cifs_tcon *tcon,
 	unsigned int size;
 	size = sizeof(FILE_BASIC_INFO);
 	return send_set_info(xid, tcon, persistent_fid, volatile_fid,
-			     current->tgid, FILE_BASIC_INFORMATION, 1,
-			     (void **)&buf, &size);
+		current->tgid, FILE_BASIC_INFORMATION, SMB2_O_INFO_FILE,
+		0, 1, (void **)&buf, &size);
+}
+
+int
+SMB2_set_acl(const unsigned int xid, struct cifs_tcon *tcon,
+		u64 persistent_fid, u64 volatile_fid,
+		struct cifs_ntsd *pnntsd, int pacllen, int aclflag)
+{
+	return send_set_info(xid, tcon, persistent_fid, volatile_fid,
+			current->tgid, 0, SMB2_O_INFO_SECURITY, aclflag,
+			1, (void **)&pnntsd, &pacllen);
 }
 
 int

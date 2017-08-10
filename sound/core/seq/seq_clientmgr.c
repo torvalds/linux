@@ -1668,7 +1668,6 @@ int snd_seq_set_queue_tempo(int client, struct snd_seq_queue_tempo *tempo)
 		return -EPERM;
 	return snd_seq_queue_timer_set_tempo(tempo->queue, client, tempo);
 }
-
 EXPORT_SYMBOL(snd_seq_set_queue_tempo);
 
 static int snd_seq_ioctl_set_queue_tempo(struct snd_seq_client *client,
@@ -2200,7 +2199,6 @@ int snd_seq_create_kernel_client(struct snd_card *card, int client_index,
 	/* return client number to caller */
 	return client->number;
 }
-
 EXPORT_SYMBOL(snd_seq_create_kernel_client);
 
 /* exported to kernel modules */
@@ -2219,7 +2217,6 @@ int snd_seq_delete_kernel_client(int client)
 	kfree(ptr);
 	return 0;
 }
-
 EXPORT_SYMBOL(snd_seq_delete_kernel_client);
 
 /* skeleton to enqueue event, called from snd_seq_kernel_client_enqueue
@@ -2269,7 +2266,6 @@ int snd_seq_kernel_client_enqueue(int client, struct snd_seq_event * ev,
 {
 	return kernel_client_enqueue(client, ev, NULL, 0, atomic, hop);
 }
-
 EXPORT_SYMBOL(snd_seq_kernel_client_enqueue);
 
 /*
@@ -2283,7 +2279,6 @@ int snd_seq_kernel_client_enqueue_blocking(int client, struct snd_seq_event * ev
 {
 	return kernel_client_enqueue(client, ev, file, 1, atomic, hop);
 }
-
 EXPORT_SYMBOL(snd_seq_kernel_client_enqueue_blocking);
 
 /* 
@@ -2321,7 +2316,6 @@ int snd_seq_kernel_client_dispatch(int client, struct snd_seq_event * ev,
 	snd_seq_client_unlock(cptr);
 	return result;
 }
-
 EXPORT_SYMBOL(snd_seq_kernel_client_dispatch);
 
 /**
@@ -2354,7 +2348,6 @@ int snd_seq_kernel_client_ctl(int clientid, unsigned int cmd, void *arg)
 		 cmd, _IOC_TYPE(cmd), _IOC_NR(cmd));
 	return -ENOTTY;
 }
-
 EXPORT_SYMBOL(snd_seq_kernel_client_ctl);
 
 /* exported (for OSS emulator) */
@@ -2372,7 +2365,6 @@ int snd_seq_kernel_client_write_poll(int clientid, struct file *file, poll_table
 		return 1;
 	return 0;
 }
-
 EXPORT_SYMBOL(snd_seq_kernel_client_write_poll);
 
 /*---------------------------------------------------------------------------*/

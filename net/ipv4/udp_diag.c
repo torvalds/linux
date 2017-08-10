@@ -55,7 +55,7 @@ static int udp_dump_one(struct udp_table *tbl, struct sk_buff *in_skb,
 				req->id.idiag_dport,
 				req->id.idiag_if, tbl, NULL);
 #endif
-	if (sk && !atomic_inc_not_zero(&sk->sk_refcnt))
+	if (sk && !refcount_inc_not_zero(&sk->sk_refcnt))
 		sk = NULL;
 	rcu_read_unlock();
 	err = -ENOENT;
@@ -206,7 +206,7 @@ static int __udp_diag_destroy(struct sk_buff *in_skb,
 		return -EINVAL;
 	}
 
-	if (sk && !atomic_inc_not_zero(&sk->sk_refcnt))
+	if (sk && !refcount_inc_not_zero(&sk->sk_refcnt))
 		sk = NULL;
 
 	rcu_read_unlock();

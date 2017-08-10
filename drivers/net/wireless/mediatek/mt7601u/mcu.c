@@ -68,7 +68,7 @@ mt7601u_mcu_msg_alloc(struct mt7601u_dev *dev, const void *data, int len)
 	skb = alloc_skb(len + MT_DMA_HDR_LEN + 4, GFP_KERNEL);
 	if (skb) {
 		skb_reserve(skb, MT_DMA_HDR_LEN);
-		memcpy(skb_put(skb, len), data, len);
+		skb_put_data(skb, data, len);
 	}
 
 	return skb;

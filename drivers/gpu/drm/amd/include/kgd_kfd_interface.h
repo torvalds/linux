@@ -29,10 +29,12 @@
 #define KGD_KFD_INTERFACE_H_INCLUDED
 
 #include <linux/types.h>
+#include <linux/bitmap.h>
 
 struct pci_dev;
 
-#define KFD_INTERFACE_VERSION 1
+#define KFD_INTERFACE_VERSION 2
+#define KGD_MAX_QUEUES 128
 
 struct kfd_dev;
 struct kgd_dev;
@@ -61,11 +63,17 @@ struct kgd2kfd_shared_resources {
 	/* Bit n == 1 means VMID n is available for KFD. */
 	unsigned int compute_vmid_bitmap;
 
-	/* Compute pipes are counted starting from MEC0/pipe0 as 0. */
-	unsigned int first_compute_pipe;
+	/* number of mec available from the hardware */
+	uint32_t num_mec;
 
-	/* Number of MEC pipes available for KFD. */
-	unsigned int compute_pipe_count;
+	/* number of pipes per mec */
+	uint32_t num_pipe_per_mec;
+
+	/* number of queues per pipe */
+	uint32_t num_queue_per_pipe;
+
+	/* Bit n == 1 means Queue n is available for KFD */
+	DECLARE_BITMAP(queue_bitmap, KGD_MAX_QUEUES);
 
 	/* Base address of doorbell aperture. */
 	phys_addr_t doorbell_physical_address;

@@ -1062,7 +1062,7 @@ static int mtk_hdmi_setup_vendor_specific_infoframe(struct mtk_hdmi *hdmi,
 	}
 
 	err = hdmi_vendor_infoframe_pack(&frame, buffer, sizeof(buffer));
-	if (err) {
+	if (err < 0) {
 		dev_err(hdmi->dev, "Failed to pack vendor infoframe: %zd\n",
 			err);
 		return err;
@@ -1778,33 +1778,14 @@ static struct platform_driver * const mtk_hdmi_drivers[] = {
 
 static int __init mtk_hdmitx_init(void)
 {
-	int ret;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(mtk_hdmi_drivers); i++) {
-		ret = platform_driver_register(mtk_hdmi_drivers[i]);
-		if (ret < 0) {
-			pr_err("Failed to register %s driver: %d\n",
-			       mtk_hdmi_drivers[i]->driver.name, ret);
-			goto err;
-		}
-	}
-
-	return 0;
-
-err:
-	while (--i >= 0)
-		platform_driver_unregister(mtk_hdmi_drivers[i]);
-
-	return ret;
+	return platform_register_drivers(mtk_hdmi_drivers,
+					 ARRAY_SIZE(mtk_hdmi_drivers));
 }
 
 static void __exit mtk_hdmitx_exit(void)
 {
-	int i;
-
-	for (i = ARRAY_SIZE(mtk_hdmi_drivers) - 1; i >= 0; i--)
-		platform_driver_unregister(mtk_hdmi_drivers[i]);
+	platform_unregister_drivers(mtk_hdmi_drivers,
+				    ARRAY_SIZE(mtk_hdmi_drivers));
 }
 
 module_init(mtk_hdmitx_init);

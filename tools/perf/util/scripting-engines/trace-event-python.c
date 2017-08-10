@@ -28,6 +28,7 @@
 #include <stdbool.h>
 #include <errno.h>
 #include <linux/bitmap.h>
+#include <linux/compiler.h>
 #include <linux/time64.h>
 
 #include "../../perf.h"
@@ -84,7 +85,7 @@ struct tables {
 
 static struct tables tables_global;
 
-static void handler_call_die(const char *handler_name) NORETURN;
+static void handler_call_die(const char *handler_name) __noreturn;
 static void handler_call_die(const char *handler_name)
 {
 	PyErr_Print();
@@ -1219,7 +1220,7 @@ static int python_generate_script(struct pevent *pevent, const char *outfile)
 	fprintf(ofp, "# be retrieved using Python functions of the form "
 		"common_*(context).\n");
 
-	fprintf(ofp, "# See the perf-trace-python Documentation for the list "
+	fprintf(ofp, "# See the perf-script-python Documentation for the list "
 		"of available functions.\n\n");
 
 	fprintf(ofp, "import os\n");

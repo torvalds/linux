@@ -108,6 +108,8 @@ struct imx_usbmisc {
 	const struct usbmisc_ops *ops;
 };
 
+static inline bool is_imx53_usbmisc(struct imx_usbmisc_data *data);
+
 static int usbmisc_imx25_init(struct imx_usbmisc_data *data)
 {
 	struct imx_usbmisc *usbmisc = dev_get_drvdata(data->dev);
@@ -242,10 +244,15 @@ static int usbmisc_imx53_init(struct imx_usbmisc_data *data)
 			val = readl(reg) | MX53_USB_UHx_CTRL_WAKE_UP_EN
 				| MX53_USB_UHx_CTRL_ULPI_INT_EN;
 			writel(val, reg);
-			/* Disable internal 60Mhz clock */
-			reg = usbmisc->base + MX53_USB_CLKONOFF_CTRL_OFFSET;
-			val = readl(reg) | MX53_USB_CLKONOFF_CTRL_H2_INT60CKOFF;
-			writel(val, reg);
+			if (is_imx53_usbmisc(data)) {
+				/* Disable internal 60Mhz clock */
+				reg = usbmisc->base +
+					MX53_USB_CLKONOFF_CTRL_OFFSET;
+				val = readl(reg) |
+					MX53_USB_CLKONOFF_CTRL_H2_INT60CKOFF;
+				writel(val, reg);
+			}
+
 		}
 		if (data->disable_oc) {
 			reg = usbmisc->base + MX53_USB_UH2_CTRL_OFFSET;
@@ -267,10 +274,15 @@ static int usbmisc_imx53_init(struct imx_usbmisc_data *data)
 			val = readl(reg) | MX53_USB_UHx_CTRL_WAKE_UP_EN
 				| MX53_USB_UHx_CTRL_ULPI_INT_EN;
 			writel(val, reg);
-			/* Disable internal 60Mhz clock */
-			reg = usbmisc->base + MX53_USB_CLKONOFF_CTRL_OFFSET;
-			val = readl(reg) | MX53_USB_CLKONOFF_CTRL_H3_INT60CKOFF;
-			writel(val, reg);
+
+			if (is_imx53_usbmisc(data)) {
+				/* Disable internal 60Mhz clock */
+				reg = usbmisc->base +
+					MX53_USB_CLKONOFF_CTRL_OFFSET;
+				val = readl(reg) |
+					MX53_USB_CLKONOFF_CTRL_H3_INT60CKOFF;
+				writel(val, reg);
+			}
 		}
 		if (data->disable_oc) {
 			reg = usbmisc->base + MX53_USB_UH3_CTRL_OFFSET;
@@ -456,6 +468,10 @@ static const struct usbmisc_ops imx27_usbmisc_ops = {
 	.init = usbmisc_imx27_init,
 };
 
+static const struct usbmisc_ops imx51_usbmisc_ops = {
+	.init = usbmisc_imx53_init,
+};
+
 static const struct usbmisc_ops imx53_usbmisc_ops = {
 	.init = usbmisc_imx53_init,
 };
@@ -478,6 +494,13 @@ static const struct usbmisc_ops imx7d_usbmisc_ops = {
 	.init = usbmisc_imx7d_init,
 	.set_wakeup = usbmisc_imx7d_set_wakeup,
 };
+
+static inline bool is_imx53_usbmisc(struct imx_usbmisc_data *data)
+{
+	struct imx_usbmisc *usbmisc = dev_get_drvdata(data->dev);
+
+	return usbmisc->ops == &imx53_usbmisc_ops;
+}
 
 int imx_usbmisc_init(struct imx_usbmisc_data *data)
 {
@@ -536,7 +559,7 @@ static const struct of_device_id usbmisc_imx_dt_ids[] = {
 	},
 	{
 		.compatible = "fsl,imx51-usbmisc",
-		.data = &imx53_usbmisc_ops,
+		.data = &imx51_usbmisc_ops,
 	},
 	{
 		.compatible = "fsl,imx53-usbmisc",

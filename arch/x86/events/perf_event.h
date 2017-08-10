@@ -562,6 +562,9 @@ struct x86_pmu {
 	ssize_t		(*events_sysfs_show)(char *page, u64 config);
 	struct attribute **cpu_events;
 
+	unsigned long	attr_freeze_on_smi;
+	struct attribute **attrs;
+
 	/*
 	 * CPU Hotplug hooks
 	 */

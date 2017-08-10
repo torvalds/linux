@@ -35,6 +35,10 @@ int bpf_load_program(enum bpf_prog_type type, const struct bpf_insn *insns,
 		     size_t insns_cnt, const char *license,
 		     __u32 kern_version, char *log_buf,
 		     size_t log_buf_sz);
+int bpf_verify_program(enum bpf_prog_type type, const struct bpf_insn *insns,
+		       size_t insns_cnt, int strict_alignment,
+		       const char *license, __u32 kern_version,
+		       char *log_buf, size_t log_buf_sz);
 
 int bpf_map_update_elem(int fd, const void *key, const void *value,
 			__u64 flags);
@@ -50,5 +54,10 @@ int bpf_prog_detach(int attachable_fd, enum bpf_attach_type type);
 int bpf_prog_test_run(int prog_fd, int repeat, void *data, __u32 size,
 		      void *data_out, __u32 *size_out, __u32 *retval,
 		      __u32 *duration);
+int bpf_prog_get_next_id(__u32 start_id, __u32 *next_id);
+int bpf_map_get_next_id(__u32 start_id, __u32 *next_id);
+int bpf_prog_get_fd_by_id(__u32 id);
+int bpf_map_get_fd_by_id(__u32 id);
+int bpf_obj_get_info_by_fd(int prog_fd, void *info, __u32 *info_len);
 
 #endif

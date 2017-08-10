@@ -50,29 +50,13 @@
 #define DMAR_DLY_CNT_DEF				    15
 #define DMAW_DLY_CNT_DEF				     4
 
-#define IMR_NORMAL_MASK         (\
-		ISR_ERROR       |\
-		ISR_GPHY_LINK   |\
-		ISR_TX_PKT      |\
-		GPHY_WAKEUP_INT)
-
-#define IMR_EXTENDED_MASK       (\
-		SW_MAN_INT      |\
-		ISR_OVER        |\
-		ISR_ERROR       |\
-		ISR_GPHY_LINK   |\
-		ISR_TX_PKT      |\
-		GPHY_WAKEUP_INT)
+#define IMR_NORMAL_MASK		(ISR_ERROR | ISR_OVER | ISR_TX_PKT)
 
 #define ISR_TX_PKT      (\
 	TX_PKT_INT      |\
 	TX_PKT_INT1     |\
 	TX_PKT_INT2     |\
 	TX_PKT_INT3)
-
-#define ISR_GPHY_LINK        (\
-	GPHY_LINK_UP_INT     |\
-	GPHY_LINK_DOWN_INT)
 
 #define ISR_OVER        (\
 	RFD0_UR_INT     |\
@@ -186,10 +170,6 @@ irqreturn_t emac_isr(int _irq, void *data)
 
 	if (status & ISR_OVER)
 		net_warn_ratelimited("warning: TX/RX overflow\n");
-
-	/* link event */
-	if (status & ISR_GPHY_LINK)
-		phy_mac_interrupt(adpt->phydev, !!(status & GPHY_LINK_UP_INT));
 
 exit:
 	/* enable the interrupt */
@@ -703,8 +683,6 @@ static int emac_probe(struct platform_device *pdev)
 		goto err_undo_mdiobus;
 	}
 
-	emac_mac_reset(adpt);
-
 	/* set hw features */
 	netdev->features = NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_RXCSUM |
 			NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_HW_VLAN_CTAG_RX |
@@ -782,6 +760,19 @@ static int emac_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void emac_shutdown(struct platform_device *pdev)
+{
+	struct net_device *netdev = dev_get_drvdata(&pdev->dev);
+	struct emac_adapter *adpt = netdev_priv(netdev);
+	struct emac_sgmii *sgmii = &adpt->phy;
+
+	/* Closing the SGMII turns off its interrupts */
+	sgmii->close(adpt);
+
+	/* Resetting the MAC turns off all DMA and its interrupts */
+	emac_mac_reset(adpt);
+}
+
 static struct platform_driver emac_platform_driver = {
 	.probe	= emac_probe,
 	.remove	= emac_remove,
@@ -790,6 +781,7 @@ static struct platform_driver emac_platform_driver = {
 		.of_match_table = emac_dt_match,
 		.acpi_match_table = ACPI_PTR(emac_acpi_match),
 	},
+	.shutdown = emac_shutdown,
 };
 
 module_platform_driver(emac_platform_driver);

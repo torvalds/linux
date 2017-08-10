@@ -209,6 +209,7 @@ config VIDEO_ADV7604
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
 	depends on GPIOLIB || COMPILE_TEST
 	select HDMI
+	select V4L2_FWNODE
 	---help---
 	  Support for the Analog Devices ADV7604 video decoder.
 
@@ -220,7 +221,8 @@ config VIDEO_ADV7604
 
 config VIDEO_ADV7604_CEC
 	bool "Enable Analog Devices ADV7604 CEC support"
-	depends on VIDEO_ADV7604 && CEC_CORE
+	depends on VIDEO_ADV7604
+	select CEC_CORE
 	---help---
 	  When selected the adv7604 will support the optional
 	  HDMI CEC feature.
@@ -240,7 +242,8 @@ config VIDEO_ADV7842
 
 config VIDEO_ADV7842_CEC
 	bool "Enable Analog Devices ADV7842 CEC support"
-	depends on VIDEO_ADV7842 && CEC_CORE
+	depends on VIDEO_ADV7842
+	select CEC_CORE
 	---help---
 	  When selected the adv7842 will support the optional
 	  HDMI CEC feature.
@@ -300,6 +303,16 @@ config VIDEO_AD5820
 	  This is a driver for the AD5820 camera lens voice coil.
 	  It is used for example in Nokia N900 (RX-51).
 
+config VIDEO_DW9714
+	tristate "DW9714 lens voice coil support"
+	depends on I2C && VIDEO_V4L2 && MEDIA_CONTROLLER
+	depends on VIDEO_V4L2_SUBDEV_API
+	---help---
+	  This is a driver for the DW9714 camera lens voice coil.
+	  DW9714 is a 10 bit DAC with 120mA output current sink
+	  capability. This is designed for linear control of
+	  voice coil motors, controlled via I2C serial interface.
+
 config VIDEO_SAA7110
 	tristate "Philips SAA7110 video decoder"
 	depends on VIDEO_V4L2 && I2C
@@ -322,6 +335,7 @@ config VIDEO_TC358743
 	tristate "Toshiba TC358743 decoder"
 	depends on VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
 	select HDMI
+	select V4L2_FWNODE
 	---help---
 	  Support for the Toshiba TC358743 HDMI to MIPI CSI-2 bridge.
 
@@ -331,6 +345,7 @@ config VIDEO_TC358743
 config VIDEO_TVP514X
 	tristate "Texas Instruments TVP514x video decoder"
 	depends on VIDEO_V4L2 && I2C
+	select V4L2_FWNODE
 	---help---
 	  This is a Video4Linux2 sensor-level driver for the TI TVP5146/47
 	  decoder. It is currently working with the TI OMAP3 camera
@@ -342,6 +357,7 @@ config VIDEO_TVP514X
 config VIDEO_TVP5150
 	tristate "Texas Instruments TVP5150 video decoder"
 	depends on VIDEO_V4L2 && I2C
+	select V4L2_FWNODE
 	---help---
 	  Support for the Texas Instruments TVP5150 video decoder.
 
@@ -351,6 +367,7 @@ config VIDEO_TVP5150
 config VIDEO_TVP7002
 	tristate "Texas Instruments TVP7002 video decoder"
 	depends on VIDEO_V4L2 && I2C
+	select V4L2_FWNODE
 	---help---
 	  Support for the Texas Instruments TVP7002 video decoder.
 
@@ -478,7 +495,8 @@ config VIDEO_ADV7511
 
 config VIDEO_ADV7511_CEC
 	bool "Enable Analog Devices ADV7511 CEC support"
-	depends on VIDEO_ADV7511 && CEC_CORE
+	depends on VIDEO_ADV7511
+	select CEC_CORE
 	---help---
 	  When selected the adv7511 will support the optional
 	  HDMI CEC feature.
@@ -532,6 +550,7 @@ config VIDEO_OV2659
 	tristate "OmniVision OV2659 sensor support"
 	depends on VIDEO_V4L2 && I2C
 	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
 	---help---
 	  This is a Video4Linux2 sensor-level driver for the OmniVision
 	  OV2659 camera.
@@ -539,11 +558,22 @@ config VIDEO_OV2659
 	  To compile this driver as a module, choose M here: the
 	  module will be called ov2659.
 
+config VIDEO_OV5640
+	tristate "OmniVision OV5640 sensor support"
+	depends on OF
+	depends on GPIOLIB && VIDEO_V4L2 && I2C && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the Omnivision
+	  OV5640 camera sensor with a MIPI CSI-2 interface.
+
 config VIDEO_OV5645
 	tristate "OmniVision OV5645 sensor support"
 	depends on OF
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
 	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
 	---help---
 	  This is a Video4Linux2 sensor-level driver for the OmniVision
 	  OV5645 camera.
@@ -555,6 +585,7 @@ config VIDEO_OV5647
 	tristate "OmniVision OV5647 sensor support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
 	depends on MEDIA_CAMERA_SUPPORT
+	select V4L2_FWNODE
 	---help---
 	  This is a Video4Linux2 sensor-level driver for the OmniVision
 	  OV5647 camera.
@@ -588,6 +619,14 @@ config VIDEO_OV9650
 	---help---
 	  This is a V4L2 sensor-level driver for the Omnivision
 	  OV9650 and OV9652 camera sensors.
+
+config VIDEO_OV13858
+	tristate "OmniVision OV13858 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	---help---
+	  This is a Video4Linux2 sensor-level driver for the OmniVision
+	  OV13858 camera.
 
 config VIDEO_VS6624
 	tristate "ST VS6624 sensor support"
@@ -647,6 +686,7 @@ config VIDEO_MT9V032
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
 	depends on MEDIA_CAMERA_SUPPORT
 	select REGMAP_I2C
+	select V4L2_FWNODE
 	---help---
 	  This is a Video4Linux2 sensor-level driver for the Micron
 	  MT9V032 752x480 CMOS sensor.
@@ -694,6 +734,7 @@ config VIDEO_S5K4ECGX
 config VIDEO_S5K5BAF
 	tristate "Samsung S5K5BAF sensor support"
 	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
 	---help---
 	  This is a V4L2 sensor-level driver for Samsung S5K5BAF 2M
 	  camera sensor with an embedded SoC image signal processor.
@@ -704,6 +745,7 @@ source "drivers/media/i2c/et8ek8/Kconfig"
 config VIDEO_S5C73M3
 	tristate "Samsung S5C73M3 sensor support"
 	depends on I2C && SPI && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	select V4L2_FWNODE
 	---help---
 	  This is a V4L2 sensor-level driver for Samsung S5C73M3
 	  8 Mpixel camera.
@@ -781,6 +823,18 @@ config VIDEO_SAA6752HS
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called saa6752hs.
+
+comment "SDR tuner chips"
+
+config SDR_MAX2175
+	tristate "Maxim 2175 RF to Bits tuner"
+	depends on VIDEO_V4L2 && MEDIA_SDR_SUPPORT && I2C
+	---help---
+	  Support for Maxim 2175 tuner. It is an advanced analog/digital
+	  radio receiver with RF-to-Bits front-end designed for SDR solutions.
+
+	  To compile this driver as a module, choose M here; the
+	  module will be called max2175.
 
 comment "Miscellaneous helper chips"
 

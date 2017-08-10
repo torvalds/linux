@@ -182,7 +182,7 @@ int is_valid_bugaddr(unsigned long addr)
 	return ud == INSN_UD0 || ud == INSN_UD2;
 }
 
-static int fixup_bug(struct pt_regs *regs, int trapnr)
+int fixup_bug(struct pt_regs *regs, int trapnr)
 {
 	if (trapnr != X86_TRAP_UD)
 		return 0;

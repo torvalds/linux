@@ -526,6 +526,7 @@ static int __maybe_unused silead_ts_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 
+	disable_irq(client->irq);
 	silead_ts_set_power(client, SILEAD_POWER_OFF);
 	return 0;
 }
@@ -550,6 +551,8 @@ static int __maybe_unused silead_ts_resume(struct device *dev)
 		dev_err(dev, "Resume error, status: 0x%02x\n", status);
 		return -ENODEV;
 	}
+
+	enable_irq(client->irq);
 
 	return 0;
 }

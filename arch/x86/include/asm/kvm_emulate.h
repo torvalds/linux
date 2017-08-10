@@ -23,6 +23,7 @@ struct x86_exception {
 	u16 error_code;
 	bool nested_page_fault;
 	u64 address; /* cr2 or nested page fault gpa */
+	u8 async_page_fault;
 };
 
 /*
@@ -296,6 +297,7 @@ struct x86_emulate_ctxt {
 
 	bool perm_ok; /* do not check permissions if true */
 	bool ud;	/* inject an #UD if host doesn't support insn */
+	bool tf;	/* TF value before instruction (after for syscall/sysret) */
 
 	bool have_exception;
 	struct x86_exception exception;

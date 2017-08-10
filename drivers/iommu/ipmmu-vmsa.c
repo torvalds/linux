@@ -8,7 +8,9 @@
  * the Free Software Foundation; version 2 of the License.
  */
 
+#include <linux/bitmap.h>
 #include <linux/delay.h>
+#include <linux/dma-iommu.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
 #include <linux/export.h>
@@ -21,10 +23,14 @@
 #include <linux/sizes.h>
 #include <linux/slab.h>
 
+#if defined(CONFIG_ARM) && !defined(CONFIG_IOMMU_DMA)
 #include <asm/dma-iommu.h>
 #include <asm/pgalloc.h>
+#endif
 
 #include "io-pgtable.h"
+
+#define IPMMU_CTX_MAX 1
 
 struct ipmmu_vmsa_device {
 	struct device *dev;
@@ -32,6 +38,9 @@ struct ipmmu_vmsa_device {
 	struct list_head list;
 
 	unsigned int num_utlbs;
+	spinlock_t lock;			/* Protects ctx and domains[] */
+	DECLARE_BITMAP(ctx, IPMMU_CTX_MAX);
+	struct ipmmu_vmsa_domain *domains[IPMMU_CTX_MAX];
 
 	struct dma_iommu_mapping *mapping;
 };
@@ -47,10 +56,12 @@ struct ipmmu_vmsa_domain {
 	spinlock_t lock;			/* Protects mappings */
 };
 
-struct ipmmu_vmsa_archdata {
+struct ipmmu_vmsa_iommu_priv {
 	struct ipmmu_vmsa_device *mmu;
 	unsigned int *utlbs;
 	unsigned int num_utlbs;
+	struct device *dev;
+	struct list_head list;
 };
 
 static DEFINE_SPINLOCK(ipmmu_devices_lock);
@@ -59,6 +70,24 @@ static LIST_HEAD(ipmmu_devices);
 static struct ipmmu_vmsa_domain *to_vmsa_domain(struct iommu_domain *dom)
 {
 	return container_of(dom, struct ipmmu_vmsa_domain, io_domain);
+}
+
+
+static struct ipmmu_vmsa_iommu_priv *to_priv(struct device *dev)
+{
+#if defined(CONFIG_ARM)
+	return dev->archdata.iommu;
+#else
+	return dev->iommu_fwspec->iommu_priv;
+#endif
+}
+static void set_priv(struct device *dev, struct ipmmu_vmsa_iommu_priv *p)
+{
+#if defined(CONFIG_ARM)
+	dev->archdata.iommu = p;
+#else
+	dev->iommu_fwspec->iommu_priv = p;
+#endif
 }
 
 #define TLB_LOOP_TIMEOUT		100	/* 100us */
@@ -293,9 +322,29 @@ static struct iommu_gather_ops ipmmu_gather_ops = {
  * Domain/Context Management
  */
 
+static int ipmmu_domain_allocate_context(struct ipmmu_vmsa_device *mmu,
+					 struct ipmmu_vmsa_domain *domain)
+{
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&mmu->lock, flags);
+
+	ret = find_first_zero_bit(mmu->ctx, IPMMU_CTX_MAX);
+	if (ret != IPMMU_CTX_MAX) {
+		mmu->domains[ret] = domain;
+		set_bit(ret, mmu->ctx);
+	}
+
+	spin_unlock_irqrestore(&mmu->lock, flags);
+
+	return ret;
+}
+
 static int ipmmu_domain_init_context(struct ipmmu_vmsa_domain *domain)
 {
 	u64 ttbr;
+	int ret;
 
 	/*
 	 * Allocate the page table operations.
@@ -309,7 +358,7 @@ static int ipmmu_domain_init_context(struct ipmmu_vmsa_domain *domain)
 	 * non-secure mode.
 	 */
 	domain->cfg.quirks = IO_PGTABLE_QUIRK_ARM_NS;
-	domain->cfg.pgsize_bitmap = SZ_1G | SZ_2M | SZ_4K,
+	domain->cfg.pgsize_bitmap = SZ_1G | SZ_2M | SZ_4K;
 	domain->cfg.ias = 32;
 	domain->cfg.oas = 40;
 	domain->cfg.tlb = &ipmmu_gather_ops;
@@ -327,10 +376,15 @@ static int ipmmu_domain_init_context(struct ipmmu_vmsa_domain *domain)
 		return -EINVAL;
 
 	/*
-	 * TODO: When adding support for multiple contexts, find an unused
-	 * context.
+	 * Find an unused context.
 	 */
-	domain->context_id = 0;
+	ret = ipmmu_domain_allocate_context(domain->mmu, domain);
+	if (ret == IPMMU_CTX_MAX) {
+		free_io_pgtable_ops(domain->iop);
+		return -EBUSY;
+	}
+
+	domain->context_id = ret;
 
 	/* TTBR0 */
 	ttbr = domain->cfg.arm_lpae_s1_cfg.ttbr[0];
@@ -372,6 +426,19 @@ static int ipmmu_domain_init_context(struct ipmmu_vmsa_domain *domain)
 	return 0;
 }
 
+static void ipmmu_domain_free_context(struct ipmmu_vmsa_device *mmu,
+				      unsigned int context_id)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&mmu->lock, flags);
+
+	clear_bit(context_id, mmu->ctx);
+	mmu->domains[context_id] = NULL;
+
+	spin_unlock_irqrestore(&mmu->lock, flags);
+}
+
 static void ipmmu_domain_destroy_context(struct ipmmu_vmsa_domain *domain)
 {
 	/*
@@ -382,6 +449,7 @@ static void ipmmu_domain_destroy_context(struct ipmmu_vmsa_domain *domain)
 	 */
 	ipmmu_ctx_write(domain, IMCTR, IMCTR_FLUSH);
 	ipmmu_tlb_sync(domain);
+	ipmmu_domain_free_context(domain->mmu, domain->context_id);
 }
 
 /* -----------------------------------------------------------------------------
@@ -439,28 +507,34 @@ static irqreturn_t ipmmu_domain_irq(struct ipmmu_vmsa_domain *domain)
 static irqreturn_t ipmmu_irq(int irq, void *dev)
 {
 	struct ipmmu_vmsa_device *mmu = dev;
-	struct iommu_domain *io_domain;
-	struct ipmmu_vmsa_domain *domain;
+	irqreturn_t status = IRQ_NONE;
+	unsigned int i;
+	unsigned long flags;
 
-	if (!mmu->mapping)
-		return IRQ_NONE;
+	spin_lock_irqsave(&mmu->lock, flags);
 
-	io_domain = mmu->mapping->domain;
-	domain = to_vmsa_domain(io_domain);
+	/*
+	 * Check interrupts for all active contexts.
+	 */
+	for (i = 0; i < IPMMU_CTX_MAX; i++) {
+		if (!mmu->domains[i])
+			continue;
+		if (ipmmu_domain_irq(mmu->domains[i]) == IRQ_HANDLED)
+			status = IRQ_HANDLED;
+	}
 
-	return ipmmu_domain_irq(domain);
+	spin_unlock_irqrestore(&mmu->lock, flags);
+
+	return status;
 }
 
 /* -----------------------------------------------------------------------------
  * IOMMU Operations
  */
 
-static struct iommu_domain *ipmmu_domain_alloc(unsigned type)
+static struct iommu_domain *__ipmmu_domain_alloc(unsigned type)
 {
 	struct ipmmu_vmsa_domain *domain;
-
-	if (type != IOMMU_DOMAIN_UNMANAGED)
-		return NULL;
 
 	domain = kzalloc(sizeof(*domain), GFP_KERNEL);
 	if (!domain)
@@ -487,8 +561,8 @@ static void ipmmu_domain_free(struct iommu_domain *io_domain)
 static int ipmmu_attach_device(struct iommu_domain *io_domain,
 			       struct device *dev)
 {
-	struct ipmmu_vmsa_archdata *archdata = dev->archdata.iommu;
-	struct ipmmu_vmsa_device *mmu = archdata->mmu;
+	struct ipmmu_vmsa_iommu_priv *priv = to_priv(dev);
+	struct ipmmu_vmsa_device *mmu = priv->mmu;
 	struct ipmmu_vmsa_domain *domain = to_vmsa_domain(io_domain);
 	unsigned long flags;
 	unsigned int i;
@@ -513,15 +587,16 @@ static int ipmmu_attach_device(struct iommu_domain *io_domain,
 		dev_err(dev, "Can't attach IPMMU %s to domain on IPMMU %s\n",
 			dev_name(mmu->dev), dev_name(domain->mmu->dev));
 		ret = -EINVAL;
-	}
+	} else
+		dev_info(dev, "Reusing IPMMU context %u\n", domain->context_id);
 
 	spin_unlock_irqrestore(&domain->lock, flags);
 
 	if (ret < 0)
 		return ret;
 
-	for (i = 0; i < archdata->num_utlbs; ++i)
-		ipmmu_utlb_enable(domain, archdata->utlbs[i]);
+	for (i = 0; i < priv->num_utlbs; ++i)
+		ipmmu_utlb_enable(domain, priv->utlbs[i]);
 
 	return 0;
 }
@@ -529,12 +604,12 @@ static int ipmmu_attach_device(struct iommu_domain *io_domain,
 static void ipmmu_detach_device(struct iommu_domain *io_domain,
 				struct device *dev)
 {
-	struct ipmmu_vmsa_archdata *archdata = dev->archdata.iommu;
+	struct ipmmu_vmsa_iommu_priv *priv = to_priv(dev);
 	struct ipmmu_vmsa_domain *domain = to_vmsa_domain(io_domain);
 	unsigned int i;
 
-	for (i = 0; i < archdata->num_utlbs; ++i)
-		ipmmu_utlb_disable(domain, archdata->utlbs[i]);
+	for (i = 0; i < priv->num_utlbs; ++i)
+		ipmmu_utlb_disable(domain, priv->utlbs[i]);
 
 	/*
 	 * TODO: Optimize by disabling the context when no device is attached.
@@ -595,21 +670,14 @@ static int ipmmu_find_utlbs(struct ipmmu_vmsa_device *mmu, struct device *dev,
 	return 0;
 }
 
-static int ipmmu_add_device(struct device *dev)
+static int ipmmu_init_platform_device(struct device *dev)
 {
-	struct ipmmu_vmsa_archdata *archdata;
+	struct ipmmu_vmsa_iommu_priv *priv;
 	struct ipmmu_vmsa_device *mmu;
-	struct iommu_group *group = NULL;
 	unsigned int *utlbs;
 	unsigned int i;
 	int num_utlbs;
 	int ret = -ENODEV;
-
-	if (dev->archdata.iommu) {
-		dev_warn(dev, "IOMMU driver already assigned to device %s\n",
-			 dev_name(dev));
-		return -EINVAL;
-	}
 
 	/* Find the master corresponding to the device. */
 
@@ -647,6 +715,46 @@ static int ipmmu_add_device(struct device *dev)
 		}
 	}
 
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv) {
+		ret = -ENOMEM;
+		goto error;
+	}
+
+	priv->mmu = mmu;
+	priv->utlbs = utlbs;
+	priv->num_utlbs = num_utlbs;
+	priv->dev = dev;
+	set_priv(dev, priv);
+	return 0;
+
+error:
+	kfree(utlbs);
+	return ret;
+}
+
+#if defined(CONFIG_ARM) && !defined(CONFIG_IOMMU_DMA)
+
+static struct iommu_domain *ipmmu_domain_alloc(unsigned type)
+{
+	if (type != IOMMU_DOMAIN_UNMANAGED)
+		return NULL;
+
+	return __ipmmu_domain_alloc(type);
+}
+
+static int ipmmu_add_device(struct device *dev)
+{
+	struct ipmmu_vmsa_device *mmu = NULL;
+	struct iommu_group *group;
+	int ret;
+
+	if (to_priv(dev)) {
+		dev_warn(dev, "IOMMU driver already assigned to device %s\n",
+			 dev_name(dev));
+		return -EINVAL;
+	}
+
 	/* Create a device group and add the device to it. */
 	group = iommu_group_alloc();
 	if (IS_ERR(group)) {
@@ -664,16 +772,9 @@ static int ipmmu_add_device(struct device *dev)
 		goto error;
 	}
 
-	archdata = kzalloc(sizeof(*archdata), GFP_KERNEL);
-	if (!archdata) {
-		ret = -ENOMEM;
+	ret = ipmmu_init_platform_device(dev);
+	if (ret < 0)
 		goto error;
-	}
-
-	archdata->mmu = mmu;
-	archdata->utlbs = utlbs;
-	archdata->num_utlbs = num_utlbs;
-	dev->archdata.iommu = archdata;
 
 	/*
 	 * Create the ARM mapping, used by the ARM DMA mapping core to allocate
@@ -684,6 +785,7 @@ static int ipmmu_add_device(struct device *dev)
 	 * - Make the mapping size configurable ? We currently use a 2GB mapping
 	 *   at a 1GB offset to ensure that NULL VAs will fault.
 	 */
+	mmu = to_priv(dev)->mmu;
 	if (!mmu->mapping) {
 		struct dma_iommu_mapping *mapping;
 
@@ -708,30 +810,30 @@ static int ipmmu_add_device(struct device *dev)
 	return 0;
 
 error:
-	arm_iommu_release_mapping(mmu->mapping);
-
-	kfree(dev->archdata.iommu);
-	kfree(utlbs);
-
-	dev->archdata.iommu = NULL;
+	if (mmu)
+		arm_iommu_release_mapping(mmu->mapping);
 
 	if (!IS_ERR_OR_NULL(group))
 		iommu_group_remove_device(dev);
+
+	kfree(to_priv(dev)->utlbs);
+	kfree(to_priv(dev));
+	set_priv(dev, NULL);
 
 	return ret;
 }
 
 static void ipmmu_remove_device(struct device *dev)
 {
-	struct ipmmu_vmsa_archdata *archdata = dev->archdata.iommu;
+	struct ipmmu_vmsa_iommu_priv *priv = to_priv(dev);
 
 	arm_iommu_detach_device(dev);
 	iommu_group_remove_device(dev);
 
-	kfree(archdata->utlbs);
-	kfree(archdata);
+	kfree(priv->utlbs);
+	kfree(priv);
 
-	dev->archdata.iommu = NULL;
+	set_priv(dev, NULL);
 }
 
 static const struct iommu_ops ipmmu_ops = {
@@ -747,6 +849,144 @@ static const struct iommu_ops ipmmu_ops = {
 	.remove_device = ipmmu_remove_device,
 	.pgsize_bitmap = SZ_1G | SZ_2M | SZ_4K,
 };
+
+#endif /* !CONFIG_ARM && CONFIG_IOMMU_DMA */
+
+#ifdef CONFIG_IOMMU_DMA
+
+static DEFINE_SPINLOCK(ipmmu_slave_devices_lock);
+static LIST_HEAD(ipmmu_slave_devices);
+
+static struct iommu_domain *ipmmu_domain_alloc_dma(unsigned type)
+{
+	struct iommu_domain *io_domain = NULL;
+
+	switch (type) {
+	case IOMMU_DOMAIN_UNMANAGED:
+		io_domain = __ipmmu_domain_alloc(type);
+		break;
+
+	case IOMMU_DOMAIN_DMA:
+		io_domain = __ipmmu_domain_alloc(type);
+		if (io_domain)
+			iommu_get_dma_cookie(io_domain);
+		break;
+	}
+
+	return io_domain;
+}
+
+static void ipmmu_domain_free_dma(struct iommu_domain *io_domain)
+{
+	switch (io_domain->type) {
+	case IOMMU_DOMAIN_DMA:
+		iommu_put_dma_cookie(io_domain);
+		/* fall-through */
+	default:
+		ipmmu_domain_free(io_domain);
+		break;
+	}
+}
+
+static int ipmmu_add_device_dma(struct device *dev)
+{
+	struct iommu_fwspec *fwspec = dev->iommu_fwspec;
+	struct iommu_group *group;
+
+	/*
+	 * Only let through devices that have been verified in xlate()
+	 * We may get called with dev->iommu_fwspec set to NULL.
+	 */
+	if (!fwspec || !fwspec->iommu_priv)
+		return -ENODEV;
+
+	group = iommu_group_get_for_dev(dev);
+	if (IS_ERR(group))
+		return PTR_ERR(group);
+
+	spin_lock(&ipmmu_slave_devices_lock);
+	list_add(&to_priv(dev)->list, &ipmmu_slave_devices);
+	spin_unlock(&ipmmu_slave_devices_lock);
+	return 0;
+}
+
+static void ipmmu_remove_device_dma(struct device *dev)
+{
+	struct ipmmu_vmsa_iommu_priv *priv = to_priv(dev);
+
+	spin_lock(&ipmmu_slave_devices_lock);
+	list_del(&priv->list);
+	spin_unlock(&ipmmu_slave_devices_lock);
+
+	iommu_group_remove_device(dev);
+}
+
+static struct device *ipmmu_find_sibling_device(struct device *dev)
+{
+	struct ipmmu_vmsa_iommu_priv *priv = to_priv(dev);
+	struct ipmmu_vmsa_iommu_priv *sibling_priv = NULL;
+	bool found = false;
+
+	spin_lock(&ipmmu_slave_devices_lock);
+
+	list_for_each_entry(sibling_priv, &ipmmu_slave_devices, list) {
+		if (priv == sibling_priv)
+			continue;
+		if (sibling_priv->mmu == priv->mmu) {
+			found = true;
+			break;
+		}
+	}
+
+	spin_unlock(&ipmmu_slave_devices_lock);
+
+	return found ? sibling_priv->dev : NULL;
+}
+
+static struct iommu_group *ipmmu_find_group_dma(struct device *dev)
+{
+	struct iommu_group *group;
+	struct device *sibling;
+
+	sibling = ipmmu_find_sibling_device(dev);
+	if (sibling)
+		group = iommu_group_get(sibling);
+	if (!sibling || IS_ERR(group))
+		group = generic_device_group(dev);
+
+	return group;
+}
+
+static int ipmmu_of_xlate_dma(struct device *dev,
+			      struct of_phandle_args *spec)
+{
+	/* If the IPMMU device is disabled in DT then return error
+	 * to make sure the of_iommu code does not install ops
+	 * even though the iommu device is disabled
+	 */
+	if (!of_device_is_available(spec->np))
+		return -ENODEV;
+
+	return ipmmu_init_platform_device(dev);
+}
+
+static const struct iommu_ops ipmmu_ops = {
+	.domain_alloc = ipmmu_domain_alloc_dma,
+	.domain_free = ipmmu_domain_free_dma,
+	.attach_dev = ipmmu_attach_device,
+	.detach_dev = ipmmu_detach_device,
+	.map = ipmmu_map,
+	.unmap = ipmmu_unmap,
+	.map_sg = default_iommu_map_sg,
+	.iova_to_phys = ipmmu_iova_to_phys,
+	.add_device = ipmmu_add_device_dma,
+	.remove_device = ipmmu_remove_device_dma,
+	.device_group = ipmmu_find_group_dma,
+	.pgsize_bitmap = SZ_1G | SZ_2M | SZ_4K,
+	.of_xlate = ipmmu_of_xlate_dma,
+};
+
+#endif /* CONFIG_IOMMU_DMA */
 
 /* -----------------------------------------------------------------------------
  * Probe/remove and init
@@ -768,11 +1008,6 @@ static int ipmmu_probe(struct platform_device *pdev)
 	int irq;
 	int ret;
 
-	if (!IS_ENABLED(CONFIG_OF) && !pdev->dev.platform_data) {
-		dev_err(&pdev->dev, "missing platform data\n");
-		return -EINVAL;
-	}
-
 	mmu = devm_kzalloc(&pdev->dev, sizeof(*mmu), GFP_KERNEL);
 	if (!mmu) {
 		dev_err(&pdev->dev, "cannot allocate device data\n");
@@ -781,6 +1016,8 @@ static int ipmmu_probe(struct platform_device *pdev)
 
 	mmu->dev = &pdev->dev;
 	mmu->num_utlbs = 32;
+	spin_lock_init(&mmu->lock);
+	bitmap_zero(mmu->ctx, IPMMU_CTX_MAX);
 
 	/* Map I/O memory and request IRQ. */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -840,7 +1077,9 @@ static int ipmmu_remove(struct platform_device *pdev)
 	list_del(&mmu->list);
 	spin_unlock(&ipmmu_devices_lock);
 
+#if defined(CONFIG_ARM) && !defined(CONFIG_IOMMU_DMA)
 	arm_iommu_release_mapping(mmu->mapping);
+#endif
 
 	ipmmu_device_reset(mmu);
 

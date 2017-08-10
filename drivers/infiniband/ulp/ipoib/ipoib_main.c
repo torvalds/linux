@@ -681,7 +681,7 @@ static void push_pseudo_header(struct sk_buff *skb, const char *daddr)
 {
 	struct ipoib_pseudo_header *phdr;
 
-	phdr = (struct ipoib_pseudo_header *)skb_push(skb, sizeof(*phdr));
+	phdr = skb_push(skb, sizeof(*phdr));
 	memcpy(phdr->hwaddr, daddr, INFINIBAND_ALEN);
 }
 
@@ -1129,7 +1129,7 @@ static int ipoib_hard_header(struct sk_buff *skb,
 {
 	struct ipoib_header *header;
 
-	header = (struct ipoib_header *) skb_push(skb, sizeof *header);
+	header = skb_push(skb, sizeof *header);
 
 	header->proto = htons(type);
 	header->reserved = 0;
@@ -1590,11 +1590,13 @@ static void ipoib_neigh_hash_uninit(struct net_device *dev)
 	wait_for_completion(&priv->ntbl.deleted);
 }
 
-void ipoib_dev_uninit_default(struct net_device *dev)
+static void ipoib_dev_uninit_default(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
 
 	ipoib_transport_dev_cleanup(dev);
+
+	netif_napi_del(&priv->napi);
 
 	ipoib_cm_dev_cleanup(dev);
 
@@ -1649,6 +1651,7 @@ out_rx_ring_cleanup:
 	kfree(priv->rx_ring);
 
 out:
+	netif_napi_del(&priv->napi);
 	return -ENOMEM;
 }
 
@@ -1890,6 +1893,7 @@ static struct net_device
 	rn->send = ipoib_send;
 	rn->attach_mcast = ipoib_mcast_attach;
 	rn->detach_mcast = ipoib_mcast_detach;
+	rn->free_rdma_netdev = free_netdev;
 	rn->hca = hca;
 
 	dev->netdev_ops = &ipoib_netdev_default_pf;
@@ -2237,6 +2241,7 @@ event_failed:
 
 device_init_failed:
 	free_netdev(priv->dev);
+	kfree(priv);
 
 alloc_mem_failed:
 	return ERR_PTR(result);
@@ -2277,13 +2282,15 @@ static void ipoib_add_one(struct ib_device *device)
 
 static void ipoib_remove_one(struct ib_device *device, void *client_data)
 {
-	struct ipoib_dev_priv *priv, *tmp;
+	struct ipoib_dev_priv *priv, *tmp, *cpriv, *tcpriv;
 	struct list_head *dev_list = client_data;
 
 	if (!dev_list)
 		return;
 
 	list_for_each_entry_safe(priv, tmp, dev_list, list) {
+		struct rdma_netdev *rn = netdev_priv(priv->dev);
+
 		ib_unregister_event_handler(&priv->event_handler);
 		flush_workqueue(ipoib_workqueue);
 
@@ -2300,7 +2307,11 @@ static void ipoib_remove_one(struct ib_device *device, void *client_data)
 		flush_workqueue(priv->wq);
 
 		unregister_netdev(priv->dev);
-		free_netdev(priv->dev);
+		rn->free_rdma_netdev(priv->dev);
+
+		list_for_each_entry_safe(cpriv, tcpriv, &priv->child_intfs, list)
+			kfree(cpriv);
+
 		kfree(priv);
 	}
 

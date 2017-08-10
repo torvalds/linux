@@ -17,17 +17,6 @@
 #define CACHELINE_BYTES 64
 #define CACHELINE_DWORDS (CACHELINE_BYTES / sizeof(uint32_t))
 
-/*
- * Gen2 BSpec "1. Programming Environment" / 1.4.4.6 "Ring Buffer Use"
- * Gen3 BSpec "vol1c Memory Interface Functions" / 2.3.4.5 "Ring Buffer Use"
- * Gen4+ BSpec "vol1c Memory Interface and Command Stream" / 5.3.4.5 "Ring Buffer Use"
- *
- * "If the Ring Buffer Head Pointer and the Tail Pointer are on the same
- * cacheline, the Head Pointer must not be greater than the Tail
- * Pointer."
- */
-#define I915_RING_FREE_SPACE 64
-
 struct intel_hw_status_page {
 	struct i915_vma *vma;
 	u32 *page_addr;
@@ -139,16 +128,15 @@ struct intel_ring {
 	struct i915_vma *vma;
 	void *vaddr;
 
-	struct intel_engine_cs *engine;
-
 	struct list_head request_list;
 
 	u32 head;
 	u32 tail;
+	u32 emit;
 
-	int space;
-	int size;
-	int effective_size;
+	u32 space;
+	u32 size;
+	u32 effective_size;
 };
 
 struct i915_gem_context;
@@ -189,15 +177,28 @@ enum intel_engine_id {
 	VECS
 };
 
+struct i915_priolist {
+	struct rb_node node;
+	struct list_head requests;
+	int priority;
+};
+
+#define INTEL_ENGINE_CS_MAX_NAME 8
+
 struct intel_engine_cs {
 	struct drm_i915_private *i915;
-	const char	*name;
+	char name[INTEL_ENGINE_CS_MAX_NAME];
 	enum intel_engine_id id;
-	unsigned int exec_id;
+	unsigned int uabi_id;
 	unsigned int hw_id;
 	unsigned int guc_id;
-	u32		mmio_base;
+
+	u8 class;
+	u8 instance;
+	u32 context_size;
+	u32 mmio_base;
 	unsigned int irq_shift;
+
 	struct intel_ring *buffer;
 	struct intel_timeline *timeline;
 
@@ -265,8 +266,8 @@ struct intel_engine_cs {
 
 	void		(*set_default_submission)(struct intel_engine_cs *engine);
 
-	int		(*context_pin)(struct intel_engine_cs *engine,
-				       struct i915_gem_context *ctx);
+	struct intel_ring *(*context_pin)(struct intel_engine_cs *engine,
+					  struct i915_gem_context *ctx);
 	void		(*context_unpin)(struct intel_engine_cs *engine,
 					 struct i915_gem_context *ctx);
 	int		(*request_alloc)(struct drm_i915_gem_request *req);
@@ -372,9 +373,18 @@ struct intel_engine_cs {
 
 	/* Execlists */
 	struct tasklet_struct irq_tasklet;
+	struct i915_priolist default_priolist;
+	bool no_priolist;
 	struct execlist_port {
-		struct drm_i915_gem_request *request;
-		unsigned int count;
+		struct drm_i915_gem_request *request_count;
+#define EXECLIST_COUNT_BITS 2
+#define port_request(p) ptr_mask_bits((p)->request_count, EXECLIST_COUNT_BITS)
+#define port_count(p) ptr_unmask_bits((p)->request_count, EXECLIST_COUNT_BITS)
+#define port_pack(rq, count) ptr_pack_bits(rq, count, EXECLIST_COUNT_BITS)
+#define port_unpack(p, count) ptr_unpack_bits((p)->request_count, count, EXECLIST_COUNT_BITS)
+#define port_set(p, packed) ((p)->request_count = (packed))
+#define port_isset(p) ((p)->request_count)
+#define port_index(p, e) ((p) - (e)->execlist_port)
 		GEM_DEBUG_DECL(u32 context_id);
 	} execlist_port[2];
 	struct rb_root execlist_queue;
@@ -487,7 +497,11 @@ intel_write_status_page(struct intel_engine_cs *engine, int reg, u32 value)
 
 struct intel_ring *
 intel_engine_create_ring(struct intel_engine_cs *engine, int size);
-int intel_ring_pin(struct intel_ring *ring, unsigned int offset_bias);
+int intel_ring_pin(struct intel_ring *ring,
+		   struct drm_i915_private *i915,
+		   unsigned int offset_bias);
+void intel_ring_reset(struct intel_ring *ring, u32 tail);
+unsigned int intel_ring_update_space(struct intel_ring *ring);
 void intel_ring_unpin(struct intel_ring *ring);
 void intel_ring_free(struct intel_ring *ring);
 
@@ -498,7 +512,8 @@ void intel_legacy_submission_resume(struct drm_i915_private *dev_priv);
 
 int __must_check intel_ring_cacheline_align(struct drm_i915_gem_request *req);
 
-u32 __must_check *intel_ring_begin(struct drm_i915_gem_request *req, int n);
+u32 __must_check *intel_ring_begin(struct drm_i915_gem_request *req,
+				   unsigned int n);
 
 static inline void
 intel_ring_advance(struct drm_i915_gem_request *req, u32 *cs)
@@ -511,7 +526,7 @@ intel_ring_advance(struct drm_i915_gem_request *req, u32 *cs)
 	 * reserved for the command packet (i.e. the value passed to
 	 * intel_ring_begin()).
 	 */
-	GEM_BUG_ON((req->ring->vaddr + req->ring->tail) != cs);
+	GEM_BUG_ON((req->ring->vaddr + req->ring->emit) != cs);
 }
 
 static inline u32
@@ -538,9 +553,40 @@ assert_ring_tail_valid(const struct intel_ring *ring, unsigned int tail)
 	 */
 	GEM_BUG_ON(!IS_ALIGNED(tail, 8));
 	GEM_BUG_ON(tail >= ring->size);
+
+	/*
+	 * "Ring Buffer Use"
+	 *	Gen2 BSpec "1. Programming Environment" / 1.4.4.6
+	 *	Gen3 BSpec "1c Memory Interface Functions" / 2.3.4.5
+	 *	Gen4+ BSpec "1c Memory Interface and Command Stream" / 5.3.4.5
+	 * "If the Ring Buffer Head Pointer and the Tail Pointer are on the
+	 * same cacheline, the Head Pointer must not be greater than the Tail
+	 * Pointer."
+	 *
+	 * We use ring->head as the last known location of the actual RING_HEAD,
+	 * it may have advanced but in the worst case it is equally the same
+	 * as ring->head and so we should never program RING_TAIL to advance
+	 * into the same cacheline as ring->head.
+	 */
+#define cacheline(a) round_down(a, CACHELINE_BYTES)
+	GEM_BUG_ON(cacheline(tail) == cacheline(ring->head) &&
+		   tail < ring->head);
+#undef cacheline
 }
 
-void intel_ring_update_space(struct intel_ring *ring);
+static inline unsigned int
+intel_ring_set_tail(struct intel_ring *ring, unsigned int tail)
+{
+	/* Whilst writes to the tail are strictly order, there is no
+	 * serialisation between readers and the writers. The tail may be
+	 * read by i915_gem_request_retire() just as it is being updated
+	 * by execlists, as although the breadcrumb is complete, the context
+	 * switch hasn't been seen.
+	 */
+	assert_ring_tail_valid(ring, tail);
+	ring->tail = tail;
+	return tail;
+}
 
 void intel_engine_init_global_seqno(struct intel_engine_cs *engine, u32 seqno);
 
@@ -551,7 +597,6 @@ void intel_engine_cleanup_common(struct intel_engine_cs *engine);
 
 int intel_init_render_ring_buffer(struct intel_engine_cs *engine);
 int intel_init_bsd_ring_buffer(struct intel_engine_cs *engine);
-int intel_init_bsd2_ring_buffer(struct intel_engine_cs *engine);
 int intel_init_blt_ring_buffer(struct intel_engine_cs *engine);
 int intel_init_vebox_ring_buffer(struct intel_engine_cs *engine);
 
@@ -652,7 +697,8 @@ bool intel_engine_add_wait(struct intel_engine_cs *engine,
 			   struct intel_wait *wait);
 void intel_engine_remove_wait(struct intel_engine_cs *engine,
 			      struct intel_wait *wait);
-void intel_engine_enable_signaling(struct drm_i915_gem_request *request);
+void intel_engine_enable_signaling(struct drm_i915_gem_request *request,
+				   bool wakeup);
 void intel_engine_cancel_signaling(struct drm_i915_gem_request *request);
 
 static inline bool intel_engine_has_waiter(const struct intel_engine_cs *engine)
@@ -685,6 +731,7 @@ static inline u32 *gen8_emit_pipe_control(u32 *batch, u32 flags, u32 offset)
 bool intel_engine_is_idle(struct intel_engine_cs *engine);
 bool intel_engines_are_idle(struct drm_i915_private *dev_priv);
 
+void intel_engines_mark_idle(struct drm_i915_private *i915);
 void intel_engines_reset_default_submission(struct drm_i915_private *i915);
 
 #endif /* _INTEL_RINGBUFFER_H_ */

@@ -29,6 +29,7 @@ int main(void)
 	attr.log_size = 0;
 	attr.log_level = 0;
 	attr.kern_version = 0;
+	attr.prog_flags = 0;
 
 	/*
 	 * Test existence of __NR_bpf and BPF_PROG_LOAD.

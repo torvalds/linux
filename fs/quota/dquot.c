@@ -1512,6 +1512,22 @@ int dquot_initialize(struct inode *inode)
 }
 EXPORT_SYMBOL(dquot_initialize);
 
+bool dquot_initialize_needed(struct inode *inode)
+{
+	struct dquot **dquots;
+	int i;
+
+	if (!dquot_active(inode))
+		return false;
+
+	dquots = i_dquot(inode);
+	for (i = 0; i < MAXQUOTAS; i++)
+		if (!dquots[i] && sb_has_quota_active(inode->i_sb, i))
+			return true;
+	return false;
+}
+EXPORT_SYMBOL(dquot_initialize_needed);
+
 /*
  * Release all quotas referenced by inode.
  *
@@ -1894,6 +1910,7 @@ int __dquot_transfer(struct inode *inode, struct dquot **transfer_to)
 {
 	qsize_t space, cur_space;
 	qsize_t rsv_space = 0;
+	qsize_t inode_usage = 1;
 	struct dquot *transfer_from[MAXQUOTAS] = {};
 	int cnt, ret = 0;
 	char is_valid[MAXQUOTAS] = {};
@@ -1903,6 +1920,13 @@ int __dquot_transfer(struct inode *inode, struct dquot **transfer_to)
 
 	if (IS_NOQUOTA(inode))
 		return 0;
+
+	if (inode->i_sb->dq_op->get_inode_usage) {
+		ret = inode->i_sb->dq_op->get_inode_usage(inode, &inode_usage);
+		if (ret)
+			return ret;
+	}
+
 	/* Initialize the arrays */
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
 		warn_to[cnt].w_type = QUOTA_NL_NOWARN;
@@ -1930,7 +1954,7 @@ int __dquot_transfer(struct inode *inode, struct dquot **transfer_to)
 			continue;
 		is_valid[cnt] = 1;
 		transfer_from[cnt] = i_dquot(inode)[cnt];
-		ret = check_idq(transfer_to[cnt], 1, &warn_to[cnt]);
+		ret = check_idq(transfer_to[cnt], inode_usage, &warn_to[cnt]);
 		if (ret)
 			goto over_quota;
 		ret = check_bdq(transfer_to[cnt], space, 0, &warn_to[cnt]);
@@ -1947,7 +1971,7 @@ int __dquot_transfer(struct inode *inode, struct dquot **transfer_to)
 		/* Due to IO error we might not have transfer_from[] structure */
 		if (transfer_from[cnt]) {
 			int wtype;
-			wtype = info_idq_free(transfer_from[cnt], 1);
+			wtype = info_idq_free(transfer_from[cnt], inode_usage);
 			if (wtype != QUOTA_NL_NOWARN)
 				prepare_warning(&warn_from_inodes[cnt],
 						transfer_from[cnt], wtype);
@@ -1955,13 +1979,13 @@ int __dquot_transfer(struct inode *inode, struct dquot **transfer_to)
 			if (wtype != QUOTA_NL_NOWARN)
 				prepare_warning(&warn_from_space[cnt],
 						transfer_from[cnt], wtype);
-			dquot_decr_inodes(transfer_from[cnt], 1);
+			dquot_decr_inodes(transfer_from[cnt], inode_usage);
 			dquot_decr_space(transfer_from[cnt], cur_space);
 			dquot_free_reserved_space(transfer_from[cnt],
 						  rsv_space);
 		}
 
-		dquot_incr_inodes(transfer_to[cnt], 1);
+		dquot_incr_inodes(transfer_to[cnt], inode_usage);
 		dquot_incr_space(transfer_to[cnt], cur_space);
 		dquot_resv_space(transfer_to[cnt], rsv_space);
 

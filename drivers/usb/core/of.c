@@ -28,7 +28,8 @@
  *
  * Find the node from device tree according to its port number.
  *
- * Return: On success, a pointer to the device node, %NULL on failure.
+ * Return: A pointer to the node with incremented refcount if found, or
+ * %NULL otherwise.
  */
 struct device_node *usb_of_get_child_node(struct device_node *parent,
 					int portnum)
@@ -52,6 +53,9 @@ EXPORT_SYMBOL_GPL(usb_of_get_child_node);
  * @dev: the device pointer to find a companion
  *
  * Find the companion device from platform bus.
+ *
+ * Takes a reference to the returned struct device which needs to be dropped
+ * after use.
  *
  * Return: On success, a pointer to the companion device, %NULL on failure.
  */

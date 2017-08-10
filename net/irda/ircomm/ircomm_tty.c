@@ -690,7 +690,7 @@ static int ircomm_tty_write(struct tty_struct *tty,
 		}
 
 		/* Copy data */
-		memcpy(skb_put(skb,size), buf + len, size);
+		skb_put_data(skb, buf + len, size);
 
 		count -= size;
 		len += size;

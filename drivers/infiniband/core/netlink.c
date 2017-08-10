@@ -37,6 +37,7 @@
 #include <net/net_namespace.h>
 #include <net/sock.h>
 #include <rdma/rdma_netlink.h>
+#include "core_priv.h"
 
 struct ibnl_client {
 	struct list_head		list;
@@ -55,7 +56,6 @@ int ibnl_chk_listeners(unsigned int group)
 		return -1;
 	return 0;
 }
-EXPORT_SYMBOL(ibnl_chk_listeners);
 
 int ibnl_add_client(int index, int nops,
 		    const struct ibnl_client_cbs cb_table[])

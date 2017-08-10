@@ -99,8 +99,8 @@ void msm_update_fence(struct msm_fence_context *fctx, uint32_t fence)
 }
 
 struct msm_fence {
-	struct msm_fence_context *fctx;
 	struct dma_fence base;
+	struct msm_fence_context *fctx;
 };
 
 static inline struct msm_fence *to_msm_fence(struct dma_fence *fence)
@@ -130,19 +130,13 @@ static bool msm_fence_signaled(struct dma_fence *fence)
 	return fence_completed(f->fctx, f->base.seqno);
 }
 
-static void msm_fence_release(struct dma_fence *fence)
-{
-	struct msm_fence *f = to_msm_fence(fence);
-	kfree_rcu(f, base.rcu);
-}
-
 static const struct dma_fence_ops msm_fence_ops = {
 	.get_driver_name = msm_fence_get_driver_name,
 	.get_timeline_name = msm_fence_get_timeline_name,
 	.enable_signaling = msm_fence_enable_signaling,
 	.signaled = msm_fence_signaled,
 	.wait = dma_fence_default_wait,
-	.release = msm_fence_release,
+	.release = dma_fence_free,
 };
 
 struct dma_fence *

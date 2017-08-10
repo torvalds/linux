@@ -133,12 +133,12 @@ int ipoib_vlan_add(struct net_device *pdev, unsigned short pkey)
 	snprintf(intf_name, sizeof intf_name, "%s.%04x",
 		 ppriv->dev->name, pkey);
 
+	if (!rtnl_trylock())
+		return restart_syscall();
+
 	priv = ipoib_intf_alloc(ppriv->ca, ppriv->port, intf_name);
 	if (!priv)
 		return -ENOMEM;
-
-	if (!rtnl_trylock())
-		return restart_syscall();
 
 	down_write(&ppriv->vlan_rwsem);
 
@@ -167,8 +167,10 @@ out:
 
 	rtnl_unlock();
 
-	if (result)
+	if (result) {
 		free_netdev(priv->dev);
+		kfree(priv);
+	}
 
 	return result;
 }
@@ -209,6 +211,7 @@ int ipoib_vlan_delete(struct net_device *pdev, unsigned short pkey)
 
 	if (dev) {
 		free_netdev(dev);
+		kfree(priv);
 		return 0;
 	}
 

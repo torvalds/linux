@@ -19,13 +19,8 @@ extern spinlock_t ctx_alloc_lock;
 extern unsigned long tlb_context_cache;
 extern unsigned long mmu_context_bmap[];
 
+DECLARE_PER_CPU(struct mm_struct *, per_cpu_secondary_mm);
 void get_new_mmu_context(struct mm_struct *mm);
-#ifdef CONFIG_SMP
-void smp_new_mmu_context_version(void);
-#else
-#define smp_new_mmu_context_version() do { } while (0)
-#endif
-
 int init_new_context(struct task_struct *tsk, struct mm_struct *mm);
 void destroy_context(struct mm_struct *mm);
 
@@ -76,8 +71,9 @@ void __flush_tlb_mm(unsigned long, unsigned long);
 static inline void switch_mm(struct mm_struct *old_mm, struct mm_struct *mm, struct task_struct *tsk)
 {
 	unsigned long ctx_valid, flags;
-	int cpu;
+	int cpu = smp_processor_id();
 
+	per_cpu(per_cpu_secondary_mm, cpu) = mm;
 	if (unlikely(mm == &init_mm))
 		return;
 
@@ -123,7 +119,6 @@ static inline void switch_mm(struct mm_struct *old_mm, struct mm_struct *mm, str
 	 * for the first time, we must flush that context out of the
 	 * local TLB.
 	 */
-	cpu = smp_processor_id();
 	if (!ctx_valid || !cpumask_test_cpu(cpu, mm_cpumask(mm))) {
 		cpumask_set_cpu(cpu, mm_cpumask(mm));
 		__flush_tlb_mm(CTX_HWBITS(mm->context),
@@ -133,26 +128,7 @@ static inline void switch_mm(struct mm_struct *old_mm, struct mm_struct *mm, str
 }
 
 #define deactivate_mm(tsk,mm)	do { } while (0)
-
-/* Activate a new MM instance for the current task. */
-static inline void activate_mm(struct mm_struct *active_mm, struct mm_struct *mm)
-{
-	unsigned long flags;
-	int cpu;
-
-	spin_lock_irqsave(&mm->context.lock, flags);
-	if (!CTX_VALID(mm->context))
-		get_new_mmu_context(mm);
-	cpu = smp_processor_id();
-	if (!cpumask_test_cpu(cpu, mm_cpumask(mm)))
-		cpumask_set_cpu(cpu, mm_cpumask(mm));
-
-	load_secondary_context(mm);
-	__flush_tlb_mm(CTX_HWBITS(mm->context), SECONDARY_CONTEXT);
-	tsb_context_switch(mm);
-	spin_unlock_irqrestore(&mm->context.lock, flags);
-}
-
+#define activate_mm(active_mm, mm) switch_mm(active_mm, mm, NULL)
 #endif /* !(__ASSEMBLY__) */
 
 #endif /* !(__SPARC64_MMU_CONTEXT_H) */

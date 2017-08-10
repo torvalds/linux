@@ -503,26 +503,23 @@ lpfc_prep_node_fc4type(struct lpfc_vport *vport, uint32_t Did, uint8_t fc4_type)
 				Did, vport->fc_flag, vport->fc_rscn_id_cnt);
 
 			/*
-			 * This NPortID was previously a FCP target,
+			 * This NPortID was previously a FCP/NVMe target,
 			 * Don't even bother to send GFF_ID.
 			 */
 			ndlp = lpfc_findnode_did(vport, Did);
-			if (ndlp && NLP_CHK_NODE_ACT(ndlp))
-				ndlp->nlp_fc4_type = fc4_type;
-
-			if (ndlp && NLP_CHK_NODE_ACT(ndlp)) {
-				ndlp->nlp_fc4_type = fc4_type;
-
-				if (ndlp->nlp_type & NLP_FCP_TARGET)
-					lpfc_setup_disc_node(vport, Did);
-
-				else if (lpfc_ns_cmd(vport, SLI_CTNS_GFF_ID,
-							0, Did) == 0)
-					vport->num_disc_nodes++;
-
-				else
-					lpfc_setup_disc_node(vport, Did);
-			}
+			if (ndlp && NLP_CHK_NODE_ACT(ndlp) &&
+			    (ndlp->nlp_type &
+			    (NLP_FCP_TARGET | NLP_NVME_TARGET))) {
+				if (fc4_type == FC_TYPE_FCP)
+					ndlp->nlp_fc4_type |= NLP_FC4_FCP;
+				if (fc4_type == FC_TYPE_NVME)
+					ndlp->nlp_fc4_type |= NLP_FC4_NVME;
+				lpfc_setup_disc_node(vport, Did);
+			} else if (lpfc_ns_cmd(vport, SLI_CTNS_GFF_ID,
+				   0, Did) == 0)
+				vport->num_disc_nodes++;
+			else
+				lpfc_setup_disc_node(vport, Did);
 		} else {
 			lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_CT,
 				"Skip2 GID_FTrsp: did:x%x flg:x%x cnt:%d",
@@ -630,7 +627,7 @@ lpfc_ns_rsp(struct lpfc_vport *vport, struct lpfc_dmabuf *mp, uint8_t fc4_type,
 						NLP_EVT_DEVICE_RECOVERY);
 			spin_lock_irq(shost->host_lock);
 			ndlp->nlp_flag &= ~NLP_NVMET_RECOV;
-			spin_lock_irq(shost->host_lock);
+			spin_unlock_irq(shost->host_lock);
 		}
 	}
 
@@ -978,9 +975,10 @@ lpfc_cmpl_ct_cmd_gft_id(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 					 ndlp, did, ndlp->nlp_fc4_type,
 					 FC_TYPE_FCP, FC_TYPE_NVME);
 			ndlp->nlp_prev_state = NLP_STE_REG_LOGIN_ISSUE;
+
+			lpfc_nlp_set_state(vport, ndlp, NLP_STE_PRLI_ISSUE);
+			lpfc_issue_els_prli(vport, ndlp, 0);
 		}
-		lpfc_nlp_set_state(vport, ndlp, NLP_STE_PRLI_ISSUE);
-		lpfc_issue_els_prli(vport, ndlp, 0);
 	} else
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
 				 "3065 GFT_ID failed x%08x\n", irsp->ulpStatus);
@@ -2092,6 +2090,7 @@ lpfc_fdmi_port_attr_fc4type(struct lpfc_vport *vport,
 
 	ae->un.AttrTypes[3] = 0x02; /* Type 1 - ELS */
 	ae->un.AttrTypes[2] = 0x01; /* Type 8 - FCP */
+	ae->un.AttrTypes[6] = 0x01; /* Type 40 - NVME */
 	ae->un.AttrTypes[7] = 0x01; /* Type 32 - CT */
 	size = FOURBYTES + 32;
 	ad->AttrLen = cpu_to_be16(size);

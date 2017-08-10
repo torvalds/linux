@@ -2470,11 +2470,8 @@ static void stop_activity(struct net2280 *dev, struct usb_gadget_driver *driver)
 		nuke(&dev->ep[i]);
 
 	/* report disconnect; the driver is already quiesced */
-	if (driver) {
-		spin_unlock(&dev->lock);
+	if (driver)
 		driver->disconnect(&dev->gadget);
-		spin_lock(&dev->lock);
-	}
 
 	usb_reinit(dev);
 }
@@ -3348,8 +3345,6 @@ next_endpoints:
 		BIT(PCI_RETRY_ABORT_INTERRUPT))
 
 static void handle_stat1_irqs(struct net2280 *dev, u32 stat)
-__releases(dev->lock)
-__acquires(dev->lock)
 {
 	struct net2280_ep	*ep;
 	u32			tmp, num, mask, scratch;
@@ -3390,14 +3385,12 @@ __acquires(dev->lock)
 			if (disconnect || reset) {
 				stop_activity(dev, dev->driver);
 				ep0_start(dev);
-				spin_unlock(&dev->lock);
 				if (reset)
 					usb_gadget_udc_reset
 						(&dev->gadget, dev->driver);
 				else
 					(dev->driver->disconnect)
 						(&dev->gadget);
-				spin_lock(&dev->lock);
 				return;
 			}
 		}
@@ -3573,7 +3566,6 @@ static void net2280_remove(struct pci_dev *pdev)
 	BUG_ON(dev->driver);
 
 	/* then clean up the resources we allocated during probe() */
-	net2280_led_shutdown(dev);
 	if (dev->requests) {
 		int		i;
 		for (i = 1; i < 5; i++) {
@@ -3588,8 +3580,10 @@ static void net2280_remove(struct pci_dev *pdev)
 		free_irq(pdev->irq, dev);
 	if (dev->quirks & PLX_PCIE)
 		pci_disable_msi(pdev);
-	if (dev->regs)
+	if (dev->regs) {
+		net2280_led_shutdown(dev);
 		iounmap(dev->regs);
+	}
 	if (dev->region)
 		release_mem_region(pci_resource_start(pdev, 0),
 				pci_resource_len(pdev, 0));

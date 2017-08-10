@@ -12,8 +12,6 @@
 #define MAX_IRCTL_DEVICES 8
 #define BUFLEN            16
 
-#define mod(n, div) ((n) % (div))
-
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/ioctl.h>
@@ -90,11 +88,6 @@ static inline int lirc_buffer_empty(struct lirc_buffer *buf)
 	return !lirc_buffer_len(buf);
 }
 
-static inline int lirc_buffer_available(struct lirc_buffer *buf)
-{
-	return buf->size - (lirc_buffer_len(buf) / buf->chunk_size);
-}
-
 static inline unsigned int lirc_buffer_read(struct lirc_buffer *buf,
 					    unsigned char *dest)
 {
@@ -133,12 +126,6 @@ static inline unsigned int lirc_buffer_write(struct lirc_buffer *buf,
  * @buffer_size:	Number of FIFO buffers with @chunk_size size. If zero,
  *			creates a buffer with BUFLEN size (16 bytes).
  *
- * @sample_rate:	if zero, the device will wait for an event with a new
- *			code to be parsed. Otherwise, specifies the sample
- *			rate for polling. Value should be between 0
- *			and HZ. If equal to HZ, it would mean one polling per
- *			second.
- *
  * @features:		lirc compatible hardware features, like LIRC_MODE_RAW,
  *			LIRC_CAN\_\*, as defined at include/media/lirc.h.
  *
@@ -153,21 +140,9 @@ static inline unsigned int lirc_buffer_write(struct lirc_buffer *buf,
  * @max_timeout:	Maximum timeout for record. Valid only if
  *			LIRC_CAN_SET_REC_TIMEOUT is defined.
  *
- * @add_to_buf:		add_to_buf will be called after specified period of the
- *			time or triggered by the external event, this behavior
- *			depends on value of the sample_rate this function will
- *			be called in user context. This routine should return
- *			0 if data was added to the buffer and -ENODATA if none
- *			was available. This should add some number of bits
- *			evenly divisible by code_length to the buffer.
- *
  * @rbuf:		if not NULL, it will be used as a read buffer, you will
  *			have to write to the buffer by other means, like irq's
  *			(see also lirc_serial.c).
- *
- * @set_use_inc:	set_use_inc will be called after device is opened
- *
- * @set_use_dec:	set_use_dec will be called after device is closed
  *
  * @rdev:		Pointed to struct rc_dev associated with the LIRC
  *			device.
@@ -188,7 +163,6 @@ struct lirc_driver {
 	int minor;
 	__u32 code_length;
 	unsigned int buffer_size; /* in chunks holding one code each */
-	int sample_rate;
 	__u32 features;
 
 	unsigned int chunk_size;
@@ -196,10 +170,7 @@ struct lirc_driver {
 	void *data;
 	int min_timeout;
 	int max_timeout;
-	int (*add_to_buf)(void *data, struct lirc_buffer *buf);
 	struct lirc_buffer *rbuf;
-	int (*set_use_inc)(void *data);
-	void (*set_use_dec)(void *data);
 	struct rc_dev *rdev;
 	const struct file_operations *fops;
 	struct device *dev;
@@ -232,7 +203,4 @@ unsigned int lirc_dev_fop_poll(struct file *file, poll_table *wait);
 long lirc_dev_fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg);
 ssize_t lirc_dev_fop_read(struct file *file, char __user *buffer, size_t length,
 			  loff_t *ppos);
-ssize_t lirc_dev_fop_write(struct file *file, const char __user *buffer,
-			   size_t length, loff_t *ppos);
-
 #endif

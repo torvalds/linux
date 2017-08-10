@@ -294,7 +294,7 @@ int xt_match_to_user(const struct xt_entry_match *m,
 int xt_target_to_user(const struct xt_entry_target *t,
 		      struct xt_entry_target __user *u);
 int xt_data_to_user(void __user *dst, const void *src,
-		    int usersize, int size);
+		    int usersize, int size, int aligned_size);
 
 void *xt_copy_counters_from_user(const void __user *user, unsigned int len,
 				 struct xt_counters_info *info, bool compat);

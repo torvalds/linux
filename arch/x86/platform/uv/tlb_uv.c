@@ -456,12 +456,13 @@ static void reset_with_ipi(struct pnmask *distribution, struct bau_control *bcp)
  */
 static inline unsigned long long cycles_2_ns(unsigned long long cyc)
 {
-	struct cyc2ns_data *data = cyc2ns_read_begin();
+	struct cyc2ns_data data;
 	unsigned long long ns;
 
-	ns = mul_u64_u32_shr(cyc, data->cyc2ns_mul, data->cyc2ns_shift);
+	cyc2ns_read_begin(&data);
+	ns = mul_u64_u32_shr(cyc, data.cyc2ns_mul, data.cyc2ns_shift);
+	cyc2ns_read_end();
 
-	cyc2ns_read_end(data);
 	return ns;
 }
 
@@ -470,12 +471,13 @@ static inline unsigned long long cycles_2_ns(unsigned long long cyc)
  */
 static inline unsigned long long ns_2_cycles(unsigned long long ns)
 {
-	struct cyc2ns_data *data = cyc2ns_read_begin();
+	struct cyc2ns_data data;
 	unsigned long long cyc;
 
-	cyc = (ns << data->cyc2ns_shift) / data->cyc2ns_mul;
+	cyc2ns_read_begin(&data);
+	cyc = (ns << data.cyc2ns_shift) / data.cyc2ns_mul;
+	cyc2ns_read_end();
 
-	cyc2ns_read_end(data);
 	return cyc;
 }
 
@@ -586,31 +588,11 @@ static unsigned long uv2_3_read_status(unsigned long offset, int rshft, int desc
 }
 
 /*
- * Return whether the status of the descriptor that is normally used for this
- * cpu (the one indexed by its hub-relative cpu number) is busy.
- * The status of the original 32 descriptors is always reflected in the 64
- * bits of UVH_LB_BAU_SB_ACTIVATION_STATUS_0.
- * The bit provided by the activation_status_2 register is irrelevant to
- * the status if it is only being tested for busy or not busy.
- */
-int normal_busy(struct bau_control *bcp)
-{
-	int cpu = bcp->uvhub_cpu;
-	int mmr_offset;
-	int right_shift;
-
-	mmr_offset = UVH_LB_BAU_SB_ACTIVATION_STATUS_0;
-	right_shift = cpu * UV_ACT_STATUS_SIZE;
-	return (((((read_lmmr(mmr_offset) >> right_shift) &
-				UV_ACT_STATUS_MASK)) << 1) == UV2H_DESC_BUSY);
-}
-
-/*
  * Entered when a bau descriptor has gone into a permanent busy wait because
  * of a hardware bug.
  * Workaround the bug.
  */
-int handle_uv2_busy(struct bau_control *bcp)
+static int handle_uv2_busy(struct bau_control *bcp)
 {
 	struct ptc_stats *stat = bcp->statp;
 
@@ -915,8 +897,9 @@ static void handle_cmplt(int completion_status, struct bau_desc *bau_desc,
  * Returns 1 if it gives up entirely and the original cpu mask is to be
  * returned to the kernel.
  */
-int uv_flush_send_and_wait(struct cpumask *flush_mask, struct bau_control *bcp,
-	struct bau_desc *bau_desc)
+static int uv_flush_send_and_wait(struct cpumask *flush_mask,
+				  struct bau_control *bcp,
+				  struct bau_desc *bau_desc)
 {
 	int seq_number = 0;
 	int completion_stat = 0;
@@ -1121,11 +1104,9 @@ static int set_distrib_bits(struct cpumask *flush_mask, struct bau_control *bcp,
  * done.  The returned pointer is valid till preemption is re-enabled.
  */
 const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,
-						struct mm_struct *mm,
-						unsigned long start,
-						unsigned long end,
-						unsigned int cpu)
+					  const struct flush_tlb_info *info)
 {
+	unsigned int cpu = smp_processor_id();
 	int locals = 0, remotes = 0, hubs = 0;
 	struct bau_desc *bau_desc;
 	struct cpumask *flush_mask;
@@ -1179,8 +1160,8 @@ const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,
 
 	record_send_statistics(stat, locals, hubs, remotes, bau_desc);
 
-	if (!end || (end - start) <= PAGE_SIZE)
-		address = start;
+	if (!info->end || (info->end - info->start) <= PAGE_SIZE)
+		address = info->start;
 	else
 		address = TLB_FLUSH_ALL;
 
@@ -1212,8 +1193,8 @@ const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,
  * Search the message queue for any 'other' unprocessed message with the
  * same software acknowledge resource bit vector as the 'msg' message.
  */
-struct bau_pq_entry *find_another_by_swack(struct bau_pq_entry *msg,
-					   struct bau_control *bcp)
+static struct bau_pq_entry *find_another_by_swack(struct bau_pq_entry *msg,
+						  struct bau_control *bcp)
 {
 	struct bau_pq_entry *msg_next = msg + 1;
 	unsigned char swack_vec = msg->swack_vec;

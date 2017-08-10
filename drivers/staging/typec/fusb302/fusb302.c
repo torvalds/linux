@@ -264,22 +264,36 @@ static void fusb302_debugfs_exit(const struct fusb302_chip *chip) { }
 
 #define FUSB302_RESUME_RETRY 10
 #define FUSB302_RESUME_RETRY_SLEEP 50
+
+static bool fusb302_is_suspended(struct fusb302_chip *chip)
+{
+	int retry_cnt;
+
+	for (retry_cnt = 0; retry_cnt < FUSB302_RESUME_RETRY; retry_cnt++) {
+		if (atomic_read(&chip->pm_suspend)) {
+			dev_err(chip->dev, "i2c: pm suspend, retry %d/%d\n",
+				retry_cnt + 1, FUSB302_RESUME_RETRY);
+			msleep(FUSB302_RESUME_RETRY_SLEEP);
+		} else {
+			return false;
+		}
+	}
+
+	return true;
+}
+
 static int fusb302_i2c_write(struct fusb302_chip *chip,
 			     u8 address, u8 data)
 {
-	int retry_cnt;
 	int ret = 0;
 
 	atomic_set(&chip->i2c_busy, 1);
-	for (retry_cnt = 0; retry_cnt < FUSB302_RESUME_RETRY; retry_cnt++) {
-		if (atomic_read(&chip->pm_suspend)) {
-			pr_err("fusb302_i2c: pm suspend, retry %d/%d\n",
-			       retry_cnt + 1, FUSB302_RESUME_RETRY);
-			msleep(FUSB302_RESUME_RETRY_SLEEP);
-		} else {
-			break;
-		}
+
+	if (fusb302_is_suspended(chip)) {
+		atomic_set(&chip->i2c_busy, 0);
+		return -ETIMEDOUT;
 	}
+
 	ret = i2c_smbus_write_byte_data(chip->i2c_client, address, data);
 	if (ret < 0)
 		fusb302_log(chip, "cannot write 0x%02x to 0x%02x, ret=%d",
@@ -292,21 +306,17 @@ static int fusb302_i2c_write(struct fusb302_chip *chip,
 static int fusb302_i2c_block_write(struct fusb302_chip *chip, u8 address,
 				   u8 length, const u8 *data)
 {
-	int retry_cnt;
 	int ret = 0;
 
 	if (length <= 0)
 		return ret;
 	atomic_set(&chip->i2c_busy, 1);
-	for (retry_cnt = 0; retry_cnt < FUSB302_RESUME_RETRY; retry_cnt++) {
-		if (atomic_read(&chip->pm_suspend)) {
-			pr_err("fusb302_i2c: pm suspend, retry %d/%d\n",
-			       retry_cnt + 1, FUSB302_RESUME_RETRY);
-			msleep(FUSB302_RESUME_RETRY_SLEEP);
-		} else {
-			break;
-		}
+
+	if (fusb302_is_suspended(chip)) {
+		atomic_set(&chip->i2c_busy, 0);
+		return -ETIMEDOUT;
 	}
+
 	ret = i2c_smbus_write_i2c_block_data(chip->i2c_client, address,
 					     length, data);
 	if (ret < 0)
@@ -320,19 +330,15 @@ static int fusb302_i2c_block_write(struct fusb302_chip *chip, u8 address,
 static int fusb302_i2c_read(struct fusb302_chip *chip,
 			    u8 address, u8 *data)
 {
-	int retry_cnt;
 	int ret = 0;
 
 	atomic_set(&chip->i2c_busy, 1);
-	for (retry_cnt = 0; retry_cnt < FUSB302_RESUME_RETRY; retry_cnt++) {
-		if (atomic_read(&chip->pm_suspend)) {
-			pr_err("fusb302_i2c: pm suspend, retry %d/%d\n",
-			       retry_cnt + 1, FUSB302_RESUME_RETRY);
-			msleep(FUSB302_RESUME_RETRY_SLEEP);
-		} else {
-			break;
-		}
+
+	if (fusb302_is_suspended(chip)) {
+		atomic_set(&chip->i2c_busy, 0);
+		return -ETIMEDOUT;
 	}
+
 	ret = i2c_smbus_read_byte_data(chip->i2c_client, address);
 	*data = (u8)ret;
 	if (ret < 0)
@@ -345,33 +351,31 @@ static int fusb302_i2c_read(struct fusb302_chip *chip,
 static int fusb302_i2c_block_read(struct fusb302_chip *chip, u8 address,
 				  u8 length, u8 *data)
 {
-	int retry_cnt;
 	int ret = 0;
 
 	if (length <= 0)
 		return ret;
 	atomic_set(&chip->i2c_busy, 1);
-	for (retry_cnt = 0; retry_cnt < FUSB302_RESUME_RETRY; retry_cnt++) {
-		if (atomic_read(&chip->pm_suspend)) {
-			pr_err("fusb302_i2c: pm suspend, retry %d/%d\n",
-			       retry_cnt + 1, FUSB302_RESUME_RETRY);
-			msleep(FUSB302_RESUME_RETRY_SLEEP);
-		} else {
-			break;
-		}
+
+	if (fusb302_is_suspended(chip)) {
+		atomic_set(&chip->i2c_busy, 0);
+		return -ETIMEDOUT;
 	}
+
 	ret = i2c_smbus_read_i2c_block_data(chip->i2c_client, address,
 					    length, data);
 	if (ret < 0) {
 		fusb302_log(chip, "cannot block read 0x%02x, len=%d, ret=%d",
 			    address, length, ret);
-		return ret;
+		goto done;
 	}
 	if (ret != length) {
 		fusb302_log(chip, "only read %d/%d bytes from 0x%02x",
 			    ret, length, address);
-		return -EIO;
+		ret = -EIO;
 	}
+
+done:
 	atomic_set(&chip->i2c_busy, 0);
 
 	return ret;
@@ -489,7 +493,7 @@ static int tcpm_init(struct tcpc_dev *dev)
 	ret = fusb302_i2c_read(chip, FUSB_REG_STATUS0, &data);
 	if (ret < 0)
 		return ret;
-	chip->vbus_present = !!(FUSB_REG_STATUS0 & FUSB_REG_STATUS0_VBUSOK);
+	chip->vbus_present = !!(data & FUSB_REG_STATUS0_VBUSOK);
 	ret = fusb302_i2c_read(chip, FUSB_REG_DEVICE_ID, &data);
 	if (ret < 0)
 		return ret;
@@ -1025,7 +1029,7 @@ static int fusb302_pd_send_message(struct fusb302_chip *chip,
 	buf[pos++] = FUSB302_TKN_SYNC1;
 	buf[pos++] = FUSB302_TKN_SYNC2;
 
-	len = pd_header_cnt(msg->header) * 4;
+	len = pd_header_cnt_le(msg->header) * 4;
 	/* plug 2 for header */
 	len += 2;
 	if (len > 0x1F) {
@@ -1035,8 +1039,8 @@ static int fusb302_pd_send_message(struct fusb302_chip *chip,
 	}
 	/* packsym tells the FUSB302 chip that the next X bytes are payload */
 	buf[pos++] = FUSB302_TKN_PACKSYM | (len & 0x1F);
-	buf[pos++] = msg->header & 0xFF;
-	buf[pos++] = (msg->header >> 8) & 0xFF;
+	memcpy(&buf[pos], &msg->header, sizeof(msg->header));
+	pos += sizeof(msg->header);
 
 	len -= 2;
 	memcpy(&buf[pos], msg->payload, len);
@@ -1481,7 +1485,7 @@ static int fusb302_pd_read_message(struct fusb302_chip *chip,
 				     (u8 *)&msg->header);
 	if (ret < 0)
 		return ret;
-	len = pd_header_cnt(msg->header) * 4;
+	len = pd_header_cnt_le(msg->header) * 4;
 	/* add 4 to length to include the CRC */
 	if (len > PD_MAX_PAYLOAD * 4) {
 		fusb302_log(chip, "PD message too long %d", len);
@@ -1663,14 +1667,12 @@ static int init_gpio(struct fusb302_chip *chip)
 	if (ret < 0) {
 		fusb302_log(chip,
 			    "cannot set GPIO Int_N to input, ret=%d", ret);
-		gpio_free(chip->gpio_int_n);
 		return ret;
 	}
 	ret = gpio_to_irq(chip->gpio_int_n);
 	if (ret < 0) {
 		fusb302_log(chip,
 			    "cannot request IRQ for GPIO Int_N, ret=%d", ret);
-		gpio_free(chip->gpio_int_n);
 		return ret;
 	}
 	chip->gpio_int_n_irq = ret;
@@ -1787,11 +1789,13 @@ static const struct of_device_id fusb302_dt_match[] = {
 	{.compatible = "fcs,fusb302"},
 	{},
 };
+MODULE_DEVICE_TABLE(of, fusb302_dt_match);
 
 static const struct i2c_device_id fusb302_i2c_device_id[] = {
 	{"typec_fusb302", 0},
 	{},
 };
+MODULE_DEVICE_TABLE(i2c, fusb302_i2c_device_id);
 
 static const struct dev_pm_ops fusb302_pm_ops = {
 	.suspend = fusb302_pm_suspend,

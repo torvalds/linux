@@ -49,6 +49,7 @@
 #define MAX_NR_MAPS	4
 
 #define F_NEEDS_EFFICIENT_UNALIGNED_ACCESS	(1 << 0)
+#define F_LOAD_WITH_STRICT_ALIGNMENT		(1 << 1)
 
 struct bpf_test {
 	const char *descr;
@@ -1072,44 +1073,75 @@ static struct bpf_test tests[] = {
 		.result = ACCEPT,
 	},
 	{
-		"check cb access: byte, oob 1",
+		"__sk_buff->hash, offset 0, byte store not permitted",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
 			BPF_STX_MEM(BPF_B, BPF_REG_1, BPF_REG_0,
-				    offsetof(struct __sk_buff, cb[4]) + 4),
+				    offsetof(struct __sk_buff, hash)),
 			BPF_EXIT_INSN(),
 		},
 		.errstr = "invalid bpf_context access",
 		.result = REJECT,
 	},
 	{
-		"check cb access: byte, oob 2",
+		"__sk_buff->tc_index, offset 3, byte store not permitted",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
 			BPF_STX_MEM(BPF_B, BPF_REG_1, BPF_REG_0,
-				    offsetof(struct __sk_buff, cb[0]) - 1),
+				    offsetof(struct __sk_buff, tc_index) + 3),
 			BPF_EXIT_INSN(),
 		},
 		.errstr = "invalid bpf_context access",
 		.result = REJECT,
 	},
 	{
-		"check cb access: byte, oob 3",
+		"check skb->hash byte load permitted",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+#ifdef __LITTLE_ENDIAN
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, hash)),
+#else
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, hash) + 3),
+#endif
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+	},
+	{
+		"check skb->hash byte load not permitted 1",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
 			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
-				    offsetof(struct __sk_buff, cb[4]) + 4),
+				    offsetof(struct __sk_buff, hash) + 1),
 			BPF_EXIT_INSN(),
 		},
 		.errstr = "invalid bpf_context access",
 		.result = REJECT,
 	},
 	{
-		"check cb access: byte, oob 4",
+		"check skb->hash byte load not permitted 2",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
 			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
-				    offsetof(struct __sk_buff, cb[0]) - 1),
+				    offsetof(struct __sk_buff, hash) + 2),
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "invalid bpf_context access",
+		.result = REJECT,
+	},
+	{
+		"check skb->hash byte load not permitted 3",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+#ifdef __LITTLE_ENDIAN
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, hash) + 3),
+#else
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, hash)),
+#endif
 			BPF_EXIT_INSN(),
 		},
 		.errstr = "invalid bpf_context access",
@@ -1187,44 +1219,53 @@ static struct bpf_test tests[] = {
 		.result = REJECT,
 	},
 	{
-		"check cb access: half, oob 1",
+		"check __sk_buff->hash, offset 0, half store not permitted",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
 			BPF_STX_MEM(BPF_H, BPF_REG_1, BPF_REG_0,
-				    offsetof(struct __sk_buff, cb[4]) + 4),
+				    offsetof(struct __sk_buff, hash)),
 			BPF_EXIT_INSN(),
 		},
 		.errstr = "invalid bpf_context access",
 		.result = REJECT,
 	},
 	{
-		"check cb access: half, oob 2",
+		"check __sk_buff->tc_index, offset 2, half store not permitted",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
 			BPF_STX_MEM(BPF_H, BPF_REG_1, BPF_REG_0,
-				    offsetof(struct __sk_buff, cb[0]) - 2),
+				    offsetof(struct __sk_buff, tc_index) + 2),
 			BPF_EXIT_INSN(),
 		},
 		.errstr = "invalid bpf_context access",
 		.result = REJECT,
 	},
 	{
-		"check cb access: half, oob 3",
+		"check skb->hash half load permitted",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
+#ifdef __LITTLE_ENDIAN
 			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
-				    offsetof(struct __sk_buff, cb[4]) + 4),
+				    offsetof(struct __sk_buff, hash)),
+#else
+			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, hash) + 2),
+#endif
 			BPF_EXIT_INSN(),
 		},
-		.errstr = "invalid bpf_context access",
-		.result = REJECT,
+		.result = ACCEPT,
 	},
 	{
-		"check cb access: half, oob 4",
+		"check skb->hash half load not permitted",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
+#ifdef __LITTLE_ENDIAN
 			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
-				    offsetof(struct __sk_buff, cb[0]) - 2),
+				    offsetof(struct __sk_buff, hash) + 2),
+#else
+			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, hash)),
+#endif
 			BPF_EXIT_INSN(),
 		},
 		.errstr = "invalid bpf_context access",
@@ -1367,28 +1408,6 @@ static struct bpf_test tests[] = {
 		"check cb access: double, oob 2",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
-			BPF_STX_MEM(BPF_DW, BPF_REG_1, BPF_REG_0,
-				    offsetof(struct __sk_buff, cb[4]) + 8),
-			BPF_EXIT_INSN(),
-		},
-		.errstr = "invalid bpf_context access",
-		.result = REJECT,
-	},
-	{
-		"check cb access: double, oob 3",
-		.insns = {
-			BPF_MOV64_IMM(BPF_REG_0, 0),
-			BPF_STX_MEM(BPF_DW, BPF_REG_1, BPF_REG_0,
-				    offsetof(struct __sk_buff, cb[0]) - 8),
-			BPF_EXIT_INSN(),
-		},
-		.errstr = "invalid bpf_context access",
-		.result = REJECT,
-	},
-	{
-		"check cb access: double, oob 4",
-		.insns = {
-			BPF_MOV64_IMM(BPF_REG_0, 0),
 			BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_1,
 				    offsetof(struct __sk_buff, cb[4])),
 			BPF_EXIT_INSN(),
@@ -1397,22 +1416,22 @@ static struct bpf_test tests[] = {
 		.result = REJECT,
 	},
 	{
-		"check cb access: double, oob 5",
+		"check __sk_buff->ifindex dw store not permitted",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
-			BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_1,
-				    offsetof(struct __sk_buff, cb[4]) + 8),
+			BPF_STX_MEM(BPF_DW, BPF_REG_1, BPF_REG_0,
+				    offsetof(struct __sk_buff, ifindex)),
 			BPF_EXIT_INSN(),
 		},
 		.errstr = "invalid bpf_context access",
 		.result = REJECT,
 	},
 	{
-		"check cb access: double, oob 6",
+		"check __sk_buff->ifindex dw load not permitted",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
 			BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_1,
-				    offsetof(struct __sk_buff, cb[0]) - 8),
+				    offsetof(struct __sk_buff, ifindex)),
 			BPF_EXIT_INSN(),
 		},
 		.errstr = "invalid bpf_context access",
@@ -2615,6 +2634,195 @@ static struct bpf_test tests[] = {
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
 	},
 	{
+		"direct packet access: test17 (pruning, alignment)",
+		.insns = {
+			BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1,
+				    offsetof(struct __sk_buff, data)),
+			BPF_LDX_MEM(BPF_W, BPF_REG_3, BPF_REG_1,
+				    offsetof(struct __sk_buff, data_end)),
+			BPF_LDX_MEM(BPF_W, BPF_REG_7, BPF_REG_1,
+				    offsetof(struct __sk_buff, mark)),
+			BPF_MOV64_REG(BPF_REG_0, BPF_REG_2),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 14),
+			BPF_JMP_IMM(BPF_JGT, BPF_REG_7, 1, 4),
+			BPF_JMP_REG(BPF_JGT, BPF_REG_0, BPF_REG_3, 1),
+			BPF_STX_MEM(BPF_W, BPF_REG_0, BPF_REG_0, -4),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 1),
+			BPF_JMP_A(-6),
+		},
+		.errstr = "misaligned packet access off 2+15+-4 size 4",
+		.result = REJECT,
+		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+		.flags = F_LOAD_WITH_STRICT_ALIGNMENT,
+	},
+	{
+		"direct packet access: test18 (imm += pkt_ptr, 1)",
+		.insns = {
+			BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1,
+				    offsetof(struct __sk_buff, data)),
+			BPF_LDX_MEM(BPF_W, BPF_REG_3, BPF_REG_1,
+				    offsetof(struct __sk_buff, data_end)),
+			BPF_MOV64_IMM(BPF_REG_0, 8),
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_2),
+			BPF_JMP_REG(BPF_JGT, BPF_REG_0, BPF_REG_3, 1),
+			BPF_STX_MEM(BPF_B, BPF_REG_2, BPF_REG_2, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+	},
+	{
+		"direct packet access: test19 (imm += pkt_ptr, 2)",
+		.insns = {
+			BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1,
+				    offsetof(struct __sk_buff, data)),
+			BPF_LDX_MEM(BPF_W, BPF_REG_3, BPF_REG_1,
+				    offsetof(struct __sk_buff, data_end)),
+			BPF_MOV64_REG(BPF_REG_0, BPF_REG_2),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 8),
+			BPF_JMP_REG(BPF_JGT, BPF_REG_0, BPF_REG_3, 3),
+			BPF_MOV64_IMM(BPF_REG_4, 4),
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_4, BPF_REG_2),
+			BPF_STX_MEM(BPF_B, BPF_REG_4, BPF_REG_4, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+	},
+	{
+		"direct packet access: test20 (x += pkt_ptr, 1)",
+		.insns = {
+			BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1,
+				    offsetof(struct __sk_buff, data)),
+			BPF_LDX_MEM(BPF_W, BPF_REG_3, BPF_REG_1,
+				    offsetof(struct __sk_buff, data_end)),
+			BPF_MOV64_IMM(BPF_REG_0, 0xffffffff),
+			BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_0, -8),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_10, -8),
+			BPF_ALU64_IMM(BPF_AND, BPF_REG_0, 0xffff),
+			BPF_MOV64_REG(BPF_REG_4, BPF_REG_0),
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_4, BPF_REG_2),
+			BPF_MOV64_REG(BPF_REG_5, BPF_REG_4),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_4, 0xffff - 1),
+			BPF_JMP_REG(BPF_JGT, BPF_REG_4, BPF_REG_3, 1),
+			BPF_STX_MEM(BPF_DW, BPF_REG_5, BPF_REG_4, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+		.result = ACCEPT,
+	},
+	{
+		"direct packet access: test21 (x += pkt_ptr, 2)",
+		.insns = {
+			BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1,
+				    offsetof(struct __sk_buff, data)),
+			BPF_LDX_MEM(BPF_W, BPF_REG_3, BPF_REG_1,
+				    offsetof(struct __sk_buff, data_end)),
+			BPF_MOV64_REG(BPF_REG_0, BPF_REG_2),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 8),
+			BPF_JMP_REG(BPF_JGT, BPF_REG_0, BPF_REG_3, 9),
+			BPF_MOV64_IMM(BPF_REG_4, 0xffffffff),
+			BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_4, -8),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_4, BPF_REG_10, -8),
+			BPF_ALU64_IMM(BPF_AND, BPF_REG_4, 0xffff),
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_4, BPF_REG_2),
+			BPF_MOV64_REG(BPF_REG_5, BPF_REG_4),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_4, 0xffff - 1),
+			BPF_JMP_REG(BPF_JGT, BPF_REG_4, BPF_REG_3, 1),
+			BPF_STX_MEM(BPF_DW, BPF_REG_5, BPF_REG_4, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+		.result = ACCEPT,
+	},
+	{
+		"direct packet access: test22 (x += pkt_ptr, 3)",
+		.insns = {
+			BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1,
+				    offsetof(struct __sk_buff, data)),
+			BPF_LDX_MEM(BPF_W, BPF_REG_3, BPF_REG_1,
+				    offsetof(struct __sk_buff, data_end)),
+			BPF_MOV64_REG(BPF_REG_0, BPF_REG_2),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 8),
+			BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_2, -8),
+			BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_3, -16),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_3, BPF_REG_10, -16),
+			BPF_JMP_REG(BPF_JGT, BPF_REG_0, BPF_REG_3, 11),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_2, BPF_REG_10, -8),
+			BPF_MOV64_IMM(BPF_REG_4, 0xffffffff),
+			BPF_STX_XADD(BPF_DW, BPF_REG_10, BPF_REG_4, -8),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_4, BPF_REG_10, -8),
+			BPF_ALU64_IMM(BPF_RSH, BPF_REG_4, 48),
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_4, BPF_REG_2),
+			BPF_MOV64_REG(BPF_REG_0, BPF_REG_4),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 2),
+			BPF_JMP_REG(BPF_JGT, BPF_REG_0, BPF_REG_3, 2),
+			BPF_MOV64_IMM(BPF_REG_2, 1),
+			BPF_STX_MEM(BPF_H, BPF_REG_4, BPF_REG_2, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+		.result = ACCEPT,
+	},
+	{
+		"direct packet access: test23 (x += pkt_ptr, 4)",
+		.insns = {
+			BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1,
+				    offsetof(struct __sk_buff, data)),
+			BPF_LDX_MEM(BPF_W, BPF_REG_3, BPF_REG_1,
+				    offsetof(struct __sk_buff, data_end)),
+			BPF_MOV64_IMM(BPF_REG_0, 0xffffffff),
+			BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_0, -8),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_10, -8),
+			BPF_ALU64_IMM(BPF_AND, BPF_REG_0, 0xffff),
+			BPF_MOV64_REG(BPF_REG_4, BPF_REG_0),
+			BPF_MOV64_IMM(BPF_REG_0, 31),
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_4),
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_2),
+			BPF_MOV64_REG(BPF_REG_5, BPF_REG_0),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 0xffff - 1),
+			BPF_JMP_REG(BPF_JGT, BPF_REG_0, BPF_REG_3, 1),
+			BPF_STX_MEM(BPF_DW, BPF_REG_5, BPF_REG_0, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+		.result = REJECT,
+		.errstr = "cannot add integer value with 47 upper zero bits to ptr_to_packet",
+	},
+	{
+		"direct packet access: test24 (x += pkt_ptr, 5)",
+		.insns = {
+			BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1,
+				    offsetof(struct __sk_buff, data)),
+			BPF_LDX_MEM(BPF_W, BPF_REG_3, BPF_REG_1,
+				    offsetof(struct __sk_buff, data_end)),
+			BPF_MOV64_IMM(BPF_REG_0, 0xffffffff),
+			BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_0, -8),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_10, -8),
+			BPF_ALU64_IMM(BPF_AND, BPF_REG_0, 0xff),
+			BPF_MOV64_REG(BPF_REG_4, BPF_REG_0),
+			BPF_MOV64_IMM(BPF_REG_0, 64),
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_4),
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_2),
+			BPF_MOV64_REG(BPF_REG_5, BPF_REG_0),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_0, 0xffff - 1),
+			BPF_JMP_REG(BPF_JGT, BPF_REG_0, BPF_REG_3, 1),
+			BPF_STX_MEM(BPF_DW, BPF_REG_5, BPF_REG_0, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.prog_type = BPF_PROG_TYPE_SCHED_CLS,
+		.result = ACCEPT,
+	},
+	{
 		"helper access to packet: test1, valid packet_ptr range",
 		.insns = {
 			BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1,
@@ -3341,6 +3549,70 @@ static struct bpf_test tests[] = {
 		.prog_type = BPF_PROG_TYPE_SCHED_CLS
 	},
 	{
+		"alu ops on ptr_to_map_value_or_null, 1",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_1, 10),
+			BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_1, -8),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_MOV64_REG(BPF_REG_4, BPF_REG_0),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_4, -2),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_4, 2),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 1),
+			BPF_ST_MEM(BPF_DW, BPF_REG_4, 0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map1 = { 4 },
+		.errstr = "R4 invalid mem access",
+		.result = REJECT,
+		.prog_type = BPF_PROG_TYPE_SCHED_CLS
+	},
+	{
+		"alu ops on ptr_to_map_value_or_null, 2",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_1, 10),
+			BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_1, -8),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_MOV64_REG(BPF_REG_4, BPF_REG_0),
+			BPF_ALU64_IMM(BPF_AND, BPF_REG_4, -1),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 1),
+			BPF_ST_MEM(BPF_DW, BPF_REG_4, 0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map1 = { 4 },
+		.errstr = "R4 invalid mem access",
+		.result = REJECT,
+		.prog_type = BPF_PROG_TYPE_SCHED_CLS
+	},
+	{
+		"alu ops on ptr_to_map_value_or_null, 3",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_1, 10),
+			BPF_STX_MEM(BPF_DW, BPF_REG_10, BPF_REG_1, -8),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_MOV64_REG(BPF_REG_4, BPF_REG_0),
+			BPF_ALU64_IMM(BPF_LSH, BPF_REG_4, 1),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 1),
+			BPF_ST_MEM(BPF_DW, BPF_REG_4, 0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map1 = { 4 },
+		.errstr = "R4 invalid mem access",
+		.result = REJECT,
+		.prog_type = BPF_PROG_TYPE_SCHED_CLS
+	},
+	{
 		"invalid memory access with multiple map_lookup_elem calls",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_1, 10),
@@ -3658,6 +3930,72 @@ static struct bpf_test tests[] = {
 		},
 		.result = REJECT,
 		.errstr = "invalid bpf_context access",
+	},
+	{
+		"leak pointer into ctx 1",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_STX_MEM(BPF_DW, BPF_REG_1, BPF_REG_0,
+				    offsetof(struct __sk_buff, cb[0])),
+			BPF_LD_MAP_FD(BPF_REG_2, 0),
+			BPF_STX_XADD(BPF_DW, BPF_REG_1, BPF_REG_2,
+				      offsetof(struct __sk_buff, cb[0])),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map1 = { 2 },
+		.errstr_unpriv = "R2 leaks addr into mem",
+		.result_unpriv = REJECT,
+		.result = ACCEPT,
+	},
+	{
+		"leak pointer into ctx 2",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_STX_MEM(BPF_DW, BPF_REG_1, BPF_REG_0,
+				    offsetof(struct __sk_buff, cb[0])),
+			BPF_STX_XADD(BPF_DW, BPF_REG_1, BPF_REG_10,
+				      offsetof(struct __sk_buff, cb[0])),
+			BPF_EXIT_INSN(),
+		},
+		.errstr_unpriv = "R10 leaks addr into mem",
+		.result_unpriv = REJECT,
+		.result = ACCEPT,
+	},
+	{
+		"leak pointer into ctx 3",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_LD_MAP_FD(BPF_REG_2, 0),
+			BPF_STX_MEM(BPF_DW, BPF_REG_1, BPF_REG_2,
+				      offsetof(struct __sk_buff, cb[0])),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map1 = { 1 },
+		.errstr_unpriv = "R2 leaks addr into ctx",
+		.result_unpriv = REJECT,
+		.result = ACCEPT,
+	},
+	{
+		"leak pointer into map val",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 3),
+			BPF_MOV64_IMM(BPF_REG_3, 0),
+			BPF_STX_MEM(BPF_DW, BPF_REG_0, BPF_REG_3, 0),
+			BPF_STX_XADD(BPF_DW, BPF_REG_0, BPF_REG_6, 0),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map1 = { 4 },
+		.errstr_unpriv = "R6 leaks addr into mem",
+		.result_unpriv = REJECT,
+		.result = ACCEPT,
 	},
 	{
 		"helper access to map: full range",
@@ -4937,7 +5275,241 @@ static struct bpf_test tests[] = {
 		.fixup_map_in_map = { 3 },
 		.errstr = "R1 type=map_value_or_null expected=map_ptr",
 		.result = REJECT,
-	}
+	},
+	{
+		"ld_abs: check calling conv, r1",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
+			BPF_MOV64_IMM(BPF_REG_1, 0),
+			BPF_LD_ABS(BPF_W, -0x200000),
+			BPF_MOV64_REG(BPF_REG_0, BPF_REG_1),
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "R1 !read_ok",
+		.result = REJECT,
+	},
+	{
+		"ld_abs: check calling conv, r2",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
+			BPF_MOV64_IMM(BPF_REG_2, 0),
+			BPF_LD_ABS(BPF_W, -0x200000),
+			BPF_MOV64_REG(BPF_REG_0, BPF_REG_2),
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "R2 !read_ok",
+		.result = REJECT,
+	},
+	{
+		"ld_abs: check calling conv, r3",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
+			BPF_MOV64_IMM(BPF_REG_3, 0),
+			BPF_LD_ABS(BPF_W, -0x200000),
+			BPF_MOV64_REG(BPF_REG_0, BPF_REG_3),
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "R3 !read_ok",
+		.result = REJECT,
+	},
+	{
+		"ld_abs: check calling conv, r4",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
+			BPF_MOV64_IMM(BPF_REG_4, 0),
+			BPF_LD_ABS(BPF_W, -0x200000),
+			BPF_MOV64_REG(BPF_REG_0, BPF_REG_4),
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "R4 !read_ok",
+		.result = REJECT,
+	},
+	{
+		"ld_abs: check calling conv, r5",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
+			BPF_MOV64_IMM(BPF_REG_5, 0),
+			BPF_LD_ABS(BPF_W, -0x200000),
+			BPF_MOV64_REG(BPF_REG_0, BPF_REG_5),
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "R5 !read_ok",
+		.result = REJECT,
+	},
+	{
+		"ld_abs: check calling conv, r7",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
+			BPF_MOV64_IMM(BPF_REG_7, 0),
+			BPF_LD_ABS(BPF_W, -0x200000),
+			BPF_MOV64_REG(BPF_REG_0, BPF_REG_7),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+	},
+	{
+		"ld_ind: check calling conv, r1",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
+			BPF_MOV64_IMM(BPF_REG_1, 1),
+			BPF_LD_IND(BPF_W, BPF_REG_1, -0x200000),
+			BPF_MOV64_REG(BPF_REG_0, BPF_REG_1),
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "R1 !read_ok",
+		.result = REJECT,
+	},
+	{
+		"ld_ind: check calling conv, r2",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
+			BPF_MOV64_IMM(BPF_REG_2, 1),
+			BPF_LD_IND(BPF_W, BPF_REG_2, -0x200000),
+			BPF_MOV64_REG(BPF_REG_0, BPF_REG_2),
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "R2 !read_ok",
+		.result = REJECT,
+	},
+	{
+		"ld_ind: check calling conv, r3",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
+			BPF_MOV64_IMM(BPF_REG_3, 1),
+			BPF_LD_IND(BPF_W, BPF_REG_3, -0x200000),
+			BPF_MOV64_REG(BPF_REG_0, BPF_REG_3),
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "R3 !read_ok",
+		.result = REJECT,
+	},
+	{
+		"ld_ind: check calling conv, r4",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
+			BPF_MOV64_IMM(BPF_REG_4, 1),
+			BPF_LD_IND(BPF_W, BPF_REG_4, -0x200000),
+			BPF_MOV64_REG(BPF_REG_0, BPF_REG_4),
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "R4 !read_ok",
+		.result = REJECT,
+	},
+	{
+		"ld_ind: check calling conv, r5",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
+			BPF_MOV64_IMM(BPF_REG_5, 1),
+			BPF_LD_IND(BPF_W, BPF_REG_5, -0x200000),
+			BPF_MOV64_REG(BPF_REG_0, BPF_REG_5),
+			BPF_EXIT_INSN(),
+		},
+		.errstr = "R5 !read_ok",
+		.result = REJECT,
+	},
+	{
+		"ld_ind: check calling conv, r7",
+		.insns = {
+			BPF_MOV64_REG(BPF_REG_6, BPF_REG_1),
+			BPF_MOV64_IMM(BPF_REG_7, 1),
+			BPF_LD_IND(BPF_W, BPF_REG_7, -0x200000),
+			BPF_MOV64_REG(BPF_REG_0, BPF_REG_7),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+	},
+	{
+		"check bpf_perf_event_data->sample_period byte load permitted",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+#ifdef __LITTLE_ENDIAN
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct bpf_perf_event_data, sample_period)),
+#else
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct bpf_perf_event_data, sample_period) + 7),
+#endif
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.prog_type = BPF_PROG_TYPE_PERF_EVENT,
+	},
+	{
+		"check bpf_perf_event_data->sample_period half load permitted",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+#ifdef __LITTLE_ENDIAN
+			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct bpf_perf_event_data, sample_period)),
+#else
+			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct bpf_perf_event_data, sample_period) + 6),
+#endif
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.prog_type = BPF_PROG_TYPE_PERF_EVENT,
+	},
+	{
+		"check bpf_perf_event_data->sample_period word load permitted",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+#ifdef __LITTLE_ENDIAN
+			BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct bpf_perf_event_data, sample_period)),
+#else
+			BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct bpf_perf_event_data, sample_period) + 4),
+#endif
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.prog_type = BPF_PROG_TYPE_PERF_EVENT,
+	},
+	{
+		"check bpf_perf_event_data->sample_period dword load permitted",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct bpf_perf_event_data, sample_period)),
+			BPF_EXIT_INSN(),
+		},
+		.result = ACCEPT,
+		.prog_type = BPF_PROG_TYPE_PERF_EVENT,
+	},
+	{
+		"check skb->data half load not permitted",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+#ifdef __LITTLE_ENDIAN
+			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, data)),
+#else
+			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, data) + 2),
+#endif
+			BPF_EXIT_INSN(),
+		},
+		.result = REJECT,
+		.errstr = "invalid bpf_context access",
+	},
+	{
+		"check skb->tc_classid half load not permitted for lwt prog",
+		.insns = {
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+#ifdef __LITTLE_ENDIAN
+			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, tc_classid)),
+#else
+			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
+				    offsetof(struct __sk_buff, tc_classid) + 2),
+#endif
+			BPF_EXIT_INSN(),
+		},
+		.result = REJECT,
+		.errstr = "invalid bpf_context access",
+		.prog_type = BPF_PROG_TYPE_LWT_IN,
+	},
 };
 
 static int probe_filter_length(const struct bpf_insn *fp)
@@ -5059,9 +5631,9 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 
 	do_test_fixup(test, prog, map_fds);
 
-	fd_prog = bpf_load_program(prog_type ? : BPF_PROG_TYPE_SOCKET_FILTER,
-				   prog, prog_len, "GPL", 0, bpf_vlog,
-				   sizeof(bpf_vlog));
+	fd_prog = bpf_verify_program(prog_type ? : BPF_PROG_TYPE_SOCKET_FILTER,
+				     prog, prog_len, test->flags & F_LOAD_WITH_STRICT_ALIGNMENT,
+				     "GPL", 0, bpf_vlog, sizeof(bpf_vlog));
 
 	expected_ret = unpriv && test->result_unpriv != UNDEF ?
 		       test->result_unpriv : test->result;
@@ -5187,7 +5759,7 @@ static int do_test(bool unpriv, unsigned int from, unsigned int to)
 	}
 
 	printf("Summary: %d PASSED, %d FAILED\n", passes, errors);
-	return errors ? -errors : 0;
+	return errors ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
 int main(int argc, char **argv)
