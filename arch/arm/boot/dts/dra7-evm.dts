@@ -25,6 +25,14 @@
 		stdout-path = &uart1;
 	};
 
+	evm_1v8_sw: fixedregulator-evm_1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "evm_1v8";
+		vin-supply = <&smps9_reg>;
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+	};
+
 	evm_3v3_sd: fixedregulator-sd {
 		compatible = "regulator-fixed";
 		regulator-name = "evm_3v3_sd";
@@ -438,7 +446,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins_default>;
 	vmmc-supply = <&evm_3v3_sd>;
-	vmmc_aux-supply = <&ldo1_reg>;
+	vqmmc-supply = <&ldo1_reg>;
 	bus-width = <4>;
 	/*
 	 * SDCD signal is not being used here - using the fact that GPIO mode
@@ -451,7 +459,7 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc2_pins_default>;
-	vmmc-supply = <&evm_3v3_sw>;
+	vmmc-supply = <&evm_1v8_sw>;
 	bus-width = <8>;
 };
 
