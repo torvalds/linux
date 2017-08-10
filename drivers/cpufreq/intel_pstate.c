@@ -2124,7 +2124,6 @@ static int __intel_pstate_cpu_init(struct cpufreq_policy *policy)
 	policy->cpuinfo.max_freq *= cpu->pstate.scaling;
 
 	intel_pstate_init_acpi_perf_limits(policy);
-	cpumask_set_cpu(policy->cpu, policy->cpus);
 
 	policy->fast_switch_possible = true;
 
