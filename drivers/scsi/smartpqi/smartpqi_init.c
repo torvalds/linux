@@ -431,10 +431,10 @@ static int pqi_build_raid_path_request(struct pqi_ctrl_info *ctrl_info,
 		cdb[1] = CISS_GET_RAID_MAP;
 		put_unaligned_be32(buffer_length, &cdb[6]);
 		break;
-	case SA_CACHE_FLUSH:
+	case SA_FLUSH_CACHE:
 		request->data_direction = SOP_WRITE_FLAG;
 		cdb[0] = BMIC_WRITE;
-		cdb[6] = BMIC_CACHE_FLUSH;
+		cdb[6] = BMIC_FLUSH_CACHE;
 		put_unaligned_be16(buffer_length, &cdb[7]);
 		break;
 	case BMIC_IDENTIFY_CONTROLLER:
@@ -585,14 +585,13 @@ static int pqi_identify_physical_device(struct pqi_ctrl_info *ctrl_info,
 	return rc;
 }
 
-#define SA_CACHE_FLUSH_BUFFER_LENGTH	4
-
-static int pqi_flush_cache(struct pqi_ctrl_info *ctrl_info)
+static int pqi_flush_cache(struct pqi_ctrl_info *ctrl_info,
+	enum bmic_flush_cache_shutdown_event shutdown_event)
 {
 	int rc;
 	struct pqi_raid_path_request request;
 	int pci_direction;
-	u8 *buffer;
+	struct bmic_flush_cache *flush_cache;
 
 	/*
 	 * Don't bother trying to flush the cache if the controller is
@@ -601,13 +600,15 @@ static int pqi_flush_cache(struct pqi_ctrl_info *ctrl_info)
 	if (pqi_ctrl_offline(ctrl_info))
 		return -ENXIO;
 
-	buffer = kzalloc(SA_CACHE_FLUSH_BUFFER_LENGTH, GFP_KERNEL);
-	if (!buffer)
+	flush_cache = kzalloc(sizeof(*flush_cache), GFP_KERNEL);
+	if (!flush_cache)
 		return -ENOMEM;
 
+	flush_cache->shutdown_event = shutdown_event;
+
 	rc = pqi_build_raid_path_request(ctrl_info, &request,
-		SA_CACHE_FLUSH, RAID_CTLR_LUNID, buffer,
-		SA_CACHE_FLUSH_BUFFER_LENGTH, 0, &pci_direction);
+		SA_FLUSH_CACHE, RAID_CTLR_LUNID, flush_cache,
+		sizeof(*flush_cache), 0, &pci_direction);
 	if (rc)
 		goto out;
 
@@ -618,7 +619,7 @@ static int pqi_flush_cache(struct pqi_ctrl_info *ctrl_info)
 		pci_direction);
 
 out:
-	kfree(buffer);
+	kfree(flush_cache);
 
 	return rc;
 }
@@ -6693,7 +6694,7 @@ static void pqi_shutdown(struct pci_dev *pci_dev)
 	 * Write all data in the controller's battery-backed cache to
 	 * storage.
 	 */
-	rc = pqi_flush_cache(ctrl_info);
+	rc = pqi_flush_cache(ctrl_info, SHUTDOWN);
 	if (rc == 0)
 		return;
 
@@ -6737,7 +6738,7 @@ static __maybe_unused int pqi_suspend(struct pci_dev *pci_dev, pm_message_t stat
 	pqi_cancel_rescan_worker(ctrl_info);
 	pqi_wait_until_scan_finished(ctrl_info);
 	pqi_wait_until_lun_reset_finished(ctrl_info);
-	pqi_flush_cache(ctrl_info);
+	pqi_flush_cache(ctrl_info, SUSPEND);
 	pqi_ctrl_block_requests(ctrl_info);
 	pqi_ctrl_wait_until_quiesced(ctrl_info);
 	pqi_wait_until_inbound_queues_empty(ctrl_info);

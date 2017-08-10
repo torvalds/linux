@@ -1079,9 +1079,9 @@ enum pqi_ctrl_mode {
 #define BMIC_SENSE_CONTROLLER_PARAMETERS	0x64
 #define BMIC_SENSE_SUBSYSTEM_INFORMATION	0x66
 #define BMIC_WRITE_HOST_WELLNESS		0xa5
-#define BMIC_CACHE_FLUSH			0xc2
+#define BMIC_FLUSH_CACHE			0xc2
 
-#define SA_CACHE_FLUSH				0x1
+#define SA_FLUSH_CACHE				0x1
 
 #define MASKED_DEVICE(lunid)			((lunid)[3] & 0xc0)
 #define CISS_GET_LEVEL_2_BUS(lunid)		((lunid)[7] & 0x3f)
@@ -1185,6 +1185,23 @@ struct bmic_identify_physical_device {
 	u8	negotiated_physical_link_rate[256];
 	u8	box_connector_name[8];
 	u8	padding_to_multiple_of_512[9];
+};
+
+struct bmic_flush_cache {
+	u8	disable_flag;
+	u8	system_power_action;
+	u8	ndu_flush;
+	u8	shutdown_event;
+	u8	reserved[28];
+};
+
+/* for shutdown_event member of struct bmic_flush_cache */
+enum bmic_flush_cache_shutdown_event {
+	NONE_CACHE_FLUSH_ONLY = 0,
+	SHUTDOWN = 1,
+	HIBERNATE = 2,
+	SUSPEND = 3,
+	RESTART = 4
 };
 
 #pragma pack()
