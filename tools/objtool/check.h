@@ -32,7 +32,7 @@ struct insn_state {
 	unsigned char type;
 	bool bp_scratch;
 	bool drap;
-	int drap_reg;
+	int drap_reg, drap_offset;
 };
 
 struct instruction {

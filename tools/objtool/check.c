@@ -221,6 +221,7 @@ static void clear_insn_state(struct insn_state *state)
 	for (i = 0; i < CFI_NUM_REGS; i++)
 		state->regs[i].base = CFI_UNDEFINED;
 	state->drap_reg = CFI_UNDEFINED;
+	state->drap_offset = -1;
 }
 
 /*
@@ -1110,8 +1111,7 @@ static int update_insn_state_regs(struct instruction *insn, struct insn_state *s
 static void save_reg(struct insn_state *state, unsigned char reg, int base,
 		     int offset)
 {
-	if ((arch_callee_saved_reg(reg) ||
-	    (state->drap && reg == state->drap_reg)) &&
+	if (arch_callee_saved_reg(reg) &&
 	    state->regs[reg].base == CFI_UNDEFINED) {
 		state->regs[reg].base = base;
 		state->regs[reg].offset = offset;
@@ -1281,7 +1281,6 @@ static int update_insn_state(struct instruction *insn, struct insn_state *state)
 				cfa->base = state->drap_reg;
 				cfa->offset = state->stack_size = 0;
 				state->drap = true;
-
 			}
 
 			/*
@@ -1299,17 +1298,19 @@ static int update_insn_state(struct instruction *insn, struct insn_state *state)
 				cfa->base = CFI_SP;
 			}
 
-			if (regs[op->dest.reg].offset == -state->stack_size) {
+			if (state->drap && cfa->base == CFI_BP_INDIRECT &&
+			    op->dest.type == OP_DEST_REG &&
+			    op->dest.reg == state->drap_reg &&
+			    state->drap_offset == -state->stack_size) {
 
-				if (state->drap && cfa->base == CFI_BP_INDIRECT &&
-				    op->dest.type == OP_DEST_REG &&
-				    op->dest.reg == state->drap_reg) {
+				/* drap: pop %drap */
+				cfa->base = state->drap_reg;
+				cfa->offset = 0;
+				state->drap_offset = -1;
 
-					/* drap: pop %drap */
-					cfa->base = state->drap_reg;
-					cfa->offset = 0;
-				}
+			} else if (regs[op->dest.reg].offset == -state->stack_size) {
 
+				/* pop %reg */
 				restore_reg(state, op->dest.reg);
 			}
 
@@ -1321,14 +1322,18 @@ static int update_insn_state(struct instruction *insn, struct insn_state *state)
 
 		case OP_SRC_REG_INDIRECT:
 			if (state->drap && op->src.reg == CFI_BP &&
+			    op->src.offset == state->drap_offset) {
+
+				/* drap: mov disp(%rbp), %drap */
+				cfa->base = state->drap_reg;
+				cfa->offset = 0;
+				state->drap_offset = -1;
+			}
+
+			if (state->drap && op->src.reg == CFI_BP &&
 			    op->src.offset == regs[op->dest.reg].offset) {
 
 				/* drap: mov disp(%rbp), %reg */
-				if (op->dest.reg == state->drap_reg) {
-					cfa->base = state->drap_reg;
-					cfa->offset = 0;
-				}
-
 				restore_reg(state, op->dest.reg);
 
 			} else if (op->src.reg == cfa->base &&
@@ -1364,8 +1369,8 @@ static int update_insn_state(struct instruction *insn, struct insn_state *state)
 				cfa->base = CFI_BP_INDIRECT;
 				cfa->offset = -state->stack_size;
 
-				/* save drap so we know when to undefine it */
-				save_reg(state, op->src.reg, CFI_CFA, -state->stack_size);
+				/* save drap so we know when to restore it */
+				state->drap_offset = -state->stack_size;
 
 			} else if (op->src.reg == CFI_BP && cfa->base == state->drap_reg) {
 
@@ -1399,8 +1404,8 @@ static int update_insn_state(struct instruction *insn, struct insn_state *state)
 				cfa->base = CFI_BP_INDIRECT;
 				cfa->offset = op->dest.offset;
 
-				/* save drap so we know when to undefine it */
-				save_reg(state, op->src.reg, CFI_CFA, op->dest.offset);
+				/* save drap offset so we know when to restore it */
+				state->drap_offset = op->dest.offset;
 			}
 
 			else if (regs[op->src.reg].base == CFI_UNDEFINED) {
@@ -1491,11 +1496,12 @@ static bool insn_state_match(struct instruction *insn, struct insn_state *state)
 			  insn->sec, insn->offset, state1->type, state2->type);
 
 	} else if (state1->drap != state2->drap ||
-		 (state1->drap && state1->drap_reg != state2->drap_reg)) {
-		WARN_FUNC("stack state mismatch: drap1=%d(%d) drap2=%d(%d)",
+		 (state1->drap && state1->drap_reg != state2->drap_reg) ||
+		 (state1->drap && state1->drap_offset != state2->drap_offset)) {
+		WARN_FUNC("stack state mismatch: drap1=%d(%d,%d) drap2=%d(%d,%d)",
 			  insn->sec, insn->offset,
-			  state1->drap, state1->drap_reg,
-			  state2->drap, state2->drap_reg);
+			  state1->drap, state1->drap_reg, state1->drap_offset,
+			  state2->drap, state2->drap_reg, state2->drap_offset);
 
 	} else
 		return true;
