@@ -101,9 +101,15 @@ struct resource_pool *dc_create_resource_pool(
 
 	switch (dc_version) {
 	case DCE_VERSION_8_0:
-	case DCE_VERSION_8_1:
-	case DCE_VERSION_8_3:
 		res_pool = dce80_create_resource_pool(
+			num_virtual_links, dc);
+		break;
+	case DCE_VERSION_8_1:
+		res_pool = dce81_create_resource_pool(
+			num_virtual_links, dc);
+		break;
+	case DCE_VERSION_8_3:
+		res_pool = dce83_create_resource_pool(
 			num_virtual_links, dc);
 		break;
 	case DCE_VERSION_10_0:

@@ -350,6 +350,20 @@ static const struct resource_caps res_cap = {
 		.num_pll = 3,
 };
 
+static const struct resource_caps res_cap_81 = {
+		.num_timing_generator = 4,
+		.num_audio = 7,
+		.num_stream_encoder = 7,
+		.num_pll = 3,
+};
+
+static const struct resource_caps res_cap_83 = {
+		.num_timing_generator = 2,
+		.num_audio = 6,
+		.num_stream_encoder = 6,
+		.num_pll = 2,
+};
+
 #define CTX  ctx
 #define REG(reg) mm ## reg
 
@@ -829,7 +843,7 @@ static const struct resource_funcs dce80_res_pool_funcs = {
 	.validate_plane = dce100_validate_plane
 };
 
-static bool construct(
+static bool dce80_construct(
 	uint8_t num_virtual_links,
 	struct core_dc *dc,
 	struct dce110_resource_pool *pool)
@@ -987,10 +1001,335 @@ struct resource_pool *dce80_create_resource_pool(
 	if (!pool)
 		return NULL;
 
-	if (construct(num_virtual_links, dc, pool))
+	if (dce80_construct(num_virtual_links, dc, pool))
 		return &pool->base;
 
 	BREAK_TO_DEBUGGER();
 	return NULL;
 }
 
+static bool dce81_construct(
+	uint8_t num_virtual_links,
+	struct core_dc *dc,
+	struct dce110_resource_pool *pool)
+{
+	unsigned int i;
+	struct dc_context *ctx = dc->ctx;
+	struct dc_firmware_info info;
+	struct dc_bios *bp;
+	struct dm_pp_static_clock_info static_clk_info = {0};
+
+	ctx->dc_bios->regs = &bios_regs;
+
+	pool->base.res_cap = &res_cap_81;
+	pool->base.funcs = &dce80_res_pool_funcs;
+
+
+	/*************************************************
+	 *  Resource + asic cap harcoding                *
+	 *************************************************/
+	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
+	pool->base.pipe_count = res_cap_81.num_timing_generator;
+	dc->public.caps.max_downscale_ratio = 200;
+	dc->public.caps.i2c_speed_in_khz = 40;
+	dc->public.caps.max_cursor_size = 128;
+
+	/*************************************************
+	 *  Create resources                             *
+	 *************************************************/
+
+	bp = ctx->dc_bios;
+
+	if ((bp->funcs->get_firmware_info(bp, &info) == BP_RESULT_OK) &&
+		info.external_clock_source_frequency_for_dp != 0) {
+		pool->base.dp_clock_source =
+				dce80_clock_source_create(ctx, bp, CLOCK_SOURCE_ID_EXTERNAL, NULL, true);
+
+		pool->base.clock_sources[0] =
+				dce80_clock_source_create(ctx, bp, CLOCK_SOURCE_ID_PLL0, &clk_src_regs[0], false);
+		pool->base.clock_sources[1] =
+				dce80_clock_source_create(ctx, bp, CLOCK_SOURCE_ID_PLL1, &clk_src_regs[1], false);
+		pool->base.clock_sources[2] =
+				dce80_clock_source_create(ctx, bp, CLOCK_SOURCE_ID_PLL2, &clk_src_regs[2], false);
+		pool->base.clk_src_count = 3;
+
+	} else {
+		pool->base.dp_clock_source =
+				dce80_clock_source_create(ctx, bp, CLOCK_SOURCE_ID_PLL0, &clk_src_regs[0], true);
+
+		pool->base.clock_sources[0] =
+				dce80_clock_source_create(ctx, bp, CLOCK_SOURCE_ID_PLL1, &clk_src_regs[1], false);
+		pool->base.clock_sources[1] =
+				dce80_clock_source_create(ctx, bp, CLOCK_SOURCE_ID_PLL2, &clk_src_regs[2], false);
+		pool->base.clk_src_count = 2;
+	}
+
+	if (pool->base.dp_clock_source == NULL) {
+		dm_error("DC: failed to create dp clock source!\n");
+		BREAK_TO_DEBUGGER();
+		goto res_create_fail;
+	}
+
+	for (i = 0; i < pool->base.clk_src_count; i++) {
+		if (pool->base.clock_sources[i] == NULL) {
+			dm_error("DC: failed to create clock sources!\n");
+			BREAK_TO_DEBUGGER();
+			goto res_create_fail;
+		}
+	}
+
+	pool->base.display_clock = dce_disp_clk_create(ctx,
+			&disp_clk_regs,
+			&disp_clk_shift,
+			&disp_clk_mask);
+	if (pool->base.display_clock == NULL) {
+		dm_error("DC: failed to create display clock!\n");
+		BREAK_TO_DEBUGGER();
+		goto res_create_fail;
+	}
+
+
+	if (dm_pp_get_static_clocks(ctx, &static_clk_info))
+		pool->base.display_clock->max_clks_state =
+					static_clk_info.max_clocks_state;
+
+	{
+		struct irq_service_init_data init_data;
+		init_data.ctx = dc->ctx;
+		pool->base.irqs = dal_irq_service_dce80_create(&init_data);
+		if (!pool->base.irqs)
+			goto res_create_fail;
+	}
+
+	for (i = 0; i < pool->base.pipe_count; i++) {
+		pool->base.timing_generators[i] = dce80_timing_generator_create(
+				ctx, i, &dce80_tg_offsets[i]);
+		if (pool->base.timing_generators[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error("DC: failed to create tg!\n");
+			goto res_create_fail;
+		}
+
+		pool->base.mis[i] = dce80_mem_input_create(ctx, i);
+		if (pool->base.mis[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error("DC: failed to create memory input!\n");
+			goto res_create_fail;
+		}
+
+		pool->base.ipps[i] = dce80_ipp_create(ctx, i);
+		if (pool->base.ipps[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error("DC: failed to create input pixel processor!\n");
+			goto res_create_fail;
+		}
+
+		pool->base.transforms[i] = dce80_transform_create(ctx, i);
+		if (pool->base.transforms[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error("DC: failed to create transform!\n");
+			goto res_create_fail;
+		}
+
+		pool->base.opps[i] = dce80_opp_create(ctx, i);
+		if (pool->base.opps[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error("DC: failed to create output pixel processor!\n");
+			goto res_create_fail;
+		}
+	}
+
+	dc->public.caps.max_planes =  pool->base.pipe_count;
+
+	if (!resource_construct(num_virtual_links, dc, &pool->base,
+			&res_create_funcs))
+		goto res_create_fail;
+
+	/* Create hardware sequencer */
+	if (!dce80_hw_sequencer_construct(dc))
+		goto res_create_fail;
+
+	return true;
+
+res_create_fail:
+	destruct(pool);
+	return false;
+}
+
+struct resource_pool *dce81_create_resource_pool(
+	uint8_t num_virtual_links,
+	struct core_dc *dc)
+{
+	struct dce110_resource_pool *pool =
+		dm_alloc(sizeof(struct dce110_resource_pool));
+
+	if (!pool)
+		return NULL;
+
+	if (dce81_construct(num_virtual_links, dc, pool))
+		return &pool->base;
+
+	BREAK_TO_DEBUGGER();
+	return NULL;
+}
+
+static bool dce83_construct(
+	uint8_t num_virtual_links,
+	struct core_dc *dc,
+	struct dce110_resource_pool *pool)
+{
+	unsigned int i;
+	struct dc_context *ctx = dc->ctx;
+	struct dc_firmware_info info;
+	struct dc_bios *bp;
+	struct dm_pp_static_clock_info static_clk_info = {0};
+
+	ctx->dc_bios->regs = &bios_regs;
+
+	pool->base.res_cap = &res_cap_83;
+	pool->base.funcs = &dce80_res_pool_funcs;
+
+
+	/*************************************************
+	 *  Resource + asic cap harcoding                *
+	 *************************************************/
+	pool->base.underlay_pipe_index = NO_UNDERLAY_PIPE;
+	pool->base.pipe_count = res_cap_83.num_timing_generator;
+	dc->public.caps.max_downscale_ratio = 200;
+	dc->public.caps.i2c_speed_in_khz = 40;
+	dc->public.caps.max_cursor_size = 128;
+
+	/*************************************************
+	 *  Create resources                             *
+	 *************************************************/
+
+	bp = ctx->dc_bios;
+
+	if ((bp->funcs->get_firmware_info(bp, &info) == BP_RESULT_OK) &&
+		info.external_clock_source_frequency_for_dp != 0) {
+		pool->base.dp_clock_source =
+				dce80_clock_source_create(ctx, bp, CLOCK_SOURCE_ID_EXTERNAL, NULL, true);
+
+		pool->base.clock_sources[0] =
+				dce80_clock_source_create(ctx, bp, CLOCK_SOURCE_ID_PLL1, &clk_src_regs[0], false);
+		pool->base.clock_sources[1] =
+				dce80_clock_source_create(ctx, bp, CLOCK_SOURCE_ID_PLL2, &clk_src_regs[1], false);
+		pool->base.clk_src_count = 2;
+
+	} else {
+		pool->base.dp_clock_source =
+				dce80_clock_source_create(ctx, bp, CLOCK_SOURCE_ID_PLL1, &clk_src_regs[0], true);
+
+		pool->base.clock_sources[0] =
+				dce80_clock_source_create(ctx, bp, CLOCK_SOURCE_ID_PLL2, &clk_src_regs[1], false);
+		pool->base.clk_src_count = 1;
+	}
+
+	if (pool->base.dp_clock_source == NULL) {
+		dm_error("DC: failed to create dp clock source!\n");
+		BREAK_TO_DEBUGGER();
+		goto res_create_fail;
+	}
+
+	for (i = 0; i < pool->base.clk_src_count; i++) {
+		if (pool->base.clock_sources[i] == NULL) {
+			dm_error("DC: failed to create clock sources!\n");
+			BREAK_TO_DEBUGGER();
+			goto res_create_fail;
+		}
+	}
+
+	pool->base.display_clock = dce_disp_clk_create(ctx,
+			&disp_clk_regs,
+			&disp_clk_shift,
+			&disp_clk_mask);
+	if (pool->base.display_clock == NULL) {
+		dm_error("DC: failed to create display clock!\n");
+		BREAK_TO_DEBUGGER();
+		goto res_create_fail;
+	}
+
+
+	if (dm_pp_get_static_clocks(ctx, &static_clk_info))
+		pool->base.display_clock->max_clks_state =
+					static_clk_info.max_clocks_state;
+
+	{
+		struct irq_service_init_data init_data;
+		init_data.ctx = dc->ctx;
+		pool->base.irqs = dal_irq_service_dce80_create(&init_data);
+		if (!pool->base.irqs)
+			goto res_create_fail;
+	}
+
+	for (i = 0; i < pool->base.pipe_count; i++) {
+		pool->base.timing_generators[i] = dce80_timing_generator_create(
+				ctx, i, &dce80_tg_offsets[i]);
+		if (pool->base.timing_generators[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error("DC: failed to create tg!\n");
+			goto res_create_fail;
+		}
+
+		pool->base.mis[i] = dce80_mem_input_create(ctx, i);
+		if (pool->base.mis[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error("DC: failed to create memory input!\n");
+			goto res_create_fail;
+		}
+
+		pool->base.ipps[i] = dce80_ipp_create(ctx, i);
+		if (pool->base.ipps[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error("DC: failed to create input pixel processor!\n");
+			goto res_create_fail;
+		}
+
+		pool->base.transforms[i] = dce80_transform_create(ctx, i);
+		if (pool->base.transforms[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error("DC: failed to create transform!\n");
+			goto res_create_fail;
+		}
+
+		pool->base.opps[i] = dce80_opp_create(ctx, i);
+		if (pool->base.opps[i] == NULL) {
+			BREAK_TO_DEBUGGER();
+			dm_error("DC: failed to create output pixel processor!\n");
+			goto res_create_fail;
+		}
+	}
+
+	dc->public.caps.max_planes =  pool->base.pipe_count;
+
+	if (!resource_construct(num_virtual_links, dc, &pool->base,
+			&res_create_funcs))
+		goto res_create_fail;
+
+	/* Create hardware sequencer */
+	if (!dce80_hw_sequencer_construct(dc))
+		goto res_create_fail;
+
+	return true;
+
+res_create_fail:
+	destruct(pool);
+	return false;
+}
+
+struct resource_pool *dce83_create_resource_pool(
+	uint8_t num_virtual_links,
+	struct core_dc *dc)
+{
+	struct dce110_resource_pool *pool =
+		dm_alloc(sizeof(struct dce110_resource_pool));
+
+	if (!pool)
+		return NULL;
+
+	if (dce83_construct(num_virtual_links, dc, pool))
+		return &pool->base;
+
+	BREAK_TO_DEBUGGER();
+	return NULL;
+}
