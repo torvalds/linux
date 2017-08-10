@@ -667,17 +667,20 @@ rpcrdma_unmap_sges(struct rpcrdma_ia *ia, struct rpcrdma_req *req)
  *	%-ENOTCONN if the connection was lost,
  *	%-EAGAIN if not enough pages are available for on-demand reply buffer,
  *	%-ENOBUFS if no MRs are available to register chunks,
+ *	%-EMSGSIZE if the transport header is too small,
  *	%-EIO if a permanent problem occurred while marshaling.
  */
 int
 rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst)
 {
 	struct rpcrdma_req *req = rpcr_to_rdmar(rqst);
+	struct xdr_stream *xdr = &req->rl_stream;
 	enum rpcrdma_chunktype rtype, wtype;
 	struct rpcrdma_msg *headerp;
 	bool ddp_allowed;
 	ssize_t hdrlen;
 	__be32 *iptr;
+	__be32 *p;
 
 #if defined(CONFIG_SUNRPC_BACKCHANNEL)
 	if (test_bit(RPC_BC_PA_IN_USE, &rqst->rq_bc_pa_state))
@@ -685,11 +688,18 @@ rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst)
 #endif
 
 	headerp = rdmab_to_msg(req->rl_rdmabuf);
-	/* don't byte-swap XID, it's already done in request */
-	headerp->rm_xid = rqst->rq_xid;
-	headerp->rm_vers = rpcrdma_version;
-	headerp->rm_credit = cpu_to_be32(r_xprt->rx_buf.rb_max_requests);
-	headerp->rm_type = rdma_msg;
+	rpcrdma_set_xdrlen(&req->rl_hdrbuf, 0);
+	xdr_init_encode(xdr, &req->rl_hdrbuf,
+			req->rl_rdmabuf->rg_base);
+
+	/* Fixed header fields */
+	iptr = ERR_PTR(-EMSGSIZE);
+	p = xdr_reserve_space(xdr, 4 * sizeof(*p));
+	if (!p)
+		goto out_err;
+	*p++ = rqst->rq_xid;
+	*p++ = rpcrdma_version;
+	*p++ = cpu_to_be32(r_xprt->rx_buf.rb_max_requests);
 
 	/* When the ULP employs a GSS flavor that guarantees integrity
 	 * or privacy, direct data placement of individual data items
@@ -729,12 +739,14 @@ rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst)
 	 * by themselves are larger than the inline threshold.
 	 */
 	if (rpcrdma_args_inline(r_xprt, rqst)) {
+		*p++ = rdma_msg;
 		rtype = rpcrdma_noch;
 	} else if (ddp_allowed && rqst->rq_snd_buf.flags & XDRBUF_WRITE) {
+		*p++ = rdma_msg;
 		rtype = rpcrdma_readch;
 	} else {
 		r_xprt->rx_stats.nomsg_call_count++;
-		headerp->rm_type = htonl(RDMA_NOMSG);
+		*p++ = rdma_nomsg;
 		rtype = rpcrdma_areadch;
 	}
 
