@@ -3010,8 +3010,7 @@ void soc_dpcm_debugfs_add(struct snd_soc_pcm_runtime *rtd)
 		return;
 	}
 
-	rtd->debugfs_dpcm_state = debugfs_create_file("state", 0444,
-						rtd->debugfs_dpcm_root,
-						rtd, &dpcm_state_fops);
+	debugfs_create_file("state", 0444, rtd->debugfs_dpcm_root,
+			    rtd, &dpcm_state_fops);
 }
 #endif

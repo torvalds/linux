@@ -1247,7 +1247,6 @@ struct snd_soc_pcm_runtime {
 	struct delayed_work delayed_work;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_dpcm_root;
-	struct dentry *debugfs_dpcm_state;
 #endif
 
 	unsigned int num; /* 0-based and monotonic increasing */
