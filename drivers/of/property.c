@@ -899,8 +899,8 @@ of_fwnode_graph_get_next_endpoint(struct fwnode_handle *fwnode,
 static struct fwnode_handle *
 of_fwnode_graph_get_remote_endpoint(struct fwnode_handle *fwnode)
 {
-	return of_fwnode_handle(of_parse_phandle(to_of_node(fwnode),
-						 "remote-endpoint", 0));
+	return of_fwnode_handle(
+		of_graph_get_remote_endpoint(to_of_node(fwnode)));
 }
 
 static struct fwnode_handle *
