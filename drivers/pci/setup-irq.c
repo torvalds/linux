@@ -17,12 +17,6 @@
 #include <linux/cache.h>
 #include "pci.h"
 
-void __weak pcibios_update_irq(struct pci_dev *dev, int irq)
-{
-	dev_dbg(&dev->dev, "assigning IRQ %02d\n", irq);
-	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
-}
-
 void pci_assign_irq(struct pci_dev *dev)
 {
 	u8 pin;
@@ -65,5 +59,5 @@ void pci_assign_irq(struct pci_dev *dev)
 
 	/* Always tell the device, so the driver knows what is
 	   the real IRQ to use; the device does not use it. */
-	pcibios_update_irq(dev, irq);
+	pci_write_config_byte(dev, PCI_INTERRUPT_LINE, irq);
 }
