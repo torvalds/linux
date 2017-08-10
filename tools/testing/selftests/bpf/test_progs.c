@@ -340,6 +340,7 @@ static void test_bpf_obj_id(void)
 
 		/* Check getting prog info */
 		info_len = sizeof(struct bpf_prog_info) * 2;
+		bzero(&prog_infos[i], info_len);
 		prog_infos[i].jited_prog_insns = ptr_to_u64(jited_insns);
 		prog_infos[i].jited_prog_len = sizeof(jited_insns);
 		prog_infos[i].xlated_prog_insns = ptr_to_u64(xlated_insns);
@@ -369,6 +370,7 @@ static void test_bpf_obj_id(void)
 
 		/* Check getting map info */
 		info_len = sizeof(struct bpf_map_info) * 2;
+		bzero(&map_infos[i], info_len);
 		err = bpf_obj_get_info_by_fd(map_fds[i], &map_infos[i],
 					     &info_len);
 		if (CHECK(err ||
@@ -394,7 +396,7 @@ static void test_bpf_obj_id(void)
 	nr_id_found = 0;
 	next_id = 0;
 	while (!bpf_prog_get_next_id(next_id, &next_id)) {
-		struct bpf_prog_info prog_info;
+		struct bpf_prog_info prog_info = {};
 		int prog_fd;
 
 		info_len = sizeof(prog_info);
@@ -418,6 +420,8 @@ static void test_bpf_obj_id(void)
 		nr_id_found++;
 
 		err = bpf_obj_get_info_by_fd(prog_fd, &prog_info, &info_len);
+		prog_infos[i].jited_prog_insns = 0;
+		prog_infos[i].xlated_prog_insns = 0;
 		CHECK(err || info_len != sizeof(struct bpf_prog_info) ||
 		      memcmp(&prog_info, &prog_infos[i], info_len),
 		      "get-prog-info(next_id->fd)",
@@ -436,7 +440,7 @@ static void test_bpf_obj_id(void)
 	nr_id_found = 0;
 	next_id = 0;
 	while (!bpf_map_get_next_id(next_id, &next_id)) {
-		struct bpf_map_info map_info;
+		struct bpf_map_info map_info = {};
 		int map_fd;
 
 		info_len = sizeof(map_info);

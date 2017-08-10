@@ -227,7 +227,7 @@ static const struct drm_ioctl_desc vmw_ioctls[] = {
 		      DRM_AUTH | DRM_RENDER_ALLOW),
 };
 
-static struct pci_device_id vmw_pci_id_list[] = {
+static const struct pci_device_id vmw_pci_id_list[] = {
 	{0x15ad, 0x0405, PCI_ANY_ID, PCI_ANY_ID, 0, 0, VMWGFX_CHIP_SVGAII},
 	{0, 0, 0}
 };
@@ -630,7 +630,7 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 	char host_log[100] = {0};
 
 	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
-	if (unlikely(dev_priv == NULL)) {
+	if (unlikely(!dev_priv)) {
 		DRM_ERROR("Failed allocating a device private struct.\n");
 		return -ENOMEM;
 	}
@@ -1035,7 +1035,7 @@ static int vmw_driver_open(struct drm_device *dev, struct drm_file *file_priv)
 	int ret = -ENOMEM;
 
 	vmw_fp = kzalloc(sizeof(*vmw_fp), GFP_KERNEL);
-	if (unlikely(vmw_fp == NULL))
+	if (unlikely(!vmw_fp))
 		return ret;
 
 	vmw_fp->tfile = ttm_object_file_init(dev_priv->tdev, 10);
@@ -1196,7 +1196,7 @@ static int vmw_master_create(struct drm_device *dev,
 	struct vmw_master *vmaster;
 
 	vmaster = kzalloc(sizeof(*vmaster), GFP_KERNEL);
-	if (unlikely(vmaster == NULL))
+	if (unlikely(!vmaster))
 		return -ENOMEM;
 
 	vmw_master_init(vmaster);
