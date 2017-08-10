@@ -2790,7 +2790,6 @@ static int mwifiex_scan_specific_ssid(struct mwifiex_private *priv,
 	if (!scan_cfg)
 		return -ENOMEM;
 
-	ether_addr_copy(scan_cfg->random_mac, priv->random_mac);
 	scan_cfg->ssid_list = req_ssid;
 	scan_cfg->num_ssids = 1;
 
