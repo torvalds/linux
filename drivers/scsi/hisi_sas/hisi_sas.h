@@ -91,6 +91,14 @@ enum hisi_sas_dev_type {
 	HISI_SAS_DEV_TYPE_SATA,
 };
 
+struct hisi_sas_hw_error {
+	u32 irq_msk;
+	u32 msk;
+	int shift;
+	const char *msg;
+	int reg;
+};
+
 struct hisi_sas_phy {
 	struct hisi_hba	*hisi_hba;
 	struct hisi_sas_port	*port;

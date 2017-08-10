@@ -401,6 +401,172 @@ struct hisi_sas_err_record_v2 {
 	__le32 dma_rx_err_type;
 };
 
+static const struct hisi_sas_hw_error one_bit_ecc_errors[] = {
+	{
+		.irq_msk = BIT(SAS_ECC_INTR_DQE_ECC_1B_OFF),
+		.msk = HGC_DQE_ECC_1B_ADDR_MSK,
+		.shift = HGC_DQE_ECC_1B_ADDR_OFF,
+		.msg = "hgc_dqe_acc1b_intr found: \
+				Ram address is 0x%08X\n",
+		.reg = HGC_DQE_ECC_ADDR,
+	},
+	{
+		.irq_msk = BIT(SAS_ECC_INTR_IOST_ECC_1B_OFF),
+		.msk = HGC_IOST_ECC_1B_ADDR_MSK,
+		.shift = HGC_IOST_ECC_1B_ADDR_OFF,
+		.msg = "hgc_iost_acc1b_intr found: \
+				Ram address is 0x%08X\n",
+		.reg = HGC_IOST_ECC_ADDR,
+	},
+	{
+		.irq_msk = BIT(SAS_ECC_INTR_ITCT_ECC_1B_OFF),
+		.msk = HGC_ITCT_ECC_1B_ADDR_MSK,
+		.shift = HGC_ITCT_ECC_1B_ADDR_OFF,
+		.msg = "hgc_itct_acc1b_intr found: \
+				Ram address is 0x%08X\n",
+		.reg = HGC_ITCT_ECC_ADDR,
+	},
+	{
+		.irq_msk = BIT(SAS_ECC_INTR_IOSTLIST_ECC_1B_OFF),
+		.msk = HGC_LM_DFX_STATUS2_IOSTLIST_MSK,
+		.shift = HGC_LM_DFX_STATUS2_IOSTLIST_OFF,
+		.msg = "hgc_iostl_acc1b_intr found:  \
+				memory address is 0x%08X\n",
+		.reg = HGC_LM_DFX_STATUS2,
+	},
+	{
+		.irq_msk = BIT(SAS_ECC_INTR_ITCTLIST_ECC_1B_OFF),
+		.msk = HGC_LM_DFX_STATUS2_ITCTLIST_MSK,
+		.shift = HGC_LM_DFX_STATUS2_ITCTLIST_OFF,
+		.msg = "hgc_itctl_acc1b_intr found: \
+				memory address is 0x%08X\n",
+		.reg = HGC_LM_DFX_STATUS2,
+	},
+	{
+		.irq_msk = BIT(SAS_ECC_INTR_CQE_ECC_1B_OFF),
+		.msk = HGC_CQE_ECC_1B_ADDR_MSK,
+		.shift = HGC_CQE_ECC_1B_ADDR_OFF,
+		.msg = "hgc_cqe_acc1b_intr found: \
+				Ram address is 0x%08X\n",
+		.reg = HGC_CQE_ECC_ADDR,
+	},
+	{
+		.irq_msk = BIT(SAS_ECC_INTR_NCQ_MEM0_ECC_1B_OFF),
+		.msk = HGC_RXM_DFX_STATUS14_MEM0_MSK,
+		.shift = HGC_RXM_DFX_STATUS14_MEM0_OFF,
+		.msg = "rxm_mem0_acc1b_intr found: \
+				memory address is 0x%08X\n",
+		.reg = HGC_RXM_DFX_STATUS14,
+	},
+	{
+		.irq_msk = BIT(SAS_ECC_INTR_NCQ_MEM1_ECC_1B_OFF),
+		.msk = HGC_RXM_DFX_STATUS14_MEM1_MSK,
+		.shift = HGC_RXM_DFX_STATUS14_MEM1_OFF,
+		.msg = "rxm_mem1_acc1b_intr found: \
+				memory address is 0x%08X\n",
+		.reg = HGC_RXM_DFX_STATUS14,
+	},
+	{
+		.irq_msk = BIT(SAS_ECC_INTR_NCQ_MEM2_ECC_1B_OFF),
+		.msk = HGC_RXM_DFX_STATUS14_MEM2_MSK,
+		.shift = HGC_RXM_DFX_STATUS14_MEM2_OFF,
+		.msg = "rxm_mem2_acc1b_intr found: \
+				memory address is 0x%08X\n",
+		.reg = HGC_RXM_DFX_STATUS14,
+	},
+	{
+		.irq_msk = BIT(SAS_ECC_INTR_NCQ_MEM3_ECC_1B_OFF),
+		.msk = HGC_RXM_DFX_STATUS15_MEM3_MSK,
+		.shift = HGC_RXM_DFX_STATUS15_MEM3_OFF,
+		.msg = "rxm_mem3_acc1b_intr found: \
+				memory address is 0x%08X\n",
+		.reg = HGC_RXM_DFX_STATUS15,
+	},
+};
+
+static const struct hisi_sas_hw_error multi_bit_ecc_errors[] = {
+	{
+		.irq_msk = BIT(SAS_ECC_INTR_DQE_ECC_MB_OFF),
+		.msk = HGC_DQE_ECC_MB_ADDR_MSK,
+		.shift = HGC_DQE_ECC_MB_ADDR_OFF,
+		.msg = "hgc_dqe_accbad_intr (0x%x) found: \
+				Ram address is 0x%08X\n",
+		.reg = HGC_DQE_ECC_ADDR,
+	},
+	{
+		.irq_msk = BIT(SAS_ECC_INTR_IOST_ECC_MB_OFF),
+		.msk = HGC_IOST_ECC_MB_ADDR_MSK,
+		.shift = HGC_IOST_ECC_MB_ADDR_OFF,
+		.msg = "hgc_iost_accbad_intr (0x%x) found: \
+				Ram address is 0x%08X\n",
+		.reg = HGC_IOST_ECC_ADDR,
+	},
+	{
+		.irq_msk = BIT(SAS_ECC_INTR_ITCT_ECC_MB_OFF),
+		.msk = HGC_ITCT_ECC_MB_ADDR_MSK,
+		.shift = HGC_ITCT_ECC_MB_ADDR_OFF,
+		.msg = "hgc_itct_accbad_intr (0x%x) found: \
+				Ram address is 0x%08X\n",
+		.reg = HGC_ITCT_ECC_ADDR,
+	},
+	{
+		.irq_msk = BIT(SAS_ECC_INTR_IOSTLIST_ECC_MB_OFF),
+		.msk = HGC_LM_DFX_STATUS2_IOSTLIST_MSK,
+		.shift = HGC_LM_DFX_STATUS2_IOSTLIST_OFF,
+		.msg = "hgc_iostl_accbad_intr (0x%x) found: \
+				memory address is 0x%08X\n",
+		.reg = HGC_LM_DFX_STATUS2,
+	},
+	{
+		.irq_msk = BIT(SAS_ECC_INTR_ITCTLIST_ECC_MB_OFF),
+		.msk = HGC_LM_DFX_STATUS2_ITCTLIST_MSK,
+		.shift = HGC_LM_DFX_STATUS2_ITCTLIST_OFF,
+		.msg = "hgc_itctl_accbad_intr (0x%x) found: \
+				memory address is 0x%08X\n",
+		.reg = HGC_LM_DFX_STATUS2,
+	},
+	{
+		.irq_msk = BIT(SAS_ECC_INTR_CQE_ECC_MB_OFF),
+		.msk = HGC_CQE_ECC_MB_ADDR_MSK,
+		.shift = HGC_CQE_ECC_MB_ADDR_OFF,
+		.msg = "hgc_cqe_accbad_intr (0x%x) found: \
+				Ram address is 0x%08X\n",
+		.reg = HGC_CQE_ECC_ADDR,
+	},
+	{
+		.irq_msk = BIT(SAS_ECC_INTR_NCQ_MEM0_ECC_MB_OFF),
+		.msk = HGC_RXM_DFX_STATUS14_MEM0_MSK,
+		.shift = HGC_RXM_DFX_STATUS14_MEM0_OFF,
+		.msg = "rxm_mem0_accbad_intr (0x%x) found: \
+			memory address is 0x%08X\n",
+		.reg = HGC_RXM_DFX_STATUS14,
+	},
+	{
+		.irq_msk = BIT(SAS_ECC_INTR_NCQ_MEM1_ECC_MB_OFF),
+		.msk = HGC_RXM_DFX_STATUS14_MEM1_MSK,
+		.shift = HGC_RXM_DFX_STATUS14_MEM1_OFF,
+		.msg = "rxm_mem1_accbad_intr (0x%x) found: \
+			memory address is 0x%08X\n",
+		.reg = HGC_RXM_DFX_STATUS14,
+	},
+	{
+		.irq_msk = BIT(SAS_ECC_INTR_NCQ_MEM2_ECC_MB_OFF),
+		.msk = HGC_RXM_DFX_STATUS14_MEM2_MSK,
+		.shift = HGC_RXM_DFX_STATUS14_MEM2_OFF,
+		.msg = "rxm_mem2_accbad_intr (0x%x) found: \
+				memory address is 0x%08X\n",
+		.reg = HGC_RXM_DFX_STATUS14,
+	},
+	{
+		.irq_msk = BIT(SAS_ECC_INTR_NCQ_MEM3_ECC_MB_OFF),
+		.msk = HGC_RXM_DFX_STATUS15_MEM3_MSK,
+		.shift = HGC_RXM_DFX_STATUS15_MEM3_OFF,
+		.msg = "rxm_mem3_accbad_intr (0x%x) found: \
+				memory address is 0x%08X\n",
+		.reg = HGC_RXM_DFX_STATUS15,
+	},
+};
+
 enum {
 	HISI_SAS_PHY_PHY_UPDOWN,
 	HISI_SAS_PHY_CHNL_INT,
@@ -2762,194 +2928,38 @@ static void
 one_bit_ecc_error_process_v2_hw(struct hisi_hba *hisi_hba, u32 irq_value)
 {
 	struct device *dev = hisi_hba->dev;
-	u32 reg_val;
+	const struct hisi_sas_hw_error *ecc_error;
+	u32 val;
+	int i;
 
-	if (irq_value & BIT(SAS_ECC_INTR_DQE_ECC_1B_OFF)) {
-		reg_val = hisi_sas_read32(hisi_hba, HGC_DQE_ECC_ADDR);
-		dev_warn(dev, "hgc_dqe_acc1b_intr found: \
-			       Ram address is 0x%08X\n",
-			 (reg_val & HGC_DQE_ECC_1B_ADDR_MSK) >>
-			 HGC_DQE_ECC_1B_ADDR_OFF);
+	for (i = 0; i < ARRAY_SIZE(one_bit_ecc_errors); i++) {
+		ecc_error = &one_bit_ecc_errors[i];
+		if (irq_value & ecc_error->irq_msk) {
+			val = hisi_sas_read32(hisi_hba, ecc_error->reg);
+			val &= ecc_error->msk;
+			val >>= ecc_error->shift;
+			dev_warn(dev, ecc_error->msg, val);
+		}
 	}
-
-	if (irq_value & BIT(SAS_ECC_INTR_IOST_ECC_1B_OFF)) {
-		reg_val = hisi_sas_read32(hisi_hba, HGC_IOST_ECC_ADDR);
-		dev_warn(dev, "hgc_iost_acc1b_intr found: \
-			       Ram address is 0x%08X\n",
-			 (reg_val & HGC_IOST_ECC_1B_ADDR_MSK) >>
-			 HGC_IOST_ECC_1B_ADDR_OFF);
-	}
-
-	if (irq_value & BIT(SAS_ECC_INTR_ITCT_ECC_1B_OFF)) {
-		reg_val = hisi_sas_read32(hisi_hba, HGC_ITCT_ECC_ADDR);
-		dev_warn(dev, "hgc_itct_acc1b_intr found: \
-			       Ram address is 0x%08X\n",
-			 (reg_val & HGC_ITCT_ECC_1B_ADDR_MSK) >>
-			 HGC_ITCT_ECC_1B_ADDR_OFF);
-	}
-
-	if (irq_value & BIT(SAS_ECC_INTR_IOSTLIST_ECC_1B_OFF)) {
-		reg_val = hisi_sas_read32(hisi_hba, HGC_LM_DFX_STATUS2);
-		dev_warn(dev, "hgc_iostl_acc1b_intr found: \
-			       memory address is 0x%08X\n",
-			 (reg_val & HGC_LM_DFX_STATUS2_IOSTLIST_MSK) >>
-			 HGC_LM_DFX_STATUS2_IOSTLIST_OFF);
-	}
-
-	if (irq_value & BIT(SAS_ECC_INTR_ITCTLIST_ECC_1B_OFF)) {
-		reg_val = hisi_sas_read32(hisi_hba, HGC_LM_DFX_STATUS2);
-		dev_warn(dev, "hgc_itctl_acc1b_intr found: \
-			       memory address is 0x%08X\n",
-			 (reg_val & HGC_LM_DFX_STATUS2_ITCTLIST_MSK) >>
-			 HGC_LM_DFX_STATUS2_ITCTLIST_OFF);
-	}
-
-	if (irq_value & BIT(SAS_ECC_INTR_CQE_ECC_1B_OFF)) {
-		reg_val = hisi_sas_read32(hisi_hba, HGC_CQE_ECC_ADDR);
-		dev_warn(dev, "hgc_cqe_acc1b_intr found: \
-			       Ram address is 0x%08X\n",
-			 (reg_val & HGC_CQE_ECC_1B_ADDR_MSK) >>
-			 HGC_CQE_ECC_1B_ADDR_OFF);
-	}
-
-	if (irq_value & BIT(SAS_ECC_INTR_NCQ_MEM0_ECC_1B_OFF)) {
-		reg_val = hisi_sas_read32(hisi_hba, HGC_RXM_DFX_STATUS14);
-		dev_warn(dev, "rxm_mem0_acc1b_intr found: \
-			       memory address is 0x%08X\n",
-			 (reg_val & HGC_RXM_DFX_STATUS14_MEM0_MSK) >>
-			 HGC_RXM_DFX_STATUS14_MEM0_OFF);
-	}
-
-	if (irq_value & BIT(SAS_ECC_INTR_NCQ_MEM1_ECC_1B_OFF)) {
-		reg_val = hisi_sas_read32(hisi_hba, HGC_RXM_DFX_STATUS14);
-		dev_warn(dev, "rxm_mem1_acc1b_intr found: \
-			       memory address is 0x%08X\n",
-			 (reg_val & HGC_RXM_DFX_STATUS14_MEM1_MSK) >>
-			 HGC_RXM_DFX_STATUS14_MEM1_OFF);
-	}
-
-	if (irq_value & BIT(SAS_ECC_INTR_NCQ_MEM2_ECC_1B_OFF)) {
-		reg_val = hisi_sas_read32(hisi_hba, HGC_RXM_DFX_STATUS14);
-		dev_warn(dev, "rxm_mem2_acc1b_intr found: \
-			       memory address is 0x%08X\n",
-			 (reg_val & HGC_RXM_DFX_STATUS14_MEM2_MSK) >>
-			 HGC_RXM_DFX_STATUS14_MEM2_OFF);
-	}
-
-	if (irq_value & BIT(SAS_ECC_INTR_NCQ_MEM3_ECC_1B_OFF)) {
-		reg_val = hisi_sas_read32(hisi_hba, HGC_RXM_DFX_STATUS15);
-		dev_warn(dev, "rxm_mem3_acc1b_intr found: \
-			       memory address is 0x%08X\n",
-			 (reg_val & HGC_RXM_DFX_STATUS15_MEM3_MSK) >>
-			 HGC_RXM_DFX_STATUS15_MEM3_OFF);
-	}
-
 }
 
 static void multi_bit_ecc_error_process_v2_hw(struct hisi_hba *hisi_hba,
 		u32 irq_value)
 {
-	u32 reg_val;
 	struct device *dev = hisi_hba->dev;
+	const struct hisi_sas_hw_error *ecc_error;
+	u32 val;
+	int i;
 
-	if (irq_value & BIT(SAS_ECC_INTR_DQE_ECC_MB_OFF)) {
-		reg_val = hisi_sas_read32(hisi_hba, HGC_DQE_ECC_ADDR);
-		dev_warn(dev, "hgc_dqe_accbad_intr (0x%x) found: \
-		       Ram address is 0x%08X\n",
-		      irq_value,
-		      (reg_val & HGC_DQE_ECC_MB_ADDR_MSK) >>
-		      HGC_DQE_ECC_MB_ADDR_OFF);
-		queue_work(hisi_hba->wq, &hisi_hba->rst_work);
-	}
-
-	if (irq_value & BIT(SAS_ECC_INTR_IOST_ECC_MB_OFF)) {
-		reg_val = hisi_sas_read32(hisi_hba, HGC_IOST_ECC_ADDR);
-		dev_warn(dev, "hgc_iost_accbad_intr (0x%x) found: \
-		       Ram address is 0x%08X\n",
-		      irq_value,
-		      (reg_val & HGC_IOST_ECC_MB_ADDR_MSK) >>
-		      HGC_IOST_ECC_MB_ADDR_OFF);
-		queue_work(hisi_hba->wq, &hisi_hba->rst_work);
-	}
-
-	if (irq_value & BIT(SAS_ECC_INTR_ITCT_ECC_MB_OFF)) {
-		reg_val = hisi_sas_read32(hisi_hba, HGC_ITCT_ECC_ADDR);
-		dev_warn(dev,"hgc_itct_accbad_intr (0x%x) found: \
-		       Ram address is 0x%08X\n",
-		      irq_value,
-		      (reg_val & HGC_ITCT_ECC_MB_ADDR_MSK) >>
-		      HGC_ITCT_ECC_MB_ADDR_OFF);
-		queue_work(hisi_hba->wq, &hisi_hba->rst_work);
-	}
-
-	if (irq_value & BIT(SAS_ECC_INTR_IOSTLIST_ECC_MB_OFF)) {
-		reg_val = hisi_sas_read32(hisi_hba, HGC_LM_DFX_STATUS2);
-		dev_warn(dev, "hgc_iostl_accbad_intr (0x%x) found: \
-		       memory address is 0x%08X\n",
-		      irq_value,
-		      (reg_val & HGC_LM_DFX_STATUS2_IOSTLIST_MSK) >>
-		      HGC_LM_DFX_STATUS2_IOSTLIST_OFF);
-		queue_work(hisi_hba->wq, &hisi_hba->rst_work);
-	}
-
-	if (irq_value & BIT(SAS_ECC_INTR_ITCTLIST_ECC_MB_OFF)) {
-		reg_val = hisi_sas_read32(hisi_hba, HGC_LM_DFX_STATUS2);
-		dev_warn(dev, "hgc_itctl_accbad_intr (0x%x) found: \
-		       memory address is 0x%08X\n",
-		      irq_value,
-		      (reg_val & HGC_LM_DFX_STATUS2_ITCTLIST_MSK) >>
-		      HGC_LM_DFX_STATUS2_ITCTLIST_OFF);
-		queue_work(hisi_hba->wq, &hisi_hba->rst_work);
-	}
-
-	if (irq_value & BIT(SAS_ECC_INTR_CQE_ECC_MB_OFF)) {
-		reg_val = hisi_sas_read32(hisi_hba, HGC_CQE_ECC_ADDR);
-		dev_warn(dev, "hgc_cqe_accbad_intr (0x%x) found: \
-		       Ram address is 0x%08X\n",
-		      irq_value,
-		      (reg_val & HGC_CQE_ECC_MB_ADDR_MSK) >>
-		      HGC_CQE_ECC_MB_ADDR_OFF);
-		queue_work(hisi_hba->wq, &hisi_hba->rst_work);
-	}
-
-	if (irq_value & BIT(SAS_ECC_INTR_NCQ_MEM0_ECC_MB_OFF)) {
-		reg_val = hisi_sas_read32(hisi_hba, HGC_RXM_DFX_STATUS14);
-		dev_warn(dev, "rxm_mem0_accbad_intr (0x%x) found: \
-		       memory address is 0x%08X\n",
-		      irq_value,
-		      (reg_val & HGC_RXM_DFX_STATUS14_MEM0_MSK) >>
-		      HGC_RXM_DFX_STATUS14_MEM0_OFF);
-		queue_work(hisi_hba->wq, &hisi_hba->rst_work);
-	}
-
-	if (irq_value & BIT(SAS_ECC_INTR_NCQ_MEM1_ECC_MB_OFF)) {
-		reg_val = hisi_sas_read32(hisi_hba, HGC_RXM_DFX_STATUS14);
-		dev_warn(dev, "rxm_mem1_accbad_intr (0x%x) found: \
-		       memory address is 0x%08X\n",
-		      irq_value,
-		      (reg_val & HGC_RXM_DFX_STATUS14_MEM1_MSK) >>
-		      HGC_RXM_DFX_STATUS14_MEM1_OFF);
-		queue_work(hisi_hba->wq, &hisi_hba->rst_work);
-	}
-
-	if (irq_value & BIT(SAS_ECC_INTR_NCQ_MEM2_ECC_MB_OFF)) {
-		reg_val = hisi_sas_read32(hisi_hba, HGC_RXM_DFX_STATUS14);
-		dev_warn(dev, "rxm_mem2_accbad_intr (0x%x) found: \
-		       memory address is 0x%08X\n",
-		      irq_value,
-		      (reg_val & HGC_RXM_DFX_STATUS14_MEM2_MSK) >>
-		      HGC_RXM_DFX_STATUS14_MEM2_OFF);
-		queue_work(hisi_hba->wq, &hisi_hba->rst_work);
-	}
-
-	if (irq_value & BIT(SAS_ECC_INTR_NCQ_MEM3_ECC_MB_OFF)) {
-		reg_val = hisi_sas_read32(hisi_hba, HGC_RXM_DFX_STATUS15);
-		dev_warn(dev, "rxm_mem3_accbad_intr (0x%x) found: \
-		       memory address is 0x%08X\n",
-		      irq_value,
-		      (reg_val & HGC_RXM_DFX_STATUS15_MEM3_MSK) >>
-		      HGC_RXM_DFX_STATUS15_MEM3_OFF);
-		queue_work(hisi_hba->wq, &hisi_hba->rst_work);
+	for (i = 0; i < ARRAY_SIZE(multi_bit_ecc_errors); i++) {
+		ecc_error = &multi_bit_ecc_errors[i];
+		if (irq_value & ecc_error->irq_msk) {
+			val = hisi_sas_read32(hisi_hba, ecc_error->reg);
+			val &= ecc_error->msk;
+			val >>= ecc_error->shift;
+			dev_warn(dev, ecc_error->msg, irq_value, val);
+			queue_work(hisi_hba->wq, &hisi_hba->rst_work);
+		}
 	}
 
 	return;
