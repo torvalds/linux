@@ -275,6 +275,9 @@ int64_t opal_imc_counters_init(uint32_t type, uint64_t address,
 int64_t opal_imc_counters_start(uint32_t type, uint64_t cpu_pir);
 int64_t opal_imc_counters_stop(uint32_t type, uint64_t cpu_pir);
 
+int opal_get_powercap(u32 handle, int token, u32 *pcap);
+int opal_set_powercap(u32 handle, int token, u32 pcap);
+
 /* Internal functions */
 extern int early_init_dt_scan_opal(unsigned long node, const char *uname,
 				   int depth, void *data);
@@ -351,6 +354,8 @@ static inline int opal_get_async_rc(struct opal_msg msg)
 }
 
 void opal_wake_poller(void);
+
+void opal_powercap_init(void);
 
 #endif /* __ASSEMBLY__ */
 
