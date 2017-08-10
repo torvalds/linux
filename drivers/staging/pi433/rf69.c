@@ -49,7 +49,7 @@ int rf69_set_mode(struct spi_device *spi, enum mode mode)
 		dev_dbg(&spi->dev, "set: mode");
 	#endif
 
-	switch (mode){
+	switch (mode) {
 	case transmit:	  return WRITE_REG(REG_OPMODE, (READ_REG(REG_OPMODE) & ~MASK_OPMODE_MODE) | OPMODE_MODE_TRANSMIT);
 	case receive:	  return WRITE_REG(REG_OPMODE, (READ_REG(REG_OPMODE) & ~MASK_OPMODE_MODE) | OPMODE_MODE_RECEIVE);
 	case synthesizer: return WRITE_REG(REG_OPMODE, (READ_REG(REG_OPMODE) & ~MASK_OPMODE_MODE) | OPMODE_MODE_SYNTHESIZER);
