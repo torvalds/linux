@@ -799,15 +799,12 @@ static int sdma_v4_0_load_microcode(struct amdgpu_device *adev)
 	const struct sdma_firmware_header_v1_0 *hdr;
 	const __le32 *fw_data;
 	u32 fw_size;
-	u32 digest_size = 0;
 	int i, j;
 
 	/* halt the MEs */
 	sdma_v4_0_enable(adev, false);
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
-		uint16_t version_major;
-		uint16_t version_minor;
 		if (!adev->sdma.instance[i].fw)
 			return -EINVAL;
 
@@ -815,22 +812,11 @@ static int sdma_v4_0_load_microcode(struct amdgpu_device *adev)
 		amdgpu_ucode_print_sdma_hdr(&hdr->header);
 		fw_size = le32_to_cpu(hdr->header.ucode_size_bytes) / 4;
 
-		version_major = le16_to_cpu(hdr->header.header_version_major);
-		version_minor = le16_to_cpu(hdr->header.header_version_minor);
-
-		if (version_major == 1 && version_minor >= 1) {
-			const struct sdma_firmware_header_v1_1 *sdma_v1_1_hdr = (const struct sdma_firmware_header_v1_1 *) hdr;
-			digest_size = le32_to_cpu(sdma_v1_1_hdr->digest_size);
-		}
-
-		fw_size -= digest_size;
-
 		fw_data = (const __le32 *)
 			(adev->sdma.instance[i].fw->data +
 				le32_to_cpu(hdr->header.ucode_array_offset_bytes));
 
 		WREG32(sdma_v4_0_get_reg_offset(i, mmSDMA0_UCODE_ADDR), 0);
-
 
 		for (j = 0; j < fw_size; j++)
 			WREG32(sdma_v4_0_get_reg_offset(i, mmSDMA0_UCODE_DATA), le32_to_cpup(fw_data++));
