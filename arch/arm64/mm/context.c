@@ -79,13 +79,6 @@ void verify_cpu_asid_bits(void)
 	}
 }
 
-static void set_reserved_asid_bits(void)
-{
-	if (IS_ENABLED(CONFIG_QCOM_FALKOR_ERRATUM_1003) &&
-	    cpus_have_const_cap(ARM64_WORKAROUND_QCOM_FALKOR_E1003))
-		__set_bit(FALKOR_RESERVED_ASID, asid_map);
-}
-
 static void flush_context(unsigned int cpu)
 {
 	int i;
@@ -93,8 +86,6 @@ static void flush_context(unsigned int cpu)
 
 	/* Update the list of reserved ASIDs and the ASID bitmap. */
 	bitmap_clear(asid_map, 0, NUM_USER_ASIDS);
-
-	set_reserved_asid_bits();
 
 	for_each_possible_cpu(i) {
 		asid = atomic64_xchg_relaxed(&per_cpu(active_asids, i), 0);
@@ -253,8 +244,6 @@ static int asids_init(void)
 	if (!asid_map)
 		panic("Failed to allocate bitmap for %lu ASIDs\n",
 		      NUM_USER_ASIDS);
-
-	set_reserved_asid_bits();
 
 	pr_info("ASID allocator initialised with %lu entries\n", NUM_USER_ASIDS);
 	return 0;
