@@ -168,6 +168,31 @@
 #define PHYCTRL_PHY_ENA_MSK		(PORT_BASE + 0x2bc)
 #define SL_RX_BCAST_CHK_MSK		(PORT_BASE + 0x2c0)
 #define PHYCTRL_OOB_RESTART_MSK		(PORT_BASE + 0x2c4)
+#define DMA_TX_STATUS			(PORT_BASE + 0x2d0)
+#define DMA_TX_STATUS_BUSY_OFF		0
+#define DMA_TX_STATUS_BUSY_MSK		(0x1 << DMA_TX_STATUS_BUSY_OFF)
+#define DMA_RX_STATUS			(PORT_BASE + 0x2e8)
+#define DMA_RX_STATUS_BUSY_OFF		0
+#define DMA_RX_STATUS_BUSY_MSK		(0x1 << DMA_RX_STATUS_BUSY_OFF)
+
+#define MAX_ITCT_HW			4096 /* max the hw can support */
+#define DEFAULT_ITCT_HW		2048 /* reset value, not reprogrammed */
+#if (HISI_SAS_MAX_DEVICES > DEFAULT_ITCT_HW)
+#error Max ITCT exceeded
+#endif
+
+#define AXI_MASTER_CFG_BASE		(0x5000)
+#define AM_CTRL_GLOBAL			(0x0)
+#define AM_CURR_TRANS_RETURN	(0x150)
+
+#define AM_CFG_MAX_TRANS		(0x5010)
+#define AM_CFG_SINGLE_PORT_MAX_TRANS	(0x5014)
+#define AXI_CFG					(0x5100)
+#define AM_ROB_ECC_ERR_ADDR		(0x510c)
+#define AM_ROB_ECC_ONEBIT_ERR_ADDR_OFF	0
+#define AM_ROB_ECC_ONEBIT_ERR_ADDR_MSK	(0xff << AM_ROB_ECC_ONEBIT_ERR_ADDR_OFF)
+#define AM_ROB_ECC_MULBIT_ERR_ADDR_OFF	8
+#define AM_ROB_ECC_MULBIT_ERR_ADDR_MSK	(0xff << AM_ROB_ECC_MULBIT_ERR_ADDR_OFF)
 
 /* HW dma structures */
 /* Delivery queue header */
@@ -611,8 +636,52 @@ static void dereg_device_v3_hw(struct hisi_hba *hisi_hba,
 					1 << CFG_ABT_SET_IPTT_DONE_OFF);
 }
 
+static int reset_hw_v3_hw(struct hisi_hba *hisi_hba)
+{
+	struct device *dev = hisi_hba->dev;
+	int ret;
+	u32 val;
+
+	hisi_sas_write32(hisi_hba, DLVRY_QUEUE_ENABLE, 0);
+
+	/* Disable all of the PHYs */
+	hisi_sas_stop_phys(hisi_hba);
+	udelay(50);
+
+	/* Ensure axi bus idle */
+	ret = readl_poll_timeout(hisi_hba->regs + AXI_CFG, val, !val,
+			20000, 1000000);
+	if (ret) {
+		dev_err(dev, "axi bus is not idle, ret = %d!\n", ret);
+		return -EIO;
+	}
+
+	if (ACPI_HANDLE(dev)) {
+		acpi_status s;
+
+		s = acpi_evaluate_object(ACPI_HANDLE(dev), "_RST", NULL, NULL);
+		if (ACPI_FAILURE(s)) {
+			dev_err(dev, "Reset failed\n");
+			return -EIO;
+		}
+	} else
+		dev_err(dev, "no reset method!\n");
+
+	return 0;
+}
+
 static int hw_init_v3_hw(struct hisi_hba *hisi_hba)
 {
+	struct device *dev = hisi_hba->dev;
+	int rc;
+
+	rc = reset_hw_v3_hw(hisi_hba);
+	if (rc) {
+		dev_err(dev, "hisi_sas_reset_hw failed, rc=%d", rc);
+		return rc;
+	}
+
+	msleep(100);
 	init_reg_v3_hw(hisi_hba);
 
 	return 0;
@@ -641,25 +710,12 @@ static void start_phy_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
 	enable_phy_v3_hw(hisi_hba, phy_no);
 }
 
-static void stop_phy_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
-{
-	disable_phy_v3_hw(hisi_hba, phy_no);
-}
-
-static void start_phys_v3_hw(struct hisi_hba *hisi_hba)
-{
-	int i;
-
-	for (i = 0; i < hisi_hba->n_phy; i++)
-		start_phy_v3_hw(hisi_hba, i);
-}
-
 static void phy_hard_reset_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
 {
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 	u32 txid_auto;
 
-	stop_phy_v3_hw(hisi_hba, phy_no);
+	disable_phy_v3_hw(hisi_hba, phy_no);
 	if (phy->identify.device_type == SAS_END_DEVICE) {
 		txid_auto = hisi_sas_phy_read32(hisi_hba, phy_no, TXID_AUTO);
 		hisi_sas_phy_write32(hisi_hba, phy_no, TXID_AUTO,
@@ -676,7 +732,17 @@ enum sas_linkrate phy_get_max_linkrate_v3_hw(void)
 
 static void phys_init_v3_hw(struct hisi_hba *hisi_hba)
 {
-	start_phys_v3_hw(hisi_hba);
+	int i;
+
+	for (i = 0; i < hisi_hba->n_phy; i++) {
+		struct hisi_sas_phy *phy = &hisi_hba->phy[i];
+		struct asd_sas_phy *sas_phy = &phy->sas_phy;
+
+		if (!sas_phy->phy->enabled)
+			continue;
+
+		start_phy_v3_hw(hisi_hba, i);
+	}
 }
 
 static void sl_notify_v3_hw(struct hisi_hba *hisi_hba, int phy_no)
@@ -1621,6 +1687,66 @@ static int hisi_sas_v3_init(struct hisi_hba *hisi_hba)
 	return 0;
 }
 
+static void interrupt_disable_v3_hw(struct hisi_hba *hisi_hba)
+{
+	struct pci_dev *pdev = hisi_hba->pci_dev;
+	int i;
+
+	synchronize_irq(pci_irq_vector(pdev, 1));
+	synchronize_irq(pci_irq_vector(pdev, 2));
+	synchronize_irq(pci_irq_vector(pdev, 11));
+	for (i = 0; i < hisi_hba->queue_count; i++) {
+		hisi_sas_write32(hisi_hba, OQ0_INT_SRC_MSK + 0x4 * i, 0x1);
+		synchronize_irq(pci_irq_vector(pdev, i + 16));
+	}
+
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK1, 0xffffffff);
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK2, 0xffffffff);
+	hisi_sas_write32(hisi_hba, ENT_INT_SRC_MSK3, 0xffffffff);
+	hisi_sas_write32(hisi_hba, SAS_ECC_INTR_MSK, 0xffffffff);
+
+	for (i = 0; i < hisi_hba->n_phy; i++) {
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT1_MSK, 0xffffffff);
+		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2_MSK, 0xffffffff);
+		hisi_sas_phy_write32(hisi_hba, i, PHYCTRL_NOT_RDY_MSK, 0x1);
+		hisi_sas_phy_write32(hisi_hba, i, PHYCTRL_PHY_ENA_MSK, 0x1);
+		hisi_sas_phy_write32(hisi_hba, i, SL_RX_BCAST_CHK_MSK, 0x1);
+	}
+}
+
+static u32 get_phys_state_v3_hw(struct hisi_hba *hisi_hba)
+{
+	return hisi_sas_read32(hisi_hba, PHY_STATE);
+}
+
+static int soft_reset_v3_hw(struct hisi_hba *hisi_hba)
+{
+	struct device *dev = hisi_hba->dev;
+	int rc;
+	u32 status;
+
+	interrupt_disable_v3_hw(hisi_hba);
+	hisi_sas_write32(hisi_hba, DLVRY_QUEUE_ENABLE, 0x0);
+
+	hisi_sas_stop_phys(hisi_hba);
+
+	mdelay(10);
+
+	hisi_sas_write32(hisi_hba, AXI_MASTER_CFG_BASE + AM_CTRL_GLOBAL, 0x1);
+
+	/* wait until bus idle */
+	rc = readl_poll_timeout(hisi_hba->regs + AXI_MASTER_CFG_BASE +
+		AM_CURR_TRANS_RETURN, status, status == 0x3, 10, 100);
+	if (rc) {
+		dev_err(dev, "axi bus is not idle, rc = %d\n", rc);
+		return rc;
+	}
+
+	hisi_sas_init_mem(hisi_hba);
+
+	return hw_init_v3_hw(hisi_hba);
+}
+
 static const struct hisi_sas_hw hisi_sas_v3_hw = {
 	.hw_init = hisi_sas_v3_init,
 	.setup_itct = setup_itct_v3_hw,
@@ -1642,6 +1768,8 @@ static const struct hisi_sas_hw hisi_sas_v3_hw = {
 	.phy_hard_reset = phy_hard_reset_v3_hw,
 	.phy_get_max_linkrate = phy_get_max_linkrate_v3_hw,
 	.dereg_device = dereg_device_v3_hw,
+	.soft_reset = soft_reset_v3_hw,
+	.get_phys_state = get_phys_state_v3_hw,
 };
 
 static struct Scsi_Host *

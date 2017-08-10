@@ -1486,25 +1486,12 @@ static void start_phy_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
 	enable_phy_v2_hw(hisi_hba, phy_no);
 }
 
-static void stop_phy_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
-{
-	disable_phy_v2_hw(hisi_hba, phy_no);
-}
-
-static void stop_phys_v2_hw(struct hisi_hba *hisi_hba)
-{
-	int i;
-
-	for (i = 0; i < hisi_hba->n_phy; i++)
-		stop_phy_v2_hw(hisi_hba, i);
-}
-
 static void phy_hard_reset_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
 {
 	struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
 	u32 txid_auto;
 
-	stop_phy_v2_hw(hisi_hba, phy_no);
+	disable_phy_v2_hw(hisi_hba, phy_no);
 	if (phy->identify.device_type == SAS_END_DEVICE) {
 		txid_auto = hisi_sas_phy_read32(hisi_hba, phy_no, TXID_AUTO);
 		hisi_sas_phy_write32(hisi_hba, phy_no, TXID_AUTO,
@@ -1533,7 +1520,7 @@ static void phy_get_events_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
 	sphy->running_disparity_error_count += err6_reg_val & 0xFF;
 }
 
-static void start_phys_v2_hw(struct hisi_hba *hisi_hba)
+static void phys_init_v2_hw(struct hisi_hba *hisi_hba)
 {
 	int i;
 
@@ -1546,11 +1533,6 @@ static void start_phys_v2_hw(struct hisi_hba *hisi_hba)
 
 		start_phy_v2_hw(hisi_hba, i);
 	}
-}
-
-static void phys_init_v2_hw(struct hisi_hba *hisi_hba)
-{
-	start_phys_v2_hw(hisi_hba);
 }
 
 static void sl_notify_v2_hw(struct hisi_hba *hisi_hba, int phy_no)
@@ -3429,7 +3411,7 @@ static int soft_reset_v2_hw(struct hisi_hba *hisi_hba)
 	interrupt_disable_v2_hw(hisi_hba);
 	hisi_sas_write32(hisi_hba, DLVRY_QUEUE_ENABLE, 0x0);
 
-	stop_phys_v2_hw(hisi_hba);
+	hisi_sas_stop_phys(hisi_hba);
 
 	mdelay(10);
 

@@ -15,6 +15,7 @@
 #include <linux/acpi.h>
 #include <linux/clk.h>
 #include <linux/dmapool.h>
+#include <linux/iopoll.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
@@ -402,6 +403,7 @@ struct hisi_sas_slot_buf_table {
 extern struct scsi_transport_template *hisi_sas_stt;
 extern struct scsi_host_template *hisi_sas_sht;
 
+extern void hisi_sas_stop_phys(struct hisi_hba *hisi_hba);
 extern void hisi_sas_init_add(struct hisi_hba *hisi_hba);
 extern int hisi_sas_alloc(struct hisi_hba *hisi_hba, struct Scsi_Host *shost);
 extern void hisi_sas_free(struct hisi_hba *hisi_hba);
