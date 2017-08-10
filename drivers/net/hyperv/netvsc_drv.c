@@ -165,7 +165,7 @@ static int netvsc_close(struct net_device *net)
 }
 
 static void *init_ppi_data(struct rndis_message *msg, u32 ppi_size,
-				int pkt_type)
+			   int pkt_type)
 {
 	struct rndis_packet *rndis_pkt;
 	struct rndis_per_packet_info *ppi;
@@ -286,7 +286,7 @@ static u16 netvsc_select_queue(struct net_device *ndev, struct sk_buff *skb,
 }
 
 static u32 fill_pg_buf(struct page *page, u32 offset, u32 len,
-			struct hv_page_buffer *pb)
+		       struct hv_page_buffer *pb)
 {
 	int j = 0;
 
@@ -626,6 +626,7 @@ no_memory:
 	++net_device_ctx->eth_stats.tx_no_memory;
 	goto drop;
 }
+
 /*
  * netvsc_linkstatus_callback - Link up/down notification
  */
@@ -649,8 +650,8 @@ void netvsc_linkstatus_callback(struct hv_device *device_obj,
 	if (indicate->status == RNDIS_STATUS_LINK_SPEED_CHANGE) {
 		u32 speed;
 
-		speed = *(u32 *)((void *)indicate + indicate->
-				 status_buf_offset) / 10000;
+		speed = *(u32 *)((void *)indicate
+				 + indicate->status_buf_offset) / 10000;
 		ndev_ctx->speed = speed;
 		return;
 	}
@@ -1018,7 +1019,7 @@ static void netvsc_get_stats64(struct net_device *net,
 	struct net_device_context *ndev_ctx = netdev_priv(net);
 	struct netvsc_device *nvdev = rcu_dereference_rtnl(ndev_ctx->nvdev);
 	struct netvsc_vf_pcpu_stats vf_tot;
-		int i;
+	int i;
 
 	if (!nvdev)
 		return;
