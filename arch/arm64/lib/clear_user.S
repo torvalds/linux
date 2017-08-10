@@ -30,7 +30,7 @@
  * Alignment fixed up by hardware.
  */
 ENTRY(__clear_user)
-	uaccess_enable_not_uao x2, x3
+	uaccess_enable_not_uao x2, x3, x4
 	mov	x2, x1			// save the size for fixup return
 	subs	x1, x1, #8
 	b.mi	2f

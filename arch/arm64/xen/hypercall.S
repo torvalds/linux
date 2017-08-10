@@ -98,7 +98,7 @@ ENTRY(privcmd_call)
 	 * need the explicit uaccess_enable/disable if the TTBR0 PAN emulation
 	 * is enabled (it implies that hardware UAO and PAN disabled).
 	 */
-	uaccess_ttbr0_enable x6, x7
+	uaccess_ttbr0_enable x6, x7, x8
 	hvc XEN_IMM
 
 	/*
