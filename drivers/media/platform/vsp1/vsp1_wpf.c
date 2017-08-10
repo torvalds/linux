@@ -453,7 +453,9 @@ static void wpf_configure(struct vsp1_entity *entity,
 	}
 
 	if (pipe->bru || pipe->num_inputs > 1)
-		srcrpf |= VI6_WPF_SRCRPF_VIRACT_MST;
+		srcrpf |= pipe->bru->type == VSP1_ENTITY_BRU
+			? VI6_WPF_SRCRPF_VIRACT_MST
+			: VI6_WPF_SRCRPF_VIRACT2_MST;
 
 	vsp1_wpf_write(wpf, dl, VI6_WPF_SRCRPF, srcrpf);
 

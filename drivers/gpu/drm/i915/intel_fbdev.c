@@ -280,27 +280,6 @@ out_unlock:
 	return ret;
 }
 
-/** Sets the color ramps on behalf of RandR */
-static void intel_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
-				    u16 blue, int regno)
-{
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-
-	intel_crtc->lut_r[regno] = red >> 8;
-	intel_crtc->lut_g[regno] = green >> 8;
-	intel_crtc->lut_b[regno] = blue >> 8;
-}
-
-static void intel_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
-				    u16 *blue, int regno)
-{
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-
-	*red = intel_crtc->lut_r[regno] << 8;
-	*green = intel_crtc->lut_g[regno] << 8;
-	*blue = intel_crtc->lut_b[regno] << 8;
-}
-
 static struct drm_fb_helper_crtc *
 intel_fb_helper_crtc(struct drm_fb_helper *fb_helper, struct drm_crtc *crtc)
 {
@@ -375,7 +354,6 @@ retry:
 		struct drm_connector *connector;
 		struct drm_encoder *encoder;
 		struct drm_fb_helper_crtc *new_crtc;
-		struct intel_crtc *intel_crtc;
 
 		fb_conn = fb_helper->connector_info[i];
 		connector = fb_conn->connector;
@@ -416,13 +394,6 @@ retry:
 		}
 
 		num_connectors_enabled++;
-
-		intel_crtc = to_intel_crtc(connector->state->crtc);
-		for (j = 0; j < 256; j++) {
-			intel_crtc->lut_r[j] = j;
-			intel_crtc->lut_g[j] = j;
-			intel_crtc->lut_b[j] = j;
-		}
 
 		new_crtc = intel_fb_helper_crtc(fb_helper,
 						connector->state->crtc);
@@ -526,8 +497,6 @@ bail:
 
 static const struct drm_fb_helper_funcs intel_fb_helper_funcs = {
 	.initial_config = intel_fb_initial_config,
-	.gamma_set = intel_crtc_fb_gamma_set,
-	.gamma_get = intel_crtc_fb_gamma_get,
 	.fb_probe = intelfb_create,
 };
 

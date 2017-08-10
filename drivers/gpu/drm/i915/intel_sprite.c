@@ -1165,13 +1165,13 @@ intel_sprite_plane_create(struct drm_i915_private *dev_priv,
 		ret = drm_universal_plane_init(&dev_priv->drm, &intel_plane->base,
 					       possible_crtcs, &intel_plane_funcs,
 					       plane_formats, num_plane_formats,
-					       DRM_PLANE_TYPE_OVERLAY,
+					       NULL, DRM_PLANE_TYPE_OVERLAY,
 					       "plane %d%c", plane + 2, pipe_name(pipe));
 	else
 		ret = drm_universal_plane_init(&dev_priv->drm, &intel_plane->base,
 					       possible_crtcs, &intel_plane_funcs,
 					       plane_formats, num_plane_formats,
-					       DRM_PLANE_TYPE_OVERLAY,
+					       NULL, DRM_PLANE_TYPE_OVERLAY,
 					       "sprite %c", sprite_name(pipe, plane));
 	if (ret)
 		goto fail;

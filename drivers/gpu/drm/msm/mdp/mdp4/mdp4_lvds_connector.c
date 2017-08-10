@@ -91,7 +91,6 @@ static int mdp4_lvds_connector_mode_valid(struct drm_connector *connector,
 }
 
 static const struct drm_connector_funcs mdp4_lvds_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = mdp4_lvds_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = mdp4_lvds_connector_destroy,

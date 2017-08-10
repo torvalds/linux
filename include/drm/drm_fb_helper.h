@@ -85,38 +85,6 @@ struct drm_fb_helper_surface_size {
  */
 struct drm_fb_helper_funcs {
 	/**
-	 * @gamma_set:
-	 *
-	 * Set the given gamma LUT register on the given CRTC.
-	 *
-	 * This callback is optional.
-	 *
-	 * FIXME:
-	 *
-	 * This callback is functionally redundant with the core gamma table
-	 * support and simply exists because the fbdev hasn't yet been
-	 * refactored to use the core gamma table interfaces.
-	 */
-	void (*gamma_set)(struct drm_crtc *crtc, u16 red, u16 green,
-			  u16 blue, int regno);
-	/**
-	 * @gamma_get:
-	 *
-	 * Read the given gamma LUT register on the given CRTC, used to save the
-	 * current LUT when force-restoring the fbdev for e.g. kdbg.
-	 *
-	 * This callback is optional.
-	 *
-	 * FIXME:
-	 *
-	 * This callback is functionally redundant with the core gamma table
-	 * support and simply exists because the fbdev hasn't yet been
-	 * refactored to use the core gamma table interfaces.
-	 */
-	void (*gamma_get)(struct drm_crtc *crtc, u16 *red, u16 *green,
-			  u16 *blue, int regno);
-
-	/**
 	 * @fb_probe:
 	 *
 	 * Driver callback to allocate and initialize the fbdev info structure.

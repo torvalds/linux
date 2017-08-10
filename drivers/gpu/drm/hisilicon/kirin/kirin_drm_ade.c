@@ -567,7 +567,6 @@ static const struct drm_crtc_funcs ade_crtc_funcs = {
 	.set_config	= drm_atomic_helper_set_config,
 	.page_flip	= drm_atomic_helper_page_flip,
 	.reset		= drm_atomic_helper_crtc_reset,
-	.set_property = drm_atomic_helper_crtc_set_property,
 	.atomic_duplicate_state	= drm_atomic_helper_crtc_duplicate_state,
 	.atomic_destroy_state	= drm_atomic_helper_crtc_destroy_state,
 	.enable_vblank	= ade_crtc_enable_vblank,
@@ -890,7 +889,6 @@ static const struct drm_plane_helper_funcs ade_plane_helper_funcs = {
 static struct drm_plane_funcs ade_plane_funcs = {
 	.update_plane	= drm_atomic_helper_update_plane,
 	.disable_plane	= drm_atomic_helper_disable_plane,
-	.set_property = drm_atomic_helper_plane_set_property,
 	.destroy = drm_plane_cleanup,
 	.reset = drm_atomic_helper_plane_reset,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
@@ -910,7 +908,7 @@ static int ade_plane_init(struct drm_device *dev, struct ade_plane *aplane,
 		return ret;
 
 	ret = drm_universal_plane_init(dev, &aplane->base, 1, &ade_plane_funcs,
-				       fmts, fmts_cnt, type, NULL);
+				       fmts, fmts_cnt, NULL, type, NULL);
 	if (ret) {
 		DRM_ERROR("fail to init plane, ch=%d\n", aplane->ch);
 		return ret;

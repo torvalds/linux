@@ -175,8 +175,6 @@ static struct drm_driver sti_driver = {
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.dumb_create = drm_gem_cma_dumb_create,
-	.dumb_map_offset = drm_gem_cma_dumb_map_offset,
-	.dumb_destroy = drm_gem_dumb_destroy,
 	.fops = &sti_driver_fops,
 
 	.enable_vblank = sti_crtc_enable_vblank,

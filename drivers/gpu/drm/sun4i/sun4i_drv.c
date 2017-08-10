@@ -40,8 +40,6 @@ static struct drm_driver sun4i_drv_driver = {
 
 	/* GEM Operations */
 	.dumb_create		= drm_gem_cma_dumb_create,
-	.dumb_destroy		= drm_gem_dumb_destroy,
-	.dumb_map_offset	= drm_gem_cma_dumb_map_offset,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 

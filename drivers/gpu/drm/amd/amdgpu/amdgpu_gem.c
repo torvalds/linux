@@ -49,7 +49,6 @@ int amdgpu_gem_object_create(struct amdgpu_device *adev, unsigned long size,
 				struct drm_gem_object **obj)
 {
 	struct amdgpu_bo *robj;
-	unsigned long max_size;
 	int r;
 
 	*obj = NULL;
@@ -58,17 +57,6 @@ int amdgpu_gem_object_create(struct amdgpu_device *adev, unsigned long size,
 		alignment = PAGE_SIZE;
 	}
 
-	if (!(initial_domain & (AMDGPU_GEM_DOMAIN_GDS | AMDGPU_GEM_DOMAIN_GWS | AMDGPU_GEM_DOMAIN_OA))) {
-		/* Maximum bo size is the unpinned gtt size since we use the gtt to
-		 * handle vram to system pool migrations.
-		 */
-		max_size = adev->mc.gtt_size - adev->gart_pin_size;
-		if (size > max_size) {
-			DRM_DEBUG("Allocation size %ldMb bigger than %ldMb limit\n",
-				  size >> 20, max_size >> 20);
-			return -ENOMEM;
-		}
-	}
 retry:
 	r = amdgpu_bo_create(adev, size, alignment, kernel, initial_domain,
 			     flags, NULL, NULL, &robj);
@@ -784,6 +772,7 @@ static int amdgpu_debugfs_gem_bo_info(int id, void *ptr, void *data)
 	unsigned domain;
 	const char *placement;
 	unsigned pin_count;
+	uint64_t offset;
 
 	domain = amdgpu_mem_type_to_domain(bo->tbo.mem.mem_type);
 	switch (domain) {
@@ -798,9 +787,12 @@ static int amdgpu_debugfs_gem_bo_info(int id, void *ptr, void *data)
 		placement = " CPU";
 		break;
 	}
-	seq_printf(m, "\t0x%08x: %12ld byte %s @ 0x%010Lx",
-		   id, amdgpu_bo_size(bo), placement,
-		   amdgpu_bo_gpu_offset(bo));
+	seq_printf(m, "\t0x%08x: %12ld byte %s",
+		   id, amdgpu_bo_size(bo), placement);
+
+	offset = ACCESS_ONCE(bo->tbo.mem.start);
+	if (offset != AMDGPU_BO_INVALID_OFFSET)
+		seq_printf(m, " @ 0x%010Lx", offset);
 
 	pin_count = ACCESS_ONCE(bo->pin_count);
 	if (pin_count)

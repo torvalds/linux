@@ -540,7 +540,6 @@ int smu7_upload_smu_firmware_image(struct pp_smumgr *smumgr)
 	return result;
 }
 
-
 int smu7_init(struct pp_smumgr *smumgr)
 {
 	struct smu7_smumgr *smu_data;
@@ -595,6 +594,11 @@ int smu7_init(struct pp_smumgr *smumgr)
 		cgs_free_gpu_mem(smumgr->device,
 		(cgs_handle_t)smu_data->smu_buffer.handle);
 		return -EINVAL);
+
+	if (smum_is_hw_avfs_present(smumgr))
+		smu_data->avfs.avfs_btc_status = AVFS_BTC_BOOT;
+	else
+		smu_data->avfs.avfs_btc_status = AVFS_BTC_NOTSUPPORTED;
 
 	return 0;
 }

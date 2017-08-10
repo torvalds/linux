@@ -193,8 +193,8 @@ static const u32 tonga_golden_common_all[] =
 	mmGB_ADDR_CONFIG, 0xffffffff, 0x22011003,
 	mmSPI_RESOURCE_RESERVE_CU_0, 0xffffffff, 0x00000800,
 	mmSPI_RESOURCE_RESERVE_CU_1, 0xffffffff, 0x00000800,
-	mmSPI_RESOURCE_RESERVE_EN_CU_0, 0xffffffff, 0x00007FBF,
-	mmSPI_RESOURCE_RESERVE_EN_CU_1, 0xffffffff, 0x00007FAF
+	mmSPI_RESOURCE_RESERVE_EN_CU_0, 0xffffffff, 0x00FF7FBF,
+	mmSPI_RESOURCE_RESERVE_EN_CU_1, 0xffffffff, 0x00FF7FAF
 };
 
 static const u32 tonga_mgcg_cgcg_init[] =
@@ -303,8 +303,8 @@ static const u32 polaris11_golden_common_all[] =
 	mmGB_ADDR_CONFIG, 0xffffffff, 0x22011002,
 	mmSPI_RESOURCE_RESERVE_CU_0, 0xffffffff, 0x00000800,
 	mmSPI_RESOURCE_RESERVE_CU_1, 0xffffffff, 0x00000800,
-	mmSPI_RESOURCE_RESERVE_EN_CU_0, 0xffffffff, 0x00007FBF,
-	mmSPI_RESOURCE_RESERVE_EN_CU_1, 0xffffffff, 0x00007FAF,
+	mmSPI_RESOURCE_RESERVE_EN_CU_0, 0xffffffff, 0x00FF7FBF,
+	mmSPI_RESOURCE_RESERVE_EN_CU_1, 0xffffffff, 0x00FF7FAF,
 };
 
 static const u32 golden_settings_polaris10_a11[] =
@@ -336,8 +336,8 @@ static const u32 polaris10_golden_common_all[] =
 	mmGB_ADDR_CONFIG, 0xffffffff, 0x22011003,
 	mmSPI_RESOURCE_RESERVE_CU_0, 0xffffffff, 0x00000800,
 	mmSPI_RESOURCE_RESERVE_CU_1, 0xffffffff, 0x00000800,
-	mmSPI_RESOURCE_RESERVE_EN_CU_0, 0xffffffff, 0x00007FBF,
-	mmSPI_RESOURCE_RESERVE_EN_CU_1, 0xffffffff, 0x00007FAF,
+	mmSPI_RESOURCE_RESERVE_EN_CU_0, 0xffffffff, 0x00FF7FBF,
+	mmSPI_RESOURCE_RESERVE_EN_CU_1, 0xffffffff, 0x00FF7FAF,
 };
 
 static const u32 fiji_golden_common_all[] =
@@ -348,8 +348,8 @@ static const u32 fiji_golden_common_all[] =
 	mmGB_ADDR_CONFIG, 0xffffffff, 0x22011003,
 	mmSPI_RESOURCE_RESERVE_CU_0, 0xffffffff, 0x00000800,
 	mmSPI_RESOURCE_RESERVE_CU_1, 0xffffffff, 0x00000800,
-	mmSPI_RESOURCE_RESERVE_EN_CU_0, 0xffffffff, 0x00007FBF,
-	mmSPI_RESOURCE_RESERVE_EN_CU_1, 0xffffffff, 0x00007FAF,
+	mmSPI_RESOURCE_RESERVE_EN_CU_0, 0xffffffff, 0x00FF7FBF,
+	mmSPI_RESOURCE_RESERVE_EN_CU_1, 0xffffffff, 0x00FF7FAF,
 	mmGRBM_GFX_INDEX, 0xffffffff, 0xe0000000,
 	mmSPI_CONFIG_CNTL_1, 0x0000000f, 0x00000009,
 };
@@ -436,8 +436,8 @@ static const u32 iceland_golden_common_all[] =
 	mmGB_ADDR_CONFIG, 0xffffffff, 0x22010001,
 	mmSPI_RESOURCE_RESERVE_CU_0, 0xffffffff, 0x00000800,
 	mmSPI_RESOURCE_RESERVE_CU_1, 0xffffffff, 0x00000800,
-	mmSPI_RESOURCE_RESERVE_EN_CU_0, 0xffffffff, 0x00007FBF,
-	mmSPI_RESOURCE_RESERVE_EN_CU_1, 0xffffffff, 0x00007FAF
+	mmSPI_RESOURCE_RESERVE_EN_CU_0, 0xffffffff, 0x00FF7FBF,
+	mmSPI_RESOURCE_RESERVE_EN_CU_1, 0xffffffff, 0x00FF7FAF
 };
 
 static const u32 iceland_mgcg_cgcg_init[] =
@@ -532,8 +532,8 @@ static const u32 cz_golden_common_all[] =
 	mmGB_ADDR_CONFIG, 0xffffffff, 0x22010001,
 	mmSPI_RESOURCE_RESERVE_CU_0, 0xffffffff, 0x00000800,
 	mmSPI_RESOURCE_RESERVE_CU_1, 0xffffffff, 0x00000800,
-	mmSPI_RESOURCE_RESERVE_EN_CU_0, 0xffffffff, 0x00007FBF,
-	mmSPI_RESOURCE_RESERVE_EN_CU_1, 0xffffffff, 0x00007FAF
+	mmSPI_RESOURCE_RESERVE_EN_CU_0, 0xffffffff, 0x00FF7FBF,
+	mmSPI_RESOURCE_RESERVE_EN_CU_1, 0xffffffff, 0x00FF7FAF
 };
 
 static const u32 cz_mgcg_cgcg_init[] =
@@ -637,8 +637,8 @@ static const u32 stoney_golden_common_all[] =
 	mmGB_ADDR_CONFIG, 0xffffffff, 0x12010001,
 	mmSPI_RESOURCE_RESERVE_CU_0, 0xffffffff, 0x00000800,
 	mmSPI_RESOURCE_RESERVE_CU_1, 0xffffffff, 0x00000800,
-	mmSPI_RESOURCE_RESERVE_EN_CU_0, 0xffffffff, 0x00007FBF,
-	mmSPI_RESOURCE_RESERVE_EN_CU_1, 0xffffffff, 0x00007FAF,
+	mmSPI_RESOURCE_RESERVE_EN_CU_0, 0xffffffff, 0x00FF7FBF,
+	mmSPI_RESOURCE_RESERVE_EN_CU_1, 0xffffffff, 0x00FF7FAF,
 };
 
 static const u32 stoney_mgcg_cgcg_init[] =
@@ -750,7 +750,7 @@ static void gfx_v8_0_init_golden_registers(struct amdgpu_device *adev)
 
 static void gfx_v8_0_scratch_init(struct amdgpu_device *adev)
 {
-	adev->gfx.scratch.num_reg = 7;
+	adev->gfx.scratch.num_reg = 8;
 	adev->gfx.scratch.reg_base = mmSCRATCH_REG0;
 	adev->gfx.scratch.free_mask = (1u << adev->gfx.scratch.num_reg) - 1;
 }
@@ -4564,7 +4564,7 @@ static int gfx_v8_0_kiq_kcq_enable(struct amdgpu_device *adev)
 		/* This situation may be hit in the future if a new HW
 		 * generation exposes more than 64 queues. If so, the
 		 * definition of queue_mask needs updating */
-		if (WARN_ON(i > (sizeof(queue_mask)*8))) {
+		if (WARN_ON(i >= (sizeof(queue_mask)*8))) {
 			DRM_ERROR("Invalid KCQ enabled: %d\n", i);
 			break;
 		}

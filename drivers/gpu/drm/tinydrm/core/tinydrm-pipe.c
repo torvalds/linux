@@ -71,7 +71,6 @@ static void tinydrm_connector_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs tinydrm_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.reset = drm_atomic_helper_connector_reset,
 	.detect = tinydrm_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
@@ -225,7 +224,7 @@ tinydrm_display_pipe_init(struct tinydrm_device *tdev,
 		return PTR_ERR(connector);
 
 	ret = drm_simple_display_pipe_init(drm, &tdev->pipe, funcs, formats,
-					   format_count, connector);
+					   format_count, NULL, connector);
 	if (ret)
 		return ret;
 

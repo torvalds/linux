@@ -331,8 +331,6 @@ static int radeon_fbdev_destroy(struct drm_device *dev, struct radeon_fbdev *rfb
 }
 
 static const struct drm_fb_helper_funcs radeon_fb_helper_funcs = {
-	.gamma_set = radeon_crtc_fb_gamma_set,
-	.gamma_get = radeon_crtc_fb_gamma_get,
 	.fb_probe = radeonfb_create,
 };
 
@@ -346,9 +344,12 @@ int radeon_fbdev_init(struct radeon_device *rdev)
 	if (list_empty(&rdev->ddev->mode_config.connector_list))
 		return 0;
 
-	/* select 8 bpp console on RN50 or 16MB cards */
-	if (ASIC_IS_RN50(rdev) || rdev->mc.real_vram_size <= (32*1024*1024))
+	/* select 8 bpp console on 8MB cards, or 16 bpp on RN50 or 32MB */
+	if (rdev->mc.real_vram_size <= (8*1024*1024))
 		bpp_sel = 8;
+	else if (ASIC_IS_RN50(rdev) ||
+		 rdev->mc.real_vram_size <= (32*1024*1024))
+		bpp_sel = 16;
 
 	rfbdev = kzalloc(sizeof(struct radeon_fbdev), GFP_KERNEL);
 	if (!rfbdev)

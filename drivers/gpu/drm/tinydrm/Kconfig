@@ -23,6 +23,7 @@ config TINYDRM_MI0283QT
 config TINYDRM_REPAPER
 	tristate "DRM support for Pervasive Displays RePaper panels (V231)"
 	depends on DRM_TINYDRM && SPI
+	depends on THERMAL || !THERMAL
 	help
 	  DRM driver for the following Pervasive Displays panels:
 	  1.44" TFT EPD Panel (E1144CS021)

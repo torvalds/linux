@@ -115,7 +115,7 @@ static struct sun4i_layer *sun4i_layer_init_one(struct drm_device *drm,
 	ret = drm_universal_plane_init(drm, &layer->plane, 0,
 				       &sun4i_backend_layer_funcs,
 				       plane->formats, plane->nformats,
-				       plane->type, NULL);
+				       NULL, plane->type, NULL);
 	if (ret) {
 		dev_err(drm->dev, "Couldn't initialize layer\n");
 		return ERR_PTR(ret);

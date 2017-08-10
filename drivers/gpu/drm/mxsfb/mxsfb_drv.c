@@ -190,7 +190,7 @@ static int mxsfb_load(struct drm_device *drm, unsigned long flags)
 	}
 
 	ret = drm_simple_display_pipe_init(drm, &mxsfb->pipe, &mxsfb_funcs,
-			mxsfb_formats, ARRAY_SIZE(mxsfb_formats),
+			mxsfb_formats, ARRAY_SIZE(mxsfb_formats), NULL,
 			&mxsfb->connector);
 	if (ret < 0) {
 		dev_err(drm->dev, "Cannot setup simple display pipe\n");

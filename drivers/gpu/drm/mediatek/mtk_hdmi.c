@@ -1261,7 +1261,6 @@ static struct drm_encoder *mtk_hdmi_conn_best_enc(struct drm_connector *conn)
 }
 
 static const struct drm_connector_funcs mtk_hdmi_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = hdmi_conn_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = hdmi_conn_destroy,

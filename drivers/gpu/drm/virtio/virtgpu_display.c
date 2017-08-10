@@ -252,7 +252,6 @@ static void virtio_gpu_conn_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs virtio_gpu_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = virtio_gpu_conn_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = virtio_gpu_conn_destroy,

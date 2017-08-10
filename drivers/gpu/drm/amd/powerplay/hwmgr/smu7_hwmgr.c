@@ -4630,6 +4630,15 @@ static int smu7_set_power_profile_state(struct pp_hwmgr *hwmgr,
 
 static int smu7_avfs_control(struct pp_hwmgr *hwmgr, bool enable)
 {
+	struct pp_smumgr *smumgr = (struct pp_smumgr *)(hwmgr->smumgr);
+	struct smu7_smumgr *smu_data = (struct smu7_smumgr *)(smumgr->backend);
+
+	if (smu_data == NULL)
+		return -EINVAL;
+
+	if (smu_data->avfs.avfs_btc_status == AVFS_BTC_NOTSUPPORTED)
+		return 0;
+
 	if (enable) {
 		if (!PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device,
 				CGS_IND_REG__SMC, FEATURE_STATUS, AVS_ON))

@@ -257,8 +257,6 @@ static int mga_fbdev_destroy(struct drm_device *dev,
 }
 
 static const struct drm_fb_helper_funcs mga_fb_helper_funcs = {
-	.gamma_set = mga_crtc_fb_gamma_set,
-	.gamma_get = mga_crtc_fb_gamma_get,
 	.fb_probe = mgag200fb_create,
 };
 

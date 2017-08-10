@@ -293,8 +293,6 @@ static struct drm_driver mtk_drm_driver = {
 	.gem_free_object_unlocked = mtk_drm_gem_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.dumb_create = mtk_drm_gem_dumb_create,
-	.dumb_map_offset = mtk_drm_gem_dumb_map_offset,
-	.dumb_destroy = drm_gem_dumb_destroy,
 
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,

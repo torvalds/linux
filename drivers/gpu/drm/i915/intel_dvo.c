@@ -344,13 +344,11 @@ static void intel_dvo_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs intel_dvo_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = intel_dvo_detect,
 	.late_register = intel_connector_register,
 	.early_unregister = intel_connector_unregister,
 	.destroy = intel_dvo_destroy,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.set_property = drm_atomic_helper_connector_set_property,
 	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
 };

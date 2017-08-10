@@ -420,7 +420,7 @@ static int agp_nvidia_resume(struct pci_dev *pdev)
 #endif
 
 
-static struct pci_device_id agp_nvidia_pci_table[] = {
+static const struct pci_device_id agp_nvidia_pci_table[] = {
 	{
 	.class		= (PCI_CLASS_BRIDGE_HOST << 8),
 	.class_mask	= ~0,

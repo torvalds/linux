@@ -1276,7 +1276,6 @@ static const struct drm_plane_funcs sti_hqvdp_plane_helpers_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
 	.destroy = sti_hqvdp_destroy,
-	.set_property = drm_atomic_helper_plane_set_property,
 	.reset = sti_plane_reset,
 	.atomic_duplicate_state = drm_atomic_helper_plane_duplicate_state,
 	.atomic_destroy_state = drm_atomic_helper_plane_destroy_state,
@@ -1298,7 +1297,7 @@ static struct drm_plane *sti_hqvdp_create(struct drm_device *drm_dev,
 				       &sti_hqvdp_plane_helpers_funcs,
 				       hqvdp_supported_formats,
 				       ARRAY_SIZE(hqvdp_supported_formats),
-				       DRM_PLANE_TYPE_OVERLAY, NULL);
+				       NULL, DRM_PLANE_TYPE_OVERLAY, NULL);
 	if (res) {
 		DRM_ERROR("Failed to initialize universal plane\n");
 		return NULL;

@@ -389,7 +389,7 @@ static void ast_user_framebuffer_destroy(struct drm_framebuffer *fb)
 
 	drm_gem_object_unreference_unlocked(ast_fb->obj);
 	drm_framebuffer_cleanup(fb);
-	kfree(fb);
+	kfree(ast_fb);
 }
 
 static const struct drm_framebuffer_funcs ast_fb_funcs = {
@@ -576,6 +576,7 @@ void ast_driver_unload(struct drm_device *dev)
 {
 	struct ast_private *ast = dev->dev_private;
 
+	ast_release_firmware(dev);
 	kfree(ast->dp501_fw_addr);
 	ast_mode_fini(dev);
 	ast_fbdev_fini(dev);

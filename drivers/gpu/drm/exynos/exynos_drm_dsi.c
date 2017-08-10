@@ -1537,7 +1537,6 @@ static void exynos_dsi_connector_destroy(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs exynos_dsi_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = exynos_dsi_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = exynos_dsi_connector_destroy,

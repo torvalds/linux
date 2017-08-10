@@ -2208,10 +2208,8 @@ intel_sdvo_connector_duplicate_state(struct drm_connector *connector)
 }
 
 static const struct drm_connector_funcs intel_sdvo_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.detect = intel_sdvo_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
-	.set_property = drm_atomic_helper_connector_set_property,
 	.atomic_get_property = intel_sdvo_connector_atomic_get_property,
 	.atomic_set_property = intel_sdvo_connector_atomic_set_property,
 	.late_register = intel_sdvo_connector_register,

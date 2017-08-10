@@ -240,6 +240,8 @@ static uint32_t amdgpu_cgs_read_ind_register(struct cgs_device *cgs_device,
 		return RREG32_DIDT(index);
 	case CGS_IND_REG_GC_CAC:
 		return RREG32_GC_CAC(index);
+	case CGS_IND_REG_SE_CAC:
+		return RREG32_SE_CAC(index);
 	case CGS_IND_REG__AUDIO_ENDPT:
 		DRM_ERROR("audio endpt register access not implemented.\n");
 		return 0;
@@ -266,6 +268,8 @@ static void amdgpu_cgs_write_ind_register(struct cgs_device *cgs_device,
 		return WREG32_DIDT(index, value);
 	case CGS_IND_REG_GC_CAC:
 		return WREG32_GC_CAC(index, value);
+	case CGS_IND_REG_SE_CAC:
+		return WREG32_SE_CAC(index, value);
 	case CGS_IND_REG__AUDIO_ENDPT:
 		DRM_ERROR("audio endpt register access not implemented.\n");
 		return;
@@ -610,6 +614,17 @@ static int amdgpu_cgs_enter_safe_mode(struct cgs_device *cgs_device,
 	return 0;
 }
 
+static void amdgpu_cgs_lock_grbm_idx(struct cgs_device *cgs_device,
+					bool lock)
+{
+	CGS_FUNC_ADEV;
+
+	if (lock)
+		mutex_lock(&adev->grbm_idx_mutex);
+	else
+		mutex_unlock(&adev->grbm_idx_mutex);
+}
+
 static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 					enum cgs_ucode_id type,
 					struct cgs_firmware_info *info)
@@ -719,7 +734,13 @@ static int amdgpu_cgs_get_firmware_info(struct cgs_device *cgs_device,
 				strcpy(fw_name, "amdgpu/polaris12_smc.bin");
 				break;
 			case CHIP_VEGA10:
-				strcpy(fw_name, "amdgpu/vega10_smc.bin");
+				if ((adev->pdev->device == 0x687f) &&
+					((adev->pdev->revision == 0xc0) ||
+					(adev->pdev->revision == 0xc1) ||
+					(adev->pdev->revision == 0xc3)))
+					strcpy(fw_name, "amdgpu/vega10_acg_smc.bin");
+				else
+					strcpy(fw_name, "amdgpu/vega10_smc.bin");
 				break;
 			default:
 				DRM_ERROR("SMC firmware not supported\n");
@@ -1117,6 +1138,7 @@ static const struct cgs_ops amdgpu_cgs_ops = {
 	.query_system_info = amdgpu_cgs_query_system_info,
 	.is_virtualization_enabled = amdgpu_cgs_is_virtualization_enabled,
 	.enter_safe_mode = amdgpu_cgs_enter_safe_mode,
+	.lock_grbm_idx = amdgpu_cgs_lock_grbm_idx,
 };
 
 static const struct cgs_os_ops amdgpu_cgs_os_ops = {
