@@ -356,6 +356,7 @@ void __init start_early_boot(void)
 	check_if_starfire();
 	per_cpu_patch();
 	sun4v_patch();
+	smp_init_cpu_poke();
 
 	cpu = hard_smp_processor_id();
 	if (cpu >= NR_CPUS) {
