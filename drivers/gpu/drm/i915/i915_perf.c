@@ -2908,8 +2908,7 @@ void i915_perf_register(struct drm_i915_private *dev_priv)
 	if (!dev_priv->perf.metrics_kobj)
 		goto exit;
 
-	memset(&dev_priv->perf.oa.test_config, 0,
-	       sizeof(dev_priv->perf.oa.test_config));
+	sysfs_attr_init(&dev_priv->perf.oa.test_config.sysfs_metric_id.attr);
 
 	if (IS_HASWELL(dev_priv)) {
 		i915_perf_load_test_config_hsw(dev_priv);
