@@ -333,10 +333,9 @@ static u32 init_page_array(void *hdr, u32 len, struct sk_buff *skb,
 	 * 2. skb linear data
 	 * 3. skb fragment data
 	 */
-	if (hdr != NULL)
-		slots_used += fill_pg_buf(virt_to_page(hdr),
-					offset_in_page(hdr),
-					len, &pb[slots_used]);
+	slots_used += fill_pg_buf(virt_to_page(hdr),
+				  offset_in_page(hdr),
+				  len, &pb[slots_used]);
 
 	packet->rmsg_size = len;
 	packet->rmsg_pgcnt = slots_used;
