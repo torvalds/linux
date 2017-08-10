@@ -684,15 +684,10 @@ void ipoib_mcast_start_thread(struct net_device *dev)
 int ipoib_mcast_stop_thread(struct net_device *dev)
 {
 	struct ipoib_dev_priv *priv = ipoib_priv(dev);
-	unsigned long flags;
 
 	ipoib_dbg_mcast(priv, "stopping multicast thread\n");
 
-	spin_lock_irqsave(&priv->lock, flags);
-	cancel_delayed_work(&priv->mcast_task);
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	flush_workqueue(priv->wq);
+	cancel_delayed_work_sync(&priv->mcast_task);
 
 	return 0;
 }
@@ -747,6 +742,14 @@ void ipoib_check_and_add_mcast_sendonly(struct ipoib_dev_priv *priv, u8 *mgid,
 void ipoib_mcast_remove_list(struct list_head *remove_list)
 {
 	struct ipoib_mcast *mcast, *tmcast;
+
+	/*
+	 * make sure the in-flight joins have finished before we attempt
+	 * to leave
+	 */
+	list_for_each_entry_safe(mcast, tmcast, remove_list, list)
+		if (test_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags))
+			wait_for_completion(&mcast->done);
 
 	list_for_each_entry_safe(mcast, tmcast, remove_list, list) {
 		ipoib_mcast_leave(mcast->dev, mcast);
@@ -838,6 +841,7 @@ void ipoib_mcast_dev_flush(struct net_device *dev)
 	struct ipoib_mcast *mcast, *tmcast;
 	unsigned long flags;
 
+	mutex_lock(&priv->mcast_mutex);
 	ipoib_dbg_mcast(priv, "flushing multicast list\n");
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -856,15 +860,8 @@ void ipoib_mcast_dev_flush(struct net_device *dev)
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	/*
-	 * make sure the in-flight joins have finished before we attempt
-	 * to leave
-	 */
-	list_for_each_entry_safe(mcast, tmcast, &remove_list, list)
-		if (test_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags))
-			wait_for_completion(&mcast->done);
-
 	ipoib_mcast_remove_list(&remove_list);
+	mutex_unlock(&priv->mcast_mutex);
 }
 
 static int ipoib_mcast_addr_is_valid(const u8 *addr, const u8 *broadcast)
@@ -981,14 +978,6 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 	spin_unlock(&priv->lock);
 	netif_addr_unlock(dev);
 	local_irq_restore(flags);
-
-	/*
-	 * make sure the in-flight joins have finished before we attempt
-	 * to leave
-	 */
-	list_for_each_entry_safe(mcast, tmcast, &remove_list, list)
-		if (test_bit(IPOIB_MCAST_FLAG_BUSY, &mcast->flags))
-			wait_for_completion(&mcast->done);
 
 	ipoib_mcast_remove_list(&remove_list);
 

@@ -147,3 +147,9 @@ appropriately. The generic error codes are described at the
 EINVAL
     The struct :c:type:`v4l2_format` ``type`` field is
     invalid or the requested buffer type not supported.
+
+EBUSY
+    The device is busy and cannot change the format. This could be
+    because or the device is streaming or buffers are allocated or
+    queued to the driver. Relevant for :ref:`VIDIOC_S_FMT
+    <VIDIOC_G_FMT>` only.
