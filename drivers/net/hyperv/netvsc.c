@@ -1191,10 +1191,6 @@ int netvsc_poll(struct napi_struct *napi, int budget)
 		nvchan->desc = hv_pkt_iter_next(channel, nvchan->desc);
 	}
 
-	/* if ring is empty, signal host */
-	if (!nvchan->desc)
-		hv_pkt_iter_close(channel);
-
 	/* If send of pending receive completions suceeded
 	 *   and did not exhaust NAPI budget this time
 	 *   and not doing busy poll
