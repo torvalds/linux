@@ -86,6 +86,8 @@ struct rk_priv_data {
 #define RK3228_GRF_MAC_CON0	0x0900
 #define RK3228_GRF_MAC_CON1	0x0904
 
+#define RK3228_GRF_CON_MUX	0x50
+
 /* RK3228_GRF_MAC_CON0 */
 #define RK3228_GMAC_CLK_RX_DL_CFG(val)	HIWORD_UPDATE(val, 0x7F, 7)
 #define RK3228_GMAC_CLK_TX_DL_CFG(val)	HIWORD_UPDATE(val, 0x7F, 0)
@@ -110,6 +112,9 @@ struct rk_priv_data {
 #define RK3228_GMAC_TXCLK_DLY_DISABLE	GRF_CLR_BIT(0)
 #define RK3228_GMAC_RXCLK_DLY_ENABLE	GRF_BIT(1)
 #define RK3228_GMAC_RXCLK_DLY_DISABLE	GRF_CLR_BIT(1)
+
+/* RK3228_GRF_COM_MUX */
+#define RK3228_GRF_CON_MUX_GMAC_INTEGRATED_PHY	GRF_BIT(15)
 
 static void rk3228_set_to_rgmii(struct rk_priv_data *bsp_priv,
 				int tx_delay, int rx_delay)
@@ -191,11 +196,18 @@ static void rk3228_set_rmii_speed(struct rk_priv_data *bsp_priv, int speed)
 		dev_err(dev, "unknown speed value for RMII! speed=%d", speed);
 }
 
+static void rk3228_integrated_phy_powerup(struct rk_priv_data *priv)
+{
+	regmap_write(priv->grf, RK3228_GRF_CON_MUX,
+		     RK3228_GRF_CON_MUX_GMAC_INTEGRATED_PHY);
+}
+
 static const struct rk_gmac_ops rk3228_ops = {
 	.set_to_rgmii = rk3228_set_to_rgmii,
 	.set_to_rmii = rk3228_set_to_rmii,
 	.set_rgmii_speed = rk3228_set_rgmii_speed,
 	.set_rmii_speed = rk3228_set_rmii_speed,
+	.integrated_phy_powerup =  rk3228_integrated_phy_powerup,
 };
 
 #define RK3288_GRF_SOC_CON1	0x0248
