@@ -1169,13 +1169,21 @@ static bool vfio_iommu_has_sw_msi(struct iommu_group *group, phys_addr_t *base)
 	INIT_LIST_HEAD(&group_resv_regions);
 	iommu_get_group_resv_regions(group, &group_resv_regions);
 	list_for_each_entry(region, &group_resv_regions, list) {
+		/*
+		 * The presence of any 'real' MSI regions should take
+		 * precedence over the software-managed one if the
+		 * IOMMU driver happens to advertise both types.
+		 */
+		if (region->type == IOMMU_RESV_MSI) {
+			ret = false;
+			break;
+		}
+
 		if (region->type == IOMMU_RESV_SW_MSI) {
 			*base = region->start;
 			ret = true;
-			goto out;
 		}
 	}
-out:
 	list_for_each_entry_safe(region, next, &group_resv_regions, list)
 		kfree(region);
 	return ret;
