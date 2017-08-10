@@ -327,29 +327,71 @@ static struct ctl_table *sd_alloc_ctl_cpu_table(int cpu)
 	return table;
 }
 
+static cpumask_var_t sd_sysctl_cpus;
 static struct ctl_table_header *sd_sysctl_header;
+
 void register_sched_domain_sysctl(void)
 {
-	int i, cpu_num = num_possible_cpus();
-	struct ctl_table *entry = sd_alloc_ctl_entry(cpu_num + 1);
+	static struct ctl_table *cpu_entries;
+	static struct ctl_table **cpu_idx;
 	char buf[32];
+	int i;
 
-	WARN_ON(sd_ctl_dir[0].child);
-	sd_ctl_dir[0].child = entry;
+	if (!cpu_entries) {
+		cpu_entries = sd_alloc_ctl_entry(num_possible_cpus() + 1);
+		if (!cpu_entries)
+			return;
 
-	if (entry == NULL)
-		return;
+		WARN_ON(sd_ctl_dir[0].child);
+		sd_ctl_dir[0].child = cpu_entries;
+	}
 
-	for_each_possible_cpu(i) {
-		snprintf(buf, 32, "cpu%d", i);
-		entry->procname = kstrdup(buf, GFP_KERNEL);
-		entry->mode = 0555;
-		entry->child = sd_alloc_ctl_cpu_table(i);
-		entry++;
+	if (!cpu_idx) {
+		struct ctl_table *e = cpu_entries;
+
+		cpu_idx = kcalloc(nr_cpu_ids, sizeof(struct ctl_table*), GFP_KERNEL);
+		if (!cpu_idx)
+			return;
+
+		/* deal with sparse possible map */
+		for_each_possible_cpu(i) {
+			cpu_idx[i] = e;
+			e++;
+		}
+	}
+
+	if (!cpumask_available(sd_sysctl_cpus)) {
+		if (!alloc_cpumask_var(&sd_sysctl_cpus, GFP_KERNEL))
+			return;
+
+		/* init to possible to not have holes in @cpu_entries */
+		cpumask_copy(sd_sysctl_cpus, cpu_possible_mask);
+	}
+
+	for_each_cpu(i, sd_sysctl_cpus) {
+		struct ctl_table *e = cpu_idx[i];
+
+		if (e->child)
+			sd_free_ctl_entry(&e->child);
+
+		if (!e->procname) {
+			snprintf(buf, 32, "cpu%d", i);
+			e->procname = kstrdup(buf, GFP_KERNEL);
+		}
+		e->mode = 0555;
+		e->child = sd_alloc_ctl_cpu_table(i);
+
+		__cpumask_clear_cpu(i, sd_sysctl_cpus);
 	}
 
 	WARN_ON(sd_sysctl_header);
 	sd_sysctl_header = register_sysctl_table(sd_ctl_root);
+}
+
+void dirty_sched_domain_sysctl(int cpu)
+{
+	if (cpumask_available(sd_sysctl_cpus))
+		__cpumask_set_cpu(cpu, sd_sysctl_cpus);
 }
 
 /* may be called multiple times per register */
@@ -357,8 +399,6 @@ void unregister_sched_domain_sysctl(void)
 {
 	unregister_sysctl_table(sd_sysctl_header);
 	sd_sysctl_header = NULL;
-	if (sd_ctl_dir[0].child)
-		sd_free_ctl_entry(&sd_ctl_dir[0].child);
 }
 #endif /* CONFIG_SYSCTL */
 #endif /* CONFIG_SMP */
