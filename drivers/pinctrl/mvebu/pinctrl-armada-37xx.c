@@ -254,7 +254,7 @@ static int armada_37xx_pin_config_group_set(struct pinctrl_dev *pctldev,
 	return -ENOTSUPP;
 }
 
-static struct pinconf_ops armada_37xx_pinconf_ops = {
+static const struct pinconf_ops armada_37xx_pinconf_ops = {
 	.is_generic = true,
 	.pin_config_group_get = armada_37xx_pin_config_group_get,
 	.pin_config_group_set = armada_37xx_pin_config_group_set,
