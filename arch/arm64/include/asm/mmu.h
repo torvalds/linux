@@ -17,6 +17,7 @@
 #define __ASM_MMU_H
 
 #define MMCF_AARCH32	0x1	/* mm context flag for AArch32 executables */
+#define USER_ASID_FLAG	(UL(1) << 48)
 
 typedef struct {
 	atomic64_t	id;
