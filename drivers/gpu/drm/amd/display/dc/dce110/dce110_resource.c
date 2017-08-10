@@ -565,7 +565,7 @@ static const struct encoder_feature_support link_enc_feature = {
 		.flags.bits.IS_YCBCR_CAPABLE = true
 };
 
-struct link_encoder *dce110_link_encoder_create(
+static struct link_encoder *dce110_link_encoder_create(
 	const struct encoder_init_data *enc_init_data)
 {
 	struct dce110_link_encoder *enc110 =
@@ -813,7 +813,7 @@ static enum dc_status build_mapped_resource(
 	return DC_OK;
 }
 
-bool dce110_validate_bandwidth(
+static bool dce110_validate_bandwidth(
 	const struct core_dc *dc,
 	struct validate_context *context)
 {
@@ -927,7 +927,7 @@ static bool dce110_validate_surface_sets(
 	return true;
 }
 
-enum dc_status dce110_validate_with_context(
+static enum dc_status dce110_validate_with_context(
 		const struct core_dc *dc,
 		const struct dc_validation_set set[],
 		int set_count,
@@ -971,7 +971,7 @@ enum dc_status dce110_validate_with_context(
 	return result;
 }
 
-enum dc_status dce110_validate_guaranteed(
+static enum dc_status dce110_validate_guaranteed(
 		const struct core_dc *dc,
 		struct dc_stream_state *dc_stream,
 		struct validate_context *context)
