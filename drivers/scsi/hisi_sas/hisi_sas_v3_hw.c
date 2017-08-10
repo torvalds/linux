@@ -1200,7 +1200,6 @@ end:
 
 static int phy_down_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 {
-	int res = 0;
 	u32 phy_state, sl_ctrl, txid_auto;
 	struct device *dev = hisi_hba->dev;
 
@@ -1221,7 +1220,7 @@ static int phy_down_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
 	hisi_sas_phy_write32(hisi_hba, phy_no, CHL_INT0, CHL_INT0_NOT_RDY_MSK);
 	hisi_sas_phy_write32(hisi_hba, phy_no, PHYCTRL_NOT_RDY_MSK, 0);
 
-	return res;
+	return 0;
 }
 
 static void phy_bcast_v3_hw(int phy_no, struct hisi_hba *hisi_hba)
