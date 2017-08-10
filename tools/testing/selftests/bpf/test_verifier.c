@@ -8,6 +8,7 @@
  * License as published by the Free Software Foundation.
  */
 
+#include <endian.h>
 #include <asm/types.h>
 #include <linux/types.h>
 #include <stdint.h>
@@ -1098,7 +1099,7 @@ static struct bpf_test tests[] = {
 		"check skb->hash byte load permitted",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
-#ifdef __LITTLE_ENDIAN
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
 				    offsetof(struct __sk_buff, hash)),
 #else
@@ -1135,7 +1136,7 @@ static struct bpf_test tests[] = {
 		"check skb->hash byte load not permitted 3",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
-#ifdef __LITTLE_ENDIAN
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
 				    offsetof(struct __sk_buff, hash) + 3),
 #else
@@ -1244,7 +1245,7 @@ static struct bpf_test tests[] = {
 		"check skb->hash half load permitted",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
-#ifdef __LITTLE_ENDIAN
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
 				    offsetof(struct __sk_buff, hash)),
 #else
@@ -1259,7 +1260,7 @@ static struct bpf_test tests[] = {
 		"check skb->hash half load not permitted",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
-#ifdef __LITTLE_ENDIAN
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
 				    offsetof(struct __sk_buff, hash) + 2),
 #else
@@ -5422,7 +5423,7 @@ static struct bpf_test tests[] = {
 		"check bpf_perf_event_data->sample_period byte load permitted",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
-#ifdef __LITTLE_ENDIAN
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_1,
 				    offsetof(struct bpf_perf_event_data, sample_period)),
 #else
@@ -5438,7 +5439,7 @@ static struct bpf_test tests[] = {
 		"check bpf_perf_event_data->sample_period half load permitted",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
-#ifdef __LITTLE_ENDIAN
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
 				    offsetof(struct bpf_perf_event_data, sample_period)),
 #else
@@ -5454,7 +5455,7 @@ static struct bpf_test tests[] = {
 		"check bpf_perf_event_data->sample_period word load permitted",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
-#ifdef __LITTLE_ENDIAN
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 			BPF_LDX_MEM(BPF_W, BPF_REG_0, BPF_REG_1,
 				    offsetof(struct bpf_perf_event_data, sample_period)),
 #else
@@ -5481,7 +5482,7 @@ static struct bpf_test tests[] = {
 		"check skb->data half load not permitted",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
-#ifdef __LITTLE_ENDIAN
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
 				    offsetof(struct __sk_buff, data)),
 #else
@@ -5497,7 +5498,7 @@ static struct bpf_test tests[] = {
 		"check skb->tc_classid half load not permitted for lwt prog",
 		.insns = {
 			BPF_MOV64_IMM(BPF_REG_0, 0),
-#ifdef __LITTLE_ENDIAN
+#if __BYTE_ORDER == __LITTLE_ENDIAN
 			BPF_LDX_MEM(BPF_H, BPF_REG_0, BPF_REG_1,
 				    offsetof(struct __sk_buff, tc_classid)),
 #else
@@ -5977,6 +5978,34 @@ static struct bpf_test tests[] = {
 		.fixup_map1 = { 3 },
 		.errstr_unpriv = "R0 pointer arithmetic prohibited",
 		.errstr = "R0 min value is negative",
+		.result = REJECT,
+		.result_unpriv = REJECT,
+	},
+	{
+		"subtraction bounds (map value)",
+		.insns = {
+			BPF_ST_MEM(BPF_DW, BPF_REG_10, -8, 0),
+			BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+			BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -8),
+			BPF_LD_MAP_FD(BPF_REG_1, 0),
+			BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0,
+				     BPF_FUNC_map_lookup_elem),
+			BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 9),
+			BPF_LDX_MEM(BPF_B, BPF_REG_1, BPF_REG_0, 0),
+			BPF_JMP_IMM(BPF_JGT, BPF_REG_1, 0xff, 7),
+			BPF_LDX_MEM(BPF_B, BPF_REG_3, BPF_REG_0, 1),
+			BPF_JMP_IMM(BPF_JGT, BPF_REG_3, 0xff, 5),
+			BPF_ALU64_REG(BPF_SUB, BPF_REG_1, BPF_REG_3),
+			BPF_ALU64_IMM(BPF_RSH, BPF_REG_1, 56),
+			BPF_ALU64_REG(BPF_ADD, BPF_REG_0, BPF_REG_1),
+			BPF_LDX_MEM(BPF_B, BPF_REG_0, BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+			BPF_MOV64_IMM(BPF_REG_0, 0),
+			BPF_EXIT_INSN(),
+		},
+		.fixup_map1 = { 3 },
+		.errstr_unpriv = "R0 pointer arithmetic prohibited",
+		.errstr = "R0 min value is negative, either use unsigned index or do a if (index >=0) check.",
 		.result = REJECT,
 		.result_unpriv = REJECT,
 	},

@@ -36,7 +36,6 @@ Example:
 
 	/* Board portion */
 	dwmmc0@fcd03000 {
-		num-slots = <1>;
 		vmmc-supply = <&ldo12>;
 		fifo-depth = <0x100>;
 		pinctrl-names = "default";
@@ -52,7 +51,6 @@ Example:
 
 	dwmmc_1: dwmmc1@f723e000 {
 		compatible = "hisilicon,hi6220-dw-mshc";
-		num-slots = <0x1>;
 		bus-width = <0x4>;
 		disable-wp;
 		cap-sd-highspeed;

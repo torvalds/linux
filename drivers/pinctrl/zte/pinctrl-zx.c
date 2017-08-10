@@ -64,10 +64,8 @@ static int zx_set_mux(struct pinctrl_dev *pctldev, unsigned int func_selector,
 	struct zx_pinctrl_soc_info *info = zpctl->info;
 	const struct pinctrl_pin_desc *pindesc = info->pins + group_selector;
 	struct zx_pin_data *data = pindesc->drv_data;
-	struct zx_mux_desc *mux = data->muxes;
-	u32 mask = (1 << data->width) - 1;
-	u32 offset = data->offset;
-	u32 bitpos = data->bitpos;
+	struct zx_mux_desc *mux;
+	u32 mask, offset, bitpos;
 	struct function_desc *func;
 	unsigned long flags;
 	u32 val, mval;
@@ -75,6 +73,11 @@ static int zx_set_mux(struct pinctrl_dev *pctldev, unsigned int func_selector,
 	/* Skip reserved pin */
 	if (!data)
 		return -EINVAL;
+
+	mux = data->muxes;
+	mask = (1 << data->width) - 1;
+	offset = data->offset;
+	bitpos = data->bitpos;
 
 	func = pinmux_generic_get_function(pctldev, func_selector);
 	if (!func)

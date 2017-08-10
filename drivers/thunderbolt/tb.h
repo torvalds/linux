@@ -101,7 +101,7 @@ struct tb_switch {
 	struct tb_dma_port *dma_port;
 	struct tb *tb;
 	u64 uid;
-	uuid_be *uuid;
+	uuid_t *uuid;
 	u16 vendor;
 	u16 device;
 	const char *vendor_name;
@@ -407,7 +407,7 @@ void tb_sw_set_unplugged(struct tb_switch *sw);
 struct tb_switch *get_switch_at_route(struct tb_switch *sw, u64 route);
 struct tb_switch *tb_switch_find_by_link_depth(struct tb *tb, u8 link,
 					       u8 depth);
-struct tb_switch *tb_switch_find_by_uuid(struct tb *tb, const uuid_be *uuid);
+struct tb_switch *tb_switch_find_by_uuid(struct tb *tb, const uuid_t *uuid);
 
 static inline unsigned int tb_switch_phy_port_from_link(unsigned int link)
 {
