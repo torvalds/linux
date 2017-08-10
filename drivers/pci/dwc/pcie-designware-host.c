@@ -71,9 +71,9 @@ irqreturn_t dw_handle_msi_irq(struct pcie_port *pp)
 		while ((pos = find_next_bit((unsigned long *) &val, 32,
 					    pos)) != 32) {
 			irq = irq_find_mapping(pp->irq_domain, i * 32 + pos);
+			generic_handle_irq(irq);
 			dw_pcie_wr_own_conf(pp, PCIE_MSI_INTR0_STATUS + i * 12,
 					    4, 1 << pos);
-			generic_handle_irq(irq);
 			pos++;
 		}
 	}
