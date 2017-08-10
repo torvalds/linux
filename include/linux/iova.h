@@ -60,6 +60,7 @@ struct iova_fq_entry {
 struct iova_fq {
 	struct iova_fq_entry entries[IOVA_FQ_SIZE];
 	unsigned head, tail;
+	spinlock_t lock;
 };
 
 /* holds all the iova translations for a domain */

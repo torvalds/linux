@@ -91,6 +91,8 @@ int init_iova_flush_queue(struct iova_domain *iovad,
 		fq = per_cpu_ptr(iovad->fq, cpu);
 		fq->head = 0;
 		fq->tail = 0;
+
+		spin_lock_init(&fq->lock);
 	}
 
 	return 0;
@@ -471,12 +473,15 @@ EXPORT_SYMBOL_GPL(free_iova_fast);
 
 static inline bool fq_full(struct iova_fq *fq)
 {
+	assert_spin_locked(&fq->lock);
 	return (((fq->tail + 1) % IOVA_FQ_SIZE) == fq->head);
 }
 
 static inline unsigned fq_ring_add(struct iova_fq *fq)
 {
 	unsigned idx = fq->tail;
+
+	assert_spin_locked(&fq->lock);
 
 	fq->tail = (idx + 1) % IOVA_FQ_SIZE;
 
@@ -487,6 +492,8 @@ static void fq_ring_free(struct iova_domain *iovad, struct iova_fq *fq)
 {
 	u64 counter = atomic64_read(&iovad->fq_flush_finish_cnt);
 	unsigned idx;
+
+	assert_spin_locked(&fq->lock);
 
 	fq_ring_for_each(idx, fq) {
 
@@ -537,7 +544,10 @@ void queue_iova(struct iova_domain *iovad,
 		unsigned long data)
 {
 	struct iova_fq *fq = get_cpu_ptr(iovad->fq);
+	unsigned long flags;
 	unsigned idx;
+
+	spin_lock_irqsave(&fq->lock, flags);
 
 	/*
 	 * First remove all entries from the flush queue that have already been
@@ -558,6 +568,7 @@ void queue_iova(struct iova_domain *iovad,
 	fq->entries[idx].data     = data;
 	fq->entries[idx].counter  = atomic64_read(&iovad->fq_flush_start_cnt);
 
+	spin_unlock_irqrestore(&fq->lock, flags);
 	put_cpu_ptr(iovad->fq);
 }
 EXPORT_SYMBOL_GPL(queue_iova);
