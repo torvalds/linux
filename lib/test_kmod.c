@@ -1146,7 +1146,7 @@ static struct kmod_test_device *register_test_dev_kmod(void)
 	struct kmod_test_device *test_dev = NULL;
 	int ret;
 
-	mutex_unlock(&reg_dev_mutex);
+	mutex_lock(&reg_dev_mutex);
 
 	/* int should suffice for number of devices, test for wrap */
 	if (unlikely(num_test_devs + 1) < 0) {
