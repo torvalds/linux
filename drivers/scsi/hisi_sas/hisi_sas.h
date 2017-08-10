@@ -141,6 +141,7 @@ struct hisi_sas_dq {
 struct hisi_sas_device {
 	struct hisi_hba		*hisi_hba;
 	struct domain_device	*sas_device;
+	struct completion *completion;
 	struct hisi_sas_dq	*dq;
 	struct list_head	list;
 	u64 attached_phy;
