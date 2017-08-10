@@ -1,18 +1,13 @@
-MediaTek Gen2 PCIe controller which is available on MT7623 series SoCs
-
-PCIe subsys supports single root complex (RC) with 3 Root Ports. Each root
-ports supports a Gen2 1-lane Link and has PIPE interface to PHY.
+MediaTek Gen2 PCIe controller
 
 Required properties:
-- compatible: Should contain "mediatek,mt7623-pcie".
+- compatible: Should contain one of the following strings:
+	"mediatek,mt2701-pcie"
+	"mediatek,mt7623-pcie"
 - device_type: Must be "pci"
 - reg: Base addresses and lengths of the PCIe controller.
 - #address-cells: Address representation for root ports (must be 3)
 - #size-cells: Size representation for root ports (must be 2)
-- #interrupt-cells: Size representation for interrupts (must be 1)
-- interrupt-map-mask and interrupt-map: Standard PCI IRQ mapping properties
-  Please refer to the standard PCI bus binding document for a more detailed
-  explanation.
 - clocks: Must contain an entry for each entry in clock-names.
   See ../clocks/clock-bindings.txt for details.
 - clock-names: Must include the following entries:
@@ -20,12 +15,6 @@ Required properties:
   - sys_ck0 :for clock of Port0
   - sys_ck1 :for clock of Port1
   - sys_ck2 :for clock of Port2
-- resets: Must contain an entry for each entry in reset-names.
-  See ../reset/reset.txt for details.
-- reset-names: Must include the following entries:
-  - pcie-rst0 :port0 reset
-  - pcie-rst1 :port1 reset
-  - pcie-rst2 :port2 reset
 - phys: List of PHY specifiers (used by generic PHY framework).
 - phy-names : Must be "pcie-phy0", "pcie-phy1", "pcie-phyN".. based on the
   number of PHYs as specified in *phys* property.
@@ -33,6 +22,16 @@ Required properties:
   which is responsible for collapsing and restoring power to the peripheral.
 - bus-range: Range of bus numbers associated with this controller.
 - ranges: Ranges for the PCI memory and I/O regions.
+
+Required properties for MT7623/MT2701:
+- #interrupt-cells: Size representation for interrupts (must be 1)
+- interrupt-map-mask and interrupt-map: Standard PCI IRQ mapping properties
+  Please refer to the standard PCI bus binding document for a more detailed
+  explanation.
+- resets: Must contain an entry for each entry in reset-names.
+  See ../reset/reset.txt for details.
+- reset-names: Must be "pcie-rst0", "pcie-rst1", "pcie-rstN".. based on the
+  number of root ports.
 
 In addition, the device tree node must have sub-nodes describing each
 PCIe port interface, having the following mandatory properties:
@@ -85,7 +84,8 @@ Examples:
 			 <&hifsys MT2701_HIFSYS_PCIE1_RST>,
 			 <&hifsys MT2701_HIFSYS_PCIE2_RST>;
 		reset-names = "pcie-rst0", "pcie-rst1", "pcie-rst2";
-		phys = <&pcie0_phy>, <&pcie1_phy>, <&pcie2_phy>;
+		phys = <&pcie0_phy PHY_TYPE_PCIE>, <&pcie1_phy PHY_TYPE_PCIE>,
+		       <&pcie2_phy PHY_TYPE_PCIE>;
 		phy-names = "pcie-phy0", "pcie-phy1", "pcie-phy2";
 		power-domains = <&scpsys MT2701_POWER_DOMAIN_HIF>;
 		bus-range = <0x00 0xff>;
