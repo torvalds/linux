@@ -5889,28 +5889,62 @@ static void pqi_unregister_scsi(struct pqi_ctrl_info *ctrl_info)
 	scsi_host_put(shost);
 }
 
-#define PQI_RESET_ACTION_RESET		0x1
+static int pqi_wait_for_pqi_reset_completion(struct pqi_ctrl_info *ctrl_info)
+{
+	int rc = 0;
+	struct pqi_device_registers __iomem *pqi_registers;
+	unsigned long timeout;
+	unsigned int timeout_msecs;
+	union pqi_reset_register reset_reg;
 
-#define PQI_RESET_TYPE_NO_RESET		0x0
-#define PQI_RESET_TYPE_SOFT_RESET	0x1
-#define PQI_RESET_TYPE_FIRM_RESET	0x2
-#define PQI_RESET_TYPE_HARD_RESET	0x3
+	pqi_registers = ctrl_info->pqi_registers;
+	timeout_msecs = readw(&pqi_registers->max_reset_timeout) * 100;
+	timeout = msecs_to_jiffies(timeout_msecs) + jiffies;
+
+	while (1) {
+		msleep(PQI_RESET_POLL_INTERVAL_MSECS);
+		reset_reg.all_bits = readl(&pqi_registers->device_reset);
+		if (reset_reg.bits.reset_action == PQI_RESET_ACTION_COMPLETED)
+			break;
+		pqi_check_ctrl_health(ctrl_info);
+		if (pqi_ctrl_offline(ctrl_info)) {
+			rc = -ENXIO;
+			break;
+		}
+		if (time_after(jiffies, timeout)) {
+			rc = -ETIMEDOUT;
+			break;
+		}
+	}
+
+	return rc;
+}
 
 static int pqi_reset(struct pqi_ctrl_info *ctrl_info)
 {
 	int rc;
-	u32 reset_params;
+	union pqi_reset_register reset_reg;
 
-	reset_params = (PQI_RESET_ACTION_RESET << 5) |
-		PQI_RESET_TYPE_HARD_RESET;
+	if (ctrl_info->pqi_reset_quiesce_supported) {
+		rc = sis_pqi_reset_quiesce(ctrl_info);
+		if (rc) {
+			dev_err(&ctrl_info->pci_dev->dev,
+				"PQI reset failed during quiesce with error %d\n",
+				rc);
+			return rc;
+		}
+	}
 
-	writel(reset_params,
-		&ctrl_info->pqi_registers->device_reset);
+	reset_reg.all_bits = 0;
+	reset_reg.bits.reset_type = PQI_RESET_TYPE_HARD_RESET;
+	reset_reg.bits.reset_action = PQI_RESET_ACTION_RESET;
 
-	rc = pqi_wait_for_pqi_mode_ready(ctrl_info);
+	writel(reset_reg.all_bits, &ctrl_info->pqi_registers->device_reset);
+
+	rc = pqi_wait_for_pqi_reset_completion(ctrl_info);
 	if (rc)
 		dev_err(&ctrl_info->pci_dev->dev,
-			"PQI reset failed\n");
+			"PQI reset failed with error %d\n", rc);
 
 	return rc;
 }

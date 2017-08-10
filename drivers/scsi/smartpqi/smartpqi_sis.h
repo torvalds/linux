@@ -32,6 +32,7 @@ void sis_enable_intx(struct pqi_ctrl_info *ctrl_info);
 void sis_disable_intx(struct pqi_ctrl_info *ctrl_info);
 void sis_soft_reset(struct pqi_ctrl_info *ctrl_info);
 void sis_shutdown_ctrl(struct pqi_ctrl_info *ctrl_info);
+int sis_pqi_reset_quiesce(struct pqi_ctrl_info *ctrl_info);
 int sis_reenable_sis_mode(struct pqi_ctrl_info *ctrl_info);
 void sis_write_driver_scratch(struct pqi_ctrl_info *ctrl_info, u32 value);
 u32 sis_read_driver_scratch(struct pqi_ctrl_info *ctrl_info);

@@ -688,6 +688,28 @@ struct pqi_config_table_heartbeat {
 	__le32	heartbeat_counter;
 };
 
+union pqi_reset_register {
+	struct {
+		u32	reset_type : 3;
+		u32	reserved : 2;
+		u32	reset_action : 3;
+		u32	hold_in_pd1 : 1;
+		u32	reserved2 : 23;
+	} bits;
+	u32	all_bits;
+};
+
+#define PQI_RESET_ACTION_RESET		0x1
+
+#define PQI_RESET_TYPE_NO_RESET		0x0
+#define PQI_RESET_TYPE_SOFT_RESET	0x1
+#define PQI_RESET_TYPE_FIRM_RESET	0x2
+#define PQI_RESET_TYPE_HARD_RESET	0x3
+
+#define PQI_RESET_ACTION_COMPLETED	0x2
+
+#define PQI_RESET_POLL_INTERVAL_MSECS	100
+
 #define PQI_MAX_OUTSTANDING_REQUESTS		((u32)~0)
 #define PQI_MAX_OUTSTANDING_REQUESTS_KDUMP	32
 #define PQI_MAX_TRANSFER_SIZE			(1024U * 1024U)
@@ -995,6 +1017,7 @@ struct pqi_ctrl_info {
 	u8		inbound_spanning_supported : 1;
 	u8		outbound_spanning_supported : 1;
 	u8		pqi_mode_enabled : 1;
+	u8		pqi_reset_quiesce_supported : 1;
 
 	struct list_head scsi_device_list;
 	spinlock_t	scsi_device_list_lock;
