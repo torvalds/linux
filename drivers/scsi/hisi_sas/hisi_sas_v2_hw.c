@@ -1364,8 +1364,15 @@ static void start_phys_v2_hw(struct hisi_hba *hisi_hba)
 {
 	int i;
 
-	for (i = 0; i < hisi_hba->n_phy; i++)
+	for (i = 0; i < hisi_hba->n_phy; i++) {
+		struct hisi_sas_phy *phy = &hisi_hba->phy[i];
+		struct asd_sas_phy *sas_phy = &phy->sas_phy;
+
+		if (!sas_phy->phy->enabled)
+			continue;
+
 		start_phy_v2_hw(hisi_hba, i);
+	}
 }
 
 static void phys_init_v2_hw(struct hisi_hba *hisi_hba)
@@ -3383,14 +3390,16 @@ static void interrupt_disable_v2_hw(struct hisi_hba *hisi_hba)
 		synchronize_irq(platform_get_irq(pdev, i));
 }
 
+
+static u32 get_phys_state_v2_hw(struct hisi_hba *hisi_hba)
+{
+	return hisi_sas_read32(hisi_hba, PHY_STATE);
+}
+
 static int soft_reset_v2_hw(struct hisi_hba *hisi_hba)
 {
 	struct device *dev = hisi_hba->dev;
-	u32 old_state, state;
 	int rc, cnt;
-	int phy_no;
-
-	old_state = hisi_sas_read32(hisi_hba, PHY_STATE);
 
 	interrupt_disable_v2_hw(hisi_hba);
 	hisi_sas_write32(hisi_hba, DLVRY_QUEUE_ENABLE, 0x0);
@@ -3425,22 +3434,6 @@ static int soft_reset_v2_hw(struct hisi_hba *hisi_hba)
 
 	phys_reject_stp_links_v2_hw(hisi_hba);
 
-	/* Re-enable the PHYs */
-	for (phy_no = 0; phy_no < hisi_hba->n_phy; phy_no++) {
-		struct hisi_sas_phy *phy = &hisi_hba->phy[phy_no];
-		struct asd_sas_phy *sas_phy = &phy->sas_phy;
-
-		if (sas_phy->enabled)
-			start_phy_v2_hw(hisi_hba, phy_no);
-	}
-
-	/* Wait for the PHYs to come up and read the PHY state */
-	msleep(1000);
-
-	state = hisi_sas_read32(hisi_hba, PHY_STATE);
-
-	hisi_sas_rescan_topology(hisi_hba, old_state, state);
-
 	return 0;
 }
 
@@ -3468,6 +3461,7 @@ static const struct hisi_sas_hw hisi_sas_v2_hw = {
 	.max_command_entries = HISI_SAS_COMMAND_ENTRIES_V2_HW,
 	.complete_hdr_size = sizeof(struct hisi_sas_complete_v2_hdr),
 	.soft_reset = soft_reset_v2_hw,
+	.get_phys_state = get_phys_state_v2_hw,
 };
 
 static int hisi_sas_v2_probe(struct platform_device *pdev)

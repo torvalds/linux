@@ -33,6 +33,7 @@
 #define HISI_SAS_MAX_ITCT_ENTRIES 2048
 #define HISI_SAS_MAX_DEVICES HISI_SAS_MAX_ITCT_ENTRIES
 #define HISI_SAS_RESET_BIT	0
+#define HISI_SAS_REJECT_CMD_BIT	1
 
 #define HISI_SAS_STATUS_BUF_SZ (sizeof(struct hisi_sas_status_buffer))
 #define HISI_SAS_COMMAND_TABLE_SZ (sizeof(union hisi_sas_command_table))
@@ -201,6 +202,7 @@ struct hisi_sas_hw {
 	void (*dereg_device)(struct hisi_hba *hisi_hba,
 				struct domain_device *device);
 	int (*soft_reset)(struct hisi_hba *hisi_hba);
+	u32 (*get_phys_state)(struct hisi_hba *hisi_hba);
 	int max_command_entries;
 	int complete_hdr_size;
 };
@@ -408,6 +410,4 @@ extern void hisi_sas_slot_task_free(struct hisi_hba *hisi_hba,
 				    struct sas_task *task,
 				    struct hisi_sas_slot *slot);
 extern void hisi_sas_init_mem(struct hisi_hba *hisi_hba);
-extern void hisi_sas_rescan_topology(struct hisi_hba *hisi_hba, u32 old_state,
-				     u32 state);
 #endif
