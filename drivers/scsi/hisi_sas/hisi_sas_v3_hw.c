@@ -137,6 +137,7 @@
 #define TX_HARDRST_MSK          (0x1 << TX_HARDRST_OFF)
 #define RX_IDAF_DWORD0			(PORT_BASE + 0xc4)
 #define RXOP_CHECK_CFG_H		(PORT_BASE + 0xfc)
+#define STP_LINK_TIMER			(PORT_BASE + 0x120)
 #define SAS_SSP_CON_TIMER_CFG		(PORT_BASE + 0x134)
 #define SAS_SMP_CON_TIMER_CFG		(PORT_BASE + 0x138)
 #define SAS_STP_CON_TIMER_CFG		(PORT_BASE + 0x13c)
@@ -401,6 +402,8 @@ static void init_reg_v3_hw(struct hisi_hba *hisi_hba)
 				     0xa0064);
 		hisi_sas_phy_write32(hisi_hba, i, SAS_STP_CON_TIMER_CFG,
 				     0xa0064);
+		hisi_sas_phy_write32(hisi_hba, i, STP_LINK_TIMER,
+				     0x7f7a120);
 	}
 	for (i = 0; i < hisi_hba->queue_count; i++) {
 		/* Delivery queue */
