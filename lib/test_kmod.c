@@ -485,7 +485,7 @@ static ssize_t config_show(struct device *dev,
 				config->test_driver);
 	else
 		len += snprintf(buf+len, PAGE_SIZE - len,
-				"driver:\tEMTPY\n");
+				"driver:\tEMPTY\n");
 
 	if (config->test_fs)
 		len += snprintf(buf+len, PAGE_SIZE - len,
@@ -493,7 +493,7 @@ static ssize_t config_show(struct device *dev,
 				config->test_fs);
 	else
 		len += snprintf(buf+len, PAGE_SIZE - len,
-				"fs:\tEMTPY\n");
+				"fs:\tEMPTY\n");
 
 	mutex_unlock(&test_dev->config_mutex);
 
