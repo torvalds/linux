@@ -1026,7 +1026,7 @@ static int rza1_set_mux(struct pinctrl_dev *pctldev, unsigned int selector,
 	return 0;
 }
 
-static struct pinmux_ops rza1_pinmux_ops = {
+static const struct pinmux_ops rza1_pinmux_ops = {
 	.get_functions_count	= pinmux_generic_get_function_count,
 	.get_function_name	= pinmux_generic_get_function_name,
 	.get_function_groups	= pinmux_generic_get_function_groups,
