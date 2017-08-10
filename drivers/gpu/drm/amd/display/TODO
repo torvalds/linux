@@ -1,0 +1,81 @@
+===============================================================================
+TODOs
+===============================================================================
+
+1. Base this on drm-next - WIP
+
+
+2. Cleanup commit history
+
+
+3. WIP - Drop page flip helper and use DRM's version
+
+
+4. DONE - Flatten all DC objects
+    * dc_stream/core_stream/stream should just be dc_stream
+    * Same for other DC objects
+
+    "Is there any major reason to keep all those abstractions?
+
+    Could you collapse everything into struct dc_stream?
+
+    I haven't looked recently but I didn't get the impression there was a
+    lot of design around what was public/protected, more whatever needed
+    to be used by someone else was in public."
+    ~ Dave Airlie
+
+
+5. DONE - Rename DC objects to align more with DRM
+    * dc_surface -> dc_plane_state
+    * dc_stream -> dc_stream_state
+
+
+6. DONE - Per-plane and per-stream validation
+
+
+7. WIP - Per-plane and per-stream commit
+
+
+8. WIP - Split pipe_ctx into plane and stream resource structs
+
+
+9. Attach plane and stream reources to state object instead of validate_context
+
+
+10. Remove dc_edid_caps and drm_helpers_parse_edid_caps
+    * Use drm_display_info instead
+    * Remove DC's edid quirks and rely on DRM's quirks (add quirks if needed)
+
+    "Making sure you use the sink-specific helper libraries and kernel
+    subsystems, since there's really no good reason to have 2nd
+    implementation of those in the kernel. Looks likes that's done for mst
+    and edid parsing. There's still a bit a midlayer feeling to the edid
+    parsing side (e.g. dc_edid_caps and dm_helpers_parse_edid_caps, I
+    think it'd be much better if you convert that over to reading stuff
+    from drm_display_info and if needed, push stuff into the core). Also,
+    I can't come up with a good reason why DC needs all this (except to
+    reimplement half of our edid quirk table, which really isn't a good
+    idea). Might be good if you put this onto the list of things to fix
+    long-term, but imo not a blocker. Definitely make sure new stuff
+    doesn't slip in (i.e. if you start adding edid quirks to DC instead of
+    the drm core, refactoring to use the core edid stuff was pointless)."
+    ~ Daniel Vetter
+
+
+11. Remove existing i2c implementation from DC
+
+    "Similar story for i2c, it uses the kernel's i2c code now, but there's
+    still a full i2c implementation hidden beneath that in
+    display/dc/i2caux. Kinda not cool, but imo ok if you fix that
+    post-merging (perhaps by not including any of this in the linux DC
+    code in the upstream kernel, but as an aux module in your internal
+    codebase since there you probably need that, same applies to the edid
+    parsing DC still does. For both cases I assume that the minimal shim
+    you need on linux (bit banging and edid parsing isn't rocket since) is
+    a lot less than the glue code to interface with the dc-provided
+    abstraction."
+    ~ Daniel Vetter
+
+
+12. drm_modeset_lock in MST should no longer be needed in recent kernels
+    * Adopt appropriate locking scheme
