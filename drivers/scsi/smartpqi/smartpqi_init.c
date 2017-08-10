@@ -40,11 +40,11 @@
 #define BUILD_TIMESTAMP
 #endif
 
-#define DRIVER_VERSION		"1.0.4-100"
+#define DRIVER_VERSION		"1.1.2-125"
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		0
-#define DRIVER_RELEASE		4
-#define DRIVER_REVISION		100
+#define DRIVER_MINOR		1
+#define DRIVER_RELEASE		2
+#define DRIVER_REVISION		125
 
 #define DRIVER_NAME		"Microsemi PQI Driver (v" \
 				DRIVER_VERSION BUILD_TIMESTAMP ")"
