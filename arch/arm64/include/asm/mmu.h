@@ -16,6 +16,8 @@
 #ifndef __ASM_MMU_H
 #define __ASM_MMU_H
 
+#define USER_ASID_FLAG	(UL(1) << 48)
+
 typedef struct {
 	atomic64_t	id;
 	void		*vdso;
