@@ -330,7 +330,7 @@ static int hns3_nic_mc_sync(struct net_device *netdev,
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct hnae3_handle *h = priv->ae_handle;
 
-	if (h->ae_algo->ops->add_uc_addr)
+	if (h->ae_algo->ops->add_mc_addr)
 		return h->ae_algo->ops->add_mc_addr(h, addr);
 
 	return 0;
@@ -342,7 +342,7 @@ static int hns3_nic_mc_unsync(struct net_device *netdev,
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct hnae3_handle *h = priv->ae_handle;
 
-	if (h->ae_algo->ops->rm_uc_addr)
+	if (h->ae_algo->ops->rm_mc_addr)
 		return h->ae_algo->ops->rm_mc_addr(h, addr);
 
 	return 0;
