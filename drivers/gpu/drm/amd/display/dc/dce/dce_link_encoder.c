@@ -80,6 +80,7 @@
 #define DCE110_DIG_FE_SOURCE_SELECT_DIGD 0x08
 #define DCE110_DIG_FE_SOURCE_SELECT_DIGE 0x10
 #define DCE110_DIG_FE_SOURCE_SELECT_DIGF 0x20
+#define DCE110_DIG_FE_SOURCE_SELECT_DIGG 0x40
 
 /* all values are in milliseconds */
 /* For eDP, after power-up/power/down,
@@ -471,6 +472,8 @@ static uint8_t get_frontend_source(
 		return DCE110_DIG_FE_SOURCE_SELECT_DIGE;
 	case ENGINE_ID_DIGF:
 		return DCE110_DIG_FE_SOURCE_SELECT_DIGF;
+	case ENGINE_ID_DIGG:
+		return DCE110_DIG_FE_SOURCE_SELECT_DIGG;
 	default:
 		ASSERT_CRITICAL(false);
 		return DCE110_DIG_FE_SOURCE_SELECT_INVALID;
@@ -983,6 +986,9 @@ bool dce110_link_encoder_construct(
 	break;
 	case TRANSMITTER_UNIPHY_F:
 		enc110->base.preferred_engine = ENGINE_ID_DIGF;
+	break;
+	case TRANSMITTER_UNIPHY_G:
+		enc110->base.preferred_engine = ENGINE_ID_DIGG;
 	break;
 	default:
 		ASSERT_CRITICAL(false);

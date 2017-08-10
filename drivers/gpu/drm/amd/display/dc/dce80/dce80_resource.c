@@ -262,7 +262,8 @@ static const struct dce110_stream_enc_registers stream_enc_regs[] = {
 	stream_enc_regs(2),
 	stream_enc_regs(3),
 	stream_enc_regs(4),
-	stream_enc_regs(5)
+	stream_enc_regs(5),
+	stream_enc_regs(6)
 };
 
 static const struct dce_stream_encoder_shift se_shift = {
