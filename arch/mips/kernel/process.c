@@ -349,6 +349,7 @@ static int get_frame_info(struct mips_frame_info *info)
 	union mips_instruction insn, *ip, *ip_end;
 	const unsigned int max_insns = 128;
 	unsigned int i;
+	bool saw_jump = false;
 
 	info->pc_offset = -1;
 	info->frame_size = 0;
@@ -369,9 +370,6 @@ static int get_frame_info(struct mips_frame_info *info)
 		} else {
 			insn.word = ip->word;
 		}
-
-		if (is_jump_ins(&insn))
-			break;
 
 		if (!info->frame_size) {
 			if (is_sp_move_ins(&insn))
@@ -396,9 +394,27 @@ static int get_frame_info(struct mips_frame_info *info)
 				info->frame_size = - ip->i_format.simmediate;
 			}
 			continue;
+		} else if (!saw_jump && is_jump_ins(ip)) {
+			/*
+			 * If we see a jump instruction, we are finished
+			 * with the frame save.
+			 *
+			 * Some functions can have a shortcut return at
+			 * the beginning of the function, so don't start
+			 * looking for jump instruction until we see the
+			 * frame setup.
+			 *
+			 * The RA save instruction can get put into the
+			 * delay slot of the jump instruction, so look
+			 * at the next instruction, too.
+			 */
+			saw_jump = true;
+			continue;
 		}
 		if (info->pc_offset == -1 &&
 		    is_ra_save_ins(&insn, &info->pc_offset))
+			break;
+		if (saw_jump)
 			break;
 	}
 	if (info->frame_size && info->pc_offset >= 0) /* nested */
