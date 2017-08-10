@@ -2108,9 +2108,6 @@ static int dsi_omap4_mux_pads(struct dsi_data *dsi, unsigned int lanes)
 	u32 enable_mask, enable_shift;
 	u32 pipd_mask, pipd_shift;
 
-	if (!dsi->syscon)
-		return 0;
-
 	if (dsi->module_id == 0) {
 		enable_mask = OMAP4_DSI1_LANEENABLE_MASK;
 		enable_shift = OMAP4_DSI1_LANEENABLE_SHIFT;
@@ -2130,14 +2127,45 @@ static int dsi_omap4_mux_pads(struct dsi_data *dsi, unsigned int lanes)
 		(lanes << enable_shift) | (lanes << pipd_shift));
 }
 
+/* OMAP5 CONTROL_DSIPHY */
+
+#define OMAP5_DSIPHY_SYSCON_OFFSET	0x74
+
+#define OMAP5_DSI1_LANEENABLE_SHIFT	24
+#define OMAP5_DSI2_LANEENABLE_SHIFT	19
+#define OMAP5_DSI_LANEENABLE_MASK	0x1f
+
+static int dsi_omap5_mux_pads(struct dsi_data *dsi, unsigned int lanes)
+{
+	u32 enable_shift;
+
+	if (dsi->module_id == 0)
+		enable_shift = OMAP5_DSI1_LANEENABLE_SHIFT;
+	else if (dsi->module_id == 1)
+		enable_shift = OMAP5_DSI2_LANEENABLE_SHIFT;
+	else
+		return -ENODEV;
+
+	return regmap_update_bits(dsi->syscon, OMAP5_DSIPHY_SYSCON_OFFSET,
+		OMAP5_DSI_LANEENABLE_MASK << enable_shift,
+		lanes << enable_shift);
+}
+
 static int dsi_enable_pads(struct dsi_data *dsi, unsigned int lane_mask)
 {
-	return dsi_omap4_mux_pads(dsi, lane_mask);
+	if (dsi->data->model == DSI_MODEL_OMAP4)
+		return dsi_omap4_mux_pads(dsi, lane_mask);
+	if (dsi->data->model == DSI_MODEL_OMAP5)
+		return dsi_omap5_mux_pads(dsi, lane_mask);
+	return 0;
 }
 
 static void dsi_disable_pads(struct dsi_data *dsi)
 {
-	dsi_omap4_mux_pads(dsi, 0);
+	if (dsi->data->model == DSI_MODEL_OMAP4)
+		dsi_omap4_mux_pads(dsi, 0);
+	else if (dsi->data->model == DSI_MODEL_OMAP5)
+		dsi_omap5_mux_pads(dsi, 0);
 }
 
 static int dsi_cio_init(struct platform_device *dsidev)
@@ -5471,14 +5499,17 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 
 	dsi->module_id = d->id;
 
-	if (dsi->data->model == DSI_MODEL_OMAP4) {
+	if (dsi->data->model == DSI_MODEL_OMAP4 ||
+	    dsi->data->model == DSI_MODEL_OMAP5) {
 		struct device_node *np;
 
 		/*
-		 * The OMAP4 display DT bindings don't reference the padconf
+		 * The OMAP4/5 display DT bindings don't reference the padconf
 		 * syscon. Our only option to retrieve it is to find it by name.
 		 */
-		np = of_find_node_by_name(NULL, "omap4_padconf_global");
+		np = of_find_node_by_name(NULL,
+			dsi->data->model == DSI_MODEL_OMAP4 ?
+			"omap4_padconf_global" : "omap5_padconf_global");
 		if (!np)
 			return -ENODEV;
 
