@@ -83,8 +83,16 @@
 		LONG_S	$30, PT_R30(sp)
 		.endm
 
+/*
+ * get_saved_sp returns the SP for the current CPU by looking in the
+ * kernelsp array for it.  If tosp is set, it stores the current sp in
+ * k0 and loads the new value in sp.  If not, it clobbers k0 and
+ * stores the new value in k1, leaving sp unaffected.
+ */
 #ifdef CONFIG_SMP
-		.macro	get_saved_sp	/* SMP variation */
+
+		/* SMP variation */
+		.macro	get_saved_sp docfi=0 tosp=0
 		ASM_CPUID_MFC0	k0, ASM_SMP_CPUID_REG
 #if defined(CONFIG_32BIT) || defined(KBUILD_64BIT_SYM32)
 		lui	k1, %hi(kernelsp)
@@ -97,7 +105,15 @@
 #endif
 		LONG_SRL	k0, SMP_CPUID_PTRSHIFT
 		LONG_ADDU	k1, k0
+		.if \tosp
+		move	k0, sp
+		.if \docfi
+		.cfi_register sp, k0
+		.endif
+		LONG_L	sp, %lo(kernelsp)(k1)
+		.else
 		LONG_L	k1, %lo(kernelsp)(k1)
+		.endif
 		.endm
 
 		.macro	set_saved_sp stackp temp temp2
@@ -106,7 +122,8 @@
 		LONG_S	\stackp, kernelsp(\temp)
 		.endm
 #else /* !CONFIG_SMP */
-		.macro	get_saved_sp	/* Uniprocessor variation */
+		/* Uniprocessor variation */
+		.macro	get_saved_sp docfi=0 tosp=0
 #ifdef CONFIG_CPU_JUMP_WORKAROUNDS
 		/*
 		 * Clear BTB (branch target buffer), forbid RAS (return address
@@ -135,7 +152,15 @@
 		daddiu	k1, %hi(kernelsp)
 		dsll	k1, k1, 16
 #endif
+		.if \tosp
+		move	k0, sp
+		.if \docfi
+		.cfi_register sp, k0
+		.endif
+		LONG_L	sp, %lo(kernelsp)(k1)
+		.else
 		LONG_L	k1, %lo(kernelsp)(k1)
+		.endif
 		.endm
 
 		.macro	set_saved_sp stackp temp temp2
@@ -151,7 +176,6 @@
 		sll	k0, 3		/* extract cu0 bit */
 		.set	noreorder
 		bltz	k0, 8f
-		 move	k1, sp
 #ifdef CONFIG_EVA
 		/*
 		 * Flush interAptiv's Return Prediction Stack (RPS) by writing
@@ -178,17 +202,16 @@
 		MTC0	k0, CP0_ENTRYHI
 #endif
 		.set	reorder
+		 move	k0, sp
 		/* Called from user mode, new stack. */
 		get_saved_sp
-#ifndef CONFIG_CPU_DADDI_WORKAROUNDS
-8:		move	k0, sp
-		PTR_SUBU sp, k1, PT_SIZE
-#else
-		.set	at=k0
-8:		PTR_SUBU k1, PT_SIZE
+8:
+#ifdef CONFIG_CPU_DADDI_WORKAROUNDS
+		.set	at=k1
+#endif
+		PTR_SUBU sp, PT_SIZE
+#ifdef CONFIG_CPU_DADDI_WORKAROUNDS
 		.set	noat
-		move	k0, sp
-		move	sp, k1
 #endif
 		LONG_S	k0, PT_R29(sp)
 		LONG_S	$3, PT_R3(sp)
@@ -206,16 +229,16 @@
 		LONG_S	$5, PT_R5(sp)
 		LONG_S	v1, PT_CAUSE(sp)
 		LONG_S	$6, PT_R6(sp)
-		MFC0	v1, CP0_EPC
+		LONG_S	ra, PT_R31(sp)
+		MFC0	ra, CP0_EPC
 		LONG_S	$7, PT_R7(sp)
 #ifdef CONFIG_64BIT
 		LONG_S	$8, PT_R8(sp)
 		LONG_S	$9, PT_R9(sp)
 #endif
-		LONG_S	v1, PT_EPC(sp)
+		LONG_S	ra, PT_EPC(sp)
 		LONG_S	$25, PT_R25(sp)
 		LONG_S	$28, PT_R28(sp)
-		LONG_S	$31, PT_R31(sp)
 
 		/* Set thread_info if we're coming from user mode */
 		mfc0	k0, CP0_STATUS
