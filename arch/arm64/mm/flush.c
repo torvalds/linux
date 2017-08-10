@@ -85,7 +85,7 @@ EXPORT_SYMBOL(flush_dcache_page);
 EXPORT_SYMBOL(flush_icache_range);
 
 #ifdef CONFIG_ARCH_HAS_PMEM_API
-static inline void arch_wb_cache_pmem(void *addr, size_t size)
+void arch_wb_cache_pmem(void *addr, size_t size)
 {
 	/* Ensure order against any prior non-cacheable writes */
 	dmb(osh);
@@ -93,7 +93,7 @@ static inline void arch_wb_cache_pmem(void *addr, size_t size)
 }
 EXPORT_SYMBOL_GPL(arch_wb_cache_pmem);
 
-static inline void arch_invalidate_pmem(void *addr, size_t size)
+void arch_invalidate_pmem(void *addr, size_t size)
 {
 	__inval_dcache_area(addr, size);
 }
