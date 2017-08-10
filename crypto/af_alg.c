@@ -641,9 +641,9 @@ void af_alg_pull_tsgl(struct sock *sk, size_t used, struct scatterlist *dst,
 				if (dst_offset >= plen) {
 					/* discard page before offset */
 					dst_offset -= plen;
-					put_page(page);
 				} else {
 					/* reassign page to dst after offset */
+					get_page(page);
 					sg_set_page(dst + j, page,
 						    plen - dst_offset,
 						    sg[i].offset + dst_offset);
@@ -661,9 +661,7 @@ void af_alg_pull_tsgl(struct sock *sk, size_t used, struct scatterlist *dst,
 			if (sg[i].length)
 				return;
 
-			if (!dst)
-				put_page(page);
-
+			put_page(page);
 			sg_assign_page(sg + i, NULL);
 		}
 
