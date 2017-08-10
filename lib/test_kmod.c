@@ -746,11 +746,11 @@ static int trigger_config_run_type(struct kmod_test_device *test_dev,
 						      strlen(test_str));
 		break;
 	case TEST_KMOD_FS_TYPE:
-		break;
 		kfree_const(config->test_fs);
 		config->test_driver = NULL;
 		copied = config_copy_test_fs(config, test_str,
 					     strlen(test_str));
+		break;
 	default:
 		mutex_unlock(&test_dev->config_mutex);
 		return -EINVAL;
