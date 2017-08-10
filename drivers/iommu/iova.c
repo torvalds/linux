@@ -75,6 +75,9 @@ int init_iova_flush_queue(struct iova_domain *iovad,
 {
 	int cpu;
 
+	atomic64_set(&iovad->fq_flush_start_cnt,  0);
+	atomic64_set(&iovad->fq_flush_finish_cnt, 0);
+
 	iovad->fq = alloc_percpu(struct iova_fq);
 	if (!iovad->fq)
 		return -ENOMEM;
@@ -482,9 +485,13 @@ static inline unsigned fq_ring_add(struct iova_fq *fq)
 
 static void fq_ring_free(struct iova_domain *iovad, struct iova_fq *fq)
 {
+	u64 counter = atomic64_read(&iovad->fq_flush_finish_cnt);
 	unsigned idx;
 
 	fq_ring_for_each(idx, fq) {
+
+		if (fq->entries[idx].counter >= counter)
+			break;
 
 		if (iovad->entry_dtor)
 			iovad->entry_dtor(fq->entries[idx].data);
@@ -492,10 +499,16 @@ static void fq_ring_free(struct iova_domain *iovad, struct iova_fq *fq)
 		free_iova_fast(iovad,
 			       fq->entries[idx].iova_pfn,
 			       fq->entries[idx].pages);
-	}
 
-	fq->head = 0;
-	fq->tail = 0;
+		fq->head = (fq->head + 1) % IOVA_FQ_SIZE;
+	}
+}
+
+static void iova_domain_flush(struct iova_domain *iovad)
+{
+	atomic64_inc(&iovad->fq_flush_start_cnt);
+	iovad->flush_cb(iovad);
+	atomic64_inc(&iovad->fq_flush_finish_cnt);
 }
 
 static void fq_destroy_all_entries(struct iova_domain *iovad)
@@ -526,8 +539,15 @@ void queue_iova(struct iova_domain *iovad,
 	struct iova_fq *fq = get_cpu_ptr(iovad->fq);
 	unsigned idx;
 
+	/*
+	 * First remove all entries from the flush queue that have already been
+	 * flushed out on another CPU. This makes the fq_full() check below less
+	 * likely to be true.
+	 */
+	fq_ring_free(iovad, fq);
+
 	if (fq_full(fq)) {
-		iovad->flush_cb(iovad);
+		iova_domain_flush(iovad);
 		fq_ring_free(iovad, fq);
 	}
 
@@ -536,6 +556,7 @@ void queue_iova(struct iova_domain *iovad,
 	fq->entries[idx].iova_pfn = pfn;
 	fq->entries[idx].pages    = pages;
 	fq->entries[idx].data     = data;
+	fq->entries[idx].counter  = atomic64_read(&iovad->fq_flush_start_cnt);
 
 	put_cpu_ptr(iovad->fq);
 }

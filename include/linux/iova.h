@@ -14,6 +14,7 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/rbtree.h>
+#include <linux/atomic.h>
 #include <linux/dma-mapping.h>
 
 /* iova structure */
@@ -52,6 +53,7 @@ struct iova_fq_entry {
 	unsigned long iova_pfn;
 	unsigned long pages;
 	unsigned long data;
+	u64 counter; /* Flush counter when this entrie was added */
 };
 
 /* Per-CPU Flush Queue structure */
@@ -77,6 +79,12 @@ struct iova_domain {
 					   iova entry */
 
 	struct iova_fq __percpu *fq;	/* Flush Queue */
+
+	atomic64_t	fq_flush_start_cnt;	/* Number of TLB flushes that
+						   have been started */
+
+	atomic64_t	fq_flush_finish_cnt;	/* Number of TLB flushes that
+						   have been finished */
 };
 
 static inline unsigned long iova_size(struct iova *iova)
