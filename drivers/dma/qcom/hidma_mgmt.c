@@ -358,7 +358,7 @@ static int __init hidma_mgmt_of_populate_channels(struct device_node *np)
 	struct platform_device_info pdevinfo;
 	struct of_phandle_args out_irq;
 	struct device_node *child;
-	struct resource *res;
+	struct resource *res = NULL;
 	const __be32 *cell;
 	int ret = 0, size, i, num;
 	u64 addr, addr_size;
