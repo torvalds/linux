@@ -401,6 +401,8 @@ static void acpi_pm_notify_handler(acpi_handle handle, u32 val, void *not_used)
 	if (val != ACPI_NOTIFY_DEVICE_WAKE)
 		return;
 
+	acpi_handle_debug(handle, "Wake notify\n");
+
 	adev = acpi_bus_get_acpi_device(handle);
 	if (!adev)
 		return;
@@ -409,8 +411,12 @@ static void acpi_pm_notify_handler(acpi_handle handle, u32 val, void *not_used)
 
 	if (adev->wakeup.flags.notifier_present) {
 		pm_wakeup_ws_event(adev->wakeup.ws, 0, acpi_s2idle_wakeup());
-		if (adev->wakeup.context.func)
+		if (adev->wakeup.context.func) {
+			acpi_handle_debug(handle, "Running %pF for %s\n",
+					  adev->wakeup.context.func,
+					  dev_name(adev->wakeup.context.dev));
 			adev->wakeup.context.func(&adev->wakeup.context);
+		}
 	}
 
 	mutex_unlock(&acpi_pm_notifier_lock);
