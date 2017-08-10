@@ -64,6 +64,11 @@ config TERANETICS_PHY
         ---help---
           Currently supports the Teranetics TN2020
 
+config ROCKCHIP_PHY
+	tristate "Driver for Rockchip Ethernet PHYs"
+	---help---
+	  Currently supports the integrated Ethernet PHY.
+
 config SMSC_PHY
 	tristate "Drivers for SMSC PHYs"
 	---help---
