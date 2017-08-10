@@ -119,11 +119,18 @@ out:
 int orangefs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 {
 	int error;
+	struct iattr iattr;
+	int rc;
 
 	if (type == ACL_TYPE_ACCESS && acl) {
-		umode_t mode;
-
-		error = posix_acl_update_mode(inode, &mode, &acl);
+		/*
+		 * posix_acl_update_mode checks to see if the permissions
+		 * described by the ACL can be encoded into the
+		 * object's mode. If so, it sets "acl" to NULL
+		 * and "mode" to the new desired value. It is up to
+		 * us to propagate the new mode back to the server...
+		 */
+		error = posix_acl_update_mode(inode, &iattr.ia_mode, &acl);
 		if (error) {
 			gossip_err("%s: posix_acl_update_mode err: %d\n",
 				   __func__,
@@ -131,12 +138,18 @@ int orangefs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 			return error;
 		}
 
-		if (inode->i_mode != mode)
-			SetModeFlag(ORANGEFS_I(inode));
-		inode->i_mode = mode;
-		mark_inode_dirty_sync(inode);
+		if (acl) {
+			rc = __orangefs_set_acl(inode, acl, type);
+		} else {
+			iattr.ia_valid = ATTR_MODE;
+			rc = orangefs_inode_setattr(inode, &iattr);
+		}
+
+		return rc;
+
+	} else {
+		return -EINVAL;
 	}
-	return __orangefs_set_acl(inode, acl, type);
 }
 
 int orangefs_init_acl(struct inode *inode, struct inode *dir)
