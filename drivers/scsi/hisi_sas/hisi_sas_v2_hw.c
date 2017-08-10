@@ -1972,7 +1972,7 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 		}
 		case DMA_RX_DATA_LEN_UNDERFLOW:
 		{
-			ts->residual = dma_rx_err_type;
+			ts->residual = trans_tx_fail_type;
 			ts->stat = SAS_DATA_UNDERRUN;
 			break;
 		}
@@ -2098,7 +2098,7 @@ static void slot_err_v2_hw(struct hisi_hba *hisi_hba,
 		}
 		case DMA_RX_DATA_LEN_UNDERFLOW:
 		{
-			ts->residual = dma_rx_err_type;
+			ts->residual = trans_tx_fail_type;
 			ts->stat = SAS_DATA_UNDERRUN;
 			break;
 		}
