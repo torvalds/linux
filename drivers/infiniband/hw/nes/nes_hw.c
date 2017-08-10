@@ -551,7 +551,7 @@ struct nes_adapter *nes_init_adapter(struct nes_device *nesdev, u8 hw_rev) {
 			if ((0x0F000100 == (pcs_control_status0 & 0x0F000100))
 			    || (0x0F000100 == (pcs_control_status1 & 0x0F000100)))
 				int_cnt++;
-			msleep(1);
+			usleep_range(1000, 2000);
 		}
 		if (int_cnt > 1) {
 			spin_lock_irqsave(&nesadapter->phy_lock, flags);
@@ -592,7 +592,7 @@ struct nes_adapter *nes_init_adapter(struct nes_device *nesdev, u8 hw_rev) {
 						break;
 					}
 				}
-				msleep(1);
+				usleep_range(1000, 2000);
 			}
 		}
 	}

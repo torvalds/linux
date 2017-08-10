@@ -264,7 +264,7 @@ static int vmw_resource_val_add(struct vmw_sw_context *sw_context,
 	}
 
 	node = kzalloc(sizeof(*node), GFP_KERNEL);
-	if (unlikely(node == NULL)) {
+	if (unlikely(!node)) {
 		DRM_ERROR("Failed to allocate a resource validation "
 			  "entry.\n");
 		return -ENOMEM;
@@ -452,7 +452,7 @@ static int vmw_resource_relocation_add(struct list_head *list,
 	struct vmw_resource_relocation *rel;
 
 	rel = kmalloc(sizeof(*rel), GFP_KERNEL);
-	if (unlikely(rel == NULL)) {
+	if (unlikely(!rel)) {
 		DRM_ERROR("Failed to allocate a resource relocation.\n");
 		return -ENOMEM;
 	}
@@ -519,7 +519,7 @@ static int vmw_cmd_invalid(struct vmw_private *dev_priv,
 			   struct vmw_sw_context *sw_context,
 			   SVGA3dCmdHeader *header)
 {
-	return capable(CAP_SYS_ADMIN) ? : -EINVAL;
+	return -EINVAL;
 }
 
 static int vmw_cmd_ok(struct vmw_private *dev_priv,
@@ -2584,7 +2584,7 @@ static int vmw_cmd_dx_set_vertex_buffers(struct vmw_private *dev_priv,
 
 /**
  * vmw_cmd_dx_ia_set_vertex_buffers - Validate an
- * SVGA_3D_CMD_DX_IA_SET_VERTEX_BUFFERS command.
+ * SVGA_3D_CMD_DX_IA_SET_INDEX_BUFFER command.
  *
  * @dev_priv: Pointer to a device private struct.
  * @sw_context: The software context being used for this batch.

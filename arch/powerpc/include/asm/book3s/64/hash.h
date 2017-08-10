@@ -91,6 +91,7 @@ static inline int hash__pgd_bad(pgd_t pgd)
 }
 #ifdef CONFIG_STRICT_KERNEL_RWX
 extern void hash__mark_rodata_ro(void);
+extern void hash__mark_initmem_nx(void);
 #endif
 
 extern void hpte_need_flush(struct mm_struct *mm, unsigned long addr,

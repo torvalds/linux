@@ -472,8 +472,7 @@ static void nfnetlink_rcv_skb_batch(struct sk_buff *skb, struct nlmsghdr *nlh)
 	if (msglen > skb->len)
 		msglen = skb->len;
 
-	if (nlh->nlmsg_len < NLMSG_HDRLEN ||
-	    skb->len < NLMSG_HDRLEN + sizeof(struct nfgenmsg))
+	if (skb->len < NLMSG_HDRLEN + sizeof(struct nfgenmsg))
 		return;
 
 	err = nla_parse(cda, NFNL_BATCH_MAX, attr, attrlen, nfnl_batch_policy,
@@ -500,7 +499,8 @@ static void nfnetlink_rcv(struct sk_buff *skb)
 {
 	struct nlmsghdr *nlh = nlmsg_hdr(skb);
 
-	if (nlh->nlmsg_len < NLMSG_HDRLEN ||
+	if (skb->len < NLMSG_HDRLEN ||
+	    nlh->nlmsg_len < NLMSG_HDRLEN ||
 	    skb->len < nlh->nlmsg_len)
 		return;
 
