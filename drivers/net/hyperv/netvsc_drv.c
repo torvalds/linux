@@ -1053,27 +1053,31 @@ static void netvsc_get_stats64(struct net_device *net,
 static int netvsc_set_mac_addr(struct net_device *ndev, void *p)
 {
 	struct net_device_context *ndc = netdev_priv(ndev);
+	struct net_device *vf_netdev = rtnl_dereference(ndc->vf_netdev);
 	struct netvsc_device *nvdev = rtnl_dereference(ndc->nvdev);
 	struct sockaddr *addr = p;
-	char save_adr[ETH_ALEN];
-	unsigned char save_aatype;
 	int err;
 
-	memcpy(save_adr, ndev->dev_addr, ETH_ALEN);
-	save_aatype = ndev->addr_assign_type;
-
-	err = eth_mac_addr(ndev, p);
-	if (err != 0)
+	err = eth_prepare_mac_addr_change(ndev, p);
+	if (err)
 		return err;
 
 	if (!nvdev)
 		return -ENODEV;
 
+	if (vf_netdev) {
+		err = dev_set_mac_address(vf_netdev, addr);
+		if (err)
+			return err;
+	}
+
 	err = rndis_filter_set_device_mac(nvdev, addr->sa_data);
-	if (err != 0) {
-		/* roll back to saved MAC */
-		memcpy(ndev->dev_addr, save_adr, ETH_ALEN);
-		ndev->addr_assign_type = save_aatype;
+	if (!err) {
+		eth_commit_mac_addr_change(ndev, p);
+	} else if (vf_netdev) {
+		/* rollback change on VF */
+		memcpy(addr->sa_data, ndev->dev_addr, ETH_ALEN);
+		dev_set_mac_address(vf_netdev, addr);
 	}
 
 	return err;
