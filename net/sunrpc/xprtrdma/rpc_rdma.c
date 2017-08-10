@@ -677,7 +677,6 @@ rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst)
 	struct rpcrdma_msg *headerp;
 	bool ddp_allowed;
 	ssize_t hdrlen;
-	size_t rpclen;
 	__be32 *iptr;
 
 #if defined(CONFIG_SUNRPC_BACKCHANNEL)
@@ -731,16 +730,12 @@ rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst)
 	 */
 	if (rpcrdma_args_inline(r_xprt, rqst)) {
 		rtype = rpcrdma_noch;
-		rpclen = rqst->rq_snd_buf.len;
 	} else if (ddp_allowed && rqst->rq_snd_buf.flags & XDRBUF_WRITE) {
 		rtype = rpcrdma_readch;
-		rpclen = rqst->rq_snd_buf.head[0].iov_len +
-			 rqst->rq_snd_buf.tail[0].iov_len;
 	} else {
 		r_xprt->rx_stats.nomsg_call_count++;
 		headerp->rm_type = htonl(RDMA_NOMSG);
 		rtype = rpcrdma_areadch;
-		rpclen = 0;
 	}
 
 	req->rl_xid = rqst->rq_xid;
@@ -780,10 +775,10 @@ rpcrdma_marshal_req(struct rpcrdma_xprt *r_xprt, struct rpc_rqst *rqst)
 		goto out_err;
 	hdrlen = (unsigned char *)iptr - (unsigned char *)headerp;
 
-	dprintk("RPC: %5u %s: %s/%s: hdrlen %zd rpclen %zd\n",
+	dprintk("RPC: %5u %s: %s/%s: hdrlen %zd\n",
 		rqst->rq_task->tk_pid, __func__,
 		transfertypes[rtype], transfertypes[wtype],
-		hdrlen, rpclen);
+		hdrlen);
 
 	if (!rpcrdma_prepare_send_sges(&r_xprt->rx_ia, req, hdrlen,
 				       &rqst->rq_snd_buf, rtype)) {
