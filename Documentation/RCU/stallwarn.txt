@@ -70,6 +70,12 @@ o	A periodic interrupt whose handler takes longer than the time
 	considerably longer than normal, which can in turn result in
 	RCU CPU stall warnings.
 
+o	Testing a workload on a fast system, tuning the stall-warning
+	timeout down to just barely avoid RCU CPU stall warnings, and then
+	running the same workload with the same stall-warning timeout on a
+	slow system.  Note that thermal throttling and on-demand governors
+	can cause a single system to be sometimes fast and sometimes slow!
+
 o	A hardware or software issue shuts off the scheduler-clock
 	interrupt on a CPU that is not in dyntick-idle mode.  This
 	problem really has happened, and seems to be most likely to
