@@ -1524,7 +1524,7 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 	if (insn->alt_group && list_empty(&insn->alts)) {
 		WARN_FUNC("don't know how to handle branch to middle of alternative instruction group",
 			  sec, insn->offset);
-		return -1;
+		return 1;
 	}
 
 	while (1) {
@@ -1543,7 +1543,7 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 		if (func && insn->ignore) {
 			WARN_FUNC("BUG: why am I validating an ignored function?",
 				  sec, insn->offset);
-			return -1;
+			return 1;
 		}
 
 		if (insn->visited) {
@@ -1681,7 +1681,7 @@ static int validate_branch(struct objtool_file *file, struct instruction *first,
 
 		case INSN_STACK:
 			if (update_insn_state(insn, &state))
-				return -1;
+				return 1;
 
 			break;
 
