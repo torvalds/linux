@@ -845,7 +845,13 @@ static int netvsc_set_channels(struct net_device *net,
 	} else {
 		ret = PTR_ERR(nvdev);
 		device_info.num_chn = orig;
-		rndis_filter_device_add(dev, &device_info);
+		nvdev = rndis_filter_device_add(dev, &device_info);
+
+		if (IS_ERR(nvdev)) {
+			netdev_err(net, "restoring channel setting failed: %ld\n",
+				   PTR_ERR(nvdev));
+			return ret;
+		}
 	}
 
 	if (was_opened)
@@ -953,10 +959,16 @@ static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 
 		/* Attempt rollback to original MTU */
 		ndev->mtu = orig_mtu;
-		rndis_filter_device_add(hdev, &device_info);
+		nvdev = rndis_filter_device_add(hdev, &device_info);
 
 		if (vf_netdev)
 			dev_set_mtu(vf_netdev, orig_mtu);
+
+		if (IS_ERR(nvdev)) {
+			netdev_err(ndev, "restoring mtu failed: %ld\n",
+				   PTR_ERR(nvdev));
+			return ret;
+		}
 	}
 
 	if (was_opened)
