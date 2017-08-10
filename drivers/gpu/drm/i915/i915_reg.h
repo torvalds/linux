@@ -1127,7 +1127,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define   DP_SSS_RESET(pipe)			_DP_SSS(0x2, (pipe))
 #define   DP_SSS_PWR_GATE(pipe)			_DP_SSS(0x3, (pipe))
 
-/**
+/*
  * i915_power_well_id:
  *
  * Platform specific IDs used to look up power wells and - except for custom
