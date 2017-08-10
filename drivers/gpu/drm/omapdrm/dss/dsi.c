@@ -2107,7 +2107,6 @@ static int dsi_omap4_mux_pads(struct dsi_data *dsi, unsigned int lanes)
 {
 	u32 enable_mask, enable_shift;
 	u32 pipd_mask, pipd_shift;
-	u32 reg;
 
 	if (!dsi->syscon)
 		return 0;
@@ -2126,17 +2125,9 @@ static int dsi_omap4_mux_pads(struct dsi_data *dsi, unsigned int lanes)
 		return -ENODEV;
 	}
 
-	regmap_read(dsi->syscon, OMAP4_DSIPHY_SYSCON_OFFSET, &reg);
-
-	reg &= ~enable_mask;
-	reg &= ~pipd_mask;
-
-	reg |= (lanes << enable_shift) & enable_mask;
-	reg |= (lanes << pipd_shift) & pipd_mask;
-
-	regmap_write(dsi->syscon, OMAP4_DSIPHY_SYSCON_OFFSET, reg);
-
-	return 0;
+	return regmap_update_bits(dsi->syscon, OMAP4_DSIPHY_SYSCON_OFFSET,
+		enable_mask | pipd_mask,
+		(lanes << enable_shift) | (lanes << pipd_shift));
 }
 
 static int dsi_enable_pads(struct dsi_data *dsi, unsigned int lane_mask)
