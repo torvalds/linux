@@ -107,15 +107,19 @@ static inline void __uaccess_ttbr0_disable(void)
 {
 	unsigned long ttbr;
 
+	ttbr = read_sysreg(ttbr1_el1);
 	/* reserved_ttbr0 placed at the end of swapper_pg_dir */
-	ttbr = read_sysreg(ttbr1_el1) + SWAPPER_DIR_SIZE;
-	write_sysreg(ttbr, ttbr0_el1);
+	write_sysreg(ttbr + SWAPPER_DIR_SIZE, ttbr0_el1);
+	isb();
+	/* Set reserved ASID */
+	ttbr &= ~(0xffffUL << 48);
+	write_sysreg(ttbr, ttbr1_el1);
 	isb();
 }
 
 static inline void __uaccess_ttbr0_enable(void)
 {
-	unsigned long flags;
+	unsigned long flags, ttbr0, ttbr1;
 
 	/*
 	 * Disable interrupts to avoid preemption between reading the 'ttbr0'
@@ -123,7 +127,16 @@ static inline void __uaccess_ttbr0_enable(void)
 	 * roll-over and an update of 'ttbr0'.
 	 */
 	local_irq_save(flags);
-	write_sysreg(current_thread_info()->ttbr0, ttbr0_el1);
+	ttbr0 = current_thread_info()->ttbr0;
+
+	/* Restore active ASID */
+	ttbr1 = read_sysreg(ttbr1_el1);
+	ttbr1 |= ttbr0 & (0xffffUL << 48);
+	write_sysreg(ttbr1, ttbr1_el1);
+	isb();
+
+	/* Restore user page table */
+	write_sysreg(ttbr0, ttbr0_el1);
 	isb();
 	local_irq_restore(flags);
 }
