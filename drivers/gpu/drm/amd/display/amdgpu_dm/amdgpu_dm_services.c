@@ -33,7 +33,6 @@
 #include "amdgpu.h"
 #include "amdgpu_dm.h"
 #include "amdgpu_dm_irq.h"
-#include "amdgpu_dm_types.h"
 #include "amdgpu_pm.h"
 
 /******************************************************************************
