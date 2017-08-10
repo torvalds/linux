@@ -262,6 +262,66 @@ void reservation_object_add_excl_fence(struct reservation_object *obj,
 EXPORT_SYMBOL(reservation_object_add_excl_fence);
 
 /**
+* reservation_object_copy_fences - Copy all fences from src to dst.
+* @dst: the destination reservation object
+* @src: the source reservation object
+*
+* Copy all fences from src to dst. Both src->lock as well as dst-lock must be
+* held.
+*/
+int reservation_object_copy_fences(struct reservation_object *dst,
+				   struct reservation_object *src)
+{
+	struct reservation_object_list *src_list, *dst_list;
+	struct dma_fence *old, *new;
+	size_t size;
+	unsigned i;
+
+	src_list = reservation_object_get_list(src);
+
+	if (src_list) {
+		size = offsetof(typeof(*src_list),
+				shared[src_list->shared_count]);
+		dst_list = kmalloc(size, GFP_KERNEL);
+		if (!dst_list)
+			return -ENOMEM;
+
+		dst_list->shared_count = src_list->shared_count;
+		dst_list->shared_max = src_list->shared_count;
+		for (i = 0; i < src_list->shared_count; ++i)
+			dst_list->shared[i] =
+				dma_fence_get(src_list->shared[i]);
+	} else {
+		dst_list = NULL;
+	}
+
+	kfree(dst->staged);
+	dst->staged = NULL;
+
+	src_list = reservation_object_get_list(dst);
+
+	old = reservation_object_get_excl(dst);
+	new = reservation_object_get_excl(src);
+
+	dma_fence_get(new);
+
+	preempt_disable();
+	write_seqcount_begin(&dst->seq);
+	/* write_seqcount_begin provides the necessary memory barrier */
+	RCU_INIT_POINTER(dst->fence_excl, new);
+	RCU_INIT_POINTER(dst->fence, dst_list);
+	write_seqcount_end(&dst->seq);
+	preempt_enable();
+
+	if (src_list)
+		kfree_rcu(src_list, rcu);
+	dma_fence_put(old);
+
+	return 0;
+}
+EXPORT_SYMBOL(reservation_object_copy_fences);
+
+/**
  * reservation_object_get_fences_rcu - Get an object's shared and exclusive
  * fences without update side lock held
  * @obj: the reservation object
