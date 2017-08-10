@@ -3008,11 +3008,9 @@ static void pqi_change_irq_mode(struct pqi_ctrl_info *ctrl_info,
 			break;
 		case IRQ_MODE_INTX:
 			pqi_configure_legacy_intx(ctrl_info, true);
-			sis_disable_msix(ctrl_info);
 			sis_enable_intx(ctrl_info);
 			break;
 		case IRQ_MODE_NONE:
-			sis_disable_msix(ctrl_info);
 			break;
 		}
 		break;
@@ -3020,14 +3018,12 @@ static void pqi_change_irq_mode(struct pqi_ctrl_info *ctrl_info,
 		switch (new_mode) {
 		case IRQ_MODE_MSIX:
 			pqi_configure_legacy_intx(ctrl_info, false);
-			sis_disable_intx(ctrl_info);
 			sis_enable_msix(ctrl_info);
 			break;
 		case IRQ_MODE_INTX:
 			break;
 		case IRQ_MODE_NONE:
 			pqi_configure_legacy_intx(ctrl_info, false);
-			sis_disable_intx(ctrl_info);
 			break;
 		}
 		break;
@@ -6046,7 +6042,12 @@ static int pqi_revert_to_sis_mode(struct pqi_ctrl_info *ctrl_info)
 	rc = pqi_reset(ctrl_info);
 	if (rc)
 		return rc;
-	sis_reenable_sis_mode(ctrl_info);
+	rc = sis_reenable_sis_mode(ctrl_info);
+	if (rc) {
+		dev_err(&ctrl_info->pci_dev->dev,
+			"re-enabling SIS mode failed with error %d\n", rc);
+		return rc;
+	}
 	pqi_save_ctrl_mode(ctrl_info, SIS_MODE);
 
 	return 0;

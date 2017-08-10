@@ -34,12 +34,13 @@
 #define SIS_REENABLE_SIS_MODE			0x1
 #define SIS_ENABLE_MSIX				0x40
 #define SIS_ENABLE_INTX				0x80
-#define SIS_SOFT_RESET				0x100
+#define SIS_CMD_READY				0x200
 #define SIS_TRIGGER_SHUTDOWN			0x800000
 #define SIS_PQI_RESET_QUIESCE			0x1000000
-#define SIS_CMD_READY				0x200
+
 #define SIS_CMD_COMPLETE			0x1000
 #define SIS_CLEAR_CTRL_TO_HOST_DOORBELL		0x1000
+
 #define SIS_CMD_STATUS_SUCCESS			0x1
 #define SIS_CMD_COMPLETE_TIMEOUT_SECS		30
 #define SIS_CMD_COMPLETE_POLL_INTERVAL_MSECS	10
@@ -373,66 +374,21 @@ static int sis_wait_for_doorbell_bit_to_clear(
 	return rc;
 }
 
-/* Enable MSI-X interrupts on the controller. */
+static inline int sis_set_doorbell_bit(struct pqi_ctrl_info *ctrl_info, u32 bit)
+{
+	writel(bit, &ctrl_info->registers->sis_host_to_ctrl_doorbell);
+
+	return sis_wait_for_doorbell_bit_to_clear(ctrl_info, bit);
+}
 
 void sis_enable_msix(struct pqi_ctrl_info *ctrl_info)
 {
-	u32 doorbell_register;
-
-	doorbell_register =
-		readl(&ctrl_info->registers->sis_host_to_ctrl_doorbell);
-	doorbell_register |= SIS_ENABLE_MSIX;
-
-	writel(doorbell_register,
-		&ctrl_info->registers->sis_host_to_ctrl_doorbell);
-
-	sis_wait_for_doorbell_bit_to_clear(ctrl_info, SIS_ENABLE_MSIX);
-}
-
-/* Disable MSI-X interrupts on the controller. */
-
-void sis_disable_msix(struct pqi_ctrl_info *ctrl_info)
-{
-	u32 doorbell_register;
-
-	doorbell_register =
-		readl(&ctrl_info->registers->sis_host_to_ctrl_doorbell);
-	doorbell_register &= ~SIS_ENABLE_MSIX;
-
-	writel(doorbell_register,
-		&ctrl_info->registers->sis_host_to_ctrl_doorbell);
+	sis_set_doorbell_bit(ctrl_info, SIS_ENABLE_MSIX);
 }
 
 void sis_enable_intx(struct pqi_ctrl_info *ctrl_info)
 {
-	u32 doorbell_register;
-
-	doorbell_register =
-		readl(&ctrl_info->registers->sis_host_to_ctrl_doorbell);
-	doorbell_register |= SIS_ENABLE_INTX;
-
-	writel(doorbell_register,
-		&ctrl_info->registers->sis_host_to_ctrl_doorbell);
-
-	sis_wait_for_doorbell_bit_to_clear(ctrl_info, SIS_ENABLE_INTX);
-}
-
-void sis_disable_intx(struct pqi_ctrl_info *ctrl_info)
-{
-	u32 doorbell_register;
-
-	doorbell_register =
-		readl(&ctrl_info->registers->sis_host_to_ctrl_doorbell);
-	doorbell_register &= ~SIS_ENABLE_INTX;
-
-	writel(doorbell_register,
-		&ctrl_info->registers->sis_host_to_ctrl_doorbell);
-}
-
-void sis_soft_reset(struct pqi_ctrl_info *ctrl_info)
-{
-	writel(SIS_SOFT_RESET,
-		&ctrl_info->registers->sis_host_to_ctrl_doorbell);
+	sis_set_doorbell_bit(ctrl_info, SIS_ENABLE_INTX);
 }
 
 void sis_shutdown_ctrl(struct pqi_ctrl_info *ctrl_info)
@@ -447,51 +403,12 @@ void sis_shutdown_ctrl(struct pqi_ctrl_info *ctrl_info)
 
 int sis_pqi_reset_quiesce(struct pqi_ctrl_info *ctrl_info)
 {
-	u32 doorbell_register;
-
-	doorbell_register =
-		readl(&ctrl_info->registers->sis_host_to_ctrl_doorbell);
-	doorbell_register |= SIS_PQI_RESET_QUIESCE;
-
-	writel(doorbell_register,
-		&ctrl_info->registers->sis_host_to_ctrl_doorbell);
-
-	return sis_wait_for_doorbell_bit_to_clear(ctrl_info,
-		SIS_PQI_RESET_QUIESCE);
+	return sis_set_doorbell_bit(ctrl_info, SIS_PQI_RESET_QUIESCE);
 }
-
-#define SIS_MODE_READY_TIMEOUT_SECS	30
 
 int sis_reenable_sis_mode(struct pqi_ctrl_info *ctrl_info)
 {
-	int rc;
-	unsigned long timeout;
-	struct pqi_ctrl_registers __iomem *registers;
-	u32 doorbell;
-
-	registers = ctrl_info->registers;
-
-	writel(SIS_REENABLE_SIS_MODE,
-		&registers->sis_host_to_ctrl_doorbell);
-
-	rc = 0;
-	timeout = (SIS_MODE_READY_TIMEOUT_SECS * HZ) + jiffies;
-
-	while (1) {
-		doorbell = readl(&registers->sis_ctrl_to_host_doorbell);
-		if ((doorbell & SIS_REENABLE_SIS_MODE) == 0)
-			break;
-		if (time_after(jiffies, timeout)) {
-			rc = -ETIMEDOUT;
-			break;
-		}
-	}
-
-	if (rc)
-		dev_err(&ctrl_info->pci_dev->dev,
-			"re-enabling SIS mode failed\n");
-
-	return rc;
+	return sis_set_doorbell_bit(ctrl_info, SIS_REENABLE_SIS_MODE);
 }
 
 void sis_write_driver_scratch(struct pqi_ctrl_info *ctrl_info, u32 value)
