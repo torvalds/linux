@@ -48,8 +48,6 @@ static int blk_flags_show(struct seq_file *m, const unsigned long flags,
 static const char *const blk_queue_flag_name[] = {
 	QUEUE_FLAG_NAME(QUEUED),
 	QUEUE_FLAG_NAME(STOPPED),
-	QUEUE_FLAG_NAME(SYNCFULL),
-	QUEUE_FLAG_NAME(ASYNCFULL),
 	QUEUE_FLAG_NAME(DYING),
 	QUEUE_FLAG_NAME(BYPASS),
 	QUEUE_FLAG_NAME(BIDI),
