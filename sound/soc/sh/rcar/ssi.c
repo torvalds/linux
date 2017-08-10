@@ -90,6 +90,7 @@ struct rsnd_ssi {
 #define RSND_SSI_NO_BUSIF		(1 << 1) /* SSI+DMA without BUSIF */
 #define RSND_SSI_HDMI0			(1 << 2) /* for HDMI0 */
 #define RSND_SSI_HDMI1			(1 << 3) /* for HDMI1 */
+#define RSND_SSI_PROBED			(1 << 4)
 
 #define for_each_rsnd_ssi(pos, priv, i)					\
 	for (i = 0;							\
@@ -103,6 +104,7 @@ struct rsnd_ssi {
 #define rsnd_mod_to_ssi(_mod) container_of((_mod), struct rsnd_ssi, mod)
 #define rsnd_ssi_flags_has(p, f) ((p)->flags & f)
 #define rsnd_ssi_flags_set(p, f) ((p)->flags |= f)
+#define rsnd_ssi_flags_del(p, f) ((p)->flags = ((p)->flags & ~f))
 #define rsnd_ssi_is_parent(ssi, io) ((ssi) == rsnd_io_to_mod_ssip(io))
 #define rsnd_ssi_is_multi_slave(mod, io) \
 	(rsnd_ssi_multi_slaves(io) & (1 << rsnd_mod_id(mod)))
@@ -784,11 +786,22 @@ static int rsnd_ssi_common_probe(struct rsnd_mod *mod,
 	/*
 	 * SSI might be called again as PIO fallback
 	 * It is easy to manual handling for IRQ request/free
+	 *
+	 * OTOH, this function might be called many times if platform is
+	 * using MIX. It needs xxx_attach() many times on xxx_probe().
+	 * Because of it, we can't control .probe/.remove calling count by
+	 * mod->status.
+	 * But it don't need to call request_irq() many times.
+	 * Let's control it by RSND_SSI_PROBED flag.
 	 */
-	ret = request_irq(ssi->irq,
-			  rsnd_ssi_interrupt,
-			  IRQF_SHARED,
-			  dev_name(dev), mod);
+	if (!rsnd_ssi_flags_has(ssi, RSND_SSI_PROBED)) {
+		ret = request_irq(ssi->irq,
+				  rsnd_ssi_interrupt,
+				  IRQF_SHARED,
+				  dev_name(dev), mod);
+
+		rsnd_ssi_flags_set(ssi, RSND_SSI_PROBED);
+	}
 
 	return ret;
 }
@@ -805,7 +818,11 @@ static int rsnd_ssi_common_remove(struct rsnd_mod *mod,
 		return 0;
 
 	/* PIO will request IRQ again */
-	free_irq(ssi->irq, mod);
+	if (rsnd_ssi_flags_has(ssi, RSND_SSI_PROBED)) {
+		free_irq(ssi->irq, mod);
+
+		rsnd_ssi_flags_del(ssi, RSND_SSI_PROBED);
+	}
 
 	return 0;
 }
