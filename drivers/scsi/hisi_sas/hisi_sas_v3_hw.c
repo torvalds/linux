@@ -2005,7 +2005,6 @@ static struct pci_driver sas_v3_pci_driver = {
 
 module_pci_driver(sas_v3_pci_driver);
 
-MODULE_VERSION(DRV_VERSION);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("John Garry <john.garry@huawei.com>");
 MODULE_DESCRIPTION("HISILICON SAS controller v3 hw driver based on pci device");
