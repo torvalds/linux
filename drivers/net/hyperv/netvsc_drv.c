@@ -45,7 +45,12 @@
 
 #include "hyperv_net.h"
 
-#define RING_SIZE_MIN 64
+#define RING_SIZE_MIN		64
+#define NETVSC_MIN_TX_SECTIONS	10
+#define NETVSC_DEFAULT_TX	192	/* ~1M */
+#define NETVSC_MIN_RX_SECTIONS	10	/* ~64K */
+#define NETVSC_DEFAULT_RX	2048	/* ~4M */
+
 #define LINKCHANGE_INT (2 * HZ)
 #define VF_TAKEOVER_INT (HZ / 10)
 
@@ -831,11 +836,13 @@ static int netvsc_set_channels(struct net_device *net,
 	if (was_opened)
 		rndis_filter_close(nvdev);
 
-	rndis_filter_device_remove(dev, nvdev);
-
 	memset(&device_info, 0, sizeof(device_info));
 	device_info.num_chn = count;
 	device_info.ring_size = ring_size;
+	device_info.send_sections = nvdev->send_section_cnt;
+	device_info.recv_sections = nvdev->recv_section_cnt;
+
+	rndis_filter_device_remove(dev, nvdev);
 
 	nvdev = rndis_filter_device_add(dev, &device_info);
 	if (!IS_ERR(nvdev)) {
@@ -947,6 +954,8 @@ static int netvsc_change_mtu(struct net_device *ndev, int mtu)
 	memset(&device_info, 0, sizeof(device_info));
 	device_info.ring_size = ring_size;
 	device_info.num_chn = nvdev->num_chn;
+	device_info.send_sections = nvdev->send_section_cnt;
+	device_info.recv_sections = nvdev->recv_section_cnt;
 
 	rndis_filter_device_remove(hdev, nvdev);
 
@@ -1351,6 +1360,104 @@ static int netvsc_set_rxfh(struct net_device *dev, const u32 *indir,
 	return rndis_filter_set_rss_param(rndis_dev, key, ndev->num_chn);
 }
 
+/* Hyper-V RNDIS protocol does not have ring in the HW sense.
+ * It does have pre-allocated receive area which is divided into sections.
+ */
+static void __netvsc_get_ringparam(struct netvsc_device *nvdev,
+				   struct ethtool_ringparam *ring)
+{
+	u32 max_buf_size;
+
+	ring->rx_pending = nvdev->recv_section_cnt;
+	ring->tx_pending = nvdev->send_section_cnt;
+
+	if (nvdev->nvsp_version <= NVSP_PROTOCOL_VERSION_2)
+		max_buf_size = NETVSC_RECEIVE_BUFFER_SIZE_LEGACY;
+	else
+		max_buf_size = NETVSC_RECEIVE_BUFFER_SIZE;
+
+	ring->rx_max_pending = max_buf_size / nvdev->recv_section_size;
+	ring->tx_max_pending = NETVSC_SEND_BUFFER_SIZE
+		/ nvdev->send_section_size;
+}
+
+static void netvsc_get_ringparam(struct net_device *ndev,
+				 struct ethtool_ringparam *ring)
+{
+	struct net_device_context *ndevctx = netdev_priv(ndev);
+	struct netvsc_device *nvdev = rtnl_dereference(ndevctx->nvdev);
+
+	if (!nvdev)
+		return;
+
+	__netvsc_get_ringparam(nvdev, ring);
+}
+
+static int netvsc_set_ringparam(struct net_device *ndev,
+				struct ethtool_ringparam *ring)
+{
+	struct net_device_context *ndevctx = netdev_priv(ndev);
+	struct netvsc_device *nvdev = rtnl_dereference(ndevctx->nvdev);
+	struct hv_device *hdev = ndevctx->device_ctx;
+	struct netvsc_device_info device_info;
+	struct ethtool_ringparam orig;
+	u32 new_tx, new_rx;
+	bool was_opened;
+	int ret = 0;
+
+	if (!nvdev || nvdev->destroy)
+		return -ENODEV;
+
+	memset(&orig, 0, sizeof(orig));
+	__netvsc_get_ringparam(nvdev, &orig);
+
+	new_tx = clamp_t(u32, ring->tx_pending,
+			 NETVSC_MIN_TX_SECTIONS, orig.tx_max_pending);
+	new_rx = clamp_t(u32, ring->rx_pending,
+			 NETVSC_MIN_RX_SECTIONS, orig.rx_max_pending);
+
+	if (new_tx == orig.tx_pending &&
+	    new_rx == orig.rx_pending)
+		return 0;	 /* no change */
+
+	memset(&device_info, 0, sizeof(device_info));
+	device_info.num_chn = nvdev->num_chn;
+	device_info.ring_size = ring_size;
+	device_info.send_sections = new_tx;
+	device_info.recv_sections = new_rx;
+
+	netif_device_detach(ndev);
+	was_opened = rndis_filter_opened(nvdev);
+	if (was_opened)
+		rndis_filter_close(nvdev);
+
+	rndis_filter_device_remove(hdev, nvdev);
+
+	nvdev = rndis_filter_device_add(hdev, &device_info);
+	if (IS_ERR(nvdev)) {
+		ret = PTR_ERR(nvdev);
+
+		device_info.send_sections = orig.tx_pending;
+		device_info.recv_sections = orig.rx_pending;
+		nvdev = rndis_filter_device_add(hdev, &device_info);
+		if (IS_ERR(nvdev)) {
+			netdev_err(ndev, "restoring ringparam failed: %ld\n",
+				   PTR_ERR(nvdev));
+			return ret;
+		}
+	}
+
+	if (was_opened)
+		rndis_filter_open(nvdev);
+	netif_device_attach(ndev);
+
+	/* We may have missed link change notifications */
+	ndevctx->last_reconfig = 0;
+	schedule_delayed_work(&ndevctx->dwork, 0);
+
+	return ret;
+}
+
 static const struct ethtool_ops ethtool_ops = {
 	.get_drvinfo	= netvsc_get_drvinfo,
 	.get_link	= ethtool_op_get_link,
@@ -1367,6 +1474,8 @@ static const struct ethtool_ops ethtool_ops = {
 	.set_rxfh	= netvsc_set_rxfh,
 	.get_link_ksettings = netvsc_get_link_ksettings,
 	.set_link_ksettings = netvsc_set_link_ksettings,
+	.get_ringparam	= netvsc_get_ringparam,
+	.set_ringparam	= netvsc_set_ringparam,
 };
 
 static const struct net_device_ops device_ops = {
@@ -1782,6 +1891,8 @@ static int netvsc_probe(struct hv_device *dev,
 	memset(&device_info, 0, sizeof(device_info));
 	device_info.ring_size = ring_size;
 	device_info.num_chn = VRSS_CHANNEL_DEFAULT;
+	device_info.send_sections = NETVSC_DEFAULT_TX;
+	device_info.recv_sections = NETVSC_DEFAULT_RX;
 
 	nvdev = rndis_filter_device_add(dev, &device_info);
 	if (IS_ERR(nvdev)) {
