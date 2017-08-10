@@ -2335,10 +2335,12 @@ static struct dvb_usb_device_properties tt_s2_4600_properties = {
 static int dw2102_probe(struct usb_interface *intf,
 		const struct usb_device_id *id)
 {
+	int retval = -ENOMEM;
 	p1100 = kmemdup(&s6x0_properties,
 			sizeof(struct dvb_usb_device_properties), GFP_KERNEL);
 	if (!p1100)
-		return -ENOMEM;
+		goto err0;
+
 	/* copy default structure */
 	/* fill only different fields */
 	p1100->firmware = P1100_FIRMWARE;
@@ -2349,10 +2351,9 @@ static int dw2102_probe(struct usb_interface *intf,
 
 	s660 = kmemdup(&s6x0_properties,
 		       sizeof(struct dvb_usb_device_properties), GFP_KERNEL);
-	if (!s660) {
-		kfree(p1100);
-		return -ENOMEM;
-	}
+	if (!s660)
+		goto err1;
+
 	s660->firmware = S660_FIRMWARE;
 	s660->num_device_descs = 3;
 	s660->devices[0] = d660;
@@ -2362,11 +2363,9 @@ static int dw2102_probe(struct usb_interface *intf,
 
 	p7500 = kmemdup(&s6x0_properties,
 			sizeof(struct dvb_usb_device_properties), GFP_KERNEL);
-	if (!p7500) {
-		kfree(p1100);
-		kfree(s660);
-		return -ENOMEM;
-	}
+	if (!p7500)
+		goto err2;
+
 	p7500->firmware = P7500_FIRMWARE;
 	p7500->devices[0] = d7500;
 	p7500->rc.core.rc_query = prof_rc_query;
@@ -2376,12 +2375,9 @@ static int dw2102_probe(struct usb_interface *intf,
 
 	s421 = kmemdup(&su3000_properties,
 		       sizeof(struct dvb_usb_device_properties), GFP_KERNEL);
-	if (!s421) {
-		kfree(p1100);
-		kfree(s660);
-		kfree(p7500);
-		return -ENOMEM;
-	}
+	if (!s421)
+		goto err3;
+
 	s421->num_device_descs = 2;
 	s421->devices[0] = d421;
 	s421->devices[1] = d632;
@@ -2411,7 +2407,16 @@ static int dw2102_probe(struct usb_interface *intf,
 			 THIS_MODULE, NULL, adapter_nr))
 		return 0;
 
-	return -ENODEV;
+	retval = -ENODEV;
+	kfree(s421);
+err3:
+	kfree(p7500);
+err2:
+	kfree(s660);
+err1:
+	kfree(p1100);
+err0:
+	return retval;
 }
 
 static void dw2102_disconnect(struct usb_interface *intf)
