@@ -117,8 +117,6 @@ static int armada_fb_probe(struct drm_fb_helper *fbh,
 }
 
 static const struct drm_fb_helper_funcs armada_fb_helper_funcs = {
-	.gamma_set	= armada_drm_crtc_gamma_set,
-	.gamma_get	= armada_drm_crtc_gamma_get,
 	.fb_probe	= armada_fb_probe,
 };
 

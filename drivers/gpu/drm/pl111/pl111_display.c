@@ -457,7 +457,7 @@ int pl111_display_init(struct drm_device *drm)
 	ret = drm_simple_display_pipe_init(drm, &priv->pipe,
 					   &pl111_display_funcs,
 					   formats, ARRAY_SIZE(formats),
-					   &priv->connector.connector);
+					   NULL, &priv->connector.connector);
 	if (ret)
 		return ret;
 

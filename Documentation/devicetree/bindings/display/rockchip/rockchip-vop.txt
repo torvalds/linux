@@ -8,8 +8,12 @@ Required properties:
 - compatible: value should be one of the following
 		"rockchip,rk3036-vop";
 		"rockchip,rk3288-vop";
+		"rockchip,rk3368-vop";
+		"rockchip,rk3366-vop";
 		"rockchip,rk3399-vop-big";
 		"rockchip,rk3399-vop-lit";
+		"rockchip,rk3228-vop";
+		"rockchip,rk3328-vop";
 
 - interrupts: should contain a list of all VOP IP block interrupts in the
 		 order: VSYNC, LCD_SYSTEM. The interrupt specifier

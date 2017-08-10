@@ -62,11 +62,7 @@ mipi_dbi_from_tinydrm(struct tinydrm_device *tdev)
 }
 
 int mipi_dbi_spi_init(struct spi_device *spi, struct mipi_dbi *mipi,
-		      struct gpio_desc *dc,
-		      const struct drm_simple_display_pipe_funcs *pipe_funcs,
-		      struct drm_driver *driver,
-		      const struct drm_display_mode *mode,
-		      unsigned int rotation);
+		      struct gpio_desc *dc);
 int mipi_dbi_init(struct device *dev, struct mipi_dbi *mipi,
 		  const struct drm_simple_display_pipe_funcs *pipe_funcs,
 		  struct drm_driver *driver,

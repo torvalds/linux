@@ -921,16 +921,12 @@ drm_atomic_helper_update_legacy_modeset_state(struct drm_device *dev,
 		crtc = new_conn_state->crtc;
 		if ((!crtc && old_conn_state->crtc) ||
 		    (crtc && drm_atomic_crtc_needs_modeset(crtc->state))) {
-			struct drm_property *dpms_prop =
-				dev->mode_config.dpms_property;
 			int mode = DRM_MODE_DPMS_OFF;
 
 			if (crtc && crtc->state->active)
 				mode = DRM_MODE_DPMS_ON;
 
 			connector->dpms = mode;
-			drm_object_property_set_value(&connector->base,
-						      dpms_prop, mode);
 		}
 	}
 
@@ -1270,7 +1266,7 @@ void drm_atomic_helper_wait_for_flip_done(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	int i;
 
-	for_each_crtc_in_state(old_state, crtc, unused, i) {
+	for_each_new_crtc_in_state(old_state, crtc, unused, i) {
 		struct drm_crtc_commit *commit = old_state->crtcs[i].commit;
 		int ret;
 
@@ -2957,171 +2953,6 @@ out:
 }
 EXPORT_SYMBOL(drm_atomic_helper_resume);
 
-/**
- * drm_atomic_helper_crtc_set_property - helper for crtc properties
- * @crtc: DRM crtc
- * @property: DRM property
- * @val: value of property
- *
- * Provides a default crtc set_property handler using the atomic driver
- * interface.
- *
- * RETURNS:
- * Zero on success, error code on failure
- */
-int
-drm_atomic_helper_crtc_set_property(struct drm_crtc *crtc,
-				    struct drm_property *property,
-				    uint64_t val)
-{
-	struct drm_atomic_state *state;
-	struct drm_crtc_state *crtc_state;
-	int ret = 0;
-
-	state = drm_atomic_state_alloc(crtc->dev);
-	if (!state)
-		return -ENOMEM;
-
-	/* ->set_property is always called with all locks held. */
-	state->acquire_ctx = crtc->dev->mode_config.acquire_ctx;
-retry:
-	crtc_state = drm_atomic_get_crtc_state(state, crtc);
-	if (IS_ERR(crtc_state)) {
-		ret = PTR_ERR(crtc_state);
-		goto fail;
-	}
-
-	ret = drm_atomic_crtc_set_property(crtc, crtc_state,
-			property, val);
-	if (ret)
-		goto fail;
-
-	ret = drm_atomic_commit(state);
-fail:
-	if (ret == -EDEADLK)
-		goto backoff;
-
-	drm_atomic_state_put(state);
-	return ret;
-
-backoff:
-	drm_atomic_state_clear(state);
-	drm_atomic_legacy_backoff(state);
-
-	goto retry;
-}
-EXPORT_SYMBOL(drm_atomic_helper_crtc_set_property);
-
-/**
- * drm_atomic_helper_plane_set_property - helper for plane properties
- * @plane: DRM plane
- * @property: DRM property
- * @val: value of property
- *
- * Provides a default plane set_property handler using the atomic driver
- * interface.
- *
- * RETURNS:
- * Zero on success, error code on failure
- */
-int
-drm_atomic_helper_plane_set_property(struct drm_plane *plane,
-				    struct drm_property *property,
-				    uint64_t val)
-{
-	struct drm_atomic_state *state;
-	struct drm_plane_state *plane_state;
-	int ret = 0;
-
-	state = drm_atomic_state_alloc(plane->dev);
-	if (!state)
-		return -ENOMEM;
-
-	/* ->set_property is always called with all locks held. */
-	state->acquire_ctx = plane->dev->mode_config.acquire_ctx;
-retry:
-	plane_state = drm_atomic_get_plane_state(state, plane);
-	if (IS_ERR(plane_state)) {
-		ret = PTR_ERR(plane_state);
-		goto fail;
-	}
-
-	ret = drm_atomic_plane_set_property(plane, plane_state,
-			property, val);
-	if (ret)
-		goto fail;
-
-	ret = drm_atomic_commit(state);
-fail:
-	if (ret == -EDEADLK)
-		goto backoff;
-
-	drm_atomic_state_put(state);
-	return ret;
-
-backoff:
-	drm_atomic_state_clear(state);
-	drm_atomic_legacy_backoff(state);
-
-	goto retry;
-}
-EXPORT_SYMBOL(drm_atomic_helper_plane_set_property);
-
-/**
- * drm_atomic_helper_connector_set_property - helper for connector properties
- * @connector: DRM connector
- * @property: DRM property
- * @val: value of property
- *
- * Provides a default connector set_property handler using the atomic driver
- * interface.
- *
- * RETURNS:
- * Zero on success, error code on failure
- */
-int
-drm_atomic_helper_connector_set_property(struct drm_connector *connector,
-				    struct drm_property *property,
-				    uint64_t val)
-{
-	struct drm_atomic_state *state;
-	struct drm_connector_state *connector_state;
-	int ret = 0;
-
-	state = drm_atomic_state_alloc(connector->dev);
-	if (!state)
-		return -ENOMEM;
-
-	/* ->set_property is always called with all locks held. */
-	state->acquire_ctx = connector->dev->mode_config.acquire_ctx;
-retry:
-	connector_state = drm_atomic_get_connector_state(state, connector);
-	if (IS_ERR(connector_state)) {
-		ret = PTR_ERR(connector_state);
-		goto fail;
-	}
-
-	ret = drm_atomic_connector_set_property(connector, connector_state,
-			property, val);
-	if (ret)
-		goto fail;
-
-	ret = drm_atomic_commit(state);
-fail:
-	if (ret == -EDEADLK)
-		goto backoff;
-
-	drm_atomic_state_put(state);
-	return ret;
-
-backoff:
-	drm_atomic_state_clear(state);
-	drm_atomic_legacy_backoff(state);
-
-	goto retry;
-}
-EXPORT_SYMBOL(drm_atomic_helper_connector_set_property);
-
 static int page_flip_common(struct drm_atomic_state *state,
 			    struct drm_crtc *crtc,
 			    struct drm_framebuffer *fb,
@@ -3255,85 +3086,6 @@ fail:
 	return ret;
 }
 EXPORT_SYMBOL(drm_atomic_helper_page_flip_target);
-
-/**
- * drm_atomic_helper_connector_dpms() - connector dpms helper implementation
- * @connector: affected connector
- * @mode: DPMS mode
- *
- * This is the main helper function provided by the atomic helper framework for
- * implementing the legacy DPMS connector interface. It computes the new desired
- * &drm_crtc_state.active state for the corresponding CRTC (if the connector is
- * enabled) and updates it.
- *
- * Returns:
- * Returns 0 on success, negative errno numbers on failure.
- */
-int drm_atomic_helper_connector_dpms(struct drm_connector *connector,
-				     int mode)
-{
-	struct drm_mode_config *config = &connector->dev->mode_config;
-	struct drm_atomic_state *state;
-	struct drm_crtc_state *crtc_state;
-	struct drm_crtc *crtc;
-	struct drm_connector *tmp_connector;
-	struct drm_connector_list_iter conn_iter;
-	int ret;
-	bool active = false;
-	int old_mode = connector->dpms;
-
-	if (mode != DRM_MODE_DPMS_ON)
-		mode = DRM_MODE_DPMS_OFF;
-
-	connector->dpms = mode;
-	crtc = connector->state->crtc;
-
-	if (!crtc)
-		return 0;
-
-	state = drm_atomic_state_alloc(connector->dev);
-	if (!state)
-		return -ENOMEM;
-
-	state->acquire_ctx = crtc->dev->mode_config.acquire_ctx;
-retry:
-	crtc_state = drm_atomic_get_crtc_state(state, crtc);
-	if (IS_ERR(crtc_state)) {
-		ret = PTR_ERR(crtc_state);
-		goto fail;
-	}
-
-	WARN_ON(!drm_modeset_is_locked(&config->connection_mutex));
-
-	drm_connector_list_iter_begin(connector->dev, &conn_iter);
-	drm_for_each_connector_iter(tmp_connector, &conn_iter) {
-		if (tmp_connector->state->crtc != crtc)
-			continue;
-
-		if (tmp_connector->dpms == DRM_MODE_DPMS_ON) {
-			active = true;
-			break;
-		}
-	}
-	drm_connector_list_iter_end(&conn_iter);
-	crtc_state->active = active;
-
-	ret = drm_atomic_commit(state);
-fail:
-	if (ret == -EDEADLK)
-		goto backoff;
-	if (ret != 0)
-		connector->dpms = old_mode;
-	drm_atomic_state_put(state);
-	return ret;
-
-backoff:
-	drm_atomic_state_clear(state);
-	drm_atomic_legacy_backoff(state);
-
-	goto retry;
-}
-EXPORT_SYMBOL(drm_atomic_helper_connector_dpms);
 
 /**
  * drm_atomic_helper_best_encoder - Helper for

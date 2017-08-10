@@ -267,22 +267,6 @@ struct drm_crtc_helper_funcs {
 				    enum mode_set_atomic);
 
 	/**
-	 * @load_lut:
-	 *
-	 * Load a LUT prepared with the &drm_fb_helper_funcs.gamma_set vfunc.
-	 *
-	 * This callback is optional and is only used by the fbdev emulation
-	 * helpers.
-	 *
-	 * FIXME:
-	 *
-	 * This callback is functionally redundant with the core gamma table
-	 * support and simply exists because the fbdev hasn't yet been
-	 * refactored to use the core gamma table interfaces.
-	 */
-	void (*load_lut)(struct drm_crtc *crtc);
-
-	/**
 	 * @disable:
 	 *
 	 * This callback should be used to disable the CRTC. With the atomic
@@ -1179,9 +1163,9 @@ struct drm_plane_helper_funcs {
 	 *  - It only works for single plane updates
 	 *  - Async Pageflips are not supported yet
 	 *  - Some hw might still scan out the old buffer until the next
-	 *  vblank, however we let go of the fb references as soon as
-	 *  we run this hook. For now drivers must implement their own workers
-	 *  for deferring if needed, until a common solution is created.
+	 *    vblank, however we let go of the fb references as soon as
+	 *    we run this hook. For now drivers must implement their own workers
+	 *    for deferring if needed, until a common solution is created.
 	 */
 	void (*atomic_async_update)(struct drm_plane *plane,
 				    struct drm_plane_state *new_state);

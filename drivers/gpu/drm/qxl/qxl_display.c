@@ -784,7 +784,7 @@ static struct drm_plane *qxl_create_plane(struct qxl_device *qdev,
 
 	err = drm_universal_plane_init(&qdev->ddev, plane, possible_crtcs,
 				       funcs, formats, num_formats,
-				       type, NULL);
+				       NULL, type, NULL);
 	if (err)
 		goto free_plane;
 

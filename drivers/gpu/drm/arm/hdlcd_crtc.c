@@ -315,6 +315,7 @@ static struct drm_plane *hdlcd_plane_init(struct drm_device *drm)
 
 	ret = drm_universal_plane_init(drm, plane, 0xff, &hdlcd_plane_funcs,
 				       formats, ARRAY_SIZE(formats),
+				       NULL,
 				       DRM_PLANE_TYPE_PRIMARY, NULL);
 	if (ret) {
 		return ERR_PTR(ret);

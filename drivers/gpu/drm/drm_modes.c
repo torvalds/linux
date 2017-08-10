@@ -1610,7 +1610,7 @@ out:
  * drm_mode_is_420_only - if a given videomode can be only supported in YCBCR420
  * output format
  *
- * @connector: drm connector under action.
+ * @display: display under action
  * @mode: video mode to be tested.
  *
  * Returns:

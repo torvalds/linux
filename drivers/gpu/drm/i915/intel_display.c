@@ -13323,7 +13323,6 @@ static int intel_atomic_commit(struct drm_device *dev,
 static const struct drm_crtc_funcs intel_crtc_funcs = {
 	.gamma_set = drm_atomic_helper_legacy_gamma_set,
 	.set_config = drm_atomic_helper_set_config,
-	.set_property = drm_atomic_helper_crtc_set_property,
 	.destroy = intel_crtc_destroy,
 	.page_flip = drm_atomic_helper_page_flip,
 	.atomic_duplicate_state = intel_crtc_duplicate_state,
@@ -13600,7 +13599,6 @@ const struct drm_plane_funcs intel_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
 	.destroy = intel_plane_destroy,
-	.set_property = drm_atomic_helper_plane_set_property,
 	.atomic_get_property = intel_plane_atomic_get_property,
 	.atomic_set_property = intel_plane_atomic_set_property,
 	.atomic_duplicate_state = intel_plane_duplicate_state,
@@ -13735,7 +13733,6 @@ static const struct drm_plane_funcs intel_cursor_plane_funcs = {
 	.update_plane = intel_legacy_cursor_update,
 	.disable_plane = drm_atomic_helper_disable_plane,
 	.destroy = intel_plane_destroy,
-	.set_property = drm_atomic_helper_plane_set_property,
 	.atomic_get_property = intel_plane_atomic_get_property,
 	.atomic_set_property = intel_plane_atomic_set_property,
 	.atomic_duplicate_state = intel_plane_duplicate_state,
@@ -13809,18 +13806,21 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 		ret = drm_universal_plane_init(&dev_priv->drm, &primary->base,
 					       0, &intel_plane_funcs,
 					       intel_primary_formats, num_formats,
+					       NULL,
 					       DRM_PLANE_TYPE_PRIMARY,
 					       "plane 1%c", pipe_name(pipe));
 	else if (INTEL_GEN(dev_priv) >= 5 || IS_G4X(dev_priv))
 		ret = drm_universal_plane_init(&dev_priv->drm, &primary->base,
 					       0, &intel_plane_funcs,
 					       intel_primary_formats, num_formats,
+					       NULL,
 					       DRM_PLANE_TYPE_PRIMARY,
 					       "primary %c", pipe_name(pipe));
 	else
 		ret = drm_universal_plane_init(&dev_priv->drm, &primary->base,
 					       0, &intel_plane_funcs,
 					       intel_primary_formats, num_formats,
+					       NULL,
 					       DRM_PLANE_TYPE_PRIMARY,
 					       "plane %c", plane_name(primary->plane));
 	if (ret)
@@ -13906,7 +13906,7 @@ intel_cursor_plane_create(struct drm_i915_private *dev_priv,
 				       0, &intel_cursor_plane_funcs,
 				       intel_cursor_formats,
 				       ARRAY_SIZE(intel_cursor_formats),
-				       DRM_PLANE_TYPE_CURSOR,
+				       NULL, DRM_PLANE_TYPE_CURSOR,
 				       "cursor %c", pipe_name(pipe));
 	if (ret)
 		goto fail;

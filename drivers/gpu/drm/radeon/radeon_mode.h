@@ -935,10 +935,6 @@ extern void
 radeon_combios_encoder_crtc_scratch_regs(struct drm_encoder *encoder, int crtc);
 extern void
 radeon_combios_encoder_dpms_scratch_regs(struct drm_encoder *encoder, bool on);
-extern void radeon_crtc_fb_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
-				     u16 blue, int regno);
-extern void radeon_crtc_fb_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
-				     u16 *blue, int regno);
 int radeon_framebuffer_init(struct drm_device *dev,
 			     struct radeon_framebuffer *rfb,
 			     const struct drm_mode_fb_cmd2 *mode_cmd,

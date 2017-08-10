@@ -88,7 +88,6 @@ static void tegra_dc_write_regs(struct tegra_dc *dc,
 }
 
 static const struct drm_connector_funcs tegra_rgb_connector_funcs = {
-	.dpms = drm_atomic_helper_connector_dpms,
 	.reset = drm_atomic_helper_connector_reset,
 	.detect = tegra_output_connector_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,

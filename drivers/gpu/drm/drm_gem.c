@@ -311,6 +311,41 @@ drm_gem_handle_delete(struct drm_file *filp, u32 handle)
 EXPORT_SYMBOL(drm_gem_handle_delete);
 
 /**
+ * drm_gem_dumb_map_offset - return the fake mmap offset for a gem object
+ * @file: drm file-private structure containing the gem object
+ * @dev: corresponding drm_device
+ * @handle: gem object handle
+ * @offset: return location for the fake mmap offset
+ *
+ * This implements the &drm_driver.dumb_map_offset kms driver callback for
+ * drivers which use gem to manage their backing storage.
+ *
+ * Returns:
+ * 0 on success or a negative error code on failure.
+ */
+int drm_gem_dumb_map_offset(struct drm_file *file, struct drm_device *dev,
+			    u32 handle, u64 *offset)
+{
+	struct drm_gem_object *obj;
+	int ret;
+
+	obj = drm_gem_object_lookup(file, handle);
+	if (!obj)
+		return -ENOENT;
+
+	ret = drm_gem_create_mmap_offset(obj);
+	if (ret)
+		goto out;
+
+	*offset = drm_vma_node_offset_addr(&obj->vma_node);
+out:
+	drm_gem_object_put_unlocked(obj);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(drm_gem_dumb_map_offset);
+
+/**
  * drm_gem_dumb_destroy - dumb fb callback helper for gem based drivers
  * @file: drm file-private structure to remove the dumb handle from
  * @dev: corresponding drm_device

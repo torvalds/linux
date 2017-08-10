@@ -245,7 +245,6 @@ struct ast_connector {
 
 struct ast_crtc {
 	struct drm_crtc base;
-	u8 lut_r[256], lut_g[256], lut_b[256];
 	struct drm_gem_object *cursor_bo;
 	uint64_t cursor_addr;
 	int cursor_width, cursor_height;

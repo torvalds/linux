@@ -715,7 +715,6 @@ static const struct drm_plane_funcs rcar_du_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
 	.reset = rcar_du_plane_reset,
-	.set_property = drm_atomic_helper_plane_set_property,
 	.destroy = drm_plane_cleanup,
 	.atomic_duplicate_state = rcar_du_plane_atomic_duplicate_state,
 	.atomic_destroy_state = rcar_du_plane_atomic_destroy_state,
@@ -761,8 +760,8 @@ int rcar_du_planes_init(struct rcar_du_group *rgrp)
 
 		ret = drm_universal_plane_init(rcdu->ddev, &plane->plane, crtcs,
 					       &rcar_du_plane_funcs, formats,
-					       ARRAY_SIZE(formats), type,
-					       NULL);
+					       ARRAY_SIZE(formats),
+					       NULL, type, NULL);
 		if (ret < 0)
 			return ret;
 

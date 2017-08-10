@@ -838,7 +838,7 @@ static void atmel_hlcdc_plane_destroy(struct drm_plane *p)
 	struct atmel_hlcdc_plane *plane = drm_plane_to_atmel_hlcdc_plane(p);
 
 	if (plane->base.fb)
-		drm_framebuffer_unreference(plane->base.fb);
+		drm_framebuffer_put(plane->base.fb);
 
 	drm_plane_cleanup(p);
 }
@@ -940,7 +940,7 @@ void atmel_hlcdc_plane_irq(struct atmel_hlcdc_plane *plane)
 			desc->name);
 }
 
-static struct drm_plane_helper_funcs atmel_hlcdc_layer_plane_helper_funcs = {
+static const struct drm_plane_helper_funcs atmel_hlcdc_layer_plane_helper_funcs = {
 	.atomic_check = atmel_hlcdc_plane_atomic_check,
 	.atomic_update = atmel_hlcdc_plane_atomic_update,
 	.atomic_disable = atmel_hlcdc_plane_atomic_disable,
@@ -987,7 +987,7 @@ static void atmel_hlcdc_plane_reset(struct drm_plane *p)
 		state = drm_plane_state_to_atmel_hlcdc_plane_state(p->state);
 
 		if (state->base.fb)
-			drm_framebuffer_unreference(state->base.fb);
+			drm_framebuffer_put(state->base.fb);
 
 		kfree(state);
 		p->state = NULL;
@@ -1025,7 +1025,7 @@ atmel_hlcdc_plane_atomic_duplicate_state(struct drm_plane *p)
 	}
 
 	if (copy->base.fb)
-		drm_framebuffer_reference(copy->base.fb);
+		drm_framebuffer_get(copy->base.fb);
 
 	return &copy->base;
 }
@@ -1044,15 +1044,14 @@ static void atmel_hlcdc_plane_atomic_destroy_state(struct drm_plane *p,
 	}
 
 	if (s->fb)
-		drm_framebuffer_unreference(s->fb);
+		drm_framebuffer_put(s->fb);
 
 	kfree(state);
 }
 
-static struct drm_plane_funcs layer_plane_funcs = {
+static const struct drm_plane_funcs layer_plane_funcs = {
 	.update_plane = drm_atomic_helper_update_plane,
 	.disable_plane = drm_atomic_helper_disable_plane,
-	.set_property = drm_atomic_helper_plane_set_property,
 	.destroy = atmel_hlcdc_plane_destroy,
 	.reset = atmel_hlcdc_plane_reset,
 	.atomic_duplicate_state = atmel_hlcdc_plane_atomic_duplicate_state,
@@ -1087,7 +1086,8 @@ static int atmel_hlcdc_plane_create(struct drm_device *dev,
 	ret = drm_universal_plane_init(dev, &plane->base, 0,
 				       &layer_plane_funcs,
 				       desc->formats->formats,
-				       desc->formats->nformats, type, NULL);
+				       desc->formats->nformats,
+				       NULL, type, NULL);
 	if (ret)
 		return ret;
 

@@ -393,32 +393,6 @@ err_handle_create:
 	return ERR_PTR(ret);
 }
 
-int rockchip_gem_dumb_map_offset(struct drm_file *file_priv,
-				 struct drm_device *dev, uint32_t handle,
-				 uint64_t *offset)
-{
-	struct drm_gem_object *obj;
-	int ret;
-
-	obj = drm_gem_object_lookup(file_priv, handle);
-	if (!obj) {
-		DRM_ERROR("failed to lookup gem object.\n");
-		return -EINVAL;
-	}
-
-	ret = drm_gem_create_mmap_offset(obj);
-	if (ret)
-		goto out;
-
-	*offset = drm_vma_node_offset_addr(&obj->vma_node);
-	DRM_DEBUG_KMS("offset = 0x%llx\n", *offset);
-
-out:
-	drm_gem_object_unreference_unlocked(obj);
-
-	return 0;
-}
-
 /*
  * rockchip_gem_dumb_create - (struct drm_driver)->dumb_create callback
  * function

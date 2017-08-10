@@ -320,7 +320,7 @@ static int vc4_create_rcl_bo(struct drm_device *dev, struct vc4_exec_info *exec,
 
 	size += xtiles * ytiles * loop_body_size;
 
-	setup->rcl = &vc4_bo_create(dev, size, true)->base;
+	setup->rcl = &vc4_bo_create(dev, size, true, VC4_BO_TYPE_RCL)->base;
 	if (IS_ERR(setup->rcl))
 		return PTR_ERR(setup->rcl);
 	list_add_tail(&to_vc4_bo(&setup->rcl->base)->unref_head,
