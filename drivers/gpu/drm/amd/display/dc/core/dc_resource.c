@@ -50,8 +50,15 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 	switch (asic_id.chip_family) {
 
 	case FAMILY_CI:
-	case FAMILY_KV:
 		dc_version = DCE_VERSION_8_0;
+		break;
+	case FAMILY_KV:
+		if (ASIC_REV_IS_KALINDI(asic_id.hw_internal_rev) ||
+		    ASIC_REV_IS_BHAVANI(asic_id.hw_internal_rev) ||
+		    ASIC_REV_IS_GODAVARI(asic_id.hw_internal_rev))
+			dc_version = DCE_VERSION_8_3;
+		else
+			dc_version = DCE_VERSION_8_1;
 		break;
 	case FAMILY_CZ:
 		dc_version = DCE_VERSION_11_0;
@@ -94,6 +101,8 @@ struct resource_pool *dc_create_resource_pool(
 
 	switch (dc_version) {
 	case DCE_VERSION_8_0:
+	case DCE_VERSION_8_1:
+	case DCE_VERSION_8_3:
 		res_pool = dce80_create_resource_pool(
 			num_virtual_links, dc);
 		break;

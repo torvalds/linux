@@ -37,6 +37,8 @@ bool dal_bios_parser_init_cmd_tbl_helper(
 {
 	switch (dce) {
 	case DCE_VERSION_8_0:
+	case DCE_VERSION_8_1:
+	case DCE_VERSION_8_3:
 		*h = dal_cmd_tbl_helper_dce80_get_table();
 		return true;
 

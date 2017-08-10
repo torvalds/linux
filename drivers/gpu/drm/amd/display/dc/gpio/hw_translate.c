@@ -65,6 +65,8 @@ bool dal_hw_translate_init(
 
 	switch (dce_version) {
 	case DCE_VERSION_8_0:
+	case DCE_VERSION_8_1:
+	case DCE_VERSION_8_3:
 		dal_hw_translate_dce80_init(translate);
 		return true;
 	case DCE_VERSION_10_0:

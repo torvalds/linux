@@ -578,6 +578,8 @@ static uint32_t dce110_get_pix_clk_dividers(
 
 	switch (cs->ctx->dce_version) {
 	case DCE_VERSION_8_0:
+	case DCE_VERSION_8_1:
+	case DCE_VERSION_8_3:
 	case DCE_VERSION_10_0:
 	case DCE_VERSION_11_0:
 		pll_calc_error =
@@ -862,6 +864,8 @@ static bool dce110_program_pix_clk(
 
 	switch (clock_source->ctx->dce_version) {
 	case DCE_VERSION_8_0:
+	case DCE_VERSION_8_1:
+	case DCE_VERSION_8_3:
 	case DCE_VERSION_10_0:
 	case DCE_VERSION_11_0:
 		bp_pc_params.reference_divider = pll_settings->reference_divider;
@@ -1209,6 +1213,8 @@ bool dce110_clk_src_construct(
 
 	switch (clk_src->base.ctx->dce_version) {
 	case DCE_VERSION_8_0:
+	case DCE_VERSION_8_1:
+	case DCE_VERSION_8_3:
 	case DCE_VERSION_10_0:
 	case DCE_VERSION_11_0:
 

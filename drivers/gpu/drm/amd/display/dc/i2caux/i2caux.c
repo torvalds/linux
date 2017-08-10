@@ -79,6 +79,8 @@ struct i2caux *dal_i2caux_create(
 
 	switch (ctx->dce_version) {
 	case DCE_VERSION_8_0:
+	case DCE_VERSION_8_1:
+	case DCE_VERSION_8_3:
 		return dal_i2caux_dce80_create(ctx);
 	case DCE_VERSION_11_2:
 		return dal_i2caux_dce112_create(ctx);
