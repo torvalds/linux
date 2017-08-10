@@ -861,7 +861,7 @@ static void st_pctl_dt_free_map(struct pinctrl_dev *pctldev,
 {
 }
 
-static struct pinctrl_ops st_pctlops = {
+static const struct pinctrl_ops st_pctlops = {
 	.get_groups_count	= st_pctl_get_groups_count,
 	.get_group_pins		= st_pctl_get_group_pins,
 	.get_group_name		= st_pctl_get_group_name,
@@ -928,7 +928,7 @@ static int st_pmx_set_gpio_direction(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static struct pinmux_ops st_pmxops = {
+static const struct pinmux_ops st_pmxops = {
 	.get_functions_count	= st_pmx_get_funcs_count,
 	.get_function_name	= st_pmx_get_fname,
 	.get_function_groups	= st_pmx_get_groups,
@@ -1025,7 +1025,7 @@ static void st_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 		ST_PINCONF_UNPACK_RT_DELAY(config));
 }
 
-static struct pinconf_ops st_confops = {
+static const struct pinconf_ops st_confops = {
 	.pin_config_get		= st_pinconf_get,
 	.pin_config_set		= st_pinconf_set,
 	.pin_config_dbg_show	= st_pinconf_dbg_show,
