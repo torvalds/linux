@@ -517,19 +517,20 @@ static int vimc_cap_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver vimc_cap_pdrv = {
-	.probe		= vimc_cap_probe,
-	.remove		= vimc_cap_remove,
-	.driver		= {
-		.name	= VIMC_CAP_DRV_NAME,
-	},
-};
-
 static const struct platform_device_id vimc_cap_driver_ids[] = {
 	{
 		.name           = VIMC_CAP_DRV_NAME,
 	},
 	{ }
+};
+
+static struct platform_driver vimc_cap_pdrv = {
+	.probe		= vimc_cap_probe,
+	.remove		= vimc_cap_remove,
+	.id_table	= vimc_cap_driver_ids,
+	.driver		= {
+		.name	= VIMC_CAP_DRV_NAME,
+	},
 };
 
 module_platform_driver(vimc_cap_pdrv);

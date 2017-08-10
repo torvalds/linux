@@ -92,7 +92,7 @@ static struct mbox_controller pcc_mbox_ctrl = {};
  */
 static struct mbox_chan *get_pcc_channel(int id)
 {
-	if (id < 0 || id > pcc_mbox_ctrl.num_chans)
+	if (id < 0 || id >= pcc_mbox_ctrl.num_chans)
 		return ERR_PTR(-ENOENT);
 
 	return &pcc_mbox_channels[id];

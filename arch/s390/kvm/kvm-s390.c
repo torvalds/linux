@@ -1324,7 +1324,7 @@ static long kvm_s390_get_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 {
 	uint8_t *keys;
 	uint64_t hva;
-	int i, r = 0;
+	int srcu_idx, i, r = 0;
 
 	if (args->flags != 0)
 		return -EINVAL;
@@ -1342,6 +1342,7 @@ static long kvm_s390_get_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 		return -ENOMEM;
 
 	down_read(&current->mm->mmap_sem);
+	srcu_idx = srcu_read_lock(&kvm->srcu);
 	for (i = 0; i < args->count; i++) {
 		hva = gfn_to_hva(kvm, args->start_gfn + i);
 		if (kvm_is_error_hva(hva)) {
@@ -1353,6 +1354,7 @@ static long kvm_s390_get_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 		if (r)
 			break;
 	}
+	srcu_read_unlock(&kvm->srcu, srcu_idx);
 	up_read(&current->mm->mmap_sem);
 
 	if (!r) {
@@ -1370,7 +1372,7 @@ static long kvm_s390_set_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 {
 	uint8_t *keys;
 	uint64_t hva;
-	int i, r = 0;
+	int srcu_idx, i, r = 0;
 
 	if (args->flags != 0)
 		return -EINVAL;
@@ -1396,6 +1398,7 @@ static long kvm_s390_set_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 		goto out;
 
 	down_read(&current->mm->mmap_sem);
+	srcu_idx = srcu_read_lock(&kvm->srcu);
 	for (i = 0; i < args->count; i++) {
 		hva = gfn_to_hva(kvm, args->start_gfn + i);
 		if (kvm_is_error_hva(hva)) {
@@ -1413,6 +1416,7 @@ static long kvm_s390_set_skeys(struct kvm *kvm, struct kvm_s390_skeys *args)
 		if (r)
 			break;
 	}
+	srcu_read_unlock(&kvm->srcu, srcu_idx);
 	up_read(&current->mm->mmap_sem);
 out:
 	kvfree(keys);

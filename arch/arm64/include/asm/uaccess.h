@@ -69,7 +69,7 @@ static inline void set_fs(mm_segment_t fs)
  */
 #define __range_ok(addr, size)						\
 ({									\
-	unsigned long __addr = (unsigned long __force)(addr);		\
+	unsigned long __addr = (unsigned long)(addr);			\
 	unsigned long flag, roksum;					\
 	__chk_user_ptr(addr);						\
 	asm("adds %1, %1, %3; ccmp %1, %4, #2, cc; cset %0, ls"		\

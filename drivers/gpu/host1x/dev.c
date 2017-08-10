@@ -186,8 +186,13 @@ static int host1x_probe(struct platform_device *pdev)
 			return -ENOMEM;
 
 		err = iommu_attach_device(host->domain, &pdev->dev);
-		if (err)
+		if (err == -ENODEV) {
+			iommu_domain_free(host->domain);
+			host->domain = NULL;
+			goto skip_iommu;
+		} else if (err) {
 			goto fail_free_domain;
+		}
 
 		geometry = &host->domain->geometry;
 
@@ -198,6 +203,7 @@ static int host1x_probe(struct platform_device *pdev)
 		host->iova_end = geometry->aperture_end;
 	}
 
+skip_iommu:
 	err = host1x_channel_list_init(&host->channel_list,
 				       host->info->nb_channels);
 	if (err) {
