@@ -523,9 +523,9 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 
 		rndis_msg_size += NDIS_VLAN_PPI_SIZE;
 		ppi = init_ppi_data(rndis_msg, NDIS_VLAN_PPI_SIZE,
-					IEEE_8021Q_INFO);
-		vlan = (struct ndis_pkt_8021q_info *)((void *)ppi +
-						ppi->ppi_offset);
+				    IEEE_8021Q_INFO);
+
+		vlan = (void *)ppi + ppi->ppi_offset;
 		vlan->vlanid = skb->vlan_tci & VLAN_VID_MASK;
 		vlan->pri = (skb->vlan_tci & VLAN_PRIO_MASK) >>
 				VLAN_PRIO_SHIFT;
@@ -538,8 +538,7 @@ static int netvsc_start_xmit(struct sk_buff *skb, struct net_device *net)
 		ppi = init_ppi_data(rndis_msg, NDIS_LSO_PPI_SIZE,
 				    TCP_LARGESEND_PKTINFO);
 
-		lso_info = (struct ndis_tcp_lso_info *)((void *)ppi +
-							ppi->ppi_offset);
+		lso_info = (void *)ppi + ppi->ppi_offset;
 
 		lso_info->lso_v2_transmit.type = NDIS_TCP_LARGE_SEND_OFFLOAD_V2_TYPE;
 		if (skb->protocol == htons(ETH_P_IP)) {
