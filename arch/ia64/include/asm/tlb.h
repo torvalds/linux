@@ -187,8 +187,10 @@ arch_tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
  */
 static inline void
 arch_tlb_finish_mmu(struct mmu_gather *tlb,
-			unsigned long start, unsigned long end)
+			unsigned long start, unsigned long end, bool force)
 {
+	if (force)
+		tlb->need_flush = 1;
 	/*
 	 * Note: tlb->nr may be 0 at this point, so we can't rely on tlb->start_addr and
 	 * tlb->end_addr.

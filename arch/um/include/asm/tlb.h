@@ -87,8 +87,13 @@ tlb_flush_mmu(struct mmu_gather *tlb)
  */
 static inline void
 arch_tlb_finish_mmu(struct mmu_gather *tlb,
-		unsigned long start, unsigned long end)
+		unsigned long start, unsigned long end, bool force)
 {
+	if (force) {
+		tlb->start = start;
+		tlb->end = end;
+		tlb->need_flush = 1;
+	}
 	tlb_flush_mmu(tlb);
 
 	/* keep the page table cache within bounds */

@@ -49,9 +49,9 @@ arch_tlb_gather_mmu(struct mmu_gather *tlb, struct mm_struct *mm,
 
 static inline void
 arch_tlb_finish_mmu(struct mmu_gather *tlb,
-		unsigned long start, unsigned long end)
+		unsigned long start, unsigned long end, bool force)
 {
-	if (tlb->fullmm)
+	if (tlb->fullmm || force)
 		flush_tlb_mm(tlb->mm);
 
 	/* keep the page table cache within bounds */
