@@ -47,6 +47,7 @@
 
 #define RING_SIZE_MIN 64
 #define LINKCHANGE_INT (2 * HZ)
+#define VF_TAKEOVER_INT (HZ / 10)
 
 static int ring_size = 128;
 module_param(ring_size, int, S_IRUGO);
@@ -1559,7 +1560,9 @@ static int netvsc_vf_join(struct net_device *vf_netdev,
 	/* set slave flag before open to prevent IPv6 addrconf */
 	vf_netdev->flags |= IFF_SLAVE;
 
-	schedule_work(&ndev_ctx->vf_takeover);
+	schedule_delayed_work(&ndev_ctx->vf_takeover, VF_TAKEOVER_INT);
+
+	call_netdevice_notifiers(NETDEV_JOIN, vf_netdev);
 
 	netdev_info(vf_netdev, "joined to %s\n", ndev->name);
 	return 0;
@@ -1574,8 +1577,6 @@ static void __netvsc_vf_setup(struct net_device *ndev,
 			      struct net_device *vf_netdev)
 {
 	int ret;
-
-	call_netdevice_notifiers(NETDEV_JOIN, vf_netdev);
 
 	/* Align MTU of VF with master */
 	ret = dev_set_mtu(vf_netdev, ndev->mtu);
@@ -1597,12 +1598,12 @@ static void __netvsc_vf_setup(struct net_device *ndev,
 static void netvsc_vf_setup(struct work_struct *w)
 {
 	struct net_device_context *ndev_ctx
-		= container_of(w, struct net_device_context, vf_takeover);
+		= container_of(w, struct net_device_context, vf_takeover.work);
 	struct net_device *ndev = hv_get_drvdata(ndev_ctx->device_ctx);
 	struct net_device *vf_netdev;
 
 	if (!rtnl_trylock()) {
-		schedule_work(w);
+		schedule_delayed_work(&ndev_ctx->vf_takeover, 0);
 		return;
 	}
 
@@ -1706,7 +1707,7 @@ static int netvsc_unregister_vf(struct net_device *vf_netdev)
 		return NOTIFY_DONE;
 
 	net_device_ctx = netdev_priv(ndev);
-	cancel_work_sync(&net_device_ctx->vf_takeover);
+	cancel_delayed_work_sync(&net_device_ctx->vf_takeover);
 
 	netdev_info(ndev, "VF unregistering: %s\n", vf_netdev->name);
 
@@ -1748,7 +1749,7 @@ static int netvsc_probe(struct hv_device *dev,
 
 	spin_lock_init(&net_device_ctx->lock);
 	INIT_LIST_HEAD(&net_device_ctx->reconfig_events);
-	INIT_WORK(&net_device_ctx->vf_takeover, netvsc_vf_setup);
+	INIT_DELAYED_WORK(&net_device_ctx->vf_takeover, netvsc_vf_setup);
 
 	net_device_ctx->vf_stats
 		= netdev_alloc_pcpu_stats(struct netvsc_vf_pcpu_stats);
