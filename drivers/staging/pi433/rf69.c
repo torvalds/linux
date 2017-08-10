@@ -122,8 +122,7 @@ int rf69_set_modulation_shaping(struct spi_device *spi, enum modShaping modShapi
 		case shaping0_3: return WRITE_REG(REG_DATAMODUL, (READ_REG(REG_DATAMODUL) & ~MASK_DATAMODUL_MODULATION_SHAPE) | DATAMODUL_MODULATION_SHAPE_0_5);
 		default:	 INVALID_PARAM;
 		}
-	}
-	else {
+	} else {
 		switch (modShaping) {
 		case shapingOff: return WRITE_REG(REG_DATAMODUL, (READ_REG(REG_DATAMODUL) & ~MASK_DATAMODUL_MODULATION_SHAPE) | DATAMODUL_MODULATION_SHAPE_NONE);
 		case shapingBR:	 return WRITE_REG(REG_DATAMODUL, (READ_REG(REG_DATAMODUL) & ~MASK_DATAMODUL_MODULATION_SHAPE) | DATAMODUL_MODULATION_SHAPE_BR);
