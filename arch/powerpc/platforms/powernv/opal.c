@@ -853,6 +853,9 @@ static int __init opal_init(void)
 	/* Initialise OPAL powercap interface */
 	opal_powercap_init();
 
+	/* Initialise OPAL Power-Shifting-Ratio interface */
+	opal_psr_init();
+
 	return 0;
 }
 machine_subsys_initcall(powernv, opal_init);
