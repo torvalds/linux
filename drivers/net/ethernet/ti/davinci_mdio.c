@@ -159,8 +159,10 @@ static int davinci_mdio_reset(struct mii_bus *bus)
 
 	/* dump hardware version info */
 	ver = __raw_readl(&data->regs->version);
-	dev_info(data->dev, "davinci mdio revision %d.%d\n",
-		 (ver >> 8) & 0xff, ver & 0xff);
+	dev_info(data->dev,
+		 "davinci mdio revision %d.%d, bus freq %ld\n",
+		 (ver >> 8) & 0xff, ver & 0xff,
+		 data->pdata.bus_freq);
 
 	if (data->skip_scan)
 		goto done;
