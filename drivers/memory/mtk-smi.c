@@ -327,6 +327,7 @@ static int mtk_smi_common_probe(struct platform_device *pdev)
 	struct mtk_smi *common;
 	struct resource *res;
 	enum mtk_smi_gen smi_gen;
+	int ret;
 
 	if (!dev->pm_domain)
 		return -EPROBE_DEFER;
@@ -361,7 +362,9 @@ static int mtk_smi_common_probe(struct platform_device *pdev)
 		if (IS_ERR(common->clk_async))
 			return PTR_ERR(common->clk_async);
 
-		clk_prepare_enable(common->clk_async);
+		ret = clk_prepare_enable(common->clk_async);
+		if (ret)
+			return ret;
 	}
 	pm_runtime_enable(dev);
 	platform_set_drvdata(pdev, common);
