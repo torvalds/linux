@@ -2439,6 +2439,12 @@ struct rtable *ip_route_output_key_hash_rcu(struct net *net, struct flowi4 *fl4,
 		/* L3 master device is the loopback for that domain */
 		dev_out = l3mdev_master_dev_rcu(FIB_RES_DEV(*res)) ? :
 			net->loopback_dev;
+
+		/* make sure orig_oif points to fib result device even
+		 * though packet rx/tx happens over loopback or l3mdev
+		 */
+		orig_oif = FIB_RES_OIF(*res);
+
 		fl4->flowi4_oif = dev_out->ifindex;
 		flags |= RTCF_LOCAL;
 		goto make_route;
