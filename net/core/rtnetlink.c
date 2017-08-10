@@ -172,7 +172,7 @@ int __rtnl_register(int protocol, int msgtype,
 	BUG_ON(protocol < 0 || protocol > RTNL_FAMILY_MAX);
 	msgindex = rtm_msgindex(msgtype);
 
-	tab = rcu_dereference(rtnl_msg_handlers[protocol]);
+	tab = rcu_dereference_raw(rtnl_msg_handlers[protocol]);
 	if (tab == NULL) {
 		tab = kcalloc(RTM_NR_MSGTYPES, sizeof(*tab), GFP_KERNEL);
 		if (tab == NULL)
