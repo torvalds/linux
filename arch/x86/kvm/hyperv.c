@@ -649,9 +649,10 @@ void kvm_hv_process_stimers(struct kvm_vcpu *vcpu)
 				}
 
 				if ((stimer->config & HV_STIMER_ENABLE) &&
-				    stimer->count)
-					stimer_start(stimer);
-				else
+				    stimer->count) {
+					if (!stimer->msg_pending)
+						stimer_start(stimer);
+				} else
 					stimer_cleanup(stimer);
 			}
 		}

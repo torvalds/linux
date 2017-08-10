@@ -1548,6 +1548,13 @@ static const struct dmi_system_id chv_no_valid_mask[] = {
 		},
 	},
 	{
+		.ident = "HP Chromebook 11 G5 (Setzer)",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Setzer"),
+		},
+	},
+	{
 		.ident = "Acer Chromebook R11 (Cyan)",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "GOOGLE"),

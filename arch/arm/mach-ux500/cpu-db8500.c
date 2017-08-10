@@ -133,6 +133,7 @@ static irqreturn_t db8500_pmu_handler(int irq, void *dev, irq_handler_t handler)
 
 static struct arm_pmu_platdata db8500_pmu_platdata = {
 	.handle_irq		= db8500_pmu_handler,
+	.irq_flags		= IRQF_NOBALANCING | IRQF_NO_THREAD,
 };
 
 static struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {

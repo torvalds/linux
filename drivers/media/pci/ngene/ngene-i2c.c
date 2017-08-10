@@ -118,7 +118,7 @@ static int ngene_i2c_master_xfer(struct i2c_adapter *adapter,
 		(struct ngene_channel *)i2c_get_adapdata(adapter);
 	struct ngene *dev = chan->dev;
 
-	down(&dev->i2c_switch_mutex);
+	mutex_lock(&dev->i2c_switch_mutex);
 	ngene_i2c_set_bus(dev, chan->number);
 
 	if (num == 2 && msg[1].flags & I2C_M_RD && !(msg[0].flags & I2C_M_RD))
@@ -136,11 +136,11 @@ static int ngene_i2c_master_xfer(struct i2c_adapter *adapter,
 					    msg[0].buf, msg[0].len, 0))
 			goto done;
 
-	up(&dev->i2c_switch_mutex);
+	mutex_unlock(&dev->i2c_switch_mutex);
 	return -EIO;
 
 done:
-	up(&dev->i2c_switch_mutex);
+	mutex_unlock(&dev->i2c_switch_mutex);
 	return num;
 }
 

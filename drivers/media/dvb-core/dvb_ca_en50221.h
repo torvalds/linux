@@ -41,6 +41,8 @@
  * @write_attribute_mem: function for writing attribute memory on the CAM
  * @read_cam_control:	function for reading the control interface on the CAM
  * @write_cam_control:	function for reading the control interface on the CAM
+ * @read_data:		function for reading data (block mode)
+ * @write_data:		function for writing data (block mode)
  * @slot_reset:		function to reset the CAM slot
  * @slot_shutdown:	function to shutdown a CAM slot
  * @slot_ts_enable:	function to enable the Transport Stream on a CAM slot
@@ -65,6 +67,11 @@ struct dvb_ca_en50221 {
 				int slot, u8 address);
 	int (*write_cam_control)(struct dvb_ca_en50221 *ca,
 				 int slot, u8 address, u8 value);
+
+	int (*read_data)(struct dvb_ca_en50221 *ca,
+				int slot, u8 *ebuf, int ecount);
+	int (*write_data)(struct dvb_ca_en50221 *ca,
+				int slot, u8 *ebuf, int ecount);
 
 	int (*slot_reset)(struct dvb_ca_en50221 *ca, int slot);
 	int (*slot_shutdown)(struct dvb_ca_en50221 *ca, int slot);

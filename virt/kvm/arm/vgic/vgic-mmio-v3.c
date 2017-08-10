@@ -369,7 +369,7 @@ static void vgic_mmio_write_propbase(struct kvm_vcpu *vcpu,
 		return;
 
 	do {
-		old_propbaser = dist->propbaser;
+		old_propbaser = READ_ONCE(dist->propbaser);
 		propbaser = old_propbaser;
 		propbaser = update_64bit_reg(propbaser, addr & 4, len, val);
 		propbaser = vgic_sanitise_propbaser(propbaser);
@@ -397,7 +397,7 @@ static void vgic_mmio_write_pendbase(struct kvm_vcpu *vcpu,
 		return;
 
 	do {
-		old_pendbaser = vgic_cpu->pendbaser;
+		old_pendbaser = READ_ONCE(vgic_cpu->pendbaser);
 		pendbaser = old_pendbaser;
 		pendbaser = update_64bit_reg(pendbaser, addr & 4, len, val);
 		pendbaser = vgic_sanitise_pendbaser(pendbaser);

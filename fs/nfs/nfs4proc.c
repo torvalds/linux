@@ -2236,7 +2236,7 @@ static int nfs4_opendata_access(struct rpc_cred *cred,
 				int openflags)
 {
 	struct nfs_access_entry cache;
-	u32 mask;
+	u32 mask, flags;
 
 	/* access call failed or for some reason the server doesn't
 	 * support any access modes -- defer access call until later */
@@ -2250,16 +2250,20 @@ static int nfs4_opendata_access(struct rpc_cred *cred,
 	 */
 	if (openflags & __FMODE_EXEC) {
 		/* ONLY check for exec rights */
-		mask = MAY_EXEC;
+		if (S_ISDIR(state->inode->i_mode))
+			mask = NFS4_ACCESS_LOOKUP;
+		else
+			mask = NFS4_ACCESS_EXECUTE;
 	} else if ((fmode & FMODE_READ) && !opendata->file_created)
-		mask = MAY_READ;
+		mask = NFS4_ACCESS_READ;
 
 	cache.cred = cred;
 	cache.jiffies = jiffies;
 	nfs_access_set_mask(&cache, opendata->o_res.access_result);
 	nfs_access_add_cache(state->inode, &cache);
 
-	if ((mask & ~cache.mask & (MAY_READ | MAY_EXEC)) == 0)
+	flags = NFS4_ACCESS_READ | NFS4_ACCESS_EXECUTE | NFS4_ACCESS_LOOKUP;
+	if ((mask & ~cache.mask & flags) == 0)
 		return 0;
 
 	return -EACCES;
@@ -6492,7 +6496,7 @@ nfs4_retry_setlk(struct nfs4_state *state, int cmd, struct file_lock *request)
 		set_current_state(TASK_INTERRUPTIBLE);
 		spin_unlock_irqrestore(&q->lock, flags);
 
-		freezable_schedule_timeout_interruptible(NFS4_LOCK_MAXTIMEOUT);
+		freezable_schedule_timeout(NFS4_LOCK_MAXTIMEOUT);
 	}
 
 	finish_wait(q, &wait);
@@ -7457,7 +7461,7 @@ static void nfs4_exchange_id_done(struct rpc_task *task, void *data)
 			cdata->res.server_scope = NULL;
 		}
 		/* Save the EXCHANGE_ID verifier session trunk tests */
-		memcpy(clp->cl_confirm.data, cdata->args.verifier->data,
+		memcpy(clp->cl_confirm.data, cdata->args.verifier.data,
 		       sizeof(clp->cl_confirm.data));
 	}
 out:
@@ -7470,10 +7474,6 @@ static void nfs4_exchange_id_release(void *data)
 	struct nfs41_exchange_id_data *cdata =
 					(struct nfs41_exchange_id_data *)data;
 
-	if (cdata->xprt) {
-		xprt_put(cdata->xprt);
-		rpc_clnt_xprt_switch_put(cdata->args.client->cl_rpcclient);
-	}
 	nfs_put_client(cdata->args.client);
 	kfree(cdata->res.impl_id);
 	kfree(cdata->res.server_scope);
@@ -7494,7 +7494,6 @@ static const struct rpc_call_ops nfs4_exchange_id_call_ops = {
 static int _nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred,
 			u32 sp4_how, struct rpc_xprt *xprt)
 {
-	nfs4_verifier verifier;
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_EXCHANGE_ID],
 		.rpc_cred = cred,
@@ -7503,7 +7502,7 @@ static int _nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred,
 		.rpc_client = clp->cl_rpcclient,
 		.callback_ops = &nfs4_exchange_id_call_ops,
 		.rpc_message = &msg,
-		.flags = RPC_TASK_ASYNC | RPC_TASK_TIMEOUT,
+		.flags = RPC_TASK_TIMEOUT,
 	};
 	struct nfs41_exchange_id_data *calldata;
 	struct rpc_task *task;
@@ -7518,8 +7517,7 @@ static int _nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred,
 		return -ENOMEM;
 	}
 
-	if (!xprt)
-		nfs4_init_boot_verifier(clp, &verifier);
+	nfs4_init_boot_verifier(clp, &calldata->args.verifier);
 
 	status = nfs4_init_uniform_client_string(clp);
 	if (status)
@@ -7558,11 +7556,9 @@ static int _nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred,
 	if (xprt) {
 		calldata->xprt = xprt;
 		task_setup_data.rpc_xprt = xprt;
-		task_setup_data.flags =
-				RPC_TASK_SOFT|RPC_TASK_SOFTCONN|RPC_TASK_ASYNC;
-		calldata->args.verifier = &clp->cl_confirm;
-	} else {
-		calldata->args.verifier = &verifier;
+		task_setup_data.flags |= RPC_TASK_SOFTCONN;
+		memcpy(calldata->args.verifier.data, clp->cl_confirm.data,
+				sizeof(calldata->args.verifier.data));
 	}
 	calldata->args.client = clp;
 #ifdef CONFIG_NFS_V4_1_MIGRATION
@@ -7581,12 +7577,7 @@ static int _nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred,
 	if (IS_ERR(task))
 		return PTR_ERR(task);
 
-	if (!xprt) {
-		status = rpc_wait_for_completion_task(task);
-		if (!status)
-			status = calldata->rpc_status;
-	} else	/* session trunking test */
-		status = calldata->rpc_status;
+	status = calldata->rpc_status;
 
 	rpc_put_task(task);
 out:
