@@ -299,6 +299,10 @@ ifdef CONFIG_64BIT
 bootvars-y	+= ADDR_BITS=64
 endif
 
+# This is required to get dwarf unwinding tables into .debug_frame
+# instead of .eh_frame so we don't discard them.
+KBUILD_CFLAGS += -fno-asynchronous-unwind-tables
+
 LDFLAGS			+= -m $(ld-emul)
 
 ifdef CONFIG_MIPS
