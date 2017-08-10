@@ -639,6 +639,7 @@ intel_th_gth_set_output(struct intel_th_device *thdev, unsigned int master)
 static int intel_th_gth_probe(struct intel_th_device *thdev)
 {
 	struct device *dev = &thdev->dev;
+	struct intel_th *th = dev_get_drvdata(dev->parent);
 	struct gth_device *gth;
 	struct resource *res;
 	void __iomem *base;
@@ -660,6 +661,8 @@ static int intel_th_gth_probe(struct intel_th_device *thdev)
 	gth->base = base;
 	spin_lock_init(&gth->gth_lock);
 
+	dev_set_drvdata(dev, gth);
+
 	/*
 	 * Host mode can be signalled via SW means or via SCRPD_DEBUGGER_IN_USE
 	 * bit. Either way, don't reset HW in this case, and don't export any
@@ -667,7 +670,7 @@ static int intel_th_gth_probe(struct intel_th_device *thdev)
 	 * drivers to ports, see intel_th_gth_assign().
 	 */
 	if (thdev->host_mode)
-		goto done;
+		return 0;
 
 	ret = intel_th_gth_reset(gth);
 	if (ret) {
@@ -676,7 +679,7 @@ static int intel_th_gth_probe(struct intel_th_device *thdev)
 
 		thdev->host_mode = true;
 
-		goto done;
+		return 0;
 	}
 
 	for (i = 0; i < TH_CONFIGURABLE_MASTERS + 1; i++)
@@ -687,6 +690,13 @@ static int intel_th_gth_probe(struct intel_th_device *thdev)
 		gth->output[i].index = i;
 		gth->output[i].port_type =
 			gth_output_parm_get(gth, i, TH_OUTPUT_PARM(port));
+		if (gth->output[i].port_type == GTH_NONE)
+			continue;
+
+		ret = intel_th_output_enable(th, gth->output[i].port_type);
+		/* -ENODEV is ok, we just won't have that device enumerated */
+		if (ret && ret != -ENODEV)
+			return ret;
 	}
 
 	if (intel_th_output_attributes(gth) ||
@@ -697,9 +707,6 @@ static int intel_th_gth_probe(struct intel_th_device *thdev)
 			sysfs_remove_group(&gth->dev->kobj, &gth->output_group);
 		return -ENOMEM;
 	}
-
-done:
-	dev_set_drvdata(dev, gth);
 
 	return 0;
 }

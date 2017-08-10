@@ -101,17 +101,53 @@ out_pm:
 	return ret;
 }
 
+static void intel_th_device_remove(struct intel_th_device *thdev);
+
 static int intel_th_remove(struct device *dev)
 {
 	struct intel_th_driver *thdrv = to_intel_th_driver(dev->driver);
 	struct intel_th_device *thdev = to_intel_th_device(dev);
-	struct intel_th_device *hub = to_intel_th_device(dev->parent);
+	struct intel_th_device *hub = to_intel_th_hub(thdev);
 	int err;
 
 	if (thdev->type == INTEL_TH_SWITCH) {
+		struct intel_th *th = to_intel_th(hub);
+		int i, lowest;
+
+		/* disconnect outputs */
 		err = device_for_each_child(dev, thdev, intel_th_child_remove);
 		if (err)
 			return err;
+
+		/*
+		 * Remove outputs, that is, hub's children: they are created
+		 * at hub's probe time by having the hub call
+		 * intel_th_output_enable() for each of them.
+		 */
+		for (i = 0, lowest = -1; i < th->num_thdevs; i++) {
+			/*
+			 * Move the non-output devices from higher up the
+			 * th->thdev[] array to lower positions to maintain
+			 * a contiguous array.
+			 */
+			if (th->thdev[i]->type != INTEL_TH_OUTPUT) {
+				if (lowest >= 0) {
+					th->thdev[lowest] = th->thdev[i];
+					th->thdev[i] = NULL;
+					++lowest;
+				}
+
+				continue;
+			}
+
+			if (lowest == -1)
+				lowest = i;
+
+			intel_th_device_remove(th->thdev[i]);
+			th->thdev[i] = NULL;
+		}
+
+		th->num_thdevs = lowest;
 	}
 
 	if (thdrv->attr_group)
@@ -377,7 +413,7 @@ static const struct intel_th_subdevice {
 	unsigned		otype;
 	unsigned		scrpd;
 	int			id;
-} intel_th_subdevices[TH_SUBDEVICE_MAX] = {
+} intel_th_subdevices[] = {
 	{
 		.nres	= 1,
 		.res	= {
@@ -511,98 +547,181 @@ static inline void intel_th_request_hub_module_flush(struct intel_th *th)
 }
 #endif /* CONFIG_MODULES */
 
-static int intel_th_populate(struct intel_th *th, struct resource *devres,
-			     unsigned int ndevres, int irq)
+static struct intel_th_device *
+intel_th_subdevice_alloc(struct intel_th *th,
+			 const struct intel_th_subdevice *subdev)
 {
+	struct intel_th_device *thdev;
 	struct resource res[3];
 	unsigned int req = 0;
-	int src, dst, err;
+	int r, err;
+
+	thdev = intel_th_device_alloc(th, subdev->type, subdev->name,
+				      subdev->id);
+	if (!thdev)
+		return ERR_PTR(-ENOMEM);
+
+
+	memcpy(res, subdev->res,
+	       sizeof(struct resource) * subdev->nres);
+
+	for (r = 0; r < subdev->nres; r++) {
+		struct resource *devres = th->resource;
+		int bar = TH_MMIO_CONFIG;
+
+		/*
+		 * Take .end == 0 to mean 'take the whole bar',
+		 * .start then tells us which bar it is. Default to
+		 * TH_MMIO_CONFIG.
+		 */
+		if (!res[r].end && res[r].flags == IORESOURCE_MEM) {
+			bar = res[r].start;
+			res[r].start = 0;
+			res[r].end = resource_size(&devres[bar]) - 1;
+		}
+
+		if (res[r].flags & IORESOURCE_MEM) {
+			res[r].start	+= devres[bar].start;
+			res[r].end	+= devres[bar].start;
+
+			dev_dbg(th->dev, "%s:%d @ %pR\n",
+				subdev->name, r, &res[r]);
+		} else if (res[r].flags & IORESOURCE_IRQ) {
+			res[r].start	= th->irq;
+		}
+	}
+
+	err = intel_th_device_add_resources(thdev, res, subdev->nres);
+	if (err) {
+		put_device(&thdev->dev);
+		goto fail_put_device;
+	}
+
+	if (subdev->type == INTEL_TH_OUTPUT) {
+		thdev->dev.devt = MKDEV(th->major, th->num_thdevs);
+		thdev->output.type = subdev->otype;
+		thdev->output.port = -1;
+		thdev->output.scratchpad = subdev->scrpd;
+	} else if (subdev->type == INTEL_TH_SWITCH) {
+		thdev->host_mode = host_mode;
+		th->hub = thdev;
+	}
+
+	err = device_add(&thdev->dev);
+	if (err) {
+		put_device(&thdev->dev);
+		goto fail_free_res;
+	}
+
+	/* need switch driver to be loaded to enumerate the rest */
+	if (subdev->type == INTEL_TH_SWITCH && !req) {
+		err = intel_th_request_hub_module(th);
+		if (!err)
+			req++;
+	}
+
+	return thdev;
+
+fail_free_res:
+	kfree(thdev->resource);
+
+fail_put_device:
+	put_device(&thdev->dev);
+
+	return ERR_PTR(err);
+}
+
+/**
+ * intel_th_output_enable() - find and enable a device for a given output type
+ * @th:		Intel TH instance
+ * @otype:	output type
+ *
+ * Go through the unallocated output devices, find the first one whos type
+ * matches @otype and instantiate it. These devices are removed when the hub
+ * device is removed, see intel_th_remove().
+ */
+int intel_th_output_enable(struct intel_th *th, unsigned int otype)
+{
+	struct intel_th_device *thdev;
+	int src = 0, dst = 0;
+
+	for (src = 0, dst = 0; dst <= th->num_thdevs; src++, dst++) {
+		for (; src < ARRAY_SIZE(intel_th_subdevices); src++) {
+			if (intel_th_subdevices[src].type != INTEL_TH_OUTPUT)
+				continue;
+
+			if (intel_th_subdevices[src].otype != otype)
+				continue;
+
+			break;
+		}
+
+		/* no unallocated matching subdevices */
+		if (src == ARRAY_SIZE(intel_th_subdevices))
+			return -ENODEV;
+
+		for (; dst < th->num_thdevs; dst++) {
+			if (th->thdev[dst]->type != INTEL_TH_OUTPUT)
+				continue;
+
+			if (th->thdev[dst]->output.type != otype)
+				continue;
+
+			break;
+		}
+
+		/*
+		 * intel_th_subdevices[src] matches our requirements and is
+		 * not matched in th::thdev[]
+		 */
+		if (dst == th->num_thdevs)
+			goto found;
+	}
+
+	return -ENODEV;
+
+found:
+	thdev = intel_th_subdevice_alloc(th, &intel_th_subdevices[src]);
+	if (IS_ERR(thdev))
+		return PTR_ERR(thdev);
+
+	th->thdev[th->num_thdevs++] = thdev;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(intel_th_output_enable);
+
+static int intel_th_populate(struct intel_th *th)
+{
+	int src;
 
 	/* create devices for each intel_th_subdevice */
-	for (src = 0, dst = 0; src < ARRAY_SIZE(intel_th_subdevices); src++) {
+	for (src = 0; src < ARRAY_SIZE(intel_th_subdevices); src++) {
 		const struct intel_th_subdevice *subdev =
 			&intel_th_subdevices[src];
 		struct intel_th_device *thdev;
-		int r;
 
 		/* only allow SOURCE and SWITCH devices in host mode */
 		if (host_mode && subdev->type == INTEL_TH_OUTPUT)
 			continue;
 
-		thdev = intel_th_device_alloc(th, subdev->type, subdev->name,
-					      subdev->id);
-		if (!thdev) {
-			err = -ENOMEM;
-			goto kill_subdevs;
-		}
+		/*
+		 * don't enable port OUTPUTs in this path; SWITCH enables them
+		 * via intel_th_output_enable()
+		 */
+		if (subdev->type == INTEL_TH_OUTPUT &&
+		    subdev->otype != GTH_NONE)
+			continue;
 
-		memcpy(res, subdev->res,
-		       sizeof(struct resource) * subdev->nres);
+		thdev = intel_th_subdevice_alloc(th, subdev);
+		/* note: caller should free subdevices from th::thdev[] */
+		if (IS_ERR(thdev))
+			return PTR_ERR(thdev);
 
-		for (r = 0; r < subdev->nres; r++) {
-			int bar = TH_MMIO_CONFIG;
-
-			/*
-			 * Take .end == 0 to mean 'take the whole bar',
-			 * .start then tells us which bar it is. Default to
-			 * TH_MMIO_CONFIG.
-			 */
-			if (!res[r].end && res[r].flags == IORESOURCE_MEM) {
-				bar = res[r].start;
-				res[r].start = 0;
-				res[r].end = resource_size(&devres[bar]) - 1;
-			}
-
-			if (res[r].flags & IORESOURCE_MEM) {
-				res[r].start	+= devres[bar].start;
-				res[r].end	+= devres[bar].start;
-
-				dev_dbg(th->dev, "%s:%d @ %pR\n",
-					subdev->name, r, &res[r]);
-			} else if (res[r].flags & IORESOURCE_IRQ) {
-				res[r].start	= irq;
-			}
-		}
-
-		err = intel_th_device_add_resources(thdev, res, subdev->nres);
-		if (err) {
-			put_device(&thdev->dev);
-			goto kill_subdevs;
-		}
-
-		if (subdev->type == INTEL_TH_OUTPUT) {
-			thdev->dev.devt = MKDEV(th->major, dst);
-			thdev->output.type = subdev->otype;
-			thdev->output.port = -1;
-			thdev->output.scratchpad = subdev->scrpd;
-		} else if (subdev->type == INTEL_TH_SWITCH) {
-			thdev->host_mode = host_mode;
-		}
-
-		err = device_add(&thdev->dev);
-		if (err) {
-			put_device(&thdev->dev);
-			goto kill_subdevs;
-		}
-
-		/* need switch driver to be loaded to enumerate the rest */
-		if (subdev->type == INTEL_TH_SWITCH && !req) {
-			th->hub = thdev;
-			err = intel_th_request_hub_module(th);
-			if (!err)
-				req++;
-		}
-
-		th->thdev[dst++] = thdev;
+		th->thdev[th->num_thdevs++] = thdev;
 	}
 
 	return 0;
-
-kill_subdevs:
-	for (; dst >= 0; dst--)
-		intel_th_device_remove(th->thdev[dst]);
-
-	return err;
 }
 
 static int match_devt(struct device *dev, void *data)
@@ -679,23 +798,24 @@ intel_th_alloc(struct device *dev, struct resource *devres,
 	}
 	th->dev = dev;
 
+	th->resource = devres;
+	th->num_resources = ndevres;
+	th->irq = irq;
+
 	dev_set_drvdata(dev, th);
 
 	pm_runtime_no_callbacks(dev);
 	pm_runtime_put(dev);
 	pm_runtime_allow(dev);
 
-	err = intel_th_populate(th, devres, ndevres, irq);
-	if (err)
-		goto err_chrdev;
+	err = intel_th_populate(th);
+	if (err) {
+		/* free the subdevices and undo everything */
+		intel_th_free(th);
+		return ERR_PTR(err);
+	}
 
 	return th;
-
-err_chrdev:
-	pm_runtime_forbid(dev);
-
-	__unregister_chrdev(th->major, 0, TH_POSSIBLE_OUTPUTS,
-			    "intel_th/output");
 
 err_ida:
 	ida_simple_remove(&intel_th_ida, th->id);
@@ -712,11 +832,15 @@ void intel_th_free(struct intel_th *th)
 	int i;
 
 	intel_th_request_hub_module_flush(th);
-	for (i = 0; i < TH_SUBDEVICE_MAX; i++)
-		if (th->thdev[i] && th->thdev[i] != th->hub)
-			intel_th_device_remove(th->thdev[i]);
 
 	intel_th_device_remove(th->hub);
+	for (i = 0; i < th->num_thdevs; i++) {
+		if (th->thdev[i] != th->hub)
+			intel_th_device_remove(th->thdev[i]);
+		th->thdev[i] = NULL;
+	}
+
+	th->num_thdevs = 0;
 
 	pm_runtime_get_sync(th->dev);
 	pm_runtime_forbid(th->dev);

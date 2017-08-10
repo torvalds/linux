@@ -216,6 +216,7 @@ int intel_th_trace_enable(struct intel_th_device *thdev);
 int intel_th_trace_disable(struct intel_th_device *thdev);
 int intel_th_set_output(struct intel_th_device *thdev,
 			unsigned int master);
+int intel_th_output_enable(struct intel_th *th, unsigned int otype);
 
 enum {
 	TH_MMIO_CONFIG = 0,
@@ -223,8 +224,9 @@ enum {
 	TH_MMIO_END,
 };
 
-#define TH_SUBDEVICE_MAX	6
 #define TH_POSSIBLE_OUTPUTS	8
+/* Total number of possible subdevices: outputs + GTH + STH */
+#define TH_SUBDEVICE_MAX	(TH_POSSIBLE_OUTPUTS + 2)
 #define TH_CONFIGURABLE_MASTERS 256
 #define TH_MSC_MAX		2
 
@@ -233,6 +235,10 @@ enum {
  * @dev:	driver core's device
  * @thdev:	subdevices
  * @hub:	"switch" subdevice (GTH)
+ * @resource:	resources of the entire controller
+ * @num_thdevs:	number of devices in the @thdev array
+ * @num_resources:	number or resources in the @resource array
+ * @irq:	irq number
  * @id:		this Intel TH controller's device ID in the system
  * @major:	device node major for output devices
  */
@@ -241,6 +247,11 @@ struct intel_th {
 
 	struct intel_th_device	*thdev[TH_SUBDEVICE_MAX];
 	struct intel_th_device	*hub;
+
+	struct resource		*resource;
+	unsigned int		num_thdevs;
+	unsigned int		num_resources;
+	int			irq;
 
 	int			id;
 	int			major;
