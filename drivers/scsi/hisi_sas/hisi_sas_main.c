@@ -61,6 +61,7 @@ u8 hisi_sas_get_ata_protocol(u8 cmd, int direction)
 	case ATA_CMD_WRITE_QUEUED:
 	case ATA_CMD_WRITE_LOG_DMA_EXT:
 	case ATA_CMD_WRITE_STREAM_DMA_EXT:
+	case ATA_CMD_ZAC_MGMT_IN:
 	return HISI_SAS_SATA_PROTOCOL_DMA;
 
 	case ATA_CMD_CHK_POWER:
@@ -73,6 +74,7 @@ u8 hisi_sas_get_ata_protocol(u8 cmd, int direction)
 	case ATA_CMD_SET_FEATURES:
 	case ATA_CMD_STANDBY:
 	case ATA_CMD_STANDBYNOW1:
+	case ATA_CMD_ZAC_MGMT_OUT:
 	return HISI_SAS_SATA_PROTOCOL_NONDATA;
 	default:
 		if (direction == DMA_NONE)
