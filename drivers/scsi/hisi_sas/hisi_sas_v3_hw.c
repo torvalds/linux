@@ -578,8 +578,6 @@ static void free_device_v3_hw(struct hisi_hba *hisi_hba,
 		memset(itct, 0, sizeof(struct hisi_sas_itct));
 		hisi_sas_write32(hisi_hba, ENT_INT_SRC3,
 				 ENT_INT_SRC3_ITC_INT_MSK);
-		hisi_hba->devices[dev_id].dev_type = SAS_PHY_UNUSED;
-		hisi_hba->devices[dev_id].dev_status = HISI_SAS_DEV_NORMAL;
 
 		/* clear the itct */
 		hisi_sas_write32(hisi_hba, ITCT_CLR, 0);

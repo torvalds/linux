@@ -716,7 +716,6 @@ static void hisi_sas_dev_gone(struct domain_device *device)
 	struct hisi_sas_device *sas_dev = device->lldd_dev;
 	struct hisi_hba *hisi_hba = dev_to_hisi_hba(device);
 	struct device *dev = hisi_hba->dev;
-	int dev_id = sas_dev->device_id;
 
 	dev_info(dev, "found dev[%d:%x] is gone\n",
 		 sas_dev->device_id, sas_dev->dev_type);
@@ -729,9 +728,7 @@ static void hisi_sas_dev_gone(struct domain_device *device)
 	hisi_hba->hw->free_device(hisi_hba, sas_dev);
 	device->lldd_dev = NULL;
 	memset(sas_dev, 0, sizeof(*sas_dev));
-	sas_dev->device_id = dev_id;
 	sas_dev->dev_type = SAS_PHY_UNUSED;
-	sas_dev->dev_status = HISI_SAS_DEV_NORMAL;
 }
 
 static int hisi_sas_queue_command(struct sas_task *task, gfp_t gfp_flags)
