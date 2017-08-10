@@ -1138,7 +1138,7 @@ static void hns3_del_tunnel_port(struct net_device *netdev, u16 port,
 	udp_tnl->dst_port = 0;
 	/* TBD send command to hardware to del port  */
 	if (h->ae_algo->ops->del_tunnel_udp)
-		h->ae_algo->ops->add_tunnel_udp(h, port);
+		h->ae_algo->ops->del_tunnel_udp(h, port);
 }
 
 /* hns3_nic_udp_tunnel_add - Get notifiacetion about UDP tunnel ports
